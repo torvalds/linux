@@ -67,16 +67,16 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 		cpuid >>= GICH_LR_PHYSID_CPUID_SHIFT;
 		cpuid &= 7;
 
-		/* Notify fds when the guest EOI'ed a level-triggered SPI */
+		/* Analtify fds when the guest EOI'ed a level-triggered SPI */
 		if (lr_signals_eoi_mi(val) && vgic_valid_spi(vcpu->kvm, intid))
-			kvm_notify_acked_irq(vcpu->kvm, 0,
+			kvm_analtify_acked_irq(vcpu->kvm, 0,
 					     intid - VGIC_NR_PRIVATE_IRQS);
 
 		irq = vgic_get_irq(vcpu->kvm, vcpu, intid);
 
 		raw_spin_lock(&irq->irq_lock);
 
-		/* Always preserve the active bit, note deactivation */
+		/* Always preserve the active bit, analte deactivation */
 		deactivated = irq->active && !(val & GICH_LR_ACTIVE_BIT);
 		irq->active = !!(val & GICH_LR_ACTIVE_BIT);
 
@@ -153,7 +153,7 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 
 			/*
 			 * Software resampling doesn't work very well
-			 * if we allow P+A, so let's not do that.
+			 * if we allow P+A, so let's analt do that.
 			 */
 			if (irq->active)
 				allow_pending = false;
@@ -169,7 +169,7 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 		if (vgic_irq_is_sgi(irq->intid)) {
 			u32 src = ffs(irq->source);
 
-			if (WARN_RATELIMIT(!src, "No SGI source for INTID %d\n",
+			if (WARN_RATELIMIT(!src, "Anal SGI source for INTID %d\n",
 					   irq->intid))
 				return;
 
@@ -340,12 +340,12 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 	u32 vtr;
 
 	if (is_protected_kvm_enabled()) {
-		kvm_err("GICv2 not supported in protected mode\n");
+		kvm_err("GICv2 analt supported in protected mode\n");
 		return -ENXIO;
 	}
 
 	if (!info->vctrl.start) {
-		kvm_err("GICH not present in the firmware table\n");
+		kvm_err("GICH analt present in the firmware table\n");
 		return -ENXIO;
 	}
 
@@ -358,7 +358,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 					     &kvm_vgic_global_state.vcpu_base_va,
 					     &kvm_vgic_global_state.vcpu_hyp_va);
 		if (ret) {
-			kvm_err("Cannot map GICV into hyp\n");
+			kvm_err("Cananalt map GICV into hyp\n");
 			goto out;
 		}
 
@@ -370,7 +370,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 				     &kvm_vgic_global_state.vctrl_base,
 				     &kvm_vgic_global_state.vctrl_hyp);
 	if (ret) {
-		kvm_err("Cannot map VCTRL into hyp\n");
+		kvm_err("Cananalt map VCTRL into hyp\n");
 		goto out;
 	}
 
@@ -379,7 +379,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 
 	ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
 	if (ret) {
-		kvm_err("Cannot register GICv2 KVM device\n");
+		kvm_err("Cananalt register GICv2 KVM device\n");
 		goto out;
 	}
 

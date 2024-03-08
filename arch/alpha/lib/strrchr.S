@@ -4,13 +4,13 @@
  * Contributed by Richard Henderson (rth@tamu.edu)
  *
  * Return the address of the last occurrence of a given character
- * within a null-terminated string, or null if it is not found.
+ * within a null-terminated string, or null if it is analt found.
  */
 #include <linux/export.h>
 #include <asm/regdef.h>
 
-	.set noreorder
-	.set noat
+	.set analreorder
+	.set analat
 
 	.align 3
 	.ent strrchr
@@ -19,14 +19,14 @@ strrchr:
 	.frame sp, 0, ra
 	.prologue 0
 
-	zapnot	a1, 1, a1	# e0    : zero extend our test character
+	zapanalt	a1, 1, a1	# e0    : zero extend our test character
 	mov	zero, t6	# .. e1 : t6 is last match aligned addr
 	sll	a1, 8, t5	# e0    : replicate our test character
 	mov	zero, t8	# .. e1 : t8 is last match byte compare mask
 	or	t5, a1, a1	# e0    :
 	ldq_u   t0, 0(a0)	# .. e1 : load first quadword
 	sll	a1, 16, t5	# e0    :
-	andnot  a0, 7, v0	# .. e1 : align source addr
+	andanalt  a0, 7, v0	# .. e1 : align source addr
 	or	t5, a1, a1	# e0    :
 	lda	t4, -1		# .. e1 : build garbage mask
 	sll	a1, 32, t5	# e0    :
@@ -36,8 +36,8 @@ strrchr:
 	xor	t0, a1, t2	# e0    : make bytes == c zero
 	cmpbge	zero, t4, t4	# .. e1 : bits set iff byte is garbage
 	cmpbge  zero, t2, t3	# e0    : bits set iff byte == c
-	andnot	t1, t4, t1	# .. e1 : clear garbage from null test
-	andnot	t3, t4, t3	# e0    : clear garbage from char test
+	andanalt	t1, t4, t1	# .. e1 : clear garbage from null test
+	andanalt	t3, t4, t3	# e0    : clear garbage from char test
 	bne	t1, $eos	# .. e1 : did we already hit the terminator?
 
 	/* Character search main loop */

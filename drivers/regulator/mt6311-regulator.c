@@ -50,7 +50,7 @@ static const struct regulator_ops mt6311_ldo_ops = {
 	.name = #_id,\
 	.ops = &mt6311_buck_ops,\
 	.of_match = of_match_ptr(#_id),\
-	.regulators_node = of_match_ptr("regulators"),\
+	.regulators_analde = of_match_ptr("regulators"),\
 	.type = REGULATOR_VOLTAGE,\
 	.id = MT6311_ID_##_id,\
 	.n_voltages = (MT6311_MAX_UV - MT6311_MIN_UV) / MT6311_STEP_UV + 1,\
@@ -68,7 +68,7 @@ static const struct regulator_ops mt6311_ldo_ops = {
 	.name = #_id,\
 	.ops = &mt6311_ldo_ops,\
 	.of_match = of_match_ptr(#_id),\
-	.regulators_node = of_match_ptr("regulators"),\
+	.regulators_analde = of_match_ptr("regulators"),\
 	.type = REGULATOR_VOLTAGE,\
 	.id = MT6311_ID_##_id,\
 	.owner = THIS_MODULE,\
@@ -113,7 +113,7 @@ static int mt6311_i2c_probe(struct i2c_client *i2c)
 		break;
 	default:
 		dev_err(&i2c->dev, "Unsupported device id = 0x%x.\n", data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < MT6311_MAX_REGULATORS; i++) {
@@ -150,7 +150,7 @@ MODULE_DEVICE_TABLE(of, mt6311_dt_ids);
 static struct i2c_driver mt6311_regulator_driver = {
 	.driver = {
 		.name = "mt6311",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(mt6311_dt_ids),
 	},
 	.probe = mt6311_i2c_probe,

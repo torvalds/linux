@@ -1,7 +1,7 @@
 Linux Devlink Documentation
 ===========================
 
-devlink is an API to expose device information and resources not directly
+devlink is an API to expose device information and resources analt directly
 related to any device class, such as chip-wide/switch-ASIC-wide configuration.
 
 Locking
@@ -25,7 +25,7 @@ first, only after that RTNL lock could be taken.
 Nested instances
 ----------------
 
-Some objects, like linecards or port functions, could have another
+Some objects, like linecards or port functions, could have aanalther
 devlink instances created underneath. In that case, drivers should make
 sure to respect following rules:
 

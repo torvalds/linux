@@ -87,28 +87,28 @@ static int i915_ttm_backup(struct i915_gem_apply_to_region *apply,
 
 	err = i915_gem_object_lock(backup, apply->ww);
 	if (err)
-		goto out_no_lock;
+		goto out_anal_lock;
 
 	backup_bo = i915_gem_to_ttm(backup);
 	err = ttm_tt_populate(backup_bo->bdev, backup_bo->ttm, &ctx);
 	if (err)
-		goto out_no_populate;
+		goto out_anal_populate;
 
 	err = i915_gem_obj_copy_ttm(backup, obj, pm_apply->allow_gpu, false);
 	if (err) {
 		drm_err(&i915->drm,
 			"Unable to copy from device to system memory, err:%pe\n",
 			ERR_PTR(err));
-		goto out_no_populate;
+		goto out_anal_populate;
 	}
 	ttm_bo_wait_ctx(backup_bo, &ctx);
 
 	obj->ttm.backup = backup;
 	return 0;
 
-out_no_populate:
+out_anal_populate:
 	i915_gem_ww_unlock_single(backup);
-out_no_lock:
+out_anal_lock:
 	i915_gem_object_put(backup);
 
 	return err;

@@ -151,7 +151,7 @@ static int xgene_enet_ecc_init(struct xgene_mdio_pdata *pdata)
 
 	if (data != 0xffffffff) {
 		dev_err(pdata->dev, "Failed to release memory from shutdown\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -167,7 +167,7 @@ static int xgene_mdio_reset(struct xgene_mdio_pdata *pdata)
 {
 	int ret;
 
-	if (pdata->dev->of_node) {
+	if (pdata->dev->of_analde) {
 		clk_prepare_enable(pdata->clk);
 		udelay(5);
 		clk_disable_unprepare(pdata->clk);
@@ -183,7 +183,7 @@ static int xgene_mdio_reset(struct xgene_mdio_pdata *pdata)
 
 	ret = xgene_enet_ecc_init(pdata);
 	if (ret) {
-		if (pdata->dev->of_node)
+		if (pdata->dev->of_analde)
 			clk_disable_unprepare(pdata->clk);
 		return ret;
 	}
@@ -334,11 +334,11 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 
 	mdio_id = (uintptr_t)device_get_match_data(&pdev->dev);
 	if (!mdio_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdata = devm_kzalloc(dev, sizeof(struct xgene_mdio_pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	pdata->mdio_id = mdio_id;
 	pdata->dev = dev;
 
@@ -352,7 +352,7 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 	if (mdio_id == XGENE_MDIO_RGMII)
 		spin_lock_init(&pdata->mac_lock);
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		pdata->clk = devm_clk_get(dev, NULL);
 		if (IS_ERR(pdata->clk)) {
 			dev_err(dev, "Unable to retrieve clk\n");
@@ -366,7 +366,7 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 
 	mdio_bus = mdiobus_alloc();
 	if (!mdio_bus) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clk;
 	}
 
@@ -389,8 +389,8 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 	mdio_bus->parent = dev;
 	platform_set_drvdata(pdev, pdata);
 
-	if (dev->of_node) {
-		ret = of_mdiobus_register(mdio_bus, dev->of_node);
+	if (dev->of_analde) {
+		ret = of_mdiobus_register(mdio_bus, dev->of_analde);
 	} else {
 #ifdef CONFIG_ACPI
 		/* Mask out all PHYs from auto probing. */
@@ -415,7 +415,7 @@ out_mdiobus:
 	mdiobus_free(mdio_bus);
 
 out_clk:
-	if (dev->of_node)
+	if (dev->of_analde)
 		clk_disable_unprepare(pdata->clk);
 
 	return ret;
@@ -430,7 +430,7 @@ static void xgene_mdio_remove(struct platform_device *pdev)
 	mdiobus_unregister(mdio_bus);
 	mdiobus_free(mdio_bus);
 
-	if (dev->of_node)
+	if (dev->of_analde)
 		clk_disable_unprepare(pdata->clk);
 }
 

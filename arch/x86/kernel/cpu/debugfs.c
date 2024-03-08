@@ -30,9 +30,9 @@ static int cpu_debug_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static int cpu_debug_open(struct inode *inode, struct file *file)
+static int cpu_debug_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, cpu_debug_show, inode->i_private);
+	return single_open(file, cpu_debug_show, ianalde->i_private);
 }
 
 static const struct file_operations dfs_cpu_ops = {

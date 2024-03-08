@@ -17,7 +17,7 @@
 #include "compression.h"
 #include "ctree.h"
 #include "super.h"
-#include "btrfs_inode.h"
+#include "btrfs_ianalde.h"
 
 #define LZO_LEN	4
 
@@ -39,7 +39,7 @@
  *
  * 2.1 Segment header
  *     Fixed size. LZO_LEN (4) bytes long, LE32.
- *     Records the total size of the segment (not including the header).
+ *     Records the total size of the segment (analt including the header).
  *     Segment header never crosses sector boundary, thus it's possible to
  *     have at most 3 padding zeros at the end of the sector.
  *
@@ -86,11 +86,11 @@ struct list_head *lzo_alloc_workspace(unsigned int level)
 
 	workspace = kzalloc(sizeof(*workspace), GFP_KERNEL);
 	if (!workspace)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	workspace->mem = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL | __GFP_NOWARN);
-	workspace->buf = kvmalloc(WORKSPACE_BUF_LENGTH, GFP_KERNEL | __GFP_NOWARN);
-	workspace->cbuf = kvmalloc(WORKSPACE_CBUF_LENGTH, GFP_KERNEL | __GFP_NOWARN);
+	workspace->mem = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL | __GFP_ANALWARN);
+	workspace->buf = kvmalloc(WORKSPACE_BUF_LENGTH, GFP_KERNEL | __GFP_ANALWARN);
+	workspace->cbuf = kvmalloc(WORKSPACE_CBUF_LENGTH, GFP_KERNEL | __GFP_ANALWARN);
 	if (!workspace->mem || !workspace->buf || !workspace->cbuf)
 		goto fail;
 
@@ -99,7 +99,7 @@ struct list_head *lzo_alloc_workspace(unsigned int level)
 	return &workspace->list;
 fail:
 	lzo_free_workspace(&workspace->list);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static inline void write_compress_length(char *buf, size_t len)
@@ -123,8 +123,8 @@ static inline size_t read_compress_length(const char *buf)
  *
  * - Write a segment header into the destination
  * - Copy the compressed buffer into the destination
- * - Make sure we have enough space in the last sector to fit a segment header
- *   If not, we will pad at most (LZO_LEN (4)) - 1 bytes of zeros.
+ * - Make sure we have eanalugh space in the last sector to fit a segment header
+ *   If analt, we will pad at most (LZO_LEN (4)) - 1 bytes of zeros.
  *
  * Will allocate new pages when needed.
  */
@@ -145,7 +145,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 
 	/*
 	 * We never allow a segment header crossing sector boundary, previous
-	 * run should ensure we have enough space left inside the sector.
+	 * run should ensure we have eanalugh space left inside the sector.
 	 */
 	ASSERT((*cur_out / sectorsize) == (*cur_out + LZO_LEN - 1) / sectorsize);
 
@@ -154,7 +154,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 	if (!cur_page) {
 		cur_page = btrfs_alloc_compr_page();
 		if (!cur_page)
-			return -ENOMEM;
+			return -EANALMEM;
 		out_pages[*cur_out / PAGE_SIZE] = cur_page;
 	}
 
@@ -180,7 +180,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 		if (!cur_page) {
 			cur_page = btrfs_alloc_compr_page();
 			if (!cur_page)
-				return -ENOMEM;
+				return -EANALMEM;
 			out_pages[*cur_out / PAGE_SIZE] = cur_page;
 		}
 		kaddr = kmap_local_page(cur_page);
@@ -199,7 +199,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 	if (sector_bytes_left >= LZO_LEN || sector_bytes_left == 0)
 		goto out;
 
-	/* The remaining size is not enough, pad it with zeros */
+	/* The remaining size is analt eanalugh, pad it with zeros */
 	memset(kaddr + offset_in_page(*cur_out), 0,
 	       sector_bytes_left);
 	*cur_out += sector_bytes_left;
@@ -231,7 +231,7 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 	*total_in = 0;
 
 	/*
-	 * Skip the header for now, we will later come back and write the total
+	 * Skip the header for analw, we will later come back and write the total
 	 * compressed size
 	 */
 	cur_out += LZO_LEN;
@@ -305,7 +305,7 @@ out:
 /*
  * Copy the compressed segment payload into @dest.
  *
- * For the payload there will be no padding, just need to do page switching.
+ * For the payload there will be anal padding, just need to do page switching.
  */
 static void copy_compressed_segment(struct compressed_bio *cb,
 				    char *dest, u32 len, u32 *cur_in)
@@ -330,7 +330,7 @@ static void copy_compressed_segment(struct compressed_bio *cb,
 int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	const struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
+	const struct btrfs_fs_info *fs_info = cb->bbio.ianalde->root->fs_info;
 	const u32 sectorsize = fs_info->sectorsize;
 	char *kaddr;
 	int ret;
@@ -349,7 +349,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	/*
 	 * LZO header length check
 	 *
-	 * The total length should not exceed the maximum extent length,
+	 * The total length should analt exceed the maximum extent length,
 	 * and all sectors should be used.
 	 * If this happens, it means the compressed extent is corrupted.
 	 */
@@ -370,7 +370,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		size_t out_len = lzo1x_worst_compress(sectorsize);
 
 		/*
-		 * We should always have enough space for one segment header
+		 * We should always have eanalugh space for one segment header
 		 * inside current sector.
 		 */
 		ASSERT(cur_in / sectorsize ==
@@ -403,7 +403,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 			return -EIO;
 		}
 
-		/* Copy the data into inode pages */
+		/* Copy the data into ianalde pages */
 		ret = btrfs_decompress_buf2page(workspace->buf, out_len, cb, cur_out);
 		cur_out += out_len;
 
@@ -412,7 +412,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 			return 0;
 		ret = 0;
 
-		/* Check if the sector has enough space for a segment header */
+		/* Check if the sector has eanalugh space for a segment header */
 		sector_bytes_left = sectorsize - (cur_in % sectorsize);
 		if (sector_bytes_left >= LZO_LEN)
 			continue;

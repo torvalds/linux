@@ -143,7 +143,7 @@ static void au1x_pcm_dbdma_free(struct au1xpsc_audio_dmadata *pcd)
 /* in case of missing DMA ring or changed TX-source / RX-dest bit widths,
  * allocate (or reallocate) a 2-descriptor DMA ring with bit depth according
  * to ALSA-supplied sample depth.  This is due to limitations in the dbdma api
- * (cannot adjust source/dest widths of already allocated descriptor ring).
+ * (cananalt adjust source/dest widths of already allocated descriptor ring).
  */
 static int au1x_pcm_dbdma_realloc(struct au1xpsc_audio_dmadata *pcd,
 				 int stype, int msbits)
@@ -168,7 +168,7 @@ static int au1x_pcm_dbdma_realloc(struct au1xpsc_audio_dmadata *pcd,
 					au1x_pcm_dmatx_cb, (void *)pcd);
 
 	if (!pcd->ddma_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	au1xxx_dbdma_set_devwidth(pcd->ddma_chan, msbits);
 	au1xxx_dbdma_ring_alloc(pcd->ddma_chan, 2);
@@ -283,7 +283,7 @@ static int au1xpsc_pcm_open(struct snd_soc_component *component,
 
 	dmaids = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 	if (!dmaids)
-		return -ENODEV;	/* whoa, has ordering changed? */
+		return -EANALDEV;	/* whoa, has ordering changed? */
 
 	pcd->ddma_id = dmaids[stype];
 
@@ -330,7 +330,7 @@ static int au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 			       2, sizeof(struct au1xpsc_audio_dmadata),
 			       GFP_KERNEL);
 	if (!dmadata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dmadata);
 

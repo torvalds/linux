@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2021, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2021, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@somainline.org>
  */
 
 /dts-v1/;
@@ -162,13 +162,13 @@
 	reserved-memory {
 		cont_splash_mem: memory@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		zap_shader_region: memory@f6400000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xf6400000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@ffc00000 {
@@ -221,7 +221,7 @@
 		/*
 		 * Configure a pull-up on 45 (RX). This is needed to
 		 * avoid garbage data when the TX pin of the Bluetooth
-		 * module is in tri-state (module powered off or not
+		 * module is in tri-state (module powered off or analt
 		 * driving the signal yet).
 		 */
 		bias-pull-up;
@@ -341,26 +341,26 @@
 &pm8998_gpios {
 	vol_up_pin_a: vol-up-active-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		bias-pull-up;
 		input-enable;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 
 	cam_focus_pin_a: cam-focus-btn-active-state {
 		pins = "gpio7";
-		function = "normal";
+		function = "analrmal";
 		bias-pull-up;
 		input-enable;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 
 	cam_snapshot_pin_a: cam-snapshot-btn-active-state {
 		pins = "gpio8";
-		function = "normal";
+		function = "analrmal";
 		bias-pull-up;
 		input-enable;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 };
 

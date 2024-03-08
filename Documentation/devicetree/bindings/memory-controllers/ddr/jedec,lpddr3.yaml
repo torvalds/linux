@@ -176,8 +176,8 @@ patternProperties:
   "^timings((-[0-9])+|(@[0-9a-f]+))?$":
     $ref: jedec,lpddr3-timings.yaml
     description: |
-      The lpddr3 node may have one or more child nodes with timings.
-      Each timing node provides AC timing parameters of the device for a given
+      The lpddr3 analde may have one or more child analdes with timings.
+      Each timing analde provides AC timing parameters of the device for a given
       speed-bin. The user may provide the timings for as many speed-bins as is
       required.
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@
 #include <nvif/class.h>
 
 static irqreturn_t
-tu102_fault_buffer_notify(struct nvkm_inth *inth)
+tu102_fault_buffer_analtify(struct nvkm_inth *inth)
 {
 	struct nvkm_fault_buffer *buffer = container_of(inth, typeof(*buffer), inth);
 
@@ -141,15 +141,15 @@ tu102_fault_oneinit(struct nvkm_fault *fault)
 	int ret, i;
 
 	ret = nvkm_inth_add(intr, nvkm_rd32(device, 0x100ee0) & 0x0000ffff,
-			    NVKM_INTR_PRIO_NORMAL, &fault->subdev, tu102_fault_info_fault,
+			    NVKM_INTR_PRIO_ANALRMAL, &fault->subdev, tu102_fault_info_fault,
 			    &fault->info_fault);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < fault->buffer_nr; i++) {
 		ret = nvkm_inth_add(intr, nvkm_rd32(device, 0x100ee4 + (i * 4)) >> 16,
-				    NVKM_INTR_PRIO_NORMAL, &fault->subdev,
-				    tu102_fault_buffer_notify, &fault->buffer[i]->inth);
+				    NVKM_INTR_PRIO_ANALRMAL, &fault->subdev,
+				    tu102_fault_buffer_analtify, &fault->buffer[i]->inth);
 		if (ret)
 			return ret;
 	}
@@ -179,7 +179,7 @@ tu102_fault_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst
 	int ret;
 
 	if (nvkm_gsp_rm(device->gsp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = nvkm_fault_new_(&tu102_fault, device, type, inst, pfault);
 	if (ret)

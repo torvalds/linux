@@ -2,7 +2,7 @@
 /* Copyright (c) 2020 Facebook */
 
 #include <linux/fs.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
 #include <linux/rcupdate_trace.h>
@@ -106,7 +106,7 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 		seq->size = PAGE_SIZE << 3;
 		seq->buf = kvmalloc(seq->size, GFP_KERNEL);
 		if (!seq->buf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto done;
 		}
 	}
@@ -159,7 +159,7 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 		p = seq->op->next(seq, p, &seq->index);
 		if (pos == seq->index) {
 			pr_info_ratelimited("buggy seq_file .next function %ps "
-				"did not updated position index\n",
+				"did analt updated position index\n",
 				seq->op->next);
 			seq->index++;
 		}
@@ -253,14 +253,14 @@ __get_seq_info(struct bpf_iter_link *link)
 	return link->tinfo->reg_info->seq_info;
 }
 
-static int iter_open(struct inode *inode, struct file *file)
+static int iter_open(struct ianalde *ianalde, struct file *file)
 {
-	struct bpf_iter_link *link = inode->i_private;
+	struct bpf_iter_link *link = ianalde->i_private;
 
 	return prepare_seq_file(file, link, __get_seq_info(link));
 }
 
-static int iter_release(struct inode *inode, struct file *file)
+static int iter_release(struct ianalde *ianalde, struct file *file)
 {
 	struct bpf_iter_priv_data *iter_priv;
 	struct seq_file *seq;
@@ -278,12 +278,12 @@ static int iter_release(struct inode *inode, struct file *file)
 	bpf_prog_put(iter_priv->prog);
 	seq->private = iter_priv;
 
-	return seq_release_private(inode, file);
+	return seq_release_private(ianalde, file);
 }
 
 const struct file_operations bpf_iter_fops = {
 	.open		= iter_open,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.read		= bpf_seq_read,
 	.release	= iter_release,
 };
@@ -299,7 +299,7 @@ int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info)
 
 	tinfo = kzalloc(sizeof(*tinfo), GFP_KERNEL);
 	if (!tinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tinfo->reg_info = reg_info;
 	INIT_LIST_HEAD(&tinfo->list);
@@ -480,7 +480,7 @@ static int bpf_iter_link_fill_link_info(const struct bpf_link *link,
 				return -EFAULT;
 			if (put_user(zero, ubuf + ulen - 1))
 				return -EFAULT;
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 	}
 
@@ -545,15 +545,15 @@ int bpf_iter_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
 	}
 	mutex_unlock(&targets_mutex);
 	if (!tinfo)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Only allow sleepable program for resched-able iterator */
 	if (prog->aux->sleepable && !bpf_iter_target_support_resched(tinfo))
 		return -EINVAL;
 
-	link = kzalloc(sizeof(*link), GFP_USER | __GFP_NOWARN);
+	link = kzalloc(sizeof(*link), GFP_USER | __GFP_ANALWARN);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpf_link_init(&link->link, BPF_LINK_TYPE_ITER, &bpf_iter_link_lops, prog);
 	link->tinfo = tinfo;
@@ -609,7 +609,7 @@ static int prepare_seq_file(struct file *file, struct bpf_iter_link *link,
 	priv_data = __seq_open_private(file, seq_info->seq_ops,
 				       total_priv_dsize);
 	if (!priv_data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release_prog;
 	}
 
@@ -626,7 +626,7 @@ static int prepare_seq_file(struct file *file, struct bpf_iter_link *link,
 	return 0;
 
 release_seq_file:
-	seq_release_private(file->f_inode, file);
+	seq_release_private(file->f_ianalde, file);
 	file->private_data = NULL;
 release_prog:
 	bpf_prog_put(prog);
@@ -648,7 +648,7 @@ int bpf_iter_new_fd(struct bpf_link *link)
 	if (fd < 0)
 		return fd;
 
-	file = anon_inode_getfile("bpf_iter", &bpf_iter_fops, NULL, flags);
+	file = aanaln_ianalde_getfile("bpf_iter", &bpf_iter_fops, NULL, flags);
 	if (IS_ERR(file)) {
 		err = PTR_ERR(file);
 		goto free_fd;
@@ -748,7 +748,7 @@ BPF_CALL_4(bpf_loop, u32, nr_loops, void *, callback_fn, void *, callback_ctx,
 	u64 ret;
 	u32 i;
 
-	/* Note: these safety checks are also verified when bpf_loop
+	/* Analte: these safety checks are also verified when bpf_loop
 	 * is inlined, be careful to modify this code in sync. See
 	 * function verifier.c:inline_bpf_loop.
 	 */
@@ -789,7 +789,7 @@ __bpf_kfunc int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end)
 	struct bpf_iter_num_kern *s = (void *)it;
 
 	BUILD_BUG_ON(sizeof(struct bpf_iter_num_kern) != sizeof(struct bpf_iter_num));
-	BUILD_BUG_ON(__alignof__(struct bpf_iter_num_kern) != __alignof__(struct bpf_iter_num));
+	BUILD_BUG_ON(__aliganalf__(struct bpf_iter_num_kern) != __aliganalf__(struct bpf_iter_num));
 
 	/* start == end is legit, it's an empty range and we'll just get NULL
 	 * on first (and any subsequent) bpf_iter_num_next() call

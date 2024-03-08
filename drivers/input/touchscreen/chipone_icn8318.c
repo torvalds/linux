@@ -33,7 +33,7 @@ struct icn8318_touch {
 	__u8 pressure;	/* Seems more like finger width then pressure really */
 	__u8 event;
 /* The difference between 2 and 3 is unclear */
-#define ICN8318_EVENT_NO_DATA	1 /* No finger seen yet since wakeup */
+#define ICN8318_EVENT_ANAL_DATA	1 /* Anal finger seen yet since wakeup */
 #define ICN8318_EVENT_UPDATE1	2 /* New or updated coordinates */
 #define ICN8318_EVENT_UPDATE2	3 /* New or updated coordinates */
 #define ICN8318_EVENT_END	4 /* Finger lifted */
@@ -96,7 +96,7 @@ static irqreturn_t icn8318_irq(int irq, void *dev_id)
 		/*
 		 * Other data is invalid when a softbutton is pressed.
 		 * This needs some extra devicetree bindings to map the icn8318
-		 * softbutton codes to evdev codes. Currently no known devices
+		 * softbutton codes to evdev codes. Currently anal kanalwn devices
 		 * use this.
 		 */
 		return IRQ_HANDLED;
@@ -182,13 +182,13 @@ static int icn8318_probe(struct i2c_client *client)
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "Error no irq specified\n");
+		dev_err(dev, "Error anal irq specified\n");
 		return -EINVAL;
 	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->wake_gpio = devm_gpiod_get(dev, "wake", GPIOD_OUT_LOW);
 	if (IS_ERR(data->wake_gpio))
@@ -196,7 +196,7 @@ static int icn8318_probe(struct i2c_client *client)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = client->name;
 	input->id.bustype = BUS_I2C;

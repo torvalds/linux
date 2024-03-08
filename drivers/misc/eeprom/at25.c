@@ -21,10 +21,10 @@
 #include <linux/nvmem-provider.h>
 
 /*
- * NOTE: this is an *EEPROM* driver. The vagaries of product naming
+ * ANALTE: this is an *EEPROM* driver. The vagaries of product naming
  * mean that some AT25 products are EEPROMs, and others are FLASH.
  * Handle FLASH chips with the drivers/mtd/devices/m25p80.c driver,
- * not this one!
+ * analt this one!
  *
  * EEPROMs that can be used with this driver include, for example:
  *   AT25M02, AT25128B
@@ -217,7 +217,7 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		buf_size = io_limit;
 	bounce = kmalloc(buf_size + at25->addrlen + 1, GFP_KERNEL);
 	if (!bounce)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * For write, rollover is within the page ... so we write at
@@ -277,7 +277,7 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		 * to read-only sections of the EEPROM...
 		 */
 
-		/* Wait for non-busy status */
+		/* Wait for analn-busy status */
 		timeout = jiffies + msecs_to_jiffies(EE_TIMEOUT);
 		retries = 0;
 		do {
@@ -369,7 +369,7 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 			dev_err(dev,
 				"Error: bad \"address-width\" property: %u\n",
 				val);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		if (device_property_present(dev, "read-only"))
 			chip->flags |= EE_READONLY;
@@ -389,13 +389,13 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 	/* Get ID of chip */
 	fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);
 	if (id[6] != 0xc2) {
-		dev_err(dev, "Error: no Cypress FRAM (id %02x)\n", id[6]);
-		return -ENODEV;
+		dev_err(dev, "Error: anal Cypress FRAM (id %02x)\n", id[6]);
+		return -EANALDEV;
 	}
 	/* Set size found in ID */
 	if (id[7] < 0x21 || id[7] > 0x26) {
 		dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
@@ -450,13 +450,13 @@ static int at25_probe(struct spi_device *spi)
 
 	at25 = devm_kzalloc(&spi->dev, sizeof(*at25), GFP_KERNEL);
 	if (!at25)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&at25->lock);
 	at25->spi = spi;
 	spi_set_drvdata(spi, at25);
 
-	is_fram = fwnode_device_is_compatible(dev_fwnode(&spi->dev), "cypress,fm25");
+	is_fram = fwanalde_device_is_compatible(dev_fwanalde(&spi->dev), "cypress,fm25");
 
 	/* Chip description */
 	pdata = dev_get_platdata(&spi->dev);
@@ -471,7 +471,7 @@ static int at25_probe(struct spi_device *spi)
 			return err;
 	}
 
-	/* For now we only support 8/16/24 bit addressing */
+	/* For analw we only support 8/16/24 bit addressing */
 	if (at25->chip.flags & EE_ADDR1)
 		at25->addrlen = 1;
 	else if (at25->chip.flags & EE_ADDR2)

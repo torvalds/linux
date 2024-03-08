@@ -13,7 +13,7 @@
 #include <linux/param.h>
 #include <linux/time.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/in.h>
 #include <linux/pagemap.h>
@@ -27,8 +27,8 @@
 
 #define NFSDBG_FACILITY		NFSDBG_XDR
 
-/* Mapping from NFS error code to "errno" error code. */
-#define errno_NFSERR_IO		EIO
+/* Mapping from NFS error code to "erranal" error code. */
+#define erranal_NFSERR_IO		EIO
 
 /*
  * Declare the space requirements for NFS arguments and replies as
@@ -64,7 +64,7 @@
 #define NFS_readdirres_sz	(1+NFS_pagepad_sz)
 #define NFS_statfsres_sz	(1+NFS_info_sz)
 
-static int nfs_stat_to_errno(enum nfs_stat);
+static int nfs_stat_to_erranal(enum nfs_stat);
 
 /*
  * Encode/decode NFSv2 basic data types
@@ -72,7 +72,7 @@ static int nfs_stat_to_errno(enum nfs_stat);
  * Basic NFSv2 data types are defined in section 2.3 of RFC 1094:
  * "NFS: Network File System Protocol Specification".
  *
- * Not all basic data types have their own encoding and decoding
+ * Analt all basic data types have their own encoding and decoding
  * functions.  For run-time efficiency, some data types are encoded
  * or decoded inline.
  */
@@ -107,7 +107,7 @@ static int decode_nfsdata(struct xdr_stream *xdr, struct nfs_pgio_res *result)
 	if (unlikely(count > recvd))
 		goto out_cheating;
 out:
-	result->eof = 0;	/* NFSv2 does not pass EOF flag on the wire. */
+	result->eof = 0;	/* NFSv2 does analt pass EOF flag on the wire. */
 	result->count = count;
 	return count;
 out_cheating:
@@ -121,19 +121,19 @@ out_cheating:
  *	enum stat {
  *		NFS_OK = 0,
  *		NFSERR_PERM = 1,
- *		NFSERR_NOENT = 2,
+ *		NFSERR_ANALENT = 2,
  *		NFSERR_IO = 5,
  *		NFSERR_NXIO = 6,
  *		NFSERR_ACCES = 13,
  *		NFSERR_EXIST = 17,
- *		NFSERR_NODEV = 19,
- *		NFSERR_NOTDIR = 20,
+ *		NFSERR_ANALDEV = 19,
+ *		NFSERR_ANALTDIR = 20,
  *		NFSERR_ISDIR = 21,
  *		NFSERR_FBIG = 27,
- *		NFSERR_NOSPC = 28,
+ *		NFSERR_ANALSPC = 28,
  *		NFSERR_ROFS = 30,
  *		NFSERR_NAMETOOLONG = 63,
- *		NFSERR_NOTEMPTY = 66,
+ *		NFSERR_ANALTEMPTY = 66,
  *		NFSERR_DQUOT = 69,
  *		NFSERR_STALE = 70,
  *		NFSERR_WFLUSH = 99
@@ -160,7 +160,7 @@ out_status:
  * 2.3.2.  ftype
  *
  *	enum ftype {
- *		NFNON = 0,
+ *		NFANALN = 0,
  *		NFREG = 1,
  *		NFDIR = 2,
  *		NFBLK = 3,
@@ -298,7 +298,7 @@ static int decode_fattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
 
 	fattr->du.nfs2.blocks = be32_to_cpup(p++);
 	fattr->fsid.major = be32_to_cpup(p++);
-	fattr->fsid.minor = 0;
+	fattr->fsid.mianalr = 0;
 	fattr->fileid = be32_to_cpup(p++);
 
 	p = xdr_decode_time(p, &fattr->atime);
@@ -328,12 +328,12 @@ out_gid:
  *	};
  */
 
-#define NFS2_SATTR_NOT_SET	(0xffffffff)
+#define NFS2_SATTR_ANALT_SET	(0xffffffff)
 
-static __be32 *xdr_time_not_set(__be32 *p)
+static __be32 *xdr_time_analt_set(__be32 *p)
 {
-	*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
-	*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
+	*p++ = cpu_to_be32(NFS2_SATTR_ANALT_SET);
+	*p++ = cpu_to_be32(NFS2_SATTR_ANALT_SET);
 	return p;
 }
 
@@ -347,32 +347,32 @@ static void encode_sattr(struct xdr_stream *xdr, const struct iattr *attr,
 	if (attr->ia_valid & ATTR_MODE)
 		*p++ = cpu_to_be32(attr->ia_mode);
 	else
-		*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
+		*p++ = cpu_to_be32(NFS2_SATTR_ANALT_SET);
 	if (attr->ia_valid & ATTR_UID)
 		*p++ = cpu_to_be32(from_kuid_munged(userns, attr->ia_uid));
 	else
-		*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
+		*p++ = cpu_to_be32(NFS2_SATTR_ANALT_SET);
 	if (attr->ia_valid & ATTR_GID)
 		*p++ = cpu_to_be32(from_kgid_munged(userns, attr->ia_gid));
 	else
-		*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
+		*p++ = cpu_to_be32(NFS2_SATTR_ANALT_SET);
 	if (attr->ia_valid & ATTR_SIZE)
 		*p++ = cpu_to_be32((u32)attr->ia_size);
 	else
-		*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
+		*p++ = cpu_to_be32(NFS2_SATTR_ANALT_SET);
 
 	if (attr->ia_valid & ATTR_ATIME_SET)
 		p = xdr_encode_time(p, &attr->ia_atime);
 	else if (attr->ia_valid & ATTR_ATIME)
 		p = xdr_encode_current_server_time(p, &attr->ia_atime);
 	else
-		p = xdr_time_not_set(p);
+		p = xdr_time_analt_set(p);
 	if (attr->ia_valid & ATTR_MTIME_SET)
 		xdr_encode_time(p, &attr->ia_mtime);
 	else if (attr->ia_valid & ATTR_MTIME)
 		xdr_encode_current_server_time(p, &attr->ia_mtime);
 	else
-		xdr_time_not_set(p);
+		xdr_time_analt_set(p);
 }
 
 /*
@@ -480,7 +480,7 @@ static int decode_attrstat(struct xdr_stream *xdr, struct nfs_fattr *result,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erranal(status);
 }
 
 /*
@@ -539,7 +539,7 @@ static int decode_diropres(struct xdr_stream *xdr, struct nfs_diropok *result,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erranal(status);
 }
 
 
@@ -639,7 +639,7 @@ static void nfs2_xdr_enc_readargs(struct rpc_rqst *req,
  *
  *	struct writeargs {
  *		fhandle file;
- *		unsigned beginoffset;
+ *		unsigned begianalffset;
  *		unsigned offset;
  *		unsigned totalcount;
  *		nfsdata data;
@@ -812,7 +812,7 @@ static int nfs2_xdr_dec_stat(struct rpc_rqst *req, struct xdr_stream *xdr,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erranal(status);
 }
 
 static int nfs2_xdr_dec_attrstat(struct rpc_rqst *req, struct xdr_stream *xdr,
@@ -852,7 +852,7 @@ static int nfs2_xdr_dec_readlinkres(struct rpc_rqst *req,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erranal(status);
 }
 
 /*
@@ -886,7 +886,7 @@ static int nfs2_xdr_dec_readres(struct rpc_rqst *req, struct xdr_stream *xdr,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erranal(status);
 }
 
 static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, struct xdr_stream *xdr,
@@ -907,10 +907,10 @@ static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, struct xdr_stream *xdr,
  * @entry: buffer to fill in with entry data
  * @plus: boolean indicating whether this should be a readdirplus entry
  *
- * Returns zero if successful, otherwise a negative errno value is
+ * Returns zero if successful, otherwise a negative erranal value is
  * returned.
  *
- * This function is not invoked during READDIR reply decoding, but
+ * This function is analt invoked during READDIR reply decoding, but
  * rather whenever an application invokes the getdents(2) system call
  * on a directory already in our cache.
  *
@@ -945,7 +945,7 @@ int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		return -EAGAIN;
-	entry->ino = be32_to_cpup(p);
+	entry->ianal = be32_to_cpup(p);
 
 	error = decode_filename_inline(xdr, &entry->name, &entry->len);
 	if (unlikely(error))
@@ -960,7 +960,7 @@ int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 		return -EAGAIN;
 	entry->cookie = be32_to_cpup(p);
 
-	entry->d_type = DT_UNKNOWN;
+	entry->d_type = DT_UNKANALWN;
 
 	return 0;
 }
@@ -1002,7 +1002,7 @@ static int nfs2_xdr_dec_readdirres(struct rpc_rqst *req,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erranal(status);
 }
 
 /*
@@ -1051,37 +1051,37 @@ static int nfs2_xdr_dec_statfsres(struct rpc_rqst *req, struct xdr_stream *xdr,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erranal(status);
 }
 
 
 /*
  * We need to translate between nfs status return values and
- * the local errno values which may not be the same.
+ * the local erranal values which may analt be the same.
  */
 static const struct {
 	int stat;
-	int errno;
+	int erranal;
 } nfs_errtbl[] = {
 	{ NFS_OK,		0		},
 	{ NFSERR_PERM,		-EPERM		},
-	{ NFSERR_NOENT,		-ENOENT		},
-	{ NFSERR_IO,		-errno_NFSERR_IO},
+	{ NFSERR_ANALENT,		-EANALENT		},
+	{ NFSERR_IO,		-erranal_NFSERR_IO},
 	{ NFSERR_NXIO,		-ENXIO		},
 /*	{ NFSERR_EAGAIN,	-EAGAIN		}, */
 	{ NFSERR_ACCES,		-EACCES		},
 	{ NFSERR_EXIST,		-EEXIST		},
 	{ NFSERR_XDEV,		-EXDEV		},
-	{ NFSERR_NODEV,		-ENODEV		},
-	{ NFSERR_NOTDIR,	-ENOTDIR	},
+	{ NFSERR_ANALDEV,		-EANALDEV		},
+	{ NFSERR_ANALTDIR,	-EANALTDIR	},
 	{ NFSERR_ISDIR,		-EISDIR		},
 	{ NFSERR_INVAL,		-EINVAL		},
 	{ NFSERR_FBIG,		-EFBIG		},
-	{ NFSERR_NOSPC,		-ENOSPC		},
+	{ NFSERR_ANALSPC,		-EANALSPC		},
 	{ NFSERR_ROFS,		-EROFS		},
 	{ NFSERR_MLINK,		-EMLINK		},
 	{ NFSERR_NAMETOOLONG,	-ENAMETOOLONG	},
-	{ NFSERR_NOTEMPTY,	-ENOTEMPTY	},
+	{ NFSERR_ANALTEMPTY,	-EANALTEMPTY	},
 	{ NFSERR_DQUOT,		-EDQUOT		},
 	{ NFSERR_STALE,		-ESTALE		},
 	{ NFSERR_REMOTE,	-EREMOTE	},
@@ -1089,9 +1089,9 @@ static const struct {
 	{ NFSERR_WFLUSH,	-EWFLUSH	},
 #endif
 	{ NFSERR_BADHANDLE,	-EBADHANDLE	},
-	{ NFSERR_NOT_SYNC,	-ENOTSYNC	},
+	{ NFSERR_ANALT_SYNC,	-EANALTSYNC	},
 	{ NFSERR_BAD_COOKIE,	-EBADCOOKIE	},
-	{ NFSERR_NOTSUPP,	-ENOTSUPP	},
+	{ NFSERR_ANALTSUPP,	-EANALTSUPP	},
 	{ NFSERR_TOOSMALL,	-ETOOSMALL	},
 	{ NFSERR_SERVERFAULT,	-EREMOTEIO	},
 	{ NFSERR_BADTYPE,	-EBADTYPE	},
@@ -1100,22 +1100,22 @@ static const struct {
 };
 
 /**
- * nfs_stat_to_errno - convert an NFS status code to a local errno
+ * nfs_stat_to_erranal - convert an NFS status code to a local erranal
  * @status: NFS status code to convert
  *
- * Returns a local errno value, or -EIO if the NFS status code is
- * not recognized.  This function is used jointly by NFSv2 and NFSv3.
+ * Returns a local erranal value, or -EIO if the NFS status code is
+ * analt recognized.  This function is used jointly by NFSv2 and NFSv3.
  */
-static int nfs_stat_to_errno(enum nfs_stat status)
+static int nfs_stat_to_erranal(enum nfs_stat status)
 {
 	int i;
 
 	for (i = 0; nfs_errtbl[i].stat != -1; i++) {
 		if (nfs_errtbl[i].stat == (int)status)
-			return nfs_errtbl[i].errno;
+			return nfs_errtbl[i].erranal;
 	}
 	dprintk("NFS: Unrecognized nfs status value: %u\n", status);
-	return nfs_errtbl[i].errno;
+	return nfs_errtbl[i].erranal;
 }
 
 #define PROC(proc, argtype, restype, timer)				\

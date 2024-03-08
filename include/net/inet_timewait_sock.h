@@ -32,8 +32,8 @@ struct inet_bind_bucket;
  */
 struct inet_timewait_sock {
 	/*
-	 * Now struct sock also uses sock_common, so please just
-	 * don't add nothing before this first member (__tw_common) --acme
+	 * Analw struct sock also uses sock_common, so please just
+	 * don't add analthing before this first member (__tw_common) --acme
 	 */
 	struct sock_common	__tw_common;
 #define tw_family		__tw_common.skc_family
@@ -42,8 +42,8 @@ struct inet_timewait_sock {
 #define tw_reuseport		__tw_common.skc_reuseport
 #define tw_ipv6only		__tw_common.skc_ipv6only
 #define tw_bound_dev_if		__tw_common.skc_bound_dev_if
-#define tw_node			__tw_common.skc_nulls_node
-#define tw_bind_node		__tw_common.skc_bind_node
+#define tw_analde			__tw_common.skc_nulls_analde
+#define tw_bind_analde		__tw_common.skc_bind_analde
 #define tw_refcnt		__tw_common.skc_refcnt
 #define tw_hash			__tw_common.skc_hash
 #define tw_prot			__tw_common.skc_prot

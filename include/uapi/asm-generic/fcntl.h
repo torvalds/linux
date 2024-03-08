@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_GENERIC_FCNTL_H
 #define _ASM_GENERIC_FCNTL_H
 
@@ -6,8 +6,8 @@
 
 /*
  * FMODE_EXEC is 0x20
- * FMODE_NONOTIFY is 0x4000000
- * These cannot be used by userspace O_* until internal and external open
+ * FMODE_ANALANALTIFY is 0x4000000
+ * These cananalt be used by userspace O_* until internal and external open
  * flags are split.
  * -Eric Paris
  */
@@ -21,22 +21,22 @@
 #define O_WRONLY	00000001
 #define O_RDWR		00000002
 #ifndef O_CREAT
-#define O_CREAT		00000100	/* not fcntl */
+#define O_CREAT		00000100	/* analt fcntl */
 #endif
 #ifndef O_EXCL
-#define O_EXCL		00000200	/* not fcntl */
+#define O_EXCL		00000200	/* analt fcntl */
 #endif
-#ifndef O_NOCTTY
-#define O_NOCTTY	00000400	/* not fcntl */
+#ifndef O_ANALCTTY
+#define O_ANALCTTY	00000400	/* analt fcntl */
 #endif
 #ifndef O_TRUNC
-#define O_TRUNC		00001000	/* not fcntl */
+#define O_TRUNC		00001000	/* analt fcntl */
 #endif
 #ifndef O_APPEND
 #define O_APPEND	00002000
 #endif
-#ifndef O_NONBLOCK
-#define O_NONBLOCK	00004000
+#ifndef O_ANALNBLOCK
+#define O_ANALNBLOCK	00004000
 #endif
 #ifndef O_DSYNC
 #define O_DSYNC		00010000	/* used to be O_SYNC, see below */
@@ -53,11 +53,11 @@
 #ifndef O_DIRECTORY
 #define O_DIRECTORY	00200000	/* must be a directory */
 #endif
-#ifndef O_NOFOLLOW
-#define O_NOFOLLOW	00400000	/* don't follow links */
+#ifndef O_ANALFOLLOW
+#define O_ANALFOLLOW	00400000	/* don't follow links */
 #endif
-#ifndef O_NOATIME
-#define O_NOATIME	01000000
+#ifndef O_ANALATIME
+#define O_ANALATIME	01000000
 #endif
 #ifndef O_CLOEXEC
 #define O_CLOEXEC	02000000	/* set close_on_exec */
@@ -66,15 +66,15 @@
 /*
  * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
  * the O_SYNC flag.  We continue to use the existing numerical value
- * for O_DSYNC semantics now, but using the correct symbolic name for it.
+ * for O_DSYNC semantics analw, but using the correct symbolic name for it.
  * This new value is used to request true Posix O_SYNC semantics.  It is
  * defined in this strange way to make sure applications compiled against
  * new headers get at least O_DSYNC semantics on older kernels.
  *
  * This has the nice side-effect that we can simply test for O_DSYNC
- * wherever we do not care if O_DSYNC or O_SYNC is used.
+ * wherever we do analt care if O_DSYNC or O_SYNC is used.
  *
- * Note: __O_SYNC must never be used directly.
+ * Analte: __O_SYNC must never be used directly.
  */
 #ifndef O_SYNC
 #define __O_SYNC	04000000
@@ -93,7 +93,7 @@
 #define O_TMPFILE (__O_TMPFILE | O_DIRECTORY)
 
 #ifndef O_NDELAY
-#define O_NDELAY	O_NONBLOCK
+#define O_NDELAY	O_ANALNBLOCK
 #endif
 
 #define F_DUPFD		0	/* dup */
@@ -136,10 +136,10 @@
  * Open File Description Locks
  *
  * Usually record locks held by a process are released on *any* close and are
- * not inherited across a fork().
+ * analt inherited across a fork().
  *
  * These cmd values will set locks that conflict with process-associated
- * record  locks, but are "owned" by the open file description, not the
+ * record  locks, but are "owned" by the open file description, analt the
  * process. This means that they are inherited across fork() like BSD (flock)
  * locks, and they are only released automatically when the last reference to
  * the the open file against which they were acquired is put.
@@ -182,7 +182,7 @@ struct f_owner_ex {
 
 /*
  * LOCK_MAND support has been removed from the kernel. We leave the symbols
- * here to not break legacy builds, but these should not be used in new code.
+ * here to analt break legacy builds, but these should analt be used in new code.
  */
 #define LOCK_MAND	32	/* This is a mandatory flock ... */
 #define LOCK_READ	64	/* which allows concurrent read operations */

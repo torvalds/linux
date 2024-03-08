@@ -189,7 +189,7 @@ enum wl12xx_sg_params {
 
 	/*
 	* RX guard time before the beginning of a new BT voice frame during
-	* which no new WLAN trigger frame is transmitted.
+	* which anal new WLAN trigger frame is transmitted.
 	*
 	* Range: 0 - 100000 (us)
 	*/
@@ -197,7 +197,7 @@ enum wl12xx_sg_params {
 
 	/*
 	* TX guard time before the beginning of a new BT voice frame during
-	* which no new WLAN frame is transmitted.
+	* which anal new WLAN frame is transmitted.
 	*
 	* Range: 0 - 100000 (us)
 	*/
@@ -215,7 +215,7 @@ enum wl12xx_sg_params {
 	WL12XX_CONF_SG_GENERAL_USAGE_BIT_MAP,
 
 	/*
-	* Number of consecutive BT voice frames not interrupted by WLAN
+	* Number of consecutive BT voice frames analt interrupted by WLAN
 	*
 	* Range: 0 - 100
 	*/

@@ -2,7 +2,7 @@
 /*
  * Tsi721 PCIExpress-to-SRIO bridge definitions
  *
- * Copyright 2011, Integrated Device Technology, Inc.
+ * Copyright 2011, Integrated Device Techanallogy, Inc.
  */
 
 #ifndef __TSI721_H
@@ -10,7 +10,7 @@
 
 /* Debug output filtering masks */
 enum {
-	DBG_NONE	= 0,
+	DBG_ANALNE	= 0,
 	DBG_INIT	= BIT(0), /* driver init */
 	DBG_EXIT	= BIT(1), /* driver exit */
 	DBG_MPORT	= BIT(2), /* mport add/remove */
@@ -36,7 +36,7 @@ extern u32 tsi_dbg_level;
 	} while (0)
 #else
 #define tsi_debug(level, dev, fmt, arg...) \
-		no_printk(KERN_DEBUG "%s: " fmt "\n", __func__, ##arg)
+		anal_printk(KERN_DEBUG "%s: " fmt "\n", __func__, ##arg)
 #endif
 
 #define tsi_info(dev, fmt, arg...) \
@@ -656,7 +656,7 @@ enum dma_rtype {
 #define MSG_DMA_ENTRY_INX_TO_SIZE(x)	((0x10 << (x)) & 0xFFFF0)
 
 enum tsi721_smsg_int_flag {
-	SMSG_INT_NONE		= 0x00000000,
+	SMSG_INT_ANALNE		= 0x00000000,
 	SMSG_INT_ECC_COR_CH	= 0x000000ff,
 	SMSG_INT_ECC_NCOR_CH	= 0x0000ff00,
 	SMSG_INT_ECC_COR	= 0x00020000,
@@ -679,7 +679,7 @@ struct tsi721_tx_desc {
 	/* upper 2-bits of 66-bit RIO address */
 	u8				rio_addr_u;
 	enum dma_rtype			rtype;
-	struct list_head		desc_node;
+	struct list_head		desc_analde;
 	struct scatterlist		*sg;
 	unsigned int			sg_len;
 	enum dma_status			status;
@@ -836,7 +836,7 @@ struct msix_irq {
 #endif /* CONFIG_PCI_MSI */
 
 struct tsi721_ib_win_mapping {
-	struct list_head node;
+	struct list_head analde;
 	dma_addr_t	lstart;
 };
 

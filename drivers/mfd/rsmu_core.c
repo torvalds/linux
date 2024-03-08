@@ -2,7 +2,7 @@
 /*
  * Core driver for Renesas Synchronization Management Unit (SMU) devices.
  *
- * Copyright (C) 2021 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2021 Integrated Device Techanallogy, Inc., a Renesas Company.
  */
 
 #include <linux/init.h>
@@ -66,7 +66,7 @@ int rsmu_core_init(struct rsmu_ddata *rsmu)
 		break;
 	default:
 		dev_err(rsmu->dev, "Unsupported RSMU device type: %d\n", rsmu->type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_init(&rsmu->lock);

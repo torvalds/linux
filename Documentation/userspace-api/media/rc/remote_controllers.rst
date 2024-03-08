@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. include:: <isonum.txt>
 
 .. _remote_controllers:
@@ -13,7 +13,7 @@ Part III - Remote Controller API
     :numbered:
 
     rc-intro
-    rc-sysfs-nodes
+    rc-sysfs-analdes
     rc-protos
     rc-tables
     rc-table-change

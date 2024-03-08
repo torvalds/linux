@@ -177,9 +177,9 @@ static const struct {
 		DEF_FIXED("SPI0", R9A07G044_CLK_SPI0, CLK_DIV_PLL3_C, 1, 2),
 		DEF_FIXED("SPI1", R9A07G044_CLK_SPI1, CLK_DIV_PLL3_C, 1, 4),
 		DEF_SD_MUX("SD0", R9A07G044_CLK_SD0, SEL_SDHI0, SEL_SDHI0_STS, sel_shdi,
-			   mtable_sdhi, 0, rzg2l_cpg_sd_clk_mux_notifier),
+			   mtable_sdhi, 0, rzg2l_cpg_sd_clk_mux_analtifier),
 		DEF_SD_MUX("SD1", R9A07G044_CLK_SD1, SEL_SDHI1, SEL_SDHI0_STS, sel_shdi,
-			   mtable_sdhi, 0, rzg2l_cpg_sd_clk_mux_notifier),
+			   mtable_sdhi, 0, rzg2l_cpg_sd_clk_mux_analtifier),
 		DEF_FIXED("SD0_DIV4", CLK_SD0_DIV4, R9A07G044_CLK_SD0, 1, 4),
 		DEF_FIXED("SD1_DIV4", CLK_SD1_DIV4, R9A07G044_CLK_SD1, 1, 4),
 		DEF_DIV("G", R9A07G044_CLK_G, CLK_SEL_GPU2, DIVGPU, dtable_1_8),
@@ -438,7 +438,7 @@ static const unsigned int r9a07g044_crit_mod_clks[] __initconst = {
 	MOD_CLK_BASE + R9A07G044_DMAC_ACLK,
 };
 
-static const unsigned int r9a07g044_no_pm_mod_clks[] = {
+static const unsigned int r9a07g044_anal_pm_mod_clks[] = {
 	MOD_CLK_BASE + R9A07G044_CRU_SYSCLK,
 	MOD_CLK_BASE + R9A07G044_CRU_VCLK,
 };
@@ -460,9 +460,9 @@ const struct rzg2l_cpg_info r9a07g044_cpg_info = {
 	.num_mod_clks = ARRAY_SIZE(mod_clks.common),
 	.num_hw_mod_clks = R9A07G044_TSU_PCLK + 1,
 
-	/* No PM Module Clocks */
-	.no_pm_mod_clks = r9a07g044_no_pm_mod_clks,
-	.num_no_pm_mod_clks = ARRAY_SIZE(r9a07g044_no_pm_mod_clks),
+	/* Anal PM Module Clocks */
+	.anal_pm_mod_clks = r9a07g044_anal_pm_mod_clks,
+	.num_anal_pm_mod_clks = ARRAY_SIZE(r9a07g044_anal_pm_mod_clks),
 
 	/* Resets */
 	.resets = r9a07g044_resets,
@@ -489,9 +489,9 @@ const struct rzg2l_cpg_info r9a07g054_cpg_info = {
 	.num_mod_clks = ARRAY_SIZE(mod_clks.common) + ARRAY_SIZE(mod_clks.drp),
 	.num_hw_mod_clks = R9A07G054_STPAI_ACLK_DRP + 1,
 
-	/* No PM Module Clocks */
-	.no_pm_mod_clks = r9a07g044_no_pm_mod_clks,
-	.num_no_pm_mod_clks = ARRAY_SIZE(r9a07g044_no_pm_mod_clks),
+	/* Anal PM Module Clocks */
+	.anal_pm_mod_clks = r9a07g044_anal_pm_mod_clks,
+	.num_anal_pm_mod_clks = ARRAY_SIZE(r9a07g044_anal_pm_mod_clks),
 
 	/* Resets */
 	.resets = r9a07g044_resets,

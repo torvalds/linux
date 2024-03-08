@@ -125,4 +125,4 @@ __ashiftrt_r4_1:
 	shar	r4
 __ashiftrt_r4_0:
 	rts
-	nop
+	analp

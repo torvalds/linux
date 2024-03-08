@@ -44,7 +44,7 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 
 	if (!vha->flags.nvme_enabled) {
 		ql_log(ql_log_info, vha, 0x2100,
-		    "%s: Not registering target since Host NVME is not enabled\n",
+		    "%s: Analt registering target since Host NVME is analt enabled\n",
 		    __func__);
 		return 0;
 	}
@@ -61,7 +61,7 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 
 	memset(&req, 0, sizeof(struct nvme_fc_port_info));
 	req.port_name = wwn_to_u64(fcport->port_name);
-	req.node_name = wwn_to_u64(fcport->node_name);
+	req.analde_name = wwn_to_u64(fcport->analde_name);
 	req.port_role = 0;
 	req.dev_loss_tmo = fcport->dev_loss_tmo;
 
@@ -78,7 +78,7 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 
 	ql_log(ql_log_info, vha, 0x2102,
 	    "%s: traddr=nn-0x%016llx:pn-0x%016llx PortID:%06x\n",
-	    __func__, req.node_name, req.port_name,
+	    __func__, req.analde_name, req.port_name,
 	    req.port_id);
 
 	ret = nvme_fc_register_remoteport(vha->nvme_local_port, &req,
@@ -323,7 +323,7 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	}
 
 	/*
-	 * sp may not be valid after abort_command if return code is either
+	 * sp may analt be valid after abort_command if return code is either
 	 * SUCCESS or ERR_FROM_FW codes, so cache the value here.
 	 */
 	io_wait_for_abort_done = ql2xabts_wait_nvme &&
@@ -639,7 +639,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	/* Update entry type to indicate Command NVME IOCB */
 	cmd_pkt->entry_type = COMMAND_NVME;
 
-	/* No data transfer how do we check buffer len == 0?? */
+	/* Anal data transfer how do we check buffer len == 0?? */
 	if (fd->io_dir == NVMEFC_FCP_READ) {
 		cmd_pkt->control_flags = cpu_to_le16(CF_READ_DATA);
 		qpair->counters.input_bytes += fd->payload_length;
@@ -737,7 +737,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 		req->ring_ptr++;
 	}
 
-	/* ignore nvme async cmd due to long timeout */
+	/* iganalre nvme async cmd due to long timeout */
 	if (!nvme->u.nvme.aen_op)
 		sp->qpair->cmd_cnt++;
 
@@ -773,7 +773,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 
 	if (!priv) {
 		/* nvme association has been torn down */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	fcport = qla_rport->fcport;
@@ -782,7 +782,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 		return -EBUSY;
 
 	if (!(fcport->nvme_flag & NVME_FLAG_REGISTERED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vha = fcport->vha;
 	ha = vha->hw;
@@ -791,9 +791,9 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 		return -EBUSY;
 
 	/*
-	 * If we know the dev is going away while the transport is still sending
+	 * If we kanalw the dev is going away while the transport is still sending
 	 * IO's return busy back to stall the IO Q.  This happens when the
-	 * link goes away and fw hasn't notified us yet, but IO's are being
+	 * link goes away and fw hasn't analtified us yet, but IO's are being
 	 * returned. If the dev comes back quickly we won't exhaust the IO
 	 * retry count at the core.
 	 */
@@ -965,7 +965,7 @@ int qla_nvme_register_hba(struct scsi_qla_host *vha)
 	       "Number of NVME queues used for this port: %d\n",
 	    qla_nvme_fc_transport.max_hw_queues);
 
-	pinfo.node_name = wwn_to_u64(vha->node_name);
+	pinfo.analde_name = wwn_to_u64(vha->analde_name);
 	pinfo.port_name = wwn_to_u64(vha->port_name);
 	pinfo.port_role = FC_PORT_ROLE_NVME_INITIATOR;
 	pinfo.port_id = vha->d_id.b24;
@@ -978,7 +978,7 @@ int qla_nvme_register_hba(struct scsi_qla_host *vha)
 	if (!vha->nvme_local_port) {
 		ql_log(ql_log_info, vha, 0xffff,
 		    "register_localport: host-traddr=nn-0x%llx:pn-0x%llx on portID:%x\n",
-		    pinfo.node_name, pinfo.port_name, pinfo.port_id);
+		    pinfo.analde_name, pinfo.port_name, pinfo.port_id);
 		qla_nvme_fc_transport.dma_boundary = vha->host->dma_boundary;
 
 		ret = nvme_fc_register_localport(&pinfo, tmpl,
@@ -1032,7 +1032,7 @@ void qla_nvme_abort_process_comp_status(struct abort_entry_24xx *abt, srb_t *ori
 	switch (comp_status) {
 	case CS_RESET:		/* reset event aborted */
 	case CS_ABORTED:	/* IOCB was cleaned */
-	/* N_Port handle is not currently logged in */
+	/* N_Port handle is analt currently logged in */
 	case CS_TIMEOUT:
 	/* N_Port handle was logged out while waiting for ABTS to complete */
 	case CS_PORT_UNAVAILABLE:
@@ -1159,7 +1159,7 @@ qla_nvme_ls_reject_iocb(struct scsi_qla_host *vha, struct qla_qpair *qp,
 	}
 
 	qla_nvme_lsrjt_pt_iocb(vha, lsrjt_iocb, a);
-	/* flush iocb to mem before notifying hw doorbell */
+	/* flush iocb to mem before analtifying hw doorbell */
 	wmb();
 	qla2x00_start_iocbs(vha, qp->req);
 	return 0;
@@ -1269,7 +1269,7 @@ void qla2xxx_process_purls_iocb(void **pkt, struct rsp_que **rsp)
 		       "Failed to find sid=%06x did=%06x\n",
 		       id.b24, d_id.b24);
 		a.reason = FCNVME_RJT_RC_INV_ASSOC;
-		a.explanation = FCNVME_RJT_EXP_NONE;
+		a.explanation = FCNVME_RJT_EXP_ANALNE;
 		xmt_reject = true;
 		goto out;
 	}
@@ -1279,7 +1279,7 @@ void qla2xxx_process_purls_iocb(void **pkt, struct rsp_que **rsp)
 	item = qla27xx_copy_multiple_pkt(vha, pkt, rsp, true, false);
 	if (!item) {
 		a.reason = FCNVME_RJT_RC_LOGIC;
-		a.explanation = FCNVME_RJT_EXP_NONE;
+		a.explanation = FCNVME_RJT_EXP_ANALNE;
 		xmt_reject = true;
 		goto out;
 	}
@@ -1288,7 +1288,7 @@ void qla2xxx_process_purls_iocb(void **pkt, struct rsp_que **rsp)
 	if (!uctx) {
 		ql_log(ql_log_info, vha, 0x2126, "Failed allocate memory\n");
 		a.reason = FCNVME_RJT_RC_LOGIC;
-		a.explanation = FCNVME_RJT_EXP_NONE;
+		a.explanation = FCNVME_RJT_EXP_ANALNE;
 		xmt_reject = true;
 		kfree(item);
 		goto out;

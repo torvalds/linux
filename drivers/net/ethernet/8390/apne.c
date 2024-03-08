@@ -9,7 +9,7 @@
  *
  * This program is based on
  *
- * ne.c:       A general non-shared-memory NS8390 ethernet driver for linux
+ * ne.c:       A general analn-shared-memory NS8390 ethernet driver for linux
  *             Written 1992-94 by Donald Becker.
  *
  * 8390.c:     A general NS8390 ethernet driver core for linux.
@@ -25,7 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -43,7 +43,7 @@
 
 #include "8390.h"
 
-/* ---- No user-serviceable parts below ---- */
+/* ---- Anal user-serviceable parts below ---- */
 
 #define DRV_NAME "apne"
 
@@ -125,25 +125,25 @@ static struct net_device * __init apne_probe(void)
 	int err;
 
 	if (!MACH_IS_AMIGA)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (apne_owned)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if ( !(AMIGAHW_PRESENT(PCMCIA)) )
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	pr_info("Looking for PCMCIA ethernet card : ");
 
 	/* check if a card is inserted */
 	if (!(PCMCIA_INSERTED)) {
-		pr_cont("NO PCMCIA card inserted\n");
-		return ERR_PTR(-ENODEV);
+		pr_cont("ANAL PCMCIA card inserted\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	dev = alloc_ei_netdev();
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ei_local = netdev_priv(dev);
 	ei_local->msg_enable = apne_msg_enable;
 
@@ -153,10 +153,10 @@ static struct net_device * __init apne_probe(void)
 #ifndef MANUAL_CONFIG
 	if ((pcmcia_copy_tuple(CISTPL_FUNCID, tuple, 8) < 3) ||
 		(tuple[2] != CISTPL_FUNCID_NETWORK)) {
-		pr_cont("not an ethernet card\n");
+		pr_cont("analt an ethernet card\n");
 		/* XXX: shouldn't we re-enable irq here? */
 		free_netdev(dev);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 #endif
 
@@ -165,7 +165,7 @@ static struct net_device * __init apne_probe(void)
 	if (!init_pcmcia()) {
 		/* XXX: shouldn't we re-enable irq here? */
 		free_netdev(dev);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	if (!request_region(IOBASE, 0x20, DRV_NAME)) {
@@ -208,15 +208,15 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 
     netdev_info(dev, "PCMCIA NE*000 ethercard probe");
 
-    /* Reset card. Who knows what dain-bramaged state it was left in. */
+    /* Reset card. Who kanalws what dain-bramaged state it was left in. */
     {	unsigned long reset_start_time = jiffies;
 
 	outb(inb(ioaddr + NE_RESET), ioaddr + NE_RESET);
 
 	while ((inb(ioaddr + NE_EN0_ISR) & ENISR_RESET) == 0)
 		if (time_after(jiffies, reset_start_time + 2*HZ/100)) {
-			pr_cont(" not found (no reset ack).\n");
-			return -ENODEV;
+			pr_cont(" analt found (anal reset ack).\n");
+			return -EANALDEV;
 		}
 
 	outb(0xff, ioaddr + NE_EN0_ISR);		/* Ack all intr. */
@@ -230,7 +230,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
        (I learned the hard way!). */
     {
 	struct {unsigned long value, offset; } program_seq[] = {
-	    {E8390_NODMA+E8390_PAGE0+E8390_STOP, NE_CMD}, /* Select page 0*/
+	    {E8390_ANALDMA+E8390_PAGE0+E8390_STOP, NE_CMD}, /* Select page 0*/
 	    {0x48,	NE_EN0_DCFG},	/* Set byte-wide (0x48) access. */
 	    {0x00,	NE_EN0_RCNTLO},	/* Clear the count regs. */
 	    {0x00,	NE_EN0_RCNTHI},
@@ -257,7 +257,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     }
 
     /*	At this point, wordlength *only* tells us if the SA_prom is doubled
-	up or not because some broken PCI cards don't respect the byte-wide
+	up or analt because some broken PCI cards don't respect the byte-wide
 	request in program_seq above, and hence don't have doubled up values.
 	These broken cards would otherwise be detected as an ne1000.  */
 
@@ -286,7 +286,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 	start_page = 0x01;
 	stop_page = (wordlength == 2) ? 0x40 : 0x20;
     } else {
-	pr_cont(" not found.\n");
+	pr_cont(" analt found.\n");
 	return -ENXIO;
 
     }
@@ -360,10 +360,10 @@ apne_reset_8390(struct net_device *dev)
     ei_status.txing = 0;
     ei_status.dmaing = 0;
 
-    /* This check _should_not_ be necessary, omit eventually. */
+    /* This check _should_analt_ be necessary, omit eventually. */
     while ((inb(NE_BASE+NE_EN0_ISR) & ENISR_RESET) == 0)
 	if (time_after(jiffies, reset_start_time + 2*HZ/100)) {
-		netdev_err(dev, "ne_reset_8390() did not complete.\n");
+		netdev_err(dev, "ne_reset_8390() did analt complete.\n");
 		break;
 	}
     outb(ENISR_RESET, NE_BASE + NE_EN0_ISR);	/* Ack intr. */
@@ -391,7 +391,7 @@ apne_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_pa
     }
 
     ei_status.dmaing |= 0x01;
-    outb(E8390_NODMA+E8390_PAGE0+E8390_START, nic_base+ NE_CMD);
+    outb(E8390_ANALDMA+E8390_PAGE0+E8390_START, nic_base+ NE_CMD);
     outb(ENISR_RDC, nic_base + NE_EN0_ISR);
     outb(sizeof(struct e8390_pkt_hdr), nic_base + NE_EN0_RCNTLO);
     outb(0, nic_base + NE_EN0_RCNTHI);
@@ -437,7 +437,7 @@ apne_block_input(struct net_device *dev, int count, struct sk_buff *skb, int rin
 	return;
     }
     ei_status.dmaing |= 0x01;
-    outb(E8390_NODMA+E8390_PAGE0+E8390_START, nic_base+ NE_CMD);
+    outb(E8390_ANALDMA+E8390_PAGE0+E8390_START, nic_base+ NE_CMD);
     outb(ENISR_RDC, nic_base + NE_EN0_ISR);
     outb(count & 0xff, nic_base + NE_EN0_RCNTLO);
     outb(count >> 8, nic_base + NE_EN0_RCNTHI);
@@ -486,11 +486,11 @@ apne_block_output(struct net_device *dev, int count,
     }
     ei_status.dmaing |= 0x01;
     /* We should already be in page 0, but to be safe... */
-    outb(E8390_PAGE0+E8390_START+E8390_NODMA, nic_base + NE_CMD);
+    outb(E8390_PAGE0+E8390_START+E8390_ANALDMA, nic_base + NE_CMD);
 
     outb(ENISR_RDC, nic_base + NE_EN0_ISR);
 
-   /* Now the normal output. */
+   /* Analw the analrmal output. */
     outb(count & 0xff, nic_base + NE_EN0_RCNTLO);
     outb(count >> 8,   nic_base + NE_EN0_RCNTHI);
     outb(0x00, nic_base + NE_EN0_RSARLO);
@@ -526,13 +526,13 @@ static irqreturn_t apne_interrupt(int irq, void *dev_id)
     unsigned char pcmcia_intreq;
 
     if (!(gayle.inten & GAYLE_IRQ_IRQ))
-        return IRQ_NONE;
+        return IRQ_ANALNE;
 
     pcmcia_intreq = pcmcia_get_intreq();
 
     if (!(pcmcia_intreq & GAYLE_IRQ_IRQ)) {
         pcmcia_ack_int(pcmcia_intreq);
-        return IRQ_NONE;
+        return IRQ_ANALNE;
     }
     if (apne_msg_enable & NETIF_MSG_INTR)
 	pr_debug("pcmcia intreq = %x\n", pcmcia_intreq);

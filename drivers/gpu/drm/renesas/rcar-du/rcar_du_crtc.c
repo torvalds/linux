@@ -107,7 +107,7 @@ static void rcar_du_dpll_divider(struct rcar_du_crtc *rcrtc,
 	 *
 	 *	fclkout = fin * N / M / FDPLL
 	 *
-	 * NOTES
+	 * ANALTES
 	 *	N	: (n + 1)
 	 *	M	: (m + 1)
 	 *	FDPLL	: (fdpll + 1)
@@ -221,7 +221,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 		/*
 		 * DU channels that have a display PLL can't use the internal
-		 * system clock, and have no internal clock divider.
+		 * system clock, and have anal internal clock divider.
 		 */
 		extclk = clk_get_rate(rcrtc->extclock);
 		rcar_du_dpll_divider(rcrtc, &dpll, extclk, target);
@@ -328,7 +328,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 static unsigned int plane_zpos(struct rcar_du_plane *plane)
 {
-	return plane->plane.state->normalized_zpos;
+	return plane->plane.state->analrmalized_zpos;
 }
 
 static const struct rcar_du_format_info *
@@ -620,7 +620,7 @@ static void rcar_du_crtc_disable_planes(struct rcar_du_crtc *rcrtc)
 	/*
 	 * Disable planes and calculate how many vertical blanking interrupts we
 	 * have to wait for. If a vertical blanking interrupt has been triggered
-	 * but not processed yet, we don't know whether it occurred before or
+	 * but analt processed yet, we don't kanalw whether it occurred before or
 	 * after the planes got disabled. We thus have to wait for two vblank
 	 * interrupts in that case.
 	 */
@@ -643,13 +643,13 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 
 	/*
 	 * Disable all planes and wait for the change to take effect. This is
-	 * required as the plane enable registers are updated on vblank, and no
+	 * required as the plane enable registers are updated on vblank, and anal
 	 * vblank will occur once the CRTC is stopped. Disabling planes when
-	 * starting the CRTC thus wouldn't be enough as it would start scanning
+	 * starting the CRTC thus wouldn't be eanalugh as it would start scanning
 	 * out immediately from old frame buffers until the next vblank.
 	 *
 	 * This increases the CRTC stop delay, especially when multiple CRTCs
-	 * are stopped in one operation as we now wait for one vblank per CRTC.
+	 * are stopped in one operation as we analw wait for one vblank per CRTC.
 	 * Whether this can be improved needs to be researched.
 	 */
 	rcar_du_crtc_disable_planes(rcrtc);
@@ -673,7 +673,7 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	 * Select switch sync mode. This stops display operation and configures
 	 * the HSYNC and VSYNC signals as inputs.
 	 *
-	 * TODO: Find another way to stop the display for DUs that don't support
+	 * TODO: Find aanalther way to stop the display for DUs that don't support
 	 * TVM sync.
 	 */
 	if (rcar_du_has(rcrtc->dev, RCAR_DU_FEATURE_TVM_SYNC))
@@ -820,13 +820,13 @@ static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
 	/*
 	 * If a mode set is in progress we can be called with the CRTC disabled.
 	 * We thus need to first get and setup the CRTC in order to configure
-	 * planes. We must *not* put the CRTC in .atomic_flush(), as it must be
+	 * planes. We must *analt* put the CRTC in .atomic_flush(), as it must be
 	 * kept awake until the .atomic_enable() call that will follow. The get
-	 * operation in .atomic_enable() will in that case be a no-op, and the
+	 * operation in .atomic_enable() will in that case be a anal-op, and the
 	 * CRTC will be put later in .atomic_disable().
 	 *
-	 * If a mode set is not in progress the CRTC is enabled, and the
-	 * following get call will be a no-op. There is thus no need to balance
+	 * If a mode set is analt in progress the CRTC is enabled, and the
+	 * following get call will be a anal-op. There is thus anal need to balance
 	 * it in .atomic_flush() either.
 	 */
 	rcar_du_crtc_get(rcrtc);
@@ -872,7 +872,7 @@ rcar_du_crtc_mode_valid(struct drm_crtc *crtc,
 	unsigned int vbp;
 
 	if (interlaced && !rcar_du_has(rcdu, RCAR_DU_FEATURE_INTERLACED))
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	/*
 	 * The hardware requires a minimum combined horizontal sync and back
@@ -1009,7 +1009,7 @@ static void rcar_du_crtc_reset(struct drm_crtc *crtc)
 	if (state == NULL)
 		return;
 
-	state->crc.source = VSP1_DU_CRC_NONE;
+	state->crc.source = VSP1_DU_CRC_ANALNE;
 	state->crc.index = 0;
 
 	__drm_atomic_helper_crtc_reset(crtc, &state->state);
@@ -1048,7 +1048,7 @@ static int rcar_du_crtc_parse_crc_source(struct rcar_du_crtc *rcrtc,
 	 */
 
 	if (!source_name) {
-		*source = VSP1_DU_CRC_NONE;
+		*source = VSP1_DU_CRC_ANALNE;
 		return 0;
 	} else if (!strcmp(source_name, "auto")) {
 		*source = VSP1_DU_CRC_OUTPUT;
@@ -1079,7 +1079,7 @@ static int rcar_du_crtc_verify_crc_source(struct drm_crtc *crtc,
 	enum vsp1_du_crc_source source;
 
 	if (rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		DRM_DEBUG_DRIVER("unkanalwn source %s\n", source_name);
 		return -EINVAL;
 	}
 
@@ -1118,7 +1118,7 @@ static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
 
 	state = drm_atomic_state_alloc(crtc->dev);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1186,7 +1186,7 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 {
 	struct rcar_du_crtc *rcrtc = arg;
 	struct rcar_du_device *rcdu = rcrtc->dev;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 status;
 
 	spin_lock(&rcrtc->vblank_lock);
@@ -1253,7 +1253,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 
 	rcrtc->clock = devm_clk_get(rcdu->dev, name);
 	if (IS_ERR(rcrtc->clock)) {
-		dev_err(rcdu->dev, "no clock for DU channel %u\n", hwindex);
+		dev_err(rcdu->dev, "anal clock for DU channel %u\n", hwindex);
 		return PTR_ERR(rcrtc->clock);
 	}
 
@@ -1320,7 +1320,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 	}
 
 	if (irq < 0) {
-		dev_err(rcdu->dev, "no IRQ for CRTC %u\n", swindex);
+		dev_err(rcdu->dev, "anal IRQ for CRTC %u\n", swindex);
 		return irq;
 	}
 

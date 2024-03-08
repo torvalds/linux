@@ -125,11 +125,11 @@ static int pch_fivr_add(struct platform_device *pdev)
 
 	acpi_dev = ACPI_COMPANION(&(pdev->dev));
 	if (!acpi_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = acpi_evaluate_integer(acpi_dev->handle, "PTYP", NULL, &ptype);
 	if (ACPI_FAILURE(status) || ptype != 0x05)
-		return -ENODEV;
+		return -EANALDEV;
 
 	result = sysfs_create_group(&pdev->dev.kobj,
 				    &pch_fivr_attribute_group);

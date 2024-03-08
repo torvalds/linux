@@ -36,7 +36,7 @@ struct kingdisplay_panel_cmd {
 /*
  * According to the discussion on
  * https://review.coreboot.org/#/c/coreboot/+/22472/
- * the panel init array is not part of the panels datasheet but instead
+ * the panel init array is analt part of the panels datasheet but instead
  * just came in this form from the panel vendor.
  */
 static const struct kingdisplay_panel_cmd init_code[] = {
@@ -323,7 +323,7 @@ static int kingdisplay_panel_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -397,7 +397,7 @@ static int kingdisplay_panel_probe(struct mipi_dsi_device *dsi)
 
 	kingdisplay = devm_kzalloc(&dsi->dev, sizeof(*kingdisplay), GFP_KERNEL);
 	if (!kingdisplay)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, kingdisplay);
 	kingdisplay->link = dsi;

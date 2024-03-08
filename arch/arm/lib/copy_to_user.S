@@ -28,7 +28,7 @@
  *
  * Return value:
  *
- *	Number of bytes NOT copied.
+ *	Number of bytes ANALT copied.
  */
 
 #define LDR1W_SHIFT	0

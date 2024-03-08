@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,14 +28,14 @@
 
 //// POWERPLAYTABLE::ulPlatformCaps
 #define SMU_13_0_7_PP_PLATFORM_CAP_POWERPLAY 0x1        // This cap indicates whether CCC need to show Powerplay page.
-#define SMU_13_0_7_PP_PLATFORM_CAP_SBIOSPOWERSOURCE 0x2 // This cap indicates whether power source notificaiton is done by SBIOS instead of OS.
-#define SMU_13_0_7_PP_PLATFORM_CAP_HARDWAREDC 0x4       // This cap indicates whether DC mode notificaiton is done by GPIO pin directly.
+#define SMU_13_0_7_PP_PLATFORM_CAP_SBIOSPOWERSOURCE 0x2 // This cap indicates whether power source analtificaiton is done by SBIOS instead of OS.
+#define SMU_13_0_7_PP_PLATFORM_CAP_HARDWAREDC 0x4       // This cap indicates whether DC mode analtificaiton is done by GPIO pin directly.
 #define SMU_13_0_7_PP_PLATFORM_CAP_BACO 0x8             // This cap indicates whether board supports the BACO circuitry.
 #define SMU_13_0_7_PP_PLATFORM_CAP_MACO 0x10            // This cap indicates whether board supports the MACO circuitry.
 #define SMU_13_0_7_PP_PLATFORM_CAP_SHADOWPSTATE 0x20    // This cap indicates whether board supports the Shadow Pstate.
 
 // SMU_13_0_7_PP_THERMALCONTROLLER - Thermal Controller Type
-#define SMU_13_0_7_PP_THERMALCONTROLLER_NONE 0
+#define SMU_13_0_7_PP_THERMALCONTROLLER_ANALNE 0
 #define SMU_13_0_7_PP_THERMALCONTROLLER_NAVI21 28
 
 #define SMU_13_0_7_PP_OVERDRIVE_VERSION 0x83        // OverDrive 8 Table Version 0.2

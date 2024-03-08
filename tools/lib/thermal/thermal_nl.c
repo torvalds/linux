@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-2.1+
-// Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org>
-#include <errno.h>
+// Copyright (C) 2022, Linaro Ltd - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -117,7 +117,7 @@ static int nl_get_multicast_id(struct nl_sock *sock, struct nl_cb *cb,
 	int ret = 0, ctrlid;
 	struct handler_args grp = {
 		.group = group,
-		.id = -ENOENT,
+		.id = -EANALENT,
 	};
 
 	msg = nlmsg_alloc();

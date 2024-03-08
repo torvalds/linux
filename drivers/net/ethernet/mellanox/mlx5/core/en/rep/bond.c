@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Inc. All rights reserved. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Inc. All rights reserved. */
 
 #include <linux/netdevice.h>
 #include <linux/list.h>
@@ -11,8 +11,8 @@
 #include "en_rep.h"
 
 struct mlx5e_rep_bond {
-	struct notifier_block nb;
-	struct netdev_net_notifier nn;
+	struct analtifier_block nb;
+	struct netdev_net_analtifier nn;
 	struct list_head metadata_list;
 };
 
@@ -91,10 +91,10 @@ int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
 	rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 	mdata = mlx5e_lookup_rep_bond_metadata(&rpriv->uplink_priv, lag_dev);
 	if (!mdata) {
-		/* First netdev becomes slave, no metadata presents the lag_dev. Create one */
+		/* First netdev becomes slave, anal metadata presents the lag_dev. Create one */
 		mdata = kzalloc(sizeof(*mdata), GFP_KERNEL);
 		if (!mdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mdata->lag_dev = lag_dev;
 		mdata->esw = esw;
@@ -102,7 +102,7 @@ int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
 		mdata->metadata_reg_c_0 = mlx5_esw_match_metadata_alloc(esw);
 		if (!mdata->metadata_reg_c_0) {
 			kfree(mdata);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 		list_add(&mdata->list, &rpriv->uplink_priv.bond->metadata_list);
 
@@ -112,7 +112,7 @@ int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
 
 	s_entry = kzalloc(sizeof(*s_entry), GFP_KERNEL);
 	if (!s_entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto entry_alloc_err;
 	}
 
@@ -188,7 +188,7 @@ static bool mlx5e_rep_is_lag_netdev(struct net_device *netdev)
 
 static void mlx5e_rep_changelowerstate_event(struct net_device *netdev, void *ptr)
 {
-	struct netdev_notifier_changelowerstate_info *info;
+	struct netdev_analtifier_changelowerstate_info *info;
 	struct netdev_lag_lower_state_info *lag_info;
 	struct mlx5e_rep_priv *rpriv;
 	struct net_device *lag_dev;
@@ -201,7 +201,7 @@ static void mlx5e_rep_changelowerstate_event(struct net_device *netdev, void *pt
 
 	info = ptr;
 	lag_info = info->lower_state_info;
-	/* This is not an event of a representor becoming active slave */
+	/* This is analt an event of a representor becoming active slave */
 	if (!lag_info->tx_enabled)
 		return;
 
@@ -247,7 +247,7 @@ static void mlx5e_rep_changelowerstate_event(struct net_device *netdev, void *pt
 
 static void mlx5e_rep_changeupper_event(struct net_device *netdev, void *ptr)
 {
-	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netdev_analtifier_changeupper_info *info = ptr;
 	struct mlx5e_rep_priv *rpriv;
 	struct net_device *lag_dev;
 	struct mlx5e_priv *priv;
@@ -269,26 +269,26 @@ static void mlx5e_rep_changeupper_event(struct net_device *netdev, void *ptr)
  * to support eswitch vports bonding and to perform failover of eswitch vport
  * by modifying the vport's egress acl of lower dev representors. Thus this
  * also change the traditional behavior of lower dev under bond device.
- * All non-representor netdevs or representors of other vendors as lower dev
- * of bond device are not supported.
+ * All analn-representor netdevs or representors of other vendors as lower dev
+ * of bond device are analt supported.
  */
-static int mlx5e_rep_esw_bond_netevent(struct notifier_block *nb,
+static int mlx5e_rep_esw_bond_netevent(struct analtifier_block *nb,
 				       unsigned long event, void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(ptr);
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_rep_bond *bond;
 	struct mlx5e_priv *priv;
 
 	if (!mlx5e_rep_is_lag_netdev(netdev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	bond = container_of(nb, struct mlx5e_rep_bond, nb);
 	priv = netdev_priv(netdev);
 	rpriv = mlx5_eswitch_get_uplink_priv(priv->mdev->priv.eswitch, REP_ETH);
 	/* Verify VF representor is on the same device of the bond handling the netevent. */
 	if (rpriv->uplink_priv.bond != bond)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_CHANGELOWERSTATE:
@@ -298,10 +298,10 @@ static int mlx5e_rep_esw_bond_netevent(struct notifier_block *nb,
 		mlx5e_rep_changeupper_event(netdev, ptr);
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-/* If HW support eswitch vports bonding, register a specific notifier to
+/* If HW support eswitch vports bonding, register a specific analtifier to
  * handle it when two or more representors are bonded
  */
 int mlx5e_rep_bond_init(struct mlx5e_rep_priv *rpriv)
@@ -317,17 +317,17 @@ int mlx5e_rep_bond_init(struct mlx5e_rep_priv *rpriv)
 
 	uplink_priv->bond = kvzalloc(sizeof(*uplink_priv->bond), GFP_KERNEL);
 	if (!uplink_priv->bond) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	INIT_LIST_HEAD(&uplink_priv->bond->metadata_list);
-	uplink_priv->bond->nb.notifier_call = mlx5e_rep_esw_bond_netevent;
-	ret = register_netdevice_notifier_dev_net(netdev,
+	uplink_priv->bond->nb.analtifier_call = mlx5e_rep_esw_bond_netevent;
+	ret = register_netdevice_analtifier_dev_net(netdev,
 						  &uplink_priv->bond->nb,
 						  &uplink_priv->bond->nn);
 	if (ret) {
-		netdev_err(netdev, "register bonding netevent notifier, err(%d)\n", ret);
+		netdev_err(netdev, "register bonding netevent analtifier, err(%d)\n", ret);
 		kvfree(uplink_priv->bond);
 		uplink_priv->bond = NULL;
 	}
@@ -344,7 +344,7 @@ void mlx5e_rep_bond_cleanup(struct mlx5e_rep_priv *rpriv)
 	    !rpriv->uplink_priv.bond)
 		return;
 
-	unregister_netdevice_notifier_dev_net(rpriv->netdev,
+	unregister_netdevice_analtifier_dev_net(rpriv->netdev,
 					      &rpriv->uplink_priv.bond->nb,
 					      &rpriv->uplink_priv.bond->nn);
 	kvfree(rpriv->uplink_priv.bond);

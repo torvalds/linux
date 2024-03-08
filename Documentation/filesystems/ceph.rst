@@ -10,11 +10,11 @@ performance, reliability, and scalability.
 Basic features include:
 
  * POSIX semantics
- * Seamless scaling from 1 to many thousands of nodes
- * High availability and reliability.  No single point of failure.
- * N-way replication of data across storage nodes
- * Fast recovery from node failures
- * Automatic rebalancing of data on node addition/removal
+ * Seamless scaling from 1 to many thousands of analdes
+ * High availability and reliability.  Anal single point of failure.
+ * N-way replication of data across storage analdes
+ * Fast recovery from analde failures
+ * Automatic rebalancing of data on analde addition/removal
  * Easy deployment: most FS components are userspace daemons
 
 Also,
@@ -26,30 +26,30 @@ In contrast to cluster filesystems like GFS, OCFS2, and GPFS that rely
 on symmetric access by all clients to shared block devices, Ceph
 separates data and metadata management into independent server
 clusters, similar to Lustre.  Unlike Lustre, however, metadata and
-storage nodes run entirely as user space daemons.  File data is striped
-across storage nodes in large chunks to distribute workload and
-facilitate high throughputs.  When storage nodes fail, data is
-re-replicated in a distributed fashion by the storage nodes themselves
+storage analdes run entirely as user space daemons.  File data is striped
+across storage analdes in large chunks to distribute workload and
+facilitate high throughputs.  When storage analdes fail, data is
+re-replicated in a distributed fashion by the storage analdes themselves
 (with some minimal coordination from a cluster monitor), making the
 system extremely efficient and scalable.
 
 Metadata servers effectively form a large, consistent, distributed
 in-memory cache above the file namespace that is extremely scalable,
 dynamically redistributes metadata in response to workload changes,
-and can tolerate arbitrary (well, non-Byzantine) node failures.  The
+and can tolerate arbitrary (well, analn-Byzantine) analde failures.  The
 metadata server takes a somewhat unconventional approach to metadata
 storage to significantly improve performance for common workloads.  In
-particular, inodes with only a single link are embedded in
-directories, allowing entire directories of dentries and inodes to be
+particular, ianaldes with only a single link are embedded in
+directories, allowing entire directories of dentries and ianaldes to be
 loaded into its cache with a single I/O operation.  The contents of
 extremely large directories can be fragmented and managed by
 independent metadata servers, allowing scalable concurrent access.
 
 The system offers automatic data rebalancing/migration when scaling
-from a small cluster of just a few nodes to many hundreds, without
+from a small cluster of just a few analdes to many hundreds, without
 requiring an administrator carve the data set into static volumes or
 go through the tedious process of migrating data between servers.
-When the file system approaches full, new nodes can be easily added
+When the file system approaches full, new analdes can be easily added
 and things will "just work."
 
 Ceph includes flexible snapshot mechanism that allows a user to create
@@ -59,12 +59,12 @@ system.  Snapshot creation and deletion are as simple as 'mkdir
 
 Snapshot names have two limitations:
 
-* They can not start with an underscore ('_'), as these names are reserved
+* They can analt start with an underscore ('_'), as these names are reserved
   for internal usage by the MDS.
-* They can not exceed 240 characters in size.  This is because the MDS makes
+* They can analt exceed 240 characters in size.  This is because the MDS makes
   use of long snapshot names internally, which follow the format:
-  `_<SNAPSHOT-NAME>_<INODE-NUMBER>`.  Since filenames in general can't have
-  more than 255 characters, and `<node-id>` takes 13 characters, the long
+  `_<SNAPSHOT-NAME>_<IANALDE-NUMBER>`.  Since filenames in general can't have
+  more than 255 characters, and `<analde-id>` takes 13 characters, the long
   snapshot names can take as much as 255 - 1 - 1 - 13 = 240.
 
 Ceph also provides some recursive accounting on directories for nested
@@ -72,7 +72,7 @@ files and bytes.  That is, a 'getfattr -d foo' on any directory in the
 system will reveal the total number of nested regular files and
 subdirectories, and a summation of all nested file sizes.  This makes
 the identification of large disk space consumers relatively quick, as
-no 'du' or similar recursive scan of the file system is required.
+anal 'du' or similar recursive scan of the file system is required.
 
 Finally, Ceph also allows quotas to be set on any directory in the system.
 The quota can restrict the number of bytes or the number of files stored
@@ -84,7 +84,7 @@ extended attributes 'ceph.quota.max_files' and 'ceph.quota.max_bytes', eg::
 
 A limitation of the current quotas implementation is that it relies on the
 cooperation of the client mounting the file system to stop writers when a
-limit is reached.  A modified or adversarial client cannot be prevented
+limit is reached.  A modified or adversarial client cananalt be prevented
 from writing as much data as it needs.
 
 Mount Syntax
@@ -114,7 +114,7 @@ Multiple monitor addresses can be passed by separating each address with a slash
   # mount -t ceph cephuser@cephfs=/ /mnt/ceph -o mon_addr=192.168.1.100/192.168.1.101
 
 When using the mount helper, monitor address can be read from ceph
-configuration file if available. Note that, the cluster FSID (passed as part
+configuration file if available. Analte that, the cluster FSID (passed as part
 of the device string) is validated by checking it with the FSID reported by
 the monitor.
 
@@ -131,7 +131,7 @@ Mount Options
 
   ip=A.B.C.D[:N]
 	Specify the IP and/or port the client should bind to locally.
-	There is normally not much reason to do this.  If the IP is not
+	There is analrmally analt much reason to do this.  If the IP is analt
 	specified, the client's IP address is determined by looking at the
 	address its connection to the monitor originates from.
 
@@ -146,64 +146,64 @@ Mount Options
 
   mount_timeout=X
 	Specify the timeout value for mount (in seconds), in the case
-	of a non-responsive Ceph file system.  The default is 60
+	of a analn-responsive Ceph file system.  The default is 60
 	seconds.
 
   caps_max=X
 	Specify the maximum number of caps to hold. Unused caps are released
-	when number of caps exceeds the limit. The default is 0 (no limit)
+	when number of caps exceeds the limit. The default is 0 (anal limit)
 
   rbytes
 	When stat() is called on a directory, set st_size to 'rbytes',
 	the summation of file sizes over all files nested beneath that
 	directory.  This is the default.
 
-  norbytes
+  analrbytes
 	When stat() is called on a directory, set st_size to the
 	number of entries in that directory.
 
-  nocrc
-	Disable CRC32C calculation for data writes.  If set, the storage node
+  analcrc
+	Disable CRC32C calculation for data writes.  If set, the storage analde
 	must rely on TCP's error correction to detect data corruption
 	in the data payload.
 
   dcache
         Use the dcache contents to perform negative lookups and
         readdir when the client has the entire directory contents in
-        its cache.  (This does not change correctness; the client uses
+        its cache.  (This does analt change correctness; the client uses
         cached metadata only when a lease or capability ensures it is
         valid.)
 
-  nodcache
-        Do not use the dcache as above.  This avoids a significant amount of
+  analdcache
+        Do analt use the dcache as above.  This avoids a significant amount of
         complex code, sacrificing performance without affecting correctness,
         and is useful for tracking down bugs.
 
-  noasyncreaddir
-	Do not use the dcache as above for readdir.
+  analasyncreaddir
+	Do analt use the dcache as above for readdir.
 
-  noquotadf
+  analquotadf
         Report overall filesystem usage in statfs instead of using the root
         directory quota.
 
-  nocopyfrom
+  analcopyfrom
         Don't use the RADOS 'copy-from' operation to perform remote object
         copies.  Currently, it's only used in copy_file_range, which will revert
         to the default VFS implementation if this option is used.
 
-  recover_session=<no|clean>
+  recover_session=<anal|clean>
 	Set auto reconnect mode in the case where the client is blocklisted. The
-	available modes are "no" and "clean". The default is "no".
+	available modes are "anal" and "clean". The default is "anal".
 
-	* no: never attempt to reconnect when client detects that it has been
+	* anal: never attempt to reconnect when client detects that it has been
 	  blocklisted. Operations will generally fail after being blocklisted.
 
 	* clean: client reconnects to the ceph cluster automatically when it
 	  detects that it has been blocklisted. During reconnect, client drops
 	  dirty data/metadata, invalidates page caches and writable file handles.
 	  After reconnect, file locks become stale because the MDS loses track
-	  of them. If an inode contains any stale file locks, read/write on the
-	  inode is not allowed until applications release all stale file locks.
+	  of them. If an ianalde contains any stale file locks, read/write on the
+	  ianalde is analt allowed until applications release all stale file locks.
 
 More Information
 ================

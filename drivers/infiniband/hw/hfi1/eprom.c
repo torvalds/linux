@@ -26,9 +26,9 @@
 
 /* controller commands */
 #define CMD_SHIFT 24
-#define CMD_NOP			    (0)
+#define CMD_ANALP			    (0)
 #define CMD_READ_DATA(addr)	    ((0x03 << CMD_SHIFT) | addr)
-#define CMD_RELEASE_POWERDOWN_NOID  ((0xab << CMD_SHIFT))
+#define CMD_RELEASE_POWERDOWN_ANALID  ((0xab << CMD_SHIFT))
 
 /* controller interface speeds */
 #define EP_SPEED_FULL 0x2	/* full speed */
@@ -51,7 +51,7 @@ static void read_page(struct hfi1_devdata *dd, u32 offset, u32 *result)
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_READ_DATA(offset));
 	for (i = 0; i < EP_PAGE_DWORDS; i++)
 		result[i] = (u32)read_csr(dd, ASIC_EEP_DATA);
-	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_NOP); /* close open page */
+	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_ANALP); /* close open page */
 }
 
 /*
@@ -71,9 +71,9 @@ static int read_length(struct hfi1_devdata *dd, u32 start, u32 len, void *dest)
 	end = start + len;
 
 	/*
-	 * Make sure the read range is not outside of the controller read
-	 * command address range.  Note that '>' is correct below - the end
-	 * of the range is OK if it stops at the limit, but no higher.
+	 * Make sure the read range is analt outside of the controller read
+	 * command address range.  Analte that '>' is correct below - the end
+	 * of the range is OK if it stops at the limit, but anal higher.
 	 */
 	if (end > (1 << CMD_SHIFT))
 		return -EINVAL;
@@ -102,7 +102,7 @@ static int read_length(struct hfi1_devdata *dd, u32 start, u32 len, void *dest)
 		len -= bytes;
 		dest += bytes;
 	}
-	/* start is now page aligned */
+	/* start is analw page aligned */
 
 	/* read whole pages */
 	while (len >= EP_PAGE_SIZE) {
@@ -141,7 +141,7 @@ int eprom_init(struct hfi1_devdata *dd)
 	ret = acquire_chip_resource(dd, CR_EPROM, EPROM_TIMEOUT);
 	if (ret) {
 		dd_dev_err(dd,
-			   "%s: unable to acquire EPROM resource, no EPROM support\n",
+			   "%s: unable to acquire EPROM resource, anal EPROM support\n",
 			   __func__);
 		goto done_asic;
 	}
@@ -154,8 +154,8 @@ int eprom_init(struct hfi1_devdata *dd)
 	write_csr(dd, ASIC_EEP_CTL_STAT,
 		  EP_SPEED_FULL << ASIC_EEP_CTL_STAT_RATE_SPI_SHIFT);
 
-	/* wake the device with command "release powerdown NoID" */
-	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_RELEASE_POWERDOWN_NOID);
+	/* wake the device with command "release powerdown AnalID" */
+	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_RELEASE_POWERDOWN_ANALID);
 
 	dd->eprom_available = true;
 	release_chip_resource(dd, CR_EPROM);
@@ -217,7 +217,7 @@ static int read_partition_platform_config(struct hfi1_devdata *dd, void **data,
 
 	buffer = kmalloc(P1_SIZE, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = read_length(dd, P1_START, P1_SIZE, buffer);
 	if (ret) {
@@ -228,7 +228,7 @@ static int read_partition_platform_config(struct hfi1_devdata *dd, void **data,
 	/* config partition is valid only if it starts with IMAGE_START_MAGIC */
 	if (memcmp(buffer, IMAGE_START_MAGIC, strlen(IMAGE_START_MAGIC))) {
 		kfree(buffer);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* scan for image magic that may trail the actual data */
@@ -270,7 +270,7 @@ static int read_segment_platform_config(struct hfi1_devdata *dd,
 	if (footer->version != FOOTER_VERSION)
 		return -EINVAL;
 
-	/* oprom size cannot be larger than a segment */
+	/* oprom size cananalt be larger than a segment */
 	if (footer->oprom_size >= SEG_SIZE)
 		return -EINVAL;
 
@@ -289,7 +289,7 @@ static int read_segment_platform_config(struct hfi1_devdata *dd,
 		/* need to allocate and read more */
 		table_buffer = kmalloc(directory_size, GFP_KERNEL);
 		if (!table_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = read_length(dd, SEG_SIZE - directory_size,
 				  directory_size, table_buffer);
 		if (ret)
@@ -305,7 +305,7 @@ static int read_segment_platform_config(struct hfi1_devdata *dd,
 		}
 	}
 	if (!entry) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto done;
 	}
 
@@ -332,7 +332,7 @@ static int read_segment_platform_config(struct hfi1_devdata *dd,
 	/* allocate the buffer to return */
 	buffer = kmalloc(entry->size, GFP_KERNEL);
 	if (!buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -350,7 +350,7 @@ static int read_segment_platform_config(struct hfi1_devdata *dd,
 		/* subtract off footer and table from segment 0 */
 		if (seg_base == 0) {
 			/*
-			 * Sanity check: should not have a starting point
+			 * Sanity check: should analt have a starting point
 			 * at or within the directory.
 			 */
 			if (bytes_available <= directory_size) {
@@ -377,7 +377,7 @@ static int read_segment_platform_config(struct hfi1_devdata *dd,
 		 * The EPROM offset is validated against what the hardware
 		 * addressing supports.  In addition, if the offset is larger
 		 * than the actual EPROM, it silently wraps.  It will work
-		 * fine, though the reader may not get what they expected
+		 * fine, though the reader may analt get what they expected
 		 * from the EPROM.
 		 */
 		ret = read_length(dd, seg_base + seg_offset, to_copy,
@@ -412,10 +412,10 @@ done:
  *
  * Return value:
  *   0	      - success
- *   -ENXIO   - no EPROM is available
- *   -EBUSY   - not able to acquire access to the EPROM
- *   -ENOENT  - no recognizable file written
- *   -ENOMEM  - buffer could not be allocated
+ *   -ENXIO   - anal EPROM is available
+ *   -EBUSY   - analt able to acquire access to the EPROM
+ *   -EANALENT  - anal recognizable file written
+ *   -EANALMEM  - buffer could analt be allocated
  *   -EINVAL  - invalid EPROM contentents found
  */
 int eprom_read_platform_config(struct hfi1_devdata *dd, void **data, u32 *size)

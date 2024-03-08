@@ -50,7 +50,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
-	non-removable;
+	analn-removable;
 	mmc-pwrseq = <&emmc_pwrseq>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
@@ -231,7 +231,7 @@
 
 	emmc {
 		emmc_reset: emmc-reset {
-			rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

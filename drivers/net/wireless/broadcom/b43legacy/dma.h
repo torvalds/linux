@@ -14,7 +14,7 @@
 /* DMA-Interrupt reasons. */
 #define B43legacy_DMAIRQ_FATALMASK	((1 << 10) | (1 << 11) | (1 << 12) \
 					 | (1 << 14) | (1 << 15))
-#define B43legacy_DMAIRQ_NONFATALMASK	(1 << 13)
+#define B43legacy_DMAIRQ_ANALNFATALMASK	(1 << 13)
 #define B43legacy_DMAIRQ_RX_DONE		(1 << 16)
 
 
@@ -39,7 +39,7 @@
 #define			B43legacy_DMA32_TXSTAT_STOPPED	0x00003000
 #define			B43legacy_DMA32_TXSTAT_SUSP	0x00004000
 #define		B43legacy_DMA32_TXERROR			0x000F0000
-#define			B43legacy_DMA32_TXERR_NOERR	0x00000000
+#define			B43legacy_DMA32_TXERR_ANALERR	0x00000000
 #define			B43legacy_DMA32_TXERR_PROT	0x00010000
 #define			B43legacy_DMA32_TXERR_UNDERRUN	0x00020000
 #define			B43legacy_DMA32_TXERR_BUFREAD	0x00030000
@@ -62,7 +62,7 @@
 #define			B43legacy_DMA32_RXSTAT_IDLEWAIT	0x00002000
 #define			B43legacy_DMA32_RXSTAT_STOPPED	0x00003000
 #define		B43legacy_DMA32_RXERROR			0x000F0000
-#define			B43legacy_DMA32_RXERR_NOERR	0x00000000
+#define			B43legacy_DMA32_RXERR_ANALERR	0x00000000
 #define			B43legacy_DMA32_RXERR_PROT	0x00010000
 #define			B43legacy_DMA32_RXERR_OVERFLOW	0x00020000
 #define			B43legacy_DMA32_RXERR_BUFWRITE	0x00030000
@@ -89,7 +89,7 @@ struct b43legacy_dmadesc32 {
 #define B43legacy_DMA3_RX_FRAMEOFFSET	0
 
 
-/* DMA engine tuning knobs */
+/* DMA engine tuning kanalbs */
 #define B43legacy_TXRING_SLOTS		128
 #define B43legacy_RXRING_SLOTS		64
 #define B43legacy_DMA0_RX_BUFFERSIZE	(2304 + 100)

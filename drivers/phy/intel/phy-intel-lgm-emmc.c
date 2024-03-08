@@ -130,9 +130,9 @@ static int intel_emmc_phy_power(struct phy *phy, bool on_off)
 	 * is super slow (like 100 kHZ) this could take as long as 5.1 ms as
 	 * per the math: 10.2 us * (50000000 Hz / 100000 Hz) => 5.1 ms
 	 * Hopefully we won't be running at 100 kHz, but we should still make
-	 * sure we wait long enough.
+	 * sure we wait long eanalugh.
 	 *
-	 * NOTE: There appear to be corner cases where the DLL seems to take
+	 * ANALTE: There appear to be corner cases where the DLL seems to take
 	 * extra long to lock for reasons that aren't understood.  In some
 	 * extreme cases we've seen it take up to over 10ms (!).  We'll be
 	 * generous and give it 50ms.
@@ -154,7 +154,7 @@ static int intel_emmc_phy_init(struct phy *phy)
 	struct intel_emmc_phy *priv = phy_get_drvdata(phy);
 
 	/*
-	 * We purposely get the clock here and not in probe to avoid the
+	 * We purposely get the clock here and analt in probe to avoid the
 	 * circular dependency problem. We expect:
 	 * - PHY driver to probe
 	 * - SDHCI driver to start probe
@@ -234,14 +234,14 @@ static const struct phy_ops ops = {
 static int intel_emmc_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct intel_emmc_phy *priv;
 	struct phy *generic_phy;
 	struct phy_provider *phy_provider;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get eMMC phy (accessed via chiptop) regmap */
 	priv->syscfg = syscon_regmap_lookup_by_phandle(np, "intel,syscon");

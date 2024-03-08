@@ -2,7 +2,7 @@
 #ifdef CONFIG_MMU
 #include "setup_mm.c"
 #else
-#include "setup_no.c"
+#include "setup_anal.c"
 #endif
 
 #if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)

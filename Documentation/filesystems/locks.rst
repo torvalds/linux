@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==========================
-File Locking Release Notes
+File Locking Release Analtes
 ==========================
 
-		Andy Walker <andy@lysaker.kvaerner.no>
+		Andy Walker <andy@lysaker.kvaerner.anal>
 
 			    12 May 1997
 
@@ -21,7 +21,7 @@ release of the 2.1.x kernel series, support for the old emulation has
 been totally removed, so that we don't need to carry this baggage
 forever.
 
-This should not cause problems for anybody, since everybody using a
+This should analt cause problems for anybody, since everybody using a
 2.1.x kernel should have updated their C library to a suitable version
 anyway (see the file "Documentation/process/changes.rst".)
 
@@ -59,7 +59,7 @@ fcntl(), with all the problems that implies.
 
 Mandatory locking was prior to this release a general configuration option
 that was valid for all mounted filesystems.  This had a number of inherent
-dangers, not the least of which was the ability to freeze an NFS server by
+dangers, analt the least of which was the ability to freeze an NFS server by
 asking it to read a file for which a mandatory lock existed.
 
 Such option was dropped in Kernel v5.14.

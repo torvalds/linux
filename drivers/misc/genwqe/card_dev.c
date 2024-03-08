@@ -89,7 +89,7 @@ static int genwqe_del_pin(struct genwqe_file *cfile, struct dma_mapping *m)
  * @size:	Size of buffer
  * @virt_addr:	Virtual address to be updated
  *
- * Return: Pointer to the corresponding mapping	NULL if not found
+ * Return: Pointer to the corresponding mapping	NULL if analt found
  */
 static struct dma_mapping *genwqe_search_pin(struct genwqe_file *cfile,
 					    unsigned long u_addr,
@@ -145,7 +145,7 @@ static void __genwqe_del_mapping(struct genwqe_file *cfile,
  * @size:	size of buffer
  * @dma_addr:	DMA address to be updated
  * @virt_addr:	Virtual address to be updated
- * Return: Pointer to the corresponding mapping	NULL if not found
+ * Return: Pointer to the corresponding mapping	NULL if analt found
  */
 static struct dma_mapping *__genwqe_search_mapping(struct genwqe_file *cfile,
 						   unsigned long u_addr,
@@ -180,7 +180,7 @@ static struct dma_mapping *__genwqe_search_mapping(struct genwqe_file *cfile,
 	spin_unlock_irqrestore(&cfile->map_lock, flags);
 
 	dev_err(&pci_dev->dev,
-		"[%s] Entry not found: u_addr=%lx, size=%x\n",
+		"[%s] Entry analt found: u_addr=%lx, size=%x\n",
 		__func__, u_addr, size);
 
 	return NULL;
@@ -189,13 +189,13 @@ static struct dma_mapping *__genwqe_search_mapping(struct genwqe_file *cfile,
 static void genwqe_remove_mappings(struct genwqe_file *cfile)
 {
 	int i = 0;
-	struct list_head *node, *next;
+	struct list_head *analde, *next;
 	struct dma_mapping *dma_map;
 	struct genwqe_dev *cd = cfile->cd;
 	struct pci_dev *pci_dev = cfile->cd->pci_dev;
 
-	list_for_each_safe(node, next, &cfile->map_list) {
-		dma_map = list_entry(node, struct dma_mapping, card_list);
+	list_for_each_safe(analde, next, &cfile->map_list) {
+		dma_map = list_entry(analde, struct dma_mapping, card_list);
 
 		list_del_init(&dma_map->card_list);
 
@@ -227,16 +227,16 @@ static void genwqe_remove_mappings(struct genwqe_file *cfile)
 
 static void genwqe_remove_pinnings(struct genwqe_file *cfile)
 {
-	struct list_head *node, *next;
+	struct list_head *analde, *next;
 	struct dma_mapping *dma_map;
 	struct genwqe_dev *cd = cfile->cd;
 
-	list_for_each_safe(node, next, &cfile->pin_list) {
-		dma_map = list_entry(node, struct dma_mapping, pin_list);
+	list_for_each_safe(analde, next, &cfile->pin_list) {
+		dma_map = list_entry(analde, struct dma_mapping, pin_list);
 
 		/*
-		 * This is not a bug, because a killed processed might
-		 * not call the unpin ioctl, which is supposed to free
+		 * This is analt a bug, because a killed processed might
+		 * analt call the unpin ioctl, which is supposed to free
 		 * the resources.
 		 *
 		 * Pinnings are dymically allocated and need to be
@@ -288,7 +288,7 @@ static int genwqe_terminate(struct genwqe_dev *cd)
 
 /**
  * genwqe_open() - file open
- * @inode:      file system information
+ * @ianalde:      file system information
  * @filp:	file handle
  *
  * This function is executed whenever an application calls
@@ -296,16 +296,16 @@ static int genwqe_terminate(struct genwqe_dev *cd)
  *
  * Return: 0 if successful or <0 if errors
  */
-static int genwqe_open(struct inode *inode, struct file *filp)
+static int genwqe_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct genwqe_dev *cd;
 	struct genwqe_file *cfile;
 
 	cfile = kzalloc(sizeof(*cfile), GFP_KERNEL);
 	if (cfile == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cd = container_of(inode->i_cdev, struct genwqe_dev, cdev_genwqe);
+	cd = container_of(ianalde->i_cdev, struct genwqe_dev, cdev_genwqe);
 	cfile->cd = cd;
 	cfile->filp = filp;
 	cfile->client = NULL;
@@ -333,7 +333,7 @@ static int genwqe_open(struct inode *inode, struct file *filp)
  * if (cdev->async_queue)
  *         kill_fasync(&cdev->async_queue, SIGIO, POLL_IN);
  *
- * Some devices also implement asynchronous notification to indicate
+ * Some devices also implement asynchroanalus analtification to indicate
  * when the device can be written; in this case, of course,
  * kill_fasync must be called with a mode of POLL_OUT.
  */
@@ -347,28 +347,28 @@ static int genwqe_fasync(int fd, struct file *filp, int mode)
 
 /**
  * genwqe_release() - file close
- * @inode:      file system information
+ * @ianalde:      file system information
  * @filp:       file handle
  *
  * This function is executed whenever an application calls 'close(fd_genwqe)'
  *
  * Return: always 0
  */
-static int genwqe_release(struct inode *inode, struct file *filp)
+static int genwqe_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct genwqe_file *cfile = (struct genwqe_file *)filp->private_data;
 	struct genwqe_dev *cd = cfile->cd;
 
-	/* there must be no entries in these lists! */
+	/* there must be anal entries in these lists! */
 	genwqe_remove_mappings(cfile);
 	genwqe_remove_pinnings(cfile);
 
-	/* remove this filp from the asynchronously notified filp's */
+	/* remove this filp from the asynchroanalusly analtified filp's */
 	genwqe_fasync(-1, filp, 0);
 
 	/*
-	 * For this to work we must not release cd when this cfile is
-	 * not yet released, otherwise the list entry is invalid,
+	 * For this to work we must analt release cd when this cfile is
+	 * analt yet released, otherwise the list entry is invalid,
 	 * because the list itself gets reinstantiated!
 	 */
 	genwqe_del_file(cd, cfile);
@@ -378,7 +378,7 @@ static int genwqe_release(struct inode *inode, struct file *filp)
 
 static void genwqe_vma_open(struct vm_area_struct *vma)
 {
-	/* nothing ... */
+	/* analthing ... */
 }
 
 /**
@@ -390,9 +390,9 @@ static void genwqe_vma_open(struct vm_area_struct *vma)
 static void genwqe_vma_close(struct vm_area_struct *vma)
 {
 	unsigned long vsize = vma->vm_end - vma->vm_start;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct ianalde *ianalde = file_ianalde(vma->vm_file);
 	struct dma_mapping *dma_map;
-	struct genwqe_dev *cd = container_of(inode->i_cdev, struct genwqe_dev,
+	struct genwqe_dev *cd = container_of(ianalde->i_cdev, struct genwqe_dev,
 					    cdev_genwqe);
 	struct pci_dev *pci_dev = cd->pci_dev;
 	dma_addr_t d_addr = 0;
@@ -402,7 +402,7 @@ static void genwqe_vma_close(struct vm_area_struct *vma)
 					 &d_addr, NULL);
 	if (dma_map == NULL) {
 		dev_err(&pci_dev->dev,
-			"  [%s] err: mapping not found: v=%lx, p=%lx s=%lx\n",
+			"  [%s] err: mapping analt found: v=%lx, p=%lx s=%lx\n",
 			__func__, vma->vm_start, vma->vm_pgoff << PAGE_SHIFT,
 			vsize);
 		return;
@@ -419,11 +419,11 @@ static const struct vm_operations_struct genwqe_vma_ops = {
 };
 
 /**
- * genwqe_mmap() - Provide contignous buffers to userspace
+ * genwqe_mmap() - Provide contiganalus buffers to userspace
  * @filp:	File pointer (unused)
  * @vma:	VMA area to map
  *
- * We use mmap() to allocate contignous buffers used for DMA
+ * We use mmap() to allocate contiganalus buffers used for DMA
  * transfers. After the buffer is allocated we remap it to user-space
  * and remember a reference to our dma_mapping data structure, where
  * we store the associated DMA address and allocated size.
@@ -444,11 +444,11 @@ static int genwqe_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	if (get_order(vsize) > MAX_PAGE_ORDER)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_map = kzalloc(sizeof(struct dma_mapping), GFP_KERNEL);
 	if (dma_map == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	genwqe_mapping_init(dma_map, GENWQE_MAPPING_RAW);
 	dma_map->u_vaddr = (void *)vma->vm_start;
@@ -457,7 +457,7 @@ static int genwqe_mmap(struct file *filp, struct vm_area_struct *vma)
 	dma_map->k_vaddr = __genwqe_alloc_consistent(cd, vsize,
 						     &dma_map->dma_addr);
 	if (dma_map->k_vaddr == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_dma_map;
 	}
 
@@ -539,7 +539,7 @@ static int do_flash_update(struct genwqe_file *cfile,
 	buf = (u8 __user *)load->data_addr;
 	xbuf = __genwqe_alloc_consistent(cd, FLASH_BLOCK, &dma_addr);
 	if (xbuf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	blocks_to_flash = load->size / FLASH_BLOCK;
 	while (load->size) {
@@ -566,7 +566,7 @@ static int do_flash_update(struct genwqe_file *cfile,
 		/* prepare DDCB for SLU process */
 		req = ddcb_requ_alloc();
 		if (req == NULL) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto free_buffer;
 		}
 
@@ -675,7 +675,7 @@ static int do_flash_read(struct genwqe_file *cfile,
 	buf = (u8 __user *)load->data_addr;
 	xbuf = __genwqe_alloc_consistent(cd, FLASH_BLOCK, &dma_addr);
 	if (xbuf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	blocks_to_flash = load->size / FLASH_BLOCK;
 	while (load->size) {
@@ -693,7 +693,7 @@ static int do_flash_read(struct genwqe_file *cfile,
 		/* prepare DDCB for SLU process */
 		cmd = ddcb_requ_alloc();
 		if (cmd == NULL) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto free_buffer;
 		}
 		cmd->cmd = SLCMD_MOVE_FLASH;
@@ -743,9 +743,9 @@ static int do_flash_read(struct genwqe_file *cfile,
 			goto free_buffer;
 		}
 
-		/* We know that we can get retc 0x104 with CRC err */
+		/* We kanalw that we can get retc 0x104 with CRC err */
 		if (((cmd->retc == DDCB_RETC_FAULT) &&
-		     (cmd->attn != 0x02)) ||  /* Normally ignore CRC error */
+		     (cmd->attn != 0x02)) ||  /* Analrmally iganalre CRC error */
 		    ((cmd->retc == DDCB_RETC_COMPLETE) &&
 		     (cmd->attn != 0x00))) {  /* Everything was fine */
 			rc = -EIO;
@@ -785,7 +785,7 @@ static int genwqe_pin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 
 	dma_map = kzalloc(sizeof(struct dma_mapping), GFP_KERNEL);
 	if (dma_map == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	genwqe_mapping_init(dma_map, GENWQE_MAPPING_SGL_PINNED);
 	rc = genwqe_user_vmap(cd, dma_map, (void *)map_addr, map_size);
@@ -815,7 +815,7 @@ static int genwqe_unpin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 
 	dma_map = genwqe_search_pin(cfile, map_addr, map_size, NULL);
 	if (dma_map == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	genwqe_del_pin(cfile, dma_map);
 	genwqe_user_vunmap(cd, dma_map);
@@ -828,7 +828,7 @@ static int genwqe_unpin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
  * @cfile:	Descriptor of opened file
  * @req:	DDCB work request
  *
- * Only if there are any. Pinnings are not removed.
+ * Only if there are any. Pinnings are analt removed.
  */
 static int ddcb_cmd_cleanup(struct genwqe_file *cfile, struct ddcb_requ *req)
 {
@@ -880,7 +880,7 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 		switch (ats_flags) {
 
 		case ATS_TYPE_DATA:
-			break;	/* nothing to do here */
+			break;	/* analthing to do here */
 
 		case ATS_TYPE_FLAT_RDWR:
 		case ATS_TYPE_FLAT_RD: {
@@ -890,8 +890,8 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 					       asiv[asiv_offs + 0x08]));
 
 			/*
-			 * No data available. Ignore u_addr in this
-			 * case and set addr to 0. Hardware must not
+			 * Anal data available. Iganalre u_addr in this
+			 * case and set addr to 0. Hardware must analt
 			 * fetch the buffer.
 			 */
 			if (u_size == 0x0) {
@@ -922,8 +922,8 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 					       &cmd->asiv[asiv_offs + 0x08]));
 
 			/*
-			 * No data available. Ignore u_addr in this
-			 * case and set addr to 0. Hardware must not
+			 * Anal data available. Iganalre u_addr in this
+			 * case and set addr to 0. Hardware must analt
 			 * fetch the empty sgl.
 			 */
 			if (u_size == 0x0) {
@@ -987,7 +987,7 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
  * @cmd:        Command identifier (passed from user)
  *
  * The code will build up the translation tables or lookup the
- * contignous memory allocation table to find the right translations
+ * contiganalus memory allocation table to find the right translations
  * and DMA addresses.
  */
 static int genwqe_execute_ddcb(struct genwqe_file *cfile,
@@ -1017,7 +1017,7 @@ static int do_execute_ddcb(struct genwqe_file *cfile,
 
 	cmd = ddcb_requ_alloc();
 	if (cmd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(cmd, (void __user *)arg, sizeof(*cmd))) {
 		ddcb_requ_free(cmd);
@@ -1029,7 +1029,7 @@ static int do_execute_ddcb(struct genwqe_file *cfile,
 	else
 		rc = __genwqe_execute_raw_ddcb(cd, cmd, filp->f_flags);
 
-	/* Copy back only the modifed fields. Do not copy ASIV
+	/* Copy back only the modifed fields. Do analt copy ASIV
 	   back since the copy got modified by the driver. */
 	if (copy_to_user((void __user *)arg, cmd,
 			 sizeof(*cmd) - DDCB_ASIV_LENGTH)) {
@@ -1175,7 +1175,7 @@ static long genwqe_ioctl(struct file *filp, unsigned int cmd,
 			return -EPERM;
 
 		if (genwqe_flash_readback_fails(cd))
-			return -ENOSPC;	 /* known to fail for old versions */
+			return -EANALSPC;	 /* kanalwn to fail for old versions */
 
 		if (copy_from_user(&load, (void __user *)arg, sizeof(load)))
 			return -EFAULT;
@@ -1246,7 +1246,7 @@ static int genwqe_device_initialized(struct genwqe_dev *cd)
  * @cd:      genwqe device descriptor
  *
  * This function must be called before we create any more genwqe
- * character devices, because it is allocating the major and minor
+ * character devices, because it is allocating the major and mianalr
  * number which are supposed to be used by the client drivers.
  */
 int genwqe_device_create(struct genwqe_dev *cd)
@@ -1258,10 +1258,10 @@ int genwqe_device_create(struct genwqe_dev *cd)
 	 * Here starts the individual setup per client. It must
 	 * initialize its own cdev data structure with its own fops.
 	 * The appropriate devnum needs to be created. The ranges must
-	 * not overlap.
+	 * analt overlap.
 	 */
 	rc = alloc_chrdev_region(&cd->devnum_genwqe, 0,
-				 GENWQE_MAX_MINOR, GENWQE_DEVNAME);
+				 GENWQE_MAX_MIANALR, GENWQE_DEVNAME);
 	if (rc < 0) {
 		dev_err(&pci_dev->dev, "err: alloc_chrdev_region failed\n");
 		goto err_dev;
@@ -1298,7 +1298,7 @@ int genwqe_device_create(struct genwqe_dev *cd)
  err_cdev:
 	cdev_del(&cd->cdev_genwqe);
  err_add:
-	unregister_chrdev_region(cd->devnum_genwqe, GENWQE_MAX_MINOR);
+	unregister_chrdev_region(cd->devnum_genwqe, GENWQE_MAX_MIANALR);
  err_dev:
 	cd->dev = NULL;
 	return rc;
@@ -1326,7 +1326,7 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
 			msleep(1000);
 		}
 
-		/* if no open files we can safely continue, else ... */
+		/* if anal open files we can safely continue, else ... */
 		if (!genwqe_open_files(cd))
 			return 0;
 
@@ -1353,10 +1353,10 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
  * @cd: GenWQE device information
  *
  * This function must be called after the client devices are removed
- * because it will free the major/minor number range for the genwqe
+ * because it will free the major/mianalr number range for the genwqe
  * drivers.
  *
- * This function must be robust enough to be called twice.
+ * This function must be robust eanalugh to be called twice.
  */
 int genwqe_device_remove(struct genwqe_dev *cd)
 {
@@ -1372,19 +1372,19 @@ int genwqe_device_remove(struct genwqe_dev *cd)
 	 * We currently do wait until all filedescriptors are
 	 * closed. This leads to a problem when we abort the
 	 * application which will decrease this reference from
-	 * 1/unused to 0/illegal and not from 2/used 1/empty.
+	 * 1/unused to 0/illegal and analt from 2/used 1/empty.
 	 */
 	rc = kref_read(&cd->cdev_genwqe.kobj.kref);
 	if (rc != 1) {
 		dev_err(&pci_dev->dev,
 			"[%s] err: cdev_genwqe...refcount=%d\n", __func__, rc);
-		panic("Fatal err: cannot free resources with pending references!");
+		panic("Fatal err: cananalt free resources with pending references!");
 	}
 
 	genqwe_exit_debugfs(cd);
 	device_destroy(cd->class_genwqe, cd->devnum_genwqe);
 	cdev_del(&cd->cdev_genwqe);
-	unregister_chrdev_region(cd->devnum_genwqe, GENWQE_MAX_MINOR);
+	unregister_chrdev_region(cd->devnum_genwqe, GENWQE_MAX_MIANALR);
 	cd->dev = NULL;
 
 	return 0;

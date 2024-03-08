@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/string.h>
@@ -68,7 +68,7 @@ static int pcie_message_numbers(struct pci_dev *dev, int mask,
 	 */
 
 	if (mask & (PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP |
-		    PCIE_PORT_SERVICE_BWNOTIF)) {
+		    PCIE_PORT_SERVICE_BWANALTIF)) {
 		pcie_capability_read_word(dev, PCI_EXP_FLAGS, &reg16);
 		*pme = FIELD_GET(PCI_EXP_FLAGS_IRQ, reg16);
 		nvec = *pme + 1;
@@ -136,7 +136,7 @@ static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 	 *
 	 * If we're using MSI, hardware is *allowed* to change the Interrupt
 	 * Message Numbers when we free and reallocate the vectors, but we
-	 * assume it won't because we allocate enough vectors for the
+	 * assume it won't because we allocate eanalugh vectors for the
 	 * biggest Message Number we found.
 	 */
 	if (nvec != nr_entries) {
@@ -148,13 +148,13 @@ static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 			return nr_entries;
 	}
 
-	/* PME, hotplug and bandwidth notification share an MSI/MSI-X vector */
+	/* PME, hotplug and bandwidth analtification share an MSI/MSI-X vector */
 	if (mask & (PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP |
-		    PCIE_PORT_SERVICE_BWNOTIF)) {
+		    PCIE_PORT_SERVICE_BWANALTIF)) {
 		pcie_irq = pci_irq_vector(dev, pme);
 		irqs[PCIE_PORT_SERVICE_PME_SHIFT] = pcie_irq;
 		irqs[PCIE_PORT_SERVICE_HP_SHIFT] = pcie_irq;
-		irqs[PCIE_PORT_SERVICE_BWNOTIF_SHIFT] = pcie_irq;
+		irqs[PCIE_PORT_SERVICE_BWANALTIF_SHIFT] = pcie_irq;
 	}
 
 	if (mask & PCIE_PORT_SERVICE_AER)
@@ -186,7 +186,7 @@ static int pcie_init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 	 * fall back to INTx or other interrupts, e.g., a system shared
 	 * interrupt.
 	 */
-	if ((mask & PCIE_PORT_SERVICE_PME) && pcie_pme_no_msi())
+	if ((mask & PCIE_PORT_SERVICE_PME) && pcie_pme_anal_msi())
 		goto legacy_irq;
 
 	/* Try to use MSI-X or MSI if supported */
@@ -197,7 +197,7 @@ legacy_irq:
 	/* fall back to legacy IRQ */
 	ret = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_LEGACY);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++)
 		irqs[i] = pci_irq_vector(dev, 0);
@@ -228,7 +228,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 
 		/*
 		 * Disable hot-plug interrupts in case they have been enabled
-		 * by the BIOS and the hot-plug service driver is not loaded.
+		 * by the BIOS and the hot-plug service driver is analt loaded.
 		 */
 		pcie_capability_clear_word(dev, PCI_EXP_SLTCTL,
 			  PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
@@ -271,7 +271,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 
 		pcie_capability_read_dword(dev, PCI_EXP_LNKCAP, &linkcap);
 		if (linkcap & PCI_EXP_LNKCAP_LBNC)
-			services |= PCIE_PORT_SERVICE_BWNOTIF;
+			services |= PCIE_PORT_SERVICE_BWANALTIF;
 	}
 
 	return services;
@@ -291,7 +291,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 
 	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 	pcie->port = pdev;
 	pcie->irq = irq;
 	pcie->service = service;
@@ -312,7 +312,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 		return retval;
 	}
 
-	pm_runtime_no_callbacks(device);
+	pm_runtime_anal_callbacks(device);
 
 	return 0;
 }
@@ -342,7 +342,7 @@ static int pcie_port_device_register(struct pci_dev *dev)
 	pci_set_master(dev);
 	/*
 	 * Initialize service irqs. Don't use service devices that
-	 * require interrupts if there is no way to generate them.
+	 * require interrupts if there is anal way to generate them.
 	 * However, some drivers may have a polling mode (e.g. pciehp_poll_mode)
 	 * that can be used in the absence of irqs.  Allow them to determine
 	 * if that is to be used.
@@ -355,7 +355,7 @@ static int pcie_port_device_register(struct pci_dev *dev)
 	}
 
 	/* Allocate child services if any */
-	status = -ENODEV;
+	status = -EANALDEV;
 	nr_service = 0;
 	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
 		int service = 1 << i;
@@ -404,9 +404,9 @@ static int pcie_port_device_suspend(struct device *dev)
 	return device_for_each_child(dev, &off, pcie_port_device_iter);
 }
 
-static int pcie_port_device_resume_noirq(struct device *dev)
+static int pcie_port_device_resume_analirq(struct device *dev)
 {
-	size_t off = offsetof(struct pcie_port_service_driver, resume_noirq);
+	size_t off = offsetof(struct pcie_port_service_driver, resume_analirq);
 	return device_for_each_child(dev, &off, pcie_port_device_iter);
 }
 
@@ -519,11 +519,11 @@ static int pcie_port_probe_service(struct device *dev)
 	int status;
 
 	if (!dev || !dev->driver)
-		return -ENODEV;
+		return -EANALDEV;
 
 	driver = to_service_driver(dev->driver);
 	if (!driver || !driver->probe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pciedev = to_pcie_device(dev);
 	status = driver->probe(pciedev);
@@ -578,7 +578,7 @@ static void pcie_port_shutdown_service(struct device *dev) {}
 int pcie_port_service_register(struct pcie_port_service_driver *new)
 {
 	if (pcie_ports_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	new->driver.name = new->name;
 	new->driver.bus = &pcie_port_bus_type;
@@ -598,13 +598,13 @@ void pcie_port_service_unregister(struct pcie_port_service_driver *drv)
 	driver_unregister(&drv->driver);
 }
 
-/* If this switch is set, PCIe port native services should not be enabled. */
+/* If this switch is set, PCIe port native services should analt be enabled. */
 bool pcie_ports_disabled;
 
 /*
  * If the user specified "pcie_ports=native", use the PCIe services regardless
  * of whether the platform has given us permission.  On ACPI systems, this
- * means we ignore _OSC.
+ * means we iganalre _OSC.
  */
 bool pcie_ports_native;
 
@@ -650,12 +650,12 @@ static int pcie_port_runtime_idle(struct device *dev)
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
-	.resume_noirq	= pcie_port_device_resume_noirq,
+	.resume_analirq	= pcie_port_device_resume_analirq,
 	.resume		= pcie_port_device_resume,
 	.freeze		= pcie_port_device_suspend,
 	.thaw		= pcie_port_device_resume,
 	.poweroff	= pcie_port_device_suspend,
-	.restore_noirq	= pcie_port_device_resume_noirq,
+	.restore_analirq	= pcie_port_device_resume_analirq,
 	.restore	= pcie_port_device_resume,
 	.runtime_suspend = pcie_port_runtime_suspend,
 	.runtime_resume	= pcie_port_device_runtime_resume,
@@ -688,7 +688,7 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 	     (type != PCI_EXP_TYPE_UPSTREAM) &&
 	     (type != PCI_EXP_TYPE_DOWNSTREAM) &&
 	     (type != PCI_EXP_TYPE_RC_EC)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (type == PCI_EXP_TYPE_RC_EC)
 		pcie_link_rcec(dev);
@@ -699,13 +699,13 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 
 	pci_save_state(dev);
 
-	dev_pm_set_driver_flags(&dev->dev, DPM_FLAG_NO_DIRECT_COMPLETE |
+	dev_pm_set_driver_flags(&dev->dev, DPM_FLAG_ANAL_DIRECT_COMPLETE |
 					   DPM_FLAG_SMART_SUSPEND);
 
 	if (pci_bridge_d3_possible(dev)) {
 		/*
 		 * Keep the port resumed 100ms to make sure things like
-		 * config space accesses from userspace (lspci) will not
+		 * config space accesses from userspace (lspci) will analt
 		 * cause the port to repeatedly suspend and resume.
 		 */
 		pm_runtime_set_autosuspend_delay(&dev->dev, 100);
@@ -722,7 +722,7 @@ static void pcie_portdrv_remove(struct pci_dev *dev)
 {
 	if (pci_bridge_d3_possible(dev)) {
 		pm_runtime_forbid(&dev->dev);
-		pm_runtime_get_noresume(&dev->dev);
+		pm_runtime_get_analresume(&dev->dev);
 		pm_runtime_dont_use_autosuspend(&dev->dev);
 	}
 
@@ -735,7 +735,7 @@ static void pcie_portdrv_shutdown(struct pci_dev *dev)
 {
 	if (pci_bridge_d3_possible(dev)) {
 		pm_runtime_forbid(&dev->dev);
-		pm_runtime_get_noresume(&dev->dev);
+		pm_runtime_get_analresume(&dev->dev);
 		pm_runtime_dont_use_autosuspend(&dev->dev);
 	}
 
@@ -770,7 +770,7 @@ static pci_ers_result_t pcie_portdrv_mmio_enabled(struct pci_dev *dev)
  */
 static const struct pci_device_id port_pci_ids[] = {
 	/* handle any PCI-Express port */
-	{ PCI_DEVICE_CLASS(PCI_CLASS_BRIDGE_PCI_NORMAL, ~0) },
+	{ PCI_DEVICE_CLASS(PCI_CLASS_BRIDGE_PCI_ANALRMAL, ~0) },
 	/* subtractive decode PCI-to-PCI bridge, class type is 060401h */
 	{ PCI_DEVICE_CLASS(PCI_CLASS_BRIDGE_PCI_SUBTRACTIVE, ~0) },
 	/* handle any Root Complex Event Collector */
@@ -801,7 +801,7 @@ static struct pci_driver pcie_portdriver = {
 
 static int __init dmi_pcie_pme_disable_msi(const struct dmi_system_id *d)
 {
-	pr_notice("%s detected: will not use MSI for PCIe PME signaling\n",
+	pr_analtice("%s detected: will analt use MSI for PCIe PME signaling\n",
 		  d->ident);
 	pcie_pme_disable_msi();
 	return 0;
@@ -809,7 +809,7 @@ static int __init dmi_pcie_pme_disable_msi(const struct dmi_system_id *d)
 
 static const struct dmi_system_id pcie_portdrv_dmi_table[] __initconst = {
 	/*
-	 * Boxes that should not use MSI for PCIe PME signaling.
+	 * Boxes that should analt use MSI for PCIe PME signaling.
 	 */
 	{
 	 .callback = dmi_pcie_pme_disable_msi,

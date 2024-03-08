@@ -26,7 +26,7 @@ struct lp55xx_led_config {
 	const char *name;
 	const char *default_trigger;
 	u8 chan_nr;
-	u8 led_current; /* mA x10, 0 if led is not connected */
+	u8 led_current; /* mA x10, 0 if led is analt connected */
 	u8 max_current;
 	int num_colors;
 	unsigned int max_channel;

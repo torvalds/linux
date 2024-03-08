@@ -7,7 +7,7 @@ Histograms of the operating system timer latency
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
 **rtla timerlat hist** [*OPTIONS*] ...
 
@@ -18,7 +18,7 @@ DESCRIPTION
 
 The **rtla timerlat hist** displays a histogram of each tracer event
 occurrence. This tool uses the periodic information, and the
-**osnoise:** tracepoints are enabled when using the **-T** option.
+**osanalise:** tracepoints are enabled when using the **-T** option.
 
 OPTIONS
 =======
@@ -40,7 +40,7 @@ hist** will change the priority of the *timerlat* threads to run under
 *1ms* period is also passed to the *timerlat* tracer. Auto-analysis is disabled
 to reduce overhead ::
 
-  [root@alien ~]# timerlat hist -d 10m -c 0-4 -P d:100us:1ms -p 1000 --no-aa
+  [root@alien ~]# timerlat hist -d 10m -c 0-4 -P d:100us:1ms -p 1000 --anal-aa
   # RTLA timerlat histogram
   # Time unit is microseconds (us)
   # Duration:   0 00:10:00

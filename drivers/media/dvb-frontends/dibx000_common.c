@@ -22,7 +22,7 @@ static int dibx000_write_word(struct dibx000_i2c_master *mst, u16 reg, u16 val)
 	int ret;
 
 	if (mutex_lock_interruptible(&mst->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return -EINVAL;
 	}
 
@@ -48,7 +48,7 @@ static u16 dibx000_read_word(struct dibx000_i2c_master *mst, u16 reg)
 	u16 ret;
 
 	if (mutex_lock_interruptible(&mst->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return 0;
 	}
 
@@ -86,7 +86,7 @@ static int dibx000_is_i2c_done(struct dibx000_i2c_master *mst)
 	if (i == 0)
 		return -EREMOTEIO;
 
-	/* no acknowledge */
+	/* anal ackanalwledge */
 	if ((status & 0x0080) == 0)
 		return -EREMOTEIO;
 
@@ -261,13 +261,13 @@ static struct i2c_algorithm dibx000_i2c_master_gpio34_xfer_algo = {
 };
 
 static int dibx000_i2c_gate_ctrl(struct dibx000_i2c_master *mst, u8 tx[4],
-				 u8 addr, int onoff)
+				 u8 addr, int oanalff)
 {
 	u16 val;
 
 
-	if (onoff)
-		val = addr << 8;	// bit 7 = use master or not, if 0, the gate is open
+	if (oanalff)
+		val = addr << 8;	// bit 7 = use master or analt, if 0, the gate is open
 	else
 		val = 1 << 7;
 
@@ -291,13 +291,13 @@ static int dibx000_i2c_gated_gpio67_xfer(struct i2c_adapter *i2c_adap,
 	if (num > 32) {
 		dprintk("%s: too much I2C message to be transmitted (%i). Maximum is 32",
 			__func__, num);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dibx000_i2c_select_interface(mst, DIBX000_I2C_INTERFACE_GPIO_6_7);
 
 	if (mutex_lock_interruptible(&mst->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return -EINVAL;
 	}
 
@@ -338,13 +338,13 @@ static int dibx000_i2c_gated_tuner_xfer(struct i2c_adapter *i2c_adap,
 	if (num > 32) {
 		dprintk("%s: too much I2C message to be transmitted (%i). Maximum is 32",
 			__func__, num);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dibx000_i2c_select_interface(mst, DIBX000_I2C_INTERFACE_TUNER);
 
 	if (mutex_lock_interruptible(&mst->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return -EINVAL;
 	}
 	memset(mst->msg, 0, sizeof(struct i2c_msg) * (2 + num));
@@ -430,7 +430,7 @@ static int i2c_adapter_init(struct i2c_adapter *i2c_adap,
 	i2c_adap->algo_data = NULL;
 	i2c_set_adapdata(i2c_adap, mst);
 	if (i2c_add_adapter(i2c_adap) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -441,7 +441,7 @@ int dibx000_init_i2c_master(struct dibx000_i2c_master *mst, u16 device_rev,
 
 	mutex_init(&mst->i2c_buffer_lock);
 	if (mutex_lock_interruptible(&mst->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return -EINVAL;
 	}
 	memset(mst->msg, 0, sizeof(struct i2c_msg));
@@ -463,25 +463,25 @@ int dibx000_init_i2c_master(struct dibx000_i2c_master *mst, u16 device_rev,
 	if (i2c_adapter_init
 			(&mst->gated_tuner_i2c_adap, &dibx000_i2c_gated_tuner_algo,
 			 "DiBX000 tuner I2C bus", mst) != 0)
-		pr_err("could not initialize the tuner i2c_adapter\n");
+		pr_err("could analt initialize the tuner i2c_adapter\n");
 
 	mst->master_i2c_adap_gpio12.dev.parent = mst->i2c_adap->dev.parent;
 	if (i2c_adapter_init
 			(&mst->master_i2c_adap_gpio12, &dibx000_i2c_master_gpio12_xfer_algo,
 			 "DiBX000 master GPIO12 I2C bus", mst) != 0)
-		pr_err("could not initialize the master i2c_adapter\n");
+		pr_err("could analt initialize the master i2c_adapter\n");
 
 	mst->master_i2c_adap_gpio34.dev.parent = mst->i2c_adap->dev.parent;
 	if (i2c_adapter_init
 			(&mst->master_i2c_adap_gpio34, &dibx000_i2c_master_gpio34_xfer_algo,
 			 "DiBX000 master GPIO34 I2C bus", mst) != 0)
-		pr_err("could not initialize the master i2c_adapter\n");
+		pr_err("could analt initialize the master i2c_adapter\n");
 
 	mst->master_i2c_adap_gpio67.dev.parent = mst->i2c_adap->dev.parent;
 	if (i2c_adapter_init
 			(&mst->master_i2c_adap_gpio67, &dibx000_i2c_gated_gpio67_algo,
 			 "DiBX000 master GPIO67 I2C bus", mst) != 0)
-		pr_err("could not initialize the master i2c_adapter\n");
+		pr_err("could analt initialize the master i2c_adapter\n");
 
 	/* initialize the i2c-master by closing the gate */
 	dibx000_i2c_gate_ctrl(mst, mst->i2c_write_buffer, 0, 0);

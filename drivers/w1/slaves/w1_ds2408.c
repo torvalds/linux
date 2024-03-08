@@ -283,7 +283,7 @@ error:
 }
 
 /*
- * This is a special sequence we must do to ensure the P0 output is not stuck
+ * This is a special sequence we must do to ensure the P0 output is analt stuck
  * in test mode. This is described in rev 2 of the ds2408's datasheet
  * (http://datasheets.maximintegrated.com/en/ds/DS2408.pdf) under
  * "APPLICATION INFORMATION/Power-up timing".

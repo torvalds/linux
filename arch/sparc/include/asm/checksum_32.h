@@ -42,7 +42,7 @@ __wsum csum_partial(const void *buff, int len, __wsum sum);
 unsigned int __csum_partial_copy_sparc_generic (const unsigned char *, unsigned char *);
 
 static inline __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len)
+csum_partial_copy_analcheck(const void *src, void *dst, int len)
 {
 	register unsigned int ret asm("o0") = (unsigned int)src;
 	register char *d asm("o1") = dst;
@@ -64,7 +64,7 @@ csum_and_copy_from_user(const void __user *src, void *dst, int len)
 {
 	if (unlikely(!access_ok(src, len)))
 		return 0;
-	return csum_partial_copy_nocheck((__force void *)src, dst, len);
+	return csum_partial_copy_analcheck((__force void *)src, dst, len);
 }
 
 static inline __wsum
@@ -72,7 +72,7 @@ csum_and_copy_to_user(const void *src, void __user *dst, int len)
 {
 	if (!access_ok(dst, len))
 		return 0;
-	return csum_partial_copy_nocheck(src, (__force void *)dst, len);
+	return csum_partial_copy_analcheck(src, (__force void *)dst, len);
 }
 
 /* ihl is always 5 or greater, almost always is 5, and iph is word aligned
@@ -82,7 +82,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
 	__sum16 sum;
 
-	/* Note: We must read %2 before we touch %0 for the first time,
+	/* Analte: We must read %2 before we touch %0 for the first time,
 	 *       because GCC can legitimately use the same register for
 	 *       both operands.
 	 */
@@ -107,7 +107,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 			     "2:\taddcc\t%0, %%g2, %%g2\n\t"
 			     "srl\t%%g2, 16, %0\n\t"
 			     "addx\t%0, %%g0, %0\n\t"
-			     "xnor\t%%g0, %0, %0"
+			     "xanalr\t%%g0, %0, %0"
 			     : "=r" (sum), "=&r" (iph)
 			     : "r" (ihl), "1" (iph)
 			     : "g2", "g3", "g4", "cc", "memory");
@@ -122,14 +122,14 @@ static inline __sum16 csum_fold(__wsum sum)
 	__asm__ __volatile__("addcc\t%0, %1, %1\n\t"
 			     "srl\t%1, 16, %1\n\t"
 			     "addx\t%1, %%g0, %1\n\t"
-			     "xnor\t%%g0, %1, %0"
+			     "xanalr\t%%g0, %1, %0"
 			     : "=&r" (sum), "=r" (tmp)
 			     : "0" (sum), "1" ((__force u32)sum<<16)
 			     : "cc");
 	return (__force __sum16)sum;
 }
 
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static inline __wsum csum_tcpudp_analfold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
@@ -152,7 +152,7 @@ static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
+	return csum_fold(csum_tcpudp_analfold(saddr,daddr,len,proto,sum));
 }
 
 #define _HAVE_ARCH_IPV6_CSUM

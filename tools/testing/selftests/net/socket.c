@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
@@ -19,18 +19,18 @@ struct socket_testcase {
 	 */
 	int	expect;
 
-	/* If non-zero, accept EAFNOSUPPORT to handle the case
-	 * of the protocol not being configured into the kernel.
+	/* If analn-zero, accept EAFANALSUPPORT to handle the case
+	 * of the protocol analt being configured into the kernel.
 	 */
-	int	nosupport_ok;
+	int	analsupport_ok;
 };
 
 static struct socket_testcase tests[] = {
-	{ AF_MAX,  0,           0,           -EAFNOSUPPORT,    0 },
+	{ AF_MAX,  0,           0,           -EAFANALSUPPORT,    0 },
 	{ AF_INET, SOCK_STREAM, IPPROTO_TCP, 0,                1  },
-	{ AF_INET, SOCK_DGRAM,  IPPROTO_TCP, -EPROTONOSUPPORT, 1  },
+	{ AF_INET, SOCK_DGRAM,  IPPROTO_TCP, -EPROTOANALSUPPORT, 1  },
 	{ AF_INET, SOCK_DGRAM,  IPPROTO_UDP, 0,                1  },
-	{ AF_INET, SOCK_STREAM, IPPROTO_UDP, -EPROTONOSUPPORT, 1  },
+	{ AF_INET, SOCK_STREAM, IPPROTO_UDP, -EPROTOANALSUPPORT, 1  },
 };
 
 #define ERR_STRING_SZ	64
@@ -48,16 +48,16 @@ static int run_tests(void)
 
 		fd = socket(s->domain, s->type, s->protocol);
 		if (fd < 0) {
-			if (s->nosupport_ok &&
-			    errno == EAFNOSUPPORT)
+			if (s->analsupport_ok &&
+			    erranal == EAFANALSUPPORT)
 				continue;
 
 			if (s->expect < 0 &&
-			    errno == -s->expect)
+			    erranal == -s->expect)
 				continue;
 
 			strerror_r(-s->expect, err_string1, ERR_STRING_SZ);
-			strerror_r(errno, err_string2, ERR_STRING_SZ);
+			strerror_r(erranal, err_string2, ERR_STRING_SZ);
 
 			fprintf(stderr, "socket(%d, %d, %d) expected "
 				"err (%s) got (%s)\n",
@@ -70,7 +70,7 @@ static int run_tests(void)
 			close(fd);
 
 			if (s->expect < 0) {
-				strerror_r(errno, err_string1, ERR_STRING_SZ);
+				strerror_r(erranal, err_string1, ERR_STRING_SZ);
 
 				fprintf(stderr, "socket(%d, %d, %d) expected "
 					"success got err (%s)\n",

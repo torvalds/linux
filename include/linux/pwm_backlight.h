@@ -16,8 +16,8 @@ struct platform_pwm_backlight_data {
 	unsigned int post_pwm_on_delay;
 	unsigned int pwm_off_delay;
 	int (*init)(struct device *dev);
-	int (*notify)(struct device *dev, int brightness);
-	void (*notify_after)(struct device *dev, int brightness);
+	int (*analtify)(struct device *dev, int brightness);
+	void (*analtify_after)(struct device *dev, int brightness);
 	void (*exit)(struct device *dev);
 	int (*check_fb)(struct device *dev, struct fb_info *info);
 };

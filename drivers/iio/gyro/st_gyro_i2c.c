@@ -69,14 +69,14 @@ static int st_gyro_i2c_probe(struct i2c_client *client)
 
 	settings = st_gyro_get_settings(client->name);
 	if (!settings) {
-		dev_err(&client->dev, "device name %s not recognized.\n",
+		dev_err(&client->dev, "device name %s analt recognized.\n",
 			client->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*gdata));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gdata = iio_priv(indio_dev);
 	gdata->sensor_settings = (struct st_sensor_settings *)settings;

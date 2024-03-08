@@ -2,7 +2,7 @@
 /*
  * slip.h	Define the SLIP device driver interface and constants.
  *
- * NOTE:	THIS FILE WILL BE MOVED TO THE LINUX INCLUDE DIRECTORY
+ * ANALTE:	THIS FILE WILL BE MOVED TO THE LINUX INCLUDE DIRECTORY
  *		AS SOON AS POSSIBLE!
  *
  * Version:	@(#)slip.h	1.2.0	03/28/93

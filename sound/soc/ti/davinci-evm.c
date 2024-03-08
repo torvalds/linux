@@ -2,7 +2,7 @@
 /*
  * ASoC driver for TI DAVINCI EVM platform
  *
- * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
+ * Author:      Vladimir Barianalv, <vbarianalv@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  */
 
@@ -67,7 +67,7 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 
 	/* set the CPU system clock */
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, sysclk, SND_SOC_CLOCK_OUT);
-	if (ret < 0 && ret != -ENOTSUPP)
+	if (ret < 0 && ret != -EANALTSUPP)
 		return ret;
 
 	return 0;
@@ -113,7 +113,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
-	struct device_node *np = card->dev->of_node;
+	struct device_analde *np = card->dev->of_analde;
 	int ret;
 
 	/* Add davinci-evm specific widgets */
@@ -130,8 +130,8 @@ static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 					ARRAY_SIZE(audio_map));
 	}
 
-	/* not connected */
-	snd_soc_dapm_nc_pin(&card->dapm, "MONO_LOUT");
+	/* analt connected */
+	snd_soc_dapm_nc_pin(&card->dapm, "MOANAL_LOUT");
 	snd_soc_dapm_nc_pin(&card->dapm, "HPLCOM");
 	snd_soc_dapm_nc_pin(&card->dapm, "HPRCOM");
 
@@ -140,7 +140,7 @@ static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 
 /*
  * The struct is used as place holder. It will be completely
- * filled with data from dt node.
+ * filled with data from dt analde.
  */
 SND_SOC_DAILINK_DEFS(evm,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
@@ -174,7 +174,7 @@ static struct snd_soc_card evm_soc_card = {
 
 static int davinci_evm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct snd_soc_dai_link *dai;
 	struct snd_soc_card_drvdata_davinci *drvdata = NULL;
 	struct clk *mclk;
@@ -182,21 +182,21 @@ static int davinci_evm_probe(struct platform_device *pdev)
 
 	dai = (struct snd_soc_dai_link *) device_get_match_data(&pdev->dev);
 	if (!dai) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Error: Anal device match found\n");
+		return -EANALDEV;
 	}
 
 	evm_soc_card.dai_link = dai;
 
-	dai->codecs->of_node = of_parse_phandle(np, "ti,audio-codec", 0);
-	if (!dai->codecs->of_node)
+	dai->codecs->of_analde = of_parse_phandle(np, "ti,audio-codec", 0);
+	if (!dai->codecs->of_analde)
 		return -EINVAL;
 
-	dai->cpus->of_node = of_parse_phandle(np, "ti,mcasp-controller", 0);
-	if (!dai->cpus->of_node)
+	dai->cpus->of_analde = of_parse_phandle(np, "ti,mcasp-controller", 0);
+	if (!dai->cpus->of_analde)
 		return -EINVAL;
 
-	dai->platforms->of_node = dai->cpus->of_node;
+	dai->platforms->of_analde = dai->cpus->of_analde;
 
 	evm_soc_card.dev = &pdev->dev;
 	ret = snd_soc_of_parse_card_name(&evm_soc_card, "ti,model");
@@ -207,13 +207,13 @@ static int davinci_evm_probe(struct platform_device *pdev)
 	if (PTR_ERR(mclk) == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
 	} else if (IS_ERR(mclk)) {
-		dev_dbg(&pdev->dev, "mclk not found.\n");
+		dev_dbg(&pdev->dev, "mclk analt found.\n");
 		mclk = NULL;
 	}
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->mclk = mclk;
 
@@ -222,7 +222,7 @@ static int davinci_evm_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		if (!drvdata->mclk) {
 			dev_err(&pdev->dev,
-				"No clock or clock rate defined.\n");
+				"Anal clock or clock rate defined.\n");
 			return -EINVAL;
 		}
 		drvdata->sysclk = clk_get_rate(drvdata->mclk);
@@ -232,7 +232,7 @@ static int davinci_evm_probe(struct platform_device *pdev)
 		drvdata->sysclk = clk_get_rate(drvdata->mclk);
 		if (drvdata->sysclk != requestd_rate)
 			dev_warn(&pdev->dev,
-				 "Could not get requested rate %u using %u.\n",
+				 "Could analt get requested rate %u using %u.\n",
 				 requestd_rate, drvdata->sysclk);
 	}
 
@@ -256,6 +256,6 @@ static struct platform_driver davinci_evm_driver = {
 
 module_platform_driver(davinci_evm_driver);
 
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Barianalv");
 MODULE_DESCRIPTION("TI DAVINCI EVM ASoC driver");
 MODULE_LICENSE("GPL");

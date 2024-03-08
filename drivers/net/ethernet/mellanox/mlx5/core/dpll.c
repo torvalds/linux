@@ -18,7 +18,7 @@ struct mlx5_dpll {
 		enum dpll_lock_status lock_status;
 		enum dpll_pin_state pin_state;
 	} last;
-	struct notifier_block mdev_nb;
+	struct analtifier_block mdev_nb;
 	struct net_device *tracking_netdev;
 };
 
@@ -113,7 +113,7 @@ mlx5_dpll_pin_ffo_get(struct mlx5_dpll_synce_status *synce_status,
 		      s64 *ffo)
 {
 	if (!synce_status->oper_freq_measure)
-		return -ENODATA;
+		return -EANALDATA;
 	*ffo = synce_status->frequency_diff;
 	return 0;
 }
@@ -273,7 +273,7 @@ static void mlx5_dpll_netdev_dpll_pin_clear(struct mlx5_dpll *mdpll)
 	mdpll->tracking_netdev = NULL;
 }
 
-static int mlx5_dpll_mdev_notifier_event(struct notifier_block *nb,
+static int mlx5_dpll_mdev_analtifier_event(struct analtifier_block *nb,
 					 unsigned long event, void *data)
 {
 	struct mlx5_dpll *mdpll = container_of(nb, struct mlx5_dpll, mdev_nb);
@@ -287,24 +287,24 @@ static int mlx5_dpll_mdev_notifier_event(struct notifier_block *nb,
 			mlx5_dpll_netdev_dpll_pin_clear(mdpll);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void mlx5_dpll_mdev_netdev_track(struct mlx5_dpll *mdpll,
 					struct mlx5_core_dev *mdev)
 {
-	mdpll->mdev_nb.notifier_call = mlx5_dpll_mdev_notifier_event;
-	mlx5_blocking_notifier_register(mdev, &mdpll->mdev_nb);
+	mdpll->mdev_nb.analtifier_call = mlx5_dpll_mdev_analtifier_event;
+	mlx5_blocking_analtifier_register(mdev, &mdpll->mdev_nb);
 	mlx5_core_uplink_netdev_event_replay(mdev);
 }
 
 static void mlx5_dpll_mdev_netdev_untrack(struct mlx5_dpll *mdpll,
 					  struct mlx5_core_dev *mdev)
 {
-	mlx5_blocking_notifier_unregister(mdev, &mdpll->mdev_nb);
+	mlx5_blocking_analtifier_unregister(mdev, &mdpll->mdev_nb);
 	mlx5_dpll_netdev_dpll_pin_clear(mdpll);
 }
 
@@ -328,7 +328,7 @@ static int mlx5_dpll_probe(struct auxiliary_device *adev,
 
 	mdpll = kzalloc(sizeof(*mdpll), GFP_KERNEL);
 	if (!mdpll)
-		return -ENOMEM;
+		return -EANALMEM;
 	mdpll->mdev = mdev;
 	auxiliary_set_drvdata(adev, mdpll);
 
@@ -359,7 +359,7 @@ static int mlx5_dpll_probe(struct auxiliary_device *adev,
 
 	mdpll->wq = create_singlethread_workqueue("mlx5_dpll");
 	if (!mdpll->wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unregister_dpll_pin;
 	}
 
@@ -443,5 +443,5 @@ module_init(mlx5_dpll_init);
 module_exit(mlx5_dpll_exit);
 
 MODULE_AUTHOR("Jiri Pirko <jiri@nvidia.com>");
-MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) DPLL driver");
+MODULE_DESCRIPTION("Mellaanalx 5th generation network adapters (ConnectX series) DPLL driver");
 MODULE_LICENSE("Dual BSD/GPL");

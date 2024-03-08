@@ -117,9 +117,9 @@ __naked void call_within_bounds_prog_loop(void)
 }
 
 SEC("socket")
-__description("runtime/jit: tail_call within bounds, no prog")
+__description("runtime/jit: tail_call within bounds, anal prog")
 __success __success_unpriv __retval(1)
-__naked void call_within_bounds_no_prog(void)
+__naked void call_within_bounds_anal_prog(void)
 {
 	asm volatile ("					\
 	r3 = 3;						\

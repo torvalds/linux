@@ -56,7 +56,7 @@ enum {
 	EP_STATE_OFLDCONN_FAILED        = 0x2000,
 	EP_STATE_CONNECT_FAILED         = 0x4000,
 	EP_STATE_DISCONN_TIMEDOUT       = 0x8000,
-	EP_STATE_OFLDCONN_NONE          = 0x10000,
+	EP_STATE_OFLDCONN_ANALNE          = 0x10000,
 };
 
 struct qedi_conn;
@@ -128,7 +128,7 @@ struct qedi_io_bdt {
  * @resp_bd_dma:        login request BD table dma address
  *
  * following structure defines buffer info for generic pdus such as iSCSI Login,
- *      Logout and NOP
+ *      Logout and ANALP
  */
 struct generic_pdu_resc {
 	char *req_buf;
@@ -194,7 +194,7 @@ struct qedi_cmd {
 #define CLEANUP_WAIT	1
 #define CLEANUP_RECV	2
 #define CLEANUP_WAIT_FAILED	3
-#define CLEANUP_NOT_REQUIRED	4
+#define CLEANUP_ANALT_REQUIRED	4
 #define LUN_RESET_RESPONSE_RECEIVED	5
 #define RESPONSE_RECEIVED	6
 

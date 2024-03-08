@@ -121,7 +121,7 @@
 /*
  * Memory clock config register (Table 6-15)
  *
- * Note: this field has been updated to be consistent with the errata to 0.2
+ * Analte: this field has been updated to be consistent with the errata to 0.2
  */
 
 #define S_MC_CLK_RATIO		    0
@@ -385,7 +385,7 @@
 				M_MC_r2rIDLE_TWOCYCLES
 
 /*
- * Errata says these are not the default
+ * Errata says these are analt the default
  *				 M_MC_w2rIDLE_TWOCYCLES | \
  *				 M_MC_r2wIDLE_TWOCYCLES | \
  */

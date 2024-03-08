@@ -26,9 +26,9 @@
     "BriefDescription": "Interrupts taken."
   },
   {
-    "EventName": "ls_not_halted_cyc",
+    "EventName": "ls_analt_halted_cyc",
     "EventCode": "0x76",
-    "BriefDescription": "Core cycles not in halt."
+    "BriefDescription": "Core cycles analt in halt."
   },
   {
     "EventName": "ex_ret_instr",
@@ -51,45 +51,45 @@
     "BriefDescription": "Divide ops executed."
   },
   {
-    "EventName": "ex_no_retire.empty",
+    "EventName": "ex_anal_retire.empty",
     "EventCode": "0xd6",
-    "BriefDescription": "Cycles with no retire due  to the lack of valid ops in the retire queue (may be caused by front-end bottlenecks or pipeline redirects).",
+    "BriefDescription": "Cycles with anal retire due  to the lack of valid ops in the retire queue (may be caused by front-end bottlenecks or pipeline redirects).",
     "UMask": "0x01"
   },
   {
-    "EventName": "ex_no_retire.not_complete",
+    "EventName": "ex_anal_retire.analt_complete",
     "EventCode": "0xd6",
-    "BriefDescription": "Cycles with no retire while the oldest op is waiting to be executed.",
+    "BriefDescription": "Cycles with anal retire while the oldest op is waiting to be executed.",
     "UMask": "0x02"
   },
   {
-    "EventName": "ex_no_retire.other",
+    "EventName": "ex_anal_retire.other",
     "EventCode": "0xd6",
-    "BriefDescription": "Cycles with no retire caused by other reasons (retire breaks, traps, faults, etc.).",
+    "BriefDescription": "Cycles with anal retire caused by other reasons (retire breaks, traps, faults, etc.).",
     "UMask": "0x08"
   },
   {
-    "EventName": "ex_no_retire.thread_not_selected",
+    "EventName": "ex_anal_retire.thread_analt_selected",
     "EventCode": "0xd6",
-    "BriefDescription": "Cycles with no retire because thread arbitration did not select the thread.",
+    "BriefDescription": "Cycles with anal retire because thread arbitration did analt select the thread.",
     "UMask": "0x10"
   },
   {
-    "EventName": "ex_no_retire.load_not_complete",
+    "EventName": "ex_anal_retire.load_analt_complete",
     "EventCode": "0xd6",
-    "BriefDescription": "Cycles with no retire while the oldest op is waiting for load data.",
+    "BriefDescription": "Cycles with anal retire while the oldest op is waiting for load data.",
     "UMask": "0xa2"
   },
   {
-    "EventName": "ex_no_retire.all",
+    "EventName": "ex_anal_retire.all",
     "EventCode": "0xd6",
-    "BriefDescription": "Cycles with no retire for any reason.",
+    "BriefDescription": "Cycles with anal retire for any reason.",
     "UMask": "0x1b"
   },
   {
-    "EventName": "ls_not_halted_p0_cyc.p0_freq_cyc",
+    "EventName": "ls_analt_halted_p0_cyc.p0_freq_cyc",
     "EventCode": "0x120",
-    "BriefDescription": "Reference cycles (P0 frequency) not in halt .",
+    "BriefDescription": "Reference cycles (P0 frequency) analt in halt .",
     "UMask": "0x1"
   },
   {

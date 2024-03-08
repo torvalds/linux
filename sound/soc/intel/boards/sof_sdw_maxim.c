@@ -5,7 +5,7 @@
 // codec devices from generic machine driver
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
@@ -36,7 +36,7 @@ static int spk_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s spk:mx%04x",
 					  card->components, maxim_part_id);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(card->dev, "soundwire maxim card components assigned : %s\n",
 		card->components);

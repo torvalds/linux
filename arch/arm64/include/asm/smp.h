@@ -21,7 +21,7 @@
 #define CPU_PANIC_KERNEL		(3)
 
 #define CPU_STUCK_REASON_52_BIT_VA	(UL(1) << CPU_STUCK_REASON_SHIFT)
-#define CPU_STUCK_REASON_NO_GRAN	(UL(2) << CPU_STUCK_REASON_SHIFT)
+#define CPU_STUCK_REASON_ANAL_GRAN	(UL(2) << CPU_STUCK_REASON_SHIFT)
 
 #ifndef __ASSEMBLY__
 
@@ -100,10 +100,10 @@ static inline void arch_send_wakeup_ipi(unsigned int cpu)
 extern int __cpu_disable(void);
 
 static inline void __cpu_die(unsigned int cpu) { }
-extern void __noreturn cpu_die(void);
-extern void __noreturn cpu_die_early(void);
+extern void __analreturn cpu_die(void);
+extern void __analreturn cpu_die_early(void);
 
-static inline void __noreturn cpu_park_loop(void)
+static inline void __analreturn cpu_park_loop(void)
 {
 	for (;;) {
 		wfe();
@@ -123,7 +123,7 @@ static inline void update_cpu_boot_status(int val)
  * which calls for a kernel panic. Update the boot status and park the calling
  * CPU.
  */
-static inline void __noreturn cpu_panic_kernel(void)
+static inline void __analreturn cpu_panic_kernel(void)
 {
 	update_cpu_boot_status(CPU_PANIC_KERNEL);
 	cpu_park_loop();
@@ -131,10 +131,10 @@ static inline void __noreturn cpu_panic_kernel(void)
 
 /*
  * If a secondary CPU enters the kernel but fails to come online,
- * (e.g. due to mismatched features), and cannot exit the kernel,
+ * (e.g. due to mismatched features), and cananalt exit the kernel,
  * we increment cpus_stuck_in_kernel and leave the CPU in a
  * quiesecent loop within the kernel text. The memory containing
- * this loop must not be re-used for anything else as the 'stuck'
+ * this loop must analt be re-used for anything else as the 'stuck'
  * core is executing it.
  *
  * This function is used to inhibit features like kexec and hibernate.

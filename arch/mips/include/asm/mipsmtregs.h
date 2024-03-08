@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MT regs definitions, follows on from mipsregs.h
- * Copyright (C) 2004 - 2005 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2004 - 2005 MIPS Techanallogies, Inc.  All rights reserved.
  * Elizabeth Clarke et. al.
  *
  */
@@ -195,8 +195,8 @@ static inline unsigned int dvpe(void)
 
 	__asm__ __volatile__(
 	"	.set	push						\n"
-	"	.set	noreorder					\n"
-	"	.set	noat						\n"
+	"	.set	analreorder					\n"
+	"	.set	analat						\n"
 	"	.set	mips32r2					\n"
 	"	.word	0x41610001		# dvpe $1		\n"
 	"	move	%0, $1						\n"
@@ -213,8 +213,8 @@ static inline void __raw_evpe(void)
 {
 	__asm__ __volatile__(
 	"	.set	push						\n"
-	"	.set	noreorder					\n"
-	"	.set	noat						\n"
+	"	.set	analreorder					\n"
+	"	.set	analat						\n"
 	"	.set	mips32r2					\n"
 	"	.word	0x41600021		# evpe			\n"
 	"	ehb							\n"
@@ -239,7 +239,7 @@ static inline unsigned int dmt(void)
 	__asm__ __volatile__(
 	"	.set	push						\n"
 	"	.set	mips32r2					\n"
-	"	.set	noat						\n"
+	"	.set	analat						\n"
 	"	.word	0x41610BC1			# dmt $1	\n"
 	"	ehb							\n"
 	"	move	%0, $1						\n"
@@ -255,7 +255,7 @@ static inline void __raw_emt(void)
 {
 	__asm__ __volatile__(
 	"	.set	push						\n"
-	"	.set	noreorder					\n"
+	"	.set	analreorder					\n"
 	"	.set	mips32r2					\n"
 	"	.word	0x41600be1			# emt		\n"
 	"	ehb							\n"
@@ -289,7 +289,7 @@ static inline void ehb(void)
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	mips32r2				\n"	\
-	"	.set	noat					\n"	\
+	"	.set	analat					\n"	\
 	"	# mftc0 $1, $" #rt ", " #sel "			\n"	\
 	"	.word	0x41000800 | (" #rt " << 16) | " #sel " \n"	\
 	"	move	%0, $1					\n"	\
@@ -305,7 +305,7 @@ static inline void ehb(void)
 									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
+	"	.set	analat					\n"	\
 	"	.set	mips32r2				\n"	\
 	"	# mftgpr $1," #rt "				\n"	\
 	"	.word	0x41000820 | (" #rt " << 16)		\n"	\
@@ -332,7 +332,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	mips32r2				\n"	\
-	"	.set	noat					\n"	\
+	"	.set	analat					\n"	\
 	"	move	$1, %0					\n"	\
 	"	# mttgpr $1, " #rd "				\n"	\
 	"	.word	0x41810020 | (" #rd " << 11)		\n"	\
@@ -345,7 +345,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	mips32r2				\n"	\
-	"	.set	noat					\n"	\
+	"	.set	analat					\n"	\
 	"	move	$1, %0					\n"	\
 	"	# mttc0 %0," #rd ", " #sel "			\n"	\
 	"	.word	0x41810000 | (" #rd " << 11) | " #sel " \n"	\
@@ -417,6 +417,6 @@ do {									\
 
 __BUILD_SET_C0(mvpcontrol)
 
-#endif /* Not __ASSEMBLY__ */
+#endif /* Analt __ASSEMBLY__ */
 
 #endif

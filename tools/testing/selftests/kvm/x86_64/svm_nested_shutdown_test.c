@@ -29,13 +29,13 @@ static void l1_guest_code(struct svm_test_data *svm, struct idt_entry *idt)
 	vmcb->control.intercept &= ~(BIT(INTERCEPT_SHUTDOWN));
 
 	idt[6].p   = 0; // #UD is intercepted but its injection will cause #NP
-	idt[11].p  = 0; // #NP is not intercepted and will cause another
+	idt[11].p  = 0; // #NP is analt intercepted and will cause aanalther
 			// #NP that will be converted to #DF
 	idt[8].p   = 0; // #DF will cause #NP which will cause SHUTDOWN
 
 	run_guest(vmcb, svm->vmcb_gpa);
 
-	/* should not reach here */
+	/* should analt reach here */
 	GUEST_ASSERT(0);
 }
 

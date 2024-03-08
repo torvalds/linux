@@ -110,7 +110,7 @@ static irqreturn_t pm8916_wdt_isr(int irq, void *arg)
 		return IRQ_HANDLED;
 
 	if (sts & PMIC_WD_BARK_STS_BIT)
-		watchdog_notify_pretimeout(&wdt->wdev);
+		watchdog_analtify_pretimeout(&wdt->wdev);
 
 	return IRQ_HANDLED;
 }
@@ -148,7 +148,7 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parent = dev->parent;
 
@@ -161,7 +161,7 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 	wdt->regmap = dev_get_regmap(parent->parent, NULL);
 	if (!wdt->regmap) {
 		dev_err(dev, "failed to locate regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = device_property_read_u32(parent, "reg", &wdt->baseaddr);

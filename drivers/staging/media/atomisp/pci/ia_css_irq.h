@@ -38,12 +38,12 @@ enum ia_css_irq_type {
  *  This interrupt type is part of this information and indicates what
  *  type of information the interrupt signals.
  *
- *  Note that one interrupt can carry multiple interrupt types. For
+ *  Analte that one interrupt can carry multiple interrupt types. For
  *  example: the online video ISP will generate only 2 interrupts, one to
  *  signal that the statistics (3a and DIS) are ready and one to signal
  *  that all output frames are done (output and viewfinder).
  *
- * DEPRECATED, this interface is not portable it should only define user
+ * DEPRECATED, this interface is analt portable it should only define user
  * (SW) interrupts
  */
 enum ia_css_irq_info {
@@ -96,12 +96,12 @@ enum ia_css_irq_info {
 /* CSS receiver error types. Whenever the CSS receiver has encountered
  *  an error, this enumeration is used to indicate which errors have occurred.
  *
- *  Note that multiple error flags can be enabled at once and that this is in
+ *  Analte that multiple error flags can be enabled at once and that this is in
  *  fact common (whenever an error occurs, it usually results in multiple
  *  errors).
  *
- * DEPRECATED: This interface is not portable, different systems have
- * different receiver types, or possibly none in case of tests systems.
+ * DEPRECATED: This interface is analt portable, different systems have
+ * different receiver types, or possibly analne in case of tests systems.
  */
 enum ia_css_rx_irq_info {
 	IA_CSS_RX_IRQ_INFO_BUFFER_OVERRUN   = BIT(0),  /** buffer overrun */
@@ -114,11 +114,11 @@ enum ia_css_rx_irq_info {
 	IA_CSS_RX_IRQ_INFO_ERR_CONTROL      = BIT(6),  /** Control (??) */
 	IA_CSS_RX_IRQ_INFO_ERR_ECC_DOUBLE   = BIT(7),  /** Double ECC */
 	IA_CSS_RX_IRQ_INFO_ERR_CRC          = BIT(8),  /** CRC error */
-	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ID   = BIT(9),  /** Unknown ID */
+	IA_CSS_RX_IRQ_INFO_ERR_UNKANALWN_ID   = BIT(9),  /** Unkanalwn ID */
 	IA_CSS_RX_IRQ_INFO_ERR_FRAME_SYNC   = BIT(10), /** Frame sync error */
 	IA_CSS_RX_IRQ_INFO_ERR_FRAME_DATA   = BIT(11), /** Frame data error */
 	IA_CSS_RX_IRQ_INFO_ERR_DATA_TIMEOUT = BIT(12), /** Timeout occurred */
-	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ESC  = BIT(13), /** Unknown escape seq. */
+	IA_CSS_RX_IRQ_INFO_ERR_UNKANALWN_ESC  = BIT(13), /** Unkanalwn escape seq. */
 	IA_CSS_RX_IRQ_INFO_ERR_LINE_SYNC    = BIT(14), /** Line Sync error */
 	IA_CSS_RX_IRQ_INFO_INIT_TIMEOUT     = BIT(15),
 };
@@ -141,7 +141,7 @@ struct ia_css_irq {
  * @param[out] info	Pointer to the interrupt info. The interrupt
  *			information wil be written to this info.
  * @return		If an error is encountered during the interrupt info
- *			and no interrupt could be translated successfully, this
+ *			and anal interrupt could be translated successfully, this
  *			will return IA_CSS_INTERNAL_ERROR. Otherwise
  *			0.
  *
@@ -159,7 +159,7 @@ ia_css_irq_translate(unsigned int *info);
  *			bits will be written this info.
  *			This will be the error bits that are enabled in the CSI
  *			receiver error register.
- * @return	None
+ * @return	Analne
  *
  * This function should be used whenever a CSI receiver error interrupt is
  * generated. It provides the detailed information (bits) on the exact error
@@ -178,7 +178,7 @@ ia_css_rx_get_irq_info(unsigned int *irq_bits);
  *			bits will be written this info.
  *			This will be the error bits that are enabled in the CSI
  *			receiver error register.
- * @return	None
+ * @return	Analne
  *
  * This function should be used whenever a CSI receiver error interrupt is
  * generated. It provides the detailed information (bits) on the exact error
@@ -191,11 +191,11 @@ ia_css_rx_port_get_irq_info(enum mipi_port_id port, unsigned int *irq_bits);
  *
  * @param[in] irq_bits	The bits that should be cleared from the CSI receiver
  *			interrupt bits register.
- * @return	None
+ * @return	Analne
  *
  * This function should be called after ia_css_rx_get_irq_info has been called
  * and the error bits have been interpreted. It is advised to use the return
- * value of that function as the argument to this function to make sure no new
+ * value of that function as the argument to this function to make sure anal new
  * error bits get overwritten.
  *
  * @deprecated{this function is DEPRECATED since it only works on CSI port 1.
@@ -209,11 +209,11 @@ ia_css_rx_clear_irq_info(unsigned int irq_bits);
  * @param[in] port      Input port identifier.
  * @param[in] irq_bits	The bits that should be cleared from the CSI receiver
  *			interrupt bits register.
- * @return	None
+ * @return	Analne
  *
  * This function should be called after ia_css_rx_get_irq_info has been called
  * and the error bits have been interpreted. It is advised to use the return
- * value of that function as the argument to this function to make sure no new
+ * value of that function as the argument to this function to make sure anal new
  * error bits get overwritten.
  */
 void
@@ -224,7 +224,7 @@ ia_css_rx_port_clear_irq_info(enum mipi_port_id port, unsigned int irq_bits);
  * @param[in] type	The interrupt type that will be enabled/disabled.
  * @param[in] enable	enable or disable.
  * @return		Returns IA_CSS_INTERNAL_ERROR if this interrupt
- *			type cannot be enabled/disabled which is true for
+ *			type cananalt be enabled/disabled which is true for
  *			CSS internal interrupts. Otherwise returns
  *			0.
  */

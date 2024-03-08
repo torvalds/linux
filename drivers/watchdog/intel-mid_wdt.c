@@ -60,7 +60,7 @@ static int wdt_start(struct watchdog_device *wd)
 
 	/*
 	 * SCU expects the input size for watchdog IPC to be 2 which is the
-	 * size of the structure in dwords. SCU IPC normally takes bytes
+	 * size of the structure in dwords. SCU IPC analrmally takes bytes
 	 * but this is a special case where we specify size to be different
 	 * than inlen.
 	 */
@@ -102,7 +102,7 @@ static irqreturn_t mid_wdt_irq(int irq, void *dev_id)
 {
 	panic("Kernel Watchdog");
 
-	/* This code should not be reached */
+	/* This code should analt be reached */
 	return IRQ_HANDLED;
 }
 
@@ -139,7 +139,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 
 	mid = devm_kzalloc(dev, sizeof(*mid), GFP_KERNEL);
 	if (!mid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mid->dev = dev;
 	wdt_dev = &mid->wd;
@@ -151,7 +151,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	wdt_dev->timeout = MID_WDT_DEFAULT_TIMEOUT;
 	wdt_dev->parent = dev;
 
-	watchdog_set_nowayout(wdt_dev, WATCHDOG_NOWAYOUT);
+	watchdog_set_analwayout(wdt_dev, WATCHDOG_ANALWAYOUT);
 	watchdog_set_drvdata(wdt_dev, mid);
 
 	mid->scu = devm_intel_scu_ipc_dev_get(dev);
@@ -159,7 +159,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	ret = devm_request_irq(dev, pdata->irq, mid_wdt_irq,
-			       IRQF_SHARED | IRQF_NO_SUSPEND, "watchdog",
+			       IRQF_SHARED | IRQF_ANAL_SUSPEND, "watchdog",
 			       wdt_dev);
 	if (ret) {
 		dev_err(dev, "error requesting warning irq %d\n", pdata->irq);
@@ -171,7 +171,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	 * with the default threshold which may vary. When we get here
 	 * we should make a decision to prevent any side effects before
 	 * user space daemon will take care of it. The best option,
-	 * taking into consideration that there is no way to read values
+	 * taking into consideration that there is anal way to read values
 	 * back from hardware, is to enforce watchdog being run with
 	 * deterministic values.
 	 */

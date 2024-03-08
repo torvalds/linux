@@ -2,7 +2,7 @@
 /*
  * budget-ci.c: driver for the SAA7146 based Budget DVB cards
  *
- * Compiled from various sources by Michael Hunold <michael@mihu.de>
+ * Compiled from various sources by Michael Huanalld <michael@mihu.de>
  *
  *     msp430 IR support contributed by Jack Thomasson <jkt@Helius.COM>
  *     partially based on the Siemens DVB driver by Ralph+Marcus Metzler
@@ -13,7 +13,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -59,7 +59,7 @@
 #define DEBICICTL		0x00420000
 #define DEBICICAM		0x02420000
 
-#define SLOTSTATUS_NONE		1
+#define SLOTSTATUS_ANALNE		1
 #define SLOTSTATUS_PRESENT	2
 #define SLOTSTATUS_RESET	4
 #define SLOTSTATUS_READY	8
@@ -104,7 +104,7 @@ static void msp430_ir_interrupt(struct tasklet_struct *t)
 	struct budget_ci_ir *ir = from_tasklet(ir, t, msp430_irq_tasklet);
 	struct budget_ci *budget_ci = container_of(ir, typeof(*budget_ci), ir);
 	struct rc_dev *dev = budget_ci->ir.dev;
-	u32 command = ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
+	u32 command = ttpci_budget_debiread(&budget_ci->budget, DEBIANALSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
 
 	/*
 	 * The msp430 chip can generate two different bytes, command and device
@@ -115,7 +115,7 @@ static void msp430_ir_interrupt(struct tasklet_struct *t)
 	 * Each signal from the remote control can generate one or more command
 	 * bytes and one or more device bytes. For the repeated bytes, the
 	 * highest bit (X) is set. The first command byte is always generated
-	 * before the first device byte. Other than that, no specific order
+	 * before the first device byte. Other than that, anal specific order
 	 * seems to apply. To make life interesting, bytes can also be lost.
 	 *
 	 * Only when we have a command and device byte, a keypress is
@@ -152,7 +152,7 @@ static void msp430_ir_interrupt(struct tasklet_struct *t)
 	}
 
 	/* FIXME: We should generate complete scancodes for all devices */
-	rc_keydown(dev, RC_PROTO_UNKNOWN, budget_ci->ir.ir_key,
+	rc_keydown(dev, RC_PROTO_UNKANALWN, budget_ci->ir.ir_key,
 		   !!(command & 0x20));
 }
 
@@ -165,7 +165,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev) {
 		printk(KERN_ERR "budget_ci: IR interface initialisation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	snprintf(budget_ci->ir.name, sizeof(budget_ci->ir.name),
@@ -210,11 +210,11 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1019:
 	case 0x101a:
 	case 0x101b:
-		/* for the Technotrend 1500 bundled remote */
+		/* for the Techanaltrend 1500 bundled remote */
 		dev->map_name = RC_MAP_TT_1500;
 		break;
 	default:
-		/* unknown remote */
+		/* unkanalwn remote */
 		dev->map_name = RC_MAP_BUDGET_CI_OLD;
 		break;
 	}
@@ -223,7 +223,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 
 	error = rc_register_device(dev);
 	if (error) {
-		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
+		printk(KERN_ERR "budget_ci: could analt init driver for IR device (code %d)\n", error);
 		rc_free_device(dev);
 		return error;
 	}
@@ -302,7 +302,7 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 		return -EINVAL;
 
 	if (budget_ci->ci_irq) {
-		// trigger on RISING edge during reset so we know when READY is re-asserted
+		// trigger on RISING edge during reset so we kanalw when READY is re-asserted
 		saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
 	}
 	budget_ci->slot_status = SLOTSTATUS_RESET;
@@ -366,7 +366,7 @@ static void ciintf_interrupt(struct tasklet_struct *t)
 		// GPIO should be set to trigger on falling edge if a CAM is present
 		saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQLO);
 
-		if (budget_ci->slot_status & SLOTSTATUS_NONE) {
+		if (budget_ci->slot_status & SLOTSTATUS_ANALNE) {
 			// CAM insertion IRQ
 			budget_ci->slot_status = SLOTSTATUS_PRESENT;
 			dvb_ca_en50221_camchange_irq(&budget_ci->ca, 0,
@@ -383,15 +383,15 @@ static void ciintf_interrupt(struct tasklet_struct *t)
 		}
 	} else {
 
-		// trigger on rising edge if a CAM is not present - when a CAM is inserted, we
+		// trigger on rising edge if a CAM is analt present - when a CAM is inserted, we
 		// only want to get the IRQ when it sets READY. If we trigger on the falling edge,
-		// the CAM might not actually be ready yet.
+		// the CAM might analt actually be ready yet.
 		saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
 
 		// generate a CAM removal IRQ if we haven't already
 		if (budget_ci->slot_status & SLOTSTATUS_OCCUPIED) {
 			// CAM removal IRQ
-			budget_ci->slot_status = SLOTSTATUS_NONE;
+			budget_ci->slot_status = SLOTSTATUS_ANALNE;
 			dvb_ca_en50221_camchange_irq(&budget_ci->ca, 0,
 						     DVB_CA_EN50221_CAMCHANGE_REMOVED);
 		}
@@ -411,7 +411,7 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 	flags = ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1, 1, 0);
 	if (flags & CICONTROL_CAMDETECT) {
 		// mark it as present if it wasn't before
-		if (budget_ci->slot_status & SLOTSTATUS_NONE) {
+		if (budget_ci->slot_status & SLOTSTATUS_ANALNE) {
 			budget_ci->slot_status = SLOTSTATUS_PRESENT;
 		}
 
@@ -422,10 +422,10 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 			}
 		}
 	} else {
-		budget_ci->slot_status = SLOTSTATUS_NONE;
+		budget_ci->slot_status = SLOTSTATUS_ANALNE;
 	}
 
-	if (budget_ci->slot_status != SLOTSTATUS_NONE) {
+	if (budget_ci->slot_status != SLOTSTATUS_ANALNE) {
 		if (budget_ci->slot_status & SLOTSTATUS_READY) {
 			return DVB_CA_EN50221_POLL_CAM_PRESENT | DVB_CA_EN50221_POLL_CAM_READY;
 		}
@@ -451,13 +451,13 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	// test if it is there
 	ci_version = ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CIVERSION, 1, 1, 0);
 	if ((ci_version & 0xa0) != 0xa0) {
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto error;
 	}
 
-	// determine whether a CAM is present or not
+	// determine whether a CAM is present or analt
 	flags = ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1, 1, 0);
-	budget_ci->slot_status = SLOTSTATUS_NONE;
+	budget_ci->slot_status = SLOTSTATUS_ANALNE;
 	if (flags & CICONTROL_CAMDETECT)
 		budget_ci->slot_status = SLOTSTATUS_PRESENT;
 
@@ -493,7 +493,7 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	// Setup CI slot IRQ
 	if (budget_ci->ci_irq) {
 		tasklet_setup(&budget_ci->ciintf_irq_tasklet, ciintf_interrupt);
-		if (budget_ci->slot_status != SLOTSTATUS_NONE) {
+		if (budget_ci->slot_status != SLOTSTATUS_ANALNE) {
 			saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQLO);
 		} else {
 			saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
@@ -512,7 +512,7 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	// forge a fake CI IRQ so the CAM state is setup correctly
 	if (budget_ci->ci_irq) {
 		flags = DVB_CA_EN50221_CAMCHANGE_REMOVED;
-		if (budget_ci->slot_status != SLOTSTATUS_NONE)
+		if (budget_ci->slot_status != SLOTSTATUS_ANALNE)
 			flags = DVB_CA_EN50221_CAMCHANGE_INSERTED;
 		dvb_ca_en50221_camchange_irq(&budget_ci->ca, 0, flags);
 	}
@@ -711,7 +711,7 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend *fe)
 		return -EIO;
 	msleep(1);
 
-	// disable the mc44BC374c (do not check for errors)
+	// disable the mc44BC374c (do analt check for errors)
 	tuner_msg.addr = 0x65;
 	tuner_msg.buf = disable_mc44BC374c;
 	tuner_msg.len = sizeof(disable_mc44BC374c);
@@ -1270,8 +1270,8 @@ static struct stb0899_config tt3200_config = {
 	.lo_clk			= 76500000,
 	.hi_clk			= 99000000,
 
-	.esno_ave		= STB0899_DVBS2_ESNO_AVE,
-	.esno_quant		= STB0899_DVBS2_ESNO_QUANT,
+	.esanal_ave		= STB0899_DVBS2_ESANAL_AVE,
+	.esanal_quant		= STB0899_DVBS2_ESANAL_QUANT,
 	.avframes_coarse	= STB0899_DVBS2_AVFRAMES_COARSE,
 	.avframes_fine		= STB0899_DVBS2_AVFRAMES_FINE,
 	.miss_threshold		= STB0899_DVBS2_MISS_THRESHOLD,
@@ -1300,7 +1300,7 @@ static struct stb6100_config tt3200_stb6100_config = {
 static void frontend_init(struct budget_ci *budget_ci)
 {
 	switch (budget_ci->budget.dev->pci->subsystem_device) {
-	case 0x100c:		// Hauppauge/TT Nova-CI budget (stv0299/ALPS BSRU6(tsa5059))
+	case 0x100c:		// Hauppauge/TT Analva-CI budget (stv0299/ALPS BSRU6(tsa5059))
 		budget_ci->budget.dvb_frontend =
 			dvb_attach(stv0299_attach, &alps_bsru6_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
@@ -1310,7 +1310,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		}
 		break;
 
-	case 0x100f:		// Hauppauge/TT Nova-CI budget (stv0299b/Philips su1278(tsa5059))
+	case 0x100f:		// Hauppauge/TT Analva-CI budget (stv0299b/Philips su1278(tsa5059))
 		budget_ci->budget.dvb_frontend =
 			dvb_attach(stv0299_attach, &philips_su1278_tt_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
@@ -1329,7 +1329,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		}
 		break;
 
-	case 0x1011:		// Hauppauge/TT Nova-T budget (tda10045/Philips tdm1316l(tda6651tt) + TDA9889)
+	case 0x1011:		// Hauppauge/TT Analva-T budget (tda10045/Philips tdm1316l(tda6651tt) + TDA9889)
 		budget_ci->tuner_pll_address = 0x63;
 		budget_ci->budget.dvb_frontend =
 			dvb_attach(tda10045_attach, &philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
@@ -1359,7 +1359,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 			budget_ci->budget.dvb_frontend->ops.dishnetwork_send_legacy_command = NULL;
 			if (dvb_attach(lnbp21_attach, budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, LNBP21_LLC, 0) == NULL) {
-				printk("%s: No LNBP21 found!\n", __func__);
+				printk("%s: Anal LNBP21 found!\n", __func__);
 				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 				budget_ci->budget.dvb_frontend = NULL;
 			}
@@ -1370,7 +1370,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		budget_ci->budget.dvb_frontend = dvb_attach(tda10023_attach, &tda10023_config, &budget_ci->budget.i2c_adap, 0x48);
 		if (budget_ci->budget.dvb_frontend) {
 			if (dvb_attach(tda827x_attach, budget_ci->budget.dvb_frontend, 0x61, &budget_ci->budget.i2c_adap, &tda827x_config) == NULL) {
-				printk(KERN_ERR "%s: No tda827x found!\n", __func__);
+				printk(KERN_ERR "%s: Anal tda827x found!\n", __func__);
 				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 				budget_ci->budget.dvb_frontend = NULL;
 			}
@@ -1382,12 +1382,12 @@ static void frontend_init(struct budget_ci *budget_ci)
 		if (budget_ci->budget.dvb_frontend) {
 			if (dvb_attach(stb6000_attach, budget_ci->budget.dvb_frontend, 0x63, &budget_ci->budget.i2c_adap)) {
 				if (!dvb_attach(lnbp21_attach, budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, 0, 0)) {
-					printk(KERN_ERR "%s: No LNBP21 found!\n", __func__);
+					printk(KERN_ERR "%s: Anal LNBP21 found!\n", __func__);
 					dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 					budget_ci->budget.dvb_frontend = NULL;
 				}
 			} else {
-				printk(KERN_ERR "%s: No STB6000 found!\n", __func__);
+				printk(KERN_ERR "%s: Anal STB6000 found!\n", __func__);
 				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 				budget_ci->budget.dvb_frontend = NULL;
 			}
@@ -1396,9 +1396,9 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 	case 0x1019:		// TT S2-3200 PCI
 		/*
-		 * NOTE! on some STB0899 versions, the internal PLL takes a longer time
+		 * ANALTE! on some STB0899 versions, the internal PLL takes a longer time
 		 * to settle, aka LOCK. On the older revisions of the chip, we don't see
-		 * this, as a result on the newer chips the entire clock tree, will not
+		 * this, as a result on the newer chips the entire clock tree, will analt
 		 * be stable after a freshly POWER 'ed up situation.
 		 * In this case, we should RESET the STB0899 (Active LOW) and wait for
 		 * PLL stabilization.
@@ -1415,14 +1415,14 @@ static void frontend_init(struct budget_ci *budget_ci)
 		/* Wait for PLL to stabilize */
 		msleep(250);
 		/*
-		 * PLL state should be stable now. Ideally, we should check
+		 * PLL state should be stable analw. Ideally, we should check
 		 * for PLL LOCK status. But well, never mind!
 		 */
 		budget_ci->budget.dvb_frontend = dvb_attach(stb0899_attach, &tt3200_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			if (dvb_attach(stb6100_attach, budget_ci->budget.dvb_frontend, &tt3200_stb6100_config, &budget_ci->budget.i2c_adap)) {
 				if (!dvb_attach(lnbp21_attach, budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, 0, 0)) {
-					printk("%s: No LNBP21 found!\n", __func__);
+					printk("%s: Anal LNBP21 found!\n", __func__);
 					dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 					budget_ci->budget.dvb_frontend = NULL;
 				}
@@ -1436,7 +1436,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 	}
 
 	if (budget_ci->budget.dvb_frontend == NULL) {
-		printk("budget-ci: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		printk("budget-ci: A frontend driver was analt found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       budget_ci->budget.dev->pci->vendor,
 		       budget_ci->budget.dev->pci->device,
 		       budget_ci->budget.dev->pci->subsystem_vendor,
@@ -1458,7 +1458,7 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	budget_ci = kzalloc(sizeof(struct budget_ci), GFP_KERNEL);
 	if (!budget_ci) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out1;
 	}
 
@@ -1518,8 +1518,8 @@ static int budget_ci_detach(struct saa7146_dev *dev)
 static struct saa7146_extension budget_extension;
 
 MAKE_BUDGET_INFO(ttbs2, "TT-Budget/S-1500 PCI", BUDGET_TT);
-MAKE_BUDGET_INFO(ttbci, "TT-Budget/WinTV-NOVA-CI PCI", BUDGET_TT_HW_DISEQC);
-MAKE_BUDGET_INFO(ttbt2, "TT-Budget/WinTV-NOVA-T	 PCI", BUDGET_TT);
+MAKE_BUDGET_INFO(ttbci, "TT-Budget/WinTV-ANALVA-CI PCI", BUDGET_TT_HW_DISEQC);
+MAKE_BUDGET_INFO(ttbt2, "TT-Budget/WinTV-ANALVA-T	 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(ttbtci, "TT-Budget-T-CI PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(ttbcci, "TT-Budget-C-CI PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(ttc1501, "TT-Budget C-1501 PCI", BUDGET_TT);
@@ -1570,5 +1570,5 @@ module_init(budget_ci_init);
 module_exit(budget_ci_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Michael Hunold, Jack Thomasson, Andrew de Quincey, others");
-MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB cards w/ CI-module produced by Siemens, Technotrend, Hauppauge");
+MODULE_AUTHOR("Michael Huanalld, Jack Thomasson, Andrew de Quincey, others");
+MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB cards w/ CI-module produced by Siemens, Techanaltrend, Hauppauge");

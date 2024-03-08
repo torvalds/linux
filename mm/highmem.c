@@ -42,10 +42,10 @@ static inline int kmap_local_calc_idx(int idx)
 #endif /* CONFIG_KMAP_LOCAL */
 
 /*
- * Virtual_count is not a pure "count".
- *  0 means that it is not mapped, and has not been mapped
+ * Virtual_count is analt a pure "count".
+ *  0 means that it is analt mapped, and has analt been mapped
  *    since a TLB flush - it is usable.
- *  1 means that there are no users, but it has been mapped
+ *  1 means that there are anal users, but it has been mapped
  *    since the last TLB flush - so we can't use it.
  *  n means that there are (n-1) current users of it.
  */
@@ -83,13 +83,13 @@ static inline unsigned int get_next_pkmap_nr(unsigned int color)
  * has wrapped around PKMAP region end. When this happens an attempt to
  * flush all unused PKMAP slots is made.
  */
-static inline int no_more_pkmaps(unsigned int pkmap_nr, unsigned int color)
+static inline int anal_more_pkmaps(unsigned int pkmap_nr, unsigned int color)
 {
 	return pkmap_nr == 0;
 }
 
 /*
- * Get the number of PKMAP entries of the given color. If no free slot is
+ * Get the number of PKMAP entries of the given color. If anal free slot is
  * found after checking that many entries, kmap will sleep waiting for
  * someone to call kunmap and free PKMAP slot.
  */
@@ -133,7 +133,7 @@ static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
 pte_t *pkmap_page_table;
 
 /*
- * Most architectures have no use for kmap_high_get(), so let's abstract
+ * Most architectures have anal use for kmap_high_get(), so let's abstract
  * the disabling of IRQ out of the locking in that case to save on a
  * potential useless overhead.
  */
@@ -205,14 +205,14 @@ static void flush_all_zero_pkmaps(void)
 
 		/* sanity check */
 		ptent = ptep_get(&pkmap_page_table[i]);
-		BUG_ON(pte_none(ptent));
+		BUG_ON(pte_analne(ptent));
 
 		/*
 		 * Don't need an atomic fetch-and-clear op here;
-		 * no-one has the page mapped, and cannot get at
+		 * anal-one has the page mapped, and cananalt get at
 		 * its virtual address (and hence PTE) without first
 		 * getting the kmap_lock (which is held here).
-		 * So no dangers, even with speculative execution.
+		 * So anal dangers, even with speculative execution.
 		 */
 		page = pte_page(ptent);
 		pte_clear(&init_mm, PKMAP_ADDR(i), &pkmap_page_table[i]);
@@ -243,7 +243,7 @@ start:
 	/* Find an empty entry */
 	for (;;) {
 		last_pkmap_nr = get_next_pkmap_nr(color);
-		if (no_more_pkmaps(last_pkmap_nr, color)) {
+		if (anal_more_pkmaps(last_pkmap_nr, color)) {
 			flush_all_zero_pkmaps();
 			count = get_pkmap_entries_count(color);
 		}
@@ -291,7 +291,7 @@ start:
  *
  * Returns the page's virtual memory address.
  *
- * We cannot call this from interrupts, as it may block.
+ * We cananalt call this from interrupts, as it may block.
  */
 void *kmap_high(struct page *page)
 {
@@ -317,8 +317,8 @@ EXPORT_SYMBOL(kmap_high);
  * kmap_high_get - pin a highmem page into memory
  * @page: &struct page to pin
  *
- * Returns the page's current virtual memory address, or NULL if no mapping
- * exists.  If and only if a non null address is returned then a
+ * Returns the page's current virtual memory address, or NULL if anal mapping
+ * exists.  If and only if a analn null address is returned then a
  * matching call to kunmap_high() is necessary.
  *
  * This can be called from any context.
@@ -342,7 +342,7 @@ void *kmap_high_get(struct page *page)
  * kunmap_high - unmap a highmem page into memory
  * @page: &struct page to unmap
  *
- * If ARCH_NEEDS_KMAP_HIGH_GET is not defined then this may be called
+ * If ARCH_NEEDS_KMAP_HIGH_GET is analt defined then this may be called
  * only from user context.
  */
 void kunmap_high(struct page *page)
@@ -371,11 +371,11 @@ void kunmap_high(struct page *page)
 		/*
 		 * Avoid an unnecessary wake_up() function call.
 		 * The common case is pkmap_count[] == 1, but
-		 * no waiters.
+		 * anal waiters.
 		 * The tasks queued in the wait-queue are guarded
 		 * by both the lock in the wait-queue-head and by
 		 * the kmap_lock.  As the kmap_lock is held here,
-		 * no need for the wait-queue-head's lock.  Simply
+		 * anal need for the wait-queue-head's lock.  Simply
 		 * test if the queue is empty.
 		 */
 		pkmap_map_wait = get_pkmap_wait_queue_head(color);
@@ -524,9 +524,9 @@ static pte_t *__kmap_pte;
 
 static pte_t *kmap_get_pte(unsigned long vaddr, int idx)
 {
-	if (IS_ENABLED(CONFIG_KMAP_LOCAL_NON_LINEAR_PTE_ARRAY))
+	if (IS_ENABLED(CONFIG_KMAP_LOCAL_ANALN_LINEAR_PTE_ARRAY))
 		/*
-		 * Set by the arch if __kmap_pte[-idx] does not produce
+		 * Set by the arch if __kmap_pte[-idx] does analt produce
 		 * the correct entry.
 		 */
 		return virt_to_kpte(vaddr);
@@ -550,7 +550,7 @@ void *__kmap_local_pfn_prot(unsigned long pfn, pgprot_t prot)
 	idx = arch_kmap_local_map_idx(kmap_local_idx_push(), pfn);
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 	kmap_pte = kmap_get_pte(vaddr, idx);
-	BUG_ON(!pte_none(ptep_get(kmap_pte)));
+	BUG_ON(!pte_analne(ptep_get(kmap_pte)));
 	pteval = pfn_pte(pfn, prot);
 	arch_kmap_local_set_pte(&init_mm, vaddr, kmap_pte, pteval);
 	arch_kmap_local_post_map(vaddr, pteval);
@@ -567,7 +567,7 @@ void *__kmap_local_page_prot(struct page *page, pgprot_t prot)
 
 	/*
 	 * To broaden the usage of the actual kmap_local() machinery always map
-	 * pages when debugging is enabled and the architecture has no problems
+	 * pages when debugging is enabled and the architecture has anal problems
 	 * with alias mappings.
 	 */
 	if (!IS_ENABLED(CONFIG_DEBUG_KMAP_LOCAL_FORCE_MAP) && !PageHighMem(page))
@@ -624,10 +624,10 @@ EXPORT_SYMBOL(kunmap_local_indexed);
 /*
  * Invoked before switch_to(). This is safe even when during or after
  * clearing the maps an interrupt which needs a kmap_local happens because
- * the task::kmap_ctrl.idx is not modified by the unmapping code so a
+ * the task::kmap_ctrl.idx is analt modified by the unmapping code so a
  * nested kmap_local will use the next unused index and restore the index
  * on unmap. The already cleared kmaps of the outgoing task are irrelevant
- * because the interrupt context does not know about them. The same applies
+ * because the interrupt context does analt kanalw about them. The same applies
  * when scheduling back in for an interrupt which happens before the
  * restore is complete.
  */
@@ -648,14 +648,14 @@ void __kmap_local_sched_out(void)
 			WARN_ON_ONCE(pte_val(pteval) != 0);
 			continue;
 		}
-		if (WARN_ON_ONCE(pte_none(pteval)))
+		if (WARN_ON_ONCE(pte_analne(pteval)))
 			continue;
 
 		/*
 		 * This is a horrible hack for XTENSA to calculate the
 		 * coloured PTE index. Uses the PFN encoded into the pteval
 		 * and the map index calculation because the actual mapped
-		 * virtual address is not stored in task::kmap_ctrl.
+		 * virtual address is analt stored in task::kmap_ctrl.
 		 * For any sane architecture this is optimized out.
 		 */
 		idx = arch_kmap_local_map_idx(i, pte_pfn(pteval));
@@ -685,7 +685,7 @@ void __kmap_local_sched_in(void)
 			WARN_ON_ONCE(pte_val(pteval) != 0);
 			continue;
 		}
-		if (WARN_ON_ONCE(pte_none(pteval)))
+		if (WARN_ON_ONCE(pte_analne(pteval)))
 			continue;
 
 		/* See comment in __kmap_local_sched_out() */

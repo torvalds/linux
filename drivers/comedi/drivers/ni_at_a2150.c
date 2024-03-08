@@ -19,7 +19,7 @@
  *   [1] - IRQ (optional, required for timed conversions)
  *   [2] - DMA (optional, required for timed conversions)
  *
- * Yet another driver for obsolete hardware brought to you by Frank Hess.
+ * Yet aanalther driver for obsolete hardware brought to you by Frank Hess.
  * Testing and debugging help provided by Dave Andruczyk.
  *
  * If you want to ac couple the board's inputs, use AREF_OTHER.
@@ -69,7 +69,7 @@
 #define FIFO_DATA_REG		0xa	/* read data */
 #define DMA_TC_CLEAR_REG	0xe	/* clear dma terminal count interrupt */
 #define STATUS_REG		0x12	/* read only */
-#define   FNE_BIT		0x1	/* fifo not empty */
+#define   FNE_BIT		0x1	/* fifo analt empty */
 #define   OVFL_BIT		0x8	/* fifo overflow */
 #define   EDAQ_BIT		0x10	/* end of acquisition interrupt */
 #define   DCAL_BIT		0x20	/* offset calibration in progress */
@@ -90,9 +90,9 @@
 
 struct a2150_board {
 	const char *name;
-	int clock[4];		/* master clock periods, in nanoseconds */
+	int clock[4];		/* master clock periods, in naanalseconds */
 	int num_clocks;		/* number of available master clock speeds */
-	int ai_speed;		/* maximum conversion rate in nanoseconds */
+	int ai_speed;		/* maximum conversion rate in naanalseconds */
 };
 
 /* analog input range */
@@ -147,7 +147,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 
 	status = inw(dev->iobase + STATUS_REG);
 	if ((status & INTR_BIT) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & OVFL_BIT) {
 		async->events |= COMEDI_CB_ERROR;
@@ -175,7 +175,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 
 	/* figure out how many points will be stored next time */
 	leftover = 0;
-	if (cmd->stop_src == TRIG_NONE) {
+	if (cmd->stop_src == TRIG_ANALNE) {
 		leftover = comedi_bytes_to_samples(s, desc->size);
 	} else if (devpriv->count > max_points) {
 		leftover = devpriv->count - max_points;
@@ -185,7 +185,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	/*
 	 * There should only be a residue if collection was stopped by having
 	 * the stop_src set to an external trigger, in which case there
-	 * will be no more data
+	 * will be anal more data
 	 */
 	if (residue)
 		leftover = 0;
@@ -267,7 +267,7 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	for (i = 0; i < 4; i++) {
 		/* there are a maximum of 4 master clocks */
 		for (j = 0; j < board->num_clocks; j++) {
-			/* temp is the period in nanosec we are evaluating */
+			/* temp is the period in naanalsec we are evaluating */
 			temp = board->clock[j] * (1 << i);
 			/* if it is the best match yet */
 			if (temp < lub && temp >= *period) {
@@ -398,11 +398,11 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -432,7 +432,7 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -531,13 +531,13 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* setup start triggering */
 	trigger_bits = 0;
 	/* decide if we need to wait 72 periods for valid data */
-	if (cmd->start_src == TRIG_NOW &&
+	if (cmd->start_src == TRIG_ANALW &&
 	    (old_config_bits & CLOCK_MASK) !=
 	    (devpriv->config_bits & CLOCK_MASK)) {
 		/* set trigger source to delay trigger */
 		trigger_bits |= DELAY_TRIGGER_BITS;
 	} else {
-		/* otherwise no delay */
+		/* otherwise anal delay */
 		trigger_bits |= POST_TRIGGER_BITS;
 	}
 	/* enable external hardware trigger */
@@ -554,7 +554,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outw(trigger_bits, dev->iobase + TRIGGER_REG);
 
 	/* start acquisition for soft trigger */
-	if (cmd->start_src == TRIG_NOW)
+	if (cmd->start_src == TRIG_ANALW)
 		outw(0, dev->iobase + FIFO_START_REG);
 
 	return 0;
@@ -692,7 +692,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x1c);
 	if (ret)
@@ -700,7 +700,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	board = a2150_probe(dev);
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 

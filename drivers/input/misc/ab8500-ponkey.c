@@ -65,11 +65,11 @@ static int ab8500_ponkey_probe(struct platform_device *pdev)
 	ponkey = devm_kzalloc(&pdev->dev, sizeof(struct ab8500_ponkey),
 			      GFP_KERNEL);
 	if (!ponkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ponkey->idev = input;
 	ponkey->ab8500 = ab8500;

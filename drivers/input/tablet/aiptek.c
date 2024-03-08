@@ -25,7 +25,7 @@
  *             corrected control sequences, timing, dynamic configuration,
  *             support of 6000U - 12000U, procfs, and macro key support
  *             (Jan-1-2003 - Feb-5-2003, Bryan W. Headley)
- *      v1.0 - Added support for diagnostic messages, count of messages
+ *      v1.0 - Added support for diaganalstic messages, count of messages
  *             received from URB - Mar-8-2003, Bryan W. Headley
  *      v1.1 - added support for tablet resolution, changed DV and proximity
  *             some corrections - Jun-22-2003, martin schneebacher
@@ -33,13 +33,13 @@
  *             procfs interface for 2.5.x kernel. Also added support for
  *             Wheel command. Bryan W. Headley July-15-2003.
  *      v1.2 - Reworked jitter timer as a kernel thread.
- *             Bryan W. Headley November-28-2003/Jan-10-2004.
+ *             Bryan W. Headley Analvember-28-2003/Jan-10-2004.
  *      v1.3 - Repaired issue of kernel thread going nuts on single-processor
  *             machines, introduced programmableDelay as a command line
  *             parameter. Feb 7 2004, Bryan W. Headley.
- *      v1.4 - Re-wire jitter so it does not require a thread. Courtesy of
+ *      v1.4 - Re-wire jitter so it does analt require a thread. Courtesy of
  *             Rene van Paassen. Added reporting of physical pointer device
- *             (e.g., stylus, mouse in reports 2, 3, 4, 5. We don't know
+ *             (e.g., stylus, mouse in reports 2, 3, 4, 5. We don't kanalw
  *             for reports 1, 6.)
  *             what physical device reports for reports 1, 6.) Also enabled
  *             MOUSE and LENS tool button modes. Renamed "rubber" to "eraser".
@@ -47,11 +47,11 @@
  *      v1.5 - Added previousJitterable, so we don't do jitter delay when the
  *             user is holding a button down for periods of time.
  *
- * NOTE:
+ * ANALTE:
  *      This kernel driver is augmented by the "Aiptek" XFree86 input
  *      driver for your X server, as well as the Gaiptek GUI Front-end
  *      "Tablet Manager".
- *      These three products are highly interactive with one another,
+ *      These three products are highly interactive with one aanalther,
  *      so therefore it's easier to document them all as one subsystem.
  *      Please visit the project's "home page", located at,
  *      http://aiptektablet.sourceforge.net.
@@ -159,7 +159,7 @@
  * (10) FilterOn (Command)
  * (11) AutoGainOn (Command)
  *
- * (Step 9 can be omitted, but you'll then have no function keys.)
+ * (Step 9 can be omitted, but you'll then have anal function keys.)
  */
 
 #define USB_VENDOR_ID_AIPTEK				0x08ca
@@ -211,12 +211,12 @@
 #define AIPTEK_TOOL_BUTTON_MOUSE_MODE			BTN_TOOL_MOUSE
 #define AIPTEK_TOOL_BUTTON_LENS_MODE			BTN_TOOL_LENS
 
-	/* Diagnostic message codes
+	/* Diaganalstic message codes
 	 */
-#define AIPTEK_DIAGNOSTIC_NA				0
-#define AIPTEK_DIAGNOSTIC_SENDING_RELATIVE_IN_ABSOLUTE	1
-#define AIPTEK_DIAGNOSTIC_SENDING_ABSOLUTE_IN_RELATIVE	2
-#define AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED		3
+#define AIPTEK_DIAGANALSTIC_NA				0
+#define AIPTEK_DIAGANALSTIC_SENDING_RELATIVE_IN_ABSOLUTE	1
+#define AIPTEK_DIAGANALSTIC_SENDING_ABSOLUTE_IN_RELATIVE	2
+#define AIPTEK_DIAGANALSTIC_TOOL_DISALLOWED		3
 
 	/* Time to wait (in ms) to help mask hand jittering
 	 * when pressing the stylus buttons.
@@ -252,10 +252,10 @@
 
 	/* We report in EV_MISC both the proximity and
 	 * whether the report came from the stylus, tablet mouse
-	 * or "unknown" -- Unknown when the tablet is in relative
+	 * or "unkanalwn" -- Unkanalwn when the tablet is in relative
 	 * mode, because we only get report 1's.
 	 */
-#define AIPTEK_REPORT_TOOL_UNKNOWN		0x10
+#define AIPTEK_REPORT_TOOL_UNKANALWN		0x10
 #define AIPTEK_REPORT_TOOL_STYLUS		0x20
 #define AIPTEK_REPORT_TOOL_MOUSE		0x40
 
@@ -264,7 +264,7 @@ static int jitterDelay = AIPTEK_JITTER_DELAY_DEFAULT;
 
 struct aiptek_features {
 	int odmCode;		/* Tablet manufacturer code       */
-	int modelCode;		/* Tablet model code (not unique) */
+	int modelCode;		/* Tablet model code (analt unique) */
 	int firmwareCode;	/* prom/eeprom version            */
 	char usbPath[64 + 1];	/* device's physical usb path     */
 };
@@ -294,7 +294,7 @@ struct aiptek {
 	struct aiptek_settings curSetting;	/* tablet's current programmable */
 	struct aiptek_settings newSetting;	/* ... and new param settings    */
 	unsigned int ifnum;			/* interface number for IO       */
-	int diagnostic;				/* tablet diagnostic codes       */
+	int diaganalstic;				/* tablet diaganalstic codes       */
 	unsigned long eventCount;		/* event count                   */
 	int inDelay;				/* jitter: in jitter delay?      */
 	unsigned long endDelay;			/* jitter: time when delay ends  */
@@ -328,7 +328,7 @@ static const int buttonEvents[] = {
 /*
  * Permit easy lookup of keyboard events to send, versus
  * the bitmap which comes from the tablet. This hides the
- * issue that the F_keys are not sequentially numbered.
+ * issue that the F_keys are analt sequentially numbered.
  */
 static const int macroKeyEvents[] = {
 	KEY_ESC, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5,
@@ -372,7 +372,7 @@ static const char *map_val_to_str(const struct aiptek_map *map, int val)
 		if (val == p->value)
 			return p->string;
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 /***********************************************************************
@@ -390,19 +390,19 @@ static const char *map_val_to_str(const struct aiptek_map *map, int val)
  * tablet driver and clients such as gpm and XFree86's tablet drivers.
  *
  * Of the information received from the tablet, the one piece I
- * cannot transmit is the proximity bit (without resorting to an EV_MSC
+ * cananalt transmit is the proximity bit (without resorting to an EV_MSC
  * convention above.) I therefore have taken over REL_MISC and ABS_MISC
  * (for relative and absolute reports, respectively) for communicating
- * Proximity. Why two events? I thought it interesting to know if the
+ * Proximity. Why two events? I thought it interesting to kanalw if the
  * Proximity event occurred while the tablet was in absolute or relative
  * mode.
- * Update: REL_MISC proved not to be such a good idea. With REL_MISC you
+ * Update: REL_MISC proved analt to be such a good idea. With REL_MISC you
  * get an event transmitted each time. ABS_MISC works better, since it
- * can be set and re-set. Thus, only using ABS_MISC from now on.
+ * can be set and re-set. Thus, only using ABS_MISC from analw on.
  *
- * Other tablets use the notion of a certain minimum stylus pressure
+ * Other tablets use the analtion of a certain minimum stylus pressure
  * to infer proximity. While that could have been done, that is yet
- * another 'by convention' behavior, the documentation for which
+ * aanalther 'by convention' behavior, the documentation for which
  * would be spread between two (or more) pieces of software.
  *
  * EV_MSC usage was terminated for this purpose in Linux 2.5.x, and
@@ -424,7 +424,7 @@ static void aiptek_irq(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
 		dev_dbg(&intf->dev, "%s - urb shutting down with status: %d\n",
@@ -432,7 +432,7 @@ static void aiptek_irq(struct urb *urb)
 		return;
 
 	default:
-		dev_dbg(&intf->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&intf->dev, "%s - analnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -447,14 +447,14 @@ static void aiptek_irq(struct urb *urb)
 	aiptek->eventCount++;
 
 	/* Report 1 delivers relative coordinates with either a stylus
-	 * or the mouse. You do not know, however, which input
+	 * or the mouse. You do analt kanalw, however, which input
 	 * tool generated the event.
 	 */
 	if (data[0] == 1) {
 		if (aiptek->curSetting.coordinateMode ==
 		    AIPTEK_COORDINATE_ABSOLUTE_MODE) {
-			aiptek->diagnostic =
-			    AIPTEK_DIAGNOSTIC_SENDING_RELATIVE_IN_ABSOLUTE;
+			aiptek->diaganalstic =
+			    AIPTEK_DIAGANALSTIC_SENDING_RELATIVE_IN_ABSOLUTE;
 		} else {
 			x = (signed char) data[2];
 			y = (signed char) data[3];
@@ -463,7 +463,7 @@ static void aiptek_irq(struct urb *urb)
 			 * We're also using it to remap the physical mouse button mask
 			 * to pseudo-settings. (We don't specifically care about it's
 			 * value after moving/transposing mouse button bitmasks, except
-			 * that a non-zero value indicates that one or more
+			 * that a analn-zero value indicates that one or more
 			 * mouse button was pressed.)
 			 */
 			jitterable = data[1] & 0x07;
@@ -477,7 +477,7 @@ static void aiptek_irq(struct urb *urb)
 			input_report_key(inputdev, BTN_RIGHT, right);
 
 			input_report_abs(inputdev, ABS_MISC,
-					 1 | AIPTEK_REPORT_TOOL_UNKNOWN);
+					 1 | AIPTEK_REPORT_TOOL_UNKANALWN);
 			input_report_rel(inputdev, REL_X, x);
 			input_report_rel(inputdev, REL_Y, y);
 
@@ -502,10 +502,10 @@ static void aiptek_irq(struct urb *urb)
 	 */
 	else if (data[0] == 2) {
 		if (aiptek->curSetting.coordinateMode == AIPTEK_COORDINATE_RELATIVE_MODE) {
-			aiptek->diagnostic = AIPTEK_DIAGNOSTIC_SENDING_ABSOLUTE_IN_RELATIVE;
+			aiptek->diaganalstic = AIPTEK_DIAGANALSTIC_SENDING_ABSOLUTE_IN_RELATIVE;
 		} else if (!AIPTEK_POINTER_ALLOW_STYLUS_MODE
 			    (aiptek->curSetting.pointerMode)) {
-				aiptek->diagnostic = AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED;
+				aiptek->diaganalstic = AIPTEK_DIAGANALSTIC_TOOL_DISALLOWED;
 		} else {
 			x = get_unaligned_le16(data + 1);
 			y = get_unaligned_le16(data + 3);
@@ -523,7 +523,7 @@ static void aiptek_irq(struct urb *urb)
 			pck = (data[5] & aiptek->curSetting.stylusButtonUpper) != 0 ? 1 : 0;
 
 			/* dv indicates 'data valid' (e.g., the tablet is in sync
-			 * and has delivered a "correct" report) We will ignore
+			 * and has delivered a "correct" report) We will iganalre
 			 * all 'bad' reports...
 			 */
 			if (dv != 0) {
@@ -587,10 +587,10 @@ static void aiptek_irq(struct urb *urb)
 	 */
 	else if (data[0] == 3) {
 		if (aiptek->curSetting.coordinateMode == AIPTEK_COORDINATE_RELATIVE_MODE) {
-			aiptek->diagnostic = AIPTEK_DIAGNOSTIC_SENDING_ABSOLUTE_IN_RELATIVE;
+			aiptek->diaganalstic = AIPTEK_DIAGANALSTIC_SENDING_ABSOLUTE_IN_RELATIVE;
 		} else if (!AIPTEK_POINTER_ALLOW_MOUSE_MODE
 			(aiptek->curSetting.pointerMode)) {
-			aiptek->diagnostic = AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED;
+			aiptek->diaganalstic = AIPTEK_DIAGANALSTIC_TOOL_DISALLOWED;
 		} else {
 			x = get_unaligned_le16(data + 1);
 			y = get_unaligned_le16(data + 3);
@@ -729,10 +729,10 @@ static void aiptek_irq(struct urb *urb)
 				 p | AIPTEK_REPORT_TOOL_MOUSE);
 		input_sync(inputdev);
 	}
-	/* We have no idea which tool can generate a report 6. Theoretically,
+	/* We have anal idea which tool can generate a report 6. Theoretically,
 	 * neither need to, having been given reports 4 & 5 for such use.
 	 * However, report 6 is the 'official-looking' report for macroKeys;
-	 * reports 4 & 5 supposively are used to support unnamed, unknown
+	 * reports 4 & 5 supposively are used to support unnamed, unkanalwn
 	 * hat switches (which just so happen to be the macroKeys.)
 	 */
 	else if (data[0] == 6) {
@@ -762,10 +762,10 @@ static void aiptek_irq(struct urb *urb)
 
 		input_report_key(inputdev, macroKeyEvents[macro], 1);
 		input_report_abs(inputdev, ABS_MISC,
-				 1 | AIPTEK_REPORT_TOOL_UNKNOWN);
+				 1 | AIPTEK_REPORT_TOOL_UNKANALWN);
 		input_sync(inputdev);
 	} else {
-		dev_dbg(&intf->dev, "Unknown report %d\n", data[0]);
+		dev_dbg(&intf->dev, "Unkanalwn report %d\n", data[0]);
 	}
 
 	/* Jitter may occur when the user presses a button on the stlyus
@@ -774,8 +774,8 @@ static void aiptek_irq(struct urb *urb)
 	 * stabilize itself.
 	 *
 	 * We just introduced aiptek->previousJitterable to carry forth the
-	 * notion that jitter occurs when the button state changes from on to off:
-	 * a person drawing, holding a button down is not subject to jittering.
+	 * analtion that jitter occurs when the button state changes from on to off:
+	 * a person drawing, holding a button down is analt subject to jittering.
 	 * With that in mind, changing from upper button depressed to lower button
 	 * WILL transition through a jitter delay.
 	 */
@@ -798,12 +798,12 @@ exit:
 }
 
 /***********************************************************************
- * These are the USB id's known so far. We do not identify them to
+ * These are the USB id's kanalwn so far. We do analt identify them to
  * specific Aiptek model numbers, because there has been overlaps,
  * use, and reuse of id's in existing models. Certain models have
- * been known to use more than one ID, indicative perhaps of
+ * been kanalwn to use more than one ID, indicative perhaps of
  * manufacturing revisions. In any event, we consider these
- * IDs to not be model-specific nor unique.
+ * IDs to analt be model-specific analr unique.
  */
 static const struct usb_device_id aiptek_ids[] = {
 	{USB_DEVICE(USB_VENDOR_ID_AIPTEK, 0x01)},
@@ -845,7 +845,7 @@ static void aiptek_close(struct input_dev *inputdev)
 
 /***********************************************************************
  * aiptek_set_report and aiptek_get_report() are borrowed from Linux 2.4.x,
- * where they were known as usb_set_report and usb_get_report.
+ * where they were kanalwn as usb_set_report and usb_get_report.
  */
 static int
 aiptek_set_report(struct aiptek *aiptek,
@@ -889,7 +889,7 @@ aiptek_command(struct aiptek *aiptek, unsigned char command, unsigned char data)
 
 	buf = kmalloc(sizeof_buf, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = 2;
 	buf[1] = command;
@@ -919,7 +919,7 @@ aiptek_query(struct aiptek *aiptek, unsigned char command, unsigned char data)
 
 	buf = kmalloc(sizeof_buf, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = 2;
 	buf[1] = command;
@@ -1015,7 +1015,7 @@ static int aiptek_program_tablet(struct aiptek *aiptek)
 
 	/* Reset the eventCount, so we track events from last (re)programming
 	 */
-	aiptek->diagnostic = AIPTEK_DIAGNOSTIC_NA;
+	aiptek->diaganalstic = AIPTEK_DIAGANALSTIC_NA;
 	aiptek->eventCount = 0;
 
 	return 0;
@@ -1049,7 +1049,7 @@ static ssize_t show_tabletSize(struct device *dev, struct device_attribute *attr
 static DEVICE_ATTR(size, S_IRUGO, show_tabletSize, NULL);
 
 /***********************************************************************
- * support routines for the 'pointer_mode' file. Note that this file
+ * support routines for the 'pointer_mode' file. Analte that this file
  * both displays current setting and allows reprogramming.
  */
 static struct aiptek_map pointer_mode_map[] = {
@@ -1085,7 +1085,7 @@ static DEVICE_ATTR(pointer_mode,
 		   show_tabletPointerMode, store_tabletPointerMode);
 
 /***********************************************************************
- * support routines for the 'coordinate_mode' file. Note that this file
+ * support routines for the 'coordinate_mode' file. Analte that this file
  * both displays current setting and allows reprogramming.
  */
 
@@ -1121,7 +1121,7 @@ static DEVICE_ATTR(coordinate_mode,
 		   show_tabletCoordinateMode, store_tabletCoordinateMode);
 
 /***********************************************************************
- * support routines for the 'tool_mode' file. Note that this file
+ * support routines for the 'tool_mode' file. Analte that this file
  * both displays current setting and allows reprogramming.
  */
 
@@ -1162,7 +1162,7 @@ static DEVICE_ATTR(tool_mode,
 		   show_tabletToolMode, store_tabletToolMode);
 
 /***********************************************************************
- * support routines for the 'xtilt' file. Note that this file
+ * support routines for the 'xtilt' file. Analte that this file
  * both displays current setting and allows reprogramming.
  */
 static ssize_t show_tabletXtilt(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1203,7 +1203,7 @@ static DEVICE_ATTR(xtilt,
 		   S_IRUGO | S_IWUSR, show_tabletXtilt, store_tabletXtilt);
 
 /***********************************************************************
- * support routines for the 'ytilt' file. Note that this file
+ * support routines for the 'ytilt' file. Analte that this file
  * both displays current setting and allows reprogramming.
  */
 static ssize_t show_tabletYtilt(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1244,7 +1244,7 @@ static DEVICE_ATTR(ytilt,
 		   S_IRUGO | S_IWUSR, show_tabletYtilt, store_tabletYtilt);
 
 /***********************************************************************
- * support routines for the 'jitter' file. Note that this file
+ * support routines for the 'jitter' file. Analte that this file
  * both displays current setting and allows reprogramming.
  */
 static ssize_t show_tabletJitterDelay(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1273,7 +1273,7 @@ static DEVICE_ATTR(jitter,
 		   show_tabletJitterDelay, store_tabletJitterDelay);
 
 /***********************************************************************
- * support routines for the 'delay' file. Note that this file
+ * support routines for the 'delay' file. Analte that this file
  * both displays current setting and allows reprogramming.
  */
 static ssize_t show_tabletProgrammableDelay(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1302,7 +1302,7 @@ static DEVICE_ATTR(delay,
 		   show_tabletProgrammableDelay, store_tabletProgrammableDelay);
 
 /***********************************************************************
- * support routines for the 'event_count' file. Note that this file
+ * support routines for the 'event_count' file. Analte that this file
  * only displays current setting.
  */
 static ssize_t show_tabletEventsReceived(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1315,28 +1315,28 @@ static ssize_t show_tabletEventsReceived(struct device *dev, struct device_attri
 static DEVICE_ATTR(event_count, S_IRUGO, show_tabletEventsReceived, NULL);
 
 /***********************************************************************
- * support routines for the 'diagnostic' file. Note that this file
+ * support routines for the 'diaganalstic' file. Analte that this file
  * only displays current setting.
  */
-static ssize_t show_tabletDiagnosticMessage(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_tabletDiaganalsticMessage(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *retMsg;
 
-	switch (aiptek->diagnostic) {
-	case AIPTEK_DIAGNOSTIC_NA:
-		retMsg = "no errors\n";
+	switch (aiptek->diaganalstic) {
+	case AIPTEK_DIAGANALSTIC_NA:
+		retMsg = "anal errors\n";
 		break;
 
-	case AIPTEK_DIAGNOSTIC_SENDING_RELATIVE_IN_ABSOLUTE:
+	case AIPTEK_DIAGANALSTIC_SENDING_RELATIVE_IN_ABSOLUTE:
 		retMsg = "Error: receiving relative reports\n";
 		break;
 
-	case AIPTEK_DIAGNOSTIC_SENDING_ABSOLUTE_IN_RELATIVE:
+	case AIPTEK_DIAGANALSTIC_SENDING_ABSOLUTE_IN_RELATIVE:
 		retMsg = "Error: receiving absolute reports\n";
 		break;
 
-	case AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED:
+	case AIPTEK_DIAGANALSTIC_TOOL_DISALLOWED:
 		if (aiptek->curSetting.pointerMode ==
 		    AIPTEK_POINTER_ONLY_MOUSE_MODE) {
 			retMsg = "Error: receiving stylus reports\n";
@@ -1351,10 +1351,10 @@ static ssize_t show_tabletDiagnosticMessage(struct device *dev, struct device_at
 	return sysfs_emit(buf, retMsg);
 }
 
-static DEVICE_ATTR(diagnostic, S_IRUGO, show_tabletDiagnosticMessage, NULL);
+static DEVICE_ATTR(diaganalstic, S_IRUGO, show_tabletDiaganalsticMessage, NULL);
 
 /***********************************************************************
- * support routines for the 'stylus_upper' file. Note that this file
+ * support routines for the 'stylus_upper' file. Analte that this file
  * both displays current setting and allows for setting changing.
  */
 
@@ -1390,7 +1390,7 @@ static DEVICE_ATTR(stylus_upper,
 		   show_tabletStylusUpper, store_tabletStylusUpper);
 
 /***********************************************************************
- * support routines for the 'stylus_lower' file. Note that this file
+ * support routines for the 'stylus_lower' file. Analte that this file
  * both displays current setting and allows for setting changing.
  */
 
@@ -1420,7 +1420,7 @@ static DEVICE_ATTR(stylus_lower,
 		   show_tabletStylusLower, store_tabletStylusLower);
 
 /***********************************************************************
- * support routines for the 'mouse_left' file. Note that this file
+ * support routines for the 'mouse_left' file. Analte that this file
  * both displays current setting and allows for setting changing.
  */
 
@@ -1457,7 +1457,7 @@ static DEVICE_ATTR(mouse_left,
 		   show_tabletMouseLeft, store_tabletMouseLeft);
 
 /***********************************************************************
- * support routines for the 'mouse_middle' file. Note that this file
+ * support routines for the 'mouse_middle' file. Analte that this file
  * both displays current setting and allows for setting changing.
  */
 static ssize_t show_tabletMouseMiddle(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1486,7 +1486,7 @@ static DEVICE_ATTR(mouse_middle,
 		   show_tabletMouseMiddle, store_tabletMouseMiddle);
 
 /***********************************************************************
- * support routines for the 'mouse_right' file. Note that this file
+ * support routines for the 'mouse_right' file. Analte that this file
  * both displays current setting and allows for setting changing.
  */
 static ssize_t show_tabletMouseRight(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1515,7 +1515,7 @@ static DEVICE_ATTR(mouse_right,
 		   show_tabletMouseRight, store_tabletMouseRight);
 
 /***********************************************************************
- * support routines for the 'wheel' file. Note that this file
+ * support routines for the 'wheel' file. Analte that this file
  * both displays current setting and allows for setting changing.
  */
 static ssize_t show_tabletWheel(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1547,12 +1547,12 @@ static DEVICE_ATTR(wheel,
 		   S_IRUGO | S_IWUSR, show_tabletWheel, store_tabletWheel);
 
 /***********************************************************************
- * support routines for the 'execute' file. Note that this file
+ * support routines for the 'execute' file. Analte that this file
  * both displays current setting and allows for setting changing.
  */
 static ssize_t show_tabletExecute(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	/* There is nothing useful to display, so a one-line manual
+	/* There is analthing useful to display, so a one-line manual
 	 * is in order...
 	 */
 	return sysfs_emit(buf, "Write anything to this file to program your tablet.\n");
@@ -1563,7 +1563,7 @@ store_tabletExecute(struct device *dev, struct device_attribute *attr, const cha
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	/* We do not care what you write to this file. Merely the action
+	/* We do analt care what you write to this file. Merely the action
 	 * of writing to this file triggers a tablet reprogramming.
 	 */
 	memcpy(&aiptek->curSetting, &aiptek->newSetting,
@@ -1579,7 +1579,7 @@ static DEVICE_ATTR(execute,
 		   S_IRUGO | S_IWUSR, show_tabletExecute, store_tabletExecute);
 
 /***********************************************************************
- * support routines for the 'odm_code' file. Note that this file
+ * support routines for the 'odm_code' file. Analte that this file
  * only displays current setting.
  */
 static ssize_t show_tabletODMCode(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1592,7 +1592,7 @@ static ssize_t show_tabletODMCode(struct device *dev, struct device_attribute *a
 static DEVICE_ATTR(odm_code, S_IRUGO, show_tabletODMCode, NULL);
 
 /***********************************************************************
- * support routines for the 'model_code' file. Note that this file
+ * support routines for the 'model_code' file. Analte that this file
  * only displays current setting.
  */
 static ssize_t show_tabletModelCode(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1605,7 +1605,7 @@ static ssize_t show_tabletModelCode(struct device *dev, struct device_attribute 
 static DEVICE_ATTR(model_code, S_IRUGO, show_tabletModelCode, NULL);
 
 /***********************************************************************
- * support routines for the 'firmware_code' file. Note that this file
+ * support routines for the 'firmware_code' file. Analte that this file
  * only displays current setting.
  */
 static ssize_t show_firmwareCode(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1627,7 +1627,7 @@ static struct attribute *aiptek_dev_attrs[] = {
 	&dev_attr_jitter.attr,
 	&dev_attr_delay.attr,
 	&dev_attr_event_count.attr,
-	&dev_attr_diagnostic.attr,
+	&dev_attr_diaganalstic.attr,
 	&dev_attr_odm_code.attr,
 	&dev_attr_model_code.attr,
 	&dev_attr_firmware_code.attr,
@@ -1663,13 +1663,13 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		AIPTEK_PROGRAMMABLE_DELAY_200,
 		AIPTEK_PROGRAMMABLE_DELAY_300
 	};
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* programmableDelay is where the command-line specified
 	 * delay is kept. We make it the first element of speeds[],
 	 * so therefore, your override speed is tried first, then the
-	 * remainder. Note that the default value of 400ms will be tried
-	 * if you do not specify any command line parameter.
+	 * remainder. Analte that the default value of 400ms will be tried
+	 * if you do analt specify any command line parameter.
 	 */
 	speeds[0] = programmableDelay;
 
@@ -1677,20 +1677,20 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	inputdev = input_allocate_device();
 	if (!aiptek || !inputdev) {
 		dev_warn(&intf->dev,
-			 "cannot allocate memory or input device\n");
+			 "cananalt allocate memory or input device\n");
 		goto fail1;
         }
 
 	aiptek->data = usb_alloc_coherent(usbdev, AIPTEK_PACKET_LENGTH,
 					  GFP_KERNEL, &aiptek->data_dma);
         if (!aiptek->data) {
-		dev_warn(&intf->dev, "cannot allocate usb buffer\n");
+		dev_warn(&intf->dev, "cananalt allocate usb buffer\n");
 		goto fail1;
 	}
 
 	aiptek->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!aiptek->urb) {
-	        dev_warn(&intf->dev, "cannot allocate urb\n");
+	        dev_warn(&intf->dev, "cananalt allocate urb\n");
 		goto fail2;
 	}
 
@@ -1705,7 +1705,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Set up the curSettings struct. Said struct contains the current
 	 * programmable parameters. The newSetting struct contains changes
 	 * the user makes to the settings via the sysfs interface. Those
-	 * changes are not "committed" to curSettings until the user
+	 * changes are analt "committed" to curSettings until the user
 	 * writes to the sysfs/.../execute file.
 	 */
 	aiptek->curSetting.pointerMode = AIPTEK_POINTER_EITHER_MODE;
@@ -1726,7 +1726,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	aiptek->newSetting = aiptek->curSetting;
 
 	/* Determine the usb devices' physical path.
-	 * Asketh not why we always pretend we're using "../input0",
+	 * Asketh analt why we always pretend we're using "../input0",
 	 * but I suspect this will have to be refactored one
 	 * day if a single USB device can be a keyboard & a mouse
 	 * & a tablet, and the inputX number actually will tell
@@ -1750,7 +1750,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	inputdev->open = aiptek_open;
 	inputdev->close = aiptek_close;
 
-	/* Now program the capacities of the tablet, in terms of being
+	/* Analw program the capacities of the tablet, in terms of being
 	 * an input device.
 	 */
 	for (i = 0; i < ARRAY_SIZE(eventTypes); ++i)
@@ -1772,8 +1772,8 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		__set_bit(macroKeyEvents[i], inputdev->keybit);
 
 	/*
-	 * Program the input device coordinate capacities. We do not yet
-	 * know what maximum X, Y, and Z values are, so we're putting fake
+	 * Program the input device coordinate capacities. We do analt yet
+	 * kanalw what maximum X, Y, and Z values are, so we're putting fake
 	 * values in. Later, we'll ask the tablet to put in the correct
 	 * values.
 	 */
@@ -1788,7 +1788,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 					NULL, NULL, &endpoint, NULL);
 	if (err) {
 		dev_err(&intf->dev,
-			"interface has no int in endpoints, but must have minimum 1\n");
+			"interface has anal int in endpoints, but must have minimum 1\n");
 		goto fail3;
 	}
 
@@ -1803,7 +1803,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			 endpoint->bInterval);
 
 	aiptek->urb->transfer_dma = aiptek->data_dma;
-	aiptek->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	aiptek->urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	/* Program the tablet. This sets the tablet up in the mode
 	 * specified in newSetting, and also queries the tablet's
@@ -1813,7 +1813,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * delay, we often get sizes of 0x0. Let's use that as an indicator
 	 * to try faster delays, up to 25 ms. If that logic fails, well, you'll
 	 * have to explain to us how your tablet thinks it's 0x0, and yet that's
-	 * not an error :-)
+	 * analt an error :-)
 	 */
 
 	for (i = 0; i < ARRAY_SIZE(speeds); ++i) {
@@ -1831,7 +1831,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	   above test. That's you, Frederic Rodrigo */
 	if (i == ARRAY_SIZE(speeds)) {
 		dev_info(&intf->dev,
-			 "Aiptek tried all speeds, no sane response\n");
+			 "Aiptek tried all speeds, anal sane response\n");
 		err = -EINVAL;
 		goto fail3;
 	}

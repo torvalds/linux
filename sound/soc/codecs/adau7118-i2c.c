@@ -83,6 +83,6 @@ static struct i2c_driver adau7118_driver = {
 };
 module_i2c_driver(adau7118_driver);
 
-MODULE_AUTHOR("Nuno Sa <nuno.sa@analog.com>");
+MODULE_AUTHOR("Nuanal Sa <nuanal.sa@analog.com>");
 MODULE_DESCRIPTION("ADAU7118 8 channel PDM-to-I2S/TDM Converter driver over I2C");
 MODULE_LICENSE("GPL");

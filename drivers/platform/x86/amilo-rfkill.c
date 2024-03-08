@@ -111,7 +111,7 @@ static int amilo_rfkill_probe(struct platform_device *device)
 					RFKILL_TYPE_WLAN,
 					system_id->driver_data, NULL);
 	if (!amilo_rfkill_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = rfkill_register(amilo_rfkill_dev);
 	if (rc)
@@ -143,14 +143,14 @@ static int __init amilo_rfkill_init(void)
 	int rc;
 
 	if (dmi_first_match(amilo_rfkill_id_table) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = platform_driver_register(&amilo_rfkill_driver);
 	if (rc)
 		return rc;
 
 	amilo_rfkill_pdev = platform_device_register_simple(KBUILD_MODNAME,
-							    PLATFORM_DEVID_NONE,
+							    PLATFORM_DEVID_ANALNE,
 							    NULL, 0);
 	if (IS_ERR(amilo_rfkill_pdev)) {
 		rc = PTR_ERR(amilo_rfkill_pdev);

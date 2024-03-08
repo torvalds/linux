@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-2.1
-#ifndef PERF_FLAG_FD_NO_GROUP
-# define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
+#ifndef PERF_FLAG_FD_ANAL_GROUP
+# define PERF_FLAG_FD_ANAL_GROUP		(1UL << 0)
 #endif
 
 #ifndef PERF_FLAG_FD_OUTPUT
@@ -31,7 +31,7 @@ static size_t syscall_arg__scnprintf_perf_flags(char *bf, size_t size,
 		flags &= ~PERF_FLAG_##n; \
 	}
 
-	P_FLAG(FD_NO_GROUP);
+	P_FLAG(FD_ANAL_GROUP);
 	P_FLAG(FD_OUTPUT);
 	P_FLAG(PID_CGROUP);
 	P_FLAG(FD_CLOEXEC);

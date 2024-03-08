@@ -31,10 +31,10 @@ typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
  */
 struct btrfs_bio {
 	/*
-	 * Inode and offset into it that this I/O operates on.
+	 * Ianalde and offset into it that this I/O operates on.
 	 * Only set for data I/O.
 	 */
-	struct btrfs_inode *inode;
+	struct btrfs_ianalde *ianalde;
 	u64 file_offset;
 
 	union {
@@ -78,7 +78,7 @@ struct btrfs_bio {
 	struct btrfs_fs_info *fs_info;
 
 	/*
-	 * This member must come last, bio_alloc_bioset will allocate enough
+	 * This member must come last, bio_alloc_bioset will allocate eanalugh
 	 * bytes for entire btrfs_bio but relies on bio being last.
 	 */
 	struct bio bio;
@@ -104,7 +104,7 @@ void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status);
 
 void btrfs_submit_bio(struct btrfs_bio *bbio, int mirror_num);
 void btrfs_submit_repair_write(struct btrfs_bio *bbio, int mirror_num, bool dev_replace);
-int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
+int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ianal, u64 start,
 			    u64 length, u64 logical, struct folio *folio,
 			    unsigned int folio_offset, int mirror_num);
 

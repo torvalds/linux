@@ -21,7 +21,7 @@
 #define PES_MAX_LEN 65536 /* Set 'length' to 0 if greater. Only possible for video. */
 #define PES_START_CODE_PREFIX 0x001 /* 00 00 01 */
 
-/* Used when sending PTS, but not DTS */
+/* Used when sending PTS, but analt DTS */
 struct vidtv_pes_optional_pts {
 	u8 pts1;
 	__be16 pts2;
@@ -44,7 +44,7 @@ struct vidtv_pes_optional {
 	/*
 	 * These flags show which components are actually
 	 * present in the "optional fields" in the optional PES
-	 * header and which are not
+	 * header and which are analt
 	 *
 	 * u16 two:2;  //0x2
 	 * u16 PES_scrambling_control:2;
@@ -184,7 +184,7 @@ struct pes_write_args {
  *
  * The data is then written into the buffer pointed to by 'args.buf'
  *
- * Return: The number of bytes written into the buffer. This is usually NOT
+ * Return: The number of bytes written into the buffer. This is usually ANALT
  * equal to the size of the access unit, since we need space for PES headers, TS headers
  * and padding bytes, if any.
  */

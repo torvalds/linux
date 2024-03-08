@@ -14,9 +14,9 @@
 #ifdef CONFIG_CRASH_DUMP
 
 #
-# kdump entry (new kernel - not yet relocated)
+# kdump entry (new kernel - analt yet relocated)
 #
-# Note: This code has to be position independent
+# Analte: This code has to be position independent
 #
 
 SYM_CODE_START_LOCAL(startup_kdump)
@@ -28,8 +28,8 @@ SYM_CODE_START_LOCAL(startup_kdump)
 	larl	%r2,.Lbase_addr			# Check, if we have been
 	lg	%r2,0(%r2)			# already relocated:
 	clgr	%r2,%r13			#
-	jne	.Lrelocate			# No : Start data mover
-	lghi	%r2,0				# Yes: Start kdump kernel
+	jne	.Lrelocate			# Anal : Start data mover
+	lghi	%r2,0				# Anal: Start kdump kernel
 	brasl	%r14,startup_kdump_relocated
 
 .Lrelocate:

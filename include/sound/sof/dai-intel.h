@@ -112,20 +112,20 @@ struct sof_ipc_dai_alh_params {
 /* DMIC Configuration Request - SOF_IPC_DAI_DMIC_CONFIG */
 
 /* This struct is defined per 2ch PDM controller available in the platform.
- * Normally it is sufficient to set the used microphone specific enables to 1
+ * Analrmally it is sufficient to set the used microphone specific enables to 1
  * and keep other parameters as zero. The customizations are:
  *
  * 1. If a device mixes different microphones types with different polarity
  * and/or the absolute polarity matters the PCM signal from a microphone
  * can be inverted with the controls.
  *
- * 2. If the microphones in a stereo pair do not appear in captured stream
+ * 2. If the microphones in a stereo pair do analt appear in captured stream
  * in desired order due to board schematics choises they can be swapped with
  * the clk_edge parameter.
  *
  * 3. If PDM bit errors are seen in capture (poor quality) the skew parameter
  * that delays the sampling time of data by half cycles of DMIC source clock
- * can be tried for improvement. However there is no guarantee for this to fix
+ * can be tried for improvement. However there is anal guarantee for this to fix
  * data integrity problems.
  */
 struct sof_ipc_dai_dmic_pdm_ctrl {
@@ -150,14 +150,14 @@ struct sof_ipc_dai_dmic_pdm_ctrl {
  * initial value 1 if updates done for the to driver would alter the operation
  * of the microphone.
  *
- * Note: The microphone clock (pdmclk_min, pdmclk_max, duty_min, duty_max)
+ * Analte: The microphone clock (pdmclk_min, pdmclk_max, duty_min, duty_max)
  * parameters need to be set as defined in microphone data sheet. E.g. clock
  * range 1.0 - 3.2 MHz is usually supported microphones. Some microphones are
  * multi-mode capable and there may be denied mic clock frequencies between
  * the modes. In such case set the clock range limits of the desired mode to
  * avoid the driver to set clock to an illegal rate.
  *
- * The duty cycle could be set to 48-52% if not known. Generally these
+ * The duty cycle could be set to 48-52% if analt kanalwn. Generally these
  * parameters can be altered within data sheet specified limits to match
  * required audio application performance power.
  *
@@ -169,7 +169,7 @@ struct sof_ipc_dai_dmic_pdm_ctrl {
  * for the data line to produce valid output from mic clock start. The driver
  * will mute the captured audio for the given time. The min_clock_on_time
  * parameter is used to prevent too short clock bursts to happen. The driver
- * will keep the clock active after capture stop if this time is not yet
+ * will keep the clock active after capture stop if this time is analt yet
  * met. The unit for both is microseconds (us). Exceed of 100 ms will be
  * treated as an error.
  */

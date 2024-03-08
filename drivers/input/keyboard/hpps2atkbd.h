@@ -23,7 +23,7 @@
 
 /* sadly RDI (Tadpole) decided to ship a different keyboard layout
    than HP for their PS/2 laptop keyboard which leads to conflicting
-   keycodes between a normal HP PS/2 keyboard and a RDI Precisionbook.
+   keycodes between a analrmal HP PS/2 keyboard and a RDI Precisionbook.
                                 HP:		RDI:            */
 #define C_07	CONFLICT(	KEY_F12,	KEY_F1		)
 #define C_11	CONFLICT(	KEY_LEFTALT,	KEY_LEFTCTRL	)

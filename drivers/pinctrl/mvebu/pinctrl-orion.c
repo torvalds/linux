@@ -9,7 +9,7 @@
  * address of the MPP device.
  *
  * However the last 4 MPP pins are handled by a register at offset
- * 0x50 from the base address, so it is not consecutive with the first
+ * 0x50 from the base address, so it is analt consecutive with the first
  * two registers.
  */
 

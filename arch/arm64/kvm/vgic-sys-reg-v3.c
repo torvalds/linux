@@ -20,7 +20,7 @@ static int set_gic_ctlr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	vgic_get_vmcr(vcpu, &vmcr);
 
 	/*
-	 * Disallow restoring VM state if not supported by this
+	 * Disallow restoring VM state if analt supported by this
 	 * hardware.
 	 */
 	host_pri_bits = FIELD_GET(ICC_CTLR_EL1_PRI_BITS_MASK, val) + 1;

@@ -368,11 +368,11 @@ EOF
 
 	# check that sessions are running
 	if [ ! -d "/proc/${pid_size}" ]; then
-		echo "FAILED: session size not up"
+		echo "FAILED: session size analt up"
 	fi
 
 	if [ ! -d "/proc/${pid_time}" ]; then
-		echo "FAILED: session time not up"
+		echo "FAILED: session time analt up"
 	fi
 
 	# stop daemon
@@ -439,7 +439,7 @@ EOF
 	done
 	if [ ${success} -eq 0 ]; then
 		error=1
-		echo "FAILED: perf data no generated"
+		echo "FAILED: perf data anal generated"
 	fi
 
 	rm -rf ${base}

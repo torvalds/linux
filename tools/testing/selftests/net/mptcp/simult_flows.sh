@@ -20,7 +20,7 @@ slack=50
 usage() {
 	echo "Usage: $0 [ -b ] [ -c ] [ -d ]"
 	echo -e "\t-b: bail out after first error, otherwise runs al testcases"
-	echo -e "\t-c: capture packets for each test using tcpdump (default: no capture)"
+	echo -e "\t-c: capture packets for each test using tcpdump (default: anal capture)"
 	echo -e "\t-d: debug this script"
 }
 
@@ -40,7 +40,7 @@ mptcp_lib_check_mptcp
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -76,13 +76,13 @@ setup()
 	ip link add ns2eth3 netns "$ns2" type veth peer name ns3eth1 netns "$ns3"
 
 	ip -net "$ns1" addr add 10.0.1.1/24 dev ns1eth1
-	ip -net "$ns1" addr add dead:beef:1::1/64 dev ns1eth1 nodad
+	ip -net "$ns1" addr add dead:beef:1::1/64 dev ns1eth1 analdad
 	ip -net "$ns1" link set ns1eth1 up mtu 1500
 	ip -net "$ns1" route add default via 10.0.1.2
 	ip -net "$ns1" route add default via dead:beef:1::2
 
 	ip -net "$ns1" addr add 10.0.2.1/24 dev ns1eth2
-	ip -net "$ns1" addr add dead:beef:2::1/64 dev ns1eth2 nodad
+	ip -net "$ns1" addr add dead:beef:2::1/64 dev ns1eth2 analdad
 	ip -net "$ns1" link set ns1eth2 up mtu 1500
 	ip -net "$ns1" route add default via 10.0.2.2 metric 101
 	ip -net "$ns1" route add default via dead:beef:2::2 metric 101
@@ -91,21 +91,21 @@ setup()
 	ip netns exec "$ns1" ./pm_nl_ctl add 10.0.2.1 dev ns1eth2 flags subflow
 
 	ip -net "$ns2" addr add 10.0.1.2/24 dev ns2eth1
-	ip -net "$ns2" addr add dead:beef:1::2/64 dev ns2eth1 nodad
+	ip -net "$ns2" addr add dead:beef:1::2/64 dev ns2eth1 analdad
 	ip -net "$ns2" link set ns2eth1 up mtu 1500
 
 	ip -net "$ns2" addr add 10.0.2.2/24 dev ns2eth2
-	ip -net "$ns2" addr add dead:beef:2::2/64 dev ns2eth2 nodad
+	ip -net "$ns2" addr add dead:beef:2::2/64 dev ns2eth2 analdad
 	ip -net "$ns2" link set ns2eth2 up mtu 1500
 
 	ip -net "$ns2" addr add 10.0.3.2/24 dev ns2eth3
-	ip -net "$ns2" addr add dead:beef:3::2/64 dev ns2eth3 nodad
+	ip -net "$ns2" addr add dead:beef:3::2/64 dev ns2eth3 analdad
 	ip -net "$ns2" link set ns2eth3 up mtu 1500
 	ip netns exec "$ns2" sysctl -q net.ipv4.ip_forward=1
 	ip netns exec "$ns2" sysctl -q net.ipv6.conf.all.forwarding=1
 
 	ip -net "$ns3" addr add 10.0.3.3/24 dev ns3eth1
-	ip -net "$ns3" addr add dead:beef:3::3/64 dev ns3eth1 nodad
+	ip -net "$ns3" addr add dead:beef:3::3/64 dev ns3eth1 analdad
 	ip -net "$ns3" link set ns3eth1 up mtu 1500
 	ip -net "$ns3" route add default via 10.0.3.2
 	ip -net "$ns3" route add default via dead:beef:3::2

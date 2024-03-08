@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #ifndef NFP_BPF_FW_H
 #define NFP_BPF_FW_H 1
@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include "../ccm.h"
 
-/* Kernel's enum bpf_reg_type is not uABI so people may change it breaking
+/* Kernel's enum bpf_reg_type is analt uABI so people may change it breaking
  * our FW ABI.  In that case we will do translation in the driver.
  */
 #define NFP_BPF_SCALAR_VALUE		1
@@ -40,7 +40,7 @@ struct nfp_bpf_cap_tlv_adjust_head {
 	__le32 guaranteed_add;
 };
 
-#define NFP_BPF_ADJUST_HEAD_NO_META	BIT(0)
+#define NFP_BPF_ADJUST_HEAD_ANAL_META	BIT(0)
 
 struct nfp_bpf_cap_tlv_maps {
 	__le32 types;
@@ -62,11 +62,11 @@ struct nfp_bpf_cap_tlv_maps {
 enum nfp_bpf_cmsg_status {
 	CMSG_RC_SUCCESS			= 0,
 	CMSG_RC_ERR_MAP_FD		= 1,
-	CMSG_RC_ERR_MAP_NOENT		= 2,
+	CMSG_RC_ERR_MAP_ANALENT		= 2,
 	CMSG_RC_ERR_MAP_ERR		= 3,
 	CMSG_RC_ERR_MAP_PARSE		= 4,
 	CMSG_RC_ERR_MAP_EXIST		= 5,
-	CMSG_RC_ERR_MAP_NOMEM		= 6,
+	CMSG_RC_ERR_MAP_ANALMEM		= 6,
 	CMSG_RC_ERR_MAP_E2BIG		= 7,
 };
 

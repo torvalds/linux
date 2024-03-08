@@ -91,7 +91,7 @@ examples:
         reg = <0x0ae00000 0x1000>;
         reg-names = "mdss";
 
-        interconnects = <&mmss_noc MASTER_MDP 0 &gem_noc SLAVE_LLCC 0>,
+        interconnects = <&mmss_analc MASTER_MDP 0 &gem_analc SLAVE_LLCC 0>,
                         <&mc_virt MASTER_LLCC 0 &mc_virt SLAVE_EBI1 0>;
         interconnect-names = "mdp0-mem", "mdp1-mem";
 
@@ -182,7 +182,7 @@ examples:
 
                 opp-514000000 {
                     opp-hz = /bits/ 64 <514000000>;
-                    required-opps = <&rpmhpd_opp_nom>;
+                    required-opps = <&rpmhpd_opp_analm>;
                 };
             };
         };

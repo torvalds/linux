@@ -58,7 +58,7 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		   tx_done->msdu_id, tx_done->status);
 
 	if (tx_done->msdu_id >= htt->max_num_pending_tx) {
-		ath10k_warn(ar, "warning: msdu_id %d too big, ignoring\n",
+		ath10k_warn(ar, "warning: msdu_id %d too big, iganalring\n",
 			    tx_done->msdu_id);
 		return -EINVAL;
 	}
@@ -69,7 +69,7 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		ath10k_warn(ar, "received tx completion for invalid msdu_id: %d\n",
 			    tx_done->msdu_id);
 		spin_unlock_bh(&htt->tx_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	skb_cb = ATH10K_SKB_CB(msdu);
@@ -102,29 +102,29 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	trace_ath10k_txrx_tx_unref(ar, tx_done->msdu_id);
 
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
-	    !(flags & ATH10K_SKB_F_NOACK_TID))
+	if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK) &&
+	    !(flags & ATH10K_SKB_F_ANALACK_TID))
 		info->flags |= IEEE80211_TX_STAT_ACK;
 
-	if (tx_done->status == HTT_TX_COMPL_STATE_NOACK)
+	if (tx_done->status == HTT_TX_COMPL_STATE_ANALACK)
 		info->flags &= ~IEEE80211_TX_STAT_ACK;
 
 	if ((tx_done->status == HTT_TX_COMPL_STATE_ACK) &&
-	    ((info->flags & IEEE80211_TX_CTL_NO_ACK) ||
-	    (flags & ATH10K_SKB_F_NOACK_TID)))
-		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+	    ((info->flags & IEEE80211_TX_CTL_ANAL_ACK) ||
+	    (flags & ATH10K_SKB_F_ANALACK_TID)))
+		info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 
 	if (tx_done->status == HTT_TX_COMPL_STATE_DISCARD) {
-		if ((info->flags & IEEE80211_TX_CTL_NO_ACK) ||
-		    (flags & ATH10K_SKB_F_NOACK_TID))
-			info->flags &= ~IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+		if ((info->flags & IEEE80211_TX_CTL_ANAL_ACK) ||
+		    (flags & ATH10K_SKB_F_ANALACK_TID))
+			info->flags &= ~IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 		else
 			info->flags &= ~IEEE80211_TX_STAT_ACK;
 	}
 
 	if (tx_done->status == HTT_TX_COMPL_STATE_ACK &&
 	    tx_done->ack_rssi != ATH10K_INVALID_RSSI) {
-		info->status.ack_signal = ATH10K_DEFAULT_NOISE_FLOOR +
+		info->status.ack_signal = ATH10K_DEFAULT_ANALISE_FLOOR +
 						tx_done->ack_rssi;
 		info->status.flags |= IEEE80211_TX_STATUS_ACK_SIGNAL_VALID;
 	}
@@ -142,7 +142,7 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	rcu_read_unlock();
 
-	/* we do not own the msdu anymore */
+	/* we do analt own the msdu anymore */
 
 	return 0;
 }
@@ -266,7 +266,7 @@ void ath10k_peer_unmap_event(struct ath10k_htt *htt,
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find_by_id(ar, ev->peer_id);
 	if (!peer) {
-		ath10k_warn(ar, "peer-unmap-event: unknown peer id %d\n",
+		ath10k_warn(ar, "peer-unmap-event: unkanalwn peer id %d\n",
 			    ev->peer_id);
 		goto exit;
 	}

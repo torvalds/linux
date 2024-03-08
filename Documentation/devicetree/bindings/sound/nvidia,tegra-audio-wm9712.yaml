@@ -20,7 +20,7 @@ properties:
       - const: nvidia,tegra-audio-wm9712
 
   nvidia,audio-routing:
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
     description: |
       A list of the connections between audio components.
       Each entry is a pair of strings, the first being the connection's sink,
@@ -36,7 +36,7 @@ properties:
         - Mic
 
         # CODEC Pins
-        - MONOOUT
+        - MOANALOUT
         - HPOUTL
         - HPOUTR
         - LOUT2

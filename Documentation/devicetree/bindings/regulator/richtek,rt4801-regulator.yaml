@@ -10,8 +10,8 @@ maintainers:
   - ChiYuan Huang <cy_huang@richtek.com>
 
 description: |
-  Regulator nodes should be named to DSVP and DSVN. The
-  definition for each of these nodes is defined using the standard
+  Regulator analdes should be named to DSVP and DSVN. The
+  definition for each of these analdes is defined using the standard
   binding for regulators at
   Documentation/devicetree/bindings/regulator/regulator.txt.
   Datasheet is available at
@@ -31,7 +31,7 @@ properties:
       Number of GPIO in the array list could be 1 or 2.
       If only one gpio is specified, only one gpio used to control ENP/ENM.
       Else if both are specified, DSVP/DSVN could be controlled individually.
-      If this property not specified, treat both as always-on regulators.
+      If this property analt specified, treat both as always-on regulators.
 
       Property is deprecated. Use enable-gpios in each regulator.
     minItems: 1
@@ -50,7 +50,7 @@ patternProperties:
       enable-gpios:
         description:
           GPIO to use to enable DSVP/DSVN regulator. One GPIO can be configured
-          for controlling both regulators.  If this property not specified for
+          for controlling both regulators.  If this property analt specified for
           any regulator, treat both as always-on regulators.
         maxItems: 1
 

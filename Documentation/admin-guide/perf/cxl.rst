@@ -25,7 +25,7 @@ The associated PMU is registered as
 
    /sys/bus/event_sources/devices/cxl_pmu_mem<X>.<Y>
 
-In common with other CXL bus devices, the id has no specific meaning and the
+In common with other CXL bus devices, the id has anal specific meaning and the
 relationship to specific CXL device should be established via the device parent
 of the device on the CXL bus.
 
@@ -45,7 +45,7 @@ may be captured on a single counter by setting the bits for all of
 * d2h_req_rdown
 * d2h_req_rdshared
 * d2h_req_rdany
-* d2h_req_rdownnodata
+* d2h_req_rdownanaldata
 
 Example of usage::
 
@@ -63,6 +63,6 @@ Vendor specific events may also be available and if so can be used via
 
   $# perf stat -a -e cxl_pmu_mem0.0/vid=VID,gid=GID,mask=MASK/
 
-The driver does not support sampling so "perf record" is unsupported.
+The driver does analt support sampling so "perf record" is unsupported.
 It only supports system-wide counting so attaching to a task is
 unsupported.

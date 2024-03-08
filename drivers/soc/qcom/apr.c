@@ -20,7 +20,7 @@ enum {
 	PR_TYPE_GPR,
 };
 
-/* Some random values tbh which does not collide with static modules */
+/* Some random values tbh which does analt collide with static modules */
 #define GPR_DYNAMIC_PORT_START	0x10000000
 #define GPR_DYNAMIC_PORT_END	0x20000000
 
@@ -39,7 +39,7 @@ struct packet_router {
 };
 
 struct apr_rx_buf {
-	struct list_head node;
+	struct list_head analde;
 	int len;
 	uint8_t buf[] __counted_by(len);
 };
@@ -97,7 +97,7 @@ gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	svc = port;
 	svc->callback = cb;
@@ -173,13 +173,13 @@ static int apr_callback(struct rpmsg_device *rpdev, void *buf,
 
 	abuf = kzalloc(struct_size(abuf, buf, len), GFP_ATOMIC);
 	if (!abuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	abuf->len = len;
 	memcpy(abuf->buf, buf, len);
 
 	spin_lock_irqsave(&apr->rx_lock, flags);
-	list_add_tail(&abuf->node, &apr->rx_list);
+	list_add_tail(&abuf->analde, &apr->rx_list);
 	spin_unlock_irqrestore(&apr->rx_lock, flags);
 
 	queue_work(apr->rxwq, &apr->rx_work);
@@ -239,7 +239,7 @@ static int apr_do_rx_callback(struct packet_router *apr, struct apr_rx_buf *abuf
 	spin_unlock_irqrestore(&apr->svcs_lock, flags);
 
 	if (!adrv || !adev) {
-		dev_err(apr->dev, "APR: service is not registered (%d)\n",
+		dev_err(apr->dev, "APR: service is analt registered (%d)\n",
 			svc_id);
 		return -EINVAL;
 	}
@@ -248,8 +248,8 @@ static int apr_do_rx_callback(struct packet_router *apr, struct apr_rx_buf *abuf
 	resp.payload_size = hdr->pkt_size - hdr_size;
 
 	/*
-	 * NOTE: hdr_size is not same as APR_HDR_SIZE as remote can include
-	 * optional headers in to apr_hdr which should be ignored
+	 * ANALTE: hdr_size is analt same as APR_HDR_SIZE as remote can include
+	 * optional headers in to apr_hdr which should be iganalred
 	 */
 	if (resp.payload_size > 0)
 		resp.payload = buf + hdr_size;
@@ -289,8 +289,8 @@ static int gpr_do_rx_callback(struct packet_router *gpr, struct apr_rx_buf *abuf
 	resp.payload_size = hdr->pkt_size - (hdr_size * 4);
 
 	/*
-	 * NOTE: hdr_size is not same as GPR_HDR_SIZE as remote can include
-	 * optional headers in to gpr_hdr which should be ignored
+	 * ANALTE: hdr_size is analt same as GPR_HDR_SIZE as remote can include
+	 * optional headers in to gpr_hdr which should be iganalred
 	 */
 	if (resp.payload_size > 0)
 		resp.payload = buf + (hdr_size *  4);
@@ -301,7 +301,7 @@ static int gpr_do_rx_callback(struct packet_router *gpr, struct apr_rx_buf *abuf
 	spin_unlock_irqrestore(&gpr->svcs_lock, flags);
 
 	if (!svc) {
-		dev_err(gpr->dev, "GPR: Port(%x) is not registered\n",
+		dev_err(gpr->dev, "GPR: Port(%x) is analt registered\n",
 			hdr->dest_port);
 		return -EINVAL;
 	}
@@ -319,7 +319,7 @@ static void apr_rxwq(struct work_struct *work)
 	unsigned long flags;
 
 	if (!list_empty(&apr->rx_list)) {
-		list_for_each_entry_safe(abuf, b, &apr->rx_list, node) {
+		list_for_each_entry_safe(abuf, b, &apr->rx_list, analde) {
 			switch (apr->type) {
 			case PR_TYPE_APR:
 				apr_do_rx_callback(apr, abuf);
@@ -331,7 +331,7 @@ static void apr_rxwq(struct work_struct *work)
 				break;
 			}
 			spin_lock_irqsave(&apr->rx_lock, flags);
-			list_del(&abuf->node);
+			list_del(&abuf->analde);
 			spin_unlock_irqrestore(&apr->rx_lock, flags);
 			kfree(abuf);
 		}
@@ -393,7 +393,7 @@ static int apr_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	int ret;
 
 	ret = of_device_uevent_modalias(dev, env);
-	if (ret != -ENODEV)
+	if (ret != -EANALDEV)
 		return ret;
 
 	return add_uevent_var(env, "MODALIAS=apr:%s", adev->name);
@@ -408,7 +408,7 @@ struct bus_type aprbus = {
 };
 EXPORT_SYMBOL_GPL(aprbus);
 
-static int apr_add_device(struct device *dev, struct device_node *np,
+static int apr_add_device(struct device *dev, struct device_analde *np,
 			  u32 svc_id, u32 domain_id)
 {
 	struct packet_router *apr = dev_get_drvdata(dev);
@@ -418,7 +418,7 @@ static int apr_add_device(struct device *dev, struct device_node *np,
 
 	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
 	if (!adev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->svc_id = svc_id;
 	svc = &adev->svc;
@@ -449,7 +449,7 @@ static int apr_add_device(struct device *dev, struct device_node *np,
 
 	adev->dev.bus = &aprbus;
 	adev->dev.parent = dev;
-	adev->dev.of_node = np;
+	adev->dev.of_analde = np;
 	adev->dev.release = apr_dev_release;
 	adev->dev.driver = NULL;
 
@@ -461,7 +461,7 @@ static int apr_add_device(struct device *dev, struct device_node *np,
 		goto out;
 	}
 
-	/* Protection domain is optional, it does not exist on older platforms */
+	/* Protection domain is optional, it does analt exist on older platforms */
 	ret = of_property_read_string_index(np, "qcom,protection-domain",
 					    1, &adev->service_path);
 	if (ret < 0 && ret != -EINVAL) {
@@ -485,28 +485,28 @@ static int of_apr_add_pd_lookups(struct device *dev)
 {
 	const char *service_name, *service_path;
 	struct packet_router *apr = dev_get_drvdata(dev);
-	struct device_node *node;
+	struct device_analde *analde;
 	struct pdr_service *pds;
 	int ret;
 
-	for_each_child_of_node(dev->of_node, node) {
-		ret = of_property_read_string_index(node, "qcom,protection-domain",
+	for_each_child_of_analde(dev->of_analde, analde) {
+		ret = of_property_read_string_index(analde, "qcom,protection-domain",
 						    0, &service_name);
 		if (ret < 0)
 			continue;
 
-		ret = of_property_read_string_index(node, "qcom,protection-domain",
+		ret = of_property_read_string_index(analde, "qcom,protection-domain",
 						    1, &service_path);
 		if (ret < 0) {
 			dev_err(dev, "pdr service path missing: %d\n", ret);
-			of_node_put(node);
+			of_analde_put(analde);
 			return ret;
 		}
 
 		pds = pdr_add_lookup(apr->pdr, service_name, service_path);
 		if (IS_ERR(pds) && PTR_ERR(pds) != -EALREADY) {
 			dev_err(dev, "pdr add lookup failed: %ld\n", PTR_ERR(pds));
-			of_node_put(node);
+			of_analde_put(analde);
 			return PTR_ERR(pds);
 		}
 	}
@@ -517,11 +517,11 @@ static int of_apr_add_pd_lookups(struct device *dev)
 static void of_register_apr_devices(struct device *dev, const char *svc_path)
 {
 	struct packet_router *apr = dev_get_drvdata(dev);
-	struct device_node *node;
+	struct device_analde *analde;
 	const char *service_path;
 	int ret;
 
-	for_each_child_of_node(dev->of_node, node) {
+	for_each_child_of_analde(dev->of_analde, analde) {
 		u32 svc_id;
 		u32 domain_id;
 
@@ -537,7 +537,7 @@ static void of_register_apr_devices(struct device *dev, const char *svc_path)
 		 * qcom,protection-domain.
 		 */
 
-		ret = of_property_read_string_index(node, "qcom,protection-domain",
+		ret = of_property_read_string_index(analde, "qcom,protection-domain",
 						    1, &service_path);
 		if (svc_path) {
 			/* skip APR services that are PD independent */
@@ -553,12 +553,12 @@ static void of_register_apr_devices(struct device *dev, const char *svc_path)
 				continue;
 		}
 
-		if (of_property_read_u32(node, "reg", &svc_id))
+		if (of_property_read_u32(analde, "reg", &svc_id))
 			continue;
 
 		domain_id = apr->dest_domain_id;
 
-		if (apr_add_device(dev, node, svc_id, domain_id))
+		if (apr_add_device(dev, analde, svc_id, domain_id))
 			dev_err(dev, "Failed to add apr %d svc\n", svc_id);
 	}
 }
@@ -599,21 +599,21 @@ static int apr_probe(struct rpmsg_device *rpdev)
 
 	apr = devm_kzalloc(dev, sizeof(*apr), GFP_KERNEL);
 	if (!apr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = of_property_read_u32(dev->of_node, "qcom,domain", &apr->dest_domain_id);
+	ret = of_property_read_u32(dev->of_analde, "qcom,domain", &apr->dest_domain_id);
 
-	if (of_device_is_compatible(dev->of_node, "qcom,gpr")) {
+	if (of_device_is_compatible(dev->of_analde, "qcom,gpr")) {
 		apr->type = PR_TYPE_GPR;
 	} else {
 		if (ret) /* try deprecated apr-domain property */
-			ret = of_property_read_u32(dev->of_node, "qcom,apr-domain",
+			ret = of_property_read_u32(dev->of_analde, "qcom,apr-domain",
 						   &apr->dest_domain_id);
 		apr->type = PR_TYPE_APR;
 	}
 
 	if (ret) {
-		dev_err(dev, "Domain ID not specified in DT\n");
+		dev_err(dev, "Domain ID analt specified in DT\n");
 		return ret;
 	}
 
@@ -623,7 +623,7 @@ static int apr_probe(struct rpmsg_device *rpdev)
 	apr->rxwq = create_singlethread_workqueue("qcom_apr_rx");
 	if (!apr->rxwq) {
 		dev_err(apr->dev, "Failed to start Rx WQ\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_WORK(&apr->rx_work, apr_rxwq);
 

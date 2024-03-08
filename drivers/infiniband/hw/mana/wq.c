@@ -28,7 +28,7 @@ struct ib_wq *mana_ib_create_wq(struct ib_pd *pd,
 
 	wq = kzalloc(sizeof(*wq), GFP_KERNEL);
 	if (!wq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ibdev_dbg(&mdev->ib_dev, "ucmd wq_buf_addr 0x%llx\n", ucmd.wq_buf_addr);
 
@@ -58,7 +58,7 @@ struct ib_wq *mana_ib_create_wq(struct ib_pd *pd,
 		  "mana_ib_gd_create_dma_region ret %d gdma_region 0x%llx\n",
 		  err, wq->gdma_region);
 
-	/* WQ ID is returned at wq_create time, doesn't know the value yet */
+	/* WQ ID is returned at wq_create time, doesn't kanalw the value yet */
 
 	return &wq->ibwq;
 
@@ -74,8 +74,8 @@ err_free_wq:
 int mana_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		      u32 wq_attr_mask, struct ib_udata *udata)
 {
-	/* modify_wq is not supported by this version of the driver */
-	return -EOPNOTSUPP;
+	/* modify_wq is analt supported by this version of the driver */
+	return -EOPANALTSUPP;
 }
 
 int mana_ib_destroy_wq(struct ib_wq *ibwq, struct ib_udata *udata)
@@ -99,8 +99,8 @@ int mana_ib_create_rwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_table,
 				 struct ib_udata *udata)
 {
 	/*
-	 * There is no additional data in ind_table to be maintained by this
-	 * driver, do nothing
+	 * There is anal additional data in ind_table to be maintained by this
+	 * driver, do analthing
 	 */
 	return 0;
 }
@@ -108,8 +108,8 @@ int mana_ib_create_rwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_table,
 int mana_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_tbl)
 {
 	/*
-	 * There is no additional data in ind_table to be maintained by this
-	 * driver, do nothing
+	 * There is anal additional data in ind_table to be maintained by this
+	 * driver, do analthing
 	 */
 	return 0;
 }

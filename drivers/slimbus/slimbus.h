@@ -59,7 +59,7 @@
 #define SLIM_MSG_MC_NEXT_ACTIVATE_CHANNEL        0x54
 #define SLIM_MSG_MC_NEXT_DEACTIVATE_CHANNEL      0x55
 #define SLIM_MSG_MC_NEXT_REMOVE_CHANNEL          0x58
-#define SLIM_MSG_MC_RECONFIGURE_NOW              0x5F
+#define SLIM_MSG_MC_RECONFIGURE_ANALW              0x5F
 
 /* Clock pause values per SLIMbus spec */
 #define SLIM_CLK_FAST				0
@@ -119,9 +119,9 @@ struct slim_framer {
  * @tid: Transaction ID. Used for messages expecting response.
  *	(relevant for message-codes involving read operation)
  * @la: Logical address of the device this message is going to.
- *	(Not used when destination type is broadcast.)
+ *	(Analt used when destination type is broadcast.)
  * @msg: Elemental access message to be read/written
- * @comp: completion if read/write is synchronous, used internally
+ * @comp: completion if read/write is synchroanalus, used internally
  *	for tid based transactions.
  */
 struct slim_msg_txn {
@@ -231,13 +231,13 @@ enum slim_channel_state {
 /**
  * enum slim_ch_data_fmt: SLIMbus channel data Type identifiers according to
  *	Table 60 of SLIMbus Spec 1.01.01
- * @SLIM_CH_DATA_FMT_NOT_DEFINED: Undefined
+ * @SLIM_CH_DATA_FMT_ANALT_DEFINED: Undefined
  * @SLIM_CH_DATA_FMT_LPCM_AUDIO: LPCM audio
  * @SLIM_CH_DATA_FMT_IEC61937_COMP_AUDIO: IEC61937 Compressed audio
  * @SLIM_CH_DATA_FMT_PACKED_PDM_AUDIO: Packed PDM audio
  */
 enum slim_ch_data_fmt {
-	SLIM_CH_DATA_FMT_NOT_DEFINED = 0,
+	SLIM_CH_DATA_FMT_ANALT_DEFINED = 0,
 	SLIM_CH_DATA_FMT_LPCM_AUDIO = 1,
 	SLIM_CH_DATA_FMT_IEC61937_COMP_AUDIO = 2,
 	SLIM_CH_DATA_FMT_PACKED_PDM_AUDIO = 3,
@@ -246,12 +246,12 @@ enum slim_ch_data_fmt {
 /**
  * enum slim_ch_aux_bit_fmt: SLIMbus channel Aux Field format IDs according to
  *	Table 63 of SLIMbus Spec 2.0
- * @SLIM_CH_AUX_FMT_NOT_APPLICABLE: Undefined
+ * @SLIM_CH_AUX_FMT_ANALT_APPLICABLE: Undefined
  * @SLIM_CH_AUX_FMT_ZCUV_TUNNEL_IEC60958: ZCUV for tunneling IEC60958
  * @SLIM_CH_AUX_FMT_USER_DEFINED: User defined
  */
 enum slim_ch_aux_bit_fmt {
-	SLIM_CH_AUX_FMT_NOT_APPLICABLE = 0,
+	SLIM_CH_AUX_FMT_ANALT_APPLICABLE = 0,
 	SLIM_CH_AUX_FMT_ZCUV_TUNNEL_IEC60958 = 1,
 	SLIM_CH_AUX_FMT_USER_DEFINED = 0xF,
 };
@@ -293,17 +293,17 @@ struct slim_port {
 /**
  * enum slim_transport_protocol: SLIMbus Transport protocol list from
  *	Table 47 of SLIMbus 2.0 specs.
- * @SLIM_PROTO_ISO: Isochronous Protocol, no flow control as data rate match
+ * @SLIM_PROTO_ISO: Isochroanalus Protocol, anal flow control as data rate match
  *		channel rate flow control embedded in the data.
  * @SLIM_PROTO_PUSH: Pushed Protocol, includes flow control, Used to carry
  *		data whose rate	is equal to, or lower than the channel rate.
  * @SLIM_PROTO_PULL: Pulled Protocol, similar usage as pushed protocol
  *		but pull is a unicast.
  * @SLIM_PROTO_LOCKED: Locked Protocol
- * @SLIM_PROTO_ASYNC_SMPLX: Asynchronous Protocol-Simplex
- * @SLIM_PROTO_ASYNC_HALF_DUP: Asynchronous Protocol-Half-duplex
- * @SLIM_PROTO_EXT_SMPLX: Extended Asynchronous Protocol-Simplex
- * @SLIM_PROTO_EXT_HALF_DUP: Extended Asynchronous Protocol-Half-duplex
+ * @SLIM_PROTO_ASYNC_SMPLX: Asynchroanalus Protocol-Simplex
+ * @SLIM_PROTO_ASYNC_HALF_DUP: Asynchroanalus Protocol-Half-duplex
+ * @SLIM_PROTO_EXT_SMPLX: Extended Asynchroanalus Protocol-Simplex
+ * @SLIM_PROTO_EXT_HALF_DUP: Extended Asynchroanalus Protocol-Half-duplex
  */
 enum slim_transport_protocol {
 	SLIM_PROTO_ISO = 0,
@@ -328,7 +328,7 @@ enum slim_transport_protocol {
  * @ratem: rate multipler which is super frame rate/data rate
  * @num_ports: number of ports
  * @ports: pointer to instance of ports
- * @node: list head for stream associated with slim device.
+ * @analde: list head for stream associated with slim device.
  */
 struct slim_stream_runtime {
 	const char *name;
@@ -340,7 +340,7 @@ struct slim_stream_runtime {
 	unsigned int ratem;
 	int num_ports;
 	struct slim_port *ports;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
@@ -387,7 +387,7 @@ struct slim_stream_runtime {
  *	the bus at (in steps of 'clock-gear', 1 through 10, each clock gear
  *	representing twice the frequency than the previous gear).
  *	Manager is also responsible for entering (and exiting) low-power-mode
- *	(known as 'clock pause').
+ *	(kanalwn as 'clock pause').
  *	Manager can do handover of framer if there are multiple framers on the
  *	bus and a certain usecase warrants using certain framer to avoid keeping
  *	previous framer being powered-on.

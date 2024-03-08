@@ -119,34 +119,34 @@ struct ci_hdrc_imx_data {
 static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 {
 	struct platform_device *misc_pdev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_args args;
 	struct imx_usbmisc_data *data;
 	int ret;
 
 	/*
-	 * In case the fsl,usbmisc property is not present this device doesn't
-	 * need usbmisc. Return NULL (which is no error here)
+	 * In case the fsl,usbmisc property is analt present this device doesn't
+	 * need usbmisc. Return NULL (which is anal error here)
 	 */
 	if (!of_get_property(np, "fsl,usbmisc", NULL))
 		return NULL;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = of_parse_phandle_with_args(np, "fsl,usbmisc", "#index-cells",
 					0, &args);
 	if (ret) {
-		dev_err(dev, "Failed to parse property fsl,usbmisc, errno %d\n",
+		dev_err(dev, "Failed to parse property fsl,usbmisc, erranal %d\n",
 			ret);
 		return ERR_PTR(ret);
 	}
 
 	data->index = args.args[0];
 
-	misc_pdev = of_find_device_by_node(args.np);
-	of_node_put(args.np);
+	misc_pdev = of_find_device_by_analde(args.np);
+	of_analde_put(args.np);
 
 	if (!misc_pdev)
 		return ERR_PTR(-EPROBE_DEFER);
@@ -159,7 +159,7 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 
 	/*
 	 * Check the various over current related properties. If over current
-	 * detection is disabled we're not interested in the polarity.
+	 * detection is disabled we're analt interested in the polarity.
 	 */
 	if (of_property_read_bool(np, "disable-over-current")) {
 		data->disable_oc = 1;
@@ -170,7 +170,7 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 		data->oc_pol_active_low = 1;
 		data->oc_pol_configured = 1;
 	} else {
-		dev_warn(dev, "No over current polarity defined\n");
+		dev_warn(dev, "Anal over current polarity defined\n");
 	}
 
 	data->pwr_pol = of_property_read_bool(np, "power-active-high");
@@ -209,7 +209,7 @@ static int imx_get_clks(struct device *dev)
 				PTR_ERR(data->clk), PTR_ERR(data->clk_ipg));
 			return ret;
 		}
-		/* Get wakeup clock. Not all of the platforms need to
+		/* Get wakeup clock. Analt all of the platforms need to
 		 * handle this clock. So make it optional.
 		 */
 		data->clk_wakeup = devm_clk_get_optional(dev, "usb_wakeup_clk");
@@ -297,7 +297,7 @@ static void imx_disable_unprepare_clks(struct device *dev)
 	}
 }
 
-static int ci_hdrc_imx_notify_event(struct ci_hdrc *ci, unsigned int event)
+static int ci_hdrc_imx_analtify_event(struct ci_hdrc *ci, unsigned int event)
 {
 	struct device *dev = ci->dev->parent;
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
@@ -342,18 +342,18 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	struct ci_hdrc_platform_data pdata = {
 		.name		= dev_name(&pdev->dev),
 		.capoffset	= DEF_CAPOFFSET,
-		.notify_event	= ci_hdrc_imx_notify_event,
+		.analtify_event	= ci_hdrc_imx_analtify_event,
 	};
 	int ret;
 	const struct ci_hdrc_imx_platform_flag *imx_platform_flag;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 
 	imx_platform_flag = of_device_get_match_data(&pdev->dev);
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->plat_data = imx_platform_flag;
 	pdata.flags |= imx_platform_flag->flags;
@@ -362,12 +362,12 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	if (IS_ERR(data->usbmisc_data))
 		return PTR_ERR(data->usbmisc_data);
 
-	if ((of_usb_get_phy_mode(dev->of_node) == USBPHY_INTERFACE_MODE_HSIC)
+	if ((of_usb_get_phy_mode(dev->of_analde) == USBPHY_INTERFACE_MODE_HSIC)
 		&& data->usbmisc_data) {
 		pdata.flags |= CI_HDRC_IMX_IS_HSIC;
 		data->usbmisc_data->hsic = 1;
 		data->pinctrl = devm_pinctrl_get(dev);
-		if (PTR_ERR(data->pinctrl) == -ENODEV)
+		if (PTR_ERR(data->pinctrl) == -EANALDEV)
 			data->pinctrl = NULL;
 		else if (IS_ERR(data->pinctrl))
 			return dev_err_probe(dev, PTR_ERR(data->pinctrl),
@@ -375,8 +375,8 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 
 		data->hsic_pad_regulator =
 				devm_regulator_get_optional(dev, "hsic");
-		if (PTR_ERR(data->hsic_pad_regulator) == -ENODEV) {
-			/* no pad regulator is needed */
+		if (PTR_ERR(data->hsic_pad_regulator) == -EANALDEV) {
+			/* anal pad regulator is needed */
 			data->hsic_pad_regulator = NULL;
 		} else if (IS_ERR(data->hsic_pad_regulator))
 			return dev_err_probe(dev, PTR_ERR(data->hsic_pad_regulator),
@@ -438,14 +438,14 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	data->phy = devm_usb_get_phy_by_phandle(dev, "fsl,usbphy", 0);
 	if (IS_ERR(data->phy)) {
 		ret = PTR_ERR(data->phy);
-		if (ret != -ENODEV) {
+		if (ret != -EANALDEV) {
 			dev_err_probe(dev, ret, "Failed to parse fsl,usbphy\n");
 			goto err_clk;
 		}
 		data->phy = devm_usb_get_phy_by_phandle(dev, "phys", 0);
 		if (IS_ERR(data->phy)) {
 			ret = PTR_ERR(data->phy);
-			if (ret == -ENODEV) {
+			if (ret == -EANALDEV) {
 				data->phy = NULL;
 			} else {
 				dev_err_probe(dev, ret, "Failed to parse phys\n");
@@ -493,7 +493,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		    of_property_read_bool(np, "usb-role-switch"))
 			data->usbmisc_data->ext_vbus = 1;
 
-		/* usbmisc needs to know dr mode to choose wakeup setting */
+		/* usbmisc needs to kanalw dr mode to choose wakeup setting */
 		data->usbmisc_data->available_role =
 			ci_hdrc_query_available_role(data->ci_pdev);
 	}
@@ -536,7 +536,7 @@ static void ci_hdrc_imx_remove(struct platform_device *pdev)
 	if (data->supports_runtime_pm) {
 		pm_runtime_get_sync(&pdev->dev);
 		pm_runtime_disable(&pdev->dev);
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 	}
 	if (data->ci_pdev)
 		ci_hdrc_remove_device(data->ci_pdev);

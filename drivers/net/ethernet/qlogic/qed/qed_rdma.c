@@ -9,7 +9,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -44,7 +44,7 @@ int qed_rdma_bmap_alloc(struct qed_hwfn *p_hwfn,
 
 	bmap->bitmap = bitmap_zalloc(max_count, GFP_KERNEL);
 	if (!bmap->bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(bmap->name, QED_RDMA_MAX_BMAP_NAME, "%s", name);
 
@@ -86,7 +86,7 @@ void qed_bmap_release_id(struct qed_hwfn *p_hwfn,
 
 	b_acquired = test_and_clear_bit(id_num, bmap->bitmap);
 	if (!b_acquired) {
-		DP_NOTICE(p_hwfn, "%s bitmap: id %d already released\n",
+		DP_ANALTICE(p_hwfn, "%s bitmap: id %d already released\n",
 			  bmap->name, id_num);
 		return;
 	}
@@ -121,7 +121,7 @@ int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn)
 
 	p_rdma_info = kzalloc(sizeof(*p_rdma_info), GFP_KERNEL);
 	if (!p_rdma_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&p_rdma_info->lock);
 
@@ -139,7 +139,7 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rdma_info *p_rdma_info = p_hwfn->p_rdma_info;
 	u32 num_cons, num_tasks;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Allocating RDMA\n");
 
@@ -328,8 +328,8 @@ void qed_rdma_bmap_free(struct qed_hwfn *p_hwfn,
 	if (!weight)
 		goto end;
 
-	DP_NOTICE(p_hwfn,
-		  "%s bitmap not free - size=%d, weight=%d, 512 bits per line\n",
+	DP_ANALTICE(p_hwfn,
+		  "%s bitmap analt free - size=%d, weight=%d, 512 bits per line\n",
 		  bmap->name, bmap->max_count, weight);
 
 	for (bit = 0; bit < bmap->max_count; bit += 512) {
@@ -337,7 +337,7 @@ void qed_rdma_bmap_free(struct qed_hwfn *p_hwfn,
 		nbits = min(bmap->max_count - bit, 512U);
 
 		if (!bitmap_empty(b, nbits))
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "line 0x%04x: %*pb\n", bit / 512, nbits, b);
 	}
 
@@ -417,13 +417,13 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 	dev->vendor_id = cdev->vendor_id;
 	dev->vendor_part_id = cdev->device_id;
 	dev->hw_ver = cdev->chip_rev;
-	dev->fw_ver = (FW_MAJOR_VERSION << 24) | (FW_MINOR_VERSION << 16) |
+	dev->fw_ver = (FW_MAJOR_VERSION << 24) | (FW_MIANALR_VERSION << 16) |
 		      (FW_REVISION_VERSION << 8) | (FW_ENGINEERING_VERSION);
 
 	addrconf_addr_eui48((u8 *)&dev->sys_image_guid,
 			    p_hwfn->hw_info.hw_mac_addr);
 
-	dev->node_guid = dev->sys_image_guid;
+	dev->analde_guid = dev->sys_image_guid;
 
 	dev->max_sge = min_t(u32, RDMA_MAX_SGE_PER_SQ_WQE,
 			     RDMA_MAX_SGE_PER_RQ_WQE);
@@ -644,12 +644,12 @@ static int qed_rdma_reserve_lkey(struct qed_hwfn *p_hwfn)
 	struct qed_rdma_device *dev = p_hwfn->p_rdma_info->dev;
 
 	/* Tid 0 will be used as the key for "reserved MR".
-	 * The driver should allocate memory for it so it can be loaded but no
+	 * The driver should allocate memory for it so it can be loaded but anal
 	 * ramrod should be passed on it.
 	 */
 	qed_rdma_alloc_tid(p_hwfn, &dev->reserved_lkey);
 	if (dev->reserved_lkey != RDMA_RESERVED_LKEY) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Reserved lkey should be equal to RDMA_RESERVED_LKEY\n");
 		return -EINVAL;
 	}
@@ -831,7 +831,7 @@ static void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)
 	p_hwfn = (struct qed_hwfn *)rdma_cxt;
 
 	if (qz_offset > p_hwfn->p_rdma_info->max_queue_zones) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "queue zone offset %d is too large (max is %d)\n",
 			  qz_offset, p_hwfn->p_rdma_info->max_queue_zones);
 		return;
@@ -857,7 +857,7 @@ static int qed_fill_rdma_dev_info(struct qed_dev *cdev,
 	info->rdma_type = QED_IS_ROCE_PERSONALITY(p_hwfn) ?
 	    QED_RDMA_TYPE_ROCE : QED_RDMA_TYPE_IWARP;
 
-	info->user_dpm_enabled = (p_hwfn->db_bar_no_edpm == 0);
+	info->user_dpm_enabled = (p_hwfn->db_bar_anal_edpm == 0);
 
 	qed_fill_dev_info(cdev, &info->common);
 
@@ -902,7 +902,7 @@ static int qed_rdma_set_int(struct qed_dev *cdev, u16 cnt)
 	}
 
 	if (!limit)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return min_t(int, cnt, limit);
 }
@@ -913,7 +913,7 @@ static int qed_rdma_get_int(struct qed_dev *cdev, struct qed_int_info *info)
 
 	if (!cdev->int_params.fp_initialized) {
 		DP_INFO(cdev,
-			"Protocol driver requested interrupt information, but its support is not yet configured\n");
+			"Protocol driver requested interrupt information, but its support is analt yet configured\n");
 		return -EINVAL;
 	}
 
@@ -976,7 +976,7 @@ static int qed_rdma_alloc_xrcd(void *rdma_cxt, u16 *xrcd_id)
 				    &returned_id);
 	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed in allocating xrcd id\n");
+		DP_ANALTICE(p_hwfn, "Failed in allocating xrcd id\n");
 		return rc;
 	}
 
@@ -1044,7 +1044,7 @@ static int qed_rdma_create_cq(void *rdma_cxt,
 	spin_unlock_bh(&p_info->lock);
 
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Can't create CQ, rc = %d\n", rc);
+		DP_ANALTICE(p_hwfn, "Can't create CQ, rc = %d\n", rc);
 		return rc;
 	}
 
@@ -1103,7 +1103,7 @@ err:
 	spin_lock_bh(&p_info->lock);
 	qed_bmap_release_id(p_hwfn, &p_info->cq_map, returned_id);
 	spin_unlock_bh(&p_info->lock);
-	DP_NOTICE(p_hwfn, "Create CQ failed, rc = %d\n", rc);
+	DP_ANALTICE(p_hwfn, "Create CQ failed, rc = %d\n", rc);
 
 	return rc;
 }
@@ -1120,7 +1120,7 @@ qed_rdma_destroy_cq(void *rdma_cxt,
 	struct qed_spq_entry *p_ent;
 	dma_addr_t ramrod_res_phys;
 	enum protocol_type proto;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", in_params->icid);
 
@@ -1129,8 +1129,8 @@ qed_rdma_destroy_cq(void *rdma_cxt,
 			       sizeof(struct rdma_destroy_cq_output_params),
 			       &ramrod_res_phys, GFP_KERNEL);
 	if (!p_ramrod_res) {
-		DP_NOTICE(p_hwfn,
-			  "qed destroy cq failed: cannot allocate memory (ramrod)\n");
+		DP_ANALTICE(p_hwfn,
+			  "qed destroy cq failed: cananalt allocate memory (ramrod)\n");
 		return rc;
 	}
 
@@ -1154,7 +1154,7 @@ qed_rdma_destroy_cq(void *rdma_cxt,
 	if (rc)
 		goto err;
 
-	out_params->num_cq_notif = le16_to_cpu(p_ramrod_res->cnq_num);
+	out_params->num_cq_analtif = le16_to_cpu(p_ramrod_res->cnq_num);
 
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 			  sizeof(struct rdma_destroy_cq_output_params),
@@ -1196,7 +1196,7 @@ static int qed_rdma_query_qp(void *rdma_cxt,
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 
-	/* The following fields are filled in from qp and not FW as they can't
+	/* The following fields are filled in from qp and analt FW as they can't
 	 * be modified by FW
 	 */
 	out_params->mtu = qp->mtu;
@@ -1279,14 +1279,14 @@ qed_rdma_create_qp(void *rdma_cxt,
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
 		if (in_params->sq_num_pages * sizeof(struct regpair) >
 		    IWARP_SHARED_QUEUE_PAGE_SQ_PBL_MAX_SIZE) {
-			DP_NOTICE(p_hwfn->cdev,
+			DP_ANALTICE(p_hwfn->cdev,
 				  "Sq num pages: %d exceeds maximum\n",
 				  in_params->sq_num_pages);
 			return NULL;
 		}
 		if (in_params->rq_num_pages * sizeof(struct regpair) >
 		    IWARP_SHARED_QUEUE_PAGE_RQ_PBL_MAX_SIZE) {
-			DP_NOTICE(p_hwfn->cdev,
+			DP_ANALTICE(p_hwfn->cdev,
 				  "Rq num pages: %d exceeds maximum\n",
 				  in_params->rq_num_pages);
 			return NULL;
@@ -1570,7 +1570,7 @@ qed_rdma_register_tid(void *rdma_cxt,
 		return rc;
 
 	if (fw_return_code != RDMA_RETURN_OK) {
-		DP_NOTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);
+		DP_ANALTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);
 		return -EINVAL;
 	}
 
@@ -1612,7 +1612,7 @@ static int qed_rdma_deregister_tid(void *rdma_cxt, u32 itid)
 	}
 
 	if (fw_return_code == RDMA_RETURN_DEREGISTER_MR_BAD_STATE_ERR) {
-		DP_NOTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);
+		DP_ANALTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);
 		return -EINVAL;
 	} else if (fw_return_code == RDMA_RETURN_NIG_DRAIN_REQ) {
 		/* Bit indicating that the TID is in use and a nig drain is
@@ -1655,7 +1655,7 @@ static int qed_rdma_deregister_tid(void *rdma_cxt, u32 itid)
 		}
 
 		if (fw_return_code != RDMA_RETURN_OK) {
-			DP_NOTICE(p_hwfn, "fw_return_code = %d\n",
+			DP_ANALTICE(p_hwfn, "fw_return_code = %d\n",
 				  fw_return_code);
 			return rc;
 		}
@@ -1782,7 +1782,7 @@ qed_rdma_create_srq(void *rdma_cxt,
 	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 
 	if (rc) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "failed to allocate xrc/srq id (is_xrc=%u)\n",
 			  in_params->is_xrc);
 		return rc;
@@ -1851,7 +1851,7 @@ bool qed_rdma_allocated_qps(struct qed_hwfn *p_hwfn)
 {
 	bool result;
 
-	/* if rdma wasn't activated yet, naturally there are no qps */
+	/* if rdma wasn't activated yet, naturally there are anal qps */
 	if (!p_hwfn->p_rdma_info->active)
 		return false;
 
@@ -1868,17 +1868,17 @@ void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 val;
 
-	val = (p_hwfn->dcbx_no_edpm || p_hwfn->db_bar_no_edpm) ? 0 : 1;
+	val = (p_hwfn->dcbx_anal_edpm || p_hwfn->db_bar_anal_edpm) ? 0 : 1;
 
 	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_DPM_ENABLE, val);
 	DP_VERBOSE(p_hwfn, (QED_MSG_DCB | QED_MSG_RDMA),
 		   "Changing DPM_EN state to %d (DCBX=%d, DB_BAR=%d)\n",
-		   val, p_hwfn->dcbx_no_edpm, p_hwfn->db_bar_no_edpm);
+		   val, p_hwfn->dcbx_anal_edpm, p_hwfn->db_bar_anal_edpm);
 }
 
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	p_hwfn->db_bar_no_edpm = true;
+	p_hwfn->db_bar_anal_edpm = true;
 
 	qed_rdma_dpm_conf(p_hwfn, p_ptt);
 }
@@ -1971,14 +1971,14 @@ static int qed_iwarp_set_engine_affin(struct qed_dev *cdev, bool b_reset)
 
 	rc = qed_llh_set_ppfid_affinity(cdev, ppfid, eng);
 	if (rc) {
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "Failed to set the engine affinity of ppfid %d\n",
 			  ppfid);
 		return rc;
 	}
 
 	DP_VERBOSE(cdev, (QED_MSG_RDMA | QED_MSG_SP),
-		   "LLH: Set the engine affinity of non-RoCE packets as %d\n",
+		   "LLH: Set the engine affinity of analn-RoCE packets as %d\n",
 		   eng);
 
 	return 0;

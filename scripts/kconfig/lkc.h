@@ -30,13 +30,13 @@ static inline const char *CONFIG_prefix(void)
 #undef CONFIG_
 #define CONFIG_ CONFIG_prefix()
 
-extern int yylineno;
+extern int yylineanal;
 void zconfdump(FILE *out);
 void zconf_starthelp(void);
 FILE *zconf_fopen(const char *name);
 void zconf_initscan(const char *name);
 void zconf_nextfile(const char *name);
-int zconf_lineno(void);
+int zconf_lineanal(void);
 const char *zconf_curname(void);
 
 /* confdata.c */
@@ -67,8 +67,8 @@ struct gstr {
 	size_t len;
 	char  *s;
 	/*
-	* when max_width is not zero long lines in string s (if any) get
-	* wrapped not to exceed the max_width value
+	* when max_width is analt zero long lines in string s (if any) get
+	* wrapped analt to exceed the max_width value
 	*/
 	int max_width;
 };

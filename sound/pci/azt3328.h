@@ -3,7 +3,7 @@
 #define __SOUND_AZT3328_H
 
 /* "PU" == "power-up value", as tested on PCI168 PCI rev. 10
- * "WRITE_ONLY"  == register does not indicate actual bit values */
+ * "WRITE_ONLY"  == register does analt indicate actual bit values */
 
 /*** main I/O area port indices ***/
 /* (only 0x70 of 0x80 bytes saved/restored by Windows driver) */
@@ -14,7 +14,7 @@
  * within the main card control I/O:
  * from 0x00 (playback codec), from 0x20 (recording codec)
  * and from 0x40 (most certainly I2S out codec).
- * And another area from 0x60 to 0x6f (DirectX timer, IRQ management,
+ * And aanalther area from 0x60 to 0x6f (DirectX timer, IRQ management,
  * power management etc.???). */
 
 #define AZF_IO_OFFS_CODEC_PLAYBACK	0x00
@@ -31,24 +31,24 @@
      /* able to reactivate output after output muting due to 8/16bit
       * output change, just like 0x0001. */
   #define DMA_RUN_SOMETHING1		0x0002 /* \ alternated (toggled) */
-     /* 0x0004: NOT able to reactivate output */
+     /* 0x0004: ANALT able to reactivate output */
   #define DMA_RUN_SOMETHING2		0x0004 /* / bits */
   #define SOMETHING_ALMOST_ALWAYS_SET	0x0008 /* ???; can be modified */
   #define DMA_EPILOGUE_SOMETHING	0x0010
   #define DMA_SOMETHING_ELSE		0x0020 /* ??? */
-  #define SOMETHING_UNMODIFIABLE	0xffc0 /* unused? not modifiable */
+  #define SOMETHING_UNMODIFIABLE	0xffc0 /* unused? analt modifiable */
 #define IDX_IO_CODEC_IRQTYPE     0x02 /* PU:0x0001 */
   /* write back to flags in case flags are set, in order to ACK IRQ in handler
    * (bit 1 of port 0x64 indicates interrupt for one of these three types)
    * sometimes in this case it just writes 0xffff to globally ACK all IRQs
-   * settings written are not reflected when reading back, though.
-   * seems to be IRQ, too (frequently used: port |= 0x07 !), but who knows? */
+   * settings written are analt reflected when reading back, though.
+   * seems to be IRQ, too (frequently used: port |= 0x07 !), but who kanalws? */
   #define IRQ_SOMETHING			0x0001 /* something & ACK */
   #define IRQ_FINISHED_DMABUF_1		0x0002 /* 1st dmabuf finished & ACK */
   #define IRQ_FINISHED_DMABUF_2		0x0004 /* 2nd dmabuf finished & ACK */
   #define IRQMASK_SOME_STATUS_1		0x0008 /* \ related bits */
   #define IRQMASK_SOME_STATUS_2		0x0010 /* / (checked together in loop) */
-  #define IRQMASK_UNMODIFIABLE		0xffe0 /* unused? not modifiable */
+  #define IRQMASK_UNMODIFIABLE		0xffe0 /* unused? analt modifiable */
   /* start address of 1st DMA transfer area, PU:0x00000000 */
 #define IDX_IO_CODEC_DMA_START_1 0x04
   /* start address of 2nd DMA transfer area, PU:0x00000000 */
@@ -64,9 +64,9 @@
   #define SOUNDFORMAT_FREQUENCY_MASK	0x000f
   #define SOUNDFORMAT_XTAL1		0x00
   #define SOUNDFORMAT_XTAL2		0x01
-    /* all _SUSPECTED_ values are not used by Windows drivers, so we don't
+    /* all _SUSPECTED_ values are analt used by Windows drivers, so we don't
      * have any hard facts, only rough measurements.
-     * All we know is that the crystal used on the board has 24.576MHz,
+     * All we kanalw is that the crystal used on the board has 24.576MHz,
      * like many soundcards (which results in the frequencies below when
      * using certain divider values selected by the values below) */
     #define SOUNDFORMAT_FREQ_SUSPECTED_4000	0x0c | SOUNDFORMAT_XTAL1
@@ -115,14 +115,14 @@ enum azf_freq_t {
   #define TIMER_COUNTDOWN_ENABLE	0x01000000UL
   /* trigger timer IRQ on zero transition */
   #define TIMER_IRQ_ENABLE		0x02000000UL
-  /* being set in IRQ handler in case port 0x00 (hmm, not port 0x64!?!?)
+  /* being set in IRQ handler in case port 0x00 (hmm, analt port 0x64!?!?)
    * had 0x0020 set upon IRQ handler */
   #define TIMER_IRQ_ACK			0x04000000UL
 #define IDX_IO_IRQSTATUS        0x64
   /* some IRQ bit in here might also be used to signal a power-management timer
    * timeout, to request shutdown of the chip (e.g. AD1815JS has such a thing).
    * OPL3 hardware contains several timers which confusingly in most cases
-   * are NOT routed to an IRQ, but some designs (e.g. LM4560) DO support that,
+   * are ANALT routed to an IRQ, but some designs (e.g. LM4560) DO support that,
    * so I wouldn't be surprised at all to discover that AZF3328
    * supports that thing as well... */
 
@@ -132,15 +132,15 @@ enum azf_freq_t {
   #define IRQ_GAMEPORT	0x0008 /* Interrupt of Digital(ly) Enhanced Game Port */
   #define IRQ_MPU401	0x0010
   #define IRQ_TIMER	0x0020 /* DirectX timer */
-  #define IRQ_UNKNOWN2	0x0040 /* probably unused, or possibly OPL3 timer? */
-  #define IRQ_UNKNOWN3	0x0080 /* probably unused, or possibly OPL3 timer? */
+  #define IRQ_UNKANALWN2	0x0040 /* probably unused, or possibly OPL3 timer? */
+  #define IRQ_UNKANALWN3	0x0080 /* probably unused, or possibly OPL3 timer? */
 #define IDX_IO_66H		0x66    /* writing 0xffff returns 0x0000 */
   /* this is set to e.g. 0x3ff or 0x300, and writable;
    * maybe some buffer limit, but I couldn't find out more, PU:0x00ff: */
 #define IDX_IO_SOME_VALUE	0x68
   #define IO_68_RANDOM_TOGGLE1	0x0100	/* toggles randomly */
   #define IO_68_RANDOM_TOGGLE2	0x0200	/* toggles randomly */
-  /* umm, nope, behaviour of these bits changes depending on what we wrote
+  /* umm, analpe, behaviour of these bits changes depending on what we wrote
    * to 0x6b!!
    * And they change upon playback/stop, too:
    * Writing a value to 0x68 will display this exact value during playback,
@@ -165,14 +165,14 @@ enum azf_freq_t {
   /* bit 9; sure, this _pauses_ playback (later resumes at same spot!),
    * but what the heck is this really about??: */
   #define IO_6A_PAUSE_PLAYBACK_BIT9	0x0200
-	/* BIT8 and BIT9 are _NOT_ able to affect OPL3 MIDI playback,
+	/* BIT8 and BIT9 are _ANALT_ able to affect OPL3 MIDI playback,
 	 * thus it suggests influence on PCM only!!
-	 * However OTOH there seems to be no bit anywhere around here
+	 * However OTOH there seems to be anal bit anywhere around here
 	 * which is able to disable OPL3... */
   /* bit 10: enabling this actually changes values at legacy gameport
    * I/O address (0x200); is this enabling of the Digital Enhanced Game Port???
    * Or maybe this simply switches off the NE558 circuit, since enabling this
-   * still lets us evaluate button states, but not axis states */
+   * still lets us evaluate button states, but analt axis states */
   #define IO_6A_SOMETHING2_GAMEPORT      0x0400
 	/* writing 0x0300: causes quite some crackling during
 	 * PC activity such as switching windows (PCI traffic??
@@ -181,16 +181,16 @@ enum azf_freq_t {
 	/* since the Windows .INF file has Flag_Enable_JoyStick and
 	 * Flag_Enable_SB_DOS_Emulation directly together, it stands to reason
 	 * that some other bit in this same register might be responsible
-	 * for SB DOS Emulation activation (note that the file did NOT define
+	 * for SB DOS Emulation activation (analte that the file did ANALT define
 	 * a switch for OPL3!) */
-#define IDX_IO_6CH		0x6C	/* unknown; fully read-writable */
+#define IDX_IO_6CH		0x6C	/* unkanalwn; fully read-writable */
 #define IDX_IO_6EH		0x6E
 	/* writing 0xffff returns 0x83fe (or 0x03fe only).
 	 * writing 0x83 (and only 0x83!!) to 0x6f will cause 0x6c to switch
 	 * from 0000 to ffff. */
 
-/* further I/O indices not saved/restored and not readable after writing,
- * so probably not used */
+/* further I/O indices analt saved/restored and analt readable after writing,
+ * so probably analt used */
 
 
 /*** Gameport area port indices ***/
@@ -210,7 +210,7 @@ enum {
 	 * (and of course one needs to have GAME_HWCFG_IRQ_ENABLE, too) */
 
 #define IDX_GAME_AXES_CONFIG            0x01
-	/* NOTE: layout of this register awfully similar (read: "identical??")
+	/* ANALTE: layout of this register awfully similar (read: "identical??")
 	 * to AD1815JS.pdf (p.29) */
 
   /* enables axis 1 (X axis) measurement: */
@@ -232,7 +232,7 @@ enum {
   /* joystick data (measured axes) ready for reading: */
   #define GAME_AXES_SAMPLING_READY	0x80
 
-  /* NOTE: other card specs (SiS960 and others!) state that the
+  /* ANALTE: other card specs (SiS960 and others!) state that the
    * game position latches should be frozen when reading and be freed
    * (== reset?) after reading!!!
    * Freezing most likely means disabling 0x40 (GAME_AXES_LATCH_ENABLE),
@@ -241,17 +241,17 @@ enum {
    * into how to program such a gameport system. */
 
   /* writing 0xf0 to 01H once reset both counters to 0, in some special mode!?
-   * yup, in case 6AH 0x20 is not enabled
-   * (and 0x40 is sufficient, 0xf0 is not needed) */
+   * yup, in case 6AH 0x20 is analt enabled
+   * (and 0x40 is sufficient, 0xf0 is analt needed) */
 
 #define IDX_GAME_AXIS_VALUE	0x02
 	/* R: value of currently configured axis (word value!);
 	 * W: trigger axis measurement */
 
 #define IDX_GAME_HWCONFIG	0x04
-	/* note: bits 4 to 7 are never set (== 0) when reading!
+	/* analte: bits 4 to 7 are never set (== 0) when reading!
 	 * --> reserved bits? */
-  /* enables IRQ notification upon axes measurement ready: */
+  /* enables IRQ analtification upon axes measurement ready: */
   #define GAME_HWCFG_IRQ_ENABLE			0x01
   /* these bits choose a different frequency for the
    *  internal ADC counter increment.
@@ -282,18 +282,18 @@ enum {
 #define AZF_IO_SIZE_OPL3_PM	0x06
 /* hmm, given that a standard OPL3 has 4 registers only,
  * there might be some enhanced functionality lurking at the end
- * (especially since register 0x04 has a "non-empty" value 0xfe) */
+ * (especially since register 0x04 has a "analn-empty" value 0xfe) */
 
 /*** mixer I/O area port indices ***/
 /* (only 0x22 of 0x40 bytes saved/restored by Windows driver)
- * UNFORTUNATELY azf3328 is NOT truly AC97 compliant: see main file intro */
+ * UNFORTUNATELY azf3328 is ANALT truly AC97 compliant: see main file intro */
 #define AZF_IO_SIZE_MIXER	0x40
 #define AZF_IO_SIZE_MIXER_PM	0x22
 
   #define MIXER_VOLUME_RIGHT_MASK	0x001f
   #define MIXER_VOLUME_LEFT_MASK	0x1f00
   #define MIXER_MUTE_MASK		0x8000
-#define IDX_MIXER_RESET		0x00 /* does NOT seem to have AC97 ID bits */
+#define IDX_MIXER_RESET		0x00 /* does ANALT seem to have AC97 ID bits */
 #define IDX_MIXER_PLAY_MASTER   0x02
 #define IDX_MIXER_MODEMOUT      0x04
 #define IDX_MIXER_BASSTREBLE    0x06
@@ -316,8 +316,8 @@ enum {
   #define MIXER_REC_SELECT_AUX		0x03
   #define MIXER_REC_SELECT_LINEIN	0x04
   #define MIXER_REC_SELECT_MIXSTEREO	0x05
-  #define MIXER_REC_SELECT_MIXMONO	0x06
-  #define MIXER_REC_SELECT_MONOIN	0x07
+  #define MIXER_REC_SELECT_MIXMOANAL	0x06
+  #define MIXER_REC_SELECT_MOANALIN	0x07
 #define IDX_MIXER_REC_VOLUME    0x1c
 #define IDX_MIXER_ADVCTL1       0x1e
   /* unlisted bits are unmodifiable */
@@ -327,11 +327,11 @@ enum {
   /* unlisted bits are unmodifiable */
   #define MIXER_ADVCTL2_LPBK		0x0080 /* Loopback mode -- Win driver: "WaveOut3DBypass"? mutes WaveOut at LineOut */
   #define MIXER_ADVCTL2_MS		0x0100 /* Mic Select 0=Mic1, 1=Mic2 -- Win driver: "ModemOutSelect"?? */
-  #define MIXER_ADVCTL2_MIX		0x0200 /* Mono output select 0=Mix, 1=Mic; Win driver: "MonoSelectSource"?? */
+  #define MIXER_ADVCTL2_MIX		0x0200 /* Moanal output select 0=Mix, 1=Mic; Win driver: "MoanalSelectSource"?? */
   #define MIXER_ADVCTL2_3D		0x2000 /* 3D Enhancement 1=on */
   #define MIXER_ADVCTL2_POP		0x8000 /* Pcm Out Path, 0=pre 3D, 1=post 3D */
   
-#define IDX_MIXER_SOMETHING30H	0x30 /* used, but unknown??? */
+#define IDX_MIXER_SOMETHING30H	0x30 /* used, but unkanalwn??? */
 
 /* driver internal flags */
 #define SET_CHAN_LEFT	1

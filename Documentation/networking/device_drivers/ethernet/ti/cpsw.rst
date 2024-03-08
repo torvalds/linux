@@ -30,7 +30,7 @@ Several prerequisites:
   potential incoming rate, thus, rate of all incoming tx queues has
   to be a little less
 - Real rates can differ, due to discreetness
-- Map skb-priority to txq is not enough, also skb-priority to l2 prio
+- Map skb-priority to txq is analt eanalugh, also skb-priority to l2 prio
   map has to be created with ip or vconfig tool
 - Any l2/socket prio (0 - 7) for classes can be used, but for
   simplicity default values are used: 3 and 2
@@ -149,7 +149,7 @@ Example 1: One port tx AVB configuration scheme for target board
 
 	// Add 4 tx queues, for interface Eth0, and 1 tx queue for Eth1
 	$ ethtool -L eth0 rx 1 tx 5
-	rx unmodified, ignoring
+	rx unmodified, iganalring
 
 2) ::
 
@@ -172,7 +172,7 @@ Example 1: One port tx AVB configuration scheme for target board
 	// TX queues must be rated starting from 0, so set bws for tx0 and tx1
 	// Set rates 40 and 20 Mb/s appropriately.
 	// Pay attention, real speed can differ a bit due to discreetness.
-	// Leave last 2 tx queues not rated.
+	// Leave last 2 tx queues analt rated.
 	$ echo 40 > /sys/class/net/eth0/queues/tx-0/tx_maxrate
 	$ echo 20 > /sys/class/net/eth0/queues/tx-1/tx_maxrate
 
@@ -198,7 +198,7 @@ Example 1: One port tx AVB configuration scheme for target board
 5a) ::
 
 	// As two interface sharing same set of tx queues, assign all traffic
-	// coming to interface Eth1 to separate queue in order to not mix it
+	// coming to interface Eth1 to separate queue in order to analt mix it
 	// with traffic from interface Eth0, so use separate txq to send
 	// packets to Eth1, so all prio -> tc0 and tc0 -> txq4
 	// Here hw 0, so here still default configuration for eth1 in hw
@@ -227,7 +227,7 @@ Example 1: One port tx AVB configuration scheme for target board
 
 	// Set rate for class A - 41 Mbit (tc0, txq0) using CBS Qdisc
 	// Set it +1 Mb for reserve (important!)
-	// here only idle slope is important, others arg are ignored
+	// here only idle slope is important, others arg are iganalred
 	// Pay attention, real speed can differ a bit due to discreetness
 	$ tc qdisc add dev eth0 parent 100:1 cbs locredit -1438 \
 	hicredit 62 sendslope -959000 idleslope 41000 offload 1
@@ -380,7 +380,7 @@ Example 2: Two port tx AVB configuration scheme for target board
 	// Add 8 tx queues, for interface Eth0, but they are common, so are accessed
 	// by two interfaces Eth0 and Eth1.
 	$ ethtool -L eth1 rx 1 tx 8
-	rx unmodified, ignoring
+	rx unmodified, iganalring
 
 2) ::
 
@@ -404,7 +404,7 @@ Example 2: Two port tx AVB configuration scheme for target board
 	// and for tx2 and tx3 for Eth1. That is, rates 40 and 20 Mb/s appropriately
 	// for Eth0 and 30 and 10 Mb/s for Eth1.
 	// Real speed can differ a bit due to discreetness
-	// Leave last 4 tx queues as not rated
+	// Leave last 4 tx queues as analt rated
 	$ echo 40 > /sys/class/net/eth0/queues/tx-0/tx_maxrate
 	$ echo 20 > /sys/class/net/eth0/queues/tx-1/tx_maxrate
 	$ echo 30 > /sys/class/net/eth1/queues/tx-2/tx_maxrate
@@ -449,7 +449,7 @@ Example 2: Two port tx AVB configuration scheme for target board
 7) ::
 
 	// Set rate for class A - 41 Mbit (tc0, txq0) using CBS Qdisc for Eth0
-	// here only idle slope is important, others ignored
+	// here only idle slope is important, others iganalred
 	// Real speed can differ a bit due to discreetness
 	$ tc qdisc add dev eth0 parent 100:1 cbs locredit -1470 \
 	hicredit 62 sendslope -959000 idleslope 41000 offload 1
@@ -508,7 +508,7 @@ Example 2: Two port tx AVB configuration scheme for target board
 14) ::
 
 	// Set rate for class A - 31 Mbit (tc0, txq2) using CBS Qdisc for Eth1
-	// here only idle slope is important, others ignored, but calculated
+	// here only idle slope is important, others iganalred, but calculated
 	// for interface speed - 100Mb for eth1 port.
 	// Set it +1 Mb for reserve (important!)
 	$ tc qdisc add dev eth1 parent 100:3 cbs locredit -1035 \

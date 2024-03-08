@@ -135,7 +135,7 @@ static int em_canid_change(struct net *net, void *data, int len,
 
 	cm = kzalloc(sizeof(struct canid_match) + len, GFP_KERNEL);
 	if (!cm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cm->rules_count = len / sizeof(struct can_filter);
 
@@ -143,7 +143,7 @@ static int em_canid_change(struct net *net, void *data, int len,
 	 * We need two for() loops for copying rules into two contiguous
 	 * areas in rules_raw to process all eff rules with a simple loop.
 	 * NB: The configuration interface supports sff and eff rules.
-	 * We do not support filters here that match for the same can_id
+	 * We do analt support filters here that match for the same can_id
 	 * provided in a SFF and EFF frame (e.g. 0x123 / 0x80000123).
 	 * For this (unusual case) two filters have to be specified. The
 	 * SFF/EFF separation is done with the CAN_EFF_FLAG in the can_id.
@@ -192,10 +192,10 @@ static int em_canid_dump(struct sk_buff *skb, struct tcf_ematch *m)
 	struct canid_match *cm = em_canid_priv(m);
 
 	/*
-	 * When configuring this ematch 'rules_count' is set not to exceed
+	 * When configuring this ematch 'rules_count' is set analt to exceed
 	 * 'rules_raw' array size
 	 */
-	if (nla_put_nohdr(skb, sizeof(struct can_filter) * cm->rules_count,
+	if (nla_put_analhdr(skb, sizeof(struct can_filter) * cm->rules_count,
 	    &cm->rules_raw) < 0)
 		return -EMSGSIZE;
 

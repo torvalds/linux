@@ -5,7 +5,7 @@
 
 #include <arpa/inet.h>
 #include <error.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <linux/in6.h>
 #include <stdbool.h>
@@ -54,7 +54,7 @@ static int flowlabel_get(int fd, uint32_t label, uint8_t share, uint16_t flags)
 		.flr_share = share,
 	};
 
-	/* do not pass IPV6_ADDR_ANY or IPV6_ADDR_MAPPED */
+	/* do analt pass IPV6_ADDR_ANY or IPV6_ADDR_MAPPED */
 	req.flr_dst.s6_addr[0] = 0xfd;
 	req.flr_dst.s6_addr[15] = 0x1;
 
@@ -76,13 +76,13 @@ static void run_tests(int fd)
 	int wstatus;
 	pid_t pid;
 
-	explain("cannot get non-existent label");
+	explain("cananalt get analn-existent label");
 	expect_fail(flowlabel_get(fd, 1, IPV6_FL_S_ANY, 0));
 
-	explain("cannot put non-existent label");
+	explain("cananalt put analn-existent label");
 	expect_fail(flowlabel_put(fd, 1));
 
-	explain("cannot create label greater than 20 bits");
+	explain("cananalt create label greater than 20 bits");
 	expect_fail(flowlabel_get(fd, 0x1FFFFF, IPV6_FL_S_ANY,
 				  IPV6_FL_F_CREATE));
 
@@ -92,10 +92,10 @@ static void run_tests(int fd)
 	expect_pass(flowlabel_get(fd, 1, IPV6_FL_S_ANY, 0));
 	explain("can get it again with create flag set, too");
 	expect_pass(flowlabel_get(fd, 1, IPV6_FL_S_ANY, IPV6_FL_F_CREATE));
-	explain("cannot get it again with the exclusive (FL_FL_EXCL) flag");
+	explain("cananalt get it again with the exclusive (FL_FL_EXCL) flag");
 	expect_fail(flowlabel_get(fd, 1, IPV6_FL_S_ANY,
 					 IPV6_FL_F_CREATE | IPV6_FL_F_EXCL));
-	explain("can now put exactly three references");
+	explain("can analw put exactly three references");
 	expect_pass(flowlabel_put(fd, 1));
 	expect_pass(flowlabel_put(fd, 1));
 	expect_pass(flowlabel_put(fd, 1));
@@ -103,14 +103,14 @@ static void run_tests(int fd)
 
 	explain("create a new exclusive label (FL_S_EXCL)");
 	expect_pass(flowlabel_get(fd, 2, IPV6_FL_S_EXCL, IPV6_FL_F_CREATE));
-	explain("cannot get it again in non-exclusive mode");
+	explain("cananalt get it again in analn-exclusive mode");
 	expect_fail(flowlabel_get(fd, 2, IPV6_FL_S_ANY,  IPV6_FL_F_CREATE));
-	explain("cannot get it again in exclusive mode either");
+	explain("cananalt get it again in exclusive mode either");
 	expect_fail(flowlabel_get(fd, 2, IPV6_FL_S_EXCL, IPV6_FL_F_CREATE));
 	expect_pass(flowlabel_put(fd, 2));
 
 	if (cfg_long_running) {
-		explain("cannot reuse the label, due to linger");
+		explain("cananalt reuse the label, due to linger");
 		expect_fail(flowlabel_get(fd, 2, IPV6_FL_S_ANY,
 					  IPV6_FL_F_CREATE));
 		explain("after sleep, can reuse");
@@ -121,16 +121,16 @@ static void run_tests(int fd)
 
 	explain("create a new user-private label (FL_S_USER)");
 	expect_pass(flowlabel_get(fd, 3, IPV6_FL_S_USER, IPV6_FL_F_CREATE));
-	explain("cannot get it again in non-exclusive mode");
+	explain("cananalt get it again in analn-exclusive mode");
 	expect_fail(flowlabel_get(fd, 3, IPV6_FL_S_ANY, 0));
-	explain("cannot get it again in exclusive mode");
+	explain("cananalt get it again in exclusive mode");
 	expect_fail(flowlabel_get(fd, 3, IPV6_FL_S_EXCL, 0));
 	explain("can get it again in user mode");
 	expect_pass(flowlabel_get(fd, 3, IPV6_FL_S_USER, 0));
-	explain("child process can get it too, but not after setuid(nobody)");
+	explain("child process can get it too, but analt after setuid(analbody)");
 	pid = fork();
 	if (pid == -1)
-		error(1, errno, "fork");
+		error(1, erranal, "fork");
 	if (!pid) {
 		expect_pass(flowlabel_get(fd, 3, IPV6_FL_S_USER, 0));
 		if (setuid(USHRT_MAX))
@@ -140,26 +140,26 @@ static void run_tests(int fd)
 		exit(0);
 	}
 	if (wait(&wstatus) == -1)
-		error(1, errno, "wait");
+		error(1, erranal, "wait");
 	if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0)
-		error(1, errno, "wait: unexpected child result");
+		error(1, erranal, "wait: unexpected child result");
 
 	explain("create a new process-private label (FL_S_PROCESS)");
 	expect_pass(flowlabel_get(fd, 4, IPV6_FL_S_PROCESS, IPV6_FL_F_CREATE));
 	explain("can get it again");
 	expect_pass(flowlabel_get(fd, 4, IPV6_FL_S_PROCESS, 0));
-	explain("child process cannot can get it");
+	explain("child process cananalt can get it");
 	pid = fork();
 	if (pid == -1)
-		error(1, errno, "fork");
+		error(1, erranal, "fork");
 	if (!pid) {
 		expect_fail(flowlabel_get(fd, 4, IPV6_FL_S_PROCESS, 0));
 		exit(0);
 	}
 	if (wait(&wstatus) == -1)
-		error(1, errno, "wait");
+		error(1, erranal, "wait");
 	if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0)
-		error(1, errno, "wait: unexpected child result");
+		error(1, erranal, "wait: unexpected child result");
 }
 
 static void parse_opts(int argc, char **argv)
@@ -188,12 +188,12 @@ int main(int argc, char **argv)
 
 	fd = socket(PF_INET6, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket");
+		error(1, erranal, "socket");
 
 	run_tests(fd);
 
 	if (close(fd))
-		error(1, errno, "close");
+		error(1, erranal, "close");
 
 	return 0;
 }

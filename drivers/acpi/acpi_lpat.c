@@ -18,7 +18,7 @@
  *       above mapping table
  *
  * A positive converted temperature value will be returned on success,
- * a negative errno will be returned in error cases.
+ * a negative erranal will be returned in error cases.
  */
 int acpi_lpat_raw_to_temp(struct acpi_lpat_conversion_table *lpat_table,
 			  int raw)
@@ -33,7 +33,7 @@ int acpi_lpat_raw_to_temp(struct acpi_lpat_conversion_table *lpat_table,
 	}
 
 	if (i == lpat_table->lpat_count - 1)
-		return -ENOENT;
+		return -EANALENT;
 
 	delta_temp = lpat[i+1].temp - lpat[i].temp;
 	delta_raw = lpat[i+1].raw - lpat[i].raw;
@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(acpi_lpat_raw_to_temp);
  *        above mapping table
  *
  * The raw value will be returned on success,
- * a negative errno will be returned in error cases.
+ * a negative erranal will be returned in error cases.
  */
 int acpi_lpat_temp_to_raw(struct acpi_lpat_conversion_table *lpat_table,
 			  int temp)
@@ -66,7 +66,7 @@ int acpi_lpat_temp_to_raw(struct acpi_lpat_conversion_table *lpat_table,
 	}
 
 	if (i ==  lpat_table->lpat_count - 1)
-		return -ENOENT;
+		return -EANALENT;
 
 	delta_temp = lpat[i+1].temp - lpat[i].temp;
 	delta_raw = lpat[i+1].raw - lpat[i].raw;

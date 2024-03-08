@@ -8,20 +8,20 @@ title: Power Sourcing Equipment (PSE).
 
 description: Binding for the Power Sourcing Equipment (PSE) as defined in the
   IEEE 802.3 specification. It is designed for hardware which is delivering
-  power over twisted pair/ethernet cable. The ethernet-pse nodes should be
-  used to describe PSE controller and referenced by the ethernet-phy node.
+  power over twisted pair/ethernet cable. The ethernet-pse analdes should be
+  used to describe PSE controller and referenced by the ethernet-phy analde.
 
 maintainers:
   - Oleksij Rempel <o.rempel@pengutronix.de>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^ethernet-pse(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   "#pse-cells":
     description:
       Used to uniquely identify a PSE instance within an IC. Will be
-      0 on PSE nodes with only a single output and at least 1 on nodes
+      0 on PSE analdes with only a single output and at least 1 on analdes
       controlling several outputs.
     enum: [0, 1]
 

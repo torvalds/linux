@@ -167,8 +167,8 @@ ATOMIC_OPS(sub)
 #define arch_atomic64_fetch_add_relaxed		arch_atomic64_fetch_add_relaxed
 #define arch_atomic64_fetch_sub_relaxed		arch_atomic64_fetch_sub_relaxed
 
-#define arch_atomic_andnot			arch_atomic_andnot
-#define arch_atomic64_andnot			arch_atomic64_andnot
+#define arch_atomic_andanalt			arch_atomic_andanalt
+#define arch_atomic64_andanalt			arch_atomic64_andanalt
 
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, asm)						\
@@ -178,17 +178,17 @@ ATOMIC_OPS(sub)
 	ATOMIC64_FETCH_OP(op, asm)
 
 ATOMIC_OPS(and, and)
-ATOMIC_OPS(andnot, bic)
+ATOMIC_OPS(andanalt, bic)
 ATOMIC_OPS(or, bis)
 ATOMIC_OPS(xor, xor)
 
 #define arch_atomic_fetch_and_relaxed		arch_atomic_fetch_and_relaxed
-#define arch_atomic_fetch_andnot_relaxed	arch_atomic_fetch_andnot_relaxed
+#define arch_atomic_fetch_andanalt_relaxed	arch_atomic_fetch_andanalt_relaxed
 #define arch_atomic_fetch_or_relaxed		arch_atomic_fetch_or_relaxed
 #define arch_atomic_fetch_xor_relaxed		arch_atomic_fetch_xor_relaxed
 
 #define arch_atomic64_fetch_and_relaxed		arch_atomic64_fetch_and_relaxed
-#define arch_atomic64_fetch_andnot_relaxed	arch_atomic64_fetch_andnot_relaxed
+#define arch_atomic64_fetch_andanalt_relaxed	arch_atomic64_fetch_andanalt_relaxed
 #define arch_atomic64_fetch_or_relaxed		arch_atomic64_fetch_or_relaxed
 #define arch_atomic64_fetch_xor_relaxed		arch_atomic64_fetch_xor_relaxed
 

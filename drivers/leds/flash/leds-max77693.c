@@ -419,7 +419,7 @@ static int max77693_setup(struct max77693_led_device *led,
 			return ret;
 	}
 
-	v = TORCH_TMR_NO_TIMER | MAX77693_LED_TRIG_TYPE_LEVEL;
+	v = TORCH_TMR_ANAL_TIMER | MAX77693_LED_TRIG_TYPE_LEVEL;
 	ret = regmap_write(rmap, MAX77693_LED_REG_ITORCHTIMER, v);
 	if (ret < 0)
 		return ret;
@@ -595,21 +595,21 @@ static int max77693_led_flash_timeout_set(
 
 static int max77693_led_parse_dt(struct max77693_led_device *led,
 				struct max77693_led_config_data *cfg,
-				struct device_node **sub_nodes)
+				struct device_analde **sub_analdes)
 {
 	struct device *dev = &led->pdev->dev;
 	struct max77693_sub_led *sub_leds = led->sub_leds;
-	struct device_node *node = dev_of_node(dev), *child_node;
+	struct device_analde *analde = dev_of_analde(dev), *child_analde;
 	struct property *prop;
 	u32 led_sources[2];
 	int i, ret, fled_id;
 
-	of_property_read_u32(node, "maxim,boost-mode", &cfg->boost_mode);
-	of_property_read_u32(node, "maxim,boost-mvout", &cfg->boost_vout);
-	of_property_read_u32(node, "maxim,mvsys-min", &cfg->low_vsys);
+	of_property_read_u32(analde, "maxim,boost-mode", &cfg->boost_mode);
+	of_property_read_u32(analde, "maxim,boost-mvout", &cfg->boost_vout);
+	of_property_read_u32(analde, "maxim,mvsys-min", &cfg->low_vsys);
 
-	for_each_available_child_of_node(node, child_node) {
-		prop = of_find_property(child_node, "led-sources", NULL);
+	for_each_available_child_of_analde(analde, child_analde) {
+		prop = of_find_property(child_analde, "led-sources", NULL);
 		if (prop) {
 			const __be32 *srcs = NULL;
 
@@ -622,7 +622,7 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 		} else {
 			dev_err(dev,
 				"led-sources DT property missing\n");
-			of_node_put(child_node);
+			of_analde_put(child_analde);
 			return -EINVAL;
 		}
 
@@ -638,32 +638,32 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 		} else {
 			dev_err(dev,
 				"Wrong led-sources DT property value.\n");
-			of_node_put(child_node);
+			of_analde_put(child_analde);
 			return -EINVAL;
 		}
 
-		if (sub_nodes[fled_id]) {
+		if (sub_analdes[fled_id]) {
 			dev_err(dev,
 				"Conflicting \"led-sources\" DT properties\n");
-			of_node_put(child_node);
+			of_analde_put(child_analde);
 			return -EINVAL;
 		}
 
-		sub_nodes[fled_id] = child_node;
+		sub_analdes[fled_id] = child_analde;
 		sub_leds[fled_id].fled_id = fled_id;
 
 		cfg->label[fled_id] =
-			of_get_property(child_node, "label", NULL) ? :
-						child_node->name;
+			of_get_property(child_analde, "label", NULL) ? :
+						child_analde->name;
 
-		ret = of_property_read_u32(child_node, "led-max-microamp",
+		ret = of_property_read_u32(child_analde, "led-max-microamp",
 					&cfg->iout_torch_max[fled_id]);
 		if (ret < 0) {
 			cfg->iout_torch_max[fled_id] = TORCH_IOUT_MIN;
 			dev_warn(dev, "led-max-microamp DT property missing\n");
 		}
 
-		ret = of_property_read_u32(child_node, "flash-max-microamp",
+		ret = of_property_read_u32(child_analde, "flash-max-microamp",
 					&cfg->iout_flash_max[fled_id]);
 		if (ret < 0) {
 			cfg->iout_flash_max[fled_id] = FLASH_IOUT_MIN;
@@ -671,7 +671,7 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 				 "flash-max-microamp DT property missing\n");
 		}
 
-		ret = of_property_read_u32(child_node, "flash-max-timeout-us",
+		ret = of_property_read_u32(child_analde, "flash-max-timeout-us",
 					&cfg->flash_timeout_max[fled_id]);
 		if (ret < 0) {
 			cfg->flash_timeout_max[fled_id] = FLASH_TIMEOUT_MIN;
@@ -682,13 +682,13 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 		if (++cfg->num_leds == 2 ||
 		    (max77693_fled_used(led, FLED1) &&
 		     max77693_fled_used(led, FLED2))) {
-			of_node_put(child_node);
+			of_analde_put(child_analde);
 			break;
 		}
 	}
 
 	if (cfg->num_leds == 0) {
-		dev_err(dev, "No DT child node found for connected LED(s).\n");
+		dev_err(dev, "Anal DT child analde found for connected LED(s).\n");
 		return -EINVAL;
 	}
 
@@ -736,11 +736,11 @@ static void max77693_led_validate_configuration(struct max77693_led_device *led,
 	    max77693_fled_used(led, FLED1) && max77693_fled_used(led, FLED2))
 		led->iout_joint = true;
 
-	cfg->boost_mode = clamp_val(cfg->boost_mode, MAX77693_LED_BOOST_NONE,
+	cfg->boost_mode = clamp_val(cfg->boost_mode, MAX77693_LED_BOOST_ANALNE,
 			    MAX77693_LED_BOOST_FIXED);
 
 	/* Boost must be enabled if both current outputs are used */
-	if ((cfg->boost_mode == MAX77693_LED_BOOST_NONE) && led->iout_joint)
+	if ((cfg->boost_mode == MAX77693_LED_BOOST_ANALNE) && led->iout_joint)
 		cfg->boost_mode = MAX77693_LED_BOOST_FIXED;
 
 	max77693_align_iout_current(led, cfg->iout_torch_max,
@@ -763,11 +763,11 @@ static void max77693_led_validate_configuration(struct max77693_led_device *led,
 
 static int max77693_led_get_configuration(struct max77693_led_device *led,
 				struct max77693_led_config_data *cfg,
-				struct device_node **sub_nodes)
+				struct device_analde **sub_analdes)
 {
 	int ret;
 
-	ret = max77693_led_parse_dt(led, cfg, sub_nodes);
+	ret = max77693_led_parse_dt(led, cfg, sub_analdes);
 	if (ret < 0)
 		return ret;
 
@@ -911,7 +911,7 @@ static void max77693_init_fled_cdev(struct max77693_sub_led *sub_led,
 
 static int max77693_register_led(struct max77693_sub_led *sub_led,
 				 struct max77693_led_config_data *led_cfg,
-				 struct device_node *sub_node)
+				 struct device_analde *sub_analde)
 {
 	struct max77693_led_device *led = sub_led_to_led(sub_led);
 	struct led_classdev_flash *fled_cdev = &sub_led->fled_cdev;
@@ -927,7 +927,7 @@ static int max77693_register_led(struct max77693_sub_led *sub_led,
 	max77693_init_v4l2_flash_config(sub_led, led_cfg, &v4l2_sd_cfg);
 
 	/* Register in the V4L2 subsystem. */
-	sub_led->v4l2_flash = v4l2_flash_init(dev, of_fwnode_handle(sub_node),
+	sub_led->v4l2_flash = v4l2_flash_init(dev, of_fwanalde_handle(sub_analde),
 					      fled_cdev, &v4l2_flash_ops,
 					      &v4l2_sd_cfg);
 	if (IS_ERR(sub_led->v4l2_flash)) {
@@ -948,13 +948,13 @@ static int max77693_led_probe(struct platform_device *pdev)
 	struct max77693_dev *iodev = dev_get_drvdata(dev->parent);
 	struct max77693_led_device *led;
 	struct max77693_sub_led *sub_leds;
-	struct device_node *sub_nodes[2] = {};
+	struct device_analde *sub_analdes[2] = {};
 	struct max77693_led_config_data led_cfg = {};
 	int init_fled_cdev[2], i, ret;
 
 	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->pdev = pdev;
 	led->regmap = iodev->regmap;
@@ -962,7 +962,7 @@ static int max77693_led_probe(struct platform_device *pdev)
 	sub_leds = led->sub_leds;
 
 	platform_set_drvdata(pdev, led);
-	ret = max77693_led_get_configuration(led, &led_cfg, sub_nodes);
+	ret = max77693_led_get_configuration(led, &led_cfg, sub_analdes);
 	if (ret < 0)
 		return ret;
 
@@ -989,7 +989,7 @@ static int max77693_led_probe(struct platform_device *pdev)
 		 * V4L2 Flash device.
 		 */
 		ret = max77693_register_led(&sub_leds[i], &led_cfg,
-						sub_nodes[i]);
+						sub_analdes[i]);
 		if (ret < 0) {
 			/*
 			 * At this moment FLED1 might have been already

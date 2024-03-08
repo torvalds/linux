@@ -2,7 +2,7 @@
 /*
  * jh7110_pwmdac.c -- StarFive JH7110 PWM-DAC driver
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  *
  * Authors: Jenny Zhang
  *	    Curry Zhang
@@ -57,7 +57,7 @@ enum JH7110_PWMDAC_CNT_N_VAL {
 };
 
 enum JH7110_PWMDAC_DATA_CHANGE_VAL {
-	NO_CHANGE = 0,
+	ANAL_CHANGE = 0,
 	CHANGE,
 };
 
@@ -161,7 +161,7 @@ static void jh7110_pwmdac_set_data_change(struct jh7110_pwmdac_dev *dev)
 	u32 value;
 
 	value = jh7110_pwmdac_read_reg(dev->base, JH7110_PWMDAC_CTRL);
-	if (dev->cfg.data_change == NO_CHANGE)
+	if (dev->cfg.data_change == ANAL_CHANGE)
 		value &= ~JH7110_PWMDAC_DATA_CHANGE;
 	else if (dev->cfg.data_change == CHANGE)
 		value |= JH7110_PWMDAC_DATA_CHANGE;
@@ -259,7 +259,7 @@ static int jh7110_pwmdac_hw_params(struct snd_pcm_substream *substream,
 		core_clk_rate = 12288000;
 		break;
 	default:
-		dev_err(dai->dev, "%d rate not supported\n",
+		dev_err(dai->dev, "%d rate analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -272,7 +272,7 @@ static int jh7110_pwmdac_hw_params(struct snd_pcm_substream *substream,
 		dev->play_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
 	default:
-		dev_err(dai->dev, "%d channels not supported\n",
+		dev_err(dai->dev, "%d channels analt supported\n",
 			params_channels(params));
 		return -EINVAL;
 	}
@@ -430,7 +430,7 @@ static void jh7110_pwmdac_init_params(struct jh7110_pwmdac_dev *dev)
 	dev->cfg.shift = PWMDAC_SHIFT_8;
 	dev->cfg.duty_cycle = PWMDAC_CYCLE_CENTER;
 	dev->cfg.cnt_n = PWMDAC_SAMPLE_CNT_1;
-	dev->cfg.data_change = NO_CHANGE;
+	dev->cfg.data_change = ANAL_CHANGE;
 	dev->cfg.data_mode = INVERTER_DATA_MSB;
 	dev->cfg.data_shift = PWMDAC_DATA_LEFT_SHIFT_BIT_0;
 
@@ -448,7 +448,7 @@ static int jh7110_pwmdac_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(dev->base))

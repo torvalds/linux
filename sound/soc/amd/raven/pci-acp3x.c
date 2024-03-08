@@ -135,11 +135,11 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 
 	/* Raven device detection */
 	if (pci->revision != 0x00)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_enable_device(pci)) {
 		dev_err(&pci->dev, "pci_enable_device failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = pci_request_regions(pci, "AMD ACP3x audio");
@@ -151,7 +151,7 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 	adata = devm_kzalloc(&pci->dev, sizeof(struct acp3x_dev_data),
 			     GFP_KERNEL);
 	if (!adata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_regions;
 	}
 
@@ -161,7 +161,7 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 	adata->acp3x_base = devm_ioremap(&pci->dev, addr,
 					pci_resource_len(pci, 0));
 	if (!adata->acp3x_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_regions;
 	}
 	pci_set_master(pci);
@@ -179,7 +179,7 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 					  sizeof(struct resource) * 4,
 					  GFP_KERNEL);
 		if (!adata->res) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto de_init;
 		}
 
@@ -235,7 +235,7 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 			adata->pdev[i] =
 				platform_device_register_full(&pdevinfo[i]);
 			if (IS_ERR(adata->pdev[i])) {
-				dev_err(&pci->dev, "cannot register %s device\n",
+				dev_err(&pci->dev, "cananalt register %s device\n",
 					pdevinfo[i].name);
 				ret = PTR_ERR(adata->pdev[i]);
 				goto unregister_devs;
@@ -248,7 +248,7 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 	}
 	pm_runtime_set_autosuspend_delay(&pci->dev, 2000);
 	pm_runtime_use_autosuspend(&pci->dev);
-	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_put_analidle(&pci->dev);
 	pm_runtime_allow(&pci->dev);
 	return 0;
 
@@ -316,7 +316,7 @@ static void snd_acp3x_remove(struct pci_dev *pci)
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	pm_runtime_forbid(&pci->dev);
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
 }

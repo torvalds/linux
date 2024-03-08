@@ -24,7 +24,7 @@ static int __init swarm_i2c_init(void)
 				      ARRAY_SIZE(swarm_i2c_info1));
 	if (err < 0)
 		printk(KERN_ERR
-		       "swarm-i2c: cannot register board I2C devices\n");
+		       "swarm-i2c: cananalt register board I2C devices\n");
 	return err;
 }
 

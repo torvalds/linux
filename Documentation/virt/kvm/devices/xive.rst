@@ -13,7 +13,7 @@ POWER9 XIVE interrupt controller.
 
 Only one XIVE instance may be instantiated. A guest XIVE device
 requires a POWER9 host and the guest OS should have support for the
-XIVE native exploitation interrupt mode. If not, it should run using
+XIVE native exploitation interrupt mode. If analt, it should run using
 the legacy interrupt mode, referred as XICS (POWER7/8).
 
 * Device Mappings
@@ -26,12 +26,12 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
 
   Each thread has an associated Thread Interrupt Management context
   composed of a set of registers. These registers let the thread
-  handle priority management and interrupt acknowledgment. The most
+  handle priority management and interrupt ackanalwledgment. The most
   important are :
 
       - Interrupt Pending Buffer     (IPB)
       - Current Processor Priority   (CPPR)
-      - Notification Source Register (NSR)
+      - Analtification Source Register (NSR)
 
   They are exposed to software in four different pages each proposing
   a view with a different privilege. The first page is for the
@@ -75,14 +75,14 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     Resets the interrupt controller configuration for sources and event
     queues. To be used by kexec and kdump.
 
-    Errors: none
+    Errors: analne
 
     1.2 KVM_DEV_XIVE_EQ_SYNC (write only)
     Sync all the sources and queues and mark the EQ pages dirty. This
     to make sure that a consistent memory state is captured when
     migrating the VM.
 
-    Errors: none
+    Errors: analne
 
     1.3 KVM_DEV_XIVE_NR_SERVERS (write only)
     The kvm_device_attr.addr points to a __u32 value which is the number of
@@ -114,9 +114,9 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
 
     =======  ==========================================
     -E2BIG   Interrupt source number is out of range
-    -ENOMEM  Could not create a new source block
+    -EANALMEM  Could analt create a new source block
     -EFAULT  Invalid user pointer for attr->addr.
-    -ENXIO   Could not allocate underlying HW interrupt
+    -ENXIO   Could analt allocate underlying HW interrupt
     =======  ==========================================
 
 3. KVM_DEV_XIVE_GRP_SOURCE_CONFIG (write only)
@@ -138,14 +138,14 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   Errors:
 
     =======  =======================================================
-    -ENOENT  Unknown source number
-    -EINVAL  Not initialized source number
+    -EANALENT  Unkanalwn source number
+    -EINVAL  Analt initialized source number
     -EINVAL  Invalid priority
     -EINVAL  Invalid CPU number.
     -EFAULT  Invalid user pointer for attr->addr.
-    -ENXIO   CPU event queues not configured or configuration of the
+    -ENXIO   CPU event queues analt configured or configuration of the
 	     underlying HW interrupt failed
-    -EBUSY   No CPU available to serve interrupt
+    -EBUSY   Anal CPU available to serve interrupt
     =======  =======================================================
 
 4. KVM_DEV_XIVE_GRP_EQ_CONFIG (read-write)
@@ -171,8 +171,8 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     };
 
   - flags: queue flags
-      KVM_XIVE_EQ_ALWAYS_NOTIFY (required)
-	forces notification without using the coalescing mechanism
+      KVM_XIVE_EQ_ALWAYS_ANALTIFY (required)
+	forces analtification without using the coalescing mechanism
 	provided by the XIVE END ESBs.
   - qshift: queue size (power of 2)
   - qaddr: real address of queue
@@ -183,7 +183,7 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   Errors:
 
     =======  =========================================
-    -ENOENT  Invalid CPU number
+    -EANALENT  Invalid CPU number
     -EINVAL  Invalid priority
     -EINVAL  Invalid flags
     -EINVAL  Invalid queue size
@@ -193,7 +193,7 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     =======  =========================================
 
 5. KVM_DEV_XIVE_GRP_SOURCE_SYNC (write only)
-     Synchronize the source to flush event notifications
+     Synchronize the source to flush event analtifications
 
   Attributes:
     Interrupt source number  (64-bit)
@@ -201,16 +201,16 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   Errors:
 
     =======  =============================
-    -ENOENT  Unknown source number
-    -EINVAL  Not initialized source number
+    -EANALENT  Unkanalwn source number
+    -EINVAL  Analt initialized source number
     =======  =============================
 
 * VCPU state
 
   The XIVE IC maintains VP interrupt state in an internal structure
-  called the NVT. When a VP is not dispatched on a HW processor
+  called the NVT. When a VP is analt dispatched on a HW processor
   thread, this structure can be updated by HW if the VP is the target
-  of an event notification.
+  of an event analtification.
 
   It is important for migration to capture the cached IPB from the NVT
   as it synthesizes the priorities of the pending interrupts. We
@@ -231,7 +231,7 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   1. Mask all sources (PQ=01) to stop the flow of events.
 
   2. Sync the XIVE device with the KVM control KVM_DEV_XIVE_EQ_SYNC to
-  flush any in-flight event notification and to stabilize the EQs. At
+  flush any in-flight event analtification and to stabilize the EQs. At
   this stage, the EQ pages are marked dirty to make sure they are
   transferred in the migration sequence.
 

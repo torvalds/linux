@@ -82,8 +82,8 @@ static int nvme_sc_to_pr_err(int nvme_sc)
 		return PR_STS_SUCCESS;
 	case NVME_SC_RESERVATION_CONFLICT:
 		return PR_STS_RESERVATION_CONFLICT;
-	case NVME_SC_ONCS_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
+	case NVME_SC_ONCS_ANALT_SUPPORTED:
+		return -EOPANALTSUPP;
 	case NVME_SC_BAD_ATTRIBUTES:
 	case NVME_SC_INVALID_OPCODE:
 	case NVME_SC_INVALID_FIELD:
@@ -130,11 +130,11 @@ static int nvme_pr_register(struct block_device *bdev, u64 old,
 {
 	u32 cdw10;
 
-	if (flags & ~PR_FL_IGNORE_KEY)
-		return -EOPNOTSUPP;
+	if (flags & ~PR_FL_IGANALRE_KEY)
+		return -EOPANALTSUPP;
 
 	cdw10 = old ? 2 : 0;
-	cdw10 |= (flags & PR_FL_IGNORE_KEY) ? 1 << 3 : 0;
+	cdw10 |= (flags & PR_FL_IGANALRE_KEY) ? 1 << 3 : 0;
 	cdw10 |= (1 << 30) | (1 << 31); /* PTPL=1 */
 	return nvme_pr_command(bdev, cdw10, old, new, nvme_cmd_resv_register);
 }
@@ -144,11 +144,11 @@ static int nvme_pr_reserve(struct block_device *bdev, u64 key,
 {
 	u32 cdw10;
 
-	if (flags & ~PR_FL_IGNORE_KEY)
-		return -EOPNOTSUPP;
+	if (flags & ~PR_FL_IGANALRE_KEY)
+		return -EOPANALTSUPP;
 
 	cdw10 = nvme_pr_type_from_blk(type) << 8;
-	cdw10 |= ((flags & PR_FL_IGNORE_KEY) ? 1 << 3 : 0);
+	cdw10 |= ((flags & PR_FL_IGANALRE_KEY) ? 1 << 3 : 0);
 	return nvme_pr_command(bdev, cdw10, key, 0, nvme_cmd_resv_acquire);
 }
 
@@ -210,12 +210,12 @@ static int nvme_pr_read_keys(struct block_device *bdev,
 
 	/*
 	 * Assume we are using 128-bit host IDs and allocate a buffer large
-	 * enough to get enough keys to fill the return keys buffer.
+	 * eanalugh to get eanalugh keys to fill the return keys buffer.
 	 */
 	rse_len = struct_size(rse, regctl_eds, num_keys);
 	rse = kzalloc(rse_len, GFP_KERNEL);
 	if (!rse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nvme_pr_resv_report(bdev, rse, rse_len, &eds);
 	if (ret)
@@ -252,7 +252,7 @@ static int nvme_pr_read_reservation(struct block_device *bdev,
 
 get_num_regs:
 	/*
-	 * Get the number of registrations so we know how big to allocate
+	 * Get the number of registrations so we kanalw how big to allocate
 	 * the response buffer.
 	 */
 	ret = nvme_pr_resv_report(bdev, &tmp_rse, sizeof(tmp_rse), &eds);
@@ -268,7 +268,7 @@ get_num_regs:
 	rse_len = struct_size(rse, regctl_eds, num_regs);
 	rse = kzalloc(rse_len, GFP_KERNEL);
 	if (!rse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nvme_pr_resv_report(bdev, rse, rse_len, &eds);
 	if (ret)

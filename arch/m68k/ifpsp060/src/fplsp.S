@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
@@ -306,7 +306,7 @@ set EXC_D0,		EXC_DREGS+(0*4)
 
 set EXC_FP0,		EXC_FPREGS+(0*12)	# offset of saved fp0
 set EXC_FP1,		EXC_FPREGS+(1*12)	# offset of saved fp1
-set EXC_FP2,		EXC_FPREGS+(2*12)	# offset of saved fp2 (not used)
+set EXC_FP2,		EXC_FPREGS+(2*12)	# offset of saved fp2 (analt used)
 
 set FP_SCR1,		LV+80			# fp scratch 1
 set FP_SCR1_EX,		FP_SCR1+0
@@ -348,7 +348,7 @@ set L_SCR3,		LV+28			# integer scratch 3
 set L_SCR2,		LV+24			# integer scratch 2
 set L_SCR1,		LV+20			# integer scratch 1
 
-set STORE_FLG,		LV+19			# flag: operand store (ie. not fcmp/ftst)
+set STORE_FLG,		LV+19			# flag: operand store (ie. analt fcmp/ftst)
 
 set EXC_TEMP2,		LV+24			# temporary space
 set EXC_TEMP,		LV+16			# temporary space
@@ -403,13 +403,13 @@ set EXT_BIAS,		0x3fff			# extended precision bias
 set SGL_BIAS,		0x007f			# single precision bias
 set DBL_BIAS,		0x03ff			# double precision bias
 
-set NORM,		0x00			# operand type for STAG/DTAG
+set ANALRM,		0x00			# operand type for STAG/DTAG
 set ZERO,		0x01			# operand type for STAG/DTAG
 set INF,		0x02			# operand type for STAG/DTAG
 set QNAN,		0x03			# operand type for STAG/DTAG
-set DENORM,		0x04			# operand type for STAG/DTAG
+set DEANALRM,		0x04			# operand type for STAG/DTAG
 set SNAN,		0x05			# operand type for STAG/DTAG
-set UNNORM,		0x06			# operand type for STAG/DTAG
+set UNANALRM,		0x06			# operand type for STAG/DTAG
 
 ##################
 # FPSR/FPCR bits #
@@ -421,7 +421,7 @@ set nan_bit,		0x0			# NAN result
 
 set q_sn_bit,		0x7			# sign bit of quotient byte
 
-set bsun_bit,		7			# branch on unordered
+set bsun_bit,		7			# branch on uanalrdered
 set snan_bit,		6			# signalling NAN
 set operr_bit,		5			# operand error
 set ovfl_bit,		4			# overflow
@@ -585,29 +585,29 @@ _fsins_:
 
 	tst.b		%d1
 	bne.b		_L0_2s
-	bsr.l		ssin			# operand is a NORM
+	bsr.l		ssin			# operand is a ANALRM
 	bra.b		_L0_6s
 _L0_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L0_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L0_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L0_6s
 _L0_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L0_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L0_4s			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L0_6s
 _L0_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L0_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L0_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L0_6s
 _L0_5s:
-	bsr.l		ssind			# operand is a DENORM
+	bsr.l		ssind			# operand is a DEANALRM
 _L0_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -643,29 +643,29 @@ _fsind_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L0_2d
-	bsr.l		ssin			# operand is a NORM
+	bsr.l		ssin			# operand is a ANALRM
 	bra.b		_L0_6d
 _L0_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L0_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L0_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L0_6d
 _L0_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L0_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L0_4d			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L0_6d
 _L0_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L0_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L0_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L0_6d
 _L0_5d:
-	bsr.l		ssind			# operand is a DENORM
+	bsr.l		ssind			# operand is a DEANALRM
 _L0_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -701,29 +701,29 @@ _fsinx_:
 
 	tst.b		%d1
 	bne.b		_L0_2x
-	bsr.l		ssin			# operand is a NORM
+	bsr.l		ssin			# operand is a ANALRM
 	bra.b		_L0_6x
 _L0_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L0_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L0_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L0_6x
 _L0_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L0_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L0_4x			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L0_6x
 _L0_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L0_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L0_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L0_6x
 _L0_5x:
-	bsr.l		ssind			# operand is a DENORM
+	bsr.l		ssind			# operand is a DEANALRM
 _L0_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -762,29 +762,29 @@ _fcoss_:
 
 	tst.b		%d1
 	bne.b		_L1_2s
-	bsr.l		scos			# operand is a NORM
+	bsr.l		scos			# operand is a ANALRM
 	bra.b		_L1_6s
 _L1_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L1_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L1_3s			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L1_6s
 _L1_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L1_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L1_4s			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L1_6s
 _L1_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L1_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L1_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L1_6s
 _L1_5s:
-	bsr.l		scosd			# operand is a DENORM
+	bsr.l		scosd			# operand is a DEANALRM
 _L1_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -820,29 +820,29 @@ _fcosd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L1_2d
-	bsr.l		scos			# operand is a NORM
+	bsr.l		scos			# operand is a ANALRM
 	bra.b		_L1_6d
 _L1_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L1_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L1_3d			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L1_6d
 _L1_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L1_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L1_4d			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L1_6d
 _L1_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L1_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L1_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L1_6d
 _L1_5d:
-	bsr.l		scosd			# operand is a DENORM
+	bsr.l		scosd			# operand is a DEANALRM
 _L1_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -878,29 +878,29 @@ _fcosx_:
 
 	tst.b		%d1
 	bne.b		_L1_2x
-	bsr.l		scos			# operand is a NORM
+	bsr.l		scos			# operand is a ANALRM
 	bra.b		_L1_6x
 _L1_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L1_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L1_3x			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L1_6x
 _L1_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L1_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L1_4x			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L1_6x
 _L1_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L1_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L1_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L1_6x
 _L1_5x:
-	bsr.l		scosd			# operand is a DENORM
+	bsr.l		scosd			# operand is a DEANALRM
 _L1_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -939,29 +939,29 @@ _fsinhs_:
 
 	tst.b		%d1
 	bne.b		_L2_2s
-	bsr.l		ssinh			# operand is a NORM
+	bsr.l		ssinh			# operand is a ANALRM
 	bra.b		_L2_6s
 _L2_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L2_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L2_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L2_6s
 _L2_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L2_4s			# no
-	bsr.l		src_inf			# yes
+	bne.b		_L2_4s			# anal
+	bsr.l		src_inf			# anal
 	bra.b		_L2_6s
 _L2_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L2_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L2_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L2_6s
 _L2_5s:
-	bsr.l		ssinhd			# operand is a DENORM
+	bsr.l		ssinhd			# operand is a DEANALRM
 _L2_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -997,29 +997,29 @@ _fsinhd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L2_2d
-	bsr.l		ssinh			# operand is a NORM
+	bsr.l		ssinh			# operand is a ANALRM
 	bra.b		_L2_6d
 _L2_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L2_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L2_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L2_6d
 _L2_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L2_4d			# no
-	bsr.l		src_inf			# yes
+	bne.b		_L2_4d			# anal
+	bsr.l		src_inf			# anal
 	bra.b		_L2_6d
 _L2_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L2_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L2_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L2_6d
 _L2_5d:
-	bsr.l		ssinhd			# operand is a DENORM
+	bsr.l		ssinhd			# operand is a DEANALRM
 _L2_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1055,29 +1055,29 @@ _fsinhx_:
 
 	tst.b		%d1
 	bne.b		_L2_2x
-	bsr.l		ssinh			# operand is a NORM
+	bsr.l		ssinh			# operand is a ANALRM
 	bra.b		_L2_6x
 _L2_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L2_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L2_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L2_6x
 _L2_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L2_4x			# no
-	bsr.l		src_inf			# yes
+	bne.b		_L2_4x			# anal
+	bsr.l		src_inf			# anal
 	bra.b		_L2_6x
 _L2_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L2_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L2_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L2_6x
 _L2_5x:
-	bsr.l		ssinhd			# operand is a DENORM
+	bsr.l		ssinhd			# operand is a DEANALRM
 _L2_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1116,29 +1116,29 @@ _flognp1s_:
 
 	tst.b		%d1
 	bne.b		_L3_2s
-	bsr.l		slognp1			# operand is a NORM
+	bsr.l		slognp1			# operand is a ANALRM
 	bra.b		_L3_6s
 _L3_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L3_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L3_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L3_6s
 _L3_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L3_4s			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L3_4s			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L3_6s
 _L3_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L3_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L3_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L3_6s
 _L3_5s:
-	bsr.l		slognp1d			# operand is a DENORM
+	bsr.l		slognp1d			# operand is a DEANALRM
 _L3_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1174,29 +1174,29 @@ _flognp1d_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L3_2d
-	bsr.l		slognp1			# operand is a NORM
+	bsr.l		slognp1			# operand is a ANALRM
 	bra.b		_L3_6d
 _L3_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L3_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L3_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L3_6d
 _L3_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L3_4d			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L3_4d			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L3_6d
 _L3_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L3_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L3_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L3_6d
 _L3_5d:
-	bsr.l		slognp1d			# operand is a DENORM
+	bsr.l		slognp1d			# operand is a DEANALRM
 _L3_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1232,29 +1232,29 @@ _flognp1x_:
 
 	tst.b		%d1
 	bne.b		_L3_2x
-	bsr.l		slognp1			# operand is a NORM
+	bsr.l		slognp1			# operand is a ANALRM
 	bra.b		_L3_6x
 _L3_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L3_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L3_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L3_6x
 _L3_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L3_4x			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L3_4x			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L3_6x
 _L3_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L3_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L3_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L3_6x
 _L3_5x:
-	bsr.l		slognp1d			# operand is a DENORM
+	bsr.l		slognp1d			# operand is a DEANALRM
 _L3_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1293,29 +1293,29 @@ _fetoxm1s_:
 
 	tst.b		%d1
 	bne.b		_L4_2s
-	bsr.l		setoxm1			# operand is a NORM
+	bsr.l		setoxm1			# operand is a ANALRM
 	bra.b		_L4_6s
 _L4_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L4_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L4_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L4_6s
 _L4_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L4_4s			# no
-	bsr.l		setoxm1i			# yes
+	bne.b		_L4_4s			# anal
+	bsr.l		setoxm1i			# anal
 	bra.b		_L4_6s
 _L4_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L4_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L4_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L4_6s
 _L4_5s:
-	bsr.l		setoxm1d			# operand is a DENORM
+	bsr.l		setoxm1d			# operand is a DEANALRM
 _L4_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1351,29 +1351,29 @@ _fetoxm1d_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L4_2d
-	bsr.l		setoxm1			# operand is a NORM
+	bsr.l		setoxm1			# operand is a ANALRM
 	bra.b		_L4_6d
 _L4_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L4_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L4_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L4_6d
 _L4_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L4_4d			# no
-	bsr.l		setoxm1i			# yes
+	bne.b		_L4_4d			# anal
+	bsr.l		setoxm1i			# anal
 	bra.b		_L4_6d
 _L4_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L4_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L4_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L4_6d
 _L4_5d:
-	bsr.l		setoxm1d			# operand is a DENORM
+	bsr.l		setoxm1d			# operand is a DEANALRM
 _L4_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1409,29 +1409,29 @@ _fetoxm1x_:
 
 	tst.b		%d1
 	bne.b		_L4_2x
-	bsr.l		setoxm1			# operand is a NORM
+	bsr.l		setoxm1			# operand is a ANALRM
 	bra.b		_L4_6x
 _L4_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L4_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L4_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L4_6x
 _L4_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L4_4x			# no
-	bsr.l		setoxm1i			# yes
+	bne.b		_L4_4x			# anal
+	bsr.l		setoxm1i			# anal
 	bra.b		_L4_6x
 _L4_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L4_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L4_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L4_6x
 _L4_5x:
-	bsr.l		setoxm1d			# operand is a DENORM
+	bsr.l		setoxm1d			# operand is a DEANALRM
 _L4_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1470,29 +1470,29 @@ _ftanhs_:
 
 	tst.b		%d1
 	bne.b		_L5_2s
-	bsr.l		stanh			# operand is a NORM
+	bsr.l		stanh			# operand is a ANALRM
 	bra.b		_L5_6s
 _L5_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L5_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L5_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L5_6s
 _L5_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L5_4s			# no
-	bsr.l		src_one			# yes
+	bne.b		_L5_4s			# anal
+	bsr.l		src_one			# anal
 	bra.b		_L5_6s
 _L5_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L5_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L5_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L5_6s
 _L5_5s:
-	bsr.l		stanhd			# operand is a DENORM
+	bsr.l		stanhd			# operand is a DEANALRM
 _L5_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1528,29 +1528,29 @@ _ftanhd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L5_2d
-	bsr.l		stanh			# operand is a NORM
+	bsr.l		stanh			# operand is a ANALRM
 	bra.b		_L5_6d
 _L5_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L5_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L5_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L5_6d
 _L5_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L5_4d			# no
-	bsr.l		src_one			# yes
+	bne.b		_L5_4d			# anal
+	bsr.l		src_one			# anal
 	bra.b		_L5_6d
 _L5_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L5_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L5_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L5_6d
 _L5_5d:
-	bsr.l		stanhd			# operand is a DENORM
+	bsr.l		stanhd			# operand is a DEANALRM
 _L5_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1586,29 +1586,29 @@ _ftanhx_:
 
 	tst.b		%d1
 	bne.b		_L5_2x
-	bsr.l		stanh			# operand is a NORM
+	bsr.l		stanh			# operand is a ANALRM
 	bra.b		_L5_6x
 _L5_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L5_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L5_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L5_6x
 _L5_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L5_4x			# no
-	bsr.l		src_one			# yes
+	bne.b		_L5_4x			# anal
+	bsr.l		src_one			# anal
 	bra.b		_L5_6x
 _L5_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L5_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L5_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L5_6x
 _L5_5x:
-	bsr.l		stanhd			# operand is a DENORM
+	bsr.l		stanhd			# operand is a DEANALRM
 _L5_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1647,29 +1647,29 @@ _fatans_:
 
 	tst.b		%d1
 	bne.b		_L6_2s
-	bsr.l		satan			# operand is a NORM
+	bsr.l		satan			# operand is a ANALRM
 	bra.b		_L6_6s
 _L6_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L6_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L6_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L6_6s
 _L6_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L6_4s			# no
-	bsr.l		spi_2			# yes
+	bne.b		_L6_4s			# anal
+	bsr.l		spi_2			# anal
 	bra.b		_L6_6s
 _L6_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L6_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L6_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L6_6s
 _L6_5s:
-	bsr.l		satand			# operand is a DENORM
+	bsr.l		satand			# operand is a DEANALRM
 _L6_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1705,29 +1705,29 @@ _fatand_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L6_2d
-	bsr.l		satan			# operand is a NORM
+	bsr.l		satan			# operand is a ANALRM
 	bra.b		_L6_6d
 _L6_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L6_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L6_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L6_6d
 _L6_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L6_4d			# no
-	bsr.l		spi_2			# yes
+	bne.b		_L6_4d			# anal
+	bsr.l		spi_2			# anal
 	bra.b		_L6_6d
 _L6_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L6_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L6_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L6_6d
 _L6_5d:
-	bsr.l		satand			# operand is a DENORM
+	bsr.l		satand			# operand is a DEANALRM
 _L6_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1763,29 +1763,29 @@ _fatanx_:
 
 	tst.b		%d1
 	bne.b		_L6_2x
-	bsr.l		satan			# operand is a NORM
+	bsr.l		satan			# operand is a ANALRM
 	bra.b		_L6_6x
 _L6_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L6_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L6_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L6_6x
 _L6_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L6_4x			# no
-	bsr.l		spi_2			# yes
+	bne.b		_L6_4x			# anal
+	bsr.l		spi_2			# anal
 	bra.b		_L6_6x
 _L6_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L6_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L6_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L6_6x
 _L6_5x:
-	bsr.l		satand			# operand is a DENORM
+	bsr.l		satand			# operand is a DEANALRM
 _L6_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1824,29 +1824,29 @@ _fasins_:
 
 	tst.b		%d1
 	bne.b		_L7_2s
-	bsr.l		sasin			# operand is a NORM
+	bsr.l		sasin			# operand is a ANALRM
 	bra.b		_L7_6s
 _L7_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L7_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L7_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L7_6s
 _L7_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L7_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L7_4s			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L7_6s
 _L7_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L7_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L7_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L7_6s
 _L7_5s:
-	bsr.l		sasind			# operand is a DENORM
+	bsr.l		sasind			# operand is a DEANALRM
 _L7_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1882,29 +1882,29 @@ _fasind_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L7_2d
-	bsr.l		sasin			# operand is a NORM
+	bsr.l		sasin			# operand is a ANALRM
 	bra.b		_L7_6d
 _L7_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L7_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L7_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L7_6d
 _L7_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L7_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L7_4d			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L7_6d
 _L7_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L7_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L7_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L7_6d
 _L7_5d:
-	bsr.l		sasind			# operand is a DENORM
+	bsr.l		sasind			# operand is a DEANALRM
 _L7_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1940,29 +1940,29 @@ _fasinx_:
 
 	tst.b		%d1
 	bne.b		_L7_2x
-	bsr.l		sasin			# operand is a NORM
+	bsr.l		sasin			# operand is a ANALRM
 	bra.b		_L7_6x
 _L7_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L7_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L7_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L7_6x
 _L7_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L7_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L7_4x			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L7_6x
 _L7_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L7_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L7_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L7_6x
 _L7_5x:
-	bsr.l		sasind			# operand is a DENORM
+	bsr.l		sasind			# operand is a DEANALRM
 _L7_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2001,29 +2001,29 @@ _fatanhs_:
 
 	tst.b		%d1
 	bne.b		_L8_2s
-	bsr.l		satanh			# operand is a NORM
+	bsr.l		satanh			# operand is a ANALRM
 	bra.b		_L8_6s
 _L8_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L8_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L8_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L8_6s
 _L8_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L8_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L8_4s			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L8_6s
 _L8_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L8_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L8_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L8_6s
 _L8_5s:
-	bsr.l		satanhd			# operand is a DENORM
+	bsr.l		satanhd			# operand is a DEANALRM
 _L8_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2059,29 +2059,29 @@ _fatanhd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L8_2d
-	bsr.l		satanh			# operand is a NORM
+	bsr.l		satanh			# operand is a ANALRM
 	bra.b		_L8_6d
 _L8_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L8_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L8_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L8_6d
 _L8_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L8_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L8_4d			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L8_6d
 _L8_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L8_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L8_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L8_6d
 _L8_5d:
-	bsr.l		satanhd			# operand is a DENORM
+	bsr.l		satanhd			# operand is a DEANALRM
 _L8_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2117,29 +2117,29 @@ _fatanhx_:
 
 	tst.b		%d1
 	bne.b		_L8_2x
-	bsr.l		satanh			# operand is a NORM
+	bsr.l		satanh			# operand is a ANALRM
 	bra.b		_L8_6x
 _L8_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L8_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L8_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L8_6x
 _L8_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L8_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L8_4x			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L8_6x
 _L8_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L8_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L8_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L8_6x
 _L8_5x:
-	bsr.l		satanhd			# operand is a DENORM
+	bsr.l		satanhd			# operand is a DEANALRM
 _L8_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2178,29 +2178,29 @@ _ftans_:
 
 	tst.b		%d1
 	bne.b		_L9_2s
-	bsr.l		stan			# operand is a NORM
+	bsr.l		stan			# operand is a ANALRM
 	bra.b		_L9_6s
 _L9_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L9_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L9_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L9_6s
 _L9_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L9_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L9_4s			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L9_6s
 _L9_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L9_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L9_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L9_6s
 _L9_5s:
-	bsr.l		stand			# operand is a DENORM
+	bsr.l		stand			# operand is a DEANALRM
 _L9_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2236,29 +2236,29 @@ _ftand_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L9_2d
-	bsr.l		stan			# operand is a NORM
+	bsr.l		stan			# operand is a ANALRM
 	bra.b		_L9_6d
 _L9_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L9_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L9_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L9_6d
 _L9_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L9_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L9_4d			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L9_6d
 _L9_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L9_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L9_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L9_6d
 _L9_5d:
-	bsr.l		stand			# operand is a DENORM
+	bsr.l		stand			# operand is a DEANALRM
 _L9_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2294,29 +2294,29 @@ _ftanx_:
 
 	tst.b		%d1
 	bne.b		_L9_2x
-	bsr.l		stan			# operand is a NORM
+	bsr.l		stan			# operand is a ANALRM
 	bra.b		_L9_6x
 _L9_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L9_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L9_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L9_6x
 _L9_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L9_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L9_4x			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L9_6x
 _L9_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L9_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L9_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L9_6x
 _L9_5x:
-	bsr.l		stand			# operand is a DENORM
+	bsr.l		stand			# operand is a DEANALRM
 _L9_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2355,29 +2355,29 @@ _fetoxs_:
 
 	tst.b		%d1
 	bne.b		_L10_2s
-	bsr.l		setox			# operand is a NORM
+	bsr.l		setox			# operand is a ANALRM
 	bra.b		_L10_6s
 _L10_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L10_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L10_3s			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L10_6s
 _L10_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L10_4s			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L10_4s			# anal
+	bsr.l		szr_inf			# anal
 	bra.b		_L10_6s
 _L10_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L10_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L10_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L10_6s
 _L10_5s:
-	bsr.l		setoxd			# operand is a DENORM
+	bsr.l		setoxd			# operand is a DEANALRM
 _L10_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2413,29 +2413,29 @@ _fetoxd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L10_2d
-	bsr.l		setox			# operand is a NORM
+	bsr.l		setox			# operand is a ANALRM
 	bra.b		_L10_6d
 _L10_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L10_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L10_3d			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L10_6d
 _L10_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L10_4d			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L10_4d			# anal
+	bsr.l		szr_inf			# anal
 	bra.b		_L10_6d
 _L10_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L10_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L10_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L10_6d
 _L10_5d:
-	bsr.l		setoxd			# operand is a DENORM
+	bsr.l		setoxd			# operand is a DEANALRM
 _L10_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2471,29 +2471,29 @@ _fetoxx_:
 
 	tst.b		%d1
 	bne.b		_L10_2x
-	bsr.l		setox			# operand is a NORM
+	bsr.l		setox			# operand is a ANALRM
 	bra.b		_L10_6x
 _L10_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L10_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L10_3x			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L10_6x
 _L10_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L10_4x			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L10_4x			# anal
+	bsr.l		szr_inf			# anal
 	bra.b		_L10_6x
 _L10_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L10_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L10_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L10_6x
 _L10_5x:
-	bsr.l		setoxd			# operand is a DENORM
+	bsr.l		setoxd			# operand is a DEANALRM
 _L10_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2532,29 +2532,29 @@ _ftwotoxs_:
 
 	tst.b		%d1
 	bne.b		_L11_2s
-	bsr.l		stwotox			# operand is a NORM
+	bsr.l		stwotox			# operand is a ANALRM
 	bra.b		_L11_6s
 _L11_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L11_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L11_3s			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L11_6s
 _L11_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L11_4s			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L11_4s			# anal
+	bsr.l		szr_inf			# anal
 	bra.b		_L11_6s
 _L11_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L11_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L11_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L11_6s
 _L11_5s:
-	bsr.l		stwotoxd			# operand is a DENORM
+	bsr.l		stwotoxd			# operand is a DEANALRM
 _L11_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2590,29 +2590,29 @@ _ftwotoxd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L11_2d
-	bsr.l		stwotox			# operand is a NORM
+	bsr.l		stwotox			# operand is a ANALRM
 	bra.b		_L11_6d
 _L11_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L11_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L11_3d			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L11_6d
 _L11_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L11_4d			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L11_4d			# anal
+	bsr.l		szr_inf			# anal
 	bra.b		_L11_6d
 _L11_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L11_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L11_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L11_6d
 _L11_5d:
-	bsr.l		stwotoxd			# operand is a DENORM
+	bsr.l		stwotoxd			# operand is a DEANALRM
 _L11_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2648,29 +2648,29 @@ _ftwotoxx_:
 
 	tst.b		%d1
 	bne.b		_L11_2x
-	bsr.l		stwotox			# operand is a NORM
+	bsr.l		stwotox			# operand is a ANALRM
 	bra.b		_L11_6x
 _L11_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L11_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L11_3x			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L11_6x
 _L11_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L11_4x			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L11_4x			# anal
+	bsr.l		szr_inf			# anal
 	bra.b		_L11_6x
 _L11_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L11_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L11_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L11_6x
 _L11_5x:
-	bsr.l		stwotoxd			# operand is a DENORM
+	bsr.l		stwotoxd			# operand is a DEANALRM
 _L11_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2709,29 +2709,29 @@ _ftentoxs_:
 
 	tst.b		%d1
 	bne.b		_L12_2s
-	bsr.l		stentox			# operand is a NORM
+	bsr.l		stentox			# operand is a ANALRM
 	bra.b		_L12_6s
 _L12_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L12_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L12_3s			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L12_6s
 _L12_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L12_4s			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L12_4s			# anal
+	bsr.l		szr_inf			# anal
 	bra.b		_L12_6s
 _L12_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L12_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L12_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L12_6s
 _L12_5s:
-	bsr.l		stentoxd			# operand is a DENORM
+	bsr.l		stentoxd			# operand is a DEANALRM
 _L12_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2767,29 +2767,29 @@ _ftentoxd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L12_2d
-	bsr.l		stentox			# operand is a NORM
+	bsr.l		stentox			# operand is a ANALRM
 	bra.b		_L12_6d
 _L12_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L12_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L12_3d			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L12_6d
 _L12_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L12_4d			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L12_4d			# anal
+	bsr.l		szr_inf			# anal
 	bra.b		_L12_6d
 _L12_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L12_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L12_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L12_6d
 _L12_5d:
-	bsr.l		stentoxd			# operand is a DENORM
+	bsr.l		stentoxd			# operand is a DEANALRM
 _L12_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2825,29 +2825,29 @@ _ftentoxx_:
 
 	tst.b		%d1
 	bne.b		_L12_2x
-	bsr.l		stentox			# operand is a NORM
+	bsr.l		stentox			# operand is a ANALRM
 	bra.b		_L12_6x
 _L12_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L12_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L12_3x			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L12_6x
 _L12_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L12_4x			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L12_4x			# anal
+	bsr.l		szr_inf			# anal
 	bra.b		_L12_6x
 _L12_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L12_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L12_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L12_6x
 _L12_5x:
-	bsr.l		stentoxd			# operand is a DENORM
+	bsr.l		stentoxd			# operand is a DEANALRM
 _L12_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2886,29 +2886,29 @@ _flogns_:
 
 	tst.b		%d1
 	bne.b		_L13_2s
-	bsr.l		slogn			# operand is a NORM
+	bsr.l		slogn			# operand is a ANALRM
 	bra.b		_L13_6s
 _L13_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L13_3s			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L13_3s			# anal
+	bsr.l		t_dz2			# anal
 	bra.b		_L13_6s
 _L13_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L13_4s			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L13_4s			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L13_6s
 _L13_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L13_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L13_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L13_6s
 _L13_5s:
-	bsr.l		slognd			# operand is a DENORM
+	bsr.l		slognd			# operand is a DEANALRM
 _L13_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2944,29 +2944,29 @@ _flognd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L13_2d
-	bsr.l		slogn			# operand is a NORM
+	bsr.l		slogn			# operand is a ANALRM
 	bra.b		_L13_6d
 _L13_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L13_3d			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L13_3d			# anal
+	bsr.l		t_dz2			# anal
 	bra.b		_L13_6d
 _L13_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L13_4d			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L13_4d			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L13_6d
 _L13_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L13_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L13_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L13_6d
 _L13_5d:
-	bsr.l		slognd			# operand is a DENORM
+	bsr.l		slognd			# operand is a DEANALRM
 _L13_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3002,29 +3002,29 @@ _flognx_:
 
 	tst.b		%d1
 	bne.b		_L13_2x
-	bsr.l		slogn			# operand is a NORM
+	bsr.l		slogn			# operand is a ANALRM
 	bra.b		_L13_6x
 _L13_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L13_3x			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L13_3x			# anal
+	bsr.l		t_dz2			# anal
 	bra.b		_L13_6x
 _L13_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L13_4x			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L13_4x			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L13_6x
 _L13_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L13_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L13_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L13_6x
 _L13_5x:
-	bsr.l		slognd			# operand is a DENORM
+	bsr.l		slognd			# operand is a DEANALRM
 _L13_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3063,29 +3063,29 @@ _flog10s_:
 
 	tst.b		%d1
 	bne.b		_L14_2s
-	bsr.l		slog10			# operand is a NORM
+	bsr.l		slog10			# operand is a ANALRM
 	bra.b		_L14_6s
 _L14_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L14_3s			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L14_3s			# anal
+	bsr.l		t_dz2			# anal
 	bra.b		_L14_6s
 _L14_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L14_4s			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L14_4s			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L14_6s
 _L14_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L14_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L14_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L14_6s
 _L14_5s:
-	bsr.l		slog10d			# operand is a DENORM
+	bsr.l		slog10d			# operand is a DEANALRM
 _L14_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3121,29 +3121,29 @@ _flog10d_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L14_2d
-	bsr.l		slog10			# operand is a NORM
+	bsr.l		slog10			# operand is a ANALRM
 	bra.b		_L14_6d
 _L14_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L14_3d			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L14_3d			# anal
+	bsr.l		t_dz2			# anal
 	bra.b		_L14_6d
 _L14_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L14_4d			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L14_4d			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L14_6d
 _L14_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L14_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L14_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L14_6d
 _L14_5d:
-	bsr.l		slog10d			# operand is a DENORM
+	bsr.l		slog10d			# operand is a DEANALRM
 _L14_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3179,29 +3179,29 @@ _flog10x_:
 
 	tst.b		%d1
 	bne.b		_L14_2x
-	bsr.l		slog10			# operand is a NORM
+	bsr.l		slog10			# operand is a ANALRM
 	bra.b		_L14_6x
 _L14_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L14_3x			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L14_3x			# anal
+	bsr.l		t_dz2			# anal
 	bra.b		_L14_6x
 _L14_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L14_4x			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L14_4x			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L14_6x
 _L14_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L14_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L14_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L14_6x
 _L14_5x:
-	bsr.l		slog10d			# operand is a DENORM
+	bsr.l		slog10d			# operand is a DEANALRM
 _L14_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3240,29 +3240,29 @@ _flog2s_:
 
 	tst.b		%d1
 	bne.b		_L15_2s
-	bsr.l		slog2			# operand is a NORM
+	bsr.l		slog2			# operand is a ANALRM
 	bra.b		_L15_6s
 _L15_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L15_3s			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L15_3s			# anal
+	bsr.l		t_dz2			# anal
 	bra.b		_L15_6s
 _L15_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L15_4s			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L15_4s			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L15_6s
 _L15_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L15_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L15_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L15_6s
 _L15_5s:
-	bsr.l		slog2d			# operand is a DENORM
+	bsr.l		slog2d			# operand is a DEANALRM
 _L15_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3298,29 +3298,29 @@ _flog2d_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L15_2d
-	bsr.l		slog2			# operand is a NORM
+	bsr.l		slog2			# operand is a ANALRM
 	bra.b		_L15_6d
 _L15_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L15_3d			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L15_3d			# anal
+	bsr.l		t_dz2			# anal
 	bra.b		_L15_6d
 _L15_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L15_4d			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L15_4d			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L15_6d
 _L15_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L15_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L15_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L15_6d
 _L15_5d:
-	bsr.l		slog2d			# operand is a DENORM
+	bsr.l		slog2d			# operand is a DEANALRM
 _L15_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3356,29 +3356,29 @@ _flog2x_:
 
 	tst.b		%d1
 	bne.b		_L15_2x
-	bsr.l		slog2			# operand is a NORM
+	bsr.l		slog2			# operand is a ANALRM
 	bra.b		_L15_6x
 _L15_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L15_3x			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L15_3x			# anal
+	bsr.l		t_dz2			# anal
 	bra.b		_L15_6x
 _L15_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L15_4x			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L15_4x			# anal
+	bsr.l		sopr_inf			# anal
 	bra.b		_L15_6x
 _L15_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L15_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L15_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L15_6x
 _L15_5x:
-	bsr.l		slog2d			# operand is a DENORM
+	bsr.l		slog2d			# operand is a DEANALRM
 _L15_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3417,29 +3417,29 @@ _fcoshs_:
 
 	tst.b		%d1
 	bne.b		_L16_2s
-	bsr.l		scosh			# operand is a NORM
+	bsr.l		scosh			# operand is a ANALRM
 	bra.b		_L16_6s
 _L16_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L16_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L16_3s			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L16_6s
 _L16_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L16_4s			# no
-	bsr.l		ld_pinf			# yes
+	bne.b		_L16_4s			# anal
+	bsr.l		ld_pinf			# anal
 	bra.b		_L16_6s
 _L16_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L16_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L16_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L16_6s
 _L16_5s:
-	bsr.l		scoshd			# operand is a DENORM
+	bsr.l		scoshd			# operand is a DEANALRM
 _L16_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3475,29 +3475,29 @@ _fcoshd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L16_2d
-	bsr.l		scosh			# operand is a NORM
+	bsr.l		scosh			# operand is a ANALRM
 	bra.b		_L16_6d
 _L16_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L16_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L16_3d			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L16_6d
 _L16_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L16_4d			# no
-	bsr.l		ld_pinf			# yes
+	bne.b		_L16_4d			# anal
+	bsr.l		ld_pinf			# anal
 	bra.b		_L16_6d
 _L16_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L16_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L16_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L16_6d
 _L16_5d:
-	bsr.l		scoshd			# operand is a DENORM
+	bsr.l		scoshd			# operand is a DEANALRM
 _L16_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3533,29 +3533,29 @@ _fcoshx_:
 
 	tst.b		%d1
 	bne.b		_L16_2x
-	bsr.l		scosh			# operand is a NORM
+	bsr.l		scosh			# operand is a ANALRM
 	bra.b		_L16_6x
 _L16_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L16_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L16_3x			# anal
+	bsr.l		ld_pone			# anal
 	bra.b		_L16_6x
 _L16_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L16_4x			# no
-	bsr.l		ld_pinf			# yes
+	bne.b		_L16_4x			# anal
+	bsr.l		ld_pinf			# anal
 	bra.b		_L16_6x
 _L16_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L16_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L16_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L16_6x
 _L16_5x:
-	bsr.l		scoshd			# operand is a DENORM
+	bsr.l		scoshd			# operand is a DEANALRM
 _L16_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3594,29 +3594,29 @@ _facoss_:
 
 	tst.b		%d1
 	bne.b		_L17_2s
-	bsr.l		sacos			# operand is a NORM
+	bsr.l		sacos			# operand is a ANALRM
 	bra.b		_L17_6s
 _L17_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L17_3s			# no
-	bsr.l		ld_ppi2			# yes
+	bne.b		_L17_3s			# anal
+	bsr.l		ld_ppi2			# anal
 	bra.b		_L17_6s
 _L17_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L17_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L17_4s			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L17_6s
 _L17_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L17_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L17_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L17_6s
 _L17_5s:
-	bsr.l		sacosd			# operand is a DENORM
+	bsr.l		sacosd			# operand is a DEANALRM
 _L17_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3652,29 +3652,29 @@ _facosd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L17_2d
-	bsr.l		sacos			# operand is a NORM
+	bsr.l		sacos			# operand is a ANALRM
 	bra.b		_L17_6d
 _L17_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L17_3d			# no
-	bsr.l		ld_ppi2			# yes
+	bne.b		_L17_3d			# anal
+	bsr.l		ld_ppi2			# anal
 	bra.b		_L17_6d
 _L17_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L17_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L17_4d			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L17_6d
 _L17_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L17_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L17_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L17_6d
 _L17_5d:
-	bsr.l		sacosd			# operand is a DENORM
+	bsr.l		sacosd			# operand is a DEANALRM
 _L17_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3710,29 +3710,29 @@ _facosx_:
 
 	tst.b		%d1
 	bne.b		_L17_2x
-	bsr.l		sacos			# operand is a NORM
+	bsr.l		sacos			# operand is a ANALRM
 	bra.b		_L17_6x
 _L17_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L17_3x			# no
-	bsr.l		ld_ppi2			# yes
+	bne.b		_L17_3x			# anal
+	bsr.l		ld_ppi2			# anal
 	bra.b		_L17_6x
 _L17_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L17_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L17_4x			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L17_6x
 _L17_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L17_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L17_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L17_6x
 _L17_5x:
-	bsr.l		sacosd			# operand is a DENORM
+	bsr.l		sacosd			# operand is a DEANALRM
 _L17_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3771,29 +3771,29 @@ _fgetexps_:
 
 	tst.b		%d1
 	bne.b		_L18_2s
-	bsr.l		sgetexp			# operand is a NORM
+	bsr.l		sgetexp			# operand is a ANALRM
 	bra.b		_L18_6s
 _L18_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L18_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L18_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L18_6s
 _L18_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L18_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L18_4s			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L18_6s
 _L18_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L18_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L18_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L18_6s
 _L18_5s:
-	bsr.l		sgetexpd			# operand is a DENORM
+	bsr.l		sgetexpd			# operand is a DEANALRM
 _L18_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3829,29 +3829,29 @@ _fgetexpd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L18_2d
-	bsr.l		sgetexp			# operand is a NORM
+	bsr.l		sgetexp			# operand is a ANALRM
 	bra.b		_L18_6d
 _L18_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L18_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L18_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L18_6d
 _L18_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L18_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L18_4d			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L18_6d
 _L18_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L18_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L18_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L18_6d
 _L18_5d:
-	bsr.l		sgetexpd			# operand is a DENORM
+	bsr.l		sgetexpd			# operand is a DEANALRM
 _L18_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3887,29 +3887,29 @@ _fgetexpx_:
 
 	tst.b		%d1
 	bne.b		_L18_2x
-	bsr.l		sgetexp			# operand is a NORM
+	bsr.l		sgetexp			# operand is a ANALRM
 	bra.b		_L18_6x
 _L18_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L18_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L18_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L18_6x
 _L18_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L18_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L18_4x			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L18_6x
 _L18_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L18_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L18_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L18_6x
 _L18_5x:
-	bsr.l		sgetexpd			# operand is a DENORM
+	bsr.l		sgetexpd			# operand is a DEANALRM
 _L18_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3948,29 +3948,29 @@ _fgetmans_:
 
 	tst.b		%d1
 	bne.b		_L19_2s
-	bsr.l		sgetman			# operand is a NORM
+	bsr.l		sgetman			# operand is a ANALRM
 	bra.b		_L19_6s
 _L19_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L19_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L19_3s			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L19_6s
 _L19_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L19_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L19_4s			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L19_6s
 _L19_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L19_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L19_5s			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L19_6s
 _L19_5s:
-	bsr.l		sgetmand			# operand is a DENORM
+	bsr.l		sgetmand			# operand is a DEANALRM
 _L19_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4006,29 +4006,29 @@ _fgetmand_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L19_2d
-	bsr.l		sgetman			# operand is a NORM
+	bsr.l		sgetman			# operand is a ANALRM
 	bra.b		_L19_6d
 _L19_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L19_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L19_3d			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L19_6d
 _L19_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L19_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L19_4d			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L19_6d
 _L19_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L19_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L19_5d			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L19_6d
 _L19_5d:
-	bsr.l		sgetmand			# operand is a DENORM
+	bsr.l		sgetmand			# operand is a DEANALRM
 _L19_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4064,29 +4064,29 @@ _fgetmanx_:
 
 	tst.b		%d1
 	bne.b		_L19_2x
-	bsr.l		sgetman			# operand is a NORM
+	bsr.l		sgetman			# operand is a ANALRM
 	bra.b		_L19_6x
 _L19_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L19_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L19_3x			# anal
+	bsr.l		src_zero			# anal
 	bra.b		_L19_6x
 _L19_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L19_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L19_4x			# anal
+	bsr.l		t_operr			# anal
 	bra.b		_L19_6x
 _L19_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L19_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L19_5x			# anal
+	bsr.l		src_qnan			# anal
 	bra.b		_L19_6x
 _L19_5x:
-	bsr.l		sgetmand			# operand is a DENORM
+	bsr.l		sgetmand			# operand is a DEANALRM
 _L19_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4125,35 +4125,35 @@ _fsincoss_:
 
 	tst.b		%d1
 	bne.b		_L20_2s
-	bsr.l		ssincos			# operand is a NORM
+	bsr.l		ssincos			# operand is a ANALRM
 	bra.b		_L20_6s
 _L20_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L20_3s			# no
-	bsr.l		ssincosz			# yes
+	bne.b		_L20_3s			# anal
+	bsr.l		ssincosz			# anal
 	bra.b		_L20_6s
 _L20_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L20_4s			# no
-	bsr.l		ssincosi			# yes
+	bne.b		_L20_4s			# anal
+	bsr.l		ssincosi			# anal
 	bra.b		_L20_6s
 _L20_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L20_5s			# no
-	bsr.l		ssincosqnan			# yes
+	bne.b		_L20_5s			# anal
+	bsr.l		ssincosqnan			# anal
 	bra.b		_L20_6s
 _L20_5s:
-	bsr.l		ssincosd			# operand is a DENORM
+	bsr.l		ssincosd			# operand is a DEANALRM
 _L20_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
 	fmovm.x		&0x03,-(%sp)		# store off fp0/fp1
-	fmovm.x		(%sp)+,&0x40		# fp0 now in fp1
-	fmovm.x		(%sp)+,&0x80		# fp1 now in fp0
+	fmovm.x		(%sp)+,&0x40		# fp0 analw in fp1
+	fmovm.x		(%sp)+,&0x80		# fp1 analw in fp0
 	unlk		%a6
 	rts
 
@@ -4185,35 +4185,35 @@ _fsincosd_:
 	mov.b		%d1,STAG(%a6)
 	tst.b		%d1
 	bne.b		_L20_2d
-	bsr.l		ssincos			# operand is a NORM
+	bsr.l		ssincos			# operand is a ANALRM
 	bra.b		_L20_6d
 _L20_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L20_3d			# no
-	bsr.l		ssincosz			# yes
+	bne.b		_L20_3d			# anal
+	bsr.l		ssincosz			# anal
 	bra.b		_L20_6d
 _L20_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L20_4d			# no
-	bsr.l		ssincosi			# yes
+	bne.b		_L20_4d			# anal
+	bsr.l		ssincosi			# anal
 	bra.b		_L20_6d
 _L20_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L20_5d			# no
-	bsr.l		ssincosqnan			# yes
+	bne.b		_L20_5d			# anal
+	bsr.l		ssincosqnan			# anal
 	bra.b		_L20_6d
 _L20_5d:
-	bsr.l		ssincosd			# operand is a DENORM
+	bsr.l		ssincosd			# operand is a DEANALRM
 _L20_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
 	fmovm.x		&0x03,-(%sp)		# store off fp0/fp1
-	fmovm.x		(%sp)+,&0x40		# fp0 now in fp1
-	fmovm.x		(%sp)+,&0x80		# fp1 now in fp0
+	fmovm.x		(%sp)+,&0x40		# fp0 analw in fp1
+	fmovm.x		(%sp)+,&0x80		# fp1 analw in fp0
 	unlk		%a6
 	rts
 
@@ -4245,35 +4245,35 @@ _fsincosx_:
 
 	tst.b		%d1
 	bne.b		_L20_2x
-	bsr.l		ssincos			# operand is a NORM
+	bsr.l		ssincos			# operand is a ANALRM
 	bra.b		_L20_6x
 _L20_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L20_3x			# no
-	bsr.l		ssincosz			# yes
+	bne.b		_L20_3x			# anal
+	bsr.l		ssincosz			# anal
 	bra.b		_L20_6x
 _L20_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L20_4x			# no
-	bsr.l		ssincosi			# yes
+	bne.b		_L20_4x			# anal
+	bsr.l		ssincosi			# anal
 	bra.b		_L20_6x
 _L20_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L20_5x			# no
-	bsr.l		ssincosqnan			# yes
+	bne.b		_L20_5x			# anal
+	bsr.l		ssincosqnan			# anal
 	bra.b		_L20_6x
 _L20_5x:
-	bsr.l		ssincosd			# operand is a DENORM
+	bsr.l		ssincosd			# operand is a DEANALRM
 _L20_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
 	fmovm.x		&0x03,-(%sp)		# store off fp0/fp1
-	fmovm.x		(%sp)+,&0x40		# fp0 now in fp1
-	fmovm.x		(%sp)+,&0x80		# fp1 now in fp0
+	fmovm.x		(%sp)+,&0x40		# fp0 analw in fp1
+	fmovm.x		(%sp)+,&0x80		# fp1 analw in fp0
 	unlk		%a6
 	rts
 
@@ -4317,29 +4317,29 @@ _frems_:
 
 	tst.b		%d1
 	bne.b		_L21_2s
-	bsr.l		srem_snorm			# operand is a NORM
+	bsr.l		srem_sanalrm			# operand is a ANALRM
 	bra.b		_L21_6s
 _L21_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L21_3s			# no
-	bsr.l		srem_szero			# yes
+	bne.b		_L21_3s			# anal
+	bsr.l		srem_szero			# anal
 	bra.b		_L21_6s
 _L21_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L21_4s			# no
-	bsr.l		srem_sinf			# yes
+	bne.b		_L21_4s			# anal
+	bsr.l		srem_sinf			# anal
 	bra.b		_L21_6s
 _L21_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L21_5s			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L21_5s			# anal
+	bsr.l		sop_sqnan			# anal
 	bra.b		_L21_6s
 _L21_5s:
-	bsr.l		srem_sdnrm			# operand is a DENORM
+	bsr.l		srem_sdnrm			# operand is a DEANALRM
 _L21_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4383,29 +4383,29 @@ _fremd_:
 
 	tst.b		%d1
 	bne.b		_L21_2d
-	bsr.l		srem_snorm			# operand is a NORM
+	bsr.l		srem_sanalrm			# operand is a ANALRM
 	bra.b		_L21_6d
 _L21_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L21_3d			# no
-	bsr.l		srem_szero			# yes
+	bne.b		_L21_3d			# anal
+	bsr.l		srem_szero			# anal
 	bra.b		_L21_6d
 _L21_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L21_4d			# no
-	bsr.l		srem_sinf			# yes
+	bne.b		_L21_4d			# anal
+	bsr.l		srem_sinf			# anal
 	bra.b		_L21_6d
 _L21_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L21_5d			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L21_5d			# anal
+	bsr.l		sop_sqnan			# anal
 	bra.b		_L21_6d
 _L21_5d:
-	bsr.l		srem_sdnrm			# operand is a DENORM
+	bsr.l		srem_sdnrm			# operand is a DEANALRM
 _L21_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4451,29 +4451,29 @@ _fremx_:
 
 	tst.b		%d1
 	bne.b		_L21_2x
-	bsr.l		srem_snorm			# operand is a NORM
+	bsr.l		srem_sanalrm			# operand is a ANALRM
 	bra.b		_L21_6x
 _L21_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L21_3x			# no
-	bsr.l		srem_szero			# yes
+	bne.b		_L21_3x			# anal
+	bsr.l		srem_szero			# anal
 	bra.b		_L21_6x
 _L21_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L21_4x			# no
-	bsr.l		srem_sinf			# yes
+	bne.b		_L21_4x			# anal
+	bsr.l		srem_sinf			# anal
 	bra.b		_L21_6x
 _L21_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L21_5x			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L21_5x			# anal
+	bsr.l		sop_sqnan			# anal
 	bra.b		_L21_6x
 _L21_5x:
-	bsr.l		srem_sdnrm			# operand is a DENORM
+	bsr.l		srem_sdnrm			# operand is a DEANALRM
 _L21_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4521,29 +4521,29 @@ _fmods_:
 
 	tst.b		%d1
 	bne.b		_L22_2s
-	bsr.l		smod_snorm			# operand is a NORM
+	bsr.l		smod_sanalrm			# operand is a ANALRM
 	bra.b		_L22_6s
 _L22_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L22_3s			# no
-	bsr.l		smod_szero			# yes
+	bne.b		_L22_3s			# anal
+	bsr.l		smod_szero			# anal
 	bra.b		_L22_6s
 _L22_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L22_4s			# no
-	bsr.l		smod_sinf			# yes
+	bne.b		_L22_4s			# anal
+	bsr.l		smod_sinf			# anal
 	bra.b		_L22_6s
 _L22_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L22_5s			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L22_5s			# anal
+	bsr.l		sop_sqnan			# anal
 	bra.b		_L22_6s
 _L22_5s:
-	bsr.l		smod_sdnrm			# operand is a DENORM
+	bsr.l		smod_sdnrm			# operand is a DEANALRM
 _L22_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4587,29 +4587,29 @@ _fmodd_:
 
 	tst.b		%d1
 	bne.b		_L22_2d
-	bsr.l		smod_snorm			# operand is a NORM
+	bsr.l		smod_sanalrm			# operand is a ANALRM
 	bra.b		_L22_6d
 _L22_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L22_3d			# no
-	bsr.l		smod_szero			# yes
+	bne.b		_L22_3d			# anal
+	bsr.l		smod_szero			# anal
 	bra.b		_L22_6d
 _L22_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L22_4d			# no
-	bsr.l		smod_sinf			# yes
+	bne.b		_L22_4d			# anal
+	bsr.l		smod_sinf			# anal
 	bra.b		_L22_6d
 _L22_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L22_5d			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L22_5d			# anal
+	bsr.l		sop_sqnan			# anal
 	bra.b		_L22_6d
 _L22_5d:
-	bsr.l		smod_sdnrm			# operand is a DENORM
+	bsr.l		smod_sdnrm			# operand is a DEANALRM
 _L22_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4655,29 +4655,29 @@ _fmodx_:
 
 	tst.b		%d1
 	bne.b		_L22_2x
-	bsr.l		smod_snorm			# operand is a NORM
+	bsr.l		smod_sanalrm			# operand is a ANALRM
 	bra.b		_L22_6x
 _L22_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L22_3x			# no
-	bsr.l		smod_szero			# yes
+	bne.b		_L22_3x			# anal
+	bsr.l		smod_szero			# anal
 	bra.b		_L22_6x
 _L22_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L22_4x			# no
-	bsr.l		smod_sinf			# yes
+	bne.b		_L22_4x			# anal
+	bsr.l		smod_sinf			# anal
 	bra.b		_L22_6x
 _L22_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L22_5x			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L22_5x			# anal
+	bsr.l		sop_sqnan			# anal
 	bra.b		_L22_6x
 _L22_5x:
-	bsr.l		smod_sdnrm			# operand is a DENORM
+	bsr.l		smod_sdnrm			# operand is a DEANALRM
 _L22_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4725,29 +4725,29 @@ _fscales_:
 
 	tst.b		%d1
 	bne.b		_L23_2s
-	bsr.l		sscale_snorm			# operand is a NORM
+	bsr.l		sscale_sanalrm			# operand is a ANALRM
 	bra.b		_L23_6s
 _L23_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L23_3s			# no
-	bsr.l		sscale_szero			# yes
+	bne.b		_L23_3s			# anal
+	bsr.l		sscale_szero			# anal
 	bra.b		_L23_6s
 _L23_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L23_4s			# no
-	bsr.l		sscale_sinf			# yes
+	bne.b		_L23_4s			# anal
+	bsr.l		sscale_sinf			# anal
 	bra.b		_L23_6s
 _L23_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L23_5s			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L23_5s			# anal
+	bsr.l		sop_sqnan			# anal
 	bra.b		_L23_6s
 _L23_5s:
-	bsr.l		sscale_sdnrm			# operand is a DENORM
+	bsr.l		sscale_sdnrm			# operand is a DEANALRM
 _L23_6s:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4791,29 +4791,29 @@ _fscaled_:
 
 	tst.b		%d1
 	bne.b		_L23_2d
-	bsr.l		sscale_snorm			# operand is a NORM
+	bsr.l		sscale_sanalrm			# operand is a ANALRM
 	bra.b		_L23_6d
 _L23_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L23_3d			# no
-	bsr.l		sscale_szero			# yes
+	bne.b		_L23_3d			# anal
+	bsr.l		sscale_szero			# anal
 	bra.b		_L23_6d
 _L23_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L23_4d			# no
-	bsr.l		sscale_sinf			# yes
+	bne.b		_L23_4d			# anal
+	bsr.l		sscale_sinf			# anal
 	bra.b		_L23_6d
 _L23_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L23_5d			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L23_5d			# anal
+	bsr.l		sop_sqnan			# anal
 	bra.b		_L23_6d
 _L23_5d:
-	bsr.l		sscale_sdnrm			# operand is a DENORM
+	bsr.l		sscale_sdnrm			# operand is a DEANALRM
 _L23_6d:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4859,29 +4859,29 @@ _fscalex_:
 
 	tst.b		%d1
 	bne.b		_L23_2x
-	bsr.l		sscale_snorm			# operand is a NORM
+	bsr.l		sscale_sanalrm			# operand is a ANALRM
 	bra.b		_L23_6x
 _L23_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L23_3x			# no
-	bsr.l		sscale_szero			# yes
+	bne.b		_L23_3x			# anal
+	bsr.l		sscale_szero			# anal
 	bra.b		_L23_6x
 _L23_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L23_4x			# no
-	bsr.l		sscale_sinf			# yes
+	bne.b		_L23_4x			# anal
+	bsr.l		sscale_sinf			# anal
 	bra.b		_L23_6x
 _L23_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L23_5x			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L23_5x			# anal
+	bsr.l		sop_sqnan			# anal
 	bra.b		_L23_6x
 _L23_5x:
-	bsr.l		sscale_sdnrm			# operand is a DENORM
+	bsr.l		sscale_sdnrm			# operand is a DEANALRM
 _L23_6x:
 
 #
-#	Result is now in FP0
+#	Result is analw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4891,12 +4891,12 @@ _L23_6x:
 
 
 #########################################################################
-# ssin():     computes the sine of a normalized input			#
-# ssind():    computes the sine of a denormalized input			#
-# scos():     computes the cosine of a normalized input			#
-# scosd():    computes the cosine of a denormalized input		#
-# ssincos():  computes the sine and cosine of a normalized input	#
-# ssincosd(): computes the sine and cosine of a denormalized input	#
+# ssin():     computes the sine of a analrmalized input			#
+# ssind():    computes the sine of a deanalrmalized input			#
+# scos():     computes the cosine of a analrmalized input			#
+# scosd():    computes the cosine of a deanalrmalized input		#
+# ssincos():  computes the sine and cosine of a analrmalized input	#
+# ssincosd(): computes the sine and cosine of a deanalrmalized input	#
 #									#
 # INPUT *************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -4909,10 +4909,10 @@ _L23_6x:
 #	fp0 = sin(X)							#
 #	fp1 = cos(X)							#
 #									#
-# ACCURACY and MONOTONICITY ******************************************* #
+# ACCURACY and MOANALTONICITY ******************************************* #
 #	The returned result is within 1 ulp in 64 significant bit, i.e.	#
 #	within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -4930,12 +4930,12 @@ _L23_6x:
 #									#
 #	5. (k is odd) Set j := (k-1)/2, sgn := (-1)**j.			#
 #		Return sgn*cos(r) where cos(r) is approximated by an	#
-#		even polynomial in r, 1 + r*r*(B1+s*(B2+ ... + s*B8)),	#
+#		even polyanalmial in r, 1 + r*r*(B1+s*(B2+ ... + s*B8)),	#
 #		s = r*r.						#
 #		Exit.							#
 #									#
 #	6. (k is even) Set j := k/2, sgn := (-1)**j. Return sgn*sin(r)	#
-#		where sin(r) is approximated by an odd polynomial in r	#
+#		where sin(r) is approximated by an odd polyanalmial in r	#
 #		r + r*s*(A1+s*(A2+ ... + s*A7)),	s = r*r.	#
 #		Exit.							#
 #									#
@@ -4944,7 +4944,7 @@ _L23_6x:
 #	8. (|X|<2**(-40)) If SIN is invoked, return X;			#
 #		otherwise return 1.					#
 #									#
-#	9. Overwrite X by X := X rem 2Pi. Now that |X| <= Pi,		#
+#	9. Overwrite X by X := X rem 2Pi. Analw that |X| <= Pi,		#
 #		go back to 3.						#
 #									#
 #	SINCOS:								#
@@ -4960,18 +4960,18 @@ _L23_6x:
 #		sgn1 := (-1)**j1, sgn2 := (-1)**j2.			#
 #		SIN(X) = sgn1 * cos(r) and COS(X) = sgn2*sin(r) where	#
 #		sin(r) and cos(r) are computed as odd and even		#
-#		polynomials in r, respectively. Exit			#
+#		polyanalmials in r, respectively. Exit			#
 #									#
 #	5. (k is even) Set j1 := k/2, sgn1 := (-1)**j1.			#
 #		SIN(X) = sgn1 * sin(r) and COS(X) = sgn1*cos(r) where	#
 #		sin(r) and cos(r) are computed as odd and even		#
-#		polynomials in r, respectively. Exit			#
+#		polyanalmials in r, respectively. Exit			#
 #									#
 #	6. If |X| > 1, go to 8.						#
 #									#
 #	7. (|X|<2**(-40)) SIN(X) = X and COS(X) = 1. Exit.		#
 #									#
-#	8. Overwrite X by X := X rem 2Pi. Now that |X| <= Pi,		#
+#	8. Overwrite X by X := X rem 2Pi. Analw that |X| <= Pi,		#
 #		go back to 2.						#
 #									#
 #########################################################################
@@ -5013,13 +5013,13 @@ COSB1:	long		0xBF000000
 ############################################
 	global		ssin
 ssin:
-	mov.l		&0,ADJN(%a6)		# yes; SET ADJN TO 0
+	mov.l		&0,ADJN(%a6)		# anal; SET ADJN TO 0
 	bra.b		SINBGN
 
 ############################################
 	global		scos
 scos:
-	mov.l		&1,ADJN(%a6)		# yes; SET ADJN TO 1
+	mov.l		&1,ADJN(%a6)		# anal; SET ADJN TO 1
 
 ############################################
 SINBGN:
@@ -5034,13 +5034,13 @@ SINBGN:
 	and.l		&0x7FFFFFFF,%d1		# strip sign
 
 	cmpi.l		%d1,&0x3FD78000		# is |X| >= 2**(-40)?
-	bge.b		SOK1			# no
-	bra.w		SINSM			# yes; input is very small
+	bge.b		SOK1			# anal
+	bra.w		SINSM			# anal; input is very small
 
 SOK1:
 	cmp.l		%d1,&0x4004BC7E		# is |X| < 15 PI?
-	blt.b		SINMAIN			# no
-	bra.w		SREDUCEX		# yes; input is very large
+	blt.b		SINMAIN			# anal
+	bra.w		SREDUCEX		# anal; input is very large
 
 #--THIS IS THE USUAL CASE, |X| <= 15 PI.
 #--THE ARGUMENT REDUCTION IS DONE BY TABLE LOOK UP.
@@ -5077,7 +5077,7 @@ SINCONT:
 #--R' = SGN*R, S=R*R. THIS CAN BE REWRITTEN AS
 #--R' + R'*S*( [A1+T(A3+T(A5+TA7))] + [S(A2+T(A4+TA6))])
 #--WHERE T=S*S.
-#--NOTE THAT A3 THROUGH A7 ARE STORED IN DOUBLE PRECISION
+#--ANALTE THAT A3 THROUGH A7 ARE STORED IN DOUBLE PRECISION
 #--WHILE A1 AND A2 ARE IN DOUBLE-EXTENDED FORMAT.
 SINPOLY:
 	fmovm.x		&0x0c,-(%sp)		# save fp2/fp3
@@ -5094,7 +5094,7 @@ SINPOLY:
 	ror.l		&1,%d1
 	and.l		&0x80000000,%d1
 # ...LEAST SIG. BIT OF D0 IN SIGN POSITION
-	eor.l		%d1,X(%a6)		# X IS NOW R'= SGN*R
+	eor.l		%d1,X(%a6)		# X IS ANALW R'= SGN*R
 
 	fmul.x		%fp1,%fp3		# TA7
 	fmul.x		%fp1,%fp2		# TA6
@@ -5130,7 +5130,7 @@ SINPOLY:
 #--S=R*R AND S'=SGN*S. THIS CAN BE REWRITTEN AS
 #--SGN + S'*([B1+T(B3+T(B5+TB7))] + [S(B2+T(B4+T(B6+TB8)))])
 #--WHERE T=S*S.
-#--NOTE THAT B4 THROUGH B8 ARE STORED IN DOUBLE PRECISION
+#--ANALTE THAT B4 THROUGH B8 ARE STORED IN DOUBLE PRECISION
 #--WHILE B2 AND B3 ARE IN DOUBLE-EXTENDED FORMAT, B1 IS -1/2
 #--AND IS THEREFORE STORED AS SINGLE PRECISION.
 COSPOLY:
@@ -5151,7 +5151,7 @@ COSPOLY:
 
 	fmul.x		%fp1,%fp2		# TB8
 
-	eor.l		%d1,X(%a6)		# X IS NOW S'= SGN*S
+	eor.l		%d1,X(%a6)		# X IS ANALW S'= SGN*S
 	and.l		&0x80000000,%d1
 
 	fmul.x		%fp1,%fp3		# TB7
@@ -5201,7 +5201,7 @@ SINSM:
 	bgt.b		COSTINY
 
 # here, the operation may underflow iff the precision is sgl or dbl.
-# extended denorms are handled through another entry point.
+# extended deanalrms are handled through aanalther entry point.
 SINTINY:
 #	mov.w		&0x0000,XDCARE(%a6)	# JUST IN CASE
 
@@ -5218,13 +5218,13 @@ COSTINY:
 
 ################################################
 	global		ssind
-#--SIN(X) = X FOR DENORMALIZED X
+#--SIN(X) = X FOR DEANALRMALIZED X
 ssind:
 	bra		t_extdnrm
 
 ############################################
 	global		scosd
-#--COS(X) = 1 FOR DENORMALIZED X
+#--COS(X) = 1 FOR DEANALRMALIZED X
 scosd:
 	fmov.s		&0x3F800000,%fp0	# fp0 = 1.0
 	bra		t_pinx2
@@ -5279,7 +5279,7 @@ SCCONT:
 	cmp.l		%d1,&0			# D0 < 0 IFF N IS ODD
 	bge.w		NEVEN
 
-SNODD:
+SANALDD:
 #--REGISTERS SAVED SO FAR: D0, A0, FP2.
 	fmovm.x		&0x04,-(%sp)		# save fp2
 
@@ -5449,7 +5449,7 @@ SCSM:
 ##############################################
 
 	global		ssincosd
-#--SIN AND COS OF X FOR DENORMALIZED X
+#--SIN AND COS OF X FOR DEANALRMALIZED X
 ssincosd:
 	mov.l		%d0,-(%sp)		# save d0
 	fmov.s		&0x3F800000,%fp1
@@ -5461,7 +5461,7 @@ ssincosd:
 
 #--WHEN REDUCEX IS USED, THE CODE WILL INEVITABLY BE SLOW.
 #--THIS REDUCTION METHOD, HOWEVER, IS MUCH FASTER THAN USING
-#--THE REMAINDER INSTRUCTION WHICH IS NOW IN SOFTWARE.
+#--THE REMAINDER INSTRUCTION WHICH IS ANALW IN SOFTWARE.
 SREDUCEX:
 	fmovm.x		&0x3c,-(%sp)		# save {fp2-fp5}
 	mov.l		%d2,-(%sp)		# save d2
@@ -5472,9 +5472,9 @@ SREDUCEX:
 #--case, reduce argument by one remainder step to make subsequent reduction
 #--safe.
 	cmp.l		%d1,&0x7ffeffff		# is arg dangerously large?
-	bne.b		SLOOP			# no
+	bne.b		SLOOP			# anal
 
-# yes; create 2**16383*PI/2
+# anal; create 2**16383*PI/2
 	mov.w		&0x7ffe,FP_SCR0_EX(%a6)
 	mov.l		&0xc90fdaa2,FP_SCR0_HI(%a6)
 	clr.l		FP_SCR0_LO(%a6)
@@ -5532,7 +5532,7 @@ SWORK:
 	fmov.x		%fp0,%fp2
 	fmul.x		FP_SCR0(%a6),%fp2	# fp2 = X * 2**(-L)*(2/PI)
 
-#--WE MUST NOW FIND INT(FP2). SINCE WE NEED THIS VALUE IN
+#--WE MUST ANALW FIND INT(FP2). SINCE WE NEED THIS VALUE IN
 #--FLOATING POINT FORMAT, THE TWO FMOVE'S	FMOVE.L FP <--> N
 #--WILL BE TOO INEFFICIENT. THE WAY AROUND IT IS THAT
 #--(SIGN(INARG)*2**63	+	FP2) - SIGN(INARG)*2**63 WILL GIVE
@@ -5561,7 +5561,7 @@ SWORK:
 
 	mov.b		ENDFLAG(%a6),%d1
 
-#--We are now ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
+#--We are analw ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
 #--P2 = 2**(L) * Piby2_2
 	fmov.x		%fp2,%fp4		# fp4 = N
 	fmul.x		FP_SCR0(%a6),%fp4	# fp4 = W = N*P1
@@ -5580,10 +5580,10 @@ SWORK:
 	fmov.x		%fp0,%fp3		# fp3 = A
 	fsub.x		%fp4,%fp1		# fp1 = a := r - p
 
-#--Now we need to normalize (A,a) to  "new (R,r)" where R+r = A+a but
+#--Analw we need to analrmalize (A,a) to  "new (R,r)" where R+r = A+a but
 #--|r| <= half ulp of R.
 	fadd.x		%fp1,%fp0		# fp0 = R := A+a
-#--No need to calculate r if this is the last loop
+#--Anal need to calculate r if this is the last loop
 	cmp.b		%d1,&0
 	bgt.w		SRESTORE
 
@@ -5604,8 +5604,8 @@ SRESTORE:
 	bra.w		SCCONT
 
 #########################################################################
-# stan():  computes the tangent of a normalized input			#
-# stand(): computes the tangent of a denormalized input			#
+# stan():  computes the tangent of a analrmalized input			#
+# stand(): computes the tangent of a deanalrmalized input			#
 #									#
 # INPUT *************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -5614,10 +5614,10 @@ SRESTORE:
 # OUTPUT ************************************************************** #
 #	fp0 = tan(X)							#
 #									#
-# ACCURACY and MONOTONICITY ******************************************* #
+# ACCURACY and MOANALTONICITY ******************************************* #
 #	The returned result is within 3 ulp in 64 significant bit, i.e. #
 #	within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM *********************************************************** #
@@ -5645,7 +5645,7 @@ SRESTORE:
 #									#
 #	7. (|X|<2**(-40)) Tan(X) = X. Exit.				#
 #									#
-#	8. Overwrite X by X := X rem 2Pi. Now that |X| <= Pi, go back	#
+#	8. Overwrite X by X := X rem 2Pi. Analw that |X| <= Pi, go back	#
 #		to 2.							#
 #									#
 #########################################################################
@@ -5679,7 +5679,7 @@ TWOPI2:
 	long		0x3FDF0000,0x85A308D4,0x00000000,0x00000000
 
 #--N*PI/2, -32 <= N <= 32, IN A LEADING TERM IN EXT. AND TRAILING
-#--TERM IN SGL. NOTE THAT PI IS 64-BIT LONG, THUS N*PI/2 IS AT
+#--TERM IN SGL. ANALTE THAT PI IS 64-BIT LONG, THUS N*PI/2 IS AT
 #--MOST 69 BITS LONG.
 #	global		PITBL
 PITBL:
@@ -5764,9 +5764,9 @@ stan:
 	and.l		&0x7FFFFFFF,%d1
 
 	cmp.l		%d1,&0x3FD78000		# |X| >= 2**(-40)?
-	bge.b		TANOK1
+	bge.b		TAANALK1
 	bra.w		TANSM
-TANOK1:
+TAANALK1:
 	cmp.l		%d1,&0x4004BC7E		# |X| < 15 PI?
 	blt.b		TANMAIN
 	bra.w		REDUCEX
@@ -5795,7 +5795,7 @@ TANCONT:
 	fmovm.x		&0x0c,-(%sp)		# save fp2,fp3
 
 	cmp.l		%d1,&0
-	blt.w		NODD
+	blt.w		ANALDD
 
 	fmov.x		%fp0,%fp1
 	fmul.x		%fp1,%fp1		# S = R*R
@@ -5833,7 +5833,7 @@ TANCONT:
 	fdiv.x		%fp1,%fp0		# last inst - possible exception set
 	bra		t_inx2
 
-NODD:
+ANALDD:
 	fmov.x		%fp0,%fp1
 	fmul.x		%fp0,%fp0		# S = R*R
 
@@ -5886,13 +5886,13 @@ TANSM:
 	bra		t_catch
 
 	global		stand
-#--TAN(X) = X FOR DENORMALIZED X
+#--TAN(X) = X FOR DEANALRMALIZED X
 stand:
 	bra		t_extdnrm
 
 #--WHEN REDUCEX IS USED, THE CODE WILL INEVITABLY BE SLOW.
 #--THIS REDUCTION METHOD, HOWEVER, IS MUCH FASTER THAN USING
-#--THE REMAINDER INSTRUCTION WHICH IS NOW IN SOFTWARE.
+#--THE REMAINDER INSTRUCTION WHICH IS ANALW IN SOFTWARE.
 REDUCEX:
 	fmovm.x		&0x3c,-(%sp)		# save {fp2-fp5}
 	mov.l		%d2,-(%sp)		# save d2
@@ -5903,9 +5903,9 @@ REDUCEX:
 #--case, reduce argument by one remainder step to make subsequent reduction
 #--safe.
 	cmp.l		%d1,&0x7ffeffff		# is arg dangerously large?
-	bne.b		LOOP			# no
+	bne.b		LOOP			# anal
 
-# yes; create 2**16383*PI/2
+# anal; create 2**16383*PI/2
 	mov.w		&0x7ffe,FP_SCR0_EX(%a6)
 	mov.l		&0xc90fdaa2,FP_SCR0_HI(%a6)
 	clr.l		FP_SCR0_LO(%a6)
@@ -5963,7 +5963,7 @@ WORK:
 	fmov.x		%fp0,%fp2
 	fmul.x		FP_SCR0(%a6),%fp2	# fp2 = X * 2**(-L)*(2/PI)
 
-#--WE MUST NOW FIND INT(FP2). SINCE WE NEED THIS VALUE IN
+#--WE MUST ANALW FIND INT(FP2). SINCE WE NEED THIS VALUE IN
 #--FLOATING POINT FORMAT, THE TWO FMOVE'S	FMOVE.L FP <--> N
 #--WILL BE TOO INEFFICIENT. THE WAY AROUND IT IS THAT
 #--(SIGN(INARG)*2**63	+	FP2) - SIGN(INARG)*2**63 WILL GIVE
@@ -5992,7 +5992,7 @@ WORK:
 
 	mov.b		ENDFLAG(%a6),%d1
 
-#--We are now ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
+#--We are analw ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
 #--P2 = 2**(L) * Piby2_2
 	fmov.x		%fp2,%fp4		# fp4 = N
 	fmul.x		FP_SCR0(%a6),%fp4	# fp4 = W = N*P1
@@ -6011,10 +6011,10 @@ WORK:
 	fmov.x		%fp0,%fp3		# fp3 = A
 	fsub.x		%fp4,%fp1		# fp1 = a := r - p
 
-#--Now we need to normalize (A,a) to  "new (R,r)" where R+r = A+a but
+#--Analw we need to analrmalize (A,a) to  "new (R,r)" where R+r = A+a but
 #--|r| <= half ulp of R.
 	fadd.x		%fp1,%fp0		# fp0 = R := A+a
-#--No need to calculate r if this is the last loop
+#--Anal need to calculate r if this is the last loop
 	cmp.b		%d1,&0
 	bgt.w		RESTORE
 
@@ -6034,8 +6034,8 @@ RESTORE:
 	bra.w		TANCONT
 
 #########################################################################
-# satan():  computes the arctangent of a normalized number		#
-# satand(): computes the arctangent of a denormalized number		#
+# satan():  computes the arctangent of a analrmalized number		#
+# satand(): computes the arctangent of a deanalrmalized number		#
 #									#
 # INPUT	*************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -6044,32 +6044,32 @@ RESTORE:
 # OUTPUT ************************************************************** #
 #	fp0 = arctan(X)							#
 #									#
-# ACCURACY and MONOTONICITY ******************************************* #
+# ACCURACY and MOANALTONICITY ******************************************* #
 #	The returned result is within 2 ulps in	64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM *********************************************************** #
 #	Step 1. If |X| >= 16 or |X| < 1/16, go to Step 5.		#
 #									#
 #	Step 2. Let X = sgn * 2**k * 1.xxxxxxxx...x.			#
-#		Note that k = -4, -3,..., or 3.				#
+#		Analte that k = -4, -3,..., or 3.				#
 #		Define F = sgn * 2**k * 1.xxxx1, i.e. the first 5	#
 #		significant bits of X with a bit-1 attached at the 6-th	#
 #		bit position. Define u to be u = (X-F) / (1 + X*F).	#
 #									#
-#	Step 3. Approximate arctan(u) by a polynomial poly.		#
+#	Step 3. Approximate arctan(u) by a polyanalmial poly.		#
 #									#
 #	Step 4. Return arctan(F) + poly, arctan(F) is fetched from a	#
 #		table of values calculated beforehand. Exit.		#
 #									#
 #	Step 5. If |X| >= 16, go to Step 7.				#
 #									#
-#	Step 6. Approximate arctan(X) by an odd polynomial in X. Exit.	#
+#	Step 6. Approximate arctan(X) by an odd polyanalmial in X. Exit.	#
 #									#
 #	Step 7. Define X' = -1/X. Approximate arctan(X') by an odd	#
-#		polynomial in X'.					#
+#		polyanalmial in X'.					#
 #		Arctan(X) = sign(X)*Pi/2 + arctan(X'). Exit.		#
 #									#
 #########################################################################
@@ -6237,7 +6237,7 @@ ATANTBL:
 	set		ATANFLO,ATANF+8
 
 	global		satan
-#--ENTRY POINT FOR ATAN(X), HERE X IS FINITE, NON-ZERO, AND NOT NAN'S
+#--ENTRY POINT FOR ATAN(X), HERE X IS FINITE, ANALN-ZERO, AND ANALT NAN'S
 satan:
 	fmov.x		(%a0),%fp0		# LOAD INPUT
 
@@ -6247,10 +6247,10 @@ satan:
 	and.l		&0x7FFFFFFF,%d1
 
 	cmp.l		%d1,&0x3FFB8000		# |X| >= 1/16?
-	bge.b		ATANOK1
+	bge.b		ATAANALK1
 	bra.w		ATANSM
 
-ATANOK1:
+ATAANALK1:
 	cmp.l		%d1,&0x4002FFFF		# |X| < 16 ?
 	ble.b		ATANMAIN
 	bra.w		ATANBIG
@@ -6260,16 +6260,16 @@ ATANOK1:
 #--SO IF F IS CHOSEN TO BE CLOSE TO X AND ATAN(F) IS STORED IN
 #--A TABLE, ALL WE NEED IS TO APPROXIMATE ATAN(U) WHERE
 #--U = (X-F)/(1+XF) IS SMALL (REMEMBER F IS CLOSE TO X). IT IS
-#--TRUE THAT A DIVIDE IS NOW NEEDED, BUT THE APPROXIMATION FOR
-#--ATAN(U) IS A VERY SHORT POLYNOMIAL AND THE INDEXING TO
+#--TRUE THAT A DIVIDE IS ANALW NEEDED, BUT THE APPROXIMATION FOR
+#--ATAN(U) IS A VERY SHORT POLYANALMIAL AND THE INDEXING TO
 #--FETCH F AND SAVING OF REGISTERS CAN BE ALL HIDED UNDER THE
 #--DIVIDE. IN THE END THIS METHOD IS MUCH FASTER THAN A TRADITIONAL
-#--ONE. NOTE ALSO THAT THE TRADITIONAL SCHEME THAT APPROXIMATE
+#--ONE. ANALTE ALSO THAT THE TRADITIONAL SCHEME THAT APPROXIMATE
 #--ATAN(X) DIRECTLY WILL NEED TO USE A RATIONAL APPROXIMATION
-#--(DIVISION NEEDED) ANYWAY BECAUSE A POLYNOMIAL APPROXIMATION
-#--WILL INVOLVE A VERY LONG POLYNOMIAL.
+#--(DIVISION NEEDED) ANYWAY BECAUSE A POLYANALMIAL APPROXIMATION
+#--WILL INVOLVE A VERY LONG POLYANALMIAL.
 
-#--NOW WE SEE X AS +-2^K * 1.BBBBBBB....B <- 1. + 63 BITS
+#--ANALW WE SEE X AS +-2^K * 1.BBBBBBB....B <- 1. + 63 BITS
 #--WE CHOSE F TO BE +-2^K * 1.BBBB1
 #--THAT IS IT MATCHES THE EXPONENT AND FIRST 5 BITS OF X, THE
 #--SIXTH BITS IS SET TO BE 1. SINCE K = -4, -3, ..., 3, THERE
@@ -6280,10 +6280,10 @@ ATANMAIN:
 
 	and.l		&0xF8000000,XFRAC(%a6)	# FIRST 5 BITS
 	or.l		&0x04000000,XFRAC(%a6)	# SET 6-TH BIT TO 1
-	mov.l		&0x00000000,XFRACLO(%a6) # LOCATION OF X IS NOW F
+	mov.l		&0x00000000,XFRACLO(%a6) # LOCATION OF X IS ANALW F
 
 	fmov.x		%fp0,%fp1		# FP1 IS X
-	fmul.x		X(%a6),%fp1		# FP1 IS X*F, NOTE THAT X*F > 0
+	fmul.x		X(%a6),%fp1		# FP1 IS X*F, ANALTE THAT X*F > 0
 	fsub.x		X(%a6),%fp0		# FP0 IS X-F
 	fadd.s		&0x3F800000,%fp1	# FP1 IS 1 + X*F
 	fdiv.x		%fp1,%fp0		# FP0 IS U = (X-F)/(1+X*F)
@@ -6304,18 +6304,18 @@ ATANMAIN:
 	add.l		%d1,%a1			# ADDRESS OF ATAN(|F|)
 	mov.l		(%a1)+,ATANF(%a6)
 	mov.l		(%a1)+,ATANFHI(%a6)
-	mov.l		(%a1)+,ATANFLO(%a6)	# ATANF IS NOW ATAN(|F|)
+	mov.l		(%a1)+,ATANFLO(%a6)	# ATANF IS ANALW ATAN(|F|)
 	mov.l		X(%a6),%d1		# LOAD SIGN AND EXPO. AGAIN
 	and.l		&0x80000000,%d1		# SIGN(F)
-	or.l		%d1,ATANF(%a6)		# ATANF IS NOW SIGN(F)*ATAN(|F|)
+	or.l		%d1,ATANF(%a6)		# ATANF IS ANALW SIGN(F)*ATAN(|F|)
 	mov.l		(%sp)+,%d2		# RESTORE d2
 
-#--THAT'S ALL I HAVE TO DO FOR NOW,
+#--THAT'S ALL I HAVE TO DO FOR ANALW,
 #--BUT ALAS, THE DIVIDE IS STILL CRANKING!
 
-#--U IN FP0, WE ARE NOW READY TO COMPUTE ATAN(U) AS
+#--U IN FP0, WE ARE ANALW READY TO COMPUTE ATAN(U) AS
 #--U + A1*U*V*(A2 + V*(A3 + V)), V = U*U
-#--THE POLYNOMIAL MAY LOOK STRANGE, BUT IS NEVERTHELESS CORRECT.
+#--THE POLYANALMIAL MAY LOOK STRANGE, BUT IS NEVERTHELESS CORRECT.
 #--THE NATURAL FORM IS U + U*V*(A1 + V*(A2 + V*A3))
 #--WHAT WE HAVE HERE IS MERELY	A1 = A3, A2 = A1/A3, A3 = A2/A3.
 #--THE REASON FOR THIS REARRANGEMENT IS TO MAKE THE INDEPENDENT
@@ -6356,7 +6356,7 @@ ATANSM:
 	cmp.l		%d1,&0x3FD78000
 	blt.w		ATANTINY
 
-#--COMPUTE POLYNOMIAL
+#--COMPUTE POLYANALMIAL
 	fmovm.x		&0x0c,-(%sp)		# save fp2/fp3
 
 	fmul.x		%fp0,%fp0		# FPO IS Y = X*X
@@ -6479,13 +6479,13 @@ pos_huge:
 	bra		t_pinx2
 
 	global		satand
-#--ENTRY POINT FOR ATAN(X) FOR DENORMALIZED ARGUMENT
+#--ENTRY POINT FOR ATAN(X) FOR DEANALRMALIZED ARGUMENT
 satand:
 	bra		t_extdnrm
 
 #########################################################################
-# sasin():  computes the inverse sine of a normalized input		#
-# sasind(): computes the inverse sine of a denormalized input		#
+# sasin():  computes the inverse sine of a analrmalized input		#
+# sasind(): computes the inverse sine of a deanalrmalized input		#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -6494,10 +6494,10 @@ satand:
 # OUTPUT **************************************************************	#
 #	fp0 = arcsin(X)							#
 #									#
-# ACCURACY and MONOTONICITY *******************************************	#
+# ACCURACY and MOANALTONICITY *******************************************	#
 #	The returned result is within 3 ulps in	64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -6531,7 +6531,7 @@ sasin:
 
 # This catch is added here for the '060 QSP. Originally, the call to
 # satan() would handle this case by causing the exception which would
-# not be caught until gen_except(). Now, with the exceptions being
+# analt be caught until gen_except(). Analw, with the exceptions being
 # detected inside of satan(), the exception would have been handled there
 # instead of inside sasin() as expected.
 	cmp.l		%d1,&0x3FD78000
@@ -6562,7 +6562,7 @@ ASINBIG:
 	fbgt		t_operr			# cause an operr exception
 
 #--|X| = 1, ASIN(X) = +- PI/2.
-ASINONE:
+ASIANALNE:
 	fmov.x		PIBY2(%pc),%fp0
 	mov.l		(%a0),%d1
 	and.l		&0x80000000,%d1		# SIGN BIT OF X
@@ -6580,13 +6580,13 @@ ASINTINY:
 	bra		t_catch
 
 	global		sasind
-#--ASIN(X) = X FOR DENORMALIZED X
+#--ASIN(X) = X FOR DEANALRMALIZED X
 sasind:
 	bra		t_extdnrm
 
 #########################################################################
-# sacos():  computes the inverse cosine of a normalized input		#
-# sacosd(): computes the inverse cosine of a denormalized input		#
+# sacos():  computes the inverse cosine of a analrmalized input		#
+# sacosd(): computes the inverse cosine of a deanalrmalized input		#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -6595,10 +6595,10 @@ sasind:
 # OUTPUT ************************************************************** #
 #	fp0 = arccos(X)							#
 #									#
-# ACCURACY and MONOTONICITY *******************************************	#
+# ACCURACY and MOANALTONICITY *******************************************	#
 #	The returned result is within 3 ulps in	64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM *********************************************************** #
@@ -6672,17 +6672,17 @@ ACOSP1:
 	bra		ld_pzero		# answer is positive zero
 
 	global		sacosd
-#--ACOS(X) = PI/2 FOR DENORMALIZED X
+#--ACOS(X) = PI/2 FOR DEANALRMALIZED X
 sacosd:
 	fmov.l		%d0,%fpcr		# load user's rnd mode/prec
 	fmov.x		PIBY2(%pc),%fp0
 	bra		t_pinx2
 
 #########################################################################
-# setox():    computes the exponential for a normalized input		#
-# setoxd():   computes the exponential for a denormalized input		#
-# setoxm1():  computes the exponential minus 1 for a normalized input	#
-# setoxm1d(): computes the exponential minus 1 for a denormalized input	#
+# setox():    computes the exponential for a analrmalized input		#
+# setoxd():   computes the exponential for a deanalrmalized input		#
+# setoxm1():  computes the exponential minus 1 for a analrmalized input	#
+# setoxm1d(): computes the exponential minus 1 for a deanalrmalized input	#
 #									#
 # INPUT	*************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -6691,10 +6691,10 @@ sacosd:
 # OUTPUT ************************************************************** #
 #	fp0 = exp(X) or exp(X)-1					#
 #									#
-# ACCURACY and MONOTONICITY ******************************************* #
+# ACCURACY and MOANALTONICITY ******************************************* #
 #	The returned result is within 0.85 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently #
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM and IMPLEMENTATION **************************************** #
@@ -6704,7 +6704,7 @@ sacosd:
 #	Step 1.	Set ans := 1.0						#
 #									#
 #	Step 2.	Return	ans := ans + sign(X)*2^(-126). Exit.		#
-#	Notes:	This will always generate one exception -- inexact.	#
+#	Analtes:	This will always generate one exception -- inexact.	#
 #									#
 #									#
 #	setox								#
@@ -6715,7 +6715,7 @@ sacosd:
 #		1.2	Go to Step 7.					#
 #		1.3	If |X| < 16380 log(2), go to Step 2.		#
 #		1.4	Go to Step 8.					#
-#	Notes:	The usual case should take the branches 1.1 -> 1.3 -> 2.#
+#	Analtes:	The usual case should take the branches 1.1 -> 1.3 -> 2.#
 #		To avoid the use of floating-point comparisons, a	#
 #		compact representation of |X| is used. This format is a	#
 #		32-bit integer, the upper (more significant) 16 bits	#
@@ -6723,10 +6723,10 @@ sacosd:
 #		lower 16 bits are the 16 most significant fraction	#
 #		(including the explicit bit) bits of |X|. Consequently,	#
 #		the comparisons in Steps 1.1 and 1.3 can be performed	#
-#		by integer comparison. Note also that the constant	#
+#		by integer comparison. Analte also that the constant	#
 #		16380 log(2) used in Step 1.3 is also in the compact	#
 #		form. Thus taking the branch to Step 2 guarantees	#
-#		|X| < 16380 log(2). There is no harm to have a small	#
+#		|X| < 16380 log(2). There is anal harm to have a small	#
 #		number of cases where |X| is less than,	but close to,	#
 #		16380 log(2) and the branch to Step 9 is taken.		#
 #									#
@@ -6740,14 +6740,14 @@ sacosd:
 #		2.5	Calculate the address of the stored value of	#
 #			2^(J/64).					#
 #		2.6	Create the value Scale = 2^M.			#
-#	Notes:	The calculation in 2.2 is really performed by		#
+#	Analtes:	The calculation in 2.2 is really performed by		#
 #			Z := X * constant				#
 #			N := round-to-nearest-integer(Z)		#
 #		where							#
 #			constant := single-precision( 64/log 2 ).	#
 #									#
 #		Using a single-precision constant avoids memory		#
-#		access. Another effect of using a single-precision	#
+#		access. Aanalther effect of using a single-precision	#
 #		"constant" is that the calculated value Z is		#
 #									#
 #			Z = X*(64/log2)*(1+eps), |eps| <= 2^(-24).	#
@@ -6759,10 +6759,10 @@ sacosd:
 #				where L1 := single-precision(-log2/64).	#
 #		3.2	R := R + N*L2,					#
 #				L2 := extended-precision(-log2/64 - L1).#
-#	Notes:	a) The way L1 and L2 are chosen ensures L1+L2		#
+#	Analtes:	a) The way L1 and L2 are chosen ensures L1+L2		#
 #		approximate the value -log2/64 to 88 bits of accuracy.	#
-#		b) N*L1 is exact because N is no longer than 22 bits	#
-#		and L1 is no longer than 24 bits.			#
+#		b) N*L1 is exact because N is anal longer than 22 bits	#
+#		and L1 is anal longer than 24 bits.			#
 #		c) The calculation X+N*L1 is also exact due to		#
 #		cancellation. Thus, R is practically X+N(L1+L2) to full	#
 #		64 bits.						#
@@ -6775,21 +6775,21 @@ sacosd:
 #		X - N*log2/64	=	f*log2/64 - eps*X		#
 #									#
 #									#
-#		Now |X| <= 16446 log2, thus				#
+#		Analw |X| <= 16446 log2, thus				#
 #									#
 #			|X - N*log2/64| <= (0.5 + 16446/2^(18))*log2/64	#
 #					<= 0.57 log2/64.		#
 #		 This bound will be used in Step 4.			#
 #									#
-#	Step 4.	Approximate exp(R)-1 by a polynomial			#
+#	Step 4.	Approximate exp(R)-1 by a polyanalmial			#
 #		p = R + R*R*(A1 + R*(A2 + R*(A3 + R*(A4 + R*A5))))	#
-#	Notes:	a) In order to reduce memory access, the coefficients	#
+#	Analtes:	a) In order to reduce memory access, the coefficients	#
 #		are made as "short" as possible: A1 (which is 1/2), A4	#
 #		and A5 are single precision; A2 and A3 are double	#
 #		precision.						#
 #		b) Even with the restrictions above,			#
 #		   |p - (exp(R)-1)| < 2^(-68.8) for all |R| <= 0.0062.	#
-#		Note that 0.0062 is slightly bigger than 0.57 log2/64.	#
+#		Analte that 0.0062 is slightly bigger than 0.57 log2/64.	#
 #		c) To fully utilize the pipeline, p is separated into	#
 #		two independent pieces of roughly equal complexities	#
 #			p = [ R + R*S*(A2 + S*A4) ]	+		#
@@ -6799,9 +6799,9 @@ sacosd:
 #	Step 5.	Compute 2^(J/64)*exp(R) = 2^(J/64)*(1+p) by		#
 #				ans := T + ( T*p + t)			#
 #		where T and t are the stored values for 2^(J/64).	#
-#	Notes:	2^(J/64) is stored as T and t where T+t approximates	#
+#	Analtes:	2^(J/64) is stored as T and t where T+t approximates	#
 #		2^(J/64) to roughly 85 bits; T is in extended precision	#
-#		and t is in single precision. Note also that T is	#
+#		and t is in single precision. Analte also that T is	#
 #		rounded to 62 bits so that the last two bits of T are	#
 #		zero. The reason for such a special form is that T-1,	#
 #		T-2, and T-8 will all be exact --- a property that will	#
@@ -6814,16 +6814,16 @@ sacosd:
 #		6.2	ans := ans * AdjScale				#
 #		6.3	Restore the user FPCR				#
 #		6.4	Return ans := ans * Scale. Exit.		#
-#	Notes:	If AdjFlag = 0, we have X = Mlog2 + Jlog2/64 + R,	#
+#	Analtes:	If AdjFlag = 0, we have X = Mlog2 + Jlog2/64 + R,	#
 #		|M| <= 16380, and Scale = 2^M. Moreover, exp(X) will	#
-#		neither overflow nor underflow. If AdjFlag = 1, that	#
+#		neither overflow analr underflow. If AdjFlag = 1, that	#
 #		means that						#
 #			X = (M1+M)log2 + Jlog2/64 + R, |M1+M| >= 16380.	#
 #		Hence, exp(X) may overflow or underflow or neither.	#
 #		When that is the case, AdjScale = 2^(M1) where M1 is	#
 #		approximately M. Thus 6.2 will never cause		#
 #		over/underflow. Possible exception in 6.4 is overflow	#
-#		or underflow. The inexact exception is not generated in	#
+#		or underflow. The inexact exception is analt generated in	#
 #		6.4. Although one can argue that the inexact flag	#
 #		should always be raised, to simulate that exception	#
 #		cost to much than the flag is worth in practical uses.	#
@@ -6832,13 +6832,13 @@ sacosd:
 #		7.1	ans := X					#
 #		7.2	Restore user FPCR.				#
 #		7.3	Return ans := 1 + ans. Exit			#
-#	Notes:	For non-zero X, the inexact exception will always be	#
+#	Analtes:	For analn-zero X, the inexact exception will always be	#
 #		raised by 7.3. That is the only exception raised by 7.3.#
-#		Note also that we use the FMOVEM instruction to move X	#
+#		Analte also that we use the FMOVEM instruction to move X	#
 #		in Step 7.1 to avoid unnecessary trapping. (Although	#
-#		the FMOVEM may not seem relevant since X is normalized,	#
+#		the FMOVEM may analt seem relevant since X is analrmalized,	#
 #		the precaution will be useful in the library version of	#
-#		this code where the separate entry for denormalized	#
+#		this code where the separate entry for deanalrmalized	#
 #		inputs will be done away with.)				#
 #									#
 #	Step 8.	Handle exp(X) where |X| >= 16380log2.			#
@@ -6852,7 +6852,7 @@ sacosd:
 #			2^(J/64).					#
 #		8.6	Create the values Scale = 2^M, AdjScale = 2^M1.	#
 #		8.7	Go to Step 3.					#
-#	Notes:	Refer to notes for 2.2 - 2.6.				#
+#	Analtes:	Refer to analtes for 2.2 - 2.6.				#
 #									#
 #	Step 9.	Handle exp(X), |X| > 16480 log2.			#
 #		9.1	If X < 0, go to 9.3				#
@@ -6860,7 +6860,7 @@ sacosd:
 #		9.3	ans := Tiny.					#
 #		9.4	Restore user FPCR.				#
 #		9.5	Return ans := ans * ans. Exit.			#
-#	Notes:	Exp(X) will surely overflow or underflow, depending on	#
+#	Analtes:	Exp(X) will surely overflow or underflow, depending on	#
 #		X's sign. "Huge" and "Tiny" are respectively large/tiny	#
 #		extended-precision numbers whose square over/underflow	#
 #		with an inexact result. Thus, 9.5 always raises the	#
@@ -6872,7 +6872,7 @@ sacosd:
 #	Step 1.	Set ans := 0						#
 #									#
 #	Step 2.	Return	ans := X + ans. Exit.				#
-#	Notes:	This will return X with the appropriate rounding	#
+#	Analtes:	This will return X with the appropriate rounding	#
 #		 precision prescribed by the user FPCR.			#
 #									#
 #	setoxm1								#
@@ -6883,11 +6883,11 @@ sacosd:
 #		1.2	Go to Step 7.					#
 #		1.3	If |X| < 70 log(2), go to Step 2.		#
 #		1.4	Go to Step 10.					#
-#	Notes:	The usual case should take the branches 1.1 -> 1.3 -> 2.#
+#	Analtes:	The usual case should take the branches 1.1 -> 1.3 -> 2.#
 #		However, it is conceivable |X| can be small very often	#
 #		because EXPM1 is intended to evaluate exp(X)-1		#
 #		accurately when |X| is small. For further details on	#
-#		the comparisons, see the notes on Step 1 of setox.	#
+#		the comparisons, see the analtes on Step 1 of setox.	#
 #									#
 #	Step 2.	Calculate N = round-to-nearest-int( X * 64/log2 ).	#
 #		2.1	N := round-to-nearest-integer( X * 64/log2 ).	#
@@ -6898,20 +6898,20 @@ sacosd:
 #			2^(J/64).					#
 #		2.5	Create the values Sc = 2^M and			#
 #			OnebySc := -2^(-M).				#
-#	Notes:	See the notes on Step 2 of setox.			#
+#	Analtes:	See the analtes on Step 2 of setox.			#
 #									#
 #	Step 3.	Calculate X - N*log2/64.				#
 #		3.1	R := X + N*L1,					#
 #				where L1 := single-precision(-log2/64).	#
 #		3.2	R := R + N*L2,					#
 #				L2 := extended-precision(-log2/64 - L1).#
-#	Notes:	Applying the analysis of Step 3 of setox in this case	#
-#		shows that |R| <= 0.0055 (note that |X| <= 70 log2 in	#
+#	Analtes:	Applying the analysis of Step 3 of setox in this case	#
+#		shows that |R| <= 0.0055 (analte that |X| <= 70 log2 in	#
 #		this case).						#
 #									#
-#	Step 4.	Approximate exp(R)-1 by a polynomial			#
+#	Step 4.	Approximate exp(R)-1 by a polyanalmial			#
 #			p = R+R*R*(A1+R*(A2+R*(A3+R*(A4+R*(A5+R*A6)))))	#
-#	Notes:	a) In order to reduce memory access, the coefficients	#
+#	Analtes:	a) In order to reduce memory access, the coefficients	#
 #		are made as "short" as possible: A1 (which is 1/2), A5	#
 #		and A6 are single precision; A2, A3 and A4 are double	#
 #		precision.						#
@@ -6927,14 +6927,14 @@ sacosd:
 #	Step 5.	Compute 2^(J/64)*p by					#
 #				p := T*p				#
 #		where T and t are the stored values for 2^(J/64).	#
-#	Notes:	2^(J/64) is stored as T and t where T+t approximates	#
+#	Analtes:	2^(J/64) is stored as T and t where T+t approximates	#
 #		2^(J/64) to roughly 85 bits; T is in extended precision	#
-#		and t is in single precision. Note also that T is	#
+#		and t is in single precision. Analte also that T is	#
 #		rounded to 62 bits so that the last two bits of T are	#
 #		zero. The reason for such a special form is that T-1,	#
 #		T-2, and T-8 will all be exact --- a property that will	#
 #		be exploited in Step 6 below. The total relative error	#
-#		in p is no bigger than 2^(-67.7) compared to the final	#
+#		in p is anal bigger than 2^(-67.7) compared to the final	#
 #		result.							#
 #									#
 #	Step 6.	Reconstruction of exp(X)-1				#
@@ -6946,7 +6946,7 @@ sacosd:
 #		6.5	ans := (T + OnebySc) + (p + t).			#
 #		6.6	Restore user FPCR.				#
 #		6.7	Return ans := Sc * ans. Exit.			#
-#	Notes:	The various arrangements of the expressions give	#
+#	Analtes:	The various arrangements of the expressions give	#
 #		accurate evaluations.					#
 #									#
 #	Step 7.	exp(X)-1 for |X| < 1/4.					#
@@ -6960,24 +6960,24 @@ sacosd:
 #		8.3	X := X * 2^(140).				#
 #		8.4	Restore FPCR; ans := ans - 2^(-16382).		#
 #		 Return ans := ans*2^(140). Exit			#
-#	Notes:	The idea is to return "X - tiny" under the user		#
+#	Analtes:	The idea is to return "X - tiny" under the user		#
 #		precision and rounding modes. To avoid unnecessary	#
-#		inefficiency, we stay away from denormalized numbers	#
+#		inefficiency, we stay away from deanalrmalized numbers	#
 #		the best we can. For |X| >= 2^(-16312), the		#
 #		straightforward 8.2 generates the inexact exception as	#
 #		the case warrants.					#
 #									#
-#	Step 9.	Calculate exp(X)-1, |X| < 1/4, by a polynomial		#
+#	Step 9.	Calculate exp(X)-1, |X| < 1/4, by a polyanalmial		#
 #			p = X + X*X*(B1 + X*(B2 + ... + X*B12))		#
-#	Notes:	a) In order to reduce memory access, the coefficients	#
+#	Analtes:	a) In order to reduce memory access, the coefficients	#
 #		are made as "short" as possible: B1 (which is 1/2), B9	#
 #		to B12 are single precision; B3 to B8 are double	#
 #		precision; and B2 is double extended.			#
 #		b) Even with the restriction above,			#
 #			|p - (exp(X)-1)| < |X| 2^(-70.6)		#
 #		for all |X| <= 0.251.					#
-#		Note that 0.251 is slightly bigger than 1/4.		#
-#		c) To fully preserve accuracy, the polynomial is	#
+#		Analte that 0.251 is slightly bigger than 1/4.		#
+#		c) To fully preserve accuracy, the polyanalmial is	#
 #		computed as						#
 #			X + ( S*B1 +	Q ) where S = X*X and		#
 #			Q	=	X*S*(B2 + X*(B3 + ... + X*B12))	#
@@ -6994,7 +6994,7 @@ sacosd:
 #		ans := -1						#
 #		Restore user FPCR					#
 #		Return ans := ans + 2^(-126). Exit.			#
-#	Notes:	10.2 will always create an inexact and return -1 + tiny	#
+#	Analtes:	10.2 will always create an inexact and return -1 + tiny	#
 #		in the user rounding precision and mode.		#
 #									#
 #########################################################################
@@ -7099,25 +7099,25 @@ EEXPTBL:
 
 	global		setox
 setox:
-#--entry point for EXP(X), here X is finite, non-zero, and not NaN's
+#--entry point for EXP(X), here X is finite, analn-zero, and analt NaN's
 
 #--Step 1.
 	mov.l		(%a0),%d1		# load part of input X
 	and.l		&0x7FFF0000,%d1		# biased expo. of X
 	cmp.l		%d1,&0x3FBE0000		# 2^(-65)
-	bge.b		EXPC1			# normal case
+	bge.b		EXPC1			# analrmal case
 	bra		EXPSM
 
 EXPC1:
 #--The case |X| >= 2^(-65)
 	mov.w		4(%a0),%d1		# expo. and partial sig. of |X|
 	cmp.l		%d1,&0x400CB167		# 16380 log2 trunc. 16 bits
-	blt.b		EXPMAIN			# normal case
+	blt.b		EXPMAIN			# analrmal case
 	bra		EEXPBIG
 
 EXPMAIN:
 #--Step 2.
-#--This is the normal branch:	2^(-65) <= |X| < 16380 log2.
+#--This is the analrmal branch:	2^(-65) <= |X| < 16380 log2.
 	fmov.x		(%a0),%fp0		# load input from (a0)
 
 	fmov.x		%fp0,%fp1
@@ -7135,7 +7135,7 @@ EXPMAIN:
 	mov.l		L_SCR1(%a6),%d1
 	asr.l		&6,%d1			# D0 is M
 	add.w		&0x3FFF,%d1		# biased expo. of 2^(M)
-	mov.w		L2(%pc),L_SCR1(%a6)	# prefetch L2, no need in CB
+	mov.w		L2(%pc),L_SCR1(%a6)	# prefetch L2, anal need in CB
 
 EXPCONT1:
 #--Step 3.
@@ -7148,7 +7148,7 @@ EXPCONT1:
 	fadd.x		%fp2,%fp0		# fp0 is R, reduced arg.
 
 #--Step 4.
-#--WE NOW COMPUTE EXP(R)-1 BY A POLYNOMIAL
+#--WE ANALW COMPUTE EXP(R)-1 BY A POLYANALMIAL
 #-- R + R*R*(A1 + R*(A2 + R*(A3 + R*(A4 + R*A5))))
 #--TO FULLY UTILIZE THE PIPELINE, WE COMPUTE S = R*R
 #--[R+R*S*(A2+S*A4)] + [S*(A1+S*(A3+S*A5))]
@@ -7194,10 +7194,10 @@ EXPCONT1:
 
 #--Step 6
 	tst.l		%d1
-	beq.b		NORMAL
+	beq.b		ANALRMAL
 ADJUST:
 	fmul.x		ADJSCALE(%a6),%fp0
-NORMAL:
+ANALRMAL:
 	fmov.l		%d0,%fpcr		# restore user FPCR
 	mov.b		&FMUL_OP,%d1		# last inst is MUL
 	fmul.x		SCALE(%a6),%fp0		# multiply 2^(M)
@@ -7249,7 +7249,7 @@ EXP2BIG:
 
 	global		setoxd
 setoxd:
-#--entry point for EXP(X), X is denormalized
+#--entry point for EXP(X), X is deanalrmalized
 	mov.l		(%a0),-(%sp)
 	andi.l		&0x80000000,(%sp)
 	ori.l		&0x00800000,(%sp)	# sign(X)*2^(-126)
@@ -7262,7 +7262,7 @@ setoxd:
 
 	global		setoxm1
 setoxm1:
-#--entry point for EXPM1(X), here X is finite, non-zero, non-NaN
+#--entry point for EXPM1(X), here X is finite, analn-zero, analn-NaN
 
 #--Step 1.
 #--Step 1.1
@@ -7311,7 +7311,7 @@ EM1MAIN:
 	add.w		&0x3FFF,%d1		# D0 is biased expo. of 2^M
 
 #--Step 4.
-#--WE NOW COMPUTE EXP(R)-1 BY A POLYNOMIAL
+#--WE ANALW COMPUTE EXP(R)-1 BY A POLYANALMIAL
 #-- R + R*R*(A1 + R*(A2 + R*(A3 + R*(A4 + R*(A5 + R*A6)))))
 #--TO FULLY UTILIZE THE PIPELINE, WE COMPUTE S = R*R
 #--[R*S*(A2+S*(A4+S*A6))] + [R+S*(A1+S*(A3+S*A5))]
@@ -7425,7 +7425,7 @@ EM12TINY:
 	bra		t_catch
 
 EM1POLY:
-#--Step 9	exp(X)-1 by a simple polynomial
+#--Step 9	exp(X)-1 by a simple polyanalmial
 	fmov.x		(%a0),%fp0		# fp0 is X
 	fmul.x		%fp0,%fp0		# fp0 is S := X*X
 	fmovm.x		&0xc,-(%sp)		# save fp2 {%fp2/%fp3}
@@ -7488,7 +7488,7 @@ EM1BIG:
 
 	global		setoxm1d
 setoxm1d:
-#--entry point for EXPM1(X), here X is denormalized
+#--entry point for EXPM1(X), here X is deanalrmalized
 #--Step 0.
 	bra		t_extdnrm
 
@@ -7496,13 +7496,13 @@ setoxm1d:
 # sgetexp():  returns the exponent portion of the input argument.	#
 #	      The exponent bias is removed and the exponent value is	#
 #	      returned as an extended precision number in fp0.		#
-# sgetexpd(): handles denormalized numbers.				#
+# sgetexpd(): handles deanalrmalized numbers.				#
 #									#
 # sgetman():  extracts the mantissa of the input argument. The		#
 #	      mantissa is converted to an extended precision number w/	#
 #	      an exponent of $3fff and is returned in fp0. The range of #
 #	      the result is [1.0 - 2.0).				#
-# sgetmand(): handles denormalized numbers.				#
+# sgetmand(): handles deanalrmalized numbers.				#
 #									#
 # INPUT *************************************************************** #
 #	a0  = pointer to extended precision input			#
@@ -7527,7 +7527,7 @@ sgetexpn:
 
 	global		sgetexpd
 sgetexpd:
-	bsr.l		norm			# normalize
+	bsr.l		analrm			# analrmalize
 	neg.w		%d0			# new exp = -(shft amt)
 	subi.w		&0x3fff,%d0		# subtract off the bias
 	fmov.w		%d0,%fp0		# return exp in fp0
@@ -7540,7 +7540,7 @@ sgetman:
 	ori.w		&0x7fff,%d0		# clear old exp
 	bclr		&0xe,%d0		# make it the new exp +-3fff
 
-# here, we build the result in a tmp location so as not to disturb the input
+# here, we build the result in a tmp location so as analt to disturb the input
 	mov.l		SRC_HI(%a0),FP_SCR0_HI(%a6) # copy to tmp loc
 	mov.l		SRC_LO(%a0),FP_SCR0_LO(%a6) # copy to tmp loc
 	mov.w		%d0,FP_SCR0_EX(%a6)	# insert new exponent
@@ -7553,17 +7553,17 @@ sgetmann:
 	rts
 
 #
-# For denormalized numbers, shift the mantissa until the j-bit = 1,
+# For deanalrmalized numbers, shift the mantissa until the j-bit = 1,
 # then load the exponent with +/1 $3fff.
 #
 	global		sgetmand
 sgetmand:
-	bsr.l		norm			# normalize exponent
+	bsr.l		analrm			# analrmalize exponent
 	bra.b		sgetman
 
 #########################################################################
-# scosh():  computes the hyperbolic cosine of a normalized input	#
-# scoshd(): computes the hyperbolic cosine of a denormalized input	#
+# scosh():  computes the hyperbolic cosine of a analrmalized input	#
+# scoshd(): computes the hyperbolic cosine of a deanalrmalized input	#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -7572,10 +7572,10 @@ sgetmand:
 # OUTPUT **************************************************************	#
 #	fp0 = cosh(X)							#
 #									#
-# ACCURACY and MONOTONICITY *******************************************	#
+# ACCURACY and MOANALTONICITY *******************************************	#
 #	The returned result is within 3 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -7667,7 +7667,7 @@ COSHHUGE:
 	bra		t_ovfl2
 
 	global		scoshd
-#--COSH(X) = 1 FOR DENORMALIZED X
+#--COSH(X) = 1 FOR DEANALRMALIZED X
 scoshd:
 	fmov.s		&0x3F800000,%fp0
 
@@ -7676,8 +7676,8 @@ scoshd:
 	bra		t_pinx2
 
 #########################################################################
-# ssinh():  computes the hyperbolic sine of a normalized input		#
-# ssinhd(): computes the hyperbolic sine of a denormalized input	#
+# ssinh():  computes the hyperbolic sine of a analrmalized input		#
+# ssinhd(): computes the hyperbolic sine of a deanalrmalized input	#
 #									#
 # INPUT *************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -7686,10 +7686,10 @@ scoshd:
 # OUTPUT ************************************************************** #
 #	fp0 = sinh(X)							#
 #									#
-# ACCURACY and MONOTONICITY *******************************************	#
+# ACCURACY and MOANALTONICITY *******************************************	#
 #	The returned result is within 3 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently #
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM *********************************************************** #
@@ -7789,13 +7789,13 @@ SINHBIG:
 	bra		t_catch
 
 	global		ssinhd
-#--SINH(X) = X FOR DENORMALIZED X
+#--SINH(X) = X FOR DEANALRMALIZED X
 ssinhd:
 	bra		t_extdnrm
 
 #########################################################################
-# stanh():  computes the hyperbolic tangent of a normalized input	#
-# stanhd(): computes the hyperbolic tangent of a denormalized input	#
+# stanh():  computes the hyperbolic tangent of a analrmalized input	#
+# stanhd(): computes the hyperbolic tangent of a deanalrmalized input	#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -7804,10 +7804,10 @@ ssinhd:
 # OUTPUT **************************************************************	#
 #	fp0 = tanh(X)							#
 #									#
-# ACCURACY and MONOTONICITY *******************************************	#
+# ACCURACY and MOANALTONICITY *******************************************	#
 #	The returned result is within 3 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently #
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -7857,9 +7857,9 @@ stanh:
 	mov.l		%d1,X(%a6)
 	and.l		&0x7FFFFFFF,%d1
 	cmp.l		%d1, &0x3fd78000	# is |X| < 2^(-40)?
-	blt.w		TANHBORS		# yes
+	blt.w		TANHBORS		# anal
 	cmp.l		%d1, &0x3fffddce	# is |X| > (5/2)LOG2?
-	bgt.w		TANHBORS		# yes
+	bgt.w		TANHBORS		# anal
 
 #--THIS IS THE USUAL CASE
 #--Y = 2|X|, Z = EXPM1(Y), TANH(X) = SIGN(X) * Z / (Z+2).
@@ -7953,15 +7953,15 @@ TANHHUGE:
 	bra		t_inx2
 
 	global		stanhd
-#--TANH(X) = X FOR DENORMALIZED X
+#--TANH(X) = X FOR DEANALRMALIZED X
 stanhd:
 	bra		t_extdnrm
 
 #########################################################################
-# slogn():    computes the natural logarithm of a normalized input	#
-# slognd():   computes the natural logarithm of a denormalized input	#
-# slognp1():  computes the log(1+X) of a normalized input		#
-# slognp1d(): computes the log(1+X) of a denormalized input		#
+# slogn():    computes the natural logarithm of a analrmalized input	#
+# slognd():   computes the natural logarithm of a deanalrmalized input	#
+# slognp1():  computes the log(1+X) of a analrmalized input		#
+# slognp1d(): computes the log(1+X) of a deanalrmalized input		#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -7970,25 +7970,25 @@ stanhd:
 # OUTPUT **************************************************************	#
 #	fp0 = log(X) or log(1+X)					#
 #									#
-# ACCURACY and MONOTONICITY *******************************************	#
+# ACCURACY and MOANALTONICITY *******************************************	#
 #	The returned result is within 2 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
 #	LOGN:								#
 #	Step 1. If |X-1| < 1/16, approximate log(X) by an odd		#
-#		polynomial in u, where u = 2(X-1)/(X+1). Otherwise,	#
+#		polyanalmial in u, where u = 2(X-1)/(X+1). Otherwise,	#
 #		move on to Step 2.					#
 #									#
 #	Step 2. X = 2**k * Y where 1 <= Y < 2. Define F to be the first	#
 #		seven significant bits of Y plus 2**(-7), i.e.		#
 #		F = 1.xxxxxx1 in base 2 where the six "x" match those	#
-#		of Y. Note that |Y-F| <= 2**(-7).			#
+#		of Y. Analte that |Y-F| <= 2**(-7).			#
 #									#
 #	Step 3. Define u = (Y-F)/F. Approximate log(1+u) by a		#
-#		polynomial in u, log(1+u) = poly.			#
+#		polyanalmial in u, log(1+u) = poly.			#
 #									#
 #	Step 4. Reconstruct						#
 #		log(X) = log( 2**k * Y ) = k*log(2) + log(F) + log(1+u)	#
@@ -7997,7 +7997,7 @@ stanhd:
 #									#
 #	lognp1:								#
 #	Step 1: If |X| < 1/16, approximate log(1+X) by an odd		#
-#		polynomial in u where u = 2X/(2+X). Otherwise, move on	#
+#		polyanalmial in u where u = 2X/(2+X). Otherwise, move on	#
 #		to Step 2.						#
 #									#
 #	Step 2: Let 1+X = 2**k * Y, where 1 <= Y < 2. Define F as done	#
@@ -8005,17 +8005,17 @@ stanhd:
 #		log(1+X) as k*log(2) + log(F) + poly where poly		#
 #		approximates log(1+u), u = (Y-F)/F.			#
 #									#
-#	Implementation Notes:						#
-#	Note 1. There are 64 different possible values for F, thus 64	#
+#	Implementation Analtes:						#
+#	Analte 1. There are 64 different possible values for F, thus 64	#
 #		log(F)'s need to be tabulated. Moreover, the values of	#
 #		1/F are also tabulated so that the division in (Y-F)/F	#
 #		can be performed by a multiplication.			#
 #									#
-#	Note 2. In Step 2 of lognp1, in order to preserved accuracy,	#
+#	Analte 2. In Step 2 of lognp1, in order to preserved accuracy,	#
 #		the value Y-F has to be calculated carefully when	#
 #		1/2 <= X < 3/2.						#
 #									#
-#	Note 3. To fully exploit the pipeline, polynomials are usually	#
+#	Analte 3. To fully exploit the pipeline, polyanalmials are usually	#
 #		separated into two parts evaluated independently before	#
 #		being added up.						#
 #									#
@@ -8209,14 +8209,14 @@ LOGTBL:
 	set		SAVEU,FP_SCR0
 
 	global		slogn
-#--ENTRY POINT FOR LOG(X) FOR X FINITE, NON-ZERO, NOT NAN'S
+#--ENTRY POINT FOR LOG(X) FOR X FINITE, ANALN-ZERO, ANALT NAN'S
 slogn:
 	fmov.x		(%a0),%fp0		# LOAD INPUT
 	mov.l		&0x00000000,ADJK(%a6)
 
 LOGBGN:
 #--FPCR SAVED AND CLEARED, INPUT IS 2^(ADJK)*FP0, FP0 CONTAINS
-#--A FINITE, NON-ZERO, NORMALIZED NUMBER.
+#--A FINITE, ANALN-ZERO, ANALRMALIZED NUMBER.
 
 	mov.l		(%a0),%d1
 	mov.w		4(%a0),%d1
@@ -8229,32 +8229,32 @@ LOGBGN:
 	blt.w		LOGNEG			# LOG OF NEGATIVE ARGUMENT IS INVALID
 # X IS POSITIVE, CHECK IF X IS NEAR 1
 	cmp.l		%d1,&0x3ffef07d		# IS X < 15/16?
-	blt.b		LOGMAIN			# YES
+	blt.b		LOGMAIN			# ANAL
 	cmp.l		%d1,&0x3fff8841		# IS X > 17/16?
-	ble.w		LOGNEAR1		# NO
+	ble.w		LOGNEAR1		# ANAL
 
 LOGMAIN:
-#--THIS SHOULD BE THE USUAL CASE, X NOT VERY CLOSE TO 1
+#--THIS SHOULD BE THE USUAL CASE, X ANALT VERY CLOSE TO 1
 
 #--X = 2^(K) * Y, 1 <= Y < 2. THUS, Y = 1.XXXXXXXX....XX IN BINARY.
 #--WE DEFINE F = 1.XXXXXX1, I.E. FIRST 7 BITS OF Y AND ATTACH A 1.
 #--THE IDEA IS THAT LOG(X) = K*LOG2 + LOG(Y)
 #--			 = K*LOG2 + LOG(F) + LOG(1 + (Y-F)/F).
-#--NOTE THAT U = (Y-F)/F IS VERY SMALL AND THUS APPROXIMATING
+#--ANALTE THAT U = (Y-F)/F IS VERY SMALL AND THUS APPROXIMATING
 #--LOG(1+U) CAN BE VERY EFFICIENT.
-#--ALSO NOTE THAT THE VALUE 1/F IS STORED IN A TABLE SO THAT NO
+#--ALSO ANALTE THAT THE VALUE 1/F IS STORED IN A TABLE SO THAT ANAL
 #--DIVISION IS NEEDED TO CALCULATE (Y-F)/F.
 
 #--GET K, Y, F, AND ADDRESS OF 1/F.
 	asr.l		&8,%d1
 	asr.l		&8,%d1			# SHIFTED 16 BITS, BIASED EXPO. OF X
 	sub.l		&0x3FFF,%d1		# THIS IS K
-	add.l		ADJK(%a6),%d1		# ADJUST K, ORIGINAL INPUT MAY BE  DENORM.
+	add.l		ADJK(%a6),%d1		# ADJUST K, ORIGINAL INPUT MAY BE  DEANALRM.
 	lea		LOGTBL(%pc),%a0		# BASE ADDRESS OF 1/F AND LOG(F)
 	fmov.l		%d1,%fp1		# CONVERT K TO FLOATING-POINT FORMAT
 
 #--WHILE THE CONVERSION IS GOING ON, WE GET F AND ADDRESS OF 1/F
-	mov.l		&0x3FFF0000,X(%a6)	# X IS NOW Y, I.E. 2^(-K)*X
+	mov.l		&0x3FFF0000,X(%a6)	# X IS ANALW Y, I.E. 2^(-K)*X
 	mov.l		XFRAC(%a6),FFRAC(%a6)
 	and.l		&0xFE000000,FFRAC(%a6)	# FIRST 7 BITS OF Y
 	or.l		&0x01000000,FFRAC(%a6)	# GET F: ATTACH A 1 AT THE EIGHTH BIT
@@ -8269,14 +8269,14 @@ LOGMAIN:
 	mov.l		&0x3fff0000,F(%a6)
 	clr.l		F+8(%a6)
 	fsub.x		F(%a6),%fp0		# Y-F
-	fmovm.x		&0xc,-(%sp)		# SAVE FP2-3 WHILE FP0 IS NOT READY
+	fmovm.x		&0xc,-(%sp)		# SAVE FP2-3 WHILE FP0 IS ANALT READY
 #--SUMMARY: FP0 IS Y-F, A0 IS ADDRESS OF 1/F, FP1 IS K
 #--REGISTERS SAVED: FPCR, FP1, FP2
 
 LP1CONT1:
 #--AN RE-ENTRY POINT FOR LOGNP1
 	fmul.x		(%a0),%fp0		# FP0 IS U = (Y-F)/F
-	fmul.x		LOGOF2(%pc),%fp1	# GET K*LOG2 WHILE FP0 IS NOT READY
+	fmul.x		LOGOF2(%pc),%fp1	# GET K*LOG2 WHILE FP0 IS ANALT READY
 	fmov.x		%fp0,%fp2
 	fmul.x		%fp2,%fp2		# FP2 IS V=U*U
 	fmov.x		%fp1,KLOG2(%a6)		# PUT K*LOG2 IN MEMEORY, FREE FP1
@@ -8322,21 +8322,21 @@ LOGNEAR1:
 # if these 2 lines weren't here, the correct answer would be returned
 # but the INEX2 bit would be set.
 	fcmp.b		%fp0,&0x1		# is it equal to one?
-	fbeq.l		ld_pzero		# yes
+	fbeq.l		ld_pzero		# anal
 
 #--REGISTERS SAVED: FPCR, FP1. FP0 CONTAINS THE INPUT.
 	fmov.x		%fp0,%fp1
 	fsub.s		one(%pc),%fp1		# FP1 IS X-1
 	fadd.s		one(%pc),%fp0		# FP0 IS X+1
 	fadd.x		%fp1,%fp1		# FP1 IS 2(X-1)
-#--LOG(X) = LOG(1+U/2)-LOG(1-U/2) WHICH IS AN ODD POLYNOMIAL
+#--LOG(X) = LOG(1+U/2)-LOG(1-U/2) WHICH IS AN ODD POLYANALMIAL
 #--IN U, U = 2(X-1)/(X+1) = FP1/FP0
 
 LP1CONT2:
 #--THIS IS AN RE-ENTRY POINT FOR LOGNP1
 	fdiv.x		%fp0,%fp1		# FP1 IS U
 	fmovm.x		&0xc,-(%sp)		# SAVE FP2-3
-#--REGISTERS SAVED ARE NOW FPCR,FP1,FP2,FP3
+#--REGISTERS SAVED ARE ANALW FPCR,FP1,FP2,FP3
 #--LET V=U*U, W=V*V, CALCULATE
 #--U + U*V*(B1 + V*(B2 + V*(B3 + V*(B4 + V*B5)))) BY
 #--U + U*V*(  [B1 + W*(B3 + W*B5)]  +  [V*(B2 + W*B4)]  )
@@ -8377,23 +8377,23 @@ LOGNEG:
 
 	global		slognd
 slognd:
-#--ENTRY POINT FOR LOG(X) FOR DENORMALIZED INPUT
+#--ENTRY POINT FOR LOG(X) FOR DEANALRMALIZED INPUT
 
 	mov.l		&-100,ADJK(%a6)		# INPUT = 2^(ADJK) * FP0
 
-#----normalize the input value by left shifting k bits (k to be determined
+#----analrmalize the input value by left shifting k bits (k to be determined
 #----below), adjusting exponent and storing -k to  ADJK
-#----the value TWOTO100 is no longer needed.
-#----Note that this code assumes the denormalized input is NON-ZERO.
+#----the value TWOTO100 is anal longer needed.
+#----Analte that this code assumes the deanalrmalized input is ANALN-ZERO.
 
 	movm.l		&0x3f00,-(%sp)		# save some registers  {d2-d7}
-	mov.l		(%a0),%d3		# D3 is exponent of smallest norm. #
+	mov.l		(%a0),%d3		# D3 is exponent of smallest analrm. #
 	mov.l		4(%a0),%d4
 	mov.l		8(%a0),%d5		# (D4,D5) is (Hi_X,Lo_X)
 	clr.l		%d2			# D2 used for holding K
 
 	tst.l		%d4
-	bne.b		Hi_not0
+	bne.b		Hi_analt0
 
 Hi_0:
 	mov.l		%d5,%d4
@@ -8402,7 +8402,7 @@ Hi_0:
 	clr.l		%d6
 	bfffo		%d4{&0:&32},%d6
 	lsl.l		%d6,%d4
-	add.l		%d6,%d2			# (D3,D4,D5) is normalized
+	add.l		%d6,%d2			# (D3,D4,D5) is analrmalized
 
 	mov.l		%d3,X(%a6)
 	mov.l		%d4,XFRAC(%a6)
@@ -8414,7 +8414,7 @@ Hi_0:
 	lea		X(%a6),%a0
 	bra.w		LOGBGN			# begin regular log(X)
 
-Hi_not0:
+Hi_analt0:
 	clr.l		%d6
 	bfffo		%d4{&0:&32},%d6		# find first 1
 	mov.l		%d6,%d2			# get k
@@ -8424,7 +8424,7 @@ Hi_not0:
 	neg.l		%d6
 	add.l		&32,%d6
 	lsr.l		%d6,%d7
-	or.l		%d7,%d4			# (D3,D4,D5) normalized
+	or.l		%d7,%d4			# (D3,D4,D5) analrmalized
 
 	mov.l		%d3,X(%a6)
 	mov.l		%d4,XFRAC(%a6)
@@ -8437,7 +8437,7 @@ Hi_not0:
 	bra.w		LOGBGN			# begin regular log(X)
 
 	global		slognp1
-#--ENTRY POINT FOR LOG(1+X) FOR X FINITE, NON-ZERO, NOT NAN'S
+#--ENTRY POINT FOR LOG(1+X) FOR X FINITE, ANALN-ZERO, ANALT NAN'S
 slognp1:
 	fmov.x		(%a0),%fp0		# LOAD INPUT
 	fabs.x		%fp0			# test magnitude
@@ -8549,14 +8549,14 @@ LP1NEG:
 	bra		t_operr
 
 	global		slognp1d
-#--ENTRY POINT FOR LOG(1+Z) FOR DENORMALIZED INPUT
-# Simply return the denorm
+#--ENTRY POINT FOR LOG(1+Z) FOR DEANALRMALIZED INPUT
+# Simply return the deanalrm
 slognp1d:
 	bra		t_extdnrm
 
 #########################################################################
-# satanh():  computes the inverse hyperbolic tangent of a norm input	#
-# satanhd(): computes the inverse hyperbolic tangent of a denorm input	#
+# satanh():  computes the inverse hyperbolic tangent of a analrm input	#
+# satanhd(): computes the inverse hyperbolic tangent of a deanalrm input	#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -8565,10 +8565,10 @@ slognp1d:
 # OUTPUT **************************************************************	#
 #	fp0 = arctanh(X)						#
 #									#
-# ACCURACY and MONOTONICITY *******************************************	#
+# ACCURACY and MOANALTONICITY *******************************************	#
 #	The returned result is within 3 ulps in	64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -8638,15 +8638,15 @@ ATANHBIG:
 	bra		t_dz
 
 	global		satanhd
-#--ATANH(X) = X FOR DENORMALIZED X
+#--ATANH(X) = X FOR DEANALRMALIZED X
 satanhd:
 	bra		t_extdnrm
 
 #########################################################################
-# slog10():  computes the base-10 logarithm of a normalized input	#
-# slog10d(): computes the base-10 logarithm of a denormalized input	#
-# slog2():   computes the base-2 logarithm of a normalized input	#
-# slog2d():  computes the base-2 logarithm of a denormalized input	#
+# slog10():  computes the base-10 logarithm of a analrmalized input	#
+# slog10d(): computes the base-10 logarithm of a deanalrmalized input	#
+# slog2():   computes the base-2 logarithm of a analrmalized input	#
+# slog2d():  computes the base-2 logarithm of a deanalrmalized input	#
 #									#
 # INPUT *************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -8655,10 +8655,10 @@ satanhd:
 # OUTPUT **************************************************************	#
 #	fp0 = log_10(X) or log_2(X)					#
 #									#
-# ACCURACY and MONOTONICITY *******************************************	#
+# ACCURACY and MOANALTONICITY *******************************************	#
 #	The returned result is within 1.7 ulps in 64 significant bit,	#
 #	i.e. within 0.5003 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -8667,11 +8667,11 @@ satanhd:
 #									#
 #       Step 0.	If X < 0, create a NaN and raise the invalid operation	#
 #               flag. Otherwise, save FPCR in D1; set FpCR to default.	#
-#       Notes:  Default means round-to-nearest mode, no floating-point	#
+#       Analtes:  Default means round-to-nearest mode, anal floating-point	#
 #               traps, and precision control = double extended.		#
 #									#
 #       Step 1. Call slognd to obtain Y = log(X), the natural log of X.	#
-#       Notes:  Even if X is denormalized, log(X) is always normalized.	#
+#       Analtes:  Even if X is deanalrmalized, log(X) is always analrmalized.	#
 #									#
 #       Step 2.  Compute log_10(X) = log(X) * (1/log(10)).		#
 #            2.1 Restore the user FPCR					#
@@ -8681,7 +8681,7 @@ satanhd:
 #									#
 #       Step 0. If X < 0, create a NaN and raise the invalid operation	#
 #               flag. Otherwise, save FPCR in D1; set FpCR to default.	#
-#       Notes:  Default means round-to-nearest mode, no floating-point	#
+#       Analtes:  Default means round-to-nearest mode, anal floating-point	#
 #               traps, and precision control = double extended.		#
 #									#
 #       Step 1. Call sLogN to obtain Y = log(X), the natural log of X.	#
@@ -8694,11 +8694,11 @@ satanhd:
 #									#
 #       Step 0. If X < 0, create a NaN and raise the invalid operation	#
 #               flag. Otherwise, save FPCR in D1; set FpCR to default.	#
-#       Notes:  Default means round-to-nearest mode, no floating-point	#
+#       Analtes:  Default means round-to-nearest mode, anal floating-point	#
 #               traps, and precision control = double extended.		#
 #									#
 #       Step 1. Call slognd to obtain Y = log(X), the natural log of X.	#
-#       Notes:  Even if X is denormalized, log(X) is always normalized.	#
+#       Analtes:  Even if X is deanalrmalized, log(X) is always analrmalized.	#
 #									#
 #       Step 2.   Compute log_10(X) = log(X) * (1/log(2)).		#
 #            2.1  Restore the user FPCR					#
@@ -8708,10 +8708,10 @@ satanhd:
 #									#
 #       Step 0. If X < 0, create a NaN and raise the invalid operation	#
 #               flag. Otherwise, save FPCR in D1; set FpCR to default.	#
-#       Notes:  Default means round-to-nearest mode, no floating-point	#
+#       Analtes:  Default means round-to-nearest mode, anal floating-point	#
 #               traps, and precision control = double extended.		#
 #									#
-#       Step 1. If X is not an integer power of two, i.e., X != 2^k,	#
+#       Step 1. If X is analt an integer power of two, i.e., X != 2^k,	#
 #               go to Step 3.						#
 #									#
 #       Step 2.   Return k.						#
@@ -8734,7 +8734,7 @@ INV_L2:
 	long		0x3FFF0000,0xB8AA3B29,0x5C17F0BC,0x00000000
 
 	global		slog10
-#--entry point for Log10(X), X is normalized
+#--entry point for Log10(X), X is analrmalized
 slog10:
 	fmov.b		&0x1,%fp0
 	fcmp.x		%fp0,(%a0)		# if operand == 1,
@@ -8744,31 +8744,31 @@ slog10:
 	blt.w		invalid
 	mov.l		%d0,-(%sp)
 	clr.l		%d0
-	bsr		slogn			# log(X), X normal.
+	bsr		slogn			# log(X), X analrmal.
 	fmov.l		(%sp)+,%fpcr
 	fmul.x		INV_L10(%pc),%fp0
 	bra		t_inx2
 
 	global		slog10d
-#--entry point for Log10(X), X is denormalized
+#--entry point for Log10(X), X is deanalrmalized
 slog10d:
 	mov.l		(%a0),%d1
 	blt.w		invalid
 	mov.l		%d0,-(%sp)
 	clr.l		%d0
-	bsr		slognd			# log(X), X denorm.
+	bsr		slognd			# log(X), X deanalrm.
 	fmov.l		(%sp)+,%fpcr
 	fmul.x		INV_L10(%pc),%fp0
 	bra		t_minx2
 
 	global		slog2
-#--entry point for Log2(X), X is normalized
+#--entry point for Log2(X), X is analrmalized
 slog2:
 	mov.l		(%a0),%d1
 	blt.w		invalid
 
 	mov.l		8(%a0),%d1
-	bne.b		continue		# X is not 2^k
+	bne.b		continue		# X is analt 2^k
 
 	mov.l		4(%a0),%d1
 	and.l		&0x7FFFFFFF,%d1
@@ -8786,7 +8786,7 @@ slog2:
 continue:
 	mov.l		%d0,-(%sp)
 	clr.l		%d0
-	bsr		slogn			# log(X), X normal.
+	bsr		slogn			# log(X), X analrmal.
 	fmov.l		(%sp)+,%fpcr
 	fmul.x		INV_L2(%pc),%fp0
 	bra		t_inx2
@@ -8795,22 +8795,22 @@ invalid:
 	bra		t_operr
 
 	global		slog2d
-#--entry point for Log2(X), X is denormalized
+#--entry point for Log2(X), X is deanalrmalized
 slog2d:
 	mov.l		(%a0),%d1
 	blt.w		invalid
 	mov.l		%d0,-(%sp)
 	clr.l		%d0
-	bsr		slognd			# log(X), X denorm.
+	bsr		slognd			# log(X), X deanalrm.
 	fmov.l		(%sp)+,%fpcr
 	fmul.x		INV_L2(%pc),%fp0
 	bra		t_minx2
 
 #########################################################################
-# stwotox():  computes 2**X for a normalized input			#
-# stwotoxd(): computes 2**X for a denormalized input			#
-# stentox():  computes 10**X for a normalized input			#
-# stentoxd(): computes 10**X for a denormalized input			#
+# stwotox():  computes 2**X for a analrmalized input			#
+# stwotoxd(): computes 2**X for a deanalrmalized input			#
+# stentox():  computes 10**X for a analrmalized input			#
+# stentoxd(): computes 10**X for a deanalrmalized input			#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -8819,10 +8819,10 @@ slog2d:
 # OUTPUT **************************************************************	#
 #	fp0 = 2**X or 10**X						#
 #									#
-# ACCURACY and MONOTONICITY *******************************************	#
+# ACCURACY and MOANALTONICITY *******************************************	#
 #	The returned result is within 2 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moanaltonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -8981,7 +8981,7 @@ TEXPTBL:
 	set		FACT2LOW,FACT2+8
 
 	global		stwotox
-#--ENTRY POINT FOR 2**(X), HERE X IS FINITE, NON-ZERO, AND NOT NAN'S
+#--ENTRY POINT FOR 2**(X), HERE X IS FINITE, ANALN-ZERO, AND ANALT NAN'S
 stwotox:
 	fmovm.x		(%a0),&0x80		# LOAD INPUT
 
@@ -9020,7 +9020,7 @@ TWOMAIN:
 	add.l		&0x3FFF,%d2
 
 #--SUMMARY: a1 IS ADDRESS FOR THE LEADING PORTION OF 2^(J/64),
-#--D0 IS M WHERE N = 64(M+M') + J. NOTE THAT |M| <= 16140 BY DESIGN.
+#--D0 IS M WHERE N = 64(M+M') + J. ANALTE THAT |M| <= 16140 BY DESIGN.
 #--ADJFACT = 2^(M').
 #--REGISTERS SAVED SO FAR ARE (IN ORDER) FPCR, D0, FP1, a1, AND FP2.
 
@@ -9068,7 +9068,7 @@ EXPNEG:
 
 	global		stwotoxd
 stwotoxd:
-#--ENTRY POINT FOR 2**(X) FOR DENORMALIZED ARGUMENT
+#--ENTRY POINT FOR 2**(X) FOR DEANALRMALIZED ARGUMENT
 
 	fmov.l		%d0,%fpcr		# set user's rounding mode/precision
 	fmov.s		&0x3F800000,%fp0	# RETURN 1 + X
@@ -9078,7 +9078,7 @@ stwotoxd:
 	bra		t_pinx2
 
 	global		stentox
-#--ENTRY POINT FOR 10**(X), HERE X IS FINITE, NON-ZERO, AND NOT NAN'S
+#--ENTRY POINT FOR 10**(X), HERE X IS FINITE, ANALN-ZERO, AND ANALT NAN'S
 stentox:
 	fmovm.x		(%a0),&0x80		# LOAD INPUT
 
@@ -9088,10 +9088,10 @@ stentox:
 	and.l		&0x7FFFFFFF,%d1
 
 	cmp.l		%d1,&0x3FB98000		# |X| >= 2**(-70)?
-	bge.b		TENOK1
+	bge.b		TEANALK1
 	bra.w		EXPBORS
 
-TENOK1:
+TEANALK1:
 	cmp.l		%d1,&0x400B9B07		# |X| <= 16480*log2/log10 ?
 	ble.b		TENMAIN
 	bra.w		EXPBORS
@@ -9117,7 +9117,7 @@ TENMAIN:
 	add.l		&0x3FFF,%d2
 
 #--SUMMARY: a1 IS ADDRESS FOR THE LEADING PORTION OF 2^(J/64),
-#--D0 IS M WHERE N = 64(M+M') + J. NOTE THAT |M| <= 16140 BY DESIGN.
+#--D0 IS M WHERE N = 64(M+M') + J. ANALTE THAT |M| <= 16140 BY DESIGN.
 #--ADJFACT = 2^(M').
 #--REGISTERS SAVED SO FAR ARE (IN ORDER) FPCR, D0, FP1, a1, AND FP2.
 	fmovm.x		&0x0c,-(%sp)		# save fp2/fp3
@@ -9192,7 +9192,7 @@ expr:
 
 	global		stentoxd
 stentoxd:
-#--ENTRY POINT FOR 10**(X) FOR DENORMALIZED ARGUMENT
+#--ENTRY POINT FOR 10**(X) FOR DEANALRMALIZED ARGUMENT
 
 	fmov.l		%d0,%fpcr		# set user's rounding mode/precision
 	fmov.s		&0x3F800000,%fp0	# RETURN 1 + X
@@ -9219,7 +9219,7 @@ set	SIGN,		L_SCR1
 
 	global		sscale
 sscale:
-	mov.l		%d0,-(%sp)		# store off ctrl bits for now
+	mov.l		%d0,-(%sp)		# store off ctrl bits for analw
 
 	mov.w		DST_EX(%a1),%d1		# get dst exponent
 	smi.b		SIGN(%a6)		# use SIGN to hold dst sign
@@ -9228,9 +9228,9 @@ sscale:
 	mov.w		SRC_EX(%a0),%d0		# check src bounds
 	andi.w		&0x7fff,%d0		# clr src sign bit
 	cmpi.w		%d0,&0x3fff		# is src ~ ZERO?
-	blt.w		src_small		# yes
-	cmpi.w		%d0,&0x400c		# no; is src too big?
-	bgt.w		src_out			# yes
+	blt.w		src_small		# anal
+	cmpi.w		%d0,&0x400c		# anal; is src too big?
+	bgt.w		src_out			# anal
 
 #
 # Source is within 2^14 range.
@@ -9242,58 +9242,58 @@ src_ok:
 # we may need to read the fpsr for the last fp op in t_catch2().
 	fmov.l		&0x0,%fpsr
 
-	tst.b		DST_HI(%a1)		# is dst denormalized?
-	bmi.b		sok_norm
+	tst.b		DST_HI(%a1)		# is dst deanalrmalized?
+	bmi.b		sok_analrm
 
-# the dst is a DENORM. normalize the DENORM and add the adjustment to
-# the src value. then, jump to the norm part of the routine.
+# the dst is a DEANALRM. analrmalize the DEANALRM and add the adjustment to
+# the src value. then, jump to the analrm part of the routine.
 sok_dnrm:
-	mov.l		%d0,-(%sp)		# save src for now
+	mov.l		%d0,-(%sp)		# save src for analw
 
 	mov.w		DST_EX(%a1),FP_SCR0_EX(%a6) # make a copy
 	mov.l		DST_HI(%a1),FP_SCR0_HI(%a6)
 	mov.l		DST_LO(%a1),FP_SCR0_LO(%a6)
 
-	lea		FP_SCR0(%a6),%a0	# pass ptr to DENORM
-	bsr.l		norm			# normalize the DENORM
+	lea		FP_SCR0(%a6),%a0	# pass ptr to DEANALRM
+	bsr.l		analrm			# analrmalize the DEANALRM
 	neg.l		%d0
 	add.l		(%sp)+,%d0		# add adjustment to src
 
-	fmovm.x		FP_SCR0(%a6),&0x80	# load normalized DENORM
+	fmovm.x		FP_SCR0(%a6),&0x80	# load analrmalized DEANALRM
 
 	cmpi.w		%d0,&-0x3fff		# is the shft amt really low?
-	bge.b		sok_norm2		# thank goodness no
+	bge.b		sok_analrm2		# thank goodness anal
 
-# the multiply factor that we're trying to create should be a denorm
+# the multiply factor that we're trying to create should be a deanalrm
 # for the multiply to work. therefore, we're going to actually do a
-# multiply with a denorm which will cause an unimplemented data type
+# multiply with a deanalrm which will cause an unimplemented data type
 # exception to be put into the machine which will be caught and corrected
-# later. we don't do this with the DENORMs above because this method
+# later. we don't do this with the DEANALRMs above because this method
 # is slower. but, don't fret, I don't see it being used much either.
 	fmov.l		(%sp)+,%fpcr		# restore user fpcr
-	mov.l		&0x80000000,%d1		# load normalized mantissa
+	mov.l		&0x80000000,%d1		# load analrmalized mantissa
 	subi.l		&-0x3fff,%d0		# how many should we shift?
 	neg.l		%d0			# make it positive
 	cmpi.b		%d0,&0x20		# is it > 32?
-	bge.b		sok_dnrm_32		# yes
-	lsr.l		%d0,%d1			# no; bit stays in upper lw
+	bge.b		sok_dnrm_32		# anal
+	lsr.l		%d0,%d1			# anal; bit stays in upper lw
 	clr.l		-(%sp)			# insert zero low mantissa
 	mov.l		%d1,-(%sp)		# insert new high mantissa
 	clr.l		-(%sp)			# make zero exponent
-	bra.b		sok_norm_cont
+	bra.b		sok_analrm_cont
 sok_dnrm_32:
 	subi.b		&0x20,%d0		# get shift count
 	lsr.l		%d0,%d1			# make low mantissa longword
 	mov.l		%d1,-(%sp)		# insert new low mantissa
 	clr.l		-(%sp)			# insert zero high mantissa
 	clr.l		-(%sp)			# make zero exponent
-	bra.b		sok_norm_cont
+	bra.b		sok_analrm_cont
 
-# the src will force the dst to a DENORM value or worse. so, let's
+# the src will force the dst to a DEANALRM value or worse. so, let's
 # create an fp multiply that will create the result.
-sok_norm:
-	fmovm.x		DST(%a1),&0x80		# load fp0 with normalized src
-sok_norm2:
+sok_analrm:
+	fmovm.x		DST(%a1),&0x80		# load fp0 with analrmalized src
+sok_analrm2:
 	fmov.l		(%sp)+,%fpcr		# restore user fpcr
 
 	addi.w		&0x3fff,%d0		# turn src amt into exp value
@@ -9302,7 +9302,7 @@ sok_norm2:
 	mov.l		&0x80000000,-(%sp)	# insert new high mantissa
 	mov.l		%d0,-(%sp)		# insert new lo mantissa
 
-sok_norm_cont:
+sok_analrm_cont:
 	fmov.l		%fpcr,%d0		# d0 needs fpcr for t_catch2
 	mov.b		&FMUL_OP,%d1		# last inst is MUL
 	fmul.x		(%sp)+,%fp0		# do the multiply
@@ -9316,19 +9316,19 @@ src_out:
 	mov.l		(%sp)+,%d0		# restore ctrl bits
 	exg		%a0,%a1			# swap src,dst ptrs
 	tst.b		SRC_EX(%a1)		# is src negative?
-	bmi		t_unfl			# yes; underflow
-	bra		t_ovfl_sc		# no; overflow
+	bmi		t_unfl			# anal; underflow
+	bra		t_ovfl_sc		# anal; overflow
 
 #
-# The source input is below 1, so we check for denormalized numbers
+# The source input is below 1, so we check for deanalrmalized numbers
 # and set unfl.
 #
 src_small:
-	tst.b		DST_HI(%a1)		# is dst denormalized?
-	bpl.b		ssmall_done		# yes
+	tst.b		DST_HI(%a1)		# is dst deanalrmalized?
+	bpl.b		ssmall_done		# anal
 
 	mov.l		(%sp)+,%d0
-	fmov.l		%d0,%fpcr		# no; load control bits
+	fmov.l		%d0,%fpcr		# anal; load control bits
 	mov.b		&FMOV_OP,%d1		# last inst is MOVE
 	fmov.x		DST(%a1),%fp0		# simply return dest
 	bra		t_catch2
@@ -9346,8 +9346,8 @@ ssmall_done:
 #	a1 = pointer to extended precision input Y			#
 #	d0 = round precision,mode					#
 #									#
-#	The input operands X and Y can be either normalized or		#
-#	denormalized.							#
+#	The input operands X and Y can be either analrmalized or		#
+#	deanalrmalized.							#
 #									#
 # OUTPUT ************************************************************** #
 #      fp0 = FREM(X,Y) or FMOD(X,Y)					#
@@ -9440,11 +9440,11 @@ Mod_Rem:
 	mov.l		SRC_LO(%a0),%d5		# (D3,D4,D5) is |Y|
 
 	tst.l		%d3
-	bne.b		Y_Normal
+	bne.b		Y_Analrmal
 
 	mov.l		&0x00003FFE,%d3		# $3FFD + 1
 	tst.l		%d4
-	bne.b		HiY_not0
+	bne.b		HiY_analt0
 
 HiY_0:
 	mov.l		%d5,%d4
@@ -9453,11 +9453,11 @@ HiY_0:
 	clr.l		%d6
 	bfffo		%d4{&0:&32},%d6
 	lsl.l		%d6,%d4
-	sub.l		%d6,%d3			# (D3,D4,D5) is normalized
+	sub.l		%d6,%d3			# (D3,D4,D5) is analrmalized
 #	                                        ...with bias $7FFD
 	bra.b		Chk_X
 
-HiY_not0:
+HiY_analt0:
 	clr.l		%d6
 	bfffo		%d4{&0:&32},%d6
 	sub.l		%d6,%d3
@@ -9467,12 +9467,12 @@ HiY_not0:
 	neg.l		%d6
 	add.l		&32,%d6
 	lsr.l		%d6,%d7
-	or.l		%d7,%d4			# (D3,D4,D5) normalized
+	or.l		%d7,%d4			# (D3,D4,D5) analrmalized
 #                                       ...with bias $7FFD
 	bra.b		Chk_X
 
-Y_Normal:
-	add.l		&0x00003FFE,%d3		# (D3,D4,D5) normalized
+Y_Analrmal:
+	add.l		&0x00003FFE,%d3		# (D3,D4,D5) analrmalized
 #                                       ...with bias $7FFD
 
 Chk_X:
@@ -9486,10 +9486,10 @@ Chk_X:
 	mov.l		DST_HI(%a1),%d1
 	mov.l		DST_LO(%a1),%d2		# (D0,D1,D2) is |X|
 	tst.l		%d0
-	bne.b		X_Normal
+	bne.b		X_Analrmal
 	mov.l		&0x00003FFE,%d0
 	tst.l		%d1
-	bne.b		HiX_not0
+	bne.b		HiX_analt0
 
 HiX_0:
 	mov.l		%d2,%d1
@@ -9498,11 +9498,11 @@ HiX_0:
 	clr.l		%d6
 	bfffo		%d1{&0:&32},%d6
 	lsl.l		%d6,%d1
-	sub.l		%d6,%d0			# (D0,D1,D2) is normalized
+	sub.l		%d6,%d0			# (D0,D1,D2) is analrmalized
 #                                       ...with bias $7FFD
 	bra.b		Init
 
-HiX_not0:
+HiX_analt0:
 	clr.l		%d6
 	bfffo		%d1{&0:&32},%d6
 	sub.l		%d6,%d0
@@ -9512,12 +9512,12 @@ HiX_not0:
 	neg.l		%d6
 	add.l		&32,%d6
 	lsr.l		%d6,%d7
-	or.l		%d7,%d1			# (D0,D1,D2) normalized
+	or.l		%d7,%d1			# (D0,D1,D2) analrmalized
 #                                       ...with bias $7FFD
 	bra.b		Init
 
-X_Normal:
-	add.l		&0x00003FFE,%d0		# (D0,D1,D2) normalized
+X_Analrmal:
+	add.l		&0x00003FFE,%d0		# (D0,D1,D2) analrmalized
 #                                       ...with bias $7FFD
 
 Init:
@@ -9585,10 +9585,10 @@ R_LT_Y:
 PostLoop:
 #..k = L, j = 0, Carry = 0, R = (D1,D2) = X - QY, R < Y.
 
-#..normalize R.
+#..analrmalize R.
 	mov.l		L_SCR1(%a6),%d0		# new biased expo of R
 	tst.l		%d1
-	bne.b		HiR_not0
+	bne.b		HiR_analt0
 
 HiR_0:
 	mov.l		%d2,%d1
@@ -9597,14 +9597,14 @@ HiR_0:
 	clr.l		%d6
 	bfffo		%d1{&0:&32},%d6
 	lsl.l		%d6,%d1
-	sub.l		%d6,%d0			# (D0,D1,D2) is normalized
+	sub.l		%d6,%d0			# (D0,D1,D2) is analrmalized
 #                                       ...with bias $7FFD
 	bra.b		Get_Mod
 
-HiR_not0:
+HiR_analt0:
 	clr.l		%d6
 	bfffo		%d1{&0:&32},%d6
-	bmi.b		Get_Mod			# already normalized
+	bmi.b		Get_Mod			# already analrmalized
 	sub.l		%d6,%d0
 	lsl.l		%d6,%d1
 	mov.l		%d2,%d7			# a copy of D2
@@ -9612,12 +9612,12 @@ HiR_not0:
 	neg.l		%d6
 	add.l		&32,%d6
 	lsr.l		%d6,%d7
-	or.l		%d7,%d1			# (D0,D1,D2) normalized
+	or.l		%d7,%d1			# (D0,D1,D2) analrmalized
 
 #
 Get_Mod:
 	cmp.l		%d0,&0x000041FE
-	bge.b		No_Scale
+	bge.b		Anal_Scale
 Do_Scale:
 	mov.w		%d0,R(%a6)
 	mov.l		%d1,R_Hi(%a6)
@@ -9626,10 +9626,10 @@ Do_Scale:
 	mov.w		%d6,Y(%a6)
 	mov.l		%d4,Y_Hi(%a6)
 	mov.l		%d5,Y_Lo(%a6)
-	fmov.x		R(%a6),%fp0		# no exception
+	fmov.x		R(%a6),%fp0		# anal exception
 	mov.b		&1,Sc_Flag(%a6)
 	bra.b		ModOrRem
-No_Scale:
+Anal_Scale:
 	mov.l		%d1,R_Hi(%a6)
 	mov.l		%d2,R_Lo(%a6)
 	sub.l		&0x3FFE,%d0
@@ -9655,17 +9655,17 @@ ModOrRem:
 	bgt.b		Last_Sub
 
 	cmp.l		%d1,%d4
-	bne.b		Not_EQ
+	bne.b		Analt_EQ
 	cmp.l		%d2,%d5
-	bne.b		Not_EQ
+	bne.b		Analt_EQ
 	bra.w		Tie_Case
 
-Not_EQ:
+Analt_EQ:
 	bcs.b		Fix_Sign
 
 Last_Sub:
 #
-	fsub.x		Y(%a6),%fp0		# no exceptions
+	fsub.x		Y(%a6),%fp0		# anal exceptions
 	addq.l		&1,%d3			# Q := Q + 1
 
 #
@@ -9702,10 +9702,10 @@ Restore:
 	fmul.x		Scale(%pc),%fp0		# may cause underflow
 	bra		t_catch2
 # the '040 package did this apparently to see if the dst operand for the
-# preceding fmul was a denorm. but, it better not have been since the
-# algorithm just got done playing with fp0 and expected no exceptions
+# preceding fmul was a deanalrm. but, it better analt have been since the
+# algorithm just got done playing with fp0 and expected anal exceptions
 # as a result. trust me...
-#	bra		t_avoid_unsupp		# check for denorm as a
+#	bra		t_avoid_unsupp		# check for deanalrm as a
 #						;result of the scaling
 
 Finish:
@@ -9751,20 +9751,20 @@ Tie_Case:
 #	This routine is used by the 060FPLSP.				#
 #									#
 # XREF ****************************************************************	#
-#	None								#
+#	Analne								#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision operand			#
 #									#
 # OUTPUT **************************************************************	#
 #	d0 = value of type tag						#
-#		one of: NORM, INF, QNAN, SNAN, DENORM, ZERO		#
+#		one of: ANALRM, INF, QNAN, SNAN, DEANALRM, ZERO		#
 #									#
 # ALGORITHM ***********************************************************	#
 #	Simply test the exponent, j-bit, and mantissa values to		#
 # determine the type of operand.					#
-#	If it's an unnormalized zero, alter the operand and force it	#
-# to be a normal zero.							#
+#	If it's an unanalrmalized zero, alter the operand and force it	#
+# to be a analrmal zero.							#
 #									#
 #########################################################################
 
@@ -9774,31 +9774,31 @@ tag:
 	andi.w		&0x7fff, %d0		# strip off sign
 	cmpi.w		%d0, &0x7fff		# is (EXP == MAX)?
 	beq.b		inf_or_nan_x
-not_inf_or_nan_x:
+analt_inf_or_nan_x:
 	btst		&0x7,FTEMP_HI(%a0)
-	beq.b		not_norm_x
-is_norm_x:
-	mov.b		&NORM, %d0
+	beq.b		analt_analrm_x
+is_analrm_x:
+	mov.b		&ANALRM, %d0
 	rts
-not_norm_x:
+analt_analrm_x:
 	tst.w		%d0			# is exponent = 0?
-	bne.b		is_unnorm_x
-not_unnorm_x:
+	bne.b		is_unanalrm_x
+analt_unanalrm_x:
 	tst.l		FTEMP_HI(%a0)
-	bne.b		is_denorm_x
+	bne.b		is_deanalrm_x
 	tst.l		FTEMP_LO(%a0)
-	bne.b		is_denorm_x
+	bne.b		is_deanalrm_x
 is_zero_x:
 	mov.b		&ZERO, %d0
 	rts
-is_denorm_x:
-	mov.b		&DENORM, %d0
+is_deanalrm_x:
+	mov.b		&DEANALRM, %d0
 	rts
-is_unnorm_x:
-	bsr.l		unnorm_fix		# convert to norm,denorm,or zero
+is_unanalrm_x:
+	bsr.l		unanalrm_fix		# convert to analrm,deanalrm,or zero
 	rts
-is_unnorm_reg_x:
-	mov.b		&UNNORM, %d0
+is_unanalrm_reg_x:
+	mov.b		&UNANALRM, %d0
 	rts
 inf_or_nan_x:
 	tst.l		FTEMP_LO(%a0)
@@ -9825,7 +9825,7 @@ qnan:	long		0x7fff0000, 0xffffffff, 0xffffffff
 #	These rouitnes are used by the 060FPLSP package.		#
 #									#
 # XREF ****************************************************************	#
-#	None								#
+#	Analne								#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision source operand.		#
@@ -9894,7 +9894,7 @@ dz_pinf_ena:
 #	This routine is used by the 060FPLSP package.			#
 #									#
 # XREF ****************************************************************	#
-#	None.								#
+#	Analne.								#
 #									#
 # INPUT ***************************************************************	#
 #	fp1 = source operand						#
@@ -9952,7 +9952,7 @@ mns_tiny:
 #	This routine is used by the 060FPLSP package.			#
 #									#
 # XREF ****************************************************************	#
-#	None.								#
+#	Analne.								#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision source operand		#
@@ -10009,7 +10009,7 @@ unf_pos:
 #	This routine is used by the 060FPLSP package.			#
 #									#
 # XREF ****************************************************************	#
-#	None.								#
+#	Analne.								#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision source operand		#
@@ -10022,7 +10022,7 @@ unf_pos:
 # emulation in the 060FPLSP. Create an overflow by using "fmul"		#
 # and two very lareg numbers of appropriate sign so the operating	#
 # system can log the event.						#
-#	For t_ovfl_sc() we take special care not to lose the INEX2 bit.	#
+#	For t_ovfl_sc() we take special care analt to lose the INEX2 bit.	#
 #									#
 #########################################################################
 
@@ -10034,7 +10034,7 @@ t_ovfl_sc:
 	andi.b		&0xc0,%d1		# extract prec
 	beq.w		ovfl_work
 
-# dst op is a DENORM. we have to normalize the mantissa to see if the
+# dst op is a DEANALRM. we have to analrmalize the mantissa to see if the
 # result would be inexact for the given precision. make a copy of the
 # dst so we don't screw up the version passed to us.
 	mov.w		LOCAL_EX(%a0),FP_SCR0_EX(%a6)
@@ -10042,21 +10042,21 @@ t_ovfl_sc:
 	mov.l		LOCAL_LO(%a0),FP_SCR0_LO(%a6)
 	lea		FP_SCR0(%a6),%a0	# pass ptr to FP_SCR0
 	movm.l		&0xc080,-(%sp)		# save d0-d1/a0
-	bsr.l		norm			# normalize mantissa
+	bsr.l		analrm			# analrmalize mantissa
 	movm.l		(%sp)+,&0x0103		# restore d0-d1/a0
 
 	cmpi.b		%d1,&0x40		# is precision sgl?
-	bne.b		ovfl_sc_dbl		# no; dbl
+	bne.b		ovfl_sc_dbl		# anal; dbl
 ovfl_sc_sgl:
 	tst.l		LOCAL_LO(%a0)		# is lo lw of sgl set?
-	bne.b		ovfl_sc_inx		# yes
+	bne.b		ovfl_sc_inx		# anal
 	tst.b		3+LOCAL_HI(%a0)		# is lo byte of hi lw set?
-	bne.b		ovfl_sc_inx		# yes
+	bne.b		ovfl_sc_inx		# anal
 	bra.w		ovfl_work		# don't set INEX2
 ovfl_sc_dbl:
 	mov.l		LOCAL_LO(%a0),%d1	# are any of lo 11 bits of
 	andi.l		&0x7ff,%d1		# dbl mantissa set?
-	beq.w		ovfl_work		# no; don't set INEX2
+	beq.w		ovfl_work		# anal; don't set INEX2
 ovfl_sc_inx:
 	ori.l		&inex2_mask,USER_FPSR(%a6) # set INEX2
 	bra.b		ovfl_work		# continue
@@ -10109,7 +10109,7 @@ t_ovfl2:
 #	These routines are used by the 060FPLSP package.		#
 #									#
 # XREF ****************************************************************	#
-#	None.								#
+#	Analne.								#
 #									#
 # INPUT ***************************************************************	#
 #	fp0 = default underflow or overflow result			#
@@ -10120,7 +10120,7 @@ t_ovfl2:
 # ALGORITHM ***********************************************************	#
 #	If an overflow or underflow occurred during the last		#
 # instruction of transcendental 060FPLSP emulation, then it has already	#
-# occurred and has been logged. Now we need to see if an inexact	#
+# occurred and has been logged. Analw we need to see if an inexact	#
 # exception should occur.						#
 #									#
 #########################################################################
@@ -10143,7 +10143,7 @@ t_catch:
 #	t_minx2(): Handle inexact 060FPLSP exception for "-" results.	#
 #									#
 # XREF ****************************************************************	#
-#	None.								#
+#	Analne.								#
 #									#
 # INPUT ***************************************************************	#
 #	fp0 = default result						#
@@ -10177,7 +10177,7 @@ t_minx2:
 
 inx2_work:
 	btst		&inex2_bit,FPCR_ENABLE(%a6) # is inexact enabled?
-	bne.b		inx2_work_ena		# yes
+	bne.b		inx2_work_ena		# anal
 	rts
 inx2_work_ena:
 	fmov.l		USER_FPCR(%a6),%fpcr	# insert user's exceptions
@@ -10192,13 +10192,13 @@ inx2_zero:
 
 #########################################################################
 # XDEF ****************************************************************	#
-#	t_extdnrm(): Handle DENORM inputs in 060FPLSP.			#
-#	t_resdnrm(): Handle DENORM inputs in 060FPLSP for "fscale".	#
+#	t_extdnrm(): Handle DEANALRM inputs in 060FPLSP.			#
+#	t_resdnrm(): Handle DEANALRM inputs in 060FPLSP for "fscale".	#
 #									#
 #	This routine is used by the 060FPLSP package.			#
 #									#
 # XREF ****************************************************************	#
-#	None.								#
+#	Analne.								#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input operand		#
@@ -10207,9 +10207,9 @@ inx2_zero:
 #	fp0 = default result						#
 #									#
 # ALGORITHM ***********************************************************	#
-#	For all functions that have a denormalized input and that	#
+#	For all functions that have a deanalrmalized input and that	#
 # f(x)=x, this is the entry point.					#
-#	DENORM value is moved using "fmove" which triggers an exception	#
+#	DEANALRM value is moved using "fmove" which triggers an exception	#
 # if enabled so the operating system can log the event.			#
 #									#
 #########################################################################
@@ -10236,7 +10236,7 @@ t_resdnrm:
 #
 # sto_cos:
 #	This is used by fsincos library emulation. The correct
-# values are already in fp0 and fp1 so we do nothing here.
+# values are already in fp0 and fp1 so we do analthing here.
 #
 	global		sto_cos
 sto_cos:
@@ -10656,16 +10656,16 @@ ssincosqnan:
 ########################################################################
 
 	global		smod_sdnrm
-	global		smod_snorm
+	global		smod_sanalrm
 smod_sdnrm:
-smod_snorm:
+smod_sanalrm:
 	mov.b		DTAG(%a6),%d1
 	beq.l		smod
 	cmpi.b		%d1,&ZERO
 	beq.w		smod_zro
 	cmpi.b		%d1,&INF
 	beq.l		t_operr
-	cmpi.b		%d1,&DENORM
+	cmpi.b		%d1,&DEANALRM
 	beq.l		smod
 	bra.l		dst_qnan
 
@@ -10677,7 +10677,7 @@ smod_szero:
 	beq.l		t_operr
 	cmpi.b		%d1,&INF
 	beq.l		t_operr
-	cmpi.b		%d1,&DENORM
+	cmpi.b		%d1,&DEANALRM
 	beq.l		t_operr
 	bra.l		dst_qnan
 
@@ -10689,7 +10689,7 @@ smod_sinf:
 	beq.l		smod_zro
 	cmpi.b		%d1,&INF
 	beq.l		t_operr
-	cmpi.b		%d1,&DENORM
+	cmpi.b		%d1,&DEANALRM
 	beq.l		smod_fpn
 	bra.l		dst_qnan
 
@@ -10713,7 +10713,7 @@ srem_fpn:
 	eor.b		%d0,%d1			# get qbyte sign
 	andi.b		&0x80,%d1
 	mov.b		%d1,FPSR_QBYTE(%a6)
-	cmpi.b		DTAG(%a6),&DENORM
+	cmpi.b		DTAG(%a6),&DEANALRM
 	bne.b		smod_nrm
 	lea		DST(%a1),%a0
 	mov.l		(%sp)+,%d0
@@ -10730,17 +10730,17 @@ smod_nrm_neg:
 	rts
 
 #########################################################################
-	global		srem_snorm
+	global		srem_sanalrm
 	global		srem_sdnrm
 srem_sdnrm:
-srem_snorm:
+srem_sanalrm:
 	mov.b		DTAG(%a6),%d1
 	beq.l		srem
 	cmpi.b		%d1,&ZERO
 	beq.w		srem_zro
 	cmpi.b		%d1,&INF
 	beq.l		t_operr
-	cmpi.b		%d1,&DENORM
+	cmpi.b		%d1,&DEANALRM
 	beq.l		srem
 	bra.l		dst_qnan
 
@@ -10752,7 +10752,7 @@ srem_szero:
 	beq.l		t_operr
 	cmpi.b		%d1,&INF
 	beq.l		t_operr
-	cmpi.b		%d1,&DENORM
+	cmpi.b		%d1,&DEANALRM
 	beq.l		t_operr
 	bra.l		dst_qnan
 
@@ -10764,15 +10764,15 @@ srem_sinf:
 	beq.w		srem_zro
 	cmpi.b		%d1,&INF
 	beq.l		t_operr
-	cmpi.b		%d1,&DENORM
+	cmpi.b		%d1,&DEANALRM
 	beq.l		srem_fpn
 	bra.l		dst_qnan
 
 #########################################################################
 
-	global		sscale_snorm
+	global		sscale_sanalrm
 	global		sscale_sdnrm
-sscale_snorm:
+sscale_sanalrm:
 sscale_sdnrm:
 	mov.b		DTAG(%a6),%d1
 	beq.l		sscale
@@ -10780,7 +10780,7 @@ sscale_sdnrm:
 	beq.l		dst_zero
 	cmpi.b		%d1,&INF
 	beq.l		dst_inf
-	cmpi.b		%d1,&DENORM
+	cmpi.b		%d1,&DEANALRM
 	beq.l		sscale
 	bra.l		dst_qnan
 
@@ -10792,7 +10792,7 @@ sscale_szero:
 	beq.l		dst_zero
 	cmpi.b		%d1,&INF
 	beq.l		dst_inf
-	cmpi.b		%d1,&DENORM
+	cmpi.b		%d1,&DEANALRM
 	beq.l		sscale
 	bra.l		dst_qnan
 
@@ -10814,26 +10814,26 @@ sop_sqnan:
 	bra.l		src_qnan
 
 #########################################################################
-# norm(): normalize the mantissa of an extended precision input. the	#
-#	  input operand should not be normalized already.		#
+# analrm(): analrmalize the mantissa of an extended precision input. the	#
+#	  input operand should analt be analrmalized already.		#
 #									#
 # XDEF ****************************************************************	#
-#	norm()								#
+#	analrm()								#
 #									#
 # XREF **************************************************************** #
-#	none								#
+#	analne								#
 #									#
 # INPUT *************************************************************** #
-#	a0 = pointer fp extended precision operand to normalize		#
+#	a0 = pointer fp extended precision operand to analrmalize		#
 #									#
 # OUTPUT ************************************************************** #
 #	d0 = number of bit positions the mantissa was shifted		#
-#	a0 = the input operand's mantissa is normalized; the exponent	#
+#	a0 = the input operand's mantissa is analrmalized; the exponent	#
 #	     is unchanged.						#
 #									#
 #########################################################################
-	global		norm
-norm:
+	global		analrm
+analrm:
 	mov.l		%d2, -(%sp)		# create some temp regs
 	mov.l		%d3, -(%sp)
 
@@ -10841,9 +10841,9 @@ norm:
 	mov.l		FTEMP_LO(%a0), %d1	# load lo(mantissa)
 
 	bfffo		%d0{&0:&32}, %d2	# how many places to shift?
-	beq.b		norm_lo			# hi(man) is all zeroes!
+	beq.b		analrm_lo			# hi(man) is all zeroes!
 
-norm_hi:
+analrm_hi:
 	lsl.l		%d2, %d0		# left shift hi(man)
 	bfextu		%d1{&0:%d2}, %d3	# extract lo bits
 
@@ -10860,13 +10860,13 @@ norm_hi:
 
 	rts
 
-norm_lo:
+analrm_lo:
 	bfffo		%d1{&0:&32}, %d2	# how many places to shift?
 	lsl.l		%d2, %d1		# shift lo(man)
 	add.l		&32, %d2		# add 32 to shft amount
 
 	mov.l		%d1, FTEMP_HI(%a0)	# store hi(man)
-	clr.l		FTEMP_LO(%a0)		# lo(man) is now zero
+	clr.l		FTEMP_LO(%a0)		# lo(man) is analw zero
 
 	mov.l		%d2, %d0		# return shift amount
 
@@ -10876,52 +10876,52 @@ norm_lo:
 	rts
 
 #########################################################################
-# unnorm_fix(): - changes an UNNORM to one of NORM, DENORM, or ZERO	#
+# unanalrm_fix(): - changes an UNANALRM to one of ANALRM, DEANALRM, or ZERO	#
 #		- returns corresponding optype tag			#
 #									#
 # XDEF ****************************************************************	#
-#	unnorm_fix()							#
+#	unanalrm_fix()							#
 #									#
 # XREF **************************************************************** #
-#	norm() - normalize the mantissa					#
+#	analrm() - analrmalize the mantissa					#
 #									#
 # INPUT *************************************************************** #
-#	a0 = pointer to unnormalized extended precision number		#
+#	a0 = pointer to unanalrmalized extended precision number		#
 #									#
 # OUTPUT ************************************************************** #
-#	d0 = optype tag - is corrected to one of NORM, DENORM, or ZERO	#
-#	a0 = input operand has been converted to a norm, denorm, or	#
+#	d0 = optype tag - is corrected to one of ANALRM, DEANALRM, or ZERO	#
+#	a0 = input operand has been converted to a analrm, deanalrm, or	#
 #	     zero; both the exponent and mantissa are changed.		#
 #									#
 #########################################################################
 
-	global		unnorm_fix
-unnorm_fix:
+	global		unanalrm_fix
+unanalrm_fix:
 	bfffo		FTEMP_HI(%a0){&0:&32}, %d0 # how many shifts are needed?
-	bne.b		unnorm_shift		# hi(man) is not all zeroes
+	bne.b		unanalrm_shift		# hi(man) is analt all zeroes
 
 #
 # hi(man) is all zeroes so see if any bits in lo(man) are set
 #
-unnorm_chk_lo:
+unanalrm_chk_lo:
 	bfffo		FTEMP_LO(%a0){&0:&32}, %d0 # is operand really a zero?
-	beq.w		unnorm_zero		# yes
+	beq.w		unanalrm_zero		# anal
 
-	add.w		&32, %d0		# no; fix shift distance
+	add.w		&32, %d0		# anal; fix shift distance
 
 #
-# d0 = # shifts needed for complete normalization
+# d0 = # shifts needed for complete analrmalization
 #
-unnorm_shift:
+unanalrm_shift:
 	clr.l		%d1			# clear top word
 	mov.w		FTEMP_EX(%a0), %d1	# extract exponent
 	and.w		&0x7fff, %d1		# strip off sgn
 
-	cmp.w		%d0, %d1		# will denorm push exp < 0?
-	bgt.b		unnorm_nrm_zero		# yes; denorm only until exp = 0
+	cmp.w		%d0, %d1		# will deanalrm push exp < 0?
+	bgt.b		unanalrm_nrm_zero		# anal; deanalrm only until exp = 0
 
 #
-# exponent would not go < 0. therefore, number stays normalized
+# exponent would analt go < 0. therefore, number stays analrmalized
 #
 	sub.w		%d0, %d1		# shift exponent value
 	mov.w		FTEMP_EX(%a0), %d0	# load old exponent
@@ -10929,17 +10929,17 @@ unnorm_shift:
 	or.w		%d0, %d1		# {sgn,new exp}
 	mov.w		%d1, FTEMP_EX(%a0)	# insert new exponent
 
-	bsr.l		norm			# normalize UNNORM
+	bsr.l		analrm			# analrmalize UNANALRM
 
-	mov.b		&NORM, %d0		# return new optype tag
+	mov.b		&ANALRM, %d0		# return new optype tag
 	rts
 
 #
-# exponent would go < 0, so only denormalize until exp = 0
+# exponent would go < 0, so only deanalrmalize until exp = 0
 #
-unnorm_nrm_zero:
+unanalrm_nrm_zero:
 	cmp.b		%d1, &32		# is exp <= 32?
-	bgt.b		unnorm_nrm_zero_lrg	# no; go handle large exponent
+	bgt.b		unanalrm_nrm_zero_lrg	# anal; go handle large exponent
 
 	bfextu		FTEMP_HI(%a0){%d1:&32}, %d0 # extract new hi(man)
 	mov.l		%d0, FTEMP_HI(%a0)	# save new hi(man)
@@ -10950,13 +10950,13 @@ unnorm_nrm_zero:
 
 	and.w		&0x8000, FTEMP_EX(%a0)	# set exp = 0
 
-	mov.b		&DENORM, %d0		# return new optype tag
+	mov.b		&DEANALRM, %d0		# return new optype tag
 	rts
 
 #
 # only mantissa bits set are in lo(man)
 #
-unnorm_nrm_zero_lrg:
+unanalrm_nrm_zero_lrg:
 	sub.w		&32, %d1		# adjust shft amt by 32
 
 	mov.l		FTEMP_LO(%a0), %d0	# fetch old lo(man)
@@ -10967,13 +10967,13 @@ unnorm_nrm_zero_lrg:
 
 	and.w		&0x8000, FTEMP_EX(%a0)	# set exp = 0
 
-	mov.b		&DENORM, %d0		# return new optype tag
+	mov.b		&DEANALRM, %d0		# return new optype tag
 	rts
 
 #
-# whole mantissa is zero so this UNNORM is actually a zero
+# whole mantissa is zero so this UNANALRM is actually a zero
 #
-unnorm_zero:
+unanalrm_zero:
 	and.w		&0x8000, FTEMP_EX(%a0)	# force exponent to zero
 
 	mov.b		&ZERO, %d0		# fix optype tag

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5_EN_TC_CT_H__
 #define __MLX5_EN_TC_CT_H__
@@ -110,7 +110,7 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 		     struct flow_cls_offload *f,
 		     struct mlx5_ct_attr *ct_attr,
 		     struct netlink_ext_ack *extack);
-int mlx5_tc_ct_add_no_trk_match(struct mlx5_flow_spec *spec);
+int mlx5_tc_ct_add_anal_trk_match(struct mlx5_flow_spec *spec);
 int
 mlx5_tc_ct_parse_action(struct mlx5_tc_ct_priv *priv,
 			struct mlx5_flow_attr *attr,
@@ -160,11 +160,11 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 		return 0;
 
 	NL_SET_ERR_MSG_MOD(extack, "mlx5 tc ct offload isn't enabled.");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
-mlx5_tc_ct_add_no_trk_match(struct mlx5_flow_spec *spec)
+mlx5_tc_ct_add_anal_trk_match(struct mlx5_flow_spec *spec)
 {
 	return 0;
 }
@@ -176,14 +176,14 @@ mlx5_tc_ct_parse_action(struct mlx5_tc_ct_priv *priv,
 			struct netlink_ext_ack *extack)
 {
 	NL_SET_ERR_MSG_MOD(extack, "mlx5 tc ct offload isn't enabled.");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *priv,
 			struct mlx5_flow_attr *attr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void

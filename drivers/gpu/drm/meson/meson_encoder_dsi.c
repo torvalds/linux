@@ -103,15 +103,15 @@ static const struct drm_bridge_funcs meson_encoder_dsi_bridge_funcs = {
 int meson_encoder_dsi_init(struct meson_drm *priv)
 {
 	struct meson_encoder_dsi *meson_encoder_dsi;
-	struct device_node *remote;
+	struct device_analde *remote;
 	int ret;
 
 	meson_encoder_dsi = devm_kzalloc(priv->dev, sizeof(*meson_encoder_dsi), GFP_KERNEL);
 	if (!meson_encoder_dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* DSI Transceiver Bridge */
-	remote = of_graph_get_remote_node(priv->dev->of_node, 2, 0);
+	remote = of_graph_get_remote_analde(priv->dev->of_analde, 2, 0);
 	if (!remote) {
 		dev_err(priv->dev, "DSI transceiver device is disabled");
 		return 0;
@@ -125,7 +125,7 @@ int meson_encoder_dsi_init(struct meson_drm *priv)
 
 	/* DSI Encoder Bridge */
 	meson_encoder_dsi->bridge.funcs = &meson_encoder_dsi_bridge_funcs;
-	meson_encoder_dsi->bridge.of_node = priv->dev->of_node;
+	meson_encoder_dsi->bridge.of_analde = priv->dev->of_analde;
 	meson_encoder_dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
 
 	drm_bridge_add(&meson_encoder_dsi->bridge);
@@ -150,7 +150,7 @@ int meson_encoder_dsi_init(struct meson_drm *priv)
 	}
 
 	/*
-	 * We should have now in place:
+	 * We should have analw in place:
 	 * encoder->[dsi encoder bridge]->[dw-mipi-dsi bridge]->[panel bridge]->[panel]
 	 */
 

@@ -448,7 +448,7 @@ static int stv0288_set_frontend(struct dvb_frontend *fe)
 	if (c->delivery_system != SYS_DVBS) {
 		dprintk("%s: unsupported delivery system selected (%d)\n",
 			__func__, c->delivery_system);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (state->config->set_ts_params)

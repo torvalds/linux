@@ -356,12 +356,12 @@ static void tegra_adma_start(struct tegra_adma_chan *tdc)
 	if (!vd)
 		return;
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	desc = to_tegra_adma_desc(&vd->tx);
 
 	if (!desc) {
-		dev_warn(tdc2dev(tdc), "unable to start DMA, no descriptor\n");
+		dev_warn(tdc2dev(tdc), "unable to start DMA, anal descriptor\n");
 		return;
 	}
 
@@ -413,7 +413,7 @@ static irqreturn_t tegra_adma_isr(int irq, void *dev_id)
 	status = tegra_adma_irq_clear(tdc);
 	if (status == 0 || !tdc->desc) {
 		spin_unlock(&tdc->vc.lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	vchan_cyclic_callback(&tdc->desc->vd);
@@ -588,7 +588,7 @@ static int tegra_adma_set_xfer_params(struct tegra_adma_chan *tdc,
 		break;
 
 	default:
-		dev_err(tdc2dev(tdc), "DMA direction is not supported\n");
+		dev_err(tdc2dev(tdc), "DMA direction is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -639,7 +639,7 @@ static struct dma_async_tx_descriptor *tegra_adma_prep_dma_cyclic(
 	}
 
 	if (buf_len % period_len) {
-		dev_err(tdc2dev(tdc), "buf_len not a multiple of period_len\n");
+		dev_err(tdc2dev(tdc), "buf_len analt a multiple of period_len\n");
 		return NULL;
 	}
 
@@ -648,7 +648,7 @@ static struct dma_async_tx_descriptor *tegra_adma_prep_dma_cyclic(
 		return NULL;
 	}
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc(sizeof(*desc), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
@@ -698,7 +698,7 @@ static void tegra_adma_free_chan_resources(struct dma_chan *dc)
 	pm_runtime_put(tdc2dev(tdc));
 
 	tdc->sreq_index = 0;
-	tdc->sreq_dir = DMA_TRANS_NONE;
+	tdc->sreq_dir = DMA_TRANS_ANALNE;
 }
 
 static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
@@ -715,7 +715,7 @@ static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
 	sreq_index = dma_spec->args[0];
 
 	if (sreq_index == 0) {
-		dev_err(tdma->dev, "DMA request must not be 0\n");
+		dev_err(tdma->dev, "DMA request must analt be 0\n");
 		return NULL;
 	}
 
@@ -748,7 +748,7 @@ static int __maybe_unused tegra_adma_runtime_suspend(struct device *dev)
 
 		ch_reg = &tdc->ch_regs;
 		ch_reg->cmd = tdma_ch_read(tdc, ADMA_CH_CMD);
-		/* skip if channel is not active */
+		/* skip if channel is analt active */
 		if (!ch_reg->cmd)
 			continue;
 		ch_reg->tc = tdma_ch_read(tdc, ADMA_CH_TC);
@@ -788,7 +788,7 @@ static int __maybe_unused tegra_adma_runtime_resume(struct device *dev)
 		if (!tdc->tdma)
 			continue;
 		ch_reg = &tdc->ch_regs;
-		/* skip if channel was not active earlier */
+		/* skip if channel was analt active earlier */
 		if (!ch_reg->cmd)
 			continue;
 		tdma_ch_write(tdc, ADMA_CH_TC, ch_reg->tc);
@@ -850,15 +850,15 @@ static int tegra_adma_probe(struct platform_device *pdev)
 
 	cdata = of_device_get_match_data(&pdev->dev);
 	if (!cdata) {
-		dev_err(&pdev->dev, "device match data not found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "device match data analt found\n");
+		return -EANALDEV;
 	}
 
 	tdma = devm_kzalloc(&pdev->dev,
 			    struct_size(tdma, channels, cdata->nr_channels),
 			    GFP_KERNEL);
 	if (!tdma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdma->dev = &pdev->dev;
 	tdma->cdata = cdata;
@@ -879,16 +879,16 @@ static int tegra_adma_probe(struct platform_device *pdev)
 					   BITS_TO_LONGS(tdma->nr_channels) * sizeof(unsigned long),
 					   GFP_KERNEL);
 	if (!tdma->dma_chan_mask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Enable all channels by default */
 	bitmap_fill(tdma->dma_chan_mask, tdma->nr_channels);
 
-	ret = of_property_read_u32_array(pdev->dev.of_node, "dma-channel-mask",
+	ret = of_property_read_u32_array(pdev->dev.of_analde, "dma-channel-mask",
 					 (u32 *)tdma->dma_chan_mask,
 					 BITS_TO_U32(tdma->nr_channels));
 	if (ret < 0 && (ret != -EINVAL)) {
-		dev_err(&pdev->dev, "dma-channel-mask is not complete.\n");
+		dev_err(&pdev->dev, "dma-channel-mask is analt complete.\n");
 		return ret;
 	}
 
@@ -903,7 +903,7 @@ static int tegra_adma_probe(struct platform_device *pdev)
 		tdc->chan_addr = tdma->base_addr + cdata->ch_base_offset
 				 + (cdata->ch_reg_size * i);
 
-		tdc->irq = of_irq_get(pdev->dev.of_node, i);
+		tdc->irq = of_irq_get(pdev->dev.of_analde, i);
 		if (tdc->irq <= 0) {
 			ret = tdc->irq ?: -ENXIO;
 			goto irq_dispose;
@@ -951,7 +951,7 @@ static int tegra_adma_probe(struct platform_device *pdev)
 		goto rpm_put;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 tegra_dma_of_xlate, tdma);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "ADMA OF registration failed %d\n", ret);
@@ -983,7 +983,7 @@ static void tegra_adma_remove(struct platform_device *pdev)
 	struct tegra_adma *tdma = platform_get_drvdata(pdev);
 	int i;
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&tdma->dma_dev);
 
 	for (i = 0; i < tdma->nr_channels; ++i) {

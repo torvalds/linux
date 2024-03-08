@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /// Find functions that refer to GFP_KERNEL but are called with locks held.
-//# The proposed change of converting the GFP_KERNEL is not necessarily the
-//# correct one.  It may be desired to unlock the lock, or to not call the
+//# The proposed change of converting the GFP_KERNEL is analt necessarily the
+//# correct one.  It may be desired to unlock the lock, or to analt call the
 //# function under the lock in the first place.
 ///
 // Confidence: Moderate
@@ -10,7 +10,7 @@
 // Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual patch
 virtual context

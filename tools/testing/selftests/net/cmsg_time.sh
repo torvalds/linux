@@ -51,7 +51,7 @@ for i in "-4 $TGT4" "-6 $TGT6"; do
 	[ $p == "r" ] && prot=RAWv${i:1:2}
 
 	ts=$(ip netns exec $NS ./cmsg_sender -p $p $i 1234)
-	check_result $? "$ts" "" "$prot - no options"
+	check_result $? "$ts" "" "$prot - anal options"
 
 	ts=$(ip netns exec $NS ./cmsg_sender -p $p $i 1234 -t | wc -l)
 	check_result $? "$ts" "2" "$prot - ts cnt"

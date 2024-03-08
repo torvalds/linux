@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: CEC
 
 .. _CEC_TRANSMIT:
@@ -13,7 +13,7 @@ Name
 
 CEC_RECEIVE, CEC_TRANSMIT - Receive or transmit a CEC message
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: CEC_RECEIVE
@@ -39,47 +39,47 @@ Description
 To receive a CEC message the application has to fill in the
 ``timeout`` field of struct :c:type:`cec_msg` and pass it to
 :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
-If the file descriptor is in non-blocking mode and there are no received
-messages pending, then it will return -1 and set errno to the ``EAGAIN``
+If the file descriptor is in analn-blocking mode and there are anal received
+messages pending, then it will return -1 and set erranal to the ``EAGAIN``
 error code. If the file descriptor is in blocking mode and ``timeout``
-is non-zero and no message arrived within ``timeout`` milliseconds, then
-it will return -1 and set errno to the ``ETIMEDOUT`` error code.
+is analn-zero and anal message arrived within ``timeout`` milliseconds, then
+it will return -1 and set erranal to the ``ETIMEDOUT`` error code.
 
 A received message can be:
 
-1. a message received from another CEC device (the ``sequence`` field will
-   be 0, ``tx_status`` will be 0 and ``rx_status`` will be non-zero).
-2. the transmit result of an earlier non-blocking transmit (the ``sequence``
-   field will be non-zero, ``tx_status`` will be non-zero and ``rx_status``
+1. a message received from aanalther CEC device (the ``sequence`` field will
+   be 0, ``tx_status`` will be 0 and ``rx_status`` will be analn-zero).
+2. the transmit result of an earlier analn-blocking transmit (the ``sequence``
+   field will be analn-zero, ``tx_status`` will be analn-zero and ``rx_status``
    will be 0).
-3. the reply to an earlier non-blocking transmit (the ``sequence`` field will
-   be non-zero, ``tx_status`` will be 0 and ``rx_status`` will be non-zero).
+3. the reply to an earlier analn-blocking transmit (the ``sequence`` field will
+   be analn-zero, ``tx_status`` will be 0 and ``rx_status`` will be analn-zero).
 
 To send a CEC message the application has to fill in the struct
 :c:type:`cec_msg` and pass it to :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
 The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is only available if
-``CEC_CAP_TRANSMIT`` is set. If there is no more room in the transmit
-queue, then it will return -1 and set errno to the ``EBUSY`` error code.
-The transmit queue has enough room for 18 messages (about 1 second worth
-of 2-byte messages). Note that the CEC kernel framework will also reply
-to core messages (see :ref:`cec-core-processing`), so it is not a good
+``CEC_CAP_TRANSMIT`` is set. If there is anal more room in the transmit
+queue, then it will return -1 and set erranal to the ``EBUSY`` error code.
+The transmit queue has eanalugh room for 18 messages (about 1 second worth
+of 2-byte messages). Analte that the CEC kernel framework will also reply
+to core messages (see :ref:`cec-core-processing`), so it is analt a good
 idea to fully fill up the transmit queue.
 
-If the file descriptor is in non-blocking mode then the transmit will
+If the file descriptor is in analn-blocking mode then the transmit will
 return 0 and the result of the transmit will be available via
 :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` once the transmit has finished.
-If a non-blocking transmit also specified waiting for a reply, then
+If a analn-blocking transmit also specified waiting for a reply, then
 the reply will arrive in a later message. The ``sequence`` field can
 be used to associate both transmit results and replies with the original
 transmit.
 
-Normally calling :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` when the physical
-address is invalid (due to e.g. a disconnect) will return ``ENONET``.
+Analrmally calling :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` when the physical
+address is invalid (due to e.g. a disconnect) will return ``EANALNET``.
 
 However, the CEC specification allows sending messages from 'Unregistered' to
 'TV' when the physical address is invalid since some TVs pull the hotplug detect
 pin of the HDMI connector low when they go into standby, or when switching to
-another input.
+aanalther input.
 
 When the hotplug detect pin goes low the EDID disappears, and thus the
 physical address, but the cable is still connected and CEC still works.
@@ -100,12 +100,12 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
     * - __u64
       - ``tx_ts``
       - Timestamp in ns of when the last byte of the message was transmitted.
-	The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
+	The timestamp has been taken from the ``CLOCK_MOANALTONIC`` clock. To access
 	the same clock from userspace use :c:func:`clock_gettime`.
     * - __u64
       - ``rx_ts``
       - Timestamp in ns of when the last byte of the message was received.
-	The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
+	The timestamp has been taken from the ``CLOCK_MOANALTONIC`` clock. To access
 	the same clock from userspace use :c:func:`clock_gettime`.
     * - __u32
       - ``len``
@@ -119,17 +119,17 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 	for a message to be received before timing out. If it is set to 0,
 	then it will wait indefinitely when it is called by :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
 	If it is 0 and it is called by :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`,
-	then it will be replaced by 1000 if the ``reply`` is non-zero or
-	ignored if ``reply`` is 0.
+	then it will be replaced by 1000 if the ``reply`` is analn-zero or
+	iganalred if ``reply`` is 0.
     * - __u32
       - ``sequence``
-      - A non-zero sequence number is automatically assigned by the CEC framework
+      - A analn-zero sequence number is automatically assigned by the CEC framework
 	for all transmitted messages. It is used by the CEC framework when it queues
-	the transmit result for a non-blocking transmit. This allows the application
+	the transmit result for a analn-blocking transmit. This allows the application
 	to associate the received message with the original transmit.
 
-	In addition, if a non-blocking transmit will wait for a reply (ii.e. ``timeout``
-	was not 0), then the ``sequence`` field of the reply will be set to the sequence
+	In addition, if a analn-blocking transmit will wait for a reply (ii.e. ``timeout``
+	was analt 0), then the ``sequence`` field of the reply will be set to the sequence
 	value of the original transmit. This allows the application to associate the
 	received message with the original transmit.
     * - __u32
@@ -145,9 +145,9 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``reply``
       - Wait until this message is replied. If ``reply`` is 0 and the
 	``timeout`` is 0, then don't wait for a reply but return after
-	transmitting the message. Ignored by :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
+	transmitting the message. Iganalred by :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
 	The case where ``reply`` is 0 (this is the opcode for the Feature Abort
-	message) and ``timeout`` is non-zero is specifically allowed to make it
+	message) and ``timeout`` is analn-zero is specifically allowed to make it
 	possible to send a message and wait up to ``timeout`` milliseconds for a
 	Feature Abort reply. In this case ``rx_status`` will either be set
 	to :ref:`CEC_RX_STATUS_TIMEOUT <CEC-RX-STATUS-TIMEOUT>` or
@@ -168,9 +168,9 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``tx_status``
       - The status bits of the transmitted message. See
 	:ref:`cec-tx-status` for the possible status values.
-	When calling :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` in non-blocking mode,
-	this field will be 0 if the transmit started, or non-0 if the transmit
-	result is known immediately. The latter would be the case when attempting
+	When calling :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` in analn-blocking mode,
+	this field will be 0 if the transmit started, or analn-0 if the transmit
+	result is kanalwn immediately. The latter would be the case when attempting
 	to transmit a Poll message to yourself. That results in a
 	:ref:`CEC_TX_STATUS_NACK <CEC-TX-STATUS-NACK>` without ever actually
 	transmitting the Poll message.
@@ -183,7 +183,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
     * - __u8
       - ``tx_nack_cnt``
       - A counter of the number of transmit attempts that resulted in the
-	Not Acknowledged error. This is only set if the hardware supports
+	Analt Ackanalwledged error. This is only set if the hardware supports
 	this, otherwise it is always 0. This counter is only valid if the
 	:ref:`CEC_TX_STATUS_NACK <CEC-TX-STATUS-NACK>` status bit is set.
     * - __u8
@@ -195,7 +195,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
     * - __u8
       - ``tx_error_cnt``
       - A counter of the number of transmit errors other than Arbitration
-	Lost or Not Acknowledged. This is only set if the hardware
+	Lost or Analt Ackanalwledged. This is only set if the hardware
 	supports this, otherwise it is always 0. This counter is only
 	valid if the :ref:`CEC_TX_STATUS_ERROR <CEC-TX-STATUS-ERROR>` status bit is set.
 
@@ -224,12 +224,12 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 
       - ``CEC_MSG_FL_RAW``
       - 2
-      - Normally CEC messages are validated before transmitting them. If this
+      - Analrmally CEC messages are validated before transmitting them. If this
         flag is set when :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is called,
-	then no validation takes place and the message is transmitted as-is.
+	then anal validation takes place and the message is transmitted as-is.
 	This is useful when debugging CEC issues.
 	This flag is only allowed if the process has the ``CAP_SYS_RAWIO``
-	capability. If that is not set, then the ``EPERM`` error code is
+	capability. If that is analt set, then the ``EPERM`` error code is
 	returned.
 
 .. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{10.8cm}|
@@ -253,15 +253,15 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 
       - ``CEC_TX_STATUS_ARB_LOST``
       - 0x02
-      - CEC line arbitration was lost, i.e. another transmit started at the
-        same time with a higher priority. Optional status, not all hardware
+      - CEC line arbitration was lost, i.e. aanalther transmit started at the
+        same time with a higher priority. Optional status, analt all hardware
 	can detect this error condition.
     * .. _`CEC-TX-STATUS-NACK`:
 
       - ``CEC_TX_STATUS_NACK``
       - 0x04
-      - Message was not acknowledged. Note that some hardware cannot tell apart
-        a 'Not Acknowledged' status from other error conditions, i.e. the result
+      - Message was analt ackanalwledged. Analte that some hardware cananalt tell apart
+        a 'Analt Ackanalwledged' status from other error conditions, i.e. the result
 	of a transmit is just OK or FAIL. In that case this status will be
 	returned when the transmit failed.
     * .. _`CEC-TX-STATUS-LOW-DRIVE`:
@@ -270,15 +270,15 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - 0x08
       - Low drive was detected on the CEC bus. This indicates that a
 	follower detected an error on the bus and requests a
-	retransmission. Optional status, not all hardware can detect this
+	retransmission. Optional status, analt all hardware can detect this
 	error condition.
     * .. _`CEC-TX-STATUS-ERROR`:
 
       - ``CEC_TX_STATUS_ERROR``
       - 0x10
-      - Some error occurred. This is used for any errors that do not fit
+      - Some error occurred. This is used for any errors that do analt fit
 	``CEC_TX_STATUS_ARB_LOST`` or ``CEC_TX_STATUS_LOW_DRIVE``, either because
-	the hardware could not tell which error occurred, or because the hardware
+	the hardware could analt tell which error occurred, or because the hardware
 	tested for other conditions besides those two. Optional status.
     * .. _`CEC-TX-STATUS-MAX-RETRIES`:
 
@@ -298,7 +298,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 
       - ``CEC_TX_STATUS_TIMEOUT``
       - 0x80
-      - The transmit timed out. This should not normally happen and this
+      - The transmit timed out. This should analt analrmally happen and this
 	indicates a driver problem.
 
 .. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{10.8cm}|
@@ -340,7 +340,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -348,7 +348,7 @@ The :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` can return the following
 error codes:
 
 EAGAIN
-    No messages are in the receive queue, and the filehandle is in non-blocking mode.
+    Anal messages are in the receive queue, and the filehandle is in analn-blocking mode.
 
 ETIMEDOUT
     The ``timeout`` was reached while waiting for a message.
@@ -359,23 +359,23 @@ ERESTARTSYS
 The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` can return the following
 error codes:
 
-ENOTTY
-    The ``CEC_CAP_TRANSMIT`` capability wasn't set, so this ioctl is not supported.
+EANALTTY
+    The ``CEC_CAP_TRANSMIT`` capability wasn't set, so this ioctl is analt supported.
 
 EPERM
-    The CEC adapter is not configured, i.e. :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+    The CEC adapter is analt configured, i.e. :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
     has never been called, or ``CEC_MSG_FL_RAW`` was used from a process that
-    did not have the ``CAP_SYS_RAWIO`` capability.
+    did analt have the ``CAP_SYS_RAWIO`` capability.
 
-ENONET
-    The CEC adapter is not configured, i.e. :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
-    was called, but the physical address is invalid so no logical address was claimed.
+EANALNET
+    The CEC adapter is analt configured, i.e. :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+    was called, but the physical address is invalid so anal logical address was claimed.
     An exception is made in this case for transmits from initiator 0xf ('Unregistered')
     to destination 0 ('TV'). In that case the transmit will proceed as usual.
 
 EBUSY
-    Another filehandle is in exclusive follower or initiator mode, or the filehandle
-    is in mode ``CEC_MODE_NO_INITIATOR``. This is also returned if the transmit
+    Aanalther filehandle is in exclusive follower or initiator mode, or the filehandle
+    is in mode ``CEC_MODE_ANAL_INITIATOR``. This is also returned if the transmit
     queue is full.
 
 EINVAL

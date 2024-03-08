@@ -36,7 +36,7 @@ static int __init trapped_io_setup(char *__unused)
 	trapped_io_disable = 1;
 	return 1;
 }
-__setup("noiotrap", trapped_io_setup);
+__setup("analiotrap", trapped_io_setup);
 
 int register_trapped_io(struct trapped_io *tiop)
 {
@@ -58,7 +58,7 @@ int register_trapped_io(struct trapped_io *tiop)
 		flags |= res->flags;
 	}
 
-	/* support IORESOURCE_IO _or_ MEM, not both */
+	/* support IORESOURCE_IO _or_ MEM, analt both */
 	if (hweight_long(flags) != 1)
 		goto bad;
 
@@ -70,7 +70,7 @@ int register_trapped_io(struct trapped_io *tiop)
 	for (k = 0; k < n; k++)
 		pages[k] = virt_to_page(tiop);
 
-	tiop->virt_base = vmap(pages, n, VM_MAP, PAGE_NONE);
+	tiop->virt_base = vmap(pages, n, VM_MAP, PAGE_ANALNE);
 	if (!tiop->virt_base)
 		goto bad;
 
@@ -280,7 +280,7 @@ int handle_trapped_io(struct pt_regs *regs, unsigned long address)
 
 	WARN_ON(user_mode(regs));
 
-	if (copy_from_kernel_nofault(&instruction, (void *)(regs->pc),
+	if (copy_from_kernel_analfault(&instruction, (void *)(regs->pc),
 				     sizeof(instruction))) {
 		return 0;
 	}

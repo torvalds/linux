@@ -4,10 +4,10 @@
  *
  * Copyright (C) 2016 TQ-Systems GmbH
  * Author: Markus Niebel <Markus.Niebel@tq-group.com>
- * Copyright (C) 2019 Bruno Thomsen <bruno.thomsen@gmail.com>
+ * Copyright (C) 2019 Bruanal Thomsen <bruanal.thomsen@gmail.com>
  *
- * Note: This file does not include nodes for all peripheral devices.
- * As device driver coverage increases additional nodes can be added.
+ * Analte: This file does analt include analdes for all peripheral devices.
+ * As device driver coverage increases additional analdes can be added.
  */
 
 #include <dt-bindings/input/input.h>
@@ -392,7 +392,7 @@
 
 	pinctrl_hog_mba7_1: hogmba71grp {
 		fsl,pins = <
-			/* Limitation: WDOG2_B / WDOG2_RESET not usable */
+			/* Limitation: WDOG2_B / WDOG2_RESET analt usable */
 			MX7D_PAD_ENET1_RX_CLK__GPIO7_IO13	0x4000007c
 			MX7D_PAD_ENET1_CRS__GPIO7_IO14		0x40000074
 			/* #BOOT_EN */
@@ -472,7 +472,7 @@
 			MX7D_PAD_EPDC_DATA12__UART7_DCE_RX	0x7e
 			MX7D_PAD_EPDC_DATA13__UART7_DCE_TX	0x76
 			MX7D_PAD_EPDC_DATA15__UART7_DCE_CTS	0x76
-			/* Limitation: RTS is not connected */
+			/* Limitation: RTS is analt connected */
 			MX7D_PAD_EPDC_DATA14__UART7_DCE_RTS	0x7e
 		>;
 	};
@@ -629,7 +629,7 @@
 	wp-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_sd1_vmmc>;
 	bus-width = <4>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 

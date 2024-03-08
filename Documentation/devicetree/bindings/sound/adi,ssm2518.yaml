@@ -25,7 +25,7 @@ properties:
   gpios:
     maxItems: 1
     description: |
-       GPIO connected to the nSD pin. If the property is not present
+       GPIO connected to the nSD pin. If the property is analt present
        it is assumed that the nSD pin is hardwired to always on.
 
 required:

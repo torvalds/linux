@@ -43,11 +43,11 @@ static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 {
 	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
 
-	/* ignore unsol events during shutdown */
+	/* iganalre unsol events during shutdown */
 	if (codec->bus->shutdown)
 		return;
 
-	/* ignore unsol events during system suspend/resume */
+	/* iganalre unsol events during system suspend/resume */
 	if (codec->core.dev.power.power_state.event != PM_EVENT_ON)
 		return;
 
@@ -256,7 +256,7 @@ static bool is_likely_hdmi_codec(struct hda_codec *codec)
 	if (!codec->wcaps)
 		return true;
 
-	for_each_hda_codec_node(nid, codec) {
+	for_each_hda_codec_analde(nid, codec) {
 		unsigned int wcaps = get_wcaps(codec, nid);
 		switch (get_wcaps_type(wcaps)) {
 		case AC_WID_AUD_IN:
@@ -270,14 +270,14 @@ static bool is_likely_hdmi_codec(struct hda_codec *codec)
 	return true;
 }
 #else
-/* no HDMI codec parser support */
+/* anal HDMI codec parser support */
 #define is_likely_hdmi_codec(codec)	false
 #endif /* CONFIG_SND_HDA_CODEC_HDMI */
 
 static int codec_bind_generic(struct hda_codec *codec)
 {
 	if (codec->probe_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (is_likely_hdmi_codec(codec)) {
 		codec->probe_id = HDA_CODEC_ID_GENERIC_HDMI;
@@ -290,7 +290,7 @@ static int codec_bind_generic(struct hda_codec *codec)
 	request_codec_module(codec);
 	if (codec_probed(codec))
 		return 0;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #if IS_ENABLED(CONFIG_SND_HDA_GENERIC)

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -1393,7 +1393,7 @@ static bool radeon_legacy_tv_detect(struct drm_encoder *encoder,
 		 RADEON_RESTART_PHASE_FIX |
 		 RADEON_CRT_FIFO_CE_EN |
 		 RADEON_TV_FIFO_CE_EN |
-		 RADEON_RE_SYNC_NOW_SEL_MASK);
+		 RADEON_RE_SYNC_ANALW_SEL_MASK);
 	tmp |= RADEON_TV_FIFO_ASYNC_RST | RADEON_CRT_ASYNC_RST;
 	WREG32(RADEON_TV_MASTER_CNTL, tmp);
 
@@ -1559,9 +1559,9 @@ static enum drm_connector_status radeon_legacy_tv_dac_detect(struct drm_encoder 
 		return found;
 	}
 
-	/* don't probe if the encoder is being used for something else not CRT related */
+	/* don't probe if the encoder is being used for something else analt CRT related */
 	if (radeon_encoder->active_device && !(radeon_encoder->active_device & ATOM_DEVICE_CRT_SUPPORT)) {
-		DRM_INFO("not detecting due to %08x\n", radeon_encoder->active_device);
+		DRM_INFO("analt detecting due to %08x\n", radeon_encoder->active_device);
 		return connector_status_disconnected;
 	}
 

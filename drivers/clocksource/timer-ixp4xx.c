@@ -35,7 +35,7 @@
  */
 #define IXP4XX_OST_ENABLE		0x00000001
 #define IXP4XX_OST_ONE_SHOT		0x00000002
-/* Low order bits of reload value ignored */
+/* Low order bits of reload value iganalred */
 #define IXP4XX_OST_RELOAD_MASK		0x00000003
 #define IXP4XX_OST_DISABLED		0x00000000
 #define IXP4XX_OSST_TIMER_1_PEND	0x00000001
@@ -69,7 +69,7 @@ static unsigned long ixp4xx_read_timer(void)
 	return __raw_readl(local_ixp4xx_timer->base + IXP4XX_OSTS_OFFSET);
 }
 
-static u64 notrace ixp4xx_read_sched_clock(void)
+static u64 analtrace ixp4xx_read_sched_clock(void)
 {
 	return ixp4xx_read_timer();
 }
@@ -168,7 +168,7 @@ static __init int ixp4xx_timer_register(void __iomem *base,
 
 	tmr = kzalloc(sizeof(*tmr), GFP_KERNEL);
 	if (!tmr)
-		return -ENOMEM;
+		return -EANALMEM;
 	tmr->base = base;
 
 	/*
@@ -209,8 +209,8 @@ static __init int ixp4xx_timer_register(void __iomem *base,
 	ret = request_irq(timer_irq, ixp4xx_timer_interrupt,
 			  IRQF_TIMER, "IXP4XX-TIMER1", tmr);
 	if (ret) {
-		pr_crit("no timer IRQ\n");
-		return -ENODEV;
+		pr_crit("anal timer IRQ\n");
+		return -EANALDEV;
 	}
 	clockevents_config_and_register(&tmr->clkevt, timer_freq,
 					0xf, 0xfffffffe);
@@ -240,7 +240,7 @@ static int ixp4xx_timer_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	/* Pass the base address as platform data and nothing else */
+	/* Pass the base address as platform data and analthing else */
 	ixp4xx_watchdog_device.dev.platform_data = local_ixp4xx_timer->base;
 	ixp4xx_watchdog_device.dev.parent = dev;
 	return platform_device_register(&ixp4xx_watchdog_device);
@@ -261,7 +261,7 @@ static struct platform_driver ixp4xx_timer_driver = {
 };
 builtin_platform_driver(ixp4xx_timer_driver);
 
-static __init int ixp4xx_of_timer_init(struct device_node *np)
+static __init int ixp4xx_of_timer_init(struct device_analde *np)
 {
 	void __iomem *base;
 	int irq;
@@ -270,7 +270,7 @@ static __init int ixp4xx_of_timer_init(struct device_node *np)
 	base = of_iomap(np, 0);
 	if (!base) {
 		pr_crit("IXP4xx: can't remap timer\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	irq = irq_of_parse_and_map(np, 0);

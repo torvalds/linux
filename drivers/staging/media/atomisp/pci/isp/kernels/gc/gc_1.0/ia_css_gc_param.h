@@ -35,7 +35,7 @@
 #endif
 
 #else
-/* For pipe generation, the size is not relevant */
+/* For pipe generation, the size is analt relevant */
 #define SH_CSS_ISP_GC_TABLE_SIZE 0
 #endif
 

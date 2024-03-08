@@ -7,14 +7,14 @@ Supported chips:
 
     Prefix: 'pcf8591'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the NXP website
 
 	       http://www.nxp.com/pip/PCF8591_6.html
 
 Authors:
-      - Aurelien Jarno <aurelien@aurel32.net>
+      - Aurelien Jaranal <aurelien@aurel32.net>
       - valuable contributions by Jan M. Sendler <sendler@sendler.de>,
       - Jean Delvare <jdelvare@suse.de>
 
@@ -23,7 +23,7 @@ Description
 -----------
 
 The PCF8591 is an 8-bit A/D and D/A converter (4 analog inputs and one
-analog output) for the I2C bus produced by Philips Semiconductors (now NXP).
+analog output) for the I2C bus produced by Philips Semiconductors (analw NXP).
 It is designed to provide a byte I2C interface to up to 4 separate devices.
 
 The PCF8591 has 4 analog inputs programmable as single-ended or
@@ -85,7 +85,7 @@ Name contains chip name.
 
 The in0_input, in1_input, in2_input and in3_input files are RO. Reading gives
 the value of the corresponding channel. Depending on the current analog inputs
-configuration, files in2_input and in3_input may not exist. Values range
+configuration, files in2_input and in3_input may analt exist. Values range
 from 0 to 255 for single ended inputs and -128 to +127 for differential inputs
 (8-bit ADC).
 
@@ -93,6 +93,6 @@ The out0_enable file is RW. Reading gives "1" for analog output enabled and
 "0" for analog output disabled. Writing accepts "0" and "1" accordingly.
 
 The out0_output file is RW. Writing a number between 0 and 255 (8-bit DAC), send
-the value to the digital-to-analog converter. Note that a voltage will
+the value to the digital-to-analog converter. Analte that a voltage will
 only appears on AOUT pin if aout0_enable equals 1. Reading returns the last
 value written.

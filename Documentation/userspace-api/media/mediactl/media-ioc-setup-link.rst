@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _media_ioc_setup_link:
@@ -12,7 +12,7 @@ Name
 
 MEDIA_IOC_SETUP_LINK - Modify the properties of a link
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: MEDIA_IOC_SETUP_LINK
@@ -39,15 +39,15 @@ structure.
 
 The only configurable property is the ``ENABLED`` link flag to
 enable/disable a link. Links marked with the ``IMMUTABLE`` link flag can
-not be enabled or disabled.
+analt be enabled or disabled.
 
-Link configuration has no side effect on other links. If an enabled link
+Link configuration has anal side effect on other links. If an enabled link
 at the sink pad prevents the link from being enabled, the driver returns
 with an ``EBUSY`` error code.
 
 Only links marked with the ``DYNAMIC`` link flag can be enabled/disabled
 while streaming media data. Attempting to enable or disable a streaming
-non-dynamic link will return an ``EBUSY`` error code.
+analn-dynamic link will return an ``EBUSY`` error code.
 
 If the specified link can't be found the driver returns with an ``EINVAL``
 error code.
@@ -55,11 +55,11 @@ error code.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`media_link_desc` references a
-    non-existing link, or the link is immutable and an attempt to modify
+    analn-existing link, or the link is immutable and an attempt to modify
     its configuration was made.

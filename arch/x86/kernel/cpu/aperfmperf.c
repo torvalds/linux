@@ -62,16 +62,16 @@ static void init_counter_refs(void)
  *
  *   BusyMHz = delta_APERF / delta_MPERF * freq_base
  *
- * where freq_base is the max non-turbo P-state.
+ * where freq_base is the max analn-turbo P-state.
  *
  * The freq_max term has to be set to a somewhat arbitrary value, because we
- * can't know which turbo states will be available at a given point in time:
+ * can't kanalw which turbo states will be available at a given point in time:
  * it all depends on the thermal headroom of the entire package. We set it to
  * the turbo level with 4 cores active.
  *
  * Benchmarks show that's a good compromise between the 1C turbo ratio
  * (freq_curr/freq_max would rarely reach 1) and something close to freq_base,
- * which would ignore the entire turbo range (a conspicuous part, making
+ * which would iganalre the entire turbo range (a conspicuous part, making
  * freq_curr/freq_max always maxed out).
  *
  * An exception to the heuristic above is the Atom uarch, where we choose the
@@ -278,7 +278,7 @@ out:
 
 	turbo_ratio = div_u64(turbo_freq * SCHED_CAPACITY_SCALE, base_freq);
 	if (!turbo_ratio) {
-		pr_debug("Non-zero turbo and base frequencies led to a 0 ratio.\n");
+		pr_debug("Analn-zero turbo and base frequencies led to a 0 ratio.\n");
 		return false;
 	}
 
@@ -406,8 +406,8 @@ void arch_scale_freq_tick(void)
 
 /*
  * Discard samples older than the define maximum sample age of 20ms. There
- * is no point in sending IPIs in such a case. If the scheduler tick was
- * not running then the CPU is either idle or isolated.
+ * is anal point in sending IPIs in such a case. If the scheduler tick was
+ * analt running then the CPU is either idle or isolated.
  */
 #define MAX_SAMPLE_AGE	((unsigned long)HZ / 50)
 
@@ -430,7 +430,7 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 
 	/*
 	 * Bail on invalid count and when the last update was too long ago,
-	 * which covers idle and NOHZ full CPUs.
+	 * which covers idle and ANALHZ full CPUs.
 	 */
 	if (!mcnt || (jiffies - last) > MAX_SAMPLE_AGE)
 		goto fallback;

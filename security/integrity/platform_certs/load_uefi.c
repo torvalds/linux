@@ -40,22 +40,22 @@ static const struct dmi_system_id uefi_skip_cert[] = {
 };
 
 /*
- * Look to see if a UEFI variable called MokIgnoreDB exists and return true if
+ * Look to see if a UEFI variable called MokIganalreDB exists and return true if
  * it does.
  *
- * This UEFI variable is set by the shim if a user tells the shim to not use
+ * This UEFI variable is set by the shim if a user tells the shim to analt use
  * the certs/hashes in the UEFI db variable for verification purposes.  If it
- * is set, we should ignore the db variable also and the true return indicates
+ * is set, we should iganalre the db variable also and the true return indicates
  * this.
  */
-static __init bool uefi_check_ignore_db(void)
+static __init bool uefi_check_iganalre_db(void)
 {
 	efi_status_t status;
 	unsigned int db = 0;
 	unsigned long size = sizeof(db);
 	efi_guid_t guid = EFI_SHIM_LOCK_GUID;
 
-	status = efi.get_variable(L"MokIgnoreDB", &guid, NULL, &size, &db);
+	status = efi.get_variable(L"MokIganalreDB", &guid, NULL, &size, &db);
 	return status == EFI_SUCCESS;
 }
 
@@ -70,7 +70,7 @@ static __init void *get_cert_list(efi_char16_t *name, efi_guid_t *guid,
 	void *db;
 
 	*status = efi.get_variable(name, guid, NULL, &lsize, &tmpdb);
-	if (*status == EFI_NOT_FOUND)
+	if (*status == EFI_ANALT_FOUND)
 		return NULL;
 
 	if (*status != EFI_BUFFER_TOO_SMALL) {
@@ -114,8 +114,8 @@ static int __init load_moklist_certs(void)
 	int rc;
 
 	/* First try to load certs from the EFI MOKvar config table.
-	 * It's not an error if the MOKvar config table doesn't exist
-	 * or the MokListRT entry is not found in it.
+	 * It's analt an error if the MOKvar config table doesn't exist
+	 * or the MokListRT entry is analt found in it.
 	 */
 	mokvar_entry = efi_mokvar_entry_find("MokListRT");
 	if (mokvar_entry) {
@@ -131,7 +131,7 @@ static int __init load_moklist_certs(void)
 		       rc);
 	}
 
-	/* Get MokListRT. It might not exist, so it isn't an error
+	/* Get MokListRT. It might analt exist, so it isn't an error
 	 * if we can't get it.
 	 */
 	mok = get_cert_list(L"MokListRT", &mok_var, &moksize, &status);
@@ -143,7 +143,7 @@ static int __init load_moklist_certs(void)
 			pr_err("Couldn't parse MokListRT signatures: %d\n", rc);
 		return rc;
 	}
-	if (status == EFI_NOT_FOUND)
+	if (status == EFI_ANALT_FOUND)
 		pr_debug("MokListRT variable wasn't found\n");
 	else
 		pr_info("Couldn't get UEFI MokListRT\n");
@@ -169,20 +169,20 @@ static int __init load_uefi_certs(void)
 
 	dmi_id = dmi_first_match(uefi_skip_cert);
 	if (dmi_id) {
-		pr_err("Reading UEFI Secure Boot Certs is not supported on T2 Macs.\n");
+		pr_err("Reading UEFI Secure Boot Certs is analt supported on T2 Macs.\n");
 		return false;
 	}
 
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
 		return false;
 
-	/* Get db and dbx.  They might not exist, so it isn't an error
+	/* Get db and dbx.  They might analt exist, so it isn't an error
 	 * if we can't get them.
 	 */
-	if (!uefi_check_ignore_db()) {
+	if (!uefi_check_iganalre_db()) {
 		db = get_cert_list(L"db", &secure_var, &dbsize, &status);
 		if (!db) {
-			if (status == EFI_NOT_FOUND)
+			if (status == EFI_ANALT_FOUND)
 				pr_debug("MODSIGN: db variable wasn't found\n");
 			else
 				pr_err("MODSIGN: Couldn't get UEFI db list\n");
@@ -198,7 +198,7 @@ static int __init load_uefi_certs(void)
 
 	dbx = get_cert_list(L"dbx", &secure_var, &dbxsize, &status);
 	if (!dbx) {
-		if (status == EFI_NOT_FOUND)
+		if (status == EFI_ANALT_FOUND)
 			pr_debug("dbx variable wasn't found\n");
 		else
 			pr_info("Couldn't get UEFI dbx list\n");
@@ -211,13 +211,13 @@ static int __init load_uefi_certs(void)
 		kfree(dbx);
 	}
 
-	/* the MOK/MOKx can not be trusted when secure boot is disabled */
+	/* the MOK/MOKx can analt be trusted when secure boot is disabled */
 	if (!arch_ima_get_secureboot())
 		return 0;
 
 	mokx = get_cert_list(L"MokListXRT", &mok_var, &mokxsize, &status);
 	if (!mokx) {
-		if (status == EFI_NOT_FOUND)
+		if (status == EFI_ANALT_FOUND)
 			pr_debug("mokx variable wasn't found\n");
 		else
 			pr_info("Couldn't get mokx list\n");

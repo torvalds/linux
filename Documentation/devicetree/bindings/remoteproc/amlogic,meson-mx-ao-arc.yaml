@@ -51,8 +51,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       phandles to a reserved SRAM region which is used as the memory of
-      the ARC core. The region should be defined as child nodes of the
-      AHB SRAM node as per the generic bindings in
+      the ARC core. The region should be defined as child analdes of the
+      AHB SRAM analde as per the generic bindings in
       Documentation/devicetree/bindings/sram/sram.yaml
 
   amlogic,secbus2:

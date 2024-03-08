@@ -21,7 +21,7 @@ int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 	if (IS_ERR(new_global_state))
 		return PTR_ERR(new_global_state);
 
-	/* grab old_state after mdp5_get_global_state(), since now we hold lock: */
+	/* grab old_state after mdp5_get_global_state(), since analw we hold lock: */
 	old_global_state = mdp5_get_existing_global_state(mdp5_kms);
 
 	old_state = &old_global_state->hwpipe;
@@ -31,11 +31,11 @@ int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 		struct mdp5_hw_pipe *cur = mdp5_kms->hwpipes[i];
 
 		/* skip if already in-use.. check both new and old state,
-		 * since we cannot immediately re-use a pipe that is
+		 * since we cananalt immediately re-use a pipe that is
 		 * released in the current update in some cases:
-		 *  (1) mdp5 can have SMP (non-double-buffered)
+		 *  (1) mdp5 can have SMP (analn-double-buffered)
 		 *  (2) hw pipe previously assigned to different CRTC
-		 *      (vblanks might not be aligned)
+		 *      (vblanks might analt be aligned)
 		 */
 		if (new_state->hwpipe_to_plane[cur->idx] ||
 				old_state->hwpipe_to_plane[cur->idx])
@@ -86,10 +86,10 @@ int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 	}
 
 	if (!(*hwpipe))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (r_hwpipe && !(*r_hwpipe))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mdp5_kms->smp) {
 		int ret;
@@ -101,7 +101,7 @@ int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 		ret = mdp5_smp_assign(mdp5_kms->smp, &new_global_state->smp,
 				(*hwpipe)->pipe, blkcfg);
 		if (ret)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		(*hwpipe)->blkcfg = blkcfg;
 	}
@@ -159,7 +159,7 @@ struct mdp5_hw_pipe *mdp5_pipe_init(struct drm_device *dev,
 
 	hwpipe = devm_kzalloc(dev->dev, sizeof(*hwpipe), GFP_KERNEL);
 	if (!hwpipe)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hwpipe->name = pipe2name(pipe);
 	hwpipe->pipe = pipe;

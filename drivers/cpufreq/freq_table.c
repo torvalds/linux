@@ -109,7 +109,7 @@ EXPORT_SYMBOL_GPL(cpufreq_frequency_table_verify);
 int cpufreq_generic_frequency_table_verify(struct cpufreq_policy_data *policy)
 {
 	if (!policy->freq_table)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cpufreq_frequency_table_verify(policy, policy->freq_table);
 }
@@ -216,7 +216,7 @@ int cpufreq_frequency_table_get_index(struct cpufreq_policy *policy,
 
 	if (unlikely(!table)) {
 		pr_debug("%s: Unable to find frequency table\n", __func__);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	cpufreq_for_each_valid_entry_idx(pos, table, idx)
@@ -237,7 +237,7 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 	struct cpufreq_frequency_table *pos, *table = policy->freq_table;
 
 	if (!table)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpufreq_for_each_valid_entry(pos, table) {
 		/*
@@ -246,10 +246,10 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 		 *
 		 * show_boost = false and driver_data = BOOST freq
 		 * show_boost = true and driver_data != BOOST freq
-		 * continue - do not display anything
+		 * continue - do analt display anything
 		 *
 		 * show_boost = false and driver_data != BOOST freq
-		 * display NON BOOST freqs
+		 * display ANALN BOOST freqs
 		 */
 		if (show_boost ^ (pos->flags & CPUFREQ_BOOST_FREQ))
 			continue;
@@ -267,7 +267,7 @@ struct freq_attr cpufreq_freq_attr_##_name##_freqs =     \
 __ATTR_RO(_name##_frequencies)
 
 /*
- * scaling_available_frequencies_show - show available normal frequencies for
+ * scaling_available_frequencies_show - show available analrmal frequencies for
  * the specified CPU
  */
 static ssize_t scaling_available_frequencies_show(struct cpufreq_policy *policy,

@@ -13,15 +13,15 @@
 	container_of((config), struct dpaa2_mac, phylink_config)
 
 #define DPMAC_PROTOCOL_CHANGE_VER_MAJOR		4
-#define DPMAC_PROTOCOL_CHANGE_VER_MINOR		8
+#define DPMAC_PROTOCOL_CHANGE_VER_MIANALR		8
 
 #define DPAA2_MAC_FEATURE_PROTOCOL_CHANGE	BIT(0)
 
 static int dpaa2_mac_cmp_ver(struct dpaa2_mac *mac,
-			     u16 ver_major, u16 ver_minor)
+			     u16 ver_major, u16 ver_mianalr)
 {
 	if (mac->ver_major == ver_major)
-		return mac->ver_minor - ver_minor;
+		return mac->ver_mianalr - ver_mianalr;
 	return mac->ver_major - ver_major;
 }
 
@@ -30,7 +30,7 @@ static void dpaa2_mac_detect_features(struct dpaa2_mac *mac)
 	mac->features = 0;
 
 	if (dpaa2_mac_cmp_ver(mac, DPMAC_PROTOCOL_CHANGE_VER_MAJOR,
-			      DPMAC_PROTOCOL_CHANGE_VER_MINOR) >= 0)
+			      DPMAC_PROTOCOL_CHANGE_VER_MIANALR) >= 0)
 		mac->features |= DPAA2_MAC_FEATURE_PROTOCOL_CHANGE;
 }
 
@@ -89,56 +89,56 @@ static enum dpmac_eth_if dpmac_eth_if_mode(phy_interface_t if_mode)
 	}
 }
 
-static struct fwnode_handle *dpaa2_mac_get_node(struct device *dev,
+static struct fwanalde_handle *dpaa2_mac_get_analde(struct device *dev,
 						u16 dpmac_id)
 {
-	struct fwnode_handle *fwnode, *parent = NULL, *child  = NULL;
-	struct device_node *dpmacs = NULL;
+	struct fwanalde_handle *fwanalde, *parent = NULL, *child  = NULL;
+	struct device_analde *dpmacs = NULL;
 	int err;
 	u32 id;
 
-	fwnode = dev_fwnode(dev->parent);
-	if (is_of_node(fwnode)) {
-		dpmacs = of_find_node_by_name(NULL, "dpmacs");
+	fwanalde = dev_fwanalde(dev->parent);
+	if (is_of_analde(fwanalde)) {
+		dpmacs = of_find_analde_by_name(NULL, "dpmacs");
 		if (!dpmacs)
 			return NULL;
-		parent = of_fwnode_handle(dpmacs);
-	} else if (is_acpi_node(fwnode)) {
-		parent = fwnode;
+		parent = of_fwanalde_handle(dpmacs);
+	} else if (is_acpi_analde(fwanalde)) {
+		parent = fwanalde;
 	} else {
 		/* The root dprc device didn't yet get to finalize it's probe,
-		 * thus the fwnode field is not yet set. Defer probe if we are
+		 * thus the fwanalde field is analt yet set. Defer probe if we are
 		 * facing this situation.
 		 */
-		dev_dbg(dev, "dprc not finished probing\n");
+		dev_dbg(dev, "dprc analt finished probing\n");
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	fwnode_for_each_child_node(parent, child) {
+	fwanalde_for_each_child_analde(parent, child) {
 		err = -EINVAL;
-		if (is_acpi_device_node(child))
-			err = acpi_get_local_address(ACPI_HANDLE_FWNODE(child), &id);
-		else if (is_of_node(child))
-			err = of_property_read_u32(to_of_node(child), "reg", &id);
+		if (is_acpi_device_analde(child))
+			err = acpi_get_local_address(ACPI_HANDLE_FWANALDE(child), &id);
+		else if (is_of_analde(child))
+			err = of_property_read_u32(to_of_analde(child), "reg", &id);
 		if (err)
 			continue;
 
 		if (id == dpmac_id) {
-			of_node_put(dpmacs);
+			of_analde_put(dpmacs);
 			return child;
 		}
 	}
-	of_node_put(dpmacs);
+	of_analde_put(dpmacs);
 	return NULL;
 }
 
-static int dpaa2_mac_get_if_mode(struct fwnode_handle *dpmac_node,
+static int dpaa2_mac_get_if_mode(struct fwanalde_handle *dpmac_analde,
 				 struct dpmac_attr attr)
 {
 	phy_interface_t if_mode;
 	int err;
 
-	err = fwnode_get_phy_mode(dpmac_node);
+	err = fwanalde_get_phy_mode(dpmac_analde);
 	if (err > 0)
 		return err;
 
@@ -249,35 +249,35 @@ static const struct phylink_mac_ops dpaa2_mac_phylink_ops = {
 };
 
 static int dpaa2_pcs_create(struct dpaa2_mac *mac,
-			    struct fwnode_handle *dpmac_node,
+			    struct fwanalde_handle *dpmac_analde,
 			    int id)
 {
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	struct phylink_pcs *pcs;
 
-	node = fwnode_find_reference(dpmac_node, "pcs-handle", 0);
-	if (IS_ERR(node)) {
-		/* do not error out on old DTS files */
-		netdev_warn(mac->net_dev, "pcs-handle node not found\n");
+	analde = fwanalde_find_reference(dpmac_analde, "pcs-handle", 0);
+	if (IS_ERR(analde)) {
+		/* do analt error out on old DTS files */
+		netdev_warn(mac->net_dev, "pcs-handle analde analt found\n");
 		return 0;
 	}
 
-	pcs = lynx_pcs_create_fwnode(node);
-	fwnode_handle_put(node);
+	pcs = lynx_pcs_create_fwanalde(analde);
+	fwanalde_handle_put(analde);
 
 	if (pcs == ERR_PTR(-EPROBE_DEFER)) {
 		netdev_dbg(mac->net_dev, "missing PCS device\n");
 		return -EPROBE_DEFER;
 	}
 
-	if (pcs == ERR_PTR(-ENODEV)) {
-		netdev_err(mac->net_dev, "pcs-handle node not available\n");
+	if (pcs == ERR_PTR(-EANALDEV)) {
+		netdev_err(mac->net_dev, "pcs-handle analde analt available\n");
 		return PTR_ERR(pcs);
 	}
 
 	if (IS_ERR(pcs)) {
 		netdev_err(mac->net_dev,
-			   "lynx_pcs_create_fwnode() failed: %pe\n", pcs);
+			   "lynx_pcs_create_fwanalde() failed: %pe\n", pcs);
 		return PTR_ERR(pcs);
 	}
 
@@ -301,7 +301,7 @@ static void dpaa2_mac_set_supported_interfaces(struct dpaa2_mac *mac)
 	int intf, err;
 
 	/* We support the current interface mode, and if we have a PCS
-	 * similar interface modes that do not require the SerDes lane to be
+	 * similar interface modes that do analt require the SerDes lane to be
 	 * reconfigured.
 	 */
 	__set_bit(mac->if_mode, mac->phylink_config.supported_interfaces);
@@ -362,30 +362,30 @@ void dpaa2_mac_stop(struct dpaa2_mac *mac)
 int dpaa2_mac_connect(struct dpaa2_mac *mac)
 {
 	struct net_device *net_dev = mac->net_dev;
-	struct fwnode_handle *dpmac_node;
+	struct fwanalde_handle *dpmac_analde;
 	struct phy *serdes_phy = NULL;
 	struct phylink *phylink;
 	int err;
 
 	mac->if_link_type = mac->attr.link_type;
 
-	dpmac_node = mac->fw_node;
-	if (!dpmac_node) {
-		netdev_err(net_dev, "No dpmac@%d node found.\n", mac->attr.id);
-		return -ENODEV;
+	dpmac_analde = mac->fw_analde;
+	if (!dpmac_analde) {
+		netdev_err(net_dev, "Anal dpmac@%d analde found.\n", mac->attr.id);
+		return -EANALDEV;
 	}
 
-	err = dpaa2_mac_get_if_mode(dpmac_node, mac->attr);
+	err = dpaa2_mac_get_if_mode(dpmac_analde, mac->attr);
 	if (err < 0)
 		return -EINVAL;
 	mac->if_mode = err;
 
 	if (mac->features & DPAA2_MAC_FEATURE_PROTOCOL_CHANGE &&
 	    !phy_interface_mode_is_rgmii(mac->if_mode) &&
-	    is_of_node(dpmac_node)) {
-		serdes_phy = of_phy_get(to_of_node(dpmac_node), NULL);
+	    is_of_analde(dpmac_analde)) {
+		serdes_phy = of_phy_get(to_of_analde(dpmac_analde), NULL);
 
-		if (serdes_phy == ERR_PTR(-ENODEV))
+		if (serdes_phy == ERR_PTR(-EANALDEV))
 			serdes_phy = NULL;
 		else if (IS_ERR(serdes_phy))
 			return PTR_ERR(serdes_phy);
@@ -394,22 +394,22 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 	}
 	mac->serdes_phy = serdes_phy;
 
-	/* The MAC does not have the capability to add RGMII delays so
-	 * error out if the interface mode requests them and there is no PHY
+	/* The MAC does analt have the capability to add RGMII delays so
+	 * error out if the interface mode requests them and there is anal PHY
 	 * to act upon them
 	 */
-	if (of_phy_is_fixed_link(to_of_node(dpmac_node)) &&
+	if (of_phy_is_fixed_link(to_of_analde(dpmac_analde)) &&
 	    (mac->if_mode == PHY_INTERFACE_MODE_RGMII_ID ||
 	     mac->if_mode == PHY_INTERFACE_MODE_RGMII_RXID ||
 	     mac->if_mode == PHY_INTERFACE_MODE_RGMII_TXID)) {
-		netdev_err(net_dev, "RGMII delay not supported\n");
+		netdev_err(net_dev, "RGMII delay analt supported\n");
 		return -EINVAL;
 	}
 
 	if ((mac->attr.link_type == DPMAC_LINK_TYPE_PHY &&
 	     mac->attr.eth_if != DPMAC_ETH_IF_RGMII) ||
 	    mac->attr.link_type == DPMAC_LINK_TYPE_BACKPLANE) {
-		err = dpaa2_pcs_create(mac, dpmac_node, mac->attr.id);
+		err = dpaa2_pcs_create(mac, dpmac_analde, mac->attr.id);
 		if (err)
 			return err;
 	}
@@ -425,7 +425,7 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 	dpaa2_mac_set_supported_interfaces(mac);
 
 	phylink = phylink_create(&mac->phylink_config,
-				 dpmac_node, mac->if_mode,
+				 dpmac_analde, mac->if_mode,
 				 &dpaa2_mac_phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
@@ -434,10 +434,10 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 	mac->phylink = phylink;
 
 	rtnl_lock();
-	err = phylink_fwnode_phy_connect(mac->phylink, dpmac_node, 0);
+	err = phylink_fwanalde_phy_connect(mac->phylink, dpmac_analde, 0);
 	rtnl_unlock();
 	if (err) {
-		netdev_err(net_dev, "phylink_fwnode_phy_connect() = %d\n", err);
+		netdev_err(net_dev, "phylink_fwanalde_phy_connect() = %d\n", err);
 		goto err_phylink_destroy;
 	}
 
@@ -467,14 +467,14 @@ int dpaa2_mac_open(struct dpaa2_mac *mac)
 {
 	struct fsl_mc_device *dpmac_dev = mac->mc_dev;
 	struct net_device *net_dev = mac->net_dev;
-	struct fwnode_handle *fw_node;
+	struct fwanalde_handle *fw_analde;
 	int err;
 
 	err = dpmac_open(mac->mc_io, 0, dpmac_dev->obj_desc.id,
 			 &dpmac_dev->mc_handle);
 	if (err || !dpmac_dev->mc_handle) {
 		netdev_err(net_dev, "dpmac_open() = %d\n", err);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = dpmac_get_attributes(mac->mc_io, 0, dpmac_dev->mc_handle,
@@ -484,7 +484,7 @@ int dpaa2_mac_open(struct dpaa2_mac *mac)
 		goto err_close_dpmac;
 	}
 
-	err = dpmac_get_api_version(mac->mc_io, 0, &mac->ver_major, &mac->ver_minor);
+	err = dpmac_get_api_version(mac->mc_io, 0, &mac->ver_major, &mac->ver_mianalr);
 	if (err) {
 		netdev_err(net_dev, "dpmac_get_api_version() = %d\n", err);
 		goto err_close_dpmac;
@@ -492,17 +492,17 @@ int dpaa2_mac_open(struct dpaa2_mac *mac)
 
 	dpaa2_mac_detect_features(mac);
 
-	/* Find the device node representing the MAC device and link the device
+	/* Find the device analde representing the MAC device and link the device
 	 * behind the associated netdev to it.
 	 */
-	fw_node = dpaa2_mac_get_node(&mac->mc_dev->dev, mac->attr.id);
-	if (IS_ERR(fw_node)) {
-		err = PTR_ERR(fw_node);
+	fw_analde = dpaa2_mac_get_analde(&mac->mc_dev->dev, mac->attr.id);
+	if (IS_ERR(fw_analde)) {
+		err = PTR_ERR(fw_analde);
 		goto err_close_dpmac;
 	}
 
-	mac->fw_node = fw_node;
-	net_dev->dev.of_node = to_of_node(mac->fw_node);
+	mac->fw_analde = fw_analde;
+	net_dev->dev.of_analde = to_of_analde(mac->fw_analde);
 
 	return 0;
 
@@ -516,8 +516,8 @@ void dpaa2_mac_close(struct dpaa2_mac *mac)
 	struct fsl_mc_device *dpmac_dev = mac->mc_dev;
 
 	dpmac_close(mac->mc_io, 0, dpmac_dev->mc_handle);
-	if (mac->fw_node)
-		fwnode_handle_put(mac->fw_node);
+	if (mac->fw_analde)
+		fwanalde_handle_put(mac->fw_analde);
 }
 
 static char dpaa2_mac_ethtool_stats[][ETH_GSTRING_LEN] = {

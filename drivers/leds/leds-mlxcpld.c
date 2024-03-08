@@ -1,17 +1,17 @@
 /*
  * drivers/leds/leds-mlxcpld.c
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Vadim Pasternak <vadimp@mellaanalx.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -20,11 +20,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -121,7 +121,7 @@ struct mlxcpld_led_pdata {
 
 static struct mlxcpld_led_pdata *mlxcpld_led;
 
-/* Default profile fit the next Mellanox systems:
+/* Default profile fit the next Mellaanalx systems:
  * "msx6710", "msx6720", "msb7700", "msn2700", "msx1410",
  * "msn2410", "msb7800", "msn2740"
  */
@@ -176,7 +176,7 @@ static struct mlxcpld_led_profile mlxcpld_led_default_profile[] = {
 	},
 };
 
-/* Profile fit the Mellanox systems based on "msn2100" */
+/* Profile fit the Mellaanalx systems based on "msn2100" */
 static struct mlxcpld_led_profile mlxcpld_led_msn2100_profile[] = {
 	{
 		0x21, 0xf0, MLXCPLD_LED_GREEN_STATIC_ON, 1,
@@ -334,7 +334,7 @@ static int mlxcpld_led_config(struct device *dev,
 				  sizeof(struct mlxcpld_led_priv),
 				  GFP_KERNEL);
 	if (!cpld->pled)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cpld->num_led_instances; i++) {
 		cpld->pled[i].cdev.name = cpld->profile[i].name;
@@ -368,7 +368,7 @@ static int __init mlxcpld_led_probe(struct platform_device *pdev)
 	mlxcpld_led = devm_kzalloc(&pdev->dev, sizeof(*mlxcpld_led),
 				   GFP_KERNEL);
 	if (!mlxcpld_led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlxcpld_led->pdev = pdev;
 
@@ -402,8 +402,8 @@ static int __init mlxcpld_led_init(void)
 	struct platform_device *pdev;
 	int err;
 
-	if (!dmi_match(DMI_CHASSIS_VENDOR, "Mellanox Technologies Ltd."))
-		return -ENODEV;
+	if (!dmi_match(DMI_CHASSIS_VENDOR, "Mellaanalx Techanallogies Ltd."))
+		return -EANALDEV;
 
 	pdev = platform_device_register_simple(KBUILD_MODNAME, -1, NULL, 0);
 	if (IS_ERR(pdev)) {
@@ -429,7 +429,7 @@ static void __exit mlxcpld_led_exit(void)
 module_init(mlxcpld_led_init);
 module_exit(mlxcpld_led_exit);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox board LED driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx board LED driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:leds_mlxcpld");

@@ -323,14 +323,14 @@ int __init sa11x0_register_fixed_regulator(int n,
 
 	cfg->init_data = id = kzalloc(sizeof(*cfg->init_data), GFP_KERNEL);
 	if (!cfg->init_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!uses_gpio)
 		id->constraints.always_on = 1;
 	id->constraints.name = cfg->supply_name;
 	id->constraints.min_uV = cfg->microvolts;
 	id->constraints.max_uV = cfg->microvolts;
-	id->constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
+	id->constraints.valid_modes_mask = REGULATOR_MODE_ANALRMAL;
 	id->constraints.valid_ops_mask = REGULATOR_CHANGE_STATUS;
 	id->consumer_supplies = supplies;
 	id->num_consumer_supplies = num_supplies;
@@ -389,7 +389,7 @@ void __init sa1100_map_io(void)
 
 void __init sa1100_timer_init(void)
 {
-	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x90000000));
+	pxa_timer_analdt_init(IRQ_OST0, io_p2v(0x90000000));
 }
 
 static struct resource irq_resource =
@@ -399,7 +399,7 @@ void __init sa1100_init_irq(void)
 {
 	request_resource(&iomem_resource, &irq_resource);
 
-	sa11x0_init_irq_nodt(IRQ_GPIO0_SC, irq_resource.start);
+	sa11x0_init_irq_analdt(IRQ_GPIO0_SC, irq_resource.start);
 
 	sa1100_init_gpio();
 	sa11xx_clk_init();

@@ -40,7 +40,7 @@
 	};
 
 	usb3_phy: usb3-phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&exp_usb3_vbus>;
 	};
 
@@ -140,7 +140,7 @@
 };
 
 &sdhci0 {
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
 	mmc-ddr-1_8v;
 	mmc-hs400-1_8v;
@@ -165,7 +165,7 @@
 	pinctrl-0 = <&spi_quad_pins>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <108000000>;
 		spi-rx-bus-width = <4>;

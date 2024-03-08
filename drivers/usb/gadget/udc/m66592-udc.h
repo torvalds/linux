@@ -55,12 +55,12 @@
 #define   M66592_H_TST_SE0_NAK	 0x000B		/* HOST TEST SE0 NAK */
 #define   M66592_H_TST_K	 0x000A		/* HOST TEST K */
 #define   M66592_H_TST_J	 0x0009		/* HOST TEST J */
-#define   M66592_H_TST_NORMAL	 0x0000		/* HOST Normal Mode */
+#define   M66592_H_TST_ANALRMAL	 0x0000		/* HOST Analrmal Mode */
 #define   M66592_P_TST_PACKET	 0x0004		/* PERI TEST Packet */
 #define   M66592_P_TST_SE0_NAK	 0x0003		/* PERI TEST SE0 NAK */
 #define   M66592_P_TST_K	 0x0002		/* PERI TEST K */
 #define   M66592_P_TST_J	 0x0001		/* PERI TEST J */
-#define   M66592_P_TST_NORMAL	 0x0000		/* PERI Normal Mode */
+#define   M66592_P_TST_ANALRMAL	 0x0000		/* PERI Analrmal Mode */
 
 /* built-in registers */
 #define M66592_CFBCFG		0x0A
@@ -132,7 +132,7 @@
 #define M66592_DVSE	0x1000	/* b12: Device state transition interrupt */
 #define M66592_CTRE	0x0800	/* b11: Control transfer stage transition irq */
 #define M66592_BEMPE	0x0400	/* b10: Buffer empty interrupt */
-#define M66592_NRDYE	0x0200	/* b9: Buffer not ready interrupt */
+#define M66592_NRDYE	0x0200	/* b9: Buffer analt ready interrupt */
 #define M66592_BRDYE	0x0100	/* b8: Buffer ready interrupt */
 #define M66592_URST	0x0080	/* b7: USB reset detected interrupt */
 #define M66592_SADR	0x0040	/* b6: Set address executed interrupt */
@@ -146,7 +146,7 @@
 #define M66592_INTENB1	0x32
 #define M66592_BCHGE	0x4000	/* b14: USB us chenge interrupt */
 #define M66592_DTCHE	0x1000	/* b12: Detach sense interrupt */
-#define M66592_SIGNE	0x0020	/* b5: SETUP IGNORE interrupt */
+#define M66592_SIGNE	0x0020	/* b5: SETUP IGANALRE interrupt */
 #define M66592_SACKE	0x0010	/* b4: SETUP ACK interrupt */
 #define M66592_BRDYM	0x0004	/* b2: BRDY clear timing */
 #define M66592_INTL	0x0002	/* b1: Interrupt sense select */
@@ -198,7 +198,7 @@
 #define M66592_DVST		0x1000	/* b12: Device state transition */
 #define M66592_CTRT		0x0800	/* b11: Control stage transition */
 #define M66592_BEMP		0x0400	/* b10: Buffer empty interrupt */
-#define M66592_NRDY		0x0200	/* b9: Buffer not ready interrupt */
+#define M66592_NRDY		0x0200	/* b9: Buffer analt ready interrupt */
 #define M66592_BRDY		0x0100	/* b8: Buffer ready interrupt */
 #define M66592_VBSTS		0x0080	/* b7: VBUS input port */
 #define M66592_DVSQ		0x0070	/* b6-4: Device state */
@@ -215,7 +215,7 @@
 #define M66592_VALID		0x0008	/* b3: Setup packet detected flag */
 #define M66592_CTSQ		0x0007	/* b2-0: Control transfer stage */
 #define   M66592_CS_SQER	 0x0006	  /* Sequence error */
-#define   M66592_CS_WRND	 0x0005	  /* Control write nodata status */
+#define   M66592_CS_WRND	 0x0005	  /* Control write analdata status */
 #define   M66592_CS_WRSS	 0x0004	  /* Control write status stage */
 #define   M66592_CS_WRDS	 0x0003	  /* Control write data stage */
 #define   M66592_CS_RDSS	 0x0002	  /* Control read status stage */
@@ -225,7 +225,7 @@
 #define M66592_INTSTS1		0x42
 #define M66592_BCHG		0x4000	/* b14: USB bus chenge interrupt */
 #define M66592_DTCH		0x1000	/* b12: Detach sense interrupt */
-#define M66592_SIGN		0x0020	/* b5: SETUP IGNORE interrupt */
+#define M66592_SIGN		0x0020	/* b5: SETUP IGANALRE interrupt */
 #define M66592_SACK		0x0010	/* b4: SETUP ACK interrupt */
 
 #define M66592_FRMNUM		0x4C
@@ -349,7 +349,7 @@
 
 #define M66592_PIPECFG		0x66
 #define M66592_TYP		0xC000	/* b15-14: Transfer type */
-#define   M66592_ISO		 0xC000		  /* Isochronous */
+#define   M66592_ISO		 0xC000		  /* Isochroanalus */
 #define   M66592_INT		 0x8000		  /* Interrupt */
 #define   M66592_BULK		 0x4000		  /* Bulk */
 #define M66592_BFRE		0x0400	/* b10: Buffer ready interrupt mode */
@@ -486,7 +486,7 @@ struct m66592 {
 	/* pipe config */
 	int bulk;
 	int interrupt;
-	int isochronous;
+	int isochroanalus;
 	int num_dma;
 };
 #define to_m66592(g)	(container_of((g), struct m66592, gadget))

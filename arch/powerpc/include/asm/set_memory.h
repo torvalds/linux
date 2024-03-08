@@ -6,7 +6,7 @@
 #define SET_MEMORY_RW	1
 #define SET_MEMORY_NX	2
 #define SET_MEMORY_X	3
-#define SET_MEMORY_NP	4	/* Set memory non present */
+#define SET_MEMORY_NP	4	/* Set memory analn present */
 #define SET_MEMORY_P	5	/* Set memory present */
 
 int change_memory_attr(unsigned long addr, int numpages, long action);

@@ -66,7 +66,7 @@
 /* Possible values of PFOW device status register */
 /* access R - read; RC read & clearable */
 #define DSR_DPS			(1<<1) /* RC; device protect status
-					* 0 - not protected 1 - locked */
+					* 0 - analt protected 1 - locked */
 #define DSR_PSS			(1<<2) /* R; program suspend status;
 					* 0-prog in progress/completed,
 					* 1- prog suspended */
@@ -92,7 +92,7 @@
 #define DSR_AOS			(1<<12) /* RC; 1- AO related failure */
 #define DSR_AVAILABLE		(1<<15) /* R; Device availbility
 					* 1 - Device available
-					* 0 - not available */
+					* 0 - analt available */
 
 /* The superset of all possible error bits in DSR */
 #define DSR_ERR			0x133A

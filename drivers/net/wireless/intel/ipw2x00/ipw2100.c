@@ -25,7 +25,7 @@
 /*
 
  Initial driver on which this is based was developed by Janusz Gorycki,
- Maciej Urbaniak, and Maciej Sosnowski.
+ Maciej Urbaniak, and Maciej Sosanalwski.
 
  Promiscuous mode support added by Jacek Wysoczynski and Maciej Urbaniak.
 
@@ -63,7 +63,7 @@ The Tx flow cycle is as follows:
    actual payload data.
 5) the packet is removed from tx_pend_list and placed on the end of the
    firmware pending list (fw_pend_list)
-6) firmware is notified that the WRITE index has
+6) firmware is analtified that the WRITE index has
 7) Once the firmware has processed the TBD, INTA is triggered.
 8) For each Tx interrupt received from the firmware, the READ index is checked
    to see which TBDs are done being processed.
@@ -120,7 +120,7 @@ that only one external action is invoked at a time.
 */
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>
@@ -195,7 +195,7 @@ MODULE_PARM_DESC(channel, "channel");
 MODULE_PARM_DESC(associate, "auto associate when scanning (default off)");
 MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 
-static u32 ipw2100_debug_level = IPW_DL_NONE;
+static u32 ipw2100_debug_level = IPW_DL_ANALNE;
 
 #ifdef CONFIG_IPW2100_DEBUG
 #define IPW_DEBUG(level, message...) \
@@ -556,7 +556,7 @@ static int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
 		/* get number of entries */
 		field_count = *(((u16 *) & field_info) + 1);
 
-		/* abort if no enough memory */
+		/* abort if anal eanalugh memory */
 		total_length = field_len * field_count;
 		if (total_length > *len) {
 			*len = total_length;
@@ -573,7 +573,7 @@ static int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
 		return 0;
 	}
 
-	printk(KERN_WARNING DRV_NAME ": ordinal %d neither in table 1 nor "
+	printk(KERN_WARNING DRV_NAME ": ordinal %d neither in table 1 analr "
 	       "in table 2\n", ord);
 
 	return -EINVAL;
@@ -664,16 +664,16 @@ static void printk_buf(int level, const u8 * data, u32 len)
 
 static void schedule_reset(struct ipw2100_priv *priv)
 {
-	time64_t now = ktime_get_boottime_seconds();
+	time64_t analw = ktime_get_boottime_seconds();
 
 	/* If we haven't received a reset request within the backoff period,
 	 * then we can reset the backoff interval so this reset occurs
 	 * immediately */
 	if (priv->reset_backoff &&
-	    (now - priv->last_reset > priv->reset_backoff))
+	    (analw - priv->last_reset > priv->reset_backoff))
 		priv->reset_backoff = 0;
 
-	priv->last_reset = now;
+	priv->last_reset = analw;
 
 	if (!(priv->status & STATUS_RESET_PENDING)) {
 		IPW_DEBUG_INFO("%s: Scheduling firmware restart (%llds).\n",
@@ -723,20 +723,20 @@ static int ipw2100_hw_send_command(struct ipw2100_priv *priv,
 
 	if (!(priv->status & STATUS_RUNNING)) {
 		IPW_DEBUG_INFO
-		    ("Attempt to send command while hardware is not running.\n");
+		    ("Attempt to send command while hardware is analt running.\n");
 		err = -EIO;
 		goto fail_unlock;
 	}
 
 	if (priv->status & STATUS_CMD_ACTIVE) {
 		IPW_DEBUG_INFO
-		    ("Attempt to send command while another command is pending.\n");
+		    ("Attempt to send command while aanalther command is pending.\n");
 		err = -EBUSY;
 		goto fail_unlock;
 	}
 
 	if (list_empty(&priv->msg_free_list)) {
-		IPW_DEBUG_INFO("no available msg buffers\n");
+		IPW_DEBUG_INFO("anal available msg buffers\n");
 		goto fail_unlock;
 	}
 
@@ -771,7 +771,7 @@ static int ipw2100_hw_send_command(struct ipw2100_priv *priv,
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 
 	/*
-	 * We must wait for this command to complete before another
+	 * We must wait for this command to complete before aanalther
 	 * command can be sent...  but if we wait more than 3 seconds
 	 * then there is a problem.
 	 */
@@ -814,7 +814,7 @@ static int ipw2100_hw_send_command(struct ipw2100_priv *priv,
 
 /*
  * Verify the values and data access of the hardware
- * No locks needed or used.  No functions called.
+ * Anal locks needed or used.  Anal functions called.
  */
 static int ipw2100_verify(struct ipw2100_priv *priv)
 {
@@ -834,7 +834,7 @@ static int ipw2100_verify(struct ipw2100_priv *priv)
 
 	/* Domain 1 check - use arbitrary read/write compare  */
 	for (address = 0; address < 5; address++) {
-		/* The memory area is not used now */
+		/* The memory area is analt used analw */
 		write_register(priv->net_dev, IPW_REG_DOMAIN_1_OFFSET + 0x32,
 			       val1);
 		write_register(priv->net_dev, IPW_REG_DOMAIN_1_OFFSET + 0x36,
@@ -958,7 +958,7 @@ static int sw_reset_and_clock(struct ipw2100_priv *priv)
                     1. assert s/w reset first!
                     2. awake clocks & wait for clock stabilization
                     3. hold ARC (don't ask me why...)
-                    4. load Dino ucode and reset/clock init again
+                    4. load Dianal ucode and reset/clock init again
                     5. zero-out shared mem
                     6. download f/w
  *******************************************************************/
@@ -1195,16 +1195,16 @@ static int ipw2100_get_hw_features(struct ipw2100_priv *priv)
 	/*
 	 *  HW RF Kill enable is bit 0 in byte at offset 0x21 in firmware
 	 *
-	 *  notice that the EEPROM bit is reverse polarity, i.e.
+	 *  analtice that the EEPROM bit is reverse polarity, i.e.
 	 *     bit = 0  signifies HW RF kill switch is supported
-	 *     bit = 1  signifies HW RF kill switch is NOT supported
+	 *     bit = 1  signifies HW RF kill switch is ANALT supported
 	 */
 	read_nic_dword(priv->net_dev, addr + 0x20, &val);
 	if (!((val >> 24) & 0x01))
 		priv->hw_features |= HW_FEATURE_RFKILL;
 
 	IPW_DEBUG_INFO("HW RF Kill: %ssupported.\n",
-		       (priv->hw_features & HW_FEATURE_RFKILL) ? "" : "not ");
+		       (priv->hw_features & HW_FEATURE_RFKILL) ? "" : "analt ");
 
 	return 0;
 }
@@ -1228,7 +1228,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 	/*
 	 * Initialize the hw - drive adapter to DO state by setting
 	 * init_done bit. Wait for clk_ready bit and Download
-	 * fw & dino ucode
+	 * fw & dianal ucode
 	 */
 	if (ipw2100_download_firmware(priv)) {
 		printk(KERN_ERR DRV_NAME
@@ -1243,7 +1243,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 
 	ipw2100_hw_set_gpio(priv);
 
-	/* TODO -- Look at disabling interrupts here to make sure none
+	/* TODO -- Look at disabling interrupts here to make sure analne
 	 * get fired during FW initialization */
 
 	/* Release ARC - clear reset bit */
@@ -1292,7 +1292,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 
 	if (!i) {
 		printk(KERN_WARNING DRV_NAME
-		       ": %s: Firmware did not initialize.\n",
+		       ": %s: Firmware did analt initialize.\n",
 		       priv->net_dev->name);
 		return -EIO;
 	}
@@ -1307,7 +1307,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 	/* Ready to receive commands */
 	priv->status |= STATUS_RUNNING;
 
-	/* The adapter has been reset; we are not associated */
+	/* The adapter has been reset; we are analt associated */
 	priv->status &= ~(STATUS_ASSOCIATING | STATUS_ASSOCIATED);
 
 	IPW_DEBUG_INFO("exit\n");
@@ -1325,7 +1325,7 @@ static inline void ipw2100_reset_fatalerror(struct ipw2100_priv *priv)
 	priv->fatal_error = 0;
 }
 
-/* NOTE: Our interrupt is disabled when this method is called */
+/* ANALTE: Our interrupt is disabled when this method is called */
 static int ipw2100_power_cycle_adapter(struct ipw2100_priv *priv)
 {
 	u32 reg;
@@ -1340,7 +1340,7 @@ static int ipw2100_power_cycle_adapter(struct ipw2100_priv *priv)
 		       IPW_AUX_HOST_RESET_REG_STOP_MASTER);
 
 	/* Step 2. Wait for stop Master Assert
-	 *         (not more than 50us, otherwise ret error */
+	 *         (analt more than 50us, otherwise ret error */
 	i = 5;
 	do {
 		udelay(IPW_WAIT_RESET_MASTER_ASSERT_COMPLETE_DELAY);
@@ -1364,7 +1364,7 @@ static int ipw2100_power_cycle_adapter(struct ipw2100_priv *priv)
 	/* Reset any fatal_error conditions */
 	ipw2100_reset_fatalerror(priv);
 
-	/* At this point, the adapter is now stopped and disabled */
+	/* At this point, the adapter is analw stopped and disabled */
 	priv->status &= ~(STATUS_RUNNING | STATUS_ASSOCIATING |
 			  STATUS_ASSOCIATED | STATUS_ENABLED);
 
@@ -1376,7 +1376,7 @@ static int ipw2100_power_cycle_adapter(struct ipw2100_priv *priv)
  *
  * After disabling, if the card was associated, a STATUS_ASSN_LOST will be sent.
  *
- * STATUS_CARD_DISABLE_NOTIFICATION will be sent regardless of
+ * STATUS_CARD_DISABLE_ANALTIFICATION will be sent regardless of
  * if STATUS_ASSN_LOST is sent.
  */
 static int ipw2100_hw_phy_off(struct ipw2100_priv *priv)
@@ -1442,7 +1442,7 @@ static int ipw2100_enable_adapter(struct ipw2100_priv *priv)
 
 	err = ipw2100_wait_for_card_state(priv, IPW_HW_STATE_ENABLED);
 	if (err) {
-		IPW_DEBUG_INFO("%s: card not responding to init command.\n",
+		IPW_DEBUG_INFO("%s: card analt responding to init command.\n",
 			       priv->net_dev->name);
 		goto fail_up;
 	}
@@ -1475,7 +1475,7 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 	priv->status |= STATUS_STOPPING;
 
 	/* We can only shut down the card if the firmware is operational.  So,
-	 * if we haven't reset since a fatal_error, then we can not send the
+	 * if we haven't reset since a fatal_error, then we can analt send the
 	 * shutdown commands. */
 	if (!priv->fatal_error) {
 		/* First, make sure the adapter is enabled so that the PHY_OFF
@@ -1503,7 +1503,7 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 		 * Prepare for power down command to fw.  This command would
 		 * take HW out of D0-standby and prepare it for D3 state.
 		 *
-		 * Currently FW does not support event notification for this
+		 * Currently FW does analt support event analtification for this
 		 * event. Therefore, skip waiting for it.  Just wait a fixed
 		 * 100ms
 		 */
@@ -1537,7 +1537,7 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 	write_register(priv->net_dev, IPW_REG_RESET_REG,
 		       IPW_AUX_HOST_RESET_REG_STOP_MASTER);
 
-	/* wait stop master not more than 50 usec.
+	/* wait stop master analt more than 50 usec.
 	 * Otherwise return error. */
 	for (i = 5; i > 0; i--) {
 		udelay(10);
@@ -1551,7 +1551,7 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 
 	if (i == 0)
 		printk(KERN_WARNING DRV_NAME
-		       ": %s: Could now power down adapter.\n",
+		       ": %s: Could analw power down adapter.\n",
 		       priv->net_dev->name);
 
 	/* assert s/w reset */
@@ -1624,7 +1624,7 @@ static int ipw2100_set_scan_options(struct ipw2100_priv *priv)
 	cmd.host_command_parameters[0] = 0;
 
 	if (!(priv->config & CFG_ASSOCIATE))
-		cmd.host_command_parameters[0] |= IPW_SCAN_NOASSOCIATE;
+		cmd.host_command_parameters[0] |= IPW_SCAN_ANALASSOCIATE;
 	if ((priv->ieee->sec.flags & SEC_ENABLED) && priv->ieee->sec.enabled)
 		cmd.host_command_parameters[0] |= IPW_SCAN_MIXED_CELL;
 	if (priv->config & CFG_PASSIVE_SCAN)
@@ -1653,7 +1653,7 @@ static int ipw2100_start_scan(struct ipw2100_priv *priv)
 
 	cmd.host_command_parameters[0] = 0;
 
-	/* No scanning if in monitor mode */
+	/* Anal scanning if in monitor mode */
 	if (priv->ieee->iw_mode == IW_MODE_MONITOR)
 		return 1;
 
@@ -1664,7 +1664,7 @@ static int ipw2100_start_scan(struct ipw2100_priv *priv)
 
 	IPW_DEBUG_INFO("enter\n");
 
-	/* Not clearing here; doing so makes iwlist always return nothing...
+	/* Analt clearing here; doing so makes iwlist always return analthing...
 	 *
 	 * We should modify the table logic to use aging tables vs. clearing
 	 * the table on each scan start.
@@ -1732,7 +1732,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 		err = ipw2100_power_cycle_adapter(priv);
 		if (err) {
 			printk(KERN_WARNING DRV_NAME
-			       ": %s: Could not cycle adapter.\n",
+			       ": %s: Could analt cycle adapter.\n",
 			       priv->net_dev->name);
 			goto exit;
 		}
@@ -1763,7 +1763,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	libipw_set_geo(priv->ieee, &ipw_geos[0]);
 	priv->ieee->freq_band = LIBIPW_24GHZ_BAND;
 
-	lock = LOCK_NONE;
+	lock = LOCK_ANALNE;
 	err = ipw2100_set_ordinal(priv, IPW_ORD_PERS_DB_LOCK, &lock, &ord_len);
 	if (err) {
 		printk(KERN_ERR DRV_NAME
@@ -1854,7 +1854,7 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 		printk(KERN_ERR DRV_NAME ": %s: Error stopping adapter.\n",
 		       priv->net_dev->name);
 
-	/* Do not disable the interrupt until _after_ we disable
+	/* Do analt disable the interrupt until _after_ we disable
 	 * the adaptor.  Otherwise the CARD_DISABLE command will never
 	 * be ack'd by the firmware */
 	spin_lock_irqsave(&priv->low_lock, flags);
@@ -1893,7 +1893,7 @@ static int ipw2100_wdev_init(struct net_device *dev)
 					    GFP_KERNEL);
 		if (!bg_band->channels) {
 			ipw2100_down(priv);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		/* translate geo->bg to bg_band.channels */
 		for (i = 0; i < geo->bg_channels; i++) {
@@ -1903,14 +1903,14 @@ static int ipw2100_wdev_init(struct net_device *dev)
 			bg_band->channels[i].max_power = geo->bg[i].max_power;
 			if (geo->bg[i].flags & LIBIPW_CH_PASSIVE_ONLY)
 				bg_band->channels[i].flags |=
-					IEEE80211_CHAN_NO_IR;
-			if (geo->bg[i].flags & LIBIPW_CH_NO_IBSS)
+					IEEE80211_CHAN_ANAL_IR;
+			if (geo->bg[i].flags & LIBIPW_CH_ANAL_IBSS)
 				bg_band->channels[i].flags |=
-					IEEE80211_CHAN_NO_IR;
+					IEEE80211_CHAN_ANAL_IR;
 			if (geo->bg[i].flags & LIBIPW_CH_RADAR_DETECT)
 				bg_band->channels[i].flags |=
 					IEEE80211_CHAN_RADAR;
-			/* No equivalent for LIBIPW_CH_80211H_RULES,
+			/* Anal equivalent for LIBIPW_CH_80211H_RULES,
 			   LIBIPW_CH_UNIFORM_SPREADING, or
 			   LIBIPW_CH_B_ONLY... */
 		}
@@ -1980,7 +1980,7 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 	u8 bssid[ETH_ALEN];
 
 	/*
-	 * TBD: BSSID is usually 00:00:00:00:00:00 here and not
+	 * TBD: BSSID is usually 00:00:00:00:00:00 here and analt
 	 *      an actual MAC of the AP. Seems like FW sets this
 	 *      address too late. Read it later and expose through
 	 *      /proc or schedule a later task to query and update
@@ -2034,8 +2034,8 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 		txratename = "11Mbps";
 		break;
 	default:
-		IPW_DEBUG_INFO("Unknown rate: %d\n", txrate);
-		txratename = "unknown rate";
+		IPW_DEBUG_INFO("Unkanalwn rate: %d\n", txrate);
+		txratename = "unkanalwn rate";
 		break;
 	}
 
@@ -2043,7 +2043,7 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 		       priv->net_dev->name, essid_len, essid,
 		       txratename, chan, bssid);
 
-	/* now we copy read ssid into dev */
+	/* analw we copy read ssid into dev */
 	if (!(priv->config & CFG_STATIC_ESSID)) {
 		priv->essid_len = min((u8) essid_len, (u8) IW_ESSID_MAX_SIZE);
 		memcpy(priv->essid, essid, priv->essid_len);
@@ -2079,7 +2079,7 @@ static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
 			return err;
 	}
 
-	/* Bug in FW currently doesn't honor bit 0 in SET_SCAN_OPTIONS to
+	/* Bug in FW currently doesn't hoanalr bit 0 in SET_SCAN_OPTIONS to
 	 * disable auto association -- so we cheat by setting a bogus SSID */
 	if (!ssid_len && !(priv->config & CFG_ASSOCIATE)) {
 		int i;
@@ -2089,7 +2089,7 @@ static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
 		cmd.host_command_length = IW_ESSID_MAX_SIZE;
 	}
 
-	/* NOTE:  We always send the SSID command even if the provided ESSID is
+	/* ANALTE:  We always send the SSID command even if the provided ESSID is
 	 * the same as what we currently think is set. */
 
 	err = ipw2100_hw_send_command(priv, &cmd);
@@ -2109,7 +2109,7 @@ static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
 
 static void isr_indicate_association_lost(struct ipw2100_priv *priv, u32 status)
 {
-	IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE | IPW_DL_ASSOC,
+	IPW_DEBUG(IPW_DL_ANALTIF | IPW_DL_STATE | IPW_DL_ASSOC,
 		  "disassociated: '%*pE' %pM\n", priv->essid_len, priv->essid,
 		  priv->bssid);
 
@@ -2140,7 +2140,7 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 	IPW_DEBUG_INFO("%s: RF Kill state changed to radio OFF.\n",
 		       priv->net_dev->name);
 
-	/* RF_KILL is now enabled (else we wouldn't be here) */
+	/* RF_KILL is analw enabled (else we wouldn't be here) */
 	wiphy_rfkill_set_hw_state(priv->ieee->wdev.wiphy, true);
 	priv->status |= STATUS_RF_KILL_HW;
 
@@ -2222,7 +2222,7 @@ static void isr_status_change(struct ipw2100_priv *priv, int status)
 	    priv->status & STATUS_ASSOCIATED &&
 	    !(priv->status & STATUS_SCANNING)) {
 		IPW_DEBUG_INFO("Scan detected while associated, with "
-			       "no scan request.  Restarting firmware.\n");
+			       "anal scan request.  Restarting firmware.\n");
 
 		/* Wake up any sleeping jobs */
 		schedule_reset(priv);
@@ -2230,7 +2230,7 @@ static void isr_status_change(struct ipw2100_priv *priv, int status)
 
 	for (i = 0; status_handlers[i].status != -1; i++) {
 		if (status == status_handlers[i].status) {
-			IPW_DEBUG_NOTIF("Status change: %s\n",
+			IPW_DEBUG_ANALTIF("Status change: %s\n",
 					status_handlers[i].name);
 			if (status_handlers[i].cb)
 				status_handlers[i].cb(priv, status);
@@ -2239,7 +2239,7 @@ static void isr_status_change(struct ipw2100_priv *priv, int status)
 		}
 	}
 
-	IPW_DEBUG_NOTIF("unknown status received: %04x\n", status);
+	IPW_DEBUG_ANALTIF("unkanalwn status received: %04x\n", status);
 }
 
 static void isr_rx_complete_command(struct ipw2100_priv *priv,
@@ -2269,7 +2269,7 @@ static const char *frame_types[] = {
 	"STATUS_CHANGE_VAL",
 	"P80211_DATA_VAL",
 	"P8023_DATA_VAL",
-	"HOST_NOTIFICATION_VAL"
+	"HOST_ANALTIFICATION_VAL"
 };
 #endif
 
@@ -2278,7 +2278,7 @@ static int ipw2100_alloc_skb(struct ipw2100_priv *priv,
 {
 	packet->skb = dev_alloc_skb(sizeof(struct ipw2100_rx));
 	if (!packet->skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	packet->rxp = (struct ipw2100_rx *)packet->skb->data;
 	packet->dma_addr = dma_map_single(&priv->pci_dev->dev,
@@ -2287,7 +2287,7 @@ static int ipw2100_alloc_skb(struct ipw2100_priv *priv,
 					  DMA_FROM_DEVICE);
 	if (dma_mapping_error(&priv->pci_dev->dev, packet->dma_addr)) {
 		dev_kfree_skb(packet->skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -2422,7 +2422,7 @@ static void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 			       priv->net_dev->name, match,
 			       sizeof(struct ipw2100_status));
 	else
-		IPW_DEBUG_INFO("%s: No DMA status match in "
+		IPW_DEBUG_INFO("%s: Anal DMA status match in "
 			       "Firmware.\n", priv->net_dev->name);
 
 	printk_buf((u8 *) priv->status_queue.drv,
@@ -2455,13 +2455,13 @@ static void isr_rx(struct ipw2100_priv *priv, int i,
 	if (unlikely(!netif_running(dev))) {
 		dev->stats.rx_errors++;
 		priv->wstats.discard.misc++;
-		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
+		IPW_DEBUG_DROP("Dropping packet while interface is analt up.\n");
 		return;
 	}
 
 	if (unlikely(priv->ieee->iw_mode != IW_MODE_MONITOR &&
 		     !(priv->status & STATUS_ASSOCIATED))) {
-		IPW_DEBUG_DROP("Dropping packet while not associated.\n");
+		IPW_DEBUG_DROP("Dropping packet while analt associated.\n");
 		priv->wstats.discard.misc++;
 		return;
 	}
@@ -2481,7 +2481,7 @@ static void isr_rx(struct ipw2100_priv *priv, int i,
 
 	if (!libipw_rx(priv->ieee, packet->skb, stats)) {
 #ifdef IPW2100_RX_DEBUG
-		IPW_DEBUG_DROP("%s: Non consumed packet:\n",
+		IPW_DEBUG_DROP("%s: Analn consumed packet:\n",
 			       dev->name);
 		printk_buf(IPW_DL_DROP, packet_data, status->frame_size);
 #endif
@@ -2514,7 +2514,7 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
 	struct ipw2100_rx_packet *packet = &priv->rx_buffers[i];
 
-	/* Magic struct that slots into the radiotap header -- no reason
+	/* Magic struct that slots into the radiotap header -- anal reason
 	 * to build this manually element by element, we can write it much
 	 * more efficiently than we can parse it. ORDER MATTERS HERE */
 	struct ipw_rt_hdr {
@@ -2538,7 +2538,7 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 	if (unlikely(!netif_running(dev))) {
 		dev->stats.rx_errors++;
 		priv->wstats.discard.misc++;
-		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
+		IPW_DEBUG_DROP("Dropping packet while interface is analt up.\n");
 		return;
 	}
 
@@ -2600,8 +2600,8 @@ static int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
 		return (status->frame_size != sizeof(u->rx_data.command));
 	case STATUS_CHANGE_VAL:
 		return (status->frame_size != sizeof(u->rx_data.status));
-	case HOST_NOTIFICATION_VAL:
-		return (status->frame_size < sizeof(u->rx_data.notification));
+	case HOST_ANALTIFICATION_VAL:
+		return (status->frame_size < sizeof(u->rx_data.analtification));
 	case P80211_DATA_VAL:
 	case P8023_DATA_VAL:
 #ifdef CONFIG_IPW2100_MONITOR
@@ -2623,7 +2623,7 @@ static int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
 
 /*
  * ipw2100 interrupts are disabled at this point, and the ISR
- * is the only code that calls this method.  So, we do not need
+ * is the only code that calls this method.  So, we do analt need
  * to play with any locks.
  *
  * RX Queue works as follows:
@@ -2631,13 +2631,13 @@ static int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
  * Read index - firmware places packet in entry identified by the
  *              Read index and advances Read index.  In this manner,
  *              Read index will always point to the next packet to
- *              be filled--but not yet valid.
+ *              be filled--but analt yet valid.
  *
  * Write index - driver fills this entry with an unused RBD entry.
- *               This entry has not filled by the firmware yet.
+ *               This entry has analt filled by the firmware yet.
  *
  * In between the W and R indexes are the RBDs that have been received
- * but not yet processed.
+ * but analt yet processed.
  *
  * The process of handling packets will start at WRITE + 1 and advance
  * until it reaches the READ index.
@@ -2757,7 +2757,7 @@ static void __ipw2100_rx_process(struct ipw2100_priv *priv)
  * This routine will determine whether the next packet on
  * the fw_pend_list has been processed by the firmware yet.
  *
- * If not, then it does nothing and returns.
+ * If analt, then it does analthing and returns.
  *
  * If so, then it removes the item from the fw_pend_list, frees
  * any associated storage, and places the item back on the
@@ -2770,12 +2770,12 @@ static void __ipw2100_rx_process(struct ipw2100_priv *priv)
  *              done processing, it will advance the Read index.
  *
  * Write index - driver fills this entry with an constructed TBD
- *               entry.  The Write index is not advanced until the
+ *               entry.  The Write index is analt advanced until the
  *               packet has been configured.
  *
- * In between the W and R indexes are the TBDs that have NOT been
+ * In between the W and R indexes are the TBDs that have ANALT been
  * processed.  Lagging behind the R index are packets that have
- * been processed but have not been freed by the driver.
+ * been processed but have analt been freed by the driver.
  *
  * In order to free old storage, an internal index will be maintained
  * that points to the next packet to be freed.  When all used
@@ -2784,7 +2784,7 @@ static void __ipw2100_rx_process(struct ipw2100_priv *priv)
  *
  * The OLDEST index is cached in the variable 'priv->tx_queue.oldest'
  *
- * Because the TBD structure can not contain arbitrary data, the
+ * Because the TBD structure can analt contain arbitrary data, the
  * driver must keep an internal queue of cached allocations such that
  * it can put that data back into the tx_free_list and msg_free_list
  * for use by future command and data packets.
@@ -2830,8 +2830,8 @@ static int __ipw2100_tx_process(struct ipw2100_priv *priv)
 		return 0;
 	}
 
-	/* if the last TBD is not done by NIC yet, then packet is
-	 * not ready to be released.
+	/* if the last TBD is analt done by NIC yet, then packet is
+	 * analt ready to be released.
 	 *
 	 */
 	read_register(priv->net_dev, IPW_MEM_HOST_SHARED_TX_QUEUE_READ_INDEX,
@@ -2865,7 +2865,7 @@ static int __ipw2100_tx_process(struct ipw2100_priv *priv)
 	 *
 	 */
 	if (!((r <= w && (e < r || e >= w)) || (e < r && e >= w))) {
-		IPW_DEBUG_TX("exit - no processed packets ready to release.\n");
+		IPW_DEBUG_TX("exit - anal processed packets ready to release.\n");
 		return 0;
 	}
 
@@ -2988,14 +2988,14 @@ static void ipw2100_tx_send_commands(struct ipw2100_priv *priv)
 	int next = txq->next;
 
 	while (!list_empty(&priv->msg_pend_list)) {
-		/* if there isn't enough space in TBD queue, then
+		/* if there isn't eanalugh space in TBD queue, then
 		 * don't stuff a new one in.
-		 * NOTE: 3 are needed as a command will take one,
+		 * ANALTE: 3 are needed as a command will take one,
 		 *       and there is a minimum of 2 that must be
 		 *       maintained between the r and w indexes
 		 */
 		if (txq->available <= 3) {
-			IPW_DEBUG_TX("no room in tx_queue\n");
+			IPW_DEBUG_TX("anal room in tx_queue\n");
 			break;
 		}
 
@@ -3017,7 +3017,7 @@ static void ipw2100_tx_send_commands(struct ipw2100_priv *priv)
 		/* initialize TBD */
 		tbd->host_addr = packet->info.c_struct.cmd_phys;
 		tbd->buf_length = sizeof(struct ipw2100_cmd_header);
-		/* not marking number of fragments causes problems
+		/* analt marking number of fragments causes problems
 		 * with f/w debug version */
 		tbd->num_fragments = 1;
 		tbd->status.info.field =
@@ -3035,7 +3035,7 @@ static void ipw2100_tx_send_commands(struct ipw2100_priv *priv)
 	}
 
 	if (txq->next != next) {
-		/* kick off the DMA by notifying firmware the
+		/* kick off the DMA by analtifying firmware the
 		 * write index has moved; make sure TBD stores are sync'd */
 		wmb();
 		write_register(priv->net_dev,
@@ -3060,9 +3060,9 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 	struct libipw_hdr_3addr *hdr;
 
 	while (!list_empty(&priv->tx_pend_list)) {
-		/* if there isn't enough space in TBD queue, then
+		/* if there isn't eanalugh space in TBD queue, then
 		 * don't stuff a new one in.
-		 * NOTE: 4 are needed as a data will take two,
+		 * ANALTE: 4 are needed as a data will take two,
 		 *       and there is a minimum of 2 that must be
 		 *       maintained between the r and w indexes
 		 */
@@ -3079,7 +3079,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 		}
 
 		if (txq->available <= 3 + packet->info.d_struct.txb->nr_frags) {
-			IPW_DEBUG_TX("no room in tx_queue\n");
+			IPW_DEBUG_TX("anal room in tx_queue\n");
 			break;
 		}
 
@@ -3100,7 +3100,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 			memcpy(ipw_hdr->src_addr, hdr->addr2, ETH_ALEN);
 			memcpy(ipw_hdr->dst_addr, hdr->addr3, ETH_ALEN);
 		} else if (priv->ieee->iw_mode == IW_MODE_ADHOC) {
-			/* not From/To DS: Addr1 = DA, Addr2 = SA,
+			/* analt From/To DS: Addr1 = DA, Addr2 = SA,
 			   Addr3 = BSSID */
 			memcpy(ipw_hdr->src_addr, hdr->addr2, ETH_ALEN);
 			memcpy(ipw_hdr->dst_addr, hdr->addr1, ETH_ALEN);
@@ -3109,7 +3109,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 		ipw_hdr->host_command_reg = SEND;
 		ipw_hdr->host_command_reg1 = 0;
 
-		/* For now we only support host based encryption */
+		/* For analw we only support host based encryption */
 		ipw_hdr->needs_encryption = 0;
 		ipw_hdr->encrypted = packet->info.d_struct.txb->encrypted;
 		if (packet->info.d_struct.txb->nr_frags > 1)
@@ -3124,7 +3124,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 		tbd->num_fragments = 1 + packet->info.d_struct.txb->nr_frags;
 		tbd->status.info.field =
 		    IPW_BD_STATUS_TX_FRAME_802_3 |
-		    IPW_BD_STATUS_TX_FRAME_NOT_LAST_FRAGMENT;
+		    IPW_BD_STATUS_TX_FRAME_ANALT_LAST_FRAGMENT;
 		txq->next++;
 		txq->next %= txq->entries;
 
@@ -3145,7 +3145,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 			else
 				tbd->status.info.field =
 				    IPW_BD_STATUS_TX_FRAME_802_3 |
-				    IPW_BD_STATUS_TX_FRAME_NOT_LAST_FRAGMENT;
+				    IPW_BD_STATUS_TX_FRAME_ANALT_LAST_FRAGMENT;
 
 			tbd->buf_length = packet->info.d_struct.txb->
 			    fragments[i]->len - LIBIPW_3ADDR_LEN;
@@ -3182,7 +3182,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 	}
 
 	if (txq->next != next) {
-		/* kick off the DMA by notifying firmware the
+		/* kick off the DMA by analtifying firmware the
 		 * write index has moved; make sure TBD stores are sync'd */
 		write_register(priv->net_dev,
 			       IPW_MEM_HOST_SHARED_TX_QUEUE_WRITE_INDEX,
@@ -3208,7 +3208,7 @@ static void ipw2100_irq_tasklet(struct tasklet_struct *t)
 	priv->in_isr++;
 	priv->interrupts++;
 
-	/* We do not loop and keep polling for more interrupts as this
+	/* We do analt loop and keep polling for more interrupts as this
 	 * is frowned upon and doesn't play nicely with other potentially
 	 * chained IRQs */
 	IPW_DEBUG_ISR("INTA: 0x%08lX\n",
@@ -3318,17 +3318,17 @@ static irqreturn_t ipw2100_interrupt(int irq, void *data)
 	u32 inta, inta_mask;
 
 	if (!data)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&priv->low_lock);
 
-	/* We check to see if we should be ignoring interrupts before
+	/* We check to see if we should be iganalring interrupts before
 	 * we touch the hardware.  During ucode load if we try and handle
 	 * an interrupt we can cause keyboard problems as well as cause
 	 * the ucode to fail to initialize */
 	if (!(priv->status & STATUS_INT_ENABLED)) {
 		/* Shared IRQ */
-		goto none;
+		goto analne;
 	}
 
 	read_register(priv->net_dev, IPW_REG_INTA_MASK, &inta_mask);
@@ -3337,19 +3337,19 @@ static irqreturn_t ipw2100_interrupt(int irq, void *data)
 	if (inta == 0xFFFFFFFF) {
 		/* Hardware disappeared */
 		printk(KERN_WARNING DRV_NAME ": IRQ INTA == 0xFFFFFFFF\n");
-		goto none;
+		goto analne;
 	}
 
 	inta &= IPW_INTERRUPT_MASK;
 
 	if (!(inta & inta_mask)) {
 		/* Shared interrupt */
-		goto none;
+		goto analne;
 	}
 
 	/* We disable the hardware interrupt here just to prevent unneeded
 	 * calls to be made.  We disable this again within the actual
-	 * work tasklet, so if another part of the code re-enables the
+	 * work tasklet, so if aanalther part of the code re-enables the
 	 * interrupt, that is fine */
 	ipw2100_disable_interrupts(priv);
 
@@ -3357,9 +3357,9 @@ static irqreturn_t ipw2100_interrupt(int irq, void *data)
 	spin_unlock(&priv->low_lock);
 
 	return IRQ_HANDLED;
-      none:
+      analne:
 	spin_unlock(&priv->low_lock);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static netdev_tx_t ipw2100_tx(struct libipw_txb *txb,
@@ -3373,7 +3373,7 @@ static netdev_tx_t ipw2100_tx(struct libipw_txb *txb,
 	spin_lock_irqsave(&priv->low_lock, flags);
 
 	if (!(priv->status & STATUS_ASSOCIATED)) {
-		IPW_DEBUG_INFO("Can not transmit when not connected.\n");
+		IPW_DEBUG_INFO("Can analt transmit when analt connected.\n");
 		priv->net_dev->stats.tx_carrier_errors++;
 		netif_stop_queue(dev);
 		goto fail_unlock;
@@ -3420,7 +3420,7 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
 			  sizeof(struct ipw2100_tx_packet),
 			  GFP_KERNEL);
 	if (!priv->msg_buffers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < IPW_COMMAND_POOL_SIZE; i++) {
 		v = dma_alloc_coherent(&priv->pci_dev->dev,
@@ -3430,7 +3430,7 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
 			printk(KERN_ERR DRV_NAME ": "
 			       "%s: PCI alloc failed for msg "
 			       "buffers.\n", priv->net_dev->name);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -3573,14 +3573,14 @@ IPW2100_ORD(STAT_TX_HOST_REQUESTS, "requested Host Tx's (MSDU)"),
 				"successful Directed Tx's (MSDU) @ 5_5MB"),
 	    IPW2100_ORD(STAT_TX_DIR_DATA11,
 				"successful Directed Tx's (MSDU) @ 11MB"),
-	    IPW2100_ORD(STAT_TX_NODIR_DATA1,
-				"successful Non_Directed Tx's (MSDU) @ 1MB"),
-	    IPW2100_ORD(STAT_TX_NODIR_DATA2,
-				"successful Non_Directed Tx's (MSDU) @ 2MB"),
-	    IPW2100_ORD(STAT_TX_NODIR_DATA5_5,
-				"successful Non_Directed Tx's (MSDU) @ 5.5MB"),
-	    IPW2100_ORD(STAT_TX_NODIR_DATA11,
-				"successful Non_Directed Tx's (MSDU) @ 11MB"),
+	    IPW2100_ORD(STAT_TX_ANALDIR_DATA1,
+				"successful Analn_Directed Tx's (MSDU) @ 1MB"),
+	    IPW2100_ORD(STAT_TX_ANALDIR_DATA2,
+				"successful Analn_Directed Tx's (MSDU) @ 2MB"),
+	    IPW2100_ORD(STAT_TX_ANALDIR_DATA5_5,
+				"successful Analn_Directed Tx's (MSDU) @ 5.5MB"),
+	    IPW2100_ORD(STAT_TX_ANALDIR_DATA11,
+				"successful Analn_Directed Tx's (MSDU) @ 11MB"),
 	    IPW2100_ORD(STAT_NULL_DATA, "successful NULL data Tx's"),
 	    IPW2100_ORD(STAT_TX_RTS, "successful Tx RTS"),
 	    IPW2100_ORD(STAT_TX_CTS, "successful Tx CTS"),
@@ -3624,15 +3624,15 @@ IPW2100_ORD(STAT_TX_HOST_REQUESTS, "requested Host Tx's (MSDU)"),
 	    IPW2100_ORD(STAT_RX_DIR_DATA5_5,
 				"directed packets at 5.5MB"),
 	    IPW2100_ORD(STAT_RX_DIR_DATA11, "directed packets at 11MB"),
-	    IPW2100_ORD(STAT_RX_NODIR_DATA, "nondirected packets"),
-	    IPW2100_ORD(STAT_RX_NODIR_DATA1,
-				"nondirected packets at 1MB"),
-	    IPW2100_ORD(STAT_RX_NODIR_DATA2,
-				"nondirected packets at 2MB"),
-	    IPW2100_ORD(STAT_RX_NODIR_DATA5_5,
-				"nondirected packets at 5.5MB"),
-	    IPW2100_ORD(STAT_RX_NODIR_DATA11,
-				"nondirected packets at 11MB"),
+	    IPW2100_ORD(STAT_RX_ANALDIR_DATA, "analndirected packets"),
+	    IPW2100_ORD(STAT_RX_ANALDIR_DATA1,
+				"analndirected packets at 1MB"),
+	    IPW2100_ORD(STAT_RX_ANALDIR_DATA2,
+				"analndirected packets at 2MB"),
+	    IPW2100_ORD(STAT_RX_ANALDIR_DATA5_5,
+				"analndirected packets at 5.5MB"),
+	    IPW2100_ORD(STAT_RX_ANALDIR_DATA11,
+				"analndirected packets at 11MB"),
 	    IPW2100_ORD(STAT_RX_NULL_DATA, "null data rx's"),
 	    IPW2100_ORD(STAT_RX_RTS, "Rx RTS"), IPW2100_ORD(STAT_RX_CTS,
 								    "Rx CTS"),
@@ -3673,12 +3673,12 @@ IPW2100_ORD(STAT_TX_HOST_REQUESTS, "requested Host Tx's (MSDU)"),
 	    IPW2100_ORD(STAT_RX_INVALID_PROTOCOL,
 				"rx frames with invalid protocol"),
 	    IPW2100_ORD(SYS_BOOT_TIME, "Boot time"),
-	    IPW2100_ORD(STAT_RX_NO_BUFFER,
-				"rx frames rejected due to no buffer"),
+	    IPW2100_ORD(STAT_RX_ANAL_BUFFER,
+				"rx frames rejected due to anal buffer"),
 	    IPW2100_ORD(STAT_RX_MISSING_FRAG,
 				"rx frames dropped due to missing fragment"),
 	    IPW2100_ORD(STAT_RX_ORPHAN_FRAG,
-				"rx frames dropped due to non-sequential fragment"),
+				"rx frames dropped due to analn-sequential fragment"),
 	    IPW2100_ORD(STAT_RX_ORPHAN_FRAME,
 				"rx frames dropped due to unmatched 1st frame"),
 	    IPW2100_ORD(STAT_RX_FRAG_AGEOUT,
@@ -3689,7 +3689,7 @@ IPW2100_ORD(STAT_TX_HOST_REQUESTS, "requested Host Tx's (MSDU)"),
 	    IPW2100_ORD(STAT_PSP_BCN_TIMEOUT, "beacon timeout"),
 	    IPW2100_ORD(STAT_PSP_POLL_TIMEOUT,
 				"poll response timeouts"),
-	    IPW2100_ORD(STAT_PSP_NONDIR_TIMEOUT,
+	    IPW2100_ORD(STAT_PSP_ANALNDIR_TIMEOUT,
 				"timeouts waiting for last {broad,multi}cast pkt"),
 	    IPW2100_ORD(STAT_PSP_RX_DTIMS, "PSP DTIMs received"),
 	    IPW2100_ORD(STAT_PSP_RX_TIMS, "PSP TIMs received"),
@@ -3700,7 +3700,7 @@ IPW2100_ORD(STAT_TX_HOST_REQUESTS, "requested Host Tx's (MSDU)"),
 	    IPW2100_ORD(STAT_PERCENT_RETRIES,
 				"current calculation of % missed tx retries"),
 	    IPW2100_ORD(ASSOCIATED_AP_PTR,
-				"0 if not associated, else pointer to AP table entry"),
+				"0 if analt associated, else pointer to AP table entry"),
 	    IPW2100_ORD(AVAILABLE_AP_CNT,
 				"AP's described in the AP table"),
 	    IPW2100_ORD(AP_LIST_PTR, "Ptr to list of available APs"),
@@ -3715,7 +3715,7 @@ IPW2100_ORD(STAT_TX_HOST_REQUESTS, "requested Host Tx's (MSDU)"),
 	    IPW2100_ORD(RSSI_AT_ASSN,
 				"RSSI of associated AP at time of association"),
 	    IPW2100_ORD(STAT_ASSN_CAUSE1,
-				"reassociation: no probe response or TX on hop"),
+				"reassociation: anal probe response or TX on hop"),
 	    IPW2100_ORD(STAT_ASSN_CAUSE2,
 				"reassociation: poor tx/rx quality"),
 	    IPW2100_ORD(STAT_ASSN_CAUSE3,
@@ -3978,7 +3978,7 @@ static ssize_t stats_show(struct device *d, struct device_attribute *attr,
 	out += sprintf(out, "firmware hangs: %d\n", priv->hangs);
 #ifdef CONFIG_IPW2100_DEBUG
 	out += sprintf(out, "packet mismatch image: %s\n",
-		       priv->snapshot[0] ? "YES" : "NO");
+		       priv->snapshot[0] ? "ANAL" : "ANAL");
 #endif
 
 	return out - buf;
@@ -3995,7 +3995,7 @@ static int ipw2100_switch_mode(struct ipw2100_priv *priv, u32 mode)
 
 	err = ipw2100_disable_adapter(priv);
 	if (err) {
-		printk(KERN_ERR DRV_NAME ": %s: Could not disable adapter %d\n",
+		printk(KERN_ERR DRV_NAME ": %s: Could analt disable adapter %d\n",
 		       priv->net_dev->name, err);
 		return err;
 	}
@@ -4042,7 +4042,7 @@ static ssize_t internals_show(struct device *d, struct device_attribute *attr,
 		len += sprintf(buf + len, "connected: %llu\n",
 			       ktime_get_boottime_seconds() - priv->connect_start);
 	else
-		len += sprintf(buf + len, "not connected\n");
+		len += sprintf(buf + len, "analt connected\n");
 
 	DUMP_VAR(ieee->crypt_info.crypt[priv->ieee->crypt_info.tx_keyidx], "p");
 	DUMP_VAR(status, "08lx");
@@ -4143,7 +4143,7 @@ static ssize_t debug_level_store(struct device_driver *d,
 
 	ret = kstrtou32(buf, 0, &val);
 	if (ret)
-		IPW_DEBUG_INFO(": %s is not in hex or decimal form.\n", buf);
+		IPW_DEBUG_INFO(": %s is analt in hex or decimal form.\n", buf);
 	else
 		ipw2100_debug_level = val;
 
@@ -4224,7 +4224,7 @@ static DEVICE_ATTR_RW(scan_age);
 static ssize_t rf_kill_show(struct device *d, struct device_attribute *attr,
 			    char *buf)
 {
-	/* 0 - RF kill not enabled
+	/* 0 - RF kill analt enabled
 	   1 - SW based RF kill active (sysfs)
 	   2 - HW based RF kill active
 	   3 - Both HW and SW baed RF kill active */
@@ -4251,7 +4251,7 @@ static int ipw_radio_kill_sw(struct ipw2100_priv *priv, int disable_radio)
 	} else {
 		priv->status &= ~STATUS_RF_KILL_SW;
 		if (rf_kill_active(priv)) {
-			IPW_DEBUG_RF_KILL("Can not turn radio back on - "
+			IPW_DEBUG_RF_KILL("Can analt turn radio back on - "
 					  "disabled by HW switch\n");
 			/* Make sure the RF_KILL check timer is running */
 			priv->stop_rf_kill = 0;
@@ -4307,8 +4307,8 @@ static int status_queue_allocate(struct ipw2100_priv *priv, int entries)
 	q->drv = dma_alloc_coherent(&priv->pci_dev->dev, q->size, &q->nic,
 				    GFP_KERNEL);
 	if (!q->drv) {
-		IPW_DEBUG_WARNING("Can not allocate status queue.\n");
-		return -ENOMEM;
+		IPW_DEBUG_WARNING("Can analt allocate status queue.\n");
+		return -EANALMEM;
 	}
 
 	IPW_DEBUG_INFO("exit\n");
@@ -4345,7 +4345,7 @@ static int bd_queue_allocate(struct ipw2100_priv *priv,
 	if (!q->drv) {
 		IPW_DEBUG_INFO
 		    ("can't allocate shared memory for buffer descriptors\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	IPW_DEBUG_INFO("exit\n");
@@ -4418,7 +4418,7 @@ static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 					 GFP_KERNEL);
 	if (!priv->tx_buffers) {
 		bd_queue_free(priv, &priv->tx_queue);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < TX_PENDED_QUEUE_LENGTH; i++) {
@@ -4429,7 +4429,7 @@ static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 			printk(KERN_ERR DRV_NAME
 			       ": %s: PCI alloc failed for tx " "buffers.\n",
 			       priv->net_dev->name);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -4568,7 +4568,7 @@ static int ipw2100_rx_allocate(struct ipw2100_priv *priv)
 
 		status_queue_free(priv);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < RX_QUEUE_LENGTH; i++) {
@@ -4576,7 +4576,7 @@ static int ipw2100_rx_allocate(struct ipw2100_priv *priv)
 
 		err = ipw2100_alloc_skb(priv, packet);
 		if (unlikely(err)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -4736,7 +4736,7 @@ static int ipw2100_set_port_type(struct ipw2100_priv *priv, u32 port_type,
 		err = ipw2100_disable_adapter(priv);
 		if (err) {
 			printk(KERN_ERR DRV_NAME
-			       ": %s: Could not disable adapter %d\n",
+			       ": %s: Could analt disable adapter %d\n",
 			       priv->net_dev->name, err);
 			return err;
 		}
@@ -5086,7 +5086,7 @@ static int ipw2100_disassociate_bssid(struct ipw2100_priv *priv)
 
 	IPW_DEBUG_HC("DISASSOCIATION_BSSID\n");
 
-	/* The Firmware currently ignores the BSSID and just disassociates from
+	/* The Firmware currently iganalres the BSSID and just disassociates from
 	 * the currently associated AP -- but in the off chance that a future
 	 * firmware does use the BSSID provided here, we go ahead and try and
 	 * set it to the currently associated AP's BSSID */
@@ -5167,7 +5167,7 @@ static int ipw2100_set_security_information(struct ipw2100_priv *priv,
 	switch (security_level) {
 	default:
 	case SEC_LEVEL_0:
-		security->allowed_ciphers = IPW_NONE_CIPHER;
+		security->allowed_ciphers = IPW_ANALNE_CIPHER;
 		break;
 	case SEC_LEVEL_1:
 		security->allowed_ciphers = IPW_WEP40_CIPHER |
@@ -5292,7 +5292,7 @@ static int ipw2100_queues_allocate(struct ipw2100_priv *priv)
 	ipw2100_tx_free(priv);
 	ipw2100_rx_free(priv);
 	ipw2100_msg_free(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 #define IPW_PRIVACY_CAPABLE 0x0008
@@ -5315,7 +5315,7 @@ static int ipw2100_set_wep_flags(struct ipw2100_priv *priv, u32 flags,
 		err = ipw2100_disable_adapter(priv);
 		if (err) {
 			printk(KERN_ERR DRV_NAME
-			       ": %s: Could not disable adapter %d\n",
+			       ": %s: Could analt disable adapter %d\n",
 			       priv->net_dev->name, err);
 			return err;
 		}
@@ -5349,10 +5349,10 @@ struct ipw2100_wep_key {
  * @idx: index of the key we want to set
  * @key: ptr to the key data to set
  * @len: length of the buffer at @key
- * @batch_mode: FIXME perform the operation in batch mode, not
+ * @batch_mode: FIXME perform the operation in batch mode, analt
  *              disabling the device.
  *
- * @returns 0 if OK, < 0 errno code on error.
+ * @returns 0 if OK, < 0 erranal code on error.
  *
  * Fill out a command structure with the new wep key, length an
  * index and send it down the wire.
@@ -5372,7 +5372,7 @@ static int ipw2100_set_key(struct ipw2100_priv *priv,
 	IPW_DEBUG_HC("WEP_KEY_INFO: index = %d, len = %d/%d\n",
 		     idx, keylen, len);
 
-	/* NOTE: We don't check cached values in case the firmware was reset
+	/* ANALTE: We don't check cached values in case the firmware was reset
 	 * or some other problem is occurring.  If the user is setting the key,
 	 * then we push the change */
 
@@ -5384,7 +5384,7 @@ static int ipw2100_set_key(struct ipw2100_priv *priv,
 		memset(wep_key->key + len, 0, keylen - len);
 	}
 
-	/* Will be optimized out on debug not being configured in */
+	/* Will be optimized out on debug analt being configured in */
 	if (keylen == 0)
 		IPW_DEBUG_WEP("%s: Clearing key %d\n",
 			      priv->net_dev->name, wep_key->idx);
@@ -5403,7 +5403,7 @@ static int ipw2100_set_key(struct ipw2100_priv *priv,
 		/* FIXME: IPG: shouldn't this prink be in _disable_adapter()? */
 		if (err) {
 			printk(KERN_ERR DRV_NAME
-			       ": %s: Could not disable adapter %d\n",
+			       ": %s: Could analt disable adapter %d\n",
 			       priv->net_dev->name, err);
 			return err;
 		}
@@ -5440,7 +5440,7 @@ static int ipw2100_set_key_index(struct ipw2100_priv *priv,
 		err = ipw2100_disable_adapter(priv);
 		if (err) {
 			printk(KERN_ERR DRV_NAME
-			       ": %s: Could not disable adapter %d\n",
+			       ": %s: Could analt disable adapter %d\n",
 			       priv->net_dev->name, err);
 			return err;
 		}
@@ -5732,7 +5732,7 @@ static int ipw2100_adapter_setup(struct ipw2100_priv *priv)
  *
  *************************************************************************/
 
-/* This method is called by the network layer -- not to be confused with
+/* This method is called by the network layer -- analt to be confused with
  * ipw2100_set_mac_address() declared above called by this driver (and this
  * method as well) to talk to the firmware */
 static int ipw2100_set_address(struct net_device *dev, void *p)
@@ -5742,7 +5742,7 @@ static int ipw2100_set_address(struct net_device *dev, void *p)
 	int err = 0;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	mutex_lock(&priv->action_mutex);
 
@@ -5866,7 +5866,7 @@ static int ipw2100_wpa_set_auth_algs(struct ipw2100_priv *priv, int value)
 	if (ieee->set_security)
 		ieee->set_security(ieee->dev, &sec);
 	else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 
 	return ret;
 }
@@ -5974,10 +5974,10 @@ static void ipw2100_rf_kill(struct work_struct *work)
 		goto exit_unlock;
 	}
 
-	/* RF Kill is now disabled, so bring the device back up */
+	/* RF Kill is analw disabled, so bring the device back up */
 
 	if (!(priv->status & STATUS_RF_KILL_MASK)) {
-		IPW_DEBUG_RF_KILL("HW RF Kill no longer active, restarting "
+		IPW_DEBUG_RF_KILL("HW RF Kill anal longer active, restarting "
 				  "device\n");
 		schedule_reset(priv);
 	} else
@@ -6032,7 +6032,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	dev->min_mtu = 68;
 	dev->max_mtu = LIBIPW_DATA_LEN;
 
-	/* NOTE: We don't use the wireless_handlers hook
+	/* ANALTE: We don't use the wireless_handlers hook
 	 * in dev as the system will start throwing WX requests
 	 * to us before we're actually initialized and it just
 	 * ends up causing problems.  So, we just handle
@@ -6120,7 +6120,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 
 	tasklet_setup(&priv->irq_tasklet, ipw2100_irq_tasklet);
 
-	/* NOTE:  We do not start the deferred work for status checks yet */
+	/* ANALTE:  We do analt start the deferred work for status checks yet */
 	priv->stop_rf_kill = 1;
 	priv->stop_hang_check = 1;
 
@@ -6140,8 +6140,8 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	IPW_DEBUG_INFO("enter\n");
 
 	if (!(pci_resource_flags(pci_dev, 0) & IORESOURCE_MEM)) {
-		IPW_DEBUG_INFO("weird - resource type is not memory\n");
-		err = -ENODEV;
+		IPW_DEBUG_INFO("weird - resource type is analt memory\n");
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -6158,7 +6158,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	if (!dev) {
 		printk(KERN_WARNING DRV_NAME
 		       "Error calling ipw2100_alloc_device.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
@@ -6199,8 +6199,8 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 
 	if (!ipw2100_hw_is_adapter_in_system(dev)) {
 		printk(KERN_WARNING DRV_NAME
-		       "Device not found via register read.\n");
-		err = -ENODEV;
+		       "Device analt found via register read.\n");
+		err = -EANALDEV;
 		goto fail;
 	}
 
@@ -6214,7 +6214,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	if (ipw2100_queues_allocate(priv)) {
 		printk(KERN_WARNING DRV_NAME
 		       "Error calling ipw2100_queues_allocate.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 	ipw2100_queues_initialize(priv);
@@ -6516,9 +6516,9 @@ static struct pci_driver ipw2100_pci_driver = {
 /*
  * Initialize the ipw2100 driver/module
  *
- * @returns 0 if ok, < 0 errno node con error.
+ * @returns 0 if ok, < 0 erranal analde con error.
  *
- * Note: we cannot init the /proc stuff until the PCI driver is there,
+ * Analte: we cananalt init the /proc stuff until the PCI driver is there,
  * or we risk an unlikely race condition on someone accessing
  * uninitialized data in the PCI dev struct through /proc.
  */
@@ -6550,7 +6550,7 @@ out:
  */
 static void __exit ipw2100_exit(void)
 {
-	/* FIXME: IPG: check that we have no instances of the devices open */
+	/* FIXME: IPG: check that we have anal instances of the devices open */
 #ifdef CONFIG_IPW2100_DEBUG
 	driver_remove_file(&ipw2100_pci_driver.driver,
 			   &driver_attr_debug_level);
@@ -6567,7 +6567,7 @@ static int ipw2100_wx_get_name(struct net_device *dev,
 			       union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -6589,7 +6589,7 @@ static int ipw2100_wx_set_freq(struct net_device *dev,
 	int err = 0;
 
 	if (priv->ieee->iw_mode == IW_MODE_INFRA)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&priv->action_mutex);
 	if (!(priv->status & STATUS_INITIALIZED)) {
@@ -6614,7 +6614,7 @@ static int ipw2100_wx_set_freq(struct net_device *dev,
 	}
 
 	if (fwrq->e > 0 || fwrq->m > 1000) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	} else {		/* Set the channel */
 		IPW_DEBUG_WX("SET Freq/Channel -> %d\n", fwrq->m);
@@ -6631,7 +6631,7 @@ static int ipw2100_wx_get_freq(struct net_device *dev,
 			       union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -6695,7 +6695,7 @@ static int ipw2100_wx_get_mode(struct net_device *dev,
 			       union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -6730,7 +6730,7 @@ static int ipw2100_wx_get_range(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -6757,13 +6757,13 @@ static int ipw2100_wx_get_range(struct net_device *dev,
 	range->max_qual.qual = 100;
 	/* TODO: Find real max RSSI and stick here */
 	range->max_qual.level = 0;
-	range->max_qual.noise = 0;
+	range->max_qual.analise = 0;
 	range->max_qual.updated = 7;	/* Updated all three */
 
 	range->avg_qual.qual = 70;	/* > 8% missed beacons is 'bad' */
 	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 20 + IPW2100_RSSI_TO_DBM;
-	range->avg_qual.noise = 0;
+	range->avg_qual.analise = 0;
 	range->avg_qual.updated = 7;	/* Updated all three */
 
 	range->num_bitrates = RATE_COUNT;
@@ -6893,7 +6893,7 @@ static int ipw2100_wx_get_wap(struct net_device *dev,
 			      union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -6964,7 +6964,7 @@ static int ipw2100_wx_get_essid(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -6991,7 +6991,7 @@ static int ipw2100_wx_set_nick(struct net_device *dev,
 			       union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7013,7 +7013,7 @@ static int ipw2100_wx_get_nick(struct net_device *dev,
 			       union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7126,7 +7126,7 @@ static int ipw2100_wx_set_rts(struct net_device *dev,
 	struct ipw2100_priv *priv = libipw_priv(dev);
 	int value, err;
 
-	/* Auto RTS not yet supported */
+	/* Auto RTS analt yet supported */
 	if (wrqu->rts.fixed == 0)
 		return -EINVAL;
 
@@ -7159,13 +7159,13 @@ static int ipw2100_wx_get_rts(struct net_device *dev,
 			      union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
 
 	wrqu->rts.value = priv->rts_threshold & ~RTS_DISABLED;
-	wrqu->rts.fixed = 1;	/* no auto select */
+	wrqu->rts.fixed = 1;	/* anal auto select */
 
 	/* If RTS is set to the default value, then it is disabled */
 	wrqu->rts.disabled = (priv->rts_threshold & RTS_DISABLED) ? 1 : 0;
@@ -7221,7 +7221,7 @@ static int ipw2100_wx_get_txpow(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7248,7 +7248,7 @@ static int ipw2100_wx_set_frag(struct net_device *dev,
 			       union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7278,12 +7278,12 @@ static int ipw2100_wx_get_frag(struct net_device *dev,
 			       union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
 	wrqu->frag.value = priv->frag_threshold & ~FRAG_DISABLED;
-	wrqu->frag.fixed = 0;	/* no auto select */
+	wrqu->frag.fixed = 0;	/* anal auto select */
 	wrqu->frag.disabled = (priv->frag_threshold & FRAG_DISABLED) ? 1 : 0;
 
 	IPW_DEBUG_WX("GET Frag Threshold -> %d\n", wrqu->frag.value);
@@ -7340,7 +7340,7 @@ static int ipw2100_wx_get_retry(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7400,7 +7400,7 @@ static int ipw2100_wx_get_scan(struct net_device *dev,
 			       union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7415,7 +7415,7 @@ static int ipw2100_wx_set_encode(struct net_device *dev,
 				 union iwreq_data *wrqu, char *key)
 {
 	/*
-	 * No check of STATUS_INITIALIZED required
+	 * Anal check of STATUS_INITIALIZED required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7427,7 +7427,7 @@ static int ipw2100_wx_get_encode(struct net_device *dev,
 				 union iwreq_data *wrqu, char *key)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7455,14 +7455,14 @@ static int ipw2100_wx_set_power(struct net_device *dev,
 	}
 
 	switch (wrqu->power.flags & IW_POWER_MODE) {
-	case IW_POWER_ON:	/* If not specified */
+	case IW_POWER_ON:	/* If analt specified */
 	case IW_POWER_MODE:	/* If set all mask */
 	case IW_POWER_ALL_R:	/* If explicitly state all */
 		break;
 	default:		/* Otherwise we don't support it */
-		IPW_DEBUG_WX("SET PM Mode: %X not supported.\n",
+		IPW_DEBUG_WX("SET PM Mode: %X analt supported.\n",
 			     wrqu->power.flags);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 
@@ -7484,7 +7484,7 @@ static int ipw2100_wx_get_power(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7516,7 +7516,7 @@ static int ipw2100_wx_set_genie(struct net_device *dev,
 	u8 *buf;
 
 	if (!ieee->wpa_enabled)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (wrqu->data.length > MAX_WPA_IE_LEN ||
 	    (wrqu->data.length && extra == NULL))
@@ -7525,7 +7525,7 @@ static int ipw2100_wx_set_genie(struct net_device *dev,
 	if (wrqu->data.length) {
 		buf = kmemdup(extra, wrqu->data.length, GFP_KERNEL);
 		if (buf == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
@@ -7581,7 +7581,7 @@ static int ipw2100_wx_set_auth(struct net_device *dev,
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
 		/*
-		 * ipw2200 does not use these parameters
+		 * ipw2200 does analt use these parameters
 		 */
 		break;
 
@@ -7606,9 +7606,9 @@ static int ipw2100_wx_set_auth(struct net_device *dev,
 			 *
 			 * wpa_supplicant calls set_wpa_enabled when the driver
 			 * is loaded and unloaded, regardless of if WPA is being
-			 * used.  No other calls are made which can be used to
-			 * determine if encryption will be used or not prior to
-			 * association being expected.  If encryption is not being
+			 * used.  Anal other calls are made which can be used to
+			 * determine if encryption will be used or analt prior to
+			 * association being expected.  If encryption is analt being
 			 * used, drop_unencrypted is set to false, else true -- we
 			 * can use this to determine if the CAP_PRIVACY_ON bit should
 			 * be set.
@@ -7651,7 +7651,7 @@ static int ipw2100_wx_set_auth(struct net_device *dev,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return ret;
 }
@@ -7680,7 +7680,7 @@ static int ipw2100_wx_get_auth(struct net_device *dev,
 		crypt = priv->ieee->crypt_info.crypt[priv->ieee->crypt_info.tx_keyidx];
 		if (!crypt || !crypt->ops->get_flags) {
 			IPW_DEBUG_WARNING("Can't get TKIP countermeasures: "
-					  "crypt not set!\n");
+					  "crypt analt set!\n");
 			break;
 		}
 
@@ -7711,7 +7711,7 @@ static int ipw2100_wx_get_auth(struct net_device *dev,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -7744,7 +7744,7 @@ static int ipw2100_wx_set_mlme(struct net_device *dev,
 
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
-		// silently ignore
+		// silently iganalre
 		break;
 
 	case IW_MLME_DISASSOC:
@@ -7752,7 +7752,7 @@ static int ipw2100_wx_set_mlme(struct net_device *dev,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -7835,7 +7835,7 @@ static int ipw2100_wx_get_powermode(struct net_device *dev,
 				    union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7849,7 +7849,7 @@ static int ipw2100_wx_get_powermode(struct net_device *dev,
 		switch (level) {
 		case IPW_POWER_MODE_CAM:
 			snprintf(extra, MAX_POWER_STRING,
-				 "Power save level: %d (None)", level);
+				 "Power save level: %d (Analne)", level);
 			break;
 		case IPW_POWER_AUTO:
 			snprintf(extra, MAX_POWER_STRING,
@@ -7904,7 +7904,7 @@ static int ipw2100_wx_get_preamble(struct net_device *dev,
 				   union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7951,7 +7951,7 @@ static int ipw2100_wx_get_crc_check(struct net_device *dev,
 				    union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * This can be called at any time.  No action lock required
+	 * This can be called at any time.  Anal action lock required
 	 */
 
 	struct ipw2100_priv *priv = libipw_priv(dev);
@@ -7959,7 +7959,7 @@ static int ipw2100_wx_get_crc_check(struct net_device *dev,
 	if (priv->config & CFG_CRC_CHECK)
 		snprintf(wrqu->name, IFNAMSIZ, "CRC checked (1)");
 	else
-		snprintf(wrqu->name, IFNAMSIZ, "CRC ignored (0)");
+		snprintf(wrqu->name, IFNAMSIZ, "CRC iganalred (0)");
 
 	return 0;
 }
@@ -8100,16 +8100,16 @@ static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device *dev)
 	/* if hw is disabled, then ipw2100_get_ordinal() can't be called.
 	 * ipw2100_wx_wireless_stats seems to be called before fw is
 	 * initialized.  STATUS_ASSOCIATED will only be set if the hw is up
-	 * and associated; if not associcated, the values are all meaningless
+	 * and associated; if analt associcated, the values are all meaningless
 	 * anyway, so set them all to NULL and INVALID */
 	if (!(priv->status & STATUS_ASSOCIATED)) {
 		wstats->miss.beacon = 0;
 		wstats->discard.retries = 0;
 		wstats->qual.qual = 0;
 		wstats->qual.level = 0;
-		wstats->qual.noise = 0;
+		wstats->qual.analise = 0;
 		wstats->qual.updated = 7;
-		wstats->qual.updated |= IW_QUAL_NOISE_INVALID |
+		wstats->qual.updated |= IW_QUAL_ANALISE_INVALID |
 		    IW_QUAL_QUAL_INVALID | IW_QUAL_LEVEL_INVALID;
 		return wstats;
 	}
@@ -8183,18 +8183,18 @@ static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device *dev)
 		else if (quality != 100)
 			IPW_DEBUG_WX("Quality clamped by Signal Strength\n");
 		else
-			IPW_DEBUG_WX("Quality not clamped.\n");
+			IPW_DEBUG_WX("Quality analt clamped.\n");
 #endif
 
 		wstats->qual.qual = quality;
 		wstats->qual.level = rssi + IPW2100_RSSI_TO_DBM;
 	}
 
-	wstats->qual.noise = 0;
+	wstats->qual.analise = 0;
 	wstats->qual.updated = 7;
-	wstats->qual.updated |= IW_QUAL_NOISE_INVALID;
+	wstats->qual.updated |= IW_QUAL_ANALISE_INVALID;
 
-	/* FIXME: this is percent and not a # */
+	/* FIXME: this is percent and analt a # */
 	wstats->miss.beacon = missed_beacons;
 
 	if (ipw2100_get_ordinal(priv, IPW_ORD_STAT_TX_FAILURES,
@@ -8245,7 +8245,7 @@ static void ipw2100_wx_event_work(struct work_struct *work)
 				&priv->bssid, &len)) {
 		eth_zero_addr(wrqu.ap_addr.sa_data);
 	} else {
-		/* We now have the BSSID, so can finish setting to the full
+		/* We analw have the BSSID, so can finish setting to the full
 		 * associated state */
 		memcpy(wrqu.ap_addr.sa_data, priv->bssid, ETH_ALEN);
 		memcpy(priv->ieee->bssid, priv->bssid, ETH_ALEN);
@@ -8259,7 +8259,7 @@ static void ipw2100_wx_event_work(struct work_struct *work)
 		IPW_DEBUG_WX("Configuring ESSID\n");
 		mutex_lock(&priv->action_mutex);
 		/* This is a disassociation event, so kick the firmware to
-		 * look for another AP */
+		 * look for aanalther AP */
 		if (priv->config & CFG_STATIC_ESSID)
 			ipw2100_set_essid(priv, priv->essid, priv->essid_len,
 					  0);
@@ -8272,16 +8272,16 @@ static void ipw2100_wx_event_work(struct work_struct *work)
 }
 
 #define IPW2100_FW_MAJOR_VERSION 1
-#define IPW2100_FW_MINOR_VERSION 3
+#define IPW2100_FW_MIANALR_VERSION 3
 
-#define IPW2100_FW_MINOR(x) ((x & 0xff) >> 8)
+#define IPW2100_FW_MIANALR(x) ((x & 0xff) >> 8)
 #define IPW2100_FW_MAJOR(x) (x & 0xff)
 
-#define IPW2100_FW_VERSION ((IPW2100_FW_MINOR_VERSION << 8) | \
+#define IPW2100_FW_VERSION ((IPW2100_FW_MIANALR_VERSION << 8) | \
                              IPW2100_FW_MAJOR_VERSION)
 
 #define IPW2100_FW_PREFIX "ipw2100-" __stringify(IPW2100_FW_MAJOR_VERSION) \
-"." __stringify(IPW2100_FW_MINOR_VERSION)
+"." __stringify(IPW2100_FW_MIANALR_VERSION)
 
 #define IPW2100_FW_NAME(x) IPW2100_FW_PREFIX "" x ".fw"
 
@@ -8312,7 +8312,7 @@ static int ipw2100_mod_firmware_load(struct ipw2100_fw *fw)
 	    (struct ipw2100_fw_header *)fw->fw_entry->data;
 
 	if (IPW2100_FW_MAJOR(h->version) != IPW2100_FW_MAJOR_VERSION) {
-		printk(KERN_WARNING DRV_NAME ": Firmware image not compatible "
+		printk(KERN_WARNING DRV_NAME ": Firmware image analt compatible "
 		       "(detected version id of %u). "
 		       "See Documentation/networking/device_drivers/wifi/intel/ipw2100.rst\n",
 		       h->version);
@@ -8356,7 +8356,7 @@ static int ipw2100_get_firmware(struct ipw2100_priv *priv,
 
 	if (rc < 0) {
 		printk(KERN_ERR DRV_NAME ": "
-		       "%s: Firmware '%s' not available or load failed.\n",
+		       "%s: Firmware '%s' analt available or load failed.\n",
 		       priv->net_dev->name, fw_name);
 		return rc;
 	}
@@ -8535,7 +8535,7 @@ static int ipw2100_ucode_download(struct ipw2100_priv *priv,
 	for (i = 0; i < 10; i++) {
 		udelay(10);
 
-		/* check Dino is enabled bit */
+		/* check Dianal is enabled bit */
 		read_nic_byte(dev, 0x210000, &data);
 		if (data & 0x1)
 			break;
@@ -8561,7 +8561,7 @@ static int ipw2100_ucode_download(struct ipw2100_priv *priv,
 
 	if (i == 30) {
 		printk(KERN_ERR DRV_NAME
-		       ": %s: No response from Symbol - hw not alive\n",
+		       ": %s: Anal response from Symbol - hw analt alive\n",
 		       dev->name);
 		printk_buf(IPW_DL_ERROR, (u8 *) & response, sizeof(response));
 		return -EIO;

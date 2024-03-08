@@ -101,7 +101,7 @@ static void test_user_raz_wi(struct kvm_vcpu *vcpu)
 		TEST_ASSERT_EQ(val, 0);
 
 		/*
-		 * Expect the ioctl to succeed with no effect on the register
+		 * Expect the ioctl to succeed with anal effect on the register
 		 * value.
 		 */
 		vcpu_set_reg(vcpu, reg_id, BAD_ID_REG_VAL);
@@ -130,8 +130,8 @@ static void test_user_raz_invariant(struct kvm_vcpu *vcpu)
 		TEST_ASSERT_EQ(val, 0);
 
 		r = __vcpu_set_reg(vcpu, reg_id, BAD_ID_REG_VAL);
-		TEST_ASSERT(r < 0 && errno == EINVAL,
-			    "unexpected KVM_SET_ONE_REG error: r=%d, errno=%d", r, errno);
+		TEST_ASSERT(r < 0 && erranal == EINVAL,
+			    "unexpected KVM_SET_ONE_REG error: r=%d, erranal=%d", r, erranal);
 
 		vcpu_get_reg(vcpu, reg_id, &val);
 		TEST_ASSERT_EQ(val, 0);

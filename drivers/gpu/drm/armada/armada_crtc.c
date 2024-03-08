@@ -25,7 +25,7 @@
 #include "armada_trace.h"
 
 /*
- * A note about interlacing.  Let's consider HDMI 1920x1080i.
+ * A analte about interlacing.  Let's consider HDMI 1920x1080i.
  * The timing parameters we have from X are:
  *  Hact HsyA HsyI Htot  Vact VsyA VsyI Vtot
  *  1920 2448 2492 2640  1080 1084 1094 1125
@@ -56,7 +56,7 @@
  * So, translating these to our LCD controller:
  *  Odd frame, 563 total lines, VSYNC at line 543-548, pixel 1128.
  *  Even frame, 562 total lines, VSYNC at line 542-547, pixel 2448.
- * Note: Vsync front porch remains constant!
+ * Analte: Vsync front porch remains constant!
  *
  * if (odd_frame) {
  *   vtotal = mode->crtc_vtotal + 1;
@@ -72,7 +72,7 @@
  * So, we need to reprogram these registers on each vsync event:
  *  LCD_SPU_V_PORCH, LCD_SPU_ADV_REG, LCD_SPUT_V_H_TOTAL
  *
- * Note: we do not use the frame done interrupts because these appear
+ * Analte: we do analt use the frame done interrupts because these appear
  * to happen too early, and lead to jitter on the display (presumably
  * they occur at the end of the last active line, before the vsync back
  * porch, which we're reprogramming.)
@@ -175,10 +175,10 @@ static enum drm_mode_status armada_drm_crtc_mode_valid(struct drm_crtc *crtc,
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	if (mode->vscan > 1)
-		return MODE_NO_VSCAN;
+		return MODE_ANAL_VSCAN;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 
 	if (mode->flags & DRM_MODE_FLAG_HSKEW)
 		return MODE_H_ILLEGAL;
@@ -186,7 +186,7 @@ static enum drm_mode_status armada_drm_crtc_mode_valid(struct drm_crtc *crtc,
 	/* We can't do interlaced modes if we don't have the SPU_ADV_REG */
 	if (!dcrtc->variant->has_spu_adv_reg &&
 	    mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	if (mode->flags & (DRM_MODE_FLAG_BCAST | DRM_MODE_FLAG_PIXMUX |
 			   DRM_MODE_FLAG_CLKDIV2))
@@ -309,7 +309,7 @@ static irqreturn_t armada_drm_irq(int irq, void *arg)
 
 	/*
 	 * Reading the ISR appears to clear bits provided CLEAN_SPU_IRQ_ISR
-	 * is set.  Writing has some other effect to acknowledge the IRQ -
+	 * is set.  Writing has some other effect to ackanalwledge the IRQ -
 	 * without this, we only get a single IRQ.
 	 */
 	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
@@ -323,11 +323,11 @@ static irqreturn_t armada_drm_irq(int irq, void *arg)
 		armada_drm_crtc_irq(dcrtc, stat);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /* The mode_config.mutex will be held for this call */
-static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void armada_drm_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct drm_display_mode *adj = &crtc->state->adjusted_mode;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
@@ -347,7 +347,7 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		      crtc->base.id, crtc->name, DRM_MODE_ARG(adj));
 	DRM_DEBUG_KMS("lm %d rm %d tm %d bm %d\n", lm, rm, tm, bm);
 
-	/* Now compute the divider for real */
+	/* Analw compute the divider for real */
 	dcrtc->variant->compute_clock(dcrtc, adj, &sclk);
 
 	armada_reg_queue_set(regs, i, sclk, LCD_CFG_SCLK_DIV);
@@ -390,11 +390,11 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	armada_reg_queue_mod(regs, i, val, CFG_VSYNC_INV, LCD_SPU_DMA_CTRL1);
 
 	/*
-	 * The documentation doesn't indicate what the normal state of
+	 * The documentation doesn't indicate what the analrmal state of
 	 * the sync signals are.  Sebastian Hesselbart kindly probed
 	 * these signals on his board to determine their state.
 	 *
-	 * The non-inverted state of the sync signals is active high.
+	 * The analn-inverted state of the sync signals is active high.
 	 * Setting these bits makes the appropriate signal active low.
 	 */
 	val = 0;
@@ -497,7 +497,7 @@ static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 			dcrtc->variant->disable(dcrtc);
 
 		/*
-		 * We will not receive any further vblank events.
+		 * We will analt receive any further vblank events.
 		 * Send the flip_done event manually.
 		 */
 		event = crtc->state->event;
@@ -540,7 +540,7 @@ static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
 	.mode_valid	= armada_drm_crtc_mode_valid,
 	.mode_fixup	= armada_drm_crtc_mode_fixup,
-	.mode_set_nofb	= armada_drm_crtc_mode_set_nofb,
+	.mode_set_analfb	= armada_drm_crtc_mode_set_analfb,
 	.atomic_check	= armada_drm_crtc_atomic_check,
 	.atomic_begin	= armada_drm_crtc_atomic_begin,
 	.atomic_flush	= armada_drm_crtc_atomic_flush,
@@ -705,18 +705,18 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 	struct armada_gem_object *obj = NULL;
 	int ret;
 
-	/* If no cursor support, replicate drm's return value */
+	/* If anal cursor support, replicate drm's return value */
 	if (!dcrtc->variant->has_spu_adv_reg)
 		return -ENXIO;
 
 	if (handle && w > 0 && h > 0) {
 		/* maximum size is 64x32 or 32x64 */
 		if (w > 64 || h > 64 || (w > 32 && h > 32))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		obj = armada_gem_object_lookup(file, handle);
 		if (!obj)
-			return -ENOENT;
+			return -EANALENT;
 
 		/* Must be a kernel-mapped object */
 		if (!obj->addr) {
@@ -727,7 +727,7 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 		if (obj->obj.size < w * h * 4) {
 			DRM_ERROR("buffer is too small\n");
 			drm_gem_object_put(&obj->obj);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -753,7 +753,7 @@ static int armada_drm_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	int ret;
 
-	/* If no cursor support, replicate drm's return value */
+	/* If anal cursor support, replicate drm's return value */
 	if (!dcrtc->variant->has_spu_adv_reg)
 		return -EFAULT;
 
@@ -780,7 +780,7 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
 
 	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ENA);
 
-	of_node_put(dcrtc->crtc.port);
+	of_analde_put(dcrtc->crtc.port);
 
 	kfree(dcrtc);
 }
@@ -908,7 +908,7 @@ found:
 
 static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	struct resource *res, int irq, const struct armada_variant *variant,
-	struct device_node *port)
+	struct device_analde *port)
 {
 	struct armada_private *priv = drm_to_armada_dev(drm);
 	struct armada_crtc *dcrtc;
@@ -923,7 +923,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	dcrtc = kzalloc(sizeof(*dcrtc), GFP_KERNEL);
 	if (!dcrtc) {
 		DRM_ERROR("failed to allocate Armada crtc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (dev != drm->dev)
@@ -971,7 +971,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
 	if (!primary) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_crtc;
 	}
 
@@ -1012,8 +1012,8 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irq = platform_get_irq(pdev, 0);
 	const struct armada_variant *variant;
-	struct device_node *port = NULL;
-	struct device_node *np, *parent = dev->of_node;
+	struct device_analde *port = NULL;
+	struct device_analde *np, *parent = dev->of_analde;
 
 	if (irq < 0)
 		return irq;
@@ -1028,9 +1028,9 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 		if (np)
 			parent = np;
 		port = of_get_child_by_name(parent, "port");
-		of_node_put(np);
+		of_analde_put(np);
 		if (!port) {
-			dev_err(dev, "no port node found in %pOF\n", parent);
+			dev_err(dev, "anal port analde found in %pOF\n", parent);
 			return -ENXIO;
 		}
 	}

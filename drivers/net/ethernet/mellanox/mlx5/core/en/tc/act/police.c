@@ -13,7 +13,7 @@ static bool police_act_validate_control(enum flow_action_id act_id,
 	    act_id != FLOW_ACTION_JUMP &&
 	    act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform-exceed action is not pipe, ok, jump or drop");
+				   "Offload analt supported when conform-exceed action is analt pipe, ok, jump or drop");
 		return false;
 	}
 
@@ -24,14 +24,14 @@ static int police_act_validate(const struct flow_action_entry *act,
 			       struct netlink_ext_ack *extack)
 {
 	if (!police_act_validate_control(act->police.exceed.act_id, extack) ||
-	    !police_act_validate_control(act->police.notexceed.act_id, extack))
-		return -EOPNOTSUPP;
+	    !police_act_validate_control(act->police.analtexceed.act_id, extack))
+		return -EOPANALTSUPP;
 
 	if (act->police.peakrate_bytes_ps ||
 	    act->police.avrate || act->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -69,7 +69,7 @@ fill_meter_params_from_act(const struct flow_action_entry *act,
 	} else if (act->police.mtu) {
 		params->mtu = act->police.mtu;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -92,7 +92,7 @@ tc_act_parse_police(struct mlx5e_tc_act_parse_state *parse_state,
 	if (params->mtu) {
 		if (!(mlx5_fs_get_capabilities(priv->mdev, ns) &
 		      MLX5_FLOW_STEERING_CAP_MATCH_RANGES))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 		attr->flags |= MLX5_ATTR_FLAG_MTU;
@@ -130,7 +130,7 @@ tc_act_police_offload(struct mlx5e_priv *priv,
 		return err;
 
 	meter = mlx5e_tc_meter_get(priv->mdev, &params);
-	if (IS_ERR(meter) && PTR_ERR(meter) == -ENOENT) {
+	if (IS_ERR(meter) && PTR_ERR(meter) == -EANALENT) {
 		meter = mlx5e_tc_meter_replace(priv->mdev, &params);
 	} else if (!IS_ERR(meter)) {
 		err = mlx5e_tc_meter_update(meter, &params);
@@ -193,8 +193,8 @@ tc_act_police_get_branch_ctrl(const struct flow_action_entry *act,
 			      struct mlx5e_tc_act_branch_ctrl *cond_true,
 			      struct mlx5e_tc_act_branch_ctrl *cond_false)
 {
-	cond_true->act_id = act->police.notexceed.act_id;
-	cond_true->extval = act->police.notexceed.extval;
+	cond_true->act_id = act->police.analtexceed.act_id;
+	cond_true->extval = act->police.analtexceed.extval;
 
 	cond_false->act_id = act->police.exceed.act_id;
 	cond_false->extval = act->police.exceed.extval;

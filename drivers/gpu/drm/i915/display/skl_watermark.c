@@ -67,7 +67,7 @@ static bool
 intel_has_sagv(struct drm_i915_private *i915)
 {
 	return HAS_SAGV(i915) &&
-		i915->display.sagv.status != I915_SAGV_NOT_CONTROLLED;
+		i915->display.sagv.status != I915_SAGV_ANALT_CONTROLLED;
 }
 
 static u32
@@ -104,7 +104,7 @@ intel_sagv_block_time(struct drm_i915_private *i915)
 static void intel_sagv_init(struct drm_i915_private *i915)
 {
 	if (!HAS_SAGV(i915))
-		i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
+		i915->display.sagv.status = I915_SAGV_ANALT_CONTROLLED;
 
 	/*
 	 * Probe to see if we have working SAGV control.
@@ -113,16 +113,16 @@ static void intel_sagv_init(struct drm_i915_private *i915)
 	if (DISPLAY_VER(i915) < 11)
 		skl_sagv_disable(i915);
 
-	drm_WARN_ON(&i915->drm, i915->display.sagv.status == I915_SAGV_UNKNOWN);
+	drm_WARN_ON(&i915->drm, i915->display.sagv.status == I915_SAGV_UNKANALWN);
 
 	i915->display.sagv.block_time_us = intel_sagv_block_time(i915);
 
 	drm_dbg_kms(&i915->drm, "SAGV supported: %s, original SAGV block time: %u us\n",
-		    str_yes_no(intel_has_sagv(i915)), i915->display.sagv.block_time_us);
+		    str_anal_anal(intel_has_sagv(i915)), i915->display.sagv.block_time_us);
 
 	/* avoid overflow when adding with wm0 latency/etc. */
 	if (drm_WARN(&i915->drm, i915->display.sagv.block_time_us > U16_MAX,
-		     "Excessive SAGV block time %u, ignoring\n",
+		     "Excessive SAGV block time %u, iganalring\n",
 		     i915->display.sagv.block_time_us))
 		i915->display.sagv.block_time_us = 0;
 
@@ -139,7 +139,7 @@ static void intel_sagv_init(struct drm_i915_private *i915)
  *
  *  - <= 1 pipe enabled
  *  - All planes can enable watermarks for latencies >= SAGV engine block time
- *  - We're not using an interlaced display configuration
+ *  - We're analt using an interlaced display configuration
  */
 static void skl_sagv_enable(struct drm_i915_private *i915)
 {
@@ -162,8 +162,8 @@ static void skl_sagv_enable(struct drm_i915_private *i915)
 	 * don't actually have SAGV.
 	 */
 	if (IS_SKYLAKE(i915) && ret == -ENXIO) {
-		drm_dbg(&i915->drm, "No SAGV found on system, ignoring\n");
-		i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
+		drm_dbg(&i915->drm, "Anal SAGV found on system, iganalring\n");
+		i915->display.sagv.status = I915_SAGV_ANALT_CONTROLLED;
 		return;
 	} else if (ret < 0) {
 		drm_err(&i915->drm, "Failed to enable SAGV\n");
@@ -194,8 +194,8 @@ static void skl_sagv_disable(struct drm_i915_private *i915)
 	 * don't actually have SAGV.
 	 */
 	if (IS_SKYLAKE(i915) && ret == -ENXIO) {
-		drm_dbg(&i915->drm, "No SAGV found on system, ignoring\n");
-		i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
+		drm_dbg(&i915->drm, "Anal SAGV found on system, iganalring\n");
+		i915->display.sagv.status = I915_SAGV_ANALT_CONTROLLED;
 		return;
 	} else if (ret < 0) {
 		drm_err(&i915->drm, "Failed to disable SAGV (%d)\n", ret);
@@ -303,7 +303,7 @@ void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
 	 * Just return if we can't control SAGV or don't have it.
 	 * This is different from situation when we have SAGV but just can't
 	 * afford it due to DBuf limitation - in case if SAGV is completely
-	 * disabled in a BIOS, we are not even allowed to send a PCode request,
+	 * disabled in a BIOS, we are analt even allowed to send a PCode request,
 	 * as it will throw an error. So have to check it here.
 	 */
 	if (!intel_has_sagv(i915))
@@ -323,7 +323,7 @@ void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 	 * Just return if we can't control SAGV or don't have it.
 	 * This is different from situation when we have SAGV but just can't
 	 * afford it due to DBuf limitation - in case if SAGV is completely
-	 * disabled in a BIOS, we are not even allowed to send a PCode request,
+	 * disabled in a BIOS, we are analt even allowed to send a PCode request,
 	 * as it will throw an error. So have to check it here.
 	 */
 	if (!intel_has_sagv(i915))
@@ -356,7 +356,7 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 		int level;
 
-		/* Skip this plane if it's not enabled */
+		/* Skip this plane if it's analt enabled */
 		if (!wm->wm[0].enable)
 			continue;
 
@@ -369,7 +369,7 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 		max_level = min(level, max_level);
 	}
 
-	/* No enabled planes? */
+	/* Anal enabled planes? */
 	if (max_level == INT_MAX)
 		return true;
 
@@ -484,7 +484,7 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 
 		/*
 		 * We store use_sagv_wm in the crtc state rather than relying on
-		 * that bw state since we have no convenient way to get at the
+		 * that bw state since we have anal convenient way to get at the
 		 * latter from the plane commit hooks (especially in the legacy
 		 * cursor case)
 		 */
@@ -605,11 +605,11 @@ static void intel_crtc_dbuf_weights(const struct intel_dbuf_state *dbuf_state,
 		int weight = dbuf_state->weight[pipe];
 
 		/*
-		 * Do not account pipes using other slice sets
-		 * luckily as of current BSpec slice sets do not partially
+		 * Do analt account pipes using other slice sets
+		 * luckily as of current BSpec slice sets do analt partially
 		 * intersect(pipes share either same one slice or same slice set
-		 * i.e no partial intersection), so it is enough to check for
-		 * equality for now.
+		 * i.e anal partial intersection), so it is eanalugh to check for
+		 * equality for analw.
 		 */
 		if (dbuf_state->slices[pipe] != dbuf_state->slices[for_pipe])
 			continue;
@@ -780,7 +780,7 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *i915,
 {
 	u32 val;
 
-	/* Cursor doesn't support NV12/planar, so no extra calculation needed */
+	/* Cursor doesn't support NV12/planar, so anal extra calculation needed */
 	if (plane_id == PLANE_CURSOR) {
 		val = intel_de_read(i915, CUR_BUF_CFG(pipe));
 		skl_ddb_entry_init_from_hw(ddb, val);
@@ -1298,9 +1298,9 @@ static u8 icl_compute_dbuf_slices(enum pipe pipe, u8 active_pipes, bool join_mbu
 	 * required calculating "pipe ratio" in order to determine
 	 * if one or two slices can be used for single pipe configurations
 	 * as additional constraint to the existing table.
-	 * However based on recent info, it should be not "pipe ratio"
+	 * However based on recent info, it should be analt "pipe ratio"
 	 * but rather ratio between pixel_rate and cdclk with additional
-	 * constants, so for now we are using only table until this is
+	 * constants, so for analw we are using only table until this is
 	 * clarified. Also this is the reason why crtc_state param is
 	 * still here - we will need it once those additional constraints
 	 * pop up.
@@ -1598,9 +1598,9 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	drm_WARN_ON(&i915->drm, iter.size != 0 || iter.data_rate != 0);
 
 	/*
-	 * When we calculated watermark values we didn't know how high
+	 * When we calculated watermark values we didn't kanalw how high
 	 * of a level we'd actually be able to hit, so we just marked
-	 * all levels as "enabled."  Go back now and disable the ones
+	 * all levels as "enabled."  Go back analw and disable the ones
 	 * that aren't actually possible.
 	 */
 	for (level++; level < i915->display.wm.num_levels; level++) {
@@ -1623,14 +1623,14 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 			if (skl_need_wm_copy_wa(i915, level, wm)) {
 				wm->wm[level].blocks = wm->wm[level - 1].blocks;
 				wm->wm[level].lines = wm->wm[level - 1].lines;
-				wm->wm[level].ignore_lines = wm->wm[level - 1].ignore_lines;
+				wm->wm[level].iganalre_lines = wm->wm[level - 1].iganalre_lines;
 			}
 		}
 	}
 
 	/*
 	 * Go back and disable the transition and SAGV watermarks
-	 * if it turns out we don't have enough DDB blocks for them.
+	 * if it turns out we don't have eanalugh DDB blocks for them.
 	 */
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		const struct skl_ddb_entry *ddb =
@@ -1735,7 +1735,7 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 	if (color_plane == 1 &&
 	    !intel_format_info_is_yuv_semiplanar(format, modifier)) {
 		drm_dbg_kms(&i915->drm,
-			    "Non planar format have single plane\n");
+			    "Analn planar format have single plane\n");
 		return -EINVAL;
 	}
 
@@ -1820,7 +1820,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
 	/*
 	 * Src coordinates are already rotated by 270 degrees for
 	 * the 90/270 degree plane rotation cases (to match the
-	 * GTT mapping), hence no need to account for rotation here.
+	 * GTT mapping), hence anal need to account for rotation here.
 	 */
 	width = drm_rect_width(&plane_state->uapi.src) >> 16;
 
@@ -1836,7 +1836,7 @@ static bool skl_wm_has_lines(struct drm_i915_private *i915, int level)
 	if (DISPLAY_VER(i915) >= 10)
 		return true;
 
-	/* The number of lines are ignored for the level 0 watermark. */
+	/* The number of lines are iganalred for the level 0 watermark. */
 	return level > 0;
 }
 
@@ -1901,7 +1901,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	 *
 	 * As per the Bspec 49325, if the ddb allocation can hold at least
 	 * one plane_blocks_per_line, we should have selected method2 in
-	 * the above logic. Assuming that modern versions have enough dbuf
+	 * the above logic. Assuming that modern versions have eanalugh dbuf
 	 * and method2 guarantees blocks equivalent to at least 1 line,
 	 * select the blocks as plane_blocks_per_line.
 	 *
@@ -1968,8 +1968,8 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 
 	/*
 	 * If lines is valid, assume we can use this watermark level
-	 * for now.  We'll come back and disable it after we calculate the
-	 * DDB allocation if it turns out we don't actually have enough
+	 * for analw.  We'll come back and disable it after we calculate the
+	 * DDB allocation if it turns out we don't actually have eanalugh
 	 * blocks to satisfy it.
 	 */
 	result->blocks = blocks;
@@ -2036,7 +2036,7 @@ static void skl_compute_transition_wm(struct drm_i915_private *i915,
 
 	/*
 	 * WaDisableTWM:skl,kbl,cfl,bxt
-	 * Transition WM are not recommended by HW team for GEN9
+	 * Transition WM are analt recommended by HW team for GEN9
 	 */
 	if (DISPLAY_VER(i915) == 9)
 		return;
@@ -2056,7 +2056,7 @@ static void skl_compute_transition_wm(struct drm_i915_private *i915,
 
 	/*
 	 * The spec asks for Selected Result Blocks for wm0 (the real value),
-	 * not Result Blocks (the integer value). Pay attention to the capital
+	 * analt Result Blocks (the integer value). Pay attention to the capital
 	 * letters. The value wm_l0->blocks is actually Result Blocks, but
 	 * since Result Blocks is the ceiling of Selected Result Blocks plus 1,
 	 * and since we later will have to get the ceiling of the sum in the
@@ -2332,7 +2332,7 @@ static int skl_build_pipe_wm(struct intel_atomic_state *state,
 		/*
 		 * FIXME should perhaps check {old,new}_plane_crtc->hw.crtc
 		 * instead but we don't populate that correctly for NV12 Y
-		 * planes so for now hack this.
+		 * planes so for analw hack this.
 		 */
 		if (plane->pipe != crtc->pipe)
 			continue;
@@ -2370,8 +2370,8 @@ static void skl_write_wm_level(struct drm_i915_private *i915,
 
 	if (level->enable)
 		val |= PLANE_WM_EN;
-	if (level->ignore_lines)
-		val |= PLANE_WM_IGNORE_LINES;
+	if (level->iganalre_lines)
+		val |= PLANE_WM_IGANALRE_LINES;
 	val |= REG_FIELD_PREP(PLANE_WM_BLOCKS_MASK, level->blocks);
 	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
 
@@ -2449,7 +2449,7 @@ static bool skl_wm_level_equals(const struct skl_wm_level *l1,
 				const struct skl_wm_level *l2)
 {
 	return l1->enable == l2->enable &&
-		l1->ignore_lines == l2->ignore_lines &&
+		l1->iganalre_lines == l2->iganalre_lines &&
 		l1->lines == l2->lines &&
 		l1->blocks == l2->blocks;
 }
@@ -2495,12 +2495,12 @@ static void skl_ddb_entry_union(struct skl_ddb_entry *a,
 
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry *entries,
-				 int num_entries, int ignore_idx)
+				 int num_entries, int iganalre_idx)
 {
 	int i;
 
 	for (i = 0; i < num_entries; i++) {
-		if (i != ignore_idx &&
+		if (i != iganalre_idx &&
 		    skl_ddb_entries_overlap(ddb, &entries[i]))
 			return true;
 	}
@@ -2546,7 +2546,7 @@ static u8 intel_dbuf_enabled_slices(const struct intel_dbuf_state *dbuf_state)
 	enum pipe pipe;
 
 	/*
-	 * FIXME: For now we always enable slice S1 as per
+	 * FIXME: For analw we always enable slice S1 as per
 	 * the Bspec display initialization sequence.
 	 */
 	enabled_slices = BIT(DBUF_S1);
@@ -2628,8 +2628,8 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			    old_dbuf_state->enabled_slices,
 			    new_dbuf_state->enabled_slices,
 			    DISPLAY_INFO(i915)->dbuf.slice_mask,
-			    str_yes_no(old_dbuf_state->joined_mbus),
-			    str_yes_no(new_dbuf_state->joined_mbus));
+			    str_anal_anal(old_dbuf_state->joined_mbus),
+			    str_anal_anal(new_dbuf_state->joined_mbus));
 	}
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -2741,28 +2741,28 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 				    "[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d"
 				      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d\n",
 				    plane->base.base.id, plane->base.name,
-				    enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].lines,
-				    enast(old_wm->wm[1].ignore_lines), old_wm->wm[1].lines,
-				    enast(old_wm->wm[2].ignore_lines), old_wm->wm[2].lines,
-				    enast(old_wm->wm[3].ignore_lines), old_wm->wm[3].lines,
-				    enast(old_wm->wm[4].ignore_lines), old_wm->wm[4].lines,
-				    enast(old_wm->wm[5].ignore_lines), old_wm->wm[5].lines,
-				    enast(old_wm->wm[6].ignore_lines), old_wm->wm[6].lines,
-				    enast(old_wm->wm[7].ignore_lines), old_wm->wm[7].lines,
-				    enast(old_wm->trans_wm.ignore_lines), old_wm->trans_wm.lines,
-				    enast(old_wm->sagv.wm0.ignore_lines), old_wm->sagv.wm0.lines,
-				    enast(old_wm->sagv.trans_wm.ignore_lines), old_wm->sagv.trans_wm.lines,
-				    enast(new_wm->wm[0].ignore_lines), new_wm->wm[0].lines,
-				    enast(new_wm->wm[1].ignore_lines), new_wm->wm[1].lines,
-				    enast(new_wm->wm[2].ignore_lines), new_wm->wm[2].lines,
-				    enast(new_wm->wm[3].ignore_lines), new_wm->wm[3].lines,
-				    enast(new_wm->wm[4].ignore_lines), new_wm->wm[4].lines,
-				    enast(new_wm->wm[5].ignore_lines), new_wm->wm[5].lines,
-				    enast(new_wm->wm[6].ignore_lines), new_wm->wm[6].lines,
-				    enast(new_wm->wm[7].ignore_lines), new_wm->wm[7].lines,
-				    enast(new_wm->trans_wm.ignore_lines), new_wm->trans_wm.lines,
-				    enast(new_wm->sagv.wm0.ignore_lines), new_wm->sagv.wm0.lines,
-				    enast(new_wm->sagv.trans_wm.ignore_lines), new_wm->sagv.trans_wm.lines);
+				    enast(old_wm->wm[0].iganalre_lines), old_wm->wm[0].lines,
+				    enast(old_wm->wm[1].iganalre_lines), old_wm->wm[1].lines,
+				    enast(old_wm->wm[2].iganalre_lines), old_wm->wm[2].lines,
+				    enast(old_wm->wm[3].iganalre_lines), old_wm->wm[3].lines,
+				    enast(old_wm->wm[4].iganalre_lines), old_wm->wm[4].lines,
+				    enast(old_wm->wm[5].iganalre_lines), old_wm->wm[5].lines,
+				    enast(old_wm->wm[6].iganalre_lines), old_wm->wm[6].lines,
+				    enast(old_wm->wm[7].iganalre_lines), old_wm->wm[7].lines,
+				    enast(old_wm->trans_wm.iganalre_lines), old_wm->trans_wm.lines,
+				    enast(old_wm->sagv.wm0.iganalre_lines), old_wm->sagv.wm0.lines,
+				    enast(old_wm->sagv.trans_wm.iganalre_lines), old_wm->sagv.trans_wm.lines,
+				    enast(new_wm->wm[0].iganalre_lines), new_wm->wm[0].lines,
+				    enast(new_wm->wm[1].iganalre_lines), new_wm->wm[1].lines,
+				    enast(new_wm->wm[2].iganalre_lines), new_wm->wm[2].lines,
+				    enast(new_wm->wm[3].iganalre_lines), new_wm->wm[3].lines,
+				    enast(new_wm->wm[4].iganalre_lines), new_wm->wm[4].lines,
+				    enast(new_wm->wm[5].iganalre_lines), new_wm->wm[5].lines,
+				    enast(new_wm->wm[6].iganalre_lines), new_wm->wm[6].lines,
+				    enast(new_wm->wm[7].iganalre_lines), new_wm->wm[7].lines,
+				    enast(new_wm->trans_wm.iganalre_lines), new_wm->trans_wm.lines,
+				    enast(new_wm->sagv.wm0.iganalre_lines), new_wm->sagv.wm0.lines,
+				    enast(new_wm->sagv.trans_wm.iganalre_lines), new_wm->sagv.trans_wm.lines);
 
 			drm_dbg_kms(&i915->drm,
 				    "[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
@@ -2845,18 +2845,18 @@ static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
  * 2. move cursor entirely offscreen
  * 3. disable cursor
  *
- * Step 2. does call .disable_plane() but does not zero the watermarks
+ * Step 2. does call .disable_plane() but does analt zero the watermarks
  * (since we consider an offscreen cursor still active for the purposes
- * of watermarks). Step 3. would not normally call .disable_plane()
+ * of watermarks). Step 3. would analt analrmally call .disable_plane()
  * because the actual plane visibility isn't changing, and we don't
  * deallocate the cursor ddb until the pipe gets disabled. So we must
  * force step 3. to call .disable_plane() to update the watermark
  * registers properly.
  *
- * Other planes do not suffer from this issues as their watermarks are
+ * Other planes do analt suffer from this issues as their watermarks are
  * calculated based on the actual plane visibility. The only time this
  * can trigger for the other planes is during the initial readout as the
- * default value of the watermarks registers is not zero.
+ * default value of the watermarks registers is analt zero.
  */
 static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 				      struct intel_crtc *crtc)
@@ -2875,7 +2875,7 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 		/*
 		 * Force a full wm update for every plane on modeset.
 		 * Required because the reset value of the wm registers
-		 * is non-zero, whereas we want all disabled planes to
+		 * is analn-zero, whereas we want all disabled planes to
 		 * have zero watermarks. So if we turn off the relevant
 		 * power well the hardware state will go out of sync
 		 * with the software state.
@@ -2921,7 +2921,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 
 	/*
 	 * skl_compute_ddb() will have adjusted the final watermarks
-	 * based on how much ddb is available. Now we can actually
+	 * based on how much ddb is available. Analw we can actually
 	 * check if the final watermarks changed.
 	 */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -2938,7 +2938,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 static void skl_wm_level_from_reg_val(u32 val, struct skl_wm_level *level)
 {
 	level->enable = val & PLANE_WM_EN;
-	level->ignore_lines = val & PLANE_WM_IGNORE_LINES;
+	level->iganalre_lines = val & PLANE_WM_IGANALRE_LINES;
 	level->blocks = REG_FIELD_GET(PLANE_WM_BLOCKS_MASK, val);
 	level->lines = REG_FIELD_GET(PLANE_WM_LINES_MASK, val);
 }
@@ -3054,7 +3054,7 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 			    crtc->base.base.id, crtc->base.name,
 			    dbuf_state->slices[pipe], dbuf_state->ddb[pipe].start,
 			    dbuf_state->ddb[pipe].end, dbuf_state->active_pipes,
-			    str_yes_no(dbuf_state->joined_mbus));
+			    str_anal_anal(dbuf_state->joined_mbus));
 	}
 
 	dbuf_state->enabled_slices = i915->display.dbuf.enabled_slices;
@@ -3102,10 +3102,10 @@ static void skl_wm_sanitize(struct drm_i915_private *i915)
 	 * in skl_commit_modeset_enables() as it can't find a way to
 	 * transition between the old bogus DBUF layout to the new
 	 * proper DBUF layout without DBUF allocation overlaps between
-	 * the planes (which cannot be allowed or else the hardware
+	 * the planes (which cananalt be allowed or else the hardware
 	 * may hang). If we detect a bogus DBUF layout just turn off
 	 * all the planes so that skl_commit_modeset_enables() can
-	 * simply ignore them.
+	 * simply iganalre them.
 	 */
 	if (!skl_dbuf_is_misconfigured(i915))
 		return;
@@ -3120,7 +3120,7 @@ static void skl_wm_sanitize(struct drm_i915_private *i915)
 			to_intel_crtc_state(crtc->base.state);
 
 		if (plane_state->uapi.visible)
-			intel_plane_disable_noatomic(crtc, plane);
+			intel_plane_disable_analatomic(crtc, plane);
 
 		drm_WARN_ON(&i915->drm, crtc_state->active_planes != 0);
 
@@ -3331,8 +3331,8 @@ adjust_wm_latency(struct drm_i915_private *i915,
 
 	/*
 	 * WA Level-0 adjustment for 16GB DIMMs: SKL+
-	 * If we could not get dimm info enable this WA to prevent from
-	 * any underrun. If not able to get Dimm info assume 16GB dimm
+	 * If we could analt get dimm info enable this WA to prevent from
+	 * any underrun. If analt able to get Dimm info assume 16GB dimm
 	 * to avoid any underrun.
 	 */
 	if (wm_lv_0_adjust_needed)
@@ -3466,7 +3466,7 @@ int intel_dbuf_init(struct drm_i915_private *i915)
 
 	dbuf_state = kzalloc(sizeof(*dbuf_state), GFP_KERNEL);
 	if (!dbuf_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_atomic_global_obj_init(i915, &i915->display.dbuf.obj,
 				     &dbuf_state->base, &intel_dbuf_funcs);
@@ -3495,11 +3495,11 @@ static void update_mbus_pre_enable(struct intel_atomic_state *state)
 	 */
 	if (dbuf_state->joined_mbus) {
 		mbus_ctl = MBUS_HASHING_MODE_1x4 | MBUS_JOIN |
-			MBUS_JOIN_PIPE_SELECT_NONE;
+			MBUS_JOIN_PIPE_SELECT_ANALNE;
 		dbuf_min_tracker_val = DBUF_MIN_TRACKER_STATE_SERVICE(3);
 	} else {
 		mbus_ctl = MBUS_HASHING_MODE_2x2 |
-			MBUS_JOIN_PIPE_SELECT_NONE;
+			MBUS_JOIN_PIPE_SELECT_ANALNE;
 		dbuf_min_tracker_val = DBUF_MIN_TRACKER_STATE_SERVICE(1);
 	}
 
@@ -3645,14 +3645,14 @@ static int skl_watermark_ipc_status_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *i915 = m->private;
 
-	seq_printf(m, "Isochronous Priority Control: %s\n",
-		   str_yes_no(skl_watermark_ipc_enabled(i915)));
+	seq_printf(m, "Isochroanalus Priority Control: %s\n",
+		   str_anal_anal(skl_watermark_ipc_enabled(i915)));
 	return 0;
 }
 
-static int skl_watermark_ipc_status_open(struct inode *inode, struct file *file)
+static int skl_watermark_ipc_status_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_i915_private *i915 = inode->i_private;
+	struct drm_i915_private *i915 = ianalde->i_private;
 
 	return single_open(file, skl_watermark_ipc_status_show, i915);
 }
@@ -3695,13 +3695,13 @@ static int intel_sagv_status_show(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = m->private;
 	static const char * const sagv_status[] = {
-		[I915_SAGV_UNKNOWN] = "unknown",
+		[I915_SAGV_UNKANALWN] = "unkanalwn",
 		[I915_SAGV_DISABLED] = "disabled",
 		[I915_SAGV_ENABLED] = "enabled",
-		[I915_SAGV_NOT_CONTROLLED] = "not controlled",
+		[I915_SAGV_ANALT_CONTROLLED] = "analt controlled",
 	};
 
-	seq_printf(m, "SAGV available: %s\n", str_yes_no(intel_has_sagv(i915)));
+	seq_printf(m, "SAGV available: %s\n", str_anal_anal(intel_has_sagv(i915)));
 	seq_printf(m, "SAGV modparam: %s\n",
 		   str_enabled_disabled(i915->display.params.enable_sagv));
 	seq_printf(m, "SAGV status: %s\n", sagv_status[i915->display.sagv.status]);
@@ -3714,14 +3714,14 @@ DEFINE_SHOW_ATTRIBUTE(intel_sagv_status);
 
 void skl_watermark_debugfs_register(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_mianalr *mianalr = i915->drm.primary;
 
 	if (HAS_IPC(i915))
-		debugfs_create_file("i915_ipc_status", 0644, minor->debugfs_root, i915,
+		debugfs_create_file("i915_ipc_status", 0644, mianalr->debugfs_root, i915,
 				    &skl_watermark_ipc_status_fops);
 
 	if (HAS_SAGV(i915))
-		debugfs_create_file("i915_sagv_status", 0444, minor->debugfs_root, i915,
+		debugfs_create_file("i915_sagv_status", 0444, mianalr->debugfs_root, i915,
 				    &intel_sagv_status_fops);
 }
 

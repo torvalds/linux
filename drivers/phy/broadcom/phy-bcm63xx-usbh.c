@@ -2,7 +2,7 @@
 /*
  * BCM6328 USBH PHY Controller Driver
  *
- * Copyright (C) 2020 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2020 Álvaro Fernández Rojas <analltari@gmail.com>
  * Copyright (C) 2015 Simon Arlott
  *
  * Derived from bcm963xx_4.12L.06B_consumer/kernel/linux/arch/mips/bcm963xx/setup.c:
@@ -84,7 +84,7 @@ struct bcm63xx_usbh_phy_variant {
 	/* Swap Control bits to set */
 	u32 swapctl_dev_set;
 
-	/* Test Port Control value to set if non-zero */
+	/* Test Port Control value to set if analn-zero */
 	u32 tpc_val;
 
 	/* USB Sim Control bits to set */
@@ -169,7 +169,7 @@ static const struct bcm63xx_usbh_phy_variant usbh_bcm6358 = {
 	},
 	/*
 	 * The magic value comes for the original vendor BSP
-	 * and is needed for USB to work. Datasheet does not
+	 * and is needed for USB to work. Datasheet does analt
 	 * help, so the magic value is used as-is.
 	 */
 	.tpc_val = 0x1c0020,
@@ -385,7 +385,7 @@ static int __init bcm63xx_usbh_phy_probe(struct platform_device *pdev)
 
 	usbh = devm_kzalloc(dev, sizeof(*usbh), GFP_KERNEL);
 	if (!usbh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	variant = device_get_match_data(dev);
 	if (!variant)
@@ -453,6 +453,6 @@ static struct platform_driver bcm63xx_usbh_phy_driver __refdata = {
 module_platform_driver(bcm63xx_usbh_phy_driver);
 
 MODULE_DESCRIPTION("BCM63xx USBH PHY driver");
-MODULE_AUTHOR("Álvaro Fernández Rojas <noltari@gmail.com>");
+MODULE_AUTHOR("Álvaro Fernández Rojas <analltari@gmail.com>");
 MODULE_AUTHOR("Simon Arlott");
 MODULE_LICENSE("GPL");

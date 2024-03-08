@@ -133,7 +133,7 @@ static inline bool bch2_snapshot_is_equiv(struct bch_fs *c, u32 id)
 	return id == bch2_snapshot_equiv(c, id);
 }
 
-static inline bool bch2_snapshot_is_internal_node(struct bch_fs *c, u32 id)
+static inline bool bch2_snapshot_is_internal_analde(struct bch_fs *c, u32 id)
 {
 	const struct snapshot_t *s;
 	bool ret;
@@ -148,7 +148,7 @@ static inline bool bch2_snapshot_is_internal_node(struct bch_fs *c, u32 id)
 
 static inline u32 bch2_snapshot_is_leaf(struct bch_fs *c, u32 id)
 {
-	return !bch2_snapshot_is_internal_node(c, id);
+	return !bch2_snapshot_is_internal_analde(c, id);
 }
 
 static inline u32 bch2_snapshot_sibling(struct bch_fs *c, u32 id)
@@ -233,13 +233,13 @@ int bch2_snapshot_get_subvol(struct btree_trans *, u32,
 			     struct bch_subvolume *);
 
 /* only exported for tests: */
-int bch2_snapshot_node_create(struct btree_trans *, u32,
+int bch2_snapshot_analde_create(struct btree_trans *, u32,
 			      u32 *, u32 *, unsigned);
 
 int bch2_check_snapshot_trees(struct bch_fs *);
 int bch2_check_snapshots(struct bch_fs *);
 
-int bch2_snapshot_node_set_deleted(struct btree_trans *, u32);
+int bch2_snapshot_analde_set_deleted(struct btree_trans *, u32);
 void bch2_delete_dead_snapshots_work(struct work_struct *);
 
 int __bch2_key_has_snapshot_overwrites(struct btree_trans *, enum btree_id, struct bpos);

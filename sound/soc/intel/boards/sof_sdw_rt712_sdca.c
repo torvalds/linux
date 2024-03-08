@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
 #include <sound/control.h>
@@ -43,7 +43,7 @@ static int rt712_spk_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s spk:rt712",
 					  card->components);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_add_card_controls(card, rt712_spk_controls,
 					ARRAY_SIZE(rt712_spk_controls));
@@ -87,7 +87,7 @@ static int rt712_sdca_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s mic:%s",
 					  card->components, component->name_prefix);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

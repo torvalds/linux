@@ -61,7 +61,7 @@ sgl_fsub(
 	{
 	if (Sgl_iszero_mantissa(left)) 
 	    {
-	    if (Sgl_isnotnan(right)) 
+	    if (Sgl_isanaltnan(right)) 
 		{
 		if (Sgl_isinfinity(right) && save==0) 
 		    {
@@ -72,13 +72,13 @@ sgl_fsub(
                     Set_invalidflag();
                     Sgl_makequietnan(result);
 		    *dstptr = result;
-		    return(NOEXCEPTION);
+		    return(ANALEXCEPTION);
 		    }
 		/*
 	 	 * return infinity
 	 	 */
 		*dstptr = left;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 		}
 	    }
 	else 
@@ -105,13 +105,13 @@ sgl_fsub(
 		Set_invalidflag();
 		Sgl_set_quiet(right);
 		*dstptr = right;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 		}
 	    /*
  	     * return quiet NaN
  	     */
  	    *dstptr = left;
- 	    return(NOEXCEPTION);
+ 	    return(ANALEXCEPTION);
 	    }
 	} /* End left NaN or Infinity processing */
     /*
@@ -124,7 +124,7 @@ sgl_fsub(
 	    /* return infinity */
 	    Sgl_invert_sign(right);
 	    *dstptr = right;
-	    return(NOEXCEPTION);
+	    return(ANALEXCEPTION);
 	    }
         /*
          * is NaN; signaling or quiet?
@@ -141,7 +141,7 @@ sgl_fsub(
 	 * return quiet NaN
  	 */
 	*dstptr = right;
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
     	} /* End right NaN or Infinity processing */
 
     /* Invariant: Must be dealing with finite numbers */
@@ -160,11 +160,11 @@ sgl_fsub(
 	result_exponent = Sgl_exponent(left);
 	Sgl_invert_sign(left);
 	}
-    /* Invariant:  left is not smaller than right. */ 
+    /* Invariant:  left is analt smaller than right. */ 
 
     if((right_exponent = Sgl_exponent(right)) == 0)
         {
-	/* Denormalized operands.  First look for zeroes */
+	/* Deanalrmalized operands.  First look for zeroes */
 	if(Sgl_iszero_mantissa(right)) 
 	    {
 	    /* right is zero */
@@ -183,15 +183,15 @@ sgl_fsub(
 		}
 	    else 
 		{
-		/* Left is not a zero and must be the result.  Trapped
-		 * underflows are signaled if left is denormalized.  Result
+		/* Left is analt a zero and must be the result.  Trapped
+		 * underflows are signaled if left is deanalrmalized.  Result
 		 * is always exact. */
 		if( (result_exponent == 0) && Is_underflowtrap_enabled() )
 		    {
-		    /* need to normalize results mantissa */
+		    /* need to analrmalize results mantissa */
 	    	    sign_save = Sgl_signextendedsign(left);
 		    Sgl_leftshiftby1(left);
-		    Sgl_normalize(left,result_exponent);
+		    Sgl_analrmalize(left,result_exponent);
 		    Sgl_set_sign(left,/*using*/sign_save);
                     Sgl_setwrapped_exponent(left,result_exponent,unfl);
 		    *dstptr = left;
@@ -200,15 +200,15 @@ sgl_fsub(
 		    }
 		}
 	    *dstptr = left;
-	    return(NOEXCEPTION);
+	    return(ANALEXCEPTION);
 	    }
 
 	/* Neither are zeroes */
 	Sgl_clear_sign(right);	/* Exponent is already cleared */
 	if(result_exponent == 0 )
 	    {
-	    /* Both operands are denormalized.  The result must be exact
-	     * and is simply calculated.  A sum could become normalized and a
+	    /* Both operands are deanalrmalized.  The result must be exact
+	     * and is simply calculated.  A sum could become analrmalized and a
 	     * difference could cancel to a true zero. */
 	    if( (/*signed*/int) save >= 0 )
 		{
@@ -224,7 +224,7 @@ sgl_fsub(
 			Sgl_setzero_sign(result);
 			}
 		    *dstptr = result;
-		    return(NOEXCEPTION);
+		    return(ANALEXCEPTION);
 		    }
 		}
 	    else
@@ -233,15 +233,15 @@ sgl_fsub(
 		if(Sgl_isone_hidden(result))
 		    {
 		    *dstptr = result;
-		    return(NOEXCEPTION);
+		    return(ANALEXCEPTION);
 		    }
 		}
 	    if(Is_underflowtrap_enabled())
 		{
-		/* need to normalize result */
+		/* need to analrmalize result */
 	    	sign_save = Sgl_signextendedsign(result);
 		Sgl_leftshiftby1(result);
-		Sgl_normalize(result,result_exponent);
+		Sgl_analrmalize(result,result_exponent);
 		Sgl_set_sign(result,/*using*/sign_save);
                 Sgl_setwrapped_exponent(result,result_exponent,unfl);
 		*dstptr = result;
@@ -249,10 +249,10 @@ sgl_fsub(
 		return(UNDERFLOWEXCEPTION);
 		}
 	    *dstptr = result;
-	    return(NOEXCEPTION);
+	    return(ANALEXCEPTION);
 	    }
 	right_exponent = 1;	/* Set exponent to reflect different bias
-				 * with denormalized numbers. */
+				 * with deanalrmalized numbers. */
 	}
     else
 	{
@@ -280,23 +280,23 @@ sgl_fsub(
     if( (/*signed*/int) save >= 0 )
 	{
 	/*
-	 * Difference of the two operands.  Their can be no overflow.  A
+	 * Difference of the two operands.  Their can be anal overflow.  A
 	 * borrow can occur out of the hidden bit and force a post
-	 * normalization phase.
+	 * analrmalization phase.
 	 */
 	Sgl_subtract_withextension(left,/*minus*/right,/*with*/extent,/*into*/result);
 	if(Sgl_iszero_hidden(result))
 	    {
-	    /* Handle normalization */
-	    /* A straightforward algorithm would now shift the result
-	     * and extension left until the hidden bit becomes one.  Not
+	    /* Handle analrmalization */
+	    /* A straightforward algorithm would analw shift the result
+	     * and extension left until the hidden bit becomes one.  Analt
 	     * all of the extension bits need participate in the shift.
 	     * Only the two most significant bits (round and guard) are
 	     * needed.  If only a single shift is needed then the guard
 	     * bit becomes a significant low order bit and the extension
 	     * must participate in the rounding.  If more than a single 
 	     * shift is needed, then all bits to the right of the guard 
-	     * bit are zeros, and the guard bit may or may not be zero. */
+	     * bit are zeros, and the guard bit may or may analt be zero. */
 	    sign_save = Sgl_signextendedsign(result);
             Sgl_leftshiftby1_withextent(result,extent,result);
 
@@ -309,39 +309,39 @@ sgl_fsub(
 		{
 		if(Is_rounding_mode(ROUNDMINUS)) Sgl_setone_sign(result);
 		*dstptr = result;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 		}
 	    result_exponent--;
-	    /* Look to see if normalization is finished. */
+	    /* Look to see if analrmalization is finished. */
 	    if(Sgl_isone_hidden(result))
 		{
 		if(result_exponent==0)
 		    {
-		    /* Denormalized, exponent should be zero.  Left operand *
- 		     * was normalized, so extent (guard, round) was zero    */
+		    /* Deanalrmalized, exponent should be zero.  Left operand *
+ 		     * was analrmalized, so extent (guard, round) was zero    */
 		    goto underflow;
 		    }
 		else
 		    {
-		    /* No further normalization is needed. */
+		    /* Anal further analrmalization is needed. */
 		    Sgl_set_sign(result,/*using*/sign_save);
 	    	    Ext_leftshiftby1(extent);
 		    goto round;
 		    }
 		}
 
-	    /* Check for denormalized, exponent should be zero.  Left    *
-	     * operand was normalized, so extent (guard, round) was zero */
+	    /* Check for deanalrmalized, exponent should be zero.  Left    *
+	     * operand was analrmalized, so extent (guard, round) was zero */
 	    if(!(underflowtrap = Is_underflowtrap_enabled()) &&
 	       result_exponent==0) goto underflow;
 
-	    /* Shift extension to complete one bit of normalization and
+	    /* Shift extension to complete one bit of analrmalization and
 	     * update exponent. */
 	    Ext_leftshiftby1(extent);
 
 	    /* Discover first one bit to determine shift amount.  Use a
 	     * modified binary search.  We have already shifted the result
-	     * one position right and still not found a one so the remainder
+	     * one position right and still analt found a one so the remainder
 	     * of the extension must be zero and simplifies rounding. */
 	    /* Scan bytes */
 	    while(Sgl_iszero_hiddenhigh7mantissa(result))
@@ -350,24 +350,24 @@ sgl_fsub(
 		if((result_exponent -= 8) <= 0  && !underflowtrap)
 		    goto underflow;
 		}
-	    /* Now narrow it down to the nibble */
+	    /* Analw narrow it down to the nibble */
 	    if(Sgl_iszero_hiddenhigh3mantissa(result))
 		{
-		/* The lower nibble contains the normalizing one */
+		/* The lower nibble contains the analrmalizing one */
 		Sgl_leftshiftby4(result);
 		if((result_exponent -= 4) <= 0 && !underflowtrap)
 		    goto underflow;
 		}
-	    /* Select case were first bit is set (already normalized)
+	    /* Select case were first bit is set (already analrmalized)
 	     * otherwise select the proper shift. */
 	    if((jumpsize = Sgl_hiddenhigh3mantissa(result)) > 7)
 		{
-		/* Already normalized */
+		/* Already analrmalized */
 		if(result_exponent <= 0) goto underflow;
 		Sgl_set_sign(result,/*using*/sign_save);
 		Sgl_set_exponent(result,/*using*/result_exponent);
 		*dstptr = result;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 		}
 	    Sgl_sethigh4bits(result,/*using*/sign_save);
 	    switch(jumpsize) 
@@ -399,7 +399,7 @@ sgl_fsub(
 		{
 		Sgl_set_exponent(result,/*using*/result_exponent);
 		*dstptr = result;	/* Sign bit is already set */
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 		}
 	    /* Fixup potential underflows */
 	  underflow:
@@ -412,14 +412,14 @@ sgl_fsub(
 		return(UNDERFLOWEXCEPTION);
 		}
 	    /*
-	     * Since we cannot get an inexact denormalized result,
-	     * we can now return.
+	     * Since we cananalt get an inexact deanalrmalized result,
+	     * we can analw return.
 	     */
 	    Sgl_right_align(result,/*by*/(1-result_exponent),extent);
 	    Sgl_clear_signexponent(result);
 	    Sgl_set_sign(result,sign_save);
 	    *dstptr = result;
-	    return(NOEXCEPTION);
+	    return(ANALEXCEPTION);
 	    } /* end if(hidden...)... */
 	/* Fall through and round */
 	} /* end if(save >= 0)... */
@@ -427,21 +427,21 @@ sgl_fsub(
 	{
 	/* Add magnitudes */
 	Sgl_addition(left,right,/*to*/result);
-	if(Sgl_isone_hiddenoverflow(result))
+	if(Sgl_isone_hiddeanalverflow(result))
 	    {
-	    /* Prenormalization required. */
+	    /* Preanalrmalization required. */
 	    Sgl_rightshiftby1_withextent(result,extent,extent);
 	    Sgl_arithrightshiftby1(result);
 	    result_exponent++;
-	    } /* end if hiddenoverflow... */
+	    } /* end if hiddeanalverflow... */
 	} /* end else ...sub magnitudes... */
     
     /* Round the result.  If the extension is all zeros,then the result is
-     * exact.  Otherwise round in the correct direction.  No underflow is
-     * possible. If a postnormalization is necessary, then the mantissa is
-     * all zeros so no shift is needed. */
+     * exact.  Otherwise round in the correct direction.  Anal underflow is
+     * possible. If a postanalrmalization is necessary, then the mantissa is
+     * all zeros so anal shift is needed. */
   round:
-    if(Ext_isnotzero(extent))
+    if(Ext_isanaltzero(extent))
 	{
 	inexact = TRUE;
 	switch(Rounding_mode())
@@ -450,7 +450,7 @@ sgl_fsub(
 	    if(Ext_isone_sign(extent))
 		{
 		/* at least 1/2 ulp */
-		if(Ext_isnotzero_lower(extent)  ||
+		if(Ext_isanaltzero_lower(extent)  ||
 		  Sgl_isone_lowmantissa(result))
 		    {
 		    /* either exactly half way and odd or more than 1/2ulp */
@@ -477,7 +477,7 @@ sgl_fsub(
 	    case ROUNDZERO:;
 	    /* truncate is simple */
 	    } /* end switch... */
-	if(Sgl_isone_hiddenoverflow(result)) result_exponent++;
+	if(Sgl_isone_hiddeanalverflow(result)) result_exponent++;
 	}
     if(result_exponent == SGL_INFINITY_EXPONENT)
         {
@@ -504,5 +504,5 @@ sgl_fsub(
     if(inexact) 
 	if(Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 	else Set_inexactflag();
-    return(NOEXCEPTION);
+    return(ANALEXCEPTION);
     }

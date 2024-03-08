@@ -1,5 +1,5 @@
 /* Copyright 2011, Siemens AG
- * written by Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * written by Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 /* Based on patches from Jon Smirl <jonsmirl@gmail.com>
@@ -23,20 +23,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -86,7 +86,7 @@ static int lowpan_neigh_construct(struct net_device *dev, struct neighbour *n)
 {
 	struct lowpan_802154_neigh *neigh = lowpan_802154_neigh(neighbour_priv(n));
 
-	/* default no short_addr is available for a neighbour */
+	/* default anal short_addr is available for a neighbour */
 	neigh->short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC);
 	return 0;
 }
@@ -111,7 +111,7 @@ static void lowpan_setup(struct net_device *ldev)
 	/* We need an ipv6hdr as minimum len when calling xmit */
 	ldev->hard_header_len	= sizeof(struct ipv6hdr);
 	ldev->flags		= IFF_BROADCAST | IFF_MULTICAST;
-	ldev->priv_flags	|= IFF_NO_QUEUE;
+	ldev->priv_flags	|= IFF_ANAL_QUEUE;
 
 	ldev->netdev_ops	= &lowpan_netdev_ops;
 	ldev->header_ops	= &lowpan_header_ops;
@@ -145,7 +145,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 	/* find and hold wpan device */
 	wdev = dev_get_by_index(dev_net(ldev), nla_get_u32(tb[IFLA_LINK]));
 	if (!wdev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (wdev->type != ARPHRD_IEEE802154) {
 		dev_put(wdev);
 		return -EINVAL;
@@ -211,17 +211,17 @@ static inline void lowpan_netlink_fini(void)
 	rtnl_link_unregister(&lowpan_link_ops);
 }
 
-static int lowpan_device_event(struct notifier_block *unused,
+static int lowpan_device_event(struct analtifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_analtifier_info_to_dev(ptr);
 	struct wpan_dev *wpan_dev;
 
 	if (ndev->type != ARPHRD_IEEE802154)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	wpan_dev = ndev->ieee802154_ptr;
 	if (!wpan_dev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -233,14 +233,14 @@ static int lowpan_device_event(struct notifier_block *unused,
 			lowpan_dellink(wpan_dev->lowpan_dev, NULL);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block lowpan_dev_notifier = {
-	.notifier_call = lowpan_device_event,
+static struct analtifier_block lowpan_dev_analtifier = {
+	.analtifier_call = lowpan_device_event,
 };
 
 static int __init lowpan_init_module(void)
@@ -255,7 +255,7 @@ static int __init lowpan_init_module(void)
 	if (err < 0)
 		goto out_frag;
 
-	err = register_netdevice_notifier(&lowpan_dev_notifier);
+	err = register_netdevice_analtifier(&lowpan_dev_analtifier);
 	if (err < 0)
 		goto out_pack;
 
@@ -275,7 +275,7 @@ static void __exit lowpan_cleanup_module(void)
 
 	lowpan_net_frag_exit();
 
-	unregister_netdevice_notifier(&lowpan_dev_notifier);
+	unregister_netdevice_analtifier(&lowpan_dev_analtifier);
 }
 
 module_init(lowpan_init_module);

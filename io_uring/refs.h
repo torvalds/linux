@@ -11,10 +11,10 @@
 #define req_ref_zero_or_close_to_overflow(req)	\
 	((unsigned int) atomic_read(&(req->refs)) + 127u <= 127u)
 
-static inline bool req_ref_inc_not_zero(struct io_kiocb *req)
+static inline bool req_ref_inc_analt_zero(struct io_kiocb *req)
 {
 	WARN_ON_ONCE(!(req->flags & REQ_F_REFCOUNT));
-	return atomic_inc_not_zero(&req->refs);
+	return atomic_inc_analt_zero(&req->refs);
 }
 
 static inline bool req_ref_put_and_test(struct io_kiocb *req)

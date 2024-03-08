@@ -698,7 +698,7 @@ static const struct mtk_pin_desc mt7623_pins[] = {
 
 /* List all groups consisting of these pins dedicated to the enablement of
  * certain hardware block and the corresponding mode for all of the pins.
- * The hardware probably has multiple combinations of these pinouts.
+ * The hardware probably has multiple combinations of these pianaluts.
  */
 
 /* AUDIO EXT CLK */

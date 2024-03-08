@@ -168,7 +168,7 @@
 	};
 
 	flash@34000000 {
-		/* 64 MiB NOR flash in non-interleaved chips */
+		/* 64 MiB ANALR flash in analn-interleaved chips */
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x34000000 0x04000000>;
 		bank-width = <4>;

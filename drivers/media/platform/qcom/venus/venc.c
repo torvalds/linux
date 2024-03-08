@@ -204,7 +204,7 @@ venc_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 	pixmp->height = ALIGN(pixmp->height, 2);
 
 	if (pixmp->field == V4L2_FIELD_ANY)
-		pixmp->field = V4L2_FIELD_NONE;
+		pixmp->field = V4L2_FIELD_ANALNE;
 	pixmp->num_planes = fmt->num_planes;
 	pixmp->flags = 0;
 
@@ -401,15 +401,15 @@ static int venc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 
 	memset(out->reserved, 0, sizeof(out->reserved));
 
-	if (!timeperframe->denominator)
-		timeperframe->denominator = inst->timeperframe.denominator;
+	if (!timeperframe->deanalminator)
+		timeperframe->deanalminator = inst->timeperframe.deanalminator;
 	if (!timeperframe->numerator)
 		timeperframe->numerator = inst->timeperframe.numerator;
 
 	out->capability = V4L2_CAP_TIMEPERFRAME;
 
 	us_per_frame = timeperframe->numerator * (u64)USEC_PER_SEC;
-	do_div(us_per_frame, timeperframe->denominator);
+	do_div(us_per_frame, timeperframe->deanalminator);
 
 	if (!us_per_frame)
 		return -EINVAL;
@@ -503,11 +503,11 @@ static int venc_enum_frameintervals(struct file *file, void *fh,
 	}
 
 	fival->stepwise.min.numerator = 1;
-	fival->stepwise.min.denominator = frate_max(inst) / framerate_factor;
+	fival->stepwise.min.deanalminator = frate_max(inst) / framerate_factor;
 	fival->stepwise.max.numerator = 1;
-	fival->stepwise.max.denominator = frate_min(inst) / framerate_factor;
+	fival->stepwise.max.deanalminator = frate_min(inst) / framerate_factor;
 	fival->stepwise.step.numerator = 1;
-	fival->stepwise.step.denominator = frate_max(inst) / framerate_factor;
+	fival->stepwise.step.deanalminator = frate_max(inst) / framerate_factor;
 
 	return 0;
 }
@@ -970,7 +970,7 @@ static int venc_set_properties(struct venus_inst *inst)
 	     inst->fmt_cap->pixfmt == V4L2_PIX_FMT_HEVC) &&
 	    (rate_control == HFI_RATE_CONTROL_CBR_VFR ||
 	     rate_control == HFI_RATE_CONTROL_CBR_CFR)) {
-		intra_refresh.mode = HFI_INTRA_REFRESH_NONE;
+		intra_refresh.mode = HFI_INTRA_REFRESH_ANALNE;
 		intra_refresh.cir_mbs = 0;
 
 		if (ctr->intra_refresh_period) {
@@ -1084,7 +1084,7 @@ static int venc_queue_setup(struct vb2_queue *q,
 	}
 
 	if (test_bit(0, &core->sys_error)) {
-		if (inst->nonblock)
+		if (inst->analnblock)
 			return -EAGAIN;
 
 		ret = wait_event_interruptible(core->sys_err_done,
@@ -1301,7 +1301,7 @@ static void venc_vb2_buf_queue(struct vb2_buffer *vb)
 
 	if (inst->enc_state == VENUS_ENC_STATE_STOPPED) {
 		vbuf->sequence = inst->sequence_cap++;
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 		vb2_set_plane_payload(vb, 0, 0);
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 		mutex_unlock(&inst->lock);
@@ -1360,7 +1360,7 @@ static void venc_buf_done(struct venus_inst *inst, unsigned int buf_type,
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 }
 
-static void venc_event_notify(struct venus_inst *inst, u32 event,
+static void venc_event_analtify(struct venus_inst *inst, u32 event,
 			      struct hfi_event_data *data)
 {
 	struct device *dev = inst->core->dev_enc;
@@ -1376,7 +1376,7 @@ static void venc_event_notify(struct venus_inst *inst, u32 event,
 
 static const struct hfi_inst_ops venc_hfi_ops = {
 	.buf_done = venc_buf_done,
-	.event_notify = venc_event_notify,
+	.event_analtify = venc_event_analtify,
 };
 
 static const struct v4l2_m2m_ops venc_m2m_ops = {
@@ -1431,7 +1431,7 @@ static void venc_inst_init(struct venus_inst *inst)
 	inst->out_height = 720;
 	inst->fps = 15;
 	inst->timeperframe.numerator = 1;
-	inst->timeperframe.denominator = 15;
+	inst->timeperframe.deanalminator = 15;
 	inst->hfi_codec = HFI_VIDEO_CODEC_H264;
 }
 
@@ -1443,7 +1443,7 @@ static int venc_open(struct file *file)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&inst->dpbbufs);
 	INIT_LIST_HEAD(&inst->registeredbufs);
@@ -1456,7 +1456,7 @@ static int venc_open(struct file *file)
 	inst->session_type = VIDC_SESSION_TYPE_ENC;
 	inst->clk_data.core_id = VIDC_CORE_ID_DEFAULT;
 	inst->core_acquired = false;
-	inst->nonblock = file->f_flags & O_NONBLOCK;
+	inst->analnblock = file->f_flags & O_ANALNBLOCK;
 
 	if (inst->enc_state == VENUS_ENC_STATE_DEINIT)
 		inst->enc_state = VENUS_ENC_STATE_INIT;
@@ -1475,7 +1475,7 @@ static int venc_open(struct file *file)
 
 	/*
 	 * create m2m device for every instance, the m2m context scheduling
-	 * is made by firmware side so we do not need to care about.
+	 * is made by firmware side so we do analt need to care about.
 	 */
 	inst->m2m_dev = v4l2_m2m_init(&venc_m2m_ops);
 	if (IS_ERR(inst->m2m_dev)) {
@@ -1565,7 +1565,7 @@ static int venc_probe(struct platform_device *pdev)
 
 	vdev = video_device_alloc();
 	if (!vdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(vdev->name, "qcom-venus-encoder", sizeof(vdev->name));
 	vdev->release = video_device_release;

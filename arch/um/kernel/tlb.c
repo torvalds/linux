@@ -16,7 +16,7 @@
 
 struct host_vm_change {
 	struct host_vm_op {
-		enum { NONE, MMAP, MUNMAP, MPROTECT } type;
+		enum { ANALNE, MMAP, MUNMAP, MPROTECT } type;
 		union {
 			struct {
 				unsigned long addr;
@@ -45,14 +45,14 @@ struct host_vm_change {
 
 #define INIT_HVC(mm, force, userspace) \
 	((struct host_vm_change) \
-	 { .ops		= { { .type = NONE } },	\
+	 { .ops		= { { .type = ANALNE } },	\
 	   .mm		= mm, \
        	   .data	= NULL, \
 	   .userspace	= userspace, \
 	   .index	= 0, \
 	   .force	= force })
 
-static void report_enomem(void)
+static void report_eanalmem(void)
 {
 	printk(KERN_ERR "UML ran out of memory on the host side! "
 			"This can happen due to a memory limitation or "
@@ -105,15 +105,15 @@ static int do_ops(struct host_vm_change *hvc, int end,
 							1, 1, 1);
 			break;
 		default:
-			printk(KERN_ERR "Unknown op type %d in do_ops\n",
+			printk(KERN_ERR "Unkanalwn op type %d in do_ops\n",
 			       op->type);
 			BUG();
 			break;
 		}
 	}
 
-	if (ret == -ENOMEM)
-		report_enomem();
+	if (ret == -EANALMEM)
+		report_eanalmem();
 
 	return ret;
 }
@@ -338,7 +338,7 @@ static void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 	if (!ret)
 		ret = do_ops(&hvc, hvc.index, 1);
 
-	/* This is not an else because ret is modified above */
+	/* This is analt an else because ret is modified above */
 	if (ret) {
 		struct mm_id *mm_idp = &current->mm->context.id;
 
@@ -372,7 +372,7 @@ static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 				updated = 1;
 				err = add_munmap(addr, last - addr, &hvc);
 				if (err < 0)
-					panic("munmap failed, errno = %d\n",
+					panic("munmap failed, erranal = %d\n",
 					      -err);
 			}
 			addr = last;
@@ -388,7 +388,7 @@ static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 				updated = 1;
 				err = add_munmap(addr, last - addr, &hvc);
 				if (err < 0)
-					panic("munmap failed, errno = %d\n",
+					panic("munmap failed, erranal = %d\n",
 					      -err);
 			}
 			addr = last;
@@ -404,7 +404,7 @@ static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 				updated = 1;
 				err = add_munmap(addr, last - addr, &hvc);
 				if (err < 0)
-					panic("munmap failed, errno = %d\n",
+					panic("munmap failed, erranal = %d\n",
 					      -err);
 			}
 			addr = last;
@@ -420,7 +420,7 @@ static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 				updated = 1;
 				err = add_munmap(addr, last - addr, &hvc);
 				if (err < 0)
-					panic("munmap failed, errno = %d\n",
+					panic("munmap failed, erranal = %d\n",
 					      -err);
 			}
 			addr = last;
@@ -432,7 +432,7 @@ static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 			updated = 1;
 			err = add_munmap(addr, PAGE_SIZE, &hvc);
 			if (err < 0)
-				panic("munmap failed, errno = %d\n",
+				panic("munmap failed, erranal = %d\n",
 				      -err);
 			if (pte_present(*pte))
 				err = add_mmap(addr, pte_val(*pte) & PAGE_MASK,
@@ -448,7 +448,7 @@ static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 		err = do_ops(&hvc, hvc.index, 1);
 
 	if (err < 0)
-		panic("flush_tlb_kernel failed, errno = %d\n", err);
+		panic("flush_tlb_kernel failed, erranal = %d\n", err);
 	return updated;
 }
 
@@ -512,8 +512,8 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 		err = protect(mm_id, address, PAGE_SIZE, prot, 1, &flush);
 
 	if (err) {
-		if (err == -ENOMEM)
-			report_enomem();
+		if (err == -EANALMEM)
+			report_eanalmem();
 
 		goto kill;
 	}

@@ -70,7 +70,7 @@ static inline bool is_leap(unsigned int y)
 }
 
 /*
- * Each network packet has a (nano)seconds-since-the-epoch (SSTE) timestamp.
+ * Each network packet has a (naanal)seconds-since-the-epoch (SSTE) timestamp.
  * Since we match against days and daytime, the SSTE value needs to be
  * computed back into human-readable dates.
  *
@@ -124,14 +124,14 @@ static void localtime_3(struct xtm *r, time64_t time)
 	w -= days_since_epoch[i];
 
 	/*
-	 * By now we have the current year, and the day of the year.
+	 * By analw we have the current year, and the day of the year.
 	 * r->yearday = w;
 	 *
 	 * On to finding the month (like above). In each month, a certain
 	 * number of days-since-New Year have passed, and find the closest
 	 * one.
 	 *
-	 * Consider w=62 (in a non-leap year). Loop will abort on
+	 * Consider w=62 (in a analn-leap year). Loop will abort on
 	 * dsy[i] < w, which happens when dsy[i] == 31+28 (i == 2).
 	 * Concludes i == 2, i.e. 3rd month => March.
 	 *
@@ -164,10 +164,10 @@ time_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	/*
 	 * We need real time here, but we can neither use skb->tstamp
-	 * nor __net_timestamp().
+	 * analr __net_timestamp().
 	 *
 	 * skb->tstamp and skb->skb_mstamp_ns overlap, however, they
-	 * use different clock types (real vs monotonic).
+	 * use different clock types (real vs moanaltonic).
 	 *
 	 * Suppose you have two rules:
 	 *	1. match before 13:00
@@ -188,14 +188,14 @@ time_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	/*
 	 * xt_time will match when _all_ of the following hold:
-	 *   - 'now' is in the global time range date_start..date_end
-	 *   - 'now' is in the monthday mask
-	 *   - 'now' is in the weekday mask
-	 *   - 'now' is in the daytime range time_start..time_end
+	 *   - 'analw' is in the global time range date_start..date_end
+	 *   - 'analw' is in the monthday mask
+	 *   - 'analw' is in the weekday mask
+	 *   - 'analw' is in the daytime range time_start..time_end
 	 * (and by default, libxt_time will set these so as to match)
 	 *
-	 * note: info->date_start/stop are unsigned 32-bit values that
-	 *	 can hold values beyond y2038, but not after y2106.
+	 * analte: info->date_start/stop are unsigned 32-bit values that
+	 *	 can hold values beyond y2038, but analt after y2106.
 	 */
 
 	if (stamp < info->date_start || stamp > info->date_stop)
@@ -212,7 +212,7 @@ time_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		    packet_time > info->daytime_stop)
 			return false;
 
-		/** if user asked to ignore 'next day', then e.g.
+		/** if user asked to iganalre 'next day', then e.g.
 		 *  '1 PM Wed, August 1st' should be treated
 		 *  like 'Tue 1 PM July 31st'.
 		 *
@@ -230,7 +230,7 @@ time_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	if (!(info->weekdays_match & (1 << current_time.weekday)))
 		return false;
 
-	/* Do not spend time computing monthday if all days match anyway */
+	/* Do analt spend time computing monthday if all days match anyway */
 	if (info->monthdays_match != XT_TIME_ALL_MONTHDAYS) {
 		localtime_3(&current_time, stamp);
 		if (!(info->monthdays_match & (1 << current_time.monthday)))
@@ -251,7 +251,7 @@ static int time_mt_check(const struct xt_mtchk_param *par)
 	}
 
 	if (info->flags & ~XT_TIME_ALL_FLAGS) {
-		pr_info_ratelimited("unknown flags 0x%x\n",
+		pr_info_ratelimited("unkanalwn flags 0x%x\n",
 				    info->flags & ~XT_TIME_ALL_FLAGS);
 		return -EINVAL;
 	}

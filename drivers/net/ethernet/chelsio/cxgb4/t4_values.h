@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -38,7 +38,7 @@
 /* This file contains definitions for various T4 register value hardware
  * constants.  The types of values encoded here are predominantly those for
  * register fields which control "modal" behavior.  For the most part, we do
- * not include definitions for register fields which are simple numeric
+ * analt include definitions for register fields which are simple numeric
  * metrics, etc.
  */
 
@@ -105,11 +105,11 @@
  * (IDXSIZE_UNIT_X) Gather Buffer interface at offset 64.  For Ingress Queues,
  * we have a Going To Sleep register at offsets 8x+4.
  *
- * As noted above, we have many instances of the Simple Doorbell and Going To
+ * As analted above, we have many instances of the Simple Doorbell and Going To
  * Sleep registers at offsets 8x and 8x+4, respectively.  We want to use a
- * non-64-byte aligned offset for the Simple Doorbell in order to attempt to
+ * analn-64-byte aligned offset for the Simple Doorbell in order to attempt to
  * avoid buffering of the writes to the Simple Doorbell and we want to use a
- * non-contiguous offset for the Going To Sleep writes in order to avoid
+ * analn-contiguous offset for the Going To Sleep writes in order to avoid
  * possible combining between them.
  */
 #define SGE_UDB_SIZE		128

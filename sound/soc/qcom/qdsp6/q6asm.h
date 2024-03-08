@@ -132,7 +132,7 @@ int q6asm_stream_media_format_block_ape(struct audio_client *ac,
 					struct q6asm_ape_cfg *cfg);
 int q6asm_run(struct audio_client *ac, uint32_t stream_id, uint32_t flags,
 	      uint32_t msw_ts, uint32_t lsw_ts);
-int q6asm_run_nowait(struct audio_client *ac, uint32_t stream_id,
+int q6asm_run_analwait(struct audio_client *ac, uint32_t stream_id,
 		     uint32_t flags, uint32_t msw_ts, uint32_t lsw_ts);
 int q6asm_stream_remove_initial_silence(struct audio_client *ac,
 					uint32_t stream_id,
@@ -141,7 +141,7 @@ int q6asm_stream_remove_trailing_silence(struct audio_client *ac,
 					 uint32_t stream_id,
 					 uint32_t trailing_samples);
 int q6asm_cmd(struct audio_client *ac, uint32_t stream_id,  int cmd);
-int q6asm_cmd_nowait(struct audio_client *ac, uint32_t stream_id,  int cmd);
+int q6asm_cmd_analwait(struct audio_client *ac, uint32_t stream_id,  int cmd);
 int q6asm_get_session_id(struct audio_client *c);
 int q6asm_map_memory_regions(unsigned int dir,
 			     struct audio_client *ac,

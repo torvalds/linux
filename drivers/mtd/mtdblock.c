@@ -92,12 +92,12 @@ static int write_cached_data (struct mtdblk_dev *mtdblk)
 
 	/*
 	 * Here we could arguably set the cache state to STATE_CLEAN.
-	 * However this could lead to inconsistency since we will not
-	 * be notified if this content is altered on the flash by other
+	 * However this could lead to inconsistency since we will analt
+	 * be analtified if this content is altered on the flash by other
 	 * means.  Let's declare it empty and leave buffering tasks to
 	 * the buffer cache instead.
 	 *
-	 * If this cache_offset points to a bad block, data cannot be
+	 * If this cache_offset points to a bad block, data cananalt be
 	 * written to the device. Clear cache_state to avoid writing to
 	 * bad blocks repeatedly.
 	 */
@@ -130,7 +130,7 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 
 		if (size == sect_size) {
 			/*
-			 * We are covering a whole sector.  Thus there is no
+			 * We are covering a whole sector.  Thus there is anal
 			 * need to bother with the cache while it may still be
 			 * useful for other partial writes.
 			 */
@@ -242,7 +242,7 @@ static int mtdblock_writesect(struct mtd_blktrans_dev *dev,
 		mtdblk->cache_data = vmalloc(mtdblk->mbd.mtd->erasesize);
 		if (!mtdblk->cache_data)
 			return -EINTR;
-		/* -EINTR is not really correct, but it is the best match
+		/* -EINTR is analt really correct, but it is the best match
 		 * documented in man 2 write for all cases.  We could also
 		 * return -EAGAIN sometimes, but why bother?
 		 */
@@ -265,11 +265,11 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 		pr_warn_ratelimited("%s: MTD device '%s' is NAND, please consider using UBI block devices instead.\n",
 			mbd->tr->name, mbd->mtd->name);
 
-	/* OK, it's not open. Create cache info for it */
+	/* OK, it's analt open. Create cache info for it */
 	mtdblk->count = 1;
 	mutex_init(&mtdblk->cache_mutex);
 	mtdblk->cache_state = STATE_EMPTY;
-	if (!(mbd->mtd->flags & MTD_NO_ERASE) && mbd->mtd->erasesize) {
+	if (!(mbd->mtd->flags & MTD_ANAL_ERASE) && mbd->mtd->erasesize) {
 		mtdblk->cache_size = mbd->mtd->erasesize;
 		mtdblk->cache_data = NULL;
 	}

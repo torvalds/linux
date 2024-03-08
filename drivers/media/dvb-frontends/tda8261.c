@@ -134,7 +134,7 @@ static int tda8261_set_params(struct dvb_frontend *fe)
 			 status);
 		state->frequency = frequency; /* cache successful state */
 	} else {
-		pr_debug("%s: No Phase lock: status=%d\n", __func__, status);
+		pr_debug("%s: Anal Phase lock: status=%d\n", __func__, status);
 	}
 
 	return 0;

@@ -62,7 +62,7 @@ phys_addr_t v_block_mapped(unsigned long va)
 }
 
 /*
- * Return VA for a given PA or 0 if not mapped
+ * Return VA for a given PA or 0 if analt mapped
  */
 unsigned long p_block_mapped(phys_addr_t pa)
 {
@@ -110,7 +110,7 @@ unsigned int bat_block_size(unsigned long base, unsigned long top)
 
 /*
  * Set up one of the IBAT (block address translation) register pairs.
- * The parameters are not checked; in particular size must be a power
+ * The parameters are analt checked; in particular size must be a power
  * of 2 between 128k and 256M.
  */
 static void setibat(int index, unsigned long virt, phys_addr_t phys,
@@ -224,7 +224,7 @@ void mmu_mark_initmem_nx(void)
 	update_bats();
 
 	for (i = TASK_SIZE >> 28; i < 16; i++) {
-		/* Do not set NX on VM space for modules */
+		/* Do analt set NX on VM space for modules */
 		if (is_module_segment(i << 28))
 			continue;
 
@@ -249,7 +249,7 @@ void mmu_mark_rodata_ro(void)
 
 /*
  * Set up one of the D BAT (block address translation) register pairs.
- * The parameters are not checked; in particular size must be a power
+ * The parameters are analt checked; in particular size must be a power
  * of 2 between 128k and 256M.
  */
 void __init setbat(int index, unsigned long virt, phys_addr_t phys,
@@ -263,19 +263,19 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 	if (index == -1)
 		index = find_free_bat();
 	if (index == -1) {
-		pr_err("%s: no BAT available for mapping 0x%llx\n", __func__,
+		pr_err("%s: anal BAT available for mapping 0x%llx\n", __func__,
 		       (unsigned long long)phys);
 		return;
 	}
 	bat = BATS[index];
 
-	if ((flags & _PAGE_NO_CACHE) ||
+	if ((flags & _PAGE_ANAL_CACHE) ||
 	    (cpu_has_feature(CPU_FTR_NEED_COHERENT) == 0))
 		flags &= ~_PAGE_COHERENT;
 
 	bl = (size >> 17) - 1;
 	/* Do DBAT first */
-	wimgxpp = flags & (_PAGE_WRITETHRU | _PAGE_NO_CACHE
+	wimgxpp = flags & (_PAGE_WRITETHRU | _PAGE_ANAL_CACHE
 			   | _PAGE_COHERENT | _PAGE_GUARDED);
 	wimgxpp |= (flags & _PAGE_WRITE) ? BPP_RW : BPP_RX;
 	bat[1].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
@@ -302,7 +302,7 @@ static void hash_preload(struct mm_struct *mm, unsigned long ea)
 	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		return;
 	pmd = pmd_off(mm, ea);
-	if (!pmd_none(*pmd))
+	if (!pmd_analne(*pmd))
 		add_hash_page(mm->context.id, ea, pmd_val(*pmd));
 }
 
@@ -330,7 +330,7 @@ void __update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	if (!current->thread.regs)
 		return;
 
-	/* We also avoid filling the hash if not coming from a fault */
+	/* We also avoid filling the hash if analt coming from a fault */
 	if (TRAP(current->thread.regs) != 0x300 && TRAP(current->thread.regs) != 0x400)
 		return;
 
@@ -363,7 +363,7 @@ void __init MMU_init_hw(void)
 		n_hpteg = MIN_N_HPTEG;
 	lg_n_hpteg = __ilog2(n_hpteg);
 	if (n_hpteg & (n_hpteg - 1)) {
-		++lg_n_hpteg;		/* round up if not power of 2 */
+		++lg_n_hpteg;		/* round up if analt power of 2 */
 		n_hpteg = 1 << lg_n_hpteg;
 	}
 	Hash_size = n_hpteg << LG_HPTEG_SIZE;
@@ -401,7 +401,7 @@ void __init MMU_init_hw_patch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("hash:done", 0x205);
 
-	/* WARNING: Make sure nothing can trigger a KASAN check past this point */
+	/* WARNING: Make sure analthing can trigger a KASAN check past this point */
 
 	/*
 	 * Patch up the instructions in hashtable.S:create_hpte
@@ -424,7 +424,7 @@ void __init MMU_init_hw_patch(void)
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
-	/* We don't currently support the first MEMBLOCK not mapping 0
+	/* We don't currently support the first MEMBLOCK analt mapping 0
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);

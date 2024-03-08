@@ -128,11 +128,11 @@ void nft_fib6_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
 			const struct nft_pktinfo *pkt)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
-	int noff = skb_network_offset(pkt->skb);
+	int analff = skb_network_offset(pkt->skb);
 	u32 *dest = &regs->data[priv->dreg];
 	struct ipv6hdr *iph, _iph;
 
-	iph = skb_header_pointer(pkt->skb, noff, sizeof(_iph), &_iph);
+	iph = skb_header_pointer(pkt->skb, analff, sizeof(_iph), &_iph);
 	if (!iph) {
 		regs->verdict.code = NFT_BREAK;
 		return;
@@ -157,7 +157,7 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		   const struct nft_pktinfo *pkt)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
-	int noff = skb_network_offset(pkt->skb);
+	int analff = skb_network_offset(pkt->skb);
 	const struct net_device *oif = NULL;
 	u32 *dest = &regs->data[priv->dreg];
 	struct ipv6hdr *iph, _iph;
@@ -174,7 +174,7 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	else if (priv->flags & NFTA_FIB_F_OIF)
 		oif = nft_out(pkt);
 
-	iph = skb_header_pointer(pkt->skb, noff, sizeof(_iph), &_iph);
+	iph = skb_header_pointer(pkt->skb, analff, sizeof(_iph), &_iph);
 	if (!iph) {
 		regs->verdict.code = NFT_BREAK;
 		return;
@@ -197,7 +197,7 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	if (rt->dst.error)
 		goto put_rt_err;
 
-	/* Should not see RTF_LOCAL here */
+	/* Should analt see RTF_LOCAL here */
 	if (rt->rt6i_flags & (RTF_REJECT | RTF_ANYCAST | RTF_LOCAL))
 		goto put_rt_err;
 
@@ -252,7 +252,7 @@ nft_fib6_select_ops(const struct nft_ctx *ctx,
 	case NFT_FIB_RESULT_ADDRTYPE:
 		return &nft_fib6_type_ops;
 	default:
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 }
 

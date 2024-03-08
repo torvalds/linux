@@ -66,7 +66,7 @@ EXPORT_SYMBOL_GPL(edac_pci_free_ctl_info);
  * find_edac_pci_by_dev()
  * 	scans the edac_pci list for a specific 'struct device *'
  *
- *	return NULL if not found, or return control struct pointer
+ *	return NULL if analt found, or return control struct pointer
  */
 static struct edac_pci_ctl_info *find_edac_pci_by_dev(struct device *dev)
 {
@@ -251,7 +251,7 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 	mutex_lock(&edac_pci_ctls_mutex);
 
 	/* ensure the control struct is on the global list
-	 * if not, then leave
+	 * if analt, then leave
 	 */
 	pci = find_edac_pci_by_dev(dev);
 	if (pci  == NULL) {

@@ -16,7 +16,7 @@ static struct skl_machine_pdata hda_pdata = {
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_hda_machines[] = {
 	{
-		/* .id is not used in this file */
+		/* .id is analt used in this file */
 		.drv_name = "skl_hda_dsp_generic",
 
 		/* .fw_filename is dynamically set in skylake driver */
@@ -24,7 +24,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_hda_machines[] = {
 		.sof_tplg_filename = "sof-hda-generic.tplg",
 
 		/*
-		 * .machine_quirk and .quirk_data are not used here but
+		 * .machine_quirk and .quirk_data are analt used here but
 		 * can be used if we need a more complicated machine driver
 		 * combining HDA+other device (e.g. DMIC).
 		 */

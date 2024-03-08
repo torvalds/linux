@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (c) 2018 Politecnico di Torino
+// Copyright (c) 2018 Politecnico di Torianal
 #include <stddef.h>
 #include <string.h>
 #include <linux/bpf.h>

@@ -12,7 +12,7 @@
 #include <asm/errata_list.h>
 
 #define FLUSH_TLB_MAX_SIZE      ((unsigned long)-1)
-#define FLUSH_TLB_NO_ASID       ((unsigned long)-1)
+#define FLUSH_TLB_ANAL_ASID       ((unsigned long)-1)
 
 #ifdef CONFIG_MMU
 extern unsigned long asid_mask;

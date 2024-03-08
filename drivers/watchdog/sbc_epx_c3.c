@@ -19,7 +19,7 @@
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -30,10 +30,10 @@ static int epx_c3_alive;
 
 #define WATCHDOG_TIMEOUT 1		/* 1 sec default timeout */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-					__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+					__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 #define EPXC3_WATCHDOG_CTL_REG 0x1ee /* write 1 to enable, 0 to disable */
 #define EPXC3_WATCHDOG_PET_REG 0x1ef /* write anything to pet once enabled */
@@ -59,12 +59,12 @@ static void epx_c3_pet(void)
 /*
  *	Allow only one person to hold it open
  */
-static int epx_c3_open(struct inode *inode, struct file *file)
+static int epx_c3_open(struct ianalde *ianalde, struct file *file)
 {
 	if (epx_c3_alive)
 		return -EBUSY;
 
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 
 	/* Activate timer */
@@ -74,14 +74,14 @@ static int epx_c3_open(struct inode *inode, struct file *file)
 	epx_c3_alive = 1;
 	pr_info("Started watchdog timer\n");
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int epx_c3_release(struct inode *inode, struct file *file)
+static int epx_c3_release(struct ianalde *ianalde, struct file *file)
 {
 	/* Shut off the timer.
-	 * Lock it in if it's a module and we defined ...NOWAYOUT */
-	if (!nowayout)
+	 * Lock it in if it's a module and we defined ...ANALWAYOUT */
+	if (!analwayout)
 		epx_c3_stop();		/* Turn the WDT off */
 
 	epx_c3_alive = 0;
@@ -138,22 +138,22 @@ static long epx_c3_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETTIMEOUT:
 		return put_user(WATCHDOG_TIMEOUT, argp);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
-static int epx_c3_notify_sys(struct notifier_block *this, unsigned long code,
+static int epx_c3_analtify_sys(struct analtifier_block *this, unsigned long code,
 				void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		epx_c3_stop();		/* Turn the WDT off */
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct file_operations epx_c3_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= epx_c3_write,
 	.unlocked_ioctl	= epx_c3_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -162,13 +162,13 @@ static const struct file_operations epx_c3_fops = {
 };
 
 static struct miscdevice epx_c3_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.mianalr		= WATCHDOG_MIANALR,
 	.name		= "watchdog",
 	.fops		= &epx_c3_fops,
 };
 
-static struct notifier_block epx_c3_notifier = {
-	.notifier_call = epx_c3_notify_sys,
+static struct analtifier_block epx_c3_analtifier = {
+	.analtifier_call = epx_c3_analtify_sys,
 };
 
 static int __init watchdog_init(void)
@@ -178,17 +178,17 @@ static int __init watchdog_init(void)
 	if (!request_region(EPXC3_WATCHDOG_CTL_REG, 2, "epxc3_watchdog"))
 		return -EBUSY;
 
-	ret = register_reboot_notifier(&epx_c3_notifier);
+	ret = register_reboot_analtifier(&epx_c3_analtifier);
 	if (ret) {
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", ret);
 		goto out;
 	}
 
 	ret = misc_register(&epx_c3_miscdev);
 	if (ret) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
-		unregister_reboot_notifier(&epx_c3_notifier);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       WATCHDOG_MIANALR, ret);
+		unregister_reboot_analtifier(&epx_c3_analtifier);
 		goto out;
 	}
 
@@ -204,7 +204,7 @@ out:
 static void __exit watchdog_exit(void)
 {
 	misc_deregister(&epx_c3_miscdev);
-	unregister_reboot_notifier(&epx_c3_notifier);
+	unregister_reboot_analtifier(&epx_c3_analtifier);
 	release_region(EPXC3_WATCHDOG_CTL_REG, 2);
 }
 
@@ -213,7 +213,7 @@ module_exit(watchdog_exit);
 
 MODULE_AUTHOR("Calin A. Culianu <calin@ajvar.org>");
 MODULE_DESCRIPTION("Hardware Watchdog Device for Winsystems EPX-C3 SBC.  "
-	"Note that there is no way to probe for this device -- "
+	"Analte that there is anal way to probe for this device -- "
 	"so only use it if you are *sure* you are running on this specific "
 	"SBC system from Winsystems!  It writes to IO ports 0x1ee and 0x1ef!");
 MODULE_LICENSE("GPL");

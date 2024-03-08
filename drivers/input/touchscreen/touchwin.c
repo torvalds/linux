@@ -17,7 +17,7 @@
  *   It then outputs 3 bytes: X, Y, and a copy of Y.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -112,7 +112,7 @@ static int tw_connect(struct serio *serio, struct serio_driver *drv)
 	tw = kzalloc(sizeof(struct tw), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!tw || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 

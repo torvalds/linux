@@ -3,7 +3,7 @@ C CoRW+poonceonce+Once
 (*
  * Result: Never
  *
- * Test of read-write coherence, that is, whether or not a read from
+ * Test of read-write coherence, that is, whether or analt a read from
  * a given variable and a later write to that same variable are ordered.
  *)
 

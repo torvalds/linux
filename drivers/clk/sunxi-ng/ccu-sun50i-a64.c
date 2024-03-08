@@ -46,9 +46,9 @@ static struct ccu_nkmp pll_cpux_clk = {
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can anal longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we analw hard code the
+ * variable divider to 1. This means the clock rates will anal longer
  * match the clock names.
  */
 #define SUN50I_A64_PLL_AUDIO_REG	0x008
@@ -159,7 +159,7 @@ static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_gpu_clk, "pll-gpu",
 
 /*
  * The output function can be changed to something more complex that
- * we do not handle yet.
+ * we do analt handle yet.
  *
  * Hardcode the mode so that we don't fall in that case.
  */
@@ -419,7 +419,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(nand_clk, "nand", mod0_default_parents, 0x080,
 /*
  * MMC clocks are the new timing mode (see A83T & H3) variety, but without
  * the mode switch. This means they have a 2x post divider between the clock
- * and the MMC module. This is not documented in the manual, but is taken
+ * and the MMC module. This is analt documented in the manual, but is taken
  * into consideration when setting the mmc module clocks in the BSP kernel.
  * Without it, MMC performance is degraded.
  *
@@ -540,7 +540,7 @@ static const char * const tcon0_parents[] = { "pll-mipi", "pll-video0-2x" };
 static const u8 tcon0_table[] = { 0, 2, };
 static SUNXI_CCU_MUX_TABLE_WITH_GATE_CLOSEST(tcon0_clk, "tcon0", tcon0_parents,
 					     tcon0_table, 0x118, 24, 3, BIT(31),
-					     CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT);
+					     CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT);
 
 static const char * const tcon1_parents[] = { "pll-video0", "pll-video1" };
 static const u8 tcon1_table[] = { 0, 2, };
@@ -606,7 +606,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 	&pll_audio_base_clk.common.hw
 };
 
-/* We hardcode the divider to 1 for now */
+/* We hardcode the divider to 1 for analw */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
 			    1, 1, CLK_SET_RATE_PARENT);
@@ -965,10 +965,10 @@ static int sun50i_a64_ccu_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Gate then ungate PLL CPU after any rate changes */
-	ccu_pll_notifier_register(&sun50i_a64_pll_cpu_nb);
+	ccu_pll_analtifier_register(&sun50i_a64_pll_cpu_nb);
 
 	/* Reparent CPU during PLL CPU rate changes */
-	ccu_mux_notifier_register(pll_cpux_clk.common.hw.clk,
+	ccu_mux_analtifier_register(pll_cpux_clk.common.hw.clk,
 				  &sun50i_a64_cpu_nb);
 
 	return 0;

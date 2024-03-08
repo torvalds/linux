@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroanalme Systems, Inc. */
 
 #ifndef __NFP_BPF_H__
 #define __NFP_BPF_H__ 1
@@ -26,7 +26,7 @@
 #define OP_RELO_TYPE	0xff00000000000000ULL
 
 enum nfp_relo_type {
-	RELO_NONE = 0,
+	RELO_ANALNE = 0,
 	/* standard internal jumps */
 	RELO_BR_REL,
 	/* internal jumps to parts of the outro */
@@ -42,7 +42,7 @@ enum nfp_relo_type {
 };
 
 /* To make absolute relocated branches (branches other than RELO_BR_REL)
- * distinguishable in user space dumps from normal jumps, add a large offset
+ * distinguishable in user space dumps from analrmal jumps, add a large offset
  * to them.
  */
 #define BR_OFF_RELO		15000
@@ -185,7 +185,7 @@ enum nfp_bpf_map_use {
 
 struct nfp_bpf_map_word {
 	unsigned char type		:4;
-	unsigned char non_zero_update	:1;
+	unsigned char analn_zero_update	:1;
 };
 
 #define NFP_BPF_MAP_CACHE_CNT		4U
@@ -200,7 +200,7 @@ struct nfp_bpf_map_word {
  * @cache_lock:	protects @cache_blockers, @cache_to, @cache
  * @cache_blockers:	number of ops in flight which block caching
  * @cache_gen:	counter incremented by every blocker on exit
- * @cache_to:	time when cache will no longer be valid (ns)
+ * @cache_to:	time when cache will anal longer be valid (ns)
  * @cache:	skb with cached response
  *
  * @l:		link on the nfp_app_bpf->map_list list
@@ -254,8 +254,8 @@ struct nfp_bpf_reg_state {
 #define FLAG_INSN_IS_JUMP_DST			BIT(0)
 #define FLAG_INSN_IS_SUBPROG_START		BIT(1)
 #define FLAG_INSN_PTR_CALLER_STACK_FRAME	BIT(2)
-/* Instruction is pointless, noop even on its own */
-#define FLAG_INSN_SKIP_NOOP			BIT(3)
+/* Instruction is pointless, analop even on its own */
+#define FLAG_INSN_SKIP_ANALOP			BIT(3)
 /* Instruction is optimized out based on preceding instructions */
 #define FLAG_INSN_SKIP_PREC_DEPENDENT		BIT(4)
 /* Instruction is optimized by the verifier */
@@ -263,7 +263,7 @@ struct nfp_bpf_reg_state {
 /* Instruction needs to zero extend to high 32-bit */
 #define FLAG_INSN_DO_ZEXT			BIT(6)
 
-#define FLAG_INSN_SKIP_MASK		(FLAG_INSN_SKIP_NOOP | \
+#define FLAG_INSN_SKIP_MASK		(FLAG_INSN_SKIP_ANALOP | \
 					 FLAG_INSN_SKIP_PREC_DEPENDENT | \
 					 FLAG_INSN_SKIP_VERIFIER_OPT)
 
@@ -273,12 +273,12 @@ struct nfp_bpf_reg_state {
  * @ptr: pointer type for memory operations
  * @ldst_gather_len: memcpy length gathered from load/store sequence
  * @paired_st: the paired store insn at the head of the sequence
- * @ptr_not_const: pointer is not always constant
+ * @ptr_analt_const: pointer is analt always constant
  * @pkt_cache: packet data cache information
  * @pkt_cache.range_start: start offset for associated packet data cache
  * @pkt_cache.range_end: end offset for associated packet data cache
  * @pkt_cache.do_init: this read needs to initialize packet data cache
- * @xadd_over_16bit: 16bit immediate is not guaranteed
+ * @xadd_over_16bit: 16bit immediate is analt guaranteed
  * @xadd_maybe_16bit: 16bit immediate is possible
  * @jmp_dst: destination info for jump instructions
  * @jump_neg_op: jump instruction has inverted immediate, use ADD instead of SUB
@@ -305,7 +305,7 @@ struct nfp_insn_meta {
 			struct bpf_reg_state ptr;
 			struct bpf_insn *paired_st;
 			s16 ldst_gather_len;
-			bool ptr_not_const;
+			bool ptr_analt_const;
 			struct {
 				s16 range_start;
 				s16 range_end;
@@ -495,14 +495,14 @@ struct nfp_bpf_subprog_info {
  * @verifier_meta: temporary storage for verifier's insn meta
  * @type: BPF program type
  * @last_bpf_off: address of the last instruction translated from BPF
- * @tgt_out: jump target for normal exit
+ * @tgt_out: jump target for analrmal exit
  * @tgt_abort: jump target for abort (e.g. access outside of packet buffer)
  * @tgt_call_push_regs: jump target for subroutine for saving R6~R9 to stack
  * @tgt_call_pop_regs: jump target for subroutine used for restoring R6~R9
  * @n_translated: number of successfully translated instructions (for errors)
  * @error: error code if something went wrong
  * @stack_frame_depth: max stack depth for current frame
- * @adjust_head_location: if program has single adjust head call - the insn no.
+ * @adjust_head_location: if program has single adjust head call - the insn anal.
  * @map_records_cnt: the number of map pointers recorded for this prog
  * @subprog_cnt: number of sub-programs, including main function
  * @map_records: the map record pointers from bpf->maps_neutral

@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -83,12 +83,12 @@ static struct octeon_config default_cn66xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 0,
 	},
@@ -112,12 +112,12 @@ static struct octeon_config default_cn66xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 1,
 	},
@@ -191,12 +191,12 @@ static struct octeon_config default_cn68xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 0,
 	},
@@ -220,12 +220,12 @@ static struct octeon_config default_cn68xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 1,
 	},
@@ -249,12 +249,12 @@ static struct octeon_config default_cn68xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 2,
 	},
@@ -278,12 +278,12 @@ static struct octeon_config default_cn68xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 3,
 	},
@@ -357,12 +357,12 @@ static struct octeon_config default_cn68xx_210nv_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 0,
 	},
@@ -386,12 +386,12 @@ static struct octeon_config default_cn68xx_210nv_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 1,
 	},
@@ -460,12 +460,12 @@ static struct octeon_config default_cn23xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN23XX_DEFAULT_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN23XX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 0,
 	},
@@ -489,12 +489,12 @@ static struct octeon_config default_cn23xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN23XX_DEFAULT_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need analt change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN23XX_OQ_BUF_SIZE,
 
-		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+		.base_queue			= BASE_QUEUE_ANALT_REQUESTED,
 
 		.gmx_port_id			= 1,
 	},
@@ -537,7 +537,7 @@ static char oct_dev_state_str[OCT_DEV_STATES + 1][32] = {
 };
 
 static char oct_dev_app_str[CVM_DRV_APP_COUNT + 1][32] = {
-	"BASE", "NIC", "UNKNOWN"};
+	"BASE", "NIC", "UNKANALWN"};
 
 static struct octeon_device *octeon_device[MAX_OCTEON_DEVICES];
 static atomic_t adapter_refcounts[MAX_OCTEON_DEVICES];
@@ -685,7 +685,7 @@ static struct octeon_device *octeon_allocate_device_mem(u32 pci_id,
 		configsize = sizeof(struct octeon_cn23xx_vf);
 		break;
 	default:
-		pr_err("%s: Unknown PCI Device: 0x%x\n",
+		pr_err("%s: Unkanalwn PCI Device: 0x%x\n",
 		       __func__,
 		       pci_id);
 		return NULL;
@@ -786,7 +786,7 @@ int octeon_register_device(struct octeon_device *oct,
 			atomic_inc(oct->adapter_refcount);
 			return 1; /* here, refcount is guaranteed to be 1 */
 		}
-		/* If another device is at same bus/dev, use its refcounter
+		/* If aanalther device is at same bus/dev, use its refcounter
 		 * (and f/w state variable).
 		 */
 		if ((octeon_device[idx]->loc.bus == bus) &&
@@ -872,9 +872,9 @@ EXPORT_SYMBOL_GPL(octeon_free_ioq_vector);
 int octeon_setup_instr_queues(struct octeon_device *oct)
 {
 	u32 num_descs = 0;
-	u32 iq_no = 0;
+	u32 iq_anal = 0;
 	union oct_txpciq txpciq;
-	int numa_node = dev_to_node(&oct->pci_dev->dev);
+	int numa_analde = dev_to_analde(&oct->pci_dev->dev);
 
 	if (OCTEON_CN6XXX(oct))
 		num_descs =
@@ -886,8 +886,8 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 
 	oct->num_iqs = 0;
 
-	oct->instr_queue[0] = vzalloc_node(sizeof(*oct->instr_queue[0]),
-				numa_node);
+	oct->instr_queue[0] = vzalloc_analde(sizeof(*oct->instr_queue[0]),
+				numa_analde);
 	if (!oct->instr_queue[0])
 		oct->instr_queue[0] =
 			vzalloc(sizeof(struct octeon_instr_queue));
@@ -898,7 +898,7 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	oct->instr_queue[0]->app_ctx = (void *)(size_t)0;
 	oct->instr_queue[0]->ifidx = 0;
 	txpciq.u64 = 0;
-	txpciq.s.q_no = iq_no;
+	txpciq.s.q_anal = iq_anal;
 	txpciq.s.pkind = oct->pfvf_hsword.pkind;
 	txpciq.s.use_qpg = 0;
 	txpciq.s.qpg = 0;
@@ -918,8 +918,8 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 {
 	u32 num_descs = 0;
 	u32 desc_size = 0;
-	u32 oq_no = 0;
-	int numa_node = dev_to_node(&oct->pci_dev->dev);
+	u32 oq_anal = 0;
+	int numa_analde = dev_to_analde(&oct->pci_dev->dev);
 
 	if (OCTEON_CN6XXX(oct)) {
 		num_descs =
@@ -934,15 +934,15 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn23xx_vf));
 	}
 	oct->num_oqs = 0;
-	oct->droq[0] = vzalloc_node(sizeof(*oct->droq[0]), numa_node);
+	oct->droq[0] = vzalloc_analde(sizeof(*oct->droq[0]), numa_analde);
 	if (!oct->droq[0])
 		oct->droq[0] = vzalloc(sizeof(*oct->droq[0]));
 	if (!oct->droq[0])
 		return 1;
 
-	if (octeon_init_droq(oct, oq_no, num_descs, desc_size, NULL)) {
-		vfree(oct->droq[oq_no]);
-		oct->droq[oq_no] = NULL;
+	if (octeon_init_droq(oct, oq_anal, num_descs, desc_size, NULL)) {
+		vfree(oct->droq[oq_anal]);
+		oct->droq[oq_anal] = NULL;
 		return 1;
 	}
 	oct->num_oqs++;
@@ -959,40 +959,40 @@ int octeon_set_io_queues_off(struct octeon_device *oct)
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_INSTR_ENB, 0);
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, 0);
 	} else if (oct->chip_id == OCTEON_CN23XX_VF_VID) {
-		u32 q_no;
+		u32 q_anal;
 
 		/* IOQs will already be in reset.
 		 * If RST bit is set, wait for quiet bit to be set.
 		 * Once quiet bit is set, clear the RST bit.
 		 */
-		for (q_no = 0; q_no < oct->sriov_info.rings_per_vf; q_no++) {
+		for (q_anal = 0; q_anal < oct->sriov_info.rings_per_vf; q_anal++) {
 			u64 reg_val = octeon_read_csr64(
-				oct, CN23XX_VF_SLI_IQ_PKT_CONTROL64(q_no));
+				oct, CN23XX_VF_SLI_IQ_PKT_CONTROL64(q_anal));
 
 			while ((reg_val & CN23XX_PKT_INPUT_CTL_RST) &&
 			       !(reg_val &  CN23XX_PKT_INPUT_CTL_QUIET) &&
 			       loop) {
 				reg_val = octeon_read_csr64(
-					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_anal));
 				loop--;
 			}
 			if (!loop) {
 				dev_err(&oct->pci_dev->dev,
-					"clearing the reset reg failed or setting the quiet reg failed for qno: %u\n",
-					q_no);
+					"clearing the reset reg failed or setting the quiet reg failed for qanal: %u\n",
+					q_anal);
 				return -1;
 			}
 
 			reg_val = reg_val & ~CN23XX_PKT_INPUT_CTL_RST;
 			octeon_write_csr64(oct,
-					   CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
+					   CN23XX_SLI_IQ_PKT_CONTROL64(q_anal),
 					   reg_val);
 
 			reg_val = octeon_read_csr64(
-					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_anal));
 			if (reg_val & CN23XX_PKT_INPUT_CTL_RST) {
 				dev_err(&oct->pci_dev->dev,
-					"unable to reset qno %u\n", q_no);
+					"unable to reset qanal %u\n", q_anal);
 				return -1;
 			}
 		}
@@ -1002,7 +1002,7 @@ int octeon_set_io_queues_off(struct octeon_device *oct)
 EXPORT_SYMBOL_GPL(octeon_set_io_queues_off);
 
 void octeon_set_droq_pkt_op(struct octeon_device *oct,
-			    u32 q_no,
+			    u32 q_anal,
 			    u32 enable)
 {
 	u32 reg_val = 0;
@@ -1012,9 +1012,9 @@ void octeon_set_droq_pkt_op(struct octeon_device *oct,
 		reg_val = octeon_read_csr(oct, CN6XXX_SLI_PKT_OUT_ENB);
 
 		if (enable)
-			reg_val = reg_val | (1 << q_no);
+			reg_val = reg_val | (1 << q_anal);
 		else
-			reg_val = reg_val & (~(1 << q_no));
+			reg_val = reg_val & (~(1 << q_anal));
 
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, reg_val);
 	}
@@ -1128,7 +1128,7 @@ octeon_get_dispatch(struct octeon_device *octeon_dev, u16 opcode,
  *   Success: 0
  *   Failure: 1
  * Locks:
- *   No locks are held.
+ *   Anal locks are held.
  */
 int
 octeon_register_dispatch_fn(struct octeon_device *oct,
@@ -1265,7 +1265,7 @@ int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 	octeon_swap_8B_data((u64 *)cs, (sizeof(*cs) >> 3));
 
 	oct->boardinfo.major = cs->board_rev_major;
-	oct->boardinfo.minor = cs->board_rev_minor;
+	oct->boardinfo.mianalr = cs->board_rev_mianalr;
 
 	dev_info(&oct->pci_dev->dev,
 		 "Running %s (%llu Hz)\n",
@@ -1279,22 +1279,22 @@ core_drv_init_err:
 }
 EXPORT_SYMBOL_GPL(octeon_core_drv_init);
 
-int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
+int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_anal)
 
 {
-	if (oct && (q_no < MAX_OCTEON_INSTR_QUEUES(oct)) &&
-	    (oct->io_qmask.iq & BIT_ULL(q_no)))
-		return oct->instr_queue[q_no]->max_count;
+	if (oct && (q_anal < MAX_OCTEON_INSTR_QUEUES(oct)) &&
+	    (oct->io_qmask.iq & BIT_ULL(q_anal)))
+		return oct->instr_queue[q_anal]->max_count;
 
 	return -1;
 }
 EXPORT_SYMBOL_GPL(octeon_get_tx_qsize);
 
-int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no)
+int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_anal)
 {
-	if (oct && (q_no < MAX_OCTEON_OUTPUT_QUEUES(oct)) &&
-	    (oct->io_qmask.oq & BIT_ULL(q_no)))
-		return oct->droq[q_no]->max_count;
+	if (oct && (q_anal < MAX_OCTEON_OUTPUT_QUEUES(oct)) &&
+	    (oct->io_qmask.oq & BIT_ULL(q_anal)))
+		return oct->droq[q_anal]->max_count;
 	return -1;
 }
 EXPORT_SYMBOL_GPL(octeon_get_rx_qsize);
@@ -1471,7 +1471,7 @@ void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 		spin_unlock_bh(&iq->lock);
 		oct = iq->oct_dev;
 	}
-	/*write resend. Writing RESEND in SLI_PKTX_CNTS should be enough
+	/*write resend. Writing RESEND in SLI_PKTX_CNTS should be eanalugh
 	 *to trigger tx interrupts as well, if they are pending.
 	 */
 	if (oct && (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct))) {

@@ -221,14 +221,14 @@ static struct hisi_qp *hpre_get_qp_and_start(u8 type)
 
 	qp = hpre_create_qp(type);
 	if (!qp) {
-		pr_err("Can not create hpre qp!\n");
-		return ERR_PTR(-ENODEV);
+		pr_err("Can analt create hpre qp!\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	ret = hisi_qm_start_qp(qp, 0);
 	if (ret < 0) {
 		hisi_qm_free_qps(&qp, 1);
-		pci_err(qp->qm->pdev, "Can not start qp!\n");
+		pci_err(qp->qm->pdev, "Can analt start qp!\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -252,7 +252,7 @@ static int hpre_get_data_dma_addr(struct hpre_asym_request *hpre_req,
 	*tmp = dma_map_single(dev, sg_virt(data), len, dma_dir);
 	if (unlikely(dma_mapping_error(dev, *tmp))) {
 		dev_err(dev, "dma map data err!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -273,7 +273,7 @@ static int hpre_prepare_dma_buf(struct hpre_asym_request *hpre_req,
 
 	ptr = dma_alloc_coherent(dev, ctx->key_sz, tmp, GFP_ATOMIC);
 	if (unlikely(!ptr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (is_src) {
 		scatterwalk_map_and_copy(ptr + shift, data, 0, len, 0);
@@ -353,7 +353,7 @@ static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 	unsigned int err, done, alg;
 	int id;
 
-#define HPRE_NO_HW_ERR		0
+#define HPRE_ANAL_HW_ERR		0
 #define HPRE_HW_TASK_DONE	3
 #define HREE_HW_ERR_MASK	GENMASK(10, 0)
 #define HREE_SQE_DONE_MASK	GENMASK(1, 0)
@@ -369,7 +369,7 @@ static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 	done = (le32_to_cpu(sqe->dw0) >> HPRE_SQE_DONE_SHIFT) &
 		HREE_SQE_DONE_MASK;
 
-	if (likely(err == HPRE_NO_HW_ERR && done == HPRE_HW_TASK_DONE))
+	if (likely(err == HPRE_ANAL_HW_ERR && done == HPRE_HW_TASK_DONE))
 		return 0;
 
 	alg = le32_to_cpu(sqe->dw0) & HREE_ALG_TYPE_MASK;
@@ -394,7 +394,7 @@ static int hpre_ctx_set(struct hpre_ctx *ctx, struct hisi_qp *qp, int qlen)
 	ctx->hpre = hpre;
 	ctx->req_list = kcalloc(qlen, sizeof(void *), GFP_KERNEL);
 	if (!ctx->req_list)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->key_sz = 0;
 	ctx->crt_g2_mode = false;
 	idr_init(&ctx->req_idr);
@@ -669,7 +669,7 @@ static int hpre_dh_set_params(struct hpre_ctx *ctx, struct dh *params)
 	ctx->dh.xa_p = dma_alloc_coherent(dev, sz << 1,
 					  &ctx->dh.dma_xa_p, GFP_KERNEL);
 	if (!ctx->dh.xa_p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(ctx->dh.xa_p + sz, params->p, sz);
 
@@ -684,7 +684,7 @@ static int hpre_dh_set_params(struct hpre_ctx *ctx, struct dh *params)
 		dma_free_coherent(dev, sz << 1, ctx->dh.xa_p,
 				  ctx->dh.dma_xa_p);
 		ctx->dh.xa_p = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(ctx->dh.g + (sz - params->g_size), params->g, params->g_size);
@@ -913,7 +913,7 @@ static int hpre_rsa_set_n(struct hpre_ctx *ctx, const char *value,
 					     &ctx->rsa.dma_pubkey,
 					     GFP_KERNEL);
 	if (!ctx->rsa.pubkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (private) {
 		ctx->rsa.prikey = dma_alloc_coherent(ctx->dev, vlen << 1,
@@ -924,7 +924,7 @@ static int hpre_rsa_set_n(struct hpre_ctx *ctx, const char *value,
 					  ctx->rsa.pubkey,
 					  ctx->rsa.dma_pubkey);
 			ctx->rsa.pubkey = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memcpy(ctx->rsa.prikey + vlen, ptr, vlen);
 	}
@@ -990,7 +990,7 @@ static int hpre_rsa_setkey_crt(struct hpre_ctx *ctx, struct rsa_key *rsa_key)
 					&ctx->rsa.dma_crt_prikey,
 					GFP_KERNEL);
 	if (!ctx->rsa.crt_prikey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hpre_crt_para_get(ctx->rsa.crt_prikey, hlf_ksz,
 				rsa_key->dq, rsa_key->dq_sz);
@@ -1070,7 +1070,7 @@ static void hpre_rsa_clear_ctx(struct hpre_ctx *ctx, bool is_clear_all)
 }
 
 /*
- * we should judge if it is CRT or not,
+ * we should judge if it is CRT or analt,
  * CRT: return true,  N-CRT: return false .
  */
 static bool hpre_is_crt_key(struct rsa_key *key)
@@ -1176,7 +1176,7 @@ static int hpre_rsa_init_tfm(struct crypto_akcipher *tfm)
 
 	ctx->rsa.soft_tfm = crypto_alloc_akcipher("rsa-generic", 0, 0);
 	if (IS_ERR(ctx->rsa.soft_tfm)) {
-		pr_err("Can not alloc_akcipher!\n");
+		pr_err("Can analt alloc_akcipher!\n");
 		return PTR_ERR(ctx->rsa.soft_tfm);
 	}
 
@@ -1288,7 +1288,7 @@ static int hpre_ecdh_fill_curve(struct hpre_ctx *ctx, struct ecdh *params,
 
 	n = kzalloc(ctx->key_sz, GFP_KERNEL);
 	if (!n)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fill_curve_param(p, curve->p, cur_sz, curve->g.ndigits);
 	fill_curve_param(a, curve->a, cur_sz, curve->g.ndigits);
@@ -1342,7 +1342,7 @@ static int hpre_ecdh_set_param(struct hpre_ctx *ctx, struct ecdh *params)
 		ctx->ecdh.p = dma_alloc_coherent(dev, sz << 3, &ctx->ecdh.dma_p,
 						 GFP_KERNEL);
 		if (!ctx->ecdh.p)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	shift = sz << 2;
@@ -1548,7 +1548,7 @@ static int hpre_ecdh_src_data_init(struct hpre_asym_request *hpre_req,
 
 	ptr = dma_alloc_coherent(dev, ctx->key_sz << 2, &dma, GFP_KERNEL);
 	if (unlikely(!ptr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmpshift = ctx->key_sz << 1;
 	scatterwalk_map_and_copy(ptr + tmpshift, data, 0, len, 0);
@@ -1577,7 +1577,7 @@ static int hpre_ecdh_dst_data_init(struct hpre_asym_request *hpre_req,
 	dma = dma_map_single(dev, sg_virt(data), len, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(dev, dma))) {
 		dev_err(dev, "dma map data err!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msg->out = cpu_to_le64(dma);
@@ -1719,7 +1719,7 @@ static int hpre_curve25519_set_param(struct hpre_ctx *ctx, const void *buf,
 						       &ctx->curve25519.dma_p,
 						       GFP_KERNEL);
 		if (!ctx->curve25519.p)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ctx->curve25519.g = ctx->curve25519.p + shift + sz;
@@ -1739,7 +1739,7 @@ static int hpre_curve25519_set_secret(struct crypto_kpp *tfm, const void *buf,
 
 	if (len != CURVE25519_KEY_SIZE ||
 	    !crypto_memneq(buf, curve25519_null_point, CURVE25519_KEY_SIZE)) {
-		dev_err(dev, "key is null or key len is not 32bytes!\n");
+		dev_err(dev, "key is null or key len is analt 32bytes!\n");
 		return ret;
 	}
 
@@ -1865,13 +1865,13 @@ static int hpre_curve25519_src_init(struct hpre_asym_request *hpre_req,
 	u8 *ptr;
 
 	if (len != CURVE25519_KEY_SIZE) {
-		dev_err(dev, "sourc_data len is not 32bytes, len = %u!\n", len);
+		dev_err(dev, "sourc_data len is analt 32bytes, len = %u!\n", len);
 		return -EINVAL;
 	}
 
 	ptr = dma_alloc_coherent(dev, ctx->key_sz, &dma, GFP_KERNEL);
 	if (unlikely(!ptr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scatterwalk_map_and_copy(ptr, data, 0, len, 0);
 
@@ -1929,7 +1929,7 @@ static int hpre_curve25519_dst_init(struct hpre_asym_request *hpre_req,
 	dma = dma_map_single(dev, sg_virt(data), len, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(dev, dma))) {
 		dev_err(dev, "dma map data err!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msg->out = cpu_to_le64(dma);

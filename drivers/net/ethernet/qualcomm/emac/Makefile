@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for the Qualcomm Technologies, Inc. EMAC Gigabit Ethernet driver
+# Makefile for the Qualcomm Techanallogies, Inc. EMAC Gigabit Ethernet driver
 #
 
 obj-$(CONFIG_QCOM_EMAC) += qcom-emac.o

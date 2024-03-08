@@ -27,7 +27,7 @@ do {								\
 		__r->dfs_region);				\
 } while (0)
 
-/* If country code is not correctly defined in efuse,
+/* If country code is analt correctly defined in efuse,
  * use worldwide country code and txpwr regd.
  */
 static const struct rtw_regulatory rtw_reg_ww =
@@ -195,7 +195,7 @@ static const struct rtw_regulatory rtw_reg_map[] = {
 	COUNTRY_REGD_ENT("NG", RTW_REGD_ETSI, RTW_REGD_ETSI),
 	COUNTRY_REGD_ENT("NI", RTW_REGD_FCC, RTW_REGD_FCC),
 	COUNTRY_REGD_ENT("NL", RTW_REGD_ETSI, RTW_REGD_ETSI),
-	COUNTRY_REGD_ENT("NO", RTW_REGD_ETSI, RTW_REGD_ETSI),
+	COUNTRY_REGD_ENT("ANAL", RTW_REGD_ETSI, RTW_REGD_ETSI),
 	COUNTRY_REGD_ENT("NP", RTW_REGD_ETSI, RTW_REGD_ETSI),
 	COUNTRY_REGD_ENT("NR", RTW_REGD_ETSI, RTW_REGD_ETSI),
 	COUNTRY_REGD_ENT("NU", RTW_REGD_ACMA, RTW_REGD_ACMA),
@@ -293,7 +293,7 @@ static void rtw_regd_apply_hw_cap_flags(struct wiphy *wiphy)
 
 	for (i = 0; i < sband->n_channels; i++) {
 		ch = &sband->channels[i];
-		ch->flags |= IEEE80211_CHAN_NO_80MHZ;
+		ch->flags |= IEEE80211_CHAN_ANAL_80MHZ;
 	}
 
 out_5g:
@@ -303,7 +303,7 @@ out_5g:
 
 	for (i = 0; i < sband->n_channels; i++) {
 		ch = &sband->channels[i];
-		ch->flags |= IEEE80211_CHAN_NO_80MHZ;
+		ch->flags |= IEEE80211_CHAN_ANAL_80MHZ;
 	}
 }
 
@@ -330,7 +330,7 @@ static const struct rtw_regulatory *rtw_reg_find_by_name(const char *alpha2)
 }
 
 static
-void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request);
+void rtw_regd_analtifier(struct wiphy *wiphy, struct regulatory_request *request);
 
 /* call this before ieee80211_register_hw() */
 int rtw_regd_init(struct rtw_dev *rtwdev)
@@ -341,7 +341,7 @@ int rtw_regd_init(struct rtw_dev *rtwdev)
 	if (!wiphy)
 		return -EINVAL;
 
-	wiphy->reg_notifier = rtw_regd_notifier;
+	wiphy->reg_analtifier = rtw_regd_analtifier;
 
 	chip_reg = rtw_reg_find_by_name(rtwdev->efuse.country_code);
 	if (!rtw_reg_is_ww(chip_reg)) {
@@ -352,7 +352,7 @@ int rtw_regd_init(struct rtw_dev *rtwdev)
 		 * as the superset for our regulatory rule.
 		 */
 		wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
-		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
+		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGANALRE;
 	} else {
 		rtwdev->regd.state = RTW_REGD_STATE_WORLDWIDE;
 	}
@@ -402,7 +402,7 @@ static bool rtw_regd_mgmt_worldwide(struct rtw_dev *rtwdev,
 	if (request->initiator == NL80211_REGDOM_SET_BY_USER &&
 	    !rtw_reg_is_ww(next_regd->regulatory)) {
 		next_regd->state = RTW_REGD_STATE_SETTING;
-		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
+		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGANALRE;
 	}
 
 	return true;
@@ -434,7 +434,7 @@ static bool rtw_regd_mgmt_setting(struct rtw_dev *rtwdev,
 
 	if (rtw_reg_is_ww(next_regd->regulatory)) {
 		next_regd->state = RTW_REGD_STATE_WORLDWIDE;
-		wiphy->regulatory_flags &= ~REGULATORY_COUNTRY_IE_IGNORE;
+		wiphy->regulatory_flags &= ~REGULATORY_COUNTRY_IE_IGANALRE;
 	}
 
 	return true;
@@ -457,7 +457,7 @@ static bool rtw_regd_state_hdl(struct rtw_dev *rtwdev,
 }
 
 static
-void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtw_regd_analtifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct rtw_dev *rtwdev = hw->priv;
@@ -468,7 +468,7 @@ void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	hdl = rtw_regd_state_hdl(rtwdev, &next_regd, request);
 	if (!hdl) {
 		rtw_dbg(rtwdev, RTW_DBG_REGD,
-			"regd state %d: ignore request %c%c of initiator %d\n",
+			"regd state %d: iganalre request %c%c of initiator %d\n",
 			rtwdev->regd.state,
 			request->alpha2[0],
 			request->alpha2[1],

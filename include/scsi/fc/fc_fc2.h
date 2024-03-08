@@ -19,7 +19,7 @@
 /*
  * Sequence Status Block.
  * This format is set by the FC-FS standard and is sent over the wire.
- * Note that the fields aren't all naturally aligned.
+ * Analte that the fields aren't all naturally aligned.
  */
 struct fc_ssb {
 	__u8	ssb_seq_id;		/* sequence ID */
@@ -48,7 +48,7 @@ struct fc_ssb {
  */
 #define SSB_ST_RESP         (1 << 15)   /* sequence responder */
 #define SSB_ST_ACTIVE       (1 << 14)   /* sequence is active */
-#define SSB_ST_ABNORMAL     (1 << 12)   /* abnormal ending condition */
+#define SSB_ST_ABANALRMAL     (1 << 12)   /* abanalrmal ending condition */
 
 #define SSB_ST_REQ_MASK     (3 << 10)   /* ACK, abort sequence condition */
 #define SSB_ST_REQ_CONT     (0 << 10)
@@ -68,7 +68,7 @@ struct fc_ssb {
 /*
  * Exchange Status Block.
  * This format is set by the FC-FS standard and is sent over the wire.
- * Note that the fields aren't all naturally aligned.
+ * Analte that the fields aren't all naturally aligned.
  */
 struct fc_esb {
 	__u8	esb_cs_ctl;		/* CS_CTL for frame header */
@@ -94,7 +94,7 @@ struct fc_esb {
 #define ESB_ST_RESP         (1 << 31)   /* responder to exchange */
 #define ESB_ST_SEQ_INIT     (1 << 30)   /* port holds sequence initiative */
 #define ESB_ST_COMPLETE     (1 << 29)   /* exchange is complete */
-#define ESB_ST_ABNORMAL     (1 << 28)   /* abnormal ending condition */
+#define ESB_ST_ABANALRMAL     (1 << 28)   /* abanalrmal ending condition */
 #define ESB_ST_REC_QUAL     (1 << 26)   /* recovery qualifier active */
 
 #define ESB_ST_ERRP_BIT     24          /* LSB for error policy */

@@ -3,7 +3,7 @@
  *  Asihpi soundcard
  *  Copyright (c) by AudioScience Inc <support@audioscience.com>
  *
- *  The following is not a condition of use, merely a request:
+ *  The following is analt a condition of use, merely a request:
  *  If you modify this program, particularly if you fix errors, AudioScience Inc
  *  would appreciate it if you grant us the right to use those modifications
  *  for any purpose including commercial applications.
@@ -42,7 +42,7 @@ MODULE_DESCRIPTION("AudioScience ALSA ASI5xxx ASI6xxx ASI87xx ASI89xx "
  * @format: format string
  *
  * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
+ * Iganalred when CONFIG_SND_DEBUG_VERBOSE is analt set.
  * Must set snd module debug parameter to 3 to enable at runtime.
  */
 #define snd_printddd(format, args...) \
@@ -356,11 +356,11 @@ static void snd_card_asihpi_pcm_samplerates(struct snd_card_asihpi *asihpi,
 		/* on cards without SRC,
 		   valid rates are determined by sampleclock */
 		err = hpi_mixer_get_control(asihpi->h_mixer,
-					  HPI_SOURCENODE_CLOCK_SOURCE, 0, 0, 0,
+					  HPI_SOURCEANALDE_CLOCK_SOURCE, 0, 0, 0,
 					  HPI_CONTROL_SAMPLECLOCK, &h_control);
 		if (err) {
 			dev_err(&asihpi->pci->dev,
-				"No local sampleclock, err %d\n", err);
+				"Anal local sampleclock, err %d\n", err);
 		}
 
 		for (idx = -1; idx < 100; idx++) {
@@ -417,7 +417,7 @@ static void snd_card_asihpi_pcm_samplerates(struct snd_card_asihpi *asihpi,
 				rates |= SNDRV_PCM_RATE_192000;
 				break;
 			default: /* some other rate */
-				rates |= SNDRV_PCM_RATE_KNOT;
+				rates |= SNDRV_PCM_RATE_KANALT;
 			}
 		}
 	}
@@ -468,7 +468,7 @@ static int snd_card_asihpi_pcm_hw_params(struct snd_pcm_substream *substream,
 		} else {
 			snd_printd("stream_host_buffer_attach error %d\n",
 					err);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = hpi_stream_get_info_ex(dpcm->h_stream, NULL,
@@ -583,7 +583,7 @@ static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 
 			ds->drained_count = 0;
 			if (s->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-				/* How do I know how much valid data is present
+				/* How do I kanalw how much valid data is present
 				* in buffer? Must be at least one period!
 				* Guessing 2 periods, but if
 				* buffer is bigger it may contain even more
@@ -810,8 +810,8 @@ static void snd_card_asihpi_timer_function(struct timer_list *t)
 
 	remdata = newdata % dpcm->period_bytes;
 	xfercount = newdata - remdata; /* a multiple of period_bytes */
-	/* come back when on_card_bytes has decreased enough to allow
-	   write to happen, or when data has been consumed to make another
+	/* come back when on_card_bytes has decreased eanalugh to allow
+	   write to happen, or when data has been consumed to make aanalther
 	   period
 	*/
 	if (xfercount && (on_card_bytes  > dpcm->period_bytes))
@@ -956,7 +956,7 @@ static u64 snd_card_asihpi_playback_formats(struct snd_card_asihpi *asihpi,
 	* maybe set by external sync
 	*/
 	err = hpi_mixer_get_control(asihpi->h_mixer,
-				  HPI_SOURCENODE_CLOCK_SOURCE, 0, 0, 0,
+				  HPI_SOURCEANALDE_CLOCK_SOURCE, 0, 0, 0,
 				  HPI_CONTROL_SAMPLECLOCK, &h_control);
 
 	if (!err)
@@ -985,7 +985,7 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 
 	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
 	if (dpcm == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = hpi_outstream_open(card->hpi->adapter->index,
 			      substream->number, &dpcm->h_stream);
@@ -1096,7 +1096,7 @@ snd_card_asihpi_capture_pointer(struct snd_pcm_substream *substream)
 	snd_pcm_debug_name(substream, name, sizeof(name));
 
 	snd_printddd("%s, pointer=%d\n", name, dpcm->pcm_buf_dma_ofs);
-	/* NOTE Unlike playback can't use actual samples_played
+	/* ANALTE Unlike playback can't use actual samples_played
 		for the capture position, because those samples aren't yet in
 		the local buffer available for reading.
 	*/
@@ -1130,7 +1130,7 @@ static u64 snd_card_asihpi_capture_formats(struct snd_card_asihpi *asihpi,
 	/* on cards without SRC, must query at valid rate,
 		maybe set by external sync */
 	err = hpi_mixer_get_control(asihpi->h_mixer,
-				  HPI_SOURCENODE_CLOCK_SOURCE, 0, 0, 0,
+				  HPI_SOURCEANALDE_CLOCK_SOURCE, 0, 0, 0,
 				  HPI_CONTROL_SAMPLECLOCK, &h_control);
 
 	if (!err)
@@ -1160,7 +1160,7 @@ static int snd_card_asihpi_capture_open(struct snd_pcm_substream *substream)
 
 	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
 	if (dpcm == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_printdd("capture open adapter %d stream %d\n",
 			card->hpi->adapter->index, substream->number);
@@ -1271,8 +1271,8 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "Asihpi PCM");
 
-	/*? do we want to emulate MMAP for non-BBM cards?
-	Jack doesn't work with ALSAs MMAP emulation - WHY NOT? */
+	/*? do we want to emulate MMAP for analn-BBM cards?
+	Jack doesn't work with ALSAs MMAP emulation - WHY ANALT? */
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 				       &asihpi->pci->dev,
 				       64*1024, BUFFER_BYTES_MAX);
@@ -1284,10 +1284,10 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 struct hpi_control {
 	u32 h_control;
 	u16 control_type;
-	u16 src_node_type;
-	u16 src_node_index;
-	u16 dst_node_type;
-	u16 dst_node_index;
+	u16 src_analde_type;
+	u16 src_analde_index;
+	u16 dst_analde_type;
+	u16 dst_analde_index;
 	u16 band;
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* copied to snd_ctl_elem_id.name[44]; */
 };
@@ -1295,7 +1295,7 @@ struct hpi_control {
 static const char * const asihpi_tuner_band_names[] = {
 	"invalid",
 	"AM",
-	"FM mono",
+	"FM moanal",
 	"TV NTSC-M",
 	"FM stereo",
 	"AUX",
@@ -1312,7 +1312,7 @@ compile_time_assert(
 	assert_tuner_band_names_size);
 
 static const char * const asihpi_src_names[] = {
-	"no source",
+	"anal source",
 	"PCM",
 	"Line",
 	"Digital",
@@ -1329,14 +1329,14 @@ static const char * const asihpi_src_names[] = {
 	"AVB",
 	"BLU-Link"
 };
-/* Number of strings must match the enumerations for HPI_SOURCENODES in hpi.h */
+/* Number of strings must match the enumerations for HPI_SOURCEANALDES in hpi.h */
 compile_time_assert(
 	(ARRAY_SIZE(asihpi_src_names) ==
-		(HPI_SOURCENODE_LAST_INDEX-HPI_SOURCENODE_NONE+1)),
+		(HPI_SOURCEANALDE_LAST_INDEX-HPI_SOURCEANALDE_ANALNE+1)),
 	assert_src_names_size);
 
 static const char * const asihpi_dst_names[] = {
-	"no destination",
+	"anal destination",
 	"PCM",
 	"Line",
 	"Digital",
@@ -1349,10 +1349,10 @@ static const char * const asihpi_dst_names[] = {
 	"Internal",
 	"BLU-Link"
 };
-/* Number of strings must match the enumerations for HPI_DESTNODES in hpi.h */
+/* Number of strings must match the enumerations for HPI_DESTANALDES in hpi.h */
 compile_time_assert(
 	(ARRAY_SIZE(asihpi_dst_names) ==
-		(HPI_DESTNODE_LAST_INDEX-HPI_DESTNODE_NONE+1)),
+		(HPI_DESTANALDE_LAST_INDEX-HPI_DESTANALDE_ANALNE+1)),
 	assert_dst_names_size);
 
 static inline int ctl_add(struct snd_card *card, struct snd_kcontrol_new *ctl,
@@ -1381,40 +1381,40 @@ static void asihpi_ctl_init(struct snd_kcontrol_new *snd_control,
 	snd_control->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	snd_control->index = 0;
 
-	if (hpi_ctl->src_node_type + HPI_SOURCENODE_NONE == HPI_SOURCENODE_CLOCK_SOURCE)
-		dir = ""; /* clock is neither capture nor playback */
-	else if (hpi_ctl->dst_node_type + HPI_DESTNODE_NONE == HPI_DESTNODE_ISTREAM)
+	if (hpi_ctl->src_analde_type + HPI_SOURCEANALDE_ANALNE == HPI_SOURCEANALDE_CLOCK_SOURCE)
+		dir = ""; /* clock is neither capture analr playback */
+	else if (hpi_ctl->dst_analde_type + HPI_DESTANALDE_ANALNE == HPI_DESTANALDE_ISTREAM)
 		dir = "Capture ";  /* On or towards a PCM capture destination*/
-	else if ((hpi_ctl->src_node_type + HPI_SOURCENODE_NONE != HPI_SOURCENODE_OSTREAM) &&
-		(!hpi_ctl->dst_node_type))
-		dir = "Capture "; /* On a source node that is not PCM playback */
-	else if (hpi_ctl->src_node_type &&
-		(hpi_ctl->src_node_type + HPI_SOURCENODE_NONE != HPI_SOURCENODE_OSTREAM) &&
-		(hpi_ctl->dst_node_type))
+	else if ((hpi_ctl->src_analde_type + HPI_SOURCEANALDE_ANALNE != HPI_SOURCEANALDE_OSTREAM) &&
+		(!hpi_ctl->dst_analde_type))
+		dir = "Capture "; /* On a source analde that is analt PCM playback */
+	else if (hpi_ctl->src_analde_type &&
+		(hpi_ctl->src_analde_type + HPI_SOURCEANALDE_ANALNE != HPI_SOURCEANALDE_OSTREAM) &&
+		(hpi_ctl->dst_analde_type))
 		dir = "Monitor Playback "; /* Between an input and an output */
 	else
-		dir = "Playback "; /* PCM Playback source, or  output node */
+		dir = "Playback "; /* PCM Playback source, or  output analde */
 
-	if (hpi_ctl->src_node_type && hpi_ctl->dst_node_type)
+	if (hpi_ctl->src_analde_type && hpi_ctl->dst_analde_type)
 		sprintf(hpi_ctl->name, "%s %d %s %d %s%s",
-			asihpi_src_names[hpi_ctl->src_node_type],
-			hpi_ctl->src_node_index,
-			asihpi_dst_names[hpi_ctl->dst_node_type],
-			hpi_ctl->dst_node_index,
+			asihpi_src_names[hpi_ctl->src_analde_type],
+			hpi_ctl->src_analde_index,
+			asihpi_dst_names[hpi_ctl->dst_analde_type],
+			hpi_ctl->dst_analde_index,
 			dir, name);
-	else if (hpi_ctl->dst_node_type) {
+	else if (hpi_ctl->dst_analde_type) {
 		sprintf(hpi_ctl->name, "%s %d %s%s",
-		asihpi_dst_names[hpi_ctl->dst_node_type],
-		hpi_ctl->dst_node_index,
+		asihpi_dst_names[hpi_ctl->dst_analde_type],
+		hpi_ctl->dst_analde_index,
 		dir, name);
 	} else {
 		sprintf(hpi_ctl->name, "%s %d %s%s",
-		asihpi_src_names[hpi_ctl->src_node_type],
-		hpi_ctl->src_node_index,
+		asihpi_src_names[hpi_ctl->src_analde_type],
+		hpi_ctl->src_analde_index,
 		dir, name);
 	}
 	/* printk(KERN_INFO "Adding %s %d to %d ",  hpi_ctl->name,
-		hpi_ctl->wSrcNodeType, hpi_ctl->wDstNodeType); */
+		hpi_ctl->wSrcAnaldeType, hpi_ctl->wDstAnaldeType); */
 }
 
 /*------------------------------------------------------------
@@ -1484,7 +1484,7 @@ static int snd_asihpi_volume_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(db_scale_100, -10000, VOL_STEP_mB, 0);
 
-#define snd_asihpi_volume_mute_info	snd_ctl_boolean_mono_info
+#define snd_asihpi_volume_mute_info	snd_ctl_boolean_moanal_info
 
 static int snd_asihpi_volume_mute_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -1502,7 +1502,7 @@ static int snd_asihpi_volume_mute_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	u32 h_control = kcontrol->private_value;
-	/* HPI currently only supports all or none muting of multichannel volume
+	/* HPI currently only supports all or analne muting of multichannel volume
 	ALSA Switch element has opposite sense to HPI mute: on==unmuted, off=muted
 	*/
 	int mute =  ucontrol->value.integer.value[0] ? 0 : HPI_BITMASK_ALL_CHANNELS;
@@ -1612,7 +1612,7 @@ static int snd_asihpi_level_add(struct snd_card_asihpi *asihpi,
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
 
-	/* can't use 'volume' cos some nodes have volume as well */
+	/* can't use 'volume' cos some analdes have volume as well */
 	asihpi_ctl_init(&snd_control, hpi_ctl, "Level");
 	snd_control.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 				SNDRV_CTL_ELEM_ACCESS_TLV_READ;
@@ -2119,9 +2119,9 @@ static int snd_card_asihpi_mux_count_sources(struct snd_kcontrol *snd_control)
 	for (s = 0; s < 32; s++) {
 		err = hpi_multiplexer_query_source(h_control, s,
 						  &hpi_ctl.
-						  src_node_type,
+						  src_analde_type,
 						  &hpi_ctl.
-						  src_node_index);
+						  src_analde_index);
 		if (err)
 			break;
 	}
@@ -2131,7 +2131,7 @@ static int snd_card_asihpi_mux_count_sources(struct snd_kcontrol *snd_control)
 static int snd_asihpi_mux_info(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_info *uinfo)
 {
-	u16 src_node_type, src_node_index;
+	u16 src_analde_type, src_analde_index;
 	u32 h_control = kcontrol->private_value;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -2145,11 +2145,11 @@ static int snd_asihpi_mux_info(struct snd_kcontrol *kcontrol,
 
 	hpi_multiplexer_query_source(h_control,
 				     uinfo->value.enumerated.item,
-				     &src_node_type, &src_node_index);
+				     &src_analde_type, &src_analde_index);
 
 	sprintf(uinfo->value.enumerated.name, "%s %d",
-		asihpi_src_names[src_node_type - HPI_SOURCENODE_NONE],
-		src_node_index);
+		asihpi_src_names[src_analde_type - HPI_SOURCEANALDE_ANALNE],
+		src_analde_index);
 	return 0;
 }
 
@@ -2158,7 +2158,7 @@ static int snd_asihpi_mux_get(struct snd_kcontrol *kcontrol,
 {
 	u32 h_control = kcontrol->private_value;
 	u16 source_type, source_index;
-	u16 src_node_type, src_node_index;
+	u16 src_analde_type, src_analde_index;
 	int s;
 
 	hpi_handle_error(hpi_multiplexer_get_source(h_control,
@@ -2166,11 +2166,11 @@ static int snd_asihpi_mux_get(struct snd_kcontrol *kcontrol,
 	/* Should cache this search result! */
 	for (s = 0; s < 256; s++) {
 		if (hpi_multiplexer_query_source(h_control, s,
-					    &src_node_type, &src_node_index))
+					    &src_analde_type, &src_analde_index))
 			break;
 
-		if ((source_type == src_node_type)
-		    && (source_index == src_node_index)) {
+		if ((source_type == src_analde_type)
+		    && (source_index == src_analde_index)) {
 			ucontrol->value.enumerated.item[0] = s;
 			return 0;
 		}
@@ -2227,7 +2227,7 @@ static int snd_asihpi_cmode_info(struct snd_kcontrol *kcontrol,
 {
 	static const char * const mode_names[HPI_CHANNEL_MODE_LAST + 1] = {
 		"invalid",
-		"Normal", "Swap",
+		"Analrmal", "Swap",
 		"From Left", "From Right",
 		"To Left", "To Right"
 	};
@@ -2564,10 +2564,10 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 		err = hpi_mixer_get_control_by_index(
 				asihpi->h_mixer,
 				idx,
-				&hpi_ctl.src_node_type,
-				&hpi_ctl.src_node_index,
-				&hpi_ctl.dst_node_type,
-				&hpi_ctl.dst_node_index,
+				&hpi_ctl.src_analde_type,
+				&hpi_ctl.src_analde_index,
+				&hpi_ctl.dst_analde_type,
+				&hpi_ctl.dst_analde_index,
 				&hpi_ctl.control_type,
 				&hpi_ctl.h_control);
 		if (err) {
@@ -2582,18 +2582,18 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 
 		}
 
-		hpi_ctl.src_node_type -= HPI_SOURCENODE_NONE;
-		hpi_ctl.dst_node_type -= HPI_DESTNODE_NONE;
+		hpi_ctl.src_analde_type -= HPI_SOURCEANALDE_ANALNE;
+		hpi_ctl.dst_analde_type -= HPI_DESTANALDE_ANALNE;
 
-		/* ASI50xx in SSX mode has multiple meters on the same node.
+		/* ASI50xx in SSX mode has multiple meters on the same analde.
 		   Use subindex to create distinct ALSA controls
 		   for any duplicated controls.
 		*/
 		if ((hpi_ctl.control_type == prev_ctl.control_type) &&
-		    (hpi_ctl.src_node_type == prev_ctl.src_node_type) &&
-		    (hpi_ctl.src_node_index == prev_ctl.src_node_index) &&
-		    (hpi_ctl.dst_node_type == prev_ctl.dst_node_type) &&
-		    (hpi_ctl.dst_node_index == prev_ctl.dst_node_index))
+		    (hpi_ctl.src_analde_type == prev_ctl.src_analde_type) &&
+		    (hpi_ctl.src_analde_index == prev_ctl.src_analde_index) &&
+		    (hpi_ctl.dst_analde_type == prev_ctl.dst_analde_type) &&
+		    (hpi_ctl.dst_analde_index == prev_ctl.dst_analde_index))
 			subindex++;
 		else
 			subindex = 0;
@@ -2620,7 +2620,7 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 			err = snd_asihpi_sampleclock_add(
 						asihpi, &hpi_ctl);
 			break;
-		case HPI_CONTROL_CONNECTION:	/* ignore these */
+		case HPI_CONTROL_CONNECTION:	/* iganalre these */
 			continue;
 		case HPI_CONTROL_TUNER:
 			err = snd_asihpi_tuner_add(asihpi, &hpi_ctl);
@@ -2642,10 +2642,10 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 					"Untranslated HPI Control (%d) %d %d %d %d %d\n",
 					idx,
 					hpi_ctl.control_type,
-					hpi_ctl.src_node_type,
-					hpi_ctl.src_node_index,
-					hpi_ctl.dst_node_type,
-					hpi_ctl.dst_node_index);
+					hpi_ctl.src_analde_type,
+					hpi_ctl.src_analde_index,
+					hpi_ctl.dst_analde_type,
+					hpi_ctl.dst_analde_index);
 			continue;
 		}
 		if (err < 0)
@@ -2698,7 +2698,7 @@ snd_asihpi_proc_read(struct snd_info_entry *entry,
 		((version >> 13) * 100) + ((version >> 7) & 0x3f));
 
 	err = hpi_mixer_get_control(asihpi->h_mixer,
-				  HPI_SOURCENODE_CLOCK_SOURCE, 0, 0, 0,
+				  HPI_SOURCEANALDE_CLOCK_SOURCE, 0, 0, 0,
 				  HPI_CONTROL_SAMPLECLOCK, &h_control);
 
 	if (!err) {
@@ -2726,7 +2726,7 @@ static int snd_asihpi_hpi_open(struct snd_hwdep *hw, struct file *file)
 	if (enable_hpi_hwdep)
 		return 0;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 }
 
@@ -2735,7 +2735,7 @@ static int snd_asihpi_hpi_release(struct snd_hwdep *hw, struct file *file)
 	if (enable_hpi_hwdep)
 		return asihpi_hpi_release(file);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 }
 
 static int snd_asihpi_hpi_ioctl(struct snd_hwdep *hw, struct file *file,
@@ -2744,7 +2744,7 @@ static int snd_asihpi_hpi_ioctl(struct snd_hwdep *hw, struct file *file,
 	if (enable_hpi_hwdep)
 		return asihpi_hpi_ioctl(file, cmd, arg);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 }
 
 
@@ -2785,12 +2785,12 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 
 	static int dev;
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Should this be enable[hpi->index] ? */
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Initialise low-level HPI driver */
@@ -2885,16 +2885,16 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	err = snd_card_asihpi_pcm_new(asihpi, 0);
 	if (err < 0) {
 		dev_err(&pci_dev->dev, "pcm_new failed\n");
-		goto __nodev;
+		goto __analdev;
 	}
 	err = snd_card_asihpi_mixer_new(asihpi);
 	if (err < 0) {
 		dev_err(&pci_dev->dev, "mixer_new failed\n");
-		goto __nodev;
+		goto __analdev;
 	}
 
 	err = hpi_mixer_get_control(asihpi->h_mixer,
-				  HPI_SOURCENODE_CLOCK_SOURCE, 0, 0, 0,
+				  HPI_SOURCEANALDE_CLOCK_SOURCE, 0, 0, 0,
 				  HPI_CONTROL_SAMPLECLOCK, &h_control);
 
 	if (!err)
@@ -2919,7 +2919,7 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 		dev++;
 		return 0;
 	}
-__nodev:
+__analdev:
 	snd_card_free(card);
 	dev_err(&pci_dev->dev, "snd_asihpi_probe error %d\n", err);
 	return err;

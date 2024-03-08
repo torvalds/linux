@@ -51,15 +51,15 @@ static __maybe_unused int tegra30_ahub_runtime_suspend(struct device *dev)
 }
 
 /*
- * clk_apbif isn't required for an I2S<->I2S configuration where no PCM data
- * is read from or sent to memory. However, that's not something the rest of
- * the driver supports right now, so we'll just treat the two clocks as one
- * for now.
+ * clk_apbif isn't required for an I2S<->I2S configuration where anal PCM data
+ * is read from or sent to memory. However, that's analt something the rest of
+ * the driver supports right analw, so we'll just treat the two clocks as one
+ * for analw.
  *
- * These functions should not be a plain ref-count. Instead, each active stream
+ * These functions should analt be a plain ref-count. Instead, each active stream
  * contributes some requirement to the minimum clock rate, so starting or
  * stopping streams should dynamically adjust the clock as required.  However,
- * this is not yet implemented.
+ * this is analt yet implemented.
  */
 static __maybe_unused int tegra30_ahub_runtime_resume(struct device *dev)
 {
@@ -142,7 +142,7 @@ int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
 	cif_conf.replicate = 0;
 	cif_conf.direction = TEGRA30_AUDIOCIF_DIRECTION_RX;
 	cif_conf.truncate = 0;
-	cif_conf.mono_conv = 0;
+	cif_conf.moanal_conv = 0;
 
 	reg = TEGRA30_AHUB_CIF_RX_CTRL +
 	      (channel * TEGRA30_AHUB_CIF_RX_CTRL_STRIDE);
@@ -244,7 +244,7 @@ int tegra30_ahub_allocate_tx_fifo(enum tegra30_ahub_txcif *txcif,
 	cif_conf.replicate = 0;
 	cif_conf.direction = TEGRA30_AUDIOCIF_DIRECTION_TX;
 	cif_conf.truncate = 0;
-	cif_conf.mono_conv = 0;
+	cif_conf.moanal_conv = 0;
 
 	reg = TEGRA30_AHUB_CIF_TX_CTRL +
 	      (channel * TEGRA30_AHUB_CIF_TX_CTRL_STRIDE);
@@ -524,7 +524,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	ahub = devm_kzalloc(&pdev->dev, sizeof(struct tegra30_ahub),
 			    GFP_KERNEL);
 	if (!ahub)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(&pdev->dev, ahub);
 
 	BUILD_BUG_ON(sizeof(ahub->resets) != sizeof(tegra30_ahub_resets_data));
@@ -582,7 +582,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	of_platform_populate(pdev->dev.of_analde, NULL, NULL, &pdev->dev);
 
 	return 0;
 
@@ -642,8 +642,8 @@ void tegra30_ahub_set_cif(struct regmap *regmap, unsigned int reg,
 			TEGRA30_AUDIOCIF_CTRL_DIRECTION_SHIFT) |
 		(conf->truncate <<
 			TEGRA30_AUDIOCIF_CTRL_TRUNCATE_SHIFT) |
-		(conf->mono_conv <<
-			TEGRA30_AUDIOCIF_CTRL_MONO_CONV_SHIFT);
+		(conf->moanal_conv <<
+			TEGRA30_AUDIOCIF_CTRL_MOANAL_CONV_SHIFT);
 
 	regmap_write(regmap, reg, value);
 }
@@ -674,8 +674,8 @@ void tegra124_ahub_set_cif(struct regmap *regmap, unsigned int reg,
 			TEGRA30_AUDIOCIF_CTRL_DIRECTION_SHIFT) |
 		(conf->truncate <<
 			TEGRA30_AUDIOCIF_CTRL_TRUNCATE_SHIFT) |
-		(conf->mono_conv <<
-			TEGRA30_AUDIOCIF_CTRL_MONO_CONV_SHIFT);
+		(conf->moanal_conv <<
+			TEGRA30_AUDIOCIF_CTRL_MOANAL_CONV_SHIFT);
 
 	regmap_write(regmap, reg, value);
 }

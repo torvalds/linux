@@ -172,7 +172,7 @@ static int vpu_request_cmd(struct vpu_inst *inst, u32 id, void *data,
 	core = inst->core;
 	cmd = vpu_alloc_cmd(inst, id, data);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&core->cmd_lock);
 	cmd->key = ++inst->cmd_seq;
@@ -290,7 +290,7 @@ static void vpu_core_keep_active(struct vpu_core *core)
 	struct vpu_rpc_event pkt;
 
 	memset(&pkt, 0, sizeof(pkt));
-	vpu_iface_pack_cmd(core, &pkt, 0, VPU_CMD_ID_NOOP, NULL);
+	vpu_iface_pack_cmd(core, &pkt, 0, VPU_CMD_ID_ANALOP, NULL);
 
 	dev_dbg(core->dev, "try to wake up\n");
 	mutex_lock(&core->cmd_lock);
@@ -315,7 +315,7 @@ static int vpu_session_send_cmd(struct vpu_inst *inst, u32 id, void *data)
 	/* workaround for a firmware issue,
 	 * firmware should be waked up by start or configure command,
 	 * but there is a very small change that firmware failed to wakeup.
-	 * in such case, try to wakeup firmware again by sending a noop command
+	 * in such case, try to wakeup firmware again by sending a analop command
 	 */
 	if (sync && (id == VPU_CMD_ID_CONFIGURE_CODEC || id == VPU_CMD_ID_START)) {
 		if (sync_session_response(inst, key, VPU_TIMEOUT_WAKEUP, 1))

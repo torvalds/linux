@@ -10,10 +10,10 @@ and/or L2 caches/SRAMs, an Interrupt Controller, an external memory controller,
 a dedicated local power/sleep controller etc. The DSP processor core in
 Keystone 2 SoCs is usually a TMS320C66x CorePac processor.
 
-DSP Device Node:
+DSP Device Analde:
 ================
-Each DSP Core sub-system is represented as a single DT node, and should also
-have an alias with the stem 'rproc' defined. Each node has a number of required
+Each DSP Core sub-system is represented as a single DT analde, and should also
+have an alias with the stem 'rproc' defined. Each analde has a number of required
 or optional properties that enable the OS running on the host processor (ARM
 CorePac) to perform the device management of the remote processor and to
 communicate with the remote processor.
@@ -31,7 +31,7 @@ The following are the mandatory properties:
 - reg:			Should contain an entry for each value in 'reg-names'.
 			Each entry should have the memory region's start address
 			and the size of the region, the representation matching
-			the parent node's '#address-cells' and '#size-cells' values.
+			the parent analde's '#address-cells' and '#size-cells' values.
 
 - reg-names:		Should contain strings with the following names, each
 			representing a specific internal memory region, and
@@ -39,10 +39,10 @@ The following are the mandatory properties:
 			     "l2sram", "l1pram", "l1dram"
 
 - ti,syscon-dev:	Should be a pair of the phandle to the Keystone Device
-			State Control node, and the register offset of the DSP
-			boot address register within that node's address space.
+			State Control analde, and the register offset of the DSP
+			boot address register within that analde's address space.
 
-- resets:		Should contain the phandle to the reset controller node
+- resets:		Should contain the phandle to the reset controller analde
 			managing the resets for this device, and a reset
 			specifier. Please refer to either of the following reset
 			bindings for the reset argument specifier as per SoC,
@@ -55,13 +55,13 @@ The following are the mandatory properties:
 			Each entry should have the interrupt source number used by
 			the remote processor to the host processor. The values should
 			follow the interrupt-specifier format as dictated by the
-			'interrupt-parent' node. The purpose of each is as per the
+			'interrupt-parent' analde. The purpose of each is as per the
 			description in the 'interrupt-names' property.
 
 - interrupt-names:	Should contain strings with the following names, each
 			representing a specific interrupt,
 			    "vring" - interrupt for virtio based IPC
-			    "exception" - interrupt for exception notification
+			    "exception" - interrupt for exception analtification
 
 - kick-gpios: 		Should specify the gpio device needed for the virtio IPC
 			stack. This will be used to interrupt the remote processor.
@@ -79,7 +79,7 @@ SoCs only:
 
 The following are mandatory properties for Keystone 2 66AK2G SoCs only:
 
-- power-domains:	Should contain a phandle to a PM domain provider node
+- power-domains:	Should contain a phandle to a PM domain provider analde
 			and an args specifier containing the DSP device id
 			value. This property is as per the binding,
 			Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
@@ -87,9 +87,9 @@ The following are mandatory properties for Keystone 2 66AK2G SoCs only:
 Optional properties:
 --------------------
 
-- memory-region:	phandle to the reserved memory node to be associated
-			with the remoteproc device. The reserved memory node
-			can be a CMA memory node, and should be defined as
+- memory-region:	phandle to the reserved memory analde to be associated
+			with the remoteproc device. The reserved memory analde
+			can be a CMA memory analde, and should be defined as
 			per the bindings in
 			Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
 
@@ -110,7 +110,7 @@ Examples:
 		rproc7 = &dsp7;
 	};
 
-	/* 66AK2H/K DSP memory node */
+	/* 66AK2H/K DSP memory analde */
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -123,7 +123,7 @@ Examples:
 		};
 	};
 
-	/* 66AK2H/K DSP node */
+	/* 66AK2H/K DSP analde */
 	soc {
 		dsp0: dsp@10800000 {
 			compatible = "ti,k2hk-dsp";
@@ -149,7 +149,7 @@ Examples:
 		rproc0 = &dsp0;
 	};
 
-	/* 66AK2G DSP memory node */
+	/* 66AK2G DSP memory analde */
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -162,7 +162,7 @@ Examples:
 		};
 	};
 
-	/* 66AK2G DSP node */
+	/* 66AK2G DSP analde */
 	soc {
 		dsp0: dsp@10800000 {
 			compatible = "ti,k2g-dsp";

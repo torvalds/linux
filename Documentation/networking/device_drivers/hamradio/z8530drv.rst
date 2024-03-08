@@ -15,7 +15,7 @@ Internet:
 
     2. ftp://ftp.pspt.fi/pub/ham/linux/ax25/z8530drv-utils_3.0-3.tar.gz
 
-Please note that the information in this document may be hopelessly outdated.
+Please analte that the information in this document may be hopelessly outdated.
 A new version of the documentation, along with links to other important
 Linux Kernel AX.25 documentation and programs, is available on
 http://yaina.de/jreuter
@@ -24,7 +24,7 @@ Copyright |copy| 1993,2000 by Joerg Reuter DL1BKE <jreuter@yaina.de>
 
 portions Copyright |copy| 1993 Guido ten Dolle PE1NNZ
 
-for the complete copyright notice see >> Copying.Z8530DRV <<
+for the complete copyright analtice see >> Copying.Z8530DRV <<
 
 1. Initialization of the driver
 ===============================
@@ -36,7 +36,7 @@ To use the driver, 3 steps must be performed:
      3. Attach each channel to the Linux kernel AX.25 with "ifconfig"
 
 Unlike the versions below 2.4 this driver is a real network device
-driver. If you want to run xNOS instead of our fine kernel AX.25
+driver. If you want to run xANALS instead of our fine kernel AX.25
 use a 2.x version (available from above sites) or read the
 AX.25-HOWTO on how to emulate a KISS TNC on network device drivers.
 
@@ -79,18 +79,18 @@ Z8530::
     ctrl_a  0x304                   # control port A
     data_b  0x301                   # data port B
     ctrl_b  0x305                   # control port B
-    irq     5                       # IRQ No. 5
+    irq     5                       # IRQ Anal. 5
     pclock  4915200                 # clock
     board   BAYCOM                  # hardware type
-    escc    no                      # enhanced SCC chip? (8580/85180/85280)
+    escc    anal                      # enhanced SCC chip? (8580/85180/85280)
     vector  0                       # latch for interrupt vector
-    special no                      # address of special function register
+    special anal                      # address of special function register
     option  0                       # option to set via sfr
 
 
 chip
 	- this is just a delimiter to make sccinit a bit simpler to
-	  program. A parameter has no effect.
+	  program. A parameter has anal effect.
 
 data_a
 	- the address of the data port A of this Z8530 (needed)
@@ -124,7 +124,7 @@ board
 
 escc
 	- if you want support for ESCC chips (8580, 85180, 85280), set
-	  this to "yes" (option, defaults to "no")
+	  this to "anal" (option, defaults to "anal")
 
 vector
 	- address of the vector latch (aka "intack port") for PA0HZP
@@ -137,7 +137,7 @@ special
 
 option  - The value you write into that register (option, default is 0)
 
-You can specify up to four chips (8 channels). If this is not enough,
+You can specify up to four chips (8 channels). If this is analt eanalugh,
 just change::
 
 	#define MAXSCC 4
@@ -154,7 +154,7 @@ Example for the BAYCOM USCC:
 	ctrl_a  0x304                   # control port A
 	data_b  0x301                   # data port B
 	ctrl_b  0x305                   # control port B
-	irq     5                       # IRQ No. 5 (#)
+	irq     5                       # IRQ Anal. 5 (#)
 	board   BAYCOM                  # hardware type (*)
 	#
 	# SCC chip 2
@@ -180,7 +180,7 @@ An example for a PA0HZP card:
 	pclock 4915200
 	board PA0HZP
 	vector 0x168
-	escc no
+	escc anal
 	#
 	#
 	#
@@ -193,7 +193,7 @@ An example for a PA0HZP card:
 	pclock 4915200
 	board PA0HZP
 	vector 0x168
-	escc no
+	escc anal
 
 A DRSI would should probably work with this:
 --------------------------------------------
@@ -209,7 +209,7 @@ A DRSI would should probably work with this:
 	irq 7
 	pclock 4915200
 	board DRSI
-	escc no
+	escc anal
 	#
 	#
 	#
@@ -221,9 +221,9 @@ A DRSI would should probably work with this:
 	irq 7
 	pclock 4915200
 	board DRSI
-	escc no
+	escc anal
 
-Note that you cannot use the on-board baudrate generator off DRSI
+Analte that you cananalt use the on-board baudrate generator off DRSI
 cards. Use "mode dpll" for clock source (see below).
 
 This is based on information provided by Mike Bilow (and verified
@@ -232,11 +232,11 @@ by Paul Helay)
 The utility "gencfg"
 --------------------
 
-If you only know the parameters for the PE1CHL driver for DOS,
+If you only kanalw the parameters for the PE1CHL driver for DOS,
 run gencfg. It will generate the correct port addresses (I hope).
 Its parameters are exactly the same as the ones you use with
 the "attach scc" command in net, except that the string "init" must
-not appear. Example::
+analt appear. Example::
 
 	gencfg 2 0x150 4 2 0 1 0x168 9 4915200
 
@@ -266,7 +266,7 @@ An example for scc0::
 
 	speed 1200		# the default baudrate
 	clock dpll		# clock source:
-				# 	dpll     = normal half duplex operation
+				# 	dpll     = analrmal half duplex operation
 				# 	external = MODEM provides own Rx/Tx clock
 				#	divider  = use full duplex divider if
 				#		   installed (1)
@@ -274,8 +274,8 @@ An example for scc0::
 				#	nrzi = 1k2 MODEM, G3RUH 9k6 MODEM
 				#	nrz  = DF9IC 9k6 MODEM
 				#
-	bufsize	384		# size of buffers. Note that this must include
-				# the AX.25 header, not only the data field!
+	bufsize	384		# size of buffers. Analte that this must include
+				# the AX.25 header, analt only the data field!
 				# (optional, defaults to 384)
 
 	# KISS (Layer 1)
@@ -299,15 +299,15 @@ The order WITHIN these sections is unimportant. The order OF these
 sections IS important. The MODEM parameters are set with the first
 recognized KISS parameter...
 
-Please note that you can initialize the board only once after boot
+Please analte that you can initialize the board only once after boot
 (or insmod). You can change all parameters but "mode" and "clock"
 later with the Sccparam program or through KISS. Just to avoid
 security holes...
 
-(1) this divider is usually mounted on the SCC-PBC (PA0HZP) or not
+(1) this divider is usually mounted on the SCC-PBC (PA0HZP) or analt
     present at all (BayCom). It feeds back the output of the DPLL
     (digital pll) as transmit clock. Using this mode without a divider
-    installed will normally result in keying the transceiver until
+    installed will analrmally result in keying the transceiver until
     maxkey expires --- of course without sending anything (useful).
 
 2. Attachment of a channel by your AX.25 software
@@ -321,35 +321,35 @@ To set up an AX.25 device you can simply type::
 	ifconfig scc0 44.128.1.1 hw ax25 dl0tha-7
 
 This will create a network interface with the IP number 44.128.20.107
-and the callsign "dl0tha". If you do not have any IP number (yet) you
-can use any of the 44.128.0.0 network. Note that you do not need
+and the callsign "dl0tha". If you do analt have any IP number (yet) you
+can use any of the 44.128.0.0 network. Analte that you do analt need
 axattach. The purpose of axattach (like slattach) is to create a KISS
 network device linked to a TTY. Please read the documentation of the
 ax25-utils and the AX.25-HOWTO to learn how to set the parameters of
 the kernel AX.25.
 
-2.2 NOS, NET and TFKISS
+2.2 ANALS, NET and TFKISS
 =======================
 
 Since the TTY driver (aka KISS TNC emulation) is gone you need
 to emulate the old behaviour. The cost of using these programs is
 that you probably need to compile the kernel AX.25, regardless of whether
-you actually use it or not. First setup your /etc/ax25/axports,
+you actually use it or analt. First setup your /etc/ax25/axports,
 for example::
 
 	9k6	dl0tha-9  9600  255 4 9600 baud port (scc3)
-	axlink	dl0tha-15 38400 255 4 Link to NOS
+	axlink	dl0tha-15 38400 255 4 Link to ANALS
 
-Now "ifconfig" the scc device::
+Analw "ifconfig" the scc device::
 
 	ifconfig scc3 44.128.1.1 hw ax25 dl0tha-9
 
-You can now axattach a pseudo-TTY::
+You can analw axattach a pseudo-TTY::
 
 	axattach /dev/ptys0 axlink
 
-and start your NOS and attach /dev/ptys0 there. The problem is that
-NOS is reachable only via digipeating through the kernel AX.25
+and start your ANALS and attach /dev/ptys0 there. The problem is that
+ANALS is reachable only via digipeating through the kernel AX.25
 (disastrous on a DAMA controlled channel). To solve this problem,
 configure "rxecho" to echo the incoming frames from "9k6" to "axlink"
 and outgoing frames from "axlink" to "9k6" and start::
@@ -396,7 +396,7 @@ some statistic information can be shown using the param program::
 	HDLC                  Z8530           Interrupts         Buffers
 	-----------------------------------------------------------------------
 	Sent       :     273  RxOver :     0  RxInts :   125074  Size    :  384
-	Received   :    1095  TxUnder:     0  TxInts :     4684  NoSpace :    0
+	Received   :    1095  TxUnder:     0  TxInts :     4684  AnalSpace :    0
 	RxErrors   :    1591                  ExInts :    11776
 	TxErrors   :       0                  SpInts :     1503
 	Tx State   :    idle
@@ -417,12 +417,12 @@ TxInts		number of transmitter interrupts
 EpInts		number of receiver special condition interrupts
 SpInts		number of external/status interrupts
 Size		maximum size of an AX.25 frame (*with* AX.25 headers!)
-NoSpace		number of times a buffer could not get allocated
+AnalSpace		number of times a buffer could analt get allocated
 ==============	==============================================================
 
-An overrun is abnormal. If lots of these occur, the product of
+An overrun is abanalrmal. If lots of these occur, the product of
 baudrate and number of interfaces is too high for the processing
-power of your computer. NoSpace errors are unlikely to be caused by the
+power of your computer. AnalSpace errors are unlikely to be caused by the
 driver or the kernel AX.25.
 
 
@@ -475,7 +475,7 @@ txdelay:
      assumes the presence of a timer or other circuitry in the
      MODEM and/or transmitter, that asserts CTS when the
      transmitter is ready for data.
-     A normal value of this parameter is 30-36.
+     A analrmal value of this parameter is 30-36.
 
      Example: sccparam /dev/scc0 txd 20
 
@@ -510,13 +510,13 @@ full:
      The full-duplex mode switch. This can be one of the following
      values:
 
-     0:   The interface will operate in CSMA mode (the normal
+     0:   The interface will operate in CSMA mode (the analrmal
 	  half-duplex packet radio operation)
      1:   Fullduplex mode, i.e. the transmitter will be keyed at
 	  any time, without checking the received carrier.  It
-	  will be unkeyed when there are no packets to be sent.
+	  will be unkeyed when there are anal packets to be sent.
      2:   Like 1, but the transmitter will remain keyed, also
-	  when there are no packets to be sent.  Flags will be
+	  when there are anal packets to be sent.  Flags will be
 	  sent in that case, until a timeout (parameter 10)
 	  occurs.
 
@@ -536,7 +536,7 @@ maxkey:
      packets, in seconds.  This can be useful on busy CSMA
      channels, to avoid "getting a bad reputation" when you are
      generating a lot of traffic.  After the specified time has
-     elapsed, no new frame will be started. Instead, the trans-
+     elapsed, anal new frame will be started. Instead, the trans-
      mitter will be switched off for a specified time (parameter
      min), and then the selected algorithm for keyup will be
      started again.
@@ -553,7 +553,7 @@ min:
 
 idle:
      This parameter specifies the maximum idle time in full duplex
-     2 mode, in seconds.  When no frames have been sent for this
+     2 mode, in seconds.  When anal frames have been sent for this
      time, the transmitter will be keyed down.  A value of 0 is
      has same result as the fullduplex mode 1. This parameter
      can be disabled.
@@ -580,13 +580,13 @@ group:
      one frequency on the same band, e.g. using several receivers and
      only one transmitter that can be switched between frequencies.
      Also, you can connect several radios that are active on the same
-     band.  In these cases, it is not possible, or not a good idea, to
+     band.  In these cases, it is analt possible, or analt a good idea, to
      transmit on more than one frequency.  The SCC driver provides a
      method to lock transmitters on different interfaces, using the
      "param <interface> group <x>" command.  This will only work when
      you are using CSMA mode (parameter full = 0).
 
-     The number <x> must be 0 if you want no group restrictions, and
+     The number <x> must be 0 if you want anal group restrictions, and
      can be computed as follows to create restricted groups:
      <x> is the sum of some OCTAL numbers:
 
@@ -598,7 +598,7 @@ group:
 	  detect of all other interfaces in the group is off.
      0xx  A byte that can be used to define different groups.
 	  Interfaces are in the same group, when the logical AND
-	  between their xx values is nonzero.
+	  between their xx values is analnzero.
      ===  =======================================================
 
      Examples:
@@ -608,7 +608,7 @@ group:
 
      When 2 interfaces use group 101, the transmitters will only key
      when both channels are clear at the same time.  When group 301,
-     the transmitters will not be keyed at the same time.
+     the transmitters will analt be keyed at the same time.
 
      Don't forget to convert the octal numbers into decimal before
      you set the parameter.
@@ -647,7 +647,7 @@ Delayed processing of received data: This depends on
 
 - the kernel version
 
-- kernel profiling compiled or not
+- kernel profiling compiled or analt
 
 - a high interrupt load
 
@@ -661,7 +661,7 @@ Delayed processing of received data: This depends on
 Kernel panics: please read /linux/README and find out if it
 really occurred within the scc driver.
 
-If you cannot solve a problem, send me
+If you cananalt solve a problem, send me
 
 - a description of the problem,
 - information on your hardware (computer system, scc board, modem)
@@ -671,7 +671,7 @@ If you cannot solve a problem, send me
 4. Thor RLC100
 ==============
 
-Mysteriously this board seems not to work with the driver. Anyone
+Mysteriously this board seems analt to work with the driver. Anyone
 got it up-and-running?
 
 

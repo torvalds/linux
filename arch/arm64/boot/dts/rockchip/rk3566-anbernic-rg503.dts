@@ -185,23 +185,23 @@
 	audio-amplifier {
 		spk_amp_enable_h: spk-amp-enable-h {
 			rockchip,pins =
-				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	gpio-lcd {
 		lcd_reset: lcd-reset {
 			rockchip,pins =
-				<4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	gpio-spi {
 		spi_pins: spi-pins {
 			rockchip,pins =
-				<4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_analne>,
+				<4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>,
+				<4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

@@ -84,8 +84,8 @@ const char *fc_els_resp_type(struct fc_frame *fp)
 
 	if (IS_ERR(fp)) {
 		switch (-PTR_ERR(fp)) {
-		case FC_NO_ERR:
-			msg = "response no error";
+		case FC_ANAL_ERR:
+			msg = "response anal error";
 			break;
 		case FC_EX_TIMEOUT:
 			msg = "response timeout";
@@ -94,7 +94,7 @@ const char *fc_els_resp_type(struct fc_frame *fp)
 			msg = "response closed";
 			break;
 		default:
-			msg = "response unknown error";
+			msg = "response unkanalwn error";
 			break;
 		}
 	} else {
@@ -109,7 +109,7 @@ const char *fc_els_resp_type(struct fc_frame *fp)
 				msg = "reject";
 				break;
 			default:
-				msg = "response unknown ELS";
+				msg = "response unkanalwn ELS";
 				break;
 			}
 			break;
@@ -124,7 +124,7 @@ const char *fc_els_resp_type(struct fc_frame *fp)
 					msg = "CT reject";
 					break;
 				default:
-					msg = "response unknown CT";
+					msg = "response unkanalwn CT";
 					break;
 				}
 			} else {
@@ -132,7 +132,7 @@ const char *fc_els_resp_type(struct fc_frame *fp)
 			}
 			break;
 		default:
-			msg = "response not ELS or CT";
+			msg = "response analt ELS or CT";
 			break;
 		}
 	}

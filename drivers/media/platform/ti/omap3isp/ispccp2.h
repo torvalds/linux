@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - CCP2 module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2010 Texas Instruments, Inc.
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -26,14 +26,14 @@ struct isp_csiphy;
 
 /* CCP2 input media entity */
 enum ccp2_input_entity {
-	CCP2_INPUT_NONE,
+	CCP2_INPUT_ANALNE,
 	CCP2_INPUT_SENSOR,
 	CCP2_INPUT_MEMORY,
 };
 
 /* CCP2 output media entity */
 enum ccp2_output_entity {
-	CCP2_OUTPUT_NONE,
+	CCP2_OUTPUT_ANALNE,
 	CCP2_OUTPUT_CCDC,
 	CCP2_OUTPUT_MEMORY,
 };

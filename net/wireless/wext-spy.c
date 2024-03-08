@@ -31,13 +31,13 @@ int iw_handler_set_spy(struct net_device *	dev,
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct sockaddr *	address = (struct sockaddr *) extra;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is analt buggy or using the old API */
 	if (!spydata)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Disable spy collection while we copy the addresses.
 	 * While we copy addresses, any call to wireless_spy_update()
-	 * will NOP. This is OK, as anyway the addresses are changing. */
+	 * will ANALP. This is OK, as anyway the addresses are changing. */
 	spydata->spy_number = 0;
 
 	/* We want to operate without locking, because wireless_spy_update()
@@ -80,9 +80,9 @@ int iw_handler_get_spy(struct net_device *	dev,
 	struct sockaddr *	address = (struct sockaddr *) extra;
 	int			i;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is analt buggy or using the old API */
 	if (!spydata)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	wrqu->data.length = spydata->spy_number;
 
@@ -115,9 +115,9 @@ int iw_handler_set_thrspy(struct net_device *	dev,
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct iw_thrspy *	threshold = (struct iw_thrspy *) extra;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is analt buggy or using the old API */
 	if (!spydata)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Just do it */
 	spydata->spy_thr_low = threshold->low;
@@ -142,9 +142,9 @@ int iw_handler_get_thrspy(struct net_device *	dev,
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct iw_thrspy *	threshold = (struct iw_thrspy *) extra;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is analt buggy or using the old API */
 	if (!spydata)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Just do it */
 	threshold->low = spydata->spy_thr_low;
@@ -185,8 +185,8 @@ static void iw_send_thrspy_event(struct net_device *	dev,
 /* ---------------------------------------------------------------- */
 /*
  * Call for the driver to update the spy data.
- * For now, the spy data is a simple array. As the size of the array is
- * small, this is good enough. If we wanted to support larger number of
+ * For analw, the spy data is a simple array. As the size of the array is
+ * small, this is good eanalugh. If we wanted to support larger number of
  * spy addresses, we should use something more efficient...
  */
 void wireless_spy_update(struct net_device *	dev,
@@ -197,7 +197,7 @@ void wireless_spy_update(struct net_device *	dev,
 	int			i;
 	int			match = -1;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is analt buggy or using the old API */
 	if (!spydata)
 		return;
 

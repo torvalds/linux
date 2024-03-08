@@ -40,8 +40,8 @@ struct peb2466 {
 	struct spi_device *spi;
 	struct clk *mclk;
 	struct gpio_desc *reset_gpio;
-	u8 spi_tx_buf[2 + 8]; /* Cannot use stack area for SPI (dma-safe memory) */
-	u8 spi_rx_buf[2 + 8]; /* Cannot use stack area for SPI (dma-safe memory) */
+	u8 spi_tx_buf[2 + 8]; /* Cananalt use stack area for SPI (dma-safe memory) */
+	u8 spi_rx_buf[2 + 8]; /* Cananalt use stack area for SPI (dma-safe memory) */
 	struct regmap *regmap;
 	struct {
 		struct peb2466_lookup ax_lookup;
@@ -211,7 +211,7 @@ static int peb2466_reg_write(void *context, unsigned int reg, unsigned int val)
 		ret = peb2466_write_byte(peb2466, reg, val);
 		break;
 	default:
-		dev_err(&peb2466->spi->dev, "Not a XOP or SOP command\n");
+		dev_err(&peb2466->spi->dev, "Analt a XOP or SOP command\n");
 		ret = -EINVAL;
 		break;
 	}
@@ -232,7 +232,7 @@ static int peb2466_reg_read(void *context, unsigned int reg, unsigned int *val)
 		*val = tmp;
 		break;
 	default:
-		dev_err(&peb2466->spi->dev, "Not a XOP or SOP command\n");
+		dev_err(&peb2466->spi->dev, "Analt a XOP or SOP command\n");
 		ret = -EINVAL;
 		break;
 	}
@@ -245,7 +245,7 @@ static const struct regmap_config peb2466_regmap_config = {
 	.max_register = 0xFF,
 	.reg_write = peb2466_reg_write,
 	.reg_read = peb2466_reg_read,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int peb2466_lkup_ctrl_info(struct snd_kcontrol *kcontrol,
@@ -333,7 +333,7 @@ static const u8 peb2466_tone_lookup[][4] = {
 	[PEB2466_TONE_697HZ] = {0x0a, 0x33, 0x5a, 0x2c},
 	[PEB2466_TONE_800HZ] = {0x12, 0xD6, 0x5a, 0xc0},
 	[PEB2466_TONE_950HZ] = {0x1c, 0xf0, 0x5c, 0xc0},
-	[PEB2466_TONE_1000HZ] = {0}, /* lookup value not used for 1000Hz */
+	[PEB2466_TONE_1000HZ] = {0}, /* lookup value analt used for 1000Hz */
 	[PEB2466_TONE_1008HZ] = {0x1a, 0xae, 0x57, 0x70},
 	[PEB2466_TONE_2000HZ] = {0x00, 0x80, 0x50, 0x09},
 };
@@ -556,10 +556,10 @@ static const struct snd_soc_dapm_widget peb2466_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("CH2 PWR", PEB2466_CR1(2), 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("CH3 PWR", PEB2466_CR1(3), 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_DAC("CH0 DIN", "Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("CH1 DIN", "Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("CH2 DIN", "Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("CH3 DIN", "Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("CH0 DIN", "Playback", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("CH1 DIN", "Playback", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("CH2 DIN", "Playback", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("CH3 DIN", "Playback", SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_SIGGEN("CH0 TG1"),
 	SND_SOC_DAPM_SIGGEN("CH1 TG1"),
@@ -571,23 +571,23 @@ static const struct snd_soc_dapm_widget peb2466_dapm_widgets[] = {
 	SND_SOC_DAPM_SIGGEN("CH2 TG2"),
 	SND_SOC_DAPM_SIGGEN("CH3 TG2"),
 
-	SND_SOC_DAPM_MIXER("DAC0 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("DAC0 Mixer", SND_SOC_ANALPM, 0, 0,
 			   peb2466_ch0_out_mix_controls,
 			   ARRAY_SIZE(peb2466_ch0_out_mix_controls)),
-	SND_SOC_DAPM_MIXER("DAC1 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("DAC1 Mixer", SND_SOC_ANALPM, 0, 0,
 			   peb2466_ch1_out_mix_controls,
 			   ARRAY_SIZE(peb2466_ch1_out_mix_controls)),
-	SND_SOC_DAPM_MIXER("DAC2 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("DAC2 Mixer", SND_SOC_ANALPM, 0, 0,
 			   peb2466_ch2_out_mix_controls,
 			   ARRAY_SIZE(peb2466_ch2_out_mix_controls)),
-	SND_SOC_DAPM_MIXER("DAC3 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("DAC3 Mixer", SND_SOC_ANALPM, 0, 0,
 			   peb2466_ch3_out_mix_controls,
 			   ARRAY_SIZE(peb2466_ch3_out_mix_controls)),
 
-	SND_SOC_DAPM_PGA("DAC0 PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("DAC1 PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("DAC2 PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("DAC3 PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DAC0 PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DAC1 PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DAC2 PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DAC3 PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_OUTPUT("OUT0"),
 	SND_SOC_DAPM_OUTPUT("OUT1"),
@@ -599,10 +599,10 @@ static const struct snd_soc_dapm_widget peb2466_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN2"),
 	SND_SOC_DAPM_INPUT("IN3"),
 
-	SND_SOC_DAPM_DAC("ADC0", "Capture", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("ADC1", "Capture", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("ADC2", "Capture", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("ADC3", "Capture", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("ADC0", "Capture", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("ADC1", "Capture", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("ADC2", "Capture", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("ADC3", "Capture", SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route peb2466_dapm_routes[] = {
@@ -673,11 +673,11 @@ static int peb2466_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mas
 
 	switch (width) {
 	case 0:
-		/* Not set -> default 8 */
+		/* Analt set -> default 8 */
 	case 8:
 		break;
 	default:
-		dev_err(dai->dev, "tdm slot width %d not supported\n", width);
+		dev_err(dai->dev, "tdm slot width %d analt supported\n", width);
 		return -EINVAL;
 	}
 
@@ -800,7 +800,7 @@ static int peb2466_dai_startup(struct snd_pcm_substream *substream,
 		peb2466->max_chan_playback : peb2466->max_chan_capture;
 
 	/*
-	 * Disable stream support (min = 0, max = 0) if no timeslots were
+	 * Disable stream support (min = 0, max = 0) if anal timeslots were
 	 * configured.
 	 */
 	ret = snd_pcm_hw_constraint_minmax(substream->runtime,
@@ -891,7 +891,7 @@ static int peb2466_reset_audio(struct peb2466 *peb2466)
 		peb2466->ch[i].tg2_freq_item = PEB2466_TONE_1000HZ;
 
 		/*
-		 * Even if not used, disabling IM/R1 filter is not recommended.
+		 * Even if analt used, disabling IM/R1 filter is analt recommended.
 		 * Instead, we must configure it with default coefficients and
 		 * enable it.
 		 * The filter will be enabled right after (in the following
@@ -1237,7 +1237,7 @@ static int peb2466_fw_parse_axtable(struct snd_soc_component *component,
 	BUILD_BUG_ON(sizeof(*table) != 4);
 	table = devm_kzalloc(&peb2466->spi->dev, table_size, GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(table, data + 13, table_size);
 
 	mask = *data;
@@ -1341,7 +1341,7 @@ static int peb2466_fw_parse_artable(struct snd_soc_component *component,
 	BUILD_BUG_ON(sizeof(*table) != 4);
 	table = devm_kzalloc(&peb2466->spi->dev, table_size, GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(table, data + 13, table_size);
 
 	mask = *data;
@@ -1502,7 +1502,7 @@ static int peb2466_fw_parse(struct snd_soc_component *component,
 		lng = get_unaligned_be32(buf + 2);
 		tag_def = peb2466_fw_get_tag_def(tag);
 		if (!tag_def) {
-			dev_err(component->dev, "fw %td/%zu tag 0x%04x unknown\n",
+			dev_err(component->dev, "fw %td/%zu tag 0x%04x unkanalwn\n",
 				buf - data, size, tag);
 			return -EINVAL;
 		}
@@ -1559,7 +1559,7 @@ static int peb2466_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	ret = of_property_read_string(peb2466->spi->dev.of_node,
+	ret = of_property_read_string(peb2466->spi->dev.of_analde,
 				      "firmware-name", &firmware_name);
 	if (ret)
 		return (ret == -EINVAL) ? 0 : ret;
@@ -1647,7 +1647,7 @@ static int peb2466_chip_gpio_offset_to_dir_regmask(unsigned int offset,
 						   unsigned int *mask)
 {
 	if (offset < 16) {
-		/* Direction cannot be changed for these GPIOs */
+		/* Direction cananalt be changed for these GPIOs */
 		return -EINVAL;
 	}
 	if (offset < 24) {
@@ -1698,7 +1698,7 @@ static int peb2466_chip_gpio_update_bits(struct peb2466 *peb2466, unsigned int x
 	/*
 	 * Read and write accesses use different peb2466 internal signals (input
 	 * signals on reads and output signals on writes). regmap_update_bits
-	 * cannot be used to read/modify/write the value.
+	 * cananalt be used to read/modify/write the value.
 	 * So, a specific cache value is used.
 	 */
 
@@ -1735,17 +1735,17 @@ static void peb2466_chip_gpio_set(struct gpio_chip *c, unsigned int offset, int 
 
 	if (offset < 8) {
 		/*
-		 * SIx_{0,1} signals cannot be set and writing the related
+		 * SIx_{0,1} signals cananalt be set and writing the related
 		 * register will change the SOx_{0,1} signals
 		 */
-		dev_warn(&peb2466->spi->dev, "cannot set gpio %d (read-only)\n",
+		dev_warn(&peb2466->spi->dev, "cananalt set gpio %d (read-only)\n",
 			 offset);
 		return;
 	}
 
 	ret = peb2466_chip_gpio_offset_to_data_regmask(offset, &xr_reg, &mask);
 	if (ret) {
-		dev_err(&peb2466->spi->dev, "cannot set gpio %d (%d)\n",
+		dev_err(&peb2466->spi->dev, "cananalt set gpio %d (%d)\n",
 			offset, ret);
 		return;
 	}
@@ -1769,7 +1769,7 @@ static int peb2466_chip_gpio_get(struct gpio_chip *c, unsigned int offset)
 
 	if (offset >= 8 && offset < 16) {
 		/*
-		 * SOx_{0,1} signals cannot be read. Reading the related
+		 * SOx_{0,1} signals cananalt be read. Reading the related
 		 * register will read the SIx_{0,1} signals.
 		 * Use the cache to get value;
 		 */
@@ -1778,7 +1778,7 @@ static int peb2466_chip_gpio_get(struct gpio_chip *c, unsigned int offset)
 
 	ret = peb2466_chip_gpio_offset_to_data_regmask(offset, &xr_reg, &mask);
 	if (ret) {
-		dev_err(&peb2466->spi->dev, "cannot get gpio %d (%d)\n",
+		dev_err(&peb2466->spi->dev, "cananalt get gpio %d (%d)\n",
 			offset, ret);
 		return -EINVAL;
 	}
@@ -1819,7 +1819,7 @@ static int peb2466_chip_get_direction(struct gpio_chip *c, unsigned int offset)
 
 	ret = peb2466_chip_gpio_offset_to_dir_regmask(offset, &xr_reg, &mask);
 	if (ret) {
-		dev_err(&peb2466->spi->dev, "cannot get gpio %d direction (%d)\n",
+		dev_err(&peb2466->spi->dev, "cananalt get gpio %d direction (%d)\n",
 			offset, ret);
 		return ret;
 	}
@@ -1852,7 +1852,7 @@ static int peb2466_chip_direction_input(struct gpio_chip *c, unsigned int offset
 
 	ret = peb2466_chip_gpio_offset_to_dir_regmask(offset, &xr_reg, &mask);
 	if (ret) {
-		dev_err(&peb2466->spi->dev, "cannot set gpio %d direction (%d)\n",
+		dev_err(&peb2466->spi->dev, "cananalt set gpio %d direction (%d)\n",
 			offset, ret);
 		return ret;
 	}
@@ -1888,7 +1888,7 @@ static int peb2466_chip_direction_output(struct gpio_chip *c, unsigned int offse
 
 	ret = peb2466_chip_gpio_offset_to_dir_regmask(offset, &xr_reg, &mask);
 	if (ret) {
-		dev_err(&peb2466->spi->dev, "cannot set gpio %d direction (%d)\n",
+		dev_err(&peb2466->spi->dev, "cananalt set gpio %d direction (%d)\n",
 			offset, ret);
 		return ret;
 	}
@@ -1961,7 +1961,7 @@ static int peb2466_spi_probe(struct spi_device *spi)
 
 	peb2466 = devm_kzalloc(&spi->dev, sizeof(*peb2466), GFP_KERNEL);
 	if (!peb2466)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	peb2466->spi = spi;
 

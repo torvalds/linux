@@ -79,7 +79,7 @@ void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
 {
 	if (__ieee80211_recalc_txpower(sdata) ||
 	    (update_bss && ieee80211_sdata_running(sdata)))
-		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
+		ieee80211_link_info_change_analtify(sdata, &sdata->deflink,
 						  BSS_CHANGED_TXPOWER);
 }
 
@@ -215,7 +215,7 @@ static int ieee80211_can_powered_addr_change(struct ieee80211_sub_if_data *sdata
 	if (netif_carrier_ok(sdata->dev))
 		return -EBUSY;
 
-	/* First check no ROC work is happening on this iface */
+	/* First check anal ROC work is happening on this iface */
 	list_for_each_entry(roc, &local->roc_list, list) {
 		if (roc->sdata != sdata)
 			continue;
@@ -242,7 +242,7 @@ static int ieee80211_can_powered_addr_change(struct ieee80211_sub_if_data *sdata
 		 */
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 unlock:
@@ -284,7 +284,7 @@ static int _ieee80211_change_mac(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* Regardless of eth_mac_addr() return we still want to add the
-	 * interface back. This should not fail...
+	 * interface back. This should analt fail...
 	 */
 	if (live)
 		WARN_ON(drv_add_interface(local, sdata));
@@ -301,7 +301,7 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 	/*
 	 * This happens during unregistration if there's a bond device
 	 * active (maybe other cases?) and we must get removed from it.
-	 * But we really don't care anymore if it's not registered now.
+	 * But we really don't care anymore if it's analt registered analw.
 	 */
 	if (!dev->ieee80211_ptr->registered)
 		return 0;
@@ -349,7 +349,7 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			/*
 			 * Allow only a single IBSS interface to be up at any
 			 * time. This is restricted because beacon distribution
-			 * cannot work properly if both are in the same IBSS.
+			 * cananalt work properly if both are in the same IBSS.
 			 *
 			 * To remove this restriction we'd have to disallow them
 			 * from setting the same SSID on different IBSS interfaces
@@ -360,7 +360,7 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			    nsdata->vif.type == NL80211_IFTYPE_ADHOC)
 				return -EBUSY;
 			/*
-			 * will not add another interface while any channel
+			 * will analt add aanalther interface while any channel
 			 * switch is active.
 			 */
 			if (nsdata->vif.bss_conf.csa_active)
@@ -379,14 +379,14 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			 */
 			if (!identical_mac_addr_allowed(iftype,
 							nsdata->vif.type))
-				return -ENOTUNIQ;
+				return -EANALTUNIQ;
 
-			/* No support for VLAN with MLO yet */
+			/* Anal support for VLAN with MLO yet */
 			if (iftype == NL80211_IFTYPE_AP_VLAN &&
 			    sdata->wdev.use_4addr &&
 			    nsdata->vif.type == NL80211_IFTYPE_AP &&
 			    nsdata->vif.valid_links)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 
 			/*
 			 * can only add VLANs to enabled APs
@@ -444,7 +444,7 @@ static int ieee80211_open(struct net_device *dev)
 
 	/* fail early if user set an invalid address */
 	if (!is_valid_ether_addr(dev->dev_addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	wiphy_lock(sdata->local->hw.wiphy);
 	err = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
@@ -501,13 +501,13 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	 * Remove all stations associated with this interface.
 	 *
 	 * This must be done before calling ops->remove_interface()
-	 * because otherwise we can later invoke ops->sta_notify()
+	 * because otherwise we can later invoke ops->sta_analtify()
 	 * whenever the STAs are removed, and that invalidates driver
 	 * assumptions about always getting a vif pointer that is valid
 	 * (because if we remove a STA after ops->remove_interface()
 	 * the driver will have removed the vif info already!)
 	 *
-	 * For AP_VLANs stations may exist since there's nothing else that
+	 * For AP_VLANs stations may exist since there's analthing else that
 	 * would have removed them, but in other modes there shouldn't
 	 * be any stations.
 	 */
@@ -591,7 +591,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		RCU_INIT_POINTER(sdata->vif.bss_conf.chanctx_conf, NULL);
 		/* see comment in the default case below */
 		ieee80211_free_keys(sdata, true);
-		/* no need to tell driver */
+		/* anal need to tell driver */
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES) {
@@ -634,7 +634,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		 * Force the key freeing to always synchronize_net()
 		 * to wait for the RX path in case it is using this
 		 * interface enqueuing frames at this very time on
-		 * another CPU.
+		 * aanalther CPU.
 		 */
 		ieee80211_free_keys(sdata, true);
 		skb_queue_purge(&sdata->skb_queue);
@@ -704,7 +704,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	if (local->open_count == 0) {
 		ieee80211_stop_device(local);
 
-		/* no reconfiguring after stop! */
+		/* anal reconfiguring after stop! */
 		return;
 	}
 
@@ -718,7 +718,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 
 static void ieee80211_stop_mbssid(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *tx_sdata, *non_tx_sdata, *tmp_sdata;
+	struct ieee80211_sub_if_data *tx_sdata, *analn_tx_sdata, *tmp_sdata;
 	struct ieee80211_vif *tx_vif = sdata->vif.mbssid_tx_vif;
 
 	if (!tx_vif)
@@ -727,13 +727,13 @@ static void ieee80211_stop_mbssid(struct ieee80211_sub_if_data *sdata)
 	tx_sdata = vif_to_sdata(tx_vif);
 	sdata->vif.mbssid_tx_vif = NULL;
 
-	list_for_each_entry_safe(non_tx_sdata, tmp_sdata,
+	list_for_each_entry_safe(analn_tx_sdata, tmp_sdata,
 				 &tx_sdata->local->interfaces, list) {
-		if (non_tx_sdata != sdata && non_tx_sdata != tx_sdata &&
-		    non_tx_sdata->vif.mbssid_tx_vif == tx_vif &&
-		    ieee80211_sdata_running(non_tx_sdata)) {
-			non_tx_sdata->vif.mbssid_tx_vif = NULL;
-			dev_close(non_tx_sdata->wdev.netdev);
+		if (analn_tx_sdata != sdata && analn_tx_sdata != tx_sdata &&
+		    analn_tx_sdata->vif.mbssid_tx_vif == tx_vif &&
+		    ieee80211_sdata_running(analn_tx_sdata)) {
+			analn_tx_sdata->vif.mbssid_tx_vif = NULL;
+			dev_close(analn_tx_sdata->wdev.netdev);
 		}
 	}
 
@@ -886,13 +886,13 @@ static int ieee80211_netdev_fill_forward_path(struct net_device_path_ctx *ctx,
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_local *local;
 	struct sta_info *sta;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(ctx->dev);
 	local = sdata->local;
 
 	if (!local->ops->net_fill_forward_path)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rcu_read_lock();
 	switch (sdata->vif.type) {
@@ -1106,11 +1106,11 @@ static void ieee80211_sdata_init(struct ieee80211_local *local,
 	sdata->local = local;
 
 	/*
-	 * Initialize the default link, so we can use link_id 0 for non-MLD,
-	 * and that continues to work for non-MLD-aware drivers that use just
+	 * Initialize the default link, so we can use link_id 0 for analn-MLD,
+	 * and that continues to work for analn-MLD-aware drivers that use just
 	 * vif.bss_conf instead of vif.link_conf.
 	 *
-	 * Note that we never change this, so if link ID 0 isn't used in an
+	 * Analte that we never change this, so if link ID 0 isn't used in an
 	 * MLD connection, we get a separate allocation for it.
 	 */
 	ieee80211_link_init(sdata, -1, &sdata->deflink, &sdata->vif.bss_conf);
@@ -1132,7 +1132,7 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 
 	sdata = kzalloc(sizeof(*sdata) + local->hw.vif_data_size, GFP_KERNEL);
 	if (!sdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set up data */
 	sdata->vif.type = NL80211_IFTYPE_MONITOR;
@@ -1215,7 +1215,7 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 }
 
 /*
- * NOTE: Be very careful when changing this function, it must NOT return
+ * ANALTE: Be very careful when changing this function, it must ANALT return
  * an error on interface type changes that have been pre-checked, so most
  * checks should be in ieee80211_check_concurrent_iface.
  */
@@ -1235,7 +1235,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		struct ieee80211_sub_if_data *master;
 
 		if (!sdata->bss)
-			return -ENOLINK;
+			return -EANALLINK;
 
 		list_add(&sdata->u.vlan.list, &sdata->bss->vlans);
 
@@ -1243,12 +1243,12 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 				      struct ieee80211_sub_if_data, u.ap);
 		sdata->control_port_protocol =
 			master->control_port_protocol;
-		sdata->control_port_no_encrypt =
-			master->control_port_no_encrypt;
+		sdata->control_port_anal_encrypt =
+			master->control_port_anal_encrypt;
 		sdata->control_port_over_nl80211 =
 			master->control_port_over_nl80211;
-		sdata->control_port_no_preauth =
-			master->control_port_no_preauth;
+		sdata->control_port_anal_preauth =
+			master->control_port_anal_preauth;
 		sdata->vif.cab_queue = master->vif.cab_queue;
 		memcpy(sdata->vif.hw_queue, master->vif.hw_queue,
 		       sizeof(sdata->vif.hw_queue));
@@ -1269,14 +1269,14 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	case NL80211_IFTYPE_P2P_DEVICE:
 	case NL80211_IFTYPE_OCB:
 	case NL80211_IFTYPE_NAN:
-		/* no special treatment */
+		/* anal special treatment */
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NUM_NL80211_IFTYPES:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_WDS:
-		/* cannot happen */
+		/* cananalt happen */
 		WARN_ON(1);
 		break;
 	}
@@ -1296,7 +1296,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	}
 
 	/*
-	 * Copy the hopefully now-present MAC address to
+	 * Copy the hopefully analw-present MAC address to
 	 * this interface, if it has the special null one.
 	 */
 	if (dev && is_zero_ether_addr(dev->dev_addr)) {
@@ -1304,14 +1304,14 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
 		if (!is_valid_ether_addr(dev->dev_addr)) {
-			res = -EADDRNOTAVAIL;
+			res = -EADDRANALTAVAIL;
 			goto err_stop;
 		}
 	}
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
-		/* no need to tell driver, but set carrier and chanctx */
+		/* anal need to tell driver, but set carrier and chanctx */
 		if (sdata->bss->active) {
 			ieee80211_link_vlan_copy_chanctx(&sdata->deflink);
 			netif_carrier_on(dev);
@@ -1383,7 +1383,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
 		    sdata->vif.type != NL80211_IFTYPE_NAN)
 			changed |= ieee80211_reset_erp_info(sdata);
-		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
+		ieee80211_link_info_change_analtify(sdata, &sdata->deflink,
 						  changed);
 
 		switch (sdata->vif.type) {
@@ -1398,7 +1398,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		case NL80211_IFTYPE_NAN:
 			break;
 		default:
-			/* not reached */
+			/* analt reached */
 			WARN_ON(1);
 		}
 
@@ -1467,7 +1467,7 @@ static void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
-	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_ANAL_QUEUE;
 	dev->netdev_ops = &ieee80211_dataif_ops;
 	dev->needs_free_netdev = true;
 	dev->priv_destructor = ieee80211_if_free;
@@ -1508,8 +1508,8 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 		}
 	} else if (ieee80211_is_action(mgmt->frame_control) &&
 		   mgmt->u.action.category == WLAN_CATEGORY_VHT) {
-		switch (mgmt->u.action.u.vht_group_notif.action_code) {
-		case WLAN_VHT_ACTION_OPMODE_NOTIF: {
+		switch (mgmt->u.action.u.vht_group_analtif.action_code) {
+		case WLAN_VHT_ACTION_OPMODE_ANALTIF: {
 			struct ieee80211_rx_status *status;
 			enum nl80211_band band;
 			struct sta_info *sta;
@@ -1517,7 +1517,7 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 
 			status = IEEE80211_SKB_RXCB(skb);
 			band = status->band;
-			opmode = mgmt->u.action.u.vht_opmode_notif.operating_mode;
+			opmode = mgmt->u.action.u.vht_opmode_analtif.operating_mode;
 
 			sta = sta_info_get_bss(sdata, mgmt->sa);
 
@@ -1561,7 +1561,7 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 		 * the if statement is correct.
 		 *
 		 * Warn if we have other data frame types here,
-		 * they must not get here.
+		 * they must analt get here.
 		 */
 		WARN_ON(hdr->frame_control &
 				cpu_to_le16(IEEE80211_STYPE_NULLFUNC));
@@ -1569,7 +1569,7 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 				cpu_to_le16(IEEE80211_SCTL_FRAG)));
 		/*
 		 * This was a fragment of a frame, received while
-		 * a block-ack session was active. That cannot be
+		 * a block-ack session was active. That cananalt be
 		 * right, so terminate the session.
 		 */
 		sta = sta_info_get_bss(sdata, mgmt->sa);
@@ -1706,13 +1706,13 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	sdata->wdev.iftype = type;
 
 	sdata->control_port_protocol = cpu_to_be16(ETH_P_PAE);
-	sdata->control_port_no_encrypt = false;
+	sdata->control_port_anal_encrypt = false;
 	sdata->control_port_over_nl80211 = false;
-	sdata->control_port_no_preauth = false;
+	sdata->control_port_anal_preauth = false;
 	sdata->vif.cfg.idle = true;
 	sdata->vif.bss_conf.txpower = INT_MIN; /* unset */
 
-	sdata->noack_map = 0;
+	sdata->analack_map = 0;
 
 	/* only monitor/p2p-device differ */
 	if (sdata->dev) {
@@ -1799,7 +1799,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 	if (!local->ops->change_interface)
 		return -EBUSY;
 
-	/* for now, don't support changing while links exist */
+	/* for analw, don't support changing while links exist */
 	if (ieee80211_vif_is_mld(&sdata->vif))
 		return -EBUSY;
 
@@ -1813,7 +1813,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_OCB:
 		/*
 		 * Could maybe also all others here?
-		 * Just not sure how that interacts
+		 * Just analt sure how that interacts
 		 * with the RX/config path e.g. for
 		 * mesh.
 		 */
@@ -1861,7 +1861,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 		type = ieee80211_vif_type_p2p(&sdata->vif);
 
 	/*
-	 * Ignore return value here, there's not much we can do since
+	 * Iganalre return value here, there's analt much we can do since
 	 * the driver changed the interface type internally already.
 	 * The warnings will hopefully make driver authors fix it :-)
 	 */
@@ -1935,7 +1935,7 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 			memcpy(perm_addr, sdata->vif.addr, ETH_ALEN);
 			break;
 		}
-		/* keep default if no AP interface present */
+		/* keep default if anal AP interface present */
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
@@ -1981,8 +1981,8 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 			((u64)m[4] << 1*8) | ((u64)m[5] << 0*8);
 
 		if (__ffs64(mask) + hweight64(mask) != fls64(mask)) {
-			/* not a contiguous mask ... not handled now! */
-			pr_info("not contiguous\n");
+			/* analt a contiguous mask ... analt handled analw! */
+			pr_info("analt contiguous\n");
 			break;
 		}
 
@@ -2053,7 +2053,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		sdata = kzalloc(sizeof(*sdata) + local->hw.vif_data_size,
 				GFP_KERNEL);
 		if (!sdata)
-			return -ENOMEM;
+			return -EANALMEM;
 		wdev = &sdata->wdev;
 
 		sdata->dev = NULL;
@@ -2076,14 +2076,14 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 					name, name_assign_type,
 					ieee80211_if_setup, 1, 1);
 		if (!ndev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_net_set(ndev, wiphy_net(local->hw.wiphy));
 
 		ndev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 		if (!ndev->tstats) {
 			free_netdev(ndev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ndev->needed_headroom = local->tx_headroom +
@@ -2181,10 +2181,10 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		netdev_set_default_ethtool_ops(ndev, &ieee80211_ethtool_ops);
 
-		/* MTU range is normally 256 - 2304, where the upper limit is
+		/* MTU range is analrmally 256 - 2304, where the upper limit is
 		 * the maximum MSDU size. Monitor interfaces send and receive
 		 * MPDU and A-MSDU frames which may be much larger so we do
-		 * not impose an upper limit in that case.
+		 * analt impose an upper limit in that case.
 		 */
 		ndev->min_mtu = 256;
 		if (type == NL80211_IFTYPE_MONITOR)
@@ -2271,7 +2271,7 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 		bool netdev = sdata->dev;
 
 		/*
-		 * Remove IP addresses explicitly, since the notifier will
+		 * Remove IP addresses explicitly, since the analtifier will
 		 * skip the callbacks if wdev->registered is false, since
 		 * we can't acquire the wiphy_lock() again there if already
 		 * inside this locked section.
@@ -2279,7 +2279,7 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 		sdata->vif.cfg.arp_addr_cnt = 0;
 		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 		    sdata->u.mgd.associated)
-			ieee80211_vif_cfg_change_notify(sdata,
+			ieee80211_vif_cfg_change_analtify(sdata,
 							BSS_CHANGED_ARP_FILTER);
 
 		list_del(&sdata->list);
@@ -2291,40 +2291,40 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	wiphy_unlock(local->hw.wiphy);
 }
 
-static int netdev_notify(struct notifier_block *nb,
+static int netdev_analtify(struct analtifier_block *nb,
 			 unsigned long state, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct ieee80211_sub_if_data *sdata;
 
 	if (state != NETDEV_CHANGENAME)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!dev->ieee80211_ptr || !dev->ieee80211_ptr->wiphy)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (dev->ieee80211_ptr->wiphy->privid != mac80211_wiphy_privid)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	memcpy(sdata->name, dev->name, IFNAMSIZ);
 	ieee80211_debugfs_rename_netdev(sdata);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block mac80211_netdev_notifier = {
-	.notifier_call = netdev_notify,
+static struct analtifier_block mac80211_netdev_analtifier = {
+	.analtifier_call = netdev_analtify,
 };
 
 int ieee80211_iface_init(void)
 {
-	return register_netdevice_notifier(&mac80211_netdev_notifier);
+	return register_netdevice_analtifier(&mac80211_netdev_analtifier);
 }
 
 void ieee80211_iface_exit(void)
 {
-	unregister_netdevice_notifier(&mac80211_netdev_notifier);
+	unregister_netdevice_analtifier(&mac80211_netdev_analtifier);
 }
 
 void ieee80211_vif_inc_num_mcast(struct ieee80211_sub_if_data *sdata)

@@ -163,13 +163,13 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	int n, result;
 	int err = 0;
 
-	/* This function is not re-entrant, so protect against it. */
+	/* This function is analt re-entrant, so protect against it. */
 	spin_lock(&emu->spi_lock);
 	if (emu->card_capabilities->ca0108_chip)
 		reg = P17V_SPI;
 	else {
 		/* For other chip types the SPI register
-		 * is currently unknown. */
+		 * is currently unkanalwn. */
 		err = 1;
 		goto spi_write_exit;
 	}
@@ -208,7 +208,7 @@ spi_write_exit:
 	return err;
 }
 
-/* The ADC does not support i2c read, so only write is implemented */
+/* The ADC does analt support i2c read, so only write is implemented */
 int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 				u32 reg,
 				u32 value)
@@ -224,7 +224,7 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 		return -EINVAL;
 	}
 
-	/* This function is not re-entrant, so protect against it. */
+	/* This function is analt re-entrant, so protect against it. */
 	spin_lock(&emu->i2c_lock);
 
 	tmp = reg << 25 | value << 16;
@@ -300,7 +300,7 @@ static void snd_emu1010_fpga_read_locked(struct snd_emu10k1 *emu, u32 reg, u32 *
 {
 	// The higest input pin is used as the designated interrupt trigger,
 	// so it needs to be masked out.
-	// But note that any other input pin change will also cause an IRQ,
+	// But analte that any other input pin change will also cause an IRQ,
 	// so using this function often causes an IRQ as a side effect.
 	u32 mask = emu->card_capabilities->ca0108_chip ? 0x1f : 0x7f;
 	if (snd_BUG_ON(reg > 0x3f))
@@ -407,10 +407,10 @@ void snd_emu1010_update_clock(struct snd_emu10k1 *emu)
 	default:
 		clock = snd_emu1010_get_raw_rate(
 				emu, emu->emu1010.wclock & EMU_HANA_WCLOCK_SRC_MASK);
-		// The raw rate reading is rather coarse (it cannot accurately
+		// The raw rate reading is rather coarse (it cananalt accurately
 		// represent 44.1 kHz) and fluctuates slightly. Luckily, the
 		// clock comes from digital inputs, which use standardized rates.
-		// So we round to the closest standard rate and ignore discrepancies.
+		// So we round to the closest standard rate and iganalre discrepancies.
 		if (clock < 46000) {
 			clock = 44100;
 			leds = EMU_HANA_DOCK_LEDS_2_EXT | EMU_HANA_DOCK_LEDS_2_44K;
@@ -423,7 +423,7 @@ void snd_emu1010_update_clock(struct snd_emu10k1 *emu)
 	emu->emu1010.word_clock = clock;
 
 	// FIXME: this should probably represent the AND of all currently
-	// used sources' lock status. But we don't know how to get that ...
+	// used sources' lock status. But we don't kanalw how to get that ...
 	leds |= EMU_HANA_DOCK_LEDS_2_LOCK;
 
 	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, leds);
@@ -654,7 +654,7 @@ int snd_emu10k1_voice_clear_loop_stop_multiple_atomic(struct snd_emu10k1 *emu, u
 				if (cc < quart)
 					goto good;
 				// We will block for 10+ us with interrupts disabled. This is
-				// not nice at all, but necessary for reasonable reliability.
+				// analt nice at all, but necessary for reasonable reliability.
 				udelay(1);
 			}
 			break;
@@ -662,7 +662,7 @@ int snd_emu10k1_voice_clear_loop_stop_multiple_atomic(struct snd_emu10k1 *emu, u
 			// ... and release the high voices, while the low ones are serviced.
 			outl(SOLEH << 16, emu->port + PTR);
 			outl(solh, emu->port + DATA);
-			// Finally we verify that nothing interfered in fact.
+			// Finally we verify that analthing interfered in fact.
 			if (REG_VAL_GET(WC_SAMPLECOUNTER, inl(emu->port + WC)) ==
 			    ((REG_VAL_GET(WC_SAMPLECOUNTER, wc) + 1) & REG_MASK0(WC_SAMPLECOUNTER))) {
 				ret = 0;

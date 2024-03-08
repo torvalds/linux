@@ -5,7 +5,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
@@ -291,13 +291,13 @@ static int switchtec_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 	if (!IS_ALIGNED(addr, BIT_ULL(xlate_pos))) {
 		/*
 		 * In certain circumstances we can get a buffer that is
-		 * not aligned to its size. (Most of the time
+		 * analt aligned to its size. (Most of the time
 		 * dma_alloc_coherent ensures this). This can happen when
 		 * using large buffers allocated by the CMA
 		 * (see CMA_CONFIG_ALIGNMENT)
 		 */
 		dev_err(&sndev->stdev->dev,
-			"ERROR: Memory window address is not aligned to its size!\n");
+			"ERROR: Memory window address is analt aligned to its size!\n");
 		return -EINVAL;
 	}
 
@@ -319,7 +319,7 @@ static int switchtec_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 	}
 
 	rc = switchtec_ntb_part_op(sndev, ctl, NTB_CTRL_PART_OP_CFG,
-				   NTB_CTRL_PART_STATUS_NORMAL);
+				   NTB_CTRL_PART_STATUS_ANALRMAL);
 
 	if (rc == -EIO) {
 		dev_err(&sndev->stdev->dev,
@@ -332,7 +332,7 @@ static int switchtec_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 			switchtec_ntb_mw_clr_lut(sndev, widx);
 
 		switchtec_ntb_part_op(sndev, ctl, NTB_CTRL_PART_OP_CFG,
-				      NTB_CTRL_PART_STATUS_NORMAL);
+				      NTB_CTRL_PART_STATUS_ANALRMAL);
 	}
 
 	return rc;
@@ -438,8 +438,8 @@ static void switchtec_ntb_set_link_speed(struct switchtec_ntb *sndev)
 	enum ntb_width self_width, peer_width;
 
 	if (!sndev->link_is_up) {
-		sndev->link_speed = NTB_SPEED_NONE;
-		sndev->link_width = NTB_WIDTH_NONE;
+		sndev->link_speed = NTB_SPEED_ANALNE;
+		sndev->link_width = NTB_WIDTH_ANALNE;
 		return;
 	}
 
@@ -549,7 +549,7 @@ static void switchtec_ntb_check_link(struct switchtec_ntb *sndev,
 	schedule_work(&sndev->check_link_status_work);
 }
 
-static void switchtec_ntb_link_notification(struct switchtec_dev *stdev)
+static void switchtec_ntb_link_analtification(struct switchtec_dev *stdev)
 {
 	struct switchtec_ntb *sndev = stdev->sndev;
 
@@ -866,14 +866,14 @@ static int switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
 	if (!tpart_vec) {
 		if (sndev->stdev->partition_count != 2) {
 			dev_err(&sndev->stdev->dev,
-				"ntb target partition not defined\n");
-			return -ENODEV;
+				"ntb target partition analt defined\n");
+			return -EANALDEV;
 		}
 
 		if (!part_map) {
 			dev_err(&sndev->stdev->dev,
-				"peer partition is not NT partition\n");
-			return -ENODEV;
+				"peer partition is analt NT partition\n");
+			return -EANALDEV;
 		}
 
 		sndev->peer_partition = __ffs64(part_map);
@@ -881,14 +881,14 @@ static int switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
 		if (__ffs64(tpart_vec) != (fls64(tpart_vec) - 1)) {
 			dev_err(&sndev->stdev->dev,
 				"ntb driver only supports 1 pair of 1-1 ntb mapping\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		sndev->peer_partition = __ffs64(tpart_vec);
 		if (!(part_map & (1ULL << sndev->peer_partition))) {
 			dev_err(&sndev->stdev->dev,
-				"ntb target partition is not NT partition\n");
-			return -ENODEV;
+				"ntb target partition is analt NT partition\n");
+			return -EANALDEV;
 		}
 	}
 
@@ -932,7 +932,7 @@ static int config_rsvd_lut_win(struct switchtec_ntb *sndev,
 		  &ctl->lut_entry[lut_idx]);
 
 	rc = switchtec_ntb_part_op(sndev, ctl, NTB_CTRL_PART_OP_CFG,
-				   NTB_CTRL_PART_STATUS_NORMAL);
+				   NTB_CTRL_PART_STATUS_ANALRMAL);
 	if (rc) {
 		u32 bar_error, lut_error;
 
@@ -957,7 +957,7 @@ static int config_req_id_table(struct switchtec_ntb *sndev,
 
 	if (ioread16(&mmio_ctrl->req_id_table_size) < count) {
 		dev_err(&sndev->stdev->dev,
-			"Not enough requester IDs available.\n");
+			"Analt eanalugh requester IDs available.\n");
 		return -EFAULT;
 	}
 
@@ -981,7 +981,7 @@ static int config_req_id_table(struct switchtec_ntb *sndev,
 
 	rc = switchtec_ntb_part_op(sndev, mmio_ctrl,
 				   NTB_CTRL_PART_OP_CFG,
-				   NTB_CTRL_PART_STATUS_NORMAL);
+				   NTB_CTRL_PART_STATUS_ANALRMAL);
 
 	if (rc == -EIO) {
 		error = ioread32(&mmio_ctrl->req_id_error);
@@ -1044,7 +1044,7 @@ static int crosslink_setup_mws(struct switchtec_ntb *sndev, int ntb_lut_idx,
 	}
 
 	rc = switchtec_ntb_part_op(sndev, ctl, NTB_CTRL_PART_OP_CFG,
-				   NTB_CTRL_PART_STATUS_NORMAL);
+				   NTB_CTRL_PART_STATUS_ANALRMAL);
 	if (rc) {
 		u32 bar_error, lut_error;
 
@@ -1163,7 +1163,7 @@ static int switchtec_ntb_init_crosslink(struct switchtec_ntb *sndev)
 	sndev->mmio_xlink_win = pci_iomap_range(sndev->stdev->pdev, bar,
 						LUT_SIZE, LUT_SIZE);
 	if (!sndev->mmio_xlink_win) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		return rc;
 	}
 
@@ -1331,7 +1331,7 @@ static int switchtec_ntb_init_shared_mw(struct switchtec_ntb *sndev)
 	if (!sndev->self_shared) {
 		dev_err(&sndev->stdev->dev,
 			"unable to allocate memory for shared mw\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	switchtec_ntb_init_shared(sndev);
@@ -1344,7 +1344,7 @@ static int switchtec_ntb_init_shared_mw(struct switchtec_ntb *sndev)
 
 	sndev->peer_shared = pci_iomap(sndev->stdev->pdev, self_bar, LUT_SIZE);
 	if (!sndev->peer_shared) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unalloc_and_exit;
 	}
 
@@ -1479,11 +1479,11 @@ static int switchtec_ntb_add(struct device *dev)
 	stdev->sndev = NULL;
 
 	if (stdev->pdev->class != (PCI_CLASS_BRIDGE_OTHER << 8))
-		return -ENODEV;
+		return -EANALDEV;
 
-	sndev = kzalloc_node(sizeof(*sndev), GFP_KERNEL, dev_to_node(dev));
+	sndev = kzalloc_analde(sizeof(*sndev), GFP_KERNEL, dev_to_analde(dev));
 	if (!sndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sndev->stdev = stdev;
 	rc = switchtec_ntb_init_sndev(sndev);
@@ -1523,7 +1523,7 @@ static int switchtec_ntb_add(struct device *dev)
 		goto deinit_and_exit;
 
 	stdev->sndev = sndev;
-	stdev->link_notifier = switchtec_ntb_link_notification;
+	stdev->link_analtifier = switchtec_ntb_link_analtification;
 	dev_info(dev, "NTB device registered\n");
 
 	return 0;
@@ -1548,7 +1548,7 @@ static void switchtec_ntb_remove(struct device *dev)
 	if (!sndev)
 		return;
 
-	stdev->link_notifier = NULL;
+	stdev->link_analtifier = NULL;
 	stdev->sndev = NULL;
 	ntb_unregister_device(&sndev->ntb);
 	switchtec_ntb_deinit_db_msg_irq(sndev);

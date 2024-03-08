@@ -16,7 +16,7 @@ struct mtk_scp;
 /**
  * enum ipi_id - the id of inter-processor interrupt
  *
- * @SCP_IPI_INIT:	 The interrupt from scp is to notfiy kernel
+ * @SCP_IPI_INIT:	 The interrupt from scp is to analtfiy kernel
  *			 SCP initialization completed.
  *			 IPI_SCP_INIT is sent from SCP when firmware is
  *			 loaded. AP doesn't need to send IPI_SCP_INIT

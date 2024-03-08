@@ -92,7 +92,7 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj);
  *
  * A pointer to the object named by the handle if such exists on @filp, NULL
  * otherwise. This object is only valid whilst under the RCU read lock, and
- * note carefully the object may be in the process of being destroyed.
+ * analte carefully the object may be in the process of being destroyed.
  */
 static inline struct drm_i915_gem_object *
 i915_gem_object_lookup_rcu(struct drm_file *file, u32 handle)
@@ -129,7 +129,7 @@ __deprecated
 struct drm_gem_object *
 drm_gem_object_lookup(struct drm_file *file, u32 handle);
 
-__attribute__((nonnull))
+__attribute__((analnnull))
 static inline struct drm_i915_gem_object *
 i915_gem_object_get(struct drm_i915_gem_object *obj)
 {
@@ -137,7 +137,7 @@ i915_gem_object_get(struct drm_i915_gem_object *obj)
 	return obj;
 }
 
-__attribute__((nonnull))
+__attribute__((analnnull))
 static inline void
 i915_gem_object_put(struct drm_i915_gem_object *obj)
 {
@@ -152,7 +152,7 @@ i915_gem_object_put(struct drm_i915_gem_object *obj)
 static inline void assert_object_held_shared(const struct drm_i915_gem_object *obj)
 {
 	/*
-	 * Note mm list lookup is protected by
+	 * Analte mm list lookup is protected by
 	 * kref_get_unless_zero().
 	 */
 	if (IS_ENABLED(CONFIG_LOCKDEP) &&
@@ -302,7 +302,7 @@ i915_gem_object_is_proxy(const struct drm_i915_gem_object *obj)
 static inline bool
 i915_gem_object_never_mmap(const struct drm_i915_gem_object *obj)
 {
-	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_NO_MMAP);
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_ANAL_MMAP);
 }
 
 static inline bool
@@ -320,7 +320,7 @@ i915_gem_object_get_tiling(const struct drm_i915_gem_object *obj)
 static inline bool
 i915_gem_object_is_tiled(const struct drm_i915_gem_object *obj)
 {
-	return i915_gem_object_get_tiling(obj) != I915_TILING_NONE;
+	return i915_gem_object_get_tiling(obj) != I915_TILING_ANALNE;
 }
 
 static inline unsigned int
@@ -647,7 +647,7 @@ i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
 	assert_object_held(obj);
 
-	if (atomic_inc_not_zero(&obj->mm.pages_pin_count))
+	if (atomic_inc_analt_zero(&obj->mm.pages_pin_count))
 		return 0;
 
 	return __i915_gem_object_get_pages(obj);
@@ -704,7 +704,7 @@ int i915_gem_object_truncate(struct drm_i915_gem_object *obj);
  * set to either WriteBack or WriteCombine (via pgprot_t).
  *
  * The caller is responsible for calling i915_gem_object_unpin_map() when the
- * mapping is no longer required.
+ * mapping is anal longer required.
  *
  * Returns the pointer through which to access the mapped object, or an
  * ERR_PTR() on error.
@@ -757,7 +757,7 @@ int i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj,
 				     struct dma_fence **fence);
 int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
 				      bool intr);
-bool i915_gem_object_has_unknown_state(struct drm_i915_gem_object *obj);
+bool i915_gem_object_has_unkanalwn_state(struct drm_i915_gem_object *obj);
 
 void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 					 unsigned int cache_level);
@@ -846,11 +846,11 @@ void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
 			 bool dirty, bool backup);
 void __shmem_writeback(size_t size, struct address_space *mapping);
 
-#ifdef CONFIG_MMU_NOTIFIER
+#ifdef CONFIG_MMU_ANALTIFIER
 static inline bool
 i915_gem_object_is_userptr(struct drm_i915_gem_object *obj)
 {
-	return obj->userptr.notifier.mm;
+	return obj->userptr.analtifier.mm;
 }
 
 int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj);
@@ -859,9 +859,9 @@ int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj);
 #else
 static inline bool i915_gem_object_is_userptr(struct drm_i915_gem_object *obj) { return false; }
 
-static inline int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
-static inline int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
-static inline int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
+static inline int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -EANALDEV; }
+static inline int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -EANALDEV; }
+static inline int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -EANALDEV; }
 
 #endif
 

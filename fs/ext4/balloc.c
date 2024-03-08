@@ -43,7 +43,7 @@ ext4_group_t ext4_get_group_number(struct super_block *sb,
 			 le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block)) >>
 			(EXT4_BLOCK_SIZE_BITS(sb) + EXT4_CLUSTER_BITS(sb) + 3);
 	else
-		ext4_get_group_no_and_offset(sb, block, &group, NULL);
+		ext4_get_group_anal_and_offset(sb, block, &group, NULL);
 	return group;
 }
 
@@ -51,7 +51,7 @@ ext4_group_t ext4_get_group_number(struct super_block *sb,
  * Calculate the block group number and offset into the block/cluster
  * allocation bitmap, given a block number
  */
-void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
+void ext4_get_group_anal_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
 		ext4_group_t *blockgrpp, ext4_grpblk_t *offsetp)
 {
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
@@ -90,9 +90,9 @@ static unsigned ext4_num_overhead_clusters(struct super_block *sb,
 					   struct ext4_group_desc *gdp)
 {
 	unsigned base_clusters, num_clusters;
-	int block_cluster = -1, inode_cluster;
+	int block_cluster = -1, ianalde_cluster;
 	int itbl_cluster_start = -1, itbl_cluster_end = -1;
-	ext4_fsblk_t start = ext4_group_first_block_no(sb, block_group);
+	ext4_fsblk_t start = ext4_group_first_block_anal(sb, block_group);
 	ext4_fsblk_t end = start + EXT4_BLOCKS_PER_GROUP(sb) - 1;
 	ext4_fsblk_t itbl_blk_start, itbl_blk_end;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -104,12 +104,12 @@ static unsigned ext4_num_overhead_clusters(struct super_block *sb,
 	num_clusters = base_clusters;
 
 	/*
-	 * Account and record inode table clusters if any cluster
-	 * is in the block group, or inode table cluster range is
-	 * [-1, -1] and won't overlap with block/inode bitmap cluster
+	 * Account and record ianalde table clusters if any cluster
+	 * is in the block group, or ianalde table cluster range is
+	 * [-1, -1] and won't overlap with block/ianalde bitmap cluster
 	 * accounted below.
 	 */
-	itbl_blk_start = ext4_inode_table(sb, gdp);
+	itbl_blk_start = ext4_ianalde_table(sb, gdp);
 	itbl_blk_end = itbl_blk_start + sbi->s_itb_per_group - 1;
 	if (itbl_blk_start <= end && itbl_blk_end >= start) {
 		itbl_blk_start = max(itbl_blk_start, start);
@@ -128,8 +128,8 @@ static unsigned ext4_num_overhead_clusters(struct super_block *sb,
 	 * For the allocation bitmaps, we first need to check to see
 	 * if the block is in the block group.  If it is, then check
 	 * to see if the cluster is already accounted for in the clusters
-	 * used for the base metadata cluster and inode tables cluster.
-	 * Normally all of these blocks are contiguous, so the special
+	 * used for the base metadata cluster and ianalde tables cluster.
+	 * Analrmally all of these blocks are contiguous, so the special
 	 * case handling shouldn't be necessary except for *very*
 	 * unusual file system layouts.
 	 */
@@ -142,17 +142,17 @@ static unsigned ext4_num_overhead_clusters(struct super_block *sb,
 			num_clusters++;
 	}
 
-	if (ext4_block_in_group(sb, ext4_inode_bitmap(sb, gdp), block_group)) {
-		inode_cluster = EXT4_B2C(sbi,
-					 ext4_inode_bitmap(sb, gdp) - start);
+	if (ext4_block_in_group(sb, ext4_ianalde_bitmap(sb, gdp), block_group)) {
+		ianalde_cluster = EXT4_B2C(sbi,
+					 ext4_ianalde_bitmap(sb, gdp) - start);
 		/*
-		 * Additional check if inode bitmap is in just accounted
+		 * Additional check if ianalde bitmap is in just accounted
 		 * block_cluster
 		 */
-		if (inode_cluster != block_cluster &&
-		    inode_cluster >= base_clusters &&
-		    (inode_cluster < itbl_cluster_start ||
-		    inode_cluster > itbl_cluster_end))
+		if (ianalde_cluster != block_cluster &&
+		    ianalde_cluster >= base_clusters &&
+		    (ianalde_cluster < itbl_cluster_start ||
+		    ianalde_cluster > itbl_cluster_end))
 			num_clusters++;
 	}
 
@@ -172,7 +172,7 @@ static unsigned int num_clusters_in_group(struct super_block *sb,
 		 * blocks.
 		 */
 		blocks = ext4_blocks_count(EXT4_SB(sb)->s_es) -
-			ext4_group_first_block_no(sb, block_group);
+			ext4_group_first_block_anal(sb, block_group);
 	} else
 		blocks = EXT4_BLOCKS_PER_GROUP(sb);
 	return EXT4_NUM_B2C(EXT4_SB(sb), blocks);
@@ -205,19 +205,19 @@ static int ext4_init_block_bitmap(struct super_block *sb,
 	for (bit = 0; bit < bit_max; bit++)
 		ext4_set_bit(bit, bh->b_data);
 
-	start = ext4_group_first_block_no(sb, block_group);
+	start = ext4_group_first_block_anal(sb, block_group);
 
-	/* Set bits for block and inode bitmaps, and inode table */
+	/* Set bits for block and ianalde bitmaps, and ianalde table */
 	tmp = ext4_block_bitmap(sb, gdp);
 	if (ext4_block_in_group(sb, tmp, block_group))
 		ext4_set_bit(EXT4_B2C(sbi, tmp - start), bh->b_data);
 
-	tmp = ext4_inode_bitmap(sb, gdp);
+	tmp = ext4_ianalde_bitmap(sb, gdp);
 	if (ext4_block_in_group(sb, tmp, block_group))
 		ext4_set_bit(EXT4_B2C(sbi, tmp - start), bh->b_data);
 
-	tmp = ext4_inode_table(sb, gdp);
-	for (; tmp < ext4_inode_table(sb, gdp) +
+	tmp = ext4_ianalde_table(sb, gdp);
+	for (; tmp < ext4_ianalde_table(sb, gdp) +
 		     sbi->s_itb_per_group; tmp++) {
 		if (ext4_block_in_group(sb, tmp, block_group))
 			ext4_set_bit(EXT4_B2C(sbi, tmp - start), bh->b_data);
@@ -247,7 +247,7 @@ unsigned ext4_free_clusters_after_init(struct super_block *sb,
 /*
  * The free blocks are managed by bitmaps.  A file system contains several
  * blocks groups.  Each group contains 1 bitmap block for blocks, 1 bitmap
- * block for inodes, N blocks for the inode table and data blocks.
+ * block for ianaldes, N blocks for the ianalde table and data blocks.
  *
  * The file system contains group descriptors which are located after the
  * super block.  Each descriptor contains the number of the bitmap block and
@@ -293,7 +293,7 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block *sb,
 	 * just the pointer, and so it remains valid.
 	 */
 	if (!bh_p) {
-		ext4_error(sb, "Group descriptor not loaded - "
+		ext4_error(sb, "Group descriptor analt loaded - "
 			   "block_group = %u, group_desc = %u, desc = %u",
 			   block_group, group_desc, offset);
 		return NULL;
@@ -354,15 +354,15 @@ static ext4_fsblk_t ext4_valid_block_bitmap(struct super_block *sb,
 	ext4_fsblk_t group_first_block;
 
 	if (ext4_has_feature_flex_bg(sb)) {
-		/* with FLEX_BG, the inode/block bitmaps and itable
-		 * blocks may not be in the group at all
+		/* with FLEX_BG, the ianalde/block bitmaps and itable
+		 * blocks may analt be in the group at all
 		 * so the bitmap validation will be skipped for those groups
 		 * or it has to also read the block group where the bitmaps
 		 * are located to verify they are set.
 		 */
 		return 0;
 	}
-	group_first_block = ext4_group_first_block_no(sb, block_group);
+	group_first_block = ext4_group_first_block_anal(sb, block_group);
 
 	/* check whether block bitmap block number is set */
 	blk = ext4_block_bitmap(sb, desc);
@@ -372,16 +372,16 @@ static ext4_fsblk_t ext4_valid_block_bitmap(struct super_block *sb,
 		/* bad block bitmap */
 		return blk;
 
-	/* check whether the inode bitmap block number is set */
-	blk = ext4_inode_bitmap(sb, desc);
+	/* check whether the ianalde bitmap block number is set */
+	blk = ext4_ianalde_bitmap(sb, desc);
 	offset = blk - group_first_block;
 	if (offset < 0 || EXT4_B2C(sbi, offset) >= max_bit ||
 	    !ext4_test_bit(EXT4_B2C(sbi, offset), bh->b_data))
 		/* bad block bitmap */
 		return blk;
 
-	/* check whether the inode table block number is set */
-	blk = ext4_inode_table(sb, desc);
+	/* check whether the ianalde table block number is set */
+	blk = ext4_ianalde_table(sb, desc);
 	offset = blk - group_first_block;
 	if (offset < 0 || EXT4_B2C(sbi, offset) >= max_bit ||
 	    EXT4_B2C(sbi, offset + sbi->s_itb_per_group - 1) >= max_bit)
@@ -391,7 +391,7 @@ static ext4_fsblk_t ext4_valid_block_bitmap(struct super_block *sb,
 			EXT4_B2C(sbi, offset));
 	if (next_zero_bit <
 	    EXT4_B2C(sbi, offset + sbi->s_itb_per_group - 1) + 1)
-		/* bad bitmap for inode tables */
+		/* bad bitmap for ianalde tables */
 		return blk;
 	return 0;
 }
@@ -437,7 +437,7 @@ static int ext4_validate_block_bitmap(struct super_block *sb,
 	blk = ext4_valid_block_bitmap_padding(sb, block_group, bh);
 	if (unlikely(blk != 0)) {
 		ext4_unlock_group(sb, block_group);
-		ext4_error(sb, "bg %u: block %llu: padding at end of block bitmap is not set",
+		ext4_error(sb, "bg %u: block %llu: padding at end of block bitmap is analt set",
 			   block_group, blk);
 		ext4_mark_group_bitmap_corrupted(sb, block_group,
 						 EXT4_GROUP_INFO_BBITMAP_CORRUPT);
@@ -450,19 +450,19 @@ verified:
 }
 
 /**
- * ext4_read_block_bitmap_nowait()
+ * ext4_read_block_bitmap_analwait()
  * @sb:			super block
  * @block_group:	given block group
- * @ignore_locked:	ignore locked buffers
+ * @iganalre_locked:	iganalre locked buffers
  *
  * Read the bitmap for a given block_group,and validate the
- * bits for block/inode/inode tables are set in the bitmaps
+ * bits for block/ianalde/ianalde tables are set in the bitmaps
  *
  * Return buffer_head on success or an ERR_PTR in case of failure.
  */
 struct buffer_head *
-ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group,
-			      bool ignore_locked)
+ext4_read_block_bitmap_analwait(struct super_block *sb, ext4_group_t block_group,
+			      bool iganalre_locked)
 {
 	struct ext4_group_desc *desc;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -470,8 +470,8 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group,
 	ext4_fsblk_t bitmap_blk;
 	int err;
 
-	KUNIT_STATIC_STUB_REDIRECT(ext4_read_block_bitmap_nowait,
-				   sb, block_group, ignore_locked);
+	KUNIT_STATIC_STUB_REDIRECT(ext4_read_block_bitmap_analwait,
+				   sb, block_group, iganalre_locked);
 
 	desc = ext4_get_group_desc(sb, block_group, NULL);
 	if (!desc)
@@ -487,13 +487,13 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group,
 	}
 	bh = sb_getblk(sb, bitmap_blk);
 	if (unlikely(!bh)) {
-		ext4_warning(sb, "Cannot get buffer for block bitmap - "
+		ext4_warning(sb, "Cananalt get buffer for block bitmap - "
 			     "block_group = %u, block_bitmap = %llu",
 			     block_group, bitmap_blk);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
-	if (ignore_locked && buffer_locked(bh)) {
+	if (iganalre_locked && buffer_locked(bh)) {
 		/* buffer under IO already, return if called for prefetching */
 		put_bh(bh);
 		return NULL;
@@ -536,7 +536,7 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group,
 	ext4_unlock_group(sb, block_group);
 	if (buffer_uptodate(bh)) {
 		/*
-		 * if not uninit if bh is uptodate,
+		 * if analt uninit if bh is uptodate,
 		 * bitmap is also uptodate
 		 */
 		set_bitmap_uptodate(bh);
@@ -547,9 +547,9 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group,
 	 * submit the buffer_head for reading
 	 */
 	set_buffer_new(bh);
-	trace_ext4_read_block_bitmap_load(sb, block_group, ignore_locked);
-	ext4_read_bh_nowait(bh, REQ_META | REQ_PRIO |
-			    (ignore_locked ? REQ_RAHEAD : 0),
+	trace_ext4_read_block_bitmap_load(sb, block_group, iganalre_locked);
+	ext4_read_bh_analwait(bh, REQ_META | REQ_PRIO |
+			    (iganalre_locked ? REQ_RAHEAD : 0),
 			    ext4_end_bitmap_read);
 	return bh;
 verify:
@@ -562,7 +562,7 @@ out:
 	return ERR_PTR(err);
 }
 
-/* Returns 0 on success, -errno on error */
+/* Returns 0 on success, -erranal on error */
 int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 			   struct buffer_head *bh)
 {
@@ -579,7 +579,7 @@ int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 	wait_on_buffer(bh);
 	ext4_simulate_fail_bh(sb, bh, EXT4_SIM_BBITMAP_EIO);
 	if (!buffer_uptodate(bh)) {
-		ext4_error_err(sb, EIO, "Cannot read block bitmap - "
+		ext4_error_err(sb, EIO, "Cananalt read block bitmap - "
 			       "block_group = %u, block_bitmap = %llu",
 			       block_group, (unsigned long long) bh->b_blocknr);
 		ext4_mark_group_bitmap_corrupted(sb, block_group,
@@ -597,7 +597,7 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	struct buffer_head *bh;
 	int err;
 
-	bh = ext4_read_block_bitmap_nowait(sb, block_group, false);
+	bh = ext4_read_block_bitmap_analwait(sb, block_group, false);
 	if (IS_ERR(bh))
 		return bh;
 	err = ext4_wait_block_bitmap(sb, block_group, bh);
@@ -646,7 +646,7 @@ static int ext4_has_free_clusters(struct ext4_sb_info *sbi,
 	if (free_clusters >= (rsv + nclusters + dirty_clusters))
 		return 1;
 
-	/* Hm, nope.  Are (enough) root reserved clusters available? */
+	/* Hm, analpe.  Are (eanalugh) root reserved clusters available? */
 	if (uid_eq(sbi->s_resuid, current_fsuid()) ||
 	    (!gid_eq(sbi->s_resgid, GLOBAL_ROOT_GID) && in_group_p(sbi->s_resgid)) ||
 	    capable(CAP_SYS_RESOURCE) ||
@@ -656,7 +656,7 @@ static int ext4_has_free_clusters(struct ext4_sb_info *sbi,
 				      resv_clusters))
 			return 1;
 	}
-	/* No free blocks. Let's see if we can dip into reserved pool */
+	/* Anal free blocks. Let's see if we can dip into reserved pool */
 	if (flags & EXT4_MB_USE_RESERVED) {
 		if (free_clusters >= (nclusters + dirty_clusters))
 			return 1;
@@ -672,7 +672,7 @@ int ext4_claim_free_clusters(struct ext4_sb_info *sbi,
 		percpu_counter_add(&sbi->s_dirtyclusters_counter, nclusters);
 		return 0;
 	} else
-		return -ENOSPC;
+		return -EANALSPC;
 }
 
 /**
@@ -680,9 +680,9 @@ int ext4_claim_free_clusters(struct ext4_sb_info *sbi,
  * @sb:			superblock
  * @retries:		number of retry attempts made so far
  *
- * ext4_should_retry_alloc() is called when ENOSPC is returned while
+ * ext4_should_retry_alloc() is called when EANALSPC is returned while
  * attempting to allocate blocks.  If there's an indication that a pending
- * journal transaction might free some space and allow another attempt to
+ * journal transaction might free some space and allow aanalther attempt to
  * succeed, this function will wait for the current or committing transaction
  * to complete and then return TRUE.
  */
@@ -699,7 +699,7 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 	}
 
 	/*
-	 * if there's no indication that blocks are about to be freed it's
+	 * if there's anal indication that blocks are about to be freed it's
 	 * possible we just missed a transaction commit that did so
 	 */
 	smp_mb();
@@ -714,9 +714,9 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 
 	/*
 	 * it's possible we've just missed a transaction commit here,
-	 * so ignore the returned status
+	 * so iganalre the returned status
 	 */
-	ext4_debug("%s: retrying operation after ENOSPC\n", sb->s_id);
+	ext4_debug("%s: retrying operation after EANALSPC\n", sb->s_id);
 	(void) jbd2_journal_force_commit_nested(sbi->s_journal);
 	return 1;
 }
@@ -725,7 +725,7 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
  * ext4_new_meta_blocks() -- allocate block for meta data (indexing) blocks
  *
  * @handle:             handle to this transaction
- * @inode:              file inode
+ * @ianalde:              file ianalde
  * @goal:               given target block(filesystem wide)
  * @count:		pointer to total number of clusters needed
  * @errp:               error code
@@ -733,7 +733,7 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
  * Return 1st allocated block number on success, *count stores total account
  * error stores in errp pointer
  */
-ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
+ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct ianalde *ianalde,
 				  ext4_fsblk_t goal, unsigned int flags,
 				  unsigned long *count, int *errp)
 {
@@ -742,7 +742,7 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 
 	memset(&ar, 0, sizeof(ar));
 	/* Fill with neighbour allocated blocks */
-	ar.inode = inode;
+	ar.ianalde = ianalde;
 	ar.goal = goal;
 	ar.len = count ? *count : 1;
 	ar.flags = flags;
@@ -755,8 +755,8 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 	 * fail EDQUOT for metdata, but we do account for it.
 	 */
 	if (!(*errp) && (flags & EXT4_MB_DELALLOC_RESERVED)) {
-		dquot_alloc_block_nofail(inode,
-				EXT4_C2B(EXT4_SB(inode->i_sb), ar.len));
+		dquot_alloc_block_analfail(ianalde,
+				EXT4_C2B(EXT4_SB(ianalde->i_sb), ar.len));
 	}
 	return ret;
 }
@@ -886,7 +886,7 @@ static unsigned long ext4_bg_num_gdb_meta(struct super_block *sb,
 	return 0;
 }
 
-static unsigned long ext4_bg_num_gdb_nometa(struct super_block *sb,
+static unsigned long ext4_bg_num_gdb_analmeta(struct super_block *sb,
 					ext4_group_t group)
 {
 	if (!ext4_bg_has_super(sb, group))
@@ -914,7 +914,7 @@ unsigned long ext4_bg_num_gdb(struct super_block *sb, ext4_group_t group)
 	unsigned long metagroup = group / EXT4_DESC_PER_BLOCK(sb);
 
 	if (!ext4_has_feature_meta_bg(sb) || metagroup < first_meta_bg)
-		return ext4_bg_num_gdb_nometa(sb, group);
+		return ext4_bg_num_gdb_analmeta(sb, group);
 
 	return ext4_bg_num_gdb_meta(sb,group);
 
@@ -937,7 +937,7 @@ unsigned int ext4_num_base_meta_blocks(struct super_block *sb,
 	    block_group < le32_to_cpu(sbi->s_es->s_first_meta_bg) *
 			  sbi->s_desc_per_block) {
 		if (num) {
-			num += ext4_bg_num_gdb_nometa(sb, block_group);
+			num += ext4_bg_num_gdb_analmeta(sb, block_group);
 			num += le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks);
 		}
 	} else { /* For META_BG_BLOCK_GROUPS */
@@ -953,18 +953,18 @@ static unsigned int ext4_num_base_meta_clusters(struct super_block *sb,
 }
 
 /**
- *	ext4_inode_to_goal_block - return a hint for block allocation
- *	@inode: inode for block allocation
+ *	ext4_ianalde_to_goal_block - return a hint for block allocation
+ *	@ianalde: ianalde for block allocation
  *
  *	Return the ideal location to start allocating blocks for a
- *	newly created inode.
+ *	newly created ianalde.
  */
-ext4_fsblk_t ext4_inode_to_goal_block(struct inode *inode)
+ext4_fsblk_t ext4_ianalde_to_goal_block(struct ianalde *ianalde)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 	ext4_group_t block_group;
 	ext4_grpblk_t colour;
-	int flex_size = ext4_flex_bg_size(EXT4_SB(inode->i_sb));
+	int flex_size = ext4_flex_bg_size(EXT4_SB(ianalde->i_sb));
 	ext4_fsblk_t bg_start;
 	ext4_fsblk_t last_block;
 
@@ -979,22 +979,22 @@ ext4_fsblk_t ext4_inode_to_goal_block(struct inode *inode)
 		 * fsck times.
 		 */
 		block_group &= ~(flex_size-1);
-		if (S_ISREG(inode->i_mode))
+		if (S_ISREG(ianalde->i_mode))
 			block_group++;
 	}
-	bg_start = ext4_group_first_block_no(inode->i_sb, block_group);
-	last_block = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es) - 1;
+	bg_start = ext4_group_first_block_anal(ianalde->i_sb, block_group);
+	last_block = ext4_blocks_count(EXT4_SB(ianalde->i_sb)->s_es) - 1;
 
 	/*
 	 * If we are doing delayed allocation, we don't need take
 	 * colour into account.
 	 */
-	if (test_opt(inode->i_sb, DELALLOC))
+	if (test_opt(ianalde->i_sb, DELALLOC))
 		return bg_start;
 
-	if (bg_start + EXT4_BLOCKS_PER_GROUP(inode->i_sb) <= last_block)
+	if (bg_start + EXT4_BLOCKS_PER_GROUP(ianalde->i_sb) <= last_block)
 		colour = (task_pid_nr(current) % 16) *
-			(EXT4_BLOCKS_PER_GROUP(inode->i_sb) / 16);
+			(EXT4_BLOCKS_PER_GROUP(ianalde->i_sb) / 16);
 	else
 		colour = (task_pid_nr(current) % 16) *
 			((last_block - bg_start) / 16);

@@ -17,7 +17,7 @@
 #define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <fcntl.h>
 #include <sched.h>
@@ -90,7 +90,7 @@ static int attach_reuseport(int sock_fd, struct bpf_program *reuseport_prog)
 
 	prog_fd = bpf_program__fd(reuseport_prog);
 	if (prog_fd < 0) {
-		errno = -prog_fd;
+		erranal = -prog_fd;
 		return -1;
 	}
 
@@ -246,7 +246,7 @@ static __u64 socket_cookie(int fd)
 	socklen_t cookie_len = sizeof(cookie);
 
 	if (CHECK(getsockopt(fd, SOL_SOCKET, SO_COOKIE, &cookie, &cookie_len) < 0,
-		  "getsockopt(SO_COOKIE)", "%s\n", strerror(errno)))
+		  "getsockopt(SO_COOKIE)", "%s\n", strerror(erranal)))
 		return 0;
 	return cookie;
 }
@@ -286,7 +286,7 @@ static int send_byte(int fd)
 {
 	ssize_t n;
 
-	errno = 0;
+	erranal = 0;
 	n = send(fd, "a", 1, 0);
 	if (CHECK(n <= 0, "send_byte", "send")) {
 		log_err("failed/partial send");
@@ -376,7 +376,7 @@ static int udp_recv_send(int server_fd)
 	msg.msg_control = cmsg_buf;
 	msg.msg_controllen = sizeof(cmsg_buf);
 
-	errno = 0;
+	erranal = 0;
 	n = recvmsg(server_fd, &msg, 0);
 	if (CHECK(n <= 0, "recvmsg", "failed\n")) {
 		log_err("failed to receive");
@@ -393,7 +393,7 @@ static int udp_recv_send(int server_fd)
 			dst_addr = (struct sockaddr_storage *)CMSG_DATA(cm);
 			break;
 		}
-		log_err("warning: ignored cmsg at level %d type %d",
+		log_err("warning: iganalred cmsg at level %d type %d",
 			cm->cmsg_level, cm->cmsg_type);
 	}
 	if (CHECK(!dst_addr, "recvmsg", "missing ORIGDSTADDR\n"))
@@ -480,7 +480,7 @@ static struct bpf_link *attach_lookup_prog(struct bpf_program *prog)
 
 	link = bpf_program__attach_netns(prog, net_fd);
 	if (!ASSERT_OK_PTR(link, "bpf_program__attach_netns")) {
-		errno = -PTR_ERR(link);
+		erranal = -PTR_ERR(link);
 		log_err("failed to attach program '%s' to netns",
 			bpf_program__name(prog));
 		link = NULL;
@@ -497,13 +497,13 @@ static int update_lookup_map(struct bpf_map *map, int index, int sock_fd)
 
 	map_fd = bpf_map__fd(map);
 	if (CHECK(map_fd < 0, "bpf_map__fd", "failed\n")) {
-		errno = -map_fd;
+		erranal = -map_fd;
 		log_err("failed to get map FD");
 		return -1;
 	}
 
 	value = (uint64_t)sock_fd;
-	err = bpf_map_update_elem(map_fd, &index, &value, BPF_NOEXIST);
+	err = bpf_map_update_elem(map_fd, &index, &value, BPF_ANALEXIST);
 	if (CHECK(err, "bpf_map_update_elem", "failed\n")) {
 		log_err("failed to update redir_map @ %d", index);
 		return -1;
@@ -546,7 +546,7 @@ static void query_lookup_prog(struct test_sk_lookup *skel)
 		goto detach;
 	}
 
-	errno = 0;
+	erranal = 0;
 	if (CHECK(attach_flags != 0, "bpf_prog_query",
 		  "wrong attach_flags on query: %u", attach_flags))
 		goto detach;
@@ -557,32 +557,32 @@ static void query_lookup_prog(struct test_sk_lookup *skel)
 	CHECK(prog_ids[0] != prog_id, "bpf_prog_query",
 	      "invalid program #0 id on query: %u != %u\n",
 	      prog_ids[0], prog_id);
-	CHECK(info.netns.netns_ino == 0, "netns_ino",
-	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+	CHECK(info.netns.netns_ianal == 0, "netns_ianal",
+	      "unexpected netns_ianal: %u\n", info.netns.netns_ianal);
 	prog_id = link_info_prog_id(link[1], &info);
 	CHECK(prog_ids[1] != prog_id, "bpf_prog_query",
 	      "invalid program #1 id on query: %u != %u\n",
 	      prog_ids[1], prog_id);
-	CHECK(info.netns.netns_ino == 0, "netns_ino",
-	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+	CHECK(info.netns.netns_ianal == 0, "netns_ianal",
+	      "unexpected netns_ianal: %u\n", info.netns.netns_ianal);
 	prog_id = link_info_prog_id(link[2], &info);
 	CHECK(prog_ids[2] != prog_id, "bpf_prog_query",
 	      "invalid program #2 id on query: %u != %u\n",
 	      prog_ids[2], prog_id);
-	CHECK(info.netns.netns_ino == 0, "netns_ino",
-	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+	CHECK(info.netns.netns_ianal == 0, "netns_ianal",
+	      "unexpected netns_ianal: %u\n", info.netns.netns_ianal);
 
 	err = bpf_link__detach(link[0]);
 	if (CHECK(err, "link_detach", "failed %d\n", err))
 		goto detach;
 
-	/* prog id is still there, but netns_ino is zeroed out */
+	/* prog id is still there, but netns_ianal is zeroed out */
 	prog_id = link_info_prog_id(link[0], &info);
 	CHECK(prog_ids[0] != prog_id, "bpf_prog_query",
 	      "invalid program #0 id on query: %u != %u\n",
 	      prog_ids[0], prog_id);
-	CHECK(info.netns.netns_ino != 0, "netns_ino",
-	      "unexpected netns_ino: %u\n", info.netns.netns_ino);
+	CHECK(info.netns.netns_ianal != 0, "netns_ianal",
+	      "unexpected netns_ianal: %u\n", info.netns.netns_ianal);
 
 detach:
 	if (link[2])
@@ -617,7 +617,7 @@ static void run_lookup_prog(const struct test *t)
 		if (err)
 			goto close;
 
-		/* want just one server for non-reuseport test */
+		/* want just one server for analn-reuseport test */
 		if (!t->reuseport_prog)
 			break;
 	}
@@ -625,7 +625,7 @@ static void run_lookup_prog(const struct test *t)
 	/* Regular UDP socket lookup with reuseport behaves
 	 * differently when reuseport group contains connected
 	 * sockets. Check that adding a connected UDP socket to the
-	 * reuseport group does not affect how reuseport works with
+	 * reuseport group does analt affect how reuseport works with
 	 * BPF socket lookup.
 	 */
 	if (t->reuseport_has_conns) {
@@ -641,10 +641,10 @@ static void run_lookup_prog(const struct test *t)
 
 		/* Connect the extra socket to itself */
 		err = getsockname(reuse_conn_fd, (void *)&addr, &len);
-		if (CHECK(err, "getsockname", "errno %d\n", errno))
+		if (CHECK(err, "getsockname", "erranal %d\n", erranal))
 			goto close;
 		err = connect(reuse_conn_fd, (void *)&addr, len);
-		if (CHECK(err, "connect", "errno %d\n", errno))
+		if (CHECK(err, "connect", "erranal %d\n", erranal))
 			goto close;
 	}
 
@@ -699,7 +699,7 @@ static void test_redirect_lookup(struct test_sk_lookup *skel)
 		},
 		{
 			.desc		= "TCP IPv4 redir skip reuseport",
-			.lookup_prog	= skel->progs.select_sock_a_no_reuseport,
+			.lookup_prog	= skel->progs.select_sock_a_anal_reuseport,
 			.reuseport_prog	= skel->progs.select_sock_b,
 			.sock_map	= skel->maps.redir_map,
 			.sotype		= SOCK_STREAM,
@@ -743,7 +743,7 @@ static void test_redirect_lookup(struct test_sk_lookup *skel)
 		},
 		{
 			.desc		= "TCP IPv6 redir skip reuseport",
-			.lookup_prog	= skel->progs.select_sock_a_no_reuseport,
+			.lookup_prog	= skel->progs.select_sock_a_anal_reuseport,
 			.reuseport_prog	= skel->progs.select_sock_b,
 			.sock_map	= skel->maps.redir_map,
 			.sotype		= SOCK_STREAM,
@@ -790,7 +790,7 @@ static void test_redirect_lookup(struct test_sk_lookup *skel)
 		},
 		{
 			.desc		= "UDP IPv4 redir skip reuseport",
-			.lookup_prog	= skel->progs.select_sock_a_no_reuseport,
+			.lookup_prog	= skel->progs.select_sock_a_anal_reuseport,
 			.reuseport_prog	= skel->progs.select_sock_b,
 			.sock_map	= skel->maps.redir_map,
 			.sotype		= SOCK_DGRAM,
@@ -845,7 +845,7 @@ static void test_redirect_lookup(struct test_sk_lookup *skel)
 		},
 		{
 			.desc		= "UDP IPv6 redir skip reuseport",
-			.lookup_prog	= skel->progs.select_sock_a_no_reuseport,
+			.lookup_prog	= skel->progs.select_sock_a_anal_reuseport,
 			.reuseport_prog	= skel->progs.select_sock_b,
 			.sock_map	= skel->maps.redir_map,
 			.sotype		= SOCK_DGRAM,
@@ -889,11 +889,11 @@ static void drop_on_lookup(const struct test *t)
 		if (err)
 			goto close_all;
 
-		/* Read out asynchronous error */
+		/* Read out asynchroanalus error */
 		n = recv(client_fd, NULL, 0, 0);
 		err = n == -1;
 	}
-	if (CHECK(!err || errno != ECONNREFUSED, "connect",
+	if (CHECK(!err || erranal != ECONNREFUSED, "connect",
 		  "unexpected success or error\n"))
 		log_err("expected ECONNREFUSED on connect");
 
@@ -1013,11 +1013,11 @@ static void drop_on_reuseport(const struct test *t)
 		if (err)
 			goto close_all;
 
-		/* Read out asynchronous error */
+		/* Read out asynchroanalus error */
 		n = recv(client, NULL, 0, 0);
 		err = n == -1;
 	}
-	if (CHECK(!err || errno != ECONNREFUSED, "connect",
+	if (CHECK(!err || erranal != ECONNREFUSED, "connect",
 		  "unexpected success or error\n"))
 		log_err("expected ECONNREFUSED on connect");
 
@@ -1116,10 +1116,10 @@ static void run_sk_assign(struct test_sk_lookup *skel,
 		return;
 
 	err = bpf_prog_test_run_opts(bpf_program__fd(lookup_prog), &opts);
-	if (CHECK(err, "test_run", "failed with error %d\n", errno))
+	if (CHECK(err, "test_run", "failed with error %d\n", erranal))
 		goto close_servers;
 
-	if (CHECK(ctx.cookie == 0, "ctx.cookie", "no socket selected\n"))
+	if (CHECK(ctx.cookie == 0, "ctx.cookie", "anal socket selected\n"))
 		goto close_servers;
 
 	CHECK(ctx.cookie != server_cookie, "ctx.cookie",
@@ -1163,7 +1163,7 @@ static void run_sk_assign_connected(struct test_sk_lookup *skel,
 	if (err)
 		goto out_close_connected;
 
-	lookup_link = attach_lookup_prog(skel->progs.sk_assign_esocknosupport);
+	lookup_link = attach_lookup_prog(skel->progs.sk_assign_esockanalsupport);
 	if (!lookup_link)
 		goto out_close_connected;
 
@@ -1189,7 +1189,7 @@ static void test_sk_assign_helper(struct test_sk_lookup *skel)
 {
 	if (test__start_subtest("sk_assign returns EEXIST"))
 		run_sk_assign_v4(skel, skel->progs.sk_assign_eexist);
-	if (test__start_subtest("sk_assign honors F_REPLACE"))
+	if (test__start_subtest("sk_assign hoanalrs F_REPLACE"))
 		run_sk_assign_v4(skel, skel->progs.sk_assign_replace_flag);
 	if (test__start_subtest("sk_assign accepts NULL socket"))
 		run_sk_assign_v4(skel, skel->progs.sk_assign_null);
@@ -1211,7 +1211,7 @@ struct test_multi_prog {
 	struct bpf_program *prog2;
 	struct bpf_map *redir_map;
 	struct bpf_map *run_map;
-	int expect_errno;
+	int expect_erranal;
 	struct inet_addr listen_at;
 };
 
@@ -1255,11 +1255,11 @@ static void run_multi_prog_lookup(const struct test_multi_prog *t)
 		goto out_close_server;
 
 	err = connect(client_fd, (void *)&dst, inetaddr_len(&dst));
-	if (CHECK(err && !t->expect_errno, "connect",
-		  "unexpected error %d\n", errno))
+	if (CHECK(err && !t->expect_erranal, "connect",
+		  "unexpected error %d\n", erranal))
 		goto out_close_client;
-	if (CHECK(err && t->expect_errno && errno != t->expect_errno,
-		  "connect", "unexpected error %d\n", errno))
+	if (CHECK(err && t->expect_erranal && erranal != t->expect_erranal,
+		  "connect", "unexpected error %d\n", erranal))
 		goto out_close_client;
 
 	done = 0;
@@ -1298,21 +1298,21 @@ static void test_multi_prog_lookup(struct test_sk_lookup *skel)
 			.prog1		= skel->progs.multi_prog_drop1,
 			.prog2		= skel->progs.multi_prog_drop2,
 			.listen_at	= { EXT_IP4, EXT_PORT },
-			.expect_errno	= ECONNREFUSED,
+			.expect_erranal	= ECONNREFUSED,
 		},
 		{
 			.desc		= "multi prog - pass, drop",
 			.prog1		= skel->progs.multi_prog_pass1,
 			.prog2		= skel->progs.multi_prog_drop2,
 			.listen_at	= { EXT_IP4, EXT_PORT },
-			.expect_errno	= ECONNREFUSED,
+			.expect_erranal	= ECONNREFUSED,
 		},
 		{
 			.desc		= "multi prog - drop, pass",
 			.prog1		= skel->progs.multi_prog_drop1,
 			.prog2		= skel->progs.multi_prog_pass2,
 			.listen_at	= { EXT_IP4, EXT_PORT },
-			.expect_errno	= ECONNREFUSED,
+			.expect_erranal	= ECONNREFUSED,
 		},
 		{
 			.desc		= "multi prog - pass, redir",

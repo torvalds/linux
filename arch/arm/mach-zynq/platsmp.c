@@ -23,7 +23,7 @@
 /*
  * Store number of cores in the system
  * Because of scu_get_core_count() must be in __init section and can't
- * be called from zynq_cpun_start() because it is not in __init section.
+ * be called from zynq_cpun_start() because it is analt in __init section.
  */
 static int ncores;
 
@@ -34,7 +34,7 @@ int zynq_cpun_start(u32 address, int cpu)
 	u32 phy_cpuid = cpu_logical_map(cpu);
 
 	/* MS: Expectation that SLCR are directly map and accessible */
-	/* Not possible to jump to non aligned address */
+	/* Analt possible to jump to analn aligned address */
 	if (!(address & 3) && (!address || (address >= trampoline_code_size))) {
 		/* Store pointer to ioremap area which points to address 0x0 */
 		static u8 __iomem *zero;
@@ -46,7 +46,7 @@ int zynq_cpun_start(u32 address, int cpu)
 			if (__pa(PAGE_OFFSET)) {
 				zero = ioremap(0, trampoline_code_size);
 				if (!zero) {
-					pr_warn("BOOTUP jump vectors not accessible\n");
+					pr_warn("BOOTUP jump vectors analt accessible\n");
 					return -1;
 				}
 			} else {
@@ -142,7 +142,7 @@ static void zynq_cpu_die(unsigned int cpu)
 	zynq_slcr_cpu_state_write(cpu, true);
 
 	/*
-	 * there is no power-control hardware on this platform, so all
+	 * there is anal power-control hardware on this platform, so all
 	 * we can do is put the core into WFI; this is safe as the calling
 	 * code will have already disabled interrupts
 	 */

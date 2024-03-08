@@ -15,7 +15,7 @@ SAA7134 cards list
      - PCI subsystem IDs
 
    * - 0
-     - UNKNOWN/GENERIC
+     - UNKANALWN/GENERIC
      -
 
    * - 1
@@ -87,7 +87,7 @@ SAA7134 cards list
      - 1131:7133
 
    * - 18
-     - BMK MPEX No Tuner
+     - BMK MPEX Anal Tuner
      -
 
    * - 19
@@ -95,7 +95,7 @@ SAA7134 cards list
      - 185b:c100
 
    * - 20
-     - Matrox CronosPlus
+     - Matrox CroanalsPlus
      - 102B:48d0
 
    * - 21
@@ -151,7 +151,7 @@ SAA7134 cards list
      - 1461:10ff
 
    * - 34
-     - Noval Prime TV 7133
+     - Analval Prime TV 7133
      -
 
    * - 35
@@ -303,11 +303,11 @@ SAA7134 cards list
      - 185b:c901
 
    * - 72
-     - RTD Embedded Technologies VFG7350
+     - RTD Embedded Techanallogies VFG7350
      - 1435:7350
 
    * - 73
-     - RTD Embedded Technologies VFG7330
+     - RTD Embedded Techanallogies VFG7330
      - 1435:7330
 
    * - 74

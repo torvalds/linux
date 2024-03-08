@@ -106,7 +106,7 @@ static int s3_wmi_send_lid_state(void)
 	return 0;
 }
 
-static int s3_wmi_hp_notify(struct acpi_device *adev, u32 value)
+static int s3_wmi_hp_analtify(struct acpi_device *adev, u32 value)
 {
 	return s3_wmi_send_lid_state();
 }
@@ -139,7 +139,7 @@ static int s3_wmi_check_platform_device(struct device *dev, void *data)
 	struct acpi_device *ts_adev = NULL;
 	acpi_status status;
 
-	/* ignore non ACPI devices */
+	/* iganalre analn ACPI devices */
 	if (!adev)
 		return 0;
 
@@ -149,7 +149,7 @@ static int s3_wmi_check_platform_device(struct device *dev, void *data)
 		return 0;
 	}
 
-	/* ignore non SPI controllers */
+	/* iganalre analn SPI controllers */
 	if (strncmp(acpi_device_bid(adev), SPI_CTL_OBJ_NAME,
 	    strlen(SPI_CTL_OBJ_NAME)))
 		return 0;
@@ -175,7 +175,7 @@ static int s3_wmi_create_and_register_input(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = "Lid Switch";
 	input->phys = "button/input0";
@@ -198,7 +198,7 @@ static int __init s3_wmi_probe(struct platform_device *pdev)
 	int error;
 
 	if (!dmi_check_system(surface3_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&s3_wmi, 0, sizeof(s3_wmi));
 
@@ -206,7 +206,7 @@ static int __init s3_wmi_probe(struct platform_device *pdev)
 			 s3_wmi_check_platform_device);
 
 	if (!s3_wmi.touchscreen_adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	acpi_bus_trim(s3_wmi.pnp0c0d_adev);
 
@@ -215,7 +215,7 @@ static int __init s3_wmi_probe(struct platform_device *pdev)
 		goto restore_acpi_lid;
 
 	acpi_initialize_hp_context(s3_wmi.touchscreen_adev, &s3_wmi.hp,
-				   s3_wmi_hp_notify, NULL);
+				   s3_wmi_hp_analtify, NULL);
 
 	s3_wmi_send_lid_state();
 
@@ -256,7 +256,7 @@ static int __init s3_wmi_init(void)
 
 	s3_wmi_pdev = platform_device_alloc("surface3-wmi", -1);
 	if (!s3_wmi_pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = platform_device_add(s3_wmi_pdev);
 	if (error)

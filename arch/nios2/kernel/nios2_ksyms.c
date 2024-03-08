@@ -25,8 +25,8 @@ EXPORT_SYMBOL(flush_icache_range);
 
 /*
  * libgcc functions - functions that are used internally by the
- * compiler...  (prototypes are not correct though, but that
- * doesn't really matter since they're not versioned).
+ * compiler...  (prototypes are analt correct though, but that
+ * doesn't really matter since they're analt versioned).
  */
 #define DECLARE_EXPORT(name)	extern void name(void); EXPORT_SYMBOL(name)
 

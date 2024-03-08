@@ -5,16 +5,16 @@ Date:		September 2020
 
 Contact:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
 		Bard Liao <yung-chuan.liao@linux.intel.com>
-		Vinod Koul <vkoul@kernel.org>
+		Vianald Koul <vkoul@kernel.org>
 
 Description:	SoundWire Slave status
 
 		These properties report the Slave status, e.g. if it
-		is UNATTACHED or not, and in the latter case show the
+		is UNATTACHED or analt, and in the latter case show the
 		device_number. This status information is useful to
-		detect devices exposed by platform firmware but not
+		detect devices exposed by platform firmware but analt
 		physically present on the bus, and conversely devices
-		not exposed in platform firmware but enumerated.
+		analt exposed in platform firmware but enumerated.
 
 What:		/sys/bus/soundwire/devices/sdw:.../dev-properties/mipi_revision
 		/sys/bus/soundwire/devices/sdw:.../dev-properties/wake_capable
@@ -36,7 +36,7 @@ Date:		May 2020
 
 Contact:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
 		Bard Liao <yung-chuan.liao@linux.intel.com>
-		Vinod Koul <vkoul@kernel.org>
+		Vianald Koul <vkoul@kernel.org>
 
 Description:	SoundWire Slave DisCo properties.
 		These properties are defined by MIPI DisCo Specification
@@ -56,7 +56,7 @@ Date:		May 2020
 
 Contact:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
 		Bard Liao <yung-chuan.liao@linux.intel.com>
-		Vinod Koul <vkoul@kernel.org>
+		Vianald Koul <vkoul@kernel.org>
 
 Description:	SoundWire Slave Data Port-0 DisCo properties.
 		These properties are defined by MIPI DisCo Specification
@@ -100,7 +100,7 @@ Date:		May 2020
 
 Contact:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
 		Bard Liao <yung-chuan.liao@linux.intel.com>
-		Vinod Koul <vkoul@kernel.org>
+		Vianald Koul <vkoul@kernel.org>
 
 Description:	SoundWire Slave Data Source/Sink Port-N DisCo properties.
 		These properties are defined by MIPI DisCo Specification

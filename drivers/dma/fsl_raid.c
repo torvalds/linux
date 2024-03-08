@@ -15,11 +15,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -29,11 +29,11 @@
  * later version.
  *
  * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DISCLAIMED. IN ANAL EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
@@ -96,7 +96,7 @@ static dma_cookie_t fsl_re_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_irqsave(&re_chan->desc_lock, flags);
 	cookie = dma_cookie_assign(tx);
-	list_add_tail(&desc->node, &re_chan->submit_q);
+	list_add_tail(&desc->analde, &re_chan->submit_q);
 	spin_unlock_irqrestore(&re_chan->desc_lock, flags);
 
 	return cookie;
@@ -116,11 +116,11 @@ static void fsl_re_issue_pending(struct dma_chan *chan)
 	avail = FSL_RE_SLOT_AVAIL(
 		in_be32(&re_chan->jrregs->inbring_slot_avail));
 
-	list_for_each_entry_safe(desc, _desc, &re_chan->submit_q, node) {
+	list_for_each_entry_safe(desc, _desc, &re_chan->submit_q, analde) {
 		if (!avail)
 			break;
 
-		list_move_tail(&desc->node, &re_chan->active_q);
+		list_move_tail(&desc->analde, &re_chan->active_q);
 
 		memcpy(&re_chan->inb_ring_virt_addr[re_chan->inb_count],
 		       &desc->hwdesc, sizeof(struct fsl_re_hw_desc));
@@ -146,9 +146,9 @@ static void fsl_re_cleanup_descs(struct fsl_re_chan *re_chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&re_chan->desc_lock, flags);
-	list_for_each_entry_safe(desc, _desc, &re_chan->ack_q, node) {
+	list_for_each_entry_safe(desc, _desc, &re_chan->ack_q, analde) {
 		if (async_tx_test_ack(&desc->async_tx))
-			list_move_tail(&desc->node, &re_chan->free_q);
+			list_move_tail(&desc->analde, &re_chan->free_q);
 	}
 	spin_unlock_irqrestore(&re_chan->desc_lock, flags);
 
@@ -172,7 +172,7 @@ static void fsl_re_dequeue(struct tasklet_struct *t)
 		found = 0;
 		hwdesc = &re_chan->oub_ring_virt_addr[re_chan->oub_count];
 		list_for_each_entry_safe(desc, _desc, &re_chan->active_q,
-					 node) {
+					 analde) {
 			/* compare the hw dma addr to find the completed */
 			if (desc->hwdesc.lbea32 == hwdesc->lbea32 &&
 			    desc->hwdesc.addr_low == hwdesc->addr_low) {
@@ -183,10 +183,10 @@ static void fsl_re_dequeue(struct tasklet_struct *t)
 
 		if (found) {
 			fsl_re_desc_done(desc);
-			list_move_tail(&desc->node, &re_chan->ack_q);
+			list_move_tail(&desc->analde, &re_chan->ack_q);
 		} else {
 			dev_err(re_chan->dev,
-				"found hwdesc not in sw queue, discard it\n");
+				"found hwdesc analt in sw queue, discard it\n");
 		}
 
 		oub_count = (re_chan->oub_count + 1) & FSL_RE_RING_SIZE_MASK;
@@ -208,10 +208,10 @@ static irqreturn_t fsl_re_isr(int irq, void *data)
 
 	irqstate = in_be32(&re_chan->jrregs->jr_interrupt_status);
 	if (!irqstate)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
-	 * There's no way in upper layer (read MD layer) to recover from
+	 * There's anal way in upper layer (read MD layer) to recover from
 	 * error conditions except restart everything. In long term we
 	 * need to do something more than just crashing
 	 */
@@ -254,7 +254,7 @@ static struct fsl_re_desc *fsl_re_init_desc(struct fsl_re_chan *re_chan,
 	desc->re_chan = re_chan;
 	desc->async_tx.tx_submit = fsl_re_tx_submit;
 	dma_async_tx_descriptor_init(&desc->async_tx, &re_chan->chan);
-	INIT_LIST_HEAD(&desc->node);
+	INIT_LIST_HEAD(&desc->analde);
 
 	desc->hwdesc.fmt32 = FSL_RE_FRAME_FORMAT << FSL_RE_HWDESC_FMT_SHIFT;
 	desc->hwdesc.lbea32 = upper_32_bits(paddr);
@@ -282,19 +282,19 @@ static struct fsl_re_desc *fsl_re_chan_alloc_desc(struct fsl_re_chan *re_chan,
 	if (!list_empty(&re_chan->free_q)) {
 		/* take one desc from free_q */
 		desc = list_first_entry(&re_chan->free_q,
-					struct fsl_re_desc, node);
-		list_del(&desc->node);
+					struct fsl_re_desc, analde);
+		list_del(&desc->analde);
 
 		desc->async_tx.flags = flags;
 	}
 	spin_unlock_irqrestore(&re_chan->desc_lock, lock_flag);
 
 	if (!desc) {
-		desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+		desc = kzalloc(sizeof(*desc), GFP_ANALWAIT);
 		if (!desc)
 			return NULL;
 
-		cf = dma_pool_alloc(re_chan->re_dev->cf_desc_pool, GFP_NOWAIT,
+		cf = dma_pool_alloc(re_chan->re_dev->cf_desc_pool, GFP_ANALWAIT,
 				    &paddr);
 		if (!cf) {
 			kfree(desc);
@@ -384,7 +384,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_genq(
 }
 
 /*
- * Prep function for P parity calculation.In RAID Engine terminology,
+ * Prep function for P parity calculation.In RAID Engine termianallogy,
  * XOR calculation is called GenQ calculation done through GenQ command
  */
 static struct dma_async_tx_descriptor *fsl_re_prep_dma_xor(
@@ -396,7 +396,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_xor(
 }
 
 /*
- * Prep function for P/Q parity calculation.In RAID Engine terminology,
+ * Prep function for P/Q parity calculation.In RAID Engine termianallogy,
  * P/Q calculation is called GenQQ done through GenQQ command
  */
 static struct dma_async_tx_descriptor *fsl_re_prep_dma_pq(
@@ -590,10 +590,10 @@ static int fsl_re_alloc_chan_resources(struct dma_chan *chan)
 			break;
 		}
 
-		INIT_LIST_HEAD(&desc->node);
+		INIT_LIST_HEAD(&desc->analde);
 		fsl_re_init_desc(re_chan, desc, cf, paddr);
 
-		list_add_tail(&desc->node, &re_chan->free_q);
+		list_add_tail(&desc->analde, &re_chan->free_q);
 		re_chan->alloc_count++;
 	}
 	return re_chan->alloc_count;
@@ -608,20 +608,20 @@ static void fsl_re_free_chan_resources(struct dma_chan *chan)
 	while (re_chan->alloc_count--) {
 		desc = list_first_entry(&re_chan->free_q,
 					struct fsl_re_desc,
-					node);
+					analde);
 
-		list_del(&desc->node);
+		list_del(&desc->analde);
 		dma_pool_free(re_chan->re_dev->cf_desc_pool, desc->cf_addr,
 			      desc->cf_paddr);
 		kfree(desc);
 	}
 
 	if (!list_empty(&re_chan->free_q))
-		dev_err(re_chan->dev, "chan resource cannot be cleaned!\n");
+		dev_err(re_chan->dev, "chan resource cananalt be cleaned!\n");
 }
 
 static int fsl_re_chan_probe(struct platform_device *ofdev,
-		      struct device_node *np, u8 q, u32 off)
+		      struct device_analde *np, u8 q, u32 off)
 {
 	struct device *dev, *chandev;
 	struct fsl_re_drv_private *re_priv;
@@ -638,12 +638,12 @@ static int fsl_re_chan_probe(struct platform_device *ofdev,
 
 	chan = devm_kzalloc(dev, sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* create platform device for chan node */
+	/* create platform device for chan analde */
 	chan_ofdev = of_platform_device_create(np, NULL, dev);
 	if (!chan_ofdev) {
-		dev_err(dev, "Not able to create ofdev for jr %d\n", q);
+		dev_err(dev, "Analt able to create ofdev for jr %d\n", q);
 		ret = -EINVAL;
 		goto err_free;
 	}
@@ -651,8 +651,8 @@ static int fsl_re_chan_probe(struct platform_device *ofdev,
 	/* read reg property from dts */
 	rc = of_property_read_u32(np, "reg", &ptr);
 	if (rc) {
-		dev_err(dev, "Reg property not found in jr %d\n", q);
-		ret = -ENODEV;
+		dev_err(dev, "Reg property analt found in jr %d\n", q);
+		ret = -EANALDEV;
 		goto err_free;
 	}
 
@@ -662,8 +662,8 @@ static int fsl_re_chan_probe(struct platform_device *ofdev,
 	/* read irq property from dts */
 	chan->irq = irq_of_parse_and_map(np, 0);
 	if (!chan->irq) {
-		dev_err(dev, "No IRQ defined for JR %d\n", q);
-		ret = -ENODEV;
+		dev_err(dev, "Anal IRQ defined for JR %d\n", q);
+		ret = -EANALDEV;
 		goto err_free;
 	}
 
@@ -694,16 +694,16 @@ static int fsl_re_chan_probe(struct platform_device *ofdev,
 	chan->inb_ring_virt_addr = dma_pool_alloc(chan->re_dev->hw_desc_pool,
 		GFP_KERNEL, &chan->inb_phys_addr);
 	if (!chan->inb_ring_virt_addr) {
-		dev_err(dev, "No dma memory for inb_ring_virt_addr\n");
-		ret = -ENOMEM;
+		dev_err(dev, "Anal dma memory for inb_ring_virt_addr\n");
+		ret = -EANALMEM;
 		goto err_free;
 	}
 
 	chan->oub_ring_virt_addr = dma_pool_alloc(chan->re_dev->hw_desc_pool,
 		GFP_KERNEL, &chan->oub_phys_addr);
 	if (!chan->oub_ring_virt_addr) {
-		dev_err(dev, "No dma memory for oub_ring_virt_addr\n");
-		ret = -ENOMEM;
+		dev_err(dev, "Anal dma memory for oub_ring_virt_addr\n");
+		ret = -EANALMEM;
 		goto err_free_1;
 	}
 
@@ -746,8 +746,8 @@ err_free:
 static int fsl_re_probe(struct platform_device *ofdev)
 {
 	struct fsl_re_drv_private *re_priv;
-	struct device_node *np;
-	struct device_node *child;
+	struct device_analde *np;
+	struct device_analde *child;
 	u32 off;
 	u8 ridx = 0;
 	struct dma_device *dma_dev;
@@ -757,11 +757,11 @@ static int fsl_re_probe(struct platform_device *ofdev)
 
 	re_priv = devm_kzalloc(dev, sizeof(*re_priv), GFP_KERNEL);
 	if (!re_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* IOMAP the entire RAID Engine region */
 	re_priv->re_regs = devm_ioremap(dev, res->start, resource_size(res));
@@ -769,9 +769,9 @@ static int fsl_re_probe(struct platform_device *ofdev)
 		return -EBUSY;
 
 	/* Program the RE mode */
-	out_be32(&re_priv->re_regs->global_config, FSL_RE_NON_DPAA_MODE);
+	out_be32(&re_priv->re_regs->global_config, FSL_RE_ANALN_DPAA_MODE);
 
-	/* Program Galois Field polynomial */
+	/* Program Galois Field polyanalmial */
 	out_be32(&re_priv->re_regs->galois_field_config, FSL_RE_GFM_POLY);
 
 	dev_info(dev, "version %x, mode %x, gfp %x\n",
@@ -808,30 +808,30 @@ static int fsl_re_probe(struct platform_device *ofdev)
 					FSL_RE_CF_CDB_ALIGN, 0);
 
 	if (!re_priv->cf_desc_pool) {
-		dev_err(dev, "No memory for fsl re_cf desc pool\n");
-		return -ENOMEM;
+		dev_err(dev, "Anal memory for fsl re_cf desc pool\n");
+		return -EANALMEM;
 	}
 
 	re_priv->hw_desc_pool = dmam_pool_create("fsl_re_hw_desc_pool", dev,
 			sizeof(struct fsl_re_hw_desc) * FSL_RE_RING_SIZE,
 			FSL_RE_FRAME_ALIGN, 0);
 	if (!re_priv->hw_desc_pool) {
-		dev_err(dev, "No memory for fsl re_hw desc pool\n");
-		return -ENOMEM;
+		dev_err(dev, "Anal memory for fsl re_hw desc pool\n");
+		return -EANALMEM;
 	}
 
 	dev_set_drvdata(dev, re_priv);
 
 	/* Parse Device tree to find out the total number of JQs present */
-	for_each_compatible_node(np, NULL, "fsl,raideng-v1.0-job-queue") {
+	for_each_compatible_analde(np, NULL, "fsl,raideng-v1.0-job-queue") {
 		rc = of_property_read_u32(np, "reg", &off);
 		if (rc) {
-			dev_err(dev, "Reg property not found in JQ node\n");
-			of_node_put(np);
-			return -ENODEV;
+			dev_err(dev, "Reg property analt found in JQ analde\n");
+			of_analde_put(np);
+			return -EANALDEV;
 		}
 		/* Find out the Job Rings present under each JQ */
-		for_each_child_of_node(np, child) {
+		for_each_child_of_analde(np, child) {
 			rc = of_device_is_compatible(child,
 					     "fsl,raideng-v1.0-job-ring");
 			if (rc) {

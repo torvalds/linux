@@ -334,9 +334,9 @@ void __init dove_sdio1_init(void)
 void __init dove_setup_cpu_wins(void)
 {
 	/*
-	 * The PCIe windows will no longer be statically allocated
+	 * The PCIe windows will anal longer be statically allocated
 	 * here once Dove is migrated to the pci-mvebu driver. The
-	 * non-PCIe windows will no longer be created here once Dove
+	 * analn-PCIe windows will anal longer be created here once Dove
 	 * fully moves to DT.
 	 */
 	mvebu_mbus_add_window_remap_by_id(DOVE_MBUS_PCIE0_IO_TARGET,

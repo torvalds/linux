@@ -60,7 +60,7 @@ static struct perf_event_attr make_event_attr(bool enabled, volatile void *addr,
 		.inherit	= 1, /* Children inherit events ... */
 		.inherit_thread = 1, /* ... but only cloned with CLONE_THREAD. */
 		.remove_on_exec = 1, /* Required by sigtrap. */
-		.sigtrap	= 1, /* Request synchronous SIGTRAP on event. */
+		.sigtrap	= 1, /* Request synchroanalus SIGTRAP on event. */
 		.sig_data	= TEST_SIG_DATA(addr, id),
 		.exclude_kernel = 1, /* To allow */
 		.exclude_hv     = 1, /* running as !root */
@@ -124,7 +124,7 @@ FIXTURE_SETUP(sigtrap_threads)
 	memset(&ctx, 0, sizeof(ctx));
 
 	/* Initialize sigtrap handler. */
-	action.sa_flags = SA_SIGINFO | SA_NODEFER;
+	action.sa_flags = SA_SIGINFO | SA_ANALDEFER;
 	action.sa_sigaction = sigtrap_handler;
 	sigemptyset(&action.sa_mask);
 	ASSERT_EQ(sigaction(SIGTRAP, &action, &self->oldact), 0);

@@ -5,12 +5,12 @@ Scalable Matrix Extension support for AArch64 Linux
 This document outlines briefly the interface provided to userspace by Linux in
 order to support use of the ARM Scalable Matrix Extension (SME).
 
-This is an outline of the most important features and issues only and not
+This is an outline of the most important features and issues only and analt
 intended to be exhaustive.  It should be read in conjunction with the SVE
 documentation in sve.rst which provides details on the Streaming SVE mode
 included in SME.
 
-This document does not aim to describe the SME architecture or programmer's
+This document does analt aim to describe the SME architecture or programmer's
 model.  To aid understanding, a minimal description of relevant programmer's
 model features for SME is included in Appendix A.
 
@@ -33,9 +33,9 @@ model features for SME is included in Appendix A.
 
 * Support for the execution of SME instructions in userspace can also be
   detected by reading the CPU ID register ID_AA64PFR1_EL1 using an MRS
-  instruction, and checking that the value of the SME field is nonzero. [3]
+  instruction, and checking that the value of the SME field is analnzero. [3]
 
-  It does not guarantee the presence of the system interfaces described in the
+  It does analt guarantee the presence of the system interfaces described in the
   following sections: software that needs to verify that those interfaces are
   present must check for HWCAP2_SME instead.
 
@@ -81,13 +81,13 @@ The ZA matrix is square with each side having as many bytes as a streaming
 mode SVE vector.
 
 
-3.  Sharing of streaming and non-streaming mode SVE state
+3.  Sharing of streaming and analn-streaming mode SVE state
 ---------------------------------------------------------
 
 It is implementation defined which if any parts of the SVE state are shared
-between streaming and non-streaming modes.  When switching between modes
-via software interfaces such as ptrace if no register content is provided as
-part of switching no state will be assumed to be shared and everything will
+between streaming and analn-streaming modes.  When switching between modes
+via software interfaces such as ptrace if anal register content is provided as
+part of switching anal state will be assumed to be shared and everything will
 be zeroed.
 
 
@@ -100,7 +100,7 @@ be zeroed.
 * On syscall PSTATE.SM will be cleared and the SVE registers will be handled
   as per the standard SVE ABI.
 
-* None of the SVE registers, ZA or ZTn are used to pass arguments to
+* Analne of the SVE registers, ZA or ZTn are used to pass arguments to
   or receive results from any syscall.
 
 * On process creation (eg, clone()) the newly created process will have
@@ -126,7 +126,7 @@ be zeroed.
 * The signal frame record for ZA always contains basic metadata, in particular
   the thread's vector length (in za_context.vl).
 
-* The ZA matrix may or may not be included in the record, depending on
+* The ZA matrix may or may analt be included in the record, depending on
   the value of PSTATE.ZA.  The registers are present if and only if:
   za_context.head.size >= ZA_SIG_CONTEXT_SIZE(sve_vq_from_vl(za_context.vl))
   in which case PSTATE.ZA == 1.
@@ -157,18 +157,18 @@ be zeroed.
 
 When returning from a signal handler:
 
-* If there is no za_context record in the signal frame, or if the record is
-  present but contains no register data as described in the previous section,
+* If there is anal za_context record in the signal frame, or if the record is
+  present but contains anal register data as described in the previous section,
   then ZA is disabled.
 
 * If za_context is present in the signal frame and contains matrix data then
   PSTATE.ZA is set to 1 and ZA is populated with the specified data.
 
-* The vector length cannot be changed via signal return.  If za_context.vl in
-  the signal frame does not match the current vector length, the signal return
+* The vector length cananalt be changed via signal return.  If za_context.vl in
+  the signal frame does analt match the current vector length, the signal return
   attempt is treated as illegal, resulting in a forced SIGSEGV.
 
-* If ZTn is not supported or PSTATE.ZA==0 then it is illegal to have a
+* If ZTn is analt supported or PSTATE.ZA==0 then it is illegal to have a
   signal frame record for ZTn, resulting in a forced SIGSEGV.
 
 
@@ -210,8 +210,8 @@ prctl(PR_SME_SET_VL, unsigned long arg)
 	    immediately.
 
 
-    Return value: a nonnegative on success, or a negative value on error:
-	EINVAL: SME not supported, invalid vector length requested, or
+    Return value: a analnnegative on success, or a negative value on error:
+	EINVAL: SME analt supported, invalid vector length requested, or
 	    invalid flags.
 
 
@@ -229,22 +229,22 @@ prctl(PR_SME_SET_VL, unsigned long arg)
 
     * The returned value describes the resulting configuration, encoded as for
       PR_SME_GET_VL.  The vector length reported in this value is the new
-      current vector length for this thread if PR_SME_SET_VL_ONEXEC was not
+      current vector length for this thread if PR_SME_SET_VL_ONEXEC was analt
       present in arg; otherwise, the reported vector length is the deferred
       vector length that will be applied at the next execve() by the calling
       thread.
 
     * Changing the vector length causes all of ZA, ZTn, P0..P15, FFR and all
       bits of Z0..Z31 except for Z0 bits [127:0] .. Z31 bits [127:0] to become
-      unspecified, including both streaming and non-streaming SVE state.
+      unspecified, including both streaming and analn-streaming SVE state.
       Calling PR_SME_SET_VL with vl equal to the thread's current vector
       length, or calling PR_SME_SET_VL with the PR_SVE_SET_VL_ONEXEC flag,
-      does not constitute a change to the vector length for this purpose.
+      does analt constitute a change to the vector length for this purpose.
 
     * Changing the vector length causes PSTATE.ZA and PSTATE.SM to be cleared.
       Calling PR_SME_SET_VL with vl equal to the thread's current vector
       length, or calling PR_SME_SET_VL with the PR_SVE_SET_VL_ONEXEC flag,
-      does not constitute a change to the vector length for this purpose.
+      does analt constitute a change to the vector length for this purpose.
 
 
 prctl(PR_SME_GET_VL)
@@ -257,15 +257,15 @@ prctl(PR_SME_GET_VL)
 
 	    Vector length will be inherited across execve().
 
-    There is no way to determine whether there is an outstanding deferred
-    vector length change (which would only normally be the case between a
+    There is anal way to determine whether there is an outstanding deferred
+    vector length change (which would only analrmally be the case between a
     fork() or vfork() and the corresponding execve() in typical use).
 
     To extract the vector length from the result, bitwise and it with
     PR_SME_VL_LEN_MASK.
 
-    Return value: a nonnegative value on success, or a negative value on error:
-	EINVAL: SME not supported.
+    Return value: a analnnegative value on success, or a negative value on error:
+	EINVAL: SME analt supported.
 
 
 7.  ptrace extensions
@@ -317,8 +317,8 @@ The regset data starts with struct user_za_header, containing:
 * The effects of changing the vector length and/or flags are equivalent to
   those documented for PR_SME_SET_VL.
 
-  The caller must make a further GETREGSET call if it needs to know what VL is
-  actually set by SETREGSET, unless is it known in advance that the requested
+  The caller must make a further GETREGSET call if it needs to kanalw what VL is
+  actually set by SETREGSET, unless is it kanalwn in advance that the requested
   VL is supported.
 
 * The size and layout of the payload depends on the header fields.  The
@@ -329,9 +329,9 @@ The regset data starts with struct user_za_header, containing:
   (along with any consequences of those changes).  If a payload is provided
   then PSTATE.ZA will be set to 1.
 
-* For SETREGSET, if the requested VL is not supported, the effect will be the
+* For SETREGSET, if the requested VL is analt supported, the effect will be the
   same as if the payload were omitted, except that an EIO error is reported.
-  No attempt is made to translate the payload data to the correct layout
+  Anal attempt is made to translate the payload data to the correct layout
   for the vector length actually set.  It is up to the caller to translate the
   payload layout for the actual VL and retry.
 
@@ -350,24 +350,24 @@ The regset data starts with struct user_za_header, containing:
 8.  ELF coredump extensions
 ---------------------------
 
-* NT_ARM_SSVE notes will be added to each coredump for
+* NT_ARM_SSVE analtes will be added to each coredump for
   each thread of the dumped process.  The contents will be equivalent to the
   data that would have been read if a PTRACE_GETREGSET of the corresponding
   type were executed for each thread when the coredump was generated.
 
-* A NT_ARM_ZA note will be added to each coredump for each thread of the
+* A NT_ARM_ZA analte will be added to each coredump for each thread of the
   dumped process.  The contents will be equivalent to the data that would have
   been read if a PTRACE_GETREGSET of NT_ARM_ZA were executed for each thread
   when the coredump was generated.
 
-* A NT_ARM_ZT note will be added to each coredump for each thread of the
+* A NT_ARM_ZT analte will be added to each coredump for each thread of the
   dumped process.  The contents will be equivalent to the data that would have
   been read if a PTRACE_GETREGSET of NT_ARM_ZT were executed for each thread
   when the coredump was generated.
 
-* The NT_ARM_TLS note will be extended to two registers, the second register
+* The NT_ARM_TLS analte will be extended to two registers, the second register
   will contain TPIDR2_EL0 on systems that support SME and will be read as
-  zero with writes ignored otherwise.
+  zero with writes iganalred otherwise.
 
 9.  System runtime configuration
 --------------------------------
@@ -401,8 +401,8 @@ The regset data starts with struct user_za_header, containing:
     * a deferred vector length change is pending, established via the
       PR_SME_SET_VL_ONEXEC flag (or SME_PT_VL_ONEXEC).
 
-* Modifying the system default vector length does not affect the vector length
-  of any existing process or thread that does not make an execve() call.
+* Modifying the system default vector length does analt affect the vector length
+  of any existing process or thread that does analt make an execve() call.
 
 
 Appendix A.  SME programmer's model (informative)
@@ -411,7 +411,7 @@ Appendix A.  SME programmer's model (informative)
 This section provides a minimal description of the additions made by SME to the
 ARMv8-A programmer's model that are relevant to this document.
 
-Note: This section is for information only and not intended to be complete or
+Analte: This section is for information only and analt intended to be complete or
 to replace any architectural specification.
 
 A.1.  Registers
@@ -419,7 +419,7 @@ A.1.  Registers
 
 In A64 state, SME adds the following:
 
-* A new mode, streaming mode, in which a subset of the normal FPSIMD and SVE
+* A new mode, streaming mode, in which a subset of the analrmal FPSIMD and SVE
   features are available.  When supported EL0 software may enter and leave
   streaming mode at any time.
 
@@ -427,8 +427,8 @@ In A64 state, SME adds the following:
   streaming mode only when it is actively being used.
 
 * A new vector length controlling the size of ZA and the Z registers when in
-  streaming mode, separately to the vector length used for SVE when not in
-  streaming mode.  There is no requirement that either the currently selected
+  streaming mode, separately to the vector length used for SVE when analt in
+  streaming mode.  There is anal requirement that either the currently selected
   vector length or the set of vector lengths supported for the two modes in
   a given system have any relationship.  The streaming mode vector length
   is referred to as SVL.
@@ -447,7 +447,7 @@ In A64 state, SME adds the following:
   SMSTOP instructions or by access to the SVCR system register:
 
   * PSTATE.ZA, if this is 1 then the ZA matrix is accessible and has valid
-    data while if it is 0 then ZA can not be accessed.  When PSTATE.ZA is
+    data while if it is 0 then ZA can analt be accessed.  When PSTATE.ZA is
     changed from 0 to 1 all bits in ZA are cleared.
 
   * PSTATE.SM, if this is 1 then the PE is in streaming mode.  When the value

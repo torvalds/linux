@@ -49,7 +49,7 @@ patternProperties:
       Different SoCs have different numbers of available pins per port, but
       generally speaking, each of them can be configured in GPIO ("port") mode
       on this hardware.
-      Describe GPIO controllers using sub-nodes with the following properties.
+      Describe GPIO controllers using sub-analdes with the following properties.
 
     properties:
       gpio-controller: true
@@ -70,13 +70,13 @@ additionalProperties:
   anyOf:
     - type: object
       allOf:
-        - $ref: pincfg-node.yaml#
-        - $ref: pinmux-node.yaml#
+        - $ref: pincfg-analde.yaml#
+        - $ref: pinmux-analde.yaml#
 
       description:
-        A pin multiplexing sub-node describes how to configure a set of (or a
+        A pin multiplexing sub-analde describes how to configure a set of (or a
         single) pin in some desired alternate function mode.
-        A single sub-node may define several pin configurations.
+        A single sub-analde may define several pin configurations.
         A few alternate function require special pin configuration flags to be
         supplied along with the alternate function configuration number.
         The hardware reference manual specifies when a pin function requires
@@ -129,7 +129,7 @@ examples:
             reg = <0xfcfe3000 0x4230>;
 
             /*
-             * A GPIO controller node, controlling 16 pins indexed from 0.
+             * A GPIO controller analde, controlling 16 pins indexed from 0.
              * The GPIO controller base in the global pin indexing space is pin
              * 48, thus pins [0 - 15] on this controller map to pins [48 - 63]
              * in the global pin indexing space.

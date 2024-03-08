@@ -88,9 +88,9 @@ static const struct sti_init_flags default_init_flags = {
 	.wait	= STI_WAIT,
 	.reset	= 1,
 	.text	= 1,
-	.nontext = 1,
-	.no_chg_bet = 1,
-	.no_chg_bei = 1,
+	.analntext = 1,
+	.anal_chg_bet = 1,
+	.anal_chg_bei = 1,
 	.init_cmap_tx = 1,
 };
 
@@ -108,19 +108,19 @@ static int sti_init_graph(struct sti_struct *sti)
 	inptr->text_planes = 3; /* # of text planes (max 3 for STI) */
 	memset(inptr_ext, 0, sizeof(*inptr_ext));
 	store_sti_ptr(sti, &inptr->ext_ptr, inptr_ext);
-	outptr->errno = 0;
+	outptr->erranal = 0;
 
 	ret = sti_call(sti, sti->init_graph, &default_init_flags, inptr,
 		outptr, sti->glob_cfg);
 
 	if (ret >= 0)
 		sti->text_planes = outptr->text_planes;
-	err = outptr->errno;
+	err = outptr->erranal;
 
 	spin_unlock_irqrestore(&sti->lock, flags);
 
 	if (ret < 0) {
-		pr_err("STI init_graph failed (ret %d, errno %d)\n", ret, err);
+		pr_err("STI init_graph failed (ret %d, erranal %d)\n", ret, err);
 		return -1;
 	}
 
@@ -151,7 +151,7 @@ static void sti_inq_conf(struct sti_struct *sti)
 
 static const struct sti_font_flags default_font_flags = {
 	.wait		= STI_WAIT,
-	.non_text	= 0,
+	.analn_text	= 0,
 };
 
 void
@@ -389,11 +389,11 @@ static int sti_font_setup(char *str)
  *	- sti_font=<number>	(<number> = 1,2,3,...)
  *		most STI ROMs have built-in HP specific fonts, which can be selected
  *		by giving the desired number to the sticon driver.
- *		NOTE: This number is machine and STI ROM dependend.
+ *		ANALTE: This number is machine and STI ROM dependend.
  *	- sti_font=<height>x<width>  (e.g. sti_font=16x8)
  *		<height> and <width> gives hints to the height and width of the
  *		font which the user wants. The sticon driver will try to use
- *		a font with this height and width, but if no suitable font is
+ *		a font with this height and width, but if anal suitable font is
  *		found, sticon will use the default 8x8 font.
  */
 __setup("sti_font=", sti_font_setup);
@@ -456,7 +456,7 @@ static int sti_init_glob_cfg(struct sti_struct *sti, unsigned long rom_address,
 
 	sti->sti_data = kzalloc(size, STI_LOWMEM);
 	if (!sti->sti_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	glob_cfg	= &sti->sti_data->glob_cfg;
 	glob_cfg_ext	= &sti->sti_data->glob_cfg_ext;
@@ -649,8 +649,8 @@ static void sti_dump_rom(struct sti_struct *sti)
 	pr_info("  id %04x-%04x, conforms to spec rev. %d.%02x\n",
 		rom->graphics_id[0],
 		rom->graphics_id[1],
-		rom->revno[0] >> 4,
-		rom->revno[0] & 0x0f);
+		rom->revanal[0] >> 4,
+		rom->revanal[0] & 0x0f);
 	pr_debug("  supports %d monitors\n", rom->num_mons);
 	pr_debug("  font start %08x\n", rom->font_start);
 	pr_debug("  region list %08x\n", rom->region_list);
@@ -804,7 +804,7 @@ static int sti_read_rom(int wordmode, struct sti_struct *sti,
 {
 	struct sti_cooked_rom *cooked;
 	struct sti_rom *raw = NULL;
-	unsigned long revno;
+	unsigned long revanal;
 
 	cooked = kmalloc(sizeof *cooked, GFP_KERNEL);
 	if (!cooked)
@@ -819,7 +819,7 @@ static int sti_read_rom(int wordmode, struct sti_struct *sti,
 		goto out_err;
 
 	if (!sti_cook_fonts(cooked, raw)) {
-		pr_warn("No font found for STI at %08lx\n", address);
+		pr_warn("Anal font found for STI at %08lx\n", address);
 		goto out_err;
 	}
 
@@ -872,27 +872,27 @@ static int sti_read_rom(int wordmode, struct sti_struct *sti,
 	if (wordmode || sti->graphics_id[1] != 0x09A02587)
 		goto ok;
 
-	revno = (raw->revno[0] << 8) | raw->revno[1];
+	revanal = (raw->revanal[0] << 8) | raw->revanal[1];
 
 	switch (sti->graphics_id[0]) {
 	case S9000_ID_HCRX:
 		/* HyperA or HyperB ? */
-		if (revno == 0x8408 || revno == 0x840b)
-			goto msg_not_supported;
+		if (revanal == 0x8408 || revanal == 0x840b)
+			goto msg_analt_supported;
 		break;
 	case CRT_ID_THUNDER:
-		if (revno == 0x8509)
-			goto msg_not_supported;
+		if (revanal == 0x8509)
+			goto msg_analt_supported;
 		break;
 	case CRT_ID_THUNDER2:
-		if (revno == 0x850c)
-			goto msg_not_supported;
+		if (revanal == 0x850c)
+			goto msg_analt_supported;
 	}
 ok:
 	return 1;
 
-msg_not_supported:
-	pr_warn("Sorry, this GSC/STI card is not yet supported.\n");
+msg_analt_supported:
+	pr_warn("Sorry, this GSC/STI card is analt yet supported.\n");
 	pr_warn("Please see https://parisc.wiki.kernel.org/"
 		"index.php/Graphics_howto for more info.\n");
 	/* fall through */
@@ -939,7 +939,7 @@ test_rom:
 		if (i != 1) {
 			/* The ROM could have multiple architecture
 			 * dependent images (e.g. i386, parisc,...) */
-			pr_warn("PCI ROM is not a STI ROM type image (0x%8x)\n", i);
+			pr_warn("PCI ROM is analt a STI ROM type image (0x%8x)\n", i);
 			goto out_err;
 		}
 
@@ -981,7 +981,7 @@ test_rom:
 		goto out_err;
 
 	if (sti_init_glob_cfg(sti, address, hpa))
-		goto out_err; /* not enough memory */
+		goto out_err; /* analt eanalugh memory */
 
 	/* disable STI PCI ROM. ROM and card RAM overlap and
 	 * leaving it enabled would force HPMCs
@@ -1058,7 +1058,7 @@ static int sticore_pci_init(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pd);
 	if (err < 0) {
-		dev_err(&pd->dev, "Cannot enable PCI device\n");
+		dev_err(&pd->dev, "Cananalt enable PCI device\n");
 		return err;
 	}
 
@@ -1085,7 +1085,7 @@ static int sticore_pci_init(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	if (!sti) {
 		pr_warn("Unable to handle STI device '%s'\n", pci_name(pd));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sti->dev = &pd->dev;

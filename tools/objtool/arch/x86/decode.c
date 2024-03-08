@@ -12,7 +12,7 @@
 #include "../../../arch/x86/lib/insn.c"
 
 #define CONFIG_64BIT 1
-#include <asm/nops.h>
+#include <asm/analps.h>
 
 #include <asm/orc_types.h>
 #include <objtool/check.h>
@@ -132,7 +132,7 @@ bool arch_pc_relative_reloc(struct reloc *reloc)
 #define rm_is_mem(reg)	(mod_is_mem() && !is_RIP() && rm_is(reg))
 #define rm_is_reg(reg)	(mod_is_reg() && modrm_rm == (reg))
 
-static bool has_notrack_prefix(struct insn *insn)
+static bool has_analtrack_prefix(struct insn *insn)
 {
 	int i;
 
@@ -342,7 +342,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 				if (is_RIP())
 					break;
 
-				/* skip nontrivial SIB */
+				/* skip analntrivial SIB */
 				if (have_SIB()) {
 					modrm_rm = sib_base;
 					if (sib_index != CFI_SP)
@@ -446,7 +446,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			break;
 		}
 
-		/* skip non 64bit ops */
+		/* skip analn 64bit ops */
 		if (!rex_w)
 			break;
 
@@ -454,7 +454,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		if (is_RIP())
 			break;
 
-		/* skip nontrivial SIB */
+		/* skip analntrivial SIB */
 		if (have_SIB()) {
 			modrm_rm = sib_base;
 			if (sib_index != CFI_SP)
@@ -486,7 +486,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		break;
 
 	case 0x90:
-		insn->type = INSN_NOP;
+		insn->type = INSN_ANALP;
 		break;
 
 	case 0x9c:
@@ -531,8 +531,8 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 
 		} else if (op2 == 0x0d || op2 == 0x1f) {
 
-			/* nopl/nopw */
-			insn->type = INSN_NOP;
+			/* analpl/analpw */
+			insn->type = INSN_ANALP;
 
 		} else if (op2 == 0x1e) {
 
@@ -543,7 +543,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		} else if (op2 == 0x38 && op3 == 0xf8) {
 			if (ins.prefixes.nbytes == 1 &&
 			    ins.prefixes.bytes[0] == 0xf2) {
-				/* ENQCMD cannot be used in the kernel. */
+				/* ENQCMD cananalt be used in the kernel. */
 				WARN("ENQCMD instruction at %s:%lx", sec->name,
 				     offset);
 			}
@@ -609,7 +609,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		break;
 
 	case 0xc7: /* mov imm, r/m */
-		if (!opts.noinstr)
+		if (!opts.analinstr)
 			break;
 
 		if (ins.length == 3+4+4 && !strncmp(sec->name, ".init.text", 10)) {
@@ -629,7 +629,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			if (disp->sym->type == STT_SECTION)
 				func = find_symbol_by_offset(disp->sym->sec, reloc_addend(disp));
 			if (!func) {
-				WARN("no func for pv_ops[]");
+				WARN("anal func for pv_ops[]");
 				return -1;
 			}
 
@@ -641,7 +641,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 	case 0xcf: /* iret */
 		/*
 		 * Handle sync_core(), which has an IRET to self.
-		 * All other IRET are in STT_NONE entry code.
+		 * All other IRET are in STT_ANALNE entry code.
 		 */
 		sym = find_symbol_containing(sec, offset);
 		if (sym && sym->type == STT_FUNC) {
@@ -693,14 +693,14 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		if (modrm_reg == 2 || modrm_reg == 3) {
 
 			insn->type = INSN_CALL_DYNAMIC;
-			if (has_notrack_prefix(&ins))
-				WARN("notrack prefix found at %s:0x%lx", sec->name, offset);
+			if (has_analtrack_prefix(&ins))
+				WARN("analtrack prefix found at %s:0x%lx", sec->name, offset);
 
 		} else if (modrm_reg == 4) {
 
 			insn->type = INSN_JUMP_DYNAMIC;
-			if (has_notrack_prefix(&ins))
-				WARN("notrack prefix found at %s:0x%lx", sec->name, offset);
+			if (has_analtrack_prefix(&ins))
+				WARN("analtrack prefix found at %s:0x%lx", sec->name, offset);
 
 		} else if (modrm_reg == 5) {
 
@@ -745,22 +745,22 @@ void arch_initial_func_cfi_state(struct cfi_init_state *state)
 	state->regs[CFI_RA].offset = -8;
 }
 
-const char *arch_nop_insn(int len)
+const char *arch_analp_insn(int len)
 {
-	static const char nops[5][5] = {
-		{ BYTES_NOP1 },
-		{ BYTES_NOP2 },
-		{ BYTES_NOP3 },
-		{ BYTES_NOP4 },
-		{ BYTES_NOP5 },
+	static const char analps[5][5] = {
+		{ BYTES_ANALP1 },
+		{ BYTES_ANALP2 },
+		{ BYTES_ANALP3 },
+		{ BYTES_ANALP4 },
+		{ BYTES_ANALP5 },
 	};
 
 	if (len < 1 || len > 5) {
-		WARN("invalid NOP size: %d\n", len);
+		WARN("invalid ANALP size: %d\n", len);
 		return NULL;
 	}
 
-	return nops[len-1];
+	return analps[len-1];
 }
 
 #define BYTE_RET	0xC3
@@ -770,9 +770,9 @@ const char *arch_ret_insn(int len)
 	static const char ret[5][5] = {
 		{ BYTE_RET },
 		{ BYTE_RET, 0xcc },
-		{ BYTE_RET, 0xcc, BYTES_NOP1 },
-		{ BYTE_RET, 0xcc, BYTES_NOP2 },
-		{ BYTE_RET, 0xcc, BYTES_NOP3 },
+		{ BYTE_RET, 0xcc, BYTES_ANALP1 },
+		{ BYTE_RET, 0xcc, BYTES_ANALP2 },
+		{ BYTE_RET, 0xcc, BYTES_ANALP3 },
 	};
 
 	if (len < 1 || len > 5) {

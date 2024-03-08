@@ -4,7 +4,7 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
  *  Enhanced CPU detection and feature setting code by Mike Jagdis
- *  and Martin Mares, November 1997.
+ *  and Martin Mares, Analvember 1997.
  */
 
 .text
@@ -23,8 +23,8 @@
 #include <asm/msr-index.h>
 #include <asm/cpufeatures.h>
 #include <asm/percpu.h>
-#include <asm/nops.h>
-#include <asm/nospec-branch.h>
+#include <asm/analps.h>
+#include <asm/analspec-branch.h>
 #include <asm/bootparam.h>
 #include <asm/pgtable_32.h>
 
@@ -69,7 +69,7 @@ SYM_CODE_START(startup_32)
 	movl pa(initial_stack),%ecx
 	
 /*
- * Set segments to known values.
+ * Set segments to kanalwn values.
  */
 	lgdt pa(boot_gdt_descr)
 	movl $(__BOOT_DS),%eax
@@ -81,7 +81,7 @@ SYM_CODE_START(startup_32)
 	leal -__PAGE_OFFSET(%ecx),%esp
 
 /*
- * Clear BSS first so that there are no surprises...
+ * Clear BSS first so that there are anal surprises...
  */
 	cld
 	xorl %eax,%eax
@@ -92,9 +92,9 @@ SYM_CODE_START(startup_32)
 	rep ; stosl
 /*
  * Copy bootup parameters out of the way.
- * Note: %esi still has the pointer to the real-mode data.
+ * Analte: %esi still has the pointer to the real-mode data.
  * With the kexec as boot loader, parameter segment might be loaded beyond
- * kernel image and might not even be addressable by early boot page tables.
+ * kernel image and might analt even be addressable by early boot page tables.
  * (kexec on panic case). Hence copy out the parameters before initializing
  * page tables.
  */
@@ -105,7 +105,7 @@ SYM_CODE_START(startup_32)
 	movsl
 	movl pa(boot_params) + NEW_CL_POINTER,%esi
 	andl %esi,%esi
-	jz 1f			# No command line
+	jz 1f			# Anal command line
 	movl $pa(boot_command_line),%edi
 	movl $(COMMAND_LINE_SIZE/4),%ecx
 	rep
@@ -134,11 +134,11 @@ SYM_CODE_START(startup_32)
 SYM_CODE_END(startup_32)
 
 /*
- * Non-boot CPU entry point; entered from trampoline.S
+ * Analn-boot CPU entry point; entered from trampoline.S
  * We can't lgdt here, because lgdt itself uses a data segment, but
- * we know the trampoline has already loaded the boot_gdt for us.
+ * we kanalw the trampoline has already loaded the boot_gdt for us.
  *
- * If cpu hotplug is not supported then this code can go in init section
+ * If cpu hotplug is analt supported then this code can go in init section
  * which will be freed later
  */
 SYM_FUNC_START(startup_32_smp)
@@ -159,7 +159,7 @@ SYM_FUNC_START(startup_32_smp)
 /*
  * We want to start out with EFLAGS unambiguously cleared. Some BIOSes leave
  * bits like NT set. This would confuse the debugger if this code is traced. So
- * initialize them properly now before switching to protected mode. That means
+ * initialize them properly analw before switching to protected mode. That means
  * DF in particular (even though we have cleared it earlier after copying the
  * command line) because GCC expects it.
  */
@@ -169,7 +169,7 @@ SYM_FUNC_START(startup_32_smp)
 /*
  * New page tables may be in 4Mbyte page mode and may be using the global pages.
  *
- * NOTE! If we are on a 486 we may have no cr4 at all! Specifically, cr4 exists
+ * ANALTE! If we are on a 486 we may have anal cr4 at all! Specifically, cr4 exists
  * if and only if CPUID exists and has flags other than the FPU flag set.
  */
 	movl $-1,pa(X86_CPUID)		# preset CPUID level
@@ -180,7 +180,7 @@ SYM_FUNC_START(startup_32_smp)
 	popl %eax			# get EFLAGS
 	testl $X86_EFLAGS_ID,%eax	# did EFLAGS.ID remained set?
 	jz .Lenable_paging		# hw disallowed setting of ID bit
-					# which means no CPUID and no CR4
+					# which means anal CPUID and anal CR4
 
 	xorl %eax,%eax
 	cpuid
@@ -188,8 +188,8 @@ SYM_FUNC_START(startup_32_smp)
 
 	movl $1,%eax
 	cpuid
-	andl $~1,%edx			# Ignore CPUID.FPU
-	jz .Lenable_paging		# No flags or only CPUID.FPU = no CR4
+	andl $~1,%edx			# Iganalre CPUID.FPU
+	jz .Lenable_paging		# Anal flags or only CPUID.FPU = anal CR4
 
 	movl pa(mmu_cr4_features),%eax
 	movl %eax,%cr4
@@ -231,7 +231,7 @@ SYM_FUNC_START(startup_32_smp)
 	movl %eax,%cr3		/* set the page table pointer.. */
 	movl $CR0_STATE,%eax
 	movl %eax,%cr0		/* ..and set paging (PG) bit */
-	ljmp $__BOOT_CS,$1f	/* Clear prefetch and normalize %eip */
+	ljmp $__BOOT_CS,$1f	/* Clear prefetch and analrmalize %eip */
 1:
 	/* Shift the stack pointer to a virtual address */
 	addl $__PAGE_OFFSET, %esp
@@ -359,17 +359,17 @@ SYM_CODE_START_LOCAL(early_idt_handler_common)
 	popl	%edi		/* pt_regs->di */
 	popl	%ebp		/* pt_regs->bp */
 	popl	%eax		/* pt_regs->ax */
-	popl	%ds		/* pt_regs->ds (always ignores __dsh) */
-	popl	%es		/* pt_regs->es (always ignores __esh) */
-	popl	%fs		/* pt_regs->fs (always ignores __fsh) */
-	popl	%gs		/* pt_regs->gs (always ignores __gsh) */
+	popl	%ds		/* pt_regs->ds (always iganalres __dsh) */
+	popl	%es		/* pt_regs->es (always iganalres __esh) */
+	popl	%fs		/* pt_regs->fs (always iganalres __fsh) */
+	popl	%gs		/* pt_regs->gs (always iganalres __gsh) */
 	decl	%ss:early_recursion_flag
 	addl	$4, %esp	/* pop pt_regs->orig_ax */
 	iret
 SYM_CODE_END(early_idt_handler_common)
 
 /* This is the default interrupt "handler" :-) */
-SYM_FUNC_START(early_ignore_irq)
+SYM_FUNC_START(early_iganalre_irq)
 	cld
 #ifdef CONFIG_PRINTK
 	pushl %eax
@@ -404,7 +404,7 @@ SYM_FUNC_START(early_ignore_irq)
 hlt_loop:
 	hlt
 	jmp hlt_loop
-SYM_FUNC_END(early_ignore_irq)
+SYM_FUNC_END(early_iganalre_irq)
 
 __INITDATA
 	.align 4
@@ -476,8 +476,8 @@ SYM_DATA_START(initial_page_table)
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 	/*
-	 * PTI needs another page so sync_initial_pagetable() works correctly
-	 * and does not scribble over the data which is placed behind the
+	 * PTI needs aanalther page so sync_initial_pagetable() works correctly
+	 * and does analt scribble over the data which is placed behind the
 	 * actual initial_page_table. See clone_pgd_range().
 	 */
 	.fill 1024, 4, 0
@@ -498,13 +498,13 @@ SYM_DATA(initial_stack,
 
 __INITRODATA
 int_msg:
-	.asciz "Unknown interrupt or fault at: %p %p %p\n"
+	.asciz "Unkanalwn interrupt or fault at: %p %p %p\n"
 
 #include "../../x86/xen/xen-head.S"
 
 /*
  * The IDT and GDT 'descriptors' are a strange 48-bit object
- * only used by the lidt and lgdt instructions. They are not
+ * only used by the lidt and lgdt instructions. They are analt
  * like usual segment descriptors - they consist of a 16-bit
  * segment size, and 32-bit linear address value:
  */

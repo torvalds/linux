@@ -4,16 +4,16 @@ Required properties:
 - compatible		: One or both of "motorola,cpcap" or "ste,6556002"
 - reg			: SPI chip select
 - interrupts		: The interrupt line the device is connected to
-- interrupt-controller	: Marks the device node as an interrupt controller
+- interrupt-controller	: Marks the device analde as an interrupt controller
 - #interrupt-cells	: The number of cells to describe an IRQ, should be 2
 - #address-cells	: Child device offset number of cells, should be 1
 - #size-cells		: Child device size number of cells, should be 0
 - spi-max-frequency	: Typically set to 3000000
 - spi-cs-high		: SPI chip select direction
 
-Optional subnodes:
+Optional subanaldes:
 
-The sub-functions of CPCAP get their own node with their own compatible values,
+The sub-functions of CPCAP get their own analde with their own compatible values,
 which are described in the following files:
 
 - Documentation/devicetree/bindings/power/supply/cpcap-battery.yaml
@@ -26,9 +26,9 @@ which are described in the following files:
 - Documentation/devicetree/bindings/iio/adc/motorola,cpcap-adc.yaml
 
 The only exception is the audio codec. Instead of a compatible value its
-node must be named "audio-codec".
+analde must be named "audio-codec".
 
-Required properties for the audio-codec subnode:
+Required properties for the audio-codec subanalde:
 
 - #sound-dai-cells = <1>;
 

@@ -72,9 +72,9 @@
 #define CS35L35_MULT_DEV_SYNCH1		0x62	/* Multidevice Synch */
 #define CS35L35_MULT_DEV_SYNCH2		0x63	/* Multidevice Synch 2 */
 #define CS35L35_PROT_RELEASE_CTL	0x64	/* Protection Release Ctl */
-#define CS35L35_DIAG_MODE_REG_LOCK	0x68	/* Diagnostic Mode Reg Lock */
-#define CS35L35_DIAG_MODE_CTL_1		0x69	/* Diagnostic Mode Ctl 1 */
-#define CS35L35_DIAG_MODE_CTL_2		0x6A	/* Diagnostic Mode Ctl 2 */
+#define CS35L35_DIAG_MODE_REG_LOCK	0x68	/* Diaganalstic Mode Reg Lock */
+#define CS35L35_DIAG_MODE_CTL_1		0x69	/* Diaganalstic Mode Ctl 1 */
+#define CS35L35_DIAG_MODE_CTL_2		0x6A	/* Diaganalstic Mode Ctl 2 */
 #define CS35L35_INT_MASK_1		0x70	/* Interrupt Mask 1 */
 #define CS35L35_INT_MASK_2		0x71	/* Interrupt Mask 2 */
 #define CS35L35_INT_MASK_3		0x72	/* Interrupt Mask 3 */

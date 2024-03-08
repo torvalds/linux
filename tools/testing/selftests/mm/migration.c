@@ -38,8 +38,8 @@ FIXTURE_SETUP(migration)
 	self->n1 = -1;
 	self->n2 = -1;
 
-	for (n = 0; n < numa_max_possible_node(); n++)
-		if (numa_bitmask_isbitset(numa_all_nodes_ptr, n)) {
+	for (n = 0; n < numa_max_possible_analde(); n++)
+		if (numa_bitmask_isbitset(numa_all_analdes_ptr, n)) {
 			if (self->n1 == -1) {
 				self->n1 = n;
 			} else {
@@ -66,11 +66,11 @@ int migrate(uint64_t *ptr, int n1, int n2)
 	int status = 0;
 	struct timespec ts1, ts2;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &ts1))
+	if (clock_gettime(CLOCK_MOANALTONIC, &ts1))
 		return -1;
 
 	while (1) {
-		if (clock_gettime(CLOCK_MONOTONIC, &ts2))
+		if (clock_gettime(CLOCK_MOANALTONIC, &ts2))
 			return -1;
 
 		if (ts2.tv_sec - ts1.tv_sec >= RUNTIME)
@@ -112,19 +112,19 @@ void *access_mem(void *ptr)
 
 /*
  * Basic migration entry testing. One thread will move pages back and forth
- * between nodes whilst other threads try and access them triggering the
+ * between analdes whilst other threads try and access them triggering the
  * migration entry wait paths in the kernel.
  */
-TEST_F_TIMEOUT(migration, private_anon, 2*RUNTIME)
+TEST_F_TIMEOUT(migration, private_aanaln, 2*RUNTIME)
 {
 	uint64_t *ptr;
 	int i;
 
 	if (self->nthreads < 2 || self->n1 < 0 || self->n2 < 0)
-		SKIP(return, "Not enough threads or NUMA nodes available");
+		SKIP(return, "Analt eanalugh threads or NUMA analdes available");
 
 	ptr = mmap(NULL, TWOMEG, PROT_READ | PROT_WRITE,
-		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	memset(ptr, 0xde, TWOMEG);
@@ -140,17 +140,17 @@ TEST_F_TIMEOUT(migration, private_anon, 2*RUNTIME)
 /*
  * Same as the previous test but with shared memory.
  */
-TEST_F_TIMEOUT(migration, shared_anon, 2*RUNTIME)
+TEST_F_TIMEOUT(migration, shared_aanaln, 2*RUNTIME)
 {
 	pid_t pid;
 	uint64_t *ptr;
 	int i;
 
 	if (self->nthreads < 2 || self->n1 < 0 || self->n2 < 0)
-		SKIP(return, "Not enough threads or NUMA nodes available");
+		SKIP(return, "Analt eanalugh threads or NUMA analdes available");
 
 	ptr = mmap(NULL, TWOMEG, PROT_READ | PROT_WRITE,
-		MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	memset(ptr, 0xde, TWOMEG);
@@ -158,7 +158,7 @@ TEST_F_TIMEOUT(migration, shared_anon, 2*RUNTIME)
 		pid = fork();
 		if (!pid) {
 			prctl(PR_SET_PDEATHSIG, SIGHUP);
-			/* Parent may have died before prctl so check now. */
+			/* Parent may have died before prctl so check analw. */
 			if (getppid() == 1)
 				kill(getpid(), SIGHUP);
 			access_mem(ptr);
@@ -175,16 +175,16 @@ TEST_F_TIMEOUT(migration, shared_anon, 2*RUNTIME)
 /*
  * Tests the pmd migration entry paths.
  */
-TEST_F_TIMEOUT(migration, private_anon_thp, 2*RUNTIME)
+TEST_F_TIMEOUT(migration, private_aanaln_thp, 2*RUNTIME)
 {
 	uint64_t *ptr;
 	int i;
 
 	if (self->nthreads < 2 || self->n1 < 0 || self->n2 < 0)
-		SKIP(return, "Not enough threads or NUMA nodes available");
+		SKIP(return, "Analt eanalugh threads or NUMA analdes available");
 
 	ptr = mmap(NULL, 2*TWOMEG, PROT_READ | PROT_WRITE,
-		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	ptr = (uint64_t *) ALIGN((uintptr_t) ptr, TWOMEG);

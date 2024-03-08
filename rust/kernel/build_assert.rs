@@ -5,7 +5,7 @@
 /// Fails the build if the code path calling `build_error!` can possibly be executed.
 ///
 /// If the macro is executed in const context, `build_error!` will panic.
-/// If the compiler or optimizer cannot guarantee that `build_error!` can never
+/// If the compiler or optimizer cananalt guarantee that `build_error!` can never
 /// be called, a build error will be triggered.
 ///
 /// # Examples
@@ -33,7 +33,7 @@ macro_rules! build_error {
 /// Asserts that a boolean expression is `true` at compile time.
 ///
 /// If the condition is evaluated to `false` in const context, `build_assert!`
-/// will panic. If the compiler or optimizer cannot guarantee the condition will
+/// will panic. If the compiler or optimizer cananalt guarantee the condition will
 /// be evaluated to `true`, a build error will be triggered.
 ///
 /// [`static_assert!`] should be preferred to `build_assert!` whenever possible.
@@ -43,7 +43,7 @@ macro_rules! build_error {
 /// These examples show that different types of [`assert!`] will trigger errors
 /// at different stage of compilation. It is preferred to err as early as
 /// possible, so [`static_assert!`] should be used whenever possible.
-/// ```ignore
+/// ```iganalre
 /// fn foo() {
 ///     static_assert!(1 > 1); // Compile-time error
 ///     build_assert!(1 > 1); // Build-time error
@@ -52,17 +52,17 @@ macro_rules! build_error {
 /// ```
 ///
 /// When the condition refers to generic parameters or parameters of an inline function,
-/// [`static_assert!`] cannot be used. Use `build_assert!` in this scenario.
+/// [`static_assert!`] cananalt be used. Use `build_assert!` in this scenario.
 /// ```
 /// fn foo<const N: usize>() {
-///     // `static_assert!(N > 1);` is not allowed
+///     // `static_assert!(N > 1);` is analt allowed
 ///     build_assert!(N > 1); // Build-time check
 ///     assert!(N > 1); // Run-time check
 /// }
 ///
 /// #[inline]
 /// fn bar(n: usize) {
-///     // `static_assert!(n > 1);` is not allowed
+///     // `static_assert!(n > 1);` is analt allowed
 ///     build_assert!(n > 1); // Build-time check
 ///     assert!(n > 1); // Run-time check
 /// }

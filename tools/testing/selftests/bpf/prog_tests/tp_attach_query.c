@@ -24,12 +24,12 @@ void serial_test_tp_attach_query(void)
 			 "/sys/kernel/debug/tracing/events/sched/sched_switch/id");
 	}
 	efd = open(buf, O_RDONLY, 0);
-	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
+	if (CHECK(efd < 0, "open", "err %d erranal %d\n", efd, erranal))
 		return;
 	bytes = read(efd, buf, sizeof(buf));
 	close(efd);
 	if (CHECK(bytes <= 0 || bytes >= sizeof(buf),
-		  "read", "bytes %d errno %d\n", bytes, errno))
+		  "read", "bytes %d erranal %d\n", bytes, erranal))
 		return;
 
 	attr.config = strtol(buf, NULL, 0);
@@ -42,7 +42,7 @@ void serial_test_tp_attach_query(void)
 	for (i = 0; i < num_progs; i++) {
 		err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj[i],
 				    &prog_fd[i]);
-		if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
+		if (CHECK(err, "prog_load", "err %d erranal %d\n", err, erranal))
 			goto cleanup1;
 
 		bzero(&prog_info, sizeof(prog_info));
@@ -52,20 +52,20 @@ void serial_test_tp_attach_query(void)
 		info_len = sizeof(prog_info);
 		err = bpf_prog_get_info_by_fd(prog_fd[i], &prog_info,
 					      &info_len);
-		if (CHECK(err, "bpf_prog_get_info_by_fd", "err %d errno %d\n",
-			  err, errno))
+		if (CHECK(err, "bpf_prog_get_info_by_fd", "err %d erranal %d\n",
+			  err, erranal))
 			goto cleanup1;
 		saved_prog_ids[i] = prog_info.id;
 
 		pmu_fd[i] = syscall(__NR_perf_event_open, &attr, -1 /* pid */,
 				    0 /* cpu 0 */, -1 /* group id */,
 				    0 /* flags */);
-		if (CHECK(pmu_fd[i] < 0, "perf_event_open", "err %d errno %d\n",
-			  pmu_fd[i], errno))
+		if (CHECK(pmu_fd[i] < 0, "perf_event_open", "err %d erranal %d\n",
+			  pmu_fd[i], erranal))
 			goto cleanup2;
 		err = ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE, 0);
-		if (CHECK(err, "perf_event_ioc_enable", "err %d errno %d\n",
-			  err, errno))
+		if (CHECK(err, "perf_event_ioc_enable", "err %d erranal %d\n",
+			  err, erranal))
 			goto cleanup3;
 
 		if (i == 0) {
@@ -74,14 +74,14 @@ void serial_test_tp_attach_query(void)
 			err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF, query);
 			if (CHECK(err || query->prog_cnt != 0,
 				  "perf_event_ioc_query_bpf",
-				  "err %d errno %d query->prog_cnt %u\n",
-				  err, errno, query->prog_cnt))
+				  "err %d erranal %d query->prog_cnt %u\n",
+				  err, erranal, query->prog_cnt))
 				goto cleanup3;
 		}
 
 		err = ioctl(pmu_fd[i], PERF_EVENT_IOC_SET_BPF, prog_fd[i]);
-		if (CHECK(err, "perf_event_ioc_set_bpf", "err %d errno %d\n",
-			  err, errno))
+		if (CHECK(err, "perf_event_ioc_set_bpf", "err %d erranal %d\n",
+			  err, erranal))
 			goto cleanup3;
 
 		if (i == 1) {
@@ -90,26 +90,26 @@ void serial_test_tp_attach_query(void)
 			err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF, query);
 			if (CHECK(err || query->prog_cnt != 2,
 				  "perf_event_ioc_query_bpf",
-				  "err %d errno %d query->prog_cnt %u\n",
-				  err, errno, query->prog_cnt))
+				  "err %d erranal %d query->prog_cnt %u\n",
+				  err, erranal, query->prog_cnt))
 				goto cleanup3;
 
 			/* try a few negative tests */
 			/* invalid query pointer */
 			err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF,
 				    (struct perf_event_query_bpf *)0x1);
-			if (CHECK(!err || errno != EFAULT,
+			if (CHECK(!err || erranal != EFAULT,
 				  "perf_event_ioc_query_bpf",
-				  "err %d errno %d\n", err, errno))
+				  "err %d erranal %d\n", err, erranal))
 				goto cleanup3;
 
-			/* no enough space */
+			/* anal eanalugh space */
 			query->ids_len = 1;
 			err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF, query);
-			if (CHECK(!err || errno != ENOSPC || query->prog_cnt != 2,
+			if (CHECK(!err || erranal != EANALSPC || query->prog_cnt != 2,
 				  "perf_event_ioc_query_bpf",
-				  "err %d errno %d query->prog_cnt %u\n",
-				  err, errno, query->prog_cnt))
+				  "err %d erranal %d query->prog_cnt %u\n",
+				  err, erranal, query->prog_cnt))
 				goto cleanup3;
 		}
 
@@ -117,8 +117,8 @@ void serial_test_tp_attach_query(void)
 		err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF, query);
 		if (CHECK(err || query->prog_cnt != (i + 1),
 			  "perf_event_ioc_query_bpf",
-			  "err %d errno %d query->prog_cnt %u\n",
-			  err, errno, query->prog_cnt))
+			  "err %d erranal %d query->prog_cnt %u\n",
+			  err, erranal, query->prog_cnt))
 			goto cleanup3;
 		for (j = 0; j < i + 1; j++)
 			if (CHECK(saved_prog_ids[j] != query->ids[j],

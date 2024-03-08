@@ -21,10 +21,10 @@
 #include "ext4.h"
 
 struct ext4_system_zone {
-	struct rb_node	node;
+	struct rb_analde	analde;
 	ext4_fsblk_t	start_blk;
 	unsigned int	count;
-	u32		ino;
+	u32		ianal;
 };
 
 static struct kmem_cache *ext4_system_zone_cachep;
@@ -33,7 +33,7 @@ int __init ext4_init_system_zone(void)
 {
 	ext4_system_zone_cachep = KMEM_CACHE(ext4_system_zone, 0);
 	if (ext4_system_zone_cachep == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -47,7 +47,7 @@ static inline int can_merge(struct ext4_system_zone *entry1,
 		     struct ext4_system_zone *entry2)
 {
 	if ((entry1->start_blk + entry1->count) == entry2->start_blk &&
-	    entry1->ino == entry2->ino)
+	    entry1->ianal == entry2->ianal)
 		return 1;
 	return 0;
 }
@@ -57,26 +57,26 @@ static void release_system_zone(struct ext4_system_blocks *system_blks)
 	struct ext4_system_zone	*entry, *n;
 
 	rbtree_postorder_for_each_entry_safe(entry, n,
-				&system_blks->root, node)
+				&system_blks->root, analde)
 		kmem_cache_free(ext4_system_zone_cachep, entry);
 }
 
 /*
  * Mark a range of blocks as belonging to the "system zone" --- that
  * is, filesystem metadata blocks which should never be used by
- * inodes.
+ * ianaldes.
  */
 static int add_system_zone(struct ext4_system_blocks *system_blks,
 			   ext4_fsblk_t start_blk,
-			   unsigned int count, u32 ino)
+			   unsigned int count, u32 ianal)
 {
 	struct ext4_system_zone *new_entry, *entry;
-	struct rb_node **n = &system_blks->root.rb_node, *node;
-	struct rb_node *parent = NULL, *new_node = NULL;
+	struct rb_analde **n = &system_blks->root.rb_analde, *analde;
+	struct rb_analde *parent = NULL, *new_analde = NULL;
 
 	while (*n) {
 		parent = *n;
-		entry = rb_entry(parent, struct ext4_system_zone, node);
+		entry = rb_entry(parent, struct ext4_system_zone, analde);
 		if (start_blk < entry->start_blk)
 			n = &(*n)->rb_left;
 		else if (start_blk >= (entry->start_blk + entry->count))
@@ -88,34 +88,34 @@ static int add_system_zone(struct ext4_system_blocks *system_blks,
 	new_entry = kmem_cache_alloc(ext4_system_zone_cachep,
 				     GFP_KERNEL);
 	if (!new_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	new_entry->start_blk = start_blk;
 	new_entry->count = count;
-	new_entry->ino = ino;
-	new_node = &new_entry->node;
+	new_entry->ianal = ianal;
+	new_analde = &new_entry->analde;
 
-	rb_link_node(new_node, parent, n);
-	rb_insert_color(new_node, &system_blks->root);
+	rb_link_analde(new_analde, parent, n);
+	rb_insert_color(new_analde, &system_blks->root);
 
 	/* Can we merge to the left? */
-	node = rb_prev(new_node);
-	if (node) {
-		entry = rb_entry(node, struct ext4_system_zone, node);
+	analde = rb_prev(new_analde);
+	if (analde) {
+		entry = rb_entry(analde, struct ext4_system_zone, analde);
 		if (can_merge(entry, new_entry)) {
 			new_entry->start_blk = entry->start_blk;
 			new_entry->count += entry->count;
-			rb_erase(node, &system_blks->root);
+			rb_erase(analde, &system_blks->root);
 			kmem_cache_free(ext4_system_zone_cachep, entry);
 		}
 	}
 
 	/* Can we merge to the right? */
-	node = rb_next(new_node);
-	if (node) {
-		entry = rb_entry(node, struct ext4_system_zone, node);
+	analde = rb_next(new_analde);
+	if (analde) {
+		entry = rb_entry(analde, struct ext4_system_zone, analde);
 		if (can_merge(new_entry, entry)) {
 			new_entry->count += entry->count;
-			rb_erase(node, &system_blks->root);
+			rb_erase(analde, &system_blks->root);
 			kmem_cache_free(ext4_system_zone_cachep, entry);
 		}
 	}
@@ -124,7 +124,7 @@ static int add_system_zone(struct ext4_system_blocks *system_blks,
 
 static void debug_print_tree(struct ext4_sb_info *sbi)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct ext4_system_zone *entry;
 	struct ext4_system_blocks *system_blks;
 	int first = 1;
@@ -132,40 +132,40 @@ static void debug_print_tree(struct ext4_sb_info *sbi)
 	printk(KERN_INFO "System zones: ");
 	rcu_read_lock();
 	system_blks = rcu_dereference(sbi->s_system_blks);
-	node = rb_first(&system_blks->root);
-	while (node) {
-		entry = rb_entry(node, struct ext4_system_zone, node);
+	analde = rb_first(&system_blks->root);
+	while (analde) {
+		entry = rb_entry(analde, struct ext4_system_zone, analde);
 		printk(KERN_CONT "%s%llu-%llu", first ? "" : ", ",
 		       entry->start_blk, entry->start_blk + entry->count - 1);
 		first = 0;
-		node = rb_next(node);
+		analde = rb_next(analde);
 	}
 	rcu_read_unlock();
 	printk(KERN_CONT "\n");
 }
 
-static int ext4_protect_reserved_inode(struct super_block *sb,
+static int ext4_protect_reserved_ianalde(struct super_block *sb,
 				       struct ext4_system_blocks *system_blks,
-				       u32 ino)
+				       u32 ianal)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_map_blocks map;
 	u32 i = 0, num;
 	int err = 0, n;
 
-	if ((ino < EXT4_ROOT_INO) ||
-	    (ino > le32_to_cpu(sbi->s_es->s_inodes_count)))
+	if ((ianal < EXT4_ROOT_IANAL) ||
+	    (ianal > le32_to_cpu(sbi->s_es->s_ianaldes_count)))
 		return -EINVAL;
-	inode = ext4_iget(sb, ino, EXT4_IGET_SPECIAL);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
-	num = (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
+	ianalde = ext4_iget(sb, ianal, EXT4_IGET_SPECIAL);
+	if (IS_ERR(ianalde))
+		return PTR_ERR(ianalde);
+	num = (ianalde->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
 	while (i < num) {
 		cond_resched();
 		map.m_lblk = i;
 		map.m_len = num - i;
-		n = ext4_map_blocks(NULL, inode, &map, 0);
+		n = ext4_map_blocks(NULL, ianalde, &map, 0);
 		if (n < 0) {
 			err = n;
 			break;
@@ -173,11 +173,11 @@ static int ext4_protect_reserved_inode(struct super_block *sb,
 		if (n == 0) {
 			i++;
 		} else {
-			err = add_system_zone(system_blks, map.m_pblk, n, ino);
+			err = add_system_zone(system_blks, map.m_pblk, n, ianal);
 			if (err < 0) {
 				if (err == -EFSCORRUPTED) {
-					EXT4_ERROR_INODE_ERR(inode, -err,
-						"blocks %llu-%llu from inode overlap system zone",
+					EXT4_ERROR_IANALDE_ERR(ianalde, -err,
+						"blocks %llu-%llu from ianalde overlap system zone",
 						map.m_pblk,
 						map.m_pblk + map.m_len - 1);
 				}
@@ -186,7 +186,7 @@ static int ext4_protect_reserved_inode(struct super_block *sb,
 			i += n;
 		}
 	}
-	iput(inode);
+	iput(ianalde);
 	return err;
 }
 
@@ -204,7 +204,7 @@ static void ext4_destroy_system_zone(struct rcu_head *rcu)
  *
  * The update of system_blks pointer in this function is protected by
  * sb->s_umount semaphore. However we have to be careful as we can be
- * racing with ext4_inode_block_valid() calls reading system_blks rbtree
+ * racing with ext4_ianalde_block_valid() calls reading system_blks rbtree
  * protected only by RCU. That's why we first build the rbtree and then
  * swap it in place.
  */
@@ -219,7 +219,7 @@ int ext4_setup_system_zone(struct super_block *sb)
 
 	system_blks = kzalloc(sizeof(*system_blks), GFP_KERNEL);
 	if (!system_blks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i=0; i < ngroups; i++) {
 		unsigned int meta_blks = ext4_num_base_meta_blocks(sb, i);
@@ -227,7 +227,7 @@ int ext4_setup_system_zone(struct super_block *sb)
 		cond_resched();
 		if (meta_blks != 0) {
 			ret = add_system_zone(system_blks,
-					ext4_group_first_block_no(sb, i),
+					ext4_group_first_block_anal(sb, i),
 					meta_blks, 0);
 			if (ret)
 				goto err;
@@ -238,25 +238,25 @@ int ext4_setup_system_zone(struct super_block *sb)
 		if (ret)
 			goto err;
 		ret = add_system_zone(system_blks,
-				ext4_inode_bitmap(sb, gdp), 1, 0);
+				ext4_ianalde_bitmap(sb, gdp), 1, 0);
 		if (ret)
 			goto err;
 		ret = add_system_zone(system_blks,
-				ext4_inode_table(sb, gdp),
+				ext4_ianalde_table(sb, gdp),
 				sbi->s_itb_per_group, 0);
 		if (ret)
 			goto err;
 	}
 	if (ext4_has_feature_journal(sb) && sbi->s_es->s_journal_inum) {
-		ret = ext4_protect_reserved_inode(sb, system_blks,
+		ret = ext4_protect_reserved_ianalde(sb, system_blks,
 				le32_to_cpu(sbi->s_es->s_journal_inum));
 		if (ret)
 			goto err;
 	}
 
 	/*
-	 * System blks rbtree complete, announce it once to prevent racing
-	 * with ext4_inode_block_valid() accessing the rbtree at the same
+	 * System blks rbtree complete, ananalunce it once to prevent racing
+	 * with ext4_ianalde_block_valid() accessing the rbtree at the same
 	 * time.
 	 */
 	rcu_assign_pointer(sbi->s_system_blks, system_blks);
@@ -272,11 +272,11 @@ err:
 
 /*
  * Called when the filesystem is unmounted or when remounting it with
- * noblock_validity specified.
+ * analblock_validity specified.
  *
  * The update of system_blks pointer in this function is protected by
  * sb->s_umount semaphore. However we have to be careful as we can be
- * racing with ext4_inode_block_valid() calls reading system_blks rbtree
+ * racing with ext4_ianalde_block_valid() calls reading system_blks rbtree
  * protected only by RCU. So we first clear the system_blks pointer and
  * then free the rbtree only after RCU grace period expires.
  */
@@ -292,13 +292,13 @@ void ext4_release_system_zone(struct super_block *sb)
 		call_rcu(&system_blks->rcu, ext4_destroy_system_zone);
 }
 
-int ext4_sb_block_valid(struct super_block *sb, struct inode *inode,
+int ext4_sb_block_valid(struct super_block *sb, struct ianalde *ianalde,
 				ext4_fsblk_t start_blk, unsigned int count)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_system_blocks *system_blks;
 	struct ext4_system_zone *entry;
-	struct rb_node *n;
+	struct rb_analde *n;
 	int ret = 1;
 
 	if ((start_blk <= le32_to_cpu(sbi->s_es->s_first_data_block)) ||
@@ -308,7 +308,7 @@ int ext4_sb_block_valid(struct super_block *sb, struct inode *inode,
 
 	/*
 	 * Lock the system zone to prevent it being released concurrently
-	 * when doing a remount which inverse current "[no]block_validity"
+	 * when doing a remount which inverse current "[anal]block_validity"
 	 * mount option.
 	 */
 	rcu_read_lock();
@@ -316,17 +316,17 @@ int ext4_sb_block_valid(struct super_block *sb, struct inode *inode,
 	if (system_blks == NULL)
 		goto out_rcu;
 
-	n = system_blks->root.rb_node;
+	n = system_blks->root.rb_analde;
 	while (n) {
-		entry = rb_entry(n, struct ext4_system_zone, node);
+		entry = rb_entry(n, struct ext4_system_zone, analde);
 		if (start_blk + count - 1 < entry->start_blk)
 			n = n->rb_left;
 		else if (start_blk >= (entry->start_blk + entry->count))
 			n = n->rb_right;
 		else {
 			ret = 0;
-			if (inode)
-				ret = (entry->ino == inode->i_ino);
+			if (ianalde)
+				ret = (entry->ianal == ianalde->i_ianal);
 			break;
 		}
 	}
@@ -340,28 +340,28 @@ out_rcu:
  * start_blk+count) is valid; 0 if some part of the block region
  * overlaps with some other filesystem metadata blocks.
  */
-int ext4_inode_block_valid(struct inode *inode, ext4_fsblk_t start_blk,
+int ext4_ianalde_block_valid(struct ianalde *ianalde, ext4_fsblk_t start_blk,
 			  unsigned int count)
 {
-	return ext4_sb_block_valid(inode->i_sb, inode, start_blk, count);
+	return ext4_sb_block_valid(ianalde->i_sb, ianalde, start_blk, count);
 }
 
 int ext4_check_blockref(const char *function, unsigned int line,
-			struct inode *inode, __le32 *p, unsigned int max)
+			struct ianalde *ianalde, __le32 *p, unsigned int max)
 {
 	__le32 *bref = p;
 	unsigned int blk;
 
-	if (ext4_has_feature_journal(inode->i_sb) &&
-	    (inode->i_ino ==
-	     le32_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_journal_inum)))
+	if (ext4_has_feature_journal(ianalde->i_sb) &&
+	    (ianalde->i_ianal ==
+	     le32_to_cpu(EXT4_SB(ianalde->i_sb)->s_es->s_journal_inum)))
 		return 0;
 
 	while (bref < p+max) {
 		blk = le32_to_cpu(*bref++);
 		if (blk &&
-		    unlikely(!ext4_inode_block_valid(inode, blk, 1))) {
-			ext4_error_inode(inode, function, line, blk,
+		    unlikely(!ext4_ianalde_block_valid(ianalde, blk, 1))) {
+			ext4_error_ianalde(ianalde, function, line, blk,
 					 "invalid block");
 			return -EFSCORRUPTED;
 		}

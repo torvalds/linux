@@ -123,7 +123,7 @@ int ishtp_write_message(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
  *
  * Search firmware client using UUID.
  *
- * Return: fw client index or -ENOENT if not found
+ * Return: fw client index or -EANALENT if analt found
  */
 int ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const guid_t *uuid)
 {
@@ -133,7 +133,7 @@ int ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const guid_t *uuid)
 		if (guid_equal(uuid, &dev->fw_clients[i].props.protocol_name))
 			return i;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL(ishtp_fw_cl_by_uuid);
 
@@ -183,11 +183,11 @@ EXPORT_SYMBOL(ishtp_get_fw_client_id);
  *
  * Search firmware client using client id.
  *
- * Return: index on success, -ENOENT on failure.
+ * Return: index on success, -EANALENT on failure.
  */
 int ishtp_fw_cl_by_id(struct ishtp_device *dev, uint8_t client_id)
 {
-	int i, res = -ENOENT;
+	int i, res = -EANALENT;
 	unsigned long	flags;
 
 	spin_lock_irqsave(&dev->fw_clients_lock, flags);
@@ -220,7 +220,7 @@ static int ishtp_cl_device_probe(struct device *dev)
 
 	driver = to_ishtp_cl_driver(dev->driver);
 	if (!driver || !driver->probe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return driver->probe(device);
 }
@@ -232,7 +232,7 @@ static int ishtp_cl_device_probe(struct device *dev)
  *
  * This is a bus match callback, called when a new ishtp_cl_device is
  * registered during ishtp bus client enumeration. Use the guid_t in
- * drv and dev to decide whether they match or not.
+ * drv and dev to decide whether they match or analt.
  *
  * Return: 1 if dev & drv matches, 0 otherwise.
  */
@@ -364,7 +364,7 @@ ATTRIBUTE_GROUPS(ishtp_cl_dev);
 static int ishtp_cl_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	if (add_uevent_var(env, "MODALIAS=" ISHTP_MODULE_PREFIX "%s", dev_name(dev)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -482,13 +482,13 @@ static void ishtp_bus_remove_device(struct ishtp_cl_device *device)
  * Once a client driver is probed, it created a client
  * instance and registers with the bus.
  *
- * Return: Return value of driver_register or -ENODEV if not ready
+ * Return: Return value of driver_register or -EANALDEV if analt ready
  */
 int ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
 			     struct module *owner)
 {
 	if (!ishtp_device_ready)
-		return -ENODEV;
+		return -EANALDEV;
 
 	driver->driver.name = driver->name;
 	driver->driver.owner = owner;
@@ -657,12 +657,12 @@ int ishtp_bus_new_client(struct ishtp_device *dev)
 	device_uuid = dev->fw_clients[i].props.protocol_name;
 	dev_name = kasprintf(GFP_KERNEL, "{%pUL}", &device_uuid);
 	if (!dev_name)
-		return	-ENOMEM;
+		return	-EANALMEM;
 
 	cl_device = ishtp_bus_add_device(dev, device_uuid, dev_name);
 	if (!cl_device) {
 		kfree(dev_name);
-		return	-ENOENT;
+		return	-EANALENT;
 	}
 
 	kfree(dev_name);
@@ -687,7 +687,7 @@ int ishtp_cl_device_bind(struct ishtp_cl *cl)
 	if (!cl->fw_client_id || cl->state != ISHTP_CL_CONNECTED)
 		return	-EFAULT;
 
-	rv = -ENOENT;
+	rv = -EANALENT;
 	spin_lock_irqsave(&cl->dev->device_list_lock, flags);
 	list_for_each_entry(cl_device, &cl->dev->device_list,
 			device_link) {
@@ -710,7 +710,7 @@ int ishtp_cl_device_bind(struct ishtp_cl *cl)
  * This is part of reset/remove flow. This function the main processing
  * only targets error processing, if the FW has forced reset or
  * error to remove connected clients. When warm reset the client devices are
- * not removed.
+ * analt removed.
  */
 void ishtp_bus_remove_all_clients(struct ishtp_device *ishtp_dev,
 				  bool warm_reset)
@@ -727,7 +727,7 @@ void ishtp_bus_remove_all_clients(struct ishtp_device *ishtp_dev,
 
 		/*
 		 * Wake any pending process. The waiter would check dev->state
-		 * and determine that it's not enabled already,
+		 * and determine that it's analt enabled already,
 		 * and will return error to its caller
 		 */
 		wake_up_interruptible(&cl->wait_ctrl_res);
@@ -781,7 +781,7 @@ EXPORT_SYMBOL(ishtp_bus_remove_all_clients);
  * ishtp_reset_handler() - IPC reset handler
  * @dev:	ishtp device
  *
- * ISHTP Handler for IPC_RESET notification
+ * ISHTP Handler for IPC_RESET analtification
  */
 void ishtp_reset_handler(struct ishtp_device *dev)
 {
@@ -790,7 +790,7 @@ void ishtp_reset_handler(struct ishtp_device *dev)
 	/* Handle FW-initiated reset */
 	dev->dev_state = ISHTP_DEV_RESETTING;
 
-	/* Clear BH processing queue - no further HBMs */
+	/* Clear BH processing queue - anal further HBMs */
 	spin_lock_irqsave(&dev->rd_msg_spinlock, flags);
 	dev->rd_msg_fifo_head = dev->rd_msg_fifo_tail = 0;
 	spin_unlock_irqrestore(&dev->rd_msg_spinlock, flags);
@@ -820,7 +820,7 @@ EXPORT_SYMBOL(ishtp_reset_compl_handler);
  *
  * This interface is used to enable usage of DMA
  *
- * Return non zero if DMA can be enabled
+ * Return analn zero if DMA can be enabled
  */
 int ishtp_use_dma_transfer(void)
 {
@@ -847,7 +847,7 @@ EXPORT_SYMBOL(ishtp_device);
  *
  * Wait for IPC resume
  *
- * Return: resume complete or not
+ * Return: resume complete or analt
  */
 bool ishtp_wait_resume(struct ishtp_device *dev)
 {

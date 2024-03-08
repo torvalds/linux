@@ -25,7 +25,7 @@
  *
  * The amdgpu vkms interface provides a virtual KMS interface for several use
  * cases: devices without display hardware, platforms where the actual display
- * hardware is not useful (e.g., servers), SR-IOV virtual functions, device
+ * hardware is analt useful (e.g., servers), SR-IOV virtual functions, device
  * emulation/simulation, and device bring up prior to display hardware being
  * usable. We previously emulated a legacy KMS interface, but there was a desire
  * to move to the atomic KMS interface. The vkms driver did everything we
@@ -50,7 +50,7 @@ static enum hrtimer_restart amdgpu_vkms_vblank_simulate(struct hrtimer *timer)
 	u64 ret_overrun;
 	bool ret;
 
-	ret_overrun = hrtimer_forward_now(&amdgpu_crtc->vblank_timer,
+	ret_overrun = hrtimer_forward_analw(&amdgpu_crtc->vblank_timer,
 					  output->period_ns);
 	if (ret_overrun != 1)
 		DRM_WARN("%s: vblank timer overrun\n", __func__);
@@ -58,7 +58,7 @@ static enum hrtimer_restart amdgpu_vkms_vblank_simulate(struct hrtimer *timer)
 	ret = drm_crtc_handle_vblank(crtc);
 	/* Don't queue timer again when vblank is disabled. */
 	if (!ret)
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	return HRTIMER_RESTART;
 }
@@ -102,7 +102,7 @@ static bool amdgpu_vkms_get_vblank_timestamp(struct drm_crtc *crtc,
 		return true;
 	}
 
-	*vblank_time = READ_ONCE(amdgpu_crtc->vblank_timer.node.expires);
+	*vblank_time = READ_ONCE(amdgpu_crtc->vblank_timer.analde.expires);
 
 	if (WARN_ON(*vblank_time == vblank->time))
 		return true;
@@ -191,7 +191,7 @@ static int amdgpu_vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	amdgpu_crtc->connector = NULL;
 	amdgpu_crtc->vsync_timer_enabled = AMDGPU_IRQ_STATE_DISABLE;
 
-	hrtimer_init(&amdgpu_crtc->vblank_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&amdgpu_crtc->vblank_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	amdgpu_crtc->vblank_timer.function = &amdgpu_vkms_vblank_simulate;
 
 	return ret;
@@ -286,13 +286,13 @@ static int amdgpu_vkms_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, true);
 	if (ret != 0)
 		return ret;
 
-	/* for now primary plane must be visible and full screen */
+	/* for analw primary plane must be visible and full screen */
 	if (!new_plane_state->visible)
 		return -EINVAL;
 
@@ -310,7 +310,7 @@ static int amdgpu_vkms_prepare_fb(struct drm_plane *plane,
 	int r;
 
 	if (!new_state->fb) {
-		DRM_DEBUG_KMS("No FB bound\n");
+		DRM_DEBUG_KMS("Anal FB bound\n");
 		return 0;
 	}
 	afb = to_amdgpu_framebuffer(new_state->fb);
@@ -401,7 +401,7 @@ static struct drm_plane *amdgpu_vkms_plane_init(struct drm_device *dev,
 
 	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
 	if (!plane)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = drm_universal_plane_init(dev, plane, 1 << index,
 				       &amdgpu_vkms_plane_funcs,
@@ -490,7 +490,7 @@ static int amdgpu_vkms_sw_init(void *handle)
 	adev->amdgpu_vkms_output = kcalloc(adev->mode_info.num_crtc,
 		sizeof(struct amdgpu_vkms_output), GFP_KERNEL);
 	if (!adev->amdgpu_vkms_output)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev_to_drm(adev)->max_vblank_count = 0;
 
@@ -502,7 +502,7 @@ static int amdgpu_vkms_sw_init(void *handle)
 	adev_to_drm(adev)->mode_config.preferred_depth = 24;
 	adev_to_drm(adev)->mode_config.prefer_shadow = 1;
 
-	adev_to_drm(adev)->mode_config.fb_modifiers_not_supported = true;
+	adev_to_drm(adev)->mode_config.fb_modifiers_analt_supported = true;
 
 	r = amdgpu_display_modeset_create_props(adev);
 	if (r)
@@ -581,7 +581,7 @@ static int amdgpu_vkms_hw_init(void *handle)
 #ifdef CONFIG_DRM_AMDGPU_SI
 	case CHIP_HAINAN:
 #endif
-		/* no DCE */
+		/* anal DCE */
 		break;
 	default:
 		break;
@@ -664,7 +664,7 @@ const struct amdgpu_ip_block_version amdgpu_vkms_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &amdgpu_vkms_ip_funcs,
 };

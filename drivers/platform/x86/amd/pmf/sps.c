@@ -23,7 +23,7 @@ static const char *slider_as_str(unsigned int state)
 	case POWER_MODE_POWER_SAVER:
 		return "POWER_SAVER";
 	default:
-		return "Unknown Slider State";
+		return "Unkanalwn Slider State";
 	}
 }
 
@@ -35,7 +35,7 @@ const char *amd_pmf_source_as_str(unsigned int state)
 	case POWER_SOURCE_DC:
 		return "DC";
 	default:
-		return "Unknown Power State";
+		return "Unkanalwn Power State";
 	}
 }
 
@@ -112,16 +112,16 @@ void amd_pmf_update_slider(struct amd_pmf_dev *dev, bool op, int idx,
 		amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, false,
 				 config_store.prop[src][idx].stt_skin_temp[STT_TEMP_HS2], NULL);
 	} else if (op == SLIDER_OP_GET) {
-		amd_pmf_send_cmd(dev, GET_SPL, true, ARG_NONE, &table->prop[src][idx].spl);
-		amd_pmf_send_cmd(dev, GET_FPPT, true, ARG_NONE, &table->prop[src][idx].fppt);
-		amd_pmf_send_cmd(dev, GET_SPPT, true, ARG_NONE, &table->prop[src][idx].sppt);
-		amd_pmf_send_cmd(dev, GET_SPPT_APU_ONLY, true, ARG_NONE,
+		amd_pmf_send_cmd(dev, GET_SPL, true, ARG_ANALNE, &table->prop[src][idx].spl);
+		amd_pmf_send_cmd(dev, GET_FPPT, true, ARG_ANALNE, &table->prop[src][idx].fppt);
+		amd_pmf_send_cmd(dev, GET_SPPT, true, ARG_ANALNE, &table->prop[src][idx].sppt);
+		amd_pmf_send_cmd(dev, GET_SPPT_APU_ONLY, true, ARG_ANALNE,
 				 &table->prop[src][idx].sppt_apu_only);
-		amd_pmf_send_cmd(dev, GET_STT_MIN_LIMIT, true, ARG_NONE,
+		amd_pmf_send_cmd(dev, GET_STT_MIN_LIMIT, true, ARG_ANALNE,
 				 &table->prop[src][idx].stt_min);
-		amd_pmf_send_cmd(dev, GET_STT_LIMIT_APU, true, ARG_NONE,
+		amd_pmf_send_cmd(dev, GET_STT_LIMIT_APU, true, ARG_ANALNE,
 				 (u32 *)&table->prop[src][idx].stt_skin_temp[STT_TEMP_APU]);
-		amd_pmf_send_cmd(dev, GET_STT_LIMIT_HS2, true, ARG_NONE,
+		amd_pmf_send_cmd(dev, GET_STT_LIMIT_HS2, true, ARG_ANALNE,
 				 (u32 *)&table->prop[src][idx].stt_skin_temp[STT_TEMP_HS2]);
 	}
 }
@@ -168,8 +168,8 @@ int amd_pmf_get_pprof_modes(struct amd_pmf_dev *pmf)
 		mode = POWER_MODE_POWER_SAVER;
 		break;
 	default:
-		dev_err(pmf->dev, "Unknown Platform Profile.\n");
-		return -EOPNOTSUPP;
+		dev_err(pmf->dev, "Unkanalwn Platform Profile.\n");
+		return -EOPANALTSUPP;
 	}
 
 	return mode;
@@ -200,7 +200,7 @@ int amd_pmf_power_slider_update_event(struct amd_pmf_dev *dev)
 			break;
 		default:
 			dev_err(dev->dev, "unsupported platform profile\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 	} else if (src == POWER_SOURCE_DC) {
@@ -216,7 +216,7 @@ int amd_pmf_power_slider_update_event(struct amd_pmf_dev *dev)
 			break;
 		default:
 			dev_err(dev->dev, "unsupported platform profile\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -233,7 +233,7 @@ static int amd_pmf_profile_set(struct platform_profile_handler *pprof,
 
 	pmf->current_profile = profile;
 
-	/* Notify EC about the slider position change */
+	/* Analtify EC about the slider position change */
 	if (is_apmf_func_supported(pmf, APMF_FUNC_OS_POWER_SLIDER_UPDATE)) {
 		ret = amd_pmf_power_slider_update_event(pmf);
 		if (ret)

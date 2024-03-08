@@ -65,7 +65,7 @@ static int ad5686_spi_read(struct ad5686_state *st, u8 addr)
 
 	switch (st->chip_info->regmap_type) {
 	case AD5310_REGMAP:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case AD5683_REGMAP:
 		cmd = AD5686_CMD_READBACK_ENABLE_V2;
 		break;
@@ -78,7 +78,7 @@ static int ad5686_spi_read(struct ad5686_state *st, u8 addr)
 
 	st->data[0].d32 = cpu_to_be32(AD5686_CMD(cmd) |
 				      AD5686_ADDR(addr));
-	st->data[1].d32 = cpu_to_be32(AD5686_CMD(AD5686_CMD_NOOP));
+	st->data[1].d32 = cpu_to_be32(AD5686_CMD(AD5686_CMD_ANALOP));
 
 	ret = spi_sync_transfer(spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
@@ -113,7 +113,7 @@ static const struct spi_device_id ad5686_spi_id[] = {
 	{"ad5683r", ID_AD5683R},
 	{"ad5684", ID_AD5684},
 	{"ad5684r", ID_AD5684R},
-	{"ad5685", ID_AD5685R}, /* Does not exist */
+	{"ad5685", ID_AD5685R}, /* Does analt exist */
 	{"ad5685r", ID_AD5685R},
 	{"ad5686", ID_AD5686},
 	{"ad5686r", ID_AD5686R},

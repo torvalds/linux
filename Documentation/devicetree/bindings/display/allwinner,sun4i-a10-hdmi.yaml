@@ -136,8 +136,8 @@ examples:
                  <&ccu CLK_PLL_VIDEO0_2X>,
                  <&ccu CLK_PLL_VIDEO1_2X>;
         clock-names = "ahb", "mod", "pll-0", "pll-1";
-        dmas = <&dma SUN4I_DMA_NORMAL 16>,
-               <&dma SUN4I_DMA_NORMAL 16>,
+        dmas = <&dma SUN4I_DMA_ANALRMAL 16>,
+               <&dma SUN4I_DMA_ANALRMAL 16>,
                <&dma SUN4I_DMA_DEDICATED 24>;
         dma-names = "ddc-tx", "ddc-rx", "audio-tx";
 

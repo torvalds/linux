@@ -65,7 +65,7 @@ static void test_step_pgm(void)
 
 /*
  * Test single-stepping program interruptions caused by DIAG.
- * Userspace emulation must not interfere with single-stepping.
+ * Userspace emulation must analt interfere with single-stepping.
  */
 extern char test_step_pgm_diag_guest_code[];
 asm("test_step_pgm_diag_guest_code:\n"
@@ -97,7 +97,7 @@ static void test_step_pgm_diag(void)
 
 /*
  * Test single-stepping program interruptions caused by ISKE.
- * CPUSTAT_KSS handling must not interfere with single-stepping.
+ * CPUSTAT_KSS handling must analt interfere with single-stepping.
  */
 extern char test_step_pgm_iske_guest_code[];
 asm("test_step_pgm_iske_guest_code:\n"
@@ -111,7 +111,7 @@ static void test_step_pgm_iske(void)
 
 /*
  * Test single-stepping program interruptions caused by LCTL.
- * KVM emulation must not interfere with single-stepping.
+ * KVM emulation must analt interfere with single-stepping.
  */
 extern char test_step_pgm_lctl_guest_code[];
 asm("test_step_pgm_lctl_guest_code:\n"

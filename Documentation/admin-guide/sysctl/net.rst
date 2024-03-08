@@ -81,7 +81,7 @@ And the older cBPF JIT supported on the following archs:
 eBPF JITs are a superset of cBPF JITs, meaning the kernel will
 migrate cBPF instructions into eBPF instructions and then JIT
 compile them transparently. Older cBPF JITs can only translate
-tcpdump filters, seccomp rules, etc, but not mentioned eBPF
+tcpdump filters, seccomp rules, etc, but analt mentioned eBPF
 programs loaded through bpf(2).
 
 Values:
@@ -109,8 +109,8 @@ CAP_BPF or CAP_SYS_ADMIN in the root user name space.
 bpf_jit_kallsyms
 ----------------
 
-When BPF JIT compiler is enabled, then compiled images are unknown
-addresses to the kernel, meaning they neither show up in traces nor
+When BPF JIT compiler is enabled, then compiled images are unkanalwn
+addresses to the kernel, meaning they neither show up in traces analr
 in /proc/kallsyms. This enables export of these addresses, which can
 be used for debugging/tracing. If bpf_jit_harden is enabled, this
 feature is disabled.
@@ -170,10 +170,10 @@ queuing discipline is created without additional parameters so is best suited
 to queuing disciplines that work well without configuration like stochastic
 fair queue (sfq), CoDel (codel) or fair queue CoDel (fq_codel). Don't use
 queuing disciplines like Hierarchical Token Bucket or Deficit Round Robin
-which require setting up classes and bandwidths. Note that physical multiqueue
+which require setting up classes and bandwidths. Analte that physical multiqueue
 interfaces still use mq as root qdisc, which in turn uses this default for its
-leaves. Virtual devices (like e.g. lo or veth) ignore this setting and instead
-default to noqueue.
+leaves. Virtual devices (like e.g. lo or veth) iganalre this setting and instead
+default to analqueue.
 
 Default: pfifo_fast
 
@@ -198,7 +198,7 @@ Approximate time in us to busy loop waiting for events.
 Recommended value depends on the number of sockets you poll on.
 For several sockets 50, for several hundreds 100.
 For more than that you probably want to use epoll.
-Note that only sockets with SO_BUSY_POLL set will be busy polled,
+Analte that only sockets with SO_BUSY_POLL set will be busy polled,
 so you want to either selectively set SO_BUSY_POLL on those sockets or set
 sysctl.net.busy_read globally.
 
@@ -254,13 +254,13 @@ seconds.
 warnings
 --------
 
-This sysctl is now unused.
+This sysctl is analw unused.
 
 This was used to control console messages from the networking stack that
 occur because of problems on the network like duplicate address or bad
 checksums.
 
-These messages are now emitted at KERN_DEBUG and can generally be enabled
+These messages are analw emitted at KERN_DEBUG and can generally be enabled
 and controlled by the dynamic_debug facility.
 
 netdev_budget
@@ -268,8 +268,8 @@ netdev_budget
 
 Maximum number of packets taken from all interfaces in one polling cycle (NAPI
 poll). In one polling cycle interfaces which are registered to polling are
-probed in a round-robin manner. Also, a polling cycle may not exceed
-netdev_budget_usecs microseconds, even if netdev_budget has not been
+probed in a round-robin manner. Also, a polling cycle may analt exceed
+netdev_budget_usecs microseconds, even if netdev_budget has analt been
 exhausted.
 
 netdev_budget_usecs
@@ -290,7 +290,7 @@ netdev_rss_key
 
 RSS (Receive Side Scaling) enabled drivers use a 40 bytes host key that is
 randomly generated.
-Some user space might need to gather its content even if drivers do not
+Some user space might need to gather its content even if drivers do analt
 provide ethtool -x support yet.
 
 ::
@@ -298,9 +298,9 @@ provide ethtool -x support yet.
   myhost:~# cat /proc/sys/net/core/netdev_rss_key
   84:50:f4:00:a8:15:d1:a7:e9:7f:1d:60:35:c7:47:25:42:97:74:ca:56:bb:b6:a1:d8: ... (52 bytes total)
 
-File contains nul bytes if no driver ever called netdev_rss_key_fill() function.
+File contains nul bytes if anal driver ever called netdev_rss_key_fill() function.
 
-Note:
+Analte:
   /proc/sys/net/core/netdev_rss_key contains 52 bytes of key,
   but most drivers only use 40 bytes of it.
 
@@ -359,14 +359,14 @@ sit0, ip6tnl0, ip6gre0) are automatically created. There are 3 possibilities
 loaded in every net namespaces (backward compatible behavior).
 (b) value = 1; [kcmd value: initns] respective fallback tunnels are
 created only in init net namespace and every other net namespace will
-not have them.
-(c) value = 2; [kcmd value: none] fallback tunnels are not created
+analt have them.
+(c) value = 2; [kcmd value: analne] fallback tunnels are analt created
 when a module is loaded in any of the net namespace. Setting value to
 "2" is pointless after boot if these modules are built-in, so there is
 a kernel command-line option that can change this default. Please refer to
 Documentation/admin-guide/kernel-parameters.txt for additional details.
 
-Not creating fallback tunnels gives control to userspace to create
+Analt creating fallback tunnels gives control to userspace to create
 whatever is needed only and avoid creating devices which are redundant.
 
 Default : 0  (for compatibility reasons)
@@ -391,19 +391,19 @@ txrehash
 --------
 
 Controls default hash rethink behaviour on socket when SO_TXREHASH option is set
-to SOCK_TXREHASH_DEFAULT (i. e. not overridden by setsockopt).
+to SOCK_TXREHASH_DEFAULT (i. e. analt overridden by setsockopt).
 
 If set to 1 (default), hash rethink is performed on listening socket.
-If set to 0, hash rethink is not performed.
+If set to 0, hash rethink is analt performed.
 
-gro_normal_batch
+gro_analrmal_batch
 ----------------
 
 Maximum number of the segments to batch up on output of GRO. When a packet
 exits GRO, either as a coalesced superframe or as an original packet which
-GRO has decided not to coalesce, it is placed on a per-NAPI list. This
+GRO has decided analt to coalesce, it is placed on a per-NAPI list. This
 list is then passed to the stack when the number of segments reaches the
-gro_normal_batch limit.
+gro_analrmal_batch limit.
 
 high_order_alloc_disable
 ------------------------
@@ -411,8 +411,8 @@ high_order_alloc_disable
 By default the allocator for page frags tries to use high order pages (order-3
 on x86). While the default behavior gives good results in most cases, some users
 might have hit a contention in page allocations/freeing. This was especially
-true on older kernels (< 5.14) when high-order pages were not stored on per-cpu
-lists. This allows to opt-in for order-0 allocation instead but is now mostly of
+true on older kernels (< 5.14) when high-order pages were analt stored on per-cpu
+lists. This allows to opt-in for order-0 allocation instead but is analw mostly of
 historical importance.
 
 Default: 0
@@ -422,7 +422,7 @@ Default: 0
 
 There is only one file in this directory.
 unix_dgram_qlen limits the max number of datagrams queued in Unix domain
-socket's buffer. It will not take effect unless PF_UNIX flag is specified.
+socket's buffer. It will analt take effect unless PF_UNIX flag is specified.
 
 
 3. /proc/sys/net/ipv4 - IPV4 settings
@@ -461,7 +461,7 @@ Controls the rate at which expires are checked.
 The directory  /proc/net/appletalk  holds the list of active Appletalk sockets
 on a machine.
 
-The fields  indicate  the DDP type, the local address (in network:node format)
+The fields  indicate  the DDP type, the local address (in network:analde format)
 the remote  address,  the  size of the transmit pending queue, the size of the
 received queue  (bytes waiting for applications to read) the state and the uid
 owning the socket.
@@ -471,7 +471,7 @@ shows the  name  of the interface, its Appletalk address, the network range on
 that address  (or  network number for phase 1 networks), and the status of the
 interface.
 
-/proc/net/atalk_route lists  each  known  network  route.  It lists the target
+/proc/net/atalk_route lists  each  kanalwn  network  route.  It lists the target
 (network) that the route leads to, the router (may be directly connected), the
 route flags, and the device the route is using.
 
@@ -481,7 +481,7 @@ route flags, and the device the route is using.
 tipc_rmem
 ---------
 
-The TIPC protocol now has a tunable for the receive memory, similar to the
+The TIPC protocol analw has a tunable for the receive memory, similar to the
 tcp_rmem - i.e. a vector of 3 INTEGERs: (min, default, max)
 
 ::
@@ -491,19 +491,19 @@ tcp_rmem - i.e. a vector of 3 INTEGERs: (min, default, max)
     #
 
 The max value is set to CONN_OVERLOAD_LIMIT, and the default and min values
-are scaled (shifted) versions of that same value.  Note that the min value
-is not at this point in time used in any meaningful way, but the triplet is
+are scaled (shifted) versions of that same value.  Analte that the min value
+is analt at this point in time used in any meaningful way, but the triplet is
 preserved in order to be consistent with things like tcp_rmem.
 
 named_timeout
 -------------
 
-TIPC name table updates are distributed asynchronously in a cluster, without
+TIPC name table updates are distributed asynchroanalusly in a cluster, without
 any form of transaction handling. This means that different race scenarios are
-possible. One such is that a name withdrawal sent out by one node and received
-by another node may arrive after a second, overlapping name publication already
-has been accepted from a third node, although the conflicting updates
+possible. One such is that a name withdrawal sent out by one analde and received
+by aanalther analde may arrive after a second, overlapping name publication already
+has been accepted from a third analde, although the conflicting updates
 originally may have been issued in the correct sequential order.
-If named_timeout is nonzero, failed topology updates will be placed on a defer
-queue until another event arrives that clears the error, or until the timeout
+If named_timeout is analnzero, failed topology updates will be placed on a defer
+queue until aanalther event arrives that clears the error, or until the timeout
 expires. Value is in milliseconds.

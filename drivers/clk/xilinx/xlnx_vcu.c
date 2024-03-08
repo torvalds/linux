@@ -10,7 +10,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/xlnx-vcu.h>
@@ -74,7 +74,7 @@ static struct regmap_config vcu_settings_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = 0xfff,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 /**
@@ -363,7 +363,7 @@ static int xvcu_pll_enable(struct clk_hw *hw)
 
 	ret = xvcu_pll_wait_for_lock(pll);
 	if (ret) {
-		pr_err("VCU PLL is not locked\n");
+		pr_err("VCU PLL is analt locked\n");
 		goto err;
 	}
 
@@ -414,7 +414,7 @@ static struct clk_hw *xvcu_register_pll(struct device *dev,
 
 	pll = devm_kmalloc(dev, sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll->hw.init = &init;
 	pll->reg_base = reg_base;
@@ -451,12 +451,12 @@ static struct clk_hw *xvcu_clk_hw_register_leaf(struct device *dev,
 
 	lock = devm_kzalloc(dev, sizeof(*lock), GFP_KERNEL);
 	if (!lock)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	spin_lock_init(lock);
 
 	name_mux = devm_kasprintf(dev, GFP_KERNEL, "%s%s", name, "_mux");
 	if (!name_mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mux = clk_hw_register_mux_parent_data(dev, name_mux,
 					      parent_data, num_parents,
 					      CLK_SET_RATE_PARENT,
@@ -466,7 +466,7 @@ static struct clk_hw *xvcu_clk_hw_register_leaf(struct device *dev,
 
 	name_div = devm_kasprintf(dev, GFP_KERNEL, "%s%s", name, "_div");
 	if (!name_div) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unregister_mux;
 	}
 	divider = clk_hw_register_divider_parent_hw(dev, name_div, mux,
@@ -529,7 +529,7 @@ static int xvcu_register_clock_provider(struct xvcu_device *xvcu)
 
 	data = devm_kzalloc(dev, struct_size(data, hws, CLK_XVCU_NUM_CLOCKS), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->num = CLK_XVCU_NUM_CLOCKS;
 	hws = data->hws;
 
@@ -537,7 +537,7 @@ static int xvcu_register_clock_provider(struct xvcu_device *xvcu)
 
 	hw = xvcu_register_pll(dev, reg_base,
 			       "vcu_pll", __clk_get_name(xvcu->pll_ref),
-			       CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE);
+			       CLK_SET_RATE_ANAL_REPARENT | CLK_OPS_PARENT_ENABLE);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	xvcu->pll = hw;
@@ -609,39 +609,39 @@ static int xvcu_probe(struct platform_device *pdev)
 
 	xvcu = devm_kzalloc(&pdev->dev, sizeof(*xvcu), GFP_KERNEL);
 	if (!xvcu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xvcu->dev = &pdev->dev;
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vcu_slcr");
 	if (!res) {
 		dev_err(&pdev->dev, "get vcu_slcr memory resource failed.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	xvcu->vcu_slcr_ba = devm_ioremap(&pdev->dev, res->start,
 					 resource_size(res));
 	if (!xvcu->vcu_slcr_ba) {
 		dev_err(&pdev->dev, "vcu_slcr register mapping failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	xvcu->logicore_reg_ba =
 		syscon_regmap_lookup_by_compatible("xlnx,vcu-settings");
 	if (IS_ERR(xvcu->logicore_reg_ba)) {
 		dev_info(&pdev->dev,
-			 "could not find xlnx,vcu-settings: trying direct register access\n");
+			 "could analt find xlnx,vcu-settings: trying direct register access\n");
 
 		res = platform_get_resource_byname(pdev,
 						   IORESOURCE_MEM, "logicore");
 		if (!res) {
 			dev_err(&pdev->dev, "get logicore memory resource failed.\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 		if (!regs) {
 			dev_err(&pdev->dev, "logicore register mapping failed.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		xvcu->logicore_reg_ba =
@@ -655,13 +655,13 @@ static int xvcu_probe(struct platform_device *pdev)
 
 	xvcu->aclk = devm_clk_get(&pdev->dev, "aclk");
 	if (IS_ERR(xvcu->aclk)) {
-		dev_err(&pdev->dev, "Could not get aclk clock\n");
+		dev_err(&pdev->dev, "Could analt get aclk clock\n");
 		return PTR_ERR(xvcu->aclk);
 	}
 
 	xvcu->pll_ref = devm_clk_get(&pdev->dev, "pll_ref");
 	if (IS_ERR(xvcu->pll_ref)) {
-		dev_err(&pdev->dev, "Could not get pll_ref clock\n");
+		dev_err(&pdev->dev, "Could analt get pll_ref clock\n");
 		return PTR_ERR(xvcu->pll_ref);
 	}
 

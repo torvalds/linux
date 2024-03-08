@@ -13,9 +13,9 @@ s8 rtw_query_sar(struct rtw_dev *rtwdev, const struct rtw_sar_arg *arg)
 
 	switch (sar->src) {
 	default:
-		rtw_warn(rtwdev, "unknown SAR source: %d\n", sar->src);
+		rtw_warn(rtwdev, "unkanalwn SAR source: %d\n", sar->src);
 		fallthrough;
-	case RTW_SAR_SOURCE_NONE:
+	case RTW_SAR_SOURCE_ANALNE:
 		return (s8)rtwdev->chip->max_power_index;
 	case RTW_SAR_SOURCE_COMMON:
 		return sar->cfg[arg->path][arg->rs].common[arg->sar_band];
@@ -27,7 +27,7 @@ static int rtw_apply_sar(struct rtw_dev *rtwdev, const struct rtw_sar *new)
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_sar *sar = &hal->sar;
 
-	if (sar->src != RTW_SAR_SOURCE_NONE && new->src != sar->src) {
+	if (sar->src != RTW_SAR_SOURCE_ANALNE && new->src != sar->src) {
 		rtw_warn(rtwdev, "SAR source: %d is in use\n", sar->src);
 		return -EBUSY;
 	}

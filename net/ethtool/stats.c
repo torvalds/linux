@@ -100,7 +100,7 @@ static int stats_parse_request(struct ethnl_req_info *req_base,
 		return err;
 
 	if (!mod) {
-		NL_SET_ERR_MSG(extack, "no stats requested");
+		NL_SET_ERR_MSG(extack, "anal stats requested");
 		return -EINVAL;
 	}
 
@@ -130,13 +130,13 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 	     src == ETHTOOL_MAC_STATS_SRC_PMAC) &&
 	    !__ethtool_dev_mm_supported(dev)) {
 		NL_SET_ERR_MSG_MOD(info->extack,
-				   "Device does not support MAC merge layer");
+				   "Device does analt support MAC merge layer");
 		ethnl_ops_complete(dev);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	/* Mark all stats as unset (see ETHTOOL_STAT_NOT_SET) to prevent them
-	 * from being reported to user space in case driver did not set them.
+	/* Mark all stats as unset (see ETHTOOL_STAT_ANALT_SET) to prevent them
+	 * from being reported to user space in case driver did analt set them.
 	 */
 	memset(&data->stats, 0xff, sizeof(data->stats));
 
@@ -209,7 +209,7 @@ static int stat_put(struct sk_buff *skb, u16 attrtype, u64 val)
 	struct nlattr *nest;
 	int ret;
 
-	if (val == ETHTOOL_STAT_NOT_SET)
+	if (val == ETHTOOL_STAT_ANALT_SET)
 		return 0;
 
 	/* We want to start stats attr types from 0, so we don't have a type
@@ -228,7 +228,7 @@ static int stat_put(struct sk_buff *skb, u16 attrtype, u64 val)
 	if (!nest)
 		return -EMSGSIZE;
 
-	ret = nla_put_u64_64bit(skb, attrtype, val, -1 /* not used */);
+	ret = nla_put_u64_64bit(skb, attrtype, val, -1 /* analt used */);
 	if (ret) {
 		nla_nest_cancel(skb, nest);
 		return ret;
@@ -323,7 +323,7 @@ static int stats_put_rmon_hist(struct sk_buff *skb, u32 attr, const u64 *hist,
 	for (i = 0; i <	ETHTOOL_RMON_HIST_MAX; i++) {
 		if (!ranges[i].low && !ranges[i].high)
 			break;
-		if (hist[i] == ETHTOOL_STAT_NOT_SET)
+		if (hist[i] == ETHTOOL_STAT_ANALT_SET)
 			continue;
 
 		nest = nla_nest_start(skb, attr);
@@ -442,9 +442,9 @@ const struct ethnl_request_ops ethnl_stats_request_ops = {
 
 static u64 ethtool_stats_sum(u64 a, u64 b)
 {
-	if (a == ETHTOOL_STAT_NOT_SET)
+	if (a == ETHTOOL_STAT_ANALT_SET)
 		return b;
-	if (b == ETHTOOL_STAT_NOT_SET)
+	if (b == ETHTOOL_STAT_ANALT_SET)
 		return a;
 	return a + b;
 }

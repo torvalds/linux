@@ -9,9 +9,9 @@
  *
  * mpi2_ioc.h Version:  02.00.37
  *
- * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ * ANALTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
+ *       prefix are for use only on MPI v2.5 products, and must analt be used
+ *       with MPI v2.0 products. Unless otherwise analted, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History
@@ -34,19 +34,19 @@
  *                     depth for the Reply Descriptor Post Queue.
  *                     Added SASAddress field to Initiator Device Table
  *                     Overflow Event data.
- * 10-31-07  02.00.04  Added ReasonCode MPI2_EVENT_SAS_INIT_RC_NOT_RESPONDING
+ * 10-31-07  02.00.04  Added ReasonCode MPI2_EVENT_SAS_INIT_RC_ANALT_RESPONDING
  *                     for SAS Initiator Device Status Change Event data.
  *                     Modified Reason Code defines for SAS Topology Change
  *                     List Event data, including adding a bit for PHY Vacant
  *                     status, and adding a mask for the Reason Code.
  *                     Added define for
- *                     MPI2_EVENT_SAS_TOPO_ES_DELAY_NOT_RESPONDING.
+ *                     MPI2_EVENT_SAS_TOPO_ES_DELAY_ANALT_RESPONDING.
  *                     Added define for MPI2_EXT_IMAGE_TYPE_MEGARAID.
  * 12-18-07  02.00.05  Added Boot Status defines for the IOCExceptions field of
  *                     the IOCFacts Reply.
  *                     Removed MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER define.
  *                     Moved MPI2_VERSION_UNION to mpi2.h.
- *                     Changed MPI2_EVENT_NOTIFICATION_REQUEST to use masks
+ *                     Changed MPI2_EVENT_ANALTIFICATION_REQUEST to use masks
  *                     instead of enables, and added SASBroadcastPrimitiveMasks
  *                     field.
  *                     Added Log Entry Added Event and related structure.
@@ -76,7 +76,7 @@
  *                     Added Multiplexing Status Change bit to the PhyStatus
  *                     field of the SAS Topology Change List event data.
  *                     Removed define for MPI2_INIT_IMAGE_BOOTFLAGS_XMEMCOPY.
- *                     BootFlags are now product-specific.
+ *                     BootFlags are analw product-specific.
  *                     Added defines for the indivdual signature bytes
  *                     for MPI2_INIT_IMAGE_FOOTER.
  * 01-19-09  02.00.10  Added MPI2_IOCFACTS_CAPABILITY_EVENT_REPLAY define.
@@ -98,7 +98,7 @@
  *                     Added MinDevHandle field to MPI2_IOC_FACTS_REPLY.
  *                     Added MPI2_IOCFACTS_CAPABILITY_HOST_BASED_DISCOVERY.
  *                     Added MPI2_EVENT_HOST_BASED_DISCOVERY_PHY define.
- *                     Added MPI2_EVENT_SAS_TOPO_ES_NO_EXPANDER define.
+ *                     Added MPI2_EVENT_SAS_TOPO_ES_ANAL_EXPANDER define.
  *                     Added Host Based Discovery Phy Event data.
  *                     Added defines for ProductID Product field
  *                     (MPI2_FW_HEADER_PID_).
@@ -110,9 +110,9 @@
  * 05-12-10  02.00.15  Marked Task Set Full Event as obsolete.
  *                     Added MPI2_EVENT_SAS_TOPO_LR_UNSUPPORTED_PHY define.
  * 11-10-10  02.00.16  Added MPI2_FW_DOWNLOAD_ITYPE_MIN_PRODUCT_SPECIFIC.
- * 02-23-11  02.00.17  Added SAS NOTIFY Primitive event, and added
- *                     SASNotifyPrimitiveMasks field to
- *                     MPI2_EVENT_NOTIFICATION_REQUEST.
+ * 02-23-11  02.00.17  Added SAS ANALTIFY Primitive event, and added
+ *                     SASAnaltifyPrimitiveMasks field to
+ *                     MPI2_EVENT_ANALTIFICATION_REQUEST.
  *                     Added Temperature Threshold Event.
  *                     Added Host Message Event.
  *                     Added Send Host Message request and reply.
@@ -227,7 +227,7 @@ typedef struct _MPI2_IOC_INIT_REQUEST {
 	Mpi2IOCInitRequest_t, *pMpi2IOCInitRequest_t;
 
 /*WhoInit values */
-#define MPI2_WHOINIT_NOT_INITIALIZED            (0x00)
+#define MPI2_WHOINIT_ANALT_INITIALIZED            (0x00)
 #define MPI2_WHOINIT_SYSTEM_BIOS                (0x01)
 #define MPI2_WHOINIT_ROM_BIOS                   (0x02)
 #define MPI2_WHOINIT_PCI_PEER                   (0x03)
@@ -241,8 +241,8 @@ typedef struct _MPI2_IOC_INIT_REQUEST {
 /*MsgVersion */
 #define MPI2_IOCINIT_MSGVERSION_MAJOR_MASK      (0xFF00)
 #define MPI2_IOCINIT_MSGVERSION_MAJOR_SHIFT     (8)
-#define MPI2_IOCINIT_MSGVERSION_MINOR_MASK      (0x00FF)
-#define MPI2_IOCINIT_MSGVERSION_MINOR_SHIFT     (0)
+#define MPI2_IOCINIT_MSGVERSION_MIANALR_MASK      (0x00FF)
+#define MPI2_IOCINIT_MSGVERSION_MIANALR_SHIFT     (0)
 
 /*HeaderVersion */
 #define MPI2_IOCINIT_HDRVERSION_UNIT_MASK       (0xFF00)
@@ -351,8 +351,8 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 /*MsgVersion */
 #define MPI2_IOCFACTS_MSGVERSION_MAJOR_MASK             (0xFF00)
 #define MPI2_IOCFACTS_MSGVERSION_MAJOR_SHIFT            (8)
-#define MPI2_IOCFACTS_MSGVERSION_MINOR_MASK             (0x00FF)
-#define MPI2_IOCFACTS_MSGVERSION_MINOR_SHIFT            (0)
+#define MPI2_IOCFACTS_MSGVERSION_MIANALR_MASK             (0x00FF)
+#define MPI2_IOCFACTS_MSGVERSION_MIANALR_SHIFT            (0)
 
 /*HeaderVersion */
 #define MPI2_IOCFACTS_HDRVERSION_UNIT_MASK              (0xFF00)
@@ -493,13 +493,13 @@ typedef struct _MPI2_PORT_ENABLE_REPLY {
 	Mpi2PortEnableReply_t, *pMpi2PortEnableReply_t;
 
 /****************************************************************************
-* EventNotification message
+* EventAnaltification message
 ****************************************************************************/
 
-/*EventNotification Request message */
-#define MPI2_EVENT_NOTIFY_EVENTMASK_WORDS           (4)
+/*EventAnaltification Request message */
+#define MPI2_EVENT_ANALTIFY_EVENTMASK_WORDS           (4)
 
-typedef struct _MPI2_EVENT_NOTIFICATION_REQUEST {
+typedef struct _MPI2_EVENT_ANALTIFICATION_REQUEST {
 	U16 Reserved1;		/*0x00 */
 	U8 ChainOffset;		/*0x02 */
 	U8 Function;		/*0x03 */
@@ -511,17 +511,17 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REQUEST {
 	U16 Reserved4;		/*0x0A */
 	U32 Reserved5;		/*0x0C */
 	U32 Reserved6;		/*0x10 */
-	U32 EventMasks[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];	/*0x14 */
+	U32 EventMasks[MPI2_EVENT_ANALTIFY_EVENTMASK_WORDS];	/*0x14 */
 	U16 SASBroadcastPrimitiveMasks;	/*0x24 */
-	U16 SASNotifyPrimitiveMasks;	/*0x26 */
+	U16 SASAnaltifyPrimitiveMasks;	/*0x26 */
 	U32 Reserved8;		/*0x28 */
-} MPI2_EVENT_NOTIFICATION_REQUEST,
-	*PTR_MPI2_EVENT_NOTIFICATION_REQUEST,
-	Mpi2EventNotificationRequest_t,
-	*pMpi2EventNotificationRequest_t;
+} MPI2_EVENT_ANALTIFICATION_REQUEST,
+	*PTR_MPI2_EVENT_ANALTIFICATION_REQUEST,
+	Mpi2EventAnaltificationRequest_t,
+	*pMpi2EventAnaltificationRequest_t;
 
-/*EventNotification Reply message */
-typedef struct _MPI2_EVENT_NOTIFICATION_REPLY {
+/*EventAnaltification Reply message */
+typedef struct _MPI2_EVENT_ANALTIFICATION_REPLY {
 	U16 EventDataLength;	/*0x00 */
 	U8 MsgLength;		/*0x02 */
 	U8 Function;		/*0x03 */
@@ -538,13 +538,13 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY {
 	U16 Reserved4;		/*0x16 */
 	U32 EventContext;	/*0x18 */
 	U32 EventData[];	/*0x1C */
-} MPI2_EVENT_NOTIFICATION_REPLY, *PTR_MPI2_EVENT_NOTIFICATION_REPLY,
-	Mpi2EventNotificationReply_t,
-	*pMpi2EventNotificationReply_t;
+} MPI2_EVENT_ANALTIFICATION_REPLY, *PTR_MPI2_EVENT_ANALTIFICATION_REPLY,
+	Mpi2EventAnaltificationReply_t,
+	*pMpi2EventAnaltificationReply_t;
 
 /*AckRequired */
-#define MPI2_EVENT_NOTIFICATION_ACK_NOT_REQUIRED    (0x00)
-#define MPI2_EVENT_NOTIFICATION_ACK_REQUIRED        (0x01)
+#define MPI2_EVENT_ANALTIFICATION_ACK_ANALT_REQUIRED    (0x00)
+#define MPI2_EVENT_ANALTIFICATION_ACK_REQUIRED        (0x01)
 
 /*Event */
 #define MPI2_EVENT_LOG_DATA                         (0x0001)
@@ -569,7 +569,7 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY {
 #define MPI2_EVENT_GPIO_INTERRUPT                   (0x0023)
 #define MPI2_EVENT_HOST_BASED_DISCOVERY_PHY         (0x0024)
 #define MPI2_EVENT_SAS_QUIESCE                      (0x0025)
-#define MPI2_EVENT_SAS_NOTIFY_PRIMITIVE             (0x0026)
+#define MPI2_EVENT_SAS_ANALTIFY_PRIMITIVE             (0x0026)
 #define MPI2_EVENT_TEMP_THRESHOLD                   (0x0027)
 #define MPI2_EVENT_HOST_MESSAGE                     (0x0028)
 #define MPI2_EVENT_POWER_PERFORMANCE_CHANGE         (0x0029)
@@ -663,7 +663,7 @@ typedef struct _MPI2_EVENT_DATA_POWER_PERF_CHANGE {
 
 #define MPI2_EVENT_PM_MODE_MASK              (0x07)
 #define MPI2_EVENT_PM_MODE_UNAVAILABLE       (0x00)
-#define MPI2_EVENT_PM_MODE_UNKNOWN           (0x01)
+#define MPI2_EVENT_PM_MODE_UNKANALWN           (0x01)
 #define MPI2_EVENT_PM_MODE_FULL_POWER        (0x04)
 #define MPI2_EVENT_PM_MODE_REDUCED_POWER     (0x05)
 #define MPI2_EVENT_PM_MODE_STANDBY           (0x06)
@@ -739,7 +739,7 @@ typedef struct _MPI2_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE {
 #define MPI2_EVENT_SAS_DEV_STAT_RC_ABORT_TASK_SET_INTERNAL              (0x0A)
 #define MPI2_EVENT_SAS_DEV_STAT_RC_CLEAR_TASK_SET_INTERNAL              (0x0B)
 #define MPI2_EVENT_SAS_DEV_STAT_RC_QUERY_TASK_INTERNAL                  (0x0C)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_ASYNC_NOTIFICATION                   (0x0D)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_ASYNC_ANALTIFICATION                   (0x0D)
 #define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_INTERNAL_DEV_RESET               (0x0E)
 #define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_TASK_ABORT_INTERNAL              (0x0F)
 #define MPI2_EVENT_SAS_DEV_STAT_RC_SATA_INIT_FAILURE                    (0x10)
@@ -830,7 +830,7 @@ typedef struct _MPI2_EVENT_IR_CONFIG_ELEMENT {
 /*IR Configuration Change List Event data ReasonCode values */
 #define MPI2_EVENT_IR_CHANGE_RC_ADDED                   (0x01)
 #define MPI2_EVENT_IR_CHANGE_RC_REMOVED                 (0x02)
-#define MPI2_EVENT_IR_CHANGE_RC_NO_CHANGE               (0x03)
+#define MPI2_EVENT_IR_CHANGE_RC_ANAL_CHANGE               (0x03)
 #define MPI2_EVENT_IR_CHANGE_RC_HIDE                    (0x04)
 #define MPI2_EVENT_IR_CHANGE_RC_UNHIDE                  (0x05)
 #define MPI2_EVENT_IR_CHANGE_RC_VOLUME_CREATED          (0x06)
@@ -889,7 +889,7 @@ typedef struct _MPI2_EVENT_DATA_SAS_DISCOVERY {
 #define MPI2_EVENT_SAS_DISC_DS_SUBTRACTIVE_LINK                 (0x00000200)
 #define MPI2_EVENT_SAS_DISC_DS_SMP_CRC_ERROR                    (0x00000100)
 #define MPI2_EVENT_SAS_DISC_DS_SMP_FUNCTION_FAILED              (0x00000080)
-#define MPI2_EVENT_SAS_DISC_DS_INDEX_NOT_EXIST                  (0x00000040)
+#define MPI2_EVENT_SAS_DISC_DS_INDEX_ANALT_EXIST                  (0x00000040)
 #define MPI2_EVENT_SAS_DISC_DS_OUT_ROUTE_ENTRIES                (0x00000020)
 #define MPI2_EVENT_SAS_DISC_DS_SMP_TIMEOUT                      (0x00000010)
 #define MPI2_EVENT_SAS_DISC_DS_MULTIPLE_PORTS                   (0x00000004)
@@ -912,29 +912,29 @@ typedef struct _MPI2_EVENT_DATA_SAS_BROADCAST_PRIMITIVE {
 #define MPI2_EVENT_PRIMITIVE_CHANGE                         (0x01)
 #define MPI2_EVENT_PRIMITIVE_SES                            (0x02)
 #define MPI2_EVENT_PRIMITIVE_EXPANDER                       (0x03)
-#define MPI2_EVENT_PRIMITIVE_ASYNCHRONOUS_EVENT             (0x04)
+#define MPI2_EVENT_PRIMITIVE_ASYNCHROANALUS_EVENT             (0x04)
 #define MPI2_EVENT_PRIMITIVE_RESERVED3                      (0x05)
 #define MPI2_EVENT_PRIMITIVE_RESERVED4                      (0x06)
 #define MPI2_EVENT_PRIMITIVE_CHANGE0_RESERVED               (0x07)
 #define MPI2_EVENT_PRIMITIVE_CHANGE1_RESERVED               (0x08)
 
-/*SAS Notify Primitive Event data */
+/*SAS Analtify Primitive Event data */
 
-typedef struct _MPI2_EVENT_DATA_SAS_NOTIFY_PRIMITIVE {
+typedef struct _MPI2_EVENT_DATA_SAS_ANALTIFY_PRIMITIVE {
 	U8 PhyNum;		/*0x00 */
 	U8 Port;		/*0x01 */
 	U8 Reserved1;		/*0x02 */
 	U8 Primitive;		/*0x03 */
-} MPI2_EVENT_DATA_SAS_NOTIFY_PRIMITIVE,
-	*PTR_MPI2_EVENT_DATA_SAS_NOTIFY_PRIMITIVE,
-	Mpi2EventDataSasNotifyPrimitive_t,
-	*pMpi2EventDataSasNotifyPrimitive_t;
+} MPI2_EVENT_DATA_SAS_ANALTIFY_PRIMITIVE,
+	*PTR_MPI2_EVENT_DATA_SAS_ANALTIFY_PRIMITIVE,
+	Mpi2EventDataSasAnaltifyPrimitive_t,
+	*pMpi2EventDataSasAnaltifyPrimitive_t;
 
 /*defines for the Primitive field */
-#define MPI2_EVENT_NOTIFY_ENABLE_SPINUP                     (0x01)
-#define MPI2_EVENT_NOTIFY_POWER_LOSS_EXPECTED               (0x02)
-#define MPI2_EVENT_NOTIFY_RESERVED1                         (0x03)
-#define MPI2_EVENT_NOTIFY_RESERVED2                         (0x04)
+#define MPI2_EVENT_ANALTIFY_ENABLE_SPINUP                     (0x01)
+#define MPI2_EVENT_ANALTIFY_POWER_LOSS_EXPECTED               (0x02)
+#define MPI2_EVENT_ANALTIFY_RESERVED1                         (0x03)
+#define MPI2_EVENT_ANALTIFY_RESERVED2                         (0x04)
 
 /*SAS Initiator Device Status Change Event data */
 
@@ -950,7 +950,7 @@ typedef struct _MPI2_EVENT_DATA_SAS_INIT_DEV_STATUS_CHANGE {
 
 /*SAS Initiator Device Status Change event ReasonCode values */
 #define MPI2_EVENT_SAS_INIT_RC_ADDED                (0x01)
-#define MPI2_EVENT_SAS_INIT_RC_NOT_RESPONDING       (0x02)
+#define MPI2_EVENT_SAS_INIT_RC_ANALT_RESPONDING       (0x02)
 
 /*SAS Initiator Device Table Overflow Event data */
 
@@ -995,11 +995,11 @@ typedef struct _MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST {
 	*pMpi2EventDataSasTopologyChangeList_t;
 
 /*values for the ExpStatus field */
-#define MPI2_EVENT_SAS_TOPO_ES_NO_EXPANDER                  (0x00)
+#define MPI2_EVENT_SAS_TOPO_ES_ANAL_EXPANDER                  (0x00)
 #define MPI2_EVENT_SAS_TOPO_ES_ADDED                        (0x01)
-#define MPI2_EVENT_SAS_TOPO_ES_NOT_RESPONDING               (0x02)
+#define MPI2_EVENT_SAS_TOPO_ES_ANALT_RESPONDING               (0x02)
 #define MPI2_EVENT_SAS_TOPO_ES_RESPONDING                   (0x03)
-#define MPI2_EVENT_SAS_TOPO_ES_DELAY_NOT_RESPONDING         (0x04)
+#define MPI2_EVENT_SAS_TOPO_ES_DELAY_ANALT_RESPONDING         (0x04)
 
 /*defines for the LinkRate field */
 #define MPI2_EVENT_SAS_TOPO_LR_CURRENT_MASK                 (0xF0)
@@ -1007,7 +1007,7 @@ typedef struct _MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST {
 #define MPI2_EVENT_SAS_TOPO_LR_PREV_MASK                    (0x0F)
 #define MPI2_EVENT_SAS_TOPO_LR_PREV_SHIFT                   (0)
 
-#define MPI2_EVENT_SAS_TOPO_LR_UNKNOWN_LINK_RATE            (0x00)
+#define MPI2_EVENT_SAS_TOPO_LR_UNKANALWN_LINK_RATE            (0x00)
 #define MPI2_EVENT_SAS_TOPO_LR_PHY_DISABLED                 (0x01)
 #define MPI2_EVENT_SAS_TOPO_LR_NEGOTIATION_FAILED           (0x02)
 #define MPI2_EVENT_SAS_TOPO_LR_SATA_OOB_COMPLETE            (0x03)
@@ -1026,10 +1026,10 @@ typedef struct _MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST {
 /*values for the PhyStatus ReasonCode sub-field */
 #define MPI2_EVENT_SAS_TOPO_RC_MASK                         (0x0F)
 #define MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED                   (0x01)
-#define MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING          (0x02)
+#define MPI2_EVENT_SAS_TOPO_RC_TARG_ANALT_RESPONDING          (0x02)
 #define MPI2_EVENT_SAS_TOPO_RC_PHY_CHANGED                  (0x03)
-#define MPI2_EVENT_SAS_TOPO_RC_NO_CHANGE                    (0x04)
-#define MPI2_EVENT_SAS_TOPO_RC_DELAY_NOT_RESPONDING         (0x05)
+#define MPI2_EVENT_SAS_TOPO_RC_ANAL_CHANGE                    (0x04)
+#define MPI2_EVENT_SAS_TOPO_RC_DELAY_ANALT_RESPONDING         (0x05)
 
 /*SAS Enclosure Device Status Change Event data */
 
@@ -1052,11 +1052,11 @@ typedef struct _MPI2_EVENT_DATA_SAS_ENCL_DEV_STATUS_CHANGE {
 
 /*SAS Enclosure Device Status Change event ReasonCode values */
 #define MPI2_EVENT_SAS_ENCL_RC_ADDED                (0x01)
-#define MPI2_EVENT_SAS_ENCL_RC_NOT_RESPONDING       (0x02)
+#define MPI2_EVENT_SAS_ENCL_RC_ANALT_RESPONDING       (0x02)
 
 /*Enclosure Device Status Change event ReasonCode values */
 #define MPI26_EVENT_ENCL_RC_ADDED                   (0x01)
-#define MPI26_EVENT_ENCL_RC_NOT_RESPONDING          (0x02)
+#define MPI26_EVENT_ENCL_RC_ANALT_RESPONDING          (0x02)
 
 
 typedef struct _MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR {
@@ -1186,7 +1186,7 @@ typedef struct _MPI26_EVENT_DATA_PCIE_DEVICE_STATUS_CHANGE {
 #define MPI26_EVENT_PCIDEV_STAT_RC_ABORT_TASK_SET_INTERNAL              (0x0A)
 #define MPI26_EVENT_PCIDEV_STAT_RC_CLEAR_TASK_SET_INTERNAL              (0x0B)
 #define MPI26_EVENT_PCIDEV_STAT_RC_QUERY_TASK_INTERNAL                  (0x0C)
-#define MPI26_EVENT_PCIDEV_STAT_RC_ASYNC_NOTIFICATION                   (0x0D)
+#define MPI26_EVENT_PCIDEV_STAT_RC_ASYNC_ANALTIFICATION                   (0x0D)
 #define MPI26_EVENT_PCIDEV_STAT_RC_CMP_INTERNAL_DEV_RESET               (0x0E)
 #define MPI26_EVENT_PCIDEV_STAT_RC_CMP_TASK_ABORT_INTERNAL              (0x0F)
 #define MPI26_EVENT_PCIDEV_STAT_RC_DEV_INIT_FAILURE                     (0x10)
@@ -1242,16 +1242,16 @@ typedef struct _MPI26_EVENT_PCIE_TOPO_PORT_ENTRY {
 
 /*PCIe Topology Change List Event data PortStatus values */
 #define MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED                  (0x01)
-#define MPI26_EVENT_PCIE_TOPO_PS_NOT_RESPONDING             (0x02)
+#define MPI26_EVENT_PCIE_TOPO_PS_ANALT_RESPONDING             (0x02)
 #define MPI26_EVENT_PCIE_TOPO_PS_PORT_CHANGED               (0x03)
-#define MPI26_EVENT_PCIE_TOPO_PS_NO_CHANGE                  (0x04)
-#define MPI26_EVENT_PCIE_TOPO_PS_DELAY_NOT_RESPONDING       (0x05)
+#define MPI26_EVENT_PCIE_TOPO_PS_ANAL_CHANGE                  (0x04)
+#define MPI26_EVENT_PCIE_TOPO_PS_DELAY_ANALT_RESPONDING       (0x05)
 
 /*PCIe Topology Change List Event data defines for CurrentPortInfo and
  *PreviousPortInfo
  */
 #define MPI26_EVENT_PCIE_TOPO_PI_LANE_MASK                  (0xF0)
-#define MPI26_EVENT_PCIE_TOPO_PI_LANES_UNKNOWN              (0x00)
+#define MPI26_EVENT_PCIE_TOPO_PI_LANES_UNKANALWN              (0x00)
 #define MPI26_EVENT_PCIE_TOPO_PI_1_LANE                     (0x10)
 #define MPI26_EVENT_PCIE_TOPO_PI_2_LANES                    (0x20)
 #define MPI26_EVENT_PCIE_TOPO_PI_4_LANES                    (0x30)
@@ -1259,7 +1259,7 @@ typedef struct _MPI26_EVENT_PCIE_TOPO_PORT_ENTRY {
 #define MPI26_EVENT_PCIE_TOPO_PI_16_LANES                   (0x50)
 
 #define MPI26_EVENT_PCIE_TOPO_PI_RATE_MASK                  (0x0F)
-#define MPI26_EVENT_PCIE_TOPO_PI_RATE_UNKNOWN               (0x00)
+#define MPI26_EVENT_PCIE_TOPO_PI_RATE_UNKANALWN               (0x00)
 #define MPI26_EVENT_PCIE_TOPO_PI_RATE_DISABLED              (0x01)
 #define MPI26_EVENT_PCIE_TOPO_PI_RATE_2_5                   (0x02)
 #define MPI26_EVENT_PCIE_TOPO_PI_RATE_5_0                   (0x03)
@@ -1284,11 +1284,11 @@ typedef struct _MPI26_EVENT_DATA_PCIE_TOPOLOGY_CHANGE_LIST {
 	*pMpi26EventDataPCIeTopologyChangeList_t;
 
 /*PCIe Topology Change List Event data SwitchStatus values */
-#define MPI26_EVENT_PCIE_TOPO_SS_NO_PCIE_SWITCH             (0x00)
+#define MPI26_EVENT_PCIE_TOPO_SS_ANAL_PCIE_SWITCH             (0x00)
 #define MPI26_EVENT_PCIE_TOPO_SS_ADDED                      (0x01)
-#define MPI26_EVENT_PCIE_TOPO_SS_NOT_RESPONDING             (0x02)
+#define MPI26_EVENT_PCIE_TOPO_SS_ANALT_RESPONDING             (0x02)
 #define MPI26_EVENT_PCIE_TOPO_SS_RESPONDING                 (0x03)
-#define MPI26_EVENT_PCIE_TOPO_SS_DELAY_NOT_RESPONDING       (0x04)
+#define MPI26_EVENT_PCIE_TOPO_SS_DELAY_ANALT_RESPONDING       (0x04)
 
 /*PCIe Link Counter Event data (MPI v2.6 and later) */
 

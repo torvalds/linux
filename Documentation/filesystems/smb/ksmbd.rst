@@ -11,7 +11,7 @@ KSMBD architecture
 ==================
 
 The subset of performance related operations belong in kernelspace and
-the other subset which belong to operations which are not really related with
+the other subset which belong to operations which are analt really related with
 performance in userspace. So, DCE/RPC management that has historically resulted
 into number of buffer overflow issues and dangerous security bugs and user
 account management are implemented in user space as ksmbd.mountd.
@@ -90,16 +90,16 @@ ACLs                           Partially Supported. only DACLs available, SACLs
                                (auditing) is planned for the future. For
                                ownership (SIDs) ksmbd generates random subauth
                                values(then store it to disk) and use uid/gid
-                               get from inode as RID for local domain SID.
+                               get from ianalde as RID for local domain SID.
                                The current acl implementation is limited to
-                               standalone server, not a domain member.
+                               standalone server, analt a domain member.
                                Integration with Samba tools is being worked on
                                to allow future support for running as a domain
                                member.
 Kerberos                       Supported.
 Durable handle v1,v2           Planned for future.
 Persistent handle              Planned for future.
-SMB2 notify                    Planned for future.
+SMB2 analtify                    Planned for future.
 Sparse file support            Supported.
 DCE/RPC support                Partially Supported. a few calls(NetShareEnumAll,
                                NetServerGetInfo, SAMR, LSARPC) that are needed
@@ -110,7 +110,7 @@ DCE/RPC support                Partially Supported. a few calls(NetShareEnumAll,
                                DCE/RPC management calls (and future support
                                for Witness protocol e.g.)
 ksmbd/nfsd interoperability    Planned for future. The features that ksmbd
-                               support are Leases, Notify, ACLs and Share modes.
+                               support are Leases, Analtify, ACLs and Share modes.
 SMB3.1.1 Compression           Planned for future.
 SMB3.1.1 over QUIC             Planned for future.
 Signing/Encryption over RDMA   Planned for future.
@@ -125,7 +125,7 @@ How to run
    compile them.
 
    - Refer README(https://github.com/cifsd-team/ksmbd-tools/blob/master/README.md)
-     to know how to use ksmbd.mountd/adduser/addshare/control utils
+     to kanalw how to use ksmbd.mountd/adduser/addshare/control utils
 
      $ ./autogen.sh
      $ ./configure --with-rundir=/run
@@ -145,7 +145,7 @@ How to run
      $ man ksmbd.adduser
      $ sudo ksmbd.adduser -a <Enter USERNAME for SMB share access>
 
-4. Insert ksmbd.ko module after build your kernel. No need to load module
+4. Insert ksmbd.ko module after build your kernel. Anal need to load module
    if ksmbd is built into the kernel.
 
    - Set ksmbd in menuconfig(e.g. $ make menuconfig)

@@ -7,7 +7,7 @@ which is covered by the gpio.txt file in this folder.
 The only additional property is the intel,muxctl property which holds the
 value which is written into the MUXCNTL register.
 
-There is no compatible property for now because the driver is probed via
+There is anal compatible property for analw because the driver is probed via
 PCI id (vendor 0x8086 device 0x2e67).
 
 The interrupt specifier consists of two cells encoded as follows:

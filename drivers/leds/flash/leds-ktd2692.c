@@ -270,8 +270,8 @@ static void regulator_disable_action(void *_data)
 static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 			    struct ktd2692_led_config_data *cfg)
 {
-	struct device_node *np = dev_of_node(dev);
-	struct device_node *child_node;
+	struct device_analde *np = dev_of_analde(dev);
+	struct device_analde *child_analde;
 	int ret;
 
 	if (!np)
@@ -280,11 +280,11 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 	led->ctrl_gpio = devm_gpiod_get(dev, "ctrl", GPIOD_ASIS);
 	ret = PTR_ERR_OR_ZERO(led->ctrl_gpio);
 	if (ret)
-		return dev_err_probe(dev, ret, "cannot get ctrl-gpios\n");
+		return dev_err_probe(dev, ret, "cananalt get ctrl-gpios\n");
 
 	led->aux_gpio = devm_gpiod_get_optional(dev, "aux", GPIOD_ASIS);
 	if (IS_ERR(led->aux_gpio))
-		return dev_err_probe(dev, PTR_ERR(led->aux_gpio), "cannot get aux-gpios\n");
+		return dev_err_probe(dev, PTR_ERR(led->aux_gpio), "cananalt get aux-gpios\n");
 
 	led->regulator = devm_regulator_get(dev, "vin");
 	if (IS_ERR(led->regulator))
@@ -302,30 +302,30 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 		}
 	}
 
-	child_node = of_get_next_available_child(np, NULL);
-	if (!child_node) {
-		dev_err(dev, "No DT child node found for connected LED.\n");
+	child_analde = of_get_next_available_child(np, NULL);
+	if (!child_analde) {
+		dev_err(dev, "Anal DT child analde found for connected LED.\n");
 		return -EINVAL;
 	}
 
 	led->fled_cdev.led_cdev.name =
-		of_get_property(child_node, "label", NULL) ? : child_node->name;
+		of_get_property(child_analde, "label", NULL) ? : child_analde->name;
 
-	ret = of_property_read_u32(child_node, "led-max-microamp",
+	ret = of_property_read_u32(child_analde, "led-max-microamp",
 				   &cfg->movie_max_microamp);
 	if (ret) {
 		dev_err(dev, "failed to parse led-max-microamp\n");
 		goto err_parse_dt;
 	}
 
-	ret = of_property_read_u32(child_node, "flash-max-microamp",
+	ret = of_property_read_u32(child_analde, "flash-max-microamp",
 				   &cfg->flash_max_microamp);
 	if (ret) {
 		dev_err(dev, "failed to parse flash-max-microamp\n");
 		goto err_parse_dt;
 	}
 
-	ret = of_property_read_u32(child_node, "flash-max-timeout-us",
+	ret = of_property_read_u32(child_analde, "flash-max-timeout-us",
 				   &cfg->flash_max_timeout);
 	if (ret) {
 		dev_err(dev, "failed to parse flash-max-timeout-us\n");
@@ -333,7 +333,7 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 	}
 
 err_parse_dt:
-	of_node_put(child_node);
+	of_analde_put(child_analde);
 	return ret;
 }
 
@@ -352,7 +352,7 @@ static int ktd2692_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fled_cdev = &led->fled_cdev;
 	led_cdev = &fled_cdev->led_cdev;

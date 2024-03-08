@@ -4,7 +4,7 @@
  *
  * Support for the IIC peripheral on IBM PPC 4xx
  *
- * Copyright (c) 2003 Zultys Technologies.
+ * Copyright (c) 2003 Zultys Techanallogies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
  * Based on original work by

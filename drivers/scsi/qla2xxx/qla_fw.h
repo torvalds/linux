@@ -21,7 +21,7 @@
 #define FO1_DISABLE_LED_CTRL	BIT_6
 #define FO1_ENABLE_8016		BIT_0
 #define FO2_ENABLE_SEL_CLASS2	BIT_5
-#define FO3_NO_ABTS_ON_LINKDOWN	BIT_14
+#define FO3_ANAL_ABTS_ON_LINKDOWN	BIT_14
 #define FO3_HOLD_STS_IOCB	BIT_12
 
 /*
@@ -80,7 +80,7 @@ struct port_database_24xx {
 						/* Bits 15-0 of word 3 */
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t analde_name[WWN_SIZE];
 
 	uint8_t reserved_3[2];
 	uint16_t nvme_first_burst_size;
@@ -111,12 +111,12 @@ struct get_name_list_extended {
 	u8 prli_svc_param_word_0[2]; /* Bits 15-0 of word 0 */
 	u8 prli_svc_param_word_3[2]; /* Bits 15-0 of word 3 */
 	u8 port_name[WWN_SIZE];
-	u8 node_name[WWN_SIZE];
+	u8 analde_name[WWN_SIZE];
 };
 
 /* MB 75h: This is the short version of the database */
 struct get_name_list {
-	u8 port_node_name[WWN_SIZE]; /* B7 most sig, B0 least sig */
+	u8 port_analde_name[WWN_SIZE]; /* B7 most sig, B0 least sig */
 	__le16 nport_handle;
 	u8 reserved;
 };
@@ -126,7 +126,7 @@ struct vp_database_24xx {
 	uint8_t  options;
 	uint8_t  id;
 	uint8_t  port_name[WWN_SIZE];
-	uint8_t  node_name[WWN_SIZE];
+	uint8_t  analde_name[WWN_SIZE];
 	uint16_t port_id_low;
 	uint16_t port_id_high;
 };
@@ -146,10 +146,10 @@ struct nvram_24xx {
 	__le16	hard_address;
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t analde_name[WWN_SIZE];
 
 	__le16	login_retry_count;
-	__le16	link_down_on_nos;
+	__le16	link_down_on_anals;
 	__le16	interrupt_delay_timer;
 	__le16	login_timeout;
 
@@ -221,7 +221,7 @@ struct nvram_24xx {
 	__le32	host_p;
 
 	uint8_t alternate_port_name[WWN_SIZE];
-	uint8_t alternate_node_name[WWN_SIZE];
+	uint8_t alternate_analde_name[WWN_SIZE];
 
 	uint8_t boot_port_name[WWN_SIZE];
 	__le16	boot_lun_number;
@@ -272,18 +272,18 @@ struct nvram_24xx {
 	/* Offset 352. */
 	uint8_t prev_drv_ver_major;
 	uint8_t prev_drv_ver_submajob;
-	uint8_t prev_drv_ver_minor;
-	uint8_t prev_drv_ver_subminor;
+	uint8_t prev_drv_ver_mianalr;
+	uint8_t prev_drv_ver_submianalr;
 
 	__le16	prev_bios_ver_major;
-	__le16	prev_bios_ver_minor;
+	__le16	prev_bios_ver_mianalr;
 
 	__le16	prev_efi_ver_major;
-	__le16	prev_efi_ver_minor;
+	__le16	prev_efi_ver_mianalr;
 
 	__le16	prev_fw_ver_major;
-	uint8_t prev_fw_ver_minor;
-	uint8_t prev_fw_ver_subminor;
+	uint8_t prev_fw_ver_mianalr;
+	uint8_t prev_fw_ver_submianalr;
 
 	uint16_t reserved_17[8];
 
@@ -314,7 +314,7 @@ struct nvram_24xx {
 
 /*
  * ISP Initialization Control Block.
- * Little endian except where noted.
+ * Little endian except where analted.
  */
 #define	ICB_VERSION 1
 struct init_cb_24xx {
@@ -328,7 +328,7 @@ struct init_cb_24xx {
 	__le16	hard_address;
 
 	uint8_t port_name[WWN_SIZE];		/* Big endian. */
-	uint8_t node_name[WWN_SIZE];		/* Big endian. */
+	uint8_t analde_name[WWN_SIZE];		/* Big endian. */
 
 	__le16	response_q_inpointer;
 	__le16	request_q_outpointer;
@@ -340,7 +340,7 @@ struct init_cb_24xx {
 	__le16	response_q_length;
 	__le16	request_q_length;
 
-	__le16	link_down_on_nos;		/* Milliseconds. */
+	__le16	link_down_on_anals;		/* Milliseconds. */
 
 	__le16	prio_request_q_length;
 
@@ -367,15 +367,15 @@ struct init_cb_24xx {
 	 * BIT 4  = Enable Target Mode
 	 * BIT 5  = Disable Initiator Mode
 	 * BIT 6  = Acquire FA-WWN
-	 * BIT 7  = Enable D-port Diagnostics
+	 * BIT 7  = Enable D-port Diaganalstics
 	 *
 	 * BIT 8  = Reserved
-	 * BIT 9  = Non Participating LIP
+	 * BIT 9  = Analn Participating LIP
 	 * BIT 10 = Descending Loop ID Search
 	 * BIT 11 = Acquire Loop ID in LIPA
 	 * BIT 12 = Reserved
 	 * BIT 13 = Full Login after LIP
-	 * BIT 14 = Node Name Option
+	 * BIT 14 = Analde Name Option
 	 * BIT 15-31 = Reserved
 	 */
 	__le32	firmware_options_1;
@@ -388,7 +388,7 @@ struct init_cb_24xx {
 	 * BIT 4  = Connection Options bit 0
 	 * BIT 5  = Connection Options bit 1
 	 * BIT 6  = Connection Options bit 2
-	 * BIT 7  = Enable Non part on LIHA failure
+	 * BIT 7  = Enable Analn part on LIHA failure
 	 *
 	 * BIT 8  = Enable Class 2
 	 * BIT 9  = Enable ACK0
@@ -644,7 +644,7 @@ struct sts_entry_24xx {
 	 * If DIF Error is set in comp_status, these additional fields are
 	 * defined:
 	 *
-	 * !!! NOTE: Firmware sends expected/actual DIF data in big endian
+	 * !!! ANALTE: Firmware sends expected/actual DIF data in big endian
 	 * format; but all of the "data" field gets swab32-d in the beginning
 	 * of qla2x00_status_entry().
 	 *
@@ -882,7 +882,7 @@ struct mbx_entry_24xx {
 };
 
 
-#define LOGINOUT_PORT_IOCB_TYPE	0x52	/* Login/Logout Port entry. */
+#define LOGIANALUT_PORT_IOCB_TYPE	0x52	/* Login/Logout Port entry. */
 struct logio_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
@@ -907,7 +907,7 @@ struct logio_entry_24xx {
 #define LCF_NVME_PRLI		BIT_6   /* Perform NVME FC4 PRLI */
 #define LCF_SKIP_PRLI		BIT_5	/* Skip PRLI after PLOGI. */
 #define LCF_IMPL_LOGO_ALL	BIT_5	/* Implicit LOGO to all ports. */
-#define LCF_COND_PLOGI		BIT_4	/* PLOGI only if not logged-in. */
+#define LCF_COND_PLOGI		BIT_4	/* PLOGI only if analt logged-in. */
 #define LCF_IMPL_LOGO		BIT_4	/* Perform an implicit LOGO. */
 #define LCF_IMPL_PRLO		BIT_4	/* Perform an implicit PRLO. */
 					/* Commands. */
@@ -929,22 +929,22 @@ struct logio_entry_24xx {
 	__le32	io_parameter[11];	/* General I/O parameters. */
 #define LIO_COMM_FEAT_FCSP	BIT_21
 #define LIO_COMM_FEAT_CIO	BIT_31
-#define LSC_SCODE_NOLINK	0x01
-#define LSC_SCODE_NOIOCB	0x02
-#define LSC_SCODE_NOXCB		0x03
+#define LSC_SCODE_ANALLINK	0x01
+#define LSC_SCODE_ANALIOCB	0x02
+#define LSC_SCODE_ANALXCB		0x03
 #define LSC_SCODE_CMD_FAILED	0x04
-#define LSC_SCODE_NOFABRIC	0x05
-#define LSC_SCODE_FW_NOT_READY	0x07
-#define LSC_SCODE_NOT_LOGGED_IN	0x09
-#define LSC_SCODE_NOPCB		0x0A
+#define LSC_SCODE_ANALFABRIC	0x05
+#define LSC_SCODE_FW_ANALT_READY	0x07
+#define LSC_SCODE_ANALT_LOGGED_IN	0x09
+#define LSC_SCODE_ANALPCB		0x0A
 
 #define LSC_SCODE_ELS_REJECT	0x18
 #define LSC_SCODE_CMD_PARAM_ERR	0x19
 #define LSC_SCODE_PORTID_USED	0x1A
 #define LSC_SCODE_NPORT_USED	0x1B
-#define LSC_SCODE_NONPORT	0x1C
+#define LSC_SCODE_ANALNPORT	0x1C
 #define LSC_SCODE_LOGGED_IN	0x1D
-#define LSC_SCODE_NOFLOGI_ACC	0x1F
+#define LSC_SCODE_ANALFLOGI_ACC	0x1F
 };
 
 #define TSK_MGMT_IOCB_TYPE	0x14
@@ -967,7 +967,7 @@ struct tsk_mgmt_entry {
 	struct scsi_lun lun;		/* FCP LUN (BE). */
 
 	__le32	control_flags;		/* Control Flags. */
-#define TCF_NOTMCMD_TO_TARGET	BIT_31
+#define TCF_ANALTMCMD_TO_TARGET	BIT_31
 #define TCF_LUN_RESET		BIT_4
 #define TCF_ABORT_TASK_SET	BIT_3
 #define TCF_CLEAR_TASK_SET	BIT_2
@@ -997,8 +997,8 @@ struct abort_entry_24xx {
 	};
 
 	__le16	options;		/* Options. */
-#define AOF_NO_ABTS		BIT_0	/* Do not send any ABTS. */
-#define AOF_NO_RRQ		BIT_1   /* Do not send RRQ. */
+#define AOF_ANAL_ABTS		BIT_0	/* Do analt send any ABTS. */
+#define AOF_ANAL_RRQ		BIT_1   /* Do analt send RRQ. */
 #define AOF_ABTS_TIMEOUT	BIT_2   /* Disable logout on ABTS timeout. */
 #define AOF_ABTS_RTY_CNT	BIT_3   /* Use driver specified retry count. */
 #define AOF_RSP_TIMEOUT		BIT_4   /* Use specified response timeout. */
@@ -1006,7 +1006,7 @@ struct abort_entry_24xx {
 
 	uint32_t handle_to_abort;	/* System handle to abort. */
 
-	__le16	req_que_no;
+	__le16	req_que_anal;
 	uint8_t reserved_1[30];
 
 	uint8_t port_id[3];		/* PortID of destination port. */
@@ -1091,7 +1091,7 @@ struct abts_entry_24xx {
 } __packed;
 
 /* ABTS payload explanation values */
-#define BA_RJT_EXP_NO_ADDITIONAL	0
+#define BA_RJT_EXP_ANAL_ADDITIONAL	0
 #define BA_RJT_EXP_INV_OX_RX_ID		3
 #define BA_RJT_EXP_SEQ_ABORTED		5
 
@@ -1228,8 +1228,8 @@ struct device_reg_24xx {
 #define HCCRX_HOST_INT		BIT_6	/* Host to RISC interrupt bit. */
 #define HCCRX_RISC_RESET	BIT_5	/* RISC Reset mode bit. */
 					/* HCCR commands. */
-					/* NOOP. */
-#define HCCRX_NOOP		0x00000000
+					/* ANALOP. */
+#define HCCRX_ANALOP		0x00000000
 					/* Set RISC Reset. */
 #define HCCRX_SET_RISC_RESET	0x10000000
 					/* Clear RISC Reset. */
@@ -1262,7 +1262,7 @@ struct device_reg_24xx {
 #define GPDX_LED_GREEN_ON	BIT_3
 #define GPDX_LED_AMBER_ON	BIT_4
 					/* Data in/out. */
-#define GPDX_DATA_INOUT		(BIT_1|BIT_0)
+#define GPDX_DATA_IANALUT		(BIT_1|BIT_0)
 
 	__le32	gpioe;			/* GPIO Enable register. */
 					/* Enable update mask. */
@@ -1366,7 +1366,7 @@ struct mid_conf_entry_24xx {
 	/*
 	 * BIT 0  = Enable Hard Loop Id
 	 * BIT 1  = Acquire Loop ID in LIPA
-	 * BIT 2  = ID not Acquired
+	 * BIT 2  = ID analt Acquired
 	 * BIT 3  = Enable VP
 	 * BIT 4  = Enable Initiator Mode
 	 * BIT 5  = Disable Target Mode
@@ -1377,7 +1377,7 @@ struct mid_conf_entry_24xx {
 	uint8_t hard_address;
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t analde_name[WWN_SIZE];
 };
 
 struct mid_init_cb_24xx {
@@ -1392,7 +1392,7 @@ struct mid_init_cb_24xx {
 
 struct mid_db_entry_24xx {
 	uint16_t status;
-#define MDBS_NON_PARTIC		BIT_3
+#define MDBS_ANALN_PARTIC		BIT_3
 #define MDBS_ID_ACQUIRED	BIT_1
 #define MDBS_ENABLED		BIT_0
 
@@ -1400,7 +1400,7 @@ struct mid_db_entry_24xx {
 	uint8_t hard_address;
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t analde_name[WWN_SIZE];
 
 	uint8_t port_id[3];
 	uint8_t reserved_1;
@@ -1423,7 +1423,7 @@ struct vp_ctrl_entry_24xx {
 	__le16	comp_status;		/* Completion status. */
 #define CS_VCE_IOCB_ERROR       0x01    /* Error processing IOCB */
 #define CS_VCE_ACQ_ID_ERROR	0x02	/* Error while acquireing ID. */
-#define CS_VCE_BUSY		0x05	/* Firmware not ready to accept cmd. */
+#define CS_VCE_BUSY		0x05	/* Firmware analt ready to accept cmd. */
 
 	__le16	command;
 #define VCE_COMMAND_ENABLE_VPS	0x00	/* Enable VPs. */
@@ -1460,11 +1460,11 @@ struct vp_config_entry_24xx {
 #define CS_VF_SET_HOPS_OF_VPORTS        BIT_2
 
 	__le16	comp_status;		/* Completion status. */
-#define CS_VCT_STS_ERROR	0x01	/* Specified VPs were not disabled. */
+#define CS_VCT_STS_ERROR	0x01	/* Specified VPs were analt disabled. */
 #define CS_VCT_CNT_ERROR	0x02	/* Invalid VP count. */
-#define CS_VCT_ERROR		0x03	/* Unknown error. */
+#define CS_VCT_ERROR		0x03	/* Unkanalwn error. */
 #define CS_VCT_IDX_ERROR	0x02	/* Invalid VP index. */
-#define CS_VCT_BUSY		0x05	/* Firmware not ready to accept cmd. */
+#define CS_VCT_BUSY		0x05	/* Firmware analt ready to accept cmd. */
 
 	uint8_t command;
 #define VCT_COMMAND_MOD_VPS     0x00    /* Modify VP configurations. */
@@ -1479,13 +1479,13 @@ struct vp_config_entry_24xx {
 	uint8_t hard_address_idx1;
 	uint16_t reserved_vp1;
 	uint8_t port_name_idx1[WWN_SIZE];
-	uint8_t node_name_idx1[WWN_SIZE];
+	uint8_t analde_name_idx1[WWN_SIZE];
 
 	uint8_t options_idx2;
 	uint8_t hard_address_idx2;
 	uint16_t reserved_vp2;
 	uint8_t port_name_idx2[WWN_SIZE];
-	uint8_t node_name_idx2[WWN_SIZE];
+	uint8_t analde_name_idx2[WWN_SIZE];
 	__le16	id;
 	uint16_t reserved_4;
 	__le16	hopct;
@@ -1547,7 +1547,7 @@ struct vp_rpt_id_entry_24xx {
 			uint8_t rsv3[5];
 
 			uint8_t port_name[8];
-			uint8_t node_name[8];
+			uint8_t analde_name[8];
 			uint16_t bbcr;
 			uint8_t reserved_5[6];
 		} f1;
@@ -1563,7 +1563,7 @@ struct vp_rpt_id_entry_24xx {
 			uint8_t rsv3[5];
 
 			uint8_t port_name[8];
-			uint8_t node_name[8];
+			uint8_t analde_name[8];
 			uint16_t bbcr;
 			uint8_t reserved_5[2];
 			uint8_t remote_nport_id[4];
@@ -1733,12 +1733,12 @@ struct qla_npiv_entry {
 	uint8_t f_qos;
 	__le16	unused1;
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t analde_name[WWN_SIZE];
 };
 
 /* 84XX Support **************************************************************/
 
-#define MBA_ISP84XX_ALERT	0x800f  /* Alert Notification. */
+#define MBA_ISP84XX_ALERT	0x800f  /* Alert Analtification. */
 #define A84_PANIC_RECOVERY	0x1
 #define A84_OP_LOGIN_COMPLETE	0x2
 #define A84_DIAG_LOGIN_COMPLETE	0x3
@@ -1864,7 +1864,7 @@ struct access_chip_rsp_84xx {
 #define MBA_FCF_CONF_ERR	0x8031
 #define MBA_DCBX_PARAM_UPDATE	0x8032
 #define MBA_IDC_COMPLETE	0x8100
-#define MBA_IDC_NOTIFY		0x8101
+#define MBA_IDC_ANALTIFY		0x8101
 #define MBA_IDC_TIME_EXT	0x8102
 
 #define MBC_IDC_ACK		0x101
@@ -1921,7 +1921,7 @@ struct nvram_81xx {
 	__le16	reserved_2;
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t analde_name[WWN_SIZE];
 
 	__le16	login_retry_count;
 	__le16	reserved_3;
@@ -1935,7 +1935,7 @@ struct nvram_81xx {
 	__le16	reserved_4[4];
 
 	/* Offset 64. */
-	uint8_t enode_mac[6];
+	uint8_t eanalde_mac[6];
 	__le16	reserved_5[5];
 
 	/* Offset 80. */
@@ -1971,7 +1971,7 @@ struct nvram_81xx {
 	 * BIT 10 = Enable lip full login
 	 * BIT 11 = Enable target reset
 	 * BIT 12 = Stop firmware
-	 * BIT 13 = Enable nodename option
+	 * BIT 13 = Enable analdename option
 	 * BIT 14 = Default WWPN valid
 	 * BIT 15 = Enable alternate WWN
 	 *
@@ -1990,7 +1990,7 @@ struct nvram_81xx {
 	__le32	host_p;
 
 	uint8_t alternate_port_name[WWN_SIZE];
-	uint8_t alternate_node_name[WWN_SIZE];
+	uint8_t alternate_analde_name[WWN_SIZE];
 
 	uint8_t boot_port_name[WWN_SIZE];
 	__le16	boot_lun_number;
@@ -2079,7 +2079,7 @@ struct nvram_81xx {
 
 /*
  * ISP Initialization Control Block.
- * Little endian except where noted.
+ * Little endian except where analted.
  */
 #define	ICB_VERSION 1
 struct init_cb_81xx {
@@ -2093,7 +2093,7 @@ struct init_cb_81xx {
 	__le16	reserved_2;
 
 	uint8_t port_name[WWN_SIZE];		/* Big endian. */
-	uint8_t node_name[WWN_SIZE];		/* Big endian. */
+	uint8_t analde_name[WWN_SIZE];		/* Big endian. */
 
 	__le16	response_q_inpointer;
 	__le16	request_q_outpointer;
@@ -2130,7 +2130,7 @@ struct init_cb_81xx {
 	 * BIT 7  = Reserved
 	 *
 	 * BIT 8-13 = Reserved
-	 * BIT 14 = Node Name Option
+	 * BIT 14 = Analde Name Option
 	 * BIT 15-31 = Reserved
 	 */
 	__le32	firmware_options_1;
@@ -2176,7 +2176,7 @@ struct init_cb_81xx {
 
 	uint8_t  reserved_5[8];
 
-	uint8_t enode_mac[6];
+	uint8_t eanalde_mac[6];
 
 	uint8_t reserved_6[10];
 };

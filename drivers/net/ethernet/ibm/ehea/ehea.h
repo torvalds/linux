@@ -380,7 +380,7 @@ struct ehea_adapter {
 	u64 handle;
 	struct platform_device *ofdev;
 	struct ehea_port *port[EHEA_MAX_PORTS];
-	struct ehea_eq *neq;       /* notification event queue */
+	struct ehea_eq *neq;       /* analtification event queue */
 	struct tasklet_struct neq_tasklet;
 	struct ehea_mr mr;
 	u32 pd;                    /* protection domain */

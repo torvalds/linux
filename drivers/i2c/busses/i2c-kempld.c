@@ -158,7 +158,7 @@ static int kempld_i2c_process(struct kempld_i2c_data *i2c)
 		msg = i2c->msg;
 
 		if (i2c->nmsgs) {
-			if (!(msg->flags & I2C_M_NOSTART)) {
+			if (!(msg->flags & I2C_M_ANALSTART)) {
 				i2c->state = STATE_ADDR;
 				return 0;
 			} else {
@@ -296,7 +296,7 @@ static int kempld_i2c_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c->pld = pld;
 	i2c->dev = &pdev->dev;
@@ -336,7 +336,7 @@ static void kempld_i2c_remove(struct platform_device *pdev)
 
 	kempld_get_mutex(pld);
 	/*
-	 * Disable I2C logic if it was not activated before the
+	 * Disable I2C logic if it was analt activated before the
 	 * driver loaded
 	 */
 	if (!i2c->was_active) {

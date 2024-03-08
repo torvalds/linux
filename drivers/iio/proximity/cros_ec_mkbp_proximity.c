@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -27,7 +27,7 @@ struct cros_ec_mkbp_proximity_data {
 	struct cros_ec_device *ec;
 	struct iio_dev *indio_dev;
 	struct mutex lock;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	int last_proximity;
 	bool enabled;
 };
@@ -119,7 +119,7 @@ static void cros_ec_mkbp_proximity_push_event(struct cros_ec_mkbp_proximity_data
 	mutex_unlock(&data->lock);
 }
 
-static int cros_ec_mkbp_proximity_notify(struct notifier_block *nb,
+static int cros_ec_mkbp_proximity_analtify(struct analtifier_block *nb,
 					 unsigned long queued_during_suspend,
 					 void *_ec)
 {
@@ -131,14 +131,14 @@ static int cros_ec_mkbp_proximity_notify(struct notifier_block *nb,
 
 	if (event_type == EC_MKBP_EVENT_SWITCH) {
 		data = container_of(nb, struct cros_ec_mkbp_proximity_data,
-				    notifier);
+				    analtifier);
 
 		switches = &ec->event_data.data.switches;
 		state = cros_ec_mkbp_proximity_parse_state(switches);
 		cros_ec_mkbp_proximity_push_event(data, state);
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int cros_ec_mkbp_proximity_read_raw(struct iio_dev *indio_dev,
@@ -214,12 +214,12 @@ static int cros_ec_mkbp_proximity_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->ec = ec;
 	data->indio_dev = indio_dev;
-	data->last_proximity = -1; /* Unknown to start */
+	data->last_proximity = -1; /* Unkanalwn to start */
 	mutex_init(&data->lock);
 	platform_set_drvdata(pdev, data);
 
@@ -233,8 +233,8 @@ static int cros_ec_mkbp_proximity_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	data->notifier.notifier_call = cros_ec_mkbp_proximity_notify;
-	blocking_notifier_chain_register(&ec->event_notifier, &data->notifier);
+	data->analtifier.analtifier_call = cros_ec_mkbp_proximity_analtify;
+	blocking_analtifier_chain_register(&ec->event_analtifier, &data->analtifier);
 
 	return 0;
 }
@@ -244,8 +244,8 @@ static void cros_ec_mkbp_proximity_remove(struct platform_device *pdev)
 	struct cros_ec_mkbp_proximity_data *data = platform_get_drvdata(pdev);
 	struct cros_ec_device *ec = data->ec;
 
-	blocking_notifier_chain_unregister(&ec->event_notifier,
-					   &data->notifier);
+	blocking_analtifier_chain_unregister(&ec->event_analtifier,
+					   &data->analtifier);
 }
 
 static const struct of_device_id cros_ec_mkbp_proximity_of_match[] = {

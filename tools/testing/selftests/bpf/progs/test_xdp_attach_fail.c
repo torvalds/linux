@@ -20,7 +20,7 @@ struct xdp_attach_error_ctx {
 	unsigned long unused;
 
 	/*
-	 * bpf does not support tracepoint __data_loc directly.
+	 * bpf does analt support tracepoint __data_loc directly.
 	 *
 	 * Actually, this field is a 32 bit integer whose value encodes
 	 * information on where to find the actual data. The first 2 bytes is

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
 name: fou
 
@@ -43,7 +43,7 @@ attribute-sets:
         name: type
         type: u8
       -
-        name: remcsum_nopartial
+        name: remcsum_analpartial
         type: flag
       -
         name: local_v4
@@ -90,7 +90,7 @@ operations:
             - port
             - ipproto
             - type
-            - remcsum_nopartial
+            - remcsum_analpartial
             - local_v4
             - peer_v4
             - local_v6

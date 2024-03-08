@@ -5,7 +5,7 @@
  * Xen USB Virtual Host Controller driver
  *
  * Copyright (C) 2009, FUJITSU LABORATORIES LTD.
- * Author: Noboru Iwamatsu <n_iwamatsu@jp.fujitsu.com>
+ * Author: Analboru Iwamatsu <n_iwamatsu@jp.fujitsu.com>
  */
 
 #include <linux/module.h>
@@ -152,7 +152,7 @@ static void xenhcd_set_connect_state(struct xenhcd_info *info, int portnum)
 	port = portnum - 1;
 	if (info->ports[port].status & USB_PORT_STAT_POWER) {
 		switch (info->devices[port].speed) {
-		case XENUSB_SPEED_NONE:
+		case XENUSB_SPEED_ANALNE:
 			info->ports[port].status &=
 				~(USB_PORT_STAT_CONNECTION |
 				  USB_PORT_STAT_ENABLE |
@@ -192,8 +192,8 @@ static int xenhcd_rhport_connect(struct xenhcd_info *info, __u8 portnum,
 	port = portnum - 1;
 	if (info->devices[port].speed != speed) {
 		switch (speed) {
-		case XENUSB_SPEED_NONE: /* disconnect */
-			info->devices[port].status = USB_STATE_NOTATTACHED;
+		case XENUSB_SPEED_ANALNE: /* disconnect */
+			info->devices[port].status = USB_STATE_ANALTATTACHED;
 			break;
 		case XENUSB_SPEED_LOW:
 		case XENUSB_SPEED_FULL:
@@ -248,7 +248,7 @@ static void xenhcd_rhport_power_on(struct xenhcd_info *info, int portnum)
 	port = portnum - 1;
 	if ((info->ports[port].status & USB_PORT_STAT_POWER) == 0) {
 		info->ports[port].status |= USB_PORT_STAT_POWER;
-		if (info->devices[port].status != USB_STATE_NOTATTACHED)
+		if (info->devices[port].status != USB_STATE_ANALTATTACHED)
 			info->devices[port].status = USB_STATE_POWERED;
 		if (info->ports[port].c_connection)
 			xenhcd_set_connect_state(info, portnum);
@@ -257,7 +257,7 @@ static void xenhcd_rhport_power_on(struct xenhcd_info *info, int portnum)
 
 /*
  * ClearPortFeature(PORT_POWER)
- * SetConfiguration(non-zero)
+ * SetConfiguration(analn-zero)
  * Power_Source_Off
  * Over-current
  */
@@ -268,7 +268,7 @@ static void xenhcd_rhport_power_off(struct xenhcd_info *info, int portnum)
 	port = portnum - 1;
 	if (info->ports[port].status & USB_PORT_STAT_POWER) {
 		info->ports[port].status = 0;
-		if (info->devices[port].status != USB_STATE_NOTATTACHED)
+		if (info->devices[port].status != USB_STATE_ANALTATTACHED)
 			info->devices[port].status = USB_STATE_ATTACHED;
 	}
 }
@@ -284,7 +284,7 @@ static void xenhcd_rhport_disable(struct xenhcd_info *info, int portnum)
 	info->ports[port].status &= ~USB_PORT_STAT_ENABLE;
 	info->ports[port].status &= ~USB_PORT_STAT_SUSPEND;
 	info->ports[port].resuming = false;
-	if (info->devices[port].status != USB_STATE_NOTATTACHED)
+	if (info->devices[port].status != USB_STATE_ANALTATTACHED)
 		info->devices[port].status = USB_STATE_POWERED;
 }
 
@@ -301,7 +301,7 @@ static void xenhcd_rhport_reset(struct xenhcd_info *info, int portnum)
 				      USB_PORT_STAT_HIGH_SPEED);
 	info->ports[port].status |= USB_PORT_STAT_RESET;
 
-	if (info->devices[port].status != USB_STATE_NOTATTACHED)
+	if (info->devices[port].status != USB_STATE_ANALTATTACHED)
 		info->devices[port].status = USB_STATE_ATTACHED;
 
 	/* 10msec reset signaling */
@@ -373,7 +373,7 @@ static void xenhcd_hub_descriptor(struct xenhcd_info *info,
 	memset(&desc->u.hs.DeviceRemovable[0], 0, temp);
 	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
-	/* per-port over current reporting and no power switching */
+	/* per-port over current reporting and anal power switching */
 	temp = 0x000a;
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
@@ -389,7 +389,7 @@ static void xenhcd_hub_descriptor(struct xenhcd_info *info,
  * See USB 2.0 Spec, 11.12.4 Hub and Port Status Change Bitmap.
  * If port status changed, writes the bitmap to buf and return
  * that length(number of bytes).
- * If Nothing changed, return 0.
+ * If Analthing changed, return 0.
  */
 static int xenhcd_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
@@ -400,7 +400,7 @@ static int xenhcd_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int ret;
 	int changed = 0;
 
-	/* initialize the status to no-changes */
+	/* initialize the status to anal-changes */
 	ports = info->rh_numports;
 	ret = 1 + (ports / 8);
 	memset(buf, 0, ret);
@@ -436,7 +436,7 @@ static int xenhcd_hub_control(struct usb_hcd *hcd, __u16 typeReq, __u16 wValue,
 	spin_lock_irqsave(&info->lock, flags);
 	switch (typeReq) {
 	case ClearHubFeature:
-		/* ignore this request */
+		/* iganalre this request */
 		break;
 	case ClearPortFeature:
 		if (!wIndex || wIndex > ports)
@@ -464,7 +464,7 @@ static int xenhcd_hub_control(struct usb_hcd *hcd, __u16 typeReq, __u16 wValue,
 		xenhcd_hub_descriptor(info, (struct usb_hub_descriptor *)buf);
 		break;
 	case GetHubStatus:
-		/* always local power supply good and no over-current exists. */
+		/* always local power supply good and anal over-current exists. */
 		*(__le32 *)buf = cpu_to_le32(0);
 		break;
 	case GetPortStatus:
@@ -489,7 +489,7 @@ static int xenhcd_hub_control(struct usb_hcd *hcd, __u16 typeReq, __u16 wValue,
 			info->ports[wIndex].status &= ~USB_PORT_STAT_RESET;
 
 			if (info->devices[wIndex].status !=
-			    USB_STATE_NOTATTACHED) {
+			    USB_STATE_ANALTATTACHED) {
 				info->ports[wIndex].status |=
 					USB_PORT_STAT_ENABLE;
 				info->devices[wIndex].status =
@@ -533,7 +533,7 @@ static int xenhcd_hub_control(struct usb_hcd *hcd, __u16 typeReq, __u16 wValue,
 		break;
 
 	case SetHubFeature:
-		/* not supported */
+		/* analt supported */
 	default:
 error:
 		ret = -EPIPE;
@@ -621,7 +621,7 @@ static __u32 xenhcd_pipe_urb_to_xenusb(__u32 urb_pipe, __u8 port)
 	if (usb_pipein(urb_pipe))
 		pipe |= XENUSB_PIPE_DIR;
 	switch (usb_pipetype(urb_pipe)) {
-	case PIPE_ISOCHRONOUS:
+	case PIPE_ISOCHROANALUS:
 		pipe |= XENUSB_PIPE_TYPE_ISOC << XENUSB_PIPE_TYPE_SHIFT;
 		break;
 	case PIPE_INTERRUPT:
@@ -665,7 +665,7 @@ static int xenhcd_map_urb_for_request(struct xenhcd_info *info, struct urb *urb,
 
 		if (gnttab_alloc_grant_references(nr_grants, &gref_head)) {
 			pr_err("xenhcd: gnttab_alloc_grant_references() error\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		xenhcd_gnttab_map(info, urb->transfer_buffer,
@@ -676,13 +676,13 @@ static int xenhcd_map_urb_for_request(struct xenhcd_info *info, struct urb *urb,
 
 	req->pipe = xenhcd_pipe_urb_to_xenusb(urb->pipe, urb->dev->portnum);
 	req->transfer_flags = 0;
-	if (urb->transfer_flags & URB_SHORT_NOT_OK)
-		req->transfer_flags |= XENUSB_SHORT_NOT_OK;
+	if (urb->transfer_flags & URB_SHORT_ANALT_OK)
+		req->transfer_flags |= XENUSB_SHORT_ANALT_OK;
 	req->buffer_length = urb->transfer_buffer_length;
 	req->nr_buffer_segs = nr_buff_pages;
 
 	switch (usb_pipetype(urb->pipe)) {
-	case PIPE_ISOCHRONOUS:
+	case PIPE_ISOCHROANALUS:
 		req->u.isoc.interval = urb->interval;
 		req->u.isoc.start_frame = urb->start_frame;
 		req->u.isoc.number_of_packets = urb->number_of_packets;
@@ -744,8 +744,8 @@ static int xenhcd_translate_status(int status)
 	switch (status) {
 	case XENUSB_STATUS_OK:
 		return 0;
-	case XENUSB_STATUS_NODEV:
-		return -ENODEV;
+	case XENUSB_STATUS_ANALDEV:
+		return -EANALDEV;
 	case XENUSB_STATUS_INVAL:
 		return -EINVAL;
 	case XENUSB_STATUS_STALL:
@@ -782,7 +782,7 @@ static int xenhcd_do_request(struct xenhcd_info *info, struct urb_priv *urbp)
 	struct xenusb_urb_request *req;
 	struct urb *urb = urbp->urb;
 	unsigned int id;
-	int notify;
+	int analtify;
 	int ret;
 
 	id = xenhcd_get_id_from_freelist(info);
@@ -810,9 +810,9 @@ static int xenhcd_do_request(struct xenhcd_info *info, struct urb_priv *urbp)
 	info->shadow[id].urb = urb;
 	info->shadow[id].in_flight = true;
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&info->urb_ring, notify);
-	if (notify)
-		notify_remote_via_irq(info->irq);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&info->urb_ring, analtify);
+	if (analtify)
+		analtify_remote_via_irq(info->irq);
 
 	return 0;
 }
@@ -852,7 +852,7 @@ static void xenhcd_cancel_all_enqueued_urbs(struct xenhcd_info *info)
 			if (info->error)
 				return;
 			if (urbp->urb->status == -EINPROGRESS)
-				/* not dequeued */
+				/* analt dequeued */
 				xenhcd_giveback_urb(info, urbp->urb,
 						    -ESHUTDOWN);
 			else	/* dequeued */
@@ -1007,7 +1007,7 @@ static int xenhcd_urb_request_done(struct xenhcd_info *info,
 	return 0;
 }
 
-static int xenhcd_conn_notify(struct xenhcd_info *info, unsigned int *eoiflag)
+static int xenhcd_conn_analtify(struct xenhcd_info *info, unsigned int *eoiflag)
 {
 	struct xenusb_conn_response res;
 	struct xenusb_conn_request *req;
@@ -1015,7 +1015,7 @@ static int xenhcd_conn_notify(struct xenhcd_info *info, unsigned int *eoiflag)
 	__u16 id;
 	__u8 portnum, speed;
 	int more_to_do = 0;
-	int notify;
+	int analtify;
 	int port_changed = 0;
 	unsigned long flags;
 
@@ -1061,9 +1061,9 @@ static int xenhcd_conn_notify(struct xenhcd_info *info, unsigned int *eoiflag)
 	else
 		info->conn_ring.sring->rsp_event = rc + 1;
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&info->conn_ring, notify);
-	if (notify)
-		notify_remote_via_irq(info->irq);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&info->conn_ring, analtify);
+	if (analtify)
+		analtify_remote_via_irq(info->irq);
 
 	spin_unlock_irqrestore(&info->lock, flags);
 
@@ -1084,7 +1084,7 @@ static irqreturn_t xenhcd_int(int irq, void *dev_id)
 	}
 
 	while (xenhcd_urb_request_done(info, &eoiflag) |
-	       xenhcd_conn_notify(info, &eoiflag))
+	       xenhcd_conn_analtify(info, &eoiflag))
 		/* Yield point for this unbounded loop. */
 		cond_resched();
 
@@ -1112,7 +1112,7 @@ static int xenhcd_setup_rings(struct xenbus_device *dev,
 	int err;
 
 	info->conn_ring_ref = INVALID_GRANT_REF;
-	err = xenbus_setup_ring(dev, GFP_NOIO | __GFP_HIGH,
+	err = xenbus_setup_ring(dev, GFP_ANALIO | __GFP_HIGH,
 				(void **)&urb_sring, 1, &info->urb_ring_ref);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "allocating urb ring");
@@ -1120,7 +1120,7 @@ static int xenhcd_setup_rings(struct xenbus_device *dev,
 	}
 	XEN_FRONT_RING_INIT(&info->urb_ring, urb_sring, PAGE_SIZE);
 
-	err = xenbus_setup_ring(dev, GFP_NOIO | __GFP_HIGH,
+	err = xenbus_setup_ring(dev, GFP_ANALIO | __GFP_HIGH,
 				(void **)&conn_sring, 1, &info->conn_ring_ref);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "allocating conn ring");
@@ -1176,21 +1176,21 @@ again:
 		goto destroy_ring;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "urb-ring-ref", "%u",
+	err = xenbus_printf(xbt, dev->analdename, "urb-ring-ref", "%u",
 			    info->urb_ring_ref);
 	if (err) {
 		message = "writing urb-ring-ref";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "conn-ring-ref", "%u",
+	err = xenbus_printf(xbt, dev->analdename, "conn-ring-ref", "%u",
 			    info->conn_ring_ref);
 	if (err) {
 		message = "writing conn-ring-ref";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "event-channel", "%u",
+	err = xenbus_printf(xbt, dev->analdename, "event-channel", "%u",
 			    info->evtchn);
 	if (err) {
 		message = "writing event-channel";
@@ -1222,7 +1222,7 @@ static int xenhcd_connect(struct xenbus_device *dev)
 	struct xenhcd_info *info = dev_get_drvdata(&dev->dev);
 	struct xenusb_conn_request *req;
 	int idx, err;
-	int notify;
+	int analtify;
 	char name[TASK_COMM_LEN];
 	struct usb_hcd *hcd;
 
@@ -1233,16 +1233,16 @@ static int xenhcd_connect(struct xenbus_device *dev)
 	if (err)
 		return err;
 
-	/* prepare ring for hotplug notification */
+	/* prepare ring for hotplug analtification */
 	for (idx = 0; idx < XENUSB_CONN_RING_SIZE; idx++) {
 		req = RING_GET_REQUEST(&info->conn_ring, idx);
 		req->id = idx;
 	}
 	info->conn_ring.req_prod_pvt = idx;
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&info->conn_ring, notify);
-	if (notify)
-		notify_remote_via_irq(info->irq);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&info->conn_ring, analtify);
+	if (analtify)
+		analtify_remote_via_irq(info->irq);
 
 	return 0;
 }
@@ -1318,7 +1318,7 @@ static void xenhcd_stop(struct usb_hcd *hcd)
 
 /*
  * called as .urb_enqueue()
- * non-error returns are promise to giveback the urb later
+ * analn-error returns are promise to giveback the urb later
  */
 static int xenhcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 			      gfp_t mem_flags)
@@ -1333,7 +1333,7 @@ static int xenhcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	urbp = kmem_cache_zalloc(xenhcd_urbp_cachep, mem_flags);
 	if (!urbp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&info->lock, flags);
 
@@ -1380,11 +1380,11 @@ static int xenhcd_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 /*
  * called from usb_get_current_frame_number(),
- * but, almost all drivers not use such function.
+ * but, almost all drivers analt use such function.
  */
 static int xenhcd_get_frame(struct usb_hcd *hcd)
 {
-	/* it means error, but probably no problem :-) */
+	/* it means error, but probably anal problem :-) */
 	return 0;
 }
 
@@ -1479,7 +1479,7 @@ static struct usb_hcd *xenhcd_create_hcd(struct xenbus_device *dev)
 	if (!hcd) {
 		xenbus_dev_fatal(dev, err,
 				 "fail to allocate USB host controller");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	info = xenhcd_hcd_to_info(hcd);
@@ -1503,7 +1503,7 @@ static void xenhcd_backend_changed(struct xenbus_device *dev,
 	case XenbusStateInitialising:
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
-	case XenbusStateUnknown:
+	case XenbusStateUnkanalwn:
 		break;
 
 	case XenbusStateInitWait:
@@ -1547,7 +1547,7 @@ static int xenhcd_probe(struct xenbus_device *dev,
 	struct xenhcd_info *info;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	hcd = xenhcd_create_hcd(dev);
 	if (IS_ERR(hcd)) {
@@ -1585,13 +1585,13 @@ static struct xenbus_driver xenhcd_driver = {
 static int __init xenhcd_init(void)
 {
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	xenhcd_urbp_cachep = kmem_cache_create("xenhcd_urb_priv",
 					sizeof(struct urb_priv), 0, 0, NULL);
 	if (!xenhcd_urbp_cachep) {
 		pr_err("xenhcd failed to create kmem cache\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return xenbus_register_frontend(&xenhcd_driver);

@@ -114,7 +114,7 @@ static int hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 					response_size,
 					GFP_KERNEL);
 	if (!operation)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	request = operation->request->payload;
 	request->typeReq = cpu_to_le16(typeReq);
@@ -166,7 +166,7 @@ static int gb_usb_probe(struct gbphy_device *gbphy_dev,
 
 	hcd = usb_create_hcd(&usb_gb_hc_driver, dev, dev_name(dev));
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(gbphy_dev->bundle,
 					  le16_to_cpu(gbphy_dev->cport_desc->id),
@@ -190,13 +190,13 @@ static int gb_usb_probe(struct gbphy_device *gbphy_dev,
 
 	/*
 	 * FIXME: The USB bridged-PHY protocol driver depends on changes to
-	 *        USB core which are not yet upstream.
+	 *        USB core which are analt yet upstream.
 	 *
-	 *        Disable for now.
+	 *        Disable for analw.
 	 */
 	if (1) {
 		dev_warn(dev, "USB protocol disabled\n");
-		retval = -EPROTONOSUPPORT;
+		retval = -EPROTOANALSUPPORT;
 		goto exit_connection_disable;
 	}
 

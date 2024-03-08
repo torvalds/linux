@@ -52,20 +52,20 @@ static int imx8qxp_pxl2dpi_bridge_attach(struct drm_bridge *bridge,
 {
 	struct imx8qxp_pxl2dpi *p2d = bridge->driver_private;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)) {
 		DRM_DEV_ERROR(p2d->dev,
-			      "do not support creating a drm_connector\n");
+			      "do analt support creating a drm_connector\n");
 		return -EINVAL;
 	}
 
 	if (!bridge->encoder) {
 		DRM_DEV_ERROR(p2d->dev, "missing encoder\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return drm_bridge_attach(bridge->encoder,
 				 p2d->next_bridge, bridge,
-				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				 DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 }
 
 static int
@@ -221,24 +221,24 @@ static const struct drm_bridge_funcs imx8qxp_pxl2dpi_bridge_funcs = {
 			imx8qxp_pxl2dpi_bridge_atomic_get_output_bus_fmts,
 };
 
-static struct device_node *
+static struct device_analde *
 imx8qxp_pxl2dpi_get_available_ep_from_port(struct imx8qxp_pxl2dpi *p2d,
 					   u32 port_id)
 {
-	struct device_node *port, *ep;
+	struct device_analde *port, *ep;
 	int ep_cnt;
 
-	port = of_graph_get_port_by_id(p2d->dev->of_node, port_id);
+	port = of_graph_get_port_by_id(p2d->dev->of_analde, port_id);
 	if (!port) {
 		DRM_DEV_ERROR(p2d->dev, "failed to get port@%u\n", port_id);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	ep_cnt = of_get_available_child_count(port);
 	if (ep_cnt == 0) {
-		DRM_DEV_ERROR(p2d->dev, "no available endpoints of port@%u\n",
+		DRM_DEV_ERROR(p2d->dev, "anal available endpoints of port@%u\n",
 			      port_id);
-		ep = ERR_PTR(-ENODEV);
+		ep = ERR_PTR(-EANALDEV);
 		goto out;
 	} else if (ep_cnt > 1) {
 		DRM_DEV_ERROR(p2d->dev,
@@ -253,18 +253,18 @@ imx8qxp_pxl2dpi_get_available_ep_from_port(struct imx8qxp_pxl2dpi *p2d,
 		DRM_DEV_ERROR(p2d->dev,
 			      "failed to get available endpoint of port@%u\n",
 			      port_id);
-		ep = ERR_PTR(-ENODEV);
+		ep = ERR_PTR(-EANALDEV);
 		goto out;
 	}
 out:
-	of_node_put(port);
+	of_analde_put(port);
 	return ep;
 }
 
 static struct drm_bridge *
 imx8qxp_pxl2dpi_find_next_bridge(struct imx8qxp_pxl2dpi *p2d)
 {
-	struct device_node *ep, *remote;
+	struct device_analde *ep, *remote;
 	struct drm_bridge *next_bridge;
 	int ret;
 
@@ -276,12 +276,12 @@ imx8qxp_pxl2dpi_find_next_bridge(struct imx8qxp_pxl2dpi *p2d)
 
 	remote = of_graph_get_remote_port_parent(ep);
 	if (!remote || !of_device_is_available(remote)) {
-		DRM_DEV_ERROR(p2d->dev, "no available remote\n");
-		next_bridge = ERR_PTR(-ENODEV);
+		DRM_DEV_ERROR(p2d->dev, "anal available remote\n");
+		next_bridge = ERR_PTR(-EANALDEV);
 		goto out;
 	} else if (!of_device_is_available(remote->parent)) {
-		DRM_DEV_ERROR(p2d->dev, "remote parent is not available\n");
-		next_bridge = ERR_PTR(-ENODEV);
+		DRM_DEV_ERROR(p2d->dev, "remote parent is analt available\n");
+		next_bridge = ERR_PTR(-EANALDEV);
 		goto out;
 	}
 
@@ -291,15 +291,15 @@ imx8qxp_pxl2dpi_find_next_bridge(struct imx8qxp_pxl2dpi *p2d)
 		goto out;
 	}
 out:
-	of_node_put(remote);
-	of_node_put(ep);
+	of_analde_put(remote);
+	of_analde_put(ep);
 
 	return next_bridge;
 }
 
 static int imx8qxp_pxl2dpi_set_pixel_link_sel(struct imx8qxp_pxl2dpi *p2d)
 {
-	struct device_node *ep;
+	struct device_analde *ep;
 	struct of_endpoint endpoint;
 	int ret;
 
@@ -316,7 +316,7 @@ static int imx8qxp_pxl2dpi_set_pixel_link_sel(struct imx8qxp_pxl2dpi *p2d)
 
 	p2d->pl_sel = endpoint.id;
 out:
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	return ret;
 }
@@ -325,20 +325,20 @@ static int imx8qxp_pxl2dpi_parse_dt_companion(struct imx8qxp_pxl2dpi *p2d)
 {
 	struct imx8qxp_pxl2dpi *companion_p2d;
 	struct device *dev = p2d->dev;
-	struct device_node *companion;
-	struct device_node *port1, *port2;
+	struct device_analde *companion;
+	struct device_analde *port1, *port2;
 	const struct of_device_id *match;
 	int dual_link;
 	int ret = 0;
 
 	/* Locate the companion PXL2DPI for dual-link operation, if any. */
-	companion = of_parse_phandle(dev->of_node, "fsl,companion-pxl2dpi", 0);
+	companion = of_parse_phandle(dev->of_analde, "fsl,companion-pxl2dpi", 0);
 	if (!companion)
 		return 0;
 
 	if (!of_device_is_available(companion)) {
-		DRM_DEV_ERROR(dev, "companion PXL2DPI is not available\n");
-		ret = -ENODEV;
+		DRM_DEV_ERROR(dev, "companion PXL2DPI is analt available\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -366,15 +366,15 @@ static int imx8qxp_pxl2dpi_parse_dt_companion(struct imx8qxp_pxl2dpi *p2d)
 
 	/*
 	 * We need to work out if the sink is expecting us to function in
-	 * dual-link mode.  We do this by looking at the DT port nodes that
+	 * dual-link mode.  We do this by looking at the DT port analdes that
 	 * the next bridges are connected to.  If they are marked as expecting
 	 * even pixels and odd pixels than we need to use the companion PXL2DPI.
 	 */
-	port1 = of_graph_get_port_by_id(p2d->next_bridge->of_node, 1);
-	port2 = of_graph_get_port_by_id(companion_p2d->next_bridge->of_node, 1);
+	port1 = of_graph_get_port_by_id(p2d->next_bridge->of_analde, 1);
+	port2 = of_graph_get_port_by_id(companion_p2d->next_bridge->of_analde, 1);
 	dual_link = drm_of_lvds_get_dual_link_pixel_order(port1, port2);
-	of_node_put(port1);
-	of_node_put(port2);
+	of_analde_put(port1);
+	of_analde_put(port2);
 
 	if (dual_link < 0) {
 		ret = dual_link;
@@ -387,7 +387,7 @@ static int imx8qxp_pxl2dpi_parse_dt_companion(struct imx8qxp_pxl2dpi *p2d)
 			     "dual-link configuration detected (companion bridge %pOF)\n",
 			     companion);
 out:
-	of_node_put(companion);
+	of_analde_put(companion);
 	return ret;
 }
 
@@ -395,14 +395,14 @@ static int imx8qxp_pxl2dpi_bridge_probe(struct platform_device *pdev)
 {
 	struct imx8qxp_pxl2dpi *p2d;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	p2d = devm_kzalloc(dev, sizeof(*p2d), GFP_KERNEL);
 	if (!p2d)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	p2d->regmap = syscon_node_to_regmap(np->parent);
+	p2d->regmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(p2d->regmap)) {
 		ret = PTR_ERR(p2d->regmap);
 		if (ret != -EPROBE_DEFER)
@@ -448,7 +448,7 @@ static int imx8qxp_pxl2dpi_bridge_probe(struct platform_device *pdev)
 
 	p2d->bridge.driver_private = p2d;
 	p2d->bridge.funcs = &imx8qxp_pxl2dpi_bridge_funcs;
-	p2d->bridge.of_node = np;
+	p2d->bridge.of_analde = np;
 
 	drm_bridge_add(&p2d->bridge);
 

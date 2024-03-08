@@ -20,7 +20,7 @@
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mediabus.h>
 
@@ -39,16 +39,16 @@ static const struct media_entity_operations sun4i_csi_video_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
-static int sun4i_csi_notify_bound(struct v4l2_async_notifier *notifier,
+static int sun4i_csi_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_connection *asd)
 {
-	struct sun4i_csi *csi = container_of(notifier, struct sun4i_csi,
-					     notifier);
+	struct sun4i_csi *csi = container_of(analtifier, struct sun4i_csi,
+					     analtifier);
 
 	csi->src_subdev = subdev;
-	csi->src_pad = media_entity_get_fwnode_pad(&subdev->entity,
-						   subdev->fwnode,
+	csi->src_pad = media_entity_get_fwanalde_pad(&subdev->entity,
+						   subdev->fwanalde,
 						   MEDIA_PAD_FL_SOURCE);
 	if (csi->src_pad < 0) {
 		dev_err(csi->dev, "Couldn't find output pad for subdev %s\n",
@@ -60,10 +60,10 @@ static int sun4i_csi_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static int sun4i_csi_notify_complete(struct v4l2_async_notifier *notifier)
+static int sun4i_csi_analtify_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct sun4i_csi *csi = container_of(notifier, struct sun4i_csi,
-					     notifier);
+	struct sun4i_csi *csi = container_of(analtifier, struct sun4i_csi,
+					     analtifier);
 	struct v4l2_subdev *subdev = &csi->subdev;
 	struct video_device *vdev = &csi->vdev;
 	int ret;
@@ -95,7 +95,7 @@ static int sun4i_csi_notify_complete(struct v4l2_async_notifier *notifier)
 	if (ret)
 		goto err_clean_media;
 
-	ret = v4l2_device_register_subdev_nodes(&csi->v4l);
+	ret = v4l2_device_register_subdev_analdes(&csi->v4l);
 	if (ret < 0)
 		goto err_clean_media;
 
@@ -107,44 +107,44 @@ err_clean_media:
 	return ret;
 }
 
-static const struct v4l2_async_notifier_operations sun4i_csi_notify_ops = {
-	.bound		= sun4i_csi_notify_bound,
-	.complete	= sun4i_csi_notify_complete,
+static const struct v4l2_async_analtifier_operations sun4i_csi_analtify_ops = {
+	.bound		= sun4i_csi_analtify_bound,
+	.complete	= sun4i_csi_analtify_complete,
 };
 
-static int sun4i_csi_notifier_init(struct sun4i_csi *csi)
+static int sun4i_csi_analtifier_init(struct sun4i_csi *csi)
 {
-	struct v4l2_fwnode_endpoint vep = {
+	struct v4l2_fwanalde_endpoint vep = {
 		.bus_type = V4L2_MBUS_PARALLEL,
 	};
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	int ret;
 
-	v4l2_async_nf_init(&csi->notifier, &csi->v4l);
+	v4l2_async_nf_init(&csi->analtifier, &csi->v4l);
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(csi->dev), 0, 0,
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &vep);
 	if (ret)
 		goto out;
 
 	csi->bus = vep.bus.parallel;
 
-	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
+	asd = v4l2_async_nf_add_fwanalde_remote(&csi->analtifier, ep,
 					      struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out;
 	}
 
-	csi->notifier.ops = &sun4i_csi_notify_ops;
+	csi->analtifier.ops = &sun4i_csi_analtify_ops;
 
 out:
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 	return ret;
 }
 
@@ -158,7 +158,7 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 
 	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
 	if (!csi)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, csi);
 	csi->dev = &pdev->dev;
 	subdev = &csi->subdev;
@@ -212,7 +212,7 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	/* Initialize subdev */
 	v4l2_subdev_init(subdev, &sun4i_csi_subdev_ops);
 	subdev->internal_ops = &sun4i_csi_subdev_internal_ops;
-	subdev->flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	subdev->flags = V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	subdev->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	subdev->owner = THIS_MODULE;
 	snprintf(subdev->name, sizeof(subdev->name), "sun4i-csi-0");
@@ -236,13 +236,13 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clean_pad;
 
-	ret = sun4i_csi_notifier_init(csi);
+	ret = sun4i_csi_analtifier_init(csi);
 	if (ret)
 		goto err_unregister_media;
 
-	ret = v4l2_async_nf_register(&csi->notifier);
+	ret = v4l2_async_nf_register(&csi->analtifier);
 	if (ret) {
-		dev_err(csi->dev, "Couldn't register our notifier.\n");
+		dev_err(csi->dev, "Couldn't register our analtifier.\n");
 		goto err_unregister_media;
 	}
 
@@ -265,8 +265,8 @@ static void sun4i_csi_remove(struct platform_device *pdev)
 	struct sun4i_csi *csi = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-	v4l2_async_nf_unregister(&csi->notifier);
-	v4l2_async_nf_cleanup(&csi->notifier);
+	v4l2_async_nf_unregister(&csi->analtifier);
+	v4l2_async_nf_cleanup(&csi->analtifier);
 	vb2_video_unregister_device(&csi->vdev);
 	media_device_unregister(&csi->mdev);
 	sun4i_csi_dma_unregister(csi);

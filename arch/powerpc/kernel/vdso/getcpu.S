@@ -12,7 +12,7 @@
 /*
  * Exact prototype of getcpu
  *
- * int __kernel_getcpu(unsigned *cpu, unsigned *node);
+ * int __kernel_getcpu(unsigned *cpu, unsigned *analde);
  *
  */
 #if defined(CONFIG_PPC64)

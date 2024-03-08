@@ -25,7 +25,7 @@
  * A simple function epilogue looks like this:
  *	ldm	sp, {fp, sp, pc}
  *
- * When compiled with clang, pc and sp are not pushed. A simple function
+ * When compiled with clang, pc and sp are analt pushed. A simple function
  * prologue looks like this when built with clang:
  *
  *	stmdb	{..., fp, lr}
@@ -38,8 +38,8 @@
  *	ldm	{..., fp, pc}
  *
  *
- * Note that with framepointer enabled, even the leaf functions have the same
- * prologue and epilogue, therefore we can ignore the LR value in this case.
+ * Analte that with framepointer enabled, even the leaf functions have the same
+ * prologue and epilogue, therefore we can iganalre the LR value in this case.
  */
 
 extern unsigned long call_with_stack_end;
@@ -52,7 +52,7 @@ static int frame_pointer_check(struct stackframe *frame)
 
 	/*
 	 * call_with_stack() is the only place we allow SP to jump from one
-	 * stack to another, with FP and SP pointing to different stacks,
+	 * stack to aanalther, with FP and SP pointing to different stacks,
 	 * skipping the FP boundary check at this point.
 	 */
 	if (pc >= (unsigned long)&call_with_stack &&
@@ -75,7 +75,7 @@ static int frame_pointer_check(struct stackframe *frame)
 	return 0;
 }
 
-int notrace unwind_frame(struct stackframe *frame)
+int analtrace unwind_frame(struct stackframe *frame)
 {
 	unsigned long fp = frame->fp;
 
@@ -91,7 +91,7 @@ int notrace unwind_frame(struct stackframe *frame)
 
 		/*
 		 * We check that 'regs + sizeof(struct pt_regs)' (that is,
-		 * &regs[1]) does not exceed the bottom of the stack to avoid
+		 * &regs[1]) does analt exceed the bottom of the stack to avoid
 		 * accessing data outside the task's stack. This may happen
 		 * when frame->ex_frame is a false positive.
 		 */
@@ -106,12 +106,12 @@ int notrace unwind_frame(struct stackframe *frame)
 	/* restore the registers from the stack frame */
 #ifdef CONFIG_CC_IS_CLANG
 	frame->sp = frame->fp;
-	frame->fp = READ_ONCE_NOCHECK(*(unsigned long *)(fp));
-	frame->pc = READ_ONCE_NOCHECK(*(unsigned long *)(fp + 4));
+	frame->fp = READ_ONCE_ANALCHECK(*(unsigned long *)(fp));
+	frame->pc = READ_ONCE_ANALCHECK(*(unsigned long *)(fp + 4));
 #else
-	frame->fp = READ_ONCE_NOCHECK(*(unsigned long *)(fp - 12));
-	frame->sp = READ_ONCE_NOCHECK(*(unsigned long *)(fp - 8));
-	frame->pc = READ_ONCE_NOCHECK(*(unsigned long *)(fp - 4));
+	frame->fp = READ_ONCE_ANALCHECK(*(unsigned long *)(fp - 12));
+	frame->sp = READ_ONCE_ANALCHECK(*(unsigned long *)(fp - 8));
+	frame->pc = READ_ONCE_ANALCHECK(*(unsigned long *)(fp - 4));
 #endif
 #ifdef CONFIG_KRETPROBES
 	if (is_kretprobe_trampoline(frame->pc))
@@ -126,7 +126,7 @@ int notrace unwind_frame(struct stackframe *frame)
 }
 #endif
 
-void notrace walk_stackframe(struct stackframe *frame,
+void analtrace walk_stackframe(struct stackframe *frame,
 		     bool (*fn)(void *, unsigned long), void *data)
 {
 	while (1) {
@@ -170,8 +170,8 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 	} else if (task != current) {
 #ifdef CONFIG_SMP
 		/*
-		 * What guarantees do we have here that 'tsk' is not
-		 * running on another CPU?  For now, ignore it as we
+		 * What guarantees do we have here that 'tsk' is analt
+		 * running on aanalther CPU?  For analw, iganalre it as we
 		 * can't guarantee we won't explode.
 		 */
 		return;

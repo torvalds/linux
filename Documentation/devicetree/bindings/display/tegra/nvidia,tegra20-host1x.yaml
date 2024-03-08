@@ -10,7 +10,7 @@ maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
   - Jon Hunter <jonathanh@nvidia.com>
 
-description: The host1x top-level node defines a number of children, each
+description: The host1x top-level analde defines a number of children, each
   representing one of the host1x client modules defined in this binding.
 
 properties:

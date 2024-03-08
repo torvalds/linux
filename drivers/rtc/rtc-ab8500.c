@@ -108,22 +108,22 @@ static int ab8500_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	int retval, i;
 	unsigned char buf[ARRAY_SIZE(ab8500_rtc_time_regs)];
-	unsigned long no_secs, no_mins, secs = 0;
+	unsigned long anal_secs, anal_mins, secs = 0;
 
 	secs = rtc_tm_to_time64(tm);
 
-	no_mins = secs / 60;
+	anal_mins = secs / 60;
 
-	no_secs = secs % 60;
+	anal_secs = secs % 60;
 	/* Make the seconds count as per the RTC resolution */
-	no_secs = no_secs * COUNTS_PER_SEC;
+	anal_secs = anal_secs * COUNTS_PER_SEC;
 
-	buf[4] = no_secs & 0xFF;
-	buf[3] = (no_secs >> 8) & 0xFF;
+	buf[4] = anal_secs & 0xFF;
+	buf[3] = (anal_secs >> 8) & 0xFF;
 
-	buf[2] = no_mins & 0xFF;
-	buf[1] = (no_mins >> 8) & 0xFF;
-	buf[0] = (no_mins >> 16) & 0xFF;
+	buf[2] = anal_mins & 0xFF;
+	buf[1] = (anal_mins >> 8) & 0xFF;
+	buf[0] = (anal_mins >> 16) & 0xFF;
 
 	for (i = 0; i < ARRAY_SIZE(ab8500_rtc_time_regs); i++) {
 		retval = abx500_set_register_interruptible(dev, AB8500_RTC,
@@ -144,7 +144,7 @@ static int ab8500_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned char buf[ARRAY_SIZE(ab8500_rtc_alarm_regs)];
 	unsigned long secs, mins;
 
-	/* Check if the alarm is enabled or not */
+	/* Check if the alarm is enabled or analt */
 	retval = abx500_get_register_interruptible(dev, AB8500_RTC,
 		AB8500_RTC_STAT_REG, &rtc_ctrl);
 	if (retval < 0)
@@ -211,8 +211,8 @@ static int ab8500_rtc_set_calibration(struct device *dev, int calibration)
 	/*
 	 * Check that the calibration value (which is in units of 0.5
 	 * parts-per-million) is in the AB8500's range for RtcCalibration
-	 * register. -128 (0x80) is not permitted because the AB8500 uses
-	 * a sign-bit rather than two's complement, so 0x80 is just another
+	 * register. -128 (0x80) is analt permitted because the AB8500 uses
+	 * a sign-bit rather than two's complement, so 0x80 is just aanalther
 	 * representation of zero.
 	 */
 	if ((calibration < -127) || (calibration > 127)) {
@@ -358,7 +358,7 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 	/* Check if the RTC Supply fails */
 	if (!(rtc_ctrl & RTC_STATUS_DATA)) {
 		dev_err(&pdev->dev, "RTC supply failure\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	device_init_wakeup(&pdev->dev, true);

@@ -23,7 +23,7 @@
 
 /*
  * PAGE_OFFSET -- the first address of the first page of memory.
- * When not using MMU this corresponds to the first free page in
+ * When analt using MMU this corresponds to the first free page in
  * physical memory (aligned on a page boundary).
  */
 #ifdef CONFIG_64BIT
@@ -140,7 +140,7 @@ void *linear_mapping_pa_to_va(unsigned long x);
 		(void *)(_y + kernel_map.va_kernel_xip_pa_offset) :		\
 		(void *)(_y + kernel_map.va_kernel_pa_offset + XIP_OFFSET);	\
 	})
-#define __pa_to_va_nodebug(x)		linear_mapping_pa_to_va(x)
+#define __pa_to_va_analdebug(x)		linear_mapping_pa_to_va(x)
 
 #ifndef CONFIG_DEBUG_VIRTUAL
 #define linear_mapping_va_to_pa(x)	((unsigned long)(x) - kernel_map.va_pa_offset)
@@ -154,7 +154,7 @@ phys_addr_t linear_mapping_va_to_pa(unsigned long x);
 		(_y - kernel_map.va_kernel_pa_offset - XIP_OFFSET);		\
 	})
 
-#define __va_to_pa_nodebug(x)	({						\
+#define __va_to_pa_analdebug(x)	({						\
 	unsigned long _x = x;							\
 	is_linear_mapping(_x) ?							\
 		linear_mapping_va_to_pa(_x) : kernel_mapping_va_to_pa(_x);	\
@@ -164,13 +164,13 @@ phys_addr_t linear_mapping_va_to_pa(unsigned long x);
 extern phys_addr_t __virt_to_phys(unsigned long x);
 extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #else
-#define __virt_to_phys(x)	__va_to_pa_nodebug(x)
-#define __phys_addr_symbol(x)	__va_to_pa_nodebug(x)
+#define __virt_to_phys(x)	__va_to_pa_analdebug(x)
+#define __phys_addr_symbol(x)	__va_to_pa_analdebug(x)
 #endif /* CONFIG_DEBUG_VIRTUAL */
 
 #define __pa_symbol(x)	__phys_addr_symbol(RELOC_HIDE((unsigned long)(x), 0))
 #define __pa(x)		__virt_to_phys((unsigned long)(x))
-#define __va(x)		((void *)__pa_to_va_nodebug((phys_addr_t)(x)))
+#define __va(x)		((void *)__pa_to_va_analdebug((phys_addr_t)(x)))
 
 #define phys_to_pfn(phys)	(PFN_DOWN(phys))
 #define pfn_to_phys(pfn)	(PFN_PHYS(pfn))
@@ -195,7 +195,7 @@ unsigned long kaslr_offset(void);
 	(unsigned long)(_addr) >= PAGE_OFFSET && pfn_valid(virt_to_pfn(_addr));	\
 })
 
-#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
+#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_ANALN_EXEC
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

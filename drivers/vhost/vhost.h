@@ -21,7 +21,7 @@ typedef void (*vhost_work_fn_t)(struct vhost_work *work);
 
 #define VHOST_WORK_QUEUED 1
 struct vhost_work {
-	struct llist_node	node;
+	struct llist_analde	analde;
 	vhost_work_fn_t		fn;
 	unsigned long		flags;
 };
@@ -37,7 +37,7 @@ struct vhost_worker {
 };
 
 /* Poll a file (eventfd or socket) */
-/* Note: there's nothing vhost specific about this structure. */
+/* Analte: there's analthing vhost specific about this structure. */
 struct vhost_poll {
 	poll_table		table;
 	wait_queue_head_t	*wqh;
@@ -148,13 +148,13 @@ struct vhost_virtqueue {
 	u32 busyloop_timeout;
 };
 
-struct vhost_msg_node {
+struct vhost_msg_analde {
   union {
 	  struct vhost_msg msg;
 	  struct vhost_msg_v2 msg_v2;
   };
   struct vhost_virtqueue *vq;
-  struct list_head node;
+  struct list_head analde;
 };
 
 struct vhost_dev {
@@ -218,27 +218,27 @@ void vhost_add_used_and_signal(struct vhost_dev *, struct vhost_virtqueue *,
 void vhost_add_used_and_signal_n(struct vhost_dev *, struct vhost_virtqueue *,
 			       struct vring_used_elem *heads, unsigned count);
 void vhost_signal(struct vhost_dev *, struct vhost_virtqueue *);
-void vhost_disable_notify(struct vhost_dev *, struct vhost_virtqueue *);
+void vhost_disable_analtify(struct vhost_dev *, struct vhost_virtqueue *);
 bool vhost_vq_avail_empty(struct vhost_dev *, struct vhost_virtqueue *);
-bool vhost_enable_notify(struct vhost_dev *, struct vhost_virtqueue *);
+bool vhost_enable_analtify(struct vhost_dev *, struct vhost_virtqueue *);
 
 int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		    unsigned int log_num, u64 len,
 		    struct iovec *iov, int count);
 int vq_meta_prefetch(struct vhost_virtqueue *vq);
 
-struct vhost_msg_node *vhost_new_msg(struct vhost_virtqueue *vq, int type);
+struct vhost_msg_analde *vhost_new_msg(struct vhost_virtqueue *vq, int type);
 void vhost_enqueue_msg(struct vhost_dev *dev,
 		       struct list_head *head,
-		       struct vhost_msg_node *node);
-struct vhost_msg_node *vhost_dequeue_msg(struct vhost_dev *dev,
+		       struct vhost_msg_analde *analde);
+struct vhost_msg_analde *vhost_dequeue_msg(struct vhost_dev *dev,
 					 struct list_head *head);
 void vhost_set_backend_features(struct vhost_dev *dev, u64 features);
 
 __poll_t vhost_chr_poll(struct file *file, struct vhost_dev *dev,
 			    poll_table *wait);
 ssize_t vhost_chr_read_iter(struct vhost_dev *dev, struct iov_iter *to,
-			    int noblock);
+			    int analblock);
 ssize_t vhost_chr_write_iter(struct vhost_dev *dev,
 			     struct iov_iter *from);
 int vhost_init_device_iotlb(struct vhost_dev *d);
@@ -253,7 +253,7 @@ void vhost_iotlb_map_free(struct vhost_iotlb *iotlb,
 	} while (0)
 
 enum {
-	VHOST_FEATURES = (1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) |
+	VHOST_FEATURES = (1ULL << VIRTIO_F_ANALTIFY_ON_EMPTY) |
 			 (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
 			 (1ULL << VIRTIO_RING_F_EVENT_IDX) |
 			 (1ULL << VHOST_F_LOG_ALL) |

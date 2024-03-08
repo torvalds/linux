@@ -191,11 +191,11 @@
 #define TEGRA_PIN_SDMMC3_CLK_LB_OUT_PEE4	_GPIO(244)
 #define TEGRA_PIN_SDMMC3_CLK_LB_IN_PEE5		_GPIO(245)
 
-/* All non-GPIO pins follow */
+/* All analn-GPIO pins follow */
 #define NUM_GPIOS				(TEGRA_PIN_SDMMC3_CLK_LB_IN_PEE5 + 1)
 #define _PIN(offset)				(NUM_GPIOS + (offset))
 
-/* Non-GPIO pins */
+/* Analn-GPIO pins */
 #define TEGRA_PIN_CORE_PWR_REQ			_PIN(0)
 #define TEGRA_PIN_CPU_PWR_REQ			_PIN(1)
 #define TEGRA_PIN_PWR_INT_N			_PIN(2)

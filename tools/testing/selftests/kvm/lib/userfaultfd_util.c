@@ -35,7 +35,7 @@ static void *uffd_handler_thread_fn(void *arg)
 	struct timespec start;
 	struct timespec ts_diff;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 	while (1) {
 		struct uffd_msg msg;
 		struct pollfd pollfd[2];
@@ -78,9 +78,9 @@ static void *uffd_handler_thread_fn(void *arg)
 
 		r = read(uffd, &msg, sizeof(msg));
 		if (r == -1) {
-			if (errno == EAGAIN)
+			if (erranal == EAGAIN)
 				continue;
-			pr_info("Read of uffd got errno %d\n", errno);
+			pr_info("Read of uffd got erranal %d\n", erranal);
 			return NULL;
 		}
 
@@ -113,7 +113,7 @@ struct uffd_desc *uffd_setup_demand_paging(int uffd_mode, useconds_t delay,
 					   uffd_handler_t handler)
 {
 	struct uffd_desc *uffd_desc;
-	bool is_minor = (uffd_mode == UFFDIO_REGISTER_MODE_MINOR);
+	bool is_mianalr = (uffd_mode == UFFDIO_REGISTER_MODE_MIANALR);
 	int uffd;
 	struct uffdio_api uffdio_api;
 	struct uffdio_register uffdio_register;
@@ -121,18 +121,18 @@ struct uffd_desc *uffd_setup_demand_paging(int uffd_mode, useconds_t delay,
 	int ret;
 
 	PER_PAGE_DEBUG("Userfaultfd %s mode, faults resolved with %s\n",
-		       is_minor ? "MINOR" : "MISSING",
-		       is_minor ? "UFFDIO_CONINUE" : "UFFDIO_COPY");
+		       is_mianalr ? "MIANALR" : "MISSING",
+		       is_mianalr ? "UFFDIO_CONINUE" : "UFFDIO_COPY");
 
 	uffd_desc = malloc(sizeof(struct uffd_desc));
 	TEST_ASSERT(uffd_desc, "malloc failed");
 
-	/* In order to get minor faults, prefault via the alias. */
-	if (is_minor)
+	/* In order to get mianalr faults, prefault via the alias. */
+	if (is_mianalr)
 		expected_ioctls = ((uint64_t) 1) << _UFFDIO_CONTINUE;
 
-	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
-	TEST_ASSERT(uffd >= 0, "uffd creation failed, errno: %d", errno);
+	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_ANALNBLOCK);
+	TEST_ASSERT(uffd >= 0, "uffd creation failed, erranal: %d", erranal);
 
 	uffdio_api.api = UFFD_API;
 	uffdio_api.features = 0;
@@ -148,7 +148,7 @@ struct uffd_desc *uffd_setup_demand_paging(int uffd_mode, useconds_t delay,
 	TEST_ASSERT((uffdio_register.ioctls & expected_ioctls) ==
 		    expected_ioctls, "missing userfaultfd ioctls");
 
-	ret = pipe2(uffd_desc->pipefds, O_CLOEXEC | O_NONBLOCK);
+	ret = pipe2(uffd_desc->pipefds, O_CLOEXEC | O_ANALNBLOCK);
 	TEST_ASSERT(!ret, "Failed to set up pipefd");
 
 	uffd_desc->uffd_mode = uffd_mode;

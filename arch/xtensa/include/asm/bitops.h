@@ -21,7 +21,7 @@
 #include <asm/byteorder.h>
 #include <asm/barrier.h>
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 
 #if XCHAL_HAVE_NSA
 
@@ -33,7 +33,7 @@ static inline unsigned long __cntlz (unsigned long x)
 }
 
 /*
- * ffz: Find first zero in word. Undefined if no zero exists.
+ * ffz: Find first zero in word. Undefined if anal zero exists.
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
 
@@ -64,7 +64,7 @@ static inline int ffs(unsigned long x)
 
 /*
  * fls: Find last (most-significant) bit set in word.
- * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
+ * Analte fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
 
 static inline int fls (unsigned int x)
@@ -76,7 +76,7 @@ static inline int fls (unsigned int x)
  * __fls - find last (most-significant) set bit in a long word
  * @word: the word to search
  *
- * Undefined if no set bit exists, so code should check against 0 first.
+ * Undefined if anal set bit exists, so code should check against 0 first.
  */
 static inline unsigned long __fls(unsigned long word)
 {

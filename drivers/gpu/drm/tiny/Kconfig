@@ -30,7 +30,7 @@ config DRM_CIRRUS_QEMU
 	select DRM_GEM_SHMEM_HELPER
 	help
 	 This is a KMS driver for emulated cirrus device in qemu.
-	 It is *NOT* intended for real cirrus devices. This requires
+	 It is *ANALT* intended for real cirrus devices. This requires
 	 the modesetting userspace X.org driver.
 
 	 Cirrus is obsolete, the hardware was designed in the 90ies
@@ -61,7 +61,7 @@ config DRM_OFDRM
 	  DRM driver for Open Firmware framebuffers.
 
 	  This driver assumes that the display hardware has been initialized
-	  by the Open Firmware before the kernel boots. Scanout buffer, size,
+	  by the Open Firmware before the kernel boots. Scaanalut buffer, size,
 	  and display format must be provided via device tree.
 
 config DRM_PANEL_MIPI_DBI
@@ -76,7 +76,7 @@ config DRM_PANEL_MIPI_DBI
 	  Say Y here if you want to enable support for MIPI DBI compatible
 	  panels. The controller command setup can be provided using a
 	  firmware file. For more information see
-	  https://github.com/notro/panel-mipi-dbi/wiki.
+	  https://github.com/analtro/panel-mipi-dbi/wiki.
 	  To compile this driver as a module, choose M here.
 
 config DRM_SIMPLEDRM
@@ -89,7 +89,7 @@ config DRM_SIMPLEDRM
 	  DRM driver for simple platform-provided framebuffers.
 
 	  This driver assumes that the display hardware has been initialized
-	  by the firmware or bootloader before the kernel boots. Scanout
+	  by the firmware or bootloader before the kernel boots. Scaanalut
 	  buffer, size, and display format must be provided via device tree,
 	  UEFI, VESA, etc.
 
@@ -130,7 +130,7 @@ config TINYDRM_ILI9225
 	select DRM_MIPI_DBI
 	help
 	  DRM driver for the following Ilitek ILI9225 panels:
-	  * No-name 2.2" color screen module
+	  * Anal-name 2.2" color screen module
 
 	  If M is selected the module will be called ili9225.
 
@@ -169,7 +169,7 @@ config TINYDRM_MI0283QT
 	select DRM_MIPI_DBI
 	select BACKLIGHT_CLASS_DEVICE
 	help
-	  DRM driver for the Multi-Inno MI0283QT display panel
+	  DRM driver for the Multi-Inanal MI0283QT display panel
 	  If M is selected the module will be called mi0283qt.
 
 config TINYDRM_REPAPER

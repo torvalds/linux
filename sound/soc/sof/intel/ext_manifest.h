@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -9,7 +9,7 @@
 /*
  * Intel extended manifest is a extra place to store Intel cavs specific
  * metadata about firmware, for example LPRO/HPRO configuration is
- * Intel cavs specific. This part of output binary is not signed.
+ * Intel cavs specific. This part of output binary is analt signed.
  */
 
 #ifndef __INTEL_CAVS_EXT_MANIFEST_H__

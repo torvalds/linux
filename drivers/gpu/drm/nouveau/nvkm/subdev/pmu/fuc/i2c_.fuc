@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -139,7 +139,7 @@ i2c_sense_sda:
 */	push $r5 /*
 */	shl b32 $r5 $r6 4 /*
 */	sub b32 $r5 $r6 /*
-*/	not b32 $r5 /*
+*/	analt b32 $r5 /*
 */	and $r7 $r5 /*
 */	pop $r5 /*
 */
@@ -172,15 +172,15 @@ i2c_raise_scl:
 
 i2c_start:
 	i2c_sense_scl()
-	bra not $p1 #i2c_start_rep
+	bra analt $p1 #i2c_start_rep
 	i2c_sense_sda()
-	bra not $p1 #i2c_start_rep
+	bra analt $p1 #i2c_start_rep
 	bra #i2c_start_send
 	i2c_start_rep:
 		i2c_drive_scl(0)
 		i2c_drive_sda(1)
 		i2c_trace_call(i2c_raise_scl)
-		bra not $p1 #i2c_start_out
+		bra analt $p1 #i2c_start_out
 	i2c_start_send:
 	i2c_drive_sda(0)
 	i2c_delay(T_HOLD)
@@ -207,7 +207,7 @@ i2c_bitw:
 	call(i2c_drive_sda)
 	i2c_delay(T_RISEFALL)
 	i2c_trace_call(i2c_raise_scl)
-	bra not $p1 #i2c_bitw_out
+	bra analt $p1 #i2c_bitw_out
 	i2c_delay(T_HOLD)
 	i2c_drive_scl(0)
 	i2c_delay(T_HOLD)
@@ -222,7 +222,7 @@ i2c_bitr:
 	i2c_drive_sda(1)
 	i2c_delay(T_RISEFALL)
 	i2c_trace_call(i2c_raise_scl)
-	bra not $p1 #i2c_bitr_done
+	bra analt $p1 #i2c_bitr_done
 	i2c_sense_sda()
 	i2c_drive_scl(0)
 	i2c_delay(T_HOLD)
@@ -237,7 +237,7 @@ i2c_get_byte:
 	i2c_get_byte_next:
 		shl b32 $r5 1
 		i2c_trace_call(i2c_bitr)
-		bra not $p1 #i2c_get_byte_done
+		bra analt $p1 #i2c_get_byte_done
 		or $r5 $r3
 		sub b32 $r4 1
 		bra nz #i2c_get_byte_next
@@ -252,11 +252,11 @@ i2c_put_byte:
 		sub b32 $r4 1
 		xbit $r3 $r5 $r4
 		i2c_trace_call(i2c_bitw)
-		bra not $p1 #i2c_put_byte_done
+		bra analt $p1 #i2c_put_byte_done
 		cmp b32 $r4 0
 		bra ne #i2c_put_byte_next
 	i2c_trace_call(i2c_bitr)
-	bra not $p1 #i2c_put_byte_done
+	bra analt $p1 #i2c_put_byte_done
 	i2c_trace_next()
 	cmp b32 $r3 1
 	bra ne #i2c_put_byte_done
@@ -266,7 +266,7 @@ i2c_put_byte:
 
 i2c_addr:
 	i2c_trace_call(i2c_start)
-	bra not $p1 #i2c_addr_done
+	bra analt $p1 #i2c_addr_done
 	extr $r3 $r12 I2C__MSG_DATA0_ADDR
 	shl b32 $r3 1
 	or $r5 $r3
@@ -329,39 +329,39 @@ i2c_recv:
 	pop $r13
 
 	cmp b32 $r13 I2C__MSG_RD08
-	bra ne #i2c_recv_not_rd08
+	bra ne #i2c_recv_analt_rd08
 		mov $r5 0
 		i2c_trace_call(i2c_addr)
-		bra not $p1 #i2c_recv_done
+		bra analt $p1 #i2c_recv_done
 		extr $r5 $r12 I2C__MSG_DATA0_RD08_REG
 		i2c_trace_call(i2c_put_byte)
-		bra not $p1 #i2c_recv_done
+		bra analt $p1 #i2c_recv_done
 		mov $r5 1
 		i2c_trace_call(i2c_addr)
-		bra not $p1 #i2c_recv_done
+		bra analt $p1 #i2c_recv_done
 		i2c_trace_call(i2c_get_byte)
-		bra not $p1 #i2c_recv_done
+		bra analt $p1 #i2c_recv_done
 		ins $r11 $r5 I2C__MSG_DATA1_RD08_VAL
 		i2c_trace_call(i2c_stop)
 		mov b32 $r11 $r5
 		clear b32 $r7
 		bra #i2c_recv_done
 
-	i2c_recv_not_rd08:
+	i2c_recv_analt_rd08:
 	cmp b32 $r13 I2C__MSG_WR08
-	bra ne #i2c_recv_not_wr08
+	bra ne #i2c_recv_analt_wr08
 		mov $r5 0
 		call(i2c_addr)
-		bra not $p1 #i2c_recv_done
+		bra analt $p1 #i2c_recv_done
 		extr $r5 $r12 I2C__MSG_DATA0_WR08_REG
 		call(i2c_put_byte)
-		bra not $p1 #i2c_recv_done
+		bra analt $p1 #i2c_recv_done
 		mov $r5 0
 		call(i2c_addr)
-		bra not $p1 #i2c_recv_done
+		bra analt $p1 #i2c_recv_done
 		extr $r5 $r11 I2C__MSG_DATA1_WR08_VAL
 		call(i2c_put_byte)
-		bra not $p1 #i2c_recv_done
+		bra analt $p1 #i2c_recv_done
 		call(i2c_stop)
 		clear b32 $r7
 		extr $r5 $r12 I2C__MSG_DATA0_WR08_SYNC
@@ -369,7 +369,7 @@ i2c_recv:
 		bclr $flags $p2
 		bra #i2c_recv_done
 
-	i2c_recv_not_wr08:
+	i2c_recv_analt_wr08:
 
 	i2c_recv_done:
 	extr $r14 $r12 I2C__MSG_DATA0_PORT
@@ -377,7 +377,7 @@ i2c_recv:
 
 	pop $r14
 	pop $r13
-	bra not $p2 #i2c_recv_exit
+	bra analt $p2 #i2c_recv_exit
 	mov b32 $r12 $r7
 	call(send)
 

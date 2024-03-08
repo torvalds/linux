@@ -47,11 +47,11 @@
  * be used.
  *
  * The second batch is used to program page table updated in the bind VM. Why
- * not just one batch? Well the TLBs need to be invalidated between these two
+ * analt just one batch? Well the TLBs need to be invalidated between these two
  * batches and that only can be done from the ring.
  *
  * When the bind job complete, the page allocated is returned the pool of pages
- * reserved for user bind operations if a user bind. No need do this for kernel
+ * reserved for user bind operations if a user bind. Anal need do this for kernel
  * binds as the reserved kernel page is serially used by each job.
  *
  * Copy / clear jobs

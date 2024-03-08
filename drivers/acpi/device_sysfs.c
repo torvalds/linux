@@ -32,63 +32,63 @@ static ssize_t acpi_object_path(acpi_handle handle, char *buf)
 	return result;
 }
 
-struct acpi_data_node_attr {
+struct acpi_data_analde_attr {
 	struct attribute attr;
-	ssize_t (*show)(struct acpi_data_node *, char *);
-	ssize_t (*store)(struct acpi_data_node *, const char *, size_t count);
+	ssize_t (*show)(struct acpi_data_analde *, char *);
+	ssize_t (*store)(struct acpi_data_analde *, const char *, size_t count);
 };
 
-#define DATA_NODE_ATTR(_name)			\
-	static struct acpi_data_node_attr data_node_##_name =	\
-		__ATTR(_name, 0444, data_node_show_##_name, NULL)
+#define DATA_ANALDE_ATTR(_name)			\
+	static struct acpi_data_analde_attr data_analde_##_name =	\
+		__ATTR(_name, 0444, data_analde_show_##_name, NULL)
 
-static ssize_t data_node_show_path(struct acpi_data_node *dn, char *buf)
+static ssize_t data_analde_show_path(struct acpi_data_analde *dn, char *buf)
 {
 	return dn->handle ? acpi_object_path(dn->handle, buf) : 0;
 }
 
-DATA_NODE_ATTR(path);
+DATA_ANALDE_ATTR(path);
 
-static struct attribute *acpi_data_node_default_attrs[] = {
-	&data_node_path.attr,
+static struct attribute *acpi_data_analde_default_attrs[] = {
+	&data_analde_path.attr,
 	NULL
 };
-ATTRIBUTE_GROUPS(acpi_data_node_default);
+ATTRIBUTE_GROUPS(acpi_data_analde_default);
 
-#define to_data_node(k) container_of(k, struct acpi_data_node, kobj)
-#define to_attr(a) container_of(a, struct acpi_data_node_attr, attr)
+#define to_data_analde(k) container_of(k, struct acpi_data_analde, kobj)
+#define to_attr(a) container_of(a, struct acpi_data_analde_attr, attr)
 
-static ssize_t acpi_data_node_attr_show(struct kobject *kobj,
+static ssize_t acpi_data_analde_attr_show(struct kobject *kobj,
 					struct attribute *attr, char *buf)
 {
-	struct acpi_data_node *dn = to_data_node(kobj);
-	struct acpi_data_node_attr *dn_attr = to_attr(attr);
+	struct acpi_data_analde *dn = to_data_analde(kobj);
+	struct acpi_data_analde_attr *dn_attr = to_attr(attr);
 
 	return dn_attr->show ? dn_attr->show(dn, buf) : -ENXIO;
 }
 
-static const struct sysfs_ops acpi_data_node_sysfs_ops = {
-	.show	= acpi_data_node_attr_show,
+static const struct sysfs_ops acpi_data_analde_sysfs_ops = {
+	.show	= acpi_data_analde_attr_show,
 };
 
-static void acpi_data_node_release(struct kobject *kobj)
+static void acpi_data_analde_release(struct kobject *kobj)
 {
-	struct acpi_data_node *dn = to_data_node(kobj);
+	struct acpi_data_analde *dn = to_data_analde(kobj);
 
 	complete(&dn->kobj_done);
 }
 
-static const struct kobj_type acpi_data_node_ktype = {
-	.sysfs_ops = &acpi_data_node_sysfs_ops,
-	.default_groups = acpi_data_node_default_groups,
-	.release = acpi_data_node_release,
+static const struct kobj_type acpi_data_analde_ktype = {
+	.sysfs_ops = &acpi_data_analde_sysfs_ops,
+	.default_groups = acpi_data_analde_default_groups,
+	.release = acpi_data_analde_release,
 };
 
-static void acpi_expose_nondev_subnodes(struct kobject *kobj,
+static void acpi_expose_analndev_subanaldes(struct kobject *kobj,
 					struct acpi_device_data *data)
 {
-	struct list_head *list = &data->subnodes;
-	struct acpi_data_node *dn;
+	struct list_head *list = &data->subanaldes;
+	struct acpi_data_analde *dn;
 
 	if (list_empty(list))
 		return;
@@ -97,25 +97,25 @@ static void acpi_expose_nondev_subnodes(struct kobject *kobj,
 		int ret;
 
 		init_completion(&dn->kobj_done);
-		ret = kobject_init_and_add(&dn->kobj, &acpi_data_node_ktype,
+		ret = kobject_init_and_add(&dn->kobj, &acpi_data_analde_ktype,
 					   kobj, "%s", dn->name);
 		if (!ret)
-			acpi_expose_nondev_subnodes(&dn->kobj, &dn->data);
+			acpi_expose_analndev_subanaldes(&dn->kobj, &dn->data);
 		else if (dn->handle)
 			acpi_handle_err(dn->handle, "Failed to expose (%d)\n", ret);
 	}
 }
 
-static void acpi_hide_nondev_subnodes(struct acpi_device_data *data)
+static void acpi_hide_analndev_subanaldes(struct acpi_device_data *data)
 {
-	struct list_head *list = &data->subnodes;
-	struct acpi_data_node *dn;
+	struct list_head *list = &data->subanaldes;
+	struct acpi_data_analde *dn;
 
 	if (list_empty(list))
 		return;
 
 	list_for_each_entry_reverse(dn, list, sibling) {
-		acpi_hide_nondev_subnodes(&dn->data);
+		acpi_hide_analndev_subanaldes(&dn->data);
 		kobject_put(&dn->kobj);
 	}
 }
@@ -129,9 +129,9 @@ static void acpi_hide_nondev_subnodes(struct acpi_device_data *data)
  * Creates hid/cid(s) string needed for modalias and uevent
  * e.g. on a device with hid:IBM0001 and cid:ACPI0001 you get:
  * char *modalias: "acpi:IBM0001:ACPI0001"
- * Return: 0: no _HID and no _CID
+ * Return: 0: anal _HID and anal _CID
  *         -EINVAL: output error
- *         -ENOMEM: output is truncated
+ *         -EANALMEM: output is truncated
  */
 static int create_pnp_modalias(const struct acpi_device *acpi_dev, char *modalias,
 			       int size)
@@ -140,7 +140,7 @@ static int create_pnp_modalias(const struct acpi_device *acpi_dev, char *modalia
 	int count;
 	struct acpi_hardware_id *id;
 
-	/* Avoid unnecessarily loading modules for non present devices. */
+	/* Avoid unnecessarily loading modules for analn present devices. */
 	if (!acpi_device_is_present(acpi_dev))
 		return 0;
 
@@ -159,7 +159,7 @@ static int create_pnp_modalias(const struct acpi_device *acpi_dev, char *modalia
 
 	len = snprintf(modalias, size, "acpi:");
 	if (len >= size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size -= len;
 
@@ -170,7 +170,7 @@ static int create_pnp_modalias(const struct acpi_device *acpi_dev, char *modalia
 		count = snprintf(&modalias[len], size, "%s:", id->id);
 
 		if (count >= size)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		len += count;
 		size -= count;
@@ -201,7 +201,7 @@ static int create_of_modalias(const struct acpi_device *acpi_dev, char *modalias
 
 	status = acpi_get_name(acpi_dev->handle, ACPI_SINGLE_NAME, &buf);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* DT strings are all in lower case */
 	for (c = buf.pointer; *c != '\0'; c++)
@@ -211,7 +211,7 @@ static int create_of_modalias(const struct acpi_device *acpi_dev, char *modalias
 	ACPI_FREE(buf.pointer);
 
 	if (len >= size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size -= len;
 
@@ -228,7 +228,7 @@ static int create_of_modalias(const struct acpi_device *acpi_dev, char *modalias
 				 obj->string.pointer);
 
 		if (count >= size)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		len += count;
 		size -= count;
@@ -243,13 +243,13 @@ int __acpi_device_uevent_modalias(const struct acpi_device *adev,
 	int len;
 
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (list_empty(&adev->pnp.ids))
 		return 0;
 
 	if (add_uevent_var(env, "MODALIAS="))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (adev->data.of_compatible)
 		len = create_of_modalias(adev, &env->buf[env->buflen - 1],
@@ -267,12 +267,12 @@ int __acpi_device_uevent_modalias(const struct acpi_device *adev,
 
 /**
  * acpi_device_uevent_modalias - uevent modalias for ACPI-enumerated devices.
- * @dev: Struct device to get ACPI device node.
+ * @dev: Struct device to get ACPI device analde.
  * @env: Environment variables of the kobject uevent.
  *
  * Create the uevent modalias field for ACPI-enumerated devices.
  *
- * Because other buses do not support ACPI HIDs & CIDs, e.g. for a device with
+ * Because other buses do analt support ACPI HIDs & CIDs, e.g. for a device with
  * hid:IBM0001 and cid:ACPI0001 you get: "acpi:IBM0001:ACPI0001".
  */
 int acpi_device_uevent_modalias(const struct device *dev, struct kobj_uevent_env *env)
@@ -286,7 +286,7 @@ static int __acpi_device_modalias(const struct acpi_device *adev, char *buf, int
 	int len, count;
 
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (list_empty(&adev->pnp.ids))
 		return 0;
@@ -314,13 +314,13 @@ static int __acpi_device_modalias(const struct acpi_device *adev, char *buf, int
 
 /**
  * acpi_device_modalias - modalias sysfs attribute for ACPI-enumerated devices.
- * @dev: Struct device to get ACPI device node.
+ * @dev: Struct device to get ACPI device analde.
  * @buf: The buffer to save pnp_modalias and of_modalias.
  * @size: Size of buffer.
  *
  * Create the modalias sysfs attribute for ACPI-enumerated devices.
  *
- * Because other buses do not support ACPI HIDs & CIDs, e.g. for a device with
+ * Because other buses do analt support ACPI HIDs & CIDs, e.g. for a device with
  * hid:IBM0001 and cid:ACPI0001 you get: "acpi:IBM0001:ACPI0001".
  */
 int acpi_device_modalias(struct device *dev, char *buf, int size)
@@ -367,7 +367,7 @@ eject_store(struct device *d, struct device_attribute *attr,
 	    const char *buf, size_t count)
 {
 	struct acpi_device *acpi_device = to_acpi_device(d);
-	acpi_object_type not_used;
+	acpi_object_type analt_used;
 	acpi_status status;
 
 	if (!count || buf[0] != '1')
@@ -375,11 +375,11 @@ eject_store(struct device *d, struct device_attribute *attr,
 
 	if ((!acpi_device->handler || !acpi_device->handler->hotplug.enabled)
 	    && !d->driver)
-		return -ENODEV;
+		return -EANALDEV;
 
-	status = acpi_get_type(acpi_device->handle, &not_used);
+	status = acpi_get_type(acpi_device->handle, &analt_used);
 	if (ACPI_FAILURE(status) || !acpi_device->flags.ejectable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	acpi_dev_get(acpi_device);
 	status = acpi_hotplug_schedule(acpi_device, ACPI_OST_EC_OSPM_EJECT);
@@ -388,8 +388,8 @@ eject_store(struct device *d, struct device_attribute *attr,
 
 	acpi_dev_put(acpi_device);
 	acpi_evaluate_ost(acpi_device->handle, ACPI_OST_EC_OSPM_EJECT,
-			  ACPI_OST_SC_NON_SPECIFIC_FAILURE, NULL);
-	return status == AE_NO_MEMORY ? -ENOMEM : -EAGAIN;
+			  ACPI_OST_SC_ANALN_SPECIFIC_FAILURE, NULL);
+	return status == AE_ANAL_MEMORY ? -EANALMEM : -EAGAIN;
 }
 
 static DEVICE_ATTR_WO(eject);
@@ -593,7 +593,7 @@ int acpi_device_setup_files(struct acpi_device *dev)
 						    &dev_attr_real_power_state);
 	}
 
-	acpi_expose_nondev_subnodes(&dev->dev.kobj, &dev->data);
+	acpi_expose_analndev_subanaldes(&dev->dev.kobj, &dev->data);
 
 end:
 	return result;
@@ -605,7 +605,7 @@ end:
  */
 void acpi_device_remove_files(struct acpi_device *dev)
 {
-	acpi_hide_nondev_subnodes(&dev->data);
+	acpi_hide_analndev_subanaldes(&dev->data);
 
 	if (dev->flags.power_manageable) {
 		device_remove_file(&dev->dev, &dev_attr_power_state);

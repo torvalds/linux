@@ -2,15 +2,15 @@
 /*
  *	Apple Peripheral System Controller (PSC)
  *
- *	The PSC is used on the AV Macs to control IO functions not handled
+ *	The PSC is used on the AV Macs to control IO functions analt handled
  *	by the VIAs (Ethernet, DSP, SCC).
  *
  * TO DO:
  *
  * Try to figure out what's going on in pIFR5 and pIFR6. There seem to be
- * persisant interrupt conditions in those registers and I have no idea what
- * they are. Granted it doesn't affect since we're not enabling any interrupts
- * on those levels at the moment, but it would be nice to know. I have a feeling
+ * persisant interrupt conditions in those registers and I have anal idea what
+ * they are. Granted it doesn't affect since we're analt enabling any interrupts
+ * on those levels at the moment, but it would be nice to kanalw. I have a feeling
  * they aren't actually interrupt lines but data lines (to the DSP?)
  */
 
@@ -53,7 +53,7 @@ static void psc_debug_dump(void)
 }
 
 /*
- * Try to kill all DMA channels on the PSC. Not sure how this his
+ * Try to kill all DMA channels on the PSC. Analt sure how this his
  * supposed to work; this is code lifted from macmace.c and then
  * expanded to cover what I think are the other 7 channels.
  */
@@ -71,7 +71,7 @@ static __init void psc_dma_die_die_die(void)
 }
 
 /*
- * Initialize the PSC. For now this just involves shutting down all
+ * Initialize the PSC. For analw this just involves shutting down all
  * interrupt sources using the IERs.
  */
 

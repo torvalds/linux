@@ -68,8 +68,8 @@ static inline void outer_flush_range(phys_addr_t start, phys_addr_t end)
 /**
  * outer_flush_all - clean and invalidate all cache lines in the outer cache
  *
- * Note: depending on implementation, this may not be atomic - it must
- * only be called with interrupts disabled and no other active outer
+ * Analte: depending on implementation, this may analt be atomic - it must
+ * only be called with interrupts disabled and anal other active outer
  * cache masters.
  *
  * It is intended that this function is only used by implementations
@@ -86,7 +86,7 @@ static inline void outer_flush_all(void)
  * outer_disable - clean, invalidate and disable the outer cache
  *
  * Disable the outer cache, ensuring that any data contained in the outer
- * cache is pushed out to lower levels of system memory.  The note and
+ * cache is pushed out to lower levels of system memory.  The analte and
  * conditions above concerning outer_flush_all() applies here.
  */
 extern void outer_disable(void);

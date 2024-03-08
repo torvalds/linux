@@ -161,7 +161,7 @@ static unsigned long get_voltage(struct devfreq *df, unsigned long freq)
 	return voltage;
 }
 
-static void _normalize_load(struct devfreq_dev_status *status)
+static void _analrmalize_load(struct devfreq_dev_status *status)
 {
 	if (status->total_time > 0xfffff) {
 		status->total_time >>= 10;
@@ -222,7 +222,7 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 			goto fail;
 		}
 
-		_normalize_load(&status);
+		_analrmalize_load(&status);
 
 		/* Convert EM power into milli-Watts first */
 		*power = dfc->em_pd->table[perf_idx].power;
@@ -279,7 +279,7 @@ static int devfreq_cooling_power2state(struct thermal_cooling_device *cdev,
 		est_power /= SCALE_ERROR_MITIGATION;
 	} else {
 		/* Scale dynamic power for utilization */
-		_normalize_load(&status);
+		_analrmalize_load(&status);
 		est_power = power << 10;
 		est_power /= status.busy_time;
 	}
@@ -310,7 +310,7 @@ static int devfreq_cooling_power2state(struct thermal_cooling_device *cdev,
  *
  * Generate frequency table which holds the frequencies in descending
  * order. That way its indexed by cooling device state. This is for
- * compatibility with drivers which do not register Energy Model.
+ * compatibility with drivers which do analt register Energy Model.
  *
  * Return: 0 on success, negative error code on failure.
  */
@@ -325,7 +325,7 @@ static int devfreq_cooling_gen_tables(struct devfreq_cooling_device *dfc,
 	dfc->freq_table = kcalloc(num_opps, sizeof(*dfc->freq_table),
 			     GFP_KERNEL);
 	if (!dfc->freq_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, freq = ULONG_MAX; i < num_opps; i++, freq--) {
 		struct dev_pm_opp *opp;
@@ -346,7 +346,7 @@ static int devfreq_cooling_gen_tables(struct devfreq_cooling_device *dfc,
 /**
  * of_devfreq_cooling_register_power() - Register devfreq cooling device,
  *                                      with OF and power information.
- * @np:	Pointer to OF device_node.
+ * @np:	Pointer to OF device_analde.
  * @df:	Pointer to devfreq device.
  * @dfc_power:	Pointer to devfreq_cooling_power.
  *
@@ -355,11 +355,11 @@ static int devfreq_cooling_gen_tables(struct devfreq_cooling_device *dfc,
  *
  * If @dfc_power is provided, the cooling device is registered with the
  * power extensions.  For the power extensions to work correctly,
- * devfreq should use the simple_ondemand governor, other governors
- * are not currently supported.
+ * devfreq should use the simple_ondemand goveranalr, other goveranalrs
+ * are analt currently supported.
  */
 struct thermal_cooling_device *
-of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
+of_devfreq_cooling_register_power(struct device_analde *np, struct devfreq *df,
 				  struct devfreq_cooling_power *dfc_power)
 {
 	struct thermal_cooling_device *cdev;
@@ -373,7 +373,7 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 
 	dfc = kzalloc(sizeof(*dfc), GFP_KERNEL);
 	if (!dfc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dfc->devfreq = df;
 
@@ -394,7 +394,7 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 
 		num_opps = em_pd_nr_perf_states(dfc->em_pd);
 	} else {
-		/* Backward compatibility for drivers which do not use IPA */
+		/* Backward compatibility for drivers which do analt use IPA */
 		dev_dbg(dev, "missing proper EM for cooling device\n");
 
 		num_opps = dev_pm_opp_get_opp_count(dev);
@@ -409,7 +409,7 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 		goto free_dfc;
 	}
 
-	/* max_state is an index, not a counter */
+	/* max_state is an index, analt a counter */
 	dfc->max_state = num_opps - 1;
 
 	err = dev_pm_qos_add_request(dev, &dfc->req_max_freq,
@@ -418,7 +418,7 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 	if (err < 0)
 		goto free_table;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	name = kasprintf(GFP_KERNEL, "devfreq-%s", dev_name(dev));
 	if (!name)
 		goto remove_qos_req;
@@ -452,11 +452,11 @@ EXPORT_SYMBOL_GPL(of_devfreq_cooling_register_power);
 /**
  * of_devfreq_cooling_register() - Register devfreq cooling device,
  *                                with OF information.
- * @np: Pointer to OF device_node.
+ * @np: Pointer to OF device_analde.
  * @df: Pointer to devfreq device.
  */
 struct thermal_cooling_device *
-of_devfreq_cooling_register(struct device_node *np, struct devfreq *df)
+of_devfreq_cooling_register(struct device_analde *np, struct devfreq *df)
 {
 	return of_devfreq_cooling_register_power(np, df, NULL);
 }
@@ -483,7 +483,7 @@ EXPORT_SYMBOL_GPL(devfreq_cooling_register);
  *
  * If @dfc_power is provided, the cooling device is registered with the
  * power extensions. It is using the simple Energy Model which requires
- * "dynamic-power-coefficient" a devicetree property. To not break drivers
+ * "dynamic-power-coefficient" a devicetree property. To analt break drivers
  * which miss that DT property, the function won't bail out when the EM
  * registration failed. The cooling device will be registered if everything
  * else is OK.
@@ -506,7 +506,7 @@ devfreq_cooling_em_register(struct devfreq *df,
 		dev_dbg(dev, "Unable to register EM for devfreq cooling device (%d)\n",
 			ret);
 
-	cdev = of_devfreq_cooling_register_power(dev->of_node, df, dfc_power);
+	cdev = of_devfreq_cooling_register_power(dev->of_analde, df, dfc_power);
 
 	if (IS_ERR_OR_NULL(cdev))
 		em_dev_unregister_perf_domain(dev);

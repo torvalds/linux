@@ -15,4 +15,4 @@
 	compatible = "apple,t6000", "apple,arm-platform";
 };
 
-/delete-node/ &pmgr_south;
+/delete-analde/ &pmgr_south;

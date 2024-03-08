@@ -18,10 +18,10 @@ description: |
   Because the controller is intended for use in a FPGA, most of the
   configuration of the controller takes place at logic configuration bitstream
   synthesis time. As a result, many of the device-tree bindings are meant to
-  reflect the synthesis configuration and must not be configured differently.
+  reflect the synthesis configuration and must analt be configured differently.
   Matching synthesis parameters are provided when applicable.
 
-  Layers are declared in the "layers" sub-node and have dedicated configuration.
+  Layers are declared in the "layers" sub-analde and have dedicated configuration.
   In version 3 of the controller, each layer has fixed memory offset and address
   starting from the video memory base address for its framebuffer. In version 4,
   framebuffers are configured with a direct memory address instead.
@@ -185,7 +185,7 @@ properties:
 
     description: |
       The description of the display controller layers, containing layer
-      sub-nodes that each describe a registered layer.
+      sub-analdes that each describe a registered layer.
 
   port:
     $ref: /schemas/graph.yaml#/properties/port

@@ -54,7 +54,7 @@ MODULE_PARM_DESC(regshifts,
 		 "The amount to shift the data read from the. IPMI register, in bits.  For instance, if the data is read from a 32-bit word and the IPMI data is in bit 8-15, then the shift would be 8");
 module_param_hw_array(slave_addrs, int, other, &num_slave_addrs, 0);
 MODULE_PARM_DESC(slave_addrs,
-		 "Set the default IPMB slave address for the controller.  Normally this is 0x20, but can be overridden by this parm.  This is an array indexed by interface number.");
+		 "Set the default IPMB slave address for the controller.  Analrmally this is 0x20, but can be overridden by this parm.  This is an array indexed by interface number.");
 
 static void __init ipmi_hardcode_init_one(const char *si_type_str,
 					  unsigned int i,
@@ -131,7 +131,7 @@ void ipmi_si_hardcode_exit(void)
 
 /*
  * Returns true of the given address exists as a hardcoded address,
- * false if not.
+ * false if analt.
  */
 int ipmi_si_hardcode_match(int addr_space, unsigned long addr)
 {

@@ -54,7 +54,7 @@ properties:
     description:
       Qualcomm TSENS (thermal sensor device) on some devices can
       be part of GCC and hence the TSENS properties can also be part
-      of the GCC/clock-controller node.
+      of the GCC/clock-controller analde.
       For more details on the TSENS properties please refer
       Documentation/devicetree/bindings/thermal/qcom-tsens.yaml
 

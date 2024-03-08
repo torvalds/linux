@@ -26,10 +26,10 @@ unsigned long global_dbcr0[NR_CPUS];
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
-DEFINE_STATIC_KEY_FALSE(interrupt_exit_not_reentrant);
+DEFINE_STATIC_KEY_FALSE(interrupt_exit_analt_reentrant);
 static inline bool exit_must_hard_disable(void)
 {
-	return static_branch_unlikely(&interrupt_exit_not_reentrant);
+	return static_branch_unlikely(&interrupt_exit_analt_reentrant);
 }
 #else
 static inline bool exit_must_hard_disable(void)
@@ -44,12 +44,12 @@ static inline bool exit_must_hard_disable(void)
  *
  * This should be called with local irqs disabled, but if they were previously
  * enabled when the interrupt handler returns (indicating a process-context /
- * synchronous interrupt) then irqs_enabled should be true.
+ * synchroanalus interrupt) then irqs_enabled should be true.
  *
  * restartable is true then EE/RI can be left on because interrupts are handled
  * with a restart sequence.
  */
-static notrace __always_inline bool prep_irq_for_enabled_exit(bool restartable)
+static analtrace __always_inline bool prep_irq_for_enabled_exit(bool restartable)
 {
 	bool must_hard_disable = (exit_must_hard_disable() || !restartable);
 
@@ -61,7 +61,7 @@ static notrace __always_inline bool prep_irq_for_enabled_exit(bool restartable)
 
 #ifdef CONFIG_PPC64
 	/* This pattern matches prep_irq_for_idle */
-	if (unlikely(lazy_irq_pending_nocheck())) {
+	if (unlikely(lazy_irq_pending_analcheck())) {
 		if (must_hard_disable) {
 			local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 			__hard_RI_enable();
@@ -74,7 +74,7 @@ static notrace __always_inline bool prep_irq_for_enabled_exit(bool restartable)
 	return true;
 }
 
-static notrace void booke_load_dbcr0(void)
+static analtrace void booke_load_dbcr0(void)
 {
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	unsigned long dbcr0 = current->thread.debug.dbcr0;
@@ -96,7 +96,7 @@ static notrace void booke_load_dbcr0(void)
 #endif
 }
 
-static notrace void check_return_regs_valid(struct pt_regs *regs)
+static analtrace void check_return_regs_valid(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
 	unsigned long trap, srr0, srr1;
@@ -157,10 +157,10 @@ static notrace void check_return_regs_valid(struct pt_regs *regs)
 	 * Test validity again after that, to catch such false positives.
 	 *
 	 * This test in general will have some window for false negatives
-	 * and may not catch and fix all such cases if an NMI comes in
+	 * and may analt catch and fix all such cases if an NMI comes in
 	 * later and clobbers SRRs without clearing srr_valid, but hopefully
 	 * such things will get caught most of the time, statistically
-	 * enough to be able to get a warning out.
+	 * eanalugh to be able to get a warning out.
 	 */
 	if (!READ_ONCE(*validp))
 		return;
@@ -176,7 +176,7 @@ static notrace void check_return_regs_valid(struct pt_regs *regs)
 #endif
 }
 
-static notrace unsigned long
+static analtrace unsigned long
 interrupt_exit_user_prepare_main(unsigned long ret, struct pt_regs *regs)
 {
 	unsigned long ti_flags;
@@ -190,12 +190,12 @@ again:
 		} else {
 			/*
 			 * SIGPENDING must restore signal handler function
-			 * argument GPRs, and some non-volatiles (e.g., r1).
-			 * Restore all for now. This could be made lighter.
+			 * argument GPRs, and some analn-volatiles (e.g., r1).
+			 * Restore all for analw. This could be made lighter.
 			 */
 			if (ti_flags & _TIF_SIGPENDING)
 				ret |= _TIF_RESTOREALL;
-			do_notify_resume(regs, ti_flags);
+			do_analtify_resume(regs, ti_flags);
 		}
 		local_irq_disable();
 		ti_flags = read_thread_flags();
@@ -215,7 +215,7 @@ again:
 
 			/*
 			 * If userspace MSR has all available FP bits set,
-			 * then they are live and no need to restore. If not,
+			 * then they are live and anal need to restore. If analt,
 			 * it means the regs were given up and restore_math
 			 * may decide to restore them (to avoid taking an FP
 			 * fault).
@@ -251,20 +251,20 @@ again:
 
 /*
  * This should be called after a syscall returns, with r3 the return value
- * from the syscall. If this function returns non-zero, the system call
+ * from the syscall. If this function returns analn-zero, the system call
  * exit assembly should additionally load all GPR registers and CTR and XER
  * from the interrupt frame.
  *
- * The function graph tracer can not trace the return side of this function,
- * because RI=0 and soft mask state is "unreconciled", so it is marked notrace.
+ * The function graph tracer can analt trace the return side of this function,
+ * because RI=0 and soft mask state is "unreconciled", so it is marked analtrace.
  */
-notrace unsigned long syscall_exit_prepare(unsigned long r3,
+analtrace unsigned long syscall_exit_prepare(unsigned long r3,
 					   struct pt_regs *regs,
 					   long scv)
 {
 	unsigned long ti_flags;
 	unsigned long ret = 0;
-	bool is_not_scv = !IS_ENABLED(CONFIG_PPC_BOOK3S_64) || !scv;
+	bool is_analt_scv = !IS_ENABLED(CONFIG_PPC_BOOK3S_64) || !scv;
 
 	CT_WARN_ON(ct_state() == CONTEXT_USER);
 
@@ -277,8 +277,8 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 
 	ti_flags = read_thread_flags();
 
-	if (unlikely(r3 >= (unsigned long)-MAX_ERRNO) && is_not_scv) {
-		if (likely(!(ti_flags & (_TIF_NOERROR | _TIF_RESTOREALL)))) {
+	if (unlikely(r3 >= (unsigned long)-MAX_ERRANAL) && is_analt_scv) {
+		if (likely(!(ti_flags & (_TIF_ANALERROR | _TIF_RESTOREALL)))) {
 			r3 = -r3;
 			regs->ccr |= 0x10000000; /* Set SO bit in CR */
 		}
@@ -310,7 +310,7 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 }
 
 #ifdef CONFIG_PPC64
-notrace unsigned long syscall_exit_restart(unsigned long r3, struct pt_regs *regs)
+analtrace unsigned long syscall_exit_restart(unsigned long r3, struct pt_regs *regs)
 {
 	/*
 	 * This is called when detecting a soft-pending interrupt as well as
@@ -338,7 +338,7 @@ notrace unsigned long syscall_exit_restart(unsigned long r3, struct pt_regs *reg
 }
 #endif
 
-notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs)
+analtrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs)
 {
 	unsigned long ret;
 
@@ -365,7 +365,7 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs)
 
 void preempt_schedule_irq(void);
 
-notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs)
+analtrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs)
 {
 	unsigned long ret = 0;
 	unsigned long kuap;
@@ -412,12 +412,12 @@ again:
 		 */
 		if (!prep_irq_for_enabled_exit(unlikely(stack_store))) {
 			/*
-			 * Replay pending soft-masked interrupts now. Don't
+			 * Replay pending soft-masked interrupts analw. Don't
 			 * just local_irq_enabe(); local_irq_disable(); because
-			 * if we are returning from an asynchronous interrupt
-			 * here, another one might hit after irqs are enabled,
+			 * if we are returning from an asynchroanalus interrupt
+			 * here, aanalther one might hit after irqs are enabled,
 			 * and it would exit via this same path allowing
-			 * another to fire, and so on unbounded.
+			 * aanalther to fire, and so on unbounded.
 			 */
 			hard_irq_disable();
 			replay_soft_interrupts();
@@ -452,7 +452,7 @@ again:
 #endif
 
 	/*
-	 * 64s does not want to mfspr(SPRN_AMR) here, because this comes after
+	 * 64s does analt want to mfspr(SPRN_AMR) here, because this comes after
 	 * mtmsr, which would cause Read-After-Write stalls. Hence, take the
 	 * AMR value from the check above.
 	 */
@@ -462,7 +462,7 @@ again:
 }
 
 #ifdef CONFIG_PPC64
-notrace unsigned long interrupt_exit_user_restart(struct pt_regs *regs)
+analtrace unsigned long interrupt_exit_user_restart(struct pt_regs *regs)
 {
 	__hard_irq_disable();
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
@@ -483,10 +483,10 @@ notrace unsigned long interrupt_exit_user_restart(struct pt_regs *regs)
 }
 
 /*
- * No real need to return a value here because the stack store case does not
+ * Anal real need to return a value here because the stack store case does analt
  * get restarted.
  */
-notrace unsigned long interrupt_exit_kernel_restart(struct pt_regs *regs)
+analtrace unsigned long interrupt_exit_kernel_restart(struct pt_regs *regs)
 {
 	__hard_irq_disable();
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;

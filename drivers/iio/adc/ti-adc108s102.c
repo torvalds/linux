@@ -43,9 +43,9 @@
 
 /*
  * 16-bit SPI command format:
- *   [15:14] Ignored
+ *   [15:14] Iganalred
  *   [13:11] 3-bit channel address
- *   [10:0]  Ignored
+ *   [10:0]  Iganalred
  */
 #define ADC108S102_CMD(ch)		((u16)(ch) << 11)
 
@@ -146,7 +146,7 @@ static irqreturn_t adc108s102_trigger_handler(int irq, void *p)
 
 	ret = spi_sync(st->spi, &st->ring_msg);
 	if (ret < 0)
-		goto out_notify;
+		goto out_analtify;
 
 	/* Skip the dummy response in the first slot */
 	iio_push_to_buffers_with_ts_unaligned(indio_dev,
@@ -154,8 +154,8 @@ static irqreturn_t adc108s102_trigger_handler(int irq, void *p)
 					      st->ring_xfer.len - sizeof(st->rx_buf[1]),
 					      iio_get_time_ns(indio_dev));
 
-out_notify:
-	iio_trigger_notify_done(indio_dev->trig);
+out_analtify:
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -229,7 +229,7 @@ static int adc108s102_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -242,7 +242,7 @@ static int adc108s102_probe(struct spi_device *spi)
 
 		ret = regulator_enable(st->reg);
 		if (ret < 0) {
-			dev_err(&spi->dev, "Cannot enable vref regulator\n");
+			dev_err(&spi->dev, "Cananalt enable vref regulator\n");
 			return ret;
 		}
 		ret = devm_add_action_or_reset(&spi->dev, adc108s102_reg_disable,

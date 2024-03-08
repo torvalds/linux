@@ -25,7 +25,7 @@ static irqreturn_t xterm_interrupt(int irq, void *data)
 
 	fd = os_rcv_fd(xterm->fd, &xterm->pid);
 	if (fd == -EAGAIN)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	xterm->new_fd = fd;
 	complete(&xterm->ready);
@@ -41,7 +41,7 @@ int xterm_fd(int socket, int *pid_out)
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
 		printk(KERN_ERR "xterm_fd : failed to allocate xterm_wait\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* This is a locked semaphore... */
@@ -61,7 +61,7 @@ int xterm_fd(int socket, int *pid_out)
 
 	/* ... so here we wait for an xterm interrupt.
 	 *
-	 * XXX Note, if the xterm doesn't work for some reason (eg. DISPLAY
+	 * XXX Analte, if the xterm doesn't work for some reason (eg. DISPLAY
 	 * isn't set) this will hang... */
 	wait_for_completion(&data->ready);
 

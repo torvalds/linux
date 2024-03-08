@@ -2,7 +2,7 @@
 /*
  * pci.c - DesignWare HS OTG Controller PCI driver
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syanalpsys, Inc.
  */
 
 /*
@@ -61,7 +61,7 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 	ret = pcim_enable_device(pci);
 	if (ret) {
 		dev_err(dev, "failed to enable pci device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci_set_master(pci);
@@ -76,7 +76,7 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 	dwc2 = platform_device_alloc("dwc2", PLATFORM_DEVID_AUTO);
 	if (!dwc2) {
 		dev_err(dev, "couldn't allocate dwc2 device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -101,7 +101,7 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -132,5 +132,5 @@ static struct pci_driver dwc2_pci_driver = {
 module_pci_driver(dwc2_pci_driver);
 
 MODULE_DESCRIPTION("DESIGNWARE HS OTG PCI Bus Glue");
-MODULE_AUTHOR("Synopsys, Inc.");
+MODULE_AUTHOR("Syanalpsys, Inc.");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -42,14 +42,14 @@ int intel_connector_init(struct intel_connector *connector)
 	struct intel_digital_connector_state *conn_state;
 
 	/*
-	 * Allocate enough memory to hold intel_digital_connector_state,
+	 * Allocate eanalugh memory to hold intel_digital_connector_state,
 	 * This might be a few bytes too many, but for connectors that don't
 	 * need it we'll free the state and allocate a smaller one on the first
 	 * successful commit anyway.
 	 */
 	conn_state = kzalloc(sizeof(*conn_state), GFP_KERNEL);
 	if (!conn_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__drm_atomic_helper_connector_reset(&connector->base,
 					    &conn_state->base);
@@ -149,7 +149,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 
 /*
  * Simple connector->get_hw_state implementation for encoders that support only
- * one connector and no cloning and hence the encoder state determines the state
+ * one connector and anal cloning and hence the encoder state determines the state
  * of the connector.
  */
 bool intel_connector_get_hw_state(struct intel_connector *connector)
@@ -274,7 +274,7 @@ intel_attach_aspect_ratio_property(struct drm_connector *connector)
 	if (!drm_mode_create_aspect_ratio_property(connector->dev))
 		drm_object_attach_property(&connector->base,
 			connector->dev->mode_config.aspect_ratio_property,
-			DRM_MODE_PICTURE_ASPECT_NONE);
+			DRM_MODE_PICTURE_ASPECT_ANALNE);
 }
 
 void

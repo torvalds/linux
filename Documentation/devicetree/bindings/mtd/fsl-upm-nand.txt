@@ -9,7 +9,7 @@ Required properties:
 Optional properties:
 - fsl,upm-addr-line-cs-offsets : address offsets for multi-chip support.
 	The corresponding address lines are used to select the chip.
-- gpios : may specify optional GPIOs connected to the Ready-Not-Busy pins
+- gpios : may specify optional GPIOs connected to the Ready-Analt-Busy pins
 	(R/B#). For multi-chip devices, "n" GPIO definitions are required
 	according to the number of chips.
 
@@ -18,10 +18,10 @@ Deprecated properties:
 	UPM pattern (0x1), after writing a data byte (0x2) or after
 	writing out a buffer (0x4).
 - chip-delay : chip dependent delay for transferring data from array to
-	read registers (tR). Required if property "gpios" is not used
-	(R/B# pins not connected).
+	read registers (tR). Required if property "gpios" is analt used
+	(R/B# pins analt connected).
 
-Each flash chip described may optionally contain additional sub-nodes
+Each flash chip described may optionally contain additional sub-analdes
 describing partitions of the address space. See partition.txt for more
 detail.
 

@@ -182,9 +182,9 @@
 #define DMA_CONTROL_DFF		0x01000000	/* Disable flush of rx frames */
 #define DMA_CONTROL_OSF		0x00000004	/* Operate on 2nd tx frame */
 
-/* DMA Normal interrupt */
-#define DMA_INTR_ENA_NIE	0x00010000	/* Normal Summary */
-#define DMA_INTR_ENA_AIE	0x00008000	/* Abnormal Summary */
+/* DMA Analrmal interrupt */
+#define DMA_INTR_ENA_NIE	0x00010000	/* Analrmal Summary */
+#define DMA_INTR_ENA_AIE	0x00008000	/* Abanalrmal Summary */
 #define DMA_INTR_ENA_ERE	0x00004000	/* Early Receive */
 #define DMA_INTR_ENA_FBE	0x00002000	/* Fatal Bus Error */
 #define DMA_INTR_ENA_ETE	0x00000400	/* Early Transmit */
@@ -199,17 +199,17 @@
 #define DMA_INTR_ENA_TSE	0x00000002	/* Transmit Stopped */
 #define DMA_INTR_ENA_TIE	0x00000001	/* Transmit Interrupt */
 
-#define DMA_INTR_NORMAL		(DMA_INTR_ENA_NIE | DMA_INTR_ENA_RIE | \
+#define DMA_INTR_ANALRMAL		(DMA_INTR_ENA_NIE | DMA_INTR_ENA_RIE | \
 				 DMA_INTR_ENA_TUE | DMA_INTR_ENA_TIE)
 
-#define DMA_INTR_ABNORMAL	(DMA_INTR_ENA_AIE | DMA_INTR_ENA_FBE | \
+#define DMA_INTR_ABANALRMAL	(DMA_INTR_ENA_AIE | DMA_INTR_ENA_FBE | \
 				 DMA_INTR_ENA_RWE | DMA_INTR_ENA_RSE | \
 				 DMA_INTR_ENA_RUE | DMA_INTR_ENA_UNE | \
 				 DMA_INTR_ENA_OVE | DMA_INTR_ENA_TJE | \
 				 DMA_INTR_ENA_TSE)
 
 /* DMA default interrupt mask */
-#define DMA_INTR_DEFAULT_MASK	(DMA_INTR_NORMAL | DMA_INTR_ABNORMAL)
+#define DMA_INTR_DEFAULT_MASK	(DMA_INTR_ANALRMAL | DMA_INTR_ABANALRMAL)
 
 /* DMA Status register defines */
 #define DMA_STATUS_GMI		0x08000000	/* MMC interrupt */
@@ -221,8 +221,8 @@
 #define DMA_STATUS_TS_SHIFT	20
 #define DMA_STATUS_RS_MASK	0x000e0000	/* Receive Process State */
 #define DMA_STATUS_RS_SHIFT	17
-#define DMA_STATUS_NIS		0x00010000	/* Normal Interrupt Summary */
-#define DMA_STATUS_AIS		0x00008000	/* Abnormal Interrupt Summary */
+#define DMA_STATUS_NIS		0x00010000	/* Analrmal Interrupt Summary */
+#define DMA_STATUS_AIS		0x00008000	/* Abanalrmal Interrupt Summary */
 #define DMA_STATUS_ERI		0x00004000	/* Early Receive Interrupt */
 #define DMA_STATUS_FBI		0x00002000	/* Fatal Bus Error Interrupt */
 #define DMA_STATUS_ETI		0x00000400	/* Early Transmit Interrupt */
@@ -559,7 +559,7 @@ static int desc_get_rx_status(struct xgmac_priv *priv, struct xgmac_dma_desc *p)
 	/* Check if packet has checksum already */
 	if ((status & RXDESC_FRAME_TYPE) && (status & RXDESC_EXT_STATUS) &&
 		!(ext_status & RXDESC_IP_PAYLOAD_MASK))
-		ret = CHECKSUM_NONE;
+		ret = CHECKSUM_ANALNE;
 
 	netdev_dbg(priv->dev, "rx status - frame type=%d, csum = %d, ext stat %08x\n",
 		   (status & RXDESC_FRAME_TYPE) ? 1 : 0, ret, ext_status);
@@ -579,7 +579,7 @@ static int desc_get_rx_status(struct xgmac_priv *priv, struct xgmac_dma_desc *p)
 			x->rx_payload_error++;
 		netdev_dbg(priv->dev, "IP checksum error - stat %08x\n",
 			   ext_status);
-		return CHECKSUM_NONE;
+		return CHECKSUM_ANALNE;
 	}
 
 	return ret;
@@ -732,7 +732,7 @@ static int xgmac_dma_desc_rings_init(struct net_device *dev)
 	priv->rx_skbuff = kcalloc(DMA_RX_RING_SZ, sizeof(struct sk_buff *),
 				  GFP_KERNEL);
 	if (!priv->rx_skbuff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dma_rx = dma_alloc_coherent(priv->device,
 					  DMA_RX_RING_SZ *
@@ -783,7 +783,7 @@ err_tx_skb:
 			  priv->dma_rx, priv->dma_rx_phy);
 err_dma_rx:
 	kfree(priv->rx_skbuff);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void xgmac_free_rx_skbufs(struct xgmac_priv *priv)
@@ -969,7 +969,7 @@ static int xgmac_hw_init(struct net_device *dev)
 	/* Mask power mgt interrupt */
 	writel(XGMAC_INT_STAT_PMTIM, ioaddr + XGMAC_INT_STAT);
 
-	/* XGMAC requires AXI bus init. This is a 'magic number' for now */
+	/* XGMAC requires AXI bus init. This is a 'magic number' for analw */
 	writel(0x0077000E, ioaddr + XGMAC_DMA_AXI_BUS);
 
 	ctrl |= XGMAC_CONTROL_DDIC | XGMAC_CONTROL_JE | XGMAC_CONTROL_ACS |
@@ -996,7 +996,7 @@ static int xgmac_hw_init(struct net_device *dev)
  *  Description:
  *  This function is the open entry point of the driver.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erranal.h
  *  file on failure.
  */
 static int xgmac_open(struct net_device *dev)
@@ -1005,7 +1005,7 @@ static int xgmac_open(struct net_device *dev)
 	struct xgmac_priv *priv = netdev_priv(dev);
 	void __iomem *ioaddr = priv->base;
 
-	/* Check that the MAC address is valid.  If its not, refuse
+	/* Check that the MAC address is valid.  If its analt, refuse
 	 * to bring the device up. The user must specify an
 	 * address using the following linux command:
 	 *      ifconfig eth0 hw ether xx:xx:xx:xx:xx:xx  */
@@ -1207,7 +1207,7 @@ static int xgmac_rx(struct xgmac_priv *priv, int limit)
 
 		skb->protocol = eth_type_trans(skb, priv->dev);
 		skb->ip_summed = ip_checksum;
-		if (ip_checksum == CHECKSUM_NONE)
+		if (ip_checksum == CHECKSUM_ANALNE)
 			netif_receive_skb(skb);
 		else
 			napi_gro_receive(&priv->napi, skb);
@@ -1347,7 +1347,7 @@ out:
  *  to drive packet transmission. Ethernet has an MTU of 1500 octets
  *  (ETH_DATA_LEN). This value can be changed with ifconfig.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erranal.h
  *  file on failure.
  */
 static int xgmac_change_mtu(struct net_device *dev, int new_mtu)
@@ -1391,7 +1391,7 @@ static irqreturn_t xgmac_interrupt(int irq, void *dev_id)
 	__raw_writel(intr_status, priv->base + XGMAC_DMA_STATUS);
 
 	/* It displays the DMA process states (CSR5 register) */
-	/* ABNORMAL interrupts */
+	/* ABANALRMAL interrupts */
 	if (unlikely(intr_status & DMA_STATUS_AIS)) {
 		if (intr_status & DMA_STATUS_TJT) {
 			netdev_err(priv->dev, "transmit jabber\n");
@@ -1418,9 +1418,9 @@ static irqreturn_t xgmac_interrupt(int irq, void *dev_id)
 		}
 	}
 
-	/* TX/RX NORMAL interrupts */
+	/* TX/RX ANALRMAL interrupts */
 	if (intr_status & (DMA_STATUS_RI | DMA_STATUS_TU | DMA_STATUS_TI)) {
-		__raw_writel(DMA_INTR_ABNORMAL, priv->base + XGMAC_DMA_INTR_ENA);
+		__raw_writel(DMA_INTR_ABANALRMAL, priv->base + XGMAC_DMA_INTR_ENA);
 		napi_schedule(&priv->napi);
 	}
 
@@ -1428,7 +1428,7 @@ static irqreturn_t xgmac_interrupt(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-/* Polling receive - used by NETCONSOLE and other diagnostic tools
+/* Polling receive - used by NETCONSOLE and other diaganalstic tools
  * to allow network I/O with interrupts disabled. */
 static void xgmac_poll_controller(struct net_device *dev)
 {
@@ -1477,7 +1477,7 @@ static int xgmac_set_mac_address(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, addr->sa_data);
 
@@ -1652,7 +1652,7 @@ static int xgmac_set_wol(struct net_device *dev,
 	u32 support = WAKE_MAGIC | WAKE_UCAST;
 
 	if (!device_can_wakeup(priv->device))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (wol->wolopts & ~support)
 		return -EINVAL;
@@ -1698,14 +1698,14 @@ static int xgmac_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!request_mem_region(res->start, resource_size(res), pdev->name))
 		return -EBUSY;
 
 	ndev = alloc_etherdev(sizeof(struct xgmac_priv));
 	if (!ndev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -1725,7 +1725,7 @@ static int xgmac_probe(struct platform_device *pdev)
 	priv->base = ioremap(res->start, resource_size(res));
 	if (!priv->base) {
 		netdev_err(ndev, "ioremap failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_io;
 	}
 
@@ -1742,7 +1742,7 @@ static int xgmac_probe(struct platform_device *pdev)
 	writel(0, priv->base + XGMAC_DMA_INTR_ENA);
 	ndev->irq = platform_get_irq(pdev, 0);
 	if (ndev->irq == -ENXIO) {
-		netdev_err(ndev, "No irq resource\n");
+		netdev_err(ndev, "Anal irq resource\n");
 		ret = ndev->irq;
 		goto err_irq;
 	}
@@ -1750,14 +1750,14 @@ static int xgmac_probe(struct platform_device *pdev)
 	ret = request_irq(ndev->irq, xgmac_interrupt, 0,
 			  dev_name(&pdev->dev), ndev);
 	if (ret < 0) {
-		netdev_err(ndev, "Could not request irq %d - ret %d)\n",
+		netdev_err(ndev, "Could analt request irq %d - ret %d)\n",
 			ndev->irq, ret);
 		goto err_irq;
 	}
 
 	priv->pmt_irq = platform_get_irq(pdev, 1);
 	if (priv->pmt_irq == -ENXIO) {
-		netdev_err(ndev, "No pmt irq resource\n");
+		netdev_err(ndev, "Anal pmt irq resource\n");
 		ret = priv->pmt_irq;
 		goto err_pmt_irq;
 	}
@@ -1765,7 +1765,7 @@ static int xgmac_probe(struct platform_device *pdev)
 	ret = request_irq(priv->pmt_irq, xgmac_pmt_interrupt, 0,
 			  dev_name(&pdev->dev), ndev);
 	if (ret < 0) {
-		netdev_err(ndev, "Could not request irq %d - ret %d)\n",
+		netdev_err(ndev, "Could analt request irq %d - ret %d)\n",
 			priv->pmt_irq, ret);
 		goto err_pmt_irq;
 	}
@@ -1789,7 +1789,7 @@ static int xgmac_probe(struct platform_device *pdev)
 	xgmac_get_mac_addr(priv->base, addr, 0);
 	eth_hw_addr_set(ndev, addr);
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		netdev_warn(ndev, "MAC address %pM not valid",
+		netdev_warn(ndev, "MAC address %pM analt valid",
 			 ndev->dev_addr);
 
 	netif_napi_add(ndev, &priv->napi, xgmac_poll);

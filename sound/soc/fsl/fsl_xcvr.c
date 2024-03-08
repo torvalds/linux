@@ -178,18 +178,18 @@ static int fsl_xcvr_activate_ctl(struct snd_soc_dai *dai, const char *name,
 
 	kctl = snd_soc_card_get_kcontrol_locked(card, name);
 	if (kctl == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	enabled = ((kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_WRITE) != 0);
 	if (active == enabled)
-		return 0; /* nothing to do */
+		return 0; /* analthing to do */
 
 	if (active)
 		kctl->vd[0].access |=  SNDRV_CTL_ELEM_ACCESS_WRITE;
 	else
 		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_WRITE;
 
-	snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
+	snd_ctl_analtify(card->snd_card, SNDRV_CTL_EVENT_MASK_INFO, &kctl->id);
 
 	return 1;
 }
@@ -296,7 +296,7 @@ static int fsl_xcvr_en_phy_pll(struct fsl_xcvr *xcvr, u32 freq, bool tx)
 	fsl_xcvr_ai_write(xcvr, FSL_XCVR_PLL_CTRL0, fsl_xcvr_pll_cfg[i].mfi, 0);
 	/* PLL: NUMERATOR: MFN */
 	fsl_xcvr_ai_write(xcvr, FSL_XCVR_PLL_NUM, fsl_xcvr_pll_cfg[i].mfn, 0);
-	/* PLL: DENOMINATOR: MFD */
+	/* PLL: DEANALMINATOR: MFD */
 	fsl_xcvr_ai_write(xcvr, FSL_XCVR_PLL_DEN, fsl_xcvr_pll_cfg[i].mfd, 0);
 	/* PLL: CTRL0_SET: HOLD_RING_OFF, POWER_UP */
 	fsl_xcvr_ai_write(xcvr, FSL_XCVR_PLL_CTRL0_SET,
@@ -601,7 +601,7 @@ static void fsl_xcvr_shutdown(struct snd_pcm_substream *substream,
 
 	xcvr->streams &= ~BIT(substream->stream);
 
-	/* Enable XCVR controls if there is no stream started */
+	/* Enable XCVR controls if there is anal stream started */
 	if (!xcvr->streams) {
 		if (!xcvr->soc_data->spdif_only) {
 			struct snd_soc_card *card = dai->component->card;
@@ -758,7 +758,7 @@ static int fsl_xcvr_load_firmware(struct fsl_xcvr *xcvr)
 	if (rem > 16384) {
 		dev_err(dev, "FW size %d is bigger than 16KiB.\n", rem);
 		release_firmware(fw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (page = 0; page < 10; page++) {
@@ -944,7 +944,7 @@ static struct snd_soc_dai_driver fsl_xcvr_dai = {
 		.channels_max = 32,
 		.rate_min = 32000,
 		.rate_max = 1536000,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE,
 	},
 	.capture = {
@@ -953,7 +953,7 @@ static struct snd_soc_dai_driver fsl_xcvr_dai = {
 		.channels_max = 32,
 		.rate_min = 32000,
 		.rate_max = 1536000,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE,
 	},
 };
@@ -1229,7 +1229,7 @@ static irqreturn_t irq0_isr(int irq, void *devid)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static const struct fsl_xcvr_soc_data fsl_xcvr_imx8mp_data = {
@@ -1258,7 +1258,7 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 
 	xcvr = devm_kzalloc(dev, sizeof(*xcvr), GFP_KERNEL);
 	if (!xcvr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xcvr->pdev = pdev;
 	xcvr->soc_data = of_device_get_match_data(&pdev->dev);
@@ -1323,7 +1323,7 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 	rx_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rxfifo");
 	tx_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "txfifo");
 	if (!rx_res || !tx_res) {
-		dev_err(dev, "could not find rxfifo or txfifo resource\n");
+		dev_err(dev, "could analt find rxfifo or txfifo resource\n");
 		return -EINVAL;
 	}
 	xcvr->dma_prms_rx.chan_name = "rx";
@@ -1339,7 +1339,7 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 
 	/*
 	 * Register platform component before registering cpu dai for there
-	 * is not defer probe for platform component in snd_soc_add_pcm_runtime().
+	 * is analt defer probe for platform component in snd_soc_add_pcm_runtime().
 	 */
 	ret = devm_snd_dmaengine_pcm_register(dev, NULL, 0);
 	if (ret) {
@@ -1371,7 +1371,7 @@ static __maybe_unused int fsl_xcvr_runtime_suspend(struct device *dev)
 
 	/*
 	 * Clear interrupts, when streams starts or resumes after
-	 * suspend, interrupts are enabled in prepare(), so no need
+	 * suspend, interrupts are enabled in prepare(), so anal need
 	 * to enable interrupts in resume().
 	 */
 	ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_IER0,

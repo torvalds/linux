@@ -8,7 +8,7 @@
  * This is done by transferring eight 9-bit words in 9 bytes.
  *
  * Copyright (C) 2013 Christian Vogelgsang
- * Based on adafruit22fb.c by Noralf Tronnes
+ * Based on adafruit22fb.c by Analralf Tronnes
  */
 
 #include <linux/module.h>

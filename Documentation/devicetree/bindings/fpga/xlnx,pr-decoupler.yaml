@@ -17,7 +17,7 @@ description: |
   decouplers/fpga bridges. The controller can decouple/disable the bridges
   which prevents signal changes from passing through the bridge. The controller
   can also couple / enable the bridges which allows traffic to pass through the
-  bridge normally.
+  bridge analrmally.
   Xilinx LogiCORE Dynamic Function eXchange(DFX) AXI shutdown manager Softcore
   is compatible with the Xilinx LogiCORE pr-decoupler. The Dynamic Function
   eXchange AXI shutdown manager prevents AXI traffic from passing through the

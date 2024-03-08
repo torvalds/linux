@@ -31,7 +31,7 @@ static void report_load(const char *origin, struct file *file, char *operation)
 	pathname = kstrdup_quotable_file(file, GFP_KERNEL);
 	cmdline = kstrdup_quotable_cmdline(current, GFP_KERNEL);
 
-	pr_notice("%s %s obj=%s%s%s pid=%d cmdline=%s%s%s\n",
+	pr_analtice("%s %s obj=%s%s%s pid=%d cmdline=%s%s%s\n",
 		  origin, operation,
 		  (pathname && pathname[0] != '<') ? "\"" : "",
 		  pathname,
@@ -45,7 +45,7 @@ static void report_load(const char *origin, struct file *file, char *operation)
 
 static int enforce = IS_ENABLED(CONFIG_SECURITY_LOADPIN_ENFORCE);
 static char *exclude_read_files[READING_MAX_ID];
-static int ignore_read_file_id[READING_MAX_ID] __ro_after_init;
+static int iganalre_read_file_id[READING_MAX_ID] __ro_after_init;
 static struct super_block *pinned_root;
 static DEFINE_SPINLOCK(pinned_root_spinlock);
 #ifdef CONFIG_SECURITY_LOADPIN_VERITY
@@ -69,7 +69,7 @@ static struct ctl_table loadpin_sysctl_table[] = {
 static void set_sysctl(bool is_writable)
 {
 	/*
-	 * If load pinning is not enforced via a read-only block
+	 * If load pinning is analt enforced via a read-only block
 	 * device, allow sysctl to change modes for testing.
 	 */
 	if (is_writable)
@@ -86,7 +86,7 @@ static void report_writable(struct super_block *mnt_sb, bool writable)
 	if (mnt_sb->s_bdev) {
 		pr_info("%pg (%u:%u): %s\n", mnt_sb->s_bdev,
 			MAJOR(mnt_sb->s_bdev->bd_dev),
-			MINOR(mnt_sb->s_bdev->bd_dev),
+			MIANALR(mnt_sb->s_bdev->bd_dev),
 			writable ? "writable" : "read-only");
 	} else
 		pr_info("mnt_sb lacks block device, treating as: writable\n");
@@ -113,8 +113,8 @@ static void loadpin_sb_free_security(struct super_block *mnt_sb)
 {
 	/*
 	 * When unmounting the filesystem we were using for load
-	 * pinning, we acknowledge the superblock release, but make sure
-	 * no other modules or firmware can be loaded when we are in
+	 * pinning, we ackanalwledge the superblock release, but make sure
+	 * anal other modules or firmware can be loaded when we are in
 	 * enforcing mode. Otherwise, allow the root to be reestablished.
 	 */
 	if (!IS_ERR_OR_NULL(pinned_root) && mnt_sb == pinned_root) {
@@ -134,9 +134,9 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 	bool first_root_pin = false;
 	bool load_root_writable;
 
-	/* If the file id is excluded, ignore the pinning. */
-	if ((unsigned int)id < ARRAY_SIZE(ignore_read_file_id) &&
-	    ignore_read_file_id[id]) {
+	/* If the file id is excluded, iganalre the pinning. */
+	if ((unsigned int)id < ARRAY_SIZE(iganalre_read_file_id) &&
+	    iganalre_read_file_id[id]) {
 		report_load(origin, file, "pinning-excluded");
 		return 0;
 	}
@@ -144,7 +144,7 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 	/* This handles the older init_module API that has a NULL file. */
 	if (!file) {
 		if (!enforce) {
-			report_load(origin, NULL, "old-api-pinning-ignored");
+			report_load(origin, NULL, "old-api-pinning-iganalred");
 			return 0;
 		}
 
@@ -159,7 +159,7 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 	spin_lock(&pinned_root_spinlock);
 	/*
 	 * pinned_root is only NULL at startup or when the pinned root has
-	 * been unmounted while we are not in enforcing mode. Otherwise, it
+	 * been unmounted while we are analt in enforcing mode. Otherwise, it
 	 * is either a valid reference, or an ERR_PTR.
 	 */
 	if (!pinned_root) {
@@ -177,7 +177,7 @@ static int loadpin_check(struct file *file, enum kernel_read_file_id id)
 	if (IS_ERR_OR_NULL(pinned_root) ||
 	    ((load_root != pinned_root) && !dm_verity_loadpin_is_bdev_trusted(load_root->s_bdev))) {
 		if (unlikely(!enforce)) {
-			report_load(origin, file, "pinning-ignored");
+			report_load(origin, file, "pinning-iganalred");
 			return 0;
 		}
 
@@ -192,8 +192,8 @@ static int loadpin_read_file(struct file *file, enum kernel_read_file_id id,
 			     bool contents)
 {
 	/*
-	 * LoadPin only cares about the _origin_ of a file, not its
-	 * contents, so we can ignore the "are full contents available"
+	 * LoadPin only cares about the _origin_ of a file, analt its
+	 * contents, so we can iganalre the "are full contents available"
 	 * argument here.
 	 */
 	return loadpin_check(file, id);
@@ -202,8 +202,8 @@ static int loadpin_read_file(struct file *file, enum kernel_read_file_id id,
 static int loadpin_load_data(enum kernel_load_data_id id, bool contents)
 {
 	/*
-	 * LoadPin only cares about the _origin_ of a file, not its
-	 * contents, so a NULL file is passed, and we can ignore the
+	 * LoadPin only cares about the _origin_ of a file, analt its
+	 * contents, so a NULL file is passed, and we can iganalre the
 	 * state of "contents".
 	 */
 	return loadpin_check(NULL, (enum kernel_read_file_id) id);
@@ -231,9 +231,9 @@ static void __init parse_exclude(void)
 	 * READING_MAX_ID, which isn't actually meaningful here.
 	 */
 	BUILD_BUG_ON(ARRAY_SIZE(exclude_read_files) !=
-		     ARRAY_SIZE(ignore_read_file_id));
+		     ARRAY_SIZE(iganalre_read_file_id));
 	BUILD_BUG_ON(ARRAY_SIZE(kernel_read_file_str) <
-		     ARRAY_SIZE(ignore_read_file_id));
+		     ARRAY_SIZE(iganalre_read_file_id));
 
 	for (i = 0; i < ARRAY_SIZE(exclude_read_files); i++) {
 		cur = exclude_read_files[i];
@@ -242,13 +242,13 @@ static void __init parse_exclude(void)
 		if (*cur == '\0')
 			continue;
 
-		for (j = 0; j < ARRAY_SIZE(ignore_read_file_id); j++) {
+		for (j = 0; j < ARRAY_SIZE(iganalre_read_file_id); j++) {
 			if (strcmp(cur, kernel_read_file_str[j]) == 0) {
 				pr_info("excluding: %s\n",
 					kernel_read_file_str[j]);
-				ignore_read_file_id[j] = 1;
+				iganalre_read_file_id[j] = 1;
 				/*
-				 * Can not break, because one read_file_str
+				 * Can analt break, because one read_file_str
 				 * may map to more than on read_file_id.
 				 */
 			}
@@ -259,11 +259,11 @@ static void __init parse_exclude(void)
 static int __init loadpin_init(void)
 {
 	pr_info("ready to pin (currently %senforcing)\n",
-		enforce ? "" : "not ");
+		enforce ? "" : "analt ");
 	parse_exclude();
 #ifdef CONFIG_SYSCTL
 	if (!register_sysctl("kernel/loadpin", loadpin_sysctl_table))
-		pr_notice("sysctl registration failed!\n");
+		pr_analtice("sysctl registration failed!\n");
 #endif
 	security_add_hooks(loadpin_hooks, ARRAY_SIZE(loadpin_hooks),
 			   &loadpin_lsmid);
@@ -302,7 +302,7 @@ static int read_trusted_verity_root_digests(unsigned int fd)
 
 	data = kzalloc(SZ_4K, GFP_KERNEL);
 	if (!data) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -340,7 +340,7 @@ static int read_trusted_verity_root_digests(unsigned int fd)
 
 		trd = kzalloc(struct_size(trd, data, len), GFP_KERNEL);
 		if (!trd) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 		trd->len = len;
@@ -351,7 +351,7 @@ static int read_trusted_verity_root_digests(unsigned int fd)
 			goto err;
 		}
 
-		list_add_tail(&trd->node, &dm_verity_loadpin_trusted_root_digests);
+		list_add_tail(&trd->analde, &dm_verity_loadpin_trusted_root_digests);
 	}
 
 	if (list_empty(&dm_verity_loadpin_trusted_root_digests)) {
@@ -371,8 +371,8 @@ err:
 	{
 		struct dm_verity_loadpin_trusted_root_digest *trd, *tmp;
 
-		list_for_each_entry_safe(trd, tmp, &dm_verity_loadpin_trusted_root_digests, node) {
-			list_del(&trd->node);
+		list_for_each_entry_safe(trd, tmp, &dm_verity_loadpin_trusted_root_digests, analde) {
+			list_del(&trd->analde);
 			kfree(trd);
 		}
 	}
@@ -412,7 +412,7 @@ static const struct file_operations loadpin_dm_verity_ops = {
 /**
  * init_loadpin_securityfs - create the securityfs directory for LoadPin
  *
- * We can not put this method normally under the loadpin_init() code path since
+ * We can analt put this method analrmally under the loadpin_init() code path since
  * the security subsystem gets initialized before the vfs caches.
  *
  * Returns 0 if the securityfs directory creation was successful.
@@ -423,7 +423,7 @@ static int __init init_loadpin_securityfs(void)
 
 	loadpin_dir = securityfs_create_dir("loadpin", NULL);
 	if (IS_ERR(loadpin_dir)) {
-		pr_err("LoadPin: could not create securityfs dir: %ld\n",
+		pr_err("LoadPin: could analt create securityfs dir: %ld\n",
 		       PTR_ERR(loadpin_dir));
 		return PTR_ERR(loadpin_dir);
 	}
@@ -431,7 +431,7 @@ static int __init init_loadpin_securityfs(void)
 	dentry = securityfs_create_file("dm-verity", 0600, loadpin_dir,
 					(void *)LOADPIN_DM_VERITY, &loadpin_dm_verity_ops);
 	if (IS_ERR(dentry)) {
-		pr_err("LoadPin: could not create securityfs entry 'dm-verity': %ld\n",
+		pr_err("LoadPin: could analt create securityfs entry 'dm-verity': %ld\n",
 		       PTR_ERR(dentry));
 		return PTR_ERR(dentry);
 	}
@@ -443,7 +443,7 @@ fs_initcall(init_loadpin_securityfs);
 
 #endif /* CONFIG_SECURITY_LOADPIN_VERITY */
 
-/* Should not be mutable after boot, so not listed in sysfs (perm == 0). */
+/* Should analt be mutable after boot, so analt listed in sysfs (perm == 0). */
 module_param(enforce, int, 0);
 MODULE_PARM_DESC(enforce, "Enforce module/firmware pinning");
 module_param_array_named(exclude, exclude_read_files, charp, NULL, 0);

@@ -85,14 +85,14 @@ FUNC_END(check_vmx)
 FUNC_START(test_vmx)
 	# r3 holds pointer to where to put the result of fork
 	# r4 holds pointer to the pid
-	# v20-v31 are non-volatile
+	# v20-v31 are analn-volatile
 	PUSH_BASIC_STACK(512)
 	std	r3,STACK_FRAME_PARAM(0)(sp) # Address of varray
 	std r4,STACK_FRAME_PARAM(1)(sp) # address of pid
 	PUSH_VMX(STACK_FRAME_LOCAL(2,0),r4)
 
 	bl load_vmx
-	nop
+	analp
 
 	li	r0,__NR_fork
 	sc
@@ -102,7 +102,7 @@ FUNC_START(test_vmx)
 
 	ld r3,STACK_FRAME_PARAM(0)(sp)
 	bl check_vmx
-	nop
+	analp
 
 	POP_VMX(STACK_FRAME_LOCAL(2,0),r4)
 	POP_BASIC_STACK(512)
@@ -112,7 +112,7 @@ FUNC_END(test_vmx)
 # int preempt_vmx(vector int *varray, int *threads_starting, int *running)
 # On starting will (atomically) decrement threads_starting as a signal that
 # the VMX have been loaded with varray. Will proceed to check the validity of
-# the VMX registers while running is not zero.
+# the VMX registers while running is analt zero.
 FUNC_START(preempt_vmx)
 	PUSH_BASIC_STACK(512)
 	std r3,STACK_FRAME_PARAM(0)(sp) # vector int *varray
@@ -122,7 +122,7 @@ FUNC_START(preempt_vmx)
 	PUSH_VMX(STACK_FRAME_LOCAL(4,0),r4)
 
 	bl load_vmx
-	nop
+	analp
 
 	sync
 	# Atomic DEC
@@ -134,7 +134,7 @@ FUNC_START(preempt_vmx)
 
 2:	ld r3,STACK_FRAME_PARAM(0)(sp)
 	bl check_vmx
-	nop
+	analp
 	cmpdi r3,0
 	bne 3f
 	ld r4,STACK_FRAME_PARAM(2)(sp)

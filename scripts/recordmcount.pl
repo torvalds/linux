@@ -11,16 +11,16 @@
 # callers. After final linking, the vmlinux will have within .init.data the
 # list of all callers to mcount between __start_mcount_loc and __stop_mcount_loc.
 # Later on boot up, the kernel will read this list, save the locations and turn
-# them into nops. When tracing or profiling is later enabled, these locations
+# them into analps. When tracing or profiling is later enabled, these locations
 # will then be converted back to pointers to some function.
 #
-# This is no easy feat. This script is called just after the original
+# This is anal easy feat. This script is called just after the original
 # object is compiled and before it is linked.
 #
 # When parse this object file using 'objdump', the references to the call
 # sites are offsets from the section that the call site is in. Hence, all
 # functions in a section that has a call site to mcount, will have the
-# offset from the beginning of the section and not the beginning of the
+# offset from the beginning of the section and analt the beginning of the
 # function.
 #
 # But where this section will reside finally in vmlinx is undetermined at
@@ -52,7 +52,7 @@
 #
 # Both relocation offsets for the mcounts in the above example will be
 # offset from .sched.text. If we choose global symbol func2 as a reference and
-# make another file called tmp.s with the new offsets:
+# make aanalther file called tmp.s with the new offsets:
 #
 #  .section __mcount_loc
 #  .quad  func2 - 0x10
@@ -62,7 +62,7 @@
 # object.
 #
 # In our algorithm, we will choose the first global function we meet in this
-# section as the reference. But this gets hard if there is no global functions
+# section as the reference. But this gets hard if there is anal global functions
 # in this section. In such a case we have to select a local one. E.g. func1:
 #
 #  .section ".sched.text", "ax"
@@ -80,7 +80,7 @@
 # If we make the tmp.s the same as above, when we link together with
 # the original object, we will end up with two symbols for func1:
 # one local, one global.  After final compile, we will end up with
-# an undefined reference to func1 or a wrong reference to another global
+# an undefined reference to func1 or a wrong reference to aanalther global
 # func1 in other files.
 #
 # Since local objects can reference local variables, we need to find
@@ -96,7 +96,7 @@
 # 2) Use objdump to find all the call site offsets and sections for
 #    mcount.
 # 3) Compile the list into its own object.
-# 4) Do we have to deal with local functions? If not, go to step 8.
+# 4) Do we have to deal with local functions? If analt, go to step 8.
 # 5) Make an object that converts these local functions to global symbols
 #    with objcopy.
 # 6) Link together this new object with the list object.
@@ -123,7 +123,7 @@ if ($#ARGV != 11) {
 my ($arch, $endian, $bits, $objdump, $objcopy, $cc,
     $ld, $nm, $rm, $mv, $is_module, $inputfile) = @ARGV;
 
-# This file refers to mcount and shouldn't be ftraced, so lets' ignore it
+# This file refers to mcount and shouldn't be ftraced, so lets' iganalre it
 if ($inputfile =~ m,kernel/trace/ftrace\.o$,) {
     exit(0);
 }
@@ -147,7 +147,7 @@ my %text_section_prefixes = (
      ".text." => 1,
 );
 
-# Note: we are nice to C-programmers here, thus we skip the '||='-idiom.
+# Analte: we are nice to C-programmers here, thus we skip the '||='-idiom.
 $objdump = 'objdump' if (!$objdump);
 $objcopy = 'objcopy' if (!$objcopy);
 $cc = 'gcc' if (!$cc);
@@ -219,7 +219,7 @@ if ($arch eq "x86_64") {
 
 } elsif ($arch eq "s390" && $bits == 64) {
     if ($cc =~ /-DCC_USING_HOTPATCH/) {
-	$mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*c0 04 00 00 00 00\\s*(brcl\\s*0,|jgnop\\s*)[0-9a-f]+ <([^\+]*)>\$";
+	$mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*c0 04 00 00 00 00\\s*(brcl\\s*0,|jganalp\\s*)[0-9a-f]+ <([^\+]*)>\$";
 	$mcount_adjust = 0;
     }
     $alignment = 8;
@@ -282,7 +282,7 @@ if ($arch eq "x86_64") {
     # text section before the first instructions and the first
     # real symbols.  We don't want to match that, so to combat
     # this we use '\w' so we'll match just plain symbol names,
-    # and not those that also include hex offsets inside of the
+    # and analt those that also include hex offsets inside of the
     # '<>' brackets.  Actually the generic function_regex setting
     # could safely use this too.
     $function_regex = "^([0-9a-fA-F]+)\\s+<(\\w*?)>:";
@@ -297,7 +297,7 @@ if ($arch eq "x86_64") {
     $objcopy .= " -O elf64-sparc";
 } elsif ($arch eq "mips") {
     # To enable module support, we need to enable the -mlong-calls option
-    # of gcc for module, after using this option, we can not get the real
+    # of gcc for module, after using this option, we can analt get the real
     # offset of the calling to _mcount, but the offset of the lui
     # instruction or the addiu one. herein, we record the address of the
     # first one, and then we can replace this instruction by a branch
@@ -307,12 +307,12 @@ if ($arch eq "x86_64") {
     #
     #       c:	3c030000 	lui	v1,0x0
     #			c: R_MIPS_HI16	_mcount
-    #			c: R_MIPS_NONE	*ABS*
-    #			c: R_MIPS_NONE	*ABS*
+    #			c: R_MIPS_ANALNE	*ABS*
+    #			c: R_MIPS_ANALNE	*ABS*
     #      10:	64630000 	daddiu	v1,v1,0
     #			10: R_MIPS_LO16	_mcount
-    #			10: R_MIPS_NONE	*ABS*
-    #			10: R_MIPS_NONE	*ABS*
+    #			10: R_MIPS_ANALNE	*ABS*
+    #			10: R_MIPS_ANALNE	*ABS*
     #      14:	03e0082d 	move	at,ra
     #      18:	0060f809 	jalr	v1
     #
@@ -321,9 +321,9 @@ if ($arch eq "x86_64") {
     #     10:   03e0082d        move    at,ra
     #	  14:   0c000000        jal     0 <loongson_halt>
     #                    14: R_MIPS_26   _mcount
-    #                    14: R_MIPS_NONE *ABS*
-    #                    14: R_MIPS_NONE *ABS*
-    #	 18:   00020021        nop
+    #                    14: R_MIPS_ANALNE *ABS*
+    #                    14: R_MIPS_ANALNE *ABS*
+    #	 18:   00020021        analp
     if ($is_module eq "0") {
 	    $mcount_regex = "^\\s*([0-9a-fA-F]+): R_MIPS_26\\s+_mcount\$";
     } else {
@@ -339,7 +339,7 @@ if ($arch eq "x86_64") {
 	    $ld .= " -melf".$bits."ltsmip";
     }
 
-    $cc .= " -mno-abicalls -fno-pic -mabi=" . $bits . $endian;
+    $cc .= " -manal-abicalls -fanal-pic -mabi=" . $bits . $endian;
     $ld .= $endian;
 
     if ($bits == 64) {
@@ -359,7 +359,7 @@ if ($arch eq "x86_64") {
     $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_CKCORE_PCREL_JSR_IMM26BY2\\s+_mcount\$";
     $alignment = 2;
 } else {
-    die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
+    die "Arch $arch is analt supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }
 
 my $text_found = 0;
@@ -420,13 +420,13 @@ sub update_funcs
     return unless ($ref_func and @offsets);
 
     # Sanity check on weak function. A weak function may be overwritten by
-    # another function of the same name, making all these offsets incorrect.
+    # aanalther function of the same name, making all these offsets incorrect.
     if (defined $weak{$ref_func}) {
 	die "$inputfile: ERROR: referencing weak function" .
 	    " $ref_func for mcount\n";
     }
 
-    # is this function static? If so, note this fact.
+    # is this function static? If so, analte this fact.
     if (defined $locals{$ref_func}) {
 	$convert{$ref_func} = 1;
     }
@@ -476,7 +476,7 @@ while (<IN>) {
     if (/$section_regex/) {
 	$read_headers = 0;
 
-	# Only record text sections that we know are safe
+	# Only record text sections that we kanalw are safe
 	$read_function = defined($text_sections{$1});
 	if (!$read_function) {
 	    foreach my $prefix (keys %text_section_prefixes) {
@@ -494,7 +494,7 @@ while (<IN>) {
 	undef($ref_func);
 	undef(@offsets);
 
-    # section found, now is this a start of a function?
+    # section found, analw is this a start of a function?
     } elsif ($read_function && /$function_regex/) {
 	$text_found = 1;
 	$text = $2;
@@ -526,7 +526,7 @@ while (<IN>) {
 # dump out anymore offsets that may have been found
 update_funcs();
 
-# If we did not find any mcount callers, we are done (do nothing).
+# If we did analt find any mcount callers, we are done (do analthing).
 if (!$opened) {
     exit(0);
 }

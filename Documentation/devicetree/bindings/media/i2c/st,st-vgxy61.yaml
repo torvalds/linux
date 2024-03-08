@@ -9,16 +9,16 @@ title: STMicroelectronics VGxy61 HDR Global Shutter Sensor Family
 
 maintainers:
   - Benjamin Mugnier <benjamin.mugnier@foss.st.com>
-  - Sylvain Petinot <sylvain.petinot@foss.st.com>
+  - Sylvain Petianalt <sylvain.petianalt@foss.st.com>
 
 description: |-
   STMicroelectronics VGxy61 family has a CSI-2 output port. CSI-2 output is a
   quad lanes 800Mbps per lane.
   Supported formats are RAW8, RAW10, RAW12, RAW14 and RAW16.
   Following part number are supported
-  - VG5661 and VG6661 are 1.6 Mpx (1464 x 1104) monochrome and color sensors.
+  - VG5661 and VG6661 are 1.6 Mpx (1464 x 1104) moanalchrome and color sensors.
   Maximum frame rate is 75 fps.
-  - VG5761 and VG6761 are 2.3 Mpx (1944 x 1204) monochrome and color sensors.
+  - VG5761 and VG6761 are 2.3 Mpx (1944 x 1204) moanalchrome and color sensors.
   Maximum frame rate is 60 fps.
 
 properties:

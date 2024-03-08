@@ -40,7 +40,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv,
 	msleep_interruptible(1000);
 
 	if (priv->wdev->iftype == NL80211_IFTYPE_STATION)
-		lbs_send_disconnect_notification(priv, locally_generated);
+		lbs_send_disconnect_analtification(priv, locally_generated);
 
 	/* report disconnect to upper layer */
 	netif_stop_queue(priv->dev);
@@ -118,7 +118,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 		goto done;
 	}
 
-	/* Now we got response from FW, cancel the command timer */
+	/* Analw we got response from FW, cancel the command timer */
 	del_timer(&priv->command_timer);
 	priv->cmd_timed_out = 0;
 
@@ -137,7 +137,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 			lbs_deb_host("CMD_RESP: PS command failed with 0x%x\n",
 				    result);
 			/*
-			 * We should not re-try enter-ps command in
+			 * We should analt re-try enter-ps command in
 			 * ad-hoc mode. It takes place in
 			 * lbs_execute_next_command().
 			 */
@@ -179,7 +179,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 		goto done;
 	}
 
-	/* If the command is not successful, cleanup and return failure */
+	/* If the command is analt successful, cleanup and return failure */
 	if ((result != 0 || !(respcmd & 0x8000))) {
 		lbs_deb_host("CMD_RESP: error 0x%04x in command reply 0x%04x\n",
 		       result, respcmd);
@@ -239,7 +239,7 @@ void lbs_process_event(struct lbs_private *priv, u32 event)
 		lbs_mac_event_disconnected(priv, false);
 		break;
 
-	case MACREG_INT_CODE_LINK_LOST_NO_SCAN:
+	case MACREG_INT_CODE_LINK_LOST_ANAL_SCAN:
 		lbs_deb_cmd("EVENT: link lost\n");
 		lbs_mac_event_disconnected(priv, true);
 		break;
@@ -250,11 +250,11 @@ void lbs_process_event(struct lbs_private *priv, u32 event)
 		/* handle unexpected PS SLEEP event */
 		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(
-			       "EVENT: in FULL POWER mode, ignoring PS_SLEEP\n");
+			       "EVENT: in FULL POWER mode, iganalring PS_SLEEP\n");
 			break;
 		}
 		if (!list_empty(&priv->cmdpendingq)) {
-			lbs_deb_cmd("EVENT: commands in queue, do not sleep\n");
+			lbs_deb_cmd("EVENT: commands in queue, do analt sleep\n");
 			break;
 		}
 		priv->psstate = PS_STATE_PRE_SLEEP;
@@ -288,7 +288,7 @@ void lbs_process_event(struct lbs_private *priv, u32 event)
 		/* handle unexpected PS AWAKE event */
 		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(
-			       "EVENT: In FULL POWER mode - ignore PS AWAKE\n");
+			       "EVENT: In FULL POWER mode - iganalre PS AWAKE\n");
 			break;
 		}
 
@@ -342,12 +342,12 @@ void lbs_process_event(struct lbs_private *priv, u32 event)
 		break;
 
 	case MACREG_INT_CODE_MESH_AUTO_STARTED:
-		/* Ignore spurious autostart events */
-		netdev_info(priv->dev, "EVENT: MESH_AUTO_STARTED (ignoring)\n");
+		/* Iganalre spurious autostart events */
+		netdev_info(priv->dev, "EVENT: MESH_AUTO_STARTED (iganalring)\n");
 		break;
 
 	default:
-		netdev_alert(priv->dev, "EVENT: unknown event id %d\n", event);
+		netdev_alert(priv->dev, "EVENT: unkanalwn event id %d\n", event);
 		break;
 	}
 }

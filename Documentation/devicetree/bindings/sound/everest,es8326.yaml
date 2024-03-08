@@ -62,9 +62,9 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint8
     description: |
       value of reg 0x58, Defines the interrupt source.
-      Bit(2) 1 means button press triggers irq, 0 means not.
+      Bit(2) 1 means button press triggers irq, 0 means analt.
       Bit(3) 1 means PIN9 is the irq source for jack detection. When set to 0,
-      bias change on PIN9 do not triggers irq.
+      bias change on PIN9 do analt triggers irq.
       Bit(4) 1 means PIN27 is the irq source for jack detection.
       Bit(5) 1 means PIN9 is the irq source after MIC detect.
       Bit(6) 1 means PIN27 is the irq source after MIC detect.
@@ -83,7 +83,7 @@ properties:
        8 means irq mutes PA
        9 means irq mutes PA and DAC output
      Bit(4) 1 means we invert the interrupt output.
-     Bit(6) 1 means the chip do not detect jack type after button released.
+     Bit(6) 1 means the chip do analt detect jack type after button released.
        0 means the chip detect jack type again after button released.
     minimum: 0
     maximum: 0x7f

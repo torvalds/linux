@@ -15,7 +15,7 @@
 #include <linux/surface_aggregator/device.h>
 
 enum ssam_tmp_profile {
-	SSAM_TMP_PROFILE_NORMAL             = 1,
+	SSAM_TMP_PROFILE_ANALRMAL             = 1,
 	SSAM_TMP_PROFILE_BATTERY_SAVER      = 2,
 	SSAM_TMP_PROFILE_BETTER_PERFORMANCE = 3,
 	SSAM_TMP_PROFILE_BEST_PERFORMANCE   = 4,
@@ -23,8 +23,8 @@ enum ssam_tmp_profile {
 
 struct ssam_tmp_profile_info {
 	__le32 profile;
-	__le16 unknown1;
-	__le16 unknown2;
+	__le16 unkanalwn1;
+	__le16 unkanalwn2;
 } __packed;
 
 struct ssam_tmp_profile_device {
@@ -65,7 +65,7 @@ static int ssam_tmp_profile_set(struct ssam_device *sdev, enum ssam_tmp_profile 
 static int convert_ssam_to_profile(struct ssam_device *sdev, enum ssam_tmp_profile p)
 {
 	switch (p) {
-	case SSAM_TMP_PROFILE_NORMAL:
+	case SSAM_TMP_PROFILE_ANALRMAL:
 		return PLATFORM_PROFILE_BALANCED;
 
 	case SSAM_TMP_PROFILE_BATTERY_SAVER:
@@ -90,7 +90,7 @@ static int convert_profile_to_ssam(struct ssam_device *sdev, enum platform_profi
 		return SSAM_TMP_PROFILE_BATTERY_SAVER;
 
 	case PLATFORM_PROFILE_BALANCED:
-		return SSAM_TMP_PROFILE_NORMAL;
+		return SSAM_TMP_PROFILE_ANALRMAL;
 
 	case PLATFORM_PROFILE_BALANCED_PERFORMANCE:
 		return SSAM_TMP_PROFILE_BETTER_PERFORMANCE;
@@ -101,7 +101,7 @@ static int convert_profile_to_ssam(struct ssam_device *sdev, enum platform_profi
 	default:
 		/* This should have already been caught by platform_profile_store(). */
 		WARN(true, "unsupported platform profile");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -147,7 +147,7 @@ static int surface_platform_profile_probe(struct ssam_device *sdev)
 
 	tpd = devm_kzalloc(&sdev->dev, sizeof(*tpd), GFP_KERNEL);
 	if (!tpd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpd->sdev = sdev;
 
@@ -179,7 +179,7 @@ static struct ssam_device_driver surface_platform_profile = {
 	.match_table = ssam_platform_profile_match,
 	.driver = {
 		.name = "surface_platform_profile",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_ssam_device_driver(surface_platform_profile);

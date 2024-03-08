@@ -80,7 +80,7 @@ static int fifo_enqueue(struct ilo_hwinfo *hw, char *fifobar, int entry)
 	if (!(fifo_q->fifobar[(fifo_q->tail + 1) & fifo_q->imask]
 	      & ENTRY_MASK_O)) {
 		fifo_q->fifobar[fifo_q->tail & fifo_q->imask] |=
-				(entry & ENTRY_MASK_NOSTATE) | fifo_q->merge;
+				(entry & ENTRY_MASK_ANALSTATE) | fifo_q->merge;
 		fifo_q->tail += 1;
 		ret = 1;
 	}
@@ -100,7 +100,7 @@ static int fifo_dequeue(struct ilo_hwinfo *hw, char *fifobar, int *entry)
 	c = fifo_q->fifobar[fifo_q->head & fifo_q->imask];
 	if (c & ENTRY_MASK_C) {
 		if (entry)
-			*entry = c & ENTRY_MASK_NOSTATE;
+			*entry = c & ENTRY_MASK_ANALSTATE;
 
 		fifo_q->fifobar[fifo_q->head & fifo_q->imask] =
 							(c | ENTRY_MASK) + 1;
@@ -278,7 +278,7 @@ static int ilo_ccb_setup(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 	data->dma_va = dma_alloc_coherent(&hw->ilo_dev->dev, data->dma_size,
 					  &data->dma_pa, GFP_ATOMIC);
 	if (!data->dma_va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_va = (char *)data->dma_va;
 	dma_pa = data->dma_pa;
@@ -320,7 +320,7 @@ static int ilo_ccb_setup(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 	ilo_ccb->channel = slot;
 
 	driver_ccb->ccb_u5.db_base = hw->db_vaddr + (slot << L2_DB_SIZE);
-	ilo_ccb->ccb_u5.db_base = NULL; /* hw ccb's doorbell is not used */
+	ilo_ccb->ccb_u5.db_base = NULL; /* hw ccb's doorbell is analt used */
 
 	return 0;
 }
@@ -363,7 +363,7 @@ static int ilo_ccb_verify(struct ilo_hwinfo *hw, struct ccb_data *data)
 	}
 
 	if (i == 0) {
-		dev_err(&hw->ilo_dev->dev, "Open could not dequeue a packet\n");
+		dev_err(&hw->ilo_dev->dev, "Open could analt dequeue a packet\n");
 		return -EBUSY;
 	}
 
@@ -445,12 +445,12 @@ static ssize_t ilo_read(struct file *fp, char __user *buf,
 		 * If the device has been reset, applications
 		 * need to close and reopen all ccbs.
 		 */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
 	 * This function is to be called when data is expected
-	 * in the channel, and will return an error if no packet is found
+	 * in the channel, and will return an error if anal packet is found
 	 * during the loop below.  The sleep/retry logic is to allow
 	 * applications to call read() immediately post write(),
 	 * and give iLO some time to process the sent packet.
@@ -491,7 +491,7 @@ static ssize_t ilo_write(struct file *fp, const char __user *buf,
 	void *pkt;
 
 	if (is_channel_reset(driver_ccb))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* get a packet to send the user command */
 	if (!ilo_pkt_dequeue(hw, driver_ccb, SENDQ, &pkt_id, &pkt_len, &pkt))
@@ -523,19 +523,19 @@ static __poll_t ilo_poll(struct file *fp, poll_table *wait)
 	if (is_channel_reset(driver_ccb))
 		return EPOLLERR;
 	else if (ilo_pkt_recv(data->ilo_hw, driver_ccb))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 
 	return 0;
 }
 
-static int ilo_close(struct inode *ip, struct file *fp)
+static int ilo_close(struct ianalde *ip, struct file *fp)
 {
 	int slot;
 	struct ccb_data *data;
 	struct ilo_hwinfo *hw;
 	unsigned long flags;
 
-	slot = iminor(ip) % max_ccb;
+	slot = imianalr(ip) % max_ccb;
 	hw = container_of(ip->i_cdev, struct ilo_hwinfo, cdev);
 
 	spin_lock(&hw->open_lock);
@@ -559,26 +559,26 @@ static int ilo_close(struct inode *ip, struct file *fp)
 	return 0;
 }
 
-static int ilo_open(struct inode *ip, struct file *fp)
+static int ilo_open(struct ianalde *ip, struct file *fp)
 {
 	int slot, error;
 	struct ccb_data *data;
 	struct ilo_hwinfo *hw;
 	unsigned long flags;
 
-	slot = iminor(ip) % max_ccb;
+	slot = imianalr(ip) % max_ccb;
 	hw = container_of(ip->i_cdev, struct ilo_hwinfo, cdev);
 
 	/* new ccb allocation */
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&hw->open_lock);
 
 	/* each fd private_data holds sw/hw view of ccb */
 	if (hw->ccb_alloc[slot] == NULL) {
-		/* create a channel control block for this minor */
+		/* create a channel control block for this mianalr */
 		error = ilo_ccb_setup(hw, data, slot);
 		if (error) {
 			kfree(data);
@@ -640,7 +640,7 @@ static const struct file_operations ilo_fops = {
 	.poll		= ilo_poll,
 	.open 		= ilo_open,
 	.release 	= ilo_close,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static irqreturn_t ilo_isr(int irq, void *data)
@@ -654,7 +654,7 @@ static irqreturn_t ilo_isr(int irq, void *data)
 	pending = get_device_outbound(hw);
 	if (!pending) {
 		spin_unlock(&hw->alloc_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (is_db_reset(pending)) {
@@ -733,12 +733,12 @@ ram_free:
 mmio_free:
 	pci_iounmap(pdev, hw->mmio_vaddr);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ilo_remove(struct pci_dev *pdev)
 {
-	int i, minor;
+	int i, mianalr;
 	struct ilo_hwinfo *ilo_hw = pci_get_drvdata(pdev);
 
 	if (!ilo_hw)
@@ -746,8 +746,8 @@ static void ilo_remove(struct pci_dev *pdev)
 
 	clear_device(ilo_hw);
 
-	minor = MINOR(ilo_hw->cdev.dev);
-	for (i = minor; i < minor + max_ccb; i++)
+	mianalr = MIANALR(ilo_hw->cdev.dev);
+	for (i = mianalr; i < mianalr + max_ccb; i++)
 		device_destroy(&ilo_class, MKDEV(ilo_major, i));
 
 	cdev_del(&ilo_hw->cdev);
@@ -760,22 +760,22 @@ static void ilo_remove(struct pci_dev *pdev)
 	 * two functions with interrupt lines connected to a single pin. The
 	 * other one is a USB host controller. So when we disable the PIN here
 	 * e.g. by rmmod hpilo, the controller stops working. It is because
-	 * the interrupt link is disabled in ACPI since it is not refcounted
+	 * the interrupt link is disabled in ACPI since it is analt refcounted
 	 * yet. See acpi_pci_link_free_irq called from acpi_pci_irq_disable.
 	 */
 	kfree(ilo_hw);
-	ilo_hwdev[(minor / max_ccb)] = 0;
+	ilo_hwdev[(mianalr / max_ccb)] = 0;
 }
 
 static int ilo_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
-	int devnum, minor, start, error = 0;
+	int devnum, mianalr, start, error = 0;
 	struct ilo_hwinfo *ilo_hw;
 
 	if (pci_match_id(ilo_blacklist, pdev)) {
-		dev_dbg(&pdev->dev, "Not supported on this device\n");
-		return -ENODEV;
+		dev_dbg(&pdev->dev, "Analt supported on this device\n");
+		return -EANALDEV;
 	}
 
 	if (max_ccb > MAX_CCB)
@@ -793,11 +793,11 @@ static int ilo_probe(struct pci_dev *pdev,
 
 	if (devnum == MAX_ILO_DEV) {
 		dev_err(&pdev->dev, "Error finding free device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* track global allocations for this device */
-	error = -ENOMEM;
+	error = -EANALMEM;
 	ilo_hw = kzalloc(sizeof(*ilo_hw), GFP_KERNEL);
 	if (!ilo_hw)
 		goto out;
@@ -835,17 +835,17 @@ static int ilo_probe(struct pci_dev *pdev,
 	start = devnum * max_ccb;
 	error = cdev_add(&ilo_hw->cdev, MKDEV(ilo_major, start), max_ccb);
 	if (error) {
-		dev_err(&pdev->dev, "Could not add cdev\n");
+		dev_err(&pdev->dev, "Could analt add cdev\n");
 		goto remove_isr;
 	}
 
-	for (minor = 0 ; minor < max_ccb; minor++) {
+	for (mianalr = 0 ; mianalr < max_ccb; mianalr++) {
 		struct device *dev;
 		dev = device_create(&ilo_class, &pdev->dev,
-				    MKDEV(ilo_major, minor), NULL,
-				    "hpilo!d%dccb%d", devnum, minor);
+				    MKDEV(ilo_major, mianalr), NULL,
+				    "hpilo!d%dccb%d", devnum, mianalr);
 		if (IS_ERR(dev))
-			dev_err(&pdev->dev, "Could not create files\n");
+			dev_err(&pdev->dev, "Could analt create files\n");
 	}
 
 	return 0;

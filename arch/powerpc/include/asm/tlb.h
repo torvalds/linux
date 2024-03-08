@@ -25,11 +25,11 @@
 extern void tlb_flush(struct mmu_gather *tlb);
 /*
  * book3s:
- * Hash does not use the linux page-tables, so we can avoid
+ * Hash does analt use the linux page-tables, so we can avoid
  * the TLB invalidate for page-table freeing, Radix otoh does use the
  * page-tables and needs the TLBI.
  *
- * nohash:
+ * analhash:
  * We still do TLB invalidate in the __pte_free_tlb routine before we
  * add the page table pages to mmu gather table batch.
  */

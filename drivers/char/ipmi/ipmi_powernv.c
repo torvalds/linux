@@ -74,7 +74,7 @@ static void ipmi_powernv_send(void *send_info, struct ipmi_smi_msg *msg)
 	spin_lock_irqsave(&smi->msg_lock, flags);
 
 	if (smi->cur_msg) {
-		comp = IPMI_NODE_BUSY_ERR;
+		comp = IPMI_ANALDE_BUSY_ERR;
 		goto err_unlock;
 	}
 
@@ -122,7 +122,7 @@ static int ipmi_powernv_recv(struct ipmi_smi_powernv *smi)
 
 	if (!smi->cur_msg) {
 		spin_unlock_irqrestore(&smi->msg_lock, flags);
-		pr_warn("no current message?\n");
+		pr_warn("anal current message?\n");
 		return 0;
 	}
 
@@ -138,7 +138,7 @@ static int ipmi_powernv_recv(struct ipmi_smi_powernv *smi)
 	pr_devel("%s:   -> %d (size %lld)\n", __func__,
 			rc, rc == 0 ? size : 0);
 	if (rc) {
-		/* If came via the poll, and response was not yet ready */
+		/* If came via the poll, and response was analt yet ready */
 		if (rc == OPAL_EMPTY) {
 			spin_unlock_irqrestore(&smi->msg_lock, flags);
 			return 0;
@@ -215,32 +215,32 @@ static int ipmi_powernv_probe(struct platform_device *pdev)
 	u32 prop;
 	int rc;
 
-	if (!pdev || !pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev || !pdev->dev.of_analde)
+		return -EANALDEV;
 
 	dev = &pdev->dev;
 
 	ipmi = devm_kzalloc(dev, sizeof(*ipmi), GFP_KERNEL);
 	if (!ipmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ipmi->msg_lock);
 
-	rc = of_property_read_u32(dev->of_node, "ibm,ipmi-interface-id",
+	rc = of_property_read_u32(dev->of_analde, "ibm,ipmi-interface-id",
 			&prop);
 	if (rc) {
-		dev_warn(dev, "No interface ID property\n");
+		dev_warn(dev, "Anal interface ID property\n");
 		goto err_free;
 	}
 	ipmi->interface_id = prop;
 
-	rc = of_property_read_u32(dev->of_node, "interrupts", &prop);
+	rc = of_property_read_u32(dev->of_analde, "interrupts", &prop);
 	if (rc) {
-		dev_warn(dev, "No interrupts property\n");
+		dev_warn(dev, "Anal interrupts property\n");
 		goto err_free;
 	}
 
-	ipmi->irq = irq_of_parse_and_map(dev->of_node, 0);
+	ipmi->irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!ipmi->irq) {
 		dev_info(dev, "Unable to map irq from device tree\n");
 		ipmi->irq = opal_event_request(prop);
@@ -257,7 +257,7 @@ static int ipmi_powernv_probe(struct platform_device *pdev)
 			sizeof(*ipmi->opal_msg) + IPMI_MAX_MSG_LENGTH,
 			GFP_KERNEL);
 	if (!ipmi->opal_msg) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_unregister;
 	}
 

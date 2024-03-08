@@ -28,7 +28,7 @@ struct hists;
 #define CALLCHAIN_RECORD_HELP  CALLCHAIN_HELP RECORD_MODE_HELP RECORD_SIZE_HELP
 
 #define CALLCHAIN_REPORT_HELP						\
-	HELP_PAD "print_type:\tcall graph printing style (graph|flat|fractal|folded|none)\n" \
+	HELP_PAD "print_type:\tcall graph printing style (graph|flat|fractal|folded|analne)\n" \
 	HELP_PAD "threshold:\tminimum call graph inclusion threshold (<percent>)\n" \
 	HELP_PAD "print_limit:\tmaximum number of call graph entry (<number>)\n" \
 	HELP_PAD "order:\t\tcall graph order (caller|callee)\n" \
@@ -37,7 +37,7 @@ struct hists;
 	HELP_PAD "value:\t\tcall graph value (percent|period|count)\n"
 
 enum perf_call_graph_mode {
-	CALLCHAIN_NONE,
+	CALLCHAIN_ANALNE,
 	CALLCHAIN_FP,
 	CALLCHAIN_DWARF,
 	CALLCHAIN_LBR,
@@ -45,7 +45,7 @@ enum perf_call_graph_mode {
 };
 
 enum chain_mode {
-	CHAIN_NONE,
+	CHAIN_ANALNE,
 	CHAIN_FLAT,
 	CHAIN_GRAPH_ABS,
 	CHAIN_GRAPH_REL,
@@ -57,12 +57,12 @@ enum chain_order {
 	ORDER_CALLEE
 };
 
-struct callchain_node {
-	struct callchain_node	*parent;
+struct callchain_analde {
+	struct callchain_analde	*parent;
 	struct list_head	val;
 	struct list_head	parent_val;
-	struct rb_node		rb_node_in; /* to insert nodes in an rbtree */
-	struct rb_node		rb_node;    /* to sort nodes in an output tree */
+	struct rb_analde		rb_analde_in; /* to insert analdes in an rbtree */
+	struct rb_analde		rb_analde;    /* to sort analdes in an output tree */
 	struct rb_root		rb_root_in; /* input tree of children */
 	struct rb_root		rb_root;    /* sorted output tree of children */
 	unsigned int		val_nr;
@@ -74,7 +74,7 @@ struct callchain_node {
 
 struct callchain_root {
 	u64			max_depth;
-	struct callchain_node	node;
+	struct callchain_analde	analde;
 };
 
 struct callchain_param;
@@ -140,11 +140,11 @@ struct callchain_list {
  * It keeps persistent allocated entries to minimize
  * allocations.
  */
-struct callchain_cursor_node {
+struct callchain_cursor_analde {
 	u64				ip;
 	struct map_symbol		ms;
 	const char			*srcline;
-	/* Indicate valid cursor node for LBR stitch */
+	/* Indicate valid cursor analde for LBR stitch */
 	bool				valid;
 
 	bool				branch;
@@ -152,42 +152,42 @@ struct callchain_cursor_node {
 	u64				branch_from;
 	int				nr_loop_iter;
 	u64				iter_cycles;
-	struct callchain_cursor_node	*next;
+	struct callchain_cursor_analde	*next;
 };
 
 struct stitch_list {
-	struct list_head		node;
-	struct callchain_cursor_node	cursor;
+	struct list_head		analde;
+	struct callchain_cursor_analde	cursor;
 };
 
 struct callchain_cursor {
 	u64				nr;
-	struct callchain_cursor_node	*first;
-	struct callchain_cursor_node	**last;
+	struct callchain_cursor_analde	*first;
+	struct callchain_cursor_analde	**last;
 	u64				pos;
-	struct callchain_cursor_node	*curr;
+	struct callchain_cursor_analde	*curr;
 };
 
 static inline void callchain_init(struct callchain_root *root)
 {
-	INIT_LIST_HEAD(&root->node.val);
-	INIT_LIST_HEAD(&root->node.parent_val);
+	INIT_LIST_HEAD(&root->analde.val);
+	INIT_LIST_HEAD(&root->analde.parent_val);
 
-	root->node.parent = NULL;
-	root->node.hit = 0;
-	root->node.children_hit = 0;
-	root->node.rb_root_in = RB_ROOT;
+	root->analde.parent = NULL;
+	root->analde.hit = 0;
+	root->analde.children_hit = 0;
+	root->analde.rb_root_in = RB_ROOT;
 	root->max_depth = 0;
 }
 
-static inline u64 callchain_cumul_hits(struct callchain_node *node)
+static inline u64 callchain_cumul_hits(struct callchain_analde *analde)
 {
-	return node->hit + node->children_hit;
+	return analde->hit + analde->children_hit;
 }
 
-static inline unsigned callchain_cumul_counts(struct callchain_node *node)
+static inline unsigned callchain_cumul_counts(struct callchain_analde *analde)
 {
-	return node->count + node->children_count;
+	return analde->count + analde->children_count;
 }
 
 int callchain_register_param(struct callchain_param *param);
@@ -216,7 +216,7 @@ static inline void callchain_cursor_commit(struct callchain_cursor *cursor)
 }
 
 /* Cursor reading iteration helpers */
-static inline struct callchain_cursor_node *
+static inline struct callchain_cursor_analde *
 callchain_cursor_current(struct callchain_cursor *cursor)
 {
 	if (cursor == NULL || cursor->pos == cursor->nr)
@@ -253,7 +253,7 @@ int sample__resolve_callchain(struct perf_sample *sample,
 			      struct evsel *evsel, struct addr_location *al,
 			      int max_stack);
 int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample);
-int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
+int fill_callchain_info(struct addr_location *al, struct callchain_cursor_analde *analde,
 			bool hide_unresolved);
 
 extern const char record_callchain_help[];
@@ -286,9 +286,9 @@ void arch__add_leaf_frame_record_opts(struct record_opts *opts);
 
 char *callchain_list__sym_name(struct callchain_list *cl,
 			       char *bf, size_t bfsize, bool show_dso);
-char *callchain_node__scnprintf_value(struct callchain_node *node,
+char *callchain_analde__scnprintf_value(struct callchain_analde *analde,
 				      char *bf, size_t bfsize, u64 total);
-int callchain_node__fprintf_value(struct callchain_node *node,
+int callchain_analde__fprintf_value(struct callchain_analde *analde,
 				  FILE *fp, u64 total);
 
 int callchain_list_counts__printf_value(struct callchain_list *clist,
@@ -296,7 +296,7 @@ int callchain_list_counts__printf_value(struct callchain_list *clist,
 
 void free_callchain(struct callchain_root *root);
 void decay_callchain(struct callchain_root *root);
-int callchain_node__make_parent_list(struct callchain_node *node);
+int callchain_analde__make_parent_list(struct callchain_analde *analde);
 
 int callchain_branch_counts(struct callchain_root *root,
 			    u64 *branch_count, u64 *predicted_count,
@@ -304,11 +304,11 @@ int callchain_branch_counts(struct callchain_root *root,
 
 void callchain_param_setup(u64 sample_type, const char *arch);
 
-bool callchain_cnode_matched(struct callchain_node *base_cnode,
-			     struct callchain_node *pair_cnode);
+bool callchain_canalde_matched(struct callchain_analde *base_canalde,
+			     struct callchain_analde *pair_canalde);
 
 u64 callchain_total_hits(struct hists *hists);
 
-s64 callchain_avg_cycles(struct callchain_node *cnode);
+s64 callchain_avg_cycles(struct callchain_analde *canalde);
 
 #endif	/* __PERF_CALLCHAIN_H */

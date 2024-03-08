@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/ti,am62-usb.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: TI's AM62 wrapper module for the Synopsys USBSS-DRD controller
+title: TI's AM62 wrapper module for the Syanalpsys USBSS-DRD controller
 
 maintainers:
   - Aswath Govindraju <a-govindraju@ti.com>
@@ -20,7 +20,7 @@ properties:
 
   power-domains:
     description:
-      PM domain provider node and an args specifier containing
+      PM domain provider analde and an args specifier containing
       the USB ISO device id value. See,
       Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
     maxItems: 1
@@ -58,7 +58,7 @@ properties:
 patternProperties:
   "^usb@[0-9a-f]+$":
     $ref: snps,dwc3.yaml#
-    description: Required child node
+    description: Required child analde
 
 required:
   - compatible

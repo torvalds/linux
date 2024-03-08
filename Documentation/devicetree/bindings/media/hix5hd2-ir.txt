@@ -15,7 +15,7 @@ Optional properties:
 	- hisilicon,power-syscon: DEPRECATED. Don't use this in new dts files.
 		Provide correct clocks instead.
 
-Example node:
+Example analde:
 
 	ir: ir@f8001000 {
 		compatible = "hisilicon,hix5hd2-ir";

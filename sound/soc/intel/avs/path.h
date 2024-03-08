@@ -21,7 +21,7 @@ struct avs_path {
 	struct avs_tplg_path *template;
 	struct avs_dev *owner;
 	/* device path management */
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct avs_path_pipeline {
@@ -32,7 +32,7 @@ struct avs_path_pipeline {
 	struct avs_tplg_pipeline *template;
 	struct avs_path *owner;
 	/* path pipelines management */
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct avs_path_module {
@@ -43,7 +43,7 @@ struct avs_path_module {
 	struct avs_tplg_module *template;
 	struct avs_path_pipeline *owner;
 	/* pipeline modules management */
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct avs_path_binding {
@@ -55,7 +55,7 @@ struct avs_path_binding {
 	struct avs_tplg_binding *template;
 	struct avs_path_pipeline *owner;
 	/* pipeline bindings management */
-	struct list_head node;
+	struct list_head analde;
 };
 
 void avs_path_free(struct avs_path *path);

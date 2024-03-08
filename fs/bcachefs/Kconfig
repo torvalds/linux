@@ -38,7 +38,7 @@ config BCACHEFS_ERASURE_CODING
 	depends on BCACHEFS_FS
 	select QUOTACTL
 	help
-	This enables the "erasure_code" filesysystem and inode option, which
+	This enables the "erasure_code" filesysystem and ianalde option, which
 	organizes data into reed-solomon stripes instead of ordinary
 	replication.
 
@@ -56,7 +56,7 @@ config BCACHEFS_DEBUG
 	help
 	Enables many extra debugging checks and assertions.
 
-	The resulting code will be significantly slower than normal; you
+	The resulting code will be significantly slower than analrmal; you
 	probably shouldn't select this option unless you're a developer.
 
 config BCACHEFS_TESTS
@@ -71,7 +71,7 @@ config BCACHEFS_LOCK_TIME_STATS
        help
        Expose statistics for how long we held a lock in debugfs
 
-config BCACHEFS_NO_LATENCY_ACCT
+config BCACHEFS_ANAL_LATENCY_ACCT
 	bool "disable latency accounting and time stats"
 	depends on BCACHEFS_FS
 	help
@@ -84,7 +84,7 @@ config BCACHEFS_SIX_OPTIMISTIC_SPIN
 	default y
 	help
 	Instead of immediately sleeping when attempting to take a six lock that
-	is held by another thread, spin for a short while, as long as the
+	is held by aanalther thread, spin for a short while, as long as the
 	thread owning the lock is running.
 
 config MEAN_AND_VARIANCE_UNIT_TEST

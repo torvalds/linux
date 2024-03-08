@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -859,7 +859,7 @@ static const int csky_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
 		},
 	},
-	[C(NODE)] = {
+	[C(ANALDE)] = {
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
 			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
@@ -930,7 +930,7 @@ static void csky_perf_event_update(struct perf_event *event,
 
 	/*
 	 * We aren't afraid of hwc->prev_count changing beneath our feet
-	 * because there's no way for us to re-enter this function anytime.
+	 * because there's anal way for us to re-enter this function anytime.
 	 */
 	local64_set(&hwc->prev_count, new_raw_count);
 	local64_add(delta, &event->count);
@@ -973,25 +973,25 @@ static int csky_pmu_event_init(struct perf_event *event)
 	switch (event->attr.type) {
 	case PERF_TYPE_HARDWARE:
 		if (event->attr.config >= PERF_COUNT_HW_MAX)
-			return -ENOENT;
+			return -EANALENT;
 		ret = csky_pmu_hw_map[event->attr.config];
 		if (ret == HW_OP_UNSUPPORTED)
-			return -ENOENT;
+			return -EANALENT;
 		hwc->idx = ret;
 		break;
 	case PERF_TYPE_HW_CACHE:
 		ret = csky_pmu_cache_event(event->attr.config);
 		if (ret == CACHE_OP_UNSUPPORTED)
-			return -ENOENT;
+			return -EANALENT;
 		hwc->idx = ret;
 		break;
 	case PERF_TYPE_RAW:
 		if (hw_raw_read_mapping[event->attr.config] == NULL)
-			return -ENOENT;
+			return -EANALENT;
 		hwc->idx = event->attr.config;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (event->attr.exclude_user)
@@ -1111,7 +1111,7 @@ static irqreturn_t csky_pmu_handle_irq(int irq_num, void *dev)
 	 * Did an overflow occur?
 	 */
 	if (!cprcr(HPOFSR))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Handle the counter(s) overflow(s)
@@ -1124,7 +1124,7 @@ static irqreturn_t csky_pmu_handle_irq(int irq_num, void *dev)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
-		/* Ignore if we don't have an event. */
+		/* Iganalre if we don't have an event. */
 		if (!event)
 			continue;
 		/*
@@ -1148,9 +1148,9 @@ static irqreturn_t csky_pmu_handle_irq(int irq_num, void *dev)
 	/*
 	 * Handle the pending perf events.
 	 *
-	 * Note: this call *must* be run with interrupts disabled. For
+	 * Analte: this call *must* be run with interrupts disabled. For
 	 * platforms that can have the PMU interrupts raised as an NMI, this
-	 * will not work.
+	 * will analt work.
 	 */
 	irq_work_run();
 
@@ -1163,17 +1163,17 @@ static int csky_pmu_request_irq(irq_handler_t handler)
 	struct platform_device *pmu_device = csky_pmu.plat_device;
 
 	if (!pmu_device)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 	if (irqs < 1) {
-		pr_err("no irqs for PMUs defined\n");
-		return -ENODEV;
+		pr_err("anal irqs for PMUs defined\n");
+		return -EANALDEV;
 	}
 
 	csky_pmu_irq = platform_get_irq(pmu_device, 0);
 	if (csky_pmu_irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	err = request_percpu_irq(csky_pmu_irq, handler, "csky-pmu",
 				 this_cpu_ptr(csky_pmu.hw_events));
 	if (err) {
@@ -1201,7 +1201,7 @@ int init_hw_perf_events(void)
 					      GFP_KERNEL);
 	if (!csky_pmu.hw_events) {
 		pr_info("failed to allocate per-cpu PMU data.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	csky_pmu.pmu = (struct pmu) {
@@ -1293,16 +1293,16 @@ static int csky_pmu_dying_cpu(unsigned int cpu)
 int csky_pmu_device_probe(struct platform_device *pdev,
 			  const struct of_device_id *of_table)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int ret;
 
 	ret = init_hw_perf_events();
 	if (ret) {
-		pr_notice("[perf] failed to probe PMU!\n");
+		pr_analtice("[perf] failed to probe PMU!\n");
 		return ret;
 	}
 
-	if (of_property_read_u32(node, "count-width",
+	if (of_property_read_u32(analde, "count-width",
 				 &csky_pmu.count_width)) {
 		csky_pmu.count_width = DEFAULT_COUNT_WIDTH;
 	}
@@ -1315,8 +1315,8 @@ int csky_pmu_device_probe(struct platform_device *pdev,
 
 	ret = csky_pmu_request_irq(csky_pmu_handle_irq);
 	if (ret) {
-		csky_pmu.pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
-		pr_notice("[perf] PMU request irq fail!\n");
+		csky_pmu.pmu.capabilities |= PERF_PMU_CAP_ANAL_INTERRUPT;
+		pr_analtice("[perf] PMU request irq fail!\n");
 	}
 
 	ret = cpuhp_setup_state(CPUHP_AP_PERF_CSKY_ONLINE, "AP_PERF_ONLINE",
@@ -1361,9 +1361,9 @@ static int __init csky_pmu_probe(void)
 
 	ret = platform_driver_register(&csky_pmu_driver);
 	if (ret)
-		pr_notice("[perf] PMU initialization failed\n");
+		pr_analtice("[perf] PMU initialization failed\n");
 	else
-		pr_notice("[perf] PMU initialization done\n");
+		pr_analtice("[perf] PMU initialization done\n");
 
 	return ret;
 }

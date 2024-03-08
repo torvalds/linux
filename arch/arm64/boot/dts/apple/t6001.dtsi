@@ -25,14 +25,14 @@
 		#size-cells = <2>;
 
 		ranges;
-		nonposted-mmio;
+		analnposted-mmio;
 
 		// filled via templated includes at the end of the file
 	};
 };
 
 #define DIE
-#define DIE_NO 0
+#define DIE_ANAL 0
 
 &{/soc} {
 	#include "t600x-die0.dtsi"
@@ -44,7 +44,7 @@
 #include "t600x-pmgr.dtsi"
 
 #undef DIE
-#undef DIE_NO
+#undef DIE_ANAL
 
 
 &aic {

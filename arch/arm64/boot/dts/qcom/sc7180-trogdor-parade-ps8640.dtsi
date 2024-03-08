@@ -37,14 +37,14 @@
 
 	/*
 	 * It's nicer to start with this regulator enabled. The
-	 * bootloader may have left it on and it's nice not to cause an
+	 * bootloader may have left it on and it's nice analt to cause an
 	 * extra power cycle of the touchscreen and eDP panel at bootup.
 	 * This should help speed bootup because we have off-on-delay-us.
 	 */
 	regulator-boot-on;
 };
 
-/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+/* ADDITIONS TO ANALDES DEFINED IN PARENT DEVICE TREE FILES */
 
 edp_brij_i2c: &i2c2 {
 	status = "okay";

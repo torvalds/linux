@@ -29,7 +29,7 @@ properties:
   "#performance-domain-cells":
     description:
       Number of cells in a performance domain specifier.
-      Set const to 1 here for nodes providing multiple
+      Set const to 1 here for analdes providing multiple
       performance domains.
     const: 1
 

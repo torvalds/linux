@@ -13,7 +13,7 @@
 
 /*
  * Shared crypto SIMD helpers.  These functions dynamically create and register
- * an skcipher or AEAD algorithm that wraps another, internal algorithm.  The
+ * an skcipher or AEAD algorithm that wraps aanalther, internal algorithm.  The
  * wrapper ensures that the internal algorithm is only executed in a context
  * where SIMD instructions are usable, i.e. where may_use_simd() returns true.
  * If SIMD is already usable, the wrapper directly calls the internal algorithm.
@@ -22,9 +22,9 @@
  * This is an alternative to the internal algorithm implementing a fallback for
  * the !may_use_simd() case itself.
  *
- * Note that the wrapper algorithm is asynchronous, i.e. it has the
+ * Analte that the wrapper algorithm is asynchroanalus, i.e. it has the
  * CRYPTO_ALG_ASYNC flag set.  Therefore it won't be found by users who
- * explicitly allocate a synchronous algorithm.
+ * explicitly allocate a synchroanalus algorithm.
  */
 
 #include <crypto/cryptd.h>
@@ -155,7 +155,7 @@ struct simd_skcipher_alg *simd_skcipher_create_compat(const char *algname,
 
 	salg = kzalloc(sizeof(*salg), GFP_KERNEL);
 	if (!salg) {
-		salg = ERR_PTR(-ENOMEM);
+		salg = ERR_PTR(-EANALMEM);
 		goto out_put_tfm;
 	}
 
@@ -402,7 +402,7 @@ struct simd_aead_alg *simd_aead_create_compat(const char *algname,
 
 	salg = kzalloc(sizeof(*salg), GFP_KERNEL);
 	if (!salg) {
-		salg = ERR_PTR(-ENOMEM);
+		salg = ERR_PTR(-EANALMEM);
 		goto out_put_tfm;
 	}
 

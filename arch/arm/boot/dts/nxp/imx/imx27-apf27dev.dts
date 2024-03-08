@@ -12,8 +12,8 @@
 
 	display: display {
 		model = "Chimei-LW700AT9003";
-		bits-per-pixel = <16>;  /* non-standard but required */
-		fsl,pcr = <0xfae80083>;	/* non-standard but required */
+		bits-per-pixel = <16>;  /* analn-standard but required */
+		fsl,pcr = <0xfae80083>;	/* analn-standard but required */
 		display-timings {
 			native-mode = <&timing0>;
 			timing0: timing0 {

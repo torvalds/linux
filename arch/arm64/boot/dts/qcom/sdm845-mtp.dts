@@ -13,7 +13,7 @@
 #include "pmi8998.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SDM845 MTP";
+	model = "Qualcomm Techanallogies, Inc. SDM845 MTP";
 	compatible = "qcom,sdm845-mtp", "qcom,sdm845";
 	chassis-type = "handset";
 
@@ -33,7 +33,7 @@
 	};
 
 	/*
-	 * Apparently RPMh does not provide support for PM8998 S4 because it
+	 * Apparently RPMh does analt provide support for PM8998 S4 because it
 	 * is always-on; model it as a fixed regulator.
 	 */
 	vreg_s4a_1p8: pm8998-smps4 {
@@ -421,7 +421,7 @@
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
-			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+			   <GCC_QSPI_CANALC_PERIPH_AHB_CLK>,
 			   <GCC_LPASS_Q6_AXI_CLK>,
 			   <GCC_LPASS_SWAY_CLK>;
 };
@@ -763,8 +763,8 @@
 
 &usb_2_dwc3 {
 	/*
-	 * Though the USB block on SDM845 can support host, there's no vbus
-	 * signal for this port on MTP.  Thus (unless you have a non-compliant
+	 * Though the USB block on SDM845 can support host, there's anal vbus
+	 * signal for this port on MTP.  Thus (unless you have a analn-compliant
 	 * hub that works without vbus) the only sensible thing is to force
 	 * peripheral mode.
 	 */
@@ -800,11 +800,11 @@
 	vdd-1.3-rfa-supply = <&vreg_l17a_1p3>;
 	vdd-3.3-ch0-supply = <&vreg_l25a_3p3>;
 
-	qcom,snoc-host-cap-8bit-quirk;
+	qcom,sanalc-host-cap-8bit-quirk;
 	qcom,ath10k-calibration-variant = "Qualcomm_sdm845mtp";
 };
 
-/* PINCTRL - additions to nodes defined in sdm845.dtsi */
+/* PINCTRL - additions to analdes defined in sdm845.dtsi */
 
 &qup_i2c10_default {
 	drive-strength = <2>;
@@ -830,7 +830,7 @@
 
 		/*
 		 * It seems that mmc_test reports errors if drive
-		 * strength is not 16 on clk, cmd, and data pins.
+		 * strength is analt 16 on clk, cmd, and data pins.
 		 */
 		drive-strength = <16>;
 	};

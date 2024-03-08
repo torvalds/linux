@@ -17,7 +17,7 @@ static int mcp230xx_probe(struct i2c_client *client)
 
 	mcp = devm_kzalloc(dev, sizeof(*mcp), GFP_KERNEL);
 	if (!mcp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = i2c_get_match_data(client);
 	if (!info)
@@ -78,7 +78,7 @@ static const struct of_device_id mcp23s08_i2c_of_match[] = {
 	{ .compatible = "microchip,mcp23008", .data = &mcp23008_i2c },
 	{ .compatible = "microchip,mcp23017", .data = &mcp23017_i2c },
 	{ .compatible = "microchip,mcp23018", .data = &mcp23018_i2c },
-/* NOTE: The use of the mcp prefix is deprecated and will be removed. */
+/* ANALTE: The use of the mcp prefix is deprecated and will be removed. */
 	{ .compatible = "mcp,mcp23008", .data = &mcp23008_i2c },
 	{ .compatible = "mcp,mcp23017", .data = &mcp23017_i2c },
 	{ }

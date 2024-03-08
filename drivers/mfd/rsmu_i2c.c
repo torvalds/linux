@@ -2,7 +2,7 @@
 /*
  * I2C driver for Renesas Synchronization Management Unit (SMU) devices.
  *
- * Copyright (C) 2021 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2021 Integrated Device Techanallogy, Inc., a Renesas Company.
  */
 
 #include <linux/i2c.h>
@@ -113,7 +113,7 @@ static int rsmu_write_page_register(struct rsmu_ddata *rsmu, u32 reg)
 	u8 buf[4];
 	int err;
 
-	/* Do not modify offset register for none-scsr registers */
+	/* Do analt modify offset register for analne-scsr registers */
 	if (reg < RSMU_CM_SCSR_BASE)
 		return 0;
 
@@ -178,7 +178,7 @@ static const struct regmap_config rsmu_cm_regmap_config = {
 	.max_register = 0x20120000,
 	.reg_read = rsmu_reg_read,
 	.reg_write = rsmu_reg_write,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct regmap_config rsmu_sabre_regmap_config = {
@@ -197,7 +197,7 @@ static const struct regmap_config rsmu_sl_regmap_config = {
 	.val_bits = 8,
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.max_register = 0x340,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.can_multi_write = true,
 };
 
@@ -210,7 +210,7 @@ static int rsmu_i2c_probe(struct i2c_client *client)
 
 	rsmu = devm_kzalloc(&client->dev, sizeof(*rsmu), GFP_KERNEL);
 	if (!rsmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, rsmu);
 
@@ -229,7 +229,7 @@ static int rsmu_i2c_probe(struct i2c_client *client)
 		break;
 	default:
 		dev_err(rsmu->dev, "Unsupported RSMU device type: %d\n", rsmu->type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (rsmu->type == RSMU_CM)

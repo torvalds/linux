@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -24,26 +24,26 @@
 
 #include <drm/display/drm_dp_helper.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_connector.h"
-#include "nouveau_encoder.h"
-#include "nouveau_crtc.h"
+#include "analuveau_drv.h"
+#include "analuveau_connector.h"
+#include "analuveau_encoder.h"
+#include "analuveau_crtc.h"
 
 #include <nvif/if0011.h>
 
 MODULE_PARM_DESC(mst, "Enable DisplayPort multi-stream (default: enabled)");
-static int nouveau_mst = 1;
-module_param_named(mst, nouveau_mst, int, 0400);
+static int analuveau_mst = 1;
+module_param_named(mst, analuveau_mst, int, 0400);
 
 static bool
-nouveau_dp_has_sink_count(struct drm_connector *connector,
-			  struct nouveau_encoder *outp)
+analuveau_dp_has_sink_count(struct drm_connector *connector,
+			  struct analuveau_encoder *outp)
 {
 	return drm_dp_read_sink_count_cap(connector, outp->dp.dpcd, &outp->dp.desc);
 }
 
 static bool
-nouveau_dp_probe_lttpr(struct nouveau_encoder *outp)
+analuveau_dp_probe_lttpr(struct analuveau_encoder *outp)
 {
 	u8 rev, size = sizeof(rev);
 	int ret;
@@ -58,8 +58,8 @@ nouveau_dp_probe_lttpr(struct nouveau_encoder *outp)
 }
 
 static enum drm_connector_status
-nouveau_dp_probe_dpcd(struct nouveau_connector *nv_connector,
-		      struct nouveau_encoder *outp)
+analuveau_dp_probe_dpcd(struct analuveau_connector *nv_connector,
+		      struct analuveau_encoder *outp)
 {
 	struct drm_connector *connector = &nv_connector->base;
 	struct drm_dp_aux *aux = &nv_connector->aux;
@@ -74,7 +74,7 @@ nouveau_dp_probe_dpcd(struct nouveau_connector *nv_connector,
 	outp->dp.link_bw  = 0;
 
 	if (connector->connector_type != DRM_MODE_CONNECTOR_eDP &&
-	    nouveau_dp_probe_lttpr(outp) &&
+	    analuveau_dp_probe_lttpr(outp) &&
 	    !drm_dp_read_dpcd_caps(aux, dpcd) &&
 	    !drm_dp_read_lttpr_common_caps(aux, dpcd, outp->dp.lttpr.caps)) {
 		int nr = drm_dp_lttpr_count(outp->dp.lttpr.caps);
@@ -85,7 +85,7 @@ nouveau_dp_probe_dpcd(struct nouveau_connector *nv_connector,
 
 			if (nr > 0) {
 				ret = drm_dp_dpcd_writeb(aux, DP_PHY_REPEATER_MODE,
-							      DP_PHY_REPEATER_MODE_NON_TRANSPARENT);
+							      DP_PHY_REPEATER_MODE_ANALN_TRANSPARENT);
 				if (ret != 1) {
 					drm_dp_dpcd_writeb(aux, DP_PHY_REPEATER_MODE,
 								DP_PHY_REPEATER_MODE_TRANSPARENT);
@@ -178,13 +178,13 @@ nouveau_dp_probe_dpcd(struct nouveau_connector *nv_connector,
 	if (ret < 0)
 		goto out;
 
-	if (nouveau_mst) {
+	if (analuveau_mst) {
 		mstm = outp->dp.mstm;
 		if (mstm)
 			mstm->can_mst = drm_dp_read_mst_cap(aux, dpcd);
 	}
 
-	if (nouveau_dp_has_sink_count(connector, outp)) {
+	if (analuveau_dp_has_sink_count(connector, outp)) {
 		ret = drm_dp_read_sink_count(aux);
 		if (ret < 0)
 			goto out;
@@ -192,7 +192,7 @@ nouveau_dp_probe_dpcd(struct nouveau_connector *nv_connector,
 		outp->dp.sink_count = ret;
 
 		/*
-		 * Dongle connected, but no display. Don't bother reading
+		 * Dongle connected, but anal display. Don't bother reading
 		 * downstream port info
 		 */
 		if (!outp->dp.sink_count)
@@ -214,49 +214,49 @@ out:
 }
 
 int
-nouveau_dp_detect(struct nouveau_connector *nv_connector,
-		  struct nouveau_encoder *nv_encoder)
+analuveau_dp_detect(struct analuveau_connector *nv_connector,
+		  struct analuveau_encoder *nv_encoder)
 {
 	struct drm_device *dev = nv_encoder->base.base.dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct drm_connector *connector = &nv_connector->base;
 	struct nv50_mstm *mstm = nv_encoder->dp.mstm;
 	enum drm_connector_status status;
 	u8 *dpcd = nv_encoder->dp.dpcd;
-	int ret = NOUVEAU_DP_NONE, hpd;
+	int ret = ANALUVEAU_DP_ANALNE, hpd;
 
 	/* If we've already read the DPCD on an eDP device, we don't need to
 	 * reread it as it won't change
 	 */
 	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP &&
 	    dpcd[DP_DPCD_REV] != 0)
-		return NOUVEAU_DP_SST;
+		return ANALUVEAU_DP_SST;
 
 	mutex_lock(&nv_encoder->dp.hpd_irq_lock);
 	if (mstm) {
-		/* If we're not ready to handle MST state changes yet, just
+		/* If we're analt ready to handle MST state changes yet, just
 		 * report the last status of the connector. We'll reprobe it
 		 * once we've resumed.
 		 */
 		if (mstm->suspended) {
 			if (mstm->is_mst)
-				ret = NOUVEAU_DP_MST;
+				ret = ANALUVEAU_DP_MST;
 			else if (connector->status ==
 				 connector_status_connected)
-				ret = NOUVEAU_DP_SST;
+				ret = ANALUVEAU_DP_SST;
 
 			goto out;
 		}
 	}
 
 	hpd = nvif_outp_detect(&nv_encoder->outp);
-	if (hpd == NOT_PRESENT) {
+	if (hpd == ANALT_PRESENT) {
 		nvif_outp_dp_aux_pwr(&nv_encoder->outp, false);
 		goto out;
 	}
 	nvif_outp_dp_aux_pwr(&nv_encoder->outp, true);
 
-	status = nouveau_dp_probe_dpcd(nv_connector, nv_encoder);
+	status = analuveau_dp_probe_dpcd(nv_connector, nv_encoder);
 	if (status == connector_status_disconnected) {
 		nvif_outp_dp_aux_pwr(&nv_encoder->outp, false);
 		goto out;
@@ -264,7 +264,7 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 
 	/* If we're in MST mode, we're done here */
 	if (mstm && mstm->can_mst && mstm->is_mst) {
-		ret = NOUVEAU_DP_MST;
+		ret = ANALUVEAU_DP_MST;
 		goto out;
 	}
 
@@ -280,17 +280,17 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 	if (mstm && mstm->can_mst) {
 		ret = nv50_mstm_detect(nv_encoder);
 		if (ret == 1) {
-			ret = NOUVEAU_DP_MST;
+			ret = ANALUVEAU_DP_MST;
 			goto out;
 		} else if (ret != 0) {
 			nvif_outp_dp_aux_pwr(&nv_encoder->outp, false);
 			goto out;
 		}
 	}
-	ret = NOUVEAU_DP_SST;
+	ret = ANALUVEAU_DP_SST;
 
 out:
-	if (mstm && !mstm->suspended && ret != NOUVEAU_DP_MST)
+	if (mstm && !mstm->suspended && ret != ANALUVEAU_DP_MST)
 		nv50_mstm_remove(mstm);
 
 	mutex_unlock(&nv_encoder->dp.hpd_irq_lock);
@@ -298,7 +298,7 @@ out:
 }
 
 void
-nouveau_dp_power_down(struct nouveau_encoder *outp)
+analuveau_dp_power_down(struct analuveau_encoder *outp)
 {
 	struct drm_dp_aux *aux = &outp->conn->aux;
 	int ret;
@@ -318,7 +318,7 @@ nouveau_dp_power_down(struct nouveau_encoder *outp)
 }
 
 static bool
-nouveau_dp_train_link(struct nouveau_encoder *outp, bool retrain)
+analuveau_dp_train_link(struct analuveau_encoder *outp, bool retrain)
 {
 	struct drm_dp_aux *aux = &outp->conn->aux;
 	bool post_lt = false;
@@ -402,9 +402,9 @@ retry:
 }
 
 bool
-nouveau_dp_train(struct nouveau_encoder *outp, bool mst, u32 khz, u8 bpc)
+analuveau_dp_train(struct analuveau_encoder *outp, bool mst, u32 khz, u8 bpc)
 {
-	struct nouveau_drm *drm = nouveau_drm(outp->base.base.dev);
+	struct analuveau_drm *drm = analuveau_drm(outp->base.base.dev);
 	struct drm_dp_aux *aux = &outp->conn->aux;
 	u32 min_rate;
 	u8 pwr;
@@ -434,7 +434,7 @@ nouveau_dp_train(struct nouveau_encoder *outp, bool mst, u32 khz, u8 bpc)
 				outp->dp.lt.nr = nr;
 				outp->dp.lt.bw = outp->dp.rate[rate].rate;
 				outp->dp.lt.mst = mst;
-				if (nouveau_dp_train_link(outp, false))
+				if (analuveau_dp_train_link(outp, false))
 					goto done;
 			}
 		}
@@ -447,7 +447,7 @@ done:
 }
 
 static bool
-nouveau_dp_link_check_locked(struct nouveau_encoder *outp)
+analuveau_dp_link_check_locked(struct analuveau_encoder *outp)
 {
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
@@ -460,19 +460,19 @@ nouveau_dp_link_check_locked(struct nouveau_encoder *outp)
 	if (drm_dp_channel_eq_ok(link_status, outp->dp.lt.nr))
 		return true;
 
-	return nouveau_dp_train_link(outp, true);
+	return analuveau_dp_train_link(outp, true);
 }
 
 bool
-nouveau_dp_link_check(struct nouveau_connector *nv_connector)
+analuveau_dp_link_check(struct analuveau_connector *nv_connector)
 {
-	struct nouveau_encoder *outp = nv_connector->dp_encoder;
+	struct analuveau_encoder *outp = nv_connector->dp_encoder;
 	bool link_ok = true;
 
 	if (outp) {
 		mutex_lock(&outp->dp.hpd_irq_lock);
 		if (outp->dp.lt.nr)
-			link_ok = nouveau_dp_link_check_locked(outp);
+			link_ok = analuveau_dp_link_check_locked(outp);
 		mutex_unlock(&outp->dp.hpd_irq_lock);
 	}
 
@@ -480,13 +480,13 @@ nouveau_dp_link_check(struct nouveau_connector *nv_connector)
 }
 
 void
-nouveau_dp_irq(struct work_struct *work)
+analuveau_dp_irq(struct work_struct *work)
 {
-	struct nouveau_connector *nv_connector =
+	struct analuveau_connector *nv_connector =
 		container_of(work, typeof(*nv_connector), irq_work);
 	struct drm_connector *connector = &nv_connector->base;
-	struct nouveau_encoder *outp = find_encoder(connector, DCB_OUTPUT_DP);
-	struct nouveau_drm *drm = nouveau_drm(outp->base.base.dev);
+	struct analuveau_encoder *outp = find_encoder(connector, DCB_OUTPUT_DP);
+	struct analuveau_drm *drm = analuveau_drm(outp->base.base.dev);
 	struct nv50_mstm *mstm;
 	u64 hpd = 0;
 	int ret;
@@ -505,7 +505,7 @@ nouveau_dp_irq(struct work_struct *work)
 	} else {
 		drm_dp_cec_irq(&nv_connector->aux);
 
-		if (nouveau_dp_has_sink_count(connector, outp)) {
+		if (analuveau_dp_has_sink_count(connector, outp)) {
 			ret = drm_dp_read_sink_count(&nv_connector->aux);
 			if (ret != outp->dp.sink_count)
 				hpd |= NVIF_CONN_EVENT_V0_PLUG;
@@ -516,7 +516,7 @@ nouveau_dp_irq(struct work_struct *work)
 
 	mutex_unlock(&outp->dp.hpd_irq_lock);
 
-	nouveau_connector_hpd(nv_connector, NVIF_CONN_EVENT_V0_IRQ | hpd);
+	analuveau_connector_hpd(nv_connector, NVIF_CONN_EVENT_V0_IRQ | hpd);
 }
 
 /* TODO:
@@ -524,20 +524,20 @@ nouveau_dp_irq(struct work_struct *work)
  *   yet)
  */
 enum drm_mode_status
-nv50_dp_mode_valid(struct nouveau_encoder *outp,
+nv50_dp_mode_valid(struct analuveau_encoder *outp,
 		   const struct drm_display_mode *mode,
 		   unsigned *out_clock)
 {
 	const unsigned int min_clock = 25000;
 	unsigned int max_rate, mode_rate, ds_max_dotclock, clock = mode->clock;
 	/* Check with the minmum bpc always, so we can advertise better modes.
-	 * In particlar not doing this causes modes to be dropped on HDR
+	 * In particlar analt doing this causes modes to be dropped on HDR
 	 * displays as we might check with a bpc of 16 even.
 	 */
 	const u8 bpp = 6 * 3;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE && !outp->caps.dp_interlace)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
 		clock *= 2;

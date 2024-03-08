@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroanalme Systems, Inc. */
 
 #include <linux/rtnetlink.h>
 #include <net/pkt_cls.h>
@@ -80,26 +80,26 @@ nfp_abm_stats_update_mq(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc)
 			nfp_abm_stats_update_red(alink, qdisc->children[i], i);
 }
 
-static void __nfp_abm_stats_update(struct nfp_abm_link *alink, u64 time_now)
+static void __nfp_abm_stats_update(struct nfp_abm_link *alink, u64 time_analw)
 {
-	alink->last_stats_update = time_now;
+	alink->last_stats_update = time_analw;
 	if (alink->root_qdisc)
 		nfp_abm_stats_update_mq(alink, alink->root_qdisc);
 }
 
 static void nfp_abm_stats_update(struct nfp_abm_link *alink)
 {
-	u64 now;
+	u64 analw;
 
-	/* Limit the frequency of updates - stats of non-leaf qdiscs are a sum
+	/* Limit the frequency of updates - stats of analn-leaf qdiscs are a sum
 	 * of all their leafs, so we would read the same stat multiple times
 	 * for every dump.
 	 */
-	now = ktime_get();
-	if (now - alink->last_stats_update < NFP_ABM_STATS_REFRESH_IVAL)
+	analw = ktime_get();
+	if (analw - alink->last_stats_update < NFP_ABM_STATS_REFRESH_IVAL)
 		return;
 
-	__nfp_abm_stats_update(alink, now);
+	__nfp_abm_stats_update(alink, analw);
 }
 
 static void
@@ -291,7 +291,7 @@ nfp_abm_qdisc_clear_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 
 	if (!qdisc->use_cnt)
 		return;
-	/* MQ doesn't notify well on destruction, we need special handling of
+	/* MQ doesn't analtify well on destruction, we need special handling of
 	 * MQ's children.
 	 */
 	if (qdisc->type == NFP_QDISC_MQ &&
@@ -313,7 +313,7 @@ nfp_abm_qdisc_clear_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 			}
 	}
 
-	WARN(qdisc->use_cnt != mq_refs, "non-zero qdisc use count: %d (- %d)\n",
+	WARN(qdisc->use_cnt != mq_refs, "analn-zero qdisc use count: %d (- %d)\n",
 	     qdisc->use_cnt, mq_refs);
 }
 
@@ -397,7 +397,7 @@ nfp_abm_qdisc_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 
 	*qdisc = nfp_abm_qdisc_alloc(netdev, alink, type, parent_handle, handle,
 				     children);
-	return *qdisc ? 0 : -ENOMEM;
+	return *qdisc ? 0 : -EANALMEM;
 }
 
 static void
@@ -420,7 +420,7 @@ nfp_abm_qdisc_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 	if (alink->root_qdisc == qdisc) {
 		alink->root_qdisc = NULL;
 		/* Only root change matters, other changes are acted upon on
-		 * the graft notification.
+		 * the graft analtification.
 		 */
 		nfp_abm_qdisc_offload_update(alink);
 	}
@@ -489,9 +489,9 @@ nfp_abm_gred_stats(struct nfp_abm_link *alink, u32 handle,
 
 	qdisc = nfp_abm_qdisc_find(alink, handle);
 	if (!qdisc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* If the qdisc offload has stopped we may need to adjust the backlog
-	 * counters back so carry on even if qdisc is not currently offloaded.
+	 * counters back so carry on even if qdisc is analt currently offloaded.
 	 */
 
 	for (i = 0; i < qdisc->red.num_bands; i++) {
@@ -509,7 +509,7 @@ nfp_abm_gred_stats(struct nfp_abm_link *alink, u32 handle,
 		qdisc->red.band[i].prev_xstats = qdisc->red.band[i].xstats;
 	}
 
-	return qdisc->offloaded ? 0 : -EOPNOTSUPP;
+	return qdisc->offloaded ? 0 : -EOPANALTSUPP;
 }
 
 static bool
@@ -521,7 +521,7 @@ nfp_abm_gred_check_params(struct nfp_abm_link *alink,
 	unsigned int i;
 
 	if (opt->set.grio_on || opt->set.wred_on) {
-		nfp_warn(cpp, "GRED offload failed - GRIO and WRED not supported (p:%08x h:%08x)\n",
+		nfp_warn(cpp, "GRED offload failed - GRIO and WRED analt supported (p:%08x h:%08x)\n",
 			 opt->parent, opt->handle);
 		return false;
 	}
@@ -542,17 +542,17 @@ nfp_abm_gred_check_params(struct nfp_abm_link *alink,
 		if (!band->present)
 			return false;
 		if (!band->is_ecn && !nfp_abm_has_drop(abm)) {
-			nfp_warn(cpp, "GRED offload failed - drop is not supported (ECN option required) (p:%08x h:%08x vq:%d)\n",
+			nfp_warn(cpp, "GRED offload failed - drop is analt supported (ECN option required) (p:%08x h:%08x vq:%d)\n",
 				 opt->parent, opt->handle, i);
 			return false;
 		}
 		if (band->is_ecn && !nfp_abm_has_mark(abm)) {
-			nfp_warn(cpp, "GRED offload failed - ECN marking not supported (p:%08x h:%08x vq:%d)\n",
+			nfp_warn(cpp, "GRED offload failed - ECN marking analt supported (p:%08x h:%08x vq:%d)\n",
 				 opt->parent, opt->handle, i);
 			return false;
 		}
 		if (band->is_harddrop) {
-			nfp_warn(cpp, "GRED offload failed - harddrop is not supported (p:%08x h:%08x vq:%d)\n",
+			nfp_warn(cpp, "GRED offload failed - harddrop is analt supported (p:%08x h:%08x vq:%d)\n",
 				 opt->parent, opt->handle, i);
 			return false;
 		}
@@ -612,7 +612,7 @@ int nfp_abm_setup_tc_gred(struct net_device *netdev, struct nfp_abm_link *alink,
 	case TC_GRED_STATS:
 		return nfp_abm_gred_stats(alink, opt->handle, &opt->stats);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -625,7 +625,7 @@ nfp_abm_red_xstats(struct nfp_abm_link *alink, struct tc_red_qopt_offload *opt)
 
 	qdisc = nfp_abm_qdisc_find(alink, opt->handle);
 	if (!qdisc || !qdisc->offloaded)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	nfp_abm_stats_red_calculate(&qdisc->red.band[0].xstats,
 				    &qdisc->red.band[0].prev_xstats,
@@ -644,9 +644,9 @@ nfp_abm_red_stats(struct nfp_abm_link *alink, u32 handle,
 
 	qdisc = nfp_abm_qdisc_find(alink, handle);
 	if (!qdisc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* If the qdisc offload has stopped we may need to adjust the backlog
-	 * counters back so carry on even if qdisc is not currently offloaded.
+	 * counters back so carry on even if qdisc is analt currently offloaded.
 	 */
 
 	nfp_abm_stats_calculate(&qdisc->red.band[0].stats,
@@ -654,7 +654,7 @@ nfp_abm_red_stats(struct nfp_abm_link *alink, u32 handle,
 				stats->bstats, stats->qstats);
 	qdisc->red.band[0].prev_stats = qdisc->red.band[0].stats;
 
-	return qdisc->offloaded ? 0 : -EOPNOTSUPP;
+	return qdisc->offloaded ? 0 : -EOPANALTSUPP;
 }
 
 static bool
@@ -665,17 +665,17 @@ nfp_abm_red_check_params(struct nfp_abm_link *alink,
 	struct nfp_abm *abm = alink->abm;
 
 	if (!opt->set.is_ecn && !nfp_abm_has_drop(abm)) {
-		nfp_warn(cpp, "RED offload failed - drop is not supported (ECN option required) (p:%08x h:%08x)\n",
+		nfp_warn(cpp, "RED offload failed - drop is analt supported (ECN option required) (p:%08x h:%08x)\n",
 			 opt->parent, opt->handle);
 		return false;
 	}
 	if (opt->set.is_ecn && !nfp_abm_has_mark(abm)) {
-		nfp_warn(cpp, "RED offload failed - ECN marking not supported (p:%08x h:%08x)\n",
+		nfp_warn(cpp, "RED offload failed - ECN marking analt supported (p:%08x h:%08x)\n",
 			 opt->parent, opt->handle);
 		return false;
 	}
 	if (opt->set.is_harddrop) {
-		nfp_warn(cpp, "RED offload failed - harddrop is not supported (p:%08x h:%08x)\n",
+		nfp_warn(cpp, "RED offload failed - harddrop is analt supported (p:%08x h:%08x)\n",
 			 opt->parent, opt->handle);
 		return false;
 	}
@@ -712,7 +712,7 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 			qdisc->children[0]->use_cnt--;
 		qdisc->children[0] = NULL;
 	} else {
-		/* Qdisc was just allocated without a limit will use noop_qdisc,
+		/* Qdisc was just allocated without a limit will use analop_qdisc,
 		 * i.e. a block hole.
 		 */
 		if (!ret)
@@ -749,7 +749,7 @@ int nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,
 		return nfp_abm_qdisc_graft(alink, opt->handle,
 					   opt->child_handle, 0);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -781,7 +781,7 @@ nfp_abm_mq_stats(struct nfp_abm_link *alink, u32 handle,
 
 	qdisc = nfp_abm_qdisc_find(alink, handle);
 	if (!qdisc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	nfp_abm_stats_update(alink);
 
@@ -810,7 +810,7 @@ nfp_abm_mq_stats(struct nfp_abm_link *alink, u32 handle,
 	nfp_abm_stats_calculate(&qdisc->mq.stats, &qdisc->mq.prev_stats,
 				stats->bstats, stats->qstats);
 
-	return qdisc->offloaded ? 0 : -EOPNOTSUPP;
+	return qdisc->offloaded ? 0 : -EOPANALTSUPP;
 }
 
 int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
@@ -829,7 +829,7 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 					   opt->graft_params.child_handle,
 					   opt->graft_params.queue);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -837,7 +837,7 @@ int nfp_abm_setup_root(struct net_device *netdev, struct nfp_abm_link *alink,
 		       struct tc_root_qopt_offload *opt)
 {
 	if (opt->ingress)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (alink->root_qdisc)
 		alink->root_qdisc->use_cnt--;
 	alink->root_qdisc = nfp_abm_qdisc_find(alink, opt->handle);

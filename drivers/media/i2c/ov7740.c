@@ -697,7 +697,7 @@ static int ov7740_enum_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fie->interval.numerator = 1;
-	fie->interval.denominator = 60;
+	fie->interval.deanalminator = 60;
 
 	return 0;
 }
@@ -757,7 +757,7 @@ static int ov7740_try_fmt_internal(struct v4l2_subdev *sd,
 	if (ret_frmsize != NULL)
 		*ret_frmsize = fsize;
 
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = ov7740_formats[index].colorspace;
 
 	ov7740->format = *fmt;
@@ -833,7 +833,7 @@ static int ov7740_get_frame_interval(struct v4l2_subdev *sd,
 	struct v4l2_fract *tpf = &ival->interval;
 
 	tpf->numerator = 1;
-	tpf->denominator = 60;
+	tpf->deanalminator = 60;
 
 	return 0;
 }
@@ -863,7 +863,7 @@ static void ov7740_get_default_format(struct v4l2_subdev *sd,
 	format->height = ov7740->frmsize->height;
 	format->colorspace = ov7740->fmt->colorspace;
 	format->code = ov7740->fmt->mbus_code;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov7740_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
@@ -913,25 +913,25 @@ static int ov7740_detect(struct ov7740 *ov7740)
 	if (ret)
 		return ret;
 	if (midh != 0x7f)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = regmap_read(regmap, REG_MIDL, &midl);
 	if (ret)
 		return ret;
 	if (midl != 0xa2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = regmap_read(regmap, REG_PIDH, &pidh);
 	if (ret)
 		return ret;
 	if (pidh != 0x77)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = regmap_read(regmap, REG_PIDL, &pidl);
 	if (ret)
 		return ret;
 	if ((pidl != 0x40) && (pidl != 0x41) && (pidl != 0x42))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -1034,7 +1034,7 @@ static int ov7740_probe(struct i2c_client *client)
 
 	ov7740 = devm_kzalloc(&client->dev, sizeof(*ov7740), GFP_KERNEL);
 	if (!ov7740)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov7740->xvclk = devm_clk_get(&client->dev, "xvclk");
 	if (IS_ERR(ov7740->xvclk)) {
@@ -1060,7 +1060,7 @@ static int ov7740_probe(struct i2c_client *client)
 	v4l2_i2c_subdev_init(sd, client, &ov7740_subdev_ops);
 
 	sd->internal_ops = &ov7740_subdev_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	ov7740->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
@@ -1128,7 +1128,7 @@ static void ov7740_remove(struct i2c_client *client)
 	pm_runtime_get_sync(&client->dev);
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 
 	ov7740_set_power(ov7740, 0);
 }

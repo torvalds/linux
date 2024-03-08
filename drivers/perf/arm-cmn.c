@@ -8,7 +8,7 @@
 #include <linux/debugfs.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -19,31 +19,31 @@
 #include <linux/sort.h>
 
 /* Common register stuff */
-#define CMN_NODE_INFO			0x0000
-#define CMN_NI_NODE_TYPE		GENMASK_ULL(15, 0)
-#define CMN_NI_NODE_ID			GENMASK_ULL(31, 16)
+#define CMN_ANALDE_INFO			0x0000
+#define CMN_NI_ANALDE_TYPE		GENMASK_ULL(15, 0)
+#define CMN_NI_ANALDE_ID			GENMASK_ULL(31, 16)
 #define CMN_NI_LOGICAL_ID		GENMASK_ULL(47, 32)
 
-#define CMN_NODEID_DEVID(reg)		((reg) & 3)
-#define CMN_NODEID_EXT_DEVID(reg)	((reg) & 1)
-#define CMN_NODEID_PID(reg)		(((reg) >> 2) & 1)
-#define CMN_NODEID_EXT_PID(reg)		(((reg) >> 1) & 3)
-#define CMN_NODEID_1x1_PID(reg)		(((reg) >> 2) & 7)
-#define CMN_NODEID_X(reg, bits)		((reg) >> (3 + (bits)))
-#define CMN_NODEID_Y(reg, bits)		(((reg) >> 3) & ((1U << (bits)) - 1))
+#define CMN_ANALDEID_DEVID(reg)		((reg) & 3)
+#define CMN_ANALDEID_EXT_DEVID(reg)	((reg) & 1)
+#define CMN_ANALDEID_PID(reg)		(((reg) >> 2) & 1)
+#define CMN_ANALDEID_EXT_PID(reg)		(((reg) >> 1) & 3)
+#define CMN_ANALDEID_1x1_PID(reg)		(((reg) >> 2) & 7)
+#define CMN_ANALDEID_X(reg, bits)		((reg) >> (3 + (bits)))
+#define CMN_ANALDEID_Y(reg, bits)		(((reg) >> 3) & ((1U << (bits)) - 1))
 
 #define CMN_CHILD_INFO			0x0080
 #define CMN_CI_CHILD_COUNT		GENMASK_ULL(15, 0)
 #define CMN_CI_CHILD_PTR_OFFSET		GENMASK_ULL(31, 16)
 
-#define CMN_CHILD_NODE_ADDR		GENMASK(29, 0)
-#define CMN_CHILD_NODE_EXTERNAL		BIT(31)
+#define CMN_CHILD_ANALDE_ADDR		GENMASK(29, 0)
+#define CMN_CHILD_ANALDE_EXTERNAL		BIT(31)
 
 #define CMN_MAX_DIMENSION		12
 #define CMN_MAX_XPS			(CMN_MAX_DIMENSION * CMN_MAX_DIMENSION)
 #define CMN_MAX_DTMS			(CMN_MAX_XPS + (CMN_MAX_DIMENSION - 1) * 4)
 
-/* The CFG node has various info besides the discovery tree */
+/* The CFG analde has various info besides the discovery tree */
 #define CMN_CFGM_PERIPH_ID_01		0x0008
 #define CMN_CFGM_PID0_PART_0		GENMASK_ULL(7, 0)
 #define CMN_CFGM_PID1_PART_1		GENMASK_ULL(35, 32)
@@ -66,10 +66,10 @@
 #define CMN_MAX_PORTS			6
 #define CI700_CONNECT_INFO_P2_5_OFFSET	0x10
 
-/* PMU registers occupy the 3rd 4KB page of each node's region */
+/* PMU registers occupy the 3rd 4KB page of each analde's region */
 #define CMN_PMU_OFFSET			0x2000
 
-/* For most nodes, this is all there is */
+/* For most analdes, this is all there is */
 #define CMN_PMU_EVENT_SEL		0x000
 #define CMN__PMU_CBUSY_SNTHROTTLE_SEL	GENMASK_ULL(44, 42)
 #define CMN__PMU_SN_HOME_SEL		GENMASK_ULL(40, 39)
@@ -117,10 +117,10 @@
 #define CMN_DTM_UNIT_INFO_DTC_DOMAIN	GENMASK_ULL(1, 0)
 
 #define CMN_DTM_NUM_COUNTERS		4
-/* Want more local counters? Why not replicate the whole DTM! Ugh... */
+/* Want more local counters? Why analt replicate the whole DTM! Ugh... */
 #define CMN_DTM_OFFSET(n)		((n) * 0x200)
 
-/* The DTC node is where the magic happens */
+/* The DTC analde is where the magic happens */
 #define CMN_DT_DTC_CTL			0x0a00
 #define CMN_DT_DTC_CTL_DT_EN		BIT(0)
 
@@ -151,7 +151,7 @@
 
 /*
  * Even in the worst case a DTC counter can't wrap in fewer than 2^42 cycles,
- * so throwing away one bit to make overflow handling easy is no big deal.
+ * so throwing away one bit to make overflow handling easy is anal big deal.
  */
 #define CMN_COUNTER_INIT		0x80000000
 /* Similarly for the 40-bit cycle counter */
@@ -162,19 +162,19 @@
 #define CMN_CONFIG_TYPE			GENMASK_ULL(15, 0)
 #define CMN_CONFIG_EVENTID		GENMASK_ULL(26, 16)
 #define CMN_CONFIG_OCCUPID		GENMASK_ULL(30, 27)
-#define CMN_CONFIG_BYNODEID		BIT_ULL(31)
-#define CMN_CONFIG_NODEID		GENMASK_ULL(47, 32)
+#define CMN_CONFIG_BYANALDEID		BIT_ULL(31)
+#define CMN_CONFIG_ANALDEID		GENMASK_ULL(47, 32)
 
 #define CMN_EVENT_TYPE(event)		FIELD_GET(CMN_CONFIG_TYPE, (event)->attr.config)
 #define CMN_EVENT_EVENTID(event)	FIELD_GET(CMN_CONFIG_EVENTID, (event)->attr.config)
 #define CMN_EVENT_OCCUPID(event)	FIELD_GET(CMN_CONFIG_OCCUPID, (event)->attr.config)
-#define CMN_EVENT_BYNODEID(event)	FIELD_GET(CMN_CONFIG_BYNODEID, (event)->attr.config)
-#define CMN_EVENT_NODEID(event)		FIELD_GET(CMN_CONFIG_NODEID, (event)->attr.config)
+#define CMN_EVENT_BYANALDEID(event)	FIELD_GET(CMN_CONFIG_BYANALDEID, (event)->attr.config)
+#define CMN_EVENT_ANALDEID(event)		FIELD_GET(CMN_CONFIG_ANALDEID, (event)->attr.config)
 
 #define CMN_CONFIG_WP_COMBINE		GENMASK_ULL(30, 27)
 #define CMN_CONFIG_WP_DEV_SEL		GENMASK_ULL(50, 48)
 #define CMN_CONFIG_WP_CHN_SEL		GENMASK_ULL(55, 51)
-/* Note that we don't yet support the tertiary match group on newer IPs */
+/* Analte that we don't yet support the tertiary match group on newer IPs */
 #define CMN_CONFIG_WP_GRP		BIT_ULL(56)
 #define CMN_CONFIG_WP_EXCLUSIVE		BIT_ULL(57)
 #define CMN_CONFIG1_WP_VAL		GENMASK_ULL(63, 0)
@@ -201,7 +201,7 @@ enum cmn_model {
 	CI700 = 8,
 	/* ...and then we can use bitmap tricks for commonality */
 	CMN_ANY = -1,
-	NOT_CMN600 = -2,
+	ANALT_CMN600 = -2,
 	CMN_650ON = CMN650 | CMN700,
 };
 
@@ -236,7 +236,7 @@ enum cmn_revision {
 	REV_CI700_R2P0,
 };
 
-enum cmn_node_type {
+enum cmn_analde_type {
 	CMN_TYPE_INVALID,
 	CMN_TYPE_DVM,
 	CMN_TYPE_CFG,
@@ -262,12 +262,12 @@ enum cmn_node_type {
 	CMN_TYPE_HNS = 0x200,
 	CMN_TYPE_HNS_MPAM_S,
 	CMN_TYPE_HNS_MPAM_NS,
-	/* Not a real node type */
+	/* Analt a real analde type */
 	CMN_TYPE_WP = 0x7770
 };
 
 enum cmn_filter_select {
-	SEL_NONE = -1,
+	SEL_ANALNE = -1,
 	SEL_OCCUP1ID,
 	SEL_CLASS_OCCUP_ID,
 	SEL_CBUSY_SNTHROTTLE_SEL,
@@ -276,10 +276,10 @@ enum cmn_filter_select {
 	SEL_MAX
 };
 
-struct arm_cmn_node {
+struct arm_cmn_analde {
 	void __iomem *pmu_base;
 	u16 id, logid;
-	enum cmn_node_type type;
+	enum cmn_analde_type type;
 
 	u8 dtm;
 	s8 dtc;
@@ -339,15 +339,15 @@ struct arm_cmn {
 		unsigned int req_vc_num : 2;
 	};
 
-	struct arm_cmn_node *xps;
-	struct arm_cmn_node *dns;
+	struct arm_cmn_analde *xps;
+	struct arm_cmn_analde *dns;
 
 	struct arm_cmn_dtm *dtms;
 	struct arm_cmn_dtc *dtc;
 	unsigned int num_dtcs;
 
 	int cpu;
-	struct hlist_node cpuhp_node;
+	struct hlist_analde cpuhp_analde;
 
 	struct pmu pmu;
 	struct dentry *debug;
@@ -357,7 +357,7 @@ struct arm_cmn {
 
 static int arm_cmn_hp_state;
 
-struct arm_cmn_nodeid {
+struct arm_cmn_analdeid {
 	u8 x;
 	u8 y;
 	u8 port;
@@ -369,43 +369,43 @@ static int arm_cmn_xyidbits(const struct arm_cmn *cmn)
 	return fls((cmn->mesh_x - 1) | (cmn->mesh_y - 1) | 2);
 }
 
-static struct arm_cmn_nodeid arm_cmn_nid(const struct arm_cmn *cmn, u16 id)
+static struct arm_cmn_analdeid arm_cmn_nid(const struct arm_cmn *cmn, u16 id)
 {
-	struct arm_cmn_nodeid nid;
+	struct arm_cmn_analdeid nid;
 
 	if (cmn->num_xps == 1) {
 		nid.x = 0;
 		nid.y = 0;
-		nid.port = CMN_NODEID_1x1_PID(id);
-		nid.dev = CMN_NODEID_DEVID(id);
+		nid.port = CMN_ANALDEID_1x1_PID(id);
+		nid.dev = CMN_ANALDEID_DEVID(id);
 	} else {
 		int bits = arm_cmn_xyidbits(cmn);
 
-		nid.x = CMN_NODEID_X(id, bits);
-		nid.y = CMN_NODEID_Y(id, bits);
+		nid.x = CMN_ANALDEID_X(id, bits);
+		nid.y = CMN_ANALDEID_Y(id, bits);
 		if (cmn->ports_used & 0xc) {
-			nid.port = CMN_NODEID_EXT_PID(id);
-			nid.dev = CMN_NODEID_EXT_DEVID(id);
+			nid.port = CMN_ANALDEID_EXT_PID(id);
+			nid.dev = CMN_ANALDEID_EXT_DEVID(id);
 		} else {
-			nid.port = CMN_NODEID_PID(id);
-			nid.dev = CMN_NODEID_DEVID(id);
+			nid.port = CMN_ANALDEID_PID(id);
+			nid.dev = CMN_ANALDEID_DEVID(id);
 		}
 	}
 	return nid;
 }
 
-static struct arm_cmn_node *arm_cmn_node_to_xp(const struct arm_cmn *cmn,
-					       const struct arm_cmn_node *dn)
+static struct arm_cmn_analde *arm_cmn_analde_to_xp(const struct arm_cmn *cmn,
+					       const struct arm_cmn_analde *dn)
 {
-	struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
+	struct arm_cmn_analdeid nid = arm_cmn_nid(cmn, dn->id);
 	int xp_idx = cmn->mesh_x * nid.y + nid.x;
 
 	return cmn->xps + xp_idx;
 }
-static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
-					 enum cmn_node_type type)
+static struct arm_cmn_analde *arm_cmn_analde(const struct arm_cmn *cmn,
+					 enum cmn_analde_type type)
 {
-	struct arm_cmn_node *dn;
+	struct arm_cmn_analde *dn;
 
 	for (dn = cmn->dns; dn->type; dn++)
 		if (dn->type == type)
@@ -430,7 +430,7 @@ static enum cmn_model arm_cmn_model(const struct arm_cmn *cmn)
 }
 
 static u32 arm_cmn_device_connect_info(const struct arm_cmn *cmn,
-				       const struct arm_cmn_node *xp, int port)
+				       const struct arm_cmn_analde *xp, int port)
 {
 	int offset = CMN_MXP__CONNECT_INFO(port);
 
@@ -489,14 +489,14 @@ static const char *arm_cmn_device_type(u8 type)
 static void arm_cmn_show_logid(struct seq_file *s, int x, int y, int p, int d)
 {
 	struct arm_cmn *cmn = s->private;
-	struct arm_cmn_node *dn;
+	struct arm_cmn_analde *dn;
 
 	for (dn = cmn->dns; dn->type; dn++) {
-		struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
+		struct arm_cmn_analdeid nid = arm_cmn_nid(cmn, dn->id);
 
 		if (dn->type == CMN_TYPE_XP)
 			continue;
-		/* Ignore the extra components that will overlap on some ports */
+		/* Iganalre the extra components that will overlap on some ports */
 		if (dn->type < CMN_TYPE_HNI)
 			continue;
 
@@ -528,7 +528,7 @@ static int arm_cmn_map_show(struct seq_file *s, void *data)
 
 		seq_printf(s, "\n%d    |", y);
 		for (x = 0; x < cmn->mesh_x; x++) {
-			struct arm_cmn_node *xp = cmn->xps + xp_base + x;
+			struct arm_cmn_analde *xp = cmn->xps + xp_base + x;
 
 			for (p = 0; p < CMN_MAX_PORTS; p++)
 				port[p][x] = arm_cmn_device_connect_info(cmn, xp, p);
@@ -584,7 +584,7 @@ static void arm_cmn_debugfs_init(struct arm_cmn *cmn, int id) {}
 #endif
 
 struct arm_cmn_hw_event {
-	struct arm_cmn_node *dn;
+	struct arm_cmn_analde *dn;
 	u64 dtm_idx[4];
 	s8 dtc_idx[CMN_MAX_DTCS];
 	u8 num_dns;
@@ -619,7 +619,7 @@ static unsigned int arm_cmn_get_index(u64 x[], unsigned int pos)
 struct arm_cmn_event_attr {
 	struct device_attribute attr;
 	enum cmn_model model;
-	enum cmn_node_type type;
+	enum cmn_analde_type type;
 	enum cmn_filter_select fsel;
 	u16 eventid;
 	u8 occupid;
@@ -641,7 +641,7 @@ struct arm_cmn_format_attr {
 		.fsel = _fsel,						\
 	}})[0].attr.attr)
 #define CMN_EVENT_ATTR(_model, _name, _type, _eventid)			\
-	_CMN_EVENT_ATTR(_model, _name, _type, _eventid, 0, SEL_NONE)
+	_CMN_EVENT_ATTR(_model, _name, _type, _eventid, 0, SEL_ANALNE)
 
 static ssize_t arm_cmn_event_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
@@ -658,7 +658,7 @@ static ssize_t arm_cmn_event_show(struct device *dev,
 				  "type=0x%x,eventid=0x%x,wp_dev_sel=?,wp_chn_sel=?,wp_grp=?,wp_val=?,wp_mask=?\n",
 				  eattr->type, eattr->eventid);
 
-	if (eattr->fsel > SEL_NONE)
+	if (eattr->fsel > SEL_ANALNE)
 		return sysfs_emit(buf, "type=0x%x,eventid=0x%x,occupid=0x%x\n",
 				  eattr->type, eattr->eventid, eattr->occupid);
 
@@ -673,7 +673,7 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct arm_cmn *cmn = to_cmn(dev_get_drvdata(dev));
 	struct arm_cmn_event_attr *eattr;
-	enum cmn_node_type type;
+	enum cmn_analde_type type;
 	u16 eventid;
 
 	eattr = container_of(attr, typeof(*eattr), attr.attr);
@@ -684,7 +684,7 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	type = eattr->type;
 	eventid = eattr->eventid;
 
-	/* Watchpoints aren't nodes, so avoid confusion */
+	/* Watchpoints aren't analdes, so avoid confusion */
 	if (type == CMN_TYPE_WP)
 		return attr->mode;
 
@@ -742,7 +742,7 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 		}
 	}
 
-	if (!arm_cmn_node(cmn, type))
+	if (!arm_cmn_analde(cmn, type))
 		return 0;
 
 	return attr->mode;
@@ -782,7 +782,7 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	CMN_EVENT_ATTR(CMN_ANY, hns_##_name, CMN_TYPE_HNS, _event)
 
 #define CMN_EVENT_DVM(_model, _name, _event)			\
-	_CMN_EVENT_DVM(_model, _name, _event, 0, SEL_NONE)
+	_CMN_EVENT_DVM(_model, _name, _event, 0, SEL_ANALNE)
 #define CMN_EVENT_DVM_OCC(_model, _name, _event)			\
 	_CMN_EVENT_DVM(_model, _name##_all, _event, 0, SEL_OCCUP1ID),	\
 	_CMN_EVENT_DVM(_model, _name##_dvmop, _event, 1, SEL_OCCUP1ID),	\
@@ -870,7 +870,7 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_DTC(cycles),
 
 	/*
-	 * DVM node events conflict with HN-I events in the equivalent PMU
+	 * DVM analde events conflict with HN-I events in the equivalent PMU
 	 * slot, but our lazy short-cut of using the DTM counter index for
 	 * the PMU index as well happens to avoid that by construction.
 	 */
@@ -879,18 +879,18 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_DVM(CMN600, rxreq_dvmop_vmid_filtered, 0x03),
 	CMN_EVENT_DVM(CMN600, rxreq_retried,		0x04),
 	CMN_EVENT_DVM_OCC(CMN600, rxreq_trk_occupancy,	0x05),
-	CMN_EVENT_DVM(NOT_CMN600, dvmop_tlbi,		0x01),
-	CMN_EVENT_DVM(NOT_CMN600, dvmop_bpi,		0x02),
-	CMN_EVENT_DVM(NOT_CMN600, dvmop_pici,		0x03),
-	CMN_EVENT_DVM(NOT_CMN600, dvmop_vici,		0x04),
-	CMN_EVENT_DVM(NOT_CMN600, dvmsync,		0x05),
-	CMN_EVENT_DVM(NOT_CMN600, vmid_filtered,	0x06),
-	CMN_EVENT_DVM(NOT_CMN600, rndop_filtered,	0x07),
-	CMN_EVENT_DVM(NOT_CMN600, retry,		0x08),
-	CMN_EVENT_DVM(NOT_CMN600, txsnp_flitv,		0x09),
-	CMN_EVENT_DVM(NOT_CMN600, txsnp_stall,		0x0a),
-	CMN_EVENT_DVM(NOT_CMN600, trkfull,		0x0b),
-	CMN_EVENT_DVM_OCC(NOT_CMN600, trk_occupancy,	0x0c),
+	CMN_EVENT_DVM(ANALT_CMN600, dvmop_tlbi,		0x01),
+	CMN_EVENT_DVM(ANALT_CMN600, dvmop_bpi,		0x02),
+	CMN_EVENT_DVM(ANALT_CMN600, dvmop_pici,		0x03),
+	CMN_EVENT_DVM(ANALT_CMN600, dvmop_vici,		0x04),
+	CMN_EVENT_DVM(ANALT_CMN600, dvmsync,		0x05),
+	CMN_EVENT_DVM(ANALT_CMN600, vmid_filtered,	0x06),
+	CMN_EVENT_DVM(ANALT_CMN600, rndop_filtered,	0x07),
+	CMN_EVENT_DVM(ANALT_CMN600, retry,		0x08),
+	CMN_EVENT_DVM(ANALT_CMN600, txsnp_flitv,		0x09),
+	CMN_EVENT_DVM(ANALT_CMN600, txsnp_stall,		0x0a),
+	CMN_EVENT_DVM(ANALT_CMN600, trkfull,		0x0b),
+	CMN_EVENT_DVM_OCC(ANALT_CMN600, trk_occupancy,	0x0c),
 	CMN_EVENT_DVM_OCC(CMN700, trk_occupancy_cxha,	0x0d),
 	CMN_EVENT_DVM_OCC(CMN700, trk_occupancy_pdn,	0x0e),
 	CMN_EVENT_DVM(CMN700, trk_alloc,		0x0f),
@@ -907,8 +907,8 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_HNF(CMN_ANY, pocq_reqs_recvd,		0x05),
 	CMN_EVENT_HNF(CMN_ANY, sf_hit,			0x06),
 	CMN_EVENT_HNF(CMN_ANY, sf_evictions,		0x07),
-	CMN_EVENT_HNF(CMN_ANY, dir_snoops_sent,		0x08),
-	CMN_EVENT_HNF(CMN_ANY, brd_snoops_sent,		0x09),
+	CMN_EVENT_HNF(CMN_ANY, dir_sanalops_sent,		0x08),
+	CMN_EVENT_HNF(CMN_ANY, brd_sanalops_sent,		0x09),
 	CMN_EVENT_HNF(CMN_ANY, slc_eviction,		0x0a),
 	CMN_EVENT_HNF(CMN_ANY, slc_fill_invalid_way,	0x0b),
 	CMN_EVENT_HNF(CMN_ANY, mc_retries,		0x0c),
@@ -931,9 +931,9 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_HNF(CMN_ANY, stash_snp_sent,		0x1d),
 	CMN_EVENT_HNF(CMN_ANY, stash_data_pull,		0x1e),
 	CMN_EVENT_HNF(CMN_ANY, snp_fwded,		0x1f),
-	CMN_EVENT_HNF(NOT_CMN600, atomic_fwd,		0x20),
-	CMN_EVENT_HNF(NOT_CMN600, mpam_hardlim,		0x21),
-	CMN_EVENT_HNF(NOT_CMN600, mpam_softlim,		0x22),
+	CMN_EVENT_HNF(ANALT_CMN600, atomic_fwd,		0x20),
+	CMN_EVENT_HNF(ANALT_CMN600, mpam_hardlim,		0x21),
+	CMN_EVENT_HNF(ANALT_CMN600, mpam_softlim,		0x22),
 	CMN_EVENT_HNF(CMN_650ON, snp_sent_cluster,	0x23),
 	CMN_EVENT_HNF(CMN_650ON, sf_imprecise_evict,	0x24),
 	CMN_EVENT_HNF(CMN_650ON, sf_evict_shared_line,	0x25),
@@ -959,18 +959,18 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_HNI(rdt_wr_alloc,			0x28),
 	CMN_EVENT_HNI(wdb_alloc,			0x29),
 	CMN_EVENT_HNI(txrsp_retryack,			0x2a),
-	CMN_EVENT_HNI(arvalid_no_arready,		0x2b),
-	CMN_EVENT_HNI(arready_no_arvalid,		0x2c),
-	CMN_EVENT_HNI(awvalid_no_awready,		0x2d),
-	CMN_EVENT_HNI(awready_no_awvalid,		0x2e),
-	CMN_EVENT_HNI(wvalid_no_wready,			0x2f),
+	CMN_EVENT_HNI(arvalid_anal_arready,		0x2b),
+	CMN_EVENT_HNI(arready_anal_arvalid,		0x2c),
+	CMN_EVENT_HNI(awvalid_anal_awready,		0x2d),
+	CMN_EVENT_HNI(awready_anal_awvalid,		0x2e),
+	CMN_EVENT_HNI(wvalid_anal_wready,			0x2f),
 	CMN_EVENT_HNI(txdat_stall,			0x30),
-	CMN_EVENT_HNI(nonpcie_serialization,		0x31),
+	CMN_EVENT_HNI(analnpcie_serialization,		0x31),
 	CMN_EVENT_HNI(pcie_serialization,		0x32),
 
 	/*
 	 * HN-P events squat on top of the HN-I similarly to DVM events, except
-	 * for being crammed into the same physical node as well. And of course
+	 * for being crammed into the same physical analde as well. And of course
 	 * where would the fun be if the same events were in the same order...
 	 */
 	CMN_EVENT_HNP(rrt_wr_occ_cnt_ovfl,		0x01),
@@ -979,15 +979,15 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_HNP(rrt_wr_alloc,			0x04),
 	CMN_EVENT_HNP(rdt_wr_alloc,			0x05),
 	CMN_EVENT_HNP(wdb_alloc,			0x06),
-	CMN_EVENT_HNP(awvalid_no_awready,		0x07),
-	CMN_EVENT_HNP(awready_no_awvalid,		0x08),
-	CMN_EVENT_HNP(wvalid_no_wready,			0x09),
+	CMN_EVENT_HNP(awvalid_anal_awready,		0x07),
+	CMN_EVENT_HNP(awready_anal_awvalid,		0x08),
+	CMN_EVENT_HNP(wvalid_anal_wready,			0x09),
 	CMN_EVENT_HNP(rrt_rd_occ_cnt_ovfl,		0x11),
 	CMN_EVENT_HNP(rdt_rd_occ_cnt_ovfl,		0x12),
 	CMN_EVENT_HNP(rrt_rd_alloc,			0x13),
 	CMN_EVENT_HNP(rdt_rd_alloc,			0x14),
-	CMN_EVENT_HNP(arvalid_no_arready,		0x15),
-	CMN_EVENT_HNP(arready_no_arvalid,		0x16),
+	CMN_EVENT_HNP(arvalid_anal_arready,		0x15),
+	CMN_EVENT_HNP(arready_anal_arvalid,		0x16),
 
 	CMN_EVENT_XP(txflit_valid,			0x01),
 	CMN_EVENT_XP(txflit_stall,			0x02),
@@ -1008,10 +1008,10 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_SBSX(CMN_ANY, wdb_occ_cnt_ovfl,	0x14),
 	CMN_EVENT_SBSX(CMN_ANY, rd_axi_trkr_occ_cnt_ovfl, 0x15),
 	CMN_EVENT_SBSX(CMN_ANY, cmo_axi_trkr_occ_cnt_ovfl, 0x16),
-	CMN_EVENT_SBSX(NOT_CMN600, rdb_occ_cnt_ovfl,	0x17),
-	CMN_EVENT_SBSX(CMN_ANY, arvalid_no_arready,	0x21),
-	CMN_EVENT_SBSX(CMN_ANY, awvalid_no_awready,	0x22),
-	CMN_EVENT_SBSX(CMN_ANY, wvalid_no_wready,	0x23),
+	CMN_EVENT_SBSX(ANALT_CMN600, rdb_occ_cnt_ovfl,	0x17),
+	CMN_EVENT_SBSX(CMN_ANY, arvalid_anal_arready,	0x21),
+	CMN_EVENT_SBSX(CMN_ANY, awvalid_anal_awready,	0x22),
+	CMN_EVENT_SBSX(CMN_ANY, wvalid_anal_wready,	0x23),
 	CMN_EVENT_SBSX(CMN_ANY, txdat_stall,		0x24),
 	CMN_EVENT_SBSX(CMN_ANY, txrsp_stall,		0x25),
 
@@ -1031,16 +1031,16 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_RNID(CMN_ANY, s2_wdata_beats,		0x0e),
 	CMN_EVENT_RNID(CMN_ANY, rrt_alloc,		0x0f),
 	CMN_EVENT_RNID(CMN_ANY, wrt_alloc,		0x10),
-	CMN_EVENT_RNID(CMN600, rdb_unord,		0x11),
+	CMN_EVENT_RNID(CMN600, rdb_uanalrd,		0x11),
 	CMN_EVENT_RNID(CMN600, rdb_replay,		0x12),
 	CMN_EVENT_RNID(CMN600, rdb_hybrid,		0x13),
 	CMN_EVENT_RNID(CMN600, rdb_ord,			0x14),
-	CMN_EVENT_RNID(NOT_CMN600, padb_occ_ovfl,	0x11),
-	CMN_EVENT_RNID(NOT_CMN600, rpdb_occ_ovfl,	0x12),
-	CMN_EVENT_RNID(NOT_CMN600, rrt_occup_ovfl_slice1, 0x13),
-	CMN_EVENT_RNID(NOT_CMN600, rrt_occup_ovfl_slice2, 0x14),
-	CMN_EVENT_RNID(NOT_CMN600, rrt_occup_ovfl_slice3, 0x15),
-	CMN_EVENT_RNID(NOT_CMN600, wrt_throttled,	0x16),
+	CMN_EVENT_RNID(ANALT_CMN600, padb_occ_ovfl,	0x11),
+	CMN_EVENT_RNID(ANALT_CMN600, rpdb_occ_ovfl,	0x12),
+	CMN_EVENT_RNID(ANALT_CMN600, rrt_occup_ovfl_slice1, 0x13),
+	CMN_EVENT_RNID(ANALT_CMN600, rrt_occup_ovfl_slice2, 0x14),
+	CMN_EVENT_RNID(ANALT_CMN600, rrt_occup_ovfl_slice3, 0x15),
+	CMN_EVENT_RNID(ANALT_CMN600, wrt_throttled,	0x16),
 	CMN_EVENT_RNID(CMN700, ldb_full,		0x17),
 	CMN_EVENT_RNID(CMN700, rrt_rd_req_occup_ovfl_slice0, 0x18),
 	CMN_EVENT_RNID(CMN700, rrt_rd_req_occup_ovfl_slice1, 0x19),
@@ -1086,9 +1086,9 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_CXRA(CMN_ANY, cxdat_pcrd_stalls_link2, 0x10),
 	CMN_EVENT_CXRA(CMN_ANY, external_chirsp_stalls,	0x11),
 	CMN_EVENT_CXRA(CMN_ANY, external_chidat_stalls,	0x12),
-	CMN_EVENT_CXRA(NOT_CMN600, cxmisc_pcrd_stalls_link0, 0x13),
-	CMN_EVENT_CXRA(NOT_CMN600, cxmisc_pcrd_stalls_link1, 0x14),
-	CMN_EVENT_CXRA(NOT_CMN600, cxmisc_pcrd_stalls_link2, 0x15),
+	CMN_EVENT_CXRA(ANALT_CMN600, cxmisc_pcrd_stalls_link0, 0x13),
+	CMN_EVENT_CXRA(ANALT_CMN600, cxmisc_pcrd_stalls_link1, 0x14),
+	CMN_EVENT_CXRA(ANALT_CMN600, cxmisc_pcrd_stalls_link2, 0x15),
 
 	CMN_EVENT_CXHA(rddatbyp,			0x21),
 	CMN_EVENT_CXHA(chirsp_up_stall,			0x22),
@@ -1187,8 +1187,8 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_HNS_HBT(pocq_reqs_recvd,		0x05),
 	CMN_EVENT_HNS_HBT(sf_hit,			0x06),
 	CMN_EVENT_HNS_HBT(sf_evictions,			0x07),
-	CMN_EVENT_HNS(dir_snoops_sent,			0x08),
-	CMN_EVENT_HNS(brd_snoops_sent,			0x09),
+	CMN_EVENT_HNS(dir_sanalops_sent,			0x08),
+	CMN_EVENT_HNS(brd_sanalops_sent,			0x09),
 	CMN_EVENT_HNS_HBT(slc_eviction,			0x0a),
 	CMN_EVENT_HNS_HBT(slc_fill_invalid_way,		0x0b),
 	CMN_EVENT_HNS(mc_retries_local,			0x0c),
@@ -1276,8 +1276,8 @@ static struct attribute *arm_cmn_format_attrs[] = {
 	CMN_FORMAT_ATTR(type, CMN_CONFIG_TYPE),
 	CMN_FORMAT_ATTR(eventid, CMN_CONFIG_EVENTID),
 	CMN_FORMAT_ATTR(occupid, CMN_CONFIG_OCCUPID),
-	CMN_FORMAT_ATTR(bynodeid, CMN_CONFIG_BYNODEID),
-	CMN_FORMAT_ATTR(nodeid, CMN_CONFIG_NODEID),
+	CMN_FORMAT_ATTR(byanaldeid, CMN_CONFIG_BYANALDEID),
+	CMN_FORMAT_ATTR(analdeid, CMN_CONFIG_ANALDEID),
 
 	CMN_FORMAT_ATTR(wp_dev_sel, CMN_CONFIG_WP_DEV_SEL),
 	CMN_FORMAT_ATTR(wp_chn_sel, CMN_CONFIG_WP_CHN_SEL),
@@ -1392,7 +1392,7 @@ static u64 arm_cmn_read_dtm(struct arm_cmn *cmn, struct arm_cmn_hw_event *hw,
 			    bool snapshot)
 {
 	struct arm_cmn_dtm *dtm = NULL;
-	struct arm_cmn_node *dn;
+	struct arm_cmn_analde *dn;
 	unsigned int i, offset, dtm_idx;
 	u64 reg, count = 0;
 
@@ -1466,12 +1466,12 @@ static void arm_cmn_event_read(struct perf_event *event)
 	local64_add(delta, &event->count);
 }
 
-static int arm_cmn_set_event_sel_hi(struct arm_cmn_node *dn,
+static int arm_cmn_set_event_sel_hi(struct arm_cmn_analde *dn,
 				    enum cmn_filter_select fsel, u8 occupid)
 {
 	u64 reg;
 
-	if (fsel == SEL_NONE)
+	if (fsel == SEL_ANALNE)
 		return 0;
 
 	if (!dn->occupid[fsel].count) {
@@ -1494,7 +1494,7 @@ static int arm_cmn_set_event_sel_hi(struct arm_cmn_node *dn,
 	return 0;
 }
 
-static void arm_cmn_set_event_sel_lo(struct arm_cmn_node *dn, int dtm_idx,
+static void arm_cmn_set_event_sel_lo(struct arm_cmn_analde *dn, int dtm_idx,
 				     int eventid, bool wide_sel)
 {
 	if (wide_sel) {
@@ -1510,8 +1510,8 @@ static void arm_cmn_event_start(struct perf_event *event, int flags)
 {
 	struct arm_cmn *cmn = to_cmn(event->pmu);
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	struct arm_cmn_node *dn;
-	enum cmn_node_type type = CMN_EVENT_TYPE(event);
+	struct arm_cmn_analde *dn;
+	enum cmn_analde_type type = CMN_EVENT_TYPE(event);
 	int i;
 
 	if (type == CMN_TYPE_DTC) {
@@ -1541,8 +1541,8 @@ static void arm_cmn_event_stop(struct perf_event *event, int flags)
 {
 	struct arm_cmn *cmn = to_cmn(event->pmu);
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	struct arm_cmn_node *dn;
-	enum cmn_node_type type = CMN_EVENT_TYPE(event);
+	struct arm_cmn_analde *dn;
+	enum cmn_analde_type type = CMN_EVENT_TYPE(event);
 	int i;
 
 	if (type == CMN_TYPE_DTC) {
@@ -1578,8 +1578,8 @@ static void arm_cmn_val_add_event(struct arm_cmn *cmn, struct arm_cmn_val *val,
 				  struct perf_event *event)
 {
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	struct arm_cmn_node *dn;
-	enum cmn_node_type type;
+	struct arm_cmn_analde *dn;
+	enum cmn_analde_type type;
 	int i;
 
 	if (is_software_event(event))
@@ -1599,7 +1599,7 @@ static void arm_cmn_val_add_event(struct arm_cmn *cmn, struct arm_cmn_val *val,
 
 		val->dtm_count[dtm]++;
 
-		if (sel > SEL_NONE)
+		if (sel > SEL_ANALNE)
 			val->occupid[dtm][sel] = CMN_EVENT_OCCUPID(event) + 1;
 
 		if (type != CMN_TYPE_WP)
@@ -1613,9 +1613,9 @@ static void arm_cmn_val_add_event(struct arm_cmn *cmn, struct arm_cmn_val *val,
 static int arm_cmn_validate_group(struct arm_cmn *cmn, struct perf_event *event)
 {
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	struct arm_cmn_node *dn;
+	struct arm_cmn_analde *dn;
 	struct perf_event *sibling, *leader = event->group_leader;
-	enum cmn_node_type type;
+	enum cmn_analde_type type;
 	struct arm_cmn_val *val;
 	int i, ret = -EINVAL;
 
@@ -1627,7 +1627,7 @@ static int arm_cmn_validate_group(struct arm_cmn *cmn, struct perf_event *event)
 
 	val = kzalloc(sizeof(*val), GFP_KERNEL);
 	if (!val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	arm_cmn_val_add_event(cmn, val, leader);
 	for_each_sibling_event(sibling, leader)
@@ -1649,7 +1649,7 @@ static int arm_cmn_validate_group(struct arm_cmn *cmn, struct perf_event *event)
 		if (val->dtm_count[dtm] == CMN_DTM_NUM_COUNTERS)
 			goto done;
 
-		if (sel > SEL_NONE && val->occupid[dtm][sel] &&
+		if (sel > SEL_ANALNE && val->occupid[dtm][sel] &&
 		    val->occupid[dtm][sel] != CMN_EVENT_OCCUPID(event) + 1)
 			goto done;
 
@@ -1672,7 +1672,7 @@ done:
 }
 
 static enum cmn_filter_select arm_cmn_filter_sel(const struct arm_cmn *cmn,
-						 enum cmn_node_type type,
+						 enum cmn_analde_type type,
 						 unsigned int eventid)
 {
 	struct arm_cmn_event_attr *e;
@@ -1683,7 +1683,7 @@ static enum cmn_filter_select arm_cmn_filter_sel(const struct arm_cmn *cmn,
 		if (e->model & model && e->type == type && e->eventid == eventid)
 			return e->fsel;
 	}
-	return SEL_NONE;
+	return SEL_ANALNE;
 }
 
 
@@ -1691,13 +1691,13 @@ static int arm_cmn_event_init(struct perf_event *event)
 {
 	struct arm_cmn *cmn = to_cmn(event->pmu);
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	struct arm_cmn_node *dn;
-	enum cmn_node_type type;
-	bool bynodeid;
-	u16 nodeid, eventid;
+	struct arm_cmn_analde *dn;
+	enum cmn_analde_type type;
+	bool byanaldeid;
+	u16 analdeid, eventid;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
@@ -1712,7 +1712,7 @@ static int arm_cmn_event_init(struct perf_event *event)
 		return arm_cmn_validate_group(cmn, event);
 
 	eventid = CMN_EVENT_EVENTID(event);
-	/* For watchpoints we need the actual XP node here */
+	/* For watchpoints we need the actual XP analde here */
 	if (type == CMN_TYPE_WP) {
 		type = CMN_TYPE_XP;
 		/* ...and we need a "real" direction */
@@ -1725,19 +1725,19 @@ static int arm_cmn_event_init(struct perf_event *event)
 		hw->wide_sel = true;
 	}
 
-	/* This is sufficiently annoying to recalculate, so cache it */
+	/* This is sufficiently ananalying to recalculate, so cache it */
 	hw->filter_sel = arm_cmn_filter_sel(cmn, type, eventid);
 
-	bynodeid = CMN_EVENT_BYNODEID(event);
-	nodeid = CMN_EVENT_NODEID(event);
+	byanaldeid = CMN_EVENT_BYANALDEID(event);
+	analdeid = CMN_EVENT_ANALDEID(event);
 
-	hw->dn = arm_cmn_node(cmn, type);
+	hw->dn = arm_cmn_analde(cmn, type);
 	if (!hw->dn)
 		return -EINVAL;
 
 	memset(hw->dtc_idx, -1, sizeof(hw->dtc_idx));
 	for (dn = hw->dn; dn->type == type; dn++) {
-		if (bynodeid && dn->id != nodeid) {
+		if (byanaldeid && dn->id != analdeid) {
 			hw->dn++;
 			continue;
 		}
@@ -1747,15 +1747,15 @@ static int arm_cmn_event_init(struct perf_event *event)
 		else
 			hw->dtc_idx[dn->dtc] = 0;
 
-		if (bynodeid)
+		if (byanaldeid)
 			break;
 	}
 
 	if (!hw->num_dns) {
-		struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, nodeid);
+		struct arm_cmn_analdeid nid = arm_cmn_nid(cmn, analdeid);
 
-		dev_dbg(cmn->dev, "invalid node 0x%x (%d,%d,%d,%d) type 0x%x\n",
-			nodeid, nid.x, nid.y, nid.port, nid.dev, type);
+		dev_dbg(cmn->dev, "invalid analde 0x%x (%d,%d,%d,%d) type 0x%x\n",
+			analdeid, nid.x, nid.y, nid.port, nid.dev, type);
 		return -EINVAL;
 	}
 
@@ -1766,7 +1766,7 @@ static void arm_cmn_event_clear(struct arm_cmn *cmn, struct perf_event *event,
 				int i)
 {
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	enum cmn_node_type type = CMN_EVENT_TYPE(event);
+	enum cmn_analde_type type = CMN_EVENT_TYPE(event);
 
 	while (i--) {
 		struct arm_cmn_dtm *dtm = &cmn->dtms[hw->dn[i].dtm] + hw->dtm_offset;
@@ -1775,7 +1775,7 @@ static void arm_cmn_event_clear(struct arm_cmn *cmn, struct perf_event *event,
 		if (type == CMN_TYPE_WP)
 			dtm->wp_event[arm_cmn_wp_idx(event)] = -1;
 
-		if (hw->filter_sel > SEL_NONE)
+		if (hw->filter_sel > SEL_ANALNE)
 			hw->dn[i].occupid[hw->filter_sel].count--;
 
 		dtm->pmu_config_low &= ~CMN__PMEVCNT_PAIRED(dtm_idx);
@@ -1791,14 +1791,14 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 {
 	struct arm_cmn *cmn = to_cmn(event->pmu);
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	struct arm_cmn_node *dn;
-	enum cmn_node_type type = CMN_EVENT_TYPE(event);
+	struct arm_cmn_analde *dn;
+	enum cmn_analde_type type = CMN_EVENT_TYPE(event);
 	unsigned int input_sel, i = 0;
 
 	if (type == CMN_TYPE_DTC) {
 		while (cmn->dtc[i].cycles)
 			if (++i == cmn->num_dtcs)
-				return -ENOSPC;
+				return -EANALSPC;
 
 		cmn->dtc[i].cycles = event;
 		hw->dtc_idx[0] = i;
@@ -1816,7 +1816,7 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 			idx = 0;
 			while (cmn->dtc[j].counters[idx])
 				if (++idx == CMN_DT_NUM_COUNTERS)
-					return -ENOSPC;
+					return -EANALSPC;
 		}
 		hw->dtc_idx[j] = idx;
 	}
@@ -1850,7 +1850,7 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 			dtm->wp_event[wp_idx] = hw->dtc_idx[d];
 			writel_relaxed(cfg, dtm->base + CMN_DTM_WPn_CONFIG(wp_idx));
 		} else {
-			struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
+			struct arm_cmn_analdeid nid = arm_cmn_nid(cmn, dn->id);
 
 			if (cmn->multi_dtm)
 				nid.port %= 2;
@@ -1883,14 +1883,14 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 
 free_dtms:
 	arm_cmn_event_clear(cmn, event, i);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static void arm_cmn_event_del(struct perf_event *event, int flags)
 {
 	struct arm_cmn *cmn = to_cmn(event->pmu);
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
-	enum cmn_node_type type = CMN_EVENT_TYPE(event);
+	enum cmn_analde_type type = CMN_EVENT_TYPE(event);
 
 	arm_cmn_event_stop(event, PERF_EF_UPDATE);
 
@@ -1932,32 +1932,32 @@ static void arm_cmn_migrate(struct arm_cmn *cmn, unsigned int cpu)
 	cmn->cpu = cpu;
 }
 
-static int arm_cmn_pmu_online_cpu(unsigned int cpu, struct hlist_node *cpuhp_node)
+static int arm_cmn_pmu_online_cpu(unsigned int cpu, struct hlist_analde *cpuhp_analde)
 {
 	struct arm_cmn *cmn;
-	int node;
+	int analde;
 
-	cmn = hlist_entry_safe(cpuhp_node, struct arm_cmn, cpuhp_node);
-	node = dev_to_node(cmn->dev);
-	if (node != NUMA_NO_NODE && cpu_to_node(cmn->cpu) != node && cpu_to_node(cpu) == node)
+	cmn = hlist_entry_safe(cpuhp_analde, struct arm_cmn, cpuhp_analde);
+	analde = dev_to_analde(cmn->dev);
+	if (analde != NUMA_ANAL_ANALDE && cpu_to_analde(cmn->cpu) != analde && cpu_to_analde(cpu) == analde)
 		arm_cmn_migrate(cmn, cpu);
 	return 0;
 }
 
-static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *cpuhp_node)
+static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *cpuhp_analde)
 {
 	struct arm_cmn *cmn;
 	unsigned int target;
-	int node;
+	int analde;
 	cpumask_t mask;
 
-	cmn = hlist_entry_safe(cpuhp_node, struct arm_cmn, cpuhp_node);
+	cmn = hlist_entry_safe(cpuhp_analde, struct arm_cmn, cpuhp_analde);
 	if (cpu != cmn->cpu)
 		return 0;
 
-	node = dev_to_node(cmn->dev);
-	if (cpumask_and(&mask, cpumask_of_node(node), cpu_online_mask) &&
-	    cpumask_andnot(&mask, &mask, cpumask_of(cpu)))
+	analde = dev_to_analde(cmn->dev);
+	if (cpumask_and(&mask, cpumask_of_analde(analde), cpu_online_mask) &&
+	    cpumask_andanalt(&mask, &mask, cpumask_of(cpu)))
 		target = cpumask_any(&mask);
 	else
 		target = cpumask_any_but(cpu_online_mask, cpu);
@@ -1969,7 +1969,7 @@ static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *cpuhp_no
 static irqreturn_t arm_cmn_handle_irq(int irq, void *dev_id)
 {
 	struct arm_cmn_dtc *dtc = dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	for (;;) {
 		u32 status = readl_relaxed(dtc->base + CMN_DT_PMOVSR);
@@ -2016,7 +2016,7 @@ static int arm_cmn_init_irqs(struct arm_cmn *cmn)
 			}
 		}
 		err = devm_request_irq(cmn->dev, irq, arm_cmn_handle_irq,
-				       IRQF_NOBALANCING | IRQF_NO_THREAD,
+				       IRQF_ANALBALANCING | IRQF_ANAL_THREAD,
 				       dev_name(cmn->dev), &cmn->dtc[i]);
 		if (err)
 			return err;
@@ -2030,7 +2030,7 @@ static int arm_cmn_init_irqs(struct arm_cmn *cmn)
 	return 0;
 }
 
-static void arm_cmn_init_dtm(struct arm_cmn_dtm *dtm, struct arm_cmn_node *xp, int idx)
+static void arm_cmn_init_dtm(struct arm_cmn_dtm *dtm, struct arm_cmn_analde *xp, int idx)
 {
 	int i;
 
@@ -2044,7 +2044,7 @@ static void arm_cmn_init_dtm(struct arm_cmn_dtm *dtm, struct arm_cmn_node *xp, i
 	}
 }
 
-static int arm_cmn_init_dtc(struct arm_cmn *cmn, struct arm_cmn_node *dn, int idx)
+static int arm_cmn_init_dtc(struct arm_cmn *cmn, struct arm_cmn_analde *dn, int idx)
 {
 	struct arm_cmn_dtc *dtc = cmn->dtc + idx;
 
@@ -2061,9 +2061,9 @@ static int arm_cmn_init_dtc(struct arm_cmn *cmn, struct arm_cmn_node *dn, int id
 	return 0;
 }
 
-static int arm_cmn_node_cmp(const void *a, const void *b)
+static int arm_cmn_analde_cmp(const void *a, const void *b)
 {
-	const struct arm_cmn_node *dna = a, *dnb = b;
+	const struct arm_cmn_analde *dna = a, *dnb = b;
 	int cmp;
 
 	cmp = dna->type - dnb->type;
@@ -2074,29 +2074,29 @@ static int arm_cmn_node_cmp(const void *a, const void *b)
 
 static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 {
-	struct arm_cmn_node *dn, *xp;
+	struct arm_cmn_analde *dn, *xp;
 	int dtc_idx = 0;
 
 	cmn->dtc = devm_kcalloc(cmn->dev, cmn->num_dtcs, sizeof(cmn->dtc[0]), GFP_KERNEL);
 	if (!cmn->dtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	sort(cmn->dns, cmn->num_dns, sizeof(cmn->dns[0]), arm_cmn_node_cmp, NULL);
+	sort(cmn->dns, cmn->num_dns, sizeof(cmn->dns[0]), arm_cmn_analde_cmp, NULL);
 
-	cmn->xps = arm_cmn_node(cmn, CMN_TYPE_XP);
+	cmn->xps = arm_cmn_analde(cmn, CMN_TYPE_XP);
 
 	if (cmn->part == PART_CMN600 && cmn->num_dtcs > 1) {
-		/* We do at least know that a DTC's XP must be in that DTC's domain */
-		dn = arm_cmn_node(cmn, CMN_TYPE_DTC);
+		/* We do at least kanalw that a DTC's XP must be in that DTC's domain */
+		dn = arm_cmn_analde(cmn, CMN_TYPE_DTC);
 		for (int i = 0; i < cmn->num_dtcs; i++)
-			arm_cmn_node_to_xp(cmn, dn + i)->dtc = i;
+			arm_cmn_analde_to_xp(cmn, dn + i)->dtc = i;
 	}
 
 	for (dn = cmn->dns; dn->type; dn++) {
 		if (dn->type == CMN_TYPE_XP)
 			continue;
 
-		xp = arm_cmn_node_to_xp(cmn, dn);
+		xp = arm_cmn_analde_to_xp(cmn, dn);
 		dn->dtc = xp->dtc;
 		dn->dtm = xp->dtm;
 		if (cmn->multi_dtm)
@@ -2133,30 +2133,30 @@ static unsigned int arm_cmn_dtc_domain(struct arm_cmn *cmn, void __iomem *xp_reg
 	return FIELD_GET(CMN_DTM_UNIT_INFO_DTC_DOMAIN, readl_relaxed(xp_region + offset));
 }
 
-static void arm_cmn_init_node_info(struct arm_cmn *cmn, u32 offset, struct arm_cmn_node *node)
+static void arm_cmn_init_analde_info(struct arm_cmn *cmn, u32 offset, struct arm_cmn_analde *analde)
 {
 	int level;
-	u64 reg = readq_relaxed(cmn->base + offset + CMN_NODE_INFO);
+	u64 reg = readq_relaxed(cmn->base + offset + CMN_ANALDE_INFO);
 
-	node->type = FIELD_GET(CMN_NI_NODE_TYPE, reg);
-	node->id = FIELD_GET(CMN_NI_NODE_ID, reg);
-	node->logid = FIELD_GET(CMN_NI_LOGICAL_ID, reg);
+	analde->type = FIELD_GET(CMN_NI_ANALDE_TYPE, reg);
+	analde->id = FIELD_GET(CMN_NI_ANALDE_ID, reg);
+	analde->logid = FIELD_GET(CMN_NI_LOGICAL_ID, reg);
 
-	node->pmu_base = cmn->base + offset + CMN_PMU_OFFSET;
+	analde->pmu_base = cmn->base + offset + CMN_PMU_OFFSET;
 
-	if (node->type == CMN_TYPE_CFG)
+	if (analde->type == CMN_TYPE_CFG)
 		level = 0;
-	else if (node->type == CMN_TYPE_XP)
+	else if (analde->type == CMN_TYPE_XP)
 		level = 1;
 	else
 		level = 2;
 
-	dev_dbg(cmn->dev, "node%*c%#06hx%*ctype:%-#6x id:%-4hd off:%#x\n",
-			(level * 2) + 1, ' ', node->id, 5 - (level * 2), ' ',
-			node->type, node->logid, offset);
+	dev_dbg(cmn->dev, "analde%*c%#06hx%*ctype:%-#6x id:%-4hd off:%#x\n",
+			(level * 2) + 1, ' ', analde->id, 5 - (level * 2), ' ',
+			analde->type, analde->logid, offset);
 }
 
-static enum cmn_node_type arm_cmn_subtype(enum cmn_node_type type)
+static enum cmn_analde_type arm_cmn_subtype(enum cmn_analde_type type)
 {
 	switch (type) {
 	case CMN_TYPE_HNP:
@@ -2171,7 +2171,7 @@ static enum cmn_node_type arm_cmn_subtype(enum cmn_node_type type)
 static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 {
 	void __iomem *cfg_region;
-	struct arm_cmn_node cfg, *dn;
+	struct arm_cmn_analde cfg, *dn;
 	struct arm_cmn_dtm *dtm;
 	enum cmn_part part;
 	u16 child_count, child_poff;
@@ -2180,9 +2180,9 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	int i, j;
 	size_t sz;
 
-	arm_cmn_init_node_info(cmn, rgn_offset, &cfg);
+	arm_cmn_init_analde_info(cmn, rgn_offset, &cfg);
 	if (cfg.type != CMN_TYPE_CFG)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cfg_region = cmn->base + rgn_offset;
 
@@ -2195,7 +2195,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 			 cmn->part, part);
 	cmn->part = part;
 	if (!arm_cmn_model(cmn))
-		dev_warn(cmn->dev, "Unknown part number: 0x%x\n", part);
+		dev_warn(cmn->dev, "Unkanalwn part number: 0x%x\n", part);
 
 	reg = readl_relaxed(cfg_region + CMN_CFGM_PERIPH_ID_23);
 	cmn->rev = FIELD_GET(CMN_CFGM_PID2_REVISION, reg);
@@ -2219,21 +2219,21 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	/* Pass 1: visit the XPs, enumerate their children */
 	for (i = 0; i < cmn->num_xps; i++) {
 		reg = readq_relaxed(cfg_region + child_poff + i * 8);
-		xp_offset[i] = reg & CMN_CHILD_NODE_ADDR;
+		xp_offset[i] = reg & CMN_CHILD_ANALDE_ADDR;
 
 		reg = readq_relaxed(cmn->base + xp_offset[i] + CMN_CHILD_INFO);
 		cmn->num_dns += FIELD_GET(CMN_CI_CHILD_COUNT, reg);
 	}
 
 	/*
-	 * Some nodes effectively have two separate types, which we'll handle
+	 * Some analdes effectively have two separate types, which we'll handle
 	 * by creating one of each internally. For a (very) safe initial upper
-	 * bound, account for double the number of non-XP nodes.
+	 * bound, account for double the number of analn-XP analdes.
 	 */
 	dn = devm_kcalloc(cmn->dev, cmn->num_dns * 2 - cmn->num_xps,
 			  sizeof(*dn), GFP_KERNEL);
 	if (!dn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initial safe upper bound on DTMs for any possible mesh layout */
 	i = cmn->num_xps;
@@ -2241,22 +2241,22 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 		i += cmn->num_xps + 1;
 	dtm = devm_kcalloc(cmn->dev, i, sizeof(*dtm), GFP_KERNEL);
 	if (!dtm)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Pass 2: now we can actually populate the nodes */
+	/* Pass 2: analw we can actually populate the analdes */
 	cmn->dns = dn;
 	cmn->dtms = dtm;
 	for (i = 0; i < cmn->num_xps; i++) {
 		void __iomem *xp_region = cmn->base + xp_offset[i];
-		struct arm_cmn_node *xp = dn++;
+		struct arm_cmn_analde *xp = dn++;
 		unsigned int xp_ports = 0;
 
-		arm_cmn_init_node_info(cmn, xp_offset[i], xp);
+		arm_cmn_init_analde_info(cmn, xp_offset[i], xp);
 		/*
 		 * Thanks to the order in which XP logical IDs seem to be
 		 * assigned, we can handily infer the mesh X dimension by
-		 * looking out for the XP at (0,1) without needing to know
-		 * the exact node ID format, which we can later derive.
+		 * looking out for the XP at (0,1) without needing to kanalw
+		 * the exact analde ID format, which we can later derive.
 		 */
 		if (xp->id == (1 << 3))
 			cmn->mesh_x = xp->logid;
@@ -2271,7 +2271,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 		/*
 		 * Keeping track of connected ports will let us filter out
 		 * unnecessary XP events easily. We can also reliably infer the
-		 * "extra device ports" configuration for the node ID format
+		 * "extra device ports" configuration for the analde ID format
 		 * from this, since in that case we will see at least one XP
 		 * with port 2 connected, for the HN-D.
 		 */
@@ -2301,15 +2301,15 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 			 * but they don't go to regular XP DTMs, and they depend on
 			 * secure configuration which we can't easily deal with)
 			 */
-			if (reg & CMN_CHILD_NODE_EXTERNAL) {
-				dev_dbg(cmn->dev, "ignoring external node %llx\n", reg);
+			if (reg & CMN_CHILD_ANALDE_EXTERNAL) {
+				dev_dbg(cmn->dev, "iganalring external analde %llx\n", reg);
 				continue;
 			}
 			/*
 			 * AmpereOneX erratum AC04_MESH_1 makes some XPs report a bogus
 			 * child count larger than the number of valid child pointers.
 			 * A child offset of 0 can only occur on CMN-600; otherwise it
-			 * would imply the root node being its own grandchild, which
+			 * would imply the root analde being its own grandchild, which
 			 * we can safely dismiss in general.
 			 */
 			if (reg == 0 && cmn->part != PART_CMN600) {
@@ -2317,7 +2317,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 				continue;
 			}
 
-			arm_cmn_init_node_info(cmn, reg & CMN_CHILD_NODE_ADDR, dn);
+			arm_cmn_init_analde_info(cmn, reg & CMN_CHILD_ANALDE_ADDR, dn);
 
 			switch (dn->type) {
 			case CMN_TYPE_DTC:
@@ -2340,7 +2340,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 			case CMN_TYPE_HNS:
 				dn++;
 				break;
-			/* Nothing to see here */
+			/* Analthing to see here */
 			case CMN_TYPE_MPAM_S:
 			case CMN_TYPE_MPAM_NS:
 			case CMN_TYPE_RNSAM:
@@ -2349,10 +2349,10 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 			case CMN_TYPE_HNS_MPAM_NS:
 				break;
 			/*
-			 * Split "optimised" combination nodes into separate
+			 * Split "optimised" combination analdes into separate
 			 * types for the different event sets. Offsetting the
 			 * base address lets us handle the second pmu_event_sel
-			 * register via the normal mechanism later.
+			 * register via the analrmal mechanism later.
 			 */
 			case CMN_TYPE_HNP:
 			case CMN_TYPE_CCLA_RNI:
@@ -2363,13 +2363,13 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 				break;
 			/* Something has gone horribly wrong */
 			default:
-				dev_err(cmn->dev, "invalid device node type: 0x%x\n", dn->type);
-				return -ENODEV;
+				dev_err(cmn->dev, "invalid device analde type: 0x%x\n", dn->type);
+				return -EANALDEV;
 			}
 		}
 	}
 
-	/* Correct for any nodes we added or skipped */
+	/* Correct for any analdes we added or skipped */
 	cmn->num_dns = dn - cmn->dns;
 
 	/* Cheeky +1 to help terminate pointer-based iteration later */
@@ -2393,7 +2393,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 
 	/* 1x1 config plays havoc with XP event encodings */
 	if (cmn->num_xps == 1)
-		dev_warn(cmn->dev, "1x1 config not fully supported, translate XP events manually\n");
+		dev_warn(cmn->dev, "1x1 config analt fully supported, translate XP events manually\n");
 
 	dev_dbg(cmn->dev, "periph_id part 0x%03x revision %d\n", cmn->part, cmn->rev);
 	reg = cmn->ports_used;
@@ -2419,23 +2419,23 @@ static int arm_cmn600_acpi_probe(struct platform_device *pdev, struct arm_cmn *c
 	if (!resource_contains(cfg, root))
 		swap(cfg, root);
 	/*
-	 * Note that devm_ioremap_resource() is dumb and won't let the platform
+	 * Analte that devm_ioremap_resource() is dumb and won't let the platform
 	 * device claim cfg when the ACPI companion device has already claimed
 	 * root within it. But since they *are* already both claimed in the
 	 * appropriate name, we don't really need to do it again here anyway.
 	 */
 	cmn->base = devm_ioremap(cmn->dev, cfg->start, resource_size(cfg));
 	if (!cmn->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return root->start - cfg->start;
 }
 
-static int arm_cmn600_of_probe(struct device_node *np)
+static int arm_cmn600_of_probe(struct device_analde *np)
 {
-	u32 rootnode;
+	u32 rootanalde;
 
-	return of_property_read_u32(np, "arm,root-node", &rootnode) ?: rootnode;
+	return of_property_read_u32(np, "arm,root-analde", &rootanalde) ?: rootanalde;
 }
 
 static int arm_cmn_probe(struct platform_device *pdev)
@@ -2443,30 +2443,30 @@ static int arm_cmn_probe(struct platform_device *pdev)
 	struct arm_cmn *cmn;
 	const char *name;
 	static atomic_t id;
-	int err, rootnode, this_id;
+	int err, rootanalde, this_id;
 
 	cmn = devm_kzalloc(&pdev->dev, sizeof(*cmn), GFP_KERNEL);
 	if (!cmn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmn->dev = &pdev->dev;
 	cmn->part = (unsigned long)device_get_match_data(cmn->dev);
 	platform_set_drvdata(pdev, cmn);
 
 	if (cmn->part == PART_CMN600 && has_acpi_companion(cmn->dev)) {
-		rootnode = arm_cmn600_acpi_probe(pdev, cmn);
+		rootanalde = arm_cmn600_acpi_probe(pdev, cmn);
 	} else {
-		rootnode = 0;
+		rootanalde = 0;
 		cmn->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(cmn->base))
 			return PTR_ERR(cmn->base);
 		if (cmn->part == PART_CMN600)
-			rootnode = arm_cmn600_of_probe(pdev->dev.of_node);
+			rootanalde = arm_cmn600_of_probe(pdev->dev.of_analde);
 	}
-	if (rootnode < 0)
-		return rootnode;
+	if (rootanalde < 0)
+		return rootanalde;
 
-	err = arm_cmn_discover(cmn, rootnode);
+	err = arm_cmn_discover(cmn, rootanalde);
 	if (err)
 		return err;
 
@@ -2478,11 +2478,11 @@ static int arm_cmn_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	cmn->cpu = cpumask_local_spread(0, dev_to_node(cmn->dev));
+	cmn->cpu = cpumask_local_spread(0, dev_to_analde(cmn->dev));
 	cmn->pmu = (struct pmu) {
 		.module = THIS_MODULE,
 		.attr_groups = arm_cmn_attr_groups,
-		.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities = PERF_PMU_CAP_ANAL_EXCLUDE,
 		.task_ctx_nr = perf_invalid_context,
 		.pmu_enable = arm_cmn_pmu_enable,
 		.pmu_disable = arm_cmn_pmu_disable,
@@ -2500,15 +2500,15 @@ static int arm_cmn_probe(struct platform_device *pdev)
 	this_id = atomic_fetch_inc(&id);
 	name = devm_kasprintf(cmn->dev, GFP_KERNEL, "arm_cmn_%d", this_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = cpuhp_state_add_instance(arm_cmn_hp_state, &cmn->cpuhp_node);
+	err = cpuhp_state_add_instance(arm_cmn_hp_state, &cmn->cpuhp_analde);
 	if (err)
 		return err;
 
 	err = perf_pmu_register(&cmn->pmu, name, -1);
 	if (err)
-		cpuhp_state_remove_instance_nocalls(arm_cmn_hp_state, &cmn->cpuhp_node);
+		cpuhp_state_remove_instance_analcalls(arm_cmn_hp_state, &cmn->cpuhp_analde);
 	else
 		arm_cmn_debugfs_init(cmn, this_id);
 
@@ -2522,7 +2522,7 @@ static int arm_cmn_remove(struct platform_device *pdev)
 	writel_relaxed(0, cmn->dtc[0].base + CMN_DT_DTC_CTL);
 
 	perf_pmu_unregister(&cmn->pmu);
-	cpuhp_state_remove_instance_nocalls(arm_cmn_hp_state, &cmn->cpuhp_node);
+	cpuhp_state_remove_instance_analcalls(arm_cmn_hp_state, &cmn->cpuhp_analde);
 	debugfs_remove(cmn->debug);
 	return 0;
 }

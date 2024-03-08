@@ -74,7 +74,7 @@ static inline void altera_hw_filt_release(void *dev, int filt_nr)
 }
 
 static inline int altera_pid_feed_control(void *dev, int filt_nr,
-		struct dvb_demux_feed *dvbdmxfeed, int onoff)
+		struct dvb_demux_feed *dvbdmxfeed, int oanalff)
 {
 	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return 0;

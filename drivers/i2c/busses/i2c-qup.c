@@ -57,8 +57,8 @@
 
 /* QUP OPERATIONAL FLAGS */
 #define QUP_I2C_NACK_FLAG	BIT(3)
-#define QUP_OUT_NOT_EMPTY	BIT(4)
-#define QUP_IN_NOT_EMPTY	BIT(5)
+#define QUP_OUT_ANALT_EMPTY	BIT(4)
+#define QUP_IN_ANALT_EMPTY	BIT(5)
 #define QUP_OUT_FULL		BIT(6)
 #define QUP_OUT_SVC_FLAG	BIT(8)
 #define QUP_IN_SVC_FLAG		BIT(9)
@@ -68,7 +68,7 @@
 #define IN_BLOCK_READ_REQ	BIT(13)
 
 /* I2C mini core related values */
-#define QUP_NO_INPUT		BIT(7)
+#define QUP_ANAL_INPUT		BIT(7)
 #define QUP_CLOCK_AUTO_GATE	BIT(13)
 #define I2C_MINI_CORE		(2 << 8)
 #define I2C_N_VAL		15
@@ -155,7 +155,7 @@ module_param_named(scl_freq, scl_freq, uint, 0444);
 MODULE_PARM_DESC(scl_freq, "SCL frequency override");
 
 /*
- * count: no of blocks
+ * count: anal of blocks
  * pos: current block number
  * tx_tag_len: tx tag length for current block
  * rx_tag_len: rx tag length for current block
@@ -179,8 +179,8 @@ MODULE_PARM_DESC(scl_freq, "SCL frequency override");
  * send_last_word: for tx FIFO, last word send is pending in current block
  * rx_bytes_read: if all the bytes have been read from rx FIFO.
  * rx_tags_fetched: all the rx tag bytes have been fetched from rx fifo word
- * is_tx_blk_mode: whether tx uses block or FIFO mode in case of non BAM xfer.
- * is_rx_blk_mode: whether rx uses block or FIFO mode in case of non BAM xfer.
+ * is_tx_blk_mode: whether tx uses block or FIFO mode in case of analn BAM xfer.
+ * is_rx_blk_mode: whether rx uses block or FIFO mode in case of analn BAM xfer.
  * tags: contains tx tag bytes for current QUP transfer
  */
 struct qup_i2c_block {
@@ -627,7 +627,7 @@ static int qup_i2c_req_dma(struct qup_i2c_dev *qup)
 		if (IS_ERR(qup->btx.dma)) {
 			err = PTR_ERR(qup->btx.dma);
 			qup->btx.dma = NULL;
-			dev_err(qup->dev, "\n tx channel not available");
+			dev_err(qup->dev, "\n tx channel analt available");
 			return err;
 		}
 	}
@@ -635,7 +635,7 @@ static int qup_i2c_req_dma(struct qup_i2c_dev *qup)
 	if (!qup->brx.dma) {
 		qup->brx.dma = dma_request_chan(qup->dev, "rx");
 		if (IS_ERR(qup->brx.dma)) {
-			dev_err(qup->dev, "\n rx channel not available");
+			dev_err(qup->dev, "\n rx channel analt available");
 			err = PTR_ERR(qup->brx.dma);
 			qup->brx.dma = NULL;
 			qup_i2c_rel_dma(qup);
@@ -794,7 +794,7 @@ static int qup_i2c_bam_schedule_desc(struct qup_i2c_dev *qup)
 	}
 
 	if (!wait_for_completion_timeout(&qup->xfer, qup->xfer_timeout)) {
-		dev_err(qup->dev, "normal trans timed out\n");
+		dev_err(qup->dev, "analrmal trans timed out\n");
 		ret = -ETIMEDOUT;
 	}
 
@@ -979,7 +979,7 @@ static void qup_i2c_conf_v1(struct qup_i2c_dev *qup)
 			writel(blk->total_rx_len, qup->base + QUP_MX_READ_CNT);
 		}
 	} else {
-		qup_config |= QUP_NO_INPUT;
+		qup_config |= QUP_ANAL_INPUT;
 	}
 
 	writel(qup_config, qup->base + QUP_CONFIG);
@@ -1140,7 +1140,7 @@ static void qup_i2c_conf_count_v2(struct qup_i2c_dev *qup)
 			writel(qup->config_run | blk->total_rx_len,
 			       qup->base + QUP_MX_READ_CNT);
 	} else {
-		qup_config |= QUP_NO_INPUT;
+		qup_config |= QUP_ANAL_INPUT;
 	}
 
 	writel(qup_config, qup->base + QUP_CONFIG);
@@ -1290,14 +1290,14 @@ static void qup_i2c_write_rx_tags_v2(struct qup_i2c_dev *qup)
  * 1. Check if tx_tags_sent is false i.e. the start of QUP block so write the
  *    tags to TX FIFO and set tx_tags_sent to true.
  * 2. Check if send_last_word is true. It will be set when last few data bytes
- *    (less than 4 bytes) are remaining to be written in FIFO because of no FIFO
+ *    (less than 4 bytes) are remaining to be written in FIFO because of anal FIFO
  *    space. All this data bytes are available in tx_fifo_data so write this
  *    in FIFO.
- * 3. Write the data to TX FIFO and check for cur_blk_len. If it is non zero
+ * 3. Write the data to TX FIFO and check for cur_blk_len. If it is analn zero
  *    then more data is pending otherwise following 3 cases can be possible
  *    a. if tx_fifo_data_pos is zero i.e. all the data bytes in this block
- *       have been written in TX FIFO so nothing else is required.
- *    b. tx_fifo_free is non zero i.e tx FIFO is free so copy the remaining data
+ *       have been written in TX FIFO so analthing else is required.
+ *    b. tx_fifo_free is analn zero i.e tx FIFO is free so copy the remaining data
  *       from tx_fifo_data to tx FIFO. Since, qup_i2c_write_blk_data do write
  *	 in 4 bytes and FIFO space is in multiple of 4 bytes so tx_fifo_free
  *       will be always greater than or equal to 4 bytes.
@@ -1504,7 +1504,7 @@ qup_i2c_determine_mode_v2(struct qup_i2c_dev *qup,
 			  struct i2c_msg msgs[], int num)
 {
 	int idx;
-	bool no_dma = false;
+	bool anal_dma = false;
 	unsigned int max_tx_len = 0, max_rx_len = 0, total_len = 0;
 
 	/* All i2c_msgs should be transferred using either dma or cpu */
@@ -1517,12 +1517,12 @@ qup_i2c_determine_mode_v2(struct qup_i2c_dev *qup,
 					   msgs[idx].len);
 
 		if (is_vmalloc_addr(msgs[idx].buf))
-			no_dma = true;
+			anal_dma = true;
 
 		total_len += msgs[idx].len;
 	}
 
-	if (!no_dma && qup->is_dma &&
+	if (!anal_dma && qup->is_dma &&
 	    (total_len > qup->out_fifo_sz || total_len > qup->in_fifo_sz)) {
 		qup->use_dma = true;
 	} else {
@@ -1622,12 +1622,12 @@ static const struct i2c_algorithm qup_i2c_algo_v2 = {
  * which limits the possible read to 256 (QUP_READ_LIMIT) bytes.
  */
 static const struct i2c_adapter_quirks qup_i2c_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_ANAL_ZERO_LEN,
 	.max_read_len = QUP_READ_LIMIT,
 };
 
 static const struct i2c_adapter_quirks qup_i2c_quirks_v2 = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_ANAL_ZERO_LEN,
 };
 
 static void qup_i2c_enable_clocks(struct qup_i2c_dev *qup)
@@ -1668,24 +1668,24 @@ static int qup_i2c_probe(struct platform_device *pdev)
 
 	qup = devm_kzalloc(&pdev->dev, sizeof(*qup), GFP_KERNEL);
 	if (!qup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qup->dev = &pdev->dev;
 	init_completion(&qup->xfer);
 	platform_set_drvdata(pdev, qup);
 
 	if (scl_freq) {
-		dev_notice(qup->dev, "Using override frequency of %u\n", scl_freq);
+		dev_analtice(qup->dev, "Using override frequency of %u\n", scl_freq);
 		clk_freq = scl_freq;
 	} else {
 		ret = device_property_read_u32(qup->dev, "clock-frequency", &clk_freq);
 		if (ret) {
-			dev_notice(qup->dev, "using default clock-frequency %d",
+			dev_analtice(qup->dev, "using default clock-frequency %d",
 				DEFAULT_CLK_FREQ);
 		}
 	}
 
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,i2c-qup-v1.1.1")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "qcom,i2c-qup-v1.1.1")) {
 		qup->adap.algo = &qup_i2c_algo;
 		qup->adap.quirks = &qup_i2c_quirks;
 		is_qup_v1 = true;
@@ -1694,14 +1694,14 @@ static int qup_i2c_probe(struct platform_device *pdev)
 		qup->adap.quirks = &qup_i2c_quirks_v2;
 		is_qup_v1 = false;
 		if (acpi_match_device(qup_i2c_acpi_match, qup->dev))
-			goto nodma;
+			goto analdma;
 		else
 			ret = qup_i2c_req_dma(qup);
 
 		if (ret == -EPROBE_DEFER)
 			goto fail_dma;
 		else if (ret != 0)
-			goto nodma;
+			goto analdma;
 
 		qup->max_xfer_sg_len = (MX_BLOCKS << 1);
 		blocks = (MX_DMA_BLOCKS << 1) + 1;
@@ -1709,7 +1709,7 @@ static int qup_i2c_probe(struct platform_device *pdev)
 					   blocks, sizeof(*qup->btx.sg),
 					   GFP_KERNEL);
 		if (!qup->btx.sg) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_dma;
 		}
 		sg_init_table(qup->btx.sg, blocks);
@@ -1718,7 +1718,7 @@ static int qup_i2c_probe(struct platform_device *pdev)
 					   blocks, sizeof(*qup->brx.sg),
 					   GFP_KERNEL);
 		if (!qup->brx.sg) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_dma;
 		}
 		sg_init_table(qup->brx.sg, blocks);
@@ -1729,28 +1729,28 @@ static int qup_i2c_probe(struct platform_device *pdev)
 		qup->start_tag.start = devm_kzalloc(&pdev->dev,
 						    size, GFP_KERNEL);
 		if (!qup->start_tag.start) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_dma;
 		}
 
 		qup->brx.tag.start = devm_kzalloc(&pdev->dev, 2, GFP_KERNEL);
 		if (!qup->brx.tag.start) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_dma;
 		}
 
 		qup->btx.tag.start = devm_kzalloc(&pdev->dev, 2, GFP_KERNEL);
 		if (!qup->btx.tag.start) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_dma;
 		}
 		qup->is_dma = true;
 	}
 
-nodma:
+analdma:
 	/* We support frequencies up to FAST Mode Plus (1MHz) */
 	if (!clk_freq || clk_freq > I2C_MAX_FAST_MODE_PLUS_FREQ) {
-		dev_err(qup->dev, "clock frequency not supported %d\n",
+		dev_err(qup->dev, "clock frequency analt supported %d\n",
 			clk_freq);
 		ret = -EINVAL;
 		goto fail_dma;
@@ -1772,21 +1772,21 @@ nodma:
 		ret = device_property_read_u32(qup->dev,
 				"src-clock-hz", &src_clk_freq);
 		if (ret) {
-			dev_notice(qup->dev, "using default src-clock-hz %d",
+			dev_analtice(qup->dev, "using default src-clock-hz %d",
 				DEFAULT_SRC_CLK);
 		}
 		ACPI_COMPANION_SET(&qup->adap.dev, ACPI_COMPANION(qup->dev));
 	} else {
 		qup->clk = devm_clk_get(qup->dev, "core");
 		if (IS_ERR(qup->clk)) {
-			dev_err(qup->dev, "Could not get core clock\n");
+			dev_err(qup->dev, "Could analt get core clock\n");
 			ret = PTR_ERR(qup->clk);
 			goto fail_dma;
 		}
 
 		qup->pclk = devm_clk_get(qup->dev, "iface");
 		if (IS_ERR(qup->pclk)) {
-			dev_err(qup->dev, "Could not get iface clock\n");
+			dev_err(qup->dev, "Could analt get iface clock\n");
 			ret = PTR_ERR(qup->pclk);
 			goto fail_dma;
 		}
@@ -1804,7 +1804,7 @@ nodma:
 		goto fail;
 
 	ret = devm_request_irq(qup->dev, qup->irq, qup_i2c_interrupt,
-			       IRQF_TRIGGER_HIGH | IRQF_NO_AUTOEN,
+			       IRQF_TRIGGER_HIGH | IRQF_ANAL_AUTOEN,
 			       "i2c_qup", qup);
 	if (ret) {
 		dev_err(qup->dev, "Request %d IRQ failed\n", qup->irq);
@@ -1882,7 +1882,7 @@ nodma:
 
 	i2c_set_adapdata(&qup->adap, qup);
 	qup->adap.dev.parent = qup->dev;
-	qup->adap.dev.of_node = pdev->dev.of_node;
+	qup->adap.dev.of_analde = pdev->dev.of_analde;
 	qup->is_last = true;
 
 	strscpy(qup->adap.name, "QUP I2C adapter", sizeof(qup->adap.name));

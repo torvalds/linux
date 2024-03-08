@@ -102,7 +102,7 @@ enum rtl8192e_h2c_cmd {
 	H2C_92E_SELECTIVE_SUSPEND_ROF_CMD,
 	H2C_92E_P2P_PS_MODE,
 	H2C_92E_PSD_RESULT,
-	/*Not defined CTW CMD for P2P yet*/
+	/*Analt defined CTW CMD for P2P yet*/
 	H2C_92E_P2P_PS_CTW_CMD,
 	MAX_92E_H2CCMD
 };

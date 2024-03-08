@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -43,11 +43,11 @@
  * &drm_encoder_slave. The @slave_funcs field will be initialized with
  * the hooks provided by the slave driver.
  *
- * If @info.platform_data is non-NULL it will be used as the initial
+ * If @info.platform_data is analn-NULL it will be used as the initial
  * slave config.
  *
- * Returns 0 on success or a negative errno on failure, in particular,
- * -ENODEV is returned when no matching driver is found.
+ * Returns 0 on success or a negative erranal on failure, in particular,
+ * -EANALDEV is returned when anal matching driver is found.
  */
 int drm_i2c_encoder_init(struct drm_device *dev,
 			 struct drm_encoder_slave *encoder,
@@ -63,13 +63,13 @@ int drm_i2c_encoder_init(struct drm_device *dev,
 
 	client = i2c_new_client_device(adap, info);
 	if (!i2c_client_has_driver(client)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail_unregister;
 	}
 
 	module = client->dev.driver->owner;
 	if (!try_module_get(module)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail_unregister;
 	}
 
@@ -100,7 +100,7 @@ EXPORT_SYMBOL(drm_i2c_encoder_init);
  * @drm_encoder:	Encoder to be unregistered.
  *
  * This should be called from the @destroy method of an I2C slave
- * encoder driver once I2C access is no longer needed.
+ * encoder driver once I2C access is anal longer needed.
  */
 void drm_i2c_encoder_destroy(struct drm_encoder *drm_encoder)
 {

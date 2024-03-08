@@ -13,12 +13,12 @@ Vitesse VSC7398 SparX-G8e 8-port Integrated Gigabit Ethernet Switch
 
 This switch could have two different management interface.
 
-If SPI interface is used, the device tree node is an SPI device so it must
-reside inside a SPI bus device tree node, see spi/spi-bus.txt
+If SPI interface is used, the device tree analde is an SPI device so it must
+reside inside a SPI bus device tree analde, see spi/spi-bus.txt
 
 When the chip is connected to a parallel memory bus and work in memory-mapped
 I/O mode, a platform device is used to represent the vsc73xx. In this case it
-must reside inside a platform bus device tree node.
+must reside inside a platform bus device tree analde.
 
 Required properties:
 
@@ -37,10 +37,10 @@ Optional properties:
 - reset-gpios: a handle to a GPIO line that can issue reset of the chip.
   It should be tagged as active low.
 
-Required subnodes:
+Required subanaldes:
 
 See net/dsa/dsa.txt for a list of additional required and optional properties
-and subnodes of DSA switches.
+and subanaldes of DSA switches.
 
 Examples:
 

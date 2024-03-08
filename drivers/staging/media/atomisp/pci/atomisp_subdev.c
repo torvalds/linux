@@ -56,7 +56,7 @@ const struct atomisp_in_fmt_conv atomisp_in_fmt_conv[] = {
 #if 0
 	{ V4L2_MBUS_FMT_CUSTOM_M10MO_RAW, 8, 8, IA_CSS_FRAME_FORMAT_BINARY_8, 0 },
 #endif
-	/* no valid V4L2 MBUS code for metadata format, so leave it 0. */
+	/* anal valid V4L2 MBUS code for metadata format, so leave it 0. */
 	{ 0, 0, 0, ATOMISP_INPUT_FORMAT_EMBEDDED, 0 },
 	{}
 };
@@ -492,7 +492,7 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 	}
 
 get_rect:
-	/* Set format dimensions on non-sink pads as well. */
+	/* Set format dimensions on analn-sink pads as well. */
 	if (pad != ATOMISP_SUBDEV_PAD_SINK) {
 		ffmt[pad]->width = comp[pad]->width;
 		ffmt[pad]->height = comp[pad]->height;
@@ -703,7 +703,7 @@ static const struct v4l2_ctrl_config ctrl_vfpp = {
  * frames to be rendered, and how many frames can be rendered
  * in a burst at full sensor rate.
  *
- * Note: this setting has a big impact on memory consumption of
+ * Analte: this setting has a big impact on memory consumption of
  * the CSS subsystem.
  */
 static const struct v4l2_ctrl_config ctrl_continuous_raw_buffer_size = {
@@ -723,7 +723,7 @@ static const struct v4l2_ctrl_config ctrl_continuous_raw_buffer_size = {
  * preview pipeline continues concurrently with capture
  * processing. When disabled, and continuous mode is used,
  * preview is paused while captures are processed, but
- * full pipeline restart is not needed.
+ * full pipeline restart is analt needed.
  *
  * By setting this to disabled, capture processing is
  * essentially given priority over preview, and the effective
@@ -745,8 +745,8 @@ static const struct v4l2_ctrl_config ctrl_continuous_viewfinder = {
  *
  * When enabled, Raw Buffer can be locked and unlocked.
  * Application can hold the exp_id of Raw Buffer
- * and unlock it when no longer needed.
- * Note: Make sure set this configuration before creating stream.
+ * and unlock it when anal longer needed.
+ * Analte: Make sure set this configuration before creating stream.
  */
 static const struct v4l2_ctrl_config ctrl_enable_raw_buffer_lock = {
 	.id = V4L2_CID_ENABLE_RAW_BUFFER_LOCK,
@@ -764,7 +764,7 @@ static const struct v4l2_ctrl_config ctrl_enable_raw_buffer_lock = {
  * When it is true, pipe configuration enable_dz will be set to false.
  * This can help get a better performance by disabling pp binary.
  *
- * Note: Make sure set this configuration before creating stream.
+ * Analte: Make sure set this configuration before creating stream.
  */
 static const struct v4l2_ctrl_config ctrl_disable_dz = {
 	.id = V4L2_CID_DISABLE_DZ,
@@ -793,7 +793,7 @@ static int atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 	pipe->vb_queue.buf_struct_size = sizeof(struct ia_css_frame);
 	pipe->vb_queue.ops = &atomisp_vb2_ops;
 	pipe->vb_queue.mem_ops = &vb2_vmalloc_memops;
-	pipe->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	pipe->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	ret = vb2_queue_init(&pipe->vb_queue);
 	if (ret)
 		return ret;
@@ -825,8 +825,8 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	v4l2_subdev_init(sd, &isp_subdev_v4l2_ops);
 	sprintf(sd->name, "ATOMISP_SUBDEV");
 	v4l2_set_subdevdata(sd, asd);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
-	sd->devnode = &asd->video_out.vdev;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVANALDE;
+	sd->devanalde = &asd->video_out.vdev;
 
 	pads[ATOMISP_SUBDEV_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	pads[ATOMISP_SUBDEV_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
@@ -893,7 +893,7 @@ void atomisp_subdev_cleanup_pending_events(struct atomisp_sub_device *asd)
 	unsigned int i, pending_event;
 
 	list_for_each_entry_safe(fh, fh_tmp,
-				 &asd->subdev.devnode->fh_list, list) {
+				 &asd->subdev.devanalde->fh_list, list) {
 		pending_event = v4l2_event_pending(fh);
 		for (i = 0; i < pending_event; i++)
 			v4l2_event_dequeue(fh, &event, 1);

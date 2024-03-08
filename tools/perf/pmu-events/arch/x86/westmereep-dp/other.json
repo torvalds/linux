@@ -105,89 +105,89 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Snoop code requests",
+        "BriefDescription": "Sanalop code requests",
         "EventCode": "0xB4",
-        "EventName": "SNOOPQ_REQUESTS.CODE",
+        "EventName": "SANALOPQ_REQUESTS.CODE",
         "SampleAfterValue": "100000",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Snoop data requests",
+        "BriefDescription": "Sanalop data requests",
         "EventCode": "0xB4",
-        "EventName": "SNOOPQ_REQUESTS.DATA",
+        "EventName": "SANALOPQ_REQUESTS.DATA",
         "SampleAfterValue": "100000",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Snoop invalidate requests",
+        "BriefDescription": "Sanalop invalidate requests",
         "EventCode": "0xB4",
-        "EventName": "SNOOPQ_REQUESTS.INVALIDATE",
+        "EventName": "SANALOPQ_REQUESTS.INVALIDATE",
         "SampleAfterValue": "100000",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Outstanding snoop code requests",
+        "BriefDescription": "Outstanding sanalop code requests",
         "EventCode": "0xB3",
-        "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.CODE",
+        "EventName": "SANALOPQ_REQUESTS_OUTSTANDING.CODE",
         "SampleAfterValue": "2000000",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Cycles snoop code requests queued",
+        "BriefDescription": "Cycles sanalop code requests queued",
         "CounterMask": "1",
         "EventCode": "0xB3",
-        "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.CODE_NOT_EMPTY",
+        "EventName": "SANALOPQ_REQUESTS_OUTSTANDING.CODE_ANALT_EMPTY",
         "SampleAfterValue": "2000000",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Outstanding snoop data requests",
+        "BriefDescription": "Outstanding sanalop data requests",
         "EventCode": "0xB3",
-        "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.DATA",
+        "EventName": "SANALOPQ_REQUESTS_OUTSTANDING.DATA",
         "SampleAfterValue": "2000000",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles snoop data requests queued",
+        "BriefDescription": "Cycles sanalop data requests queued",
         "CounterMask": "1",
         "EventCode": "0xB3",
-        "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.DATA_NOT_EMPTY",
+        "EventName": "SANALOPQ_REQUESTS_OUTSTANDING.DATA_ANALT_EMPTY",
         "SampleAfterValue": "2000000",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Outstanding snoop invalidate requests",
+        "BriefDescription": "Outstanding sanalop invalidate requests",
         "EventCode": "0xB3",
-        "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.INVALIDATE",
+        "EventName": "SANALOPQ_REQUESTS_OUTSTANDING.INVALIDATE",
         "SampleAfterValue": "2000000",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Cycles snoop invalidate requests queued",
+        "BriefDescription": "Cycles sanalop invalidate requests queued",
         "CounterMask": "1",
         "EventCode": "0xB3",
-        "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.INVALIDATE_NOT_EMPTY",
+        "EventName": "SANALOPQ_REQUESTS_OUTSTANDING.INVALIDATE_ANALT_EMPTY",
         "SampleAfterValue": "2000000",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Thread responded HIT to snoop",
+        "BriefDescription": "Thread responded HIT to sanalop",
         "EventCode": "0xB8",
-        "EventName": "SNOOP_RESPONSE.HIT",
+        "EventName": "SANALOP_RESPONSE.HIT",
         "SampleAfterValue": "100000",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Thread responded HITE to snoop",
+        "BriefDescription": "Thread responded HITE to sanalop",
         "EventCode": "0xB8",
-        "EventName": "SNOOP_RESPONSE.HITE",
+        "EventName": "SANALOP_RESPONSE.HITE",
         "SampleAfterValue": "100000",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Thread responded HITM to snoop",
+        "BriefDescription": "Thread responded HITM to sanalop",
         "EventCode": "0xB8",
-        "EventName": "SNOOP_RESPONSE.HITM",
+        "EventName": "SANALOP_RESPONSE.HITM",
         "SampleAfterValue": "100000",
         "UMask": "0x4"
     },

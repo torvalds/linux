@@ -21,7 +21,7 @@ static int tda18250_power_control(struct dvb_frontend *fe,
 	dev_dbg(&client->dev, "power state: %d", power_state);
 
 	switch (power_state) {
-	case TDA18250_POWER_NORMAL:
+	case TDA18250_POWER_ANALRMAL:
 		ret = regmap_write_bits(dev->regmap, R06_POWER2, 0x07, 0x00);
 		if (ret)
 			goto err;
@@ -173,7 +173,7 @@ static int tda18250_init(struct dvb_frontend *fe)
 
 	dev_dbg(&client->dev, "\n");
 
-	ret = tda18250_power_control(fe, TDA18250_POWER_NORMAL);
+	ret = tda18250_power_control(fe, TDA18250_POWER_ANALRMAL);
 	if (ret)
 		goto err;
 
@@ -750,7 +750,7 @@ static int tda18250_probe(struct i2c_client *client)
 	unsigned char chip_id[3];
 
 	/* some registers are always read from HW */
-	static const struct regmap_range tda18250_yes_ranges[] = {
+	static const struct regmap_range tda18250_anal_ranges[] = {
 		regmap_reg_range(R05_POWER1, R0B_IRQ4),
 		regmap_reg_range(R21_IF_AGC, R21_IF_AGC),
 		regmap_reg_range(R2A_MSM1, R2B_MSM2),
@@ -758,8 +758,8 @@ static int tda18250_probe(struct i2c_client *client)
 	};
 
 	static const struct regmap_access_table tda18250_volatile_table = {
-		.yes_ranges = tda18250_yes_ranges,
-		.n_yes_ranges = ARRAY_SIZE(tda18250_yes_ranges),
+		.anal_ranges = tda18250_anal_ranges,
+		.n_anal_ranges = ARRAY_SIZE(tda18250_anal_ranges),
 	};
 
 	static const struct regmap_config tda18250_regmap_config = {
@@ -771,7 +771,7 @@ static int tda18250_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -815,12 +815,12 @@ static int tda18250_probe(struct i2c_client *client)
 		dev->slave = true;
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_kfree;
 	}
 
 	if (chip_id[1] != 0x4a) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_kfree;
 	}
 
@@ -836,7 +836,7 @@ static int tda18250_probe(struct i2c_client *client)
 				dev->slave ? "S" : "M");
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_kfree;
 	}
 

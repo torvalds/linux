@@ -29,7 +29,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
@@ -217,7 +217,7 @@ static int bluecard_write(unsigned int iobase, unsigned int offset, __u8 *buf, i
 static void bluecard_write_wakeup(struct bluecard_info *info)
 {
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkanalwn device");
 		return;
 	}
 
@@ -370,7 +370,7 @@ static void bluecard_receive(struct bluecard_info *info,
 	int i, len;
 
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkanalwn device");
 		return;
 	}
 
@@ -429,8 +429,8 @@ static void bluecard_receive(struct bluecard_info *info,
 				break;
 
 			default:
-				/* unknown packet */
-				BT_ERR("Unknown HCI packet with type 0x%02x received",
+				/* unkanalwn packet */
+				BT_ERR("Unkanalwn HCI packet with type 0x%02x received",
 				       hci_skb_pkt_type(info->rx_skb));
 				info->hdev->stat.err_rx++;
 
@@ -499,7 +499,7 @@ static irqreturn_t bluecard_interrupt(int irq, void *dev_inst)
 
 	if (!info || !info->hdev)
 		/* our irq handler is shared */
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!test_bit(CARD_READY, &(info->hw_state)))
 		return IRQ_HANDLED;
@@ -697,7 +697,7 @@ static int bluecard_open(struct bluecard_info *info)
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		BT_ERR("Can't allocate HCI device");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info->hdev = hdev;
@@ -783,7 +783,7 @@ static int bluecard_open(struct bluecard_info *info)
 		BT_ERR("Can't register HCI device");
 		info->hdev = NULL;
 		hci_free_dev(hdev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -796,7 +796,7 @@ static int bluecard_close(struct bluecard_info *info)
 	struct hci_dev *hdev = info->hdev;
 
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bluecard_hci_close(hdev);
 
@@ -822,7 +822,7 @@ static int bluecard_probe(struct pcmcia_device *link)
 	/* Create new info device */
 	info = devm_kzalloc(&link->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->p_dev = link;
 	link->priv = info;
@@ -875,7 +875,7 @@ static int bluecard_config(struct pcmcia_device *link)
 
 failed:
 	bluecard_release(link);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 

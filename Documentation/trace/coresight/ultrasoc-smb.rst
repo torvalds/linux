@@ -54,7 +54,7 @@ Example::
     Device(USMB) {                                               \
       Name(_HID, "HISI03A1")                                     \
       Name(_CRS, ResourceTemplate() {                            \
-          QWordMemory (ResourceConsumer, , MinFixed, MaxFixed, NonCacheable, \
+          QWordMemory (ResourceConsumer, , MinFixed, MaxFixed, AnalnCacheable, \
 		       ReadWrite, 0x0, 0x95100000, 0x951FFFFF, 0x0, 0x100000) \
           QWordMemory (ResourceConsumer, , MinFixed, MaxFixed, Cacheable, \
 		       ReadWrite, 0x0, 0x50000000, 0x53FFFFFF, 0x0, 0x4000000) \

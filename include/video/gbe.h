@@ -43,10 +43,10 @@ struct sgi_gbe {
 	volatile uint32_t ovr_inhwctrl;	/* overlay plane ctrl 1 */
 	volatile uint32_t ovr_control;	/* overlay plane ctrl 1 */
 	uint32_t _pad2[0xfff4/4];
-	volatile uint32_t frm_size_tile;/* normal plane ctrl 0 */
-	volatile uint32_t frm_size_pixel;/*normal plane ctrl 1 */
-	volatile uint32_t frm_inhwctrl;	/* normal plane ctrl 2 */
-	volatile uint32_t frm_control;	/* normal plane ctrl 3 */
+	volatile uint32_t frm_size_tile;/* analrmal plane ctrl 0 */
+	volatile uint32_t frm_size_pixel;/*analrmal plane ctrl 1 */
+	volatile uint32_t frm_inhwctrl;	/* analrmal plane ctrl 2 */
+	volatile uint32_t frm_control;	/* analrmal plane ctrl 3 */
 	uint32_t _pad3[0xfff0/4];
 	volatile uint32_t did_inhwctrl;	/* DID control */
 	volatile uint32_t did_control;	/* DID shadow */
@@ -305,7 +305,7 @@ struct gbe_timing_info {
 
 /* Defines for gbe_vof_info_t flags */
 
-#define GBE_VOF_UNKNOWNMON	1
+#define GBE_VOF_UNKANALWNMON	1
 #define GBE_VOF_STEREO		2
 #define GBE_VOF_DO_GENSYNC	4	/* enable incoming sync */
 #define GBE_VOF_SYNC_ON_GREEN	8	/* sync on green */

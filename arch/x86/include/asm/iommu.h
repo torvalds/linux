@@ -6,7 +6,7 @@
 
 #include <asm/e820/api.h>
 
-extern int force_iommu, no_iommu;
+extern int force_iommu, anal_iommu;
 extern int iommu_detected;
 extern int iommu_merge;
 extern int panic_on_overflow;
@@ -31,7 +31,7 @@ arch_rmrr_sanity_check(struct acpi_dmar_reserved_memory *rmrr)
 	if (entry_type == E820_TYPE_RESERVED || entry_type == E820_TYPE_NVS)
 		return 0;
 
-	pr_err(FW_BUG "No firmware reserved region can cover this RMRR [%#018Lx-%#018Lx], contact BIOS vendor for fixes\n",
+	pr_err(FW_BUG "Anal firmware reserved region can cover this RMRR [%#018Lx-%#018Lx], contact BIOS vendor for fixes\n",
 	       start, end - 1);
 	return -EINVAL;
 }

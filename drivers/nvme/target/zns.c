@@ -28,7 +28,7 @@ static int validate_conv_zones_cb(struct blk_zone *z,
 				  unsigned int i, void *data)
 {
 	if (z->type == BLK_ZONE_TYPE_CONVENTIONAL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -46,13 +46,13 @@ bool nvmet_bdev_zns_enable(struct nvmet_ns *ns)
 
 	/*
 	 * Generic zoned block devices may have a smaller last zone which is
-	 * not supported by ZNS. Exclude zoned drives that have such smaller
+	 * analt supported by ZNS. Exclude zoned drives that have such smaller
 	 * last zone.
 	 */
 	if (get_capacity(bd_disk) & (bdev_zone_sectors(ns->bdev) - 1))
 		return false;
 	/*
-	 * ZNS does not define a conventional zone type. If the underlying
+	 * ZNS does analt define a conventional zone type. If the underlying
 	 * device has a bitmap set indicating the existence of conventional
 	 * zones, reject the device. Otherwise, use report zones to detect if
 	 * the device has conventional zones.
@@ -256,7 +256,7 @@ static unsigned long nvmet_req_nr_zones_from_slba(struct nvmet_req *req)
 {
 	unsigned int sect = nvmet_lba_to_sect(req->ns, req->cmd->zmr.slba);
 
-	return bdev_nr_zones(req->ns->bdev) - bdev_zone_no(req->ns->bdev, sect);
+	return bdev_nr_zones(req->ns->bdev) - bdev_zone_anal(req->ns->bdev, sect);
 }
 
 static unsigned long get_nr_zones_from_buf(struct nvmet_req *req, u32 bufsize)
@@ -338,7 +338,7 @@ static inline enum req_op zsa_req_op(u8 zsa)
 	}
 }
 
-static u16 blkdev_zone_mgmt_errno_to_nvme_status(int ret)
+static u16 blkdev_zone_mgmt_erranal_to_nvme_status(int ret)
 {
 	switch (ret) {
 	case 0:
@@ -408,10 +408,10 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 		.req = req,
 	};
 
-	d.zbitmap = kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(*(d.zbitmap)),
-				 GFP_NOIO, bdev->bd_disk->node_id);
+	d.zbitmap = kcalloc_analde(BITS_TO_LONGS(nr_zones), sizeof(*(d.zbitmap)),
+				 GFP_ANALIO, bdev->bd_disk->analde_id);
 	if (!d.zbitmap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -427,7 +427,7 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 	}
 
 	while (sector < bdev_nr_sectors(bdev)) {
-		if (test_bit(disk_zone_no(bdev->bd_disk, sector), d.zbitmap)) {
+		if (test_bit(disk_zone_anal(bdev->bd_disk, sector), d.zbitmap)) {
 			bio = blk_next_bio(bio, bdev, 0,
 				zsa_req_op(req->cmd->zms.zsa) | REQ_SYNC,
 				GFP_KERNEL);
@@ -446,7 +446,7 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 out:
 	kfree(d.zbitmap);
 
-	return blkdev_zone_mgmt_errno_to_nvme_status(ret);
+	return blkdev_zone_mgmt_erranal_to_nvme_status(ret);
 }
 
 static u16 nvmet_bdev_execute_zmgmt_send_all(struct nvmet_req *req)
@@ -459,7 +459,7 @@ static u16 nvmet_bdev_execute_zmgmt_send_all(struct nvmet_req *req)
 				       get_capacity(req->ns->bdev->bd_disk),
 				       GFP_KERNEL);
 		if (ret < 0)
-			return blkdev_zone_mgmt_errno_to_nvme_status(ret);
+			return blkdev_zone_mgmt_erranal_to_nvme_status(ret);
 		break;
 	case REQ_OP_ZONE_OPEN:
 	case REQ_OP_ZONE_CLOSE:
@@ -490,7 +490,7 @@ static void nvmet_bdev_zmgmt_send_work(struct work_struct *w)
 		goto out;
 	}
 
-	/* when select all bit is set slba field is ignored */
+	/* when select all bit is set slba field is iganalred */
 	if (req->cmd->zms.select_all) {
 		status = nvmet_bdev_execute_zmgmt_send_all(req);
 		goto out;
@@ -510,7 +510,7 @@ static void nvmet_bdev_zmgmt_send_work(struct work_struct *w)
 
 	ret = blkdev_zone_mgmt(bdev, op, sect, zone_sectors, GFP_KERNEL);
 	if (ret < 0)
-		status = blkdev_zone_mgmt_errno_to_nvme_status(ret);
+		status = blkdev_zone_mgmt_erranal_to_nvme_status(ret);
 
 out:
 	nvmet_req_complete(req, status);

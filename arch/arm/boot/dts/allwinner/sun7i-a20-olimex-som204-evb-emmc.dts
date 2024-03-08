@@ -23,7 +23,7 @@
 	vmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&mmc2_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	emmc: emmc@0 {

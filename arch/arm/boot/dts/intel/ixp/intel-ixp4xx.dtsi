@@ -61,7 +61,7 @@
 
 			ranges =
 			/*
-			 * 64MB 32bit non-prefetchable memory 0x48000000-0x4bffffff
+			 * 64MB 32bit analn-prefetchable memory 0x48000000-0x4bffffff
 			 * done in 4 chunks of 16MB each.
 			 */
 			<0x02000000 0 0x48000000 0x48000000 0 0x04000000>,
@@ -71,7 +71,7 @@
 			/*
 			 * This needs to map to the start of physical memory so
 			 * PCI devices can see all (hopefully) memory. This is done
-			 * using 4 1:1 16MB windows, so the RAM should not be more than
+			 * using 4 1:1 16MB windows, so the RAM should analt be more than
 			 * 64 MB for this to work. If your memory is anywhere else
 			 * than at 0x0 you need to alter this.
 			 */
@@ -92,7 +92,7 @@
 			reg-shift = <2>;
 			interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <14745600>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 
 		uart1: serial@c8001000 {
@@ -106,7 +106,7 @@
 			reg-shift = <2>;
 			interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <14745600>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 
 		gpio0: gpio@c8004000 {
@@ -120,7 +120,7 @@
 
 		intcon: interrupt-controller@c8003000 {
 			/*
-			 * Note: no compatible string. The subvariant of the
+			 * Analte: anal compatible string. The subvariant of the
 			 * chip needs to define what version it is. The
 			 * location of the interrupt controller is fixed in
 			 * memory across all variants.
@@ -166,7 +166,7 @@
 			};
 		};
 
-		/* This is known as EthB */
+		/* This is kanalwn as EthB */
 		ethernet@c8009000 {
 			compatible = "intel,ixp4xx-ethernet";
 			reg = <0xc8009000 0x1000>;
@@ -177,7 +177,7 @@
 			intel,npe-handle = <&npe 1>;
 		};
 
-		/* This is known as EthC */
+		/* This is kanalwn as EthC */
 		ethernet@c800a000 {
 			compatible = "intel,ixp4xx-ethernet";
 			reg = <0xc800a000 0x1000>;
@@ -188,7 +188,7 @@
 			intel,npe-handle = <&npe 2>;
 		};
 
-		/* This is known as EthA */
+		/* This is kanalwn as EthA */
 		ethernet@c800c000 {
 			compatible = "intel,ixp4xx-ethernet";
 			reg = <0xc800c000 0x1000>;

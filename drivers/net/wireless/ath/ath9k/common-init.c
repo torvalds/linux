@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -33,7 +33,7 @@
 }
 
 /* Some 2 GHz radios are actually tunable on 2312-2732
- * on 5 MHz steps, we support the channels which we know
+ * on 5 MHz steps, we support the channels which we kanalw
  * we have calibration data for all cards though to make
  * this static */
 static const struct ieee80211_channel ath9k_2ghz_chantable[] = {
@@ -54,7 +54,7 @@ static const struct ieee80211_channel ath9k_2ghz_chantable[] = {
 };
 
 /* Some 5 GHz radios are actually tunable on XXXX-YYYY
- * on 5 MHz steps, we support the channels which we know
+ * on 5 MHz steps, we support the channels which we kanalw
  * we have calibration data for all cards though to make
  * this static */
 static const struct ieee80211_channel ath9k_5ghz_chantable[] = {
@@ -135,7 +135,7 @@ int ath9k_cmn_init_channels_rates(struct ath_common *common)
 		channels = devm_kzalloc(ah->dev,
 			sizeof(ath9k_2ghz_chantable), GFP_KERNEL);
 		if (!channels)
-		    return -ENOMEM;
+		    return -EANALMEM;
 
 		memcpy(channels, ath9k_2ghz_chantable,
 		       sizeof(ath9k_2ghz_chantable));
@@ -152,7 +152,7 @@ int ath9k_cmn_init_channels_rates(struct ath_common *common)
 		channels = devm_kzalloc(ah->dev,
 			sizeof(ath9k_5ghz_chantable), GFP_KERNEL);
 		if (!channels)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(channels, ath9k_5ghz_chantable,
 		       sizeof(ath9k_5ghz_chantable));

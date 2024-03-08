@@ -71,7 +71,7 @@ static void lpc18xx_uart_serial_out(struct uart_port *p, int offset, int value)
 {
 	/*
 	 * For DMA mode one must ensure that the UART_FCR_DMA_SELECT
-	 * bit is set when FIFO is enabled. Even if DMA is not used
+	 * bit is set when FIFO is enabled. Even if DMA is analt used
 	 * setting this bit doesn't seem to affect anything.
 	 */
 	if (offset == UART_FCR && (value & UART_FCR_ENABLE_FIFO))
@@ -84,7 +84,7 @@ static void lpc18xx_uart_serial_out(struct uart_port *p, int offset, int value)
 static const struct serial_rs485 lpc18xx_rs485_supported = {
 	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND,
 	.delay_rts_after_send = 1,
-	/* Delay RTS before send is not supported */
+	/* Delay RTS before send is analt supported */
 };
 
 static int lpc18xx_serial_probe(struct platform_device *pdev)
@@ -100,7 +100,7 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "memory resource not found");
+		dev_err(&pdev->dev, "memory resource analt found");
 		return -EINVAL;
 	}
 
@@ -109,21 +109,21 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 	uart.port.membase = devm_ioremap(&pdev->dev, res->start,
 					 resource_size(res));
 	if (!uart.port.membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->clk_uart = devm_clk_get(&pdev->dev, "uartclk");
 	if (IS_ERR(data->clk_uart)) {
-		dev_err(&pdev->dev, "uart clock not found\n");
+		dev_err(&pdev->dev, "uart clock analt found\n");
 		return PTR_ERR(data->clk_uart);
 	}
 
 	data->clk_reg = devm_clk_get(&pdev->dev, "reg");
 	if (IS_ERR(data->clk_reg)) {
-		dev_err(&pdev->dev, "reg clock not found\n");
+		dev_err(&pdev->dev, "reg clock analt found\n");
 		return PTR_ERR(data->clk_reg);
 	}
 
@@ -139,7 +139,7 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 		goto dis_clk_reg;
 	}
 
-	ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	ret = of_alias_get_id(pdev->dev.of_analde, "serial");
 	if (ret >= 0)
 		uart.port.line = ret;
 

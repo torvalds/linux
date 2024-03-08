@@ -54,9 +54,9 @@
  *   			scrub_block_complete()
  *   Content:		Data/meta from commit root.
  *
- * Due to the content difference, we need to avoid nocow write when dev-replace
+ * Due to the content difference, we need to avoid analcow write when dev-replace
  * is happening.  This is done by marking the block group read-only and waiting
- * for NOCOW writes.
+ * for ANALCOW writes.
  *
  * After replace is done, the finishing part is done by swapping the target and
  * source devices.
@@ -88,7 +88,7 @@ int btrfs_init_dev_replace(struct btrfs_fs_info *fs_info)
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -97,7 +97,7 @@ int btrfs_init_dev_replace(struct btrfs_fs_info *fs_info)
 	key.offset = 0;
 	ret = btrfs_search_slot(NULL, dev_root, &key, path, 0, 0);
 	if (ret) {
-no_valid_dev_replace_entry_found:
+anal_valid_dev_replace_entry_found:
 		/*
 		 * We don't have a replace item or it's corrupted.  If there is
 		 * a replace target, fail the mount.
@@ -128,14 +128,14 @@ no_valid_dev_replace_entry_found:
 		goto out;
 	}
 	slot = path->slots[0];
-	eb = path->nodes[0];
+	eb = path->analdes[0];
 	item_size = btrfs_item_size(eb, slot);
 	ptr = btrfs_item_ptr(eb, slot, struct btrfs_dev_replace_item);
 
 	if (item_size != sizeof(struct btrfs_dev_replace_item)) {
 		btrfs_warn(fs_info,
-			"dev_replace entry found has unexpected size, ignore entry");
-		goto no_valid_dev_replace_entry_found;
+			"dev_replace entry found has unexpected size, iganalre entry");
+		goto anal_valid_dev_replace_entry_found;
 	}
 
 	src_devid = btrfs_dev_replace_src_devid(eb, ptr);
@@ -187,7 +187,7 @@ no_valid_dev_replace_entry_found:
 		    !btrfs_test_opt(fs_info, DEGRADED)) {
 			ret = -EIO;
 			btrfs_warn(fs_info,
-			   "cannot mount because device replace operation is ongoing and");
+			   "cananalt mount because device replace operation is ongoing and");
 			btrfs_warn(fs_info,
 			   "srcdev (devid %llu) is missing, need to run 'btrfs dev scan'?",
 			   src_devid);
@@ -196,7 +196,7 @@ no_valid_dev_replace_entry_found:
 		    !btrfs_test_opt(fs_info, DEGRADED)) {
 			ret = -EIO;
 			btrfs_warn(fs_info,
-			   "cannot mount because device replace operation is ongoing and");
+			   "cananalt mount because device replace operation is ongoing and");
 			btrfs_warn(fs_info,
 			   "tgtdev (devid %llu) is missing, need to run 'btrfs dev scan'?",
 				BTRFS_DEV_REPLACE_DEVID);
@@ -368,7 +368,7 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans)
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ret = btrfs_search_slot(trans, dev_root, &key, path, -1, 1);
@@ -380,10 +380,10 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans)
 	}
 
 	if (ret == 0 &&
-	    btrfs_item_size(path->nodes[0], path->slots[0]) < sizeof(*ptr)) {
+	    btrfs_item_size(path->analdes[0], path->slots[0]) < sizeof(*ptr)) {
 		/*
 		 * need to delete old one and insert a new one.
-		 * Since no attempt is made to recover any old state, if the
+		 * Since anal attempt is made to recover any old state, if the
 		 * dev_replace state is 'running', the data on the target
 		 * drive is lost.
 		 * It would be possible to recover the state: just make sure
@@ -414,7 +414,7 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans)
 		}
 	}
 
-	eb = path->nodes[0];
+	eb = path->analdes[0];
 	ptr = btrfs_item_ptr(eb, path->slots[0],
 			     struct btrfs_dev_replace_item);
 
@@ -465,7 +465,7 @@ static int mark_block_group_to_copy(struct btrfs_fs_info *fs_info,
 	int ret = 0;
 	u64 chunk_offset;
 
-	/* Do not use "to_copy" on non zoned filesystem for now */
+	/* Do analt use "to_copy" on analn zoned filesystem for analw */
 	if (!btrfs_is_zoned(fs_info))
 		return 0;
 
@@ -481,7 +481,7 @@ static int mark_block_group_to_copy(struct btrfs_fs_info *fs_info,
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
 			mutex_lock(&fs_info->chunk_mutex);
-			if (ret == -ENOENT) {
+			if (ret == -EANALENT) {
 				spin_lock(&fs_info->trans_lock);
 				continue;
 			} else {
@@ -500,7 +500,7 @@ static int mark_block_group_to_copy(struct btrfs_fs_info *fs_info,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -513,7 +513,7 @@ static int mark_block_group_to_copy(struct btrfs_fs_info *fs_info,
 	key.offset = 0;
 
 	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
-		struct extent_buffer *leaf = path->nodes[0];
+		struct extent_buffer *leaf = path->analdes[0];
 
 		if (found_key.objectid != src_dev->devid)
 			break;
@@ -555,7 +555,7 @@ bool btrfs_finish_block_group_to_copy(struct btrfs_device *srcdev,
 	int num_extents, cur_extent;
 	int i;
 
-	/* Do not use "to_copy" on non zoned filesystem for now */
+	/* Do analt use "to_copy" on analn zoned filesystem for analw */
 	if (!btrfs_is_zoned(fs_info))
 		return true;
 
@@ -615,7 +615,7 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 
 	if (btrfs_pinned_by_swapfile(fs_info, src_device)) {
 		btrfs_warn_in_rcu(fs_info,
-	  "cannot replace device %s (devid %llu) due to active swapfile",
+	  "cananalt replace device %s (devid %llu) due to active swapfile",
 			btrfs_dev_name(src_device), src_device->devid);
 		return -ETXTBSY;
 	}
@@ -629,7 +629,7 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 		ret = btrfs_commit_transaction(trans);
 		if (ret)
 			return ret;
-	} else if (PTR_ERR(trans) != -ENOENT) {
+	} else if (PTR_ERR(trans) != -EANALENT) {
 		return PTR_ERR(trans);
 	}
 
@@ -667,7 +667,7 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 		      btrfs_dev_name(tgt_device));
 
 	/*
-	 * from now on, the writes to the srcdev are all duplicated to
+	 * from analw on, the writes to the srcdev are all duplicated to
 	 * go to the tgtdev as well (refer to btrfs_map_block()).
 	 */
 	dev_replace->replace_state = BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED;
@@ -765,7 +765,7 @@ int btrfs_dev_replace_by_ioctl(struct btrfs_fs_info *fs_info,
 	args->result = ret;
 	/* don't warn if EINPROGRESS, someone else might be running scrub */
 	if (ret == BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS ||
-	    ret == BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR)
+	    ret == BTRFS_IOCTL_DEV_REPLACE_RESULT_ANAL_ERROR)
 		return 0;
 
 	return ret;
@@ -793,8 +793,8 @@ static void btrfs_rm_dev_replace_unblocked(struct btrfs_fs_info *fs_info)
 /*
  * When finishing the device replace, before swapping the source device with the
  * target device we must update the chunk allocation state in the target device,
- * as it is empty because replace works by directly copying the chunks and not
- * through the normal chunk allocation path.
+ * as it is empty because replace works by directly copying the chunks and analt
+ * through the analrmal chunk allocation path.
  */
 static int btrfs_set_target_alloc_state(struct btrfs_device *srcdev,
 					struct btrfs_device *tgtdev)
@@ -833,7 +833,7 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 	do {
 		struct btrfs_chunk_map *map;
 
-		map = btrfs_find_chunk_map_nolock(fs_info, start, U64_MAX);
+		map = btrfs_find_chunk_map_anallock(fs_info, start, U64_MAX);
 		if (!map)
 			break;
 		for (i = 0; i < map->num_stripes; i++)
@@ -874,7 +874,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	up_read(&dev_replace->rwsem);
 
 	/*
-	 * flush all outstanding I/O and inode extent mappings before the
+	 * flush all outstanding I/O and ianalde extent mappings before the
 	 * copy operation is declared as being finished
 	 */
 	ret = btrfs_start_delalloc_roots(fs_info, LONG_MAX, false);
@@ -987,10 +987,10 @@ error:
 	atomic_inc(&tgt_device->dev_stats_ccnt);
 
 	/*
-	 * this is again a consistent state where no dev_replace procedure
+	 * this is again a consistent state where anal dev_replace procedure
 	 * is running, the target device is part of the filesystem, the
-	 * source device is not part of the filesystem anymore and its 1st
-	 * superblock is scratched out so that it is no longer marked to
+	 * source device is analt part of the filesystem anymore and its 1st
+	 * superblock is scratched out so that it is anal longer marked to
 	 * belong to this filesystem.
 	 */
 	mutex_unlock(&fs_info->chunk_mutex);
@@ -1050,9 +1050,9 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 
 	down_read(&dev_replace->rwsem);
-	/* even if !dev_replace_is_valid, the values are good enough for
+	/* even if !dev_replace_is_valid, the values are good eanalugh for
 	 * the replace_status ioctl */
-	args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
+	args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_ANAL_ERROR;
 	args->status.replace_state = dev_replace->replace_state;
 	args->status.time_started = dev_replace->time_started;
 	args->status.time_stopped = dev_replace->time_stopped;
@@ -1083,7 +1083,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_FINISHED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_CANCELED:
-		result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NOT_STARTED;
+		result = BTRFS_IOCTL_DEV_REPLACE_RESULT_ANALT_STARTED;
 		up_write(&dev_replace->rwsem);
 		break;
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
@@ -1092,9 +1092,9 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 		up_write(&dev_replace->rwsem);
 		ret = btrfs_scrub_cancel(fs_info);
 		if (ret < 0) {
-			result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NOT_STARTED;
+			result = BTRFS_IOCTL_DEV_REPLACE_RESULT_ANALT_STARTED;
 		} else {
-			result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
+			result = BTRFS_IOCTL_DEV_REPLACE_RESULT_ANAL_ERROR;
 			/*
 			 * btrfs_dev_replace_finishing() will handle the
 			 * cleanup part
@@ -1110,7 +1110,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 		 * Scrub doing the replace isn't running so we need to do the
 		 * cleanup step of btrfs_dev_replace_finishing() here
 		 */
-		result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
+		result = BTRFS_IOCTL_DEV_REPLACE_RESULT_ANAL_ERROR;
 		tgt_device = dev_replace->tgtdev;
 		src_device = dev_replace->srcdev;
 		dev_replace->tgtdev = NULL;
@@ -1122,7 +1122,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 
 		up_write(&dev_replace->rwsem);
 
-		/* Scrub for replace must not be running in suspended state */
+		/* Scrub for replace must analt be running in suspended state */
 		btrfs_scrub_cancel(fs_info);
 
 		trans = btrfs_start_transaction(root, 0);
@@ -1199,7 +1199,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 	}
 	if (!dev_replace->tgtdev || !dev_replace->tgtdev->bdev) {
 		btrfs_info(fs_info,
-			   "cannot continue dev_replace, tgtdev is missing");
+			   "cananalt continue dev_replace, tgtdev is missing");
 		btrfs_info(fs_info,
 			   "you may cancel the operation after 'mount -o degraded'");
 		dev_replace->replace_state =
@@ -1220,7 +1220,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 					BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED;
 		up_write(&dev_replace->rwsem);
 		btrfs_info(fs_info,
-		"cannot resume dev-replace, other exclusive operation running");
+		"cananalt resume dev-replace, other exclusive operation running");
 		return 0;
 	}
 
@@ -1272,8 +1272,8 @@ int __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 		 * something that can happen if the dev_replace
 		 * procedure is suspended by an umount and then
 		 * the tgtdev is missing (or "btrfs dev scan") was
-		 * not called and the filesystem is remounted
-		 * in degraded state. This does not stop the
+		 * analt called and the filesystem is remounted
+		 * in degraded state. This does analt stop the
 		 * dev_replace procedure. It needs to be canceled
 		 * manually if the cancellation is wanted.
 		 */
@@ -1285,7 +1285,7 @@ int __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount)
 {
 	percpu_counter_sub(&fs_info->dev_replace.bio_counter, amount);
-	cond_wake_up_nomb(&fs_info->dev_replace.replace_wait);
+	cond_wake_up_analmb(&fs_info->dev_replace.replace_wait);
 }
 
 void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info)

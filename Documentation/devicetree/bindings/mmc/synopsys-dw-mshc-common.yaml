@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/mmc/synopsys-dw-mshc-common.yaml#
+$id: http://devicetree.org/schemas/mmc/syanalpsys-dw-mshc-common.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys Designware Mobile Storage Host Controller Common Properties
+title: Syanalpsys Designware Mobile Storage Host Controller Common Properties
 
 allOf:
   - $ref: mmc-controller.yaml#
@@ -28,7 +28,7 @@ properties:
 
   fifo-depth:
     description:
-      The maximum size of the tx/rx fifo's. If this property is not
+      The maximum size of the tx/rx fifo's. If this property is analt
       specified, the default value of the fifo size is determined from the
       controller registers.
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -44,7 +44,7 @@ properties:
     description:
       Override fifo address with value provided by DT. The default FIFO reg
       offset is assumed as 0x100 (version < 0x240A) and 0x200(version >= 0x240A)
-      by driver. If the controller does not follow this rule, please use
+      by driver. If the controller does analt follow this rule, please use
       this property to set fifo address in device tree.
     $ref: /schemas/types.yaml#/definitions/uint32
 

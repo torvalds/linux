@@ -8,7 +8,7 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-/* Note : this module is expected to remain private, do not expose it */
+/* Analte : this module is expected to remain private, do analt expose it */
 
 #ifndef ERROR_H_MODULE
 #define ERROR_H_MODULE
@@ -65,7 +65,7 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
 }
 
 /*
- * Ignore: this is an internal helper.
+ * Iganalre: this is an internal helper.
  *
  * This is a helper function to help force C99-correctness during compilation.
  * Under strict compilation modes, variadic macro arguments can't be empty.
@@ -79,7 +79,7 @@ void _force_has_format_string(const char *format, ...) {
 }
 
 /*
- * Ignore: this is an internal helper.
+ * Iganalre: this is an internal helper.
  *
  * We want to force this function invocation to be syntactically correct, but
  * we don't want to force runtime evaluation of its arguments.

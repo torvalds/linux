@@ -45,12 +45,12 @@ struct mtd_info *lpddr_cmdset(struct map_info *map)
 	if (!mtd)
 		return NULL;
 	mtd->priv = map;
-	mtd->type = MTD_NORFLASH;
+	mtd->type = MTD_ANALRFLASH;
 
 	/* Fill in the default mtd operations */
 	mtd->_read = lpddr_read;
-	mtd->type = MTD_NORFLASH;
-	mtd->flags = MTD_CAP_NORFLASH;
+	mtd->type = MTD_ANALRFLASH;
+	mtd->flags = MTD_CAP_ANALRFLASH;
 	mtd->flags &= ~MTD_BIT_WRITEABLE;
 	mtd->_erase = lpddr_erase;
 	mtd->_write = lpddr_write_buffers;
@@ -99,27 +99,27 @@ static void print_drs_error(unsigned int dsr)
 	int prog_status = (dsr & DSR_RPS) >> 8;
 
 	if (!(dsr & DSR_AVAILABLE))
-		pr_notice("DSR.15: (0) Device not Available\n");
+		pr_analtice("DSR.15: (0) Device analt Available\n");
 	if ((prog_status & 0x03) == 0x03)
-		pr_notice("DSR.9,8: (11) Attempt to program invalid half with 41h command\n");
+		pr_analtice("DSR.9,8: (11) Attempt to program invalid half with 41h command\n");
 	else if (prog_status & 0x02)
-		pr_notice("DSR.9,8: (10) Object Mode Program attempt in region with Control Mode data\n");
+		pr_analtice("DSR.9,8: (10) Object Mode Program attempt in region with Control Mode data\n");
 	else if (prog_status &  0x01)
-		pr_notice("DSR.9,8: (01) Program attempt in region with Object Mode data\n");
+		pr_analtice("DSR.9,8: (01) Program attempt in region with Object Mode data\n");
 	if (!(dsr & DSR_READY_STATUS))
-		pr_notice("DSR.7: (0) Device is Busy\n");
+		pr_analtice("DSR.7: (0) Device is Busy\n");
 	if (dsr & DSR_ESS)
-		pr_notice("DSR.6: (1) Erase Suspended\n");
+		pr_analtice("DSR.6: (1) Erase Suspended\n");
 	if (dsr & DSR_ERASE_STATUS)
-		pr_notice("DSR.5: (1) Erase/Blank check error\n");
+		pr_analtice("DSR.5: (1) Erase/Blank check error\n");
 	if (dsr & DSR_PROGRAM_STATUS)
-		pr_notice("DSR.4: (1) Program Error\n");
+		pr_analtice("DSR.4: (1) Program Error\n");
 	if (dsr & DSR_VPPS)
-		pr_notice("DSR.3: (1) Vpp low detect, operation aborted\n");
+		pr_analtice("DSR.3: (1) Vpp low detect, operation aborted\n");
 	if (dsr & DSR_PSS)
-		pr_notice("DSR.2: (1) Program suspended\n");
+		pr_analtice("DSR.2: (1) Program suspended\n");
 	if (dsr & DSR_DPS)
-		pr_notice("DSR.1: (1) Aborted Erase/Program attempt on locked block\n");
+		pr_analtice("DSR.1: (1) Aborted Erase/Program attempt on locked block\n");
 }
 
 static int wait_for_ready(struct map_info *map, struct flchip *chip,
@@ -152,7 +152,7 @@ static int wait_for_ready(struct map_info *map, struct flchip *chip,
 		mutex_unlock(&chip->mutex);
 		if (sleep_time >= 1000000/HZ) {
 			/*
-			 * Half of the normal delay still remaining
+			 * Half of the analrmal delay still remaining
 			 * can be performed with a sleeping delay instead
 			 * of busy waiting.
 			 */
@@ -205,7 +205,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, int mode)
 		&& chip->state != FL_SYNCING) {
 		/*
 		 * OK. We have possibility for contension on the write/erase
-		 * operations which are global to the real chip and not per
+		 * operations which are global to the real chip and analt per
 		 * partition.  So let's fight it over in the partition which
 		 * currently has authority on the operation.
 		 *
@@ -253,7 +253,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, int mode)
 			}
 			mutex_lock(&shared->lock);
 
-			/* We should not own chip if it is already in FL_SYNCING
+			/* We should analt own chip if it is already in FL_SYNCING
 			 * state. Put contender and retry. */
 			if (chip->state == FL_SYNCING) {
 				put_chip(map, contender);
@@ -277,7 +277,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, int mode)
 			goto retry;
 		}
 
-		/* We now own it */
+		/* We analw own it */
 		shared->writing = chip;
 		if (mode == FL_ERASING)
 			shared->erasing = chip;
@@ -329,7 +329,7 @@ static int chip_ready(struct map_info *map, struct flchip *chip, int mode)
 		return 0;
 		/* Erase suspend */
 	case FL_POINT:
-		/* Only if there's no operation suspended... */
+		/* Only if there's anal operation suspended... */
 		if (mode == FL_READY && chip->oldstate == FL_READY)
 			return 0;
 		fallthrough;
@@ -552,7 +552,7 @@ static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 		if (chipnum >= lpddr->numchips)
 			break;
 
-		/* We cannot point across chips that are virtually disjoint */
+		/* We cananalt point across chips that are virtually disjoint */
 		if (!last_end)
 			last_end = chip->start;
 		else if (chip->start != last_end)
@@ -611,7 +611,7 @@ static int lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 			if (chip->ref_point_counter == 0)
 				chip->state = FL_READY;
 		} else {
-			printk(KERN_WARNING "%s: Warning: unpoint called on non"
+			printk(KERN_WARNING "%s: Warning: unpoint called on analn"
 					"pointed region\n", map->name);
 			err = -EINVAL;
 		}
@@ -662,7 +662,7 @@ static int lpddr_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	vec_seek = 0;
 
 	do {
-		/* We must not cross write block boundaries */
+		/* We must analt cross write block boundaries */
 		int size = wbufsize - (ofs & (wbufsize-1));
 
 		if (size > len)

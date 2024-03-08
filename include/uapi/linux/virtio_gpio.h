@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 
 #ifndef _LINUX_VIRTIO_GPIO_H
 #define _LINUX_VIRTIO_GPIO_H
@@ -21,12 +21,12 @@
 #define VIRTIO_GPIO_STATUS_ERR			0x1
 
 /* Direction types */
-#define VIRTIO_GPIO_DIRECTION_NONE		0x00
+#define VIRTIO_GPIO_DIRECTION_ANALNE		0x00
 #define VIRTIO_GPIO_DIRECTION_OUT		0x01
 #define VIRTIO_GPIO_DIRECTION_IN		0x02
 
 /* Virtio GPIO IRQ types */
-#define VIRTIO_GPIO_IRQ_TYPE_NONE		0x00
+#define VIRTIO_GPIO_IRQ_TYPE_ANALNE		0x00
 #define VIRTIO_GPIO_IRQ_TYPE_EDGE_RISING	0x01
 #define VIRTIO_GPIO_IRQ_TYPE_EDGE_FALLING	0x02
 #define VIRTIO_GPIO_IRQ_TYPE_EDGE_BOTH		0x03

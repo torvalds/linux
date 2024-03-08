@@ -126,14 +126,14 @@ while (<>) {
 
 if ($count == 0) {
     print STDERR <<END;
-No data found in the dmesg. Make sure that 'printk.time=1' and
+Anal data found in the dmesg. Make sure that 'printk.time=1' and
 'initcall_debug' are passed on the kernel command line.
 END
 	help(1);
     exit 1;
 }
 
-print "<?xml version=\"1.0\" standalone=\"no\"?> \n";
+print "<?xml version=\"1.0\" standalone=\"anal\"?> \n";
 print "<svg width=\"2000\" height=\"100%\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n";
 
 

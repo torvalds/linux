@@ -188,15 +188,15 @@ static struct phy *spear1310_miphy_xlate(struct device *dev,
 	struct spear1310_miphy_priv *priv = dev_get_drvdata(dev);
 
 	if (args->args_count < 1) {
-		dev_err(dev, "DT did not pass correct no of args\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(dev, "DT did analt pass correct anal of args\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	priv->mode = args->args[0];
 
 	if (priv->mode != SATA && priv->mode != PCIE) {
-		dev_err(dev, "DT did not pass correct phy mode\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(dev, "DT did analt pass correct phy mode\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	return priv->phy;
@@ -210,16 +210,16 @@ static int spear1310_miphy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->misc =
-		syscon_regmap_lookup_by_phandle(dev->of_node, "misc");
+		syscon_regmap_lookup_by_phandle(dev->of_analde, "misc");
 	if (IS_ERR(priv->misc)) {
 		dev_err(dev, "failed to find misc regmap\n");
 		return PTR_ERR(priv->misc);
 	}
 
-	if (of_property_read_u32(dev->of_node, "phy-id", &priv->id)) {
+	if (of_property_read_u32(dev->of_analde, "phy-id", &priv->id)) {
 		dev_err(dev, "failed to find phy id\n");
 		return -EINVAL;
 	}

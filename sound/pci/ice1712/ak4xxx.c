@@ -100,7 +100,7 @@ static void snd_ice1712_akm4xxx_write(struct snd_akm4xxx *ak, int chip,
 		tmp |= priv->cs_mask; /* chip select high to trigger */
 	} else {
 		tmp &= ~priv->cs_mask;
-		tmp |= priv->cs_none; /* deselect address */
+		tmp |= priv->cs_analne; /* deselect address */
 	}
 	snd_ice1712_gpio_write(ice, tmp);
 	udelay(1);
@@ -117,7 +117,7 @@ int snd_ice1712_akm4xxx_init(struct snd_akm4xxx *ak, const struct snd_akm4xxx *t
 	if (_priv != NULL) {
 		priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 		if (priv == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		*priv = *_priv;
 	} else {
 		priv = NULL;

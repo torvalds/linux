@@ -7,7 +7,7 @@
 
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
@@ -21,7 +21,7 @@
 
 static void __iomem *sysc_base2;
 
-static int rmobile_reset_handler(struct notifier_block *this,
+static int rmobile_reset_handler(struct analtifier_block *this,
 				 unsigned long mode, void *cmd)
 {
 	pr_debug("%s %lu\n", __func__, mode);
@@ -29,11 +29,11 @@ static int rmobile_reset_handler(struct notifier_block *this,
 	/* Let's assume we have acquired the HPB semaphore */
 	writel(RESCNT2_PRES, sysc_base2 + RESCNT2);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block rmobile_reset_nb = {
-	.notifier_call = rmobile_reset_handler,
+static struct analtifier_block rmobile_reset_nb = {
+	.analtifier_call = rmobile_reset_handler,
 	.priority = 192,
 };
 
@@ -41,14 +41,14 @@ static int rmobile_reset_probe(struct platform_device *pdev)
 {
 	int error;
 
-	sysc_base2 = of_iomap(pdev->dev.of_node, 1);
+	sysc_base2 = of_iomap(pdev->dev.of_analde, 1);
 	if (!sysc_base2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = register_restart_handler(&rmobile_reset_nb);
 	if (error) {
 		dev_err(&pdev->dev,
-			"cannot register restart handler (err=%d)\n", error);
+			"cananalt register restart handler (err=%d)\n", error);
 		goto fail_unmap;
 	}
 

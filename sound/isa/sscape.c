@@ -300,7 +300,7 @@ static int host_write_ctrl_unsafe(unsigned io_base, unsigned char data,
  * Check that the MIDI subsystem is operational. If it isn't,
  * then we will hang the computer if we try to use it ...
  *
- * NOTE: This check is based upon observation, not documentation.
+ * ANALTE: This check is based upon observation, analt documentation.
  */
 static inline int verify_mpu401(const struct snd_mpu401 *mpu)
 {
@@ -356,9 +356,9 @@ static int sscape_wait_dma_unsafe(unsigned io_base, enum GA_REG reg,
 
 /*
  * Wait for the On-Board Processor to return its start-up
- * acknowledgement sequence. This wait is too long for
+ * ackanalwledgement sequence. This wait is too long for
  * us to perform "busy-waiting", and so we must sleep.
- * This in turn means that we must not be holding any
+ * This in turn means that we must analt be holding any
  * spinlocks when we call this function.
  */
 static int obp_startup_ack(struct soundscape *s, unsigned timeout)
@@ -382,10 +382,10 @@ static int obp_startup_ack(struct soundscape *s, unsigned timeout)
 }
 
 /*
- * Wait for the host to return its start-up acknowledgement
+ * Wait for the host to return its start-up ackanalwledgement
  * sequence. This wait is too long for us to perform
  * "busy-waiting", and so we must sleep. This in turn means
- * that we must not be holding any spinlocks when we call
+ * that we must analt be holding any spinlocks when we call
  * this function.
  */
 static int host_startup_ack(struct soundscape *s, unsigned timeout)
@@ -420,7 +420,7 @@ static int upload_dma_data(struct soundscape *s, const unsigned char *data,
 	unsigned char val;
 
 	if (!get_dmabuf(s, &dma, PAGE_ALIGN(32 * 1024)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&s->lock, flags);
 
@@ -481,13 +481,13 @@ static int upload_dma_data(struct soundscape *s, const unsigned char *data,
 	spin_unlock_irqrestore(&s->lock, flags);
 
 	/*
-	 * If all has gone well, then the board should acknowledge
+	 * If all has gone well, then the board should ackanalwledge
 	 * the new upload and tell us that it has rebooted OK. We
 	 * give it 5 seconds (max) ...
 	 */
 	ret = 0;
 	if (!obp_startup_ack(s, 5000)) {
-		snd_printk(KERN_ERR "sscape: No response "
+		snd_printk(KERN_ERR "sscape: Anal response "
 				    "from on-board processor after upload\n");
 		ret = -EAGAIN;
 	} else if (!host_startup_ack(s, 5000)) {
@@ -498,7 +498,7 @@ static int upload_dma_data(struct soundscape *s, const unsigned char *data,
 
 _release_dma:
 	/*
-	 * NOTE!!! We are NOT holding any spinlocks at this point !!!
+	 * ANALTE!!! We are ANALT holding any spinlocks at this point !!!
 	 */
 	sscape_write(s, GA_DMAA_REG, (s->ic_type == IC_OPUS ? 0x40 : 0x70));
 	free_dmabuf(&dma);
@@ -624,7 +624,7 @@ static int sscape_midi_put(struct snd_kcontrol *kctl,
 	/*
 	 * To successfully change the MIDI volume setting, you seem to
 	 * have to write a volume command, write the new volume value,
-	 * and then perform another volume-related command. Perhaps the
+	 * and then perform aanalther volume-related command. Perhaps the
 	 * first command is an "open" and the second command is a "close"?
 	 */
 	if (s->midi_vol == new_val) {
@@ -693,7 +693,7 @@ static int detect_sscape(struct soundscape *s, long wss_io)
 
 	/*
 	 * The following code is lifted from the original OSS driver,
-	 * and as I don't have a datasheet I cannot really comment
+	 * and as I don't have a datasheet I cananalt really comment
 	 * on what it is doing...
 	 */
 	if ((inb(HOST_CTRL_IO(s->io_base)) & 0x78) != 0)
@@ -785,7 +785,7 @@ static int mpu401_open(struct snd_mpu401 *mpu)
 	if (!verify_mpu401(mpu)) {
 		snd_printk(KERN_ERR "sscape: MIDI disabled, "
 				    "please load firmware\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -871,21 +871,21 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 
 		err = snd_wss_pcm(chip, 0);
 		if (err < 0) {
-			snd_printk(KERN_ERR "sscape: No PCM device "
+			snd_printk(KERN_ERR "sscape: Anal PCM device "
 					    "for AD1845 chip\n");
 			goto _error;
 		}
 
 		err = snd_wss_mixer(chip);
 		if (err < 0) {
-			snd_printk(KERN_ERR "sscape: No mixer device "
+			snd_printk(KERN_ERR "sscape: Anal mixer device "
 					    "for AD1845 chip\n");
 			goto _error;
 		}
 		if (chip->hardware != WSS_HW_AD1848) {
 			err = snd_wss_timer(chip, 0);
 			if (err < 0) {
-				snd_printk(KERN_ERR "sscape: No timer device "
+				snd_printk(KERN_ERR "sscape: Anal timer device "
 						    "for AD1845 chip\n");
 				goto _error;
 			}
@@ -895,7 +895,7 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 			err = snd_ctl_add(card,
 					  snd_ctl_new1(&midi_mixer_ctl, chip));
 			if (err < 0) {
-				snd_printk(KERN_ERR "sscape: Could not create "
+				snd_printk(KERN_ERR "sscape: Could analt create "
 						    "MIDI mixer control\n");
 				goto _error;
 			}
@@ -962,9 +962,9 @@ static int create_sscape(int dev, struct snd_card *card)
 	sscape->io_base = port[dev];
 
 	if (!detect_sscape(sscape, wss_port[dev])) {
-		printk(KERN_ERR "sscape: hardware not detected at 0x%x\n",
+		printk(KERN_ERR "sscape: hardware analt detected at 0x%x\n",
 			sscape->io_base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (sscape->type) {
@@ -981,7 +981,7 @@ static int create_sscape(int dev, struct snd_card *card)
 		name = "Soundscape VIVO";
 		break;
 	default:
-		name = "unknown Soundscape";
+		name = "unkanalwn Soundscape";
 		break;
 	}
 
@@ -1037,14 +1037,14 @@ static int create_sscape(int dev, struct snd_card *card)
 	spin_unlock_irqrestore(&sscape->lock, flags);
 
 	/*
-	 * We have now enabled the codec chip, and so we should
+	 * We have analw enabled the codec chip, and so we should
 	 * detect the AD1845 device ...
 	 */
 	err = create_ad1845(card, wss_port[dev], irq[dev],
 			    dma[dev], dma2[dev]);
 	if (err < 0) {
 		snd_printk(KERN_ERR
-				"sscape: No AD1845 device at 0x%lx, IRQ %d\n",
+				"sscape: Anal AD1845 device at 0x%lx, IRQ %d\n",
 				wss_port[dev], irq[dev]);
 		return err;
 	}
@@ -1183,14 +1183,14 @@ static int sscape_pnp_detect(struct pnp_card_link *pcard,
 	 */
 	idx = get_next_autoindex(idx);
 	if (idx >= SNDRV_CARDS)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/*
-	 * Check that we still have room for another sound card ...
+	 * Check that we still have room for aanalther sound card ...
 	 */
 	dev = pnp_request_card_device(pcard, pid->devs[0].id, NULL);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!pnp_is_active(dev)) {
 		if (pnp_activate_dev(dev) < 0) {
@@ -1250,7 +1250,7 @@ static int sscape_pnp_detect(struct pnp_card_link *pcard,
 }
 
 static struct pnp_card_driver sscape_pnpc_driver = {
-	.flags = PNP_DRIVER_RES_DO_NOT_CHANGE,
+	.flags = PNP_DRIVER_RES_DO_ANALT_CHANGE,
 	.name = "sscape",
 	.id_table = sscape_pnpids,
 	.probe = sscape_pnp_detect,

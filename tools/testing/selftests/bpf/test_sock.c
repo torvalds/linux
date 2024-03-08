@@ -445,10 +445,10 @@ static int bind_sock(int domain, int type, const char *ip,
 	}
 
 	if (bind(sockfd, (const struct sockaddr *)&addr, len) == -1) {
-		/* sys_bind() may fail for different reasons, errno has to be
+		/* sys_bind() may fail for different reasons, erranal has to be
 		 * checked to confirm that BPF program rejected it.
 		 */
-		if (errno != EPERM)
+		if (erranal != EPERM)
 			goto err;
 		if (port_retry)
 			goto retry;
@@ -463,7 +463,7 @@ retry:
 	else
 		addr6->sin6_port = htons(port_retry);
 	if (bind(sockfd, (const struct sockaddr *)&addr, len) == -1) {
-		if (errno != EPERM)
+		if (erranal != EPERM)
 			goto err;
 		res = RETRY_REJECT;
 	} else {

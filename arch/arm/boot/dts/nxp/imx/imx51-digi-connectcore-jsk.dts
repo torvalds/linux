@@ -15,7 +15,7 @@
 	};
 
 	usbphy1: usbphy1 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
 		clock-names = "main_clk";
 		#phy-cells = <0>;

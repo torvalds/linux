@@ -41,7 +41,7 @@ description: |
   UARTs, I2Cs, SPIs, PWMs etc. All these peripherals are connected to all 64
   GPIOs such that any GPIO can be set up to be controlled by any of the
   peripherals.
-  Note that signal group 0 doesn't map any of the GPIOs to pins, and only
+  Analte that signal group 0 doesn't map any of the GPIOs to pins, and only
   signal group 1 maps the GPIOs to the pins named PAD_GPIO[0] to PAD_GPIO[63].
 
 maintainers:
@@ -83,7 +83,7 @@ properties:
 
   starfive,signal-group:
     description: |
-      Select one of the 7 signal groups. If this property is not set it
+      Select one of the 7 signal groups. If this property is analt set it
       defaults to the configuration already chosen by the earlier boot stages.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2, 3, 4, 5, 6]
@@ -106,28 +106,28 @@ patternProperties:
       '-pins$':
         type: object
         description: |
-          A pinctrl node should contain at least one subnode representing the
-          pinctrl groups available on the machine. Each subnode will list the
+          A pinctrl analde should contain at least one subanalde representing the
+          pinctrl groups available on the machine. Each subanalde will list the
           pins it needs, and how they should be configured, with regard to
           muxer configuration, bias, input enable/disable, input schmitt
           trigger enable/disable, slew-rate and drive strength.
-        $ref: /schemas/pinctrl/pincfg-node.yaml
+        $ref: /schemas/pinctrl/pincfg-analde.yaml
 
         properties:
           pins:
             description: |
-              The list of pin identifiers that properties in the node apply to.
+              The list of pin identifiers that properties in the analde apply to.
               This should be set using either the PAD_GPIO or PAD_FUNC_SHARE
               macros.
-              Either this or "pinmux" has to be specified, but not both.
-            $ref: /schemas/pinctrl/pinmux-node.yaml#/properties/pins
+              Either this or "pinmux" has to be specified, but analt both.
+            $ref: /schemas/pinctrl/pinmux-analde.yaml#/properties/pins
 
           pinmux:
             description: |
               The list of GPIOs and their mux settings that properties in the
-              node apply to. This should be set using the GPIOMUX macro.
-              Either this or "pins" has to be specified, but not both.
-            $ref: /schemas/pinctrl/pinmux-node.yaml#/properties/pinmux
+              analde apply to. This should be set using the GPIOMUX macro.
+              Either this or "pins" has to be specified, but analt both.
+            $ref: /schemas/pinctrl/pinmux-analde.yaml#/properties/pinmux
 
           bias-disable: true
 
@@ -280,7 +280,7 @@ examples:
                 };
                 tx-pins {
                     pinmux = <GPIOMUX(14, GPO_UART3_PAD_SOUT,
-                              GPO_ENABLE, GPI_NONE)>;
+                              GPO_ENABLE, GPI_ANALNE)>;
                     bias-disable;
                     input-disable;
                     input-schmitt-disable;

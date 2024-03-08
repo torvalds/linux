@@ -90,7 +90,7 @@
     {
         "BriefDescription": "Count the number of Headerless flits received",
         "EventCode": "0x4b",
-        "EventName": "UNC_CXLCM_RxC_FLITS.NO_HDR",
+        "EventName": "UNC_CXLCM_RxC_FLITS.ANAL_HDR",
         "PerPkg": "1",
         "UMask": "0x8",
         "Unit": "CXLCM"
@@ -240,7 +240,7 @@
         "Unit": "CXLCM"
     },
     {
-        "BriefDescription": "Number of cycles of Not Empty for Cache Data Packing buffer",
+        "BriefDescription": "Number of cycles of Analt Empty for Cache Data Packing buffer",
         "EventCode": "0x42",
         "EventName": "UNC_CXLCM_RxC_PACK_BUF_NE.CACHE_DATA",
         "PerPkg": "1",
@@ -248,7 +248,7 @@
         "Unit": "CXLCM"
     },
     {
-        "BriefDescription": "Number of cycles of Not Empty for Cache Req Packing buffer",
+        "BriefDescription": "Number of cycles of Analt Empty for Cache Req Packing buffer",
         "EventCode": "0x42",
         "EventName": "UNC_CXLCM_RxC_PACK_BUF_NE.CACHE_REQ",
         "PerPkg": "1",
@@ -256,7 +256,7 @@
         "Unit": "CXLCM"
     },
     {
-        "BriefDescription": "Number of cycles of Not Empty for Cache Rsp Packing buffer",
+        "BriefDescription": "Number of cycles of Analt Empty for Cache Rsp Packing buffer",
         "EventCode": "0x42",
         "EventName": "UNC_CXLCM_RxC_PACK_BUF_NE.CACHE_RSP",
         "PerPkg": "1",
@@ -264,7 +264,7 @@
         "Unit": "CXLCM"
     },
     {
-        "BriefDescription": "Number of cycles of Not Empty for Mem Data Packing buffer",
+        "BriefDescription": "Number of cycles of Analt Empty for Mem Data Packing buffer",
         "EventCode": "0x42",
         "EventName": "UNC_CXLCM_RxC_PACK_BUF_NE.MEM_DATA",
         "PerPkg": "1",
@@ -272,7 +272,7 @@
         "Unit": "CXLCM"
     },
     {
-        "BriefDescription": "Number of cycles of Not Empty for Mem Rxx Packing buffer",
+        "BriefDescription": "Number of cycles of Analt Empty for Mem Rxx Packing buffer",
         "EventCode": "0x42",
         "EventName": "UNC_CXLCM_RxC_PACK_BUF_NE.MEM_REQ",
         "PerPkg": "1",
@@ -306,7 +306,7 @@
     {
         "BriefDescription": "Count the number of Headerless flits packed",
         "EventCode": "0x05",
-        "EventName": "UNC_CXLCM_TxC_FLITS.NO_HDR",
+        "EventName": "UNC_CXLCM_TxC_FLITS.ANAL_HDR",
         "PerPkg": "1",
         "UMask": "0x8",
         "Unit": "CXLCM"

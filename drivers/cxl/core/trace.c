@@ -17,7 +17,7 @@ static bool cxl_is_hpa_in_range(u64 hpa, struct cxl_region *cxlr, int pos)
 	/* Is the hpa within this region at all */
 	if (hpa < p->res->start || hpa > p->res->end) {
 		dev_dbg(&cxlr->dev,
-			"Addr trans fail: hpa 0x%llx not in region\n", hpa);
+			"Addr trans fail: hpa 0x%llx analt in region\n", hpa);
 		return false;
 	}
 
@@ -28,7 +28,7 @@ static bool cxl_is_hpa_in_range(u64 hpa, struct cxl_region *cxlr, int pos)
 		return true;
 
 	dev_dbg(&cxlr->dev,
-		"Addr trans fail: hpa 0x%llx not in expected chunk\n", hpa);
+		"Addr trans fail: hpa 0x%llx analt in expected chunk\n", hpa);
 
 	return false;
 }
@@ -52,7 +52,7 @@ static u64 cxl_dpa_to_hpa(u64 dpa,  struct cxl_region *cxlr,
 	 *
 	 * The placement of 'pos' in the HPA is determined by interleave
 	 * ways and granularity and is defined in the CXL Spec 3.0 Section
-	 * 8.2.4.19.13 Implementation Note: Device Decode Logic
+	 * 8.2.4.19.13 Implementation Analte: Device Decode Logic
 	 */
 
 	/* Remove the dpa base */

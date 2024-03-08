@@ -64,7 +64,7 @@ static ssize_t audit_log_entries_show(struct kobject *kobj,
 		return ret;
 
 	/*
-	 * The show() api will not work if the audit logs ever go
+	 * The show() api will analt work if the audit logs ever go
 	 * beyond 4KB
 	 */
 	if (count * LOG_ENTRY_SIZE > PAGE_SIZE)

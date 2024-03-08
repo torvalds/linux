@@ -152,7 +152,7 @@ static const struct snd_soc_acpi_link_adr icl_3_in_1_default[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr icl_3_in_1_mono_amp[] = {
+static const struct snd_soc_acpi_link_adr icl_3_in_1_moanal_amp[] = {
 	{
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt711_0_adr),
@@ -180,9 +180,9 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_icl_sdw_machines[] = {
 	},
 	{
 		.link_mask = 0xB, /* 3 active links required */
-		.links = icl_3_in_1_mono_amp,
+		.links = icl_3_in_1_moanal_amp,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-icl-rt711-rt1308-rt715-mono.tplg",
+		.sof_tplg_filename = "sof-icl-rt711-rt1308-rt715-moanal.tplg",
 	},
 	{
 		.link_mask = 0x1, /* rt700 connected on link0 */

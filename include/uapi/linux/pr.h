@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_PR_H
 #define _UAPI_PR_H
 
@@ -17,7 +17,7 @@ enum pr_status {
 	PR_STS_RETRY_PATH_FAILURE	= 0xe0000,
 	/* The request was failed due to a fast failure timer. */
 	PR_STS_PATH_FAST_FAILED		= 0xf0000,
-	/* The path cannot be reached and has been marked as failed. */
+	/* The path cananalt be reached and has been marked as failed. */
 	PR_STS_PATH_FAILED		= 0x10000,
 };
 
@@ -56,7 +56,7 @@ struct pr_clear {
 	__u32	__pad;
 };
 
-#define PR_FL_IGNORE_KEY	(1 << 0)	/* ignore existing key */
+#define PR_FL_IGANALRE_KEY	(1 << 0)	/* iganalre existing key */
 
 #define IOC_PR_REGISTER		_IOW('p', 200, struct pr_registration)
 #define IOC_PR_RESERVE		_IOW('p', 201, struct pr_reservation)

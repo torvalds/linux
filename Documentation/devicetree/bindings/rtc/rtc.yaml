@@ -14,7 +14,7 @@ description: |
   describe Real Time Clock devices in a device tree.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^rtc(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   aux-voltage-chargeable:
@@ -22,8 +22,8 @@ properties:
     enum: [0, 1]
     description: |
       Tells whether the battery/supercap of the RTC (if any) is
-      chargeable or not:
-      0: not chargeable
+      chargeable or analt:
+      0: analt chargeable
       1: chargeable
 
   quartz-load-femtofarads:
@@ -41,7 +41,7 @@ properties:
   trickle-diode-disable:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Do not use internal trickle charger diode. Should be given if
+      Do analt use internal trickle charger diode. Should be given if
       internal trickle charger diode should be disabled.
     deprecated: true
 

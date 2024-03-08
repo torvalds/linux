@@ -4,7 +4,7 @@
  *
  * Copyright 2015 Google Chromium project.
  *  Author: Anatol Pomozov <anatol@chromium.org>
- * Copyright 2015 Nuvoton Technology Corp.
+ * Copyright 2015 Nuvoton Techanallogy Corp.
  *  Co-author: Meng-Huang Kuo <mhkuo@nuvoton.com>
  */
 
@@ -225,18 +225,18 @@ static const struct reg_sequence nau8825_regmap_patch[] = {
  * @timeout: how long in jiffies to wait before failure or zero to wait
  * until release
  *
- * Attempts to acquire the semaphore with number of jiffies. If no more
+ * Attempts to acquire the semaphore with number of jiffies. If anal more
  * tasks are allowed to acquire the semaphore, calling this function will
- * put the task to sleep. If the semaphore is not released within the
+ * put the task to sleep. If the semaphore is analt released within the
  * specified number of jiffies, this function returns.
- * If the semaphore is not released within the specified number of jiffies,
+ * If the semaphore is analt released within the specified number of jiffies,
  * this function returns -ETIME. If the sleep is interrupted by a signal,
  * this function will return -EINTR. It returns 0 if the semaphore was
  * acquired successfully.
  *
  * Acquires the semaphore without jiffies. Try to acquire the semaphore
  * atomically. Returns 0 if the semaphore has been acquired successfully
- * or 1 if it cannot be acquired.
+ * or 1 if it cananalt be acquired.
  */
 static int nau8825_sema_acquire(struct nau8825 *nau8825, long timeout)
 {
@@ -288,7 +288,7 @@ static inline void nau8825_sema_reset(struct nau8825 *nau8825)
  * @step: the volume span to move on
  *
  * The headphone volume is from 0dB to minimum -54dB and -1dB per step.
- * If the volume changes sharp, there is a pop noise heard in headphone. We
+ * If the volume changes sharp, there is a pop analise heard in headphone. We
  * provide the function to ramp up the volume up or down by delaying 10ms
  * per step.
  */
@@ -408,13 +408,13 @@ static void nau8825_xtalk_restore(struct nau8825 *nau8825, bool cause_cancel)
 
 	/* Restore register values from backup table; When the driver restores
 	 * the headphone volume in XTALK_DONE state, it needs recover to
-	 * original level gradually with 3dB per step for less pop noise.
+	 * original level gradually with 3dB per step for less pop analise.
 	 * Otherwise, the restore should do ASAP.
 	 */
 	for (i = 0; i < ARRAY_SIZE(nau8825_xtalk_baktab); i++) {
 		if (!cause_cancel && nau8825_xtalk_baktab[i].reg ==
 			NAU8825_REG_HSVOL_CTRL) {
-			/* Ramping up the volume change to reduce pop noise */
+			/* Ramping up the volume change to reduce pop analise */
 			volume = nau8825_xtalk_baktab[i].def &
 				NAU8825_HPR_VOL_MASK;
 			nau8825_hpvol_ramp(nau8825, 0, volume, 3);
@@ -440,8 +440,8 @@ static void nau8825_xtalk_prepare_dac(struct nau8825 *nau8825)
 	 * change bump enable
 	 */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
-		NAU8825_JAMNODCLOW | NAU8825_CHANRGE_PUMP_EN,
-		NAU8825_JAMNODCLOW | NAU8825_CHANRGE_PUMP_EN);
+		NAU8825_JAMANALDCLOW | NAU8825_CHANRGE_PUMP_EN,
+		NAU8825_JAMANALDCLOW | NAU8825_CHANRGE_PUMP_EN);
 	/* Enable clock sync of DAC and DAC clock */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_RDAC,
 		NAU8825_RDAC_EN | NAU8825_RDAC_CLK_EN |
@@ -456,7 +456,7 @@ static void nau8825_xtalk_prepare_dac(struct nau8825 *nau8825)
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_POWER_UP_CONTROL,
 		NAU8825_POWERUP_HP_DRV_R | NAU8825_POWERUP_HP_DRV_L,
 		NAU8825_POWERUP_HP_DRV_R | NAU8825_POWERUP_HP_DRV_L);
-	/* HP outputs not shouted to ground  */
+	/* HP outputs analt shouted to ground  */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_HSD_CTRL,
 		NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L, 0);
 	/* Enable HP boost driver */
@@ -511,7 +511,7 @@ static void nau8825_xtalk_prepare(struct nau8825 *nau8825)
 		NAU8825_I2S_BLK_DIV_MASK, NAU8825_I2S_MS_MASTER |
 		(0x2 << NAU8825_I2S_LRC_DIV_SFT) | 0x1);
 	/* Ramp up headphone volume to 0dB to get better performance and
-	 * avoid pop noise in headphone.
+	 * avoid pop analise in headphone.
 	 */
 	index = nau8825_xtalk_baktab_index_by_reg(NAU8825_REG_HSVOL_CTRL);
 	if (index != -EINVAL) {
@@ -583,7 +583,7 @@ static void nau8825_xtalk_clean_dac(struct nau8825 *nau8825)
 		NAU8825_RDAC_EN | NAU8825_RDAC_CLK_EN, 0);
 	/* Disable charge pump ramp up function and change bump */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
-		NAU8825_JAMNODCLOW | NAU8825_CHANRGE_PUMP_EN, 0);
+		NAU8825_JAMANALDCLOW | NAU8825_CHANRGE_PUMP_EN, 0);
 	/* Disable power of DAC path */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_ENA_CTRL,
 		NAU8825_ENABLE_DACR | NAU8825_ENABLE_DACL |
@@ -625,7 +625,7 @@ static void nau8825_xtalk_imm_start(struct nau8825 *nau8825, int vol)
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_ADC_DGAIN_CTRL,
 				NAU8825_ADC_DIG_VOL_MASK, vol);
 	/* Disables JKTIP(HPL) DAC channel for right to left measurement.
-	 * Do it before sending signal in order to erase pop noise.
+	 * Do it before sending signal in order to erase pop analise.
 	 */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_BIAS_ADJ,
 		NAU8825_BIAS_TESTDACR_EN | NAU8825_BIAS_TESTDACL_EN,
@@ -916,11 +916,11 @@ static int nau8825_pump_event(struct snd_soc_dapm_widget *w,
 		/* Prevent startup click by letting charge pump to ramp up */
 		msleep(10);
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
-			NAU8825_JAMNODCLOW, NAU8825_JAMNODCLOW);
+			NAU8825_JAMANALDCLOW, NAU8825_JAMANALDCLOW);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
-			NAU8825_JAMNODCLOW, 0);
+			NAU8825_JAMANALDCLOW, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -1019,7 +1019,7 @@ static int nau8825_biq_coeff_put(struct snd_kcontrol *kcontrol,
 	data = kmemdup(ucontrol->value.bytes.data,
 		params->max, GFP_KERNEL | GFP_DMA);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap_update_bits(component->regmap, NAU8825_REG_BIQ_CTRL,
 		NAU8825_BIQ_WRT_EN, 0);
@@ -1105,8 +1105,8 @@ static const struct snd_kcontrol_new nau8825_dacr_mux =
 static const struct snd_soc_dapm_widget nau8825_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("AIFTX", "Capture", 0, NAU8825_REG_I2S_PCM_CTRL2,
 		15, 1),
-	SND_SOC_DAPM_AIF_IN("AIFRX", "Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_SUPPLY("System Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_IN("AIFRX", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_SUPPLY("System Clock", SND_SOC_ANALPM, 0, 0,
 			    system_clock_control, SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_INPUT("MIC"),
@@ -1115,7 +1115,7 @@ static const struct snd_soc_dapm_widget nau8825_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA_E("Frontend PGA", NAU8825_REG_POWER_UP_CONTROL, 14, 0,
 			   NULL, 0, nau8825_fepga_event, SND_SOC_DAPM_POST_PMU),
 
-	SND_SOC_DAPM_ADC_E("ADC", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("ADC", NULL, SND_SOC_ANALPM, 0, 0,
 		nau8825_adc_event, SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("ADC Clock", NAU8825_REG_ENA_CTRL, 7, 0, NULL, 0),
@@ -1140,8 +1140,8 @@ static const struct snd_soc_dapm_widget nau8825_dapm_widgets[] = {
 		NAU8825_ENABLE_DACL_SFT, 0),
 	SND_SOC_DAPM_SUPPLY("DDAC Clock", NAU8825_REG_ENA_CTRL, 6, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("DACL Mux", SND_SOC_NOPM, 0, 0, &nau8825_dacl_mux),
-	SND_SOC_DAPM_MUX("DACR Mux", SND_SOC_NOPM, 0, 0, &nau8825_dacr_mux),
+	SND_SOC_DAPM_MUX("DACL Mux", SND_SOC_ANALPM, 0, 0, &nau8825_dacl_mux),
+	SND_SOC_DAPM_MUX("DACR Mux", SND_SOC_ANALPM, 0, 0, &nau8825_dacr_mux),
 
 	SND_SOC_DAPM_PGA_S("HP amp L", 0,
 		NAU8825_REG_CLASSG_CTRL, 1, 0, NULL, 0),
@@ -1166,10 +1166,10 @@ static const struct snd_soc_dapm_widget nau8825_dapm_widgets[] = {
 		NAU8825_REG_POWER_UP_CONTROL, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_PGA_S("Output DACL", 7,
-		SND_SOC_NOPM, 0, 0, nau8825_output_dac_event,
+		SND_SOC_ANALPM, 0, 0, nau8825_output_dac_event,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_PGA_S("Output DACR", 7,
-		SND_SOC_NOPM, 0, 0, nau8825_output_dac_event,
+		SND_SOC_ANALPM, 0, 0, nau8825_output_dac_event,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 
@@ -1285,7 +1285,7 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 
 	/* CLK_DAC or CLK_ADC = OSR * FS
 	 * DAC or ADC clock frequency is defined as Over Sampling Rate (OSR)
-	 * multiplied by the audio sample rate (Fs). Note that the OSR and Fs
+	 * multiplied by the audio sample rate (Fs). Analte that the OSR and Fs
 	 * values must be selected such that the maximum frequency is less
 	 * than 6.144 MHz.
 	 */
@@ -1685,7 +1685,7 @@ static void nau8825_setup_auto_irq(struct nau8825 *nau8825)
 		NAU8825_ENABLE_ADC, NAU8825_ENABLE_ADC);
 
 	/* Chip needs one FSCLK cycle in order to generate interruptions,
-	 * as we cannot guarantee one will be provided by the system. Turning
+	 * as we cananalt guarantee one will be provided by the system. Turning
 	 * master mode on then off enables us to generate that FSCLK cycle
 	 * with a minimum of contention on the clock bus.
 	 */
@@ -1694,7 +1694,7 @@ static void nau8825_setup_auto_irq(struct nau8825 *nau8825)
 	regmap_update_bits(regmap, NAU8825_REG_I2S_PCM_CTRL2,
 		NAU8825_I2S_MS_MASK, NAU8825_I2S_MS_SLAVE);
 
-	/* Not bypass de-bounce circuit */
+	/* Analt bypass de-bounce circuit */
 	regmap_update_bits(regmap, NAU8825_REG_JACK_DET_CTRL,
 		NAU8825_JACK_DET_DB_BYPASS, 0);
 
@@ -1740,8 +1740,8 @@ static int nau8825_high_imped_detection(struct nau8825 *nau8825)
 			   NAU8825_TESTDACIN_MASK, NAU8825_TESTDACIN_GND);
 	regmap_write(regmap, NAU8825_REG_TRIM_SETTINGS, 0x6);
 	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
-			   NAU8825_MICBIAS_LOWNOISE_MASK | NAU8825_MICBIAS_VOLTAGE_MASK,
-			   NAU8825_MICBIAS_LOWNOISE_EN);
+			   NAU8825_MICBIAS_LOWANALISE_MASK | NAU8825_MICBIAS_VOLTAGE_MASK,
+			   NAU8825_MICBIAS_LOWANALISE_EN);
 	regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
 			   NAU8825_SAR_INPUT_MASK | NAU8825_SAR_TRACKING_GAIN_MASK |
 			   NAU8825_SAR_HV_SEL_MASK | NAU8825_SAR_RES_SEL_MASK |
@@ -1784,7 +1784,7 @@ static int nau8825_high_imped_detection(struct nau8825 *nau8825)
 	snd_soc_dapm_sync(dapm);
 
 	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
-			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_LOWNOISE_MASK |
+			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_LOWANALISE_MASK |
 			   NAU8825_MICBIAS_VOLTAGE_MASK, nau8825->micbias_voltage);
 	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
 			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
@@ -1858,7 +1858,7 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 
 	switch (mic_detected) {
 	case 0:
-		/* no mic */
+		/* anal mic */
 		type = SND_JACK_HEADPHONE;
 		break;
 	case 1:
@@ -1940,7 +1940,7 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 
 	if (regmap_read(regmap, NAU8825_REG_IRQ_STATUS, &active_irq)) {
 		dev_err(nau8825->dev, "failed to read irq status\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if ((active_irq & NAU8825_JACK_EJECTION_IRQ_MASK) ==
@@ -1976,7 +1976,7 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 				 */
 				if (!nau8825->xtalk_protect) {
 					/* Raise protection for cross talk de-
-					 * tection if no protection before.
+					 * tection if anal protection before.
 					 * The driver has to cancel the pro-
 					 * cess and restore changes if process
 					 * is ongoing when ejection.
@@ -2004,7 +2004,7 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 				}
 			}
 		} else {
-			dev_warn(nau8825->dev, "Headset completion IRQ fired but no headset connected\n");
+			dev_warn(nau8825->dev, "Headset completion IRQ fired but anal headset connected\n");
 			nau8825_eject_jack(nau8825);
 		}
 
@@ -2182,9 +2182,9 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 
 	/* Class AB bias current to 2x, DAC Capacitor enable MSB/LSB */
 	regmap_update_bits(regmap, NAU8825_REG_ANALOG_CONTROL_2,
-		NAU8825_HP_NON_CLASSG_CURRENT_2xADJ |
+		NAU8825_HP_ANALN_CLASSG_CURRENT_2xADJ |
 		NAU8825_DAC_CAPACITOR_MSB | NAU8825_DAC_CAPACITOR_LSB,
-		NAU8825_HP_NON_CLASSG_CURRENT_2xADJ |
+		NAU8825_HP_ANALN_CLASSG_CURRENT_2xADJ |
 		NAU8825_DAC_CAPACITOR_MSB | NAU8825_DAC_CAPACITOR_LSB);
 	/* Class G timer 64ms */
 	regmap_update_bits(regmap, NAU8825_REG_CLASSG_CTRL,
@@ -2280,7 +2280,7 @@ static int nau8825_calc_fll_param(unsigned int fll_in, unsigned int fs,
 	fll_param->ratio = fll_ratio[i].val;
 
 	/* Calculate the frequency of DCO (FDCO) given freq_out = 256 * Fs.
-	 * FDCO must be within the 90MHz - 124MHz or the FFL cannot be
+	 * FDCO must be within the 90MHz - 124MHz or the FFL cananalt be
 	 * guaranteed across the full range of operation.
 	 * FDCO = freq_out * 2 * mclk_src_scaling
 	 */
@@ -2399,7 +2399,7 @@ static int nau8825_mclk_prepare(struct nau8825 *nau8825, unsigned int freq)
 
 	nau8825->mclk = devm_clk_get(nau8825->dev, "mclk");
 	if (IS_ERR(nau8825->mclk)) {
-		dev_info(nau8825->dev, "No 'mclk' clock found, assume MCLK is managed externally");
+		dev_info(nau8825->dev, "Anal 'mclk' clock found, assume MCLK is managed externally");
 		return 0;
 	}
 
@@ -2459,7 +2459,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 */
 		nau8825_sema_acquire(nau8825, 3 * HZ);
 		nau8825_configure_mclk_as_sysclk(regmap);
-		/* MCLK not changed by clock tree */
+		/* MCLK analt changed by clock tree */
 		regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_MCLK_SRC_MASK, 0);
 		/* Release the semaphore. */
@@ -2488,10 +2488,10 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 				NAU8825_SDM_EN, NAU8825_SDM_EN);
 		} else {
 			/* The clock turns off intentionally for power saving
-			 * when no headset connected.
+			 * when anal headset connected.
 			 */
 			nau8825_configure_mclk_as_sysclk(regmap);
-			dev_warn(nau8825->dev, "Disable clock for power saving when no headset connected\n");
+			dev_warn(nau8825->dev, "Disable clock for power saving when anal headset connected\n");
 		}
 		if (nau8825->mclk_freq) {
 			clk_disable_unprepare(nau8825->mclk);
@@ -2839,10 +2839,10 @@ static int nau8825_read_device_properties(struct device *dev,
 	nau8825->mclk = devm_clk_get(dev, "mclk");
 	if (PTR_ERR(nau8825->mclk) == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
-	} else if (PTR_ERR(nau8825->mclk) == -ENOENT) {
-		/* The MCLK is managed externally or not used at all */
+	} else if (PTR_ERR(nau8825->mclk) == -EANALENT) {
+		/* The MCLK is managed externally or analt used at all */
 		nau8825->mclk = NULL;
-		dev_info(dev, "No 'mclk' clock found, assume MCLK is managed externally");
+		dev_info(dev, "Anal 'mclk' clock found, assume MCLK is managed externally");
 	} else if (IS_ERR(nau8825->mclk)) {
 		return -EINVAL;
 	}
@@ -2859,7 +2859,7 @@ static int nau8825_setup_irq(struct nau8825 *nau8825)
 		"nau8825", nau8825);
 
 	if (ret) {
-		dev_err(nau8825->dev, "Cannot request irq %d (%d)\n",
+		dev_err(nau8825->dev, "Cananalt request irq %d (%d)\n",
 			nau8825->irq, ret);
 		return ret;
 	}
@@ -2876,7 +2876,7 @@ static int nau8825_i2c_probe(struct i2c_client *i2c)
 	if (!nau8825) {
 		nau8825 = devm_kzalloc(dev, sizeof(*nau8825), GFP_KERNEL);
 		if (!nau8825)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = nau8825_read_device_properties(dev, nau8825);
 		if (ret)
 			return ret;
@@ -2920,8 +2920,8 @@ static int nau8825_i2c_probe(struct i2c_client *i2c)
 		}
 		break;
 	default:
-		dev_err(dev, "Not a NAU8825 chip\n");
-		return -ENODEV;
+		dev_err(dev, "Analt a NAU8825 chip\n");
+		return -EANALDEV;
 	}
 
 	nau8825_init_regs(nau8825);

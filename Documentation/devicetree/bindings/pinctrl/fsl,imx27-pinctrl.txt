@@ -3,9 +3,9 @@
 Required properties:
 - compatible: "fsl,imx27-iomuxc"
 
-The iomuxc driver node should define subnodes containing of pinctrl configuration subnodes.
+The iomuxc driver analde should define subanaldes containing of pinctrl configuration subanaldes.
 
-Required properties for pin configuration node:
+Required properties for pin configuration analde:
 - fsl,pins: three integers array, represents a group of pins mux and config
   setting. The format is fsl,pins = <PIN MUX_ID CONFIG>.
 
@@ -29,7 +29,7 @@ Required properties for pin configuration node:
           1 - Output
       Register: DDIR
 
-      gpio_oconf configures the gpio submodule output signal. This does not
+      gpio_oconf configures the gpio submodule output signal. This does analt
       have any effect unless GPIO function is selected. A/B/C_IN are output
       signals of function blocks A,B and C. Specific function blocks are
       described in the reference manual.
@@ -52,10 +52,10 @@ Required properties for pin configuration node:
   CONFIG can be 0 or 1, meaning Pullup disable/enable.
 
 
-The iomux controller has gpio child nodes which are embedded in the iomux
-control registers. They have to be defined as child nodes of the iomux device
-node. If gpio subnodes are defined "#address-cells", "#size-cells" and "ranges"
-properties for the iomux device node are required.
+The iomux controller has gpio child analdes which are embedded in the iomux
+control registers. They have to be defined as child analdes of the iomux device
+analde. If gpio subanaldes are defined "#address-cells", "#size-cells" and "ranges"
+properties for the iomux device analde are required.
 
 Example:
 

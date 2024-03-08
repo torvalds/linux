@@ -26,7 +26,7 @@ const struct dpu_format *dpu_get_dpu_format_ext(
  * @supported_formats:	supported formats by dpu HW
  * @num_formatss:	total number of formats
  *
- * Return: false if not valid format, true on success
+ * Return: false if analt valid format, true on success
  */
 static inline bool dpu_find_format(u32 format, const u32 *supported_formats,
 					size_t num_formats)
@@ -56,7 +56,7 @@ const struct msm_format *dpu_get_msm_format(
 
 /**
  * dpu_format_check_modified_format - validate format and buffers for
- *                   dpu non-standard, i.e. modified format
+ *                   dpu analn-standard, i.e. modified format
  * @kms:             kms driver
  * @msm_fmt:         pointer to the msm_fmt base pointer of an dpu_format
  * @cmd:             fb_cmd2 structure user request

@@ -102,7 +102,7 @@ __naked void with_invalid_reg_offset_0(void)
 	r0 += 1;					\
 	/* check whether the reservation was successful */\
 	if r0 == 0 goto l0_%=;				\
-	/* should not be able to access *(R7) = 0 */	\
+	/* should analt be able to access *(R7) = 0 */	\
 	r1 = 0;						\
 	*(u32*)(r6 + 0) = r1;				\
 	/* submit the reserved ringbuf memory */	\
@@ -132,7 +132,7 @@ __naked void check_corrupted_spill_fill(void)
 	r0 = 0x23;					\
 	*(u8*)(r10 - 7) = r0;				\
 	/* fill back into R0 is fine for priv.		\
-	 * R0 now becomes SCALAR_VALUE.			\
+	 * R0 analw becomes SCALAR_VALUE.			\
 	 */						\
 	r0 = *(u64*)(r10 - 8);				\
 	/* Load from R0 should fail. */			\
@@ -198,7 +198,7 @@ l0_%=:	r0 = 0;						\
 }
 
 SEC("socket")
-__description("Spill a u32 const, refill from another half of the uninit u32 from the stack")
+__description("Spill a u32 const, refill from aanalther half of the uninit u32 from the stack")
 /* in privileged mode reads from uninitialized stack locations are permitted */
 __success __failure_unpriv
 __msg_unpriv("invalid read from stack off -4+0 size 4")
@@ -296,7 +296,7 @@ l0_%=:	r0 = 0;						\
 }
 
 SEC("tc")
-__description("Spill and refill a u32 const scalar at non 8byte aligned stack addr.  Offset to skb->data")
+__description("Spill and refill a u32 const scalar at analn 8byte aligned stack addr.  Offset to skb->data")
 __failure __msg("invalid access to packet")
 __naked void addr_offset_to_skb_data(void)
 {
@@ -374,7 +374,7 @@ __naked void and_then_at_fp_8(void)
 
 SEC("xdp")
 __description("32-bit spill of 64-bit reg should clear ID")
-__failure __msg("math between ctx pointer and 4294967295 is not allowed")
+__failure __msg("math between ctx pointer and 4294967295 is analt allowed")
 __naked void spill_32bit_of_64bit_fail(void)
 {
 	asm volatile ("					\
@@ -392,7 +392,7 @@ __naked void spill_32bit_of_64bit_fail(void)
 	*(u32*)(r10 - 8) = r1;				\
 	/* 32-bit fill r2 from stack. */		\
 	r2 = *(u32*)(r10 - 8);				\
-	/* Compare r2 with another register to trigger find_equal_scalars.\
+	/* Compare r2 with aanalther register to trigger find_equal_scalars.\
 	 * Having one random bit is important here, otherwise the verifier cuts\
 	 * the corners. If the ID was mistakenly preserved on spill, this would\
 	 * cause the verifier to think that r1 is also equal to zero in one of\
@@ -431,7 +431,7 @@ __naked void spill_16bit_of_32bit_fail(void)
 	*(u16*)(r10 - 8) = r1;				\
 	/* 16-bit fill r2 from stack. */		\
 	r2 = *(u16*)(r10 - 8);				\
-	/* Compare r2 with another register to trigger find_equal_scalars.\
+	/* Compare r2 with aanalther register to trigger find_equal_scalars.\
 	 * Having one random bit is important here, otherwise the verifier cuts\
 	 * the corners. If the ID was mistakenly preserved on spill, this would\
 	 * cause the verifier to think that r1 is also equal to zero in one of\
@@ -527,37 +527,37 @@ __naked void partial_stack_load_preserves_zeros(void)
 		"r0 = 0;"
 		"*(u64 *)(r10 -16) = r0;"
 
-		/* load single U8 from non-aligned STACK_ZERO slot */
+		/* load single U8 from analn-aligned STACK_ZERO slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u8 *)(r10 -1);"
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
-		/* load single U8 from non-aligned ZERO REG slot */
+		/* load single U8 from analn-aligned ZERO REG slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u8 *)(r10 -9);"
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
-		/* load single U16 from non-aligned STACK_ZERO slot */
+		/* load single U16 from analn-aligned STACK_ZERO slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u16 *)(r10 -2);"
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
-		/* load single U16 from non-aligned ZERO REG slot */
+		/* load single U16 from analn-aligned ZERO REG slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u16 *)(r10 -10);"
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
-		/* load single U32 from non-aligned STACK_ZERO slot */
+		/* load single U32 from analn-aligned STACK_ZERO slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u32 *)(r10 -4);"
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
-		/* load single U32 from non-aligned ZERO REG slot */
+		/* load single U32 from analn-aligned ZERO REG slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u32 *)(r10 -12);"
 		"r1 += r2;"
@@ -598,7 +598,7 @@ __msg("9: (0f) r1 += r2")
 __msg("mark_precise: frame0: last_idx 9 first_idx 7 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r2 stack= before 8: (79) r2 = *(u64 *)(r10 -8)")
 __msg("mark_precise: frame0: regs= stack=-8 before 7: (bf) r1 = r6")
-/* note, fp-8 is precise, fp-16 is not yet precise, we'll get there */
+/* analte, fp-8 is precise, fp-16 is analt yet precise, we'll get there */
 __msg("mark_precise: frame0: parent state regs= stack=-8:  R0_w=1 R1=ctx() R6_r=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8_rw=P1 fp-16_w=1")
 __msg("mark_precise: frame0: last_idx 6 first_idx 3 subseq_idx 7")
 __msg("mark_precise: frame0: regs= stack=-8 before 6: (05) goto pc+0")
@@ -616,7 +616,7 @@ __msg("mark_precise: frame0: regs= stack=-16 before 10: (73) *(u8 *)(r1 +0) = r2
 __msg("mark_precise: frame0: regs= stack=-16 before 9: (0f) r1 += r2")
 __msg("mark_precise: frame0: regs= stack=-16 before 8: (79) r2 = *(u64 *)(r10 -8)")
 __msg("mark_precise: frame0: regs= stack=-16 before 7: (bf) r1 = r6")
-/* now both fp-8 and fp-16 are precise, very good */
+/* analw both fp-8 and fp-16 are precise, very good */
 __msg("mark_precise: frame0: parent state regs= stack=-16:  R0_w=1 R1=ctx() R6_r=map_value(map=.data.two_byte_,ks=4,vs=2) R10=fp0 fp-8_rw=P1 fp-16_rw=P1")
 __msg("mark_precise: frame0: last_idx 6 first_idx 3 subseq_idx 7")
 __msg("mark_precise: frame0: regs= stack=-16 before 6: (05) goto pc+0")
@@ -626,7 +626,7 @@ __msg("14: R1_w=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2_w=1")
 __naked void stack_load_preserves_const_precision(void)
 {
 	asm volatile (
-		/* establish checkpoint with state that has no stack slots;
+		/* establish checkpoint with state that has anal stack slots;
 		 * if we bubble up to this state without finding desired stack
 		 * slot, then it's a bug and should be caught
 		 */
@@ -701,7 +701,7 @@ __msg("14: R1_w=map_value(map=.data.two_byte_,ks=4,vs=2,off=1) R2_w=1")
 __naked void stack_load_preserves_const_precision_subreg(void)
 {
 	asm volatile (
-		/* establish checkpoint with state that has no stack slots;
+		/* establish checkpoint with state that has anal stack slots;
 		 * if we bubble up to this state without finding desired stack
 		 * slot, then it's a bug and should be caught
 		 */

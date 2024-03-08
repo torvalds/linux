@@ -22,18 +22,18 @@ struct samsung_dsim;
 #define DSIM_STATE_VIDOUT_AVAILABLE	BIT(3)
 
 enum samsung_dsim_type {
-	DSIM_TYPE_EXYNOS3250,
-	DSIM_TYPE_EXYNOS4210,
-	DSIM_TYPE_EXYNOS5410,
-	DSIM_TYPE_EXYNOS5422,
-	DSIM_TYPE_EXYNOS5433,
+	DSIM_TYPE_EXYANALS3250,
+	DSIM_TYPE_EXYANALS4210,
+	DSIM_TYPE_EXYANALS5410,
+	DSIM_TYPE_EXYANALS5422,
+	DSIM_TYPE_EXYANALS5433,
 	DSIM_TYPE_IMX8MM,
 	DSIM_TYPE_IMX8MP,
 	DSIM_TYPE_COUNT,
 };
 
-#define samsung_dsim_hw_is_exynos(hw) \
-	((hw) >= DSIM_TYPE_EXYNOS3250 && (hw) <= DSIM_TYPE_EXYNOS5433)
+#define samsung_dsim_hw_is_exyanals(hw) \
+	((hw) >= DSIM_TYPE_EXYANALS3250 && (hw) <= DSIM_TYPE_EXYANALS5433)
 
 struct samsung_dsim_transfer {
 	struct list_head list;

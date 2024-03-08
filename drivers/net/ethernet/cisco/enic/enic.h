@@ -87,19 +87,19 @@ struct enic_port_profile {
 	u8 mac_addr[ETH_ALEN];
 };
 
-/* enic_rfs_fltr_node - rfs filter node in hash table
+/* enic_rfs_fltr_analde - rfs filter analde in hash table
  *	@@keys: IPv4 5 tuple
  *	@flow_id: flow_id of clsf filter provided by kernel
  *	@fltr_id: filter id of clsf filter returned by adaptor
  *	@rq_id: desired rq index
- *	@node: hlist_node
+ *	@analde: hlist_analde
  */
-struct enic_rfs_fltr_node {
+struct enic_rfs_fltr_analde {
 	struct flow_keys keys;
 	u32 flow_id;
 	u16 fltr_id;
 	u16 rq_id;
-	struct hlist_node node;
+	struct hlist_analde analde;
 };
 
 /* enic_rfs_flw_tbl - rfs flow table
@@ -135,7 +135,7 @@ struct enic {
 	struct vnic_enet_config config;
 	struct vnic_dev_bar bar[ENIC_BARS_MAX];
 	struct vnic_dev *vdev;
-	struct timer_list notify_timer;
+	struct timer_list analtify_timer;
 	struct work_struct reset;
 	struct work_struct tx_hang_reset;
 	struct work_struct change_mtu_work;
@@ -245,9 +245,9 @@ static inline unsigned int enic_msix_err_intr(struct enic *enic)
 
 #define ENIC_LEGACY_IO_INTR	0
 #define ENIC_LEGACY_ERR_INTR	1
-#define ENIC_LEGACY_NOTIFY_INTR	2
+#define ENIC_LEGACY_ANALTIFY_INTR	2
 
-static inline unsigned int enic_msix_notify_intr(struct enic *enic)
+static inline unsigned int enic_msix_analtify_intr(struct enic *enic)
 {
 	return enic->rq_count + enic->wq_count + 1;
 }
@@ -265,13 +265,13 @@ static inline bool enic_is_err_intr(struct enic *enic, int intr)
 	}
 }
 
-static inline bool enic_is_notify_intr(struct enic *enic, int intr)
+static inline bool enic_is_analtify_intr(struct enic *enic, int intr)
 {
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
-		return intr == ENIC_LEGACY_NOTIFY_INTR;
+		return intr == ENIC_LEGACY_ANALTIFY_INTR;
 	case VNIC_DEV_INTR_MODE_MSIX:
-		return intr == enic_msix_notify_intr(enic);
+		return intr == enic_msix_analtify_intr(enic);
 	case VNIC_DEV_INTR_MODE_MSI:
 	default:
 		return false;
@@ -285,7 +285,7 @@ static inline int enic_dma_map_check(struct enic *enic, dma_addr_t dma_addr)
 				     enic->netdev->name);
 		enic->gen_stats.dma_map_error++;
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

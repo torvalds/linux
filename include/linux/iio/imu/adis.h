@@ -46,12 +46,12 @@ struct adis_timeout {
  * @prod_id: Product ID code that should be expected when reading @prod_id_reg
  * @self_test_mask: Bitmask of supported self-test operations
  * @self_test_reg: Register address to request self test command
- * @self_test_no_autoclear: True if device's self-test needs clear of ctrl reg
+ * @self_test_anal_autoclear: True if device's self-test needs clear of ctrl reg
  * @status_error_msgs: Array of error messages
  * @status_error_mask: Bitmask of errors supported by the device
  * @timeouts: Chip specific delays
  * @enable_irq: Hook for ADIS devices that have a special IRQ enable/disable
- * @unmasked_drdy: True for devices that cannot mask/unmask the data ready pin
+ * @unmasked_drdy: True for devices that cananalt mask/unmask the data ready pin
  * @has_paging: True if ADIS device has paged registers
  * @burst_reg_cmd:	Register command that triggers burst
  * @burst_len:		Burst size in the SPI RX buffer. If @burst_max_len is defined,
@@ -74,7 +74,7 @@ struct adis_data {
 
 	unsigned int self_test_mask;
 	unsigned int self_test_reg;
-	bool self_test_no_autoclear;
+	bool self_test_anal_autoclear;
 	const struct adis_timeout *timeouts;
 
 	const char * const *status_error_msgs;

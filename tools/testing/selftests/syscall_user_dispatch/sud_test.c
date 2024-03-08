@@ -41,7 +41,7 @@
  *   able to trigger SIGSYS on a syscall.
  *
  * - bad_selector: Test that a bad selector value triggers SIGSYS with
- *   si_errno EINVAL.
+ *   si_erranal EINVAL.
  *
  * - bad_prctl_param: Test that the API correctly rejects invalid
  *   parameters on prctl
@@ -67,7 +67,7 @@ TEST_SIGNAL(dispatch_trigger_sigsys, SIGSYS)
 
 	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, 0, &sel);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
+		TH_LOG("Kernel does analt support CONFIG_SYSCALL_USER_DISPATCH");
 	}
 
 	SYSCALL_DISPATCH_ON(sel);
@@ -87,46 +87,46 @@ TEST(bad_prctl_param)
 	/* Invalid op */
 	op = -1;
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0, 0, &sel);
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 
 	/* PR_SYS_DISPATCH_OFF */
 	op = PR_SYS_DISPATCH_OFF;
 
 	/* offset != 0 */
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x1, 0x0, 0);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	/* len != 0 */
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x0, 0xff, 0);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	/* sel != NULL */
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x0, 0x0, &sel);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	/* Valid parameter */
-	errno = 0;
+	erranal = 0;
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x0, 0x0, 0x0);
-	EXPECT_EQ(0, errno);
+	EXPECT_EQ(0, erranal);
 
 	/* PR_SYS_DISPATCH_ON */
 	op = PR_SYS_DISPATCH_ON;
 
 	/* Dispatcher region is bad (offset > 0 && len == 0) */
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x1, 0x0, &sel);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, -1L, 0x0, &sel);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	/* Invalid selector */
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x0, 0x1, (void *) -1);
-	ASSERT_EQ(EFAULT, errno);
+	ASSERT_EQ(EFAULT, erranal);
 
 	/*
 	 * Dispatcher range overflows unsigned long
 	 */
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 1, -1L, &sel);
-	ASSERT_EQ(EINVAL, errno) {
+	ASSERT_EQ(EINVAL, erranal) {
 		TH_LOG("Should reject bad syscall range");
 	}
 
@@ -134,7 +134,7 @@ TEST(bad_prctl_param)
 	 * Allowed range overflows usigned long
 	 */
 	prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, -1L, 0x1, &sel);
-	ASSERT_EQ(EINVAL, errno) {
+	ASSERT_EQ(EINVAL, erranal) {
 		TH_LOG("Should reject bad syscall range");
 	}
 }
@@ -146,12 +146,12 @@ TEST(bad_prctl_param)
 char glob_sel;
 int nr_syscalls_emulated;
 int si_code;
-int si_errno;
+int si_erranal;
 
 static void handle_sigsys(int sig, siginfo_t *info, void *ucontext)
 {
 	si_code = info->si_code;
-	si_errno = info->si_errno;
+	si_erranal = info->si_erranal;
 
 	if (info->si_syscall == MAGIC_SYSCALL_1)
 		nr_syscalls_emulated++;
@@ -169,7 +169,7 @@ TEST(dispatch_and_return)
 	glob_sel = 0;
 	nr_syscalls_emulated = 0;
 	si_code = 0;
-	si_errno = 0;
+	si_erranal = 0;
 
 	memset(&act, 0, sizeof(act));
 	sigemptyset(&mask);
@@ -186,7 +186,7 @@ TEST(dispatch_and_return)
 
 	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, 0, &glob_sel);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
+		TH_LOG("Kernel does analt support CONFIG_SYSCALL_USER_DISPATCH");
 	}
 
 	/* MAGIC_SYSCALL_1 doesn't exist. */
@@ -210,8 +210,8 @@ TEST(dispatch_and_return)
 	ASSERT_EQ(SYS_USER_DISPATCH, si_code) {
 		TH_LOG("Bad si_code in SIGSYS");
 	}
-	ASSERT_EQ(0, si_errno) {
-		TH_LOG("Bad si_errno in SIGSYS");
+	ASSERT_EQ(0, si_erranal) {
+		TH_LOG("Bad si_erranal in SIGSYS");
 	}
 }
 
@@ -225,7 +225,7 @@ TEST_SIGNAL(bad_selector, SIGSYS)
 	glob_sel = SYSCALL_DISPATCH_FILTER_ALLOW;
 	nr_syscalls_emulated = 0;
 	si_code = 0;
-	si_errno = 0;
+	si_erranal = 0;
 
 	memset(&act, 0, sizeof(act));
 	sigemptyset(&mask);
@@ -242,7 +242,7 @@ TEST_SIGNAL(bad_selector, SIGSYS)
 
 	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, 0, &glob_sel);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
+		TH_LOG("Kernel does analt support CONFIG_SYSCALL_USER_DISPATCH");
 	}
 
 	glob_sel = -1;
@@ -266,7 +266,7 @@ TEST(disable_dispatch)
 
 	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, 0, &sel);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
+		TH_LOG("Kernel does analt support CONFIG_SYSCALL_USER_DISPATCH");
 	}
 
 	/* MAGIC_SYSCALL_1 doesn't exist. */
@@ -298,7 +298,7 @@ TEST(direct_dispatch_range)
 	 */
 	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, -1L, &sel);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
+		TH_LOG("Kernel does analt support CONFIG_SYSCALL_USER_DISPATCH");
 	}
 
 	SYSCALL_DISPATCH_ON(sel);

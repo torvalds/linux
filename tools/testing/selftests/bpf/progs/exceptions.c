@@ -18,26 +18,26 @@ struct {
 	__uint(value_size, sizeof(__u32));
 } jmp_table SEC(".maps");
 
-static __noinline int static_func(u64 i)
+static __analinline int static_func(u64 i)
 {
 	bpf_throw(32);
 	return i;
 }
 
-__noinline int global2static_simple(u64 i)
+__analinline int global2static_simple(u64 i)
 {
 	static_func(i + 2);
 	return i - 1;
 }
 
-__noinline int global2static(u64 i)
+__analinline int global2static(u64 i)
 {
 	if (i == ETH_P_IP)
 		bpf_throw(16);
 	return static_func(i);
 }
 
-static __noinline int static2global(u64 i)
+static __analinline int static2global(u64 i)
 {
 	return global2static(i) + i;
 }
@@ -92,7 +92,7 @@ int exception_tail_call_target(struct __sk_buff *ctx)
 	return 0;
 }
 
-static __noinline
+static __analinline
 int exception_tail_call_subprog(struct __sk_buff *ctx)
 {
 	volatile int ret = 10;
@@ -109,14 +109,14 @@ int exception_tail_call(struct __sk_buff *ctx) {
 	return ret + 8;
 }
 
-__noinline int exception_ext_global(struct __sk_buff *ctx)
+__analinline int exception_ext_global(struct __sk_buff *ctx)
 {
 	volatile int ret = 0;
 
 	return ret;
 }
 
-static __noinline int exception_ext_static(struct __sk_buff *ctx)
+static __analinline int exception_ext_static(struct __sk_buff *ctx)
 {
 	return exception_ext_global(ctx);
 }
@@ -127,7 +127,7 @@ int exception_ext(struct __sk_buff *ctx)
 	return exception_ext_static(ctx);
 }
 
-__noinline int exception_cb_mod_global(u64 cookie)
+__analinline int exception_cb_mod_global(u64 cookie)
 {
 	volatile int ret = 0;
 
@@ -138,11 +138,11 @@ __noinline int exception_cb_mod_global(u64 cookie)
  * introduce extensions by calling to dummy global functions, and alter runtime
  * behavior.
  *
- * Right now we don't allow freplace attachment to exception callback itself,
+ * Right analw we don't allow freplace attachment to exception callback itself,
  * but if the need arises this restriction is technically feasible to relax in
  * the future.
  */
-__noinline int exception_cb_mod(u64 cookie)
+__analinline int exception_cb_mod(u64 cookie)
 {
 	return exception_cb_mod_global(cookie) + cookie + 10;
 }
@@ -155,24 +155,24 @@ int exception_ext_mod_cb_runtime(struct __sk_buff *ctx)
 	return 0;
 }
 
-__noinline static int subprog(struct __sk_buff *ctx)
+__analinline static int subprog(struct __sk_buff *ctx)
 {
 	return bpf_ktime_get_ns();
 }
 
-__noinline static int throwing_subprog(struct __sk_buff *ctx)
+__analinline static int throwing_subprog(struct __sk_buff *ctx)
 {
 	if (ctx->tstamp)
 		bpf_throw(0);
 	return bpf_ktime_get_ns();
 }
 
-__noinline int global_subprog(struct __sk_buff *ctx)
+__analinline int global_subprog(struct __sk_buff *ctx)
 {
 	return bpf_ktime_get_ns();
 }
 
-__noinline int throwing_global_subprog(struct __sk_buff *ctx)
+__analinline int throwing_global_subprog(struct __sk_buff *ctx)
 {
 	if (ctx->tstamp)
 		bpf_throw(0);
@@ -198,7 +198,7 @@ int exception_throw_subprog(struct __sk_buff *ctx)
 	return 0;
 }
 
-__noinline int assert_nz_gfunc(u64 c)
+__analinline int assert_nz_gfunc(u64 c)
 {
 	volatile u64 cookie = c;
 
@@ -206,7 +206,7 @@ __noinline int assert_nz_gfunc(u64 c)
 	return 0;
 }
 
-__noinline int assert_zero_gfunc(u64 c)
+__analinline int assert_zero_gfunc(u64 c)
 {
 	volatile u64 cookie = c;
 
@@ -214,7 +214,7 @@ __noinline int assert_zero_gfunc(u64 c)
 	return 0;
 }
 
-__noinline int assert_neg_gfunc(s64 c)
+__analinline int assert_neg_gfunc(s64 c)
 {
 	volatile s64 cookie = c;
 
@@ -222,7 +222,7 @@ __noinline int assert_neg_gfunc(s64 c)
 	return 0;
 }
 
-__noinline int assert_pos_gfunc(s64 c)
+__analinline int assert_pos_gfunc(s64 c)
 {
 	volatile s64 cookie = c;
 
@@ -230,7 +230,7 @@ __noinline int assert_pos_gfunc(s64 c)
 	return 0;
 }
 
-__noinline int assert_negeq_gfunc(s64 c)
+__analinline int assert_negeq_gfunc(s64 c)
 {
 	volatile s64 cookie = c;
 
@@ -238,7 +238,7 @@ __noinline int assert_negeq_gfunc(s64 c)
 	return 0;
 }
 
-__noinline int assert_poseq_gfunc(s64 c)
+__analinline int assert_poseq_gfunc(s64 c)
 {
 	volatile s64 cookie = c;
 
@@ -246,7 +246,7 @@ __noinline int assert_poseq_gfunc(s64 c)
 	return 0;
 }
 
-__noinline int assert_nz_gfunc_with(u64 c)
+__analinline int assert_nz_gfunc_with(u64 c)
 {
 	volatile u64 cookie = c;
 
@@ -254,7 +254,7 @@ __noinline int assert_nz_gfunc_with(u64 c)
 	return 0;
 }
 
-__noinline int assert_zero_gfunc_with(u64 c)
+__analinline int assert_zero_gfunc_with(u64 c)
 {
 	volatile u64 cookie = c;
 
@@ -262,7 +262,7 @@ __noinline int assert_zero_gfunc_with(u64 c)
 	return 0;
 }
 
-__noinline int assert_neg_gfunc_with(s64 c)
+__analinline int assert_neg_gfunc_with(s64 c)
 {
 	volatile s64 cookie = c;
 
@@ -270,7 +270,7 @@ __noinline int assert_neg_gfunc_with(s64 c)
 	return 0;
 }
 
-__noinline int assert_pos_gfunc_with(s64 c)
+__analinline int assert_pos_gfunc_with(s64 c)
 {
 	volatile s64 cookie = c;
 
@@ -278,7 +278,7 @@ __noinline int assert_pos_gfunc_with(s64 c)
 	return 0;
 }
 
-__noinline int assert_negeq_gfunc_with(s64 c)
+__analinline int assert_negeq_gfunc_with(s64 c)
 {
 	volatile s64 cookie = c;
 
@@ -286,7 +286,7 @@ __noinline int assert_negeq_gfunc_with(s64 c)
 	return 0;
 }
 
-__noinline int assert_poseq_gfunc_with(s64 c)
+__analinline int assert_poseq_gfunc_with(s64 c)
 {
 	volatile s64 cookie = c;
 

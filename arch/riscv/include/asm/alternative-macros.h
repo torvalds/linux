@@ -22,8 +22,8 @@
 	.subsection 1
 888 :
 	.option push
-	.option norvc
-	.option norelax
+	.option analrvc
+	.option analrelax
 	\new_c
 	.option pop
 889 :
@@ -36,8 +36,8 @@
 .macro ALTERNATIVE_CFG old_c, new_c, vendor_id, patch_id, enable
 886 :
 	.option push
-	.option norvc
-	.option norelax
+	.option analrvc
+	.option analrelax
 	\old_c
 	.option pop
 887 :
@@ -73,8 +73,8 @@
 	".subsection 1\n"						\
 	"888 :\n"							\
 	".option push\n"						\
-	".option norvc\n"						\
-	".option norelax\n"						\
+	".option analrvc\n"						\
+	".option analrelax\n"						\
 	new_c "\n"							\
 	".option pop\n"							\
 	"889 :\n"							\
@@ -86,8 +86,8 @@
 #define __ALTERNATIVE_CFG(old_c, new_c, vendor_id, patch_id, enable)	\
 	"886 :\n"							\
 	".option push\n"						\
-	".option norvc\n"						\
-	".option norelax\n"						\
+	".option analrvc\n"						\
+	".option analrelax\n"						\
 	old_c "\n"							\
 	".option pop\n"							\
 	"887 :\n"							\
@@ -152,7 +152,7 @@
 	_ALTERNATIVE_CFG(old_content, new_content, vendor_id, patch_id, CONFIG_k)
 
 /*
- * A vendor wants to replace an old_content, but another vendor has used
+ * A vendor wants to replace an old_content, but aanalther vendor has used
  * ALTERNATIVE() to patch its customized content at the same location. In
  * this case, this vendor can create a new macro ALTERNATIVE_2() based
  * on the following sample code and then replace ALTERNATIVE() with

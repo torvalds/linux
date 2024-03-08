@@ -24,7 +24,7 @@
 #define CSS_RECEIVER_IMG_PROC_RF_ADDR         10
 #define CSS_RECEIVER_CSI_RF_ADDR               4
 #define CSS_RECEIVER_DATA_OUT                 12
-#define CSS_RECEIVER_CHN_NO                    2
+#define CSS_RECEIVER_CHN_ANAL                    2
 #define CSS_RECEIVER_DWORD_CNT                11
 #define CSS_RECEIVER_FORMAT_TYP                5
 #define CSS_RECEIVER_HRESPONSE                 2
@@ -97,7 +97,7 @@
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_CONTROL_BIT            6
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_DOUBLE_BIT         7
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_CORRECTED_BIT      8
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_NO_CORRECTION_BIT  9
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_ANAL_CORRECTION_BIT  9
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_CRC_BIT               10
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ID_BIT                11
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_FRAME_SYNC_BIT        12
@@ -115,7 +115,7 @@
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_CONTROL_CAUSE_              "Error control"
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_DOUBLE_CAUSE_           "Error correction double bit"
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_CORRECTED_CAUSE_        "Error correction single bit"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_NO_CORRECTION_CAUSE_    "No error"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_ANAL_CORRECTION_CAUSE_    "Anal error"
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_CRC_CAUSE_                  "Error cyclic redundancy check"
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ID_CAUSE_                   "Error id"
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_FRAME_SYNC_CAUSE_           "Error frame sync"
@@ -160,7 +160,7 @@
 #define _HRT_CSS_RECEIVER_2400_COMP_NUM_BITS_BITS 8
 
 /* Bits for COMP_PREDICT register, this selects the predictor algorithm */
-#define _HRT_CSS_RECEIVER_2400_PREDICT_NO_COMP 0
+#define _HRT_CSS_RECEIVER_2400_PREDICT_ANAL_COMP 0
 #define _HRT_CSS_RECEIVER_2400_PREDICT_1       1
 #define _HRT_CSS_RECEIVER_2400_PREDICT_2       2
 
@@ -242,7 +242,7 @@
 #define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S2P3_REG_IDX       26    /* Pixel Extractor config for Data State 2 & Pix 3 */
 #define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_VALID_EOP_REG_IDX      27    /* Pixel Valid & EoP config for Pix 0,1,2,3 */
 
-#define _HRT_CSS_RECEIVER_2400_BE_NOF_REGISTERS                   28
+#define _HRT_CSS_RECEIVER_2400_BE_ANALF_REGISTERS                   28
 
 #define _HRT_CSS_RECEIVER_2400_BE_SRST_HE                          0
 #define _HRT_CSS_RECEIVER_2400_BE_SRST_RCF                         1

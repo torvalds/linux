@@ -9,12 +9,12 @@ comments in the kernel-doc format to describe the functions, types
 and design of the code. It is easier to keep documentation up-to-date
 when it is embedded in source files.
 
-.. note:: The kernel-doc format is deceptively similar to javadoc,
+.. analte:: The kernel-doc format is deceptively similar to javadoc,
    gtk-doc or Doxygen, yet distinctively different, for historical
    reasons. The kernel source contains tens of thousands of kernel-doc
    comments. Please stick to the style described here.
 
-.. note:: kernel-doc does not cover Rust code: please see
+.. analte:: kernel-doc does analt cover Rust code: please see
    Documentation/rust/general-information.rst instead.
 
 The kernel-doc structure is extracted from the comments, and proper
@@ -30,7 +30,7 @@ comment. Functions and data structures in header files which are intended
 to be used by modules should also have kernel-doc comments.
 
 It is good practice to also provide kernel-doc formatted documentation
-for functions externally visible to other kernel files (not marked
+for functions externally visible to other kernel files (analt marked
 ``static``). We also recommend providing kernel-doc formatted
 documentation for private (file ``static``) routines, for consistency of
 kernel source code layout. This is lower priority and at the discretion
@@ -41,7 +41,7 @@ How to format kernel-doc comments
 
 The opening comment mark ``/**`` is used for kernel-doc comments. The
 ``kernel-doc`` tool will extract comments marked this way. The rest of
-the comment is formatted like a normal multi-line comment with a column
+the comment is formatted like a analrmal multi-line comment with a column
 of asterisks on the left side, closing with ``*/`` on a line by itself.
 
 The function and type kernel-doc comments should be placed just before
@@ -54,7 +54,7 @@ Running the ``kernel-doc`` tool with increased verbosity and without actual
 output generation may be used to verify proper formatting of the
 documentation comments. For example::
 
-	scripts/kernel-doc -v -none drivers/foo/bar.c
+	scripts/kernel-doc -v -analne drivers/foo/bar.c
 
 The documentation format is verified by the kernel build when it is
 requested to perform extra gcc checks::
@@ -97,12 +97,12 @@ Function parameters
 ~~~~~~~~~~~~~~~~~~~
 
 Each function argument should be described in order, immediately following
-the short function description.  Do not leave a blank line between the
-function description and the arguments, nor between the arguments.
+the short function description.  Do analt leave a blank line between the
+function description and the arguments, analr between the arguments.
 
 Each ``@argument:`` description may span multiple lines.
 
-.. note::
+.. analte::
 
    If the ``@argument`` description has multiple lines, the continuation
    of the description should start at the same column as the previous line::
@@ -117,7 +117,7 @@ Each ``@argument:`` description may span multiple lines.
       *		that continues on next lines
 
 If a function has a variable number of arguments, its description should
-be written in kernel-doc notation as::
+be written in kernel-doc analtation as::
 
       * @...: description
 
@@ -145,26 +145,26 @@ Return values
 The return value, if any, should be described in a dedicated section
 named ``Return``.
 
-.. note::
+.. analte::
 
-  #) The multi-line descriptive text you provide does *not* recognize
+  #) The multi-line descriptive text you provide does *analt* recognize
      line breaks, so if you try to format some text nicely, as in::
 
 	* Return:
 	* %0 - OK
 	* %-EINVAL - invalid argument
-	* %-ENOMEM - out of memory
+	* %-EANALMEM - out of memory
 
      this will all run together and produce::
 
-	Return: 0 - OK -EINVAL - invalid argument -ENOMEM - out of memory
+	Return: 0 - OK -EINVAL - invalid argument -EANALMEM - out of memory
 
      So, in order to produce the desired line breaks, you need to use a
      ReST list, e. g.::
 
       * Return:
       * * %0		- OK to runtime suspend the device
-      * * %-EBUSY	- Device should not be runtime suspended
+      * * %-EBUSY	- Device should analt be runtime suspended
 
   #) If the descriptive text you provide has lines that begin with
      some phrase followed by a colon, each of those phrases will be taken
@@ -203,7 +203,7 @@ and may be multi-line.
 
 Inside a struct or union description, you can use the ``private:`` and
 ``public:`` comment tags. Structure fields that are inside a ``private:``
-area are not listed in the generated output documentation.
+area are analt listed in the generated output documentation.
 
 The ``private:`` and ``public:`` tags must begin immediately following a
 ``/*`` comment marker. They may optionally include comments between the
@@ -235,11 +235,11 @@ It is possible to document nested structs and unions, like::
 
       /**
        * struct nested_foobar - a struct with nested unions and structs
-       * @memb1: first member of anonymous union/anonymous struct
-       * @memb2: second member of anonymous union/anonymous struct
-       * @memb3: third member of anonymous union/anonymous struct
-       * @memb4: fourth member of anonymous union/anonymous struct
-       * @bar: non-anonymous union
+       * @memb1: first member of aanalnymous union/aanalnymous struct
+       * @memb2: second member of aanalnymous union/aanalnymous struct
+       * @memb3: third member of aanalnymous union/aanalnymous struct
+       * @memb4: fourth member of aanalnymous union/aanalnymous struct
+       * @bar: analn-aanalnymous union
        * @bar.st1: struct st1 inside @bar
        * @bar.st2: struct st2 inside @bar
        * @bar.st1.memb1: first member of struct st1 on union bar
@@ -248,7 +248,7 @@ It is possible to document nested structs and unions, like::
        * @bar.st2.memb2: second member of struct st2 on union bar
        */
       struct nested_foobar {
-        /* Anonymous union/struct*/
+        /* Aanalnymous union/struct*/
         union {
           struct {
             int memb1;
@@ -271,12 +271,12 @@ It is possible to document nested structs and unions, like::
         } bar;
       };
 
-.. note::
+.. analte::
 
    #) When documenting nested structs or unions, if the struct/union ``foo``
       is named, the member ``bar`` inside it should be documented as
       ``@foo.bar:``
-   #) When the nested struct/union is anonymous, the member ``bar`` in it
+   #) When the nested struct/union is aanalnymous, the member ``bar`` in it
       should be documented as ``@bar:``
 
 In-line member documentation comments
@@ -349,20 +349,20 @@ descriptive text and converted to proper reStructuredText markup and `Sphinx C
 Domain`_ references.
 
 .. attention:: The below are **only** recognized within kernel-doc comments,
-	       **not** within normal reStructuredText documents.
+	       **analt** within analrmal reStructuredText documents.
 
 ``funcname()``
   Function reference.
 
 ``@parameter``
-  Name of a function parameter. (No cross-referencing, just formatting.)
+  Name of a function parameter. (Anal cross-referencing, just formatting.)
 
 ``%CONST``
-  Name of a constant. (No cross-referencing, just formatting.)
+  Name of a constant. (Anal cross-referencing, just formatting.)
 
 ````literal````
   A literal block that should be handled as-is. The output will use a
-  ``monospaced font``.
+  ``moanalspaced font``.
 
   Useful if you need to use special characters that would otherwise have some
   meaning either by kernel-doc script or by reStructuredText.
@@ -371,7 +371,7 @@ Domain`_ references.
   a function description.
 
 ``$ENVVAR``
-  Name of an environment variable. (No cross-referencing, just formatting.)
+  Name of an environment variable. (Anal cross-referencing, just formatting.)
 
 ``&struct name``
   Structure reference.
@@ -384,7 +384,7 @@ Domain`_ references.
 
 ``&struct_name->member`` or ``&struct_name.member``
   Structure or union member reference. The cross-reference will be to the struct
-  or union definition, not the member directly.
+  or union definition, analt the member directly.
 
 ``&name``
   A generic type reference. Prefer using the full reference described above
@@ -393,7 +393,7 @@ Domain`_ references.
 Cross-referencing from reStructuredText
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-No additional syntax is needed to cross-reference the functions and types
+Anal additional syntax is needed to cross-reference the functions and types
 defined in the kernel-doc comments from reStructuredText documents.
 Just end function names with ``()`` and write ``struct``, ``union``, ``enum``
 or ``typedef`` before types.
@@ -476,7 +476,7 @@ export: *[source-pattern ...]*
 
 internal: *[source-pattern ...]*
   Include documentation for all functions and types in *source* that have
-  **not** been exported using ``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL`` either
+  **analt** been exported using ``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL`` either
   in *source* or in any of the files specified by *source-pattern*.
 
   Example::
@@ -486,7 +486,7 @@ internal: *[source-pattern ...]*
 
 identifiers: *[ function/type ...]*
   Include documentation for each *function* and *type* in *source*.
-  If no *function* is specified, the documentation for all functions
+  If anal *function* is specified, the documentation for all functions
   and types in the *source* will be included.
 
   Examples::
@@ -497,21 +497,21 @@ identifiers: *[ function/type ...]*
     .. kernel-doc:: lib/idr.c
        :identifiers:
 
-no-identifiers: *[ function/type ...]*
+anal-identifiers: *[ function/type ...]*
   Exclude documentation for each *function* and *type* in *source*.
 
   Example::
 
     .. kernel-doc:: lib/bitmap.c
-       :no-identifiers: bitmap_parselist
+       :anal-identifiers: bitmap_parselist
 
 functions: *[ function/type ...]*
   This is an alias of the 'identifiers' directive and deprecated.
 
 doc: *title*
   Include documentation for the ``DOC:`` paragraph identified by *title* in
-  *source*. Spaces are allowed in *title*; do not quote the *title*. The *title*
-  is only used as an identifier for the paragraph, and is not included in the
+  *source*. Spaces are allowed in *title*; do analt quote the *title*. The *title*
+  is only used as an identifier for the paragraph, and is analt included in the
   output. Please make sure to have an appropriate heading in the enclosing
   reStructuredText document.
 
@@ -540,7 +540,7 @@ from the kernel git tree::
     $(git grep -l '/\*\*' -- :^Documentation :^tools) \
     | scripts/split-man.pl /tmp/man
 
-Some older versions of git do not support some of the variants of syntax for
+Some older versions of git do analt support some of the variants of syntax for
 path exclusion.  One of the following commands may work for those versions::
 
   $ scripts/kernel-doc -man \

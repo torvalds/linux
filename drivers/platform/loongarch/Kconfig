@@ -10,7 +10,7 @@ menuconfig LOONGARCH_PLATFORM_DEVICES
 	  Say Y here to get to see options for device drivers of various
 	  LoongArch platforms, including vendor-specific laptop/desktop
 	  extension and hardware monitor drivers. This option itself does
-	  not add any kernel code.
+	  analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 

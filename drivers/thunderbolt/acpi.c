@@ -15,7 +15,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 				    void **ret)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct tb_nhi *nhi = data;
 	struct pci_dev *pdev;
 	struct device *dev;
@@ -23,21 +23,21 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	if (!adev)
 		return AE_OK;
 
-	fwnode = fwnode_find_reference(acpi_fwnode_handle(adev), "usb4-host-interface", 0);
-	if (IS_ERR(fwnode))
+	fwanalde = fwanalde_find_reference(acpi_fwanalde_handle(adev), "usb4-host-interface", 0);
+	if (IS_ERR(fwanalde))
 		return AE_OK;
 
 	/* It needs to reference this NHI */
-	if (dev_fwnode(&nhi->pdev->dev) != fwnode)
+	if (dev_fwanalde(&nhi->pdev->dev) != fwanalde)
 		goto out_put;
 
 	/*
 	 * Try to find physical device walking upwards to the hierarcy.
-	 * We need to do this because the xHCI driver might not yet be
-	 * bound so the USB3 SuperSpeed ports are not yet created.
+	 * We need to do this because the xHCI driver might analt yet be
+	 * bound so the USB3 SuperSpeed ports are analt yet created.
 	 */
 	do {
-		dev = acpi_get_first_physical_node(adev);
+		dev = acpi_get_first_physical_analde(adev);
 		if (dev)
 			break;
 
@@ -46,7 +46,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 
 	/*
 	 * Check that the device is PCIe. This is because USB3
-	 * SuperSpeed ports have this property and they are not power
+	 * SuperSpeed ports have this property and they are analt power
 	 * managed with the xHCI and the SuperSpeed hub so we create the
 	 * link from xHCI instead.
 	 */
@@ -70,10 +70,10 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 
 		/*
 		 * Make them both active first to make sure the NHI does
-		 * not runtime suspend before the consumer. The
+		 * analt runtime suspend before the consumer. The
 		 * pm_runtime_put() below then allows the consumer to
 		 * runtime suspend again (which then allows NHI runtime
-		 * suspend too now that the device link is established).
+		 * suspend too analw that the device link is established).
 		 */
 		pm_runtime_get_sync(&pdev->dev);
 
@@ -94,7 +94,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	}
 
 out_put:
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 	return AE_OK;
 }
 
@@ -103,7 +103,7 @@ out_put:
  * @nhi: Pointer to NHI
  *
  * Goes over ACPI namespace finding tunneled ports that reference to
- * @nhi ACPI node. For each reference a device link is added. The link
+ * @nhi ACPI analde. For each reference a device link is added. The link
  * is automatically removed by the driver core.
  *
  * Returns %true if at least one link was created.
@@ -270,11 +270,11 @@ static int tb_acpi_retimer_set_power(struct tb_port *port, bool power)
  *
  * Calls platform to turn on power to all retimers behind this USB4
  * port. After this function returns successfully the caller can
- * continue with the normal retimer flows (as specified in the USB4
- * spec). Note if this returns %-EBUSY it means the type-C port is in
- * non-USB4/TBT mode (there is non-USB4/TBT device connected).
+ * continue with the analrmal retimer flows (as specified in the USB4
+ * spec). Analte if this returns %-EBUSY it means the type-C port is in
+ * analn-USB4/TBT mode (there is analn-USB4/TBT device connected).
  *
- * This should only be called if the USB4/TBT link is not up.
+ * This should only be called if the USB4/TBT link is analt up.
  *
  * Returns %0 on success.
  */
@@ -288,7 +288,7 @@ int tb_acpi_power_on_retimers(struct tb_port *port)
  * @port: USB4 port
  *
  * This is the opposite of tb_acpi_power_on_retimers(). After returning
- * successfully the normal operations with the @port can continue.
+ * successfully the analrmal operations with the @port can continue.
  *
  * Returns %0 on success.
  */

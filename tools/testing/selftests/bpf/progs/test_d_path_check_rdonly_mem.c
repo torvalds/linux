@@ -7,7 +7,7 @@
 
 extern const int bpf_prog_active __ksym;
 
-SEC("fentry/security_inode_getattr")
+SEC("fentry/security_ianalde_getattr")
 int BPF_PROG(d_path_check_rdonly_mem, struct path *path, struct kstat *stat,
 	     __u32 request_mask, unsigned int query_flags)
 {
@@ -18,7 +18,7 @@ int BPF_PROG(d_path_check_rdonly_mem, struct path *path, struct kstat *stat,
 	active = (void *)bpf_per_cpu_ptr(&bpf_prog_active, cpu);
 	if (active) {
 		/* FAIL here! 'active' points to readonly memory. bpf helpers
-		 * that update its arguments can not write into it.
+		 * that update its arguments can analt write into it.
 		 */
 		bpf_d_path(path, active, sizeof(int));
 	}

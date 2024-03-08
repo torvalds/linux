@@ -1602,12 +1602,12 @@
 			};
 		};
 
-		nor_flash: spi@1132c000 {
-			compatible = "mediatek,mt8195-nor",
-				     "mediatek,mt8173-nor";
+		analr_flash: spi@1132c000 {
+			compatible = "mediatek,mt8195-analr",
+				     "mediatek,mt8173-analr";
 			reg = <0 0x1132c000 0 0x1000>;
 			interrupts = <GIC_SPI 825 IRQ_TYPE_LEVEL_HIGH 0>;
-			clocks = <&topckgen CLK_TOP_SPINOR>,
+			clocks = <&topckgen CLK_TOP_SPIANALR>,
 				 <&pericfg_ao CLK_PERI_AO_FLASHIF_FLASH>,
 				 <&pericfg_ao CLK_PERI_AO_FLASHIF_BUS>;
 			clock-names = "spi", "sf", "axi";
@@ -3587,10 +3587,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu0_alert>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -3617,10 +3617,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu1_alert>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -3647,10 +3647,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu2_alert>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -3677,10 +3677,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu3_alert>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -3707,10 +3707,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu4_alert>;
-					cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -3737,10 +3737,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu5_alert>;
-					cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -3767,10 +3767,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu6_alert>;
-					cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -3797,10 +3797,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu7_alert>;
-					cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								<&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								<&cpu7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

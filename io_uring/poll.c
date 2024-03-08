@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
@@ -44,7 +44,7 @@ struct io_poll_table {
 #define IO_POLL_REF_MASK	GENMASK(29, 0)
 
 /*
- * We usually have 1-2 refs taken, 128 is more than enough and we want to
+ * We usually have 1-2 refs taken, 128 is more than eanalugh and we want to
  * maximise the margin between this amount and the moment when it overflows.
  */
 #define IO_POLL_REF_BIAS	128
@@ -75,7 +75,7 @@ static bool io_poll_get_ownership_slowpath(struct io_kiocb *req)
 	/*
 	 * poll_refs are already elevated and we don't have much hope for
 	 * grabbing the ownership. Instead of incrementing set a retry flag
-	 * to notify the loop that there might have been some change.
+	 * to analtify the loop that there might have been some change.
 	 */
 	v = atomic_fetch_or(IO_POLL_RETRY_FLAG, &req->poll_refs);
 	if (v & IO_POLL_REF_MASK)
@@ -85,7 +85,7 @@ static bool io_poll_get_ownership_slowpath(struct io_kiocb *req)
 
 /*
  * If refs part of ->poll_refs (see IO_POLL_REF_MASK) is 0, it's free. We can
- * bump it and acquire ownership. It's disallowed to modify requests while not
+ * bump it and acquire ownership. It's disallowed to modify requests while analt
  * owning it, that prevents from races for enqueueing task_work's and b/w
  * arming poll and wakeups.
  */
@@ -123,7 +123,7 @@ static void io_poll_req_insert(struct io_kiocb *req)
 	struct io_hash_bucket *hb = &table->hbs[index];
 
 	spin_lock(&hb->lock);
-	hlist_add_head(&req->hash_node, &hb->list);
+	hlist_add_head(&req->hash_analde, &hb->list);
 	spin_unlock(&hb->lock);
 }
 
@@ -134,7 +134,7 @@ static void io_poll_req_delete(struct io_kiocb *req, struct io_ring_ctx *ctx)
 	spinlock_t *lock = &table->hbs[index].lock;
 
 	spin_lock(lock);
-	hash_del(&req->hash_node);
+	hash_del(&req->hash_analde);
 	spin_unlock(lock);
 }
 
@@ -145,7 +145,7 @@ static void io_poll_req_insert_locked(struct io_kiocb *req)
 
 	lockdep_assert_held(&req->ctx->uring_lock);
 
-	hlist_add_head(&req->hash_node, &table->hbs[index].list);
+	hlist_add_head(&req->hash_analde, &table->hbs[index].list);
 }
 
 static void io_poll_tw_hash_eject(struct io_kiocb *req, struct io_tw_state *ts)
@@ -160,7 +160,7 @@ static void io_poll_tw_hash_eject(struct io_kiocb *req, struct io_tw_state *ts)
 		 * failed.
 		 */
 		io_tw_lock(ctx, ts);
-		hash_del(&req->hash_node);
+		hash_del(&req->hash_analde);
 		req->flags &= ~REQ_F_HASH_LOCKED;
 	} else {
 		io_poll_req_delete(req, ctx);
@@ -192,21 +192,21 @@ static inline void io_poll_remove_entry(struct io_poll *poll)
 static void io_poll_remove_entries(struct io_kiocb *req)
 {
 	/*
-	 * Nothing to do if neither of those flags are set. Avoid dipping
+	 * Analthing to do if neither of those flags are set. Avoid dipping
 	 * into the poll/apoll/double cachelines if we can.
 	 */
 	if (!(req->flags & (REQ_F_SINGLE_POLL | REQ_F_DOUBLE_POLL)))
 		return;
 
 	/*
-	 * While we hold the waitqueue lock and the waitqueue is nonempty,
+	 * While we hold the waitqueue lock and the waitqueue is analnempty,
 	 * wake_up_pollfree() will wait for us.  However, taking the waitqueue
 	 * lock in the first place can race with the waitqueue being freed.
 	 *
 	 * We solve this as eventpoll does: by taking advantage of the fact that
 	 * all users of wake_up_pollfree() will RCU-delay the actual free.  If
 	 * we enter rcu_read_lock() and see that the pointer to the queue is
-	 * non-NULL, we can then lock it without the memory being freed out from
+	 * analn-NULL, we can then lock it without the memory being freed out from
 	 * under us.
 	 *
 	 * Keep holding rcu_read_lock() as long as we hold the queue lock, in
@@ -223,7 +223,7 @@ static void io_poll_remove_entries(struct io_kiocb *req)
 
 enum {
 	IOU_POLL_DONE = 0,
-	IOU_POLL_NO_ACTION = 1,
+	IOU_POLL_ANAL_ACTION = 1,
 	IOU_POLL_REMOVE_POLL_USE_RES = 2,
 	IOU_POLL_REISSUE = 3,
 	IOU_POLL_REQUEUE = 4,
@@ -238,7 +238,7 @@ static void __io_poll_execute(struct io_kiocb *req, int mask)
 
 	trace_io_uring_task_add(req, mask);
 
-	if (!(req->flags & REQ_F_POLL_NO_LAZY))
+	if (!(req->flags & REQ_F_POLL_ANAL_LAZY))
 		flags = IOU_F_TWQ_LAZY_WAKE;
 	__io_req_task_work_add(req, flags);
 }
@@ -253,7 +253,7 @@ static inline void io_poll_execute(struct io_kiocb *req, int res)
  * All poll tw should go through this. Checks for poll events, manages
  * references, does rewait, etc.
  *
- * Returns a negative error on failure. IOU_POLL_NO_ACTION when no action
+ * Returns a negative error on failure. IOU_POLL_ANAL_ACTION when anal action
  * require, which is either spurious wakeup or multishot CQE is served.
  * IOU_POLL_DONE when it's done with the request, then the mask is stored in
  * req->cqe.res. IOU_POLL_REMOVE_POLL_USE_RES indicates to remove multishot
@@ -273,7 +273,7 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 		if (unlikely(v != 1)) {
 			/* tw should be the owner and so have some refs */
 			if (WARN_ON_ONCE(!(v & IO_POLL_REF_MASK)))
-				return IOU_POLL_NO_ACTION;
+				return IOU_POLL_ANAL_ACTION;
 			if (v & IO_POLL_CANCEL_FLAG)
 				return -ECANCELED;
 			/*
@@ -291,7 +291,7 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 				 * vfs_poll and the ref put unless we clear the
 				 * flag in advance.
 				 */
-				atomic_andnot(IO_POLL_RETRY_FLAG, &req->poll_refs);
+				atomic_andanalt(IO_POLL_RETRY_FLAG, &req->poll_refs);
 				v &= ~IO_POLL_RETRY_FLAG;
 			}
 		}
@@ -303,11 +303,11 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 			/*
 			 * We got woken with a mask, but someone else got to
 			 * it first. The above vfs_poll() doesn't add us back
-			 * to the waitqueue, so if we get nothing back, we
+			 * to the waitqueue, so if we get analthing back, we
 			 * should be safe and attempt a reissue.
 			 */
 			if (unlikely(!req->cqe.res)) {
-				/* Multishot armed need not reissue */
+				/* Multishot armed need analt reissue */
 				if (!(req->apoll_events & EPOLLONESHOT))
 					continue;
 				return IOU_POLL_REISSUE;
@@ -346,7 +346,7 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 	} while (atomic_sub_return(v & IO_POLL_REF_MASK, &req->poll_refs) &
 					IO_POLL_REF_MASK);
 
-	return IOU_POLL_NO_ACTION;
+	return IOU_POLL_ANAL_ACTION;
 }
 
 void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
@@ -354,7 +354,7 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 	int ret;
 
 	ret = io_poll_check_events(req, ts);
-	if (ret == IOU_POLL_NO_ACTION) {
+	if (ret == IOU_POLL_ANAL_ACTION) {
 		return;
 	} else if (ret == IOU_POLL_REQUEUE) {
 		__io_poll_execute(req, 0);
@@ -403,7 +403,7 @@ static void io_poll_cancel_req(struct io_kiocb *req)
 static __cold int io_pollfree_wake(struct io_kiocb *req, struct io_poll *poll)
 {
 	io_poll_mark_cancelled(req);
-	/* we have to kick tw in case it's not already */
+	/* we have to kick tw in case it's analt already */
 	io_poll_execute(req, 0);
 
 	/*
@@ -419,7 +419,7 @@ static __cold int io_pollfree_wake(struct io_kiocb *req, struct io_poll *poll)
 	 * Careful: this *must* be the last step, since as soon
 	 * as req->head is NULL'ed out, the request can be
 	 * completed and freed, since aio_poll_complete_work()
-	 * will no longer need to take the waitqueue lock.
+	 * will anal longer need to take the waitqueue lock.
 	 */
 	smp_store_release(&poll->head, NULL);
 	return 1;
@@ -472,10 +472,10 @@ static bool io_poll_double_prepare(struct io_kiocb *req)
 	rcu_read_lock();
 	head = smp_load_acquire(&poll->head);
 	/*
-	 * poll arm might not hold ownership and so race for req->flags with
+	 * poll arm might analt hold ownership and so race for req->flags with
 	 * io_poll_wake(). There is only one poll entry queued, serialise with
 	 * it by taking its head lock. As we're still arming the tw hanlder
-	 * is not going to be run, so there are no races with it.
+	 * is analt going to be run, so there are anal races with it.
 	 */
 	if (head) {
 		spin_lock_irq(&head->lock);
@@ -503,7 +503,7 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 	if (unlikely(pt->nr_entries)) {
 		struct io_poll *first = poll;
 
-		/* double add on the same waitqueue head, ignore */
+		/* double add on the same waitqueue head, iganalre */
 		if (first->head == head)
 			return;
 		/* already have a 2nd entry, fail a third attempt */
@@ -516,7 +516,7 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 
 		poll = kmalloc(sizeof(*poll), GFP_ATOMIC);
 		if (!poll) {
-			pt->error = -ENOMEM;
+			pt->error = -EANALMEM;
 			return;
 		}
 
@@ -530,7 +530,7 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 		}
 		*poll_ptr = poll;
 	} else {
-		/* fine to modify, there is no poll queued to race with us */
+		/* fine to modify, there is anal poll queued to race with us */
 		req->flags |= REQ_F_SINGLE_POLL;
 	}
 
@@ -546,7 +546,7 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 		 * lazy wake for those, as we need to process each one as they
 		 * come in.
 		 */
-		req->flags |= REQ_F_POLL_NO_LAZY;
+		req->flags |= REQ_F_POLL_ANAL_LAZY;
 		add_wait_queue_exclusive(head, &poll->wait);
 	} else {
 		add_wait_queue(head, &poll->wait);
@@ -579,7 +579,7 @@ static void io_poll_add_hash(struct io_kiocb *req)
 
 /*
  * Returns 0 when it's handed over for polling. The caller owns the requests if
- * it returns non-zero, but otherwise should not touch it. Negative values
+ * it returns analn-zero, but otherwise should analt touch it. Negative values
  * contain an error code. When the result is >0, the polling has completed
  * inline and ipt.result_mask is set to the mask.
  */
@@ -590,7 +590,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	INIT_HLIST_NODE(&req->hash_node);
+	INIT_HLIST_ANALDE(&req->hash_analde);
 	req->work.cancel_seq = atomic_read(&ctx->cancel_seq);
 	io_init_poll_iocb(poll, mask);
 	poll->file = req->file;
@@ -607,7 +607,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 	 * from running. However, when we're in the task context, skip taking
 	 * it as an optimisation.
 	 *
-	 * Note: even though the request won't be completed/freed, without
+	 * Analte: even though the request won't be completed/freed, without
 	 * ownership we still can race with io_poll_wake().
 	 * io_poll_can_finish_inline() tries to deal with that.
 	 */
@@ -641,7 +641,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 		}
 		io_poll_remove_entries(req);
 		ipt->result_mask = mask;
-		/* no one else has access to the req, forget about the ref */
+		/* anal one else has access to the req, forget about the ref */
 		return 1;
 	}
 
@@ -733,13 +733,13 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 		mask |= EPOLLONESHOT;
 
 	if (def->pollin) {
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
-		/* If reading from MSG_ERRQUEUE using recvmsg, ignore POLLIN */
+		/* If reading from MSG_ERRQUEUE using recvmsg, iganalre POLLIN */
 		if (req->flags & REQ_F_CLEAR_POLLIN)
 			mask &= ~EPOLLIN;
 	} else {
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 	}
 	if (def->poll_exclusive)
 		mask |= EPOLLEXCLUSIVE;
@@ -765,7 +765,7 @@ static __cold bool io_poll_remove_all_table(struct task_struct *tsk,
 					    bool cancel_all)
 {
 	unsigned nr_buckets = 1U << table->hash_bits;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct io_kiocb *req;
 	bool found = false;
 	int i;
@@ -774,9 +774,9 @@ static __cold bool io_poll_remove_all_table(struct task_struct *tsk,
 		struct io_hash_bucket *hb = &table->hbs[i];
 
 		spin_lock(&hb->lock);
-		hlist_for_each_entry_safe(req, tmp, &hb->list, hash_node) {
+		hlist_for_each_entry_safe(req, tmp, &hb->list, hash_analde) {
 			if (io_match_task_safe(req, tsk, cancel_all)) {
-				hlist_del_init(&req->hash_node);
+				hlist_del_init(&req->hash_analde);
 				io_poll_cancel_req(req);
 				found = true;
 			}
@@ -812,7 +812,7 @@ static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, bool poll_only,
 	*out_bucket = NULL;
 
 	spin_lock(&hb->lock);
-	hlist_for_each_entry(req, &hb->list, hash_node) {
+	hlist_for_each_entry(req, &hb->list, hash_analde) {
 		if (cd->data != req->cqe.user_data)
 			continue;
 		if (poll_only && req->opcode != IORING_OP_POLL_ADD)
@@ -844,7 +844,7 @@ static struct io_kiocb *io_poll_file_find(struct io_ring_ctx *ctx,
 		struct io_hash_bucket *hb = &table->hbs[i];
 
 		spin_lock(&hb->lock);
-		hlist_for_each_entry(req, &hb->list, hash_node) {
+		hlist_for_each_entry(req, &hb->list, hash_analde) {
 			if (io_cancel_req_match(req, cd)) {
 				*out_bucket = hb;
 				return req;
@@ -858,11 +858,11 @@ static struct io_kiocb *io_poll_file_find(struct io_ring_ctx *ctx,
 static int io_poll_disarm(struct io_kiocb *req)
 {
 	if (!req)
-		return -ENOENT;
+		return -EANALENT;
 	if (!io_poll_get_ownership(req))
 		return -EALREADY;
 	io_poll_remove_entries(req);
-	hash_del(&req->hash_node);
+	hash_del(&req->hash_analde);
 	return 0;
 }
 
@@ -882,7 +882,7 @@ static int __io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		io_poll_cancel_req(req);
 	if (bucket)
 		spin_unlock(&bucket->lock);
-	return req ? 0 : -ENOENT;
+	return req ? 0 : -EANALENT;
 }
 
 int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
@@ -891,7 +891,7 @@ int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 	int ret;
 
 	ret = __io_poll_cancel(ctx, cd, &ctx->cancel_table);
-	if (ret != -ENOENT)
+	if (ret != -EANALENT)
 		return ret;
 
 	io_ring_submit_lock(ctx, issue_flags);
@@ -973,7 +973,7 @@ int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 	ipt.pt._qproc = io_poll_queue_proc;
 
 	/*
-	 * If sqpoll or single issuer, there is no contention for ->uring_lock
+	 * If sqpoll or single issuer, there is anal contention for ->uring_lock
 	 * and we'll end up holding it in tw handlers anyway.
 	 */
 	if (req->ctx->flags & (IORING_SETUP_SQPOLL|IORING_SETUP_SINGLE_ISSUER))
@@ -1004,7 +1004,7 @@ int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 		spin_unlock(&bucket->lock);
 	if (!ret2)
 		goto found;
-	if (ret2 != -ENOENT) {
+	if (ret2 != -EANALENT) {
 		ret = ret2;
 		goto out;
 	}

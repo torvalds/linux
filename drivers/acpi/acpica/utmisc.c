@@ -50,7 +50,7 @@ u8 acpi_ut_is_pci_root_bridge(char *id)
  *
  * DESCRIPTION: Check ACPI Signature for a table that contains AML code.
  *              Currently, these are DSDT,SSDT,PSDT. All other table types are
- *              data tables that do not contain AML code.
+ *              data tables that do analt contain AML code.
  *
  ******************************************************************************/
 
@@ -112,11 +112,11 @@ u32 acpi_ut_dword_byte_swap(u32 value)
  *
  * PARAMETERS:  Revision            From DSDT header
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Set the global integer bit width based upon the revision
  *              of the DSDT. For Revision 1 and 0, Integers are 32 bits.
- *              For Revision 2 and above, Integers are 64 bits. Yes, this
+ *              For Revision 2 and above, Integers are 64 bits. Anal, this
  *              makes a difference.
  *
  ******************************************************************************/
@@ -163,7 +163,7 @@ acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
 
 	ACPI_FUNCTION_ENTRY();
 
-	/* Ignore null objects; these are expected */
+	/* Iganalre null objects; these are expected */
 
 	if (!object) {
 		return (AE_OK);
@@ -171,7 +171,7 @@ acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
 
 	state = acpi_ut_create_update_state(object, action);
 	if (!state) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	acpi_ut_push_generic_state(state_list, state);
@@ -208,7 +208,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 
 	state = acpi_ut_create_pkg_state(source_object, target_object, 0);
 	if (!state) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	while (state) {
@@ -225,7 +225,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 		 * Check for:
 		 * 1) An uninitialized package element. It is completely
 		 *    legal to declare a package and leave it uninitialized
-		 * 2) Not an internal object - can be a namespace node instead
+		 * 2) Analt an internal object - can be a namespace analde instead
 		 * 3) Any type other than a package. Packages are handled in else
 		 *    case below.
 		 */
@@ -253,7 +253,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 				acpi_ut_delete_generic_state(state);
 				state = acpi_ut_pop_generic_state(&state_list);
 
-				/* Finished when there are no more states */
+				/* Finished when there are anal more states */
 
 				if (!state) {
 					/*
@@ -299,14 +299,14 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 					    (&state_list);
 					acpi_ut_delete_generic_state(state);
 				}
-				return_ACPI_STATUS(AE_NO_MEMORY);
+				return_ACPI_STATUS(AE_ANAL_MEMORY);
 			}
 		}
 	}
 
 	/* We should never get here */
 
-	ACPI_ERROR((AE_INFO, "State list did not terminate correctly"));
+	ACPI_ERROR((AE_INFO, "State list did analt terminate correctly"));
 
 	return_ACPI_STATUS(AE_AML_INTERNAL);
 }
@@ -316,10 +316,10 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
  *
  * FUNCTION:    acpi_ut_display_init_pathname
  *
- * PARAMETERS:  type                - Object type of the node
+ * PARAMETERS:  type                - Object type of the analde
  *              obj_handle          - Handle whose pathname will be displayed
  *              path                - Additional path string to be appended.
- *                                      (NULL if no extra path)
+ *                                      (NULL if anal extra path)
  *
  * RETURN:      acpi_status
  *
@@ -329,7 +329,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 
 void
 acpi_ut_display_init_pathname(u8 type,
-			      struct acpi_namespace_node *obj_handle,
+			      struct acpi_namespace_analde *obj_handle,
 			      const char *path)
 {
 	acpi_status status;
@@ -343,7 +343,7 @@ acpi_ut_display_init_pathname(u8 type,
 		return;
 	}
 
-	/* Get the full pathname to the node */
+	/* Get the full pathname to the analde */
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, TRUE);

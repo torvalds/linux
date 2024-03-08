@@ -2,7 +2,7 @@
 /*
  * clk-da8xx-cfgchip - TI DaVinci DA8xx CFGCHIP clock driver
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechanallogy.com>
  */
 
 #ifndef __LINUX_PLATFORM_DATA_CLK_DA8XX_CFGCHIP_H__

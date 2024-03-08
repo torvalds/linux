@@ -27,7 +27,7 @@ enum E {
 static int global_data_x = 100;
 static int volatile global_data_y = 500;
 
-__noinline int foo(const struct S *s)
+__analinline int foo(const struct S *s)
 {
 	if (s)
 		return bpf_get_prandom_u32() < s->x;
@@ -35,14 +35,14 @@ __noinline int foo(const struct S *s)
 	return 0;
 }
 
-__noinline int bar(int *x)
+__analinline int bar(int *x)
 {
 	if (x)
 		*x &= bpf_get_prandom_u32();
 
 	return 0;
 }
-__noinline int baz(volatile int *x)
+__analinline int baz(volatile int *x)
 {
 	if (x)
 		*x &= bpf_get_prandom_u32();
@@ -50,7 +50,7 @@ __noinline int baz(volatile int *x)
 	return 0;
 }
 
-__noinline int qux(enum E *e)
+__analinline int qux(enum E *e)
 {
 	if (e)
 		return *e;
@@ -58,7 +58,7 @@ __noinline int qux(enum E *e)
 	return 0;
 }
 
-__noinline int quux(int (*arr)[10])
+__analinline int quux(int (*arr)[10])
 {
 	if (arr)
 		return (*arr)[9];
@@ -66,7 +66,7 @@ __noinline int quux(int (*arr)[10])
 	return 0;
 }
 
-__noinline int quuz(int **p)
+__analinline int quuz(int **p)
 {
 	if (p)
 		*p = NULL;

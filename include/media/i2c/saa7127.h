@@ -11,7 +11,7 @@
 
 /* Enumeration for the supported input types */
 enum saa7127_input_type {
-	SAA7127_INPUT_TYPE_NORMAL,
+	SAA7127_INPUT_TYPE_ANALRMAL,
 	SAA7127_INPUT_TYPE_TEST_IMAGE
 };
 

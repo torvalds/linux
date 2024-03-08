@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 switch driver main logic
  *
- * Copyright (C) 2017-2019 Microchip Technology Inc.
+ * Copyright (C) 2017-2019 Microchip Techanallogy Inc.
  */
 
 #include <linux/kernel.h>
@@ -62,10 +62,10 @@ int ksz9477_change_mtu(struct ksz_device *dev, int port, int mtu)
  * @port: The port number.
  *
  * This function reads the PME (Power Management Event) status register of a
- * specified port to determine the wake reason. If there is no wake event, it
+ * specified port to determine the wake reason. If there is anal wake event, it
  * returns early. Otherwise, it logs the wake reason which could be due to a
  * "Magic Packet", "Link Up", or "Energy Detect" event. The PME status register
- * is then cleared to acknowledge the handling of the wake event.
+ * is then cleared to ackanalwledge the handling of the wake event.
  *
  * Return: 0 on success, or an error code on failure.
  */
@@ -153,7 +153,7 @@ int ksz9477_set_wol(struct ksz_device *dev, int port,
 		return -EINVAL;
 
 	if (!dev->wakeup_source)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = ksz9477_handle_wake_reason(dev, port);
 	if (ret)
@@ -226,13 +226,13 @@ void ksz9477_wol_pre_shutdown(struct ksz_device *dev, bool *wol_enabled)
 		if (!ret && pme_ctrl)
 			*wol_enabled = true;
 
-		/* make sure there are no pending wake events which would
+		/* make sure there are anal pending wake events which would
 		 * prevent the device from going to sleep/shutdown.
 		 */
 		ksz9477_handle_wake_reason(dev, dp->index);
 	}
 
-	/* Now we are save to enable PME pin. */
+	/* Analw we are save to enable PME pin. */
 	if (*wol_enabled)
 		ksz_write8(dev, REG_SW_PME_CTRL, PME_ENABLE);
 }
@@ -365,7 +365,7 @@ int ksz9477_reset_switch(struct ksz_device *dev)
 	ksz_write32(dev, REG_SW_PORT_INT_MASK__4, 0x7F);
 	ksz_read32(dev, REG_SW_PORT_INT_STATUS__4, &data32);
 
-	/* KSZ9893 compatible chips do not support refclk configuration */
+	/* KSZ9893 compatible chips do analt support refclk configuration */
 	if (dev->chip_id == KSZ9893_CHIP_ID ||
 	    dev->chip_id == KSZ8563_CHIP_ID ||
 	    dev->chip_id == KSZ9563_CHIP_ID)
@@ -424,7 +424,7 @@ void ksz9477_freeze_mib(struct ksz_device *dev, int port, bool freeze)
 	mutex_lock(&p->mib.cnt_mutex);
 	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, val);
 
-	/* used by MIB counter reading code to know freeze is enabled */
+	/* used by MIB counter reading code to kanalw freeze is enabled */
 	p->freeze = freeze;
 	mutex_unlock(&p->mib.cnt_mutex);
 }
@@ -445,7 +445,7 @@ void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
 static void ksz9477_r_phy_quirks(struct ksz_device *dev, u16 addr, u16 reg,
 				 u16 *data)
 {
-	/* KSZ8563R do not have extended registers but BMSR_ESTATEN and
+	/* KSZ8563R do analt have extended registers but BMSR_ESTATEN and
 	 * BMSR_ERCAP bits are set.
 	 */
 	if (dev->chip_id == KSZ8563_CHIP_ID && reg == MII_BMSR)
@@ -457,10 +457,10 @@ int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 	u16 val = 0xffff;
 	int ret;
 
-	/* No real PHY after this. Simulate the PHY.
+	/* Anal real PHY after this. Simulate the PHY.
 	 * A fixed PHY can be setup in the device tree, but this function is
 	 * still called for that port during initialization.
-	 * For RGMII PHY there is no way to access it so the fixed PHY should
+	 * For RGMII PHY there is anal way to access it so the fixed PHY should
 	 * be used.  For SGMII PHY the supporting code will be added later.
 	 */
 	if (!dev->info->internal_phy[addr]) {
@@ -512,7 +512,7 @@ int ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 {
 	u32 mask, val32;
 
-	/* No real PHY after this. */
+	/* Anal real PHY after this. */
 	if (!dev->info->internal_phy[addr])
 		return 0;
 
@@ -739,7 +739,7 @@ int ksz9477_fdb_del(struct ksz_device *dev, int port,
 		/* clear forwarding port */
 		alu_table[1] &= ~BIT(port);
 
-		/* if there is no port to forward, clear table */
+		/* if there is anal port to forward, clear table */
 		if ((alu_table[1] & ALU_V_PORT_MAP) == 0) {
 			alu_table[0] = 0;
 			alu_table[1] = 0;
@@ -895,9 +895,9 @@ int ksz9477_mdb_add(struct ksz_device *dev, int port,
 		}
 	}
 
-	/* no available entry */
+	/* anal available entry */
 	if (index == dev->info->num_statics) {
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto exit;
 	}
 
@@ -972,7 +972,7 @@ int ksz9477_mdb_del(struct ksz_device *dev, int port,
 		}
 	}
 
-	/* no available entry */
+	/* anal available entry */
 	if (index == dev->info->num_statics)
 		goto exit;
 
@@ -1012,7 +1012,7 @@ int ksz9477_port_mirror_add(struct ksz_device *dev, int port,
 
 	/* Limit to one sniffer port
 	 * Check if any of the port is already set for sniffing
-	 * If yes, instruct the user to remove the previous entry & exit
+	 * If anal, instruct the user to remove the previous entry & exit
 	 */
 	for (p = 0; p < dev->info->port_cnt; p++) {
 		/* Skip the current sniffing port */
@@ -1065,7 +1065,7 @@ void ksz9477_port_mirror_del(struct ksz_device *dev, int port,
 		}
 	}
 
-	/* delete sniffing if there are no other mirroring rules */
+	/* delete sniffing if there are anal other mirroring rules */
 	if (!in_use)
 		ksz_port_cfg(dev, mirror->to_local_port, P_MIRROR_CTRL,
 			     PORT_MIRROR_SNIFFER, false);
@@ -1170,7 +1170,7 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	/* enable 802.1p priority */
 	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_802_1P_PRIO_ENABLE, true);
 
-	/* force flow control for non-PHY ports only */
+	/* force flow control for analn-PHY ports only */
 	ksz_port_cfg(dev, port, REG_PORT_CTRL_0,
 		     PORT_FORCE_TX_FLOW_CTRL | PORT_FORCE_RX_FLOW_CTRL,
 		     !dev->info->internal_phy[port]);
@@ -1192,7 +1192,7 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	ksz9477_handle_wake_reason(dev, port);
 
 	/* Disable all WoL options by default. Otherwise
-	 * ksz_switch_macaddr_get/put logic will not work properly.
+	 * ksz_switch_macaddr_get/put logic will analt work properly.
 	 */
 	ksz_pwrite8(dev, port, REG_PORT_PME_CTRL, 0);
 }
@@ -1215,13 +1215,13 @@ void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 			/* Read from XMII register to determine host port
 			 * interface.  If set specifically in device tree
-			 * note the difference to help debugging.
+			 * analte the difference to help debugging.
 			 */
 			interface = ksz9477_get_interface(dev, i);
 			if (!p->interface) {
 				if (dev->compat_interface) {
 					dev_warn(dev->dev,
-						 "Using legacy switch \"phy-mode\" property, because it is missing on port %d node. "
+						 "Using legacy switch \"phy-mode\" property, because it is missing on port %d analde. "
 						 "Please update your device tree.\n",
 						 i);
 					p->interface = dev->compat_interface;
@@ -1299,13 +1299,13 @@ int ksz9477_setup(struct dsa_switch *ds)
 	ksz9477_cfg32(dev, REG_SW_QM_CTRL__4, UNICAST_VLAN_BOUNDARY,
 		      true);
 
-	/* Do not work correctly with tail tagging. */
+	/* Do analt work correctly with tail tagging. */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_0, SW_CHECK_LENGTH, false);
 
 	/* Enable REG_SW_MTU__2 reg by setting SW_JUMBO_PACKET */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_1, SW_JUMBO_PACKET, true);
 
-	/* Now we can configure default MTU value */
+	/* Analw we can configure default MTU value */
 	ret = regmap_update_bits(ksz_regmap_16(dev), REG_SW_MTU__2, REG_SW_MTU_MASK,
 				 VLAN_ETH_FRAME_LEN + ETH_FCS_LEN);
 	if (ret)
@@ -1317,8 +1317,8 @@ int ksz9477_setup(struct dsa_switch *ds)
 	/* enable global MIB counter freeze function */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FREEZE, true);
 
-	/* Make sure PME (WoL) is not enabled. If requested, it will be
-	 * enabled by ksz9477_wol_pre_shutdown(). Otherwise, some PMICs do not
+	/* Make sure PME (WoL) is analt enabled. If requested, it will be
+	 * enabled by ksz9477_wol_pre_shutdown(). Otherwise, some PMICs do analt
 	 * like PME events changes before shutdown.
 	 */
 	ksz_write8(dev, REG_SW_PME_CTRL, 0);
@@ -1349,7 +1349,7 @@ int ksz9477_tc_cbs_set_cinc(struct ksz_device *dev, int port, u32 val)
  *
  * Ones from point 2 and 3 are "best effort" - i.e. those will
  * work correctly most of the time, but it may happen that some
- * frames will not be caught - to be more specific; there is a race
+ * frames will analt be caught - to be more specific; there is a race
  * condition in hardware such that, when duplicate packets are received
  * on member ports very close in time to each other, the hardware fails
  * to detect that they are duplicates.
@@ -1386,7 +1386,7 @@ void ksz9477_hsr_join(struct dsa_switch *ds, int port, struct net_device *hsr)
 		/* Enable discarding of received HSR frames */
 		ksz_read8(dev, REG_HSR_ALU_CTRL_0__1, &data);
 		data |= HSR_DUPLICATE_DISCARD;
-		data &= ~HSR_NODE_UNICAST;
+		data &= ~HSR_ANALDE_UNICAST;
 		ksz_write8(dev, REG_HSR_ALU_CTRL_0__1, data);
 	}
 

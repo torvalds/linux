@@ -263,14 +263,14 @@ static int compose_active_planes(struct vkms_writeback_job *active_wb,
 
 	stage_buffer.pixels = kvmalloc(line_width * pixel_size, GFP_KERNEL);
 	if (!stage_buffer.pixels) {
-		DRM_ERROR("Cannot allocate memory for the output line buffer");
-		return -ENOMEM;
+		DRM_ERROR("Cananalt allocate memory for the output line buffer");
+		return -EANALMEM;
 	}
 
 	output_buffer.pixels = kvmalloc(line_width * pixel_size, GFP_KERNEL);
 	if (!output_buffer.pixels) {
-		DRM_ERROR("Cannot allocate memory for intermediate line buffer");
-		ret = -ENOMEM;
+		DRM_ERROR("Cananalt allocate memory for intermediate line buffer");
+		ret = -EANALMEM;
 		goto free_stage_buffer;
 	}
 
@@ -334,7 +334,7 @@ void vkms_composer_worker(struct work_struct *work)
 
 	/*
 	 * We raced with the vblank hrtimer and previous work already computed
-	 * the crc, nothing to do.
+	 * the crc, analthing to do.
 	 */
 	if (!crc_pending)
 		return;
@@ -392,7 +392,7 @@ int vkms_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 	bool enabled;
 
 	if (vkms_crc_parse_source(src_name, &enabled) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", src_name);
+		DRM_DEBUG_DRIVER("unkanalwn source %s\n", src_name);
 		return -EINVAL;
 	}
 

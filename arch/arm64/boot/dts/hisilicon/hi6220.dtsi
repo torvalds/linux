@@ -293,7 +293,7 @@
 			#clock-cells = <1>;
 		};
 
-		medianoc_ade: medianoc_ade@f4520000 {
+		mediaanalc_ade: mediaanalc_ade@f4520000 {
 			compatible = "syscon";
 			reg = <0x0 0xf4520000 0x0 0x4000>;
 		};
@@ -373,7 +373,7 @@
 			dma-requests = <32>;
 			interrupts = <0 84 4>;
 			clocks = <&sys_ctrl HI6220_EDMAC_ACLK>;
-			dma-no-cci;
+			dma-anal-cci;
 			dma-type = "hi6220_dma";
 			status = "okay";
 		};
@@ -901,14 +901,14 @@
 				cooling-maps {
 					map0 {
 						trip = <&target>;
-						cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-								 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+								 <&cpu7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 					};
 				};
 			};
@@ -918,7 +918,7 @@
 			compatible = "hisilicon,hi6220-ade";
 			reg = <0x0 0xf4100000 0x0 0x7800>;
 			reg-names = "ade_base";
-			hisilicon,noc-syscon = <&medianoc_ade>;
+			hisilicon,analc-syscon = <&mediaanalc_ade>;
 			resets = <&media_ctrl MEDIA_ADE>;
 			interrupts = <0 115 4>; /* ldi interrupt */
 

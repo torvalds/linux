@@ -12,7 +12,7 @@ ports on a single device.
 This document describes a number of generic parameters that are supported
 across multiple drivers. Each driver is also free to add their own
 parameters. Each driver must document the specific parameters they support,
-whether generic or not.
+whether generic or analt.
 
 Configuration modes
 ===================
@@ -25,13 +25,13 @@ Parameters may be set in different configuration modes.
    * - Name
      - Description
    * - ``runtime``
-     - set while the driver is running, and takes effect immediately. No
+     - set while the driver is running, and takes effect immediately. Anal
        reset is required.
    * - ``driverinit``
      - applied while the driver initializes. Requires the user to restart
        the driver using the ``devlink`` reload command.
    * - ``permanent``
-     - written to the device's non-volatile memory. A hard reset is required
+     - written to the device's analn-volatile memory. A hard reset is required
        for it to take effect.
 
 Reloading
@@ -58,12 +58,12 @@ own name.
    * - ``enable_sriov``
      - Boolean
      - Enable Single Root I/O Virtualization (SRIOV) in the device.
-   * - ``ignore_ari``
+   * - ``iganalre_ari``
      - Boolean
-     - Ignore Alternative Routing-ID Interpretation (ARI) capability. If
-       enabled, the adapter will ignore ARI capability even when the
+     - Iganalre Alternative Routing-ID Interpretation (ARI) capability. If
+       enabled, the adapter will iganalre ARI capability even when the
        platform has support enabled. The device will create the same number
-       of partitions as when the platform does not support ARI.
+       of partitions as when the platform does analt support ARI.
    * - ``msix_vec_per_pf_max``
      - u32
      - Provides the maximum number of MSI-X interrupts that a device can
@@ -86,8 +86,8 @@ own name.
    * - ``reset_dev_on_drv_probe``
      - u8
      - Controls the device's reset policy on driver probe.
-        - ``DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_UNKNOWN`` (0)
-          Unknown or invalid value.
+        - ``DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_UNKANALWN`` (0)
+          Unkanalwn or invalid value.
         - ``DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_ALWAYS`` (1)
           Always reset device on driver probe.
         - ``DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_NEVER`` (2)
@@ -136,4 +136,4 @@ own name.
      - Control the size of I/O completion EQs.
    * - ``event_eq_size``
      - u32
-     - Control the size of asynchronous control events EQ.
+     - Control the size of asynchroanalus control events EQ.

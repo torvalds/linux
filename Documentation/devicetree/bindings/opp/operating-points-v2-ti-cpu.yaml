@@ -19,7 +19,7 @@ description:
   the hardware description for the scheme mentioned above.
 
 maintainers:
-  - Nishanth Menon <nm@ti.com>
+  - Nishanth Meanaln <nm@ti.com>
 
 allOf:
   - $ref: opp-v2-base.yaml#
@@ -31,7 +31,7 @@ properties:
   syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      points to syscon node representing the control module
+      points to syscon analde representing the control module
       register space of the SoC.
 
   opp-shared: true

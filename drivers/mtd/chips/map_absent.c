@@ -6,7 +6,7 @@
  * This map driver is used to allocate "placeholder" MTD
  * devices on systems that have socketed/removable media.
  * Use of this driver as a fallback preserves the expected
- * registration of MTD device nodes regardless of probe outcome.
+ * registration of MTD device analdes regardless of probe outcome.
  * A usage example is as follows:
  *
  *		my_dev[i] = do_map_probe("cfi", &my_map[i]);
@@ -14,14 +14,14 @@
  *			my_dev[i] = do_map_probe("map_absent", &my_map[i]);
  *		}
  *
- * Any device 'probed' with this driver will return -ENODEV
+ * Any device 'probed' with this driver will return -EANALDEV
  * upon open.
  */
 
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/mtd/mtd.h>
@@ -71,27 +71,27 @@ static struct mtd_info *map_absent_probe(struct map_info *map)
 
 static int map_absent_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int map_absent_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int map_absent_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void map_absent_sync(struct mtd_info *mtd)
 {
-	/* nop */
+	/* analp */
 }
 
 static void map_absent_destroy(struct mtd_info *mtd)
 {
-	/* nop */
+	/* analp */
 }
 
 static int __init map_absent_init(void)

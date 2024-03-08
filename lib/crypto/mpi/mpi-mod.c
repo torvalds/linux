@@ -11,7 +11,7 @@
 
 /* Context used with Barrett reduction.  */
 struct barrett_ctx_s {
-	MPI m;   /* The modulus - may not be modified. */
+	MPI m;   /* The modulus - may analt be modified. */
 	int m_copied;   /* If true, M needs to be released.  */
 	int k;
 	MPI y;
@@ -30,7 +30,7 @@ void mpi_mod(MPI rem, MPI dividend, MPI divisor)
 /* This function returns a new context for Barrett based operations on
  * the modulus M.  This context needs to be released using
  * _gcry_mpi_barrett_free.  If COPY is true M will be transferred to
- * the context and the user may change M.  If COPY is false, M may not
+ * the context and the user may change M.  If COPY is false, M may analt
  * be changed until gcry_mpi_barrett_free has been called.
  */
 mpi_barrett_t mpi_barrett_init(MPI m, int copy)
@@ -38,7 +38,7 @@ mpi_barrett_t mpi_barrett_init(MPI m, int copy)
 	mpi_barrett_t ctx;
 	MPI tmp;
 
-	mpi_normalize(m);
+	mpi_analrmalize(m);
 	ctx = kcalloc(1, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return NULL;
@@ -84,7 +84,7 @@ void mpi_barrett_free(mpi_barrett_t ctx)
  * Using Barrett reduction.  Before using this function
  * _gcry_mpi_barrett_init must have been called to do the
  * precalculations.  CTX is the context created by this precalculation
- * and also conveys M.  If the Barret reduction could no be done a
+ * and also conveys M.  If the Barret reduction could anal be done a
  * straightforward reduction method is used.
  *
  * We assume that these conditions are met:
@@ -101,7 +101,7 @@ void mpi_mod_barrett(MPI r, MPI x, mpi_barrett_t ctx)
 	MPI r2 = ctx->r2;
 	int sign;
 
-	mpi_normalize(x);
+	mpi_analrmalize(x);
 	if (mpi_get_nlimbs(x) > 2*k) {
 		mpi_mod(r, x, m);
 		return;

@@ -25,6 +25,6 @@ void do_BUG(const char *file, int line);
 #include <asm-generic/bug.h>
 
 struct pt_regs;
-void __noreturn die_if_kernel(char *str, struct pt_regs *regs);
+void __analreturn die_if_kernel(char *str, struct pt_regs *regs);
 
 #endif

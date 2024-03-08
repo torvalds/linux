@@ -83,7 +83,7 @@ static int opa362_enable(struct omap_dss_device *dssdev)
 	dev_dbg(dssdev->dev, "enable\n");
 
 	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
@@ -179,7 +179,7 @@ static const struct omapdss_atv_ops opa362_atv_ops = {
 
 static int opa362_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct panel_drv_data *ddata;
 	struct omap_dss_device *dssdev, *in;
 	struct gpio_desc *gpio;
@@ -187,14 +187,14 @@ static int opa362_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "probe\n");
 
-	if (node == NULL) {
+	if (analde == NULL) {
 		dev_err(&pdev->dev, "Unable to find device tree\n");
 		return -EINVAL;
 	}
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ddata);
 
@@ -204,7 +204,7 @@ static int opa362_probe(struct platform_device *pdev)
 
 	ddata->enable_gpio = gpio;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(analde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);

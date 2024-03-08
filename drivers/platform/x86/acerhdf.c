@@ -42,21 +42,21 @@
 /*
  * According to the Atom N270 datasheet,
  * (http://download.intel.com/design/processor/datashts/320032.pdf) the
- * CPU's optimal operating limits denoted in junction temperature as
+ * CPU's optimal operating limits deanalted in junction temperature as
  * measured by the on-die thermal monitor are within 0 <= Tj <= 90. So,
  * assume 89°C is critical temperature.
  */
-#define ACERHDF_DEFAULT_TEMP_FANON 60000
-#define ACERHDF_DEFAULT_TEMP_FANOFF 53000
+#define ACERHDF_DEFAULT_TEMP_FAANALN 60000
+#define ACERHDF_DEFAULT_TEMP_FAANALFF 53000
 #define ACERHDF_TEMP_CRIT 89000
 #define ACERHDF_FAN_OFF 0
 #define ACERHDF_FAN_AUTO 1
 
 /*
- * No matter what value the user puts into the fanon variable, turn on the fan
+ * Anal matter what value the user puts into the faanaln variable, turn on the fan
  * at 80 degree Celsius to prevent hardware damage
  */
-#define ACERHDF_MAX_FANON 80000
+#define ACERHDF_MAX_FAANALN 80000
 
 /*
  * Maximum interval between two temperature checks is 15 seconds, as the die
@@ -72,8 +72,8 @@ static int kernelmode;
 #endif
 
 static unsigned int interval = 10;
-static unsigned int fanon = ACERHDF_DEFAULT_TEMP_FANON;
-static unsigned int fanoff = ACERHDF_DEFAULT_TEMP_FANOFF;
+static unsigned int faanaln = ACERHDF_DEFAULT_TEMP_FAANALN;
+static unsigned int faanalff = ACERHDF_DEFAULT_TEMP_FAANALFF;
 static unsigned int verbose;
 static unsigned int list_supported;
 static unsigned int fanstate = ACERHDF_FAN_AUTO;
@@ -85,18 +85,18 @@ static struct platform_device *acerhdf_dev;
 
 module_param(kernelmode, uint, 0);
 MODULE_PARM_DESC(kernelmode, "Kernel mode fan control on / off");
-module_param(fanon, uint, 0600);
-MODULE_PARM_DESC(fanon, "Turn the fan on above this temperature");
-module_param(fanoff, uint, 0600);
-MODULE_PARM_DESC(fanoff, "Turn the fan off below this temperature");
+module_param(faanaln, uint, 0600);
+MODULE_PARM_DESC(faanaln, "Turn the fan on above this temperature");
+module_param(faanalff, uint, 0600);
+MODULE_PARM_DESC(faanalff, "Turn the fan off below this temperature");
 module_param(verbose, uint, 0600);
 MODULE_PARM_DESC(verbose, "Enable verbose dmesg output");
 module_param(list_supported, uint, 0600);
 MODULE_PARM_DESC(list_supported, "List supported models and BIOS versions");
 module_param_string(force_bios, force_bios, 16, 0);
-MODULE_PARM_DESC(force_bios, "Pretend system has this known supported BIOS version");
+MODULE_PARM_DESC(force_bios, "Pretend system has this kanalwn supported BIOS version");
 module_param_string(force_product, force_product, 16, 0);
-MODULE_PARM_DESC(force_product, "Pretend system is this known supported model");
+MODULE_PARM_DESC(force_product, "Pretend system is this kanalwn supported model");
 
 /*
  * cmd_off: to switch the fan completely off and check if the fan is off
@@ -130,7 +130,7 @@ struct bios_settings {
 	int mcmd_enable;
 };
 
-/* This could be a daughter struct in the above, but not worth the redirect */
+/* This could be a daughter struct in the above, but analt worth the redirect */
 struct ctrl_settings {
 	u8 fanreg;
 	u8 tempreg;
@@ -139,8 +139,8 @@ struct ctrl_settings {
 };
 
 static struct thermal_trip trips[] = {
-	[0] = { .temperature = ACERHDF_DEFAULT_TEMP_FANON,
-		.hysteresis = ACERHDF_DEFAULT_TEMP_FANON - ACERHDF_DEFAULT_TEMP_FANOFF,
+	[0] = { .temperature = ACERHDF_DEFAULT_TEMP_FAANALN,
+		.hysteresis = ACERHDF_DEFAULT_TEMP_FAANALN - ACERHDF_DEFAULT_TEMP_FAANALFF,
 		.type = THERMAL_TRIP_ACTIVE },
 
 	[1] = { .temperature = ACERHDF_TEMP_CRIT,
@@ -269,10 +269,10 @@ static const struct bios_settings bios_tbl[] __initconst = {
 
 /*
  * this struct is used to instruct thermal layer to use bang_bang instead of
- * default governor for acerhdf
+ * default goveranalr for acerhdf
  */
 static struct thermal_zone_params acerhdf_zone_params = {
-	.governor_name = "bang_bang",
+	.goveranalr_name = "bang_bang",
 };
 
 static int acerhdf_get_temp(int *temp)
@@ -307,7 +307,7 @@ static void acerhdf_change_fanstate(int state)
 	unsigned char cmd;
 
 	if (verbose)
-		pr_notice("fan %s\n", state == ACERHDF_FAN_OFF ? "OFF" : "ON");
+		pr_analtice("fan %s\n", state == ACERHDF_FAN_OFF ? "OFF" : "ON");
 
 	if ((state != ACERHDF_FAN_OFF) && (state != ACERHDF_FAN_AUTO)) {
 		pr_err("invalid fan state %d requested, setting to auto!\n",
@@ -323,27 +323,27 @@ static void acerhdf_change_fanstate(int state)
 
 	if (ctrl_cfg.mcmd_enable && state == ACERHDF_FAN_OFF) {
 		if (verbose)
-			pr_notice("turning off fan manually\n");
+			pr_analtice("turning off fan manually\n");
 		ec_write(mcmd.mreg, mcmd.moff);
 	}
 }
 
 static void acerhdf_check_param(struct thermal_zone_device *thermal)
 {
-	if (fanon > ACERHDF_MAX_FANON) {
-		pr_err("fanon temperature too high, set to %d\n",
-		       ACERHDF_MAX_FANON);
-		fanon = ACERHDF_MAX_FANON;
+	if (faanaln > ACERHDF_MAX_FAANALN) {
+		pr_err("faanaln temperature too high, set to %d\n",
+		       ACERHDF_MAX_FAANALN);
+		faanaln = ACERHDF_MAX_FAANALN;
 	}
 
-	if (fanon < fanoff) {
-		pr_err("fanoff temperature (%d) is above fanon temperature (%d), clamping to %d\n",
-		       fanoff, fanon, fanon);
-		fanoff = fanon;
+	if (faanaln < faanalff) {
+		pr_err("faanalff temperature (%d) is above faanaln temperature (%d), clamping to %d\n",
+		       faanalff, faanaln, faanaln);
+		faanalff = faanaln;
 	}
 
-	trips[0].temperature = fanon;
-	trips[0].hysteresis  = fanon - fanoff;
+	trips[0].temperature = faanaln;
+	trips[0].hysteresis  = faanaln - faanalff;
 
 	if (kernelmode) {
 		if (interval > ACERHDF_MAX_INTERVAL) {
@@ -353,7 +353,7 @@ static void acerhdf_check_param(struct thermal_zone_device *thermal)
 		}
 
 		if (verbose)
-			pr_notice("interval changed to: %d\n", interval);
+			pr_analtice("interval changed to: %d\n", interval);
 	}
 }
 
@@ -372,7 +372,7 @@ static int acerhdf_get_ec_temp(struct thermal_zone_device *thermal, int *t)
 		return err;
 
 	if (verbose)
-		pr_notice("temp %d\n", temp);
+		pr_analtice("temp %d\n", temp);
 
 	*t = temp;
 	return 0;
@@ -386,7 +386,7 @@ static int acerhdf_bind(struct thermal_zone_device *thermal,
 		return 0;
 
 	if (thermal_zone_bind_cooling_device(thermal, 0, cdev,
-			THERMAL_NO_LIMIT, THERMAL_NO_LIMIT,
+			THERMAL_ANAL_LIMIT, THERMAL_ANAL_LIMIT,
 			THERMAL_WEIGHT_DEFAULT)) {
 		pr_err("error binding cooling dev\n");
 		return -EINVAL;
@@ -412,13 +412,13 @@ static inline void acerhdf_revert_to_bios_mode(void)
 	acerhdf_change_fanstate(ACERHDF_FAN_AUTO);
 	kernelmode = 0;
 
-	pr_notice("kernel mode fan control OFF\n");
+	pr_analtice("kernel mode fan control OFF\n");
 }
 static inline void acerhdf_enable_kernelmode(void)
 {
 	kernelmode = 1;
 
-	pr_notice("kernel mode fan control ON\n");
+	pr_analtice("kernel mode fan control ON\n");
 }
 
 /*
@@ -528,7 +528,7 @@ static int acerhdf_suspend(struct device *dev)
 		acerhdf_change_fanstate(ACERHDF_FAN_AUTO);
 
 	if (verbose)
-		pr_notice("going suspend\n");
+		pr_analtice("going suspend\n");
 
 	return 0;
 }
@@ -612,7 +612,7 @@ static int __init acerhdf_check_hardware(void)
 	}
 
 	if (!found) {
-		pr_err("unknown (unsupported) BIOS version %s/%s/%s, please report, aborting!\n",
+		pr_err("unkanalwn (unsupported) BIOS version %s/%s/%s, please report, aborting!\n",
 		       vendor, product, version);
 		return -EINVAL;
 	}
@@ -628,8 +628,8 @@ static int __init acerhdf_check_hardware(void)
 	 * off the fan
 	 */
 	if (!kernelmode) {
-		pr_notice("Fan control off, to enable do:\n");
-		pr_notice("echo -n \"enabled\" > /sys/class/thermal/thermal_zoneN/mode # N=0,1,2...\n");
+		pr_analtice("Fan control off, to enable do:\n");
+		pr_analtice("echo -n \"enabled\" > /sys/class/thermal/thermal_zoneN/mode # N=0,1,2...\n");
 	}
 
 	return 0;
@@ -643,9 +643,9 @@ static int __init acerhdf_register_platform(void)
 	if (err)
 		return err;
 
-	acerhdf_dev = platform_device_alloc("acerhdf", PLATFORM_DEVID_NONE);
+	acerhdf_dev = platform_device_alloc("acerhdf", PLATFORM_DEVID_ANALNE);
 	if (!acerhdf_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_device_alloc;
 	}
 	err = platform_device_add(acerhdf_dev);

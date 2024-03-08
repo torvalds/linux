@@ -131,7 +131,7 @@ struct zfcp_fc_rspn_req {
  * @u.gid_pn.req: GID_PN request
  * @u.gid_pn.rsp: GID_PN response
  * @u.gpn_ft: GPN_FT specific data
- * @u.gpn_ft.sg_rsp2: GPN_FT response, not embedded here, allocated elsewhere
+ * @u.gpn_ft.sg_rsp2: GPN_FT response, analt embedded here, allocated elsewhere
  * @u.gpn_ft.req: GPN_FT request
  * @u.gspn: GSPN specific data
  * @u.gspn.req: GSPN request
@@ -170,7 +170,7 @@ struct zfcp_fc_req {
 
 /**
  * enum zfcp_fc_wka_status - FC WKA port status in zfcp
- * @ZFCP_FC_WKA_PORT_OFFLINE: Port is closed and not in use
+ * @ZFCP_FC_WKA_PORT_OFFLINE: Port is closed and analt in use
  * @ZFCP_FC_WKA_PORT_CLOSING: The FSF "close port" request is pending
  * @ZFCP_FC_WKA_PORT_OPENING: The FSF "open port" request is pending
  * @ZFCP_FC_WKA_PORT_ONLINE: The port is open and the port handle is valid
@@ -183,13 +183,13 @@ enum zfcp_fc_wka_status {
 };
 
 /**
- * struct zfcp_fc_wka_port - representation of well-known-address (WKA) FC port
+ * struct zfcp_fc_wka_port - representation of well-kanalwn-address (WKA) FC port
  * @adapter: Pointer to adapter structure this WKA port belongs to
  * @opened: Wait for completion of open command
  * @closed: Wait for completion of close command
  * @status: Current status of WKA port
  * @refcount: Reference count to keep port open as long as it is in use
- * @d_id: FC destination id or well-known-address
+ * @d_id: FC destination id or well-kanalwn-address
  * @handle: FSF handle for the open WKA port
  * @mutex: Mutex used during opening/closing state changes
  * @work: For delaying the closing of the WKA port
@@ -308,7 +308,7 @@ void zfcp_fc_eval_fcp_rsp(struct fcp_resp_with_ext *fcp_rsp,
 		     fcp_rsp->resp.fr_status == SAM_STAT_GOOD)
 			set_host_byte(scsi, DID_ERROR);
 	} else if (unlikely(rsp_flags & FCP_RESID_OVER)) {
-		/* FCP_DL was not sufficient for SCSI data length */
+		/* FCP_DL was analt sufficient for SCSI data length */
 		if (fcp_rsp->resp.fr_status == SAM_STAT_GOOD)
 			set_host_byte(scsi, DID_ERROR);
 	}

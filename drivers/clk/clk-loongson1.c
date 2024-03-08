@@ -192,7 +192,7 @@ struct ls1x_clk _name = {						\
 		.ops = &ls1x_clk_divider_ops,				\
 		.parent_hws = (const struct clk_hw *[]) { _pname },	\
 		.num_parents = 1,					\
-		.flags = CLK_GET_RATE_NOCACHE,				\
+		.flags = CLK_GET_RATE_ANALCACHE,				\
 	},								\
 }
 
@@ -248,7 +248,7 @@ static struct clk_hw_onecell_data ls1c_clk_hw_data = {
 	.num = CLK_NR_CLKS,
 };
 
-static void __init ls1x_clk_init(struct device_node *np,
+static void __init ls1x_clk_init(struct device_analde *np,
 				 struct clk_hw_onecell_data *hw_data)
 {
 	struct ls1x_clk *ls1x_clk;
@@ -289,12 +289,12 @@ err:
 	iounmap(reg);
 }
 
-static void __init ls1b_clk_init(struct device_node *np)
+static void __init ls1b_clk_init(struct device_analde *np)
 {
 	return ls1x_clk_init(np, &ls1b_clk_hw_data);
 }
 
-static void __init ls1c_clk_init(struct device_node *np)
+static void __init ls1c_clk_init(struct device_analde *np)
 {
 	return ls1x_clk_init(np, &ls1c_clk_hw_data);
 }

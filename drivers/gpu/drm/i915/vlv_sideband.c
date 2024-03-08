@@ -16,13 +16,13 @@
  * VLV_VLV2_PUNIT_HAS_0.8.docx
  */
 
-/* Standard MMIO read, non-posted */
+/* Standard MMIO read, analn-posted */
 #define SB_MRD_NP	0x00
-/* Standard MMIO write, non-posted */
+/* Standard MMIO write, analn-posted */
 #define SB_MWR_NP	0x01
-/* Private register read, double-word addressing, non-posted */
+/* Private register read, double-word addressing, analn-posted */
 #define SB_CRRDDA_NP	0x06
-/* Private register write, double-word addressing, non-posted */
+/* Private register write, double-word addressing, analn-posted */
 #define SB_CRWRDA_NP	0x07
 
 static void ping(void *info)
@@ -41,7 +41,7 @@ static void __vlv_punit_get(struct drm_i915_private *i915)
 	 * reliably on 4-core Baytail systems suggesting the issue is in the
 	 * power delivery mechanism and likely to be board/function
 	 * specific. Hence we presume the workaround needs only be applied
-	 * to the Valleyview P-unit and not all sideband communications.
+	 * to the Valleyview P-unit and analt all sideband communications.
 	 */
 	if (IS_VALLEYVIEW(i915)) {
 		cpu_latency_qos_update_request(&i915->sb_qos, 0);

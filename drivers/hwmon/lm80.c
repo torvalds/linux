@@ -19,7 +19,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+static const unsigned short analrmal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 
 /* Many LM80 constants specified below */
@@ -54,9 +54,9 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 
 /*
  * Conversions. Rounding and limit checking is only done on the TO_REG
- * variants. Note that you should be a bit careful with which arguments
+ * variants. Analte that you should be a bit careful with which arguments
  * these macros are called: arguments may be evaluated more than once.
- * Fixing this is just not worth it.
+ * Fixing this is just analt worth it.
  */
 
 #define IN_TO_REG(val)		(clamp_val(((val) + 5) / 10, 0, 255))
@@ -123,7 +123,7 @@ struct lm80_data {
 	u8 in[i_num_in][7];	/* Register value, 1st index is enum in_index */
 	u8 fan[f_num_fan][2];	/* Register value, 1st index enum fan_index */
 	u8 fan_div[2];		/* Register encoding, shifted right */
-	s16 temp[t_num_temp];	/* Register values, normalized to 16 bit */
+	s16 temp[t_num_temp];	/* Register values, analrmalized to 16 bit */
 	u16 alarms;		/* Register encoding, combined */
 };
 
@@ -334,7 +334,7 @@ static ssize_t fan_store(struct device *dev, struct device_attribute *attr,
 }
 
 /*
- * Note: we save and restore the fan minimum here, because its value is
+ * Analte: we save and restore the fan minimum here, because its value is
  * determined in part by the fan divisor.  This follows the principle of
  * least surprise; the user doesn't expect the fan minimum to change just
  * because the divisor changed.
@@ -374,7 +374,7 @@ static ssize_t fan_div_store(struct device *dev,
 		break;
 	default:
 		dev_err(dev,
-			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			"fan_div value %ld analt supported. Choose one of 1, 2, 4 or 8!\n",
 			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
@@ -545,7 +545,7 @@ static struct attribute *lm80_attrs[] = {
 };
 ATTRIBUTE_GROUPS(lm80);
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -553,16 +553,16 @@ static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info)
 	const char *name = NULL;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* First check for unused bits, common to both chip types */
 	if ((lm80_read_value(client, LM80_REG_ALARM2) & 0xc0)
 	 || (lm80_read_value(client, LM80_REG_CONFIG) & 0x80))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * The LM96080 has manufacturer and stepping/die rev registers so we
-	 * can just check that. The LM80 does not have such registers so we
+	 * can just check that. The LM80 does analt have such registers so we
 	 * have to use a more expensive trick.
 	 */
 	man_id = lm80_read_value(client, LM96080_REG_MAN_ID);
@@ -570,7 +570,7 @@ static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (man_id == 0x01 && dev_id == 0x08) {
 		/* Check more unused bits for confirmation */
 		if (lm80_read_value(client, LM96080_REG_CONV_RATE) & 0xfe)
-			return -ENODEV;
+			return -EANALDEV;
 
 		name = "lm96080";
 	} else {
@@ -580,7 +580,7 @@ static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info)
 			if ((i2c_smbus_read_byte_data(client, i + 0x40) != cur)
 			 || (i2c_smbus_read_byte_data(client, i + 0x80) != cur)
 			 || (i2c_smbus_read_byte_data(client, i + 0xc0) != cur))
-				return -ENODEV;
+				return -EANALDEV;
 		}
 
 		name = "lm80";
@@ -599,7 +599,7 @@ static int lm80_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm80_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -636,7 +636,7 @@ static struct i2c_driver lm80_driver = {
 	.probe		= lm80_probe,
 	.id_table	= lm80_id,
 	.detect		= lm80_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm80_driver);

@@ -58,16 +58,16 @@ static int cdns_plat_pcie_probe(struct platform_device *pdev)
 	pr_debug(" Started %s with is_rc: %d\n", __func__, is_rc);
 	cdns_plat_pcie = devm_kzalloc(dev, sizeof(*cdns_plat_pcie), GFP_KERNEL);
 	if (!cdns_plat_pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, cdns_plat_pcie);
 	if (is_rc) {
 		if (!IS_ENABLED(CONFIG_PCIE_CADENCE_PLAT_HOST))
-			return -ENODEV;
+			return -EANALDEV;
 
 		bridge = devm_pci_alloc_host_bridge(dev, sizeof(*rc));
 		if (!bridge)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rc = pci_host_bridge_priv(bridge);
 		rc->pcie.dev = dev;
@@ -91,11 +91,11 @@ static int cdns_plat_pcie_probe(struct platform_device *pdev)
 			goto err_init;
 	} else {
 		if (!IS_ENABLED(CONFIG_PCIE_CADENCE_PLAT_EP))
-			return -ENODEV;
+			return -EANALDEV;
 
 		ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
 		if (!ep)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ep->pcie.dev = dev;
 		ep->pcie.ops = &cdns_plat_ops;

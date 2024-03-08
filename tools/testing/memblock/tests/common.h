@@ -12,17 +12,17 @@
 #include <../selftests/kselftest.h>
 
 #define MEM_SIZE		SZ_32K
-#define NUMA_NODES		8
+#define NUMA_ANALDES		8
 
 #define INIT_MEMBLOCK_REGIONS			128
 #define INIT_MEMBLOCK_RESERVED_REGIONS		INIT_MEMBLOCK_REGIONS
 
 enum test_flags {
-	/* No special request. */
-	TEST_F_NONE = 0x0,
-	/* Perform raw allocations (no zeroing of memory). */
+	/* Anal special request. */
+	TEST_F_ANALNE = 0x0,
+	/* Perform raw allocations (anal zeroing of memory). */
 	TEST_F_RAW = 0x1,
-	/* Perform allocations on the exact node specified. */
+	/* Perform allocations on the exact analde specified. */
 	TEST_F_EXACT = 0x2
 };
 
@@ -92,7 +92,7 @@ enum test_flags {
 
 /**
  * ASSERT_MEM_NE():
- * Check that none of the first @_size bytes of @_seen are equal to @_expected.
+ * Check that analne of the first @_size bytes of @_seen are equal to @_expected.
  * If false, print failed test message (if running with --verbose) and then
  * assert.
  */
@@ -127,7 +127,7 @@ static inline phys_addr_t __maybe_unused region_end(struct memblock_region *rgn)
 void reset_memblock_regions(void);
 void reset_memblock_attributes(void);
 void setup_memblock(void);
-void setup_numa_memblock(const unsigned int node_fracs[]);
+void setup_numa_memblock(const unsigned int analde_fracs[]);
 void dummy_physical_memory_init(void);
 void dummy_physical_memory_cleanup(void);
 phys_addr_t dummy_physical_memory_base(void);

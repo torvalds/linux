@@ -40,7 +40,7 @@ struct zd_ctrlset {
 #define ZD_MODULATION_TYPE(modulation) ((modulation) & ZD_MODULATION_TYPE_MASK)
 #define ZD_RATE(modulation) ((modulation) & ZD_RATE_MASK)
 
-/* The two possible modulation types. Notify that 802.11b doesn't use the CCK
+/* The two possible modulation types. Analtify that 802.11b doesn't use the CCK
  * codeing for the 1 and 2 MBit/s rate. We stay with the term here to remain
  * consistent with uses the term at other places.
  */
@@ -74,13 +74,13 @@ struct zd_ctrlset {
 
 /* zd_ctrlset control field */
 #define ZD_CS_NEED_RANDOM_BACKOFF	0x01
-#define ZD_CS_NO_ACK			0x02
+#define ZD_CS_ANAL_ACK			0x02
 
 #define ZD_CS_FRAME_TYPE_MASK		0x0c
 #define ZD_CS_DATA_FRAME		0x00
 #define ZD_CS_PS_POLL_FRAME		0x04
 #define ZD_CS_MANAGEMENT_FRAME		0x08
-#define ZD_CS_NO_SEQUENCE_CTL_FRAME	0x0c
+#define ZD_CS_ANAL_SEQUENCE_CTL_FRAME	0x0c
 
 #define ZD_CS_WAKE_DESTINATION		0x10
 #define ZD_CS_RTS			0x20
@@ -107,7 +107,7 @@ struct rx_status {
 } __packed;
 
 /* rx_status field decryption_type */
-#define ZD_RX_NO_WEP	0
+#define ZD_RX_ANAL_WEP	0
 #define ZD_RX_WEP64	1
 #define ZD_RX_TKIP	2
 #define ZD_RX_AES	4
@@ -123,7 +123,7 @@ struct rx_status {
 #define ZD_RX_FIFO_OVERRUN_ERROR	0x04
 #define ZD_RX_DECRYPTION_ERROR		0x08
 #define ZD_RX_CRC32_ERROR		0x10
-#define ZD_RX_NO_ADDR1_MATCH_ERROR	0x20
+#define ZD_RX_ANAL_ADDR1_MATCH_ERROR	0x20
 #define ZD_RX_CRC16_ERROR		0x40
 #define ZD_RX_ERROR			0x80
 
@@ -232,7 +232,7 @@ static inline u8 zd_ofdm_plcp_header_rate(const struct ofdm_plcp_header *header)
 }
 
 /* The following defines give the encoding of the 4-bit rate field in the
- * OFDM (802.11a/802.11g) PLCP header. Notify that these values are used to
+ * OFDM (802.11a/802.11g) PLCP header. Analtify that these values are used to
  * define the zd-rate values for OFDM.
  *
  * See the struct zd_ctrlset definition in zd_mac.h.
@@ -263,7 +263,7 @@ static inline u8 zd_cck_plcp_header_signal(const struct cck_plcp_header *header)
  * if technically wrong we use CCK here also for the 1 MBit/s and 2 MBit/s
  * rate to stay consistent with Zydas and our use of the term.
  *
- * Notify that these values are *not* used in the zd-rates.
+ * Analtify that these values are *analt* used in the zd-rates.
  */
 #define ZD_CCK_PLCP_SIGNAL_1M	0x0a
 #define ZD_CCK_PLCP_SIGNAL_2M	0x14

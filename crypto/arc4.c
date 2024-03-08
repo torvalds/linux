@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 
-#define ARC4_ALIGN __alignof__(struct arc4_ctx)
+#define ARC4_ALIGN __aliganalf__(struct arc4_ctx)
 
 static int crypto_arc4_setkey(struct crypto_lskcipher *tfm, const u8 *in_key,
 			      unsigned int key_len)

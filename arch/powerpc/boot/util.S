@@ -18,9 +18,9 @@
 
 	.text
 
-/* udelay needs to know the period of the
- * timebase in nanoseconds.  This used to be hardcoded to be 60ns
- * (period of 66MHz/4).  Now a variable is used that is initialized to
+/* udelay needs to kanalw the period of the
+ * timebase in naanalseconds.  This used to be hardcoded to be 60ns
+ * (period of 66MHz/4).  Analw a variable is used that is initialized to
  * 60 for backward compatibility, but it can be overridden as necessary
  * with code something like this:
  *    extern unsigned long timebase_period_ns;
@@ -37,9 +37,9 @@ timebase_period_ns:
  */
 	.globl	udelay
 udelay:
-	mulli	r4,r3,1000	/* nanoseconds */
+	mulli	r4,r3,1000	/* naanalseconds */
 	/*  Change r4 to be the number of ticks using:
-	 *	(nanoseconds + (timebase_period_ns - 1 )) / timebase_period_ns
+	 *	(naanalseconds + (timebase_period_ns - 1 )) / timebase_period_ns
 	 *  timebase_period_ns defaults to 60 (16.6MHz) */
 	mflr	r5
 	bcl	20,31,0f

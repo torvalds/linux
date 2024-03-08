@@ -24,5 +24,5 @@
 
 extern void jornada_ssp_start(void);
 extern void jornada_ssp_end(void);
-extern int jornada_ssp_inout(u8 byte);
+extern int jornada_ssp_ianalut(u8 byte);
 extern int jornada_ssp_byte(u8 byte);

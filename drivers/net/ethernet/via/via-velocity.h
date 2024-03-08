@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * File: via-velocity.h
@@ -126,7 +126,7 @@
 #define TCR0_JMBO           0x02	// indicate a jumbo packet in GMAC side
 #define TCR0_CRC            0x01	// disable CRC generation
 
-#define TCPLS_NORMAL        3
+#define TCPLS_ANALRMAL        3
 #define TCPLS_START         2
 #define TCPLS_END           1
 #define TCPLS_MED           0
@@ -134,7 +134,7 @@
 
 // max transmit or receive buffer size
 #define CB_RX_BUF_SIZE     2048UL	// max buffer size
-					// NOTE: must be multiple of 4
+					// ANALTE: must be multiple of 4
 
 #define CB_MAX_RD_NUM       512	// MAX # of RD
 #define CB_MAX_TD_NUM       256	// MAX # of TD
@@ -244,7 +244,7 @@ enum  velocity_owner {
 
 #define MCAM_SIZE           64
 #define VCAM_SIZE           64
-#define TX_QUEUE_NO         4
+#define TX_QUEUE_ANAL         4
 
 #define MAX_HW_MIB_COUNTER  32
 #define VELOCITY_MIN_MTU    (64)
@@ -351,7 +351,7 @@ enum  velocity_owner {
 #define MAC_REG_CHIPGSR     0x9C
 #define MAC_REG_TESTCFG     0x9D
 #define MAC_REG_DEBUG       0x9E
-#define MAC_REG_CHIPGCR     0x9F	/* Chip Operation and Diagnostic Control */
+#define MAC_REG_CHIPGCR     0x9F	/* Chip Operation and Diaganalstic Control */
 #define MAC_REG_WOLCR0_SET  0xA0
 #define MAC_REG_WOLCR1_SET  0xA1
 #define MAC_REG_PWCFG_SET   0xA2
@@ -746,7 +746,7 @@ enum  velocity_owner {
 #define MCFG_TXARB          0x8000
 #define MCFG_TXQBK1         0x0800
 #define MCFG_TXQBK0         0x0400
-#define MCFG_TXQNOBK        0x0200
+#define MCFG_TXQANALBK        0x0200
 #define MCFG_SNAPOPT        0x0100
 
 /*
@@ -908,13 +908,13 @@ enum  velocity_owner {
  *	Ethernet address filter type
  */
 
-#define PKT_TYPE_NONE               0x0000	/* Turn off receiver */
+#define PKT_TYPE_ANALNE               0x0000	/* Turn off receiver */
 #define PKT_TYPE_DIRECTED           0x0001	/* obselete, directed address is always accepted */
 #define PKT_TYPE_MULTICAST          0x0002
 #define PKT_TYPE_ALL_MULTICAST      0x0004
 #define PKT_TYPE_BROADCAST          0x0008
 #define PKT_TYPE_PROMISCUOUS        0x0020
-#define PKT_TYPE_LONG               0x2000	/* NOTE.... the definition of LONG is >2048 bytes in our chip */
+#define PKT_TYPE_LONG               0x2000	/* ANALTE.... the definition of LONG is >2048 bytes in our chip */
 #define PKT_TYPE_RUNT               0x4000
 #define PKT_TYPE_ERROR              0x8000	/* Accept error packets, e.g. CRC error */
 
@@ -922,7 +922,7 @@ enum  velocity_owner {
  *	Loopback mode
  */
 
-#define MAC_LB_NONE         0x00
+#define MAC_LB_ANALNE         0x00
 #define MAC_LB_INTERNAL     0x01
 #define MAC_LB_EXTERNAL     0x02
 
@@ -936,10 +936,10 @@ enum  velocity_owner {
 
 #else
 #define IMR_MASK_VALUE      0x0013FB0FUL	/* initial value of IMR
-						   ignore MIBFI,RACEI to
+						   iganalre MIBFI,RACEI to
 						   reduce intr. frequency
-						   NOTE.... do not enable NoBuf int mask at driver
-						      when (1) NoBuf -> RxThreshold = SF
+						   ANALTE.... do analt enable AnalBuf int mask at driver
+						      when (1) AnalBuf -> RxThreshold = SF
 							   (2) OK    -> RxThreshold = original value
 						 */
 #endif
@@ -960,7 +960,7 @@ enum  velocity_owner {
 
 
 /*
- *	MAC registers as a structure. Cannot be directly accessed this
+ *	MAC registers as a structure. Cananalt be directly accessed this
  *	way but generates offsets for readl/writel() calls
  */
 
@@ -1118,7 +1118,7 @@ enum hw_mib {
 	HW_MIB_ifRxLongOkPkt,
 	HW_MIB_ifRxLongPktErrPkt,
 	HW_MIB_ifTXSQEErrors,
-	HW_MIB_ifRxNobuf,
+	HW_MIB_ifRxAnalbuf,
 	HW_MIB_ifRxSymbolErrors,
 	HW_MIB_ifInRangeLengthErrors,
 	HW_MIB_ifLateCollisions,
@@ -1217,7 +1217,7 @@ struct _magic_packet {
 } __packed;
 
 /*
- *	Store for chip context when saving and restoring status. Not
+ *	Store for chip context when saving and restoring status. Analt
  *	all fields are saved/restored currently.
  */
 
@@ -1383,7 +1383,7 @@ struct velocity_info {
 	struct device *dev;
 	struct pci_dev *pdev;
 	struct net_device *netdev;
-	bool no_eeprom;
+	bool anal_eeprom;
 
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 ip_addr[4];
@@ -1397,12 +1397,12 @@ struct velocity_info {
 		int numq;
 
 		/* FIXME: the locality of the data seems rather poor. */
-		int used[TX_QUEUE_NO];
-		int curr[TX_QUEUE_NO];
-		int tail[TX_QUEUE_NO];
-		struct tx_desc *rings[TX_QUEUE_NO];
-		struct velocity_td_info *infos[TX_QUEUE_NO];
-		dma_addr_t pool_dma[TX_QUEUE_NO];
+		int used[TX_QUEUE_ANAL];
+		int curr[TX_QUEUE_ANAL];
+		int tail[TX_QUEUE_ANAL];
+		struct tx_desc *rings[TX_QUEUE_ANAL];
+		struct velocity_td_info *infos[TX_QUEUE_ANAL];
+		dma_addr_t pool_dma[TX_QUEUE_ANAL];
 	} tx;
 
 	struct rx_info {
@@ -1451,7 +1451,7 @@ struct velocity_info {
  *
  *	Dig out an IP address for this interface so that we can
  *	configure wakeup with WOL for ARP. If there are multiple IP
- *	addresses on this chain then we use the first - multi-IP WOL is not
+ *	addresses on this chain then we use the first - multi-IP WOL is analt
  *	supported.
  *
  */
@@ -1460,7 +1460,7 @@ static inline int velocity_get_ip(struct velocity_info *vptr)
 {
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
-	int res = -ENOENT;
+	int res = -EANALENT;
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(vptr->netdev);
@@ -1513,7 +1513,7 @@ static inline void init_flow_control_register(struct velocity_info *vptr)
 	struct mac_regs __iomem * regs = vptr->mac_regs;
 
 	/* Set {XHITH1, XHITH0, XLTH1, XLTH0} in FlowCR1 to {1, 0, 1, 1}
-	   depend on RD=64, and Turn on XNOEN in FlowCR1 */
+	   depend on RD=64, and Turn on XANALEN in FlowCR1 */
 	writel((CR0_XONEN | CR0_XHITH1 | CR0_XLTH1 | CR0_XLTH0), &regs->CR0Set);
 	writel((CR0_FDXTFCEN | CR0_FDXRFCEN | CR0_HDXFCEN | CR0_XHITH0), &regs->CR0Clr);
 

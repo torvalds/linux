@@ -28,7 +28,7 @@ struct i2c_hid_of_goodix {
 	struct regulator *vdd;
 	struct regulator *vddio;
 	struct gpio_desc *reset_gpio;
-	bool no_reset_during_suspend;
+	bool anal_reset_during_suspend;
 	const struct goodix_i2c_hid_timing_data *timings;
 };
 
@@ -41,9 +41,9 @@ static int goodix_i2c_hid_power_up(struct i2chid_ops *ops)
 	/*
 	 * We assert reset GPIO here (instead of during power-down) to ensure
 	 * the device will have a clean state after powering up, just like the
-	 * normal scenarios will have.
+	 * analrmal scenarios will have.
 	 */
-	if (ihid_goodix->no_reset_during_suspend)
+	if (ihid_goodix->anal_reset_during_suspend)
 		gpiod_set_value_cansleep(ihid_goodix->reset_gpio, 1);
 
 	ret = regulator_enable(ihid_goodix->vdd);
@@ -69,7 +69,7 @@ static void goodix_i2c_hid_power_down(struct i2chid_ops *ops)
 	struct i2c_hid_of_goodix *ihid_goodix =
 		container_of(ops, struct i2c_hid_of_goodix, ops);
 
-	if (!ihid_goodix->no_reset_during_suspend)
+	if (!ihid_goodix->anal_reset_during_suspend)
 		gpiod_set_value_cansleep(ihid_goodix->reset_gpio, 1);
 
 	regulator_disable(ihid_goodix->vddio);
@@ -83,7 +83,7 @@ static int i2c_hid_of_goodix_probe(struct i2c_client *client)
 	ihid_goodix = devm_kzalloc(&client->dev, sizeof(*ihid_goodix),
 				   GFP_KERNEL);
 	if (!ihid_goodix)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ihid_goodix->ops.power_up = goodix_i2c_hid_power_up;
 	ihid_goodix->ops.power_down = goodix_i2c_hid_power_down;
@@ -102,8 +102,8 @@ static int i2c_hid_of_goodix_probe(struct i2c_client *client)
 	if (IS_ERR(ihid_goodix->vddio))
 		return PTR_ERR(ihid_goodix->vddio);
 
-	ihid_goodix->no_reset_during_suspend =
-		of_property_read_bool(client->dev.of_node, "goodix,no-reset-during-suspend");
+	ihid_goodix->anal_reset_during_suspend =
+		of_property_read_bool(client->dev.of_analde, "goodix,anal-reset-during-suspend");
 
 	ihid_goodix->timings = device_get_match_data(&client->dev);
 
@@ -125,7 +125,7 @@ static struct i2c_driver goodix_i2c_hid_ts_driver = {
 	.driver = {
 		.name	= "i2c_hid_of_goodix",
 		.pm	= &i2c_hid_core_pm,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(goodix_i2c_hid_of_match),
 	},
 	.probe		= i2c_hid_of_goodix_probe,

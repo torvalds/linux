@@ -3,7 +3,7 @@
  * Pinctrl / GPIO driver for StarFive JH7110 SoC
  *
  * Copyright (C) 2022 Emil Renner Berthing <kernel@esmil.dk>
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/bits.h>
@@ -119,14 +119,14 @@ static void jh7110_pin_dbg_show(struct pinctrl_dev *pctldev,
 #define jh7110_pin_dbg_show NULL
 #endif
 
-static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np,
+static int jh7110_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_analde *np,
 				 struct pinctrl_map **maps,
 				 unsigned int *num_maps)
 {
 	struct jh7110_pinctrl *sfp = pinctrl_dev_get_drvdata(pctldev);
 	struct device *dev = sfp->gc.parent;
-	struct device_node *child;
+	struct device_analde *child;
 	struct pinctrl_map *map;
 	const char **pgnames;
 	const char *grpname;
@@ -135,22 +135,22 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 	int ret;
 
 	ngroups = 0;
-	for_each_available_child_of_node(np, child)
+	for_each_available_child_of_analde(np, child)
 		ngroups += 1;
 	nmaps = 2 * ngroups;
 
 	pgnames = devm_kcalloc(dev, ngroups, sizeof(*pgnames), GFP_KERNEL);
 	if (!pgnames)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map = kcalloc(nmaps, sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nmaps = 0;
 	ngroups = 0;
 	mutex_lock(&sfp->mutex);
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		int npins = of_property_count_u32_elems(child, "pinmux");
 		int *pins;
 		u32 *pinmux;
@@ -158,7 +158,7 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		if (npins < 1) {
 			dev_err(dev,
-				"invalid pinctrl group %pOFn.%pOFn: pinmux not set\n",
+				"invalid pinctrl group %pOFn.%pOFn: pinmux analt set\n",
 				np, child);
 			ret = -EINVAL;
 			goto put_child;
@@ -166,7 +166,7 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		grpname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn.%pOFn", np, child);
 		if (!grpname) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto put_child;
 		}
 
@@ -174,13 +174,13 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
 		if (!pins) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto put_child;
 		}
 
 		pinmux = devm_kcalloc(dev, npins, sizeof(*pinmux), GFP_KERNEL);
 		if (!pinmux) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto put_child;
 		}
 
@@ -212,7 +212,7 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 			goto put_child;
 		}
 
-		/* don't create a map if there are no pinconf settings */
+		/* don't create a map if there are anal pinconf settings */
 		if (map[nmaps].data.configs.num_configs == 0)
 			continue;
 
@@ -234,7 +234,7 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 	return 0;
 
 put_child:
-	of_node_put(child);
+	of_analde_put(child);
 free_map:
 	pinctrl_utils_free_map(pctldev, map, nmaps);
 	mutex_unlock(&sfp->mutex);
@@ -246,7 +246,7 @@ static const struct pinctrl_ops jh7110_pinctrl_ops = {
 	.get_group_name	  = pinctrl_generic_get_group_name,
 	.get_group_pins   = pinctrl_generic_get_group_pins,
 	.pin_dbg_show	  = jh7110_pin_dbg_show,
-	.dt_node_to_map	  = jh7110_dt_node_to_map,
+	.dt_analde_to_map	  = jh7110_dt_analde_to_map,
 	.dt_free_map	  = pinctrl_utils_free_map,
 };
 
@@ -269,7 +269,7 @@ void jh7110_set_gpiomux(struct jh7110_pinctrl *sfp, unsigned int pin,
 	reg_doen = sfp->base + info->doen_reg_base + offset;
 	dout <<= shift;
 	doen <<= shift;
-	if (din != GPI_NONE) {
+	if (din != GPI_ANALNE) {
 		unsigned int ioffset = 4 * (din / 4);
 		unsigned int ishift  = 8 * (din % 4);
 
@@ -420,7 +420,7 @@ static int jh7110_pinconf_get(struct pinctrl_dev *pctldev,
 		arg = !!(padcfg & JH7110_PADCFG_SLEW);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -467,13 +467,13 @@ static int jh7110_pinconf_group_set(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			if (arg == 0)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			mask |= JH7110_PADCFG_BIAS;
 			value = (value & ~JH7110_PADCFG_BIAS) | JH7110_PADCFG_PD;
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			if (arg == 0)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			mask |= JH7110_PADCFG_BIAS;
 			value = (value & ~JH7110_PADCFG_BIAS) | JH7110_PADCFG_PU;
 			break;
@@ -504,7 +504,7 @@ static int jh7110_pinconf_group_set(struct pinctrl_dev *pctldev,
 				value &= ~JH7110_PADCFG_SLEW;
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -575,7 +575,7 @@ static int jh7110_gpio_direction_input(struct gpio_chip *gc,
 
 	if (info->jh7110_set_one_pin_mux)
 		info->jh7110_set_one_pin_mux(sfp, gpio,
-				GPI_NONE, GPOUT_LOW, GPOEN_DISABLE, 0);
+				GPI_ANALNE, GPOUT_LOW, GPOEN_DISABLE, 0);
 
 	return 0;
 }
@@ -589,7 +589,7 @@ static int jh7110_gpio_direction_output(struct gpio_chip *gc,
 
 	if (info->jh7110_set_one_pin_mux)
 		info->jh7110_set_one_pin_mux(sfp, gpio,
-				GPI_NONE, value ? GPOUT_HIGH : GPOUT_LOW,
+				GPI_ANALNE, value ? GPOUT_HIGH : GPOUT_LOW,
 				GPOEN_ENABLE, 0);
 
 	/* disable input, schmitt trigger and bias */
@@ -645,13 +645,13 @@ static int jh7110_gpio_set_config(struct gpio_chip *gc,
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		if (arg == 0)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		mask  = JH7110_PADCFG_BIAS;
 		value = JH7110_PADCFG_PD;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 		if (arg == 0)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		mask  = JH7110_PADCFG_BIAS;
 		value = JH7110_PADCFG_PU;
 		break;
@@ -666,7 +666,7 @@ static int jh7110_gpio_set_config(struct gpio_chip *gc,
 		value = arg ? JH7110_PADCFG_SMT : 0;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	jh7110_padcfg_rmw(sfp, gpio, mask, value);
@@ -790,16 +790,16 @@ static int jh7110_irq_set_type(struct irq_data *d, unsigned int trigger)
 	case IRQ_TYPE_EDGE_BOTH:
 		irq_type  = mask; /* 1: edge triggered */
 		edge_both = mask; /* 1: both edges */
-		polarity  = 0;    /* 0: ignored */
+		polarity  = 0;    /* 0: iganalred */
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		irq_type  = 0;    /* 0: level triggered */
-		edge_both = 0;    /* 0: ignored */
+		edge_both = 0;    /* 0: iganalred */
 		polarity  = mask; /* 1: high level */
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		irq_type  = 0;    /* 0: level triggered */
-		edge_both = 0;    /* 0: ignored */
+		edge_both = 0;    /* 0: iganalred */
 		polarity  = 0;    /* 0: low level */
 		break;
 	default:
@@ -851,7 +851,7 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 
 	info = of_device_get_match_data(&pdev->dev);
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!info->pins || !info->npins) {
 		dev_err(dev, "wrong pinctrl info\n");
@@ -860,13 +860,13 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 
 	sfp = devm_kzalloc(dev, sizeof(*sfp), GFP_KERNEL);
 	if (!sfp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #if IS_ENABLED(CONFIG_PM_SLEEP)
 	sfp->saved_regs = devm_kcalloc(dev, info->nsaved_regs,
 				       sizeof(*sfp->saved_regs), GFP_KERNEL);
 	if (!sfp->saved_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	sfp->base = devm_platform_ioremap_resource(pdev, 0);
@@ -875,11 +875,11 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get_optional(dev, NULL);
 	if (IS_ERR(clk))
-		return dev_err_probe(dev, PTR_ERR(clk), "could not get clock\n");
+		return dev_err_probe(dev, PTR_ERR(clk), "could analt get clock\n");
 
 	rst = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(rst))
-		return dev_err_probe(dev, PTR_ERR(rst), "could not get reset\n");
+		return dev_err_probe(dev, PTR_ERR(rst), "could analt get reset\n");
 
 	/*
 	 * we don't want to assert reset and risk undoing pin muxing for the
@@ -888,12 +888,12 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 	 */
 	ret = reset_control_deassert(rst);
 	if (ret)
-		return dev_err_probe(dev, ret, "could not deassert reset\n");
+		return dev_err_probe(dev, ret, "could analt deassert reset\n");
 
 	if (clk) {
 		ret = clk_prepare_enable(clk);
 		if (ret)
-			return dev_err_probe(dev, ret, "could not enable clock\n");
+			return dev_err_probe(dev, ret, "could analt enable clock\n");
 
 		ret = devm_add_action_or_reset(dev, jh7110_disable_clock, clk);
 		if (ret)
@@ -904,7 +904,7 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 					   sizeof(*jh7110_pinctrl_desc),
 					   GFP_KERNEL);
 	if (!jh7110_pinctrl_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jh7110_pinctrl_desc->name = dev_name(dev);
 	jh7110_pinctrl_desc->pins = info->pins;
@@ -926,7 +926,7 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 					     sfp, &sfp->pctl);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				"could not register pinctrl driver\n");
+				"could analt register pinctrl driver\n");
 
 	sfp->gc.label = dev_name(dev);
 	sfp->gc.owner = THIS_MODULE;
@@ -950,8 +950,8 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 					   sizeof(*sfp->gc.irq.parents),
 					   GFP_KERNEL);
 	if (!sfp->gc.irq.parents)
-		return -ENOMEM;
-	sfp->gc.irq.default_type = IRQ_TYPE_NONE;
+		return -EANALMEM;
+	sfp->gc.irq.default_type = IRQ_TYPE_ANALNE;
 	sfp->gc.irq.handler = handle_bad_irq;
 	sfp->gc.irq.init_hw = info->jh7110_gpio_init_hw;
 
@@ -962,7 +962,7 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(dev, &sfp->gc, sfp);
 	if (ret)
-		return dev_err_probe(dev, ret, "could not register gpiochip\n");
+		return dev_err_probe(dev, ret, "could analt register gpiochip\n");
 
 	dev_info(dev, "StarFive GPIO chip registered %d GPIOs\n", sfp->gc.ngpio);
 

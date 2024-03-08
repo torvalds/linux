@@ -3,7 +3,7 @@
  * Common Board Device Tree for Microsoft MSM8x26-based Lumias
  *
  * Copyright (c) 2023, Jack Matthews <jm5112356@gmail.com>
- * Copyright (c) 2023, Ivaylo Ivanov <ivo.ivanov.ivanov1@gmail.com>
+ * Copyright (c) 2023, Ivaylo Ivaanalv <ivo.ivaanalv.ivaanalv1@gmail.com>
  * Copyright (c) 2023, Dominik Kobinski <dominikkobinski314@gmail.com>
  * Copyright (c) 2023, Rayyan Ansari <rayyan@ansari.sh>
  */
@@ -16,7 +16,7 @@
  * Delete all generic (msm8226.dtsi) reserved
  * memory mappings which are different on these devices.
  */
-/delete-node/ &smem_region;
+/delete-analde/ &smem_region;
 
 / {
 	aliases {
@@ -74,12 +74,12 @@
 	reserved-memory {
 		display_reserved: framebuffer@3200000 {
 			reg = <0x03200000 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_region: smem@fa00000 {
 			reg = <0x0fa00000 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -103,7 +103,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f11@11 {

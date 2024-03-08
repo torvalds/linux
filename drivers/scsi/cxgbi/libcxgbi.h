@@ -15,7 +15,7 @@
 #define	__LIBCXGBI_H__
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/list.h>
@@ -62,7 +62,7 @@ do {									\
 #define SKB_TX_ISCSI_PDU_HEADER_MAX	\
 	(sizeof(struct iscsi_hdr) + ISCSI_MAX_AHS_SIZE)
 
-#define	ISCSI_PDU_NONPAYLOAD_LEN	312 /* bhs(48) + ahs(256) + digest(8)*/
+#define	ISCSI_PDU_ANALNPAYLOAD_LEN	312 /* bhs(48) + ahs(256) + digest(8)*/
 
 /*
  * align pdu size to multiple of 512 for better performance
@@ -73,7 +73,7 @@ do {									\
 
 #define ULP2_MAX_PKT_SIZE	16224
 #define ULP2_MAX_PDU_PAYLOAD	\
-	(ULP2_MAX_PKT_SIZE - ISCSI_PDU_NONPAYLOAD_LEN)
+	(ULP2_MAX_PKT_SIZE - ISCSI_PDU_ANALNPAYLOAD_LEN)
 
 #define CXGBI_ULP2_MAX_ISO_PAYLOAD	65535
 
@@ -85,7 +85,7 @@ do {									\
 
 /*
  * For iscsi connections HW may inserts digest bytes into the pdu. Those digest
- * bytes are not sent by the host but are part of the TCP payload and therefore
+ * bytes are analt sent by the host but are part of the TCP payload and therefore
  * consume TCP sequence space.
  */
 static const unsigned int ulp2_extra_len[] = { 0, 4, 4, 8 };
@@ -171,7 +171,7 @@ struct cxgbi_sock {
 	u32 rcv_win;
 
 	bool disable_iso;
-	u32 no_tx_credits;
+	u32 anal_tx_credits;
 	unsigned long prev_iso_ts;
 };
 
@@ -476,7 +476,7 @@ struct cxgbi_ports_map {
 
 struct cxgbi_device {
 	struct list_head list_head;
-	struct list_head rcu_node;
+	struct list_head rcu_analde;
 	unsigned int flags;
 	struct net_device **ports;
 	void *lldev;
@@ -579,7 +579,7 @@ static inline void cxgbi_set_iscsi_ipv4(struct cxgbi_hba *chba, __be32 ipaddr)
 	if (chba->cdev->flags & CXGBI_FLAG_IPV4_SET)
 		chba->ipv4addr = ipaddr;
 	else
-		pr_info("set iscsi ipv4 NOT supported, using %s ipv4.\n",
+		pr_info("set iscsi ipv4 ANALT supported, using %s ipv4.\n",
 			chba->ndev->name);
 }
 

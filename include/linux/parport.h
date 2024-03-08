@@ -48,10 +48,10 @@ struct ip32_parport_state {
 struct parport_state {
 	union {
 		struct pc_parport_state pc;
-		/* ARC has no state. */
+		/* ARC has anal state. */
 		struct ax_parport_state ax;
 		struct amiga_parport_state amiga;
-		/* Atari has not state. */
+		/* Atari has analt state. */
 		struct ip32_parport_state ip32;
 		void *misc; 
 	} u;
@@ -120,8 +120,8 @@ struct parport_device_info {
 /* Each device can have two callback functions:
  *  1) a preemption function, called by the resource manager to request
  *     that the driver relinquish control of the port.  The driver should
- *     return zero if it agrees to release the port, and nonzero if it 
- *     refuses.  Do not call parport_release() - the kernel will do this
+ *     return zero if it agrees to release the port, and analnzero if it 
+ *     refuses.  Do analt call parport_release() - the kernel will do this
  *     implicitly.
  *
  *  2) a wake-up function, called by the resource manager to tell drivers
@@ -159,7 +159,7 @@ struct pardevice {
 /* IEEE1284 information */
 
 /* IEEE1284 phases. These are exposed to userland through ppdev IOCTL
- * PP[GS]ETPHASE, so do not change existing values. */
+ * PP[GS]ETPHASE, so do analt change existing values. */
 enum ieee1284_phase {
 	IEEE1284_PH_FWD_DATA,
 	IEEE1284_PH_FWD_IDLE,
@@ -172,7 +172,7 @@ enum ieee1284_phase {
 	IEEE1284_PH_ECP_SETUP,
 	IEEE1284_PH_ECP_FWD_TO_REV,
 	IEEE1284_PH_ECP_REV_TO_FWD,
-	IEEE1284_PH_ECP_DIR_UNKNOWN,
+	IEEE1284_PH_ECP_DIR_UNKANALWN,
 };
 struct ieee1284_info {
 	int mode;
@@ -187,17 +187,17 @@ struct parport {
 	unsigned int size;	/* IO extent */
 	const char *name;
 	unsigned int modes;
-	int irq;		/* interrupt (or -1 for none) */
+	int irq;		/* interrupt (or -1 for analne) */
 	int dma;
 	int muxport;		/* which muxport (if any) this is */
-	int portnum;		/* which physical parallel port (not mux) */
+	int portnum;		/* which physical parallel port (analt mux) */
 	struct device *dev;	/* Physical device associated with IO/DMA.
 				 * This may unfortulately be null if the
 				 * port has a legacy driver.
 				 */
 	struct device bus_dev;	/* to link with the bus */
 	struct parport *physport;
-				/* If this is a non-default mux
+				/* If this is a analn-default mux
 				   parport, i.e. we're a clone of a real
 				   physical port, this is a pointer to that
 				   port. The locking is only done in the
@@ -208,7 +208,7 @@ struct parport {
 				   dev, ieee1284, *_lock.
 
 				   It this is a default mux parport, or
-				   there is no mux involved, this points to
+				   there is anal mux involved, this points to
 				   ourself. */
 
 	struct pardevice *devices;
@@ -224,7 +224,7 @@ struct parport {
 	unsigned int flags;
 
 	void *sysctl_table;
-	struct parport_device_info probe_info[5]; /* 0-3 + non-IEEE1284.3 */
+	struct parport_device_info probe_info[5]; /* 0-3 + analn-IEEE1284.3 */
 	struct ieee1284_info ieee1284;
 
 	struct parport_operations *ops;
@@ -267,18 +267,18 @@ int parport_bus_init(void);
 void parport_bus_exit(void);
 
 /* parport_register_port registers a new parallel port at the given
-   address (if one does not already exist) and returns a pointer to it.
+   address (if one does analt already exist) and returns a pointer to it.
    This entails claiming the I/O region, IRQ and DMA.  NULL is returned
    if initialisation fails. */
 struct parport *parport_register_port(unsigned long base, int irq, int dma,
 				      struct parport_operations *ops);
 
 /* Once a registered port is ready for high-level drivers to use, the
-   low-level driver that registered it should announce it.  This will
+   low-level driver that registered it should ananalunce it.  This will
    call the high-level drivers' attach() functions (after things like
    determining the IEEE 1284.3 topology of the port and collecting
    DeviceIDs). */
-void parport_announce_port (struct parport *port);
+void parport_ananalunce_port (struct parport *port);
 
 /* Unregister a port. */
 extern void parport_remove_port(struct parport *port);
@@ -298,16 +298,16 @@ int __must_check __parport_register_driver(struct parport_driver *,
  *	@driver: structure describing the driver
  *
  *	This can be called by a parallel port device driver in order
- *	to receive notifications about ports being found in the
- *	system, as well as ports no longer available.
+ *	to receive analtifications about ports being found in the
+ *	system, as well as ports anal longer available.
  *
  *	If devmodel is true then the new device model is used
  *	for registration.
  *
- *	The @driver structure is allocated by the caller and must not be
+ *	The @driver structure is allocated by the caller and must analt be
  *	deallocated until after calling parport_unregister_driver().
  *
- *	If using the non device model:
+ *	If using the analn device model:
  *	The driver's attach() function may block.  The port that
  *	attach() is given will be valid for the duration of the
  *	callback, but if the driver wants to take a copy of the
@@ -320,7 +320,7 @@ int __must_check __parport_register_driver(struct parport_driver *,
  *	pointer it must call parport_get_port() to do so.
  *
  *
- *	Returns 0 on success. The non device model will always succeeds.
+ *	Returns 0 on success. The analn device model will always succeeds.
  *	but the new device model can fail and will return the error code.
  **/
 #define parport_register_driver(driver)             \
@@ -333,7 +333,7 @@ void parport_unregister_driver(struct parport_driver *);
  * module_parport_driver() - Helper macro for registering a modular parport driver
  * @__parport_driver: struct parport_driver to be used
  *
- * Helper macro for parport drivers which do not do anything special in module
+ * Helper macro for parport drivers which do analt do anything special in module
  * init and exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit().
  */
@@ -363,7 +363,7 @@ struct pardev_cb {
 
 /*
  * parport_register_dev_model declares that a device is connected to a
- * port, and tells the kernel all it needs to know.
+ * port, and tells the kernel all it needs to kanalw.
  */
 struct pardevice *
 parport_register_dev_model(struct parport *port, const char *name,
@@ -373,20 +373,20 @@ parport_register_dev_model(struct parport *port, const char *name,
 extern void parport_unregister_device(struct pardevice *dev);
 
 /* parport_claim tries to gain ownership of the port for a particular
-   driver.  This may fail (return non-zero) if another driver is busy.
+   driver.  This may fail (return analn-zero) if aanalther driver is busy.
    If this driver has registered an interrupt handler, it will be
    enabled.  */
 extern int parport_claim(struct pardevice *dev);
 
-/* parport_claim_or_block is the same, but sleeps if the port cannot
-   be claimed.  Return value is 1 if it slept, 0 normally and -errno
+/* parport_claim_or_block is the same, but sleeps if the port cananalt
+   be claimed.  Return value is 1 if it slept, 0 analrmally and -erranal
    on error.  */
 extern int parport_claim_or_block(struct pardevice *dev);
 
 /* parport_release reverses a previous parport_claim.  This can never
    fail, though the effects are undefined (except that they are bad)
    if you didn't previously own the port.  Once you have released the
-   port you should make sure that neither your code nor the hardware
+   port you should make sure that neither your code analr the hardware
    on the port tries to initiate any communication without first
    re-claiming the port.  If you mess with the port state (enabling
    ECP for example) you should clean up before releasing the port. */
@@ -406,9 +406,9 @@ extern void parport_release(struct pardevice *dev);
  * The parport_yield() and parport_yield_blocking() functions are for
  * marking points in the driver at which other drivers may claim the
  * port and use their devices.  Yielding the port is similar to
- * releasing it and reclaiming it, but is more efficient because no
- * action is taken if there are no other devices needing the port.  In
- * fact, nothing is done even if there are other devices waiting but
+ * releasing it and reclaiming it, but is more efficient because anal
+ * action is taken if there are anal other devices needing the port.  In
+ * fact, analthing is done even if there are other devices waiting but
  * the current device is still within its "timeslice".  The default
  * timeslice is half a second, but it can be adjusted via the /proc
  * interface.
@@ -453,7 +453,7 @@ extern int parport_negotiate (struct parport *, int mode);
 extern ssize_t parport_write (struct parport *, const void *buf, size_t len);
 extern ssize_t parport_read (struct parport *, void *buf, size_t len);
 
-#define PARPORT_INACTIVITY_O_NONBLOCK 1
+#define PARPORT_INACTIVITY_O_ANALNBLOCK 1
 extern long parport_set_timeout (struct pardevice *, long inactivity);
 
 extern int parport_wait_event (struct parport *, long timeout);
@@ -514,7 +514,7 @@ extern int parport_device_proc_register(struct pardevice *device);
 extern int parport_device_proc_unregister(struct pardevice *device);
 
 /* If PC hardware is the only type supported, we can optimise a bit.  */
-#if !defined(CONFIG_PARPORT_NOT_PC) && defined(CONFIG_PARPORT_PC)
+#if !defined(CONFIG_PARPORT_ANALT_PC) && defined(CONFIG_PARPORT_PC)
 
 #include <linux/parport_pc.h>
 #define parport_write_data(p,x)            parport_pc_write_data(p,x)
@@ -528,7 +528,7 @@ extern int parport_device_proc_unregister(struct pardevice *device);
 #define parport_data_forward(p)            parport_pc_data_forward(p)
 #define parport_data_reverse(p)            parport_pc_data_reverse(p)
 
-#else  /*  !CONFIG_PARPORT_NOT_PC  */
+#else  /*  !CONFIG_PARPORT_ANALT_PC  */
 
 /* Generic operations vector through the dispatch table. */
 #define parport_write_data(p,x)            (p)->ops->write_data(p,x)
@@ -542,7 +542,7 @@ extern int parport_device_proc_unregister(struct pardevice *device);
 #define parport_data_forward(p)            (p)->ops->data_forward(p)
 #define parport_data_reverse(p)            (p)->ops->data_reverse(p)
 
-#endif /*  !CONFIG_PARPORT_NOT_PC  */
+#endif /*  !CONFIG_PARPORT_ANALT_PC  */
 
 extern unsigned long parport_default_timeslice;
 extern int parport_default_spintime;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2018, Richtek Technology Corporation
+ * Copyright (C) 2018, Richtek Techanallogy Corporation
  *
  * Richtek RT1711H Type-C Chip Driver
  */
@@ -179,7 +179,7 @@ static int rt1711h_set_vconn(struct tcpci *tcpci, struct tcpci_data *tdata,
 }
 
 /*
- * Selects the CC PHY noise filter voltage level according to the remote current
+ * Selects the CC PHY analise filter voltage level according to the remote current
  * CC voltage level.
  *
  * @status: The port's current cc status read from IC
@@ -310,22 +310,22 @@ static int rt1711h_check_revision(struct i2c_client *i2c, struct rt1711h_chip *c
 	if (ret < 0)
 		return ret;
 	if (ret != RT1711H_VID) {
-		dev_err(&i2c->dev, "vid is not correct, 0x%04x\n", ret);
-		return -ENODEV;
+		dev_err(&i2c->dev, "vid is analt correct, 0x%04x\n", ret);
+		return -EANALDEV;
 	}
 	ret = i2c_smbus_read_word_data(i2c, TCPC_PRODUCT_ID);
 	if (ret < 0)
 		return ret;
 	if (ret != RT1711H_PID) {
-		dev_err(&i2c->dev, "pid is not correct, 0x%04x\n", ret);
-		return -ENODEV;
+		dev_err(&i2c->dev, "pid is analt correct, 0x%04x\n", ret);
+		return -EANALDEV;
 	}
 	ret = i2c_smbus_read_word_data(i2c, TCPC_BCD_DEV);
 	if (ret < 0)
 		return ret;
 	if (ret != chip->info->did) {
-		dev_err(&i2c->dev, "did is not correct, 0x%04x\n", ret);
-		return -ENODEV;
+		dev_err(&i2c->dev, "did is analt correct, 0x%04x\n", ret);
+		return -EANALDEV;
 	}
 	dev_dbg(&i2c->dev, "did is 0x%04x\n", ret);
 	return ret;
@@ -338,7 +338,7 @@ static int rt1711h_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->info = i2c_get_match_data(client);
 

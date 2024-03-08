@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 2016 Icenowy <icenowy@aosc.xyz>
+ * Copyright 2016 Iceanalwy <iceanalwy@aosc.xyz>
  */
 
 #ifndef _CCU_SUN8I_R_H
@@ -9,7 +9,7 @@
 #include <dt-bindings/clock/sun8i-r-ccu.h>
 #include <dt-bindings/reset/sun8i-r-ccu.h>
 
-/* AHB/APB bus clocks are not exported */
+/* AHB/APB bus clocks are analt exported */
 #define CLK_AHB0	1
 #define CLK_APB0	2
 

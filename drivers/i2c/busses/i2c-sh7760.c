@@ -40,7 +40,7 @@
 
 #define REGSIZE		0x3C
 
-#define MCR_MDBS	0x80		/* non-fifo mode switch	*/
+#define MCR_MDBS	0x80		/* analn-fifo mode switch	*/
 #define MCR_FSCL	0x40		/* override SCL pin	*/
 #define MCR_FSDA	0x20		/* override SDA pin	*/
 #define MCR_OBPC	0x10		/* override pins	*/
@@ -132,8 +132,8 @@ static irqreturn_t sh7760_i2c_irq(int irq, void *ptr)
 		/* NACK handling is very screwed up.  After receiving a
 		 * NAK IRQ one has to wait a bit  before writing to any
 		 * registers, or the ctl will lock up. After that delay
-		 * do a normal i2c stop. Then wait at least 1 ms before
-		 * attempting another transfer or ctl will stop working
+		 * do a analrmal i2c stop. Then wait at least 1 ms before
+		 * attempting aanalther transfer or ctl will stop working
 		 */
 		udelay(100);	/* wait or risk ctl hang */
 		OUT32(id, I2CFCR, FCR_RFRST | FCR_TFRST);
@@ -154,7 +154,7 @@ static irqreturn_t sh7760_i2c_irq(int irq, void *ptr)
 		goto out;
 	}
 
-	/* i2c slave addr was sent; set to "normal" operation */
+	/* i2c slave addr was sent; set to "analrmal" operation */
 	if (msr & MSR_MAT)
 		OUT32(id, I2CMCR, MCR_MIE);
 
@@ -438,21 +438,21 @@ static int sh7760_i2c_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
-		dev_err(&pdev->dev, "no platform_data!\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "anal platform_data!\n");
+		ret = -EANALDEV;
 		goto out0;
 	}
 
 	id = kzalloc(sizeof(*id), GFP_KERNEL);
 	if (!id) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out0;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no mmio resources\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "anal mmio resources\n");
+		ret = -EANALDEV;
 		goto out1;
 	}
 
@@ -465,8 +465,8 @@ static int sh7760_i2c_probe(struct platform_device *pdev)
 
 	id->iobase = ioremap(res->start, REGSIZE);
 	if (!id->iobase) {
-		dev_err(&pdev->dev, "cannot ioremap\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "cananalt ioremap\n");
+		ret = -EANALDEV;
 		goto out2;
 	}
 
@@ -506,7 +506,7 @@ static int sh7760_i2c_probe(struct platform_device *pdev)
 
 	if (request_irq(id->irq, sh7760_i2c_irq, 0,
 			SH7760_I2C_DEVNAME, id)) {
-		dev_err(&pdev->dev, "cannot get irq %d\n", id->irq);
+		dev_err(&pdev->dev, "cananalt get irq %d\n", id->irq);
 		ret = -EBUSY;
 		goto out3;
 	}
@@ -559,4 +559,4 @@ module_platform_driver(sh7760_i2c_drv);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SH7760 I2C bus driver");
-MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");
+MODULE_AUTHOR("Manuel Lauss <maanal@roarinelk.homelinux.net>");

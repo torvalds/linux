@@ -74,8 +74,8 @@ struct __packed vmcs12 {
 	u64 padding64[1]; /* room for future expansion */
 	/*
 	 * To allow migration of L1 (complete with its L2 guests) between
-	 * machines of different natural widths (32 or 64 bit), we cannot have
-	 * unsigned long fields with no explicit size. We use u64 (aliased
+	 * machines of different natural widths (32 or 64 bit), we cananalt have
+	 * unsigned long fields with anal explicit size. We use u64 (aliased
 	 * natural_width) instead. Luckily, x86 is little-endian.
 	 */
 	natural_width cr0_guest_host_mask;
@@ -206,7 +206,7 @@ struct __packed vmcs12 {
 #define VMCS12_SIZE		KVM_STATE_NESTED_VMX_VMCS_SIZE
 
 /*
- * For save/restore compatibility, the vmcs12 field offsets must not change.
+ * For save/restore compatibility, the vmcs12 field offsets must analt change.
  */
 #define CHECK_OFFSET(field, loc) \
 	ASSERT_STRUCT_OFFSET(struct vmcs12, field, loc)
@@ -369,16 +369,16 @@ static inline short get_vmcs12_field_offset(unsigned long field)
 	unsigned int index;
 
 	if (field >> 15)
-		return -ENOENT;
+		return -EANALENT;
 
 	index = ROL16(field, 6);
 	if (index >= nr_vmcs12_fields)
-		return -ENOENT;
+		return -EANALENT;
 
-	index = array_index_nospec(index, nr_vmcs12_fields);
+	index = array_index_analspec(index, nr_vmcs12_fields);
 	offset = vmcs12_field_offsets[index];
 	if (offset == 0)
-		return -ENOENT;
+		return -EANALENT;
 	return offset;
 }
 

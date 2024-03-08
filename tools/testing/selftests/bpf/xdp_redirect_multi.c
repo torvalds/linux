@@ -2,7 +2,7 @@
 #include <linux/bpf.h>
 #include <linux/if_link.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +22,7 @@
 #define MAX_IFACE_NUM 32
 #define MAX_INDEX_NUM 1024
 
-static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_ANALEXIST;
 static int ifaces[MAX_IFACE_NUM] = {};
 
 static void int_exit(int sig)
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 			/* default, set below */
 			break;
 		case 'F':
-			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_ANALEXIST;
 			break;
 		case 'X':
 			attach_egress_prog = true;
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 	if (!(xdp_flags & XDP_FLAGS_SKB_MODE)) {
 		xdp_flags |= XDP_FLAGS_DRV_MODE;
 	} else if (attach_egress_prog) {
-		printf("Load xdp program on egress with SKB mode not supported yet\n");
+		printf("Load xdp program on egress with SKB mode analt supported yet\n");
 		goto err_out;
 	}
 

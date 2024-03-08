@@ -33,7 +33,7 @@ fs_param_type fs_param_is_bool, fs_param_is_u32, fs_param_is_s32, fs_param_is_u6
 /*
  * Specification of the type of value a parameter wants.
  *
- * Note that the fsparam_flag(), fsparam_string(), fsparam_u32(), ... macros
+ * Analte that the fsparam_flag(), fsparam_string(), fsparam_u32(), ... macros
  * should be used to generate elements of this type.
  */
 struct fs_parameter_spec {
@@ -41,7 +41,7 @@ struct fs_parameter_spec {
 	fs_param_type		*type;	/* The desired parameter type */
 	u8			opt;	/* Option number (returned by fs_parse()) */
 	unsigned short		flags;
-#define fs_param_neg_with_no	0x0002	/* "noxxx" is negative param */
+#define fs_param_neg_with_anal	0x0002	/* "analxxx" is negative param */
 #define fs_param_can_be_empty	0x0004	/* "xxx=" is allowed */
 #define fs_param_deprecated	0x0008	/* The param is deprecated */
 	const void		*data;
@@ -51,7 +51,7 @@ struct fs_parameter_spec {
  * Result of parse.
  */
 struct fs_parse_result {
-	bool			negated;	/* T if param was "noxxx" */
+	bool			negated;	/* T if param was "analxxx" */
 	union {
 		bool		boolean;	/* For spec_bool */
 		int		int_32;		/* For spec_s32/spec_enum */
@@ -79,7 +79,7 @@ extern int fs_lookup_param(struct fs_context *fc,
 			   unsigned int flags,
 			   struct path *_path);
 
-extern int lookup_constant(const struct constant_table tbl[], const char *name, int not_found);
+extern int lookup_constant(const struct constant_table tbl[], const char *name, int analt_found);
 
 #ifdef CONFIG_VALIDATE_FS_PARSER
 extern bool validate_constant_table(const struct constant_table *tbl, size_t tbl_size,
@@ -100,7 +100,7 @@ static inline bool fs_validate_description(const char *name,
  *
  *  fsparam_xxxx("foo", Opt_foo)
  *
- * If existing helpers are not enough, direct use of __fsparam() would
+ * If existing helpers are analt eanalugh, direct use of __fsparam() would
  * work, but any such case is probably a sign that new helper is needed.
  * Helpers will remain stable; low-level implementation may change.
  */
@@ -114,8 +114,8 @@ static inline bool fs_validate_description(const char *name,
 	}
 
 #define fsparam_flag(NAME, OPT)	__fsparam(NULL, NAME, OPT, 0, NULL)
-#define fsparam_flag_no(NAME, OPT) \
-			__fsparam(NULL, NAME, OPT, fs_param_neg_with_no, NULL)
+#define fsparam_flag_anal(NAME, OPT) \
+			__fsparam(NULL, NAME, OPT, fs_param_neg_with_anal, NULL)
 #define fsparam_bool(NAME, OPT)	__fsparam(fs_param_is_bool, NAME, OPT, 0, NULL)
 #define fsparam_u32(NAME, OPT)	__fsparam(fs_param_is_u32, NAME, OPT, 0, NULL)
 #define fsparam_u32oct(NAME, OPT) \

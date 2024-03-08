@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -154,19 +154,19 @@ void amdgpu_mca_bank_set_init(struct mca_bank_set *mca_set)
 
 int amdgpu_mca_bank_set_add_entry(struct mca_bank_set *mca_set, struct mca_bank_entry *entry)
 {
-	struct mca_bank_node *node;
+	struct mca_bank_analde *analde;
 
 	if (!entry)
 		return -EINVAL;
 
-	node = kvzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	analde = kvzalloc(sizeof(*analde), GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 
-	memcpy(&node->entry, entry, sizeof(*entry));
+	memcpy(&analde->entry, entry, sizeof(*entry));
 
-	INIT_LIST_HEAD(&node->node);
-	list_add_tail(&node->node, &mca_set->list);
+	INIT_LIST_HEAD(&analde->analde);
+	list_add_tail(&analde->analde, &mca_set->list);
 
 	mca_set->nr_entries++;
 
@@ -175,11 +175,11 @@ int amdgpu_mca_bank_set_add_entry(struct mca_bank_set *mca_set, struct mca_bank_
 
 void amdgpu_mca_bank_set_release(struct mca_bank_set *mca_set)
 {
-	struct mca_bank_node *node, *tmp;
+	struct mca_bank_analde *analde, *tmp;
 
-	list_for_each_entry_safe(node, tmp, &mca_set->list, node) {
-		list_del(&node->node);
-		kvfree(node);
+	list_for_each_entry_safe(analde, tmp, &mca_set->list, analde) {
+		list_del(&analde->analde);
+		kvfree(analde);
 	}
 }
 
@@ -197,7 +197,7 @@ int amdgpu_mca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable)
 	if (mca_funcs && mca_funcs->mca_set_debug_mode)
 		return mca_funcs->mca_set_debug_mode(adev, enable);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void amdgpu_mca_smu_mca_bank_dump(struct amdgpu_device *adev, int idx, struct mca_bank_entry *entry)
@@ -220,7 +220,7 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 	struct amdgpu_smuio_mcm_config_info mcm_info;
 	struct ras_err_addr err_addr = {0};
 	struct mca_bank_set mca_set;
-	struct mca_bank_node *node;
+	struct mca_bank_analde *analde;
 	struct mca_bank_entry *entry;
 	uint32_t count;
 	int ret, i = 0;
@@ -231,8 +231,8 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 	if (ret)
 		goto out_mca_release;
 
-	list_for_each_entry(node, &mca_set.list, node) {
-		entry = &node->entry;
+	list_for_each_entry(analde, &mca_set.list, analde) {
+		entry = &analde->entry;
 
 		amdgpu_mca_smu_mca_bank_dump(adev, i++, entry);
 
@@ -278,7 +278,7 @@ int amdgpu_mca_smu_get_valid_mca_count(struct amdgpu_device *adev, enum amdgpu_m
 	if (mca_funcs && mca_funcs->mca_get_valid_mca_count)
 		return mca_funcs->mca_get_valid_mca_count(adev, type, count);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int amdgpu_mca_smu_get_mca_set_error_count(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
@@ -286,7 +286,7 @@ int amdgpu_mca_smu_get_mca_set_error_count(struct amdgpu_device *adev, enum amdg
 {
 	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
 	struct mca_bank_set mca_set;
-	struct mca_bank_node *node;
+	struct mca_bank_analde *analde;
 	struct mca_bank_entry *entry;
 	uint32_t count;
 	int ret;
@@ -295,10 +295,10 @@ int amdgpu_mca_smu_get_mca_set_error_count(struct amdgpu_device *adev, enum amdg
 		return -EINVAL;
 
 	if (!mca_funcs)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!mca_funcs->mca_get_ras_mca_set || !mca_funcs->mca_get_valid_mca_count)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	amdgpu_mca_bank_set_init(&mca_set);
 
@@ -307,8 +307,8 @@ int amdgpu_mca_smu_get_mca_set_error_count(struct amdgpu_device *adev, enum amdg
 		goto err_mca_set_release;
 
 	*total = 0;
-	list_for_each_entry(node, &mca_set.list, node) {
-		entry = &node->entry;
+	list_for_each_entry(analde, &mca_set.list, analde) {
+		entry = &analde->entry;
 
 		count = 0;
 		ret = mca_funcs->mca_parse_mca_error_count(adev, blk, type, entry, &count);
@@ -332,7 +332,7 @@ int amdgpu_mca_smu_parse_mca_error_count(struct amdgpu_device *adev, enum amdgpu
 		return -EINVAL;
 
 	if (!mca_funcs || !mca_funcs->mca_parse_mca_error_count)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 
 	return mca_funcs->mca_parse_mca_error_count(adev, blk, type, entry, count);
@@ -347,7 +347,7 @@ int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_ras_block
 		return -EINVAL;
 
 	if (!mca_funcs || !mca_funcs->mca_get_ras_mca_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	WARN_ON(!list_empty(&mca_set->list));
 
@@ -361,7 +361,7 @@ int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_err
 	int count;
 
 	if (!mca_funcs || !mca_funcs->mca_get_mca_entry)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case AMDGPU_MCA_ERROR_TYPE_UE:
@@ -434,7 +434,7 @@ static int mca_dump_show(struct seq_file *m, enum amdgpu_mca_error_type type)
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		memset(entry, 0, sizeof(*entry));
@@ -457,9 +457,9 @@ static int mca_dump_ce_show(struct seq_file *m, void *unused)
 	return mca_dump_show(m, AMDGPU_MCA_ERROR_TYPE_CE);
 }
 
-static int mca_dump_ce_open(struct inode *inode, struct file *file)
+static int mca_dump_ce_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, mca_dump_ce_show, inode->i_private);
+	return single_open(file, mca_dump_ce_show, ianalde->i_private);
 }
 
 static const struct file_operations mca_ce_dump_debug_fops = {
@@ -475,9 +475,9 @@ static int mca_dump_ue_show(struct seq_file *m, void *unused)
 	return mca_dump_show(m, AMDGPU_MCA_ERROR_TYPE_UE);
 }
 
-static int mca_dump_ue_open(struct inode *inode, struct file *file)
+static int mca_dump_ue_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, mca_dump_ue_show, inode->i_private);
+	return single_open(file, mca_dump_ue_show, ianalde->i_private);
 }
 
 static const struct file_operations mca_ue_dump_debug_fops = {

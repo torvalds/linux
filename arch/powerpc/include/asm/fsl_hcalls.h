@@ -11,11 +11,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -26,11 +26,11 @@
  * later version.
  *
  * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DISCLAIMED. IN ANAL EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
@@ -41,7 +41,7 @@
 #define _FSL_HCALLS_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/byteorder.h>
 #include <asm/epapr_hcalls.h>
 
@@ -77,9 +77,9 @@
  * All registers are either input/output or output only.  Registers that are
  * initialized before making the hypercall are input/output.  All
  * input/output registers are represented with "+r".  Output-only registers
- * are represented with "=r".  Do not specify any unused registers.  The
+ * are represented with "=r".  Do analt specify any unused registers.  The
  * clobber list will tell the compiler that the hypercall modifies those
- * registers, which is good enough.
+ * registers, which is good eanalugh.
  */
 
 /**
@@ -116,7 +116,7 @@ static inline unsigned int fh_send_nmi(unsigned int vcpu_mask)
  * @propvalue_addr: physical address of property value buffer
  * @propvalue_len: length of buffer on entry, length of property on return
  *
- * Returns zero on success, non-zero on error.
+ * Returns zero on success, analn-zero on error.
  */
 static inline unsigned int fh_partition_get_dtprop(int handle,
 						   uint64_t dtpath_addr,
@@ -170,7 +170,7 @@ static inline unsigned int fh_partition_get_dtprop(int handle,
  * @propvalue_addr: physical address of property value
  * @propvalue_len: length of property
  *
- * Returns zero on success, non-zero on error.
+ * Returns zero on success, analn-zero on error.
  */
 static inline unsigned int fh_partition_set_dtprop(int handle,
 						   uint64_t dtpath_addr,
@@ -219,7 +219,7 @@ static inline unsigned int fh_partition_set_dtprop(int handle,
  * fh_partition_restart - reboot the current partition
  * @partition: partition ID
  *
- * Returns an error code if reboot failed.  Does not return if it succeeds.
+ * Returns an error code if reboot failed.  Does analt return if it succeeds.
  */
 static inline unsigned int fh_partition_restart(unsigned int partition)
 {
@@ -304,7 +304,7 @@ static inline unsigned int fh_partition_start(unsigned int partition,
 }
 
 /**
- * fh_partition_stop - stops another partition
+ * fh_partition_stop - stops aanalther partition
  * @partition: partition ID
  *
  * Returns 0 for success, or an error code.
@@ -335,7 +335,7 @@ static inline unsigned int fh_partition_stop(unsigned int partition)
  * The scatter/gather list for fh_partition_memcpy() is an array of these
  * structures.  The array must be guest physically contiguous.
  *
- * This structure must be aligned on 32-byte boundary, so that no single
+ * This structure must be aligned on 32-byte boundary, so that anal single
  * strucuture can span two pages.
  */
 struct fh_sg_list {
@@ -346,7 +346,7 @@ struct fh_sg_list {
 } __attribute__ ((aligned(32)));
 
 /**
- * fh_partition_memcpy - copies data from one guest to another
+ * fh_partition_memcpy - copies data from one guest to aanalther
  * @source: the ID of the partition to copy from
  * @target: the ID of the partition to copy to
  * @sg_list: guest physical address of an array of &fh_sg_list structures
@@ -554,8 +554,8 @@ static inline unsigned int fh_get_core_state(unsigned int handle,
 /**
  * fh_enter_nap - enter nap on a vcpu
  *
- * Note that though the API supports entering nap on a vcpu other
- * than the caller, this may not be implmented and may return EINVAL.
+ * Analte that though the API supports entering nap on a vcpu other
+ * than the caller, this may analt be implmented and may return EINVAL.
  *
  * @handle: handle of partition containing the vcpu
  * @vcpu: vcpu number within the partition
@@ -606,7 +606,7 @@ static inline unsigned int fh_exit_nap(unsigned int handle, unsigned int vcpu)
 }
 /**
  * fh_claim_device - claim a "claimable" shared device
- * @handle: fsl,hv-device-handle of node to claim
+ * @handle: fsl,hv-device-handle of analde to claim
  *
  * Returns 0 for success, or an error code.
  */
@@ -631,7 +631,7 @@ static inline unsigned int fh_claim_device(unsigned int handle)
  *
  * This applies to devices which a partition owns either privately,
  * or which are claimable and still actively owned by that partition,
- * and which do not have the no-dma-disable property.
+ * and which do analt have the anal-dma-disable property.
  *
  * @handle: partition (must be stopped) whose DMA is to be disabled
  *

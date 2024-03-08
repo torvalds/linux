@@ -70,17 +70,17 @@ static int sdm845_slim_snd_hw_params(struct snd_pcm_substream *substream,
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		sruntime = snd_soc_dai_get_stream(codec_dai,
 						  substream->stream);
-		if (sruntime != ERR_PTR(-ENOTSUPP))
+		if (sruntime != ERR_PTR(-EANALTSUPP))
 			pdata->sruntime[cpu_dai->id] = sruntime;
 
 		ret = snd_soc_dai_get_channel_map(codec_dai,
 				&tx_ch_cnt, tx_ch, &rx_ch_cnt, rx_ch);
 
-		if (ret != 0 && ret != -ENOTSUPP) {
+		if (ret != 0 && ret != -EANALTSUPP) {
 			pr_err("failed to get codec chan map, err:%d\n", ret);
 			return ret;
-		} else if (ret == -ENOTSUPP) {
-			/* Ignore unsupported */
+		} else if (ret == -EANALTSUPP) {
+			/* Iganalre unsupported */
 			continue;
 		}
 
@@ -285,14 +285,14 @@ static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 		jack->private_free = sdm845_jack_free;
 		rval = snd_soc_component_set_jack(component,
 						  &pdata->jack, NULL);
-		if (rval != 0 && rval != -ENOTSUPP) {
+		if (rval != 0 && rval != -EANALTSUPP) {
 			dev_warn(card->dev, "Failed to set jack: %d\n", rval);
 			return rval;
 		}
 		break;
 	case SLIMBUS_0_RX...SLIMBUS_6_TX:
 		/* setting up wcd multiple times for slim port is redundant */
-		if (pdata->slim_port_setup || !link->no_pcm)
+		if (pdata->slim_port_setup || !link->anal_pcm)
 			return 0;
 
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
@@ -301,7 +301,7 @@ static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 							  tx_ch,
 							  ARRAY_SIZE(rx_ch),
 							  rx_ch);
-			if (rval != 0 && rval != -ENOTSUPP)
+			if (rval != 0 && rval != -EANALTSUPP)
 				return rval;
 
 			snd_soc_dai_set_sysclk(codec_dai, 0,
@@ -310,7 +310,7 @@ static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 
 			rval = snd_soc_component_set_jack(codec_dai->component,
 							  &pdata->jack, NULL);
-			if (rval != 0 && rval != -ENOTSUPP) {
+			if (rval != 0 && rval != -EANALTSUPP) {
 				dev_warn(card->dev, "Failed to set jack: %d\n", rval);
 				return rval;
 			}
@@ -487,10 +487,10 @@ static int sdm845_snd_prepare(struct snd_pcm_substream *substream)
 		return ret;
 
 	/**
-	 * NOTE: there is a strict hw requirement about the ordering of port
+	 * ANALTE: there is a strict hw requirement about the ordering of port
 	 * enables and actual WSA881x PA enable. PA enable should only happen
-	 * after soundwire ports are enabled if not DC on the line is
-	 * accumulated resulting in Click/Pop Noise
+	 * after soundwire ports are enabled if analt DC on the line is
+	 * accumulated resulting in Click/Pop Analise
 	 * PA enable/mute are handled as part of codec DAPM and digital mute.
 	 */
 
@@ -563,7 +563,7 @@ static void sdm845_add_ops(struct snd_soc_card *card)
 	int i;
 
 	for_each_card_prelinks(card, i, link) {
-		if (link->no_pcm == 1) {
+		if (link->anal_pcm == 1) {
 			link->ops = &sdm845_be_ops;
 			link->be_hw_params_fixup = sdm845_be_hw_params_fixup;
 		}
@@ -580,12 +580,12 @@ static int sdm845_snd_platform_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate the private data */
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->driver_name = DRIVER_NAME;
 	card->dapm_widgets = sdm845_snd_widgets;
@@ -608,9 +608,9 @@ static int sdm845_snd_platform_probe(struct platform_device *pdev)
 
 static const struct of_device_id sdm845_snd_device_id[]  = {
 	{ .compatible = "qcom,sdm845-sndcard" },
-	/* Do not grow the list for compatible devices */
+	/* Do analt grow the list for compatible devices */
 	{ .compatible = "qcom,db845c-sndcard" },
-	{ .compatible = "lenovo,yoga-c630-sndcard" },
+	{ .compatible = "leanalvo,yoga-c630-sndcard" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sdm845_snd_device_id);

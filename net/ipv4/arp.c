@@ -25,14 +25,14 @@
  *					with BSD based programs.
  *		Andrew Tridgell :       Added ARP netmask code and
  *					re-arranged proxy handling.
- *		Alan Cox	:	Changed to use notifiers.
+ *		Alan Cox	:	Changed to use analtifiers.
  *		Niibe Yutaka	:	Reply for this device or proxies only.
  *		Alan Cox	:	Don't proxy across hardware types!
  *		Jonathan Naylor :	Added support for NET/ROM.
  *		Mike Shaver     :       RFC1122 checks.
  *		Jonathan Naylor :	Only lookup the hardware address for
  *					the correct hardware type.
- *		Germano Caronni	:	Assorted subtle races.
+ *		Germaanal Caronni	:	Assorted subtle races.
  *		Craig Schlenter :	Don't modify permanent entry
  *					during arp_rcv.
  *		Russ Nelson	:	Tidied up a few bits.
@@ -44,7 +44,7 @@
  *		Eckes		:	ARP ioctl control errors.
  *		Alexey Kuznetsov:	Arp free fix.
  *		Manuel Rodriguez:	Gratuitous ARP.
- *              Jonathan Layes  :       Added arpd support through kerneld
+ *              Jonathan Laanal  :       Added arpd support through kerneld
  *                                      message queue (960314)
  *		Mike Shaver	:	/proc/sys/net/ipv4/arp_* support
  *		Mike McLagan    :	Routing by source
@@ -58,7 +58,7 @@
  *		Jes Sorensen	:	Make FDDI work again in 2.1.x and
  *					clean up the APFDDI & gen. FDDI bits.
  *		Alexey Kuznetsov:	new arp state machine;
- *					now it is in net/core/neighbour.c.
+ *					analw it is in net/core/neighbour.c.
  *		Krzysztof Halasa:	Added Frame Relay ARP support.
  *		Arnaldo C. Melo :	convert /proc/net/arp to seq_file
  *		Shmulik Hen:		Split arp_send to arp_create and
@@ -78,7 +78,7 @@
 #include <linux/capability.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/inet.h>
@@ -247,7 +247,7 @@ static int arp_constructor(struct neighbour *neigh)
 	rcu_read_unlock();
 
 	if (!dev->header_ops) {
-		neigh->nud_state = NUD_NOARP;
+		neigh->nud_state = NUD_ANALARP;
 		neigh->ops = &arp_direct_ops;
 		neigh->output = neigh_direct_output;
 	} else {
@@ -262,19 +262,19 @@ static int arp_constructor(struct neighbour *neigh)
 		   etc. etc. etc.
 
 		   ARPHRD_IPDDP will also work, if author repairs it.
-		   I did not it, because this driver does not work even
+		   I did analt it, because this driver does analt work even
 		   in old paradigm.
 		 */
 
 		if (neigh->type == RTN_MULTICAST) {
-			neigh->nud_state = NUD_NOARP;
+			neigh->nud_state = NUD_ANALARP;
 			arp_mc_map(addr, neigh->ha, dev, 1);
-		} else if (dev->flags & (IFF_NOARP | IFF_LOOPBACK)) {
-			neigh->nud_state = NUD_NOARP;
+		} else if (dev->flags & (IFF_ANALARP | IFF_LOOPBACK)) {
+			neigh->nud_state = NUD_ANALARP;
 			memcpy(neigh->ha, dev->dev_addr, dev->addr_len);
 		} else if (neigh->type == RTN_BROADCAST ||
 			   (dev->flags & IFF_POINTOPOINT)) {
-			neigh->nud_state = NUD_NOARP;
+			neigh->nud_state = NUD_ANALARP;
 			memcpy(neigh->ha, dev->broadcast, dev->addr_len);
 		}
 
@@ -308,7 +308,7 @@ static void arp_send_dst(int type, int ptype, __be32 dest_ip,
 	struct sk_buff *skb;
 
 	/* arp on this interface. */
-	if (dev->flags & IFF_NOARP)
+	if (dev->flags & IFF_ANALARP)
 		return;
 
 	skb = arp_create(type, ptype, dest_ip, dev, src_ip,
@@ -346,20 +346,20 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 		rcu_read_unlock();
 		return;
 	}
-	switch (IN_DEV_ARP_ANNOUNCE(in_dev)) {
+	switch (IN_DEV_ARP_ANANALUNCE(in_dev)) {
 	default:
-	case 0:		/* By default announce any local IP */
+	case 0:		/* By default ananalunce any local IP */
 		if (skb && inet_addr_type_dev_table(dev_net(dev), dev,
 					  ip_hdr(skb)->saddr) == RTN_LOCAL)
 			saddr = ip_hdr(skb)->saddr;
 		break;
-	case 1:		/* Restrict announcements of saddr in same subnet */
+	case 1:		/* Restrict ananaluncements of saddr in same subnet */
 		if (!skb)
 			break;
 		saddr = ip_hdr(skb)->saddr;
 		if (inet_addr_type_dev_table(dev_net(dev), dev,
 					     saddr) == RTN_LOCAL) {
-			/* saddr should be known to target */
+			/* saddr should be kanalwn to target */
 			if (inet_addr_onlink(in_dev, target, saddr))
 				break;
 		}
@@ -393,12 +393,12 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 		     dst_hw, dev->dev_addr, NULL, dst);
 }
 
-static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
+static int arp_iganalre(struct in_device *in_dev, __be32 sip, __be32 tip)
 {
 	struct net *net = dev_net(in_dev->dev);
 	int scope;
 
-	switch (IN_DEV_ARP_IGNORE(in_dev)) {
+	switch (IN_DEV_ARP_IGANALRE(in_dev)) {
 	case 0:	/* Reply, the tip is already validated */
 		return 0;
 	case 1:	/* Reply only if tip is configured on the incoming interface */
@@ -411,7 +411,7 @@ static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
 		 */
 		scope = RT_SCOPE_HOST;
 		break;
-	case 3:	/* Do not reply for scope host addresses */
+	case 3:	/* Do analt reply for scope host addresses */
 		sip = 0;
 		scope = RT_SCOPE_LINK;
 		in_dev = NULL;
@@ -421,7 +421,7 @@ static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
 	case 6:
 	case 7:
 		return 0;
-	case 8:	/* Do not reply */
+	case 8:	/* Do analt reply */
 		return 1;
 	default:
 		return 0;
@@ -453,7 +453,7 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 {
 	struct rtable *rt;
 	int flag = 0;
-	/*unsigned long now; */
+	/*unsigned long analw; */
 	struct net *net = dev_net(dev);
 
 	rt = ip_route_output(net, sip, tip, 0, l3mdev_master_ifindex_rcu(dev));
@@ -501,14 +501,14 @@ static inline int arp_fwd_proxy(struct in_device *in_dev,
  *
  * RFC3069 supports proxy arp replies back to the same interface.  This
  * is done to support (ethernet) switch features, like RFC 3069, where
- * the individual ports are not allowed to communicate with each
+ * the individual ports are analt allowed to communicate with each
  * other, BUT they are allowed to talk to the upstream router.  As
  * described in RFC 3069, it is possible to allow these hosts to
  * communicate through the upstream router, by proxy_arp'ing.
  *
  * RFC 3069: "VLAN Aggregation for Efficient IP Address Allocation"
  *
- *  This technology is known by different names:
+ *  This techanallogy is kanalwn by different names:
  *    In RFC 3069 it is called VLAN Aggregation.
  *    Cisco and Allied Telesyn call it Private VLAN.
  *    Hewlett-Packard call it Source-Port filtering or port-isolation.
@@ -538,7 +538,7 @@ static inline int arp_fwd_pvlan(struct in_device *in_dev,
  */
 
 /*
- *	Create an arp packet. If dest_hw is not set, we create a broadcast
+ *	Create an arp packet. If dest_hw is analt set, we create a broadcast
  *	message.
  */
 struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
@@ -584,7 +584,7 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 	 * which (according to RFC 1390) should always equal 1 (Ethernet).
 	 */
 	/*
-	 *	Exceptions everywhere. AX.25 uses the AX.25 PID value not the
+	 *	Exceptions everywhere. AX.25 uses the AX.25 PID value analt the
 	 *	DIX code for the protocol. Make these device structure fields.
 	 */
 	switch (dev->type) {
@@ -790,7 +790,7 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
  /*
   *	For some 802.11 wireless deployments (and possibly other networks),
   *	there will be an ARP proxy and gratuitous ARP frames are attacks
-  *	and thus should not be accepted.
+  *	and thus should analt be accepted.
   */
 	if (sip == tip && IN_DEV_ORCONF(in_dev, DROP_GRATUITOUS_ARP))
 		goto out_free_skb;
@@ -808,10 +808,10 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
  *  to us or if it is a request for our address.
  *  (The assumption for this last is that if someone is requesting our
  *  address, they are probably intending to talk to us, so it saves time
- *  if we cache their address.  Their address is also probably not in
- *  our cache, since ours is not in their cache.)
+ *  if we cache their address.  Their address is also probably analt in
+ *  our cache, since ours is analt in their cache.)
  *
- *  Putting this another way, we only care about replies if they are to
+ *  Putting this aanalther way, we only care about replies if they are to
  *  us, in which case we add them to the cache.  For requests, we care
  *  about those for us and those for our proxies.  We reply to both,
  *  and in the case of requests for us we add the requester to the arp
@@ -827,14 +827,14 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 	if (sip == 0) {
 		if (arp->ar_op == htons(ARPOP_REQUEST) &&
 		    inet_addr_type_dev_table(net, dev, tip) == RTN_LOCAL &&
-		    !arp_ignore(in_dev, sip, tip))
+		    !arp_iganalre(in_dev, sip, tip))
 			arp_send_dst(ARPOP_REPLY, ETH_P_ARP, sip, dev, tip,
 				     sha, dev->dev_addr, sha, reply_dst);
 		goto out_consume_skb;
 	}
 
 	if (arp->ar_op == htons(ARPOP_REQUEST) &&
-	    ip_route_input_noref(skb, tip, sip, 0, dev) == 0) {
+	    ip_route_input_analref(skb, tip, sip, 0, dev) == 0) {
 
 		rt = skb_rtable(skb);
 		addr_type = rt->rt_type;
@@ -842,7 +842,7 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 		if (addr_type == RTN_LOCAL) {
 			int dont_send;
 
-			dont_send = arp_ignore(in_dev, sip, tip);
+			dont_send = arp_iganalre(in_dev, sip, tip);
 			if (!dont_send && IN_DEV_ARPFILTER(in_dev))
 				dont_send = arp_filter(sip, tip, dev);
 			if (!dont_send) {
@@ -894,7 +894,7 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 	}
 
 	if (arp_accept(in_dev, sip)) {
-		/* Unsolicited ARP is not accepted by default.
+		/* Unsolicited ARP is analt accepted by default.
 		   It is possible, that this option should be enabled for some
 		   devices (strip is candidate)
 		 */
@@ -924,7 +924,7 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 			   is_garp;
 
 		/* Broadcast replies and request packets
-		   do not assert neighbour reachability.
+		   do analt assert neighbour reachability.
 		 */
 		if (arp->ar_op != htons(ARPOP_REPLY) ||
 		    skb->pkt_type != PACKET_HOST)
@@ -965,8 +965,8 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	const struct arphdr *arp;
 
-	/* do not tweak dropwatch on an ARP we will ignore */
-	if (dev->flags & IFF_NOARP ||
+	/* do analt tweak dropwatch on an ARP we will iganalre */
+	if (dev->flags & IFF_ANALARP ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    skb->pkt_type == PACKET_LOOPBACK)
 		goto consumeskb;
@@ -1031,11 +1031,11 @@ static int arp_req_set_public(struct net *net, struct arpreq *r,
 		dev = dev_getbyhwaddr_rcu(net, r->arp_ha.sa_family,
 				      r->arp_ha.sa_data);
 		if (!dev)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 	if (mask) {
 		if (!pneigh_lookup(&arp_tbl, net, &ip, dev, 1))
-			return -ENOBUFS;
+			return -EANALBUFS;
 		return 0;
 	}
 
@@ -1086,7 +1086,7 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 		break;
 	}
 
-	neigh = __neigh_lookup_errno(&arp_tbl, &ip, dev);
+	neigh = __neigh_lookup_erranal(&arp_tbl, &ip, dev);
 	err = PTR_ERR(neigh);
 	if (!IS_ERR(neigh)) {
 		unsigned int state = NUD_STALE;
@@ -1123,7 +1123,7 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 
 	neigh = neigh_lookup(&arp_tbl, &ip, dev);
 	if (neigh) {
-		if (!(READ_ONCE(neigh->nud_state) & NUD_NOARP)) {
+		if (!(READ_ONCE(neigh->nud_state) & NUD_ANALARP)) {
 			read_lock_bh(&neigh->lock);
 			memcpy(r->arp_ha.sa_data, neigh->ha,
 			       min(dev->addr_len, sizeof(r->arp_ha.sa_data_min)));
@@ -1150,7 +1150,7 @@ int arp_invalidate(struct net_device *dev, __be32 ip, bool force)
 			return 0;
 		}
 
-		if (READ_ONCE(neigh->nud_state) & ~NUD_NOARP)
+		if (READ_ONCE(neigh->nud_state) & ~NUD_ANALARP)
 			err = neigh_update(neigh, NULL, NUD_FAILED,
 					   NEIGH_UPDATE_F_OVERRIDE|
 					   NEIGH_UPDATE_F_ADMIN, 0);
@@ -1225,7 +1225,7 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	}
 
 	if (r.arp_pa.sa_family != AF_INET)
-		return -EPFNOSUPPORT;
+		return -EPFANALSUPPORT;
 
 	if (!(r.arp_flags & ATF_PUBL) &&
 	    (r.arp_flags & (ATF_NETMASK | ATF_DONTPUB)))
@@ -1235,7 +1235,7 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 							   htonl(0xFFFFFFFFUL);
 	rtnl_lock();
 	if (r.arp_dev[0]) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev = __dev_get_by_name(net, r.arp_dev);
 		if (!dev)
 			goto out;
@@ -1247,7 +1247,7 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		if ((r.arp_flags & ATF_COM) && r.arp_ha.sa_family != dev->type)
 			goto out;
 	} else if (cmd == SIOCGARP) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -1269,13 +1269,13 @@ out:
 	return err;
 }
 
-static int arp_netdev_event(struct notifier_block *this, unsigned long event,
+static int arp_netdev_event(struct analtifier_block *this, unsigned long event,
 			    void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_change_info *change_info;
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
+	struct netdev_analtifier_change_info *change_info;
 	struct in_device *in_dev;
-	bool evict_nocarrier;
+	bool evict_analcarrier;
 
 	switch (event) {
 	case NETDEV_CHANGEADDR:
@@ -1284,30 +1284,30 @@ static int arp_netdev_event(struct notifier_block *this, unsigned long event,
 		break;
 	case NETDEV_CHANGE:
 		change_info = ptr;
-		if (change_info->flags_changed & IFF_NOARP)
+		if (change_info->flags_changed & IFF_ANALARP)
 			neigh_changeaddr(&arp_tbl, dev);
 
 		in_dev = __in_dev_get_rtnl(dev);
 		if (!in_dev)
-			evict_nocarrier = true;
+			evict_analcarrier = true;
 		else
-			evict_nocarrier = IN_DEV_ARP_EVICT_NOCARRIER(in_dev);
+			evict_analcarrier = IN_DEV_ARP_EVICT_ANALCARRIER(in_dev);
 
-		if (evict_nocarrier && !netif_carrier_ok(dev))
+		if (evict_analcarrier && !netif_carrier_ok(dev))
 			neigh_carrier_down(&arp_tbl, dev);
 		break;
 	default:
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block arp_netdev_notifier = {
-	.notifier_call = arp_netdev_event,
+static struct analtifier_block arp_netdev_analtifier = {
+	.analtifier_call = arp_netdev_event,
 };
 
-/* Note, that it is not on notifier chain.
+/* Analte, that it is analt on analtifier chain.
    It is necessary, that this routine was called after route cache will be
    flushed.
  */
@@ -1429,9 +1429,9 @@ static int arp_seq_show(struct seq_file *seq, void *v)
 static void *arp_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	/* Don't want to confuse "arp -a" w/ magic entries,
-	 * so we tell the generic iterator to skip NUD_NOARP.
+	 * so we tell the generic iterator to skip NUD_ANALARP.
 	 */
-	return neigh_seq_start(seq, pos, &arp_tbl, NEIGH_SEQ_SKIP_NOARP);
+	return neigh_seq_start(seq, pos, &arp_tbl, NEIGH_SEQ_SKIP_ANALARP);
 }
 
 static const struct seq_operations arp_seq_ops = {
@@ -1446,7 +1446,7 @@ static int __net_init arp_net_init(struct net *net)
 {
 	if (!proc_create_net("arp", 0444, net->proc_net, &arp_seq_ops,
 			sizeof(struct neigh_seq_state)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1469,5 +1469,5 @@ void __init arp_init(void)
 #ifdef CONFIG_SYSCTL
 	neigh_sysctl_register(NULL, &arp_tbl.parms, NULL);
 #endif
-	register_netdevice_notifier(&arp_netdev_notifier);
+	register_netdevice_analtifier(&arp_netdev_analtifier);
 }

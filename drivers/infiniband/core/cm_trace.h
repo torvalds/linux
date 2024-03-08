@@ -84,9 +84,9 @@ IB_CM_LAP_STATE_LIST
  * enum ib_cm_rej_reason, from include/rdma/ib_cm.h
  */
 #define IB_CM_REJ_REASON_LIST					\
-	ib_cm_rej_reason(REJ_NO_QP)				\
-	ib_cm_rej_reason(REJ_NO_EEC)				\
-	ib_cm_rej_reason(REJ_NO_RESOURCES)			\
+	ib_cm_rej_reason(REJ_ANAL_QP)				\
+	ib_cm_rej_reason(REJ_ANAL_EEC)				\
+	ib_cm_rej_reason(REJ_ANAL_RESOURCES)			\
 	ib_cm_rej_reason(REJ_TIMEOUT)				\
 	ib_cm_rej_reason(REJ_UNSUPPORTED)			\
 	ib_cm_rej_reason(REJ_INVALID_COMM_ID)			\
@@ -94,7 +94,7 @@ IB_CM_LAP_STATE_LIST
 	ib_cm_rej_reason(REJ_INVALID_SERVICE_ID)		\
 	ib_cm_rej_reason(REJ_INVALID_TRANSPORT_TYPE)		\
 	ib_cm_rej_reason(REJ_STALE_CONN)			\
-	ib_cm_rej_reason(REJ_RDC_NOT_EXIST)			\
+	ib_cm_rej_reason(REJ_RDC_ANALT_EXIST)			\
 	ib_cm_rej_reason(REJ_INVALID_GID)			\
 	ib_cm_rej_reason(REJ_INVALID_LID)			\
 	ib_cm_rej_reason(REJ_INVALID_SL)			\
@@ -117,7 +117,7 @@ IB_CM_LAP_STATE_LIST
 	ib_cm_rej_reason(REJ_INVALID_CLASS_VERSION)		\
 	ib_cm_rej_reason(REJ_INVALID_FLOW_LABEL)		\
 	ib_cm_rej_reason(REJ_INVALID_ALT_FLOW_LABEL)		\
-	ib_cm_rej_reason_end(REJ_VENDOR_OPTION_NOT_SUPPORTED)
+	ib_cm_rej_reason_end(REJ_VENDOR_OPTION_ANALT_SUPPORTED)
 
 #undef  ib_cm_rej_reason
 #undef  ib_cm_rej_reason_end
@@ -224,13 +224,13 @@ TRACE_EVENT(icm_send_rej,
 
 DEFINE_CM_ERR_EVENT(send_cm_rtu);
 DEFINE_CM_ERR_EVENT(establish);
-DEFINE_CM_ERR_EVENT(no_listener);
+DEFINE_CM_ERR_EVENT(anal_listener);
 DEFINE_CM_ERR_EVENT(send_drep);
-DEFINE_CM_ERR_EVENT(dreq_unknown);
-DEFINE_CM_ERR_EVENT(send_unknown_rej);
-DEFINE_CM_ERR_EVENT(rej_unknown);
-DEFINE_CM_ERR_EVENT(send_mra_unknown);
-DEFINE_CM_ERR_EVENT(mra_unknown);
+DEFINE_CM_ERR_EVENT(dreq_unkanalwn);
+DEFINE_CM_ERR_EVENT(send_unkanalwn_rej);
+DEFINE_CM_ERR_EVENT(rej_unkanalwn);
+DEFINE_CM_ERR_EVENT(send_mra_unkanalwn);
+DEFINE_CM_ERR_EVENT(mra_unkanalwn);
 DEFINE_CM_ERR_EVENT(qp_init);
 DEFINE_CM_ERR_EVENT(qp_rtr);
 DEFINE_CM_ERR_EVENT(qp_rts);
@@ -278,7 +278,7 @@ DECLARE_EVENT_CLASS(icm_local_class,
 DEFINE_CM_LOCAL_EVENT(issue_rej);
 DEFINE_CM_LOCAL_EVENT(issue_drep);
 DEFINE_CM_LOCAL_EVENT(staleconn_err);
-DEFINE_CM_LOCAL_EVENT(no_priv_err);
+DEFINE_CM_LOCAL_EVENT(anal_priv_err);
 
 DECLARE_EVENT_CLASS(icm_remote_class,
 	TP_PROTO(
@@ -308,7 +308,7 @@ DECLARE_EVENT_CLASS(icm_remote_class,
 				),					\
 				TP_ARGS(remote_id))
 
-DEFINE_CM_REMOTE_EVENT(remote_no_priv_err);
+DEFINE_CM_REMOTE_EVENT(remote_anal_priv_err);
 DEFINE_CM_REMOTE_EVENT(insert_failed_err);
 
 TRACE_EVENT(icm_send_rep_err,
@@ -334,7 +334,7 @@ TRACE_EVENT(icm_send_rep_err,
 	)
 );
 
-TRACE_EVENT(icm_rep_unknown_err,
+TRACE_EVENT(icm_rep_unkanalwn_err,
 	TP_PROTO(
 		unsigned int local_id,
 		unsigned int remote_id,

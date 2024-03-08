@@ -28,7 +28,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-/* For now this implementation is limited to 16-byte blocks for simplicity */
+/* For analw this implementation is limited to 16-byte blocks for simplicity */
 #define XCTR_BLOCKSIZE 16
 
 static void crypto_xctr_crypt_final(struct skcipher_walk *walk,

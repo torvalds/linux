@@ -142,7 +142,7 @@ static int clk_generated_determine_rate(struct clk_hw *hw,
 	int i;
 	u32 div;
 
-	/* do not look for a rate that is outside of our range */
+	/* do analt look for a rate that is outside of our range */
 	if (gck->range.max && req->rate > gck->range.max)
 		req->rate = gck->range.max;
 	if (gck->range.min && req->rate < gck->range.min)
@@ -216,7 +216,7 @@ end:
 	return 0;
 }
 
-/* No modification of hardware as we have the flag CLK_SET_PARENT_GATE set */
+/* Anal modification of hardware as we have the flag CLK_SET_PARENT_GATE set */
 static int clk_generated_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_generated *gck = to_clk_generated(hw);
@@ -239,7 +239,7 @@ static u8 clk_generated_get_parent(struct clk_hw *hw)
 	return gck->parent_id;
 }
 
-/* No modification of hardware as we have the flag CLK_SET_RATE_GATE set */
+/* Anal modification of hardware as we have the flag CLK_SET_RATE_GATE set */
 static int clk_generated_set_rate(struct clk_hw *hw,
 				  unsigned long rate,
 				  unsigned long parent_rate)
@@ -330,11 +330,11 @@ at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 	int ret;
 
 	if (!(parent_names || parent_hws))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gck = kzalloc(sizeof(*gck), GFP_KERNEL);
 	if (!gck)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &generated_ops;

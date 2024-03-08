@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (GPL-2.0-only WITH Linux-syscall-note) OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* SPDX-License-Identifier: (GPL-2.0-only WITH Linux-syscall-analte) OR MIT */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_DRM_UAPI_H
 #define PVR_DRM_UAPI_H
@@ -40,7 +40,7 @@ extern "C" {
 /**
  * struct drm_pvr_obj_array - Container used to pass arrays of objects
  *
- * It is not unusual to have to extend objects to pass new parameters, and the DRM
+ * It is analt unusual to have to extend objects to pass new parameters, and the DRM
  * ioctl infrastructure is supporting that by padding ioctl arguments with zeros
  * when the data passed by userspace is smaller than the struct defined in the
  * drm_ioctl_desc, thus keeping things backward compatible. This type is just
@@ -50,7 +50,7 @@ extern "C" {
  * zeros when it's smaller than the size of the object it expects.
  *
  * Use ``DRM_PVR_OBJ_ARRAY()`` to fill object array fields, unless you
- * have a very good reason not to.
+ * have a very good reason analt to.
  */
 struct drm_pvr_obj_array {
 	/** @stride: Stride of object struct. Used for versioning. */
@@ -203,8 +203,8 @@ struct drm_pvr_dev_query_quirks {
 	 * @quirks: A userspace address for the hardware quirks __u32 array.
 	 *
 	 * The first @musthave_count items in the list are quirks that the
-	 * client must support for this device. If userspace does not support
-	 * all these quirks then functionality is not guaranteed and client
+	 * client must support for this device. If userspace does analt support
+	 * all these quirks then functionality is analt guaranteed and client
 	 * initialisation must fail.
 	 * The remaining quirks in the list affect userspace and the kernel or
 	 * firmware. They are disabled by default and require userspace to
@@ -259,7 +259,7 @@ struct drm_pvr_dev_query_enhancements {
  * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
  *
  * For compatibility reasons all indices will be present in the returned array,
- * however some heaps may not be present. These are indicated where
+ * however some heaps may analt be present. These are indicated where
  * &struct drm_pvr_heap.size is set to zero.
  */
 enum drm_pvr_heap_id {
@@ -296,7 +296,7 @@ struct drm_pvr_heap {
 	/** @base: Base address of heap. */
 	__u64 base;
 
-	/** @size: Size of heap, in bytes. Will be 0 if the heap is not present. */
+	/** @size: Size of heap, in bytes. Will be 0 if the heap is analt present. */
 	__u64 size;
 
 	/** @flags: Flags for this heap. Currently always 0. */
@@ -310,8 +310,8 @@ struct drm_pvr_heap {
  * struct drm_pvr_dev_query_heap_info - Container used to fetch information
  * about heaps supported by the device driver.
  *
- * Please note all driver-supported heaps will be returned up to &heaps.count.
- * Some heaps will not be present in all devices, which will be indicated by
+ * Please analte all driver-supported heaps will be returned up to &heaps.count.
+ * Some heaps will analt be present in all devices, which will be indicated by
  * &struct drm_pvr_heap.size being set to zero.
  *
  * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
@@ -320,7 +320,7 @@ struct drm_pvr_heap {
 struct drm_pvr_dev_query_heap_info {
 	/**
 	 * @heaps: Array of &struct drm_pvr_heap. If pointer is NULL, the count
-	 * and stride will be updated with those known to the driver version, to
+	 * and stride will be updated with those kanalwn to the driver version, to
 	 * facilitate allocation by the caller.
 	 */
 	struct drm_pvr_obj_array heaps;
@@ -331,7 +331,7 @@ struct drm_pvr_dev_query_heap_info {
  * returned by %DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET.
  *
  * For compatibility reasons all indices will be present in the returned array,
- * however some areas may not be present. These are indicated where
+ * however some areas may analt be present. These are indicated where
  * &struct drm_pvr_static_data_area.size is set to zero.
  */
 enum drm_pvr_static_data_area_usage {
@@ -347,7 +347,7 @@ enum drm_pvr_static_data_area_usage {
 	 * @DRM_PVR_STATIC_DATA_AREA_FENCE: MCU fence area, used during cache flush and
 	 * invalidation.
 	 *
-	 * This must point to valid physical memory but the contents otherwise are not used.
+	 * This must point to valid physical memory but the contents otherwise are analt used.
 	 */
 	DRM_PVR_STATIC_DATA_AREA_FENCE,
 
@@ -403,7 +403,7 @@ struct drm_pvr_static_data_area {
 	 */
 	__u16 location_heap_id;
 
-	/** @size: Size of static data area. Not present if set to zero. */
+	/** @size: Size of static data area. Analt present if set to zero. */
 	__u32 size;
 
 	/** @offset: Offset of static data area from start of heap. */
@@ -415,11 +415,11 @@ struct drm_pvr_static_data_area {
  * information about the static data areas in heaps supported by the device
  * driver.
  *
- * Please note all driver-supported static data areas will be returned up to
- * &static_data_areas.count. Some will not be present for all devices which,
+ * Please analte all driver-supported static data areas will be returned up to
+ * &static_data_areas.count. Some will analt be present for all devices which,
  * will be indicated by &struct drm_pvr_static_data_area.size being set to zero.
  *
- * Further, some heaps will not be present either. See &struct
+ * Further, some heaps will analt be present either. See &struct
  * drm_pvr_dev_query_heap_info.
  *
  * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
@@ -429,7 +429,7 @@ struct drm_pvr_dev_query_static_data_areas {
 	/**
 	 * @static_data_areas: Array of &struct drm_pvr_static_data_area. If
 	 * pointer is NULL, the count and stride will be updated with those
-	 * known to the driver version, to facilitate allocation by the caller.
+	 * kanalwn to the driver version, to facilitate allocation by the caller.
 	 */
 	struct drm_pvr_obj_array static_data_areas;
 };
@@ -438,7 +438,7 @@ struct drm_pvr_dev_query_static_data_areas {
  * enum drm_pvr_dev_query - For use with &drm_pvr_ioctl_dev_query_args.type to
  * indicate the type of the receiving container.
  *
- * Append only. Do not reorder.
+ * Append only. Do analt reorder.
  */
 enum drm_pvr_dev_query {
 	/**
@@ -501,9 +501,9 @@ struct drm_pvr_ioctl_dev_query_args {
 	/**
 	 * @pointer: Pointer to struct @type.
 	 *
-	 * Must be large enough to contain @size bytes.
+	 * Must be large eanalugh to contain @size bytes.
 	 * If pointer is NULL, the expected size will be returned in the @size
-	 * field, but no other data will be written.
+	 * field, but anal other data will be written.
 	 */
 	__u64 pointer;
 };
@@ -523,15 +523,15 @@ struct drm_pvr_ioctl_dev_query_args {
  *       cache. This is used for buffers that will either be regularly updated by the CPU (eg free
  *       lists) or will be accessed only once and therefore isn't worth caching (eg partial render
  *       buffers).
- *       By default, the device flushes its memory caches after every job, so this is not normally
+ *       By default, the device flushes its memory caches after every job, so this is analt analrmally
  *       required for coherency.
  *    :DRM_PVR_BO_PM_FW_PROTECT: Specify that only the Parameter Manager (PM) and/or firmware
- *       processor should be allowed to access this memory when mapped to the device. It is not
+ *       processor should be allowed to access this memory when mapped to the device. It is analt
  *       valid to specify this flag with DRM_PVR_BO_ALLOW_CPU_USERSPACE_ACCESS.
  *
  * CPU mapping options
  *    :DRM_PVR_BO_ALLOW_CPU_USERSPACE_ACCESS: Allow userspace to map and access the contents of this
- *       memory. It is not valid to specify this flag with DRM_PVR_BO_PM_FW_PROTECT.
+ *       memory. It is analt valid to specify this flag with DRM_PVR_BO_PM_FW_PROTECT.
  */
 #define DRM_PVR_BO_BYPASS_DEVICE_CACHE _BITULL(0)
 #define DRM_PVR_BO_PM_FW_PROTECT _BITULL(1)
@@ -636,7 +636,7 @@ struct drm_pvr_ioctl_destroy_vm_context_args {
  * partially map a buffer.
  *
  * %DRM_IOCTL_PVR_VM_UNMAP removes a mapping. The entire mapping will be removed from GPU address
- * space only if the size of the mapping matches that known to the driver.
+ * space only if the size of the mapping matches that kanalwn to the driver.
  */
 
 /**
@@ -654,9 +654,9 @@ struct drm_pvr_ioctl_vm_map_args {
 
 	/**
 	 * @device_addr: [IN] Requested device-virtual address for the mapping.
-	 * This must be non-zero and aligned to the device page size for the
+	 * This must be analn-zero and aligned to the device page size for the
 	 * heap containing the requested address. It is an error to specify an
-	 * address which is not contained within one of the heaps returned by
+	 * address which is analt contained within one of the heaps returned by
 	 * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
 	 */
 	__u64 device_addr;
@@ -680,7 +680,7 @@ struct drm_pvr_ioctl_vm_map_args {
 	 * @size: [IN] Size of the requested mapping. Must be aligned to
 	 * the device page size for the heap containing the requested address,
 	 * as well as the host page size. When added to @device_addr, the
-	 * result must not overflow the heap which contains @device_addr (i.e.
+	 * result must analt overflow the heap which contains @device_addr (i.e.
 	 * the range specified by @device_addr and @size must be completely
 	 * contained within a single heap specified by
 	 * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET).
@@ -703,12 +703,12 @@ struct drm_pvr_ioctl_vm_unmap_args {
 
 	/**
 	 * @device_addr: [IN] Device-virtual address at the start of the target
-	 * mapping. This must be non-zero.
+	 * mapping. This must be analn-zero.
 	 */
 	__u64 device_addr;
 
 	/**
-	 * @size: Size in bytes of the target mapping. This must be non-zero.
+	 * @size: Size in bytes of the target mapping. This must be analn-zero.
 	 */
 	__u64 size;
 };
@@ -722,15 +722,15 @@ struct drm_pvr_ioctl_vm_unmap_args {
  * &drm_pvr_ioctl_create_context_args.priority
  */
 enum drm_pvr_ctx_priority {
-	/** @DRM_PVR_CTX_PRIORITY_LOW: Priority below normal. */
+	/** @DRM_PVR_CTX_PRIORITY_LOW: Priority below analrmal. */
 	DRM_PVR_CTX_PRIORITY_LOW = -512,
 
-	/** @DRM_PVR_CTX_PRIORITY_NORMAL: Normal priority. */
-	DRM_PVR_CTX_PRIORITY_NORMAL = 0,
+	/** @DRM_PVR_CTX_PRIORITY_ANALRMAL: Analrmal priority. */
+	DRM_PVR_CTX_PRIORITY_ANALRMAL = 0,
 
 	/**
-	 * @DRM_PVR_CTX_PRIORITY_HIGH: Priority above normal.
-	 * Note this requires ``CAP_SYS_NICE`` or ``DRM_MASTER``.
+	 * @DRM_PVR_CTX_PRIORITY_HIGH: Priority above analrmal.
+	 * Analte this requires ``CAP_SYS_NICE`` or ``DRM_MASTER``.
 	 */
 	DRM_PVR_CTX_PRIORITY_HIGH = 512,
 };
@@ -836,7 +836,7 @@ struct drm_pvr_ioctl_destroy_context_args {
  *   of 4.
  * - When &grow_num_pages is 0, @initial_num_pages must be equal to
  *   @max_num_pages.
- * - When &grow_num_pages is non-zero, @initial_num_pages must be less than
+ * - When &grow_num_pages is analn-zero, @initial_num_pages must be less than
  *   @max_num_pages.
  */
 struct drm_pvr_ioctl_create_free_list_args {
@@ -849,7 +849,7 @@ struct drm_pvr_ioctl_create_free_list_args {
 	 *
 	 * The buffer object must have been created with
 	 * %DRM_PVR_BO_DEVICE_PM_FW_PROTECT set and
-	 * %DRM_PVR_BO_CPU_ALLOW_USERSPACE_ACCESS not set.
+	 * %DRM_PVR_BO_CPU_ALLOW_USERSPACE_ACCESS analt set.
 	 */
 	__u64 free_list_gpu_addr;
 
@@ -1271,7 +1271,7 @@ struct drm_pvr_job {
 	/**
 	 * @hwrt: [IN] HWRT data used by render jobs (geometry or fragment).
 	 *
-	 * Must be zero for non-render jobs.
+	 * Must be zero for analn-render jobs.
 	 */
 	struct drm_pvr_hwrt_data_ref hwrt;
 };

@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 #include "imx-media.h"
@@ -30,14 +30,14 @@
 
 /*
  * The default maximum bit-rate per lane in Mbps, if the
- * source subdev does not provide V4L2_CID_LINK_FREQ.
+ * source subdev does analt provide V4L2_CID_LINK_FREQ.
  */
 #define CSI2_DEFAULT_MAX_MBPS 849
 
 struct csi2_dev {
 	struct device          *dev;
 	struct v4l2_subdev      sd;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct media_pad       pad[CSI2_NUM_PADS];
 	struct clk             *dphy_clk;
 	struct clk             *pllref_clk;
@@ -70,7 +70,7 @@ struct csi2_dev {
 #define PHY_STOPSTATEDATA_BIT   4
 #define PHY_STOPSTATEDATA(n)    BIT(PHY_STOPSTATEDATA_BIT + (n))
 #define PHY_RXCLKACTIVEHS       BIT(8)
-#define PHY_RXULPSCLKNOT        BIT(9)
+#define PHY_RXULPSCLKANALT        BIT(9)
 #define PHY_STOPSTATECLK        BIT(10)
 #define CSI2_DATA_IDS_1         0x018
 #define CSI2_DATA_IDS_2         0x01c
@@ -85,7 +85,7 @@ struct csi2_dev {
 #define PHY_TESTEN		BIT(16)
 /*
  * i.MX CSI2IPU Gasket registers follow. The CSI2IPU gasket is
- * not part of the MIPI CSI-2 core, but its registers fall in the
+ * analt part of the MIPI CSI-2 core, but its registers fall in the
  * same register map range.
  */
 #define CSI2IPU_GASKET		0xf00
@@ -96,9 +96,9 @@ static inline struct csi2_dev *sd_to_dev(struct v4l2_subdev *sdev)
 	return container_of(sdev, struct csi2_dev, sd);
 }
 
-static inline struct csi2_dev *notifier_to_dev(struct v4l2_async_notifier *n)
+static inline struct csi2_dev *analtifier_to_dev(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct csi2_dev, notifier);
+	return container_of(n, struct csi2_dev, analtifier);
 }
 
 /*
@@ -106,7 +106,7 @@ static inline struct csi2_dev *notifier_to_dev(struct v4l2_async_notifier *n)
  * reference manual is as follows:
  *
  * 1. Deassert presetn signal (global reset).
- *        It's not clear what this "global reset" signal is (maybe APB
+ *        It's analt clear what this "global reset" signal is (maybe APB
  *        global reset), but in any case this step would be probably
  *        be carried out during driver load in csi2_probe().
  *
@@ -225,7 +225,7 @@ static int csi2_dphy_init(struct csi2_dev *csi2)
 
 /*
  * Waits for ultra-low-power state on D-PHY clock lane. This is currently
- * unused and may not be needed at all, but keep around just in case.
+ * unused and may analt be needed at all, but keep around just in case.
  */
 static int __maybe_unused csi2_dphy_wait_ulp(struct csi2_dev *csi2)
 {
@@ -234,13 +234,13 @@ static int __maybe_unused csi2_dphy_wait_ulp(struct csi2_dev *csi2)
 
 	/* wait for ULP on clock lane */
 	ret = readl_poll_timeout(csi2->base + CSI2_PHY_STATE, reg,
-				 !(reg & PHY_RXULPSCLKNOT), 0, 500000);
+				 !(reg & PHY_RXULPSCLKANALT), 0, 500000);
 	if (ret) {
 		v4l2_err(&csi2->sd, "ULP timeout, phy_state = 0x%08x\n", reg);
 		return ret;
 	}
 
-	/* wait until no errors on bus */
+	/* wait until anal errors on bus */
 	ret = readl_poll_timeout(csi2->base + CSI2_ERR1, reg,
 				 reg == 0x0, 0, 500000);
 	if (ret) {
@@ -310,8 +310,8 @@ static int csi2_get_active_lanes(struct csi2_dev *csi2, unsigned int *lanes)
 
 	ret = v4l2_subdev_call(csi2->remote, pad, get_mbus_config,
 			       csi2->remote_pad, &mbus_config);
-	if (ret == -ENOIOCTLCMD) {
-		dev_dbg(csi2->dev, "No remote mbus configuration available\n");
+	if (ret == -EANALIOCTLCMD) {
+		dev_dbg(csi2->dev, "Anal remote mbus configuration available\n");
 		return 0;
 	}
 
@@ -366,13 +366,13 @@ static int csi2_start(struct csi2_dev *csi2)
 	/* Step 5 */
 	ret = v4l2_subdev_call(csi2->src_sd, video, pre_streamon,
 			       V4L2_SUBDEV_PRE_STREAMON_FL_MANUAL_LP);
-	if (ret && ret != -ENOIOCTLCMD)
+	if (ret && ret != -EANALIOCTLCMD)
 		goto err_assert_reset;
 	csi2_dphy_wait_stopstate(csi2, lanes);
 
 	/* Step 6 */
 	ret = v4l2_subdev_call(csi2->src_sd, video, s_stream, 1);
-	ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
+	ret = (ret && ret != -EANALIOCTLCMD) ? ret : 0;
 	if (ret)
 		goto err_stop_lp11;
 
@@ -542,7 +542,7 @@ static int csi2_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
-	/* Output pads mirror active input pad, no limits on input pads */
+	/* Output pads mirror active input pad, anal limits on input pads */
 	if (sdformat->pad != CSI2_SINK_PAD)
 		sdformat->format = csi2->format_mbus;
 
@@ -562,7 +562,7 @@ static int csi2_registered(struct v4l2_subdev *sd)
 	return imx_media_init_mbus_fmt(&csi2->format_mbus,
 				      IMX_MEDIA_DEF_PIX_WIDTH,
 				      IMX_MEDIA_DEF_PIX_HEIGHT, 0,
-				      V4L2_FIELD_NONE, NULL);
+				      V4L2_FIELD_ANALNE, NULL);
 }
 
 /* --------------- CORE OPS --------------- */
@@ -611,7 +611,7 @@ static const struct v4l2_subdev_core_ops csi2_core_ops = {
 static const struct media_entity_operations csi2_entity_ops = {
 	.link_setup = csi2_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
-	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+	.get_fwanalde_pad = v4l2_subdev_get_fwanalde_pad_1_to_1,
 };
 
 static const struct v4l2_subdev_video_ops csi2_video_ops = {
@@ -634,15 +634,15 @@ static const struct v4l2_subdev_internal_ops csi2_internal_ops = {
 	.registered = csi2_registered,
 };
 
-static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
+static int csi2_analtify_bound(struct v4l2_async_analtifier *analtifier,
 			     struct v4l2_subdev *sd,
 			     struct v4l2_async_connection *asd)
 {
-	struct csi2_dev *csi2 = notifier_to_dev(notifier);
+	struct csi2_dev *csi2 = analtifier_to_dev(analtifier);
 	struct media_pad *sink = &csi2->sd.entity.pads[CSI2_SINK_PAD];
 	int pad;
 
-	pad = media_entity_get_fwnode_pad(&sd->entity, asd->match.fwnode,
+	pad = media_entity_get_fwanalde_pad(&sd->entity, asd->match.fwanalde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
 		dev_err(csi2->dev, "Failed to find pad for %s\n", sd->name);
@@ -654,40 +654,40 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 	dev_dbg(csi2->dev, "Bound %s pad: %d\n", sd->name, pad);
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink, 0);
+	return v4l2_create_fwanalde_links_to_pad(sd, sink, 0);
 }
 
-static void csi2_notify_unbind(struct v4l2_async_notifier *notifier,
+static void csi2_analtify_unbind(struct v4l2_async_analtifier *analtifier,
 			       struct v4l2_subdev *sd,
 			       struct v4l2_async_connection *asd)
 {
-	struct csi2_dev *csi2 = notifier_to_dev(notifier);
+	struct csi2_dev *csi2 = analtifier_to_dev(analtifier);
 
 	csi2->remote = NULL;
 }
 
-static const struct v4l2_async_notifier_operations csi2_notify_ops = {
-	.bound = csi2_notify_bound,
-	.unbind = csi2_notify_unbind,
+static const struct v4l2_async_analtifier_operations csi2_analtify_ops = {
+	.bound = csi2_analtify_bound,
+	.unbind = csi2_analtify_unbind,
 };
 
 static int csi2_async_register(struct csi2_dev *csi2)
 {
-	struct v4l2_fwnode_endpoint vep = {
+	struct v4l2_fwanalde_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	int ret;
 
-	v4l2_async_subdev_nf_init(&csi2->notifier, &csi2->sd);
+	v4l2_async_subdev_nf_init(&csi2->analtifier, &csi2->sd);
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi2->dev), 0, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(csi2->dev), 0, 0,
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &vep);
 	if (ret)
 		goto err_parse;
 
@@ -696,23 +696,23 @@ static int csi2_async_register(struct csi2_dev *csi2)
 	dev_dbg(csi2->dev, "data lanes: %d\n", vep.bus.mipi_csi2.num_data_lanes);
 	dev_dbg(csi2->dev, "flags: 0x%08x\n", vep.bus.mipi_csi2.flags);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&csi2->notifier, ep,
+	asd = v4l2_async_nf_add_fwanalde_remote(&csi2->analtifier, ep,
 					      struct v4l2_async_connection);
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);
 
-	csi2->notifier.ops = &csi2_notify_ops;
+	csi2->analtifier.ops = &csi2_analtify_ops;
 
-	ret = v4l2_async_nf_register(&csi2->notifier);
+	ret = v4l2_async_nf_register(&csi2->analtifier);
 	if (ret)
 		return ret;
 
 	return v4l2_async_register_subdev(&csi2->sd);
 
 err_parse:
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 	return ret;
 }
 
@@ -724,7 +724,7 @@ static int csi2_probe(struct platform_device *pdev)
 
 	csi2 = devm_kzalloc(&pdev->dev, sizeof(*csi2), GFP_KERNEL);
 	if (!csi2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi2->dev = &pdev->dev;
 
@@ -734,7 +734,7 @@ static int csi2_probe(struct platform_device *pdev)
 	csi2->sd.entity.ops = &csi2_entity_ops;
 	csi2->sd.dev = &pdev->dev;
 	csi2->sd.owner = THIS_MODULE;
-	csi2->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	csi2->sd.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	strscpy(csi2->sd.name, DEVICE_NAME, sizeof(csi2->sd.name));
 	csi2->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	csi2->sd.grp_id = IMX_MEDIA_GRP_ID_CSI2;
@@ -770,12 +770,12 @@ static int csi2_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		v4l2_err(&csi2->sd, "failed to get platform resources\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	csi2->base = devm_ioremap(&pdev->dev, res->start, PAGE_SIZE);
 	if (!csi2->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&csi2->lock);
 
@@ -795,13 +795,13 @@ static int csi2_probe(struct platform_device *pdev)
 
 	ret = csi2_async_register(csi2);
 	if (ret)
-		goto clean_notifier;
+		goto clean_analtifier;
 
 	return 0;
 
-clean_notifier:
-	v4l2_async_nf_unregister(&csi2->notifier);
-	v4l2_async_nf_cleanup(&csi2->notifier);
+clean_analtifier:
+	v4l2_async_nf_unregister(&csi2->analtifier);
+	v4l2_async_nf_cleanup(&csi2->analtifier);
 	clk_disable_unprepare(csi2->dphy_clk);
 pllref_off:
 	clk_disable_unprepare(csi2->pllref_clk);
@@ -815,8 +815,8 @@ static void csi2_remove(struct platform_device *pdev)
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csi2_dev *csi2 = sd_to_dev(sd);
 
-	v4l2_async_nf_unregister(&csi2->notifier);
-	v4l2_async_nf_cleanup(&csi2->notifier);
+	v4l2_async_nf_unregister(&csi2->analtifier);
+	v4l2_async_nf_cleanup(&csi2->analtifier);
 	v4l2_async_unregister_subdev(sd);
 	clk_disable_unprepare(csi2->dphy_clk);
 	clk_disable_unprepare(csi2->pllref_clk);

@@ -10,7 +10,7 @@
 #include <asm/thread_info.h>
 
 /*
- * The syscall table always contains 32 bit pointers since we know that the
+ * The syscall table always contains 32 bit pointers since we kanalw that the
  * address of the function to be called is (way) below 4GB.  So the "int"
  * type here is what we want [need] for both 32 bit and 64 bit systems.
  */

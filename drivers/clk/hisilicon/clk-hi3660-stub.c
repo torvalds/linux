@@ -32,7 +32,7 @@
 			.name = #_name,				\
 			.ops = &hi3660_stub_clk_ops,		\
 			.num_parents = 0,			\
-			.flags = CLK_GET_RATE_NOCACHE,		\
+			.flags = CLK_GET_RATE_ANALCACHE,		\
 		},						\
 	},
 
@@ -132,7 +132,7 @@ static int hi3660_stub_clk_probe(struct platform_device *pdev)
 	stub_clk_chan.cl.dev = dev;
 	stub_clk_chan.cl.tx_done = NULL;
 	stub_clk_chan.cl.tx_block = false;
-	stub_clk_chan.cl.knows_txdone = false;
+	stub_clk_chan.cl.kanalws_txdone = false;
 
 	/* Allocate mailbox channel */
 	stub_clk_chan.mbox = mbox_request_channel(&stub_clk_chan.cl, 0);
@@ -144,7 +144,7 @@ static int hi3660_stub_clk_probe(struct platform_device *pdev)
 		return -EINVAL;
 	freq_reg = devm_ioremap(dev, res->start, resource_size(res));
 	if (!freq_reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	freq_reg += HI3660_STUB_CLOCK_DATA;
 

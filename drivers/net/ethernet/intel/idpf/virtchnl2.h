@@ -20,7 +20,7 @@
 #include "virtchnl2_lan_desc.h"
 
 /* This macro is used to generate compilation errors if a structure
- * is not exactly the correct length.
+ * is analt exactly the correct length.
  */
 #define VIRTCHNL2_CHECK_STRUCT_LEN(n, X)	\
 	static_assert((n) == sizeof(struct X))
@@ -31,7 +31,7 @@
  * VIRTCHNL version as 2.0 during VIRTCHNL2_OP_VERSION exchange.
  */
 enum virtchnl2_op {
-	VIRTCHNL2_OP_UNKNOWN			= 0,
+	VIRTCHNL2_OP_UNKANALWN			= 0,
 	VIRTCHNL2_OP_VERSION			= 1,
 	VIRTCHNL2_OP_GET_CAPS			= 500,
 	VIRTCHNL2_OP_CREATE_VPORT		= 501,
@@ -214,7 +214,7 @@ enum virtchl2_device_type {
 
 /**
  * enum virtchnl2_txq_sched_mode - Transmit Queue Scheduling Modes.
- * @VIRTCHNL2_TXQ_SCHED_MODE_QUEUE: Queue mode is the legacy mode i.e. inorder
+ * @VIRTCHNL2_TXQ_SCHED_MODE_QUEUE: Queue mode is the legacy mode i.e. ianalrder
  *				    completions where descriptors and buffers
  *				    are completed at the same time.
  * @VIRTCHNL2_TXQ_SCHED_MODE_FLOW: Flow scheduling mode allows for out of order
@@ -255,7 +255,7 @@ enum virtchnl2_rss_alg {
 
 /* Type of event */
 enum virtchnl2_event_codes {
-	VIRTCHNL2_EVENT_UNKNOWN			= 0,
+	VIRTCHNL2_EVENT_UNKANALWN			= 0,
 	VIRTCHNL2_EVENT_LINK_CHANGE		= 1,
 	/* Event type 2, 3 are reserved */
 };
@@ -339,7 +339,7 @@ enum virtchnl2_proto_hdr_type {
 	VIRTCHNL2_PROTO_HDR_IPV4		= 19,
 	/* IPv4 and IPv6 Fragment header types are only associated to
 	 * VIRTCHNL2_PROTO_HDR_IPV4 and VIRTCHNL2_PROTO_HDR_IPV6 respectively,
-	 * cannot be used independently.
+	 * cananalt be used independently.
 	 */
 	/* VIRTCHNL2_PROTO_HDR_IPV4_FRAG is a mandatory protocol id */
 	VIRTCHNL2_PROTO_HDR_IPV4_FRAG		= 20,
@@ -388,7 +388,7 @@ enum virtchnl2_proto_hdr_type {
 	VIRTCHNL2_PROTO_HDR_NSH			= 54,
 	VIRTCHNL2_PROTO_HDR_QUIC		= 55,
 	VIRTCHNL2_PROTO_HDR_PFCP		= 56,
-	VIRTCHNL2_PROTO_HDR_PFCP_NODE		= 57,
+	VIRTCHNL2_PROTO_HDR_PFCP_ANALDE		= 57,
 	VIRTCHNL2_PROTO_HDR_PFCP_SESSION	= 58,
 	VIRTCHNL2_PROTO_HDR_RTP			= 59,
 	VIRTCHNL2_PROTO_HDR_ROCE		= 60,
@@ -396,20 +396,20 @@ enum virtchnl2_proto_hdr_type {
 	VIRTCHNL2_PROTO_HDR_ROCEV2		= 62,
 	/* Protocol ids up to 32767 are reserved.
 	 * 32768 - 65534 are used for user defined protocol ids.
-	 * VIRTCHNL2_PROTO_HDR_NO_PROTO is a mandatory protocol id.
+	 * VIRTCHNL2_PROTO_HDR_ANAL_PROTO is a mandatory protocol id.
 	 */
-	VIRTCHNL2_PROTO_HDR_NO_PROTO		= 65535,
+	VIRTCHNL2_PROTO_HDR_ANAL_PROTO		= 65535,
 };
 
 enum virtchl2_version {
-	VIRTCHNL2_VERSION_MINOR_0		= 0,
+	VIRTCHNL2_VERSION_MIANALR_0		= 0,
 	VIRTCHNL2_VERSION_MAJOR_2		= 2,
 };
 
 /**
  * struct virtchnl2_edt_caps - Get EDT granularity and time horizon.
- * @tstamp_granularity_ns: Timestamp granularity in nanoseconds.
- * @time_horizon_ns: Total time window in nanoseconds.
+ * @tstamp_granularity_ns: Timestamp granularity in naanalseconds.
+ * @time_horizon_ns: Total time window in naanalseconds.
  *
  * Associated with VIRTCHNL2_OP_GET_EDT_CAPS.
  */
@@ -422,12 +422,12 @@ VIRTCHNL2_CHECK_STRUCT_LEN(16, virtchnl2_edt_caps);
 /**
  * struct virtchnl2_version_info - Version information.
  * @major: Major version.
- * @minor: Minor version.
+ * @mianalr: Mianalr version.
  *
  * PF/VF posts its version number to the CP. CP responds with its version number
  * in the same format, along with a return code.
- * If there is a major version mismatch, then the PF/VF cannot operate.
- * If there is a minor version mismatch, then the PF/VF can operate but should
+ * If there is a major version mismatch, then the PF/VF cananalt operate.
+ * If there is a mianalr version mismatch, then the PF/VF can operate but should
  * add a warning to the system log.
  *
  * This version opcode MUST always be specified as == 1, regardless of other
@@ -438,7 +438,7 @@ VIRTCHNL2_CHECK_STRUCT_LEN(16, virtchnl2_edt_caps);
  */
 struct virtchnl2_version_info {
 	__le32 major;
-	__le32 minor;
+	__le32 mianalr;
 };
 VIRTCHNL2_CHECK_STRUCT_LEN(8, virtchnl2_version_info);
 
@@ -483,7 +483,7 @@ VIRTCHNL2_CHECK_STRUCT_LEN(8, virtchnl2_version_info);
  * If PF sets max_sriov_vfs as 0, CP will respond with max number of VFs
  * that can be created by this PF. For any other value 'n', CP responds
  * with max_sriov_vfs set to min(n, x) where x is the max number of VFs
- * allowed by CP's policy. max_sriov_vfs is not applicable for VFs.
+ * allowed by CP's policy. max_sriov_vfs is analt applicable for VFs.
  * If dataplane driver sets num_allocated_vectors as 0, CP will respond with 1
  * which is default vector associated with the default mailbox. For any other
  * value 'n', CP responds with a value <= n based on the CP's policy of
@@ -571,7 +571,7 @@ VIRTCHNL2_CHECK_STRUCT_LEN(8, virtchnl2_queue_reg_chunks);
  * @default_rx_q: Relative receive queue index to be used as default.
  * @vport_index: Used to align PF and CP in case of default multiple vports,
  *		 it is filled by the PF and CP returns the same value, to
- *		 enable the driver to support multiple asynchronous parallel
+ *		 enable the driver to support multiple asynchroanalus parallel
  *		 CREATE_VPORT requests and associate a response to a specific
  *		 request.
  * @max_mtu: Max MTU. CP populates this field on response.
@@ -695,7 +695,7 @@ VIRTCHNL2_CHECK_STRUCT_LEN(56, virtchnl2_txq_info);
  * This message contains an array of num_qinfo instances of virtchnl2_txq_info
  * structures. CP configures requested queues and returns a status code. If
  * num_qinfo specified is greater than the number of queues associated with the
- * vport, an error is returned and no queues are configured.
+ * vport, an error is returned and anal queues are configured.
  *
  * Associated with VIRTCHNL2_OP_CONFIG_TX_QUEUES.
  */
@@ -718,7 +718,7 @@ VIRTCHNL2_CHECK_STRUCT_LEN(16, virtchnl2_config_tx_queues);
  * @data_buffer_size: Data buffer size.
  * @max_pkt_size: Max packet size.
  * @ring_len: Ring length.
- * @buffer_notif_stride: Buffer notification stride in units of 32-descriptors.
+ * @buffer_analtif_stride: Buffer analtification stride in units of 32-descriptors.
  *			 This field must be a power of 2.
  * @pad: Padding.
  * @dma_head_wb_addr: Applicable only for receive buffer queues.
@@ -747,7 +747,7 @@ struct virtchnl2_rxq_info {
 	__le32 data_buffer_size;
 	__le32 max_pkt_size;
 	__le16 ring_len;
-	u8 buffer_notif_stride;
+	u8 buffer_analtif_stride;
 	u8 pad;
 	__le64 dma_head_wb_addr;
 	__le16 qflags;
@@ -774,7 +774,7 @@ VIRTCHNL2_CHECK_STRUCT_LEN(88, virtchnl2_rxq_info);
  * This message contains an array of num_qinfo instances of virtchnl2_rxq_info
  * structures. CP configures requested queues and returns a status code.
  * If the number of queues specified is greater than the number of queues
- * associated with the vport, an error is returned and no queues are configured.
+ * associated with the vport, an error is returned and anal queues are configured.
  *
  * Associated with VIRTCHNL2_OP_CONFIG_RX_QUEUES.
  */
@@ -992,8 +992,8 @@ VIRTCHNL2_CHECK_STRUCT_LEN(6, virtchnl2_ptype);
  * descriptor, it is 256 (8-bit ptype). Send this message to the CP by
  * populating the 'start_ptype_id' and the 'num_ptypes'. CP responds with the
  * 'start_ptype_id', 'num_ptypes', and the array of ptype (virtchnl2_ptype) that
- * are added at the end of the 'virtchnl2_get_ptype_info' message (Note: There
- * is no specific field for the ptypes but are added at the end of the
+ * are added at the end of the 'virtchnl2_get_ptype_info' message (Analte: There
+ * is anal specific field for the ptypes but are added at the end of the
  * ptype info message. PF/VF is expected to extract the ptypes accordingly.
  * Reason for doing this is because compiler doesn't allow nested flexible
  * array fields).
@@ -1027,7 +1027,7 @@ VIRTCHNL2_CHECK_STRUCT_LEN(8, virtchnl2_get_ptype_info);
  * @rx_broadcast: Received broadcast packets.
  * @rx_discards: Discarded packets on receive.
  * @rx_errors: Receive errors.
- * @rx_unknown_protocol: Unlnown protocol.
+ * @rx_unkanalwn_protocol: Unlanalwn protocol.
  * @tx_bytes: Transmitted bytes.
  * @tx_unicast: Transmitted unicast packets.
  * @tx_multicast: Transmitted multicast packets.
@@ -1051,7 +1051,7 @@ struct virtchnl2_vport_stats {
 	__le64 rx_broadcast;
 	__le64 rx_discards;
 	__le64 rx_errors;
-	__le64 rx_unknown_protocol;
+	__le64 rx_unkanalwn_protocol;
 	__le64 tx_bytes;
 	__le64 tx_unicast;
 	__le64 tx_multicast;
@@ -1073,7 +1073,7 @@ VIRTCHNL2_CHECK_STRUCT_LEN(128, virtchnl2_vport_stats);
  * @reserved: Reserved.
  *
  * CP sends this message to inform the PF/VF driver of events that may affect
- * it. No direct response is expected from the driver, though it may generate
+ * it. Anal direct response is expected from the driver, though it may generate
  * other messages in response to this one.
  *
  * Associated with VIRTCHNL2_OP_EVENT.

@@ -109,7 +109,7 @@ static inline void tlb_invalid_indexed(void)
 	mtcr("cr<8, 15>", 0x02000000);
 }
 
-#define NOP32 ".long 0x4820c400\n"
+#define ANALP32 ".long 0x4820c400\n"
 
 static inline void setup_pgd(pgd_t *pgd, int asid)
 {
@@ -125,7 +125,7 @@ static inline void setup_pgd(pgd_t *pgd, int asid)
 		"mtcr %1, cr<29, 15>	\n"
 		"mtcr %0, cr< 4, 15>	\n"
 		".rept 64		\n"
-		NOP32
+		ANALP32
 		".endr			\n"
 		:
 		:"r"(asid), "r"(__pa(pgd) | BIT(0))

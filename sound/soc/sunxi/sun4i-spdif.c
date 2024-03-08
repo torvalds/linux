@@ -35,7 +35,7 @@
 #define SUN4I_SPDIF_TXCFG	(0x04)
 	#define SUN4I_SPDIF_TXCFG_SINGLEMOD		BIT(31)
 	#define SUN4I_SPDIF_TXCFG_ASS			BIT(17)
-	#define SUN4I_SPDIF_TXCFG_NONAUDIO		BIT(16)
+	#define SUN4I_SPDIF_TXCFG_ANALNAUDIO		BIT(16)
 	#define SUN4I_SPDIF_TXCFG_TXRATIO(v)		((v) << 4)
 	#define SUN4I_SPDIF_TXCFG_TXRATIO_MASK		GENMASK(8, 4)
 	#define SUN4I_SPDIF_TXCFG_FMTRVD		GENMASK(3, 2)
@@ -154,7 +154,7 @@
 
 /* Defines for Sampling Frequency */
 #define SUN4I_SPDIF_SAMFREQ_44_1KHZ		0x0
-#define SUN4I_SPDIF_SAMFREQ_NOT_INDICATED	0x1
+#define SUN4I_SPDIF_SAMFREQ_ANALT_INDICATED	0x1
 #define SUN4I_SPDIF_SAMFREQ_48KHZ		0x2
 #define SUN4I_SPDIF_SAMFREQ_32KHZ		0x3
 #define SUN4I_SPDIF_SAMFREQ_22_05KHZ		0x4
@@ -276,7 +276,7 @@ static int sun4i_spdif_hw_params(struct snd_pcm_substream *substream,
 		fmt = 0;
 		break;
 	case 4: /* raw data mode */
-		fmt = SUN4I_SPDIF_TXCFG_NONAUDIO;
+		fmt = SUN4I_SPDIF_TXCFG_ANALNAUDIO;
 		break;
 	default:
 		return -EINVAL;
@@ -350,7 +350,7 @@ static int sun4i_spdif_hw_params(struct snd_pcm_substream *substream,
 
 	reg_val = 0;
 	reg_val |= SUN4I_SPDIF_TXCFG_ASS;
-	reg_val |= fmt; /* set non audio and bit depth */
+	reg_val |= fmt; /* set analn audio and bit depth */
 	reg_val |= SUN4I_SPDIF_TXCFG_CHSTMODE;
 	reg_val |= SUN4I_SPDIF_TXCFG_TXRATIO(mclk_div - 1);
 	regmap_write(host->regmap, SUN4I_SPDIF_TXCFG, reg_val);
@@ -466,12 +466,12 @@ static int sun4i_spdif_set_status(struct snd_kcontrol *kcontrol,
 				 GENMASK(9,0), reg, &chg1);
 
 	reg = SUN4I_SPDIF_TXCFG_CHSTMODE;
-	if (status[0] & IEC958_AES0_NONAUDIO)
-		reg |= SUN4I_SPDIF_TXCFG_NONAUDIO;
+	if (status[0] & IEC958_AES0_ANALNAUDIO)
+		reg |= SUN4I_SPDIF_TXCFG_ANALNAUDIO;
 
 	regmap_update_bits(host->regmap, SUN4I_SPDIF_TXCFG,
 			   SUN4I_SPDIF_TXCFG_CHSTMODE |
-			   SUN4I_SPDIF_TXCFG_NONAUDIO, reg);
+			   SUN4I_SPDIF_TXCFG_ANALNAUDIO, reg);
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
@@ -628,7 +628,7 @@ static int sun4i_spdif_probe(struct platform_device *pdev)
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->pdev = pdev;
 	spin_lock_init(&host->lock);
@@ -645,7 +645,7 @@ static int sun4i_spdif_probe(struct platform_device *pdev)
 	quirks = of_device_get_match_data(&pdev->dev);
 	if (quirks == NULL) {
 		dev_err(&pdev->dev, "Failed to determine the quirks to use\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	host->quirks = quirks;
 

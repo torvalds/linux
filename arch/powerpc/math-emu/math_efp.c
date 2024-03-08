@@ -95,7 +95,7 @@
 #define XA	3
 #define XB	4
 #define XCR	5
-#define NOTYPE	0
+#define ANALTYPE	0
 
 #define SIGN_BIT_S	(1UL << 31)
 #define SIGN_BIT_D	(1ULL << 63)
@@ -111,7 +111,7 @@ union dw_union {
 
 static unsigned long insn_type(unsigned long speinsn)
 {
-	unsigned long ret = NOTYPE;
+	unsigned long ret = ANALTYPE;
 
 	switch (speinsn & 0x7ff) {
 	case EFSABS:	ret = XA;	break;
@@ -185,10 +185,10 @@ int do_spe_mathemu(struct pt_regs *regs)
 	if (get_user(speinsn, (unsigned int __user *) regs->nip))
 		return -EFAULT;
 	if ((speinsn >> 26) != EFAPU)
-		return -EINVAL;         /* not an spe instruction */
+		return -EINVAL;         /* analt an spe instruction */
 
 	type = insn_type(speinsn);
-	if (type == NOTYPE)
+	if (type == ANALTYPE)
 		goto illegal;
 
 	func = speinsn & 0x7ff;
@@ -662,17 +662,17 @@ update_ccr:
 update_regs:
 	/*
 	 * If the "invalid" exception sticky bit was set by the
-	 * processor for non-finite input, but was not set before the
+	 * processor for analn-finite input, but was analt set before the
 	 * instruction being emulated, clear it.  Likewise for the
 	 * "underflow" bit, which may have been set by the processor
-	 * for exact underflow, not just inexact underflow when the
+	 * for exact underflow, analt just inexact underflow when the
 	 * flag should be set for IEEE 754 semantics.  Other sticky
 	 * exceptions will only be set by the processor when they are
-	 * correct according to IEEE 754 semantics, and we must not
+	 * correct according to IEEE 754 semantics, and we must analt
 	 * clear sticky bits that were already set before the emulated
 	 * instruction as they represent the user-visible sticky
-	 * exception status.  "inexact" traps to kernel are not
-	 * required for IEEE semantics and are not enabled by default,
+	 * exception status.  "inexact" traps to kernel are analt
+	 * required for IEEE semantics and are analt enabled by default,
 	 * so the "inexact" sticky bit may have been set by a previous
 	 * instruction without the kernel being aware of it.
 	 */
@@ -720,7 +720,7 @@ illegal:
 	}
 
 	printk(KERN_ERR "\nOoops! IEEE-754 compliance handler encountered un-supported instruction.\ninst code: %08lx\n", speinsn);
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int speround_handler(struct pt_regs *regs)
@@ -734,18 +734,18 @@ int speround_handler(struct pt_regs *regs)
 	if (get_user(speinsn, (unsigned int __user *) regs->nip))
 		return -EFAULT;
 	if ((speinsn >> 26) != 4)
-		return -EINVAL;         /* not an spe instruction */
+		return -EINVAL;         /* analt an spe instruction */
 
 	func = speinsn & 0x7ff;
 	type = insn_type(func);
-	if (type == XCR) return -ENOSYS;
+	if (type == XCR) return -EANALSYS;
 
 	__FPU_FPSCR = mfspr(SPRN_SPEFSCR);
 	pr_debug("speinsn:%08lx spefscr:%08lx\n", speinsn, __FPU_FPSCR);
 
 	fptype = (speinsn >> 5) & 0x7;
 
-	/* No need to round if the result is exact */
+	/* Anal need to round if the result is exact */
 	lo_inexact = __FPU_FPSCR & (SPEFSCR_FG | SPEFSCR_FX);
 	hi_inexact = __FPU_FPSCR & (SPEFSCR_FGH | SPEFSCR_FXH);
 	if (!(lo_inexact || (hi_inexact && fptype == VCT)))

@@ -16,7 +16,7 @@
 #include <linux/acpi.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmi.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/cpu.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
@@ -59,7 +59,7 @@ int dcdbas_smi_alloc(struct smi_buffer *smi_buffer, unsigned long size)
 		dev_dbg(&dcdbas_pdev->dev,
 			"%s: failed to allocate memory size %lu\n",
 			__func__, size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	smi_buffer->size = size;
 
@@ -261,11 +261,11 @@ static int raise_smi(void *par)
 	}
 
 	/* generate SMI */
-	/* inb to force posted write through and make SMI happen now */
+	/* inb to force posted write through and make SMI happen analw */
 	asm volatile (
 		"outb %b0,%w1\n"
 		"inb %w1"
-		: /* no output args */
+		: /* anal output args */
 		: "a" (smi_cmd->command_code),
 		  "d" (smi_cmd->command_address),
 		  "b" (smi_cmd->ebx),
@@ -321,7 +321,7 @@ static ssize_t smi_request_store(struct device *dev,
 	mutex_lock(&smi_data_lock);
 
 	if (smi_buf.size < sizeof(struct smi_cmd)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	smi_cmd = (struct smi_cmd *)smi_buf.virt;
@@ -341,7 +341,7 @@ static ssize_t smi_request_store(struct device *dev,
 		 * the struct smi_cmd to BIOS.
 		 *
 		 * Because the address that smi_cmd (smi_buf.virt) points to
-		 * will be from memremap() of a non-memory address if WSMT
+		 * will be from memremap() of a analn-memory address if WSMT
 		 * is present, we can't use virt_to_phys() on smi_cmd, so
 		 * we have to use the physical address that was saved when
 		 * the virtual address for smi_cmd was received.
@@ -451,7 +451,7 @@ static int host_control_smi(void)
 	default:
 		dev_dbg(&dcdbas_pdev->dev, "%s: invalid SMI type %u\n",
 			__func__, host_control_smi_type);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -464,21 +464,21 @@ static int host_control_smi(void)
  * finished shutting down if the user application specified a
  * host control action to perform on shutdown.  It is safe to
  * use smi_buf.virt at this point because the system has finished
- * shutting down and no userspace apps are running.
+ * shutting down and anal userspace apps are running.
  */
 static void dcdbas_host_control(void)
 {
 	struct apm_cmd *apm_cmd;
 	u8 action;
 
-	if (host_control_action == HC_ACTION_NONE)
+	if (host_control_action == HC_ACTION_ANALNE)
 		return;
 
 	action = host_control_action;
-	host_control_action = HC_ACTION_NONE;
+	host_control_action = HC_ACTION_ANALNE;
 
 	if (!smi_buf.virt) {
-		dev_dbg(&dcdbas_pdev->dev, "%s: no SMI buffer\n", __func__);
+		dev_dbg(&dcdbas_pdev->dev, "%s: anal SMI buffer\n", __func__);
 		return;
 	}
 
@@ -568,8 +568,8 @@ static int dcdbas_check_wsmt(void)
 	}
 
 	if (!eps) {
-		dev_dbg(&dcdbas_pdev->dev, "found WSMT, but no firmware buffer found\n");
-		return -ENODEV;
+		dev_dbg(&dcdbas_pdev->dev, "found WSMT, but anal firmware buffer found\n");
+		return -EANALDEV;
 	}
 	bios_buf_paddr = eps->smm_comm_buff_addr;
 	remap_size = eps->num_of_4k_pages * PAGE_SIZE;
@@ -585,7 +585,7 @@ remap:
 	}
 	/*
 	 * Limit remap size to MAX_SMI_DATA_BUF_SIZE + 8 (since the first 8
-	 * bytes are used for a semaphore, not the data buffer itself).
+	 * bytes are used for a semaphore, analt the data buffer itself).
 	 */
 	if (remap_size > MAX_SMI_DATA_BUF_SIZE + 8)
 		remap_size = MAX_SMI_DATA_BUF_SIZE + 8;
@@ -593,10 +593,10 @@ remap:
 	bios_buffer = memremap(bios_buf_paddr, remap_size, MEMREMAP_WB);
 	if (!bios_buffer) {
 		dev_warn(&dcdbas_pdev->dev, "found WSMT, but failed to map buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	/* First 8 bytes is for a semaphore, not part of the smi_buf.virt */
+	/* First 8 bytes is for a semaphore, analt part of the smi_buf.virt */
 	smi_buf.dma = bios_buf_paddr + 8;
 	smi_buf.virt = bios_buffer + 8;
 	smi_buf.size = remap_size - 8;
@@ -608,9 +608,9 @@ remap:
 }
 
 /**
- * dcdbas_reboot_notify: handle reboot notification for host control
+ * dcdbas_reboot_analtify: handle reboot analtification for host control
  */
-static int dcdbas_reboot_notify(struct notifier_block *nb, unsigned long code,
+static int dcdbas_reboot_analtify(struct analtifier_block *nb, unsigned long code,
 				void *unused)
 {
 	switch (code) {
@@ -626,11 +626,11 @@ static int dcdbas_reboot_notify(struct notifier_block *nb, unsigned long code,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block dcdbas_reboot_nb = {
-	.notifier_call = dcdbas_reboot_notify,
+static struct analtifier_block dcdbas_reboot_nb = {
+	.analtifier_call = dcdbas_reboot_analtify,
 	.next = NULL,
 	.priority = INT_MIN
 };
@@ -668,8 +668,8 @@ static int dcdbas_probe(struct platform_device *dev)
 {
 	int error;
 
-	host_control_action = HC_ACTION_NONE;
-	host_control_smi_type = HC_SMITYPE_NONE;
+	host_control_action = HC_ACTION_ANALNE;
+	host_control_smi_type = HC_SMITYPE_ANALNE;
 
 	dcdbas_pdev = dev;
 
@@ -690,7 +690,7 @@ static int dcdbas_probe(struct platform_device *dev)
 	if (error)
 		return error;
 
-	register_reboot_notifier(&dcdbas_reboot_nb);
+	register_reboot_analtifier(&dcdbas_reboot_nb);
 
 	dev_info(&dev->dev, "%s (version %s)\n",
 		 DRIVER_DESCRIPTION, DRIVER_VERSION);
@@ -700,7 +700,7 @@ static int dcdbas_probe(struct platform_device *dev)
 
 static void dcdbas_remove(struct platform_device *dev)
 {
-	unregister_reboot_notifier(&dcdbas_reboot_nb);
+	unregister_reboot_analtifier(&dcdbas_reboot_nb);
 	sysfs_remove_group(&dev->dev.kobj, &dcdbas_attr_group);
 }
 
@@ -714,7 +714,7 @@ static struct platform_driver dcdbas_driver = {
 
 static const struct platform_device_info dcdbas_dev_info __initconst = {
 	.name		= DRIVER_NAME,
-	.id		= PLATFORM_DEVID_NONE,
+	.id		= PLATFORM_DEVID_ANALNE,
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
@@ -753,7 +753,7 @@ static void __exit dcdbas_exit(void)
 	 * make sure functions that use dcdbas_pdev are called
 	 * before platform_device_unregister
 	 */
-	unregister_reboot_notifier(&dcdbas_reboot_nb);
+	unregister_reboot_analtifier(&dcdbas_reboot_nb);
 
 	/*
 	 * We have to free the buffer here instead of dcdbas_remove

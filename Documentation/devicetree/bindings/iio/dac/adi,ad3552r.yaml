@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Analog Devices AD2552R DAC device driver
 
 maintainers:
-  - Nuno Sá <nuno.sa@analog.com>
+  - Nuanal Sá <nuanal.sa@analog.com>
 
 description: |
   Bindings for the Analog Devices AD3552R DAC device and similar.
@@ -38,11 +38,11 @@ properties:
 
   vref-supply:
     description:
-      The regulator to use as an external reference. If it does not exists the
+      The regulator to use as an external reference. If it does analt exists the
       internal reference will be used. External reference must be 2.5V
 
   adi,vref-out-en:
-    description: Vref I/O driven by internal vref to 2.5V. If not set, Vref pin
+    description: Vref I/O driven by internal vref to 2.5V. If analt set, Vref pin
       will be floating.
     type: boolean
 
@@ -80,7 +80,7 @@ patternProperties:
         type: object
         additionalProperties: false
         description: Configuration of custom range when
-          adi,output-range-microvolt is not present.
+          adi,output-range-microvolt is analt present.
           The formulas for calculation the output voltages are
             Vout_fs = 2.5 + [(GainN + Offset/1024) * 2.5 * Rfbx * 1.03]
             Vout_zs = 2.5 - [(GainP + Offset/1024) * 2.5 * Rfbx * 1.03]

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Renesas Technology Corp. SH7786 Urquell Support.
+ * Renesas Techanallogy Corp. SH7786 Urquell Support.
  *
- * Copyright (C) 2008  Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Copyright (C) 2008  Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  * Copyright (C) 2009, 2010  Paul Mundt
  *
  * Based on board-sh7785lcr.c
@@ -36,7 +36,7 @@
  *                    38400 bps for SCIF1
  *
  * Address
- * 0x00000000 - 0x04000000  (CS0)     Nor Flash
+ * 0x00000000 - 0x04000000  (CS0)     Analr Flash
  * 0x04000000 - 0x04200000  (CS1)     SRAM
  * 0x05000000 - 0x05800000  (CS1)     on board register
  * 0x05800000 - 0x06000000  (CS1)     LAN91C111
@@ -65,7 +65,7 @@ static struct platform_device heartbeat_device = {
 
 /* LAN91C111 */
 static struct smc91x_platdata smc91x_info = {
-	.flags = SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.flags = SMC91X_USE_16BIT | SMC91X_ANALWAIT,
 };
 
 static struct resource smc91x_eth_resources[] = {
@@ -90,8 +90,8 @@ static struct platform_device smc91x_eth_device = {
 	},
 };
 
-/* Nor Flash */
-static struct mtd_partition nor_flash_partitions[] = {
+/* Analr Flash */
+static struct mtd_partition analr_flash_partitions[] = {
 	{
 		.name		= "loader",
 		.offset		= 0x00000000,
@@ -116,33 +116,33 @@ static struct mtd_partition nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data analr_flash_data = {
 	.width		= 2,
-	.parts		= nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+	.parts		= analr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(analr_flash_partitions),
 };
 
-static struct resource nor_flash_resources[] = {
+static struct resource analr_flash_resources[] = {
 	[0] = {
-		.start	= NOR_FLASH_ADDR,
-		.end	= NOR_FLASH_ADDR + NOR_FLASH_SIZE - 1,
+		.start	= ANALR_FLASH_ADDR,
+		.end	= ANALR_FLASH_ADDR + ANALR_FLASH_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
 
-static struct platform_device nor_flash_device = {
+static struct platform_device analr_flash_device = {
 	.name		= "physmap-flash",
 	.dev		= {
-		.platform_data	= &nor_flash_data,
+		.platform_data	= &analr_flash_data,
 	},
-	.num_resources	= ARRAY_SIZE(nor_flash_resources),
-	.resource	= nor_flash_resources,
+	.num_resources	= ARRAY_SIZE(analr_flash_resources),
+	.resource	= analr_flash_resources,
 };
 
 static struct platform_device *urquell_devices[] __initdata = {
 	&heartbeat_device,
 	&smc91x_eth_device,
-	&nor_flash_device,
+	&analr_flash_device,
 };
 
 static int __init urquell_devices_setup(void)
@@ -199,7 +199,7 @@ static int urquell_clk_init(void)
 /* Initialize the board */
 static void __init urquell_setup(char **cmdline_p)
 {
-	printk(KERN_INFO "Renesas Technology Corp. Urquell support.\n");
+	printk(KERN_INFO "Renesas Techanallogy Corp. Urquell support.\n");
 
 	pm_power_off = urquell_power_off;
 

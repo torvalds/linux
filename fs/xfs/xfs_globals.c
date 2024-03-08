@@ -21,20 +21,20 @@ xfs_param_t xfs_params = {
 	.syncd_timer	= {	1*100,		30*100,		7200*100},
 	.stats_clear	= {	0,		0,		1	},
 	.inherit_sync	= {	0,		1,		1	},
-	.inherit_nodump	= {	0,		1,		1	},
-	.inherit_noatim = {	0,		1,		1	},
+	.inherit_analdump	= {	0,		1,		1	},
+	.inherit_analatim = {	0,		1,		1	},
 	.xfs_buf_timer	= {	100/2,		1*100,		30*100	},
 	.xfs_buf_age	= {	1*100,		15*100,		7200*100},
-	.inherit_nosym	= {	0,		0,		1	},
+	.inherit_analsym	= {	0,		0,		1	},
 	.rotorstep	= {	1,		1,		255	},
-	.inherit_nodfrg	= {	0,		1,		1	},
+	.inherit_analdfrg	= {	0,		1,		1	},
 	.fstrm_timer	= {	1,		30*100,		3600*100},
 	.blockgc_timer	= {	1,		300,		3600*24},
 };
 
 struct xfs_globals xfs_globals = {
-	.log_recovery_delay	=	0,	/* no delay by default */
-	.mount_delay		=	0,	/* no delay by default */
+	.log_recovery_delay	=	0,	/* anal delay by default */
+	.mount_delay		=	0,	/* anal delay by default */
 #ifdef XFS_ASSERT_FATAL
 	.bug_on_assert		=	true,	/* assert failures BUG() */
 #else
@@ -53,7 +53,7 @@ struct xfs_globals xfs_globals = {
 
 	/*
 	 * Leave this many key/ptr slots empty when bulk loading btrees.  By
-	 * default we load new btree node blocks 75% full.
+	 * default we load new btree analde blocks 75% full.
 	 */
-	.bload_node_slack	=	-1,
+	.bload_analde_slack	=	-1,
 };

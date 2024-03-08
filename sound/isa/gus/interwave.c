@@ -3,7 +3,7 @@
  *  Driver for AMD InterWave soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
- *   1999/07/22		Erik Inge Bolso <knan@mo.himolde.no>
+ *   1999/07/22		Erik Inge Bolso <knan@mo.himolde.anal>
  *			* mixer group handlers
  */
 
@@ -216,7 +216,7 @@ static int snd_interwave_detect_stb(struct snd_interwave *iwcard,
 	}
 	if (iwcard->i2c_res == NULL) {
 		snd_printk(KERN_ERR "interwave: can't grab i2c bus port\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sprintf(name, "InterWave-%i", card->number);
@@ -249,7 +249,7 @@ static int snd_interwave_detect(struct snd_interwave *iwcard,
 	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
 	if ((d & 0x07) != 0) {
 		snd_printdd("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	udelay(160);
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 1);	/* release reset */
@@ -257,7 +257,7 @@ static int snd_interwave_detect(struct snd_interwave *iwcard,
 	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
 	if ((d & 0x07) != 1) {
 		snd_printdd("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	spin_lock_irqsave(&gus->reg_lock, flags);
 	rev1 = snd_gf1_look8(gus, SNDRV_GF1_GB_VERSION_NUMBER);
@@ -279,7 +279,7 @@ static int snd_interwave_detect(struct snd_interwave *iwcard,
 #endif
 	}
 	snd_printdd("[0x%lx] InterWave check - failed\n", gus->gf1.port);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static irqreturn_t snd_interwave_interrupt(int irq, void *dev_id)
@@ -354,7 +354,7 @@ struct rom_hdr {
 	/* 010 */ unsigned char series_name[16];
 	/* 026 */ unsigned char date[10];
 	/* 036 */ unsigned short vendor_revision_major;
-	/* 038 */ unsigned short vendor_revision_minor;
+	/* 038 */ unsigned short vendor_revision_mianalr;
 	/* 040 */ unsigned int rom_size;
 	/* 044 */ unsigned char copyright[128];
 	/* 172 */ unsigned char vendor_name[64];
@@ -434,7 +434,7 @@ static void snd_interwave_detect_memory(struct snd_gus_card *gus)
 		for (i = 0; i < sizeof(struct rom_hdr); i++)
 			csum += snd_gf1_peek(gus, bank_pos + i);
 		if (csum != 0)
-			continue;	/* not valid rom */
+			continue;	/* analt valid rom */
 		gus->gf1.rom_banks++;
 		gus->gf1.rom_present |= 1 << (bank_pos >> 22);
 		gus->gf1.rom_memory = snd_gf1_peek(gus, bank_pos + 40) |
@@ -498,7 +498,7 @@ static int snd_interwave_mixer(struct snd_wss *chip)
 	memset(&id2, 0, sizeof(id2));
 	id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 #if 0
-	/* remove mono microphone controls */
+	/* remove moanal microphone controls */
 	strcpy(id1.name, "Mic Playback Switch");
 	err = snd_ctl_remove_id(card, &id1);
 	if (err < 0)
@@ -572,7 +572,7 @@ static int snd_interwave_pnp(int dev, struct snd_interwave *iwcard,
 	if (pnp_port_start(pdev, 0) + 0x100 != pnp_port_start(pdev, 1) ||
 	    pnp_port_start(pdev, 0) + 0x10c != pnp_port_start(pdev, 2)) {
 		snd_printk(KERN_ERR "PnP configure failure (wrong ports)\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	port[dev] = pnp_port_start(pdev, 0);
 	dma1[dev] = pnp_dma(pdev, 0);
@@ -849,7 +849,7 @@ static int snd_interwave_pnp_detect(struct pnp_card_link *pcard,
 			break;
 	}
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 				
 	res = snd_interwave_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)

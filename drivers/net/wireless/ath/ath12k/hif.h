@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HIF_H
@@ -46,7 +46,7 @@ static inline int ath12k_hif_get_user_msi_vector(struct ath12k_base *ab,
 						 u32 *base_vector)
 {
 	if (!ab->hif.ops->get_user_msi_vector)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ab->hif.ops->get_user_msi_vector(ab, user_name, num_vectors,
 						user_base_data,

@@ -262,7 +262,7 @@ static void lpc18xx_ccu_register_branch_clks(void __iomem *reg_base,
 	}
 }
 
-static void __init lpc18xx_ccu_init(struct device_node *np)
+static void __init lpc18xx_ccu_init(struct device_analde *np)
 {
 	struct lpc18xx_branch_clk_data *clk_data;
 	void __iomem *reg_base;

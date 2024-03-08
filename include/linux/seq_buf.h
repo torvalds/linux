@@ -86,7 +86,7 @@ static inline unsigned int seq_buf_used(struct seq_buf *s)
  * This makes sure that the buffer in @s is NUL-terminated and
  * safe to read as a string.
  *
- * Note, if this is called when the buffer has overflowed, then
+ * Analte, if this is called when the buffer has overflowed, then
  * the last byte of the buffer is zeroed, and the len will still
  * point passed it.
  *
@@ -114,7 +114,7 @@ static inline const char *seq_buf_str(struct seq_buf *s)
  * @bufp: the beginning of the buffer is stored here
  *
  * Returns: the number of bytes available in the buffer, or zero if
- * there's no space.
+ * there's anal space.
  */
 static inline size_t seq_buf_get_buf(struct seq_buf *s, char **bufp)
 {

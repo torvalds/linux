@@ -9,7 +9,7 @@
 //
 
 /*
- * Hardware interface for Renoir ACP block
+ * Hardware interface for Reanalir ACP block
  */
 
 #include <linux/platform_device.h>
@@ -25,11 +25,11 @@
 #include "amd.h"
 #include "acp-mach.h"
 
-#define DRV_NAME "acp_asoc_renoir"
+#define DRV_NAME "acp_asoc_reanalir"
 
 static struct acp_resource rsrc = {
 	.offset = 20,
-	.no_of_ctrls = 1,
+	.anal_of_ctrls = 1,
 	.irqp_used = 0,
 	.irq_reg_offset = 0x1800,
 	.i2s_pin_cfg_offset = 0x1400,
@@ -69,7 +69,7 @@ static struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines[] = {
 	},
 	{
 		.id = "AMDI1019",
-		.drv_name = "renoir-acp",
+		.drv_name = "reanalir-acp",
 	},
 	{
 		.id = "ESSX8336",
@@ -78,7 +78,7 @@ static struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines[] = {
 	{},
 };
 
-static struct snd_soc_dai_driver acp_renoir_dai[] = {
+static struct snd_soc_dai_driver acp_reanalir_dai[] = {
 {
 	.name = "acp-i2s-sp",
 	.id = I2S_SP_INSTANCE,
@@ -145,7 +145,7 @@ static struct snd_soc_dai_driver acp_renoir_dai[] = {
 };
 
 
-static int renoir_audio_probe(struct platform_device *pdev)
+static int reanalir_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_chip_info *chip;
@@ -156,27 +156,27 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	chip = dev_get_platdata(&pdev->dev);
 	if (!chip || !chip->base) {
 		dev_err(&pdev->dev, "ACP chip data is NULL\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (chip->acp_rev != ACP3X_DEV) {
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata = devm_kzalloc(dev, sizeof(struct acp_dev_data), GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "acp_mem");
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata->acp_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!adata->acp_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_get_irq_byname(pdev, "acp_dai_irq");
 	if (ret < 0)
@@ -184,10 +184,10 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	adata->i2s_irq = ret;
 
 	adata->dev = dev;
-	adata->dai_driver = acp_renoir_dai;
-	adata->num_dai = ARRAY_SIZE(acp_renoir_dai);
+	adata->dai_driver = acp_reanalir_dai;
+	adata->num_dai = ARRAY_SIZE(acp_reanalir_dai);
 	adata->rsrc = &rsrc;
-	adata->platform = RENOIR;
+	adata->platform = REANALIR;
 	adata->flag = chip->flag;
 
 	adata->machines = snd_soc_acpi_amd_acp_machines;
@@ -205,7 +205,7 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void renoir_audio_remove(struct platform_device *pdev)
+static void reanalir_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
@@ -244,18 +244,18 @@ static const struct dev_pm_ops rn_dma_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(NULL, rn_pcm_resume)
 };
 
-static struct platform_driver renoir_driver = {
-	.probe = renoir_audio_probe,
-	.remove_new = renoir_audio_remove,
+static struct platform_driver reanalir_driver = {
+	.probe = reanalir_audio_probe,
+	.remove_new = reanalir_audio_remove,
 	.driver = {
-		.name = "acp_asoc_renoir",
+		.name = "acp_asoc_reanalir",
 		.pm = &rn_dma_pm_ops,
 	},
 };
 
-module_platform_driver(renoir_driver);
+module_platform_driver(reanalir_driver);
 
-MODULE_DESCRIPTION("AMD ACP Renoir Driver");
+MODULE_DESCRIPTION("AMD ACP Reanalir Driver");
 MODULE_IMPORT_NS(SND_SOC_ACP_COMMON);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

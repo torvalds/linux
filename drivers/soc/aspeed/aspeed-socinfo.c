@@ -39,7 +39,7 @@ static const char *siliconid_to_name(u32 siliconid)
 			return rev_table[i].name;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static const char *siliconid_to_rev(u32 siliconid)
@@ -78,28 +78,28 @@ static int __init aspeed_socinfo_init(void)
 {
 	struct soc_device_attribute *attrs;
 	struct soc_device *soc_dev;
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *reg;
 	bool has_chipid = false;
 	u32 siliconid;
 	u32 chipid[2];
 	const char *machine = NULL;
 
-	np = of_find_compatible_node(NULL, NULL, "aspeed,silicon-id");
+	np = of_find_compatible_analde(NULL, NULL, "aspeed,silicon-id");
 	if (!of_device_is_available(np)) {
-		of_node_put(np);
-		return -ENODEV;
+		of_analde_put(np);
+		return -EANALDEV;
 	}
 
 	reg = of_iomap(np, 0);
 	if (!reg) {
-		of_node_put(np);
-		return -ENODEV;
+		of_analde_put(np);
+		return -EANALDEV;
 	}
 	siliconid = readl(reg);
 	iounmap(reg);
 
-	/* This is optional, the ast2400 does not have it */
+	/* This is optional, the ast2400 does analt have it */
 	reg = of_iomap(np, 1);
 	if (reg) {
 		has_chipid = true;
@@ -107,11 +107,11 @@ static int __init aspeed_socinfo_init(void)
 		chipid[1] = readl(reg + 4);
 		iounmap(reg);
 	}
-	of_node_put(np);
+	of_analde_put(np);
 
 	attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
 	if (!attrs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Machine: Romulus BMC
@@ -121,11 +121,11 @@ static int __init aspeed_socinfo_init(void)
 	 * Serial Number: 64-bit chipid
 	 */
 
-	np = of_find_node_by_path("/");
+	np = of_find_analde_by_path("/");
 	of_property_read_string(np, "model", &machine);
 	if (machine)
 		attrs->machine = kstrdup(machine, GFP_KERNEL);
-	of_node_put(np);
+	of_analde_put(np);
 
 	attrs->family = siliconid_to_name(siliconid);
 	attrs->revision = siliconid_to_rev(siliconid);

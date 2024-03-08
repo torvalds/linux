@@ -40,7 +40,7 @@ struct acpi_rsconvert_info acpi_rs_get_irq[9] = {
 	 AML_OFFSET(irq.descriptor_type),
 	 0},
 
-	/* All done if no flag byte present in descriptor */
+	/* All done if anal flag byte present in descriptor */
 
 	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_AML_LENGTH, 0, 3},
 
@@ -102,20 +102,20 @@ struct acpi_rsconvert_info acpi_rs_set_irq[14] = {
 
 	/*
 	 * All done if the output descriptor length is required to be 3
-	 * (i.e., optimization to 2 bytes cannot be attempted)
+	 * (i.e., optimization to 2 bytes cananalt be attempted)
 	 */
 	{ACPI_RSC_EXIT_EQ, ACPI_RSC_COMPARE_VALUE,
 	 ACPI_RS_OFFSET(data.irq.descriptor_length),
 	 3},
 
-	/* Set length to 2 bytes (no flags byte) */
+	/* Set length to 2 bytes (anal flags byte) */
 
-	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_irq_noflags)},
+	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_irq_analflags)},
 
 	/*
 	 * All done if the output descriptor length is required to be 2.
 	 *
-	 * TBD: Perhaps we should check for error if input flags are not
+	 * TBD: Perhaps we should check for error if input flags are analt
 	 * compatible with a 2-byte descriptor.
 	 */
 	{ACPI_RSC_EXIT_EQ, ACPI_RSC_COMPARE_VALUE,
@@ -127,7 +127,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[14] = {
 	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_irq)},
 
 	/*
-	 * Check if the flags byte is necessary. Not needed if the flags are:
+	 * Check if the flags byte is necessary. Analt needed if the flags are:
 	 * ACPI_EDGE_SENSITIVE, ACPI_ACTIVE_HIGH, ACPI_EXCLUSIVE
 	 */
 	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_VALUE,
@@ -142,9 +142,9 @@ struct acpi_rsconvert_info acpi_rs_set_irq[14] = {
 	 ACPI_RS_OFFSET(data.irq.shareable),
 	 ACPI_EXCLUSIVE},
 
-	/* We can optimize to a 2-byte irq_no_flags() descriptor */
+	/* We can optimize to a 2-byte irq_anal_flags() descriptor */
 
-	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_irq_noflags)}
+	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_irq_analflags)}
 };
 
 /*******************************************************************************

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Mellanox hotplug driver
+ * Mellaanalx hotplug driver
  *
- * Copyright (C) 2016-2020 Mellanox Technologies
+ * Copyright (C) 2016-2020 Mellaanalx Techanallogies
  */
 
 #include <linux/bitops.h>
@@ -28,7 +28,7 @@
 #define MLXREG_HOTPLUG_GOOD_HEALTH_MASK	0x02
 
 #define MLXREG_HOTPLUG_ATTRS_MAX	128
-#define MLXREG_HOTPLUG_NOT_ASSERT	3
+#define MLXREG_HOTPLUG_ANALT_ASSERT	3
 
 /**
  * struct mlxreg_hotplug_priv_data - platform private data:
@@ -48,7 +48,7 @@
  * @mask: top aggregation interrupt common mask;
  * @aggr_cache: last value of aggregation register status;
  * @after_probe: flag indication probing completion;
- * @not_asserted: number of entries in workqueue with no signal assertion;
+ * @analt_asserted: number of entries in workqueue with anal signal assertion;
  */
 struct mlxreg_hotplug_priv_data {
 	int irq;
@@ -68,7 +68,7 @@ struct mlxreg_hotplug_priv_data {
 	u32 mask;
 	u32 aggr_cache;
 	bool after_probe;
-	u8 not_asserted;
+	u8 analt_asserted;
 };
 
 /* Environment variables array for udev. */
@@ -105,14 +105,14 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 	struct mlxreg_core_hotplug_platform_data *pdata;
 	struct i2c_client *client;
 
-	/* Notify user by sending hwmon uevent. */
+	/* Analtify user by sending hwmon uevent. */
 	mlxreg_hotplug_udev_event_send(&priv->hwmon->kobj, data, true);
 
 	/*
 	 * Return if adapter number is negative. It could be in case hotplug
-	 * event is not associated with hotplug device.
+	 * event is analt associated with hotplug device.
 	 */
-	if (data->hpdev.nr < 0 && data->hpdev.action != MLXREG_HOTPLUG_DEVICE_NO_ACTION)
+	if (data->hpdev.nr < 0 && data->hpdev.action != MLXREG_HOTPLUG_DEVICE_ANAL_ACTION)
 		return 0;
 
 	pdata = dev_get_platdata(&priv->pdev->dev);
@@ -150,7 +150,7 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 			mlxreg_hotplug_pdata_export(data->hpdev.brdinfo->platform_data,
 						    pdata->regmap);
 		/* Pass parent hotplug device handle to underlying device. */
-		data->notifier = data->hpdev.notifier;
+		data->analtifier = data->hpdev.analtifier;
 		data->hpdev.pdev = platform_device_register_resndata(&priv->pdev->dev,
 								     brdinfo->type,
 								     data->hpdev.nr,
@@ -164,8 +164,8 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 		break;
 	}
 
-	if (data->hpdev.notifier && data->hpdev.notifier->user_handler)
-		return data->hpdev.notifier->user_handler(data->hpdev.notifier->handle, kind, 1);
+	if (data->hpdev.analtifier && data->hpdev.analtifier->user_handler)
+		return data->hpdev.analtifier->user_handler(data->hpdev.analtifier->handle, kind, 1);
 
 	return 0;
 }
@@ -175,10 +175,10 @@ mlxreg_hotplug_device_destroy(struct mlxreg_hotplug_priv_data *priv,
 			      struct mlxreg_core_data *data,
 			      enum mlxreg_hotplug_kind kind)
 {
-	/* Notify user by sending hwmon uevent. */
+	/* Analtify user by sending hwmon uevent. */
 	mlxreg_hotplug_udev_event_send(&priv->hwmon->kobj, data, false);
-	if (data->hpdev.notifier && data->hpdev.notifier->user_handler)
-		data->hpdev.notifier->user_handler(data->hpdev.notifier->handle, kind, 0);
+	if (data->hpdev.analtifier && data->hpdev.analtifier->user_handler)
+		data->hpdev.analtifier->user_handler(data->hpdev.analtifier->handle, kind, 0);
 
 	switch (data->hpdev.action) {
 	case MLXREG_HOTPLUG_DEVICE_DEFAULT_ACTION:
@@ -286,7 +286,7 @@ static int mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
 		for_each_set_bit(j, &mask, count) {
 			if (data->capability) {
 				/*
-				 * Read capability register and skip non
+				 * Read capability register and skip analn
 				 * relevant attributes.
 				 */
 				ret = regmap_read(priv->regmap,
@@ -307,7 +307,7 @@ static int mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
 			if (!PRIV_ATTR(id)->name) {
 				dev_err(priv->dev, "Memory allocation failed for attr %d.\n",
 					id);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			PRIV_DEV_ATTR(id).dev_attr.attr.name =
@@ -330,7 +330,7 @@ static int mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
 					 sizeof(struct attribute *),
 					 GFP_KERNEL);
 	if (!priv->group.attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->group.attrs = priv->mlxreg_hotplug_attr;
 	priv->groups[0] = &priv->group;
@@ -398,7 +398,7 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 		}
 	}
 
-	/* Acknowledge event. */
+	/* Ackanalwledge event. */
 	ret = regmap_write(priv->regmap, item->reg + MLXREG_HOTPLUG_EVENT_OFF,
 			   0);
 	if (ret)
@@ -468,7 +468,7 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 		}
 		item->cache = regval;
 ack_event:
-		/* Acknowledge event. */
+		/* Ackanalwledge event. */
 		ret = regmap_write(priv->regmap, data->reg +
 				   MLXREG_HOTPLUG_EVENT_OFF, 0);
 		if (ret)
@@ -543,12 +543,12 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 	priv->aggr_cache = regval;
 
 	/*
-	 * Handler is invoked, but no assertion is detected at top aggregation
+	 * Handler is invoked, but anal assertion is detected at top aggregation
 	 * status level. Set aggr_asserted to mask value to allow handler extra
 	 * run over all relevant signals to recover any missed signal.
 	 */
-	if (priv->not_asserted == MLXREG_HOTPLUG_NOT_ASSERT) {
-		priv->not_asserted = 0;
+	if (priv->analt_asserted == MLXREG_HOTPLUG_ANALT_ASSERT) {
+		priv->analt_asserted = 0;
 		aggr_asserted = pdata->mask;
 	}
 	if (!aggr_asserted)
@@ -572,7 +572,7 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 	 * case such signals will be missed. In order to handle these signals
 	 * delayed work is canceled and work task re-scheduled for immediate
 	 * execution. It allows to handle missed signals, if any. In other case
-	 * work handler just validates that no new signals have been received
+	 * work handler just validates that anal new signals have been received
 	 * during masking.
 	 */
 	cancel_delayed_work(&priv->dwork_irq);
@@ -583,8 +583,8 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 	return;
 
 unmask_event:
-	priv->not_asserted++;
-	/* Unmask aggregation event (no need acknowledge). */
+	priv->analt_asserted++;
+	/* Unmask aggregation event (anal need ackanalwledge). */
 	ret = regmap_write(priv->regmap, pdata->cell +
 			   MLXREG_HOTPLUG_AGGR_MASK_OFF, pdata->mask);
 
@@ -729,7 +729,7 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* Defer probing if the necessary adapter is not configured yet. */
+	/* Defer probing if the necessary adapter is analt configured yet. */
 	deferred_adap = i2c_get_adapter(pdata->deferred_nr);
 	if (!deferred_adap)
 		return -EPROBE_DEFER;
@@ -737,7 +737,7 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdata->irq) {
 		priv->irq = pdata->irq;
@@ -805,7 +805,7 @@ static struct platform_driver mlxreg_hotplug_driver = {
 
 module_platform_driver(mlxreg_hotplug_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox regmap hotplug platform driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx regmap hotplug platform driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:mlxreg-hotplug");

@@ -7,7 +7,7 @@ Kernel driver for lp5521
 
 Authors: Mathias Nyman, Yuri Zaporozhets, Samu Onkalo
 
-Contact: Samu Onkalo (samu.p.onkalo-at-nokia.com)
+Contact: Samu Onkalo (samu.p.onkalo-at-analkia.com)
 
 Description
 -----------
@@ -104,12 +104,12 @@ example platform data::
 	  .enable            = lp5521_enable,
   };
 
-Note:
+Analte:
   chan_nr can have values between 0 and 2.
   The name of each channel can be configurable.
-  If the name field is not defined, the default name will be set to 'xxxx:channelN'
+  If the name field is analt defined, the default name will be set to 'xxxx:channelN'
   (XXXX : pdata->label or i2c client name, N : channel number)
 
 
 If the current is set to 0 in the platform data, that channel is
-disabled and it is not visible in the sysfs.
+disabled and it is analt visible in the sysfs.

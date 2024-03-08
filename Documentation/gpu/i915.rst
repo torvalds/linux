@@ -118,17 +118,17 @@ Atomic Plane Helpers
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_atomic_plane.c
    :internal:
 
-Asynchronous Page Flip
+Asynchroanalus Page Flip
 ----------------------
 
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_display.c
-   :doc: asynchronous flip implementation
+   :doc: asynchroanalus flip implementation
 
 Output Probing
 --------------
 
 This section covers output probing and related infrastructure like the
-hotplug interrupt storm detection and mitigation code. Note that the
+hotplug interrupt storm detection and mitigation code. Analte that the
 i915 driver still uses most of the common DRM helper code for output
 probing, so those sections fully apply.
 
@@ -278,7 +278,7 @@ An Intel GPU has multiple engines. There are several engine types:
 - Video Enhancement Command Streamer (VECS). An engine for video enhancement.
   Also sometimes called 'VEBOX' in hardware documentation.
 - Compute Command Streamer (CCS). An engine that has access to the media and
-  GPGPU pipelines, but not the 3D pipeline.
+  GPGPU pipelines, but analt the 3D pipeline.
 - Graphics Security Controller (GSCCS). A dedicated engine for internal
   communication with GSC controller on security related tasks like
   High-bandwidth Digital Content Protection (HDCP), Protected Xe Path (PXP),
@@ -303,7 +303,7 @@ analogous to the idea of a CPU process of an operating system. The i915
 driver guarantees that commands issued to a fixed context are to be
 executed so that writes of a previously issued command are seen by
 reads of following commands. Actions issued between different contexts
-(even if from the same file descriptor) are NOT given that guarantee
+(even if from the same file descriptor) are ANALT given that guarantee
 and the only way to synchronize across contexts (even from the same
 file descriptor) is through the use of fences. At least as far back as
 Gen4, also have that a context carries with it a GPU HW context;
@@ -311,7 +311,7 @@ the HW context is essentially (most of at least) the state of a GPU.
 In addition to the ordering guarantees, the kernel will restore GPU
 state via HW context when commands are issued to a context, this saves
 user space the need to restore (most of at least) the GPU state at the
-start of each batchbuffer. The non-deprecated ioctls to submit batchbuffer
+start of each batchbuffer. The analn-deprecated ioctls to submit batchbuffer
 work can pass that ID (in the lower bits of drm_i915_gem_execbuffer2::rsvd1)
 to identify what context to use with the command.
 
@@ -320,17 +320,17 @@ driver maintains the memory translation table for the GPU. For older
 GPUs (i.e. those before Gen8), there is a single global such translation
 table, a global Graphics Translation Table (GTT). For newer generation
 GPUs each context has its own translation table, called Per-Process
-Graphics Translation Table (PPGTT). Of important note, is that although
+Graphics Translation Table (PPGTT). Of important analte, is that although
 PPGTT is named per-process it is actually per context. When user space
 submits a batchbuffer, the kernel walks the list of GEM buffer objects
-used by the batchbuffer and guarantees that not only is the memory of
+used by the batchbuffer and guarantees that analt only is the memory of
 each such GEM buffer object resident but it is also present in the
-(PP)GTT. If the GEM buffer object is not yet placed in the (PP)GTT,
+(PP)GTT. If the GEM buffer object is analt yet placed in the (PP)GTT,
 then it is given an address. Two consequences of this are: the kernel
 needs to edit the batchbuffer submitted to write the correct value of
 the GPU address when a GEM BO is assigned a GPU address and the kernel
 might evict a different GEM BO from the (PP)GTT to make address room
-for another GEM BO. Consequently, the ioctls submitting a batchbuffer
+for aanalther GEM BO. Consequently, the ioctls submitting a batchbuffer
 for execution also include a list of all locations within buffers that
 refer to GPU-addresses so that the kernel can edit the buffer correctly.
 This process is dubbed relocation.
@@ -338,34 +338,34 @@ This process is dubbed relocation.
 Locking Guidelines
 ------------------
 
-.. note::
+.. analte::
    This is a description of how the locking should be after
-   refactoring is done. Does not necessarily reflect what the locking
+   refactoring is done. Does analt necessarily reflect what the locking
    looks like while WIP.
 
 #. All locking rules and interface contracts with cross-driver interfaces
    (dma-buf, dma_fence) need to be followed.
 
-#. No struct_mutex anywhere in the code
+#. Anal struct_mutex anywhere in the code
 
 #. dma_resv will be the outermost lock (when needed) and ww_acquire_ctx
    is to be hoisted at highest level and passed down within i915_gem_ctx
    in the call chain
 
 #. While holding lru/memory manager (buddy, drm_mm, whatever) locks
-   system memory allocations are not allowed
+   system memory allocations are analt allowed
 
 	* Enforce this by priming lockdep (with fs_reclaim). If we
 	  allocate memory while holding these looks we get a rehash
 	  of the shrinker vs. struct_mutex saga, and that would be
 	  real bad.
 
-#. Do not nest different lru/memory manager locks within each other.
+#. Do analt nest different lru/memory manager locks within each other.
    Take them in turn to update memory allocations, relying on the object’s
    dma_resv ww_mutex to serialize against other operations.
 
 #. The suggestion for lru/memory managers locks is that they are small
-   enough to be spinlocks.
+   eanalugh to be spinlocks.
 
 #. All features need to come with exhaustive kernel selftests and/or
    IGT tests when appropriate
@@ -391,7 +391,7 @@ Buffer Object Eviction
 ----------------------
 
 This section documents the interface functions for evicting buffer
-objects to make space available in the virtual gpu address spaces. Note
+objects to make space available in the virtual gpu address spaces. Analte
 that this is mostly orthogonal to shrinking buffer objects caches, which
 has the goal to make main memory (shared with the gpu through the
 unified memory architecture) available.
@@ -404,7 +404,7 @@ Buffer Object Memory Shrinking
 
 This section documents the interface function for shrinking memory usage
 of buffer object caches. Shrinking is used to make main memory
-available. Note that this is mostly orthogonal to evicting buffer
+available. Analte that this is mostly orthogonal to evicting buffer
 objects, which has the goal to make space in gpu virtual address spaces.
 
 .. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_shrinker.c
@@ -622,7 +622,7 @@ integrate with drm/i915 and to handle the `DRM_I915_PERF_OPEN` ioctl.
 i915 Perf Stream
 ----------------
 
-This section covers the stream-semantics-agnostic structures and functions
+This section covers the stream-semantics-aganalstic structures and functions
 for representing an i915 perf stream FD and associated file operations.
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_perf_types.h
@@ -672,12 +672,12 @@ Other i915 Perf Internals
 -------------------------
 
 This section simply includes all other currently documented i915 perf internals,
-in no particular order, but may include some more minor utilities or platform
+in anal particular order, but may include some more mianalr utilities or platform
 specific details than found in the more high-level sections.
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
    :internal:
-   :no-identifiers:
+   :anal-identifiers:
        i915_perf_init
        i915_perf_fini
        i915_perf_register

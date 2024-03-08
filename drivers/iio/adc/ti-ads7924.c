@@ -2,7 +2,7 @@
 /*
  * IIO driver for Texas Instruments ADS7924 ADC, 12-bit, 4-Channels, I2C
  *
- * Author: Hugo Villeneuve <hvilleneuve@dimonoff.com>
+ * Author: Hugo Villeneuve <hvilleneuve@dimoanalff.com>
  * Copyright 2022 DimOnOff
  *
  * based on iio/adc/ti-ads1015.c
@@ -98,9 +98,9 @@
  * The power-up time is allowed to elapse whenever the device has been shutdown
  * in idle mode. Power-up time can allow external circuits, such as an
  * operational amplifier, between the MUXOUT and ADCIN pins to turn on.
- * The nominal time programmed by the PUTIME[4:0] register bits is given by:
+ * The analminal time programmed by the PUTIME[4:0] register bits is given by:
  *     t PU = PWRUPTIME[4:0] × 2 μs
- * If a power-up time is not required, set the bits to '0' to effectively bypass.
+ * If a power-up time is analt required, set the bits to '0' to effectively bypass.
  */
 #define ADS7924_PWRUPTIME_US 0 /* Bypass (0us). */
 
@@ -113,7 +113,7 @@
  */
 #define ADS7924_ACQTIME_US 6
 
-/* The conversion time is always 4μs and cannot be programmed by the user. */
+/* The conversion time is always 4μs and cananalt be programmed by the user. */
 #define ADS7924_CONVTIME_US 4
 
 #define ADS7924_TOTAL_CONVTIME_US (ADS7924_PWRUPTIME_US + ADS7924_ACQTIME_US + \
@@ -256,22 +256,22 @@ static int ads7924_get_channels_config(struct i2c_client *client,
 {
 	struct ads7924_data *priv = iio_priv(indio_dev);
 	struct device *dev = priv->dev;
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	int num_channels = 0;
 
-	device_for_each_child_node(dev, node) {
+	device_for_each_child_analde(dev, analde) {
 		u32 pval;
 		unsigned int channel;
 
-		if (fwnode_property_read_u32(node, "reg", &pval)) {
-			dev_err(dev, "invalid reg on %pfw\n", node);
+		if (fwanalde_property_read_u32(analde, "reg", &pval)) {
+			dev_err(dev, "invalid reg on %pfw\n", analde);
 			continue;
 		}
 
 		channel = pval;
 		if (channel >= ADS7924_CHANNELS) {
 			dev_err(dev, "invalid channel index %d on %pfw\n",
-				channel, node);
+				channel, analde);
 			continue;
 		}
 
@@ -326,7 +326,7 @@ static int ads7924_reset(struct iio_dev *indio_dev)
 
 	if (data->reset_gpio) {
 		gpiod_set_value(data->reset_gpio, 1); /* Assert. */
-		/* Educated guess: assert time not specified in datasheet... */
+		/* Educated guess: assert time analt specified in datasheet... */
 		mdelay(100);
 		gpiod_set_value(data->reset_gpio, 0); /* Deassert. */
 		return 0;
@@ -358,7 +358,7 @@ static int ads7924_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
+		return dev_err_probe(dev, -EANALMEM,
 				     "failed to allocate iio device\n");
 
 	data = iio_priv(indio_dev);
@@ -469,6 +469,6 @@ static struct i2c_driver ads7924_driver = {
 
 module_i2c_driver(ads7924_driver);
 
-MODULE_AUTHOR("Hugo Villeneuve <hvilleneuve@dimonoff.com>");
+MODULE_AUTHOR("Hugo Villeneuve <hvilleneuve@dimoanalff.com>");
 MODULE_DESCRIPTION("Texas Instruments ADS7924 ADC I2C driver");
 MODULE_LICENSE("GPL");

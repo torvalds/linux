@@ -36,7 +36,7 @@ ENTRY(__raw_writesw)
 		stmfd	sp!, {r4, r5, r6, lr}
 
 		subs	r2, r2, #8
-		bmi	.Lno_outsw_8
+		bmi	.Lanal_outsw_8
 
 .Loutsw_8_lp:	ldmia	r1!, {r3, r4, r5, r6}
 
@@ -78,8 +78,8 @@ ENTRY(__raw_writesw)
 		tst	r2, #7
 		ldmfdeq	sp!, {r4, r5, r6, pc}
 
-.Lno_outsw_8:	tst	r2, #4
-		beq	.Lno_outsw_4
+.Lanal_outsw_8:	tst	r2, #4
+		beq	.Lanal_outsw_4
 
 		ldmia	r1!, {r3, r4}
 
@@ -99,8 +99,8 @@ ENTRY(__raw_writesw)
 		orr	ip, ip, ip, lsl #16
 		str	ip, [r0]
 
-.Lno_outsw_4:	tst	r2, #2
-		beq	.Lno_outsw_2
+.Lanal_outsw_4:	tst	r2, #2
+		beq	.Lanal_outsw_2
 
 		ldr	r3, [r1], #4
 
@@ -112,7 +112,7 @@ ENTRY(__raw_writesw)
 		orr	ip, ip, ip, lsl #16
 		str	ip, [r0]
 
-.Lno_outsw_2:	tst	r2, #1
+.Lanal_outsw_2:	tst	r2, #1
 
 		ldrne	r3, [r1]
 

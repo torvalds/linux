@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _mmap:
@@ -16,7 +16,7 @@ supported applications must call the :ref:`VIDIOC_REQBUFS` ioctl
 with the memory type set to ``V4L2_MEMORY_MMAP``.
 
 Streaming is an I/O method where only pointers to buffers are exchanged
-between application and driver, the data itself is not copied. Memory
+between application and driver, the data itself is analt copied. Memory
 mapping is primarily intended to map buffers in device memory into the
 application's address space. Device memory can be for example the video
 memory on a graphics card with a video capture add-on. However, being
@@ -33,7 +33,7 @@ To allocate device buffers applications call the
 :ref:`VIDIOC_REQBUFS` ioctl with the desired number
 of buffers and buffer type, for example ``V4L2_BUF_TYPE_VIDEO_CAPTURE``.
 This ioctl can also be used to change the number of buffers or to free
-the allocated memory, provided none of the buffers are still mapped.
+the allocated memory, provided analne of the buffers are still mapped.
 
 Before applications can access the buffers they must map them into their
 address space with the :c:func:`mmap()` function. The
@@ -48,7 +48,7 @@ containing its own ``m.offset`` and ``length``. When using the
 multi-planar API, every plane of every buffer has to be mapped
 separately, so the number of calls to :c:func:`mmap()` should
 be equal to number of buffers times number of planes in each buffer. The
-offset and length values must not be modified. Remember, the buffers are
+offset and length values must analt be modified. Remember, the buffers are
 allocated in physical memory, as opposed to virtual memory, which can be
 swapped out to disk. Applications should free the buffers as soon as
 possible with the :c:func:`munmap()` function.
@@ -71,8 +71,8 @@ Example: Mapping buffers in the single-planar API
     reqbuf.count = 20;
 
     if (-1 == ioctl (fd, VIDIOC_REQBUFS, &reqbuf)) {
-	if (errno == EINVAL)
-	    printf("Video capturing or mmap-streaming is not supported\\n");
+	if (erranal == EINVAL)
+	    printf("Video capturing or mmap-streaming is analt supported\\n");
 	else
 	    perror("VIDIOC_REQBUFS");
 
@@ -83,7 +83,7 @@ Example: Mapping buffers in the single-planar API
 
     if (reqbuf.count < 5) {
 	/* You may need to free the buffers here. */
-	printf("Not enough buffer memory\\n");
+	printf("Analt eanalugh buffer memory\\n");
 	exit(EXIT_FAILURE);
     }
 
@@ -111,7 +111,7 @@ Example: Mapping buffers in the single-planar API
 		    fd, buffer.m.offset);
 
 	if (MAP_FAILED == buffers[i].start) {
-	    /* If you do not exit here you should unmap() and free()
+	    /* If you do analt exit here you should unmap() and free()
 	       the buffers mapped so far. */
 	    perror("mmap");
 	    exit(EXIT_FAILURE);
@@ -144,8 +144,8 @@ Example: Mapping buffers in the multi-planar API
     reqbuf.count = 20;
 
     if (ioctl(fd, VIDIOC_REQBUFS, &reqbuf) < 0) {
-	if (errno == EINVAL)
-	    printf("Video capturing or mmap-streaming is not supported\\n");
+	if (erranal == EINVAL)
+	    printf("Video capturing or mmap-streaming is analt supported\\n");
 	else
 	    perror("VIDIOC_REQBUFS");
 
@@ -156,7 +156,7 @@ Example: Mapping buffers in the multi-planar API
 
     if (reqbuf.count < 5) {
 	/* You may need to free the buffers here. */
-	printf("Not enough buffer memory\\n");
+	printf("Analt eanalugh buffer memory\\n");
 	exit(EXIT_FAILURE);
     }
 
@@ -191,7 +191,7 @@ Example: Mapping buffers in the multi-planar API
 		     fd, buffer.m.planes[j].m.offset);
 
 	    if (MAP_FAILED == buffers[i].start[j]) {
-		/* If you do not exit here you should unmap() and free()
+		/* If you do analt exit here you should unmap() and free()
 		   the buffers and planes mapped so far. */
 		perror("mmap");
 		exit(EXIT_FAILURE);
@@ -206,7 +206,7 @@ Example: Mapping buffers in the multi-planar API
 	    munmap(buffers[i].start[j], buffers[i].length[j]);
 
 Conceptually streaming drivers maintain two buffer queues, an incoming
-and an outgoing queue. They separate the synchronous capture or output
+and an outgoing queue. They separate the synchroanalus capture or output
 operation locked to a video clock from the application which is subject
 to random disk or network delays and preemption by other processes,
 thereby reducing the probability of data loss. The queues are organized
@@ -214,19 +214,19 @@ as FIFOs, buffers will be output in the order enqueued in the incoming
 FIFO, and were captured in the order dequeued from the outgoing FIFO.
 
 The driver may require a minimum number of buffers enqueued at all times
-to function, apart of this no limit exists on the number of buffers
+to function, apart of this anal limit exists on the number of buffers
 applications can enqueue in advance, or dequeue and process. They can
 also enqueue in a different order than buffers have been dequeued, and
 the driver can *fill* enqueued *empty* buffers in any order.  [#f2]_ The
 index number of a buffer (struct :c:type:`v4l2_buffer`
-``index``) plays no role here, it only identifies the buffer.
+``index``) plays anal role here, it only identifies the buffer.
 
 Initially all mapped buffers are in dequeued state, inaccessible by the
 driver. For capturing applications it is customary to first enqueue all
 mapped buffers, then to start capturing and enter the read loop. Here
 the application waits until a filled buffer can be dequeued, and
-re-enqueues the buffer when the data is no longer needed. Output
-applications fill and enqueue buffers, when enough buffers are stacked
+re-enqueues the buffer when the data is anal longer needed. Output
+applications fill and enqueue buffers, when eanalugh buffers are stacked
 up the output is started with :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`.
 In the write loop, when the application runs out of free buffers, it
 must wait until an empty buffer can be dequeued and reused.
@@ -237,20 +237,20 @@ ioctl. The status of a buffer being mapped, enqueued, full or empty can
 be determined at any time using the :ref:`VIDIOC_QUERYBUF` ioctl. Two
 methods exist to suspend execution of the application until one or more
 buffers can be dequeued.  By default :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
-blocks when no buffer is in the outgoing queue. When the ``O_NONBLOCK``
+blocks when anal buffer is in the outgoing queue. When the ``O_ANALNBLOCK``
 flag was given to the :c:func:`open()` function,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` returns immediately with an ``EAGAIN``
-error code when no buffer is available. The :c:func:`select()`
+error code when anal buffer is available. The :c:func:`select()`
 or :c:func:`poll()` functions are always available.
 
 To start and stop capturing or output applications call the
 :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and :ref:`VIDIOC_STREAMOFF
 <VIDIOC_STREAMON>` ioctl.
 
-.. note:::ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
+.. analte:::ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
    removes all buffers from both queues as a side effect. Since there is
-   no notion of doing anything "now" on a multitasking system, if an
-   application needs to synchronize with another event it should examine
+   anal analtion of doing anything "analw" on a multitasking system, if an
+   application needs to synchronize with aanalther event it should examine
    the struct ::c:type:`v4l2_buffer` ``timestamp`` of captured
    or outputted buffers.
 
@@ -270,7 +270,7 @@ and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls, the :ref:`mmap()
    but it makes the :c:func:`select()` function ambiguous. We also
    like the clean approach of one file descriptor per logical stream.
    Video overlay for example is also a logical stream, although the CPU
-   is not needed for continuous operation.
+   is analt needed for continuous operation.
 
 .. [#f2]
    Random enqueue order permits applications processing images out of

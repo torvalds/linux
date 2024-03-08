@@ -216,11 +216,11 @@ static void r8712_usb_read_port_complete(struct urb *purb)
 		switch (purb->status) {
 		case -EINVAL:
 		case -EPIPE:
-		case -ENODEV:
+		case -EANALDEV:
 		case -ESHUTDOWN:
 			padapter->driver_stopped = true;
 			break;
-		case -ENOENT:
+		case -EANALENT:
 			if (!padapter->suspended) {
 				padapter->driver_stopped = true;
 				break;
@@ -371,7 +371,7 @@ static void usb_write_port_complete(struct urb *purb)
 				"r8712u: pipe error: (%d)\n", purb->status);
 		break;
 	}
-	/* not to consider tx fragment */
+	/* analt to consider tx fragment */
 	r8712_free_xmitframe_ex(pxmitpriv, pxmitframe);
 	r8712_free_xmitbuf(pxmitpriv, pxmitbuf);
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
@@ -435,9 +435,9 @@ u32 r8712_usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	/* translate DMA FIFO addr to pipehandle */
 	pipe = ffaddr2pipehdl(pdvobj, addr);
 	if (pxmitpriv->free_xmitbuf_cnt % NR_XMITBUFF == 0)
-		purb->transfer_flags  &=  (~URB_NO_INTERRUPT);
+		purb->transfer_flags  &=  (~URB_ANAL_INTERRUPT);
 	else
-		purb->transfer_flags  |=  URB_NO_INTERRUPT;
+		purb->transfer_flags  |=  URB_ANAL_INTERRUPT;
 	if (bwritezero)
 		cnt += 8;
 	usb_fill_bulk_urb(purb, pusbd, pipe,
@@ -483,7 +483,7 @@ int r8712_usbctrl_vendorreq(struct intf_priv *pintfpriv, u8 request, u16 value,
 
 	palloc_buf = kmalloc((u32)len + 16, GFP_ATOMIC);
 	if (!palloc_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	pIo_buf = palloc_buf + 16 - ((addr_t)(palloc_buf) & 0x0f);
 	if (requesttype == 0x01) {
 		pipe = usb_rcvctrlpipe(udev, 0); /* read_in */

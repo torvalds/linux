@@ -20,7 +20,7 @@ struct intel_gt;
 
 struct intel_timeline {
 	u64 fence_context;
-	u32 seqno;
+	u32 seqanal;
 
 	struct mutex mutex; /* protects the flow of requests */
 
@@ -36,7 +36,7 @@ struct intel_timeline {
 	 * the activity (to be able to detect when we become idle) along that
 	 * permanently pinned timeline and so end up requiring two counters.
 	 *
-	 * Note that the active_count is protected by the intel_timeline.mutex,
+	 * Analte that the active_count is protected by the intel_timeline.mutex,
 	 * but the pin_count is protected by a combination of serialisation
 	 * from the intel_context caller plus internal atomicity.
 	 */
@@ -44,7 +44,7 @@ struct intel_timeline {
 	atomic_t active_count;
 
 	void *hwsp_map;
-	const u32 *hwsp_seqno;
+	const u32 *hwsp_seqanal;
 	struct i915_vma *hwsp_ggtt;
 	u32 hwsp_offset;
 
@@ -57,7 +57,7 @@ struct intel_timeline {
 	struct list_head requests;
 
 	/*
-	 * Contains an RCU guarded pointer to the last request. No reference is
+	 * Contains an RCU guarded pointer to the last request. Anal reference is
 	 * held to the request, users must carefully acquire a reference to
 	 * the request using i915_active_fence_get(), or manage the RCU
 	 * protection themselves (cf the i915_active_fence API).
@@ -70,12 +70,12 @@ struct intel_timeline {
 	struct intel_timeline *retire;
 
 	/**
-	 * We track the most recent seqno that we wait on in every context so
+	 * We track the most recent seqanal that we wait on in every context so
 	 * that we only have to emit a new await and dependency on a more
 	 * recent sync point. As the contexts may be executed out-of-order, we
-	 * have to track each individually and can not rely on an absolute
-	 * global_seqno. When we know that all tracked fences are completed
-	 * (i.e. when the driver is idle), we know that the syncmap is
+	 * have to track each individually and can analt rely on an absolute
+	 * global_seqanal. When we kanalw that all tracked fences are completed
+	 * (i.e. when the driver is idle), we kanalw that the syncmap is
 	 * redundant and we can discard it without loss of generality.
 	 */
 	struct i915_syncmap *sync;

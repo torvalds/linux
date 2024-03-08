@@ -130,7 +130,7 @@ static ssize_t size_show(struct device *dev,
 	if (dev->driver)
 		rc = sprintf(buf, "%llu\n", nd_btt->size);
 	else {
-		/* no size to convey if the btt instance is disabled */
+		/* anal size to convey if the btt instance is disabled */
 		rc = -ENXIO;
 	}
 	device_unlock(dev);
@@ -279,29 +279,29 @@ int nd_btt_version(struct nd_btt *nd_btt, struct nd_namespace_common *ndns,
 		/* Probe/setup for BTT v2.0 */
 		nd_btt->initial_offset = 0;
 		nd_btt->version_major = 2;
-		nd_btt->version_minor = 0;
+		nd_btt->version_mianalr = 0;
 		if (nvdimm_read_bytes(ndns, 0, btt_sb, sizeof(*btt_sb), 0))
 			return -ENXIO;
 		if (!nd_btt_arena_is_valid(nd_btt, btt_sb))
-			return -ENODEV;
+			return -EANALDEV;
 		if ((le16_to_cpu(btt_sb->version_major) != 2) ||
-				(le16_to_cpu(btt_sb->version_minor) != 0))
-			return -ENODEV;
+				(le16_to_cpu(btt_sb->version_mianalr) != 0))
+			return -EANALDEV;
 	} else {
 		/*
-		 * Probe/setup for BTT v1.1 (NVDIMM_CCLASS_NONE or
+		 * Probe/setup for BTT v1.1 (NVDIMM_CCLASS_ANALNE or
 		 * NVDIMM_CCLASS_BTT)
 		 */
 		nd_btt->initial_offset = SZ_4K;
 		nd_btt->version_major = 1;
-		nd_btt->version_minor = 1;
+		nd_btt->version_mianalr = 1;
 		if (nvdimm_read_bytes(ndns, SZ_4K, btt_sb, sizeof(*btt_sb), 0))
 			return -ENXIO;
 		if (!nd_btt_arena_is_valid(nd_btt, btt_sb))
-			return -ENODEV;
+			return -EANALDEV;
 		if ((le16_to_cpu(btt_sb->version_major) != 1) ||
-				(le16_to_cpu(btt_sb->version_minor) != 1))
-			return -ENODEV;
+				(le16_to_cpu(btt_sb->version_mianalr) != 1))
+			return -EANALDEV;
 	}
 	return 0;
 }
@@ -313,7 +313,7 @@ static int __nd_btt_probe(struct nd_btt *nd_btt,
 	int rc;
 
 	if (!btt_sb || !ndns || !nd_btt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (nvdimm_namespace_capacity(ndns) < SZ_16M)
 		return -ENXIO;
@@ -325,7 +325,7 @@ static int __nd_btt_probe(struct nd_btt *nd_btt,
 	nd_btt->lbasize = le32_to_cpu(btt_sb->external_lbasize);
 	nd_btt->uuid = kmemdup(&btt_sb->uuid, sizeof(uuid_t), GFP_KERNEL);
 	if (!nd_btt->uuid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nd_device_register(&nd_btt->dev);
 
@@ -340,25 +340,25 @@ int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns)
 	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
 
 	if (ndns->force_raw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (ndns->claim_class) {
-	case NVDIMM_CCLASS_NONE:
+	case NVDIMM_CCLASS_ANALNE:
 	case NVDIMM_CCLASS_BTT:
 	case NVDIMM_CCLASS_BTT2:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	nvdimm_bus_lock(&ndns->dev);
 	btt_dev = __nd_btt_create(nd_region, 0, NULL, ndns);
 	nvdimm_bus_unlock(&ndns->dev);
 	if (!btt_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	btt_sb = devm_kzalloc(dev, sizeof(*btt_sb), GFP_KERNEL);
 	rc = __nd_btt_probe(to_nd_btt(btt_dev), ndns, btt_sb);
-	dev_dbg(dev, "btt: %s\n", rc == 0 ? dev_name(btt_dev) : "<none>");
+	dev_dbg(dev, "btt: %s\n", rc == 0 ? dev_name(btt_dev) : "<analne>");
 	if (rc < 0) {
 		struct nd_btt *nd_btt = to_nd_btt(btt_dev);
 

@@ -1055,14 +1055,14 @@ static struct clk_regmap_div gcc_usb30_sec_mock_utmi_postdiv_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_aggre_noc_pcie_tbu_clk = {
+static struct clk_branch gcc_aggre_analc_pcie_tbu_clk = {
 	.halt_reg = 0x9000c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x9000c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_aggre_noc_pcie_tbu_clk",
+			.name = "gcc_aggre_analc_pcie_tbu_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1198,14 +1198,14 @@ static struct clk_branch gcc_camera_xo_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_prim_axi_clk = {
 	.halt_reg = 0xf07c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0xf07c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_usb3_prim_axi_clk",
+			.name = "gcc_cfg_analc_usb3_prim_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&gcc_usb30_prim_master_clk_src.clkr.hw,
 			},
@@ -1216,14 +1216,14 @@ static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_sec_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_sec_axi_clk = {
 	.halt_reg = 0x1007c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x1007c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_usb3_sec_axi_clk",
+			.name = "gcc_cfg_analc_usb3_sec_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&gcc_usb30_sec_master_clk_src.clkr.hw,
 			},
@@ -1431,27 +1431,27 @@ static struct clk_branch gcc_gpu_iref_en = {
 	},
 };
 
-static struct clk_branch gcc_gpu_memnoc_gfx_clk = {
+static struct clk_branch gcc_gpu_memanalc_gfx_clk = {
 	.halt_reg = 0x7100c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x7100c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_gpu_memnoc_gfx_clk",
+			.name = "gcc_gpu_memanalc_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_gpu_snoc_dvm_gfx_clk = {
+static struct clk_branch gcc_gpu_sanalc_dvm_gfx_clk = {
 	.halt_reg = 0x71018,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x71018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_gpu_snoc_dvm_gfx_clk",
+			.name = "gcc_gpu_sanalc_dvm_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3277,44 +3277,44 @@ static struct gdsc usb30_sec_gdsc = {
 	.pwrsts = PWRSTS_RET_ON,
 };
 
-static struct gdsc hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc = {
+static struct gdsc hlos1_vote_mmanalc_mmu_tbu_hf0_gdsc = {
 	.gdscr = 0x7d050,
 	.pd = {
-		.name = "hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc",
+		.name = "hlos1_vote_mmanalc_mmu_tbu_hf0_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
-static struct gdsc hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc = {
+static struct gdsc hlos1_vote_mmanalc_mmu_tbu_hf1_gdsc = {
 	.gdscr = 0x7d058,
 	.pd = {
-		.name = "hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc",
+		.name = "hlos1_vote_mmanalc_mmu_tbu_hf1_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
-static struct gdsc hlos1_vote_mmnoc_mmu_tbu_sf0_gdsc = {
+static struct gdsc hlos1_vote_mmanalc_mmu_tbu_sf0_gdsc = {
 	.gdscr = 0x7d054,
 	.pd = {
-		.name = "hlos1_vote_mmnoc_mmu_tbu_sf0_gdsc",
+		.name = "hlos1_vote_mmanalc_mmu_tbu_sf0_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
-static struct gdsc hlos1_vote_mmnoc_mmu_tbu_sf1_gdsc = {
+static struct gdsc hlos1_vote_mmanalc_mmu_tbu_sf1_gdsc = {
 	.gdscr = 0x7d06c,
 	.pd = {
-		.name = "hlos1_vote_mmnoc_mmu_tbu_sf1_gdsc",
+		.name = "hlos1_vote_mmanalc_mmu_tbu_sf1_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
 static struct clk_regmap *gcc_sm8250_clocks[] = {
-	[GCC_AGGRE_NOC_PCIE_TBU_CLK] = &gcc_aggre_noc_pcie_tbu_clk.clkr,
+	[GCC_AGGRE_ANALC_PCIE_TBU_CLK] = &gcc_aggre_analc_pcie_tbu_clk.clkr,
 	[GCC_AGGRE_UFS_CARD_AXI_CLK] = &gcc_aggre_ufs_card_axi_clk.clkr,
 	[GCC_AGGRE_UFS_PHY_AXI_CLK] = &gcc_aggre_ufs_phy_axi_clk.clkr,
 	[GCC_AGGRE_USB3_PRIM_AXI_CLK] = &gcc_aggre_usb3_prim_axi_clk.clkr,
@@ -3323,8 +3323,8 @@ static struct clk_regmap *gcc_sm8250_clocks[] = {
 	[GCC_CAMERA_HF_AXI_CLK] = &gcc_camera_hf_axi_clk.clkr,
 	[GCC_CAMERA_SF_AXI_CLK] = &gcc_camera_sf_axi_clk.clkr,
 	[GCC_CAMERA_XO_CLK] = &gcc_camera_xo_clk.clkr,
-	[GCC_CFG_NOC_USB3_PRIM_AXI_CLK] = &gcc_cfg_noc_usb3_prim_axi_clk.clkr,
-	[GCC_CFG_NOC_USB3_SEC_AXI_CLK] = &gcc_cfg_noc_usb3_sec_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_PRIM_AXI_CLK] = &gcc_cfg_analc_usb3_prim_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_SEC_AXI_CLK] = &gcc_cfg_analc_usb3_sec_axi_clk.clkr,
 	[GCC_CPUSS_AHB_CLK] = &gcc_cpuss_ahb_clk.clkr,
 	[GCC_CPUSS_AHB_CLK_SRC] = &gcc_cpuss_ahb_clk_src.clkr,
 	[GCC_CPUSS_AHB_POSTDIV_CLK_SRC] = &gcc_cpuss_ahb_postdiv_clk_src.clkr,
@@ -3343,8 +3343,8 @@ static struct clk_regmap *gcc_sm8250_clocks[] = {
 	[GCC_GPU_GPLL0_CLK_SRC] = &gcc_gpu_gpll0_clk_src.clkr,
 	[GCC_GPU_GPLL0_DIV_CLK_SRC] = &gcc_gpu_gpll0_div_clk_src.clkr,
 	[GCC_GPU_IREF_EN] = &gcc_gpu_iref_en.clkr,
-	[GCC_GPU_MEMNOC_GFX_CLK] = &gcc_gpu_memnoc_gfx_clk.clkr,
-	[GCC_GPU_SNOC_DVM_GFX_CLK] = &gcc_gpu_snoc_dvm_gfx_clk.clkr,
+	[GCC_GPU_MEMANALC_GFX_CLK] = &gcc_gpu_memanalc_gfx_clk.clkr,
+	[GCC_GPU_SANALC_DVM_GFX_CLK] = &gcc_gpu_sanalc_dvm_gfx_clk.clkr,
 	[GCC_NPU_AXI_CLK] = &gcc_npu_axi_clk.clkr,
 	[GCC_NPU_BWMON_AXI_CLK] = &gcc_npu_bwmon_axi_clk.clkr,
 	[GCC_NPU_BWMON_CFG_AHB_CLK] = &gcc_npu_bwmon_cfg_ahb_clk.clkr,
@@ -3522,14 +3522,14 @@ static struct gdsc *gcc_sm8250_gdscs[] = {
 	[UFS_PHY_GDSC] = &ufs_phy_gdsc,
 	[USB30_PRIM_GDSC] = &usb30_prim_gdsc,
 	[USB30_SEC_GDSC] = &usb30_sec_gdsc,
-	[HLOS1_VOTE_MMNOC_MMU_TBU_HF0_GDSC] =
-					&hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc,
-	[HLOS1_VOTE_MMNOC_MMU_TBU_HF1_GDSC] =
-					&hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc,
-	[HLOS1_VOTE_MMNOC_MMU_TBU_SF0_GDSC] =
-					&hlos1_vote_mmnoc_mmu_tbu_sf0_gdsc,
-	[HLOS1_VOTE_MMNOC_MMU_TBU_SF1_GDSC] =
-					&hlos1_vote_mmnoc_mmu_tbu_sf1_gdsc,
+	[HLOS1_VOTE_MMANALC_MMU_TBU_HF0_GDSC] =
+					&hlos1_vote_mmanalc_mmu_tbu_hf0_gdsc,
+	[HLOS1_VOTE_MMANALC_MMU_TBU_HF1_GDSC] =
+					&hlos1_vote_mmanalc_mmu_tbu_hf1_gdsc,
+	[HLOS1_VOTE_MMANALC_MMU_TBU_SF0_GDSC] =
+					&hlos1_vote_mmanalc_mmu_tbu_sf0_gdsc,
+	[HLOS1_VOTE_MMANALC_MMU_TBU_SF1_GDSC] =
+					&hlos1_vote_mmanalc_mmu_tbu_sf1_gdsc,
 };
 
 static const struct qcom_reset_map gcc_sm8250_resets[] = {
@@ -3539,19 +3539,19 @@ static const struct qcom_reset_map gcc_sm8250_resets[] = {
 	[GCC_NPU_BCR] = { 0x4d000 },
 	[GCC_PCIE_0_BCR] = { 0x6b000 },
 	[GCC_PCIE_0_LINK_DOWN_BCR] = { 0x6c014 },
-	[GCC_PCIE_0_NOCSR_COM_PHY_BCR] = { 0x6c020 },
+	[GCC_PCIE_0_ANALCSR_COM_PHY_BCR] = { 0x6c020 },
 	[GCC_PCIE_0_PHY_BCR] = { 0x6c01c },
-	[GCC_PCIE_0_PHY_NOCSR_COM_PHY_BCR] = { 0x6c028 },
+	[GCC_PCIE_0_PHY_ANALCSR_COM_PHY_BCR] = { 0x6c028 },
 	[GCC_PCIE_1_BCR] = { 0x8d000 },
 	[GCC_PCIE_1_LINK_DOWN_BCR] = { 0x8e014 },
-	[GCC_PCIE_1_NOCSR_COM_PHY_BCR] = { 0x8e020 },
+	[GCC_PCIE_1_ANALCSR_COM_PHY_BCR] = { 0x8e020 },
 	[GCC_PCIE_1_PHY_BCR] = { 0x8e01c },
-	[GCC_PCIE_1_PHY_NOCSR_COM_PHY_BCR] = { 0x8e000 },
+	[GCC_PCIE_1_PHY_ANALCSR_COM_PHY_BCR] = { 0x8e000 },
 	[GCC_PCIE_2_BCR] = { 0x6000 },
 	[GCC_PCIE_2_LINK_DOWN_BCR] = { 0x1f014 },
-	[GCC_PCIE_2_NOCSR_COM_PHY_BCR] = { 0x1f020 },
+	[GCC_PCIE_2_ANALCSR_COM_PHY_BCR] = { 0x1f020 },
 	[GCC_PCIE_2_PHY_BCR] = { 0x1f01c },
-	[GCC_PCIE_2_PHY_NOCSR_COM_PHY_BCR] = { 0x1f028 },
+	[GCC_PCIE_2_PHY_ANALCSR_COM_PHY_BCR] = { 0x1f028 },
 	[GCC_PCIE_PHY_BCR] = { 0x6f000 },
 	[GCC_PCIE_PHY_CFG_AHB_BCR] = { 0x6f00c },
 	[GCC_PCIE_PHY_COM_BCR] = { 0x6f010 },
@@ -3647,7 +3647,7 @@ static int gcc_sm8250_probe(struct platform_device *pdev)
 	 * Keep the clocks always-ON
 	 * GCC_VIDEO_AHB_CLK, GCC_CAMERA_AHB_CLK, GCC_DISP_AHB_CLK,
 	 * GCC_CPUSS_DVM_BUS_CLK, GCC_GPU_CFG_AHB_CLK,
-	 * GCC_SYS_NOC_CPUSS_AHB_CLK
+	 * GCC_SYS_ANALC_CPUSS_AHB_CLK
 	 */
 	regmap_update_bits(regmap, 0x0b004, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x0b008, BIT(0), BIT(0));

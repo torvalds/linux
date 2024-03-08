@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -223,7 +223,7 @@ static int vega12_smu_init(struct pp_hwmgr *hwmgr)
 
 	priv = kzalloc(sizeof(struct vega12_smumgr), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->smu_backend = priv;
 
@@ -378,7 +378,7 @@ static int vega12_smu_fini(struct pp_hwmgr *hwmgr)
 static int vega12_start_smu(struct pp_hwmgr *hwmgr)
 {
 	PP_ASSERT_WITH_CODE(smu9_is_smc_ram_running(hwmgr),
-			"SMC is not running!",
+			"SMC is analt running!",
 			return -EINVAL);
 
 	vega12_set_tools_address(hwmgr);

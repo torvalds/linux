@@ -23,7 +23,7 @@ description: |
   The Coresight funnel merges 2-8 trace sources into a single trace
   stream with programmable enable and priority of input ports.
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of analdes
 select:
   properties:
     compatible:

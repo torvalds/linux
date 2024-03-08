@@ -27,7 +27,7 @@
 	};
 
 	cp2_usb3_0_phy0: cp2_usb3_phy0 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&cp2_reg_usb3_vbus0>;
 	};
 
@@ -41,7 +41,7 @@
 	};
 
 	cp2_usb3_0_phy1: cp2_usb3_phy1 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&cp2_reg_usb3_vbus1>;
 	};
 
@@ -63,8 +63,8 @@
 		tx-fault-gpios = <&cp2_module_expander1 8 GPIO_ACTIVE_HIGH>;
 		/*
 		 * SFP cages are unconnected on early PCBs because of an the I2C
-		 * lanes not being connected. Prevent the port for being
-		 * unusable by disabling the SFP node.
+		 * lanes analt being connected. Prevent the port for being
+		 * unusable by disabling the SFP analde.
 		 */
 		status = "disabled";
 	};

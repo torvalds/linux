@@ -3,7 +3,7 @@ C R+poonceonces
 (*
  * Result: Sometimes
  *
- * This is the unordered (thus lacking smp_mb()) version of one of the
+ * This is the uanalrdered (thus lacking smp_mb()) version of one of the
  * classic counterintuitive litmus tests that illustrates the effects of
  * store propagation delays.
  *)

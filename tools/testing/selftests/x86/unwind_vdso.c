@@ -13,12 +13,12 @@
 
 #include "helpers.h"
 
-#if defined(__GLIBC__) && __GLIBC__ == 2 && __GLIBC_MINOR__ < 16
+#if defined(__GLIBC__) && __GLIBC__ == 2 && __GLIBC_MIANALR__ < 16
 
 int main()
 {
 	/* We need getauxval(). */
-	printf("[SKIP]\tGLIBC before 2.16 cannot compile this test\n");
+	printf("[SKIP]\tGLIBC before 2.16 cananalt compile this test\n");
 	return 0;
 }
 
@@ -74,7 +74,7 @@ _Unwind_Reason_Code trace_fn(struct _Unwind_Context * ctx, void *opaque)
 		if (ip == state->ip)
 			state->depth = 0;
 		else
-			return _URC_NO_REASON;	/* Not there yet */
+			return _URC_ANAL_REASON;	/* Analt there yet */
 	}
 	printf("\t  0x%lx\n", ip);
 
@@ -97,10 +97,10 @@ _Unwind_Reason_Code trace_fn(struct _Unwind_Context * ctx, void *opaque)
 		       (ok ? "OK" : "FAIL"),
 		       eax, ebx, ecx, edx, esi, edi, ebp);
 
-		return _URC_NORMAL_STOP;
+		return _URC_ANALRMAL_STOP;
 	} else {
 		state->depth++;
-		return _URC_NO_REASON;
+		return _URC_ANAL_REASON;
 	}
 }
 
@@ -121,7 +121,7 @@ static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 	}
 
 	if (!got_sysinfo)
-		return;		/* Not there yet */
+		return;		/* Analt there yet */
 
 	if (ip == return_address) {
 		ctx->uc_mcontext.gregs[REG_EFL] &= ~X86_EFLAGS_TF;
@@ -180,4 +180,4 @@ int main()
 	}
 }
 
-#endif	/* New enough libc */
+#endif	/* New eanalugh libc */

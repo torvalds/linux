@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -777,7 +777,7 @@ int ath11k_core_suspend(struct ath11k_base *ab)
 	struct ath11k *ar;
 
 	if (!ab->hw_params.supports_suspend)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* so far single_pdev_only chips have supports_suspend as true
 	 * and only the first pdev is valid.
@@ -836,7 +836,7 @@ int ath11k_core_resume(struct ath11k_base *ab)
 	struct ath11k *ar;
 
 	if (!ab->hw_params.supports_suspend)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* so far signle_pdev_only chips have supports_suspend as true
 	 * and only the first pdev is valid.
@@ -909,7 +909,7 @@ static void ath11k_core_check_cc_code_bdfext(const struct dmi_header *hdr, void 
 		ath11k_dbg(ab, ATH11K_DBG_BOOT, "smbios worldwide regdomain\n");
 		break;
 	default:
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "ignore smbios country code setting %d\n",
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "iganalre smbios country code setting %d\n",
 			   smbios->country_code_flag);
 		break;
 	}
@@ -917,14 +917,14 @@ static void ath11k_core_check_cc_code_bdfext(const struct dmi_header *hdr, void 
 	spin_unlock_bh(&ab->base_lock);
 
 	if (!smbios->bdf_enabled) {
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "bdf variant name not found.\n");
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "bdf variant name analt found.\n");
 		return;
 	}
 
 	/* Only one string exists (per spec) */
 	if (memcmp(smbios->bdf_ext, magic, strlen(magic)) != 0) {
 		ath11k_dbg(ab, ATH11K_DBG_BOOT,
-			   "bdf variant magic does not match.\n");
+			   "bdf variant magic does analt match.\n");
 		return;
 	}
 
@@ -933,7 +933,7 @@ static void ath11k_core_check_cc_code_bdfext(const struct dmi_header *hdr, void 
 	for (i = 0; i < len; i++) {
 		if (!isascii(smbios->bdf_ext[i]) || !isprint(smbios->bdf_ext[i])) {
 			ath11k_dbg(ab, ATH11K_DBG_BOOT,
-				   "bdf variant name contains non ascii chars.\n");
+				   "bdf variant name contains analn ascii chars.\n");
 			return;
 		}
 	}
@@ -958,7 +958,7 @@ int ath11k_core_check_smbios(struct ath11k_base *ab)
 	dmi_walk(ath11k_core_check_cc_code_bdfext, ab);
 
 	if (ab->qmi.target.bdf_ext[0] == '\0')
-		return -ENODATA;
+		return -EANALDATA;
 
 	return 0;
 }
@@ -967,16 +967,16 @@ int ath11k_core_check_dt(struct ath11k_base *ab)
 {
 	size_t max_len = sizeof(ab->qmi.target.bdf_ext);
 	const char *variant = NULL;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = ab->dev->of_node;
-	if (!node)
-		return -ENOENT;
+	analde = ab->dev->of_analde;
+	if (!analde)
+		return -EANALENT;
 
-	of_property_read_string(node, "qcom,ath11k-calibration-variant",
+	of_property_read_string(analde, "qcom,ath11k-calibration-variant",
 				&variant);
 	if (!variant)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (strscpy(ab->qmi.target.bdf_ext, variant, max_len) < 0)
 		ath11k_dbg(ab, ATH11K_DBG_BOOT,
@@ -1080,11 +1080,11 @@ const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
 	int ret;
 
 	if (file == NULL)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	ath11k_core_create_firmware_path(ab, file, path, sizeof(path));
 
-	ret = firmware_request_nowarn(&fw, path, ab->dev);
+	ret = firmware_request_analwarn(&fw, path, ab->dev);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -1154,7 +1154,7 @@ static int ath11k_core_parse_bd_ie_board(struct ath11k_base *ab,
 				   boardname);
 		} else if (board_ie_id == data_id) {
 			if (!name_match_found)
-				/* no match found */
+				/* anal match found */
 				goto next;
 
 			ath11k_dbg(ab, ATH11K_DBG_BOOT,
@@ -1168,7 +1168,7 @@ static int ath11k_core_parse_bd_ie_board(struct ath11k_base *ab,
 			ret = 0;
 			goto out;
 		} else {
-			ath11k_warn(ab, "unknown %s id found: %d\n",
+			ath11k_warn(ab, "unkanalwn %s id found: %d\n",
 				    ath11k_bd_ie_type_str(ie_id),
 				    board_ie_id);
 		}
@@ -1180,8 +1180,8 @@ next:
 		buf += board_ie_len;
 	}
 
-	/* no match found */
-	ret = -ENOENT;
+	/* anal match found */
+	ret = -EANALENT;
 
 out:
 	return ret;
@@ -1264,8 +1264,8 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 							    ie_id_match,
 							    name_id,
 							    data_id);
-			if (ret == -ENOENT)
-				/* no match found, continue */
+			if (ret == -EANALENT)
+				/* anal match found, continue */
 				goto next;
 			else if (ret)
 				/* there was an error, bail out */
@@ -1287,7 +1287,7 @@ out:
 			   "failed to fetch %s for %s from %s\n",
 			   ath11k_bd_ie_type_str(ie_id_match),
 			   boardname, filepath);
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		goto err;
 	}
 
@@ -1324,7 +1324,7 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 	filename = ATH11K_BOARD_API2_FILE;
 	boardname = kzalloc(BOARD_NAME_SIZE, GFP_KERNEL);
 	if (!boardname) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -1344,7 +1344,7 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 
 	fallback_boardname = kzalloc(BOARD_NAME_SIZE, GFP_KERNEL);
 	if (!fallback_boardname) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -1364,7 +1364,7 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 
 	chip_id_boardname = kzalloc(BOARD_NAME_SIZE, GFP_KERNEL);
 	if (!chip_id_boardname) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -1538,7 +1538,7 @@ static int ath11k_core_pdev_create(struct ath11k_base *ab)
 
 	ret = ath11k_thermal_register(ab);
 	if (ret) {
-		ath11k_err(ab, "could not register thermal device: %d\n",
+		ath11k_err(ab, "could analt register thermal device: %d\n",
 			   ret);
 		goto err_mac_unregister;
 	}
@@ -1928,7 +1928,7 @@ static void ath11k_core_post_reconfigure_recovery(struct ath11k_base *ab)
 			break;
 		case ATH11K_STATE_OFF:
 			ath11k_warn(ab,
-				    "cannot restart radio %d that hasn't been started\n",
+				    "cananalt restart radio %d that hasn't been started\n",
 				    i);
 			break;
 		case ATH11K_STATE_RESTARTING:
@@ -1938,7 +1938,7 @@ static void ath11k_core_post_reconfigure_recovery(struct ath11k_base *ab)
 			fallthrough;
 		case ATH11K_STATE_WEDGED:
 			ath11k_warn(ab,
-				    "device is wedged, will not restart radio %d\n", i);
+				    "device is wedged, will analt restart radio %d\n", i);
 			break;
 		case ATH11K_STATE_FTM:
 			ath11k_dbg(ab, ATH11K_DBG_TESTMODE,
@@ -1976,12 +1976,12 @@ static void ath11k_core_reset(struct work_struct *work)
 	long time_left;
 
 	if (!(test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))) {
-		ath11k_warn(ab, "ignore reset dev flags 0x%lx\n", ab->dev_flags);
+		ath11k_warn(ab, "iganalre reset dev flags 0x%lx\n", ab->dev_flags);
 		return;
 	}
 
 	/* Sometimes the recovery will fail and then the next all recovery fail,
-	 * this is to avoid infinite recovery since it can not recovery success.
+	 * this is to avoid infinite recovery since it can analt recovery success.
 	 */
 	fail_cont_count = atomic_read(&ab->fail_cont_count);
 
@@ -1995,7 +1995,7 @@ static void ath11k_core_reset(struct work_struct *work)
 	reset_count = atomic_inc_return(&ab->reset_count);
 
 	if (reset_count > 1) {
-		/* Sometimes it happened another reset worker before the previous one
+		/* Sometimes it happened aanalther reset worker before the previous one
 		 * completed, then the second reset worker will destroy the previous one,
 		 * thus below is to avoid that.
 		 */

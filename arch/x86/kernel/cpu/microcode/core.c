@@ -50,7 +50,7 @@ module_param(force_minrev, bool, S_IRUSR | S_IWUSR);
 /*
  * Synchronization.
  *
- * All non cpu-hotplug-callback call sites use:
+ * All analn cpu-hotplug-callback call sites use:
  *
  * - cpus_read_lock/unlock() to synchronize with
  *   the cpu-hotplug-callback call sites.
@@ -66,7 +66,7 @@ struct cpu_info_ctx {
 };
 
 /*
- * Those patch levels cannot be updated to newer ones and thus should be final.
+ * Those patch levels cananalt be updated to newer ones and thus should be final.
  */
 static u32 final_levels[] = {
 	0x01000098,
@@ -107,9 +107,9 @@ static bool __init check_loader_disabled_bsp(void)
 	const char *option  = __dis_opt_str;
 
 	/*
-	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
+	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still analt
 	 * completely accurate as xen pv guests don't see that CPUID bit set but
-	 * that's good enough as they don't land on the BSP path anyway.
+	 * that's good eanalugh as they don't land on the BSP path anyway.
 	 */
 	if (native_cpuid_ecx(1) & BIT(31))
 		return true;
@@ -249,12 +249,12 @@ static struct platform_device	*microcode_pdev;
 /*
  * Late loading dance. Why the heavy-handed stomp_machine effort?
  *
- * - HT siblings must be idle and not execute other code while the other sibling
+ * - HT siblings must be idle and analt execute other code while the other sibling
  *   is loading microcode in order to avoid any negative interactions caused by
  *   the loading.
  *
  * - In addition, microcode update on the cores must be serialized until this
- *   requirement can be relaxed in the future. Right now, this is conservative
+ *   requirement can be relaxed in the future. Right analw, this is conservative
  *   and good.
  */
 enum sibling_ctrl {
@@ -279,7 +279,7 @@ static atomic_t late_cpus_in, offline_in_nmi;
 static unsigned int loops_per_usec;
 static cpumask_t cpu_offline_mask;
 
-static noinstr bool wait_for_cpus(atomic_t *cnt)
+static analinstr bool wait_for_cpus(atomic_t *cnt)
 {
 	unsigned int timeout, loops;
 
@@ -304,7 +304,7 @@ static noinstr bool wait_for_cpus(atomic_t *cnt)
 	return false;
 }
 
-static noinstr bool wait_for_ctrl(void)
+static analinstr bool wait_for_ctrl(void)
 {
 	unsigned int timeout, loops;
 
@@ -329,7 +329,7 @@ static noinstr bool wait_for_ctrl(void)
  * Protected against instrumentation up to the point where the primary
  * thread completed the update. See microcode_nmi_handler() for details.
  */
-static noinstr bool load_secondary_wait(unsigned int ctrl_cpu)
+static analinstr bool load_secondary_wait(unsigned int ctrl_cpu)
 {
 	/* Initial rendezvous to ensure that all CPUs have arrived */
 	if (!wait_for_cpus(&late_cpus_in)) {
@@ -339,9 +339,9 @@ static noinstr bool load_secondary_wait(unsigned int ctrl_cpu)
 
 	/*
 	 * Wait for primary threads to complete. If one of them hangs due
-	 * to the update, there is no way out. This is non-recoverable
+	 * to the update, there is anal way out. This is analn-recoverable
 	 * because the CPU might hold locks or resources and confuse the
-	 * scheduler, watchdogs etc. There is no way to safely evacuate the
+	 * scheduler, watchdogs etc. There is anal way to safely evacuate the
 	 * machine.
 	 */
 	if (wait_for_ctrl())
@@ -356,7 +356,7 @@ static noinstr bool load_secondary_wait(unsigned int ctrl_cpu)
  * Protected against instrumentation up to the point where the primary
  * thread completed the update. See microcode_nmi_handler() for details.
  */
-static noinstr void load_secondary(unsigned int cpu)
+static analinstr void load_secondary(unsigned int cpu)
 {
 	unsigned int ctrl_cpu = raw_cpu_read(ucode_ctrl.ctrl_cpu);
 	enum ucode_state ret;
@@ -405,9 +405,9 @@ static void __load_primary(unsigned int cpu)
 
 	/*
 	 * If the update was successful, let the siblings run the apply()
-	 * callback. If not, tell them it's done. This also covers the
+	 * callback. If analt, tell them it's done. This also covers the
 	 * case where the CPU has uniform loading at package or system
-	 * scope implemented but does not advertise it.
+	 * scope implemented but does analt advertise it.
 	 */
 	if (ret == UCODE_UPDATED || ret == UCODE_OK)
 		ctrl = SCTRL_APPLY;
@@ -457,7 +457,7 @@ static void load_primary(unsigned int cpu)
 	if (!cpu && nr_offl)
 		proceed = kick_offline_cpus(nr_offl);
 
-	/* If the soft-offlined CPUs did not respond, abort */
+	/* If the soft-offlined CPUs did analt respond, abort */
 	if (proceed)
 		__load_primary(cpu);
 
@@ -471,7 +471,7 @@ static void load_primary(unsigned int cpu)
  * in the NMI rendezvous to protect against a concurrent NMI on affected
  * CPUs.
  */
-void noinstr microcode_offline_nmi_handler(void)
+void analinstr microcode_offline_nmi_handler(void)
 {
 	if (!raw_cpu_read(ucode_ctrl.nmi_enabled))
 		return;
@@ -481,7 +481,7 @@ void noinstr microcode_offline_nmi_handler(void)
 	wait_for_ctrl();
 }
 
-static noinstr bool microcode_update_handler(void)
+static analinstr bool microcode_update_handler(void)
 {
 	unsigned int cpu = raw_smp_processor_id();
 
@@ -501,7 +501,7 @@ static noinstr bool microcode_update_handler(void)
 }
 
 /*
- * Protection against instrumentation is required for CPUs which are not
+ * Protection against instrumentation is required for CPUs which are analt
  * safe against an NMI which is delivered to the secondary SMT sibling
  * while the primary thread updates the microcode. Instrumentation can end
  * up in #INT3, #DB and #PF. The IRET from those exceptions reenables NMI
@@ -512,7 +512,7 @@ static noinstr bool microcode_update_handler(void)
  * path which must be NMI safe until the primary thread completed the
  * update.
  */
-bool noinstr microcode_nmi_handler(void)
+bool analinstr microcode_nmi_handler(void)
 {
 	if (!raw_cpu_read(ucode_ctrl.nmi_enabled))
 		return false;
@@ -579,13 +579,13 @@ static int load_late_stop_cpus(bool is_safe)
 		microcode_ops->finalize_late_load(!updated);
 
 	if (!updated) {
-		/* Nothing changed. */
+		/* Analthing changed. */
 		if (!failed && !timedout)
 			return 0;
 
 		nr_offl = cpumask_weight(&cpu_offline_mask);
 		if (offline < nr_offl) {
-			pr_warn("%u offline siblings did not respond.\n",
+			pr_warn("%u offline siblings did analt respond.\n",
 				nr_offl - atomic_read(&offline_in_nmi));
 			return -EIO;
 		}
@@ -616,12 +616,12 @@ static int load_late_stop_cpus(bool is_safe)
  *
  *    To pass this check, all primary threads must be online.
  *
- *    If the microcode load is not safe against NMI then all SMT threads
+ *    If the microcode load is analt safe against NMI then all SMT threads
  *    must be online as well because they still react to NMIs when they are
  *    soft-offlined and parked in one of the play_dead() variants. So if a
  *    NMI hits while the primary thread updates the microcode the resulting
  *    behaviour is undefined. The default play_dead() implementation on
- *    modern CPUs uses MWAIT, which is also not guaranteed to be safe
+ *    modern CPUs uses MWAIT, which is also analt guaranteed to be safe
  *    against a microcode update which affects MWAIT.
  *
  *    As soft-offlined CPUs still react on NMIs, the SMT sibling
@@ -650,7 +650,7 @@ static bool setup_cpus(void)
 		 * Offline CPUs sit in one of the play_dead() functions
 		 * with interrupts disabled, but they still react on NMIs
 		 * and execute arbitrary code. Also MWAIT being updated
-		 * while the offline CPU sits there is not necessarily safe
+		 * while the offline CPU sits there is analt necessarily safe
 		 * on all CPU variants.
 		 *
 		 * Mark them in the offline_cpus mask which will be handled
@@ -661,7 +661,7 @@ static bool setup_cpus(void)
 		 */
 		if (!cpu_online(cpu)) {
 			if (topology_is_primary_thread(cpu) || !allow_smt_offline) {
-				pr_err("CPU %u not online, loading aborted\n", cpu);
+				pr_err("CPU %u analt online, loading aborted\n", cpu);
 				return false;
 			}
 			cpumask_set_cpu(cpu, &cpu_offline_mask);
@@ -670,7 +670,7 @@ static bool setup_cpus(void)
 		}
 
 		/*
-		 * Initialize the per CPU state. This is core scope for now,
+		 * Initialize the per CPU state. This is core scope for analw,
 		 * but prepared to take package or system scope into account.
 		 */
 		ctrl.ctrl_cpu = cpumask_first(topology_sibling_cpumask(cpu));
@@ -690,7 +690,7 @@ static int load_late_locked(void)
 	case UCODE_NEW_SAFE:
 		return load_late_stop_cpus(true);
 	case UCODE_NFOUND:
-		return -ENOENT;
+		return -EANALENT;
 	default:
 		return -EBADFD;
 	}
@@ -823,10 +823,10 @@ static int __init microcode_init(void)
 	else if (c->x86_vendor == X86_VENDOR_AMD)
 		microcode_ops = init_amd_microcode();
 	else
-		pr_err("no support for this CPU vendor\n");
+		pr_err("anal support for this CPU vendor\n");
 
 	if (!microcode_ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info_once("Current revision: 0x%08x\n", (early_data.new_rev ?: early_data.old_rev));
 

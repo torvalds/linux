@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 YELLOW='\033[0;33m'
-NC='\033[0m' # No Color
+NC='\033[0m' # Anal Color
 
 declare -a FILES
 FILES=(
@@ -62,21 +62,21 @@ FILES=(
   "arch/arm/include/uapi/asm/kvm.h"
   "arch/arm64/include/uapi/asm/kvm.h"
   "arch/arm64/include/uapi/asm/unistd.h"
-  "arch/alpha/include/uapi/asm/errno.h"
-  "arch/mips/include/asm/errno.h"
-  "arch/mips/include/uapi/asm/errno.h"
-  "arch/parisc/include/uapi/asm/errno.h"
-  "arch/powerpc/include/uapi/asm/errno.h"
-  "arch/sparc/include/uapi/asm/errno.h"
-  "arch/x86/include/uapi/asm/errno.h"
+  "arch/alpha/include/uapi/asm/erranal.h"
+  "arch/mips/include/asm/erranal.h"
+  "arch/mips/include/uapi/asm/erranal.h"
+  "arch/parisc/include/uapi/asm/erranal.h"
+  "arch/powerpc/include/uapi/asm/erranal.h"
+  "arch/sparc/include/uapi/asm/erranal.h"
+  "arch/x86/include/uapi/asm/erranal.h"
   "include/asm-generic/bitops/arch_hweight.h"
   "include/asm-generic/bitops/const_hweight.h"
   "include/asm-generic/bitops/__fls.h"
   "include/asm-generic/bitops/fls.h"
   "include/asm-generic/bitops/fls64.h"
   "include/linux/coresight-pmu.h"
-  "include/uapi/asm-generic/errno.h"
-  "include/uapi/asm-generic/errno-base.h"
+  "include/uapi/asm-generic/erranal.h"
+  "include/uapi/asm-generic/erranal-base.h"
   "include/uapi/asm-generic/ioctls.h"
   "include/uapi/asm-generic/mman-common.h"
   "include/uapi/asm-generic/unistd.h"
@@ -90,7 +90,7 @@ SYNC_CHECK_FILES=(
   "arch/x86/lib/insn.c"
 )
 
-# These copies are under tools/perf/trace/beauty/ as they are not used to in
+# These copies are under tools/perf/trace/beauty/ as they are analt used to in
 # building object files only by scripts in tools/perf/trace/beauty/ to generate
 # tables that then gets included in .c files for things like id->string syscall
 # tables (and the reverse lookup as well: string -> id)
@@ -136,7 +136,7 @@ beauty_check () {
 }
 
 # Check if we have the kernel headers (tools/perf/../../include), else
-# we're probably on a detached tarball, so no point in trying to check
+# we're probably on a detached tarball, so anal point in trying to check
 # differences.
 if ! [ -d ../../include ]
 then
@@ -154,15 +154,15 @@ done
 
 for i in "${SYNC_CHECK_FILES[@]}"
 do
-  check "$i" '-I "^.*\/\*.*__ignore_sync_check__.*\*\/.*$"'
+  check "$i" '-I "^.*\/\*.*__iganalre_sync_check__.*\*\/.*$"'
 done
 
-# diff with extra ignore lines
+# diff with extra iganalre lines
 check arch/x86/lib/memcpy_64.S        '-I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>" -I"^SYM_FUNC_START\(_LOCAL\)*(memcpy_\(erms\|orig\))" -I"^#include <linux/cfi_types.h>"'
 check arch/x86/lib/memset_64.S        '-I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>" -I"^SYM_FUNC_START\(_LOCAL\)*(memset_\(erms\|orig\))"'
 check arch/x86/include/asm/amd-ibs.h  '-I "^#include [<\"]\(asm/\)*msr-index.h"'
 check arch/arm64/include/asm/cputype.h '-I "^#include [<\"]\(asm/\)*sysreg.h"'
-check include/asm-generic/unaligned.h '-I "^#include <linux/unaligned/packed_struct.h>" -I "^#include <asm/byteorder.h>" -I "^#pragma GCC diagnostic"'
+check include/asm-generic/unaligned.h '-I "^#include <linux/unaligned/packed_struct.h>" -I "^#include <asm/byteorder.h>" -I "^#pragma GCC diaganalstic"'
 check include/uapi/asm-generic/mman.h '-I "^#include <\(uapi/\)*asm-generic/mman-common\(-tools\)*.h>"'
 check include/uapi/linux/mman.h       '-I "^#include <\(uapi/\)*asm/mman.h>"'
 check include/linux/build_bug.h       '-I "^#\(ifndef\|endif\)\( \/\/\)* static_assert$"'
@@ -170,7 +170,7 @@ check include/linux/ctype.h	      '-I "isdigit("'
 check lib/ctype.c		      '-I "^EXPORT_SYMBOL" -I "^#include <linux/export.h>" -B'
 check lib/list_sort.c		      '-I "^#include <linux/bug.h>"'
 
-# diff non-symmetric files
+# diff analn-symmetric files
 check_2 tools/perf/arch/x86/entry/syscalls/syscall_64.tbl arch/x86/entry/syscalls/syscall_64.tbl
 check_2 tools/perf/arch/powerpc/entry/syscalls/syscall.tbl arch/powerpc/kernel/syscalls/syscall.tbl
 check_2 tools/perf/arch/s390/entry/syscalls/syscall.tbl arch/s390/kernel/syscalls/syscall.tbl

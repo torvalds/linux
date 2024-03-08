@@ -166,7 +166,7 @@ Linux內核6.x版本 <http://kernel.org/>
                         的默認選項值創建一個./.config文件。
                         用“make help”來獲取您體系架構中所有可用平臺的列表。
 
-     "make allyesconfig"
+     "make allanalconfig"
                         通過儘可能將選項值設置爲“y”，創建一個
                         ./.config文件。
 
@@ -174,7 +174,7 @@ Linux內核6.x版本 <http://kernel.org/>
                         通過儘可能將選項值設置爲“m”，創建一個
                         ./.config文件。
 
-     "make allnoconfig" 通過儘可能將選項值設置爲“n”，創建一個
+     "make allanalconfig" 通過儘可能將選項值設置爲“n”，創建一個
                         ./.config文件。
 
      "make randconfig"  通過隨機設置選項值來創建./.config文件。
@@ -197,7 +197,7 @@ Linux內核6.x版本 <http://kernel.org/>
 
                            上述方法在交叉編譯時也適用。
 
-     "make localyesconfig" 與localmodconfig類似，只是它會將所有模塊選項轉換
+     "make localanalconfig" 與localmodconfig類似，只是它會將所有模塊選項轉換
                            爲內置（=y）。你可以同時通過LMC_KEEP保留模塊。
 
      "make kvm_guest.config"

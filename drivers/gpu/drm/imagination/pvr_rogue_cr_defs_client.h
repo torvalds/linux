@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_CR_DEFS_CLIENT_H
 #define PVR_ROGUE_CR_DEFS_CLIENT_H
@@ -14,24 +14,24 @@
  * When ISP Samples Per Pixel = 1:
  * 2xmsaa is achieved by enabling Y - TE does AA on Y plane only
  * 4xmsaa is achieved by enabling Y and X - TE does AA on X and Y plane
- * 8xmsaa not supported by XE cores
+ * 8xmsaa analt supported by XE cores
  *
  * When ISP Samples Per Pixel = 2:
- * 2xmsaa is achieved by enabling X2 - does not affect TE
+ * 2xmsaa is achieved by enabling X2 - does analt affect TE
  * 4xmsaa is achieved by enabling Y and X2 - TE does AA on Y plane only
  * 8xmsaa is achieved by enabling Y, X and X2 - TE does AA on X and Y plane
- * 8xmsaa not supported by XE cores
+ * 8xmsaa analt supported by XE cores
  *
  * When ISP Samples Per Pixel = 4:
- * 2xmsaa is achieved by enabling X2 - does not affect TE
+ * 2xmsaa is achieved by enabling X2 - does analt affect TE
  * 4xmsaa is achieved by enabling Y2 and X2 - TE does AA on Y plane only
- * 8xmsaa not supported by XE cores
+ * 8xmsaa analt supported by XE cores
  */
 /* Register ROGUE_CR_TE_AA */
 #define ROGUE_CR_TE_AA 0x0C00U
 #define ROGUE_CR_TE_AA_MASKFULL 0x000000000000000Full
 /* Y2
- * Indicates 4xmsaa when X2 and Y2 are set to 1. This does not affect TE and is only used within
+ * Indicates 4xmsaa when X2 and Y2 are set to 1. This does analt affect TE and is only used within
  * TPW.
  */
 #define ROGUE_CR_TE_AA_Y2_SHIFT 3
@@ -119,7 +119,7 @@
 
 /*
  * In order to perform the tiling operation and generate the display list the maximum screen size
- * must be configured in terms of the number of pixels in X & Y axis since this may not be the same
+ * must be configured in terms of the number of pixels in X & Y axis since this may analt be the same
  * as the number of tiles defined in the RGX_CR_TE_SCREEN register.
  */
 /* Register ROGUE_CR_PPP_SCREEN */

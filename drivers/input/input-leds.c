@@ -88,7 +88,7 @@ static int input_leds_connect(struct input_handler *handler,
 	struct input_led *led;
 	unsigned int num_leds;
 	unsigned int led_code;
-	int led_no;
+	int led_anal;
 	int error;
 
 	num_leds = input_leds_get_count(dev);
@@ -97,7 +97,7 @@ static int input_leds_connect(struct input_handler *handler,
 
 	leds = kzalloc(struct_size(leds, leds, num_leds), GFP_KERNEL);
 	if (!leds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	leds->num_leds = num_leds;
 
@@ -114,12 +114,12 @@ static int input_leds_connect(struct input_handler *handler,
 	if (error)
 		goto err_unregister_handle;
 
-	led_no = 0;
+	led_anal = 0;
 	for_each_set_bit(led_code, dev->ledbit, LED_CNT) {
 		if (!input_led_info[led_code].name)
 			continue;
 
-		led = &leds->leds[led_no];
+		led = &leds->leds[led_anal];
 		led->handle = &leds->handle;
 		led->code = led_code;
 
@@ -127,7 +127,7 @@ static int input_leds_connect(struct input_handler *handler,
 					   dev_name(&dev->dev),
 					   input_led_info[led_code].name);
 		if (!led->cdev.name) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto err_unregister_leds;
 		}
 
@@ -144,14 +144,14 @@ static int input_leds_connect(struct input_handler *handler,
 			goto err_unregister_leds;
 		}
 
-		led_no++;
+		led_anal++;
 	}
 
 	return 0;
 
 err_unregister_leds:
-	while (--led_no >= 0) {
-		struct input_led *led = &leds->leds[led_no];
+	while (--led_anal >= 0) {
+		struct input_led *led = &leds->leds[led_anal];
 
 		led_classdev_unregister(&led->cdev);
 		kfree(led->cdev.name);

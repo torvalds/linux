@@ -4,7 +4,7 @@
 
 /*
  * Following are the generic definitions for the ADDI-DATA timer/counter/
- * watchdog (TCW) registers and bits. Some of the registers are not used
+ * watchdog (TCW) registers and bits. Some of the registers are analt used
  * depending on the use of the TCW.
  */
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  *
  * Author: ChiaEn Wu <chiaen_wu@richtek.com>
  */
@@ -306,11 +306,11 @@ static int mt6370_adc_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap)
-		return dev_err_probe(dev, -ENODEV, "Failed to get regmap\n");
+		return dev_err_probe(dev, -EANALDEV, "Failed to get regmap\n");
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = iio_priv(indio_dev);
 	priv->dev = dev;

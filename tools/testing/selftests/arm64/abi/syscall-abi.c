@@ -3,7 +3,7 @@
  * Copyright (C) 2021 ARM Limited.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -127,7 +127,7 @@ static int check_fpr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 	 */
 	if (svcr & SVCR_SM_MASK) {
 		if (memcmp(fpr_zero, fpr_out, sizeof(fpr_out)) != 0) {
-			ksft_print_msg("%s FPSIMD registers non-zero exiting SM\n",
+			ksft_print_msg("%s FPSIMD registers analn-zero exiting SM\n",
 				       cfg->name);
 			errors++;
 		}
@@ -170,7 +170,7 @@ static int check_z(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 			 * streaming mode.
 			 */
 			if (memcmp(z_zero, out, reg_size) != 0) {
-				ksft_print_msg("%s SVE VL %d Z%d non-zero\n",
+				ksft_print_msg("%s SVE VL %d Z%d analn-zero\n",
 					       cfg->name, sve_vl, i);
 				errors++;
 			}
@@ -188,7 +188,7 @@ static int check_z(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 			if (reg_size > SVE_Z_SHARED_BYTES &&
 			    (memcmp(z_zero, out + SVE_Z_SHARED_BYTES,
 				    reg_size - SVE_Z_SHARED_BYTES) != 0)) {
-				ksft_print_msg("%s SVE VL %d Z%d high bits non-zero\n",
+				ksft_print_msg("%s SVE VL %d Z%d high bits analn-zero\n",
 					       cfg->name, sve_vl, i);
 				errors++;
 			}
@@ -224,7 +224,7 @@ static int check_p(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		if (p_out[i])
 			errors++;
 	if (errors)
-		ksft_print_msg("%s SVE VL %d predicate registers non-zero\n",
+		ksft_print_msg("%s SVE VL %d predicate registers analn-zero\n",
 			       cfg->name, sve_vl);
 
 	return errors;
@@ -237,7 +237,7 @@ static void setup_ffr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		      uint64_t svcr)
 {
 	/*
-	 * If we are in streaming mode and do not have FA64 then FFR
+	 * If we are in streaming mode and do analt have FA64 then FFR
 	 * is unavailable.
 	 */
 	if ((svcr & SVCR_SM_MASK) &&
@@ -248,7 +248,7 @@ static void setup_ffr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 
 	/*
 	 * It is only valid to set a contiguous set of bits starting
-	 * at 0.  For now since we're expecting this to be cleared by
+	 * at 0.  For analw since we're expecting this to be cleared by
 	 * a syscall just set all bits.
 	 */
 	memset(ffr_in, 0xff, sizeof(ffr_in));
@@ -274,7 +274,7 @@ static int check_ffr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		if (ffr_out[i])
 			errors++;
 	if (errors)
-		ksft_print_msg("%s SVE VL %d FFR non-zero\n",
+		ksft_print_msg("%s SVE VL %d FFR analn-zero\n",
 			       cfg->name, sve_vl);
 
 	return errors;
@@ -328,7 +328,7 @@ static int check_za(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		return 0;
 
 	if (memcmp(za_in, za_out, reg_size) != 0) {
-		ksft_print_msg("SME VL %d ZA does not match\n", sme_vl);
+		ksft_print_msg("SME VL %d ZA does analt match\n", sme_vl);
 		errors++;
 	}
 
@@ -357,7 +357,7 @@ static int check_zt(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		return 0;
 
 	if (memcmp(zt_in, zt_out, sizeof(zt_in)) != 0) {
-		ksft_print_msg("SME VL %d ZT does not match\n", sme_vl);
+		ksft_print_msg("SME VL %d ZT does analt match\n", sme_vl);
 		errors++;
 	}
 
@@ -374,7 +374,7 @@ typedef int (*check_fn)(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
  * the syscall to fill values in a global variable for loading by the
  * test code and a check function which validates that the results are
  * as expected.  Vector lengths are passed everywhere, a vector length
- * of 0 should be treated as do not test.
+ * of 0 should be treated as do analt test.
  */
 static struct {
 	setup_fn setup;
@@ -420,7 +420,7 @@ static void test_one_syscall(struct syscall_cfg *cfg)
 		ret = prctl(PR_SVE_SET_VL, sve_vls[sve]);
 		if (ret == -1)
 			ksft_exit_fail_msg("PR_SVE_SET_VL failed: %s (%d)\n",
-					   strerror(errno), errno);
+					   strerror(erranal), erranal);
 
 		ksft_test_result(do_test(cfg, sve_vls[sve], default_sme_vl, 0),
 				 "%s SVE VL %d\n", cfg->name, sve_vls[sve]);
@@ -429,7 +429,7 @@ static void test_one_syscall(struct syscall_cfg *cfg)
 			ret = prctl(PR_SME_SET_VL, sme_vls[sme]);
 			if (ret == -1)
 				ksft_exit_fail_msg("PR_SME_SET_VL failed: %s (%d)\n",
-						   strerror(errno), errno);
+						   strerror(erranal), erranal);
 
 			ksft_test_result(do_test(cfg, sve_vls[sve],
 						 sme_vls[sme],
@@ -454,7 +454,7 @@ static void test_one_syscall(struct syscall_cfg *cfg)
 		ret = prctl(PR_SME_SET_VL, sme_vls[sme]);
 		if (ret == -1)
 			ksft_exit_fail_msg("PR_SME_SET_VL failed: %s (%d)\n",
-						   strerror(errno), errno);
+						   strerror(erranal), erranal);
 
 		ksft_test_result(do_test(cfg, 0, sme_vls[sme],
 					 SVCR_ZA_MASK | SVCR_SM_MASK),
@@ -484,7 +484,7 @@ void sve_count_vls(void)
 		vl = prctl(PR_SVE_SET_VL, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("PR_SVE_SET_VL failed: %s (%d)\n",
-					   strerror(errno), errno);
+					   strerror(erranal), erranal);
 
 		vl &= PR_SVE_VL_LEN_MASK;
 
@@ -510,7 +510,7 @@ void sme_count_vls(void)
 		vl = prctl(PR_SME_SET_VL, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("PR_SME_SET_VL failed: %s (%d)\n",
-					   strerror(errno), errno);
+					   strerror(erranal), erranal);
 
 		vl &= PR_SME_VL_LEN_MASK;
 

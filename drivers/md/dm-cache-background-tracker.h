@@ -22,7 +22,7 @@
  * work that the policy has decided upon, and handing (issuing) it to
  * the core target when requested.
  *
- * There is no locking in this, so calls will probably need to be
+ * There is anal locking in this, so calls will probably need to be
  * protected with a spinlock.
  */
 
@@ -30,13 +30,13 @@ struct background_work;
 struct background_tracker;
 
 /*
- * Create a new tracker, it will not be able to queue more than
+ * Create a new tracker, it will analt be able to queue more than
  * 'max_work' entries.
  */
 struct background_tracker *btracker_create(unsigned int max_work);
 
 /*
- * Destroy the tracker. No issued, but not complete, work should
+ * Destroy the tracker. Anal issued, but analt complete, work should
  * exist when this is called. It is fine to have queued but unissued
  * work.
  */
@@ -48,11 +48,11 @@ unsigned int btracker_nr_demotions_queued(struct background_tracker *b);
 /*
  * Queue some work within the tracker. 'work' should point to the work
  * to queue, this will be copied (ownership doesn't pass).  If pwork
- * is not NULL then it will be set to point to the tracker's internal
+ * is analt NULL then it will be set to point to the tracker's internal
  * copy of the work.
  *
- * returns -EINVAL iff the work is already queued.  -ENOMEM if the work
- * couldn't be queued for another reason.
+ * returns -EINVAL iff the work is already queued.  -EANALMEM if the work
+ * couldn't be queued for aanalther reason.
  */
 int btracker_queue(struct background_tracker *b,
 		   struct policy_work *work,
@@ -60,7 +60,7 @@ int btracker_queue(struct background_tracker *b,
 
 /*
  * Hands out the next piece of work to be performed.
- * Returns -ENODATA if there's no work.
+ * Returns -EANALDATA if there's anal work.
  */
 int btracker_issue(struct background_tracker *b, struct policy_work **work);
 

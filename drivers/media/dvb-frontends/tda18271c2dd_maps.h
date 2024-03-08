@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 enum HF_S {
-	HF_None = 0, HF_B, HF_DK, HF_G, HF_I, HF_L, HF_L1, HF_MN, HF_FM_Radio,
+	HF_Analne = 0, HF_B, HF_DK, HF_G, HF_I, HF_L, HF_L1, HF_MN, HF_FM_Radio,
 	HF_AnalogMax, HF_DVBT_6MHZ, HF_DVBT_7MHZ, HF_DVBT_8MHZ,
 	HF_DVBT, HF_ATSC,  HF_DVBC_6MHZ,  HF_DVBC_7MHZ,
 	HF_DVBC_8MHZ, HF_DVBC
 };
 
 static const struct SStandardParam m_StandardTable[] = {
-	{       0,        0, 0x00, 0x00 },    /* HF_None */
+	{       0,        0, 0x00, 0x00 },    /* HF_Analne */
 	{ 6000000,  7000000, 0x1D, 0x2C },    /* HF_B, */
 	{ 6900000,  8000000, 0x1E, 0x2C },    /* HF_DK, */
 	{ 7100000,  8000000, 0x1E, 0x2C },    /* HF_G, */
@@ -23,7 +23,7 @@ static const struct SStandardParam m_StandardTable[] = {
 	{       0,        0, 0x00, 0x00 },    /* HF_DVBT (Unused) */
 	{ 5000000,  6000000, 0x1C, 0x37 },    /* HF_ATSC  (center = 3.25 MHz) */
 	{ 4000000,  6000000, 0x1D, 0x58 },    /* HF_DVBC_6MHZ (Chicago) */
-	{ 4500000,  7000000, 0x1E, 0x37 },    /* HF_DVBC_7MHZ (not documented by NXP) */
+	{ 4500000,  7000000, 0x1E, 0x37 },    /* HF_DVBC_7MHZ (analt documented by NXP) */
 	{ 5000000,  8000000, 0x1F, 0x37 },    /* HF_DVBC_8MHZ */
 	{       0,        0, 0x00, 0x00 },    /* HF_DVBC (Unused) */
 };

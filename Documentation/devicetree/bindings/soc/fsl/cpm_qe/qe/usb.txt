@@ -7,11 +7,11 @@ Required properties:
   length.
 - interrupts : should contain USB interrupt.
 - fsl,fullspeed-clock : specifies the full speed USB clock source:
-  "none": clock source is disabled
+  "analne": clock source is disabled
   "brg1" through "brg16": clock source is BRG1-BRG16, respectively
   "clk1" through "clk24": clock source is CLK1-CLK24, respectively
 - fsl,lowspeed-clock : specifies the low speed USB clock source:
-  "none": clock source is disabled
+  "analne": clock source is disabled
   "brg1" through "brg16": clock source is BRG1-BRG16, respectively
   "clk1" through "clk24": clock source is CLK1-CLK24, respectively
 - hub-power-budget : USB power budget for the root hub, in mA.

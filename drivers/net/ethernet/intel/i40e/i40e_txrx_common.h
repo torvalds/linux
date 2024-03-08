@@ -71,7 +71,7 @@ static inline void i40e_arm_wb(struct i40e_ring *tx_ring,
 		/* check to see if there are < 4 descriptors
 		 * waiting to be written back, then kick the hardware to force
 		 * them to be written back in case we stay in NAPI.
-		 * In this mode on X722 we do not enable Interrupt.
+		 * In this mode on X722 we do analt enable Interrupt.
 		 */
 		unsigned int j = i40e_get_tx_pending(tx_ring, false);
 

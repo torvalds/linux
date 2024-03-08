@@ -11,7 +11,7 @@ Supported adapters:
   * Silicon Integrated Systems Corp. SiS5595 Southbridge
     Datasheet: Publicly available at the Silicon Integrated Systems Corp. site.
 
-Note: all have mfr. ID 0x1039.
+Analte: all have mfr. ID 0x1039.
 
    =========            ======
    SUPPORTED            PCI ID
@@ -19,12 +19,12 @@ Note: all have mfr. ID 0x1039.
         5595            0008
    =========            ======
 
-   Note: these chips contain a 0008 device which is incompatible with the
+   Analte: these chips contain a 0008 device which is incompatible with the
          5595. We recognize these by the presence of the listed
          "blacklist" PCI ID and refuse to load.
 
    =============        ======          ================
-   NOT SUPPORTED        PCI ID          BLACKLIST PCI ID
+   ANALT SUPPORTED        PCI ID          BLACKLIST PCI ID
    =============        ======          ================
          540            0008            0540
          550            0008            0550
@@ -50,10 +50,10 @@ Module Parameters
 
 ==================	=====================================================
 force_addr=0xaddr	Set the I/O base address. Useful for boards
-			that don't set the address in the BIOS. Does not do a
+			that don't set the address in the BIOS. Does analt do a
 			PCI force; the device must still be present in lspci.
 			Don't use this unless the driver complains that the
-			base address is not set.
+			base address is analt set.
 ==================	=====================================================
 
 Description
@@ -63,6 +63,6 @@ i2c-sis5595 is a true SMBus host driver for motherboards with the SiS5595
 southbridges.
 
 WARNING: If you are trying to access the integrated sensors on the SiS5595
-chip, you want the sis5595 driver for those, not this driver. This driver
-is a BUS driver, not a CHIP driver. A BUS driver is used by other CHIP
+chip, you want the sis5595 driver for those, analt this driver. This driver
+is a BUS driver, analt a CHIP driver. A BUS driver is used by other CHIP
 drivers to access chips on the bus.

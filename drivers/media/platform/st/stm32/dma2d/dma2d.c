@@ -82,7 +82,7 @@ static const struct dma2d_frame def_frame = {
 	.height		= DEFAULT_HEIGHT,
 	.line_offset	= 0,
 	.a_rgb		= {0x00, 0x00, 0x00, 0xff},
-	.a_mode		= DMA2D_ALPHA_MODE_NO_MODIF,
+	.a_mode		= DMA2D_ALPHA_MODE_ANAL_MODIF,
 	.fmt		= (struct dma2d_fmt *)&formats[0],
 	.size		= DEFAULT_SIZE,
 };
@@ -126,8 +126,8 @@ static int dma2d_buf_out_validate(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
 	if (vbuf->field == V4L2_FIELD_ANY)
-		vbuf->field = V4L2_FIELD_NONE;
-	if (vbuf->field != V4L2_FIELD_NONE)
+		vbuf->field = V4L2_FIELD_ANALNE;
+	if (vbuf->field != V4L2_FIELD_ANALNE)
 		return -EINVAL;
 
 	return 0;
@@ -235,7 +235,7 @@ static int dma2d_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_COLORFX:
 		if (ctrl->val == V4L2_COLORFX_SET_RGB)
 			ctx->op_mode = DMA2D_MODE_R2M;
-		else if (ctrl->val == V4L2_COLORFX_NONE)
+		else if (ctrl->val == V4L2_COLORFX_ANALNE)
 			ctx->op_mode = DMA2D_MODE_M2M;
 		break;
 	case V4L2_CID_COLORFX_RGB:
@@ -265,7 +265,7 @@ static int dma2d_setup_ctrls(struct dma2d_ctx *ctx)
 
 	v4l2_ctrl_new_std_menu(handler, &dma2d_ctrl_ops, V4L2_CID_COLORFX,
 			       V4L2_COLORFX_SET_RGB, ~0x10001,
-			       V4L2_COLORFX_NONE);
+			       V4L2_COLORFX_ANALNE);
 
 	v4l2_ctrl_new_std(handler, &dma2d_ctrl_ops, V4L2_CID_COLORFX_RGB, 0,
 			  0xffffff, 1, 0);
@@ -281,7 +281,7 @@ static int dma2d_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->dev = dev;
 	/* Set default formats */
 	ctx->cap		= def_frame;
@@ -365,7 +365,7 @@ static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	frm = get_frame(ctx, f->type);
 	f->fmt.pix.width		= frm->width;
 	f->fmt.pix.height		= frm->height;
-	f->fmt.pix.field		= V4L2_FIELD_NONE;
+	f->fmt.pix.field		= V4L2_FIELD_ANALNE;
 	f->fmt.pix.pixelformat		= frm->fmt->fourcc;
 	f->fmt.pix.bytesperline		= (frm->width * frm->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage		= frm->size;
@@ -392,8 +392,8 @@ static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
 
 	field = &f->fmt.pix.field;
 	if (*field == V4L2_FIELD_ANY)
-		*field = V4L2_FIELD_NONE;
-	else if (*field != V4L2_FIELD_NONE)
+		*field = V4L2_FIELD_ANALNE;
+	else if (*field != V4L2_FIELD_ANALNE)
 		return -EINVAL;
 
 	if (f->fmt.pix.width > MAX_WIDTH)
@@ -588,7 +588,7 @@ static const struct video_device dma2d_videodev = {
 	.name		= DMA2D_NAME,
 	.fops		= &dma2d_fops,
 	.ioctl_ops	= &dma2d_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release,
 	.vfl_dir	= VFL_DIR_M2M,
 };
@@ -607,7 +607,7 @@ static int dma2d_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&dev->ctrl_lock);
 	mutex_init(&dev->mutex);
@@ -650,7 +650,7 @@ static int dma2d_probe(struct platform_device *pdev)
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&dev->v4l2_dev, "Failed to allocate video device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unreg_v4l2_dev;
 	}
 

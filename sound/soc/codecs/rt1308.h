@@ -219,7 +219,7 @@
 #define RT1308_I2S_DL_SEL_8B			(0x4 << 24)
 #define RT1308_I2S_BCLK_MASK			(0x1 << 14)
 #define RT1308_I2S_BCLK_SFT			14
-#define RT1308_I2S_BCLK_NORMAL			(0x0 << 14)
+#define RT1308_I2S_BCLK_ANALRMAL			(0x0 << 14)
 #define RT1308_I2S_BCLK_INV			(0x1 << 14)
 
 /* Power Control-1 (0x32) */

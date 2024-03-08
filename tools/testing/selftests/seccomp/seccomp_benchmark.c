@@ -1,5 +1,5 @@
 /*
- * Strictly speaking, this is not a test. But it can report during test
+ * Strictly speaking, this is analt a test. But it can report during test
  * runs so relative performace can be measured.
  */
 #define _GNU_SOURCE
@@ -57,13 +57,13 @@ unsigned long long calibrate(void)
 
 	samples = 0;
 	pid = getpid();
-	assert(clock_gettime(CLOCK_MONOTONIC, &start) == 0);
+	assert(clock_gettime(CLOCK_MOANALTONIC, &start) == 0);
 	do {
 		for (i = 0; i < step; i++) {
 			ret = syscall(__NR_getpid);
 			assert(pid == ret);
 		}
-		assert(clock_gettime(CLOCK_MONOTONIC, &finish) == 0);
+		assert(clock_gettime(CLOCK_MOANALTONIC, &finish) == 0);
 
 		samples += step;
 		i = finish.tv_sec - start.tv_sec;
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
 	system("uname -a");
 
 	ksft_print_msg("Current BPF sysctl settings:\n");
-	/* Avoid using "sysctl" which may not be installed. */
+	/* Avoid using "sysctl" which may analt be installed. */
 	ksft_print_msg("");
 	system("grep -H . /proc/sys/net/core/bpf_jit_enable");
 	ksft_print_msg("");
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 	native = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
 	ksft_print_msg("getpid native: %llu ns\n", native);
 
-	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ret = prctl(PR_SET_ANAL_NEW_PRIVS, 1, 0, 0, 0);
 	assert(ret == 0);
 
 	/* One filter resulting in a bitmap */
@@ -200,14 +200,14 @@ int main(int argc, char *argv[])
 	bitmap2 = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
 	ksft_print_msg("getpid RET_ALLOW 2 filters (bitmap): %llu ns\n", bitmap2);
 
-	/* Third filter, can no longer be converted to bitmap */
+	/* Third filter, can anal longer be converted to bitmap */
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
 	assert(ret == 0);
 
 	filter1 = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
 	ksft_print_msg("getpid RET_ALLOW 3 filters (full): %llu ns\n", filter1);
 
-	/* Fourth filter, can not be converted to bitmap because of filter 3 */
+	/* Fourth filter, can analt be converted to bitmap because of filter 3 */
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bitmap_prog);
 	assert(ret == 0);
 

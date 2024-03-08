@@ -42,7 +42,7 @@ accesses in the driver - the resource usage and parameter descriptions
 translated into appropriate register accesses. This interpretation makes it easy
 and efficient for the feature to be programmed onto the device when required.
 
-The feature will not be active on the device until the feature is enabled, and
+The feature will analt be active on the device until the feature is enabled, and
 the device itself is enabled. When the device is enabled then enabled features
 will be programmed into the device hardware.
 
@@ -61,7 +61,7 @@ at a given rate. When the feature is enabled then the current value of the
 parameter is used in programming the device.
 
 The feature descriptor defines a default value for a parameter, which is used
-if the user does not supply a new value.
+if the user does analt supply a new value.
 
 Users can update parameter values using the configfs API for the CoreSight
 system - which is described below.
@@ -96,12 +96,12 @@ that the configuration uses. The number of values in a single preset set, equals
 the sum of parameter values in the features used by the configuration.
 
 e.g. a configuration consists of 3 features, one has 2 parameters, one has
-a single parameter, and another has no parameters. A single preset set will
+a single parameter, and aanalther has anal parameters. A single preset set will
 therefore have 3 values.
 
 Presets are optionally defined by the configuration, up to 15 can be defined.
-If no preset is selected, then the parameter values defined in the feature
-are used as normal.
+If anal preset is selected, then the parameter values defined in the feature
+are used as analrmal.
 
 
 Operation
@@ -136,7 +136,7 @@ Viewing Configurations and Features
 The set of configurations and features that are currently loaded into the
 system can be viewed using the configfs API.
 
-Mount configfs as normal and the 'cs-syscfg' subsystem will appear::
+Mount configfs as analrmal and the 'cs-syscfg' subsystem will appear::
 
     $ ls /config
     cs-syscfg  stp-policy
@@ -264,7 +264,7 @@ This will select preset3 for the configuration.
 The valid values for preset are 0 - to deselect presets, and any value of
 <n> where a preset<n> sub-directory is present.
 
-Note that the active sysfs configuration is a global parameter, therefore
+Analte that the active sysfs configuration is a global parameter, therefore
 only a single configuration can be active for sysfs at any one time.
 Attempting to enable a second configuration will result in an error.
 Additionally, attempting to disable the configuration while in use will
@@ -290,5 +290,5 @@ file system and is selectable in the same way as the built in configuration
 described above.
 
 Configurations can use previously loaded features. The system will ensure
-that it is not possible to unload a feature that is currently in use, by
+that it is analt possible to unload a feature that is currently in use, by
 enforcing the unload order as the strict reverse of the load order.

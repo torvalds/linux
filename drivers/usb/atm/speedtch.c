@@ -6,12 +6,12 @@
  *  Copyright (C) 2003, Duncan Sands
  *  Copyright (C) 2004, David Woodhouse
  *
- *  Based on "modem_run.c", copyright (C) 2001, Benoit Papillault
+ *  Based on "modem_run.c", copyright (C) 2001, Beanalit Papillault
  ******************************************************************************/
 
 #include <asm/page.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -86,7 +86,7 @@ MODULE_PARM_DESC(dl_512_first,
 
 module_param(enable_isoc, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(enable_isoc,
-		"Use isochronous transfers if available (default: "
+		"Use isochroanalus transfers if available (default: "
 		__MODULE_STRING(DEFAULT_ENABLE_ISOC) ")");
 
 module_param(sw_buffering, bool, S_IRUGO | S_IWUSR);
@@ -242,14 +242,14 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 
 	buffer = (unsigned char *)__get_free_page(GFP_KERNEL);
 	if (!buffer) {
-		ret = -ENOMEM;
-		usb_dbg(usbatm, "%s: no memory for buffer!\n", __func__);
+		ret = -EANALMEM;
+		usb_dbg(usbatm, "%s: anal memory for buffer!\n", __func__);
 		goto out;
 	}
 
 	if (!usb_ifnum_to_if(usb_dev, 2)) {
-		ret = -ENODEV;
-		usb_dbg(usbatm, "%s: interface not found!\n", __func__);
+		ret = -EANALDEV;
+		usb_dbg(usbatm, "%s: interface analt found!\n", __func__);
 		goto out_free;
 	}
 
@@ -350,10 +350,10 @@ static int speedtch_find_firmware(struct usbatm_data *usbatm, struct usb_interfa
 	struct device *dev = &intf->dev;
 	const u16 bcdDevice = le16_to_cpu(interface_to_usbdev(intf)->descriptor.bcdDevice);
 	const u8 major_revision = bcdDevice >> 8;
-	const u8 minor_revision = bcdDevice & 0xff;
+	const u8 mianalr_revision = bcdDevice & 0xff;
 	char buf[24];
 
-	sprintf(buf, "speedtch-%d.bin.%x.%02x", phase, major_revision, minor_revision);
+	sprintf(buf, "speedtch-%d.bin.%x.%02x", phase, major_revision, mianalr_revision);
 	usb_dbg(usbatm, "%s: looking for %s\n", __func__, buf);
 
 	if (request_firmware(fw_p, buf, dev)) {
@@ -365,8 +365,8 @@ static int speedtch_find_firmware(struct usbatm_data *usbatm, struct usb_interfa
 			usb_dbg(usbatm, "%s: looking for %s\n", __func__, buf);
 
 			if (request_firmware(fw_p, buf, dev)) {
-				usb_err(usbatm, "%s: no stage %d firmware found!\n", __func__, phase);
-				return -ENOENT;
+				usb_err(usbatm, "%s: anal stage %d firmware found!\n", __func__, phase);
+				return -EANALENT;
 			}
 		}
 	}
@@ -519,7 +519,7 @@ static void speedtch_check_status(struct work_struct *work)
 			break;
 
 		case 0x08:
-			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKNOWN);
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKANALWN);
 			atm_info(usbatm, "ADSL line is blocked?\n");
 			break;
 
@@ -548,8 +548,8 @@ static void speedtch_check_status(struct work_struct *work)
 			break;
 
 		default:
-			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKNOWN);
-			atm_info(usbatm, "unknown line state %02x\n", status);
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKANALWN);
+			atm_info(usbatm, "unkanalwn line state %02x\n", status);
 			break;
 		}
 
@@ -607,7 +607,7 @@ static void speedtch_handle_int(struct urb *int_urb)
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
 	if (status < 0) {
-		atm_dbg(usbatm, "%s: nonzero urb status %d!\n", __func__, status);
+		atm_dbg(usbatm, "%s: analnzero urb status %d!\n", __func__, status);
 		goto fail;
 	}
 
@@ -619,7 +619,7 @@ static void speedtch_handle_int(struct urb *int_urb)
 	} else {
 		int i;
 
-		atm_dbg(usbatm, "%s: unknown interrupt packet of length %d:", __func__, count);
+		atm_dbg(usbatm, "%s: unkanalwn interrupt packet of length %d:", __func__, count);
 		for (i = 0; i < count; i++)
 			printk(" %02x", instance->int_data[i]);
 		printk("\n");
@@ -701,7 +701,7 @@ static void speedtch_atm_stop(struct usbatm_data *usbatm, struct atm_dev *atm_de
 	/*
 	 * At this point, speedtch_handle_int and speedtch_resubmit_int
 	 * can run or be running, but instance->int_urb == NULL means that
-	 * they will not reschedule
+	 * they will analt reschedule
 	 */
 	usb_kill_urb(int_urb);
 	del_timer_sync(&instance->resubmit_timer);
@@ -776,13 +776,13 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 	if (usb_dev->descriptor.bDeviceClass != USB_CLASS_VENDOR_SPEC) {
 		usb_err(usbatm, "%s: wrong device class %d\n", __func__, usb_dev->descriptor.bDeviceClass);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data_intf = usb_ifnum_to_if(usb_dev, INTERFACE_DATA);
 	if (!data_intf) {
-		usb_err(usbatm, "%s: data interface not found!\n", __func__);
-		return -ENODEV;
+		usb_err(usbatm, "%s: data interface analt found!\n", __func__);
+		return -EANALDEV;
 	}
 
 	/* claim all interfaces */
@@ -804,7 +804,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 
 	if (!instance) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_release;
 	}
 
@@ -834,7 +834,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 		const struct usb_host_interface *desc = data_intf->cur_altsetting;
 		const __u8 target_address = USB_DIR_IN | usbatm->driver->isoc_in;
 
-		use_isoc = 0; /* fall back to bulk if endpoint not found */
+		use_isoc = 0; /* fall back to bulk if endpoint analt found */
 
 		for (i = 0; i < desc->desc.bNumEndpoints; i++) {
 			const struct usb_endpoint_descriptor *endpoint_desc = &desc->endpoint[i].desc;
@@ -847,7 +847,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 		}
 
 		if (!use_isoc)
-			usb_info(usbatm, "isochronous transfer not supported - using bulk\n");
+			usb_info(usbatm, "isochroanalus transfer analt supported - using bulk\n");
 	}
 
 	if (!use_isoc && !instance->params.altsetting)
@@ -876,7 +876,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 				 instance->int_data, sizeof(instance->int_data),
 				 speedtch_handle_int, instance, 16);
 	else
-		usb_dbg(usbatm, "%s: no memory for interrupt urb!\n", __func__);
+		usb_dbg(usbatm, "%s: anal memory for interrupt urb!\n", __func__);
 
 	/* check whether the modem already seems to be alive */
 	ret = usb_control_msg(usb_dev, usb_rcvctrlpipe(usb_dev, 0),
@@ -885,7 +885,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 	usbatm->flags |= (ret == SIZE_7 ? UDSL_SKIP_HEAVY_INIT : 0);
 
-	usb_dbg(usbatm, "%s: firmware %s loaded\n", __func__, usbatm->flags & UDSL_SKIP_HEAVY_INIT ? "already" : "not");
+	usb_dbg(usbatm, "%s: firmware %s loaded\n", __func__, usbatm->flags & UDSL_SKIP_HEAVY_INIT ? "already" : "analt");
 
 	if (!(usbatm->flags & UDSL_SKIP_HEAVY_INIT))
 		if ((ret = usb_reset_device(usb_dev)) < 0) {

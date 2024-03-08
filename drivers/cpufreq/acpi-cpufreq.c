@@ -148,7 +148,7 @@ static ssize_t show_freqdomain_cpus(struct cpufreq_policy *policy, char *buf)
 	struct acpi_cpufreq_data *data = policy->driver_data;
 
 	if (unlikely(!data))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cpufreq_show_cpus(data->freqdomain_cpus, buf);
 }
@@ -249,7 +249,7 @@ static unsigned extract_freq(struct cpufreq_policy *policy, u32 val)
 	}
 }
 
-static u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
+static u32 cpu_freq_read_intel(struct acpi_pct_register *analt_used)
 {
 	u32 val, dummy __always_unused;
 
@@ -257,7 +257,7 @@ static u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
 	return val;
 }
 
-static void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
+static void cpu_freq_write_intel(struct acpi_pct_register *analt_used, u32 val)
 {
 	u32 lo, hi;
 
@@ -266,7 +266,7 @@ static void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
 	wrmsr(MSR_IA32_PERF_CTL, lo, hi);
 }
 
-static u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
+static u32 cpu_freq_read_amd(struct acpi_pct_register *analt_used)
 {
 	u32 val, dummy __always_unused;
 
@@ -274,7 +274,7 @@ static u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
 	return val;
 }
 
-static void cpu_freq_write_amd(struct acpi_pct_register *not_used, u32 val)
+static void cpu_freq_write_amd(struct acpi_pct_register *analt_used, u32 val)
 {
 	wrmsr(MSR_AMD_PERF_CTL, val, 0);
 }
@@ -422,7 +422,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	int result = 0;
 
 	if (unlikely(!data)) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	perf = to_perf_data(data);
@@ -440,7 +440,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	}
 
 	/*
-	 * The core won't allow CPUs to go away until the governor has been
+	 * The core won't allow CPUs to go away until the goveranalr has been
 	 * stopped, so we can rely on the stability of policy->cpus.
 	 */
 	mask = policy->shared_type == CPUFREQ_SHARED_TYPE_ANY ?
@@ -541,7 +541,7 @@ static int cpufreq_boost_down_prep(unsigned int cpu)
 {
 	/*
 	 * Clear the boost-disable bit on the CPU_DOWN path so that
-	 * this cpu cannot block the remaining ones from boosting.
+	 * this cpu cananalt block the remaining ones from boosting.
 	 */
 	return boost_set_msr(1);
 }
@@ -562,16 +562,16 @@ static int __init acpi_cpufreq_early_init(void)
 	acpi_perf_data = alloc_percpu(struct acpi_processor_performance);
 	if (!acpi_perf_data) {
 		pr_debug("Memory allocation error for acpi_perf_data.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for_each_possible_cpu(i) {
-		if (!zalloc_cpumask_var_node(
+		if (!zalloc_cpumask_var_analde(
 			&per_cpu_ptr(acpi_perf_data, i)->shared_cpu_map,
-			GFP_KERNEL, cpu_to_node(i))) {
+			GFP_KERNEL, cpu_to_analde(i))) {
 
 			/* Freeing a NULL pointer is OK: alloc_percpu zeroes. */
 			free_acpi_perf_data();
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -583,7 +583,7 @@ static int __init acpi_cpufreq_early_init(void)
 #ifdef CONFIG_SMP
 /*
  * Some BIOSes do SW_ANY coordination internally, either set it up in hw
- * or do it in BIOS firmware and won't inform about it to OS. If not
+ * or do it in BIOS firmware and won't inform about it to OS. If analt
  * detected, this has a side effect of making CPU run at a different speed
  * than OS intended it to run at. Detect it and handle it cleanly.
  */
@@ -613,14 +613,14 @@ static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
 	/* Intel Xeon Processor 7100 Series Specification Update
 	 * https://www.intel.com/Assets/PDF/specupdate/314554.pdf
 	 * AL30: A Machine Check Exception (MCE) Occurring during an
-	 * Enhanced Intel SpeedStep Technology Ratio Change May Cause
+	 * Enhanced Intel SpeedStep Techanallogy Ratio Change May Cause
 	 * Both Processor Cores to Lock Up. */
 	if (c->x86_vendor == X86_VENDOR_INTEL) {
 		if ((c->x86 == 15) &&
 		    (c->x86_model == 6) &&
 		    (c->x86_stepping == 8)) {
 			pr_info("Intel(R) Xeon(R) 7100 Errata AL30, processors may lock up on frequency changes: disabling acpi-cpufreq\n");
-			return -ENODEV;
+			return -EANALDEV;
 		    }
 		}
 	return 0;
@@ -631,7 +631,7 @@ static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
 static u64 get_max_boost_ratio(unsigned int cpu)
 {
 	struct cppc_perf_caps perf_caps;
-	u64 highest_perf, nominal_perf;
+	u64 highest_perf, analminal_perf;
 	int ret;
 
 	if (acpi_pstate_strict)
@@ -649,19 +649,19 @@ static u64 get_max_boost_ratio(unsigned int cpu)
 	else
 		highest_perf = perf_caps.highest_perf;
 
-	nominal_perf = perf_caps.nominal_perf;
+	analminal_perf = perf_caps.analminal_perf;
 
-	if (!highest_perf || !nominal_perf) {
-		pr_debug("CPU%d: highest or nominal performance missing\n", cpu);
+	if (!highest_perf || !analminal_perf) {
+		pr_debug("CPU%d: highest or analminal performance missing\n", cpu);
 		return 0;
 	}
 
-	if (highest_perf < nominal_perf) {
-		pr_debug("CPU%d: nominal performance above highest\n", cpu);
+	if (highest_perf < analminal_perf) {
+		pr_debug("CPU%d: analminal performance above highest\n", cpu);
 		return 0;
 	}
 
-	return div_u64(highest_perf << SCHED_CAPACITY_SHIFT, nominal_perf);
+	return div_u64(highest_perf << SCHED_CAPACITY_SHIFT, analminal_perf);
 }
 #else
 static inline u64 get_max_boost_ratio(unsigned int cpu) { return 0; }
@@ -694,10 +694,10 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!zalloc_cpumask_var(&data->freqdomain_cpus, GFP_KERNEL)) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto err_free;
 	}
 
@@ -715,7 +715,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->shared_type = perf->shared_type;
 
 	/*
-	 * Will let policy->cpus know about dependency only when software
+	 * Will let policy->cpus kanalw about dependency only when software
 	 * coordination is required.
 	 */
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL ||
@@ -744,13 +744,13 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	/* capability check */
 	if (perf->state_count <= 1) {
-		pr_debug("No P-States\n");
-		result = -ENODEV;
+		pr_debug("Anal P-States\n");
+		result = -EANALDEV;
 		goto err_unreg;
 	}
 
 	if (perf->control_register.space_id != perf->status_register.space_id) {
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto err_unreg;
 	}
 
@@ -759,7 +759,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
 		    boot_cpu_data.x86 == 0xf) {
 			pr_debug("AMD K8 systems must use native drivers.\n");
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto err_unreg;
 		}
 		pr_debug("SYSTEM IO addr space\n");
@@ -781,19 +781,19 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 			data->cpu_freq_write = cpu_freq_write_amd;
 			break;
 		}
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto err_unreg;
 	default:
-		pr_debug("Unknown addr space %d\n",
+		pr_debug("Unkanalwn addr space %d\n",
 			(u32) (perf->control_register.space_id));
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto err_unreg;
 	}
 
 	freq_table = kcalloc(perf->state_count + 1, sizeof(*freq_table),
 			     GFP_KERNEL);
 	if (!freq_table) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto err_unreg;
 	}
 
@@ -833,16 +833,16 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		/*
 		 * Because the loop above sorts the freq_table entries in the
 		 * descending order, freq is the maximum frequency in the table.
-		 * Assume that it corresponds to the CPPC nominal frequency and
+		 * Assume that it corresponds to the CPPC analminal frequency and
 		 * use it to set cpuinfo.max_freq.
 		 */
 		policy->cpuinfo.max_freq = freq * max_boost_ratio >> SCHED_CAPACITY_SHIFT;
 	} else {
 		/*
-		 * If the maximum "boost" frequency is unknown, ask the arch
-		 * scale-invariance code to use the "nominal" performance for
+		 * If the maximum "boost" frequency is unkanalwn, ask the arch
+		 * scale-invariance code to use the "analminal" performance for
 		 * CPU utilization scaling so as to prevent the schedutil
-		 * governor from selecting inadequate CPU frequencies.
+		 * goveranalr from selecting inadequate CPU frequencies.
 		 */
 		arch_set_max_freq_ratio(true);
 	}
@@ -853,10 +853,10 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	switch (perf->control_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 		/*
-		 * The core will not set policy->cur, because
+		 * The core will analt set policy->cur, because
 		 * cpufreq_driver->get is NULL, so we need to set it here.
 		 * However, we have to guess it, because the current speed is
-		 * unknown and not detectable via IO ports.
+		 * unkanalwn and analt detectable via IO ports.
 		 */
 		policy->cur = acpi_cpufreq_guess_freq(data, policy->cpu);
 		break;
@@ -867,8 +867,8 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		break;
 	}
 
-	/* notify BIOS that we exist */
-	acpi_processor_notify_smm(THIS_MODULE);
+	/* analtify BIOS that we exist */
+	acpi_processor_analtify_smm(THIS_MODULE);
 
 	pr_debug("CPU%u - ACPI performance management activated.\n", cpu);
 	for (i = 0; i < perf->state_count; i++)
@@ -888,7 +888,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		!(policy_is_shared(policy) && policy->shared_type != CPUFREQ_SHARED_TYPE_ANY);
 
 	if (perf->states[0].core_frequency * 1000 != freq_table[0].frequency)
-		pr_warn(FW_WARN "P-state 0 is not max freq\n");
+		pr_warn(FW_WARN "P-state 0 is analt max freq\n");
 
 	if (acpi_cpufreq_driver.set_boost)
 		set_boost(policy, acpi_cpufreq_driver.boost_enabled);
@@ -958,7 +958,7 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 static void __init acpi_cpufreq_boost_init(void)
 {
 	if (!(boot_cpu_has(X86_FEATURE_CPB) || boot_cpu_has(X86_FEATURE_IDA))) {
-		pr_debug("Boost capabilities not present in the processor\n");
+		pr_debug("Boost capabilities analt present in the processor\n");
 		return;
 	}
 
@@ -971,11 +971,11 @@ static int __init acpi_cpufreq_probe(struct platform_device *pdev)
 	int ret;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* don't keep reloading if cpufreq_driver exists */
 	if (cpufreq_get_current_driver())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug("%s\n", __func__);
 
@@ -993,7 +993,7 @@ static int __init acpi_cpufreq_probe(struct platform_device *pdev)
 	if (!check_amd_hwpstate_cpu(0)) {
 		struct freq_attr **attr;
 
-		pr_debug("CPB unsupported, do not expose it\n");
+		pr_debug("CPB unsupported, do analt expose it\n");
 
 		for (attr = acpi_cpufreq_attr; *attr; attr++)
 			if (*attr == &cpb) {
@@ -1039,7 +1039,7 @@ static void __exit acpi_cpufreq_exit(void)
 
 module_param(acpi_pstate_strict, uint, 0644);
 MODULE_PARM_DESC(acpi_pstate_strict,
-	"value 0 or non-zero. non-zero -> strict ACPI checks are "
+	"value 0 or analn-zero. analn-zero -> strict ACPI checks are "
 	"performed during frequency changes.");
 
 late_initcall(acpi_cpufreq_init);

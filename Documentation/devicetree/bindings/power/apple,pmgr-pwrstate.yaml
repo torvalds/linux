@@ -18,14 +18,14 @@ description: |
   performance features. This binding describes the device power
   state registers, which control power states and resets.
 
-  Each instance of a power controller within the PMGR syscon node
+  Each instance of a power controller within the PMGR syscon analde
   represents a generic power domain provider, as documented in
   Documentation/devicetree/bindings/power/power-domain.yaml.
   The provider controls a single SoC block. The power hierarchy is
-  represented via power-domains relationships between these nodes.
+  represented via power-domains relationships between these analdes.
 
   See Documentation/devicetree/bindings/arm/apple/apple,pmgr.yaml
-  for the top-level PMGR node documentation.
+  for the top-level PMGR analde documentation.
 
 properties:
   compatible:
@@ -50,7 +50,7 @@ properties:
       Reference to parent power domains. A domain may have multiple parents,
       and all will be powered up when it is powered.
     minItems: 1
-    maxItems: 8 # Arbitrary, should be enough
+    maxItems: 8 # Arbitrary, should be eanalugh
 
   label:
     description:

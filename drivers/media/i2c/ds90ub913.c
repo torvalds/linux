@@ -11,7 +11,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c-atr.h>
 #include <linux/i2c.h>
@@ -21,7 +21,7 @@
 #include <linux/regmap.h>
 
 #include <media/i2c/ds90ub9xx.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
@@ -30,7 +30,7 @@
 
 /*
  * UB913 has 4 gpios, but gpios 3 and 4 are reserved for external oscillator
- * mode. Thus we only support 2 gpios for now.
+ * mode. Thus we only support 2 gpios for analw.
  */
 #define UB913_NUM_GPIOS			2
 
@@ -74,7 +74,7 @@ struct ub913_data {
 	struct v4l2_subdev	sd;
 	struct media_pad	pads[2];
 
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 
 	struct v4l2_subdev	*source_sd;
 	u16			source_sd_pad;
@@ -126,7 +126,7 @@ static int ub913_read(const struct ub913_data *priv, u8 reg, u8 *val)
 	ret = regmap_read(priv->regmap, reg, &v);
 	if (ret < 0) {
 		dev_err(&priv->client->dev,
-			"Cannot read register 0x%02x: %d!\n", reg, ret);
+			"Cananalt read register 0x%02x: %d!\n", reg, ret);
 		return ret;
 	}
 
@@ -141,7 +141,7 @@ static int ub913_write(const struct ub913_data *priv, u8 reg, u8 val)
 	ret = regmap_write(priv->regmap, reg, val);
 	if (ret < 0)
 		dev_err(&priv->client->dev,
-			"Cannot write register 0x%02x: %d!\n", reg, ret);
+			"Cananalt write register 0x%02x: %d!\n", reg, ret);
 
 	return ret;
 }
@@ -282,7 +282,7 @@ static int _ub913_set_routing(struct v4l2_subdev *sd,
 		.width = 640,
 		.height = 480,
 		.code = MEDIA_BUS_FMT_UYVY8_2X8,
-		.field = V4L2_FIELD_NONE,
+		.field = V4L2_FIELD_ANALNE,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.ycbcr_enc = V4L2_YCBCR_ENC_601,
 		.quantization = V4L2_QUANTIZATION_LIM_RANGE,
@@ -292,7 +292,7 @@ static int _ub913_set_routing(struct v4l2_subdev *sd,
 		.width = 640,
 		.height = 480,
 		.code = MEDIA_BUS_FMT_UYVY8_1X16,
-		.field = V4L2_FIELD_NONE,
+		.field = V4L2_FIELD_ANALNE,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.ycbcr_enc = V4L2_YCBCR_ENC_601,
 		.quantization = V4L2_QUANTIZATION_LIM_RANGE,
@@ -303,7 +303,7 @@ static int _ub913_set_routing(struct v4l2_subdev *sd,
 	int ret;
 
 	/*
-	 * Note: we can only support up to V4L2_FRAME_DESC_ENTRY_MAX, until
+	 * Analte: we can only support up to V4L2_FRAME_DESC_ENTRY_MAX, until
 	 * frame desc is made dynamically allocated.
 	 */
 
@@ -413,7 +413,7 @@ static int ub913_set_fmt(struct v4l2_subdev *sd,
 	    priv->enabled_source_streams)
 		return -EBUSY;
 
-	/* Source format is fully defined by the sink format, so not settable */
+	/* Source format is fully defined by the sink format, so analt settable */
 	if (format->pad == UB913_PAD_SOURCE)
 		return v4l2_subdev_get_fmt(sd, state, format);
 
@@ -518,16 +518,16 @@ static const struct media_entity_operations ub913_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
-static int ub913_notify_bound(struct v4l2_async_notifier *notifier,
+static int ub913_analtify_bound(struct v4l2_async_analtifier *analtifier,
 			      struct v4l2_subdev *source_subdev,
 			      struct v4l2_async_connection *asd)
 {
-	struct ub913_data *priv = sd_to_ub913(notifier->sd);
+	struct ub913_data *priv = sd_to_ub913(analtifier->sd);
 	struct device *dev = &priv->client->dev;
 	int ret;
 
-	ret = media_entity_get_fwnode_pad(&source_subdev->entity,
-					  source_subdev->fwnode,
+	ret = media_entity_get_fwanalde_pad(&source_subdev->entity,
+					  source_subdev->fwanalde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (ret < 0) {
 		dev_err(dev, "Failed to find pad for %s\n",
@@ -552,43 +552,43 @@ static int ub913_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations ub913_notify_ops = {
-	.bound = ub913_notify_bound,
+static const struct v4l2_async_analtifier_operations ub913_analtify_ops = {
+	.bound = ub913_analtify_bound,
 };
 
-static int ub913_v4l2_notifier_register(struct ub913_data *priv)
+static int ub913_v4l2_analtifier_register(struct ub913_data *priv)
 {
 	struct device *dev = &priv->client->dev;
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *ep_fwnode;
+	struct fwanalde_handle *ep_fwanalde;
 	int ret;
 
-	ep_fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
+	ep_fwanalde = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev),
 						    UB913_PAD_SINK, 0, 0);
-	if (!ep_fwnode) {
-		dev_err(dev, "No graph endpoint\n");
-		return -ENODEV;
+	if (!ep_fwanalde) {
+		dev_err(dev, "Anal graph endpoint\n");
+		return -EANALDEV;
 	}
 
-	v4l2_async_subdev_nf_init(&priv->notifier, &priv->sd);
+	v4l2_async_subdev_nf_init(&priv->analtifier, &priv->sd);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&priv->notifier, ep_fwnode,
+	asd = v4l2_async_nf_add_fwanalde_remote(&priv->analtifier, ep_fwanalde,
 					      struct v4l2_async_connection);
 
-	fwnode_handle_put(ep_fwnode);
+	fwanalde_handle_put(ep_fwanalde);
 
 	if (IS_ERR(asd)) {
 		dev_err(dev, "Failed to add subdev: %ld", PTR_ERR(asd));
-		v4l2_async_nf_cleanup(&priv->notifier);
+		v4l2_async_nf_cleanup(&priv->analtifier);
 		return PTR_ERR(asd);
 	}
 
-	priv->notifier.ops = &ub913_notify_ops;
+	priv->analtifier.ops = &ub913_analtify_ops;
 
-	ret = v4l2_async_nf_register(&priv->notifier);
+	ret = v4l2_async_nf_register(&priv->analtifier);
 	if (ret) {
-		dev_err(dev, "Failed to register subdev_notifier");
-		v4l2_async_nf_cleanup(&priv->notifier);
+		dev_err(dev, "Failed to register subdev_analtifier");
+		v4l2_async_nf_cleanup(&priv->analtifier);
 		return ret;
 	}
 
@@ -597,8 +597,8 @@ static int ub913_v4l2_notifier_register(struct ub913_data *priv)
 
 static void ub913_v4l2_nf_unregister(struct ub913_data *priv)
 {
-	v4l2_async_nf_unregister(&priv->notifier);
-	v4l2_async_nf_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->analtifier);
+	v4l2_async_nf_cleanup(&priv->analtifier);
 }
 
 static int ub913_register_clkout(struct ub913_data *priv)
@@ -609,7 +609,7 @@ static int ub913_register_clkout(struct ub913_data *priv)
 
 	name = kasprintf(GFP_KERNEL, "ds90ub913.%s.clk_out", dev_name(dev));
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clkout_clk_hw = devm_clk_hw_register_fixed_factor(dev, name,
 		__clk_get_name(priv->clkin), 0, 1, 2);
@@ -618,13 +618,13 @@ static int ub913_register_clkout(struct ub913_data *priv)
 
 	if (IS_ERR(priv->clkout_clk_hw))
 		return dev_err_probe(dev, PTR_ERR(priv->clkout_clk_hw),
-				     "Cannot register clkout hw\n");
+				     "Cananalt register clkout hw\n");
 
 	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
 					  priv->clkout_clk_hw);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "Cannot add OF clock provider\n");
+				     "Cananalt add OF clock provider\n");
 
 	return 0;
 }
@@ -656,17 +656,17 @@ static int ub913_i2c_master_init(struct ub913_data *priv)
 static int ub913_add_i2c_adapter(struct ub913_data *priv)
 {
 	struct device *dev = &priv->client->dev;
-	struct fwnode_handle *i2c_handle;
+	struct fwanalde_handle *i2c_handle;
 	int ret;
 
-	i2c_handle = device_get_named_child_node(dev, "i2c");
+	i2c_handle = device_get_named_child_analde(dev, "i2c");
 	if (!i2c_handle)
 		return 0;
 
 	ret = i2c_atr_add_adapter(priv->plat_data->atr, priv->plat_data->port,
 				  dev, i2c_handle);
 
-	fwnode_handle_put(i2c_handle);
+	fwanalde_handle_put(i2c_handle);
 
 	if (ret)
 		return ret;
@@ -677,20 +677,20 @@ static int ub913_add_i2c_adapter(struct ub913_data *priv)
 static int ub913_parse_dt(struct ub913_data *priv)
 {
 	struct device *dev = &priv->client->dev;
-	struct v4l2_fwnode_endpoint vep = {
+	struct v4l2_fwanalde_endpoint vep = {
 		.bus_type = V4L2_MBUS_PARALLEL,
 	};
-	struct fwnode_handle *ep_fwnode;
+	struct fwanalde_handle *ep_fwanalde;
 	int ret;
 
-	ep_fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
+	ep_fwanalde = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev),
 						    UB913_PAD_SINK, 0, 0);
-	if (!ep_fwnode)
-		return dev_err_probe(dev, -ENOENT, "No sink endpoint\n");
+	if (!ep_fwanalde)
+		return dev_err_probe(dev, -EANALENT, "Anal sink endpoint\n");
 
-	ret = v4l2_fwnode_endpoint_parse(ep_fwnode, &vep);
+	ret = v4l2_fwanalde_endpoint_parse(ep_fwanalde, &vep);
 
-	fwnode_handle_put(ep_fwnode);
+	fwanalde_handle_put(ep_fwanalde);
 
 	if (ret)
 		return dev_err_probe(dev, ret,
@@ -720,8 +720,8 @@ static int ub913_hw_init(struct ub913_data *priv)
 		return ret;
 
 	if (!(v & UB913_REG_MODE_SEL_MODE_UP_TO_DATE))
-		return dev_err_probe(dev, -ENODEV,
-				     "Mode value not stabilized\n");
+		return dev_err_probe(dev, -EANALDEV,
+				     "Mode value analt stabilized\n");
 
 	mode_override = v & UB913_REG_MODE_SEL_MODE_OVERRIDE;
 	mode = v & UB913_REG_MODE_SEL_MODE_MASK;
@@ -748,7 +748,7 @@ static int ub913_subdev_init(struct ub913_data *priv)
 
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &ub913_subdev_ops);
 	priv->sd.internal_ops = &ub913_internal_ops;
-	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
+	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_STREAMS;
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	priv->sd.entity.ops = &ub913_entity_ops;
 
@@ -763,22 +763,22 @@ static int ub913_subdev_init(struct ub913_data *priv)
 	if (ret)
 		goto err_entity_cleanup;
 
-	ret = ub913_v4l2_notifier_register(priv);
+	ret = ub913_v4l2_analtifier_register(priv);
 	if (ret) {
 		dev_err_probe(dev, ret,
-			      "v4l2 subdev notifier register failed\n");
+			      "v4l2 subdev analtifier register failed\n");
 		goto err_subdev_cleanup;
 	}
 
 	ret = v4l2_async_register_subdev(&priv->sd);
 	if (ret) {
 		dev_err_probe(dev, ret, "v4l2_async_register_subdev error\n");
-		goto err_unreg_notif;
+		goto err_unreg_analtif;
 	}
 
 	return 0;
 
-err_unreg_notif:
+err_unreg_analtif:
 	ub913_v4l2_nf_unregister(priv);
 err_subdev_cleanup:
 	v4l2_subdev_cleanup(&priv->sd);
@@ -793,7 +793,7 @@ static void ub913_subdev_uninit(struct ub913_data *priv)
 	v4l2_async_unregister_subdev(&priv->sd);
 	ub913_v4l2_nf_unregister(priv);
 	v4l2_subdev_cleanup(&priv->sd);
-	fwnode_handle_put(priv->sd.fwnode);
+	fwanalde_handle_put(priv->sd.fwanalde);
 	media_entity_cleanup(&priv->sd.entity);
 }
 
@@ -805,13 +805,13 @@ static int ub913_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = client;
 
 	priv->plat_data = dev_get_platdata(&client->dev);
 	if (!priv->plat_data)
-		return dev_err_probe(dev, -ENODEV, "Platform data missing\n");
+		return dev_err_probe(dev, -EANALDEV, "Platform data missing\n");
 
 	priv->regmap = devm_regmap_init_i2c(client, &ub913_regmap_config);
 	if (IS_ERR(priv->regmap))
@@ -819,13 +819,13 @@ static int ub913_probe(struct i2c_client *client)
 				     "Failed to init regmap\n");
 
 	/*
-	 * ub913 can also work without ext clock, but that is not supported by
+	 * ub913 can also work without ext clock, but that is analt supported by
 	 * the driver yet.
 	 */
 	priv->clkin = devm_clk_get(dev, "clkin");
 	if (IS_ERR(priv->clkin))
 		return dev_err_probe(dev, PTR_ERR(priv->clkin),
-				     "Cannot get CLKIN\n");
+				     "Cananalt get CLKIN\n");
 
 	ret = ub913_parse_dt(priv);
 	if (ret)

@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
  *    Moved from arch/arm/mach-vt8500/include/mach/debug-macro.S
- *    Minor changes for readability.
+ *    Mianalr changes for readability.
  */
 
 #define DEBUG_LL_PHYS_BASE		0xD8000000

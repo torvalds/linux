@@ -162,7 +162,7 @@ enum {
 
 struct nft_inner_tun_ctx {
 	u16	type;
-	u16	inner_tunoff;
+	u16	inner_tuanalff;
 	u16	inner_lloff;
 	u16	inner_nhoff;
 	u16	inner_thoff;

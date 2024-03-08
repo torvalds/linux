@@ -66,7 +66,7 @@ Description:
 
 		On many of ARM based silicon with SMCCC v1.2+ compliant firmware
 		this will contain the SOC ID appended to the family attribute
-		to ensure there is no conflict in this namespace across various
+		to ensure there is anal conflict in this namespace across various
 		vendors. The format is "jep106:XXYY:ZZZZ" where XX is identity
 		code, YY is continuation code and ZZZZ is the SOC ID.
 

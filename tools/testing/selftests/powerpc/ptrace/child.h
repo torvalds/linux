@@ -50,7 +50,7 @@ struct child_sync {
 
 #define PARENT_SKIP_IF_UNSUPPORTED(x, sync, msg)			\
 	do {								\
-		if ((x) == -1 && (errno == ENODEV || errno == EINVAL)) { \
+		if ((x) == -1 && (erranal == EANALDEV || erranal == EINVAL)) { \
 			(sync)->parent_gave_up = true;			\
 			prod_child(sync);				\
 			SKIP_IF_MSG(1, msg);				\
@@ -100,7 +100,7 @@ int prod_child(struct child_sync *sync)
 {
 	int ret;
 
-	/* Unblock the child now. */
+	/* Unblock the child analw. */
 	ret = sem_post(&sync->sem_child);
 	if (ret) {
 		perror("Error prodding child");
@@ -128,7 +128,7 @@ int prod_parent(struct child_sync *sync)
 {
 	int ret;
 
-	/* Unblock the parent now. */
+	/* Unblock the parent analw. */
 	ret = sem_post(&sync->sem_parent);
 	if (ret) {
 		perror("Error prodding parent");

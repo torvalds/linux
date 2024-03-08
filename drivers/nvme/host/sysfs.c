@@ -144,11 +144,11 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
 	struct nvme_ns_ids *ids = &dev_to_ns_head(dev)->ids;
 
 	/* For backward compatibility expose the NGUID to userspace if
-	 * we have no UUID set
+	 * we have anal UUID set
 	 */
 	if (uuid_is_null(&ids->uuid)) {
 		dev_warn_once(dev,
-			"No UUID available providing old NGUID\n");
+			"Anal UUID available providing old NGUID\n");
 		return sysfs_emit(buf, "%pU\n", ids->nguid);
 	}
 	return sysfs_emit(buf, "%pU\n", &ids->uuid);
@@ -333,7 +333,7 @@ static ssize_t  field##_show(struct device *dev,				\
 static DEVICE_ATTR(field, S_IRUGO, field##_show, NULL);
 
 nvme_show_int_function(cntlid);
-nvme_show_int_function(numa_node);
+nvme_show_int_function(numa_analde);
 nvme_show_int_function(queue_count);
 nvme_show_int_function(sqsize);
 nvme_show_int_function(kato);
@@ -375,14 +375,14 @@ static ssize_t nvme_sysfs_show_state(struct device *dev,
 		[NVME_CTRL_RESETTING]	= "resetting",
 		[NVME_CTRL_CONNECTING]	= "connecting",
 		[NVME_CTRL_DELETING]	= "deleting",
-		[NVME_CTRL_DELETING_NOIO]= "deleting (no IO)",
+		[NVME_CTRL_DELETING_ANALIO]= "deleting (anal IO)",
 		[NVME_CTRL_DEAD]	= "dead",
 	};
 
 	if (state < ARRAY_SIZE(state_name) && state_name[state])
 		return sysfs_emit(buf, "%s\n", state_name[state]);
 
-	return sysfs_emit(buf, "unknown state\n");
+	return sysfs_emit(buf, "unkanalwn state\n");
 }
 
 static DEVICE_ATTR(state, S_IRUGO, nvme_sysfs_show_state, NULL);
@@ -538,7 +538,7 @@ static ssize_t dctype_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
 	static const char * const type[] = {
-		[NVME_DCTYPE_NOT_REPORTED] = "none\n",
+		[NVME_DCTYPE_ANALT_REPORTED] = "analne\n",
 		[NVME_DCTYPE_DDC] = "ddc\n",
 		[NVME_DCTYPE_CDC] = "cdc\n",
 	};
@@ -559,7 +559,7 @@ static ssize_t nvme_ctrl_dhchap_secret_show(struct device *dev,
 	struct nvmf_ctrl_options *opts = ctrl->opts;
 
 	if (!opts->dhchap_secret)
-		return sysfs_emit(buf, "none\n");
+		return sysfs_emit(buf, "analne\n");
 	return sysfs_emit(buf, "%s\n", opts->dhchap_secret);
 }
 
@@ -579,7 +579,7 @@ static ssize_t nvme_ctrl_dhchap_secret_store(struct device *dev,
 
 	dhchap_secret = kzalloc(count + 1, GFP_KERNEL);
 	if (!dhchap_secret)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(dhchap_secret, buf, count);
 	nvme_auth_stop(ctrl);
 	if (strcmp(dhchap_secret, opts->dhchap_secret)) {
@@ -617,7 +617,7 @@ static ssize_t nvme_ctrl_dhchap_ctrl_secret_show(struct device *dev,
 	struct nvmf_ctrl_options *opts = ctrl->opts;
 
 	if (!opts->dhchap_ctrl_secret)
-		return sysfs_emit(buf, "none\n");
+		return sysfs_emit(buf, "analne\n");
 	return sysfs_emit(buf, "%s\n", opts->dhchap_ctrl_secret);
 }
 
@@ -637,7 +637,7 @@ static ssize_t nvme_ctrl_dhchap_ctrl_secret_store(struct device *dev,
 
 	dhchap_secret = kzalloc(count + 1, GFP_KERNEL);
 	if (!dhchap_secret)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(dhchap_secret, buf, count);
 	nvme_auth_stop(ctrl);
 	if (strcmp(dhchap_secret, opts->dhchap_ctrl_secret)) {
@@ -694,7 +694,7 @@ static struct attribute *nvme_dev_attrs[] = {
 	&dev_attr_subsysnqn.attr,
 	&dev_attr_address.attr,
 	&dev_attr_state.attr,
-	&dev_attr_numa_node.attr,
+	&dev_attr_numa_analde.attr,
 	&dev_attr_queue_count.attr,
 	&dev_attr_sqsize.attr,
 	&dev_attr_hostnqn.attr,

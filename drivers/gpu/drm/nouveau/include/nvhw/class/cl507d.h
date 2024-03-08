@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -24,18 +24,18 @@
 #ifndef _cl507d_h_
 #define _cl507d_h_
 
-#define NV_DISP_CORE_NOTIFIER_1                                                      0x00000000
-#define NV_DISP_CORE_NOTIFIER_1_SIZEOF                                               0x00000054
-#define NV_DISP_CORE_NOTIFIER_1_COMPLETION_0                                         0x00000000
-#define NV_DISP_CORE_NOTIFIER_1_COMPLETION_0_DONE                                    0:0
-#define NV_DISP_CORE_NOTIFIER_1_COMPLETION_0_DONE_FALSE                              0x00000000
-#define NV_DISP_CORE_NOTIFIER_1_COMPLETION_0_DONE_TRUE                               0x00000001
-#define NV_DISP_CORE_NOTIFIER_1_COMPLETION_0_R0                                      15:1
-#define NV_DISP_CORE_NOTIFIER_1_COMPLETION_0_TIMESTAMP                               29:16
-#define NV_DISP_CORE_NOTIFIER_1_CAPABILITIES_1                                       0x00000001
-#define NV_DISP_CORE_NOTIFIER_1_CAPABILITIES_1_DONE                                  0:0
-#define NV_DISP_CORE_NOTIFIER_1_CAPABILITIES_1_DONE_FALSE                            0x00000000
-#define NV_DISP_CORE_NOTIFIER_1_CAPABILITIES_1_DONE_TRUE                             0x00000001
+#define NV_DISP_CORE_ANALTIFIER_1                                                      0x00000000
+#define NV_DISP_CORE_ANALTIFIER_1_SIZEOF                                               0x00000054
+#define NV_DISP_CORE_ANALTIFIER_1_COMPLETION_0                                         0x00000000
+#define NV_DISP_CORE_ANALTIFIER_1_COMPLETION_0_DONE                                    0:0
+#define NV_DISP_CORE_ANALTIFIER_1_COMPLETION_0_DONE_FALSE                              0x00000000
+#define NV_DISP_CORE_ANALTIFIER_1_COMPLETION_0_DONE_TRUE                               0x00000001
+#define NV_DISP_CORE_ANALTIFIER_1_COMPLETION_0_R0                                      15:1
+#define NV_DISP_CORE_ANALTIFIER_1_COMPLETION_0_TIMESTAMP                               29:16
+#define NV_DISP_CORE_ANALTIFIER_1_CAPABILITIES_1                                       0x00000001
+#define NV_DISP_CORE_ANALTIFIER_1_CAPABILITIES_1_DONE                                  0:0
+#define NV_DISP_CORE_ANALTIFIER_1_CAPABILITIES_1_DONE_FALSE                            0x00000000
+#define NV_DISP_CORE_ANALTIFIER_1_CAPABILITIES_1_DONE_TRUE                             0x00000001
 
 // class methods
 #define NV507D_UPDATE                                                           (0x00000080)
@@ -63,35 +63,35 @@
 #define NV507D_UPDATE_INTERLOCK_WITH_OVERLAY_IMM1                               11:11
 #define NV507D_UPDATE_INTERLOCK_WITH_OVERLAY_IMM1_DISABLE                       (0x00000000)
 #define NV507D_UPDATE_INTERLOCK_WITH_OVERLAY_IMM1_ENABLE                        (0x00000001)
-#define NV507D_UPDATE_NOT_DRIVER_FRIENDLY                                       31:31
-#define NV507D_UPDATE_NOT_DRIVER_FRIENDLY_FALSE                                 (0x00000000)
-#define NV507D_UPDATE_NOT_DRIVER_FRIENDLY_TRUE                                  (0x00000001)
-#define NV507D_UPDATE_NOT_DRIVER_UNFRIENDLY                                     30:30
-#define NV507D_UPDATE_NOT_DRIVER_UNFRIENDLY_FALSE                               (0x00000000)
-#define NV507D_UPDATE_NOT_DRIVER_UNFRIENDLY_TRUE                                (0x00000001)
+#define NV507D_UPDATE_ANALT_DRIVER_FRIENDLY                                       31:31
+#define NV507D_UPDATE_ANALT_DRIVER_FRIENDLY_FALSE                                 (0x00000000)
+#define NV507D_UPDATE_ANALT_DRIVER_FRIENDLY_TRUE                                  (0x00000001)
+#define NV507D_UPDATE_ANALT_DRIVER_UNFRIENDLY                                     30:30
+#define NV507D_UPDATE_ANALT_DRIVER_UNFRIENDLY_FALSE                               (0x00000000)
+#define NV507D_UPDATE_ANALT_DRIVER_UNFRIENDLY_TRUE                                (0x00000001)
 #define NV507D_UPDATE_INHIBIT_INTERRUPTS                                        29:29
 #define NV507D_UPDATE_INHIBIT_INTERRUPTS_FALSE                                  (0x00000000)
 #define NV507D_UPDATE_INHIBIT_INTERRUPTS_TRUE                                   (0x00000001)
-#define NV507D_SET_NOTIFIER_CONTROL                                             (0x00000084)
-#define NV507D_SET_NOTIFIER_CONTROL_MODE                                        30:30
-#define NV507D_SET_NOTIFIER_CONTROL_MODE_WRITE                                  (0x00000000)
-#define NV507D_SET_NOTIFIER_CONTROL_MODE_WRITE_AWAKEN                           (0x00000001)
-#define NV507D_SET_NOTIFIER_CONTROL_OFFSET                                      11:2
-#define NV507D_SET_NOTIFIER_CONTROL_NOTIFY                                      31:31
-#define NV507D_SET_NOTIFIER_CONTROL_NOTIFY_DISABLE                              (0x00000000)
-#define NV507D_SET_NOTIFIER_CONTROL_NOTIFY_ENABLE                               (0x00000001)
-#define NV507D_SET_CONTEXT_DMA_NOTIFIER                                         (0x00000088)
-#define NV507D_SET_CONTEXT_DMA_NOTIFIER_HANDLE                                  31:0
+#define NV507D_SET_ANALTIFIER_CONTROL                                             (0x00000084)
+#define NV507D_SET_ANALTIFIER_CONTROL_MODE                                        30:30
+#define NV507D_SET_ANALTIFIER_CONTROL_MODE_WRITE                                  (0x00000000)
+#define NV507D_SET_ANALTIFIER_CONTROL_MODE_WRITE_AWAKEN                           (0x00000001)
+#define NV507D_SET_ANALTIFIER_CONTROL_OFFSET                                      11:2
+#define NV507D_SET_ANALTIFIER_CONTROL_ANALTIFY                                      31:31
+#define NV507D_SET_ANALTIFIER_CONTROL_ANALTIFY_DISABLE                              (0x00000000)
+#define NV507D_SET_ANALTIFIER_CONTROL_ANALTIFY_ENABLE                               (0x00000001)
+#define NV507D_SET_CONTEXT_DMA_ANALTIFIER                                         (0x00000088)
+#define NV507D_SET_CONTEXT_DMA_ANALTIFIER_HANDLE                                  31:0
 #define NV507D_GET_CAPABILITIES                                                 (0x0000008C)
 #define NV507D_GET_CAPABILITIES_DUMMY                                           31:0
 
 #define NV507D_DAC_SET_CONTROL(a)                                               (0x00000400 + (a)*0x00000080)
 #define NV507D_DAC_SET_CONTROL_OWNER                                            3:0
-#define NV507D_DAC_SET_CONTROL_OWNER_NONE                                       (0x00000000)
+#define NV507D_DAC_SET_CONTROL_OWNER_ANALNE                                       (0x00000000)
 #define NV507D_DAC_SET_CONTROL_OWNER_HEAD0                                      (0x00000001)
 #define NV507D_DAC_SET_CONTROL_OWNER_HEAD1                                      (0x00000002)
 #define NV507D_DAC_SET_CONTROL_SUB_OWNER                                        5:4
-#define NV507D_DAC_SET_CONTROL_SUB_OWNER_NONE                                   (0x00000000)
+#define NV507D_DAC_SET_CONTROL_SUB_OWNER_ANALNE                                   (0x00000000)
 #define NV507D_DAC_SET_CONTROL_SUB_OWNER_SUBHEAD0                               (0x00000001)
 #define NV507D_DAC_SET_CONTROL_SUB_OWNER_SUBHEAD1                               (0x00000002)
 #define NV507D_DAC_SET_CONTROL_SUB_OWNER_BOTH                                   (0x00000003)
@@ -130,11 +130,11 @@
 
 #define NV507D_SOR_SET_CONTROL(a)                                               (0x00000600 + (a)*0x00000040)
 #define NV507D_SOR_SET_CONTROL_OWNER                                            3:0
-#define NV507D_SOR_SET_CONTROL_OWNER_NONE                                       (0x00000000)
+#define NV507D_SOR_SET_CONTROL_OWNER_ANALNE                                       (0x00000000)
 #define NV507D_SOR_SET_CONTROL_OWNER_HEAD0                                      (0x00000001)
 #define NV507D_SOR_SET_CONTROL_OWNER_HEAD1                                      (0x00000002)
 #define NV507D_SOR_SET_CONTROL_SUB_OWNER                                        5:4
-#define NV507D_SOR_SET_CONTROL_SUB_OWNER_NONE                                   (0x00000000)
+#define NV507D_SOR_SET_CONTROL_SUB_OWNER_ANALNE                                   (0x00000000)
 #define NV507D_SOR_SET_CONTROL_SUB_OWNER_SUBHEAD0                               (0x00000001)
 #define NV507D_SOR_SET_CONTROL_SUB_OWNER_SUBHEAD1                               (0x00000002)
 #define NV507D_SOR_SET_CONTROL_SUB_OWNER_BOTH                                   (0x00000003)
@@ -159,11 +159,11 @@
 
 #define NV507D_PIOR_SET_CONTROL(a)                                              (0x00000700 + (a)*0x00000040)
 #define NV507D_PIOR_SET_CONTROL_OWNER                                           3:0
-#define NV507D_PIOR_SET_CONTROL_OWNER_NONE                                      (0x00000000)
+#define NV507D_PIOR_SET_CONTROL_OWNER_ANALNE                                      (0x00000000)
 #define NV507D_PIOR_SET_CONTROL_OWNER_HEAD0                                     (0x00000001)
 #define NV507D_PIOR_SET_CONTROL_OWNER_HEAD1                                     (0x00000002)
 #define NV507D_PIOR_SET_CONTROL_SUB_OWNER                                       5:4
-#define NV507D_PIOR_SET_CONTROL_SUB_OWNER_NONE                                  (0x00000000)
+#define NV507D_PIOR_SET_CONTROL_SUB_OWNER_ANALNE                                  (0x00000000)
 #define NV507D_PIOR_SET_CONTROL_SUB_OWNER_SUBHEAD0                              (0x00000001)
 #define NV507D_PIOR_SET_CONTROL_SUB_OWNER_SUBHEAD1                              (0x00000002)
 #define NV507D_PIOR_SET_CONTROL_SUB_OWNER_BOTH                                  (0x00000003)
@@ -189,9 +189,9 @@
 #define NV507D_HEAD_SET_PIXEL_CLOCK_ADJ1000DIV1001                              24:24
 #define NV507D_HEAD_SET_PIXEL_CLOCK_ADJ1000DIV1001_FALSE                        (0x00000000)
 #define NV507D_HEAD_SET_PIXEL_CLOCK_ADJ1000DIV1001_TRUE                         (0x00000001)
-#define NV507D_HEAD_SET_PIXEL_CLOCK_NOT_DRIVER                                  25:25
-#define NV507D_HEAD_SET_PIXEL_CLOCK_NOT_DRIVER_FALSE                            (0x00000000)
-#define NV507D_HEAD_SET_PIXEL_CLOCK_NOT_DRIVER_TRUE                             (0x00000001)
+#define NV507D_HEAD_SET_PIXEL_CLOCK_ANALT_DRIVER                                  25:25
+#define NV507D_HEAD_SET_PIXEL_CLOCK_ANALT_DRIVER_FALSE                            (0x00000000)
+#define NV507D_HEAD_SET_PIXEL_CLOCK_ANALT_DRIVER_TRUE                             (0x00000001)
 #define NV507D_HEAD_SET_CONTROL(a)                                              (0x00000808 + (a)*0x00000400)
 #define NV507D_HEAD_SET_CONTROL_STRUCTURE                                       2:1
 #define NV507D_HEAD_SET_CONTROL_STRUCTURE_PROGRESSIVE                           (0x00000000)
@@ -295,7 +295,7 @@
 #define NV507D_HEAD_SET_CONTROL_CURSOR_COMPOSITION_PREMULT_ALPHA_BLEND          (0x00000001)
 #define NV507D_HEAD_SET_CONTROL_CURSOR_COMPOSITION_XOR                          (0x00000002)
 #define NV507D_HEAD_SET_CONTROL_CURSOR_SUB_OWNER                                5:4
-#define NV507D_HEAD_SET_CONTROL_CURSOR_SUB_OWNER_NONE                           (0x00000000)
+#define NV507D_HEAD_SET_CONTROL_CURSOR_SUB_OWNER_ANALNE                           (0x00000000)
 #define NV507D_HEAD_SET_CONTROL_CURSOR_SUB_OWNER_SUBHEAD0                       (0x00000001)
 #define NV507D_HEAD_SET_CONTROL_CURSOR_SUB_OWNER_SUBHEAD1                       (0x00000002)
 #define NV507D_HEAD_SET_CONTROL_CURSOR_SUB_OWNER_BOTH                           (0x00000003)

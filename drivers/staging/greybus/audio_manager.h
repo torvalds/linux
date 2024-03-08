@@ -57,7 +57,7 @@ void gb_audio_manager_remove_all(void);
 /*
  * Retrieves a gb_audio_manager_module_descriptor for the specified id.
  * Returns the gb_audio_manager_module_descriptor structure,
- * or NULL if there is no module with the specified ID.
+ * or NULL if there is anal module with the specified ID.
  */
 struct gb_audio_manager_module *gb_audio_manager_get_module(int id);
 

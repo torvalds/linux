@@ -101,7 +101,7 @@ struct altera_pcie_ops {
 	bool (*get_link_status)(struct altera_pcie *pcie);
 	int (*rp_read_cfg)(struct altera_pcie *pcie, int where,
 			   int size, u32 *value);
-	int (*rp_write_cfg)(struct altera_pcie *pcie, u8 busno,
+	int (*rp_write_cfg)(struct altera_pcie *pcie, u8 busanal,
 			    int where, int size, u32 value);
 };
 
@@ -182,7 +182,7 @@ static void s10_tlp_write_tx(struct altera_pcie *pcie, u32 reg0, u32 ctrl)
 static bool altera_pcie_valid_device(struct altera_pcie *pcie,
 				     struct pci_bus *bus, int dev)
 {
-	/* If there is no link, then there is no device */
+	/* If there is anal link, then there is anal device */
 	if (bus->number != pcie->root_bus_nr) {
 		if (!pcie->pcie_data->ops->get_link_status(pcie))
 			return false;
@@ -220,7 +220,7 @@ static int tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 
 			if (ctrl & RP_RXCPL_EOP) {
 				if (comp_status)
-					return PCIBIOS_DEVICE_NOT_FOUND;
+					return PCIBIOS_DEVICE_ANALT_FOUND;
 
 				if (value)
 					*value = reg0;
@@ -231,7 +231,7 @@ static int tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 		udelay(5);
 	}
 
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	return PCIBIOS_DEVICE_ANALT_FOUND;
 }
 
 static int s10_tlp_read_packet(struct altera_pcie *pcie, u32 *value)
@@ -255,7 +255,7 @@ static int s10_tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 
 	/* SOP detection failed, return error */
 	if (count == TLP_LOOP)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	count = 1;
 
@@ -266,7 +266,7 @@ static int s10_tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 		if (ctrl & RP_RXCPL_EOP) {
 			comp_status = TLP_COMP_STATUS(dw[1]);
 			if (comp_status)
-				return PCIBIOS_DEVICE_NOT_FOUND;
+				return PCIBIOS_DEVICE_ANALT_FOUND;
 
 			if (value && TLP_BYTE_COUNT(dw[1]) == sizeof(u32) &&
 			    count == 4)
@@ -278,7 +278,7 @@ static int s10_tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 
 	dev_warn(dev, "Malformed TLP packet\n");
 
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	return PCIBIOS_DEVICE_ANALT_FOUND;
 }
 
 static void tlp_write_packet(struct altera_pcie *pcie, u32 *headers,
@@ -399,7 +399,7 @@ static int s10_rp_read_cfg(struct altera_pcie *pcie, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int s10_rp_write_cfg(struct altera_pcie *pcie, u8 busno,
+static int s10_rp_write_cfg(struct altera_pcie *pcie, u8 busanal,
 			    int where, int size, u32 value)
 {
 	void __iomem *addr = S10_RP_CFG_ADDR(pcie, where);
@@ -420,13 +420,13 @@ static int s10_rp_write_cfg(struct altera_pcie *pcie, u8 busno,
 	 * Monitor changes to PCI_PRIMARY_BUS register on root port
 	 * and update local copy of root bus number accordingly.
 	 */
-	if (busno == pcie->root_bus_nr && where == PCI_PRIMARY_BUS)
+	if (busanal == pcie->root_bus_nr && where == PCI_PRIMARY_BUS)
 		pcie->root_bus_nr = value & 0xff;
 
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int _altera_pcie_cfg_read(struct altera_pcie *pcie, u8 busno,
+static int _altera_pcie_cfg_read(struct altera_pcie *pcie, u8 busanal,
 				 unsigned int devfn, int where, int size,
 				 u32 *value)
 {
@@ -434,7 +434,7 @@ static int _altera_pcie_cfg_read(struct altera_pcie *pcie, u8 busno,
 	u32 data;
 	u8 byte_en;
 
-	if (busno == pcie->root_bus_nr && pcie->pcie_data->ops->rp_read_cfg)
+	if (busanal == pcie->root_bus_nr && pcie->pcie_data->ops->rp_read_cfg)
 		return pcie->pcie_data->ops->rp_read_cfg(pcie, where,
 							 size, value);
 
@@ -450,7 +450,7 @@ static int _altera_pcie_cfg_read(struct altera_pcie *pcie, u8 busno,
 		break;
 	}
 
-	ret = tlp_cfg_dword_read(pcie, busno, devfn,
+	ret = tlp_cfg_dword_read(pcie, busanal, devfn,
 				 (where & ~DWORD_MASK), byte_en, &data);
 	if (ret != PCIBIOS_SUCCESSFUL)
 		return ret;
@@ -470,7 +470,7 @@ static int _altera_pcie_cfg_read(struct altera_pcie *pcie, u8 busno,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int _altera_pcie_cfg_write(struct altera_pcie *pcie, u8 busno,
+static int _altera_pcie_cfg_write(struct altera_pcie *pcie, u8 busanal,
 				  unsigned int devfn, int where, int size,
 				  u32 value)
 {
@@ -478,8 +478,8 @@ static int _altera_pcie_cfg_write(struct altera_pcie *pcie, u8 busno,
 	u32 shift = 8 * (where & 3);
 	u8 byte_en;
 
-	if (busno == pcie->root_bus_nr && pcie->pcie_data->ops->rp_write_cfg)
-		return pcie->pcie_data->ops->rp_write_cfg(pcie, busno,
+	if (busanal == pcie->root_bus_nr && pcie->pcie_data->ops->rp_write_cfg)
+		return pcie->pcie_data->ops->rp_write_cfg(pcie, busanal,
 						     where, size, value);
 
 	switch (size) {
@@ -497,7 +497,7 @@ static int _altera_pcie_cfg_write(struct altera_pcie *pcie, u8 busno,
 		break;
 	}
 
-	return tlp_cfg_dword_write(pcie, busno, devfn, (where & ~DWORD_MASK),
+	return tlp_cfg_dword_write(pcie, busanal, devfn, (where & ~DWORD_MASK),
 				   byte_en, data32);
 }
 
@@ -510,7 +510,7 @@ static int altera_pcie_cfg_read(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	if (!altera_pcie_valid_device(pcie, bus, PCI_SLOT(devfn)))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return _altera_pcie_cfg_read(pcie, bus->number, devfn, where, size,
 				     value);
@@ -525,7 +525,7 @@ static int altera_pcie_cfg_write(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	if (!altera_pcie_valid_device(pcie, bus, PCI_SLOT(devfn)))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return _altera_pcie_cfg_write(pcie, bus->number, devfn, where, size,
 				     value);
@@ -536,13 +536,13 @@ static struct pci_ops altera_pcie_ops = {
 	.write = altera_pcie_cfg_write,
 };
 
-static int altera_read_cap_word(struct altera_pcie *pcie, u8 busno,
+static int altera_read_cap_word(struct altera_pcie *pcie, u8 busanal,
 				unsigned int devfn, int offset, u16 *value)
 {
 	u32 data;
 	int ret;
 
-	ret = _altera_pcie_cfg_read(pcie, busno, devfn,
+	ret = _altera_pcie_cfg_read(pcie, busanal, devfn,
 				    pcie->pcie_data->cap_offset + offset,
 				    sizeof(*value),
 				    &data);
@@ -550,10 +550,10 @@ static int altera_read_cap_word(struct altera_pcie *pcie, u8 busno,
 	return ret;
 }
 
-static int altera_write_cap_word(struct altera_pcie *pcie, u8 busno,
+static int altera_write_cap_word(struct altera_pcie *pcie, u8 busanal,
 				 unsigned int devfn, int offset, u16 value)
 {
-	return _altera_pcie_cfg_write(pcie, busno, devfn,
+	return _altera_pcie_cfg_write(pcie, busanal, devfn,
 				      pcie->pcie_data->cap_offset + offset,
 				      sizeof(value),
 				      value);
@@ -667,14 +667,14 @@ static void altera_pcie_isr(struct irq_desc *desc)
 static int altera_pcie_init_irq_domain(struct altera_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 
 	/* Setup INTx */
-	pcie->irq_domain = irq_domain_add_linear(node, PCI_NUM_INTX,
+	pcie->irq_domain = irq_domain_add_linear(analde, PCI_NUM_INTX,
 					&intx_domain_ops, pcie);
 	if (!pcie->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -768,7 +768,7 @@ static int altera_pcie_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie = pci_host_bridge_priv(bridge);
 	pcie->pdev = pdev;
@@ -776,7 +776,7 @@ static int altera_pcie_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcie->pcie_data = data;
 

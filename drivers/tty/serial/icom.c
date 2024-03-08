@@ -10,7 +10,7 @@
   */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/signal.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
@@ -77,7 +77,7 @@ struct icom_regs {
 	u32 interrupt;		/* Adapter Interrupt Register   */
 	u32 int_mask;		/* Adapter Interrupt Mask Reg   */
 	u32 int_pri;		/* Adapter Interrupt Priority r */
-	u32 int_reg_b;		/* Adapter non-masked Interrupt */
+	u32 int_reg_b;		/* Adapter analn-masked Interrupt */
 	u32 resvd01;
 	u32 resvd02;
 	u32 resvd03;
@@ -85,7 +85,7 @@ struct icom_regs {
 	u32 interrupt_2;	/* Adapter Interrupt Register 2 */
 	u32 int_mask_2;		/* Adapter Interrupt Mask 2     */
 	u32 int_pri_2;		/* Adapter Interrupt Prior 2    */
-	u32 int_reg_2b;		/* Adapter non-masked 2         */
+	u32 int_reg_2b;		/* Adapter analn-masked 2         */
 };
 
 struct func_dram {
@@ -118,7 +118,7 @@ struct func_dram {
 	u8 dce_command;		/* 1E7     dce command reg    */
 	u8 dce_cmd_status;	/* 1E8     dce command stat   */
 	u8 x21_r1_ioff;		/* 1E9     dce ready counter  */
-	u8 x21_r0_ioff;		/* 1EA     dce not ready ctr  */
+	u8 x21_r0_ioff;		/* 1EA     dce analt ready ctr  */
 	u8 x21_ralt_ioff;	/* 1EB     dce CNR counter    */
 	u8 x21_r1_ion;		/* 1EC     dce ready I on ctr */
 	u8 rsvd_ier;		/* 1ED     Rsvd for IER (if ne */
@@ -164,7 +164,7 @@ struct func_dram {
 #define V24_CABLE                    0x0E
 #define V35_CABLE                    0x0C
 #define V36_CABLE                    0x02
-#define NO_CABLE                     0x00
+#define ANAL_CABLE                     0x00
 #define START_DOWNLOAD               0x80
 #define ICOM_INT_MASK_PRC_A          0x00003FFF
 #define ICOM_INT_MASK_PRC_B          0x3FFF0000
@@ -184,7 +184,7 @@ struct func_dram {
 #define HDLC_HDW_FLOW                0x01
 #define START_XMIT                   0x80
 #define ICOM_ACFG_DRIVE1             0x20
-#define ICOM_ACFG_NO_PARITY          0x00
+#define ICOM_ACFG_ANAL_PARITY          0x00
 #define ICOM_ACFG_PARITY_ENAB        0x02
 #define ICOM_ACFG_PARITY_ODD         0x01
 #define ICOM_ACFG_8BPC               0x00
@@ -239,7 +239,7 @@ struct statusArea {
 #define SA_FLAGS_PARITY_ERROR    0x0080
 #define SA_FLAGS_FRAME_ERROR     0x0001
 #define SA_FLAGS_FRAME_TRUNC     0x0002
-#define SA_FLAGS_BREAK_DET       0x0004	/* set conditionally by device driver, not hardware */
+#define SA_FLAGS_BREAK_DET       0x0004	/* set conditionally by device driver, analt hardware */
 #define SA_FLAGS_RCV_MASK        0xFFE6
 	} rcv[NUM_RBUFFS];
 };
@@ -248,13 +248,13 @@ struct icom_adapter;
 
 
 #define ICOM_MAJOR       243
-#define ICOM_MINOR_START 0
+#define ICOM_MIANALR_START 0
 
 struct icom_port {
 	struct uart_port uart_port;
 	unsigned char cable_id;
 	unsigned char read_status_mask;
-	unsigned char ignore_status_mask;
+	unsigned char iganalre_status_mask;
 	void __iomem * int_reg;
 	struct icom_regs __iomem *global_reg;
 	struct func_dram __iomem *dram;
@@ -270,7 +270,7 @@ struct icom_port {
 	int next_rcv;
 	int status;
 #define ICOM_PORT_ACTIVE	1	/* Port exists. */
-#define ICOM_PORT_OFF		0	/* Port does not exist. */
+#define ICOM_PORT_OFF		0	/* Port does analt exist. */
 	struct icom_adapter *adapter;
 };
 
@@ -431,8 +431,8 @@ static int get_port_memory(struct icom_port *icom_port)
 	    dma_alloc_coherent(&dev->dev, 4096, &icom_port->xmit_buf_pci,
 			       GFP_KERNEL);
 	if (!icom_port->xmit_buf) {
-		dev_err(&dev->dev, "Can not allocate Transmit buffer\n");
-		return -ENOMEM;
+		dev_err(&dev->dev, "Can analt allocate Transmit buffer\n");
+		return -EANALMEM;
 	}
 
 	trace(icom_port, "GET_PORT_MEM",
@@ -442,9 +442,9 @@ static int get_port_memory(struct icom_port *icom_port)
 	    dma_alloc_coherent(&dev->dev, 4096, &icom_port->recv_buf_pci,
 			       GFP_KERNEL);
 	if (!icom_port->recv_buf) {
-		dev_err(&dev->dev, "Can not allocate Receive buffer\n");
+		dev_err(&dev->dev, "Can analt allocate Receive buffer\n");
 		free_port_memory(icom_port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	trace(icom_port, "GET_PORT_MEM",
 	      (unsigned long) icom_port->recv_buf);
@@ -453,9 +453,9 @@ static int get_port_memory(struct icom_port *icom_port)
 	    dma_alloc_coherent(&dev->dev, 4096, &icom_port->statStg_pci,
 			       GFP_KERNEL);
 	if (!icom_port->statStg) {
-		dev_err(&dev->dev, "Can not allocate Status buffer\n");
+		dev_err(&dev->dev, "Can analt allocate Status buffer\n");
 		free_port_memory(icom_port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	trace(icom_port, "GET_PORT_MEM",
 	      (unsigned long) icom_port->statStg);
@@ -465,9 +465,9 @@ static int get_port_memory(struct icom_port *icom_port)
 			       GFP_KERNEL);
 	if (!icom_port->xmitRestart) {
 		dev_err(&dev->dev,
-			"Can not allocate xmit Restart buffer\n");
+			"Can analt allocate xmit Restart buffer\n");
 		free_port_memory(icom_port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* FODs: Frame Out Descriptor Queue, this is a FIFO queue that
@@ -502,7 +502,7 @@ static int get_port_memory(struct icom_port *icom_port)
 	/* FIDs */
 	startStgAddr = stgAddr;
 
-	/* fill in every entry, even if no buffer */
+	/* fill in every entry, even if anal buffer */
 	for (index = 0; index <  NUM_RBUFFS; index++) {
 		trace(icom_port, "FID_ADDR", stgAddr);
 		stgAddr = stgAddr + sizeof(icom_port->statStg->rcv[0]);
@@ -605,7 +605,7 @@ static void load_code(struct icom_port *icom_port)
 	void __iomem *dram_ptr = icom_port->dram;
 	dma_addr_t temp_pci;
 	unsigned char *new_page = NULL;
-	unsigned char cable_id = NO_CABLE;
+	unsigned char cable_id = ANAL_CABLE;
 	struct pci_dev *dev = icom_port->adapter->pci_dev;
 
 	/* Clear out any pending interrupts */
@@ -671,7 +671,7 @@ static void load_code(struct icom_port *icom_port)
 	writeb(0x04, &(icom_port->dram->FlagFillIdleTimer));	/* 0.5 seconds */
 	writeb(0x00, &(icom_port->dram->CmdReg));
 	writeb(0x10, &(icom_port->dram->async_config3));
-	writeb((ICOM_ACFG_DRIVE1 | ICOM_ACFG_NO_PARITY | ICOM_ACFG_8BPC |
+	writeb((ICOM_ACFG_DRIVE1 | ICOM_ACFG_ANAL_PARITY | ICOM_ACFG_8BPC |
 		ICOM_ACFG_1STOP_BIT), &(icom_port->dram->async_config2));
 
 	/*Set up data in icom DRAM to indicate where personality
@@ -680,7 +680,7 @@ static void load_code(struct icom_port *icom_port)
 	new_page = dma_alloc_coherent(&dev->dev, 4096, &temp_pci, GFP_KERNEL);
 
 	if (!new_page) {
-		dev_err(&dev->dev, "Can not allocate DMA buffer\n");
+		dev_err(&dev->dev, "Can analt allocate DMA buffer\n");
 		status = -1;
 		goto load_code_exit;
 	}
@@ -737,8 +737,8 @@ static void load_code(struct icom_port *icom_port)
 		cable_id = (cable_id & ICOM_CABLE_ID_MASK) >> 4;
 		icom_port->cable_id = cable_id;
 	} else {
-		dev_err(&dev->dev,"Invalid or no cable attached\n");
-		icom_port->cable_id = NO_CABLE;
+		dev_err(&dev->dev,"Invalid or anal cable attached\n");
+		icom_port->cable_id = ANAL_CABLE;
 	}
 
       load_code_exit:
@@ -753,7 +753,7 @@ static void load_code(struct icom_port *icom_port)
 		/* Stop processor */
 		stop_processor(icom_port);
 
-		dev_err(&icom_port->adapter->pci_dev->dev,"Port not operational\n");
+		dev_err(&icom_port->adapter->pci_dev->dev,"Port analt operational\n");
 	}
 
 	if (new_page != NULL)
@@ -773,7 +773,7 @@ static int startup(struct icom_port *icom_port)
 		/* should NEVER be NULL */
 		dev_err(&icom_port->adapter->pci_dev->dev,
 			"Unusable Port, port configuration missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -792,11 +792,11 @@ static int startup(struct icom_port *icom_port)
 		/* reload adapter code, pick up any potential changes in cable id */
 		load_code(icom_port);
 
-		/* still no sign of cable, error out */
+		/* still anal sign of cable, error out */
 		raw_cable_id = readb(&icom_port->dram->cable_id);
 		cable_id = (raw_cable_id & ICOM_CABLE_ID_MASK) >> 4;
 		if (!(raw_cable_id & ICOM_CABLE_ID_VALID) ||
-		    (icom_port->cable_id == NO_CABLE))
+		    (icom_port->cable_id == ANAL_CABLE))
 			return -EIO;
 	}
 
@@ -1026,7 +1026,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 			trace(icom_port, "BREAK_DET", 0);
 		}
 
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 
 		if (status &
 		    (SA_FLAGS_BREAK_DET | SA_FLAGS_PARITY_ERROR |
@@ -1042,13 +1042,13 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 				icount->overrun++;
 
 			/*
-			 * Now check to see if character should be
-			 * ignored, and mask off conditions which
-			 * should be ignored.
+			 * Analw check to see if character should be
+			 * iganalred, and mask off conditions which
+			 * should be iganalred.
 			 */
-			if (status & icom_port->ignore_status_mask) {
-				trace(icom_port, "IGNORE_CHAR", 0);
-				goto ignore_char;
+			if (status & icom_port->iganalre_status_mask) {
+				trace(icom_port, "IGANALRE_CHAR", 0);
+				goto iganalre_char;
 			}
 
 			status &= icom_port->read_status_mask;
@@ -1072,7 +1072,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 			 * affect the current character
 			 */
 			tty_insert_flip_char(port, 0, TTY_OVERRUN);
-ignore_char:
+iganalre_char:
 		icom_port->statStg->rcv[rcv_buff].flags = 0;
 		icom_port->statStg->rcv[rcv_buff].leLength = 0;
 		icom_port->statStg->rcv[rcv_buff].WorkingLength =
@@ -1122,7 +1122,7 @@ static irqreturn_t icom_interrupt(int irq, void *dev_id)
 		adapter_interrupts = readl(int_reg);
 
 		if (adapter_interrupts & 0x00003FFF) {
-			/* port 2 interrupt,  NOTE:  for all ADAPTER_V2, port 2 will be active */
+			/* port 2 interrupt,  ANALTE:  for all ADAPTER_V2, port 2 will be active */
 			icom_port = &icom_adapter->port_info[2];
 			port_int_reg = (u16) adapter_interrupts;
 			process_interrupt(port_int_reg, icom_port);
@@ -1150,7 +1150,7 @@ static irqreturn_t icom_interrupt(int irq, void *dev_id)
 	adapter_interrupts = readl(int_reg);
 
 	if (adapter_interrupts & 0x00003FFF) {
-		/* port 0 interrupt, NOTE:  for all adapters, port 0 will be active */
+		/* port 0 interrupt, ANALTE:  for all adapters, port 0 will be active */
 		icom_port = &icom_adapter->port_info[0];
 		port_int_reg = (u16) adapter_interrupts;
 		process_interrupt(port_int_reg, icom_port);
@@ -1441,27 +1441,27 @@ static void icom_set_termios(struct uart_port *port, struct ktermios *termios,
 		icom_port->read_status_mask |= SA_FLAGS_BREAK_DET;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	icom_port->ignore_status_mask = 0;
+	icom_port->iganalre_status_mask = 0;
 	if (iflag & IGNPAR)
-		icom_port->ignore_status_mask |=
+		icom_port->iganalre_status_mask |=
 		    SA_FLAGS_PARITY_ERROR | SA_FLAGS_FRAME_ERROR;
 	if (iflag & IGNBRK) {
-		icom_port->ignore_status_mask |= SA_FLAGS_BREAK_DET;
+		icom_port->iganalre_status_mask |= SA_FLAGS_BREAK_DET;
 		/*
-		 * If we're ignore parity and break indicators, ignore
+		 * If we're iganalre parity and break indicators, iganalre
 		 * overruns too.  (For real raw support).
 		 */
 		if (iflag & IGNPAR)
-			icom_port->ignore_status_mask |= SA_FLAGS_OVERRUN;
+			icom_port->iganalre_status_mask |= SA_FLAGS_OVERRUN;
 	}
 
 	/*
-	 * !!! ignore all characters if CREAD is not set
+	 * !!! iganalre all characters if CREAD is analt set
 	 */
 	if ((cflag & CREAD) == 0)
-		icom_port->ignore_status_mask |= SA_FL_RCV_DONE;
+		icom_port->iganalre_status_mask |= SA_FL_RCV_DONE;
 
 	/* Turn off Receiver to prepare for reset */
 	writeb(CMD_RCV_DISABLE, &icom_port->dram->CmdReg);
@@ -1552,7 +1552,7 @@ static struct uart_driver icom_uart_driver = {
 	.driver_name = ICOM_DRIVER_NAME,
 	.dev_name = "ttyA",
 	.major = ICOM_MAJOR,
-	.minor = ICOM_MINOR_START,
+	.mianalr = ICOM_MIANALR_START,
 	.nr = NR_PORTS,
 	.cons = ICOM_CONSOLE,
 };
@@ -1648,7 +1648,7 @@ static int icom_alloc_adapter(struct icom_adapter
 	icom_adapter = kzalloc(sizeof(struct icom_adapter), GFP_KERNEL);
 
 	if (!icom_adapter) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	list_for_each_entry(cur_adapter_entry, &icom_adapter_head,
@@ -1773,7 +1773,7 @@ static int icom_probe(struct pci_dev *dev,
 	icom_adapter->base_addr = pci_ioremap_bar(dev, 0);
 
 	if (!icom_adapter->base_addr) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto probe_exit1;
 	}
 

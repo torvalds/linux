@@ -278,9 +278,9 @@ static int mmc_err_stats_show(struct seq_file *file, void *data)
 	return 0;
 }
 
-static int mmc_err_stats_open(struct inode *inode, struct file *file)
+static int mmc_err_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, mmc_err_stats_show, inode->i_private);
+	return single_open(file, mmc_err_stats_show, ianalde->i_private);
 }
 
 static ssize_t mmc_err_stats_write(struct file *filp, const char __user *ubuf,

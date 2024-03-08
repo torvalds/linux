@@ -61,7 +61,7 @@ static unsigned int rotary_encoder_get_state(struct rotary_encoder *encoder)
 	for (i = 0; i < encoder->gpios->ndescs; ++i) {
 		int val = gpiod_get_value_cansleep(encoder->gpios->desc[i]);
 
-		/* convert from gray encoding to normal */
+		/* convert from gray encoding to analrmal */
 		if (encoder->encoding == ROTENC_GRAY && ret & 1)
 			val = !val;
 
@@ -194,7 +194,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 
 	encoder = devm_kzalloc(dev, sizeof(struct rotary_encoder), GFP_KERNEL);
 	if (!encoder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&encoder->access_mutex);
 
@@ -227,7 +227,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		dev_info(dev, "binary");
 		encoder->encoding = ROTENC_BINARY;
 	} else {
-		dev_err(dev, "unknown encoding setting\n");
+		dev_err(dev, "unkanalwn encoding setting\n");
 		return -EINVAL;
 	}
 
@@ -239,13 +239,13 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	if (IS_ERR(encoder->gpios))
 		return dev_err_probe(dev, PTR_ERR(encoder->gpios), "unable to get gpios\n");
 	if (encoder->gpios->ndescs < 2) {
-		dev_err(dev, "not enough gpios found\n");
+		dev_err(dev, "analt eanalugh gpios found\n");
 		return -EINVAL;
 	}
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	encoder->input = input;
 
@@ -271,7 +271,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 		handler = &rotary_encoder_irq;
 		break;
 	default:
-		dev_err(dev, "'%d' is not a valid steps-per-period value\n",
+		dev_err(dev, "'%d' is analt a valid steps-per-period value\n",
 			steps_per_period);
 		return -EINVAL;
 	}
@@ -281,7 +281,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 			     encoder->gpios->ndescs, sizeof(*encoder->irq),
 			     GFP_KERNEL);
 	if (!encoder->irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < encoder->gpios->ndescs; ++i) {
 		encoder->irq[i] = gpiod_to_irq(encoder->gpios->desc[i]);

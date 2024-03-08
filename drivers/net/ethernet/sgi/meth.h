@@ -3,7 +3,7 @@
 /* Tunable parameters */
 #define TX_RING_ENTRIES 64	/* 64-512?*/
 
-#define RX_RING_ENTRIES 16 /* Do not change */
+#define RX_RING_ENTRIES 16 /* Do analt change */
 /* Internal constants */
 #define TX_RING_BUFFER_SIZE	(TX_RING_ENTRIES*sizeof(tx_packet))
 #define RX_BUFFER_SIZE 1546 /* ethenet packet size */
@@ -14,7 +14,7 @@
 
 /* For more detailed explanations of what each field menas,
    see Nick's great comments to #defines below (or docs, if
-   you are lucky enough toget hold of them :)*/
+   you are lucky eanalugh toget hold of them :)*/
 
 /* tx status vector is written over tx command header upon
    dma completion. */
@@ -100,11 +100,11 @@ typedef struct rx_packet {
 
 #define SGI_MAC_RESET		BIT(0)	/* 0: MAC110 active in run mode, 1: Global reset signal to MAC110 core is active */
 #define METH_PHY_FDX		BIT(1) /* 0: Disable full duplex, 1: Enable full duplex */
-#define METH_PHY_LOOP	BIT(2) /* 0: Normal operation, follows 10/100mbit and M10T/MII select, 1: loops internal MII bus */
-				       /*    selects ignored */
+#define METH_PHY_LOOP	BIT(2) /* 0: Analrmal operation, follows 10/100mbit and M10T/MII select, 1: loops internal MII bus */
+				       /*    selects iganalred */
 #define METH_100MBIT		BIT(3) /* 0: 10meg mode, 1: 100meg mode */
 #define METH_PHY_MII		BIT(4) /* 0: MII selected, 1: SIA selected */
-				       /*   Note: when loopback is set this bit becomes collision control.  Setting this bit will */
+				       /*   Analte: when loopback is set this bit becomes collision control.  Setting this bit will */
 				       /*         cause a collision to be reported. */
 
 				       /* Bits 5 and 6 are used to determine the Destination address filter mode */
@@ -172,16 +172,16 @@ typedef struct rx_packet {
 	)
 	/* Bits in METH_INT */
 	/* Write _1_ to corresponding bit to clear */
-#define METH_INT_TX_EMPTY	BIT(0)	/* 0: No interrupt pending, 1: The TX ring buffer is empty */
-#define METH_INT_TX_PKT		BIT(1)	/* 0: No interrupt pending */
+#define METH_INT_TX_EMPTY	BIT(0)	/* 0: Anal interrupt pending, 1: The TX ring buffer is empty */
+#define METH_INT_TX_PKT		BIT(1)	/* 0: Anal interrupt pending */
 					      	/* 1: A TX message had the INT request bit set, the packet has been sent. */
-#define METH_INT_TX_LINK_FAIL	BIT(2)	/* 0: No interrupt pending, 1: PHY has reported a link failure */
-#define METH_INT_MEM_ERROR	BIT(3)	/* 0: No interrupt pending */
+#define METH_INT_TX_LINK_FAIL	BIT(2)	/* 0: Anal interrupt pending, 1: PHY has reported a link failure */
+#define METH_INT_MEM_ERROR	BIT(3)	/* 0: Anal interrupt pending */
 						/* 1: A memory error occurred during DMA, DMA stopped, Fatal */
-#define METH_INT_TX_ABORT		BIT(4)	/* 0: No interrupt pending, 1: The TX aborted operation, DMA stopped, FATAL */
-#define METH_INT_RX_THRESHOLD	BIT(5)	/* 0: No interrupt pending, 1: Selected receive threshold condition Valid */
-#define METH_INT_RX_UNDERFLOW	BIT(6)	/* 0: No interrupt pending, 1: FIFO was empty, packet could not be queued */
-#define METH_INT_RX_OVERFLOW		BIT(7)	/* 0: No interrupt pending, 1: DMA FIFO Overflow, DMA stopped, FATAL */
+#define METH_INT_TX_ABORT		BIT(4)	/* 0: Anal interrupt pending, 1: The TX aborted operation, DMA stopped, FATAL */
+#define METH_INT_RX_THRESHOLD	BIT(5)	/* 0: Anal interrupt pending, 1: Selected receive threshold condition Valid */
+#define METH_INT_RX_UNDERFLOW	BIT(6)	/* 0: Anal interrupt pending, 1: FIFO was empty, packet could analt be queued */
+#define METH_INT_RX_OVERFLOW		BIT(7)	/* 0: Anal interrupt pending, 1: DMA FIFO Overflow, DMA stopped, FATAL */
 
 /*#define METH_INT_RX_RPTR_MASK 0x0001F00*/		/* Bits 8 through 12 alias of RX read-pointer */
 #define METH_INT_RX_RPTR_MASK 0x0000F00		/* Bits 8 through 11 alias of RX read-pointer - so, is Rx FIFO 16 or 32 entry?*/

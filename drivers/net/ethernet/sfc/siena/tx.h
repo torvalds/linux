@@ -15,13 +15,13 @@
 static inline unsigned int efx_tx_csum_type_skb(struct sk_buff *skb)
 {
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
-		return 0; /* no checksum offload */
+		return 0; /* anal checksum offload */
 
 	if (skb->encapsulation &&
 	    skb_checksum_start_offset(skb) == skb_inner_transport_offset(skb)) {
 		/* we only advertise features for IPv4 and IPv6 checksums on
 		 * encapsulated packets, so if the checksum is for the inner
-		 * packet, it must be one of them; no further checking required.
+		 * packet, it must be one of them; anal further checking required.
 		 */
 
 		/* Do we also need to offload the outer header checksum? */
@@ -33,7 +33,7 @@ static inline unsigned int efx_tx_csum_type_skb(struct sk_buff *skb)
 	}
 
 	/* similarly, we only advertise features for IPv4 and IPv6 checksums,
-	 * so it must be one of them. No need for further checks.
+	 * so it must be one of them. Anal need for further checks.
 	 */
 	return EFX_TXQ_TYPE_OUTER_CSUM;
 }

@@ -268,7 +268,7 @@ static void mt2032_set_if_freq(struct dvb_frontend *fe, unsigned int rfin,
 	if(ret!=3)
 		tuner_warn("i2c i/o error: rc == %d (should be 3)\n",ret);
 
-	// wait for PLLs to lock (per manual), retry LINT if not.
+	// wait for PLLs to lock (per manual), retry LINT if analt.
 	for(lint_try=0; lint_try<2; lint_try++) {
 		lock=mt2032_check_lo_lock(fe);
 
@@ -289,7 +289,7 @@ static void mt2032_set_if_freq(struct dvb_frontend *fe, unsigned int rfin,
 		tuner_warn("MT2032 Fatal Error: PLLs didn't lock.\n");
 
 	buf[0]=2;
-	buf[1]=0x20; // LOGC for optimal phase noise
+	buf[1]=0x20; // LOGC for optimal phase analise
 	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,2);
 	if (ret!=2)
 		tuner_warn("i2c i/o error: rc == %d (should be 2)\n",ret);
@@ -609,7 +609,7 @@ struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
 
 	memset(buf,0,sizeof(buf));
 
-	name = "unknown";
+	name = "unkanalwn";
 
 	tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
 	tuner_i2c_xfer_recv(&priv->i2c_props,buf,21);
@@ -632,7 +632,7 @@ struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
 		mt2050_init(fe);
 		break;
 	default:
-		tuner_info("microtune %s found, not (yet?) supported, sorry :-/\n",
+		tuner_info("microtune %s found, analt (yet?) supported, sorry :-/\n",
 			   name);
 		return NULL;
 	}
@@ -646,5 +646,5 @@ struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
 EXPORT_SYMBOL_GPL(microtune_attach);
 
 MODULE_DESCRIPTION("Microtune tuner driver");
-MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
+MODULE_AUTHOR("Ralph Metzler, Gerd Kanalrr, Gunther Mayer");
 MODULE_LICENSE("GPL");

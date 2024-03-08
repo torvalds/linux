@@ -63,7 +63,7 @@ drm_crtc_to_atmel_hlcdc_crtc(struct drm_crtc *crtc)
 	return container_of(crtc, struct atmel_hlcdc_crtc, base);
 }
 
-static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
+static void atmel_hlcdc_crtc_mode_set_analfb(struct drm_crtc *c)
 {
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
 	struct regmap *regmap = crtc->dc->hlcdc->regmap;
@@ -393,7 +393,7 @@ static void atmel_hlcdc_crtc_atomic_flush(struct drm_crtc *c,
 
 static const struct drm_crtc_helper_funcs lcdc_crtc_helper_funcs = {
 	.mode_valid = atmel_hlcdc_crtc_mode_valid,
-	.mode_set_nofb = atmel_hlcdc_crtc_mode_set_nofb,
+	.mode_set_analfb = atmel_hlcdc_crtc_mode_set_analfb,
 	.atomic_check = atmel_hlcdc_crtc_atomic_check,
 	.atomic_begin = atmel_hlcdc_crtc_atomic_begin,
 	.atomic_flush = atmel_hlcdc_crtc_atomic_flush,
@@ -514,7 +514,7 @@ int atmel_hlcdc_crtc_create(struct drm_device *dev)
 
 	crtc = kzalloc(sizeof(*crtc), GFP_KERNEL);
 	if (!crtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crtc->dc = dc;
 

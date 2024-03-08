@@ -34,7 +34,7 @@ properties:
       When ADC is read, the value is looked up on the table to get the
       equivalent temperature.
 
-      If not specified, driver assumes the ADC channel gives milliCelsius
+      If analt specified, driver assumes the ADC channel gives milliCelsius
       directly.
     $ref: /schemas/types.yaml#/definitions/int32-matrix
     items:

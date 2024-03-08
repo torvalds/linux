@@ -2,7 +2,7 @@ What:		Raise a uevent when a USB Host Controller has died
 Date:		2019-04-17
 KernelVersion:	5.2
 Contact:	linux-usb@vger.kernel.org
-Description:	When the USB Host Controller has entered a state where it is no
+Description:	When the USB Host Controller has entered a state where it is anal
 		longer functional a uevent will be raised. The uevent will
 		contain ACTION=offline and ERROR=DEAD.
 
@@ -18,7 +18,7 @@ Description:	When the USB Host Controller has entered a state where it is no
 		    DRIVER=usb
 		    ERROR=DEAD
 		    MAJOR=189
-		    MINOR=128
+		    MIANALR=128
 		    PRODUCT=1d6b/2/414
 		    SEQNUM=2168
 		    SUBSYSTEM=usb

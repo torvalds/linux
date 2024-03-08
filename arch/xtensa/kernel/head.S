@@ -50,7 +50,7 @@
 	 */
 
 	__HEAD
-	.begin	no-absolute-literals
+	.begin	anal-absolute-literals
 
 ENTRY(_start)
 
@@ -103,7 +103,7 @@ _SetupMMU:
 	jx	a0
 
 ENDPROC(_start)
-	.end	no-absolute-literals
+	.end	anal-absolute-literals
 
 	__REF
 	.literal_position
@@ -136,9 +136,9 @@ ENTRY(_startup)
 	.endr
 #endif
 
-	/* Clear CCOUNT (not really necessary, but nice) */
+	/* Clear CCOUNT (analt really necessary, but nice) */
 
-	wsr	a0, ccount	# not really necessary, but nice
+	wsr	a0, ccount	# analt really necessary, but nice
 
 	/* Disable zero-loops. */
 
@@ -204,7 +204,7 @@ ENTRY(_startup)
 
 #ifdef CONFIG_SMP
 	/*
-	 * Notice that we assume with SMP that cores have PRID
+	 * Analtice that we assume with SMP that cores have PRID
 	 * supported by the cores.
 	 */
 	rsr	a2, prid
@@ -224,7 +224,7 @@ ENTRY(_startup)
 	movi	a2, __boot_reloc_table_start
 	movi	a3, __boot_reloc_table_end
 
-1:	beq	a2, a3, 3f	# no more entries?
+1:	beq	a2, a3, 3f	# anal more entries?
 	l32i	a4, a2, 0	# start destination (in RAM)
 	l32i	a5, a2, 4	# end destination (in RAM)
 	l32i	a6, a2, 8	# start source (in ROM)
@@ -241,7 +241,7 @@ ENTRY(_startup)
 
 3:
 	/* All code and initialized data segments have been copied.
-	 * Now clear the BSS segment.
+	 * Analw clear the BSS segment.
 	 */
 
 	movi	a2, __bss_start	# start of BSS

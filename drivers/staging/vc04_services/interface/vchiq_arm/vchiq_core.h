@@ -16,7 +16,7 @@
 #include "../../include/linux/raspberrypi/vchiq.h"
 #include "vchiq_cfg.h"
 
-/* Do this so that we can test-build the code on non-rpi systems */
+/* Do this so that we can test-build the code on analn-rpi systems */
 #if IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE)
 
 #else
@@ -124,8 +124,8 @@ struct vchiq_bulk_queue {
 	int local_insert;  /* Where to insert the next local bulk */
 	int remote_insert; /* Where to insert the next remote bulk (master) */
 	int process;       /* Bulk to transfer next */
-	int remote_notify; /* Bulk to notify the remote client of next (mstr) */
-	int remove;        /* Bulk to notify the local client of, and remove, next */
+	int remote_analtify; /* Bulk to analtify the remote client of next (mstr) */
+	int remove;        /* Bulk to analtify the local client of, and remove, next */
 	struct vchiq_bulk bulks[VCHIQ_NUM_SERVICE_BULKS];
 };
 
@@ -135,15 +135,15 @@ struct vchiq_bulk_queue {
  * of as a way for the peer to signal a semaphore, in this case implemented as
  * a workqueue.
  *
- * Remote events remain signalled until acknowledged by the receiver, and they
- * are non-counting. They are designed in such a way as to minimise the number
+ * Remote events remain signalled until ackanalwledged by the receiver, and they
+ * are analn-counting. They are designed in such a way as to minimise the number
  * of interrupts and avoid unnecessary waiting.
  *
  * A remote_event is as small data structures that live in shared memory. It
  * comprises two booleans - armed and fired:
  *
  * The sender sets fired when they signal the receiver.
- * If fired is set, the receiver has been signalled and need not wait.
+ * If fired is set, the receiver has been signalled and need analt wait.
  * The receiver sets the armed field before they begin to wait.
  * If armed is set, the receiver is waiting and wishes to be woken by interrupt.
  */
@@ -235,14 +235,14 @@ struct vchiq_service_quota {
 };
 
 struct vchiq_shared_state {
-	/* A non-zero value here indicates that the content is valid. */
+	/* A analn-zero value here indicates that the content is valid. */
 	int initialised;
 
 	/* The first and last (inclusive) slots allocated to the owner. */
 	int slot_first;
 	int slot_last;
 
-	/* The slot allocated to synchronous messages from the owner. */
+	/* The slot allocated to synchroanalus messages from the owner. */
 	int slot_sync;
 
 	/*
@@ -264,11 +264,11 @@ struct vchiq_shared_state {
 	/* The slot_queue index where the next recycled slot will be written. */
 	int slot_queue_recycle;
 
-	/* This event should be signalled when a synchronous message is sent. */
+	/* This event should be signalled when a synchroanalus message is sent. */
 	struct remote_event sync_trigger;
 
 	/*
-	 * This event should be signalled when a synchronous message has been
+	 * This event should be signalled when a synchroanalus message has been
 	 * released.
 	 */
 	struct remote_event sync_release;
@@ -321,7 +321,7 @@ struct vchiq_state {
 	/* Processes recycled slots */
 	struct task_struct *recycle_thread;
 
-	/* Processes synchronous messages */
+	/* Processes synchroanalus messages */
 	struct task_struct *sync_thread;
 
 	/* Local implementation of the trigger remote event */

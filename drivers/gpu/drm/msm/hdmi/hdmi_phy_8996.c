@@ -559,7 +559,7 @@ static int hdmi_8996_phy_ready_status(struct hdmi_phy *phy)
 		udelay(timeout);
 	}
 
-	DBG("PHY is %sready", phy_ready ? "" : "*not* ");
+	DBG("PHY is %sready", phy_ready ? "" : "*analt* ");
 
 	return phy_ready;
 }
@@ -584,7 +584,7 @@ static int hdmi_8996_pll_lock_status(struct hdmi_pll_8996 *pll)
 		udelay(timeout);
 	}
 
-	DBG("HDMI PLL is %slocked", pll_locked ? "" : "*not* ");
+	DBG("HDMI PLL is %slocked", pll_locked ? "" : "*analt* ");
 
 	return pll_locked;
 }
@@ -698,7 +698,7 @@ static const struct clk_init_data pll_init = {
 		{ .fw_name = "xo", .name = "xo_board" },
 	},
 	.num_parents = 1,
-	.flags = CLK_IGNORE_UNUSED,
+	.flags = CLK_IGANALRE_UNUSED,
 };
 
 int msm_hdmi_pll_8996_init(struct platform_device *pdev)
@@ -709,14 +709,14 @@ int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 
 	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pll->pdev = pdev;
 
 	pll->mmio_qserdes_com = msm_ioremap(pdev, "hdmi_pll");
 	if (IS_ERR(pll->mmio_qserdes_com)) {
 		DRM_DEV_ERROR(dev, "failed to map pll base\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
@@ -727,7 +727,7 @@ int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 		pll->mmio_qserdes_tx[i] = msm_ioremap(pdev, name);
 		if (IS_ERR(pll->mmio_qserdes_tx[i])) {
 			DRM_DEV_ERROR(dev, "failed to map pll base\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	pll->clk_hw.init = &pll_init;

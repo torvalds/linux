@@ -3,7 +3,7 @@ Date:		Mar, 2006
 KernelVersion:	v2.6.17
 Contact:	openipmi-developer@lists.sourceforge.net
 Description:
-		(RO) The major and minor revision of the firmware.
+		(RO) The major and mianalr revision of the firmware.
 
 
 What:		/sys/devices/platform/ipmi_bmc.*/aux_firmware_revision
@@ -33,7 +33,7 @@ KernelVersion:	v2.6.17
 Contact:	openipmi-developer@lists.sourceforge.net
 Description:
 		(RO) Indicates whether device provides device sensor data
-		records (1) or not (0).
+		records (1) or analt (0).
 
 
 What:		/sys/devices/platform/ipmi_bmc.*/device_id
@@ -141,7 +141,7 @@ Description:
 					follow the state machine.
 
 		long_timeouts		(RO) Number of times the driver
-					requested a timer while nothing was in
+					requested a timer while analthing was in
 					progress.
 
 		flag_fetches		(RO) Number of times the driver
@@ -150,7 +150,7 @@ Description:
 		attentions		(RO) Number of time the driver got an
 					ATTN from the hardware.
 
-		incoming_messages	(RO) Number of asynchronous messages
+		incoming_messages	(RO) Number of asynchroanalus messages
 					received.
 
 		short_timeouts		(RO) Number of times the driver
@@ -164,9 +164,9 @@ Date:		Sep, 2017
 KernelVersion:	v4.15
 Contact:	openipmi-developer@lists.sourceforge.net
 Description:
-		(RO) Indicates whether interrupts are enabled or not. The driver
+		(RO) Indicates whether interrupts are enabled or analt. The driver
 		disables interrupts when it gets into a situation where it
-		cannot handle messages due to lack of memory. Once that
+		cananalt handle messages due to lack of memory. Once that
 		situation clears up, it will re-enable interrupts.
 
 

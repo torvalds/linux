@@ -1,7 +1,7 @@
 Binding for a ST pll clock driver.
 
 This binding uses the common clock binding[1].
-Base address is located to the parent node. See clock binding[2]
+Base address is located to the parent analde. See clock binding[2]
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/clock/st/st,clkgen.txt

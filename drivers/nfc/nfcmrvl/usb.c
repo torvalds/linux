@@ -90,9 +90,9 @@ static void nfcmrvl_bulk_complete(struct urb *urb)
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err) {
 		/* -EPERM: urb is being killed;
-		 * -ENODEV: device got disconnected
+		 * -EANALDEV: device got disconnected
 		 */
-		if (err != -EPERM && err != -ENODEV)
+		if (err != -EPERM && err != -EANALDEV)
 			nfc_err(&drv_data->udev->dev,
 				"urb %p failed to resubmit (%d)\n", urb, -err);
 		usb_unanchor_urb(urb);
@@ -108,16 +108,16 @@ nfcmrvl_submit_bulk_urb(struct nfcmrvl_usb_drv_data *drv_data, gfp_t mem_flags)
 	int err, size = NFCMRVL_NCI_MAX_EVENT_SIZE;
 
 	if (!drv_data->bulk_rx_ep)
-		return -ENODEV;
+		return -EANALDEV;
 
 	urb = usb_alloc_urb(0, mem_flags);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = kmalloc(size, mem_flags);
 	if (!buf) {
 		usb_free_urb(urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pipe = usb_rcvbulkpipe(drv_data->udev,
@@ -133,7 +133,7 @@ nfcmrvl_submit_bulk_urb(struct nfcmrvl_usb_drv_data *drv_data, gfp_t mem_flags)
 
 	err = usb_submit_urb(urb, mem_flags);
 	if (err) {
-		if (err != -EPERM && err != -ENODEV)
+		if (err != -EPERM && err != -EANALDEV)
 			nfc_err(&drv_data->udev->dev,
 				"urb %p submission failed (%d)\n", urb, -err);
 		usb_unanchor_urb(urb);
@@ -226,11 +226,11 @@ static int nfcmrvl_usb_nci_send(struct nfcmrvl_private *priv,
 	int err;
 
 	if (!drv_data->bulk_tx_ep)
-		return -ENODEV;
+		return -EANALDEV;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pipe = usb_sndbulkpipe(drv_data->udev,
 				drv_data->bulk_tx_ep->bEndpointAddress);
@@ -250,7 +250,7 @@ static int nfcmrvl_usb_nci_send(struct nfcmrvl_private *priv,
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err) {
-		if (err != -EPERM && err != -ENODEV)
+		if (err != -EPERM && err != -EANALDEV)
 			nfc_err(&drv_data->udev->dev,
 				"urb %p submission failed (%d)\n", urb, -err);
 		kfree(urb->setup_packet);
@@ -292,7 +292,7 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct nfcmrvl_platform_data config;
 
-	/* No configuration for USB */
+	/* Anal configuration for USB */
 	memset(&config, 0, sizeof(config));
 	config.reset_n_io = -EINVAL;
 
@@ -300,7 +300,7 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 
 	drv_data = devm_kzalloc(&intf->dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < intf->cur_altsetting->desc.bNumEndpoints; i++) {
 		struct usb_endpoint_descriptor *ep_desc;
@@ -317,7 +317,7 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	}
 
 	if (!drv_data->bulk_tx_ep || !drv_data->bulk_rx_ep)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drv_data->udev = udev;
 	drv_data->intf = intf;
@@ -423,13 +423,13 @@ static int nfcmrvl_resume(struct usb_interface *intf)
 		goto done;
 
 	if (test_bit(NFCMRVL_USB_BULK_RUNNING, &drv_data->flags)) {
-		err = nfcmrvl_submit_bulk_urb(drv_data, GFP_NOIO);
+		err = nfcmrvl_submit_bulk_urb(drv_data, GFP_ANALIO);
 		if (err) {
 			clear_bit(NFCMRVL_USB_BULK_RUNNING, &drv_data->flags);
 			goto failed;
 		}
 
-		nfcmrvl_submit_bulk_urb(drv_data, GFP_NOIO);
+		nfcmrvl_submit_bulk_urb(drv_data, GFP_ANALIO);
 	}
 
 	spin_lock_irq(&drv_data->txlock);

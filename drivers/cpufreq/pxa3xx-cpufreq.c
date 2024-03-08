@@ -28,7 +28,7 @@
 #define SFLFS_312M	(3)
 
 #define XSPCLK_156M	(0)
-#define XSPCLK_NONE	(3)
+#define XSPCLK_ANALNE	(3)
 
 #define DMCFS_26M	(0)
 #define DMCFS_260M	(3)
@@ -112,7 +112,7 @@ static int setup_freqs_table(struct cpufreq_policy *policy,
 
 	table = kcalloc(num + 1, sizeof(*table), GFP_KERNEL);
 	if (table == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++) {
 		table[i].driver_data = i;
@@ -137,8 +137,8 @@ static void __update_core_freq(struct pxa3xx_freq_info *info)
 	mask	= ACCR_XN_MASK | ACCR_XL_MASK;
 	disable = mask | ACCR_XSPCLK_MASK;
 	enable  = ACCR_XN(info->core_xn) | ACCR_XL(info->core_xl);
-	/* No clock until core PLL is re-locked */
-	enable |= ACCR_XSPCLK(XSPCLK_NONE);
+	/* Anal clock until core PLL is re-locked */
+	enable |= ACCR_XSPCLK(XSPCLK_ANALNE);
 	xclkcfg = (info->core_xn == 2) ? 0x3 : 0x2;	/* turbo bit */
 
 	pxa3xx_clk_update_accr(disable, enable, xclkcfg, mask);

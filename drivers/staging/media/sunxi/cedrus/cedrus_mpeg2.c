@@ -22,7 +22,7 @@ static enum cedrus_irq_status cedrus_mpeg2_irq_status(struct cedrus_ctx *ctx)
 	reg &= VE_DEC_MPEG_STATUS_CHECK_MASK;
 
 	if (!reg)
-		return CEDRUS_IRQ_NONE;
+		return CEDRUS_IRQ_ANALNE;
 
 	if (reg & VE_DEC_MPEG_STATUS_CHECK_ERROR ||
 	    !(reg & VE_DEC_MPEG_STATUS_SUCCESS))
@@ -77,11 +77,11 @@ static int cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 		cedrus_write(dev, VE_DEC_MPEG_IQMINPUT, reg);
 	}
 
-	/* Set non-intra quantisation matrix. */
-	matrix = quantisation->non_intra_quantiser_matrix;
+	/* Set analn-intra quantisation matrix. */
+	matrix = quantisation->analn_intra_quantiser_matrix;
 	for (i = 0; i < 64; i++) {
 		reg = VE_DEC_MPEG_IQMINPUT_WEIGHT(i, matrix[i]);
-		reg |= VE_DEC_MPEG_IQMINPUT_FLAG_NON_INTRA;
+		reg |= VE_DEC_MPEG_IQMINPUT_FLAG_ANALN_INTRA;
 
 		cedrus_write(dev, VE_DEC_MPEG_IQMINPUT, reg);
 	}
@@ -169,7 +169,7 @@ static int cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 
 	/* Enable appropriate interruptions and components. */
 
-	reg = VE_DEC_MPEG_CTRL_IRQ_MASK | VE_DEC_MPEG_CTRL_MC_NO_WRITEBACK |
+	reg = VE_DEC_MPEG_CTRL_IRQ_MASK | VE_DEC_MPEG_CTRL_MC_ANAL_WRITEBACK |
 	      VE_DEC_MPEG_CTRL_MC_CACHE_EN;
 
 	cedrus_write(dev, VE_DEC_MPEG_CTRL, reg);

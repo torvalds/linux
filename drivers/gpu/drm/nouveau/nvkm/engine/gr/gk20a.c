@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -44,7 +44,7 @@ gk20a_gr_av_to_init_(struct nvkm_blob *blob, u8 count, u32 pitch, struct gf100_g
 	nent = (blob->size / sizeof(struct gk20a_fw_av));
 	pack = vzalloc((sizeof(*pack) * 2) + (sizeof(*init) * (nent + 1)));
 	if (!pack)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init = (void *)(pack + 2);
 	pack[0].init = init;
@@ -87,7 +87,7 @@ gk20a_gr_aiv_to_init(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
 	nent = (blob->size / sizeof(struct gk20a_fw_aiv));
 	pack = vzalloc((sizeof(*pack) * 2) + (sizeof(*init) * (nent + 1)));
 	if (!pack)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init = (void *)(pack + 2);
 	pack[0].init = init;
@@ -121,7 +121,7 @@ gk20a_gr_av_to_method(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
 	pack = vzalloc((sizeof(*pack) * (max_classes + 1)) +
 		       (sizeof(*init) * (nent + max_classes + 1)));
 	if (!pack)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init = (void *)(pack + max_classes + 1);
 
@@ -138,7 +138,7 @@ gk20a_gr_av_to_method(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
 			prevclass = class;
 			if (++classidx >= max_classes) {
 				vfree(pack);
-				return -ENOSPC;
+				return -EANALSPC;
 			}
 		}
 
@@ -194,7 +194,7 @@ gk20a_gr_init(struct gf100_gr *gr)
 	/* Clear SCC RAM */
 	nvkm_wr32(device, 0x40802c, 0x1);
 
-	gf100_gr_mmio(gr, gr->sw_nonctx);
+	gf100_gr_mmio(gr, gr->sw_analnctx);
 
 	ret = gk20a_gr_wait_mem_scrubbing(gr);
 	if (ret)
@@ -293,11 +293,11 @@ gk20a_gr_load_net(struct gf100_gr *gr, const char *path, const char *name, int v
 int
 gk20a_gr_load_sw(struct gf100_gr *gr, const char *path, int ver)
 {
-	if (gk20a_gr_load_net(gr, path, "sw_nonctx", ver, gk20a_gr_av_to_init, &gr->sw_nonctx) ||
+	if (gk20a_gr_load_net(gr, path, "sw_analnctx", ver, gk20a_gr_av_to_init, &gr->sw_analnctx) ||
 	    gk20a_gr_load_net(gr, path, "sw_ctx", ver, gk20a_gr_aiv_to_init, &gr->sw_ctx) ||
 	    gk20a_gr_load_net(gr, path, "sw_bundle_init", ver, gk20a_gr_av_to_init, &gr->bundle) ||
 	    gk20a_gr_load_net(gr, path, "sw_method_init", ver, gk20a_gr_av_to_method, &gr->method))
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -310,7 +310,7 @@ MODULE_FIRMWARE("nvidia/gk20a/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gk20a/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gk20a/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/gk20a/sw_method_init.bin");
-MODULE_FIRMWARE("nvidia/gk20a/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gk20a/sw_analnctx.bin");
 #endif
 
 static int
@@ -326,7 +326,7 @@ gk20a_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 				    &gr->gpccs.inst) ||
 	    nvkm_firmware_load_blob(subdev, "", "gpccs_data", ver,
 				    &gr->gpccs.data))
-		return -ENOENT;
+		return -EANALENT;
 
 	gr->firmware = true;
 

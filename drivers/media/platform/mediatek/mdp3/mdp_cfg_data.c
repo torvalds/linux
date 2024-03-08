@@ -158,7 +158,7 @@ static const struct of_device_id mt8183_sub_comp_dt_ids[] = {
 };
 
 /*
- * All 10-bit related formats are not added in the basic format list,
+ * All 10-bit related formats are analt added in the basic format list,
  * please add the corresponding format settings before use.
  */
 static const struct mdp_format mt8183_formats[] = {
@@ -426,16 +426,16 @@ const struct mtk_mdp_driver_data mt8183_mdp_driver_data = {
 s32 mdp_cfg_get_id_inner(struct mdp_dev *mdp_dev, enum mtk_mdp_comp_id id)
 {
 	if (!mdp_dev)
-		return MDP_COMP_NONE;
-	if (id <= MDP_COMP_NONE || id >= MDP_MAX_COMP_COUNT)
-		return MDP_COMP_NONE;
+		return MDP_COMP_ANALNE;
+	if (id <= MDP_COMP_ANALNE || id >= MDP_MAX_COMP_COUNT)
+		return MDP_COMP_ANALNE;
 
 	return mdp_dev->mdp_data->comp_data[id].match.inner_id;
 }
 
 enum mtk_mdp_comp_id mdp_cfg_get_id_public(struct mdp_dev *mdp_dev, s32 inner_id)
 {
-	enum mtk_mdp_comp_id public_id = MDP_COMP_NONE;
+	enum mtk_mdp_comp_id public_id = MDP_COMP_ANALNE;
 	u32 i;
 
 	if (IS_ERR(mdp_dev) || !inner_id)

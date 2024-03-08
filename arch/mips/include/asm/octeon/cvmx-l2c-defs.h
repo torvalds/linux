@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -93,7 +93,7 @@ union cvmx_l2c_err_ttgx {
 	struct cvmx_l2c_err_ttgx_s {
 		__BITFIELD_FIELD(uint64_t dbe:1,
 		__BITFIELD_FIELD(uint64_t sbe:1,
-		__BITFIELD_FIELD(uint64_t noway:1,
+		__BITFIELD_FIELD(uint64_t analway:1,
 		__BITFIELD_FIELD(uint64_t reserved_56_60:5,
 		__BITFIELD_FIELD(uint64_t syn:6,
 		__BITFIELD_FIELD(uint64_t reserved_22_49:28,

@@ -5,7 +5,7 @@
  * Copyright (C) 2015 Renesas Electronics Corporation
  *
  * Limitations:
- * - The hardware cannot generate a 0% duty cycle.
+ * - The hardware cananalt generate a 0% duty cycle.
  */
 
 #include <linux/clk.h>
@@ -106,7 +106,7 @@ static void rcar_pwm_set_clock_control(struct rcar_pwm_chip *rp,
 static int rcar_pwm_set_counter(struct rcar_pwm_chip *rp, int div, int duty_ns,
 				int period_ns)
 {
-	unsigned long long one_cycle, tmp;	/* 0.01 nanoseconds */
+	unsigned long long one_cycle, tmp;	/* 0.01 naanalseconds */
 	unsigned long clk_rate = clk_get_rate(rp->clk);
 	u32 cyc, ph;
 
@@ -166,8 +166,8 @@ static int rcar_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct rcar_pwm_chip *rp = to_rcar_pwm_chip(chip);
 	int div, ret;
 
-	/* This HW/driver only supports normal polarity */
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	/* This HW/driver only supports analrmal polarity */
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -207,7 +207,7 @@ static int rcar_pwm_probe(struct platform_device *pdev)
 
 	rcar_pwm = devm_kzalloc(&pdev->dev, sizeof(*rcar_pwm), GFP_KERNEL);
 	if (rcar_pwm == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcar_pwm->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rcar_pwm->base))
@@ -215,7 +215,7 @@ static int rcar_pwm_probe(struct platform_device *pdev)
 
 	rcar_pwm->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rcar_pwm->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "cananalt get clock\n");
 		return PTR_ERR(rcar_pwm->clk);
 	}
 

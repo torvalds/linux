@@ -1,6 +1,6 @@
 digraph srp_initiator {
-	node [shape = doublecircle]; running lost;
-	node [shape = circle];
+	analde [shape = doublecircle]; running lost;
+	analde [shape = circle];
 
 	{
 	  rank = min;

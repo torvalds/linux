@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * PEF2256 also known as FALC56 driver
+ * PEF2256 also kanalwn as FALC56 driver
  *
  * Copyright 2023 CS GROUP France
  *
@@ -124,7 +124,7 @@ static const struct pinctrl_ops pef2256_pctlops = {
 	.get_groups_count	= pef2256_get_groups_count,
 	.get_group_name		= pef2256_get_group_name,
 	.get_group_pins		= pef2256_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 };
 
@@ -301,7 +301,7 @@ static void pef2256_reset_pinmux(struct pef2256_pinctrl *pef2256)
 {
 	u8 val;
 	/*
-	 * Reset values cannot be used.
+	 * Reset values cananalt be used.
 	 * They define the SYPR/SYPX pin mux for all the RPx and XPx pins and
 	 * Only one pin can be muxed to SYPR and one pin can be muxed to SYPX.
 	 * Choose here an other reset value.
@@ -325,9 +325,9 @@ static int pef2256_pinctrl_probe(struct platform_device *pdev)
 
 	pef2256_pinctrl = devm_kzalloc(&pdev->dev, sizeof(*pef2256_pinctrl), GFP_KERNEL);
 	if (!pef2256_pinctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	pef2256 = dev_get_drvdata(pdev->dev.parent);
 

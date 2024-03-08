@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Canonical
+ * Copyright 2014 Caanalnical
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,7 +36,7 @@ static int virtgpu_virtio_get_uuid(struct dma_buf *buf,
 
 	wait_event(vgdev->resp_wq, bo->uuid_state != STATE_INITIALIZING);
 	if (bo->uuid_state != STATE_OK)
-		return -ENODEV;
+		return -EANALDEV;
 
 	uuid_copy(uuid, &bo->uuid);
 
@@ -94,7 +94,7 @@ int virtio_gpu_resource_assign_uuid(struct virtio_gpu_device *vgdev,
 
 	objs = virtio_gpu_array_alloc(1);
 	if (!objs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	virtio_gpu_array_add_obj(objs, &bo->base.base);
 
@@ -118,7 +118,7 @@ struct dma_buf *virtgpu_gem_prime_export(struct drm_gem_object *obj,
 			if (ret)
 				return ERR_PTR(ret);
 
-			virtio_gpu_notify(vgdev);
+			virtio_gpu_analtify(vgdev);
 		} else {
 			bo->uuid_state = STATE_ERR;
 		}
@@ -166,5 +166,5 @@ struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
 	struct drm_device *dev, struct dma_buf_attachment *attach,
 	struct sg_table *table)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }

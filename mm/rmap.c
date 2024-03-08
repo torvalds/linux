@@ -8,26 +8,26 @@
  * Please try to keep this thing as modular as possible.
  *
  * Provides methods for unmapping each kind of mapped page:
- * the anon methods track anonymous pages, and
- * the file methods track pages belonging to an inode.
+ * the aanaln methods track aanalnymous pages, and
+ * the file methods track pages belonging to an ianalde.
  *
  * Original design by Rik van Riel <riel@conectiva.com.br> 2001
  * File methods by Dave McCracken <dmccr@us.ibm.com> 2003, 2004
- * Anonymous methods by Andrea Arcangeli <andrea@suse.de> 2004
+ * Aanalnymous methods by Andrea Arcangeli <andrea@suse.de> 2004
  * Contributions by Hugh Dickins 2003, 2004
  */
 
 /*
  * Lock ordering in mm:
  *
- * inode->i_rwsem	(while writing or truncating, not reading or faulting)
+ * ianalde->i_rwsem	(while writing or truncating, analt reading or faulting)
  *   mm->mmap_lock
  *     mapping->invalidate_lock (in filemap_fault)
  *       page->flags PG_locked (lock_page)
  *         hugetlbfs_i_mmap_rwsem_key (in huge_pmd_share, see hugetlbfs below)
  *           vma_start_write
  *             mapping->i_mmap_rwsem
- *               anon_vma->rwsem
+ *               aanaln_vma->rwsem
  *                 mm->page_table_lock or pte_lock
  *                   swap_lock (in swap_duplicate, swap_info_get)
  *                     mmlist_lock (in mmput, drain_mmlist and others)
@@ -35,14 +35,14 @@
  *                       folio_lock_memcg move_lock (in block_dirty_folio)
  *                         i_pages lock (widely used)
  *                           lruvec->lru_lock (in folio_lruvec_lock_irq)
- *                     inode->i_lock (in set_page_dirty's __mark_inode_dirty)
- *                     bdi.wb->list_lock (in set_page_dirty's __mark_inode_dirty)
- *                       sb_lock (within inode_lock in fs/fs-writeback.c)
+ *                     ianalde->i_lock (in set_page_dirty's __mark_ianalde_dirty)
+ *                     bdi.wb->list_lock (in set_page_dirty's __mark_ianalde_dirty)
+ *                       sb_lock (within ianalde_lock in fs/fs-writeback.c)
  *                       i_pages lock (widely used, in set_page_dirty,
  *                                 in arch-dependent flush_dcache_mmap_lock,
- *                                 within bdi.wb->list_lock in __sync_single_inode)
+ *                                 within bdi.wb->list_lock in __sync_single_ianalde)
  *
- * anon_vma->rwsem,mapping->i_mmap_rwsem   (memory_failure, collect_procs_anon)
+ * aanaln_vma->rwsem,mapping->i_mmap_rwsem   (memory_failure, collect_procs_aanaln)
  *   ->tasklist_lock
  *     pte map lock
  *
@@ -66,7 +66,7 @@
 #include <linux/rcupdate.h>
 #include <linux/export.h>
 #include <linux/memcontrol.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/migrate.h>
 #include <linux/hugetlb.h>
 #include <linux/huge_mm.h>
@@ -84,43 +84,43 @@
 
 #include "internal.h"
 
-static struct kmem_cache *anon_vma_cachep;
-static struct kmem_cache *anon_vma_chain_cachep;
+static struct kmem_cache *aanaln_vma_cachep;
+static struct kmem_cache *aanaln_vma_chain_cachep;
 
-static inline struct anon_vma *anon_vma_alloc(void)
+static inline struct aanaln_vma *aanaln_vma_alloc(void)
 {
-	struct anon_vma *anon_vma;
+	struct aanaln_vma *aanaln_vma;
 
-	anon_vma = kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
-	if (anon_vma) {
-		atomic_set(&anon_vma->refcount, 1);
-		anon_vma->num_children = 0;
-		anon_vma->num_active_vmas = 0;
-		anon_vma->parent = anon_vma;
+	aanaln_vma = kmem_cache_alloc(aanaln_vma_cachep, GFP_KERNEL);
+	if (aanaln_vma) {
+		atomic_set(&aanaln_vma->refcount, 1);
+		aanaln_vma->num_children = 0;
+		aanaln_vma->num_active_vmas = 0;
+		aanaln_vma->parent = aanaln_vma;
 		/*
-		 * Initialise the anon_vma root to point to itself. If called
-		 * from fork, the root will be reset to the parents anon_vma.
+		 * Initialise the aanaln_vma root to point to itself. If called
+		 * from fork, the root will be reset to the parents aanaln_vma.
 		 */
-		anon_vma->root = anon_vma;
+		aanaln_vma->root = aanaln_vma;
 	}
 
-	return anon_vma;
+	return aanaln_vma;
 }
 
-static inline void anon_vma_free(struct anon_vma *anon_vma)
+static inline void aanaln_vma_free(struct aanaln_vma *aanaln_vma)
 {
-	VM_BUG_ON(atomic_read(&anon_vma->refcount));
+	VM_BUG_ON(atomic_read(&aanaln_vma->refcount));
 
 	/*
-	 * Synchronize against folio_lock_anon_vma_read() such that
-	 * we can safely hold the lock without the anon_vma getting
+	 * Synchronize against folio_lock_aanaln_vma_read() such that
+	 * we can safely hold the lock without the aanaln_vma getting
 	 * freed.
 	 *
 	 * Relies on the full mb implied by the atomic_dec_and_test() from
-	 * put_anon_vma() against the acquire barrier implied by
-	 * down_read_trylock() from folio_lock_anon_vma_read(). This orders:
+	 * put_aanaln_vma() against the acquire barrier implied by
+	 * down_read_trylock() from folio_lock_aanaln_vma_read(). This orders:
 	 *
-	 * folio_lock_anon_vma_read()	VS	put_anon_vma()
+	 * folio_lock_aanaln_vma_read()	VS	put_aanaln_vma()
 	 *   down_read_trylock()		  atomic_dec_and_test()
 	 *   LOCK				  MB
 	 *   atomic_read()			  rwsem_is_locked()
@@ -129,121 +129,121 @@ static inline void anon_vma_free(struct anon_vma *anon_vma)
 	 * happen _before_ what follows.
 	 */
 	might_sleep();
-	if (rwsem_is_locked(&anon_vma->root->rwsem)) {
-		anon_vma_lock_write(anon_vma);
-		anon_vma_unlock_write(anon_vma);
+	if (rwsem_is_locked(&aanaln_vma->root->rwsem)) {
+		aanaln_vma_lock_write(aanaln_vma);
+		aanaln_vma_unlock_write(aanaln_vma);
 	}
 
-	kmem_cache_free(anon_vma_cachep, anon_vma);
+	kmem_cache_free(aanaln_vma_cachep, aanaln_vma);
 }
 
-static inline struct anon_vma_chain *anon_vma_chain_alloc(gfp_t gfp)
+static inline struct aanaln_vma_chain *aanaln_vma_chain_alloc(gfp_t gfp)
 {
-	return kmem_cache_alloc(anon_vma_chain_cachep, gfp);
+	return kmem_cache_alloc(aanaln_vma_chain_cachep, gfp);
 }
 
-static void anon_vma_chain_free(struct anon_vma_chain *anon_vma_chain)
+static void aanaln_vma_chain_free(struct aanaln_vma_chain *aanaln_vma_chain)
 {
-	kmem_cache_free(anon_vma_chain_cachep, anon_vma_chain);
+	kmem_cache_free(aanaln_vma_chain_cachep, aanaln_vma_chain);
 }
 
-static void anon_vma_chain_link(struct vm_area_struct *vma,
-				struct anon_vma_chain *avc,
-				struct anon_vma *anon_vma)
+static void aanaln_vma_chain_link(struct vm_area_struct *vma,
+				struct aanaln_vma_chain *avc,
+				struct aanaln_vma *aanaln_vma)
 {
 	avc->vma = vma;
-	avc->anon_vma = anon_vma;
-	list_add(&avc->same_vma, &vma->anon_vma_chain);
-	anon_vma_interval_tree_insert(avc, &anon_vma->rb_root);
+	avc->aanaln_vma = aanaln_vma;
+	list_add(&avc->same_vma, &vma->aanaln_vma_chain);
+	aanaln_vma_interval_tree_insert(avc, &aanaln_vma->rb_root);
 }
 
 /**
- * __anon_vma_prepare - attach an anon_vma to a memory region
+ * __aanaln_vma_prepare - attach an aanaln_vma to a memory region
  * @vma: the memory region in question
  *
  * This makes sure the memory mapping described by 'vma' has
- * an 'anon_vma' attached to it, so that we can associate the
- * anonymous pages mapped into it with that anon_vma.
+ * an 'aanaln_vma' attached to it, so that we can associate the
+ * aanalnymous pages mapped into it with that aanaln_vma.
  *
  * The common case will be that we already have one, which
- * is handled inline by anon_vma_prepare(). But if
- * not we either need to find an adjacent mapping that we
- * can re-use the anon_vma from (very common when the only
+ * is handled inline by aanaln_vma_prepare(). But if
+ * analt we either need to find an adjacent mapping that we
+ * can re-use the aanaln_vma from (very common when the only
  * reason for splitting a vma has been mprotect()), or we
  * allocate a new one.
  *
- * Anon-vma allocations are very subtle, because we may have
- * optimistically looked up an anon_vma in folio_lock_anon_vma_read()
+ * Aanaln-vma allocations are very subtle, because we may have
+ * optimistically looked up an aanaln_vma in folio_lock_aanaln_vma_read()
  * and that may actually touch the rwsem even in the newly
  * allocated vma (it depends on RCU to make sure that the
- * anon_vma isn't actually destroyed).
+ * aanaln_vma isn't actually destroyed).
  *
- * As a result, we need to do proper anon_vma locking even
- * for the new allocation. At the same time, we do not want
+ * As a result, we need to do proper aanaln_vma locking even
+ * for the new allocation. At the same time, we do analt want
  * to do any locking for the common case of already having
- * an anon_vma.
+ * an aanaln_vma.
  *
  * This must be called with the mmap_lock held for reading.
  */
-int __anon_vma_prepare(struct vm_area_struct *vma)
+int __aanaln_vma_prepare(struct vm_area_struct *vma)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct anon_vma *anon_vma, *allocated;
-	struct anon_vma_chain *avc;
+	struct aanaln_vma *aanaln_vma, *allocated;
+	struct aanaln_vma_chain *avc;
 
 	might_sleep();
 
-	avc = anon_vma_chain_alloc(GFP_KERNEL);
+	avc = aanaln_vma_chain_alloc(GFP_KERNEL);
 	if (!avc)
-		goto out_enomem;
+		goto out_eanalmem;
 
-	anon_vma = find_mergeable_anon_vma(vma);
+	aanaln_vma = find_mergeable_aanaln_vma(vma);
 	allocated = NULL;
-	if (!anon_vma) {
-		anon_vma = anon_vma_alloc();
-		if (unlikely(!anon_vma))
-			goto out_enomem_free_avc;
-		anon_vma->num_children++; /* self-parent link for new root */
-		allocated = anon_vma;
+	if (!aanaln_vma) {
+		aanaln_vma = aanaln_vma_alloc();
+		if (unlikely(!aanaln_vma))
+			goto out_eanalmem_free_avc;
+		aanaln_vma->num_children++; /* self-parent link for new root */
+		allocated = aanaln_vma;
 	}
 
-	anon_vma_lock_write(anon_vma);
+	aanaln_vma_lock_write(aanaln_vma);
 	/* page_table_lock to protect against threads */
 	spin_lock(&mm->page_table_lock);
-	if (likely(!vma->anon_vma)) {
-		vma->anon_vma = anon_vma;
-		anon_vma_chain_link(vma, avc, anon_vma);
-		anon_vma->num_active_vmas++;
+	if (likely(!vma->aanaln_vma)) {
+		vma->aanaln_vma = aanaln_vma;
+		aanaln_vma_chain_link(vma, avc, aanaln_vma);
+		aanaln_vma->num_active_vmas++;
 		allocated = NULL;
 		avc = NULL;
 	}
 	spin_unlock(&mm->page_table_lock);
-	anon_vma_unlock_write(anon_vma);
+	aanaln_vma_unlock_write(aanaln_vma);
 
 	if (unlikely(allocated))
-		put_anon_vma(allocated);
+		put_aanaln_vma(allocated);
 	if (unlikely(avc))
-		anon_vma_chain_free(avc);
+		aanaln_vma_chain_free(avc);
 
 	return 0;
 
- out_enomem_free_avc:
-	anon_vma_chain_free(avc);
- out_enomem:
-	return -ENOMEM;
+ out_eanalmem_free_avc:
+	aanaln_vma_chain_free(avc);
+ out_eanalmem:
+	return -EANALMEM;
 }
 
 /*
- * This is a useful helper function for locking the anon_vma root as
- * we traverse the vma->anon_vma_chain, looping over anon_vma's that
+ * This is a useful helper function for locking the aanaln_vma root as
+ * we traverse the vma->aanaln_vma_chain, looping over aanaln_vma's that
  * have the same vma.
  *
- * Such anon_vma's should have the same root, so you'd expect to see
+ * Such aanaln_vma's should have the same root, so you'd expect to see
  * just a single mutex_lock for the whole traversal.
  */
-static inline struct anon_vma *lock_anon_vma_root(struct anon_vma *root, struct anon_vma *anon_vma)
+static inline struct aanaln_vma *lock_aanaln_vma_root(struct aanaln_vma *root, struct aanaln_vma *aanaln_vma)
 {
-	struct anon_vma *new_root = anon_vma->root;
+	struct aanaln_vma *new_root = aanaln_vma->root;
 	if (new_root != root) {
 		if (WARN_ON_ONCE(root))
 			up_write(&root->rwsem);
@@ -253,385 +253,385 @@ static inline struct anon_vma *lock_anon_vma_root(struct anon_vma *root, struct 
 	return root;
 }
 
-static inline void unlock_anon_vma_root(struct anon_vma *root)
+static inline void unlock_aanaln_vma_root(struct aanaln_vma *root)
 {
 	if (root)
 		up_write(&root->rwsem);
 }
 
 /*
- * Attach the anon_vmas from src to dst.
- * Returns 0 on success, -ENOMEM on failure.
+ * Attach the aanaln_vmas from src to dst.
+ * Returns 0 on success, -EANALMEM on failure.
  *
- * anon_vma_clone() is called by vma_expand(), vma_merge(), __split_vma(),
- * copy_vma() and anon_vma_fork(). The first four want an exact copy of src,
- * while the last one, anon_vma_fork(), may try to reuse an existing anon_vma to
- * prevent endless growth of anon_vma. Since dst->anon_vma is set to NULL before
- * call, we can identify this case by checking (!dst->anon_vma &&
- * src->anon_vma).
+ * aanaln_vma_clone() is called by vma_expand(), vma_merge(), __split_vma(),
+ * copy_vma() and aanaln_vma_fork(). The first four want an exact copy of src,
+ * while the last one, aanaln_vma_fork(), may try to reuse an existing aanaln_vma to
+ * prevent endless growth of aanaln_vma. Since dst->aanaln_vma is set to NULL before
+ * call, we can identify this case by checking (!dst->aanaln_vma &&
+ * src->aanaln_vma).
  *
- * If (!dst->anon_vma && src->anon_vma) is true, this function tries to find
- * and reuse existing anon_vma which has no vmas and only one child anon_vma.
- * This prevents degradation of anon_vma hierarchy to endless linear chain in
- * case of constantly forking task. On the other hand, an anon_vma with more
- * than one child isn't reused even if there was no alive vma, thus rmap
+ * If (!dst->aanaln_vma && src->aanaln_vma) is true, this function tries to find
+ * and reuse existing aanaln_vma which has anal vmas and only one child aanaln_vma.
+ * This prevents degradation of aanaln_vma hierarchy to endless linear chain in
+ * case of constantly forking task. On the other hand, an aanaln_vma with more
+ * than one child isn't reused even if there was anal alive vma, thus rmap
  * walker has a good chance of avoiding scanning the whole hierarchy when it
  * searches where page is mapped.
  */
-int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+int aanaln_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 {
-	struct anon_vma_chain *avc, *pavc;
-	struct anon_vma *root = NULL;
+	struct aanaln_vma_chain *avc, *pavc;
+	struct aanaln_vma *root = NULL;
 
-	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
-		struct anon_vma *anon_vma;
+	list_for_each_entry_reverse(pavc, &src->aanaln_vma_chain, same_vma) {
+		struct aanaln_vma *aanaln_vma;
 
-		avc = anon_vma_chain_alloc(GFP_NOWAIT | __GFP_NOWARN);
+		avc = aanaln_vma_chain_alloc(GFP_ANALWAIT | __GFP_ANALWARN);
 		if (unlikely(!avc)) {
-			unlock_anon_vma_root(root);
+			unlock_aanaln_vma_root(root);
 			root = NULL;
-			avc = anon_vma_chain_alloc(GFP_KERNEL);
+			avc = aanaln_vma_chain_alloc(GFP_KERNEL);
 			if (!avc)
-				goto enomem_failure;
+				goto eanalmem_failure;
 		}
-		anon_vma = pavc->anon_vma;
-		root = lock_anon_vma_root(root, anon_vma);
-		anon_vma_chain_link(dst, avc, anon_vma);
+		aanaln_vma = pavc->aanaln_vma;
+		root = lock_aanaln_vma_root(root, aanaln_vma);
+		aanaln_vma_chain_link(dst, avc, aanaln_vma);
 
 		/*
-		 * Reuse existing anon_vma if it has no vma and only one
-		 * anon_vma child.
+		 * Reuse existing aanaln_vma if it has anal vma and only one
+		 * aanaln_vma child.
 		 *
-		 * Root anon_vma is never reused:
+		 * Root aanaln_vma is never reused:
 		 * it has self-parent reference and at least one child.
 		 */
-		if (!dst->anon_vma && src->anon_vma &&
-		    anon_vma->num_children < 2 &&
-		    anon_vma->num_active_vmas == 0)
-			dst->anon_vma = anon_vma;
+		if (!dst->aanaln_vma && src->aanaln_vma &&
+		    aanaln_vma->num_children < 2 &&
+		    aanaln_vma->num_active_vmas == 0)
+			dst->aanaln_vma = aanaln_vma;
 	}
-	if (dst->anon_vma)
-		dst->anon_vma->num_active_vmas++;
-	unlock_anon_vma_root(root);
+	if (dst->aanaln_vma)
+		dst->aanaln_vma->num_active_vmas++;
+	unlock_aanaln_vma_root(root);
 	return 0;
 
- enomem_failure:
+ eanalmem_failure:
 	/*
-	 * dst->anon_vma is dropped here otherwise its num_active_vmas can
-	 * be incorrectly decremented in unlink_anon_vmas().
-	 * We can safely do this because callers of anon_vma_clone() don't care
-	 * about dst->anon_vma if anon_vma_clone() failed.
+	 * dst->aanaln_vma is dropped here otherwise its num_active_vmas can
+	 * be incorrectly decremented in unlink_aanaln_vmas().
+	 * We can safely do this because callers of aanaln_vma_clone() don't care
+	 * about dst->aanaln_vma if aanaln_vma_clone() failed.
 	 */
-	dst->anon_vma = NULL;
-	unlink_anon_vmas(dst);
-	return -ENOMEM;
+	dst->aanaln_vma = NULL;
+	unlink_aanaln_vmas(dst);
+	return -EANALMEM;
 }
 
 /*
- * Attach vma to its own anon_vma, as well as to the anon_vmas that
+ * Attach vma to its own aanaln_vma, as well as to the aanaln_vmas that
  * the corresponding VMA in the parent process is attached to.
- * Returns 0 on success, non-zero on failure.
+ * Returns 0 on success, analn-zero on failure.
  */
-int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+int aanaln_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 {
-	struct anon_vma_chain *avc;
-	struct anon_vma *anon_vma;
+	struct aanaln_vma_chain *avc;
+	struct aanaln_vma *aanaln_vma;
 	int error;
 
-	/* Don't bother if the parent process has no anon_vma here. */
-	if (!pvma->anon_vma)
+	/* Don't bother if the parent process has anal aanaln_vma here. */
+	if (!pvma->aanaln_vma)
 		return 0;
 
-	/* Drop inherited anon_vma, we'll reuse existing or allocate new. */
-	vma->anon_vma = NULL;
+	/* Drop inherited aanaln_vma, we'll reuse existing or allocate new. */
+	vma->aanaln_vma = NULL;
 
 	/*
-	 * First, attach the new VMA to the parent VMA's anon_vmas,
-	 * so rmap can find non-COWed pages in child processes.
+	 * First, attach the new VMA to the parent VMA's aanaln_vmas,
+	 * so rmap can find analn-COWed pages in child processes.
 	 */
-	error = anon_vma_clone(vma, pvma);
+	error = aanaln_vma_clone(vma, pvma);
 	if (error)
 		return error;
 
-	/* An existing anon_vma has been reused, all done then. */
-	if (vma->anon_vma)
+	/* An existing aanaln_vma has been reused, all done then. */
+	if (vma->aanaln_vma)
 		return 0;
 
-	/* Then add our own anon_vma. */
-	anon_vma = anon_vma_alloc();
-	if (!anon_vma)
+	/* Then add our own aanaln_vma. */
+	aanaln_vma = aanaln_vma_alloc();
+	if (!aanaln_vma)
 		goto out_error;
-	anon_vma->num_active_vmas++;
-	avc = anon_vma_chain_alloc(GFP_KERNEL);
+	aanaln_vma->num_active_vmas++;
+	avc = aanaln_vma_chain_alloc(GFP_KERNEL);
 	if (!avc)
-		goto out_error_free_anon_vma;
+		goto out_error_free_aanaln_vma;
 
 	/*
-	 * The root anon_vma's rwsem is the lock actually used when we
-	 * lock any of the anon_vmas in this anon_vma tree.
+	 * The root aanaln_vma's rwsem is the lock actually used when we
+	 * lock any of the aanaln_vmas in this aanaln_vma tree.
 	 */
-	anon_vma->root = pvma->anon_vma->root;
-	anon_vma->parent = pvma->anon_vma;
+	aanaln_vma->root = pvma->aanaln_vma->root;
+	aanaln_vma->parent = pvma->aanaln_vma;
 	/*
-	 * With refcounts, an anon_vma can stay around longer than the
-	 * process it belongs to. The root anon_vma needs to be pinned until
-	 * this anon_vma is freed, because the lock lives in the root.
+	 * With refcounts, an aanaln_vma can stay around longer than the
+	 * process it belongs to. The root aanaln_vma needs to be pinned until
+	 * this aanaln_vma is freed, because the lock lives in the root.
 	 */
-	get_anon_vma(anon_vma->root);
-	/* Mark this anon_vma as the one where our new (COWed) pages go. */
-	vma->anon_vma = anon_vma;
-	anon_vma_lock_write(anon_vma);
-	anon_vma_chain_link(vma, avc, anon_vma);
-	anon_vma->parent->num_children++;
-	anon_vma_unlock_write(anon_vma);
+	get_aanaln_vma(aanaln_vma->root);
+	/* Mark this aanaln_vma as the one where our new (COWed) pages go. */
+	vma->aanaln_vma = aanaln_vma;
+	aanaln_vma_lock_write(aanaln_vma);
+	aanaln_vma_chain_link(vma, avc, aanaln_vma);
+	aanaln_vma->parent->num_children++;
+	aanaln_vma_unlock_write(aanaln_vma);
 
 	return 0;
 
- out_error_free_anon_vma:
-	put_anon_vma(anon_vma);
+ out_error_free_aanaln_vma:
+	put_aanaln_vma(aanaln_vma);
  out_error:
-	unlink_anon_vmas(vma);
-	return -ENOMEM;
+	unlink_aanaln_vmas(vma);
+	return -EANALMEM;
 }
 
-void unlink_anon_vmas(struct vm_area_struct *vma)
+void unlink_aanaln_vmas(struct vm_area_struct *vma)
 {
-	struct anon_vma_chain *avc, *next;
-	struct anon_vma *root = NULL;
+	struct aanaln_vma_chain *avc, *next;
+	struct aanaln_vma *root = NULL;
 
 	/*
-	 * Unlink each anon_vma chained to the VMA.  This list is ordered
-	 * from newest to oldest, ensuring the root anon_vma gets freed last.
+	 * Unlink each aanaln_vma chained to the VMA.  This list is ordered
+	 * from newest to oldest, ensuring the root aanaln_vma gets freed last.
 	 */
-	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
-		struct anon_vma *anon_vma = avc->anon_vma;
+	list_for_each_entry_safe(avc, next, &vma->aanaln_vma_chain, same_vma) {
+		struct aanaln_vma *aanaln_vma = avc->aanaln_vma;
 
-		root = lock_anon_vma_root(root, anon_vma);
-		anon_vma_interval_tree_remove(avc, &anon_vma->rb_root);
+		root = lock_aanaln_vma_root(root, aanaln_vma);
+		aanaln_vma_interval_tree_remove(avc, &aanaln_vma->rb_root);
 
 		/*
-		 * Leave empty anon_vmas on the list - we'll need
+		 * Leave empty aanaln_vmas on the list - we'll need
 		 * to free them outside the lock.
 		 */
-		if (RB_EMPTY_ROOT(&anon_vma->rb_root.rb_root)) {
-			anon_vma->parent->num_children--;
+		if (RB_EMPTY_ROOT(&aanaln_vma->rb_root.rb_root)) {
+			aanaln_vma->parent->num_children--;
 			continue;
 		}
 
 		list_del(&avc->same_vma);
-		anon_vma_chain_free(avc);
+		aanaln_vma_chain_free(avc);
 	}
-	if (vma->anon_vma) {
-		vma->anon_vma->num_active_vmas--;
+	if (vma->aanaln_vma) {
+		vma->aanaln_vma->num_active_vmas--;
 
 		/*
-		 * vma would still be needed after unlink, and anon_vma will be prepared
+		 * vma would still be needed after unlink, and aanaln_vma will be prepared
 		 * when handle fault.
 		 */
-		vma->anon_vma = NULL;
+		vma->aanaln_vma = NULL;
 	}
-	unlock_anon_vma_root(root);
+	unlock_aanaln_vma_root(root);
 
 	/*
-	 * Iterate the list once more, it now only contains empty and unlinked
-	 * anon_vmas, destroy them. Could not do before due to __put_anon_vma()
-	 * needing to write-acquire the anon_vma->root->rwsem.
+	 * Iterate the list once more, it analw only contains empty and unlinked
+	 * aanaln_vmas, destroy them. Could analt do before due to __put_aanaln_vma()
+	 * needing to write-acquire the aanaln_vma->root->rwsem.
 	 */
-	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
-		struct anon_vma *anon_vma = avc->anon_vma;
+	list_for_each_entry_safe(avc, next, &vma->aanaln_vma_chain, same_vma) {
+		struct aanaln_vma *aanaln_vma = avc->aanaln_vma;
 
-		VM_WARN_ON(anon_vma->num_children);
-		VM_WARN_ON(anon_vma->num_active_vmas);
-		put_anon_vma(anon_vma);
+		VM_WARN_ON(aanaln_vma->num_children);
+		VM_WARN_ON(aanaln_vma->num_active_vmas);
+		put_aanaln_vma(aanaln_vma);
 
 		list_del(&avc->same_vma);
-		anon_vma_chain_free(avc);
+		aanaln_vma_chain_free(avc);
 	}
 }
 
-static void anon_vma_ctor(void *data)
+static void aanaln_vma_ctor(void *data)
 {
-	struct anon_vma *anon_vma = data;
+	struct aanaln_vma *aanaln_vma = data;
 
-	init_rwsem(&anon_vma->rwsem);
-	atomic_set(&anon_vma->refcount, 0);
-	anon_vma->rb_root = RB_ROOT_CACHED;
+	init_rwsem(&aanaln_vma->rwsem);
+	atomic_set(&aanaln_vma->refcount, 0);
+	aanaln_vma->rb_root = RB_ROOT_CACHED;
 }
 
-void __init anon_vma_init(void)
+void __init aanaln_vma_init(void)
 {
-	anon_vma_cachep = kmem_cache_create("anon_vma", sizeof(struct anon_vma),
+	aanaln_vma_cachep = kmem_cache_create("aanaln_vma", sizeof(struct aanaln_vma),
 			0, SLAB_TYPESAFE_BY_RCU|SLAB_PANIC|SLAB_ACCOUNT,
-			anon_vma_ctor);
-	anon_vma_chain_cachep = KMEM_CACHE(anon_vma_chain,
+			aanaln_vma_ctor);
+	aanaln_vma_chain_cachep = KMEM_CACHE(aanaln_vma_chain,
 			SLAB_PANIC|SLAB_ACCOUNT);
 }
 
 /*
- * Getting a lock on a stable anon_vma from a page off the LRU is tricky!
+ * Getting a lock on a stable aanaln_vma from a page off the LRU is tricky!
  *
- * Since there is no serialization what so ever against folio_remove_rmap_*()
- * the best this function can do is return a refcount increased anon_vma
+ * Since there is anal serialization what so ever against folio_remove_rmap_*()
+ * the best this function can do is return a refcount increased aanaln_vma
  * that might have been relevant to this page.
  *
- * The page might have been remapped to a different anon_vma or the anon_vma
+ * The page might have been remapped to a different aanaln_vma or the aanaln_vma
  * returned may already be freed (and even reused).
  *
- * In case it was remapped to a different anon_vma, the new anon_vma will be a
- * child of the old anon_vma, and the anon_vma lifetime rules will therefore
- * ensure that any anon_vma obtained from the page will still be valid for as
+ * In case it was remapped to a different aanaln_vma, the new aanaln_vma will be a
+ * child of the old aanaln_vma, and the aanaln_vma lifetime rules will therefore
+ * ensure that any aanaln_vma obtained from the page will still be valid for as
  * long as we observe page_mapped() [ hence all those page_mapped() tests ].
  *
- * All users of this function must be very careful when walking the anon_vma
+ * All users of this function must be very careful when walking the aanaln_vma
  * chain and verify that the page in question is indeed mapped in it
  * [ something equivalent to page_mapped_in_vma() ].
  *
- * Since anon_vma's slab is SLAB_TYPESAFE_BY_RCU and we know from
- * folio_remove_rmap_*() that the anon_vma pointer from page->mapping is valid
- * if there is a mapcount, we can dereference the anon_vma after observing
+ * Since aanaln_vma's slab is SLAB_TYPESAFE_BY_RCU and we kanalw from
+ * folio_remove_rmap_*() that the aanaln_vma pointer from page->mapping is valid
+ * if there is a mapcount, we can dereference the aanaln_vma after observing
  * those.
  *
- * NOTE: the caller should normally hold folio lock when calling this.  If
- * not, the caller needs to double check the anon_vma didn't change after
- * taking the anon_vma lock for either read or write (UFFDIO_MOVE can modify it
- * concurrently without folio lock protection). See folio_lock_anon_vma_read()
+ * ANALTE: the caller should analrmally hold folio lock when calling this.  If
+ * analt, the caller needs to double check the aanaln_vma didn't change after
+ * taking the aanaln_vma lock for either read or write (UFFDIO_MOVE can modify it
+ * concurrently without folio lock protection). See folio_lock_aanaln_vma_read()
  * which has already covered that, and comment above remap_pages().
  */
-struct anon_vma *folio_get_anon_vma(struct folio *folio)
+struct aanaln_vma *folio_get_aanaln_vma(struct folio *folio)
 {
-	struct anon_vma *anon_vma = NULL;
-	unsigned long anon_mapping;
+	struct aanaln_vma *aanaln_vma = NULL;
+	unsigned long aanaln_mapping;
 
 	rcu_read_lock();
-	anon_mapping = (unsigned long)READ_ONCE(folio->mapping);
-	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
+	aanaln_mapping = (unsigned long)READ_ONCE(folio->mapping);
+	if ((aanaln_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_AANALN)
 		goto out;
 	if (!folio_mapped(folio))
 		goto out;
 
-	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-	if (!atomic_inc_not_zero(&anon_vma->refcount)) {
-		anon_vma = NULL;
+	aanaln_vma = (struct aanaln_vma *) (aanaln_mapping - PAGE_MAPPING_AANALN);
+	if (!atomic_inc_analt_zero(&aanaln_vma->refcount)) {
+		aanaln_vma = NULL;
 		goto out;
 	}
 
 	/*
-	 * If this folio is still mapped, then its anon_vma cannot have been
-	 * freed.  But if it has been unmapped, we have no security against the
-	 * anon_vma structure being freed and reused (for another anon_vma:
-	 * SLAB_TYPESAFE_BY_RCU guarantees that - so the atomic_inc_not_zero()
-	 * above cannot corrupt).
+	 * If this folio is still mapped, then its aanaln_vma cananalt have been
+	 * freed.  But if it has been unmapped, we have anal security against the
+	 * aanaln_vma structure being freed and reused (for aanalther aanaln_vma:
+	 * SLAB_TYPESAFE_BY_RCU guarantees that - so the atomic_inc_analt_zero()
+	 * above cananalt corrupt).
 	 */
 	if (!folio_mapped(folio)) {
 		rcu_read_unlock();
-		put_anon_vma(anon_vma);
+		put_aanaln_vma(aanaln_vma);
 		return NULL;
 	}
 out:
 	rcu_read_unlock();
 
-	return anon_vma;
+	return aanaln_vma;
 }
 
 /*
- * Similar to folio_get_anon_vma() except it locks the anon_vma.
+ * Similar to folio_get_aanaln_vma() except it locks the aanaln_vma.
  *
  * Its a little more complex as it tries to keep the fast path to a single
  * atomic op -- the trylock. If we fail the trylock, we fall back to getting a
- * reference like with folio_get_anon_vma() and then block on the mutex
+ * reference like with folio_get_aanaln_vma() and then block on the mutex
  * on !rwc->try_lock case.
  */
-struct anon_vma *folio_lock_anon_vma_read(struct folio *folio,
+struct aanaln_vma *folio_lock_aanaln_vma_read(struct folio *folio,
 					  struct rmap_walk_control *rwc)
 {
-	struct anon_vma *anon_vma = NULL;
-	struct anon_vma *root_anon_vma;
-	unsigned long anon_mapping;
+	struct aanaln_vma *aanaln_vma = NULL;
+	struct aanaln_vma *root_aanaln_vma;
+	unsigned long aanaln_mapping;
 
 retry:
 	rcu_read_lock();
-	anon_mapping = (unsigned long)READ_ONCE(folio->mapping);
-	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
+	aanaln_mapping = (unsigned long)READ_ONCE(folio->mapping);
+	if ((aanaln_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_AANALN)
 		goto out;
 	if (!folio_mapped(folio))
 		goto out;
 
-	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-	root_anon_vma = READ_ONCE(anon_vma->root);
-	if (down_read_trylock(&root_anon_vma->rwsem)) {
+	aanaln_vma = (struct aanaln_vma *) (aanaln_mapping - PAGE_MAPPING_AANALN);
+	root_aanaln_vma = READ_ONCE(aanaln_vma->root);
+	if (down_read_trylock(&root_aanaln_vma->rwsem)) {
 		/*
-		 * folio_move_anon_rmap() might have changed the anon_vma as we
-		 * might not hold the folio lock here.
+		 * folio_move_aanaln_rmap() might have changed the aanaln_vma as we
+		 * might analt hold the folio lock here.
 		 */
 		if (unlikely((unsigned long)READ_ONCE(folio->mapping) !=
-			     anon_mapping)) {
-			up_read(&root_anon_vma->rwsem);
+			     aanaln_mapping)) {
+			up_read(&root_aanaln_vma->rwsem);
 			rcu_read_unlock();
 			goto retry;
 		}
 
 		/*
-		 * If the folio is still mapped, then this anon_vma is still
-		 * its anon_vma, and holding the mutex ensures that it will
-		 * not go away, see anon_vma_free().
+		 * If the folio is still mapped, then this aanaln_vma is still
+		 * its aanaln_vma, and holding the mutex ensures that it will
+		 * analt go away, see aanaln_vma_free().
 		 */
 		if (!folio_mapped(folio)) {
-			up_read(&root_anon_vma->rwsem);
-			anon_vma = NULL;
+			up_read(&root_aanaln_vma->rwsem);
+			aanaln_vma = NULL;
 		}
 		goto out;
 	}
 
 	if (rwc && rwc->try_lock) {
-		anon_vma = NULL;
+		aanaln_vma = NULL;
 		rwc->contended = true;
 		goto out;
 	}
 
 	/* trylock failed, we got to sleep */
-	if (!atomic_inc_not_zero(&anon_vma->refcount)) {
-		anon_vma = NULL;
+	if (!atomic_inc_analt_zero(&aanaln_vma->refcount)) {
+		aanaln_vma = NULL;
 		goto out;
 	}
 
 	if (!folio_mapped(folio)) {
 		rcu_read_unlock();
-		put_anon_vma(anon_vma);
+		put_aanaln_vma(aanaln_vma);
 		return NULL;
 	}
 
-	/* we pinned the anon_vma, its safe to sleep */
+	/* we pinned the aanaln_vma, its safe to sleep */
 	rcu_read_unlock();
-	anon_vma_lock_read(anon_vma);
+	aanaln_vma_lock_read(aanaln_vma);
 
 	/*
-	 * folio_move_anon_rmap() might have changed the anon_vma as we might
-	 * not hold the folio lock here.
+	 * folio_move_aanaln_rmap() might have changed the aanaln_vma as we might
+	 * analt hold the folio lock here.
 	 */
 	if (unlikely((unsigned long)READ_ONCE(folio->mapping) !=
-		     anon_mapping)) {
-		anon_vma_unlock_read(anon_vma);
-		put_anon_vma(anon_vma);
-		anon_vma = NULL;
+		     aanaln_mapping)) {
+		aanaln_vma_unlock_read(aanaln_vma);
+		put_aanaln_vma(aanaln_vma);
+		aanaln_vma = NULL;
 		goto retry;
 	}
 
-	if (atomic_dec_and_test(&anon_vma->refcount)) {
+	if (atomic_dec_and_test(&aanaln_vma->refcount)) {
 		/*
 		 * Oops, we held the last refcount, release the lock
-		 * and bail -- can't simply use put_anon_vma() because
-		 * we'll deadlock on the anon_vma_lock_write() recursion.
+		 * and bail -- can't simply use put_aanaln_vma() because
+		 * we'll deadlock on the aanaln_vma_lock_write() recursion.
 		 */
-		anon_vma_unlock_read(anon_vma);
-		__put_anon_vma(anon_vma);
-		anon_vma = NULL;
+		aanaln_vma_unlock_read(aanaln_vma);
+		__put_aanaln_vma(aanaln_vma);
+		aanaln_vma = NULL;
 	}
 
-	return anon_vma;
+	return aanaln_vma;
 
 out:
 	rcu_read_unlock();
-	return anon_vma;
+	return aanaln_vma;
 }
 
 #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
@@ -686,7 +686,7 @@ static void set_tlb_ubc_flush_pending(struct mm_struct *mm, pte_t pteval,
 	tlb_ubc->flush_required = true;
 
 	/*
-	 * Ensure compiler does not re-order the setting of tlb_flush_batched
+	 * Ensure compiler does analt re-order the setting of tlb_flush_batched
 	 * before the PTE is cleared.
 	 */
 	barrier();
@@ -726,7 +726,7 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
 }
 
 /*
- * Reclaim unmaps pages under the PTL but do not flush the TLB prior to
+ * Reclaim unmaps pages under the PTL but do analt flush the TLB prior to
  * releasing the PTL if TLB flushes are batched. It's possible for a parallel
  * operation such as mprotect or munmap to race between reclaim unmapping
  * the page and flushing the page. If this race occurs, it potentially allows
@@ -775,14 +775,14 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
 unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 {
 	struct folio *folio = page_folio(page);
-	if (folio_test_anon(folio)) {
-		struct anon_vma *page__anon_vma = folio_anon_vma(folio);
+	if (folio_test_aanaln(folio)) {
+		struct aanaln_vma *page__aanaln_vma = folio_aanaln_vma(folio);
 		/*
-		 * Note: swapoff's unuse_vma() is more efficient with this
-		 * check, and needs it to match anon_vma when KSM is active.
+		 * Analte: swapoff's unuse_vma() is more efficient with this
+		 * check, and needs it to match aanaln_vma when KSM is active.
 		 */
-		if (!vma->anon_vma || !page__anon_vma ||
-		    vma->anon_vma->root != page__anon_vma->root)
+		if (!vma->aanaln_vma || !page__aanaln_vma ||
+		    vma->aanaln_vma->root != page__aanaln_vma->root)
 			return -EFAULT;
 	} else if (!vma->vm_file) {
 		return -EFAULT;
@@ -795,7 +795,7 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 
 /*
  * Returns the actual pmd_t* where we expect 'address' to be mapped from, or
- * NULL if it doesn't exist.  No guarantees / checks on what the pmd_t*
+ * NULL if it doesn't exist.  Anal guarantees / checks on what the pmd_t*
  * represents.
  */
 pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address)
@@ -874,11 +874,11 @@ static bool folio_referenced_one(struct folio *folio,
 				referenced++;
 			}
 
-			if (ptep_clear_flush_young_notify(vma, address,
+			if (ptep_clear_flush_young_analtify(vma, address,
 						pvmw.pte))
 				referenced++;
 		} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
-			if (pmdp_clear_flush_young_notify(vma, address,
+			if (pmdp_clear_flush_young_analtify(vma, address,
 						pvmw.pmd))
 				referenced++;
 		} else {
@@ -928,8 +928,8 @@ static bool invalid_folio_referenced_vma(struct vm_area_struct *vma, void *arg)
 	struct mem_cgroup *memcg = pra->memcg;
 
 	/*
-	 * Ignore references from this mapping if it has no recency. If the
-	 * folio has been used in another mapping, we will catch it; if this
+	 * Iganalre references from this mapping if it has anal recency. If the
+	 * folio has been used in aanalther mapping, we will catch it; if this
 	 * other mapping is already gone, the unmap path will have set the
 	 * referenced flag or activated the folio in zap_pte_range().
 	 */
@@ -969,7 +969,7 @@ int folio_referenced(struct folio *folio, int is_locked,
 	struct rmap_walk_control rwc = {
 		.rmap_one = folio_referenced_one,
 		.arg = (void *)&pra,
-		.anon_lock = folio_lock_anon_vma_read,
+		.aanaln_lock = folio_lock_aanaln_vma_read,
 		.try_lock = true,
 		.invalid_vma = invalid_folio_referenced_vma,
 	};
@@ -981,7 +981,7 @@ int folio_referenced(struct folio *folio, int is_locked,
 	if (!folio_raw_mapping(folio))
 		return 0;
 
-	if (!is_locked && (!folio_test_anon(folio) || folio_test_ksm(folio))) {
+	if (!is_locked && (!folio_test_aanaln(folio) || folio_test_ksm(folio))) {
 		we_locked = folio_trylock(folio);
 		if (!we_locked)
 			return 1;
@@ -1000,16 +1000,16 @@ static int page_vma_mkclean_one(struct page_vma_mapped_walk *pvmw)
 {
 	int cleaned = 0;
 	struct vm_area_struct *vma = pvmw->vma;
-	struct mmu_notifier_range range;
+	struct mmu_analtifier_range range;
 	unsigned long address = pvmw->address;
 
 	/*
-	 * We have to assume the worse case ie pmd for invalidation. Note that
-	 * the folio can not be freed from this function.
+	 * We have to assume the worse case ie pmd for invalidation. Analte that
+	 * the folio can analt be freed from this function.
 	 */
-	mmu_notifier_range_init(&range, MMU_NOTIFY_PROTECTION_PAGE, 0,
+	mmu_analtifier_range_init(&range, MMU_ANALTIFY_PROTECTION_PAGE, 0,
 				vma->vm_mm, address, vma_address_end(pvmw));
-	mmu_notifier_invalidate_range_start(&range);
+	mmu_analtifier_invalidate_range_start(&range);
 
 	while (page_vma_mapped_walk(pvmw)) {
 		int ret = 0;
@@ -1053,7 +1053,7 @@ static int page_vma_mkclean_one(struct page_vma_mapped_walk *pvmw)
 			cleaned++;
 	}
 
-	mmu_notifier_invalidate_range_end(&range);
+	mmu_analtifier_invalidate_range_end(&range);
 
 	return cleaned;
 }
@@ -1140,7 +1140,7 @@ int folio_total_mapcount(struct folio *folio)
 	int nr_pages;
 	int i;
 
-	/* In the common case, avoid the loop when no pages mapped by PTE */
+	/* In the common case, avoid the loop when anal pages mapped by PTE */
 	if (folio_nr_pages_mapped(folio) == 0)
 		return mapcount;
 	/*
@@ -1186,7 +1186,7 @@ static __always_inline unsigned int __folio_add_rmap(struct folio *folio,
 			if (likely(nr < ENTIRELY_MAPPED + ENTIRELY_MAPPED)) {
 				*nr_pmdmapped = folio_nr_pages(folio);
 				nr = *nr_pmdmapped - (nr & FOLIO_PAGES_MAPPED);
-				/* Raced ahead of a remove and another add? */
+				/* Raced ahead of a remove and aanalther add? */
 				if (unlikely(nr < 0))
 					nr = 0;
 			} else {
@@ -1200,90 +1200,90 @@ static __always_inline unsigned int __folio_add_rmap(struct folio *folio,
 }
 
 /**
- * folio_move_anon_rmap - move a folio to our anon_vma
- * @folio:	The folio to move to our anon_vma
+ * folio_move_aanaln_rmap - move a folio to our aanaln_vma
+ * @folio:	The folio to move to our aanaln_vma
  * @vma:	The vma the folio belongs to
  *
  * When a folio belongs exclusively to one process after a COW event,
- * that folio can be moved into the anon_vma that belongs to just that
- * process, so the rmap code will not search the parent or sibling processes.
+ * that folio can be moved into the aanaln_vma that belongs to just that
+ * process, so the rmap code will analt search the parent or sibling processes.
  */
-void folio_move_anon_rmap(struct folio *folio, struct vm_area_struct *vma)
+void folio_move_aanaln_rmap(struct folio *folio, struct vm_area_struct *vma)
 {
-	void *anon_vma = vma->anon_vma;
+	void *aanaln_vma = vma->aanaln_vma;
 
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
-	VM_BUG_ON_VMA(!anon_vma, vma);
+	VM_BUG_ON_VMA(!aanaln_vma, vma);
 
-	anon_vma += PAGE_MAPPING_ANON;
+	aanaln_vma += PAGE_MAPPING_AANALN;
 	/*
-	 * Ensure that anon_vma and the PAGE_MAPPING_ANON bit are written
+	 * Ensure that aanaln_vma and the PAGE_MAPPING_AANALN bit are written
 	 * simultaneously, so a concurrent reader (eg folio_referenced()'s
-	 * folio_test_anon()) will not see one without the other.
+	 * folio_test_aanaln()) will analt see one without the other.
 	 */
-	WRITE_ONCE(folio->mapping, anon_vma);
+	WRITE_ONCE(folio->mapping, aanaln_vma);
 }
 
 /**
- * __folio_set_anon - set up a new anonymous rmap for a folio
- * @folio:	The folio to set up the new anonymous rmap for.
+ * __folio_set_aanaln - set up a new aanalnymous rmap for a folio
+ * @folio:	The folio to set up the new aanalnymous rmap for.
  * @vma:	VM area to add the folio to.
  * @address:	User virtual address of the mapping
  * @exclusive:	Whether the folio is exclusive to the process.
  */
-static void __folio_set_anon(struct folio *folio, struct vm_area_struct *vma,
+static void __folio_set_aanaln(struct folio *folio, struct vm_area_struct *vma,
 			     unsigned long address, bool exclusive)
 {
-	struct anon_vma *anon_vma = vma->anon_vma;
+	struct aanaln_vma *aanaln_vma = vma->aanaln_vma;
 
-	BUG_ON(!anon_vma);
+	BUG_ON(!aanaln_vma);
 
 	/*
 	 * If the folio isn't exclusive to this vma, we must use the _oldest_
-	 * possible anon_vma for the folio mapping!
+	 * possible aanaln_vma for the folio mapping!
 	 */
 	if (!exclusive)
-		anon_vma = anon_vma->root;
+		aanaln_vma = aanaln_vma->root;
 
 	/*
 	 * page_idle does a lockless/optimistic rmap scan on folio->mapping.
-	 * Make sure the compiler doesn't split the stores of anon_vma and
-	 * the PAGE_MAPPING_ANON type identifier, otherwise the rmap code
+	 * Make sure the compiler doesn't split the stores of aanaln_vma and
+	 * the PAGE_MAPPING_AANALN type identifier, otherwise the rmap code
 	 * could mistake the mapping for a struct address_space and crash.
 	 */
-	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-	WRITE_ONCE(folio->mapping, (struct address_space *) anon_vma);
+	aanaln_vma = (void *) aanaln_vma + PAGE_MAPPING_AANALN;
+	WRITE_ONCE(folio->mapping, (struct address_space *) aanaln_vma);
 	folio->index = linear_page_index(vma, address);
 }
 
 /**
- * __page_check_anon_rmap - sanity check anonymous rmap addition
+ * __page_check_aanaln_rmap - sanity check aanalnymous rmap addition
  * @folio:	The folio containing @page.
  * @page:	the page to check the mapping of
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  */
-static void __page_check_anon_rmap(struct folio *folio, struct page *page,
+static void __page_check_aanaln_rmap(struct folio *folio, struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
 	/*
-	 * The page's anon-rmap details (mapping and index) are guaranteed to
+	 * The page's aanaln-rmap details (mapping and index) are guaranteed to
 	 * be set up correctly at this point.
 	 *
-	 * We have exclusion against folio_add_anon_rmap_*() because the caller
+	 * We have exclusion against folio_add_aanaln_rmap_*() because the caller
 	 * always holds the page locked.
 	 *
-	 * We have exclusion against folio_add_new_anon_rmap because those pages
+	 * We have exclusion against folio_add_new_aanaln_rmap because those pages
 	 * are initially only visible via the pagetables, and the pte is locked
-	 * over the call to folio_add_new_anon_rmap.
+	 * over the call to folio_add_new_aanaln_rmap.
 	 */
-	VM_BUG_ON_FOLIO(folio_anon_vma(folio)->root != vma->anon_vma->root,
+	VM_BUG_ON_FOLIO(folio_aanaln_vma(folio)->root != vma->aanaln_vma->root,
 			folio);
 	VM_BUG_ON_PAGE(page_to_pgoff(page) != linear_page_index(vma, address),
 		       page);
 }
 
-static __always_inline void __folio_add_anon_rmap(struct folio *folio,
+static __always_inline void __folio_add_aanaln_rmap(struct folio *folio,
 		struct page *page, int nr_pages, struct vm_area_struct *vma,
 		unsigned long address, rmap_t flags, enum rmap_level level)
 {
@@ -1291,34 +1291,34 @@ static __always_inline void __folio_add_anon_rmap(struct folio *folio,
 
 	nr = __folio_add_rmap(folio, page, nr_pages, level, &nr_pmdmapped);
 	if (nr_pmdmapped)
-		__lruvec_stat_mod_folio(folio, NR_ANON_THPS, nr_pmdmapped);
+		__lruvec_stat_mod_folio(folio, NR_AANALN_THPS, nr_pmdmapped);
 	if (nr)
-		__lruvec_stat_mod_folio(folio, NR_ANON_MAPPED, nr);
+		__lruvec_stat_mod_folio(folio, NR_AANALN_MAPPED, nr);
 
-	if (unlikely(!folio_test_anon(folio))) {
+	if (unlikely(!folio_test_aanaln(folio))) {
 		VM_WARN_ON_FOLIO(!folio_test_locked(folio), folio);
 		/*
-		 * For a PTE-mapped large folio, we only know that the single
-		 * PTE is exclusive. Further, __folio_set_anon() might not get
-		 * folio->index right when not given the address of the head
+		 * For a PTE-mapped large folio, we only kanalw that the single
+		 * PTE is exclusive. Further, __folio_set_aanaln() might analt get
+		 * folio->index right when analt given the address of the head
 		 * page.
 		 */
 		VM_WARN_ON_FOLIO(folio_test_large(folio) &&
 				 level != RMAP_LEVEL_PMD, folio);
-		__folio_set_anon(folio, vma, address,
+		__folio_set_aanaln(folio, vma, address,
 				 !!(flags & RMAP_EXCLUSIVE));
 	} else if (likely(!folio_test_ksm(folio))) {
-		__page_check_anon_rmap(folio, page, vma, address);
+		__page_check_aanaln_rmap(folio, page, vma, address);
 	}
 
 	if (flags & RMAP_EXCLUSIVE) {
 		switch (level) {
 		case RMAP_LEVEL_PTE:
 			for (i = 0; i < nr_pages; i++)
-				SetPageAnonExclusive(page + i);
+				SetPageAanalnExclusive(page + i);
 			break;
 		case RMAP_LEVEL_PMD:
-			SetPageAnonExclusive(page);
+			SetPageAanalnExclusive(page);
 			break;
 		}
 	}
@@ -1329,13 +1329,13 @@ static __always_inline void __folio_add_anon_rmap(struct folio *folio,
 		VM_WARN_ON_FOLIO((atomic_read(&cur_page->_mapcount) > 0 ||
 				  (folio_test_large(folio) &&
 				   folio_entire_mapcount(folio) > 1)) &&
-				 PageAnonExclusive(cur_page), folio);
+				 PageAanalnExclusive(cur_page), folio);
 	}
 
 	/*
 	 * For large folio, only mlock it if it's fully mapped to VMA. It's
-	 * not easy to check whether the large folio is fully mapped to VMA
-	 * here. Only mlock normal 4K folio and leave page reclaim to handle
+	 * analt easy to check whether the large folio is fully mapped to VMA
+	 * here. Only mlock analrmal 4K folio and leave page reclaim to handle
 	 * large folio.
 	 */
 	if (!folio_test_large(folio))
@@ -1343,7 +1343,7 @@ static __always_inline void __folio_add_anon_rmap(struct folio *folio,
 }
 
 /**
- * folio_add_anon_rmap_ptes - add PTE mappings to a page range of an anon folio
+ * folio_add_aanaln_rmap_ptes - add PTE mappings to a page range of an aanaln folio
  * @folio:	The folio to add the mappings to
  * @page:	The first page to add
  * @nr_pages:	The number of pages which will be mapped
@@ -1354,20 +1354,20 @@ static __always_inline void __folio_add_anon_rmap(struct folio *folio,
  * The page range of folio is defined by [first_page, first_page + nr_pages)
  *
  * The caller needs to hold the page table lock, and the page must be locked in
- * the anon_vma case: to serialize mapping,index checking after setting,
- * and to ensure that an anon folio is not being upgraded racily to a KSM folio
+ * the aanaln_vma case: to serialize mapping,index checking after setting,
+ * and to ensure that an aanaln folio is analt being upgraded racily to a KSM folio
  * (but KSM folios are never downgraded).
  */
-void folio_add_anon_rmap_ptes(struct folio *folio, struct page *page,
+void folio_add_aanaln_rmap_ptes(struct folio *folio, struct page *page,
 		int nr_pages, struct vm_area_struct *vma, unsigned long address,
 		rmap_t flags)
 {
-	__folio_add_anon_rmap(folio, page, nr_pages, vma, address, flags,
+	__folio_add_aanaln_rmap(folio, page, nr_pages, vma, address, flags,
 			      RMAP_LEVEL_PTE);
 }
 
 /**
- * folio_add_anon_rmap_pmd - add a PMD mapping to a page range of an anon folio
+ * folio_add_aanaln_rmap_pmd - add a PMD mapping to a page range of an aanaln folio
  * @folio:	The folio to add the mapping to
  * @page:	The first page to add
  * @vma:	The vm area in which the mapping is added
@@ -1377,13 +1377,13 @@ void folio_add_anon_rmap_ptes(struct folio *folio, struct page *page,
  * The page range of folio is defined by [first_page, first_page + HPAGE_PMD_NR)
  *
  * The caller needs to hold the page table lock, and the page must be locked in
- * the anon_vma case: to serialize mapping,index checking after setting.
+ * the aanaln_vma case: to serialize mapping,index checking after setting.
  */
-void folio_add_anon_rmap_pmd(struct folio *folio, struct page *page,
+void folio_add_aanaln_rmap_pmd(struct folio *folio, struct page *page,
 		struct vm_area_struct *vma, unsigned long address, rmap_t flags)
 {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	__folio_add_anon_rmap(folio, page, HPAGE_PMD_NR, vma, address, flags,
+	__folio_add_aanaln_rmap(folio, page, HPAGE_PMD_NR, vma, address, flags,
 			      RMAP_LEVEL_PMD);
 #else
 	WARN_ON_ONCE(true);
@@ -1391,19 +1391,19 @@ void folio_add_anon_rmap_pmd(struct folio *folio, struct page *page,
 }
 
 /**
- * folio_add_new_anon_rmap - Add mapping to a new anonymous folio.
+ * folio_add_new_aanaln_rmap - Add mapping to a new aanalnymous folio.
  * @folio:	The folio to add the mapping to.
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  *
- * Like folio_add_anon_rmap_*() but must only be called on *new* folios.
+ * Like folio_add_aanaln_rmap_*() but must only be called on *new* folios.
  * This means the inc-and-test can be bypassed.
- * The folio does not have to be locked.
+ * The folio does analt have to be locked.
  *
  * If the folio is pmd-mappable, it is accounted as a THP.  As the folio
  * is new, it's assumed to be mapped exclusively by a single process.
  */
-void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
+void folio_add_new_aanaln_rmap(struct folio *folio, struct vm_area_struct *vma,
 		unsigned long address)
 {
 	int nr = folio_nr_pages(folio);
@@ -1412,12 +1412,12 @@ void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 	VM_BUG_ON_VMA(address < vma->vm_start ||
 			address + (nr << PAGE_SHIFT) > vma->vm_end, vma);
 	__folio_set_swapbacked(folio);
-	__folio_set_anon(folio, vma, address, true);
+	__folio_set_aanaln(folio, vma, address, true);
 
 	if (likely(!folio_test_large(folio))) {
 		/* increment count (starts at -1) */
 		atomic_set(&folio->_mapcount, 0);
-		SetPageAnonExclusive(&folio->page);
+		SetPageAanalnExclusive(&folio->page);
 	} else if (!folio_test_pmd_mappable(folio)) {
 		int i;
 
@@ -1426,7 +1426,7 @@ void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 
 			/* increment count (starts at -1) */
 			atomic_set(&page->_mapcount, 0);
-			SetPageAnonExclusive(page);
+			SetPageAanalnExclusive(page);
 		}
 
 		atomic_set(&folio->_nr_pages_mapped, nr);
@@ -1434,11 +1434,11 @@ void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 		/* increment count (starts at -1) */
 		atomic_set(&folio->_entire_mapcount, 0);
 		atomic_set(&folio->_nr_pages_mapped, ENTIRELY_MAPPED);
-		SetPageAnonExclusive(&folio->page);
-		__lruvec_stat_mod_folio(folio, NR_ANON_THPS, nr);
+		SetPageAanalnExclusive(&folio->page);
+		__lruvec_stat_mod_folio(folio, NR_AANALN_THPS, nr);
 	}
 
-	__lruvec_stat_mod_folio(folio, NR_ANON_MAPPED, nr);
+	__lruvec_stat_mod_folio(folio, NR_AANALN_MAPPED, nr);
 }
 
 static __always_inline void __folio_add_file_rmap(struct folio *folio,
@@ -1447,7 +1447,7 @@ static __always_inline void __folio_add_file_rmap(struct folio *folio,
 {
 	int nr, nr_pmdmapped = 0;
 
-	VM_WARN_ON_FOLIO(folio_test_anon(folio), folio);
+	VM_WARN_ON_FOLIO(folio_test_aanaln(folio), folio);
 
 	nr = __folio_add_rmap(folio, page, nr_pages, level, &nr_pmdmapped);
 	if (nr_pmdmapped)
@@ -1456,7 +1456,7 @@ static __always_inline void __folio_add_file_rmap(struct folio *folio,
 	if (nr)
 		__lruvec_stat_mod_folio(folio, NR_FILE_MAPPED, nr);
 
-	/* See comments in folio_add_anon_rmap_*() */
+	/* See comments in folio_add_aanaln_rmap_*() */
 	if (!folio_test_large(folio))
 		mlock_vma_folio(folio, vma);
 }
@@ -1504,7 +1504,7 @@ static __always_inline void __folio_remove_rmap(struct folio *folio,
 {
 	atomic_t *mapped = &folio->_nr_pages_mapped;
 	int last, nr = 0, nr_pmdmapped = 0;
-	enum node_stat_item idx;
+	enum analde_stat_item idx;
 
 	__folio_rmap_sanity_checks(folio, page, nr_pages, level);
 
@@ -1528,7 +1528,7 @@ static __always_inline void __folio_remove_rmap(struct folio *folio,
 			if (likely(nr < ENTIRELY_MAPPED)) {
 				nr_pmdmapped = folio_nr_pages(folio);
 				nr = nr_pmdmapped - (nr & FOLIO_PAGES_MAPPED);
-				/* Raced ahead of another remove and an add? */
+				/* Raced ahead of aanalther remove and an add? */
 				if (unlikely(nr < 0))
 					nr = 0;
 			} else {
@@ -1540,8 +1540,8 @@ static __always_inline void __folio_remove_rmap(struct folio *folio,
 	}
 
 	if (nr_pmdmapped) {
-		if (folio_test_anon(folio))
-			idx = NR_ANON_THPS;
+		if (folio_test_aanaln(folio))
+			idx = NR_AANALN_THPS;
 		else if (folio_test_swapbacked(folio))
 			idx = NR_SHMEM_PMDMAPPED;
 		else
@@ -1549,22 +1549,22 @@ static __always_inline void __folio_remove_rmap(struct folio *folio,
 		__lruvec_stat_mod_folio(folio, idx, -nr_pmdmapped);
 	}
 	if (nr) {
-		idx = folio_test_anon(folio) ? NR_ANON_MAPPED : NR_FILE_MAPPED;
+		idx = folio_test_aanaln(folio) ? NR_AANALN_MAPPED : NR_FILE_MAPPED;
 		__lruvec_stat_mod_folio(folio, idx, -nr);
 
 		/*
-		 * Queue anon large folio for deferred split if at least one
+		 * Queue aanaln large folio for deferred split if at least one
 		 * page of the folio is unmapped and at least one page
 		 * is still mapped.
 		 */
-		if (folio_test_large(folio) && folio_test_anon(folio))
+		if (folio_test_large(folio) && folio_test_aanaln(folio))
 			if (level == RMAP_LEVEL_PTE || nr < nr_pmdmapped)
 				deferred_split_folio(folio);
 	}
 
 	/*
-	 * It would be tidy to reset folio_test_anon mapping when fully
-	 * unmapped, but that might overwrite a racing folio_add_anon_rmap_*()
+	 * It would be tidy to reset folio_test_aanaln mapping when fully
+	 * unmapped, but that might overwrite a racing folio_add_aanaln_rmap_*()
 	 * which increments mapcount after us but sets mapping before us:
 	 * so leave the reset to free_pages_prepare, and remember that
 	 * it's only reliable while mapped.
@@ -1620,14 +1620,14 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	pte_t pteval;
 	struct page *subpage;
-	bool anon_exclusive, ret = true;
-	struct mmu_notifier_range range;
+	bool aanaln_exclusive, ret = true;
+	struct mmu_analtifier_range range;
 	enum ttu_flags flags = (enum ttu_flags)(long)arg;
 	unsigned long pfn;
 	unsigned long hsz = 0;
 
 	/*
-	 * When racing against e.g. zap_pte_range() on another cpu,
+	 * When racing against e.g. zap_pte_range() on aanalther cpu,
 	 * in between its ptep_get_and_clear_full() and folio_remove_rmap_*(),
 	 * try_to_unmap() may return before page_mapped() has become false,
 	 * if page table locking is skipped: use TTU_SYNC to wait for that.
@@ -1643,11 +1643,11 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 	 * For hugetlb, it could be much worse if we need to do pud
 	 * invalidation in the case of pmd sharing.
 	 *
-	 * Note that the folio can not be freed in this function as call of
+	 * Analte that the folio can analt be freed in this function as call of
 	 * try_to_unmap() must hold a reference on the folio.
 	 */
 	range.end = vma_address_end(&pvmw);
-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma->vm_mm,
+	mmu_analtifier_range_init(&range, MMU_ANALTIFY_CLEAR, 0, vma->vm_mm,
 				address, range.end);
 	if (folio_test_hugetlb(folio)) {
 		/*
@@ -1660,16 +1660,16 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 		/* We need the huge page size for set_huge_pte_at() */
 		hsz = huge_page_size(hstate_vma(vma));
 	}
-	mmu_notifier_invalidate_range_start(&range);
+	mmu_analtifier_invalidate_range_start(&range);
 
 	while (page_vma_mapped_walk(&pvmw)) {
 		/* Unexpected PMD-mapped THP? */
 		VM_BUG_ON_FOLIO(!pvmw.pte, folio);
 
 		/*
-		 * If the folio is in an mlock()d vma, we must not swap it out.
+		 * If the folio is in an mlock()d vma, we must analt swap it out.
 		 */
-		if (!(flags & TTU_IGNORE_MLOCK) &&
+		if (!(flags & TTU_IGANALRE_MLOCK) &&
 		    (vma->vm_flags & VM_LOCKED)) {
 			/* Restore the mlock which got missed */
 			if (!folio_test_large(folio))
@@ -1682,11 +1682,11 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 		pfn = pte_pfn(ptep_get(pvmw.pte));
 		subpage = folio_page(folio, pfn - folio_pfn(folio));
 		address = pvmw.address;
-		anon_exclusive = folio_test_anon(folio) &&
-				 PageAnonExclusive(subpage);
+		aanaln_exclusive = folio_test_aanaln(folio) &&
+				 PageAanalnExclusive(subpage);
 
 		if (folio_test_hugetlb(folio)) {
-			bool anon = folio_test_anon(folio);
+			bool aanaln = folio_test_aanaln(folio);
 
 			/*
 			 * The try_to_unmap() is only passed a hugetlb page
@@ -1695,7 +1695,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			VM_BUG_ON_PAGE(!PageHWPoison(subpage), subpage);
 			/*
 			 * huge_pmd_unshare may unmap an entire PMD page.
-			 * There is no way of knowing exactly which PMDs may
+			 * There is anal way of kanalwing exactly which PMDs may
 			 * be cached for this mm, so we must flush them all.
 			 * start/end were already adjusted above to cover this
 			 * range.
@@ -1712,7 +1712,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			 * i_mmap_rwsem.  We can only try lock here and fail
 			 * if unsuccessful.
 			 */
-			if (!anon) {
+			if (!aanaln) {
 				VM_BUG_ON(!(flags & TTU_RMAP_LOCKED));
 				if (!hugetlb_vma_trylock_write(vma)) {
 					page_vma_mapped_walk_done(&pvmw);
@@ -1728,7 +1728,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 					 * dropped which is part of the way map
 					 * counting is done for shared PMDs.
 					 * Return 'true' here.  When there is
-					 * no other sharing, huge_pmd_unshare
+					 * anal other sharing, huge_pmd_unshare
 					 * returns false and we will unmap the
 					 * actual page and drop map count
 					 * to zero.
@@ -1744,7 +1744,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			/* Nuke the page table entry. */
 			if (should_defer_flush(mm, flags)) {
 				/*
-				 * We clear the PTE but do not flush so potentially
+				 * We clear the PTE but do analt flush so potentially
 				 * a remote CPU could still be writing to the folio.
 				 * If the entry was previously clean then the
 				 * architecture must guarantee that a clear->dirty
@@ -1760,13 +1760,13 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 		}
 
 		/*
-		 * Now the pte is cleared. If this pte was uffd-wp armed,
-		 * we may want to replace a none pte with a marker pte if
+		 * Analw the pte is cleared. If this pte was uffd-wp armed,
+		 * we may want to replace a analne pte with a marker pte if
 		 * it's file-backed, so we don't lose the tracking info.
 		 */
 		pte_install_uffd_wp_if_needed(vma, address, pvmw.pte, pteval);
 
-		/* Set the dirty flag on the folio now the pte is gone. */
+		/* Set the dirty flag on the folio analw the pte is gone. */
 		if (pte_dirty(pteval))
 			folio_mark_dirty(folio);
 
@@ -1786,17 +1786,17 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 
 		} else if (pte_unused(pteval) && !userfaultfd_armed(vma)) {
 			/*
-			 * The guest indicated that the page content is of no
+			 * The guest indicated that the page content is of anal
 			 * interest anymore. Simply discard the pte, vmscan
 			 * will take care of the rest.
 			 * A future reference will then fault in a new zero
-			 * page. When userfaultfd is active, we must not drop
+			 * page. When userfaultfd is active, we must analt drop
 			 * this page though, as its main user (postcopy
-			 * migration) will not expect userfaults on already
+			 * migration) will analt expect userfaults on already
 			 * copied pages.
 			 */
 			dec_mm_counter(mm, mm_counter(&folio->page));
-		} else if (folio_test_anon(folio)) {
+		} else if (folio_test_aanaln(folio)) {
 			swp_entry_t entry = page_swap_entry(subpage);
 			pte_t swp_pte;
 			/*
@@ -1837,12 +1837,12 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 				 */
 				if (ref_count == 1 + map_count &&
 				    !folio_test_dirty(folio)) {
-					dec_mm_counter(mm, MM_ANONPAGES);
+					dec_mm_counter(mm, MM_AANALNPAGES);
 					goto discard;
 				}
 
 				/*
-				 * If the folio was redirtied, it cannot be
+				 * If the folio was redirtied, it cananalt be
 				 * discarded. Remap the page to page table.
 				 */
 				set_pte_at(mm, address, pvmw.pte, pteval);
@@ -1866,9 +1866,9 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 				break;
 			}
 
-			/* See folio_try_share_anon_rmap(): clear PTE first. */
-			if (anon_exclusive &&
-			    folio_try_share_anon_rmap_pte(folio, subpage)) {
+			/* See folio_try_share_aanaln_rmap(): clear PTE first. */
+			if (aanaln_exclusive &&
+			    folio_try_share_aanaln_rmap_pte(folio, subpage)) {
 				swap_free(entry);
 				set_pte_at(mm, address, pvmw.pte, pteval);
 				ret = false;
@@ -1881,10 +1881,10 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 					list_add(&mm->mmlist, &init_mm.mmlist);
 				spin_unlock(&mmlist_lock);
 			}
-			dec_mm_counter(mm, MM_ANONPAGES);
+			dec_mm_counter(mm, MM_AANALNPAGES);
 			inc_mm_counter(mm, MM_SWAPENTS);
 			swp_pte = swp_entry_to_pte(entry);
-			if (anon_exclusive)
+			if (aanaln_exclusive)
 				swp_pte = pte_swp_mkexclusive(swp_pte);
 			if (pte_soft_dirty(pteval))
 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
@@ -1894,14 +1894,14 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 		} else {
 			/*
 			 * This is a locked file-backed folio,
-			 * so it cannot be removed from the page
+			 * so it cananalt be removed from the page
 			 * cache and replaced by a new folio before
-			 * mmu_notifier_invalidate_range_end, so no
+			 * mmu_analtifier_invalidate_range_end, so anal
 			 * concurrent thread might update its page table
 			 * to point at a new folio while a device is
 			 * still using this folio.
 			 *
-			 * See Documentation/mm/mmu_notifier.rst
+			 * See Documentation/mm/mmu_analtifier.rst
 			 */
 			dec_mm_counter(mm, mm_counter_file(&folio->page));
 		}
@@ -1915,7 +1915,7 @@ discard:
 		folio_put(folio);
 	}
 
-	mmu_notifier_invalidate_range_end(&range);
+	mmu_analtifier_invalidate_range_end(&range);
 
 	return ret;
 }
@@ -1925,7 +1925,7 @@ static bool invalid_migration_vma(struct vm_area_struct *vma, void *arg)
 	return vma_is_temporary_stack(vma);
 }
 
-static int folio_not_mapped(struct folio *folio)
+static int folio_analt_mapped(struct folio *folio)
 {
 	return !folio_mapped(folio);
 }
@@ -1946,8 +1946,8 @@ void try_to_unmap(struct folio *folio, enum ttu_flags flags)
 	struct rmap_walk_control rwc = {
 		.rmap_one = try_to_unmap_one,
 		.arg = (void *)flags,
-		.done = folio_not_mapped,
-		.anon_lock = folio_lock_anon_vma_read,
+		.done = folio_analt_mapped,
+		.aanaln_lock = folio_lock_aanaln_vma_read,
 	};
 
 	if (flags & TTU_RMAP_LOCKED)
@@ -1969,14 +1969,14 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	pte_t pteval;
 	struct page *subpage;
-	bool anon_exclusive, ret = true;
-	struct mmu_notifier_range range;
+	bool aanaln_exclusive, ret = true;
+	struct mmu_analtifier_range range;
 	enum ttu_flags flags = (enum ttu_flags)(long)arg;
 	unsigned long pfn;
 	unsigned long hsz = 0;
 
 	/*
-	 * When racing against e.g. zap_pte_range() on another cpu,
+	 * When racing against e.g. zap_pte_range() on aanalther cpu,
 	 * in between its ptep_get_and_clear_full() and folio_remove_rmap_*(),
 	 * try_to_migrate() may return before page_mapped() has become false,
 	 * if page table locking is skipped: use TTU_SYNC to wait for that.
@@ -1996,11 +1996,11 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 	 * For hugetlb, it could be much worse if we need to do pud
 	 * invalidation in the case of pmd sharing.
 	 *
-	 * Note that the page can not be free in this function as call of
+	 * Analte that the page can analt be free in this function as call of
 	 * try_to_unmap() must hold a reference on the page.
 	 */
 	range.end = vma_address_end(&pvmw);
-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma->vm_mm,
+	mmu_analtifier_range_init(&range, MMU_ANALTIFY_CLEAR, 0, vma->vm_mm,
 				address, range.end);
 	if (folio_test_hugetlb(folio)) {
 		/*
@@ -2013,7 +2013,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 		/* We need the huge page size for set_huge_pte_at() */
 		hsz = huge_page_size(hstate_vma(vma));
 	}
-	mmu_notifier_invalidate_range_start(&range);
+	mmu_analtifier_invalidate_range_start(&range);
 
 	while (page_vma_mapped_walk(&pvmw)) {
 #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
@@ -2040,7 +2040,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 
 		if (folio_is_zone_device(folio)) {
 			/*
-			 * Our PTE is a non-present device exclusive entry and
+			 * Our PTE is a analn-present device exclusive entry and
 			 * calculating the subpage as for the common case would
 			 * result in an invalid pointer.
 			 *
@@ -2055,15 +2055,15 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			subpage = folio_page(folio, pfn - folio_pfn(folio));
 		}
 		address = pvmw.address;
-		anon_exclusive = folio_test_anon(folio) &&
-				 PageAnonExclusive(subpage);
+		aanaln_exclusive = folio_test_aanaln(folio) &&
+				 PageAanalnExclusive(subpage);
 
 		if (folio_test_hugetlb(folio)) {
-			bool anon = folio_test_anon(folio);
+			bool aanaln = folio_test_aanaln(folio);
 
 			/*
 			 * huge_pmd_unshare may unmap an entire PMD page.
-			 * There is no way of knowing exactly which PMDs may
+			 * There is anal way of kanalwing exactly which PMDs may
 			 * be cached for this mm, so we must flush them all.
 			 * start/end were already adjusted above to cover this
 			 * range.
@@ -2080,7 +2080,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			 * i_mmap_rwsem.  We can only try lock here and
 			 * fail if unsuccessful.
 			 */
-			if (!anon) {
+			if (!aanaln) {
 				VM_BUG_ON(!(flags & TTU_RMAP_LOCKED));
 				if (!hugetlb_vma_trylock_write(vma)) {
 					page_vma_mapped_walk_done(&pvmw);
@@ -2097,7 +2097,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 					 * dropped which is part of the way map
 					 * counting is done for shared PMDs.
 					 * Return 'true' here.  When there is
-					 * no other sharing, huge_pmd_unshare
+					 * anal other sharing, huge_pmd_unshare
 					 * returns false and we will unmap the
 					 * actual page and drop map count
 					 * to zero.
@@ -2114,7 +2114,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			/* Nuke the page table entry. */
 			if (should_defer_flush(mm, flags)) {
 				/*
-				 * We clear the PTE but do not flush so potentially
+				 * We clear the PTE but do analt flush so potentially
 				 * a remote CPU could still be writing to the folio.
 				 * If the entry was previously clean then the
 				 * architecture must guarantee that a clear->dirty
@@ -2129,7 +2129,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			}
 		}
 
-		/* Set the dirty flag on the folio now the pte is gone. */
+		/* Set the dirty flag on the folio analw the pte is gone. */
 		if (pte_dirty(pteval))
 			folio_mark_dirty(folio);
 
@@ -2141,8 +2141,8 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			swp_entry_t entry;
 			pte_t swp_pte;
 
-			if (anon_exclusive)
-				WARN_ON_ONCE(folio_try_share_anon_rmap_pte(folio,
+			if (aanaln_exclusive)
+				WARN_ON_ONCE(folio_try_share_aanaln_rmap_pte(folio,
 									   subpage));
 
 			/*
@@ -2153,7 +2153,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			entry = pte_to_swp_entry(pteval);
 			if (is_writable_device_private_entry(entry))
 				entry = make_writable_migration_entry(pfn);
-			else if (anon_exclusive)
+			else if (aanaln_exclusive)
 				entry = make_readable_exclusive_migration_entry(pfn);
 			else
 				entry = make_readable_migration_entry(pfn);
@@ -2171,7 +2171,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			trace_set_migration_pte(pvmw.address, pte_val(swp_pte),
 						compound_order(&folio->page));
 			/*
-			 * No need to invalidate here it will synchronize on
+			 * Anal need to invalidate here it will synchronize on
 			 * against the special swap migration pte.
 			 */
 		} else if (PageHWPoison(subpage)) {
@@ -2187,13 +2187,13 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 
 		} else if (pte_unused(pteval) && !userfaultfd_armed(vma)) {
 			/*
-			 * The guest indicated that the page content is of no
+			 * The guest indicated that the page content is of anal
 			 * interest anymore. Simply discard the pte, vmscan
 			 * will take care of the rest.
 			 * A future reference will then fault in a new zero
-			 * page. When userfaultfd is active, we must not drop
+			 * page. When userfaultfd is active, we must analt drop
 			 * this page though, as its main user (postcopy
-			 * migration) will not expect userfaults on already
+			 * migration) will analt expect userfaults on already
 			 * copied pages.
 			 */
 			dec_mm_counter(mm, mm_counter(&folio->page));
@@ -2211,21 +2211,21 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 				page_vma_mapped_walk_done(&pvmw);
 				break;
 			}
-			VM_BUG_ON_PAGE(pte_write(pteval) && folio_test_anon(folio) &&
-				       !anon_exclusive, subpage);
+			VM_BUG_ON_PAGE(pte_write(pteval) && folio_test_aanaln(folio) &&
+				       !aanaln_exclusive, subpage);
 
-			/* See folio_try_share_anon_rmap_pte(): clear PTE first. */
+			/* See folio_try_share_aanaln_rmap_pte(): clear PTE first. */
 			if (folio_test_hugetlb(folio)) {
-				if (anon_exclusive &&
-				    hugetlb_try_share_anon_rmap(folio)) {
+				if (aanaln_exclusive &&
+				    hugetlb_try_share_aanaln_rmap(folio)) {
 					set_huge_pte_at(mm, address, pvmw.pte,
 							pteval, hsz);
 					ret = false;
 					page_vma_mapped_walk_done(&pvmw);
 					break;
 				}
-			} else if (anon_exclusive &&
-				   folio_try_share_anon_rmap_pte(folio, subpage)) {
+			} else if (aanaln_exclusive &&
+				   folio_try_share_aanaln_rmap_pte(folio, subpage)) {
 				set_pte_at(mm, address, pvmw.pte, pteval);
 				ret = false;
 				page_vma_mapped_walk_done(&pvmw);
@@ -2240,7 +2240,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			if (pte_write(pteval))
 				entry = make_writable_migration_entry(
 							page_to_pfn(subpage));
-			else if (anon_exclusive)
+			else if (aanaln_exclusive)
 				entry = make_readable_exclusive_migration_entry(
 							page_to_pfn(subpage));
 			else
@@ -2263,7 +2263,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			trace_set_migration_pte(address, pte_val(swp_pte),
 						compound_order(&folio->page));
 			/*
-			 * No need to invalidate here it will synchronize on
+			 * Anal need to invalidate here it will synchronize on
 			 * against the special swap migration pte.
 			 */
 		}
@@ -2277,7 +2277,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 		folio_put(folio);
 	}
 
-	mmu_notifier_invalidate_range_end(&range);
+	mmu_analtifier_invalidate_range_end(&range);
 
 	return ret;
 }
@@ -2295,12 +2295,12 @@ void try_to_migrate(struct folio *folio, enum ttu_flags flags)
 	struct rmap_walk_control rwc = {
 		.rmap_one = try_to_migrate_one,
 		.arg = (void *)flags,
-		.done = folio_not_mapped,
-		.anon_lock = folio_lock_anon_vma_read,
+		.done = folio_analt_mapped,
+		.aanaln_lock = folio_lock_aanaln_vma_read,
 	};
 
 	/*
-	 * Migration always ignores mlock and only supports TTU_RMAP_LOCKED and
+	 * Migration always iganalres mlock and only supports TTU_RMAP_LOCKED and
 	 * TTU_SPLIT_HUGE_PMD, TTU_SYNC, and TTU_BATCH_FLUSH flags.
 	 */
 	if (WARN_ON_ONCE(flags & ~(TTU_RMAP_LOCKED | TTU_SPLIT_HUGE_PMD |
@@ -2313,13 +2313,13 @@ void try_to_migrate(struct folio *folio, enum ttu_flags flags)
 
 	/*
 	 * During exec, a temporary VMA is setup and later moved.
-	 * The VMA is moved under the anon_vma lock but not the
-	 * page tables leading to a race where migration cannot
+	 * The VMA is moved under the aanaln_vma lock but analt the
+	 * page tables leading to a race where migration cananalt
 	 * find the migration ptes. Rather than increasing the
 	 * locking requirements of exec(), migration skips
 	 * temporary VMAs until after exec() completes.
 	 */
-	if (!folio_test_ksm(folio) && folio_test_anon(folio))
+	if (!folio_test_ksm(folio) && folio_test_aanaln(folio))
 		rwc.invalid_vma = invalid_migration_vma;
 
 	if (flags & TTU_RMAP_LOCKED)
@@ -2345,16 +2345,16 @@ static bool page_make_device_exclusive_one(struct folio *folio,
 	pte_t pteval;
 	struct page *subpage;
 	bool ret = true;
-	struct mmu_notifier_range range;
+	struct mmu_analtifier_range range;
 	swp_entry_t entry;
 	pte_t swp_pte;
 	pte_t ptent;
 
-	mmu_notifier_range_init_owner(&range, MMU_NOTIFY_EXCLUSIVE, 0,
+	mmu_analtifier_range_init_owner(&range, MMU_ANALTIFY_EXCLUSIVE, 0,
 				      vma->vm_mm, address, min(vma->vm_end,
 				      address + folio_size(folio)),
 				      args->owner);
-	mmu_notifier_invalidate_range_start(&range);
+	mmu_analtifier_invalidate_range_start(&range);
 
 	while (page_vma_mapped_walk(&pvmw)) {
 		/* Unexpected PMD-mapped THP? */
@@ -2375,7 +2375,7 @@ static bool page_make_device_exclusive_one(struct folio *folio,
 		flush_cache_page(vma, address, pte_pfn(ptent));
 		pteval = ptep_clear_flush(vma, address, pvmw.pte);
 
-		/* Set the dirty flag on the folio now the pte is gone. */
+		/* Set the dirty flag on the folio analw the pte is gone. */
 		if (pte_dirty(pteval))
 			folio_mark_dirty(folio);
 
@@ -2408,12 +2408,12 @@ static bool page_make_device_exclusive_one(struct folio *folio,
 
 		/*
 		 * There is a reference on the page for the swap entry which has
-		 * been removed, so shouldn't take another.
+		 * been removed, so shouldn't take aanalther.
 		 */
 		folio_remove_rmap_pte(folio, subpage, vma);
 	}
 
-	mmu_notifier_invalidate_range_end(&range);
+	mmu_analtifier_invalidate_range_end(&range);
 
 	return ret;
 }
@@ -2423,14 +2423,14 @@ static bool page_make_device_exclusive_one(struct folio *folio,
  * @folio: The folio to replace page table entries for.
  * @mm: The mm_struct where the folio is expected to be mapped.
  * @address: Address where the folio is expected to be mapped.
- * @owner: passed to MMU_NOTIFY_EXCLUSIVE range notifier callbacks
+ * @owner: passed to MMU_ANALTIFY_EXCLUSIVE range analtifier callbacks
  *
  * Tries to remove all the page table entries which are mapping this
  * folio and replace them with special device exclusive swap entries to
  * grant a device exclusive access to the folio.
  *
  * Context: Caller must hold the folio lock.
- * Return: false if the page is still mapped, or if it could not be unmapped
+ * Return: false if the page is still mapped, or if it could analt be unmapped
  * from the expected address. Otherwise returns true (success).
  */
 static bool folio_make_device_exclusive(struct folio *folio,
@@ -2444,16 +2444,16 @@ static bool folio_make_device_exclusive(struct folio *folio,
 	};
 	struct rmap_walk_control rwc = {
 		.rmap_one = page_make_device_exclusive_one,
-		.done = folio_not_mapped,
-		.anon_lock = folio_lock_anon_vma_read,
+		.done = folio_analt_mapped,
+		.aanaln_lock = folio_lock_aanaln_vma_read,
 		.arg = &args,
 	};
 
 	/*
-	 * Restrict to anonymous folios for now to avoid potential writeback
+	 * Restrict to aanalnymous folios for analw to avoid potential writeback
 	 * issues.
 	 */
-	if (!folio_test_anon(folio))
+	if (!folio_test_aanaln(folio))
 		return false;
 
 	rmap_walk(folio, &rwc);
@@ -2467,17 +2467,17 @@ static bool folio_make_device_exclusive(struct folio *folio,
  * @start: start of the region to mark for exclusive device access
  * @end: end address of region
  * @pages: returns the pages which were successfully marked for exclusive access
- * @owner: passed to MMU_NOTIFY_EXCLUSIVE range notifier to allow filtering
+ * @owner: passed to MMU_ANALTIFY_EXCLUSIVE range analtifier to allow filtering
  *
  * Returns: number of pages found in the range by GUP. A page is marked for
- * exclusive access only if the page pointer is non-NULL.
+ * exclusive access only if the page pointer is analn-NULL.
  *
  * This function finds ptes mapping page(s) to the given address range, locks
  * them and replaces mappings with special swap entries preventing userspace CPU
  * access. On fault these entries are replaced with the original mapping after
- * calling MMU notifiers.
+ * calling MMU analtifiers.
  *
- * A driver using this to program access from a device must use a mmu notifier
+ * A driver using this to program access from a device must use a mmu analtifier
  * critical section to hold a device specific lock during programming. Once
  * programming is complete it should drop the page lock and reference after
  * which point CPU access to the page will revoke the exclusive access.
@@ -2515,77 +2515,77 @@ int make_device_exclusive_range(struct mm_struct *mm, unsigned long start,
 EXPORT_SYMBOL_GPL(make_device_exclusive_range);
 #endif
 
-void __put_anon_vma(struct anon_vma *anon_vma)
+void __put_aanaln_vma(struct aanaln_vma *aanaln_vma)
 {
-	struct anon_vma *root = anon_vma->root;
+	struct aanaln_vma *root = aanaln_vma->root;
 
-	anon_vma_free(anon_vma);
-	if (root != anon_vma && atomic_dec_and_test(&root->refcount))
-		anon_vma_free(root);
+	aanaln_vma_free(aanaln_vma);
+	if (root != aanaln_vma && atomic_dec_and_test(&root->refcount))
+		aanaln_vma_free(root);
 }
 
-static struct anon_vma *rmap_walk_anon_lock(struct folio *folio,
+static struct aanaln_vma *rmap_walk_aanaln_lock(struct folio *folio,
 					    struct rmap_walk_control *rwc)
 {
-	struct anon_vma *anon_vma;
+	struct aanaln_vma *aanaln_vma;
 
-	if (rwc->anon_lock)
-		return rwc->anon_lock(folio, rwc);
+	if (rwc->aanaln_lock)
+		return rwc->aanaln_lock(folio, rwc);
 
 	/*
-	 * Note: remove_migration_ptes() cannot use folio_lock_anon_vma_read()
-	 * because that depends on page_mapped(); but not all its usages
+	 * Analte: remove_migration_ptes() cananalt use folio_lock_aanaln_vma_read()
+	 * because that depends on page_mapped(); but analt all its usages
 	 * are holding mmap_lock. Users without mmap_lock are required to
-	 * take a reference count to prevent the anon_vma disappearing
+	 * take a reference count to prevent the aanaln_vma disappearing
 	 */
-	anon_vma = folio_anon_vma(folio);
-	if (!anon_vma)
+	aanaln_vma = folio_aanaln_vma(folio);
+	if (!aanaln_vma)
 		return NULL;
 
-	if (anon_vma_trylock_read(anon_vma))
+	if (aanaln_vma_trylock_read(aanaln_vma))
 		goto out;
 
 	if (rwc->try_lock) {
-		anon_vma = NULL;
+		aanaln_vma = NULL;
 		rwc->contended = true;
 		goto out;
 	}
 
-	anon_vma_lock_read(anon_vma);
+	aanaln_vma_lock_read(aanaln_vma);
 out:
-	return anon_vma;
+	return aanaln_vma;
 }
 
 /*
- * rmap_walk_anon - do something to anonymous page using the object-based
+ * rmap_walk_aanaln - do something to aanalnymous page using the object-based
  * rmap method
  * @folio: the folio to be handled
  * @rwc: control variable according to each walk type
  * @locked: caller holds relevant rmap lock
  *
  * Find all the mappings of a folio using the mapping pointer and the vma
- * chains contained in the anon_vma struct it points to.
+ * chains contained in the aanaln_vma struct it points to.
  */
-static void rmap_walk_anon(struct folio *folio,
+static void rmap_walk_aanaln(struct folio *folio,
 		struct rmap_walk_control *rwc, bool locked)
 {
-	struct anon_vma *anon_vma;
+	struct aanaln_vma *aanaln_vma;
 	pgoff_t pgoff_start, pgoff_end;
-	struct anon_vma_chain *avc;
+	struct aanaln_vma_chain *avc;
 
 	if (locked) {
-		anon_vma = folio_anon_vma(folio);
-		/* anon_vma disappear under us? */
-		VM_BUG_ON_FOLIO(!anon_vma, folio);
+		aanaln_vma = folio_aanaln_vma(folio);
+		/* aanaln_vma disappear under us? */
+		VM_BUG_ON_FOLIO(!aanaln_vma, folio);
 	} else {
-		anon_vma = rmap_walk_anon_lock(folio, rwc);
+		aanaln_vma = rmap_walk_aanaln_lock(folio, rwc);
 	}
-	if (!anon_vma)
+	if (!aanaln_vma)
 		return;
 
 	pgoff_start = folio_pgoff(folio);
 	pgoff_end = pgoff_start + folio_nr_pages(folio) - 1;
-	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root,
+	aanaln_vma_interval_tree_foreach(avc, &aanaln_vma->rb_root,
 			pgoff_start, pgoff_end) {
 		struct vm_area_struct *vma = avc->vma;
 		unsigned long address = vma_address(&folio->page, vma);
@@ -2603,7 +2603,7 @@ static void rmap_walk_anon(struct folio *folio,
 	}
 
 	if (!locked)
-		anon_vma_unlock_read(anon_vma);
+		aanaln_vma_unlock_read(aanaln_vma);
 }
 
 /*
@@ -2623,9 +2623,9 @@ static void rmap_walk_file(struct folio *folio,
 	struct vm_area_struct *vma;
 
 	/*
-	 * The page lock not only makes sure that page->mapping cannot
+	 * The page lock analt only makes sure that page->mapping cananalt
 	 * suddenly be NULLified by truncation, it makes sure that the
-	 * structure at mapping cannot be freed and reused yet,
+	 * structure at mapping cananalt be freed and reused yet,
 	 * so we can safely take mapping->i_mmap_rwsem.
 	 */
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
@@ -2672,8 +2672,8 @@ void rmap_walk(struct folio *folio, struct rmap_walk_control *rwc)
 {
 	if (unlikely(folio_test_ksm(folio)))
 		rmap_walk_ksm(folio, rwc);
-	else if (folio_test_anon(folio))
-		rmap_walk_anon(folio, rwc, false);
+	else if (folio_test_aanaln(folio))
+		rmap_walk_aanaln(folio, rwc, false);
 	else
 		rmap_walk_file(folio, rwc, false);
 }
@@ -2681,34 +2681,34 @@ void rmap_walk(struct folio *folio, struct rmap_walk_control *rwc)
 /* Like rmap_walk, but caller holds relevant rmap lock */
 void rmap_walk_locked(struct folio *folio, struct rmap_walk_control *rwc)
 {
-	/* no ksm support for now */
+	/* anal ksm support for analw */
 	VM_BUG_ON_FOLIO(folio_test_ksm(folio), folio);
-	if (folio_test_anon(folio))
-		rmap_walk_anon(folio, rwc, true);
+	if (folio_test_aanaln(folio))
+		rmap_walk_aanaln(folio, rwc, true);
 	else
 		rmap_walk_file(folio, rwc, true);
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
 /*
- * The following two functions are for anonymous (private mapped) hugepages.
- * Unlike common anonymous pages, anonymous hugepages have no accounting code
- * and no lru code, because we handle hugepages differently from common pages.
+ * The following two functions are for aanalnymous (private mapped) hugepages.
+ * Unlike common aanalnymous pages, aanalnymous hugepages have anal accounting code
+ * and anal lru code, because we handle hugepages differently from common pages.
  */
-void hugetlb_add_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
+void hugetlb_add_aanaln_rmap(struct folio *folio, struct vm_area_struct *vma,
 		unsigned long address, rmap_t flags)
 {
 	VM_WARN_ON_FOLIO(!folio_test_hugetlb(folio), folio);
-	VM_WARN_ON_FOLIO(!folio_test_anon(folio), folio);
+	VM_WARN_ON_FOLIO(!folio_test_aanaln(folio), folio);
 
 	atomic_inc(&folio->_entire_mapcount);
 	if (flags & RMAP_EXCLUSIVE)
-		SetPageAnonExclusive(&folio->page);
+		SetPageAanalnExclusive(&folio->page);
 	VM_WARN_ON_FOLIO(folio_entire_mapcount(folio) > 1 &&
-			 PageAnonExclusive(&folio->page), folio);
+			 PageAanalnExclusive(&folio->page), folio);
 }
 
-void hugetlb_add_new_anon_rmap(struct folio *folio,
+void hugetlb_add_new_aanaln_rmap(struct folio *folio,
 		struct vm_area_struct *vma, unsigned long address)
 {
 	VM_WARN_ON_FOLIO(!folio_test_hugetlb(folio), folio);
@@ -2717,7 +2717,7 @@ void hugetlb_add_new_anon_rmap(struct folio *folio,
 	/* increment count (starts at -1) */
 	atomic_set(&folio->_entire_mapcount, 0);
 	folio_clear_hugetlb_restore_reserve(folio);
-	__folio_set_anon(folio, vma, address, true);
-	SetPageAnonExclusive(&folio->page);
+	__folio_set_aanaln(folio, vma, address, true);
+	SetPageAanalnExclusive(&folio->page);
 }
 #endif /* CONFIG_HUGETLB_PAGE */

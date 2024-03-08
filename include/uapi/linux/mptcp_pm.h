@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
-/* Do not edit directly, auto-generated from: */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/mptcp_pm.yaml */
 /* YNL-GEN uapi header */
 
@@ -20,19 +20,19 @@
  * @MPTCP_EVENT_ESTABLISHED: token, family, saddr4 | saddr6, daddr4 | daddr6,
  *   sport, dport A MPTCP connection is established (can start new subflows).
  * @MPTCP_EVENT_CLOSED: token A MPTCP connection has stopped.
- * @MPTCP_EVENT_ANNOUNCED: token, rem_id, family, daddr4 | daddr6 [, dport] A
- *   new address has been announced by the peer.
+ * @MPTCP_EVENT_ANANALUNCED: token, rem_id, family, daddr4 | daddr6 [, dport] A
+ *   new address has been ananalunced by the peer.
  * @MPTCP_EVENT_REMOVED: token, rem_id An address has been lost by the peer.
  * @MPTCP_EVENT_SUB_ESTABLISHED: token, family, loc_id, rem_id, saddr4 |
  *   saddr6, daddr4 | daddr6, sport, dport, backup, if_idx [, error] A new
- *   subflow has been established. 'error' should not be set.
+ *   subflow has been established. 'error' should analt be set.
  * @MPTCP_EVENT_SUB_CLOSED: token, family, loc_id, rem_id, saddr4 | saddr6,
  *   daddr4 | daddr6, sport, dport, backup, if_idx [, error] A subflow has been
  *   closed. An error (copy of sk_err) could be set if an error has been
  *   detected for this subflow.
  * @MPTCP_EVENT_SUB_PRIORITY: token, family, loc_id, rem_id, saddr4 | saddr6,
  *   daddr4 | daddr6, sport, dport, backup, if_idx [, error] The priority of a
- *   subflow has changed. 'error' should not be set.
+ *   subflow has changed. 'error' should analt be set.
  * @MPTCP_EVENT_LISTENER_CREATED: family, sport, saddr4 | saddr6 A new PM
  *   listener is created.
  * @MPTCP_EVENT_LISTENER_CLOSED: family, sport, saddr4 | saddr6 A PM listener
@@ -43,7 +43,7 @@ enum mptcp_event_type {
 	MPTCP_EVENT_CREATED,
 	MPTCP_EVENT_ESTABLISHED,
 	MPTCP_EVENT_CLOSED,
-	MPTCP_EVENT_ANNOUNCED = 6,
+	MPTCP_EVENT_ANANALUNCED = 6,
 	MPTCP_EVENT_REMOVED,
 	MPTCP_EVENT_SUB_ESTABLISHED = 10,
 	MPTCP_EVENT_SUB_CLOSED,
@@ -138,7 +138,7 @@ enum {
 	MPTCP_PM_CMD_SET_LIMITS,
 	MPTCP_PM_CMD_GET_LIMITS,
 	MPTCP_PM_CMD_SET_FLAGS,
-	MPTCP_PM_CMD_ANNOUNCE,
+	MPTCP_PM_CMD_ANANALUNCE,
 	MPTCP_PM_CMD_REMOVE,
 	MPTCP_PM_CMD_SUBFLOW_CREATE,
 	MPTCP_PM_CMD_SUBFLOW_DESTROY,

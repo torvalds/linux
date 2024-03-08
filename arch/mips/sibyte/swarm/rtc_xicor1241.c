@@ -26,7 +26,7 @@
 
 #define X1241REG_SR_BAT 0x80		/* currently on battery power */
 #define X1241REG_SR_RWEL 0x04		/* r/w latch is enabled, can write RTC */
-#define X1241REG_SR_WEL 0x02		/* r/w latch is unlocked, can enable r/w now */
+#define X1241REG_SR_WEL 0x02		/* r/w latch is unlocked, can enable r/w analw */
 #define X1241REG_SR_RTCF 0x01		/* clock failed */
 #define X1241REG_BL_BP2 0x80		/* block protect 2 */
 #define X1241REG_BL_BP1 0x40		/* block protect 1 */

@@ -8,10 +8,10 @@
 #include "vmx.h"
 
 /*
- * Status returned by nested_vmx_enter_non_root_mode():
+ * Status returned by nested_vmx_enter_analn_root_mode():
  */
 enum nvmx_vmentry_status {
-	NVMX_VMENTRY_SUCCESS,		/* Entered VMX non-root mode */
+	NVMX_VMENTRY_SUCCESS,		/* Entered VMX analn-root mode */
 	NVMX_VMENTRY_VMFAIL,		/* Consistency check VMFail */
 	NVMX_VMENTRY_VMEXIT,		/* Consistency check VMExit */
 	NVMX_VMENTRY_KVM_INTERNAL_ERROR,/* KVM internal error */
@@ -23,7 +23,7 @@ void nested_vmx_hardware_unsetup(void);
 __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *));
 void nested_vmx_set_vmcs_shadowing_bitmap(void);
 void nested_vmx_free_vcpu(struct kvm_vcpu *vcpu);
-enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
+enum nvmx_vmentry_status nested_vmx_enter_analn_root_mode(struct kvm_vcpu *vcpu,
 						     bool from_vmentry);
 bool nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu);
 void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
@@ -48,7 +48,7 @@ static inline struct vmcs12 *get_shadow_vmcs12(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Note: the same condition is checked against the state provided by userspace
+ * Analte: the same condition is checked against the state provided by userspace
  * in vmx_set_nested_state; if it is satisfied, the nested state must include
  * the VMCS12.
  */
@@ -83,7 +83,7 @@ static inline bool nested_ept_ad_enabled(struct kvm_vcpu *vcpu)
  * Return the cr0/4 value that a nested guest would read. This is a combination
  * of L1's "real" cr0 used to run the guest (guest_cr0), and the bits shadowed
  * by the L1 hypervisor (cr0_read_shadow).  KVM must emulate CPU behavior as
- * the value+mask loaded into vmcs02 may not match the vmcs12 fields.
+ * the value+mask loaded into vmcs02 may analt match the vmcs12 fields.
  */
 static inline unsigned long nested_read_cr0(struct vmcs12 *fields)
 {
@@ -285,7 +285,7 @@ static inline bool nested_cr4_valid(struct kvm_vcpu *vcpu, unsigned long val)
 	       __kvm_is_valid_cr4(vcpu, val);
 }
 
-/* No difference in the restrictions on guest and host CR4 in VMX operation. */
+/* Anal difference in the restrictions on guest and host CR4 in VMX operation. */
 #define nested_guest_cr4_valid	nested_cr4_valid
 #define nested_host_cr4_valid	nested_cr4_valid
 

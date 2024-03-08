@@ -44,13 +44,13 @@ int ext4_getfsmap(struct super_block *sb, struct ext4_fsmap_head *head,
 
 /*	fmr_owner special values for FS_IOC_GETFSMAP; some share w/ XFS */
 #define EXT4_FMR_OWN_FREE	FMR_OWN_FREE      /* free space */
-#define EXT4_FMR_OWN_UNKNOWN	FMR_OWN_UNKNOWN   /* unknown owner */
+#define EXT4_FMR_OWN_UNKANALWN	FMR_OWN_UNKANALWN   /* unkanalwn owner */
 #define EXT4_FMR_OWN_FS		FMR_OWNER('X', 1) /* static fs metadata */
 #define EXT4_FMR_OWN_LOG	FMR_OWNER('X', 2) /* journalling log */
-#define EXT4_FMR_OWN_INODES	FMR_OWNER('X', 5) /* inodes */
+#define EXT4_FMR_OWN_IANALDES	FMR_OWNER('X', 5) /* ianaldes */
 #define EXT4_FMR_OWN_GDT	FMR_OWNER('f', 1) /* group descriptors */
 #define EXT4_FMR_OWN_RESV_GDT	FMR_OWNER('f', 2) /* reserved gdt blocks */
 #define EXT4_FMR_OWN_BLKBM	FMR_OWNER('f', 3) /* block bitmap */
-#define EXT4_FMR_OWN_INOBM	FMR_OWNER('f', 4) /* inode bitmap */
+#define EXT4_FMR_OWN_IANALBM	FMR_OWNER('f', 4) /* ianalde bitmap */
 
 #endif /* __EXT4_FSMAP_H__ */

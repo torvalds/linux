@@ -7,7 +7,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/workqueue.h>
@@ -71,7 +71,7 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	dst->__use = 0;
 	dst->lastuse = jiffies;
 	dst->flags = flags;
-	if (!(flags & DST_NOCOUNT))
+	if (!(flags & DST_ANALCOUNT))
 		dst_entries_add(ops, 1);
 }
 EXPORT_SYMBOL(dst_init);
@@ -82,7 +82,7 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 	struct dst_entry *dst;
 
 	if (ops->gc &&
-	    !(flags & DST_NOCOUNT) &&
+	    !(flags & DST_ANALCOUNT) &&
 	    dst_entries_get_fast(ops) > ops->gc_thresh)
 		ops->gc(ops);
 
@@ -109,7 +109,7 @@ struct dst_entry *dst_destroy(struct dst_entry * dst)
 		child = xdst->child;
 	}
 #endif
-	if (!(dst->flags & DST_NOCOUNT))
+	if (!(dst->flags & DST_ANALCOUNT))
 		dst_entries_add(dst->ops, -1);
 
 	if (dst->ops->destroy)
@@ -270,8 +270,8 @@ static void __metadata_dst_init(struct metadata_dst *md_dst,
 	struct dst_entry *dst;
 
 	dst = &md_dst->dst;
-	dst_init(dst, &dst_blackhole_ops, NULL, DST_OBSOLETE_NONE,
-		 DST_METADATA | DST_NOCOUNT);
+	dst_init(dst, &dst_blackhole_ops, NULL, DST_OBSOLETE_ANALNE,
+		 DST_METADATA | DST_ANALCOUNT);
 	memset(dst + 1, 0, sizeof(*md_dst) + optslen - sizeof(*dst));
 	md_dst->type = type;
 }
@@ -310,7 +310,7 @@ metadata_dst_alloc_percpu(u8 optslen, enum metadata_type type, gfp_t flags)
 	struct metadata_dst __percpu *md_dst;
 
 	md_dst = __alloc_percpu_gfp(sizeof(struct metadata_dst) + optslen,
-				    __alignof__(struct metadata_dst), flags);
+				    __aliganalf__(struct metadata_dst), flags);
 	if (!md_dst)
 		return NULL;
 

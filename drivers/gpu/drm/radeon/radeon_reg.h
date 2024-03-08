@@ -1,5 +1,5 @@
 /*
- * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
+ * Copyright 2000 ATI Techanallogies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
  *
  * All Rights Reserved.
@@ -12,14 +12,14 @@
  * and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NON-INFRINGEMENT.  IN NO EVENT SHALL ATI, VA LINUX SYSTEMS AND/OR
+ * ANALN-INFRINGEMENT.  IN ANAL EVENT SHALL ATI, VA LINUX SYSTEMS AND/OR
  * THEIR SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -36,17 +36,17 @@
  *
  * !!!! FIXME !!!!
  *   RAGE 128 VR/ RAGE 128 GL Register Reference Manual (Technical
- *   Reference Manual P/N RRG-G04100-C Rev. 0.04), ATI Technologies: April
+ *   Reference Manual P/N RRG-G04100-C Rev. 0.04), ATI Techanallogies: April
  *   1999.
  *
  * !!!! FIXME !!!!
  *   RAGE 128 Software Development Manual (Technical Reference Manual P/N
- *   SDK-G04000 Rev. 0.01), ATI Technologies: June 1999.
+ *   SDK-G04000 Rev. 0.01), ATI Techanallogies: June 1999.
  *
  */
 
-/* !!!! FIXME !!!!  NOTE: THIS FILE HAS BEEN CONVERTED FROM r128_reg.h
- * AND CONTAINS REGISTERS AND REGISTER DEFINITIONS THAT ARE NOT CORRECT
+/* !!!! FIXME !!!!  ANALTE: THIS FILE HAS BEEN CONVERTED FROM r128_reg.h
+ * AND CONTAINS REGISTERS AND REGISTER DEFINITIONS THAT ARE ANALT CORRECT
  * ON THE RADEON.  A FULL AUDIT OF THIS CODE IS NEEDED!  */
 #ifndef _RADEON_REG_H_
 #define _RADEON_REG_H_
@@ -164,7 +164,7 @@
 #define RADEON_BIOS_3_SCRATCH               0x001c
 #define RADEON_BIOS_4_SCRATCH               0x0020
 #       define RADEON_CRT1_ATTACHED_MASK    (3 << 0)
-#       define RADEON_CRT1_ATTACHED_MONO    (1 << 0)
+#       define RADEON_CRT1_ATTACHED_MOANAL    (1 << 0)
 #       define RADEON_CRT1_ATTACHED_COLOR   (2 << 0)
 #       define RADEON_LCD1_ATTACHED         (1 << 2)
 #       define RADEON_DFP1_ATTACHED         (1 << 3)
@@ -172,7 +172,7 @@
 #       define RADEON_TV1_ATTACHED_COMP     (1 << 4)
 #       define RADEON_TV1_ATTACHED_SVIDEO   (2 << 4)
 #       define RADEON_CRT2_ATTACHED_MASK    (3 << 8)
-#       define RADEON_CRT2_ATTACHED_MONO    (1 << 8)
+#       define RADEON_CRT2_ATTACHED_MOANAL    (1 << 8)
 #       define RADEON_CRT2_ATTACHED_COLOR   (2 << 8)
 #       define RADEON_DFP2_ATTACHED         (1 << 11)
 #define RADEON_BIOS_5_SCRATCH               0x0024
@@ -322,7 +322,7 @@
 #       define RADEON_PCIE_LC_LINK_WIDTH_X16       6
 #       define RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT  4
 #       define RADEON_PCIE_LC_LINK_WIDTH_RD_MASK   0x70
-#       define RADEON_PCIE_LC_RECONFIG_NOW         (1 << 8)
+#       define RADEON_PCIE_LC_RECONFIG_ANALW         (1 << 8)
 #       define RADEON_PCIE_LC_RECONFIG_LATER       (1 << 9)
 #       define RADEON_PCIE_LC_SHORT_RECONFIG_EN    (1 << 10)
 #       define R600_PCIE_LC_RECONFIG_ARC_MISSING_ESCAPE   (1 << 7)
@@ -354,11 +354,11 @@
 #       define RADEON_DISP_DYN_STOP_LAT_MASK (1 << 12)
 #       define RADEON_MC_BUSY               (1 << 16)
 #       define RADEON_DLL_READY             (1 << 19)
-#       define RADEON_CG_NO1_DEBUG_0        (1 << 24)
-#       define RADEON_CG_NO1_DEBUG_MASK     (0x1f << 24)
+#       define RADEON_CG_ANAL1_DEBUG_0        (1 << 24)
+#       define RADEON_CG_ANAL1_DEBUG_MASK     (0x1f << 24)
 #       define RADEON_DYN_STOP_MODE_MASK    (7 << 21)
 #       define RADEON_TVPLL_PWRMGT_OFF      (1 << 30)
-#       define RADEON_TVCLK_TURNOFF         (1 << 31)
+#       define RADEON_TVCLK_TURANALFF         (1 << 31)
 #define RADEON_PLL_PWRMGT_CNTL              0x0015 /* PLL */
 #	define RADEON_PM_MODE_SEL           (1 << 13)
 #       define RADEON_TCL_BYPASS_DISABLE    (1 << 20)
@@ -441,7 +441,7 @@
 #       define RADEON_CRTC_VSTAT_MODE_MASK  (3 << 17)
 #       define RADEON_CRTC_CUR_MODE_MASK    (7 << 20)
 #       define RADEON_CRTC_CUR_MODE_SHIFT   20
-#       define RADEON_CRTC_CUR_MODE_MONO    0
+#       define RADEON_CRTC_CUR_MODE_MOANAL    0
 #       define RADEON_CRTC_CUR_MODE_24BPP   2
 #       define RADEON_CRTC_EXT_DISP_EN      (1 << 24)
 #       define RADEON_CRTC_EN               (1 << 25)
@@ -751,18 +751,18 @@
 #       define RADEON_GMC_SRC_CLIPPING            (1    <<  2)
 #       define RADEON_GMC_DST_CLIPPING            (1    <<  3)
 #       define RADEON_GMC_BRUSH_DATATYPE_MASK     (0x0f <<  4)
-#       define RADEON_GMC_BRUSH_8X8_MONO_FG_BG    (0    <<  4)
-#       define RADEON_GMC_BRUSH_8X8_MONO_FG_LA    (1    <<  4)
-#       define RADEON_GMC_BRUSH_1X8_MONO_FG_BG    (4    <<  4)
-#       define RADEON_GMC_BRUSH_1X8_MONO_FG_LA    (5    <<  4)
-#       define RADEON_GMC_BRUSH_32x1_MONO_FG_BG   (6    <<  4)
-#       define RADEON_GMC_BRUSH_32x1_MONO_FG_LA   (7    <<  4)
-#       define RADEON_GMC_BRUSH_32x32_MONO_FG_BG  (8    <<  4)
-#       define RADEON_GMC_BRUSH_32x32_MONO_FG_LA  (9    <<  4)
+#       define RADEON_GMC_BRUSH_8X8_MOANAL_FG_BG    (0    <<  4)
+#       define RADEON_GMC_BRUSH_8X8_MOANAL_FG_LA    (1    <<  4)
+#       define RADEON_GMC_BRUSH_1X8_MOANAL_FG_BG    (4    <<  4)
+#       define RADEON_GMC_BRUSH_1X8_MOANAL_FG_LA    (5    <<  4)
+#       define RADEON_GMC_BRUSH_32x1_MOANAL_FG_BG   (6    <<  4)
+#       define RADEON_GMC_BRUSH_32x1_MOANAL_FG_LA   (7    <<  4)
+#       define RADEON_GMC_BRUSH_32x32_MOANAL_FG_BG  (8    <<  4)
+#       define RADEON_GMC_BRUSH_32x32_MOANAL_FG_LA  (9    <<  4)
 #       define RADEON_GMC_BRUSH_8x8_COLOR         (10   <<  4)
 #       define RADEON_GMC_BRUSH_1X8_COLOR         (12   <<  4)
 #       define RADEON_GMC_BRUSH_SOLID_COLOR       (13   <<  4)
-#       define RADEON_GMC_BRUSH_NONE              (15   <<  4)
+#       define RADEON_GMC_BRUSH_ANALNE              (15   <<  4)
 #       define RADEON_GMC_DST_8BPP_CI             (2    <<  8)
 #       define RADEON_GMC_DST_15BPP               (3    <<  8)
 #       define RADEON_GMC_DST_16BPP               (4    <<  8)
@@ -778,8 +778,8 @@
 #       define RADEON_GMC_DST_DATATYPE_MASK       (0x0f <<  8)
 #       define RADEON_GMC_DST_DATATYPE_SHIFT      8
 #       define RADEON_GMC_SRC_DATATYPE_MASK       (3    << 12)
-#       define RADEON_GMC_SRC_DATATYPE_MONO_FG_BG (0    << 12)
-#       define RADEON_GMC_SRC_DATATYPE_MONO_FG_LA (1    << 12)
+#       define RADEON_GMC_SRC_DATATYPE_MOANAL_FG_BG (0    << 12)
+#       define RADEON_GMC_SRC_DATATYPE_MOANAL_FG_LA (1    << 12)
 #       define RADEON_GMC_SRC_DATATYPE_COLOR      (3    << 12)
 #       define RADEON_GMC_BYTE_PIX_ORDER          (1    << 14)
 #       define RADEON_GMC_BYTE_MSB_TO_LSB         (0    << 14)
@@ -807,9 +807,9 @@
 #       define RADEON_ROP3_DSon             0x00110000
 #       define RADEON_ROP3_DSxn             0x00990000
 #       define RADEON_ROP3_Dn               0x00550000
-#       define RADEON_ROP3_SDno             0x00dd0000
+#       define RADEON_ROP3_SDanal             0x00dd0000
 #       define RADEON_ROP3_Sn               0x00330000
-#       define RADEON_ROP3_DSno             0x00bb0000
+#       define RADEON_ROP3_DSanal             0x00bb0000
 #       define RADEON_ROP3_DSan             0x00770000
 #       define RADEON_ROP3_ONE              0x00ff0000
 #       define RADEON_ROP3_DPa              0x00a00000
@@ -821,9 +821,9 @@
 #       define RADEON_ROP3_DPo              0x00fa0000
 #       define RADEON_ROP3_DPon             0x00050000
 #       define RADEON_ROP3_PDxn             0x00a50000
-#       define RADEON_ROP3_PDno             0x00f50000
+#       define RADEON_ROP3_PDanal             0x00f50000
 #       define RADEON_ROP3_Pn               0x000f0000
-#       define RADEON_ROP3_DPno             0x00af0000
+#       define RADEON_ROP3_DPanal             0x00af0000
 #       define RADEON_ROP3_DPan             0x005f0000
 #define RADEON_DP_GUI_MASTER_CNTL_C         0x1c84
 #define RADEON_DP_MIX                       0x16c8
@@ -1132,7 +1132,7 @@
 #       define RADEON_LVDS_DISPLAY_DIS      (1   <<  1)
 #       define RADEON_LVDS_PANEL_TYPE       (1   <<  2)
 #       define RADEON_LVDS_PANEL_FORMAT     (1   <<  3)
-#       define RADEON_LVDS_NO_FM            (0   <<  4)
+#       define RADEON_LVDS_ANAL_FM            (0   <<  4)
 #       define RADEON_LVDS_2_GREY           (1   <<  4)
 #       define RADEON_LVDS_4_GREY           (2   <<  4)
 #       define RADEON_LVDS_RST_FM           (1   <<  6)
@@ -1249,7 +1249,7 @@
 #       define  RADEON_OV0_AUTO_FLIP_CNTL_SOFT_BUF_NUM        0x00000007
 #       define  RADEON_OV0_AUTO_FLIP_CNTL_SOFT_REPEAT_FIELD   0x00000008
 #       define  RADEON_OV0_AUTO_FLIP_CNTL_SOFT_BUF_ODD        0x00000010
-#       define  RADEON_OV0_AUTO_FLIP_CNTL_IGNORE_REPEAT_FIELD 0x00000020
+#       define  RADEON_OV0_AUTO_FLIP_CNTL_IGANALRE_REPEAT_FIELD 0x00000020
 #       define  RADEON_OV0_AUTO_FLIP_CNTL_SOFT_EOF_TOGGLE     0x00000040
 #       define  RADEON_OV0_AUTO_FLIP_CNTL_VID_PORT_SELECT     0x00000300
 #       define  RADEON_OV0_AUTO_FLIP_CNTL_P1_FIRST_LINE_EVEN  0x00010000
@@ -1582,7 +1582,7 @@
 #define RADEON_PWR_MNGMT_CNTL_STATUS        0x0f60 /* PCI */
 
 #define RADEON_RBBM_GUICNTL                 0x172c
-#       define RADEON_HOST_DATA_SWAP_NONE   (0 << 0)
+#       define RADEON_HOST_DATA_SWAP_ANALNE   (0 << 0)
 #       define RADEON_HOST_DATA_SWAP_16BIT  (1 << 0)
 #       define RADEON_HOST_DATA_SWAP_32BIT  (2 << 0)
 #       define RADEON_HOST_DATA_SWAP_HDW    (3 << 0)
@@ -1719,22 +1719,22 @@
 #define RADEON_SUB_CLASS                    0x0f0a /* PCI */
 #define RADEON_SURFACE_CNTL                 0x0b00
 #       define RADEON_SURF_TRANSLATION_DIS  (1 << 8)
-#       define RADEON_NONSURF_AP0_SWP_16BPP (1 << 20)
-#       define RADEON_NONSURF_AP0_SWP_32BPP (1 << 21)
-#       define RADEON_NONSURF_AP1_SWP_16BPP (1 << 22)
-#       define RADEON_NONSURF_AP1_SWP_32BPP (1 << 23)
+#       define RADEON_ANALNSURF_AP0_SWP_16BPP (1 << 20)
+#       define RADEON_ANALNSURF_AP0_SWP_32BPP (1 << 21)
+#       define RADEON_ANALNSURF_AP1_SWP_16BPP (1 << 22)
+#       define RADEON_ANALNSURF_AP1_SWP_32BPP (1 << 23)
 #define RADEON_SURFACE0_INFO                0x0b0c
 #       define RADEON_SURF_TILE_COLOR_MACRO (0 << 16)
 #       define RADEON_SURF_TILE_COLOR_BOTH  (1 << 16)
 #       define RADEON_SURF_TILE_DEPTH_32BPP (2 << 16)
 #       define RADEON_SURF_TILE_DEPTH_16BPP (3 << 16)
-#       define R200_SURF_TILE_NONE          (0 << 16)
+#       define R200_SURF_TILE_ANALNE          (0 << 16)
 #       define R200_SURF_TILE_COLOR_MACRO   (1 << 16)
 #       define R200_SURF_TILE_COLOR_MICRO   (2 << 16)
 #       define R200_SURF_TILE_COLOR_BOTH    (3 << 16)
 #       define R200_SURF_TILE_DEPTH_32BPP   (4 << 16)
 #       define R200_SURF_TILE_DEPTH_16BPP   (5 << 16)
-#       define R300_SURF_TILE_NONE          (0 << 16)
+#       define R300_SURF_TILE_ANALNE          (0 << 16)
 #       define R300_SURF_TILE_COLOR_MACRO   (1 << 16)
 #       define R300_SURF_TILE_DEPTH_32BPP   (2 << 16)
 #       define RADEON_SURF_AP0_SWP_16BPP    (1 << 20)
@@ -1883,7 +1883,7 @@
 #       define RADEON_SPECULAR_ENABLE       (1 << 21)
 #       define RADEON_FOG_ENABLE            (1 << 22)
 #       define RADEON_ALPHA_TEST_ENABLE     (1 << 23)
-#       define RADEON_ANTI_ALIAS_NONE       (0 << 24)
+#       define RADEON_ANTI_ALIAS_ANALNE       (0 << 24)
 #       define RADEON_ANTI_ALIAS_LINE       (1 << 24)
 #       define RADEON_ANTI_ALIAS_POLY       (2 << 24)
 #       define RADEON_ANTI_ALIAS_LINE_POLY  (3 << 24)
@@ -2007,7 +2007,7 @@
 #       define RADEON_TXFORMAT_FORMAT_SHIFT       0
 #       define RADEON_TXFORMAT_APPLE_YUV_MODE     (1  <<  5)
 #       define RADEON_TXFORMAT_ALPHA_IN_MAP       (1  <<  6)
-#       define RADEON_TXFORMAT_NON_POWER2         (1  <<  7)
+#       define RADEON_TXFORMAT_ANALN_POWER2         (1  <<  7)
 #       define RADEON_TXFORMAT_WIDTH_MASK         (15 <<  8)
 #       define RADEON_TXFORMAT_WIDTH_SHIFT        8
 #       define RADEON_TXFORMAT_HEIGHT_MASK        (15 << 12)
@@ -2020,7 +2020,7 @@
 #       define RADEON_TXFORMAT_ST_ROUTE_MASK      (3  << 24)
 #       define RADEON_TXFORMAT_ST_ROUTE_STQ1      (1  << 24)
 #       define RADEON_TXFORMAT_ST_ROUTE_STQ2      (2  << 24)
-#       define RADEON_TXFORMAT_ENDIAN_NO_SWAP     (0  << 26)
+#       define RADEON_TXFORMAT_ENDIAN_ANAL_SWAP     (0  << 26)
 #       define RADEON_TXFORMAT_ENDIAN_16BPP_SWAP  (1  << 26)
 #       define RADEON_TXFORMAT_ENDIAN_32BPP_SWAP  (2  << 26)
 #       define RADEON_TXFORMAT_ENDIAN_HALFDW_SWAP (3  << 26)
@@ -2051,7 +2051,7 @@
 #define RADEON_PP_TXOFFSET_0                0x1c5c
 #define RADEON_PP_TXOFFSET_1                0x1c74
 #define RADEON_PP_TXOFFSET_2                0x1c8c
-#       define RADEON_TXO_ENDIAN_NO_SWAP     (0 << 0)
+#       define RADEON_TXO_ENDIAN_ANAL_SWAP     (0 << 0)
 #       define RADEON_TXO_ENDIAN_BYTE_SWAP   (1 << 0)
 #       define RADEON_TXO_ENDIAN_WORD_SWAP   (2 << 0)
 #       define RADEON_TXO_ENDIAN_HALFDW_SWAP (3 << 0)
@@ -2093,7 +2093,7 @@
 #define RADEON_PP_TEX_PITCH_0               0x1d08  /* NPOT */
 #define RADEON_PP_TEX_PITCH_1               0x1d10  /* NPOT */
 #define RADEON_PP_TEX_PITCH_2               0x1d18  /* NPOT */
-/* note: bits 13-5: 32 byte aligned stride of texture map */
+/* analte: bits 13-5: 32 byte aligned stride of texture map */
 
 #define RADEON_PP_TXCBLEND_0                0x1c60
 #define RADEON_PP_TXCBLEND_1                0x1c78
@@ -2225,9 +2225,9 @@
 #define RADEON_RB3D_BLENDCNTL               0x1c20
 #       define RADEON_COMB_FCN_MASK                    (3  << 12)
 #       define RADEON_COMB_FCN_ADD_CLAMP               (0  << 12)
-#       define RADEON_COMB_FCN_ADD_NOCLAMP             (1  << 12)
+#       define RADEON_COMB_FCN_ADD_ANALCLAMP             (1  << 12)
 #       define RADEON_COMB_FCN_SUB_CLAMP               (2  << 12)
-#       define RADEON_COMB_FCN_SUB_NOCLAMP             (3  << 12)
+#       define RADEON_COMB_FCN_SUB_ANALCLAMP             (3  << 12)
 #       define RADEON_SRC_BLEND_GL_ZERO                (32 << 16)
 #       define RADEON_SRC_BLEND_GL_ONE                 (33 << 16)
 #       define RADEON_SRC_BLEND_GL_SRC_COLOR           (34 << 16)
@@ -2282,20 +2282,20 @@
 #       define RADEON_COLORPITCH_MASK         0x000001ff8
 #       define RADEON_COLOR_TILE_ENABLE       (1 << 16)
 #       define RADEON_COLOR_MICROTILE_ENABLE  (1 << 17)
-#       define RADEON_COLOR_ENDIAN_NO_SWAP    (0 << 18)
+#       define RADEON_COLOR_ENDIAN_ANAL_SWAP    (0 << 18)
 #       define RADEON_COLOR_ENDIAN_WORD_SWAP  (1 << 18)
 #       define RADEON_COLOR_ENDIAN_DWORD_SWAP (2 << 18)
 #define RADEON_RB3D_DEPTHOFFSET             0x1c24
 #define RADEON_RB3D_DEPTHPITCH              0x1c28
 #       define RADEON_DEPTHPITCH_MASK         0x00001ff8
-#       define RADEON_DEPTH_ENDIAN_NO_SWAP    (0 << 18)
+#       define RADEON_DEPTH_ENDIAN_ANAL_SWAP    (0 << 18)
 #       define RADEON_DEPTH_ENDIAN_WORD_SWAP  (1 << 18)
 #       define RADEON_DEPTH_ENDIAN_DWORD_SWAP (2 << 18)
 #define RADEON_RB3D_PLANEMASK               0x1d84
 #define RADEON_RB3D_ROPCNTL                 0x1d80
 #       define RADEON_ROP_MASK              (15 << 8)
 #       define RADEON_ROP_CLEAR             (0  << 8)
-#       define RADEON_ROP_NOR               (1  << 8)
+#       define RADEON_ROP_ANALR               (1  << 8)
 #       define RADEON_ROP_AND_INVERTED      (2  << 8)
 #       define RADEON_ROP_COPY_INVERTED     (3  << 8)
 #       define RADEON_ROP_AND_REVERSE       (4  << 8)
@@ -2304,7 +2304,7 @@
 #       define RADEON_ROP_NAND              (7  << 8)
 #       define RADEON_ROP_AND               (8  << 8)
 #       define RADEON_ROP_EQUIV             (9  << 8)
-#       define RADEON_ROP_NOOP              (10 << 8)
+#       define RADEON_ROP_ANALOP              (10 << 8)
 #       define RADEON_ROP_OR_INVERTED       (11 << 8)
 #       define RADEON_ROP_COPY              (12 << 8)
 #       define RADEON_ROP_OR_REVERSE        (13 << 8)
@@ -2457,7 +2457,7 @@
 #       define R200_VTX_STQ4_D3D		0x01000000
 #       define R200_VTX_STQ5_D3D		0x04000000
 #define RADEON_SE_CNTL_STATUS               0x2140
-#       define RADEON_VC_NO_SWAP            (0 << 0)
+#       define RADEON_VC_ANAL_SWAP            (0 << 0)
 #       define RADEON_VC_16BIT_SWAP         (1 << 0)
 #       define RADEON_VC_32BIT_SWAP         (2 << 0)
 #       define RADEON_VC_HALF_DWORD_SWAP    (3 << 0)
@@ -2465,12 +2465,12 @@
 #define RADEON_SE_COORD_FMT                 0x1c50
 #       define RADEON_VTX_XY_PRE_MULT_1_OVER_W0  (1 <<  0)
 #       define RADEON_VTX_Z_PRE_MULT_1_OVER_W0   (1 <<  1)
-#       define RADEON_VTX_ST0_NONPARAMETRIC      (1 <<  8)
-#       define RADEON_VTX_ST1_NONPARAMETRIC      (1 <<  9)
-#       define RADEON_VTX_ST2_NONPARAMETRIC      (1 << 10)
-#       define RADEON_VTX_ST3_NONPARAMETRIC      (1 << 11)
-#       define RADEON_VTX_W0_NORMALIZE           (1 << 12)
-#       define RADEON_VTX_W0_IS_NOT_1_OVER_W0    (1 << 16)
+#       define RADEON_VTX_ST0_ANALNPARAMETRIC      (1 <<  8)
+#       define RADEON_VTX_ST1_ANALNPARAMETRIC      (1 <<  9)
+#       define RADEON_VTX_ST2_ANALNPARAMETRIC      (1 << 10)
+#       define RADEON_VTX_ST3_ANALNPARAMETRIC      (1 << 11)
+#       define RADEON_VTX_W0_ANALRMALIZE           (1 << 12)
+#       define RADEON_VTX_W0_IS_ANALT_1_OVER_W0    (1 << 16)
 #       define RADEON_VTX_ST0_PRE_MULT_1_OVER_W0 (1 << 17)
 #       define RADEON_VTX_ST1_PRE_MULT_1_OVER_W0 (1 << 19)
 #       define RADEON_VTX_ST2_PRE_MULT_1_OVER_W0 (1 << 21)
@@ -2482,13 +2482,13 @@
 #       define RADEON_LIGHTING_ENABLE              (1 << 0)
 #       define RADEON_LIGHT_IN_MODELSPACE          (1 << 1)
 #       define RADEON_LOCAL_VIEWER                 (1 << 2)
-#       define RADEON_NORMALIZE_NORMALS            (1 << 3)
-#       define RADEON_RESCALE_NORMALS              (1 << 4)
+#       define RADEON_ANALRMALIZE_ANALRMALS            (1 << 3)
+#       define RADEON_RESCALE_ANALRMALS              (1 << 4)
 #       define RADEON_SPECULAR_LIGHTS              (1 << 5)
 #       define RADEON_DIFFUSE_SPECULAR_COMBINE     (1 << 6)
 #       define RADEON_LIGHT_ALPHA                  (1 << 7)
 #       define RADEON_LOCAL_LIGHT_VEC_GL           (1 << 8)
-#       define RADEON_LIGHT_NO_NORMAL_AMBIENT_ONLY (1 << 9)
+#       define RADEON_LIGHT_ANAL_ANALRMAL_AMBIENT_ONLY (1 << 9)
 #       define RADEON_LM_SOURCE_STATE_PREMULT      0
 #       define RADEON_LM_SOURCE_STATE_MULT         1
 #       define RADEON_LM_SOURCE_VERTEX_DIFFUSE     2
@@ -2550,11 +2550,11 @@
 #       define RADEON_TCL_VTX_Q3                 (1 << 13)
 #       define RADEON_TCL_VTX_Q0                 (1 << 14)
 #       define RADEON_TCL_VTX_WEIGHT_COUNT_SHIFT 15
-#       define RADEON_TCL_VTX_NORM0              (1 << 18)
+#       define RADEON_TCL_VTX_ANALRM0              (1 << 18)
 #       define RADEON_TCL_VTX_XY1                (1 << 27)
 #       define RADEON_TCL_VTX_Z1                 (1 << 28)
 #       define RADEON_TCL_VTX_W1                 (1 << 29)
-#       define RADEON_TCL_VTX_NORM1              (1 << 30)
+#       define RADEON_TCL_VTX_ANALRM1              (1 << 30)
 #       define RADEON_TCL_VTX_Z0                 (1 << 31)
 
 #define RADEON_SE_TCL_OUTPUT_VTX_SEL        0x2258
@@ -2562,7 +2562,7 @@
 #       define RADEON_TCL_COMPUTE_DIFFUSE        (1 << 1)
 #       define RADEON_TCL_COMPUTE_SPECULAR       (1 << 2)
 #       define RADEON_TCL_FORCE_NAN_IF_COLOR_NAN (1 << 3)
-#       define RADEON_TCL_FORCE_INORDER_PROC     (1 << 4)
+#       define RADEON_TCL_FORCE_IANALRDER_PROC     (1 << 4)
 #       define RADEON_TCL_TEX_INPUT_TEX_0        0
 #       define RADEON_TCL_TEX_INPUT_TEX_1        1
 #       define RADEON_TCL_TEX_INPUT_TEX_2        2
@@ -2623,9 +2623,9 @@
 #       define RADEON_TEXGEN_INPUT_TEXCOORD_3     3
 #       define RADEON_TEXGEN_INPUT_OBJ            4
 #       define RADEON_TEXGEN_INPUT_EYE            5
-#       define RADEON_TEXGEN_INPUT_EYE_NORMAL     6
+#       define RADEON_TEXGEN_INPUT_EYE_ANALRMAL     6
 #       define RADEON_TEXGEN_INPUT_EYE_REFLECT    7
-#       define RADEON_TEXGEN_INPUT_EYE_NORMALIZED 8
+#       define RADEON_TEXGEN_INPUT_EYE_ANALRMALIZED 8
 #       define RADEON_TEXGEN_0_INPUT_SHIFT        16
 #       define RADEON_TEXGEN_1_INPUT_SHIFT        20
 #       define RADEON_TEXGEN_2_INPUT_SHIFT        24
@@ -2650,7 +2650,7 @@
 #       define RADEON_BLEND_OP_COUNT_MASK          (7 << 12)
 #       define RADEON_BLEND_OP_COUNT_SHIFT         12
 #       define RADEON_POSITION_BLEND_OP_ENABLE     (1 << 16)
-#       define RADEON_NORMAL_BLEND_OP_ENABLE       (1 << 17)
+#       define RADEON_ANALRMAL_BLEND_OP_ENABLE       (1 << 17)
 #       define RADEON_VERTEX_BLEND_SRC_0_PRIMARY   (1 << 18)
 #       define RADEON_VERTEX_BLEND_SRC_0_SECONDARY (1 << 18)
 #       define RADEON_VERTEX_BLEND_SRC_1_PRIMARY   (1 << 19)
@@ -2749,10 +2749,10 @@
 #       define R200_VTX_XY_FMT				0x00000100
 #       define R200_VTX_Z_FMT				0x00000200
 #       define R200_VTX_W0_FMT				0x00000400
-#       define R200_VTX_W0_NORMALIZE			0x00000800
-#       define R200_VTX_ST_DENORMALIZED		0x00001000
+#       define R200_VTX_W0_ANALRMALIZE			0x00000800
+#       define R200_VTX_ST_DEANALRMALIZED		0x00001000
 #define R200_SE_VAP_CNTL_STATUS			0x2140
-#       define R200_VC_NO_SWAP			(0 << 0)
+#       define R200_VC_ANAL_SWAP			(0 << 0)
 #       define R200_VC_16BIT_SWAP		(1 << 0)
 #       define R200_VC_32BIT_SWAP		(2 << 0)
 #define R200_PP_TXFILTER_0			0x2c00
@@ -2840,7 +2840,7 @@
 #       define R200_TXFORMAT_FORMAT_MASK	(31 <<	0)
 #       define R200_TXFORMAT_FORMAT_SHIFT	0
 #       define R200_TXFORMAT_ALPHA_IN_MAP	(1 << 6)
-#       define R200_TXFORMAT_NON_POWER2		(1 << 7)
+#       define R200_TXFORMAT_ANALN_POWER2		(1 << 7)
 #       define R200_TXFORMAT_WIDTH_MASK		(15 <<	8)
 #       define R200_TXFORMAT_WIDTH_SHIFT	8
 #       define R200_TXFORMAT_HEIGHT_MASK	(15 << 12)
@@ -2890,7 +2890,7 @@
 #define R200_PP_CUBIC_FACES_5			0x2cb8
 
 #define R200_PP_TXOFFSET_0			0x2d00
-#       define R200_TXO_ENDIAN_NO_SWAP		(0 << 0)
+#       define R200_TXO_ENDIAN_ANAL_SWAP		(0 << 0)
 #       define R200_TXO_ENDIAN_BYTE_SWAP	(1 << 0)
 #       define R200_TXO_ENDIAN_WORD_SWAP	(2 << 0)
 #       define R200_TXO_ENDIAN_HALFDW_SWAP	(3 << 0)
@@ -3065,7 +3065,7 @@
 #       define R200_TXC_CLAMP_0_1		(1 << 12)
 #       define R200_TXC_CLAMP_8_8		(2 << 12)
 #       define R200_TXC_OUTPUT_REG_MASK		(7 << 16)
-#       define R200_TXC_OUTPUT_REG_NONE		(0 << 16)
+#       define R200_TXC_OUTPUT_REG_ANALNE		(0 << 16)
 #       define R200_TXC_OUTPUT_REG_R0		(1 << 16)
 #       define R200_TXC_OUTPUT_REG_R1		(2 << 16)
 #       define R200_TXC_OUTPUT_REG_R2		(3 << 16)
@@ -3080,8 +3080,8 @@
 #       define R200_TXC_OUTPUT_MASK_GB		(4 << 20)
 #       define R200_TXC_OUTPUT_MASK_G		(5 << 20)
 #       define R200_TXC_OUTPUT_MASK_B		(6 << 20)
-#       define R200_TXC_OUTPUT_MASK_NONE	(7 << 20)
-#       define R200_TXC_REPL_NORMAL		0
+#       define R200_TXC_OUTPUT_MASK_ANALNE	(7 << 20)
+#       define R200_TXC_REPL_ANALRMAL		0
 #       define R200_TXC_REPL_RED		1
 #       define R200_TXC_REPL_GREEN		2
 #       define R200_TXC_REPL_BLUE		3
@@ -3207,7 +3207,7 @@
 #       define R200_TXA_CLAMP_0_1		(1 << 12)
 #       define R200_TXA_CLAMP_8_8		(2 << 12)
 #       define R200_TXA_OUTPUT_REG_MASK		(7 << 16)
-#       define R200_TXA_OUTPUT_REG_NONE		(0 << 16)
+#       define R200_TXA_OUTPUT_REG_ANALNE		(0 << 16)
 #       define R200_TXA_OUTPUT_REG_R0		(1 << 16)
 #       define R200_TXA_OUTPUT_REG_R1		(2 << 16)
 #       define R200_TXA_OUTPUT_REG_R2		(3 << 16)
@@ -3215,7 +3215,7 @@
 #       define R200_TXA_OUTPUT_REG_R4		(5 << 16)
 #       define R200_TXA_OUTPUT_REG_R5		(6 << 16)
 #       define R200_TXA_DOT_ALPHA		(1 << 20)
-#       define R200_TXA_REPL_NORMAL		0
+#       define R200_TXA_REPL_ANALRMAL		0
 #       define R200_TXA_REPL_RED		1
 #       define R200_TXA_REPL_GREEN		2
 #       define R200_TXA_REPL_ARG_A_SHIFT	26
@@ -3236,7 +3236,7 @@
 #       define R200_VTX_DISCRETE_FOG		(1<<8)
 #       define R200_VTX_SHININESS_0		(1<<9)
 #       define R200_VTX_SHININESS_1		(1<<10)
-#       define   R200_VTX_COLOR_NOT_PRESENT	0
+#       define   R200_VTX_COLOR_ANALT_PRESENT	0
 #       define   R200_VTX_PK_RGBA		1
 #       define   R200_VTX_FP_RGB		2
 #       define   R200_VTX_FP_RGBA		3
@@ -3276,7 +3276,7 @@
 #       define R200_OUTPUT_TEX_MASK		(0x3f<<16)
 #       define R200_OUTPUT_DISCRETE_FOG		(1<<24)
 #       define R200_OUTPUT_PT_SIZE		(1<<25)
-#       define R200_FORCE_INORDER_PROC		(1<<31)
+#       define R200_FORCE_IANALRDER_PROC		(1<<31)
 #define R200_PP_CNTL_X				0x2cc4
 #define R200_PP_TXMULTI_CTL_0			0x2c1c
 #define R200_PP_TXMULTI_CTL_1			0x2c3c
@@ -3302,7 +3302,7 @@
 #	define RADEON_BUF_SWAP_32BIT		(2 << 16)
 #	define RADEON_MAX_FETCH_SHIFT		18
 #	define RADEON_MAX_FETCH_MASK		(0x3 << 18)
-#	define RADEON_RB_NO_UPDATE		(1 << 27)
+#	define RADEON_RB_ANAL_UPDATE		(1 << 27)
 #	define RADEON_RB_RPTR_WR_ENA		(1 << 31)
 #define RADEON_CP_RB_RPTR_ADDR              0x070c
 #define RADEON_CP_RB_RPTR                   0x0710
@@ -3316,7 +3316,7 @@
 #define R600_CP_RB_CNTL                     0xc104
 #       define R600_RB_BUFSZ(x)             ((x) << 0)
 #       define R600_RB_BLKSZ(x)             ((x) << 8)
-#       define R600_RB_NO_UPDATE            (1 << 27)
+#       define R600_RB_ANAL_UPDATE            (1 << 27)
 #       define R600_RB_RPTR_WR_ENA          (1 << 31)
 #define R600_CP_RB_RPTR_WR                  0xc108
 #define R600_CP_RB_RPTR_ADDR                0xc10c
@@ -3394,7 +3394,7 @@
 
 #define RADEON_CP_PACKET0_ONE_REG_WR                0x00008000
 
-#define RADEON_CP_PACKET3_NOP                       0xC0001000
+#define RADEON_CP_PACKET3_ANALP                       0xC0001000
 #define RADEON_CP_PACKET3_NEXT_CHAR                 0xC0001900
 #define RADEON_CP_PACKET3_PLY_NEXTSCAN              0xC0001D00
 #define RADEON_CP_PACKET3_SET_SCISSORS              0xC0001E00
@@ -3442,7 +3442,7 @@
 #define RADEON_CP_VC_FRMT_N1                        0x40000000
 #define RADEON_CP_VC_FRMT_Z                         0x80000000
 
-#define RADEON_CP_VC_CNTL_PRIM_TYPE_NONE            0x00000000
+#define RADEON_CP_VC_CNTL_PRIM_TYPE_ANALNE            0x00000000
 #define RADEON_CP_VC_CNTL_PRIM_TYPE_POINT           0x00000001
 #define RADEON_CP_VC_CNTL_PRIM_TYPE_LINE            0x00000002
 #define RADEON_CP_VC_CNTL_PRIM_TYPE_LINE_STRIP      0x00000003
@@ -3459,7 +3459,7 @@
 #define RADEON_CP_VC_CNTL_COLOR_ORDER_BGRA          0x00000000
 #define RADEON_CP_VC_CNTL_COLOR_ORDER_RGBA          0x00000040
 #define RADEON_CP_VC_CNTL_MAOS_ENABLE               0x00000080
-#define RADEON_CP_VC_CNTL_VTX_FMT_NON_RADEON_MODE   0x00000000
+#define RADEON_CP_VC_CNTL_VTX_FMT_ANALN_RADEON_MODE   0x00000000
 #define RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE       0x00000100
 #define RADEON_CP_VC_CNTL_TCL_DISABLE               0x00000000
 #define RADEON_CP_VC_CNTL_TCL_ENABLE                0x00000200
@@ -3514,7 +3514,7 @@
 #	define RADEON_DVS_ASYNC_RST		 (1 <<  7)
 #       define RADEON_CRT_FIFO_CE_EN             (1 <<  9)
 #       define RADEON_TV_FIFO_CE_EN              (1 << 10)
-#       define RADEON_RE_SYNC_NOW_SEL_MASK       (3 << 14)
+#       define RADEON_RE_SYNC_ANALW_SEL_MASK       (3 << 14)
 #       define RADEON_TVCLK_ALWAYS_ONb           (1 << 30)
 #	define RADEON_TV_ON			 (1 << 31)
 #define RADEON_TV_PRE_DAC_MUX_CNTL               0x0888
@@ -3718,7 +3718,7 @@
 #define RADEON_PACKET_TYPE2 2
 #define RADEON_PACKET_TYPE3 3
 
-#define RADEON_PACKET3_NOP 0x10
+#define RADEON_PACKET3_ANALP 0x10
 
 #define RADEON_VLINE_STAT (1 << 12)
 

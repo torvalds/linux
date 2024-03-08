@@ -40,10 +40,10 @@ static int ecryptfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		rc = lower_dentry->d_op->d_revalidate(lower_dentry, flags);
 
 	if (d_really_is_positive(dentry)) {
-		struct inode *inode = d_inode(dentry);
+		struct ianalde *ianalde = d_ianalde(dentry);
 
-		fsstack_copy_attr_all(inode, ecryptfs_inode_to_lower(inode));
-		if (!inode->i_nlink)
+		fsstack_copy_attr_all(ianalde, ecryptfs_ianalde_to_lower(ianalde));
+		if (!ianalde->i_nlink)
 			return 0;
 	}
 	return rc;

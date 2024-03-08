@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -43,10 +43,10 @@ static struct usb_device_id yurex_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, yurex_table);
 
-#ifdef CONFIG_USB_DYNAMIC_MINORS
-#define YUREX_MINOR_BASE	0
+#ifdef CONFIG_USB_DYNAMIC_MIANALRS
+#define YUREX_MIANALR_BASE	0
 #else
-#define YUREX_MINOR_BASE	192
+#define YUREX_MIANALR_BASE	192
 #endif
 
 /* Structure to hold all of our device specific stuff */
@@ -114,13 +114,13 @@ static void yurex_delete(struct kref *kref)
 }
 
 /*
- * usb class driver info in order to get a minor number from the usb core,
+ * usb class driver info in order to get a mianalr number from the usb core,
  * and to have the device registered with the driver core
  */
 static struct usb_class_driver yurex_class = {
 	.name =		"yurex%d",
 	.fops =		&yurex_fops,
-	.minor_base =	YUREX_MINOR_BASE,
+	.mianalr_base =	YUREX_MIANALR_BASE,
 };
 
 static void yurex_interrupt(struct urb *urb)
@@ -141,7 +141,7 @@ static void yurex_interrupt(struct urb *urb)
 			__func__, YUREX_BUF_SIZE, dev->urb->actual_length);
 		return;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -EILSEQ:
 	case -EPROTO:
@@ -149,7 +149,7 @@ static void yurex_interrupt(struct urb *urb)
 		return;
 	default:
 		dev_err(&dev->interface->dev,
-			"%s - unknown status received: %d\n", __func__, status);
+			"%s - unkanalwn status received: %d\n", __func__, status);
 		return;
 	}
 
@@ -173,7 +173,7 @@ static void yurex_interrupt(struct urb *urb)
 		}
 		else
 			dev_dbg(&dev->interface->dev,
-				"data format error - no EOF\n");
+				"data format error - anal EOF\n");
 		break;
 	case CMD_ACK:
 		dev_dbg(&dev->interface->dev, "%s ack: %c\n",
@@ -194,7 +194,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 	struct usb_yurex *dev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	DEFINE_WAIT(wait);
 	int res;
 
@@ -214,7 +214,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 	iface_desc = interface->cur_altsetting;
 	res = usb_find_int_in_endpoint(iface_desc, &endpoint);
 	if (res) {
-		dev_err(&interface->dev, "Could not find endpoints\n");
+		dev_err(&interface->dev, "Could analt find endpoints\n");
 		retval = res;
 		goto error;
 	}
@@ -236,7 +236,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 					      GFP_KERNEL,
 					      &dev->cntl_urb->transfer_dma);
 	if (!dev->cntl_buffer) {
-		dev_err(&interface->dev, "Could not allocate cntl_buffer\n");
+		dev_err(&interface->dev, "Could analt allocate cntl_buffer\n");
 		goto error;
 	}
 
@@ -252,7 +252,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 			     usb_sndctrlpipe(dev->udev, 0),
 			     (void *)dev->cntl_req, dev->cntl_buffer,
 			     YUREX_BUF_SIZE, yurex_control_callback, dev);
-	dev->cntl_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	dev->cntl_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 
 	/* allocate interrupt URB */
@@ -264,7 +264,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 	dev->int_buffer = usb_alloc_coherent(dev->udev, YUREX_BUF_SIZE,
 					GFP_KERNEL, &dev->urb->transfer_dma);
 	if (!dev->int_buffer) {
-		dev_err(&interface->dev, "Could not allocate int_buffer\n");
+		dev_err(&interface->dev, "Could analt allocate int_buffer\n");
 		goto error;
 	}
 
@@ -273,10 +273,10 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 			 usb_rcvintpipe(dev->udev, dev->int_in_endpointAddr),
 			 dev->int_buffer, YUREX_BUF_SIZE, yurex_interrupt,
 			 dev, 1);
-	dev->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	dev->urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	if (usb_submit_urb(dev->urb, GFP_KERNEL)) {
 		retval = -EIO;
-		dev_err(&interface->dev, "Could not submitting URB\n");
+		dev_err(&interface->dev, "Could analt submitting URB\n");
 		goto error;
 	}
 
@@ -284,18 +284,18 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 	usb_set_intfdata(interface, dev);
 	dev->bbu = -1;
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device analw, as it is ready */
 	retval = usb_register_dev(interface, &yurex_class);
 	if (retval) {
 		dev_err(&interface->dev,
-			"Not able to get a minor for this device.\n");
+			"Analt able to get a mianalr for this device.\n");
 		usb_set_intfdata(interface, NULL);
 		goto error;
 	}
 
 	dev_info(&interface->dev,
-		 "USB YUREX device now attached to Yurex #%d\n",
-		 interface->minor);
+		 "USB YUREX device analw attached to Yurex #%d\n",
+		 interface->mianalr);
 
 	return 0;
 
@@ -309,12 +309,12 @@ error:
 static void yurex_disconnect(struct usb_interface *interface)
 {
 	struct usb_yurex *dev;
-	int minor = interface->minor;
+	int mianalr = interface->mianalr;
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
-	/* give back our minor */
+	/* give back our mianalr */
 	usb_deregister_dev(interface, &yurex_class);
 
 	/* prevent more I/O from starting */
@@ -331,7 +331,7 @@ static void yurex_disconnect(struct usb_interface *interface)
 	/* decrement our usage count */
 	kref_put(&dev->kref, yurex_delete);
 
-	dev_info(&interface->dev, "USB YUREX #%d now disconnected\n", minor);
+	dev_info(&interface->dev, "USB YUREX #%d analw disconnected\n", mianalr);
 }
 
 static struct usb_driver yurex_driver = {
@@ -350,26 +350,26 @@ static int yurex_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &dev->async_queue);
 }
 
-static int yurex_open(struct inode *inode, struct file *file)
+static int yurex_open(struct ianalde *ianalde, struct file *file)
 {
 	struct usb_yurex *dev;
 	struct usb_interface *interface;
-	int subminor;
+	int submianalr;
 	int retval = 0;
 
-	subminor = iminor(inode);
+	submianalr = imianalr(ianalde);
 
-	interface = usb_find_interface(&yurex_driver, subminor);
+	interface = usb_find_interface(&yurex_driver, submianalr);
 	if (!interface) {
-		printk(KERN_ERR "%s - error, can't find device for minor %d",
-		       __func__, subminor);
-		retval = -ENODEV;
+		printk(KERN_ERR "%s - error, can't find device for mianalr %d",
+		       __func__, submianalr);
+		retval = -EANALDEV;
 		goto exit;
 	}
 
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
 
@@ -385,13 +385,13 @@ exit:
 	return retval;
 }
 
-static int yurex_release(struct inode *inode, struct file *file)
+static int yurex_release(struct ianalde *ianalde, struct file *file)
 {
 	struct usb_yurex *dev;
 
 	dev = file->private_data;
 	if (dev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* decrement the count on our device */
 	kref_put(&dev->kref, yurex_delete);
@@ -411,7 +411,7 @@ static ssize_t yurex_read(struct file *file, char __user *buffer, size_t count,
 	mutex_lock(&dev->io_mutex);
 	if (dev->disconnected) {		/* already disconnected */
 		mutex_unlock(&dev->io_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (WARN_ON_ONCE(dev->bbu > S64_MAX || dev->bbu < S64_MIN)) {
@@ -448,7 +448,7 @@ static ssize_t yurex_write(struct file *file, const char __user *user_buffer,
 	mutex_lock(&dev->io_mutex);
 	if (dev->disconnected) {		/* already disconnected */
 		mutex_unlock(&dev->io_mutex);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto error;
 	}
 

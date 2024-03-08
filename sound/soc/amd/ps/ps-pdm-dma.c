@@ -307,7 +307,7 @@ static int acp63_pdm_dai_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		writel(ch_mask, rtd->acp63_base + ACP_WOV_PDM_NO_OF_CHANNELS);
+		writel(ch_mask, rtd->acp63_base + ACP_WOV_PDM_ANAL_OF_CHANNELS);
 		writel(PDM_DECIMATION_FACTOR, rtd->acp63_base + ACP_WOV_PDM_DECIMATION_FACTOR);
 		rtd->bytescount = acp63_pdm_get_byte_count(rtd, substream->stream);
 		pdm_status = acp63_check_pdm_dma_status(rtd->acp63_base);
@@ -367,16 +367,16 @@ static int acp63_pdm_audio_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata = devm_kzalloc(&pdev->dev, sizeof(*adata), GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adata->acp63_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!adata->acp63_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adata->capture_stream = NULL;
 	adata->acp_lock = &acp_data->acp_lock;
@@ -387,7 +387,7 @@ static int acp63_pdm_audio_probe(struct platform_device *pdev)
 	if (status) {
 		dev_err(&pdev->dev, "Fail to register acp pdm dai\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);

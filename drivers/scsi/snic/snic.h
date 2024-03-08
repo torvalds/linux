@@ -47,12 +47,12 @@
 #define SNIC_TAG_DEV_RST	BIT(29)		/* Tag for device reset */
 #define SNIC_TAG_IOCTL_DEV_RST	BIT(28)		/* Tag for User Device Reset */
 #define SNIC_TAG_MASK		(BIT(24) - 1)	/* Mask for lookup */
-#define SNIC_NO_TAG		-1
+#define SNIC_ANAL_TAG		-1
 
 /*
  * Command flags to identify the type of command and for other future use
  */
-#define SNIC_NO_FLAGS			0
+#define SNIC_ANAL_FLAGS			0
 #define SNIC_IO_INITIALIZED		BIT(0)
 #define SNIC_IO_ISSUED			BIT(1)
 #define SNIC_IO_DONE			BIT(2)
@@ -78,11 +78,11 @@
 #define SNIC_DEV_RST_TERM_DONE		BIT(22)
 #define SNIC_DEV_RST_ABTS_PENDING	BIT(23)
 #define SNIC_DEV_RST_PENDING		BIT(24)
-#define SNIC_DEV_RST_NOTSUP		BIT(25)
+#define SNIC_DEV_RST_ANALTSUP		BIT(25)
 #define SNIC_SCSI_CLEANUP		BIT(26)
 #define SNIC_HOST_RESET_ISSUED		BIT(27)
 #define SNIC_HOST_RESET_CMD_TERM	\
-	(SNIC_DEV_RST_NOTSUP | SNIC_SCSI_CLEANUP | SNIC_HOST_RESET_ISSUED)
+	(SNIC_DEV_RST_ANALTSUP | SNIC_SCSI_CLEANUP | SNIC_HOST_RESET_ISSUED)
 
 #define SNIC_ABTS_TIMEOUT		30000		/* msec */
 #define SNIC_LUN_RESET_TIMEOUT		30000		/* msec */
@@ -106,7 +106,7 @@
 #define SNIC_INVALID_CODE 0x100	/* Hdr Status val unused by firmware */
 
 #define SNIC_MAX_TARGET			256
-#define SNIC_FLAGS_NONE			(0)
+#define SNIC_FLAGS_ANALNE			(0)
 
 /* snic module params */
 extern unsigned int snic_max_qdepth;
@@ -178,10 +178,10 @@ do {						\
 #endif
 
 /* Soft assert */
-#define SNIC_ASSERT_NOT_IMPL(EXPR) \
+#define SNIC_ASSERT_ANALT_IMPL(EXPR) \
 	({ \
 		if (EXPR) {\
-			SNIC_INFO("Functionality not impl'ed at %s:%d\n", \
+			SNIC_INFO("Functionality analt impl'ed at %s:%d\n", \
 				  __func__, __LINE__); \
 			WARN_ON_ONCE(EXPR); \
 		} \
@@ -193,14 +193,14 @@ extern const char *snic_state_str[];
 enum snic_intx_intr_index {
 	SNIC_INTX_WQ_RQ_COPYWQ,
 	SNIC_INTX_ERR,
-	SNIC_INTX_NOTIFY,
+	SNIC_INTX_ANALTIFY,
 	SNIC_INTX_INTR_MAX,
 };
 
 enum snic_msix_intr_index {
 	SNIC_MSIX_WQ,
 	SNIC_MSIX_IO_CMPL,
-	SNIC_MSIX_ERR_NOTIFY,
+	SNIC_MSIX_ERR_ANALTIFY,
 	SNIC_MSIX_INTR_MAX,
 };
 
@@ -238,7 +238,7 @@ struct snic_fw_info {
 };
 
 /*
- * snic_work item : defined to process asynchronous events
+ * snic_work item : defined to process asynchroanalus events
  */
 struct snic_work {
 	struct work_struct work;
@@ -291,7 +291,7 @@ struct snic {
 	mempool_t *req_pool[SNIC_REQ_MAX_CACHES]; /* (??) */
 	____cacheline_aligned spinlock_t io_req_lock[SNIC_IO_LOCKS];
 
-	/* Maintain snic specific commands, cmds with no tag in spl_cmd_list */
+	/* Maintain snic specific commands, cmds with anal tag in spl_cmd_list */
 	____cacheline_aligned spinlock_t spl_cmd_lock;
 	struct list_head spl_cmd_list;
 

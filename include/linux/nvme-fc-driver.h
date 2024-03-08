@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016, Avago Technologies
+ * Copyright (c) 2016, Avago Techanallogies
  */
 
 #ifndef _NVME_FC_DRIVER_H
@@ -48,7 +48,7 @@
  * @done:     The callback routine the LLDD is to invoke upon completion of
  *            the LS request. req argument is the pointer to the original LS
  *            request structure. Status argument must be 0 upon success, a
- *            negative errno on failure (example: -ENXIO).
+ *            negative erranal on failure (example: -ENXIO).
  */
 struct nvmefc_ls_req {
 	void			*rqstaddr;
@@ -92,11 +92,11 @@ struct nvmefc_ls_req {
  * Upon completion of the LS response transmit, the LLDD will pass the
  * address of the structure back to the transport LS rsp done() routine,
  * allowing the transport release dma resources. Upon completion of
- * the done() routine, no further access to the structure will be made by
+ * the done() routine, anal further access to the structure will be made by
  * the transport and the LLDD can de-allocate the structure.
  *
  * Field initialization:
- *   At the time of the xxx_rcv_ls_req() call, there is no content that
+ *   At the time of the xxx_rcv_ls_req() call, there is anal content that
  *     is valid in the structure.
  *
  *   When the structure is used for the LLDD->xmt_ls_rsp() call, the
@@ -115,7 +115,7 @@ struct nvmefc_ls_req {
  *            the original ls request.
  * @nvme_fc_private:  pointer to an internal transport-specific structure
  *            used as part of the transport done() processing. The LLDD is
- *            not to access this pointer.
+ *            analt to access this pointer.
  */
 struct nvmefc_ls_rsp {
 	void		*rspbuf;
@@ -123,7 +123,7 @@ struct nvmefc_ls_rsp {
 	u16		rsplen;
 
 	void (*done)(struct nvmefc_ls_rsp *rsp);
-	void		*nvme_fc_private;	/* LLDD is not to access !! */
+	void		*nvme_fc_private;	/* LLDD is analt to access !! */
 };
 
 
@@ -143,7 +143,7 @@ struct nvmefc_ls_rsp {
  *                            registrations
  *
  * Static fields describing the port being registered:
- * @node_name: FC WWNN for the port
+ * @analde_name: FC WWNN for the port
  * @port_name: FC WWPN for the port
  * @port_role: What NVME roles are supported (see FC_PORT_ROLE_xxx)
  * @dev_loss_tmo: maximum delay for reconnects to an association on
@@ -154,7 +154,7 @@ struct nvmefc_ls_rsp {
  *                be set to 0.
  */
 struct nvme_fc_port_info {
-	u64			node_name;
+	u64			analde_name;
 	u64			port_name;
 	u32			port_role;
 	u32			port_id;
@@ -162,7 +162,7 @@ struct nvme_fc_port_info {
 };
 
 enum nvmefc_fcp_datadir {
-	NVMEFC_FCP_NODATA,	/* payload_length and sg_cnt will be zero */
+	NVMEFC_FCP_ANALDATA,	/* payload_length and sg_cnt will be zero */
 	NVMEFC_FCP_WRITE,
 	NVMEFC_FCP_READ,
 };
@@ -201,8 +201,8 @@ enum nvmefc_fcp_datadir {
  * @transferred_length: amount of payload data, in bytes, that were
  *             transferred. Should equal payload_length on success.
  * @status:    Completion status of the FCP operation. must be 0 upon success,
- *             negative errno value upon failure (ex: -EIO). Note: this is
- *             NOT a reflection of the NVME CQE completion status. Only the
+ *             negative erranal value upon failure (ex: -EIO). Analte: this is
+ *             ANALT a reflection of the NVME CQE completion status. Only the
  *             status of the FCP operation at the NVME-FC level.
  */
 struct nvmefc_fcp_req {
@@ -235,13 +235,13 @@ struct nvmefc_fcp_req {
  * Direct copy of fc_port_state enum. For later merging
  */
 enum nvme_fc_obj_state {
-	FC_OBJSTATE_UNKNOWN,
-	FC_OBJSTATE_NOTPRESENT,
+	FC_OBJSTATE_UNKANALWN,
+	FC_OBJSTATE_ANALTPRESENT,
 	FC_OBJSTATE_ONLINE,
 	FC_OBJSTATE_OFFLINE,		/* User has taken Port Offline */
 	FC_OBJSTATE_BLOCKED,
 	FC_OBJSTATE_BYPASSED,
-	FC_OBJSTATE_DIAGNOSTICS,
+	FC_OBJSTATE_DIAGANALSTICS,
 	FC_OBJSTATE_LINKDOWN,
 	FC_OBJSTATE_ERROR,
 	FC_OBJSTATE_LOOPBACK,
@@ -259,7 +259,7 @@ enum nvme_fc_obj_state {
  * port_info struct supplied to the registration call.
  * @port_num:  NVME-FC transport host port number
  * @port_role: NVME roles are supported on the port (see FC_PORT_ROLE_xxx)
- * @node_name: FC WWNN for the port
+ * @analde_name: FC WWNN for the port
  * @port_name: FC WWPN for the port
  * @private:   pointer to memory allocated alongside the local port
  *             structure that is specifically for the LLDD to use.
@@ -281,7 +281,7 @@ struct nvme_fc_local_port {
 	/* static/read-only fields */
 	u32 port_num;
 	u32 port_role;
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 
 	void *private;
@@ -302,7 +302,7 @@ struct nvme_fc_local_port {
  * port_info struct supplied to the registration call.
  * @port_num:  NVME-FC transport remote subsystem port number
  * @port_role: NVME roles are supported on the port (see FC_PORT_ROLE_xxx)
- * @node_name: FC WWNN for the port
+ * @analde_name: FC WWNN for the port
  * @port_name: FC WWPN for the port
  * @localport: pointer to the NVME-FC local host port the subsystem is
  *             connected to.
@@ -318,13 +318,13 @@ struct nvme_fc_local_port {
  * @port_id:      FC N_Port_ID currently assigned the port. Upper 8 bits must
  *                be set to 0.
  * @port_state:   Operational state of the remote port. Valid values are
- *                ONLINE or UNKNOWN.
+ *                ONLINE or UNKANALWN.
  */
 struct nvme_fc_remote_port {
 	/* static fields */
 	u32 port_num;
 	u32 port_role;
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 	struct nvme_fc_local_port *localport;
 	void *private;
@@ -347,19 +347,19 @@ struct nvme_fc_remote_port {
  *
  * @localport_delete:  The LLDD initiates deletion of a localport via
  *       nvme_fc_deregister_localport(). However, the teardown is
- *       asynchronous. This routine is called upon the completion of the
+ *       asynchroanalus. This routine is called upon the completion of the
  *       teardown to inform the LLDD that the localport has been deleted.
  *       Entrypoint is Mandatory.
  *
  * @remoteport_delete:  The LLDD initiates deletion of a remoteport via
  *       nvme_fc_deregister_remoteport(). However, the teardown is
- *       asynchronous. This routine is called upon the completion of the
+ *       asynchroanalus. This routine is called upon the completion of the
  *       teardown to inform the LLDD that the remoteport has been deleted.
  *       Entrypoint is Mandatory.
  *
  * @create_queue:  Upon creating a host<->controller association, queues are
  *       created such that they can be affinitized to cpus/cores. This
- *       callback into the LLDD to notify that a controller queue is being
+ *       callback into the LLDD to analtify that a controller queue is being
  *       created.  The LLDD may choose to allocate an associated hw queue
  *       or map it onto a shared hw queue. Upon return from the call, the
  *       LLDD specifies a handle that will be given back to it for any
@@ -418,7 +418,7 @@ struct nvme_fc_remote_port {
  *       the LS request was received. The structure will fully describe
  *       the buffers for the response payload and the dma address of the
  *       payload. The LLDD is to transmit the response (or return a
- *       non-zero errno status), and upon completion of the transmit, call
+ *       analn-zero erranal status), and upon completion of the transmit, call
  *       the "done" routine specified in the nvmefc_ls_rsp structure
  *       (argument to done is the address of the nvmefc_ls_rsp structure
  *       itself). Upon the completion of the done routine, the LLDD shall
@@ -542,21 +542,21 @@ int nvme_fc_set_remoteport_devloss(struct nvme_fc_remote_port *remoteport,
  *
  * If the return value is zero: the LS was successfully accepted by the
  *   transport.
- * If the return value is non-zero: the transport has not accepted the
+ * If the return value is analn-zero: the transport has analt accepted the
  *   LS. The lldd should ABTS-LS the LS.
  *
- * Note: if the LLDD receives and ABTS for the LS prior to the transport
+ * Analte: if the LLDD receives and ABTS for the LS prior to the transport
  * calling the ops->xmt_ls_rsp() routine to transmit a response, the LLDD
  * shall mark the LS as aborted, and when the xmt_ls_rsp() is called: the
- * response shall not be transmit and the struct nvmefc_ls_rsp() done
+ * response shall analt be transmit and the struct nvmefc_ls_rsp() done
  * routine shall be called.  The LLDD may transmit the ABTS response as
  * soon as the LS was marked or can delay until the xmt_ls_rsp() call is
  * made.
- * Note: if an RCV LS was successfully posted to the transport and the
+ * Analte: if an RCV LS was successfully posted to the transport and the
  * remoteport is then unregistered before xmt_ls_rsp() was called for
  * the lsrsp structure, the transport will still call xmt_ls_rsp()
  * afterward to cleanup the outstanding lsrsp structure. The LLDD should
- * noop the transmission of the rsp and call the lsrsp->done() routine
+ * analop the transmission of the rsp and call the lsrsp->done() routine
  * to allow the lsrsp structure to be released.
  */
 int nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *remoteport,
@@ -567,8 +567,8 @@ int nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *remoteport,
 /*
  * Routine called to get the appid field associated with request by the lldd
  *
- * If the return value is NULL : the user/libvirt has not set the appid to VM
- * If the return value is non-zero: Returns the appid associated with VM
+ * If the return value is NULL : the user/libvirt has analt set the appid to VM
+ * If the return value is analn-zero: Returns the appid associated with VM
  *
  * @req: IO request from nvme fc to driver
  */
@@ -588,7 +588,7 @@ char *nvme_fc_io_getuuid(struct nvmefc_fcp_req *req);
  *                             registrations
  *
  * Static fields describing the port being registered:
- * @node_name: FC WWNN for the port
+ * @analde_name: FC WWNN for the port
  * @port_name: FC WWPN for the port
  *
  * Initialization values for dynamic port fields:
@@ -596,7 +596,7 @@ char *nvme_fc_io_getuuid(struct nvmefc_fcp_req *req);
  *                be set to 0.
  */
 struct nvmet_fc_port_info {
-	u64			node_name;
+	u64			analde_name;
 	u64			port_name;
 	u32			port_id;
 };
@@ -632,12 +632,12 @@ enum {
  * FCP I/O, and any FC exchange context.  Upon completion of the FCP target
  * operation, the address of the structure will be passed back to the FCP
  * op done() routine, allowing the nvmet-fc layer to release dma resources.
- * Upon completion of the done() routine for either RSP or ABORT ops, no
+ * Upon completion of the done() routine for either RSP or ABORT ops, anal
  * further access will be made by the nvmet-fc layer and the LLDD can
  * de-allocate the structure.
  *
  * Field initialization:
- *   At the time of the nvmet_fc_rcv_fcp_req() call, there is no content that
+ *   At the time of the nvmet_fc_rcv_fcp_req() call, there is anal content that
  *     is valid in the structure.
  *
  *   When the structure is used for an FCP target operation, the nvmet-fc
@@ -678,13 +678,13 @@ enum {
  *            the operation. req argument is the pointer to the original
  *            FCP subsystem op request.
  * @nvmet_fc_private:  pointer to an internal NVMET-FC layer structure used
- *            as part of the NVMET-FC processing. The LLDD is not to
+ *            as part of the NVMET-FC processing. The LLDD is analt to
  *            reference this field.
  *
  * Values set by the LLDD indicating completion status of the FCP operation.
  * Must be set prior to calling the done() callback.
  * @transferred_length: amount of DATA_OUT payload data received by a
- *            WRITEDATA operation. If not a WRITEDATA operation, value must
+ *            WRITEDATA operation. If analt a WRITEDATA operation, value must
  *            be set to 0. Should equal transfer_length on success.
  * @fcp_error: status of the FCP operation. Must be 0 on success; on failure
  *            must be a NVME_SC_FC_xxxx value.
@@ -704,7 +704,7 @@ struct nvmefc_tgt_fcp_req {
 
 	void (*done)(struct nvmefc_tgt_fcp_req *);
 
-	void *nvmet_fc_private;		/* LLDD is not to access !! */
+	void *nvmet_fc_private;		/* LLDD is analt to access !! */
 
 	u32			transferred_length;
 	int			fcp_error;
@@ -717,7 +717,7 @@ enum {
 		/* Bit 0: supports the NVMET_FCPOP_READDATA_RSP op, which
 		 * sends (the last) Read Data sequence followed by the RSP
 		 * sequence in one LLDD operation. Errors during Data
-		 * sequence transmit must not allow RSP sequence to be sent.
+		 * sequence transmit must analt allow RSP sequence to be sent.
 		 */
 };
 
@@ -731,7 +731,7 @@ enum {
  * Fields with static values for the port. Initialized by the
  * port_info struct supplied to the registration call.
  * @port_num:  NVME-FC transport subsystem port number
- * @node_name: FC WWNN for the port
+ * @analde_name: FC WWNN for the port
  * @port_name: FC WWPN for the port
  * @private:   pointer to memory allocated alongside the local port
  *             structure that is specifically for the LLDD to use.
@@ -749,7 +749,7 @@ enum {
 struct nvmet_fc_target_port {
 	/* static/read-only fields */
 	u32 port_num;
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 
 	void *private;
@@ -771,7 +771,7 @@ struct nvmet_fc_target_port {
  *
  * @targetport_delete:  The LLDD initiates deletion of a targetport via
  *       nvmet_fc_unregister_targetport(). However, the teardown is
- *       asynchronous. This routine is called upon the completion of the
+ *       asynchroanalus. This routine is called upon the completion of the
  *       teardown to inform the LLDD that the targetport has been deleted.
  *       Entrypoint is Mandatory.
  *
@@ -781,7 +781,7 @@ struct nvmet_fc_target_port {
  *       the LS request was received. The structure will fully describe
  *       the buffers for the response payload and the dma address of the
  *       payload. The LLDD is to transmit the response (or return a
- *       non-zero errno status), and upon completion of the transmit, call
+ *       analn-zero erranal status), and upon completion of the transmit, call
  *       the "done" routine specified in the nvmefc_ls_rsp structure
  *       (argument to done is the address of the nvmefc_ls_rsp structure
  *       itself). Upon the completion of the done() routine, the LLDD shall
@@ -803,21 +803,21 @@ struct nvmet_fc_target_port {
  *       relative to the io.
  *         NVMET_FCOP_READDATA operation: the LLDD is to send the
  *           payload data (described by sglist) to the host in 1 or
- *           more FC sequences (preferrably 1).  Note: the fc-nvme layer
+ *           more FC sequences (preferrably 1).  Analte: the fc-nvme layer
  *           may call the READDATA operation multiple times for longer
  *           payloads.
  *         NVMET_FCOP_WRITEDATA operation: the LLDD is to receive the
  *           payload data (described by sglist) from the host via 1 or
  *           more FC sequences (preferrably 1). The LLDD is to generate
  *           the XFER_RDY IU(s) corresponding to the data being requested.
- *           Note: the FC-NVME layer may call the WRITEDATA operation
+ *           Analte: the FC-NVME layer may call the WRITEDATA operation
  *           multiple times for longer payloads.
  *         NVMET_FCOP_READDATA_RSP operation: the LLDD is to send the
  *           payload data (described by sglist) to the host in 1 or
  *           more FC sequences (preferrably 1). If an error occurs during
  *           payload data transmission, the LLDD is to set the
  *           nvmefc_tgt_fcp_req fcp_error and transferred_length field, then
- *           consider the operation complete. On error, the LLDD is to not
+ *           consider the operation complete. On error, the LLDD is to analt
  *           transmit the FCP_RSP iu. If all payload data is transferred
  *           successfully, the LLDD is to update the nvmefc_tgt_fcp_req
  *           transferred_length field and may subsequently transmit the
@@ -825,7 +825,7 @@ struct nvmet_fc_target_port {
  *           If FCP_CONF is supported, the LLDD is to await FCP_CONF
  *           reception to confirm the RSP reception by the host. The LLDD
  *           may retramsit the FCP_RSP iu if necessary per FC-NVME. Upon
- *           transmission of the FCP_RSP iu if FCP_CONF is not supported,
+ *           transmission of the FCP_RSP iu if FCP_CONF is analt supported,
  *           or upon success/failure of FCP_CONF if it is supported, the
  *           LLDD is to set the nvmefc_tgt_fcp_req fcp_error field and
  *           consider the operation complete.
@@ -833,8 +833,8 @@ struct nvmet_fc_target_port {
  *           (described by rspbuf, rspdma, rsplen). If FCP_CONF is
  *           supported, the LLDD is to await FCP_CONF reception to confirm
  *           the RSP reception by the host. The LLDD may retramsit the
- *           FCP_RSP iu if FCP_CONF is not received per FC-NVME. Upon
- *           transmission of the FCP_RSP iu if FCP_CONF is not supported,
+ *           FCP_RSP iu if FCP_CONF is analt received per FC-NVME. Upon
+ *           transmission of the FCP_RSP iu if FCP_CONF is analt supported,
  *           or upon success/failure of FCP_CONF if it is supported, the
  *           LLDD is to set the nvmefc_tgt_fcp_req fcp_error field and
  *           consider the operation complete.
@@ -846,8 +846,8 @@ struct nvmet_fc_target_port {
  *       the LLDD-supplied exchange structure must remain valid until the
  *       transport calls the fcp_req_release() callback to return ownership
  *       of the exchange structure back to the LLDD so that it may be used
- *       for another fcp command.
- *       Note: when calling the done routine for READDATA or WRITEDATA
+ *       for aanalther fcp command.
+ *       Analte: when calling the done routine for READDATA or WRITEDATA
  *       operations, the fc-nvme layer may immediate convert, in the same
  *       thread and before returning to the LLDD, the fcp operation to
  *       the next operation for the fcp io and call the LLDDs fcp_op
@@ -855,15 +855,15 @@ struct nvmet_fc_target_port {
  *       the done call, the LLDD should save their values prior to calling
  *       the done routine, and inspect the save values after the done
  *       routine.
- *       Returns 0 on success, -<errno> on failure (Ex: -EIO)
+ *       Returns 0 on success, -<erranal> on failure (Ex: -EIO)
  *       Entrypoint is Mandatory.
  *
  * @fcp_abort:  Called by the transport to abort an active command.
- *       The command may be in-between operations (nothing active in LLDD)
+ *       The command may be in-between operations (analthing active in LLDD)
  *       or may have an active WRITEDATA operation pending. The LLDD is to
  *       initiate the ABTS process for the command and return from the
- *       callback. The ABTS does not need to be complete on the command.
- *       The fcp_abort callback inherently cannot fail. After the
+ *       callback. The ABTS does analt need to be complete on the command.
+ *       The fcp_abort callback inherently cananalt fail. After the
  *       fcp_abort() callback completes, the transport will wait for any
  *       outstanding operation (if there was one) to complete, then will
  *       call the fcp_req_release() callback to return the command's
@@ -878,12 +878,12 @@ struct nvmet_fc_target_port {
  *
  * @defer_rcv:  Called by the transport to signal the LLLD that it has
  *       begun processing of a previously received NVME CMD IU. The LLDD
- *       is now free to re-use the rcv buffer associated with the
+ *       is analw free to re-use the rcv buffer associated with the
  *       nvmefc_tgt_fcp_req.
  *       Entrypoint is Optional.
  *
  * @discovery_event:  Called by the transport to generate an RSCN
- *       change notifications to NVME initiators. The RSCN notifications
+ *       change analtifications to NVME initiators. The RSCN analtifications
  *       should cause the initiator to rescan the discovery controller
  *       on the targetport.
  *
@@ -916,7 +916,7 @@ struct nvmet_fc_target_port {
  *
  * @host_release: called to inform the LLDD that the request to invalidate
  *       the host port indicated by the hosthandle has been fully completed.
- *       No associations exist with the host port and there will be no
+ *       Anal associations exist with the host port and there will be anal
  *       further references to hosthandle.
  *       Entrypoint is Mandatory if the lldd calls nvmet_fc_invalidate_host().
  *
@@ -1002,21 +1002,21 @@ int nvmet_fc_unregister_targetport(struct nvmet_fc_target_port *tgtport);
  *
  * If the return value is zero: the LS was successfully accepted by the
  *   transport.
- * If the return value is non-zero: the transport has not accepted the
+ * If the return value is analn-zero: the transport has analt accepted the
  *   LS. The lldd should ABTS-LS the LS.
  *
- * Note: if the LLDD receives and ABTS for the LS prior to the transport
+ * Analte: if the LLDD receives and ABTS for the LS prior to the transport
  * calling the ops->xmt_ls_rsp() routine to transmit a response, the LLDD
  * shall mark the LS as aborted, and when the xmt_ls_rsp() is called: the
- * response shall not be transmit and the struct nvmefc_ls_rsp() done
+ * response shall analt be transmit and the struct nvmefc_ls_rsp() done
  * routine shall be called.  The LLDD may transmit the ABTS response as
  * soon as the LS was marked or can delay until the xmt_ls_rsp() call is
  * made.
- * Note: if an RCV LS was successfully posted to the transport and the
+ * Analte: if an RCV LS was successfully posted to the transport and the
  * targetport is then unregistered before xmt_ls_rsp() was called for
  * the lsrsp structure, the transport will still call xmt_ls_rsp()
  * afterward to cleanup the outstanding lsrsp structure. The LLDD should
- * noop the transmission of the rsp and call the lsrsp->done() routine
+ * analop the transmission of the rsp and call the lsrsp->done() routine
  * to allow the lsrsp structure to be released.
  */
 int nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *tgtport,
@@ -1041,14 +1041,14 @@ int nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *tgtport,
  * should reject the LS's if they are attempted.
  * Once the last association has terminated for the hosthandle host
  * port, the nvmet-fc transport will call the ops->host_release()
- * callback. As of the callback, the nvmet-fc transport will no
+ * callback. As of the callback, the nvmet-fc transport will anal
  * longer reference hosthandle.
  */
 void nvmet_fc_invalidate_host(struct nvmet_fc_target_port *tgtport,
 			void *hosthandle);
 
 /*
- * If nvmet_fc_rcv_fcp_req returns non-zero, the transport has not accepted
+ * If nvmet_fc_rcv_fcp_req returns analn-zero, the transport has analt accepted
  * the FCP cmd. The lldd should ABTS-LS the cmd.
  */
 int nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *tgtport,

@@ -10,9 +10,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -185,7 +185,7 @@ void hci_inquiry_cache_flush(struct hci_dev *hdev)
 		kfree(p);
 	}
 
-	INIT_LIST_HEAD(&cache->unknown);
+	INIT_LIST_HEAD(&cache->unkanalwn);
 	INIT_LIST_HEAD(&cache->resolve);
 }
 
@@ -205,7 +205,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev,
 	return NULL;
 }
 
-struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
+struct inquiry_entry *hci_inquiry_cache_lookup_unkanalwn(struct hci_dev *hdev,
 						       bdaddr_t *bdaddr)
 {
 	struct discovery_state *cache = &hdev->discovery;
@@ -213,7 +213,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
 
 	BT_DBG("cache %p, %pMR", cache, bdaddr);
 
-	list_for_each_entry(e, &cache->unknown, list) {
+	list_for_each_entry(e, &cache->unkanalwn, list) {
 		if (!bacmp(&e->data.bdaddr, bdaddr))
 			return e;
 	}
@@ -260,7 +260,7 @@ void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
 }
 
 u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
-			     bool name_known)
+			     bool name_kanalwn)
 {
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *ie;
@@ -287,7 +287,7 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 		goto update;
 	}
 
-	/* Entry not in the cache. Add new one. */
+	/* Entry analt in the cache. Add new one. */
 	ie = kzalloc(sizeof(*ie), GFP_KERNEL);
 	if (!ie) {
 		flags |= MGMT_DEV_FOUND_CONFIRM_NAME;
@@ -296,17 +296,17 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 
 	list_add(&ie->all, &cache->all);
 
-	if (name_known) {
-		ie->name_state = NAME_KNOWN;
+	if (name_kanalwn) {
+		ie->name_state = NAME_KANALWN;
 	} else {
-		ie->name_state = NAME_NOT_KNOWN;
-		list_add(&ie->list, &cache->unknown);
+		ie->name_state = NAME_ANALT_KANALWN;
+		list_add(&ie->list, &cache->unkanalwn);
 	}
 
 update:
-	if (name_known && ie->name_state != NAME_KNOWN &&
+	if (name_kanalwn && ie->name_state != NAME_KANALWN &&
 	    ie->name_state != NAME_PENDING) {
-		ie->name_state = NAME_KNOWN;
+		ie->name_state = NAME_KANALWN;
 		list_del(&ie->list);
 	}
 
@@ -314,7 +314,7 @@ update:
 	ie->timestamp = jiffies;
 	cache->timestamp = jiffies;
 
-	if (ie->name_state == NAME_NOT_KNOWN)
+	if (ie->name_state == NAME_ANALT_KANALWN)
 		flags |= MGMT_DEV_FOUND_CONFIRM_NAME;
 
 done:
@@ -383,7 +383,7 @@ int hci_inquiry(void __user *arg)
 
 	hdev = hci_dev_get(ir.dev_id);
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
 		err = -EBUSY;
@@ -391,17 +391,17 @@ int hci_inquiry(void __user *arg)
 	}
 
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 
 	if (hdev->dev_type != HCI_PRIMARY) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 
 	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 
@@ -447,7 +447,7 @@ int hci_inquiry(void __user *arg)
 	 */
 	buf = kmalloc_array(max_rsp, sizeof(struct inquiry_info), GFP_KERNEL);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 
@@ -495,10 +495,10 @@ int hci_dev_open(__u16 dev)
 
 	hdev = hci_dev_get(dev);
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Devices that are marked as unconfigured can only be powered
-	 * up as user channel. Trying to bring them up as normal devices
+	 * up as user channel. Trying to bring them up as analrmal devices
 	 * will result into a failure. Only user channel operation is
 	 * possible.
 	 *
@@ -508,13 +508,13 @@ int hci_dev_open(__u16 dev)
 	 */
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED) &&
 	    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 
-	/* We need to ensure that no other power on/off work is pending
+	/* We need to ensure that anal other power on/off work is pending
 	 * before proceeding to call hci_dev_do_open. This is
-	 * particularly important if the setup procedure has not yet
+	 * particularly important if the setup procedure has analt yet
 	 * completed.
 	 */
 	if (hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF))
@@ -522,11 +522,11 @@ int hci_dev_open(__u16 dev)
 
 	/* After this call it is guaranteed that the setup procedure
 	 * has finished. This means that error conditions like RFKILL
-	 * or no valid public or static random address apply.
+	 * or anal valid public or static random address apply.
 	 */
 	flush_workqueue(hdev->req_workqueue);
 
-	/* For controllers not using the management interface and that
+	/* For controllers analt using the management interface and that
 	 * are brought up using legacy ioctl, set the HCI_BONDABLE bit
 	 * so that pairing works for them. Once the management interface
 	 * is in use this bit will be cleared again and userspace has
@@ -565,7 +565,7 @@ int hci_dev_close(__u16 dev)
 
 	hdev = hci_dev_get(dev);
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
 		err = -EBUSY;
@@ -595,7 +595,7 @@ static int hci_dev_do_reset(struct hci_dev *hdev)
 	skb_queue_purge(&hdev->rx_q);
 	skb_queue_purge(&hdev->cmd_q);
 
-	/* Cancel these to avoid queueing non-chained pending work */
+	/* Cancel these to avoid queueing analn-chained pending work */
 	hci_dev_set_flag(hdev, HCI_CMD_DRAIN_WORKQUEUE);
 	/* Wait for
 	 *
@@ -643,7 +643,7 @@ int hci_dev_reset(__u16 dev)
 
 	hdev = hci_dev_get(dev);
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!test_bit(HCI_UP, &hdev->flags)) {
 		err = -ENETDOWN;
@@ -656,7 +656,7 @@ int hci_dev_reset(__u16 dev)
 	}
 
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 
@@ -674,7 +674,7 @@ int hci_dev_reset_stat(__u16 dev)
 
 	hdev = hci_dev_get(dev);
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
 		ret = -EBUSY;
@@ -682,7 +682,7 @@ int hci_dev_reset_stat(__u16 dev)
 	}
 
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto done;
 	}
 
@@ -740,7 +740,7 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 
 	hdev = hci_dev_get(dr.dev_id);
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
 		err = -EBUSY;
@@ -748,17 +748,17 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 	}
 
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 
 	if (hdev->dev_type != HCI_PRIMARY) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 
 	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 
@@ -770,7 +770,7 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 
 	case HCISETENCRYPT:
 		if (!lmp_encrypt_capable(hdev)) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 
@@ -791,7 +791,7 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 				   HCI_INIT_TIMEOUT, NULL);
 
 		/* Ensure that the connectable and discoverable states
-		 * get correctly modified as this was a non-mgmt change.
+		 * get correctly modified as this was a analn-mgmt change.
 		 */
 		if (!err)
 			hci_update_passive_scan_state(hdev, dr.dev_opt);
@@ -853,7 +853,7 @@ int hci_get_dev_list(void __user *arg)
 
 	dl = kzalloc(size, GFP_KERNEL);
 	if (!dl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dr = dl->dev_req;
 
@@ -897,7 +897,7 @@ int hci_get_dev_info(void __user *arg)
 
 	hdev = hci_dev_get(di.dev_id);
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* When the auto-off is configured it means the transport
 	 * is running, but in that case still indicate that the
@@ -990,7 +990,7 @@ static void hci_power_on(struct work_struct *work)
 	}
 
 	/* During the HCI setup phase, a few error conditions are
-	 * ignored and they need to be checked now. If they are still
+	 * iganalred and they need to be checked analw. If they are still
 	 * valid, it is important to turn the device back off.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_RFKILLED) ||
@@ -1016,12 +1016,12 @@ static void hci_power_on(struct work_struct *work)
 		 * the Index Added event. For unconfigured devices,
 		 * it will send Unconfigued Index Added event.
 		 *
-		 * Devices with HCI_QUIRK_RAW_DEVICE are ignored
-		 * and no event will be send.
+		 * Devices with HCI_QUIRK_RAW_DEVICE are iganalred
+		 * and anal event will be send.
 		 */
 		mgmt_index_added(hdev);
 	} else if (hci_dev_test_and_clear_flag(hdev, HCI_CONFIG)) {
-		/* When the controller is now configured, then it
+		/* When the controller is analw configured, then it
 		 * is important to clear the HCI_RAW flag.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
@@ -1167,7 +1167,7 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	if (key_type == HCI_LK_DEBUG_COMBINATION)
 		return false;
 
-	/* Changed combination key and there's no previous one */
+	/* Changed combination key and there's anal previous one */
 	if (key_type == HCI_LK_CHANGED_COMBINATION && old_key_type == 0xff)
 		return false;
 
@@ -1179,7 +1179,7 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	if (conn->type == LE_LINK)
 		return true;
 
-	/* Neither local nor remote side had no-bonding as requirement */
+	/* Neither local analr remote side had anal-bonding as requirement */
 	if (conn->auth_type > 0x01 && conn->remote_auth > 0x01)
 		return true;
 
@@ -1191,7 +1191,7 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	if (conn->remote_auth == 0x02 || conn->remote_auth == 0x03)
 		return true;
 
-	/* If none of the above criteria match, then don't store the key
+	/* If analne of the above criteria match, then don't store the key
 	 * persistently */
 	return false;
 }
@@ -1322,7 +1322,7 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 	BT_DBG("%s key for %pMR type %u", hdev->name, bdaddr, type);
 
 	/* Some buggy controller combinations generate a changed
-	 * combination key for legacy pairing even when there's no
+	 * combination key for legacy pairing even when there's anal
 	 * previous key */
 	if (type == HCI_LK_CHANGED_COMBINATION &&
 	    (!conn || conn->remote_auth == 0xff) && old_key_type == 0xff) {
@@ -1405,7 +1405,7 @@ int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 
 	key = hci_find_link_key(hdev, bdaddr);
 	if (!key)
-		return -ENOENT;
+		return -EANALENT;
 
 	BT_DBG("%s removing %pMR", hdev->name, bdaddr);
 
@@ -1431,7 +1431,7 @@ int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 bdaddr_type)
 		removed++;
 	}
 
-	return removed ? 0 : -ENOENT;
+	return removed ? 0 : -EANALENT;
 }
 
 void hci_remove_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type)
@@ -1513,9 +1513,9 @@ static void hci_ncmd_timeout(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    ncmd_timer.work);
 
-	bt_dev_err(hdev, "Controller not accepting commands anymore: ncmd = 0");
+	bt_dev_err(hdev, "Controller analt accepting commands anymore: ncmd = 0");
 
-	/* During HCI_INIT phase no events can be injected if the ncmd timer
+	/* During HCI_INIT phase anal events can be injected if the ncmd timer
 	 * triggers since the procedure has its own timeout handling.
 	 */
 	if (test_bit(HCI_INIT, &hdev->flags))
@@ -1548,7 +1548,7 @@ int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	data = hci_find_remote_oob_data(hdev, bdaddr, bdaddr_type);
 	if (!data)
-		return -ENOENT;
+		return -EANALENT;
 
 	BT_DBG("%s removing %pMR (%u)", hdev->name, bdaddr, bdaddr_type);
 
@@ -1578,7 +1578,7 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	if (!data) {
 		data = kmalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		bacpy(&data->bdaddr, bdaddr);
 		data->bdaddr_type = bdaddr_type;
@@ -1651,7 +1651,7 @@ int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
 
 	adv_instance = hci_find_adv_instance(hdev, instance);
 	if (!adv_instance)
-		return -ENOENT;
+		return -EANALENT;
 
 	BT_DBG("%s removing %dMR", hdev->name, instance);
 
@@ -1733,7 +1733,7 @@ struct adv_info *hci_add_adv_instance(struct hci_dev *hdev, u8 instance,
 
 		adv = kzalloc(sizeof(*adv), GFP_KERNEL);
 		if (!adv)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		adv->pending = true;
 		adv->instance = instance;
@@ -1777,7 +1777,7 @@ struct adv_info *hci_add_per_instance(struct hci_dev *hdev, u8 instance,
 	struct adv_info *adv;
 
 	adv = hci_add_adv_instance(hdev, instance, flags, 0, NULL, 0, NULL,
-				   0, 0, HCI_ADV_TX_POWER_NO_PREFERENCE,
+				   0, 0, HCI_ADV_TX_POWER_ANAL_PREFERENCE,
 				   min_interval, max_interval, 0);
 	if (IS_ERR(adv))
 		return adv;
@@ -1802,7 +1802,7 @@ int hci_set_adv_instance_data(struct hci_dev *hdev, u8 instance,
 
 	/* If advertisement doesn't exist, we can't modify its data */
 	if (!adv)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (adv_data_len && ADV_DATA_CMP(adv, adv_data, adv_data_len)) {
 		memset(adv->adv_data, 0, sizeof(adv->adv_data));
@@ -1911,7 +1911,7 @@ void hci_free_adv_monitor(struct hci_dev *hdev, struct adv_monitor *monitor)
 	if (monitor->handle)
 		idr_remove(&hdev->adv_monitors_idr, monitor->handle);
 
-	if (monitor->state != ADV_MONITOR_STATE_NOT_REGISTERED) {
+	if (monitor->state != ADV_MONITOR_STATE_ANALT_REGISTERED) {
 		hdev->adv_monitors_cnt--;
 		mgmt_adv_monitor_removed(hdev, monitor->handle);
 	}
@@ -1949,10 +1949,10 @@ int hci_add_adv_monitor(struct hci_dev *hdev, struct adv_monitor *monitor)
 		return status;
 
 	switch (hci_get_adv_monitor_offload_ext(hdev)) {
-	case HCI_ADV_MONITOR_EXT_NONE:
+	case HCI_ADV_MONITOR_EXT_ANALNE:
 		bt_dev_dbg(hdev, "add monitor %d status %d",
 			   monitor->handle, status);
-		/* Message was not forwarded to controller - not an error */
+		/* Message was analt forwarded to controller - analt an error */
 		break;
 
 	case HCI_ADV_MONITOR_EXT_MSFT:
@@ -1976,7 +1976,7 @@ static int hci_remove_adv_monitor(struct hci_dev *hdev,
 	int handle;
 
 	switch (hci_get_adv_monitor_offload_ext(hdev)) {
-	case HCI_ADV_MONITOR_EXT_NONE: /* also goes here when powered off */
+	case HCI_ADV_MONITOR_EXT_ANALNE: /* also goes here when powered off */
 		bt_dev_dbg(hdev, "remove monitor %d status %d",
 			   monitor->handle, status);
 		goto free_monitor;
@@ -1989,15 +1989,15 @@ static int hci_remove_adv_monitor(struct hci_dev *hdev,
 		break;
 	}
 
-	/* In case no matching handle registered, just free the monitor */
-	if (status == -ENOENT)
+	/* In case anal matching handle registered, just free the monitor */
+	if (status == -EANALENT)
 		goto free_monitor;
 
 	return status;
 
 free_monitor:
-	if (status == -ENOENT)
-		bt_dev_warn(hdev, "Removing monitor with no matching handle %d",
+	if (status == -EANALENT)
+		bt_dev_warn(hdev, "Removing monitor with anal matching handle %d",
 			    monitor->handle);
 	hci_free_adv_monitor(hdev, monitor);
 
@@ -2048,7 +2048,7 @@ int hci_get_adv_monitor_offload_ext(struct hci_dev *hdev)
 	if (msft_monitor_supported(hdev))
 		return HCI_ADV_MONITOR_EXT_MSFT;
 
-	return HCI_ADV_MONITOR_EXT_NONE;
+	return HCI_ADV_MONITOR_EXT_ANALNE;
 }
 
 struct bdaddr_list *hci_bdaddr_list_lookup(struct list_head *bdaddr_list,
@@ -2114,7 +2114,7 @@ int hci_bdaddr_list_add(struct list_head *list, bdaddr_t *bdaddr, u8 type)
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bacpy(&entry->bdaddr, bdaddr);
 	entry->bdaddr_type = type;
@@ -2137,7 +2137,7 @@ int hci_bdaddr_list_add_with_irk(struct list_head *list, bdaddr_t *bdaddr,
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bacpy(&entry->bdaddr, bdaddr);
 	entry->bdaddr_type = type;
@@ -2166,7 +2166,7 @@ int hci_bdaddr_list_add_with_flags(struct list_head *list, bdaddr_t *bdaddr,
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bacpy(&entry->bdaddr, bdaddr);
 	entry->bdaddr_type = type;
@@ -2188,7 +2188,7 @@ int hci_bdaddr_list_del(struct list_head *list, bdaddr_t *bdaddr, u8 type)
 
 	entry = hci_bdaddr_list_lookup(list, bdaddr, type);
 	if (!entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_del(&entry->list);
 	kfree(entry);
@@ -2208,7 +2208,7 @@ int hci_bdaddr_list_del_with_irk(struct list_head *list, bdaddr_t *bdaddr,
 
 	entry = hci_bdaddr_list_lookup_with_irk(list, bdaddr, type);
 	if (!entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_del(&entry->list);
 	kfree(entry);
@@ -2228,7 +2228,7 @@ int hci_bdaddr_list_del_with_flags(struct list_head *list, bdaddr_t *bdaddr,
 
 	entry = hci_bdaddr_list_lookup_with_flags(list, bdaddr, type);
 	if (!entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_del(&entry->list);
 	kfree(entry);
@@ -2426,16 +2426,16 @@ static void hci_clear_wake_reason(struct hci_dev *hdev)
 	hci_dev_unlock(hdev);
 }
 
-static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
+static int hci_suspend_analtifier(struct analtifier_block *nb, unsigned long action,
 				void *data)
 {
 	struct hci_dev *hdev =
-		container_of(nb, struct hci_dev, suspend_notifier);
+		container_of(nb, struct hci_dev, suspend_analtifier);
 	int ret = 0;
 
-	/* Userspace has full control of this device. Do nothing. */
+	/* Userspace has full control of this device. Do analthing. */
 	if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* To avoid a potential race with hci_unregister_dev. */
 	hci_dev_hold(hdev);
@@ -2446,11 +2446,11 @@ static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
 		ret = hci_resume_dev(hdev);
 
 	if (ret)
-		bt_dev_err(hdev, "Suspend notifier action (%lu) failed: %d",
+		bt_dev_err(hdev, "Suspend analtifier action (%lu) failed: %d",
 			   action, ret);
 
 	hci_dev_put(hdev);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /* Alloc HCI device */
@@ -2473,7 +2473,7 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
 	hdev->num_iac = 0x01;		/* One IAC support is mandatory */
-	hdev->io_capability = 0x03;	/* No Input No Output */
+	hdev->io_capability = 0x03;	/* Anal Input Anal Output */
 	hdev->manufacturer = 0xffff;	/* Default to internal use */
 	hdev->inq_tx_power = HCI_TX_POWER_INVALID;
 	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
@@ -2482,7 +2482,7 @@ struct hci_dev *hci_alloc_dev_priv(int sizeof_priv)
 	hdev->adv_instance_timeout = 0;
 
 	hdev->advmon_allowlist_duration = 300;
-	hdev->advmon_no_filter_duration = 500;
+	hdev->advmon_anal_filter_duration = 500;
 	hdev->enable_advmon_interleave_scan = 0x00;	/* Default to disable */
 
 	hdev->sniff_max_interval = 800;
@@ -2603,7 +2603,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (!hdev->open || !hdev->close || !hdev->send)
 		return -EINVAL;
 
-	/* Do not allow HCI_AMP devices to register at index 0,
+	/* Do analt allow HCI_AMP devices to register at index 0,
 	 * so the index can be used as the AMP controller ID.
 	 */
 	switch (hdev->dev_type) {
@@ -2631,7 +2631,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	hdev->workqueue = alloc_ordered_workqueue("%s", WQ_HIGHPRI, hdev->name);
 	if (!hdev->workqueue) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 
@@ -2639,7 +2639,7 @@ int hci_register_dev(struct hci_dev *hdev)
 						      hdev->name);
 	if (!hdev->req_workqueue) {
 		destroy_workqueue(hdev->workqueue);
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 
@@ -2680,7 +2680,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	write_unlock(&hci_dev_list_lock);
 
 	/* Devices that are marked for raw-only usage are unconfigured
-	 * and should not be included in normal operation.
+	 * and should analt be included in analrmal operation.
 	 */
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		hci_dev_set_flag(hdev, HCI_UNCONFIGURED);
@@ -2694,9 +2694,9 @@ int hci_register_dev(struct hci_dev *hdev)
 	hci_sock_dev_event(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
 
-	error = hci_register_suspend_notifier(hdev);
+	error = hci_register_suspend_analtifier(hdev);
 	if (error)
-		BT_WARN("register suspend notifier failed error:%d\n", error);
+		BT_WARN("register suspend analtifier failed error:%d\n", error);
 
 	queue_work(hdev->req_workqueue, &hdev->power_on);
 
@@ -2733,7 +2733,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	hci_cmd_sync_clear(hdev);
 
-	hci_unregister_suspend_notifier(hdev);
+	hci_unregister_suspend_analtifier(hdev);
 
 	msft_unregister(hdev);
 
@@ -2800,27 +2800,27 @@ void hci_release_dev(struct hci_dev *hdev)
 }
 EXPORT_SYMBOL(hci_release_dev);
 
-int hci_register_suspend_notifier(struct hci_dev *hdev)
+int hci_register_suspend_analtifier(struct hci_dev *hdev)
 {
 	int ret = 0;
 
-	if (!hdev->suspend_notifier.notifier_call &&
-	    !test_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, &hdev->quirks)) {
-		hdev->suspend_notifier.notifier_call = hci_suspend_notifier;
-		ret = register_pm_notifier(&hdev->suspend_notifier);
+	if (!hdev->suspend_analtifier.analtifier_call &&
+	    !test_bit(HCI_QUIRK_ANAL_SUSPEND_ANALTIFIER, &hdev->quirks)) {
+		hdev->suspend_analtifier.analtifier_call = hci_suspend_analtifier;
+		ret = register_pm_analtifier(&hdev->suspend_analtifier);
 	}
 
 	return ret;
 }
 
-int hci_unregister_suspend_notifier(struct hci_dev *hdev)
+int hci_unregister_suspend_analtifier(struct hci_dev *hdev)
 {
 	int ret = 0;
 
-	if (hdev->suspend_notifier.notifier_call) {
-		ret = unregister_pm_notifier(&hdev->suspend_notifier);
+	if (hdev->suspend_analtifier.analtifier_call) {
+		ret = unregister_pm_analtifier(&hdev->suspend_analtifier);
 		if (!ret)
-			hdev->suspend_notifier.notifier_call = NULL;
+			hdev->suspend_analtifier.analtifier_call = NULL;
 	}
 
 	return ret;
@@ -2893,7 +2893,7 @@ int hci_reset_dev(struct hci_dev *hdev)
 
 	skb = bt_skb_alloc(3, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
 	skb_put_data(skb, hw_err, 3);
@@ -2950,10 +2950,10 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(hci_recv_frame);
 
-/* Receive diagnostic message from HCI drivers */
+/* Receive diaganalstic message from HCI drivers */
 int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	/* Mark as diagnostic packet */
+	/* Mark as diaganalstic packet */
 	hci_skb_pkt_type(skb) = HCI_DIAG_PKT;
 
 	/* Time stamp */
@@ -3060,8 +3060,8 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
-		bt_dev_err(hdev, "no memory for command");
-		return -ENOMEM;
+		bt_dev_err(hdev, "anal memory for command");
+		return -EANALMEM;
 	}
 
 	/* Stand-alone HCI commands must be flagged as
@@ -3085,19 +3085,19 @@ int __hci_cmd_send(struct hci_dev *hdev, u16 opcode, u32 plen,
 		 * a Command Status Event or a Command Complete Event.
 		 * Therefore, all standard HCI commands must be sent via the
 		 * standard API, using hci_send_cmd or hci_cmd_sync helpers.
-		 * Some vendors do not comply with this rule for vendor-specific
-		 * commands and do not return any event. We want to support
+		 * Some vendors do analt comply with this rule for vendor-specific
+		 * commands and do analt return any event. We want to support
 		 * unresponded commands for such cases only.
 		 */
-		bt_dev_err(hdev, "unresponded command not supported");
+		bt_dev_err(hdev, "unresponded command analt supported");
 		return -EINVAL;
 	}
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
-		bt_dev_err(hdev, "no memory for command (opcode 0x%4.4x)",
+		bt_dev_err(hdev, "anal memory for command (opcode 0x%4.4x)",
 			   opcode);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hci_send_frame(hdev, skb);
@@ -3188,14 +3188,14 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 		hci_add_acl_hdr(skb, chan->handle, flags);
 		break;
 	default:
-		bt_dev_err(hdev, "unknown dev_type %d", hdev->dev_type);
+		bt_dev_err(hdev, "unkanalwn dev_type %d", hdev->dev_type);
 		return;
 	}
 
 	list = skb_shinfo(skb)->frag_list;
 	if (!list) {
-		/* Non fragmented */
-		BT_DBG("%s nonfrag skb %p len %d", hdev->name, skb, skb->len);
+		/* Analn fragmented */
+		BT_DBG("%s analnfrag skb %p len %d", hdev->name, skb, skb->len);
 
 		skb_queue_tail(queue, skb);
 	} else {
@@ -3206,7 +3206,7 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 
 		/* Queue all fragments atomically. We need to use spin_lock_bh
 		 * here because of 6LoWPAN links, as there this function is
-		 * called from softirq and using normal spin lock could cause
+		 * called from softirq and using analrmal spin lock could cause
 		 * deadlocks.
 		 */
 		spin_lock_bh(&queue->lock);
@@ -3293,8 +3293,8 @@ static void hci_queue_iso(struct hci_conn *conn, struct sk_buff_head *queue,
 	hci_add_iso_hdr(skb, conn->handle, flags);
 
 	if (!list) {
-		/* Non fragmented */
-		BT_DBG("%s nonfrag skb %p len %d", hdev->name, skb, skb->len);
+		/* Analn fragmented */
+		BT_DBG("%s analnfrag skb %p len %d", hdev->name, skb, skb->len);
 
 		skb_queue_tail(queue, skb);
 	} else {
@@ -3366,7 +3366,7 @@ static inline void hci_quote_sent(struct hci_conn *conn, int num, int *quote)
 		break;
 	default:
 		cnt = 0;
-		bt_dev_err(hdev, "unknown link type %d", conn->type);
+		bt_dev_err(hdev, "unkanalwn link type %d", conn->type);
 	}
 
 	q = cnt / num;
@@ -3727,11 +3727,11 @@ static void hci_sched_acl(struct hci_dev *hdev)
 {
 	BT_DBG("%s", hdev->name);
 
-	/* No ACL link over BR/EDR controller */
+	/* Anal ACL link over BR/EDR controller */
 	if (!hci_conn_num(hdev, ACL_LINK) && hdev->dev_type == HCI_PRIMARY)
 		return;
 
-	/* No AMP link over AMP controller */
+	/* Anal AMP link over AMP controller */
 	if (!hci_conn_num(hdev, AMP_LINK) && hdev->dev_type == HCI_AMP)
 		return;
 
@@ -3840,7 +3840,7 @@ static void hci_tx_work(struct work_struct *work)
 		hci_sched_le(hdev);
 	}
 
-	/* Send next queued raw (unknown type) packet */
+	/* Send next queued raw (unkanalwn type) packet */
 	while ((skb = skb_dequeue(&hdev->raw_q)))
 		hci_send_frame(hdev, skb);
 }
@@ -3876,7 +3876,7 @@ static void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		l2cap_recv_acldata(conn, skb, flags);
 		return;
 	} else {
-		bt_dev_err(hdev, "ACL packet for unknown connection handle %d",
+		bt_dev_err(hdev, "ACL packet for unkanalwn connection handle %d",
 			   handle);
 	}
 
@@ -3911,7 +3911,7 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		sco_recv_scodata(conn, skb);
 		return;
 	} else {
-		bt_dev_err_ratelimited(hdev, "SCO packet for unknown connection handle %d",
+		bt_dev_err_ratelimited(hdev, "SCO packet for unkanalwn connection handle %d",
 				       handle);
 	}
 
@@ -3942,7 +3942,7 @@ static void hci_isodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 
 	if (!conn) {
-		bt_dev_err(hdev, "ISO packet for unknown connection handle %d",
+		bt_dev_err(hdev, "ISO packet for unkanalwn connection handle %d",
 			   handle);
 		goto drop;
 	}
@@ -4017,7 +4017,7 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status,
 	hci_dev_clear_flag(hdev, HCI_CMD_PENDING);
 
 	/* If the command succeeded and there's still more commands in
-	 * this request the request is not yet complete.
+	 * this request the request is analt yet complete.
 	 */
 	if (!status && !hci_req_is_complete(hdev))
 		return;

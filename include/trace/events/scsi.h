@@ -35,8 +35,8 @@
 		scsi_opcode_name(ERASE),			\
 		scsi_opcode_name(MODE_SENSE),			\
 		scsi_opcode_name(START_STOP),			\
-		scsi_opcode_name(RECEIVE_DIAGNOSTIC),		\
-		scsi_opcode_name(SEND_DIAGNOSTIC),		\
+		scsi_opcode_name(RECEIVE_DIAGANALSTIC),		\
+		scsi_opcode_name(SEND_DIAGANALSTIC),		\
 		scsi_opcode_name(ALLOW_MEDIUM_REMOVAL),		\
 		scsi_opcode_name(SET_WINDOW),			\
 		scsi_opcode_name(READ_CAPACITY),		\
@@ -108,7 +108,7 @@
 #define show_hostbyte_name(val)					\
 	__print_symbolic(val,					\
 		scsi_hostbyte_name(DID_OK),			\
-		scsi_hostbyte_name(DID_NO_CONNECT),		\
+		scsi_hostbyte_name(DID_ANAL_CONNECT),		\
 		scsi_hostbyte_name(DID_BUS_BUSY),		\
 		scsi_hostbyte_name(DID_TIME_OUT),		\
 		scsi_hostbyte_name(DID_BAD_TARGET),		\
@@ -142,7 +142,7 @@
 #define scsi_prot_op_name(result)	{ result, #result }
 #define show_prot_op_name(val)					\
 	__print_symbolic(val,					\
-		scsi_prot_op_name(SCSI_PROT_NORMAL),		\
+		scsi_prot_op_name(SCSI_PROT_ANALRMAL),		\
 		scsi_prot_op_name(SCSI_PROT_READ_INSERT),	\
 		scsi_prot_op_name(SCSI_PROT_WRITE_STRIP),	\
 		scsi_prot_op_name(SCSI_PROT_READ_STRIP),	\
@@ -160,7 +160,7 @@ TRACE_EVENT(scsi_dispatch_cmd_start,
 	TP_ARGS(cmd),
 
 	TP_STRUCT__entry(
-		__field( unsigned int,	host_no	)
+		__field( unsigned int,	host_anal	)
 		__field( unsigned int,	channel	)
 		__field( unsigned int,	id	)
 		__field( unsigned int,	lun	)
@@ -175,7 +175,7 @@ TRACE_EVENT(scsi_dispatch_cmd_start,
 	),
 
 	TP_fast_assign(
-		__entry->host_no	= cmd->device->host->host_no;
+		__entry->host_anal	= cmd->device->host->host_anal;
 		__entry->channel	= cmd->device->channel;
 		__entry->id		= cmd->device->id;
 		__entry->lun		= cmd->device->lun;
@@ -189,9 +189,9 @@ TRACE_EVENT(scsi_dispatch_cmd_start,
 		memcpy(__get_dynamic_array(cmnd), cmd->cmnd, cmd->cmd_len);
 	),
 
-	TP_printk("host_no=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u" \
+	TP_printk("host_anal=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u" \
 		  " prot_op=%s driver_tag=%d scheduler_tag=%d cmnd=(%s %s raw=%s)",
-		  __entry->host_no, __entry->channel, __entry->id,
+		  __entry->host_anal, __entry->channel, __entry->id,
 		  __entry->lun, __entry->data_sglen, __entry->prot_sglen,
 		  show_prot_op_name(__entry->prot_op), __entry->driver_tag,
 		  __entry->scheduler_tag, show_opcode_name(__entry->opcode),
@@ -206,7 +206,7 @@ TRACE_EVENT(scsi_dispatch_cmd_error,
 	TP_ARGS(cmd, rtn),
 
 	TP_STRUCT__entry(
-		__field( unsigned int,	host_no	)
+		__field( unsigned int,	host_anal	)
 		__field( unsigned int,	channel	)
 		__field( unsigned int,	id	)
 		__field( unsigned int,	lun	)
@@ -222,7 +222,7 @@ TRACE_EVENT(scsi_dispatch_cmd_error,
 	),
 
 	TP_fast_assign(
-		__entry->host_no	= cmd->device->host->host_no;
+		__entry->host_anal	= cmd->device->host->host_anal;
 		__entry->channel	= cmd->device->channel;
 		__entry->id		= cmd->device->id;
 		__entry->lun		= cmd->device->lun;
@@ -237,10 +237,10 @@ TRACE_EVENT(scsi_dispatch_cmd_error,
 		memcpy(__get_dynamic_array(cmnd), cmd->cmnd, cmd->cmd_len);
 	),
 
-	TP_printk("host_no=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u" \
+	TP_printk("host_anal=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u" \
 		  " prot_op=%s driver_tag=%d scheduler_tag=%d cmnd=(%s %s raw=%s)" \
 		  " rtn=%d",
-		  __entry->host_no, __entry->channel, __entry->id,
+		  __entry->host_anal, __entry->channel, __entry->id,
 		  __entry->lun, __entry->data_sglen, __entry->prot_sglen,
 		  show_prot_op_name(__entry->prot_op), __entry->driver_tag,
 		  __entry->scheduler_tag, show_opcode_name(__entry->opcode),
@@ -256,7 +256,7 @@ DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,
 	TP_ARGS(cmd),
 
 	TP_STRUCT__entry(
-		__field( unsigned int,	host_no	)
+		__field( unsigned int,	host_anal	)
 		__field( unsigned int,	channel	)
 		__field( unsigned int,	id	)
 		__field( unsigned int,	lun	)
@@ -277,7 +277,7 @@ DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,
 	TP_fast_assign(
 		struct scsi_sense_hdr sshdr;
 
-		__entry->host_no	= cmd->device->host->host_no;
+		__entry->host_anal	= cmd->device->host->host_anal;
 		__entry->channel	= cmd->device->channel;
 		__entry->id		= cmd->device->id;
 		__entry->lun		= cmd->device->lun;
@@ -291,7 +291,7 @@ DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,
 		__entry->prot_op	= scsi_get_prot_op(cmd);
 		memcpy(__get_dynamic_array(cmnd), cmd->cmnd, cmd->cmd_len);
 		if (cmd->sense_buffer && SCSI_SENSE_VALID(cmd) &&
-		    scsi_command_normalize_sense(cmd, &sshdr)) {
+		    scsi_command_analrmalize_sense(cmd, &sshdr)) {
 			__entry->sense_key = sshdr.sense_key;
 			__entry->asc = sshdr.asc;
 			__entry->ascq = sshdr.ascq;
@@ -302,11 +302,11 @@ DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,
 		}
 	),
 
-	TP_printk("host_no=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u " \
+	TP_printk("host_anal=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u " \
 		  "prot_op=%s driver_tag=%d scheduler_tag=%d cmnd=(%s %s raw=%s) " \
 		  "result=(driver=%s host=%s message=%s status=%s) "
 		  "sense=(key=%#x asc=%#x ascq=%#x)",
-		  __entry->host_no, __entry->channel, __entry->id,
+		  __entry->host_anal, __entry->channel, __entry->id,
 		  __entry->lun, __entry->data_sglen, __entry->prot_sglen,
 		  show_prot_op_name(__entry->prot_op), __entry->driver_tag,
 		  __entry->scheduler_tag, show_opcode_name(__entry->opcode),
@@ -334,14 +334,14 @@ TRACE_EVENT(scsi_eh_wakeup,
 	TP_ARGS(shost),
 
 	TP_STRUCT__entry(
-		__field( unsigned int,	host_no	)
+		__field( unsigned int,	host_anal	)
 	),
 
 	TP_fast_assign(
-		__entry->host_no	= shost->host_no;
+		__entry->host_anal	= shost->host_anal;
 	),
 
-	TP_printk("host_no=%u", __entry->host_no)
+	TP_printk("host_anal=%u", __entry->host_anal)
 );
 
 #endif /*  _TRACE_SCSI_H */

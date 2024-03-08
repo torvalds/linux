@@ -124,7 +124,7 @@ struct hackrf_dev {
 	unsigned int vb_full;        /* vb is full and packets dropped */
 	unsigned int vb_empty;       /* vb is empty and packets dropped */
 
-	/* Note if taking both locks v4l2_lock must always be locked first! */
+	/* Analte if taking both locks v4l2_lock must always be locked first! */
 	struct mutex v4l2_lock;      /* Protects everything else */
 	struct mutex vb_queue_lock;  /* Protects vb_queue */
 
@@ -204,7 +204,7 @@ static int hackrf_ctrl_msg(struct hackrf_dev *dev, u8 request, u16 value,
 		requesttype = (USB_TYPE_VENDOR | USB_DIR_IN);
 		break;
 	default:
-		dev_err(dev->dev, "Unknown command %02x\n", request);
+		dev_err(dev->dev, "Unkanalwn command %02x\n", request);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -476,7 +476,7 @@ static void hackrf_copy_stream(struct hackrf_dev *dev, void *dst, void *src,
 
 /*
  * This gets called for the bulk stream pipe. This is done in interrupt
- * time, so it has to be fast, not crash, and not stall. Neat.
+ * time, so it has to be fast, analt crash, and analt stall. Neat.
  */
 static void hackrf_urb_complete_in(struct urb *urb)
 {
@@ -493,7 +493,7 @@ static void hackrf_urb_complete_in(struct urb *urb)
 	case -ETIMEDOUT:    /* NAK */
 		break;
 	case -ECONNRESET:   /* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:            /* error */
@@ -505,7 +505,7 @@ static void hackrf_urb_complete_in(struct urb *urb)
 	buffer = hackrf_get_next_buffer(dev, &dev->rx_buffer_list);
 	if (unlikely(buffer == NULL)) {
 		dev->vb_full++;
-		dev_notice_ratelimited(&intf->dev,
+		dev_analtice_ratelimited(&intf->dev,
 				       "buffer is full - %u packets dropped\n",
 				       dev->vb_full);
 		goto exit_usb_submit_urb;
@@ -538,7 +538,7 @@ static void hackrf_urb_complete_out(struct urb *urb)
 	case -ETIMEDOUT:    /* NAK */
 		break;
 	case -ECONNRESET:   /* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:            /* error */
@@ -549,7 +549,7 @@ static void hackrf_urb_complete_out(struct urb *urb)
 	buffer = hackrf_get_next_buffer(dev, &dev->tx_buffer_list);
 	if (unlikely(buffer == NULL)) {
 		dev->vb_empty++;
-		dev_notice_ratelimited(&intf->dev,
+		dev_analtice_ratelimited(&intf->dev,
 				       "buffer is empty - %u packets dropped\n",
 				       dev->vb_empty);
 		urb->actual_length = 0;
@@ -590,7 +590,7 @@ static int hackrf_submit_urbs(struct hackrf_dev *dev)
 		dev_dbg(dev->dev, "submit urb=%d\n", i);
 		ret = usb_submit_urb(dev->urb_list[i], GFP_KERNEL);
 		if (ret) {
-			dev_err(dev->dev, "Could not submit URB no. %d - get them all back\n",
+			dev_err(dev->dev, "Could analt submit URB anal. %d - get them all back\n",
 					i);
 			hackrf_kill_urbs(dev);
 			return ret;
@@ -633,7 +633,7 @@ static int hackrf_alloc_stream_bufs(struct hackrf_dev *dev)
 			dev_dbg(dev->dev, "alloc buf=%d failed\n",
 					dev->buf_num);
 			hackrf_free_stream_bufs(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dev_dbg(dev->dev, "alloc buf=%d %p (dma %llu)\n", dev->buf_num,
@@ -684,7 +684,7 @@ static int hackrf_alloc_urbs(struct hackrf_dev *dev, bool rcv)
 		if (!dev->urb_list[i]) {
 			for (j = 0; j < i; j++)
 				usb_free_urb(dev->urb_list[j]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		usb_fill_bulk_urb(dev->urb_list[i],
 				dev->udev,
@@ -693,7 +693,7 @@ static int hackrf_alloc_urbs(struct hackrf_dev *dev, bool rcv)
 				BULK_BUFFER_SIZE,
 				complete, dev);
 
-		dev->urb_list[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		dev->urb_list[i]->transfer_flags = URB_ANAL_TRANSFER_DMA_MAP;
 		dev->urb_list[i]->transfer_dma = dev->dma_addr[i];
 		dev->urbs_initialized++;
 	}
@@ -711,7 +711,7 @@ static void hackrf_disconnect(struct usb_interface *intf)
 
 	mutex_lock(&dev->vb_queue_lock);
 	mutex_lock(&dev->v4l2_lock);
-	/* No need to keep the urbs around after disconnection */
+	/* Anal need to keep the urbs around after disconnection */
 	dev->udev = NULL;
 	v4l2_device_disconnect(&dev->v4l2_dev);
 	video_unregister_device(&dev->tx_vdev);
@@ -728,7 +728,7 @@ static void hackrf_return_all_buffers(struct vb2_queue *vq,
 {
 	struct hackrf_dev *dev = vb2_get_drv_priv(vq);
 	struct usb_interface *intf = dev->intf;
-	struct hackrf_buffer *buffer, *node;
+	struct hackrf_buffer *buffer, *analde;
 	struct list_head *buffer_list;
 	unsigned long flags;
 
@@ -740,7 +740,7 @@ static void hackrf_return_all_buffers(struct vb2_queue *vq,
 		buffer_list = &dev->tx_buffer_list;
 
 	spin_lock_irqsave(&dev->buffer_list_lock, flags);
-	list_for_each_entry_safe(buffer, node, buffer_list, list) {
+	list_for_each_entry_safe(buffer, analde, buffer_list, list) {
 		dev_dbg(&intf->dev, "list_for_each_entry_safe\n");
 		vb2_buffer_done(&buffer->vb.vb2_buf, state);
 		list_del(&buffer->list);
@@ -799,7 +799,7 @@ static int hackrf_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	mutex_lock(&dev->v4l2_lock);
 
-	/* Allow only RX or TX, not both same time */
+	/* Allow only RX or TX, analt both same time */
 	if (vq->type == V4L2_BUF_TYPE_SDR_CAPTURE) {
 		if (test_bit(TX_ON, &dev->flags)) {
 			ret = -EBUSY;
@@ -1284,7 +1284,7 @@ static int hackrf_s_ctrl_rx(struct v4l2_ctrl *ctrl)
 		set_bit(RX_IF_GAIN, &dev->flags);
 		break;
 	default:
-		dev_dbg(&intf->dev, "unknown ctrl: id=%d name=%s\n",
+		dev_dbg(&intf->dev, "unkanalwn ctrl: id=%d name=%s\n",
 			ctrl->id, ctrl->name);
 		ret = -EINVAL;
 		goto err;
@@ -1319,7 +1319,7 @@ static int hackrf_s_ctrl_tx(struct v4l2_ctrl *ctrl)
 		set_bit(TX_RF_GAIN, &dev->flags);
 		break;
 	default:
-		dev_dbg(&intf->dev, "unknown ctrl: id=%d name=%s\n",
+		dev_dbg(&intf->dev, "unkanalwn ctrl: id=%d name=%s\n",
 			ctrl->id, ctrl->name);
 		ret = -EINVAL;
 		goto err;
@@ -1352,7 +1352,7 @@ static int hackrf_probe(struct usb_interface *intf,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1381,7 +1381,7 @@ static int hackrf_probe(struct usb_interface *intf,
 		ret = hackrf_ctrl_msg(dev, CMD_VERSION_STRING_READ, 0, 0,
 				buf, BUF_SIZE);
 	if (ret) {
-		dev_err(dev->dev, "Could not detect board\n");
+		dev_err(dev->dev, "Could analt detect board\n");
 		goto err_kfree;
 	}
 
@@ -1397,10 +1397,10 @@ static int hackrf_probe(struct usb_interface *intf,
 	dev->rx_vb2_queue.mem_ops = &vb2_vmalloc_memops;
 	dev->rx_vb2_queue.drv_priv = dev;
 	dev->rx_vb2_queue.buf_struct_size = sizeof(struct hackrf_buffer);
-	dev->rx_vb2_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	dev->rx_vb2_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	ret = vb2_queue_init(&dev->rx_vb2_queue);
 	if (ret) {
-		dev_err(dev->dev, "Could not initialize rx vb2 queue\n");
+		dev_err(dev->dev, "Could analt initialize rx vb2 queue\n");
 		goto err_kfree;
 	}
 
@@ -1412,10 +1412,10 @@ static int hackrf_probe(struct usb_interface *intf,
 	dev->tx_vb2_queue.mem_ops = &vb2_vmalloc_memops;
 	dev->tx_vb2_queue.drv_priv = dev;
 	dev->tx_vb2_queue.buf_struct_size = sizeof(struct hackrf_buffer);
-	dev->tx_vb2_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	dev->tx_vb2_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	ret = vb2_queue_init(&dev->tx_vb2_queue);
 	if (ret) {
-		dev_err(dev->dev, "Could not initialize tx vb2 queue\n");
+		dev_err(dev->dev, "Could analt initialize tx vb2 queue\n");
 		goto err_kfree;
 	}
 
@@ -1436,7 +1436,7 @@ static int hackrf_probe(struct usb_interface *intf,
 		&hackrf_ctrl_ops_rx, V4L2_CID_RF_TUNER_IF_GAIN, 0, 62, 2, 0);
 	if (dev->rx_ctrl_handler.error) {
 		ret = dev->rx_ctrl_handler.error;
-		dev_err(dev->dev, "Could not initialize controls\n");
+		dev_err(dev->dev, "Could analt initialize controls\n");
 		goto err_v4l2_ctrl_handler_free_rx;
 	}
 	v4l2_ctrl_grab(dev->rx_rf_gain, !hackrf_enable_rf_gain_ctrl);
@@ -1457,7 +1457,7 @@ static int hackrf_probe(struct usb_interface *intf,
 		&hackrf_ctrl_ops_tx, V4L2_CID_RF_TUNER_RF_GAIN, 0, 15, 15, 0);
 	if (dev->tx_ctrl_handler.error) {
 		ret = dev->tx_ctrl_handler.error;
-		dev_err(dev->dev, "Could not initialize controls\n");
+		dev_err(dev->dev, "Could analt initialize controls\n");
 		goto err_v4l2_ctrl_handler_free_tx;
 	}
 	v4l2_ctrl_grab(dev->tx_rf_gain, !hackrf_enable_rf_gain_ctrl);
@@ -1489,7 +1489,7 @@ static int hackrf_probe(struct usb_interface *intf,
 		goto err_v4l2_device_unregister;
 	}
 	dev_info(dev->dev, "Registered as %s\n",
-		 video_device_node_name(&dev->rx_vdev));
+		 video_device_analde_name(&dev->rx_vdev));
 
 	/* Init video_device structure for transmitter */
 	dev->tx_vdev = hackrf_template;
@@ -1509,9 +1509,9 @@ static int hackrf_probe(struct usb_interface *intf,
 		goto err_video_unregister_device_rx;
 	}
 	dev_info(dev->dev, "Registered as %s\n",
-		 video_device_node_name(&dev->tx_vdev));
+		 video_device_analde_name(&dev->tx_vdev));
 
-	dev_notice(dev->dev, "SDR API is still slightly experimental and functionality changes may follow\n");
+	dev_analtice(dev->dev, "SDR API is still slightly experimental and functionality changes may follow\n");
 	return 0;
 err_video_unregister_device_rx:
 	video_unregister_device(&dev->rx_vdev);

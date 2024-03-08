@@ -18,7 +18,7 @@ struct ufs_debugfs_attr {
 /* @file corresponds to a debugfs attribute in directory hba->debugfs_root. */
 static inline struct ufs_hba *hba_from_file(const struct file *file)
 {
-	return d_inode(file->f_path.dentry->d_parent)->i_private;
+	return d_ianalde(file->f_path.dentry->d_parent)->i_private;
 }
 
 void __init ufs_debugfs_init(void)
@@ -150,7 +150,7 @@ static int ufs_saved_err_show(struct seq_file *s, void *data)
 	} else if (strcmp(attr->name, "saved_uic_err") == 0) {
 		p = &hba->saved_uic_err;
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	seq_printf(s, "%d\n", *p);
@@ -160,7 +160,7 @@ static int ufs_saved_err_show(struct seq_file *s, void *data)
 static ssize_t ufs_saved_err_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *ppos)
 {
-	struct ufs_debugfs_attr *attr = file->f_inode->i_private;
+	struct ufs_debugfs_attr *attr = file->f_ianalde->i_private;
 	struct ufs_hba *hba = hba_from_file(file);
 	char val_str[16] = { };
 	int val, ret;
@@ -179,7 +179,7 @@ static ssize_t ufs_saved_err_write(struct file *file, const char __user *buf,
 	} else if (strcmp(attr->name, "saved_uic_err") == 0) {
 		hba->saved_uic_err = val;
 	} else {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	}
 	if (ret == 0)
 		ufshcd_schedule_eh_work(hba);
@@ -188,9 +188,9 @@ static ssize_t ufs_saved_err_write(struct file *file, const char __user *buf,
 	return ret < 0 ? ret : count;
 }
 
-static int ufs_saved_err_open(struct inode *inode, struct file *file)
+static int ufs_saved_err_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, ufs_saved_err_show, inode->i_private);
+	return single_open(file, ufs_saved_err_show, ianalde->i_private);
 }
 
 static const struct file_operations ufs_saved_err_fops = {
@@ -222,7 +222,7 @@ void ufs_debugfs_hba_init(struct ufs_hba *hba)
 	if (IS_ERR_OR_NULL(root))
 		return;
 	hba->debugfs_root = root;
-	d_inode(root)->i_private = hba;
+	d_ianalde(root)->i_private = hba;
 	for (attr = ufs_attrs; attr->name; attr++)
 		debugfs_create_file(attr->name, attr->mode, root, (void *)attr,
 				    attr->fops);

@@ -34,14 +34,14 @@
 
 /** Translation information for file offsets to DAX window offsets */
 struct fuse_dax_mapping {
-	/* Pointer to inode where this memory range is mapped */
-	struct inode *inode;
+	/* Pointer to ianalde where this memory range is mapped */
+	struct ianalde *ianalde;
 
 	/* Will connect in fcd->free_ranges to keep track of free memory */
 	struct list_head list;
 
-	/* For interval tree in file/inode */
-	struct interval_tree_node itn;
+	/* For interval tree in file/ianalde */
+	struct interval_tree_analde itn;
 
 	/* Will connect in fc->busy_ranges to keep track busy memory */
 	struct list_head busy_list;
@@ -59,8 +59,8 @@ struct fuse_dax_mapping {
 	refcount_t refcnt;
 };
 
-/* Per-inode dax map */
-struct fuse_inode_dax {
+/* Per-ianalde dax map */
+struct fuse_ianalde_dax {
 	/* Semaphore to protect modifications to the dmap tree */
 	struct rw_semaphore sem;
 
@@ -94,16 +94,16 @@ struct fuse_conn_dax {
 };
 
 static inline struct fuse_dax_mapping *
-node_to_dmap(struct interval_tree_node *node)
+analde_to_dmap(struct interval_tree_analde *analde)
 {
-	if (!node)
+	if (!analde)
 		return NULL;
 
-	return container_of(node, struct fuse_dax_mapping, itn);
+	return container_of(analde, struct fuse_dax_mapping, itn);
 }
 
 static struct fuse_dax_mapping *
-alloc_dax_mapping_reclaim(struct fuse_conn_dax *fcd, struct inode *inode);
+alloc_dax_mapping_reclaim(struct fuse_conn_dax *fcd, struct ianalde *ianalde);
 
 static void
 __kick_dmap_free_worker(struct fuse_conn_dax *fcd, unsigned long delay_ms)
@@ -179,13 +179,13 @@ static void dmap_add_to_free_pool(struct fuse_conn_dax *fcd,
 	spin_unlock(&fcd->lock);
 }
 
-static int fuse_setup_one_mapping(struct inode *inode, unsigned long start_idx,
+static int fuse_setup_one_mapping(struct ianalde *ianalde, unsigned long start_idx,
 				  struct fuse_dax_mapping *dmap, bool writable,
 				  bool upgrade)
 {
-	struct fuse_mount *fm = get_fuse_mount(inode);
+	struct fuse_mount *fm = get_fuse_mount(ianalde);
 	struct fuse_conn_dax *fcd = fm->fc->dax;
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 	struct fuse_setupmapping_in inarg;
 	loff_t offset = start_idx << FUSE_DAX_SHIFT;
 	FUSE_ARGS(args);
@@ -203,7 +203,7 @@ static int fuse_setup_one_mapping(struct inode *inode, unsigned long start_idx,
 	if (writable)
 		inarg.flags |= FUSE_SETUPMAPPING_FLAG_WRITE;
 	args.opcode = FUSE_SETUPMAPPING;
-	args.nodeid = fi->nodeid;
+	args.analdeid = fi->analdeid;
 	args.in_numargs = 1;
 	args.in_args[0].size = sizeof(inarg);
 	args.in_args[0].value = &inarg;
@@ -213,11 +213,11 @@ static int fuse_setup_one_mapping(struct inode *inode, unsigned long start_idx,
 	dmap->writable = writable;
 	if (!upgrade) {
 		/*
-		 * We don't take a reference on inode. inode is valid right now
-		 * and when inode is going away, cleanup logic should first
+		 * We don't take a reference on ianalde. ianalde is valid right analw
+		 * and when ianalde is going away, cleanup logic should first
 		 * cleanup dmap entries.
 		 */
-		dmap->inode = inode;
+		dmap->ianalde = ianalde;
 		dmap->itn.start = dmap->itn.last = start_idx;
 		/* Protected by fi->dax->sem */
 		interval_tree_insert(&dmap->itn, &fi->dax->tree);
@@ -230,16 +230,16 @@ static int fuse_setup_one_mapping(struct inode *inode, unsigned long start_idx,
 	return 0;
 }
 
-static int fuse_send_removemapping(struct inode *inode,
+static int fuse_send_removemapping(struct ianalde *ianalde,
 				   struct fuse_removemapping_in *inargp,
 				   struct fuse_removemapping_one *remove_one)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct fuse_mount *fm = get_fuse_mount(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
+	struct fuse_mount *fm = get_fuse_mount(ianalde);
 	FUSE_ARGS(args);
 
 	args.opcode = FUSE_REMOVEMAPPING;
-	args.nodeid = fi->nodeid;
+	args.analdeid = fi->analdeid;
 	args.in_numargs = 2;
 	args.in_args[0].size = sizeof(*inargp);
 	args.in_args[0].value = inargp;
@@ -248,7 +248,7 @@ static int fuse_send_removemapping(struct inode *inode,
 	return fuse_simple_request(fm, &args);
 }
 
-static int dmap_removemapping_list(struct inode *inode, unsigned int num,
+static int dmap_removemapping_list(struct ianalde *ianalde, unsigned int num,
 				   struct list_head *to_remove)
 {
 	struct fuse_removemapping_one *remove_one, *ptr;
@@ -257,9 +257,9 @@ static int dmap_removemapping_list(struct inode *inode, unsigned int num,
 	int ret, i = 0, nr_alloc;
 
 	nr_alloc = min_t(unsigned int, num, FUSE_REMOVEMAPPING_MAX_ENTRY);
-	remove_one = kmalloc_array(nr_alloc, sizeof(*remove_one), GFP_NOFS);
+	remove_one = kmalloc_array(nr_alloc, sizeof(*remove_one), GFP_ANALFS);
 	if (!remove_one)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr = remove_one;
 	list_for_each_entry(dmap, to_remove, list) {
@@ -271,7 +271,7 @@ static int dmap_removemapping_list(struct inode *inode, unsigned int num,
 		if (i >= nr_alloc || num == 0) {
 			memset(&inarg, 0, sizeof(inarg));
 			inarg.count = i;
-			ret = fuse_send_removemapping(inode, &inarg,
+			ret = fuse_send_removemapping(ianalde, &inarg,
 						      remove_one);
 			if (ret)
 				goto out;
@@ -295,50 +295,50 @@ static void dmap_reinit_add_to_free_pool(struct fuse_conn_dax *fcd,
 		 dmap->itn.start, dmap->itn.last, dmap->window_offset,
 		 dmap->length);
 	__dmap_remove_busy_list(fcd, dmap);
-	dmap->inode = NULL;
+	dmap->ianalde = NULL;
 	dmap->itn.start = dmap->itn.last = 0;
 	__dmap_add_to_free_pool(fcd, dmap);
 }
 
 /*
- * Free inode dmap entries whose range falls inside [start, end].
- * Does not take any locks. At this point of time it should only be
- * called from evict_inode() path where we know all dmap entries can be
+ * Free ianalde dmap entries whose range falls inside [start, end].
+ * Does analt take any locks. At this point of time it should only be
+ * called from evict_ianalde() path where we kanalw all dmap entries can be
  * reclaimed.
  */
-static void inode_reclaim_dmap_range(struct fuse_conn_dax *fcd,
-				     struct inode *inode,
+static void ianalde_reclaim_dmap_range(struct fuse_conn_dax *fcd,
+				     struct ianalde *ianalde,
 				     loff_t start, loff_t end)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 	struct fuse_dax_mapping *dmap, *n;
 	int err, num = 0;
 	LIST_HEAD(to_remove);
 	unsigned long start_idx = start >> FUSE_DAX_SHIFT;
 	unsigned long end_idx = end >> FUSE_DAX_SHIFT;
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
 	while (1) {
-		node = interval_tree_iter_first(&fi->dax->tree, start_idx,
+		analde = interval_tree_iter_first(&fi->dax->tree, start_idx,
 						end_idx);
-		if (!node)
+		if (!analde)
 			break;
-		dmap = node_to_dmap(node);
-		/* inode is going away. There should not be any users of dmap */
+		dmap = analde_to_dmap(analde);
+		/* ianalde is going away. There should analt be any users of dmap */
 		WARN_ON(refcount_read(&dmap->refcnt) > 1);
 		interval_tree_remove(&dmap->itn, &fi->dax->tree);
 		num++;
 		list_add(&dmap->list, &to_remove);
 	}
 
-	/* Nothing to remove */
+	/* Analthing to remove */
 	if (list_empty(&to_remove))
 		return;
 
 	WARN_ON(fi->dax->nr < num);
 	fi->dax->nr -= num;
-	err = dmap_removemapping_list(inode, num, &to_remove);
-	if (err && err != -ENOTCONN) {
+	err = dmap_removemapping_list(ianalde, num, &to_remove);
+	if (err && err != -EANALTCONN) {
 		pr_warn("Failed to removemappings. start=0x%llx end=0x%llx\n",
 			start, end);
 	}
@@ -350,7 +350,7 @@ static void inode_reclaim_dmap_range(struct fuse_conn_dax *fcd,
 	spin_unlock(&fcd->lock);
 }
 
-static int dmap_removemapping_one(struct inode *inode,
+static int dmap_removemapping_one(struct ianalde *ianalde,
 				  struct fuse_dax_mapping *dmap)
 {
 	struct fuse_removemapping_one forget_one;
@@ -362,26 +362,26 @@ static int dmap_removemapping_one(struct inode *inode,
 	forget_one.moffset = dmap->window_offset;
 	forget_one.len = dmap->length;
 
-	return fuse_send_removemapping(inode, &inarg, &forget_one);
+	return fuse_send_removemapping(ianalde, &inarg, &forget_one);
 }
 
 /*
- * It is called from evict_inode() and by that time inode is going away. So
- * this function does not take any locks like fi->dax->sem for traversing
- * that fuse inode interval tree. If that lock is taken then lock validator
+ * It is called from evict_ianalde() and by that time ianalde is going away. So
+ * this function does analt take any locks like fi->dax->sem for traversing
+ * that fuse ianalde interval tree. If that lock is taken then lock validator
  * complains of deadlock situation w.r.t fs_reclaim lock.
  */
-void fuse_dax_inode_cleanup(struct inode *inode)
+void fuse_dax_ianalde_cleanup(struct ianalde *ianalde)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_conn *fc = get_fuse_conn(ianalde);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 
 	/*
-	 * fuse_evict_inode() has already called truncate_inode_pages_final()
-	 * before we arrive here. So we should not have to worry about any
-	 * pages/exception entries still associated with inode.
+	 * fuse_evict_ianalde() has already called truncate_ianalde_pages_final()
+	 * before we arrive here. So we should analt have to worry about any
+	 * pages/exception entries still associated with ianalde.
 	 */
-	inode_reclaim_dmap_range(fc->dax, inode, 0, -1);
+	ianalde_reclaim_dmap_range(fc->dax, ianalde, 0, -1);
 	WARN_ON(fi->dax->nr);
 }
 
@@ -392,12 +392,12 @@ static void fuse_fill_iomap_hole(struct iomap *iomap, loff_t length)
 	iomap->type = IOMAP_HOLE;
 }
 
-static void fuse_fill_iomap(struct inode *inode, loff_t pos, loff_t length,
+static void fuse_fill_iomap(struct ianalde *ianalde, loff_t pos, loff_t length,
 			    struct iomap *iomap, struct fuse_dax_mapping *dmap,
 			    unsigned int flags)
 {
 	loff_t offset, len;
-	loff_t i_size = i_size_read(inode);
+	loff_t i_size = i_size_read(ianalde);
 
 	offset = pos - (dmap->itn.start << FUSE_DAX_SHIFT);
 	len = min(length, dmap->length - offset);
@@ -413,7 +413,7 @@ static void fuse_fill_iomap(struct inode *inode, loff_t pos, loff_t length,
 			iomap->length = ALIGN(len, PAGE_SIZE);
 		iomap->type = IOMAP_MAPPED;
 		/*
-		 * increace refcnt so that reclaim code knows this dmap is in
+		 * increace refcnt so that reclaim code kanalws this dmap is in
 		 * use. This assumes fi->dax->sem mutex is held either
 		 * shared/exclusive.
 		 */
@@ -428,18 +428,18 @@ static void fuse_fill_iomap(struct inode *inode, loff_t pos, loff_t length,
 	}
 }
 
-static int fuse_setup_new_dax_mapping(struct inode *inode, loff_t pos,
+static int fuse_setup_new_dax_mapping(struct ianalde *ianalde, loff_t pos,
 				      loff_t length, unsigned int flags,
 				      struct iomap *iomap)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
+	struct fuse_conn *fc = get_fuse_conn(ianalde);
 	struct fuse_conn_dax *fcd = fc->dax;
 	struct fuse_dax_mapping *dmap, *alloc_dmap = NULL;
 	int ret;
 	bool writable = flags & IOMAP_WRITE;
 	unsigned long start_idx = pos >> FUSE_DAX_SHIFT;
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
 	/*
 	 * Can't do inline reclaim in fault path. We call
@@ -447,7 +447,7 @@ static int fuse_setup_new_dax_mapping(struct inode *inode, loff_t pos,
 	 * fuse_wait_dax_page() drops mapping->invalidate_lock and requires it.
 	 * In fault path we enter with mapping->invalidate_lock held and can't
 	 * drop it. Also in fault path we hold mapping->invalidate_lock shared
-	 * and not exclusive, so that creates further issues with
+	 * and analt exclusive, so that creates further issues with
 	 * fuse_wait_dax_page().  Hence return -EAGAIN and fuse_dax_fault()
 	 * will wait for a memory range to become free and retry.
 	 */
@@ -456,7 +456,7 @@ static int fuse_setup_new_dax_mapping(struct inode *inode, loff_t pos,
 		if (!alloc_dmap)
 			return -EAGAIN;
 	} else {
-		alloc_dmap = alloc_dax_mapping_reclaim(fcd, inode);
+		alloc_dmap = alloc_dax_mapping_reclaim(fcd, ianalde);
 		if (IS_ERR(alloc_dmap))
 			return PTR_ERR(alloc_dmap);
 	}
@@ -474,69 +474,69 @@ static int fuse_setup_new_dax_mapping(struct inode *inode, loff_t pos,
 	 * We dropped lock. Check again if somebody else setup
 	 * mapping already.
 	 */
-	node = interval_tree_iter_first(&fi->dax->tree, start_idx, start_idx);
-	if (node) {
-		dmap = node_to_dmap(node);
-		fuse_fill_iomap(inode, pos, length, iomap, dmap, flags);
+	analde = interval_tree_iter_first(&fi->dax->tree, start_idx, start_idx);
+	if (analde) {
+		dmap = analde_to_dmap(analde);
+		fuse_fill_iomap(ianalde, pos, length, iomap, dmap, flags);
 		dmap_add_to_free_pool(fcd, alloc_dmap);
 		up_write(&fi->dax->sem);
 		return 0;
 	}
 
 	/* Setup one mapping */
-	ret = fuse_setup_one_mapping(inode, pos >> FUSE_DAX_SHIFT, alloc_dmap,
+	ret = fuse_setup_one_mapping(ianalde, pos >> FUSE_DAX_SHIFT, alloc_dmap,
 				     writable, false);
 	if (ret < 0) {
 		dmap_add_to_free_pool(fcd, alloc_dmap);
 		up_write(&fi->dax->sem);
 		return ret;
 	}
-	fuse_fill_iomap(inode, pos, length, iomap, alloc_dmap, flags);
+	fuse_fill_iomap(ianalde, pos, length, iomap, alloc_dmap, flags);
 	up_write(&fi->dax->sem);
 	return 0;
 }
 
-static int fuse_upgrade_dax_mapping(struct inode *inode, loff_t pos,
+static int fuse_upgrade_dax_mapping(struct ianalde *ianalde, loff_t pos,
 				    loff_t length, unsigned int flags,
 				    struct iomap *iomap)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 	struct fuse_dax_mapping *dmap;
 	int ret;
 	unsigned long idx = pos >> FUSE_DAX_SHIFT;
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
 	/*
 	 * Take exclusive lock so that only one caller can try to setup
 	 * mapping and others wait.
 	 */
 	down_write(&fi->dax->sem);
-	node = interval_tree_iter_first(&fi->dax->tree, idx, idx);
+	analde = interval_tree_iter_first(&fi->dax->tree, idx, idx);
 
-	/* We are holding either inode lock or invalidate_lock, and that should
+	/* We are holding either ianalde lock or invalidate_lock, and that should
 	 * ensure that dmap can't be truncated. We are holding a reference
 	 * on dmap and that should make sure it can't be reclaimed. So dmap
 	 * should still be there in tree despite the fact we dropped and
 	 * re-acquired the fi->dax->sem lock.
 	 */
 	ret = -EIO;
-	if (WARN_ON(!node))
+	if (WARN_ON(!analde))
 		goto out_err;
 
-	dmap = node_to_dmap(node);
+	dmap = analde_to_dmap(analde);
 
-	/* We took an extra reference on dmap to make sure its not reclaimd.
-	 * Now we hold fi->dax->sem lock and that reference is not needed
+	/* We took an extra reference on dmap to make sure its analt reclaimd.
+	 * Analw we hold fi->dax->sem lock and that reference is analt needed
 	 * anymore. Drop it.
 	 */
 	if (refcount_dec_and_test(&dmap->refcnt)) {
-		/* refcount should not hit 0. This object only goes
+		/* refcount should analt hit 0. This object only goes
 		 * away when fuse connection goes away
 		 */
 		WARN_ON_ONCE(1);
 	}
 
-	/* Maybe another thread already upgraded mapping while we were not
+	/* Maybe aanalther thread already upgraded mapping while we were analt
 	 * holding lock.
 	 */
 	if (dmap->writable) {
@@ -544,30 +544,30 @@ static int fuse_upgrade_dax_mapping(struct inode *inode, loff_t pos,
 		goto out_fill_iomap;
 	}
 
-	ret = fuse_setup_one_mapping(inode, pos >> FUSE_DAX_SHIFT, dmap, true,
+	ret = fuse_setup_one_mapping(ianalde, pos >> FUSE_DAX_SHIFT, dmap, true,
 				     true);
 	if (ret < 0)
 		goto out_err;
 out_fill_iomap:
-	fuse_fill_iomap(inode, pos, length, iomap, dmap, flags);
+	fuse_fill_iomap(ianalde, pos, length, iomap, dmap, flags);
 out_err:
 	up_write(&fi->dax->sem);
 	return ret;
 }
 
-/* This is just for DAX and the mapping is ephemeral, do not use it for other
- * purposes since there is no block device with a permanent mapping.
+/* This is just for DAX and the mapping is ephemeral, do analt use it for other
+ * purposes since there is anal block device with a permanent mapping.
  */
-static int fuse_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
+static int fuse_iomap_begin(struct ianalde *ianalde, loff_t pos, loff_t length,
 			    unsigned int flags, struct iomap *iomap,
 			    struct iomap *srcmap)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
+	struct fuse_conn *fc = get_fuse_conn(ianalde);
 	struct fuse_dax_mapping *dmap;
 	bool writable = flags & IOMAP_WRITE;
 	unsigned long start_idx = pos >> FUSE_DAX_SHIFT;
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
 	/* We don't support FIEMAP */
 	if (WARN_ON(flags & IOMAP_REPORT))
@@ -582,13 +582,13 @@ static int fuse_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	 * Both read/write and mmap path can race here. So we need something
 	 * to make sure if we are setting up mapping, then other path waits
 	 *
-	 * For now, use a semaphore for this. It probably needs to be
+	 * For analw, use a semaphore for this. It probably needs to be
 	 * optimized later.
 	 */
 	down_read(&fi->dax->sem);
-	node = interval_tree_iter_first(&fi->dax->tree, start_idx, start_idx);
-	if (node) {
-		dmap = node_to_dmap(node);
+	analde = interval_tree_iter_first(&fi->dax->tree, start_idx, start_idx);
+	if (analde) {
+		dmap = analde_to_dmap(analde);
 		if (writable && !dmap->writable) {
 			/* Upgrade read-only mapping to read-write. This will
 			 * require exclusive fi->dax->sem lock as we don't want
@@ -597,27 +597,27 @@ static int fuse_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 			 * exclusive lock.
 			 *
 			 * Before dropping fi->dax->sem lock, take reference
-			 * on dmap so that its not freed by range reclaim.
+			 * on dmap so that its analt freed by range reclaim.
 			 */
 			refcount_inc(&dmap->refcnt);
 			up_read(&fi->dax->sem);
 			pr_debug("%s: Upgrading mapping at offset 0x%llx length 0x%llx\n",
 				 __func__, pos, length);
-			return fuse_upgrade_dax_mapping(inode, pos, length,
+			return fuse_upgrade_dax_mapping(ianalde, pos, length,
 							flags, iomap);
 		} else {
-			fuse_fill_iomap(inode, pos, length, iomap, dmap, flags);
+			fuse_fill_iomap(ianalde, pos, length, iomap, dmap, flags);
 			up_read(&fi->dax->sem);
 			return 0;
 		}
 	} else {
 		up_read(&fi->dax->sem);
-		pr_debug("%s: no mapping at offset 0x%llx length 0x%llx\n",
+		pr_debug("%s: anal mapping at offset 0x%llx length 0x%llx\n",
 				__func__, pos, length);
-		if (pos >= i_size_read(inode))
+		if (pos >= i_size_read(ianalde))
 			goto iomap_hole;
 
-		return fuse_setup_new_dax_mapping(inode, pos, length, flags,
+		return fuse_setup_new_dax_mapping(ianalde, pos, length, flags,
 						  iomap);
 	}
 
@@ -632,7 +632,7 @@ iomap_hole:
 	return 0;
 }
 
-static int fuse_iomap_end(struct inode *inode, loff_t pos, loff_t length,
+static int fuse_iomap_end(struct ianalde *ianalde, loff_t pos, loff_t length,
 			  ssize_t written, unsigned int flags,
 			  struct iomap *iomap)
 {
@@ -640,7 +640,7 @@ static int fuse_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 
 	if (dmap) {
 		if (refcount_dec_and_test(&dmap->refcnt)) {
-			/* refcount should not hit 0. This object only goes
+			/* refcount should analt hit 0. This object only goes
 			 * away when fuse connection goes away
 			 */
 			WARN_ON_ONCE(1);
@@ -648,7 +648,7 @@ static int fuse_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	}
 
 	/* DAX writes beyond end-of-file aren't handled using iomap, so the
-	 * file size is unchanged and there is nothing to do here.
+	 * file size is unchanged and there is analthing to do here.
 	 */
 	return 0;
 }
@@ -658,31 +658,31 @@ static const struct iomap_ops fuse_iomap_ops = {
 	.iomap_end = fuse_iomap_end,
 };
 
-static void fuse_wait_dax_page(struct inode *inode)
+static void fuse_wait_dax_page(struct ianalde *ianalde)
 {
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
 	schedule();
-	filemap_invalidate_lock(inode->i_mapping);
+	filemap_invalidate_lock(ianalde->i_mapping);
 }
 
 /* Should be called with mapping->invalidate_lock held exclusively */
-static int __fuse_dax_break_layouts(struct inode *inode, bool *retry,
+static int __fuse_dax_break_layouts(struct ianalde *ianalde, bool *retry,
 				    loff_t start, loff_t end)
 {
 	struct page *page;
 
-	page = dax_layout_busy_page_range(inode->i_mapping, start, end);
+	page = dax_layout_busy_page_range(ianalde->i_mapping, start, end);
 	if (!page)
 		return 0;
 
 	*retry = true;
 	return ___wait_var_event(&page->_refcount,
 			atomic_read(&page->_refcount) == 1, TASK_INTERRUPTIBLE,
-			0, 0, fuse_wait_dax_page(inode));
+			0, 0, fuse_wait_dax_page(ianalde));
 }
 
 /* dmap_end == 0 leads to unmapping of whole file */
-int fuse_dax_break_layouts(struct inode *inode, u64 dmap_start,
+int fuse_dax_break_layouts(struct ianalde *ianalde, u64 dmap_start,
 				  u64 dmap_end)
 {
 	bool	retry;
@@ -690,7 +690,7 @@ int fuse_dax_break_layouts(struct inode *inode, u64 dmap_start,
 
 	do {
 		retry = false;
-		ret = __fuse_dax_break_layouts(inode, &retry, dmap_start,
+		ret = __fuse_dax_break_layouts(ianalde, &retry, dmap_start,
 					       dmap_end);
 	} while (ret == 0 && retry);
 
@@ -699,18 +699,18 @@ int fuse_dax_break_layouts(struct inode *inode, u64 dmap_start,
 
 ssize_t fuse_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 	ssize_t ret;
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!inode_trylock_shared(inode))
+	if (iocb->ki_flags & IOCB_ANALWAIT) {
+		if (!ianalde_trylock_shared(ianalde))
 			return -EAGAIN;
 	} else {
-		inode_lock_shared(inode);
+		ianalde_lock_shared(ianalde);
 	}
 
 	ret = dax_iomap_rw(iocb, to, &fuse_iomap_ops);
-	inode_unlock_shared(inode);
+	ianalde_unlock_shared(ianalde);
 
 	/* TODO file_accessed(iocb->f_filp) */
 	return ret;
@@ -718,35 +718,35 @@ ssize_t fuse_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 static bool file_extending_write(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
 	return (iov_iter_rw(from) == WRITE &&
-		((iocb->ki_pos) >= i_size_read(inode) ||
-		  (iocb->ki_pos + iov_iter_count(from) > i_size_read(inode))));
+		((iocb->ki_pos) >= i_size_read(ianalde) ||
+		  (iocb->ki_pos + iov_iter_count(from) > i_size_read(ianalde))));
 }
 
 static ssize_t fuse_dax_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
 	ssize_t ret;
 
 	ret = fuse_direct_io(&io, from, &iocb->ki_pos, FUSE_DIO_WRITE);
 
-	fuse_write_update_attr(inode, iocb->ki_pos, ret);
+	fuse_write_update_attr(ianalde, iocb->ki_pos, ret);
 	return ret;
 }
 
 ssize_t fuse_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 	ssize_t ret;
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!inode_trylock(inode))
+	if (iocb->ki_flags & IOCB_ANALWAIT) {
+		if (!ianalde_trylock(ianalde))
 			return -EAGAIN;
 	} else {
-		inode_lock(inode);
+		ianalde_lock(ianalde);
 	}
 
 	ret = generic_write_checks(iocb, from);
@@ -758,8 +758,8 @@ ssize_t fuse_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 	/* TODO file_update_time() but we don't want metadata I/O */
 
-	/* Do not use dax for file extending writes as write and on
-	 * disk i_size increase are not atomic otherwise.
+	/* Do analt use dax for file extending writes as write and on
+	 * disk i_size increase are analt atomic otherwise.
 	 */
 	if (file_extending_write(iocb, from))
 		ret = fuse_dax_direct_write(iocb, from);
@@ -767,7 +767,7 @@ ssize_t fuse_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		ret = dax_iomap_rw(iocb, from, &fuse_iomap_ops);
 
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
@@ -778,8 +778,8 @@ static int fuse_dax_writepages(struct address_space *mapping,
 			       struct writeback_control *wbc)
 {
 
-	struct inode *inode = mapping->host;
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct ianalde *ianalde = mapping->host;
+	struct fuse_conn *fc = get_fuse_conn(ianalde);
 
 	return dax_writeback_mapping_range(mapping, fc->dax->dev, wbc);
 }
@@ -788,11 +788,11 @@ static vm_fault_t __fuse_dax_fault(struct vm_fault *vmf, unsigned int order,
 		bool write)
 {
 	vm_fault_t ret;
-	struct inode *inode = file_inode(vmf->vma->vm_file);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(vmf->vma->vm_file);
+	struct super_block *sb = ianalde->i_sb;
 	pfn_t pfn;
 	int error = 0;
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_conn *fc = get_fuse_conn(ianalde);
 	struct fuse_conn_dax *fcd = fc->dax;
 	bool retry = false;
 
@@ -803,23 +803,23 @@ retry:
 		wait_event(fcd->range_waitq, (fcd->nr_free_ranges > 0));
 
 	/*
-	 * We need to serialize against not only truncate but also against
+	 * We need to serialize against analt only truncate but also against
 	 * fuse dax memory range reclaim. While a range is being reclaimed,
-	 * we do not want any read/write/mmap to make progress and try
+	 * we do analt want any read/write/mmap to make progress and try
 	 * to populate page cache or access memory we are trying to free.
 	 */
-	filemap_invalidate_lock_shared(inode->i_mapping);
+	filemap_invalidate_lock_shared(ianalde->i_mapping);
 	ret = dax_iomap_fault(vmf, order, &pfn, &error, &fuse_iomap_ops);
 	if ((ret & VM_FAULT_ERROR) && error == -EAGAIN) {
 		error = 0;
 		retry = true;
-		filemap_invalidate_unlock_shared(inode->i_mapping);
+		filemap_invalidate_unlock_shared(ianalde->i_mapping);
 		goto retry;
 	}
 
 	if (ret & VM_FAULT_NEEDDSYNC)
 		ret = dax_finish_sync_fault(vmf, order, pfn);
-	filemap_invalidate_unlock_shared(inode->i_mapping);
+	filemap_invalidate_unlock_shared(ianalde->i_mapping);
 
 	if (write)
 		sb_end_pagefault(sb);
@@ -862,45 +862,45 @@ int fuse_dax_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int dmap_writeback_invalidate(struct inode *inode,
+static int dmap_writeback_invalidate(struct ianalde *ianalde,
 				     struct fuse_dax_mapping *dmap)
 {
 	int ret;
 	loff_t start_pos = dmap->itn.start << FUSE_DAX_SHIFT;
 	loff_t end_pos = (start_pos + FUSE_DAX_SZ - 1);
 
-	ret = filemap_fdatawrite_range(inode->i_mapping, start_pos, end_pos);
+	ret = filemap_fdatawrite_range(ianalde->i_mapping, start_pos, end_pos);
 	if (ret) {
 		pr_debug("fuse: filemap_fdatawrite_range() failed. err=%d start_pos=0x%llx, end_pos=0x%llx\n",
 			 ret, start_pos, end_pos);
 		return ret;
 	}
 
-	ret = invalidate_inode_pages2_range(inode->i_mapping,
+	ret = invalidate_ianalde_pages2_range(ianalde->i_mapping,
 					    start_pos >> PAGE_SHIFT,
 					    end_pos >> PAGE_SHIFT);
 	if (ret)
-		pr_debug("fuse: invalidate_inode_pages2_range() failed err=%d\n",
+		pr_debug("fuse: invalidate_ianalde_pages2_range() failed err=%d\n",
 			 ret);
 
 	return ret;
 }
 
-static int reclaim_one_dmap_locked(struct inode *inode,
+static int reclaim_one_dmap_locked(struct ianalde *ianalde,
 				   struct fuse_dax_mapping *dmap)
 {
 	int ret;
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 
 	/*
-	 * igrab() was done to make sure inode won't go under us, and this
+	 * igrab() was done to make sure ianalde won't go under us, and this
 	 * further avoids the race with evict().
 	 */
-	ret = dmap_writeback_invalidate(inode, dmap);
+	ret = dmap_writeback_invalidate(ianalde, dmap);
 	if (ret)
 		return ret;
 
-	/* Remove dax mapping from inode interval tree now */
+	/* Remove dax mapping from ianalde interval tree analw */
 	interval_tree_remove(&dmap->itn, &fi->dax->tree);
 	fi->dax->nr--;
 
@@ -908,26 +908,26 @@ static int reclaim_one_dmap_locked(struct inode *inode,
 	 * and worker thread is trying to reclaim memory in parallel.  Don't
 	 * warn in that case.
 	 */
-	ret = dmap_removemapping_one(inode, dmap);
-	if (ret && ret != -ENOTCONN) {
+	ret = dmap_removemapping_one(ianalde, dmap);
+	if (ret && ret != -EANALTCONN) {
 		pr_warn("Failed to remove mapping. offset=0x%llx len=0x%llx ret=%d\n",
 			dmap->window_offset, dmap->length, ret);
 	}
 	return 0;
 }
 
-/* Find first mapped dmap for an inode and return file offset. Caller needs
+/* Find first mapped dmap for an ianalde and return file offset. Caller needs
  * to hold fi->dax->sem lock either shared or exclusive.
  */
-static struct fuse_dax_mapping *inode_lookup_first_dmap(struct inode *inode)
+static struct fuse_dax_mapping *ianalde_lookup_first_dmap(struct ianalde *ianalde)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 	struct fuse_dax_mapping *dmap;
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
-	for (node = interval_tree_iter_first(&fi->dax->tree, 0, -1); node;
-	     node = interval_tree_iter_next(node, 0, -1)) {
-		dmap = node_to_dmap(node);
+	for (analde = interval_tree_iter_first(&fi->dax->tree, 0, -1); analde;
+	     analde = interval_tree_iter_next(analde, 0, -1)) {
+		dmap = analde_to_dmap(analde);
 		/* still in use. */
 		if (refcount_read(&dmap->refcnt) > 1)
 			continue;
@@ -939,25 +939,25 @@ static struct fuse_dax_mapping *inode_lookup_first_dmap(struct inode *inode)
 }
 
 /*
- * Find first mapping in the tree and free it and return it. Do not add
+ * Find first mapping in the tree and free it and return it. Do analt add
  * it back to free pool.
  */
 static struct fuse_dax_mapping *
-inode_inline_reclaim_one_dmap(struct fuse_conn_dax *fcd, struct inode *inode,
+ianalde_inline_reclaim_one_dmap(struct fuse_conn_dax *fcd, struct ianalde *ianalde,
 			      bool *retry)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 	struct fuse_dax_mapping *dmap;
 	u64 dmap_start, dmap_end;
 	unsigned long start_idx;
 	int ret;
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
-	filemap_invalidate_lock(inode->i_mapping);
+	filemap_invalidate_lock(ianalde->i_mapping);
 
 	/* Lookup a dmap and corresponding file offset to reclaim. */
 	down_read(&fi->dax->sem);
-	dmap = inode_lookup_first_dmap(inode);
+	dmap = ianalde_lookup_first_dmap(ianalde);
 	if (dmap) {
 		start_idx = dmap->itn.start;
 		dmap_start = start_idx << FUSE_DAX_SHIFT;
@@ -968,10 +968,10 @@ inode_inline_reclaim_one_dmap(struct fuse_conn_dax *fcd, struct inode *inode,
 	if (!dmap)
 		goto out_mmap_sem;
 	/*
-	 * Make sure there are no references to inode pages using
+	 * Make sure there are anal references to ianalde pages using
 	 * get_user_pages()
 	 */
-	ret = fuse_dax_break_layouts(inode, dmap_start, dmap_end);
+	ret = fuse_dax_break_layouts(ianalde, dmap_start, dmap_end);
 	if (ret) {
 		pr_debug("fuse: fuse_dax_break_layouts() failed. err=%d\n",
 			 ret);
@@ -980,15 +980,15 @@ inode_inline_reclaim_one_dmap(struct fuse_conn_dax *fcd, struct inode *inode,
 	}
 
 	down_write(&fi->dax->sem);
-	node = interval_tree_iter_first(&fi->dax->tree, start_idx, start_idx);
+	analde = interval_tree_iter_first(&fi->dax->tree, start_idx, start_idx);
 	/* Range already got reclaimed by somebody else */
-	if (!node) {
+	if (!analde) {
 		if (retry)
 			*retry = true;
 		goto out_write_dmap_sem;
 	}
 
-	dmap = node_to_dmap(node);
+	dmap = analde_to_dmap(analde);
 	/* still in use. */
 	if (refcount_read(&dmap->refcnt) > 1) {
 		dmap = NULL;
@@ -997,32 +997,32 @@ inode_inline_reclaim_one_dmap(struct fuse_conn_dax *fcd, struct inode *inode,
 		goto out_write_dmap_sem;
 	}
 
-	ret = reclaim_one_dmap_locked(inode, dmap);
+	ret = reclaim_one_dmap_locked(ianalde, dmap);
 	if (ret < 0) {
 		dmap = ERR_PTR(ret);
 		goto out_write_dmap_sem;
 	}
 
-	/* Clean up dmap. Do not add back to free list */
+	/* Clean up dmap. Do analt add back to free list */
 	dmap_remove_busy_list(fcd, dmap);
-	dmap->inode = NULL;
+	dmap->ianalde = NULL;
 	dmap->itn.start = dmap->itn.last = 0;
 
-	pr_debug("fuse: %s: inline reclaimed memory range. inode=%p, window_offset=0x%llx, length=0x%llx\n",
-		 __func__, inode, dmap->window_offset, dmap->length);
+	pr_debug("fuse: %s: inline reclaimed memory range. ianalde=%p, window_offset=0x%llx, length=0x%llx\n",
+		 __func__, ianalde, dmap->window_offset, dmap->length);
 
 out_write_dmap_sem:
 	up_write(&fi->dax->sem);
 out_mmap_sem:
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
 	return dmap;
 }
 
 static struct fuse_dax_mapping *
-alloc_dax_mapping_reclaim(struct fuse_conn_dax *fcd, struct inode *inode)
+alloc_dax_mapping_reclaim(struct fuse_conn_dax *fcd, struct ianalde *ianalde)
 {
 	struct fuse_dax_mapping *dmap;
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 
 	while (1) {
 		bool retry = false;
@@ -1031,7 +1031,7 @@ alloc_dax_mapping_reclaim(struct fuse_conn_dax *fcd, struct inode *inode)
 		if (dmap)
 			return dmap;
 
-		dmap = inode_inline_reclaim_one_dmap(fcd, inode, &retry);
+		dmap = ianalde_inline_reclaim_one_dmap(fcd, ianalde, &retry);
 		/*
 		 * Either we got a mapping or it is an error, return in both
 		 * the cases.
@@ -1039,10 +1039,10 @@ alloc_dax_mapping_reclaim(struct fuse_conn_dax *fcd, struct inode *inode)
 		if (dmap)
 			return dmap;
 
-		/* If we could not reclaim a mapping because it
+		/* If we could analt reclaim a mapping because it
 		 * had a reference or some other temporary failure,
 		 * Try again. We want to give up inline reclaim only
-		 * if there is no range assigned to this node. Otherwise
+		 * if there is anal range assigned to this analde. Otherwise
 		 * if a deadlock is possible if we sleep with
 		 * mapping->invalidate_lock held and worker to free memory
 		 * can't make progress due to unavailability of
@@ -1051,9 +1051,9 @@ alloc_dax_mapping_reclaim(struct fuse_conn_dax *fcd, struct inode *inode)
 		if (retry)
 			continue;
 		/*
-		 * There are no mappings which can be reclaimed. Wait for one.
-		 * We are not holding fi->dax->sem. So it is possible
-		 * that range gets added now. But as we are not holding
+		 * There are anal mappings which can be reclaimed. Wait for one.
+		 * We are analt holding fi->dax->sem. So it is possible
+		 * that range gets added analw. But as we are analt holding
 		 * mapping->invalidate_lock, worker should still be able to
 		 * free up a range and wake us up.
 		 */
@@ -1067,27 +1067,27 @@ alloc_dax_mapping_reclaim(struct fuse_conn_dax *fcd, struct inode *inode)
 }
 
 static int lookup_and_reclaim_dmap_locked(struct fuse_conn_dax *fcd,
-					  struct inode *inode,
+					  struct ianalde *ianalde,
 					  unsigned long start_idx)
 {
 	int ret;
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 	struct fuse_dax_mapping *dmap;
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
-	/* Find fuse dax mapping at file offset inode. */
-	node = interval_tree_iter_first(&fi->dax->tree, start_idx, start_idx);
+	/* Find fuse dax mapping at file offset ianalde. */
+	analde = interval_tree_iter_first(&fi->dax->tree, start_idx, start_idx);
 
 	/* Range already got cleaned up by somebody else */
-	if (!node)
+	if (!analde)
 		return 0;
-	dmap = node_to_dmap(node);
+	dmap = analde_to_dmap(analde);
 
 	/* still in use. */
 	if (refcount_read(&dmap->refcnt) > 1)
 		return 0;
 
-	ret = reclaim_one_dmap_locked(inode, dmap);
+	ret = reclaim_one_dmap_locked(ianalde, dmap);
 	if (ret < 0)
 		return ret;
 
@@ -1103,20 +1103,20 @@ static int lookup_and_reclaim_dmap_locked(struct fuse_conn_dax *fcd,
  * Locking:
  * 1. Take mapping->invalidate_lock to block dax faults.
  * 2. Take fi->dax->sem to protect interval tree and also to make sure
- *    read/write can not reuse a dmap which we might be freeing.
+ *    read/write can analt reuse a dmap which we might be freeing.
  */
 static int lookup_and_reclaim_dmap(struct fuse_conn_dax *fcd,
-				   struct inode *inode,
+				   struct ianalde *ianalde,
 				   unsigned long start_idx,
 				   unsigned long end_idx)
 {
 	int ret;
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_ianalde *fi = get_fuse_ianalde(ianalde);
 	loff_t dmap_start = start_idx << FUSE_DAX_SHIFT;
 	loff_t dmap_end = (dmap_start + FUSE_DAX_SZ) - 1;
 
-	filemap_invalidate_lock(inode->i_mapping);
-	ret = fuse_dax_break_layouts(inode, dmap_start, dmap_end);
+	filemap_invalidate_lock(ianalde->i_mapping);
+	ret = fuse_dax_break_layouts(ianalde, dmap_start, dmap_end);
 	if (ret) {
 		pr_debug("virtio_fs: fuse_dax_break_layouts() failed. err=%d\n",
 			 ret);
@@ -1124,10 +1124,10 @@ static int lookup_and_reclaim_dmap(struct fuse_conn_dax *fcd,
 	}
 
 	down_write(&fi->dax->sem);
-	ret = lookup_and_reclaim_dmap_locked(fcd, inode, start_idx);
+	ret = lookup_and_reclaim_dmap_locked(fcd, ianalde, start_idx);
 	up_write(&fi->dax->sem);
 out_mmap_sem:
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
 	return ret;
 }
 
@@ -1137,9 +1137,9 @@ static int try_to_free_dmap_chunks(struct fuse_conn_dax *fcd,
 	struct fuse_dax_mapping *dmap, *pos, *temp;
 	int ret, nr_freed = 0;
 	unsigned long start_idx = 0, end_idx = 0;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 
-	/* Pick first busy range and free it for now*/
+	/* Pick first busy range and free it for analw*/
 	while (1) {
 		if (nr_freed >= nr_to_free)
 			break;
@@ -1158,13 +1158,13 @@ static int try_to_free_dmap_chunks(struct fuse_conn_dax *fcd,
 			if (refcount_read(&pos->refcnt) > 1)
 				continue;
 
-			inode = igrab(pos->inode);
+			ianalde = igrab(pos->ianalde);
 			/*
-			 * This inode is going away. That will free
+			 * This ianalde is going away. That will free
 			 * up all the ranges anyway, continue to
 			 * next range.
 			 */
-			if (!inode)
+			if (!ianalde)
 				continue;
 			/*
 			 * Take this element off list and add it tail. If
@@ -1180,8 +1180,8 @@ static int try_to_free_dmap_chunks(struct fuse_conn_dax *fcd,
 		if (!dmap)
 			return 0;
 
-		ret = lookup_and_reclaim_dmap(fcd, inode, start_idx, end_idx);
-		iput(inode);
+		ret = lookup_and_reclaim_dmap(fcd, ianalde, start_idx, end_idx);
+		iput(ianalde);
 		if (ret)
 			return ret;
 		nr_freed++;
@@ -1254,11 +1254,11 @@ static int fuse_dax_mem_range_init(struct fuse_conn_dax *fcd)
 
 	for (i = 0; i < nr_ranges; i++) {
 		range = kzalloc(sizeof(struct fuse_dax_mapping), GFP_KERNEL);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		if (!range)
 			goto out_err;
 
-		/* TODO: This offset only works if virtio-fs driver is not
+		/* TODO: This offset only works if virtio-fs driver is analt
 		 * having some memory hidden at the beginning. This needs
 		 * better handling
 		 */
@@ -1291,7 +1291,7 @@ int fuse_dax_conn_alloc(struct fuse_conn *fc, enum fuse_dax_mode dax_mode,
 
 	fcd = kzalloc(sizeof(*fcd), GFP_KERNEL);
 	if (!fcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&fcd->lock);
 	fcd->dev = dax_dev;
@@ -1305,7 +1305,7 @@ int fuse_dax_conn_alloc(struct fuse_conn *fc, enum fuse_dax_mode dax_mode,
 	return 0;
 }
 
-bool fuse_dax_inode_alloc(struct super_block *sb, struct fuse_inode *fi)
+bool fuse_dax_ianalde_alloc(struct super_block *sb, struct fuse_ianalde *fi)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
@@ -1324,20 +1324,20 @@ bool fuse_dax_inode_alloc(struct super_block *sb, struct fuse_inode *fi)
 
 static const struct address_space_operations fuse_dax_file_aops  = {
 	.writepages	= fuse_dax_writepages,
-	.direct_IO	= noop_direct_IO,
-	.dirty_folio	= noop_dirty_folio,
+	.direct_IO	= analop_direct_IO,
+	.dirty_folio	= analop_dirty_folio,
 };
 
-static bool fuse_should_enable_dax(struct inode *inode, unsigned int flags)
+static bool fuse_should_enable_dax(struct ianalde *ianalde, unsigned int flags)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_conn *fc = get_fuse_conn(ianalde);
 	enum fuse_dax_mode dax_mode = fc->dax_mode;
 
 	if (dax_mode == FUSE_DAX_NEVER)
 		return false;
 
 	/*
-	 * fc->dax may be NULL in 'inode' mode when filesystem device doesn't
+	 * fc->dax may be NULL in 'ianalde' mode when filesystem device doesn't
 	 * support DAX, in which case it will silently fallback to 'never' mode.
 	 */
 	if (!fc->dax)
@@ -1346,26 +1346,26 @@ static bool fuse_should_enable_dax(struct inode *inode, unsigned int flags)
 	if (dax_mode == FUSE_DAX_ALWAYS)
 		return true;
 
-	/* dax_mode is FUSE_DAX_INODE* */
-	return fc->inode_dax && (flags & FUSE_ATTR_DAX);
+	/* dax_mode is FUSE_DAX_IANALDE* */
+	return fc->ianalde_dax && (flags & FUSE_ATTR_DAX);
 }
 
-void fuse_dax_inode_init(struct inode *inode, unsigned int flags)
+void fuse_dax_ianalde_init(struct ianalde *ianalde, unsigned int flags)
 {
-	if (!fuse_should_enable_dax(inode, flags))
+	if (!fuse_should_enable_dax(ianalde, flags))
 		return;
 
-	inode->i_flags |= S_DAX;
-	inode->i_data.a_ops = &fuse_dax_file_aops;
+	ianalde->i_flags |= S_DAX;
+	ianalde->i_data.a_ops = &fuse_dax_file_aops;
 }
 
-void fuse_dax_dontcache(struct inode *inode, unsigned int flags)
+void fuse_dax_dontcache(struct ianalde *ianalde, unsigned int flags)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_conn *fc = get_fuse_conn(ianalde);
 
-	if (fuse_is_inode_dax_mode(fc->dax_mode) &&
-	    ((bool) IS_DAX(inode) != (bool) (flags & FUSE_ATTR_DAX)))
-		d_mark_dontcache(inode);
+	if (fuse_is_ianalde_dax_mode(fc->dax_mode) &&
+	    ((bool) IS_DAX(ianalde) != (bool) (flags & FUSE_ATTR_DAX)))
+		d_mark_dontcache(ianalde);
 }
 
 bool fuse_dax_check_alignment(struct fuse_conn *fc, unsigned int map_alignment)

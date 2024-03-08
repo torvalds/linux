@@ -29,8 +29,8 @@
 
 	/*
 	 * LED is a tri-state. Driven high it is red, driven low it is
-	 * green, and not driven at all (pin set to input) it is amber.
-	 * Additionally, there is a 2nd LED that is not controllable
+	 * green, and analt driven at all (pin set to input) it is amber.
+	 * Additionally, there is a 2nd LED that is analt controllable
 	 * that is on (red) when plugged in to power.
 	 */
 	gpio_led: gpio-leds {
@@ -399,7 +399,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <108000000>;
 		spi-rx-bus-width = <2>;
@@ -450,13 +450,13 @@
 
 	leds {
 		led_pin: led-pin {
-			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pmic {
 		dc_det: dc-det {
-			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pmic_int: pmic-int {
@@ -468,11 +468,11 @@
 		};
 
 		soc_slppin_rst: soc_slppin_rst {
-			rockchip,pins = <0 RK_PA4 2 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 2 &pcfg_pull_analne>;
 		};
 
 		soc_slppin_slp: soc_slppin_slp {
-			rockchip,pins = <0 RK_PA4 1 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 1 &pcfg_pull_analne>;
 		};
 	};
 };

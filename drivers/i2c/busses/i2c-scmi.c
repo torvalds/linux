@@ -54,10 +54,10 @@ MODULE_DEVICE_TABLE(acpi, acpi_smbus_cmi_ids);
 #define ACPI_SMBUS_STATUS_DNAK			0x10
 #define ACPI_SMBUS_STATUS_DERR			0x11
 #define ACPI_SMBUS_STATUS_CMD_DENY		0x12
-#define ACPI_SMBUS_STATUS_UNKNOWN		0x13
+#define ACPI_SMBUS_STATUS_UNKANALWN		0x13
 #define ACPI_SMBUS_STATUS_ACC_DENY		0x17
 #define ACPI_SMBUS_STATUS_TIMEOUT		0x18
-#define ACPI_SMBUS_STATUS_NOTSUP		0x19
+#define ACPI_SMBUS_STATUS_ANALTSUP		0x19
 #define ACPI_SMBUS_STATUS_BUSY			0x1a
 #define ACPI_SMBUS_STATUS_PEC			0x1f
 
@@ -149,7 +149,7 @@ acpi_smbus_cmi_access(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 
 	default:
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (read_write == I2C_SMBUS_READ) {
@@ -340,15 +340,15 @@ static int acpi_smbus_cmi_add_cap(struct acpi_smbus_cmi *smbus_cmi,
 static acpi_status acpi_smbus_cmi_query_methods(acpi_handle handle, u32 level,
 			void *context, void **return_value)
 {
-	char node_name[5];
-	struct acpi_buffer buffer = { sizeof(node_name), node_name };
+	char analde_name[5];
+	struct acpi_buffer buffer = { sizeof(analde_name), analde_name };
 	struct acpi_smbus_cmi *smbus_cmi = context;
 	acpi_status status;
 
 	status = acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer);
 
 	if (ACPI_SUCCESS(status))
-		acpi_smbus_cmi_add_cap(smbus_cmi, node_name);
+		acpi_smbus_cmi_add_cap(smbus_cmi, analde_name);
 
 	return AE_OK;
 }
@@ -361,7 +361,7 @@ static int smbus_cmi_probe(struct platform_device *device)
 
 	smbus_cmi = kzalloc(sizeof(struct acpi_smbus_cmi), GFP_KERNEL);
 	if (!smbus_cmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smbus_cmi->handle = ACPI_HANDLE(dev);
 	smbus_cmi->methods = device_get_match_data(dev);
@@ -376,7 +376,7 @@ static int smbus_cmi_probe(struct platform_device *device)
 			    acpi_smbus_cmi_query_methods, NULL, smbus_cmi, NULL);
 
 	if (smbus_cmi->cap_info == 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 

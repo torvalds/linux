@@ -20,12 +20,12 @@ structure to it (found in kernel public header file linux/uleds.h)::
     };
 
 A new LED class device will be created with the name given. The name can be
-any valid sysfs device node name, but consider using the LED class naming
+any valid sysfs device analde name, but consider using the LED class naming
 convention of "devicename:color:function".
 
 The current brightness is found by reading a single byte from the character
 device. Values are unsigned: 0 to 255. Reading will block until the brightness
-changes. The device node can also be polled to notify when the brightness value
+changes. The device analde can also be polled to analtify when the brightness value
 changes.
 
 The LED class device will be removed when the open file handle to /dev/uleds

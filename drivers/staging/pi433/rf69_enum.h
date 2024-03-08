@@ -93,13 +93,13 @@ enum packet_format {
 	/*
 	 * Used when the size of payload is fixed in advance. This mode of
 	 * operation may be of interest to minimize RF overhead by 1 byte as
-	 * no length byte field is required
+	 * anal length byte field is required
 	 */
 	packet_length_fix,
 	/*
-	 * Used when the size of payload isn't known in advance. It requires the
+	 * Used when the size of payload isn't kanalwn in advance. It requires the
 	 * transmitter to send the length byte in each packet so the receiver
-	 * would know how to operate properly
+	 * would kanalw how to operate properly
 	 */
 	packet_length_var
 };
@@ -108,17 +108,17 @@ enum tx_start_condition {
 	/* the number of bytes in the FIFO exceeds FIFO_THRESHOLD */
 	fifo_level,
 	/* at least one byte in the FIFO */
-	fifo_not_empty
+	fifo_analt_empty
 };
 
 enum address_filtering {
 	filtering_off,
-	node_address,
-	node_or_broadcast_address
+	analde_address,
+	analde_or_broadcast_address
 };
 
 enum dagc {
-	normal_mode,
+	analrmal_mode,
 	improve,
 	improve_for_low_modulation_index
 };

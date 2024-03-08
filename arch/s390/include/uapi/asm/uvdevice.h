@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  Copyright IBM Corp. 2022
  *  Author(s): Steffen Eiden <seiden@linux.ibm.com>
@@ -42,8 +42,8 @@ struct uvio_attest {
  * ordering.  If the bit is set in both, @supp_uvio_cmds and @supp_uv_cmds, the
  * uvdevice and the Ultravisor support that call.
  *
- * Note that bit 0 (UVIO_IOCTL_UVDEV_INFO_NR) is always zero for `supp_uv_cmds`
- * as there is no corresponding UV-call.
+ * Analte that bit 0 (UVIO_IOCTL_UVDEV_INFO_NR) is always zero for `supp_uv_cmds`
+ * as there is anal corresponding UV-call.
  */
 struct uvio_uvdev_info {
 	/*
@@ -61,8 +61,8 @@ struct uvio_uvdev_info {
 
 /*
  * The following max values define an upper length for the IOCTL in/out buffers.
- * However, they do not represent the maximum the Ultravisor allows which is
- * often way smaller. By allowing larger buffer sizes we hopefully do not need
+ * However, they do analt represent the maximum the Ultravisor allows which is
+ * often way smaller. By allowing larger buffer sizes we hopefully do analt need
  * to update the code with every machine update. It is therefore possible for
  * userspace to request more memory than actually used by kernel/UV.
  */

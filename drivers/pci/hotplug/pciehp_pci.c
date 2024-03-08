@@ -27,7 +27,7 @@
  *
  * Enumerate PCI devices below a hotplug bridge and add them to the system.
  * Return 0 on success, %-EEXIST if the devices are already enumerated or
- * %-ENODEV if enumeration failed.
+ * %-EANALDEV if enumeration failed.
  */
 int pciehp_configure_device(struct controller *ctrl)
 {
@@ -53,8 +53,8 @@ int pciehp_configure_device(struct controller *ctrl)
 
 	num = pci_scan_slot(parent, PCI_DEVFN(0, 0));
 	if (num == 0) {
-		ctrl_err(ctrl, "No new device found\n");
-		ret = -ENODEV;
+		ctrl_err(ctrl, "Anal new device found\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -121,7 +121,7 @@ void pciehp_unconfigure_device(struct controller *ctrl, bool presence)
 		down_read_nested(&ctrl->reset_lock, ctrl->depth);
 
 		/*
-		 * Ensure that no new Requests will be generated from
+		 * Ensure that anal new Requests will be generated from
 		 * the device.
 		 */
 		if (presence) {

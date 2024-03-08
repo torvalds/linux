@@ -16,7 +16,7 @@
 #include "spu.h"
 #include "spu2.h"
 
-#define SPU2_TX_STATUS_LEN  0	/* SPU2 has no STATUS in input packet */
+#define SPU2_TX_STATUS_LEN  0	/* SPU2 has anal STATUS in input packet */
 
 /*
  * Controlled by pkt_stat_cnt field in CRYPTO_SS_SPU0_CORE_SPU2_CONTROL0
@@ -38,7 +38,7 @@ enum spu2_proto_sel {
 	SPU2_DTLS_AEAD = 10
 };
 
-static char *spu2_cipher_type_names[] = { "None", "AES128", "AES192", "AES256",
+static char *spu2_cipher_type_names[] = { "Analne", "AES128", "AES192", "AES256",
 	"DES", "3DES"
 };
 
@@ -46,7 +46,7 @@ static char *spu2_cipher_mode_names[] = { "ECB", "CBC", "CTR", "CFB", "OFB",
 	"XTS", "CCM", "GCM"
 };
 
-static char *spu2_hash_type_names[] = { "None", "AES128", "AES192", "AES256",
+static char *spu2_hash_type_names[] = { "Analne", "AES128", "AES192", "AES256",
 	"Reserved", "Reserved", "MD5", "SHA1", "SHA224", "SHA256", "SHA384",
 	"SHA512", "SHA512/224", "SHA512/256", "SHA3-224", "SHA3-256",
 	"SHA3-384", "SHA3-512"
@@ -148,13 +148,13 @@ static int spu2_cipher_xlate(enum spu_cipher_alg cipher_alg,
 	}
 
 	switch (cipher_alg) {
-	case CIPHER_ALG_NONE:
-		*spu2_type = SPU2_CIPHER_TYPE_NONE;
+	case CIPHER_ALG_ANALNE:
+		*spu2_type = SPU2_CIPHER_TYPE_ANALNE;
 		break;
 	case CIPHER_ALG_RC4:
-		/* SPU2 does not support RC4 */
+		/* SPU2 does analt support RC4 */
 		err = -EINVAL;
-		*spu2_type = SPU2_CIPHER_TYPE_NONE;
+		*spu2_type = SPU2_CIPHER_TYPE_ANALNE;
 		break;
 	case CIPHER_ALG_DES:
 		*spu2_type = SPU2_CIPHER_TYPE_DES;
@@ -191,7 +191,7 @@ static int spu2_cipher_xlate(enum spu_cipher_alg cipher_alg,
 
 /*
  * Convert from a software hash mode value to the corresponding value
- * for SPU2. Note that HASH_MODE_NONE and HASH_MODE_XCBC have the same value.
+ * for SPU2. Analte that HASH_MODE_ANALNE and HASH_MODE_XCBC have the same value.
  */
 static int spu2_hash_mode_xlate(enum hash_mode hash_mode,
 				enum spu2_hash_mode *spu2_mode)
@@ -244,8 +244,8 @@ spu2_hash_xlate(enum hash_alg hash_alg, enum hash_mode hash_mode,
 	}
 
 	switch (hash_alg) {
-	case HASH_ALG_NONE:
-		*spu2_type = SPU2_HASH_TYPE_NONE;
+	case HASH_ALG_ANALNE:
+		*spu2_type = SPU2_HASH_TYPE_ANALNE;
 		break;
 	case HASH_ALG_MD5:
 		*spu2_type = SPU2_HASH_TYPE_MD5;
@@ -328,7 +328,7 @@ static void spu2_dump_fmd_ctrl0(u64 ctrl0)
 	ciph_name = spu2_ciph_type_name(ciph_type);
 	packet_log("  Cipher type: %s\n", ciph_name);
 
-	if (ciph_type != SPU2_CIPHER_TYPE_NONE) {
+	if (ciph_type != SPU2_CIPHER_TYPE_ANALNE) {
 		ciph_mode = (ctrl0 & SPU2_CIPH_MODE) >> SPU2_CIPH_MODE_SHIFT;
 		ciph_mode_name = spu2_ciph_mode_name(ciph_mode);
 		packet_log("  Cipher mode: %s\n", ciph_mode_name);
@@ -352,7 +352,7 @@ static void spu2_dump_fmd_ctrl0(u64 ctrl0)
 	hash_name = spu2_hash_type_name(hash_type);
 	packet_log("  Hash type: %s\n", hash_name);
 
-	if (hash_type != SPU2_HASH_TYPE_NONE) {
+	if (hash_type != SPU2_HASH_TYPE_ANALNE) {
 		hash_mode = (ctrl0 & SPU2_HASH_MODE) >> SPU2_HASH_MODE_SHIFT;
 		hash_mode_name = spu2_hash_mode_name(hash_mode);
 		packet_log("  Hash mode: %s\n", hash_mode_name);
@@ -616,7 +616,7 @@ static void spu2_fmd_ctrl0_write(struct SPU2_FMD *fmd,
 {
 	u64 ctrl0 = 0;
 
-	if ((cipher_type != SPU2_CIPHER_TYPE_NONE) && !is_inbound)
+	if ((cipher_type != SPU2_CIPHER_TYPE_ANALNE) && !is_inbound)
 		ctrl0 |= SPU2_CIPH_ENCRYPT_EN;
 
 	ctrl0 |= ((u64)cipher_type << SPU2_CIPH_TYPE_SHIFT) |
@@ -628,7 +628,7 @@ static void spu2_fmd_ctrl0_write(struct SPU2_FMD *fmd,
 	if (auth_first)
 		ctrl0 |= SPU2_HASH_FIRST;
 
-	if (is_inbound && (auth_type != SPU2_HASH_TYPE_NONE))
+	if (is_inbound && (auth_type != SPU2_HASH_TYPE_ANALNE))
 		ctrl0 |= SPU2_CHK_TAG;
 
 	ctrl0 |= (((u64)auth_type << SPU2_HASH_TYPE_SHIFT) |
@@ -708,9 +708,9 @@ static void spu2_fmd_ctrl1_write(struct SPU2_FMD *fmd, bool is_inbound,
 	if (return_md)
 		ctrl1 |= ((u64)SPU2_RET_FMD_ONLY << SPU2_RETURN_MD_SHIFT);
 	else
-		ctrl1 |= ((u64)SPU2_RET_NO_MD << SPU2_RETURN_MD_SHIFT);
+		ctrl1 |= ((u64)SPU2_RET_ANAL_MD << SPU2_RETURN_MD_SHIFT);
 
-	/* Crypto API does not get assoc data back. So no need for AAD2. */
+	/* Crypto API does analt get assoc data back. So anal need for AAD2. */
 
 	if (return_payload)
 		ctrl1 |= SPU2_RETURN_PAY;
@@ -773,7 +773,7 @@ static void spu2_fmd_ctrl3_write(struct SPU2_FMD *fmd, u64 payload_len)
  * @cipher_mode:	The cipher mode
  * @blocksize:		The size of a block of data for this algo
  *
- * For SPU2, the hardware generally ignores the PayloadLen field in ctrl3 of
+ * For SPU2, the hardware generally iganalres the PayloadLen field in ctrl3 of
  * FMD and just keeps computing until it receives a DMA descriptor with the EOF
  * flag set. So we consider the max payload to be infinite. AES CCM is an
  * exception.
@@ -889,7 +889,7 @@ u32 spu2_assoc_resp_len(enum spu_cipher_mode cipher_mode,
  * @cipher_mode:  cipher mode
  * @iv_len:   initialization vector length in bytes
  *
- * For SPU2, AEAD IV is included in OMD and does not need to be repeated
+ * For SPU2, AEAD IV is included in OMD and does analt need to be repeated
  * prior to the payload.
  *
  * Return: Length of AEAD IV in bytes
@@ -934,7 +934,7 @@ u32 spu2_digest_size(u32 alg_digest_size, enum hash_alg alg,
  * @hash_parms:   Parameters related to hash algorithm
  * @aead_parms:   Parameters related to AEAD operation
  * @data_size:    Length of data to be encrypted or authenticated. If AEAD, does
- *		  not include length of AAD.
+ *		  analt include length of AAD.
  *
  * Construct the message starting at spu_hdr. Caller should allocate this buffer
  * in DMA-able memory at least SPU_HEADER_ALLOC_LEN bytes long.
@@ -952,9 +952,9 @@ u32 spu2_create_request(u8 *spu_hdr,
 	u8 *ptr;
 	unsigned int buf_len;
 	int err;
-	enum spu2_cipher_type spu2_ciph_type = SPU2_CIPHER_TYPE_NONE;
+	enum spu2_cipher_type spu2_ciph_type = SPU2_CIPHER_TYPE_ANALNE;
 	enum spu2_cipher_mode spu2_ciph_mode;
-	enum spu2_hash_type spu2_auth_type = SPU2_HASH_TYPE_NONE;
+	enum spu2_hash_type spu2_auth_type = SPU2_HASH_TYPE_ANALNE;
 	enum spu2_hash_mode spu2_auth_mode;
 	bool return_md = true;
 	enum spu2_proto_sel proto = SPU2_PROTO_RESV;
@@ -999,7 +999,7 @@ u32 spu2_create_request(u8 *spu_hdr,
 		 req_opts->is_inbound, req_opts->auth_first);
 	flow_log("  cipher alg:%u mode:%u type %u\n", cipher_parms->alg,
 		 cipher_parms->mode, cipher_parms->type);
-	flow_log("  is_esp: %s\n", req_opts->is_esp ? "yes" : "no");
+	flow_log("  is_esp: %s\n", req_opts->is_esp ? "anal" : "anal");
 	flow_log("    key: %d\n", cipher_parms->key_len);
 	flow_dump("    key: ", cipher_parms->key_buf, cipher_parms->key_len);
 	flow_log("    iv: %d\n", cipher_parms->iv_len);
@@ -1024,16 +1024,16 @@ u32 spu2_create_request(u8 *spu_hdr,
 				&spu2_ciph_type, &spu2_ciph_mode);
 
 	/* If we are doing GCM hashing only - either via rfc4543 transform
-	 * or because we happen to do GCM with AAD only and no payload - we
+	 * or because we happen to do GCM with AAD only and anal payload - we
 	 * need to configure hardware to use hash key rather than cipher key
 	 * and put data into payload.  This is because unlike SPU-M, running
-	 * GCM cipher with 0 size payload is not permitted.
+	 * GCM cipher with 0 size payload is analt permitted.
 	 */
 	if ((req_opts->is_rfc4543) ||
 	    ((spu2_ciph_mode == SPU2_CIPHER_MODE_GCM) &&
 	    (payload_len == 0))) {
 		/* Use hashing (only) and set up hash key */
-		spu2_ciph_type = SPU2_CIPHER_TYPE_NONE;
+		spu2_ciph_type = SPU2_CIPHER_TYPE_ANALNE;
 		hash_parms->key_len = cipher_parms->key_len;
 		memcpy(hash_parms->key_buf, cipher_parms->key_buf,
 		       cipher_parms->key_len);
@@ -1127,7 +1127,7 @@ u16 spu2_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
 {
 	struct SPU2_FMD *fmd;
 	u8 *omd;
-	enum spu2_cipher_type spu2_type = SPU2_CIPHER_TYPE_NONE;
+	enum spu2_cipher_type spu2_type = SPU2_CIPHER_TYPE_ANALNE;
 	enum spu2_cipher_mode spu2_mode;
 	int err;
 
@@ -1283,7 +1283,7 @@ void spu2_request_pad(u8 *pad_start, u32 gcm_padding, u32 hash_pad_len,
 }
 
 /**
- * spu2_xts_tweak_in_payload() - Indicate that SPU2 does NOT place the XTS
+ * spu2_xts_tweak_in_payload() - Indicate that SPU2 does ANALT place the XTS
  * tweak field in the packet payload (it uses IV instead)
  *
  * Return: 0
@@ -1366,14 +1366,14 @@ void spu2_ccm_update_iv(unsigned int digestsize,
 		L = ((cipher_parms->iv_buf[0] & CCM_B0_L_PRIME) >>
 		      CCM_B0_L_PRIME_SHIFT) + 1;
 
-	/* SPU2 doesn't want these length bytes nor the first byte... */
+	/* SPU2 doesn't want these length bytes analr the first byte... */
 	cipher_parms->iv_len -= (1 + L);
 	memmove(cipher_parms->iv_buf, &cipher_parms->iv_buf[1],
 		cipher_parms->iv_len);
 }
 
 /**
- * spu2_wordalign_padlen() - SPU2 does not require padding.
+ * spu2_wordalign_padlen() - SPU2 does analt require padding.
  * @data_size: length of data field in bytes
  *
  * Return: length of status field padding, in bytes (always 0 on SPU2)

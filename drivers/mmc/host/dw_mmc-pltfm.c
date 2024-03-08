@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare Multimedia Card Interface driver
+ * Syanalpsys DesignWare Multimedia Card Interface driver
  *
  * Copyright (C) 2009 NXP Semiconductors
- * Copyright (C) 2009, 2010 Imagination Technologies Ltd.
+ * Copyright (C) 2009, 2010 Imagination Techanallogies Ltd.
  */
 
 #include <linux/err.h>
@@ -35,7 +35,7 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 
 	host = devm_kzalloc(&pdev->dev, sizeof(struct dw_mci), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->irq = platform_get_irq(pdev, 0);
 	if (host->irq < 0)
@@ -69,7 +69,7 @@ EXPORT_SYMBOL_GPL(dw_mci_pltfm_pmops);
 
 static int dw_mci_socfpga_priv_init(struct dw_mci *host)
 {
-	struct device_node *np = host->dev->of_node;
+	struct device_analde *np = host->dev->of_analde;
 	struct regmap *sys_mgr_base_addr;
 	u32 clk_phase[2] = {0}, reg_offset, reg_shift;
 	int i, rc, hs_timing;
@@ -113,8 +113,8 @@ static int dw_mci_pltfm_probe(struct platform_device *pdev)
 	const struct dw_mci_drv_data *drv_data = NULL;
 	const struct of_device_id *match;
 
-	if (pdev->dev.of_node) {
-		match = of_match_node(dw_mci_pltfm_match, pdev->dev.of_node);
+	if (pdev->dev.of_analde) {
+		match = of_match_analde(dw_mci_pltfm_match, pdev->dev.of_analde);
 		drv_data = match->data;
 	}
 
@@ -134,7 +134,7 @@ static struct platform_driver dw_mci_pltfm_driver = {
 	.remove_new	= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dw_mmc",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table	= dw_mci_pltfm_match,
 		.pm		= &dw_mci_pltfm_pmops,
 	},
@@ -144,5 +144,5 @@ module_platform_driver(dw_mci_pltfm_driver);
 
 MODULE_DESCRIPTION("DW Multimedia Card Interface driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");
-MODULE_AUTHOR("Imagination Technologies Ltd");
+MODULE_AUTHOR("Imagination Techanallogies Ltd");
 MODULE_LICENSE("GPL v2");

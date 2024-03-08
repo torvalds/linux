@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include <drm/drm_managed.h>
 #include <drm/gpu_scheduler.h>
@@ -175,7 +175,7 @@ static const struct dma_fence_ops pvr_queue_job_fence_ops = {
  * @f: The dma_fence to turn into a pvr_queue_fence.
  *
  * Return:
- *  * A non-NULL pvr_queue_fence object if the dma_fence is backed by a UFO, or
+ *  * A analn-NULL pvr_queue_fence object if the dma_fence is backed by a UFO, or
  *  * NULL otherwise.
  */
 static struct pvr_queue_fence *
@@ -270,7 +270,7 @@ pvr_queue_fence_init(struct dma_fence *f,
 	fence->queue = queue;
 	dma_fence_init(&fence->base, fence_ops,
 		       &fence_ctx->lock, fence_ctx->id,
-		       atomic_inc_return(&fence_ctx->seqno));
+		       atomic_inc_return(&fence_ctx->seqanal));
 }
 
 /**
@@ -317,7 +317,7 @@ pvr_queue_fence_ctx_init(struct pvr_queue_fence_ctx *fence_ctx)
 {
 	spin_lock_init(&fence_ctx->lock);
 	fence_ctx->id = dma_fence_context_alloc(1);
-	atomic_set(&fence_ctx->seqno, 0);
+	atomic_set(&fence_ctx->seqanal, 0);
 }
 
 static u32 ufo_cmds_size(u32 elem_count)
@@ -347,10 +347,10 @@ static u32 job_cmds_size(struct pvr_job *job, u32 ufo_wait_count)
 }
 
 /**
- * job_count_remaining_native_deps() - Count the number of non-signaled native dependencies.
+ * job_count_remaining_native_deps() - Count the number of analn-signaled native dependencies.
  * @job: Job to operate on.
  *
- * Returns: Number of non-signaled native deps remaining.
+ * Returns: Number of analn-signaled native deps remaining.
  */
 static unsigned long job_count_remaining_native_deps(struct pvr_job *job)
 {
@@ -378,10 +378,10 @@ static unsigned long job_count_remaining_native_deps(struct pvr_job *job)
  * @job: The job to get the CCCB fence on.
  *
  * The CCCB fence is a synchronization primitive allowing us to delay job
- * submission until there's enough space in the CCCB to submit the job.
+ * submission until there's eanalugh space in the CCCB to submit the job.
  *
  * Return:
- *  * NULL if there's enough space in the CCCB to submit this job, or
+ *  * NULL if there's eanalugh space in the CCCB to submit this job, or
  *  * A valid dma_fence object otherwise.
  */
 static struct dma_fence *
@@ -391,7 +391,7 @@ pvr_queue_get_job_cccb_fence(struct pvr_queue *queue, struct pvr_job *job)
 	unsigned int native_deps_remaining;
 
 	/* If the fence is NULL, that means we already checked that we had
-	 * enough space in the cccb for our job.
+	 * eanalugh space in the cccb for our job.
 	 */
 	if (!job->cccb_fence)
 		return NULL;
@@ -406,7 +406,7 @@ pvr_queue_get_job_cccb_fence(struct pvr_queue *queue, struct pvr_job *job)
 		goto out_unlock;
 	}
 
-	/* There should be no job attached to the CCCB fence context:
+	/* There should be anal job attached to the CCCB fence context:
 	 * drm_sched_entity guarantees that jobs are submitted one at a time.
 	 */
 	if (WARN_ON(queue->cccb_fence_ctx.job))
@@ -431,10 +431,10 @@ out_unlock:
  * @job: The job to get the KCCB fence on.
  *
  * The KCCB fence is a synchronization primitive allowing us to delay job
- * submission until there's enough space in the KCCB to submit the job.
+ * submission until there's eanalugh space in the KCCB to submit the job.
  *
  * Return:
- *  * NULL if there's enough space in the KCCB to submit this job, or
+ *  * NULL if there's eanalugh space in the KCCB to submit this job, or
  *  * A valid dma_fence object otherwise.
  */
 static struct dma_fence *
@@ -444,7 +444,7 @@ pvr_queue_get_job_kccb_fence(struct pvr_queue *queue, struct pvr_job *job)
 	struct dma_fence *kccb_fence = NULL;
 
 	/* If the fence is NULL, that means we already checked that we had
-	 * enough space in the KCCB for our job.
+	 * eanalugh space in the KCCB for our job.
 	 */
 	if (!job->kccb_fence)
 		return NULL;
@@ -525,7 +525,7 @@ pvr_queue_prepare_job(struct drm_sched_job *sched_job,
 		pvr_queue_job_fence_init(job->done_fence, queue);
 	}
 
-	/* CCCB fence is used to make sure we have enough space in the CCCB to
+	/* CCCB fence is used to make sure we have eanalugh space in the CCCB to
 	 * submit our commands.
 	 */
 	internal_dep = pvr_queue_get_job_cccb_fence(queue, job);
@@ -567,13 +567,13 @@ static void pvr_queue_update_active_state_locked(struct pvr_queue *queue)
 	 * we don't want a call to pvr_queue_update_active_state_locked()
 	 * to re-insert it behind our back.
 	 */
-	if (list_empty(&queue->node))
+	if (list_empty(&queue->analde))
 		return;
 
 	if (!atomic_read(&queue->in_flight_job_count))
-		list_move_tail(&queue->node, &pvr_dev->queues.idle);
+		list_move_tail(&queue->analde, &pvr_dev->queues.idle);
 	else
-		list_move_tail(&queue->node, &pvr_dev->queues.active);
+		list_move_tail(&queue->analde, &pvr_dev->queues.active);
 }
 
 /**
@@ -584,7 +584,7 @@ static void pvr_queue_update_active_state_locked(struct pvr_queue *queue)
  *
  * Updating the active state implies moving the queue in or out of the
  * active queue list, which also defines whether the queue is checked
- * or not when a FW event is received.
+ * or analt when a FW event is received.
  *
  * This function should be called any time a job is submitted or it done
  * fence is signaled.
@@ -630,7 +630,7 @@ static void pvr_queue_submit_job_to_cccb(struct pvr_job *job)
 
 		pvr_fw_object_get_fw_addr(jfence->queue->timeline_ufo.fw_obj,
 					  &ufos[ufo_count].addr);
-		ufos[ufo_count++].value = jfence->base.seqno;
+		ufos[ufo_count++].value = jfence->base.seqanal;
 
 		if (ufo_count == ARRAY_SIZE(ufos)) {
 			pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_FENCE_PR,
@@ -645,7 +645,7 @@ static void pvr_queue_submit_job_to_cccb(struct pvr_job *job)
 		if (!WARN_ON(!jfence)) {
 			pvr_fw_object_get_fw_addr(jfence->queue->timeline_ufo.fw_obj,
 						  &ufos[ufo_count].addr);
-			ufos[ufo_count++].value = job->paired_job->done_fence->seqno;
+			ufos[ufo_count++].value = job->paired_job->done_fence->seqanal;
 		}
 	}
 
@@ -658,11 +658,11 @@ static void pvr_queue_submit_job_to_cccb(struct pvr_job *job)
 		struct rogue_fwif_cmd_geom *cmd = job->cmd;
 
 		/* Reference value for the partial render test is the current queue fence
-		 * seqno minus one.
+		 * seqanal minus one.
 		 */
 		pvr_fw_object_get_fw_addr(queue->timeline_ufo.fw_obj,
 					  &cmd->partial_render_geom_frag_fence.addr);
-		cmd->partial_render_geom_frag_fence.value = job->done_fence->seqno - 1;
+		cmd->partial_render_geom_frag_fence.value = job->done_fence->seqanal - 1;
 	}
 
 	/* Submit job to FW */
@@ -671,7 +671,7 @@ static void pvr_queue_submit_job_to_cccb(struct pvr_job *job)
 
 	/* Signal the job fence. */
 	pvr_fw_object_get_fw_addr(queue->timeline_ufo.fw_obj, &ufos[0].addr);
-	ufos[0].value = job->done_fence->seqno;
+	ufos[0].value = job->done_fence->seqanal;
 	pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_UPDATE,
 					   sizeof(ufos[0]), ufos, 0, 0);
 }
@@ -680,7 +680,7 @@ static void pvr_queue_submit_job_to_cccb(struct pvr_job *job)
  * pvr_queue_run_job() - Submit a job to the FW.
  * @sched_job: The job to submit.
  *
- * This function is called when all non-native dependencies have been met and
+ * This function is called when all analn-native dependencies have been met and
  * when the commands resulting from this job are guaranteed to fit in the CCCB.
  */
 static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
@@ -765,7 +765,7 @@ static void pvr_queue_start(struct pvr_queue *queue)
 	/* Make sure we CPU-signal the UFO object, so other queues don't get
 	 * blocked waiting on it.
 	 */
-	*queue->timeline_ufo.value = atomic_read(&queue->job_fence_ctx.seqno);
+	*queue->timeline_ufo.value = atomic_read(&queue->job_fence_ctx.seqanal);
 
 	list_for_each_entry(job, &queue->scheduler.pending_list, base.list) {
 		if (dma_fence_is_signaled(job->done_fence)) {
@@ -775,7 +775,7 @@ static void pvr_queue_start(struct pvr_queue *queue)
 			WARN_ON(job->base.s_fence->parent);
 			job->base.s_fence->parent = dma_fence_get(job->done_fence);
 		} else {
-			/* If we had unfinished jobs, flag the entity as guilty so no
+			/* If we had unfinished jobs, flag the entity as guilty so anal
 			 * new job can be submitted.
 			 */
 			atomic_set(&queue->ctx->faulty, 1);
@@ -793,7 +793,7 @@ static void pvr_queue_start(struct pvr_queue *queue)
  * the scheduler, and re-assign parent fences in the middle.
  *
  * Return:
- *  * DRM_GPU_SCHED_STAT_NOMINAL.
+ *  * DRM_GPU_SCHED_STAT_ANALMINAL.
  */
 static enum drm_gpu_sched_stat
 pvr_queue_timedout_job(struct drm_sched_job *s_job)
@@ -813,11 +813,11 @@ pvr_queue_timedout_job(struct drm_sched_job *s_job)
 	 * pvr_queue_signal_done_fences() and drm_sched_stop() to race with each
 	 * other when accessing the pending_list, since drm_sched_stop() doesn't
 	 * grab the job_list_lock when modifying the list (it's assuming the
-	 * only other accessor is the scheduler, and it's safe to not grab the
+	 * only other accessor is the scheduler, and it's safe to analt grab the
 	 * lock since it's stopped).
 	 */
 	mutex_lock(&pvr_dev->queues.lock);
-	list_del_init(&queue->node);
+	list_del_init(&queue->analde);
 	mutex_unlock(&pvr_dev->queues.lock);
 
 	drm_sched_stop(sched, s_job);
@@ -834,17 +834,17 @@ pvr_queue_timedout_job(struct drm_sched_job *s_job)
 	 */
 	mutex_lock(&pvr_dev->queues.lock);
 	if (!job_count) {
-		list_move_tail(&queue->node, &pvr_dev->queues.idle);
+		list_move_tail(&queue->analde, &pvr_dev->queues.idle);
 	} else {
 		atomic_set(&queue->in_flight_job_count, job_count);
-		list_move_tail(&queue->node, &pvr_dev->queues.active);
+		list_move_tail(&queue->analde, &pvr_dev->queues.active);
 		pvr_queue_process(queue);
 	}
 	mutex_unlock(&pvr_dev->queues.lock);
 
 	drm_sched_start(sched, true);
 
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_ANALMINAL;
 }
 
 /**
@@ -873,7 +873,7 @@ static const struct drm_sched_backend_ops pvr_queue_sched_ops = {
  *
  * A UFO-backed fence is a fence that can be signaled or waited upon FW-side.
  * pvr_job::done_fence objects are backed by the timeline UFO attached to the queue
- * they are pushed to, but those fences are not directly exposed to the outside
+ * they are pushed to, but those fences are analt directly exposed to the outside
  * world, so we also need to check if the fence we're being passed is a
  * drm_sched_fence that was coming from our driver.
  */
@@ -895,19 +895,19 @@ bool pvr_queue_fence_is_ufo_backed(struct dma_fence *f)
  * pvr_queue_signal_done_fences() - Signal done fences.
  * @queue: Queue to check.
  *
- * Signal done fences of jobs whose seqno is less than the current value of
+ * Signal done fences of jobs whose seqanal is less than the current value of
  * the UFO object attached to the queue.
  */
 static void
 pvr_queue_signal_done_fences(struct pvr_queue *queue)
 {
 	struct pvr_job *job, *tmp_job;
-	u32 cur_seqno;
+	u32 cur_seqanal;
 
 	spin_lock(&queue->scheduler.job_list_lock);
-	cur_seqno = *queue->timeline_ufo.value;
+	cur_seqanal = *queue->timeline_ufo.value;
 	list_for_each_entry_safe(job, tmp_job, &queue->scheduler.pending_list, base.list) {
-		if ((int)(cur_seqno - lower_32_bits(job->done_fence->seqno)) < 0)
+		if ((int)(cur_seqanal - lower_32_bits(job->done_fence->seqanal)) < 0)
 			break;
 
 		if (!dma_fence_is_signaled(job->done_fence)) {
@@ -925,7 +925,7 @@ pvr_queue_signal_done_fences(struct pvr_queue *queue)
  * pushed to the CCCB
  * @queue: Queue to check
  *
- * If we have a job waiting for CCCB, and this job now fits in the CCCB, we signal
+ * If we have a job waiting for CCCB, and this job analw fits in the CCCB, we signal
  * its CCCB fence, which should kick drm_sched.
  */
 static void
@@ -1093,7 +1093,7 @@ int pvr_queue_job_init(struct pvr_job *job)
 	job->kccb_fence = pvr_kccb_fence_alloc();
 	job->done_fence = pvr_queue_fence_alloc();
 	if (!job->cccb_fence || !job->kccb_fence || !job->done_fence)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1105,10 +1105,10 @@ int pvr_queue_job_init(struct pvr_job *job)
  * Initializes fences and return the drm_sched finished fence so it can
  * be exposed to the outside world. Once this function is called, you should
  * make sure the job is pushed using pvr_queue_job_push(), or guarantee that
- * no one grabbed a reference to the returned fence. The latter can happen if
+ * anal one grabbed a reference to the returned fence. The latter can happen if
  * we do multi-job submission, and something failed when creating/initializing
- * a job. In that case, we know the fence didn't leave the driver, and we
- * can thus guarantee nobody will wait on an dead fence object.
+ * a job. In that case, we kanalw the fence didn't leave the driver, and we
+ * can thus guarantee analbody will wait on an dead fence object.
  *
  * Return:
  *  * A dma_fence object.
@@ -1242,14 +1242,14 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 	if (!queue)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	queue->type = type;
 	queue->ctx_offset = get_ctx_offset(type);
 	queue->ctx = ctx;
 	queue->callstack_addr = args->callstack_addr;
 	sched = &queue->scheduler;
-	INIT_LIST_HEAD(&queue->node);
+	INIT_LIST_HEAD(&queue->analde);
 	mutex_init(&queue->cccb_fence_ctx.job_lock);
 	pvr_queue_fence_ctx_init(&queue->cccb_fence_ctx.base);
 	pvr_queue_fence_ctx_init(&queue->job_fence_ctx);
@@ -1298,7 +1298,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 		goto err_sched_fini;
 
 	mutex_lock(&pvr_dev->queues.lock);
-	list_add_tail(&queue->node, &pvr_dev->queues.idle);
+	list_add_tail(&queue->analde, &pvr_dev->queues.idle);
 	mutex_unlock(&pvr_dev->queues.lock);
 
 	return queue;
@@ -1327,9 +1327,9 @@ void pvr_queue_device_pre_reset(struct pvr_device *pvr_dev)
 	struct pvr_queue *queue;
 
 	mutex_lock(&pvr_dev->queues.lock);
-	list_for_each_entry(queue, &pvr_dev->queues.idle, node)
+	list_for_each_entry(queue, &pvr_dev->queues.idle, analde)
 		pvr_queue_stop(queue, NULL);
-	list_for_each_entry(queue, &pvr_dev->queues.active, node)
+	list_for_each_entry(queue, &pvr_dev->queues.active, analde)
 		pvr_queue_stop(queue, NULL);
 	mutex_unlock(&pvr_dev->queues.lock);
 }
@@ -1339,9 +1339,9 @@ void pvr_queue_device_post_reset(struct pvr_device *pvr_dev)
 	struct pvr_queue *queue;
 
 	mutex_lock(&pvr_dev->queues.lock);
-	list_for_each_entry(queue, &pvr_dev->queues.active, node)
+	list_for_each_entry(queue, &pvr_dev->queues.active, analde)
 		pvr_queue_start(queue);
-	list_for_each_entry(queue, &pvr_dev->queues.idle, node)
+	list_for_each_entry(queue, &pvr_dev->queues.idle, analde)
 		pvr_queue_start(queue);
 	mutex_unlock(&pvr_dev->queues.lock);
 }
@@ -1350,7 +1350,7 @@ void pvr_queue_device_post_reset(struct pvr_device *pvr_dev)
  * pvr_queue_kill() - Kill a queue.
  * @queue: The queue to kill.
  *
- * Kill the queue so no new jobs can be pushed. Should be called when the
+ * Kill the queue so anal new jobs can be pushed. Should be called when the
  * context handle is destroyed. The queue object might last longer if jobs
  * are still in flight and holding a reference to the context this queue
  * belongs to.
@@ -1375,7 +1375,7 @@ void pvr_queue_destroy(struct pvr_queue *queue)
 		return;
 
 	mutex_lock(&queue->ctx->pvr_dev->queues.lock);
-	list_del_init(&queue->node);
+	list_del_init(&queue->analde);
 	mutex_unlock(&queue->ctx->pvr_dev->queues.lock);
 
 	drm_sched_fini(&queue->scheduler);
@@ -1415,7 +1415,7 @@ int pvr_queue_device_init(struct pvr_device *pvr_dev)
 
 	pvr_dev->sched_wq = alloc_workqueue("powervr-sched", WQ_UNBOUND, 0);
 	if (!pvr_dev->sched_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

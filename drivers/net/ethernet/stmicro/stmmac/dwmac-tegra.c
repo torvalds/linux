@@ -209,7 +209,7 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 
 	mgbe = devm_kzalloc(&pdev->dev, sizeof(*mgbe), GFP_KERNEL);
 	if (!mgbe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mgbe->dev = &pdev->dev;
 
@@ -237,7 +237,7 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	mgbe->clks = devm_kcalloc(&pdev->dev, ARRAY_SIZE(mgbe_clks),
 				  sizeof(*mgbe->clks), GFP_KERNEL);
 	if (!mgbe->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i <  ARRAY_SIZE(mgbe_clks); i++)
 		mgbe->clks[i].id = mgbe_clks[i];
@@ -295,14 +295,14 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	plat->pmt = 1;
 	plat->bsp_priv = mgbe;
 
-	if (!plat->mdio_node)
-		plat->mdio_node = of_get_child_by_name(pdev->dev.of_node, "mdio");
+	if (!plat->mdio_analde)
+		plat->mdio_analde = of_get_child_by_name(pdev->dev.of_analde, "mdio");
 
 	if (!plat->mdio_bus_data) {
 		plat->mdio_bus_data = devm_kzalloc(&pdev->dev, sizeof(*plat->mdio_bus_data),
 						   GFP_KERNEL);
 		if (!plat->mdio_bus_data) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto disable_clks;
 		}
 	}

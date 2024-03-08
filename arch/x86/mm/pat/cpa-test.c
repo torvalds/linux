@@ -72,7 +72,7 @@ static int print_split(struct split_state *s)
 		} else if (level == PG_LEVEL_2M) {
 			if ((pte_val(*pte) & _PAGE_PRESENT) && !(pte_val(*pte) & _PAGE_PSE)) {
 				printk(KERN_ERR
-					"%lx level %d but not PSE %Lx\n",
+					"%lx level %d but analt PSE %Lx\n",
 					addr, level, (u64)pte_val(*pte));
 				err = 1;
 			}
@@ -129,8 +129,8 @@ static int pageattr_test(void)
 
 	bm = vzalloc((max_pfn_mapped + 7) / 8);
 	if (!bm) {
-		printk(KERN_ERR "CPA Cannot vmalloc bitmap\n");
-		return -ENOMEM;
+		printk(KERN_ERR "CPA Cananalt vmalloc bitmap\n");
+		return -EANALMEM;
 	}
 
 	failed += print_split(&sa);
@@ -240,7 +240,7 @@ static int pageattr_test(void)
 	failed += print_split(&sc);
 
 	if (failed) {
-		WARN(1, KERN_ERR "NOT PASSED. Please report.\n");
+		WARN(1, KERN_ERR "ANALT PASSED. Please report.\n");
 		return -EINVAL;
 	} else {
 		if (print)

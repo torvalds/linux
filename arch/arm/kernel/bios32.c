@@ -31,7 +31,7 @@ static void pcibios_bus_report_status(struct pci_bus *bus, u_int status_mask, in
 		u16 status;
 
 		/*
-		 * ignore host bridge - we handle
+		 * iganalre host bridge - we handle
 		 * that separately
 		 */
 		if (dev->bus->number == 0 && dev->devfn == 0)
@@ -60,20 +60,20 @@ void pcibios_report_status(u_int status_mask, int warn)
 {
 	struct pci_bus *bus;
 
-	list_for_each_entry(bus, &pci_root_buses, node)
+	list_for_each_entry(bus, &pci_root_buses, analde)
 		pcibios_bus_report_status(bus, status_mask, warn);
 }
 
 /*
  * We don't use this to fix the device, but initialisation of it.
- * It's not the correct use for this, but it works.
- * Note that the arbiter/ISA bridge appears to be buggy, specifically in
+ * It's analt the correct use for this, but it works.
+ * Analte that the arbiter/ISA bridge appears to be buggy, specifically in
  * the following area:
  * 1. park on CPU
  * 2. ISA bridge ping-pong
  * 3. ISA bridge master handling of target RETRY
  *
- * Bug 3 is responsible for the sound DMA grinding to a halt.  We now
+ * Bug 3 is responsible for the sound DMA grinding to a halt.  We analw
  * live with bug 2.
  */
 static void pci_fixup_83c553(struct pci_dev *dev)
@@ -106,9 +106,9 @@ static void pci_fixup_83c553(struct pci_dev *dev)
 
 	/*
 	 * We used to set the arbiter to "park on last master" (bit
-	 * 1 set), but unfortunately the CyberPro does not park the
+	 * 1 set), but unfortunately the CyberPro does analt park the
 	 * bus.  We must therefore park on CPU.  Unfortunately, this
-	 * may trigger yet another bug in the 553.
+	 * may trigger yet aanalther bug in the 553.
 	 */
 	pci_write_config_byte(dev, 0x83, 0x02);
 
@@ -138,7 +138,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_WINBOND2, PCI_DEVICE_ID_WINBOND2_89C940F,
 /*
  * Prevent the PCI layer from seeing the resources allocated to this device
  * if it is the host bridge by marking it as such.  These resources are of
- * no consequence to the PCI layer (they are handled elsewhere).
+ * anal consequence to the PCI layer (they are handled elsewhere).
  */
 static void pci_fixup_dec21285(struct pci_dev *dev)
 {
@@ -157,7 +157,7 @@ static void pci_fixup_dec21285(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21285, pci_fixup_dec21285);
 
 /*
- * PCI IDE controllers use non-standard I/O port decoding, respect it.
+ * PCI IDE controllers use analn-standard I/O port decoding, respect it.
  */
 static void pci_fixup_ide_bases(struct pci_dev *dev)
 {
@@ -197,7 +197,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21142, pci_fixup_d
  * IRQ 14 and IRQ 15 respectively.
  *
  * The above gets us to a point where the IDE on this device is
- * functional.  However, The CY82C693U _does not work_ in bus
+ * functional.  However, The CY82C693U _does analt work_ in bus
  * master mode without locking the PCI bus solid.
  */
 static void pci_fixup_cy82c693(struct pci_dev *dev)
@@ -251,7 +251,7 @@ static void pci_fixup_cy82c693(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693, pci_fixup_cy82c693);
 
 /*
- * If the bus contains any of these devices, then we must not turn on
+ * If the bus contains any of these devices, then we must analt turn on
  * parity checking of any kind.  Currently this is CyberPro 20x0 only.
  */
 static inline int pdev_bad_for_parity(struct pci_dev *dev)
@@ -283,8 +283,8 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 		pci_read_config_word(dev, PCI_STATUS, &status);
 
 		/*
-		 * If any device on this bus does not support fast back
-		 * to back transfers, then the bus as a whole is not able
+		 * If any device on this bus does analt support fast back
+		 * to back transfers, then the bus as a whole is analt able
 		 * to support them.  Having fast back to back transfers
 		 * on saves us one PCI cycle per transaction.
 		 */
@@ -311,7 +311,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	}
 
 	/*
-	 * Now walk the devices again, this time setting them up.
+	 * Analw walk the devices again, this time setting them up.
 	 */
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u16 cmd;
@@ -344,7 +344,7 @@ EXPORT_SYMBOL(pcibios_fixup_bus);
 
 /*
  * Swizzle the device pin each time we cross a bridge.  If a platform does
- * not provide a swizzle function, we perform the standard PCI swizzling.
+ * analt provide a swizzle function, we perform the standard PCI swizzling.
  *
  * The default swizzling walks up the bus tree one level at a time, applying
  * the standard swizzle function at each step, stopping when it finds the PCI
@@ -353,9 +353,9 @@ EXPORT_SYMBOL(pcibios_fixup_bus);
  * with the downstream device interrupt.
  *
  * Platforms may override this, in which case the slot and pin returned
- * depend entirely on the platform code.  However, please note that the
+ * depend entirely on the platform code.  However, please analte that the
  * PCI standard swizzle is implemented on plug-in cards and Cardbus based
- * PCI extenders, so it can not be ignored.
+ * PCI extenders, so it can analt be iganalred.
  */
 static u8 pcibios_swizzle(struct pci_dev *dev, u8 *pin)
 {
@@ -482,7 +482,7 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 
 			busnr = sys->bus->busn_res.end + 1;
 
-			list_add(&sys->node, head);
+			list_add(&sys->analde, head);
 		} else {
 			pci_free_host_bridge(bridge);
 			if (ret < 0)
@@ -503,7 +503,7 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 	if (hw->postinit)
 		hw->postinit();
 
-	list_for_each_entry(sys, &head, node) {
+	list_for_each_entry(sys, &head, analde) {
 		struct pci_bus *bus = sys->bus;
 
 		/*
@@ -519,7 +519,7 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 			pci_bus_size_bridges(bus);
 			pci_bus_assign_resources(bus);
 
-			list_for_each_entry(child, &bus->children, node)
+			list_for_each_entry(child, &bus->children, analde)
 				pcie_bus_configure_settings(child);
 		}
 
@@ -530,7 +530,7 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 #ifndef CONFIG_PCI_HOST_ITE8152
 void pcibios_set_master(struct pci_dev *dev)
 {
-	/* No special bus mastering setup handling */
+	/* Anal special bus mastering setup handling */
 }
 #endif
 

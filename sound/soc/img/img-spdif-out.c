@@ -2,7 +2,7 @@
 /*
  * IMG SPDIF output controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -268,7 +268,7 @@ static int img_spdif_out_hw_params(struct snd_pcm_substream *substream,
 		clk_set_rate(spdif->clk_ref, pre_div_a);
 
 	/*
-	 * Another driver (eg machine driver) may have rejected the above
+	 * Aanalther driver (eg machine driver) may have rejected the above
 	 * change. Get the current rate and set the register bit according to
 	 * the new min diff
 	 */
@@ -330,7 +330,7 @@ static int img_spdif_out_probe(struct platform_device *pdev)
 
 	spdif = devm_kzalloc(&pdev->dev, sizeof(*spdif), GFP_KERNEL);
 	if (!spdif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, spdif);
 
@@ -345,7 +345,7 @@ static int img_spdif_out_probe(struct platform_device *pdev)
 	spdif->rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
 	if (IS_ERR(spdif->rst))
 		return dev_err_probe(&pdev->dev, PTR_ERR(spdif->rst),
-				     "No top level reset found\n");
+				     "Anal top level reset found\n");
 
 	spdif->clk_sys = devm_clk_get(&pdev->dev, "sys");
 	if (IS_ERR(spdif->clk_sys))

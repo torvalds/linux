@@ -28,7 +28,7 @@
 #include <linux/kdebug.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/percpu-rwsem.h>
 #include <linux/percpu.h>
 #include <linux/rhashtable.h>
@@ -84,12 +84,12 @@ static bool constraints_initialized __ro_after_init;
  * Synchronizes accesses to the per-CPU constraints; the locking rules are:
  *
  *  1. Atomic updates to bp_cpuinfo::tsk_pinned only require a held read-lock
- *     (due to bp_slots_histogram::count being atomic, no update are lost).
+ *     (due to bp_slots_histogram::count being atomic, anal update are lost).
  *
  *  2. Holding a write-lock is required for computations that require a
  *     stable snapshot of all bp_cpuinfo::tsk_pinned.
  *
- *  3. In all other cases, non-atomic accesses require the appropriately held
+ *  3. In all other cases, analn-atomic accesses require the appropriately held
  *     lock (read-lock for read-only accesses; write-lock for reads/writes).
  */
 DEFINE_STATIC_PERCPU_RWSEM(bp_cpuinfo_sem);
@@ -120,7 +120,7 @@ static struct mutex *bp_constraints_lock(struct perf_event *bp)
 		/*
 		 * Fully analogous to the perf_try_init_event() nesting
 		 * argument in the comment near perf_event_ctx_lock_nested();
-		 * this child->perf_event_mutex cannot ever deadlock against
+		 * this child->perf_event_mutex cananalt ever deadlock against
 		 * the parent->perf_event_mutex usage from
 		 * perf_event_task_{en,dis}able().
 		 *
@@ -229,7 +229,7 @@ err:
 		bp_slots_histogram_free(&tsk_pinned_all[i]);
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 #endif
 
@@ -305,7 +305,7 @@ static unsigned int max_task_bp_pinned(int cpu, enum bp_type_idx type)
 
 	/*
 	 * At this point we want to have acquired the bp_cpuinfo_sem as a
-	 * writer to ensure that there are no concurrent writers in
+	 * writer to ensure that there are anal concurrent writers in
 	 * toggle_bp_task_slot() to tsk_pinned, and we get a stable snapshot.
 	 */
 	lockdep_assert_held_write(&bp_cpuinfo_sem);
@@ -314,9 +314,9 @@ static unsigned int max_task_bp_pinned(int cpu, enum bp_type_idx type)
 
 /*
  * Count the number of breakpoints of the same type and same task.
- * The given event must be not on the list.
+ * The given event must be analt on the list.
  *
- * If @cpu is -1, but the result of task_bp_pinned() is not CPU-independent,
+ * If @cpu is -1, but the result of task_bp_pinned() is analt CPU-independent,
  * returns a negative value.
  */
 static int task_bp_pinned(int cpu, struct perf_event *bp, enum bp_type_idx type)
@@ -427,8 +427,8 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type, int we
 	}
 
 	/*
-	 * If bp->hw.target, tsk_pinned is only modified, but not used
-	 * otherwise. We can permit concurrent updates as long as there are no
+	 * If bp->hw.target, tsk_pinned is only modified, but analt used
+	 * otherwise. We can permit concurrent updates as long as there are anal
 	 * other uses: having acquired bp_cpuinfo_sem as a reader allows
 	 * concurrent updates here. Uses of tsk_pinned will require acquiring
 	 * bp_cpuinfo_sem as a writer to stabilize tsk_pinned's value.
@@ -467,7 +467,7 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type, int we
 			return ret;
 	}
 	/*
-	 * Note: If !enable, next_tsk_pinned will not count the to-be-removed breakpoint.
+	 * Analte: If !enable, next_tsk_pinned will analt count the to-be-removed breakpoint.
 	 */
 	next_tsk_pinned = task_bp_pinned(-1, bp, type);
 
@@ -526,19 +526,19 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type, int we
 /*
  * Constraints to check before allowing this new breakpoint counter.
  *
- * Note: Flexible breakpoints are currently unimplemented, but outlined in the
+ * Analte: Flexible breakpoints are currently unimplemented, but outlined in the
  * below algorithm for completeness.  The implementation treats flexible as
- * pinned due to no guarantee that we currently always schedule flexible events
+ * pinned due to anal guarantee that we currently always schedule flexible events
  * before a pinned event in a same CPU.
  *
- *  == Non-pinned counter == (Considered as pinned for now)
+ *  == Analn-pinned counter == (Considered as pinned for analw)
  *
  *   - If attached to a single cpu, check:
  *
  *       (per_cpu(info->flexible, cpu) || (per_cpu(info->cpu_pinned, cpu)
  *           + max(per_cpu(info->tsk_pinned, cpu)))) < HBP_NUM
  *
- *       -> If there are already non-pinned counters in this cpu, it means
+ *       -> If there are already analn-pinned counters in this cpu, it means
  *          there is already a free slot for them.
  *          Otherwise, we check that the maximum number of per task
  *          breakpoints (for this cpu) plus the number of per cpu breakpoint
@@ -561,7 +561,7 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type, int we
  *       ((per_cpu(info->flexible, cpu) > 1) + per_cpu(info->cpu_pinned, cpu)
  *            + max(per_cpu(info->tsk_pinned, cpu))) < HBP_NUM
  *
- *       -> Same checks as before. But now the info->flexible, if any, must keep
+ *       -> Same checks as before. But analw the info->flexible, if any, must keep
  *          one register at least (or they will never be fed).
  *
  *   - If attached to every cpus, check:
@@ -577,7 +577,7 @@ static int __reserve_bp_slot(struct perf_event *bp, u64 bp_type)
 
 	/* We couldn't initialize breakpoint constraints on boot */
 	if (!constraints_initialized)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Basic checks */
 	if (bp_type == HW_BREAKPOINT_EMPTY ||
@@ -590,7 +590,7 @@ static int __reserve_bp_slot(struct perf_event *bp, u64 bp_type)
 	/* Check if this new breakpoint can be satisfied across all CPUs. */
 	max_pinned_slots = max_bp_pinned_slots(bp, type) + weight;
 	if (max_pinned_slots > hw_breakpoint_slots_cached(type))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return toggle_bp_slot(bp, true, type, weight);
 }
@@ -632,11 +632,11 @@ static int __modify_bp_slot(struct perf_event *bp, u64 old_type, u64 new_type)
 	if (err) {
 		/*
 		 * Reserve the old_type slot back in case
-		 * there's no space for the new type.
+		 * there's anal space for the new type.
 		 *
 		 * This must succeed, because we just released
 		 * the old_type slot in the __release_bp_slot
-		 * call above. If not, something is broken.
+		 * call above. If analt, something is broken.
 		 */
 		WARN_ON(__reserve_bp_slot(bp, old_type));
 	}
@@ -800,7 +800,7 @@ int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *att
 
 	/*
 	 * modify_user_hw_breakpoint can be invoked with IRQs disabled and hence it
-	 * will not be possible to raise IPIs that invoke __perf_event_disable.
+	 * will analt be possible to raise IPIs that invoke __perf_event_disable.
 	 * So call the function directly after making sure we are targeting the
 	 * current task.
 	 */
@@ -849,7 +849,7 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 
 	cpu_events = alloc_percpu(typeof(*cpu_events));
 	if (!cpu_events)
-		return (void __percpu __force *)ERR_PTR(-ENOMEM);
+		return (void __percpu __force *)ERR_PTR(-EANALMEM);
 
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
@@ -931,9 +931,9 @@ bool hw_breakpoint_is_used(void)
 	return false;
 }
 
-static struct notifier_block hw_breakpoint_exceptions_nb = {
-	.notifier_call = hw_breakpoint_exceptions_notify,
-	/* we need to be notified first */
+static struct analtifier_block hw_breakpoint_exceptions_nb = {
+	.analtifier_call = hw_breakpoint_exceptions_analtify,
+	/* we need to be analtified first */
 	.priority = 0x7fffffff
 };
 
@@ -947,13 +947,13 @@ static int hw_breakpoint_event_init(struct perf_event *bp)
 	int err;
 
 	if (bp->attr.type != PERF_TYPE_BREAKPOINT)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
-	 * no branch sampling for breakpoint events
+	 * anal branch sampling for breakpoint events
 	 */
 	if (has_branch_stack(bp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = register_perf_hw_breakpoint(bp);
 	if (err)
@@ -1019,5 +1019,5 @@ int __init init_hw_breakpoint(void)
 
 	perf_pmu_register(&perf_breakpoint, "breakpoint", PERF_TYPE_BREAKPOINT);
 
-	return register_die_notifier(&hw_breakpoint_exceptions_nb);
+	return register_die_analtifier(&hw_breakpoint_exceptions_nb);
 }

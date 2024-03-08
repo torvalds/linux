@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -96,7 +96,7 @@ static bool lvds_identify_integratedlvds(void)
 		} else {
 			viaparinfo->chip_info->lvds_chip_info.lvds_chip_name =
 			    INTEGRATED_LVDS;
-			DEBUG_MSG(KERN_INFO "Not found external LVDS, "
+			DEBUG_MSG(KERN_INFO "Analt found external LVDS, "
 				  "so can't support two dual channel LVDS!\n");
 		}
 	} else if (viafb_display_hardware_layout == HW_LAYOUT_LCD1_LCD2) {
@@ -117,8 +117,8 @@ static bool lvds_identify_integratedlvds(void)
 		}
 	} else {
 		viaparinfo->chip_info->lvds_chip_info.lvds_chip_name =
-			NON_LVDS_TRANSMITTER;
-		DEBUG_MSG(KERN_INFO "Do not support LVDS!\n");
+			ANALN_LVDS_TRANSMITTER;
+		DEBUG_MSG(KERN_INFO "Do analt support LVDS!\n");
 		return false;
 	}
 
@@ -160,7 +160,7 @@ bool viafb_lvds_trasmitter_identify(void)
 	}
 
 	viaparinfo->chip_info->lvds_chip_info.lvds_chip_name =
-		NON_LVDS_TRANSMITTER;
+		ANALN_LVDS_TRANSMITTER;
 	viaparinfo->chip_info->lvds_chip_info.lvds_chip_slave_addr =
 		VT1631_LVDS_I2C_ADDR;
 	return false;
@@ -582,7 +582,7 @@ void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
 	    || (UNICHROME_K8M890 == viaparinfo->chip_info->gfx_chip_name))
 		viafb_write_reg_mask(CR6A, VIACR, 0x01, BIT0);
 
-	/* Patch for non 32bit alignment mode */
+	/* Patch for analn 32bit alignment mode */
 	via_pitch_alignment_patch_lcd(plvds_setting_info->iga_path, set_hres,
 		var->bits_per_pixel);
 }
@@ -868,7 +868,7 @@ static void check_diport_of_integrated_lvds(
 
 	case HW_LAYOUT_DVI_ONLY:
 		{
-			plvds_chip_info->output_interface = INTERFACE_NONE;
+			plvds_chip_info->output_interface = INTERFACE_ANALNE;
 			break;
 		}
 
@@ -904,8 +904,8 @@ void viafb_init_lvds_output_interface(struct lvds_chip_information
 				struct lvds_setting_information
 				*plvds_setting_info)
 {
-	if (INTERFACE_NONE != plvds_chip_info->output_interface) {
-		/*Do nothing, lcd port is specified by module parameter */
+	if (INTERFACE_ANALNE != plvds_chip_info->output_interface) {
+		/*Do analthing, lcd port is specified by module parameter */
 		return;
 	}
 

@@ -41,13 +41,13 @@ EXPORT_SYMBOL_GPL(mt8186_mt6366_init);
 
 int mt8186_mt6366_card_set_be_link(struct snd_soc_card *card,
 				   struct snd_soc_dai_link *link,
-				   struct device_node *node,
+				   struct device_analde *analde,
 				   char *link_name)
 {
 	int ret;
 
-	if (node && strcmp(link->name, link_name) == 0) {
-		ret = snd_soc_of_get_dai_link_codecs(card->dev, node, link);
+	if (analde && strcmp(link->name, link_name) == 0) {
+		ret = snd_soc_of_get_dai_link_codecs(card->dev, analde, link);
 		if (ret < 0)
 			return dev_err_probe(card->dev, ret, "get dai link codecs fail\n");
 	}

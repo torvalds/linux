@@ -42,11 +42,11 @@
 #define VC7_APLL_VCO_MIN		9500000000UL
 #define VC7_APLL_VCO_MAX		10700000000UL
 
-/* APLL denominator is fixed at 2^27 */
-#define VC7_APLL_DENOMINATOR_BITS	27
+/* APLL deanalminator is fixed at 2^27 */
+#define VC7_APLL_DEANALMINATOR_BITS	27
 
-/* FOD 1st stage denominator is fixed 2^34 */
-#define VC7_FOD_DENOMINATOR_BITS	34
+/* FOD 1st stage deanalminator is fixed 2^34 */
+#define VC7_FOD_DEANALMINATOR_BITS	34
 
 /* IOD can operate between 1kHz and 650MHz */
 #define VC7_IOD_RATE_MIN		1000UL
@@ -115,7 +115,7 @@ struct vc7_chip_info {
 };
 
 /*
- * Changing the APLL frequency is currently not supported.
+ * Changing the APLL frequency is currently analt supported.
  * The APLL will consist of an opaque block between the XO and FOD/IODs and
  * its frequency will be computed based on the current state of the device.
  */
@@ -254,8 +254,8 @@ static void vc7_64_mul_64_to_128(u64 left, u64 right, u64 *hi, u64 *lo)
  *
  * @numhi: The uppper 64-bits of the dividend.
  * @numlo: The lower 64-bits of the dividend.
- * @den: The denominator (divisor).
- * @r: The remainder, pass NULL if the remainder is not needed.
+ * @den: The deanalminator (divisor).
+ * @r: The remainder, pass NULL if the remainder is analt needed.
  *
  * Originally from libdivide, modified to use kernel u64/u32 types.
  *
@@ -271,19 +271,19 @@ static u64 vc7_128_div_64_to_64(u64 numhi, u64 numlo, u64 den, u64 *r)
 	 * We work in base 2**32.
 	 * A uint32 holds a single digit. A uint64 holds two digits.
 	 * Our numerator is conceptually [num3, num2, num1, num0].
-	 * Our denominator is [den1, den0].
+	 * Our deanalminator is [den1, den0].
 	 */
 	const u64 b = ((u64)1 << 32);
 
 	/* The high and low digits of our computed quotient. */
 	u32 q1, q0;
 
-	/* The normalization shift factor */
+	/* The analrmalization shift factor */
 	int shift;
 
 	/*
-	 * The high and low digits of our denominator (after normalizing).
-	 * Also the low 2 digits of our numerator (after normalizing).
+	 * The high and low digits of our deanalminator (after analrmalizing).
+	 * Also the low 2 digits of our numerator (after analrmalizing).
 	 */
 	u32 den1, den0, num1, num0;
 
@@ -307,15 +307,15 @@ static u64 vc7_128_div_64_to_64(u64 numhi, u64 numlo, u64 den, u64 *r)
 	}
 
 	/*
-	 * Determine the normalization factor. We multiply den by this, so that
+	 * Determine the analrmalization factor. We multiply den by this, so that
 	 * its leading digit is at least half b. In binary this means just
 	 * shifting left by the number of leading zeros, so that there's a 1 in
 	 * the MSB.
 	 *
-	 * We also shift numer by the same amount. This cannot overflow because
+	 * We also shift numer by the same amount. This cananalt overflow because
 	 * numhi < den.  The expression (-shift & 63) is the same as (64 -
 	 * shift), except it avoids the UB of shifting by 64. The funny bitwise
-	 * 'and' ensures that numlo does not get shifted into numhi if shift is
+	 * 'and' ensures that numlo does analt get shifted into numhi if shift is
 	 * 0. clang 11 has an x86 codegen bug here: see LLVM bug 50118. The
 	 * sequence below avoids it.
 	 */
@@ -327,7 +327,7 @@ static u64 vc7_128_div_64_to_64(u64 numhi, u64 numlo, u64 den, u64 *r)
 
 	/*
 	 * Extract the low digits of the numerator and both digits of the
-	 * denominator.
+	 * deanalminator.
 	 */
 	num1 = (u32)(numlo >> 32);
 	num0 = (u32)(numlo & 0xFFFFFFFFu);
@@ -337,7 +337,7 @@ static u64 vc7_128_div_64_to_64(u64 numhi, u64 numlo, u64 den, u64 *r)
 	/*
 	 * We wish to compute q1 = [n3 n2 n1] / [d1 d0].
 	 * Estimate q1 as [n3 n2] / [d1], and then correct it.
-	 * Note while qhat may be 2 digits, q1 is always 1 digit.
+	 * Analte while qhat may be 2 digits, q1 is always 1 digit.
 	 */
 	qhat = div64_u64_rem(numhi, den1, &rhat);
 	c1 = qhat * den0;
@@ -430,7 +430,7 @@ static int vc7_get_bank_clk(struct vc7_driver_data *vc7,
 	} else if (bank_idx == 4) {
 		switch (output_bank_src) {
 		case 0:
-			/* CLKIN1 not supported in this driver */
+			/* CLKIN1 analt supported in this driver */
 			break;
 		case 2:
 			map->type = VC7_IOD,
@@ -445,7 +445,7 @@ static int vc7_get_bank_clk(struct vc7_driver_data *vc7,
 			map->src.fod = &vc7->clk_fod[2];
 			return 0;
 		case 7:
-			/* CLKIN0 not supported in this driver */
+			/* CLKIN0 analt supported in this driver */
 			break;
 		default:
 			break;
@@ -453,10 +453,10 @@ static int vc7_get_bank_clk(struct vc7_driver_data *vc7,
 	} else if (bank_idx == 5) {
 		switch (output_bank_src) {
 		case 0:
-			/* CLKIN1 not supported in this driver */
+			/* CLKIN1 analt supported in this driver */
 			break;
 		case 1:
-			/* XIN_REFIN not supported in this driver */
+			/* XIN_REFIN analt supported in this driver */
 			break;
 		case 2:
 			map->type = VC7_IOD,
@@ -475,7 +475,7 @@ static int vc7_get_bank_clk(struct vc7_driver_data *vc7,
 			map->src.fod = &vc7->clk_fod[2];
 			return 0;
 		case 7:
-			/* CLKIN0 not supported in this driver */
+			/* CLKIN0 analt supported in this driver */
 			break;
 		default:
 			break;
@@ -483,7 +483,7 @@ static int vc7_get_bank_clk(struct vc7_driver_data *vc7,
 	} else if (bank_idx == 6) {
 		switch (output_bank_src) {
 		case 0:
-			/* CLKIN1 not supported in this driver */
+			/* CLKIN1 analt supported in this driver */
 			break;
 		case 2:
 			map->type = VC7_IOD,
@@ -502,14 +502,14 @@ static int vc7_get_bank_clk(struct vc7_driver_data *vc7,
 			map->src.fod = &vc7->clk_fod[2];
 			return 0;
 		case 7:
-			/* CLKIN0 not supported in this driver */
+			/* CLKIN0 analt supported in this driver */
 			break;
 		default:
 			break;
 		}
 	}
 
-	pr_warn("bank_src%d = %d is not supported\n", bank_idx, output_bank_src);
+	pr_warn("bank_src%d = %d is analt supported\n", bank_idx, output_bank_src);
 	return -1;
 }
 
@@ -747,7 +747,7 @@ static unsigned long vc7_get_apll_rate(struct vc7_driver_data *vc7)
 
 	/* divider = int + (frac / 2^27) */
 	apll_rate = (refin_div * vc7->clk_apll.apll_fb_div_int) +
-		    ((refin_div * vc7->clk_apll.apll_fb_div_frac) >> VC7_APLL_DENOMINATOR_BITS);
+		    ((refin_div * vc7->clk_apll.apll_fb_div_frac) >> VC7_APLL_DEANALMINATOR_BITS);
 
 	pr_debug("%s - xo_ib_h_div: %u, apll_fb_div_int: %u, apll_fb_div_frac: %u\n",
 		 __func__, vc7->clk_apll.xo_ib_h_div, vc7->clk_apll.apll_fb_div_int,
@@ -774,20 +774,20 @@ static void vc7_calc_fod_1st_stage(unsigned long rate, unsigned long parent_rate
 	u64 rem;
 
 	*div_int = (u32)div64_u64_rem(parent_rate, rate, &rem);
-	*div_frac = div64_u64(rem << VC7_FOD_DENOMINATOR_BITS, rate);
+	*div_frac = div64_u64(rem << VC7_FOD_DEANALMINATOR_BITS, rate);
 }
 
 static unsigned long vc7_calc_fod_1st_stage_rate(unsigned long parent_rate,
 						 u32 fod_1st_int, u64 fod_frac)
 {
-	u64 numer, denom, hi, lo, divisor;
+	u64 numer, deanalm, hi, lo, divisor;
 
 	numer = fod_frac;
-	denom = BIT_ULL(VC7_FOD_DENOMINATOR_BITS);
+	deanalm = BIT_ULL(VC7_FOD_DEANALMINATOR_BITS);
 
 	if (fod_frac) {
-		vc7_64_mul_64_to_128(parent_rate, denom, &hi, &lo);
-		divisor = ((u64)fod_1st_int * denom) + numer;
+		vc7_64_mul_64_to_128(parent_rate, deanalm, &hi, &lo);
+		divisor = ((u64)fod_1st_int * deanalm) + numer;
 		return vc7_128_div_64_to_64(hi, lo, divisor, NULL);
 	}
 
@@ -806,7 +806,7 @@ static unsigned long vc7_calc_fod_2nd_stage_rate(unsigned long parent_rate,
 
 	/*
 	 * There is a div-by-2 preceding the 2nd stage integer divider
-	 * (not shown on block diagram) so the actual 2nd stage integer
+	 * (analt shown on block diagram) so the actual 2nd stage integer
 	 * divisor is 2 * N.
 	 */
 	return div64_u64(fod_1st_stage_rate >> 1, fod_2nd_int);
@@ -831,11 +831,11 @@ static void vc7_calc_fod_divider(unsigned long rate, unsigned long parent_rate,
 		for (i = VC7_FOD_2ND_INT_MIN; i <= VC7_FOD_2ND_INT_MAX; i++) {
 			/*
 			 * 1) There is a div-by-2 preceding the 2nd stage integer divider
-			 *    (not shown on block diagram) so the actual 2nd stage integer
+			 *    (analt shown on block diagram) so the actual 2nd stage integer
 			 *    divisor is 2 * N.
 			 * 2) Attempt to find an integer solution first. This means stepping
 			 *    through each 2nd stage integer and recalculating the 1st stage
-			 *    until the 1st stage frequency is out of bounds. If no integer
+			 *    until the 1st stage frequency is out of bounds. If anal integer
 			 *    solution is found, use the best fractional solution.
 			 */
 			vc7_calc_fod_1st_stage(parent_rate, rate * 2 * i, fod_1st_int, fod_frac);
@@ -1096,7 +1096,7 @@ static int vc7_probe(struct i2c_client *client)
 	struct vc7_driver_data *vc7;
 	struct clk_init_data clk_init;
 	struct vc7_bank_src_map bank_src_map;
-	const char *node_name, *apll_name;
+	const char *analde_name, *apll_name;
 	const char *parent_names[1];
 	unsigned int i, val, bank_idx, out_num;
 	unsigned long apll_rate;
@@ -1104,7 +1104,7 @@ static int vc7_probe(struct i2c_client *client)
 
 	vc7 = devm_kzalloc(&client->dev, sizeof(*vc7), GFP_KERNEL);
 	if (!vc7)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, vc7);
 	vc7->client = client;
@@ -1113,7 +1113,7 @@ static int vc7_probe(struct i2c_client *client)
 	vc7->pin_xin = devm_clk_get(&client->dev, "xin");
 	if (PTR_ERR(vc7->pin_xin) == -EPROBE_DEFER) {
 		return dev_err_probe(&client->dev, -EPROBE_DEFER,
-				     "xin not specified\n");
+				     "xin analt specified\n");
 	}
 
 	vc7->regmap = devm_regmap_init_i2c(client, &vc7_regmap_config);
@@ -1122,13 +1122,13 @@ static int vc7_probe(struct i2c_client *client)
 				     "failed to allocate register map\n");
 	}
 
-	if (of_property_read_string(client->dev.of_node, "clock-output-names",
-				    &node_name))
-		node_name = client->dev.of_node->name;
+	if (of_property_read_string(client->dev.of_analde, "clock-output-names",
+				    &analde_name))
+		analde_name = client->dev.of_analde->name;
 
 	/* Register APLL */
 	apll_rate = vc7_get_apll_rate(vc7);
-	apll_name = kasprintf(GFP_KERNEL, "%s_apll", node_name);
+	apll_name = kasprintf(GFP_KERNEL, "%s_apll", analde_name);
 	vc7->clk_apll.clk = clk_register_fixed_rate(&client->dev, apll_name,
 						    __clk_get_name(vc7->pin_xin),
 						    0, apll_rate);
@@ -1141,7 +1141,7 @@ static int vc7_probe(struct i2c_client *client)
 	/* Register FODs */
 	for (i = 0; i < VC7_NUM_FOD; i++) {
 		memset(&clk_init, 0, sizeof(clk_init));
-		clk_init.name = kasprintf(GFP_KERNEL, "%s_fod%d", node_name, i);
+		clk_init.name = kasprintf(GFP_KERNEL, "%s_fod%d", analde_name, i);
 		clk_init.ops = &vc7_fod_ops;
 		clk_init.parent_names = parent_names;
 		parent_names[0] = __clk_get_name(vc7->clk_apll.clk);
@@ -1158,7 +1158,7 @@ static int vc7_probe(struct i2c_client *client)
 	/* Register IODs */
 	for (i = 0; i < VC7_NUM_IOD; i++) {
 		memset(&clk_init, 0, sizeof(clk_init));
-		clk_init.name = kasprintf(GFP_KERNEL, "%s_iod%d", node_name, i);
+		clk_init.name = kasprintf(GFP_KERNEL, "%s_iod%d", analde_name, i);
 		clk_init.ops = &vc7_iod_ops;
 		clk_init.parent_names = parent_names;
 		parent_names[0] = __clk_get_name(vc7->clk_apll.clk);
@@ -1177,7 +1177,7 @@ static int vc7_probe(struct i2c_client *client)
 		out_num = vc7_map_index_to_output(vc7->chip_info->model, i);
 
 		/*
-		 * This driver does not support remapping FOD/IOD to banks.
+		 * This driver does analt support remapping FOD/IOD to banks.
 		 * The device state is read and the driver is setup to match
 		 * the device's existing mapping.
 		 */
@@ -1204,7 +1204,7 @@ static int vc7_probe(struct i2c_client *client)
 		}
 
 		memset(&clk_init, 0, sizeof(clk_init));
-		clk_init.name = kasprintf(GFP_KERNEL, "%s_out%d", node_name, i);
+		clk_init.name = kasprintf(GFP_KERNEL, "%s_out%d", analde_name, i);
 		clk_init.ops = &vc7_clk_out_ops;
 		clk_init.flags = CLK_SET_RATE_PARENT;
 		clk_init.parent_names = parent_names;
@@ -1218,7 +1218,7 @@ static int vc7_probe(struct i2c_client *client)
 		kfree(clk_init.name); /* ccf made a copy of the name */
 	}
 
-	ret = of_clk_add_hw_provider(client->dev.of_node, vc7_of_clk_get, vc7);
+	ret = of_clk_add_hw_provider(client->dev.of_analde, vc7_of_clk_get, vc7);
 	if (ret) {
 		dev_err_probe(&client->dev, ret, "unable to add clk provider\n");
 		goto err_clk;
@@ -1239,7 +1239,7 @@ static void vc7_remove(struct i2c_client *client)
 {
 	struct vc7_driver_data *vc7 = i2c_get_clientdata(client);
 
-	of_clk_del_provider(client->dev.of_node);
+	of_clk_del_provider(client->dev.of_analde);
 	clk_unregister_fixed_rate(vc7->clk_apll.clk);
 }
 

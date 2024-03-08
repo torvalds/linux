@@ -27,7 +27,7 @@ typedef int (*wext_ioctl_func)(struct net_device *, struct iwreq *,
 
 /*
  * Meta-data about all the standard Wireless Extension request we
- * know about.
+ * kanalw about.
  */
 static const struct iw_ioctl_description standard_ioctl[] = {
 	[IW_IOCTL_IDX(SIOCSIWCOMMIT)] = {
@@ -83,7 +83,7 @@ static const struct iw_ioctl_description standard_ioctl[] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= sizeof(struct iw_priv_args),
 		.max_tokens	= 16,
-		.flags		= IW_DESCR_FLAG_NOMAX,
+		.flags		= IW_DESCR_FLAG_ANALMAX,
 	},
 	[IW_IOCTL_IDX(SIOCSIWSTATS)] = {
 		.header_type	= IW_HEADER_TYPE_NULL,
@@ -135,7 +135,7 @@ static const struct iw_ioctl_description standard_ioctl[] = {
 		.token_size	= sizeof(struct sockaddr) +
 				  sizeof(struct iw_quality),
 		.max_tokens	= IW_MAX_AP,
-		.flags		= IW_DESCR_FLAG_NOMAX,
+		.flags		= IW_DESCR_FLAG_ANALMAX,
 	},
 	[IW_IOCTL_IDX(SIOCSIWSCAN)] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
@@ -147,7 +147,7 @@ static const struct iw_ioctl_description standard_ioctl[] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
 		.max_tokens	= IW_SCAN_MAX_DATA,
-		.flags		= IW_DESCR_FLAG_NOMAX,
+		.flags		= IW_DESCR_FLAG_ANALMAX,
 	},
 	[IW_IOCTL_IDX(SIOCSIWESSID)] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
@@ -260,7 +260,7 @@ static const unsigned int standard_ioctl_num = ARRAY_SIZE(standard_ioctl);
 
 /*
  * Meta-data about all the additional standard Wireless Extension events
- * we know about.
+ * we kanalw about.
  */
 static const struct iw_ioctl_description standard_event[] = {
 	[IW_EVENT_IDX(IWEVTXDROP)] = {
@@ -350,14 +350,14 @@ void wireless_nlevent_flush(void)
 	down_read(&net_rwsem);
 	for_each_net(net) {
 		while ((skb = skb_dequeue(&net->wext_nlevents)))
-			rtnl_notify(skb, net, 0, RTNLGRP_LINK, NULL,
+			rtnl_analtify(skb, net, 0, RTNLGRP_LINK, NULL,
 				    GFP_KERNEL);
 	}
 	up_read(&net_rwsem);
 }
 EXPORT_SYMBOL_GPL(wireless_nlevent_flush);
 
-static int wext_netdev_notifier_call(struct notifier_block *nb,
+static int wext_netdev_analtifier_call(struct analtifier_block *nb,
 				     unsigned long state, void *ptr)
 {
 	/*
@@ -369,11 +369,11 @@ static int wext_netdev_notifier_call(struct notifier_block *nb,
 	 */
 	wireless_nlevent_flush();
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block wext_netdev_notifier = {
-	.notifier_call = wext_netdev_notifier_call,
+static struct analtifier_block wext_netdev_analtifier = {
+	.analtifier_call = wext_netdev_analtifier_call,
 };
 
 static int __net_init wext_pernet_init(struct net *net)
@@ -399,7 +399,7 @@ static int __init wireless_nlevent_init(void)
 	if (err)
 		return err;
 
-	err = register_netdevice_notifier(&wext_netdev_notifier);
+	err = register_netdevice_analtifier(&wext_netdev_analtifier);
 	if (err)
 		unregister_pernet_subsys(&wext_pernet_ops);
 	return err;
@@ -472,11 +472,11 @@ void wireless_send_event(struct net_device *	dev,
 #endif
 
 	/*
-	 * Nothing in the kernel sends scan events with data, be safe.
-	 * This is necessary because we cannot fix up scan event data
-	 * for compat, due to being contained in 'extra', but normally
+	 * Analthing in the kernel sends scan events with data, be safe.
+	 * This is necessary because we cananalt fix up scan event data
+	 * for compat, due to being contained in 'extra', but analrmally
 	 * applications are required to retrieve the scan data anyway
-	 * and no data is included in the event, this codifies that
+	 * and anal data is included in the event, this codifies that
 	 * practice.
 	 */
 	if (WARN_ON(cmd == SIOCGIWSCAN && extra))
@@ -492,16 +492,16 @@ void wireless_send_event(struct net_device *	dev,
 		if (cmd_index < standard_event_num)
 			descr = &(standard_event[cmd_index]);
 	}
-	/* Don't accept unknown events */
+	/* Don't accept unkanalwn events */
 	if (descr == NULL) {
-		/* Note : we don't return an error to the driver, because
-		 * the driver would not know what to do about it. It can't
-		 * return an error to the user, because the event is not
+		/* Analte : we don't return an error to the driver, because
+		 * the driver would analt kanalw what to do about it. It can't
+		 * return an error to the user, because the event is analt
 		 * initiated by a user request.
 		 * The best the driver could do is to log an error message.
 		 * We will do it ourselves instead...
 		 */
-		netdev_err(dev, "(WE) : Invalid/Unknown Wireless Event (0x%04X)\n",
+		netdev_err(dev, "(WE) : Invalid/Unkanalwn Wireless Event (0x%04X)\n",
 			   cmd);
 		return;
 	}
@@ -539,7 +539,7 @@ void wireless_send_event(struct net_device *	dev,
 	 *      | wrqu data ... (with the correct size)         |
 	 *
 	 * This padding exists because we manipulate event->u,
-	 * and 'event' is not packed.
+	 * and 'event' is analt packed.
 	 *
 	 * An iw_point event is laid out like this instead:
 	 *      |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
@@ -623,7 +623,7 @@ void wireless_send_event(struct net_device *	dev,
 			memcpy(&compat_event->ptr_bytes[ptr_len],
 			       extra, extra_len);
 	} else {
-		/* extra_len must be zero, so no if (extra) needed */
+		/* extra_len must be zero, so anal if (extra) needed */
 		memcpy(compat_event->ptr_bytes, wrqu, ptr_len);
 	}
 
@@ -668,12 +668,12 @@ struct iw_statistics *get_wireless_stats(struct net_device *dev)
 	}
 #endif
 
-	/* not found */
+	/* analt found */
 	return NULL;
 }
 
-/* noinline to avoid a bogus warning with -O3 */
-static noinline int iw_handler_get_iwstats(struct net_device *	dev,
+/* analinline to avoid a bogus warning with -O3 */
+static analinline int iw_handler_get_iwstats(struct net_device *	dev,
 				  struct iw_request_info *	info,
 				  union iwreq_data *		wrqu,
 				  char *			extra)
@@ -692,7 +692,7 @@ static noinline int iw_handler_get_iwstats(struct net_device *	dev,
 			stats->qual.updated &= ~IW_QUAL_ALL_UPDATED;
 		return 0;
 	} else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static iw_handler get_handler(struct net_device *dev, unsigned int cmd)
@@ -729,7 +729,7 @@ static iw_handler get_handler(struct net_device *dev, unsigned int cmd)
 		return handlers->private[index];
 #endif
 
-	/* Not found */
+	/* Analt found */
 	return NULL;
 }
 
@@ -799,15 +799,15 @@ static int ioctl_standard_iw_point(struct iw_point *iwp, unsigned int cmd,
 		 */
 
 		/* Support for very large requests */
-		if ((descr->flags & IW_DESCR_FLAG_NOMAX) &&
+		if ((descr->flags & IW_DESCR_FLAG_ANALMAX) &&
 		    (user_length > descr->max_tokens)) {
 			/* Allow userspace to GET more than max so
 			 * we can support any size GET requests.
-			 * There is still a limit : -ENOMEM.
+			 * There is still a limit : -EANALMEM.
 			 */
 			extra_size = user_length * descr->token_size;
 
-			/* Note : user_length is originally a __u16,
+			/* Analte : user_length is originally a __u16,
 			 * and token_size is controlled by us,
 			 * so extra_size won't get negative and
 			 * won't overflow...
@@ -824,7 +824,7 @@ static int ioctl_standard_iw_point(struct iw_point *iwp, unsigned int cmd,
 	/* kzalloc() ensures NULL-termination for essid_compat. */
 	extra = kzalloc(extra_size, GFP_KERNEL);
 	if (!extra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* If it is a SET, get all the extra data in here */
 	if (IW_IS_SET(cmd) && (iwp->length != 0)) {
@@ -845,15 +845,15 @@ static int ioctl_standard_iw_point(struct iw_point *iwp, unsigned int cmd,
 		}
 	}
 
-	if (IW_IS_GET(cmd) && !(descr->flags & IW_DESCR_FLAG_NOMAX)) {
+	if (IW_IS_GET(cmd) && !(descr->flags & IW_DESCR_FLAG_ANALMAX)) {
 		/*
-		 * If this is a GET, but not NOMAX, it means that the extra
-		 * data is not bounded by userspace, but by max_tokens. Thus
+		 * If this is a GET, but analt ANALMAX, it means that the extra
+		 * data is analt bounded by userspace, but by max_tokens. Thus
 		 * set the length to max_tokens. This matches the extra data
 		 * allocation.
 		 * The driver should fill it with the number of tokens it
 		 * provided, and it may check iwp->length rather than having
-		 * knowledge of max_tokens. If the driver doesn't change the
+		 * kanalwledge of max_tokens. If the driver doesn't change the
 		 * iwp->length, this ioctl just copies back max_token tokens
 		 * filled with zeroes. Hopefully the driver isn't claiming
 		 * them to be valid data.
@@ -867,7 +867,7 @@ static int ioctl_standard_iw_point(struct iw_point *iwp, unsigned int cmd,
 
 	/* If we have something to return to the user */
 	if (!err && IW_IS_GET(cmd)) {
-		/* Check if there is enough buffer up there */
+		/* Check if there is eanalugh buffer up there */
 		if (user_length < iwp->length) {
 			err = -E2BIG;
 			goto out;
@@ -881,7 +881,7 @@ static int ioctl_standard_iw_point(struct iw_point *iwp, unsigned int cmd,
 		}
 	}
 
-	/* Generate an event to notify listeners of the change */
+	/* Generate an event to analtify listeners of the change */
 	if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
 	    ((err == 0) || (err == -EIWCOMMIT))) {
 		union iwreq_data *data = (union iwreq_data *) iwp;
@@ -904,7 +904,7 @@ out:
  * Call the commit handler in the driver
  * (if exist and if conditions are right)
  *
- * Note : our current commit strategy is currently pretty dumb,
+ * Analte : our current commit strategy is currently pretty dumb,
  * but we will be able to improve on that...
  * The goal is to try to agreagate as many changes as possible
  * before doing the commit. Drivers that will define a commit handler
@@ -930,7 +930,7 @@ int call_commit_handler(struct net_device *dev)
 	else
 		return 0;		/* Command completed successfully */
 #else
-	/* cfg80211 has no commit */
+	/* cfg80211 has anal commit */
 	return 0;
 #endif
 }
@@ -953,10 +953,10 @@ static int wireless_process_ioctl(struct net *net, struct iwreq *iwr,
 
 	/* Make sure the device exist */
 	if ((dev = __dev_get_by_name(net, iwr->ifr_name)) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* A bunch of special cases, then the generic case...
-	 * Note that 'cmd' is already filtered in dev_ioctl() with
+	 * Analte that 'cmd' is already filtered in dev_ioctl() with
 	 * (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) */
 	if (cmd == SIOCGIWSTATS)
 		return standard(dev, iwr, cmd, info,
@@ -970,18 +970,18 @@ static int wireless_process_ioctl(struct net *net, struct iwreq *iwr,
 
 	/* Basic check */
 	if (!netif_device_present(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* New driver API : try to find the handler */
 	handler = get_handler(dev, cmd);
 	if (handler) {
-		/* Standard and private are not the same */
+		/* Standard and private are analt the same */
 		if (cmd < SIOCIWFIRSTPRIV)
 			return standard(dev, iwr, cmd, info, handler);
 		else if (private)
 			return private(dev, iwr, cmd, info, handler);
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /* If command is `set a parameter', or `get the encoding parameters',
@@ -1032,16 +1032,16 @@ static int ioctl_standard_call(struct net_device *	dev,
 
 	/* Get the description of the IOCTL */
 	if (IW_IOCTL_IDX(cmd) >= standard_ioctl_num)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	descr = &(standard_ioctl[IW_IOCTL_IDX(cmd)]);
 
-	/* Check if we have a pointer to user space data or not */
+	/* Check if we have a pointer to user space data or analt */
 	if (descr->header_type != IW_HEADER_TYPE_POINT) {
 
-		/* No extra arguments. Trivial to handle */
+		/* Anal extra arguments. Trivial to handle */
 		ret = handler(dev, info, &(iwr->u), NULL);
 
-		/* Generate an event to notify listeners of the change */
+		/* Generate an event to analtify listeners of the change */
 		if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
 		   ((ret == 0) || (ret == -EIWCOMMIT)))
 			wireless_send_event(dev, cmd, &(iwr->u), NULL);

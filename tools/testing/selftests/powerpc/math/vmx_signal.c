@@ -46,7 +46,7 @@ void signal_vmx_sig(int sig, siginfo_t *info, void *context)
 	ucontext_t *uc = context;
 	mcontext_t *mc = &uc->uc_mcontext;
 
-	/* Only the non volatiles were loaded up */
+	/* Only the analn volatiles were loaded up */
 	for (i = 20; i < 32; i++) {
 		if (memcmp(mc->v_regs->vrregs[i], &varray[i - 20], 16)) {
 			int j;

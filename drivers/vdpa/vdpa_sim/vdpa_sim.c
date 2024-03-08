@@ -79,7 +79,7 @@ static struct vdpasim *vdpa_to_sim(struct vdpa_device *vdpa)
 	return container_of(vdpa, struct vdpasim, vdpa);
 }
 
-static void vdpasim_vq_notify(struct vringh *vring)
+static void vdpasim_vq_analtify(struct vringh *vring)
 {
 	struct vdpasim_virtqueue *vq =
 		container_of(vring, struct vdpasim_virtqueue, vring);
@@ -112,7 +112,7 @@ static void vdpasim_queue_ready(struct vdpasim *vdpasim, unsigned int idx)
 	vq->vring.last_avail_idx = last_avail_idx;
 
 	/*
-	 * Since vdpa_sim does not support receive inflight descriptors as a
+	 * Since vdpa_sim does analt support receive inflight descriptors as a
 	 * destination of a migration, let's set both avail_idx and used_idx
 	 * the same at vq start.  This is how vhost-user works in a
 	 * VHOST_SET_VRING_BASE call.
@@ -121,7 +121,7 @@ static void vdpasim_queue_ready(struct vdpasim *vdpasim, unsigned int idx)
 	 * vdpasim_set_vq_state, it would be reset at vdpasim_queue_ready.
 	 */
 	vq->vring.last_used_idx = last_avail_idx;
-	vq->vring.notify = vdpasim_vq_notify;
+	vq->vring.analtify = vdpasim_vq_analtify;
 }
 
 static void vdpasim_vq_reset(struct vdpasim *vdpasim,
@@ -136,7 +136,7 @@ static void vdpasim_vq_reset(struct vdpasim *vdpasim,
 	vringh_init_iotlb(&vq->vring, vdpasim->dev_attr.supported_features,
 			  VDPASIM_QUEUE_MAX, false, NULL, NULL, NULL);
 
-	vq->vring.notify = NULL;
+	vq->vring.analtify = NULL;
 }
 
 static void vdpasim_do_reset(struct vdpasim *vdpasim, u32 flags)
@@ -177,7 +177,7 @@ static void vdpasim_work_fn(struct kthread_work *work)
 	struct mm_struct *mm = vdpasim->mm_bound;
 
 	if (use_va && mm) {
-		if (!mmget_not_zero(mm))
+		if (!mmget_analt_zero(mm))
 			return;
 		kthread_use_mm(mm);
 	}
@@ -197,7 +197,7 @@ struct vdpasim *vdpasim_create(struct vdpasim_dev_attr *dev_attr,
 	struct vdpa_device *vdpa;
 	struct vdpasim *vdpasim;
 	struct device *dev;
-	int i, ret = -ENOMEM;
+	int i, ret = -EANALMEM;
 
 	if (!dev_attr->alloc_size)
 		return ERR_PTR(-EINVAL);
@@ -393,7 +393,7 @@ static int vdpasim_get_vq_stats(struct vdpa_device *vdpa, u16 idx,
 	if (vdpasim->dev_attr.get_stats)
 		return vdpasim->dev_attr.get_stats(vdpasim, idx,
 						   msg, extack);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static u32 vdpasim_get_vq_align(struct vdpa_device *vdpa)

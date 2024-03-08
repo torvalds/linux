@@ -70,14 +70,14 @@ struct crypto_istat_kpp {
  *
  * @set_secret:		Function invokes the protocol specific function to
  *			store the secret private key along with parameters.
- *			The implementation knows how to decode the buffer
+ *			The implementation kanalws how to decode the buffer
  * @generate_public_key: Function generate the public key to be sent to the
- *			counterpart. In case of error, where output is not big
- *			enough req->dst_len will be updated to the size
+ *			counterpart. In case of error, where output is analt big
+ *			eanalugh req->dst_len will be updated to the size
  *			required
  * @compute_shared_secret: Function compute the shared secret as defined by
  *			the algorithm. The result is given back to the user.
- *			In case of error, where output is not big enough,
+ *			In case of error, where output is analt big eanalugh,
  *			req->dst_len will be updated to the size required
  * @max_size:		Function returns the size of the output buffer
  * @init:		Initialize the object. This is called only once at
@@ -181,7 +181,7 @@ static inline void crypto_kpp_set_flags(struct crypto_kpp *tfm, u32 flags)
  *
  * @tfm: KPP tfm handle allocated with crypto_alloc_kpp()
  *
- * If @tfm is a NULL or error pointer, this function does nothing.
+ * If @tfm is a NULL or error pointer, this function does analthing.
  */
 static inline void crypto_free_kpp(struct crypto_kpp *tfm)
 {
@@ -219,9 +219,9 @@ static inline void kpp_request_free(struct kpp_request *req)
 }
 
 /**
- * kpp_request_set_callback() - Sets an asynchronous callback.
+ * kpp_request_set_callback() - Sets an asynchroanalus callback.
  *
- * Callback will be called when an asynchronous operation on a given
+ * Callback will be called when an asynchroanalus operation on a given
  * request is finished.
  *
  * @req:	request that the callback will be set for
@@ -274,7 +274,7 @@ static inline void kpp_request_set_output(struct kpp_request *req,
 }
 
 enum {
-	CRYPTO_KPP_SECRET_TYPE_UNKNOWN,
+	CRYPTO_KPP_SECRET_TYPE_UNKANALWN,
 	CRYPTO_KPP_SECRET_TYPE_DH,
 	CRYPTO_KPP_SECRET_TYPE_ECDH,
 };

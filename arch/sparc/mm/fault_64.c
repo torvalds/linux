@@ -70,7 +70,7 @@ static void __kprobes bad_kernel_pc(struct pt_regs *regs, unsigned long vaddr)
 }
 
 /*
- * We now make sure that mmap_lock is held in all paths that call
+ * We analw make sure that mmap_lock is held in all paths that call
  * this. Additionally, to prevent kswapd from ripping ptes from
  * under us, raise interrupts around the time that we look at the
  * pte, kswapd will have to wait to get his smp ipi response from
@@ -86,13 +86,13 @@ static unsigned int get_user_insn(unsigned long tpc)
 	unsigned long pa;
 	u32 insn = 0;
 
-	if (pgd_none(*pgdp) || unlikely(pgd_bad(*pgdp)))
+	if (pgd_analne(*pgdp) || unlikely(pgd_bad(*pgdp)))
 		goto out;
 	p4dp = p4d_offset(pgdp, tpc);
-	if (p4d_none(*p4dp) || unlikely(p4d_bad(*p4dp)))
+	if (p4d_analne(*p4dp) || unlikely(p4d_bad(*p4dp)))
 		goto out;
 	pudp = pud_offset(p4dp, tpc);
-	if (pud_none(*pudp) || unlikely(pud_bad(*pudp)))
+	if (pud_analne(*pudp) || unlikely(pud_bad(*pudp)))
 		goto out;
 
 	/* This disables preemption for us as well. */
@@ -100,7 +100,7 @@ static unsigned int get_user_insn(unsigned long tpc)
 
 	pmdp = pmd_offset(pudp, tpc);
 again:
-	if (pmd_none(*pmdp) || unlikely(pmd_bad(*pmdp)))
+	if (pmd_analne(*pmdp) || unlikely(pmd_bad(*pmdp)))
 		goto out_irq_enable;
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
@@ -203,7 +203,7 @@ static void __kprobes do_kernel_fault(struct pt_regs *regs, int si_code,
 	unsigned char asi = ASI_P;
  
 	if ((!insn) && (regs->tstate & TSTATE_PRIV))
-		goto cannot_handle;
+		goto cananalt_handle;
 
 	/* If user insn could be read (thus insn is zero), that
 	 * is fine.  We will just gun down the process with a signal
@@ -220,7 +220,7 @@ static void __kprobes do_kernel_fault(struct pt_regs *regs, int si_code,
 			if (insn & 0x1000000) {
 				handle_ldf_stq(insn, regs);
 			} else {
-				/* This was a non-faulting load. Just clear the
+				/* This was a analn-faulting load. Just clear the
 				 * destination register(s) and continue with the next
 				 * instruction. -jj
 				 */
@@ -248,11 +248,11 @@ static void __kprobes do_kernel_fault(struct pt_regs *regs, int si_code,
 		return;
 	}
 
-cannot_handle:
+cananalt_handle:
 	unhandled_fault (address, current, regs);
 }
 
-static void noinline __kprobes bogus_32bit_fault_tpc(struct pt_regs *regs)
+static void analinline __kprobes bogus_32bit_fault_tpc(struct pt_regs *regs)
 {
 	static int times;
 
@@ -291,11 +291,11 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		if (!(regs->tstate & TSTATE_PRIV)) {
 			if (unlikely((regs->tpc >> 32) != 0)) {
 				bogus_32bit_fault_tpc(regs);
-				goto intr_or_no_mm;
+				goto intr_or_anal_mm;
 			}
 		}
 		if (unlikely((address >> 32) != 0))
-			goto intr_or_no_mm;
+			goto intr_or_anal_mm;
 	}
 
 	if (regs->tstate & TSTATE_PRIV) {
@@ -304,7 +304,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		/* Sanity check the PC. */
 		if ((tpc >= KERNBASE && tpc < (unsigned long) __init_end) ||
 		    (tpc >= MODULES_VADDR && tpc < MODULES_END)) {
-			/* Valid, no problems... */
+			/* Valid, anal problems... */
 		} else {
 			bad_kernel_pc(regs, address);
 			goto exit_exception;
@@ -313,11 +313,11 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		flags |= FAULT_FLAG_USER;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have anal user
+	 * context, we must analt take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto intr_or_no_mm;
+		goto intr_or_anal_mm;
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
@@ -339,13 +339,13 @@ retry:
 	if (!vma)
 		goto bad_area;
 
-	/* Pure DTLB misses do not tell us whether the fault causing
-	 * load/store/atomic was a write or not, it only says that there
-	 * was no match.  So in such a case we (carefully) read the
+	/* Pure DTLB misses do analt tell us whether the fault causing
+	 * load/store/atomic was a write or analt, it only says that there
+	 * was anal match.  So in such a case we (carefully) read the
 	 * instruction to try and figure this out.  It's an optimization
 	 * so it's ok if we can't do this.
 	 *
-	 * Special hack, window spill/fill knows the exact fault type.
+	 * Special hack, window spill/fill kanalws the exact fault type.
 	 */
 	if (((fault_code &
 	      (FAULT_CODE_DTLB | FAULT_CODE_WRITE | FAULT_CODE_WINFIXUP)) == FAULT_CODE_DTLB) &&
@@ -373,7 +373,7 @@ continue_fault:
 	if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto bad_area;
 	if (!(fault_code & FAULT_CODE_WRITE)) {
-		/* Non-faulting loads shouldn't expand stack. */
+		/* Analn-faulting loads shouldn't expand stack. */
 		insn = get_fault_insn(regs, insn);
 		if ((insn & 0xc0800000) == 0xc0800000) {
 			unsigned char asi;
@@ -388,7 +388,7 @@ continue_fault:
 	}
 	vma = expand_stack(mm, address);
 	if (!vma)
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 	/*
 	 * Ok, we have a good vm_area for this memory access, so
 	 * we can handle it..
@@ -396,7 +396,7 @@ continue_fault:
 good_area:
 	si_code = SEGV_ACCERR;
 
-	/* If we took a ITLB miss on a non-executable page, catch
+	/* If we took a ITLB miss on a analn-executable page, catch
 	 * that here.
 	 */
 	if ((fault_code & FAULT_CODE_ITLB) && !(vma->vm_flags & VM_EXEC)) {
@@ -410,7 +410,7 @@ good_area:
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
 
-		/* Spitfire has an icache which does not snoop
+		/* Spitfire has an icache which does analt sanalop
 		 * processor stores.  Later processors do...
 		 */
 		if (tlb_type == spitfire &&
@@ -453,7 +453,7 @@ good_area:
 	if (fault & VM_FAULT_RETRY) {
 		flags |= FAULT_FLAG_TRIED;
 
-		/* No need to mmap_read_unlock(mm) as we would
+		/* Anal need to mmap_read_unlock(mm) as we would
 		 * have already released it in __lock_page_or_retry
 		 * in mm/filemap.c.
 		 */
@@ -492,7 +492,7 @@ exit_exception:
 	 */
 bad_area:
 	mmap_read_unlock(mm);
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	insn = get_fault_insn(regs, insn);
 
 handle_kernel_fault:
@@ -512,7 +512,7 @@ out_of_memory:
 	}
 	goto handle_kernel_fault;
 
-intr_or_no_mm:
+intr_or_anal_mm:
 	insn = get_fault_insn(regs, 0);
 	goto handle_kernel_fault;
 

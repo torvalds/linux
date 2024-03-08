@@ -9,7 +9,7 @@
  * This driver adds support for UART devices via Freescale's QUICC Engine
  * found on some Freescale SOCs.
  *
- * If Soft-UART support is needed but not already present, then this driver
+ * If Soft-UART support is needed but analt already present, then this driver
  * will request and upload the "Soft-UART" microcode upon probe.  The
  * filename of the microcode should be fsl_qe_ucode_uart_X_YZ.bin, where "X"
  * is the name of the SOC (e.g. 8323), and YZ is the revision of the SOC,
@@ -39,7 +39,7 @@
 #endif
 
 /*
- * The GUMR flag for Soft UART.  This would normally be defined in qe.h,
+ * The GUMR flag for Soft UART.  This would analrmally be defined in qe.h,
  * but Soft-UART is a hack and we want to keep everything related to it in
  * this file.
  */
@@ -58,16 +58,16 @@ static int firmware_loaded;
    mode */
 /* #define LOOPBACK */
 
-/* The major and minor device numbers are defined in
+/* The major and mianalr device numbers are defined in
  * Documentation/admin-guide/devices.txt.  For the QE
- * UART, we have major number 204 and minor numbers 46 - 49, which are the
- * same as for the CPM2.  This decision was made because no Freescale part
+ * UART, we have major number 204 and mianalr numbers 46 - 49, which are the
+ * same as for the CPM2.  This decision was made because anal Freescale part
  * has both a CPM and a QE.
  */
 #define SERIAL_QE_MAJOR 204
-#define SERIAL_QE_MINOR 46
+#define SERIAL_QE_MIANALR 46
 
-/* Since we only have minor numbers 46 - 49, there is a hard limit of 4 ports */
+/* Since we only have mianalr numbers 46 - 49, there is a hard limit of 4 ports */
 #define UCC_MAX_UART    4
 
 /* The number of buffer descriptors for receiving characters. */
@@ -97,7 +97,7 @@ struct ucc_uart_pram {
 	__be16 brkcr;   	/* Break count register */
 	__be16 parec;   	/* receive parity error counter */
 	__be16 frmec;   	/* receive framing error counter */
-	__be16 nosec;   	/* receive noise counter */
+	__be16 analsec;   	/* receive analise counter */
 	__be16 brkec;   	/* receive break condition counter */
 	__be16 brkln;   	/* last received break length */
 	__be16 uaddr[2];	/* UART address character 1 & 2 */
@@ -154,7 +154,7 @@ struct ucc_uart_pram {
 #define UCC_UART_SUPSMR_TPM_HIGH	0x0C00
 #define UCC_UART_SUPSMR_FRZ     	0x0100
 #define UCC_UART_SUPSMR_UM_MASK 	0x00c0
-#define UCC_UART_SUPSMR_UM_NORMAL       0x0000
+#define UCC_UART_SUPSMR_UM_ANALRMAL       0x0000
 #define UCC_UART_SUPSMR_UM_MAN_MULTI    0x0040
 #define UCC_UART_SUPSMR_UM_AUTO_MULTI   0x00c0
 #define UCC_UART_SUPSMR_CL_MASK 	0x0030
@@ -180,8 +180,8 @@ struct uart_qe_port {
 	struct ucc_uart_pram __iomem *uccup;
 	struct ucc_slow_info us_info;
 	struct ucc_slow_private *us_private;
-	struct device_node *np;
-	unsigned int ucc_num;   /* First ucc is 0, not 1 */
+	struct device_analde *np;
+	unsigned int ucc_num;   /* First ucc is 0, analt 1 */
 
 	u16 rx_nrfifos;
 	u16 rx_fifosize;
@@ -205,7 +205,7 @@ static struct uart_driver ucc_uart_driver = {
 	.driver_name    = "ucc_uart",
 	.dev_name       = "ttyQE",
 	.major  	= SERIAL_QE_MAJOR,
-	.minor  	= SERIAL_QE_MINOR,
+	.mianalr  	= SERIAL_QE_MIANALR,
 	.nr     	= UCC_MAX_UART,
 };
 
@@ -249,9 +249,9 @@ static inline void *qe2cpu_addr(dma_addr_t addr, struct uart_qe_port *qe_port)
 /*
  * Return 1 if the QE is done transmitting all buffers for this port
  *
- * This function scans each BD in sequence.  If we find a BD that is not
+ * This function scans each BD in sequence.  If we find a BD that is analt
  * ready (READY=1), then we return 0 indicating that the QE is still sending
- * data.  If we reach the last BD (WRAP=1), then we know we've scanned
+ * data.  If we reach the last BD (WRAP=1), then we kanalw we've scanned
  * the entire list, and all BDs are done.
  */
 static unsigned int qe_uart_tx_empty(struct uart_port *port)
@@ -262,7 +262,7 @@ static unsigned int qe_uart_tx_empty(struct uart_port *port)
 
 	while (1) {
 		if (ioread16be(&bdp->status) & BD_SC_READY)
-			/* This BD is not done, so return "not done" */
+			/* This BD is analt done, so return "analt done" */
 			return 0;
 
 		if (ioread16be(&bdp->status) & BD_SC_WRAP)
@@ -302,8 +302,8 @@ static unsigned int qe_uart_get_mctrl(struct uart_port *port)
 /*
  * Disable the transmit interrupt.
  *
- * Although this function is called "stop_tx", it does not actually stop
- * transmission of data.  Instead, it tells the QE to not generate an
+ * Although this function is called "stop_tx", it does analt actually stop
+ * transmission of data.  Instead, it tells the QE to analt generate an
  * interrupt when the UCC is finished sending characters.
  */
 static void qe_uart_stop_tx(struct uart_port *port)
@@ -320,11 +320,11 @@ static void qe_uart_stop_tx(struct uart_port *port)
  * This function will attempt to stuff of all the characters from the
  * kernel's transmit buffer into TX BDs.
  *
- * A return value of non-zero indicates that it successfully stuffed all
+ * A return value of analn-zero indicates that it successfully stuffed all
  * characters from the kernel buffer.
  *
  * A return value of zero indicates that there are still characters in the
- * kernel's buffer that have not been transmitted, but there are no more BDs
+ * kernel's buffer that have analt been transmitted, but there are anal more BDs
  * available.  This function should be called again after a BD has been made
  * available.
  */
@@ -478,11 +478,11 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 		/* get number of characters, and check space in RX buffer */
 		i = ioread16be(&bdp->length);
 
-		/* If we don't have enough room in RX buffer for the entire BD,
+		/* If we don't have eanalugh room in RX buffer for the entire BD,
 		 * then we try later, which will be the next RX interrupt.
 		 */
 		if (tty_buffer_request_room(tport, i) < i) {
-			dev_dbg(port->dev, "ucc-uart: no room in RX buffer\n");
+			dev_dbg(port->dev, "ucc-uart: anal room in RX buffer\n");
 			return;
 		}
 
@@ -493,7 +493,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 		while (i-- > 0) {
 			ch = *cp++;
 			port->icount.rx++;
-			flg = TTY_NORMAL;
+			flg = TTY_ANALRMAL;
 
 			if (!i && status &
 			    (BD_SC_BR | BD_SC_FR | BD_SC_PR | BD_SC_OV))
@@ -538,7 +538,7 @@ handle_error:
 	if (status & BD_SC_OV)
 		port->icount.overrun++;
 
-	/* Mask out ignored conditions */
+	/* Mask out iganalred conditions */
 	status &= port->read_status_mask;
 
 	/* Handle the remaining ones */
@@ -549,7 +549,7 @@ handle_error:
 	else if (status & BD_SC_FR)
 		flg = TTY_FRAME;
 
-	/* Overrun does not affect the current character ! */
+	/* Overrun does analt affect the current character ! */
 	if (status & BD_SC_OV)
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 	port->sysrq = 0;
@@ -579,7 +579,7 @@ static irqreturn_t qe_uart_int(int irq, void *data)
 	if (events & UCC_UART_UCCE_TX)
 		qe_uart_tx_pump(qe_port);
 
-	return events ? IRQ_HANDLED : IRQ_NONE;
+	return events ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 /* Initialize buffer descriptors
@@ -663,7 +663,7 @@ static void qe_uart_init_ucc(struct uart_qe_port *qe_port)
 	iowrite16be(1, &uccup->brkcr);
 	iowrite16be(0, &uccup->parec);
 	iowrite16be(0, &uccup->frmec);
-	iowrite16be(0, &uccup->nosec);
+	iowrite16be(0, &uccup->analsec);
 	iowrite16be(0, &uccup->brkec);
 	iowrite16be(0, &uccup->uaddr[0]);
 	iowrite16be(0, &uccup->uaddr[1]);
@@ -776,8 +776,8 @@ static int qe_uart_startup(struct uart_port *port)
 	 * firmware has been uploaded first.
 	 */
 	if (soft_uart && !firmware_loaded) {
-		dev_err(port->dev, "Soft-UART firmware not uploaded\n");
-		return -ENODEV;
+		dev_err(port->dev, "Soft-UART firmware analt uploaded\n");
+		return -EANALDEV;
 	}
 
 	qe_uart_initbd(qe_port);
@@ -787,7 +787,7 @@ static int qe_uart_startup(struct uart_port *port)
 	ret = request_irq(port->irq, qe_uart_int, IRQF_SHARED, "ucc-uart",
 		qe_port);
 	if (ret) {
-		dev_err(port->dev, "could not claim IRQ %u\n", port->irq);
+		dev_err(port->dev, "could analt claim IRQ %u\n", port->irq);
 		return ret;
 	}
 
@@ -908,22 +908,22 @@ static void qe_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= BD_SC_BR;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= BD_SC_PR | BD_SC_FR;
+		port->iganalre_status_mask |= BD_SC_PR | BD_SC_FR;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= BD_SC_BR;
+		port->iganalre_status_mask |= BD_SC_BR;
 		/*
-		 * If we're ignore parity and break indicators, ignore
+		 * If we're iganalre parity and break indicators, iganalre
 		 * overruns too.  (For real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= BD_SC_OV;
+			port->iganalre_status_mask |= BD_SC_OV;
 	}
 	/*
-	 * !!! ignore all characters if CREAD is not set
+	 * !!! iganalre all characters if CREAD is analt set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
 		port->read_status_mask &= ~BD_SC_EMPTY;
@@ -976,7 +976,7 @@ static int qe_uart_request_port(struct uart_port *port)
 
 	ret = ucc_slow_init(us_info, &uccs);
 	if (ret) {
-		dev_err(port->dev, "could not initialize UCC%u\n",
+		dev_err(port->dev, "could analt initialize UCC%u\n",
 		       qe_port->ucc_num);
 		return ret;
 	}
@@ -997,8 +997,8 @@ static int qe_uart_request_port(struct uart_port *port)
 	bd_virt = dma_alloc_coherent(port->dev, rx_size + tx_size, &bd_dma_addr,
 		GFP_KERNEL);
 	if (!bd_virt) {
-		dev_err(port->dev, "could not allocate buffer descriptors\n");
-		return -ENOMEM;
+		dev_err(port->dev, "could analt allocate buffer descriptors\n");
+		return -EANALMEM;
 	}
 
 	qe_port->bd_virt = bd_virt;
@@ -1048,7 +1048,7 @@ static void qe_uart_release_port(struct uart_port *port)
 static int qe_uart_verify_port(struct uart_port *port,
 			       struct serial_struct *ser)
 {
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_CPM)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_CPM)
 		return -EINVAL;
 
 	if (ser->irq < 0 || ser->irq >= nr_irqs)
@@ -1108,22 +1108,22 @@ static const struct uart_ops qe_uart_pops = {
  */
 static unsigned int soc_info(unsigned int *rev_h, unsigned int *rev_l)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const char *soc_string;
 	unsigned int svr;
 	unsigned int soc;
 
-	/* Find the CPU node */
-	np = of_find_node_by_type(NULL, "cpu");
+	/* Find the CPU analde */
+	np = of_find_analde_by_type(NULL, "cpu");
 	if (!np)
 		return 0;
 	/* Find the compatible property */
 	soc_string = of_get_property(np, "compatible", NULL);
 	if (!soc_string)
-		/* No compatible property, so try the name. */
+		/* Anal compatible property, so try the name. */
 		soc_string = np->name;
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	/* Extract the SOC number from the "PowerPC," string */
 	if ((sscanf(soc_string, "PowerPC,%u", &soc) != 1) || !soc)
@@ -1138,7 +1138,7 @@ static unsigned int soc_info(unsigned int *rev_h, unsigned int *rev_l)
 }
 
 /*
- * requst_firmware_nowait() callback function
+ * requst_firmware_analwait() callback function
  *
  * This function is called by the kernel when a firmware is made available,
  * or if it times out waiting for the firmware.
@@ -1150,7 +1150,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 	int ret;
 
 	if (!fw) {
-		dev_err(dev, "firmware not found\n");
+		dev_err(dev, "firmware analt found\n");
 		return;
 	}
 
@@ -1163,7 +1163,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 
 	ret = qe_upload_firmware(firmware);
 	if (ret) {
-		dev_err(dev, "could not load firmware\n");
+		dev_err(dev, "could analt load firmware\n");
 		goto out;
 	}
 
@@ -1174,7 +1174,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 
 static int soft_uart_init(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct qe_firmware_info *qe_fw_info;
 	int ret;
 
@@ -1198,7 +1198,7 @@ static int soft_uart_init(struct platform_device *ofdev)
 
 		soc = soc_info(&rev_h, &rev_l);
 		if (!soc) {
-			dev_err(&ofdev->dev, "unknown CPU model\n");
+			dev_err(&ofdev->dev, "unkanalwn CPU model\n");
 			return -ENXIO;
 		}
 		sprintf(filename, "fsl_qe_ucode_uart_%u_%u%u.bin",
@@ -1208,18 +1208,18 @@ static int soft_uart_init(struct platform_device *ofdev)
 			 filename);
 
 		/*
-		 * We call request_firmware_nowait instead of
+		 * We call request_firmware_analwait instead of
 		 * request_firmware so that the driver can load and
 		 * initialize the ports without holding up the rest of
 		 * the kernel.  If hotplug support is enabled in the
 		 * kernel, then we use it.
 		 */
-		ret = request_firmware_nowait(THIS_MODULE,
+		ret = request_firmware_analwait(THIS_MODULE,
 					      FW_ACTION_UEVENT, filename, &ofdev->dev,
 					      GFP_KERNEL, &ofdev->dev, uart_firmware_cont);
 		if (ret) {
 			dev_err(&ofdev->dev,
-				"could not load firmware %s\n",
+				"could analt load firmware %s\n",
 				filename);
 			return ret;
 		}
@@ -1239,7 +1239,7 @@ static int soft_uart_init(struct platform_device *ofdev)
 
 static int ucc_uart_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	const char *sprop;      /* String OF properties */
 	struct uart_qe_port *qe_port = NULL;
 	struct resource res;
@@ -1256,7 +1256,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	qe_port = kzalloc(sizeof(struct uart_qe_port), GFP_KERNEL);
 	if (!qe_port) {
 		dev_err(&ofdev->dev, "can't allocate QE port structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Search for IRQ and mapbase */
@@ -1283,15 +1283,15 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	}
 
 	if (val < 1 || val > UCC_MAX_NUM) {
-		dev_err(&ofdev->dev, "no support for UCC%u\n", val);
-		ret = -ENODEV;
+		dev_err(&ofdev->dev, "anal support for UCC%u\n", val);
+		ret = -EANALDEV;
 		goto out_free;
 	}
 	qe_port->ucc_num = val - 1;
 
 	/*
-	 * In the future, we should not require the BRG to be specified in the
-	 * device tree.  If no clock-source is specified, then just pick a BRG
+	 * In the future, we should analt require the BRG to be specified in the
+	 * device tree.  If anal clock-source is specified, then just pick a BRG
 	 * to use.  This requires a new QE library function that manages BRG
 	 * assignments.
 	 */
@@ -1299,7 +1299,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	sprop = of_get_property(np, "rx-clock-name", NULL);
 	if (!sprop) {
 		dev_err(&ofdev->dev, "missing rx-clock-name in device tree\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free;
 	}
 
@@ -1307,7 +1307,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	if ((qe_port->us_info.rx_clock < QE_BRG1) ||
 	    (qe_port->us_info.rx_clock > QE_BRG16)) {
 		dev_err(&ofdev->dev, "rx-clock-name must be a BRG for UART\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free;
 	}
 
@@ -1318,7 +1318,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	sprop = of_get_property(np, "tx-clock-name", NULL);
 	if (!sprop) {
 		dev_err(&ofdev->dev, "missing tx-clock-name in device tree\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free;
 	}
 	qe_port->us_info.tx_clock = qe_clock_source(sprop);
@@ -1326,7 +1326,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	if ((qe_port->us_info.tx_clock < QE_BRG1) ||
 	    (qe_port->us_info.tx_clock > QE_BRG16)) {
 		dev_err(&ofdev->dev, "tx-clock-name must be a BRG for UART\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free;
 	}
 
@@ -1346,7 +1346,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 
 	qe_port->port.irq = irq_of_parse_and_map(np, 0);
 	if (qe_port->port.irq == 0) {
-		dev_err(&ofdev->dev, "could not map IRQ for UCC%u\n",
+		dev_err(&ofdev->dev, "could analt map IRQ for UCC%u\n",
 		       qe_port->ucc_num + 1);
 		ret = -EINVAL;
 		goto out_free;
@@ -1354,13 +1354,13 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 
 	/*
 	 * Newer device trees have an "fsl,qe" compatible property for the QE
-	 * node, but we still need to support older device trees.
+	 * analde, but we still need to support older device trees.
 	 */
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,qe");
 	if (!np) {
-		np = of_find_node_by_type(NULL, "qe");
+		np = of_find_analde_by_type(NULL, "qe");
 		if (!np) {
-			dev_err(&ofdev->dev, "could not find 'qe' node\n");
+			dev_err(&ofdev->dev, "could analt find 'qe' analde\n");
 			ret = -EINVAL;
 			goto out_free;
 		}
@@ -1384,7 +1384,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 		}
 
 		/*
-		 * Older versions of U-Boot do not initialize the brg-frequency
+		 * Older versions of U-Boot do analt initialize the brg-frequency
 		 * property, so in this case we assume the BRG frequency is
 		 * half the QE bus frequency.
 		 */
@@ -1436,7 +1436,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	 */
 	ret = uart_add_one_port(&ucc_uart_driver, &qe_port->port);
 	if (ret) {
-		dev_err(&ofdev->dev, "could not add /dev/ttyQE%u\n",
+		dev_err(&ofdev->dev, "could analt add /dev/ttyQE%u\n",
 		       qe_port->port.line);
 		goto out_np;
 	}
@@ -1446,14 +1446,14 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	dev_info(&ofdev->dev, "UCC%u assigned to /dev/ttyQE%u\n",
 		qe_port->ucc_num + 1, qe_port->port.line);
 
-	/* Display the mknod command for this device */
-	dev_dbg(&ofdev->dev, "mknod command is 'mknod /dev/ttyQE%u c %u %u'\n",
+	/* Display the mkanald command for this device */
+	dev_dbg(&ofdev->dev, "mkanald command is 'mkanald /dev/ttyQE%u c %u %u'\n",
 	       qe_port->port.line, SERIAL_QE_MAJOR,
-	       SERIAL_QE_MINOR + qe_port->port.line);
+	       SERIAL_QE_MIANALR + qe_port->port.line);
 
 	return 0;
 out_np:
-	of_node_put(np);
+	of_analde_put(np);
 out_free:
 	kfree(qe_port);
 	return ret;
@@ -1467,7 +1467,7 @@ static void ucc_uart_remove(struct platform_device *ofdev)
 
 	uart_remove_one_port(&ucc_uart_driver, &qe_port->port);
 
-	of_node_put(qe_port->np);
+	of_analde_put(qe_port->np);
 
 	kfree(qe_port);
 }
@@ -1504,14 +1504,14 @@ static int __init ucc_uart_init(void)
 
 	ret = uart_register_driver(&ucc_uart_driver);
 	if (ret) {
-		printk(KERN_ERR "ucc-uart: could not register UART driver\n");
+		printk(KERN_ERR "ucc-uart: could analt register UART driver\n");
 		return ret;
 	}
 
 	ret = platform_driver_register(&ucc_uart_of_driver);
 	if (ret) {
 		printk(KERN_ERR
-		       "ucc-uart: could not register platform driver\n");
+		       "ucc-uart: could analt register platform driver\n");
 		uart_unregister_driver(&ucc_uart_driver);
 	}
 

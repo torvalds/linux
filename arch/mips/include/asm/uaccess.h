@@ -6,7 +6,7 @@
  * Copyright (C) 1996, 1997, 1998, 1999, 2000, 03, 04 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2007  Maciej W. Rozycki
- * Copyright (C) 2014, Imagination Technologies Ltd.
+ * Copyright (C) 2014, Imagination Techanallogies Ltd.
  */
 #ifndef _ASM_UACCESS_H
 #define _ASM_UACCESS_H
@@ -55,7 +55,7 @@ extern u64 __ua_limit;
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -80,7 +80,7 @@ extern u64 __ua_limit;
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -107,7 +107,7 @@ extern u64 __ua_limit;
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -154,7 +154,7 @@ extern u64 __ua_limit;
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -255,7 +255,7 @@ struct __large_struct { unsigned long buf[100]; };
 	(val) = __gu_tmp.t;						\
 }
 
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	int __gu_err;							\
 									\
@@ -333,7 +333,7 @@ do {									\
 	  "i" (-EFAULT));						\
 }
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	type __pu_val;					\
 	int __pu_err = 0;						\
@@ -367,7 +367,7 @@ do {									\
  */
 #ifdef MODULE
 #define __MODULE_JAL(destination)					\
-	".set\tnoat\n\t"						\
+	".set\tanalat\n\t"						\
 	__UA_LA "\t$1, " #destination "\n\t"				\
 	"jalr\t$1\n\t"							\
 	".set\tat\n\t"
@@ -398,9 +398,9 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 	__cu_len_r = n;
 
 	__asm__ __volatile__(
-		".set\tnoreorder\n\t"
+		".set\tanalreorder\n\t"
 		__MODULE_JAL(__raw_copy_from_user)
-		".set\tnoat\n\t"
+		".set\tanalat\n\t"
 		__UA_ADDU "\t$1, %1, %2\n\t"
 		".set\tat\n\t"
 		".set\treorder"
@@ -446,7 +446,7 @@ extern __kernel_size_t __bzero(void __user *addr, __kernel_size_t size);
  * Zero a block of memory in user space.  Caller must check
  * the specified block with access_ok() before calling this function.
  *
- * Returns number of bytes that could not be cleared.
+ * Returns number of bytes that could analt be cleared.
  * On success, this will be zero.
  */
 static inline __kernel_size_t
@@ -495,7 +495,7 @@ extern long __strncpy_from_user_asm(char *__to, const char __user *__from, long 
  *
  * Copies a NUL-terminated string from userspace to kernel space.
  *
- * On success, returns the length of the string (not including the trailing
+ * On success, returns the length of the string (analt including the trailing
  * NUL).
  *
  * If access to userspace fails, returns -EFAULT (some data may have been

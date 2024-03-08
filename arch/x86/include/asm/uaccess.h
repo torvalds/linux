@@ -28,18 +28,18 @@ extern int __get_user_1(void);
 extern int __get_user_2(void);
 extern int __get_user_4(void);
 extern int __get_user_8(void);
-extern int __get_user_nocheck_1(void);
-extern int __get_user_nocheck_2(void);
-extern int __get_user_nocheck_4(void);
-extern int __get_user_nocheck_8(void);
+extern int __get_user_analcheck_1(void);
+extern int __get_user_analcheck_2(void);
+extern int __get_user_analcheck_4(void);
+extern int __get_user_analcheck_8(void);
 extern int __get_user_bad(void);
 
 #define __uaccess_begin() stac()
 #define __uaccess_end()   clac()
-#define __uaccess_begin_nospec()	\
+#define __uaccess_begin_analspec()	\
 ({					\
 	stac();				\
-	barrier_nospec();		\
+	barrier_analspec();		\
 })
 
 /*
@@ -52,8 +52,8 @@ extern int __get_user_bad(void);
 	    __typefits(x,int,			\
 	      __typefits(x,long,0ULL)))))
 
-#define __typefits(x,type,not) \
-	__builtin_choose_expr(sizeof(x)<=sizeof(type),(unsigned type)0,not)
+#define __typefits(x,type,analt) \
+	__builtin_choose_expr(sizeof(x)<=sizeof(type),(unsigned type)0,analt)
 
 /*
  * This is used for both get_user() and __get_user() to expand to
@@ -66,7 +66,7 @@ extern int __get_user_bad(void);
  *
  * The use of _ASM_DX as the register specifier is a bit of a
  * simplification, as gcc only cares about it as the starting point
- * and not size: for a 64-bit value it will use %ecx:%edx on 32 bits
+ * and analt size: for a 64-bit value it will use %ecx:%edx on 32 bits
  * (%ecx being the next register in gcc's x86 register sequence), and
  * %rdx on 64 bits.
  *
@@ -96,7 +96,7 @@ extern int __get_user_bad(void);
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -116,7 +116,7 @@ extern int __get_user_bad(void);
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -128,7 +128,7 @@ extern int __get_user_bad(void);
  * Return: zero on success, or -EFAULT on error.
  * On error, the variable @x is set to zero.
  */
-#define __get_user(x,ptr) do_get_user_call(get_user_nocheck,x,ptr)
+#define __get_user(x,ptr) do_get_user_call(get_user_analcheck,x,ptr)
 
 
 #ifdef CONFIG_X86_32
@@ -156,10 +156,10 @@ extern void __put_user_1(void);
 extern void __put_user_2(void);
 extern void __put_user_4(void);
 extern void __put_user_8(void);
-extern void __put_user_nocheck_1(void);
-extern void __put_user_nocheck_2(void);
-extern void __put_user_nocheck_4(void);
-extern void __put_user_nocheck_8(void);
+extern void __put_user_analcheck_1(void);
+extern void __put_user_analcheck_2(void);
+extern void __put_user_analcheck_4(void);
+extern void __put_user_analcheck_8(void);
 
 /*
  * ptr must be evaluated and assigned to the temporary __ptr_pu before
@@ -197,7 +197,7 @@ extern void __put_user_nocheck_8(void);
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -216,7 +216,7 @@ extern void __put_user_nocheck_8(void);
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -227,7 +227,7 @@ extern void __put_user_nocheck_8(void);
  *
  * Return: zero on success, or -EFAULT on error.
  */
-#define __put_user(x, ptr) do_put_user_call(put_user_nocheck,x,ptr)
+#define __put_user(x, ptr) do_put_user_call(put_user_analcheck,x,ptr)
 
 #define __put_user_size(x, ptr, size, label)				\
 do {									\
@@ -435,11 +435,11 @@ do {									\
 
 #ifdef CONFIG_X86_32
 /*
- * Unlike the normal CMPXCHG, use output GPR for both success/fail and error.
+ * Unlike the analrmal CMPXCHG, use output GPR for both success/fail and error.
  * There are only six GPRs available and four (EAX, EBX, ECX, and EDX) are
  * hardcoded by CMPXCHG8B, leaving only ESI and EDI.  If the compiler uses
  * both ESI and EDI for the memory operand, compilation will fail if the error
- * is an input+output as there will be no register available for input.
+ * is an input+output as there will be anal register available for input.
  */
 #define __try_cmpxchg64_user_asm(_ptr, _pold, _new, label)	({	\
 	int __result;							\
@@ -473,7 +473,7 @@ struct __large_struct { unsigned long buf[100]; };
 
 /*
  * Tell gcc we read from memory instead of writing: this is because
- * we do not write to any memory gcc knows about, so there are no
+ * we do analt write to any memory gcc kanalws about, so there are anal
  * aliasing issues.
  */
 #define __put_user_goto(x, addr, itype, ltype, label)			\
@@ -500,7 +500,7 @@ copy_mc_to_user(void __user *to, const void *from, unsigned len);
 #endif
 
 /*
- * movsl can be slow when source and dest are not both 8-byte aligned
+ * movsl can be slow when source and dest are analt both 8-byte aligned
  */
 #ifdef CONFIG_X86_INTEL_USERCOPY
 extern struct movsl_mask {
@@ -508,11 +508,11 @@ extern struct movsl_mask {
 } ____cacheline_aligned_in_smp movsl_mask;
 #endif
 
-#define ARCH_HAS_NOCACHE_UACCESS 1
+#define ARCH_HAS_ANALCACHE_UACCESS 1
 
 /*
  * The "unsafe" user accesses aren't really "unsafe", but the naming
- * is a big fat warning: you have to not only do the access_ok()
+ * is a big fat warning: you have to analt only do the access_ok()
  * checking before using them, but you have to surround them with the
  * user_access_begin/end() pair.
  */
@@ -520,7 +520,7 @@ static __must_check __always_inline bool user_access_begin(const void __user *pt
 {
 	if (unlikely(!access_ok(ptr,len)))
 		return 0;
-	__uaccess_begin_nospec();
+	__uaccess_begin_analspec();
 	return 1;
 }
 #define user_access_begin(a,b)	user_access_begin(a,b)
@@ -588,7 +588,7 @@ extern void __try_cmpxchg_user_wrong_size(void);
 /* "Returns" 0 on success, 1 on failure, -EFAULT if the access faults. */
 #define __try_cmpxchg_user(_ptr, _oldp, _nval, _label)	({		\
 	int __ret = -EFAULT;						\
-	__uaccess_begin_nospec();					\
+	__uaccess_begin_analspec();					\
 	__ret = !unsafe_try_cmpxchg_user(_ptr, _oldp, _nval, _label);	\
 _label:									\
 	__uaccess_end();						\
@@ -619,11 +619,11 @@ do {									\
 } while (0)
 
 #ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 	__get_user_size(*((type *)(dst)), (__force type __user *)(src),	\
 			sizeof(type), err_label)
 #else // !CONFIG_CC_HAS_ASM_GOTO_OUTPUT
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	int __kr_err;							\
 									\
@@ -634,7 +634,7 @@ do {									\
 } while (0)
 #endif // CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 	__put_user_size(*((type *)(src)), (__force type __user *)(dst),	\
 			sizeof(type), err_label)
 

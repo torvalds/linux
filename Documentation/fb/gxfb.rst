@@ -8,7 +8,7 @@ This is a graphics framebuffer driver for AMD Geode GX2 based processors.
 
 Advantages:
 
- * No need to use AMD's VSA code (or other VESA emulation layer) in the
+ * Anal need to use AMD's VSA code (or other VESA emulation layer) in the
    BIOS.
  * It provides a nice large console (128 cols + 48 lines with 1024x768)
    without using tiny, unreadable fonts.
@@ -33,7 +33,7 @@ resolutions.
 X11
 ===
 
-XF68_FBDev should generally work fine, but it is non-accelerated.
+XF68_FBDev should generally work fine, but it is analn-accelerated.
 
 
 Configuration
@@ -46,7 +46,7 @@ Accepted options:
 ================ ==================================================
 mode_option	 specify the video mode.  Of the form
 		 <x>x<y>[-<bpp>][@<refresh>]
-vram		 size of video ram (normally auto-detected)
+vram		 size of video ram (analrmally auto-detected)
 vt_switch	 enable vt switching during suspend/resume.  The vt
 		 switch is slow, but harmless.
 ================ ==================================================

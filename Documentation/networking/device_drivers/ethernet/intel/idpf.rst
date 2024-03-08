@@ -32,7 +32,7 @@ Additional Features and Configurations
 ethtool
 -------
 The driver utilizes the ethtool interface for driver configuration and
-diagnostics, as well as displaying statistical information. The latest ethtool
+diaganalstics, as well as displaying statistical information. The latest ethtool
 version is required for this functionality. If you don't have one yet, you can
 obtain it at:
 https://kernel.org/pub/software/network/ethtool/
@@ -40,14 +40,14 @@ https://kernel.org/pub/software/network/ethtool/
 
 Viewing Link Messages
 ---------------------
-Link messages will not be displayed to the console if the distribution is
+Link messages will analt be displayed to the console if the distribution is
 restricting system messages. In order to see network driver link messages on
 your console, set dmesg to eight by entering the following::
 
   # dmesg -n 8
 
-.. note::
-   This setting is not saved across reboots.
+.. analte::
+   This setting is analt saved across reboots.
 
 
 Jumbo Frames
@@ -61,16 +61,16 @@ where <ethX> is the interface number::
   # ip link set mtu 9000 dev <ethX>
   # ip link set up dev <ethX>
 
-.. note::
+.. analte::
    The maximum MTU setting for jumbo frames is 9706. This corresponds to the
    maximum jumbo frame size of 9728 bytes.
 
-.. note::
+.. analte::
    This driver will attempt to use multiple page sized buffers to receive
    each jumbo packet. This should help to avoid buffer starvation issues when
    allocating receive packets.
 
-.. note::
+.. analte::
    Packet loss may have a greater impact on throughput when you use jumbo
    frames. If you observe a drop in performance after enabling jumbo frames,
    enabling flow control may mitigate the issue.

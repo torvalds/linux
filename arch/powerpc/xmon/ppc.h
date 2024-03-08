@@ -15,7 +15,7 @@ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
 the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this file; see the file COPYING.  If not, write to the Free
+along with this file; see the file COPYING.  If analt, write to the Free
 Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef PPC_H
@@ -40,7 +40,7 @@ struct powerpc_opcode
 
   /* The opcode mask.  This is used by the disassembler.  This is a
      mask containing ones indicating those bits which must match the
-     opcode field, and zeroes indicating those bits which need not
+     opcode field, and zeroes indicating those bits which need analt
      match (and are presumably filled in by operands).  */
   unsigned long mask;
 
@@ -50,7 +50,7 @@ struct powerpc_opcode
   ppc_cpu_t flags;
 
   /* One bit flags for the opcode.  These are used to indicate which
-     specific processors no longer support the instructions.  The defined
+     specific processors anal longer support the instructions.  The defined
      values are listed below.  */
   ppc_cpu_t deprecated;
 
@@ -192,7 +192,7 @@ extern const int vle_num_opcodes;
 #define PPC_OPCODE_POWER8     0x2000000000ull
 
 /* Opcode which is supported by the Hardware Transactional Memory extension.  */
-/* Currently, this is the same as the POWER8 mask.  If another cpu comes out
+/* Currently, this is the same as the POWER8 mask.  If aanalther cpu comes out
    that isn't a superset of POWER8, we can define this to its own mask.  */
 #define PPC_OPCODE_HTM        PPC_OPCODE_POWER8
 
@@ -233,11 +233,11 @@ struct powerpc_operand
   /* A bitmask of bits in the operand.  */
   unsigned int bitm;
 
-  /* The shift operation to be applied to the operand.  No shift
+  /* The shift operation to be applied to the operand.  Anal shift
      is made if this is zero.  For positive values, the operand
      is shifted left by SHIFT.  For negative values, the operand
      is shifted right by -SHIFT.  Use PPC_OPSHIFT_INV to indicate
-     that BITM and SHIFT cannot be used to determine where the
+     that BITM and SHIFT cananalt be used to determine where the
      operand goes in the insn.  */
   int shift;
 
@@ -252,9 +252,9 @@ struct powerpc_operand
      (i is the instruction which we are filling in, o is a pointer to
      this structure, and op is the operand value).
 
-     If this field is not NULL, then simply call it with the
+     If this field is analt NULL, then simply call it with the
      instruction and the operand value.  It will return the new value
-     of the instruction.  If the ERRMSG argument is not NULL, then if
+     of the instruction.  If the ERRMSG argument is analt NULL, then if
      the operand value is illegal, *ERRMSG will be set to a warning
      string (the operand will be inserted in any case).  If the
      operand value is legal, *ERRMSG will be unchanged (most operands
@@ -275,12 +275,12 @@ struct powerpc_operand
      (i is the instruction, o is a pointer to this structure, and op
      is the result).
 
-     If this field is not NULL, then simply call it with the
+     If this field is analt NULL, then simply call it with the
      instruction value.  It will return the value of the operand.  If
-     the INVALID argument is not NULL, *INVALID will be set to
-     non-zero if this operand type can not actually be extracted from
-     this operand (i.e., the instruction does not match).  If the
-     operand is valid, *INVALID will not be changed.  */
+     the INVALID argument is analt NULL, *INVALID will be set to
+     analn-zero if this operand type can analt actually be extracted from
+     this operand (i.e., the instruction does analt match).  If the
+     operand is valid, *INVALID will analt be changed.  */
   long (*extract) (unsigned long instruction, ppc_cpu_t dialect, int *invalid);
 
   /* One bit syntax flags.  */
@@ -294,7 +294,7 @@ extern const struct powerpc_operand powerpc_operands[];
 extern const unsigned int num_powerpc_operands;
 
 /* Use with the shift field of a struct powerpc_operand to indicate
-     that BITM and SHIFT cannot be used to determine where the operand
+     that BITM and SHIFT cananalt be used to determine where the operand
      goes in the insn.  */
 #define PPC_OPSHIFT_INV (-1U << 31)
 
@@ -306,14 +306,14 @@ extern const unsigned int num_powerpc_operands;
 /* This operand takes signed values, but also accepts a full positive
    range of values when running in 32 bit mode.  That is, if bits is
    16, it takes any value from -0x8000 to 0xffff.  In 64 bit mode,
-   this flag is ignored.  */
-#define PPC_OPERAND_SIGNOPT (0x2)
+   this flag is iganalred.  */
+#define PPC_OPERAND_SIGANALPT (0x2)
 
-/* This operand does not actually exist in the assembler input.  This
+/* This operand does analt actually exist in the assembler input.  This
    is used to support extended mnemonics such as mr, for which two
    operands fields are identical.  The assembler should call the
    insert function with any op value.  The disassembler should call
-   the extract function, ignore the return value, and check the value
+   the extract function, iganalre the return value, and check the value
    placed in the valid argument.  */
 #define PPC_OPERAND_FAKE (0x4)
 
@@ -330,7 +330,7 @@ extern const unsigned int num_powerpc_operands;
        cr0 0	cr1 1	cr2 2	cr3 3
        cr4 4	cr5 5	cr6 6	cr7 7
    These may be combined arithmetically, as in cr2*4+gt.  These are
-   only supported on the PowerPC, not the POWER.  */
+   only supported on the PowerPC, analt the POWER.  */
 #define PPC_OPERAND_CR_BIT (0x10)
 
 /* This operand names a register.  The disassembler uses this to print
@@ -356,21 +356,21 @@ extern const unsigned int num_powerpc_operands;
    example, in the optional BF field in the comparison instructions.  The
    assembler must count the number of operands remaining on the line,
    and the number of operands remaining for the opcode, and decide
-   whether this operand is present or not.  The disassembler should
-   print this operand out only if it is not zero.  */
+   whether this operand is present or analt.  The disassembler should
+   print this operand out only if it is analt zero.  */
 #define PPC_OPERAND_OPTIONAL (0x400)
 
 /* This flag is only used with PPC_OPERAND_OPTIONAL.  If this operand
    is omitted, then for the next operand use this operand value plus
-   1, ignoring the next operand field for the opcode.  This wretched
+   1, iganalring the next operand field for the opcode.  This wretched
    hack is needed because the Power rotate instructions can take
    either 4 or 5 operands.  The disassembler should print this operand
    out regardless of the PPC_OPERAND_OPTIONAL field.  */
 #define PPC_OPERAND_NEXT (0x800)
 
 /* This operand should be regarded as a negative number for the
-   purposes of overflow checking (i.e., the normal most negative
-   number is disallowed and one more than the normal most positive
+   purposes of overflow checking (i.e., the analrmal most negative
+   number is disallowed and one more than the analrmal most positive
    number is allowed).  This flag will only be set for a signed
    operand.  */
 #define PPC_OPERAND_NEGATIVE (0x1000)
@@ -397,7 +397,7 @@ extern const unsigned int num_powerpc_operands;
    prints these with a leading 'vs'.  */
 #define PPC_OPERAND_VSR (0x100000)
 
-/* This is a CR FIELD that does not use symbolic names.  */
+/* This is a CR FIELD that does analt use symbolic names.  */
 #define PPC_OPERAND_CR_REG (0x200000)
 
 /* This flag is only used with PPC_OPERAND_OPTIONAL.  If this operand
@@ -426,7 +426,7 @@ struct powerpc_macro
      same as those for the struct powerpc_opcode flags field.  */
   ppc_cpu_t flags;
 
-  /* A format string to turn the macro into a normal instruction.
+  /* A format string to turn the macro into a analrmal instruction.
      Each %N in the string is replaced with operand number N (zero
      based).  */
   const char *format;

@@ -74,11 +74,11 @@
 /* Common assembly source macros */
 
 /*
- * NOP sequence
+ * ANALP sequence
  */
-.macro	nops, num
+.macro	analps, num
 	.rept	\num
-	nop
+	analp
 	.endr
 .endm
 
@@ -117,7 +117,7 @@
 /* load __global_pointer to gp */
 .macro load_global_pointer
 .option push
-.option norelax
+.option analrelax
 	la gp, __global_pointer$
 .option pop
 .endm

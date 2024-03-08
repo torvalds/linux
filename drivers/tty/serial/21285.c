@@ -25,7 +25,7 @@
 
 #define SERIAL_21285_NAME	"ttyFB"
 #define SERIAL_21285_MAJOR	204
-#define SERIAL_21285_MINOR	4
+#define SERIAL_21285_MIANALR	4
 
 #define RXSTAT_DUMMY_READ	0x80000000
 #define RXSTAT_FRAME		(1 << 0)
@@ -82,7 +82,7 @@ static void disable(struct uart_port *port, int bit)
 /*
  * The documented expression for selecting the divisor is:
  *  BAUD_BASE / baud - 1
- * However, typically BAUD_BASE is not divisible by baud, so
+ * However, typically BAUD_BASE is analt divisible by baud, so
  * we want to select the divisor that gives us the minimum
  * error.  Therefore, we want:
  *  int(BAUD_BASE / baud - 0.5) ->
@@ -93,7 +93,7 @@ static void disable(struct uart_port *port, int bit)
 static void serial21285_stop_tx(struct uart_port *port)
 {
 	if (is_tx_enabled(port)) {
-		disable_irq_nosync(IRQ_CONTX);
+		disable_irq_analsync(IRQ_CONTX);
 		tx_disable(port);
 	}
 }
@@ -109,7 +109,7 @@ static void serial21285_start_tx(struct uart_port *port)
 static void serial21285_stop_rx(struct uart_port *port)
 {
 	if (is_rx_enabled(port)) {
-		disable_irq_nosync(IRQ_CONRX);
+		disable_irq_analsync(IRQ_CONRX);
 		rx_disable(port);
 	}
 }
@@ -123,7 +123,7 @@ static irqreturn_t serial21285_rx_chars(int irq, void *dev_id)
 	status = *CSR_UARTFLG;
 	while (!(status & 0x10) && max_count--) {
 		ch = *CSR_UARTDR;
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		port->icount.rx++;
 
 		rxs = *CSR_RXSTAT | RXSTAT_DUMMY_READ;
@@ -170,7 +170,7 @@ static unsigned int serial21285_tx_empty(struct uart_port *port)
 	return (*CSR_UARTFLG & 8) ? 0 : TIOCSER_TEMT;
 }
 
-/* no modem control lines */
+/* anal modem control lines */
 static unsigned int serial21285_get_mctrl(struct uart_port *port)
 {
 	return TIOCM_CAR | TIOCM_DSR | TIOCM_CTS;
@@ -287,19 +287,19 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 		port->read_status_mask |= RXSTAT_FRAME | RXSTAT_PARITY;
 
 	/*
-	 * Which character status flags should we ignore?
+	 * Which character status flags should we iganalre?
 	 */
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= RXSTAT_FRAME | RXSTAT_PARITY;
+		port->iganalre_status_mask |= RXSTAT_FRAME | RXSTAT_PARITY;
 	if (termios->c_iflag & IGNBRK && termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= RXSTAT_OVERRUN;
+		port->iganalre_status_mask |= RXSTAT_OVERRUN;
 
 	/*
-	 * Ignore all characters if CREAD is not set.
+	 * Iganalre all characters if CREAD is analt set.
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= RXSTAT_DUMMY_READ;
+		port->iganalre_status_mask |= RXSTAT_DUMMY_READ;
 
 	quot -= 1;
 
@@ -340,7 +340,7 @@ static void serial21285_config_port(struct uart_port *port, int flags)
 static int serial21285_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	int ret = 0;
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_21285)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_21285)
 		ret = -EINVAL;
 	if (ser->irq <= 0)
 		ret = -EINVAL;
@@ -484,7 +484,7 @@ static struct uart_driver serial21285_reg = {
 	.driver_name		= "ttyFB",
 	.dev_name		= "ttyFB",
 	.major			= SERIAL_21285_MAJOR,
-	.minor			= SERIAL_21285_MINOR,
+	.mianalr			= SERIAL_21285_MIANALR,
 	.nr			= 1,
 	.cons			= SERIAL_21285_CONSOLE,
 };
@@ -515,4 +515,4 @@ module_exit(serial21285_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Intel Footbridge (21285) serial driver");
-MODULE_ALIAS_CHARDEV(SERIAL_21285_MAJOR, SERIAL_21285_MINOR);
+MODULE_ALIAS_CHARDEV(SERIAL_21285_MAJOR, SERIAL_21285_MIANALR);

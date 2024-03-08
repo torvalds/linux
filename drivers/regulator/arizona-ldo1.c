@@ -193,32 +193,32 @@ static int arizona_ldo1_of_get_pdata(struct arizona_ldo1_pdata *pdata,
 				     bool *external_dcvdd)
 {
 	struct arizona_ldo1 *ldo1 = config->driver_data;
-	struct device_node *np = config->dev->of_node;
-	struct device_node *init_node, *dcvdd_node;
+	struct device_analde *np = config->dev->of_analde;
+	struct device_analde *init_analde, *dcvdd_analde;
 	struct regulator_init_data *init_data;
 
-	init_node = of_get_child_by_name(np, "ldo1");
-	dcvdd_node = of_parse_phandle(np, "DCVDD-supply", 0);
+	init_analde = of_get_child_by_name(np, "ldo1");
+	dcvdd_analde = of_parse_phandle(np, "DCVDD-supply", 0);
 
-	if (init_node) {
-		config->of_node = init_node;
+	if (init_analde) {
+		config->of_analde = init_analde;
 
-		init_data = of_get_regulator_init_data(config->dev, init_node,
+		init_data = of_get_regulator_init_data(config->dev, init_analde,
 						       desc);
 		if (init_data) {
 			init_data->consumer_supplies = &ldo1->supply;
 			init_data->num_consumer_supplies = 1;
 
-			if (dcvdd_node && dcvdd_node != init_node)
+			if (dcvdd_analde && dcvdd_analde != init_analde)
 				*external_dcvdd = true;
 
 			pdata->init_data = init_data;
 		}
-	} else if (dcvdd_node) {
+	} else if (dcvdd_analde) {
 		*external_dcvdd = true;
 	}
 
-	of_node_put(dcvdd_node);
+	of_analde_put(dcvdd_analde);
 
 	return 0;
 }
@@ -258,7 +258,7 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 	 * so clean up would happen at the wrong time
 	 */
 	config.ena_gpiod = gpiod_get_optional(parent_dev, "wlf,ldoena",
-				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(config.ena_gpiod))
 		return PTR_ERR(config.ena_gpiod);
 
@@ -270,7 +270,7 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 		config.init_data = &ldo1->init_data;
 
 	/*
-	 * LDO1 can only be used to supply DCVDD so if it has no
+	 * LDO1 can only be used to supply DCVDD so if it has anal
 	 * consumers then DCVDD is supplied externally.
 	 */
 	if (config.init_data->num_consumer_supplies == 0)
@@ -278,7 +278,7 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 
 	ldo1->regulator = devm_regulator_register(&pdev->dev, desc, &config);
 
-	of_node_put(config.of_node);
+	of_analde_put(config.of_analde);
 
 	if (IS_ERR(ldo1->regulator)) {
 		ret = PTR_ERR(ldo1->regulator);
@@ -302,7 +302,7 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 
 	ldo1 = devm_kzalloc(&pdev->dev, sizeof(*ldo1), GFP_KERNEL);
 	if (!ldo1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldo1->regmap = arizona->regmap;
 
@@ -356,7 +356,7 @@ static int madera_ldo1_probe(struct platform_device *pdev)
 
 	ldo1 = devm_kzalloc(&pdev->dev, sizeof(*ldo1), GFP_KERNEL);
 	if (!ldo1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldo1->regmap = madera->regmap;
 
@@ -378,7 +378,7 @@ static struct platform_driver arizona_ldo1_driver = {
 	.remove_new = arizona_ldo1_remove,
 	.driver		= {
 		.name	= "arizona-ldo1",
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 };
 
@@ -387,7 +387,7 @@ static struct platform_driver madera_ldo1_driver = {
 	.remove_new = arizona_ldo1_remove,
 	.driver		= {
 		.name	= "madera-ldo1",
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 };
 

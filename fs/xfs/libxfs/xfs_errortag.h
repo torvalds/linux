@@ -12,7 +12,7 @@
  * but each tag should have its own unique number
  */
 
-#define XFS_ERRTAG_NOERROR				0
+#define XFS_ERRTAG_ANALERROR				0
 #define XFS_ERRTAG_IFLUSH_1				1
 #define XFS_ERRTAG_IFLUSH_2				2
 #define XFS_ERRTAG_IFLUSH_3				3
@@ -24,10 +24,10 @@
 #define XFS_ERRTAG_BTREE_CHECK_SBLOCK			9
 #define XFS_ERRTAG_ALLOC_READ_AGF			10
 #define XFS_ERRTAG_IALLOC_READ_AGI			11
-#define XFS_ERRTAG_ITOBP_INOTOBP			12
+#define XFS_ERRTAG_ITOBP_IANALTOBP			12
 #define XFS_ERRTAG_IUNLINK				13
 #define XFS_ERRTAG_IUNLINK_REMOVE			14
-#define XFS_ERRTAG_DIR_INO_VALIDATE			15
+#define XFS_ERRTAG_DIR_IANAL_VALIDATE			15
 #define XFS_ERRTAG_BULKSTAT_READ_CHUNK			16
 #define XFS_ERRTAG_IODONE_IOERR				17
 #define XFS_ERRTAG_STRATREAD_IOERR			18
@@ -42,7 +42,7 @@
 #define XFS_ERRTAG_AG_RESV_CRITICAL			27
 
 /*
- * Drop-writes support removed because write error handling cannot trash
+ * Drop-writes support removed because write error handling cananalt trash
  * pre-existing delalloc extents in any useful way anymore. We retain the
  * definition so that we can reject it as an invalid value in
  * xfs_errortag_valid().
@@ -60,7 +60,7 @@
 #define XFS_ERRTAG_AG_RESV_FAIL				38
 #define XFS_ERRTAG_LARP					39
 #define XFS_ERRTAG_DA_LEAF_SPLIT			40
-#define XFS_ERRTAG_ATTR_LEAF_TO_NODE			41
+#define XFS_ERRTAG_ATTR_LEAF_TO_ANALDE			41
 #define XFS_ERRTAG_WB_DELAY_MS				42
 #define XFS_ERRTAG_WRITE_DELAY_MS			43
 #define XFS_ERRTAG_MAX					44
@@ -80,10 +80,10 @@
 #define XFS_RANDOM_BTREE_CHECK_SBLOCK			XFS_RANDOM_DEFAULT
 #define XFS_RANDOM_ALLOC_READ_AGF			XFS_RANDOM_DEFAULT
 #define XFS_RANDOM_IALLOC_READ_AGI			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_ITOBP_INOTOBP			XFS_RANDOM_DEFAULT
+#define XFS_RANDOM_ITOBP_IANALTOBP			XFS_RANDOM_DEFAULT
 #define XFS_RANDOM_IUNLINK				XFS_RANDOM_DEFAULT
 #define XFS_RANDOM_IUNLINK_REMOVE			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_DIR_INO_VALIDATE			XFS_RANDOM_DEFAULT
+#define XFS_RANDOM_DIR_IANAL_VALIDATE			XFS_RANDOM_DEFAULT
 #define XFS_RANDOM_BULKSTAT_READ_CHUNK			XFS_RANDOM_DEFAULT
 #define XFS_RANDOM_IODONE_IOERR				(XFS_RANDOM_DEFAULT/10)
 #define XFS_RANDOM_STRATREAD_IOERR			(XFS_RANDOM_DEFAULT/10)
@@ -108,7 +108,7 @@
 #define XFS_RANDOM_AG_RESV_FAIL				1
 #define XFS_RANDOM_LARP					1
 #define XFS_RANDOM_DA_LEAF_SPLIT			1
-#define XFS_RANDOM_ATTR_LEAF_TO_NODE			1
+#define XFS_RANDOM_ATTR_LEAF_TO_ANALDE			1
 #define XFS_RANDOM_WB_DELAY_MS				3000
 #define XFS_RANDOM_WRITE_DELAY_MS			3000
 

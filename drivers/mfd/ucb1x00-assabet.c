@@ -24,7 +24,7 @@ static ssize_t name##_show(struct device *dev, struct device_attribute *attr, \
 	struct ucb1x00 *ucb = classdev_to_ucb1x00(dev);		\
 	int val;						\
 	ucb1x00_adc_enable(ucb);				\
-	val = ucb1x00_adc_read(ucb, input, UCB_NOSYNC);		\
+	val = ucb1x00_adc_read(ucb, input, UCB_ANALSYNC);		\
 	ucb1x00_adc_disable(ucb);				\
 	return sprintf(buf, "%d\n", val);			\
 }								\
@@ -99,5 +99,5 @@ module_init(ucb1x00_assabet_init);
 module_exit(ucb1x00_assabet_exit);
 
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
-MODULE_DESCRIPTION("Assabet noddy testing only example ADC driver");
+MODULE_DESCRIPTION("Assabet analddy testing only example ADC driver");
 MODULE_LICENSE("GPL");

@@ -22,9 +22,9 @@ static void xdr_decode_YFSFid(const __be32 **_bp, struct afs_fid *fid)
 	const struct yfs_xdr_YFSFid *x = (const void *)*_bp;
 
 	fid->vid	= xdr_to_u64(x->volume);
-	fid->vnode	= xdr_to_u64(x->vnode.lo);
-	fid->vnode_hi	= ntohl(x->vnode.hi);
-	fid->unique	= ntohl(x->vnode.unique);
+	fid->vanalde	= xdr_to_u64(x->vanalde.lo);
+	fid->vanalde_hi	= ntohl(x->vanalde.hi);
+	fid->unique	= ntohl(x->vanalde.unique);
 	*_bp += xdr_size(x);
 }
 
@@ -47,9 +47,9 @@ static __be32 *xdr_encode_YFSFid(__be32 *bp, struct afs_fid *fid)
 	struct yfs_xdr_YFSFid *x = (void *)bp;
 
 	x->volume	= u64_to_xdr(fid->vid);
-	x->vnode.lo	= u64_to_xdr(fid->vnode);
-	x->vnode.hi	= htonl(fid->vnode_hi);
-	x->vnode.unique	= htonl(fid->unique);
+	x->vanalde.lo	= u64_to_xdr(fid->vanalde);
+	x->vanalde.hi	= htonl(fid->vanalde_hi);
+	x->vanalde.unique	= htonl(fid->unique);
 	return bp + xdr_size(x);
 }
 
@@ -110,8 +110,8 @@ static struct timespec64 yfs_time_to_linux(s64 t)
 	u64 abs_t;
 
 	/*
-	 * Unfortunately can not use normal 64 bit division on 32 bit arch, but
-	 * the alternative, do_div, does not work with negative numbers so have
+	 * Unfortunately can analt use analrmal 64 bit division on 32 bit arch, but
+	 * the alternative, do_div, does analt work with negative numbers so have
 	 * to special case them
 	 */
 	if (t < 0) {
@@ -155,16 +155,16 @@ static void xdr_dump_bad(const __be32 *bp)
 	__be32 x[4];
 	int i;
 
-	pr_notice("YFS XDR: Bad status record\n");
+	pr_analtice("YFS XDR: Bad status record\n");
 	for (i = 0; i < 6 * 4 * 4; i += 16) {
 		memcpy(x, bp, 16);
 		bp += 4;
-		pr_notice("%03x: %08x %08x %08x %08x\n",
+		pr_analtice("%03x: %08x %08x %08x %08x\n",
 			  i, ntohl(x[0]), ntohl(x[1]), ntohl(x[2]), ntohl(x[3]));
 	}
 
 	memcpy(x, bp, 8);
-	pr_notice("0x60: %08x %08x\n", ntohl(x[0]), ntohl(x[1]));
+	pr_analtice("0x60: %08x %08x\n", ntohl(x[0]), ntohl(x[1]));
 }
 
 /*
@@ -180,7 +180,7 @@ static void xdr_decode_YFSFetchStatus(const __be32 **_bp,
 
 	status->abort_code = ntohl(xdr->abort_code);
 	if (status->abort_code != 0) {
-		if (status->abort_code == VNOVNODE)
+		if (status->abort_code == VANALVANALDE)
 			status->nlink = 0;
 		scb->have_error = true;
 		goto advance;
@@ -201,7 +201,7 @@ static void xdr_decode_YFSFetchStatus(const __be32 **_bp,
 	status->author		= xdr_to_u64(xdr->author);
 	status->owner		= xdr_to_u64(xdr->owner);
 	status->caller_access	= ntohl(xdr->caller_access); /* Ticket dependent */
-	status->anon_access	= ntohl(xdr->anon_access);
+	status->aanaln_access	= ntohl(xdr->aanaln_access);
 	status->mode		= ntohl(xdr->mode) & S_IALLUGO;
 	status->group		= xdr_to_u64(xdr->group);
 	status->lock_count	= ntohl(xdr->lock_count);
@@ -352,7 +352,7 @@ static int yfs_deliver_status_and_volsync(struct afs_call *call)
 static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_read *req = op->fetch.req;
 	const __be32 *bp;
 	int ret;
@@ -382,7 +382,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		_debug("DATA length: %llu", req->actual_len);
 
 		if (req->actual_len == 0)
-			goto no_more_data;
+			goto anal_more_data;
 
 		call->iter = req->iter;
 		call->iov_len = min(req->actual_len, req->len);
@@ -400,7 +400,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 
 		call->iter = &call->def_iter;
 		if (req->actual_len <= req->len)
-			goto no_more_data;
+			goto anal_more_data;
 
 		/* Discard any excess data the server gave us */
 		afs_extract_discard(call, req->actual_len - req->len);
@@ -415,7 +415,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 
-	no_more_data:
+	anal_more_data:
 		call->unmarshall = 4;
 		afs_extract_to_buf(call,
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
@@ -463,13 +463,13 @@ static const struct afs_call_type yfs_RXYFSFetchData64 = {
  */
 void yfs_fs_fetch_data(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_read *req = op->fetch.req;
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},%llx,%llx",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode,
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde,
 	       req->pos, req->len);
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSFetchData64,
@@ -480,7 +480,7 @@ void yfs_fs_fetch_data(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSCallBack) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	req->call_debug_id = call->debug_id;
 
@@ -495,17 +495,17 @@ void yfs_fs_fetch_data(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
  * Deliver reply data for YFS.CreateFile or YFS.MakeDir.
  */
-static int yfs_deliver_fs_create_vnode(struct afs_call *call)
+static int yfs_deliver_fs_create_vanalde(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	const __be32 *bp;
 	int ret;
 
@@ -533,7 +533,7 @@ static int yfs_deliver_fs_create_vnode(struct afs_call *call)
 static const struct afs_call_type afs_RXFSCreateFile = {
 	.name		= "YFS.CreateFile",
 	.op		= yfs_FS_CreateFile,
-	.deliver	= yfs_deliver_fs_create_vnode,
+	.deliver	= yfs_deliver_fs_create_vanalde,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -543,7 +543,7 @@ static const struct afs_call_type afs_RXFSCreateFile = {
 void yfs_fs_create_file(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	size_t reqsz, rplsz;
 	__be32 *bp;
@@ -564,7 +564,7 @@ void yfs_fs_create_file(struct afs_operation *op)
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSCreateFile, reqsz, rplsz);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -573,18 +573,18 @@ void yfs_fs_create_file(struct afs_operation *op)
 	bp = xdr_encode_YFSFid(bp, &dvp->fid);
 	bp = xdr_encode_name(bp, name);
 	bp = xdr_encode_YFSStoreStatus(bp, &op->create.mode, &op->mtime);
-	bp = xdr_encode_u32(bp, yfs_LockNone); /* ViceLockType */
+	bp = xdr_encode_u32(bp, yfs_LockAnalne); /* ViceLockType */
 	yfs_check_req(call, bp);
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 static const struct afs_call_type yfs_RXFSMakeDir = {
 	.name		= "YFS.MakeDir",
 	.op		= yfs_FS_MakeDir,
-	.deliver	= yfs_deliver_fs_create_vnode,
+	.deliver	= yfs_deliver_fs_create_vanalde,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -594,7 +594,7 @@ static const struct afs_call_type yfs_RXFSMakeDir = {
 void yfs_fs_make_dir(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	size_t reqsz, rplsz;
 	__be32 *bp;
@@ -614,7 +614,7 @@ void yfs_fs_make_dir(struct afs_operation *op)
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXFSMakeDir, reqsz, rplsz);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -627,7 +627,7 @@ void yfs_fs_make_dir(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -636,8 +636,8 @@ void yfs_fs_make_dir(struct afs_operation *op)
 static int yfs_deliver_fs_remove_file2(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	struct afs_fid fid;
 	const __be32 *bp;
 	int ret;
@@ -652,7 +652,7 @@ static int yfs_deliver_fs_remove_file2(struct afs_call *call)
 	xdr_decode_YFSFetchStatus(&bp, call, &dvp->scb);
 	xdr_decode_YFSFid(&bp, &fid);
 	xdr_decode_YFSFetchStatus(&bp, call, &vp->scb);
-	/* Was deleted if vnode->status.abort_code == VNOVNODE. */
+	/* Was deleted if vanalde->status.abort_code == VANALVANALDE. */
 
 	xdr_decode_YFSVolSync(&bp, &op->volsync);
 	return 0;
@@ -662,7 +662,7 @@ static void yfs_done_fs_remove_file2(struct afs_call *call)
 {
 	if (call->error == -ECONNABORTED &&
 	    call->abort_code == RX_INVALID_OPERATION) {
-		set_bit(AFS_SERVER_FL_NO_RM2, &call->server->flags);
+		set_bit(AFS_SERVER_FL_ANAL_RM2, &call->server->flags);
 		call->op->flags |= AFS_OPERATION_DOWNGRADE;
 	}
 }
@@ -683,7 +683,7 @@ static const struct afs_call_type yfs_RXYFSRemoveFile2 = {
  */
 void yfs_fs_remove_file2(struct afs_operation *op)
 {
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	const struct qstr *name = &op->dentry->d_name;
 	struct afs_call *call;
 	__be32 *bp;
@@ -700,7 +700,7 @@ void yfs_fs_remove_file2(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -712,7 +712,7 @@ void yfs_fs_remove_file2(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -721,7 +721,7 @@ void yfs_fs_remove_file2(struct afs_operation *op)
 static int yfs_deliver_fs_remove(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	const __be32 *bp;
 	int ret;
 
@@ -753,13 +753,13 @@ static const struct afs_call_type yfs_RXYFSRemoveFile = {
 void yfs_fs_remove_file(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter("");
 
-	if (!test_bit(AFS_SERVER_FL_NO_RM2, &op->server->flags))
+	if (!test_bit(AFS_SERVER_FL_ANAL_RM2, &op->server->flags))
 		return yfs_fs_remove_file2(op);
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSRemoveFile,
@@ -770,7 +770,7 @@ void yfs_fs_remove_file(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -782,7 +782,7 @@ void yfs_fs_remove_file(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 static const struct afs_call_type yfs_RXYFSRemoveDir = {
@@ -798,7 +798,7 @@ static const struct afs_call_type yfs_RXYFSRemoveDir = {
 void yfs_fs_remove_dir(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -812,7 +812,7 @@ void yfs_fs_remove_dir(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -824,7 +824,7 @@ void yfs_fs_remove_dir(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -833,8 +833,8 @@ void yfs_fs_remove_dir(struct afs_operation *op)
 static int yfs_deliver_fs_link(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	const __be32 *bp;
 	int ret;
 
@@ -868,8 +868,8 @@ static const struct afs_call_type yfs_RXYFSLink = {
 void yfs_fs_link(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -885,7 +885,7 @@ void yfs_fs_link(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -898,7 +898,7 @@ void yfs_fs_link(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call1(call, &vp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -907,8 +907,8 @@ void yfs_fs_link(struct afs_operation *op)
 static int yfs_deliver_fs_symlink(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	const __be32 *bp;
 	int ret;
 
@@ -945,7 +945,7 @@ static const struct afs_call_type yfs_RXYFSSymlink = {
 void yfs_fs_symlink(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	size_t contents_sz;
 	mode_t mode = 0777;
@@ -966,7 +966,7 @@ void yfs_fs_symlink(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -980,7 +980,7 @@ void yfs_fs_symlink(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -989,8 +989,8 @@ void yfs_fs_symlink(struct afs_operation *op)
 static int yfs_deliver_fs_rename(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *orig_dvp = &op->file[0];
-	struct afs_vnode_param *new_dvp = &op->file[1];
+	struct afs_vanalde_param *orig_dvp = &op->file[0];
+	struct afs_vanalde_param *new_dvp = &op->file[1];
 	const __be32 *bp;
 	int ret;
 
@@ -1026,8 +1026,8 @@ static const struct afs_call_type yfs_RXYFSRename = {
  */
 void yfs_fs_rename(struct afs_operation *op)
 {
-	struct afs_vnode_param *orig_dvp = &op->file[0];
-	struct afs_vnode_param *new_dvp = &op->file[1];
+	struct afs_vanalde_param *orig_dvp = &op->file[0];
+	struct afs_vanalde_param *new_dvp = &op->file[1];
 	const struct qstr *orig_name = &op->dentry->d_name;
 	const struct qstr *new_name = &op->dentry_2->d_name;
 	struct afs_call *call;
@@ -1046,7 +1046,7 @@ void yfs_fs_rename(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1060,7 +1060,7 @@ void yfs_fs_rename(struct afs_operation *op)
 
 	call->fid = orig_dvp->fid;
 	trace_afs_make_fs_call2(call, &orig_dvp->fid, orig_name, new_name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1078,12 +1078,12 @@ static const struct afs_call_type yfs_RXYFSStoreData64 = {
  */
 void yfs_fs_store_data(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	_debug("size %llx, at %llx, i_size %llx",
 	       (unsigned long long)op->store.size,
@@ -1099,7 +1099,7 @@ void yfs_fs_store_data(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	call->write_iter = op->store.write_iter;
 
@@ -1116,7 +1116,7 @@ void yfs_fs_store_data(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1142,13 +1142,13 @@ static const struct afs_call_type yfs_RXYFSStoreData64_as_Status = {
  */
 static void yfs_fs_setattr_size(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	struct iattr *attr = op->setattr.attr;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSStoreData64_as_Status,
 				   sizeof(__be32) * 2 +
@@ -1158,7 +1158,7 @@ static void yfs_fs_setattr_size(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1173,7 +1173,7 @@ static void yfs_fs_setattr_size(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1182,7 +1182,7 @@ static void yfs_fs_setattr_size(struct afs_operation *op)
  */
 void yfs_fs_setattr(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	struct iattr *attr = op->setattr.attr;
 	__be32 *bp;
@@ -1191,7 +1191,7 @@ void yfs_fs_setattr(struct afs_operation *op)
 		return yfs_fs_setattr_size(op);
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSStoreStatus,
 				   sizeof(__be32) * 2 +
@@ -1200,7 +1200,7 @@ void yfs_fs_setattr(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1212,7 +1212,7 @@ void yfs_fs_setattr(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1358,7 +1358,7 @@ static const struct afs_call_type yfs_RXYFSGetVolumeStatus = {
  */
 void yfs_fs_get_volume_status(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -1372,7 +1372,7 @@ void yfs_fs_get_volume_status(struct afs_operation *op)
 					 sizeof(__be32),
 					 AFSOPAQUEMAX + 1));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1383,7 +1383,7 @@ void yfs_fs_get_volume_status(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1423,7 +1423,7 @@ static const struct afs_call_type yfs_RXYFSReleaseLock = {
  */
 void yfs_fs_set_lock(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -1436,7 +1436,7 @@ void yfs_fs_set_lock(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1448,7 +1448,7 @@ void yfs_fs_set_lock(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_calli(call, &vp->fid, op->lock.type);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1456,7 +1456,7 @@ void yfs_fs_set_lock(struct afs_operation *op)
  */
 void yfs_fs_extend_lock(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -1468,7 +1468,7 @@ void yfs_fs_extend_lock(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1479,7 +1479,7 @@ void yfs_fs_extend_lock(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1487,7 +1487,7 @@ void yfs_fs_extend_lock(struct afs_operation *op)
  */
 void yfs_fs_release_lock(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -1499,7 +1499,7 @@ void yfs_fs_release_lock(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1510,7 +1510,7 @@ void yfs_fs_release_lock(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1519,7 +1519,7 @@ void yfs_fs_release_lock(struct afs_operation *op)
 static int yfs_deliver_fs_fetch_status(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *vp = &op->file[op->fetch_status.which];
+	struct afs_vanalde_param *vp = &op->file[op->fetch_status.which];
 	const __be32 *bp;
 	int ret;
 
@@ -1548,16 +1548,16 @@ static const struct afs_call_type yfs_RXYFSFetchStatus = {
 };
 
 /*
- * Fetch the status information for a fid without needing a vnode handle.
+ * Fetch the status information for a fid without needing a vanalde handle.
  */
 void yfs_fs_fetch_status(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[op->fetch_status.which];
+	struct afs_vanalde_param *vp = &op->file[op->fetch_status.which];
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSFetchStatus,
 				   sizeof(__be32) * 2 +
@@ -1566,7 +1566,7 @@ void yfs_fs_fetch_status(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSCallBack) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1577,7 +1577,7 @@ void yfs_fs_fetch_status(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1727,14 +1727,14 @@ static const struct afs_call_type yfs_RXYFSInlineBulkStatus = {
  */
 void yfs_fs_inline_bulk_status(struct afs_operation *op)
 {
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	struct afs_call *call;
 	__be32 *bp;
 	int i;
 
 	_enter(",%x,{%llx:%llu},%u",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode, op->nr_files);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde, op->nr_files);
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSInlineBulkStatus,
 				   sizeof(__be32) +
@@ -1743,7 +1743,7 @@ void yfs_fs_inline_bulk_status(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFid) * op->nr_files,
 				   sizeof(struct yfs_xdr_YFSFetchStatus));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1758,7 +1758,7 @@ void yfs_fs_inline_bulk_status(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1767,7 +1767,7 @@ void yfs_fs_inline_bulk_status(struct afs_operation *op)
 static int yfs_deliver_fs_fetch_opaque_acl(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct yfs_acl *yacl = op->yacl;
 	struct afs_acl *acl;
 	const __be32 *bp;
@@ -1794,7 +1794,7 @@ static int yfs_deliver_fs_fetch_opaque_acl(struct afs_call *call)
 		if (yacl->flags & YFS_ACL_WANT_ACL) {
 			acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
 			if (!acl)
-				return -ENOMEM;
+				return -EANALMEM;
 			yacl->acl = acl;
 			acl->size = call->count2;
 			afs_extract_begin(call, acl->data, size);
@@ -1826,7 +1826,7 @@ static int yfs_deliver_fs_fetch_opaque_acl(struct afs_call *call)
 		if (yacl->flags & YFS_ACL_WANT_VOL_ACL) {
 			acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
 			if (!acl)
-				return -ENOMEM;
+				return -EANALMEM;
 			yacl->vol_acl = acl;
 			acl->size = call->count2;
 			afs_extract_begin(call, acl->data, size);
@@ -1896,12 +1896,12 @@ static const struct afs_call_type yfs_RXYFSFetchOpaqueACL = {
  */
 void yfs_fs_fetch_opaque_acl(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSFetchOpaqueACL,
 				   sizeof(__be32) * 2 +
@@ -1910,7 +1910,7 @@ void yfs_fs_fetch_opaque_acl(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1939,14 +1939,14 @@ static const struct afs_call_type yfs_RXYFSStoreOpaqueACL2 = {
  */
 void yfs_fs_store_opaque_acl2(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	struct afs_acl *acl = op->acl;
 	size_t size;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	size = round_up(acl->size, 4);
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSStoreOpaqueACL2,
@@ -1956,7 +1956,7 @@ void yfs_fs_store_opaque_acl2(struct afs_operation *op)
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;

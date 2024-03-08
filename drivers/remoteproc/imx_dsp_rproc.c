@@ -30,10 +30,10 @@
 /*
  * Module parameters
  */
-static unsigned int no_mailboxes;
-module_param_named(no_mailboxes, no_mailboxes, int, 0644);
-MODULE_PARM_DESC(no_mailboxes,
-		 "There is no mailbox between cores, so ignore remote proc reply after start, default is 0 (off).");
+static unsigned int anal_mailboxes;
+module_param_named(anal_mailboxes, anal_mailboxes, int, 0644);
+MODULE_PARM_DESC(anal_mailboxes,
+		 "There is anal mailbox between cores, so iganalre remote proc reply after start, default is 0 (off).");
 
 #define REMOTE_IS_READY				BIT(0)
 #define REMOTE_READY_WAIT_MAX_RETRIES		500
@@ -334,7 +334,7 @@ static int imx_dsp_rproc_start(struct rproc *rproc)
 					  rproc->bootaddr);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ret)
@@ -374,7 +374,7 @@ static int imx_dsp_rproc_stop(struct rproc *rproc)
 					  rproc->bootaddr);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ret)
@@ -414,7 +414,7 @@ static int imx_dsp_rproc_sys_to_da(struct imx_dsp_rproc *priv, u64 sys,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* Main virtqueue message work function
@@ -425,13 +425,13 @@ static int imx_dsp_rproc_sys_to_da(struct imx_dsp_rproc *priv, u64 sys,
  *
  * This work function processes both the Tx and Rx virtqueue indices on
  * every invocation. The rproc_vq_interrupt function can detect if there
- * are new unprocessed messages or not (returns IRQ_NONE vs IRQ_HANDLED),
- * but there is no need to check for these return values. The index 0
+ * are new unprocessed messages or analt (returns IRQ_ANALNE vs IRQ_HANDLED),
+ * but there is anal need to check for these return values. The index 0
  * triggering will process all pending Rx buffers, and the index 1 triggering
  * will process all newly available Tx buffers and will wakeup any potentially
  * blocked senders.
  *
- * NOTE:
+ * ANALTE:
  *    The current logic is based on an inherent design assumption of supporting
  *    only 2 vrings, but this can be changed if needed.
  */
@@ -489,7 +489,7 @@ static void imx_dsp_rproc_rx_tx_callback(struct mbox_client *cl, void *data)
  * @cl: mailbox client pointer used for requesting the mailbox channel
  * @data: mailbox payload
  *
- * For doorbell, there is no message specified, just set REMOTE_IS_READY
+ * For doorbell, there is anal message specified, just set REMOTE_IS_READY
  * flag.
  */
 static void imx_dsp_rproc_rxdb_callback(struct mbox_client *cl, void *data)
@@ -513,14 +513,14 @@ static int imx_dsp_rproc_mbox_alloc(struct imx_dsp_rproc *priv)
 	struct mbox_client *cl;
 	int ret;
 
-	if (!of_get_property(dev->of_node, "mbox-names", NULL))
+	if (!of_get_property(dev->of_analde, "mbox-names", NULL))
 		return 0;
 
 	cl = &priv->cl;
 	cl->dev = dev;
 	cl->tx_block = true;
 	cl->tx_tout = 100;
-	cl->knows_txdone = false;
+	cl->kanalws_txdone = false;
 	cl->rx_callback = imx_dsp_rproc_rx_tx_callback;
 
 	/* Channel for sending message */
@@ -567,13 +567,13 @@ free_channel_tx:
 }
 
 /*
- * imx_dsp_rproc_mbox_no_alloc()
+ * imx_dsp_rproc_mbox_anal_alloc()
  *
- * Empty function for no mailbox between cores
+ * Empty function for anal mailbox between cores
  *
  * Always return 0
  */
-static int imx_dsp_rproc_mbox_no_alloc(struct imx_dsp_rproc *priv)
+static int imx_dsp_rproc_mbox_anal_alloc(struct imx_dsp_rproc *priv)
 {
 	return 0;
 }
@@ -598,7 +598,7 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 	const struct imx_rproc_dcfg *dcfg = dsp_dcfg->dcfg;
 	struct rproc *rproc = priv->rproc;
 	struct device *dev = rproc->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_iterator it;
 	struct rproc_mem_entry *mem;
 	struct reserved_mem *rmem;
@@ -619,7 +619,7 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 		cpu_addr = devm_ioremap_wc(dev, att->sa, att->size);
 		if (!cpu_addr) {
 			dev_err(dev, "failed to map memory %p\n", &att->sa);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* Register memory region */
@@ -629,7 +629,7 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 		if (mem)
 			rproc_coredump_add_segment(rproc, da, att->size);
 		else
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rproc_add_carveout(rproc, mem);
 	}
@@ -637,40 +637,40 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 	of_phandle_iterator_init(&it, np, "memory-region", NULL, 0);
 	while (of_phandle_iterator_next(&it) == 0) {
 		/*
-		 * Ignore the first memory region which will be used vdev buffer.
-		 * No need to do extra handlings, rproc_add_virtio_dev will handle it.
+		 * Iganalre the first memory region which will be used vdev buffer.
+		 * Anal need to do extra handlings, rproc_add_virtio_dev will handle it.
 		 */
-		if (!strcmp(it.node->name, "vdev0buffer"))
+		if (!strcmp(it.analde->name, "vdev0buffer"))
 			continue;
 
-		rmem = of_reserved_mem_lookup(it.node);
+		rmem = of_reserved_mem_lookup(it.analde);
 		if (!rmem) {
-			of_node_put(it.node);
+			of_analde_put(it.analde);
 			dev_err(dev, "unable to acquire memory-region\n");
 			return -EINVAL;
 		}
 
 		if (imx_dsp_rproc_sys_to_da(priv, rmem->base, rmem->size, &da)) {
-			of_node_put(it.node);
+			of_analde_put(it.analde);
 			return -EINVAL;
 		}
 
 		cpu_addr = devm_ioremap_wc(dev, rmem->base, rmem->size);
 		if (!cpu_addr) {
-			of_node_put(it.node);
+			of_analde_put(it.analde);
 			dev_err(dev, "failed to map memory %p\n", &rmem->base);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* Register memory region */
 		mem = rproc_mem_entry_init(dev, (void __force *)cpu_addr, (dma_addr_t)rmem->base,
-					   rmem->size, da, NULL, NULL, it.node->name);
+					   rmem->size, da, NULL, NULL, it.analde->name);
 
 		if (mem) {
 			rproc_coredump_add_segment(rproc, da, rmem->size);
 		} else {
-			of_node_put(it.node);
-			return -ENOMEM;
+			of_analde_put(it.analde);
+			return -EANALMEM;
 		}
 
 		rproc_add_carveout(rproc, mem);
@@ -696,10 +696,10 @@ static int imx_dsp_rproc_prepare(struct rproc *rproc)
 	pm_runtime_get_sync(dev);
 
 	/*
-	 * Clear buffers after pm rumtime for internal ocram is not
-	 * accessible if power and clock are not enabled.
+	 * Clear buffers after pm rumtime for internal ocram is analt
+	 * accessible if power and clock are analt enabled.
 	 */
-	list_for_each_entry(carveout, &rproc->carveouts, node) {
+	list_for_each_entry(carveout, &rproc->carveouts, analde) {
 		if (carveout->va)
 			memset(carveout->va, 0, carveout->len);
 	}
@@ -724,13 +724,13 @@ static void imx_dsp_rproc_kick(struct rproc *rproc, int vqid)
 	__u32 mmsg;
 
 	if (!priv->tx_ch) {
-		dev_err(dev, "No initialized mbox tx channel\n");
+		dev_err(dev, "Anal initialized mbox tx channel\n");
 		return;
 	}
 
 	/*
 	 * Send the index of the triggered virtqueue as the mu payload.
-	 * Let remote processor know which virtqueue is used.
+	 * Let remote processor kanalw which virtqueue is used.
 	 */
 	mmsg = vqid;
 
@@ -771,7 +771,7 @@ static int imx_dsp_rproc_memcpy(void *dst, const void *src, size_t size)
 		/*
 		 * first read the 32bit data of dest, then change affected
 		 * bytes, and write back to dest.
-		 * For unaffected bytes, it should not be changed
+		 * For unaffected bytes, it should analt be changed
 		 */
 		tmp = readl(dest + q * 4);
 		tmp &= ~affected_mask;
@@ -819,7 +819,7 @@ static int imx_dsp_rproc_memset(void *addr, u8 value, size_t size)
 		/*
 		 * first read the 32bit data of addr, then change affected
 		 * bytes, and write back to addr.
-		 * For unaffected bytes, it should not be changed
+		 * For unaffected bytes, it should analt be changed
 		 */
 		tmp = readl(tmp_dst);
 		tmp &= ~affected_mask;
@@ -885,7 +885,7 @@ static int imx_dsp_rproc_elf_load_segments(struct rproc *rproc, const struct fir
 		}
 
 		if (!rproc_u64_fit_in_size_t(memsz)) {
-			dev_err(dev, "size (%llx) does not fit in size_t type\n",
+			dev_err(dev, "size (%llx) does analt fit in size_t type\n",
 				memsz);
 			ret = -EOVERFLOW;
 			break;
@@ -927,7 +927,7 @@ static int imx_dsp_rproc_elf_load_segments(struct rproc *rproc, const struct fir
 static int imx_dsp_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
 	if (rproc_elf_load_rsc_table(rproc, fw))
-		dev_warn(&rproc->dev, "no resource table found for this firmware\n");
+		dev_warn(&rproc->dev, "anal resource table found for this firmware\n");
 
 	return 0;
 }
@@ -957,11 +957,11 @@ static int imx_dsp_attach_pm_domains(struct imx_dsp_rproc *priv)
 	struct device *dev = priv->rproc->dev.parent;
 	int ret, i;
 
-	priv->num_domains = of_count_phandle_with_args(dev->of_node,
+	priv->num_domains = of_count_phandle_with_args(dev->of_analde,
 						       "power-domains",
 						       "#power-domain-cells");
 
-	/* If only one domain, then no need to link the device */
+	/* If only one domain, then anal need to link the device */
 	if (priv->num_domains <= 1)
 		return 0;
 
@@ -969,13 +969,13 @@ static int imx_dsp_attach_pm_domains(struct imx_dsp_rproc *priv)
 					  sizeof(*priv->pd_dev),
 					  GFP_KERNEL);
 	if (!priv->pd_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pd_dev_link = devm_kmalloc_array(dev, priv->num_domains,
 					       sizeof(*priv->pd_dev_link),
 					       GFP_KERNEL);
 	if (!priv->pd_dev_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < priv->num_domains; i++) {
 		priv->pd_dev[i] = dev_pm_domain_attach_by_id(dev, i);
@@ -1051,7 +1051,7 @@ static int imx_dsp_rproc_detect_mode(struct imx_dsp_rproc *priv)
 			return ret;
 		break;
 	case IMX_RPROC_MMIO:
-		regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "fsl,dsp-ctrl");
+		regmap = syscon_regmap_lookup_by_phandle(dev->of_analde, "fsl,dsp-ctrl");
 		if (IS_ERR(regmap)) {
 			dev_err(dev, "failed to find syscon\n");
 			return PTR_ERR(regmap);
@@ -1060,7 +1060,7 @@ static int imx_dsp_rproc_detect_mode(struct imx_dsp_rproc *priv)
 		priv->regmap = regmap;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1095,7 +1095,7 @@ static int imx_dsp_rproc_probe(struct platform_device *pdev)
 
 	dsp_dcfg = of_device_get_match_data(dev);
 	if (!dsp_dcfg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = rproc_of_parse_firmware(dev, 0, &fw_name);
 	if (ret) {
@@ -1107,14 +1107,14 @@ static int imx_dsp_rproc_probe(struct platform_device *pdev)
 	rproc = rproc_alloc(dev, "imx-dsp-rproc", &imx_dsp_rproc_ops, fw_name,
 			    sizeof(*priv));
 	if (!rproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = rproc->priv;
 	priv->rproc = rproc;
 	priv->dsp_dcfg = dsp_dcfg;
 
-	if (no_mailboxes)
-		imx_dsp_rproc_mbox_init = imx_dsp_rproc_mbox_no_alloc;
+	if (anal_mailboxes)
+		imx_dsp_rproc_mbox_init = imx_dsp_rproc_mbox_anal_alloc;
 	else
 		imx_dsp_rproc_mbox_init = imx_dsp_rproc_mbox_alloc;
 
@@ -1293,7 +1293,7 @@ static int imx_dsp_resume(struct device *dev)
 	 * is reset, the image segments are lost. So need to reload
 	 * firmware and restart the DSP if it is in running state.
 	 */
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+	ret = request_firmware_analwait(THIS_MODULE, FW_ACTION_UEVENT,
 				      rproc->firmware, dev, GFP_KERNEL,
 				      rproc, imx_dsp_load_firmware);
 	if (ret < 0) {

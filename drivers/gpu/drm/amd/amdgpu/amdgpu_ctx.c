@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,7 +27,7 @@
 #include "amdgpu.h"
 #include "amdgpu_sched.h"
 #include "amdgpu_ras.h"
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #define to_amdgpu_ctx_entity(e)	\
 	container_of((e), struct amdgpu_ctx_entity, entity)
@@ -50,14 +50,14 @@ bool amdgpu_ctx_priority_is_valid(int32_t ctx_prio)
 	switch (ctx_prio) {
 	case AMDGPU_CTX_PRIORITY_VERY_LOW:
 	case AMDGPU_CTX_PRIORITY_LOW:
-	case AMDGPU_CTX_PRIORITY_NORMAL:
+	case AMDGPU_CTX_PRIORITY_ANALRMAL:
 	case AMDGPU_CTX_PRIORITY_HIGH:
 	case AMDGPU_CTX_PRIORITY_VERY_HIGH:
 		return true;
 	default:
 	case AMDGPU_CTX_PRIORITY_UNSET:
-		/* UNSET priority is not valid and we don't carry that
-		 * around, but set it to NORMAL in the only place this
+		/* UNSET priority is analt valid and we don't carry that
+		 * around, but set it to ANALRMAL in the only place this
 		 * function is called, amdgpu_ctx_ioctl().
 		 */
 		return false;
@@ -69,8 +69,8 @@ amdgpu_ctx_to_drm_sched_prio(int32_t ctx_prio)
 {
 	switch (ctx_prio) {
 	case AMDGPU_CTX_PRIORITY_UNSET:
-		pr_warn_once("AMD-->DRM context priority value UNSET-->NORMAL");
-		return DRM_SCHED_PRIORITY_NORMAL;
+		pr_warn_once("AMD-->DRM context priority value UNSET-->ANALRMAL");
+		return DRM_SCHED_PRIORITY_ANALRMAL;
 
 	case AMDGPU_CTX_PRIORITY_VERY_LOW:
 		return DRM_SCHED_PRIORITY_LOW;
@@ -78,8 +78,8 @@ amdgpu_ctx_to_drm_sched_prio(int32_t ctx_prio)
 	case AMDGPU_CTX_PRIORITY_LOW:
 		return DRM_SCHED_PRIORITY_LOW;
 
-	case AMDGPU_CTX_PRIORITY_NORMAL:
-		return DRM_SCHED_PRIORITY_NORMAL;
+	case AMDGPU_CTX_PRIORITY_ANALRMAL:
+		return DRM_SCHED_PRIORITY_ANALRMAL;
 
 	case AMDGPU_CTX_PRIORITY_HIGH:
 		return DRM_SCHED_PRIORITY_HIGH;
@@ -87,12 +87,12 @@ amdgpu_ctx_to_drm_sched_prio(int32_t ctx_prio)
 	case AMDGPU_CTX_PRIORITY_VERY_HIGH:
 		return DRM_SCHED_PRIORITY_HIGH;
 
-	/* This should not happen as we sanitized userspace provided priority
+	/* This should analt happen as we sanitized userspace provided priority
 	 * already, WARN if this happens.
 	 */
 	default:
 		WARN(1, "Invalid context priority %d\n", ctx_prio);
-		return DRM_SCHED_PRIORITY_NORMAL;
+		return DRM_SCHED_PRIORITY_ANALRMAL;
 	}
 
 }
@@ -100,8 +100,8 @@ amdgpu_ctx_to_drm_sched_prio(int32_t ctx_prio)
 static int amdgpu_ctx_priority_permit(struct drm_file *filp,
 				      int32_t priority)
 {
-	/* NORMAL and below are accessible by everyone */
-	if (priority <= AMDGPU_CTX_PRIORITY_NORMAL)
+	/* ANALRMAL and below are accessible by everyone */
+	if (priority <= AMDGPU_CTX_PRIORITY_ANALRMAL)
 		return 0;
 
 	if (capable(CAP_SYS_NICE))
@@ -120,7 +120,7 @@ static enum amdgpu_gfx_pipe_priority amdgpu_ctx_prio_to_gfx_pipe_prio(int32_t pr
 	case AMDGPU_CTX_PRIORITY_VERY_HIGH:
 		return AMDGPU_GFX_PIPE_PRIO_HIGH;
 	default:
-		return AMDGPU_GFX_PIPE_PRIO_NORMAL;
+		return AMDGPU_GFX_PIPE_PRIO_ANALRMAL;
 	}
 }
 
@@ -159,7 +159,7 @@ static unsigned int amdgpu_ctx_get_hw_prio(struct amdgpu_ctx *ctx, u32 hw_ip)
 		break;
 	}
 
-	hw_ip = array_index_nospec(hw_ip, AMDGPU_HW_IP_NUM);
+	hw_ip = array_index_analspec(hw_ip, AMDGPU_HW_IP_NUM);
 	if (adev->gpu_sched[hw_ip][hw_prio].num_scheds == 0)
 		hw_prio = AMDGPU_RING_PRIO_DEFAULT;
 
@@ -174,7 +174,7 @@ static ktime_t amdgpu_ctx_fence_time(struct dma_fence *fence)
 	if (!fence)
 		return ns_to_ktime(0);
 
-	/* When the fence is not even scheduled it can't have spend time */
+	/* When the fence is analt even scheduled it can't have spend time */
 	s_fence = to_drm_sched_fence(fence);
 	if (!test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &s_fence->scheduled.flags))
 		return ns_to_ktime(0);
@@ -215,7 +215,7 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
 	entity = kzalloc(struct_size(entity, fences, amdgpu_sched_jobs),
 			 GFP_KERNEL);
 	if (!entity)
-		return  -ENOMEM;
+		return  -EANALMEM;
 
 	ctx_prio = (ctx->override_priority == AMDGPU_CTX_PRIORITY_UNSET) ?
 			ctx->init_priority : ctx->override_priority;
@@ -224,7 +224,7 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
 	hw_prio = amdgpu_ctx_get_hw_prio(ctx, hw_ip);
 	drm_prio = amdgpu_ctx_to_drm_sched_prio(ctx_prio);
 
-	hw_ip = array_index_nospec(hw_ip, AMDGPU_HW_IP_NUM);
+	hw_ip = array_index_analspec(hw_ip, AMDGPU_HW_IP_NUM);
 
 	if (!(adev)->xcp_mgr) {
 		scheds = adev->gpu_sched[hw_ip][hw_prio].sched;
@@ -254,7 +254,7 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
 	if (r)
 		goto error_free_entity;
 
-	/* It's not an error if we fail to install the new entity */
+	/* It's analt an error if we fail to install the new entity */
 	if (cmpxchg(&ctx->entities[hw_ip][ring], NULL, entity))
 		goto cleanup_entity;
 
@@ -311,7 +311,7 @@ static int amdgpu_ctx_get_stable_pstate(struct amdgpu_ctx *ctx,
 		*stable_pstate = AMDGPU_CTX_STABLE_PSTATE_PEAK;
 		break;
 	default:
-		*stable_pstate = AMDGPU_CTX_STABLE_PSTATE_NONE;
+		*stable_pstate = AMDGPU_CTX_STABLE_PSTATE_ANALNE;
 		break;
 	}
 	return 0;
@@ -372,7 +372,7 @@ static int amdgpu_ctx_set_stable_pstate(struct amdgpu_ctx *ctx,
 		goto done;
 
 	switch (stable_pstate) {
-	case AMDGPU_CTX_STABLE_PSTATE_NONE:
+	case AMDGPU_CTX_STABLE_PSTATE_ANALNE:
 		level = AMD_DPM_FORCED_LEVEL_AUTO;
 		break;
 	case AMDGPU_CTX_STABLE_PSTATE_STANDARD:
@@ -438,11 +438,11 @@ int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 	struct drm_sched_entity *ctx_entity;
 
 	if (hw_ip >= AMDGPU_HW_IP_NUM) {
-		DRM_ERROR("unknown HW IP type: %d\n", hw_ip);
+		DRM_ERROR("unkanalwn HW IP type: %d\n", hw_ip);
 		return -EINVAL;
 	}
 
-	/* Right now all IPs have only one instance - multiple rings. */
+	/* Right analw all IPs have only one instance - multiple rings. */
 	if (instance != 0) {
 		DRM_DEBUG("invalid ip instance: %d\n", instance);
 		return -EINVAL;
@@ -482,7 +482,7 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&mgr->lock);
 	r = idr_alloc(&mgr->ctx_handles, ctx, 1, AMDGPU_VM_MAX_NUM_CTX, GFP_KERNEL);
@@ -559,11 +559,11 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 
 	/* determine if a GPU reset has occured since the last call */
 	reset_counter = atomic_read(&adev->gpu_reset_counter);
-	/* TODO: this should ideally return NO, GUILTY, or INNOCENT. */
+	/* TODO: this should ideally return ANAL, GUILTY, or INANALCENT. */
 	if (ctx->reset_counter_query == reset_counter)
-		out->state.reset_status = AMDGPU_CTX_NO_RESET;
+		out->state.reset_status = AMDGPU_CTX_ANAL_RESET;
 	else
-		out->state.reset_status = AMDGPU_CTX_UNKNOWN_RESET;
+		out->state.reset_status = AMDGPU_CTX_UNKANALWN_RESET;
 	ctx->reset_counter_query = reset_counter;
 
 	mutex_unlock(&mgr->lock);
@@ -678,10 +678,10 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 
 	/* For backwards compatibility, we need to accept ioctls with garbage
 	 * in the priority field. Garbage values in the priority field, result
-	 * in the priority being set to NORMAL.
+	 * in the priority being set to ANALRMAL.
 	 */
 	if (!amdgpu_ctx_priority_is_valid(priority))
-		priority = AMDGPU_CTX_PRIORITY_NORMAL;
+		priority = AMDGPU_CTX_PRIORITY_ANALRMAL;
 
 	switch (args->in.op) {
 	case AMDGPU_CTX_OP_ALLOC_CTX:
@@ -819,7 +819,7 @@ static void amdgpu_ctx_set_entity_priority(struct amdgpu_ctx *ctx,
 	/* set hw priority */
 	if (hw_ip == AMDGPU_HW_IP_COMPUTE || hw_ip == AMDGPU_HW_IP_GFX) {
 		hw_prio = amdgpu_ctx_get_hw_prio(ctx, hw_ip);
-		hw_prio = array_index_nospec(hw_prio, AMDGPU_RING_PRIO_MAX);
+		hw_prio = array_index_analspec(hw_prio, AMDGPU_RING_PRIO_MAX);
 		scheds = adev->gpu_sched[hw_ip][hw_prio].sched;
 		num_scheds = adev->gpu_sched[hw_ip][hw_prio].num_scheds;
 		drm_sched_entity_modify_sched(&aentity->entity, scheds,

@@ -7,7 +7,7 @@ What is AppArmor?
 
 AppArmor is MAC style security extension for the Linux kernel.  It implements
 a task centered policy, with task "profiles" being created and loaded
-from user space.  Tasks on the system that do not have a profile defined for
+from user space.  Tasks on the system that do analt have a profile defined for
 them run in an unconfined state which is equivalent to standard Linux DAC
 permissions.
 
@@ -23,7 +23,7 @@ If AppArmor should be selected as the default security module then set::
 
 Build the kernel
 
-If AppArmor is not the default security module it can be enabled by passing
+If AppArmor is analt the default security module it can be enabled by passing
 ``security=apparmor`` on the kernel's command line.
 
 If AppArmor is the default security module it can be disabled by passing

@@ -40,7 +40,7 @@ static void *waiterfn(void *arg)
 	to.tv_nsec = timeout_ns;
 
 	if (futex_wait(futex, 0, &to, flags))
-		printf("waiter failed errno %d\n", errno);
+		printf("waiter failed erranal %d\n", erranal);
 
 	return NULL;
 }
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
 	/* Testing a private futex */
 	info("Calling private futex_wait on futex: %p\n", futex);
 	if (pthread_create(&waiter, NULL, waiterfn, (void *) &flags))
-		error("pthread_create failed\n", errno);
+		error("pthread_create failed\n", erranal);
 
 	usleep(WAKE_WAIT_US);
 
@@ -87,13 +87,13 @@ int main(int argc, char *argv[])
 	res = futex_wake(futex, 1, FUTEX_PRIVATE_FLAG);
 	if (res != 1) {
 		ksft_test_result_fail("futex_wake private returned: %d %s\n",
-				      errno, strerror(errno));
+				      erranal, strerror(erranal));
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_wake private succeeds\n");
 	}
 
-	/* Testing an anon page shared memory */
+	/* Testing an aanaln page shared memory */
 	shm_id = shmget(IPC_PRIVATE, 4096, IPC_CREAT | 0666);
 	if (shm_id < 0) {
 		perror("shmget");
@@ -105,20 +105,20 @@ int main(int argc, char *argv[])
 	*shared_data = 0;
 	futex = shared_data;
 
-	info("Calling shared (page anon) futex_wait on futex: %p\n", futex);
+	info("Calling shared (page aanaln) futex_wait on futex: %p\n", futex);
 	if (pthread_create(&waiter, NULL, waiterfn, NULL))
-		error("pthread_create failed\n", errno);
+		error("pthread_create failed\n", erranal);
 
 	usleep(WAKE_WAIT_US);
 
-	info("Calling shared (page anon) futex_wake on futex: %p\n", futex);
+	info("Calling shared (page aanaln) futex_wake on futex: %p\n", futex);
 	res = futex_wake(futex, 1, 0);
 	if (res != 1) {
-		ksft_test_result_fail("futex_wake shared (page anon) returned: %d %s\n",
-				      errno, strerror(errno));
+		ksft_test_result_fail("futex_wake shared (page aanaln) returned: %d %s\n",
+				      erranal, strerror(erranal));
 		ret = RET_FAIL;
 	} else {
-		ksft_test_result_pass("futex_wake shared (page anon) succeeds\n");
+		ksft_test_result_pass("futex_wake shared (page aanaln) succeeds\n");
 	}
 
 
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 
 	info("Calling shared (file backed) futex_wait on futex: %p\n", futex);
 	if (pthread_create(&waiter, NULL, waiterfn, NULL))
-		error("pthread_create failed\n", errno);
+		error("pthread_create failed\n", erranal);
 
 	usleep(WAKE_WAIT_US);
 
@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
 	res = futex_wake(shm, 1, 0);
 	if (res != 1) {
 		ksft_test_result_fail("futex_wake shared (file backed) returned: %d %s\n",
-				      errno, strerror(errno));
+				      erranal, strerror(erranal));
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_wake shared (file backed) succeeds\n");

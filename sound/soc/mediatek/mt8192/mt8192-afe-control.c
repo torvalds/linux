@@ -150,7 +150,7 @@ int mt8192_dai_set_priv(struct mtk_base_afe *afe, int id,
 				 priv_size,
 				 GFP_KERNEL);
 	if (!temp_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (priv_data)
 		memcpy(temp_data, priv_data, priv_size);

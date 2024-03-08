@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_CPU_IF_REGS_H_
@@ -50,7 +50,7 @@
 
 #define mmCPU_IF_CPU_SEI_INTR_MASK 0x4CC1148
 
-#define mmCPU_IF_AXI_SPLIT_NO_WR_INFLIGHT 0x4CC114C
+#define mmCPU_IF_AXI_SPLIT_ANAL_WR_INFLIGHT 0x4CC114C
 
 #define mmCPU_IF_AXI_SPLIT_SEI_INTR_ID 0x4CC1150
 

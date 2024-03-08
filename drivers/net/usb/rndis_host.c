@@ -18,10 +18,10 @@
 
 /*
  * RNDIS is NDIS remoted over USB.  It's a MSFT variant of CDC ACM ... of
- * course ACM was intended for modems, not Ethernet links!  USB's standard
+ * course ACM was intended for modems, analt Ethernet links!  USB's standard
  * for Ethernet links is "CDC Ethernet", which is significantly simpler.
  *
- * NOTE that Microsoft's "RNDIS 1.0" specification is incomplete.  Issues
+ * ANALTE that Microsoft's "RNDIS 1.0" specification is incomplete.  Issues
  * include:
  *    - Power management in particular relies on information that's scattered
  *	through other documentation, and which is incomplete or incorrect even
@@ -31,23 +31,23 @@
  *    - In some cases, MS-Windows will emit undocumented requests; this
  *	matters more to peripheral implementations than host ones.
  *
- * Moreover there's a no-open-specs variant of RNDIS called "ActiveSync".
+ * Moreover there's a anal-open-specs variant of RNDIS called "ActiveSync".
  *
  * For these reasons and others, ** USE OF RNDIS IS STRONGLY DISCOURAGED ** in
- * favor of such non-proprietary alternatives as CDC Ethernet or the newer (and
+ * favor of such analn-proprietary alternatives as CDC Ethernet or the newer (and
  * currently rare) "Ethernet Emulation Model" (EEM).
  */
 
 /*
- * RNDIS notifications from device: command completion; "reverse"
+ * RNDIS analtifications from device: command completion; "reverse"
  * keepalives; etc
  */
 void rndis_status(struct usbnet *dev, struct urb *urb)
 {
 	netdev_dbg(dev->net, "rndis status urb, len %d stat %d\n",
 		   urb->actual_length, urb->status);
-	// FIXME for keepalives, respond immediately (asynchronously)
-	// if not an RNDIS status, do like cdc_status(dev,urb) does
+	// FIXME for keepalives, respond immediately (asynchroanalusly)
+	// if analt an RNDIS status, do like cdc_status(dev,urb) does
 }
 EXPORT_SYMBOL_GPL(rndis_status);
 
@@ -81,17 +81,17 @@ static void rndis_msg_indicate(struct usbnet *dev, struct rndis_indicate *msg,
 /*
  * RPC done RNDIS-style.  Caller guarantees:
  * - message is properly byteswapped
- * - there's no other request pending
+ * - there's anal other request pending
  * - buf can hold up to 1KB response (required by RNDIS spec)
  * On return, the first few entries are already byteswapped.
  *
- * Call context is likely probe(), before interface name is known,
- * which is why we won't try to use it in the diagnostics.
+ * Call context is likely probe(), before interface name is kanalwn,
+ * which is why we won't try to use it in the diaganalstics.
  */
 int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 {
 	struct cdc_state	*info = (void *) &dev->data;
-	struct usb_cdc_notification notification;
+	struct usb_cdc_analtification analtification;
 	int			master_ifnum;
 	int			retval;
 	int			partial;
@@ -130,7 +130,7 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 			dev->udev,
 			usb_rcvintpipe(dev->udev,
 				       dev->status->desc.bEndpointAddress),
-			&notification, sizeof(notification), &partial,
+			&analtification, sizeof(analtification), &partial,
 			RNDIS_CONTROL_TIMEOUT_MS);
 		if (unlikely(retval < 0))
 			return retval;
@@ -197,7 +197,7 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 					le32_to_cpu(buf->msg_type), msg_len);
 			}
 		} else {
-			/* device probably issued a protocol stall; ignore */
+			/* device probably issued a protocol stall; iganalre */
 			dev_dbg(&info->control->dev,
 				"rndis response error, code %d\n", retval);
 		}
@@ -212,16 +212,16 @@ EXPORT_SYMBOL_GPL(rndis_command);
  * rndis_query:
  *
  * Performs a query for @oid along with 0 or more bytes of payload as
- * specified by @in_len. If @reply_len is not set to -1 then the reply
+ * specified by @in_len. If @reply_len is analt set to -1 then the reply
  * length is checked against this value, resulting in an error if it
  * doesn't match.
  *
- * NOTE: Adding a payload exactly or greater than the size of the expected
+ * ANALTE: Adding a payload exactly or greater than the size of the expected
  * response payload is an evident requirement MSFT added for ActiveSync.
  *
  * The only exception is for OIDs that return a variably sized response,
- * in which case no payload should be added.  This undocumented (and
- * nonsensical!) issue was found by sniffing protocol requests from the
+ * in which case anal payload should be added.  This undocumented (and
+ * analnsensical!) issue was found by sniffing protocol requests from the
  * ActiveSync 4.1 Windows driver.
  */
 static int rndis_query(struct usbnet *dev, struct usb_interface *intf,
@@ -274,7 +274,7 @@ response_error:
 	return -EDOM;
 }
 
-/* same as usbnet_netdev_ops but MTU change not allowed */
+/* same as usbnet_netdev_ops but MTU change analt allowed */
 static const struct net_device_ops rndis_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
@@ -310,7 +310,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	/* we can't rely on i/o from stack working, or stack allocation */
 	u.buf = kmalloc(CONTROL_BUFFER_SIZE, GFP_KERNEL);
 	if (!u.buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	retval = usbnet_generic_cdc_bind(dev, intf);
 	if (retval < 0)
 		goto fail;
@@ -318,14 +318,14 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	u.init->msg_type = cpu_to_le32(RNDIS_MSG_INIT);
 	u.init->msg_len = cpu_to_le32(sizeof *u.init);
 	u.init->major_version = cpu_to_le32(1);
-	u.init->minor_version = cpu_to_le32(0);
+	u.init->mianalr_version = cpu_to_le32(0);
 
 	/* max transfer (in spec) is 0x4000 at full speed, but for
 	 * TX we'll stick to one Ethernet packet plus RNDIS framing.
 	 * For RX we handle drivers that zero-pad to end-of-packet.
 	 * Don't let userspace change these settings.
 	 *
-	 * NOTE: there still seems to be weirdness here, as if we need
+	 * ANALTE: there still seems to be weirdness here, as if we need
 	 * to do some more things to make sure WinCE targets accept this.
 	 * They default to jumbograms of 8KB or 16KB, which is absurd
 	 * for such low data rates and which is also more than Linux
@@ -350,7 +350,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 
 	retval = rndis_command(dev, u.header, CONTROL_BUFFER_SIZE);
 	if (unlikely(retval < 0)) {
-		/* it might not even be an RNDIS device!! */
+		/* it might analt even be an RNDIS device!! */
 		dev_err(&intf->dev, "RNDIS init failed, %d\n", retval);
 		goto fail_and_release;
 	}
@@ -371,7 +371,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		net->mtu = dev->hard_mtu - net->hard_header_len;
 	}
 
-	/* REVISIT:  peripheral "alignment" request is ignored ... */
+	/* REVISIT:  peripheral "alignment" request is iganalred ... */
 	dev_dbg(&intf->dev,
 		"hard mtu %u (%u from dev), rx buflen %zu, align %d\n",
 		dev->hard_mtu, tmp, dev->rx_urb_size,
@@ -397,15 +397,15 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	if ((flags & FLAG_RNDIS_PHYM_WIRELESS) &&
 	    le32_to_cpup(phym) != RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN) {
 		netif_dbg(dev, probe, dev->net,
-			  "driver requires wireless physical medium, but device is not\n");
-		retval = -ENODEV;
+			  "driver requires wireless physical medium, but device is analt\n");
+		retval = -EANALDEV;
 		goto halt_fail_and_release;
 	}
-	if ((flags & FLAG_RNDIS_PHYM_NOT_WIRELESS) &&
+	if ((flags & FLAG_RNDIS_PHYM_ANALT_WIRELESS) &&
 	    le32_to_cpup(phym) == RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN) {
 		netif_dbg(dev, probe, dev->net,
-			  "driver requires non-wireless physical medium, but device is wireless.\n");
-		retval = -ENODEV;
+			  "driver requires analn-wireless physical medium, but device is wireless.\n");
+		retval = -EANALDEV;
 		goto halt_fail_and_release;
 	}
 
@@ -421,7 +421,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 
 	eth_hw_addr_set(net, bp);
 
-	/* set a nonzero filter to enable data transfers */
+	/* set a analnzero filter to enable data transfers */
 	memset(u.set, 0, sizeof *u.set);
 	u.set->msg_type = cpu_to_le32(RNDIS_MSG_SET);
 	u.set->msg_len = cpu_to_le32(4 + sizeof *u.set);
@@ -458,7 +458,7 @@ EXPORT_SYMBOL_GPL(generic_rndis_bind);
 
 static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	return generic_rndis_bind(dev, intf, FLAG_RNDIS_PHYM_NOT_WIRELESS);
+	return generic_rndis_bind(dev, intf, FLAG_RNDIS_PHYM_ANALT_WIRELESS);
 }
 
 static int zte_rndis_bind(struct usbnet *dev, struct usb_interface *intf)
@@ -475,7 +475,7 @@ void rndis_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct rndis_halt	*halt;
 
-	/* try to clear any rndis state/activity (no i/o from stack!) */
+	/* try to clear any rndis state/activity (anal i/o from stack!) */
 	halt = kzalloc(CONTROL_BUFFER_SIZE, GFP_KERNEL);
 	if (halt) {
 		halt->msg_type = cpu_to_le32(RNDIS_MSG_HALT);
@@ -489,13 +489,13 @@ void rndis_unbind(struct usbnet *dev, struct usb_interface *intf)
 EXPORT_SYMBOL_GPL(rndis_unbind);
 
 /*
- * DATA -- host must not write zlps
+ * DATA -- host must analt write zlps
  */
 int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	bool dst_mac_fixup;
 
-	/* This check is no longer done by usbnet */
+	/* This check is anal longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -560,11 +560,11 @@ rndis_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	if (likely(!skb_cloned(skb))) {
 		int	room = skb_headroom(skb);
 
-		/* enough head room as-is? */
+		/* eanalugh head room as-is? */
 		if (unlikely((sizeof *hdr) <= room))
 			goto fill;
 
-		/* enough room, but needs to be readjusted? */
+		/* eanalugh room, but needs to be readjusted? */
 		room += skb_tailroom(skb);
 		if (likely((sizeof *hdr) <= room)) {
 			skb->data = memmove(skb->head + sizeof *hdr,
@@ -600,7 +600,7 @@ EXPORT_SYMBOL_GPL(rndis_tx_fixup);
 
 static const struct driver_info	rndis_info = {
 	.description =	"RNDIS device",
-	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_NO_SETINT,
+	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_ANAL_SETINT,
 	.bind =		rndis_bind,
 	.unbind =	rndis_unbind,
 	.status =	rndis_status,
@@ -610,7 +610,7 @@ static const struct driver_info	rndis_info = {
 
 static const struct driver_info	rndis_poll_status_info = {
 	.description =	"RNDIS device (poll status before control)",
-	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_NO_SETINT,
+	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_ANAL_SETINT,
 	.data =		RNDIS_DRIVER_DATA_POLL_STATUS,
 	.bind =		rndis_bind,
 	.unbind =	rndis_unbind,
@@ -621,7 +621,7 @@ static const struct driver_info	rndis_poll_status_info = {
 
 static const struct driver_info	zte_rndis_info = {
 	.description =	"ZTE RNDIS device",
-	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_NO_SETINT,
+	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_ANAL_SETINT,
 	.data =		RNDIS_DRIVER_DATA_DST_MAC_FIXUP,
 	.bind =		zte_rndis_bind,
 	.unbind =	rndis_unbind,
@@ -666,7 +666,7 @@ static const struct usb_device_id	products [] = {
 	USB_INTERFACE_INFO(USB_CLASS_WIRELESS_CONTROLLER, 1, 3),
 	.driver_info = (unsigned long) &rndis_info,
 }, {
-	/* Novatel Verizon USB730L */
+	/* Analvatel Verizon USB730L */
 	USB_INTERFACE_INFO(USB_CLASS_MISC, 4, 1),
 	.driver_info = (unsigned long) &rndis_info,
 },

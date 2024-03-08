@@ -19,7 +19,7 @@ static int root_device_devm_init(struct kunit *test)
 	struct test_priv *priv;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv);
 	init_waitqueue_head(&priv->release_wq);
 
 	test->priv = priv;
@@ -38,7 +38,7 @@ static void devm_device_action(void *ptr)
 #define RELEASE_TIMEOUT_MS	100
 
 /*
- * Tests that a bus-less, non-probed device will run its device-managed
+ * Tests that a bus-less, analn-probed device will run its device-managed
  * actions when unregistered.
  */
 static void root_device_devm_register_unregister_test(struct kunit *test)
@@ -47,7 +47,7 @@ static void root_device_devm_register_unregister_test(struct kunit *test)
 	int ret;
 
 	priv->dev = root_device_register(DEVICE_NAME);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv->dev);
 
 	ret = devm_add_action_or_reset(priv->dev, devm_device_action, priv);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -69,7 +69,7 @@ static void devm_put_device_action(void *ptr)
 }
 
 /*
- * Tests that a bus-less, non-probed device will run its device-managed
+ * Tests that a bus-less, analn-probed device will run its device-managed
  * actions when unregistered, even if someone still holds a reference to
  * it.
  */
@@ -79,7 +79,7 @@ static void root_device_devm_register_get_unregister_with_devm_test(struct kunit
 	int ret;
 
 	priv->dev = root_device_register(DEVICE_NAME);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv->dev);
 
 	get_device(priv->dev);
 

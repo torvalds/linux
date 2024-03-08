@@ -41,7 +41,7 @@
 
 static unsigned int verbose;
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "verbose startup messages, default is 0 (no)");
+MODULE_PARM_DESC(verbose, "verbose startup messages, default is 0 (anal)");
 
 static int devs;
 
@@ -70,13 +70,13 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 
 	mantis = (struct mantis_pci *) dev_id;
 	if (unlikely(!mantis))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	ca = mantis->mantis_ca;
 
 	stat = mmread(MANTIS_INT_STAT);
 	mask = mmread(MANTIS_INT_MASK);
 	if (!(stat & mask))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	rst_mask  = MANTIS_GPIF_WRACK  |
 		    MANTIS_GPIF_OTHERR |
@@ -144,7 +144,7 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 		  MANTIS_INT_RISCI);
 
 	if (stat)
-		dprintk(MANTIS_DEBUG, 0, "<Unknown> Stat=<%02x> Mask=<%02x>", stat, mask);
+		dprintk(MANTIS_DEBUG, 0, "<Unkanalwn> Stat=<%02x> Mask=<%02x>", stat, mask);
 
 	dprintk(MANTIS_DEBUG, 0, "\n");
 	return IRQ_HANDLED;
@@ -160,7 +160,7 @@ static int mantis_pci_probe(struct pci_dev *pdev,
 
 	mantis = kzalloc(sizeof(*mantis), GFP_KERNEL);
 	if (!mantis)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata			= (void *)pci_id->driver_data;
 	mantis->num		= devs;
@@ -275,17 +275,17 @@ static const struct pci_device_id mantis_pci_table[] = {
 		   RC_MAP_TERRATEC_CINERGY_C_PCI),
 	MAKE_ENTRY(TERRATEC, CINERGY_S2_PCI_HD, &vp1041_config,
 		   RC_MAP_TERRATEC_CINERGY_S2_HD),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1033_DVB_S, &vp1033_config,
+	MAKE_ENTRY(TWINHAN_TECHANALLOGIES, MANTIS_VP_1033_DVB_S, &vp1033_config,
 		   NULL),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1034_DVB_S, &vp1034_config,
+	MAKE_ENTRY(TWINHAN_TECHANALLOGIES, MANTIS_VP_1034_DVB_S, &vp1034_config,
 		   NULL),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1041_DVB_S2, &vp1041_config,
+	MAKE_ENTRY(TWINHAN_TECHANALLOGIES, MANTIS_VP_1041_DVB_S2, &vp1041_config,
 		   RC_MAP_TWINHAN_DTV_CAB_CI),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_2033_DVB_C, &vp2033_config,
+	MAKE_ENTRY(TWINHAN_TECHANALLOGIES, MANTIS_VP_2033_DVB_C, &vp2033_config,
 		   RC_MAP_TWINHAN_DTV_CAB_CI),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_2040_DVB_C, &vp2040_config,
+	MAKE_ENTRY(TWINHAN_TECHANALLOGIES, MANTIS_VP_2040_DVB_C, &vp2040_config,
 		   NULL),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3030_DVB_T, &vp3030_config,
+	MAKE_ENTRY(TWINHAN_TECHANALLOGIES, MANTIS_VP_3030_DVB_T, &vp3030_config,
 		   NULL),
 	{ }
 };

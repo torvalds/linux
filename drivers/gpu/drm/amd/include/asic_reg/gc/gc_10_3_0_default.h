@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -134,7 +134,7 @@
 #define mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI_DEFAULT                                 0x00000000
 #define mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO_DEFAULT                                 0x00000000
 #define mmSDMA0_GFX_RB_AQL_CNTL_DEFAULT                                          0x00004000
-#define mmSDMA0_GFX_MINOR_PTR_UPDATE_DEFAULT                                     0x00000000
+#define mmSDMA0_GFX_MIANALR_PTR_UPDATE_DEFAULT                                     0x00000000
 #define mmSDMA0_GFX_MIDCMD_DATA0_DEFAULT                                         0x00000000
 #define mmSDMA0_GFX_MIDCMD_DATA1_DEFAULT                                         0x00000000
 #define mmSDMA0_GFX_MIDCMD_DATA2_DEFAULT                                         0x00000000
@@ -178,7 +178,7 @@
 #define mmSDMA0_PAGE_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_PAGE_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_PAGE_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_PAGE_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_PAGE_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_PAGE_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_PAGE_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_PAGE_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -222,7 +222,7 @@
 #define mmSDMA0_RLC0_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC0_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC0_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC0_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC0_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC0_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC0_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC0_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -266,7 +266,7 @@
 #define mmSDMA0_RLC1_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC1_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC1_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC1_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC1_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC1_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC1_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC1_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -310,7 +310,7 @@
 #define mmSDMA0_RLC2_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC2_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC2_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC2_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC2_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC2_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC2_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC2_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -354,7 +354,7 @@
 #define mmSDMA0_RLC3_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC3_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC3_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC3_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC3_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC3_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC3_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC3_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -398,7 +398,7 @@
 #define mmSDMA0_RLC4_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC4_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC4_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC4_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC4_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC4_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC4_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC4_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -442,7 +442,7 @@
 #define mmSDMA0_RLC5_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC5_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC5_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC5_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC5_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC5_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC5_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC5_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -486,7 +486,7 @@
 #define mmSDMA0_RLC6_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC6_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC6_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC6_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC6_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC6_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC6_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC6_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -530,7 +530,7 @@
 #define mmSDMA0_RLC7_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA0_RLC7_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA0_RLC7_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA0_RLC7_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA0_RLC7_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA0_RLC7_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC7_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA0_RLC7_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -656,7 +656,7 @@
 #define mmSDMA1_GFX_RB_WPTR_POLL_ADDR_HI_DEFAULT                                 0x00000000
 #define mmSDMA1_GFX_RB_WPTR_POLL_ADDR_LO_DEFAULT                                 0x00000000
 #define mmSDMA1_GFX_RB_AQL_CNTL_DEFAULT                                          0x00004000
-#define mmSDMA1_GFX_MINOR_PTR_UPDATE_DEFAULT                                     0x00000000
+#define mmSDMA1_GFX_MIANALR_PTR_UPDATE_DEFAULT                                     0x00000000
 #define mmSDMA1_GFX_MIDCMD_DATA0_DEFAULT                                         0x00000000
 #define mmSDMA1_GFX_MIDCMD_DATA1_DEFAULT                                         0x00000000
 #define mmSDMA1_GFX_MIDCMD_DATA2_DEFAULT                                         0x00000000
@@ -700,7 +700,7 @@
 #define mmSDMA1_PAGE_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA1_PAGE_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA1_PAGE_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA1_PAGE_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA1_PAGE_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA1_PAGE_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA1_PAGE_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA1_PAGE_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -744,7 +744,7 @@
 #define mmSDMA1_RLC0_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA1_RLC0_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA1_RLC0_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA1_RLC0_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA1_RLC0_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA1_RLC0_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC0_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC0_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -788,7 +788,7 @@
 #define mmSDMA1_RLC1_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA1_RLC1_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA1_RLC1_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA1_RLC1_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA1_RLC1_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA1_RLC1_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC1_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC1_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -832,7 +832,7 @@
 #define mmSDMA1_RLC2_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA1_RLC2_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA1_RLC2_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA1_RLC2_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA1_RLC2_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA1_RLC2_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC2_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC2_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -876,7 +876,7 @@
 #define mmSDMA1_RLC3_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA1_RLC3_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA1_RLC3_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA1_RLC3_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA1_RLC3_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA1_RLC3_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC3_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC3_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -920,7 +920,7 @@
 #define mmSDMA1_RLC4_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA1_RLC4_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA1_RLC4_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA1_RLC4_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA1_RLC4_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA1_RLC4_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC4_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC4_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -964,7 +964,7 @@
 #define mmSDMA1_RLC5_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA1_RLC5_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA1_RLC5_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA1_RLC5_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA1_RLC5_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA1_RLC5_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC5_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC5_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -1008,7 +1008,7 @@
 #define mmSDMA1_RLC6_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA1_RLC6_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA1_RLC6_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA1_RLC6_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA1_RLC6_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA1_RLC6_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC6_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC6_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -1052,7 +1052,7 @@
 #define mmSDMA1_RLC7_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA1_RLC7_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA1_RLC7_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA1_RLC7_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA1_RLC7_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA1_RLC7_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC7_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA1_RLC7_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -1099,7 +1099,7 @@
 #define mmGRBM_UTCL2_INVAL_RANGE_END_DEFAULT                                     0x000028c6
 #define mmGRBM_FENCE_RANGE0_DEFAULT                                              0x00000000
 #define mmGRBM_FENCE_RANGE1_DEFAULT                                              0x00000000
-#define mmGRBM_NOWHERE_DEFAULT                                                   0x00000000
+#define mmGRBM_ANALWHERE_DEFAULT                                                   0x00000000
 #define mmGRBM_SCRATCH_REG0_DEFAULT                                              0x00000000
 #define mmGRBM_SCRATCH_REG1_DEFAULT                                              0x00000000
 #define mmGRBM_SCRATCH_REG2_DEFAULT                                              0x00000000
@@ -1859,7 +1859,7 @@
 #define mmGCMC_SHARED_VIRT_RESET_REQ2_DEFAULT                                    0x00000000
 #define mmGCMC_VM_XGMI_LFB_CNTL_DEFAULT                                          0x00000000
 #define mmGCMC_VM_XGMI_LFB_SIZE_DEFAULT                                          0x00000000
-#define mmGCMC_VM_FB_NOALLOC_CNTL_DEFAULT                                        0x00000000
+#define mmGCMC_VM_FB_ANALALLOC_CNTL_DEFAULT                                        0x00000000
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS_DEFAULT                                  0x00000000
 
 
@@ -2193,7 +2193,7 @@
 #define mmCOMPUTE_USER_DATA_15_DEFAULT                                           0x00000000
 #define mmCOMPUTE_DISPATCH_TUNNEL_DEFAULT                                        0x00000000
 #define mmCOMPUTE_DISPATCH_END_DEFAULT                                           0x00000000
-#define mmCOMPUTE_NOWHERE_DEFAULT                                                0x00000000
+#define mmCOMPUTE_ANALWHERE_DEFAULT                                                0x00000000
 #define mmSH_RESERVED_REG0_DEFAULT                                               0x00000000
 #define mmSH_RESERVED_REG1_DEFAULT                                               0x00000000
 
@@ -3535,7 +3535,7 @@
 #define mmCP_CE_DB_CMD_BUFSZ_DEFAULT                                             0x00000000
 #define mmCP_PFP_COMPLETION_STATUS_DEFAULT                                       0x00000000
 #define mmCP_CE_COMPLETION_STATUS_DEFAULT                                        0x00000000
-#define mmCP_PRED_NOT_VISIBLE_DEFAULT                                            0x00000000
+#define mmCP_PRED_ANALT_VISIBLE_DEFAULT                                            0x00000000
 #define mmCP_PFP_METADATA_BASE_ADDR_DEFAULT                                      0x00000000
 #define mmCP_PFP_METADATA_BASE_ADDR_HI_DEFAULT                                   0x00000000
 #define mmCP_CE_METADATA_BASE_ADDR_DEFAULT                                       0x00000000
@@ -5409,7 +5409,7 @@
 #define mmSDMA2_GFX_RB_WPTR_POLL_ADDR_HI_DEFAULT                                 0x00000000
 #define mmSDMA2_GFX_RB_WPTR_POLL_ADDR_LO_DEFAULT                                 0x00000000
 #define mmSDMA2_GFX_RB_AQL_CNTL_DEFAULT                                          0x00004000
-#define mmSDMA2_GFX_MINOR_PTR_UPDATE_DEFAULT                                     0x00000000
+#define mmSDMA2_GFX_MIANALR_PTR_UPDATE_DEFAULT                                     0x00000000
 #define mmSDMA2_GFX_MIDCMD_DATA0_DEFAULT                                         0x00000000
 #define mmSDMA2_GFX_MIDCMD_DATA1_DEFAULT                                         0x00000000
 #define mmSDMA2_GFX_MIDCMD_DATA2_DEFAULT                                         0x00000000
@@ -5453,7 +5453,7 @@
 #define mmSDMA2_PAGE_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA2_PAGE_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA2_PAGE_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA2_PAGE_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA2_PAGE_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA2_PAGE_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA2_PAGE_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA2_PAGE_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -5497,7 +5497,7 @@
 #define mmSDMA2_RLC0_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA2_RLC0_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA2_RLC0_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA2_RLC0_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA2_RLC0_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA2_RLC0_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC0_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC0_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -5541,7 +5541,7 @@
 #define mmSDMA2_RLC1_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA2_RLC1_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA2_RLC1_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA2_RLC1_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA2_RLC1_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA2_RLC1_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC1_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC1_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -5585,7 +5585,7 @@
 #define mmSDMA2_RLC2_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA2_RLC2_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA2_RLC2_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA2_RLC2_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA2_RLC2_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA2_RLC2_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC2_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC2_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -5629,7 +5629,7 @@
 #define mmSDMA2_RLC3_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA2_RLC3_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA2_RLC3_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA2_RLC3_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA2_RLC3_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA2_RLC3_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC3_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC3_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -5673,7 +5673,7 @@
 #define mmSDMA2_RLC4_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA2_RLC4_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA2_RLC4_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA2_RLC4_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA2_RLC4_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA2_RLC4_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC4_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC4_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -5717,7 +5717,7 @@
 #define mmSDMA2_RLC5_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA2_RLC5_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA2_RLC5_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA2_RLC5_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA2_RLC5_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA2_RLC5_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC5_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC5_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -5761,7 +5761,7 @@
 #define mmSDMA2_RLC6_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA2_RLC6_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA2_RLC6_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA2_RLC6_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA2_RLC6_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA2_RLC6_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC6_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC6_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -5805,7 +5805,7 @@
 #define mmSDMA2_RLC7_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA2_RLC7_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA2_RLC7_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA2_RLC7_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA2_RLC7_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA2_RLC7_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC7_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA2_RLC7_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -5931,7 +5931,7 @@
 #define mmSDMA3_GFX_RB_WPTR_POLL_ADDR_HI_DEFAULT                                 0x00000000
 #define mmSDMA3_GFX_RB_WPTR_POLL_ADDR_LO_DEFAULT                                 0x00000000
 #define mmSDMA3_GFX_RB_AQL_CNTL_DEFAULT                                          0x00004000
-#define mmSDMA3_GFX_MINOR_PTR_UPDATE_DEFAULT                                     0x00000000
+#define mmSDMA3_GFX_MIANALR_PTR_UPDATE_DEFAULT                                     0x00000000
 #define mmSDMA3_GFX_MIDCMD_DATA0_DEFAULT                                         0x00000000
 #define mmSDMA3_GFX_MIDCMD_DATA1_DEFAULT                                         0x00000000
 #define mmSDMA3_GFX_MIDCMD_DATA2_DEFAULT                                         0x00000000
@@ -5975,7 +5975,7 @@
 #define mmSDMA3_PAGE_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA3_PAGE_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA3_PAGE_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA3_PAGE_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA3_PAGE_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA3_PAGE_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA3_PAGE_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA3_PAGE_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -6019,7 +6019,7 @@
 #define mmSDMA3_RLC0_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA3_RLC0_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA3_RLC0_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA3_RLC0_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA3_RLC0_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA3_RLC0_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC0_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC0_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -6063,7 +6063,7 @@
 #define mmSDMA3_RLC1_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA3_RLC1_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA3_RLC1_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA3_RLC1_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA3_RLC1_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA3_RLC1_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC1_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC1_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -6107,7 +6107,7 @@
 #define mmSDMA3_RLC2_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA3_RLC2_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA3_RLC2_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA3_RLC2_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA3_RLC2_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA3_RLC2_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC2_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC2_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -6151,7 +6151,7 @@
 #define mmSDMA3_RLC3_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA3_RLC3_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA3_RLC3_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA3_RLC3_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA3_RLC3_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA3_RLC3_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC3_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC3_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -6195,7 +6195,7 @@
 #define mmSDMA3_RLC4_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA3_RLC4_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA3_RLC4_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA3_RLC4_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA3_RLC4_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA3_RLC4_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC4_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC4_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -6239,7 +6239,7 @@
 #define mmSDMA3_RLC5_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA3_RLC5_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA3_RLC5_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA3_RLC5_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA3_RLC5_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA3_RLC5_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC5_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC5_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -6283,7 +6283,7 @@
 #define mmSDMA3_RLC6_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA3_RLC6_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA3_RLC6_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA3_RLC6_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA3_RLC6_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA3_RLC6_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC6_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC6_MIDCMD_DATA2_DEFAULT                                        0x00000000
@@ -6327,7 +6327,7 @@
 #define mmSDMA3_RLC7_RB_WPTR_POLL_ADDR_HI_DEFAULT                                0x00000000
 #define mmSDMA3_RLC7_RB_WPTR_POLL_ADDR_LO_DEFAULT                                0x00000000
 #define mmSDMA3_RLC7_RB_AQL_CNTL_DEFAULT                                         0x00004000
-#define mmSDMA3_RLC7_MINOR_PTR_UPDATE_DEFAULT                                    0x00000000
+#define mmSDMA3_RLC7_MIANALR_PTR_UPDATE_DEFAULT                                    0x00000000
 #define mmSDMA3_RLC7_MIDCMD_DATA0_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC7_MIDCMD_DATA1_DEFAULT                                        0x00000000
 #define mmSDMA3_RLC7_MIDCMD_DATA2_DEFAULT                                        0x00000000

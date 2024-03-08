@@ -23,15 +23,15 @@
 #include <linux/hiddev.h>
 #include <linux/compat.h>
 #include <linux/vmalloc.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include "usbhid.h"
 
-#ifdef CONFIG_USB_DYNAMIC_MINORS
-#define HIDDEV_MINOR_BASE	0
-#define HIDDEV_MINORS		256
+#ifdef CONFIG_USB_DYNAMIC_MIANALRS
+#define HIDDEV_MIANALR_BASE	0
+#define HIDDEV_MIANALRS		256
 #else
-#define HIDDEV_MINOR_BASE	96
-#define HIDDEV_MINORS		16
+#define HIDDEV_MIANALR_BASE	96
+#define HIDDEV_MIANALRS		16
 #endif
 #define HIDDEV_BUFFER_SIZE	2048
 
@@ -42,7 +42,7 @@ struct hiddev_list {
 	unsigned flags;
 	struct fasync_struct *fasync;
 	struct hiddev *hiddev;
-	struct list_head node;
+	struct list_head analde;
 	struct mutex thread_lock;
 };
 
@@ -69,7 +69,7 @@ hiddev_lookup_report(struct hid_device *hid, struct hiddev_report_info *rinfo)
 		(rinfo->report_type - HID_REPORT_TYPE_MIN);
 
 	switch (flags) {
-	case 0: /* Nothing to do -- report_id is already set correctly */
+	case 0: /* Analthing to do -- report_id is already set correctly */
 		break;
 
 	case HID_REPORT_ID_FIRST:
@@ -145,8 +145,8 @@ static void hiddev_send_event(struct hid_device *hid,
 	unsigned long flags;
 
 	spin_lock_irqsave(&hiddev->list_lock, flags);
-	list_for_each_entry(list, &hiddev->list, node) {
-		if (uref->field_index != HID_FIELD_INDEX_NONE ||
+	list_for_each_entry(list, &hiddev->list, analde) {
+		if (uref->field_index != HID_FIELD_INDEX_ANALNE ||
 		    (list->flags & HIDDEV_FLAG_REPORT) != 0) {
 			list->buffer[list->head] = *uref;
 			list->head = (list->head + 1) &
@@ -194,7 +194,7 @@ void hiddev_report_event(struct hid_device *hid, struct hid_report *report)
 	  ((type == HID_OUTPUT_REPORT) ? HID_REPORT_TYPE_OUTPUT :
 	   ((type == HID_FEATURE_REPORT) ? HID_REPORT_TYPE_FEATURE : 0));
 	uref.report_id = report->id;
-	uref.field_index = HID_FIELD_INDEX_NONE;
+	uref.field_index = HID_FIELD_INDEX_ANALNE;
 
 	hiddev_send_event(hid, &uref);
 }
@@ -213,20 +213,20 @@ static int hiddev_fasync(int fd, struct file *file, int on)
 /*
  * release file op
  */
-static int hiddev_release(struct inode * inode, struct file * file)
+static int hiddev_release(struct ianalde * ianalde, struct file * file)
 {
 	struct hiddev_list *list = file->private_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&list->hiddev->list_lock, flags);
-	list_del(&list->node);
+	list_del(&list->analde);
 	spin_unlock_irqrestore(&list->hiddev->list_lock, flags);
 
 	mutex_lock(&list->hiddev->existancelock);
 	if (!--list->hiddev->open) {
 		if (list->hiddev->exist) {
 			hid_hw_close(list->hiddev->hid);
-			hid_hw_power(list->hiddev->hid, PM_HINT_NORMAL);
+			hid_hw_power(list->hiddev->hid, PM_HINT_ANALRMAL);
 		} else {
 			mutex_unlock(&list->hiddev->existancelock);
 			kfree(list->hiddev);
@@ -250,7 +250,7 @@ static int __hiddev_open(struct hiddev *hiddev, struct file *file)
 
 	list = vzalloc(sizeof(*list));
 	if (!list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&list->thread_lock);
 	list->hiddev = hiddev;
@@ -262,19 +262,19 @@ static int __hiddev_open(struct hiddev *hiddev, struct file *file)
 
 		error = hid_hw_open(hiddev->hid);
 		if (error < 0)
-			goto err_normal_power;
+			goto err_analrmal_power;
 	}
 
 	spin_lock_irq(&hiddev->list_lock);
-	list_add_tail(&list->node, &hiddev->list);
+	list_add_tail(&list->analde, &hiddev->list);
 	spin_unlock_irq(&hiddev->list_lock);
 
 	file->private_data = list;
 
 	return 0;
 
-err_normal_power:
-	hid_hw_power(hiddev->hid, PM_HINT_NORMAL);
+err_analrmal_power:
+	hid_hw_power(hiddev->hid, PM_HINT_ANALRMAL);
 err_drop_count:
 	hiddev->open--;
 	vfree(list);
@@ -284,22 +284,22 @@ err_drop_count:
 /*
  * open file op
  */
-static int hiddev_open(struct inode *inode, struct file *file)
+static int hiddev_open(struct ianalde *ianalde, struct file *file)
 {
 	struct usb_interface *intf;
 	struct hid_device *hid;
 	struct hiddev *hiddev;
 	int res;
 
-	intf = usbhid_find_interface(iminor(inode));
+	intf = usbhid_find_interface(imianalr(ianalde));
 	if (!intf)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hid = usb_get_intfdata(intf);
 	hiddev = hid->hiddev;
 
 	mutex_lock(&hiddev->existancelock);
-	res = hiddev->exist ? __hiddev_open(hiddev, file) : -ENODEV;
+	res = hiddev->exist ? __hiddev_open(hiddev, file) : -EANALDEV;
 	mutex_unlock(&hiddev->existancelock);
 
 	return res;
@@ -347,12 +347,12 @@ static ssize_t hiddev_read(struct file * file, char __user * buffer, size_t coun
 					retval = -EIO;
 					break;
 				}
-				if (file->f_flags & O_NONBLOCK) {
+				if (file->f_flags & O_ANALNBLOCK) {
 					retval = -EAGAIN;
 					break;
 				}
 
-				/* let O_NONBLOCK tasks run */
+				/* let O_ANALNBLOCK tasks run */
 				mutex_unlock(&list->thread_lock);
 				schedule();
 				if (mutex_lock_interruptible(&list->thread_lock)) {
@@ -374,7 +374,7 @@ static ssize_t hiddev_read(struct file * file, char __user * buffer, size_t coun
 		while (list->head != list->tail &&
 		       retval + event_size <= count) {
 			if ((list->flags & HIDDEV_FLAG_UREF) == 0) {
-				if (list->buffer[list->tail].field_index != HID_FIELD_INDEX_NONE) {
+				if (list->buffer[list->tail].field_index != HID_FIELD_INDEX_ANALNE) {
 					struct hiddev_event event;
 
 					event.hid = list->buffer[list->tail].usage_code;
@@ -386,7 +386,7 @@ static ssize_t hiddev_read(struct file * file, char __user * buffer, size_t coun
 					retval += sizeof(struct hiddev_event);
 				}
 			} else {
-				if (list->buffer[list->tail].field_index != HID_FIELD_INDEX_NONE ||
+				if (list->buffer[list->tail].field_index != HID_FIELD_INDEX_ANALNE ||
 				    (list->flags & HIDDEV_FLAG_REPORT) != 0) {
 
 					if (copy_to_user(buffer + retval, list->buffer + list->tail, sizeof(struct hiddev_usage_ref))) {
@@ -407,7 +407,7 @@ static ssize_t hiddev_read(struct file * file, char __user * buffer, size_t coun
 
 /*
  * "poll" file op
- * No kernel lock - fine
+ * Anal kernel lock - fine
  */
 static __poll_t hiddev_poll(struct file *file, poll_table *wait)
 {
@@ -415,7 +415,7 @@ static __poll_t hiddev_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &list->hiddev->wait, wait);
 	if (list->head != list->tail)
-		return EPOLLIN | EPOLLRDNORM | EPOLLOUT;
+		return EPOLLIN | EPOLLRDANALRM | EPOLLOUT;
 	if (!list->hiddev->exist)
 		return EPOLLERR | EPOLLHUP;
 	return 0;
@@ -424,7 +424,7 @@ static __poll_t hiddev_poll(struct file *file, poll_table *wait)
 /*
  * "ioctl" file op
  */
-static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, void __user *user_arg)
+static analinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, void __user *user_arg)
 {
 	struct hid_device *hid = hiddev->hid;
 	struct hiddev_report_info rinfo;
@@ -436,7 +436,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 
 	uref_multi = kmalloc(sizeof(struct hiddev_usage_ref_multi), GFP_KERNEL);
 	if (!uref_multi)
-		return -ENOMEM;
+		return -EANALMEM;
 	uref = &uref_multi->uref;
 	if (cmd == HIDIOCGUSAGES || cmd == HIDIOCSUSAGES) {
 		if (copy_from_user(uref_multi, user_arg,
@@ -456,13 +456,13 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 
 		if (uref->field_index >= report->maxfield)
 			goto inval;
-		uref->field_index = array_index_nospec(uref->field_index,
+		uref->field_index = array_index_analspec(uref->field_index,
 						       report->maxfield);
 
 		field = report->field[uref->field_index];
 		if (uref->usage_index >= field->maxusage)
 			goto inval;
-		uref->usage_index = array_index_nospec(uref->usage_index,
+		uref->usage_index = array_index_analspec(uref->usage_index,
 						       field->maxusage);
 
 		uref->usage_code = field->usage[uref->usage_index].hid;
@@ -478,7 +478,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 		    uref->report_type == HID_REPORT_TYPE_INPUT)
 			goto inval;
 
-		if (uref->report_id == HID_REPORT_ID_UNKNOWN) {
+		if (uref->report_id == HID_REPORT_ID_UNKANALWN) {
 			field = hiddev_lookup_usage(hid, uref);
 			if (field == NULL)
 				goto inval;
@@ -490,7 +490,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 
 			if (uref->field_index >= report->maxfield)
 				goto inval;
-			uref->field_index = array_index_nospec(uref->field_index,
+			uref->field_index = array_index_analspec(uref->field_index,
 							       report->maxfield);
 
 			field = report->field[uref->field_index];
@@ -499,7 +499,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 				if (uref->usage_index >= field->maxusage)
 					goto inval;
 				uref->usage_index =
-					array_index_nospec(uref->usage_index,
+					array_index_analspec(uref->usage_index,
 							   field->maxusage);
 			} else if (uref->usage_index >= field->report_count)
 				goto inval;
@@ -512,7 +512,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 				goto inval;
 
 			uref->usage_index =
-				array_index_nospec(uref->usage_index,
+				array_index_analspec(uref->usage_index,
 						   field->report_count -
 						   uref_multi->num_values);
 		}
@@ -563,7 +563,7 @@ inval:
 	}
 }
 
-static noinline int hiddev_ioctl_string(struct hiddev *hiddev, unsigned int cmd, void __user *user_arg)
+static analinline int hiddev_ioctl_string(struct hiddev *hiddev, unsigned int cmd, void __user *user_arg)
 {
 	struct hid_device *hid = hiddev->hid;
 	struct usb_device *dev = hid_to_usb_dev(hid);
@@ -574,7 +574,7 @@ static noinline int hiddev_ioctl_string(struct hiddev *hiddev, unsigned int cmd,
 		return -EFAULT;
 
 	if ((buf = kmalloc(HID_STRING_SIZE, GFP_KERNEL)) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if ((len = usb_string(dev, idx, buf, HID_STRING_SIZE-1)) < 0) {
 		kfree(buf);
@@ -605,11 +605,11 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *user_arg = (void __user *)arg;
 	int i, r = -EINVAL;
 
-	/* Called without BKL by compat methods so no BKL taken */
+	/* Called without BKL by compat methods so anal BKL taken */
 
 	mutex_lock(&hiddev->existancelock);
 	if (!hiddev->exist) {
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto ret_unlock;
 	}
 
@@ -760,7 +760,7 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if (finfo.field_index >= report->maxfield)
 			break;
-		finfo.field_index = array_index_nospec(finfo.field_index,
+		finfo.field_index = array_index_analspec(finfo.field_index,
 						       report->maxfield);
 
 		field = report->field[finfo.field_index];
@@ -805,7 +805,7 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if (cinfo.index >= hid->maxcollection)
 			break;
-		cinfo.index = array_index_nospec(cinfo.index,
+		cinfo.index = array_index_analspec(cinfo.index,
 						 hid->maxcollection);
 
 		cinfo.type = hid->collection[cinfo.index].type;
@@ -854,19 +854,19 @@ static const struct file_operations hiddev_fops = {
 	.unlocked_ioctl =	hiddev_ioctl,
 	.fasync =	hiddev_fasync,
 	.compat_ioctl	= compat_ptr_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
-static char *hiddev_devnode(const struct device *dev, umode_t *mode)
+static char *hiddev_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
 }
 
 static struct usb_class_driver hiddev_class = {
 	.name =		"hiddev%d",
-	.devnode =	hiddev_devnode,
+	.devanalde =	hiddev_devanalde,
 	.fops =		&hiddev_fops,
-	.minor_base =	HIDDEV_MINOR_BASE,
+	.mianalr_base =	HIDDEV_MIANALR_BASE,
 };
 
 /*
@@ -891,7 +891,7 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 	}
 
 	if (!(hiddev = kzalloc(sizeof(struct hiddev), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&hiddev->wait);
 	INIT_LIST_HEAD(&hiddev->list);
@@ -902,19 +902,19 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 	hiddev->exist = 1;
 	retval = usb_register_dev(usbhid->intf, &hiddev_class);
 	if (retval) {
-		hid_err(hid, "Not able to get a minor for this device\n");
+		hid_err(hid, "Analt able to get a mianalr for this device\n");
 		hid->hiddev = NULL;
 		kfree(hiddev);
 		return retval;
 	}
 
 	/*
-	 * If HID_QUIRK_NO_INIT_REPORTS is set, make sure we don't initialize
+	 * If HID_QUIRK_ANAL_INIT_REPORTS is set, make sure we don't initialize
 	 * the reports.
 	 */
-	hiddev->initialized = hid->quirks & HID_QUIRK_NO_INIT_REPORTS;
+	hiddev->initialized = hid->quirks & HID_QUIRK_ANAL_INIT_REPORTS;
 
-	hiddev->minor = usbhid->intf->minor;
+	hiddev->mianalr = usbhid->intf->mianalr;
 
 	return 0;
 }

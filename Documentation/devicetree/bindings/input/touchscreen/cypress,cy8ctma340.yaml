@@ -6,7 +6,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Cypress CY8CTMA340 series touchscreen controller
 
-description: The Cypress CY8CTMA340 series (also known as "CYTTSP" after
+description: The Cypress CY8CTMA340 series (also kanalwn as "CYTTSP" after
   the marketing name Cypress TrueTouch Standard Product) touchscreens can
   be connected to either I2C or SPI buses.
 
@@ -18,7 +18,7 @@ allOf:
   - $ref: touchscreen.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^touchscreen(@.*)?$"
 
   compatible:
@@ -96,7 +96,7 @@ properties:
     maximum: 2550
 
   touch-timeout-ms:
-    description: minimum time in ms spent in the active power state while no
+    description: minimum time in ms spent in the active power state while anal
       touches are detected before entering low-power mode
     minimum: 0
     maximum: 2550

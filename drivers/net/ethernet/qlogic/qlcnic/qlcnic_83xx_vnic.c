@@ -29,8 +29,8 @@ int qlcnic_83xx_disable_vnic_mode(struct qlcnic_adapter *adapter, int lock)
 			return -EBUSY;
 	}
 
-	QLCWRX(adapter->ahw, QLC_83XX_VNIC_STATE, QLCNIC_DEV_NPAR_NON_OPER);
-	ahw->idc.vnic_state = QLCNIC_DEV_NPAR_NON_OPER;
+	QLCWRX(adapter->ahw, QLC_83XX_VNIC_STATE, QLCNIC_DEV_NPAR_ANALN_OPER);
+	ahw->idc.vnic_state = QLCNIC_DEV_NPAR_ANALN_OPER;
 
 	if (lock)
 		qlcnic_83xx_unlock_driver(adapter);
@@ -158,7 +158,7 @@ static int qlcnic_83xx_init_privileged_vnic(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_83xx_init_non_privileged_vnic(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_init_analn_privileged_vnic(struct qlcnic_adapter *adapter)
 {
 	int err = -EIO;
 
@@ -194,7 +194,7 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_nic_template *nic_ops = adapter->nic_ops;
 
-	qlcnic_get_func_no(adapter);
+	qlcnic_get_func_anal(adapter);
 	op_mode = QLCRDX(adapter->ahw, QLC_83XX_DRV_OP_MODE);
 
 	if (op_mode == QLC_83XX_DEFAULT_OPMODE)
@@ -203,10 +203,10 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 		priv_level = QLC_83XX_GET_FUNC_PRIVILEGE(op_mode,
 							 ahw->pci_func);
 	switch (priv_level) {
-	case QLCNIC_NON_PRIV_FUNC:
-		ahw->op_mode = QLCNIC_NON_PRIV_FUNC;
+	case QLCNIC_ANALN_PRIV_FUNC:
+		ahw->op_mode = QLCNIC_ANALN_PRIV_FUNC;
 		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
-		nic_ops->init_driver = qlcnic_83xx_init_non_privileged_vnic;
+		nic_ops->init_driver = qlcnic_83xx_init_analn_privileged_vnic;
 		break;
 	case QLCNIC_PRIV_FUNC:
 		ahw->op_mode = QLCNIC_PRIV_FUNC;
@@ -232,7 +232,7 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 		adapter->rx_mac_learn = false;
 	}
 
-	ahw->idc.vnic_state = QLCNIC_DEV_NPAR_NON_OPER;
+	ahw->idc.vnic_state = QLCNIC_DEV_NPAR_ANALN_OPER;
 	ahw->idc.vnic_wait_limit = QLCNIC_DEV_NPAR_OPER_TIMEO;
 
 	return 0;
@@ -253,7 +253,7 @@ int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *adapter)
 
 	if (state != QLCNIC_DEV_NPAR_OPER) {
 		dev_err(&adapter->pdev->dev,
-			"vNIC mode not operational, state check timed out.\n");
+			"vNIC mode analt operational, state check timed out.\n");
 		return -EIO;
 	}
 

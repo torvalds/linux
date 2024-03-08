@@ -171,7 +171,7 @@ qla24xx_configure_prot_mode(srb_t *sp, uint16_t *fw_prot_opts)
 		else
 			*fw_prot_opts |= PO_MODE_DIF_PASS;
 		break;
-	default:	/* Normal Request */
+	default:	/* Analrmal Request */
 		*fw_prot_opts |= PO_MODE_DIF_PASS;
 		break;
 	}
@@ -205,8 +205,8 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 	/* Update entry type to indicate Command Type 2 IOCB */
 	put_unaligned_le32(COMMAND_TYPE, &cmd_pkt->entry_type);
 
-	/* No data transfer */
-	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
+	/* Anal data transfer */
+	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_ANALNE) {
 		cmd_pkt->byte_count = cpu_to_le32(0);
 		return;
 	}
@@ -261,8 +261,8 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 	/* Update entry type to indicate Command Type 3 IOCB */
 	put_unaligned_le32(COMMAND_A64_TYPE, &cmd_pkt->entry_type);
 
-	/* No data transfer */
-	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
+	/* Anal data transfer */
+	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_ANALNE) {
 		cmd_pkt->byte_count = cpu_to_le32(0);
 		return;
 	}
@@ -295,7 +295,7 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 }
 
 /*
- * Find the first handle that is not in use, starting from
+ * Find the first handle that is analt in use, starting from
  * req->current_outstanding_cmd + 1. The caller must hold the lock that is
  * associated with @req.
  */
@@ -318,7 +318,7 @@ uint32_t qla2xxx_get_next_handle(struct req_que *req)
  * qla2x00_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns analn-zero if a failure occurred, else zero.
  */
 int
 qla2x00_start_scsi(srb_t *sp)
@@ -345,7 +345,7 @@ qla2x00_start_scsi(srb_t *sp)
 	cmd = GET_CMD_SP(sp);
 	req = ha->req_q_map[0];
 	rsp = ha->rsp_q_map[0];
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kanalw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -384,7 +384,7 @@ qla2x00_start_scsi(srb_t *sp)
 		else
 			req->cnt = req->length -
 			    (req->ring_index - cnt);
-		/* If still no head room then bail out */
+		/* If still anal head room then bail out */
 		if (req->cnt < (req_cnt + 2))
 			goto queuing_error;
 	}
@@ -501,9 +501,9 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
  * @lun: LUN
  * @type: marker modifier
  *
- * Can be called from both normal and interrupt context.
+ * Can be called from both analrmal and interrupt context.
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns analn-zero if a failure occurred, else zero.
  */
 static int
 __qla2x00_marker(struct scsi_qla_host *vha, struct qla_qpair *qpair,
@@ -605,8 +605,8 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 	/* Update entry type to indicate Command Type 3 IOCB */
 	put_unaligned_le32(COMMAND_TYPE_6, &cmd_pkt->entry_type);
 
-	/* No data transfer */
-	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE ||
+	/* Anal data transfer */
+	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_ANALNE ||
 	    tot_dsds == 0) {
 		cmd_pkt->byte_count = cpu_to_le32(0);
 		return 0;
@@ -713,8 +713,8 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	/* Update entry type to indicate Command Type 3 IOCB */
 	put_unaligned_le32(COMMAND_TYPE_7, &cmd_pkt->entry_type);
 
-	/* No data transfer */
-	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
+	/* Anal data transfer */
+	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_ANALNE) {
 		cmd_pkt->byte_count = cpu_to_le32(0);
 		return;
 	}
@@ -832,7 +832,7 @@ qla24xx_get_one_block_sg(uint32_t blk_sz, struct qla2_sgx *sgx,
 }
 
 int
-qla24xx_walk_and_build_sglist_no_difb(struct qla_hw_data *ha, srb_t *sp,
+qla24xx_walk_and_build_sglist_anal_difb(struct qla_hw_data *ha, srb_t *sp,
 	struct dsd64 *dsd, uint16_t tot_dsds, struct qla_tc_param *tc)
 {
 	void *next_dsd;
@@ -934,7 +934,7 @@ alloc_and_fill:
 				sg_prot = sg_next(sg_prot);
 			}
 
-			partial = 1; /* So as to not re-enter this block */
+			partial = 1; /* So as to analt re-enter this block */
 			goto alloc_and_fill;
 		}
 	}
@@ -1099,7 +1099,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 		u32 ldma_sg_len = 0;
 		u8 ldma_needed = 1;
 
-		difctx->no_dif_bundl = 0;
+		difctx->anal_dif_bundl = 0;
 		difctx->dif_bundl_len = 0;
 
 		/* Track DSD buffers */
@@ -1152,7 +1152,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 					}
 					ha->dif_bundle_dma_allocs++;
 					ldma_needed = 0;
-					difctx->no_dif_bundl++;
+					difctx->anal_dif_bundl++;
 					list_add_tail(&dsd_ptr->list,
 					    &difctx->ldif_dma_hndl_list);
 				}
@@ -1178,10 +1178,10 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 			}
 		}
 
-		track_difbundl_buf = used_dsds = difctx->no_dif_bundl;
+		track_difbundl_buf = used_dsds = difctx->anal_dif_bundl;
 		ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe025,
-		    "dif_bundl_len=%x, no_dif_bundl=%x track_difbundl_buf: %x\n",
-		    difctx->dif_bundl_len, difctx->no_dif_bundl,
+		    "dif_bundl_len=%x, anal_dif_bundl=%x track_difbundl_buf: %x\n",
+		    difctx->dif_bundl_len, difctx->anal_dif_bundl,
 		    track_difbundl_buf);
 
 		if (sp)
@@ -1218,7 +1218,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 				}
 				ha->dif_bundle_kallocs++;
 
-				difctx->no_ldif_dsd++;
+				difctx->anal_ldif_dsd++;
 				/* allocate new list */
 				dsd_ptr->dsd_addr =
 				    dma_pool_alloc(ha->dl_dma_pool, GFP_ATOMIC,
@@ -1263,8 +1263,8 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 		}
 
 		ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe026,
-		    "%s: no_ldif_dsd:%x, no_dif_bundl:%x\n", __func__,
-			difctx->no_ldif_dsd, difctx->no_dif_bundl);
+		    "%s: anal_ldif_dsd:%x, anal_dif_bundl:%x\n", __func__,
+			difctx->anal_ldif_dsd, difctx->anal_dif_bundl);
 	} else {
 		for_each_sg(sgl, sg, tot_dsds, i) {
 			/* Allocate additional continuation packets? */
@@ -1360,9 +1360,9 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	vha = sp->vha;
 	ha = vha->hw;
 
-	/* No data transfer */
+	/* Anal data transfer */
 	data_bytes = scsi_bufflen(cmd);
-	if (!data_bytes || cmd->sc_data_direction == DMA_NONE) {
+	if (!data_bytes || cmd->sc_data_direction == DMA_ANALNE) {
 		cmd_pkt->byte_count = cpu_to_le32(0);
 		return QLA_SUCCESS;
 	}
@@ -1473,7 +1473,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	}
 
 	if (!bundling) {
-		cur_dsd = &crc_ctx_pkt->u.nobundling.data_dsd[0];
+		cur_dsd = &crc_ctx_pkt->u.analbundling.data_dsd[0];
 	} else {
 		/*
 		 * Configure Bundling if we need to fetch interlaving
@@ -1497,7 +1497,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	    additional_fcpcdb_len);
 	*fcp_dl = htonl(total_bytes);
 
-	if (!data_bytes || cmd->sc_data_direction == DMA_NONE) {
+	if (!data_bytes || cmd->sc_data_direction == DMA_ANALNE) {
 		cmd_pkt->byte_count = cpu_to_le32(0);
 		return QLA_SUCCESS;
 	}
@@ -1506,7 +1506,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	cmd_pkt->control_flags |= cpu_to_le16(CF_DATA_SEG_DESCR_ENABLE);
 
 	if (!bundling && tot_prot_dsds) {
-		if (qla24xx_walk_and_build_sglist_no_difb(ha, sp,
+		if (qla24xx_walk_and_build_sglist_anal_difb(ha, sp,
 			cur_dsd, tot_dsds, NULL))
 			goto crc_queuing_error;
 	} else if (qla24xx_walk_and_build_sglist(ha, sp, cur_dsd,
@@ -1533,7 +1533,7 @@ crc_queuing_error:
  * qla24xx_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns analn-zero if a failure occurred, else zero.
  */
 int
 qla24xx_start_scsi(srb_t *sp)
@@ -1559,7 +1559,7 @@ qla24xx_start_scsi(srb_t *sp)
 	req = vha->req;
 	rsp = req->rsp;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kanalw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -1689,7 +1689,7 @@ queuing_error:
  * qla24xx_dif_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns analn-zero if a failure occurred, else zero.
  */
 int
 qla24xx_dif_start_scsi(srb_t *sp)
@@ -1714,7 +1714,7 @@ qla24xx_dif_start_scsi(srb_t *sp)
 #define QDSS_GOT_Q_SPACE	BIT_0
 
 	/* Only process protection or >16 cdb in this routine */
-	if (scsi_get_prot_op(cmd) == SCSI_PROT_NORMAL) {
+	if (scsi_get_prot_op(cmd) == SCSI_PROT_ANALRMAL) {
 		if (cmd->cmd_len <= 16)
 			return qla24xx_start_scsi(sp);
 		else
@@ -1725,7 +1725,7 @@ qla24xx_dif_start_scsi(srb_t *sp)
 	req = vha->req;
 	rsp = req->rsp;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kanalw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -1897,7 +1897,7 @@ queuing_error:
  * qla2xxx_start_scsi_mq() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns analn-zero if a failure occurred, else zero.
  */
 static int
 qla2xxx_start_scsi_mq(srb_t *sp)
@@ -1927,7 +1927,7 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	req = qpair->req;
 	rsp = qpair->rsp;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kanalw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -2057,7 +2057,7 @@ queuing_error:
  * qla2xxx_dif_start_scsi_mq() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns analn-zero if a failure occurred, else zero.
  */
 int
 qla2xxx_dif_start_scsi_mq(srb_t *sp)
@@ -2084,18 +2084,18 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 
 	/* Check for host side state */
 	if (!qpair->online) {
-		cmd->result = DID_NO_CONNECT << 16;
+		cmd->result = DID_ANAL_CONNECT << 16;
 		return QLA_INTERFACE_ERROR;
 	}
 
 	if (!qpair->difdix_supported &&
-		scsi_get_prot_op(cmd) != SCSI_PROT_NORMAL) {
-		cmd->result = DID_NO_CONNECT << 16;
+		scsi_get_prot_op(cmd) != SCSI_PROT_ANALRMAL) {
+		cmd->result = DID_ANAL_CONNECT << 16;
 		return QLA_INTERFACE_ERROR;
 	}
 
 	/* Only process protection or >16 cdb in this routine */
-	if (scsi_get_prot_op(cmd) == SCSI_PROT_NORMAL) {
+	if (scsi_get_prot_op(cmd) == SCSI_PROT_ANALRMAL) {
 		if (cmd->cmd_len <= 16)
 			return qla2xxx_start_scsi_mq(sp);
 		else
@@ -2108,7 +2108,7 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 	rsp = qpair->rsp;
 	req = qpair->req;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kanalw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -2333,7 +2333,7 @@ __qla2x00_alloc_iocbs(struct qla_qpair *qpair, srb_t *sp)
 		handle = qla2xxx_get_next_handle(req);
 		if (handle == 0) {
 			ql_log(ql_log_warn, vha, 0x700b,
-			    "No room on outstanding cmd array.\n");
+			    "Anal room on outstanding cmd array.\n");
 			goto queuing_error;
 		}
 
@@ -2384,7 +2384,7 @@ qla24xx_prli_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 {
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 
-	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->entry_type = LOGIANALUT_PORT_IOCB_TYPE;
 	logio->control_flags = cpu_to_le16(LCF_COMMAND_PRLI);
 	if (lio->u.logio.flags & SRB_LOGIN_NVME_PRLI) {
 		logio->control_flags |= cpu_to_le16(LCF_NVME_PRLI);
@@ -2416,7 +2416,7 @@ qla24xx_login_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 {
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 
-	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->entry_type = LOGIANALUT_PORT_IOCB_TYPE;
 	logio->control_flags = cpu_to_le16(LCF_COMMAND_PLOGI);
 
 	if (lio->u.logio.flags & SRB_LOGIN_PRLI_ONLY) {
@@ -2469,7 +2469,7 @@ static void
 qla24xx_logout_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 {
 	u16 control_flags = LCF_COMMAND_LOGO;
-	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->entry_type = LOGIANALUT_PORT_IOCB_TYPE;
 
 	if (sp->fcport->explicit_logout) {
 		control_flags |= LCF_EXPL_LOGO|LCF_FREE_NPORT;
@@ -2509,7 +2509,7 @@ qla2x00_logout_iocb(srb_t *sp, struct mbx_entry *mbx)
 static void
 qla24xx_adisc_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 {
-	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->entry_type = LOGIANALUT_PORT_IOCB_TYPE;
 	logio->control_flags = cpu_to_le16(LCF_COMMAND_ADISC);
 	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	logio->vp_index = sp->vha->vp_idx;
@@ -2684,7 +2684,7 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 	fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
 	if (!fcport) {
 	       ql_log(ql_log_info, vha, 0x70e5, "fcport allocation failed\n");
-	       return -ENOMEM;
+	       return -EANALMEM;
 	}
 
 	/* Alloc SRB structure
@@ -2695,7 +2695,7 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 		kfree(fcport);
 		ql_log(ql_log_info, vha, 0x70e6,
 		 "SRB allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	elsio = &sp->u.iocb_cmd;
@@ -2916,7 +2916,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 				    fcport->d_id, lid, &conflict_fcport);
 				if (conflict_fcport) {
 					/*
-					 * Another fcport shares the same
+					 * Aanalther fcport shares the same
 					 * loop_id & nport id; conflict
 					 * fcport needs to finish cleanup
 					 * before this fcport can proceed
@@ -2957,11 +2957,11 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 				    fcport->loop_id, cid.b24);
 				set_bit(fcport->loop_id,
 				    vha->hw->loop_id_map);
-				fcport->loop_id = FC_NO_LOOP_ID;
+				fcport->loop_id = FC_ANAL_LOOP_ID;
 				qla24xx_post_gnl_work(vha, fcport);
 				break;
 
-			case LSC_SCODE_NOXCB:
+			case LSC_SCODE_ANALXCB:
 				vha->hw->exch_starvation++;
 				if (vha->hw->exch_starvation > 5) {
 					ql_log(ql_log_warn, vha, 0xd046,
@@ -3028,7 +3028,7 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 		ql_log(ql_log_info, vha, 0x70e6,
 		 "SRB allocation failed\n");
 		fcport->flags &= ~FCF_ASYNC_ACTIVE;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fcport->flags |= FCF_ASYNC_SENT;
@@ -3345,7 +3345,7 @@ qla24xx_ct_iocb(srb_t *sp, struct ct_entry_24xx *ct_iocb)
  * qla82xx_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns analn-zero if a failure occurred, else zero.
  */
 int
 qla82xx_start_scsi(srb_t *sp)
@@ -3375,7 +3375,7 @@ qla82xx_start_scsi(srb_t *sp)
 	req = vha->req;
 	rsp = ha->rsp_q_map[0];
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kanalw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	dbval = 0x04 | (ha->portnum << 5);
@@ -3488,7 +3488,7 @@ sufficient_dsds:
 				 * multiple of 4
 				 */
 				ql_log(ql_log_warn, vha, 0x3012,
-				    "scsi cmd len %d not multiple of 4 "
+				    "scsi cmd len %d analt multiple of 4 "
 				    "for cmd=%p.\n", cmd->cmd_len, cmd);
 				goto queuing_error_fcp_cmnd;
 			}
@@ -3684,10 +3684,10 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 		abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
 	}
 	abt_iocb->handle_to_abort =
-		make_handle(le16_to_cpu(aio->u.abt.req_que_no),
+		make_handle(le16_to_cpu(aio->u.abt.req_que_anal),
 			    aio->u.abt.cmd_hndl);
 	abt_iocb->vp_index = vha->vp_idx;
-	abt_iocb->req_que_no = aio->u.abt.req_que_no;
+	abt_iocb->req_que_anal = aio->u.abt.req_que_anal;
 
 	/* need to pass original sp */
 	if (orig_sp)
@@ -3718,12 +3718,12 @@ qla2x00_ctpthru_cmd_iocb(srb_t *sp, struct ct_entry_24xx *ct_pkt)
 	ct_pkt->handle = sp->handle;
 }
 
-static void qla2x00_send_notify_ack_iocb(srb_t *sp,
+static void qla2x00_send_analtify_ack_iocb(srb_t *sp,
 	struct nack_to_isp *nack)
 {
 	struct imm_ntfy_from_isp *ntfy = sp->u.iocb_cmd.u.nack.ntfy;
 
-	nack->entry_type = NOTIFY_ACK_TYPE;
+	nack->entry_type = ANALTIFY_ACK_TYPE;
 	nack->entry_count = 1;
 	nack->ox_id = ntfy->ox_id;
 
@@ -3731,7 +3731,7 @@ static void qla2x00_send_notify_ack_iocb(srb_t *sp,
 	nack->u.isp24.nport_handle = ntfy->u.isp24.nport_handle;
 	if (le16_to_cpu(ntfy->u.isp24.status) == IMM_NTFY_ELS) {
 		nack->u.isp24.flags = ntfy->u.isp24.flags &
-			cpu_to_le16(NOTIFY24XX_FLAGS_PUREX_IOCB);
+			cpu_to_le16(ANALTIFY24XX_FLAGS_PUREX_IOCB);
 	}
 	nack->u.isp24.srr_rx_id = ntfy->u.isp24.srr_rx_id;
 	nack->u.isp24.status = ntfy->u.isp24.status;
@@ -3746,13 +3746,13 @@ static void qla2x00_send_notify_ack_iocb(srb_t *sp,
 	nack->u.isp24.vp_index = ntfy->u.isp24.vp_index;
 
 	if (ntfy->u.isp24.status_subcode == ELS_PLOGI &&
-	    (le16_to_cpu(ntfy->u.isp24.flags) & NOTIFY24XX_FLAGS_FCSP) &&
+	    (le16_to_cpu(ntfy->u.isp24.flags) & ANALTIFY24XX_FLAGS_FCSP) &&
 	    sp->vha->hw->flags.edif_enabled) {
 		ql_dbg(ql_dbg_disc, sp->vha, 0x3074,
 		    "%s PLOGI NACK sent with FC SECURITY bit, hdl=%x, loopid=%x, to pid %06x\n",
 		    sp->name, sp->handle, sp->fcport->loop_id,
 		    sp->fcport->d_id.b24);
-		nack->u.isp24.flags |= cpu_to_le16(NOTIFY_ACK_FLAGS_FCSP);
+		nack->u.isp24.flags |= cpu_to_le16(ANALTIFY_ACK_FLAGS_FCSP);
 	}
 }
 
@@ -3814,7 +3814,7 @@ qla25xx_ctrlvp_iocb(srb_t *sp, struct vp_ctrl_entry_24xx *vce)
 static void
 qla24xx_prlo_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 {
-	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->entry_type = LOGIANALUT_PORT_IOCB_TYPE;
 	logio->control_flags =
 	    cpu_to_le16(LCF_COMMAND_PRLO|LCF_IMPL_PRLO);
 
@@ -3831,10 +3831,10 @@ static int qla_get_iocbs_resource(struct srb *sp)
 	bool push_it_through = false;
 
 	if (!ql2xenforce_iocb_limit) {
-		sp->iores.res_type = RESOURCE_NONE;
+		sp->iores.res_type = RESOURCE_ANALNE;
 		return 0;
 	}
-	sp->iores.res_type = RESOURCE_NONE;
+	sp->iores.res_type = RESOURCE_ANALNE;
 
 	switch (sp->type) {
 	case SRB_TM_CMD:
@@ -3845,7 +3845,7 @@ static int qla_get_iocbs_resource(struct srb *sp)
 	case SRB_LOGIN_CMD:
 	case SRB_ELS_CMD_RPT:
 	case SRB_ELS_CMD_HST:
-	case SRB_ELS_CMD_HST_NOLOGIN:
+	case SRB_ELS_CMD_HST_ANALLOGIN:
 	case SRB_CT_CMD:
 	case SRB_NVME_LS:
 	case SRB_ELS_DCMD:
@@ -3854,7 +3854,7 @@ static int qla_get_iocbs_resource(struct srb *sp)
 
 	case SRB_FXIOCB_DCMD:
 	case SRB_FXIOCB_BCMD:
-		sp->iores.res_type = RESOURCE_NONE;
+		sp->iores.res_type = RESOURCE_ANALNE;
 		return 0;
 
 	case SRB_SA_UPDATE:
@@ -3944,7 +3944,7 @@ qla2x00_start_sp(srb_t *sp)
 	case SRB_ELS_CMD_HST:
 		qla24xx_els_iocb(sp, pkt);
 		break;
-	case SRB_ELS_CMD_HST_NOLOGIN:
+	case SRB_ELS_CMD_HST_ANALLOGIN:
 		qla_els_pt_iocb(sp->vha, pkt,  &sp->u.bsg_cmd.u.els_arg);
 		((struct els_entry_24xx *)pkt)->handle = sp->handle;
 		break;
@@ -3987,7 +3987,7 @@ qla2x00_start_sp(srb_t *sp)
 	case SRB_NACK_PLOGI:
 	case SRB_NACK_PRLI:
 	case SRB_NACK_LOGO:
-		qla2x00_send_notify_ack_iocb(sp, pkt);
+		qla2x00_send_analtify_ack_iocb(sp, pkt);
 		break;
 	case SRB_CTRL_VP:
 		qla25xx_ctrlvp_iocb(sp, pkt);
@@ -4210,7 +4210,7 @@ queuing_error:
  * qla_start_scsi_type6() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns analn-zero if a failure occurred, else zero.
  */
 static int
 qla_start_scsi_type6(srb_t *sp)
@@ -4243,7 +4243,7 @@ qla_start_scsi_type6(srb_t *sp)
 	req = qpair->req;
 	rsp = qpair->rsp;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kanalw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -4359,7 +4359,7 @@ sufficient_dsds:
 			 * multiple of 4 or too big.
 			 */
 			ql_log(ql_log_warn, vha, 0x3033,
-			    "scsi cmd len %d not multiple of 4 for cmd=%p.\n",
+			    "scsi cmd len %d analt multiple of 4 for cmd=%p.\n",
 			    cmd->cmd_len, cmd);
 			goto queuing_error_fcp_cmnd;
 		}

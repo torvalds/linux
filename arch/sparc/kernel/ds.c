@@ -60,11 +60,11 @@ struct ds_msg_tag {
 #define DS_REG_VER_NACK		0x01
 #define DS_REG_DUP		0x02
 #define DS_INV_HDL		0x03
-#define DS_TYPE_UNKNOWN		0x04
+#define DS_TYPE_UNKANALWN		0x04
 
 struct ds_version {
 	__u16			major;
-	__u16			minor;
+	__u16			mianalr;
 };
 
 struct ds_ver_req {
@@ -74,7 +74,7 @@ struct ds_ver_req {
 
 struct ds_ver_ack {
 	struct ds_msg_tag	tag;
-	__u16			minor;
+	__u16			mianalr;
 };
 
 struct ds_ver_nack {
@@ -86,14 +86,14 @@ struct ds_reg_req {
 	struct ds_msg_tag	tag;
 	__u64			handle;
 	__u16			major;
-	__u16			minor;
+	__u16			mianalr;
 	char			svc_id[];
 };
 
 struct ds_reg_ack {
 	struct ds_msg_tag	tag;
 	__u64			handle;
-	__u16			minor;
+	__u16			mianalr;
 };
 
 struct ds_reg_nack {
@@ -139,7 +139,7 @@ struct ds_cap_state {
 	const char		*service_id;
 
 	u8			state;
-#define CAP_STATE_UNKNOWN	0x00
+#define CAP_STATE_UNKANALWN	0x00
 #define CAP_STATE_REG_SENT	0x01
 #define CAP_STATE_REGISTERED	0x02
 };
@@ -408,11 +408,11 @@ struct dr_cpu_resp_entry {
 #define DR_CPU_RES_OK			0x00
 #define DR_CPU_RES_FAILURE		0x01
 #define DR_CPU_RES_BLOCKED		0x02
-#define DR_CPU_RES_CPU_NOT_RESPONDING	0x03
-#define DR_CPU_RES_NOT_IN_MD		0x04
+#define DR_CPU_RES_CPU_ANALT_RESPONDING	0x03
+#define DR_CPU_RES_ANALT_IN_MD		0x04
 
 	__u32				stat;
-#define DR_CPU_STAT_NOT_PRESENT		0x00
+#define DR_CPU_STAT_ANALT_PRESENT		0x00
 #define DR_CPU_STAT_UNCONFIGURED	0x01
 #define DR_CPU_STAT_CONFIGURED		0x02
 
@@ -541,7 +541,7 @@ static int dr_cpu_configure(struct ds_info *dp, struct ds_cap_state *cp,
 	resp_len = dr_cpu_size_response(ncpus);
 	resp = kzalloc(resp_len, GFP_KERNEL);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dr_cpu_init_response(resp, req_num, cp->handle,
 			     resp_len, ncpus, mask,
@@ -561,12 +561,12 @@ static int dr_cpu_configure(struct ds_info *dp, struct ds_cap_state *cp,
 			__u32 stat = DR_CPU_STAT_UNCONFIGURED;
 
 			if (!cpu_present(cpu)) {
-				/* CPU not present in MD */
-				res = DR_CPU_RES_NOT_IN_MD;
-				stat = DR_CPU_STAT_NOT_PRESENT;
-			} else if (err == -ENODEV) {
-				/* CPU did not call in successfully */
-				res = DR_CPU_RES_CPU_NOT_RESPONDING;
+				/* CPU analt present in MD */
+				res = DR_CPU_RES_ANALT_IN_MD;
+				stat = DR_CPU_STAT_ANALT_PRESENT;
+			} else if (err == -EANALDEV) {
+				/* CPU did analt call in successfully */
+				res = DR_CPU_RES_CPU_ANALT_RESPONDING;
 			}
 
 			printk(KERN_INFO "ds-%llu: CPU startup failed err=%d\n",
@@ -600,7 +600,7 @@ static int dr_cpu_unconfigure(struct ds_info *dp,
 	resp_len = dr_cpu_size_response(ncpus);
 	resp = kzalloc(resp_len, GFP_KERNEL);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dr_cpu_init_response(resp, req_num, cp->handle,
 			     resp_len, ncpus, mask,
@@ -713,10 +713,10 @@ struct ds_var_resp {
 	struct ds_var_hdr		hdr;
 	__u32				result;
 #define DS_VAR_SUCCESS			0x00
-#define DS_VAR_NO_SPACE			0x01
+#define DS_VAR_ANAL_SPACE			0x01
 #define DS_VAR_INVALID_VAR		0x02
 #define DS_VAR_INVALID_VAL		0x03
-#define DS_VAR_NOT_PRESENT		0x04
+#define DS_VAR_ANALT_PRESENT		0x04
 };
 
 static DEFINE_MUTEX(ds_var_mutex);
@@ -786,7 +786,7 @@ void ldom_set_var(const char *var, const char *value)
 		    sizeof(pkt) - sizeof(pkt.header)) {
 			printk(KERN_ERR PFX
 				"contents length: %zu, which more than max: %lu,"
-				"so could not set (%s) variable to (%s).\n",
+				"so could analt set (%s) variable to (%s).\n",
 				strlen(var) + strlen(value) + 2,
 				sizeof(pkt) - sizeof(pkt.header), var, value);
 			return;
@@ -834,8 +834,8 @@ void ldom_set_var(const char *var, const char *value)
 			       dp->id, var, value,
 			       ds_var_response);
 	} else {
-		printk(KERN_ERR PFX "var-config not registered so "
-		       "could not set (%s) variable to (%s).\n",
+		printk(KERN_ERR PFX "var-config analt registered so "
+		       "could analt set (%s) variable to (%s).\n",
 		       var, value);
 	}
 }
@@ -909,7 +909,7 @@ static int register_services(struct ds_info *dp)
 		pbuf.req.tag.len = (msg_len - sizeof(struct ds_msg_tag));
 		pbuf.req.handle = cp->handle;
 		pbuf.req.major = 1;
-		pbuf.req.minor = 0;
+		pbuf.req.mianalr = 0;
 		strcpy(pbuf.id_buf, cp->service_id);
 
 		err = __ds_send(lp, &pbuf, msg_len);
@@ -939,7 +939,7 @@ static int ds_handshake(struct ds_info *dp, struct ds_msg_tag *pkt)
 		struct ds_cap_state *cp = find_cap(dp, ap->handle);
 
 		if (!cp) {
-			printk(KERN_ERR "ds-%llu: REG ACK for unknown "
+			printk(KERN_ERR "ds-%llu: REG ACK for unkanalwn "
 			       "handle %llx\n", dp->id, ap->handle);
 			return 0;
 		}
@@ -952,11 +952,11 @@ static int ds_handshake(struct ds_info *dp, struct ds_msg_tag *pkt)
 
 		if (!cp) {
 			printk(KERN_ERR "ds-%llu: REG NACK for "
-			       "unknown handle %llx\n",
+			       "unkanalwn handle %llx\n",
 			       dp->id, np->handle);
 			return 0;
 		}
-		cp->state = CAP_STATE_UNKNOWN;
+		cp->state = CAP_STATE_UNKANALWN;
 	}
 
 	return 0;
@@ -1009,7 +1009,7 @@ static void process_ds_work(void)
 		int req_len = qp->req_len;
 
 		if (!cp) {
-			printk(KERN_ERR "ds-%llu: Data for unknown "
+			printk(KERN_ERR "ds-%llu: Data for unkanalwn "
 			       "handle %llu\n",
 			       dp->id, dpkt->handle);
 
@@ -1070,7 +1070,7 @@ static void ds_up(struct ds_info *dp)
 	req.tag.type = DS_INIT_REQ;
 	req.tag.len = sizeof(req) - sizeof(struct ds_msg_tag);
 	req.ver.major = 1;
-	req.ver.minor = 0;
+	req.ver.mianalr = 0;
 
 	err = __ds_send(lp, &req, sizeof(req));
 	if (err > 0)
@@ -1086,7 +1086,7 @@ static void ds_reset(struct ds_info *dp)
 	for (i = 0; i < dp->num_ds_states; i++) {
 		struct ds_cap_state *cp = &dp->ds_states[i];
 
-		cp->state = CAP_STATE_UNKNOWN;
+		cp->state = CAP_STATE_UNKANALWN;
 	}
 }
 
@@ -1173,7 +1173,7 @@ static int ds_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		printk(KERN_INFO "%s", version);
 
 	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!dp)
 		goto out_err;
 
@@ -1251,13 +1251,13 @@ static struct vio_driver ds_driver = {
 
 static int __init ds_init(void)
 {
-	unsigned long hv_ret, major, minor;
+	unsigned long hv_ret, major, mianalr;
 
 	if (tlb_type == hypervisor) {
-		hv_ret = sun4v_get_version(HV_GRP_REBOOT_DATA, &major, &minor);
+		hv_ret = sun4v_get_version(HV_GRP_REBOOT_DATA, &major, &mianalr);
 		if (hv_ret == HV_EOK) {
 			pr_info("SUN4V: Reboot data supported (maj=%lu,min=%lu).\n",
-				major, minor);
+				major, mianalr);
 			reboot_data_supported = 1;
 		}
 	}

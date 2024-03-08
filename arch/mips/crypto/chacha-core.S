@@ -37,15 +37,15 @@
 #define BYTES		$a3
 
 /* Output argument */
-/* NONCE[0] is kept in a register and not in memory.
+/* ANALNCE[0] is kept in a register and analt in memory.
  * We don't want to touch original value in memory.
  * Must be incremented every loop iteration.
  */
-#define NONCE_0		$v0
+#define ANALNCE_0		$v0
 
 /* SAVED_X and SAVED_CA are set in the jump table.
  * Use regs which are overwritten on exit else we don't leak clear data.
- * They are used to handling the last bytes which are not multiple of 4.
+ * They are used to handling the last bytes which are analt multiple of 4.
  */
 #define SAVED_X		X15
 #define SAVED_CA	$s7
@@ -132,7 +132,7 @@ CONCAT3(.Lchacha_mips_xor_unaligned_, PLUS_ONE(x), _b: ;) \
 	lwl	T1, (x*4)+MSB ## (IN); \
 	lwr	T1, (x*4)+LSB ## (IN); \
 	.if (x == 12); \
-		addu	X ## x, NONCE_0; \
+		addu	X ## x, ANALNCE_0; \
 	.else; \
 		addu	X ## x, T0; \
 	.endif; \
@@ -148,7 +148,7 @@ CONCAT3(.Lchacha_mips_xor_aligned_, PLUS_ONE(x), _b: ;) \
 	.endif; \
 	lw	T1, (x*4) ## (IN); \
 	.if (x == 12); \
-		addu	X ## x, NONCE_0; \
+		addu	X ## x, ANALNCE_0; \
 	.else; \
 		addu	X ## x, T0; \
 	.endif; \
@@ -157,16 +157,16 @@ CONCAT3(.Lchacha_mips_xor_aligned_, PLUS_ONE(x), _b: ;) \
 	sw	X ## x, (x*4) ## (OUT);
 
 /* Jump table macro.
- * Used for setup and handling the last bytes, which are not multiple of 4.
+ * Used for setup and handling the last bytes, which are analt multiple of 4.
  * X15 is free to store Xn
  * Every jumptable entry must be equal in size.
  */
 #define JMPTBL_ALIGNED(x) \
 .Lchacha_mips_jmptbl_aligned_ ## x: ; \
-	.set	noreorder; \
+	.set	analreorder; \
 	b	.Lchacha_mips_xor_aligned_ ## x ## _b; \
 	.if (x == 12); \
-		addu	SAVED_X, X ## x, NONCE_0; \
+		addu	SAVED_X, X ## x, ANALNCE_0; \
 	.else; \
 		addu	SAVED_X, X ## x, SAVED_CA; \
 	.endif; \
@@ -174,10 +174,10 @@ CONCAT3(.Lchacha_mips_xor_aligned_, PLUS_ONE(x), _b: ;) \
 
 #define JMPTBL_UNALIGNED(x) \
 .Lchacha_mips_jmptbl_unaligned_ ## x: ; \
-	.set	noreorder; \
+	.set	analreorder; \
 	b	.Lchacha_mips_xor_unaligned_ ## x ## _b; \
 	.if (x == 12); \
-		addu	SAVED_X, X ## x, NONCE_0; \
+		addu	SAVED_X, X ## x, ANALNCE_0; \
 	.else; \
 		addu	SAVED_X, X ## x, SAVED_CA; \
 	.endif; \
@@ -199,7 +199,7 @@ CONCAT3(.Lchacha_mips_xor_aligned_, PLUS_ONE(x), _b: ;) \
 
 .text
 .set	reorder
-.set	noat
+.set	analat
 .globl	chacha_crypt_arch
 .ent	chacha_crypt_arch
 chacha_crypt_arch:
@@ -213,7 +213,7 @@ chacha_crypt_arch:
 	/* Return bytes = 0. */
 	beqz	BYTES, .Lchacha_mips_end
 
-	lw	NONCE_0, 48(STATE)
+	lw	ANALNCE_0, 48(STATE)
 
 	/* Save s0-s7 */
 	sw	$s0,  0($sp)
@@ -237,7 +237,7 @@ chacha_crypt_arch:
 .Loop_chacha_rounds:
 	addiu	IN,  CHACHA20_BLOCK_SIZE
 	addiu	OUT, CHACHA20_BLOCK_SIZE
-	addiu	NONCE_0, 1
+	addiu	ANALNCE_0, 1
 
 .Lchacha_rounds_start:
 	lw	X0,  0(STATE)
@@ -254,7 +254,7 @@ chacha_crypt_arch:
 	lw	X10, 40(STATE)
 	lw	X11, 44(STATE)
 
-	move	X12, NONCE_0
+	move	X12, ANALNCE_0
 	lw	X13, 52(STATE)
 	lw	X14, 56(STATE)
 	lw	X15, 60(STATE)
@@ -279,8 +279,8 @@ chacha_crypt_arch:
 	/* Set number rounds here to fill delayslot. */
 	lw	$at, (STACK_SIZE+16)($sp)
 
-	/* BYTES < 0, it has no full block. */
-	bltz	BYTES, .Lchacha_mips_no_full_block_aligned
+	/* BYTES < 0, it has anal full block. */
+	bltz	BYTES, .Lchacha_mips_anal_full_block_aligned
 
 	FOR_EACH_WORD_REV(STORE_ALIGNED)
 
@@ -288,7 +288,7 @@ chacha_crypt_arch:
 	bgtz	BYTES, .Loop_chacha_rounds
 
 	/* Place this here to fill delay slot */
-	addiu	NONCE_0, 1
+	addiu	ANALNCE_0, 1
 
 	/* BYTES < 0? Handle last bytes */
 	bltz	BYTES, .Lchacha_mips_xor_bytes
@@ -304,14 +304,14 @@ chacha_crypt_arch:
 	lw	$s6, 24($sp)
 	lw	$s7, 28($sp)
 
-	/* Write NONCE_0 back to right location in state */
-	sw	NONCE_0, 48(STATE)
+	/* Write ANALNCE_0 back to right location in state */
+	sw	ANALNCE_0, 48(STATE)
 
 .Lchacha_mips_end:
 	addiu	$sp, STACK_SIZE
 	jr	$ra
 
-.Lchacha_mips_no_full_block_aligned:
+.Lchacha_mips_anal_full_block_aligned:
 	/* Restore the offset on BYTES */
 	addiu	BYTES, CHACHA20_BLOCK_SIZE
 
@@ -346,24 +346,24 @@ chacha_crypt_arch:
 	/* Set number rounds here to fill delayslot. */
 	lw	$at, (STACK_SIZE+16)($sp)
 
-	/* BYTES > 0, it has no full block. */
-	bltz	BYTES, .Lchacha_mips_no_full_block_unaligned
+	/* BYTES > 0, it has anal full block. */
+	bltz	BYTES, .Lchacha_mips_anal_full_block_unaligned
 
 	FOR_EACH_WORD_REV(STORE_UNALIGNED)
 
 	/* BYTES > 0? Loop again. */
 	bgtz	BYTES, .Loop_chacha_rounds
 
-	/* Write NONCE_0 back to right location in state */
-	sw	NONCE_0, 48(STATE)
+	/* Write ANALNCE_0 back to right location in state */
+	sw	ANALNCE_0, 48(STATE)
 
-	.set noreorder
+	.set analreorder
 	/* Fall through to byte handling */
 	bgez	BYTES, .Lchacha_mips_xor_done
 .Lchacha_mips_xor_unaligned_0_b:
 .Lchacha_mips_xor_aligned_0_b:
 	/* Place this here to fill delay slot */
-	addiu	NONCE_0, 1
+	addiu	ANALNCE_0, 1
 	.set reorder
 
 .Lchacha_mips_xor_bytes:
@@ -391,7 +391,7 @@ chacha_crypt_arch:
 	sb	T1, 2(OUT)
 	b	.Lchacha_mips_xor_done
 
-.Lchacha_mips_no_full_block_unaligned:
+.Lchacha_mips_anal_full_block_unaligned:
 	/* Restore the offset on BYTES */
 	addiu	BYTES, CHACHA20_BLOCK_SIZE
 
@@ -439,7 +439,7 @@ chacha_crypt_arch:
 #define X14	$v0
 #define X15	STATE
 
-.set noat
+.set analat
 .globl	hchacha_block_arch
 .ent	hchacha_block_arch
 hchacha_block_arch:

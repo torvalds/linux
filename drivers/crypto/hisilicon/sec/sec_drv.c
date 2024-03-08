@@ -24,11 +24,11 @@
 #include "sec_drv.h"
 
 #define SEC_QUEUE_AR_FROCE_ALLOC			0
-#define SEC_QUEUE_AR_FROCE_NOALLOC			1
+#define SEC_QUEUE_AR_FROCE_ANALALLOC			1
 #define SEC_QUEUE_AR_FROCE_DIS				2
 
 #define SEC_QUEUE_AW_FROCE_ALLOC			0
-#define SEC_QUEUE_AW_FROCE_NOALLOC			1
+#define SEC_QUEUE_AW_FROCE_ANALALLOC			1
 #define SEC_QUEUE_AW_FROCE_DIS				2
 
 /* SEC_ALGSUB registers */
@@ -97,7 +97,7 @@
 
 #define SEC_CNT_PRECISION_CFG_REG			0x006c
 #define SEC_DEBUG_BD_CFG_REG				0x0070
-#define   SEC_DEBUG_BD_CFG_WB_NORMAL			BIT(0)
+#define   SEC_DEBUG_BD_CFG_WB_ANALRMAL			BIT(0)
 #define   SEC_DEBUG_BD_CFG_WB_EN			BIT(1)
 
 #define SEC_Q_SIGHT_SEL					0x0074
@@ -170,10 +170,10 @@
 #define SEC_Q_PRO_PTR_REG				0x608
 #define SEC_Q_OUTORDER_WR_PTR_REG			0x60c
 #define SEC_Q_OT_CNT_STATUS_REG				0x610
-#define SEC_Q_INORDER_BD_NUM_ST_REG			0x650
-#define SEC_Q_INORDER_GET_FLAG_ST_REG			0x654
-#define SEC_Q_INORDER_ADD_FLAG_ST_REG			0x658
-#define SEC_Q_INORDER_TASK_INT_NUM_LEFT_ST_REG		0x65c
+#define SEC_Q_IANALRDER_BD_NUM_ST_REG			0x650
+#define SEC_Q_IANALRDER_GET_FLAG_ST_REG			0x654
+#define SEC_Q_IANALRDER_ADD_FLAG_ST_REG			0x658
+#define SEC_Q_IANALRDER_TASK_INT_NUM_LEFT_ST_REG		0x65c
 #define SEC_Q_RD_DONE_PTR_REG				0x660
 #define SEC_Q_CPL_Q_BD_NUM_ST_REG			0x700
 #define SEC_Q_CPL_Q_PTR_ST_REG				0x704
@@ -235,11 +235,11 @@ static int sec_queue_map_io(struct sec_queue *queue)
 	if (!res) {
 		dev_err(dev, "Failed to get queue %u memory resource\n",
 			queue->queue_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	queue->regs = ioremap(res->start, resource_size(res));
 	if (!queue->regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -474,8 +474,8 @@ static void sec_set_dbg_bd_cfg(struct sec_dev_info *info, u32 cfg)
 	u32 regval;
 
 	regval = readl_relaxed(addr);
-	/* Always disable write back of normal bd */
-	regval &= ~SEC_DEBUG_BD_CFG_WB_NORMAL;
+	/* Always disable write back of analrmal bd */
+	regval &= ~SEC_DEBUG_BD_CFG_WB_ANALRMAL;
 
 	if (cfg)
 		regval &= ~SEC_DEBUG_BD_CFG_WB_EN;
@@ -645,7 +645,7 @@ static struct sec_queue *sec_alloc_queue(struct sec_dev_info *info)
 		}
 	mutex_unlock(&info->dev_lock);
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int sec_queue_free(struct sec_queue *queue)
@@ -653,13 +653,13 @@ static int sec_queue_free(struct sec_queue *queue)
 	struct sec_dev_info *info = queue->dev_info;
 
 	if (queue->queue_id >= SEC_Q_NUM) {
-		dev_err(info->dev, "No queue %u\n", queue->queue_id);
-		return -ENODEV;
+		dev_err(info->dev, "Anal queue %u\n", queue->queue_id);
+		return -EANALDEV;
 	}
 
 	if (!queue->in_use) {
 		dev_err(info->dev, "Queue %u is idle\n", queue->queue_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_lock(&info->dev_lock);
@@ -788,7 +788,7 @@ static struct sec_queue *sec_queue_alloc_start(struct sec_dev_info *info)
 /**
  * sec_queue_alloc_start_safe - get a hw queue from appropriate instance
  *
- * This function does extremely simplistic load balancing. It does not take into
+ * This function does extremely simplistic load balancing. It does analt take into
  * account NUMA locality of the accelerator, or which cpu has requested the
  * queue.  Future work may focus on optimizing this in order to improve full
  * machine throughput.
@@ -796,7 +796,7 @@ static struct sec_queue *sec_queue_alloc_start(struct sec_dev_info *info)
 struct sec_queue *sec_queue_alloc_start_safe(void)
 {
 	struct sec_dev_info *info;
-	struct sec_queue *queue = ERR_PTR(-ENODEV);
+	struct sec_queue *queue = ERR_PTR(-EANALDEV);
 
 	mutex_lock(&sec_id_lock);
 	info = sec_device_get();
@@ -836,8 +836,8 @@ int sec_queue_stop_release(struct sec_queue *queue)
  * sec_queue_empty() - Is this hardware queue currently empty.
  * @queue: The queue to test
  *
- * We need to know if we have an empty queue for some of the chaining modes
- * as if it is not empty we may need to hold the message in a software queue
+ * We need to kanalw if we have an empty queue for some of the chaining modes
+ * as if it is analt empty we may need to hold the message in a software queue
  * until the hw queue is drained.
  */
 bool sec_queue_empty(struct sec_queue *queue)
@@ -891,8 +891,8 @@ bool sec_queue_can_enqueue(struct sec_queue *queue, int num)
 
 static void sec_queue_hw_init(struct sec_queue *queue)
 {
-	sec_queue_ar_alloc(queue, SEC_QUEUE_AR_FROCE_NOALLOC);
-	sec_queue_aw_alloc(queue, SEC_QUEUE_AW_FROCE_NOALLOC);
+	sec_queue_ar_alloc(queue, SEC_QUEUE_AR_FROCE_ANALALLOC);
+	sec_queue_aw_alloc(queue, SEC_QUEUE_AW_FROCE_ANALALLOC);
 	sec_queue_ar_pkgattr(queue, 1);
 	sec_queue_aw_pkgattr(queue, 1);
 
@@ -951,7 +951,7 @@ static int sec_hw_init(struct sec_dev_info *info)
 	/* Enable clock gating */
 	sec_clk_gate_en(info, true);
 
-	/* Set CNT_CYC register not read clear */
+	/* Set CNT_CYC register analt read clear */
 	sec_comm_cnt_cfg(info, false);
 
 	/* Enable CNT_CYC */
@@ -967,7 +967,7 @@ static int sec_hw_init(struct sec_dev_info *info)
 
 	sec_ipv6_hashmask(info, sec_ipv6_mask);
 
-	/*  do not use debug bd */
+	/*  do analt use debug bd */
 	sec_set_dbg_bd_cfg(info, 0);
 
 	if (domain && (domain->type & __IOMMU_DOMAIN_PAGING)) {
@@ -1016,7 +1016,7 @@ static int sec_map_io(struct sec_dev_info *info, struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 
 		if (!res) {
-			dev_err(info->dev, "Memory resource %d not found\n", i);
+			dev_err(info->dev, "Memory resource %d analt found\n", i);
 			return -EINVAL;
 		}
 
@@ -1024,7 +1024,7 @@ static int sec_map_io(struct sec_dev_info *info, struct platform_device *pdev)
 					     resource_size(res));
 		if (!info->regs[i]) {
 			dev_err(info->dev,
-				"Memory resource %d could not be remapped\n",
+				"Memory resource %d could analt be remapped\n",
 				i);
 			return -EINVAL;
 		}
@@ -1086,7 +1086,7 @@ static int sec_queue_res_cfg(struct sec_queue *queue)
 	ring_cmd->vaddr = dma_alloc_coherent(dev, SEC_Q_CMD_SIZE,
 					     &ring_cmd->paddr, GFP_KERNEL);
 	if (!ring_cmd->vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atomic_set(&ring_cmd->used, 0);
 	mutex_init(&ring_cmd->lock);
@@ -1095,14 +1095,14 @@ static int sec_queue_res_cfg(struct sec_queue *queue)
 	ring_cq->vaddr = dma_alloc_coherent(dev, SEC_Q_CQ_SIZE,
 					    &ring_cq->paddr, GFP_KERNEL);
 	if (!ring_cq->vaddr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ring_cmd;
 	}
 
 	ring_db->vaddr = dma_alloc_coherent(dev, SEC_Q_DB_SIZE,
 					    &ring_db->paddr, GFP_KERNEL);
 	if (!ring_db->vaddr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ring_cq;
 	}
 	queue->task_irq = platform_get_irq(to_platform_device(dev),
@@ -1180,7 +1180,7 @@ static int sec_id_alloc(struct sec_dev_info *info)
 		if (!sec_devices[i])
 			break;
 	if (i == SEC_MAX_DEVICES) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 	info->sec_id = i;
@@ -1209,12 +1209,12 @@ static int sec_probe(struct platform_device *pdev)
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret) {
 		dev_err(dev, "Failed to set 64 bit dma mask %d", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	info = devm_kzalloc(dev, (sizeof(*info)), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = dev;
 	mutex_init(&info->dev_lock);
@@ -1223,7 +1223,7 @@ static int sec_probe(struct platform_device *pdev)
 					     sizeof(struct sec_hw_sgl), 64, 0);
 	if (!info->hw_sgl_pool) {
 		dev_err(dev, "Failed to create sec sgl dma pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = sec_base_init(info, pdev);

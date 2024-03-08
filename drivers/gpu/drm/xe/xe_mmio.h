@@ -7,7 +7,7 @@
 #define _XE_MMIO_H_
 
 #include <linux/delay.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include "regs/xe_reg_defs.h"
 #include "xe_device_types.h"

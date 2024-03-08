@@ -27,7 +27,7 @@
 #define	ATMEL_US_STTTO		BIT(11)	/* Start Time-out */
 #define	ATMEL_US_SENDA		BIT(12)	/* Send Address */
 #define	ATMEL_US_RSTIT		BIT(13)	/* Reset Iterations */
-#define	ATMEL_US_RSTNACK	BIT(14)	/* Reset Non Acknowledge */
+#define	ATMEL_US_RSTNACK	BIT(14)	/* Reset Analn Ackanalwledge */
 #define	ATMEL_US_RETTO		BIT(15)	/* Rearm Time-out */
 #define	ATMEL_US_DTREN		BIT(16)	/* Data Terminal Ready Enable */
 #define	ATMEL_US_DTRDIS		BIT(17)	/* Data Terminal Ready Disable */
@@ -41,7 +41,7 @@
 
 #define ATMEL_US_MR		0x04	/* Mode Register */
 #define	ATMEL_US_USMODE		GENMASK(3, 0)	/* Mode of the USART */
-#define		ATMEL_US_USMODE_NORMAL		FIELD_PREP(ATMEL_US_USMODE, 0)
+#define		ATMEL_US_USMODE_ANALRMAL		FIELD_PREP(ATMEL_US_USMODE, 0)
 #define		ATMEL_US_USMODE_RS485		FIELD_PREP(ATMEL_US_USMODE, 1)
 #define		ATMEL_US_USMODE_HWHS		FIELD_PREP(ATMEL_US_USMODE, 2)
 #define		ATMEL_US_USMODE_MODEM		FIELD_PREP(ATMEL_US_USMODE, 3)
@@ -59,13 +59,13 @@
 #define		ATMEL_US_CHRL_6			FIELD_PREP(ATMEL_US_CHRL, 1)
 #define		ATMEL_US_CHRL_7			FIELD_PREP(ATMEL_US_CHRL, 2)
 #define		ATMEL_US_CHRL_8			FIELD_PREP(ATMEL_US_CHRL, 3)
-#define	ATMEL_US_SYNC		BIT(8)		/* Synchronous Mode Select */
+#define	ATMEL_US_SYNC		BIT(8)		/* Synchroanalus Mode Select */
 #define	ATMEL_US_PAR		GENMASK(11, 9)	/* Parity Type */
 #define		ATMEL_US_PAR_EVEN		FIELD_PREP(ATMEL_US_PAR, 0)
 #define		ATMEL_US_PAR_ODD		FIELD_PREP(ATMEL_US_PAR, 1)
 #define		ATMEL_US_PAR_SPACE		FIELD_PREP(ATMEL_US_PAR, 2)
 #define		ATMEL_US_PAR_MARK		FIELD_PREP(ATMEL_US_PAR, 3)
-#define		ATMEL_US_PAR_NONE		FIELD_PREP(ATMEL_US_PAR, 4)
+#define		ATMEL_US_PAR_ANALNE		FIELD_PREP(ATMEL_US_PAR, 4)
 #define		ATMEL_US_PAR_MULTI_DROP		FIELD_PREP(ATMEL_US_PAR, 6)
 #define	ATMEL_US_NBSTOP		GENMASK(13, 12)	/* Number of Stop Bits */
 #define		ATMEL_US_NBSTOP_1		FIELD_PREP(ATMEL_US_NBSTOP, 0)
@@ -73,7 +73,7 @@
 #define		ATMEL_US_NBSTOP_2		FIELD_PREP(ATMEL_US_NBSTOP, 2)
 #define	ATMEL_UA_BRSRCCK	BIT(12)	/* Clock Selection for UART */
 #define	ATMEL_US_CHMODE		GENMASK(15, 14)	/* Channel Mode */
-#define		ATMEL_US_CHMODE_NORMAL		FIELD_PREP(ATMEL_US_CHMODE, 0)
+#define		ATMEL_US_CHMODE_ANALRMAL		FIELD_PREP(ATMEL_US_CHMODE, 0)
 #define		ATMEL_US_CHMODE_ECHO		FIELD_PREP(ATMEL_US_CHMODE, 1)
 #define		ATMEL_US_CHMODE_LOC_LOOP	FIELD_PREP(ATMEL_US_CHMODE, 2)
 #define		ATMEL_US_CHMODE_REM_LOOP	FIELD_PREP(ATMEL_US_CHMODE, 3)
@@ -81,7 +81,7 @@
 #define	ATMEL_US_MODE9		BIT(17)	/* 9-bit Character Length */
 #define	ATMEL_US_CLKO		BIT(18)	/* Clock Output Select */
 #define	ATMEL_US_OVER		BIT(19)	/* Oversampling Mode */
-#define	ATMEL_US_INACK		BIT(20)	/* Inhibit Non Acknowledge */
+#define	ATMEL_US_INACK		BIT(20)	/* Inhibit Analn Ackanalwledge */
 #define	ATMEL_US_DSNACK		BIT(21)	/* Disable Successive NACK */
 #define	ATMEL_US_MAX_ITER_MASK	GENMASK(26, 24)	/* Max Iterations */
 #define	ATMEL_US_MAX_ITER(n)	FIELD_PREP(ATMEL_US_MAX_ITER_MASK, (n))
@@ -101,7 +101,7 @@
 #define	ATMEL_US_ITERATION	BIT(10)	/* Max number of Repetitions Reached */
 #define	ATMEL_US_TXBUFE		BIT(11)	/* Transmission Buffer Empty */
 #define	ATMEL_US_RXBUFF		BIT(12)	/* Reception Buffer Full */
-#define	ATMEL_US_NACK		BIT(13)	/* Non Acknowledge */
+#define	ATMEL_US_NACK		BIT(13)	/* Analn Ackanalwledge */
 #define	ATMEL_US_RIIC		BIT(16)	/* Ring Indicator Input Change */
 #define	ATMEL_US_DSRIC		BIT(17)	/* Data Set Ready Input Change */
 #define	ATMEL_US_DCDIC		BIT(18)	/* Data Carrier Detect Input Change */

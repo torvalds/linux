@@ -8,7 +8,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OV13858_REG_VALUE_08BIT		1
 #define OV13858_REG_VALUE_16BIT		2
@@ -1156,9 +1156,9 @@ static int ov13858_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	try_fmt->width = ov13858->cur_mode->width;
 	try_fmt->height = ov13858->cur_mode->height;
 	try_fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	try_fmt->field = V4L2_FIELD_NONE;
+	try_fmt->field = V4L2_FIELD_ANALNE;
 
-	/* No crop or compose */
+	/* Anal crop or compose */
 	mutex_unlock(&ov13858->mutex);
 
 	return 0;
@@ -1257,7 +1257,7 @@ static int ov13858_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		dev_info(&client->dev,
-			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
+			 "ctrl(id:0x%x,val:0x%x) is analt handled\n",
 			 ctrl->id, ctrl->val);
 		break;
 	}
@@ -1308,7 +1308,7 @@ static void ov13858_update_pad_format(const struct ov13858_mode *mode,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 }
 
 static int ov13858_do_get_pad_format(struct ov13858 *ov13858,
@@ -1553,7 +1553,7 @@ static const struct v4l2_subdev_internal_ops ov13858_internal_ops = {
 static int ov13858_init_controls(struct ov13858 *ov13858)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov13858->sd);
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 exposure_max;
 	s64 vblank_def;
@@ -1631,11 +1631,11 @@ static int ov13858_init_controls(struct ov13858 *ov13858)
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto error;
 
-	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov13858_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &ov13858_ctrl_ops,
 					      &props);
 	if (ret)
 		goto error;
@@ -1669,7 +1669,7 @@ static int ov13858_probe(struct i2c_client *client)
 
 	ov13858 = devm_kzalloc(&client->dev, sizeof(*ov13858), GFP_KERNEL);
 	if (!ov13858)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov13858->sd, client, &ov13858_subdev_ops);
@@ -1690,7 +1690,7 @@ static int ov13858_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	ov13858->sd.internal_ops = &ov13858_internal_ops;
-	ov13858->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	ov13858->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			     V4L2_SUBDEV_FL_HAS_EVENTS;
 	ov13858->sd.entity.ops = &ov13858_subdev_entity_ops;
 	ov13858->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

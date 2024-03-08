@@ -30,7 +30,7 @@ enum rpc_gss_proc {
 };
 
 enum rpc_gss_svc {
-	RPC_GSS_SVC_NONE = 1,
+	RPC_GSS_SVC_ANALNE = 1,
 	RPC_GSS_SVC_INTEGRITY = 2,
 	RPC_GSS_SVC_PRIVACY = 3
 };
@@ -54,13 +54,13 @@ struct rpc_gss_wire_verf {
 struct rpc_gss_init_res {
 	struct xdr_netobj	gr_ctx;		/* context handle */
 	u32			gr_major;	/* major status */
-	u32			gr_minor;	/* minor status */
+	u32			gr_mianalr;	/* mianalr status */
 	u32			gr_win;		/* sequence window */
 	struct xdr_netobj	gr_token;	/* token */
 };
 
 /* The gss_cl_ctx struct holds all the information the rpcsec_gss client
- * code needs to know about a single security context.  In particular,
+ * code needs to kanalw about a single security context.  In particular,
  * gc_gss_ctx is the context handle that is used to do gss-api calls, while
  * gc_wire_ctx is the context handle that is used to identify the context on
  * the wire when communicating with a server. */

@@ -4,7 +4,7 @@
 
     Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
     Copyright (C) 2001 Ronny Strutz <3des@elitedvb.de>
-    Copyright (C) 2002 Dennis Noermann <dennis.noermann@noernet.de>
+    Copyright (C) 2002 Dennis Analermann <dennis.analermann@analernet.de>
     Copyright (C) 2002-2003 Andreas Oberritter <obi@linuxtv.org>
 
 
@@ -294,7 +294,7 @@ static int ves1x93_read_status(struct dvb_frontend *fe,
 	u8 sync = ves1x93_readreg (state, 0x0e);
 
 	/*
-	 * The ves1893 sometimes returns sync values that make no sense,
+	 * The ves1893 sometimes returns sync values that make anal sense,
 	 * because, e.g., the SIGNAL bit is 0, while some of the higher
 	 * bits are 1 (and how can there be a CARRIER w/o a SIGNAL?).
 	 * Tests showed that the VITERBI and SYNC bits are returned
@@ -302,7 +302,7 @@ static int ves1x93_read_status(struct dvb_frontend *fe,
 	 * If such a case occurs, we read the value again, until we get a
 	 * valid value.
 	 */
-	int maxtry = 10; /* just for safety - let's not get stuck here */
+	int maxtry = 10; /* just for safety - let's analt get stuck here */
 	while ((sync & 0x03) != 0x03 && (sync & 0x0c) && maxtry--) {
 		msleep(10);
 		sync = ves1x93_readreg (state, 0x0e);

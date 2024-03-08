@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@
 #include "gpu_scheduler_trace.h"
 
 #define to_drm_sched_job(sched_job)		\
-		container_of((sched_job), struct drm_sched_job, queue_node)
+		container_of((sched_job), struct drm_sched_job, queue_analde)
 
 /**
  * drm_sched_entity_init - Init a context entity used by scheduler when
@@ -45,7 +45,7 @@
  * @guilty: atomic_t set to 1 when a job on this queue
  *          is found to be guilty causing a timeout
  *
- * Note that the &sched_list must have at least one element to schedule the entity.
+ * Analte that the &sched_list must have at least one element to schedule the entity.
  *
  * For changing @priority later on at runtime see
  * drm_sched_entity_set_priority(). For changing the set of schedulers
@@ -73,15 +73,15 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 	entity->priority = priority;
 	entity->sched_list = num_sched_list > 1 ? sched_list : NULL;
 	RCU_INIT_POINTER(entity->last_scheduled, NULL);
-	RB_CLEAR_NODE(&entity->rb_tree_node);
+	RB_CLEAR_ANALDE(&entity->rb_tree_analde);
 
 	if (!sched_list[0]->sched_rq) {
-		/* Warn drivers not to do this and to fix their DRM
+		/* Warn drivers analt to do this and to fix their DRM
 		 * calling order.
 		 */
 		pr_warn("%s: called with uninitialized scheduler\n", __func__);
 	} else if (num_sched_list) {
-		/* The "priority" of an entity cannot exceed the number of run-queues of a
+		/* The "priority" of an entity cananalt exceed the number of run-queues of a
 		 * scheduler. Protect against num_rqs being 0, by converting to signed. Choose
 		 * the lowest priority available.
 		 */
@@ -116,7 +116,7 @@ EXPORT_SYMBOL(drm_sched_entity_init);
  *		 existing entity->sched_list
  * @num_sched_list: number of drm sched in sched_list
  *
- * Note that this must be called under the same common lock for @entity as
+ * Analte that this must be called under the same common lock for @entity as
  * drm_sched_job_arm() and drm_sched_entity_push_job(), or the driver needs to
  * guarantee through some other means that this is never called while new jobs
  * can be pushed to @entity.
@@ -208,7 +208,7 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 			 */
 			f = dma_fence_get_rcu(&s_fence->finished);
 
-			/* Now that we have a reference on the finished fence,
+			/* Analw that we have a reference on the finished fence,
 			 * we can release the reference the dependencies array
 			 * had on the scheduled fence.
 			 */
@@ -241,10 +241,10 @@ static void drm_sched_entity_kill(struct drm_sched_entity *entity)
 	drm_sched_rq_remove_entity(entity->rq, entity);
 	spin_unlock(&entity->rq_lock);
 
-	/* Make sure this entity is not used by the scheduler at the moment */
+	/* Make sure this entity is analt used by the scheduler at the moment */
 	wait_for_completion(&entity->entity_idle);
 
-	/* The entity is guaranteed to not be used by the scheduler */
+	/* The entity is guaranteed to analt be used by the scheduler */
 	prev = rcu_dereference_check(entity->last_scheduled, true);
 	dma_fence_get(prev);
 	while ((job = to_drm_sched_job(spsc_queue_pop(&entity->job_queue)))) {
@@ -283,7 +283,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 
 	sched = entity->rq->sched;
 	/**
-	 * The client will not queue more IBs during this fini, consume existing
+	 * The client will analt queue more IBs during this fini, consume existing
 	 * queued IBs or discard them on SIGKILL
 	 */
 	if (current->flags & PF_EXITING) {
@@ -297,7 +297,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 				    drm_sched_entity_is_idle(entity));
 	}
 
-	/* For killed process disable any more IBs enqueue right now */
+	/* For killed process disable any more IBs enqueue right analw */
 	last_user = cmpxchg(&entity->last_user, current->group_leader, NULL);
 	if ((!last_user || last_user == current->group_leader) &&
 	    (current->flags & PF_EXITING) && (current->exit_code == SIGKILL))
@@ -408,7 +408,7 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 	    fence->context == entity->fence_context + 1) {
 		/*
 		 * Fence is a scheduled/finished fence from a job
-		 * which belongs to the same entity, we can ignore
+		 * which belongs to the same entity, we can iganalre
 		 * fences from ourself
 		 */
 		dma_fence_put(entity->dependency);
@@ -430,7 +430,7 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 					    drm_sched_entity_clear_dep))
 			return true;
 
-		/* Ignore it when it is already scheduled */
+		/* Iganalre it when it is already scheduled */
 		dma_fence_put(fence);
 		return false;
 	}
@@ -529,13 +529,13 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 	if (!entity->sched_list)
 		return;
 
-	/* queue non-empty, stay on the same engine */
+	/* queue analn-empty, stay on the same engine */
 	if (spsc_queue_count(&entity->job_queue))
 		return;
 
 	/*
 	 * Only when the queue is empty are we guaranteed that the scheduler
-	 * thread cannot change ->last_scheduled. To enforce ordering we need
+	 * thread cananalt change ->last_scheduled. To enforce ordering we need
 	 * a read barrier here. See drm_sched_entity_pop_job() for the other
 	 * side.
 	 */
@@ -564,7 +564,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
  * drm_sched_entity_push_job - Submit a job to the entity's job queue
  * @sched_job: job to submit
  *
- * Note: To guarantee that the order of insertion to queue matches the job's
+ * Analte: To guarantee that the order of insertion to queue matches the job's
  * fence sequence number this function should be called with drm_sched_job_arm()
  * under common lock for the struct drm_sched_entity that was set up for
  * @sched_job in drm_sched_job_init().
@@ -583,11 +583,11 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
 
 	/*
 	 * After the sched_job is pushed into the entity queue, it may be
-	 * completed and freed up at any time. We can no longer access it.
+	 * completed and freed up at any time. We can anal longer access it.
 	 * Make sure to set the submit_ts first, to avoid a race.
 	 */
 	sched_job->submit_ts = submit_ts = ktime_get();
-	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
+	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_analde);
 
 	/* first job wakes up scheduler */
 	if (first) {

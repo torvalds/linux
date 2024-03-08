@@ -36,7 +36,7 @@ retry:
 		break;
 	}
 	xas_unlock(&xas);
-	if (xas_nomem(&xas, GFP_KERNEL))
+	if (xas_analmem(&xas, GFP_KERNEL))
 		goto retry;
 	if (order < 0)
 		free(item);
@@ -62,7 +62,7 @@ static void *add_entries_fn(void *arg)
 
 /*
  * Iterate over tagged entries, retrying when we find ourselves in a deleted
- * node and randomly pausing the iteration.
+ * analde and randomly pausing the iteration.
  */
 static void *tagged_iteration_fn(void *arg)
 {
@@ -95,7 +95,7 @@ static void *tagged_iteration_fn(void *arg)
 
 /*
  * Iterate over the entries, retrying when we find ourselves in a deleted
- * node and randomly pausing the iteration.
+ * analde and randomly pausing the iteration.
  */
 static void *untagged_iteration_fn(void *arg)
 {

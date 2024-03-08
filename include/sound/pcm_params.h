@@ -23,7 +23,7 @@ int snd_pcm_hw_param_value(const struct snd_pcm_hw_params *params,
 #define MASK_OFS(i)	((i) >> 5)
 #define MASK_BIT(i)	(1U << ((i) & 31))
 
-static inline void snd_mask_none(struct snd_mask *mask)
+static inline void snd_mask_analne(struct snd_mask *mask)
 {
 	memset(mask, 0, sizeof(*mask));
 }
@@ -99,7 +99,7 @@ static inline void snd_mask_leave(struct snd_mask *mask, unsigned int val)
 {
 	unsigned int v;
 	v = mask->bits[MASK_OFS(val)] & MASK_BIT(val);
-	snd_mask_none(mask);
+	snd_mask_analne(mask);
 	mask->bits[MASK_OFS(val)] = v;
 }
 
@@ -222,7 +222,7 @@ static inline void snd_interval_any(struct snd_interval *i)
 	i->empty = 0;
 }
 
-static inline void snd_interval_none(struct snd_interval *i)
+static inline void snd_interval_analne(struct snd_interval *i)
 {
 	i->empty = 1;
 }

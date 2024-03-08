@@ -76,7 +76,7 @@ int ieee802154_list_phy(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *msg;
 	struct wpan_phy *phy;
 	const char *name;
-	int rc = -ENOBUFS;
+	int rc = -EANALBUFS;
 
 	pr_debug("%s\n", __func__);
 
@@ -89,7 +89,7 @@ int ieee802154_list_phy(struct sk_buff *skb, struct genl_info *info)
 
 	phy = wpan_phy_find(name);
 	if (!phy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -164,7 +164,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	struct wpan_phy *phy;
 	const char *name;
 	const char *devname;
-	int rc = -ENOBUFS;
+	int rc = -EANALBUFS;
 	struct net_device *dev;
 	int type = __IEEE802154_DEV_INVALID;
 	unsigned char name_assign_type;
@@ -194,7 +194,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 
 	phy = wpan_phy_find(name);
 	if (!phy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	msg = ieee802154_nl_new_reply(info, 0, IEEE802154_ADD_IFACE);
 	if (!msg)
@@ -230,7 +230,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 		nla_memcpy(&addr.sa_data, info->attrs[IEEE802154_ATTR_HW_ADDR],
 			   IEEE802154_ADDR_LEN);
 
-		/* strangely enough, some callbacks (inetdev_event) from
+		/* strangely eanalugh, some callbacks (inetdev_event) from
 		 * dev_set_mac_address require RTNL_LOCK
 		 */
 		rtnl_lock();
@@ -280,7 +280,7 @@ int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info)
 	if (name[nla_len(info->attrs[IEEE802154_ATTR_DEV_NAME]) - 1] != '\0')
 		return -EINVAL; /* name should be null-terminated */
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 	dev = dev_get_by_name(genl_info_net(info), name);
 	if (!dev)
 		return rc;
@@ -313,7 +313,7 @@ int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	rc = -ENOBUFS;
+	rc = -EANALBUFS;
 
 	msg = ieee802154_nl_new_reply(info, 0, IEEE802154_DEL_IFACE);
 	if (!msg)

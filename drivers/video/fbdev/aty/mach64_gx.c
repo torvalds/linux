@@ -398,7 +398,7 @@ static int aty_var_to_pll_18818(const struct fb_info *info, u32 vclk_per,
 static u32 aty_pll_18818_to_var(const struct fb_info *info,
 				const union aty_pll *pll)
 {
-	return (pll->ics2595.period_in_ps);	/* default for now */
+	return (pll->ics2595.period_in_ps);	/* default for analw */
 }
 
 static void aty_ICS2595_put1bit(u8 data, const struct atyfb_par *par)
@@ -564,7 +564,7 @@ static int aty_var_to_pll_1703(const struct fb_info *info, u32 vclk_per,
 static u32 aty_pll_1703_to_var(const struct fb_info *info,
 			       const union aty_pll *pll)
 {
-	return (pll->ics2595.period_in_ps);	/* default for now */
+	return (pll->ics2595.period_in_ps);	/* default for analw */
 }
 
 static void aty_set_pll_1703(const struct fb_info *info,
@@ -682,7 +682,7 @@ static int aty_var_to_pll_8398(const struct fb_info *info, u32 vclk_per,
 static u32 aty_pll_8398_to_var(const struct fb_info *info,
 			       const union aty_pll *pll)
 {
-	return (pll->ics2595.period_in_ps);	/* default for now */
+	return (pll->ics2595.period_in_ps);	/* default for analw */
 }
 
 static void aty_set_pll_8398(const struct fb_info *info,
@@ -800,7 +800,7 @@ static int aty_var_to_pll_408(const struct fb_info *info, u32 vclk_per,
 static u32 aty_pll_408_to_var(const struct fb_info *info,
 			      const union aty_pll *pll)
 {
-	return (pll->ics2595.period_in_ps);	/* default for now */
+	return (pll->ics2595.period_in_ps);	/* default for analw */
 }
 
 static void aty_set_pll_408(const struct fb_info *info,

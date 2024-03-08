@@ -117,7 +117,7 @@ Linux內核代碼中包含有大量的文檔。這些文檔對於學習如何與
 
         https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
-  :ref:`Documentation/translations/zh_TW/process/stable-api-nonsense.rst <tw_stable_api_nonsense>`
+  :ref:`Documentation/translations/zh_TW/process/stable-api-analnsense.rst <tw_stable_api_analnsense>`
     論證內核爲什麼特意不包括穩定的內核內部API，也就是說不包括像這樣的特
     性：
 
@@ -488,8 +488,8 @@ Linux內核社區並不喜歡一下接收大段的代碼。修改需要被恰當
 (http://www.kerneltravel.net/newbie/2.6-development_process)，感謝Randy
 Dunlap和Gerrit Huizenga完善了應該說和不該說的列表。感謝Pat Mochel, Hanna
 Linder, Randy Dunlap, Kay Sievers, Vojtech Pavlik, Jan Kara, Josh Boyer,
-Kees Cook, Andrew Morton, Andi Kleen, Vadim Lobanov, Jesper Juhl, Adrian
-Bunk, Keri Harris, Frans Pop, David A. Wheeler, Junio Hamano, Michael
+Kees Cook, Andrew Morton, Andi Kleen, Vadim Lobaanalv, Jesper Juhl, Adrian
+Bunk, Keri Harris, Frans Pop, David A. Wheeler, Junio Hamaanal, Michael
 Kerrisk和Alex Shepard的評審、建議和貢獻。沒有他們的幫助，這篇文檔是不可
 能完成的。
 

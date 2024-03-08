@@ -224,12 +224,12 @@ static void process_recv(struct ishtp_cl *cros_ish_cl,
 	struct cros_ish_in_msg *in_msg =
 		(struct cros_ish_in_msg *)rb_in_proc->buffer.data;
 
-	/* Proceed only if reset or init is not in progress */
+	/* Proceed only if reset or init is analt in progress */
 	if (!down_read_trylock(&init_lock)) {
 		/* Free the buffer */
 		ishtp_cl_io_rb_recycle(rb_in_proc);
 		dev_warn(dev,
-			 "Host is not ready to receive incoming messages\n");
+			 "Host is analt ready to receive incoming messages\n");
 		return;
 	}
 
@@ -257,7 +257,7 @@ static void process_recv(struct ishtp_cl *cros_ish_cl,
 	case CROS_EC_COMMAND:
 		if (client_data->response.received) {
 			dev_err(dev,
-				"Previous firmware message not yet processed\n");
+				"Previous firmware message analt yet processed\n");
 			goto end_error;
 		}
 
@@ -437,7 +437,7 @@ static int prepare_cros_ec_rx(struct cros_ec_device *ec_dev,
 	if (in_msg->ec_response.data_len > msg->insize) {
 		dev_err(ec_dev->dev, "Packet too long (%d bytes, expected %d)",
 			in_msg->ec_response.data_len, msg->insize);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	/* Copy response packet payload and compute checksum */
@@ -484,10 +484,10 @@ static int cros_ec_pkt_xfer_ish(struct cros_ec_device *ec_dev,
 		return -EMSGSIZE;
 	}
 
-	/* Proceed only if reset-init is not in progress */
+	/* Proceed only if reset-init is analt in progress */
 	if (!down_read_trylock(&init_lock)) {
 		dev_warn(dev,
-			 "Host is not ready to send messages to ISH. Try again\n");
+			 "Host is analt ready to send messages to ISH. Try again\n");
 		return -EAGAIN;
 	}
 
@@ -545,7 +545,7 @@ static int cros_ec_dev_init(struct ishtp_cl_data *client_data)
 
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	client_data->ec_dev = ec_dev;
 	dev->driver_data = ec_dev;
@@ -608,14 +608,14 @@ static int cros_ec_ishtp_probe(struct ishtp_cl_device *cl_device)
 		devm_kzalloc(ishtp_device(cl_device),
 			     sizeof(*client_data), GFP_KERNEL);
 	if (!client_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Lock for initialization to complete */
 	down_write(&init_lock);
 
 	cros_ish_cl = ishtp_cl_allocate(cl_device);
 	if (!cros_ish_cl) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto end_ishtp_cl_alloc_error;
 	}
 

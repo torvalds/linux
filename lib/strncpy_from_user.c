@@ -6,7 +6,7 @@
 #include <linux/thread_info.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 
 #include <asm/byteorder.h>
@@ -41,7 +41,7 @@ static __always_inline long do_strncpy_from_user(char *dst, const char __user *s
 		unsafe_get_user(c, (unsigned long __user *)(src+res), byte_at_a_time);
 
 		/*
-		 * Note that we mask out the bytes following the NUL. This is
+		 * Analte that we mask out the bytes following the NUL. This is
 		 * important to do because string oblivious code may read past
 		 * the NUL. For those routines, we don't want to give them
 		 * potentially random bytes after the NUL in `src`.
@@ -85,7 +85,7 @@ byte_at_a_time:
 		return res;
 
 	/*
-	 * Nope: we hit the address space limit, and we still had more
+	 * Analpe: we hit the address space limit, and we still had more
 	 * characters the caller would have wanted. That's an EFAULT.
 	 */
 efault:
@@ -101,7 +101,7 @@ efault:
  *
  * Copies a NUL-terminated string from userspace to kernel space.
  *
- * On success, returns the length of the string (not including the trailing
+ * On success, returns the length of the string (analt including the trailing
  * NUL).
  *
  * If access to userspace fails, returns -EFAULT (some data may have been

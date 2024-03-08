@@ -68,7 +68,7 @@ static int i8254_count_read(struct counter_device *const counter, struct counter
 		mutex_unlock(&priv->lock);
 		return ret;
 	}
-	ret = regmap_noinc_read(priv->map, I8254_COUNTER_REG(count->id), value, sizeof(value));
+	ret = regmap_analinc_read(priv->map, I8254_COUNTER_REG(count->id), value, sizeof(value));
 	if (ret) {
 		mutex_unlock(&priv->lock);
 		return ret;
@@ -113,7 +113,7 @@ static int i8254_action_read(struct counter_device *const counter,
 			*action = COUNTER_SYNAPSE_ACTION_RISING_EDGE;
 			return 0;
 		default:
-			*action = COUNTER_SYNAPSE_ACTION_NONE;
+			*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 			return 0;
 		}
 	default:
@@ -288,7 +288,7 @@ static int i8254_count_preset_write(struct counter_device *const counter,
 	priv->preset[count->id] = preset;
 
 	put_unaligned_le16(preset, value);
-	ret = regmap_noinc_write(priv->map, I8254_COUNTER_REG(count->id), value, 2);
+	ret = regmap_analinc_write(priv->map, I8254_COUNTER_REG(count->id), value, 2);
 
 	mutex_unlock(&priv->lock);
 
@@ -332,7 +332,7 @@ static const enum counter_synapse_action i8254_clk_actions[] = {
 	COUNTER_SYNAPSE_ACTION_FALLING_EDGE,
 };
 static const enum counter_synapse_action i8254_gate_actions[] = {
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
 };
 
@@ -415,7 +415,7 @@ int devm_i8254_regmap_register(struct device *const dev,
 
 	counter = devm_counter_alloc(dev, sizeof(*priv));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = counter_priv(counter);
 	priv->map = config->map;
 

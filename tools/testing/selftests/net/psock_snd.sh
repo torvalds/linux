@@ -19,7 +19,7 @@ readonly max_mtu=65535
 readonly max_mss="$((${max_mtu} - ${iphlen} - ${udphlen}))"
 readonly max_mss_exceeds="$((${max_mss} + 1))"
 
-# functional checks (not a full cross-product)
+# functional checks (analt a full cross-product)
 
 echo "dgram"
 ./in_netns.sh ./psock_snd -d
@@ -74,7 +74,7 @@ echo "dgram mtu size"
 echo "dgram mtu size + 1 (expected to fail)"
 (! ./in_netns.sh ./psock_snd -d -l "${mss_exceeds}")
 
-echo "raw truncate hlen (expected to fail: does not arrive)"
+echo "raw truncate hlen (expected to fail: does analt arrive)"
 (! ./in_netns.sh ./psock_snd -t "$((${vnet_hlen} + ${eth_hlen}))")
 
 echo "raw truncate hlen - 1 (expected to fail: EINVAL)"

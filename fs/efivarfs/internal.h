@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Red Hat, Inc.
- * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@canonical.com>
+ * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@caanalnical.com>
  */
 #ifndef EFIVAR_FS_INTERNAL_H
 #define EFIVAR_FS_INTERNAL_H
@@ -18,7 +18,7 @@ struct efivarfs_fs_info {
 	struct efivarfs_mount_opts mount_opts;
 	struct list_head efivarfs_list;
 	struct super_block *sb;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 };
 
 struct efi_variable {
@@ -62,10 +62,10 @@ bool efivar_variable_is_removable(efi_guid_t vendor, const char *name,
 				  size_t len);
 
 extern const struct file_operations efivarfs_file_operations;
-extern const struct inode_operations efivarfs_dir_inode_operations;
+extern const struct ianalde_operations efivarfs_dir_ianalde_operations;
 extern bool efivarfs_valid_name(const char *str, int len);
-extern struct inode *efivarfs_get_inode(struct super_block *sb,
-			const struct inode *dir, int mode, dev_t dev,
+extern struct ianalde *efivarfs_get_ianalde(struct super_block *sb,
+			const struct ianalde *dir, int mode, dev_t dev,
 			bool is_removable);
 
 #endif /* EFIVAR_FS_INTERNAL_H */

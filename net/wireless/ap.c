@@ -13,7 +13,7 @@
 
 static int ___cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 			       struct net_device *dev, unsigned int link_id,
-			       bool notify)
+			       bool analtify)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -21,14 +21,14 @@ static int ___cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!rdev->ops->stop_ap)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!wdev->links[link_id].ap.beacon_interval)
-		return -ENOENT;
+		return -EANALENT;
 
 	err = rdev_stop_ap(rdev, dev, link_id);
 	if (!err) {
@@ -38,7 +38,7 @@ static int ___cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		       sizeof(wdev->links[link_id].ap.chandef));
 		wdev->u.ap.ssid_len = 0;
 		rdev_set_qos_map(rdev, dev, NULL);
-		if (notify)
+		if (analtify)
 			nl80211_send_ap_stopped(wdev, link_id);
 
 		/* Should we apply the grace period during beaconing interface
@@ -54,16 +54,16 @@ static int ___cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev, int link_id,
-		     bool notify)
+		     bool analtify)
 {
 	unsigned int link;
 	int ret = 0;
 
 	if (link_id >= 0)
-		return ___cfg80211_stop_ap(rdev, dev, link_id, notify);
+		return ___cfg80211_stop_ap(rdev, dev, link_id, analtify);
 
 	for_each_valid_link(dev->ieee80211_ptr, link) {
-		int ret1 = ___cfg80211_stop_ap(rdev, dev, link, notify);
+		int ret1 = ___cfg80211_stop_ap(rdev, dev, link, analtify);
 
 		if (ret1)
 			ret = ret1;

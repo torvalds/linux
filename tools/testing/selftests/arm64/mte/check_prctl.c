@@ -19,7 +19,7 @@ static int set_tagged_addr_ctrl(int val)
 	ret = prctl(PR_SET_TAGGED_ADDR_CTRL, val, 0, 0, 0);
 	if (ret < 0)
 		ksft_print_msg("PR_SET_TAGGED_ADDR_CTRL: failed %d %d (%s)\n",
-			       ret, errno, strerror(errno));
+			       ret, erranal, strerror(erranal));
 	return ret;
 }
 
@@ -30,7 +30,7 @@ static int get_tagged_addr_ctrl(void)
 	ret = prctl(PR_GET_TAGGED_ADDR_CTRL, 0, 0, 0, 0);
 	if (ret < 0)
 		ksft_print_msg("PR_GET_TAGGED_ADDR_CTRL failed: %d %d (%s)\n",
-			       ret, errno, strerror(errno));
+			       ret, erranal, strerror(erranal));
 	return ret;
 }
 
@@ -95,7 +95,7 @@ struct mte_mode {
 	int hwcap2;
 	const char *name;
 } mte_modes[] = {
-	{ PR_MTE_TCF_NONE,  0,          "NONE"  },
+	{ PR_MTE_TCF_ANALNE,  0,          "ANALNE"  },
 	{ PR_MTE_TCF_SYNC,  HWCAP2_MTE, "SYNC"  },
 	{ PR_MTE_TCF_ASYNC, HWCAP2_MTE, "ASYNC" },
 	{ PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC,  HWCAP2_MTE, "SYNC+ASYNC"  },

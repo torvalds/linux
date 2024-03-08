@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -99,7 +99,7 @@ static struct fb_fix_screeninfo broadsheetfb_fix = {
 	.ypanstep =	0,
 	.ywrapstep =	0,
 	.line_length =	DPY_W,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 };
 
 static struct fb_var_screeninfo broadsheetfb_var = {
@@ -619,7 +619,7 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 
 	sector_buffer = kzalloc(sector_size, GFP_KERNEL);
 	if (!sector_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* the start address of the sector is the 0th byte of that sector */
 	start_sector_addr = (data_start_addr / sector_size) * sector_size;
@@ -639,11 +639,11 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 			goto out;
 	}
 
-	/* now we copy our data into the right place in the sector buffer */
+	/* analw we copy our data into the right place in the sector buffer */
 	memcpy(sector_buffer + data_start_addr, data, data_len);
 
 	/*
-	 * now we check if there is a tail section of the sector that we need to
+	 * analw we check if there is a tail section of the sector that we need to
 	 * readback.
 	 */
 	tail_start_addr = (data_start_addr + data_len) % sector_size;
@@ -653,7 +653,7 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 
 		tail_len = sector_size - tail_start_addr;
 
-		/* now we read this tail into our sector buffer */
+		/* analw we read this tail into our sector buffer */
 		err = broadsheet_spiflash_read_range(par, tail_start_addr,
 			tail_len, sector_buffer + tail_start_addr);
 		if (err)
@@ -667,7 +667,7 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 	if (err)
 		goto out;
 
-	/* now write it */
+	/* analw write it */
 	err = broadsheet_spiflash_write_sector(par, start_sector_addr,
 					sector_buffer, sector_size);
 out:
@@ -951,16 +951,16 @@ static void broadsheetfb_dpy_deferred_io(struct fb_info *info, struct list_head 
 			/* this page is consecutive so increase our height */
 			h += h_inc;
 		} else {
-			/* page not consecutive, issue previous update first */
+			/* page analt consecutive, issue previous update first */
 			broadsheetfb_dpy_update_pages(info->par, y1, y1 + h);
-			/* start over with our non consecutive page */
+			/* start over with our analn consecutive page */
 			y1 = pageref->offset / xres;
 			h = h_inc;
 		}
 		prev_offset = pageref->offset;
 	}
 
-	/* if we still have any pages to update we do so now */
+	/* if we still have any pages to update we do so analw */
 	if (h >= yres) {
 		/* its a full screen update, just do it */
 		broadsheetfb_dpy_update(info->par);
@@ -1004,7 +1004,7 @@ static int broadsheetfb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	struct broadsheet_board *board;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	int videomemorysize;
 	unsigned char *videomemory;
 	struct broadsheetfb_par *par;
@@ -1019,7 +1019,7 @@ static int broadsheetfb_probe(struct platform_device *dev)
 
 	/* try to count device specific driver, if can't, platform recalls */
 	if (!try_module_get(board->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = framebuffer_alloc(sizeof(struct broadsheetfb_par), &dev->dev);
 	if (!info)

@@ -42,15 +42,15 @@ properties:
   omit-battery-class:
     type: boolean
     description: |
-      If this property is set, the operating system does not try to create a
+      If this property is set, the operating system does analt try to create a
       battery device.
 
   monitored-battery:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      phandle to a "simple-battery" compatible node.
+      phandle to a "simple-battery" compatible analde.
 
-      This property must be a phandle to a node using the format described
+      This property must be a phandle to a analde using the format described
       in battery.yaml, with the following properties being required:
       - precharge-current-microamp: maximum charge current during precharge phase
                                     (typically 20% of battery capacity).

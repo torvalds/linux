@@ -29,7 +29,7 @@
 
 /*
  * We can't read the WM8728 register space so we cache them instead.
- * Note that the defaults here aren't the physical defaults, we latch
+ * Analte that the defaults here aren't the physical defaults, we latch
  * the volume update bits, mute the output and enable infinite zero
  * detect.
  */
@@ -59,7 +59,7 @@ SOC_SINGLE("Deemphasis", WM8728_DACCTL, 1, 1, 0),
  * DAPM controls.
  */
 static const struct snd_soc_dapm_widget wm8728_dapm_widgets[] = {
-SND_SOC_DAPM_DAC("DAC", "HiFi Playback", SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_DAC("DAC", "HiFi Playback", SND_SOC_ANALPM, 0, 0),
 SND_SOC_DAPM_OUTPUT("VOUTL"),
 SND_SOC_DAPM_OUTPUT("VOUTR"),
 };
@@ -194,7 +194,7 @@ static const struct snd_soc_dai_ops wm8728_dai_ops = {
 	.hw_params	= wm8728_hw_params,
 	.mute_stream	= wm8728_mute,
 	.set_fmt	= wm8728_set_dai_fmt,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8728_dai = {
@@ -248,7 +248,7 @@ static int wm8728_spi_probe(struct spi_device *spi)
 	wm8728 = devm_kzalloc(&spi->dev, sizeof(struct wm8728_priv),
 			      GFP_KERNEL);
 	if (wm8728 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8728->regmap = devm_regmap_init_spi(spi, &wm8728_regmap);
 	if (IS_ERR(wm8728->regmap))
@@ -280,7 +280,7 @@ static int wm8728_i2c_probe(struct i2c_client *i2c)
 	wm8728 = devm_kzalloc(&i2c->dev, sizeof(struct wm8728_priv),
 			      GFP_KERNEL);
 	if (wm8728 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8728->regmap = devm_regmap_init_i2c(i2c, &wm8728_regmap);
 	if (IS_ERR(wm8728->regmap))

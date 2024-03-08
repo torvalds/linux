@@ -41,7 +41,7 @@
 #define AXIW1_READY	BIT(4)
 #define AXIW1_PRESENCE	BIT(31)
 #define AXIW1_MAJORVER_MASK	GENMASK(23, 8)
-#define AXIW1_MINORVER_MASK	GENMASK(7, 0)
+#define AXIW1_MIANALRVER_MASK	GENMASK(7, 0)
 /* Control flag */
 #define AXIW1_GO	BIT(0)
 #define AXI_CLEAR	0
@@ -229,7 +229,7 @@ static void amd_axi_w1_write_byte(void *data, u8 val)
  * amd_axi_w1_reset_bus() - Issues a reset bus sequence.
  *
  * @data:	the bus host data struct
- * Return:	0=Device present, 1=No device present or error
+ * Return:	0=Device present, 1=Anal device present or error
  */
 static u8 amd_axi_w1_reset_bus(void *data)
 {
@@ -297,12 +297,12 @@ static int amd_axi_w1_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct amd_axi_w1_local *lp;
 	struct clk *clk;
-	u32 ver_major, ver_minor;
+	u32 ver_major, ver_mianalr;
 	int val, rc = 0;
 
 	lp = devm_kzalloc(dev, sizeof(*lp), GFP_KERNEL);
 	if (!lp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp->dev = dev;
 	lp->base_addr = devm_platform_ioremap_resource(pdev, 0);
@@ -326,8 +326,8 @@ static int amd_axi_w1_probe(struct platform_device *pdev)
 
 	/* Verify IP presence in HW */
 	if (ioread32(lp->base_addr + AXIW1_IPID_REG) != AXIW1_IPID) {
-		dev_err(dev, "AMD 1-wire IP not detected in hardware\n");
-		return -ENODEV;
+		dev_err(dev, "AMD 1-wire IP analt detected in hardware\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -337,17 +337,17 @@ static int amd_axi_w1_probe(struct platform_device *pdev)
 	 * by reading major version ID. It is highly undesirable for new IP versions
 	 * to break the API, but this code will at least allow for graceful failure
 	 * should that happen. Future new features can be enabled by hardware
-	 * incrementing the minor version and augmenting the driver to detect capability
-	 * using the minor version number
+	 * incrementing the mianalr version and augmenting the driver to detect capability
+	 * using the mianalr version number
 	 */
 	val = ioread32(lp->base_addr + AXIW1_IPVER_REG);
 	ver_major = FIELD_GET(AXIW1_MAJORVER_MASK, val);
-	ver_minor = FIELD_GET(AXIW1_MINORVER_MASK, val);
+	ver_mianalr = FIELD_GET(AXIW1_MIANALRVER_MASK, val);
 
 	if (ver_major != 1) {
-		dev_err(dev, "AMD AXI W1 host version %u.%u is not supported by this driver",
-			ver_major, ver_minor);
-		return -ENODEV;
+		dev_err(dev, "AMD AXI W1 host version %u.%u is analt supported by this driver",
+			ver_major, ver_mianalr);
+		return -EANALDEV;
 	}
 
 	lp->bus_host.data = lp;
@@ -361,7 +361,7 @@ static int amd_axi_w1_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, lp);
 	rc = w1_add_master_device(&lp->bus_host);
 	if (rc) {
-		dev_err(dev, "Could not add host device\n");
+		dev_err(dev, "Could analt add host device\n");
 		return rc;
 	}
 

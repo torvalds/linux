@@ -80,8 +80,8 @@ MODULE_LICENSE("GPL");
 #define TEA5777_W_FM_FREF_SHIFT		30
 #define TEA5777_W_FM_FREF_VALUE		0LL /* 50k steps, 150k IF */
 
-#define TEA5777_W_FM_FORCEMONO_MASK	(1LL << 15)
-#define TEA5777_W_FM_FORCEMONO_SHIFT	15
+#define TEA5777_W_FM_FORCEMOANAL_MASK	(1LL << 15)
+#define TEA5777_W_FM_FORCEMOANAL_SHIFT	15
 #define TEA5777_W_FM_SDSOFF_MASK	(1LL << 14)
 #define TEA5777_W_FM_SDSOFF_SHIFT	14
 #define TEA5777_W_FM_DOFF_MASK		(1LL << 13)
@@ -188,9 +188,9 @@ int radio_tea5777_set_freq(struct radio_tea5777 *tea)
 		tea->write_reg &= ~TEA5777_W_FM_FREF_MASK;
 		tea->write_reg |= TEA5777_W_FM_FREF_VALUE <<
 				  TEA5777_W_FM_FREF_SHIFT;
-		tea->write_reg &= ~TEA5777_W_FM_FORCEMONO_MASK;
-		if (tea->audmode == V4L2_TUNER_MODE_MONO)
-			tea->write_reg |= 1LL << TEA5777_W_FM_FORCEMONO_SHIFT;
+		tea->write_reg &= ~TEA5777_W_FM_FORCEMOANAL_MASK;
+		if (tea->audmode == V4L2_TUNER_MODE_MOANAL)
+			tea->write_reg |= 1LL << TEA5777_W_FM_FORCEMOANAL_SHIFT;
 		break;
 	case BAND_AM:
 		tea->write_reg &= ~TEA5777_W_AM_FM_MASK;
@@ -306,7 +306,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 			(tea->read_reg & TEA5777_R_FM_STEREO_MASK))
 		v->rxsubchans = V4L2_TUNER_SUB_STEREO;
 	else
-		v->rxsubchans = V4L2_TUNER_SUB_MONO;
+		v->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	v->audmode = tea->audmode;
 	/* shift - 12 to convert 4-bits (0-15) scale to 16-bits (0-65535) */
 	v->signal = (tea->read_reg & TEA5777_R_LEVEL_MASK) >>
@@ -379,7 +379,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 	if (a->tuner || a->wrap_around)
 		return -EINVAL;
 
-	if (file->f_flags & O_NONBLOCK)
+	if (file->f_flags & O_ANALNBLOCK)
 		return -EWOULDBLOCK;
 
 	if (rangelow || rangehigh) {
@@ -391,7 +391,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 				break;
 		}
 		if (i == ARRAY_SIZE(bands))
-			return -EINVAL; /* No matching band found */
+			return -EINVAL; /* Anal matching band found */
 
 		tea->band = i;
 		if (tea->freq < rangelow || tea->freq > rangehigh) {
@@ -443,7 +443,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 	timeout = jiffies + msecs_to_jiffies(5000);
 	for (;;) {
 		if (time_after(jiffies, timeout)) {
-			res = -ENODATA;
+			res = -EANALDATA;
 			break;
 		}
 
@@ -452,7 +452,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 			break;
 
 		/*
-		 * Note we use tea->freq to track how far we've searched sofar
+		 * Analte we use tea->freq to track how far we've searched sofar
 		 * this is necessary to ensure we continue seeking at the right
 		 * point, in the write_before_read case.
 		 */
@@ -465,7 +465,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 		}
 
 		if (tea->read_reg & TEA5777_R_BLIM_MASK) {
-			res = -ENODATA;
+			res = -EANALDATA;
 			break;
 		}
 

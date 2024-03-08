@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (c) 2012-2017 ASPEED Technology Inc.
+// Copyright (c) 2012-2017 ASPEED Techanallogy Inc.
 // Copyright (c) 2018-2021 Intel Corporation
 
 #include <asm/unaligned.h>
@@ -171,21 +171,21 @@ static int aspeed_peci_check_idle(struct aspeed_peci *priv)
 	int ret;
 
 	/*
-	 * Under normal circumstances, we expect to be idle here.
+	 * Under analrmal circumstances, we expect to be idle here.
 	 * In case there were any errors/timeouts that led to the situation
-	 * where the hardware is not in idle state - we need to reset and
+	 * where the hardware is analt in idle state - we need to reset and
 	 * reinitialize it to avoid potential controller hang.
 	 */
 	if (FIELD_GET(ASPEED_PECI_CMD_STS_MASK, cmd_sts)) {
 		ret = reset_control_assert(priv->rst);
 		if (ret) {
-			dev_err(priv->dev, "cannot assert reset control\n");
+			dev_err(priv->dev, "cananalt assert reset control\n");
 			return ret;
 		}
 
 		ret = reset_control_deassert(priv->rst);
 		if (ret) {
-			dev_err(priv->dev, "cannot deassert reset control\n");
+			dev_err(priv->dev, "cananalt deassert reset control\n");
 			return ret;
 		}
 
@@ -193,7 +193,7 @@ static int aspeed_peci_check_idle(struct aspeed_peci *priv)
 
 		ret = clk_set_rate(priv->clk, priv->clk_frequency);
 		if (ret < 0) {
-			dev_err(priv->dev, "cannot set clock frequency\n");
+			dev_err(priv->dev, "cananalt set clock frequency\n");
 			return ret;
 		}
 
@@ -241,7 +241,7 @@ static int aspeed_peci_xfer(struct peci_controller *controller,
 
 #if IS_ENABLED(CONFIG_DYNAMIC_DEBUG)
 	dev_dbg(priv->dev, "HEAD : %#08x\n", peci_head);
-	print_hex_dump_bytes("TX : ", DUMP_PREFIX_NONE, req->tx.buf, req->tx.len);
+	print_hex_dump_bytes("TX : ", DUMP_PREFIX_ANALNE, req->tx.buf, req->tx.len);
 #endif
 
 	priv->status = 0;
@@ -261,7 +261,7 @@ static int aspeed_peci_xfer(struct peci_controller *controller,
 
 	if (priv->status != ASPEED_PECI_INT_CMD_DONE) {
 		spin_unlock_irq(&priv->lock);
-		dev_dbg(priv->dev, "no valid response, status: %#02x\n", priv->status);
+		dev_dbg(priv->dev, "anal valid response, status: %#02x\n", priv->status);
 		return -EIO;
 	}
 
@@ -281,7 +281,7 @@ static int aspeed_peci_xfer(struct peci_controller *controller,
 	}
 
 #if IS_ENABLED(CONFIG_DYNAMIC_DEBUG)
-	print_hex_dump_bytes("RX : ", DUMP_PREFIX_NONE, req->rx.buf, req->rx.len);
+	print_hex_dump_bytes("RX : ", DUMP_PREFIX_ANALNE, req->rx.buf, req->rx.len);
 #endif
 	return 0;
 }
@@ -427,7 +427,7 @@ static struct clk *devm_aspeed_peci_register_clk_div(struct device *dev, struct 
 
 	peci_clk = devm_kzalloc(dev, sizeof(struct clk_aspeed_peci), GFP_KERNEL);
 	if (!peci_clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	peci_clk->hw.init = &init;
 	peci_clk->aspeed_peci = priv;
@@ -513,7 +513,7 @@ static int aspeed_peci_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	dev_set_drvdata(priv->dev, priv);
@@ -541,7 +541,7 @@ static int aspeed_peci_probe(struct platform_device *pdev)
 
 	ret = devm_aspeed_peci_reset_control_deassert(priv->dev, priv->rst);
 	if (ret)
-		return dev_err_probe(priv->dev, ret, "cannot deassert reset control\n");
+		return dev_err_probe(priv->dev, ret, "cananalt deassert reset control\n");
 
 	aspeed_peci_property_setup(priv);
 
@@ -553,11 +553,11 @@ static int aspeed_peci_probe(struct platform_device *pdev)
 
 	priv->clk = devm_aspeed_peci_register_clk_div(priv->dev, ref_clk, priv);
 	if (IS_ERR(priv->clk))
-		return dev_err_probe(priv->dev, PTR_ERR(priv->clk), "cannot register clock\n");
+		return dev_err_probe(priv->dev, PTR_ERR(priv->clk), "cananalt register clock\n");
 
 	ret = clk_set_rate(priv->clk, priv->clk_frequency);
 	if (ret < 0)
-		return dev_err_probe(priv->dev, ret, "cannot set clock frequency\n");
+		return dev_err_probe(priv->dev, ret, "cananalt set clock frequency\n");
 
 	ret = devm_aspeed_peci_clk_enable(priv->dev, priv->clk);
 	if (ret)

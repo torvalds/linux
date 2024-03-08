@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_MME_CMDQ_MASKS_H_
@@ -109,11 +109,11 @@
 #define MME_CMDQ_GLBL_SECURE_PROPS_MMBP_SHIFT                        10
 #define MME_CMDQ_GLBL_SECURE_PROPS_MMBP_MASK                         0x400
 
-/* MME_CMDQ_GLBL_NON_SECURE_PROPS */
-#define MME_CMDQ_GLBL_NON_SECURE_PROPS_ASID_SHIFT                    0
-#define MME_CMDQ_GLBL_NON_SECURE_PROPS_ASID_MASK                     0x3FF
-#define MME_CMDQ_GLBL_NON_SECURE_PROPS_MMBP_SHIFT                    10
-#define MME_CMDQ_GLBL_NON_SECURE_PROPS_MMBP_MASK                     0x400
+/* MME_CMDQ_GLBL_ANALN_SECURE_PROPS */
+#define MME_CMDQ_GLBL_ANALN_SECURE_PROPS_ASID_SHIFT                    0
+#define MME_CMDQ_GLBL_ANALN_SECURE_PROPS_ASID_MASK                     0x3FF
+#define MME_CMDQ_GLBL_ANALN_SECURE_PROPS_MMBP_SHIFT                    10
+#define MME_CMDQ_GLBL_ANALN_SECURE_PROPS_MMBP_MASK                     0x400
 
 /* MME_CMDQ_GLBL_STS0 */
 #define MME_CMDQ_GLBL_STS0_PQF_IDLE_SHIFT                            0
@@ -166,8 +166,8 @@
 #define MME_CMDQ_CQ_CFG1_MAX_INFLIGHT_MASK                           0xFFFF0000
 
 /* MME_CMDQ_CQ_ARUSER */
-#define MME_CMDQ_CQ_ARUSER_NOSNOOP_SHIFT                             0
-#define MME_CMDQ_CQ_ARUSER_NOSNOOP_MASK                              0x1
+#define MME_CMDQ_CQ_ARUSER_ANALSANALOP_SHIFT                             0
+#define MME_CMDQ_CQ_ARUSER_ANALSANALOP_MASK                              0x1
 #define MME_CMDQ_CQ_ARUSER_WORD_SHIFT                                1
 #define MME_CMDQ_CQ_ARUSER_WORD_MASK                                 0x2
 

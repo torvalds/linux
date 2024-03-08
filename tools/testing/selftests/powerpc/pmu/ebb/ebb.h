@@ -22,7 +22,7 @@ struct ebb_state
 		volatile int ebb_count;
 		int spurious;
 		int negative;
-		int no_overflow;
+		int anal_overflow;
 	} stats;
 
 	bool pmc_enable[6];

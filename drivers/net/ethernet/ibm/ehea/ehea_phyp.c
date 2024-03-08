@@ -32,7 +32,7 @@ static inline u16 get_order_of_qentries(u16 queue_entries)
 #define H_ALL_RES_TYPE_MR	 5
 #define H_ALL_RES_TYPE_MW	 6
 
-static long ehea_plpar_hcall_norets(unsigned long opcode,
+static long ehea_plpar_hcall_analrets(unsigned long opcode,
 				    unsigned long arg1,
 				    unsigned long arg2,
 				    unsigned long arg3,
@@ -45,7 +45,7 @@ static long ehea_plpar_hcall_norets(unsigned long opcode,
 	int i, sleep_msecs;
 
 	for (i = 0; i < 5; i++) {
-		ret = plpar_hcall_norets(opcode, arg1, arg2, arg3, arg4,
+		ret = plpar_hcall_analrets(opcode, arg1, arg2, arg3, arg4,
 					 arg5, arg6, arg7);
 
 		if (H_IS_LONG_BUSY(ret)) {
@@ -122,7 +122,7 @@ static long ehea_plpar_hcall9(unsigned long opcode,
 u64 ehea_h_query_ehea_qp(const u64 adapter_handle, const u8 qp_category,
 			 const u64 qp_handle, const u64 sel_mask, void *cb_addr)
 {
-	return ehea_plpar_hcall_norets(H_QUERY_HEA_QP,
+	return ehea_plpar_hcall_analrets(H_QUERY_HEA_QP,
 				       adapter_handle,		/* R4 */
 				       qp_category,		/* R5 */
 				       qp_handle,		/* R6 */
@@ -328,7 +328,7 @@ u64 ehea_h_alloc_resource_cq(const u64 adapter_handle,
 
 /*  input param R5 */
 #define H_ALL_RES_EQ_NEQ	     EHEA_BMASK_IBM(0, 0)
-#define H_ALL_RES_EQ_NON_NEQ_ISN     EHEA_BMASK_IBM(6, 7)
+#define H_ALL_RES_EQ_ANALN_NEQ_ISN     EHEA_BMASK_IBM(6, 7)
 #define H_ALL_RES_EQ_INH_EQE_GEN     EHEA_BMASK_IBM(16, 16)
 #define H_ALL_RES_EQ_RES_TYPE	     EHEA_BMASK_IBM(56, 63)
 /*  input param R6 */
@@ -367,7 +367,7 @@ u64 ehea_h_alloc_resource_eq(const u64 adapter_handle,
 	    EHEA_BMASK_SET(H_ALL_RES_EQ_RES_TYPE, H_ALL_RES_TYPE_EQ)
 	    | EHEA_BMASK_SET(H_ALL_RES_EQ_NEQ, eq_attr->type ? 1 : 0)
 	    | EHEA_BMASK_SET(H_ALL_RES_EQ_INH_EQE_GEN, !eq_attr->eqe_gen)
-	    | EHEA_BMASK_SET(H_ALL_RES_EQ_NON_NEQ_ISN, 1);
+	    | EHEA_BMASK_SET(H_ALL_RES_EQ_ANALN_NEQ_ISN, 1);
 
 	hret = ehea_plpar_hcall9(H_ALLOC_HEA_RESOURCE,
 				 outs,
@@ -421,7 +421,7 @@ u64 ehea_h_register_rpage(const u64 adapter_handle, const u8 pagesize,
 	reg_control = EHEA_BMASK_SET(H_REG_RPAGE_PAGE_SIZE, pagesize)
 		    | EHEA_BMASK_SET(H_REG_RPAGE_QT, queue_type);
 
-	return ehea_plpar_hcall_norets(H_REGISTER_HEA_RPAGES,
+	return ehea_plpar_hcall_analrets(H_REGISTER_HEA_RPAGES,
 				       adapter_handle,		/* R4 */
 				       reg_control,		/* R5 */
 				       resource_handle,		/* R6 */
@@ -467,7 +467,7 @@ u64 ehea_h_disable_and_get_hea(const u64 adapter_handle, const u64 qp_handle)
 u64 ehea_h_free_resource(const u64 adapter_handle, const u64 res_handle,
 			 u64 force_bit)
 {
-	return ehea_plpar_hcall_norets(H_FREE_RESOURCE,
+	return ehea_plpar_hcall_analrets(H_FREE_RESOURCE,
 				       adapter_handle,	   /* R4 */
 				       res_handle,	   /* R5 */
 				       force_bit,
@@ -501,7 +501,7 @@ u64 ehea_h_register_rpage_mr(const u64 adapter_handle, const u64 mr_handle,
 			     const u64 log_pageaddr, const u64 count)
 {
 	if ((count > 1) && (log_pageaddr & ~PAGE_MASK)) {
-		pr_err("not on pageboundary\n");
+		pr_err("analt on pageboundary\n");
 		return H_PARAMETER;
 	}
 
@@ -516,7 +516,7 @@ u64 ehea_h_query_ehea(const u64 adapter_handle, void *cb_addr)
 
 	cb_logaddr = __pa(cb_addr);
 
-	hret = ehea_plpar_hcall_norets(H_QUERY_HEA,
+	hret = ehea_plpar_hcall_analrets(H_QUERY_HEA,
 				       adapter_handle,		/* R4 */
 				       cb_logaddr,		/* R5 */
 				       0, 0, 0, 0, 0);		/* R6-R10 */
@@ -537,7 +537,7 @@ u64 ehea_h_query_ehea_port(const u64 adapter_handle, const u16 port_num,
 	port_info = EHEA_BMASK_SET(H_MEHEAPORT_CAT, cb_cat)
 		  | EHEA_BMASK_SET(H_MEHEAPORT_PN, port_num);
 
-	return ehea_plpar_hcall_norets(H_QUERY_HEA_PORT,
+	return ehea_plpar_hcall_analrets(H_QUERY_HEA_PORT,
 				       adapter_handle,		/* R4 */
 				       port_info,		/* R5 */
 				       select_mask,		/* R6 */
@@ -582,7 +582,7 @@ u64 ehea_h_reg_dereg_bcmc(const u64 adapter_handle, const u16 port_num,
 	r7_mc_mac_addr = EHEA_BMASK_SET(H_REGBCMC_MACADDR, mac_addr);
 	r8_vlan_id = EHEA_BMASK_SET(H_REGBCMC_VLANID, vlan_id);
 
-	return ehea_plpar_hcall_norets(hcall_id,
+	return ehea_plpar_hcall_analrets(hcall_id,
 				       adapter_handle,		/* R4 */
 				       r5_port_num,		/* R5 */
 				       r6_reg_type,		/* R6 */
@@ -594,7 +594,7 @@ u64 ehea_h_reg_dereg_bcmc(const u64 adapter_handle, const u16 port_num,
 u64 ehea_h_reset_events(const u64 adapter_handle, const u64 neq_handle,
 			const u64 event_mask)
 {
-	return ehea_plpar_hcall_norets(H_RESET_EVENTS,
+	return ehea_plpar_hcall_analrets(H_RESET_EVENTS,
 				       adapter_handle,		/* R4 */
 				       neq_handle,		/* R5 */
 				       event_mask,		/* R6 */
@@ -604,7 +604,7 @@ u64 ehea_h_reset_events(const u64 adapter_handle, const u64 neq_handle,
 u64 ehea_h_error_data(const u64 adapter_handle, const u64 ressource_handle,
 		      void *rblock)
 {
-	return ehea_plpar_hcall_norets(H_ERROR_DATA,
+	return ehea_plpar_hcall_analrets(H_ERROR_DATA,
 				       adapter_handle,		/* R4 */
 				       ressource_handle,	/* R5 */
 				       __pa(rblock),		/* R6 */

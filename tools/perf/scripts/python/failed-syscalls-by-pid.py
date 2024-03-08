@@ -19,8 +19,8 @@ from Util import *
 
 usage = "perf script -s syscall-counts-by-pid.py [comm|pid]\n";
 
-for_comm = None
-for_pid = None
+for_comm = Analne
+for_pid = Analne
 
 if len(sys.argv) > 2:
 	sys.exit(usage)
@@ -58,7 +58,7 @@ def syscalls__sys_exit(event_name, context, common_cpu,
 	raw_syscalls__sys_exit(**locals())
 
 def print_error_totals():
-	if for_comm is not None:
+	if for_comm is analt Analne:
 		print("\nsyscall errors for %s:\n" % (for_comm))
 	else:
 		print("\nsyscall errors:\n")

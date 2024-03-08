@@ -56,7 +56,7 @@
   {
     "EventCode": "0x20064",
     "EventName": "PM_IERAT_RELOAD_4K",
-    "BriefDescription": "IERAT Miss (Not implemented as DI on POWER6)",
+    "BriefDescription": "IERAT Miss (Analt implemented as DI on POWER6)",
     "PublicDescription": "IERAT Reloaded (Miss) for a 4k page"
   },
   {
@@ -86,67 +86,67 @@
   {
     "EventCode": "0x44048",
     "EventName": "PM_INST_FROM_DL2L3_MOD",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x34048",
     "EventName": "PM_INST_FROM_DL2L3_SHR",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x3404c",
     "EventName": "PM_INST_FROM_DL4",
-    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded from aanalther chip's L4 on a different Analde or Group (Distant) due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded from aanalther chip's L4 on a different Analde or Group (Distant) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x4404c",
     "EventName": "PM_INST_FROM_DMEM",
-    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group (Distant) due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group (Distant) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded from aanalther chip's memory on the same Analde or Group (Distant) due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded from aanalther chip's memory on the same Analde or Group (Distant) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x14042",
     "EventName": "PM_INST_FROM_L2",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x1404e",
     "EventName": "PM_INST_FROM_L2MISS",
-    "BriefDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L2 due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L2 due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L2 due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x34040",
     "EventName": "PM_INST_FROM_L2_DISP_CONFLICT_LDHITST",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with load hit store conflict due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with load hit store conflict due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 with load hit store conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x44040",
     "EventName": "PM_INST_FROM_L2_DISP_CONFLICT_OTHER",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with dispatch conflict due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with dispatch conflict due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 with dispatch conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x24040",
     "EventName": "PM_INST_FROM_L2_MEPF",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state. due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state. due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state. due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x14040",
-    "EventName": "PM_INST_FROM_L2_NO_CONFLICT",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 without conflict due to an instruction fetch (not prefetch)",
+    "EventName": "PM_INST_FROM_L2_ANAL_CONFLICT",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 without conflict due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L2 without conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x44042",
     "EventName": "PM_INST_FROM_L3",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L3 due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
@@ -164,74 +164,74 @@
   {
     "EventCode": "0x34042",
     "EventName": "PM_INST_FROM_L3_DISP_CONFLICT",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 with dispatch conflict due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 with dispatch conflict due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L3 with dispatch conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x24042",
     "EventName": "PM_INST_FROM_L3_MEPF",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state. due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state. due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state. due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x14044",
-    "EventName": "PM_INST_FROM_L3_NO_CONFLICT",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without conflict due to an instruction fetch (not prefetch)",
+    "EventName": "PM_INST_FROM_L3_ANAL_CONFLICT",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without conflict due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from local core's L3 without conflict due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x1404c",
     "EventName": "PM_INST_FROM_LL4",
-    "BriefDescription": "The processor's Instruction cache was reloaded from the local chip's L4 cache due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from the local chip's L4 cache due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from the local chip's L4 cache due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x24048",
     "EventName": "PM_INST_FROM_LMEM",
-    "BriefDescription": "The processor's Instruction cache was reloaded from the local chip's Memory due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from the local chip's Memory due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from the local chip's Memory due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x2404c",
     "EventName": "PM_INST_FROM_MEMORY",
-    "BriefDescription": "The processor's Instruction cache was reloaded from a memory location including L4 from local remote or distant due to an instruction fetch (not prefetch)",
+    "BriefDescription": "The processor's Instruction cache was reloaded from a memory location including L4 from local remote or distant due to an instruction fetch (analt prefetch)",
     "PublicDescription": "The processor's Instruction cache was reloaded from a memory location including L4 from local remote or distant due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x4404a",
     "EventName": "PM_INST_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "The processor's Instruction cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x14048",
     "EventName": "PM_INST_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "The processor's Instruction cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded either shared or modified data from aanalther core's L2/L3 on the same chip due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded either shared or modified data from aanalther core's L2/L3 on the same chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x24046",
     "EventName": "PM_INST_FROM_RL2L3_MOD",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x1404a",
     "EventName": "PM_INST_FROM_RL2L3_SHR",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x2404a",
     "EventName": "PM_INST_FROM_RL4",
-    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded from aanalther chip's L4 on the same Analde or Group ( Remote) due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded from aanalther chip's L4 on the same Analde or Group ( Remote) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x3404a",
     "EventName": "PM_INST_FROM_RMEM",
-    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to an instruction fetch (not prefetch)",
-    "PublicDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
+    "BriefDescription": "The processor's Instruction cache was reloaded from aanalther chip's memory on the same Analde or Group ( Remote) due to an instruction fetch (analt prefetch)",
+    "PublicDescription": "The processor's Instruction cache was reloaded from aanalther chip's memory on the same Analde or Group ( Remote) due to either an instruction fetch or instruction fetch plus prefetch if MMCR1[17] is 1"
   },
   {
     "EventCode": "0x24050",
@@ -254,7 +254,7 @@
   {
     "EventCode": "0x1003a",
     "EventName": "PM_INST_IMC_MATCH_CMPL",
-    "BriefDescription": "IMC Match Count ( Not architected in P8)",
+    "BriefDescription": "IMC Match Count ( Analt architected in P8)",
     "PublicDescription": ""
   },
   {
@@ -290,25 +290,25 @@
   {
     "EventCode": "0x45048",
     "EventName": "PM_IPTEG_FROM_DL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a instruction side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x35048",
     "EventName": "PM_IPTEG_FROM_DL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a instruction side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3504c",
     "EventName": "PM_IPTEG_FROM_DL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on a different Node or Group (Distant) due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's L4 on a different Analde or Group (Distant) due to a instruction side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4504c",
     "EventName": "PM_IPTEG_FROM_DMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group (Distant) due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group (Distant) due to a instruction side request",
     "PublicDescription": ""
   },
   {
@@ -331,7 +331,7 @@
   },
   {
     "EventCode": "0x15040",
-    "EventName": "PM_IPTEG_FROM_L2_NO_CONFLICT",
+    "EventName": "PM_IPTEG_FROM_L2_ANAL_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 without conflict due to a instruction side request",
     "PublicDescription": ""
   },
@@ -361,7 +361,7 @@
   },
   {
     "EventCode": "0x15044",
-    "EventName": "PM_IPTEG_FROM_L3_NO_CONFLICT",
+    "EventName": "PM_IPTEG_FROM_L3_ANAL_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without conflict due to a instruction side request",
     "PublicDescription": ""
   },
@@ -386,37 +386,37 @@
   {
     "EventCode": "0x4504a",
     "EventName": "PM_IPTEG_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to a instruction side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x15048",
     "EventName": "PM_IPTEG_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from aanalther core's L2/L3 on the same chip due to a instruction side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x25046",
     "EventName": "PM_IPTEG_FROM_RL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a instruction side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1504a",
     "EventName": "PM_IPTEG_FROM_RL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a instruction side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2504a",
     "EventName": "PM_IPTEG_FROM_RL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on the same Node or Group ( Remote) due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's L4 on the same Analde or Group ( Remote) due to a instruction side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3504a",
     "EventName": "PM_IPTEG_FROM_RMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group ( Remote) due to a instruction side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group ( Remote) due to a instruction side request",
     "PublicDescription": ""
   },
   {

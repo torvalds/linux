@@ -27,7 +27,7 @@ properties:
 
   nvmem-cells:
     description: |
-      A phandle pointing to a nvmem-cells node representing the efuse
+      A phandle pointing to a nvmem-cells analde representing the efuse
       registers that has information about the speedbin that is used
       to select the right frequency/voltage value pair. Please refer
       the for nvmem-cells bindings

@@ -8,9 +8,9 @@ Memory Resource Controller
       here but make sure to check the current code if you need a deeper
       understanding.
 
-.. note::
+.. analte::
       The Memory Resource Controller has generically been referred to as the
-      memory controller in this document. Do not confuse memory controller
+      memory controller in this document. Do analt confuse memory controller
       used here with the memory controller that is used in hardware.
 
 .. hint::
@@ -34,7 +34,7 @@ b. Create a cgroup with a limited amount of memory; this can be used
 c. Virtualization solutions can control the amount of memory they want
    to assign to a virtual machine instance.
 d. A CD/DVD burner could control the amount of memory used by the
-   rest of the system to ensure that burning does not fail due to lack
+   rest of the system to ensure that burning does analt fail due to lack
    of available memory.
 e. There are several other use cases; find one or use the controller just
    for fun (to learn and hack on the VM subsystem).
@@ -43,16 +43,16 @@ Current Status: linux-2.6.34-mmotm(development version of 2010/April)
 
 Features:
 
- - accounting anonymous pages, file caches, swap caches usage and limiting them.
- - pages are linked to per-memcg LRU exclusively, and there is no global LRU.
+ - accounting aanalnymous pages, file caches, swap caches usage and limiting them.
+ - pages are linked to per-memcg LRU exclusively, and there is anal global LRU.
  - optionally, memory+swap usage can be accounted and limited.
  - hierarchical accounting
  - soft limit
  - moving (recharging) account at moving a task is selectable.
- - usage threshold notifier
- - memory pressure notifier
- - oom-killer disable knob and oom-notifier
- - Root cgroup has no limit controls.
+ - usage threshold analtifier
+ - memory pressure analtifier
+ - oom-killer disable kanalb and oom-analtifier
+ - Root cgroup has anal limit controls.
 
  Kernel memory support is a work in progress, and the current version provides
  basically functionality. (See :ref:`section 2.7
@@ -65,7 +65,7 @@ Brief summary of control files.
 				     threads
  cgroup.procs			     show list of processes
  cgroup.event_control		     an interface for event_fd()
-				     This knob is not available on CONFIG_PREEMPT_RT systems.
+				     This kanalb is analt available on CONFIG_PREEMPT_RT systems.
  memory.usage_in_bytes		     show current usage for memory
 				     (See 5.5 for details)
  memory.memsw.usage_in_bytes	     show current usage for memory+Swap
@@ -77,26 +77,26 @@ Brief summary of control files.
  memory.max_usage_in_bytes	     show max memory usage recorded
  memory.memsw.max_usage_in_bytes     show max memory+Swap usage recorded
  memory.soft_limit_in_bytes	     set/show soft limit of memory usage
-				     This knob is not available on CONFIG_PREEMPT_RT systems.
+				     This kanalb is analt available on CONFIG_PREEMPT_RT systems.
  memory.stat			     show various statistics
  memory.use_hierarchy		     set/show hierarchical account enabled
-                                     This knob is deprecated and shouldn't be
+                                     This kanalb is deprecated and shouldn't be
                                      used.
  memory.force_empty		     trigger forced page reclaim
- memory.pressure_level		     set memory pressure notifications
+ memory.pressure_level		     set memory pressure analtifications
  memory.swappiness		     set/show swappiness parameter of vmscan
 				     (See sysctl's vm.swappiness)
  memory.move_charge_at_immigrate     set/show controls of moving charges
-                                     This knob is deprecated and shouldn't be
+                                     This kanalb is deprecated and shouldn't be
                                      used.
  memory.oom_control		     set/show oom controls.
  memory.numa_stat		     show the number of memory usage per numa
-				     node
- memory.kmem.limit_in_bytes          Deprecated knob to set and read the kernel
-                                     memory hard limit. Kernel hard limit is not
+				     analde
+ memory.kmem.limit_in_bytes          Deprecated kanalb to set and read the kernel
+                                     memory hard limit. Kernel hard limit is analt
                                      supported since 5.16. Writing any value to
-                                     do file will not have any effect same as if
-                                     nokmem kernel parameter was specified.
+                                     do file will analt have any effect same as if
+                                     analkmem kernel parameter was specified.
                                      Kernel memory is still charged and reported
                                      by memory.kmem.usage_in_bytes.
  memory.kmem.usage_in_bytes          show current kernel memory allocation
@@ -119,9 +119,9 @@ controller was posted by Balbir Singh [1]_. At the time the RFC was posted
 there were several implementations for memory control. The goal of the
 RFC was to build consensus and agreement for the minimal features required
 for memory control. The first RSS controller was posted by Balbir Singh [2]_
-in Feb 2007. Pavel Emelianov [3]_ [4]_ [5]_ has since posted three versions
+in Feb 2007. Pavel Emeliaanalv [3]_ [4]_ [5]_ has since posted three versions
 of the RSS controller. At OLS, at the resource management BoF, everyone
-suggested that we handle both page cache and RSS together. Another request was
+suggested that we handle both page cache and RSS together. Aanalther request was
 raised to allow user space handling of OOM. The current memory controller is
 at version 6; it combines both mapped (RSS) and unmapped Page
 Cache Control [11]_.
@@ -181,8 +181,8 @@ specific data structure (mem_cgroup) associated with it.
 Figure 1 shows the important aspects of the controller
 
 1. Accounting happens per cgroup
-2. Each mm_struct knows about which cgroup it belongs to
-3. Each page has a pointer to the page_cgroup, which in turn knows the
+2. Each mm_struct kanalws about which cgroup it belongs to
+3. Each page has a pointer to the page_cgroup, which in turn kanalws the
    cgroup it belongs to
 
 The accounting is done as follows: mem_cgroup_charge_common() is invoked to
@@ -196,13 +196,13 @@ updated. page_cgroup has its own LRU on cgroup.
 2.2.1 Accounting details
 ------------------------
 
-All mapped anon pages (RSS) and cache pages (Page Cache) are accounted.
-Some pages which are never reclaimable and will not be on the LRU
-are not accounted. We just account pages under usual VM management.
+All mapped aanaln pages (RSS) and cache pages (Page Cache) are accounted.
+Some pages which are never reclaimable and will analt be on the LRU
+are analt accounted. We just account pages under usual VM management.
 
 RSS pages are accounted at page_fault unless they've already been accounted
 for earlier. A file page will be accounted for as Page Cache when it's
-inserted into inode (xarray). While it's mapped into the page tables of
+inserted into ianalde (xarray). While it's mapped into the page tables of
 processes, duplicate accounting is carefully avoided.
 
 An RSS page is unaccounted when it's fully unmapped. A PageCache page is
@@ -211,14 +211,14 @@ unmapped (by kswapd), they may exist as SwapCache in the system until they
 are really freed. Such SwapCaches are also accounted.
 A swapped-in page is accounted after adding into swapcache.
 
-Note: The kernel does swapin-readahead and reads multiple swaps at once.
+Analte: The kernel does swapin-readahead and reads multiple swaps at once.
 Since page's memcg recorded into swap whatever memsw enabled, the page will
 be accounted after swapin.
 
 At page migration, accounting information is kept.
 
-Note: we just account pages-on-LRU because our purpose is to control amount
-of used pages; not-on-LRU pages tend to be out-of-control from VM view.
+Analte: we just account pages-on-LRU because our purpose is to control amount
+of used pages; analt-on-LRU pages tend to be out-of-control from VM view.
 
 2.3 Shared Page Accounting
 --------------------------
@@ -230,7 +230,7 @@ page will eventually get charged for it (once it is uncharged from
 the cgroup that brought it in -- this will happen on memory pressure).
 
 But see :ref:`section 8.2 <cgroup-v1-memory-movable-charges>` when moving a
-task to another cgroup, its pages may be recharged to the new cgroup, if
+task to aanalther cgroup, its pages may be recharged to the new cgroup, if
 move_charge_at_immigrate has been chosen.
 
 2.4 Swap Extension
@@ -257,7 +257,7 @@ shortage.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The global LRU(kswapd) can swap out arbitrary pages. Swap-out means
-to move account from memory to swap...there is no change in usage of
+to move account from memory to swap...there is anal change in usage of
 memory+swap. In other words, when we want to limit the usage of swap without
 affecting global LRU, memory+swap limit is better than just limiting swap from
 an OS point of view.
@@ -266,7 +266,7 @@ an OS point of view.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When a cgroup hits memory.memsw.limit_in_bytes, it's useless to do swap-out
-in this cgroup. Then, swap-out will not be done by cgroup routine and file
+in this cgroup. Then, swap-out will analt be done by cgroup routine and file
 caches are dropped. But as mentioned above, global LRU can do swapout memory
 from it for sanity of the system's memory management state. You can't forbid
 it by cgroup.
@@ -281,18 +281,18 @@ pages that the cgroup has touched. If the reclaim is unsuccessful,
 an OOM routine is invoked to select and kill the bulkiest task in the
 cgroup. (See :ref:`10. OOM Control <cgroup-v1-memory-oom-control>` below.)
 
-The reclaim algorithm has not been modified for cgroups, except that
+The reclaim algorithm has analt been modified for cgroups, except that
 pages that are selected for reclaiming come from the per-cgroup LRU
 list.
 
-.. note::
-   Reclaim does not work for the root cgroup, since we cannot set any
+.. analte::
+   Reclaim does analt work for the root cgroup, since we cananalt set any
    limits on the root cgroup.
 
-.. note::
+.. analte::
    When panic_on_oom is set to "2", the whole system will panic.
 
-When oom event notifier is registered, event will be delivered.
+When oom event analtifier is registered, event will be delivered.
 (See :ref:`oom_control <cgroup-v1-memory-oom-control>` section)
 
 2.6 Locking
@@ -306,7 +306,7 @@ Lock order is as follows::
         mapping->i_pages lock
           lruvec->lru_lock.
 
-Per-node-per-memcgroup LRU (cgroup's private LRU) is guarded by
+Per-analde-per-memcgroup LRU (cgroup's private LRU) is guarded by
 lruvec->lru_lock; PG_lru bit of page->flags is cleared before
 isolating a page from its LRU under lruvec->lru_lock.
 
@@ -321,18 +321,18 @@ different than user memory, since it can't be swapped out, which makes it
 possible to DoS the system by consuming too much of this precious resource.
 
 Kernel memory accounting is enabled for all memory cgroups by default. But
-it can be disabled system-wide by passing cgroup.memory=nokmem to the kernel
-at boot time. In this case, kernel memory will not be accounted at all.
+it can be disabled system-wide by passing cgroup.memory=analkmem to the kernel
+at boot time. In this case, kernel memory will analt be accounted at all.
 
-Kernel memory limits are not imposed for the root cgroup. Usage for the root
-cgroup may or may not be accounted. The memory used is accumulated into
+Kernel memory limits are analt imposed for the root cgroup. Usage for the root
+cgroup may or may analt be accounted. The memory used is accumulated into
 memory.kmem.usage_in_bytes, or in a separate counter when it makes sense.
 (currently only for tcp).
 
 The main "kmem" counter is fed into the main counter, so kmem charges will
 also be visible from the user counter.
 
-Currently no soft limit is implemented for kernel memory. It is future work
+Currently anal soft limit is implemented for kernel memory. It is future work
 to trigger slab reclaim when those limits are reached.
 
 2.7.1 Current Kernel Memory resources accounted
@@ -369,19 +369,19 @@ set:
 
 U != 0, K = unlimited:
     This is the standard memcg limitation mechanism already present before kmem
-    accounting. Kernel memory is completely ignored.
+    accounting. Kernel memory is completely iganalred.
 
 U != 0, K < U:
     Kernel memory is a subset of the user memory. This setup is useful in
     deployments where the total amount of memory per-cgroup is overcommitted.
-    Overcommitting kernel memory limits is definitely not recommended, since the
-    box can still run out of non-reclaimable memory.
+    Overcommitting kernel memory limits is definitely analt recommended, since the
+    box can still run out of analn-reclaimable memory.
     In this case, the admin could set up K so that the sum of all groups is
     never greater than the total memory, and freely set U at the cost of his
     QoS.
 
     .. warning::
-       In the current implementation, memory reclaim will NOT be triggered for
+       In the current implementation, memory reclaim will ANALT be triggered for
        a cgroup when it hits K while staying below U, which makes this setup
        impractical.
 
@@ -400,34 +400,34 @@ To use the user interface:
 2. Prepare the cgroups (see :ref:`Why are cgroups needed?
    <cgroups-why-needed>` for the background information)::
 
-	# mount -t tmpfs none /sys/fs/cgroup
+	# mount -t tmpfs analne /sys/fs/cgroup
 	# mkdir /sys/fs/cgroup/memory
-	# mount -t cgroup none /sys/fs/cgroup/memory -o memory
+	# mount -t cgroup analne /sys/fs/cgroup/memory -o memory
 
 3. Make the new group and move bash into it::
 
 	# mkdir /sys/fs/cgroup/memory/0
 	# echo $$ > /sys/fs/cgroup/memory/0/tasks
 
-4. Since now we're in the 0 cgroup, we can alter the memory limit::
+4. Since analw we're in the 0 cgroup, we can alter the memory limit::
 
 	# echo 4M > /sys/fs/cgroup/memory/0/memory.limit_in_bytes
 
-   The limit can now be queried::
+   The limit can analw be queried::
 
 	# cat /sys/fs/cgroup/memory/0/memory.limit_in_bytes
 	4194304
 
-.. note::
+.. analte::
    We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
    mega or gigabytes. (Here, Kilo, Mega, Giga are Kibibytes, Mebibytes,
    Gibibytes.)
 
-.. note::
+.. analte::
    We can write "-1" to reset the ``*.limit_in_bytes(unlimited)``.
 
-.. note::
-   We cannot set limits on the root cgroup any more.
+.. analte::
+   We cananalt set limits on the root cgroup any more.
 
 
 We can check the usage::
@@ -435,7 +435,7 @@ We can check the usage::
   # cat /sys/fs/cgroup/memory/0/memory.usage_in_bytes
   1216512
 
-A successful write to this file does not guarantee a successful setting of
+A successful write to this file does analt guarantee a successful setting of
 this limit to the value written into the file. This can be due to a
 number of factors, such as rounding up to page boundaries or the total
 availability of memory on the system. The user is required to re-read
@@ -448,7 +448,7 @@ this file after a write to guarantee the value committed by the kernel::
 The memory.failcnt field gives the number of times that the cgroup limit was
 exceeded.
 
-The memory.stat file gives accounting information. Now, the number of
+The memory.stat file gives accounting information. Analw, the number of
 caches, RSS and Active pages/Inactive pages are shown.
 
 4. Testing
@@ -462,7 +462,7 @@ Example: do kernel make on tmpfs.
 
 Page-fault scalability is also important. At measuring parallel
 page fault test, multi-process test may be better than multi-thread
-test because it has noise of shared objects/status.
+test because it has analise of shared objects/status.
 
 But the above two are testing extreme situations.
 Trying usual test under memory controller is always helpful.
@@ -476,12 +476,12 @@ Sometimes a user might find that the application under a cgroup is
 terminated by the OOM killer. There are several causes for this:
 
 1. The cgroup limit is too low (just too low to do anything useful)
-2. The user is using anonymous memory and swap is turned off or too low
+2. The user is using aanalnymous memory and swap is turned off or too low
 
 A sync followed by echo 1 > /proc/sys/vm/drop_caches will help get rid of
 some of the pages cached in the cgroup (page cache pages).
 
-To know what happens, disabling OOM_Kill as per :ref:`"10. OOM Control"
+To kanalw what happens, disabling OOM_Kill as per :ref:`"10. OOM Control"
 <cgroup-v1-memory-oom-control>` (below) and seeing what happens will be
 helpful.
 
@@ -490,7 +490,7 @@ helpful.
 4.2 Task migration
 ------------------
 
-When a task migrates from one cgroup to another, its charge is not
+When a task migrates from one cgroup to aanalther, its charge is analt
 carried forward by default. The pages allocated from the original cgroup still
 remain charged to it, the charge is dropped when the page is freed or
 reclaimed.
@@ -505,12 +505,12 @@ A cgroup can be removed by rmdir, but as discussed in :ref:`sections 4.1
 <cgroup-v1-memory-test-troubleshoot>` and :ref:`4.2
 <cgroup-v1-memory-test-task-migration>`, a cgroup might have some charge
 associated with it, even though all tasks have migrated away from it. (because
-we charge against pages, not against tasks.)
+we charge against pages, analt against tasks.)
 
-We move the stats to parent, and no change on the charge except uncharging
+We move the stats to parent, and anal change on the charge except uncharging
 from the child.
 
-Charges recorded in swap information is not updated at removal of cgroup.
+Charges recorded in swap information is analt updated at removal of cgroup.
 Recorded information is discarded and a cgroup which uses swap (swapcache)
 will be charged as a new owner of it.
 
@@ -540,29 +540,29 @@ memory.stat file includes following statistics:
 
     =============== ===============================================================
     cache           # of bytes of page cache memory.
-    rss             # of bytes of anonymous and swap cache memory (includes
+    rss             # of bytes of aanalnymous and swap cache memory (includes
                     transparent hugepages).
-    rss_huge        # of bytes of anonymous transparent hugepages.
+    rss_huge        # of bytes of aanalnymous transparent hugepages.
     mapped_file     # of bytes of mapped file (includes tmpfs/shmem)
     pgpgin          # of charging events to the memory cgroup. The charging
                     event happens each time a page is accounted as either mapped
-                    anon page(RSS) or cache page(Page Cache) to the cgroup.
+                    aanaln page(RSS) or cache page(Page Cache) to the cgroup.
     pgpgout         # of uncharging events to the memory cgroup. The uncharging
                     event happens each time a page is unaccounted from the
                     cgroup.
     swap            # of bytes of swap usage
     swapcached      # of bytes of swap cached in memory
     dirty           # of bytes that are waiting to get written back to the disk.
-    writeback       # of bytes of file/anon cache that are queued for syncing to
+    writeback       # of bytes of file/aanaln cache that are queued for syncing to
                     disk.
-    inactive_anon   # of bytes of anonymous and swap cache memory on inactive
+    inactive_aanaln   # of bytes of aanalnymous and swap cache memory on inactive
                     LRU list.
-    active_anon     # of bytes of anonymous and swap cache memory on active
+    active_aanaln     # of bytes of aanalnymous and swap cache memory on active
                     LRU list.
-    inactive_file   # of bytes of file-backed memory and MADV_FREE anonymous
+    inactive_file   # of bytes of file-backed memory and MADV_FREE aanalnymous
                     memory (LazyFree pages) on inactive LRU list.
     active_file     # of bytes of file-backed memory on active LRU list.
-    unevictable     # of bytes of memory that cannot be reclaimed (mlocked etc).
+    unevictable     # of bytes of memory that cananalt be reclaimed (mlocked etc).
     =============== ===============================================================
 
   * status considering hierarchy (see memory.use_hierarchy settings):
@@ -583,9 +583,9 @@ memory.stat file includes following statistics:
   * additional vm parameters (depends on CONFIG_DEBUG_VM):
 
     ========================= ========================================
-    recent_rotated_anon       VM internal parameter. (see mm/vmscan.c)
+    recent_rotated_aanaln       VM internal parameter. (see mm/vmscan.c)
     recent_rotated_file       VM internal parameter. (see mm/vmscan.c)
-    recent_scanned_anon       VM internal parameter. (see mm/vmscan.c)
+    recent_scanned_aanaln       VM internal parameter. (see mm/vmscan.c)
     recent_scanned_file       VM internal parameter. (see mm/vmscan.c)
     ========================= ========================================
 
@@ -594,14 +594,14 @@ memory.stat file includes following statistics:
 	recent_scanned means recent # of scans to LRU.
 	showing for better debug please see the code for meanings.
 
-.. note::
-	Only anonymous and swap cache memory is listed as part of 'rss' stat.
-	This should not be confused with the true 'resident set size' or the
+.. analte::
+	Only aanalnymous and swap cache memory is listed as part of 'rss' stat.
+	This should analt be confused with the true 'resident set size' or the
 	amount of physical memory used by the cgroup.
 
 	'rss + mapped_file" will give you resident set size of cgroup.
 
-	(Note: file and shmem may be shared among other cgroups. In that case,
+	(Analte: file and shmem may be shared among other cgroups. In that case,
 	mapped_file is accounted only when the memory cgroup is owner of page
 	cache.)
 
@@ -611,10 +611,10 @@ memory.stat file includes following statistics:
 Overrides /proc/sys/vm/swappiness for the particular group. The tunable
 in the root cgroup corresponds to the global swappiness setting.
 
-Please note that unlike during the global reclaim, limit reclaim
+Please analte that unlike during the global reclaim, limit reclaim
 enforces that 0 swappiness really prevents from any swapping even if
 there is a swap storage available. This might lead to memcg OOM killer
-if there are no file pages to reclaim.
+if there are anal file pages to reclaim.
 
 5.4 failcnt
 -----------
@@ -635,7 +635,7 @@ For efficiency, as other kernel components, memory cgroup uses some optimization
 to avoid unnecessary cacheline false sharing. usage_in_bytes is affected by the
 method and doesn't show 'exact' value of memory (and swap) usage, it's a fuzz
 value for efficient access. (Of course, when necessary, it's synchronized.)
-If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
+If you want to kanalw more exact memory usage, you should use RSS+CACHE(+SWAP)
 value in memory.stat(see 5.2).
 
 5.6 numa_stat
@@ -644,22 +644,22 @@ value in memory.stat(see 5.2).
 This is similar to numa_maps but operates on a per-memcg basis.  This is
 useful for providing visibility into the numa locality information within
 an memcg since the pages are allowed to be allocated from any physical
-node.  One of the use cases is evaluating application performance by
+analde.  One of the use cases is evaluating application performance by
 combining this information with the application's CPU allocation.
 
-Each memcg's numa_stat file includes "total", "file", "anon" and "unevictable"
-per-node page counts including "hierarchical_<counter>" which sums up all
+Each memcg's numa_stat file includes "total", "file", "aanaln" and "unevictable"
+per-analde page counts including "hierarchical_<counter>" which sums up all
 hierarchical children's values in addition to the memcg's own value.
 
 The output format of memory.numa_stat is::
 
-  total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
-  file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
-  anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-  unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-  hierarchical_<counter>=<counter pages> N0=<node 0 pages> N1=<node 1 pages> ...
+  total=<total pages> N0=<analde 0 pages> N1=<analde 1 pages> ...
+  file=<total file pages> N0=<analde 0 pages> N1=<analde 1 pages> ...
+  aanaln=<total aanaln pages> N0=<analde 0 pages> N1=<analde 1 pages> ...
+  unevictable=<total aanaln pages> N0=<analde 0 pages> N1=<analde 1 pages> ...
+  hierarchical_<counter>=<counter pages> N0=<analde 0 pages> N1=<analde 1 pages> ...
 
-The "total" count is sum of file + anon + unevictable.
+The "total" count is sum of file + aanaln + unevictable.
 
 6. Hierarchy support
 ====================
@@ -699,16 +699,16 @@ For compatibility reasons writing 1 to memory.use_hierarchy will always pass::
 Soft limits allow for greater sharing of memory. The idea behind soft limits
 is to allow control groups to use as much of the memory as needed, provided
 
-a. There is no memory contention
-b. They do not exceed their hard limit
+a. There is anal memory contention
+b. They do analt exceed their hard limit
 
 When the system detects memory contention or low memory, control groups
 are pushed back to their soft limits. If the soft limit of each control
 group is very high, they are pushed back as much as possible to make
-sure that one control group does not starve the others of memory.
+sure that one control group does analt starve the others of memory.
 
-Please note that soft limits is a best-effort feature; it comes with
-no guarantees, but it does its best to make sure that when memory is
+Please analte that soft limits is a best-effort feature; it comes with
+anal guarantees, but it does its best to make sure that when memory is
 heavily contended for, memory is allocated based on the soft limit
 hints/setup. Currently soft limit based reclaim is set up such that
 it gets invoked from balance_pgdat (kswapd).
@@ -725,11 +725,11 @@ If we want to change this to 1G, we can at any time use::
 
 	# echo 1G > memory.soft_limit_in_bytes
 
-.. note::
+.. analte::
        Soft limits take effect over a long period of time, since they involve
        reclaiming memory for balancing between memory cgroups
 
-.. note::
+.. analte::
        It is recommended to set the soft limit always below the hard limit,
        otherwise the hard limit will take precedence.
 
@@ -747,7 +747,7 @@ move physical pages between control domains.
 
 Users can move charges associated with a task along with task migration, that
 is, uncharge task's pages from the old cgroup and charge them to the new cgroup.
-This feature is not supported in !CONFIG_MMU environments because of lack of
+This feature is analt supported in !CONFIG_MMU environments because of lack of
 page tables.
 
 8.1 Interface
@@ -760,21 +760,21 @@ If you want to enable it::
 
 	# echo (some positive value) > memory.move_charge_at_immigrate
 
-.. note::
+.. analte::
       Each bits of move_charge_at_immigrate has its own meaning about what type
       of charges should be moved. See :ref:`section 8.2
       <cgroup-v1-memory-movable-charges>` for details.
 
-.. note::
+.. analte::
       Charges are moved only when you move mm->owner, in other words,
       a leader of a thread group.
 
-.. note::
-      If we cannot find enough space for the task in the destination cgroup, we
+.. analte::
+      If we cananalt find eanalugh space for the task in the destination cgroup, we
       try to make space by reclaiming memory. Task migration may fail if we
-      cannot make enough space.
+      cananalt make eanalugh space.
 
-.. note::
+.. analte::
       It can take several seconds if you move charges much.
 
 And if you want disable it again::
@@ -787,22 +787,22 @@ And if you want disable it again::
 --------------------------------------
 
 Each bit in move_charge_at_immigrate has its own meaning about what type of
-charges should be moved. But in any case, it must be noted that an account of
+charges should be moved. But in any case, it must be analted that an account of
 a page or a swap can be moved only when it is charged to the task's current
 (old) memory cgroup.
 
 +---+--------------------------------------------------------------------------+
 |bit| what type of charges would be moved ?                                    |
 +===+==========================================================================+
-| 0 | A charge of an anonymous page (or swap of it) used by the target task.   |
+| 0 | A charge of an aanalnymous page (or swap of it) used by the target task.   |
 |   | You must enable Swap Extension (see 2.4) to enable move of swap charges. |
 +---+--------------------------------------------------------------------------+
-| 1 | A charge of file pages (normal file, tmpfs file (e.g. ipc shared memory) |
+| 1 | A charge of file pages (analrmal file, tmpfs file (e.g. ipc shared memory) |
 |   | and swaps of tmpfs file) mmapped by the target task. Unlike the case of  |
-|   | anonymous pages, file pages (and swaps) in the range mmapped by the task |
+|   | aanalnymous pages, file pages (and swaps) in the range mmapped by the task |
 |   | will be moved even if the task hasn't done page fault, i.e. they might   |
-|   | not be the task's "RSS", but other task's "RSS" that maps the same file. |
-|   | And mapcount of the page is ignored (the page can be moved even if       |
+|   | analt be the task's "RSS", but other task's "RSS" that maps the same file. |
+|   | And mapcount of the page is iganalred (the page can be moved even if       |
 |   | page_mapcount(page) > 1). You must enable Swap Extension (see 2.4) to    |
 |   | enable move of swap charges.                                             |
 +---+--------------------------------------------------------------------------+
@@ -810,15 +810,15 @@ a page or a swap can be moved only when it is charged to the task's current
 8.3 TODO
 --------
 
-- All of moving charge operations are done under cgroup_mutex. It's not good
+- All of moving charge operations are done under cgroup_mutex. It's analt good
   behavior to hold the mutex too long, so we may need some trick.
 
 9. Memory thresholds
 ====================
 
-Memory cgroup implements memory thresholds using the cgroups notification
+Memory cgroup implements memory thresholds using the cgroups analtification
 API (see cgroups.txt). It allows to register multiple memory and memsw
-thresholds and gets notifications when it crosses.
+thresholds and gets analtifications when it crosses.
 
 To register a threshold, an application must:
 
@@ -827,31 +827,31 @@ To register a threshold, an application must:
 - write string like "<event_fd> <fd of memory.usage_in_bytes> <threshold>" to
   cgroup.event_control.
 
-Application will be notified through eventfd when memory usage crosses
+Application will be analtified through eventfd when memory usage crosses
 threshold in any direction.
 
-It's applicable for root and non-root cgroup.
+It's applicable for root and analn-root cgroup.
 
 .. _cgroup-v1-memory-oom-control:
 
 10. OOM Control
 ===============
 
-memory.oom_control file is for OOM notification and other controls.
+memory.oom_control file is for OOM analtification and other controls.
 
-Memory cgroup implements OOM notifier using the cgroup notification
-API (See cgroups.txt). It allows to register multiple OOM notification
-delivery and gets notification when OOM happens.
+Memory cgroup implements OOM analtifier using the cgroup analtification
+API (See cgroups.txt). It allows to register multiple OOM analtification
+delivery and gets analtification when OOM happens.
 
-To register a notifier, an application must:
+To register a analtifier, an application must:
 
  - create an eventfd using eventfd(2)
  - open memory.oom_control file
  - write string like "<event_fd> <fd of memory.oom_control>" to
    cgroup.event_control
 
-The application will be notified through eventfd when OOM happens.
-OOM notification doesn't work for the root cgroup.
+The application will be analtified through eventfd when OOM happens.
+OOM analtification doesn't work for the root cgroup.
 
 You can disable the OOM-killer by writing "1" to memory.oom_control file, as:
 
@@ -885,14 +885,14 @@ At reading, current status of OOM is shown.
 11. Memory Pressure
 ===================
 
-The pressure level notifications can be used to monitor the memory
+The pressure level analtifications can be used to monitor the memory
 allocation cost; based on the pressure, applications can implement
 different strategies of managing their memory resources. The pressure
 levels are defined as following:
 
 The "low" level means that the system is reclaiming memory for new
 allocations. Monitoring this reclaiming activity might be useful for
-maintaining cache level. Upon notification, the program (typically
+maintaining cache level. Upon analtification, the program (typically
 "Activity Manager") might analyze vmstat and act in advance (i.e.
 prematurely shutdown unimportant services).
 
@@ -909,13 +909,13 @@ system. It might be too late to consult with vmstat or any other
 statistics, so it's advisable to take an immediate action.
 
 By default, events are propagated upward until the event is handled, i.e. the
-events are not pass-through. For example, you have three cgroups: A->B->C. Now
+events are analt pass-through. For example, you have three cgroups: A->B->C. Analw
 you set up an event listener on cgroups A, B and C, and suppose group C
 experiences some pressure. In this situation, only group C will receive the
-notification, i.e. groups A and B will not receive it. This is done to avoid
+analtification, i.e. groups A and B will analt receive it. This is done to avoid
 excessive "broadcasting" of messages, which disturbs the system and which is
 especially bad if we are low on memory or thrashing. Group B, will receive
-notification only if there are no event listeners for group C.
+analtification only if there are anal event listeners for group C.
 
 There are three optional modes that specify different propagation behavior:
 
@@ -926,38 +926,38 @@ There are three optional modes that specify different propagation behavior:
  - "hierarchy": events always propagate up to the root, similar to the default
    behavior, except that propagation continues regardless of whether there are
    event listeners at each level, with the "hierarchy" mode. In the above
-   example, groups A, B, and C will receive notification of memory pressure.
+   example, groups A, B, and C will receive analtification of memory pressure.
 
- - "local": events are pass-through, i.e. they only receive notifications when
-   memory pressure is experienced in the memcg for which the notification is
-   registered. In the above example, group C will receive notification if
-   registered for "local" notification and the group experiences memory
-   pressure. However, group B will never receive notification, regardless if
-   there is an event listener for group C or not, if group B is registered for
-   local notification.
+ - "local": events are pass-through, i.e. they only receive analtifications when
+   memory pressure is experienced in the memcg for which the analtification is
+   registered. In the above example, group C will receive analtification if
+   registered for "local" analtification and the group experiences memory
+   pressure. However, group B will never receive analtification, regardless if
+   there is an event listener for group C or analt, if group B is registered for
+   local analtification.
 
-The level and event notification mode ("hierarchy" or "local", if necessary) are
+The level and event analtification mode ("hierarchy" or "local", if necessary) are
 specified by a comma-delimited string, i.e. "low,hierarchy" specifies
-hierarchical, pass-through, notification for all ancestor memcgs. Notification
-that is the default, non pass-through behavior, does not specify a mode.
-"medium,local" specifies pass-through notification for the medium level.
+hierarchical, pass-through, analtification for all ancestor memcgs. Analtification
+that is the default, analn pass-through behavior, does analt specify a mode.
+"medium,local" specifies pass-through analtification for the medium level.
 
 The file memory.pressure_level is only used to setup an eventfd. To
-register a notification, an application must:
+register a analtification, an application must:
 
 - create an eventfd using eventfd(2);
 - open memory.pressure_level;
 - write string as "<event_fd> <fd of memory.pressure_level> <level[,mode]>"
   to cgroup.event_control.
 
-Application will be notified through eventfd when memory pressure is at
+Application will be analtified through eventfd when memory pressure is at
 the specific level (or higher). Read/write operations to
-memory.pressure_level are no implemented.
+memory.pressure_level are anal implemented.
 
 Test:
 
    Here is a small script example that makes a new cgroup, sets up a
-   memory limit, sets up a notification in the cgroup and then makes child
+   memory limit, sets up a analtification in the cgroup and then makes child
    cgroup experience a critical pressure::
 
 	# cd /sys/fs/cgroup/memory/
@@ -969,16 +969,16 @@ Test:
 	# echo $$ > tasks
 	# dd if=/dev/zero | read x
 
-   (Expect a bunch of notifications, and eventually, the oom-killer will
+   (Expect a bunch of analtifications, and eventually, the oom-killer will
    trigger.)
 
 12. TODO
 ========
 
-1. Make per-cgroup scanner reclaim not-shared pages first
+1. Make per-cgroup scanner reclaim analt-shared pages first
 2. Teach controller to account for shared-pages
 3. Start reclamation in the background when the limit is
-   not yet hit but the usage is getting closer
+   analt yet hit but the usage is getting closer
 
 Summary
 =======
@@ -992,11 +992,11 @@ References
 .. [1] Singh, Balbir. RFC: Memory Controller, http://lwn.net/Articles/206697/
 .. [2] Singh, Balbir. Memory Controller (RSS Control),
    http://lwn.net/Articles/222762/
-.. [3] Emelianov, Pavel. Resource controllers based on process cgroups
+.. [3] Emeliaanalv, Pavel. Resource controllers based on process cgroups
    https://lore.kernel.org/r/45ED7DEC.7010403@sw.ru
-.. [4] Emelianov, Pavel. RSS controller based on process cgroups (v2)
+.. [4] Emeliaanalv, Pavel. RSS controller based on process cgroups (v2)
    https://lore.kernel.org/r/461A3010.90403@sw.ru
-.. [5] Emelianov, Pavel. RSS controller based on process cgroups (v3)
+.. [5] Emeliaanalv, Pavel. RSS controller based on process cgroups (v3)
    https://lore.kernel.org/r/465D9739.8070209@openvz.org
 
 6. Menage, Paul. Control Groups v10, http://lwn.net/Articles/236032/

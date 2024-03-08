@@ -42,10 +42,10 @@ Contents:
    intel/ice
    marvell/octeontx2
    marvell/octeon_ep
-   mellanox/mlx5/index
+   mellaanalx/mlx5/index
    microsoft/netvsc
    neterion/s2io
-   netronome/nfp
+   netroanalme/nfp
    pensando/ionic
    smsc/smc9
    stmicro/stmmac

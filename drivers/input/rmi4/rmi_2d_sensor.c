@@ -26,7 +26,7 @@ void rmi_2d_sensor_abs_process(struct rmi_2d_sensor *sensor,
 	struct rmi_2d_axis_alignment *axis_align = &sensor->axis_align;
 
 	/* we keep the previous values if the finger is released */
-	if (obj->type == RMI_2D_OBJECT_NONE)
+	if (obj->type == RMI_2D_OBJECT_ANALNE)
 		return;
 
 	if (axis_align->flip_x)
@@ -42,7 +42,7 @@ void rmi_2d_sensor_abs_process(struct rmi_2d_sensor *sensor,
 	 * Here checking if X offset or y offset are specified is
 	 * redundant. We just add the offsets or clip the values.
 	 *
-	 * Note: offsets need to be applied before clipping occurs,
+	 * Analte: offsets need to be applied before clipping occurs,
 	 * or we could get funny values that are outside of
 	 * clipping boundaries.
 	 */
@@ -69,7 +69,7 @@ void rmi_2d_sensor_abs_report(struct rmi_2d_sensor *sensor,
 {
 	struct rmi_2d_axis_alignment *axis_align = &sensor->axis_align;
 	struct input_dev *input = sensor->input;
-	int wide, major, minor;
+	int wide, major, mianalr;
 
 	if (sensor->kernel_tracking)
 		input_mt_slot(input, sensor->tracking_slots[slot]);
@@ -77,9 +77,9 @@ void rmi_2d_sensor_abs_report(struct rmi_2d_sensor *sensor,
 		input_mt_slot(input, slot);
 
 	input_mt_report_slot_state(input, obj->mt_tool,
-				   obj->type != RMI_2D_OBJECT_NONE);
+				   obj->type != RMI_2D_OBJECT_ANALNE);
 
-	if (obj->type != RMI_2D_OBJECT_NONE) {
+	if (obj->type != RMI_2D_OBJECT_ANALNE) {
 		obj->x = sensor->tracking_pos[slot].x;
 		obj->y = sensor->tracking_pos[slot].y;
 
@@ -88,11 +88,11 @@ void rmi_2d_sensor_abs_report(struct rmi_2d_sensor *sensor,
 
 		wide = (obj->wx > obj->wy);
 		major = max(obj->wx, obj->wy);
-		minor = min(obj->wx, obj->wy);
+		mianalr = min(obj->wx, obj->wy);
 
 		if (obj->type == RMI_2D_OBJECT_STYLUS) {
 			major = max(1, major);
-			minor = max(1, minor);
+			mianalr = max(1, mianalr);
 		}
 
 		input_event(sensor->input, EV_ABS, ABS_MT_POSITION_X, obj->x);
@@ -100,7 +100,7 @@ void rmi_2d_sensor_abs_report(struct rmi_2d_sensor *sensor,
 		input_event(sensor->input, EV_ABS, ABS_MT_ORIENTATION, wide);
 		input_event(sensor->input, EV_ABS, ABS_MT_PRESSURE, obj->z);
 		input_event(sensor->input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
-		input_event(sensor->input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
+		input_event(sensor->input, EV_ABS, ABS_MT_TOUCH_MIANALR, mianalr);
 
 		rmi_dbg(RMI_DEBUG_2D_SENSOR, &sensor->input->dev,
 			"%s: obj[%d]: type: 0x%02x X: %d Y: %d Z: %d WX: %d WY: %d\n",
@@ -179,7 +179,7 @@ static void rmi_2d_sensor_set_input_params(struct rmi_2d_sensor *sensor)
 
 		input_set_abs_params(input, ABS_MT_PRESSURE, 0, 0xff, 0, 0);
 		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 0x0f, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 0x0f, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MIANALR, 0, 0x0f, 0, 0);
 		input_set_abs_params(input, ABS_MT_ORIENTATION, 0, 1, 0, 0);
 		input_set_abs_params(input, ABS_MT_TOOL_TYPE,
 				     0, MT_TOOL_MAX, 0, 0);
@@ -212,7 +212,7 @@ int rmi_2d_sensor_configure_input(struct rmi_function *fn,
 	struct rmi_driver_data *drv_data = dev_get_drvdata(&rmi_dev->dev);
 
 	if (!drv_data->input)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sensor->input = drv_data->input;
 	rmi_2d_sensor_set_input_params(sensor);
@@ -228,13 +228,13 @@ int rmi_2d_sensor_of_probe(struct device *dev,
 	int retval;
 	u32 val;
 
-	pdata->axis_align.swap_axes = of_property_read_bool(dev->of_node,
+	pdata->axis_align.swap_axes = of_property_read_bool(dev->of_analde,
 						"touchscreen-swapped-x-y");
 
-	pdata->axis_align.flip_x = of_property_read_bool(dev->of_node,
+	pdata->axis_align.flip_x = of_property_read_bool(dev->of_analde,
 						"touchscreen-inverted-x");
 
-	pdata->axis_align.flip_y = of_property_read_bool(dev->of_node,
+	pdata->axis_align.flip_y = of_property_read_bool(dev->of_analde,
 						"touchscreen-inverted-y");
 
 	retval = rmi_of_property_read_u32(dev, &val, "syna,clip-x-low", 1);
@@ -324,7 +324,7 @@ int rmi_2d_sensor_of_probe(struct device *dev,
 inline int rmi_2d_sensor_of_probe(struct device *dev,
 			struct rmi_2d_sensor_platform_data *pdata)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 EXPORT_SYMBOL_GPL(rmi_2d_sensor_of_probe);

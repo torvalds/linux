@@ -15,7 +15,7 @@ struct classh_cfg {
 	 * automatically or you can adjust
 	 * these variables for tuning
 	 *
-	 * if you do not enable the internal algorithm
+	 * if you do analt enable the internal algorithm
 	 * you will get a set of mixer controls for
 	 * Class H tuning
 	 *

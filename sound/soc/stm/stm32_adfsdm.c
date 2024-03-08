@@ -332,7 +332,7 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	priv->dai_drv = stm32_adfsdm_dai;
@@ -363,7 +363,7 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 
 	component = devm_kzalloc(&pdev->dev, sizeof(*component), GFP_KERNEL);
 	if (!component)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_component_initialize(component,
 					   &stm32_adfsdm_soc_platform,

@@ -19,7 +19,7 @@
  *
  * VCO and PLL rate are derived from following equations:
  *
- * In normal mode
+ * In analrmal mode
  * vco = (2 * M[15:8] * Fin)/N
  *
  * In Dithered mode
@@ -38,7 +38,7 @@
  */
 
 /* PLL_CTR register masks */
-#define PLL_MODE_NORMAL		0
+#define PLL_MODE_ANALRMAL		0
 #define PLL_MODE_FRACTION	1
 #define PLL_MODE_DITH_DSM	2
 #define PLL_MODE_DITH_SSM	3
@@ -50,8 +50,8 @@
 #define PLL_LOCK_MASK		1
 
 /* PLL FRQ register masks */
-#define PLL_NORM_FDBK_M_MASK	0xFF
-#define PLL_NORM_FDBK_M_SHIFT	24
+#define PLL_ANALRM_FDBK_M_MASK	0xFF
+#define PLL_ANALRM_FDBK_M_SHIFT	24
 #define PLL_DITH_FDBK_M_MASK	0xFFFF
 #define PLL_DITH_FDBK_M_SHIFT	16
 #define PLL_DIV_P_MASK		0x7
@@ -205,10 +205,10 @@ static unsigned long clk_vco_recalc_rate(struct clk_hw *hw,
 
 	den = (val >> PLL_DIV_N_SHIFT) & PLL_DIV_N_MASK;
 
-	/* calculate numerator & denominator */
+	/* calculate numerator & deanalminator */
 	if (!mode) {
-		/* Normal mode */
-		num *= (val >> PLL_NORM_FDBK_M_SHIFT) & PLL_NORM_FDBK_M_MASK;
+		/* Analrmal mode */
+		num *= (val >> PLL_ANALRM_FDBK_M_SHIFT) & PLL_ANALRM_FDBK_M_MASK;
 	} else {
 		/* Dithered mode */
 		num *= (val >> PLL_DITH_FDBK_M_SHIFT) & PLL_DITH_FDBK_M_MASK;
@@ -216,7 +216,7 @@ static unsigned long clk_vco_recalc_rate(struct clk_hw *hw,
 	}
 
 	if (!den) {
-		WARN(1, "%s: denominator can't be zero\n", __func__);
+		WARN(1, "%s: deanalminator can't be zero\n", __func__);
 		return 0;
 	}
 
@@ -252,8 +252,8 @@ static int clk_vco_set_rate(struct clk_hw *hw, unsigned long drate,
 		val |= (rtbl[i].m & PLL_DITH_FDBK_M_MASK) <<
 			PLL_DITH_FDBK_M_SHIFT;
 	else
-		val |= (rtbl[i].m & PLL_NORM_FDBK_M_MASK) <<
-			PLL_NORM_FDBK_M_SHIFT;
+		val |= (rtbl[i].m & PLL_ANALRM_FDBK_M_MASK) <<
+			PLL_ANALRM_FDBK_M_SHIFT;
 
 	writel_relaxed(val, vco->cfg_reg);
 
@@ -290,7 +290,7 @@ struct clk *clk_register_vco_pll(const char *vco_name, const char *pll_name,
 
 	vco = kzalloc(sizeof(*vco), GFP_KERNEL);
 	if (!vco)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
@@ -352,5 +352,5 @@ free_vco:
 
 	pr_err("Failed to register vco pll clock\n");
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }

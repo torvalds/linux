@@ -126,20 +126,20 @@ static ssize_t nvdimm_pmu_cpumask_show(struct device *dev,
 	return cpumap_print_to_pagebuf(true, buf, cpumask_of(nd_pmu->cpu));
 }
 
-static int nvdimm_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
+static int nvdimm_pmu_cpu_offline(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct nvdimm_pmu *nd_pmu;
 	u32 target;
-	int nodeid;
+	int analdeid;
 	const struct cpumask *cpumask;
 
-	nd_pmu = hlist_entry_safe(node, struct nvdimm_pmu, node);
+	nd_pmu = hlist_entry_safe(analde, struct nvdimm_pmu, analde);
 
 	/* Clear it, incase given cpu is set in nd_pmu->arch_cpumask */
 	cpumask_test_and_clear_cpu(cpu, &nd_pmu->arch_cpumask);
 
 	/*
-	 * If given cpu is not same as current designated cpu for
+	 * If given cpu is analt same as current designated cpu for
 	 * counter access, just return.
 	 */
 	if (cpu != nd_pmu->cpu)
@@ -150,11 +150,11 @@ static int nvdimm_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 
 	/*
 	 * Incase we don't have any active cpu in nd_pmu->arch_cpumask,
-	 * check in given cpu's numa node list.
+	 * check in given cpu's numa analde list.
 	 */
 	if (target >= nr_cpu_ids) {
-		nodeid = cpu_to_node(cpu);
-		cpumask = cpumask_of_node(nodeid);
+		analdeid = cpu_to_analde(cpu);
+		cpumask = cpumask_of_analde(analdeid);
 		target = cpumask_any_but(cpumask, cpu);
 	}
 	nd_pmu->cpu = target;
@@ -166,11 +166,11 @@ static int nvdimm_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int nvdimm_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int nvdimm_pmu_cpu_online(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct nvdimm_pmu *nd_pmu;
 
-	nd_pmu = hlist_entry_safe(node, struct nvdimm_pmu, node);
+	nd_pmu = hlist_entry_safe(analde, struct nvdimm_pmu, analde);
 
 	if (nd_pmu->cpu >= nr_cpu_ids)
 		nd_pmu->cpu = cpu;
@@ -186,12 +186,12 @@ static int create_cpumask_attr_group(struct nvdimm_pmu *nd_pmu)
 
 	pmu_events_attr = kzalloc(sizeof(*pmu_events_attr), GFP_KERNEL);
 	if (!pmu_events_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attrs_group = kzalloc(2 * sizeof(struct attribute *), GFP_KERNEL);
 	if (!attrs_group) {
 		kfree(pmu_events_attr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Allocate memory for cpumask attribute group */
@@ -199,7 +199,7 @@ static int create_cpumask_attr_group(struct nvdimm_pmu *nd_pmu)
 	if (!nvdimm_pmu_cpumask_group) {
 		kfree(pmu_events_attr);
 		kfree(attrs_group);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sysfs_attr_init(&pmu_events_attr->attr.attr);
@@ -216,7 +216,7 @@ static int create_cpumask_attr_group(struct nvdimm_pmu *nd_pmu)
 
 static int nvdimm_pmu_cpu_hotplug_init(struct nvdimm_pmu *nd_pmu)
 {
-	int nodeid, rc;
+	int analdeid, rc;
 	const struct cpumask *cpumask;
 
 	/*
@@ -228,9 +228,9 @@ static int nvdimm_pmu_cpu_hotplug_init(struct nvdimm_pmu *nd_pmu)
 	if (!cpumask_empty(&nd_pmu->arch_cpumask)) {
 		nd_pmu->cpu = cpumask_any(&nd_pmu->arch_cpumask);
 	} else {
-		/* pick active cpu from the cpumask of device numa node. */
-		nodeid = dev_to_node(nd_pmu->dev);
-		cpumask = cpumask_of_node(nodeid);
+		/* pick active cpu from the cpumask of device numa analde. */
+		analdeid = dev_to_analde(nd_pmu->dev);
+		cpumask = cpumask_of_analde(analdeid);
 		nd_pmu->cpu = cpumask_any(cpumask);
 	}
 
@@ -243,7 +243,7 @@ static int nvdimm_pmu_cpu_hotplug_init(struct nvdimm_pmu *nd_pmu)
 	nd_pmu->cpuhp_state = rc;
 
 	/* Register the pmu instance for cpu hotplug */
-	rc = cpuhp_state_add_instance_nocalls(nd_pmu->cpuhp_state, &nd_pmu->node);
+	rc = cpuhp_state_add_instance_analcalls(nd_pmu->cpuhp_state, &nd_pmu->analde);
 	if (rc) {
 		cpuhp_remove_multi_state(nd_pmu->cpuhp_state);
 		return rc;
@@ -252,7 +252,7 @@ static int nvdimm_pmu_cpu_hotplug_init(struct nvdimm_pmu *nd_pmu)
 	/* Create cpumask attribute group */
 	rc = create_cpumask_attr_group(nd_pmu);
 	if (rc) {
-		cpuhp_state_remove_instance_nocalls(nd_pmu->cpuhp_state, &nd_pmu->node);
+		cpuhp_state_remove_instance_analcalls(nd_pmu->cpuhp_state, &nd_pmu->analde);
 		cpuhp_remove_multi_state(nd_pmu->cpuhp_state);
 		return rc;
 	}
@@ -262,7 +262,7 @@ static int nvdimm_pmu_cpu_hotplug_init(struct nvdimm_pmu *nd_pmu)
 
 static void nvdimm_pmu_free_hotplug_memory(struct nvdimm_pmu *nd_pmu)
 {
-	cpuhp_state_remove_instance_nocalls(nd_pmu->cpuhp_state, &nd_pmu->node);
+	cpuhp_state_remove_instance_analcalls(nd_pmu->cpuhp_state, &nd_pmu->analde);
 	cpuhp_remove_multi_state(nd_pmu->cpuhp_state);
 
 	if (nd_pmu->pmu.attr_groups[NVDIMM_PMU_CPUMASK_ATTR])
@@ -277,7 +277,7 @@ int register_nvdimm_pmu(struct nvdimm_pmu *nd_pmu, struct platform_device *pdev)
 	if (!nd_pmu || !pdev)
 		return -EINVAL;
 
-	/* event functions like add/del/read/event_init and pmu name should not be NULL */
+	/* event functions like add/del/read/event_init and pmu name should analt be NULL */
 	if (WARN_ON_ONCE(!(nd_pmu->pmu.event_init && nd_pmu->pmu.add &&
 			   nd_pmu->pmu.del && nd_pmu->pmu.read && nd_pmu->pmu.name)))
 		return -EINVAL;
@@ -285,7 +285,7 @@ int register_nvdimm_pmu(struct nvdimm_pmu *nd_pmu, struct platform_device *pdev)
 	nd_pmu->pmu.attr_groups = kzalloc((NVDIMM_PMU_NULL_ATTR + 1) *
 					  sizeof(struct attribute_group *), GFP_KERNEL);
 	if (!nd_pmu->pmu.attr_groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Add platform_device->dev pointer to nvdimm_pmu to access

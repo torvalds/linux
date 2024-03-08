@@ -70,7 +70,7 @@ static __inline__ bool local_try_cmpxchg(local_t *l, long *old, long new)
  * @a: the amount to add to l...
  * @u: ...unless l is equal to u.
  *
- * Atomically adds @a to @l, if @v was not already @u.
+ * Atomically adds @a to @l, if @v was analt already @u.
  * Returns true if the addition was done.
  */
 static __inline__ bool
@@ -86,7 +86,7 @@ local_add_unless(local_t *l, long a, long u)
 	return true;
 }
 
-#define local_inc_not_zero(l) local_add_unless((l), 1, 0)
+#define local_inc_analt_zero(l) local_add_unless((l), 1, 0)
 
 #define local_add_negative(a, l) (local_add_return((a), (l)) < 0)
 

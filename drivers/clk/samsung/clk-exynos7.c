@@ -8,7 +8,7 @@
 #include <linux/of.h>
 
 #include "clk.h"
-#include <dt-bindings/clock/exynos7-clk.h>
+#include <dt-bindings/clock/exyanals7-clk.h>
 
 /* Register Offset definitions for CMU_TOPC (0x10570000) */
 #define CC_PLL_LOCK		0x0000
@@ -199,13 +199,13 @@ static const struct samsung_cmu_info topc_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(topc_clk_regs),
 };
 
-static void __init exynos7_clk_topc_init(struct device_node *np)
+static void __init exyanals7_clk_topc_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &topc_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_topc, "samsung,exynos7-clock-topc",
-	exynos7_clk_topc_init);
+CLK_OF_DECLARE(exyanals7_clk_topc, "samsung,exyanals7-clock-topc",
+	exyanals7_clk_topc_init);
 
 /* Register Offset definitions for CMU_TOP0 (0x105D0000) */
 #define MUX_SEL_TOP00			0x0200
@@ -391,13 +391,13 @@ static const struct samsung_cmu_info top0_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(top0_clk_regs),
 };
 
-static void __init exynos7_clk_top0_init(struct device_node *np)
+static void __init exyanals7_clk_top0_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &top0_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_top0, "samsung,exynos7-clock-top0",
-	exynos7_clk_top0_init);
+CLK_OF_DECLARE(exyanals7_clk_top0, "samsung,exyanals7-clock-top0",
+	exyanals7_clk_top0_init);
 
 /* Register Offset definitions for CMU_TOP1 (0x105E0000) */
 #define MUX_SEL_TOP10			0x0200
@@ -573,13 +573,13 @@ static const struct samsung_cmu_info top1_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(top1_clk_regs),
 };
 
-static void __init exynos7_clk_top1_init(struct device_node *np)
+static void __init exyanals7_clk_top1_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &top1_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_top1, "samsung,exynos7-clock-top1",
-	exynos7_clk_top1_init);
+CLK_OF_DECLARE(exyanals7_clk_top1, "samsung,exyanals7-clock-top1",
+	exyanals7_clk_top1_init);
 
 /* Register Offset definitions for CMU_CCORE (0x105B0000) */
 #define MUX_SEL_CCORE			0x0200
@@ -618,13 +618,13 @@ static const struct samsung_cmu_info ccore_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(ccore_clk_regs),
 };
 
-static void __init exynos7_clk_ccore_init(struct device_node *np)
+static void __init exyanals7_clk_ccore_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &ccore_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_ccore, "samsung,exynos7-clock-ccore",
-	exynos7_clk_ccore_init);
+CLK_OF_DECLARE(exyanals7_clk_ccore, "samsung,exyanals7-clock-ccore",
+	exyanals7_clk_ccore_init);
 
 /* Register Offset definitions for CMU_PERIC0 (0x13610000) */
 #define MUX_SEL_PERIC0			0x0200
@@ -685,7 +685,7 @@ static const struct samsung_cmu_info peric0_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(peric0_clk_regs),
 };
 
-static void __init exynos7_clk_peric0_init(struct device_node *np)
+static void __init exyanals7_clk_peric0_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &peric0_cmu_info);
 }
@@ -697,8 +697,8 @@ static void __init exynos7_clk_peric0_init(struct device_node *np)
 #define ENABLE_PCLK_PERIC1		0x0900
 #define ENABLE_SCLK_PERIC10		0x0A00
 
-CLK_OF_DECLARE(exynos7_clk_peric0, "samsung,exynos7-clock-peric0",
-	exynos7_clk_peric0_init);
+CLK_OF_DECLARE(exyanals7_clk_peric0, "samsung,exyanals7-clock-peric0",
+	exyanals7_clk_peric0_init);
 
 /* List of parent clocks for Muxes in CMU_PERIC1 */
 PNAME(mout_aclk_peric1_66_user_p)	= { "fin_pll", "aclk_peric1_66" };
@@ -809,13 +809,13 @@ static const struct samsung_cmu_info peric1_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(peric1_clk_regs),
 };
 
-static void __init exynos7_clk_peric1_init(struct device_node *np)
+static void __init exyanals7_clk_peric1_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &peric1_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_peric1, "samsung,exynos7-clock-peric1",
-	exynos7_clk_peric1_init);
+CLK_OF_DECLARE(exyanals7_clk_peric1, "samsung,exyanals7-clock-peric1",
+	exyanals7_clk_peric1_init);
 
 /* Register Offset definitions for CMU_PERIS (0x10040000) */
 #define MUX_SEL_PERIS			0x0200
@@ -864,13 +864,13 @@ static const struct samsung_cmu_info peris_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(peris_clk_regs),
 };
 
-static void __init exynos7_clk_peris_init(struct device_node *np)
+static void __init exyanals7_clk_peris_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &peris_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_peris, "samsung,exynos7-clock-peris",
-	exynos7_clk_peris_init);
+CLK_OF_DECLARE(exyanals7_clk_peris, "samsung,exyanals7-clock-peris",
+	exyanals7_clk_peris_init);
 
 /* Register Offset definitions for CMU_FSYS0 (0x10E90000) */
 #define MUX_SEL_FSYS00			0x0200
@@ -974,13 +974,13 @@ static const struct samsung_cmu_info fsys0_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(fsys0_clk_regs),
 };
 
-static void __init exynos7_clk_fsys0_init(struct device_node *np)
+static void __init exyanals7_clk_fsys0_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &fsys0_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_fsys0, "samsung,exynos7-clock-fsys0",
-	exynos7_clk_fsys0_init);
+CLK_OF_DECLARE(exyanals7_clk_fsys0, "samsung,exyanals7-clock-fsys0",
+	exyanals7_clk_fsys0_init);
 
 /* Register Offset definitions for CMU_FSYS1 (0x156E0000) */
 #define MUX_SEL_FSYS10			0x0200
@@ -1084,11 +1084,11 @@ static const struct samsung_gate_clock fsys1_gate_clks[] __initconst = {
 	GATE(OSCCLK_PHY_CLKOUT_EMBEDDED_COMBO_PHY,
 		"oscclk_phy_clkout_embedded_combo_phy",
 		"fin_pll",
-		ENABLE_SCLK_FSYS12, 4, CLK_IGNORE_UNUSED, 0),
+		ENABLE_SCLK_FSYS12, 4, CLK_IGANALRE_UNUSED, 0),
 
 	GATE(SCLK_COMBO_PHY_EMBEDDED_26M, "sclk_combo_phy_embedded_26m",
 		"mout_fsys1_phyclk_sel1",
-		ENABLE_SCLK_FSYS13, 24, CLK_IGNORE_UNUSED, 0),
+		ENABLE_SCLK_FSYS13, 24, CLK_IGANALRE_UNUSED, 0),
 };
 
 static const struct samsung_cmu_info fsys1_cmu_info __initconst = {
@@ -1105,13 +1105,13 @@ static const struct samsung_cmu_info fsys1_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(fsys1_clk_regs),
 };
 
-static void __init exynos7_clk_fsys1_init(struct device_node *np)
+static void __init exyanals7_clk_fsys1_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &fsys1_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_fsys1, "samsung,exynos7-clock-fsys1",
-	exynos7_clk_fsys1_init);
+CLK_OF_DECLARE(exyanals7_clk_fsys1, "samsung,exyanals7-clock-fsys1",
+	exyanals7_clk_fsys1_init);
 
 #define MUX_SEL_MSCL			0x0200
 #define DIV_MSCL			0x0600
@@ -1218,13 +1218,13 @@ static const struct samsung_cmu_info mscl_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(mscl_clk_regs),
 };
 
-static void __init exynos7_clk_mscl_init(struct device_node *np)
+static void __init exyanals7_clk_mscl_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &mscl_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_mscl, "samsung,exynos7-clock-mscl",
-		exynos7_clk_mscl_init);
+CLK_OF_DECLARE(exyanals7_clk_mscl, "samsung,exyanals7-clock-mscl",
+		exyanals7_clk_mscl_init);
 
 /* Register Offset definitions for CMU_AUD (0x114C0000) */
 #define	MUX_SEL_AUD			0x0200
@@ -1307,10 +1307,10 @@ static const struct samsung_cmu_info aud_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(aud_clk_regs),
 };
 
-static void __init exynos7_clk_aud_init(struct device_node *np)
+static void __init exyanals7_clk_aud_init(struct device_analde *np)
 {
 	samsung_cmu_register_one(np, &aud_cmu_info);
 }
 
-CLK_OF_DECLARE(exynos7_clk_aud, "samsung,exynos7-clock-aud",
-		exynos7_clk_aud_init);
+CLK_OF_DECLARE(exyanals7_clk_aud, "samsung,exyanals7-clock-aud",
+		exyanals7_clk_aud_init);

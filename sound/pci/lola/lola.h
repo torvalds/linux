@@ -32,19 +32,19 @@
 
 #define LOLA_BAR0_CORBLBASE	0x40
 #define LOLA_BAR0_CORBUBASE	0x44
-#define LOLA_BAR0_CORBWP	0x48	/* no ULONG access */
-#define LOLA_BAR0_CORBRP	0x4a	/* no ULONG access */
-#define LOLA_BAR0_CORBCTL	0x4c	/* no ULONG access */
+#define LOLA_BAR0_CORBWP	0x48	/* anal ULONG access */
+#define LOLA_BAR0_CORBRP	0x4a	/* anal ULONG access */
+#define LOLA_BAR0_CORBCTL	0x4c	/* anal ULONG access */
 #define LOLA_BAR0_CORBSTS	0x4d	/* UCHAR access only */
-#define LOLA_BAR0_CORBSIZE	0x4e	/* no ULONG access */
+#define LOLA_BAR0_CORBSIZE	0x4e	/* anal ULONG access */
 
 #define LOLA_BAR0_RIRBLBASE	0x50
 #define LOLA_BAR0_RIRBUBASE	0x54
 #define LOLA_BAR0_RIRBWP	0x58
-#define LOLA_BAR0_RINTCNT	0x5a	/* no ULONG access */
+#define LOLA_BAR0_RINTCNT	0x5a	/* anal ULONG access */
 #define LOLA_BAR0_RIRBCTL	0x5c
 #define LOLA_BAR0_RIRBSTS	0x5d	/* UCHAR access only */
-#define LOLA_BAR0_RIRBSIZE	0x5e	/* no ULONG access */
+#define LOLA_BAR0_RIRBSIZE	0x5e	/* anal ULONG access */
 
 #define LOLA_BAR0_ICW		0x60
 #define LOLA_BAR0_IRR		0x64
@@ -181,7 +181,7 @@
 #define MAX_STREAM_COUNT	16
 #define MAX_PINS		MAX_STREAM_COUNT
 #define MAX_STREAM_BUFFER_COUNT	16
-#define MAX_AUDIO_INOUT_COUNT	16
+#define MAX_AUDIO_IANALUT_COUNT	16
 
 #define LOLA_CLOCK_TYPE_INTERNAL    0
 #define LOLA_CLOCK_TYPE_AES         1
@@ -190,7 +190,7 @@
 #define LOLA_CLOCK_TYPE_ETHERSOUND  4
 #define LOLA_CLOCK_TYPE_VIDEO       5
 
-#define LOLA_CLOCK_FORMAT_NONE      0
+#define LOLA_CLOCK_FORMAT_ANALNE      0
 #define LOLA_CLOCK_FORMAT_NTSC      1
 #define LOLA_CLOCK_FORMAT_PAL       2
 

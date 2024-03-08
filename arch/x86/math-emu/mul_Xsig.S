@@ -2,7 +2,7 @@
 /*---------------------------------------------------------------------------+
  |  mul_Xsig.S                                                               |
  |                                                                           |
- | Multiply a 12 byte fixed point number by another fixed point number.      |
+ | Multiply a 12 byte fixed point number by aanalther fixed point number.      |
  |                                                                           |
  | Copyright (C) 1992,1994,1995                                              |
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
@@ -15,7 +15,7 @@
  |                                                                           |
  |   void mul_Xsig_Xsig(Xsig *x, unsigned *b)                                |
  |                                                                           |
- | The result is neither rounded nor normalized, and the ls bit or so may    |
+ | The result is neither rounded analr analrmalized, and the ls bit or so may    |
  | be wrong.                                                                 |
  |                                                                           |
  +---------------------------------------------------------------------------*/

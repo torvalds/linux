@@ -63,7 +63,7 @@ static int madera_i2c_probe(struct i2c_client *i2c)
 		break;
 	default:
 		dev_err(&i2c->dev,
-			"Unknown Madera I2C device type %ld\n", type);
+			"Unkanalwn Madera I2C device type %ld\n", type);
 		return -EINVAL;
 	}
 
@@ -72,13 +72,13 @@ static int madera_i2c_probe(struct i2c_client *i2c)
 	if (!regmap_16bit_config) {
 		/* it's polite to say which codec isn't built into the kernel */
 		dev_err(&i2c->dev,
-			"Kernel does not include support for %s\n", name);
+			"Kernel does analt include support for %s\n", name);
 		return -EINVAL;
 	}
 
 	madera = devm_kzalloc(&i2c->dev, sizeof(*madera), GFP_KERNEL);
 	if (!madera)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	madera->regmap = devm_regmap_init_i2c(i2c, regmap_16bit_config);
 	if (IS_ERR(madera->regmap)) {

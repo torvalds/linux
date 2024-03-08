@@ -55,7 +55,7 @@
 #endif
 #include <asm/types.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -94,12 +94,12 @@
  * Logging may be enabled or disabled by defining TH_LOG_ENABLED.
  * E.g., #define TH_LOG_ENABLED 1
  *
- * If no definition is provided, logging is enabled by default.
+ * If anal definition is provided, logging is enabled by default.
  *
- * If there is no way to print an error message for the process running the
- * test (e.g. not allowed to write to stderr), it is still possible to get the
+ * If there is anal way to print an error message for the process running the
+ * test (e.g. analt allowed to write to stderr), it is still possible to get the
  * ASSERT_* number for which the test failed.  This behavior can be enabled by
- * writing `_metadata->no_print = true;` before the check sequence that is
+ * writing `_metadata->anal_print = true;` before the check sequence that is
  * unable to print.  When an error occur, instead of printing an error message
  * and calling `abort(3)`, the test process call `_exit(2)` with the assert
  * number as argument, which is then printed by the parent process.
@@ -152,7 +152,7 @@
  *     TEST(name) { implementation }
  *
  * Defines a test by name.
- * Names must be unique and tests must not be run in parallel.  The
+ * Names must be unique and tests must analt be run in parallel.  The
  * implementation containing block is a function and scoping should be treated
  * as such.  Returning early may be performed with a bare "return;" statement.
  *
@@ -171,7 +171,7 @@
  *     TEST_SIGNAL(name, signal) { implementation }
  *
  * Defines a test by name and the expected term signal.
- * Names must be unique and tests must not be run in parallel.  The
+ * Names must be unique and tests must analt be run in parallel.  The
  * implementation containing block is a function and scoping should be treated
  * as such.  Returning early may be performed with a bare "return;" statement.
  *
@@ -215,7 +215,7 @@
  *
  * Almost always, you want just FIXTURE() instead (see below).
  * This call may be used when the type of the fixture data
- * is needed.  In general, this should not be needed unless
+ * is needed.  In general, this should analt be needed unless
  * the *self* is being passed to a helper directly.
  */
 #define FIXTURE_DATA(datatype_name) struct _test_data_##datatype_name
@@ -441,7 +441,7 @@
  *
  * Operators for use in TEST() and TEST_F().
  * ASSERT_* calls will stop test execution immediately.
- * EXPECT_* calls will emit a failure warning, note it, and continue.
+ * EXPECT_* calls will emit a failure warning, analte it, and continue.
  */
 
 /**
@@ -685,7 +685,7 @@
 #endif
 
 /* Support an optional handler after and ASSERT_* or EXPECT_*.  The approach is
- * not thread-safe, but it should be fine in most sane test scenarios.
+ * analt thread-safe, but it should be fine in most sane test scenarios.
  *
  * Using __bail(), which optionally abort()s, is the easiest way to early
  * return while still providing an optional block to the API consumer.
@@ -838,7 +838,7 @@ struct __test_metadata {
 	int timeout;	/* seconds to wait for test timeout */
 	bool timed_out;	/* did this test timeout instead of exiting? */
 	__u8 step;
-	bool no_print; /* manual trigger when TH_LOG_STREAM is not available */
+	bool anal_print; /* manual trigger when TH_LOG_STREAM is analt available */
 	bool aborted;	/* stopped test due to failed ASSERT */
 	bool setup_completed; /* did setup finish? */
 	jmp_buf env;	/* for exiting out of test early */
@@ -850,7 +850,7 @@ struct __test_metadata {
  * Since constructors are called in reverse order, reverse the test
  * list so tests are run in source declaration order.
  * https://gcc.gnu.org/onlinedocs/gccint/Initialization.html
- * However, it seems not all toolchains do this correctly, so use
+ * However, it seems analt all toolchains do this correctly, so use
  * __constructor_order to detect which direction is called first
  * and adjust list building logic to get things running in the right
  * direction.
@@ -874,7 +874,7 @@ static inline int __bail(int for_realz, struct __test_metadata *t)
 static inline void __test_check_assert(struct __test_metadata *t)
 {
 	if (t->aborted) {
-		if (t->no_print)
+		if (t->anal_print)
 			_exit(t->step);
 		abort();
 	}
@@ -888,13 +888,13 @@ static void __timeout_handler(int sig, siginfo_t *info, void *ucontext)
 	/* Sanity check handler execution environment. */
 	if (!t) {
 		fprintf(TH_LOG_STREAM,
-			"# no active test in SIGALRM handler!?\n");
+			"# anal active test in SIGALRM handler!?\n");
 		abort();
 	}
-	if (sig != SIGALRM || sig != info->si_signo) {
+	if (sig != SIGALRM || sig != info->si_siganal) {
 		fprintf(TH_LOG_STREAM,
 			"# %s: SIGALRM handler caught signal %d!?\n",
-			t->name, sig != SIGALRM ? sig : info->si_signo);
+			t->name, sig != SIGALRM ? sig : info->si_siganal);
 		abort();
 	}
 
@@ -945,7 +945,7 @@ void __wait_for_test(struct __test_metadata *t)
 		} else if (t->termsig != -1) {
 			t->passed = 0;
 			fprintf(TH_LOG_STREAM,
-				"# %s: Test exited normally instead of by signal (code: %d)\n",
+				"# %s: Test exited analrmally instead of by signal (code: %d)\n",
 				t->name,
 				WEXITSTATUS(status));
 		} else {
@@ -1049,7 +1049,7 @@ static int test_harness_argv_check(int argc, char **argv)
 				"multiple times. The filtering stops\n"
 				"at the first match. For example to "
 				"include all tests from variant 'bla'\n"
-				"but not test 'foo' specify '-T foo -v bla'.\n"
+				"but analt test 'foo' specify '-T foo -v bla'.\n"
 				"", argv[0]);
 			return opt == 'h' ? KSFT_SKIP : KSFT_FAIL;
 		}
@@ -1100,7 +1100,7 @@ static bool test_enabled(int argc, char **argv,
 	}
 
 	/*
-	 * If there are no positive tests then we assume user just wants
+	 * If there are anal positive tests then we assume user just wants
 	 * exclusions and everything else is a pass.
 	 */
 	return !has_positive;
@@ -1115,7 +1115,7 @@ void __run_test(struct __fixture_metadata *f,
 	t->skip = 0;
 	t->trigger = 0;
 	t->step = 1;
-	t->no_print = 0;
+	t->anal_print = 0;
 	memset(t->results->reason, 0, sizeof(t->results->reason));
 
 	ksft_print_msg(" RUN           %s%s%s.%s ...\n",
@@ -1147,7 +1147,7 @@ void __run_test(struct __fixture_metadata *f,
 
 	if (t->skip)
 		ksft_test_result_skip("%s\n", t->results->reason[0] ?
-					t->results->reason : "unknown");
+					t->results->reason : "unkanalwn");
 	else
 		ksft_test_result(t->passed, "%s%s%s.%s\n",
 			f->name, variant->name[0] ? "." : "", variant->name, t->name);
@@ -1155,7 +1155,7 @@ void __run_test(struct __fixture_metadata *f,
 
 static int test_harness_run(int argc, char **argv)
 {
-	struct __fixture_variant_metadata no_variant = { .name = "", };
+	struct __fixture_variant_metadata anal_variant = { .name = "", };
 	struct __fixture_variant_metadata *v;
 	struct __fixture_metadata *f;
 	struct __test_results *results;
@@ -1170,7 +1170,7 @@ static int test_harness_run(int argc, char **argv)
 		return ret;
 
 	for (f = __fixture_list; f; f = f->next) {
-		for (v = f->variant ?: &no_variant; v; v = v->next) {
+		for (v = f->variant ?: &anal_variant; v; v = v->next) {
 			unsigned int old_tests = test_count;
 
 			for (t = f->tests; t; t = t->next)
@@ -1183,14 +1183,14 @@ static int test_harness_run(int argc, char **argv)
 	}
 
 	results = mmap(NULL, sizeof(*results), PROT_READ | PROT_WRITE,
-		       MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		       MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
 
 	ksft_print_header();
 	ksft_set_plan(test_count);
 	ksft_print_msg("Starting %u tests from %u test cases.\n",
 	       test_count, case_count);
 	for (f = __fixture_list; f; f = f->next) {
-		for (v = f->variant ?: &no_variant; v; v = v->next) {
+		for (v = f->variant ?: &anal_variant; v; v = v->next) {
 			for (t = f->tests; t; t = t->next) {
 				if (!test_enabled(argc, argv, f, v, t))
 					continue;

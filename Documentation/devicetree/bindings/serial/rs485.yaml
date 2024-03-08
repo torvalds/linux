@@ -8,7 +8,7 @@ title: RS485 serial communications
 
 description: The RTS signal is capable of automatically controlling line
   direction for the built-in half-duplex mode. The properties described
-  hereafter shall be given to a half-duplex capable UART node.
+  hereafter shall be given to a half-duplex capable UART analde.
 
 maintainers:
   - Rob Herring <robh@kernel.org>

@@ -30,9 +30,9 @@
  * We don't support the group events, so we simply have 8 interrupts
  * per frame.
  */
-#define NODMIS_SHIFT		3
-#define NODMIS_PER_FRAME	(1 << NODMIS_SHIFT)
-#define NODMIS_MASK		(NODMIS_PER_FRAME - 1)
+#define ANALDMIS_SHIFT		3
+#define ANALDMIS_PER_FRAME	(1 << ANALDMIS_SHIFT)
+#define ANALDMIS_MASK		(ANALDMIS_PER_FRAME - 1)
 
 struct odmi_data {
 	struct resource res;
@@ -53,11 +53,11 @@ static void odmi_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 	phys_addr_t addr;
 	unsigned int odmin;
 
-	if (WARN_ON(d->hwirq >= odmis_count * NODMIS_PER_FRAME))
+	if (WARN_ON(d->hwirq >= odmis_count * ANALDMIS_PER_FRAME))
 		return;
 
-	odmi = &odmis[d->hwirq >> NODMIS_SHIFT];
-	odmin = d->hwirq & NODMIS_MASK;
+	odmi = &odmis[d->hwirq >> ANALDMIS_SHIFT];
+	odmin = d->hwirq & ANALDMIS_MASK;
 
 	addr = odmi->res.start + GICP_ODMIN_SET;
 
@@ -85,19 +85,19 @@ static int odmi_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	int ret;
 
 	spin_lock(&odmis_bm_lock);
-	hwirq = find_first_zero_bit(odmis_bm, NODMIS_PER_FRAME * odmis_count);
-	if (hwirq >= NODMIS_PER_FRAME * odmis_count) {
+	hwirq = find_first_zero_bit(odmis_bm, ANALDMIS_PER_FRAME * odmis_count);
+	if (hwirq >= ANALDMIS_PER_FRAME * odmis_count) {
 		spin_unlock(&odmis_bm_lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	__set_bit(hwirq, odmis_bm);
 	spin_unlock(&odmis_bm_lock);
 
-	odmi = &odmis[hwirq >> NODMIS_SHIFT];
-	odmin = hwirq & NODMIS_MASK;
+	odmi = &odmis[hwirq >> ANALDMIS_SHIFT];
+	odmin = hwirq & ANALDMIS_MASK;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwanalde = domain->parent->fwanalde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = GIC_SPI;
 	fwspec.param[1] = odmi->spi_base - 32 + odmin;
@@ -105,7 +105,7 @@ static int odmi_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	ret = irq_domain_alloc_irqs_parent(domain, virq, 1, &fwspec);
 	if (ret) {
-		pr_err("Cannot allocate parent IRQ\n");
+		pr_err("Cananalt allocate parent IRQ\n");
 		spin_lock(&odmis_bm_lock);
 		__clear_bit(odmin, odmis_bm);
 		spin_unlock(&odmis_bm_lock);
@@ -127,7 +127,7 @@ static void odmi_irq_domain_free(struct irq_domain *domain,
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
 
-	if (d->hwirq >= odmis_count * NODMIS_PER_FRAME) {
+	if (d->hwirq >= odmis_count * ANALDMIS_PER_FRAME) {
 		pr_err("Failed to teardown msi. Invalid hwirq %lu\n", d->hwirq);
 		return;
 	}
@@ -158,39 +158,39 @@ static struct msi_domain_info odmi_msi_domain_info = {
 	.chip	= &odmi_msi_irq_chip,
 };
 
-static int __init mvebu_odmi_init(struct device_node *node,
-				  struct device_node *parent)
+static int __init mvebu_odmi_init(struct device_analde *analde,
+				  struct device_analde *parent)
 {
 	struct irq_domain *parent_domain, *inner_domain, *plat_domain;
 	int ret, i;
 
-	if (of_property_read_u32(node, "marvell,odmi-frames", &odmis_count))
+	if (of_property_read_u32(analde, "marvell,odmi-frames", &odmis_count))
 		return -EINVAL;
 
 	odmis = kcalloc(odmis_count, sizeof(struct odmi_data), GFP_KERNEL);
 	if (!odmis)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	odmis_bm = bitmap_zalloc(odmis_count * NODMIS_PER_FRAME, GFP_KERNEL);
+	odmis_bm = bitmap_zalloc(odmis_count * ANALDMIS_PER_FRAME, GFP_KERNEL);
 	if (!odmis_bm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
 	for (i = 0; i < odmis_count; i++) {
 		struct odmi_data *odmi = &odmis[i];
 
-		ret = of_address_to_resource(node, i, &odmi->res);
+		ret = of_address_to_resource(analde, i, &odmi->res);
 		if (ret)
 			goto err_unmap;
 
-		odmi->base = of_io_request_and_map(node, i, "odmi");
+		odmi->base = of_io_request_and_map(analde, i, "odmi");
 		if (IS_ERR(odmi->base)) {
 			ret = PTR_ERR(odmi->base);
 			goto err_unmap;
 		}
 
-		if (of_property_read_u32_index(node, "marvell,spi-base",
+		if (of_property_read_u32_index(analde, "marvell,spi-base",
 					       i, &odmi->spi_base)) {
 			ret = -EINVAL;
 			goto err_unmap;
@@ -200,19 +200,19 @@ static int __init mvebu_odmi_init(struct device_node *node,
 	parent_domain = irq_find_host(parent);
 
 	inner_domain = irq_domain_create_hierarchy(parent_domain, 0,
-						   odmis_count * NODMIS_PER_FRAME,
-						   of_node_to_fwnode(node),
+						   odmis_count * ANALDMIS_PER_FRAME,
+						   of_analde_to_fwanalde(analde),
 						   &odmi_domain_ops, NULL);
 	if (!inner_domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap;
 	}
 
-	plat_domain = platform_msi_create_irq_domain(of_node_to_fwnode(node),
+	plat_domain = platform_msi_create_irq_domain(of_analde_to_fwanalde(analde),
 						     &odmi_msi_domain_info,
 						     inner_domain);
 	if (!plat_domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_remove_inner;
 	}
 

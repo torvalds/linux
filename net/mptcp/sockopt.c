@@ -201,7 +201,7 @@ static int mptcp_setsockopt_sol_socket_int(struct mptcp_sock *msk, int optname,
 		return mptcp_setsockopt_sol_socket_tstamp(msk, optname, val);
 	}
 
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static int mptcp_setsockopt_sol_socket_timestamping(struct mptcp_sock *msk,
@@ -274,7 +274,7 @@ static int mptcp_setsockopt_sol_socket_linger(struct mptcp_sock *msk, sockptr_t 
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 		bool slow = lock_sock_fast(ssk);
 
-		if (!ling.l_onoff) {
+		if (!ling.l_oanalff) {
 			sock_reset_flag(ssk, SOCK_LINGER);
 		} else {
 			ssk->sk_lingertime = sk->sk_lingertime;
@@ -350,9 +350,9 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 	case SO_BUSY_POLL:
 	case SO_PREFER_BUSY_POLL:
 	case SO_BUSY_POLL_BUDGET:
-		/* No need to copy: only relevant for msk */
+		/* Anal need to copy: only relevant for msk */
 		return sock_setsockopt(sk->sk_socket, SOL_SOCKET, optname, optval, optlen);
-	case SO_NO_CHECK:
+	case SO_ANAL_CHECK:
 	case SO_DONTROUTE:
 	case SO_BROADCAST:
 	case SO_BSDCOMPAT:
@@ -361,17 +361,17 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 	case SO_PASSSEC:
 	case SO_RXQ_OVFL:
 	case SO_WIFI_STATUS:
-	case SO_NOFCS:
+	case SO_ANALFCS:
 	case SO_SELECT_ERR_QUEUE:
 		return 0;
 	}
 
-	/* SO_OOBINLINE is not supported, let's avoid the related mess
+	/* SO_OOBINLINE is analt supported, let's avoid the related mess
 	 * SO_ATTACH_FILTER, SO_ATTACH_BPF, SO_ATTACH_REUSEPORT_CBPF,
 	 * SO_DETACH_REUSEPORT_BPF, SO_DETACH_FILTER, SO_LOCK_FILTER,
 	 * we must be careful with subflows
 	 *
-	 * SO_ATTACH_REUSEPORT_EBPF is not supported, at it checks
+	 * SO_ATTACH_REUSEPORT_EBPF is analt supported, at it checks
 	 * explicitly the sk_protocol field
 	 *
 	 * SO_PEEK_OFF is unsupported, as it is for plain TCP
@@ -383,14 +383,14 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 	 * SO_TXTIME is currently unsupported
 	 */
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
 			       sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = (struct sock *)msk;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	struct sock *ssk;
 
 	switch (optname) {
@@ -440,7 +440,7 @@ static bool mptcp_supported_sockopt(int level, int optname)
 		/* should work fine */
 		case IP_FREEBIND:
 		case IP_TRANSPARENT:
-		case IP_BIND_ADDRESS_NO_PORT:
+		case IP_BIND_ADDRESS_ANAL_PORT:
 		case IP_LOCAL_PORT_RANGE:
 
 		/* the following are control cmsg related */
@@ -463,19 +463,19 @@ static bool mptcp_supported_sockopt(int level, int optname)
 		/* possibly less common may deserve some love */
 		case IP_MINTTL:
 
-		/* the following is apparently a no-op for plain TCP */
+		/* the following is apparently a anal-op for plain TCP */
 		case IP_RECVERR_RFC4884:
 			return true;
 		}
 
-		/* IP_OPTIONS is not supported, needs subflow care */
-		/* IP_HDRINCL, IP_NODEFRAG are not supported, RAW specific */
+		/* IP_OPTIONS is analt supported, needs subflow care */
+		/* IP_HDRINCL, IP_ANALDEFRAG are analt supported, RAW specific */
 		/* IP_MULTICAST_TTL, IP_MULTICAST_LOOP, IP_UNICAST_IF,
 		 * IP_ADD_MEMBERSHIP, IP_ADD_SOURCE_MEMBERSHIP, IP_DROP_MEMBERSHIP,
 		 * IP_DROP_SOURCE_MEMBERSHIP, IP_BLOCK_SOURCE, IP_UNBLOCK_SOURCE,
 		 * MCAST_JOIN_GROUP, MCAST_LEAVE_GROUP MCAST_JOIN_SOURCE_GROUP,
 		 * MCAST_LEAVE_SOURCE_GROUP, MCAST_BLOCK_SOURCE, MCAST_UNBLOCK_SOURCE,
-		 * MCAST_MSFILTER, IP_MULTICAST_ALL are not supported, better not deal
+		 * MCAST_MSFILTER, IP_MULTICAST_ALL are analt supported, better analt deal
 		 * with mcast stuff
 		 */
 		/* IP_IPSEC_POLICY, IP_XFRM_POLICY are nut supported, unrelated here */
@@ -518,13 +518,13 @@ static bool mptcp_supported_sockopt(int level, int optname)
 		case IPV6_DONTFRAG:
 		case IPV6_AUTOFLOWLABEL:
 
-		/* the following one is a no-op for plain TCP */
+		/* the following one is a anal-op for plain TCP */
 		case IPV6_RECVERR_RFC4884:
 			return true;
 		}
 
 		/* IPV6_HOPOPTS, IPV6_RTHDRDSTOPTS, IPV6_RTHDR, IPV6_DSTOPTS are
-		 * not supported
+		 * analt supported
 		 */
 		/* IPV6_MULTICAST_HOPS, IPV6_MULTICAST_LOOP, IPV6_UNICAST_IF,
 		 * IPV6_MULTICAST_IF, IPV6_ADDRFORM,
@@ -532,23 +532,23 @@ static bool mptcp_supported_sockopt(int level, int optname)
 		 * IPV6_LEAVE_ANYCAST, IPV6_MULTICAST_ALL, MCAST_JOIN_GROUP, MCAST_LEAVE_GROUP,
 		 * MCAST_JOIN_SOURCE_GROUP, MCAST_LEAVE_SOURCE_GROUP,
 		 * MCAST_BLOCK_SOURCE, MCAST_UNBLOCK_SOURCE, MCAST_MSFILTER
-		 * are not supported better not deal with mcast
+		 * are analt supported better analt deal with mcast
 		 */
-		/* IPV6_ROUTER_ALERT, IPV6_ROUTER_ALERT_ISOLATE are not supported, since are evil */
+		/* IPV6_ROUTER_ALERT, IPV6_ROUTER_ALERT_ISOLATE are analt supported, since are evil */
 
-		/* IPV6_IPSEC_POLICY, IPV6_XFRM_POLICY are not supported */
-		/* IPV6_ADDR_PREFERENCES is not supported, we must be careful with subflows */
+		/* IPV6_IPSEC_POLICY, IPV6_XFRM_POLICY are analt supported */
+		/* IPV6_ADDR_PREFERENCES is analt supported, we must be careful with subflows */
 		return false;
 	}
 	if (level == SOL_TCP) {
 		switch (optname) {
-		/* the following are no-op or should work just fine */
+		/* the following are anal-op or should work just fine */
 		case TCP_THIN_DUPACK:
 		case TCP_DEFER_ACCEPT:
 
 		/* the following need some love */
 		case TCP_MAXSEG:
-		case TCP_NODELAY:
+		case TCP_ANALDELAY:
 		case TCP_THIN_LINEAR_TIMEOUTS:
 		case TCP_CONGESTION:
 		case TCP_CORK:
@@ -562,20 +562,20 @@ static bool mptcp_supported_sockopt(int level, int optname)
 		case TCP_QUICKACK:
 		case TCP_USER_TIMEOUT:
 		case TCP_TIMESTAMP:
-		case TCP_NOTSENT_LOWAT:
+		case TCP_ANALTSENT_LOWAT:
 		case TCP_TX_DELAY:
 		case TCP_INQ:
 		case TCP_FASTOPEN:
 		case TCP_FASTOPEN_CONNECT:
 		case TCP_FASTOPEN_KEY:
-		case TCP_FASTOPEN_NO_COOKIE:
+		case TCP_FASTOPEN_ANAL_COOKIE:
 			return true;
 		}
 
-		/* TCP_MD5SIG, TCP_MD5SIG_EXT are not supported, MD5 is not compatible with MPTCP */
+		/* TCP_MD5SIG, TCP_MD5SIG_EXT are analt supported, MD5 is analt compatible with MPTCP */
 
 		/* TCP_REPAIR, TCP_REPAIR_QUEUE, TCP_QUEUE_SEQ, TCP_REPAIR_OPTIONS,
-		 * TCP_REPAIR_WINDOW are not supported, better avoid this mess
+		 * TCP_REPAIR_WINDOW are analt supported, better avoid this mess
 		 */
 	}
 	return false;
@@ -654,7 +654,7 @@ static int mptcp_setsockopt_sol_tcp_cork(struct mptcp_sock *msk, sockptr_t optva
 	return 0;
 }
 
-static int mptcp_setsockopt_sol_tcp_nodelay(struct mptcp_sock *msk, sockptr_t optval,
+static int mptcp_setsockopt_sol_tcp_analdelay(struct mptcp_sock *msk, sockptr_t optval,
 					    unsigned int optlen)
 {
 	struct mptcp_subflow_context *subflow;
@@ -669,12 +669,12 @@ static int mptcp_setsockopt_sol_tcp_nodelay(struct mptcp_sock *msk, sockptr_t op
 
 	lock_sock(sk);
 	sockopt_seq_inc(msk);
-	msk->nodelay = !!val;
+	msk->analdelay = !!val;
 	mptcp_for_each_subflow(msk, subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 
 		lock_sock(ssk);
-		__tcp_sock_set_nodelay(ssk, !!val);
+		__tcp_sock_set_analdelay(ssk, !!val);
 		release_sock(ssk);
 	}
 	if (val)
@@ -711,9 +711,9 @@ static int mptcp_setsockopt_sol_ip_set(struct mptcp_sock *msk, int optname,
 		inet_assign_bit(TRANSPARENT, ssk,
 				inet_test_bit(TRANSPARENT, sk));
 		break;
-	case IP_BIND_ADDRESS_NO_PORT:
-		inet_assign_bit(BIND_ADDRESS_NO_PORT, ssk,
-				inet_test_bit(BIND_ADDRESS_NO_PORT, sk));
+	case IP_BIND_ADDRESS_ANAL_PORT:
+		inet_assign_bit(BIND_ADDRESS_ANAL_PORT, ssk,
+				inet_test_bit(BIND_ADDRESS_ANAL_PORT, sk));
 		break;
 	case IP_LOCAL_PORT_RANGE:
 		WRITE_ONCE(inet_sk(ssk)->local_port_range,
@@ -722,7 +722,7 @@ static int mptcp_setsockopt_sol_ip_set(struct mptcp_sock *msk, int optname,
 	default:
 		release_sock(sk);
 		WARN_ON_ONCE(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	sockopt_seq_inc(msk);
@@ -764,14 +764,14 @@ static int mptcp_setsockopt_v4(struct mptcp_sock *msk, int optname,
 	switch (optname) {
 	case IP_FREEBIND:
 	case IP_TRANSPARENT:
-	case IP_BIND_ADDRESS_NO_PORT:
+	case IP_BIND_ADDRESS_ANAL_PORT:
 	case IP_LOCAL_PORT_RANGE:
 		return mptcp_setsockopt_sol_ip_set(msk, optname, optval, optlen);
 	case IP_TOS:
 		return mptcp_setsockopt_v4_set_tos(msk, optname, optval, optlen);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mptcp_setsockopt_first_sf_only(struct mptcp_sock *msk, int level, int optname,
@@ -815,26 +815,26 @@ static int mptcp_setsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 		release_sock(sk);
 		return 0;
 	case TCP_ULP:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case TCP_CONGESTION:
 		return mptcp_setsockopt_sol_tcp_congestion(msk, optval, optlen);
 	case TCP_CORK:
 		return mptcp_setsockopt_sol_tcp_cork(msk, optval, optlen);
-	case TCP_NODELAY:
-		return mptcp_setsockopt_sol_tcp_nodelay(msk, optval, optlen);
+	case TCP_ANALDELAY:
+		return mptcp_setsockopt_sol_tcp_analdelay(msk, optval, optlen);
 	case TCP_DEFER_ACCEPT:
-		/* See tcp.c: TCP_DEFER_ACCEPT does not fail */
+		/* See tcp.c: TCP_DEFER_ACCEPT does analt fail */
 		mptcp_setsockopt_first_sf_only(msk, SOL_TCP, optname, optval, optlen);
 		return 0;
 	case TCP_FASTOPEN:
 	case TCP_FASTOPEN_CONNECT:
 	case TCP_FASTOPEN_KEY:
-	case TCP_FASTOPEN_NO_COOKIE:
+	case TCP_FASTOPEN_ANAL_COOKIE:
 		return mptcp_setsockopt_first_sf_only(msk, SOL_TCP, optname,
 						      optval, optlen);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int mptcp_setsockopt(struct sock *sk, int level, int optname,
@@ -849,10 +849,10 @@ int mptcp_setsockopt(struct sock *sk, int level, int optname,
 		return mptcp_setsockopt_sol_socket(msk, optname, optval, optlen);
 
 	if (!mptcp_supported_sockopt(level, optname))
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	/* @@ the meaning of setsockopt() when the socket is connected and
-	 * there are multiple subflows is not yet defined. It is up to the
+	 * there are multiple subflows is analt yet defined. It is up to the
 	 * MPTCP-level socket to configure the subflows until the subflow
 	 * is in TCP fallback, when TCP socket options are passed through
 	 * to the one remaining subflow.
@@ -872,7 +872,7 @@ int mptcp_setsockopt(struct sock *sk, int level, int optname,
 	if (level == SOL_TCP)
 		return mptcp_setsockopt_sol_tcp(msk, optname, optval, optlen);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int optname,
@@ -1239,7 +1239,7 @@ static int mptcp_getsockopt_full_info(struct mptcp_sock *msk, char __user *optva
 	if (len < 0)
 		return len;
 
-	/* don't bother filling the mptcp info if there is not enough
+	/* don't bother filling the mptcp info if there is analt eanalugh
 	 * user-space-provided storage
 	 */
 	if (len > 0) {
@@ -1266,7 +1266,7 @@ static int mptcp_getsockopt_full_info(struct mptcp_sock *msk, char __user *optva
 			continue;
 
 		/* fetch addr/tcp_info only if the user space buffers
-		 * are wide enough
+		 * are wide eanalugh
 		 */
 		memset(&sfinfo, 0, sizeof(sfinfo));
 		sfinfo.id = subflow->subflow_id;
@@ -1340,17 +1340,17 @@ static int mptcp_getsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 	case TCP_FASTOPEN:
 	case TCP_FASTOPEN_CONNECT:
 	case TCP_FASTOPEN_KEY:
-	case TCP_FASTOPEN_NO_COOKIE:
+	case TCP_FASTOPEN_ANAL_COOKIE:
 		return mptcp_getsockopt_first_sf_only(msk, SOL_TCP, optname,
 						      optval, optlen);
 	case TCP_INQ:
 		return mptcp_put_int_option(msk, optval, optlen, msk->recvmsg_inq);
 	case TCP_CORK:
 		return mptcp_put_int_option(msk, optval, optlen, msk->cork);
-	case TCP_NODELAY:
-		return mptcp_put_int_option(msk, optval, optlen, msk->nodelay);
+	case TCP_ANALDELAY:
+		return mptcp_put_int_option(msk, optval, optlen, msk->analdelay);
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mptcp_getsockopt_v4(struct mptcp_sock *msk, int optname,
@@ -1361,15 +1361,15 @@ static int mptcp_getsockopt_v4(struct mptcp_sock *msk, int optname,
 	switch (optname) {
 	case IP_TOS:
 		return mptcp_put_int_option(msk, optval, optlen, READ_ONCE(inet_sk(sk)->tos));
-	case IP_BIND_ADDRESS_NO_PORT:
+	case IP_BIND_ADDRESS_ANAL_PORT:
 		return mptcp_put_int_option(msk, optval, optlen,
-				inet_test_bit(BIND_ADDRESS_NO_PORT, sk));
+				inet_test_bit(BIND_ADDRESS_ANAL_PORT, sk));
 	case IP_LOCAL_PORT_RANGE:
 		return mptcp_put_int_option(msk, optval, optlen,
 				READ_ONCE(inet_sk(sk)->local_port_range));
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mptcp_getsockopt_sol_mptcp(struct mptcp_sock *msk, int optname,
@@ -1386,7 +1386,7 @@ static int mptcp_getsockopt_sol_mptcp(struct mptcp_sock *msk, int optname,
 		return mptcp_getsockopt_subflow_addrs(msk, optval, optlen);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int mptcp_getsockopt(struct sock *sk, int level, int optname,
@@ -1398,7 +1398,7 @@ int mptcp_getsockopt(struct sock *sk, int level, int optname,
 	pr_debug("msk=%p", msk);
 
 	/* @@ the meaning of setsockopt() when the socket is connected and
-	 * there are multiple subflows is not yet defined. It is up to the
+	 * there are multiple subflows is analt yet defined. It is up to the
 	 * MPTCP-level socket to configure the subflows until the subflow
 	 * is in TCP fallback, when socket options are passed through
 	 * to the one remaining subflow.
@@ -1415,7 +1415,7 @@ int mptcp_getsockopt(struct sock *sk, int level, int optname,
 		return mptcp_getsockopt_sol_tcp(msk, optname, optval, option);
 	if (level == SOL_MPTCP)
 		return mptcp_getsockopt_sol_mptcp(msk, optname, optval, option);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void sync_socket_options(struct mptcp_sock *msk, struct sock *ssk)
@@ -1463,11 +1463,11 @@ static void sync_socket_options(struct mptcp_sock *msk, struct sock *ssk)
 	if (inet_csk(sk)->icsk_ca_ops != inet_csk(ssk)->icsk_ca_ops)
 		tcp_set_congestion_control(ssk, msk->ca_name, false, true);
 	__tcp_sock_set_cork(ssk, !!msk->cork);
-	__tcp_sock_set_nodelay(ssk, !!msk->nodelay);
+	__tcp_sock_set_analdelay(ssk, !!msk->analdelay);
 
 	inet_assign_bit(TRANSPARENT, ssk, inet_test_bit(TRANSPARENT, sk));
 	inet_assign_bit(FREEBIND, ssk, inet_test_bit(FREEBIND, sk));
-	inet_assign_bit(BIND_ADDRESS_NO_PORT, ssk, inet_test_bit(BIND_ADDRESS_NO_PORT, sk));
+	inet_assign_bit(BIND_ADDRESS_ANAL_PORT, ssk, inet_test_bit(BIND_ADDRESS_ANAL_PORT, sk));
 	WRITE_ONCE(inet_sk(ssk)->local_port_range, READ_ONCE(inet_sk(sk)->local_port_range));
 }
 
@@ -1479,11 +1479,11 @@ void mptcp_sockopt_sync_locked(struct mptcp_sock *msk, struct sock *ssk)
 
 	ssk->sk_rcvlowat = 0;
 
-	/* subflows must ignore any latency-related settings: will not affect
+	/* subflows must iganalre any latency-related settings: will analt affect
 	 * the user-space - only the msk is relevant - but will foul the
 	 * mptcp scheduler
 	 */
-	tcp_sk(ssk)->notsent_lowat = UINT_MAX;
+	tcp_sk(ssk)->analtsent_lowat = UINT_MAX;
 
 	if (READ_ONCE(subflow->setsockopt_seq) != msk->setsockopt_seq) {
 		sync_socket_options(msk, ssk);
@@ -1492,7 +1492,7 @@ void mptcp_sockopt_sync_locked(struct mptcp_sock *msk, struct sock *ssk)
 	}
 }
 
-/* unfortunately this is different enough from the tcp version so
+/* unfortunately this is different eanalugh from the tcp version so
  * that we can't factor it out
  */
 int mptcp_set_rcvlowat(struct sock *sk, int val)
@@ -1507,7 +1507,7 @@ int mptcp_set_rcvlowat(struct sock *sk, int val)
 	val = min(val, cap);
 	WRITE_ONCE(sk->sk_rcvlowat, val ? : 1);
 
-	/* Check if we need to signal EPOLLIN right now */
+	/* Check if we need to signal EPOLLIN right analw */
 	if (mptcp_epollin_ready(sk))
 		sk->sk_data_ready(sk);
 

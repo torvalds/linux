@@ -118,7 +118,7 @@ static struct drm_driver ili9163_driver = {
 	.desc			= "Ilitek ILI9163",
 	.date			= "20210208",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static const struct of_device_id ili9163_of_match[] = {

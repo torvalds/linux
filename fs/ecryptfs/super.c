@@ -19,64 +19,64 @@
 #include <linux/magic.h>
 #include "ecryptfs_kernel.h"
 
-struct kmem_cache *ecryptfs_inode_info_cache;
+struct kmem_cache *ecryptfs_ianalde_info_cache;
 
 /**
- * ecryptfs_alloc_inode - allocate an ecryptfs inode
+ * ecryptfs_alloc_ianalde - allocate an ecryptfs ianalde
  * @sb: Pointer to the ecryptfs super block
  *
- * Called to bring an inode into existence.
+ * Called to bring an ianalde into existence.
  *
  * Only handle allocation, setting up structures should be done in
- * ecryptfs_read_inode. This is because the kernel, between now and
+ * ecryptfs_read_ianalde. This is because the kernel, between analw and
  * then, will 0 out the private data pointer.
  *
- * Returns a pointer to a newly allocated inode, NULL otherwise
+ * Returns a pointer to a newly allocated ianalde, NULL otherwise
  */
-static struct inode *ecryptfs_alloc_inode(struct super_block *sb)
+static struct ianalde *ecryptfs_alloc_ianalde(struct super_block *sb)
 {
-	struct ecryptfs_inode_info *inode_info;
-	struct inode *inode = NULL;
+	struct ecryptfs_ianalde_info *ianalde_info;
+	struct ianalde *ianalde = NULL;
 
-	inode_info = alloc_inode_sb(sb, ecryptfs_inode_info_cache, GFP_KERNEL);
-	if (unlikely(!inode_info))
+	ianalde_info = alloc_ianalde_sb(sb, ecryptfs_ianalde_info_cache, GFP_KERNEL);
+	if (unlikely(!ianalde_info))
 		goto out;
-	if (ecryptfs_init_crypt_stat(&inode_info->crypt_stat)) {
-		kmem_cache_free(ecryptfs_inode_info_cache, inode_info);
+	if (ecryptfs_init_crypt_stat(&ianalde_info->crypt_stat)) {
+		kmem_cache_free(ecryptfs_ianalde_info_cache, ianalde_info);
 		goto out;
 	}
-	mutex_init(&inode_info->lower_file_mutex);
-	atomic_set(&inode_info->lower_file_count, 0);
-	inode_info->lower_file = NULL;
-	inode = &inode_info->vfs_inode;
+	mutex_init(&ianalde_info->lower_file_mutex);
+	atomic_set(&ianalde_info->lower_file_count, 0);
+	ianalde_info->lower_file = NULL;
+	ianalde = &ianalde_info->vfs_ianalde;
 out:
-	return inode;
+	return ianalde;
 }
 
-static void ecryptfs_free_inode(struct inode *inode)
+static void ecryptfs_free_ianalde(struct ianalde *ianalde)
 {
-	struct ecryptfs_inode_info *inode_info;
-	inode_info = ecryptfs_inode_to_private(inode);
+	struct ecryptfs_ianalde_info *ianalde_info;
+	ianalde_info = ecryptfs_ianalde_to_private(ianalde);
 
-	kmem_cache_free(ecryptfs_inode_info_cache, inode_info);
+	kmem_cache_free(ecryptfs_ianalde_info_cache, ianalde_info);
 }
 
 /**
- * ecryptfs_destroy_inode
- * @inode: The ecryptfs inode
+ * ecryptfs_destroy_ianalde
+ * @ianalde: The ecryptfs ianalde
  *
- * This is used during the final destruction of the inode.  All
- * allocation of memory related to the inode, including allocated
+ * This is used during the final destruction of the ianalde.  All
+ * allocation of memory related to the ianalde, including allocated
  * memory in the crypt_stat struct, will be released here.
- * There should be no chance that this deallocation will be missed.
+ * There should be anal chance that this deallocation will be missed.
  */
-static void ecryptfs_destroy_inode(struct inode *inode)
+static void ecryptfs_destroy_ianalde(struct ianalde *ianalde)
 {
-	struct ecryptfs_inode_info *inode_info;
+	struct ecryptfs_ianalde_info *ianalde_info;
 
-	inode_info = ecryptfs_inode_to_private(inode);
-	BUG_ON(inode_info->lower_file);
-	ecryptfs_destroy_crypt_stat(&inode_info->crypt_stat);
+	ianalde_info = ecryptfs_ianalde_to_private(ianalde);
+	BUG_ON(ianalde_info->lower_file);
+	ecryptfs_destroy_crypt_stat(&ianalde_info->crypt_stat);
 }
 
 /**
@@ -85,7 +85,7 @@ static void ecryptfs_destroy_inode(struct inode *inode)
  * @buf: The struct kstatfs to fill in with stats
  *
  * Get the filesystem statistics. Currently, we let this pass right through
- * to the lower filesystem and take no action ourselves.
+ * to the lower filesystem and take anal action ourselves.
  */
 static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
@@ -93,7 +93,7 @@ static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	int rc;
 
 	if (!lower_dentry->d_sb->s_op->statfs)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	rc = lower_dentry->d_sb->s_op->statfs(lower_dentry, buf);
 	if (rc)
@@ -107,27 +107,27 @@ static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 /**
- * ecryptfs_evict_inode
- * @inode: The ecryptfs inode
+ * ecryptfs_evict_ianalde
+ * @ianalde: The ecryptfs ianalde
  *
- * Called by iput() when the inode reference count reached zero
- * and the inode is not hashed anywhere.  Used to clear anything
- * that needs to be, before the inode is completely destroyed and put
- * on the inode free list. We use this to drop out reference to the
- * lower inode.
+ * Called by iput() when the ianalde reference count reached zero
+ * and the ianalde is analt hashed anywhere.  Used to clear anything
+ * that needs to be, before the ianalde is completely destroyed and put
+ * on the ianalde free list. We use this to drop out reference to the
+ * lower ianalde.
  */
-static void ecryptfs_evict_inode(struct inode *inode)
+static void ecryptfs_evict_ianalde(struct ianalde *ianalde)
 {
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
-	iput(ecryptfs_inode_to_lower(inode));
+	truncate_ianalde_pages_final(&ianalde->i_data);
+	clear_ianalde(ianalde);
+	iput(ecryptfs_ianalde_to_lower(ianalde));
 }
 
 /*
  * ecryptfs_show_options
  *
  * Prints the mount options for a given superblock.
- * Returns zero; does not fail.
+ * Returns zero; does analt fail.
  */
 static int ecryptfs_show_options(struct seq_file *m, struct dentry *root)
 {
@@ -168,11 +168,11 @@ static int ecryptfs_show_options(struct seq_file *m, struct dentry *root)
 }
 
 const struct super_operations ecryptfs_sops = {
-	.alloc_inode = ecryptfs_alloc_inode,
-	.destroy_inode = ecryptfs_destroy_inode,
-	.free_inode = ecryptfs_free_inode,
+	.alloc_ianalde = ecryptfs_alloc_ianalde,
+	.destroy_ianalde = ecryptfs_destroy_ianalde,
+	.free_ianalde = ecryptfs_free_ianalde,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
-	.evict_inode = ecryptfs_evict_inode,
+	.evict_ianalde = ecryptfs_evict_ianalde,
 	.show_options = ecryptfs_show_options
 };

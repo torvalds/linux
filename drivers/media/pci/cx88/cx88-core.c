@@ -3,7 +3,7 @@
  * device driver for Conexant 2388x based TV cards
  * driver core
  *
- * (c) 2003 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2003 Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]
  *
  * (c) 2005-2006 Mauro Carvalho Chehab <mchehab@kernel.org>
  *     - Multituner support
@@ -30,7 +30,7 @@
 #include <media/v4l2-ioctl.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL v2");
 
 /* ------------------------------------------------------------------ */
@@ -43,9 +43,9 @@ static unsigned int nicam;
 module_param(nicam, int, 0644);
 MODULE_PARM_DESC(nicam, "tv audio is nicam");
 
-static unsigned int nocomb;
-module_param(nocomb, int, 0644);
-MODULE_PARM_DESC(nocomb, "disable comb filter");
+static unsigned int analcomb;
+module_param(analcomb, int, 0644);
+MODULE_PARM_DESC(analcomb, "disable comb filter");
 
 #define dprintk0(fmt, arg...)				\
 	printk(KERN_DEBUG pr_fmt("%s: core:" fmt),	\
@@ -61,10 +61,10 @@ static unsigned int cx88_devcount;
 static LIST_HEAD(cx88_devlist);
 static DEFINE_MUTEX(devlist);
 
-#define NO_SYNC_LINE (-1U)
+#define ANAL_SYNC_LINE (-1U)
 
 /*
- * @lpi: lines per IRQ, or 0 to not generate irqs. Note: IRQ to be
+ * @lpi: lines per IRQ, or 0 to analt generate irqs. Analte: IRQ to be
  * generated _after_ lpi lines are transferred.
  */
 static __le32 *cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
@@ -81,7 +81,7 @@ static __le32 *cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
 	}
 
 	/* sync instruction */
-	if (sync_line != NO_SYNC_LINE)
+	if (sync_line != ANAL_SYNC_LINE)
 		*(rp++) = cpu_to_le32(RISC_RESYNC | sync_line);
 
 	/* scan lines */
@@ -155,7 +155,7 @@ int cx88_risc_buffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	risc->cpu = dma_alloc_coherent(&pci->dev, risc->size, &risc->dma,
 				       GFP_KERNEL);
 	if (!risc->cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* write risc instructions */
 	rp = risc->cpu;
@@ -184,7 +184,7 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	/*
 	 * estimate risc mem: worst case is one write per page border +
 	 * one write per scan line + syncs + jump (all 2 dwords).  Here
-	 * there is no padding and no sync.  First DMA region may be smaller
+	 * there is anal padding and anal sync.  First DMA region may be smaller
 	 * than PAGE_SIZE
 	 */
 	instructions  = 1 + (bpl * lines) / PAGE_SIZE + lines;
@@ -194,11 +194,11 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	risc->cpu = dma_alloc_coherent(&pci->dev, risc->size, &risc->dma,
 				       GFP_KERNEL);
 	if (!risc->cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* write risc instructions */
 	rp = risc->cpu;
-	rp = cx88_risc_field(rp, sglist, 0, NO_SYNC_LINE, bpl, 0,
+	rp = cx88_risc_field(rp, sglist, 0, ANAL_SYNC_LINE, bpl, 0,
 			     lines, lpi, !lpi);
 
 	/* save pointer to jmp instruction address */
@@ -217,7 +217,7 @@ EXPORT_SYMBOL(cx88_risc_databuffer);
  * can use the whole SDRAM for the DMA fifos.  To simplify things, we
  * use a static memory layout.  That surely will waste memory in case
  * we don't use all DMA channels at the same time (which will be the
- * case most of the time).  But that still gives us enough FIFO space
+ * case most of the time).  But that still gives us eanalugh FIFO space
  * to be able to deal with insane long pci latencies ...
  *
  * FIFO space allocations:
@@ -616,47 +616,47 @@ EXPORT_SYMBOL(cx88_reset);
 
 /* ------------------------------------------------------------------ */
 
-static inline unsigned int norm_swidth(v4l2_std_id norm)
+static inline unsigned int analrm_swidth(v4l2_std_id analrm)
 {
-	if (norm & (V4L2_STD_NTSC | V4L2_STD_PAL_M))
+	if (analrm & (V4L2_STD_NTSC | V4L2_STD_PAL_M))
 		return 754;
 
-	if (norm & V4L2_STD_PAL_Nc)
+	if (analrm & V4L2_STD_PAL_Nc)
 		return 745;
 
 	return 922;
 }
 
-static inline unsigned int norm_hdelay(v4l2_std_id norm)
+static inline unsigned int analrm_hdelay(v4l2_std_id analrm)
 {
-	if (norm & (V4L2_STD_NTSC | V4L2_STD_PAL_M))
+	if (analrm & (V4L2_STD_NTSC | V4L2_STD_PAL_M))
 		return 135;
 
-	if (norm & V4L2_STD_PAL_Nc)
+	if (analrm & V4L2_STD_PAL_Nc)
 		return 149;
 
 	return 186;
 }
 
-static inline unsigned int norm_vdelay(v4l2_std_id norm)
+static inline unsigned int analrm_vdelay(v4l2_std_id analrm)
 {
-	return (norm & V4L2_STD_625_50) ? 0x24 : 0x18;
+	return (analrm & V4L2_STD_625_50) ? 0x24 : 0x18;
 }
 
-static inline unsigned int norm_fsc8(v4l2_std_id norm)
+static inline unsigned int analrm_fsc8(v4l2_std_id analrm)
 {
-	if (norm & V4L2_STD_PAL_M)
+	if (analrm & V4L2_STD_PAL_M)
 		return 28604892;      // 3.575611 MHz
 
-	if (norm & V4L2_STD_PAL_Nc)
+	if (analrm & V4L2_STD_PAL_Nc)
 		return 28656448;      // 3.582056 MHz
 
-	if (norm & V4L2_STD_NTSC) // All NTSC/M and variants
+	if (analrm & V4L2_STD_NTSC) // All NTSC/M and variants
 		return 28636360;      // 3.57954545 MHz +/- 10 Hz
 
 	/*
 	 * SECAM have also different sub carrier for chroma,
-	 * but step_db and step_dr, at cx88_set_tvnorm already handles that.
+	 * but step_db and step_dr, at cx88_set_tvanalrm already handles that.
 	 *
 	 * The same FSC applies to PAL/BGDKIH, PAL/60, NTSC/4.43 and PAL/N
 	 */
@@ -664,37 +664,37 @@ static inline unsigned int norm_fsc8(v4l2_std_id norm)
 	return 35468950;      // 4.43361875 MHz +/- 5 Hz
 }
 
-static inline unsigned int norm_htotal(v4l2_std_id norm)
+static inline unsigned int analrm_htotal(v4l2_std_id analrm)
 {
-	unsigned int fsc4 = norm_fsc8(norm) / 2;
+	unsigned int fsc4 = analrm_fsc8(analrm) / 2;
 
 	/* returns 4*FSC / vtotal / frames per seconds */
-	return (norm & V4L2_STD_625_50) ?
+	return (analrm & V4L2_STD_625_50) ?
 				((fsc4 + 312) / 625 + 12) / 25 :
 				((fsc4 + 262) / 525 * 1001 + 15000) / 30000;
 }
 
-static inline unsigned int norm_vbipack(v4l2_std_id norm)
+static inline unsigned int analrm_vbipack(v4l2_std_id analrm)
 {
-	return (norm & V4L2_STD_625_50) ? 511 : 400;
+	return (analrm & V4L2_STD_625_50) ? 511 : 400;
 }
 
 int cx88_set_scale(struct cx88_core *core, unsigned int width,
 		   unsigned int height, enum v4l2_field field)
 {
-	unsigned int swidth  = norm_swidth(core->tvnorm);
-	unsigned int sheight = norm_maxh(core->tvnorm);
+	unsigned int swidth  = analrm_swidth(core->tvanalrm);
+	unsigned int sheight = analrm_maxh(core->tvanalrm);
 	u32 value;
 
 	dprintk(1, "set_scale: %dx%d [%s%s,%s]\n", width, height,
 		V4L2_FIELD_HAS_TOP(field)    ? "T" : "",
 		V4L2_FIELD_HAS_BOTTOM(field) ? "B" : "",
-		v4l2_norm_to_name(core->tvnorm));
+		v4l2_analrm_to_name(core->tvanalrm));
 	if (!V4L2_FIELD_HAS_BOTH(field))
 		height *= 2;
 
 	// recalc H delay and scale registers
-	value = (width * norm_hdelay(core->tvnorm)) / swidth;
+	value = (width * analrm_hdelay(core->tvanalrm)) / swidth;
 	value &= 0x3fe;
 	cx_write(MO_HDELAY_EVEN,  value);
 	cx_write(MO_HDELAY_ODD,   value);
@@ -710,9 +710,9 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width,
 	dprintk(1, "set_scale: hactive 0x%04x\n", width);
 
 	// recalc V scale Register (delay is constant)
-	cx_write(MO_VDELAY_EVEN, norm_vdelay(core->tvnorm));
-	cx_write(MO_VDELAY_ODD,  norm_vdelay(core->tvnorm));
-	dprintk(1, "set_scale: vdelay  0x%04x\n", norm_vdelay(core->tvnorm));
+	cx_write(MO_VDELAY_EVEN, analrm_vdelay(core->tvanalrm));
+	cx_write(MO_VDELAY_ODD,  analrm_vdelay(core->tvanalrm));
+	dprintk(1, "set_scale: vdelay  0x%04x\n", analrm_vdelay(core->tvanalrm));
 
 	value = (0x10000 - (sheight * 512 / height - 512)) & 0x1fff;
 	cx_write(MO_VSCALE_EVEN,  value);
@@ -726,7 +726,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width,
 	// setup filters
 	value = 0;
 	value |= (1 << 19);        // CFILT (default)
-	if (core->tvnorm & V4L2_STD_SECAM) {
+	if (core->tvanalrm & V4L2_STD_SECAM) {
 		value |= (1 << 15);
 		value |= (1 << 16);
 	}
@@ -738,7 +738,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width,
 		value |= (1 << 0); // 3-tap interpolation
 	if (width < 193)
 		value |= (1 << 1); // 5-tap interpolation
-	if (nocomb)
+	if (analcomb)
 		value |= (3 << 5); // disable comb filter
 
 	cx_andor(MO_FILTER_EVEN,  0x7ffc7f, value); /* preserve PEAKEN, PSEL */
@@ -781,10 +781,10 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 				prescale, ofreq);
 			return 0;
 		}
-		dprintk(1, "pll not locked yet, waiting ...\n");
+		dprintk(1, "pll analt locked yet, waiting ...\n");
 		usleep_range(10000, 20000);
 	}
-	dprintk(1, "pll NOT locked [pre=%d,ofreq=%d]\n", prescale, ofreq);
+	dprintk(1, "pll ANALT locked [pre=%d,ofreq=%d]\n", prescale, ofreq);
 	return -1;
 }
 
@@ -828,42 +828,42 @@ int cx88_stop_audio_dma(struct cx88_core *core)
 
 static int set_tvaudio(struct cx88_core *core)
 {
-	v4l2_std_id norm = core->tvnorm;
+	v4l2_std_id analrm = core->tvanalrm;
 
 	if (INPUT(core->input).type != CX88_VMUX_TELEVISION &&
 	    INPUT(core->input).type != CX88_VMUX_CABLE)
 		return 0;
 
-	if (V4L2_STD_PAL_BG & norm) {
+	if (V4L2_STD_PAL_BG & analrm) {
 		core->tvaudio = WW_BG;
 
-	} else if (V4L2_STD_PAL_DK & norm) {
+	} else if (V4L2_STD_PAL_DK & analrm) {
 		core->tvaudio = WW_DK;
 
-	} else if (V4L2_STD_PAL_I & norm) {
+	} else if (V4L2_STD_PAL_I & analrm) {
 		core->tvaudio = WW_I;
 
-	} else if (V4L2_STD_SECAM_L & norm) {
+	} else if (V4L2_STD_SECAM_L & analrm) {
 		core->tvaudio = WW_L;
 
 	} else if ((V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H) &
-		   norm) {
+		   analrm) {
 		core->tvaudio = WW_BG;
 
-	} else if (V4L2_STD_SECAM_DK & norm) {
+	} else if (V4L2_STD_SECAM_DK & analrm) {
 		core->tvaudio = WW_DK;
 
 	} else if ((V4L2_STD_NTSC_M | V4L2_STD_PAL_M | V4L2_STD_PAL_Nc) &
-		   norm) {
+		   analrm) {
 		core->tvaudio = WW_BTSC;
 
-	} else if (V4L2_STD_NTSC_M_JP & norm) {
+	} else if (V4L2_STD_NTSC_M_JP & analrm) {
 		core->tvaudio = WW_EIAJ;
 
 	} else {
-		pr_info("tvaudio support needs work for this tv norm [%s], sorry\n",
-			v4l2_norm_to_name(core->tvnorm));
-		core->tvaudio = WW_NONE;
+		pr_info("tvaudio support needs work for this tv analrm [%s], sorry\n",
+			v4l2_analrm_to_name(core->tvanalrm));
+		core->tvaudio = WW_ANALNE;
 		return 0;
 	}
 
@@ -879,7 +879,7 @@ static int set_tvaudio(struct cx88_core *core)
 	return 0;
 }
 
-int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
+int cx88_set_tvanalrm(struct cx88_core *core, v4l2_std_id analrm)
 {
 	u32 fsc8;
 	u32 adc_clock;
@@ -889,42 +889,42 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	u32 bdelay, agcdelay, htotal;
 	u32 cxiformat, cxoformat;
 
-	if (norm == core->tvnorm)
+	if (analrm == core->tvanalrm)
 		return 0;
 	if (core->v4ldev && (vb2_is_busy(&core->v4ldev->vb2_vidq) ||
 			     vb2_is_busy(&core->v4ldev->vb2_vbiq)))
 		return -EBUSY;
 	if (core->dvbdev && vb2_is_busy(&core->dvbdev->vb2_mpegq))
 		return -EBUSY;
-	core->tvnorm = norm;
-	fsc8       = norm_fsc8(norm);
+	core->tvanalrm = analrm;
+	fsc8       = analrm_fsc8(analrm);
 	adc_clock  = xtal;
 	vdec_clock = fsc8;
 	step_db    = fsc8;
 	step_dr    = fsc8;
 
-	if (norm & V4L2_STD_NTSC_M_JP) {
+	if (analrm & V4L2_STD_NTSC_M_JP) {
 		cxiformat = VideoFormatNTSCJapan;
 		cxoformat = 0x181f0008;
-	} else if (norm & V4L2_STD_NTSC_443) {
+	} else if (analrm & V4L2_STD_NTSC_443) {
 		cxiformat = VideoFormatNTSC443;
 		cxoformat = 0x181f0008;
-	} else if (norm & V4L2_STD_PAL_M) {
+	} else if (analrm & V4L2_STD_PAL_M) {
 		cxiformat = VideoFormatPALM;
 		cxoformat = 0x1c1f0008;
-	} else if (norm & V4L2_STD_PAL_N) {
+	} else if (analrm & V4L2_STD_PAL_N) {
 		cxiformat = VideoFormatPALN;
 		cxoformat = 0x1c1f0008;
-	} else if (norm & V4L2_STD_PAL_Nc) {
+	} else if (analrm & V4L2_STD_PAL_Nc) {
 		cxiformat = VideoFormatPALNC;
 		cxoformat = 0x1c1f0008;
-	} else if (norm & V4L2_STD_PAL_60) {
+	} else if (analrm & V4L2_STD_PAL_60) {
 		cxiformat = VideoFormatPAL60;
 		cxoformat = 0x181f0008;
-	} else if (norm & V4L2_STD_NTSC) {
+	} else if (analrm & V4L2_STD_NTSC) {
 		cxiformat = VideoFormatNTSC;
 		cxoformat = 0x181f0008;
-	} else if (norm & V4L2_STD_SECAM) {
+	} else if (analrm & V4L2_STD_SECAM) {
 		step_db = 4250000 * 8;
 		step_dr = 4406250 * 8;
 
@@ -935,43 +935,43 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 		cxoformat = 0x181f0008;
 	}
 
-	dprintk(1, "set_tvnorm: \"%s\" fsc8=%d adc=%d vdec=%d db/dr=%d/%d\n",
-		v4l2_norm_to_name(core->tvnorm), fsc8, adc_clock, vdec_clock,
+	dprintk(1, "set_tvanalrm: \"%s\" fsc8=%d adc=%d vdec=%d db/dr=%d/%d\n",
+		v4l2_analrm_to_name(core->tvanalrm), fsc8, adc_clock, vdec_clock,
 		step_db, step_dr);
 	set_pll(core, 2, vdec_clock);
 
-	dprintk(1, "set_tvnorm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvanalrm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
 		cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
 	/*
 	 * Chroma AGC must be disabled if SECAM is used, we enable it
 	 * by default on PAL and NTSC
 	 */
 	cx_andor(MO_INPUT_FORMAT, 0x40f,
-		 norm & V4L2_STD_SECAM ? cxiformat : cxiformat | 0x400);
+		 analrm & V4L2_STD_SECAM ? cxiformat : cxiformat | 0x400);
 
 	// FIXME: as-is from DScaler
-	dprintk(1, "set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvanalrm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
 		cxoformat, cx_read(MO_OUTPUT_FORMAT));
 	cx_write(MO_OUTPUT_FORMAT, cxoformat);
 
 	// MO_SCONV_REG = adc clock / video dec clock * 2^17
 	tmp64  = adc_clock * (u64)(1 << 17);
 	do_div(tmp64, vdec_clock);
-	dprintk(1, "set_tvnorm: MO_SCONV_REG     0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvanalrm: MO_SCONV_REG     0x%08x [old=0x%08x]\n",
 		(u32)tmp64, cx_read(MO_SCONV_REG));
 	cx_write(MO_SCONV_REG, (u32)tmp64);
 
 	// MO_SUB_STEP = 8 * fsc / video dec clock * 2^22
 	tmp64  = step_db * (u64)(1 << 22);
 	do_div(tmp64, vdec_clock);
-	dprintk(1, "set_tvnorm: MO_SUB_STEP      0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvanalrm: MO_SUB_STEP      0x%08x [old=0x%08x]\n",
 		(u32)tmp64, cx_read(MO_SUB_STEP));
 	cx_write(MO_SUB_STEP, (u32)tmp64);
 
 	// MO_SUB_STEP_DR = 8 * 4406250 / video dec clock * 2^22
 	tmp64  = step_dr * (u64)(1 << 22);
 	do_div(tmp64, vdec_clock);
-	dprintk(1, "set_tvnorm: MO_SUB_STEP_DR   0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvanalrm: MO_SUB_STEP_DR   0x%08x [old=0x%08x]\n",
 		(u32)tmp64, cx_read(MO_SUB_STEP_DR));
 	cx_write(MO_SUB_STEP_DR, (u32)tmp64);
 
@@ -979,32 +979,32 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	bdelay   = vdec_clock * 65 / 20000000 + 21;
 	agcdelay = vdec_clock * 68 / 20000000 + 15;
 	dprintk(1,
-		"set_tvnorm: MO_AGC_BURST     0x%08x [old=0x%08x,bdelay=%d,agcdelay=%d]\n",
+		"set_tvanalrm: MO_AGC_BURST     0x%08x [old=0x%08x,bdelay=%d,agcdelay=%d]\n",
 		(bdelay << 8) | agcdelay, cx_read(MO_AGC_BURST),
 		bdelay, agcdelay);
 	cx_write(MO_AGC_BURST, (bdelay << 8) | agcdelay);
 
 	// htotal
-	tmp64 = norm_htotal(norm) * (u64)vdec_clock;
+	tmp64 = analrm_htotal(analrm) * (u64)vdec_clock;
 	do_div(tmp64, fsc8);
 	htotal = (u32)tmp64;
 	dprintk(1,
-		"set_tvnorm: MO_HTOTAL        0x%08x [old=0x%08x,htotal=%d]\n",
+		"set_tvanalrm: MO_HTOTAL        0x%08x [old=0x%08x,htotal=%d]\n",
 		htotal, cx_read(MO_HTOTAL), (u32)tmp64);
 	cx_andor(MO_HTOTAL, 0x07ff, htotal);
 
 	// vbi stuff, set vbi offset to 10 (for 20 Clk*2 pixels), this makes
 	// the effective vbi offset ~244 samples, the same as the Bt8x8
-	cx_write(MO_VBI_PACKET, (10 << 11) | norm_vbipack(norm));
+	cx_write(MO_VBI_PACKET, (10 << 11) | analrm_vbipack(analrm));
 
-	// this is needed as well to set all tvnorm parameter
+	// this is needed as well to set all tvanalrm parameter
 	cx88_set_scale(core, 320, 240, V4L2_FIELD_INTERLACED);
 
 	// audio
 	set_tvaudio(core);
 
 	// tell i2c chips
-	call_all(core, video, s_std, norm);
+	call_all(core, video, s_std, analrm);
 
 	/*
 	 * The chroma_agc control should be inaccessible
@@ -1015,7 +1015,7 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	// done
 	return 0;
 }
-EXPORT_SYMBOL(cx88_set_tvnorm);
+EXPORT_SYMBOL(cx88_set_tvanalrm);
 
 /* ------------------------------------------------------------------ */
 
@@ -1031,7 +1031,7 @@ void cx88_vdev_init(struct cx88_core *core,
 	 * The dev pointer of v4l2_device is NULL, instead we set the
 	 * video_device dev_parent pointer to the correct PCI bus device.
 	 * This driver is a rare example where there is one v4l2_device,
-	 * but the video nodes have different parent (PCI) devices.
+	 * but the video analdes have different parent (PCI) devices.
 	 */
 	vfd->v4l2_dev = &core->v4l2_dev;
 	vfd->dev_parent = &pci->dev;

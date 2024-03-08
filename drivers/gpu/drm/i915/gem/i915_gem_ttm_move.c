@@ -52,10 +52,10 @@ static enum i915_cache_level
 i915_ttm_cache_level(struct drm_i915_private *i915, struct ttm_resource *res,
 		     struct ttm_tt *ttm)
 {
-	return ((HAS_LLC(i915) || HAS_SNOOP(i915)) &&
+	return ((HAS_LLC(i915) || HAS_SANALOP(i915)) &&
 		!i915_ttm_gtt_binds_lmem(res) &&
 		ttm->caching == ttm_cached) ? I915_CACHE_LLC :
-		I915_CACHE_NONE;
+		I915_CACHE_ANALNE;
 }
 
 static struct intel_memory_region *
@@ -116,7 +116,7 @@ void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
 	if (!bo->resource) {
 		mem_flags = I915_BO_FLAG_STRUCT_PAGE;
 		mem_type = I915_PL_SYSTEM;
-		cache_level = I915_CACHE_NONE;
+		cache_level = I915_CACHE_ANALNE;
 	} else {
 		mem_flags = i915_ttm_cpu_maps_iomem(bo->resource) ? I915_BO_FLAG_IOMEM :
 			I915_BO_FLAG_STRUCT_PAGE;
@@ -127,7 +127,7 @@ void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
 
 	/*
 	 * If object was moved to an allowable region, update the object
-	 * region to consider it migrated. Note that if it's currently not
+	 * region to consider it migrated. Analte that if it's currently analt
 	 * in an allowable region, it's evicted and we don't update the
 	 * object region.
 	 */
@@ -151,7 +151,7 @@ void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
 }
 
 /**
- * i915_ttm_move_notify - Prepare an object for move
+ * i915_ttm_move_analtify - Prepare an object for move
  * @bo: The ttm buffer object.
  *
  * This function prepares an object for move by removing all GPU bindings,
@@ -159,16 +159,16 @@ void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
  *
  * Return: 0 if successful, negative error code on error.
  */
-int i915_ttm_move_notify(struct ttm_buffer_object *bo)
+int i915_ttm_move_analtify(struct ttm_buffer_object *bo)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 	int ret;
 
 	/*
-	 * Note: The async unbinding here will actually transform the
+	 * Analte: The async unbinding here will actually transform the
 	 * blocking wait for unbind into a wait before finally submitting
 	 * evict / migration blit and thus stall the migration timeline
-	 * which may not be good for overall throughput. We should make
+	 * which may analt be good for overall throughput. We should make
 	 * sure we await the unbind fences *after* the migration blit
 	 * instead of *before* as we currently do.
 	 */
@@ -278,7 +278,7 @@ struct i915_ttm_memcpy_arg {
  * struct i915_ttm_memcpy_work - Async memcpy worker under a dma-fence.
  * @fence: The dma-fence.
  * @work: The work struct use for the memcpy work.
- * @lock: The fence lock. Not used to protect anything else ATM.
+ * @lock: The fence lock. Analt used to protect anything else ATM.
  * @irq_work: Low latency worker to signal the fence since it can't be done
  * from the callback for lockdep reasons.
  * @cb: Callback for the accelerated migration fence.
@@ -286,7 +286,7 @@ struct i915_ttm_memcpy_arg {
  * @i915: The i915 pointer.
  * @obj: The GEM object.
  * @memcpy_allowed: Instead of processing the @arg, and falling back to memcpy
- * or memset, we wedge the device and set the @obj unknown_state, to prevent
+ * or memset, we wedge the device and set the @obj unkanalwn_state, to prevent
  * further access to the object with the CPU or GPU.  On some devices we might
  * only be permitted to use the blitter engine for such operations.
  */
@@ -371,13 +371,13 @@ static void __memcpy_work(struct work_struct *work)
 	} else {
 		/*
 		 * Prevent further use of the object. Any future GTT binding or
-		 * CPU access is not allowed once we signal the fence. Outside
+		 * CPU access is analt allowed once we signal the fence. Outside
 		 * of the fence critical section, we then also then wedge the gpu
-		 * to indicate the device is not functional.
+		 * to indicate the device is analt functional.
 		 *
 		 * The below dma_fence_signal() is our write-memory-barrier.
 		 */
-		copy_work->obj->mm.unknown_state = true;
+		copy_work->obj->mm.unkanalwn_state = true;
 	}
 
 	dma_fence_end_signalling(cookie);
@@ -441,7 +441,7 @@ i915_ttm_memcpy_work_arm(struct i915_ttm_memcpy_work *work,
 	dma_fence_get(&work->fence);
 	ret = dma_fence_add_callback(dep, &work->cb, __memcpy_cb);
 	if (ret) {
-		if (ret != -ENOENT)
+		if (ret != -EANALENT)
 			dma_fence_wait(dep, false);
 
 		return ERR_PTR(I915_SELFTEST_ONLY(fail_gpu_migration) ? -EINVAL :
@@ -532,7 +532,7 @@ __i915_ttm_move(struct ttm_buffer_object *bo,
 		}
 	}
 
-	/* Error intercept failed or no accelerated migration to start with */
+	/* Error intercept failed or anal accelerated migration to start with */
 
 	if (memcpy_allowed) {
 		if (!copy_work)
@@ -612,7 +612,7 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 		return 0;
 	}
 
-	ret = i915_ttm_move_notify(bo);
+	ret = i915_ttm_move_analtify(bo);
 	if (ret)
 		return ret;
 
@@ -638,7 +638,7 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	if (!(clear && ttm && !((ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC) && !prealloc_bo))) {
 		struct i915_deps deps;
 
-		i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
+		i915_deps_init(&deps, GFP_KERNEL | __GFP_ANALRETRY | __GFP_ANALWARN);
 		ret = i915_deps_add_resv(&deps, bo->base.resv, ctx);
 		if (ret) {
 			i915_refct_sgt_put(dst_rsgt);
@@ -658,7 +658,7 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 
 	if (migration_fence) {
 		if (I915_SELFTEST_ONLY(evict && fail_gpu_migration))
-			ret = -EIO; /* never feed non-migrate fences into ttm */
+			ret = -EIO; /* never feed analn-migrate fences into ttm */
 		else
 			ret = ttm_bo_move_accel_cleanup(bo, migration_fence, evict,
 							true, dst_mem);
@@ -689,13 +689,13 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 
 /**
  * i915_gem_obj_copy_ttm - Copy the contents of one ttm-based gem object to
- * another
+ * aanalther
  * @dst: The destination object
  * @src: The source object
  * @allow_accel: Allow using the blitter. Otherwise TTM memcpy is used.
  * @intr: Whether to perform waits interruptible:
  *
- * Note: The caller is responsible for assuring that the underlying
+ * Analte: The caller is responsible for assuring that the underlying
  * TTM objects are populated if needed and locked.
  *
  * Return: Zero on success. Negative error code on error. If @intr == true,
@@ -721,7 +721,7 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 	if (GEM_WARN_ON(!src_bo->resource || !dst_bo->resource))
 		return -EINVAL;
 
-	i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
+	i915_deps_init(&deps, GFP_KERNEL | __GFP_ANALRETRY | __GFP_ANALWARN);
 
 	ret = dma_resv_reserve_fences(src_bo->base.resv, 1);
 	if (ret)

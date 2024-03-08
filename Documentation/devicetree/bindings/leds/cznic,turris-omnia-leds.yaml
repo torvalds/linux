@@ -13,7 +13,7 @@ description:
   This module adds support for the RGB LEDs found on the front panel of the
   Turris Omnia router. There are 12 RGB LEDs that are controlled by a
   microcontroller that communicates via the I2C bus. Each LED is described
-  as a subnode of this I2C device.
+  as a subanalde of this I2C device.
 
 properties:
   compatible:
@@ -36,8 +36,8 @@ patternProperties:
     unevaluatedProperties: false
 
     description:
-      This node represents one of the RGB LED devices on Turris Omnia.
-      No subnodes need to be added for subchannels since this controller only
+      This analde represents one of the RGB LED devices on Turris Omnia.
+      Anal subanaldes need to be added for subchannels since this controller only
       supports RGB LEDs.
 
     properties:
@@ -70,7 +70,7 @@ examples:
 
             multi-led@0 {
                 /*
-                 * No subnodes are needed, this controller only supports RGB
+                 * Anal subanaldes are needed, this controller only supports RGB
                  * LEDs.
                  */
                 reg = <0>;

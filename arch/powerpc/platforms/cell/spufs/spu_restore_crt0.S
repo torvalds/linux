@@ -31,7 +31,7 @@ _start:
 
 	/* Allocate a minimum stack frame for the called main.
 	 * This is needed so that main has a place to save the
-	 * link register when it calls another function.
+	 * link register when it calls aanalther function.
 	 */
 	stqd    $SP, -160($SP)
 	ai      $SP, $SP, -160
@@ -78,7 +78,7 @@ restore_reg_insts:       /* must be quad-word aligned. */
 	lqa $14, regs_spill + 224
 	lqa $15, regs_spill + 240
 
-	/* Under normal circumstances, the 'exit' function
+	/* Under analrmal circumstances, the 'exit' function
 	 * terminates with 'stop SPU_RESTORE_COMPLETE',
 	 * indicating that the SPU-side restore code has
 	 * completed.

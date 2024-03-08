@@ -36,7 +36,7 @@ static ssize_t write_pmsg(struct file *file, const char __user *buf,
 
 static const struct file_operations pmsg_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 	.write		= write_pmsg,
 };
 
@@ -46,7 +46,7 @@ static int pmsg_major;
 #undef pr_fmt
 #define pr_fmt(fmt) PMSG_NAME ": " fmt
 
-static char *pmsg_devnode(const struct device *dev, umode_t *mode)
+static char *pmsg_devanalde(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0220;
@@ -68,7 +68,7 @@ void pstore_register_pmsg(void)
 		pr_err("device class file already in use\n");
 		goto err_class;
 	}
-	pmsg_class->devnode = pmsg_devnode;
+	pmsg_class->devanalde = pmsg_devanalde;
 
 	pmsg_device = device_create(pmsg_class, NULL, MKDEV(pmsg_major, 0),
 					NULL, "%s%d", PMSG_NAME, 0);

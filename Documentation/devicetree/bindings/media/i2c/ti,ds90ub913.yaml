@@ -21,7 +21,7 @@ properties:
     const: 2
     description:
       First cell is the GPO pin number, second cell is the flags. The GPO pin
-      number must be in range of [0, 3]. Note that GPOs 2 and 3 are not
+      number must be in range of [0, 3]. Analte that GPOs 2 and 3 are analt
       available in external oscillator mode.
 
   gpio-controller: true

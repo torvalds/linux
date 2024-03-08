@@ -46,19 +46,19 @@ enum ice_ddp_state {
 	ICE_DDP_PKG_ALREADY_LOADED = -1,
 
 	/* Indicates that a DDP package of the same version has already been
-	 * loaded onto the device by a previous call or by another PF
+	 * loaded onto the device by a previous call or by aanalther PF
 	 */
 	ICE_DDP_PKG_SAME_VERSION_ALREADY_LOADED = -2,
 
-	/* The device has a DDP package that is not supported by the driver */
-	ICE_DDP_PKG_ALREADY_LOADED_NOT_SUPPORTED = -3,
+	/* The device has a DDP package that is analt supported by the driver */
+	ICE_DDP_PKG_ALREADY_LOADED_ANALT_SUPPORTED = -3,
 
 	/* The device has a compatible package
 	 * (but different from the request) already loaded
 	 */
 	ICE_DDP_PKG_COMPATIBLE_ALREADY_LOADED = -4,
 
-	/* The firmware loaded on the device is not compatible with
+	/* The firmware loaded on the device is analt compatible with
 	 * the DDP package loaded
 	 */
 	ICE_DDP_PKG_FW_MISMATCH = -5,
@@ -79,7 +79,7 @@ enum ice_ddp_state {
 	/* The signature of the DDP package file provided is invalid */
 	ICE_DDP_PKG_FILE_SIGNATURE_INVALID = -9,
 
-	/* The DDP package file security revision is too low and not
+	/* The DDP package file security revision is too low and analt
 	 * supported by firmware
 	 */
 	ICE_DDP_PKG_FILE_REVISION_TOO_LOW = -10,
@@ -338,8 +338,8 @@ struct ice_sw_fv_list_entry {
 };
 
 /* The BOOST TCAM stores the match packet header in reverse order, meaning
- * the fields are reversed; in addition, this means that the normally big endian
- * fields of the packet are now little endian.
+ * the fields are reversed; in addition, this means that the analrmally big endian
+ * fields of the packet are analw little endian.
  */
 struct ice_boost_key_value {
 #define ICE_BOOST_REMAINING_HV_KEY 15
@@ -361,7 +361,7 @@ struct ice_boost_tcam_entry {
 	/* break up the 40 bytes of key into different fields */
 	struct ice_boost_key key;
 	u8 boost_hit_index_group;
-	/* The following contains bitfields which are not on byte boundaries.
+	/* The following contains bitfields which are analt on byte boundaries.
 	 * These fields are currently unused by driver software.
 	 */
 #define ICE_BOOST_BIT_FIELDS 43
@@ -446,7 +446,7 @@ void *ice_pkg_buf_alloc_section(struct ice_buf_build *bld, u32 type, u16 size);
 
 struct ice_buf_build *ice_pkg_buf_alloc(struct ice_hw *hw);
 
-int ice_update_pkg_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
+int ice_update_pkg_anal_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
 int ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
 
 int ice_pkg_buf_reserve_section(struct ice_buf_build *bld, u16 count);

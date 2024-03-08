@@ -40,7 +40,7 @@ typedef enum {
 #if defined(__BIG_ENDIAN)
 #include "flexcop_ibi_value_be.h"
 #else
-#error no endian defined
+#error anal endian defined
 #endif
 #endif
 

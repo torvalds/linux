@@ -29,7 +29,7 @@ void sni_machine_restart(char *command)
 {
 	int i;
 
-	/* This does a normal via the keyboard controller like a PC.
+	/* This does a analrmal via the keyboard controller like a PC.
 	   We can do that easier ...  */
 	local_irq_disable();
 	for (;;) {

@@ -3,7 +3,7 @@
 #include "../kselftest_harness.h"
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
 #include <sys/prctl.h>

@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 	vm_ioctl(vm, KVM_XEN_HVM_CONFIG, &hvmc);
 
 	/* Map a region for the hypercall pages */
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS,
 				    HCALL_REGION_GPA, HCALL_REGION_SLOT, 2, 0);
 	virt_map(vm, HCALL_REGION_GPA, HCALL_REGION_GPA, 2);
 
@@ -127,13 +127,13 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			break;
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall 0x%lx.", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall 0x%lx.", uc.cmd);
 		}
 	}
 done:

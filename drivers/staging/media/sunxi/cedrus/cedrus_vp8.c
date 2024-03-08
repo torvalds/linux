@@ -8,9 +8,9 @@
 /*
  * VP8 in Cedrus shares same engine as H264.
  *
- * Note that it seems necessary to call bitstream parsing functions,
+ * Analte that it seems necessary to call bitstream parsing functions,
  * to parse frame header, otherwise decoded image is garbage. This is
- * contrary to what is driver supposed to do. However, values are not
+ * contrary to what is driver supposed to do. However, values are analt
  * really used, so this might be acceptable. It's possible that bitstream
  * parsing functions set some internal VPU state, which is later necessary
  * for proper decoding. Biggest suspect is "VP8 probs update" trigger.
@@ -634,7 +634,7 @@ cedrus_vp8_irq_status(struct cedrus_ctx *ctx)
 	if (reg & VE_H264_CTRL_SLICE_DECODE_INT)
 		return CEDRUS_IRQ_OK;
 
-	return CEDRUS_IRQ_NONE;
+	return CEDRUS_IRQ_ANALNE;
 }
 
 static void cedrus_vp8_irq_clear(struct cedrus_ctx *ctx)
@@ -735,8 +735,8 @@ static int cedrus_vp8_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	if (slice->lf.flags & V4L2_VP8_LF_DELTA_UPDATE)
 		reg |= VE_VP8_PPS_MODE_REF_LF_DELTA_UPDATE;
 	reg |= VE_VP8_PPS_TOKEN_PARTITION(ilog2(slice->num_dct_parts));
-	if (slice->flags & V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF)
-		reg |= VE_VP8_PPS_MB_NO_COEFF_SKIP;
+	if (slice->flags & V4L2_VP8_FRAME_FLAG_MB_ANAL_SKIP_COEFF)
+		reg |= VE_VP8_PPS_MB_ANAL_COEFF_SKIP;
 	reg |= VE_VP8_PPS_RELOAD_ENTROPY_PROBS;
 	if (slice->flags & V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN)
 		reg |= VE_VP8_PPS_GOLDEN_SIGN_BIAS;
@@ -840,10 +840,10 @@ static int cedrus_vp8_start(struct cedrus_ctx *ctx)
 				   &ctx->codec.vp8.entropy_probs_buf_dma,
 				   GFP_KERNEL);
 	if (!ctx->codec.vp8.entropy_probs_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * This offset has been discovered by reverse engineering, we don’t know
+	 * This offset has been discovered by reverse engineering, we don’t kanalw
 	 * what it actually means.
 	 */
 	memcpy(&ctx->codec.vp8.entropy_probs_buf[2048],

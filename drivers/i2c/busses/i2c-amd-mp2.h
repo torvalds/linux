@@ -32,7 +32,7 @@ enum {
 	AMD_C2P_MSG9 = 0x10524,			/* Data 7 */
 
 	/* MP2 P2C Message Registers */
-	AMD_P2C_MSG0 = 0x10680,			/* Do not use */
+	AMD_P2C_MSG0 = 0x10680,			/* Do analt use */
 	AMD_P2C_MSG1 = 0x10684,			/* I2C0 interrupt register */
 	AMD_P2C_MSG2 = 0x10688,			/* I2C1 interrupt register */
 	AMD_P2C_MSG3 = 0x1068C,			/* MP2 debug info */
@@ -42,7 +42,7 @@ enum {
 
 /* Command register data structures */
 
-#define i2c_none (-1)
+#define i2c_analne (-1)
 enum i2c_cmd {
 	i2c_read = 0,
 	i2c_write,
@@ -109,7 +109,7 @@ enum status_type {
 	invalid_command = 12,
 	mp2_active = 13,
 	numberof_sensors_discovered_resp = 14,
-	i2c_bus_notinitialized
+	i2c_bus_analtinitialized
 };
 
 /**
@@ -168,7 +168,7 @@ struct amd_i2c_common {
 
 /**
  * struct amd_mp2_dev - per PCI device context
- * @pci_dev: PCI driver node
+ * @pci_dev: PCI driver analde
  * @busses: MP2 devices may have up to two busses,
  *	    each bus corresponding to an i2c adapter
  * @mmio: iommapped registers

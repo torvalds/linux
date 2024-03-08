@@ -17,17 +17,17 @@
  * modification, are permitted provided that the following conditions are
  * met:
  *	* Redistributions of source code must retain the above copyright
- *	  notice, this list of conditions and the following disclaimer.
+ *	  analtice, this list of conditions and the following disclaimer.
  *	* Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright analtice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -105,7 +105,7 @@ typedef struct {
 } LZ4_stream_t_internal;
 typedef union {
 	unsigned long long table[LZ4_STREAMSIZE_U64];
-	LZ4_stream_t_internal internal_donotuse;
+	LZ4_stream_t_internal internal_doanaltuse;
 } LZ4_stream_t;
 
 /*
@@ -122,7 +122,7 @@ typedef struct {
 	const unsigned char *dictBase;
 	/* below that point, need extDict */
 	unsigned int	 dictLimit;
-	/* below that point, no more dict */
+	/* below that point, anal more dict */
 	unsigned int	 lowLimit;
 	/* index from which to continue dict update */
 	unsigned int	 nextToUpdate;
@@ -130,7 +130,7 @@ typedef struct {
 } LZ4HC_CCtx_internal;
 typedef union {
 	size_t table[LZ4_STREAMHCSIZE_SIZET];
-	LZ4HC_CCtx_internal internal_donotuse;
+	LZ4HC_CCtx_internal internal_doanaltuse;
 } LZ4_streamHC_t;
 
 /*
@@ -147,7 +147,7 @@ typedef struct {
 } LZ4_streamDecode_t_internal;
 typedef union {
 	unsigned long long table[LZ4_STREAMDECODESIZE_U64];
-	LZ4_streamDecode_t_internal internal_donotuse;
+	LZ4_streamDecode_t_internal internal_doanaltuse;
 } LZ4_streamDecode_t;
 
 /*-************************************************************************
@@ -165,7 +165,7 @@ typedef union {
  * @isize: Size of the input data
  *
  * Return: Max. size LZ4 may output in a "worst case" szenario
- * (data not compressible)
+ * (data analt compressible)
  */
 static inline int LZ4_compressBound(size_t isize)
 {
@@ -187,9 +187,9 @@ static inline int LZ4_compressBound(size_t isize)
  * Compression is guaranteed to succeed if
  * 'maxOutputSize' >= LZ4_compressBound(inputSize).
  * It also runs faster, so it's a recommended setting.
- * If the function cannot compress 'source' into a more limited 'dest' budget,
+ * If the function cananalt compress 'source' into a more limited 'dest' budget,
  * compression stops *immediately*, and the function result is zero.
- * As a consequence, 'dest' content is not valid.
+ * As a consequence, 'dest' content is analt valid.
  *
  * Return: Number of bytes written into buffer 'dest'
  *	(necessarily <= maxOutputSize) or 0 if compression fails
@@ -236,7 +236,7 @@ int LZ4_compress_fast(const char *source, char *dest, int inputSize,
  * from 'source' buffer into already allocated buffer 'dest'
  * of size 'targetDestSize'.
  * This function either compresses the entire 'source' content into 'dest'
- * if it's large enough, or fill 'dest' buffer completely with as much data as
+ * if it's large eanalugh, or fill 'dest' buffer completely with as much data as
  * possible from 'source'.
  *
  * Return: Number of bytes written into 'dest' (necessarily <= targetDestSize)
@@ -260,7 +260,7 @@ int LZ4_compress_destSize(const char *source, char *dest, int *sourceSizePtr,
  * This function fully respect memory boundaries for properly formed
  * compressed data.
  * It is a bit faster than LZ4_decompress_safe().
- * However, it does not provide any protection against intentionally
+ * However, it does analt provide any protection against intentionally
  * modified data stream (malicious input).
  * Use this function in trusted environment only
  * (data to decode comes from a trusted source).
@@ -283,7 +283,7 @@ int LZ4_decompress_fast(const char *source, char *dest, int originalSize);
  * stop decoding and return a negative result.
  * This function is protected against buffer overflow exploits,
  * including malicious data packets. It never writes outside output buffer,
- * nor reads outside input buffer.
+ * analr reads outside input buffer.
  *
  * Return: number of bytes decompressed into destination buffer
  *	(necessarily <= maxDecompressedSize)
@@ -421,10 +421,10 @@ int LZ4_compress_HC_continue(LZ4_streamHC_t *streamHCPtr, const char *src,
  * @safeBuffer: buffer to save dictionary to, must be already allocated
  * @maxDictSize: size of 'safeBuffer'
  *
- * If previously compressed data block is not guaranteed
+ * If previously compressed data block is analt guaranteed
  * to remain available at its memory location,
  * save it into a safer place (char *safeBuffer).
- * Note : you don't need to call LZ4_loadDictHC() afterwards,
+ * Analte : you don't need to call LZ4_loadDictHC() afterwards,
  * dictionary is immediately usable, you can therefore call
  * LZ4_compress_HC_continue().
  *
@@ -471,10 +471,10 @@ int LZ4_loadDict(LZ4_stream_t *streamPtr, const char *dictionary,
  * @safeBuffer: buffer to save dictionary to, must be already allocated
  * @dictSize: size of 'safeBuffer'
  *
- * If previously compressed data block is not guaranteed
+ * If previously compressed data block is analt guaranteed
  * to remain available at its memory location,
  * save it into a safer place (char *safeBuffer).
- * Note : you don't need to call LZ4_loadDict() afterwards,
+ * Analte : you don't need to call LZ4_loadDict() afterwards,
  * dictionary is immediately usable, you can therefore call
  * LZ4_compress_fast_continue().
  *
@@ -542,14 +542,14 @@ int LZ4_setStreamDecode(LZ4_streamDecode_t *LZ4_streamDecode,
  *    - Larger than encoding buffer, by a minimum of maxBlockSize more bytes.
  *      maxBlockSize is implementation dependent.
  *      It's the maximum size you intend to compress into a single block.
- *      In which case, encoding and decoding buffers do not need
+ *      In which case, encoding and decoding buffers do analt need
  *      to be synchronized, and encoding ring buffer can have any size,
  *      including small ones ( < 64 KB).
  *    - _At least_ 64 KB + 8 bytes + maxBlockSize.
- *      In which case, encoding and decoding buffers do not need to be
+ *      In which case, encoding and decoding buffers do analt need to be
  *      synchronized, and encoding ring buffer can have any size,
  *      including larger than decoding buffer. W
- * Whenever these conditions are not possible, save the last 64KB of decoded
+ * Whenever these conditions are analt possible, save the last 64KB of decoded
  * data into a safe buffer, and indicate where it is saved
  * using LZ4_setStreamDecode()
  *
@@ -581,14 +581,14 @@ int LZ4_decompress_safe_continue(LZ4_streamDecode_t *LZ4_streamDecode,
  *    - Larger than encoding buffer, by a minimum of maxBlockSize more bytes.
  *      maxBlockSize is implementation dependent.
  *      It's the maximum size you intend to compress into a single block.
- *      In which case, encoding and decoding buffers do not need
+ *      In which case, encoding and decoding buffers do analt need
  *      to be synchronized, and encoding ring buffer can have any size,
  *      including small ones ( < 64 KB).
  *    - _At least_ 64 KB + 8 bytes + maxBlockSize.
- *      In which case, encoding and decoding buffers do not need to be
+ *      In which case, encoding and decoding buffers do analt need to be
  *      synchronized, and encoding ring buffer can have any size,
  *      including larger than decoding buffer. W
- * Whenever these conditions are not possible, save the last 64KB of decoded
+ * Whenever these conditions are analt possible, save the last 64KB of decoded
  * data into a safe buffer, and indicate where it is saved
  * using LZ4_setStreamDecode()
  *

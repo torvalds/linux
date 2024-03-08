@@ -18,10 +18,10 @@
 #define AV1_TILE_BUF_SIZE		64
 #define AV1_SCALE_SUBPEL_BITS		10
 #define AV1_REF_SCALE_SHIFT		14
-#define AV1_REF_NO_SCALE		BIT(AV1_REF_SCALE_SHIFT)
+#define AV1_REF_ANAL_SCALE		BIT(AV1_REF_SCALE_SHIFT)
 #define AV1_REF_INVALID_SCALE		-1
 #define AV1_CDF_TABLE_BUFFER_SIZE	16384
-#define AV1_PRIMARY_REF_NONE		7
+#define AV1_PRIMARY_REF_ANALNE		7
 
 #define AV1_INVALID_IDX			-1
 
@@ -130,8 +130,8 @@ struct vdec_av1_slice_mem {
 /**
  * struct vdec_av1_slice_state - decoding state
  * @err                   : err type for decode
- * @full                  : transcoded buffer is full or not
- * @timeout               : decode timeout or not
+ * @full                  : transcoded buffer is full or analt
+ * @timeout               : decode timeout or analt
  * @perf                  : performance enable
  * @crc                   : hw checksum
  * @out_size              : hw output size
@@ -149,7 +149,7 @@ struct vdec_av1_slice_state {
  * enum vdec_av1_slice_resolution_level - resolution level
  */
 enum vdec_av1_slice_resolution_level {
-	AV1_RES_NONE,
+	AV1_RES_ANALNE,
 	AV1_RES_FHD,
 	AV1_RES_4K,
 	AV1_RES_8K,
@@ -190,7 +190,7 @@ struct vdec_av1_slice_tile_group {
 
 /**
  * struct vdec_av1_slice_scale_factors - scale info for each ref frame
- * @is_scaled:  frame is scaled or not
+ * @is_scaled:  frame is scaled or analt
  * @x_scale:    frame width scale coefficient
  * @y_scale:    frame height scale coefficient
  * @x_step:     width step for x_scale
@@ -224,7 +224,7 @@ struct vdec_av1_slice_frame_refs {
  * @beta:       beta info
  * @gamma:      gamma info
  * @delta:      delta info
- * @invalid:    is invalid or not
+ * @invalid:    is invalid or analt
  */
 struct vdec_av1_slice_gm {
 	int wmtype;
@@ -238,8 +238,8 @@ struct vdec_av1_slice_gm {
 
 /**
  * struct vdec_av1_slice_sm - AV1 Skip Mode parameters
- * @skip_mode_allowed:  Skip Mode is allowed or not
- * @skip_mode_present:  specified that the skip_mode will be present or not
+ * @skip_mode_allowed:  Skip Mode is allowed or analt
+ * @skip_mode_present:  specified that the skip_mode will be present or analt
  * @skip_mode_frame:    specifies the frames to use for compound prediction
  */
 struct vdec_av1_slice_sm {
@@ -250,12 +250,12 @@ struct vdec_av1_slice_sm {
 
 /**
  * struct vdec_av1_slice_seg - AV1 Segmentation params
- * @segmentation_enabled:        this frame makes use of the segmentation tool or not
+ * @segmentation_enabled:        this frame makes use of the segmentation tool or analt
  * @segmentation_update_map:     segmentation map are updated during the decoding frame
  * @segmentation_temporal_update:segmentation map are coded relative the existing segmentaion map
  * @segmentation_update_data:    new parameters are about to be specified for each segment
  * @feature_data:                specifies the feature data for a segment feature
- * @feature_enabled_mask:        the corresponding feature value is coded or not.
+ * @feature_enabled_mask:        the corresponding feature value is coded or analt.
  * @segid_preskip:               segment id will be read before the skip syntax element.
  * @last_active_segid:           the highest numbered segment id that has some enabled feature
  */
@@ -422,7 +422,7 @@ struct vdec_av1_slice_tile {
  * @uniform_tile_spacing_flag:  tiles are uniformly spaced across the frame
  *                              or the tile sizes are coded
  * @interpolation_filter:       specifies the filter selection used for performing inter prediction
- * @allow_warped_motion:        motion_mode may be present or not
+ * @allow_warped_motion:        motion_mode may be present or analt
  * @is_motion_mode_switchable : euqlt to 0 specifies that only the SIMPLE motion mode will be used
  * @reference_mode :            frame reference mode selected
  * @allow_high_precision_mv:    specifies that motion vectors are specified to
@@ -444,7 +444,7 @@ struct vdec_av1_slice_tile {
  * @delta_q_lf:                 av1 delta loop fileter
  * @quant:                      av1 Quantization params
  * @lr:                         av1 Loop Restauration parameters
- * @superres_denom:             the denominator for the upscaling ratio
+ * @superres_deanalm:             the deanalminator for the upscaling ratio
  * @loop_filter:                av1 Loop filter parameters
  * @cdef:                       av1 CDEF parameters
  * @mfmv:                       av1 mfmv parameters
@@ -483,7 +483,7 @@ struct vdec_av1_slice_uncompressed_header {
 	struct vdec_av1_slice_delta_q_lf delta_q_lf;
 	struct vdec_av1_slice_quantization quant;
 	struct vdec_av1_slice_lr lr;
-	u32 superres_denom;
+	u32 superres_deanalm;
 	struct vdec_av1_slice_loop_filter loop_filter;
 	struct vdec_av1_slice_cdef cdef;
 	struct vdec_av1_slice_mfmv mfmv;
@@ -507,7 +507,7 @@ struct vdec_av1_slice_uncompressed_header {
  *                              contain the syntax element compound_type
  * @enable_dual_filter:         the inter prediction filter type may be specified independently
  * @enable_jnt_comp:            distance weights process may be used for inter prediction
- * @mono_chrome:                indicates the video does not contain U and V color planes
+ * @moanal_chrome:                indicates the video does analt contain U and V color planes
  * @enable_order_hint:          tools based on the values of order hints may be used
  * @order_hint_bits:            the number of bits used for the order_hint field at each frame
  * @use_128x128_superblock:     indicates superblocks contain 128*128 luma samples
@@ -525,7 +525,7 @@ struct vdec_av1_slice_seq_header {
 	u8 enable_masked_compound;
 	u8 enable_dual_filter;
 	u8 enable_jnt_comp;
-	u8 mono_chrome;
+	u8 moanal_chrome;
 	u8 enable_order_hint;
 	u8 order_hint_bits;
 	u8 use_128x128_superblock;
@@ -880,7 +880,7 @@ static void vdec_av1_slice_cleanup_slots(struct vdec_av1_slice_slot *slots,
 		u64 timestamp = slots->timestamp[slot_id];
 		bool ref_used = false;
 
-		/* ignored unused slots */
+		/* iganalred unused slots */
 		if (slots->frame_info[slot_id].ref_count == 0)
 			continue;
 
@@ -1013,7 +1013,7 @@ static int vdec_av1_slice_alloc_working_buffer(struct vdec_av1_slice_instance *i
 	return 0;
 
 err:
-	instance->level = AV1_RES_NONE;
+	instance->level = AV1_RES_ANALNE;
 	return ret;
 }
 
@@ -1036,7 +1036,7 @@ static void vdec_av1_slice_free_working_buffer(struct vdec_av1_slice_instance *i
 	mtk_vcodec_mem_free(ctx, &instance->cdf_table);
 	mtk_vcodec_mem_free(ctx, &instance->iq_table);
 
-	instance->level = AV1_RES_NONE;
+	instance->level = AV1_RES_ANALNE;
 }
 
 static inline void vdec_av1_slice_vsi_from_remote(struct vdec_av1_slice_vsi *vsi,
@@ -1269,7 +1269,7 @@ static void vdec_av1_slice_setup_seq(struct vdec_av1_slice_seq_header *seq,
 	seq->enable_masked_compound = SEQUENCE_FLAG(ctrl_seq, ENABLE_MASKED_COMPOUND);
 	seq->enable_dual_filter = SEQUENCE_FLAG(ctrl_seq, ENABLE_DUAL_FILTER);
 	seq->enable_jnt_comp = SEQUENCE_FLAG(ctrl_seq, ENABLE_JNT_COMP);
-	seq->mono_chrome = SEQUENCE_FLAG(ctrl_seq, MONO_CHROME);
+	seq->moanal_chrome = SEQUENCE_FLAG(ctrl_seq, MOANAL_CHROME);
 	seq->enable_order_hint = SEQUENCE_FLAG(ctrl_seq, ENABLE_ORDER_HINT);
 	seq->order_hint_bits = ctrl_seq->order_hint_bits;
 	seq->use_128x128_superblock = SEQUENCE_FLAG(ctrl_seq, USE_128X128_SUPERBLOCK);
@@ -1370,7 +1370,7 @@ static void vdec_av1_slice_setup_uh(struct vdec_av1_slice_instance *instance,
 	}
 
 	vdec_av1_slice_setup_lr(&uh->lr, &ctrl_fh->loop_restoration);
-	uh->superres_denom = ctrl_fh->superres_denom;
+	uh->superres_deanalm = ctrl_fh->superres_deanalm;
 	vdec_av1_slice_setup_lf(&uh->loop_filter, &ctrl_fh->loop_filter);
 	vdec_av1_slice_setup_cdef(&uh->cdef, &ctrl_fh->cdef);
 	vdec_av1_slice_setup_tile(frame, &ctrl_fh->tile_info);
@@ -1448,8 +1448,8 @@ static void vdec_av1_slice_setup_scale_factors(struct vdec_av1_slice_frame_refs 
 	scale_factors->is_scaled =
 		(scale_factors->x_scale != AV1_REF_INVALID_SCALE) &&
 		(scale_factors->y_scale != AV1_REF_INVALID_SCALE) &&
-		(scale_factors->x_scale != AV1_REF_NO_SCALE ||
-		 scale_factors->y_scale != AV1_REF_NO_SCALE);
+		(scale_factors->x_scale != AV1_REF_ANAL_SCALE ||
+		 scale_factors->y_scale != AV1_REF_ANAL_SCALE);
 	scale_factors->x_step =
 		AV1_DIV_ROUND_UP_POW2(scale_factors->x_scale,
 				      AV1_REF_SCALE_SHIFT - AV1_SCALE_SUBPEL_BITS);
@@ -1503,7 +1503,7 @@ static void vdec_av1_slice_setup_ref(struct vdec_av1_slice_pfc *pfc,
 		slot_id = frame->ref_frame_map[ref_idx];
 		frame_info = &slots->frame_info[slot_id];
 		if (slot_id == AV1_INVALID_IDX) {
-			pr_err(MTK_DBG_V4L2_STR "cannot match reference[%d] 0x%llx\n", i,
+			pr_err(MTK_DBG_V4L2_STR "cananalt match reference[%d] 0x%llx\n", i,
 			       ctrl_fh->reference_frame_ts[ref_idx]);
 			frame->order_hints[i] = 0;
 			frame->ref_frame_valid[i] = 0;
@@ -1532,7 +1532,7 @@ static void vdec_av1_slice_get_previous(struct vdec_av1_slice_vsi *vsi)
 {
 	struct vdec_av1_slice_frame *frame = &vsi->frame;
 
-	if (frame->uh.primary_ref_frame == AV1_PRIMARY_REF_NONE)
+	if (frame->uh.primary_ref_frame == AV1_PRIMARY_REF_ANALNE)
 		frame->prev_fb_idx = AV1_INVALID_IDX;
 	else
 		frame->prev_fb_idx = frame->frame_refs[frame->uh.primary_ref_frame].ref_fb_idx;
@@ -1636,7 +1636,7 @@ static void vdec_av1_slice_setup_seg_buffer(struct vdec_av1_slice_instance *inst
 	struct mtk_vcodec_mem *buf;
 
 	/* reset segment buffer */
-	if (uh->primary_ref_frame == AV1_PRIMARY_REF_NONE || !uh->seg.segmentation_enabled) {
+	if (uh->primary_ref_frame == AV1_PRIMARY_REF_ANALNE || !uh->seg.segmentation_enabled) {
 		mtk_vdec_debug(instance->ctx, "reset seg %d\n", vsi->slot_id);
 		if (vsi->slot_id != AV1_INVALID_IDX) {
 			buf = &instance->seg[vsi->slot_id];
@@ -1750,9 +1750,9 @@ static int vdec_av1_slice_update_lat(struct vdec_av1_slice_instance *instance,
 
 	/* buffer full, need to re-decode */
 	if (vsi->state.full) {
-		/* buffer not enough */
+		/* buffer analt eanalugh */
 		if (vsi->trans.dma_addr_end - vsi->trans.dma_addr == vsi->ube.size)
-			return -ENOMEM;
+			return -EANALMEM;
 		return -EAGAIN;
 	}
 
@@ -1875,7 +1875,7 @@ static int vdec_av1_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	instance->ctx = ctx;
 	instance->vpu.id = SCP_IPI_VDEC_LAT;
@@ -2042,7 +2042,7 @@ static int vdec_av1_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	if (vdec_msg_queue_init(&ctx->msg_queue, ctx,
 				vdec_av1_slice_core_decode, sizeof(*pfc))) {
 		mtk_vdec_err(ctx, "failed to init AV1 msg queue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* bs NULL means flush decoder */
@@ -2099,8 +2099,8 @@ static int vdec_av1_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 		return 0;
 	}
 
-	/* LAT trans full, no more UBE or decode timeout */
-	if (ret == -ENOMEM || vsi->state.timeout) {
+	/* LAT trans full, anal more UBE or decode timeout */
+	if (ret == -EANALMEM || vsi->state.timeout) {
 		mtk_vdec_err(ctx, "AV1 Frame %d insufficient buffer or timeout\n", pfc->seq);
 		if (!instance->inneracing_mode)
 			vdec_msg_queue_qbuf(&ctx->msg_queue.lat_ctx, lat_buf);

@@ -50,7 +50,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 		tx_power_cmd.global_lmt =
 			priv->nvm_data->max_tx_pwr_half_dbm;
 	}
-	tx_power_cmd.flags = IWLAGN_TX_POWER_NO_CLOSED;
+	tx_power_cmd.flags = IWLAGN_TX_POWER_ANAL_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWLAGN_TX_POWER_AUTO;
 
 	if (IWL_UCODE_API(priv->fw->ucode_ver) == 1)
@@ -110,7 +110,7 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
  *
  * pre-requirements:
  *  1. acquire mutex before calling
- *  2. make sure rf is on and not in exit state
+ *  2. make sure rf is on and analt in exit state
  */
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u32 scd_q_msk)
 {
@@ -166,7 +166,7 @@ done:
 /*
  * BT coex
  */
-/* Notmal TDM */
+/* Analtmal TDM */
 static const __le32 iwlagn_def_3w_lookup[IWLAGN_BT_DECISION_LUT_SIZE] = {
 	cpu_to_le32(0xaaaaaaaa),
 	cpu_to_le32(0xaaaaaaaa),
@@ -243,7 +243,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	 * at the same time where STA needs to response to AP's frame(s),
 	 * reduce the tx power of the required response frames, by that,
 	 * allow the concurrent BT receive & WiFi transmit
-	 * (BT - ANT A, WiFi -ANT B), without interference to one another
+	 * (BT - ANT A, WiFi -ANT B), without interference to one aanalther
 	 *
 	 * Reduced tx power apply to control frames only (ACK/Back/CTS)
 	 * when indicated by the BT config command
@@ -255,10 +255,10 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	basic.valid = priv->bt_valid;
 
 	/*
-	 * Configure BT coex mode to "no coexistence" when the
-	 * user disabled BT coexistence, we have no interface
+	 * Configure BT coex mode to "anal coexistence" when the
+	 * user disabled BT coexistence, we have anal interface
 	 * (might be in monitor mode), or the interface is in
-	 * IBSS mode (no proper uCode support for coex then).
+	 * IBSS mode (anal proper uCode support for coex then).
 	 */
 	if (!iwlwifi_mod_params.bt_coex_active ||
 	    priv->iw_mode == NL80211_IFTYPE_ADHOC) {
@@ -272,7 +272,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		else
 			basic.flags &= ~IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE;
 
-		if (priv->bt_ch_announce)
+		if (priv->bt_ch_ananalunce)
 			basic.flags |= IWLAGN_BT_FLAG_CHANNEL_INHIBITION;
 		IWL_DEBUG_COEX(priv, "BT coex flag: 0X%x\n", basic.flags);
 	}
@@ -337,7 +337,7 @@ void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena)
 	}
 
 	/*
-	 * If rssi measurements need to be enabled, consider all cases now.
+	 * If rssi measurements need to be enabled, consider all cases analw.
 	 * Figure out how many contexts are active.
 	 */
 	for_each_context(priv, ctx) {
@@ -349,7 +349,7 @@ void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena)
 	}
 
 	/*
-	 * rssi monitor already enabled for the correct interface...nothing
+	 * rssi monitor already enabled for the correct interface...analthing
 	 * to do.
 	 */
 	if (found_ctx == priv->cur_rssi_ctx)
@@ -396,15 +396,15 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	}
 
 	/*
-	 * Note: bt_traffic_load can be overridden by scan complete and
-	 * coex profile notifications. Ignore that since only bad consequence
-	 * can be not matching debug print with actual state.
+	 * Analte: bt_traffic_load can be overridden by scan complete and
+	 * coex profile analtifications. Iganalre that since only bad consequence
+	 * can be analt matching debug print with actual state.
 	 */
 	IWL_DEBUG_COEX(priv, "BT traffic load changes: %d\n",
 		       priv->bt_traffic_load);
 
 	switch (priv->bt_traffic_load) {
-	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+	case IWL_BT_COEX_TRAFFIC_LOAD_ANALNE:
 		if (priv->bt_status)
 			smps_request = IEEE80211_SMPS_DYNAMIC;
 		else
@@ -426,11 +426,11 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	mutex_lock(&priv->mutex);
 
 	/*
-	 * We can not send command to firmware while scanning. When the scan
+	 * We can analt send command to firmware while scanning. When the scan
 	 * complete we will schedule this work again. We do check with mutex
-	 * locked to prevent new scan request to arrive. We do not check
+	 * locked to prevent new scan request to arrive. We do analt check
 	 * STATUS_SCANNING to avoid race when queue_work two times from
-	 * different notifications, but quit and not perform any work at all.
+	 * different analtifications, but quit and analt perform any work at all.
 	 */
 	if (test_bit(STATUS_SCAN_HW, &priv->status))
 		goto out;
@@ -572,7 +572,7 @@ static bool iwlagn_set_kill_msk(struct iwl_priv *priv,
  *
  * If "reduced tx power" is enabled, uCode shall
  *  1. ACK/Back/CTS rate shall reduced to 6Mbps
- *  2. not use duplciate 20/40MHz mode
+ *  2. analt use duplciate 20/40MHz mode
  */
 static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
@@ -582,14 +582,14 @@ static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 	int ave_rssi;
 
 	if (!ctx->vif || (ctx->vif->type != NL80211_IFTYPE_STATION)) {
-		IWL_DEBUG_INFO(priv, "BSS ctx not active or not in sta mode\n");
+		IWL_DEBUG_INFO(priv, "BSS ctx analt active or analt in sta mode\n");
 		return false;
 	}
 
 	ave_rssi = ieee80211_ave_rssi(ctx->vif);
 	if (!ave_rssi) {
-		/* no rssi data, no changes to reduce tx power */
-		IWL_DEBUG_COEX(priv, "no rssi data available\n");
+		/* anal rssi data, anal changes to reduce tx power */
+		IWL_DEBUG_COEX(priv, "anal rssi data available\n");
 		return need_update;
 	}
 	if (!priv->reduced_txpower &&
@@ -619,11 +619,11 @@ static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 	return need_update;
 }
 
-static void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
+static void iwlagn_bt_coex_profile_analtif(struct iwl_priv *priv,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_bt_coex_profile_notif *coex = (void *)pkt->data;
+	struct iwl_bt_coex_profile_analtif *coex = (void *)pkt->data;
 	struct iwl_bt_uart_msg *uart_msg = &coex->last_bt_uart_msg;
 
 	if (priv->bt_enable_flag == IWLAGN_BT_FLAG_COEX_MODE_DISABLED) {
@@ -631,7 +631,7 @@ static void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 		return;
 	}
 
-	IWL_DEBUG_COEX(priv, "BT Coex notification:\n");
+	IWL_DEBUG_COEX(priv, "BT Coex analtification:\n");
 	IWL_DEBUG_COEX(priv, "    status: %d\n", coex->bt_status);
 	IWL_DEBUG_COEX(priv, "    traffic load: %d\n", coex->bt_traffic_load);
 	IWL_DEBUG_COEX(priv, "    CI compliance: %d\n",
@@ -646,7 +646,7 @@ static void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 		    priv->last_bt_traffic_load != coex->bt_traffic_load) {
 			if (coex->bt_status) {
 				/* BT on */
-				if (!priv->bt_ch_announce)
+				if (!priv->bt_ch_ananalunce)
 					priv->bt_traffic_load =
 						IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
 				else
@@ -655,7 +655,7 @@ static void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 			} else {
 				/* BT off */
 				priv->bt_traffic_load =
-					IWL_BT_COEX_TRAFFIC_LOAD_NONE;
+					IWL_BT_COEX_TRAFFIC_LOAD_ANALNE;
 			}
 			priv->bt_status = coex->bt_status;
 			queue_work(priv->workqueue,
@@ -670,15 +670,15 @@ static void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 		queue_work(priv->workqueue, &priv->bt_runtime_config);
 
 
-	/* FIXME: based on notification, adjust the prio_boost */
+	/* FIXME: based on analtification, adjust the prio_boost */
 
 	priv->bt_ci_compliance = coex->bt_ci_compliance;
 }
 
 void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv)
 {
-	priv->rx_handlers[REPLY_BT_COEX_PROFILE_NOTIF] =
-		iwlagn_bt_coex_profile_notif;
+	priv->rx_handlers[REPLY_BT_COEX_PROFILE_ANALTIF] =
+		iwlagn_bt_coex_profile_analtif;
 }
 
 void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv)
@@ -707,11 +707,11 @@ static bool is_single_rx_stream(struct iwl_priv *priv)
  * Determine how many receiver/antenna chains to use.
  *
  * More provides better reception via diversity.  Fewer saves power
- * at the expense of throughput, but only when not in powersave to
+ * at the expense of throughput, but only when analt in powersave to
  * start with.
  *
  * MIMO (dual stream) requires at least 2, but works better with 3.
- * This does not determine *which* chains to use, just how many.
+ * This does analt determine *which* chains to use, just how many.
  */
 static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 {
@@ -768,7 +768,7 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
  * iwlagn_set_rxon_chain - Set up Rx chain usage in "staging" RXON image
  *
  * Selects how many and which Rx receivers/antennas/chains to use.
- * This should not be used for scan command ... it puts data in wrong place.
+ * This should analt be used for scan command ... it puts data in wrong place.
  */
 void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
@@ -780,10 +780,10 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	/* Tell uCode which antennas are actually connected.
 	 * Before first association, we assume all antennas are connected.
-	 * Just after first association, iwl_chain_noise_calibration()
+	 * Just after first association, iwl_chain_analise_calibration()
 	 *    checks which antennas actually *are* connected. */
-	if (priv->chain_noise_data.active_chains)
-		active_chains = priv->chain_noise_data.active_chains;
+	if (priv->chain_analise_data.active_chains)
+		active_chains = priv->chain_analise_data.active_chains;
 	else
 		active_chains = priv->nvm_data->valid_rx_ant;
 
@@ -806,7 +806,7 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 
 	/* correct rx chain count according hw settings
-	 * and chain noise calibration
+	 * and chain analise calibration
 	 */
 	valid_rx_cnt = iwl_count_chain_bitmap(active_chains);
 	if (valid_rx_cnt < active_rx_cnt)
@@ -930,7 +930,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 		}
 
 		/*
-		 * For non-QoS this relies on the fact that both the uCode and
+		 * For analn-QoS this relies on the fact that both the uCode and
 		 * mac80211 use TID 0 (as they need to to avoid replay attacks)
 		 * for checking the IV in the frames.
 		 */
@@ -969,7 +969,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 			aes_sc = data->rsc_tsc->all_tsc_rsc.aes.multicast_rsc;
 
 		/*
-		 * For non-QoS this relies on the fact that both the uCode and
+		 * For analn-QoS this relies on the fact that both the uCode and
 		 * mac80211 use TID 0 for checking the IV in the frames.
 		 */
 		for (i = 0; i < IWLAGN_NUM_RSC; i++) {
@@ -997,7 +997,7 @@ int iwlagn_send_patterns(struct iwl_priv *priv,
 	struct iwlagn_wowlan_patterns_cmd *pattern_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_WOWLAN_PATTERNS,
-		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+		.dataflags[0] = IWL_HCMD_DFL_ANALCOPY,
 	};
 	int i, err;
 
@@ -1008,7 +1008,7 @@ int iwlagn_send_patterns(struct iwl_priv *priv,
 
 	pattern_cmd = kmalloc(cmd.len[0], GFP_KERNEL);
 	if (!pattern_cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pattern_cmd->n_patterns = cpu_to_le32(wowlan->n_patterns);
 
@@ -1058,16 +1058,16 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 
 	key_data.rsc_tsc = kzalloc(sizeof(*key_data.rsc_tsc), GFP_KERNEL);
 	if (!key_data.rsc_tsc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&wakeup_filter_cmd, 0, sizeof(wakeup_filter_cmd));
 
 	/*
-	 * We know the last used seqno, and the uCode expects to know that
+	 * We kanalw the last used seqanal, and the uCode expects to kanalw that
 	 * one, it will increment before TX.
 	 */
 	seq = le16_to_cpu(priv->last_seq_ctl) & IEEE80211_SCTL_SEQ;
-	wakeup_filter_cmd.non_qos_seq = cpu_to_le16(seq);
+	wakeup_filter_cmd.analn_qos_seq = cpu_to_le16(seq);
 
 	/*
 	 * For QoS counters, we store the one to use next, so subtract 0x10
@@ -1119,7 +1119,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	if (ret)
 		goto out;
 
-	/* now configure WoWLAN ucode */
+	/* analw configure WoWLAN ucode */
 	ret = iwl_alive_start(priv);
 	if (ret)
 		goto out;
@@ -1157,7 +1157,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 			struct iwl_host_cmd rsc_tsc_cmd = {
 				.id = REPLY_WOWLAN_TSC_RSC_PARAMS,
 				.data[0] = key_data.rsc_tsc,
-				.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+				.dataflags[0] = IWL_HCMD_DFL_ANALCOPY,
 				.len[0] = sizeof(*key_data.rsc_tsc),
 			};
 
@@ -1213,7 +1213,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
-		IWL_WARN(priv, "Not sending command - %s KILL\n",
+		IWL_WARN(priv, "Analt sending command - %s KILL\n",
 			 iwl_is_rfkill(priv) ? "RF" : "CT");
 		return -EIO;
 	}
@@ -1229,14 +1229,14 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	 * in iwl_down but cancel the workers only later.
 	 */
 	if (!priv->ucode_loaded) {
-		IWL_ERR(priv, "Fw not loaded - dropping CMD: %x\n", cmd->id);
+		IWL_ERR(priv, "Fw analt loaded - dropping CMD: %x\n", cmd->id);
 		return -EIO;
 	}
 
 	/*
-	 * Synchronous commands from this op-mode must hold
+	 * Synchroanalus commands from this op-mode must hold
 	 * the mutex, this ensures we don't try to send two
-	 * (or more) synchronous commands at a time.
+	 * (or more) synchroanalus commands at a time.
 	 */
 	if (!(cmd->flags & CMD_ASYNC))
 		lockdep_assert_held(&priv->mutex);

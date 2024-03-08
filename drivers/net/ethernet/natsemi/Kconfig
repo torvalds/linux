@@ -9,7 +9,7 @@ config NET_VENDOR_NATSEMI
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about National Semiconductor devices. If you say Y,
 	  you will be asked for your specific card in the following questions.
@@ -22,7 +22,7 @@ config MACSONIC
 	help
 	  Support for NatSemi SONIC based Ethernet devices.  This includes
 	  the onboard Ethernet in many Quadras as well as some LC-PDS,
-	  a few Nubus and all known Comm Slot Ethernet cards.  If you have
+	  a few Nubus and all kanalwn Comm Slot Ethernet cards.  If you have
 	  one of these say Y here.
 
 	  To compile this driver as a module, choose M here. This module will

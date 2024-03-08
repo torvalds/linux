@@ -18,7 +18,7 @@
 #include <linux/lzo.h>
 #include "lzodefs.h"
 
-static noinline size_t
+static analinline size_t
 lzo1x_1_do_compress(const unsigned char *in, size_t in_len,
 		    unsigned char *out, size_t *out_len,
 		    size_t ti, void *wrkmem, signed char *state_offset,

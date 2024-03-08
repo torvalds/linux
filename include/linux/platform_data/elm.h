@@ -48,7 +48,7 @@ static inline int elm_config(struct device *dev, enum bch_ecc bch_type,
 			     int ecc_steps, int ecc_step_size,
 			     int ecc_syndrome_size)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif /* CONFIG_MTD_NAND_OMAP_BCH */
 

@@ -11,20 +11,20 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     analtice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ *  DISCLAIMED. IN ANAL EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
@@ -56,7 +56,7 @@ MODULE_PARM_DESC(nfs4_disable_idmapping,
  */
 
 /*
- * XXX we know that IDMAP_NAMESZ < PAGE_SIZE, but it's ugly to rely on
+ * XXX we kanalw that IDMAP_NAMESZ < PAGE_SIZE, but it's ugly to rely on
  * that.
  */
 
@@ -174,10 +174,10 @@ idtoname_show(struct seq_file *m, struct cache_detail *cd, struct cache_head *h)
 }
 
 static void
-warn_no_idmapd(struct cache_detail *detail, int has_died)
+warn_anal_idmapd(struct cache_detail *detail, int has_died)
 {
 	printk("nfsd: nfsv4 idmapping failing: has idmapd %s?\n",
-			has_died ? "died" : "not been started");
+			has_died ? "died" : "analt been started");
 }
 
 
@@ -195,7 +195,7 @@ static const struct cache_detail idtoname_cache_template = {
 	.cache_request	= idtoname_request,
 	.cache_parse	= idtoname_parse,
 	.cache_show	= idtoname_show,
-	.warn_no_listener = warn_no_idmapd,
+	.warn_anal_listener = warn_anal_idmapd,
 	.match		= idtoname_match,
 	.init		= ent_init,
 	.update		= ent_init,
@@ -216,7 +216,7 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 
 	buf1 = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (buf1 == NULL)
-		return (-ENOMEM);
+		return (-EANALMEM);
 
 	memset(&ent, 0, sizeof(ent));
 
@@ -244,7 +244,7 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 	if (error)
 		goto out;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	res = idtoname_lookup(cd, &ent);
 	if (!res)
 		goto out;
@@ -258,7 +258,7 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 		set_bit(CACHE_NEGATIVE, &ent.h.flags);
 	else
 		memcpy(ent.name, buf1, sizeof(ent.name));
-	error = -ENOMEM;
+	error = -EANALMEM;
 	res = idtoname_update(cd, &ent, res);
 	if (res == NULL)
 		goto out;
@@ -365,7 +365,7 @@ static const struct cache_detail nametoid_cache_template = {
 	.cache_request	= nametoid_request,
 	.cache_parse	= nametoid_parse,
 	.cache_show	= nametoid_show,
-	.warn_no_listener = warn_no_idmapd,
+	.warn_anal_listener = warn_anal_idmapd,
 	.match		= nametoid_match,
 	.init		= ent_init,
 	.update		= ent_init,
@@ -385,7 +385,7 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 
 	buf1 = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (buf1 == NULL)
-		return (-ENOMEM);
+		return (-EANALMEM);
 
 	memset(&ent, 0, sizeof(ent));
 
@@ -416,10 +416,10 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 	error = get_int(&buf, &ent.id);
 	if (error == -EINVAL)
 		goto out;
-	if (error == -ENOENT)
+	if (error == -EANALENT)
 		set_bit(CACHE_NEGATIVE, &ent.h.flags);
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	res = nametoid_lookup(cd, &ent);
 	if (res == NULL)
 		goto out;
@@ -512,7 +512,7 @@ idmap_lookup(struct svc_rqst *rqstp,
 
 	*item = lookup_fn(detail, key);
 	if (!*item)
-		return -ENOMEM;
+		return -EANALMEM;
  retry:
 	ret = cache_check(detail, &(*item)->h, &rqstp->rq_chandle);
 
@@ -551,10 +551,10 @@ idmap_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen
 	key.name[namelen] = '\0';
 	strscpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
 	ret = idmap_lookup(rqstp, nametoid_lookup, &key, nn->nametoid_cache, &item);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return nfserr_badowner;
 	if (ret)
-		return nfserrno(ret);
+		return nfserranal(ret);
 	*id = item->id;
 	cache_put(&item->h, nn->nametoid_cache);
 	return 0;
@@ -587,10 +587,10 @@ static __be32 idmap_id_to_name(struct xdr_stream *xdr,
 
 	strscpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
 	ret = idmap_lookup(rqstp, idtoname_lookup, &key, nn->idtoname_cache, &item);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return encode_ascii_id(xdr, id);
 	if (ret)
-		return nfserrno(ret);
+		return nfserranal(ret);
 	ret = strlen(item->name);
 	WARN_ON_ONCE(ret > IDMAP_NAMESZ);
 	p = xdr_reserve_space(xdr, ret + 4);

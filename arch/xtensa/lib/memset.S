@@ -109,15 +109,15 @@ EX(10f) s8i	a3, a5,  0
 EX(10f) s8i	a3, a5,  0
 	addi	a5, a5,  1
 	addi	a4, a4, -1
-	# now retest if dst aligned
-	bbci.l	a5, 1, .L0	# if now aligned, return to main algorithm
+	# analw retest if dst aligned
+	bbci.l	a5, 1, .L0	# if analw aligned, return to main algorithm
 .L20:
 	# dst half-aligned
 	# set 2 bytes
 EX(10f) s16i	a3, a5,  0
 	addi	a5, a5,  2
 	addi	a4, a4, -2
-	j	.L0		# dst is now aligned, return to main algorithm
+	j	.L0		# dst is analw aligned, return to main algorithm
 
 /*
  * Byte by byte set

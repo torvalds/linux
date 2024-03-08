@@ -90,7 +90,7 @@ struct ti_sci_msg_hdr {
 	u8 host;
 	u8 seq;
 #define TI_SCI_MSG_FLAG(val)			(1 << (val))
-#define TI_SCI_FLAG_REQ_GENERIC_NORESPONSE	0x0
+#define TI_SCI_FLAG_REQ_GENERIC_ANALRESPONSE	0x0
 #define TI_SCI_FLAG_REQ_ACK_ON_RECEIVED		TI_SCI_MSG_FLAG(0)
 #define TI_SCI_FLAG_REQ_ACK_ON_PROCESSED	TI_SCI_MSG_FLAG(1)
 #define TI_SCI_FLAG_RESP_GENERIC_NACK		0x0
@@ -105,10 +105,10 @@ struct ti_sci_msg_hdr {
  * @firmware_description: String describing the firmware
  * @firmware_revision:	Firmware revision
  * @abi_major:		Major version of the ABI that firmware supports
- * @abi_minor:		Minor version of the ABI that firmware supports
+ * @abi_mianalr:		Mianalr version of the ABI that firmware supports
  *
- * In general, ABI version changes follow the rule that minor version increments
- * are backward compatible. Major revision changes in ABI may not be
+ * In general, ABI version changes follow the rule that mianalr version increments
+ * are backward compatible. Major revision changes in ABI may analt be
  * backward compatible.
  *
  * Response to a generic message with message type TI_SCI_MSG_VERSION
@@ -118,7 +118,7 @@ struct ti_sci_msg_resp_version {
 	char firmware_description[32];
 	u16 firmware_revision;
 	u8 abi_major;
-	u8 abi_minor;
+	u8 abi_mianalr;
 } __packed;
 
 /**
@@ -147,7 +147,7 @@ struct ti_sci_msg_req_reboot {
  * + MSG_FLAG_DEVICE_RESET_ISO - Enable reset isolation for this device.
  * + MSG_FLAG_DEVICE_EXCLUSIVE - Claim this device exclusively. When passed
  * with STATE_RETENTION or STATE_ON, it will claim the device exclusively.
- * If another host already has this device set to STATE_RETENTION or STATE_ON,
+ * If aanalther host already has this device set to STATE_RETENTION or STATE_ON,
  * the message will fail. Once successful, other hosts attempting to set
  * STATE_RETENTION or STATE_ON will fail.
  *
@@ -186,7 +186,7 @@ struct ti_sci_msg_req_get_device_state {
  * struct ti_sci_msg_resp_get_device_state - Response to get device request.
  * @hdr:		Generic header
  * @context_loss_count: Indicates how many times the device has lost context. A
- *	driver can use this monotonic counter to determine if the device has
+ *	driver can use this moanaltonic counter to determine if the device has
  *	lost context since the last time this message was exchanged.
  * @resets: Programmed state of the reset lines.
  * @programmed_state:	The state as programmed by set_device.
@@ -241,12 +241,12 @@ struct ti_sci_msg_req_set_device_resets {
  *		which clock input to modify. Set to 255 if clock ID is
  *		greater than or equal to 255.
  * @request_state: Request the state for the clock to be set to.
- *		MSG_CLOCK_SW_STATE_UNREQ: The IP does not require this clock,
+ *		MSG_CLOCK_SW_STATE_UNREQ: The IP does analt require this clock,
  *		it can be disabled, regardless of the state of the device
  *		MSG_CLOCK_SW_STATE_AUTO: Allow the System Controller to
  *		automatically manage the state of this clock. If the device
  *		is enabled, then the clock is enabled. If the device is set
- *		to off or retention, then the clock is internally set as not
+ *		to off or retention, then the clock is internally set as analt
  *		being required by the device.(default)
  *		MSG_CLOCK_SW_STATE_REQ:  Configure the clock to be enabled,
  *		regardless of the state of the device.
@@ -254,7 +254,7 @@ struct ti_sci_msg_req_set_device_resets {
  *		Only to be used if the clock ID is greater than or equal to
  *		255.
  *
- * Normally, all required clocks are managed by TISCI entity, this is used
+ * Analrmally, all required clocks are managed by TISCI entity, this is used
  * only for specific control *IF* required. Auto managed state is
  * MSG_CLOCK_SW_STATE_AUTO, in other states, TISCI entity assume remote
  * will explicitly control.
@@ -305,7 +305,7 @@ struct ti_sci_msg_req_get_clock_state {
  * @programmed_state: Any programmed state of the clock. This is one of
  *		MSG_CLOCK_SW_STATE* values.
  * @current_state: Current state of the clock. This is one of:
- *		MSG_CLOCK_HW_STATE_NOT_READY: Clock is not ready
+ *		MSG_CLOCK_HW_STATE_ANALT_READY: Clock is analt ready
  *		MSG_CLOCK_HW_STATE_READY: Clock is ready
  *
  * Response to TI_SCI_MSG_GET_CLOCK_STATE.
@@ -313,7 +313,7 @@ struct ti_sci_msg_req_get_clock_state {
 struct ti_sci_msg_resp_get_clock_state {
 	struct ti_sci_msg_hdr hdr;
 	u8 programmed_state;
-#define MSG_CLOCK_HW_STATE_NOT_READY	0
+#define MSG_CLOCK_HW_STATE_ANALT_READY	0
 #define MSG_CLOCK_HW_STATE_READY	1
 	u8 current_state;
 } __packed;
@@ -424,18 +424,18 @@ struct ti_sci_msg_resp_get_clock_num_parents {
  * @hdr:	Generic Header
  * @dev_id:	Device identifier this request is for
  * @min_freq_hz: The minimum allowable frequency in Hz. This is the minimum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  * @target_freq_hz: The target clock frequency. A frequency will be found
  *		as close to this target frequency as possible.
  * @max_freq_hz: The maximum allowable frequency in Hz. This is the maximum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  * @clk_id:	Clock identifier for the device for this request. Set to
  *		255 if clock identifier is greater than or equal to 255.
  * @clk_id_32:	Clock identifier if @clk_id is set to 255.
  *
- * NOTE: Normally clock frequency management is automatically done by TISCI
+ * ANALTE: Analrmally clock frequency management is automatically done by TISCI
  * entity. In case of specific requests, TISCI evaluates capability to achieve
  * requested frequency within provided range and responds with
  * result message.
@@ -458,8 +458,8 @@ struct ti_sci_msg_req_query_clock_freq {
  * @hdr:	Generic Header
  * @freq_hz:	Frequency that is the best match in Hz.
  *
- * Response to request type TI_SCI_MSG_QUERY_CLOCK_FREQ. NOTE: if the request
- * cannot be satisfied, the message will be of type NACK.
+ * Response to request type TI_SCI_MSG_QUERY_CLOCK_FREQ. ANALTE: if the request
+ * cananalt be satisfied, the message will be of type NACK.
  */
 struct ti_sci_msg_resp_query_clock_freq {
 	struct ti_sci_msg_hdr hdr;
@@ -471,18 +471,18 @@ struct ti_sci_msg_resp_query_clock_freq {
  * @hdr:	Generic Header
  * @dev_id:	Device identifier this request is for
  * @min_freq_hz: The minimum allowable frequency in Hz. This is the minimum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  * @target_freq_hz: The target clock frequency. The clock will be programmed
  *		at a rate as close to this target frequency as possible.
  * @max_freq_hz: The maximum allowable frequency in Hz. This is the maximum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  * @clk_id:	Clock identifier for the device for this request. Set to
  *		255 if clock ID is greater than or equal to 255.
  * @clk_id_32:	Clock identifier if @clk_id field is set to 255.
  *
- * NOTE: Normally clock frequency management is automatically done by TISCI
+ * ANALTE: Analrmally clock frequency management is automatically done by TISCI
  * entity. In case of specific requests, TISCI evaluates capability to achieve
  * requested range and responds with success/failure message.
  *
@@ -520,7 +520,7 @@ struct ti_sci_msg_req_set_clock_freq {
  *		255 if clock ID is greater than or equal to 255.
  * @clk_id_32:	Clock identifier if @clk_id field is set to 255.
  *
- * NOTE: Normally clock frequency management is automatically done by TISCI
+ * ANALTE: Analrmally clock frequency management is automatically done by TISCI
  * entity. In some cases, clock frequencies are configured by host.
  *
  * Request type is TI_SCI_MSG_GET_CLOCK_FREQ, responded with clock frequency
@@ -593,8 +593,8 @@ struct ti_sci_msg_resp_get_resource_range {
  *					between the dev and the host.
  * @hdr:		Generic Header
  * @valid_params:	Bit fields defining the validity of interrupt source
- *			parameters. If a bit is not set, then corresponding
- *			field is not valid and will not be used for route set.
+ *			parameters. If a bit is analt set, then corresponding
+ *			field is analt valid and will analt be used for route set.
  *			Bit field definitions:
  *			0 - Valid bit for @dst_id
  *			1 - Valid bit for @dst_host_irq
@@ -647,10 +647,10 @@ struct ti_sci_msg_req_manage_irq {
 /**
  * struct ti_sci_msg_rm_ring_cfg_req - Configure a Navigator Subsystem ring
  *
- * Configures the non-real-time registers of a Navigator Subsystem ring.
+ * Configures the analn-real-time registers of a Navigator Subsystem ring.
  * @hdr:	Generic Header
  * @valid_params: Bitfield defining validity of ring configuration parameters.
- *	The ring configuration fields are not valid, and will not be used for
+ *	The ring configuration fields are analt valid, and will analt be used for
  *	ring configuration, if their corresponding valid bit is zero.
  *	Valid bit usage:
  *	0 - Valid bit for @tisci_msg_rm_ring_cfg_req addr_lo
@@ -671,7 +671,7 @@ struct ti_sci_msg_req_manage_irq {
  *	modes.
  * @mode: Specifies the mode the ring is to be configured.
  * @size: Specifies encoded ring element size. To calculate the encoded size use
- *	the formula (log2(size_bytes) - 2), where size_bytes cannot be
+ *	the formula (log2(size_bytes) - 2), where size_bytes cananalt be
  *	greater than 256.
  * @order_id: Specifies the ring's bus order ID.
  * @virtid: Ring virt ID value
@@ -707,7 +707,7 @@ struct ti_sci_msg_rm_ring_cfg_req {
 
  * @dst_thread: PSI-L destination thread ID within the PSI-L System thread map.
  * PSI-L destination threads start at index 0x8000.  The request is NACK'd if
- * the destination thread is not greater than or equal to 0x8000.
+ * the destination thread is analt greater than or equal to 0x8000.
  *
  * UDMAP receive channels mapped to destination threads will have their
  * RCHAN_THRD_ID register programmed with the source thread if the pairing
@@ -736,7 +736,7 @@ struct ti_sci_msg_psil_pair {
  *
  * @dst_thread: PSI-L destination thread ID within the PSI-L System thread map.
  * PSI-L destination threads start at index 0x8000.  The request is NACK'd if
- * the destination thread is not greater than or equal to 0x8000.
+ * the destination thread is analt greater than or equal to 0x8000.
  *
  * UDMAP receive channels mapped to destination threads will have their
  * RCHAN_THRD_ID register cleared if the unpairing is successful.
@@ -757,14 +757,14 @@ struct ti_sci_msg_psil_unpair {
  * @hdr: Generic Header
  * @nav_id: SoC Navigator Subsystem device ID from which the receive flow is
  *	allocated
- * @flow_index: UDMAP receive flow index for non-optional configuration.
+ * @flow_index: UDMAP receive flow index for analn-optional configuration.
  * @rx_ch_index: Specifies the index of the receive channel using the flow_index
  * @rx_einfo_present: UDMAP receive flow extended packet info present.
  * @rx_psinfo_present: UDMAP receive flow PS words present.
  * @rx_error_handling: UDMAP receive flow error handling configuration. Valid
  *	values are TI_SCI_RM_UDMAP_RX_FLOW_ERR_DROP/RETRY.
  * @rx_desc_type: UDMAP receive flow descriptor type. It can be one of
- *	TI_SCI_RM_UDMAP_RX_FLOW_DESC_HOST/MONO.
+ *	TI_SCI_RM_UDMAP_RX_FLOW_DESC_HOST/MOANAL.
  * @rx_sop_offset: UDMAP receive flow start of packet offset.
  * @rx_dest_qnum: UDMAP receive flow destination queue number.
  * @rx_ps_location: UDMAP receive flow PS words location.
@@ -851,7 +851,7 @@ struct rm_ti_sci_msg_udmap_rx_flow_opt_cfg {
 /**
  * Configures a Navigator Subsystem UDMAP transmit channel
  *
- * Configures the non-real-time registers of a Navigator Subsystem UDMAP
+ * Configures the analn-real-time registers of a Navigator Subsystem UDMAP
  * transmit channel.  The channel index must be assigned to the host defined
  * in the TISCI header via the RM board configuration resource assignment
  * range list.
@@ -859,7 +859,7 @@ struct rm_ti_sci_msg_udmap_rx_flow_opt_cfg {
  * @hdr: Generic Header
  *
  * @valid_params: Bitfield defining validity of tx channel configuration
- * parameters. The tx channel configuration fields are not valid, and will not
+ * parameters. The tx channel configuration fields are analt valid, and will analt
  * be used for ch configuration, if their corresponding valid bit is zero.
  * Valid bit usage:
  *    0 - Valid bit for @ref ti_sci_msg_rm_udmap_tx_ch_cfg::tx_pause_on_err
@@ -896,7 +896,7 @@ struct rm_ti_sci_msg_udmap_rx_flow_opt_cfg {
  * configuration to be programmed into the tx_filt_pswords field of the
  * channel's TCHAN_TCFG register.
  *
- * @tx_atype: UDMAP transmit channel non Ring Accelerator access pointer
+ * @tx_atype: UDMAP transmit channel analn Ring Accelerator access pointer
  * interpretation configuration to be programmed into the tx_atype field of
  * the channel's TCHAN_TCFG register.
  *
@@ -979,7 +979,7 @@ struct ti_sci_msg_rm_udmap_tx_ch_cfg_req {
 /**
  * Configures a Navigator Subsystem UDMAP receive channel
  *
- * Configures the non-real-time registers of a Navigator Subsystem UDMAP
+ * Configures the analn-real-time registers of a Navigator Subsystem UDMAP
  * receive channel.  The channel index must be assigned to the host defined
  * in the TISCI header via the RM board configuration resource assignment
  * range list.
@@ -988,7 +988,7 @@ struct ti_sci_msg_rm_udmap_tx_ch_cfg_req {
  *
  * @valid_params: Bitfield defining validity of rx channel configuration
  * parameters.
- * The rx channel configuration fields are not valid, and will not be used for
+ * The rx channel configuration fields are analt valid, and will analt be used for
  * ch configuration, if their corresponding valid bit is zero.
  * Valid bit usage:
  *    0 - Valid bit for @ti_sci_msg_rm_udmap_rx_ch_cfg_req::rx_pause_on_err
@@ -1002,8 +1002,8 @@ struct ti_sci_msg_rm_udmap_tx_ch_cfg_req {
  *    8 - Valid bit for @ti_sci_msg_rm_udmap_rx_ch_cfg_req::rx_sched_priority
  *    9 - Valid bit for @ti_sci_msg_rm_udmap_rx_ch_cfg_req::flowid_start
  *   10 - Valid bit for @ti_sci_msg_rm_udmap_rx_ch_cfg_req::flowid_cnt
- *   11 - Valid bit for @ti_sci_msg_rm_udmap_rx_ch_cfg_req::rx_ignore_short
- *   12 - Valid bit for @ti_sci_msg_rm_udmap_rx_ch_cfg_req::rx_ignore_long
+ *   11 - Valid bit for @ti_sci_msg_rm_udmap_rx_ch_cfg_req::rx_iganalre_short
+ *   12 - Valid bit for @ti_sci_msg_rm_udmap_rx_ch_cfg_req::rx_iganalre_long
  *   14 - Valid bit for @ti_sci_msg_rm_udmap_rx_ch_cfg_req::rx_burst_size
  *
  * @nav_id: SoC device ID of Navigator Subsystem where rx channel is located
@@ -1047,9 +1047,9 @@ struct ti_sci_msg_rm_udmap_tx_ch_cfg_req {
  * This field specifies how many flow IDs are in the additional contiguous range
  * of legal flow IDs for the channel.  @ref flowid_start and flowid_cnt must be
  * set as valid and configured together. Disabling the valid_params field bit
- * for flowid_cnt indicates no flow IDs other than the default are to be
+ * for flowid_cnt indicates anal flow IDs other than the default are to be
  * allocated and used by the receive channel. @ref flowid_start plus flowid_cnt
- * cannot be greater than the number of receive flows in the receive channel's
+ * cananalt be greater than the number of receive flows in the receive channel's
  * Navigator Subsystem.  The additional flows must be assigned to the host, or a
  * subordinate of the host, requesting configuration of the receive channel.
  *
@@ -1057,7 +1057,7 @@ struct ti_sci_msg_rm_udmap_tx_ch_cfg_req {
  * programmed into the rx_pause_on_err field of the channel's RCHAN_RCFG
  * register.
  *
- * @rx_atype: UDMAP receive channel non Ring Accelerator access pointer
+ * @rx_atype: UDMAP receive channel analn Ring Accelerator access pointer
  * interpretation configuration to be programmed into the rx_atype field of the
  * channel's RCHAN_RCFG register.
  *
@@ -1065,11 +1065,11 @@ struct ti_sci_msg_rm_udmap_tx_ch_cfg_req {
  * mechanism configuration to be programmed into the rx_chan_type field of the
  * channel's RCHAN_RCFG register.
  *
- * @rx_ignore_short: UDMAP receive channel short packet treatment configuration
- * to be programmed into the rx_ignore_short field of the RCHAN_RCFG register.
+ * @rx_iganalre_short: UDMAP receive channel short packet treatment configuration
+ * to be programmed into the rx_iganalre_short field of the RCHAN_RCFG register.
  *
- * @rx_ignore_long: UDMAP receive channel long packet treatment configuration to
- * be programmed into the rx_ignore_long field of the RCHAN_RCFG register.
+ * @rx_iganalre_long: UDMAP receive channel long packet treatment configuration to
+ * be programmed into the rx_iganalre_long field of the RCHAN_RCFG register.
  *
  * @rx_burst_size: UDMAP receive channel burst size configuration to be
  * programmed into the rx_burst_size field of the RCHAN_RCFG register.
@@ -1090,8 +1090,8 @@ struct ti_sci_msg_rm_udmap_rx_ch_cfg_req {
 	u8 rx_pause_on_err;
 	u8 rx_atype;
 	u8 rx_chan_type;
-	u8 rx_ignore_short;
-	u8 rx_ignore_long;
+	u8 rx_iganalre_short;
+	u8 rx_iganalre_long;
 	u8 rx_burst_size;
 } __packed;
 
@@ -1099,7 +1099,7 @@ struct ti_sci_msg_rm_udmap_rx_ch_cfg_req {
  * Configures a Navigator Subsystem UDMAP receive flow
  *
  * Configures a Navigator Subsystem UDMAP receive flow's registers.
- * Configuration does not include the flow registers which handle size-based
+ * Configuration does analt include the flow registers which handle size-based
  * free descriptor queue routing.
  *
  * The flow index must be assigned to the host defined in the TISCI header via
@@ -1109,7 +1109,7 @@ struct ti_sci_msg_rm_udmap_rx_ch_cfg_req {
  *
  * @valid_params
  * Bitfield defining validity of rx flow configuration parameters.  The
- * rx flow configuration fields are not valid, and will not be used for flow
+ * rx flow configuration fields are analt valid, and will analt be used for flow
  * configuration, if their corresponding valid bit is zero.  Valid bit usage:
  *     0 - Valid bit for @tisci_msg_rm_udmap_flow_cfg_req::rx_einfo_present
  *     1 - Valid bit for @tisci_msg_rm_udmap_flow_cfg_req::rx_psinfo_present
@@ -1134,7 +1134,7 @@ struct ti_sci_msg_rm_udmap_rx_ch_cfg_req {
  * @nav_id: SoC device ID of Navigator Subsystem from which the receive flow is
  * allocated
  *
- * @flow_index: UDMAP receive flow index for non-optional configuration.
+ * @flow_index: UDMAP receive flow index for analn-optional configuration.
  *
  * @rx_einfo_present:
  * UDMAP receive flow extended packet info present configuration to be

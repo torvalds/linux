@@ -2217,8 +2217,8 @@ static const struct regmap_range x1000_access_ranges[] = {
 
 /* shared with X1500 */
 static const struct regmap_access_table x1000_access_table = {
-	.yes_ranges = x1000_access_ranges,
-	.n_yes_ranges = ARRAY_SIZE(x1000_access_ranges),
+	.anal_ranges = x1000_access_ranges,
+	.n_anal_ranges = ARRAY_SIZE(x1000_access_ranges),
 };
 
 static const struct ingenic_chip_info x1000_chip_info = {
@@ -2556,8 +2556,8 @@ static const struct regmap_range x1830_access_ranges[] = {
 };
 
 static const struct regmap_access_table x1830_access_table = {
-	.yes_ranges = x1830_access_ranges,
-	.n_yes_ranges = ARRAY_SIZE(x1830_access_ranges),
+	.anal_ranges = x1830_access_ranges,
+	.n_anal_ranges = ARRAY_SIZE(x1830_access_ranges),
 };
 
 static const struct ingenic_chip_info x1830_chip_info = {
@@ -3031,8 +3031,8 @@ static const struct regmap_range x2000_access_ranges[] = {
 
 /* shared with X2100 */
 static const struct regmap_access_table x2000_access_table = {
-	.yes_ranges = x2000_access_ranges,
-	.n_yes_ranges = ARRAY_SIZE(x2000_access_ranges),
+	.anal_ranges = x2000_access_ranges,
+	.n_anal_ranges = ARRAY_SIZE(x2000_access_ranges),
 };
 
 static const struct ingenic_chip_info x2000_chip_info = {
@@ -3504,7 +3504,7 @@ static int ingenic_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 
 	if ((type == IRQ_TYPE_EDGE_BOTH) && !is_soc_or_above(jzgc->jzpc, ID_X2000)) {
 		/*
-		 * The hardware does not support interrupts on both edges. The
+		 * The hardware does analt support interrupts on both edges. The
 		 * best we can do is to set up a single-edge interrupt and then
 		 * switch to the opposing edge when ACKing the interrupt.
 		 */
@@ -3665,7 +3665,7 @@ static const struct pinctrl_ops ingenic_pctlops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -3908,7 +3908,7 @@ static int ingenic_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -4011,7 +4011,7 @@ static int ingenic_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_SLEW_RATE:
 			continue;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -4086,11 +4086,11 @@ static int ingenic_pinconf_group_get(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < npins; i++) {
 		if (ingenic_pinconf_get(pctldev, pins[i], config))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
-		/* configs do not match between two pins */
+		/* configs do analt match between two pins */
 		if (i && (old != *config))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		old = *config;
 	}
@@ -4152,7 +4152,7 @@ static const struct of_device_id ingenic_gpio_of_matches[] __initconst = {
 };
 
 static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
-				     struct fwnode_handle *fwnode)
+				     struct fwanalde_handle *fwanalde)
 {
 	struct ingenic_gpio_chip *jzgc;
 	struct device *dev = jzpc->dev;
@@ -4160,15 +4160,15 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	unsigned int bank;
 	int err;
 
-	err = fwnode_property_read_u32(fwnode, "reg", &bank);
+	err = fwanalde_property_read_u32(fwanalde, "reg", &bank);
 	if (err) {
-		dev_err(dev, "Cannot read \"reg\" property: %i\n", err);
+		dev_err(dev, "Cananalt read \"reg\" property: %i\n", err);
 		return err;
 	}
 
 	jzgc = devm_kzalloc(dev, sizeof(*jzgc), GFP_KERNEL);
 	if (!jzgc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jzpc->gc = &jzgc->gc;
 
@@ -4177,9 +4177,9 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 
 	jzgc->gc.label = devm_kasprintf(dev, GFP_KERNEL, "GPIO%c", 'A' + bank);
 	if (!jzgc->gc.label)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* DO NOT EXPAND THIS: FOR BACKWARD GPIO NUMBERSPACE COMPATIBIBILITY
+	/* DO ANALT EXPAND THIS: FOR BACKWARD GPIO NUMBERSPACE COMPATIBIBILITY
 	 * ONLY: WORK TO TRANSITION CONSUMERS TO USE THE GPIO DESCRIPTOR API IN
 	 * <linux/gpio/consumer.h> INSTEAD.
 	 */
@@ -4187,7 +4187,7 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 
 	jzgc->gc.ngpio = 32;
 	jzgc->gc.parent = dev;
-	jzgc->gc.fwnode = fwnode;
+	jzgc->gc.fwanalde = fwanalde;
 	jzgc->gc.owner = THIS_MODULE;
 
 	jzgc->gc.set = ingenic_gpio_set;
@@ -4198,7 +4198,7 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	jzgc->gc.request = gpiochip_generic_request;
 	jzgc->gc.free = gpiochip_generic_free;
 
-	err = fwnode_irq_get(fwnode, 0);
+	err = fwanalde_irq_get(fwanalde, 0);
 	if (err < 0)
 		return err;
 	if (!err)
@@ -4212,10 +4212,10 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	girq->parents[0] = jzgc->irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
 
 	err = devm_gpiochip_add_data(dev, &jzgc->gc, jzgc);
@@ -4233,7 +4233,7 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	void __iomem *base;
 	const struct ingenic_chip_info *chip_info;
 	struct regmap_config regmap_config;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	unsigned int i;
 	int err;
 
@@ -4245,7 +4245,7 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 
 	jzpc = devm_kzalloc(dev, sizeof(*jzpc), GFP_KERNEL);
 	if (!jzpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -4270,7 +4270,7 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 
 	pctl_desc = devm_kzalloc(&pdev->dev, sizeof(*pctl_desc), GFP_KERNEL);
 	if (!pctl_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* fill in pinctrl_desc structure */
 	pctl_desc->name = dev_name(dev);
@@ -4282,7 +4282,7 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	pctl_desc->pins = jzpc->pdesc = devm_kcalloc(&pdev->dev,
 			pctl_desc->npins, sizeof(*jzpc->pdesc), GFP_KERNEL);
 	if (!jzpc->pdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pctl_desc->npins; i++) {
 		jzpc->pdesc[i].number = i;
@@ -4324,11 +4324,11 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, jzpc->map);
 
-	device_for_each_child_node(dev, fwnode) {
-		if (of_match_node(ingenic_gpio_of_matches, to_of_node(fwnode))) {
-			err = ingenic_gpio_probe(jzpc, fwnode);
+	device_for_each_child_analde(dev, fwanalde) {
+		if (of_match_analde(ingenic_gpio_of_matches, to_of_analde(fwanalde))) {
+			err = ingenic_gpio_probe(jzpc, fwanalde);
 			if (err) {
-				fwnode_handle_put(fwnode);
+				fwanalde_handle_put(fwanalde);
 				return err;
 			}
 		}

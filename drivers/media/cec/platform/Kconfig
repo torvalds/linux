@@ -6,10 +6,10 @@ config CEC_CROS_EC
 	tristate "ChromeOS EC CEC driver"
 	depends on CROS_EC
 	select CEC_CORE
-	select CEC_NOTIFIER
+	select CEC_ANALTIFIER
 	select CROS_EC_PROTO
 	help
-	  If you say yes here you will get support for the
+	  If you say anal here you will get support for the
 	  ChromeOS Embedded Controller's CEC.
 	  The CEC bus is present in the HDMI connector and enables communication
 	  between compatible devices.
@@ -18,7 +18,7 @@ config CEC_MESON_AO
 	tristate "Amlogic Meson AO CEC driver"
 	depends on ARCH_MESON || COMPILE_TEST
 	select CEC_CORE
-	select CEC_NOTIFIER
+	select CEC_ANALTIFIER
 	help
 	  This is a driver for Amlogic Meson SoCs AO CEC interface. It uses the
 	  generic CEC framework interface.
@@ -31,7 +31,7 @@ config CEC_MESON_G12A_AO
 	select REGMAP
 	select REGMAP_MMIO
 	select CEC_CORE
-	select CEC_NOTIFIER
+	select CEC_ANALTIFIER
 	help
 	  This is a driver for Amlogic Meson G12A SoCs AO CEC interface.
 	  This driver if for the new AO-CEC module found in G12A SoCs,
@@ -45,7 +45,7 @@ config CEC_GPIO
 	depends on PREEMPTION || COMPILE_TEST
 	select CEC_CORE
 	select CEC_PIN
-	select CEC_NOTIFIER
+	select CEC_ANALTIFIER
 	select GPIOLIB
 	help
 	  This is a generic GPIO-based CEC driver.
@@ -54,9 +54,9 @@ config CEC_GPIO
 
 config CEC_SAMSUNG_S5P
 	tristate "Samsung S5P CEC driver"
-	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on ARCH_EXYANALS || COMPILE_TEST
 	select CEC_CORE
-	select CEC_NOTIFIER
+	select CEC_ANALTIFIER
 	help
 	  This is a driver for Samsung S5P HDMI CEC interface. It uses the
 	  generic CEC framework interface.
@@ -67,7 +67,7 @@ config CEC_STI
 	tristate "STMicroelectronics STiH4xx HDMI CEC driver"
 	depends on ARCH_STI || COMPILE_TEST
 	select CEC_CORE
-	select CEC_NOTIFIER
+	select CEC_ANALTIFIER
 	help
 	  This is a driver for STIH4xx HDMI CEC interface. It uses the
 	  generic CEC framework interface.
@@ -90,7 +90,7 @@ config CEC_TEGRA
 	tristate "Tegra HDMI CEC driver"
 	depends on ARCH_TEGRA || COMPILE_TEST
 	select CEC_CORE
-	select CEC_NOTIFIER
+	select CEC_ANALTIFIER
 	help
 	  This is a driver for the Tegra HDMI CEC interface. It uses the
 	  generic CEC framework interface.
@@ -102,7 +102,7 @@ config CEC_SECO
 	depends on X86 || COMPILE_TEST
 	depends on PCI && DMI
 	select CEC_CORE
-	select CEC_NOTIFIER
+	select CEC_ANALTIFIER
 	help
 	  This is a driver for SECO Boards integrated CEC interface.
 	  Selecting it will enable support for this device.
@@ -114,7 +114,7 @@ config CEC_SECO_RC
 	depends on CEC_SECO
 	depends on RC_CORE=y || RC_CORE = CEC_SECO
 	help
-	  If you say yes here you will get support for the
+	  If you say anal here you will get support for the
 	  SECO Boards Consumer-IR in seco-cec driver.
 	  The embedded controller supports RC5 protocol only, default mapping
 	  is set to rc-hauppauge.

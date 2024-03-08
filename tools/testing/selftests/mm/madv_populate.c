@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/mman.h>
 #include <sys/mman.h>
@@ -21,7 +21,7 @@
 #include "vm_util.h"
 
 /*
- * For now, we're using 2 MiB of private anonymous memory for all tests.
+ * For analw, we're using 2 MiB of private aanalnymous memory for all tests.
  */
 #define SIZE (2 * 1024 * 1024)
 
@@ -33,17 +33,17 @@ static void sense_support(void)
 	int ret;
 
 	addr = mmap(0, pagesize, PROT_READ | PROT_WRITE,
-		    MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		    MAP_AANALNYMOUS | MAP_PRIVATE, 0, 0);
 	if (!addr)
 		ksft_exit_fail_msg("mmap failed\n");
 
 	ret = madvise(addr, pagesize, MADV_POPULATE_READ);
 	if (ret)
-		ksft_exit_skip("MADV_POPULATE_READ is not available\n");
+		ksft_exit_skip("MADV_POPULATE_READ is analt available\n");
 
 	ret = madvise(addr, pagesize, MADV_POPULATE_WRITE);
 	if (ret)
-		ksft_exit_skip("MADV_POPULATE_WRITE is not available\n");
+		ksft_exit_skip("MADV_POPULATE_WRITE is analt available\n");
 
 	munmap(addr, pagesize);
 }
@@ -55,7 +55,7 @@ static void test_prot_read(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	addr = mmap(0, SIZE, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+	addr = mmap(0, SIZE, PROT_READ, MAP_AANALNYMOUS | MAP_PRIVATE, 0, 0);
 	if (addr == MAP_FAILED)
 		ksft_exit_fail_msg("mmap failed\n");
 
@@ -63,7 +63,7 @@ static void test_prot_read(void)
 	ksft_test_result(!ret, "MADV_POPULATE_READ with PROT_READ\n");
 
 	ret = madvise(addr, SIZE, MADV_POPULATE_WRITE);
-	ksft_test_result(ret == -1 && errno == EINVAL,
+	ksft_test_result(ret == -1 && erranal == EINVAL,
 			 "MADV_POPULATE_WRITE with PROT_READ\n");
 
 	munmap(addr, SIZE);
@@ -76,12 +76,12 @@ static void test_prot_write(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	addr = mmap(0, SIZE, PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+	addr = mmap(0, SIZE, PROT_WRITE, MAP_AANALNYMOUS | MAP_PRIVATE, 0, 0);
 	if (addr == MAP_FAILED)
 		ksft_exit_fail_msg("mmap failed\n");
 
 	ret = madvise(addr, SIZE, MADV_POPULATE_READ);
-	ksft_test_result(ret == -1 && errno == EINVAL,
+	ksft_test_result(ret == -1 && erranal == EINVAL,
 			 "MADV_POPULATE_READ with PROT_WRITE\n");
 
 	ret = madvise(addr, SIZE, MADV_POPULATE_WRITE);
@@ -98,7 +98,7 @@ static void test_holes(void)
 	ksft_print_msg("[RUN] %s\n", __func__);
 
 	addr = mmap(0, SIZE, PROT_READ | PROT_WRITE,
-		    MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		    MAP_AANALNYMOUS | MAP_PRIVATE, 0, 0);
 	if (addr == MAP_FAILED)
 		ksft_exit_fail_msg("mmap failed\n");
 	ret = munmap(addr + pagesize, pagesize);
@@ -107,26 +107,26 @@ static void test_holes(void)
 
 	/* Hole in the middle */
 	ret = madvise(addr, SIZE, MADV_POPULATE_READ);
-	ksft_test_result(ret == -1 && errno == ENOMEM,
+	ksft_test_result(ret == -1 && erranal == EANALMEM,
 			 "MADV_POPULATE_READ with holes in the middle\n");
 	ret = madvise(addr, SIZE, MADV_POPULATE_WRITE);
-	ksft_test_result(ret == -1 && errno == ENOMEM,
+	ksft_test_result(ret == -1 && erranal == EANALMEM,
 			 "MADV_POPULATE_WRITE with holes in the middle\n");
 
 	/* Hole at end */
 	ret = madvise(addr, 2 * pagesize, MADV_POPULATE_READ);
-	ksft_test_result(ret == -1 && errno == ENOMEM,
+	ksft_test_result(ret == -1 && erranal == EANALMEM,
 			 "MADV_POPULATE_READ with holes at the end\n");
 	ret = madvise(addr, 2 * pagesize, MADV_POPULATE_WRITE);
-	ksft_test_result(ret == -1 && errno == ENOMEM,
+	ksft_test_result(ret == -1 && erranal == EANALMEM,
 			 "MADV_POPULATE_WRITE with holes at the end\n");
 
 	/* Hole at beginning */
 	ret = madvise(addr + pagesize, pagesize, MADV_POPULATE_READ);
-	ksft_test_result(ret == -1 && errno == ENOMEM,
+	ksft_test_result(ret == -1 && erranal == EANALMEM,
 			 "MADV_POPULATE_READ with holes at the beginning\n");
 	ret = madvise(addr + pagesize, pagesize, MADV_POPULATE_WRITE);
-	ksft_test_result(ret == -1 && errno == ENOMEM,
+	ksft_test_result(ret == -1 && erranal == EANALMEM,
 			 "MADV_POPULATE_WRITE with holes at the beginning\n");
 
 	munmap(addr, SIZE);
@@ -146,7 +146,7 @@ static bool range_is_populated(char *start, ssize_t size)
 	return ret;
 }
 
-static bool range_is_not_populated(char *start, ssize_t size)
+static bool range_is_analt_populated(char *start, ssize_t size)
 {
 	int fd = open("/proc/self/pagemap", O_RDONLY);
 	bool ret = true;
@@ -168,11 +168,11 @@ static void test_populate_read(void)
 	ksft_print_msg("[RUN] %s\n", __func__);
 
 	addr = mmap(0, SIZE, PROT_READ | PROT_WRITE,
-		    MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		    MAP_AANALNYMOUS | MAP_PRIVATE, 0, 0);
 	if (addr == MAP_FAILED)
 		ksft_exit_fail_msg("mmap failed\n");
-	ksft_test_result(range_is_not_populated(addr, SIZE),
-			 "range initially not populated\n");
+	ksft_test_result(range_is_analt_populated(addr, SIZE),
+			 "range initially analt populated\n");
 
 	ret = madvise(addr, SIZE, MADV_POPULATE_READ);
 	ksft_test_result(!ret, "MADV_POPULATE_READ\n");
@@ -190,11 +190,11 @@ static void test_populate_write(void)
 	ksft_print_msg("[RUN] %s\n", __func__);
 
 	addr = mmap(0, SIZE, PROT_READ | PROT_WRITE,
-		    MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		    MAP_AANALNYMOUS | MAP_PRIVATE, 0, 0);
 	if (addr == MAP_FAILED)
 		ksft_exit_fail_msg("mmap failed\n");
-	ksft_test_result(range_is_not_populated(addr, SIZE),
-			 "range initially not populated\n");
+	ksft_test_result(range_is_analt_populated(addr, SIZE),
+			 "range initially analt populated\n");
 
 	ret = madvise(addr, SIZE, MADV_POPULATE_WRITE);
 	ksft_test_result(!ret, "MADV_POPULATE_WRITE\n");
@@ -218,7 +218,7 @@ static bool range_is_softdirty(char *start, ssize_t size)
 	return ret;
 }
 
-static bool range_is_not_softdirty(char *start, ssize_t size)
+static bool range_is_analt_softdirty(char *start, ssize_t size)
 {
 	int fd = open("/proc/self/pagemap", O_RDONLY);
 	bool ret = true;
@@ -240,20 +240,20 @@ static void test_softdirty(void)
 	ksft_print_msg("[RUN] %s\n", __func__);
 
 	addr = mmap(0, SIZE, PROT_READ | PROT_WRITE,
-		    MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		    MAP_AANALNYMOUS | MAP_PRIVATE, 0, 0);
 	if (addr == MAP_FAILED)
 		ksft_exit_fail_msg("mmap failed\n");
 
 	/* Clear any softdirty bits. */
 	clear_softdirty();
-	ksft_test_result(range_is_not_softdirty(addr, SIZE),
-			 "range is not softdirty\n");
+	ksft_test_result(range_is_analt_softdirty(addr, SIZE),
+			 "range is analt softdirty\n");
 
 	/* Populating READ should set softdirty. */
 	ret = madvise(addr, SIZE, MADV_POPULATE_READ);
 	ksft_test_result(!ret, "MADV_POPULATE_READ\n");
-	ksft_test_result(range_is_not_softdirty(addr, SIZE),
-			 "range is not softdirty\n");
+	ksft_test_result(range_is_analt_softdirty(addr, SIZE),
+			 "range is analt softdirty\n");
 
 	/* Populating WRITE should set softdirty. */
 	ret = madvise(addr, SIZE, MADV_POPULATE_WRITE);
@@ -267,12 +267,12 @@ static void test_softdirty(void)
 static int system_has_softdirty(void)
 {
 	/*
-	 * There is no way to check if the kernel supports soft-dirty, other
+	 * There is anal way to check if the kernel supports soft-dirty, other
 	 * than by writing to a page and seeing if the bit was set. But the
 	 * tests are intended to check that the bit gets set when it should, so
 	 * doing that check would turn a potentially legitimate fail into a
-	 * skip. Fortunately, we know for sure that arm64 does not support
-	 * soft-dirty. So for now, let's just use the arch as a corse guide.
+	 * skip. Fortunately, we kanalw for sure that arm64 does analt support
+	 * soft-dirty. So for analw, let's just use the arch as a corse guide.
 	 */
 #if defined(__aarch64__)
 	return 0;

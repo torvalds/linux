@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -43,7 +43,7 @@ enum {
 };
 
 enum {
-	WILC_FW_NO_POWERSAVE = 0,
+	WILC_FW_ANAL_POWERSAVE = 0,
 	WILC_FW_MIN_FAST_PS = 1,
 	WILC_FW_MAX_FAST_PS = 2,
 	WILC_FW_MIN_PSPOLL_PS = 3,
@@ -61,7 +61,7 @@ enum bus_release {
 };
 
 enum {
-	WILC_FW_NO_ENCRYPT = 0,
+	WILC_FW_ANAL_ENCRYPT = 0,
 	WILC_FW_ENCRYPT_ENABLED = BIT(0),
 	WILC_FW_WEP = BIT(1),
 	WILC_FW_WEP_EXTENDED = BIT(2),
@@ -72,7 +72,7 @@ enum {
 };
 
 enum {
-	WILC_FW_SEC_NO = WILC_FW_NO_ENCRYPT,
+	WILC_FW_SEC_ANAL = WILC_FW_ANAL_ENCRYPT,
 	WILC_FW_SEC_WEP = WILC_FW_WEP | WILC_FW_ENCRYPT_ENABLED,
 	WILC_FW_SEC_WEP_EXTENDED = WILC_FW_WEP_EXTENDED | WILC_FW_SEC_WEP,
 	WILC_FW_SEC_WPA = WILC_FW_WPA | WILC_FW_ENCRYPT_ENABLED,
@@ -94,7 +94,7 @@ enum authtype {
 };
 
 enum mfptype {
-	WILC_FW_MFP_NONE = 0x0,
+	WILC_FW_MFP_ANALNE = 0x0,
 	WILC_FW_MFP_OPTIONAL = 0x1,
 	WILC_FW_MFP_REQUIRED = 0x2
 };
@@ -106,8 +106,8 @@ enum site_survey {
 };
 
 enum {
-	WILC_FW_ACK_POLICY_NORMAL = 0,
-	WILC_FW_ACK_NO_POLICY,
+	WILC_FW_ACK_POLICY_ANALRMAL = 0,
+	WILC_FW_ACK_ANAL_POLICY,
 };
 
 enum {
@@ -118,14 +118,14 @@ enum {
 };
 
 enum {
-	WILC_FW_FILTER_NO = 0x00,
+	WILC_FW_FILTER_ANAL = 0x00,
 	WILC_FW_FILTER_AP_ONLY = 0x01,
 	WILC_FW_FILTER_STA_ONLY = 0x02
 };
 
 enum {
 	WILC_FW_11N_PROT_AUTO = 0,	/* Auto */
-	WILC_FW_11N_NO_PROT,		/* Do not use any protection */
+	WILC_FW_11N_ANAL_PROT,		/* Do analt use any protection */
 	WILC_FW_11N_PROT_ERP,		/* Protect all ERP frame exchanges */
 	WILC_FW_11N_PROT_HT,		/* Protect all HT frame exchanges  */
 	WILC_FW_11N_PROT_GF		/* Protect all GF frame exchanges  */
@@ -143,15 +143,15 @@ enum {
 };
 
 enum {
-	WILC_FW_OBBS_NONHT_NO_DETECT = 0,
-	WILC_FW_OBBS_NONHT_DETECT_ONLY = 1,
-	WILC_FW_OBBS_NONHT_DETECT_PROTECT = 2,
-	WILC_FW_OBBS_NONHT_DETECT_PROTECT_REPORT = 3,
+	WILC_FW_OBBS_ANALNHT_ANAL_DETECT = 0,
+	WILC_FW_OBBS_ANALNHT_DETECT_ONLY = 1,
+	WILC_FW_OBBS_ANALNHT_DETECT_PROTECT = 2,
+	WILC_FW_OBBS_ANALNHT_DETECT_PROTECT_REPORT = 3,
 };
 
 enum {
-	WILC_FW_HT_PROT_RTS_CTS_NONHT = 0,  /* RTS-CTS at non-HT rate */
-	WILC_FW_HT_PROT_FIRST_FRAME_NONHT,  /* First frame at non-HT rate */
+	WILC_FW_HT_PROT_RTS_CTS_ANALNHT = 0,  /* RTS-CTS at analn-HT rate */
+	WILC_FW_HT_PROT_FIRST_FRAME_ANALNHT,  /* First frame at analn-HT rate */
 	WILC_FW_HT_PROT_LSIG_TXOP,	    /* LSIG TXOP Protection */
 	WILC_FW_HT_PROT_FIRST_FRAME_MIXED,  /* First frame at Mixed format */
 };
@@ -247,7 +247,7 @@ enum {
 	WID_PREAMBLE			= 0x0003,
 
 	/*
-	 * 11g operating mode (ignored if 11g not present)
+	 * 11g operating mode (iganalred if 11g analt present)
 	 *  -----------------------------------------------------------
 	 *  Configuration :   HighPerf  Compat(RSet #1) Compat(RSet #2)
 	 *  Values to set :          1               2               3
@@ -294,7 +294,7 @@ enum {
 	/*
 	 *  Power Management
 	 *  -----------------------------------------------------------
-	 *  Configuration : NO_POWERSAVE MIN_POWERSAVE MAX_POWERSAVE
+	 *  Configuration : ANAL_POWERSAVE MIN_POWERSAVE MAX_POWERSAVE
 	 *  Values to set : 0            1             2
 	 *  -----------------------------------------------------------
 	 */
@@ -352,7 +352,7 @@ enum {
 	/*
 	 *  ACK Policy
 	 *  -----------------------------------------------------------
-	 *  Configuration :   Normal Ack            No Ack
+	 *  Configuration :   Analrmal Ack            Anal Ack
 	 *  Values to set :       0                   1
 	 *  -----------------------------------------------------------
 	 */
@@ -361,7 +361,7 @@ enum {
 	/*
 	 *  Reset MAC (Set only)
 	 *  -----------------------------------------------------------
-	 *  Configuration :   Don't Reset	Reset	No Request
+	 *  Configuration :   Don't Reset	Reset	Anal Request
 	 *  Values to set :       0               1	    2
 	 *  -----------------------------------------------------------
 	 */
@@ -485,7 +485,7 @@ enum {
 	/*
 	 *  Scan Filter
 	 *  -----------------------------------------------------------
-	 *  Configuration : Class       No filter   AP only   Station Only
+	 *  Configuration : Class       Anal filter   AP only   Station Only
 	 *  Values to set :                0           1           2
 	 *  Configuration : Priority    High Rssi   Low Rssi     Detect
 	 *  Values to set :                0          0x4         0x0
@@ -512,7 +512,7 @@ enum {
 	/*
 	 *  Protection mode for MAC
 	 *  -----------------------------------------------------------
-	 *  Configuration :  Auto  No protection  ERP    HT    GF
+	 *  Configuration :  Auto  Anal protection  ERP    HT    GF
 	 *  Values to set :  0     1              2      3     4
 	 *  -----------------------------------------------------------
 	 */
@@ -537,7 +537,7 @@ enum {
 	WID_11N_ENABLE			= 0x0082,
 
 	/*
-	 *  11n Operating mode (Note that 11g operating mode will also be
+	 *  11n Operating mode (Analte that 11g operating mode will also be
 	 *  used in addition to this, if this is set to HT Mixed mode)
 	 *  -----------------------------------------------------------
 	 *   Configuration :  HT Mixed  HT Only-20MHz   HT Only-20/40MHz
@@ -547,24 +547,24 @@ enum {
 	WID_11N_OPERATING_MODE		= 0x0083,
 
 	/*
-	 *  11n OBSS non-HT STA Detection flag
+	 *  11n OBSS analn-HT STA Detection flag
 	 *  -----------------------------------------------------------
-	 *  Configuration :  Do not detect
+	 *  Configuration :  Do analt detect
 	 *  Values to set :  0
-	 *  Configuration :  Detect, do not protect or report
+	 *  Configuration :  Detect, do analt protect or report
 	 *  Values to set :  1
-	 *  Configuration :  Detect, protect and do not report
+	 *  Configuration :  Detect, protect and do analt report
 	 *  Values to set :  2
 	 *  Configuration :  Detect, protect and report to other BSS
 	 *  Values to set :  3
 	 *  -----------------------------------------------------------
 	 */
-	WID_11N_OBSS_NONHT_DETECTION	= 0x0084,
+	WID_11N_OBSS_ANALNHT_DETECTION	= 0x0084,
 
 	/*
 	 *  11n HT Protection Type
 	 *  -----------------------------------------------------------
-	 *  Configuration :  RTS-CTS   First Frame Exchange at non-HT-rate
+	 *  Configuration :  RTS-CTS   First Frame Exchange at analn-HT-rate
 	 *  Values to set :  0         1
 	 *  Configuration :  LSIG TXOP First Frame Exchange in Mixed Fmt
 	 *  Values to set :  2         3
@@ -661,7 +661,7 @@ enum {
 	WID_TX_POWER_LEVEL_11N		= 0x00B1,
 
 	/* Custom Character WID list */
-	/* SCAN Complete notification WID*/
+	/* SCAN Complete analtification WID*/
 	WID_SCAN_COMPLETE		= 0x00C9,
 
 	WID_DEL_BEACON			= 0x00CA,

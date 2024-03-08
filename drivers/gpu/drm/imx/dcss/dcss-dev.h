@@ -62,7 +62,7 @@ enum dcss_ctxld_ctx_type {
 struct dcss_dev {
 	struct device *dev;
 	const struct dcss_type_data *devtype;
-	struct device_node *of_port;
+	struct device_analde *of_port;
 
 	u32 start_addr;
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,7 +30,7 @@ enum gfx_change_state {
 };
 
 enum amdgpu_int_thermal_type {
-	THERMAL_TYPE_NONE,
+	THERMAL_TYPE_ANALNE,
 	THERMAL_TYPE_EXTERNAL,
 	THERMAL_TYPE_EXTERNAL_GPIO,
 	THERMAL_TYPE_RV6XX,
@@ -46,7 +46,7 @@ enum amdgpu_int_thermal_type {
 };
 
 enum amdgpu_runpm_mode {
-	AMDGPU_RUNPM_NONE,
+	AMDGPU_RUNPM_ANALNE,
 	AMDGPU_RUNPM_PX,
 	AMDGPU_RUNPM_BOCO,
 	AMDGPU_RUNPM_BACO,
@@ -285,7 +285,7 @@ struct amdgpu_dpm {
 };
 
 enum ip_power_state {
-	POWER_STATE_UNKNOWN,
+	POWER_STATE_UNKANALWN,
 	POWER_STATE_ON,
 	POWER_STATE_OFF,
 };
@@ -337,7 +337,7 @@ struct amdgpu_pm {
 	enum amdgpu_int_thermal_type int_thermal_type;
 	struct device	        *int_hwmon_dev;
 	/* fan control parameters */
-	bool                    no_fan;
+	bool                    anal_fan;
 	u8                      fan_pulses_per_revolution;
 	u8                      fan_min_rpm;
 	u8                      fan_max_rpm;
@@ -415,7 +415,7 @@ int amdgpu_dpm_mode1_reset(struct amdgpu_device *adev);
 int amdgpu_dpm_set_mp1_state(struct amdgpu_device *adev,
 			     enum pp_mp1_state mp1_state);
 
-int amdgpu_dpm_notify_rlc_state(struct amdgpu_device *adev, bool en);
+int amdgpu_dpm_analtify_rlc_state(struct amdgpu_device *adev, bool en);
 
 int amdgpu_dpm_set_gfx_power_up_by_imu(struct amdgpu_device *adev);
 
@@ -575,7 +575,7 @@ int amdgpu_dpm_display_clock_voltage_request(struct amdgpu_device *adev,
 					     struct pp_display_clock_request *clock);
 int amdgpu_dpm_get_current_clocks(struct amdgpu_device *adev,
 				  struct amd_pp_clock_info *clocks);
-void amdgpu_dpm_notify_smu_enable_pwe(struct amdgpu_device *adev);
+void amdgpu_dpm_analtify_smu_enable_pwe(struct amdgpu_device *adev);
 int amdgpu_dpm_set_active_display_count(struct amdgpu_device *adev,
 					uint32_t count);
 int amdgpu_dpm_set_min_deep_sleep_dcefclk(struct amdgpu_device *adev,

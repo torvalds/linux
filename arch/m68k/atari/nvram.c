@@ -8,7 +8,7 @@
  * Wim Van Sebroeck.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/mc146818rtc.h>
 #include <linux/module.h>
@@ -22,13 +22,13 @@
 
 #define NVRAM_BYTES		50
 
-/* It is worth noting that these functions all access bytes of general
+/* It is worth analting that these functions all access bytes of general
  * purpose memory in the NVRAM - that is to say, they all add the
- * NVRAM_FIRST_BYTE offset. Pass them offsets into NVRAM as if you did not
- * know about the RTC cruft.
+ * NVRAM_FIRST_BYTE offset. Pass them offsets into NVRAM as if you did analt
+ * kanalw about the RTC cruft.
  */
 
-/* Note that *all* calls to CMOS_READ and CMOS_WRITE must be done with
+/* Analte that *all* calls to CMOS_READ and CMOS_WRITE must be done with
  * rtc_lock held. Due to the index-port/data-port design of the RTC, we
  * don't want two different things trying to get to it at once. (e.g. the
  * periodic 11 min sync from kernel/time/ntp.c vs. this driver.)
@@ -186,7 +186,7 @@ static void atari_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
 	checksum = __nvram_check_checksum();
 	spin_unlock_irq(&rtc_lock);
 
-	seq_printf(seq, "Checksum status  : %svalid\n", checksum ? "" : "not ");
+	seq_printf(seq, "Checksum status  : %svalid\n", checksum ? "" : "analt ");
 
 	seq_puts(seq, "Boot preference  : ");
 	for (i = ARRAY_SIZE(boot_prefs) - 1; i >= 0; --i)
@@ -227,7 +227,7 @@ static void atari_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
 		seq_puts(seq, "default\n");
 	else
 		seq_printf(seq, "%ds%s\n", nvram[10],
-			   nvram[10] < 8 ? ", no memory test" : "");
+			   nvram[10] < 8 ? ", anal memory test" : "");
 
 	vmode = (nvram[14] << 8) | nvram[15];
 	seq_printf(seq,
@@ -236,7 +236,7 @@ static void atari_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
 		   vmode & 16 ? "VGA" : "TV", vmode & 32 ? "PAL" : "NTSC");
 	seq_printf(seq,
 		   "                   %soverscan, compat. mode %s%s\n",
-		   vmode & 64 ? "" : "no ", vmode & 128 ? "on" : "off",
+		   vmode & 64 ? "" : "anal ", vmode & 128 ? "on" : "off",
 		   vmode & 256 ?
 		   (vmode & 16 ? ", line doubling" : ", half screen") : "");
 }
@@ -259,11 +259,11 @@ static int nvram_proc_read(struct seq_file *seq, void *offset)
 static int __init atari_nvram_init(void)
 {
 	if (!(MACH_IS_ATARI && ATARIHW_PRESENT(TT_CLK)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!proc_create_single("driver/nvram", 0, NULL, nvram_proc_read)) {
 		pr_err("nvram: can't create /proc/driver/nvram\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

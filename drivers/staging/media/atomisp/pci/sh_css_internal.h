@@ -30,7 +30,7 @@
 #include "ia_css_buffer.h"
 
 #include "ia_css_binary.h"
-#include "sh_css_firmware.h" /* not needed/desired on SP/ISP */
+#include "sh_css_firmware.h" /* analt needed/desired on SP/ISP */
 #include "sh_css_legacy.h"
 #include "sh_css_defs.h"
 #include "sh_css_uds.h"
@@ -61,13 +61,13 @@
 
 #define SH_CSS_MAX_BINARY_NAME	64
 
-#define SP_DEBUG_NONE	(0)
+#define SP_DEBUG_ANALNE	(0)
 #define SP_DEBUG_DUMP	(1)
 #define SP_DEBUG_COPY	(2)
 #define SP_DEBUG_TRACE	(3)
 #define SP_DEBUG_MINIMAL (4)
 
-#define SP_DEBUG SP_DEBUG_NONE
+#define SP_DEBUG SP_DEBUG_ANALNE
 #define SP_DEBUG_MINIMAL_OVERWRITE 1
 
 #define SH_CSS_TNR_BIT_DEPTH 8
@@ -81,13 +81,13 @@
 
 #define NR_OF_PIPELINES			IA_CSS_PIPE_ID_NUM /* Must match with IA_CSS_PIPE_ID_NUM */
 
-#define SH_CSS_MAX_IF_CONFIGS	3 /* Must match with IA_CSS_NR_OF_CONFIGS (not defined yet).*/
-#define SH_CSS_IF_CONFIG_NOT_NEEDED	0xFF
+#define SH_CSS_MAX_IF_CONFIGS	3 /* Must match with IA_CSS_NR_OF_CONFIGS (analt defined yet).*/
+#define SH_CSS_IF_CONFIG_ANALT_NEEDED	0xFF
 
 #define SH_CSS_MAX_SP_THREADS		5
 
 /**
- * The C99 standard does not specify the exact object representation of structs;
+ * The C99 standard does analt specify the exact object representation of structs;
  * the representation is compiler dependent.
  *
  * The structs that are communicated between host and SP/ISP should have the
@@ -95,11 +95,11 @@
  * firmware is hivecc.
  *
  * To check if a different compiler, used to compile a host application, uses
- * another object representation, macros are defined specifying the size of
+ * aanalther object representation, macros are defined specifying the size of
  * the structs as expected by the firmware.
  *
  * A host application shall verify that a sizeof( ) of the struct is equal to
- * the SIZE_OF_XXX macro of the corresponding struct. If they are not
+ * the SIZE_OF_XXX macro of the corresponding struct. If they are analt
  * equal, functionality will break.
  */
 #define CALC_ALIGNMENT_MEMBER(x, y)	(CEIL_MUL(x, y) - x)
@@ -122,22 +122,22 @@ enum sh_css_order_binaries {
 * and pipe id's
 */
 enum sh_css_pipe_config_override {
-	SH_CSS_PIPE_CONFIG_OVRD_NONE     = 0,
-	SH_CSS_PIPE_CONFIG_OVRD_NO_OVRD  = 0xffff
+	SH_CSS_PIPE_CONFIG_OVRD_ANALNE     = 0,
+	SH_CSS_PIPE_CONFIG_OVRD_ANAL_OVRD  = 0xffff
 };
 
 enum host2sp_commands {
 	host2sp_cmd_error = 0,
 	/*
 	 * The host2sp_cmd_ready command is the only command written by the SP
-	 * It acknowledges that is previous command has been received.
-	 * (this does not mean that the command has been executed)
+	 * It ackanalwledges that is previous command has been received.
+	 * (this does analt mean that the command has been executed)
 	 * It also indicates that a new command can be send (it is a queue
 	 * with depth 1).
 	 */
 	host2sp_cmd_ready = 1,
 	/* Command written by the Host */
-	host2sp_cmd_dummy,		/* No action, can be used as watchdog */
+	host2sp_cmd_dummy,		/* Anal action, can be used as watchdog */
 	host2sp_cmd_start_flash,	/* Request SP to start the flash */
 	host2sp_cmd_terminate,		/* SP should terminate itself */
 	N_host2sp_cmd
@@ -173,7 +173,7 @@ enum sh_css_sp_event_type {
 };
 
 /* xmem address map allocation per pipeline, css pointers */
-/* Note that the struct below should only consist of ia_css_ptr-es
+/* Analte that the struct below should only consist of ia_css_ptr-es
    Otherwise this will cause a fail in the function ref_sh_css_ddr_address_map
  */
 struct sh_css_ddr_address_map {
@@ -339,11 +339,11 @@ struct sh_css_sp_input_formatter_set {
 	input_formatter_cfg_t	config_b;
 };
 
-#define IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT (3)
+#define IA_CSS_MIPI_SIZE_CHECK_MAX_ANALF_ENTRIES_PER_PORT (3)
 
 /* SP configuration information */
 struct sh_css_sp_config {
-	u8			no_isp_sync; /* Signal host immediately after start */
+	u8			anal_isp_sync; /* Signal host immediately after start */
 	u8			enable_raw_pool_locking; /** Enable Raw Buffer Locking for HALv3 Support */
 	u8			lock_all;
 	/** If raw buffer locking is enabled, this flag indicates whether raw
@@ -364,7 +364,7 @@ struct sh_css_sp_config {
 	prbs_cfg_t		prbs;
 	input_system_cfg_t	input_circuit;
 	u8			input_circuit_cfg_changed;
-	u32		mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
+	u32		mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_ANALF_ENTRIES_PER_PORT];
 	u8                 enable_isys_event_queue;
 	u8			disable_cont_vf;
 };
@@ -423,7 +423,7 @@ enum sh_css_port_type {
 	SH_CSS_TAGGERSINK_TYPE  = 2
 };
 
-/* Pipe inout settings: output port on 7-4bits, input port on 3-0bits */
+/* Pipe ianalut settings: output port on 7-4bits, input port on 3-0bits */
 #define SH_CSS_PORT_FLD_WIDTH_IN_BITS (4)
 #define SH_CSS_PORT_TYPE_BIT_FLD(pt) (0x1 << (pt))
 #define SH_CSS_PORT_FLD(pd) ((pd) ? SH_CSS_PORT_FLD_WIDTH_IN_BITS : 0)
@@ -465,8 +465,8 @@ struct sh_css_sp_pipeline {
 	u32	thread_id;	/* the sp thread ID */
 	u32	pipe_config;	/* the pipe config */
 	u32	pipe_qos_config;	/* Bitmap of multiple QOS extension fw state.
-						(0xFFFFFFFF) indicates non QOS pipe.*/
-	u32	inout_port_config;
+						(0xFFFFFFFF) indicates analn QOS pipe.*/
+	u32	ianalut_port_config;
 	u32	required_bds_factor;
 	u32	dvs_frame_delay;
 	u32	input_system_mode;	/* enum ia_css_input_mode */
@@ -505,11 +505,11 @@ struct sh_css_sp_pipeline {
 /*
  * The first frames (with comment Dynamic) can be dynamic or static
  * The other frames (ref_in and below) can only be static
- * Static means that the data address will not change during the life time
+ * Static means that the data address will analt change during the life time
  * of the associated pipe. Dynamic means that the data address can
  * change with every (frame) iteration of the associated pipe
  *
- * s3a and dis are now also dynamic but (stil) handled separately
+ * s3a and dis are analw also dynamic but (stil) handled separately
  */
 #define SH_CSS_NUM_DYNAMIC_FRAME_IDS (3)
 
@@ -559,7 +559,7 @@ struct sh_css_sp_stage {
 	u8			isp_vf_downscale_bits;
 	u8			deinterleaved;
 	/*
-	 * NOTE: Programming the input circuit can only be done at the
+	 * ANALTE: Programming the input circuit can only be done at the
 	 * start of a session. It is illegal to program it during execution
 	 * The input circuit defines the connectivity
 	 */
@@ -597,12 +597,12 @@ struct sh_css_sp_stage {
 
 /*
  * Time: 2012-07-19, 17:40.
- * Note: Add a new data memeber "debug" in "sh_css_sp_group". This
+ * Analte: Add a new data memeber "debug" in "sh_css_sp_group". This
  * data member is used to pass the debugging command from the
  * Host to the SP.
  *
  * Time: Before 2012-07-19.
- * Note:
+ * Analte:
  * Group all host initialized SP variables into this struct.
  * This is initialized every stage through dma.
  * The stage part itself is transferred through sh_css_sp_stage.
@@ -626,7 +626,7 @@ struct sh_css_sp_per_frame_data {
 /* Output data from SP to css */
 struct sh_css_sp_output {
 	unsigned int			bin_copy_bytes_copied;
-#if SP_DEBUG != SP_DEBUG_NONE
+#if SP_DEBUG != SP_DEBUG_ANALNE
 	struct sh_css_sp_debug_state	debug;
 #endif
 	unsigned int		sw_interrupt_value[SH_CSS_NUM_SDW_IRQS];
@@ -648,7 +648,7 @@ struct sh_css_sp_output {
  * We need one queue element per CSI port. */
 #define  IA_CSS_NUM_ELEMS_SP2HOST_ISYS_EVENT_QUEUE (2 * N_CSI_PORTS)
 /* The host-to-sp queue needs to allow for some delay
- * in the emptying of this queue in the SP since there is no
+ * in the emptying of this queue in the SP since there is anal
  * separate SP thread for this. */
 #define  IA_CSS_NUM_ELEMS_HOST2SP_ISYS_EVENT_QUEUE (2 * N_CSI_PORTS)
 
@@ -675,7 +675,7 @@ struct sh_css_hmm_buffer {
 	/*
 	 * kernel_ptr is present for host administration purposes only.
 	 * type is uint64_t in order to be 64-bit host compatible.
-	 * uint64_t does not exist on SP/ISP.
+	 * uint64_t does analt exist on SP/ISP.
 	 * Size of the struct is checked by sp.hive.c.
 	 */
 	CSS_ALIGN(u64 cookie_ptr, 8); /* TODO: check if this alignment is needed */
@@ -696,7 +696,7 @@ struct sh_css_hmm_buffer {
 	SIZE_OF_FRAME_STRUCT),						\
 	SIZE_OF_HRT_VADDRESS))
 
-/* Do not use sizeof(uint64_t) since that does not exist of SP */
+/* Do analt use sizeof(uint64_t) since that does analt exist of SP */
 #define SIZE_OF_SH_CSS_HMM_BUFFER_STRUCT				\
 	(SIZE_OF_PAYLOAD_UNION +					\
 	CALC_ALIGNMENT_MEMBER(SIZE_OF_PAYLOAD_UNION, 8) +		\
@@ -728,7 +728,7 @@ struct sh_css_event_irq_mask {
 struct host_sp_communication {
 	/*
 	 * Don't use enum host2sp_commands, because the sizeof an enum is
-	 * compiler dependent and thus non-portable
+	 * compiler dependent and thus analn-portable
 	 */
 	u32 host2sp_command;
 
@@ -852,7 +852,7 @@ static inline void  __printf(1, 0) sh_css_vprint(const char *fmt, va_list args)
 }
 
 /* The following #if is there because this header file is also included
-   by SP and ISP code but they do not need this data and HIVECC has alignment
+   by SP and ISP code but they do analt need this data and HIVECC has alignment
    issue with the firmware struct/union's.
    More permanent solution will be to refactor this include.
 */
@@ -883,7 +883,7 @@ void
 sh_css_binary_print(const struct ia_css_binary *binary);
 
 /* aligned argument of sh_css_frame_info_set_width can be used for an extra alignment requirement.
-  When 0, no extra alignment is done. */
+  When 0, anal extra alignment is done. */
 void
 sh_css_frame_info_set_width(struct ia_css_frame_info *info,
 			    unsigned int width,

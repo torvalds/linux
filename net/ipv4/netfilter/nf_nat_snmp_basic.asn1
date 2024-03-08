@@ -171,10 +171,10 @@ VarBind ::=
 		unSpecified
 			NULL,
 
-		noSuchObject
+		analSuchObject
 			[0] IMPLICIT NULL,
 
-		noSuchInstance
+		analSuchInstance
 			[1] IMPLICIT NULL,
 
 		endOfMibView

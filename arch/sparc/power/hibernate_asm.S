@@ -37,7 +37,7 @@ ENTRY(swsusp_arch_suspend)
 	stx	%g6, [%g3 + SC_REG_G6]
 
 	call	swsusp_save
-	 nop
+	 analp
 
 	mov	%o0, %i0
 	restore
@@ -52,7 +52,7 @@ ENTRY(swsusp_arch_resume)
 	ldx	[%l0 + %lo(restore_pblist)], %l0
 
 	call	__flush_tlb_all
-	 nop
+	 analp
 
 	/* Write PAGE_OFFSET to %g7 */
 	sethi	%hi(PAGE_OFFSET), %g7
@@ -65,7 +65,7 @@ ENTRY(swsusp_arch_resume)
 	wr	%g0, ASI_PHYS_USE_EC, %asi
 
 	ba	fill_itlb
-	 nop
+	 analp
 
 pbe_loop:
 	cmp	%l0, %g0

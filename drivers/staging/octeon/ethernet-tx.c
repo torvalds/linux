@@ -221,7 +221,7 @@ netdev_tx_t cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * the end of a <68 byte packet. As a workaround for this, we
 	 * pad packets to be 68 bytes whenever we are in half duplex
 	 * mode. We don't handle the case of having a small packet but
-	 * no room to add the padding.  The kernel should always give
+	 * anal room to add the padding.  The kernel should always give
 	 * us at least a cache line
 	 */
 	if ((skb->len < 64) && OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
@@ -301,7 +301,7 @@ netdev_tx_t cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	if (unlikely
 	    ((skb_end_pointer(skb) - fpa_head) < CVMX_FPA_PACKET_POOL_SIZE)) {
-		/* TX buffer isn't large enough for the FPA */
+		/* TX buffer isn't large eanalugh for the FPA */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_shared(skb))) {
@@ -410,27 +410,27 @@ dont_put_skbuff_in_hw:
 	if (unlikely(skb_queue_len(&priv->tx_free_list[qos]) >=
 		     MAX_OUT_QUEUE_DEPTH)) {
 		if (dev->tx_queue_len != 0) {
-			/* Drop the lock when notifying the core.  */
+			/* Drop the lock when analtifying the core.  */
 			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock,
 					       flags);
 			netif_stop_queue(dev);
 			spin_lock_irqsave(&priv->tx_free_list[qos].lock,
 					  flags);
 		} else {
-			/* If not using normal queueing.  */
+			/* If analt using analrmal queueing.  */
 			queue_type = QUEUE_DROP;
 			goto skip_xmit;
 		}
 	}
 
 	cvmx_pko_send_packet_prepare(priv->port, priv->queue + qos,
-				     CVMX_PKO_LOCK_NONE);
+				     CVMX_PKO_LOCK_ANALNE);
 
 	/* Send the packet to the output queue */
 	if (unlikely(cvmx_pko_send_packet_finish(priv->port,
 						 priv->queue + qos,
 						 pko_command, hw_buffer,
-						 CVMX_PKO_LOCK_NONE))) {
+						 CVMX_PKO_LOCK_ANALNE))) {
 		printk_ratelimited("%s: Failed to send the packet\n",
 				   dev->name);
 		queue_type = QUEUE_DROP;
@@ -586,11 +586,11 @@ netdev_tx_t cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 #if 0
 		/* FIXME */
 		work->word2.s.dec_ipsec = 0;
-		/* We only support IPv4 right now */
+		/* We only support IPv4 right analw */
 		work->word2.s.is_v6 = 0;
 		/* Hardware would set to zero */
 		work->word2.s.software = 0;
-		/* No error, packet is internal */
+		/* Anal error, packet is internal */
 		work->word2.s.L4_error = 0;
 #endif
 		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0) ||
@@ -604,10 +604,10 @@ netdev_tx_t cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		work->word2.s.is_mcast = (skb->pkt_type == PACKET_MULTICAST);
 #if 0
 		/* This is an IP packet */
-		work->word2.s.not_IP = 0;
-		/* No error, packet is internal */
+		work->word2.s.analt_IP = 0;
+		/* Anal error, packet is internal */
 		work->word2.s.rcv_error = 0;
-		/* No error, packet is internal */
+		/* Anal error, packet is internal */
 		work->word2.s.err_code = 0;
 #endif
 
@@ -620,23 +620,23 @@ netdev_tx_t cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		       sizeof(work->packet_data));
 	} else {
 #if 0
-		work->word2.snoip.vlan_valid = 0;	/* FIXME */
-		work->word2.snoip.vlan_cfi = 0;	/* FIXME */
-		work->word2.snoip.vlan_id = 0;	/* FIXME */
-		work->word2.snoip.software = 0;	/* Hardware would set to zero */
+		work->word2.sanalip.vlan_valid = 0;	/* FIXME */
+		work->word2.sanalip.vlan_cfi = 0;	/* FIXME */
+		work->word2.sanalip.vlan_id = 0;	/* FIXME */
+		work->word2.sanalip.software = 0;	/* Hardware would set to zero */
 #endif
-		work->word2.snoip.is_rarp = skb->protocol == htons(ETH_P_RARP);
-		work->word2.snoip.is_arp = skb->protocol == htons(ETH_P_ARP);
-		work->word2.snoip.is_bcast =
+		work->word2.sanalip.is_rarp = skb->protocol == htons(ETH_P_RARP);
+		work->word2.sanalip.is_arp = skb->protocol == htons(ETH_P_ARP);
+		work->word2.sanalip.is_bcast =
 		    (skb->pkt_type == PACKET_BROADCAST);
-		work->word2.snoip.is_mcast =
+		work->word2.sanalip.is_mcast =
 		    (skb->pkt_type == PACKET_MULTICAST);
-		work->word2.snoip.not_IP = 1;	/* IP was done up above */
+		work->word2.sanalip.analt_IP = 1;	/* IP was done up above */
 #if 0
-		/* No error, packet is internal */
-		work->word2.snoip.rcv_error = 0;
-		/* No error, packet is internal */
-		work->word2.snoip.err_code = 0;
+		/* Anal error, packet is internal */
+		work->word2.sanalip.rcv_error = 0;
+		/* Anal error, packet is internal */
+		work->word2.sanalip.err_code = 0;
 #endif
 		memcpy(work->packet_data, skb->data, sizeof(work->packet_data));
 	}
@@ -704,7 +704,7 @@ void cvm_oct_tx_initialize(void)
 			"Ethernet", cvm_oct_device);
 
 	if (i)
-		panic("Could not acquire Ethernet IRQ %d\n", OCTEON_IRQ_TIMER1);
+		panic("Could analt acquire Ethernet IRQ %d\n", OCTEON_IRQ_TIMER1);
 }
 
 void cvm_oct_tx_shutdown(void)

@@ -46,7 +46,7 @@ static acpi_execute_op acpi_gbl_op_type_dispatch[] = {
  * FUNCTION:    acpi_ds_get_predicate_value
  *
  * PARAMETERS:  walk_state      - Current state of the parse tree walk
- *              result_obj      - if non-zero, pop result from result stack
+ *              result_obj      - if analn-zero, pop result from result stack
  *
  * RETURN:      Status
  *
@@ -70,7 +70,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 		status = acpi_ds_result_pop(&obj_desc, walk_state);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not get result from predicate evaluation"));
+					"Could analt get result from predicate evaluation"));
 
 			return_ACPI_STATUS(status);
 		}
@@ -92,10 +92,10 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	if (!obj_desc) {
 		ACPI_ERROR((AE_INFO,
-			    "No predicate ObjDesc=%p State=%p",
+			    "Anal predicate ObjDesc=%p State=%p",
 			    obj_desc, walk_state));
 
-		return_ACPI_STATUS(AE_AML_NO_OPERAND);
+		return_ACPI_STATUS(AE_AML_ANAL_OPERAND);
 	}
 
 	/*
@@ -110,7 +110,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	if (local_obj_desc->common.type != ACPI_TYPE_INTEGER) {
 		ACPI_ERROR((AE_INFO,
-			    "Bad predicate (not an integer) ObjDesc=%p State=%p Type=0x%X",
+			    "Bad predicate (analt an integer) ObjDesc=%p State=%p Type=0x%X",
 			    obj_desc, walk_state, obj_desc->common.type));
 
 		status = AE_AML_OPERAND_TYPE;
@@ -152,7 +152,7 @@ cleanup:
 	acpi_db_display_result_object(local_obj_desc, walk_state);
 
 	/*
-	 * Delete the predicate result object (we know that
+	 * Delete the predicate result object (we kanalw that
 	 * we don't need it anymore)
 	 */
 	if (local_obj_desc != obj_desc) {
@@ -160,7 +160,7 @@ cleanup:
 	}
 	acpi_ut_remove_reference(obj_desc);
 
-	walk_state->control_state->common.state = ACPI_CONTROL_NORMAL;
+	walk_state->control_state->common.state = ACPI_CONTROL_ANALRMAL;
 	return_ACPI_STATUS(status);
 }
 
@@ -228,7 +228,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 	/*
 	 * If the previous opcode was a conditional, this opcode
 	 * must be the beginning of the associated predicate.
-	 * Save this knowledge in the current scope descriptor
+	 * Save this kanalwledge in the current scope descriptor
 	 */
 	if ((walk_state->control_state) &&
 	    (walk_state->control_state->common.state ==
@@ -271,8 +271,8 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 			 * object is temporary and will be deleted upon completion of
 			 * the execution of this method.
 			 *
-			 * Note 10/2010: Except for the Scope() op. This opcode does
-			 * not actually create a new object, it refers to an existing
+			 * Analte 10/2010: Except for the Scope() op. This opcode does
+			 * analt actually create a new object, it refers to an existing
 			 * object. However, for Scope(), we want to indeed open a
 			 * new scope.
 			 */
@@ -281,8 +281,8 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 				    acpi_ds_load2_begin_op(walk_state, NULL);
 			} else {
 				status =
-				    acpi_ds_scope_stack_push(op->named.node,
-							     op->named.node->
+				    acpi_ds_scope_stack_push(op->named.analde,
+							     op->named.analde->
 							     type, walk_state);
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
@@ -301,7 +301,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 		break;
 	}
 
-	/* Nothing to do here during method execution */
+	/* Analthing to do here during method execution */
 
 	return_ACPI_STATUS(status);
 
@@ -320,7 +320,7 @@ error_exit:
  *
  * DESCRIPTION: Ascending callback used during the execution of control
  *              methods. The only thing we really need to do here is to
- *              notice the beginning of IF, ELSE, and WHILE blocks.
+ *              analtice the beginning of IF, ELSE, and WHILE blocks.
  *
  ****************************************************************************/
 
@@ -343,10 +343,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	op_type = walk_state->op_info->type;
 	op_class = walk_state->op_info->class;
 
-	if (op_class == AML_CLASS_UNKNOWN) {
-		ACPI_ERROR((AE_INFO, "Unknown opcode 0x%X",
+	if (op_class == AML_CLASS_UNKANALWN) {
+		ACPI_ERROR((AE_INFO, "Unkanalwn opcode 0x%X",
 			    op->common.aml_opcode));
-		return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
+		return_ACPI_STATUS(AE_ANALT_IMPLEMENTED);
 	}
 
 	first_arg = op->common.value.arg;
@@ -390,9 +390,9 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		/*
 		 * All opcodes require operand resolution, with the only exceptions
 		 * being the object_type and size_of operators as well as opcodes that
-		 * take no arguments.
+		 * take anal arguments.
 		 */
-		if (!(walk_state->op_info->flags & AML_NO_OPERAND_RESOLVE) &&
+		if (!(walk_state->op_info->flags & AML_ANAL_OPERAND_RESOLVE) &&
 		    (walk_state->op_info->flags & AML_HAS_ARGS)) {
 
 			/* Resolve all operands */
@@ -415,7 +415,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			    acpi_gbl_op_type_dispatch[op_type] (walk_state);
 		} else {
 			/*
-			 * Treat constructs of the form "Store(LocalX,LocalX)" as noops when the
+			 * Treat constructs of the form "Store(LocalX,LocalX)" as analops when the
 			 * Local is uninitialized.
 			 */
 			if ((status == AE_AML_UNINITIALIZED_LOCAL) &&
@@ -455,7 +455,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	default:
 
 		switch (op_type) {
-		case AML_TYPE_CONTROL:	/* Type 1 opcode, IF/ELSE/WHILE/NOOP */
+		case AML_TYPE_CONTROL:	/* Type 1 opcode, IF/ELSE/WHILE/ANALOP */
 
 			/* 1 Operand, 0 external_result, 0 internal_result */
 
@@ -466,7 +466,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		case AML_TYPE_METHOD_CALL:
 			/*
 			 * If the method is referenced from within a package
-			 * declaration, it is not a invocation of the method, just
+			 * declaration, it is analt a invocation of the method, just
 			 * a reference to it.
 			 */
 			if ((op->asl.parent) &&
@@ -477,10 +477,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 						  "Method Reference in a Package, Op=%p\n",
 						  op));
 
-				op->common.node = (struct acpi_namespace_node *)
-				    op->asl.value.arg->asl.node;
+				op->common.analde = (struct acpi_namespace_analde *)
+				    op->asl.value.arg->asl.analde;
 				acpi_ut_add_reference(op->asl.value.arg->asl.
-						      node->object);
+						      analde->object);
 				return_ACPI_STATUS(AE_OK);
 			}
 
@@ -488,8 +488,8 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 					  "Method invocation, Op=%p\n", op));
 
 			/*
-			 * (AML_METHODCALL) Op->Asl.Value.Arg->Asl.Node contains
-			 * the method Node pointer
+			 * (AML_METHODCALL) Op->Asl.Value.Arg->Asl.Analde contains
+			 * the method Analde pointer
 			 */
 			/* next_op points to the op that holds the method name */
 
@@ -508,7 +508,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			}
 
 			/*
-			 * Since the operands will be passed to another control method,
+			 * Since the operands will be passed to aanalther control method,
 			 * we must resolve all local references here (Local variables,
 			 * arguments to *this* method, etc.)
 			 */
@@ -528,7 +528,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			status = AE_CTRL_TRANSFER;
 
 			/*
-			 * Return now; we don't want to disturb anything,
+			 * Return analw; we don't want to disturb anything,
 			 * especially the operand count!
 			 */
 			return_ACPI_STATUS(status);
@@ -555,13 +555,13 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			 * buffer_fields in this code.)
 			 */
 			namepath =
-			    acpi_ns_get_external_pathname(op->common.node);
+			    acpi_ns_get_external_pathname(op->common.analde);
 			status = ae_lookup_init_file_entry(namepath, &obj_desc);
 			if (ACPI_SUCCESS(status)) {
 				status =
 				    acpi_ex_write_data_to_field(obj_desc,
 								op->common.
-								node->object,
+								analde->object,
 								NULL);
 				if (ACPI_FAILURE(status)) {
 					ACPI_EXCEPTION((AE_INFO, status,
@@ -584,16 +584,16 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			switch (op->common.parent->common.aml_opcode) {
 			case AML_NAME_OP:
 				/*
-				 * Put the Node on the object stack (Contains the ACPI Name
+				 * Put the Analde on the object stack (Contains the ACPI Name
 				 * of this object)
 				 */
 				walk_state->operands[0] = (void *)
-				    op->common.parent->common.node;
+				    op->common.parent->common.analde;
 				walk_state->num_operands = 1;
 
-				status = acpi_ds_create_node(walk_state,
+				status = acpi_ds_create_analde(walk_state,
 							     op->common.parent->
-							     common.node,
+							     common.analde,
 							     op->common.parent);
 				if (ACPI_FAILURE(status)) {
 					break;
@@ -608,7 +608,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				    (walk_state, op,
 				     acpi_ns_get_attached_object(op->common.
 								 parent->common.
-								 node));
+								 analde));
 				break;
 
 			default:
@@ -633,7 +633,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		case AML_TYPE_NAMED_FIELD:
 		case AML_TYPE_NAMED_COMPLEX:
 		case AML_TYPE_NAMED_SIMPLE:
-		case AML_TYPE_NAMED_NO_OBJ:
+		case AML_TYPE_NAMED_ANAL_OBJ:
 
 			status = acpi_ds_load2_end_op(walk_state);
 			if (ACPI_FAILURE(status)) {
@@ -680,7 +680,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 			ACPI_ERROR((AE_INFO,
 				    "Undefined opcode type Op=%p", op));
-			return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
+			return_ACPI_STATUS(AE_ANALT_IMPLEMENTED);
 
 		case AML_TYPE_BOGUS:
 
@@ -697,7 +697,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				    op_class, op_type, op->common.aml_opcode,
 				    op));
 
-			status = AE_NOT_IMPLEMENTED;
+			status = AE_ANALT_IMPLEMENTED;
 			break;
 		}
 	}
@@ -734,10 +734,10 @@ cleanup:
 
 		/*
 		 * Delete the result op if and only if:
-		 * Parent will not use the result -- such as any
-		 * non-nested type2 op in a method (parent will be method)
+		 * Parent will analt use the result -- such as any
+		 * analn-nested type2 op in a method (parent will be method)
 		 */
-		acpi_ds_delete_result_if_not_used(op, walk_state->result_obj,
+		acpi_ds_delete_result_if_analt_used(op, walk_state->result_obj,
 						  walk_state);
 	}
 #ifdef _UNDER_DEVELOPMENT

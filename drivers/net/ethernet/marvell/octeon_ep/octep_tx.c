@@ -88,10 +88,10 @@ int octep_iq_process_completions(struct octep_iq *iq, u16 budget)
 
 	netdev_tx_completed_queue(iq->netdev_q, compl_pkts, compl_bytes);
 
-	if (unlikely(__netif_subqueue_stopped(iq->netdev, iq->q_no)) &&
+	if (unlikely(__netif_subqueue_stopped(iq->netdev, iq->q_anal)) &&
 	    (IQ_INSTR_SPACE(iq) >
 	     OCTEP_WAKE_QUEUE_THRESHOLD))
-		netif_wake_subqueue(iq->netdev, iq->q_no);
+		netif_wake_subqueue(iq->netdev, iq->q_anal);
 	return !budget;
 }
 
@@ -143,7 +143,7 @@ static void octep_iq_free_pending(struct octep_iq *iq)
 	}
 
 	iq->flush_index = fi;
-	netdev_tx_reset_queue(netdev_get_tx_queue(iq->netdev, iq->q_no));
+	netdev_tx_reset_queue(netdev_get_tx_queue(iq->netdev, iq->q_anal));
 }
 
 /**
@@ -168,11 +168,11 @@ void octep_clean_iqs(struct octep_device *oct)
  * octep_setup_iq() - Setup a Tx queue.
  *
  * @oct: Octeon device private data structure.
- * @q_no: Tx queue number to be setup.
+ * @q_anal: Tx queue number to be setup.
  *
  * Allocate resources for a Tx queue.
  */
-static int octep_setup_iq(struct octep_device *oct, int q_no)
+static int octep_setup_iq(struct octep_device *oct, int q_anal)
 {
 	u32 desc_ring_size, buff_info_size, sglist_size;
 	struct octep_iq *iq;
@@ -181,16 +181,16 @@ static int octep_setup_iq(struct octep_device *oct, int q_no)
 	iq = vzalloc(sizeof(*iq));
 	if (!iq)
 		goto iq_alloc_err;
-	oct->iq[q_no] = iq;
+	oct->iq[q_anal] = iq;
 
 	iq->octep_dev = oct;
 	iq->netdev = oct->netdev;
 	iq->dev = &oct->pdev->dev;
-	iq->q_no = q_no;
+	iq->q_anal = q_anal;
 	iq->max_count = CFG_GET_IQ_NUM_DESC(oct->conf);
 	iq->ring_size_mask = iq->max_count - 1;
 	iq->fill_threshold = CFG_GET_IQ_DB_MIN(oct->conf);
-	iq->netdev_q = netdev_get_tx_queue(iq->netdev, q_no);
+	iq->netdev_q = netdev_get_tx_queue(iq->netdev, q_anal);
 
 	/* Allocate memory for hardware queue descriptors */
 	desc_ring_size = OCTEP_IQ_DESC_SIZE * CFG_GET_IQ_NUM_DESC(oct->conf);
@@ -198,7 +198,7 @@ static int octep_setup_iq(struct octep_device *oct, int q_no)
 					   &iq->desc_ring_dma, GFP_KERNEL);
 	if (unlikely(!iq->desc_ring)) {
 		dev_err(iq->dev,
-			"Failed to allocate DMA memory for IQ-%d\n", q_no);
+			"Failed to allocate DMA memory for IQ-%d\n", q_anal);
 		goto desc_dma_alloc_err;
 	}
 
@@ -210,7 +210,7 @@ static int octep_setup_iq(struct octep_device *oct, int q_no)
 	if (unlikely(!iq->sglist)) {
 		dev_err(iq->dev,
 			"Failed to allocate DMA memory for IQ-%d SGLIST\n",
-			q_no);
+			q_anal);
 		goto sglist_alloc_err;
 	}
 
@@ -219,7 +219,7 @@ static int octep_setup_iq(struct octep_device *oct, int q_no)
 	iq->buff_info = vzalloc(buff_info_size);
 	if (!iq->buff_info) {
 		dev_err(iq->dev,
-			"Failed to allocate buff info for IQ-%d\n", q_no);
+			"Failed to allocate buff info for IQ-%d\n", q_anal);
 		goto buff_info_err;
 	}
 
@@ -235,7 +235,7 @@ static int octep_setup_iq(struct octep_device *oct, int q_no)
 	}
 
 	octep_iq_reset_indices(iq);
-	oct->hw_ops.setup_iq_regs(oct, q_no);
+	oct->hw_ops.setup_iq_regs(oct, q_anal);
 
 	oct->num_iqs++;
 	return 0;
@@ -247,7 +247,7 @@ sglist_alloc_err:
 			  iq->desc_ring, iq->desc_ring_dma);
 desc_dma_alloc_err:
 	vfree(iq);
-	oct->iq[q_no] = NULL;
+	oct->iq[q_anal] = NULL;
 iq_alloc_err:
 	return -1;
 }
@@ -263,7 +263,7 @@ static void octep_free_iq(struct octep_iq *iq)
 {
 	struct octep_device *oct = iq->octep_dev;
 	u64 desc_ring_size, sglist_size;
-	int q_no = iq->q_no;
+	int q_anal = iq->q_anal;
 
 	desc_ring_size = OCTEP_IQ_DESC_SIZE * CFG_GET_IQ_NUM_DESC(oct->conf);
 
@@ -280,7 +280,7 @@ static void octep_free_iq(struct octep_iq *iq)
 				  iq->sglist, iq->sglist_dma);
 
 	vfree(iq);
-	oct->iq[q_no] = NULL;
+	oct->iq[q_anal] = NULL;
 	oct->num_iqs--;
 }
 

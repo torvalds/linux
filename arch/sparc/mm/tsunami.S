@@ -38,7 +38,7 @@ tsunami_flush_page_for_dma:
 tsunami_flush_cache_out:
 tsunami_flush_page_to_ram:
 	retl
-	 nop
+	 analp
 
 tsunami_flush_sig_insns:
 	flush	%o1
@@ -55,14 +55,14 @@ tsunami_flush_tlb_mm:
 tsunami_flush_tlb_all:
 	 mov	0x400, %o1
 	sta	%g0, [%o1] ASI_M_FLUSH_PROBE
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
 tsunami_flush_tlb_out:
 	retl
-	 nop
+	 analp
 
 	/* This one can be done in a fine grained manner... */
 tsunami_flush_tlb_page:
@@ -75,11 +75,11 @@ tsunami_flush_tlb_page:
 	 lda	[%g1] ASI_M_MMUREGS, %g5
 	sta	%o3, [%g1] ASI_M_MMUREGS
 	sta	%g0, [%o1] ASI_M_FLUSH_PROBE
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
 tsunami_flush_tlb_page_out:
 	retl
 	 sta	%g5, [%g1] ASI_M_MMUREGS
@@ -95,7 +95,7 @@ tsunami_flush_tlb_page_out:
 	std	t2, [dst + offset + 0x00];
 
 tsunami_copy_1page:
-/* NOTE: This routine has to be shorter than 70insns --jj */
+/* ANALTE: This routine has to be shorter than 70insns --jj */
 	or	%g0, (PAGE_SIZE >> 8), %g1
 1:
 	MIRROR_BLOCK(%o0, %o1, 0x00, %o2, %o3, %o4, %o5)
@@ -129,4 +129,4 @@ tsunami_setup_blockops:
 	sta	%g0, [%g0] ASI_M_IC_FLCLEAR
 	sta	%g0, [%g0] ASI_M_DC_FLCLEAR
 	retl
-	 nop
+	 analp

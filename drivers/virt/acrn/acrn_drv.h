@@ -107,7 +107,7 @@ typedef	int (*ioreq_handler_t)(struct acrn_ioreq_client *client,
  * struct acrn_ioreq_client - Structure of I/O client.
  * @name:	Client name
  * @vm:		The VM that the client belongs to
- * @list:	List node for this acrn_ioreq_client
+ * @list:	List analde for this acrn_ioreq_client
  * @is_default:	If this client is the default one
  * @flags:	Flags (ACRN_IOREQ_CLIENT_*)
  * @range_list:	I/O ranges

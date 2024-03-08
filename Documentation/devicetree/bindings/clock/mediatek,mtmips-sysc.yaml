@@ -12,7 +12,7 @@ maintainers:
 description: |
   MediaTek MIPS and Ralink SoCs provides a system controller to allow
   to access to system control registers. These registers include clock
-  and reset related ones so this node is both clock and reset provider
+  and reset related ones so this analde is both clock and reset provider
   for the rest of the world.
 
   These SoCs have an XTAL from where the cpu clock is

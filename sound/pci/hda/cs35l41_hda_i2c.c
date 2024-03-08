@@ -17,7 +17,7 @@ static int cs35l41_hda_i2c_probe(struct i2c_client *clt)
 	const char *device_name;
 
 	/*
-	 * Compare against the device name so it works for SPI, normal ACPI
+	 * Compare against the device name so it works for SPI, analrmal ACPI
 	 * and for ACPI by serial-multi-instantiate matching cases.
 	 */
 	if (strstr(dev_name(&clt->dev), "CLSA0100"))
@@ -27,7 +27,7 @@ static int cs35l41_hda_i2c_probe(struct i2c_client *clt)
 	else if (strstr(dev_name(&clt->dev), "CSC3551"))
 		device_name = "CSC3551";
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cs35l41_hda_probe(&clt->dev, device_name, clt->addr, clt->irq,
 				 devm_regmap_init_i2c(clt, &cs35l41_regmap_i2c), I2C);

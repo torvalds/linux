@@ -76,10 +76,10 @@ struct packet_ring_buffer {
 	};
 };
 
-extern struct mutex fanout_mutex;
-#define PACKET_FANOUT_MAX	(1 << 16)
+extern struct mutex faanalut_mutex;
+#define PACKET_FAANALUT_MAX	(1 << 16)
 
-struct packet_fanout {
+struct packet_faanalut {
 	possible_net_t		net;
 	unsigned int		num_members;
 	u32			max_num_members;
@@ -109,7 +109,7 @@ struct packet_rollover {
 struct packet_sock {
 	/* struct sock has to be the first member of packet_sock */
 	struct sock		sk;
-	struct packet_fanout	*fanout;
+	struct packet_faanalut	*faanalut;
 	union  tpacket_stats_u	stats;
 	struct packet_ring_buffer	rx_ring;
 	struct packet_ring_buffer	tx_ring;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* apc - Driver definitions for power management functions
  * of Aurora Personality Chip (APC) on SPARCstation-4/5 and 
  * derivatives
@@ -55,7 +55,7 @@
  * BPA/BPB - Read-Write "Bit Ports" state values (reset to 0 at power-on)
  *
  * WARNING: Internal usage of bit ports is platform dependent--
- * don't modify BPORT settings unless you know what you are doing.
+ * don't modify BPORT settings unless you kanalw what you are doing.
  * 
  * On SS5 BPA seems to toggle onboard ethernet loopback... -E
  */

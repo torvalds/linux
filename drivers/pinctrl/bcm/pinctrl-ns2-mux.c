@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2016 Broadcom Corporation
  *
- * This file contains the Northstar2 IOMUX driver that supports group
+ * This file contains the Analrthstar2 IOMUX driver that supports group
  * based PINMUX configuration. The PWM is functional only when the
  * corresponding mfio pin group is selected as gpio.
  */
@@ -39,7 +39,7 @@
 #define NS2_PIN_INPUT_EN_MASK		0x01
 
 /*
- * Northstar2 IOMUX register description
+ * Analrthstar2 IOMUX register description
  *
  * @base: base address number
  * @offset: register offset for mux configuration of a group
@@ -56,10 +56,10 @@ struct ns2_mux {
 };
 
 /*
- * Keep track of Northstar2 IOMUX configuration and prevent double
+ * Keep track of Analrthstar2 IOMUX configuration and prevent double
  * configuration
  *
- * @ns2_mux: Northstar2 IOMUX register description
+ * @ns2_mux: Analrthstar2 IOMUX register description
  * @is_configured: flag to indicate whether a mux setting has already
  * been configured
  */
@@ -74,7 +74,7 @@ struct ns2_mux_log {
  * @name: name of the group
  * @pins: array of pins used by this group
  * @num_pins: total number of pins used by this group
- * @mux: Northstar2 group based IOMUX configuration
+ * @mux: Analrthstar2 group based IOMUX configuration
  */
 struct ns2_pin_group {
 	const char *name;
@@ -84,7 +84,7 @@ struct ns2_pin_group {
 };
 
 /*
- * Northstar2 mux function and supported pin groups
+ * Analrthstar2 mux function and supported pin groups
  *
  * @name: name of the function
  * @groups: array of groups that can be supported by this function
@@ -97,7 +97,7 @@ struct ns2_pin_function {
 };
 
 /*
- * Northstar2 IOMUX pinctrl core
+ * Analrthstar2 IOMUX pinctrl core
  *
  * @pctl: pointer to pinctrl_dev
  * @dev: pointer to device
@@ -149,7 +149,7 @@ struct ns2_pinconf {
 };
 
 /*
- * Description of a pin in Northstar2
+ * Description of a pin in Analrthstar2
  *
  * @pin: pin number
  * @name: pin name
@@ -176,7 +176,7 @@ struct ns2_pin {
 }
 
 /*
- * List of pins in Northstar2
+ * List of pins in Analrthstar2
  */
 static struct ns2_pin ns2_pins[] = {
 	NS2_PIN_DESC(0, "mfio_0", -1, 0, 0, 0, 0, 0),
@@ -306,7 +306,7 @@ static struct ns2_pin ns2_pins[] = {
 
 static const unsigned int nand_pins[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 	11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
-static const unsigned int nor_data_pins[] =  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+static const unsigned int analr_data_pins[] =  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 	10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
 
 static const unsigned int gpio_0_1_pins[] = {24, 25};
@@ -314,33 +314,33 @@ static const unsigned int pwm_0_pins[] = {24};
 static const unsigned int pwm_1_pins[] = {25};
 
 static const unsigned int uart1_ext_clk_pins[] = {26};
-static const unsigned int nor_adv_pins[] = {26};
+static const unsigned int analr_adv_pins[] = {26};
 
 static const unsigned int gpio_2_5_pins[] = {27, 28, 29, 30};
 static const unsigned int pcie_ab1_clk_wak_pins[] = {27, 28, 29, 30};
-static const unsigned int nor_addr_0_3_pins[] = {27, 28, 29, 30};
+static const unsigned int analr_addr_0_3_pins[] = {27, 28, 29, 30};
 static const unsigned int pwm_2_pins[] = {27};
 static const unsigned int pwm_3_pins[] = {28};
 
 static const unsigned int gpio_6_7_pins[] = {31, 32};
 static const unsigned int pcie_a3_clk_wak_pins[] = {31, 32};
-static const unsigned int nor_addr_4_5_pins[] = {31, 32};
+static const unsigned int analr_addr_4_5_pins[] = {31, 32};
 
 static const unsigned int gpio_8_9_pins[] = {33, 34};
 static const unsigned int pcie_b3_clk_wak_pins[] = {33, 34};
-static const unsigned int nor_addr_6_7_pins[] = {33, 34};
+static const unsigned int analr_addr_6_7_pins[] = {33, 34};
 
 static const unsigned int gpio_10_11_pins[] = {35, 36};
 static const unsigned int pcie_b2_clk_wak_pins[] = {35, 36};
-static const unsigned int nor_addr_8_9_pins[] = {35, 36};
+static const unsigned int analr_addr_8_9_pins[] = {35, 36};
 
 static const unsigned int gpio_12_13_pins[] = {37, 38};
 static const unsigned int pcie_a2_clk_wak_pins[] = {37, 38};
-static const unsigned int nor_addr_10_11_pins[] = {37, 38};
+static const unsigned int analr_addr_10_11_pins[] = {37, 38};
 
 static const unsigned int gpio_14_17_pins[] = {39, 40, 41, 42};
 static const unsigned int uart0_modem_pins[] = {39, 40, 41, 42};
-static const unsigned int nor_addr_12_15_pins[] = {39, 40, 41, 42};
+static const unsigned int analr_addr_12_15_pins[] = {39, 40, 41, 42};
 
 static const unsigned int gpio_18_19_pins[] = {43, 44};
 static const unsigned int uart0_rts_cts_pins[] = {43, 44};
@@ -378,39 +378,39 @@ static const unsigned int uart2_rts_cts_pins[] = {55, 56};
 }
 
 /*
- * List of Northstar2 pin groups
+ * List of Analrthstar2 pin groups
  */
 static const struct ns2_pin_group ns2_pin_groups[] = {
 	NS2_PIN_GROUP(nand, 0, 0, 31, 1, 0),
-	NS2_PIN_GROUP(nor_data, 0, 0, 31, 1, 1),
+	NS2_PIN_GROUP(analr_data, 0, 0, 31, 1, 1),
 	NS2_PIN_GROUP(gpio_0_1, 0, 0, 31, 1, 0),
 
 	NS2_PIN_GROUP(uart1_ext_clk, 0, 4, 30, 3, 1),
-	NS2_PIN_GROUP(nor_adv, 0, 4, 30, 3, 2),
+	NS2_PIN_GROUP(analr_adv, 0, 4, 30, 3, 2),
 
 	NS2_PIN_GROUP(gpio_2_5,	0, 4, 28, 3, 0),
 	NS2_PIN_GROUP(pcie_ab1_clk_wak, 0, 4, 28, 3, 1),
-	NS2_PIN_GROUP(nor_addr_0_3, 0, 4, 28, 3, 2),
+	NS2_PIN_GROUP(analr_addr_0_3, 0, 4, 28, 3, 2),
 
 	NS2_PIN_GROUP(gpio_6_7, 0, 4, 26, 3, 0),
 	NS2_PIN_GROUP(pcie_a3_clk_wak, 0, 4, 26, 3, 1),
-	NS2_PIN_GROUP(nor_addr_4_5, 0, 4, 26, 3, 2),
+	NS2_PIN_GROUP(analr_addr_4_5, 0, 4, 26, 3, 2),
 
 	NS2_PIN_GROUP(gpio_8_9, 0, 4, 24, 3, 0),
 	NS2_PIN_GROUP(pcie_b3_clk_wak, 0, 4, 24, 3, 1),
-	NS2_PIN_GROUP(nor_addr_6_7, 0, 4, 24, 3, 2),
+	NS2_PIN_GROUP(analr_addr_6_7, 0, 4, 24, 3, 2),
 
 	NS2_PIN_GROUP(gpio_10_11, 0, 4, 22, 3, 0),
 	NS2_PIN_GROUP(pcie_b2_clk_wak, 0, 4, 22, 3, 1),
-	NS2_PIN_GROUP(nor_addr_8_9, 0, 4, 22, 3, 2),
+	NS2_PIN_GROUP(analr_addr_8_9, 0, 4, 22, 3, 2),
 
 	NS2_PIN_GROUP(gpio_12_13, 0, 4, 20, 3, 0),
 	NS2_PIN_GROUP(pcie_a2_clk_wak, 0, 4, 20, 3, 1),
-	NS2_PIN_GROUP(nor_addr_10_11, 0, 4, 20, 3, 2),
+	NS2_PIN_GROUP(analr_addr_10_11, 0, 4, 20, 3, 2),
 
 	NS2_PIN_GROUP(gpio_14_17, 0, 4, 18, 3, 0),
 	NS2_PIN_GROUP(uart0_modem, 0, 4, 18, 3, 1),
-	NS2_PIN_GROUP(nor_addr_12_15, 0, 4, 18, 3, 2),
+	NS2_PIN_GROUP(analr_addr_12_15, 0, 4, 18, 3, 2),
 
 	NS2_PIN_GROUP(gpio_18_19, 0, 4, 16, 3, 0),
 	NS2_PIN_GROUP(uart0_rts_cts, 0, 4, 16, 3, 1),
@@ -445,9 +445,9 @@ static const struct ns2_pin_group ns2_pin_groups[] = {
 
 static const char * const nand_grps[] = {"nand_grp"};
 
-static const char * const nor_grps[] = {"nor_data_grp", "nor_adv_grp",
-	"nor_addr_0_3_grp", "nor_addr_4_5_grp",	"nor_addr_6_7_grp",
-	"nor_addr_8_9_grp", "nor_addr_10_11_grp", "nor_addr_12_15_grp"};
+static const char * const analr_grps[] = {"analr_data_grp", "analr_adv_grp",
+	"analr_addr_0_3_grp", "analr_addr_4_5_grp",	"analr_addr_6_7_grp",
+	"analr_addr_8_9_grp", "analr_addr_10_11_grp", "analr_addr_12_15_grp"};
 
 static const char * const gpio_grps[] = {"gpio_0_1_grp", "gpio_2_5_grp",
 	"gpio_6_7_grp",	"gpio_8_9_grp",	"gpio_10_11_grp", "gpio_12_13_grp",
@@ -483,7 +483,7 @@ static const char * const pwm_grps[] = {"pwm_0_grp", "pwm_1_grp",
  */
 static const struct ns2_pin_function ns2_pin_functions[] = {
 	NS2_PIN_FUNCTION(nand),
-	NS2_PIN_FUNCTION(nor),
+	NS2_PIN_FUNCTION(analr),
 	NS2_PIN_FUNCTION(gpio),
 	NS2_PIN_FUNCTION(pcie),
 	NS2_PIN_FUNCTION(uart0),
@@ -530,7 +530,7 @@ static const struct pinctrl_ops ns2_pinctrl_ops = {
 	.get_group_name = ns2_get_group_name,
 	.get_group_pins = ns2_get_group_pins,
 	.pin_dbg_show = ns2_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -797,7 +797,7 @@ static int ns2_pin_set_strength(struct pinctrl_dev *pctrldev, unsigned int pin,
 
 	/* make sure drive strength is supported */
 	if (strength < 2 || strength > 16 || (strength % 2))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	base_address = pinctrl->pinconf_base;
 	spin_lock_irqsave(&pinctrl->lock, flags);
@@ -842,7 +842,7 @@ static int ns2_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	int ret;
 
 	if (pin_data->pin_conf.base == -1)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
@@ -888,7 +888,7 @@ static int ns2_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			return -EINVAL;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -899,10 +899,10 @@ static int ns2_pin_config_set(struct pinctrl_dev *pctrldev, unsigned int pin,
 	enum pin_config_param param;
 	unsigned int i;
 	u32 arg;
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (pin_data->pin_conf.base == -1)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -947,7 +947,7 @@ static int ns2_pin_config_set(struct pinctrl_dev *pctrldev, unsigned int pin,
 
 		default:
 			dev_err(pctrldev->dev, "invalid configuration\n");
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 out:
@@ -982,7 +982,7 @@ static int ns2_mux_log_init(struct ns2_pinctrl *pinctrl)
 					sizeof(struct ns2_mux_log),
 					GFP_KERNEL);
 	if (!pinctrl->mux_log)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < NS2_NUM_IOMUX; i++)
 		pinctrl->mux_log[i].is_configured = false;
@@ -1030,7 +1030,7 @@ static int ns2_pinmux_probe(struct platform_device *pdev)
 
 	pinctrl = devm_kzalloc(&pdev->dev, sizeof(*pinctrl), GFP_KERNEL);
 	if (!pinctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pinctrl->dev = &pdev->dev;
 	platform_set_drvdata(pdev, pinctrl);
@@ -1047,7 +1047,7 @@ static int ns2_pinmux_probe(struct platform_device *pdev)
 					resource_size(res));
 	if (!pinctrl->base1) {
 		dev_err(&pdev->dev, "unable to map I/O space\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pinctrl->pinconf_base = devm_platform_ioremap_resource(pdev, 2);
@@ -1062,7 +1062,7 @@ static int ns2_pinmux_probe(struct platform_device *pdev)
 
 	pins = devm_kcalloc(&pdev->dev, num_pins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_pins; i++) {
 		pins[i].number = ns2_pins[i].pin;

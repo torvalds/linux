@@ -10,7 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -65,7 +65,7 @@ static int qs6612_config_init(struct phy_device *phydev)
 	 * set to one, bit 10, which specifies it should be set
 	 * to 0, and bit 7, which doesn't specify.  However, my
 	 * docs are preliminary, and I will leave it like this
-	 * until someone more knowledgable corrects me or it.
+	 * until someone more kanalwledgable corrects me or it.
 	 * -- Andy Fleming
 	 */
 	return phy_write(phydev, MII_QS6612_PCR, 0x0dc0);
@@ -75,7 +75,7 @@ static int qs6612_ack_interrupt(struct phy_device *phydev)
 {
 	int err;
 
-	/* The Interrupt Source register is not self-clearing, bits 4 and 5 are
+	/* The Interrupt Source register is analt self-clearing, bits 4 and 5 are
 	 * cleared when MII_BMSR is read and bits 1 and 3 are cleared when
 	 * MII_EXPANSION is read
 	 */
@@ -129,13 +129,13 @@ static irqreturn_t qs6612_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_QS6612_ISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MII_QS6612_IMR_INIT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* the interrupt source register is not self-clearing */
+	/* the interrupt source register is analt self-clearing */
 	qs6612_ack_interrupt(phydev);
 
 	phy_trigger_machine(phydev);

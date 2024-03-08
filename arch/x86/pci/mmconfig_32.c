@@ -44,7 +44,7 @@ static void pci_exp_set_dev_base(unsigned int base, int bus, int devfn)
 	    cpu != mmcfg_last_accessed_cpu) {
 		mmcfg_last_accessed_device = dev_base;
 		mmcfg_last_accessed_cpu = cpu;
-		set_fixmap_nocache(FIX_PCIE_MCFG, dev_base);
+		set_fixmap_analcache(FIX_PCIE_MCFG, dev_base);
 	}
 }
 

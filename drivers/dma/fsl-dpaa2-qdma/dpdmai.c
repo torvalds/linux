@@ -12,7 +12,7 @@ struct dpdmai_rsp_get_attributes {
 	u8 num_of_priorities;
 	u8 pad0[3];
 	__le16 major;
-	__le16 minor;
+	__le16 mianalr;
 };
 
 struct dpdmai_cmd_queue {
@@ -97,7 +97,7 @@ EXPORT_SYMBOL_GPL(dpdmai_open);
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPDMAI object
  *
- * After this function is called, no further operations are
+ * After this function is called, anal further operations are
  * allowed on the object without opening a new control session.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -272,7 +272,7 @@ int dpdmai_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags,
 	rsp_params = (struct dpdmai_rsp_get_attributes *)cmd.params;
 	attr->id = le32_to_cpu(rsp_params->id);
 	attr->version.major = le16_to_cpu(rsp_params->major);
-	attr->version.minor = le16_to_cpu(rsp_params->minor);
+	attr->version.mianalr = le16_to_cpu(rsp_params->mianalr);
 	attr->num_of_priorities = rsp_params->num_of_priorities;
 
 	return 0;

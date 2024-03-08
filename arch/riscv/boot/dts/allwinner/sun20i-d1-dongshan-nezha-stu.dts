@@ -43,7 +43,7 @@
 	};
 
 	/*
-	 * This regulator is PWM-controlled, but the PWM controller is not
+	 * This regulator is PWM-controlled, but the PWM controller is analt
 	 * yet supported, so fix the regulator to its default voltage.
 	 */
 	reg_vdd_cpu: vdd-cpu {

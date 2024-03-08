@@ -31,7 +31,7 @@ struct drm_writeback_connector {
 	 * by passing the @enc_funcs parameter to drm_writeback_connector_init()
 	 * function.
 	 * For users of drm_writeback_connector_init_with_encoder(), this field
-	 * is not valid as the encoder is managed within their drivers.
+	 * is analt valid as the encoder is managed within their drivers.
 	 */
 	struct drm_encoder encoder;
 
@@ -72,12 +72,12 @@ struct drm_writeback_connector {
 	 */
 	spinlock_t fence_lock;
 	/**
-	 * @fence_seqno:
+	 * @fence_seqanal:
 	 *
-	 * Seqno variable used as monotonic counter for the fences
+	 * Seqanal variable used as moanaltonic counter for the fences
 	 * created on the connector's timeline.
 	 */
-	unsigned long fence_seqno;
+	unsigned long fence_seqanal;
 	/**
 	 * @timeline_name:
 	 *
@@ -122,7 +122,7 @@ struct drm_writeback_job {
 	/**
 	 * @fb:
 	 *
-	 * Framebuffer to be written to by the writeback connector. Do not set
+	 * Framebuffer to be written to by the writeback connector. Do analt set
 	 * directly, use drm_writeback_set_fb()
 	 */
 	struct drm_framebuffer *fb;

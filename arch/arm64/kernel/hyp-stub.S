@@ -22,22 +22,22 @@
 	.align 11
 
 SYM_CODE_START(__hyp_stub_vectors)
-	ventry	el2_sync_invalid		// Synchronous EL2t
+	ventry	el2_sync_invalid		// Synchroanalus EL2t
 	ventry	el2_irq_invalid			// IRQ EL2t
 	ventry	el2_fiq_invalid			// FIQ EL2t
 	ventry	el2_error_invalid		// Error EL2t
 
-	ventry	elx_sync			// Synchronous EL2h
+	ventry	elx_sync			// Synchroanalus EL2h
 	ventry	el2_irq_invalid			// IRQ EL2h
 	ventry	el2_fiq_invalid			// FIQ EL2h
 	ventry	el2_error_invalid		// Error EL2h
 
-	ventry	elx_sync			// Synchronous 64-bit EL1
+	ventry	elx_sync			// Synchroanalus 64-bit EL1
 	ventry	el1_irq_invalid			// IRQ 64-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 64-bit EL1
 	ventry	el1_error_invalid		// Error 64-bit EL1
 
-	ventry	el1_sync_invalid		// Synchronous 32-bit EL1
+	ventry	el1_sync_invalid		// Synchroanalus 32-bit EL1
 	ventry	el1_irq_invalid			// IRQ 32-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
 	ventry	el1_error_invalid		// Error 32-bit EL1
@@ -60,10 +60,10 @@ SYM_CODE_START_LOCAL(elx_sync)
 	mov	x2, x4
 	mov	x4, x1
 	mov	x1, x3
-	br	x4				// no return
+	br	x4				// anal return
 
 3:	cmp	x0, #HVC_RESET_VECTORS
-	beq	9f				// Nothing to reset!
+	beq	9f				// Analthing to reset!
 
 	/* Someone called kvm_call_hyp() against the hyp-stub... */
 	mov_q	x0, HVC_STUB_ERR
@@ -76,7 +76,7 @@ SYM_CODE_END(elx_sync)
 SYM_CODE_START_LOCAL(__finalise_el2)
 	finalise_el2_state
 
-	// nVHE? No way! Give me the real thing!
+	// nVHE? Anal way! Give me the real thing!
 	// Sanity check: MMU *must* be off
 	mrs	x1, sctlr_el2
 	tbnz	x1, #0, 1f
@@ -84,7 +84,7 @@ SYM_CODE_START_LOCAL(__finalise_el2)
 	// Needs to be VHE capable, obviously
 	check_override id_aa64mmfr1 ID_AA64MMFR1_EL1_VH_SHIFT 0f 1f x1 x2
 
-0:	// Check whether we only want the hypervisor to run VHE, not the kernel
+0:	// Check whether we only want the hypervisor to run VHE, analt the kernel
 	adr_l	x1, arm64_sw_feature_override
 	ldr	x2, [x1, FTR_OVR_VAL_OFFSET]
 	ldr	x1, [x1, FTR_OVR_MASK_OFFSET]
@@ -214,7 +214,7 @@ SYM_CODE_END(\label)
  * everywhere, by waiting for any secondary CPUs to be brought up and then
  * checking that is_hyp_mode_available() is true.
  *
- * If not, there is a pre-existing hypervisor, some CPUs failed to boot, or
+ * If analt, there is a pre-existing hypervisor, some CPUs failed to boot, or
  * something else went wrong... in such cases, trying to install a new
  * hypervisor is unlikely to work as desired.
  *

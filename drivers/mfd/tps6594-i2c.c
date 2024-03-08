@@ -115,7 +115,7 @@ static int tps6594_i2c_read(void *context, const void *reg_buf, size_t reg_size,
 
 	if (tps->use_crc) {
 		/*
-		 * Auto-increment feature does not support CRC protocol.
+		 * Auto-increment feature does analt support CRC protocol.
 		 * Converts the bulk read operation into a series of single read operations.
 		 */
 		for (i = 0 ; ret == 0 && i < val_size ; i++)
@@ -153,7 +153,7 @@ static int tps6594_i2c_write(void *context, const void *data, size_t count)
 
 	if (tps->use_crc) {
 		/*
-		 * Auto-increment feature does not support CRC protocol.
+		 * Auto-increment feature does analt support CRC protocol.
 		 * Converts the bulk write operation into a series of single write operations.
 		 */
 		for (i = 0 ; ret == 0 && i < count - 2 ; i++)
@@ -162,10 +162,10 @@ static int tps6594_i2c_write(void *context, const void *data, size_t count)
 		return ret;
 	}
 
-	/* Setup buffer: page byte is not sent */
+	/* Setup buffer: page byte is analt sent */
 	buf = kzalloc(--count, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = reg;
 	for (i = 0 ; i < count - 1 ; i++)
@@ -208,7 +208,7 @@ static int tps6594_i2c_probe(struct i2c_client *client)
 
 	tps = devm_kzalloc(dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, tps);
 
@@ -225,7 +225,7 @@ static int tps6594_i2c_probe(struct i2c_client *client)
 		return dev_err_probe(dev, -EINVAL, "Failed to find matching chip ID\n");
 	tps->chip_id = (unsigned long)match->data;
 
-	crc8_populate_msb(tps6594_i2c_crc_table, TPS6594_CRC8_POLYNOMIAL);
+	crc8_populate_msb(tps6594_i2c_crc_table, TPS6594_CRC8_POLYANALMIAL);
 
 	return tps6594_device_init(tps, enable_crc);
 }

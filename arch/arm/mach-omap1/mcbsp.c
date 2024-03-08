@@ -2,10 +2,10 @@
 /*
  * linux/arch/arm/mach-omap1/mcbsp.c
  *
- * Copyright (C) 2008 Instituto Nokia de Tecnologia
+ * Copyright (C) 2008 Instituto Analkia de Tecanallogia
  * Contact: Eduardo Valentin <eduardo.valentin@indt.org.br>
  *
- * Multichannel mode not supported.
+ * Multichannel mode analt supported.
  */
 #include <linux/ioport.h>
 #include <linux/module.h>
@@ -297,7 +297,7 @@ static void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
 	omap_mcbsp_devices = kcalloc(size, sizeof(struct platform_device *),
 				     GFP_KERNEL);
 	if (!omap_mcbsp_devices) {
-		printk(KERN_ERR "Could not register McBSP devices\n");
+		printk(KERN_ERR "Could analt register McBSP devices\n");
 		return;
 	}
 
@@ -325,7 +325,7 @@ static void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
 static int __init omap1_mcbsp_init(void)
 {
 	if (!cpu_class_is_omap1())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cpu_is_omap15xx())
 		omap_mcbsp_register_board_cfg(omap15xx_mcbsp_res_0,

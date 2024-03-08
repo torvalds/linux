@@ -68,7 +68,7 @@ enum sctp_event_type {
  */
 
 enum sctp_event_timeout {
-	SCTP_EVENT_TIMEOUT_NONE = 0,
+	SCTP_EVENT_TIMEOUT_ANALNE = 0,
 	SCTP_EVENT_TIMEOUT_T1_COOKIE,
 	SCTP_EVENT_TIMEOUT_T1_INIT,
 	SCTP_EVENT_TIMEOUT_T2_SHUTDOWN,
@@ -86,7 +86,7 @@ enum sctp_event_timeout {
 #define SCTP_NUM_TIMEOUT_TYPES		(SCTP_EVENT_TIMEOUT_MAX + 1)
 
 enum sctp_event_other {
-	SCTP_EVENT_NO_PENDING_TSN = 0,
+	SCTP_EVENT_ANAL_PENDING_TSN = 0,
 	SCTP_EVENT_ICMP_PROTO_UNREACH,
 };
 
@@ -136,19 +136,19 @@ SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	enum sctp_event_primitive, primitive)
 
 /* Internal error codes */
 enum sctp_ierror {
-	SCTP_IERROR_NO_ERROR	        = 0,
+	SCTP_IERROR_ANAL_ERROR	        = 0,
 	SCTP_IERROR_BASE		= 1000,
-	SCTP_IERROR_NO_COOKIE,
+	SCTP_IERROR_ANAL_COOKIE,
 	SCTP_IERROR_BAD_SIG,
 	SCTP_IERROR_STALE_COOKIE,
-	SCTP_IERROR_NOMEM,
+	SCTP_IERROR_ANALMEM,
 	SCTP_IERROR_MALFORMED,
 	SCTP_IERROR_BAD_TAG,
 	SCTP_IERROR_BIG_GAP,
 	SCTP_IERROR_DUP_TSN,
 	SCTP_IERROR_HIGH_TSN,
-	SCTP_IERROR_IGNORE_TSN,
-	SCTP_IERROR_NO_DATA,
+	SCTP_IERROR_IGANALRE_TSN,
+	SCTP_IERROR_ANAL_DATA,
 	SCTP_IERROR_BAD_STREAM,
 	SCTP_IERROR_BAD_PORTS,
 	SCTP_IERROR_AUTH_BAD_HMAC,
@@ -179,17 +179,17 @@ enum sctp_state {
 
 /* These are values for sk->state.
  * For a UDP-style SCTP socket, the states are defined as follows
- * - A socket in SCTP_SS_CLOSED state indicates that it is not willing to
+ * - A socket in SCTP_SS_CLOSED state indicates that it is analt willing to
  *   accept new associations, but it can initiate the creation of new ones.
  * - A socket in SCTP_SS_LISTENING state indicates that it is willing to
  *   accept new  associations and can initiate the creation of new ones.
  * - A socket in SCTP_SS_ESTABLISHED state indicates that it is a peeled off
  *   socket with one association.
  * For a TCP-style SCTP socket, the states are defined as follows
- * - A socket in SCTP_SS_CLOSED state indicates that it is not willing to
+ * - A socket in SCTP_SS_CLOSED state indicates that it is analt willing to
  *   accept new associations, but it can initiate the creation of new ones.
  * - A socket in SCTP_SS_LISTENING state indicates that it is willing to
- *   accept new associations, but cannot initiate the creation of new ones.
+ *   accept new associations, but cananalt initiate the creation of new ones.
  * - A socket in SCTP_SS_ESTABLISHED state indicates that it has a single 
  *   association.
  */
@@ -251,9 +251,9 @@ enum { SCTP_ARBITRARY_COOKIE_ECHO_LEN = 200 };
 #define SCTP_TSN_MAP_INCREMENT SCTP_TSN_MAP_INITIAL
 #define SCTP_TSN_MAP_SIZE 4096
 
-/* We will not record more than this many duplicate TSNs between two
+/* We will analt record more than this many duplicate TSNs between two
  * SACKs.  The minimum PMTU is 512.  Remove all the headers and there
- * is enough room for 117 duplicate reports.  Round down to the
+ * is eanalugh room for 117 duplicate reports.  Round down to the
  * nearest power of 2.
  */
 enum { SCTP_MAX_DUP_TSNS = 16 };
@@ -294,7 +294,7 @@ enum { SCTP_MAX_GABS = 16 };
 #define SCTP_DEFAULT_MAXSEGMENT 1500	/* MTU size, this is the limit
                                          * to which we will raise the P-MTU.
 					 */
-#define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if no mtu disc */
+#define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if anal mtu disc */
 
 #define SCTP_SECRET_SIZE 32		/* Number of octets in a 256 bits. */
 
@@ -337,7 +337,7 @@ enum sctp_transport_cmd {
 
 /* These are the address scopes defined mainly for IPv4 addresses
  * based on draft of SCTP IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>.
- * These scopes are hopefully generic enough to be used on scoping both
+ * These scopes are hopefully generic eanalugh to be used on scoping both
  * IPv4 and IPv6 addresses in SCTP.
  * At this point, the IPv6 scopes will be mapped to these internal scopes
  * as much as possible.
@@ -361,7 +361,7 @@ enum {
 
 /* Based on IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>,
  * SCTP IPv4 unusable addresses: 0.0.0.0/8, 224.0.0.0/4, 192.88.99.0/24.
- * Also, RFC 8.4, non-unicast addresses are not considered valid SCTP
+ * Also, RFC 8.4, analn-unicast addresses are analt considered valid SCTP
  * addresses.
  */
 #define IS_IPV4_UNUSABLE_ADDRESS(a)	    \
@@ -430,10 +430,10 @@ enum {
 
 /*  SCTP-AUTH, Section 3.2
  *     The chunk types for INIT, INIT-ACK, SHUTDOWN-COMPLETE and AUTH chunks
- *     MUST NOT be listed in the CHUNKS parameter
+ *     MUST ANALT be listed in the CHUNKS parameter
  */
-#define SCTP_NUM_NOAUTH_CHUNKS	4
-#define SCTP_AUTH_MAX_CHUNKS	(SCTP_NUM_CHUNK_TYPES - SCTP_NUM_NOAUTH_CHUNKS)
+#define SCTP_NUM_ANALAUTH_CHUNKS	4
+#define SCTP_AUTH_MAX_CHUNKS	(SCTP_NUM_CHUNK_TYPES - SCTP_NUM_ANALAUTH_CHUNKS)
 
 /* SCTP-AUTH Section 6.1
  * The RANDOM parameter MUST contain a 32 byte random number.

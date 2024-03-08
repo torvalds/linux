@@ -124,7 +124,7 @@ static void put_whole_buffer(struct net_device *dev, unsigned offset,
 #endif
 }
 
-/* We cannot probe for an IO mapped card either, although we can check that
+/* We cananalt probe for an IO mapped card either, although we can check that
  * it's where we were told it was, and even autoirq
  */
 static int __init com90io_probe(struct net_device *dev)
@@ -132,14 +132,14 @@ static int __init com90io_probe(struct net_device *dev)
 	int ioaddr = dev->base_addr, status;
 	unsigned long airqmask;
 
-	if (BUGLVL(D_NORMAL)) {
+	if (BUGLVL(D_ANALRMAL)) {
 		pr_info("%s\n", "COM90xx IO-mapped mode support (by David Woodhouse et el.)");
 		pr_info("E-mail me if you actually test this driver, please!\n");
 	}
 
 	if (!ioaddr) {
-		arc_printk(D_NORMAL, dev, "No autoprobe for IO mapped cards; you must specify the base address!\n");
-		return -ENODEV;
+		arc_printk(D_ANALRMAL, dev, "Anal autoprobe for IO mapped cards; you must specify the base address!\n");
+		return -EANALDEV;
 	}
 	if (!request_region(ioaddr, ARCNET_TOTAL_SIZE, "com90io probe")) {
 		arc_printk(D_INIT_REASONS, dev, "IO request_region %x-%x failed\n",
@@ -156,7 +156,7 @@ static int __init com90io_probe(struct net_device *dev)
 
 	status = arcnet_inb(ioaddr, COM9026_REG_R_STATUS);
 
-	if ((status & 0x9D) != (NORXflag | RECONflag | TXFREEflag | RESETflag)) {
+	if ((status & 0x9D) != (ANALRXflag | RECONflag | TXFREEflag | RESETflag)) {
 		arc_printk(D_INIT_REASONS, dev, "Status invalid (%Xh)\n",
 			   status);
 		goto err_out;
@@ -166,7 +166,7 @@ static int __init com90io_probe(struct net_device *dev)
 	arcnet_outb(CFLAGScmd | RESETclear | CONFIGclear,
 		    ioaddr, COM9026_REG_W_COMMAND);
 
-	arc_printk(D_INIT_REASONS, dev, "Status after reset acknowledged: %X\n",
+	arc_printk(D_INIT_REASONS, dev, "Status after reset ackanalwledged: %X\n",
 		   status);
 
 	status = arcnet_inb(ioaddr, COM9026_REG_R_STATUS);
@@ -186,18 +186,18 @@ static int __init com90io_probe(struct net_device *dev)
 
 	status = arcnet_inb(ioaddr, COM9026_REG_RW_MEMDATA);
 	if (status != 0xd1) {
-		arc_printk(D_INIT_REASONS, dev, "Signature byte not found (%Xh instead).\n",
+		arc_printk(D_INIT_REASONS, dev, "Signature byte analt found (%Xh instead).\n",
 			   status);
 		goto err_out;
 	}
 	if (!dev->irq) {
 		/* if we do this, we're sure to get an IRQ since the
-		 * card has just reset and the NORXflag is on until
+		 * card has just reset and the ANALRXflag is on until
 		 * we tell it to start receiving.
 		 */
 
 		airqmask = probe_irq_on();
-		arcnet_outb(NORXflag, ioaddr, COM9026_REG_W_INTMASK);
+		arcnet_outb(ANALRXflag, ioaddr, COM9026_REG_W_INTMASK);
 		udelay(1);
 		arcnet_outb(0, ioaddr, COM9026_REG_W_INTMASK);
 		dev->irq = probe_irq_off(airqmask);
@@ -212,7 +212,7 @@ static int __init com90io_probe(struct net_device *dev)
 
 err_out:
 	release_region(ioaddr, ARCNET_TOTAL_SIZE);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* Set up the struct net_device associated with this card.  Called after
@@ -227,8 +227,8 @@ static int __init com90io_found(struct net_device *dev)
 	/* Reserve the irq */
 	if (request_irq(dev->irq, arcnet_interrupt, 0,
 			"arcnet (COM90xx-IO)", dev)) {
-		arc_printk(D_NORMAL, dev, "Can't get IRQ %d!\n", dev->irq);
-		return -ENODEV;
+		arc_printk(D_ANALRMAL, dev, "Can't get IRQ %d!\n", dev->irq);
+		return -EANALDEV;
 	}
 	/* Reserve the I/O region */
 	if (!request_region(dev->base_addr, ARCNET_TOTAL_SIZE,
@@ -263,7 +263,7 @@ static int __init com90io_found(struct net_device *dev)
 		return err;
 	}
 
-	arc_printk(D_NORMAL, dev, "COM90IO: station %02Xh found at %03lXh, IRQ %d.\n",
+	arc_printk(D_ANALRMAL, dev, "COM90IO: station %02Xh found at %03lXh, IRQ %d.\n",
 		   dev->dev_addr[0], dev->base_addr, dev->irq);
 
 	return 0;
@@ -299,7 +299,7 @@ static int com90io_reset(struct net_device *dev, int really_reset)
 
 	/* verify that the ARCnet signature byte is present */
 	if (get_buffer_byte(dev, 0) != TESTvalue) {
-		arc_printk(D_NORMAL, dev, "reset failed: TESTvalue not present.\n");
+		arc_printk(D_ANALRMAL, dev, "reset failed: TESTvalue analt present.\n");
 		return 1;
 	}
 	/* enable extended (512-byte) packets */
@@ -387,7 +387,7 @@ static int __init com90io_init(void)
 
 	dev = alloc_arcdev(device);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->base_addr = io;
 	dev->irq = irq;

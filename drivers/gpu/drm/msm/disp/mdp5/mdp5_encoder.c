@@ -37,7 +37,7 @@ static void mdp5_vid_encoder_mode_set(struct drm_encoder *encoder,
 
 	ctrl_pol = 0;
 
-	/* DSI controller cannot handle active-low sync signals. */
+	/* DSI controller cananalt handle active-low sync signals. */
 	if (mdp5_encoder->intf->type != INTF_DSI) {
 		if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 			ctrl_pol |= MDP5_INTF_POLARITY_CTL_HSYNC_LOW;
@@ -139,12 +139,12 @@ static void mdp5_vid_encoder_disable(struct drm_encoder *encoder)
 	mdp5_ctl_commit(ctl, pipeline, mdp_ctl_flush_mask_encoder(intf), true);
 
 	/*
-	 * Wait for a vsync so we know the ENABLE=0 latched before
+	 * Wait for a vsync so we kanalw the ENABLE=0 latched before
 	 * the (connector) source of the vsync's gets disabled,
 	 * otherwise we end up in a funny state if we re-enable
 	 * before the disable latches, which results that some of
 	 * the settings changes for the new modeset (like new
-	 * scanout buffer) don't latch properly..
+	 * scaanalut buffer) don't latch properly..
 	 */
 	mdp_irq_wait(&mdp5_kms->base, intf2vblank(mixer, intf));
 
@@ -227,10 +227,10 @@ static int mdp5_encoder_atomic_check(struct drm_encoder *encoder,
 
 	/*
 	 * This is a bit awkward, but we want to flush the CTL and hit the
-	 * START bit at most once for an atomic update.  In the non-full-
+	 * START bit at most once for an atomic update.  In the analn-full-
 	 * modeset case, this is done from crtc->atomic_flush(), but that
 	 * is too early in the case of full modeset, in which case we
-	 * defer to encoder->enable().  But we need to *know* whether
+	 * defer to encoder->enable().  But we need to *kanalw* whether
 	 * encoder->enable() will be called to do this:
 	 */
 	if (drm_atomic_crtc_needs_modeset(crtc_state))
@@ -318,7 +318,7 @@ void mdp5_encoder_set_intf_mode(struct drm_encoder *encoder, bool cmd_mode)
 		if (intf->type == INTF_DSI)
 			intf->mode = MDP5_INTF_DSI_MODE_VIDEO;
 		else
-			intf->mode = MDP5_INTF_MODE_NONE;
+			intf->mode = MDP5_INTF_MODE_ANALNE;
 	}
 }
 

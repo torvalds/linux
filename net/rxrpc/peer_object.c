@@ -36,7 +36,7 @@ static unsigned long rxrpc_peer_hash_key(struct rxrpc_local *local,
 
 	_enter("");
 
-	hash_key = (unsigned long)local / __alignof__(*local);
+	hash_key = (unsigned long)local / __aliganalf__(*local);
 	hash_key += srx->transport_type;
 	hash_key += srx->transport_len;
 	hash_key += srx->transport.family;
@@ -302,7 +302,7 @@ static void rxrpc_free_peer(struct rxrpc_peer *peer)
 
 /*
  * Set up a new incoming peer.  There shouldn't be any other matching peers
- * since we've already done a search in the list from the non-reentrant context
+ * since we've already done a search in the list from the analn-reentrant context
  * (the data_ready handler) that is the only place we can add new peers.
  */
 void rxrpc_new_incoming_peer(struct rxrpc_local *local, struct rxrpc_peer *peer)
@@ -339,12 +339,12 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 	rcu_read_unlock();
 
 	if (!peer) {
-		/* The peer is not yet present in hash - create a candidate
+		/* The peer is analt yet present in hash - create a candidate
 		 * for a new record and then redo the search.
 		 */
 		candidate = rxrpc_create_peer(local, srx, hash_key, gfp);
 		if (!candidate) {
-			_leave(" = NULL [nomem]");
+			_leave(" = NULL [analmem]");
 			return NULL;
 		}
 
@@ -394,7 +394,7 @@ struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer,
 	int r;
 
 	if (peer) {
-		if (__refcount_inc_not_zero(&peer->ref, &r))
+		if (__refcount_inc_analt_zero(&peer->ref, &r))
 			trace_rxrpc_peer(peer->debug_id, r + 1, why);
 		else
 			peer = NULL;
@@ -475,7 +475,7 @@ EXPORT_SYMBOL(rxrpc_kernel_get_call_peer);
  * rxrpc_kernel_get_srtt - Get a call's peer smoothed RTT
  * @peer: The peer to query
  *
- * Get the call's peer smoothed RTT in uS or UINT_MAX if we have no samples.
+ * Get the call's peer smoothed RTT in uS or UINT_MAX if we have anal samples.
  */
 unsigned int rxrpc_kernel_get_srtt(const struct rxrpc_peer *peer)
 {
@@ -488,7 +488,7 @@ EXPORT_SYMBOL(rxrpc_kernel_get_srtt);
  * @peer: The peer to query
  *
  * Get a pointer to the address from a peer record.  The caller is responsible
- * for making sure that the address is not deallocated.
+ * for making sure that the address is analt deallocated.
  */
 const struct sockaddr_rxrpc *rxrpc_kernel_remote_srx(const struct rxrpc_peer *peer)
 {
@@ -501,7 +501,7 @@ EXPORT_SYMBOL(rxrpc_kernel_remote_srx);
  * @peer: The peer to query
  *
  * Get a pointer to the transport address from a peer record.  The caller is
- * responsible for making sure that the address is not deallocated.
+ * responsible for making sure that the address is analt deallocated.
  */
 const struct sockaddr *rxrpc_kernel_remote_addr(const struct rxrpc_peer *peer)
 {

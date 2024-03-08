@@ -276,7 +276,7 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 
 	/* hw will set stats->decrypted true, if it finds the
 	 * frame is open data frame or mgmt frame,
-	 * hw will not decrypt robust managment frame
+	 * hw will analt decrypt robust managment frame
 	 * for IEEE80211w but still set stats->decrypted
 	 * true, so here we should set it back to undecrypted
 	 * for IEEE80211w frame, and mac80211 sw will help
@@ -470,9 +470,9 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		set_tx_desc_user_rate(pdesc,
 				      ptcb_desc->use_driver_rate ? 1 : 0);
 
-		/* Set NON_QOS bit. */
+		/* Set ANALN_QOS bit. */
 		if (!ieee80211_is_data_qos(fc))
-			set_tx_desc_non_qos(pdesc, 1);
+			set_tx_desc_analn_qos(pdesc, 1);
 
 	}
 
@@ -520,7 +520,7 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
 		set_tx_desc_first_seg(pdesc, 1);
 		set_tx_desc_last_seg(pdesc, 1);
 
-		/* 92SE need not to set TX packet size when firmware download */
+		/* 92SE need analt to set TX packet size when firmware download */
 		set_tx_desc_pkt_size(pdesc, (u16)(skb->len));
 		set_tx_desc_tx_buffer_size(pdesc, (u16)(skb->len));
 		set_tx_desc_tx_buffer_address(pdesc, mapping);
@@ -565,7 +565,7 @@ void rtl92se_set_desc(struct ieee80211_hw *hw, u8 *pdesc8, bool istx,
 			set_tx_desc_next_desc_address(pdesc, *(u32 *)val);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8192se: ERR txdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8192se: ERR txdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -585,7 +585,7 @@ void rtl92se_set_desc(struct ieee80211_hw *hw, u8 *pdesc8, bool istx,
 			set_rx_status_desc_eor(pdesc, 1);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8192se: ERR rxdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8192se: ERR rxdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -607,7 +607,7 @@ u64 rtl92se_get_desc(struct ieee80211_hw *hw,
 			ret = get_tx_desc_tx_buffer_address(desc);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8192se: ERR txdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8192se: ERR txdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -623,7 +623,7 @@ u64 rtl92se_get_desc(struct ieee80211_hw *hw,
 			ret = get_rx_status_desc_buff_addr(desc);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8192se: ERR rxdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8192se: ERR rxdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}

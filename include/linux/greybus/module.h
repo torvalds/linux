@@ -16,7 +16,7 @@ struct gb_module {
 	struct device dev;
 	struct gb_host_device *hd;
 
-	struct list_head hd_node;
+	struct list_head hd_analde;
 
 	u8 module_id;
 	size_t num_interfaces;

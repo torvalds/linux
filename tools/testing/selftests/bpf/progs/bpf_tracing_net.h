@@ -30,7 +30,7 @@
 #define TC_ACT_SHOT		2
 
 #define SOL_TCP			6
-#define TCP_NODELAY		1
+#define TCP_ANALDELAY		1
 #define TCP_MAXSEG		2
 #define TCP_KEEPIDLE		4
 #define TCP_KEEPINTVL		5
@@ -40,7 +40,7 @@
 #define TCP_CONGESTION		13
 #define TCP_THIN_LINEAR_TIMEOUTS	16
 #define TCP_USER_TIMEOUT	18
-#define TCP_NOTSENT_LOWAT	25
+#define TCP_ANALTSENT_LOWAT	25
 #define TCP_SAVE_SYN		27
 #define TCP_SAVED_SYN		28
 #define TCP_CA_NAME_MAX		16
@@ -54,7 +54,7 @@
 #define ETH_HLEN		14
 #define ETH_P_IPV6		0x86DD
 
-#define CHECKSUM_NONE		0
+#define CHECKSUM_ANALNE		0
 #define CHECKSUM_PARTIAL	3
 
 #define IFNAMSIZ		16

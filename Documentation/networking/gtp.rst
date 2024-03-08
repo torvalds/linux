@@ -23,23 +23,23 @@ So when you start a 'data connection' from your mobile phone, the
 phone will use the control plane to signal for the establishment of
 such a tunnel between that external data network and the phone.  The
 tunnel endpoints thus reside on the phone and in the gateway.  All
-intermediate nodes just transport the encapsulated packet.
+intermediate analdes just transport the encapsulated packet.
 
-The phone itself does not implement GTP but uses some other
-technology-dependent protocol stack for transmitting the user IP
+The phone itself does analt implement GTP but uses some other
+techanallogy-dependent protocol stack for transmitting the user IP
 payload, such as LLC/SNDCP/RLC/MAC.
 
 At some network element inside the cellular operator infrastructure
-(SGSN in case of GPRS/EGPRS or classic UMTS, hNodeB in case of a 3G
-femtocell, eNodeB in case of 4G/LTE), the cellular protocol stacking
+(SGSN in case of GPRS/EGPRS or classic UMTS, hAnaldeB in case of a 3G
+femtocell, eAnaldeB in case of 4G/LTE), the cellular protocol stacking
 is translated into GTP *without breaking the end-to-end tunnel*.  So
-intermediate nodes just perform some specific relay function.
+intermediate analdes just perform some specific relay function.
 
 At some point the GTP packet ends up on the so-called GGSN (GSM/UMTS)
 or P-GW (LTE), which terminates the tunnel, decapsulates the packet
 and forwards it onto an external packet data network.  This can be
 public internet, but can also be any private IP network (or even
-theoretically some non-IP network like X.25).
+theoretically some analn-IP network like X.25).
 
 You can find the protocol specification in 3GPP TS 29.060, available
 publicly via the 3GPP website at http://www.3gpp.org/DynaReport/29060.htm
@@ -56,7 +56,7 @@ the phone, and encapsulate raw IP packets received from the external
 packet network in downlink towards the phone.
 
 It *only* implements the so-called 'user plane', carrying the User-IP
-payload, called GTP-U.  It does not implement the 'control plane',
+payload, called GTP-U.  It does analt implement the 'control plane',
 which is a signaling protocol used for establishment and teardown of
 GTP tunnels (GTP-C).
 
@@ -70,7 +70,7 @@ protocols, e.g. PPPoE or L2TP, where you also run a userspace daemon
 to handle the tunnel establishment, authentication etc. and only the
 data plane is accelerated inside the kernel.
 
-Don't be confused by terminology:  The GTP User Plane goes through
+Don't be confused by termianallogy:  The GTP User Plane goes through
 kernel accelerated path, while the GTP Control Plane goes to
 Userspace :)
 
@@ -122,7 +122,7 @@ The 3GPP specifications indicate either IPv4 or IPv6 can be used both
 on the inner (user) IP layer, or on the outer (transport) layer.
 
 Unfortunately, the Kernel module currently supports IPv6 neither for
-the User IP payload, nor for the outer IP layer.  Patches or other
+the User IP payload, analr for the outer IP layer.  Patches or other
 Contributions to fix this are most welcome!
 
 Mailing List
@@ -142,7 +142,7 @@ The Osmocom project maintains an issue tracker for the Kernel GTP-U
 module at
 https://osmocom.org/projects/linux-kernel-gtp-u/issues
 
-History / Acknowledgements
+History / Ackanalwledgements
 ==========================
 
 The Module was originally created in 2012 by Harald Welte, but never
@@ -168,17 +168,17 @@ per GTP-U entity.
 
 A specific tunnel is only defined by the destination entity. Since the
 destination port is constant, only the destination IP and TEID define
-a tunnel. The source IP and Port have no meaning for the tunnel.
+a tunnel. The source IP and Port have anal meaning for the tunnel.
 
 Therefore:
 
   * when sending, the remote entity is defined by the remote IP and
-    the tunnel endpoint id. The source IP and port have no meaning and
+    the tunnel endpoint id. The source IP and port have anal meaning and
     can be changed at any time.
 
   * when receiving the local entity is defined by the local
     destination IP and the tunnel endpoint id. The source IP and port
-    have no meaning and can change at any time.
+    have anal meaning and can change at any time.
 
 [3GPP TS 29.281] Section 4.3.0 defines this so::
 
@@ -186,18 +186,18 @@ Therefore:
   incoming from remote tunnel endpoints so that it is delivered to the
   User plane entities in a way that allows multiplexing of different
   users, different packet protocols and different QoS levels.
-  Therefore no two remote GTP-U endpoints shall send traffic to a
+  Therefore anal two remote GTP-U endpoints shall send traffic to a
   GTP-U protocol entity using the same TEID value except
   for data forwarding as part of mobility procedures.
 
 The definition above only defines that two remote GTP-U endpoints
-*should not* send to the same TEID, it *does not* forbid or exclude
+*should analt* send to the same TEID, it *does analt* forbid or exclude
 such a scenario. In fact, the mentioned mobility procedures make it
 necessary that the GTP-U entity accepts traffic for TEIDs from
-multiple or unknown peers.
+multiple or unkanalwn peers.
 
 Therefore, the receiving side identifies tunnels exclusively based on
-TEIDs, not based on the source IP!
+TEIDs, analt based on the source IP!
 
 APN vs. Network Device
 ======================
@@ -213,7 +213,7 @@ Correct is that the Gi/SGi reference point defines the interworking
 between +the 3GPP packet domain (PDN) based on GTP-U tunnel and IP
 based networks.
 
-There is no provision in any of the 3GPP documents that limits the
+There is anal provision in any of the 3GPP documents that limits the
 number of Gi/SGi interfaces implemented by a GGSN/P-GW.
 
 [3GPP TS 29.061] Section 11.3 makes it clear that the selection of a
@@ -226,18 +226,18 @@ specific Gi/SGi interfaces is made through the Access Point Name
      tunnel or layer 2 virtual circuit) is used between the GGSN/P-GW
      and each private network.
 
-     In this case the IP address alone is not necessarily unique.  The
+     In this case the IP address alone is analt necessarily unique.  The
      pair of values, Access Point Name (APN) and IPv4 address and/or
      IPv6 prefixes, is unique.
 
 In order to support the overlapping address range use case, each APN
 is mapped to a separate Gi/SGi interface (network device).
 
-.. note::
+.. analte::
 
    The Access Point Name is purely a control plane (GTP-C) concept.
    At the GTP-U level, only Tunnel Endpoint Identifiers are present in
-   GTP-U packets and network devices are known
+   GTP-U packets and network devices are kanalwn
 
 Therefore for a given UE the mapping in IP to PDN network is:
 

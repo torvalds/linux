@@ -11,7 +11,7 @@
 /* struct iscsi_seq->type */
 #define SEQTYPE_IMMEDIATE			1
 #define SEQTYPE_UNSOLICITED			2
-#define SEQTYPE_NORMAL				3
+#define SEQTYPE_ANALRMAL				3
 
 /* struct iscsi_seq->status */
 #define DATAOUT_SEQUENCE_GOT_R2T		1
@@ -19,7 +19,7 @@
 #define DATAOUT_SEQUENCE_COMPLETE		3
 
 /* iscsi_determine_counts_for_list() type */
-#define PDULIST_NORMAL				1
+#define PDULIST_ANALRMAL				1
 #define PDULIST_IMMEDIATE			2
 #define PDULIST_UNSOLICITED			3
 #define PDULIST_IMMEDIATE_AND_UNSOLICITED	4
@@ -27,10 +27,10 @@
 /* struct iscsi_pdu->type */
 #define PDUTYPE_IMMEDIATE			1
 #define PDUTYPE_UNSOLICITED			2
-#define PDUTYPE_NORMAL				3
+#define PDUTYPE_ANALRMAL				3
 
 /* struct iscsi_pdu->status */
-#define ISCSI_PDU_NOT_RECEIVED			0
+#define ISCSI_PDU_ANALT_RECEIVED			0
 #define ISCSI_PDU_RECEIVED_OK			1
 #define ISCSI_PDU_CRC_FAILED			2
 #define ISCSI_PDU_TIMED_OUT			3
@@ -60,7 +60,7 @@ struct iscsi_pdu {
 	u32		length;
 	u32		offset;
 	u32		pdu_send_order;
-	u32		seq_no;
+	u32		seq_anal;
 } ____cacheline_aligned;
 
 struct iscsi_seq {
@@ -78,7 +78,7 @@ struct iscsi_seq {
 	u32		pdu_send_order;
 	u32		r2t_sn;
 	u32		seq_send_order;
-	u32		seq_no;
+	u32		seq_anal;
 	u32		xfer_len;
 } ____cacheline_aligned;
 

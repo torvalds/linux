@@ -12,14 +12,14 @@
 
 /* lock ids are made up in the following manner:
  * name[0]     --> type
- * name[1-6]   --> 6 pad characters, reserved for now
+ * name[1-6]   --> 6 pad characters, reserved for analw
  * name[7-22]  --> block number, expressed in hex as 16 chars
  * name[23-30] --> i_generation, expressed in hex 8 chars
  * name[31]    --> '\0' */
 #define OCFS2_LOCK_ID_MAX_LEN  32
 #define OCFS2_LOCK_ID_PAD "000000"
 
-#define OCFS2_DENTRY_LOCK_INO_START 18
+#define OCFS2_DENTRY_LOCK_IANAL_START 18
 
 enum ocfs2_lock_type {
 	OCFS2_LOCK_TYPE_META = 0,

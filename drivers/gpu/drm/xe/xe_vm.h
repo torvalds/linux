@@ -26,7 +26,7 @@ struct drm_exec;
 struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags);
 
 struct xe_vm *xe_vm_lookup(struct xe_file *xef, u32 id);
-int xe_vma_cmp_vma_cb(const void *key, const struct rb_node *node);
+int xe_vma_cmp_vma_cb(const void *key, const struct rb_analde *analde);
 
 static inline struct xe_vm *xe_vm_get(struct xe_vm *vm)
 {
@@ -45,7 +45,7 @@ void xe_vm_unlock(struct xe_vm *vm);
 
 static inline bool xe_vm_is_closed(struct xe_vm *vm)
 {
-	/* Only guaranteed not to change when vm->lock is held */
+	/* Only guaranteed analt to change when vm->lock is held */
 	return !vm->size;
 }
 
@@ -150,14 +150,14 @@ static inline bool xe_vma_is_null(struct xe_vma *vma)
 	return vma->gpuva.flags & DRM_GPUVA_SPARSE;
 }
 
-static inline bool xe_vma_has_no_bo(struct xe_vma *vma)
+static inline bool xe_vma_has_anal_bo(struct xe_vma *vma)
 {
 	return !xe_vma_bo(vma);
 }
 
 static inline bool xe_vma_is_userptr(struct xe_vma *vma)
 {
-	return xe_vma_has_no_bo(vma) && !xe_vma_is_null(vma);
+	return xe_vma_has_anal_bo(vma) && !xe_vma_is_null(vma);
 }
 
 /**
@@ -225,7 +225,7 @@ static inline void xe_vm_queue_rebind_worker(struct xe_vm *vm)
  * @vm: The vm.
  *
  * If the rebind functionality on a compute vm was disabled due
- * to nothing to execute. Reactivate it and run the rebind worker.
+ * to analthing to execute. Reactivate it and run the rebind worker.
  * This function should be called after submitting a batch to a compute vm.
  */
 static inline void xe_vm_reactivate_rebind(struct xe_vm *vm)
@@ -270,6 +270,6 @@ static inline struct dma_resv *xe_vm_resv(struct xe_vm *vm)
 __printf(2, 3)
 static inline void vm_dbg(const struct drm_device *dev,
 			  const char *format, ...)
-{ /* noop */ }
+{ /* analop */ }
 #endif
 #endif

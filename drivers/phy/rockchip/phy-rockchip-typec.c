@@ -31,9 +31,9 @@
  *    EXTCON_USB_HOST and EXTCON_DISP_DP are both true, and
  *    EXTCON_PROP_USB_SS property is true.
  *
- * This Type-C PHY driver supports normal and flip orientation. The orientation
+ * This Type-C PHY driver supports analrmal and flip orientation. The orientation
  * is reported by the EXTCON_PROP_USB_TYPEC_POLARITY property: true is flip
- * orientation, false is normal orientation.
+ * orientation, false is analrmal orientation.
  */
 
 #include <linux/clk.h>
@@ -102,7 +102,7 @@
 /* For CMN_TXPUCAL_CTRL, CMN_TXPDCAL_CTRL */
 #define CMN_TXPXCAL_START		BIT(15)
 #define CMN_TXPXCAL_DONE		BIT(14)
-#define CMN_TXPXCAL_NO_RESPONSE		BIT(13)
+#define CMN_TXPXCAL_ANAL_RESPONSE		BIT(13)
 #define CMN_TXPXCAL_CURRENT_RESPONSE	BIT(12)
 
 #define CMN_TXPU_ADJ_CTRL		(0x108 << 2)
@@ -112,7 +112,7 @@
  * For CMN_TXPUCAL_CTRL, CMN_TXPDCAL_CTRL,
  *     CMN_TXPU_ADJ_CTRL, CMN_TXPDCAL_CTRL
  *
- * NOTE: some of these registers are documented to be 2's complement
+ * ANALTE: some of these registers are documented to be 2's complement
  * signed numbers, but then documented to be always positive.  Weird.
  * In such a case, using CMN_CALIB_CODE_POS() avoids the unnecessary
  * sign extension.
@@ -574,7 +574,7 @@ static void tcphy_dp_aux_set_flip(struct rockchip_typec_phy *tcphy)
 	 * Select the polarity of the xcvr:
 	 * 1, Reverses the polarity (If TYPEC, Pulls ups aux_p and pull
 	 * down aux_m)
-	 * 0, Normal polarity (if TYPEC, pulls up aux_m and pulls down
+	 * 0, Analrmal polarity (if TYPEC, pulls up aux_m and pulls down
 	 * aux_p)
 	 */
 	tx_ana_ctrl_reg_1 = readl(tcphy->base + TX_ANA_CTRL_REG_1);
@@ -694,7 +694,7 @@ static void tcphy_dp_aux_calibration(struct rockchip_typec_phy *tcphy)
 
 	/*
 	 * Undo the work we did to set the LDO voltage.
-	 * This doesn't seem to help nor hurt, but it kinda goes with the
+	 * This doesn't seem to help analr hurt, but it kinda goes with the
 	 * undocumented magic above.
 	 */
 	writel(0, tcphy->base + TX_ANA_CTRL_REG_4);
@@ -702,12 +702,12 @@ static void tcphy_dp_aux_calibration(struct rockchip_typec_phy *tcphy)
 	/* Don't set voltage swing to 400 mV peak to peak (differential) */
 	writel(0, tcphy->base + TXDA_COEFF_CALC_CTRL);
 
-	/* Init TXDA_CYA_AUXDA_CYA for unknown magic reasons */
+	/* Init TXDA_CYA_AUXDA_CYA for unkanalwn magic reasons */
 	writel(0, tcphy->base + TXDA_CYA_AUXDA_CYA);
 
 	/*
 	 * More undocumented magic, presumably the goal of which is to
-	 * make the "auxda_source_aux_oen" be ignored and instead to decide
+	 * make the "auxda_source_aux_oen" be iganalred and instead to decide
 	 * about "high impedance state" based on what software puts in the
 	 * register TXDA_COEFF_CALC_CTRL (see TX_HIGH_Z).  Since we only
 	 * program that register once and we don't set the bit TX_HIGH_Z,
@@ -957,7 +957,7 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 	}
 
 	if (!(new_mode & MODE_DFP_DP)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_ret;
 	}
 
@@ -965,7 +965,7 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 		goto unlock_ret;
 
 	/*
-	 * If the PHY has been power on, but the mode is not DP only mode,
+	 * If the PHY has been power on, but the mode is analt DP only mode,
 	 * re-init the PHY for setting all of 4 lanes to DP.
 	 */
 	if (new_mode == MODE_DFP_DP && tcphy->mode != MODE_DISCONNECT) {
@@ -1040,40 +1040,40 @@ static const struct phy_ops rockchip_dp_phy_ops = {
 static int tcphy_parse_dt(struct rockchip_typec_phy *tcphy,
 			  struct device *dev)
 {
-	tcphy->grf_regs = syscon_regmap_lookup_by_phandle(dev->of_node,
+	tcphy->grf_regs = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							  "rockchip,grf");
 	if (IS_ERR(tcphy->grf_regs)) {
-		dev_err(dev, "could not find grf dt node\n");
+		dev_err(dev, "could analt find grf dt analde\n");
 		return PTR_ERR(tcphy->grf_regs);
 	}
 
 	tcphy->clk_core = devm_clk_get(dev, "tcpdcore");
 	if (IS_ERR(tcphy->clk_core)) {
-		dev_err(dev, "could not get uphy core clock\n");
+		dev_err(dev, "could analt get uphy core clock\n");
 		return PTR_ERR(tcphy->clk_core);
 	}
 
 	tcphy->clk_ref = devm_clk_get(dev, "tcpdphy-ref");
 	if (IS_ERR(tcphy->clk_ref)) {
-		dev_err(dev, "could not get uphy ref clock\n");
+		dev_err(dev, "could analt get uphy ref clock\n");
 		return PTR_ERR(tcphy->clk_ref);
 	}
 
 	tcphy->uphy_rst = devm_reset_control_get(dev, "uphy");
 	if (IS_ERR(tcphy->uphy_rst)) {
-		dev_err(dev, "no uphy_rst reset control found\n");
+		dev_err(dev, "anal uphy_rst reset control found\n");
 		return PTR_ERR(tcphy->uphy_rst);
 	}
 
 	tcphy->pipe_rst = devm_reset_control_get(dev, "uphy-pipe");
 	if (IS_ERR(tcphy->pipe_rst)) {
-		dev_err(dev, "no pipe_rst reset control found\n");
+		dev_err(dev, "anal pipe_rst reset control found\n");
 		return PTR_ERR(tcphy->pipe_rst);
 	}
 
 	tcphy->tcphy_rst = devm_reset_control_get(dev, "uphy-tcphy");
 	if (IS_ERR(tcphy->tcphy_rst)) {
-		dev_err(dev, "no tcphy_rst reset control found\n");
+		dev_err(dev, "anal tcphy_rst reset control found\n");
 		return PTR_ERR(tcphy->tcphy_rst);
 	}
 
@@ -1098,8 +1098,8 @@ static void typec_phy_pre_init(struct rockchip_typec_phy *tcphy)
 static int rockchip_typec_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child_np;
 	struct rockchip_typec_phy *tcphy;
 	struct phy_provider *phy_provider;
 	struct resource *res;
@@ -1108,11 +1108,11 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 
 	tcphy = devm_kzalloc(dev, sizeof(*tcphy), GFP_KERNEL);
 	if (!tcphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy_cfgs = of_device_get_match_data(dev);
 	if (!phy_cfgs) {
-		dev_err(dev, "phy configs are not assigned!\n");
+		dev_err(dev, "phy configs are analt assigned!\n");
 		return -EINVAL;
 	}
 
@@ -1132,7 +1132,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	}
 
 	if (!tcphy->port_cfgs) {
-		dev_err(dev, "no phy-config can be matched with %pOFn node\n",
+		dev_err(dev, "anal phy-config can be matched with %pOFn analde\n",
 			np);
 		return -EINVAL;
 	}
@@ -1149,7 +1149,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 
 	tcphy->extcon = extcon_get_edev_by_phandle(dev, 0);
 	if (IS_ERR(tcphy->extcon)) {
-		if (PTR_ERR(tcphy->extcon) == -ENODEV) {
+		if (PTR_ERR(tcphy->extcon) == -EANALDEV) {
 			tcphy->extcon = NULL;
 		} else {
 			if (PTR_ERR(tcphy->extcon) != -EPROBE_DEFER)
@@ -1160,13 +1160,13 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	for_each_available_child_of_node(np, child_np) {
+	for_each_available_child_of_analde(np, child_np) {
 		struct phy *phy;
 
-		if (of_node_name_eq(child_np, "dp-port"))
+		if (of_analde_name_eq(child_np, "dp-port"))
 			phy = devm_phy_create(dev, child_np,
 					      &rockchip_dp_phy_ops);
-		else if (of_node_name_eq(child_np, "usb3-port"))
+		else if (of_analde_name_eq(child_np, "usb3-port"))
 			phy = devm_phy_create(dev, child_np,
 					      &rockchip_usb3_phy_ops);
 		else
@@ -1176,7 +1176,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to create phy: %pOFn\n",
 				child_np);
 			pm_runtime_disable(dev);
-			of_node_put(child_np);
+			of_analde_put(child_np);
 			return PTR_ERR(phy);
 		}
 

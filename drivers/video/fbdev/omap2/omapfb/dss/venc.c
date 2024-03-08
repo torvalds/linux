@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/dss/venc.c
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * VENC settings from TI's DSS driver
  */
@@ -360,7 +360,7 @@ static void venc_runtime_put(void)
 	DSSDBG("venc_runtime_put\n");
 
 	r = pm_runtime_put_sync(&venc.pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	WARN_ON(r < 0 && r != -EANALSYS);
 }
 
 static const struct venc_config *venc_timings_to_config(
@@ -451,8 +451,8 @@ static int venc_display_enable(struct omap_dss_device *dssdev)
 	mutex_lock(&venc.venc_lock);
 
 	if (out->manager == NULL) {
-		DSSERR("Failed to enable display: no output/manager\n");
-		r = -ENODEV;
+		DSSERR("Failed to enable display: anal output/manager\n");
+		r = -EANALDEV;
 		goto err0;
 	}
 
@@ -585,7 +585,7 @@ static int venc_init_regulator(void)
 	if (venc.vdda_dac_reg != NULL)
 		return 0;
 
-	if (venc.pdev->dev.of_node)
+	if (venc.pdev->dev.of_analde)
 		vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda");
 	else
 		vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda_dac");
@@ -686,7 +686,7 @@ static int venc_connect(struct omap_dss_device *dssdev,
 
 	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
 	if (!mgr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = dss_mgr_connect(mgr, dssdev);
 	if (r)
@@ -759,12 +759,12 @@ static void venc_uninit_output(struct platform_device *pdev)
 
 static int venc_probe_of(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *ep;
+	struct device_analde *analde = pdev->dev.of_analde;
+	struct device_analde *ep;
 	u32 channels;
 	int r;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = omapdss_of_get_first_endpoint(analde);
 	if (!ep)
 		return 0;
 
@@ -790,11 +790,11 @@ static int venc_probe_of(struct platform_device *pdev)
 		goto err;
 	}
 
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	return 0;
 err:
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	return 0;
 }
@@ -823,7 +823,7 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 				 resource_size(venc_mem));
 	if (!venc.base) {
 		DSSERR("can't ioremap VENC\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r = venc_get_clocks(pdev);
@@ -841,7 +841,7 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 
 	venc_runtime_put();
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		r = venc_probe_of(pdev);
 		if (r) {
 			DSSERR("Invalid DT data\n");

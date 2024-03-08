@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 2015 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2015 HiSilicon Techanallogies Co., Ltd.
  */
 
 #ifndef	__HISI_RESET_H
 #define	__HISI_RESET_H
 
-struct device_node;
+struct device_analde;
 struct hisi_reset_controller;
 
 #ifdef CONFIG_RESET_CONTROLLER

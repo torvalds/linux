@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
@@ -50,7 +50,7 @@ static LIST_HEAD(tcf_proto_base);
 static DEFINE_RWLOCK(cls_mod_lock);
 
 static struct xarray tcf_exts_miss_cookies_xa;
-struct tcf_exts_miss_cookie_node {
+struct tcf_exts_miss_cookie_analde {
 	const struct tcf_chain *chain;
 	const struct tcf_proto *tp;
 	const struct tcf_exts *exts;
@@ -77,7 +77,7 @@ static int
 tcf_exts_miss_cookie_base_alloc(struct tcf_exts *exts, struct tcf_proto *tp,
 				u32 handle)
 {
-	struct tcf_exts_miss_cookie_node *n;
+	struct tcf_exts_miss_cookie_analde *n;
 	static u32 next;
 	int err;
 
@@ -86,7 +86,7 @@ tcf_exts_miss_cookie_base_alloc(struct tcf_exts *exts, struct tcf_proto *tp,
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
 	if (!n)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n->chain_index = tp->chain->index;
 	n->chain = tp->chain;
@@ -100,7 +100,7 @@ tcf_exts_miss_cookie_base_alloc(struct tcf_exts *exts, struct tcf_proto *tp,
 	if (err)
 		goto err_xa_alloc;
 
-	exts->miss_cookie_node = n;
+	exts->miss_cookie_analde = n;
 	return 0;
 
 err_xa_alloc:
@@ -110,17 +110,17 @@ err_xa_alloc:
 
 static void tcf_exts_miss_cookie_base_destroy(struct tcf_exts *exts)
 {
-	struct tcf_exts_miss_cookie_node *n;
+	struct tcf_exts_miss_cookie_analde *n;
 
-	if (!exts->miss_cookie_node)
+	if (!exts->miss_cookie_analde)
 		return;
 
-	n = exts->miss_cookie_node;
+	n = exts->miss_cookie_analde;
 	xa_erase(&tcf_exts_miss_cookies_xa, n->miss_cookie_base);
 	kfree_rcu(n, rcu);
 }
 
-static struct tcf_exts_miss_cookie_node *
+static struct tcf_exts_miss_cookie_analde *
 tcf_exts_miss_cookie_lookup(u64 miss_cookie, int *act_index)
 {
 	union tcf_exts_miss_cookie mc = { .miss_cookie = miss_cookie, };
@@ -181,7 +181,7 @@ static void tcf_proto_signal_destroying(struct tcf_chain *chain,
 	struct tcf_block *block = chain->block;
 
 	mutex_lock(&block->proto_destroy_lock);
-	hash_add_rcu(block->proto_destroy_ht, &tp->destroy_ht_node,
+	hash_add_rcu(block->proto_destroy_ht, &tp->destroy_ht_analde,
 		     destroy_obj_hashfn(tp));
 	mutex_unlock(&block->proto_destroy_lock);
 }
@@ -203,7 +203,7 @@ static bool tcf_proto_exists_destroying(struct tcf_chain *chain,
 
 	rcu_read_lock();
 	hash_for_each_possible_rcu(chain->block->proto_destroy_ht, iter,
-				   destroy_ht_node, hash) {
+				   destroy_ht_analde, hash) {
 		if (tcf_proto_cmp(tp, iter)) {
 			found = true;
 			break;
@@ -220,8 +220,8 @@ tcf_proto_signal_destroyed(struct tcf_chain *chain, struct tcf_proto *tp)
 	struct tcf_block *block = chain->block;
 
 	mutex_lock(&block->proto_destroy_lock);
-	if (hash_hashed(&tp->destroy_ht_node))
-		hash_del_rcu(&tp->destroy_ht_node);
+	if (hash_hashed(&tp->destroy_ht_analde))
+		hash_del_rcu(&tp->destroy_ht_analde);
 	mutex_unlock(&block->proto_destroy_lock);
 }
 
@@ -271,8 +271,8 @@ tcf_proto_lookup_ops(const char *kind, bool rtnl_held,
 		return ERR_PTR(-EAGAIN);
 	}
 #endif
-	NL_SET_ERR_MSG(extack, "TC classifier not found");
-	return ERR_PTR(-ENOENT);
+	NL_SET_ERR_MSG(extack, "TC classifier analt found");
+	return ERR_PTR(-EANALENT);
 }
 
 /* Register(unregister) new classifier type */
@@ -300,7 +300,7 @@ static struct workqueue_struct *tc_filter_wq;
 void unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 {
 	struct tcf_proto_ops *t;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	/* Wait for outstanding call_rcu()s, if any, from a
 	 * tcf_proto_ops's destroy() handler.
@@ -379,7 +379,7 @@ static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
 
 	tp = kzalloc(sizeof(*tp), GFP_KERNEL);
 	if (!tp)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EANALBUFS);
 
 	tp->ops = tcf_proto_lookup_ops(kind, rtnl_held, extack);
 	if (IS_ERR(tp->ops)) {
@@ -557,7 +557,7 @@ static bool tcf_chain_held_by_acts_only(struct tcf_chain *chain)
 	ASSERT_BLOCK_LOCKED(chain->block);
 
 	/* In case all the references are action references, this
-	 * chain should not be shown to the user.
+	 * chain should analt be shown to the user.
 	 */
 	return chain->refcnt == chain->action_refcnt;
 }
@@ -590,7 +590,7 @@ static struct tcf_chain *tcf_chain_lookup_rcu(const struct tcf_block *block,
 }
 #endif
 
-static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
+static int tc_chain_analtify(struct tcf_chain *chain, struct sk_buff *oskb,
 			   u32 seq, u16 flags, int event, bool unicast,
 			   struct netlink_ext_ack *extack);
 
@@ -618,13 +618,13 @@ static struct tcf_chain *__tcf_chain_get(struct tcf_block *block,
 	is_first_reference = chain->refcnt - chain->action_refcnt == 1;
 	mutex_unlock(&block->lock);
 
-	/* Send notification only in case we got the first
-	 * non-action reference. Until then, the chain acts only as
+	/* Send analtification only in case we got the first
+	 * analn-action reference. Until then, the chain acts only as
 	 * a placeholder for actions pointing to it and user ought
-	 * not know about them.
+	 * analt kanalw about them.
 	 */
 	if (is_first_reference && !by_act)
-		tc_chain_notify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
+		tc_chain_analtify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
 				RTM_NEWCHAIN, false, NULL);
 
 	return chain;
@@ -648,7 +648,7 @@ EXPORT_SYMBOL(tcf_chain_get_by_act);
 
 static void tc_chain_tmplt_del(const struct tcf_proto_ops *tmplt_ops,
 			       void *tmplt_priv);
-static int tc_chain_notify_delete(const struct tcf_proto_ops *tmplt_ops,
+static int tc_chain_analtify_delete(const struct tcf_proto_ops *tmplt_ops,
 				  void *tmplt_priv, u32 chain_index,
 				  struct tcf_block *block, struct sk_buff *oskb,
 				  u32 seq, u16 flags);
@@ -658,7 +658,7 @@ static void __tcf_chain_put(struct tcf_chain *chain, bool by_act,
 {
 	struct tcf_block *block = chain->block;
 	const struct tcf_proto_ops *tmplt_ops;
-	unsigned int refcnt, non_act_refcnt;
+	unsigned int refcnt, analn_act_refcnt;
 	bool free_block = false;
 	void *tmplt_priv;
 
@@ -674,20 +674,20 @@ static void __tcf_chain_put(struct tcf_chain *chain, bool by_act,
 	if (by_act)
 		chain->action_refcnt--;
 
-	/* tc_chain_notify_delete can't be called while holding block lock.
+	/* tc_chain_analtify_delete can't be called while holding block lock.
 	 * However, when block is unlocked chain can be changed concurrently, so
 	 * save these to temporary variables.
 	 */
 	refcnt = --chain->refcnt;
-	non_act_refcnt = refcnt - chain->action_refcnt;
+	analn_act_refcnt = refcnt - chain->action_refcnt;
 	tmplt_ops = chain->tmplt_ops;
 	tmplt_priv = chain->tmplt_priv;
 
-	if (non_act_refcnt == chain->explicitly_created && !by_act) {
-		if (non_act_refcnt == 0)
-			tc_chain_notify_delete(tmplt_ops, tmplt_priv,
+	if (analn_act_refcnt == chain->explicitly_created && !by_act) {
+		if (analn_act_refcnt == 0)
+			tc_chain_analtify_delete(tmplt_ops, tmplt_priv,
 					       chain->index, block, NULL, 0, 0);
-		/* Last reference to chain, no need to lock. */
+		/* Last reference to chain, anal need to lock. */
 		chain->flushing = false;
 	}
 
@@ -808,7 +808,7 @@ static int tcf_block_offload_cmd(struct tcf_block *block,
 
 		err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
 		if (err < 0) {
-			if (err != -EOPNOTSUPP)
+			if (err != -EOPANALTSUPP)
 				NL_SET_ERR_MSG(extack, "Driver ndo_setup_tc failed");
 			return err;
 		}
@@ -820,7 +820,7 @@ static int tcf_block_offload_cmd(struct tcf_block *block,
 				    tc_block_indr_cleanup);
 	tcf_block_setup(block, &bo);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
@@ -839,25 +839,25 @@ static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
 	    !tc_can_offload(dev) &&
 	    tcf_block_offload_in_use(block)) {
 		NL_SET_ERR_MSG(extack, "Bind to offloaded block failed as dev has offload disabled");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_unlock;
 	}
 
 	err = tcf_block_offload_cmd(block, dev, q, ei, FLOW_BLOCK_BIND, extack);
-	if (err == -EOPNOTSUPP)
-		goto no_offload_dev_inc;
+	if (err == -EOPANALTSUPP)
+		goto anal_offload_dev_inc;
 	if (err)
 		goto err_unlock;
 
 	up_write(&block->cb_lock);
 	return 0;
 
-no_offload_dev_inc:
+anal_offload_dev_inc:
 	if (tcf_block_offload_in_use(block))
 		goto err_unlock;
 
 	err = 0;
-	block->nooffloaddevcnt++;
+	block->analoffloaddevcnt++;
 err_unlock:
 	up_write(&block->cb_lock);
 	return err;
@@ -871,13 +871,13 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 
 	down_write(&block->cb_lock);
 	err = tcf_block_offload_cmd(block, dev, q, ei, FLOW_BLOCK_UNBIND, NULL);
-	if (err == -EOPNOTSUPP)
-		goto no_offload_dev_dec;
+	if (err == -EOPANALTSUPP)
+		goto anal_offload_dev_dec;
 	up_write(&block->cb_lock);
 	return;
 
-no_offload_dev_dec:
-	WARN_ON(block->nooffloaddevcnt-- == 0);
+anal_offload_dev_dec:
+	WARN_ON(block->analoffloaddevcnt-- == 0);
 	up_write(&block->cb_lock);
 }
 
@@ -892,7 +892,7 @@ tcf_chain0_head_change_cb_add(struct tcf_block *block,
 	item = kmalloc(sizeof(*item), GFP_KERNEL);
 	if (!item) {
 		NL_SET_ERR_MSG(extack, "Memory allocation for head change callback item failed");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	item->chain_head_change = ei->chain_head_change;
 	item->chain_head_change_priv = ei->chain_head_change_priv;
@@ -965,7 +965,7 @@ static int tcf_block_insert(struct tcf_block *block, struct net *net,
 	idr_preload(GFP_KERNEL);
 	spin_lock(&tn->idr_lock);
 	err = idr_alloc_u32(&tn->idr, block, &block->index, block->index,
-			    GFP_NOWAIT);
+			    GFP_ANALWAIT);
 	spin_unlock(&tn->idr_lock);
 	idr_preload_end();
 
@@ -990,7 +990,7 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (!block) {
 		NL_SET_ERR_MSG(extack, "Memory allocation for block failed");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	mutex_init(&block->lock);
 	mutex_init(&block->proto_destroy_lock);
@@ -1025,7 +1025,7 @@ static struct tcf_block *tcf_block_refcnt_get(struct net *net, u32 block_index)
 
 	rcu_read_lock();
 	block = tcf_block_lookup(net, block_index);
-	if (block && !refcount_inc_not_zero(&block->refcnt))
+	if (block && !refcount_inc_analt_zero(&block->refcnt))
 		block = NULL;
 	rcu_read_unlock();
 
@@ -1058,8 +1058,8 @@ __tcf_get_next_chain(struct tcf_block *block, struct tcf_chain *chain)
 /* Function to be used by all clients that want to iterate over all chains on
  * block. It properly obtains block->lock and takes reference to chain before
  * returning it. Users of this function must be tolerant to concurrent chain
- * insertion/deletion or ensure that no concurrent chain modification is
- * possible. Note that all netlink dump callbacks cannot guarantee to provide
+ * insertion/deletion or ensure that anal concurrent chain modification is
+ * possible. Analte that all netlink dump callbacks cananalt guarantee to provide
  * consistent dump because rtnl lock is released each time skb is filled with
  * data and sent to user-space.
  */
@@ -1111,8 +1111,8 @@ __tcf_get_next_proto(struct tcf_chain *chain, struct tcf_proto *tp)
 
 /* Function to be used by all clients that want to iterate over all tp's on
  * chain. Users of this function must be tolerant to concurrent tp
- * insertion/deletion or ensure that no concurrent chain modification is
- * possible. Note that all netlink dump callbacks cannot guarantee to provide
+ * insertion/deletion or ensure that anal concurrent chain modification is
+ * possible. Analte that all netlink dump callbacks cananalt guarantee to provide
  * consistent dump because rtnl lock is released each time skb is filled with
  * data and sent to user-space.
  */
@@ -1133,7 +1133,7 @@ static void tcf_block_flush_all_chains(struct tcf_block *block, bool rtnl_held)
 {
 	struct tcf_chain *chain;
 
-	/* Last reference to block. At this point chains cannot be added or
+	/* Last reference to block. At this point chains cananalt be added or
 	 * removed concurrently.
 	 */
 	for (chain = tcf_get_next_chain(block, NULL);
@@ -1165,7 +1165,7 @@ static int __tcf_qdisc_find(struct net *net, struct Qdisc **q,
 	dev = dev_get_by_index_rcu(net, ifindex);
 	if (!dev) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Find qdisc */
@@ -1191,19 +1191,19 @@ static int __tcf_qdisc_find(struct net *net, struct Qdisc **q,
 	/* Is it classful? */
 	cops = (*q)->ops->cl_ops;
 	if (!cops) {
-		NL_SET_ERR_MSG(extack, "Qdisc not classful");
+		NL_SET_ERR_MSG(extack, "Qdisc analt classful");
 		err = -EINVAL;
 		goto errout_qdisc;
 	}
 
 	if (!cops->tcf_block) {
 		NL_SET_ERR_MSG(extack, "Class doesn't support blocks");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto errout_qdisc;
 	}
 
 errout_rcu:
-	/* At this point we know that qdisc is not noop_qdisc,
+	/* At this point we kanalw that qdisc is analt analop_qdisc,
 	 * which means that qdisc holds a reference to net_device
 	 * and we hold a reference to qdisc, so it is safe to release
 	 * rcu read lock.
@@ -1236,7 +1236,7 @@ static int __tcf_qdisc_cl_find(struct Qdisc *q, u32 parent, unsigned long *cl,
 		*cl = cops->find(q, parent);
 		if (*cl == 0) {
 			NL_SET_ERR_MSG(extack, "Specified class doesn't exist");
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
@@ -1253,7 +1253,7 @@ static struct tcf_block *__tcf_block_find(struct net *net, struct Qdisc *q,
 	if (ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
 		block = tcf_block_refcnt_get(net, block_index);
 		if (!block) {
-			NL_SET_ERR_MSG(extack, "Block of given index was not found");
+			NL_SET_ERR_MSG(extack, "Block of given index was analt found");
 			return ERR_PTR(-EINVAL);
 		}
 	} else {
@@ -1265,7 +1265,7 @@ static struct tcf_block *__tcf_block_find(struct net *net, struct Qdisc *q,
 
 		if (tcf_block_shared(block)) {
 			NL_SET_ERR_MSG(extack, "This filter block is shared. Please use the block index to manipulate the filters");
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		}
 
 		/* Always take reference to block in order to support execution
@@ -1287,7 +1287,7 @@ static void __tcf_block_put(struct tcf_block *block, struct Qdisc *q,
 		/* Flushing/putting all chains will cause the block to be
 		 * deallocated when last chain is freed. However, if chain_list
 		 * is empty, block has to be manually deallocated. After block
-		 * reference counter reached 0, it is no longer possible to
+		 * reference counter reached 0, it is anal longer possible to
 		 * increment it or add new chains to block.
 		 */
 		bool free_block = list_empty(&block->chain_list);
@@ -1401,7 +1401,7 @@ static int tcf_block_owner_add(struct tcf_block *block,
 
 	item = kmalloc(sizeof(*item), GFP_KERNEL);
 	if (!item)
-		return -ENOMEM;
+		return -EANALMEM;
 	item->q = q;
 	item->binder_type = binder_type;
 	list_add(&item->list, &block->owner_list);
@@ -1442,7 +1442,7 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 	int err;
 
 	if (ei->block_index)
-		/* block_index not 0 means the shared block is requested */
+		/* block_index analt 0 means the shared block is requested */
 		block = tcf_block_refcnt_get(net, ei->block_index);
 
 	if (!block) {
@@ -1514,7 +1514,7 @@ int tcf_block_get(struct tcf_block **p_block,
 }
 EXPORT_SYMBOL(tcf_block_get);
 
-/* XXX: Standalone actions are not allowed to jump to any chain, and bound
+/* XXX: Standalone actions are analt allowed to jump to any chain, and bound
  * actions should be all removed after flushing.
  */
 void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
@@ -1573,7 +1573,7 @@ tcf_block_playback_offloads(struct tcf_block *block, flow_setup_cb_t *cb,
 				if (err && add)
 					goto err_playback_remove;
 			} else if (add && offload_in_use) {
-				err = -EOPNOTSUPP;
+				err = -EOPANALTSUPP;
 				NL_SET_ERR_MSG(extack, "Filter HW offload failed - classifier without re-offloading support");
 				goto err_playback_remove;
 			}
@@ -1669,7 +1669,7 @@ static int tcf_block_setup(struct tcf_block *block,
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -1684,7 +1684,7 @@ static inline int __tcf_classify(struct sk_buff *skb,
 				 const struct tcf_proto *orig_tp,
 				 struct tcf_result *res,
 				 bool compat_mode,
-				 struct tcf_exts_miss_cookie_node *n,
+				 struct tcf_exts_miss_cookie_analde *n,
 				 int act_index,
 				 u32 *last_executed_chain)
 {
@@ -1758,7 +1758,7 @@ reclassify:
 #ifdef CONFIG_NET_CLS_ACT
 reset:
 	if (unlikely(limit++ >= max_reclassify_loop)) {
-		net_notice_ratelimited("%u: reclassify loop, rule prio %u, protocol %02x\n",
+		net_analtice_ratelimited("%u: reclassify loop, rule prio %u, protocol %02x\n",
 				       tp->chain->block->index,
 				       tp->prio & 0xffff,
 				       ntohs(tp->protocol));
@@ -1784,7 +1784,7 @@ int tcf_classify(struct sk_buff *skb,
 			      &last_executed_chain);
 #else
 	u32 last_executed_chain = tp ? tp->chain->index : 0;
-	struct tcf_exts_miss_cookie_node *n = NULL;
+	struct tcf_exts_miss_cookie_analde *n = NULL;
 	const struct tcf_proto *orig_tp = tp;
 	struct tc_skb_ext *ext;
 	int act_index = 0;
@@ -1814,7 +1814,7 @@ int tcf_classify(struct sk_buff *skb,
 			fchain = tcf_chain_lookup_rcu(block, chain);
 			if (!fchain) {
 				tcf_set_drop_reason(skb,
-						    SKB_DROP_REASON_TC_CHAIN_NOTFOUND);
+						    SKB_DROP_REASON_TC_CHAIN_ANALTFOUND);
 
 				return TC_ACT_SHOT;
 			}
@@ -1837,7 +1837,7 @@ int tcf_classify(struct sk_buff *skb,
 
 			ext = tc_skb_ext_alloc(skb);
 			if (WARN_ON_ONCE(!ext)) {
-				tcf_set_drop_reason(skb, SKB_DROP_REASON_NOMEM);
+				tcf_set_drop_reason(skb, SKB_DROP_REASON_ANALMEM);
 				return TC_ACT_SHOT;
 			}
 			ext->chain = last_executed_chain;
@@ -1959,7 +1959,7 @@ static void tcf_chain_tp_delete_empty(struct tcf_chain *chain,
 			break;
 		}
 	}
-	/* Verify that tp still exists and no new filters were inserted
+	/* Verify that tp still exists and anal new filters were inserted
 	 * concurrently.
 	 * Mark tp for deletion if it is empty.
 	 */
@@ -2011,7 +2011,7 @@ static struct tcf_proto *tcf_chain_tp_find(struct tcf_chain *chain,
 	return tp;
 }
 
-static int tcf_fill_node(struct net *net, struct sk_buff *skb,
+static int tcf_fill_analde(struct net *net, struct sk_buff *skb,
 			 struct tcf_proto *tp, struct tcf_block *block,
 			 struct Qdisc *q, u32 parent, void *fh,
 			 u32 portid, u32 seq, u16 flags, int event,
@@ -2049,7 +2049,7 @@ static int tcf_fill_node(struct net *net, struct sk_buff *skb,
 						rtnl_held) < 0)
 				goto nla_put_failure;
 		} else {
-			goto cls_op_not_supp;
+			goto cls_op_analt_supp;
 		}
 	} else {
 		if (tp->ops->dump &&
@@ -2067,12 +2067,12 @@ static int tcf_fill_node(struct net *net, struct sk_buff *skb,
 
 out_nlmsg_trim:
 nla_put_failure:
-cls_op_not_supp:
+cls_op_analt_supp:
 	nlmsg_trim(skb, b);
 	return -1;
 }
 
-static int tfilter_notify(struct net *net, struct sk_buff *oskb,
+static int tfilter_analtify(struct net *net, struct sk_buff *oskb,
 			  struct nlmsghdr *n, struct tcf_proto *tp,
 			  struct tcf_block *block, struct Qdisc *q,
 			  u32 parent, void *fh, int event, bool unicast,
@@ -2082,14 +2082,14 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
 	int err = 0;
 
-	if (!unicast && !rtnl_notify_needed(net, n->nlmsg_flags, RTNLGRP_TC))
+	if (!unicast && !rtnl_analtify_needed(net, n->nlmsg_flags, RTNLGRP_TC))
 		return 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
-	if (tcf_fill_node(net, skb, tp, block, q, parent, fh, portid,
+	if (tcf_fill_analde(net, skb, tp, block, q, parent, fh, portid,
 			  n->nlmsg_seq, n->nlmsg_flags, event,
 			  false, rtnl_held, extack) <= 0) {
 		kfree_skb(skb);
@@ -2104,7 +2104,7 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 	return err;
 }
 
-static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
+static int tfilter_del_analtify(struct net *net, struct sk_buff *oskb,
 			      struct nlmsghdr *n, struct tcf_proto *tp,
 			      struct tcf_block *block, struct Qdisc *q,
 			      u32 parent, void *fh, bool *last, bool rtnl_held,
@@ -2114,17 +2114,17 @@ static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
 	int err;
 
-	if (!rtnl_notify_needed(net, n->nlmsg_flags, RTNLGRP_TC))
+	if (!rtnl_analtify_needed(net, n->nlmsg_flags, RTNLGRP_TC))
 		return tp->ops->delete(tp, fh, last, rtnl_held, extack);
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
-	if (tcf_fill_node(net, skb, tp, block, q, parent, fh, portid,
+	if (tcf_fill_analde(net, skb, tp, block, q, parent, fh, portid,
 			  n->nlmsg_seq, n->nlmsg_flags, RTM_DELTFILTER,
 			  false, rtnl_held, extack) <= 0) {
-		NL_SET_ERR_MSG(extack, "Failed to build del event notification");
+		NL_SET_ERR_MSG(extack, "Failed to build del event analtification");
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -2138,12 +2138,12 @@ static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 	err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
 			     n->nlmsg_flags & NLM_F_ECHO);
 	if (err < 0)
-		NL_SET_ERR_MSG(extack, "Failed to send filter delete notification");
+		NL_SET_ERR_MSG(extack, "Failed to send filter delete analtification");
 
 	return err;
 }
 
-static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
+static void tfilter_analtify_chain(struct net *net, struct sk_buff *oskb,
 				 struct tcf_block *block, struct Qdisc *q,
 				 u32 parent, struct nlmsghdr *n,
 				 struct tcf_chain *chain, int event,
@@ -2153,7 +2153,7 @@ static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 
 	for (tp = tcf_get_next_proto(chain, NULL);
 	     tp; tp = tcf_get_next_proto(chain, tp))
-		tfilter_notify(net, oskb, n, tp, block, q, parent, NULL,
+		tfilter_analtify(net, oskb, n, tp, block, q, parent, NULL,
 			       event, false, true, extack);
 }
 
@@ -2213,7 +2213,7 @@ replay:
 	flags = 0;
 
 	if (prio == 0) {
-		/* If no priority is provided by the user,
+		/* If anal priority is provided by the user,
 		 * we allocate one.
 		 */
 		if (n->nlmsg_flags & NLM_F_CREATE) {
@@ -2221,7 +2221,7 @@ replay:
 			prio_allocate = true;
 		} else {
 			NL_SET_ERR_MSG(extack, "Invalid filter command with priority of zero");
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
@@ -2238,8 +2238,8 @@ replay:
 	}
 
 	/* Take rtnl mutex if rtnl_held was set to true on previous iteration,
-	 * block is shared (no qdisc found), qdisc is not unlocked, classifier
-	 * type is not specified, classifier is not unlocked.
+	 * block is shared (anal qdisc found), qdisc is analt unlocked, classifier
+	 * type is analt specified, classifier is analt unlocked.
 	 */
 	if (rtnl_held ||
 	    (q && !(q->ops->cl_ops->flags & QDISC_CLASS_OPS_DOIT_UNLOCKED)) ||
@@ -2268,8 +2268,8 @@ replay:
 	}
 	chain = tcf_chain_get(block, chain_index, true);
 	if (!chain) {
-		NL_SET_ERR_MSG(extack, "Cannot create specified filter chain");
-		err = -ENOMEM;
+		NL_SET_ERR_MSG(extack, "Cananalt create specified filter chain");
+		err = -EANALMEM;
 		goto errout;
 	}
 
@@ -2277,7 +2277,7 @@ replay:
 	tp = tcf_chain_tp_find(chain, &chain_info, protocol,
 			       prio, prio_allocate);
 	if (IS_ERR(tp)) {
-		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
+		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol analt found");
 		err = PTR_ERR(tp);
 		goto errout_locked;
 	}
@@ -2290,7 +2290,7 @@ replay:
 			goto errout_locked;
 		}
 
-		/* Proto-tcf does not exist, create new one */
+		/* Proto-tcf does analt exist, create new one */
 
 		if (tca[TCA_KIND] == NULL || !protocol) {
 			NL_SET_ERR_MSG(extack, "Filter kind and protocol must be specified");
@@ -2300,7 +2300,7 @@ replay:
 
 		if (!(n->nlmsg_flags & NLM_F_CREATE)) {
 			NL_SET_ERR_MSG(extack, "Need both RTM_NEWTFILTER and NLM_F_CREATE to create a new filter");
-			err = -ENOENT;
+			err = -EANALENT;
 			goto errout_locked;
 		}
 
@@ -2328,7 +2328,7 @@ replay:
 	}
 
 	if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
-		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
+		NL_SET_ERR_MSG(extack, "Specified filter kind does analt match existing one");
 		err = -EINVAL;
 		goto errout;
 	}
@@ -2338,7 +2338,7 @@ replay:
 	if (!fh) {
 		if (!(n->nlmsg_flags & NLM_F_CREATE)) {
 			NL_SET_ERR_MSG(extack, "Need both RTM_NEWTFILTER and NLM_F_CREATE to create a new filter");
-			err = -ENOENT;
+			err = -EANALENT;
 			goto errout;
 		}
 	} else if (n->nlmsg_flags & NLM_F_EXCL) {
@@ -2358,13 +2358,13 @@ replay:
 	if (!(n->nlmsg_flags & NLM_F_CREATE))
 		flags |= TCA_ACT_FLAGS_REPLACE;
 	if (!rtnl_held)
-		flags |= TCA_ACT_FLAGS_NO_RTNL;
+		flags |= TCA_ACT_FLAGS_ANAL_RTNL;
 	if (is_qdisc_ingress(parent))
 		flags |= TCA_ACT_FLAGS_AT_INGRESS;
 	err = tp->ops->change(net, skb, tp, cl, t->tcm_handle, tca, &fh,
 			      flags, extack);
 	if (err == 0) {
-		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
+		tfilter_analtify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_NEWTFILTER, false, rtnl_held, extack);
 		tfilter_put(tp, fh);
 		/* q pointer is NULL for shared blocks */
@@ -2434,8 +2434,8 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	parent = t->tcm_parent;
 
 	if (prio == 0 && (protocol || t->tcm_handle || tca[TCA_KIND])) {
-		NL_SET_ERR_MSG(extack, "Cannot flush filters with protocol, handle or kind set");
-		return -ENOENT;
+		NL_SET_ERR_MSG(extack, "Cananalt flush filters with protocol, handle or kind set");
+		return -EANALENT;
 	}
 
 	/* Find head of filter chain. */
@@ -2449,9 +2449,9 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 		err = -EINVAL;
 		goto errout;
 	}
-	/* Take rtnl mutex if flushing whole chain, block is shared (no qdisc
-	 * found), qdisc is not unlocked, classifier type is not specified,
-	 * classifier is not unlocked.
+	/* Take rtnl mutex if flushing whole chain, block is shared (anal qdisc
+	 * found), qdisc is analt unlocked, classifier type is analt specified,
+	 * classifier is analt unlocked.
 	 */
 	if (!prio ||
 	    (q && !(q->ops->cl_ops->flags & QDISC_CLASS_OPS_DOIT_UNLOCKED)) ||
@@ -2479,20 +2479,20 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	}
 	chain = tcf_chain_get(block, chain_index, false);
 	if (!chain) {
-		/* User requested flush on non-existent chain. Nothing to do,
+		/* User requested flush on analn-existent chain. Analthing to do,
 		 * so just return success.
 		 */
 		if (prio == 0) {
 			err = 0;
 			goto errout;
 		}
-		NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
-		err = -ENOENT;
+		NL_SET_ERR_MSG(extack, "Cananalt find specified filter chain");
+		err = -EANALENT;
 		goto errout;
 	}
 
 	if (prio == 0) {
-		tfilter_notify_chain(net, skb, block, q, parent, n,
+		tfilter_analtify_chain(net, skb, block, q, parent, n,
 				     chain, RTM_DELTFILTER, extack);
 		tcf_chain_flush(chain, rtnl_held);
 		err = 0;
@@ -2503,11 +2503,11 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	tp = tcf_chain_tp_find(chain, &chain_info, protocol,
 			       prio, false);
 	if (!tp || IS_ERR(tp)) {
-		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
-		err = tp ? PTR_ERR(tp) : -ENOENT;
+		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol analt found");
+		err = tp ? PTR_ERR(tp) : -EANALENT;
 		goto errout_locked;
 	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
-		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
+		NL_SET_ERR_MSG(extack, "Specified filter kind does analt match existing one");
 		err = -EINVAL;
 		goto errout_locked;
 	} else if (t->tcm_handle == 0) {
@@ -2516,7 +2516,7 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 		mutex_unlock(&chain->filter_chain_lock);
 
 		tcf_proto_put(tp, rtnl_held, NULL);
-		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
+		tfilter_analtify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_DELTFILTER, false, rtnl_held, extack);
 		err = 0;
 		goto errout;
@@ -2526,12 +2526,12 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	fh = tp->ops->get(tp, t->tcm_handle);
 
 	if (!fh) {
-		NL_SET_ERR_MSG(extack, "Specified filter handle not found");
-		err = -ENOENT;
+		NL_SET_ERR_MSG(extack, "Specified filter handle analt found");
+		err = -EANALENT;
 	} else {
 		bool last;
 
-		err = tfilter_del_notify(net, skb, n, tp, block, q, parent, fh,
+		err = tfilter_del_analtify(net, skb, n, tp, block, q, parent, fh,
 					 &last, rtnl_held, extack);
 
 		if (err)
@@ -2591,7 +2591,7 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 
 	if (prio == 0) {
 		NL_SET_ERR_MSG(extack, "Invalid filter command with priority of zero");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Find head of filter chain. */
@@ -2605,8 +2605,8 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 		err = -EINVAL;
 		goto errout;
 	}
-	/* Take rtnl mutex if block is shared (no qdisc found), qdisc is not
-	 * unlocked, classifier type is not specified, classifier is not
+	/* Take rtnl mutex if block is shared (anal qdisc found), qdisc is analt
+	 * unlocked, classifier type is analt specified, classifier is analt
 	 * unlocked.
 	 */
 	if ((q && !(q->ops->cl_ops->flags & QDISC_CLASS_OPS_DOIT_UNLOCKED)) ||
@@ -2634,7 +2634,7 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	}
 	chain = tcf_chain_get(block, chain_index, false);
 	if (!chain) {
-		NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
+		NL_SET_ERR_MSG(extack, "Cananalt find specified filter chain");
 		err = -EINVAL;
 		goto errout;
 	}
@@ -2644,11 +2644,11 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 			       prio, false);
 	mutex_unlock(&chain->filter_chain_lock);
 	if (!tp || IS_ERR(tp)) {
-		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
-		err = tp ? PTR_ERR(tp) : -ENOENT;
+		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol analt found");
+		err = tp ? PTR_ERR(tp) : -EANALENT;
 		goto errout;
 	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
-		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
+		NL_SET_ERR_MSG(extack, "Specified filter kind does analt match existing one");
 		err = -EINVAL;
 		goto errout;
 	}
@@ -2656,13 +2656,13 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	fh = tp->ops->get(tp, t->tcm_handle);
 
 	if (!fh) {
-		NL_SET_ERR_MSG(extack, "Specified filter handle not found");
-		err = -ENOENT;
+		NL_SET_ERR_MSG(extack, "Specified filter handle analt found");
+		err = -EANALENT;
 	} else {
-		err = tfilter_notify(net, skb, n, tp, block, q, parent,
+		err = tfilter_analtify(net, skb, n, tp, block, q, parent,
 				     fh, RTM_NEWTFILTER, true, rtnl_held, NULL);
 		if (err < 0)
-			NL_SET_ERR_MSG(extack, "Failed to send filter notify message");
+			NL_SET_ERR_MSG(extack, "Failed to send filter analtify message");
 	}
 
 	tfilter_put(tp, fh);
@@ -2690,12 +2690,12 @@ struct tcf_dump_args {
 	bool terse_dump;
 };
 
-static int tcf_node_dump(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
+static int tcf_analde_dump(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
 {
 	struct tcf_dump_args *a = (void *)arg;
 	struct net *net = sock_net(a->skb->sk);
 
-	return tcf_fill_node(net, a->skb, tp, a->block, a->q, a->parent,
+	return tcf_fill_analde(net, a->skb, tp, a->block, a->q, a->parent,
 			     n, NETLINK_CB(a->cb->skb).portid,
 			     a->cb->nlh->nlmsg_seq, NLM_F_MULTI,
 			     RTM_NEWTFILTER, a->terse_dump, true, NULL);
@@ -2729,7 +2729,7 @@ static bool tcf_chain_dump(struct tcf_chain *chain, struct Qdisc *q, u32 parent,
 			memset(&cb->args[1], 0,
 			       sizeof(cb->args) - sizeof(cb->args[0]));
 		if (cb->args[1] == 0) {
-			if (tcf_fill_node(net, skb, tp, block, q, parent, NULL,
+			if (tcf_fill_analde(net, skb, tp, block, q, parent, NULL,
 					  NETLINK_CB(cb->skb).portid,
 					  cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					  RTM_NEWTFILTER, false, true, NULL) <= 0)
@@ -2738,7 +2738,7 @@ static bool tcf_chain_dump(struct tcf_chain *chain, struct Qdisc *q, u32 parent,
 		}
 		if (!tp->ops->walk)
 			continue;
-		arg.w.fn = tcf_node_dump;
+		arg.w.fn = tcf_analde_dump;
 		arg.skb = skb;
 		arg.cb = cb;
 		arg.block = block;
@@ -2803,7 +2803,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 			goto out;
 		/* If we work with block index, q is NULL and parent value
 		 * will never be used in the following code. The check
-		 * in tcf_fill_node prevents it. However, compiler does not
+		 * in tcf_fill_analde prevents it. However, compiler does analt
 		 * see that far, so set parent to zero to silence the warning
 		 * about parent being uninitialized.
 		 */
@@ -2866,13 +2866,13 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	cb->args[0] = index;
 
 out:
-	/* If we did no progress, the error (EMSGSIZE) is real */
+	/* If we did anal progress, the error (EMSGSIZE) is real */
 	if (skb->len == 0 && err)
 		return err;
 	return skb->len;
 }
 
-static int tc_chain_fill_node(const struct tcf_proto_ops *tmplt_ops,
+static int tc_chain_fill_analde(const struct tcf_proto_ops *tmplt_ops,
 			      void *tmplt_priv, u32 chain_index,
 			      struct net *net, struct sk_buff *skb,
 			      struct tcf_block *block,
@@ -2928,7 +2928,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
+static int tc_chain_analtify(struct tcf_chain *chain, struct sk_buff *oskb,
 			   u32 seq, u16 flags, int event, bool unicast,
 			   struct netlink_ext_ack *extack)
 {
@@ -2938,14 +2938,14 @@ static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 	struct sk_buff *skb;
 	int err = 0;
 
-	if (!unicast && !rtnl_notify_needed(net, flags, RTNLGRP_TC))
+	if (!unicast && !rtnl_analtify_needed(net, flags, RTNLGRP_TC))
 		return 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
-	if (tc_chain_fill_node(chain->tmplt_ops, chain->tmplt_priv,
+	if (tc_chain_fill_analde(chain->tmplt_ops, chain->tmplt_priv,
 			       chain->index, net, skb, block, portid,
 			       seq, flags, event, extack) <= 0) {
 		kfree_skb(skb);
@@ -2961,7 +2961,7 @@ static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 	return err;
 }
 
-static int tc_chain_notify_delete(const struct tcf_proto_ops *tmplt_ops,
+static int tc_chain_analtify_delete(const struct tcf_proto_ops *tmplt_ops,
 				  void *tmplt_priv, u32 chain_index,
 				  struct tcf_block *block, struct sk_buff *oskb,
 				  u32 seq, u16 flags)
@@ -2970,14 +2970,14 @@ static int tc_chain_notify_delete(const struct tcf_proto_ops *tmplt_ops,
 	struct net *net = block->net;
 	struct sk_buff *skb;
 
-	if (!rtnl_notify_needed(net, flags, RTNLGRP_TC))
+	if (!rtnl_analtify_needed(net, flags, RTNLGRP_TC))
 		return 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
-	if (tc_chain_fill_node(tmplt_ops, tmplt_priv, chain_index, net, skb,
+	if (tc_chain_fill_analde(tmplt_ops, tmplt_priv, chain_index, net, skb,
 			       block, portid, seq, flags, RTM_DELCHAIN, NULL) <= 0) {
 		kfree_skb(skb);
 		return -EINVAL;
@@ -2994,7 +2994,7 @@ static int tc_chain_tmplt_add(struct tcf_chain *chain, struct net *net,
 	char name[IFNAMSIZ];
 	void *tmplt_priv;
 
-	/* If kind is not set, user did not specify template. */
+	/* If kind is analt set, user did analt specify template. */
 	if (!tca[TCA_KIND])
 		return 0;
 
@@ -3008,9 +3008,9 @@ static int tc_chain_tmplt_add(struct tcf_chain *chain, struct net *net,
 		return PTR_ERR(ops);
 	if (!ops->tmplt_create || !ops->tmplt_destroy || !ops->tmplt_dump ||
 	    !ops->tmplt_reoffload) {
-		NL_SET_ERR_MSG(extack, "Chain templates are not supported with specified classifier");
+		NL_SET_ERR_MSG(extack, "Chain templates are analt supported with specified classifier");
 		module_put(ops->owner);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	tmplt_priv = ops->tmplt_create(net, chain, tca, extack);
@@ -3026,7 +3026,7 @@ static int tc_chain_tmplt_add(struct tcf_chain *chain, struct net *net,
 static void tc_chain_tmplt_del(const struct tcf_proto_ops *tmplt_ops,
 			       void *tmplt_priv)
 {
-	/* If template ops are set, no work to do for us. */
+	/* If template ops are set, anal work to do for us. */
 	if (!tmplt_ops)
 		return;
 
@@ -3090,19 +3090,19 @@ replay:
 		} else {
 			if (!(n->nlmsg_flags & NLM_F_CREATE)) {
 				NL_SET_ERR_MSG(extack, "Need both RTM_NEWCHAIN and NLM_F_CREATE to create a new chain");
-				err = -ENOENT;
+				err = -EANALENT;
 				goto errout_block_locked;
 			}
 			chain = tcf_chain_create(block, chain_index);
 			if (!chain) {
 				NL_SET_ERR_MSG(extack, "Failed to create filter chain");
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto errout_block_locked;
 			}
 		}
 	} else {
 		if (!chain || tcf_chain_held_by_acts_only(chain)) {
-			NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
+			NL_SET_ERR_MSG(extack, "Cananalt find specified filter chain");
 			err = -EINVAL;
 			goto errout_block_locked;
 		}
@@ -3112,7 +3112,7 @@ replay:
 	if (n->nlmsg_type == RTM_NEWCHAIN) {
 		/* Modifying chain requires holding parent block lock. In case
 		 * the chain was successfully added, take a reference to the
-		 * chain. This ensures that an empty chain does not disappear at
+		 * chain. This ensures that an empty chain does analt disappear at
 		 * the end of this function.
 		 */
 		tcf_chain_hold(chain);
@@ -3128,11 +3128,11 @@ replay:
 			goto errout;
 		}
 
-		tc_chain_notify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
+		tc_chain_analtify(chain, NULL, 0, NLM_F_CREATE | NLM_F_EXCL,
 				RTM_NEWCHAIN, false, extack);
 		break;
 	case RTM_DELCHAIN:
-		tfilter_notify_chain(net, skb, block, q, parent, n,
+		tfilter_analtify_chain(net, skb, block, q, parent, n,
 				     chain, RTM_DELTFILTER, extack);
 		/* Flush the chain first as the user requested chain removal. */
 		tcf_chain_flush(chain, true);
@@ -3142,13 +3142,13 @@ replay:
 		tcf_chain_put_explicitly_created(chain);
 		break;
 	case RTM_GETCHAIN:
-		err = tc_chain_notify(chain, skb, n->nlmsg_seq,
+		err = tc_chain_analtify(chain, skb, n->nlmsg_seq,
 				      n->nlmsg_flags, n->nlmsg_type, true, extack);
 		if (err < 0)
-			NL_SET_ERR_MSG(extack, "Failed to send chain notify message");
+			NL_SET_ERR_MSG(extack, "Failed to send chain analtify message");
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		NL_SET_ERR_MSG(extack, "Unsupported message type");
 		goto errout;
 	}
@@ -3239,7 +3239,7 @@ static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 		if (tcf_chain_held_by_acts_only(chain))
 			continue;
-		err = tc_chain_fill_node(chain->tmplt_ops, chain->tmplt_priv,
+		err = tc_chain_fill_analde(chain->tmplt_ops, chain->tmplt_priv,
 					 chain->index, net, skb, block,
 					 NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
@@ -3255,7 +3255,7 @@ static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
 	cb->args[0] = index;
 
 out:
-	/* If we did no progress, the error (EMSGSIZE) is real */
+	/* If we did anal progress, the error (EMSGSIZE) is real */
 	if (skb->len == 0 && err)
 		return err;
 	return skb->len;
@@ -3270,15 +3270,15 @@ int tcf_exts_init_ex(struct tcf_exts *exts, struct net *net, int action,
 #ifdef CONFIG_NET_CLS_ACT
 	exts->type = 0;
 	exts->nr_actions = 0;
-	exts->miss_cookie_node = NULL;
-	/* Note: we do not own yet a reference on net.
+	exts->miss_cookie_analde = NULL;
+	/* Analte: we do analt own yet a reference on net.
 	 * This reference might be taken later from tcf_exts_get_net().
 	 */
 	exts->net = net;
 	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
 				GFP_KERNEL);
 	if (!exts->actions)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	exts->action = action;
@@ -3361,8 +3361,8 @@ int tcf_exts_validate_ex(struct net *net, struct tcf_proto *tp, struct nlattr **
 #else
 	if ((exts->action && tb[exts->action]) ||
 	    (exts->police && tb[exts->police])) {
-		NL_SET_ERR_MSG(extack, "Classifier actions are not supported per compile options (CONFIG_NET_CLS_ACT)");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Classifier actions are analt supported per compile options (CONFIG_NET_CLS_ACT)");
+		return -EOPANALTSUPP;
 	}
 #endif
 
@@ -3412,7 +3412,7 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 		 * tc data even if iproute2  was newer - jhs
 		 */
 		if (exts->type != TCA_OLD_COMPAT) {
-			nest = nla_nest_start_noflag(skb, exts->action);
+			nest = nla_nest_start_analflag(skb, exts->action);
 			if (nest == NULL)
 				goto nla_put_failure;
 
@@ -3422,7 +3422,7 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 			nla_nest_end(skb, nest);
 		} else if (exts->police) {
 			struct tc_action *act = tcf_exts_first_act(exts);
-			nest = nla_nest_start_noflag(skb, exts->police);
+			nest = nla_nest_start_analflag(skb, exts->police);
 			if (nest == NULL || !act)
 				goto nla_put_failure;
 			if (tcf_action_dump_old(skb, act, 0, 0) < 0)
@@ -3449,7 +3449,7 @@ int tcf_exts_terse_dump(struct sk_buff *skb, struct tcf_exts *exts)
 	if (!exts->action || !tcf_exts_has_actions(exts))
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, exts->action);
+	nest = nla_nest_start_analflag(skb, exts->action);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -3574,10 +3574,10 @@ retry:
 }
 EXPORT_SYMBOL(tc_setup_cb_call);
 
-/* Non-destructive filter add. If filter that wasn't already in hardware is
+/* Analn-destructive filter add. If filter that wasn't already in hardware is
  * successfully offloaded, increment block offloads counter. On failure,
  * previously offloaded filter is considered to be intact and offloads counter
- * is not decremented.
+ * is analt decremented.
  */
 
 int tc_setup_cb_add(struct tcf_block *block, struct tcf_proto *tp,
@@ -3602,8 +3602,8 @@ retry:
 	}
 
 	/* Make sure all netdevs sharing this block are offload-capable. */
-	if (block->nooffloaddevcnt && err_stop) {
-		ok_count = -EOPNOTSUPP;
+	if (block->analoffloaddevcnt && err_stop) {
+		ok_count = -EOPANALTSUPP;
 		goto err_unlock;
 	}
 
@@ -3654,8 +3654,8 @@ retry:
 	}
 
 	/* Make sure all netdevs sharing this block are offload-capable. */
-	if (block->nooffloaddevcnt && err_stop) {
-		ok_count = -EOPNOTSUPP;
+	if (block->analoffloaddevcnt && err_stop) {
+		ok_count = -EOPANALTSUPP;
 		goto err_unlock;
 	}
 
@@ -3750,7 +3750,7 @@ static int tcf_act_get_user_cookie(struct flow_action_entry *entry,
 							       user_cookie->len,
 							       GFP_ATOMIC);
 		if (!entry->user_cookie)
-			err = -ENOMEM;
+			err = -EANALMEM;
 	}
 	rcu_read_unlock();
 	return err;
@@ -3784,8 +3784,8 @@ static int tc_setup_offload_act(struct tc_action *act,
 		return act->ops->offload_act_setup(act, entry, index_inc, true,
 						   extack);
 	} else {
-		NL_SET_ERR_MSG(extack, "Action does not support offload");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Action does analt support offload");
+		return -EOPANALTSUPP;
 	}
 #else
 	return 0;
@@ -3855,8 +3855,8 @@ int tc_setup_offload_action(struct flow_action *flow_action,
 	if (!exts)
 		return 0;
 
-	miss_cookie_base = exts->miss_cookie_node ?
-			   exts->miss_cookie_node->miss_cookie_base : 0;
+	miss_cookie_base = exts->miss_cookie_analde ?
+			   exts->miss_cookie_analde->miss_cookie_base : 0;
 	return tc_setup_action(flow_action, exts->actions, miss_cookie_base,
 			       extack);
 #else
@@ -3888,7 +3888,7 @@ static int tcf_qevent_parse_block_index(struct nlattr *block_index_attr,
 {
 	*p_block_index = nla_get_u32(block_index_attr);
 	if (!*p_block_index) {
-		NL_SET_ERR_MSG(extack, "Block number may not be zero");
+		NL_SET_ERR_MSG(extack, "Block number may analt be zero");
 		return -EINVAL;
 	}
 
@@ -3941,7 +3941,7 @@ int tcf_qevent_validate_change(struct tcf_qevent *qe, struct nlattr *block_index
 
 	/* Bounce newly-configured block or change in block. */
 	if (block_index != qe->info.block_index) {
-		NL_SET_ERR_MSG(extack, "Change of blocks is not supported");
+		NL_SET_ERR_MSG(extack, "Change of blocks is analt supported");
 		return -EINVAL;
 	}
 
@@ -4020,7 +4020,7 @@ static int __init tc_filter_init(void)
 
 	tc_filter_wq = alloc_ordered_workqueue("tc_filter_workqueue", 0);
 	if (!tc_filter_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = register_pernet_subsys(&tcf_net_ops);
 	if (err)

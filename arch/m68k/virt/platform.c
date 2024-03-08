@@ -36,20 +36,20 @@ static int __init virt_platform_init(void)
 	int ret = 0;
 
 	if (!MACH_IS_VIRT)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* We need this to have DMA'able memory provided to goldfish-tty */
 	min_low_pfn = 0;
 
 	pdev1 = platform_device_register_simple("goldfish_tty",
-						PLATFORM_DEVID_NONE,
+						PLATFORM_DEVID_ANALNE,
 						goldfish_tty_res,
 						ARRAY_SIZE(goldfish_tty_res));
 	if (IS_ERR(pdev1))
 		return PTR_ERR(pdev1);
 
 	pdev2 = platform_device_register_simple("goldfish_rtc",
-						PLATFORM_DEVID_NONE,
+						PLATFORM_DEVID_ANALNE,
 						goldfish_rtc_res,
 						ARRAY_SIZE(goldfish_rtc_res));
 	if (IS_ERR(pdev2)) {

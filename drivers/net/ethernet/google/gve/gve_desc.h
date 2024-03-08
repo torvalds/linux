@@ -11,13 +11,13 @@
 
 #include <linux/build_bug.h>
 
-/* A note on seg_addrs
+/* A analte on seg_addrs
  *
- * Base addresses encoded in seg_addr are not assumed to be physical
+ * Base addresses encoded in seg_addr are analt assumed to be physical
  * addresses. The ring format assumes these come from some linear address
  * space. This could be physical memory, kernel virtual memory, user virtual
  * memory.
- * If raw dma addressing is not supported then gVNIC uses lists of registered
+ * If raw dma addressing is analt supported then gVNIC uses lists of registered
  * pages. Each queue is assumed to be associated with a single such linear
  * address space to ensure a consistent meaning for seg_addrs posted to its
  * rings.
@@ -30,7 +30,7 @@ struct gve_tx_pkt_desc {
 	u8	desc_cnt;  /* Total descriptors for this packet */
 	__be16	len;  /* Total length of this packet (in bytes) */
 	__be16	seg_len;  /* Length of this descriptor's segment */
-	__be64	seg_addr;  /* Base address (see note) of this segment */
+	__be64	seg_addr;  /* Base address (see analte) of this segment */
 } __packed;
 
 struct gve_tx_mtd_desc {
@@ -71,7 +71,7 @@ struct gve_tx_seg_desc {
 #define GVE_MTD_PATH_STATE_CONGESTION	2
 #define GVE_MTD_PATH_STATE_RETRANSMIT	3
 
-#define GVE_MTD_PATH_HASH_NONE         (0x0 << 4)
+#define GVE_MTD_PATH_HASH_ANALNE         (0x0 << 4)
 #define GVE_MTD_PATH_HASH_L4           (0x1 << 4)
 
 /* GVE Receive Packet Descriptor */
@@ -105,8 +105,8 @@ union gve_rx_data_slot {
 	__be64 addr;
 };
 
-/* GVE Receive Packet Descriptor Seq No */
-#define GVE_SEQNO(x) (be16_to_cpu(x) & 0x7)
+/* GVE Receive Packet Descriptor Seq Anal */
+#define GVE_SEQANAL(x) (be16_to_cpu(x) & 0x7)
 
 /* GVE Receive Packet Descriptor Flags */
 #define GVE_RXFLG(x)	cpu_to_be16(1 << (3 + (x)))
@@ -132,7 +132,7 @@ static inline bool gve_needs_rss(__be16 flag)
 	return false;
 }
 
-static inline u8 gve_next_seqno(u8 seq)
+static inline u8 gve_next_seqanal(u8 seq)
 {
 	return (seq + 1) == 8 ? 1 : seq + 1;
 }

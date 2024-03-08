@@ -21,19 +21,19 @@ enum metric_event_groups {
 	 */
 	MetricGroupEvents = 0,
 	/**
-	 * @MetricNoGroupEvents: Don't group events for the metric.
+	 * @MetricAnalGroupEvents: Don't group events for the metric.
 	 */
-	MetricNoGroupEvents = 1,
+	MetricAnalGroupEvents = 1,
 	/**
-	 * @MetricNoGroupEventsNmi: Don't group events for the metric if the NMI
+	 * @MetricAnalGroupEventsNmi: Don't group events for the metric if the NMI
 	 *                          watchdog is enabled.
 	 */
-	MetricNoGroupEventsNmi = 2,
+	MetricAnalGroupEventsNmi = 2,
 	/**
-	 * @MetricNoGroupEventsSmt: Don't group events for the metric if SMT is
+	 * @MetricAnalGroupEventsSmt: Don't group events for the metric if SMT is
 	 *                          enabled.
 	 */
-	MetricNoGroupEventsSmt = 3,
+	MetricAnalGroupEventsSmt = 3,
 };
 /*
  * Describe each PMU event. Each CPU has a table of PMU events.
@@ -61,7 +61,7 @@ struct pmu_metric {
 	const char *compat;
 	const char *desc;
 	const char *long_desc;
-	const char *metricgroup_no_group;
+	const char *metricgroup_anal_group;
 	const char *default_metricgroup_name;
 	enum aggr_mode_class aggr_mode;
 	enum metric_event_groups event_grouping;

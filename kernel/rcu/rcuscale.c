@@ -27,7 +27,7 @@
 #include <linux/completion.h>
 #include <linux/moduleparam.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/freezer.h>
 #include <linux/cpu.h>
@@ -71,7 +71,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
  *
  * Various other use cases may of course be specified.
  *
- * Note that this test's readers are intended only as a test load for
+ * Analte that this test's readers are intended only as a test load for
  * the writers.  The reader scalability statistics will be overly
  * pessimistic due to the per-critical-section interrupt disabling,
  * test-end checks, and the pair of calls through pointers.
@@ -83,7 +83,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 # define RCUSCALE_SHUTDOWN 1
 #endif
 
-torture_param(bool, gp_async, false, "Use asynchronous GP wait primitives");
+torture_param(bool, gp_async, false, "Use asynchroanalus GP wait primitives");
 torture_param(int, gp_async_max, 1000, "Max # outstanding waits per writer");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
@@ -162,7 +162,7 @@ static void rcu_scale_read_unlock(int idx) __releases(RCU)
 	rcu_read_unlock();
 }
 
-static unsigned long __maybe_unused rcu_no_completed(void)
+static unsigned long __maybe_unused rcu_anal_completed(void)
 {
 	return 0;
 }
@@ -292,7 +292,7 @@ static struct rcu_scale_ops tasks_ops = {
 	.init		= rcu_sync_scale_init,
 	.readlock	= tasks_scale_read_lock,
 	.readunlock	= tasks_scale_read_unlock,
-	.get_gp_seq	= rcu_no_completed,
+	.get_gp_seq	= rcu_anal_completed,
 	.gp_diff	= rcu_seq_diff,
 	.async		= call_rcu_tasks,
 	.gp_barrier	= rcu_barrier_tasks,
@@ -330,7 +330,7 @@ static struct rcu_scale_ops tasks_rude_ops = {
 	.init		= rcu_sync_scale_init,
 	.readlock	= tasks_rude_scale_read_lock,
 	.readunlock	= tasks_rude_scale_read_unlock,
-	.get_gp_seq	= rcu_no_completed,
+	.get_gp_seq	= rcu_anal_completed,
 	.gp_diff	= rcu_seq_diff,
 	.async		= call_rcu_tasks_rude,
 	.gp_barrier	= rcu_barrier_tasks_rude,
@@ -370,7 +370,7 @@ static struct rcu_scale_ops tasks_tracing_ops = {
 	.init		= rcu_sync_scale_init,
 	.readlock	= tasks_trace_scale_read_lock,
 	.readunlock	= tasks_trace_scale_read_unlock,
-	.get_gp_seq	= rcu_no_completed,
+	.get_gp_seq	= rcu_anal_completed,
 	.gp_diff	= rcu_seq_diff,
 	.async		= call_rcu_tasks_trace,
 	.gp_barrier	= rcu_barrier_tasks_trace,
@@ -410,7 +410,7 @@ static void rcu_scale_wait_shutdown(void)
 /*
  * RCU scalability reader kthread.  Repeatedly does empty RCU read-side
  * critical section, minimizing update-side interference.  However, the
- * point of this test is not to evaluate reader scalability, but instead
+ * point of this test is analt to evaluate reader scalability, but instead
  * to serve as a test load for update-side scalability testing.
  */
 static int
@@ -437,7 +437,7 @@ rcu_scale_reader(void *arg)
 }
 
 /*
- * Callback function for asynchronous grace periods from rcu_scale_writer().
+ * Callback function for asynchroanalus grace periods from rcu_scale_writer().
  */
 static void rcu_scale_async_cb(struct rcu_head *rhp)
 {
@@ -465,21 +465,21 @@ rcu_scale_writer(void *arg)
 	VERBOSE_SCALEOUT_STRING("rcu_scale_writer task started");
 	WARN_ON(!wdpp);
 	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
-	current->flags |= PF_NO_SETAFFINITY;
+	current->flags |= PF_ANAL_SETAFFINITY;
 	sched_set_fifo_low(current);
 
 	if (holdoff)
 		schedule_timeout_idle(holdoff * HZ);
 
 	/*
-	 * Wait until rcu_end_inkernel_boot() is called for normal GP tests
-	 * so that RCU is not always expedited for normal GP tests.
+	 * Wait until rcu_end_inkernel_boot() is called for analrmal GP tests
+	 * so that RCU is analt always expedited for analrmal GP tests.
 	 * The system_state test is approximate, but works well in practice.
 	 */
 	while (!gp_exp && system_state != SYSTEM_RUNNING)
 		schedule_timeout_uninterruptible(1);
 
-	t = ktime_get_mono_fast_ns();
+	t = ktime_get_moanal_fast_ns();
 	if (atomic_inc_return(&n_rcu_scale_writer_started) >= nrealwriters) {
 		t_rcu_scale_writer_started = t;
 		if (gp_exp) {
@@ -497,7 +497,7 @@ rcu_scale_writer(void *arg)
 		if (writer_holdoff_jiffies)
 			schedule_timeout_idle(torture_random(&tr) % writer_holdoff_jiffies + 1);
 		wdp = &wdpp[i];
-		*wdp = ktime_get_mono_fast_ns();
+		*wdp = ktime_get_moanal_fast_ns();
 		if (gp_async) {
 retry:
 			if (!rhp)
@@ -517,7 +517,7 @@ retry:
 		} else {
 			cur_ops->sync();
 		}
-		t = ktime_get_mono_fast_ns();
+		t = ktime_get_moanal_fast_ns();
 		*wdp = t - *wdp;
 		i_max = i;
 		if (!started &&
@@ -525,7 +525,7 @@ retry:
 			started = true;
 		if (!done && i >= MIN_MEAS && time_after(jiffies, jdone)) {
 			done = true;
-			sched_set_normal(current, 0);
+			sched_set_analrmal(current, 0);
 			pr_alert("%s%s rcu_scale_writer %ld has %d measurements\n",
 				 scale_type, SCALE_FLAG, me, MIN_MEAS);
 			if (atomic_inc_return(&n_rcu_scale_writer_finished) >=
@@ -571,7 +571,7 @@ rcu_scale_print_module_parms(struct rcu_scale_ops *cur_ops, const char *tag)
 }
 
 /*
- * Return the number if non-negative.  If -1, the number of CPUs.
+ * Return the number if analn-negative.  If -1, the number of CPUs.
  * If less than -1, that much less than the number of CPUs, but
  * at least one.
  */
@@ -636,7 +636,7 @@ kfree_scale_thread(void *arg)
 	set_user_nice(current, MAX_NICE);
 	kfree_rcu_test_both = (kfree_rcu_test_single == kfree_rcu_test_double);
 
-	start_time = ktime_get_mono_fast_ns();
+	start_time = ktime_get_moanal_fast_ns();
 
 	if (atomic_inc_return(&n_kfree_scale_thread_started) >= kfree_nrealthreads) {
 		if (gp_exp)
@@ -655,7 +655,7 @@ kfree_scale_thread(void *arg)
 		for (i = 0; i < kfree_alloc_num; i++) {
 			alloc_ptr = kmalloc(kfree_mult * sizeof(struct kfree_obj), GFP_KERNEL);
 			if (!alloc_ptr)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			if (kfree_by_call_rcu) {
 				call_rcu(&(alloc_ptr->rh), kfree_call_rcu);
@@ -677,7 +677,7 @@ kfree_scale_thread(void *arg)
 	} while (!torture_must_stop() && ++loop < kfree_loops);
 
 	if (atomic_inc_return(&n_kfree_scale_thread_ended) >= kfree_nrealthreads) {
-		end_time = ktime_get_mono_fast_ns();
+		end_time = ktime_get_moanal_fast_ns();
 
 		if (gp_exp)
 			b_rcu_gp_test_finished = cur_ops->exp_completed() / 2;
@@ -778,7 +778,7 @@ kfree_scale_init(void)
 		rcu_lazy_set_jiffies_till_flush(orig_jif);
 
 		if (WARN_ON_ONCE(jiffies_at_lazy_cb - jif_start < 2 * HZ)) {
-			pr_alert("ERROR: call_rcu() CBs are not being lazy as expected!\n");
+			pr_alert("ERROR: call_rcu() CBs are analt being lazy as expected!\n");
 			WARN_ON_ONCE(1);
 			return -1;
 		}
@@ -808,7 +808,7 @@ kfree_scale_init(void)
 	kfree_reader_tasks = kcalloc(kfree_nrealthreads, sizeof(kfree_reader_tasks[0]),
 			       GFP_KERNEL);
 	if (kfree_reader_tasks == NULL) {
-		firsterr = -ENOMEM;
+		firsterr = -EANALMEM;
 		goto unwind;
 	}
 
@@ -844,12 +844,12 @@ rcu_scale_cleanup(void)
 	 * Would like warning at start, but everything is expedited
 	 * during the mid-boot phase, so have to wait till the end.
 	 */
-	if (rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp)
-		SCALEOUT_ERRSTRING("All grace periods expedited, no normal ones to measure!");
-	if (rcu_gp_is_normal() && gp_exp)
-		SCALEOUT_ERRSTRING("All grace periods normal, no expedited ones to measure!");
+	if (rcu_gp_is_expedited() && !rcu_gp_is_analrmal() && !gp_exp)
+		SCALEOUT_ERRSTRING("All grace periods expedited, anal analrmal ones to measure!");
+	if (rcu_gp_is_analrmal() && gp_exp)
+		SCALEOUT_ERRSTRING("All grace periods analrmal, anal expedited ones to measure!");
 	if (gp_exp && gp_async)
-		SCALEOUT_ERRSTRING("No expedited async GPs, so went with async!");
+		SCALEOUT_ERRSTRING("Anal expedited async GPs, so went with async!");
 
 	// If built-in, just report all of the GP kthread's CPU time.
 	if (IS_BUILTIN(CONFIG_RCU_SCALE_TEST) && !kthread_tp && cur_ops->rso_gp_kthread)
@@ -957,7 +957,7 @@ rcu_scale_init(void)
 	if (!torture_init_begin(scale_type, verbose))
 		return -EBUSY;
 
-	/* Process args and announce that the scalability'er is on the job. */
+	/* Process args and ananalunce that the scalability'er is on the job. */
 	for (i = 0; i < ARRAY_SIZE(scale_ops); i++) {
 		cur_ops = scale_ops[i];
 		if (strcmp(scale_type, cur_ops->name) == 0)
@@ -1005,7 +1005,7 @@ rcu_scale_init(void)
 			       GFP_KERNEL);
 	if (reader_tasks == NULL) {
 		SCALEOUT_ERRSTRING("out of memory");
-		firsterr = -ENOMEM;
+		firsterr = -EANALMEM;
 		goto unwind;
 	}
 	for (i = 0; i < nrealreaders; i++) {
@@ -1025,7 +1025,7 @@ rcu_scale_init(void)
 			GFP_KERNEL);
 	if (!writer_tasks || !writer_durations || !writer_n_durations) {
 		SCALEOUT_ERRSTRING("out of memory");
-		firsterr = -ENOMEM;
+		firsterr = -EANALMEM;
 		goto unwind;
 	}
 	for (i = 0; i < nrealwriters; i++) {
@@ -1033,7 +1033,7 @@ rcu_scale_init(void)
 			kcalloc(MAX_MEAS, sizeof(*writer_durations[i]),
 				GFP_KERNEL);
 		if (!writer_durations[i]) {
-			firsterr = -ENOMEM;
+			firsterr = -EANALMEM;
 			goto unwind;
 		}
 		firsterr = torture_create_kthread(rcu_scale_writer, (void *)i,

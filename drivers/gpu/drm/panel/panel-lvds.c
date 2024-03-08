@@ -125,7 +125,7 @@ static const struct drm_panel_funcs panel_lvds_funcs = {
 
 static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 {
-	struct device_node *np = lvds->dev->of_node;
+	struct device_analde *np = lvds->dev->of_analde;
 	int ret;
 
 	ret = of_drm_get_panel_orientation(np, &lvds->orientation);
@@ -166,7 +166,7 @@ static int panel_lvds_probe(struct platform_device *pdev)
 
 	lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
 	if (!lvds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lvds->dev = &pdev->dev;
 
@@ -178,7 +178,7 @@ static int panel_lvds_probe(struct platform_device *pdev)
 	if (IS_ERR(lvds->supply)) {
 		ret = PTR_ERR(lvds->supply);
 
-		if (ret != -ENODEV) {
+		if (ret != -EANALDEV) {
 			if (ret != -EPROBE_DEFER)
 				dev_err(lvds->dev, "failed to request regulator: %d\n",
 					ret);
@@ -208,7 +208,7 @@ static int panel_lvds_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * TODO: Handle all power supplies specified in the DT node in a generic
+	 * TODO: Handle all power supplies specified in the DT analde in a generic
 	 * way for panels that don't care about power supply ordering. LVDS
 	 * panels that require a specific power sequence will need a dedicated
 	 * driver.

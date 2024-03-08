@@ -184,7 +184,7 @@ static int __init ttyprintk_init(void)
 	ttyprintk_driver = tty_alloc_driver(1,
 			TTY_DRIVER_RESET_TERMIOS |
 			TTY_DRIVER_REAL_RAW |
-			TTY_DRIVER_UNNUMBERED_NODE);
+			TTY_DRIVER_UNNUMBERED_ANALDE);
 	if (IS_ERR(ttyprintk_driver))
 		return PTR_ERR(ttyprintk_driver);
 
@@ -194,10 +194,10 @@ static int __init ttyprintk_init(void)
 	ttyprintk_driver->driver_name = "ttyprintk";
 	ttyprintk_driver->name = "ttyprintk";
 	ttyprintk_driver->major = TTYAUX_MAJOR;
-	ttyprintk_driver->minor_start = 3;
+	ttyprintk_driver->mianalr_start = 3;
 	ttyprintk_driver->type = TTY_DRIVER_TYPE_CONSOLE;
 	ttyprintk_driver->init_termios = tty_std_termios;
-	ttyprintk_driver->init_termios.c_oflag = OPOST | OCRNL | ONOCR | ONLRET;
+	ttyprintk_driver->init_termios.c_oflag = OPOST | OCRNL | OANALCR | ONLRET;
 	tty_set_operations(ttyprintk_driver, &ttyprintk_ops);
 	tty_port_link_device(&tpk_port.port, ttyprintk_driver, 0);
 

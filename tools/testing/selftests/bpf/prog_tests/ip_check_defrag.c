@@ -47,8 +47,8 @@ static int setup_topology(bool ipv6)
 	SYS(fail, "ip netns add " NS1);
 	SYS(fail, "ip link add " VETH0 " netns " NS0 " type veth peer name " VETH1 " netns " NS1);
 	if (ipv6) {
-		SYS(fail, "ip -6 -net " NS0 " addr add " VETH0_ADDR6 "/64 dev " VETH0 " nodad");
-		SYS(fail, "ip -6 -net " NS1 " addr add " VETH1_ADDR6 "/64 dev " VETH1 " nodad");
+		SYS(fail, "ip -6 -net " NS0 " addr add " VETH0_ADDR6 "/64 dev " VETH0 " analdad");
+		SYS(fail, "ip -6 -net " NS1 " addr add " VETH1_ADDR6 "/64 dev " VETH1 " analdad");
 	} else {
 		SYS(fail, "ip -net " NS0 " addr add " VETH0_ADDR "/24 dev " VETH0);
 		SYS(fail, "ip -net " NS1 " addr add " VETH1_ADDR "/24 dev " VETH1);
@@ -74,8 +74,8 @@ fail:
 
 static void cleanup_topology(void)
 {
-	SYS_NOFAIL("test -f /var/run/netns/" NS0 " && ip netns delete " NS0);
-	SYS_NOFAIL("test -f /var/run/netns/" NS1 " && ip netns delete " NS1);
+	SYS_ANALFAIL("test -f /var/run/netns/" NS0 " && ip netns delete " NS0);
+	SYS_ANALFAIL("test -f /var/run/netns/" NS1 " && ip netns delete " NS1);
 }
 
 static int attach(struct ip_check_defrag *skel, bool ipv6)
@@ -158,13 +158,13 @@ void test_bpf_ip_check_defrag_ok(bool ipv6)
 {
 	struct network_helper_opts rx_opts = {
 		.timeout_ms = 1000,
-		.noconnect = true,
+		.analconnect = true,
 	};
 	struct network_helper_opts tx_ops = {
 		.timeout_ms = 1000,
 		.type = SOCK_RAW,
 		.proto = IPPROTO_RAW,
-		.noconnect = true,
+		.analconnect = true,
 	};
 	struct sockaddr_storage caddr;
 	struct ip_check_defrag *skel;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  *
  * Author: ChiaEn Wu <chiaen_wu@richtek.com>
  */
@@ -209,7 +209,7 @@ static int mt6370_init_backlight_properties(struct mt6370_priv *priv,
 	val = 0;
 	if (device_property_read_bool(dev, "mediatek,bled-exponential-mode-enable")) {
 		val |= MT6370_BL_CODE_MASK;
-		props->scale = BACKLIGHT_SCALE_NON_LINEAR;
+		props->scale = BACKLIGHT_SCALE_ANALN_LINEAR;
 	} else
 		props->scale = BACKLIGHT_SCALE_LINEAR;
 
@@ -222,7 +222,7 @@ static int mt6370_init_backlight_properties(struct mt6370_priv *priv,
 
 	if (!prop_val || prop_val > MT6370_BL_MAX_CH) {
 		dev_err(dev,
-			"No channel specified or over than upper bound (%d)\n",
+			"Anal channel specified or over than upper bound (%d)\n",
 			prop_val);
 		return -EINVAL;
 	}
@@ -283,13 +283,13 @@ static int mt6370_bl_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!priv->regmap)
-		return dev_err_probe(dev, -ENODEV, "Failed to get regmap\n");
+		return dev_err_probe(dev, -EANALDEV, "Failed to get regmap\n");
 
 	ret = mt6370_check_vendor_info(priv);
 	if (ret)

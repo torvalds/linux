@@ -16,11 +16,11 @@
 #include <linux/uaccess.h>
 #include <linux/mfd/wm8350/core.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static DEFINE_MUTEX(wdt_mutex);
 
@@ -142,11 +142,11 @@ static int wm8350_wdt_probe(struct platform_device *pdev)
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 
 	if (!wm8350) {
-		pr_err("No driver data supplied\n");
-		return -ENODEV;
+		pr_err("Anal driver data supplied\n");
+		return -EANALDEV;
 	}
 
-	watchdog_set_nowayout(&wm8350_wdt, nowayout);
+	watchdog_set_analwayout(&wm8350_wdt, analwayout);
 	watchdog_set_drvdata(&wm8350_wdt, wm8350);
 	wm8350_wdt.parent = &pdev->dev;
 

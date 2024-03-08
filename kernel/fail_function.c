@@ -19,7 +19,7 @@ static void fei_post_handler(struct kprobe *kp, struct pt_regs *regs,
 {
 	/*
 	 * A dummy post handler is required to prohibit optimizing, because
-	 * jump optimization does not support execution path overriding.
+	 * jump optimization does analt support execution path overriding.
 	 */
 }
 
@@ -38,12 +38,12 @@ static unsigned long adjust_error_retval(unsigned long addr, unsigned long retv)
 	switch (get_injectable_error_type(addr)) {
 	case EI_ETYPE_NULL:
 		return 0;
-	case EI_ETYPE_ERRNO:
-		if (retv < (unsigned long)-MAX_ERRNO)
+	case EI_ETYPE_ERRANAL:
+		if (retv < (unsigned long)-MAX_ERRANAL)
 			return (unsigned long)-EINVAL;
 		break;
-	case EI_ETYPE_ERRNO_NULL:
-		if (retv != 0 && retv < (unsigned long)-MAX_ERRNO)
+	case EI_ETYPE_ERRANAL_NULL:
+		if (retv != 0 && retv < (unsigned long)-MAX_ERRANAL)
 			return (unsigned long)-EINVAL;
 		break;
 	case EI_ETYPE_TRUE:
@@ -117,7 +117,7 @@ static int fei_retval_set(void *data, u64 val)
 	 * its member.
 	 */
 	if (!fei_attr_is_valid(attr)) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -142,7 +142,7 @@ static int fei_retval_get(void *data, u64 *val)
 	mutex_lock(&fei_lock);
 	/* Here we also validate @attr to ensure it still exists. */
 	if (!fei_attr_is_valid(attr))
-		err = -ENOENT;
+		err = -EANALENT;
 	else
 		*val = attr->retval;
 	mutex_unlock(&fei_lock);
@@ -178,7 +178,7 @@ static int fei_kprobe_handler(struct kprobe *kp, struct pt_regs *regs)
 
 	return 0;
 }
-NOKPROBE_SYMBOL(fei_kprobe_handler)
+ANALKPROBE_SYMBOL(fei_kprobe_handler)
 
 static void *fei_seq_start(struct seq_file *m, loff_t *pos)
 {
@@ -211,7 +211,7 @@ static const struct seq_operations fei_seq_ops = {
 	.show	= fei_seq_show,
 };
 
-static int fei_open(struct inode *inode, struct file *file)
+static int fei_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &fei_seq_ops);
 }
@@ -263,7 +263,7 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 	if (sym[0] == '!') {
 		attr = fei_attr_lookup(sym + 1);
 		if (!attr) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto out;
 		}
 		fei_attr_remove(attr);
@@ -286,7 +286,7 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 	}
 	attr = fei_attr_new(sym, addr);
 	if (!attr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

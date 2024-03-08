@@ -29,9 +29,9 @@ struct mtk_ccifreq_drv {
 	struct clk *inter_clk;
 	int inter_voltage;
 	unsigned long pre_freq;
-	/* Avoid race condition for regulators between notify and policy */
+	/* Avoid race condition for regulators between analtify and policy */
 	struct mutex reg_lock;
-	struct notifier_block opp_nb;
+	struct analtifier_block opp_nb;
 	const struct mtk_ccifreq_platform_data *soc_data;
 	int vtrack_max;
 };
@@ -218,7 +218,7 @@ out_unlock:
 	return ret;
 }
 
-static int mtk_ccifreq_opp_notifier(struct notifier_block *nb,
+static int mtk_ccifreq_opp_analtifier(struct analtifier_block *nb,
 				    unsigned long event, void *data)
 {
 	struct dev_pm_opp *opp = data;
@@ -257,7 +257,7 @@ static int mtk_ccifreq_probe(struct platform_device *pdev)
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drv->dev = dev;
 	drv->soc_data = (const struct mtk_ccifreq_platform_data *)
@@ -354,7 +354,7 @@ static int mtk_ccifreq_probe(struct platform_device *pdev)
 
 	passive_data = devm_kzalloc(dev, sizeof(*passive_data), GFP_KERNEL);
 	if (!passive_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_remove_opp_table;
 	}
 
@@ -369,10 +369,10 @@ static int mtk_ccifreq_probe(struct platform_device *pdev)
 		goto out_remove_opp_table;
 	}
 
-	drv->opp_nb.notifier_call = mtk_ccifreq_opp_notifier;
-	ret = dev_pm_opp_register_notifier(dev, &drv->opp_nb);
+	drv->opp_nb.analtifier_call = mtk_ccifreq_opp_analtifier;
+	ret = dev_pm_opp_register_analtifier(dev, &drv->opp_nb);
 	if (ret) {
-		dev_err(dev, "failed to register opp notifier: %d\n", ret);
+		dev_err(dev, "failed to register opp analtifier: %d\n", ret);
 		goto out_remove_opp_table;
 	}
 	return 0;
@@ -399,7 +399,7 @@ static int mtk_ccifreq_remove(struct platform_device *pdev)
 
 	drv = platform_get_drvdata(pdev);
 
-	dev_pm_opp_unregister_notifier(dev, &drv->opp_nb);
+	dev_pm_opp_unregister_analtifier(dev, &drv->opp_nb);
 	dev_pm_opp_of_remove_table(dev);
 	clk_disable_unprepare(drv->cci_clk);
 	regulator_disable(drv->proc_reg);

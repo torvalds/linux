@@ -190,7 +190,7 @@
 /*
  * The DRAM chips used by Pine64 boards are DDR3L-compatible, so they can
  * work at 1.35V with less power consumption.
- * As AXP803 DCDC5 cannot reach 1.35V accurately, use 1.36V instead.
+ * As AXP803 DCDC5 cananalt reach 1.35V accurately, use 1.36V instead.
  */
 &reg_dcdc5 {
 	regulator-always-on;
@@ -237,9 +237,9 @@
 };
 
 /*
- * The A64 chip cannot work without this regulator off, although
+ * The A64 chip cananalt work without this regulator off, although
  * it seems to be only driving the AR100 core.
- * Maybe we don't still know well about CPUs domain.
+ * Maybe we don't still kanalw well about CPUs domain.
  */
 &reg_fldo2 {
 	regulator-always-on;

@@ -28,7 +28,7 @@ static struct pci_config_window *gen_pci_init(struct device *dev,
 	struct resource_entry *bus;
 	struct pci_config_window *cfg;
 
-	err = of_address_to_resource(dev->of_node, 0, &cfgres);
+	err = of_address_to_resource(dev->of_analde, 0, &cfgres);
 	if (err) {
 		dev_err(dev, "missing \"reg\" property\n");
 		return ERR_PTR(err);
@@ -36,7 +36,7 @@ static struct pci_config_window *gen_pci_init(struct device *dev,
 
 	bus = resource_list_first_type(&bridge->windows, IORESOURCE_BUS);
 	if (!bus)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	cfg = pci_ecam_create(dev, &cfgres, bus->res, ops);
 	if (IS_ERR(cfg))
@@ -58,11 +58,11 @@ int pci_host_common_probe(struct platform_device *pdev)
 
 	ops = of_device_get_match_data(&pdev->dev);
 	if (!ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, bridge);
 
@@ -73,7 +73,7 @@ int pci_host_common_probe(struct platform_device *pdev)
 	if (IS_ERR(cfg))
 		return PTR_ERR(cfg);
 
-	/* Do not reassign resources if probe only */
+	/* Do analt reassign resources if probe only */
 	if (!pci_has_flag(PCI_PROBE_ONLY))
 		pci_add_flags(PCI_REASSIGN_ALL_BUS);
 

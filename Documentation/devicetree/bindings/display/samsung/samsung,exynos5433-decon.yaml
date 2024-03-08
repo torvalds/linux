@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/display/samsung/samsung,exynos5433-decon.yaml#
+$id: http://devicetree.org/schemas/display/samsung/samsung,exyanals5433-decon.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos5433 SoC Display and Enhancement Controller (DECON)
+title: Samsung Exyanals5433 SoC Display and Enhancement Controller (DECON)
 
 maintainers:
   - Inki Dae <inki.dae@samsung.com>
@@ -14,14 +14,14 @@ maintainers:
 
 description: |
   DECON (Display and Enhancement Controller) is the Display Controller for the
-  Exynos5433 series of SoCs which transfers the image data from a video memory
+  Exyanals5433 series of SoCs which transfers the image data from a video memory
   buffer to an external LCD interface.
 
 properties:
   compatible:
     enum:
-      - samsung,exynos5433-decon
-      - samsung,exynos5433-decon-tv
+      - samsung,exyanals5433-decon
+      - samsung,exyanals5433-decon-tv
 
   clocks:
     maxItems: 11
@@ -68,7 +68,7 @@ properties:
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     description:
-      Contains a port which is connected to mic node.
+      Contains a port which is connected to mic analde.
 
   power-domains:
     maxItems: 1
@@ -94,11 +94,11 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5433.h>
+    #include <dt-bindings/clock/exyanals5433.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     display-controller@13800000 {
-        compatible = "samsung,exynos5433-decon";
+        compatible = "samsung,exyanals5433-decon";
         reg = <0x13800000 0x2104>;
         clocks = <&cmu_disp CLK_PCLK_DECON>,
                  <&cmu_disp CLK_ACLK_DECON>,

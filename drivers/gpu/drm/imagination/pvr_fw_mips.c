@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_fw.h"
@@ -52,7 +52,7 @@ process_elf_command_stream(struct pvr_device *pvr_dev, const u8 *fw, u8 *fw_code
 					      fw_core_code_ptr, fw_core_data_ptr, &write_addr);
 		if (err) {
 			drm_err(drm_dev,
-				"Addr 0x%x (size: %d) not found in any firmware segment",
+				"Addr 0x%x (size: %d) analt found in any firmware segment",
 				program_header->p_vaddr, program_header->p_memsz);
 			return err;
 		}

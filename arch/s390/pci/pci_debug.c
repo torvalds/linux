@@ -126,7 +126,7 @@ static int pci_perf_show(struct seq_file *m, void *v)
 			     &zdev->fmb->fmt3.tx_bytes);
 		break;
 	default:
-		seq_puts(m, "Unknown format\n");
+		seq_puts(m, "Unkanalwn format\n");
 	}
 
 	pci_sw_counter_show(m);
@@ -161,10 +161,10 @@ static ssize_t pci_perf_seq_write(struct file *file, const char __user *ubuf,
 	return rc ? rc : count;
 }
 
-static int pci_perf_seq_open(struct inode *inode, struct file *filp)
+static int pci_perf_seq_open(struct ianalde *ianalde, struct file *filp)
 {
 	return single_open(filp, pci_perf_show,
-			   file_inode(filp)->i_private);
+			   file_ianalde(filp)->i_private);
 }
 
 static const struct file_operations debugfs_pci_perf_fops = {

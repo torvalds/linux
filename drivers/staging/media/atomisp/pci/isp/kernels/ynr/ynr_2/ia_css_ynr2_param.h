@@ -18,7 +18,7 @@
 
 #include "type_support.h"
 
-/* YNR (Y Noise Reduction), YEE (Y Edge Enhancement) */
+/* YNR (Y Analise Reduction), YEE (Y Edge Enhancement) */
 struct sh_css_isp_yee2_params {
 	s32 edge_sense_gain_0;
 	s32 edge_sense_gain_1;

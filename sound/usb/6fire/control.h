@@ -36,7 +36,7 @@ struct control_runtime {
 
 	struct snd_kcontrol *element[CONTROL_MAX_ELEMENTS];
 	bool opt_coax_switch;
-	bool line_phono_switch;
+	bool line_phoanal_switch;
 	bool digital_thru_switch;
 	bool usb_streaming;
 	u8 output_vol[6];

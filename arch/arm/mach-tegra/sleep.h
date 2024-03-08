@@ -31,7 +31,7 @@
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 #define CPU_RESETTABLE		2
 #define CPU_RESETTABLE_SOON	1
-#define CPU_NOT_RESETTABLE	0
+#define CPU_ANALT_RESETTABLE	0
 #endif
 
 /* flag of tegra_disable_clean_inv_dcache to do LoUIS or all */

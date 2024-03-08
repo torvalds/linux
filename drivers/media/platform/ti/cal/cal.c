@@ -5,7 +5,7 @@
  * Copyright (c) 2015-2020 Texas Instruments Inc.
  *
  * Authors:
- *	Benoit Parrot <bparrot@ti.com>
+ *	Beanalit Parrot <bparrot@ti.com>
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  */
 
@@ -31,7 +31,7 @@
 #include "cal_regs.h"
 
 MODULE_DESCRIPTION("TI CAL driver");
-MODULE_AUTHOR("Benoit Parrot, <bparrot@ti.com>");
+MODULE_AUTHOR("Beanalit Parrot, <bparrot@ti.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("0.1.0");
 
@@ -278,7 +278,7 @@ static int cal_reserve_pix_proc(struct cal_dev *cal)
 
 	if (ret == CAL_MAX_PIX_PROC) {
 		spin_unlock(&cal->v4l2_dev.lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	cal->reserved_pix_proc_mask |= BIT(ret);
@@ -398,7 +398,7 @@ static void cal_ctx_wr_dma_config(struct cal_ctx *ctx)
 		cal_read(ctx->cal, CAL_WR_DMA_OFST(ctx->dma_ctx)));
 
 	val = cal_read(ctx->cal, CAL_WR_DMA_XSIZE(ctx->dma_ctx));
-	/* 64 bit word means no skipping */
+	/* 64 bit word means anal skipping */
 	cal_set_field(&val, 0, CAL_WR_DMA_XSIZE_XSKIP_MASK);
 	/*
 	 * The XSIZE field is expressed in 64-bit units and prevents overflows
@@ -455,7 +455,7 @@ cal_get_remote_frame_desc_entry(struct cal_ctx *ctx,
 
 	phy_source_pad = media_pad_remote_pad_first(&ctx->pad);
 	if (!phy_source_pad)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = v4l2_subdev_call(&ctx->phy->subdev, pad, get_frame_desc,
 			       phy_source_pad->index, &fd);
@@ -477,7 +477,7 @@ int cal_ctx_prepare(struct cal_ctx *ctx)
 
 	ret = cal_get_remote_frame_desc_entry(ctx, &entry);
 
-	if (ret == -ENOIOCTLCMD) {
+	if (ret == -EANALIOCTLCMD) {
 		ctx->vc = 0;
 		ctx->datatype = CAL_CSI2_CTX_DT_ANY;
 	} else if (!ret) {
@@ -517,7 +517,7 @@ void cal_ctx_start(struct cal_ctx *ctx)
 
 	/*
 	 * Reset the frame number & sequence number, but only if the
-	 * virtual channel is not already in use.
+	 * virtual channel is analt already in use.
 	 */
 
 	spin_lock(&phy->vc_lock);
@@ -661,7 +661,7 @@ static inline void cal_irq_wdma_end(struct cal_ctx *ctx)
 
 	spin_lock(&ctx->dma.lock);
 
-	/* If the DMA context was stopping, it is now stopped. */
+	/* If the DMA context was stopping, it is analw stopped. */
 	if (ctx->dma.state == CAL_DMA_STOP_PENDING) {
 		ctx->dma.state = CAL_DMA_STOPPED;
 		wake_up(&ctx->dma.wait);
@@ -689,10 +689,10 @@ static void cal_irq_handle_wdma(struct cal_ctx *ctx, bool start, bool end)
 {
 	/*
 	 * CAL HW interrupts are inherently racy. If we get both start and end
-	 * interrupts, we don't know what has happened: did the DMA for a single
+	 * interrupts, we don't kanalw what has happened: did the DMA for a single
 	 * frame start and end, or did one frame end and a new frame start?
 	 *
-	 * Usually for normal pixel frames we get the interrupts separately. If
+	 * Usually for analrmal pixel frames we get the interrupts separately. If
 	 * we do get both, we have to guess. The assumption in the code below is
 	 * that the active vertical area is larger than the blanking vertical
 	 * area, and thus it is more likely that we get the end of the old frame
@@ -769,7 +769,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 }
 
 /* ------------------------------------------------------------------
- *	Asynchronous V4L2 subdev binding
+ *	Asynchroanalus V4L2 subdev binding
  * ------------------------------------------------------------------
  */
 
@@ -784,7 +784,7 @@ to_cal_asd(struct v4l2_async_connection *asd)
 	return container_of(asd, struct cal_v4l2_async_subdev, asd);
 }
 
-static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
+static int cal_async_analtifier_bound(struct v4l2_async_analtifier *analtifier,
 				    struct v4l2_subdev *subdev,
 				    struct v4l2_async_connection *asd)
 {
@@ -801,11 +801,11 @@ static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
 	phy->source = subdev;
 	phy_dbg(1, phy, "Using source %s for capture\n", subdev->name);
 
-	pad = media_entity_get_fwnode_pad(&subdev->entity,
-					  of_fwnode_handle(phy->source_ep_node),
+	pad = media_entity_get_fwanalde_pad(&subdev->entity,
+					  of_fwanalde_handle(phy->source_ep_analde),
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
-		phy_err(phy, "Source %s has no connected source pad\n",
+		phy_err(phy, "Source %s has anal connected source pad\n",
 			subdev->name);
 		return pad;
 	}
@@ -823,9 +823,9 @@ static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static int cal_async_notifier_complete(struct v4l2_async_notifier *notifier)
+static int cal_async_analtifier_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct cal_dev *cal = container_of(notifier, struct cal_dev, notifier);
+	struct cal_dev *cal = container_of(analtifier, struct cal_dev, analtifier);
 	unsigned int i;
 	int ret;
 
@@ -838,7 +838,7 @@ static int cal_async_notifier_complete(struct v4l2_async_notifier *notifier)
 	if (!cal_mc_api)
 		return 0;
 
-	ret = v4l2_device_register_subdev_nodes(&cal->v4l2_dev);
+	ret = v4l2_device_register_subdev_analdes(&cal->v4l2_dev);
 	if (ret)
 		goto err_ctx_unreg;
 
@@ -855,33 +855,33 @@ err_ctx_unreg:
 	return ret;
 }
 
-static const struct v4l2_async_notifier_operations cal_async_notifier_ops = {
-	.bound = cal_async_notifier_bound,
-	.complete = cal_async_notifier_complete,
+static const struct v4l2_async_analtifier_operations cal_async_analtifier_ops = {
+	.bound = cal_async_analtifier_bound,
+	.complete = cal_async_analtifier_complete,
 };
 
-static int cal_async_notifier_register(struct cal_dev *cal)
+static int cal_async_analtifier_register(struct cal_dev *cal)
 {
 	unsigned int i;
 	int ret;
 
-	v4l2_async_nf_init(&cal->notifier, &cal->v4l2_dev);
-	cal->notifier.ops = &cal_async_notifier_ops;
+	v4l2_async_nf_init(&cal->analtifier, &cal->v4l2_dev);
+	cal->analtifier.ops = &cal_async_analtifier_ops;
 
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
 		struct cal_camerarx *phy = cal->phy[i];
 		struct cal_v4l2_async_subdev *casd;
-		struct fwnode_handle *fwnode;
+		struct fwanalde_handle *fwanalde;
 
-		if (!phy->source_node)
+		if (!phy->source_analde)
 			continue;
 
-		fwnode = of_fwnode_handle(phy->source_node);
-		casd = v4l2_async_nf_add_fwnode(&cal->notifier,
-						fwnode,
+		fwanalde = of_fwanalde_handle(phy->source_analde);
+		casd = v4l2_async_nf_add_fwanalde(&cal->analtifier,
+						fwanalde,
 						struct cal_v4l2_async_subdev);
 		if (IS_ERR(casd)) {
-			phy_err(phy, "Failed to add subdev to notifier\n");
+			phy_err(phy, "Failed to add subdev to analtifier\n");
 			ret = PTR_ERR(casd);
 			goto error;
 		}
@@ -889,23 +889,23 @@ static int cal_async_notifier_register(struct cal_dev *cal)
 		casd->phy = phy;
 	}
 
-	ret = v4l2_async_nf_register(&cal->notifier);
+	ret = v4l2_async_nf_register(&cal->analtifier);
 	if (ret) {
-		cal_err(cal, "Error registering async notifier\n");
+		cal_err(cal, "Error registering async analtifier\n");
 		goto error;
 	}
 
 	return 0;
 
 error:
-	v4l2_async_nf_cleanup(&cal->notifier);
+	v4l2_async_nf_cleanup(&cal->analtifier);
 	return ret;
 }
 
-static void cal_async_notifier_unregister(struct cal_dev *cal)
+static void cal_async_analtifier_unregister(struct cal_dev *cal)
 {
-	v4l2_async_nf_unregister(&cal->notifier);
-	v4l2_async_nf_cleanup(&cal->notifier);
+	v4l2_async_nf_unregister(&cal->analtifier);
+	v4l2_async_nf_cleanup(&cal->analtifier);
 }
 
 /* ------------------------------------------------------------------
@@ -928,10 +928,10 @@ static int cal_media_register(struct cal_dev *cal)
 	}
 
 	/*
-	 * Register the async notifier. This may trigger registration of the
+	 * Register the async analtifier. This may trigger registration of the
 	 * V4L2 video devices if all subdevs are ready.
 	 */
-	ret = cal_async_notifier_register(cal);
+	ret = cal_async_analtifier_register(cal);
 	if (ret) {
 		media_device_unregister(&cal->mdev);
 		return ret;
@@ -952,7 +952,7 @@ static void cal_media_unregister(struct cal_dev *cal)
 	for (i = 0; i < cal->num_contexts; i++)
 		cal_ctx_v4l2_unregister(cal->ctx[i]);
 
-	cal_async_notifier_unregister(cal);
+	cal_async_analtifier_unregister(cal);
 	media_device_unregister(&cal->mdev);
 }
 
@@ -972,7 +972,7 @@ static int cal_media_init(struct cal_dev *cal)
 
 	/*
 	 * Initialize the V4L2 device (despite the function name, this performs
-	 * initialization, not registration).
+	 * initialization, analt registration).
 	 */
 	cal->v4l2_dev.mdev = mdev;
 	ret = v4l2_device_register(cal->dev, &cal->v4l2_dev);
@@ -988,7 +988,7 @@ static int cal_media_init(struct cal_dev *cal)
 
 /*
  * Cleanup the in-kernel objects, freeing memory. To be called at the very end
- * of the remove sequence, when nothing (including userspace) can access the
+ * of the remove sequence, when analthing (including userspace) can access the
  * objects anymore.
  */
 static void cal_media_cleanup(struct cal_dev *cal)
@@ -1069,7 +1069,7 @@ static void cal_get_hwinfo(struct cal_dev *cal)
 	case CAL_HL_REVISION_SCHEME_H08:
 		cal_dbg(3, cal, "CAL HW revision %lu.%lu.%lu (0x%08x)\n",
 			FIELD_GET(CAL_HL_REVISION_MAJOR_MASK, cal->revision),
-			FIELD_GET(CAL_HL_REVISION_MINOR_MASK, cal->revision),
+			FIELD_GET(CAL_HL_REVISION_MIANALR_MASK, cal->revision),
 			FIELD_GET(CAL_HL_REVISION_RTL_MASK, cal->revision),
 			cal->revision);
 		break;
@@ -1090,7 +1090,7 @@ static void cal_get_hwinfo(struct cal_dev *cal)
 static int cal_init_camerarx_regmap(struct cal_dev *cal)
 {
 	struct platform_device *pdev = to_platform_device(cal->dev);
-	struct device_node *np = cal->dev->of_node;
+	struct device_analde *np = cal->dev->of_analde;
 	struct regmap_config config = { };
 	struct regmap *syscon;
 	struct resource *res;
@@ -1109,7 +1109,7 @@ static int cal_init_camerarx_regmap(struct cal_dev *cal)
 		 PTR_ERR(syscon));
 
 	/*
-	 * Backward DTS compatibility. If syscon entry is not present then
+	 * Backward DTS compatibility. If syscon entry is analt present then
 	 * check if the camerrx_control resource is present.
 	 */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -1135,7 +1135,7 @@ static int cal_init_camerarx_regmap(struct cal_dev *cal)
 	}
 
 	/*
-	 * In this case the base already point to the direct CM register so no
+	 * In this case the base already point to the direct CM register so anal
 	 * need for an offset.
 	 */
 	cal->syscon_camerrx = syscon;
@@ -1154,12 +1154,12 @@ static int cal_probe(struct platform_device *pdev)
 
 	cal = devm_kzalloc(&pdev->dev, sizeof(*cal), GFP_KERNEL);
 	if (!cal)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cal->data = of_device_get_match_data(&pdev->dev);
 	if (!cal->data) {
-		dev_err(&pdev->dev, "Could not get feature data based on compatible version\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Could analt get feature data based on compatible version\n");
+		return -EANALDEV;
 	}
 
 	cal->dev = &pdev->dev;
@@ -1168,7 +1168,7 @@ static int cal_probe(struct platform_device *pdev)
 	/* Acquire resources: clocks, CAMERARX regmap, I/O memory and IRQ. */
 	cal->fclk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(cal->fclk)) {
-		dev_err(&pdev->dev, "cannot get CAL fclk\n");
+		dev_err(&pdev->dev, "cananalt get CAL fclk\n");
 		return PTR_ERR(cal->fclk);
 	}
 
@@ -1215,25 +1215,25 @@ static int cal_probe(struct platform_device *pdev)
 			goto error_camerarx;
 		}
 
-		if (cal->phy[i]->source_node)
+		if (cal->phy[i]->source_analde)
 			connected = true;
 	}
 
 	if (!connected) {
-		cal_err(cal, "Neither port is configured, no point in staying up\n");
-		ret = -ENODEV;
+		cal_err(cal, "Neither port is configured, anal point in staying up\n");
+		ret = -EANALDEV;
 		goto error_camerarx;
 	}
 
 	/* Create contexts. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
-		if (!cal->phy[i]->source_node)
+		if (!cal->phy[i]->source_analde)
 			continue;
 
 		cal->ctx[cal->num_contexts] = cal_ctx_create(cal, i);
 		if (!cal->ctx[cal->num_contexts]) {
 			cal_err(cal, "Failed to create context %u\n", cal->num_contexts);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto error_context;
 		}
 
@@ -1307,7 +1307,7 @@ static int cal_runtime_resume(struct device *dev)
 	}
 
 	/*
-	 * Enable global interrupts that are not related to a particular
+	 * Enable global interrupts that are analt related to a particular
 	 * CAMERARAX or context.
 	 */
 	cal_write(cal, CAL_HL_IRQENABLE_SET(0), CAL_HL_IRQ_OCPO_ERR_MASK);
@@ -1316,7 +1316,7 @@ static int cal_runtime_resume(struct device *dev)
 	cal_set_field(&val, CAL_CTRL_BURSTSIZE_BURST128,
 		      CAL_CTRL_BURSTSIZE_MASK);
 	cal_set_field(&val, 0xf, CAL_CTRL_TAGCNT_MASK);
-	cal_set_field(&val, CAL_CTRL_POSTED_WRITES_NONPOSTED,
+	cal_set_field(&val, CAL_CTRL_POSTED_WRITES_ANALNPOSTED,
 		      CAL_CTRL_POSTED_WRITES_MASK);
 	cal_set_field(&val, 0xff, CAL_CTRL_MFLAGL_MASK);
 	cal_set_field(&val, 0xff, CAL_CTRL_MFLAGH_MASK);

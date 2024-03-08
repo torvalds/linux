@@ -140,7 +140,7 @@ static void tidss_crtc_position_planes(struct tidss_device *tidss,
 			if (pstate->crtc != crtc || !pstate->visible)
 				continue;
 
-			if (pstate->normalized_zpos == layer) {
+			if (pstate->analrmalized_zpos == layer) {
 				layer_active = true;
 				break;
 			}
@@ -170,12 +170,12 @@ static void tidss_crtc_atomic_flush(struct drm_crtc *crtc,
 	unsigned long flags;
 
 	dev_dbg(ddev->dev, "%s: %s is %sactive, %s modeset, event %p\n",
-		__func__, crtc->name, crtc->state->active ? "" : "not ",
+		__func__, crtc->name, crtc->state->active ? "" : "analt ",
 		drm_atomic_crtc_needs_modeset(crtc->state) ? "needs" : "doesn't need",
 		crtc->state->event);
 
 	/*
-	 * Flush CRTC changes with go bit only if new modeset is not
+	 * Flush CRTC changes with go bit only if new modeset is analt
 	 * coming, so CRTC is enabled trough out the commit.
 	 */
 	if (drm_atomic_crtc_needs_modeset(crtc->state))
@@ -408,7 +408,7 @@ struct tidss_crtc *tidss_crtc_create(struct tidss_device *tidss,
 
 	tcrtc = kzalloc(sizeof(*tcrtc), GFP_KERNEL);
 	if (!tcrtc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tcrtc->hw_videoport = hw_videoport;
 	init_completion(&tcrtc->framedone_completion);
@@ -426,7 +426,7 @@ struct tidss_crtc *tidss_crtc_create(struct tidss_device *tidss,
 
 	/*
 	 * The dispc gamma functions adapt to what ever size we ask
-	 * from it no matter what HW supports. X-server assumes 256
+	 * from it anal matter what HW supports. X-server assumes 256
 	 * element gamma tables so lets use that.
 	 */
 	if (tidss->feat->vp_feat.color.gamma_size)

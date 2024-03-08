@@ -39,7 +39,7 @@ static int nft_objref_init(const struct nft_ctx *ctx,
 			     tb[NFTA_OBJREF_IMM_NAME], objtype,
 			     genmask);
 	if (IS_ERR(obj))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!nft_use_inc(&obj->use))
 		return -EMFILE;
@@ -222,7 +222,7 @@ nft_objref_select_ops(const struct nft_ctx *ctx,
 		 tb[NFTA_OBJREF_IMM_TYPE])
 		return &nft_objref_ops;
 
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static const struct nla_policy nft_objref_policy[NFTA_OBJREF_MAX + 1] = {

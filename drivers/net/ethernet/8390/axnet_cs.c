@@ -147,7 +147,7 @@ static int axnet_probe(struct pcmcia_device *link)
 
     dev = alloc_etherdev(sizeof(struct ei_device) + sizeof(struct axnet_dev));
     if (!dev)
-	return -ENOMEM;
+	return -EANALMEM;
 
     ei_local = netdev_priv(dev);
     spin_lock_init(&ei_local->page_lock);
@@ -194,7 +194,7 @@ static int get_prom(struct pcmcia_device *link)
     struct {
 	u_char value, offset;
     } program_seq[] = {
-	{E8390_NODMA+E8390_PAGE0+E8390_STOP, E8390_CMD}, /* Select page 0*/
+	{E8390_ANALDMA+E8390_PAGE0+E8390_STOP, E8390_CMD}, /* Select page 0*/
 	{0x01,	EN0_DCFG},	/* Set word-wide access. */
 	{0x00,	EN0_RCNTLO},	/* Clear the count regs. */
 	{0x00,	EN0_RCNTHI},
@@ -209,7 +209,7 @@ static int get_prom(struct pcmcia_device *link)
 	{E8390_RREAD+E8390_START, E8390_CMD},
     };
 
-    /* Not much of a test, but the alternatives are messy */
+    /* Analt much of a test, but the alternatives are messy */
     if (link->config_base != 0x03c0)
 	return 0;
 
@@ -266,7 +266,7 @@ static int axnet_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 
 	p_dev->config_index = 0x05;
 	if (p_dev->resource[0]->end + p_dev->resource[1]->end < 32)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return try_io_port(p_dev);
 }
@@ -300,8 +300,8 @@ static int axnet_config(struct pcmcia_device *link)
     dev->base_addr = link->resource[0]->start;
 
     if (!get_prom(link)) {
-	pr_notice("this is not an AX88190 card!\n");
-	pr_notice("use pcnet_cs instead.\n");
+	pr_analtice("this is analt an AX88190 card!\n");
+	pr_analtice("use pcnet_cs instead.\n");
 	goto failed;
     }
 
@@ -351,7 +351,7 @@ static int axnet_config(struct pcmcia_device *link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	pr_notice("register_netdev() failed\n");
+	pr_analtice("register_netdev() failed\n");
 	goto failed;
     }
 
@@ -362,13 +362,13 @@ static int axnet_config(struct pcmcia_device *link)
 	netdev_dbg(dev, "  MII transceiver at index %d, status %x\n",
 		   info->phy_id, j);
     } else {
-	netdev_notice(dev, "  No MII transceivers found!\n");
+	netdev_analtice(dev, "  Anal MII transceivers found!\n");
     }
     return 0;
 
 failed:
     axnet_release(link);
-    return -ENODEV;
+    return -EANALDEV;
 } /* axnet_config */
 
 static void axnet_release(struct pcmcia_device *link)
@@ -474,7 +474,7 @@ static int axnet_open(struct net_device *dev)
     dev_dbg(&link->dev, "axnet_open('%s')\n", dev->name);
 
     if (!pcmcia_dev_present(link))
-	return -ENODEV;
+	return -EANALDEV;
 
     outb_p(0xFF, nic_base + EN0_ISR); /* Clear bogus intr. */
     ret = request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, "axnet_cs", dev);
@@ -523,7 +523,7 @@ static void axnet_reset_8390(struct net_device *dev)
 
     ei_status.txing = ei_status.dmaing = 0;
 
-    outb_p(E8390_NODMA+E8390_PAGE0+E8390_STOP, nic_base + E8390_CMD);
+    outb_p(E8390_ANALDMA+E8390_PAGE0+E8390_STOP, nic_base + E8390_CMD);
 
     outb(inb(nic_base + AXNET_RESET), nic_base + AXNET_RESET);
 
@@ -535,7 +535,7 @@ static void axnet_reset_8390(struct net_device *dev)
     outb_p(ENISR_RESET, nic_base + EN0_ISR); /* Ack intr. */
     
     if (i == 100)
-	netdev_err(dev, "axnet_reset_8390() did not complete\n");
+	netdev_err(dev, "axnet_reset_8390() did analt complete\n");
     
 } /* axnet_reset_8390 */
 
@@ -592,7 +592,7 @@ static void ei_watchdog(struct timer_list *t)
 		netdev_info(dev, "autonegotiation complete: %dbaseT-%cD selected\n",
 			    (p & 0x0180) ? 100 : 10, (p & 0x0140) ? 'F' : 'H');
 	    else
-		netdev_info(dev, "link partner did not autonegotiate\n");
+		netdev_info(dev, "link partner did analt autonegotiate\n");
 	    AX88190_init(dev, 1);
 	}
 	info->link_status = link;
@@ -621,7 +621,7 @@ static int axnet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	mdio_write(mii_addr, data->phy_id, data->reg_num & 0x1f, data->val_in);
 	return 0;
     }
-    return -EOPNOTSUPP;
+    return -EOPANALTSUPP;
 }
 
 /*====================================================================*/
@@ -747,12 +747,12 @@ module_pcmcia_driver(axnet_cs_driver);
 	Annapolis MD 21403
 
   This is the chip-specific code for many 8390-based ethernet adaptors.
-  This is not a complete driver, it must be combined with board-specific
+  This is analt a complete driver, it must be combined with board-specific
   code such as ne.c, wd.c, 3c503.c, etc.
 
-  Seeing how at least eight drivers use this code, (not counting the
+  Seeing how at least eight drivers use this code, (analt counting the
   PCMCIA ones either) it is easy to break some card by what seems like
-  a simple innocent change. Please contact me or Donald if you think
+  a simple inanalcent change. Please contact me or Donald if you think
   you have found something that needs changing. -- PG
 
   Changelog:
@@ -825,8 +825,8 @@ static void do_set_multicast_list(struct net_device *dev);
  *
  *	The 8390 isn't exactly designed to be multithreaded on RX/TX. There is
  *	a page register that controls bank and packet buffer access. We guard
- *	this with ei_local->page_lock. Nobody should assume or set the page other
- *	than zero when the lock is not held. Lock holders must restore page 0
+ *	this with ei_local->page_lock. Analbody should assume or set the page other
+ *	than zero when the lock is analt held. Lock holders must restore page 0
  *	before unlocking. Even pure readers must take the lock to protect in 
  *	page 0.
  *
@@ -836,12 +836,12 @@ static void do_set_multicast_list(struct net_device *dev);
  *	processor case other than interrupts (get stats/set multicast list in
  *	parallel with each other and transmit).
  *
- *	Note: in theory we can just disable the irq on the card _but_ there is
+ *	Analte: in theory we can just disable the irq on the card _but_ there is
  *	a latency on SMP irq delivery. So we can easily go "disable irq" "sync irqs"
  *	enter lock, take the queued irq. So we waddle instead of flying.
  *
  *	Finally by special arrangement for the purpose of being generally 
- *	annoying the transmit function is called bh atomic. That places
+ *	ananalying the transmit function is called bh atomic. That places
  *	restrictions on the user context callers as disable_irq won't save
  *	them.
  */
@@ -867,7 +867,7 @@ static int ax_open(struct net_device *dev)
       	spin_lock_irqsave(&ei_local->page_lock, flags);
 	AX88190_init(dev, 1);
 	/* Set the flag before we drop the lock, That way the IRQ arrives
-	   after its set and we get no silly warnings */
+	   after its set and we get anal silly warnings */
 	netif_start_queue(dev);
       	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	ei_local->irqlock = 0;
@@ -902,7 +902,7 @@ static int ax_close(struct net_device *dev)
  * @dev: network device which has apparently fallen asleep
  * @txqueue: unused
  *
- * Called by kernel when device never acknowledges a transmit has
+ * Called by kernel when device never ackanalwledges a transmit has
  * completed (or failed) - i.e. never posted a Tx related interrupt.
  */
 
@@ -966,8 +966,8 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 
 	/* Mask interrupts from the ethercard. 
 	   SMP: We have to grab the lock here otherwise the IRQ handler
-	   on another CPU can flip window and race the IRQ mask set. We end
-	   up trashing the mcast filter not disabling irqs if we don't lock */
+	   on aanalther CPU can flip window and race the IRQ mask set. We end
+	   up trashing the mcast filter analt disabling irqs if we don't lock */
 	   
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 	outb_p(0x00, e8390_base + EN0_IMR);
@@ -1013,7 +1013,7 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 	else
 	{	/* We should never get here. */
 		netif_dbg(ei_local, tx_err, dev,
-			  "No Tx buffers free! tx1=%d tx2=%d last=%d\n",
+			  "Anal Tx buffers free! tx1=%d tx2=%d last=%d\n",
 			  ei_local->tx1, ei_local->tx2,
 			  ei_local->lasttx);
 		ei_local->irqlock = 0;
@@ -1025,7 +1025,7 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 	}
 
 	/*
-	 * Okay, now upload the packet and trigger a send if the transmitter
+	 * Okay, analw upload the packet and trigger a send if the transmitter
 	 * isn't already sending. If it is busy, the interrupt handler will
 	 * trigger the send later, upon receiving a Tx done interrupt.
 	 */
@@ -1117,7 +1117,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 			    inb_p(e8390_base + EN0_IMR));
 #endif
 		spin_unlock_irqrestore(&ei_local->page_lock, flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	netif_dbg(ei_local, intr, dev, "interrupt(isr=%#2.2x)\n",
@@ -1180,7 +1180,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 					    interrupts);
 			outb_p(ENISR_ALL, e8390_base + EN0_ISR); /* Ack. most intrs. */
 		} else {
-			netdev_warn(dev, "unknown interrupt %#2x\n",
+			netdev_warn(dev, "unkanalwn interrupt %#2x\n",
 				    interrupts);
 			outb_p(0xff, e8390_base + EN0_ISR); /* Ack. all intrs. */
 		}
@@ -1199,8 +1199,8 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
  * @dev: network device which threw the exception
  *
  * A transmitter error has happened. Most likely excess collisions (which
- * is a fairly normal condition). If the error is one where the Tx will
- * have been aborted, we try and send another one right away, instead of
+ * is a fairly analrmal condition). If the error is one where the Tx will
+ * have been aborted, we try and send aanalther one right away, instead of
  * letting the failed packet sit and collect dust in the Tx buffer. This
  * is a much better solution as it avoids kernel based Tx timeouts, and
  * an unnecessary card reset.
@@ -1219,7 +1219,7 @@ static void ei_tx_err(struct net_device *dev)
 	if (txsr & ENTSR_ABT)
 		pr_cont(" excess-collisions");
 	if (txsr & ENTSR_ND)
-		pr_cont(" non-deferral");
+		pr_cont(" analn-deferral");
 	if (txsr & ENTSR_CRS)
 		pr_cont(" lost-carrier");
 	if (txsr & ENTSR_FU)
@@ -1256,7 +1256,7 @@ static void ei_tx_intr(struct net_device *dev)
     
 	/*
 	 * There are two Tx buffers, see which one finished, and trigger
-	 * the send of another one if it exists.
+	 * the send of aanalther one if it exists.
 	 */
 	ei_local->txqueue--;
 
@@ -1369,7 +1369,7 @@ static void ei_receive(struct net_device *dev)
 				   this_frame, ei_local->current_page);
 		
 		if (this_frame == rxing_page)	/* Read all the frames? */
-			break;				/* Done for now */
+			break;				/* Done for analw */
 		
 		current_offset = this_frame << 8;
 		ei_get_8390_hdr(dev, &rx_frame, this_frame);
@@ -1463,7 +1463,7 @@ static void ei_rx_overrun(struct net_device *dev)
 	 * stop command.
 	 */
 	was_txing = inb_p(e8390_base+E8390_CMD) & E8390_TRANS;
-	outb_p(E8390_NODMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD);
+	outb_p(E8390_ANALDMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD);
 
 	netif_dbg(ei_local, rx_err, dev, "Receiver overrun\n");
 	dev->stats.rx_over_errors++;
@@ -1482,8 +1482,8 @@ static void ei_rx_overrun(struct net_device *dev)
 	outb_p(0x00, e8390_base+EN0_RCNTHI);
 
 	/*
-	 * See if any Tx was interrupted or not. According to NS, this
-	 * step is vital, and skipping it will cause no end of havoc.
+	 * See if any Tx was interrupted or analt. According to NS, this
+	 * step is vital, and skipping it will cause anal end of havoc.
 	 */
 
 	if (was_txing)
@@ -1498,7 +1498,7 @@ static void ei_rx_overrun(struct net_device *dev)
 	 * you are allowed to slurp packets up off the ring.
 	 */
 	outb_p(E8390_TXOFF, e8390_base + EN0_TXCR);
-	outb_p(E8390_NODMA + E8390_PAGE0 + E8390_START, e8390_base + E8390_CMD);
+	outb_p(E8390_ANALDMA + E8390_PAGE0 + E8390_START, e8390_base + E8390_CMD);
 
 	/*
 	 * Clear the Rx ring of all the debris, and ack the interrupt.
@@ -1510,7 +1510,7 @@ static void ei_rx_overrun(struct net_device *dev)
 	 */
 	outb_p(E8390_TXCONFIG | info->duplex_flag, e8390_base + EN0_TXCR); 
 	if (must_resend)
-    		outb_p(E8390_NODMA + E8390_PAGE0 + E8390_START + E8390_TRANS, e8390_base + E8390_CMD);
+    		outb_p(E8390_ANALDMA + E8390_PAGE0 + E8390_START + E8390_TRANS, e8390_base + E8390_CMD);
 }
 
 /*
@@ -1580,12 +1580,12 @@ static void do_set_multicast_list(struct net_device *dev)
 		memset(ei_local->mcfilter, 0xFF, 8);
 	}
 
-	outb_p(E8390_NODMA + E8390_PAGE1, e8390_base + E8390_CMD);
+	outb_p(E8390_ANALDMA + E8390_PAGE1, e8390_base + E8390_CMD);
 	for(i = 0; i < 8; i++) 
 	{
 		outb_p(ei_local->mcfilter[i], e8390_base + EN1_MULT_SHIFT(i));
 	}
-	outb_p(E8390_NODMA + E8390_PAGE0, e8390_base + E8390_CMD);
+	outb_p(E8390_ANALDMA + E8390_PAGE0, e8390_base + E8390_CMD);
 
 	if(dev->flags&IFF_PROMISC)
 		outb_p(E8390_RXCONFIG | 0x58, e8390_base + EN0_RXCR);
@@ -1594,13 +1594,13 @@ static void do_set_multicast_list(struct net_device *dev)
 	else
 		outb_p(E8390_RXCONFIG | 0x40, e8390_base + EN0_RXCR);
 
-	outb_p(E8390_NODMA+E8390_PAGE0+E8390_START, e8390_base+E8390_CMD);
+	outb_p(E8390_ANALDMA+E8390_PAGE0+E8390_START, e8390_base+E8390_CMD);
 }
 
 /*
  *	Called without lock held. This is invoked from user context and may
  *	be parallel to just about everything else. Its also fairly quick and
- *	not called too often. Must protect against both bh and irq users
+ *	analt called too often. Must protect against both bh and irq users
  */
 
 static void set_multicast_list(struct net_device *dev)
@@ -1618,7 +1618,7 @@ static void set_multicast_list(struct net_device *dev)
 /**
  * AX88190_init - initialize 8390 hardware
  * @dev: network device to initialize
- * @startp: boolean.  non-zero value to initiate chip processing
+ * @startp: boolean.  analn-zero value to initiate chip processing
  *
  *	Must be called with lock held.
  */
@@ -1634,7 +1634,7 @@ static void AX88190_init(struct net_device *dev, int startp)
 	if(sizeof(struct e8390_pkt_hdr)!=4)
     		panic("8390.c: header struct mispacked\n");    
 	/* Follow National Semi's recommendations for initing the DP83902. */
-	outb_p(E8390_NODMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD); /* 0x21 */
+	outb_p(E8390_ANALDMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD); /* 0x21 */
 	outb_p(endcfg, e8390_base + EN0_DCFG);	/* 0x48 or 0x49 */
 	/* Clear the remote byte count registers. */
 	outb_p(0x00,  e8390_base + EN0_RCNTLO);
@@ -1655,7 +1655,7 @@ static void AX88190_init(struct net_device *dev, int startp)
     
 	/* Copy the station address into the DS8390 registers. */
 
-	outb_p(E8390_NODMA + E8390_PAGE1 + E8390_STOP, e8390_base+E8390_CMD); /* 0x61 */
+	outb_p(E8390_ANALDMA + E8390_PAGE1 + E8390_STOP, e8390_base+E8390_CMD); /* 0x61 */
 	for(i = 0; i < 6; i++) 
 	{
 		outb_p(dev->dev_addr[i], e8390_base + EN1_PHYS_SHIFT(i));
@@ -1664,7 +1664,7 @@ static void AX88190_init(struct net_device *dev, int startp)
 	}
 
 	outb_p(ei_local->rx_start_page, e8390_base + EN1_CURPAG);
-	outb_p(E8390_NODMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD);
+	outb_p(E8390_ANALDMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD);
 
 	netif_start_queue(dev);
 	ei_local->tx1 = ei_local->tx2 = 0;
@@ -1677,7 +1677,7 @@ static void AX88190_init(struct net_device *dev, int startp)
 	{
 		outb_p(0xff,  e8390_base + EN0_ISR);
 		outb_p(ENISR_ALL,  e8390_base + EN0_IMR);
-		outb_p(E8390_NODMA+E8390_PAGE0+E8390_START, e8390_base+E8390_CMD);
+		outb_p(E8390_ANALDMA+E8390_PAGE0+E8390_START, e8390_base+E8390_CMD);
 		outb_p(E8390_TXCONFIG | info->duplex_flag,
 		       e8390_base + EN0_TXCR); /* xmit on. */
 		/* 3c503 TechMan says rxconfig only after the NIC is started. */
@@ -1703,5 +1703,5 @@ static void NS8390_trigger_send(struct net_device *dev, unsigned int length,
 	outb_p(length & 0xff, e8390_base + EN0_TCNTLO);
 	outb_p(length >> 8, e8390_base + EN0_TCNTHI);
 	outb_p(start_page, e8390_base + EN0_TPSR);
-	outb_p(E8390_NODMA+E8390_TRANS+E8390_START, e8390_base+E8390_CMD);
+	outb_p(E8390_ANALDMA+E8390_TRANS+E8390_START, e8390_base+E8390_CMD);
 }

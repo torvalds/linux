@@ -168,7 +168,7 @@ static int cap_audit_static(struct intel_iommu *iommu, enum cap_audit_type type)
 	 */
 	if (intel_cap_smts_sanity() &&
 	    !intel_cap_flts_sanity() && !intel_cap_slts_sanity())
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 
 out:
 	rcu_read_unlock();

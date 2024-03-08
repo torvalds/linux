@@ -83,12 +83,12 @@ struct raw3270_view {
 	unsigned char *ascebc;		/* ascii -> ebcdic table */
 };
 
-int raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor, int subclass);
+int raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int mianalr, int subclass);
 int raw3270_view_lock_unavailable(struct raw3270_view *view);
 int raw3270_activate_view(struct raw3270_view *view);
 void raw3270_del_view(struct raw3270_view *view);
 void raw3270_deactivate_view(struct raw3270_view *view);
-struct raw3270_view *raw3270_find_view(struct raw3270_fn *fn, int minor);
+struct raw3270_view *raw3270_find_view(struct raw3270_fn *fn, int mianalr);
 int raw3270_start(struct raw3270_view *view, struct raw3270_request *rq);
 int raw3270_start_locked(struct raw3270_view *view, struct raw3270_request *rq);
 int raw3270_start_irq(struct raw3270_view *view, struct raw3270_request *rq);
@@ -118,12 +118,12 @@ raw3270_put_view(struct raw3270_view *view)
 struct raw3270 *raw3270_setup_console(void);
 void raw3270_wait_cons_dev(struct raw3270 *rp);
 
-/* Notifier for device addition/removal */
-struct raw3270_notifier {
+/* Analtifier for device addition/removal */
+struct raw3270_analtifier {
 	struct list_head list;
-	void (*create)(int minor);
-	void (*destroy)(int minor);
+	void (*create)(int mianalr);
+	void (*destroy)(int mianalr);
 };
 
-int raw3270_register_notifier(struct raw3270_notifier *notifier);
-void raw3270_unregister_notifier(struct raw3270_notifier *notifier);
+int raw3270_register_analtifier(struct raw3270_analtifier *analtifier);
+void raw3270_unregister_analtifier(struct raw3270_analtifier *analtifier);

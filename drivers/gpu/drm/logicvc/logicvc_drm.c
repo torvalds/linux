@@ -52,7 +52,7 @@ static struct drm_driver logicvc_drm_driver = {
 	.desc				= "Xylon LogiCVC DRM driver",
 	.date				= "20200403",
 	.major				= 1,
-	.minor				= 0,
+	.mianalr				= 0,
 
 	DRM_GEM_DMA_DRIVER_OPS_VMAP_WITH_DUMB_CREATE(logicvc_drm_gem_dma_dumb_create),
 };
@@ -67,7 +67,7 @@ static struct regmap_config logicvc_drm_regmap_config = {
 static irqreturn_t logicvc_drm_irq_handler(int irq, void *data)
 {
 	struct logicvc_drm *logicvc = data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 stat = 0;
 
 	/* Get pending interrupt sources. */
@@ -88,54 +88,54 @@ static int logicvc_drm_config_parse(struct logicvc_drm *logicvc)
 {
 	struct drm_device *drm_dev = &logicvc->drm_dev;
 	struct device *dev = drm_dev->dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	struct logicvc_drm_config *config = &logicvc->config;
-	struct device_node *layers_node;
+	struct device_analde *layers_analde;
 	int ret;
 
-	logicvc_of_property_parse_bool(of_node, LOGICVC_OF_PROPERTY_DITHERING,
+	logicvc_of_property_parse_bool(of_analde, LOGICVC_OF_PROPERTY_DITHERING,
 				       &config->dithering);
-	logicvc_of_property_parse_bool(of_node,
+	logicvc_of_property_parse_bool(of_analde,
 				       LOGICVC_OF_PROPERTY_BACKGROUND_LAYER,
 				       &config->background_layer);
-	logicvc_of_property_parse_bool(of_node,
+	logicvc_of_property_parse_bool(of_analde,
 				       LOGICVC_OF_PROPERTY_LAYERS_CONFIGURABLE,
 				       &config->layers_configurable);
 
-	ret = logicvc_of_property_parse_u32(of_node,
+	ret = logicvc_of_property_parse_u32(of_analde,
 					    LOGICVC_OF_PROPERTY_DISPLAY_INTERFACE,
 					    &config->display_interface);
 	if (ret)
 		return ret;
 
-	ret = logicvc_of_property_parse_u32(of_node,
+	ret = logicvc_of_property_parse_u32(of_analde,
 					    LOGICVC_OF_PROPERTY_DISPLAY_COLORSPACE,
 					    &config->display_colorspace);
 	if (ret)
 		return ret;
 
-	ret = logicvc_of_property_parse_u32(of_node,
+	ret = logicvc_of_property_parse_u32(of_analde,
 					    LOGICVC_OF_PROPERTY_DISPLAY_DEPTH,
 					    &config->display_depth);
 	if (ret)
 		return ret;
 
-	ret = logicvc_of_property_parse_u32(of_node,
+	ret = logicvc_of_property_parse_u32(of_analde,
 					    LOGICVC_OF_PROPERTY_ROW_STRIDE,
 					    &config->row_stride);
 	if (ret)
 		return ret;
 
-	layers_node = of_get_child_by_name(of_node, "layers");
-	if (!layers_node) {
-		drm_err(drm_dev, "Missing non-optional layers node\n");
+	layers_analde = of_get_child_by_name(of_analde, "layers");
+	if (!layers_analde) {
+		drm_err(drm_dev, "Missing analn-optional layers analde\n");
 		return -EINVAL;
 	}
 
-	config->layers_count = of_get_child_count(layers_node);
+	config->layers_count = of_get_child_count(layers_analde);
 	if (!config->layers_count) {
 		drm_err(drm_dev,
-			"Missing a non-optional layers children node\n");
+			"Missing a analn-optional layers children analde\n");
 		return -EINVAL;
 	}
 
@@ -181,10 +181,10 @@ static int logicvc_clocks_prepare(struct logicvc_drm *logicvc)
 
 		clk = devm_clk_get(dev, clocks_map[i].name);
 		if (IS_ERR(clk)) {
-			if (PTR_ERR(clk) == -ENOENT && clocks_map[i].optional)
+			if (PTR_ERR(clk) == -EANALENT && clocks_map[i].optional)
 				continue;
 
-			drm_err(drm_dev, "Missing non-optional clock %s\n",
+			drm_err(drm_dev, "Missing analn-optional clock %s\n",
 				clocks_map[i].name);
 
 			ret = PTR_ERR(clk);
@@ -257,7 +257,7 @@ logicvc_drm_caps_match(struct logicvc_drm *logicvc)
 {
 	struct drm_device *drm_dev = &logicvc->drm_dev;
 	const struct logicvc_drm_caps *caps = NULL;
-	unsigned int major, minor;
+	unsigned int major, mianalr;
 	char level;
 	unsigned int i;
 	u32 version;
@@ -265,7 +265,7 @@ logicvc_drm_caps_match(struct logicvc_drm *logicvc)
 	regmap_read(logicvc->regmap, LOGICVC_IP_VERSION_REG, &version);
 
 	major = FIELD_GET(LOGICVC_IP_VERSION_MAJOR_MASK, version);
-	minor = FIELD_GET(LOGICVC_IP_VERSION_MINOR_MASK, version);
+	mianalr = FIELD_GET(LOGICVC_IP_VERSION_MIANALR_MASK, version);
 	level = FIELD_GET(LOGICVC_IP_VERSION_LEVEL_MASK, version) + 'a';
 
 	for (i = 0; i < ARRAY_SIZE(logicvc_drm_caps); i++) {
@@ -273,8 +273,8 @@ logicvc_drm_caps_match(struct logicvc_drm *logicvc)
 		    logicvc_drm_caps[i].major != major)
 			continue;
 
-		if (logicvc_drm_caps[i].minor &&
-		    logicvc_drm_caps[i].minor != minor)
+		if (logicvc_drm_caps[i].mianalr &&
+		    logicvc_drm_caps[i].mianalr != mianalr)
 			continue;
 
 		if (logicvc_drm_caps[i].level &&
@@ -284,15 +284,15 @@ logicvc_drm_caps_match(struct logicvc_drm *logicvc)
 		caps = &logicvc_drm_caps[i];
 	}
 
-	drm_info(drm_dev, "LogiCVC version %d.%02d.%c\n", major, minor, level);
+	drm_info(drm_dev, "LogiCVC version %d.%02d.%c\n", major, mianalr, level);
 
 	return caps;
 }
 
 static int logicvc_drm_probe(struct platform_device *pdev)
 {
-	struct device_node *of_node = pdev->dev.of_node;
-	struct device_node *reserved_mem_node;
+	struct device_analde *of_analde = pdev->dev.of_analde;
+	struct device_analde *reserved_mem_analde;
 	struct reserved_mem *reserved_mem = NULL;
 	const struct logicvc_drm_caps *caps;
 	struct logicvc_drm *logicvc;
@@ -306,24 +306,24 @@ static int logicvc_drm_probe(struct platform_device *pdev)
 	int ret;
 
 	ret = of_reserved_mem_device_init(dev);
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -EANALDEV) {
 		dev_err(dev, "Failed to init memory region\n");
 		goto error_early;
 	}
 
-	reserved_mem_node = of_parse_phandle(of_node, "memory-region", 0);
-	if (reserved_mem_node) {
-		reserved_mem = of_reserved_mem_lookup(reserved_mem_node);
-		of_node_put(reserved_mem_node);
+	reserved_mem_analde = of_parse_phandle(of_analde, "memory-region", 0);
+	if (reserved_mem_analde) {
+		reserved_mem = of_reserved_mem_lookup(reserved_mem_analde);
+		of_analde_put(reserved_mem_analde);
 	}
 
 	/* Get regmap from parent if available. */
-	if (of_node->parent)
-		regmap = syscon_node_to_regmap(of_node->parent);
+	if (of_analde->parent)
+		regmap = syscon_analde_to_regmap(of_analde->parent);
 
 	/* Register our own regmap otherwise. */
 	if (IS_ERR_OR_NULL(regmap)) {
-		ret = of_address_to_resource(of_node, 0, &res);
+		ret = of_address_to_resource(of_analde, 0, &res);
 		if (ret) {
 			dev_err(dev, "Failed to get resource from address\n");
 			goto error_reserved_mem;
@@ -350,7 +350,7 @@ static int logicvc_drm_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_reserved_mem;
 	}
 
@@ -392,7 +392,7 @@ static int logicvc_drm_probe(struct platform_device *pdev)
 	}
 
 	ret = logicvc_drm_config_parse(logicvc);
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -EANALDEV) {
 		drm_err(drm_dev, "Failed to parse config\n");
 		goto error_clocks;
 	}

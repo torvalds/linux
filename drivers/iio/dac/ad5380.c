@@ -351,7 +351,7 @@ static int ad5380_alloc_channels(struct iio_dev *indio_dev)
 			   sizeof(struct iio_chan_spec), GFP_KERNEL);
 
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < st->chip_info->num_channels; ++i) {
 		channels[i] = st->chip_info->channel_template;
@@ -375,7 +375,7 @@ static int ad5380_probe(struct device *dev, struct regmap *regmap,
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(dev, "Failed to allocate iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	st = iio_priv(indio_dev);

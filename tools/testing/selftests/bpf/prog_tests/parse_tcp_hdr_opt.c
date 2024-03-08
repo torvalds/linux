@@ -19,7 +19,7 @@ struct test_pkt pkt = {
 	.pk6_v6.tcp.doff = 9, /* 16 bytes of options */
 
 	.options = {
-		TCPOPT_MSS, 4, 0x05, 0xB4, TCPOPT_NOP, TCPOPT_NOP,
+		TCPOPT_MSS, 4, 0x05, 0xB4, TCPOPT_ANALP, TCPOPT_ANALP,
 		0, 6, 0xBB, 0xBB, 0xBB, 0xBB, TCPOPT_EOL
 	},
 };

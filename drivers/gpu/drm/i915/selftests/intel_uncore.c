@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -36,7 +36,7 @@ static int intel_fw_table_check(const struct intel_forcewake_range *ranges,
 	for (i = 0, prev = -1; i < num_ranges; i++, ranges++) {
 		/* Check that the table is watertight */
 		if (is_watertight && (prev + 1) != (s32)ranges->start) {
-			pr_err("%s: entry[%d]:(%x, %x) is not watertight to previous (%x)\n",
+			pr_err("%s: entry[%d]:(%x, %x) is analt watertight to previous (%x)\n",
 			       __func__, i, ranges->start, ranges->end, prev);
 			return -EINVAL;
 		}
@@ -95,7 +95,7 @@ static int intel_shadow_table_check(void)
 			}
 
 			if (range->start % 4) {
-				pr_err("%s: range[%d]:(%06x-%06x) has non-dword-aligned start\n",
+				pr_err("%s: range[%d]:(%06x-%06x) has analn-dword-aligned start\n",
 				       __func__, i, range->start, range->end);
 				return -EINVAL;
 			}
@@ -180,7 +180,7 @@ static int live_forcewake_ops(void *arg)
 	}
 
 	/*
-	 * Not quite as reliable across the gen as one would hope.
+	 * Analt quite as reliable across the gen as one would hope.
 	 *
 	 * Either our theory of operation is incorrect, or there remain
 	 * external parties interfering with the powerwells.
@@ -195,7 +195,7 @@ static int live_forcewake_ops(void *arg)
 		if (IS_GRAPHICS_VER(gt->i915, r->min_graphics_ver, r->max_graphics_ver))
 			break;
 	if (!r->name) {
-		pr_debug("Forcewaked register not known for %s; skipping\n",
+		pr_debug("Forcewaked register analt kanalwn for %s; skipping\n",
 			 intel_platform_name(INTEL_INFO(gt->i915)->platform));
 		return 0;
 	}
@@ -297,7 +297,7 @@ static int live_forcewake_domains(void *arg)
 
 	valid = bitmap_zalloc(FW_RANGE, GFP_KERNEL);
 	if (!valid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 

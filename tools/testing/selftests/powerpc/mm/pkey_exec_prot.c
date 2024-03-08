@@ -17,7 +17,7 @@
 
 #include "pkeys.h"
 
-#define PPC_INST_NOP	0x60000000
+#define PPC_INST_ANALP	0x60000000
 #define PPC_INST_TRAP	0x7fe00008
 #define PPC_INST_BLR	0x4e800020
 
@@ -77,7 +77,7 @@ static void segv_handler(int signum, siginfo_t *sinfo, void *ctx)
 		case PKEY_DISABLE_EXECUTE:
 			/*
 			 * Reassociate the exec-only pkey with the region
-			 * to be able to continue. Unlike AMR, we cannot
+			 * to be able to continue. Unlike AMR, we cananalt
 			 * set IAMR directly from userspace to restore the
 			 * permissions.
 			 */
@@ -129,17 +129,17 @@ static int test(void)
 	pgsize = getpagesize();
 	numinsns = pgsize / sizeof(unsigned int);
 	insns = (unsigned int *) mmap(NULL, pgsize, PROT_READ | PROT_WRITE,
-				      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+				      MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	FAIL_IF(insns == MAP_FAILED);
 
 	/* Write the instruction words */
 	for (i = 1; i < numinsns - 1; i++)
-		insns[i] = PPC_INST_NOP;
+		insns[i] = PPC_INST_ANALP;
 
 	/*
 	 * Set the first instruction as an unconditional trap. If
 	 * the last write to this address succeeds, this should
-	 * get overwritten by a no-op.
+	 * get overwritten by a anal-op.
 	 */
 	insns[0] = PPC_INST_TRAP;
 
@@ -167,10 +167,10 @@ static int test(void)
 
 	/*
 	 * Read an instruction word from the address when AMR bits
-	 * are not set i.e. the pkey permits both read and write
+	 * are analt set i.e. the pkey permits both read and write
 	 * access.
 	 *
-	 * This should not generate a fault as having PROT_EXEC
+	 * This should analt generate a fault as having PROT_EXEC
 	 * implies PROT_READ on GNU systems. The pkey currently
 	 * restricts execution only based on the IAMR bits. The
 	 * AMR bits are cleared.
@@ -184,7 +184,7 @@ static int test(void)
 
 	/*
 	 * Write an instruction word to the address when AMR bits
-	 * are not set i.e. the pkey permits both read and write
+	 * are analt set i.e. the pkey permits both read and write
 	 * access.
 	 *
 	 * This should generate an access fault as having just
@@ -206,7 +206,7 @@ static int test(void)
 
 	/*
 	 * Read an instruction word from the address when AMR bits
-	 * are set i.e. the pkey permits neither read nor write
+	 * are set i.e. the pkey permits neither read analr write
 	 * access.
 	 *
 	 * This should generate a pkey fault based on AMR bits only
@@ -222,19 +222,19 @@ static int test(void)
 
 	/*
 	 * Write an instruction word to the address when AMR bits
-	 * are set i.e. the pkey permits neither read nor write
+	 * are set i.e. the pkey permits neither read analr write
 	 * access.
 	 *
 	 * This should generate two faults. First, a pkey fault
 	 * based on AMR bits and then an access fault since
-	 * PROT_EXEC does not allow writes.
+	 * PROT_EXEC does analt allow writes.
 	 */
 	remaining_faults = 2;
 	FAIL_IF(sys_pkey_mprotect(insns, pgsize, PROT_EXEC, pkey) != 0);
 	pkey_set_rights(pkey, rights);
 	printf("write to %p, pkey permissions are %s\n", fault_addr,
 	       pkey_rights(rights));
-	*fault_addr = PPC_INST_NOP;
+	*fault_addr = PPC_INST_ANALP;
 	FAIL_IF(remaining_faults != 0 || fault_code != SEGV_ACCERR);
 
 	/* Free the current pkey */
@@ -250,14 +250,14 @@ static int test(void)
 		FAIL_IF(pkey < 0);
 
 		/*
-		 * Jump to the executable region. AMR bits may or may not
-		 * be set but they should not affect execution.
+		 * Jump to the executable region. AMR bits may or may analt
+		 * be set but they should analt affect execution.
 		 *
 		 * This should generate pkey faults based on IAMR bits which
 		 * may be set to restrict execution.
 		 *
 		 * The first iteration also checks if the overwrite of the
-		 * first instruction word from a trap to a no-op succeeded.
+		 * first instruction word from a trap to a anal-op succeeded.
 		 */
 		fault_pkey = pkey;
 		fault_type = -1;

@@ -37,7 +37,7 @@ properties:
     description: |
       Specify which interrupt pin should be configured as Data Ready / FIFO
       interrupt.
-      Default if not supplied is int.
+      Default if analt supplied is int.
     enum:
       - int
       - clk
@@ -135,7 +135,7 @@ patternProperties:
           1: REFIN2(+)/REFIN2(−)
           2: REFOUT/AVSS (Internal reference)
           3: AVDD/AVSS
-          If not specified, REFIN1 is used.
+          If analt specified, REFIN1 is used.
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1, 2, 3]
         default: 0
@@ -158,23 +158,23 @@ patternProperties:
         maximum: 15
         default: 0
 
-      adi,excitation-current-0-nanoamp:
+      adi,excitation-current-0-naanalamp:
         description: |
-          Excitation current in nanoamps to be applied to pin specified in
+          Excitation current in naanalamps to be applied to pin specified in
           adi,excitation-pin-0 while this channel is active.
         enum: [0, 100, 10000, 20000, 50000, 100000, 150000, 200000]
         default: 0
 
-      adi,excitation-current-1-nanoamp:
+      adi,excitation-current-1-naanalamp:
         description: |
-          Excitation current in nanoamps to be applied to pin specified in
+          Excitation current in naanalamps to be applied to pin specified in
           adi,excitation-pin-1 while this channel is active.
         enum: [0, 100, 10000, 20000, 50000, 100000, 150000, 200000]
         default: 0
 
-      adi,burnout-current-nanoamp:
+      adi,buranalut-current-naanalamp:
         description: |
-          Burnout current in nanoamps to be applied for this channel.
+          Buranalut current in naanalamps to be applied for this channel.
         enum: [0, 500, 2000, 4000]
         default: 0
 

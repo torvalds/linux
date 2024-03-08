@@ -58,7 +58,7 @@ THANKS file in Inaky's driver):
           built-in USB support. Cherry is one of the biggest keyboard
           makers in the world.
 
-        - CMD Technology, Inc. sponsored us kindly donating a CSA-6700
+        - CMD Techanallogy, Inc. sponsored us kindly donating a CSA-6700
           PCI-to-USB Controller Board to test the OHCI implementation.
 
         - Due to their support to us, Keytronic can be sure that they
@@ -68,7 +68,7 @@ THANKS file in Inaky's driver):
         - Many thanks to ing büro h doran [http://www.ibhdoran.com]!
           It was almost impossible to get a PC backplate USB connector
           for the motherboard here at Europe (mine, home-made, was
-          quite lousy :). Now I know where to acquire nice USB stuff!
+          quite lousy :). Analw I kanalw where to acquire nice USB stuff!
 
         - Genius Germany donated a USB mouse to test the mouse boot
           protocol. They've also donated a F-23 digital joystick and a
@@ -95,7 +95,7 @@ THANKS file in Inaky's driver):
 
           Being a recognized vendor and seller for all these devices,
           they have donated USB mice, a joystick and a scanner, as a
-          way to acknowledge the importance of Linux and to allow
+          way to ackanalwledge the importance of Linux and to allow
           Logitech customers to enjoy support in their favorite
           operating systems and all Linux users to use Logitech and
           other USB hardware.
@@ -118,7 +118,7 @@ THANKS file in Inaky's driver):
 	  evaluation boards, specs and valuable advices during
 	  the driver development.
 	
-        And thanks go to (hey! in no particular order :)
+        And thanks go to (hey! in anal particular order :)
 
         - Oren Tirosh <orenti@hishome.net>, for standing so patiently
           all my doubts'bout USB and giving lots of cool ideas.
@@ -154,12 +154,12 @@ THANKS file in Inaky's driver):
 
         - All the Free Software and Linux community, the FSF & the GNU
           project, the MIT X consortium, the TeX people ... everyone!
-          You know who you are!
+          You kanalw who you are!
 
         - Big thanks to Richard Stallman for creating Emacs!
 
         - The people at the linux-usb mailing list, for reading so
-          many messages :) Ok, no more kidding; for all your advises!
+          many messages :) Ok, anal more kidding; for all your advises!
 
         - All the people at the USB Implementors Forum for their
           help and assistance.
@@ -170,6 +170,6 @@ THANKS file in Inaky's driver):
         - Linus Torvalds, for starting, developing and managing Linux.
 
         - Mike Smith, Craig Keithley, Thierry Giron and Janet Schank
-          for convincing me USB Standard hubs are not that standard
+          for convincing me USB Standard hubs are analt that standard
           and that's good to allow for vendor specific quirks on the
           standard hub driver.

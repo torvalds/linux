@@ -32,7 +32,7 @@ properties:
           indicate strapping options
 
   nvidia,long-ram-code:
-    description: If present, the RAM code is long (4 bit). If not, short
+    description: If present, the RAM code is long (4 bit). If analt, short
       (2 bit).
     type: boolean
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File    ctvmem.h
  *
@@ -23,7 +23,7 @@
 #include <sound/memalloc.h>
 
 /* The chip can handle the page table of 4k pages
- * (emu20k1 can handle even 8k pages, but we don't use it right now)
+ * (emu20k1 can handle even 8k pages, but we don't use it right analw)
  */
 #define CT_PAGE_SIZE	4096
 #define CT_PAGE_SHIFT	12

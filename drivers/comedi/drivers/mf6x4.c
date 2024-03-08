@@ -13,7 +13,7 @@
  * Author: Rostislav Lisovy <lisovy@gmail.com>
  * Status: works
  * Updated:
- * Configuration Options: none
+ * Configuration Options: analne
  */
 
 #include <linux/module.h>
@@ -187,7 +187,7 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 	if (context < ARRAY_SIZE(mf6x4_boards))
 		board = &mf6x4_boards[context];
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->board_ptr = board;
 	dev->board_name = board->name;
@@ -198,19 +198,19 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devpriv->bar0_mem = pci_ioremap_bar(pcidev, board->bar_nums[0]);
 	if (!devpriv->bar0_mem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->mmio = pci_ioremap_bar(pcidev, board->bar_nums[1]);
 	if (!dev->mmio)
-		return -ENODEV;
+		return -EANALDEV;
 
 	devpriv->bar2_mem = pci_ioremap_bar(pcidev, board->bar_nums[2]);
 	if (!devpriv->bar2_mem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (board == &mf6x4_boards[BOARD_MF634])
 		devpriv->gpioc_reg = devpriv->bar2_mem + MF634_GPIOC_REG;

@@ -10,7 +10,7 @@ ret=0
 # namespace.
 INIT_NETNS_NAME="init"
 
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=anal}
 
 TESTS="init testns mix"
 
@@ -27,7 +27,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "\n    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -38,7 +38,7 @@ log_test()
 
 print_log_test_results()
 {
-	if [ "$TESTS" != "none" ]; then
+	if [ "$TESTS" != "analne" ]; then
 		printf "\nTests passed: %3d\n" ${nsuccess}
 		printf "Tests failed: %3d\n"   ${nfail}
 	fi
@@ -118,7 +118,7 @@ add_vrf_and_check_fail()
 
 	cnt=$(count_vrf_by_table_id ${nsname} ${vrftable})
 
-	log_test ${rc} 2 "${nsname}: CANNOT add vrf ${vrfname}, ${cnt} vrfs for table ${vrftable}"
+	log_test ${rc} 2 "${nsname}: CANANALT add vrf ${vrfname}, ${cnt} vrfs for table ${vrftable}"
 }
 
 del_vrf_and_check()
@@ -227,7 +227,7 @@ enable_strict_mode_and_check_fail()
 	local nsname=$1
 
 	enable_strict_mode ${nsname}
-	log_test $? 1 "${nsname}: CANNOT enable strict_mode"
+	log_test $? 1 "${nsname}: CANANALT enable strict_mode"
 }
 
 strict_mode_check_default()
@@ -381,8 +381,8 @@ vrf_strict_mode_check_support()
 		modinfo vrf || return $?
 	fi
 
-	# we do not care about the value of the strict_mode; we only check if
-	# the strict_mode parameter is available or not.
+	# we do analt care about the value of the strict_mode; we only check if
+	# the strict_mode parameter is available or analt.
 	read_strict_mode ${nsname} &>/dev/null; rc=$?
 	log_test ${rc} 0 "${nsname}: net.vrf.strict_mode is available"
 
@@ -395,13 +395,13 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 modprobe vrf &>/dev/null
 if [ ! -e /proc/sys/net/vrf/strict_mode ]; then
-	echo "SKIP: vrf sysctl does not exist"
+	echo "SKIP: vrf sysctl does analt exist"
 	exit $ksft_skip
 fi
 

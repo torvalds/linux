@@ -5,7 +5,7 @@
  * Generic MIPI CCS/SMIA/SMIA++ PLL calculator
  *
  * Copyright (C) 2020 Intel Corporation
- * Copyright (C) 2012 Nokia Corporation
+ * Copyright (C) 2012 Analkia Corporation
  * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 
@@ -19,9 +19,9 @@
 #define CCS_PLL_BUS_TYPE_CSI2_CPHY				0x01
 
 /* Old SMIA and implementation specific flags */
-/* op pix clock is for all lanes in total normally */
+/* op pix clock is for all lanes in total analrmally */
 #define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			BIT(0)
-#define CCS_PLL_FLAG_NO_OP_CLOCKS				BIT(1)
+#define CCS_PLL_FLAG_ANAL_OP_CLOCKS				BIT(1)
 /* CCS PLL flags */
 #define CCS_PLL_FLAG_LANE_SPEED_MODEL				BIT(2)
 #define CCS_PLL_FLAG_LINK_DECOUPLED				BIT(3)
@@ -92,7 +92,7 @@ struct ccs_pll_branch_bk {
  * @op_fr: Operational timing front-end configuration (output)
  * @op_bk: Operational timing back-end configuration (output)
  * @pixel_rate_csi: Pixel rate on the output data bus (output)
- * @pixel_rate_pixel_array: Nominal pixel rate in the sensor's pixel array
+ * @pixel_rate_pixel_array: Analminal pixel rate in the sensor's pixel array
  *			    (output)
  */
 struct ccs_pll {

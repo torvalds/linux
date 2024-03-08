@@ -202,7 +202,7 @@ static u8 time_to_val(unsigned *t, unsigned t_min, unsigned t_step,
  *	[ 1130,  9781]	[0x3d, 0x7f]	step 131 ms
  *	[10306, 76890]	[0x80, 0xff]	step 524 ms
  *
- * Note that delay group 3 is only available for delay_off.
+ * Analte that delay group 3 is only available for delay_off.
  */
 static u8 lm3533_led_get_hw_delay(unsigned *delay)
 {
@@ -659,7 +659,7 @@ static int lm3533_led_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -670,7 +670,7 @@ static int lm3533_led_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->lm3533 = lm3533;
 	led->cdev.name = pdata->name;

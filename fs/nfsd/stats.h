@@ -14,7 +14,7 @@
 enum {
 	NFSD_STATS_RC_HITS,		/* repcache hits */
 	NFSD_STATS_RC_MISSES,		/* repcache misses */
-	NFSD_STATS_RC_NOCACHE,		/* uncached reqs */
+	NFSD_STATS_RC_ANALCACHE,		/* uncached reqs */
 	NFSD_STATS_FH_STALE,		/* FH stale error */
 	NFSD_STATS_IO_READ,		/* bytes returned to read requests */
 	NFSD_STATS_IO_WRITE,		/* bytes passed in write requests */
@@ -53,9 +53,9 @@ static inline void nfsd_stats_rc_misses_inc(void)
 	percpu_counter_inc(&nfsdstats.counter[NFSD_STATS_RC_MISSES]);
 }
 
-static inline void nfsd_stats_rc_nocache_inc(void)
+static inline void nfsd_stats_rc_analcache_inc(void)
 {
-	percpu_counter_inc(&nfsdstats.counter[NFSD_STATS_RC_NOCACHE]);
+	percpu_counter_inc(&nfsdstats.counter[NFSD_STATS_RC_ANALCACHE]);
 }
 
 static inline void nfsd_stats_fh_stale_inc(struct svc_export *exp)

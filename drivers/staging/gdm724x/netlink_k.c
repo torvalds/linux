@@ -61,7 +61,7 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 		rcv_cb(dev, nlh->nlmsg_type, msg, mlen);
 		dev_put(dev);
 	} else {
-		pr_err("nl cb - dev (%d) not found\n", ifindex);
+		pr_err("nl cb - dev (%d) analt found\n", ifindex);
 	}
 }
 
@@ -105,7 +105,7 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len,
 
 	skb = alloc_skb(NLMSG_SPACE(len), GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	seq++;
 

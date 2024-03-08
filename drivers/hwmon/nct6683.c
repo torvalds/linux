@@ -15,7 +15,7 @@
  * nct6686d     21(1)   16      8       32(1) 0xd440
  * nct6687d     21(1)   16      8       32(1) 0xd590
  *
- * Notes:
+ * Analtes:
  *	(1) Total number of vin and temp inputs is 32.
  */
 
@@ -38,7 +38,7 @@ enum kinds { nct6683, nct6686, nct6687 };
 
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Set to one to enable support for unknown vendors");
+MODULE_PARM_DESC(force, "Set to one to enable support for unkanalwn vendors");
 
 static const char * const nct6683_device_names[] = {
 	"nct6683",
@@ -153,7 +153,7 @@ superio_exit(int ioreg)
 
 #define NCT6683_REG_MON_CFG(x)		(0x1a0 + (x))
 #define NCT6683_REG_FANIN_CFG(x)	(0x1c0 + (x))
-#define NCT6683_REG_FANOUT_CFG(x)	(0x1d0 + (x))
+#define NCT6683_REG_FAANALUT_CFG(x)	(0x1d0 + (x))
 
 #define NCT6683_REG_INTEL_TEMP_MAX(x)	(0x901 + (x) * 16)
 #define NCT6683_REG_INTEL_TEMP_CRIT(x)	(0x90d + (x) * 16)
@@ -331,7 +331,7 @@ struct nct6683_data {
 	unsigned int rpm[NCT6683_NUM_REG_FAN];
 	u16 fan_min[NCT6683_NUM_REG_FAN];
 	u8 fanin_cfg[NCT6683_NUM_REG_FAN];
-	u8 fanout_cfg[NCT6683_NUM_REG_FAN];
+	u8 faanalut_cfg[NCT6683_NUM_REG_FAN];
 	u16 have_fan;			/* some fan inputs can be disabled */
 
 	u8 have_pwm;
@@ -428,17 +428,17 @@ nct6683_create_attr_group(struct device *dev,
 
 	group = devm_kzalloc(dev, sizeof(*group), GFP_KERNEL);
 	if (group == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	attrs = devm_kcalloc(dev, repeat * count + 1, sizeof(*attrs),
 			     GFP_KERNEL);
 	if (attrs == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	su = devm_kzalloc(dev, array3_size(repeat, count, sizeof(*su)),
 			  GFP_KERNEL);
 	if (su == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	group->attrs = attrs;
 	group->is_visible = tg->is_visible;
@@ -682,7 +682,7 @@ static umode_t nct6683_in_is_visible(struct kobject *kobj,
 
 	/*
 	 * Voltage limits exist for Intel boards,
-	 * but register location and encoding is unknown
+	 * but register location and encoding is unkanalwn
 	 */
 	if ((nr == 2 || nr == 3) &&
 	    data->customer_id == NCT6683_CUSTOMER_ID_INTEL)
@@ -751,7 +751,7 @@ static umode_t nct6683_fan_is_visible(struct kobject *kobj,
 
 	/*
 	 * Intel may have minimum fan speed limits,
-	 * but register location and encoding are unknown.
+	 * but register location and encoding are unkanalwn.
 	 */
 	if (nr == 2 && data->customer_id == NCT6683_CUSTOMER_ID_INTEL)
 		return 0;
@@ -765,7 +765,7 @@ SENSOR_TEMPLATE(fan_min, "fan%d_min", S_IRUGO, show_fan_min, NULL, 0);
 
 /*
  * nct6683_fan_is_visible uses the index into the following array
- * to determine if attributes should be created or not.
+ * to determine if attributes should be created or analt.
  * Any change in order or content must be matched.
  */
 static struct sensor_device_template *nct6683_attributes_fan_template[] = {
@@ -825,12 +825,12 @@ show_temp16(struct device *dev, struct device_attribute *attr, char *buf)
 
 /*
  * Temperature sensor type is determined by temperature source
- * and can not be modified.
+ * and can analt be modified.
  * 0x02..0x07: Thermal diode
  * 0x08..0x18: Thermistor
  * 0x20..0x2b: Intel PECI
  * 0x42..0x49: AMD TSI
- * Others are unspecified (not visible)
+ * Others are unspecified (analt visible)
  */
 
 static int get_temp_type(u8 src)
@@ -865,8 +865,8 @@ static umode_t nct6683_temp_is_visible(struct kobject *kobj,
 	int nr = index % 7;	/* attribute index */
 
 	/*
-	 * Intel does not have low temperature limits or temperature hysteresis
-	 * registers, or at least register location and encoding is unknown.
+	 * Intel does analt have low temperature limits or temperature hysteresis
+	 * registers, or at least register location and encoding is unkanalwn.
 	 */
 	if ((nr == 2 || nr == 4) &&
 	    data->customer_id == NCT6683_CUSTOMER_ID_INTEL)
@@ -889,7 +889,7 @@ SENSOR_TEMPLATE(temp_type, "temp%d_type", S_IRUGO, show_temp_type, NULL, 0);
 
 /*
  * nct6683_temp_is_visible uses the index into the following array
- * to determine if attributes should be created or not.
+ * to determine if attributes should be created or analt.
  * Any change in order or content must be matched.
  */
 static struct sensor_device_template *nct6683_attributes_temp_template[] = {
@@ -1137,10 +1137,10 @@ nct6683_setup_fans(struct nct6683_data *data)
 		data->fanin_cfg[i] = reg;
 	}
 	for (i = 0; i < NCT6683_NUM_REG_PWM; i++) {
-		reg = nct6683_read(data, NCT6683_REG_FANOUT_CFG(i));
+		reg = nct6683_read(data, NCT6683_REG_FAANALUT_CFG(i));
 		if (reg & 0x80)
 			data->have_pwm |= 1 << i;
-		data->fanout_cfg[i] = reg;
+		data->faanalut_cfg[i] = reg;
 	}
 }
 
@@ -1169,7 +1169,7 @@ static void nct6683_setup_sensors(struct nct6683_data *data)
 	data->in_num = 0;
 	for (i = 0; i < NCT6683_NUM_REG_MON; i++) {
 		reg = nct6683_read(data, NCT6683_REG_MON_CFG(i)) & 0x7f;
-		/* Ignore invalid assignments */
+		/* Iganalre invalid assignments */
 		if (reg >= NUM_MON_LABELS)
 			continue;
 		/* Skip if disabled or reserved */
@@ -1204,7 +1204,7 @@ static int nct6683_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(struct nct6683_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->kind = sio_data->kind;
 	data->sioreg = sio_data->sioreg;
@@ -1214,7 +1214,7 @@ static int nct6683_probe(struct platform_device *pdev)
 
 	data->customer_id = nct6683_read16(data, NCT6683_REG_CUSTOMER_ID);
 
-	/* By default only instantiate driver if the customer ID is known */
+	/* By default only instantiate driver if the customer ID is kanalwn */
 	switch (data->customer_id) {
 	case NCT6683_CUSTOMER_ID_INTEL:
 		break;
@@ -1232,7 +1232,7 @@ static int nct6683_probe(struct platform_device *pdev)
 		break;
 	default:
 		if (!force)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	nct6683_init_device(data);
@@ -1376,7 +1376,7 @@ static int __init nct6683_find(int sioaddr, struct nct6683_sio_data *sio_data)
 		goto fail;
 	}
 
-	/* We have a known chip, find the HWM I/O address */
+	/* We have a kanalwn chip, find the HWM I/O address */
 	superio_select(sioaddr, NCT6683_LD_HWM);
 	val = (superio_inb(sioaddr, SIO_REG_ADDR) << 8)
 	    | superio_inb(sioaddr, SIO_REG_ADDR + 1);
@@ -1402,7 +1402,7 @@ static int __init nct6683_find(int sioaddr, struct nct6683_sio_data *sio_data)
 
 fail:
 	superio_exit(sioaddr);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -1442,7 +1442,7 @@ static int __init sensors_nct6683_init(void)
 
 		pdev[i] = platform_device_alloc(DRVNAME, address);
 		if (!pdev[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto exit_device_unregister;
 		}
 
@@ -1474,7 +1474,7 @@ static int __init sensors_nct6683_init(void)
 			goto exit_device_put;
 	}
 	if (!found) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_unregister;
 	}
 

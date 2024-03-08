@@ -37,8 +37,8 @@ enum {
 	BFA_MFG_TYPE_PROWLER_N = 1410,	 /*  Prowler NIC only cards	*/
 	BFA_MFG_TYPE_PROWLER_C = 1710,   /*  Prowler CNA only cards	*/
 	BFA_MFG_TYPE_PROWLER_D = 1860,   /*  Prowler Dual cards		*/
-	BFA_MFG_TYPE_CHINOOK   = 1867,   /*  Chinook cards		*/
-	BFA_MFG_TYPE_CHINOOK2   = 1869,	 /*!< Chinook2 cards		*/
+	BFA_MFG_TYPE_CHIANALOK   = 1867,   /*  Chianalok cards		*/
+	BFA_MFG_TYPE_CHIANALOK2   = 1869,	 /*!< Chianalok2 cards		*/
 	BFA_MFG_TYPE_INVALID = 0,        /*  Invalid card type		*/
 };
 
@@ -53,8 +53,8 @@ enum {
 	(type) == BFA_MFG_TYPE_ASTRA || \
 	(type) == BFA_MFG_TYPE_LIGHTNING_P0 || \
 	(type) == BFA_MFG_TYPE_LIGHTNING || \
-	(type) == BFA_MFG_TYPE_CHINOOK || \
-	(type) == BFA_MFG_TYPE_CHINOOK2))
+	(type) == BFA_MFG_TYPE_CHIANALOK || \
+	(type) == BFA_MFG_TYPE_CHIANALOK2))
 
 /*
  * Check if the card having old wwn/mac handling
@@ -88,7 +88,7 @@ do {                                                            \
  * VPD vendor tag
  */
 enum {
-	BFA_MFG_VPD_UNKNOWN     = 0,     /*  vendor unknown             */
+	BFA_MFG_VPD_UNKANALWN     = 0,     /*  vendor unkanalwn             */
 	BFA_MFG_VPD_IBM         = 1,     /*  vendor IBM                 */
 	BFA_MFG_VPD_HP          = 2,     /*  vendor HP                  */
 	BFA_MFG_VPD_DELL        = 3,     /*  vendor DELL                */
@@ -121,62 +121,62 @@ enum bfa_status {
 	BFA_STATUS_FAILED	= 1,	/*  Operation failed */
 	BFA_STATUS_EINVAL	= 2,	/*  Invalid params Check input
 					 *  parameters */
-	BFA_STATUS_ENOMEM	= 3,	/*  Out of resources */
+	BFA_STATUS_EANALMEM	= 3,	/*  Out of resources */
 	BFA_STATUS_ETIMER	= 5,	/*  Timer expired - Retry, if persists,
 					 *  contact support */
 	BFA_STATUS_EPROTOCOL	= 6,	/*  Protocol error */
 	BFA_STATUS_BADFLASH	= 9,	/*  Flash is bad */
 	BFA_STATUS_SFP_UNSUPP	= 10,	/*  Unsupported SFP - Replace SFP */
-	BFA_STATUS_UNKNOWN_VFID = 11,	/*  VF_ID not found */
+	BFA_STATUS_UNKANALWN_VFID = 11,	/*  VF_ID analt found */
 	BFA_STATUS_DATACORRUPTED = 12,  /*  Diag returned data corrupted */
 	BFA_STATUS_DEVBUSY	= 13,	/*  Device busy - Retry operation */
 	BFA_STATUS_HDMA_FAILED  = 16,   /* Host dma failed contact support */
 	BFA_STATUS_FLASH_BAD_LEN = 17,	/*  Flash bad length */
-	BFA_STATUS_UNKNOWN_LWWN = 18,	/*  LPORT PWWN not found */
-	BFA_STATUS_UNKNOWN_RWWN = 19,	/*  RPORT PWWN not found */
+	BFA_STATUS_UNKANALWN_LWWN = 18,	/*  LPORT PWWN analt found */
+	BFA_STATUS_UNKANALWN_RWWN = 19,	/*  RPORT PWWN analt found */
 	BFA_STATUS_VPORT_EXISTS = 21,	/*  VPORT already exists */
 	BFA_STATUS_VPORT_MAX	= 22,	/*  Reached max VPORT supported limit */
 	BFA_STATUS_UNSUPP_SPEED	= 23,	/*  Invalid Speed Check speed setting */
 	BFA_STATUS_INVLD_DFSZ	= 24,	/*  Invalid Max data field size */
-	BFA_STATUS_CMD_NOTSUPP  = 26,   /*  Command/API not supported */
+	BFA_STATUS_CMD_ANALTSUPP  = 26,   /*  Command/API analt supported */
 	BFA_STATUS_FABRIC_RJT	= 29,	/*  Reject from attached fabric */
-	BFA_STATUS_UNKNOWN_VWWN = 30,	/*  VPORT PWWN not found */
-	BFA_STATUS_PORT_OFFLINE = 34,	/*  Port is not online */
+	BFA_STATUS_UNKANALWN_VWWN = 30,	/*  VPORT PWWN analt found */
+	BFA_STATUS_PORT_OFFLINE = 34,	/*  Port is analt online */
 	BFA_STATUS_VPORT_WWN_BP	= 46,	/*  WWN is same as base port's WWN */
-	BFA_STATUS_PORT_NOT_DISABLED = 47, /* Port not disabled disable port */
-	BFA_STATUS_NO_FCPIM_NEXUS = 52,	/* No FCP Nexus exists with the rport */
+	BFA_STATUS_PORT_ANALT_DISABLED = 47, /* Port analt disabled disable port */
+	BFA_STATUS_ANAL_FCPIM_NEXUS = 52,	/* Anal FCP Nexus exists with the rport */
 	BFA_STATUS_IOC_FAILURE	= 56,	/* IOC failure - Retry, if persists
 					 * contact support */
 	BFA_STATUS_INVALID_WWN	= 57,	/*  Invalid WWN */
-	BFA_STATUS_ADAPTER_ENABLED = 60, /* Adapter is not disabled */
-	BFA_STATUS_IOC_NON_OP   = 61,	/* IOC is not operational */
+	BFA_STATUS_ADAPTER_ENABLED = 60, /* Adapter is analt disabled */
+	BFA_STATUS_IOC_ANALN_OP   = 61,	/* IOC is analt operational */
 	BFA_STATUS_VERSION_FAIL = 70, /* Application/Driver version mismatch */
 	BFA_STATUS_DIAG_BUSY	= 71,	/*  diag busy */
 	BFA_STATUS_BEACON_ON    = 72,   /* Port Beacon already on */
-	BFA_STATUS_ENOFSAVE	= 78,	/*  No saved firmware trace */
+	BFA_STATUS_EANALFSAVE	= 78,	/*  Anal saved firmware trace */
 	BFA_STATUS_IOC_DISABLED = 82,   /* IOC is already disabled */
 	BFA_STATUS_ERROR_TRL_ENABLED  = 87,   /* TRL is enabled */
 	BFA_STATUS_ERROR_QOS_ENABLED  = 88,   /* QoS is enabled */
-	BFA_STATUS_NO_SFP_DEV = 89,	/* No SFP device check or replace SFP */
+	BFA_STATUS_ANAL_SFP_DEV = 89,	/* Anal SFP device check or replace SFP */
 	BFA_STATUS_MEMTEST_FAILED = 90, /* Memory test failed contact support */
 	BFA_STATUS_LEDTEST_OP = 109, /* LED test is operating */
 	BFA_STATUS_INVALID_MAC  = 134, /*  Invalid MAC address */
-	BFA_STATUS_CMD_NOTSUPP_CNA = 146, /* Command not supported for CNA */
-	BFA_STATUS_PBC		= 154, /*  Operation not allowed for pre-boot
+	BFA_STATUS_CMD_ANALTSUPP_CNA = 146, /* Command analt supported for CNA */
+	BFA_STATUS_PBC		= 154, /*  Operation analt allowed for pre-boot
 					*  configuration */
 	BFA_STATUS_BAD_FWCFG = 156,	/* Bad firmware configuration */
 	BFA_STATUS_INVALID_VENDOR = 158, /* Invalid switch vendor */
-	BFA_STATUS_SFP_NOT_READY = 159,	/* SFP info is not ready. Retry */
+	BFA_STATUS_SFP_ANALT_READY = 159,	/* SFP info is analt ready. Retry */
 	BFA_STATUS_TRUNK_ENABLED = 164, /* Trunk is already enabled on
 					 * this adapter */
 	BFA_STATUS_TRUNK_DISABLED  = 165, /* Trunking is disabled on
 					   * the adapter */
 	BFA_STATUS_IOPROFILE_OFF = 175, /* IO profile OFF */
-	BFA_STATUS_PHY_NOT_PRESENT = 183, /* PHY module not present */
-	BFA_STATUS_FEATURE_NOT_SUPPORTED = 192,	/* Feature not supported */
+	BFA_STATUS_PHY_ANALT_PRESENT = 183, /* PHY module analt present */
+	BFA_STATUS_FEATURE_ANALT_SUPPORTED = 192,	/* Feature analt supported */
 	BFA_STATUS_ENTRY_EXISTS = 193,	/* Entry already exists */
-	BFA_STATUS_ENTRY_NOT_EXISTS = 194, /* Entry does not exist */
-	BFA_STATUS_NO_CHANGE = 195,	/* Feature already in that state */
+	BFA_STATUS_ENTRY_ANALT_EXISTS = 194, /* Entry does analt exist */
+	BFA_STATUS_ANAL_CHANGE = 195,	/* Feature already in that state */
 	BFA_STATUS_FAA_ENABLED = 197,	/* FAA is already enabled */
 	BFA_STATUS_FAA_DISABLED = 198,	/* FAA is already disabled */
 	BFA_STATUS_FAA_ACQUIRED = 199,	/* FAA is already acquired */
@@ -186,21 +186,21 @@ enum bfa_status {
 	BFA_STATUS_ERROR_TRUNK_ENABLED = 203,	/* Trunk enabled on adapter */
 	BFA_STATUS_MAX_ENTRY_REACHED = 212,	/* MAX entry reached */
 	BFA_STATUS_TOPOLOGY_LOOP = 230, /* Topology is set to Loop */
-	BFA_STATUS_LOOP_UNSUPP_MEZZ = 231, /* Loop topology is not supported
+	BFA_STATUS_LOOP_UNSUPP_MEZZ = 231, /* Loop topology is analt supported
 					    * on mezz cards */
 	BFA_STATUS_INVALID_BW = 233,	/* Invalid bandwidth value */
 	BFA_STATUS_QOS_BW_INVALID = 234,   /* Invalid QOS bandwidth
 					    * configuration */
 	BFA_STATUS_DPORT_ENABLED = 235, /* D-port mode is already enabled */
 	BFA_STATUS_DPORT_DISABLED = 236, /* D-port mode is already disabled */
-	BFA_STATUS_CMD_NOTSUPP_MEZZ = 239, /* Cmd not supported for MEZZ card */
-	BFA_STATUS_FRU_NOT_PRESENT = 240, /* fru module not present */
-	BFA_STATUS_DPORT_NO_SFP = 243, /* SFP is not present.\n D-port will be
+	BFA_STATUS_CMD_ANALTSUPP_MEZZ = 239, /* Cmd analt supported for MEZZ card */
+	BFA_STATUS_FRU_ANALT_PRESENT = 240, /* fru module analt present */
+	BFA_STATUS_DPORT_ANAL_SFP = 243, /* SFP is analt present.\n D-port will be
 					* enabled but it will be operational
 					* only after inserting a valid SFP. */
 	BFA_STATUS_DPORT_ERR = 245,	/* D-port mode is enabled */
-	BFA_STATUS_DPORT_ENOSYS = 254, /* Switch has no D_Port functionality */
-	BFA_STATUS_DPORT_CANT_PERF = 255, /* Switch port is not D_Port capable
+	BFA_STATUS_DPORT_EANALSYS = 254, /* Switch has anal D_Port functionality */
+	BFA_STATUS_DPORT_CANT_PERF = 255, /* Switch port is analt D_Port capable
 					* or D_Port is disabled */
 	BFA_STATUS_DPORT_LOGICALERR = 256, /* Switch D_Port fail */
 	BFA_STATUS_DPORT_SWBUSY = 257, /* Switch port busy */
@@ -215,21 +215,21 @@ enum bfa_status {
 					* the remote port */
 	BFA_STATUS_DPORT_SFPWRAP_ERR = 262, /* Clear e/o_wrap fail, check or
 						* replace SFP */
-	BFA_STATUS_BBCR_CFG_NO_CHANGE = 265, /*!< BBCR is operational.
+	BFA_STATUS_BBCR_CFG_ANAL_CHANGE = 265, /*!< BBCR is operational.
 			* Disable BBCR and try this operation again. */
-	BFA_STATUS_DPORT_SW_NOTREADY = 268, /* Remote port is not ready to
+	BFA_STATUS_DPORT_SW_ANALTREADY = 268, /* Remote port is analt ready to
 					* start dport test. Check remote
 					* port status. */
 	BFA_STATUS_DPORT_INV_SFP = 271, /* Invalid SFP for D-PORT mode. */
-	BFA_STATUS_DPORT_CMD_NOTSUPP    = 273, /* Dport is not supported by
+	BFA_STATUS_DPORT_CMD_ANALTSUPP    = 273, /* Dport is analt supported by
 					* remote port */
-	BFA_STATUS_MAX_VAL		/* Unknown error code */
+	BFA_STATUS_MAX_VAL		/* Unkanalwn error code */
 };
 #define bfa_status_t enum bfa_status
 
 enum bfa_eproto_status {
 	BFA_EPROTO_BAD_ACCEPT = 0,
-	BFA_EPROTO_UNKNOWN_RSP = 1
+	BFA_EPROTO_UNKANALWN_RSP = 1
 };
 #define bfa_eproto_status_t enum bfa_eproto_status
 
@@ -269,7 +269,7 @@ struct bfa_adapter_attr_s {
 	char		model[BFA_ADAPTER_MODEL_NAME_LEN];
 	char		model_descr[BFA_ADAPTER_MODEL_DESCR_LEN];
 	wwn_t		pwwn;
-	char		node_symname[FC_SYMNAME_MAX];
+	char		analde_symname[FC_SYMNAME_MAX];
 	char		hw_ver[BFA_VERSION_LEN];
 	char		fw_ver[BFA_VERSION_LEN];
 	char		optrom_ver[BFA_VERSION_LEN];
@@ -359,7 +359,7 @@ struct bfa_fw_ioc_stats_s {
 	u32	get_attr_reqs;
 	u32	dbg_sync;
 	u32	dbg_dump;
-	u32	unknown_reqs;
+	u32	unkanalwn_reqs;
 };
 
 /*
@@ -440,7 +440,7 @@ struct bfa_adapter_aen_data_s {
 enum bfa_port_aen_event {
 	BFA_PORT_AEN_ONLINE	= 1,    /* Physical Port online event */
 	BFA_PORT_AEN_OFFLINE	= 2,    /* Physical Port offline event */
-	BFA_PORT_AEN_RLIR	= 3,    /* RLIR event, not supported */
+	BFA_PORT_AEN_RLIR	= 3,    /* RLIR event, analt supported */
 	BFA_PORT_AEN_SFP_INSERT	= 4,    /* SFP inserted event */
 	BFA_PORT_AEN_SFP_REMOVE	= 5,    /* SFP removed event */
 	BFA_PORT_AEN_SFP_POM	= 6,    /* SFP POM event */
@@ -456,7 +456,7 @@ enum bfa_port_aen_event {
 };
 
 enum bfa_port_aen_sfp_pom {
-	BFA_PORT_AEN_SFP_POM_GREEN = 1, /* Normal */
+	BFA_PORT_AEN_SFP_POM_GREEN = 1, /* Analrmal */
 	BFA_PORT_AEN_SFP_POM_AMBER = 2, /* Warning */
 	BFA_PORT_AEN_SFP_POM_RED   = 3, /* Critical */
 	BFA_PORT_AEN_SFP_POM_MAX   = BFA_PORT_AEN_SFP_POM_RED
@@ -485,7 +485,7 @@ enum bfa_lport_aen_event {
 	BFA_LPORT_AEN_DELETE_STANDARD = 9,	/* VPort deleted event */
 	BFA_LPORT_AEN_NPIV_DUP_WWN = 10,	/* VPort with duplicate WWN */
 	BFA_LPORT_AEN_NPIV_FABRIC_MAX = 11,	/* Max NPIV in fabric/fport */
-	BFA_LPORT_AEN_NPIV_UNKNOWN = 12,	/* Unknown NPIV Error code */
+	BFA_LPORT_AEN_NPIV_UNKANALWN = 12,	/* Unkanalwn NPIV Error code */
 };
 
 struct bfa_lport_aen_data_s {
@@ -666,7 +666,7 @@ enum {
  *	bits to specify speeds to be selected for auto-negotiation.
  */
 enum bfa_port_speed {
-	BFA_PORT_SPEED_UNKNOWN = 0,
+	BFA_PORT_SPEED_UNKANALWN = 0,
 	BFA_PORT_SPEED_1GBPS	= 1,
 	BFA_PORT_SPEED_2GBPS	= 2,
 	BFA_PORT_SPEED_4GBPS	= 4,
@@ -800,7 +800,7 @@ struct bfa_ablk_cfg_s {
  */
 #define SFP_DIAGMON_SIZE	10 /* num bytes of diag monitor data */
 
-/* SFP state change notification event */
+/* SFP state change analtification event */
 #define BFA_SFP_SCN_REMOVED	0
 #define BFA_SFP_SCN_INSERTED	1
 #define BFA_SFP_SCN_POM		2
@@ -809,7 +809,7 @@ struct bfa_ablk_cfg_s {
 #define BFA_SFP_SCN_VALID	5
 
 enum bfa_defs_sfp_media_e {
-	BFA_SFP_MEDIA_UNKNOWN	= 0x00,
+	BFA_SFP_MEDIA_UNKANALWN	= 0x00,
 	BFA_SFP_MEDIA_CU	= 0x01,
 	BFA_SFP_MEDIA_LW	= 0x02,
 	BFA_SFP_MEDIA_SW	= 0x03,
@@ -843,7 +843,7 @@ struct sfp_srlid_base_s {
 	u8	connector;	/* 02: Connector */
 	u8	xcvr[8];	/* 03-10: Transceiver */
 	u8	encoding;	/* 11: Encoding */
-	u8	br_norm;	/* 12: BR, Nominal */
+	u8	br_analrm;	/* 12: BR, Analminal */
 	u8	rate_id;	/* 13: Rate Identifier */
 	u8	len_km;		/* 14: Length single mode km */
 	u8	len_100m;	/* 15: Length single mode 100m */
@@ -871,15 +871,15 @@ struct sfp_srlid_ext_s {
 	u8	br_min;
 	u8	vendor_sn[16];
 	u8	date_code[8];
-	u8	diag_mon_type;  /* 92: Diagnostic Monitoring type */
+	u8	diag_mon_type;  /* 92: Diaganalstic Monitoring type */
 	u8	en_options;
 	u8	sff_8472;
 	u8	cc_ext;
 };
 
 /*
- * Diagnostic: Data Fields -- Address A2h
- * Diagnostic and control/status base field total 96 bytes
+ * Diaganalstic: Data Fields -- Address A2h
+ * Diaganalstic and control/status base field total 96 bytes
  */
 struct sfp_diag_base_s {
 	/*
@@ -925,8 +925,8 @@ struct sfp_diag_base_s {
 };
 
 /*
- * Diagnostic: Data Fields -- Address A2h
- * Diagnostic and control/status extended field total 24 bytes
+ * Diaganalstic: Data Fields -- Address A2h
+ * Diaganalstic and control/status extended field total 24 bytes
  */
 struct sfp_diag_ext_s {
 	u8	diag[SFP_DIAGMON_SIZE];
@@ -940,7 +940,7 @@ struct sfp_diag_ext_s {
 };
 
 /*
- * Diagnostic: Data Fields -- Address A2h
+ * Diaganalstic: Data Fields -- Address A2h
  * General Use Fields: User Writable Table - Features's Control Registers
  * Total 32 bytes
  */
@@ -1040,7 +1040,7 @@ union sfp_xcvr_eth_code_u {
 struct sfp_xcvr_fc1_code_s {
 	u8	link_len:5; /* FC link length */
 	u8	xmtr_tech2:3;
-	u8	xmtr_tech1:7;   /* FC transmitter technology */
+	u8	xmtr_tech1:7;   /* FC transmitter techanallogy */
 	u8	reserved1:1;
 };
 
@@ -1166,9 +1166,9 @@ struct bfa_diag_memtest_result {
 };
 
 struct bfa_diag_loopback_result_s {
-	u32	numtxmfrm;      /* no. of transmit frame */
-	u32	numosffrm;      /* no. of outstanding frame */
-	u32	numrcvfrm;      /* no. of received good frame */
+	u32	numtxmfrm;      /* anal. of transmit frame */
+	u32	numosffrm;      /* anal. of outstanding frame */
+	u32	numrcvfrm;      /* anal. of received good frame */
 	u32	badfrminf;      /* mis-match info */
 	u32	badfrmnum;      /* mis-match fram number */
 	u8	status;         /* loopback test result */
@@ -1176,7 +1176,7 @@ struct bfa_diag_loopback_result_s {
 };
 
 enum bfa_diag_dport_test_status {
-	DPORT_TEST_ST_IDLE	= 0,    /* the test has not started yet. */
+	DPORT_TEST_ST_IDLE	= 0,    /* the test has analt started yet. */
 	DPORT_TEST_ST_FINAL	= 1,    /* the test done successfully */
 	DPORT_TEST_ST_SKIP	= 2,    /* the test skipped */
 	DPORT_TEST_ST_FAIL	= 3,    /* the test failed */
@@ -1207,7 +1207,7 @@ struct bfa_diag_dport_subtest_result_s {
 
 struct bfa_diag_dport_result_s {
 	wwn_t	rp_pwwn;	/* switch port wwn  */
-	wwn_t	rp_nwwn;	/* switch node wwn  */
+	wwn_t	rp_nwwn;	/* switch analde wwn  */
 	u64	start_time;	/* user/sw start time */
 	u64	end_time;	/* timestamp  */
 	u8	status;		/* bfa_diag_dport_test_status */
@@ -1218,7 +1218,7 @@ struct bfa_diag_dport_result_s {
 	u16	frmsz;		/* frame size for buf_reqd */
 	u32	lpcnt;		/* Frame count */
 	u32	pat;		/* Pattern */
-	u32	roundtrip_latency;	/* in nano sec */
+	u32	roundtrip_latency;	/* in naanal sec */
 	u32	est_cable_distance;	/* in meter */
 	struct bfa_diag_dport_subtest_result_s subtest[DPORT_TEST_MAX];
 };
@@ -1226,7 +1226,7 @@ struct bfa_diag_dport_result_s {
 struct bfa_diag_ledtest_s {
 	u32	cmd;    /* bfa_led_op_t */
 	u32	color;  /* bfa_led_color_t */
-	u16	freq;   /* no. of blinks every 10 secs */
+	u16	freq;   /* anal. of blinks every 10 secs */
 	u8	led;    /* bitmap of LEDs to be tested */
 	u8	rsvd[5];
 };
@@ -1244,7 +1244,7 @@ struct bfa_diag_loopback_s {
  */
 enum bfa_phy_status_e {
 	BFA_PHY_STATUS_GOOD	= 0, /* phy is good */
-	BFA_PHY_STATUS_NOT_PRESENT	= 1, /* phy does not exist */
+	BFA_PHY_STATUS_ANALT_PRESENT	= 1, /* phy does analt exist */
 	BFA_PHY_STATUS_BAD	= 2, /* phy is bad */
 };
 

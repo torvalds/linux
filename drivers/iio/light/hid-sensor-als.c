@@ -277,7 +277,7 @@ static int hid_als_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(struct als_state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, indio_dev);
 
 	als_state = iio_priv(indio_dev);
@@ -298,7 +298,7 @@ static int hid_als_probe(struct platform_device *pdev)
 					   sizeof(als_channels), GFP_KERNEL);
 	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = als_parse_report(pdev, hsdev,

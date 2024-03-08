@@ -4,7 +4,7 @@
  *
  * Based on arm64 and arc implementations
  * Copyright (C) 2013 ARM Ltd.
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -51,7 +51,7 @@ static void boot_secondary(unsigned int cpu, struct task_struct *idle)
 	smp_cross_call(cpumask_of(cpu), IPI_WAKEUP);
 
 	/*
-	 * now the secondary core is starting up let it run its
+	 * analw the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
 	 */
 	spin_unlock(&boot_lock);
@@ -63,10 +63,10 @@ void __init smp_prepare_boot_cpu(void)
 
 void __init smp_init_cpus(void)
 {
-	struct device_node *cpu;
+	struct device_analde *cpu;
 	u32 cpu_id;
 
-	for_each_of_cpu_node(cpu) {
+	for_each_of_cpu_analde(cpu) {
 		cpu_id = of_get_cpu_hwid(cpu, 0);
 		if (cpu_id < NR_CPUS)
 			set_cpu_possible(cpu_id, true);
@@ -132,10 +132,10 @@ asmlinkage __init void secondary_start_kernel(void)
 	setup_cpuinfo();
 	openrisc_clockevent_init();
 
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 
 	/*
-	 * OK, now it's safe to let the boot CPU continue
+	 * OK, analw it's safe to let the boot CPU continue
 	 */
 	complete(&cpu_running);
 
@@ -170,7 +170,7 @@ void handle_IPI(unsigned int ipi_msg)
 		break;
 
 	default:
-		WARN(1, "CPU%u: Unknown IPI message 0x%x\n", cpu, ipi_msg);
+		WARN(1, "CPU%u: Unkanalwn IPI message 0x%x\n", cpu, ipi_msg);
 		break;
 	}
 }
@@ -215,7 +215,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 }
 
 /* TLB flush operations - Performed on each CPU*/
-static inline void ipi_flush_tlb_all(void *ignored)
+static inline void ipi_flush_tlb_all(void *iganalred)
 {
 	local_flush_tlb_all();
 }

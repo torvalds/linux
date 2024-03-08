@@ -101,12 +101,12 @@ static int rcar_gen4_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	struct rcar_gen4_ptp_private *ptp_priv = ptp_to_priv(ptp);
 	struct timespec64 ts;
 	unsigned long flags;
-	s64 now;
+	s64 analw;
 
 	spin_lock_irqsave(&ptp_priv->lock, flags);
 	_rcar_gen4_ptp_gettime(ptp, &ts);
-	now = ktime_to_ns(timespec64_to_ktime(ts));
-	ts = ns_to_timespec64(now + delta);
+	analw = ktime_to_ns(timespec64_to_ktime(ts));
+	ts = ns_to_timespec64(analw + delta);
 	_rcar_gen4_ptp_settime(ptp, &ts);
 	spin_unlock_irqrestore(&ptp_priv->lock, flags);
 
@@ -116,7 +116,7 @@ static int rcar_gen4_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 static int rcar_gen4_ptp_enable(struct ptp_clock_info *ptp,
 				struct ptp_clock_request *rq, int on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static struct ptp_clock_info rcar_gen4_ptp_info = {

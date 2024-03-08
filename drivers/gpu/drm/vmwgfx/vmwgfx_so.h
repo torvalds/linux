@@ -10,13 +10,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -53,8 +53,8 @@ enum vmw_so_type {
  * @view_id: A single u32 view id.
  *
  * The assumption here is that all union members are really represented by a
- * single u32 in the command stream. If that's not the case,
- * the size of this union will not equal the size of an u32, and the
+ * single u32 in the command stream. If that's analt the case,
+ * the size of this union will analt equal the size of an u32, and the
  * assumption is invalid, and we detect that at compile time in the
  * vmw_so_build_asserts() function.
  */
@@ -81,7 +81,7 @@ extern const SVGACOTableType vmw_so_cotables[];
  * @id: The SVGA3D command id.
  *
  * For a given view create or destroy command id, return the corresponding
- * enum vmw_view_type. If the command is unknown, return vmw_view_max.
+ * enum vmw_view_type. If the command is unkanalwn, return vmw_view_max.
  * The validity of the simplified calculation is verified in the
  * vmw_so_build_asserts() function.
  */
@@ -109,7 +109,7 @@ static inline enum vmw_view_type vmw_view_cmd_to_type(u32 id)
  * @id: The SVGA3D command id.
  *
  * For a given state object create or destroy command id,
- * return the corresponding enum vmw_so_type. If the command is uknown,
+ * return the corresponding enum vmw_so_type. If the command is ukanalwn,
  * return vmw_so_max. We should perhaps optimize this function using
  * a similar strategy as vmw_view_cmd_to_type().
  */

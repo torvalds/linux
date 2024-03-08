@@ -152,7 +152,7 @@
 	};
 
 	panel {
-		compatible = "innolux,at043tn24";
+		compatible = "inanallux,at043tn24";
 		backlight = <&backlight>;
 		power-supply = <&reg_lcd_3v3>;
 
@@ -508,7 +508,7 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	wakeup-source;
 	keep-power-in-suspend;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_brcm>;
 	fsl,tuning-step = <2>;
 	status = "okay";
@@ -523,7 +523,7 @@
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
 	fsl,tuning-step = <2>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

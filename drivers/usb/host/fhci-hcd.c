@@ -16,7 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -104,10 +104,10 @@ void fhci_usb_disable_interrupt(struct fhci_usb *usb)
 
 	if (usb->intr_nesting_cnt == 0) {
 		/* disable the timer interrupt */
-		disable_irq_nosync(fhci->timer->irq);
+		disable_irq_analsync(fhci->timer->irq);
 
 		/* disable the usb interrupt */
-		disable_irq_nosync(fhci_to_hcd(fhci)->irq);
+		disable_irq_analsync(fhci_to_hcd(fhci)->irq);
 		out_be16(&usb->fhci->regs->usb_usbmr, 0);
 	}
 	usb->intr_nesting_cnt++;
@@ -172,13 +172,13 @@ static void fhci_mem_free(struct fhci_hcd *fhci)
 	struct td *td;
 	struct td *next_td;
 
-	list_for_each_entry_safe(ed, next_ed, &fhci->empty_eds, node) {
-		list_del(&ed->node);
+	list_for_each_entry_safe(ed, next_ed, &fhci->empty_eds, analde) {
+		list_del(&ed->analde);
 		kfree(ed);
 	}
 
-	list_for_each_entry_safe(td, next_td, &fhci->empty_tds, node) {
-		list_del(&td->node);
+	list_for_each_entry_safe(td, next_td, &fhci->empty_tds, analde) {
+		list_del(&td->analde);
 		kfree(td);
 	}
 
@@ -235,7 +235,7 @@ static int fhci_mem_init(struct fhci_hcd *fhci)
 	return 0;
 err:
 	fhci_mem_free(fhci);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* destroy the fhci_usb structure */
@@ -267,7 +267,7 @@ static int fhci_usb_init(struct fhci_hcd *fhci)
 	usb->actual_frame = kzalloc(sizeof(*usb->actual_frame), GFP_KERNEL);
 	if (!usb->actual_frame) {
 		fhci_usb_free(usb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_LIST_HEAD(&usb->actual_frame->tds_list);
@@ -333,7 +333,7 @@ static int fhci_start(struct usb_hcd *hcd)
 	fhci->usb_lld = fhci_create_lld(fhci);
 	if (!fhci->usb_lld) {
 		fhci_err(fhci, "low level driver config failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -357,7 +357,7 @@ static int fhci_start(struct usb_hcd *hcd)
 	/*
 	 * From here on, hub_wq concurrently accesses the root
 	 * hub; drivers will be talking to enumerated devices.
-	 * (On restart paths, hub_wq already knows about the root
+	 * (On restart paths, hub_wq already kanalws about the root
 	 * hub and could find work as soon as we wrote FLAG_CF.)
 	 *
 	 * Before this point the HC was idle/ready.  After, hub_wq
@@ -412,7 +412,7 @@ static int fhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 			     % usb_maxpacket(urb->dev, pipe)) != 0)
 			size++;
 		break;
-	case PIPE_ISOCHRONOUS:
+	case PIPE_ISOCHROANALUS:
 		size = urb->number_of_packets;
 		if (size <= 0)
 			return -EINVAL;
@@ -428,13 +428,13 @@ static int fhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	/* allocate the private part of the URB */
 	urb_priv = kzalloc(sizeof(*urb_priv), mem_flags);
 	if (!urb_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate the private part of the URB */
 	urb_priv->tds = kcalloc(size, sizeof(*urb_priv->tds), mem_flags);
 	if (!urb_priv->tds) {
 		kfree(urb_priv);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&fhci->lock, flags);
@@ -561,7 +561,7 @@ static const struct hc_driver fhci_driver = {
 static int of_fhci_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct usb_hcd *hcd;
 	struct fhci_hcd *fhci;
 	struct resource usb_regs;
@@ -575,43 +575,43 @@ static int of_fhci_probe(struct platform_device *ofdev)
 	int j;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
-	sprop = of_get_property(node, "mode", NULL);
+	sprop = of_get_property(analde, "mode", NULL);
 	if (sprop && strcmp(sprop, "host"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	hcd = usb_create_hcd(&fhci_driver, dev, dev_name(dev));
 	if (!hcd) {
-		dev_err(dev, "could not create hcd\n");
-		return -ENOMEM;
+		dev_err(dev, "could analt create hcd\n");
+		return -EANALMEM;
 	}
 
 	fhci = hcd_to_fhci(hcd);
 	hcd->self.controller = dev;
 	dev_set_drvdata(dev, hcd);
 
-	iprop = of_get_property(node, "hub-power-budget", &size);
+	iprop = of_get_property(analde, "hub-power-budget", &size);
 	if (iprop && size == sizeof(*iprop))
 		hcd->power_budget = *iprop;
 
 	/* FHCI registers. */
-	ret = of_address_to_resource(node, 0, &usb_regs);
+	ret = of_address_to_resource(analde, 0, &usb_regs);
 	if (ret) {
-		dev_err(dev, "could not get regs\n");
+		dev_err(dev, "could analt get regs\n");
 		goto err_regs;
 	}
 
 	hcd->regs = ioremap(usb_regs.start, resource_size(&usb_regs));
 	if (!hcd->regs) {
-		dev_err(dev, "could not ioremap regs\n");
-		ret = -ENOMEM;
+		dev_err(dev, "could analt ioremap regs\n");
+		ret = -EANALMEM;
 		goto err_regs;
 	}
 	fhci->regs = hcd->regs;
 
 	/* Parameter RAM. */
-	iprop = of_get_property(node, "reg", &size);
+	iprop = of_get_property(analde, "reg", &size);
 	if (!iprop || size < sizeof(*iprop) * 4) {
 		dev_err(dev, "can't get pram offset\n");
 		ret = -EINVAL;
@@ -621,7 +621,7 @@ static int of_fhci_probe(struct platform_device *ofdev)
 	pram_addr = cpm_muram_alloc(FHCI_PRAM_SIZE, 64);
 	if (IS_ERR_VALUE(pram_addr)) {
 		dev_err(dev, "failed to allocate usb pram\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pram;
 	}
 
@@ -676,15 +676,15 @@ static int of_fhci_probe(struct platform_device *ofdev)
 	}
 
 	/* USB Host interrupt. */
-	usb_irq = irq_of_parse_and_map(node, 0);
+	usb_irq = irq_of_parse_and_map(analde, 0);
 	if (!usb_irq) {
-		dev_err(dev, "could not get usb irq\n");
+		dev_err(dev, "could analt get usb irq\n");
 		ret = -EINVAL;
 		goto err_usb_irq;
 	}
 
 	/* Clocks. */
-	sprop = of_get_property(node, "fsl,fullspeed-clock", NULL);
+	sprop = of_get_property(analde, "fsl,fullspeed-clock", NULL);
 	if (sprop) {
 		fhci->fullspeed_clk = qe_clock_source(sprop);
 		if (fhci->fullspeed_clk == QE_CLK_DUMMY) {
@@ -694,7 +694,7 @@ static int of_fhci_probe(struct platform_device *ofdev)
 		}
 	}
 
-	sprop = of_get_property(node, "fsl,lowspeed-clock", NULL);
+	sprop = of_get_property(analde, "fsl,lowspeed-clock", NULL);
 	if (sprop) {
 		fhci->lowspeed_clk = qe_clock_source(sprop);
 		if (fhci->lowspeed_clk == QE_CLK_DUMMY) {
@@ -704,9 +704,9 @@ static int of_fhci_probe(struct platform_device *ofdev)
 		}
 	}
 
-	if (fhci->fullspeed_clk == QE_CLK_NONE &&
-			fhci->lowspeed_clk == QE_CLK_NONE) {
-		dev_err(dev, "no clocks specified\n");
+	if (fhci->fullspeed_clk == QE_CLK_ANALNE &&
+			fhci->lowspeed_clk == QE_CLK_ANALNE) {
+		dev_err(dev, "anal clocks specified\n");
 		ret = -EINVAL;
 		goto err_clocks;
 	}
@@ -716,7 +716,7 @@ static int of_fhci_probe(struct platform_device *ofdev)
 	fhci_config_transceiver(fhci, FHCI_PORT_POWER_OFF);
 
 	/* Start with full-speed, if possible. */
-	if (fhci->fullspeed_clk != QE_CLK_NONE) {
+	if (fhci->fullspeed_clk != QE_CLK_ANALNE) {
 		fhci_config_transceiver(fhci, FHCI_PORT_FULL);
 		qe_usb_clock_set(fhci->fullspeed_clk, USB_CLOCK);
 	} else {

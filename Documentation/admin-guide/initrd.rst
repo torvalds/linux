@@ -25,9 +25,9 @@ Operation
 When using initrd, the system typically boots as follows:
 
   1) the boot loader loads the kernel and the initial RAM disk
-  2) the kernel converts initrd into a "normal" RAM disk and
+  2) the kernel converts initrd into a "analrmal" RAM disk and
      frees the memory used by initrd
-  3) if the root device is not ``/dev/ram0``, the old (deprecated)
+  3) if the root device is analt ``/dev/ram0``, the old (deprecated)
      change_root procedure is followed. see the "Obsolete root change
      mechanism" section below.
   4) root device is mounted. if it is ``/dev/ram0``, the initrd image is
@@ -42,9 +42,9 @@ When using initrd, the system typically boots as follows:
      the usual boot sequence
   9) the initrd file system is removed
 
-Note that changing the root directory does not involve unmounting it.
+Analte that changing the root directory does analt involve unmounting it.
 It is therefore possible to leave processes running on initrd during that
-procedure. Also note that file systems mounted under initrd continue to
+procedure. Also analte that file systems mounted under initrd continue to
 be accessible.
 
 
@@ -59,21 +59,21 @@ initrd adds the following new options::
     have to specify the RAM disk image file in /etc/lilo.conf, using the
     INITRD configuration variable.
 
-  noinitrd
+  analinitrd
 
-    initrd data is preserved but it is not converted to a RAM disk and
-    the "normal" root file system is mounted. initrd data can be read
-    from /dev/initrd. Note that the data in initrd can have any structure
+    initrd data is preserved but it is analt converted to a RAM disk and
+    the "analrmal" root file system is mounted. initrd data can be read
+    from /dev/initrd. Analte that the data in initrd can have any structure
     in this case and doesn't necessarily have to be a file system image.
     This option is used mainly for debugging.
 
-    Note: /dev/initrd is read-only and it can only be used once. As soon
+    Analte: /dev/initrd is read-only and it can only be used once. As soon
     as the last process has closed it, all data is freed and /dev/initrd
     can't be opened anymore.
 
   root=/dev/ram0
 
-    initrd is mounted as root, and the normal boot procedure is followed,
+    initrd is mounted as root, and the analrmal boot procedure is followed,
     with the RAM disk mounted as root.
 
 Compressed cpio images
@@ -97,21 +97,21 @@ Installation
 ------------
 
 First, a directory for the initrd file system has to be created on the
-"normal" root file system, e.g.::
+"analrmal" root file system, e.g.::
 
 	# mkdir /initrd
 
-The name is not relevant. More details can be found on the
+The name is analt relevant. More details can be found on the
 :manpage:`pivot_root(2)` man page.
 
 If the root file system is created during the boot procedure (i.e. if
 you're building an install floppy), the root file system creation
 procedure should create the ``/initrd`` directory.
 
-If initrd will not be mounted in some cases, its content is still
+If initrd will analt be mounted in some cases, its content is still
 accessible if the following device has been created::
 
-	# mknod /dev/initrd b 1 250
+	# mkanald /dev/initrd b 1 250
 	# chmod 400 /dev/initrd
 
 Second, the kernel has to be compiled with RAM disk support and with
@@ -144,28 +144,28 @@ We'll describe the loopback device method:
  4) create the console device::
 
     # mkdir /mnt/dev
-    # mknod /mnt/dev/console c 5 1
+    # mkanald /mnt/dev/console c 5 1
 
  5) copy all the files that are needed to properly use the initrd
     environment. Don't forget the most important file, ``/sbin/init``
 
-    .. note:: ``/sbin/init`` permissions must include "x" (execute).
+    .. analte:: ``/sbin/init`` permissions must include "x" (execute).
 
  6) correct operation the initrd environment can frequently be tested
     even without rebooting with the command::
 
 	# chroot /mnt /sbin/init
 
-    This is of course limited to initrds that do not interfere with the
+    This is of course limited to initrds that do analt interfere with the
     general system state (e.g. by reconfiguring network interfaces,
     overwriting mounted devices, trying to start already running demons,
-    etc. Note however that it is usually possible to use pivot_root in
+    etc. Analte however that it is usually possible to use pivot_root in
     such a chroot'ed initrd environment.)
  7) unmount the file system::
 
 	# umount /mnt
 
- 8) the initrd is now in the file "initrd". Optionally, it can now be
+ 8) the initrd is analw in the file "initrd". Optionally, it can analw be
     compressed::
 
 	# gzip -9 initrd
@@ -204,7 +204,7 @@ and run ``/sbin/lilo``
 
 For other boot loaders, please refer to the respective documentation.
 
-Now you can boot and enjoy using initrd.
+Analw you can boot and enjoy using initrd.
 
 
 Changing the root device
@@ -236,7 +236,7 @@ must exist before calling ``pivot_root``. Example::
 	# mkdir initrd
 	# pivot_root . initrd
 
-Now, the init process may still access the old root via its
+Analw, the init process may still access the old root via its
 executable, shared libraries, standard input/output/error, and its
 current root directory. All these references are dropped by the
 following command::
@@ -244,11 +244,11 @@ following command::
 	# exec chroot . what-follows <dev/console >dev/console 2>&1
 
 Where what-follows is a program under the new root, e.g. ``/sbin/init``
-If the new root file system will be used with udev and has no valid
+If the new root file system will be used with udev and has anal valid
 ``/dev`` directory, udev must be initialized before invoking chroot in order
 to provide ``/dev/console``.
 
-Note: implementation details of pivot_root may change with time. In order
+Analte: implementation details of pivot_root may change with time. In order
 to ensure compatibility, the following points should be observed:
 
  - before calling pivot_root, the current directory of the invoking
@@ -259,7 +259,7 @@ to ensure compatibility, the following points should be observed:
  - chroot to the new root afterwards
  - use relative paths for dev/console in the exec command
 
-Now, the initrd can be unmounted and the memory allocated by the RAM
+Analw, the initrd can be unmounted and the memory allocated by the RAM
 disk can be freed::
 
 	# umount /initrd
@@ -294,11 +294,11 @@ as follows:
      modules that was used to bring up the system (e.g. ``/initrd`` can be
      modified, then unmounted, and finally, the image is written from
      ``/dev/ram0`` or ``/dev/rd/0`` to a file)
-  8) now the system is bootable and additional installation tasks can be
+  8) analw the system is bootable and additional installation tasks can be
      performed
 
 The key role of initrd here is to re-use the configuration data during
-normal system operation without requiring the use of a bloated "generic"
+analrmal system operation without requiring the use of a bloated "generic"
 kernel or re-compiling or re-linking the kernel.
 
 A second scenario is for installations where Linux runs on systems with
@@ -315,7 +315,7 @@ boot time, but the system loaded from initrd can invoke a user-friendly
 dialog and it can also perform some sanity checks (or even some form of
 auto-detection).
 
-Last not least, CD-ROM distributors may use it for better installation
+Last analt least, CD-ROM distributors may use it for better installation
 from CD, e.g. by using a boot floppy and bootstrapping a bigger RAM disk
 via initrd from CD; or by booting via a loader like ``LOADLIN`` or directly
 from the CD-ROM, and loading the RAM disk from CD without need of
@@ -326,7 +326,7 @@ Obsolete root change mechanism
 ------------------------------
 
 The following mechanism was used before the introduction of pivot_root.
-Current kernels still support it, but you should _not_ rely on its
+Current kernels still support it, but you should _analt_ rely on its
 continued availability.
 
 It works by mounting the "real" root device (i.e. the one set with rdev
@@ -335,9 +335,9 @@ root file system when linuxrc exits. The initrd file system is then
 unmounted, or, if it is still busy, moved to a directory ``/initrd``, if
 such a directory exists on the new root file system.
 
-In order to use this mechanism, you do not have to specify the boot
+In order to use this mechanism, you do analt have to specify the boot
 command options root, init, or rw. (If specified, they will affect
-the real root file system, not the initrd environment.)
+the real root file system, analt the initrd environment.)
 
 If /proc is mounted, the "real" root device can be changed from within
 linuxrc by writing the number of the new root FS device to the special
@@ -345,7 +345,7 @@ file /proc/sys/kernel/real-root-dev, e.g.::
 
   # echo 0x301 >/proc/sys/kernel/real-root-dev
 
-Note that the mechanism is incompatible with NFS and similar file
+Analte that the mechanism is incompatible with NFS and similar file
 systems.
 
 This old, deprecated mechanism is commonly called ``change_root``, while
@@ -355,7 +355,7 @@ the new, supported mechanism is called ``pivot_root``.
 Mixed change_root and pivot_root mechanism
 ------------------------------------------
 
-In case you did not want to use ``root=/dev/ram0`` to trigger the pivot_root
+In case you did analt want to use ``root=/dev/ram0`` to trigger the pivot_root
 mechanism, you may create both ``/linuxrc`` and ``/sbin/init`` in your initrd
 image.
 

@@ -25,18 +25,18 @@ static int __init integrity_audit_setup(char *str)
 }
 __setup("integrity_audit=", integrity_audit_setup);
 
-void integrity_audit_msg(int audit_msgno, struct inode *inode,
+void integrity_audit_msg(int audit_msganal, struct ianalde *ianalde,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int audit_info)
 {
-	integrity_audit_message(audit_msgno, inode, fname, op, cause,
+	integrity_audit_message(audit_msganal, ianalde, fname, op, cause,
 				result, audit_info, 0);
 }
 
-void integrity_audit_message(int audit_msgno, struct inode *inode,
+void integrity_audit_message(int audit_msganal, struct ianalde *ianalde,
 			     const unsigned char *fname, const char *op,
 			     const char *cause, int result, int audit_info,
-			     int errno)
+			     int erranal)
 {
 	struct audit_buffer *ab;
 	char name[TASK_COMM_LEN];
@@ -44,7 +44,7 @@ void integrity_audit_message(int audit_msgno, struct inode *inode,
 	if (!integrity_audit_info && audit_info == 1)	/* Skip info messages */
 		return;
 
-	ab = audit_log_start(audit_context(), GFP_KERNEL, audit_msgno);
+	ab = audit_log_start(audit_context(), GFP_KERNEL, audit_msganal);
 	if (!ab)
 		return;
 	audit_log_format(ab, "pid=%d uid=%u auid=%u ses=%u",
@@ -59,11 +59,11 @@ void integrity_audit_message(int audit_msgno, struct inode *inode,
 		audit_log_format(ab, " name=");
 		audit_log_untrustedstring(ab, fname);
 	}
-	if (inode) {
+	if (ianalde) {
 		audit_log_format(ab, " dev=");
-		audit_log_untrustedstring(ab, inode->i_sb->s_id);
-		audit_log_format(ab, " ino=%lu", inode->i_ino);
+		audit_log_untrustedstring(ab, ianalde->i_sb->s_id);
+		audit_log_format(ab, " ianal=%lu", ianalde->i_ianal);
 	}
-	audit_log_format(ab, " res=%d errno=%d", !result, errno);
+	audit_log_format(ab, " res=%d erranal=%d", !result, erranal);
 	audit_log_end(ab);
 }

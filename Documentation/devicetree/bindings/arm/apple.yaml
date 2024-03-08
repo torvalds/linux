@@ -39,7 +39,7 @@ description: |
   compatible = "apple,<targettype>", "apple,<socid>", "apple,arm-platform";
 
   <targettype> represents the board/device and comes from the `target-type`
-  property of the root node of the Apple Device Tree, lowercased. It can be
+  property of the root analde of the Apple Device Tree, lowercased. It can be
   queried on macOS using the following command:
 
   $ ioreg -d2 -l | grep target-type
@@ -55,13 +55,13 @@ description: |
 
   Devicetrees should use the lowercased SoC ID, to avoid confusion if
   multiple SoCs share the same marketing name. This can be obtained from
-  the `compatible` property of the arm-io node of the Apple Device Tree,
+  the `compatible` property of the arm-io analde of the Apple Device Tree,
   which can be queried as follows on macOS:
 
   $ ioreg -n arm-io | grep compatible
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     oneOf:

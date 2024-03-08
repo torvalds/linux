@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright Sunplus Technology Co., Ltd.
+/* Copyright Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 
@@ -64,10 +64,10 @@ int spl2sw_phy_connect(struct spl2sw_common *comm)
 		if (comm->ndev[i]) {
 			ndev = comm->ndev[i];
 			mac = netdev_priv(ndev);
-			phydev = of_phy_connect(ndev, mac->phy_node, spl2sw_mii_link_change,
+			phydev = of_phy_connect(ndev, mac->phy_analde, spl2sw_mii_link_change,
 						0, mac->phy_mode);
 			if (!phydev)
-				return -ENODEV;
+				return -EANALDEV;
 
 			phy_support_asym_pause(phydev);
 			phy_attached_info(phydev);

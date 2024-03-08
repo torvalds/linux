@@ -23,7 +23,7 @@ struct anybuss_client {
 	__be16 anybus_id;
 	/*
 	 * these can be optionally set by the client to receive event
-	 * notifications from the host.
+	 * analtifications from the host.
 	 */
 	void (*on_area_updated)(struct anybuss_client *client);
 	void (*on_online_changed)(struct anybuss_client *client, bool online);

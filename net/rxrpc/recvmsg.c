@@ -18,9 +18,9 @@
 
 /*
  * Post a call for attention by the socket or kernel service.  Further
- * notifications are suppressed by putting recvmsg_link on a dummy queue.
+ * analtifications are suppressed by putting recvmsg_link on a dummy queue.
  */
-void rxrpc_notify_socket(struct rxrpc_call *call)
+void rxrpc_analtify_socket(struct rxrpc_call *call)
 {
 	struct rxrpc_sock *rx;
 	struct sock *sk;
@@ -35,14 +35,14 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 	rx = rcu_dereference(call->socket);
 	sk = &rx->sk;
 	if (rx && sk->sk_state < RXRPC_CLOSE) {
-		if (call->notify_rx) {
-			spin_lock(&call->notify_lock);
-			call->notify_rx(sk, call, call->user_call_ID);
-			spin_unlock(&call->notify_lock);
+		if (call->analtify_rx) {
+			spin_lock(&call->analtify_lock);
+			call->analtify_rx(sk, call, call->user_call_ID);
+			spin_unlock(&call->analtify_lock);
 		} else {
 			spin_lock(&rx->recvmsg_lock);
 			if (list_empty(&call->recvmsg_link)) {
-				rxrpc_get_call(call, rxrpc_call_get_notify_socket);
+				rxrpc_get_call(call, rxrpc_call_get_analtify_socket);
 				list_add_tail(&call->recvmsg_link, &rx->recvmsg_q);
 			}
 			spin_unlock(&rx->recvmsg_lock);
@@ -186,7 +186,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		goto done;
 	}
 
-	/* No one else can be removing stuff from the queue, so we shouldn't
+	/* Anal one else can be removing stuff from the queue, so we shouldn't
 	 * need the Rx lock to walk it.
 	 */
 	skb = skb_peek(&call->recvmsg_queue);
@@ -291,14 +291,14 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	trace_rxrpc_recvmsg(0, rxrpc_recvmsg_enter, 0);
 
 	if (flags & (MSG_OOB | MSG_TRUNC))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	timeo = sock_rcvtimeo(&rx->sk, flags & MSG_DONTWAIT);
 
 try_again:
 	lock_sock(&rx->sk);
 
-	/* Return immediately if a client socket has no outstanding calls */
+	/* Return immediately if a client socket has anal outstanding calls */
 	if (RB_EMPTY_ROOT(&rx->calls) &&
 	    list_empty(&rx->recvmsg_q) &&
 	    rx->sk.sk_state != RXRPC_SERVER_LISTENING) {
@@ -310,7 +310,7 @@ try_again:
 		ret = -EWOULDBLOCK;
 		if (timeo == 0) {
 			call = NULL;
-			goto error_no_call;
+			goto error_anal_call;
 		}
 
 		release_sock(&rx->sk);
@@ -332,7 +332,7 @@ try_again:
 		goto try_again;
 	}
 
-	/* Find the next call and dequeue it if we're not just peeking.  If we
+	/* Find the next call and dequeue it if we're analt just peeking.  If we
 	 * do dequeue it, that comes with a ref that we will need to release.
 	 * We also want to weed out calls that got requeued whilst we were
 	 * shovelling data out.
@@ -416,8 +416,8 @@ try_again:
 		goto call_failed;
 
 	if (!skb_queue_empty(&call->recvmsg_queue))
-		rxrpc_notify_socket(call);
-	goto not_yet_complete;
+		rxrpc_analtify_socket(call);
+	goto analt_yet_complete;
 
 call_failed:
 	rxrpc_purge_queue(&call->recvmsg_queue);
@@ -430,7 +430,7 @@ call_complete:
 	msg->msg_flags |= MSG_EOR;
 	ret = 1;
 
-not_yet_complete:
+analt_yet_complete:
 	if (ret == 0)
 		msg->msg_flags |= MSG_MORE;
 	else
@@ -452,14 +452,14 @@ error_requeue_call:
 	} else {
 		rxrpc_put_call(call, rxrpc_call_put_recvmsg);
 	}
-error_no_call:
+error_anal_call:
 	release_sock(&rx->sk);
 error_trace:
 	trace_rxrpc_recvmsg(call_debug_id, rxrpc_recvmsg_return, ret);
 	return ret;
 
 wait_interrupted:
-	ret = sock_intr_errno(timeo);
+	ret = sock_intr_erranal(timeo);
 wait_error:
 	finish_wait(sk_sleep(&rx->sk), &wait);
 	call = NULL;
@@ -481,7 +481,7 @@ wait_error:
  * available, 1 if we got what was asked for and we're at the end of the data
  * and -EAGAIN if we need more data.
  *
- * Note that we may return -EAGAIN to drain empty packets at the end of the
+ * Analte that we may return -EAGAIN to drain empty packets at the end of the
  * data, even if we've already copied over the requested data.
  *
  * *_abort should also be initialised to 0.

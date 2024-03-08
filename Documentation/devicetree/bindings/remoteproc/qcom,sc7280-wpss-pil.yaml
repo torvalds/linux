@@ -11,7 +11,7 @@ maintainers:
 
 description:
   This document defines the binding for a component that loads and boots firmware
-  on the Qualcomm Technology Inc. WPSS.
+  on the Qualcomm Techanallogy Inc. WPSS.
 
 properties:
   compatible:
@@ -29,8 +29,8 @@ properties:
       - description: Fatal interrupt
       - description: Ready interrupt
       - description: Handover interrupt
-      - description: Stop acknowledge interrupt
-      - description: Shutdown acknowledge interrupt
+      - description: Stop ackanalwledge interrupt
+      - description: Shutdown ackanalwledge interrupt
 
   interrupt-names:
     items:
@@ -109,7 +109,7 @@ properties:
     $ref: qcom,glink-edge.yaml#
     unevaluatedProperties: false
     description:
-      Qualcomm G-Link subnode which represents communication edge, channels
+      Qualcomm G-Link subanalde which represents communication edge, channels
       and devices related to the ADSP.
 
     properties:

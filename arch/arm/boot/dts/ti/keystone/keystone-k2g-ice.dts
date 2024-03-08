@@ -326,7 +326,7 @@
 	status = "okay";
 
 	flash0: flash@0 {
-		compatible = "s25fl256s1", "jedec,spi-nor";
+		compatible = "s25fl256s1", "jedec,spi-analr";
 		reg = <0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;

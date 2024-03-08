@@ -38,14 +38,14 @@
 	};
 
 	/* PC1 is repurposed as BT_WAKE_AP */
-	/delete-node/ leds;
+	/delete-analde/ leds;
 
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		clocks = <&ccu CLK_FANOUT1>;
+		clocks = <&ccu CLK_FAANALUT1>;
 		clock-names = "ext_clock";
 		reset-gpios = <&pio 6 12 GPIO_ACTIVE_LOW>; /* PG12 */
-		assigned-clocks = <&ccu CLK_FANOUT1>;
+		assigned-clocks = <&ccu CLK_FAANALUT1>;
 		assigned-clock-rates = <32768>;
 		pinctrl-0 = <&clk_pg11_pin>;
 		pinctrl-names = "default";
@@ -82,7 +82,7 @@
 &mmc1 {
 	bus-width = <4>;
 	mmc-pwrseq = <&wifi_pwrseq>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_vcc_3v3>;
 	vqmmc-supply = <&reg_vcc_3v3>;
 	pinctrl-0 = <&mmc1_pins>;

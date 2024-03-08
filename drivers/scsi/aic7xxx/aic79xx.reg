@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -24,13 +24,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -80,14 +80,14 @@ VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#77 $"
 	}
 
 /*
- * Registers marked "dont_generate_debug_code" are not (yet) referenced
+ * Registers marked "dont_generate_debug_code" are analt (yet) referenced
  * from the driver code, and this keyword inhibit generation
  * of debug code for them.
  *
  * REG_PRETTY_PRINT config will complain if dont_generate_debug_code
  * is added to the register which is referenced in the driver.
- * Unreferenced register with no dont_generate_debug_code will result
- * in dead code. No warning is issued.
+ * Unreferenced register with anal dont_generate_debug_code will result
+ * in dead code. Anal warning is issued.
  */
 
 /*
@@ -132,11 +132,11 @@ register SEQINTCODE {
 	address			0x002
 	access_mode	RW
 	field {
-		NO_SEQINT,			/* No seqint pending. */
-		BAD_PHASE,			/* unknown scsi bus phase */
+		ANAL_SEQINT,			/* Anal seqint pending. */
+		BAD_PHASE,			/* unkanalwn scsi bus phase */
 		SEND_REJECT,			/* sending a message reject */
 		PROTO_VIOLATION, 		/* Protocol Violation */
-		NO_MATCH,			/* no cmd match for reconnect */
+		ANAL_MATCH,			/* anal cmd match for reconnect */
 		IGN_WIDE_RES,			/* Complex IGN Wide Res Msg */
 		PDATA_REINIT,			/*
 						 * Returned to data phase
@@ -147,7 +147,7 @@ register SEQINTCODE {
 						 */
 		HOST_MSG_LOOP,			/*
 						 * The bus is ready for the
-						 * host to perform another
+						 * host to perform aanalther
 						 * message transaction.  This
 						 * mechanism is used for things
 						 * like sync/wide negotiation
@@ -162,7 +162,7 @@ register SEQINTCODE {
 						 */
 		MKMSG_FAILED,			/*
 						 * Target completed command
-						 * without honoring our ATN
+						 * without hoanalring our ATN
 						 * request to issue a message. 
 						 */
 		MISSED_BUSFREE,			/*
@@ -177,23 +177,23 @@ register SEQINTCODE {
 		CFG4ISTAT_INTR,
 		STATUS_OVERRUN,
 		CFG4OVERRUN,
-		ENTERING_NONPACK,
+		ENTERING_ANALNPACK,
 		TASKMGMT_FUNC_COMPLETE,		/*
 						 * Task management function
 						 * request completed with
 						 * an expected busfree.
 						 */
 		TASKMGMT_CMD_CMPLT_OKAY,	/*
-						 * A command with a non-zero
+						 * A command with a analn-zero
 						 * task management function
-						 * has completed via the normal
+						 * has completed via the analrmal
 						 * command completion method
 						 * for commands with a zero
 						 * task management function.
 						 * This happens when an attempt
 						 * to abort a command loses
 						 * the race for the command to
-						 * complete normally.
+						 * complete analrmally.
 						 */
 		TRACEPOINT0,
 		TRACEPOINT1,
@@ -752,7 +752,7 @@ register OVLYRXMSG1 {
 }
 
 /*
- * No Snoop Enable
+ * Anal Sanalop Enable
  */
 register NSENABLE {
 	address			0x091
@@ -893,7 +893,7 @@ register DCHSPLTSTAT0 {
 	field	SCBCERR		0x40
 	field	SCADERR		0x20
 	field	SCDATBUCKET	0x10
-	field	CNTNOTCMPLT	0x08
+	field	CNTANALTCMPLT	0x08
 	field	RXOVRUN		0x04
 	field	RXSCEMSG	0x02
 	field	RXSPLTRSP	0x01
@@ -911,7 +911,7 @@ register CMCSPLTSTAT0 {
 	field	SCBCERR		0x40
 	field	SCADERR		0x20
 	field	SCDATBUCKET	0x10
-	field	CNTNOTCMPLT	0x08
+	field	CNTANALTCMPLT	0x08
 	field	RXOVRUN		0x04
 	field	RXSCEMSG	0x02
 	field	RXSPLTRSP	0x01
@@ -928,7 +928,7 @@ register OVLYSPLTSTAT0 {
 	field	SCBCERR		0x40
 	field	SCADERR		0x20
 	field	SCDATBUCKET	0x10
-	field	CNTNOTCMPLT	0x08
+	field	CNTANALTCMPLT	0x08
 	field	RXOVRUN		0x04
 	field	RXSCEMSG	0x02
 	field	RXSPLTRSP	0x01
@@ -1101,7 +1101,7 @@ register SGSPLTSTAT0 {
 	field	SCBCERR		0x40
 	field	SCADERR		0x20
 	field	SCDATBUCKET	0x10
-	field	CNTNOTCMPLT	0x08
+	field	CNTANALTCMPLT	0x08
 	field	RXOVRUN		0x04
 	field	RXSCEMSG	0x02
 	field	RXSPLTRSP	0x01
@@ -1709,7 +1709,7 @@ register DFFSTAT {
 	enum	CURRFIFO	0x03 {
 		CURRFIFO_0,
 		CURRFIFO_1,
-		CURRFIFO_NONE	0x3
+		CURRFIFO_ANALNE	0x3
 	}
 }
 
@@ -1736,7 +1736,7 @@ register SCSISIGO {
 	field	CDO		0x80
 	field	IOO		0x40
 	field	MSGO		0x20
-	field	ATNO		0x10
+	field	ATANAL		0x10
 	field	SELO		0x08
 	field	BSYO		0x04
 	field	REQO		0x02
@@ -1863,7 +1863,7 @@ register TARGIDIN {
 /*
  * Selection/Reselection ID
  * Upper four bits are the device id.  The ONEBIT is set when the re/selecting
- * device did not set its own ID.
+ * device did analt set its own ID.
  */
 register SELID {
 	address			0x049
@@ -1957,7 +1957,7 @@ register SIMODE0 {
 	field	ENSELDI		0x20
 	field	ENSELINGO	0x10
 	field	ENIOERR		0x08
-	field	ENOVERRUN	0x04
+	field	EANALVERRUN	0x04
 	field	ENSPIORDY	0x02
 	field	ENARBDO		0x01
 }
@@ -1988,7 +1988,7 @@ register CLRSINT1 {
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
 	field	CLRSELTIMEO	0x80
-	field	CLRATNO		0x40
+	field	CLRATANAL		0x40
 	field	CLRSCSIRSTI	0x20
 	field	CLRBUSFREE	0x08
 	field	CLRSCSIPERR	0x04
@@ -2009,7 +2009,7 @@ register SSTAT2 {
 		BUSFREE_DFF0	0x80,
 		BUSFREE_DFF1	0xC0
 	}
-	field	NONPACKREQ	0x20
+	field	ANALNPACKREQ	0x20
 	field	EXP_ACTIVE	0x10	/* SCSI Expander Active */
 	field	BSYX		0x08	/* Busy Expander */
 	field	WIDE_RES	0x04	/* Modes 0 and 1 only */
@@ -2024,7 +2024,7 @@ register CLRSINT2 {
 	address			0x04D
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	field	CLRNONPACKREQ	0x20
+	field	CLRANALNPACKREQ	0x20
 	field	CLRWIDE_RES	0x04	/* Modes 0 and 1 only */
 	field	CLRSDONE	0x02	/* Modes 0 and 1 only */
 	field	CLRDMADONE	0x01	/* Modes 0 and 1 only */
@@ -2044,7 +2044,7 @@ register SIMODE2 {
 }
 
 /*
- * Physical Error Diagnosis
+ * Physical Error Diaganalsis
  */
 register PERRDIAG {
 	address			0x04E
@@ -2250,7 +2250,7 @@ register SIMODE3 {
 	modes		M_CFG
 	count		4
 	field	ENNTRAMPERR	0x02
-	field	ENOSRAMPERR	0x01
+	field	EANALSRAMPERR	0x01
 	dont_generate_debug_code
 }
 
@@ -2437,8 +2437,8 @@ register LQOSCSCTL {
 	count		1
 	field		LQOH2A_VERSION	0x80
 	field		LQOBUSETDLY	0x40
-	field		LQONOHOLDLACK	0x02
-	field		LQONOCHKOVER	0x01
+	field		LQOANALHOLDLACK	0x02
+	field		LQOANALCHKOVER	0x01
 	dont_generate_debug_code
 }
 
@@ -2653,7 +2653,7 @@ register NEGPPROPTS {
 /*
  * Data Transfer Negotiation Data -  Connection Options
  */
-register NEGCONOPTS {
+register NEGCOANALPTS {
 	address			0x064
 	access_mode	RW
 	modes		M_SCSI
@@ -2662,7 +2662,7 @@ register NEGCONOPTS {
 	field	RTI_OVRDTRN	0x10
 	field	ENSLOWCRC	0x08
 	field	ENAUTOATNI	0x04
-	field	ENAUTOATNO	0x02
+	field	ENAUTOATANAL	0x02
 	field	WIDEXFER	0x01
 	dont_generate_debug_code
 }
@@ -2715,7 +2715,7 @@ const	AHD_SLEWRATE_SHIFT	3
 const	AHD_SLEWRATE_DEF_REVA	0x08
 const	AHD_SLEWRATE_DEF_REVB	0x08
 
-/* Rev A does not have any amplitude setting. */
+/* Rev A does analt have any amplitude setting. */
 const AHD_ANNEXCOL_AMPLITUDE	6
 const	AHD_AMPLITUDE_MASK	0x7
 const	AHD_AMPLITUDE_SHIFT	0
@@ -2903,7 +2903,7 @@ register CCSCBACNT {
 
 /*
  * SCB Autopointer
- * SCB-Next Address Snooping logic.  When an SCB is transferred to
+ * SCB-Next Address Sanaloping logic.  When an SCB is transferred to
  * the card, the next SCB address to be used by the CMC array can
  * be autoloaded from that transfer.
  */
@@ -3324,7 +3324,7 @@ register RCVRBIASCALC {
 /*
  * Data FIFO Backup Read Pointer
  * Contains the data FIFO address to be restored if the last
- * data accessed from the data FIFO was not transferred successfully.
+ * data accessed from the data FIFO was analt transferred successfully.
  */
 register DFBKPTR {
 	address			0x0C9
@@ -3411,7 +3411,7 @@ register SEQCTL0 {
 
 /*
  * Sequencer Control 1
- * Instruction RAM Diagnostics
+ * Instruction RAM Diaganalstics
  */
 register SEQCTL1 {
 	address			0x0D7
@@ -3552,13 +3552,13 @@ register ALLZEROS {
 }
 
 /*
- * No Destination
- * Writes to this register have no effect.
+ * Anal Destination
+ * Writes to this register have anal effect.
  */
-register NONE {
+register ANALNE {
 	address			0x0EA
 	access_mode WO
-	none
+	analne
 	dont_generate_debug_code
 }
 
@@ -3745,7 +3745,7 @@ scratch_ram {
 	}
 	/*
 	 * head of list of SCBs that have
-	 * completed but have not been
+	 * completed but have analt been
 	 * put into the qoutfifo.
 	 */
 	COMPLETE_SCB_HEAD {
@@ -3780,9 +3780,9 @@ scratch_ram {
 	}
 	/*
 	 * head of list of SCBs that have
-	 * been uploaded to the host, but cannot
+	 * been uploaded to the host, but cananalt
 	 * be completed until the QFREEZE is in
-	 * full effect (i.e. no selections pending).
+	 * full effect (i.e. anal selections pending).
 	 */
 	COMPLETE_ON_QFREEZE_HEAD {
 		size		2
@@ -3831,8 +3831,8 @@ scratch_ram {
 	}
 	SEQ_FLAGS {
 		size		1
-		field	NOT_IDENTIFIED		0x80
-		field	NO_CDB_SENT		0x40
+		field	ANALT_IDENTIFIED		0x80
+		field	ANAL_CDB_SENT		0x40
 		field	TARGET_CMD_IS_TAGGED	0x40
 		field	DPHASE			0x20
 		/* Target flags */
@@ -3840,7 +3840,7 @@ scratch_ram {
 		field	CMDPHASE_PENDING	0x08
 		field	DPHASE_PENDING		0x04
 		field	SPHASE_PENDING		0x02
-		field	NO_DISCONNECT		0x01
+		field	ANAL_DISCONNECT		0x01
 	}
 	/*
 	 * Temporary storage for the
@@ -4036,7 +4036,7 @@ scratch_ram {
 	}
 	/*
 	 * Target-mode CDB type to CDB length table used
-	 * in non-packetized operation.
+	 * in analn-packetized operation.
 	 */
 	CMDSIZE_TABLE {
 		size		8
@@ -4045,7 +4045,7 @@ scratch_ram {
 	}
 	/*
 	 * When an SCB with the MK_MESSAGE flag is
-	 * queued to the controller, it cannot enter
+	 * queued to the controller, it cananalt enter
 	 * the waiting for selection list until the
 	 * selections for any previously queued
 	 * commands to that target complete.  During
@@ -4138,8 +4138,8 @@ scb {
 	SCB_TASK_ATTRIBUTE {
 		size	1
 		/*
-		 * Overloaded field for non-packetized 
-		 * ignore wide residue message handling.
+		 * Overloaded field for analn-packetized 
+		 * iganalre wide residue message handling.
 		 */
 		field	SCB_XFERLEN_ODD	0x01
 		dont_generate_debug_code
@@ -4229,7 +4229,7 @@ const MAX_OFFSET_PACED_BUG	0x7f
  * to 0x7f for speed lower than U320 which will
  * avoid the persistent sync offset overruns.
  */
-const MAX_OFFSET_NON_PACED	0x7f
+const MAX_OFFSET_ANALN_PACED	0x7f
 const HOST_MSG			0xff
 
 /*

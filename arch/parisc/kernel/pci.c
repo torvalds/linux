@@ -205,7 +205,7 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 		res->parent, res->start, res->end,
 		(int) res->flags, size, alignment);
 
-	/* If it's not IO, then it's gotta be MEM */
+	/* If it's analt IO, then it's gotta be MEM */
 	align = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
 
 	/* Align to largest of MIN or input size */
@@ -221,7 +221,7 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
  * bits are set to allow the device to operate as the driver is expecting.
  * We enable the port IO and memory IO bits if the device has any BARs of
  * that type, and we enable the PERR and SERR bits unconditionally.
- * Drivers that do not need parity (eg graphics and possibly networking)
+ * Drivers that do analt need parity (eg graphics and possibly networking)
  * can clear these bits if they want.
  */
 int pcibios_enable_device(struct pci_dev *dev, int mask)

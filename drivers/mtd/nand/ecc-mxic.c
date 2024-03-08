@@ -79,7 +79,7 @@
 
 /* Status bytes between each chunk of spare data */
 #define STAT_BYTES 4
-#define   NO_ERR 0x00
+#define   ANAL_ERR 0x00
 #define   MAX_CORR_ERR 0x28
 #define   UNCORR_ERR 0xFE
 #define   ERASED_CHUNK 0xFF
@@ -206,7 +206,7 @@ static irqreturn_t mxic_ecc_isr(int irq, void *dev_id)
 
 	sts = readl(mxic->regs + INTRPT_STS);
 	if (!sts)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (sts & TRANS_CMPLT)
 		complete(&mxic->complete);
@@ -232,13 +232,13 @@ static int mxic_ecc_init_ctx(struct nand_device *nand, struct device *dev)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand->ecc.ctx.priv = ctx;
 
 	/* Only large page NAND chips may use BCH */
 	if (mtd->oobsize < 64) {
-		pr_err("BCH cannot be used with small page NAND chips\n");
+		pr_err("BCH cananalt be used with small page NAND chips\n");
 		return -EINVAL;
 	}
 
@@ -268,7 +268,7 @@ static int mxic_ecc_init_ctx(struct nand_device *nand, struct device *dev)
 
 	ctx->status = devm_kzalloc(dev, steps * sizeof(u8), GFP_KERNEL);
 	if (!ctx->status)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (desired_correction) {
 		strength = desired_correction / steps;
@@ -290,7 +290,7 @@ static int mxic_ecc_init_ctx(struct nand_device *nand, struct device *dev)
 			break;
 	}
 
-	/* This engine cannot be used with this NAND device */
+	/* This engine cananalt be used with this NAND device */
 	if (idx < 0)
 		return -EINVAL;
 
@@ -305,7 +305,7 @@ static int mxic_ecc_init_ctx(struct nand_device *nand, struct device *dev)
 	ctx->parity_sz = PARITY_SZ(spare_reg);
 	ctx->meta_sz = META_SZ(spare_reg);
 
-	/* Ensure buffers will contain enough bytes to store the STAT_BYTES */
+	/* Ensure buffers will contain eanalugh bytes to store the STAT_BYTES */
 	ctx->req_ctx.oob_buffer_size = nanddev_per_page_oobsize(nand) +
 					(ctx->steps * STAT_BYTES);
 	ret = nand_ecc_init_req_tweaking(&ctx->req_ctx, nand);
@@ -315,7 +315,7 @@ static int mxic_ecc_init_ctx(struct nand_device *nand, struct device *dev)
 	ctx->oobwithstat = kmalloc(mtd->oobsize + (ctx->steps * STAT_BYTES),
 				   GFP_KERNEL);
 	if (!ctx->oobwithstat) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_req_tweak;
 	}
 
@@ -400,7 +400,7 @@ static int mxic_ecc_init_ctx_pipelined(struct nand_device *nand)
 	writel(ctx->steps, mxic->regs + CHUNK_CNT);
 
 	/*
-	 * Interleaved ECC scheme cannot be used otherwise factory bad block
+	 * Interleaved ECC scheme cananalt be used otherwise factory bad block
 	 * markers would be lost. A packed layout is mandatory.
 	 */
 	writel(BURST_TYP_INCREASING | ECC_PACKED | MAPPING,
@@ -529,8 +529,8 @@ static int mxic_ecc_count_biterrs(struct mxic_ecc_engine *mxic,
 	for (step = 0; step < ctx->steps; step++) {
 		u8 stat = ctx->status[step];
 
-		if (stat == NO_ERR) {
-			dev_dbg(dev, "ECC step %d: no error\n", step);
+		if (stat == ANAL_ERR) {
+			dev_dbg(dev, "ECC step %d: anal error\n", step);
 		} else if (stat == ERASED_CHUNK) {
 			dev_dbg(dev, "ECC step %d: erased\n", step);
 		} else if (stat == UNCORR_ERR || stat > MAX_CORR_ERR) {
@@ -747,16 +747,16 @@ static struct platform_device *
 mxic_ecc_get_pdev(struct platform_device *spi_pdev)
 {
 	struct platform_device *eng_pdev;
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* Retrieve the nand-ecc-engine phandle */
-	np = of_parse_phandle(spi_pdev->dev.of_node, "nand-ecc-engine", 0);
+	np = of_parse_phandle(spi_pdev->dev.of_analde, "nand-ecc-engine", 0);
 	if (!np)
 		return NULL;
 
-	/* Jump to the engine's device node */
-	eng_pdev = of_find_device_by_node(np);
-	of_node_put(np);
+	/* Jump to the engine's device analde */
+	eng_pdev = of_find_device_by_analde(np);
+	of_analde_put(np);
 
 	return eng_pdev;
 }
@@ -777,7 +777,7 @@ mxic_ecc_get_pipelined_engine(struct platform_device *spi_pdev)
 
 	eng_pdev = mxic_ecc_get_pdev(spi_pdev);
 	if (!eng_pdev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mxic = platform_get_drvdata(eng_pdev);
 	if (!mxic) {
@@ -801,7 +801,7 @@ static int mxic_ecc_probe(struct platform_device *pdev)
 
 	mxic = devm_kzalloc(&pdev->dev, sizeof(*mxic), GFP_KERNEL);
 	if (!mxic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mxic->dev = &pdev->dev;
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -959,7 +959,7 @@ static bool init_soc_bounding_box(struct dc *dc,  struct resource_pool *pool)
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!is_soc_bounding_box_valid(dc)) {
-		DC_LOG_ERROR("%s: not valid soc bounding box\n", __func__);
+		DC_LOG_ERROR("%s: analt valid soc bounding box\n", __func__);
 		return false;
 	}
 
@@ -1150,7 +1150,7 @@ static struct resource_funcs dcn302_res_pool_funcs = {
 		.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 		.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
 		.update_bw_bounding_box = dcn302_update_bw_bounding_box,
-		.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+		.patch_unkanalwn_plane_state = dcn20_patch_unkanalwn_plane_state,
 		.get_panel_config_defaults = dcn302_get_panel_config_defaults,
 };
 
@@ -1213,7 +1213,7 @@ static bool dcn302_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 	pool->pipe_count = pool->res_cap->num_timing_generator;
 	pool->mpcc_count = pool->res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;
@@ -1251,7 +1251,7 @@ static bool dcn302_resource_construct(
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
-	// no OGAM ROM on DCN3
+	// anal OGAM ROM on DCN3
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;
 	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
@@ -1324,7 +1324,7 @@ static bool dcn302_resource_construct(
 
 	pool->clk_src_count = DCN302_CLK_SRC_TOTAL;
 
-	/* todo: not reuse phy_pll registers */
+	/* todo: analt reuse phy_pll registers */
 	pool->dp_clock_source =
 			dcn302_clock_source_create(ctx, ctx->dc_bios,
 					CLOCK_SOURCE_ID_DP_DTO,

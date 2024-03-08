@@ -98,7 +98,7 @@ struct snd_cs4231 {
 	struct snd_timer	*timer;
 
 	unsigned short mode;
-#define CS4231_MODE_NONE	0x0000
+#define CS4231_MODE_ANALNE	0x0000
 #define CS4231_MODE_PLAY	0x0001
 #define CS4231_MODE_RECORD	0x0002
 #define CS4231_MODE_TIMER	0x0004
@@ -118,7 +118,7 @@ struct snd_cs4231 {
 };
 
 /* Eventually we can use sound/isa/cs423x/cs4231_lib.c directly, but for
- * now....  -DaveM
+ * analw....  -DaveM
  */
 
 /* IO ports */
@@ -159,12 +159,12 @@ struct snd_cs4231 {
 #define APC_XINT_CAPT   0x20000  /* Capture ext intr */
 #define APC_XINT_GENL   0x10000  /* Error ext intr */
 #define APC_XINT_EMPT   0x8000   /* Pipe empty interrupt (0 write to pva) */
-#define APC_XINT_PEMP   0x4000   /* Play pipe empty (pva and pnva not set) */
+#define APC_XINT_PEMP   0x4000   /* Play pipe empty (pva and pnva analt set) */
 #define APC_XINT_PNVA   0x2000   /* Playback NVA dirty */
 #define APC_XINT_PENA   0x1000   /* play pipe empty Int enable */
 #define APC_XINT_COVF   0x800    /* Cap data dropped on floor */
 #define APC_XINT_CNVA   0x400    /* Capture NVA dirty */
-#define APC_XINT_CEMP   0x200    /* Capture pipe empty (cva and cnva not set) */
+#define APC_XINT_CEMP   0x200    /* Capture pipe empty (cva and cnva analt set) */
 #define APC_XINT_CENA   0x100    /* Cap. pipe empty int enable */
 #define APC_PPAUSE      0x80     /* Pause the play DMA */
 #define APC_CPAUSE      0x40     /* Pause the capture DMA */
@@ -592,8 +592,8 @@ static void snd_cs4231_calibrate_mute(struct snd_cs4231 *chip, int mute)
 			mute ? 0x80 : chip->image[CS4231_LEFT_LINE_IN]);
 	snd_cs4231_dout(chip, CS4231_RIGHT_LINE_IN,
 			mute ? 0x80 : chip->image[CS4231_RIGHT_LINE_IN]);
-	snd_cs4231_dout(chip, CS4231_MONO_CTRL,
-			mute ? 0xc0 : chip->image[CS4231_MONO_CTRL]);
+	snd_cs4231_dout(chip, CS4231_MOANAL_CTRL,
+			mute ? 0xc0 : chip->image[CS4231_MOANAL_CTRL]);
 	chip->calibrate_mute = mute;
 	spin_unlock_irqrestore(&chip->lock, flags);
 }
@@ -781,7 +781,7 @@ static int snd_cs4231_open(struct snd_cs4231 *chip, unsigned int mode)
 		mutex_unlock(&chip->open_mutex);
 		return 0;
 	}
-	/* ok. now enable and ack CODEC IRQ */
+	/* ok. analw enable and ack CODEC IRQ */
 	spin_lock_irqsave(&chip->lock, flags);
 	snd_cs4231_out(chip, CS4231_IRQ_STATUS, CS4231_PLAYBACK_IRQ |
 		       CS4231_RECORD_IRQ |
@@ -820,7 +820,7 @@ static void snd_cs4231_close(struct snd_cs4231 *chip, unsigned int mode)
 	__cs4231_writeb(chip, 0, CS4231U(chip, STATUS));	/* clear IRQ */
 	__cs4231_writeb(chip, 0, CS4231U(chip, STATUS));	/* clear IRQ */
 
-	/* now disable record & playback */
+	/* analw disable record & playback */
 
 	if (chip->image[CS4231_IFACE_CTRL] &
 	    (CS4231_PLAYBACK_ENABLE | CS4231_PLAYBACK_PIO |
@@ -1040,7 +1040,7 @@ static int snd_cs4231_probe(struct snd_cs4231 *chip)
 	}
 	snd_printdd("cs4231: port = %p, id = 0x%x\n", chip->port, id);
 	if (id != 0x0a)
-		return -ENODEV;	/* no valid device found */
+		return -EANALDEV;	/* anal valid device found */
 
 	spin_lock_irqsave(&chip->lock, flags);
 
@@ -1090,7 +1090,7 @@ static const struct snd_pcm_hardware snd_cs4231_playback = {
 				  SNDRV_PCM_FMTBIT_U8 |
 				  SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S16_BE,
-	.rates			= SNDRV_PCM_RATE_KNOT |
+	.rates			= SNDRV_PCM_RATE_KANALT |
 				  SNDRV_PCM_RATE_8000_48000,
 	.rate_min		= 5510,
 	.rate_max		= 48000,
@@ -1114,7 +1114,7 @@ static const struct snd_pcm_hardware snd_cs4231_capture = {
 				  SNDRV_PCM_FMTBIT_U8 |
 				  SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S16_BE,
-	.rates			= SNDRV_PCM_RATE_KNOT |
+	.rates			= SNDRV_PCM_RATE_KANALT |
 				  SNDRV_PCM_RATE_8000_48000,
 	.rate_min		= 5510,
 	.rate_max		= 48000,
@@ -1244,7 +1244,7 @@ static int snd_cs4231_timer(struct snd_card *card)
 
 	/* Timer initialization */
 	tid.dev_class = SNDRV_TIMER_CLASS_CARD;
-	tid.dev_sclass = SNDRV_TIMER_SCLASS_NONE;
+	tid.dev_sclass = SNDRV_TIMER_SCLASS_ANALNE;
 	tid.card = card->number;
 	tid.device = 0;
 	tid.subdevice = 0;
@@ -1495,10 +1495,10 @@ CS4231_DOUBLE("Aux Playback Switch", 1, CS4231_AUX2_LEFT_INPUT,
 		CS4231_AUX2_RIGHT_INPUT, 7, 7, 1, 1),
 CS4231_DOUBLE("Aux Playback Volume", 1, CS4231_AUX2_LEFT_INPUT,
 		CS4231_AUX2_RIGHT_INPUT, 0, 0, 31, 1),
-CS4231_SINGLE("Mono Playback Switch", 0, CS4231_MONO_CTRL, 7, 1, 1),
-CS4231_SINGLE("Mono Playback Volume", 0, CS4231_MONO_CTRL, 0, 15, 1),
-CS4231_SINGLE("Mono Output Playback Switch", 0, CS4231_MONO_CTRL, 6, 1, 1),
-CS4231_SINGLE("Mono Output Playback Bypass", 0, CS4231_MONO_CTRL, 5, 1, 0),
+CS4231_SINGLE("Moanal Playback Switch", 0, CS4231_MOANAL_CTRL, 7, 1, 1),
+CS4231_SINGLE("Moanal Playback Volume", 0, CS4231_MOANAL_CTRL, 0, 15, 1),
+CS4231_SINGLE("Moanal Output Playback Switch", 0, CS4231_MOANAL_CTRL, 6, 1, 1),
+CS4231_SINGLE("Moanal Output Playback Bypass", 0, CS4231_MOANAL_CTRL, 5, 1, 0),
 CS4231_DOUBLE("Capture Volume", 0, CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT, 0, 0,
 		15, 0),
 {
@@ -1548,11 +1548,11 @@ static int cs4231_attach_begin(struct platform_device *op,
 	*rcard = NULL;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_card_new(&op->dev, index[dev], id[dev], THIS_MODULE,
@@ -1610,9 +1610,9 @@ static irqreturn_t snd_cs4231_sbus_interrupt(int irq, void *dev_id)
 	u32 csr;
 	struct snd_cs4231 *chip = dev_id;
 
-	/*This is IRQ is not raised by the cs4231*/
+	/*This is IRQ is analt raised by the cs4231*/
 	if (!(__cs4231_readb(chip, CS4231U(chip, STATUS)) & CS4231_GLOBALIRQ))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* ACK the APC interrupt. */
 	csr = sbus_readl(chip->port + APCCSR);
@@ -1824,7 +1824,7 @@ static int snd_cs4231_sbus_create(struct snd_card *card,
 
 	if (snd_cs4231_probe(chip) < 0) {
 		snd_cs4231_sbus_free(chip);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	snd_cs4231_init(chip);
 
@@ -2017,7 +2017,7 @@ static int snd_cs4231_ebus_create(struct snd_card *card,
 
 	if (snd_cs4231_probe(chip) < 0) {
 		snd_cs4231_ebus_free(chip);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	snd_cs4231_init(chip);
 
@@ -2058,15 +2058,15 @@ static int cs4231_ebus_probe(struct platform_device *op)
 static int cs4231_probe(struct platform_device *op)
 {
 #ifdef EBUS_SUPPORT
-	if (of_node_name_eq(op->dev.of_node->parent, "ebus"))
+	if (of_analde_name_eq(op->dev.of_analde->parent, "ebus"))
 		return cs4231_ebus_probe(op);
 #endif
 #ifdef SBUS_SUPPORT
-	if (of_node_name_eq(op->dev.of_node->parent, "sbus") ||
-	    of_node_name_eq(op->dev.of_node->parent, "sbi"))
+	if (of_analde_name_eq(op->dev.of_analde->parent, "sbus") ||
+	    of_analde_name_eq(op->dev.of_analde->parent, "sbi"))
 		return cs4231_sbus_probe(op);
 #endif
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void cs4231_remove(struct platform_device *op)

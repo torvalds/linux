@@ -82,7 +82,7 @@ struct qed_filter_ucast {
 };
 
 struct qed_filter_mcast {
-	/* MOVE is not supported for multicast */
+	/* MOVE is analt supported for multicast */
 	enum qed_filter_opcode opcode;
 	u8 vport_to_add_to;
 	u8 vport_to_remove_from;
@@ -121,7 +121,7 @@ qed_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
 int qed_eth_tx_queue_stop(struct qed_hwfn *p_hwfn, void *p_txq);
 
 enum qed_tpa_mode {
-	QED_TPA_MODE_NONE,
+	QED_TPA_MODE_ANALNE,
 	QED_TPA_MODE_UNUSED,
 	QED_TPA_MODE_GRO,
 	QED_TPA_MODE_MAX
@@ -151,7 +151,7 @@ struct qed_filter_accept_flags {
 	u8	update_tx_mode_config;
 	u8	rx_accept_filter;
 	u8	tx_accept_filter;
-#define QED_ACCEPT_NONE         0x01
+#define QED_ACCEPT_ANALNE         0x01
 #define QED_ACCEPT_UCAST_MATCHED        0x02
 #define QED_ACCEPT_UCAST_UNMATCHED      0x04
 #define QED_ACCEPT_MCAST_MATCHED        0x08
@@ -237,7 +237,7 @@ int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
  *
  * Return: Int.
  *
- * Note At the moment - only used by non-linux VFs.
+ * Analte At the moment - only used by analn-linux VFs.
  */
 
 int
@@ -266,9 +266,9 @@ void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats);
  *
  * @cdev: Qed dev pointer.
  * @stats: Points to struct that will be filled with statistics.
- * @is_atomic: Hint from the caller - if the func can sleep or not.
+ * @is_atomic: Hint from the caller - if the func can sleep or analt.
  *
- * Context: The function should not sleep in case is_atomic == true.
+ * Context: The function should analt sleep in case is_atomic == true.
  * Return: Void.
  */
 void qed_get_vport_stats_context(struct qed_dev *cdev,
@@ -299,7 +299,7 @@ void qed_arfs_mode_configure(struct qed_hwfn *p_hwfn,
  *
  * @p_hwfn: HW device data.
  * @p_cb: Used for QED_SPQ_MODE_CB,where client would initialize
- *        it with cookie and callback function address, if not
+ *        it with cookie and callback function address, if analt
  *        using this mode then client must pass NULL.
  * @p_params: Pointer to params.
  *
@@ -348,7 +348,7 @@ struct qed_queue_cid {
 	struct qed_queue_cid_params rel;
 	struct qed_queue_cid_params abs;
 
-	/* These have no 'relative' meaning */
+	/* These have anal 'relative' meaning */
 	u16 sb_igu_id;
 	u8 sb_idx;
 
@@ -357,17 +357,17 @@ struct qed_queue_cid {
 
 	bool b_is_rx;
 
-	/* VFs queues are mapped differently, so we need to know the
+	/* VFs queues are mapped differently, so we need to kanalw the
 	 * relative queue associated with them [0-based].
-	 * Notice this is relevant on the *PF* queue-cid of its VF's queues,
-	 * and not on the VF itself.
+	 * Analtice this is relevant on the *PF* queue-cid of its VF's queues,
+	 * and analt on the VF itself.
 	 */
 	u8 vfid;
 	u8 vf_qid;
 
 	/* We need an additional index to differentiate between queues opened
 	 * for same queue-zone, as VFs would have to communicate the info
-	 * to the PF [otherwise PF has no way to differentiate].
+	 * to the PF [otherwise PF has anal way to differentiate].
 	 */
 	u8 qid_usage_idx;
 

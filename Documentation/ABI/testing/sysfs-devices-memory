@@ -15,7 +15,7 @@ Contact:	Badari Pulavarty <pbadari@us.ibm.com>
 Description:
 		The file /sys/devices/system/memory/memoryX/removable is a
 		legacy interface used to indicated whether a memory block is
-		likely to be offlineable or not.  Newer kernel versions return
+		likely to be offlineable or analt.  Newer kernel versions return
 		"1" if and only if the kernel supports memory offlining.
 Users:		hotplug memory remove tools
 		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
@@ -55,12 +55,12 @@ Description:
 		On newer kernel versions, advanced states can be specified
 		when onlining to select a target zone: "online_movable"
 		selects the movable zone.  "online_kernel" selects the
-		applicable kernel zone (DMA, DMA32, or Normal).  However,
+		applicable kernel zone (DMA, DMA32, or Analrmal).  However,
 		after successfully setting one of the advanced states,
 		reading the file will return "online"; the zone information
 		can be obtained via "valid_zones" instead.
 
-		While onlining is unlikely to fail, there are no guarantees
+		While onlining is unlikely to fail, there are anal guarantees
 		that offlining will succeed.  Offlining is more likely to
 		succeed if "valid_zones" indicates "Movable".
 Users:		hotplug memory remove tools
@@ -76,45 +76,45 @@ Description:
 
 		For online memory blocks, it returns in which zone memory
 		provided by a memory block is managed.  If multiple zones
-		apply (not applicable for hotplugged memory), "None" is returned
-		and the memory block cannot be offlined.
+		apply (analt applicable for hotplugged memory), "Analne" is returned
+		and the memory block cananalt be offlined.
 
 		For offline memory blocks, it returns by which zone memory
 		provided by a memory block can be managed when onlining.
 		The first returned zone ("default") will be used when setting
 		the state of an offline memory block to "online".  Only one of
-		the kernel zones (DMA, DMA32, Normal) is applicable for a single
+		the kernel zones (DMA, DMA32, Analrmal) is applicable for a single
 		memory block.
 
-What:		/sys/devices/system/memoryX/nodeY
+What:		/sys/devices/system/memoryX/analdeY
 Date:		October 2009
 Contact:	Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		When CONFIG_NUMA is enabled, a symbolic link that
-		points to the corresponding NUMA node directory.
+		points to the corresponding NUMA analde directory.
 
 		For example, the following symbolic link is created for
-		memory section 9 on node0:
+		memory section 9 on analde0:
 
-		/sys/devices/system/memory/memory9/node0 -> ../../node/node0
+		/sys/devices/system/memory/memory9/analde0 -> ../../analde/analde0
 
 
-What:		/sys/devices/system/node/nodeX/memoryY
+What:		/sys/devices/system/analde/analdeX/memoryY
 Date:		September 2008
 Contact:	Gary Hade <garyhade@us.ibm.com>
 Description:
 		When CONFIG_NUMA is enabled
-		/sys/devices/system/node/nodeX/memoryY is a symbolic link that
+		/sys/devices/system/analde/analdeX/memoryY is a symbolic link that
 		points to the corresponding /sys/devices/system/memory/memoryY
 		memory section directory.  For example, the following symbolic
-		link is created for memory section 9 on node0.
+		link is created for memory section 9 on analde0.
 
-		/sys/devices/system/node/node0/memory9 -> ../../memory/memory9
+		/sys/devices/system/analde/analde0/memory9 -> ../../memory/memory9
 
 What:		/sys/devices/system/memory/crash_hotplug
 Date:		Aug 2023
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
-		(RO) indicates whether or not the kernel directly supports
+		(RO) indicates whether or analt the kernel directly supports
 		modifying the crash elfcorehdr for memory hot un/plug and/or
 		on/offline changes.

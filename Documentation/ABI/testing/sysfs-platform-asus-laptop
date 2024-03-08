@@ -13,7 +13,7 @@ Description:
 		  `---- DVI
 
 		Ex:
-		    - 0 (0000b) means no display
+		    - 0 (0000b) means anal display
 		    - 3 (0011b) CRT+LCD.
 
 What:		/sys/devices/platform/asus_laptop/gps

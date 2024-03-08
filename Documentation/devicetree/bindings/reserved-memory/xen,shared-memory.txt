@@ -6,7 +6,7 @@ to be a shared memory area across multiple virtual machines for
 communication among them.
 
 For each of these pre-shared memory regions, a range is exposed under
-the /reserved-memory node as a child node. Each range sub-node is named
+the /reserved-memory analde as a child analde. Each range sub-analde is named
 xen-shmem@<address> and has the following properties:
 
 - compatible:

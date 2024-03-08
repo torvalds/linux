@@ -57,7 +57,7 @@ static int guc_xfer_rsa_mmio(struct intel_uc_fw *guc_fw,
 
 	copied = intel_uc_fw_copy_rsa(guc_fw, rsa, sizeof(rsa));
 	if (copied < sizeof(rsa))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
 		intel_uncore_write(uncore, UOS_RSA_SCRATCH(i), rsa[i]);
@@ -89,7 +89,7 @@ static int guc_xfer_rsa(struct intel_uc_fw *guc_fw,
 /*
  * Read the GuC status register (GUC_STATUS) and store it in the
  * specified location; then return a boolean indicating whether
- * the value matches either completion or a known failure code.
+ * the value matches either completion or a kanalwn failure code.
  *
  * This is used for polling the GuC status in a wait_for()
  * loop below.
@@ -120,7 +120,7 @@ static inline bool guc_load_done(struct intel_uncore *uncore, u32 *status, bool 
 	}
 
 	switch (br_val) {
-	case INTEL_BOOTROM_STATUS_NO_KEY_FOUND:
+	case INTEL_BOOTROM_STATUS_ANAL_KEY_FOUND:
 	case INTEL_BOOTROM_STATUS_RSA_FAILED:
 	case INTEL_BOOTROM_STATUS_PAVPC_FAILED:
 	case INTEL_BOOTROM_STATUS_WOPCM_FAILED:
@@ -140,7 +140,7 @@ static inline bool guc_load_done(struct intel_uncore *uncore, u32 *status, bool 
 /*
  * Use a longer timeout for debug builds so that problems can be detected
  * and analysed. But a shorter timeout for releases so that user's don't
- * wait forever to find out there is a problem. Note that the only reason
+ * wait forever to find out there is a problem. Analte that the only reason
  * an end user should hit the timeout is in case of extreme thermal throttling.
  * And a system that is that hot during boot is probably dead anyway!
  */
@@ -164,22 +164,22 @@ static int guc_wait_ucode(struct intel_guc *guc)
 	/*
 	 * Wait for the GuC to start up.
 	 *
-	 * Measurements indicate this should take no more than 20ms
+	 * Measurements indicate this should take anal more than 20ms
 	 * (assuming the GT clock is at maximum frequency). So, a
 	 * timeout here indicates that the GuC has failed and is unusable.
 	 * (Higher levels of the driver may decide to reset the GuC and
 	 * attempt the ucode load again if this happens.)
 	 *
-	 * FIXME: There is a known (but exceedingly unlikely) race condition
-	 * where the asynchronous frequency management code could reduce
+	 * FIXME: There is a kanalwn (but exceedingly unlikely) race condition
+	 * where the asynchroanalus frequency management code could reduce
 	 * the GT clock while a GuC reload is in progress (during a full
 	 * GT reset). A fix is in progress but there are complex locking
 	 * issues to be resolved. In the meantime bump the timeout to
 	 * 200ms. Even at slowest clock, this should be sufficient. And
-	 * in the working case, a larger timeout makes no difference.
+	 * in the working case, a larger timeout makes anal difference.
 	 *
 	 * IFWI updates have also been seen to cause sporadic failures due to
-	 * the requested frequency not being granted and thus the firmware
+	 * the requested frequency analt being granted and thus the firmware
 	 * load is attempted at minimum frequency. That can lead to load times
 	 * in the seconds range. However, there is a limit on how long an
 	 * individual wait_for() can wait. So wrap it in a loop.
@@ -212,20 +212,20 @@ static int guc_wait_ucode(struct intel_guc *guc)
 			 REG_FIELD_GET(GS_AUTH_STATUS_MASK, status));
 
 		switch (bootrom) {
-		case INTEL_BOOTROM_STATUS_NO_KEY_FOUND:
+		case INTEL_BOOTROM_STATUS_ANAL_KEY_FOUND:
 			guc_info(guc, "invalid key requested, header = 0x%08X\n",
 				 intel_uncore_read(uncore, GUC_HEADER_INFO));
-			ret = -ENOEXEC;
+			ret = -EANALEXEC;
 			break;
 
 		case INTEL_BOOTROM_STATUS_RSA_FAILED:
 			guc_info(guc, "firmware signature verification failed\n");
-			ret = -ENOEXEC;
+			ret = -EANALEXEC;
 			break;
 
 		case INTEL_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE:
 			guc_info(guc, "firmware production part check failure\n");
-			ret = -ENOEXEC;
+			ret = -EANALEXEC;
 			break;
 		}
 
@@ -275,7 +275,7 @@ static int guc_wait_ucode(struct intel_guc *guc)
  * The firmware image should have already been fetched into memory, so only
  * check that fetch succeeded, and then transfer the image to the h/w.
  *
- * Return:	non-zero code on error
+ * Return:	analn-zero code on error
  */
 int intel_guc_fw_upload(struct intel_guc *guc)
 {
@@ -286,7 +286,7 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 	guc_prepare_xfer(gt);
 
 	/*
-	 * Note that GuC needs the CSS header plus uKernel code to be copied
+	 * Analte that GuC needs the CSS header plus uKernel code to be copied
 	 * by the DMA engine in one operation, whereas the RSA signature is
 	 * loaded separately, either by copying it to the UOS_RSA_SCRATCH
 	 * register (if key size <= 256) or through a ggtt-pinned vma (if key

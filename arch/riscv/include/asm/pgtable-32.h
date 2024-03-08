@@ -6,7 +6,7 @@
 #ifndef _ASM_RISCV_PGTABLE_32_H
 #define _ASM_RISCV_PGTABLE_32_H
 
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 #include <linux/bits.h>
 #include <linux/const.h>
 
@@ -24,7 +24,7 @@
  */
 #define _PAGE_PFN_MASK  GENMASK(31, 10)
 
-#define _PAGE_NOCACHE		0
+#define _PAGE_ANALCACHE		0
 #define _PAGE_IO		0
 #define _PAGE_MTMASK		0
 

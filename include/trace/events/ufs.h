@@ -67,7 +67,7 @@ UFS_CMD_TRACE_STRINGS
 UFS_CMD_TRACE_TSF_TYPES
 
 /*
- * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * Analw redefine the EM() and EMe() macros to map the enums to the strings
  * that will be printed in the output.
  */
 #undef EM

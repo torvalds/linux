@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -30,7 +30,7 @@
 	{ USB_DEVICE(0x2c42, 0x1604) },	/* In-Box 4 port UART device */	\
 	{ USB_DEVICE(0x2c42, 0x1605) },	/* In-Box 8 port UART device */	\
 	{ USB_DEVICE(0x2c42, 0x1606) },	/* In-Box 12 port UART device */ \
-	{ USB_DEVICE(0x2c42, 0x1608) },	/* Non-Flash type */ \
+	{ USB_DEVICE(0x2c42, 0x1608) },	/* Analn-Flash type */ \
 	{ USB_DEVICE(0x2c42, 0x1632) },	/* 2 port UART device */ \
 	{ USB_DEVICE(0x2c42, 0x1634) },	/* 4 port UART device */ \
 	{ USB_DEVICE(0x2c42, 0x1635) },	/* 8 port UART device */ \
@@ -246,7 +246,7 @@ static int f81232_set_mctrl(struct usb_serial_port *port,
 	struct f81232_private *priv = usb_get_serial_port_data(port);
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0)
-		return 0;	/* no change */
+		return 0;	/* anal change */
 
 	/* 'set' takes precedence over 'clear' */
 	clear &= ~set;
@@ -321,14 +321,14 @@ static void f81232_read_int_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -349,7 +349,7 @@ exit:
 static char f81232_handle_lsr(struct usb_serial_port *port, u8 lsr)
 {
 	struct f81232_private *priv = usb_get_serial_port_data(port);
-	char tty_flag = TTY_NORMAL;
+	char tty_flag = TTY_ANALRMAL;
 
 	if (!(lsr & UART_LSR_BRK_ERROR_BITS))
 		return tty_flag;
@@ -616,7 +616,7 @@ static void f81232_set_termios(struct tty_struct *tty,
 	speed_t baudrate;
 	speed_t old_baud;
 
-	/* Don't change anything if nothing has changed */
+	/* Don't change anything if analthing has changed */
 	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
 		return;
 
@@ -903,7 +903,7 @@ static int f81232_port_probe(struct usb_serial_port *port)
 
 	priv = devm_kzalloc(&port->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->lock);
 	INIT_WORK(&priv->interrupt_work,  f81232_interrupt_work);
@@ -954,7 +954,7 @@ static int f81232_resume(struct usb_serial *serial)
 	int result;
 
 	if (tty_port_initialized(&port->port)) {
-		result = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);
+		result = usb_submit_urb(port->interrupt_in_urb, GFP_ANALIO);
 		if (result) {
 			dev_err(&port->dev, "submit interrupt urb failed: %d\n",
 					result);

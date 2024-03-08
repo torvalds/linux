@@ -131,7 +131,7 @@ static int ahci_bt1_init(struct ahci_host_priv *hpriv)
 	if (!ahci_platform_find_clk(hpriv, "pclk") ||
 	    !ahci_platform_find_clk(hpriv, "aclk") ||
 	    !ahci_platform_find_clk(hpriv, "ref")) {
-		dev_err(&dpriv->pdev->dev, "No system clocks specified\n");
+		dev_err(&dpriv->pdev->dev, "Anal system clocks specified\n");
 		return -EINVAL;
 	}
 
@@ -162,7 +162,7 @@ static struct ahci_host_priv *ahci_dwc_get_resources(struct platform_device *pde
 
 	dpriv = devm_kzalloc(&pdev->dev, sizeof(*dpriv), GFP_KERNEL);
 	if (!dpriv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dpriv->pdev = pdev;
 	dpriv->pdata = device_get_match_data(&pdev->dev);
@@ -260,23 +260,23 @@ static void ahci_dwc_init_timer(struct ahci_host_priv *hpriv)
 static int ahci_dwc_init_dmacr(struct ahci_host_priv *hpriv)
 {
 	struct ahci_dwc_host_priv *dpriv = hpriv->plat_data;
-	struct device_node *child;
+	struct device_analde *child;
 	void __iomem *port_mmio;
 	u32 port, dmacr, ts;
 
 	/*
 	 * Update the DMA Tx/Rx transaction sizes in accordance with the
-	 * platform setup. Note values exceeding maximal or minimal limits will
-	 * be automatically clamped. Also note the register isn't affected by
+	 * platform setup. Analte values exceeding maximal or minimal limits will
+	 * be automatically clamped. Also analte the register isn't affected by
 	 * the HBA global reset so we can freely initialize it once until the
 	 * next system reset.
 	 */
-	for_each_child_of_node(dpriv->pdev->dev.of_node, child) {
+	for_each_child_of_analde(dpriv->pdev->dev.of_analde, child) {
 		if (!of_device_is_available(child))
 			continue;
 
 		if (of_property_read_u32(child, "reg", &port)) {
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 

@@ -195,12 +195,12 @@ static const unsigned int emmc_cmd_pins[]		= { GPIOB_10 };
 static const unsigned int emmc_nand_ds_pins[]		= { GPIOB_11 };
 
 /* Bank B func2 */
-static const unsigned int nor_hold_pins[]		= { GPIOB_3 };
-static const unsigned int nor_d_pins[]			= { GPIOB_4 };
-static const unsigned int nor_q_pins[]			= { GPIOB_5 };
-static const unsigned int nor_c_pins[]			= { GPIOB_6 };
-static const unsigned int nor_wp_pins[]			= { GPIOB_7 };
-static const unsigned int nor_cs_pins[]			= { GPIOB_12 };
+static const unsigned int analr_hold_pins[]		= { GPIOB_3 };
+static const unsigned int analr_d_pins[]			= { GPIOB_4 };
+static const unsigned int analr_q_pins[]			= { GPIOB_5 };
+static const unsigned int analr_c_pins[]			= { GPIOB_6 };
+static const unsigned int analr_wp_pins[]			= { GPIOB_7 };
+static const unsigned int analr_cs_pins[]			= { GPIOB_12 };
 
 /* Bank C func1 */
 static const unsigned int sdcard_d0_pins[]		= { GPIOC_0 };
@@ -718,12 +718,12 @@ static struct meson_pmx_group t7_periphs_groups[] = {
 	GROUP(emmc_nand_ds,		1),
 
 	/* Bank B func1 */
-	GROUP(nor_hold,			2),
-	GROUP(nor_d,			2),
-	GROUP(nor_q,			2),
-	GROUP(nor_c,			2),
-	GROUP(nor_wp,			2),
-	GROUP(nor_cs,			2),
+	GROUP(analr_hold,			2),
+	GROUP(analr_d,			2),
+	GROUP(analr_q,			2),
+	GROUP(analr_c,			2),
+	GROUP(analr_wp,			2),
+	GROUP(analr_cs,			2),
 
 	/* Bank C func1 */
 	GROUP(sdcard_d0,		1),
@@ -1114,8 +1114,8 @@ static const char * const emmc_groups[] = {
 	"emmc_clk", "emmc_cmd", "emmc_nand_ds",
 };
 
-static const char * const nor_groups[] = {
-	"nor_hold", "nor_d", "nor_q", "nor_c", "nor_wp", "nor_cs",
+static const char * const analr_groups[] = {
+	"analr_hold", "analr_d", "analr_q", "analr_c", "analr_wp", "analr_cs",
 };
 
 static const char * const sdcard_groups[] = {
@@ -1446,7 +1446,7 @@ static const char * const mic_mute_groups[] = {
 static struct meson_pmx_func t7_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
-	FUNCTION(nor),
+	FUNCTION(analr),
 	FUNCTION(sdcard),
 	FUNCTION(sdio),
 	FUNCTION(gen_clk),

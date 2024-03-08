@@ -184,7 +184,7 @@ static u16 rs_fw_he_ieee80211_mcs_to_rs_mcs(u16 mcs)
 		return BIT(IWL_TLC_MNG_HT_RATE_MCS9 + 1) - 1;
 	case IEEE80211_HE_MCS_SUPPORT_0_11:
 		return BIT(IWL_TLC_MNG_HT_RATE_MCS11 + 1) - 1;
-	case IEEE80211_HE_MCS_NOT_SUPPORTED:
+	case IEEE80211_HE_MCS_ANALT_SUPPORTED:
 		return 0;
 	}
 
@@ -215,22 +215,22 @@ rs_fw_he_set_enabled_rates(const struct ieee80211_link_sta *link_sta,
 		u16 _tx_mcs_160 = (tx_mcs_160 >> (2 * i)) & 0x3;
 		u16 _tx_mcs_80 = (tx_mcs_80 >> (2 * i)) & 0x3;
 
-		/* If one side doesn't support - mark both as not supporting */
-		if (_mcs_80 == IEEE80211_HE_MCS_NOT_SUPPORTED ||
-		    _tx_mcs_80 == IEEE80211_HE_MCS_NOT_SUPPORTED) {
-			_mcs_80 = IEEE80211_HE_MCS_NOT_SUPPORTED;
-			_tx_mcs_80 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+		/* If one side doesn't support - mark both as analt supporting */
+		if (_mcs_80 == IEEE80211_HE_MCS_ANALT_SUPPORTED ||
+		    _tx_mcs_80 == IEEE80211_HE_MCS_ANALT_SUPPORTED) {
+			_mcs_80 = IEEE80211_HE_MCS_ANALT_SUPPORTED;
+			_tx_mcs_80 = IEEE80211_HE_MCS_ANALT_SUPPORTED;
 		}
 		if (_mcs_80 > _tx_mcs_80)
 			_mcs_80 = _tx_mcs_80;
 		cmd->ht_rates[i][IWL_TLC_MCS_PER_BW_80] =
 			cpu_to_le16(rs_fw_he_ieee80211_mcs_to_rs_mcs(_mcs_80));
 
-		/* If one side doesn't support - mark both as not supporting */
-		if (_mcs_160 == IEEE80211_HE_MCS_NOT_SUPPORTED ||
-		    _tx_mcs_160 == IEEE80211_HE_MCS_NOT_SUPPORTED) {
-			_mcs_160 = IEEE80211_HE_MCS_NOT_SUPPORTED;
-			_tx_mcs_160 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+		/* If one side doesn't support - mark both as analt supporting */
+		if (_mcs_160 == IEEE80211_HE_MCS_ANALT_SUPPORTED ||
+		    _tx_mcs_160 == IEEE80211_HE_MCS_ANALT_SUPPORTED) {
+			_mcs_160 = IEEE80211_HE_MCS_ANALT_SUPPORTED;
+			_tx_mcs_160 = IEEE80211_HE_MCS_ANALT_SUPPORTED;
 		}
 		if (_mcs_160 > _tx_mcs_160)
 			_mcs_160 = _tx_mcs_160;
@@ -377,13 +377,13 @@ static void rs_fw_set_supp_rates(struct ieee80211_vif *vif,
 	const struct ieee80211_sta_vht_cap *vht_cap = &link_sta->vht_cap;
 	const struct ieee80211_sta_he_cap *he_cap = &link_sta->he_cap;
 
-	/* non HT rates */
+	/* analn HT rates */
 	tmp = link_sta->supp_rates[sband->band];
 	for_each_set_bit(i, &tmp, BITS_PER_LONG)
 		supp |= BIT(sband->bitrates[i].hw_value);
 
-	cmd->non_ht_rates = cpu_to_le16(supp);
-	cmd->mode = IWL_TLC_MNG_MODE_NON_HT;
+	cmd->analn_ht_rates = cpu_to_le16(supp);
+	cmd->mode = IWL_TLC_MNG_MODE_ANALN_HT;
 
 	/* HT/VHT rates */
 	if (link_sta->eht_cap.has_eht && sband_he_cap && sband_eht_cap) {
@@ -411,11 +411,11 @@ static void rs_fw_set_supp_rates(struct ieee80211_vif *vif,
 	}
 }
 
-void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
+void iwl_mvm_tlc_update_analtif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_tlc_update_notif *notif;
+	struct iwl_tlc_update_analtif *analtif;
 	struct ieee80211_sta *sta;
 	struct ieee80211_link_sta *link_sta;
 	struct iwl_mvm_sta *mvmsta;
@@ -425,61 +425,61 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 
 	rcu_read_lock();
 
-	notif = (void *)pkt->data;
-	link_sta = rcu_dereference(mvm->fw_id_to_link_sta[notif->sta_id]);
-	sta = rcu_dereference(mvm->fw_id_to_mac_id[notif->sta_id]);
+	analtif = (void *)pkt->data;
+	link_sta = rcu_dereference(mvm->fw_id_to_link_sta[analtif->sta_id]);
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[analtif->sta_id]);
 	if (IS_ERR_OR_NULL(sta) || !link_sta) {
 		/* can happen in remove station flow where mvm removed internally
 		 * the station before removing from FW
 		 */
 		IWL_DEBUG_RATE(mvm,
-			       "Invalid mvm RCU pointer for sta id (%d) in TLC notification\n",
-			       notif->sta_id);
+			       "Invalid mvm RCU pointer for sta id (%d) in TLC analtification\n",
+			       analtif->sta_id);
 		goto out;
 	}
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	if (!mvmsta) {
-		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC notification\n",
-			notif->sta_id);
+		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC analtification\n",
+			analtif->sta_id);
 		goto out;
 	}
 
-	flags = le32_to_cpu(notif->flags);
+	flags = le32_to_cpu(analtif->flags);
 
 	mvm_link_sta = rcu_dereference(mvmsta->link[link_sta->link_id]);
 	if (!mvm_link_sta) {
 		IWL_DEBUG_RATE(mvm,
-			       "Invalid mvmsta RCU pointer for link (%d) of  sta id (%d) in TLC notification\n",
-			       link_sta->link_id, notif->sta_id);
+			       "Invalid mvmsta RCU pointer for link (%d) of  sta id (%d) in TLC analtification\n",
+			       link_sta->link_id, analtif->sta_id);
 		goto out;
 	}
 	lq_sta = &mvm_link_sta->lq_sta.rs_fw;
 
-	if (flags & IWL_TLC_NOTIF_FLAG_RATE) {
+	if (flags & IWL_TLC_ANALTIF_FLAG_RATE) {
 		char pretty_rate[100];
 
-		if (iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
-					    TLC_MNG_UPDATE_NOTIF, 0) < 3) {
+		if (iwl_fw_lookup_analtif_ver(mvm->fw, DATA_PATH_GROUP,
+					    TLC_MNG_UPDATE_ANALTIF, 0) < 3) {
 			rs_pretty_print_rate_v1(pretty_rate,
 						sizeof(pretty_rate),
-						le32_to_cpu(notif->rate));
+						le32_to_cpu(analtif->rate));
 			IWL_DEBUG_RATE(mvm,
 				       "Got rate in old format. Rate: %s. Converting.\n",
 				       pretty_rate);
 			lq_sta->last_rate_n_flags =
-				iwl_new_rate_from_v1(le32_to_cpu(notif->rate));
+				iwl_new_rate_from_v1(le32_to_cpu(analtif->rate));
 		} else {
-			lq_sta->last_rate_n_flags = le32_to_cpu(notif->rate);
+			lq_sta->last_rate_n_flags = le32_to_cpu(analtif->rate);
 		}
 		rs_pretty_print_rate(pretty_rate, sizeof(pretty_rate),
 				     lq_sta->last_rate_n_flags);
 		IWL_DEBUG_RATE(mvm, "new rate: %s\n", pretty_rate);
 	}
 
-	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU && !mvm_link_sta->orig_amsdu_len) {
-		u16 size = le32_to_cpu(notif->amsdu_size);
+	if (flags & IWL_TLC_ANALTIF_FLAG_AMSDU && !mvm_link_sta->orig_amsdu_len) {
+		u16 size = le32_to_cpu(analtif->amsdu_size);
 		int i;
 
 		if (link_sta->agg.max_amsdu_len < size) {
@@ -492,7 +492,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 			goto out;
 		}
 
-		mvmsta->amsdu_enabled = le32_to_cpu(notif->amsdu_enabled);
+		mvmsta->amsdu_enabled = le32_to_cpu(analtif->amsdu_enabled);
 		mvmsta->max_amsdu_len = size;
 		link_sta->agg.max_rc_amsdu_len = mvmsta->max_amsdu_len;
 
@@ -502,7 +502,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 					iwl_mvm_max_amsdu_size(mvm, sta, i);
 			else
 				/*
-				 * Not so elegant, but this will effectively
+				 * Analt so elegant, but this will effectively
 				 * prevent AMSDU on this TID
 				 */
 				link_sta->agg.max_tid_amsdu_len[i] = 1;
@@ -510,7 +510,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_RATE(mvm,
 			       "AMSDU update. AMSDU size: %d, AMSDU selected size: %d, AMSDU TID bitmap 0x%X\n",
-			       le32_to_cpu(notif->amsdu_size), size,
+			       le32_to_cpu(analtif->amsdu_size), size,
 			       mvmsta->amsdu_enabled);
 	}
 out:
@@ -570,7 +570,7 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 			return IEEE80211_MAX_MPDU_LEN_HT_3839;
 	}
 
-	/* in legacy mode no amsdu is enabled so return zero */
+	/* in legacy mode anal amsdu is enabled so return zero */
 	return 0;
 }
 
@@ -656,8 +656,8 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 		       cfg_cmd.sta_id, cfg_cmd.max_ch_width, cfg_cmd.mode);
 	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, chains=0x%X, ch_wid_supp=%d, flags=0x%X\n",
 		       cfg_cmd.chains, cfg_cmd.sgi_ch_width_supp, cfg_cmd.flags);
-	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, mpdu_len=%d, no_ht_rate=0x%X, tx_op=%d\n",
-		       cfg_cmd.max_mpdu_len, cfg_cmd.non_ht_rates, cfg_cmd.max_tx_op);
+	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, mpdu_len=%d, anal_ht_rate=0x%X, tx_op=%d\n",
+		       cfg_cmd.max_mpdu_len, cfg_cmd.analn_ht_rates, cfg_cmd.max_tx_op);
 	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, ht_rate[0][0]=0x%X, ht_rate[1][0]=0x%X\n",
 		       cfg_cmd.ht_rates[0][0], cfg_cmd.ht_rates[1][0]);
 	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, ht_rate[0][1]=0x%X, ht_rate[1][1]=0x%X\n",
@@ -675,7 +675,7 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 			.chains = cfg_cmd.chains,
 			.amsdu = !!cfg_cmd.max_mpdu_len,
 			.flags = cfg_cmd.flags,
-			.non_ht_rates = cfg_cmd.non_ht_rates,
+			.analn_ht_rates = cfg_cmd.analn_ht_rates,
 			.ht_rates[0][0] = cfg_cmd.ht_rates[0][0],
 			.ht_rates[0][1] = cfg_cmd.ht_rates[0][1],
 			.ht_rates[1][0] = cfg_cmd.ht_rates[1][0],
@@ -705,8 +705,8 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable)
 {
-	/* TODO: need to introduce a new FW cmd since LQ cmd is not relevant */
-	IWL_DEBUG_RATE(mvm, "tx protection - not implemented yet.\n");
+	/* TODO: need to introduce a new FW cmd since LQ cmd is analt relevant */
+	IWL_DEBUG_RATE(mvm, "tx protection - analt implemented yet.\n");
 	return 0;
 }
 

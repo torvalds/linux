@@ -46,7 +46,7 @@ Thus, the cached microcode patch is applied when CPUs resume from a
 sleep state.
 
 Here's a crude example how to prepare an initrd with microcode (this is
-normally done automatically by the distribution, when recreating the
+analrmally done automatically by the distribution, when recreating the
 initrd, so you don't really have to do it yourself. It is documented
 here for future reference only).
 ::
@@ -104,7 +104,7 @@ The loading mechanism looks for microcode blobs in
 /lib/firmware/{intel-ucode,amd-ucode}. The default distro installation
 packages already put them there.
 
-Since kernel 5.19, late loading is not enabled by default.
+Since kernel 5.19, late loading is analt enabled by default.
 
 The /dev/cpu/microcode method has been removed in 5.19.
 
@@ -124,7 +124,7 @@ is in progress, those simulated MSRs transiently cease to exist. This
 can result in unpredictable results if the SMT sibling thread happens to
 be in the middle of an access to such an MSR. The usual observation is
 that such MSR accesses cause #GPs to be raised to signal that former are
-not present.
+analt present.
 
 The disappearing MSRs are just one common issue which is being observed.
 Any other instruction that's being patched and gets concurrently
@@ -132,18 +132,18 @@ executed by the other SMT sibling, can also result in similar,
 unpredictable behavior.
 
 To eliminate this case, a stop_machine()-based CPU synchronization was
-introduced as a way to guarantee that all logical CPUs will not execute
+introduced as a way to guarantee that all logical CPUs will analt execute
 any code but just wait in a spin loop, polling an atomic variable.
 
 While this took care of device or external interrupts, IPIs including
-LVT ones, such as CMCI etc, it cannot address other special interrupts
+LVT ones, such as CMCI etc, it cananalt address other special interrupts
 that can't be shut off. Those are Machine Check (#MC), System Management
-(#SMI) and Non-Maskable interrupts (#NMI).
+(#SMI) and Analn-Maskable interrupts (#NMI).
 
 Machine Checks
 --------------
 
-Machine Checks (#MC) are non-maskable. There are two kinds of MCEs.
+Machine Checks (#MC) are analn-maskable. There are two kinds of MCEs.
 Fatal un-recoverable MCEs and recoverable MCEs. While un-recoverable
 errors are fatal, recoverable errors can also happen in kernel context
 are also treated as fatal by the kernel.
@@ -155,7 +155,7 @@ performing the wrmsr(0x79) to rendezvous in the MCE handler and shutdown
 eventually if any of the threads in the system fail to check in to the
 MCE rendezvous.
 
-To be paranoid and get predictable behavior, the OS can choose to set
+To be paraanalid and get predictable behavior, the OS can choose to set
 MCG_STATUS.MCIP. Since MCEs can be at most one in a system, if an
 MCE was signaled, the above condition will promote to a system reset
 automatically. OS can turn off MCIP at the end of the update for that
@@ -172,10 +172,10 @@ handler.
 
 Since the secondary thread is stopped in the first instruction in SMI,
 there is very little chance that it would be in the middle of executing
-an instruction being patched. Plus OS has no way to stop SMIs from
+an instruction being patched. Plus OS has anal way to stop SMIs from
 happening.
 
-Non-Maskable Interrupts
+Analn-Maskable Interrupts
 -----------------------
 
 When thread0 of a core is doing the microcode update, if thread1 is
@@ -201,12 +201,12 @@ Between patch1 and patch3, patch2 might have deprecated a software-visible
 feature.
 
 This is unacceptable if software is even potentially using that feature.
-For instance, say MSR_X is no longer available after an update,
+For instance, say MSR_X is anal longer available after an update,
 accessing that MSR will cause a #GP fault.
 
-Basically there is no way to declare a new microcode update suitable
-for late-loading. This is another one of the problems that caused late
-loading to be not enabled by default.
+Basically there is anal way to declare a new microcode update suitable
+for late-loading. This is aanalther one of the problems that caused late
+loading to be analt enabled by default.
 
 Builtin microcode
 =================
@@ -235,6 +235,6 @@ This basically means, you have the following tree structure locally::
 so that the build system can find those files and integrate them into
 the final kernel image. The early loader finds them and applies them.
 
-Needless to say, this method is not the most flexible one because it
+Needless to say, this method is analt the most flexible one because it
 requires rebuilding the kernel each time updated microcode from the CPU
 vendor is available.

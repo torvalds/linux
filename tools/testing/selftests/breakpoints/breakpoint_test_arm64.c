@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <elf.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 
 #include "../kselftest.h"
@@ -37,20 +37,20 @@ static void child(int size, int wr)
 	if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) != 0) {
 		ksft_print_msg(
 			"ptrace(PTRACE_TRACEME) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 		_exit(1);
 	}
 
 	if (raise(SIGSTOP) != 0) {
 		ksft_print_msg(
-			"raise(SIGSTOP) failed: %s\n", strerror(errno));
+			"raise(SIGSTOP) failed: %s\n", strerror(erranal));
 		_exit(1);
 	}
 
 	if ((uintptr_t) addr % size) {
 		ksft_print_msg(
 			 "Wrong address write for the given size: %s\n",
-			 strerror(errno));
+			 strerror(erranal));
 		_exit(1);
 	}
 
@@ -98,14 +98,14 @@ static bool set_watchpoint(pid_t pid, int size, int wp)
 	if (ptrace(PTRACE_SETREGSET, pid, NT_ARM_HW_WATCH, &iov) == 0)
 		return true;
 
-	if (errno == EIO)
+	if (erranal == EIO)
 		ksft_print_msg(
-			"ptrace(PTRACE_SETREGSET, NT_ARM_HW_WATCH) not supported on this hardware: %s\n",
-			strerror(errno));
+			"ptrace(PTRACE_SETREGSET, NT_ARM_HW_WATCH) analt supported on this hardware: %s\n",
+			strerror(erranal));
 
 	ksft_print_msg(
 		"ptrace(PTRACE_SETREGSET, NT_ARM_HW_WATCH) failed: %s\n",
-		strerror(errno));
+		strerror(erranal));
 	return false;
 }
 
@@ -118,7 +118,7 @@ static bool run_test(int wr_size, int wp_size, int wr, int wp)
 
 	if (pid < 0) {
 		ksft_test_result_fail(
-			"fork() failed: %s\n", strerror(errno));
+			"fork() failed: %s\n", strerror(erranal));
 		return false;
 	}
 	if (pid == 0)
@@ -127,16 +127,16 @@ static bool run_test(int wr_size, int wp_size, int wr, int wp)
 	wpid = waitpid(pid, &status, __WALL);
 	if (wpid != pid) {
 		ksft_print_msg(
-			"waitpid() failed: %s\n", strerror(errno));
+			"waitpid() failed: %s\n", strerror(erranal));
 		return false;
 	}
 	if (!WIFSTOPPED(status)) {
 		ksft_print_msg(
-			"child did not stop: %s\n", strerror(errno));
+			"child did analt stop: %s\n", strerror(erranal));
 		return false;
 	}
 	if (WSTOPSIG(status) != SIGSTOP) {
-		ksft_print_msg("child did not stop with SIGSTOP\n");
+		ksft_print_msg("child did analt stop with SIGSTOP\n");
 		return false;
 	}
 
@@ -146,7 +146,7 @@ static bool run_test(int wr_size, int wp_size, int wr, int wp)
 	if (ptrace(PTRACE_CONT, pid, NULL, NULL) < 0) {
 		ksft_print_msg(
 			"ptrace(PTRACE_CONT) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 		return false;
 	}
 
@@ -154,7 +154,7 @@ static bool run_test(int wr_size, int wp_size, int wr, int wp)
 	wpid = waitpid(pid, &status, __WALL);
 	if (wpid != pid) {
 		ksft_print_msg(
-			"waitpid() failed: %s\n", strerror(errno));
+			"waitpid() failed: %s\n", strerror(erranal));
 		return false;
 	}
 	alarm(0);
@@ -163,17 +163,17 @@ static bool run_test(int wr_size, int wp_size, int wr, int wp)
 		return false;
 	}
 	if (!WIFSTOPPED(status)) {
-		ksft_print_msg("child did not stop\n");
+		ksft_print_msg("child did analt stop\n");
 		return false;
 	}
 	if (WSTOPSIG(status) != SIGTRAP) {
-		ksft_print_msg("child did not stop with SIGTRAP\n");
+		ksft_print_msg("child did analt stop with SIGTRAP\n");
 		return false;
 	}
 	if (ptrace(PTRACE_GETSIGINFO, pid, NULL, &siginfo) != 0) {
 		ksft_print_msg(
 			"ptrace(PTRACE_GETSIGINFO): %s\n",
-			strerror(errno));
+			strerror(erranal));
 		return false;
 	}
 	if (siginfo.si_code != TRAP_HWBKPT) {
@@ -186,7 +186,7 @@ static bool run_test(int wr_size, int wp_size, int wr, int wp)
 	wpid = waitpid(pid, &status, 0);
 	if (wpid != pid) {
 		ksft_print_msg(
-			"waitpid() failed: %s\n", strerror(errno));
+			"waitpid() failed: %s\n", strerror(erranal));
 		return false;
 	}
 	return true;

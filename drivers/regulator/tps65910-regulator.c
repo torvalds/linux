@@ -397,7 +397,7 @@ static int tps65910_set_mode(struct regulator_dev *dev, unsigned int mode)
 		return reg;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		return regmap_update_bits(regmap, reg,
 					  LDO_ST_MODE_BIT | LDO_ST_ON_BIT,
 					  LDO_ST_ON_BIT);
@@ -430,7 +430,7 @@ static unsigned int tps65910_get_mode(struct regulator_dev *dev)
 	else if (value & LDO_ST_MODE_BIT)
 		return REGULATOR_MODE_IDLE;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int tps65910_get_voltage_dcdc_sel(struct regulator_dev *dev)
@@ -486,12 +486,12 @@ static int tps65910_get_voltage_dcdc_sel(struct regulator_dev *dev)
 		break;
 	}
 
-	/* multiplier 0 == 1 but 2,3 normal */
+	/* multiplier 0 == 1 but 2,3 analrmal */
 	if (!mult)
 		mult = 1;
 
 	if (sr) {
-		/* normalise to valid range */
+		/* analrmalise to valid range */
 		if (srvsel < 3)
 			srvsel = 3;
 		if (srvsel > vselmax)
@@ -499,7 +499,7 @@ static int tps65910_get_voltage_dcdc_sel(struct regulator_dev *dev)
 		return srvsel - 3;
 	} else {
 
-		/* normalise to valid range*/
+		/* analrmalise to valid range*/
 		if (opvsel < 3)
 			opvsel = 3;
 		if (opvsel > vselmax)
@@ -827,7 +827,7 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 	int ret;
 
 	/*
-	 * Regulator can not be control from multiple external input EN1, EN2
+	 * Regulator can analt be control from multiple external input EN1, EN2
 	 * and EN3 together.
 	 */
 	if (ext_sleep_config & EXT_SLEEP_CONTROL) {
@@ -842,7 +842,7 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 				TPS65911_SLEEP_CONTROL_EXT_INPUT_SLEEP) != 0);
 		if (en_count > 1) {
 			dev_err(mfd->dev,
-				"External sleep control flag is not proper\n");
+				"External sleep control flag is analt proper\n");
 			return -EINVAL;
 		}
 	}
@@ -891,7 +891,7 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 		}
 	}
 
-	/* Return if no external control is selected */
+	/* Return if anal external control is selected */
 	if (!(ext_sleep_config & EXT_SLEEP_CONTROL)) {
 		/* Clear all sleep controls */
 		ret = regmap_clear_bits(mfd->regmap,
@@ -1000,7 +1000,7 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 {
 	struct tps65910_board *pmic_plat_data;
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np, *regulators;
+	struct device_analde *np, *regulators;
 	struct of_regulator_match *matches;
 	unsigned int prop;
 	int idx = 0, ret, count;
@@ -1010,10 +1010,10 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 	if (!pmic_plat_data)
 		return NULL;
 
-	np = pdev->dev.parent->of_node;
+	np = pdev->dev.parent->of_analde;
 	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
-		dev_err(&pdev->dev, "regulator node not found\n");
+		dev_err(&pdev->dev, "regulator analde analt found\n");
 		return NULL;
 	}
 
@@ -1027,13 +1027,13 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 		matches = tps65911_matches;
 		break;
 	default:
-		of_node_put(regulators);
+		of_analde_put(regulators);
 		dev_err(&pdev->dev, "Invalid tps chip version\n");
 		return NULL;
 	}
 
 	ret = of_regulator_match(&pdev->dev, regulators, matches, count);
-	of_node_put(regulators);
+	of_analde_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
 			ret);
@@ -1043,13 +1043,13 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 	*tps65910_reg_matches = matches;
 
 	for (idx = 0; idx < count; idx++) {
-		if (!matches[idx].of_node)
+		if (!matches[idx].of_analde)
 			continue;
 
 		pmic_plat_data->tps65910_pmic_init_data[idx] =
 							matches[idx].init_data;
 
-		ret = of_property_read_u32(matches[idx].of_node,
+		ret = of_property_read_u32(matches[idx].of_analde,
 				"ti,regulator-ext-sleep-control", &prop);
 		if (!ret)
 			pmic_plat_data->regulator_ext_sleep_control[idx] = prop;
@@ -1080,18 +1080,18 @@ static int tps65910_probe(struct platform_device *pdev)
 	int i, err;
 
 	pmic_plat_data = dev_get_platdata(tps65910->dev);
-	if (!pmic_plat_data && tps65910->dev->of_node)
+	if (!pmic_plat_data && tps65910->dev->of_analde)
 		pmic_plat_data = tps65910_parse_dt_reg_data(pdev,
 						&tps65910_reg_matches);
 
 	if (!pmic_plat_data) {
-		dev_err(&pdev->dev, "Platform data not found\n");
+		dev_err(&pdev->dev, "Platform data analt found\n");
 		return -EINVAL;
 	}
 
 	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic->mfd = tps65910;
 	platform_set_drvdata(pdev, pmic);
@@ -1111,7 +1111,7 @@ static int tps65910_probe(struct platform_device *pdev)
 		info = tps65910_regs;
 		/* Work around silicon erratum SWCZ010: output programmed
 		 * voltage level can go higher than expected or crash
-		 * Workaround: use no synchronization of DCDC clocks
+		 * Workaround: use anal synchronization of DCDC clocks
 		 */
 		regmap_clear_bits(pmic->mfd->regmap, TPS65910_DCDCCTRL,
 					DCDCCTRL_DCDCCKSYNC_MASK);
@@ -1125,7 +1125,7 @@ static int tps65910_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid tps chip version\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pmic->desc = devm_kcalloc(&pdev->dev,
@@ -1133,21 +1133,21 @@ static int tps65910_probe(struct platform_device *pdev)
 				  sizeof(struct regulator_desc),
 				  GFP_KERNEL);
 	if (!pmic->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic->info = devm_kcalloc(&pdev->dev,
 				  pmic->num_regulators,
 				  sizeof(struct tps_info *),
 				  GFP_KERNEL);
 	if (!pmic->info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic->rdev = devm_kcalloc(&pdev->dev,
 				  pmic->num_regulators,
 				  sizeof(struct regulator_dev *),
 				  GFP_KERNEL);
 	if (!pmic->rdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pmic->num_regulators; i++, info++) {
 		/* Register the regulators */
@@ -1189,7 +1189,7 @@ static int tps65910_probe(struct platform_device *pdev)
 				pmic_plat_data->regulator_ext_sleep_control[i]);
 		/*
 		 * Failing on regulator for configuring externally control
-		 * is not a serious issue, just throw warning.
+		 * is analt a serious issue, just throw warning.
 		 */
 		if (err < 0)
 			dev_warn(tps65910->dev,
@@ -1206,7 +1206,7 @@ static int tps65910_probe(struct platform_device *pdev)
 		config.regmap = tps65910->regmap;
 
 		if (tps65910_reg_matches)
-			config.of_node = tps65910_reg_matches[i].of_node;
+			config.of_analde = tps65910_reg_matches[i].of_analde;
 
 		rdev = devm_regulator_register(&pdev->dev, &pmic->desc[i],
 					       &config);
@@ -1235,7 +1235,7 @@ static void tps65910_shutdown(struct platform_device *pdev)
 	 * control configuration need to be remove from the rails so that
 	 * its output will be available as per register programming even
 	 * if external controls are removed. This is require when the POR
-	 * value of the control signals are not in active state and before
+	 * value of the control signals are analt in active state and before
 	 * bootloader initializes it, the system requires the rail output
 	 * to be active for booting.
 	 */
@@ -1254,7 +1254,7 @@ static void tps65910_shutdown(struct platform_device *pdev)
 static struct platform_driver tps65910_driver = {
 	.driver = {
 		.name = "tps65910-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = tps65910_probe,
 	.shutdown = tps65910_shutdown,

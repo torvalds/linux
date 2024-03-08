@@ -57,7 +57,7 @@ static void usb_mouse_irq(struct urb *urb)
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	/* -EPIPE:  should clear the halt */
@@ -111,16 +111,16 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	struct usb_mouse *mouse;
 	struct input_dev *input_dev;
 	int pipe, maxp;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	interface = intf->cur_altsetting;
 
 	if (interface->desc.bNumEndpoints != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	endpoint = &interface->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe);
@@ -181,7 +181,7 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 			 (maxp > 8 ? 8 : maxp),
 			 usb_mouse_irq, mouse, endpoint->bInterval);
 	mouse->irq->transfer_dma = mouse->data_dma;
-	mouse->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	mouse->irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	error = input_register_device(mouse->dev);
 	if (error)

@@ -1,19 +1,19 @@
 ZHAW InES PTP time stamping IP core
 
-The IP core needs two different kinds of nodes.  The control node
+The IP core needs two different kinds of analdes.  The control analde
 lives somewhere in the memory map and specifies the address of the
 control registers.  There can be up to three port handles placed as
-attributes of PHY nodes.  These associate a particular MII bus with a
+attributes of PHY analdes.  These associate a particular MII bus with a
 port index within the IP core.
 
-Required properties of the control node:
+Required properties of the control analde:
 
 - compatible:		"ines,ptp-ctrl"
 - reg:			physical address and size of the register bank
 
-Required format of the port handle within the PHY node:
+Required format of the port handle within the PHY analde:
 
-- timestamper:		provides control node reference and
+- timestamper:		provides control analde reference and
 			the port channel within the IP core
 
 Example:

@@ -22,7 +22,7 @@ properties:
   mediatek,sysctl:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      phandle to system controller 'sysc' syscon node which
+      phandle to system controller 'sysc' syscon analde which
       controls system registers
 
 required:

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/soc/qcom/qcom,rpm-master-stats.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. (QTI) RPM Master Stats
+title: Qualcomm Techanallogies, Inc. (QTI) RPM Master Stats
 
 maintainers:
   - Konrad Dybcio <konrad.dybcio@linaro.org>

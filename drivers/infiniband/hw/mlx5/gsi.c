@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -106,13 +106,13 @@ int mlx5_ib_create_gsi(struct ib_pd *pd, struct mlx5_ib_qp *mqp,
 	gsi = &mqp->gsi;
 	gsi->tx_qps = kcalloc(num_qps, sizeof(*gsi->tx_qps), GFP_KERNEL);
 	if (!gsi->tx_qps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gsi->outstanding_wrs =
 		kcalloc(attr->cap.max_send_wr, sizeof(*gsi->outstanding_wrs),
 			GFP_KERNEL);
 	if (!gsi->outstanding_wrs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_tx;
 	}
 
@@ -231,7 +231,7 @@ static int modify_to_rts(struct mlx5_ib_gsi_qp *gsi, struct ib_qp *qp,
 	attr.port_num = gsi->port_num;
 	ret = ib_modify_qp(qp, &attr, mask);
 	if (ret) {
-		mlx5_ib_err(dev, "could not change QP%d state to INIT: %d\n",
+		mlx5_ib_err(dev, "could analt change QP%d state to INIT: %d\n",
 			    qp->qp_num, ret);
 		return ret;
 	}
@@ -239,7 +239,7 @@ static int modify_to_rts(struct mlx5_ib_gsi_qp *gsi, struct ib_qp *qp,
 	attr.qp_state = IB_QPS_RTR;
 	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
 	if (ret) {
-		mlx5_ib_err(dev, "could not change QP%d state to RTR: %d\n",
+		mlx5_ib_err(dev, "could analt change QP%d state to RTR: %d\n",
 			    qp->qp_num, ret);
 		return ret;
 	}
@@ -248,7 +248,7 @@ static int modify_to_rts(struct mlx5_ib_gsi_qp *gsi, struct ib_qp *qp,
 	attr.sq_psn = 0;
 	ret = ib_modify_qp(qp, &attr, IB_QP_STATE | IB_QP_SQ_PSN);
 	if (ret) {
-		mlx5_ib_err(dev, "could not change QP%d state to RTS: %d\n",
+		mlx5_ib_err(dev, "could analt change QP%d state to RTS: %d\n",
 			    qp->qp_num, ret);
 		return ret;
 	}
@@ -364,8 +364,8 @@ static int mlx5_ib_add_outstanding_wr(struct mlx5_ib_qp *mqp,
 	struct mlx5_ib_gsi_wr *gsi_wr;
 
 	if (gsi->outstanding_pi == gsi->outstanding_ci + gsi->cap.max_send_wr) {
-		mlx5_ib_warn(dev, "no available GSI work request.\n");
-		return -ENOMEM;
+		mlx5_ib_warn(dev, "anal available GSI work request.\n");
+		return -EANALMEM;
 	}
 
 	gsi_wr = &gsi->outstanding_wrs[gsi->outstanding_pi %

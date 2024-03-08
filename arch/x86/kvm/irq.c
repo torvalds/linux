@@ -43,7 +43,7 @@ static int pending_userspace_extint(struct kvm_vcpu *v)
 
 /*
  * check if there is pending interrupt from
- * non-APIC source without intack.
+ * analn-APIC source without intack.
  */
 int kvm_cpu_has_extint(struct kvm_vcpu *v)
 {
@@ -51,9 +51,9 @@ int kvm_cpu_has_extint(struct kvm_vcpu *v)
 	 * FIXME: interrupt.injected represents an interrupt whose
 	 * side-effects have already been applied (e.g. bit from IRR
 	 * already moved to ISR). Therefore, it is incorrect to rely
-	 * on interrupt.injected to know if there is a pending
+	 * on interrupt.injected to kanalw if there is a pending
 	 * interrupt in the user-mode LAPIC.
-	 * This leads to nVMX/nSVM not be able to distinguish
+	 * This leads to nVMX/nSVM analt be able to distinguish
 	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
 	 * pending interrupt or should re-inject an injected
 	 * interrupt.
@@ -105,7 +105,7 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
 
 /*
- * Read pending interrupt(from non-APIC source)
+ * Read pending interrupt(from analn-APIC source)
  * vector and intack.
  */
 static int kvm_cpu_get_extint(struct kvm_vcpu *v)

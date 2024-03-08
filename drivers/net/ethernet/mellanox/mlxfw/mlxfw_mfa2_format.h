@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2017-2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2019 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXFW_MFA2_FORMAT_H
 #define _MLXFW_MFA2_FORMAT_H
@@ -16,7 +16,7 @@ enum mlxfw_mfa2_tlv_type {
 };
 
 enum mlxfw_mfa2_compression_type {
-	MLXFW_MFA2_COMPRESSION_TYPE_NONE,
+	MLXFW_MFA2_COMPRESSION_TYPE_ANALNE,
 	MLXFW_MFA2_COMPRESSION_TYPE_XZ,
 };
 

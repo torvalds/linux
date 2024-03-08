@@ -249,9 +249,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	status = "okay";
 };
 
@@ -286,7 +286,7 @@
 	cpu-supply = <&buck2_reg>;
 };
 
-/delete-node/ &sec_jr1; /* Job ring in use by OP-TEE */
+/delete-analde/ &sec_jr1; /* Job ring in use by OP-TEE */
 
 &iomuxc {
 	pinctrl_i2c1: i2c1-grp {

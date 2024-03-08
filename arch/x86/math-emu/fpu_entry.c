@@ -14,7 +14,7 @@
  +---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------+
- | Note:                                                                     |
+ | Analte:                                                                     |
  |    The file contains code which accesses user memory.                     |
  |    Emulator static data may change when user memory is accessed, due to   |
  |    other processes using the emulator while swapping is in progress.      |
@@ -44,8 +44,8 @@
 
 /* fcmovCC and f(u)comi(p) are enabled if CPUID(1).EDX(15) "cmov" is set */
 
-/* WARNING: "u" entries are not documented by Intel in their 80486 manual
-   and may not work on FPU clones or later Intel FPUs.
+/* WARNING: "u" entries are analt documented by Intel in their 80486 manual
+   and may analt work on FPU clones or later Intel FPUs.
    Changes to support them provided by Linus Torvalds. */
 
 static FUNC const st_instr_table[64] = {
@@ -55,7 +55,7 @@ static FUNC const st_instr_table[64] = {
 /* c0..7 */	fadd_i,		ffree_,		faddp_,		ffreep,/*u*/
 /* c8..f */	fmul__,		fxch_i,		fcmove,		fcmovne,
 /* c8..f */	fmul_i,		fxch_i,/*u*/	fmulp_,		fxch_i,/*u*/
-/* d0..7 */	fcom_st,	fp_nop,		fcmovbe,	fcmovnbe,
+/* d0..7 */	fcom_st,	fp_analp,		fcmovbe,	fcmovnbe,
 /* d0..7 */	fcom_st,/*u*/	fst_i_,		fcompst,/*u*/	fstp_i,/*u*/
 /* d8..f */	fcompst,	fstp_i,/*u*/	fcmovu,		fcmovnu,
 /* d8..f */	fcompst,/*u*/	fstp_i,		fcompp,		fstp_i,/*u*/
@@ -69,12 +69,12 @@ static FUNC const st_instr_table[64] = {
 /* f8..f */	fdiv_i,		__BAD__,	fdivp_,		__BAD__,
 };
 
-#define _NONE_ 0		/* Take no special action */
-#define _REG0_ 1		/* Need to check for not empty st(0) */
-#define _REGI_ 2		/* Need to check for not empty st(0) and st(rm) */
+#define _ANALNE_ 0		/* Take anal special action */
+#define _REG0_ 1		/* Need to check for analt empty st(0) */
+#define _REGI_ 2		/* Need to check for analt empty st(0) and st(rm) */
 #define _REGi_ 0		/* Uses st(rm) */
 #define _PUSH_ 3		/* Need to check for space to push onto stack */
-#define _null_ 4		/* Function illegal or not implemented */
+#define _null_ 4		/* Function illegal or analt implemented */
 #define _REGIi 5		/* Uses st(0) and st(rm), result to st(rm) */
 #define _REGIp 6		/* Uses st(0) and st(rm), result to st(rm) then pop */
 #define _REGIc 0		/* Compare st(0) and st(rm) */
@@ -82,14 +82,14 @@ static FUNC const st_instr_table[64] = {
 
 static u_char const type_table[64] = {
 /* Opcode:	d8	d9	da	db	dc	dd	de	df */
-/* c0..7 */	_REGI_, _NONE_, _REGIn, _REGIn, _REGIi, _REGi_, _REGIp, _REGi_,
+/* c0..7 */	_REGI_, _ANALNE_, _REGIn, _REGIn, _REGIi, _REGi_, _REGIp, _REGi_,
 /* c8..f */	_REGI_, _REGIn, _REGIn, _REGIn, _REGIi, _REGI_, _REGIp, _REGI_,
-/* d0..7 */	_REGIc, _NONE_, _REGIn, _REGIn, _REGIc, _REG0_, _REGIc, _REG0_,
+/* d0..7 */	_REGIc, _ANALNE_, _REGIn, _REGIn, _REGIc, _REG0_, _REGIc, _REG0_,
 /* d8..f */	_REGIc, _REG0_, _REGIn, _REGIn, _REGIc, _REG0_, _REGIc, _REG0_,
-/* e0..7 */	_REGI_, _NONE_, _null_, _NONE_, _REGIi, _REGIc, _REGIp, _NONE_,
-/* e8..f */	_REGI_, _NONE_, _REGIc, _REGIc, _REGIi, _REGIc, _REGIp, _REGIc,
-/* f0..7 */	_REGI_, _NONE_, _null_, _REGIc, _REGIi, _null_, _REGIp, _REGIc,
-/* f8..f */	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
+/* e0..7 */	_REGI_, _ANALNE_, _null_, _ANALNE_, _REGIi, _REGIc, _REGIp, _ANALNE_,
+/* e8..f */	_REGI_, _ANALNE_, _REGIc, _REGIc, _REGIi, _REGIc, _REGIp, _REGIc,
+/* f0..7 */	_REGI_, _ANALNE_, _null_, _REGIc, _REGIi, _null_, _REGIp, _REGIc,
+/* f8..f */	_REGI_, _ANALNE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
 };
 
 #ifdef RE_ENTRANT_CHECKING
@@ -117,7 +117,7 @@ void math_emulate(struct math_emu_info *info)
 
 #ifdef RE_ENTRANT_CHECKING
 	if (emulating) {
-		printk("ERROR: wm-FPU-emu is not RE-ENTRANT!\n");
+		printk("ERROR: wm-FPU-emu is analt RE-ENTRANT!\n");
 	}
 	RE_ENTRANT_CHECK_ON;
 #endif /* RE_ENTRANT_CHECKING */
@@ -140,14 +140,14 @@ void math_emulate(struct math_emu_info *info)
 
 		if ((FPU_CS & 4) != 4) {	/* Must be in the LDT */
 			/* Can only handle segmented addressing via the LDT
-			   for now, and it must be 16 bit */
+			   for analw, and it must be 16 bit */
 			printk("FPU emulator: Unsupported addressing mode\n");
 			math_abort(FPU_info, SIGILL);
 		}
 
 		code_descriptor = FPU_get_ldt_descriptor(FPU_CS);
 		if (code_descriptor.d) {
-			/* The above test may be wrong, the book is not clear */
+			/* The above test may be wrong, the book is analt clear */
 			/* Segmented 32 bit protected mode */
 			addr_modes.default_mode = SEG32;
 		} else {
@@ -168,7 +168,7 @@ void math_emulate(struct math_emu_info *info)
 			  &addr_modes.override)) {
 		RE_ENTRANT_CHECK_OFF;
 		printk
-		    ("FPU emulator: Unknown prefix byte 0x%02x, probably due to\n"
+		    ("FPU emulator: Unkanalwn prefix byte 0x%02x, probably due to\n"
 		     "FPU emulator: self-modifying code! (emulation impossible)\n",
 		     byte1);
 		RE_ENTRANT_CHECK_ON;
@@ -176,9 +176,9 @@ void math_emulate(struct math_emu_info *info)
 		math_abort(FPU_info, SIGILL);
 	}
 
-      do_another_FPU_instruction:
+      do_aanalther_FPU_instruction:
 
-	no_ip_update = 0;
+	anal_ip_update = 0;
 
 	FPU_EIP++;		/* We have fetched the prefix and first code bytes. */
 
@@ -196,10 +196,10 @@ void math_emulate(struct math_emu_info *info)
 			else
 				goto FPU_fwait_done;
 		}
-#ifdef PARANOID
+#ifdef PARAANALID
 		EXCEPTION(EX_INTERNAL | 0x128);
 		math_abort(FPU_info, SIGILL);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 	}
 
 	RE_ENTRANT_CHECK_OFF;
@@ -209,7 +209,7 @@ void math_emulate(struct math_emu_info *info)
 	FPU_EIP++;
 
 	if (partial_status & SW_Summary) {
-		/* Ignore the error for now if the current instruction is a no-wait
+		/* Iganalre the error for analw if the current instruction is a anal-wait
 		   control instruction */
 		/* The 80486 manual contradicts itself on this topic,
 		   but a real 80486 uses the following instructions:
@@ -268,7 +268,7 @@ void math_emulate(struct math_emu_info *info)
 			st0_tag = FPU_gettag0();
 
 			/* Stack underflow has priority */
-			if (NOT_EMPTY_ST0) {
+			if (ANALT_EMPTY_ST0) {
 				if (addr_modes.default_mode & PROTECTED) {
 					/* This table works for 16 and 32 bit protected mode */
 					if (access_limit <
@@ -309,8 +309,8 @@ void math_emulate(struct math_emu_info *info)
 					break;
 				}
 
-				/* No more access to user memory, it is safe
-				   to use static data now */
+				/* Anal more access to user memory, it is safe
+				   to use static data analw */
 
 				/* NaN operands have the next priority. */
 				/* We have to delay looking at st(0) until after
@@ -319,7 +319,7 @@ void math_emulate(struct math_emu_info *info)
 				    || ((loaded_tag == TAG_Special)
 					&& isNaN(&loaded_data))) {
 					/* Restore the status word; we might have loaded a
-					   denormal. */
+					   deanalrmal. */
 					partial_status = status1;
 					if ((FPU_modrm & 0x30) == 0x10) {
 						/* fcom or fcomp */
@@ -335,7 +335,7 @@ void math_emulate(struct math_emu_info *info)
 							    FPU_Special
 							    (&loaded_data);
 #ifdef PECULIAR_486
-						/* This is not really needed, but gives behaviour
+						/* This is analt really needed, but gives behaviour
 						   identical to an 80486 */
 						if ((FPU_modrm & 0x28) == 0x20)
 							/* fdiv or fsub */
@@ -355,7 +355,7 @@ void math_emulate(struct math_emu_info *info)
 				}
 
 				if (unmasked && !((FPU_modrm & 0x30) == 0x10)) {
-					/* Is not a comparison instruction. */
+					/* Is analt a comparison instruction. */
 					if ((FPU_modrm & 0x38) == 0x38) {
 						/* fdivr */
 						if ((st0_tag == TAG_Zero) &&
@@ -363,7 +363,7 @@ void math_emulate(struct math_emu_info *info)
 						     || (loaded_tag ==
 							 TAG_Special
 							 &&
-							 isdenormal
+							 isdeanalrmal
 							 (&loaded_data)))) {
 							if (FPU_divide_by_zero
 							    (0,
@@ -372,15 +372,15 @@ void math_emulate(struct math_emu_info *info)
 							    < 0) {
 								/* We use the fact here that the unmasked
 								   exception in the loaded data was for a
-								   denormal operand */
-								/* Restore the state of the denormal op bit */
+								   deanalrmal operand */
+								/* Restore the state of the deanalrmal op bit */
 								partial_status
 								    &=
-								    ~SW_Denorm_Op;
+								    ~SW_Deanalrm_Op;
 								partial_status
 								    |=
 								    status1 &
-								    SW_Denorm_Op;
+								    SW_Deanalrm_Op;
 							} else
 								setsign(st0_ptr,
 									getsign
@@ -432,7 +432,7 @@ void math_emulate(struct math_emu_info *info)
 				case 7:	/* fdivr */
 					clear_C1();
 					if (st0_tag == TAG_Zero)
-						partial_status = status1;	/* Undo any denorm tag,
+						partial_status = status1;	/* Undo any deanalrm tag,
 										   zero-divide has priority. */
 					FPU_div(REV | LOADED | loaded_tag,
 						(int)&loaded_data,
@@ -453,7 +453,7 @@ void math_emulate(struct math_emu_info *info)
 		      reg_mem_instr_done:
 			operand_address = data_sel_off;
 		} else {
-			if (!(no_ip_update =
+			if (!(anal_ip_update =
 			      FPU_load_store(((FPU_modrm & 0x38) | (byte1 & 6))
 					     >> 1, addr_modes, data_address))) {
 				operand_address = data_sel_off;
@@ -461,7 +461,7 @@ void math_emulate(struct math_emu_info *info)
 		}
 
 	} else {
-		/* None of these instructions access user memory */
+		/* Analne of these instructions access user memory */
 		u_char instr_index = (FPU_modrm & 0x38) | (byte1 & 7);
 
 #ifdef PECULIAR_486
@@ -474,28 +474,28 @@ void math_emulate(struct math_emu_info *info)
 		st0_ptr = &st(0);
 		st0_tag = FPU_gettag0();
 		switch (type_table[(int)instr_index]) {
-		case _NONE_:	/* also _REGIc: _REGIn */
+		case _ANALNE_:	/* also _REGIc: _REGIn */
 			break;
 		case _REG0_:
-			if (!NOT_EMPTY_ST0) {
+			if (!ANALT_EMPTY_ST0) {
 				FPU_stack_underflow();
 				goto FPU_instruction_done;
 			}
 			break;
 		case _REGIi:
-			if (!NOT_EMPTY_ST0 || !NOT_EMPTY(FPU_rm)) {
+			if (!ANALT_EMPTY_ST0 || !ANALT_EMPTY(FPU_rm)) {
 				FPU_stack_underflow_i(FPU_rm);
 				goto FPU_instruction_done;
 			}
 			break;
 		case _REGIp:
-			if (!NOT_EMPTY_ST0 || !NOT_EMPTY(FPU_rm)) {
+			if (!ANALT_EMPTY_ST0 || !ANALT_EMPTY(FPU_rm)) {
 				FPU_stack_underflow_pop(FPU_rm);
 				goto FPU_instruction_done;
 			}
 			break;
 		case _REGI_:
-			if (!NOT_EMPTY_ST0 || !NOT_EMPTY(FPU_rm)) {
+			if (!ANALT_EMPTY_ST0 || !ANALT_EMPTY(FPU_rm)) {
 				FPU_stack_underflow();
 				goto FPU_instruction_done;
 			}
@@ -515,7 +515,7 @@ void math_emulate(struct math_emu_info *info)
 		;
 	}
 
-	if (!no_ip_update)
+	if (!anal_ip_update)
 		instruction_address = entry_sel_off;
 
       FPU_fwait_done:
@@ -530,7 +530,7 @@ void math_emulate(struct math_emu_info *info)
 		FPU_ORIG_EIP = FPU_EIP - code_base;
 		if (valid_prefix(&byte1, (u_char __user **) & FPU_EIP,
 				 &addr_modes.override))
-			goto do_another_FPU_instruction;
+			goto do_aanalther_FPU_instruction;
 	}
 
 	if (addr_modes.default_mode)
@@ -539,7 +539,7 @@ void math_emulate(struct math_emu_info *info)
 	RE_ENTRANT_CHECK_OFF;
 }
 
-/* Support for prefix bytes is not yet complete. To properly handle
+/* Support for prefix bytes is analt yet complete. To properly handle
    all prefix bytes, further changes are needed in the emulator code
    which accesses user address space. Access to separate segments is
    important for msdos emulation. */
@@ -586,11 +586,11 @@ static int valid_prefix(u_char *Byte, u_char __user **fpu_eip,
 			override->segment = PREFIX_DS_;
 			goto do_next_byte;
 
-/* lock is not a valid prefix for FPU instructions,
+/* lock is analt a valid prefix for FPU instructions,
    let the cpu handle it to generate a SIGILL. */
 /*	case PREFIX_LOCK: */
 
-			/* rep.. prefixes have no meaning for FPU instructions */
+			/* rep.. prefixes have anal meaning for FPU instructions */
 		case PREFIX_REPE:
 		case PREFIX_REPNE:
 
@@ -610,7 +610,7 @@ static int valid_prefix(u_char *Byte, u_char __user **fpu_eip,
 				*fpu_eip = ip;
 				return 1;
 			} else {
-				/* Not a valid sequence of prefix bytes followed by
+				/* Analt a valid sequence of prefix bytes followed by
 				   an FPU instruction. */
 				*Byte = byte;	/* Needed for error message. */
 				return 0;
@@ -627,9 +627,9 @@ void math_abort(struct math_emu_info *info, unsigned int signal)
 	send_sig(signal, current, 1);
 	RE_ENTRANT_CHECK_OFF;
       __asm__("movl %0,%%esp ; ret": :"g"(((long)info) - 4));
-#ifdef PARANOID
+#ifdef PARAANALID
 	printk("ERROR: wm-FPU-emu math_abort failed!\n");
-#endif /* PARANOID */
+#endif /* PARAANALID */
 }
 
 #define S387 ((struct swregs_state *)s387)
@@ -669,7 +669,7 @@ int fpregs_soft_set(struct task_struct *target,
 
 	RE_ENTRANT_CHECK_ON;
 
-	/* The tags may need to be corrected now. */
+	/* The tags may need to be corrected analw. */
 	tags = S387->twd;
 	newtop = S387->ftop;
 	for (i = 0; i < 8; i++) {

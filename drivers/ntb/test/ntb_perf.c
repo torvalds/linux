@@ -21,21 +21,21 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       analtice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation analr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -95,7 +95,7 @@ MODULE_DESCRIPTION("PCIe NTB Performance Measurement Tool");
 #define MAX_THREADS_CNT		32
 #define DEF_THREADS_CNT		1
 #define MAX_CHUNK_SIZE		SZ_1M
-#define MAX_CHUNK_ORDER		20 /* no larger than 1M */
+#define MAX_CHUNK_ORDER		20 /* anal larger than 1M */
 
 #define DMA_TRIES		100
 #define DMA_MDELAY		10
@@ -219,7 +219,7 @@ struct perf_ctx {
 	(3*(_gidx) + 1)
 #define PERF_SPAD_HDATA(_gidx) \
 	(3*(_gidx) + 2)
-#define PERF_SPAD_NOTIFY(_gidx) \
+#define PERF_SPAD_ANALTIFY(_gidx) \
 	(BIT_ULL(_gidx))
 
 /*
@@ -267,12 +267,12 @@ static int perf_spad_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 	 * Perform predefined number of attempts before give up.
 	 * We are sending the data to the port specific scratchpad, so
 	 * to prevent a multi-port access race-condition. Additionally
-	 * there is no need in local locking since only thread-safe
+	 * there is anal need in local locking since only thread-safe
 	 * service work is using this method.
 	 */
 	for (try = 0; try < MSG_TRIES; try++) {
 		if (!perf_link_is_up(peer))
-			return -ENOLINK;
+			return -EANALLINK;
 
 		sts = ntb_peer_spad_read(perf->ntb, peer->pidx,
 					 PERF_SPAD_CMD(perf->gidx));
@@ -290,10 +290,10 @@ static int perf_spad_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_CMD(perf->gidx),
 				    cmd);
-		ntb_peer_db_set(perf->ntb, PERF_SPAD_NOTIFY(peer->gidx));
+		ntb_peer_db_set(perf->ntb, PERF_SPAD_ANALTIFY(peer->gidx));
 
 		dev_dbg(&perf->ntb->dev, "DB ring peer %#llx\n",
-			PERF_SPAD_NOTIFY(peer->gidx));
+			PERF_SPAD_ANALTIFY(peer->gidx));
 
 		break;
 	}
@@ -307,11 +307,11 @@ static int perf_spad_cmd_recv(struct perf_ctx *perf, int *pidx,
 	struct perf_peer *peer;
 	u32 val;
 
-	ntb_db_clear(perf->ntb, PERF_SPAD_NOTIFY(perf->gidx));
+	ntb_db_clear(perf->ntb, PERF_SPAD_ANALTIFY(perf->gidx));
 
 	/*
 	 * We start scanning all over, since cleared DB may have been set
-	 * by any peer. Yes, it makes peer with smaller index being
+	 * by any peer. Anal, it makes peer with smaller index being
 	 * serviced with greater priority, but it's convenient for spad
 	 * and message code unification and simplicity.
 	 */
@@ -333,7 +333,7 @@ static int perf_spad_cmd_recv(struct perf_ctx *perf, int *pidx,
 		val = ntb_spad_read(perf->ntb, PERF_SPAD_HDATA(peer->gidx));
 		*data |= (u64)val << 32;
 
-		/* Next command can be retrieved from now */
+		/* Next command can be retrieved from analw */
 		ntb_spad_write(perf->ntb, PERF_SPAD_CMD(peer->gidx),
 			       PERF_CMD_INVAL);
 
@@ -342,7 +342,7 @@ static int perf_spad_cmd_recv(struct perf_ctx *perf, int *pidx,
 		return 0;
 	}
 
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static int perf_msg_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
@@ -364,7 +364,7 @@ static int perf_msg_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 	outbits = ntb_msg_outbits(perf->ntb);
 	for (try = 0; try < MSG_TRIES; try++) {
 		if (!perf_link_is_up(peer))
-			return -ENOLINK;
+			return -EANALLINK;
 
 		ret = ntb_msg_clear_sts(perf->ntb, outbits);
 		if (ret)
@@ -399,7 +399,7 @@ static int perf_msg_cmd_recv(struct perf_ctx *perf, int *pidx,
 	inbits = ntb_msg_inbits(perf->ntb);
 
 	if (hweight64(ntb_msg_read_sts(perf->ntb) & inbits) < 3)
-		return -ENODATA;
+		return -EANALDATA;
 
 	val = ntb_msg_read(perf->ntb, pidx, PERF_MSG_CMD);
 	*cmd = val;
@@ -410,7 +410,7 @@ static int perf_msg_cmd_recv(struct perf_ctx *perf, int *pidx,
 	val = ntb_msg_read(perf->ntb, pidx, PERF_MSG_HDATA);
 	*data |= (u64)val << 32;
 
-	/* Next command can be retrieved from now */
+	/* Next command can be retrieved from analw */
 	ntb_msg_clear_sts(perf->ntb, inbits);
 
 	dev_dbg(&perf->ntb->dev, "CMD recv: %d 0x%llx\n", *cmd, *data);
@@ -443,7 +443,7 @@ static int perf_cmd_exec(struct perf_peer *peer, enum perf_cmd cmd)
 		return -EINVAL;
 	}
 
-	/* No need of memory barrier, since bit ops have invernal lock */
+	/* Anal need of memory barrier, since bit ops have invernal lock */
 	set_bit(cmd, &peer->sts);
 
 	dev_dbg(&peer->perf->ntb->dev, "CMD exec: %d\n", cmd);
@@ -475,8 +475,8 @@ static int perf_cmd_recv(struct perf_ctx *perf)
 		}
 	}
 
-	/* Return 0 if no data left to process, otherwise an error */
-	return ret == -ENODATA ? 0 : ret;
+	/* Return 0 if anal data left to process, otherwise an error */
+	return ret == -EANALDATA ? 0 : ret;
 }
 
 static void perf_link_event(void *ctx)
@@ -595,7 +595,7 @@ static int perf_setup_inbuf(struct perf_peer *peer)
 	if (!peer->inbuf) {
 		dev_err(&perf->ntb->dev, "Failed to alloc inbuf of %pa\n",
 			&peer->inbuf_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (!IS_ALIGNED(peer->inbuf_xlat, xlat_align)) {
 		ret = -EINVAL;
@@ -660,7 +660,7 @@ static int perf_init_service(struct perf_ctx *perf)
 	u64 mask;
 
 	if (ntb_peer_mw_count(perf->ntb) < perf->pcnt) {
-		dev_err(&perf->ntb->dev, "Not enough memory windows\n");
+		dev_err(&perf->ntb->dev, "Analt eanalugh memory windows\n");
 		return -EINVAL;
 	}
 
@@ -720,7 +720,7 @@ static int perf_enable_service(struct perf_ctx *perf)
 		scnt = ntb_spad_count(perf->ntb);
 		for (sidx = 0; sidx < scnt; sidx++)
 			ntb_spad_write(perf->ntb, sidx, PERF_CMD_INVAL);
-		incmd_bit = PERF_SPAD_NOTIFY(perf->gidx);
+		incmd_bit = PERF_SPAD_ANALTIFY(perf->gidx);
 		ret = ntb_db_clear_mask(perf->ntb, incmd_bit);
 
 		dev_dbg(&perf->ntb->dev, "DB bits unmasked %#llx\n", incmd_bit);
@@ -731,7 +731,7 @@ static int perf_enable_service(struct perf_ctx *perf)
 	}
 
 	ntb_link_enable(perf->ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
-	/* Might be not necessary */
+	/* Might be analt necessary */
 	ntb_link_event(perf->ntb);
 
 	return 0;
@@ -747,7 +747,7 @@ static void perf_disable_service(struct perf_ctx *perf)
 		inbits = ntb_msg_inbits(perf->ntb);
 		(void)ntb_msg_set_mask(perf->ntb, inbits);
 	} else {
-		(void)ntb_db_set_mask(perf->ntb, PERF_SPAD_NOTIFY(perf->gidx));
+		(void)ntb_db_set_mask(perf->ntb, PERF_SPAD_ANALTIFY(perf->gidx));
 	}
 
 	ntb_clear_ctx(perf->ntb);
@@ -764,7 +764,7 @@ static void perf_disable_service(struct perf_ctx *perf)
 		ntb_spad_write(perf->ntb, PERF_SPAD_CMD(peer->gidx), 0);
 	}
 
-	ntb_db_clear(perf->ntb, PERF_SPAD_NOTIFY(perf->gidx));
+	ntb_db_clear(perf->ntb, PERF_SPAD_ANALTIFY(perf->gidx));
 
 	ntb_link_disable(perf->ntb);
 }
@@ -809,9 +809,9 @@ static int perf_copy_chunk(struct perf_thread *pthr,
 	dst_vaddr = dst;
 	dst_dma_addr = peer->dma_dst_addr + (dst_vaddr - vbase);
 
-	unmap = dmaengine_get_unmap_data(dma_dev, 1, GFP_NOWAIT);
+	unmap = dmaengine_get_unmap_data(dma_dev, 1, GFP_ANALWAIT);
 	if (!unmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	unmap->len = len;
 	unmap->addr[0] = dma_map_page(dma_dev, virt_to_page(src),
@@ -861,11 +861,11 @@ err_free_resource:
 static bool perf_dma_filter(struct dma_chan *chan, void *data)
 {
 	struct perf_ctx *perf = data;
-	int node;
+	int analde;
 
-	node = dev_to_node(&perf->ntb->dev);
+	analde = dev_to_analde(&perf->ntb->dev);
 
-	return node == NUMA_NO_NODE || node == dev_to_node(chan->device->dev);
+	return analde == NUMA_ANAL_ANALDE || analde == dev_to_analde(chan->device->dev);
 }
 
 static int perf_init_test(struct perf_thread *pthr)
@@ -874,10 +874,10 @@ static int perf_init_test(struct perf_thread *pthr)
 	dma_cap_mask_t dma_mask;
 	struct perf_peer *peer = pthr->perf->test_peer;
 
-	pthr->src = kmalloc_node(perf->test_peer->outbuf_size, GFP_KERNEL,
-				 dev_to_node(&perf->ntb->dev));
+	pthr->src = kmalloc_analde(perf->test_peer->outbuf_size, GFP_KERNEL,
+				 dev_to_analde(&perf->ntb->dev));
 	if (!pthr->src)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	get_random_bytes(pthr->src, perf->test_peer->outbuf_size);
 
@@ -916,7 +916,7 @@ err_free:
 	atomic_dec(&perf->tsync);
 	wake_up(&perf->twait);
 	kfree(pthr->src);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int perf_run_test(struct perf_thread *pthr)
@@ -968,7 +968,7 @@ static int perf_sync_test(struct perf_thread *pthr)
 	struct perf_ctx *perf = pthr->perf;
 
 	if (!use_dma)
-		goto no_dma_ret;
+		goto anal_dma_ret;
 
 	wait_event(pthr->dma_wait,
 		   (atomic_read(&pthr->dma_sync) == 0 ||
@@ -977,7 +977,7 @@ static int perf_sync_test(struct perf_thread *pthr)
 	if (atomic_read(&perf->tsync) < 0)
 		return -EINTR;
 
-no_dma_ret:
+anal_dma_ret:
 	pthr->duration = ktime_sub(ktime_get(), pthr->duration);
 
 	dev_dbg(&perf->ntb->dev, "%d: copied %llu bytes\n",
@@ -997,7 +997,7 @@ static void perf_clear_test(struct perf_thread *pthr)
 	struct perf_ctx *perf = pthr->perf;
 
 	if (!use_dma)
-		goto no_dma_notify;
+		goto anal_dma_analtify;
 
 	/*
 	 * If test finished without errors, termination isn't needed.
@@ -1012,7 +1012,7 @@ static void perf_clear_test(struct perf_thread *pthr)
 
 	dma_release_channel(pthr->dma_chan);
 
-no_dma_notify:
+anal_dma_analtify:
 	atomic_dec(&perf->tsync);
 	wake_up(&perf->twait);
 	kfree(pthr->src);
@@ -1026,7 +1026,7 @@ static void perf_thread_work(struct work_struct *work)
 	/*
 	 * Perform stages in compliance with use_dma flag value.
 	 * Test status is changed only if error happened, otherwise
-	 * status -ENODATA is kept while test is on-fly. Results
+	 * status -EANALDATA is kept while test is on-fly. Results
 	 * synchronization is performed only if test fininshed
 	 * without an error or interruption.
 	 */
@@ -1095,7 +1095,7 @@ static int perf_submit_test(struct perf_peer *peer)
 	for (tidx = 0; tidx < MAX_THREADS_CNT; tidx++) {
 		pthr = &perf->threads[tidx];
 
-		pthr->status = -ENODATA;
+		pthr->status = -EANALDATA;
 		pthr->copied = 0;
 		pthr->duration = ktime_set(0, 0);
 		if (tidx < perf->tcnt)
@@ -1129,7 +1129,7 @@ static int perf_read_stats(struct perf_ctx *perf, char *buf,
 	for (tidx = 0; tidx < MAX_THREADS_CNT; tidx++) {
 		pthr = &perf->threads[tidx];
 
-		if (pthr->status == -ENODATA)
+		if (pthr->status == -EANALDATA)
 			continue;
 
 		if (pthr->status) {
@@ -1163,7 +1163,7 @@ static void perf_init_threads(struct perf_ctx *perf)
 
 		pthr->perf = perf;
 		pthr->tidx = tidx;
-		pthr->status = -ENODATA;
+		pthr->status = -EANALDATA;
 		init_waitqueue_head(&pthr->dma_wait);
 		INIT_WORK(&pthr->work, perf_thread_work);
 	}
@@ -1175,7 +1175,7 @@ static void perf_clear_threads(struct perf_ctx *perf)
 }
 
 /*==============================================================================
- *                               DebugFS nodes
+ *                               DebugFS analdes
  *==============================================================================
  */
 
@@ -1193,7 +1193,7 @@ static ssize_t perf_dbgfs_read_info(struct file *filep, char __user *ubuf,
 
 	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += scnprintf(buf + pos, buf_size - pos,
 		"    Performance measuring tool info:\n\n");
@@ -1271,7 +1271,7 @@ static ssize_t perf_dbgfs_read_run(struct file *filep, char __user *ubuf,
 
 	buf = kmalloc(PERF_BUF_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = perf_read_stats(perf, buf, PERF_BUF_LEN, &pos);
 	if (ret)
@@ -1393,13 +1393,13 @@ static struct perf_ctx *perf_create_data(struct ntb_dev *ntb)
 
 	perf = devm_kzalloc(&ntb->dev, sizeof(*perf), GFP_KERNEL);
 	if (!perf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	perf->pcnt = ntb_peer_port_count(ntb);
 	perf->peers = devm_kcalloc(&ntb->dev, perf->pcnt, sizeof(*perf->peers),
 				  GFP_KERNEL);
 	if (!perf->peers)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	perf->ntb = ntb;
 
@@ -1421,7 +1421,7 @@ static int perf_setup_peer_mw(struct perf_peer *peer)
 	peer->outbuf = devm_ioremap_wc(&perf->ntb->dev, phys_addr,
 					peer->outbuf_size);
 	if (!peer->outbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	peer->out_phys_addr = phys_addr;
 
@@ -1461,7 +1461,7 @@ static int perf_init_peers(struct perf_ctx *perf)
 		perf->gidx = pidx;
 
 	/*
-	 * Hardware with only two ports may not have unique port
+	 * Hardware with only two ports may analt have unique port
 	 * numbers. In this case, the gidxs should all be zero.
 	 */
 	if (perf->pcnt == 1 &&  ntb_port_number(perf->ntb) == 0 &&
@@ -1543,7 +1543,7 @@ static int __init perf_init(void)
 
 	perf_wq = alloc_workqueue("perf_wq", WQ_UNBOUND | WQ_SYSFS, 0);
 	if (!perf_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (debugfs_initialized())
 		perf_dbgfs_topdir = debugfs_create_dir(KBUILD_MODNAME, NULL);

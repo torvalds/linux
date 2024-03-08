@@ -44,8 +44,8 @@ enum pds_core_vif_types {
 
 struct pdsc;
 
-int pdsc_register_notify(struct notifier_block *nb);
-void pdsc_unregister_notify(struct notifier_block *nb);
+int pdsc_register_analtify(struct analtifier_block *nb);
+void pdsc_unregister_analtify(struct analtifier_block *nb);
 void *pdsc_get_pf_struct(struct pci_dev *vf_pdev);
 int pds_client_register(struct pdsc *pf, char *devname);
 int pds_client_unregister(struct pdsc *pf, u16 client_id);

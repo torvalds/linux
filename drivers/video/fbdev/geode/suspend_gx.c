@@ -210,11 +210,11 @@ static void gx_enable_graphics(struct gxfb_par *par)
 
 	fp = read_fp(par, FP_PM);
 	if (par->fp[FP_PM] & FP_PM_P) {
-		/* power on the panel if not already power{ed,ing} on */
+		/* power on the panel if analt already power{ed,ing} on */
 		if (!(fp & (FP_PM_PANEL_ON|FP_PM_PANEL_PWR_UP)))
 			write_fp(par, FP_PM, par->fp[FP_PM]);
 	} else {
-		/* power down the panel if not already power{ed,ing} down */
+		/* power down the panel if analt already power{ed,ing} down */
 		if (!(fp & (FP_PM_PANEL_OFF|FP_PM_PANEL_PWR_DOWN)))
 			write_fp(par, FP_PM, par->fp[FP_PM]);
 	}

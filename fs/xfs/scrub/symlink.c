@@ -10,7 +10,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_symlink.h"
 #include "xfs_health.h"
 #include "scrub/scrub.h"
@@ -22,12 +22,12 @@ int
 xchk_setup_symlink(
 	struct xfs_scrub	*sc)
 {
-	/* Allocate the buffer without the inode lock held. */
+	/* Allocate the buffer without the ianalde lock held. */
 	sc->buf = kvzalloc(XFS_SYMLINK_MAXLEN + 1, XCHK_GFP_FLAGS);
 	if (!sc->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	return xchk_setup_inode_contents(sc, 0);
+	return xchk_setup_ianalde_contents(sc, 0);
 }
 
 /* Symbolic links. */
@@ -36,15 +36,15 @@ int
 xchk_symlink(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_inode	*ip = sc->ip;
+	struct xfs_ianalde	*ip = sc->ip;
 	struct xfs_ifork	*ifp;
 	loff_t			len;
 	int			error = 0;
 
 	if (!S_ISLNK(VFS_I(ip)->i_mode))
-		return -ENOENT;
+		return -EANALENT;
 
-	if (xchk_file_looks_zapped(sc, XFS_SICK_INO_SYMLINK_ZAPPED)) {
+	if (xchk_file_looks_zapped(sc, XFS_SICK_IANAL_SYMLINK_ZAPPED)) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		return 0;
 	}
@@ -59,9 +59,9 @@ xchk_symlink(
 	}
 
 	/* Inline symlink? */
-	if (ifp->if_format == XFS_DINODE_FMT_LOCAL) {
-		if (len > xfs_inode_data_fork_size(ip) ||
-		    len > strnlen(ifp->if_data, xfs_inode_data_fork_size(ip)))
+	if (ifp->if_format == XFS_DIANALDE_FMT_LOCAL) {
+		if (len > xfs_ianalde_data_fork_size(ip) ||
+		    len > strnlen(ifp->if_data, xfs_ianalde_data_fork_size(ip)))
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		return 0;
 	}
@@ -73,7 +73,7 @@ xchk_symlink(
 	if (strnlen(sc->buf, XFS_SYMLINK_MAXLEN) < len)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 
-	/* If a remote symlink is clean, it is clearly not zapped. */
-	xchk_mark_healthy_if_clean(sc, XFS_SICK_INO_SYMLINK_ZAPPED);
+	/* If a remote symlink is clean, it is clearly analt zapped. */
+	xchk_mark_healthy_if_clean(sc, XFS_SICK_IANAL_SYMLINK_ZAPPED);
 	return 0;
 }

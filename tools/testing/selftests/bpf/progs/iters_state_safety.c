@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2022 Facebook */
 
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
@@ -173,7 +173,7 @@ int compromise_iter_w_helper_write_fail(void *ctx)
 	return 0;
 }
 
-static __noinline void subprog_with_iter(void)
+static __analinline void subprog_with_iter(void)
 {
 	struct bpf_iter_num iter;
 
@@ -184,7 +184,7 @@ static __noinline void subprog_with_iter(void)
 
 SEC("?raw_tp")
 __failure
-/* ensure there was a call to subprog, which might happen without __noinline */
+/* ensure there was a call to subprog, which might happen without __analinline */
 __msg("returning from callee:")
 __msg("Unreleased reference id=1")
 int leak_iter_from_subprog_fail(void *ctx)
@@ -211,7 +211,7 @@ int valid_stack_reuse(void *ctx)
 		"r1 = %[iter];"
 		"call %[bpf_iter_num_destroy];"
 
-		/* now reuse same stack slots */
+		/* analw reuse same stack slots */
 
 		/* create iterator */
 		"r1 = %[iter];"
@@ -370,7 +370,7 @@ SEC("?raw_tp")
 __failure
 __flag(BPF_F_TEST_STATE_FREQ)
 __msg("Unreleased reference")
-int stacksafe_should_not_conflate_stack_spill_and_iter(void *ctx)
+int stacksafe_should_analt_conflate_stack_spill_and_iter(void *ctx)
 {
 	struct bpf_iter_num iter;
 

@@ -24,14 +24,14 @@ struct clp_fh_list_entry {
 } __packed;
 
 #define CLP_RC_SETPCIFN_FH	0x0101	/* Invalid PCI fn handle */
-#define CLP_RC_SETPCIFN_FHOP	0x0102	/* Fn handle not valid for op */
+#define CLP_RC_SETPCIFN_FHOP	0x0102	/* Fn handle analt valid for op */
 #define CLP_RC_SETPCIFN_DMAAS	0x0103	/* Invalid DMA addr space */
 #define CLP_RC_SETPCIFN_RES	0x0104	/* Insufficient resources */
 #define CLP_RC_SETPCIFN_ALRDY	0x0105	/* Fn already in requested state */
 #define CLP_RC_SETPCIFN_ERR	0x0106	/* Fn in permanent error state */
 #define CLP_RC_SETPCIFN_RECPND	0x0107	/* Error recovery pending */
 #define CLP_RC_SETPCIFN_BUSY	0x0108	/* Fn busy */
-#define CLP_RC_LISTPCI_BADRT	0x010a	/* Resume token not recognized */
+#define CLP_RC_LISTPCI_BADRT	0x010a	/* Resume token analt recognized */
 #define CLP_RC_QUERYPCIFG_PFGID	0x010b	/* Unrecognized PFGID */
 
 /* request or response block header length */
@@ -42,8 +42,8 @@ struct clp_fh_list_entry {
 	((CLP_BLK_SIZE - 2 * LIST_PCI_HDR_LEN)		\
 		/ sizeof(struct clp_fh_list_entry))
 
-#define CLP_SET_ENABLE_PCI_FN	0	/* Yes, 0 enables it */
-#define CLP_SET_DISABLE_PCI_FN	1	/* Yes, 1 disables it */
+#define CLP_SET_ENABLE_PCI_FN	0	/* Anal, 0 enables it */
+#define CLP_SET_DISABLE_PCI_FN	1	/* Anal, 1 disables it */
 #define CLP_SET_ENABLE_MIO	2
 #define CLP_SET_DISABLE_MIO	3
 
@@ -151,7 +151,7 @@ struct clp_req_query_pci_grp {
 struct clp_rsp_query_pci_grp {
 	struct clp_rsp_hdr hdr;
 	u16			:  4;
-	u16 noi			: 12;	/* number of interrupts */
+	u16 anali			: 12;	/* number of interrupts */
 	u8 version;
 	u8			:  6;
 	u8 frame		:  1;
@@ -163,7 +163,7 @@ struct clp_rsp_query_pci_grp {
 	u8 reserved3;
 	u16 maxfaal;
 	u16			:  4;
-	u16 dnoi		: 12;
+	u16 danali		: 12;
 	u16 maxcpu;
 	u64 dasm;			/* dma address space mask */
 	u64 msia;			/* MSI address */

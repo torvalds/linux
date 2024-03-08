@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -71,7 +71,7 @@ void dwb3_config_fc(struct dwbc *dwbc, struct dc_dwb_params *params)
 	REG_UPDATE_2(FC_SOURCE_SIZE, FC_SOURCE_WIDTH, params->cnv_params.src_width,
 			FC_SOURCE_HEIGHT, params->cnv_params.src_height);
 
-	/* source size is not equal the source size, then enable cropping. */
+	/* source size is analt equal the source size, then enable cropping. */
 	if (params->cnv_params.crop_en) {
 		REG_UPDATE(FC_MODE_CTRL,    FC_WINDOW_CROP_EN, 1);
 		REG_UPDATE(FC_WINDOW_START, FC_WINDOW_START_X, params->cnv_params.crop_x);
@@ -93,7 +93,7 @@ bool dwb3_enable(struct dwbc *dwbc, struct dc_dwb_params *params)
 	struct dcn30_dwbc *dwbc30 = TO_DCN30_DWBC(dwbc);
 	DC_LOG_DWB("%s dwb3_enabled at inst = %d", __func__, dwbc->inst);
 
-	/* Set WB_ENABLE (not double buffered; capture not enabled) */
+	/* Set WB_ENABLE (analt double buffered; capture analt enabled) */
 	REG_UPDATE(DWB_ENABLE_CLK_CTRL, DWB_ENABLE, 1);
 
 	/* Set FC parameters */
@@ -104,8 +104,8 @@ bool dwb3_enable(struct dwbc *dwbc, struct dc_dwb_params *params)
 	dwb3_set_gamut_remap(dwbc, params);
 	dwb3_ogam_set_input_transfer_func(dwbc, params->out_transfer_func);
 
-	/* Program output denorm */
-	dwb3_set_denorm(dwbc, params);
+	/* Program output deanalrm */
+	dwb3_set_deanalrm(dwbc, params);
 
 	/* Enable DWB capture enable (double buffered) */
 	REG_UPDATE(FC_MODE_CTRL, FC_FRAME_CAPTURE_EN, DWB_FRAME_CAPTURE_ENABLE);
@@ -160,7 +160,7 @@ bool dwb3_update(struct dwbc *dwbc, struct dc_dwb_params *params)
 	/*
 	 * Check if the caller has already locked DWB registers.
 	 * If so: assume the caller will unlock, so don't touch the lock.
-	 * If not: lock them for this update, then unlock after the
+	 * If analt: lock them for this update, then unlock after the
 	 * update is complete.
 	 */
 	REG_GET(DWB_UPDATE_CTRL, DWB_UPDATE_LOCK, &pre_locked);
@@ -179,8 +179,8 @@ bool dwb3_update(struct dwbc *dwbc, struct dc_dwb_params *params)
 	dwb3_set_gamut_remap(dwbc, params);
 	dwb3_ogam_set_input_transfer_func(dwbc, params->out_transfer_func);
 
-	/* Program output denorm */
-	dwb3_set_denorm(dwbc, params);
+	/* Program output deanalrm */
+	dwb3_set_deanalrm(dwbc, params);
 
 	if (pre_locked == 0) {
 		/* Unlock DWB registers */
@@ -225,17 +225,17 @@ void dwb3_set_new_content(struct dwbc *dwbc,
 	REG_UPDATE(FC_MODE_CTRL, FC_NEW_CONTENT, is_new_content);
 }
 
-void dwb3_set_denorm(struct dwbc *dwbc, struct dc_dwb_params *params)
+void dwb3_set_deanalrm(struct dwbc *dwbc, struct dc_dwb_params *params)
 {
 	struct dcn30_dwbc *dwbc30 = TO_DCN30_DWBC(dwbc);
 
 	/* Set output format*/
 	REG_UPDATE(DWB_OUT_CTRL, OUT_FORMAT, params->cnv_params.fc_out_format);
 
-	/* Set output denorm */
+	/* Set output deanalrm */
 	if (params->cnv_params.fc_out_format == DWB_OUT_FORMAT_32BPP_ARGB ||
 			params->cnv_params.fc_out_format == DWB_OUT_FORMAT_32BPP_RGBA) {
-		REG_UPDATE(DWB_OUT_CTRL, OUT_DENORM, params->cnv_params.out_denorm_mode);
+		REG_UPDATE(DWB_OUT_CTRL, OUT_DEANALRM, params->cnv_params.out_deanalrm_mode);
 		REG_UPDATE(DWB_OUT_CTRL, OUT_MAX,    params->cnv_params.out_max_pix_val);
 		REG_UPDATE(DWB_OUT_CTRL, OUT_MIN,    params->cnv_params.out_min_pix_val);
 	}
@@ -278,7 +278,7 @@ void dwb3_set_host_read_rate_control(struct dwbc *dwbc, bool host_read_delay)
 	struct dcn30_dwbc *dwbc30 = TO_DCN30_DWBC(dwbc);
 
 	/*
-	 * Set maximum delay of host read access to DWBSCL LUT or OGAM LUT if there are no
+	 * Set maximum delay of host read access to DWBSCL LUT or OGAM LUT if there are anal
 	 * idle cycles in HW pipeline (in number of clock cycles times 4)
 	 */
 	REG_UPDATE(DWB_HOST_READ_CONTROL, DWB_HOST_READ_RATE_CONTROL, host_read_delay);

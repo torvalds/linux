@@ -47,7 +47,7 @@ static int __init intc_irq_xlate_init(void)
 	 */
 	if (debugfs_create_file("intc_irq_xlate", S_IRUGO, NULL, NULL,
 				&intc_irq_xlate_fops) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

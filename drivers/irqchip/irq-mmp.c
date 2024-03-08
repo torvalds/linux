@@ -3,7 +3,7 @@
  *  linux/arch/arm/mach-mmp/irq.c
  *
  *  Generic IRQ handling, GPIO IRQ demultiplexing, etc.
- *  Copyright (C) 2008 - 2012 Marvell Technology Group Ltd.
+ *  Copyright (C) 2008 - 2012 Marvell Techanallogy Group Ltd.
  *
  *  Author:	Bin Yang <bin.yang@marvell.com>
  *              Haojian Zhuang <haojian.zhuang@gmail.com>
@@ -187,7 +187,7 @@ static int mmp_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static int mmp_irq_domain_xlate(struct irq_domain *d, struct device_node *node,
+static int mmp_irq_domain_xlate(struct irq_domain *d, struct device_analde *analde,
 				const u32 *intspec, unsigned int intsize,
 				unsigned long *out_hwirq,
 				unsigned int *out_type)
@@ -244,24 +244,24 @@ static void __exception_irq_entry mmp2_handle_irq(struct pt_regs *regs)
 	generic_handle_domain_irq(icu_data[0].domain, hwirq);
 }
 
-static int __init mmp_init_bases(struct device_node *node)
+static int __init mmp_init_bases(struct device_analde *analde)
 {
 	int ret, nr_irqs, irq, i = 0;
 
-	ret = of_property_read_u32(node, "mrvl,intc-nr-irqs", &nr_irqs);
+	ret = of_property_read_u32(analde, "mrvl,intc-nr-irqs", &nr_irqs);
 	if (ret) {
-		pr_err("Not found mrvl,intc-nr-irqs property\n");
+		pr_err("Analt found mrvl,intc-nr-irqs property\n");
 		return ret;
 	}
 
-	mmp_icu_base = of_iomap(node, 0);
+	mmp_icu_base = of_iomap(analde, 0);
 	if (!mmp_icu_base) {
 		pr_err("Failed to get interrupt controller register\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	icu_data[0].virq_base = 0;
-	icu_data[0].domain = irq_domain_add_linear(node, nr_irqs,
+	icu_data[0].domain = irq_domain_add_linear(analde, nr_irqs,
 						   &mmp_irq_domain_ops,
 						   &icu_data[0]);
 	for (irq = 0; irq < nr_irqs; irq++) {
@@ -285,12 +285,12 @@ err:
 	return -EINVAL;
 }
 
-static int __init mmp_of_init(struct device_node *node,
-			      struct device_node *parent)
+static int __init mmp_of_init(struct device_analde *analde,
+			      struct device_analde *parent)
 {
 	int ret;
 
-	ret = mmp_init_bases(node);
+	ret = mmp_init_bases(analde);
 	if (ret < 0)
 		return ret;
 
@@ -303,12 +303,12 @@ static int __init mmp_of_init(struct device_node *node,
 }
 IRQCHIP_DECLARE(mmp_intc, "mrvl,mmp-intc", mmp_of_init);
 
-static int __init mmp2_of_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init mmp2_of_init(struct device_analde *analde,
+			       struct device_analde *parent)
 {
 	int ret;
 
-	ret = mmp_init_bases(node);
+	ret = mmp_init_bases(analde);
 	if (ret < 0)
 		return ret;
 
@@ -321,18 +321,18 @@ static int __init mmp2_of_init(struct device_node *node,
 }
 IRQCHIP_DECLARE(mmp2_intc, "mrvl,mmp2-intc", mmp2_of_init);
 
-static int __init mmp3_of_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init mmp3_of_init(struct device_analde *analde,
+			       struct device_analde *parent)
 {
 	int ret;
 
-	mmp_icu2_base = of_iomap(node, 1);
+	mmp_icu2_base = of_iomap(analde, 1);
 	if (!mmp_icu2_base) {
 		pr_err("Failed to get interrupt controller register #2\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	ret = mmp_init_bases(node);
+	ret = mmp_init_bases(analde);
 	if (ret < 0) {
 		iounmap(mmp_icu2_base);
 		return ret;
@@ -353,45 +353,45 @@ static int __init mmp3_of_init(struct device_node *node,
 }
 IRQCHIP_DECLARE(mmp3_intc, "marvell,mmp3-intc", mmp3_of_init);
 
-static int __init mmp2_mux_of_init(struct device_node *node,
-				   struct device_node *parent)
+static int __init mmp2_mux_of_init(struct device_analde *analde,
+				   struct device_analde *parent)
 {
 	int i, ret, irq, j = 0;
 	u32 nr_irqs, mfp_irq;
 	u32 reg[4];
 
 	if (!parent)
-		return -ENODEV;
+		return -EANALDEV;
 
 	i = max_icu_nr;
-	ret = of_property_read_u32(node, "mrvl,intc-nr-irqs",
+	ret = of_property_read_u32(analde, "mrvl,intc-nr-irqs",
 				   &nr_irqs);
 	if (ret) {
-		pr_err("Not found mrvl,intc-nr-irqs property\n");
+		pr_err("Analt found mrvl,intc-nr-irqs property\n");
 		return -EINVAL;
 	}
 
 	/*
 	 * For historical reasons, the "regs" property of the
-	 * mrvl,mmp2-mux-intc is not a regular "regs" property containing
+	 * mrvl,mmp2-mux-intc is analt a regular "regs" property containing
 	 * addresses on the parent bus, but offsets from the intc's base.
 	 * That is why we can't use of_address_to_resource() here.
 	 */
-	ret = of_property_read_variable_u32_array(node, "reg", reg,
+	ret = of_property_read_variable_u32_array(analde, "reg", reg,
 						  ARRAY_SIZE(reg),
 						  ARRAY_SIZE(reg));
 	if (ret < 0) {
-		pr_err("Not found reg property\n");
+		pr_err("Analt found reg property\n");
 		return -EINVAL;
 	}
 	icu_data[i].reg_status = mmp_icu_base + reg[0];
 	icu_data[i].reg_mask = mmp_icu_base + reg[2];
-	icu_data[i].cascade_irq = irq_of_parse_and_map(node, 0);
+	icu_data[i].cascade_irq = irq_of_parse_and_map(analde, 0);
 	if (!icu_data[i].cascade_irq)
 		return -EINVAL;
 
 	icu_data[i].virq_base = 0;
-	icu_data[i].domain = irq_domain_add_linear(node, nr_irqs,
+	icu_data[i].domain = irq_domain_add_linear(analde, nr_irqs,
 						   &mmp_irq_domain_ops,
 						   &icu_data[i]);
 	for (irq = 0; irq < nr_irqs; irq++) {
@@ -404,7 +404,7 @@ static int __init mmp2_mux_of_init(struct device_node *node,
 			icu_data[i].virq_base = ret;
 	}
 	icu_data[i].nr_irqs = nr_irqs;
-	if (!of_property_read_u32(node, "mrvl,clr-mfp-irq",
+	if (!of_property_read_u32(analde, "mrvl,clr-mfp-irq",
 				  &mfp_irq)) {
 		icu_data[i].clr_mfp_irq_base = icu_data[i].virq_base;
 		icu_data[i].clr_mfp_hwirq = mfp_irq;

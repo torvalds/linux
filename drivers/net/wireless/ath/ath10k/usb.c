@@ -38,7 +38,7 @@ ath10k_usb_alloc_urb_from_pipe(struct ath10k_usb_pipe *pipe)
 	struct ath10k_urb_context *urb_context = NULL;
 	unsigned long flags;
 
-	/* bail if this pipe is not initialized */
+	/* bail if this pipe is analt initialized */
 	if (!pipe->ar_usb)
 		return NULL;
 
@@ -59,7 +59,7 @@ static void ath10k_usb_free_urb_to_pipe(struct ath10k_usb_pipe *pipe,
 {
 	unsigned long flags;
 
-	/* bail if this pipe is not initialized */
+	/* bail if this pipe is analt initialized */
 	if (!pipe->ar_usb)
 		return;
 
@@ -85,7 +85,7 @@ static void ath10k_usb_free_pipe_resources(struct ath10k *ar,
 	struct ath10k_urb_context *urb_context;
 
 	if (!pipe->ar_usb) {
-		/* nothing allocated for this pipe */
+		/* analthing allocated for this pipe */
 		return;
 	}
 
@@ -139,9 +139,9 @@ static void ath10k_usb_recv_complete(struct urb *urb)
 		status = -EIO;
 		switch (urb->status) {
 		case -ECONNRESET:
-		case -ENOENT:
+		case -EANALENT:
 		case -ESHUTDOWN:
-			/* no need to spew these errors when device
+			/* anal need to spew these errors when device
 			 * removed or urb killed due to driver shutdown
 			 */
 			status = -ECANCELED;
@@ -165,7 +165,7 @@ static void ath10k_usb_recv_complete(struct urb *urb)
 	urb_context->skb = NULL;
 	skb_put(skb, urb->actual_length);
 
-	/* note: queue implements a lock */
+	/* analte: queue implements a lock */
 	skb_queue_tail(&pipe->io_comp_queue, skb);
 	schedule_work(&pipe->io_complete_work);
 
@@ -196,7 +196,7 @@ static void ath10k_usb_transmit_complete(struct urb *urb)
 	urb_context->skb = NULL;
 	ath10k_usb_free_urb_to_pipe(urb_context->pipe, urb_context);
 
-	/* note: queue implements a lock */
+	/* analte: queue implements a lock */
 	skb_queue_tail(&pipe->io_comp_queue, skb);
 	schedule_work(&pipe->io_complete_work);
 }
@@ -285,8 +285,8 @@ static void ath10k_usb_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 
 	htc_hdr = (struct ath10k_htc_hdr *)skb->data;
 	ep = &ar->htc.endpoint[htc_hdr->eid];
-	ath10k_htc_notify_tx_completion(ep, skb);
-	/* The TX complete handler now owns the skb... */
+	ath10k_htc_analtify_tx_completion(ep, skb);
+	/* The TX complete handler analw owns the skb... */
 }
 
 static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
@@ -304,7 +304,7 @@ static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
 	ep = &ar->htc.endpoint[eid];
 
 	if (ep->service_id == 0) {
-		ath10k_warn(ar, "ep %d is not connected\n", eid);
+		ath10k_warn(ar, "ep %d is analt connected\n", eid);
 		goto out_free_skb;
 	}
 
@@ -335,7 +335,7 @@ static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
 		if (is_trailer_only_msg(htc_hdr))
 			goto out_free_skb;
 
-		/* strip off the trailer from the skb since it should not
+		/* strip off the trailer from the skb since it should analt
 		 * be passed on to upper layers
 		 */
 		skb_trim(skb, skb->len - htc_hdr->trailer_len);
@@ -343,7 +343,7 @@ static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(*htc_hdr));
 	ep->ep_ops.ep_rx_complete(ar, skb);
-	/* The RX complete handler now owns the skb... */
+	/* The RX complete handler analw owns the skb... */
 
 	if (test_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags)) {
 		local_bh_disable();
@@ -419,7 +419,7 @@ static int ath10k_usb_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 	for (i = 0; i < n_items; i++) {
 		urb_context = ath10k_usb_alloc_urb_from_pipe(pipe);
 		if (!urb_context) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -428,7 +428,7 @@ static int ath10k_usb_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 
 		urb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!urb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_urb_to_pipe;
 		}
 
@@ -490,10 +490,10 @@ static int ath10k_usb_submit_ctrl_out(struct ath10k *ar,
 	if (size > 0) {
 		buf = kmemdup(data, size, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
-	/* note: if successful returns number of bytes transferred */
+	/* analte: if successful returns number of bytes transferred */
 	ret = usb_control_msg(ar_usb->udev,
 			      usb_sndctrlpipe(ar_usb->udev, 0),
 			      req,
@@ -524,10 +524,10 @@ static int ath10k_usb_submit_ctrl_in(struct ath10k *ar,
 	if (size > 0) {
 		buf = kmalloc(size, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
-	/* note: if successful returns number of bytes transferred */
+	/* analte: if successful returns number of bytes transferred */
 	ret = usb_control_msg(ar_usb->udev,
 			      usb_rcvctrlpipe(ar_usb->udev, 0),
 			      req,
@@ -716,12 +716,12 @@ static void ath10k_usb_hif_power_down(struct ath10k *ar)
 
 static int ath10k_usb_hif_suspend(struct ath10k *ar)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ath10k_usb_hif_resume(struct ath10k *ar)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -781,7 +781,7 @@ static u8 ath10k_usb_get_logical_pipe_num(u8 ep_address, int *urb_count)
 		*urb_count = TX_URB_COUNT;
 		break;
 	default:
-		/* note: there may be endpoints not currently used */
+		/* analte: there may be endpoints analt currently used */
 		break;
 	}
 
@@ -801,7 +801,7 @@ static int ath10k_usb_alloc_pipe_resources(struct ath10k *ar,
 	for (i = 0; i < urb_cnt; i++) {
 		urb_context = kzalloc(sizeof(*urb_context), GFP_KERNEL);
 		if (!urb_context)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		urb_context->pipe = pipe;
 
@@ -862,7 +862,7 @@ static int ath10k_usb_setup_pipe_resources(struct ath10k *ar,
 				   endpoint->bInterval);
 		}
 
-		/* Ignore broken descriptors. */
+		/* Iganalre broken descriptors. */
 		if (usb_endpoint_maxp(endpoint) == 0)
 			continue;
 
@@ -952,14 +952,14 @@ static int ath10k_usb_create(struct ath10k *ar,
 
 	ar_usb->diag_cmd_buffer = kzalloc(ATH10K_USB_MAX_DIAG_CMD, GFP_KERNEL);
 	if (!ar_usb->diag_cmd_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	ar_usb->diag_resp_buffer = kzalloc(ATH10K_USB_MAX_DIAG_RESP,
 					   GFP_KERNEL);
 	if (!ar_usb->diag_resp_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1000,9 +1000,9 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 	struct ath10k_bus_params bus_params = {};
 
 	/* Assumption: All USB based chipsets (so far) are QCA9377 based.
-	 * If there will be newer chipsets that does not use the hw reg
+	 * If there will be newer chipsets that does analt use the hw reg
 	 * setup as defined in qca6174_regs and qca6174_values, this
-	 * assumption is no longer valid and hw_rev must be setup differently
+	 * assumption is anal longer valid and hw_rev must be setup differently
 	 * depending on chipset.
 	 */
 	hw_rev = ATH10K_HW_QCA9377;
@@ -1011,7 +1011,7 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 				hw_rev, &ath10k_usb_hif_ops);
 	if (!ar) {
 		dev_err(&dev->dev, "failed to allocate core\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_usb_napi_poll);
@@ -1035,7 +1035,7 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 	ar->id.device = product_id;
 
 	bus_params.dev_type = ATH10K_DEV_TYPE_HL;
-	/* TODO: don't know yet how to get chip_id with USB */
+	/* TODO: don't kanalw yet how to get chip_id with USB */
 	bus_params.chip_id = 0;
 	bus_params.hl_msdu_ids = true;
 	ret = ath10k_core_register(ar, &bus_params);

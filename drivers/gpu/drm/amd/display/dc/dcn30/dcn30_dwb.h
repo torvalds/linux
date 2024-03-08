@@ -7,12 +7,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -173,7 +173,7 @@
 	SF_DWB2(DWB_CRC_VAL_B_A, DWB_TOP, 0, DWB_CRC_SIG_BLUE, mask_sh),\
 	SF_DWB2(DWB_CRC_VAL_B_A, DWB_TOP, 0, DWB_CRC_SIG_A, mask_sh),\
 	SF_DWB2(DWB_OUT_CTRL, DWB_TOP, 0, OUT_FORMAT, mask_sh),\
-	SF_DWB2(DWB_OUT_CTRL, DWB_TOP, 0, OUT_DENORM, mask_sh),\
+	SF_DWB2(DWB_OUT_CTRL, DWB_TOP, 0, OUT_DEANALRM, mask_sh),\
 	SF_DWB2(DWB_OUT_CTRL, DWB_TOP, 0, OUT_MAX, mask_sh),\
 	SF_DWB2(DWB_OUT_CTRL, DWB_TOP, 0, OUT_MIN, mask_sh),\
 	SF_DWB2(DWB_MMHUBBUB_BACKPRESSURE_CNT_EN, DWB_TOP, 0, DWB_MMHUBBUB_BACKPRESSURE_CNT_EN, mask_sh),\
@@ -449,7 +449,7 @@
 	type DWB_CRC_SIG_BLUE;\
 	type DWB_CRC_SIG_A;\
 	type OUT_FORMAT;\
-	type OUT_DENORM;\
+	type OUT_DEANALRM;\
 	type OUT_MAX;\
 	type OUT_MIN;\
 	type DWB_MMHUBBUB_BACKPRESSURE_CNT_EN;\
@@ -888,7 +888,7 @@ void dwb3_set_new_content(struct dwbc *dwbc,
 void dwb3_config_fc(struct dwbc *dwbc,
 	struct dc_dwb_params *params);
 
-void dwb3_set_denorm(struct dwbc *dwbc, struct dc_dwb_params *params);
+void dwb3_set_deanalrm(struct dwbc *dwbc, struct dc_dwb_params *params);
 
 void dwb3_program_hdr_mult(
 	struct dwbc *dwbc,

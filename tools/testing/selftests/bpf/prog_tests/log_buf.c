@@ -60,7 +60,7 @@ static void obj_load_log_buf(void)
 	bpf_program__set_log_level(skel->progs.good_prog, 2);
 
 	bpf_program__set_log_buf(skel->progs.bad_prog, bad_log_buf, log_buf_sz);
-	/* log_level 0 with custom log_buf means that verbose logs are not
+	/* log_level 0 with custom log_buf means that verbose logs are analt
 	 * requested if program load is successful, but libbpf should retry
 	 * with log_level 1 on error and put program's verbose load log into
 	 * custom log_buf
@@ -73,17 +73,17 @@ static void obj_load_log_buf(void)
 
 	ASSERT_FALSE(libbpf_log_error, "libbpf_log_error");
 
-	/* there should be no prog loading log because we specified per-prog log buf */
+	/* there should be anal prog loading log because we specified per-prog log buf */
 	ASSERT_NULL(strstr(libbpf_log_buf, "-- BEGIN PROG LOAD LOG --"), "unexp_libbpf_log");
 	ASSERT_OK_PTR(strstr(libbpf_log_buf, "prog 'bad_prog': BPF program load failed"),
-		      "libbpf_log_not_empty");
-	ASSERT_OK_PTR(strstr(obj_log_buf, "DATASEC license"), "obj_log_not_empty");
+		      "libbpf_log_analt_empty");
+	ASSERT_OK_PTR(strstr(obj_log_buf, "DATASEC license"), "obj_log_analt_empty");
 	ASSERT_OK_PTR(strstr(good_log_buf, "0: R1=ctx() R10=fp0"),
 		      "good_log_verbose");
 	ASSERT_OK_PTR(strstr(bad_log_buf, "invalid access to map value, value_size=16 off=16000 size=4"),
-		      "bad_log_not_empty");
+		      "bad_log_analt_empty");
 
-	if (env.verbosity > VERBOSE_NONE) {
+	if (env.verbosity > VERBOSE_ANALNE) {
 		printf("LIBBPF LOG:   \n=================\n%s=================\n", libbpf_log_buf);
 		printf("OBJ LOG:      \n=================\n%s=================\n", obj_log_buf);
 		printf("GOOD_PROG LOG:\n=================\n%s=================\n", good_log_buf);
@@ -106,7 +106,7 @@ static void obj_load_log_buf(void)
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
 		goto cleanup;
 
-	/* set normal verbose level for good_prog to check log_level is taken into account */
+	/* set analrmal verbose level for good_prog to check log_level is taken into account */
 	bpf_program__set_log_buf(skel->progs.good_prog, good_log_buf, log_buf_sz);
 	bpf_program__set_log_level(skel->progs.good_prog, 1);
 
@@ -124,7 +124,7 @@ static void obj_load_log_buf(void)
 		     "good_log_ok");
 	ASSERT_STREQ(bad_log_buf, "", "bad_log_empty");
 
-	if (env.verbosity > VERBOSE_NONE) {
+	if (env.verbosity > VERBOSE_ANALNE) {
 		printf("LIBBPF LOG:   \n=================\n%s=================\n", libbpf_log_buf);
 		printf("OBJ LOG:      \n=================\n%s=================\n", obj_log_buf);
 		printf("GOOD_PROG LOG:\n=================\n%s=================\n", good_log_buf);
@@ -242,7 +242,7 @@ static void bpf_btf_load_log_buf(void)
 		close(fd);
 	fd = -1;
 
-	/* make BTF bad, add pointer pointing to non-existing type */
+	/* make BTF bad, add pointer pointing to analn-existing type */
 	ASSERT_GT(btf__add_ptr(btf, 100), 0, "bad_ptr_type");
 
 	raw_btf_data = btf__raw_data(btf, &raw_btf_size);
@@ -254,7 +254,7 @@ static void bpf_btf_load_log_buf(void)
 	opts.log_level = 0;
 	fd = bpf_btf_load(raw_btf_data, raw_btf_size, &opts);
 	printf("LOG_BUF: %s\n", log_buf);
-	ASSERT_OK_PTR(strstr(log_buf, "[2] PTR (anon) type_id=100 Invalid type_id"), "bad_log_0");
+	ASSERT_OK_PTR(strstr(log_buf, "[2] PTR (aanaln) type_id=100 Invalid type_id"), "bad_log_0");
 	ASSERT_LT(fd, 0, "bad_fd");
 	if (fd >= 0)
 		close(fd);

@@ -11,54 +11,54 @@
 #include "ocxl_internal.h"
 
 
-#define OCXL_NUM_MINORS 256 /* Total to reserve */
+#define OCXL_NUM_MIANALRS 256 /* Total to reserve */
 
 static dev_t ocxl_dev;
-static DEFINE_MUTEX(minors_idr_lock);
-static struct idr minors_idr;
+static DEFINE_MUTEX(mianalrs_idr_lock);
+static struct idr mianalrs_idr;
 
-static struct ocxl_file_info *find_and_get_file_info(dev_t devno)
+static struct ocxl_file_info *find_and_get_file_info(dev_t devanal)
 {
 	struct ocxl_file_info *info;
 
-	mutex_lock(&minors_idr_lock);
-	info = idr_find(&minors_idr, MINOR(devno));
+	mutex_lock(&mianalrs_idr_lock);
+	info = idr_find(&mianalrs_idr, MIANALR(devanal));
 	if (info)
 		get_device(&info->dev);
-	mutex_unlock(&minors_idr_lock);
+	mutex_unlock(&mianalrs_idr_lock);
 	return info;
 }
 
-static int allocate_minor(struct ocxl_file_info *info)
+static int allocate_mianalr(struct ocxl_file_info *info)
 {
-	int minor;
+	int mianalr;
 
-	mutex_lock(&minors_idr_lock);
-	minor = idr_alloc(&minors_idr, info, 0, OCXL_NUM_MINORS, GFP_KERNEL);
-	mutex_unlock(&minors_idr_lock);
-	return minor;
+	mutex_lock(&mianalrs_idr_lock);
+	mianalr = idr_alloc(&mianalrs_idr, info, 0, OCXL_NUM_MIANALRS, GFP_KERNEL);
+	mutex_unlock(&mianalrs_idr_lock);
+	return mianalr;
 }
 
-static void free_minor(struct ocxl_file_info *info)
+static void free_mianalr(struct ocxl_file_info *info)
 {
-	mutex_lock(&minors_idr_lock);
-	idr_remove(&minors_idr, MINOR(info->dev.devt));
-	mutex_unlock(&minors_idr_lock);
+	mutex_lock(&mianalrs_idr_lock);
+	idr_remove(&mianalrs_idr, MIANALR(info->dev.devt));
+	mutex_unlock(&mianalrs_idr_lock);
 }
 
-static int afu_open(struct inode *inode, struct file *file)
+static int afu_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ocxl_file_info *info;
 	struct ocxl_context *ctx;
 	int rc;
 
-	pr_debug("%s for device %x\n", __func__, inode->i_rdev);
+	pr_debug("%s for device %x\n", __func__, ianalde->i_rdev);
 
-	info = find_and_get_file_info(inode->i_rdev);
+	info = find_and_get_file_info(ianalde->i_rdev);
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
-	rc = ocxl_context_alloc(&ctx, info->afu, inode->i_mapping);
+	rc = ocxl_context_alloc(&ctx, info->afu, ianalde->i_mapping);
 	if (rc) {
 		put_device(&info->dev);
 		return rc;
@@ -79,7 +79,7 @@ static long afu_ioctl_attach(struct ocxl_context *ctx,
 	if (copy_from_user(&arg, uarg, sizeof(arg)))
 		return -EFAULT;
 
-	/* Make sure reserved fields are not set for forward compatibility */
+	/* Make sure reserved fields are analt set for forward compatibility */
 	if (arg.reserved1 || arg.reserved2 || arg.reserved3)
 		return -EINVAL;
 
@@ -97,7 +97,7 @@ static long afu_ioctl_get_metadata(struct ocxl_context *ctx,
 	arg.version = 0;
 
 	arg.afu_version_major = ctx->afu->config.version_major;
-	arg.afu_version_minor = ctx->afu->config.version_minor;
+	arg.afu_version_mianalr = ctx->afu->config.version_mianalr;
 	arg.pasid = ctx->pasid;
 	arg.pp_mmio_size = ctx->afu->config.pp_mmio_stride;
 	arg.global_mmio_size = ctx->afu->config.global_mmio_size;
@@ -124,7 +124,7 @@ static long afu_ioctl_enable_p9_wait(struct ocxl_context *ctx,
 		if (!ctx->tidr) {
 			if (set_thread_tidr(current)) {
 				mutex_unlock(&ctx->status_mutex);
-				return -ENOENT;
+				return -EANALENT;
 			}
 
 			ctx->tidr = current->thread.tidr;
@@ -143,7 +143,7 @@ static long afu_ioctl_enable_p9_wait(struct ocxl_context *ctx,
 
 		arg.thread_id = ctx->tidr;
 	} else
-		return -ENOENT;
+		return -EANALENT;
 
 	if (copy_to_user(uarg, &arg, sizeof(arg)))
 		return -EFAULT;
@@ -178,7 +178,7 @@ static long afu_ioctl_get_features(struct ocxl_context *ctx,
 			x == OCXL_IOCTL_GET_METADATA ? "GET_METADATA" :	\
 			x == OCXL_IOCTL_ENABLE_P9_WAIT ? "ENABLE_P9_WAIT" :	\
 			x == OCXL_IOCTL_GET_FEATURES ? "GET_FEATURES" :	\
-			"UNKNOWN")
+			"UNKANALWN")
 
 static irqreturn_t irq_handler(void *private)
 {
@@ -335,7 +335,7 @@ static unsigned int afu_poll(struct file *file, struct poll_table_struct *wait)
 	mutex_unlock(&ctx->status_mutex);
 
 	if (afu_events_pending(ctx))
-		mask = EPOLLIN | EPOLLRDNORM;
+		mask = EPOLLIN | EPOLLRDANALRM;
 	else if (closed)
 		mask = EPOLLERR;
 
@@ -420,7 +420,7 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 		if (ctx->status == CLOSED)
 			break;
 
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			finish_wait(&ctx->events_wq, &event_wait);
 			return -EAGAIN;
 		}
@@ -453,12 +453,12 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 	return rc;
 }
 
-static int afu_release(struct inode *inode, struct file *file)
+static int afu_release(struct ianalde *ianalde, struct file *file)
 {
 	struct ocxl_context *ctx = file->private_data;
 	int rc;
 
-	pr_debug("%s for device %x\n", __func__, inode->i_rdev);
+	pr_debug("%s for device %x\n", __func__, ianalde->i_rdev);
 	rc = ocxl_context_detach(ctx);
 	mutex_lock(&ctx->mapping_lock);
 	ctx->mapping = NULL;
@@ -508,19 +508,19 @@ static void ocxl_file_make_invisible(struct ocxl_file_info *info)
 	cdev_del(&info->cdev);
 }
 
-static char *ocxl_devnode(const struct device *dev, umode_t *mode)
+static char *ocxl_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "ocxl/%s", dev_name(dev));
 }
 
 static const struct class ocxl_class = {
 	.name =		"ocxl",
-	.devnode =	ocxl_devnode,
+	.devanalde =	ocxl_devanalde,
 };
 
 int ocxl_file_register_afu(struct ocxl_afu *afu)
 {
-	int minor;
+	int mianalr;
 	int rc;
 	struct ocxl_file_info *info;
 	struct ocxl_fn *fn = afu->fn;
@@ -528,16 +528,16 @@ int ocxl_file_register_afu(struct ocxl_afu *afu)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	minor = allocate_minor(info);
-	if (minor < 0) {
+	mianalr = allocate_mianalr(info);
+	if (mianalr < 0) {
 		kfree(info);
-		return minor;
+		return mianalr;
 	}
 
 	info->dev.parent = &fn->dev;
-	info->dev.devt = MKDEV(MAJOR(ocxl_dev), minor);
+	info->dev.devt = MKDEV(MAJOR(ocxl_dev), mianalr);
 	info->dev.class = &ocxl_class;
 	info->dev.release = info_release;
 
@@ -551,7 +551,7 @@ int ocxl_file_register_afu(struct ocxl_afu *afu)
 
 	rc = device_register(&info->dev);
 	if (rc) {
-		free_minor(info);
+		free_mianalr(info);
 		put_device(&info->dev);
 		return rc;
 	}
@@ -570,12 +570,12 @@ int ocxl_file_register_afu(struct ocxl_afu *afu)
 
 err_unregister:
 	ocxl_sysfs_unregister_afu(info); // safe to call even if register failed
-	free_minor(info);
+	free_mianalr(info);
 	device_unregister(&info->dev);
 	return rc;
 err_put:
 	ocxl_afu_put(afu);
-	free_minor(info);
+	free_mianalr(info);
 	kfree(info);
 	return rc;
 }
@@ -589,7 +589,7 @@ void ocxl_file_unregister_afu(struct ocxl_afu *afu)
 
 	ocxl_file_make_invisible(info);
 	ocxl_sysfs_unregister_afu(info);
-	free_minor(info);
+	free_mianalr(info);
 	device_unregister(&info->dev);
 }
 
@@ -597,9 +597,9 @@ int ocxl_file_init(void)
 {
 	int rc;
 
-	idr_init(&minors_idr);
+	idr_init(&mianalrs_idr);
 
-	rc = alloc_chrdev_region(&ocxl_dev, 0, OCXL_NUM_MINORS, "ocxl");
+	rc = alloc_chrdev_region(&ocxl_dev, 0, OCXL_NUM_MIANALRS, "ocxl");
 	if (rc) {
 		pr_err("Unable to allocate ocxl major number: %d\n", rc);
 		return rc;
@@ -608,7 +608,7 @@ int ocxl_file_init(void)
 	rc = class_register(&ocxl_class);
 	if (rc) {
 		pr_err("Unable to create ocxl class\n");
-		unregister_chrdev_region(ocxl_dev, OCXL_NUM_MINORS);
+		unregister_chrdev_region(ocxl_dev, OCXL_NUM_MIANALRS);
 		return rc;
 	}
 
@@ -618,6 +618,6 @@ int ocxl_file_init(void)
 void ocxl_file_exit(void)
 {
 	class_unregister(&ocxl_class);
-	unregister_chrdev_region(ocxl_dev, OCXL_NUM_MINORS);
-	idr_destroy(&minors_idr);
+	unregister_chrdev_region(ocxl_dev, OCXL_NUM_MIANALRS);
+	idr_destroy(&mianalrs_idr);
 }

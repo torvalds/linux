@@ -3,7 +3,7 @@
  * Driver for the MDIO interface of Microsemi network switches.
  *
  * Author: Colin Foster <colin.foster@in-advantage.com>
- * Copyright (C) 2021 Innovative Advantage
+ * Copyright (C) 2021 Inanalvative Advantage
  */
 #ifndef MDIO_MSCC_MIIM_H
 #define MDIO_MSCC_MIIM_H
@@ -14,6 +14,6 @@
 
 int mscc_miim_setup(struct device *device, struct mii_bus **bus,
 		    const char *name, struct regmap *mii_regmap,
-		    int status_offset, bool ignore_read_errors);
+		    int status_offset, bool iganalre_read_errors);
 
 #endif

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -95,14 +95,14 @@ enum GVT_FB_EVENT {
 };
 
 enum DDI_PORT {
-	DDI_PORT_NONE	= 0,
+	DDI_PORT_ANALNE	= 0,
 	DDI_PORT_B	= 1,
 	DDI_PORT_C	= 2,
 	DDI_PORT_D	= 3,
 	DDI_PORT_E	= 4
 };
 
-/* color space conversion and gamma correction are not included */
+/* color space conversion and gamma correction are analt included */
 struct intel_vgpu_primary_plane_format {
 	u8	enabled;	/* plane is enabled */
 	u32	tiled;		/* tiling mode: linear, X-tiled, Y tiled, etc */

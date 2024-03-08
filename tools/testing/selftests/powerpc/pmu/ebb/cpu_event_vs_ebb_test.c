@@ -27,7 +27,7 @@ static int setup_cpu_event(struct event *event, int cpu)
 	event->attr.exclude_hv = 1;
 	event->attr.exclude_idle = 1;
 
-	SKIP_IF(require_paranoia_below(1));
+	SKIP_IF(require_paraanalia_below(1));
 	FAIL_IF(event_open_with_cpu(event, cpu));
 	FAIL_IF(event_enable(event));
 

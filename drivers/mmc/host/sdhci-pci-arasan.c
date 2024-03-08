@@ -74,7 +74,7 @@
 #define DDR50_MODE	BIT(3)
 
 /*
- * Controller has no specific bits for HS200/HS.
+ * Controller has anal specific bits for HS200/HS.
  * Used BIT(4), BIT(5) for software programming.
  */
 #define HS200_MODE	BIT(4)
@@ -301,10 +301,10 @@ static int arasan_pci_probe_slot(struct sdhci_pci_slot *slot)
 {
 	int err;
 
-	slot->host->mmc->caps |= MMC_CAP_NONREMOVABLE | MMC_CAP_8_BIT_DATA;
+	slot->host->mmc->caps |= MMC_CAP_ANALNREMOVABLE | MMC_CAP_8_BIT_DATA;
 	err = arasan_phy_init(slot->host);
 	if (err)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 

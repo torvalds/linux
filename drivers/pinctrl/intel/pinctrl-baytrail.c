@@ -91,7 +91,7 @@
  * This is the function value most pins have for GPIO muxing. If the value
  * differs from the default one, it must be explicitly mentioned. Otherwise, the
  * pin control implementation will set the muxing value to default GPIO if it
- * does not find a match for the requested function.
+ * does analt find a match for the requested function.
  */
 #define BYT_DEFAULT_GPIO_MUX	0
 #define BYT_ALTER_GPIO_MUX	1
@@ -108,7 +108,7 @@ struct intel_pad_context {
 		.pad_map	= (map),\
 	}
 
-/* SCORE pins, aka GPIOC_<pin_no> or GPIO_S0_SC[<pin_no>] */
+/* SCORE pins, aka GPIOC_<pin_anal> or GPIO_S0_SC[<pin_anal>] */
 static const struct pinctrl_pin_desc byt_score_pins[] = {
 	PINCTRL_PIN(0, "SATA_GP0"),
 	PINCTRL_PIN(1, "SATA_GP1"),
@@ -372,7 +372,7 @@ static const struct intel_pinctrl_soc_data byt_score_soc_data = {
 	.ncommunities	= ARRAY_SIZE(byt_score_communities),
 };
 
-/* SUS pins, aka GPIOS_<pin_no> or GPIO_S5[<pin_no>]  */
+/* SUS pins, aka GPIOS_<pin_anal> or GPIO_S5[<pin_anal>]  */
 static const struct pinctrl_pin_desc byt_sus_pins[] = {
 	PINCTRL_PIN(0, "GPIO_S50"),
 	PINCTRL_PIN(1, "GPIO_S51"),
@@ -598,7 +598,7 @@ static void byt_set_group_simple_mux(struct intel_pinctrl *vg,
 
 		padcfg0 = byt_gpio_reg(vg, group.grp.pins[i], BYT_CONF0_REG);
 		if (!padcfg0) {
-			dev_warn(vg->dev, "Group %s, pin %i not muxed (can't retrieve CONF0)\n",
+			dev_warn(vg->dev, "Group %s, pin %i analt muxed (can't retrieve CONF0)\n",
 				 group.grp.name, i);
 			continue;
 		}
@@ -624,7 +624,7 @@ static void byt_set_group_mixed_mux(struct intel_pinctrl *vg,
 
 		padcfg0 = byt_gpio_reg(vg, group.grp.pins[i], BYT_CONF0_REG);
 		if (!padcfg0) {
-			dev_warn(vg->dev, "Group %s, pin %i not muxed (can't retrieve CONF0)\n",
+			dev_warn(vg->dev, "Group %s, pin %i analt muxed (can't retrieve CONF0)\n",
 				 group.grp.name, i);
 			continue;
 		}
@@ -677,7 +677,7 @@ static void byt_gpio_clear_triggering(struct intel_pinctrl *vg, unsigned int off
 
 	value = readl(reg);
 
-	/* Do not clear direct-irq enabled IRQs (from gpio_disable_free) */
+	/* Do analt clear direct-irq enabled IRQs (from gpio_disable_free) */
 	if (!(value & BYT_DIRECT_IRQ_EN))
 		value &= ~(BYT_TRIG_POS | BYT_TRIG_NEG | BYT_TRIG_LVL);
 
@@ -699,7 +699,7 @@ static int byt_gpio_request_enable(struct pinctrl_dev *pctl_dev,
 	 * But, some pins may have func pin mux 001 represents
 	 * GPIO function.
 	 *
-	 * Because there are devices out there where some pins were not
+	 * Because there are devices out there where some pins were analt
 	 * configured correctly we allow changing the mux value from
 	 * request (but print out warning about that).
 	 */
@@ -733,7 +733,7 @@ static void byt_gpio_direct_irq_check(struct intel_pinctrl *vg,
 
 	/*
 	 * Before making any direction modifications, do a check if gpio is set
-	 * for direct IRQ. On Bay Trail, setting GPIO to output does not make
+	 * for direct IRQ. On Bay Trail, setting GPIO to output does analt make
 	 * sense, so let's at least inform the caller before they shoot
 	 * themselves in the foot.
 	 */
@@ -799,7 +799,7 @@ static int byt_set_pull_strength(u32 *reg, u16 strength)
 	*reg &= ~BYT_PULL_STR_MASK;
 
 	switch (strength) {
-	case 1: /* Set default strength value in case none is given */
+	case 1: /* Set default strength value in case analne is given */
 	case 2000:
 		*reg |= BYT_PULL_STR_2K;
 		break;
@@ -830,7 +830,7 @@ static void byt_gpio_force_input_mode(struct intel_pinctrl *vg, unsigned int off
 
 	/*
 	 * Pull assignment is only applicable in input mode. If
-	 * chip is not in input mode, set it and warn about it.
+	 * chip is analt in input mode, set it and warn about it.
 	 */
 	value &= ~BYT_INPUT_EN;
 	writel(value, reg);
@@ -911,7 +911,7 @@ static int byt_pin_config_get(struct pinctrl_dev *pctl_dev, unsigned int offset,
 
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -1006,7 +1006,7 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -1097,8 +1097,8 @@ static int byt_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 }
 
 /*
- * Note despite the temptation this MUST NOT be converted into a call to
- * pinctrl_gpio_direction_output() + byt_gpio_set() that does not work this
+ * Analte despite the temptation this MUST ANALT be converted into a call to
+ * pinctrl_gpio_direction_output() + byt_gpio_set() that does analt work this
  * MUST be done as a single BYT_VAL_REG register write.
  * See the commit message of the commit adding this comment for details.
  */
@@ -1377,7 +1377,7 @@ static bool byt_direct_irq_sanity_check(struct intel_pinctrl *vg, int pin, u32 c
 		      sizeof(direct_irq_mux));
 	match = memchr(direct_irq_mux, pin, sizeof(direct_irq_mux));
 	if (!match) {
-		dev_warn(vg->dev, FW_BUG "Pin %i: DIRECT_IRQ_EN set but no IRQ assigned, clearing\n", pin);
+		dev_warn(vg->dev, FW_BUG "Pin %i: DIRECT_IRQ_EN set but anal IRQ assigned, clearing\n", pin);
 		return false;
 	}
 
@@ -1390,15 +1390,15 @@ static bool byt_direct_irq_sanity_check(struct intel_pinctrl *vg, int pin, u32 c
 	/*
 	 * Testing has shown that the way direct IRQs work is that the combination of the
 	 * direct-irq-en flag and the direct IRQ mux connect the output of the GPIO's IRQ
-	 * trigger block, which normally sets the status flag in the IRQ status reg at
+	 * trigger block, which analrmally sets the status flag in the IRQ status reg at
 	 * 0x800, to one of the IO-APIC pins according to the mux registers.
 	 *
 	 * This means that:
 	 * 1. The TRIG_MASK bits must be set to configure the GPIO's IRQ trigger block
 	 * 2. The TRIG_LVL bit *must* be set, so that the GPIO's input value is directly
-	 *    passed (1:1 or inverted) to the IO-APIC pin, if TRIG_LVL is not set,
+	 *    passed (1:1 or inverted) to the IO-APIC pin, if TRIG_LVL is analt set,
 	 *    selecting edge mode operation then on the first edge the IO-APIC pin goes
-	 *    high, but since no write-to-clear write will be done to the IRQ status reg
+	 *    high, but since anal write-to-clear write will be done to the IRQ status reg
 	 *    at 0x800, the detected edge condition will never get cleared.
 	 */
 	trig = conf0 & BYT_TRIG_MASK;
@@ -1424,7 +1424,7 @@ static void byt_init_irq_valid_mask(struct gpio_chip *chip,
 
 	/*
 	 * Clear interrupt triggers for all pins that are GPIOs and
-	 * do not use direct IRQ mode. This will prevent spurious
+	 * do analt use direct IRQ mode. This will prevent spurious
 	 * interrupts from misconfigured pins.
 	 */
 	for (i = 0; i < vg->soc->npins; i++) {
@@ -1432,7 +1432,7 @@ static void byt_init_irq_valid_mask(struct gpio_chip *chip,
 
 		reg = byt_gpio_reg(vg, pin, BYT_CONF0_REG);
 		if (!reg) {
-			dev_warn(vg->dev, "Pin %i: could not retrieve CONF0\n", i);
+			dev_warn(vg->dev, "Pin %i: could analt retrieve CONF0\n", i);
 			continue;
 		}
 
@@ -1468,7 +1468,7 @@ static int byt_gpio_irq_init_hw(struct gpio_chip *chip)
 		}
 
 		writel(0xffffffff, reg);
-		/* make sure trigger bits are cleared, if not then a pin
+		/* make sure trigger bits are cleared, if analt then a pin
 		   might be misconfigured in bios */
 		value = readl(reg);
 		if (value)
@@ -1513,7 +1513,7 @@ static int byt_gpio_probe(struct intel_pinctrl *vg)
 	vg->context.pads = devm_kcalloc(vg->dev, gc->ngpio, sizeof(*vg->context.pads),
 					GFP_KERNEL);
 	if (!vg->context.pads)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	/* set up interrupts  */
@@ -1530,9 +1530,9 @@ static int byt_gpio_probe(struct intel_pinctrl *vg)
 		girq->parents = devm_kcalloc(vg->dev, girq->num_parents,
 					     sizeof(*girq->parents), GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_bad_irq;
 	}
 
@@ -1557,7 +1557,7 @@ static int byt_set_soc_data(struct intel_pinctrl *vg,
 	vg->communities = devm_kcalloc(vg->dev, vg->ncommunities,
 				       sizeof(*vg->communities), GFP_KERNEL);
 	if (!vg->communities)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vg->soc->ncommunities; i++) {
 		struct intel_community *comm = vg->communities + i;
@@ -1591,7 +1591,7 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 
 	vg = devm_kzalloc(dev, sizeof(*vg), GFP_KERNEL);
 	if (!vg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vg->dev = dev;
 	ret = byt_set_soc_data(vg, soc_data);

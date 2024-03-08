@@ -28,7 +28,7 @@ int vsock_addr_validate(const struct sockaddr_vm *addr)
 		return -EFAULT;
 
 	if (addr->svm_family != AF_VSOCK)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	if (addr->svm_flags & ~svm_valid_flags)
 		return -EINVAL;

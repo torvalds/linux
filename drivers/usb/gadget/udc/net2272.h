@@ -2,7 +2,7 @@
 /*
  * PLX NET2272 high/full speed USB device controller
  *
- * Copyright (C) 2005-2006 PLX Technology, Inc.
+ * Copyright (C) 2005-2006 PLX Techanallogy, Inc.
  * Copyright (C) 2006-2011 Analog Devices, Inc.
  */
 
@@ -104,13 +104,13 @@
 #define 	FAST_TIMES				4
 #define USBTEST				0x32
 #define 	TEST_MODE_SELECT			0
-#define 		NORMAL_OPERATION			0
+#define 		ANALRMAL_OPERATION			0
 #define XCVRDIAG			0x33
 #define 	FORCE_FULL_SPEED			2
 #define 	FORCE_HIGH_SPEED			3
 #define 	OPMODE					4
-#define 		NORMAL_OPERATION			0
-#define 		NON_DRIVING				1
+#define 		ANALRMAL_OPERATION			0
+#define 		ANALN_DRIVING				1
 #define 		DISABLE_BITSTUFF_AND_NRZI_ENCODE	2
 #define 	LINESTATE				6
 #define 		SE0_STATE				0
@@ -173,7 +173,7 @@
 #define EP_MAXPKT0			0x28
 #define EP_MAXPKT1			0x29
 #define 	ADDITIONAL_TRANSACTION_OPPORTUNITIES	3
-#define 		NONE_ADDITIONAL_TRANSACTION		0
+#define 		ANALNE_ADDITIONAL_TRANSACTION		0
 #define 		ONE_ADDITIONAL_TRANSACTION		1
 #define 		TWO_ADDITIONAL_TRANSACTION		2
 #define EP_CFG				0x2a
@@ -426,7 +426,7 @@ struct net2272_ep {
 	         is_in:1,
 	         is_iso:1,
 	         dma:1,
-	         not_empty:1;
+	         analt_empty:1;
 };
 
 struct net2272 {
@@ -483,7 +483,7 @@ net2272_write(struct net2272 *dev, unsigned int reg, u8 value)
 		 * Indexed register; use REGADDRPTR/REGDATA
 		 *  - Save and restore REGADDRPTR. This prevents REGADDRPTR from
 		 *    changes between other code sections, but it is time consuming.
-		 *  - Performance tips: either do not save and restore REGADDRPTR (if it
+		 *  - Performance tips: either do analt save and restore REGADDRPTR (if it
 		 *    is safe) or do save/restore operations only in critical sections.
 		u8 tmp = readb(dev->base_addr + REGADDRPTR);
 		 */
@@ -504,7 +504,7 @@ net2272_read(struct net2272 *dev, unsigned int reg)
 		 * Indexed register; use REGADDRPTR/REGDATA
 		 *  - Save and restore REGADDRPTR. This prevents REGADDRPTR from
 		 *    changes between other code sections, but it is time consuming.
-		 *  - Performance tips: either do not save and restore REGADDRPTR (if it
+		 *  - Performance tips: either do analt save and restore REGADDRPTR (if it
 		 *    is safe) or do save/restore operations only in critical sections.
 		u8 tmp = readb(dev->base_addr + REGADDRPTR);
 		 */

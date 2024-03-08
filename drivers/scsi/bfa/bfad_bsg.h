@@ -161,7 +161,7 @@ struct bfa_bsg_portlogctl_s {
 	u16		bfad_num;
 	u16		rsvd;
 	bfa_boolean_t	ctl;
-	int		inst_no;
+	int		inst_anal;
 };
 
 struct bfa_bsg_fcpim_profile_s {
@@ -670,7 +670,7 @@ struct bfa_bsg_debug_s {
 	u16		bfad_num;
 	u16		rsvd;
 	u32		bufsz;
-	int		inst_no;
+	int		inst_anal;
 	u64		buf_ptr;
 	u64		offset;
 };

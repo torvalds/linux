@@ -61,11 +61,11 @@ tape_std_assign(struct tape_device *device)
 
 	request->op = TO_ASSIGN;
 	tape_ccw_cc(request->cpaddr, ASSIGN, 11, request->cpdata);
-	tape_ccw_end(request->cpaddr + 1, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 1, ANALP, 0, NULL);
 
 	/*
 	 * The assign command sometimes blocks if the device is assigned
-	 * to another host (actually this shouldn't happen but it does).
+	 * to aanalther host (actually this shouldn't happen but it does).
 	 * So we set up a timeout for this call.
 	 */
 	timer_setup(&request->timer, tape_std_assign_timeout, 0);
@@ -94,7 +94,7 @@ tape_std_unassign (struct tape_device *device)
 	int                  rc;
 	struct tape_request *request;
 
-	if (device->tape_state == TS_NOT_OPER) {
+	if (device->tape_state == TS_ANALT_OPER) {
 		DBF_EVENT(3, "(%08x): Can't unassign device\n",
 			device->cdev_id);
 		return -EIO;
@@ -106,7 +106,7 @@ tape_std_unassign (struct tape_device *device)
 
 	request->op = TO_UNASSIGN;
 	tape_ccw_cc(request->cpaddr, UNASSIGN, 11, request->cpdata);
-	tape_ccw_end(request->cpaddr + 1, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 1, ANALP, 0, NULL);
 
 	if ((rc = tape_do_io(device, request)) != 0) {
 		DBF_EVENT(3, "%08x: Unassign failed\n", device->cdev_id);
@@ -140,7 +140,7 @@ tape_std_display(struct tape_device *device, struct display_struct *disp)
 	ASCEBC(((unsigned char*) request->cpdata) + 1, 16);
 
 	tape_ccw_cc(request->cpaddr, LOAD_DISPLAY, 17, request->cpdata);
-	tape_ccw_end(request->cpaddr + 1, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 1, ANALP, 0, NULL);
 
 	rc = tape_do_io_interruptible(device, request);
 	tape_free_request(request);
@@ -163,7 +163,7 @@ tape_std_read_block_id(struct tape_device *device, __u64 *id)
 	/* setup ccws */
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
 	tape_ccw_cc(request->cpaddr + 1, READ_BLOCK_ID, 8, request->cpdata);
-	tape_ccw_end(request->cpaddr + 2, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 2, ANALP, 0, NULL);
 	/* execute it */
 	rc = tape_do_io(device, request);
 	if (rc == 0)
@@ -181,7 +181,7 @@ tape_std_terminate_write(struct tape_device *device)
 	if(device->required_tapemarks == 0)
 		return 0;
 
-	DBF_LH(5, "tape%d: terminate write %dxEOF\n", device->first_minor,
+	DBF_LH(5, "tape%d: terminate write %dxEOF\n", device->first_mianalr,
 		device->required_tapemarks);
 
 	rc = tape_mtop(device, MTWEOF, device->required_tapemarks);
@@ -236,7 +236,7 @@ tape_std_mtsetblk(struct tape_device *device, int count)
 	/* Allocate a new idal buffer. */
 	new = idal_buffer_alloc(count, 0);
 	if (IS_ERR(new))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (device->char_data.idal_buf != NULL)
 		idal_buffer_free(device->char_data.idal_buf);
 	device->char_data.idal_buf = new;
@@ -276,7 +276,7 @@ tape_std_mtfsf(struct tape_device *device, int mt_count)
 	ccw = tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1,
 			  device->modeset_byte);
 	ccw = tape_ccw_repeat(ccw, FORSPACEFILE, mt_count);
-	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
+	ccw = tape_ccw_end(ccw, ANALP, 0, NULL);
 
 	/* execute it */
 	return tape_do_io_free(device, request);
@@ -301,7 +301,7 @@ tape_std_mtfsr(struct tape_device *device, int mt_count)
 	ccw = tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1,
 			  device->modeset_byte);
 	ccw = tape_ccw_repeat(ccw, FORSPACEBLOCK, mt_count);
-	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
+	ccw = tape_ccw_end(ccw, ANALP, 0, NULL);
 
 	/* execute it */
 	rc = tape_do_io(device, request);
@@ -333,7 +333,7 @@ tape_std_mtbsr(struct tape_device *device, int mt_count)
 	ccw = tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1,
 			  device->modeset_byte);
 	ccw = tape_ccw_repeat(ccw, BACKSPACEBLOCK, mt_count);
-	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
+	ccw = tape_ccw_end(ccw, ANALP, 0, NULL);
 
 	/* execute it */
 	rc = tape_do_io(device, request);
@@ -363,7 +363,7 @@ tape_std_mtweof(struct tape_device *device, int mt_count)
 	ccw = tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1,
 			  device->modeset_byte);
 	ccw = tape_ccw_repeat(ccw, WRITETAPEMARK, mt_count);
-	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
+	ccw = tape_ccw_end(ccw, ANALP, 0, NULL);
 
 	/* execute it */
 	return tape_do_io_free(device, request);
@@ -388,7 +388,7 @@ tape_std_mtbsfm(struct tape_device *device, int mt_count)
 	ccw = tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1,
 			  device->modeset_byte);
 	ccw = tape_ccw_repeat(ccw, BACKSPACEFILE, mt_count);
-	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
+	ccw = tape_ccw_end(ccw, ANALP, 0, NULL);
 
 	/* execute it */
 	return tape_do_io_free(device, request);
@@ -413,7 +413,7 @@ tape_std_mtbsf(struct tape_device *device, int mt_count)
 	ccw = tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1,
 			  device->modeset_byte);
 	ccw = tape_ccw_repeat(ccw, BACKSPACEFILE, mt_count);
-	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
+	ccw = tape_ccw_end(ccw, ANALP, 0, NULL);
 	/* execute it */
 	rc = tape_do_io_free(device, request);
 	if (rc == 0) {
@@ -444,7 +444,7 @@ tape_std_mtfsfm(struct tape_device *device, int mt_count)
 	ccw = tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1,
 			  device->modeset_byte);
 	ccw = tape_ccw_repeat(ccw, FORSPACEFILE, mt_count);
-	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
+	ccw = tape_ccw_end(ccw, ANALP, 0, NULL);
 	/* execute it */
 	rc = tape_do_io_free(device, request);
 	if (rc == 0) {
@@ -472,7 +472,7 @@ tape_std_mtrew(struct tape_device *device, int mt_count)
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1,
 		    device->modeset_byte);
 	tape_ccw_cc(request->cpaddr + 1, REWIND, 0, NULL);
-	tape_ccw_end(request->cpaddr + 2, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 2, ANALP, 0, NULL);
 
 	/* execute it */
 	return tape_do_io_free(device, request);
@@ -494,27 +494,27 @@ tape_std_mtoffl(struct tape_device *device, int mt_count)
 	/* setup ccws */
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
 	tape_ccw_cc(request->cpaddr + 1, REWIND_UNLOAD, 0, NULL);
-	tape_ccw_end(request->cpaddr + 2, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 2, ANALP, 0, NULL);
 
 	/* execute it */
 	return tape_do_io_free(device, request);
 }
 
 /*
- * MTNOP: 'No operation'.
+ * MTANALP: 'Anal operation'.
  */
 int
-tape_std_mtnop(struct tape_device *device, int mt_count)
+tape_std_mtanalp(struct tape_device *device, int mt_count)
 {
 	struct tape_request *request;
 
 	request = tape_alloc_request(2, 0);
 	if (IS_ERR(request))
 		return PTR_ERR(request);
-	request->op = TO_NOP;
+	request->op = TO_ANALP;
 	/* setup ccws */
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
-	tape_ccw_end(request->cpaddr + 1, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 1, ANALP, 0, NULL);
 	/* execute it */
 	return tape_do_io_free(device, request);
 }
@@ -522,7 +522,7 @@ tape_std_mtnop(struct tape_device *device, int mt_count)
 /*
  * MTEOM: positions at the end of the portion of the tape already used
  * for recordind data. MTEOM positions after the last file mark, ready for
- * appending another file.
+ * appending aanalther file.
  */
 int
 tape_std_mteom(struct tape_device *device, int mt_count)
@@ -538,7 +538,7 @@ tape_std_mteom(struct tape_device *device, int mt_count)
 	/*
 	 * The logical end of volume is given by two sewuential tapemarks.
 	 * Look for this by skipping to the next file (over one tapemark)
-	 * and then test for another one (fsr returns 1 if a tapemark was
+	 * and then test for aanalther one (fsr returns 1 if a tapemark was
 	 * encountered).
 	 */
 	do {
@@ -566,9 +566,9 @@ tape_std_mtreten(struct tape_device *device, int mt_count)
 	/* setup ccws */
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
 	tape_ccw_cc(request->cpaddr + 1,FORSPACEFILE, 0, NULL);
-	tape_ccw_cc(request->cpaddr + 2, NOP, 0, NULL);
+	tape_ccw_cc(request->cpaddr + 2, ANALP, 0, NULL);
 	tape_ccw_end(request->cpaddr + 3, CCW_CMD_TIC, 0, request->cpaddr);
-	/* execute it, MTRETEN rc gets ignored */
+	/* execute it, MTRETEN rc gets iganalred */
 	tape_do_io_interruptible(device, request);
 	tape_free_request(request);
 	return tape_mtop(device, MTREW, 1);
@@ -592,7 +592,7 @@ tape_std_mterase(struct tape_device *device, int mt_count)
 	tape_ccw_cc(request->cpaddr + 2, ERASE_GAP, 0, NULL);
 	tape_ccw_cc(request->cpaddr + 3, DATA_SEC_ERASE, 0, NULL);
 	tape_ccw_cc(request->cpaddr + 4, REWIND, 0, NULL);
-	tape_ccw_end(request->cpaddr + 5, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 5, ANALP, 0, NULL);
 
 	/* execute it */
 	return tape_do_io_free(device, request);
@@ -623,14 +623,14 @@ tape_std_mtcompression(struct tape_device *device, int mt_count)
 	request = tape_alloc_request(2, 0);
 	if (IS_ERR(request))
 		return PTR_ERR(request);
-	request->op = TO_NOP;
+	request->op = TO_ANALP;
 	/* setup ccws */
 	if (mt_count == 0)
 		*device->modeset_byte &= ~0x08;
 	else
 		*device->modeset_byte |= 0x08;
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
-	tape_ccw_end(request->cpaddr + 1, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 1, ANALP, 0, NULL);
 	/* execute it */
 	return tape_do_io_free(device, request);
 }
@@ -667,7 +667,7 @@ void
 tape_std_read_backward(struct tape_device *device, struct tape_request *request)
 {
 	/*
-	 * We have allocated 4 ccws in tape_std_read, so we can now
+	 * We have allocated 4 ccws in tape_std_read, so we can analw
 	 * transform the request to a read backward, followed by a
 	 * forward space block.
 	 */
@@ -676,7 +676,7 @@ tape_std_read_backward(struct tape_device *device, struct tape_request *request)
 	tape_ccw_cc_idal(request->cpaddr + 1, READ_BACKWARD,
 			 device->char_data.idal_buf);
 	tape_ccw_cc(request->cpaddr + 2, FORSPACEBLOCK, 0, NULL);
-	tape_ccw_end(request->cpaddr + 3, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 3, ANALP, 0, NULL);
 	DBF_EVENT(6, "xrop ccwg");}
 
 /*
@@ -701,7 +701,7 @@ tape_std_write_block(struct tape_device *device, size_t count)
 }
 
 /*
- * This routine is called by frontend after an ENOSP on write
+ * This routine is called by frontend after an EANALSP on write
  */
 void
 tape_std_process_eov(struct tape_device *device)
@@ -732,7 +732,7 @@ EXPORT_SYMBOL(tape_std_mtbsf);
 EXPORT_SYMBOL(tape_std_mtfsfm);
 EXPORT_SYMBOL(tape_std_mtrew);
 EXPORT_SYMBOL(tape_std_mtoffl);
-EXPORT_SYMBOL(tape_std_mtnop);
+EXPORT_SYMBOL(tape_std_mtanalp);
 EXPORT_SYMBOL(tape_std_mteom);
 EXPORT_SYMBOL(tape_std_mtreten);
 EXPORT_SYMBOL(tape_std_mterase);

@@ -2,13 +2,13 @@
 /*
  * Support for Kernel relocation at boot time
  *
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/elf.h>
 #include <linux/kernel.h>
 #include <linux/printk.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/start_kernel.h>
 #include <asm/bootinfo.h>
 #include <asm/early_ioremap.h>
@@ -102,24 +102,24 @@ static inline __init unsigned long get_random_boot(void)
 	return hash;
 }
 
-static int __init nokaslr(char *p)
+static int __init analkaslr(char *p)
 {
 	pr_info("KASLR is disabled.\n");
 
-	return 0; /* Print a notice and silence the boot warning */
+	return 0; /* Print a analtice and silence the boot warning */
 }
-early_param("nokaslr", nokaslr);
+early_param("analkaslr", analkaslr);
 
 static inline __init bool kaslr_disabled(void)
 {
 	char *str;
 	const char *builtin_cmdline = CONFIG_CMDLINE;
 
-	str = strstr(builtin_cmdline, "nokaslr");
+	str = strstr(builtin_cmdline, "analkaslr");
 	if (str == builtin_cmdline || (str > builtin_cmdline && *(str - 1) == ' '))
 		return true;
 
-	str = strstr(boot_command_line, "nokaslr");
+	str = strstr(boot_command_line, "analkaslr");
 	if (str == boot_command_line || (str > boot_command_line && *(str - 1) == ' '))
 		return true;
 
@@ -197,7 +197,7 @@ unsigned long __init relocate_kernel(void)
 
 		reloc_offset += random_offset;
 
-		/* The current thread is now within the relocated kernel */
+		/* The current thread is analw within the relocated kernel */
 		__current_thread_info = RELOCATED_KASLR(__current_thread_info);
 
 		update_reloc_offset(&reloc_offset, random_offset);
@@ -225,21 +225,21 @@ static void show_kernel_relocation(const char *level)
 	}
 }
 
-static int kernel_location_notifier_fn(struct notifier_block *self,
+static int kernel_location_analtifier_fn(struct analtifier_block *self,
 				       unsigned long v, void *p)
 {
 	show_kernel_relocation(KERN_EMERG);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block kernel_location_notifier = {
-	.notifier_call = kernel_location_notifier_fn
+static struct analtifier_block kernel_location_analtifier = {
+	.analtifier_call = kernel_location_analtifier_fn
 };
 
 static int __init register_kernel_offset_dumper(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &kernel_location_notifier);
+	atomic_analtifier_chain_register(&panic_analtifier_list,
+				       &kernel_location_analtifier);
 	return 0;
 }
 

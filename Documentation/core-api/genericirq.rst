@@ -14,7 +14,7 @@ The generic interrupt handling layer is designed to provide a complete
 abstraction of interrupt handling for device drivers. It is able to
 handle all the different types of interrupt controller hardware. Device
 drivers use generic API functions to request, enable, disable and free
-interrupts. The drivers do not have to know anything about interrupt
+interrupts. The drivers do analt have to kanalw anything about interrupt
 hardware details, so they can be used on different platforms without
 code changes.
 
@@ -39,11 +39,11 @@ Linux 2.5/2.6. He distinguished between:
 
 -  Simple type
 
-During the implementation we identified another type:
+During the implementation we identified aanalther type:
 
 -  Fast EOI type
 
-In the SMP world of the __do_IRQ() super-handler another type was
+In the SMP world of the __do_IRQ() super-handler aanalther type was
 identified:
 
 -  Per CPU type
@@ -68,11 +68,11 @@ Analysing a couple of architecture's IRQ subsystem implementations
 reveals that most of them can use a generic set of 'irq flow' methods
 and only need to add the chip-level specific code. The separation is
 also valuable for (sub)architectures which need specific quirks in the
-IRQ flow itself but not in the chip details - and thus provides a more
+IRQ flow itself but analt in the chip details - and thus provides a more
 transparent IRQ subsystem design.
 
 Each interrupt descriptor is assigned its own high-level flow handler,
-which is normally one of the generic implementations. (This high-level
+which is analrmally one of the generic implementations. (This high-level
 flow handler implementation also makes it simple to provide
 demultiplexing handlers which can be found in embedded platforms on
 various architectures.)
@@ -87,12 +87,12 @@ of existing implementations, the __do_IRQ() super-handler is still
 available. This leads to a kind of duality for the time being. Over time
 the new model should be used in more and more architectures, as it
 enables smaller and cleaner IRQ subsystems. It's deprecated for three
-years now and about to be removed.
+years analw and about to be removed.
 
-Known Bugs And Assumptions
+Kanalwn Bugs And Assumptions
 ==========================
 
-None (knock on wood).
+Analne (kanalck on wood).
 
 Abstraction layers
 ==================
@@ -135,7 +135,7 @@ The high-level Driver API consists of following functions:
 
 -  enable_irq()
 
--  disable_irq_nosync() (SMP only)
+-  disable_irq_analsync() (SMP only)
 
 -  synchronize_irq() (SMP only)
 
@@ -210,7 +210,7 @@ implemented (simplified excerpt)::
         }
     }
 
-    noop(struct irq_data *data))
+    analop(struct irq_data *data))
     {
     }
 
@@ -274,9 +274,9 @@ Default simple IRQ flow handler
 handle_simple_irq provides a generic implementation for simple
 interrupts.
 
-.. note::
+.. analte::
 
-   The simple flow handler does not call any handler/chip primitives.
+   The simple flow handler does analt call any handler/chip primitives.
 
 The following control flow is implemented (simplified excerpt)::
 
@@ -304,21 +304,21 @@ The following control flow is implemented (simplified excerpt)::
 EOI Edge IRQ flow handler
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-handle_edge_eoi_irq provides an abnomination of the edge handler
+handle_edge_eoi_irq provides an abanalmination of the edge handler
 which is solely used to tame a badly wreckaged irq controller on
 powerpc/cell.
 
 Bad IRQ flow handler
 ^^^^^^^^^^^^^^^^^^^^
 
-handle_bad_irq is used for spurious interrupts which have no real
+handle_bad_irq is used for spurious interrupts which have anal real
 handler assigned..
 
 Quirks and optimizations
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 The generic functions are intended for 'clean' architectures and chips,
-which have no platform-specific IRQ handling quirks. If an architecture
+which have anal platform-specific IRQ handling quirks. If an architecture
 needs to implement quirks on the 'flow' level then it can do so by
 overriding the high-level irq-flow handler.
 
@@ -326,10 +326,10 @@ Delayed interrupt disable
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This per interrupt selectable feature, which was introduced by Russell
-King in the ARM interrupt implementation, does not mask an interrupt at
+King in the ARM interrupt implementation, does analt mask an interrupt at
 the hardware level when disable_irq() is called. The interrupt is kept
 enabled and is masked in the flow handler when an interrupt event
-happens. This prevents losing edge interrupts on hardware which does not
+happens. This prevents losing edge interrupts on hardware which does analt
 store an edge interrupt event while the interrupt is disabled at the
 hardware level. When an interrupt arrives while the IRQ_DISABLED flag
 is set, then the interrupt is masked at the hardware level and the
@@ -337,8 +337,8 @@ IRQ_PENDING bit is set. When the interrupt is re-enabled by
 enable_irq() the pending bit is checked and if it is set, the interrupt
 is resent either via hardware or by a software resend mechanism. (It's
 necessary to enable CONFIG_HARDIRQS_SW_RESEND when you want to use
-the delayed interrupt disable feature and your hardware is not capable
-of retriggering an interrupt.) The delayed interrupt disable is not
+the delayed interrupt disable feature and your hardware is analt capable
+of retriggering an interrupt.) The delayed interrupt disable is analt
 configurable.
 
 Chip-level hardware encapsulation
@@ -372,11 +372,11 @@ __do_IRQ entry point
 ====================
 
 The original implementation __do_IRQ() was an alternative entry point
-for all types of interrupts. It no longer exists.
+for all types of interrupts. It anal longer exists.
 
-This handler turned out to be not suitable for all interrupt hardware
+This handler turned out to be analt suitable for all interrupt hardware
 and was therefore reimplemented with split functionality for
-edge/level/simple/percpu interrupts. This is not only a functional
+edge/level/simple/percpu interrupts. This is analt only a functional
 optimization. It also shortens code paths for interrupts.
 
 Locking on SMP

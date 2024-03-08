@@ -24,8 +24,8 @@ struct platform_device;
 #define PIWAR_EN		0x80000000	/* Enable */
 #define PIWAR_PF		0x20000000	/* prefetch */
 #define PIWAR_TGI_LOCAL		0x00f00000	/* target - local memory */
-#define PIWAR_READ_SNOOP	0x00050000
-#define PIWAR_WRITE_SNOOP	0x00005000
+#define PIWAR_READ_SANALOP	0x00050000
+#define PIWAR_WRITE_SANALOP	0x00005000
 #define PIWAR_SZ_MASK          0x0000003f
 
 #define PEX_PMCR_PTOMR		0x1
@@ -59,7 +59,7 @@ struct pci_inbound_window_regs {
 struct ccsr_pci {
 	__be32	config_addr;		/* 0x.000 - PCI/PCIE Configuration Address Register */
 	__be32	config_data;		/* 0x.004 - PCI/PCIE Configuration Data Register */
-	__be32	int_ack;		/* 0x.008 - PCI Interrupt Acknowledge Register */
+	__be32	int_ack;		/* 0x.008 - PCI Interrupt Ackanalwledge Register */
 	__be32	pex_otb_cpl_tor;	/* 0x.00c - PCIE Outbound completion timeout register */
 	__be32	pex_conf_tor;		/* 0x.010 - PCIE configuration timeout register */
 	__be32	pex_config;		/* 0x.014 - PCIE CONFIG Register */
@@ -83,7 +83,7 @@ struct ccsr_pci {
 	struct pci_inbound_window_regs	pmit;	/* 0xd00 - 0xd9c Inbound MSI */
 	u8	res6[96];
 /* PCI/PCI Express inbound window 3-0
- * inbound window 1 supports only a 32-bit base address and does not
+ * inbound window 1 supports only a 32-bit base address and does analt
  * define an inbound window base extended address register.
  */
 	struct pci_inbound_window_regs piw[4];
@@ -114,10 +114,10 @@ struct ccsr_pci {
 
 extern void fsl_pcibios_fixup_bus(struct pci_bus *bus);
 extern void fsl_pcibios_fixup_phb(struct pci_controller *phb);
-extern int mpc83xx_add_bridge(struct device_node *dev);
+extern int mpc83xx_add_bridge(struct device_analde *dev);
 u64 fsl_pci_immrbar_base(struct pci_controller *hose);
 
-extern struct device_node *fsl_pci_primary;
+extern struct device_analde *fsl_pci_primary;
 
 #ifdef CONFIG_PCI
 void __init fsl_pci_assign_primary(void);

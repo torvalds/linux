@@ -27,7 +27,7 @@
 #define can_kprobe_direct_exec(m)	(!test_bit(ARM_REG_PC, &(m)))
 
 /*
- * NOTE: the first sub and add instruction will be modified according
+ * ANALTE: the first sub and add instruction will be modified according
  * to the stack cost of the instruction.
  */
 asm (
@@ -71,10 +71,10 @@ asm (
 			"	ldmia	sp, {r0 - r15}\n"
 			".global optprobe_template_restore_orig_insn\n"
 			"optprobe_template_restore_orig_insn:\n"
-			"	nop\n"
+			"	analp\n"
 			".global optprobe_template_restore_end\n"
 			"optprobe_template_restore_end:\n"
-			"	nop\n"
+			"	analp\n"
 			".global optprobe_template_val\n"
 			"optprobe_template_val:\n"
 			"1:	.long 0\n"
@@ -113,7 +113,7 @@ int arch_prepared_optinsn(struct arch_optimized_insn *optinsn)
 
 /*
  * In ARM ISA, kprobe opt always replace one instruction (4 bytes
- * aligned and 4 bytes long). It is impossible to encounter another
+ * aligned and 4 bytes long). It is impossible to encounter aanalther
  * kprobe in the address range. So always return 0.
  */
 int arch_check_optimized_kprobe(struct optimized_kprobe *op)
@@ -177,7 +177,7 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 
 	local_irq_restore(flags);
 }
-NOKPROBE_SYMBOL(optimized_callback)
+ANALKPROBE_SYMBOL(optimized_callback)
 
 int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *orig)
 {
@@ -191,7 +191,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *or
 
 	code = get_optinsn_slot();
 	if (!code)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Verify if the address gap is in 32MiB range, because this uses
@@ -225,7 +225,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *or
 		/*
 		 * Different from x86, we free code buf directly instead of
 		 * calling __arch_remove_optimized_kprobe() because
-		 * we have not fill any field in op.
+		 * we have analt fill any field in op.
 		 */
 		free_optinsn_slot(code, 0);
 		return -ERANGE;
@@ -324,7 +324,7 @@ void __kprobes arch_optimize_kprobes(struct list_head *oplist)
 	}
 }
 
-void arch_unoptimize_kprobe(struct optimized_kprobe *op)
+void arch_uanalptimize_kprobe(struct optimized_kprobe *op)
 {
 	arch_arm_kprobe(&op->kp);
 }
@@ -333,13 +333,13 @@ void arch_unoptimize_kprobe(struct optimized_kprobe *op)
  * Recover original instructions and breakpoints from relative jumps.
  * Caller must call with locking kprobe_mutex.
  */
-void arch_unoptimize_kprobes(struct list_head *oplist,
+void arch_uanalptimize_kprobes(struct list_head *oplist,
 			    struct list_head *done_list)
 {
 	struct optimized_kprobe *op, *tmp;
 
 	list_for_each_entry_safe(op, tmp, oplist, list) {
-		arch_unoptimize_kprobe(op);
+		arch_uanalptimize_kprobe(op);
 		list_move(&op->list, done_list);
 	}
 }

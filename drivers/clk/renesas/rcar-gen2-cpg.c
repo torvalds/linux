@@ -39,7 +39,7 @@ static spinlock_t cpg_lock;
  * prepare - clk_prepare only ensures that parents are prepared
  * enable - clk_enable only ensures that parents are enabled
  * rate - rate is adjustable.  clk->rate = parent->rate * mult / 32
- * parent - fixed parent.  No clk_set_parent support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 struct cpg_z_clk {
@@ -109,9 +109,9 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel(kick, zclk->kick_reg);
 
 	/*
-	 * Note: There is no HW information about the worst case latency.
+	 * Analte: There is anal HW information about the worst case latency.
 	 *
-	 * Using experimental measurements, it seems that no more than
+	 * Using experimental measurements, it seems that anal more than
 	 * ~10 iterations are needed, independently of the CPU rate.
 	 * Since this value might be dependent on external xtal rate, pll1
 	 * rate or even the other emulation clocks rate, use 1000 as a
@@ -143,7 +143,7 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 
 	zclk = kzalloc(sizeof(*zclk), GFP_KERNEL);
 	if (!zclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &cpg_z_clk_ops;
@@ -171,7 +171,7 @@ static struct clk * __init cpg_rcan_clk_register(const char *name,
 
 	fixed = kzalloc(sizeof(*fixed), GFP_KERNEL);
 	if (!fixed)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fixed->mult = 1;
 	fixed->div = 6;
@@ -179,7 +179,7 @@ static struct clk * __init cpg_rcan_clk_register(const char *name,
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate) {
 		kfree(fixed);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	gate->reg = base + CPG_RCANCKCR;
@@ -215,7 +215,7 @@ static struct clk * __init cpg_adsp_clk_register(const char *name,
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	div->reg = base + CPG_ADSPCKCR;
 	div->width = 4;
@@ -225,7 +225,7 @@ static struct clk * __init cpg_adsp_clk_register(const char *name,
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate) {
 		kfree(div);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	gate->reg = base + CPG_ADSPCKCR;
@@ -275,7 +275,7 @@ static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
 	struct clk **clks, void __iomem *base,
-	struct raw_notifier_head *notifiers)
+	struct raw_analtifier_head *analtifiers)
 {
 	const struct clk_div_table *table = NULL;
 	const struct clk *parent;
@@ -300,8 +300,8 @@ struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
 		/*
 		 * PLL0 is a  configurable multiplier clock except on R-Car
 		 * V2H/E2. Register the PLL0 clock as a fixed factor clock for
-		 * now as there's no generic multiplier clock implementation and
-		 * we  currently  have no need to change  the multiplier value.
+		 * analw as there's anal generic multiplier clock implementation and
+		 * we  currently  have anal need to change  the multiplier value.
 		 */
 		mult = cpg_pll_config->pll0_mult;
 		div  = cpg_pll0_div;

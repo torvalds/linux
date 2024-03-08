@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@ typedef struct {
   uint16_t MaxMclk;
 
   uint8_t  WmSetting;
-  uint8_t  WmType;  // Used for normal pstate change or memory retraining
+  uint8_t  WmType;  // Used for analrmal pstate change or memory retraining
   uint8_t  Padding[2];
 } WatermarkRowGeneric_t;
 
@@ -193,17 +193,17 @@ typedef struct {
 
 //ISP tile definitions
 typedef enum {
-  TILE_XTILE = 0,         //ONO0
-  TILE_MTILE,             //ONO1
-  TILE_PDP,               //ONO2
-  TILE_CSTAT,             //ONO2
-  TILE_LME,               //ONO3
-  TILE_BYRP,              //ONO4
-  TILE_GRBP,              //ONO4
-  TILE_MCFP,              //ONO4
-  TILE_YUVP,              //ONO4
-  TILE_MCSC,              //ONO4
-  TILE_GDC,               //ONO5
+  TILE_XTILE = 0,         //OANAL0
+  TILE_MTILE,             //OANAL1
+  TILE_PDP,               //OANAL2
+  TILE_CSTAT,             //OANAL2
+  TILE_LME,               //OANAL3
+  TILE_BYRP,              //OANAL4
+  TILE_GRBP,              //OANAL4
+  TILE_MCFP,              //OANAL4
+  TILE_YUVP,              //OANAL4
+  TILE_MCSC,              //OANAL4
+  TILE_GDC,               //OANAL5
   TILE_MAX
 } TILE_NUM_e;
 

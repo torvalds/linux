@@ -213,7 +213,7 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 	u32 ratio, rsz_ctrl = 0;
 	unsigned int i;
 
-	/* No phase offset */
+	/* Anal phase offset */
 	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_PHASE_HY, 0);
 	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_PHASE_HC, 0);
 	rkisp1_rsz_write(rsz, RKISP1_CIF_RSZ_PHASE_VY, 0);
@@ -298,10 +298,10 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 	src_c.height = src_y.height / src_yuv_info->vdiv;
 
 	/*
-	 * The resizer is used not only to change the dimensions of the frame
+	 * The resizer is used analt only to change the dimensions of the frame
 	 * but also to change the subsampling for YUV formats (for instance
 	 * converting from 4:2:2 to 4:2:0). Check both the luma and chroma
-	 * dimensions to decide whether or not to enable the resizer.
+	 * dimensions to decide whether or analt to enable the resizer.
 	 */
 
 	dev_dbg(rsz->rkisp1->dev,
@@ -385,7 +385,7 @@ static int rkisp1_rsz_init_state(struct v4l2_subdev *sd,
 	sink_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_RSZ_PAD_SRC);
 	sink_fmt->width = RKISP1_DEFAULT_WIDTH;
 	sink_fmt->height = RKISP1_DEFAULT_HEIGHT;
-	sink_fmt->field = V4L2_FIELD_NONE;
+	sink_fmt->field = V4L2_FIELD_ANALNE;
 	sink_fmt->code = RKISP1_DEF_FMT;
 	sink_fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	sink_fmt->xfer_func = V4L2_XFER_FUNC_SRGB;
@@ -401,7 +401,7 @@ static int rkisp1_rsz_init_state(struct v4l2_subdev *sd,
 	src_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_RSZ_PAD_SINK);
 	*src_fmt = *sink_fmt;
 
-	/* NOTE: there is no crop in the source pad, only in the sink */
+	/* ANALTE: there is anal crop in the source pad, only in the sink */
 
 	return 0;
 }
@@ -444,7 +444,7 @@ static void rkisp1_rsz_set_sink_crop(struct rkisp1_resizer *rsz,
 	sink_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_RSZ_PAD_SINK);
 	sink_crop = v4l2_subdev_state_get_crop(sd_state, RKISP1_RSZ_PAD_SINK);
 
-	/* Not crop for MP bayer raw data */
+	/* Analt crop for MP bayer raw data */
 	mbus_info = rkisp1_mbus_info_get_by_code(sink_fmt->code);
 
 	if (rsz->id == RKISP1_MAINPATH &&
@@ -520,9 +520,9 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 						      sink_fmt->ycbcr_enc);
 	} else {
 		/*
-		 * The YCbCr encoding isn't applicable for non-YUV formats, but
-		 * V4L2 has no "no encoding" value. Hardcode it to Rec. 601, it
-		 * should be ignored by userspace.
+		 * The YCbCr encoding isn't applicable for analn-YUV formats, but
+		 * V4L2 has anal "anal encoding" value. Hardcode it to Rec. 601, it
+		 * should be iganalred by userspace.
 		 */
 		sink_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
 		sink_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
@@ -695,7 +695,7 @@ static int rkisp1_rsz_register(struct rkisp1_resizer *rsz)
 
 	v4l2_subdev_init(sd, &rkisp1_rsz_ops);
 	sd->internal_ops = &rkisp1_rsz_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sd->entity.ops = &rkisp1_rsz_media_ops;
 	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_SCALER;
 	sd->owner = THIS_MODULE;

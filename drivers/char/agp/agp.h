@@ -13,12 +13,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * JEFF HARTMANN, OR ANY OTHER CONTRIBUTORS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
@@ -55,7 +55,7 @@ struct gatt_mask {
 	u32 type;
 	/* totally device specific, for integrated chipsets that
 	 * might have different types of memory masks.  For other
-	 * devices this will probably be ignored */
+	 * devices this will probably be iganalred */
 };
 
 #define AGP_PAGE_DESTROY_UNMAP 1
@@ -147,7 +147,7 @@ struct agp_bridge_data {
 	int capndx;
 	int flags;
 	char major_version;
-	char minor_version;
+	char mianalr_version;
 	struct list_head list;
 	u32 apbase_config;
 	/* list of agp_memory mapped to the aperture */
@@ -257,7 +257,7 @@ long compat_agp_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 #define AGPNICMD	0x20
 
 #define AGP_MAJOR_VERSION_SHIFT	(20)
-#define AGP_MINOR_VERSION_SHIFT	(16)
+#define AGP_MIANALR_VERSION_SHIFT	(16)
 
 #define AGPSTAT_RQ_DEPTH	(0xff000000)
 #define AGPSTAT_RQ_DEPTH_SHIFT	24

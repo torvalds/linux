@@ -122,7 +122,7 @@ static int hi6210_i2s_startup(struct snd_pcm_substream *substream,
 	regmap_write(i2s->sysctrl, SC_PERIPH_RSTEN1, BIT(5));
 	regmap_write(i2s->sysctrl, SC_PERIPH_RSTDIS1, BIT(5));
 
-	/* not interested in i2s irqs */
+	/* analt interested in i2s irqs */
 	val = hi6210_read_reg(i2s, HII2S_CODEC_IRQ_MASK);
 	val |= 0x3f;
 	hi6210_write_reg(i2s, HII2S_CODEC_IRQ_MASK, val);
@@ -145,7 +145,7 @@ static int hi6210_i2s_startup(struct snd_pcm_substream *substream,
 	hi6210_write_reg(i2s, HII2S_SW_RST_N, val);
 
 	val = hi6210_read_reg(i2s, HII2S_MISC_CFG);
-	/* mux 11/12 = APB not i2s */
+	/* mux 11/12 = APB analt i2s */
 	val &= ~HII2S_MISC_CFG__ST_DL_TEST_SEL;
 	/* BT R ch  0 = mixer op of DACR ch */
 	val &= ~HII2S_MISC_CFG__S2_DOUT_RIGHT_SEL;
@@ -491,7 +491,7 @@ static int hi6210_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			hi6210_i2s_txctrl(cpu_dai, 0);
 		break;
 	default:
-		dev_err(cpu_dai->dev, "unknown cmd\n");
+		dev_err(cpu_dai->dev, "unkanalwn cmd\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -543,7 +543,7 @@ static const struct snd_soc_component_driver hi6210_i2s_i2s_comp = {
 
 static int hi6210_i2s_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct hi6210_i2s *i2s;
 	struct resource *res;
@@ -551,7 +551,7 @@ static int hi6210_i2s_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2s->dev = dev;
 	spin_lock_init(&i2s->lock);
@@ -565,7 +565,7 @@ static int hi6210_i2s_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, i2s);
 
-	i2s->sysctrl = syscon_regmap_lookup_by_phandle(node,
+	i2s->sysctrl = syscon_regmap_lookup_by_phandle(analde,
 						"hisilicon,sysctrl-syscon");
 	if (IS_ERR(i2s->sysctrl))
 		return PTR_ERR(i2s->sysctrl);

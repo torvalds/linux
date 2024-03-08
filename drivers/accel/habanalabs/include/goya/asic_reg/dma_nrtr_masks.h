@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DMA_NRTR_MASKS_H_
@@ -201,8 +201,8 @@
 #define DMA_NRTR_SCRAMB_EN_VAL_SHIFT                                 0
 #define DMA_NRTR_SCRAMB_EN_VAL_MASK                                  0x1
 
-/* DMA_NRTR_NON_LIN_SCRAMB */
-#define DMA_NRTR_NON_LIN_SCRAMB_EN_SHIFT                             0
-#define DMA_NRTR_NON_LIN_SCRAMB_EN_MASK                              0x1
+/* DMA_NRTR_ANALN_LIN_SCRAMB */
+#define DMA_NRTR_ANALN_LIN_SCRAMB_EN_SHIFT                             0
+#define DMA_NRTR_ANALN_LIN_SCRAMB_EN_MASK                              0x1
 
 #endif /* ASIC_REG_DMA_NRTR_MASKS_H_ */

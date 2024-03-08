@@ -15,7 +15,7 @@ BMIPS設備樹引導
 
   一些bootloaders只支持在內核鏡像開始地址處的單一入口點。而其它
   bootloaders將跳轉到ELF的開始地址處。兩種方案都支持的；因爲
-  CONFIG_BOOT_RAW=y and CONFIG_NO_EXCEPT_FILL=y, 所以第一條指令
+  CONFIG_BOOT_RAW=y and CONFIG_ANAL_EXCEPT_FILL=y, 所以第一條指令
   會立即跳轉到kernel_entry()入口處執行。
 
   與arch/arm情況(b)類似，dt感知的引導加載程序需要設置以下寄存器:

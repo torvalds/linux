@@ -165,7 +165,7 @@ int tegra_asoc_machine_init(struct snd_soc_pcm_runtime *rtd)
 		err = snd_soc_jack_add_gpios(&tegra_machine_hp_jack, 1,
 					     &tegra_machine_hp_jack_gpio);
 		if (err)
-			dev_err(rtd->dev, "HP GPIOs not added: %d\n", err);
+			dev_err(rtd->dev, "HP GPIOs analt added: %d\n", err);
 	}
 
 	if (machine->gpiod_hp_det && machine->asoc->add_headset_jack) {
@@ -185,7 +185,7 @@ int tegra_asoc_machine_init(struct snd_soc_pcm_runtime *rtd)
 		err = snd_soc_jack_add_gpios(&tegra_machine_headset_jack, 1,
 					     &tegra_machine_headset_jack_gpio);
 		if (err)
-			dev_err(rtd->dev, "Headset GPIOs not added: %d\n", err);
+			dev_err(rtd->dev, "Headset GPIOs analt added: %d\n", err);
 	}
 
 	if (machine->gpiod_mic_det && machine->asoc->add_mic_jack) {
@@ -202,7 +202,7 @@ int tegra_asoc_machine_init(struct snd_soc_pcm_runtime *rtd)
 		tegra_machine_mic_jack_gpio.data = machine;
 		tegra_machine_mic_jack_gpio.desc = machine->gpiod_mic_det;
 
-		if (of_property_read_bool(card->dev->of_node,
+		if (of_property_read_bool(card->dev->of_analde,
 					  "nvidia,coupled-mic-hp-det")) {
 			tegra_machine_mic_jack_gpio.desc = machine->gpiod_hp_det;
 			tegra_machine_mic_jack_gpio.jack_status_check = coupled_mic_hp_check;
@@ -211,7 +211,7 @@ int tegra_asoc_machine_init(struct snd_soc_pcm_runtime *rtd)
 		err = snd_soc_jack_add_gpios(&tegra_machine_mic_jack, 1,
 					     &tegra_machine_mic_jack_gpio);
 		if (err)
-			dev_err(rtd->dev, "Mic GPIOs not added: %d\n", err);
+			dev_err(rtd->dev, "Mic GPIOs analt added: %d\n", err);
 	}
 
 	return 0;
@@ -363,7 +363,7 @@ static int tegra_machine_hw_params(struct snd_pcm_substream *substream,
 
 	err = snd_soc_dai_set_sysclk(codec_dai, clk_id, mclk, SND_SOC_CLOCK_IN);
 	if (err < 0) {
-		dev_err(card->dev, "codec_dai clock not set: %d\n", err);
+		dev_err(card->dev, "codec_dai clock analt set: %d\n", err);
 		return err;
 	}
 
@@ -374,24 +374,24 @@ static const struct snd_soc_ops tegra_machine_snd_ops = {
 	.hw_params = tegra_machine_hw_params,
 };
 
-static void tegra_machine_node_release(void *of_node)
+static void tegra_machine_analde_release(void *of_analde)
 {
-	of_node_put(of_node);
+	of_analde_put(of_analde);
 }
 
-static struct device_node *
+static struct device_analde *
 tegra_machine_parse_phandle(struct device *dev, const char *name)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int err;
 
-	np = of_parse_phandle(dev->of_node, name, 0);
+	np = of_parse_phandle(dev->of_analde, name, 0);
 	if (!np) {
 		dev_err(dev, "Property '%s' missing or invalid\n", name);
 		return ERR_PTR(-EINVAL);
 	}
 
-	err = devm_add_action_or_reset(dev, tegra_machine_node_release, np);
+	err = devm_add_action_or_reset(dev, tegra_machine_analde_release, np);
 	if (err)
 		return ERR_PTR(err);
 
@@ -425,7 +425,7 @@ static int tegra_machine_register_codec(struct device *dev, const char *name)
 
 int tegra_asoc_machine_probe(struct platform_device *pdev)
 {
-	struct device_node *np_codec, *np_i2s, *np_ac97;
+	struct device_analde *np_codec, *np_i2s, *np_ac97;
 	const struct tegra_asoc_data *asoc;
 	struct device *dev = &pdev->dev;
 	struct tegra_machine *machine;
@@ -435,7 +435,7 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 
 	machine = devm_kzalloc(dev, sizeof(*machine), GFP_KERNEL);
 	if (!machine)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asoc = of_device_get_match_data(dev);
 	card = asoc->card;
@@ -495,8 +495,8 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 		if (IS_ERR(np_ac97))
 			return PTR_ERR(np_ac97);
 
-		card->dai_link->cpus->of_node = np_ac97;
-		card->dai_link->platforms->of_node = np_ac97;
+		card->dai_link->cpus->of_analde = np_ac97;
+		card->dai_link->platforms->of_analde = np_ac97;
 	} else {
 		np_codec = tegra_machine_parse_phandle(dev, "nvidia,audio-codec");
 		if (IS_ERR(np_codec))
@@ -506,9 +506,9 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 		if (IS_ERR(np_i2s))
 			return PTR_ERR(np_i2s);
 
-		card->dai_link->cpus->of_node = np_i2s;
-		card->dai_link->codecs->of_node = np_codec;
-		card->dai_link->platforms->of_node = np_i2s;
+		card->dai_link->cpus->of_analde = np_i2s;
+		card->dai_link->codecs->of_analde = np_codec;
+		card->dai_link->platforms->of_analde = np_i2s;
 	}
 
 	if (asoc->add_common_controls) {
@@ -548,10 +548,10 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If clock parents are not set in DT, configure here to use clk_out_1
+	 * If clock parents are analt set in DT, configure here to use clk_out_1
 	 * as mclk and extern1 as parent for Tegra30 and higher.
 	 */
-	if (!of_property_present(dev->of_node, "assigned-clock-parents") &&
+	if (!of_property_present(dev->of_analde, "assigned-clock-parents") &&
 	    !of_machine_is_compatible("nvidia,tegra20")) {
 		struct clk *clk_out_1, *clk_extern1;
 
@@ -607,7 +607,7 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * FIXME: There is some unknown dependency between audio MCLK disable
+	 * FIXME: There is some unkanalwn dependency between audio MCLK disable
 	 * and suspend-resume functionality on Tegra30, although audio MCLK is
 	 * only needed for audio.
 	 */
@@ -1012,7 +1012,7 @@ MODULE_AUTHOR("Anatol Pomozov <anatol@google.com>");
 MODULE_AUTHOR("Andrey Danin <danindrey@mail.ru>");
 MODULE_AUTHOR("Dmitry Osipenko <digetx@gmail.com>");
 MODULE_AUTHOR("Ion Agorria <ion@agorria.com>");
-MODULE_AUTHOR("Leon Romanovsky <leon@leon.nu>");
+MODULE_AUTHOR("Leon Romaanalvsky <leon@leon.nu>");
 MODULE_AUTHOR("Lucas Stach <dev@lynxeye.de>");
 MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");
 MODULE_AUTHOR("Marcel Ziswiler <marcel@ziswiler.com>");

@@ -6,8 +6,8 @@
  */
 
 /*
- * We do not have hardware single-stepping on ARM, This
- * effort is further complicated by the ARM not having a
+ * We do analt have hardware single-stepping on ARM, This
+ * effort is further complicated by the ARM analt having a
  * "next PC" register.  Instructions that change the PC
  * can't be safely single-stepped in a MP environment, so
  * we have a lot of work to do:
@@ -187,7 +187,7 @@ emulate_rd12rn16rm0rs8_rwflags(probes_opcode_t insn,
 }
 
 static void __kprobes
-emulate_rd12rn16rm0_rwflags_nopc(probes_opcode_t insn,
+emulate_rd12rn16rm0_rwflags_analpc(probes_opcode_t insn,
 	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	int rd = (insn >> 12) & 0xf;
@@ -214,7 +214,7 @@ emulate_rd12rn16rm0_rwflags_nopc(probes_opcode_t insn,
 }
 
 static void __kprobes
-emulate_rd16rn12rm0rs8_rwflags_nopc(probes_opcode_t insn,
+emulate_rd16rn12rm0rs8_rwflags_analpc(probes_opcode_t insn,
 	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
@@ -244,7 +244,7 @@ emulate_rd16rn12rm0rs8_rwflags_nopc(probes_opcode_t insn,
 }
 
 static void __kprobes
-emulate_rd12rm0_noflags_nopc(probes_opcode_t insn,
+emulate_rd12rm0_analflags_analpc(probes_opcode_t insn,
 	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	int rd = (insn >> 12) & 0xf;
@@ -264,7 +264,7 @@ emulate_rd12rm0_noflags_nopc(probes_opcode_t insn,
 }
 
 static void __kprobes
-emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(probes_opcode_t insn,
+emulate_rdlo12rdhi16rn0rm8_rwflags_analpc(probes_opcode_t insn,
 	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
@@ -295,17 +295,17 @@ emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(probes_opcode_t insn,
 }
 
 const union decode_action kprobes_arm_actions[NUM_PROBES_ARM_ACTIONS] = {
-	[PROBES_PRELOAD_IMM] = {.handler = probes_simulate_nop},
-	[PROBES_PRELOAD_REG] = {.handler = probes_simulate_nop},
+	[PROBES_PRELOAD_IMM] = {.handler = probes_simulate_analp},
+	[PROBES_PRELOAD_REG] = {.handler = probes_simulate_analp},
 	[PROBES_BRANCH_IMM] = {.handler = simulate_blx1},
 	[PROBES_MRS] = {.handler = simulate_mrs},
 	[PROBES_BRANCH_REG] = {.handler = simulate_blx2bx},
-	[PROBES_CLZ] = {.handler = emulate_rd12rm0_noflags_nopc},
+	[PROBES_CLZ] = {.handler = emulate_rd12rm0_analflags_analpc},
 	[PROBES_SATURATING_ARITHMETIC] = {
-		.handler = emulate_rd12rn16rm0_rwflags_nopc},
-	[PROBES_MUL1] = {.handler = emulate_rdlo12rdhi16rn0rm8_rwflags_nopc},
-	[PROBES_MUL2] = {.handler = emulate_rd16rn12rm0rs8_rwflags_nopc},
-	[PROBES_SWP] = {.handler = emulate_rd12rn16rm0_rwflags_nopc},
+		.handler = emulate_rd12rn16rm0_rwflags_analpc},
+	[PROBES_MUL1] = {.handler = emulate_rdlo12rdhi16rn0rm8_rwflags_analpc},
+	[PROBES_MUL2] = {.handler = emulate_rd16rn12rm0rs8_rwflags_analpc},
+	[PROBES_SWP] = {.handler = emulate_rd12rn16rm0_rwflags_analpc},
 	[PROBES_LDRSTRD] = {.handler = emulate_ldrdstrd},
 	[PROBES_LOAD_EXTRA] = {.handler = emulate_ldr},
 	[PROBES_LOAD] = {.handler = emulate_ldr},
@@ -316,19 +316,19 @@ const union decode_action kprobes_arm_actions[NUM_PROBES_ARM_ACTIONS] = {
 		.handler = emulate_rd12rn16rm0rs8_rwflags},
 	[PROBES_DATA_PROCESSING_IMM] = {
 		.handler = emulate_rd12rn16rm0rs8_rwflags},
-	[PROBES_MOV_HALFWORD] = {.handler = emulate_rd12rm0_noflags_nopc},
-	[PROBES_SEV] = {.handler = probes_emulate_none},
-	[PROBES_WFE] = {.handler = probes_simulate_nop},
-	[PROBES_SATURATE] = {.handler = emulate_rd12rn16rm0_rwflags_nopc},
-	[PROBES_REV] = {.handler = emulate_rd12rm0_noflags_nopc},
-	[PROBES_MMI] = {.handler = emulate_rd12rn16rm0_rwflags_nopc},
-	[PROBES_PACK] = {.handler = emulate_rd12rn16rm0_rwflags_nopc},
-	[PROBES_EXTEND] = {.handler = emulate_rd12rm0_noflags_nopc},
-	[PROBES_EXTEND_ADD] = {.handler = emulate_rd12rn16rm0_rwflags_nopc},
+	[PROBES_MOV_HALFWORD] = {.handler = emulate_rd12rm0_analflags_analpc},
+	[PROBES_SEV] = {.handler = probes_emulate_analne},
+	[PROBES_WFE] = {.handler = probes_simulate_analp},
+	[PROBES_SATURATE] = {.handler = emulate_rd12rn16rm0_rwflags_analpc},
+	[PROBES_REV] = {.handler = emulate_rd12rm0_analflags_analpc},
+	[PROBES_MMI] = {.handler = emulate_rd12rn16rm0_rwflags_analpc},
+	[PROBES_PACK] = {.handler = emulate_rd12rn16rm0_rwflags_analpc},
+	[PROBES_EXTEND] = {.handler = emulate_rd12rm0_analflags_analpc},
+	[PROBES_EXTEND_ADD] = {.handler = emulate_rd12rn16rm0_rwflags_analpc},
 	[PROBES_MUL_ADD_LONG] = {
-		.handler = emulate_rdlo12rdhi16rn0rm8_rwflags_nopc},
-	[PROBES_MUL_ADD] = {.handler = emulate_rd16rn12rm0rs8_rwflags_nopc},
-	[PROBES_BITFIELD] = {.handler = emulate_rd12rm0_noflags_nopc},
+		.handler = emulate_rdlo12rdhi16rn0rm8_rwflags_analpc},
+	[PROBES_MUL_ADD] = {.handler = emulate_rd16rn12rm0rs8_rwflags_analpc},
+	[PROBES_BITFIELD] = {.handler = emulate_rd12rm0_analflags_analpc},
 	[PROBES_BRANCH] = {.handler = simulate_bbl},
 	[PROBES_LDMSTM] = {.decoder = kprobe_decode_ldmstm}
 };

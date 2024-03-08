@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Asynchronous Cryptographic Hash operations.
+ * Asynchroanalus Cryptographic Hash operations.
  *
- * This is the implementation of the ahash (asynchronous hash) API.  It differs
- * from shash (synchronous hash) in that ahash supports asynchronous operations,
+ * This is the implementation of the ahash (asynchroanalus hash) API.  It differs
+ * from shash (synchroanalus hash) in that ahash supports asynchroanalus operations,
  * and it hashes data from scatterlists instead of virtually addressed buffers.
  *
  * The ahash API provides access to both ahash and shash algorithms.  The shash
@@ -224,15 +224,15 @@ int crypto_hash_walk_first(struct ahash_request *req,
 }
 EXPORT_SYMBOL_GPL(crypto_hash_walk_first);
 
-static int ahash_nosetkey(struct crypto_ahash *tfm, const u8 *key,
+static int ahash_analsetkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int keylen)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void ahash_set_needkey(struct crypto_ahash *tfm, struct ahash_alg *alg)
 {
-	if (alg->setkey != ahash_nosetkey &&
+	if (alg->setkey != ahash_analsetkey &&
 	    !(alg->halg.base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY))
 		crypto_ahash_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
 }
@@ -273,7 +273,7 @@ int crypto_ahash_init(struct ahash_request *req)
 	if (likely(tfm->using_shash))
 		return crypto_shash_init(prepare_shash_desc(req, tfm));
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
+		return -EANALKEY;
 	return crypto_ahash_alg(tfm)->init(req);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_init);
@@ -300,7 +300,7 @@ static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt,
 	gfp = (flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?  GFP_KERNEL : GFP_ATOMIC;
 	subreq = kmalloc(subreq_size, gfp);
 	if (!subreq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ahash_request_set_tfm(subreq, tfm);
 	ahash_request_set_callback(subreq, flags, cplt, req);
@@ -315,7 +315,7 @@ static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt,
 		state = kmalloc(crypto_ahash_statesize(tfm), gfp);
 		if (!state) {
 			kfree(subreq);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		crypto_ahash_export(req, state);
@@ -408,7 +408,7 @@ int crypto_ahash_digest(struct ahash_request *req)
 	}
 
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		err = -ENOKEY;
+		err = -EANALKEY;
 	else
 		err = alg->digest(req);
 
@@ -498,7 +498,7 @@ int crypto_ahash_import(struct ahash_request *req, const void *in)
 	if (likely(tfm->using_shash))
 		return crypto_shash_import(prepare_shash_desc(req, tfm), in);
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
+		return -EANALKEY;
 	return crypto_ahash_alg(tfm)->import(req, in);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_import);
@@ -565,7 +565,7 @@ static void crypto_ahash_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	seq_printf(m, "type         : ahash\n");
 	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
-					     "yes" : "no");
+					     "anal" : "anal");
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "digestsize   : %u\n",
 		   __crypto_hash_alg_common(alg)->digestsize);
@@ -656,7 +656,7 @@ struct crypto_ahash *crypto_clone_ahash(struct crypto_ahash *hash)
 		return nhash;
 	}
 
-	err = -ENOSYS;
+	err = -EANALSYS;
 	alg = crypto_ahash_alg(hash);
 	if (!alg->clone_tfm)
 		goto out_free_nhash;
@@ -691,7 +691,7 @@ static int ahash_prepare_alg(struct ahash_alg *alg)
 	if (!alg->finup)
 		alg->finup = ahash_def_finup;
 	if (!alg->setkey)
-		alg->setkey = ahash_nosetkey;
+		alg->setkey = ahash_analsetkey;
 
 	return 0;
 }
@@ -767,9 +767,9 @@ bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg)
 	if (alg->cra_type == &crypto_shash_type)
 		return crypto_shash_alg_has_setkey(__crypto_shash_alg(alg));
 
-	return __crypto_ahash_alg(alg)->setkey != ahash_nosetkey;
+	return __crypto_ahash_alg(alg)->setkey != ahash_analsetkey;
 }
 EXPORT_SYMBOL_GPL(crypto_hash_alg_has_setkey);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Asynchronous cryptographic hash type");
+MODULE_DESCRIPTION("Asynchroanalus cryptographic hash type");

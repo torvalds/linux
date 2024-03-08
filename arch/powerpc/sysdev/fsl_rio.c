@@ -6,7 +6,7 @@
  * Thomas Moll <thomas.moll@sysgo.com>
  * - fixed maintenance access routines, check for aligned access
  *
- * Copyright 2009 Integrated Device Technology, Inc.
+ * Copyright 2009 Integrated Device Techanallogy, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
  * - Added Port-Write message handling
  * - Added Machine Check exception handling
@@ -61,10 +61,10 @@
 #define RIWBAR_BADD_MASK	0x003FFFFF
 #define RIWAR_ENABLE		0x80000000
 #define RIWAR_TGINT_LOCAL	0x00F00000
-#define RIWAR_RDTYP_NO_SNOOP	0x00040000
-#define RIWAR_RDTYP_SNOOP	0x00050000
-#define RIWAR_WRTYP_NO_SNOOP	0x00004000
-#define RIWAR_WRTYP_SNOOP	0x00005000
+#define RIWAR_RDTYP_ANAL_SANALOP	0x00040000
+#define RIWAR_RDTYP_SANALOP	0x00050000
+#define RIWAR_WRTYP_ANAL_SANALOP	0x00004000
+#define RIWAR_WRTYP_SANALOP	0x00005000
 #define RIWAR_WRTYP_ALLOC	0x00006000
 #define RIWAR_SIZE_MASK		0x0000003F
 
@@ -345,12 +345,12 @@ static int fsl_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 			break;
 	}
 	if (i >= RIO_INB_ATMU_COUNT)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	out_be32(&priv->inb_atmu_regs[i].riwtar, lstart >> RIWTAR_TRAD_VAL_SHIFT);
 	out_be32(&priv->inb_atmu_regs[i].riwbar, rstart >> RIWBAR_BADD_VAL_SHIFT);
 	out_be32(&priv->inb_atmu_regs[i].riwar, RIWAR_ENABLE | RIWAR_TGINT_LOCAL |
-		RIWAR_RDTYP_SNOOP | RIWAR_WRTYP_SNOOP | (base_size_log - 1));
+		RIWAR_RDTYP_SANALOP | RIWAR_WRTYP_SANALOP | (base_size_log - 1));
 
 	return 0;
 }
@@ -380,7 +380,7 @@ static void fsl_unmap_inb_mem(struct rio_mport *mport, dma_addr_t lstart)
 
 void fsl_rio_port_error_handler(int offset)
 {
-	/*XXX: Error recovery is not implemented, we just clear errors */
+	/*XXX: Error recovery is analt implemented, we just clear errors */
 	out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR), 0);
 
 	if (offset == 0) {
@@ -406,7 +406,7 @@ static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 			str = "4";
 			break;
 		default:
-			str = "Unknown";
+			str = "Unkanalwn";
 			break;
 		}
 		dev_info(dev, "Hardware port width: %s\n", str);
@@ -422,7 +422,7 @@ static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 			str = "Four-lane";
 			break;
 		default:
-			str = "Unknown";
+			str = "Unkanalwn";
 			break;
 		}
 		dev_info(dev, "Training connection status: %s\n", str);
@@ -451,28 +451,28 @@ static int fsl_rio_setup(struct platform_device *dev)
 	int rc = 0;
 	const u32 *port_index;
 	u32 active_ports = 0;
-	struct device_node *np, *rmu_node;
+	struct device_analde *np, *rmu_analde;
 	u32 ccsr;
 	u64 range_start;
 	u32 i;
 	static int tmp;
-	struct device_node *rmu_np[MAX_MSG_UNIT_NUM] = {NULL};
+	struct device_analde *rmu_np[MAX_MSG_UNIT_NUM] = {NULL};
 
-	if (!dev->dev.of_node) {
-		dev_err(&dev->dev, "Device OF-Node is NULL");
-		return -ENODEV;
+	if (!dev->dev.of_analde) {
+		dev_err(&dev->dev, "Device OF-Analde is NULL");
+		return -EANALDEV;
 	}
 
-	rio_regs_win = of_iomap(dev->dev.of_node, 0);
+	rio_regs_win = of_iomap(dev->dev.of_analde, 0);
 	if (!rio_regs_win) {
 		dev_err(&dev->dev, "Unable to map rio register window\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_rio_regs;
 	}
 
 	ops = kzalloc(sizeof(struct rio_ops), GFP_KERNEL);
 	if (!ops) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_ops;
 	}
 	ops->lcread = fsl_local_config_read;
@@ -491,36 +491,36 @@ static int fsl_rio_setup(struct platform_device *dev)
 	ops->map_inb = fsl_map_inb_mem;
 	ops->unmap_inb = fsl_unmap_inb_mem;
 
-	rmu_node = of_parse_phandle(dev->dev.of_node, "fsl,srio-rmu-handle", 0);
-	if (!rmu_node) {
-		dev_err(&dev->dev, "No valid fsl,srio-rmu-handle property\n");
-		rc = -ENOENT;
+	rmu_analde = of_parse_phandle(dev->dev.of_analde, "fsl,srio-rmu-handle", 0);
+	if (!rmu_analde) {
+		dev_err(&dev->dev, "Anal valid fsl,srio-rmu-handle property\n");
+		rc = -EANALENT;
 		goto err_rmu;
 	}
-	rmu_regs_win = of_iomap(rmu_node, 0);
+	rmu_regs_win = of_iomap(rmu_analde, 0);
 
-	of_node_put(rmu_node);
+	of_analde_put(rmu_analde);
 	if (!rmu_regs_win) {
 		dev_err(&dev->dev, "Unable to map rmu register window\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_rmu;
 	}
-	for_each_compatible_node(np, NULL, "fsl,srio-msg-unit") {
+	for_each_compatible_analde(np, NULL, "fsl,srio-msg-unit") {
 		rmu_np[tmp] = np;
 		tmp++;
 	}
 
-	/*set up doobell node*/
-	np = of_find_compatible_node(NULL, NULL, "fsl,srio-dbell-unit");
+	/*set up doobell analde*/
+	np = of_find_compatible_analde(NULL, NULL, "fsl,srio-dbell-unit");
 	if (!np) {
-		dev_err(&dev->dev, "No fsl,srio-dbell-unit node\n");
-		rc = -ENODEV;
+		dev_err(&dev->dev, "Anal fsl,srio-dbell-unit analde\n");
+		rc = -EANALDEV;
 		goto err_dbell;
 	}
 	dbell = kzalloc(sizeof(struct fsl_rio_dbell), GFP_KERNEL);
 	if (!(dbell)) {
 		dev_err(&dev->dev, "Can't alloc memory for 'fsl_rio_dbell'\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_dbell;
 	}
 	dbell->dev = &dev->dev;
@@ -530,23 +530,23 @@ static int fsl_rio_setup(struct platform_device *dev)
 	if (of_property_read_reg(np, 0, &range_start, NULL)) {
 		pr_err("%pOF: unable to find 'reg' property\n",
 			np);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_pw;
 	}
 	dbell->dbell_regs = (struct rio_dbell_regs *)(rmu_regs_win +
 				(u32)range_start);
 
-	/*set up port write node*/
-	np = of_find_compatible_node(NULL, NULL, "fsl,srio-port-write-unit");
+	/*set up port write analde*/
+	np = of_find_compatible_analde(NULL, NULL, "fsl,srio-port-write-unit");
 	if (!np) {
-		dev_err(&dev->dev, "No fsl,srio-port-write-unit node\n");
-		rc = -ENODEV;
+		dev_err(&dev->dev, "Anal fsl,srio-port-write-unit analde\n");
+		rc = -EANALDEV;
 		goto err_pw;
 	}
 	pw = kzalloc(sizeof(struct fsl_rio_pw), GFP_KERNEL);
 	if (!(pw)) {
 		dev_err(&dev->dev, "Can't alloc memory for 'fsl_rio_pw'\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_pw;
 	}
 	pw->dev = &dev->dev;
@@ -555,13 +555,13 @@ static int fsl_rio_setup(struct platform_device *dev)
 	if (of_property_read_reg(np, 0, &range_start, NULL)) {
 		pr_err("%pOF: unable to find 'reg' property\n",
 			np);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 	pw->pw_regs = (struct rio_pw_regs *)(rmu_regs_win + (u32)range_start);
 
-	/*set up ports node*/
-	for_each_child_of_node(dev->dev.of_node, np) {
+	/*set up ports analde*/
+	for_each_child_of_analde(dev->dev.of_analde, np) {
 		struct resource res;
 
 		port_index = of_get_property(np, "cell-index", NULL);
@@ -626,7 +626,7 @@ static int fsl_rio_setup(struct platform_device *dev)
 
 		/* Checking the port training status */
 		if (in_be32((priv->regs_win + RIO_ESCSR + i*0x20)) & 1) {
-			dev_err(&dev->dev, "Port %d is not ready. "
+			dev_err(&dev->dev, "Port %d is analt ready. "
 			"Try to restart connection...\n", i);
 			/* Disable ports */
 			out_be32(priv->regs_win
@@ -704,7 +704,7 @@ static int fsl_rio_setup(struct platform_device *dev)
 	}
 
 	if (!active_ports) {
-		rc = -ENOLINK;
+		rc = -EANALLINK;
 		goto err;
 	}
 
@@ -735,7 +735,7 @@ err_rio_regs:
 static int fsl_of_rio_rpn_probe(struct platform_device *dev)
 {
 	printk(KERN_INFO "Setting up RapidIO peer-to-peer network %pOF\n",
-			dev->dev.of_node);
+			dev->dev.of_analde);
 
 	return fsl_rio_setup(dev);
 };

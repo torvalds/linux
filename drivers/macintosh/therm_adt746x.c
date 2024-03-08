@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -55,7 +55,7 @@ static int limit_adjust;
 static int fan_speed = -1;
 static bool verbose;
 
-MODULE_AUTHOR("Colin Leroy <colin@colino.net>");
+MODULE_AUTHOR("Colin Leroy <colin@colianal.net>");
 MODULE_DESCRIPTION("Driver for ADT746x thermostat in iBook G4 and "
 		   "Powerbook G4 Alu");
 MODULE_LICENSE("GPL");
@@ -104,7 +104,7 @@ write_reg(struct thermostat* th, int reg, u8 data)
 	if (rc < 0)
 		return rc;
 	if (rc != 2)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -119,7 +119,7 @@ read_reg(struct thermostat* th, int reg)
 	if (rc < 0)
 		return rc;
 	if (rc != 1)
-		return -ENODEV;
+		return -EANALDEV;
 	rc = i2c_master_recv(th->clt, (char *)&data, 1);
 	if (rc < 0)
 		return rc;
@@ -261,7 +261,7 @@ static void update_fans_speed (struct thermostat *th)
 			write_both_fan_speed(th, new_speed);
 			th->last_var[fan_number] = var;
 		} else if (var < -2) {
-			/* don't stop fan if sensor2 is cold and sensor1 is not
+			/* don't stop fan if sensor2 is cold and sensor1 is analt
 			 * so cold (lastvar >= -1) */
 			if (i == 2 && lastvar < -1) {
 				if (th->last_speed[fan_number] != 0)
@@ -276,7 +276,7 @@ static void update_fans_speed (struct thermostat *th)
 
 		if (started)
 			return; /* we don't want to re-stop the fan
-				* if sensor1 is heating and sensor2 is not */
+				* if sensor1 is heating and sensor2 is analt */
 	}
 }
 
@@ -314,7 +314,7 @@ static void set_limit(struct thermostat *th, int i)
 	th->limits[i] = default_limits_chip[i] + limit_adjust;
 	write_reg(th, LIMIT_REG[i], th->limits[i]);
 		
-	/* set our limits to normal */
+	/* set our limits to analrmal */
 	th->limits[i] = default_limits_local[i] + limit_adjust;
 }
 
@@ -415,7 +415,7 @@ static DEVICE_ATTR(limit_adjust,	S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH,
 
 static void thermostat_create_files(struct thermostat *th)
 {
-	struct device_node *np = th->clt->dev.of_node;
+	struct device_analde *np = th->clt->dev.of_analde;
 	struct device *dev;
 	int err;
 
@@ -469,7 +469,7 @@ static void thermostat_remove_files(struct thermostat *th)
 static int probe_thermostat(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct thermostat* th;
 	const __be32 *prop;
 	int i, rc, vers, offset = 0;
@@ -500,7 +500,7 @@ static int probe_thermostat(struct i2c_client *client)
 
 	th = kzalloc(sizeof(struct thermostat), GFP_KERNEL);
 	if (!th)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, th);
 	th->clt = client;
@@ -510,7 +510,7 @@ static int probe_thermostat(struct i2c_client *client)
 	if (rc < 0) {
 		dev_err(&client->dev, "Thermostat failed to read config!\n");
 		kfree(th);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* force manual control to start the fan quieter */
@@ -554,10 +554,10 @@ static int probe_thermostat(struct i2c_client *client)
 	}
 	
 	th->thread = kthread_run(monitor_task, th, "kfand");
-	if (th->thread == ERR_PTR(-ENOMEM)) {
+	if (th->thread == ERR_PTR(-EANALMEM)) {
 		printk(KERN_INFO "adt746x: Kthread creation failed\n");
 		th->thread = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	thermostat_create_files(th);

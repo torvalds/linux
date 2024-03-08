@@ -59,7 +59,7 @@ static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
 	/* Find the NCSI channel */
 	ncsi_find_package_and_channel(ndp, h->common.channel, NULL, &nc);
 	if (!nc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Update the link status */
 	lsc = (struct ncsi_aen_lsc_pkt *)h;
@@ -105,7 +105,7 @@ static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
 	if (had_link) {
 		ncm = &nc->modes[NCSI_MODE_TX_ENABLE];
 		if (ncsi_channel_is_last(ndp, nc)) {
-			/* No channels left, reconfigure */
+			/* Anal channels left, reconfigure */
 			return ncsi_reset_dev(&ndp->ndev);
 		} else if (ncm->enable) {
 			/* Need to failover Tx channel */
@@ -146,7 +146,7 @@ static int ncsi_aen_handler_cr(struct ncsi_dev_priv *ndp,
 	/* Find the NCSI channel */
 	ncsi_find_package_and_channel(ndp, h->common.channel, NULL, &nc);
 	if (!nc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&nc->lock, flags);
 	if (!list_empty(&nc->link) ||
@@ -181,7 +181,7 @@ static int ncsi_aen_handler_hncdsc(struct ncsi_dev_priv *ndp,
 	/* Find the NCSI channel */
 	ncsi_find_package_and_channel(ndp, h->common.channel, NULL, &nc);
 	if (!nc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&nc->lock, flags);
 	ncm = &nc->modes[NCSI_MODE_LINK];
@@ -190,7 +190,7 @@ static int ncsi_aen_handler_hncdsc(struct ncsi_dev_priv *ndp,
 	spin_unlock_irqrestore(&nc->lock, flags);
 	netdev_dbg(ndp->ndev.dev,
 		   "NCSI: host driver %srunning on channel %u\n",
-		   ncm->data[3] & 0x1 ? "" : "not ", nc->id);
+		   ncm->data[3] & 0x1 ? "" : "analt ", nc->id);
 
 	return 0;
 }
@@ -224,13 +224,13 @@ int ncsi_aen_handler(struct ncsi_dev_priv *ndp, struct sk_buff *skb)
 	if (!nah) {
 		netdev_warn(ndp->ndev.dev, "Invalid AEN (0x%x) received\n",
 			    h->type);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ret = ncsi_validate_aen_pkt(h, nah->payload);
 	if (ret) {
 		netdev_warn(ndp->ndev.dev,
-			    "NCSI: 'bad' packet ignored for AEN type 0x%x\n",
+			    "NCSI: 'bad' packet iganalred for AEN type 0x%x\n",
 			    h->type);
 		goto out;
 	}

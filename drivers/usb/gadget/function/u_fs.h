@@ -24,7 +24,7 @@
 #  define pr_vdebug pr_debug
 #endif /* pr_vdebug */
 #  define ffs_dump_mem(prefix, ptr, len) \
-	print_hex_dump_bytes(pr_fmt(prefix ": "), DUMP_PREFIX_NONE, ptr, len)
+	print_hex_dump_bytes(pr_fmt(prefix ": "), DUMP_PREFIX_ANALNE, ptr, len)
 #else
 #ifndef pr_vdebug
 #  define pr_vdebug(...)                 do { } while (0)
@@ -73,9 +73,9 @@ enum ffs_state {
 	/*
 	 * Waiting for descriptors and strings.
 	 *
-	 * In this state no open(2), read(2) or write(2) on epfiles
-	 * may succeed (which should not be the problem as there
-	 * should be no such files opened in the first place).
+	 * In this state anal open(2), read(2) or write(2) on epfiles
+	 * may succeed (which should analt be the problem as there
+	 * should be anal such files opened in the first place).
 	 */
 	FFS_READ_DESCRIPTORS,
 	FFS_READ_STRINGS,
@@ -83,7 +83,7 @@ enum ffs_state {
 	/*
 	 * We've got descriptors and strings.  We are or have called
 	 * functionfs_ready_callback().  functionfs_bind() may have
-	 * been called but we don't know.
+	 * been called but we don't kanalw.
 	 *
 	 * This is the only state in which operations on epfiles may
 	 * succeed.
@@ -91,20 +91,20 @@ enum ffs_state {
 	FFS_ACTIVE,
 
 	/*
-	 * Function is visible to host, but it's not functional. All
-	 * setup requests are stalled and transfers on another endpoints
+	 * Function is visible to host, but it's analt functional. All
+	 * setup requests are stalled and transfers on aanalther endpoints
 	 * are refused. All epfiles, except ep0, are deleted so there
-	 * is no way to perform any operations on them.
+	 * is anal way to perform any operations on them.
 	 *
 	 * This state is set after closing all functionfs files, when
-	 * mount parameter "no_disconnect=1" has been set. Function will
+	 * mount parameter "anal_disconnect=1" has been set. Function will
 	 * remain in deactivated state until filesystem is umounted or
 	 * ep0 is opened again. In the second case functionfs state will
 	 * be reset, and it will be ready for descriptors and strings
 	 * writing.
 	 *
 	 * This is useful only when functionfs is composed to gadget
-	 * with another function which can perform some critical
+	 * with aanalther function which can perform some critical
 	 * operations, and it's strongly desired to have this operations
 	 * completed, even after functionfs files closure.
 	 */
@@ -117,9 +117,9 @@ enum ffs_state {
 	 * from user space we fail to initialise epfiles or
 	 * functionfs_ready_callback() returns with error (<0).
 	 *
-	 * In this state no open(2), read(2) or write(2) (both on ep0
+	 * In this state anal open(2), read(2) or write(2) (both on ep0
 	 * as well as epfile) may succeed (at this point epfiles are
-	 * unlinked and all closed so this is not a problem; ep0 is
+	 * unlinked and all closed so this is analt a problem; ep0 is
 	 * also closed but ep0 file exists and so open(2) on ep0 must
 	 * fail).
 	 */
@@ -127,8 +127,8 @@ enum ffs_state {
 };
 
 enum ffs_setup_state {
-	/* There is no setup request pending. */
-	FFS_NO_SETUP,
+	/* There is anal setup request pending. */
+	FFS_ANAL_SETUP,
 	/*
 	 * User has read events and there was a setup request event
 	 * there.  The next read/write on ep0 will handle the
@@ -163,10 +163,10 @@ struct ffs_data {
 	spinlock_t			eps_lock;
 
 	/*
-	 * XXX REVISIT do we need our own request? Since we are not
+	 * XXX REVISIT do we need our own request? Since we are analt
 	 * handling setup requests immediately user space may be so
-	 * slow that another setup will be sent to the gadget but this
-	 * time not to us but another function and then there could be
+	 * slow that aanalther setup will be sent to the gadget but this
+	 * time analt to us but aanalther function and then there could be
 	 * a race.  Is that the case? Or maybe we can use cdev->req
 	 * after all, maybe we just need some spinlock for that?
 	 */
@@ -183,12 +183,12 @@ struct ffs_data {
 
 	/*
 	 * Possible transitions:
-	 * + FFS_NO_SETUP        -> FFS_SETUP_PENDING  -- P: ev.waitq.lock
+	 * + FFS_ANAL_SETUP        -> FFS_SETUP_PENDING  -- P: ev.waitq.lock
 	 *               happens only in ep0 read which is P: mutex
-	 * + FFS_SETUP_PENDING   -> FFS_NO_SETUP       -- P: ev.waitq.lock
+	 * + FFS_SETUP_PENDING   -> FFS_ANAL_SETUP       -- P: ev.waitq.lock
 	 *               happens only in ep0 i/o  which is P: mutex
 	 * + FFS_SETUP_PENDING   -> FFS_SETUP_CANCELLED -- P: ev.waitq.lock
-	 * + FFS_SETUP_CANCELLED -> FFS_NO_SETUP        -- cmpxchg
+	 * + FFS_SETUP_CANCELLED -> FFS_ANAL_SETUP        -- cmpxchg
 	 *
 	 * This field should never be accessed directly and instead
 	 * ffs_setup_state_clear_cancelled function should be used.
@@ -275,7 +275,7 @@ struct ffs_data {
 
 	struct eventfd_ctx *ffs_eventfd;
 	struct workqueue_struct *io_completion_wq;
-	bool no_disconnect;
+	bool anal_disconnect;
 	struct work_struct reset_work;
 
 	/*
@@ -290,7 +290,7 @@ struct f_fs_opts {
 	struct usb_function_instance	func_inst;
 	struct ffs_dev			*dev;
 	unsigned			refcnt;
-	bool				no_configfs;
+	bool				anal_configfs;
 };
 
 static inline struct f_fs_opts *to_f_fs_opts(struct usb_function_instance *fi)

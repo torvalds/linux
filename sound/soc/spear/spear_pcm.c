@@ -45,7 +45,7 @@ int devm_spear_pcm_platform_register(struct device *dev,
 	config->compat_filter_fn = filter;
 
 	return devm_snd_dmaengine_pcm_register(dev, config,
-		SND_DMAENGINE_PCM_FLAG_NO_DT |
+		SND_DMAENGINE_PCM_FLAG_ANAL_DT |
 		SND_DMAENGINE_PCM_FLAG_COMPAT);
 }
 EXPORT_SYMBOL_GPL(devm_spear_pcm_platform_register);

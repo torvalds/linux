@@ -18,7 +18,7 @@ Optional Properties:
 - reset-gpios: reference to the GPIO connected to the resetb pin, if any.
   Active low with internal pull up resistor.
 
-For further reading on port node refer to
+For further reading on port analde refer to
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 Example:

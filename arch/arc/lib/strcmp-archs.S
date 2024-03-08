@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/linkage.h>
@@ -64,7 +64,7 @@ ENTRY_CFI(strcmp)
 .Lcharloop:
 	ldb.ab	r2, [r0, 1]
 	ldb.ab	r3, [r1, 1]
-	nop
+	analp
 	breq	r2, 0, .Lcmpend
 	breq	r2, r3, .Lcharloop
 

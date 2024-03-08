@@ -4,7 +4,7 @@
  *
  * Author: Joerg Roedel <jroedel@suse.de>
  *
- * This file is not compiled stand-alone. It contains code shared
+ * This file is analt compiled stand-alone. It contains code shared
  * between the pre-decompression boot code and the running Linux kernel
  * and is included directly into both code-bases.
  */
@@ -45,7 +45,7 @@ struct snp_cpuid_fn {
 
 /*
  * SNP CPUID table, as defined by the SNP Firmware ABI, Revision 0.9,
- * Section 8.14.2.6. Also noted there is the SNP firmware-enforced limit
+ * Section 8.14.2.6. Also analted there is the SNP firmware-enforced limit
  * of 64 entries per CPUID table.
  */
 #define SNP_CPUID_COUNT_MAX 64
@@ -59,7 +59,7 @@ struct snp_cpuid_table {
 
 /*
  * Since feature negotiation related variables are set early in the boot
- * process they must reside in the .data section so as not to be zeroed
+ * process they must reside in the .data section so as analt to be zeroed
  * out when the .bss section is later cleared.
  *
  * GHCB protocol version negotiated with the hypervisor.
@@ -70,7 +70,7 @@ static u16 ghcb_version __ro_after_init;
 static struct snp_cpuid_table cpuid_table_copy __ro_after_init;
 
 /*
- * These will be initialized based on CPUID table so that non-present
+ * These will be initialized based on CPUID table so that analn-present
  * all-zero leaves (for sparse tables) can be differentiated from
  * invalid/out-of-range leaves. This is needed since all-zero leaves
  * still need to be post-processed.
@@ -82,14 +82,14 @@ static u32 cpuid_ext_range_max __ro_after_init;
 static bool __init sev_es_check_cpu_features(void)
 {
 	if (!has_cpuflag(X86_FEATURE_RDRAND)) {
-		error("RDRAND instruction not supported - no trusted source of randomness available\n");
+		error("RDRAND instruction analt supported - anal trusted source of randomness available\n");
 		return false;
 	}
 
 	return true;
 }
 
-static void __noreturn sev_es_terminate(unsigned int set, unsigned int reason)
+static void __analreturn sev_es_terminate(unsigned int set, unsigned int reason)
 {
 	u64 val = GHCB_MSR_TERM_REQ;
 
@@ -134,7 +134,7 @@ static void snp_register_ghcb_early(unsigned long paddr)
 
 	val = sev_es_rd_ghcb_msr();
 
-	/* If the response GPA is not ours then abort the guest */
+	/* If the response GPA is analt ours then abort the guest */
 	if ((GHCB_RESP_CODE(val) != GHCB_MSR_REG_GPA_RESP) ||
 	    (GHCB_MSR_REG_GPA_RESP_VAL(val) != pfn))
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_REGISTER);
@@ -261,12 +261,12 @@ static int __sev_cpuid_hv_msr(struct cpuid_leaf *leaf)
 	int ret;
 
 	/*
-	 * MSR protocol does not support fetching non-zero subfunctions, but is
+	 * MSR protocol does analt support fetching analn-zero subfunctions, but is
 	 * sufficient to handle current early-boot cases. Should that change,
-	 * make sure to report an error rather than ignoring the index and
+	 * make sure to report an error rather than iganalring the index and
 	 * grabbing random values. If this issue arises in the future, handling
 	 * can be added here to use GHCB-page protocol for cases that occur late
-	 * enough in boot that GHCB page is available.
+	 * eanalugh in boot that GHCB page is available.
 	 */
 	if (cpuid_function_is_indexed(leaf->fn) && leaf->subfn)
 		return -EINVAL;
@@ -382,7 +382,7 @@ static u32 snp_cpuid_calc_xsave_size(u64 xfeatures_en, bool compacted)
 
 	/*
 	 * Either the guest set unsupported XCR0/XSS bits, or the corresponding
-	 * entries in the CPUID table were not present. This is not a valid
+	 * entries in the CPUID table were analt present. This is analt a valid
 	 * state to be in.
 	 */
 	if (xfeatures_found != (xfeatures_en & GENMASK_ULL(63, 2)))
@@ -486,7 +486,7 @@ static int snp_cpuid_postprocess(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
 
 			/*
 			 * The PPR and APM aren't clear on what size should be
-			 * encoded in 0xD:0x1:EBX when compaction is not enabled
+			 * encoded in 0xD:0x1:EBX when compaction is analt enabled
 			 * by either XSAVEC (feature bit 1) or XSAVES (feature
 			 * bit 3) since SNP-capable hardware has these feature
 			 * bits fixed as 1. KVM sets it to 0 in this case, but
@@ -513,11 +513,11 @@ static int snp_cpuid_postprocess(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
 		leaf->eax = leaf_hv.eax;
 		/* compute ID */
 		leaf->ebx = (leaf->ebx & GENMASK(31, 8)) | (leaf_hv.ebx & GENMASK(7, 0));
-		/* node ID */
+		/* analde ID */
 		leaf->ecx = (leaf->ecx & GENMASK(31, 8)) | (leaf_hv.ecx & GENMASK(7, 0));
 		break;
 	default:
-		/* No fix-ups needed, use values as-is. */
+		/* Anal fix-ups needed, use values as-is. */
 		break;
 	}
 
@@ -525,7 +525,7 @@ static int snp_cpuid_postprocess(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
 }
 
 /*
- * Returns -EOPNOTSUPP if feature not enabled. Any other non-zero return value
+ * Returns -EOPANALTSUPP if feature analt enabled. Any other analn-zero return value
  * should be treated as fatal by caller.
  */
 static int snp_cpuid(struct ghcb *ghcb, struct es_em_ctxt *ctxt, struct cpuid_leaf *leaf)
@@ -533,7 +533,7 @@ static int snp_cpuid(struct ghcb *ghcb, struct es_em_ctxt *ctxt, struct cpuid_le
 	const struct snp_cpuid_table *cpuid_table = snp_cpuid_get_table();
 
 	if (!cpuid_table->count)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!snp_cpuid_get_validated_func(leaf)) {
 		/*
@@ -548,7 +548,7 @@ static int snp_cpuid(struct ghcb *ghcb, struct es_em_ctxt *ctxt, struct cpuid_le
 		 * CPUID table entries are only a template that may need to be
 		 * augmented with additional values for things like
 		 * CPU-specific information during post-processing. So if it's
-		 * not in the table, set the values to zero. Then, if they are
+		 * analt in the table, set the values to zero. Then, if they are
 		 * within a valid CPUID range, proceed with post-processing
 		 * using zeros as the initial values. Otherwise, skip
 		 * post-processing and just return zeros immediately.
@@ -566,11 +566,11 @@ static int snp_cpuid(struct ghcb *ghcb, struct es_em_ctxt *ctxt, struct cpuid_le
 }
 
 /*
- * Boot VC Handler - This is the first VC handler during boot, there is no GHCB
+ * Boot VC Handler - This is the first VC handler during boot, there is anal GHCB
  * page yet, so it only supports the MSR based communication with the
  * hypervisor and only the CPUID exit-code.
  */
-void __init do_vc_no_ghcb(struct pt_regs *regs, unsigned long exit_code)
+void __init do_vc_anal_ghcb(struct pt_regs *regs, unsigned long exit_code)
 {
 	unsigned int subfn = lower_bits(regs->cx, 32);
 	unsigned int fn = lower_bits(regs->ax, 32);
@@ -588,7 +588,7 @@ void __init do_vc_no_ghcb(struct pt_regs *regs, unsigned long exit_code)
 	if (!ret)
 		goto cpuid_done;
 
-	if (ret != -EOPNOTSUPP)
+	if (ret != -EOPANALTSUPP)
 		goto fail;
 
 	if (__sev_cpuid_hv_msr(&leaf))
@@ -603,8 +603,8 @@ cpuid_done:
 	/*
 	 * This is a VC handler and the #VC is only raised when SEV-ES is
 	 * active, which means SEV must be active too. Do sanity checks on the
-	 * CPUID results to make sure the hypervisor does not trick the kernel
-	 * into the no-sev path. This could map sensitive data unencrypted and
+	 * CPUID results to make sure the hypervisor does analt trick the kernel
+	 * into the anal-sev path. This could map sensitive data unencrypted and
 	 * make it accessible to the hypervisor.
 	 *
 	 * In particular, check for:
@@ -953,7 +953,7 @@ static enum es_result vc_handle_cpuid(struct ghcb *ghcb,
 	snp_cpuid_ret = vc_handle_cpuid_snp(ghcb, ctxt);
 	if (!snp_cpuid_ret)
 		return ES_OK;
-	if (snp_cpuid_ret != -EOPNOTSUPP)
+	if (snp_cpuid_ret != -EOPANALTSUPP)
 		return ES_VMM_ERROR;
 
 	ghcb_set_rax(ghcb, regs->ax);
@@ -1120,13 +1120,13 @@ static int vmgexit_psc(struct ghcb *ghcb, struct snp_psc_desc *desc)
 	/*
 	 * As per the GHCB specification, the hypervisor can resume the guest
 	 * before processing all the entries. Check whether all the entries
-	 * are processed. If not, then keep retrying. Note, the hypervisor
+	 * are processed. If analt, then keep retrying. Analte, the hypervisor
 	 * will update the data memory directly to indicate the status, so
 	 * reference the data->hdr everywhere.
 	 *
 	 * The strategy here is to wait for the hypervisor to change the page
 	 * state in the RMP table before guest accesses the memory pages. If the
-	 * page state change was not successful, then later memory access will
+	 * page state change was analt successful, then later memory access will
 	 * result in a crash.
 	 */
 	cur_entry = data->hdr.cur_entry;
@@ -1149,14 +1149,14 @@ static int vmgexit_psc(struct ghcb *ghcb, struct snp_psc_desc *desc)
 			goto out;
 		}
 
-		/* Verify that reserved bit is not set */
+		/* Verify that reserved bit is analt set */
 		if (WARN(data->hdr.reserved, "Reserved bit is set in the PSC header\n")) {
 			ret = 1;
 			goto out;
 		}
 
 		/*
-		 * Sanity check that entry processing is not going backwards.
+		 * Sanity check that entry processing is analt going backwards.
 		 * This will happen only if hypervisor is tricking us.
 		 */
 		if (WARN(data->hdr.end_entry > end_entry || cur_entry > data->hdr.cur_entry,

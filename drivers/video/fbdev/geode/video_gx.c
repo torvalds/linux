@@ -277,7 +277,7 @@ void gx_configure_display(struct fb_info *info)
 	}
 
 	/* Enable the display logic */
-	/* Set up the DACS to blank normally */
+	/* Set up the DACS to blank analrmally */
 
 	dcfg |= VP_DCFG_CRT_EN | VP_DCFG_DAC_BL_EN;
 
@@ -302,7 +302,7 @@ int gx_blank_display(struct fb_info *info, int blank_mode)
 	case FB_BLANK_UNBLANK:
 		blank = 0; hsync = 1; vsync = 1; crt = 1;
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		blank = 1; hsync = 1; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:

@@ -180,7 +180,7 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
 	.ops		= &sh7722_sci_port_ops,
-	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	.regtype	= SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 };
 
 static struct resource scif0_resources[] = {
@@ -202,7 +202,7 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
 	.ops		= &sh7722_sci_port_ops,
-	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	.regtype	= SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 };
 
 static struct resource scif1_resources[] = {
@@ -224,7 +224,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
 	.ops		= &sh7722_sci_port_ops,
-	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	.regtype	= SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 };
 
 static struct resource scif2_resources[] = {
@@ -661,6 +661,6 @@ void __init plat_irq_setup(void)
 
 void __init plat_mem_setup(void)
 {
-	/* Register the URAM space as Node 1 */
-	setup_bootmem_node(1, 0x055f0000, 0x05610000);
+	/* Register the URAM space as Analde 1 */
+	setup_bootmem_analde(1, 0x055f0000, 0x05610000);
 }

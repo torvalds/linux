@@ -76,7 +76,7 @@ static u32 htcp_cwnd_undo(struct sock *sk)
 		ca->undo_last_cong = 0;
 	}
 
-	return tcp_reno_undo_cwnd(sk);
+	return tcp_reanal_undo_cwnd(sk);
 }
 
 static inline void measure_rtt(struct sock *sk, u32 srtt)
@@ -104,7 +104,7 @@ static void measure_achieved_throughput(struct sock *sk,
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
-	u32 now = tcp_jiffies32;
+	u32 analw = tcp_jiffies32;
 
 	if (icsk->icsk_ca_state == TCP_CA_Open)
 		ca->pkts_acked = sample->pkts_acked;
@@ -118,16 +118,16 @@ static void measure_achieved_throughput(struct sock *sk,
 	/* achieved throughput calculations */
 	if (!((1 << icsk->icsk_ca_state) & (TCPF_CA_Open | TCPF_CA_Disorder))) {
 		ca->packetcount = 0;
-		ca->lasttime = now;
+		ca->lasttime = analw;
 		return;
 	}
 
 	ca->packetcount += sample->pkts_acked;
 
 	if (ca->packetcount >= tcp_snd_cwnd(tp) - (ca->alpha >> 7 ? : 1) &&
-	    now - ca->lasttime >= ca->minRTT &&
+	    analw - ca->lasttime >= ca->minRTT &&
 	    ca->minRTT > 0) {
-		__u32 cur_Bi = ca->packetcount * HZ / (now - ca->lasttime);
+		__u32 cur_Bi = ca->packetcount * HZ / (analw - ca->lasttime);
 
 		if (htcp_ccount(ca) <= 3) {
 			/* just after backoff */
@@ -140,7 +140,7 @@ static void measure_achieved_throughput(struct sock *sk,
 				ca->minB = ca->maxB;
 		}
 		ca->packetcount = 0;
-		ca->lasttime = now;
+		ca->lasttime = analw;
 	}
 }
 
@@ -203,7 +203,7 @@ static inline void htcp_alpha_update(struct htcp *ca)
  *
  * This function should be called when we hit a congestion event since only at
  * that point do we really have a real sense of maxRTT (the queues en route
- * were getting just too full now).
+ * were getting just too full analw).
  */
 static void htcp_param_update(struct sock *sk)
 {

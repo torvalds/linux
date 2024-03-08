@@ -12,7 +12,7 @@ Switching modes is done using the video=sm712fb:... boot parameter.
 If you want, for example, enable a resolution of 1280x1024x24bpp you should
 pass to the kernel this command line: "video=sm712fb:0x31B".
 
-You should not compile-in vesafb.
+You should analt compile-in vesafb.
 
 Currently supported video modes are:
 

@@ -33,7 +33,7 @@ enum fnic_sgl_list_type {
 };
 
 enum fnic_ioreq_state {
-	FNIC_IOREQ_NOT_INITED = 0,
+	FNIC_IOREQ_ANALT_INITED = 0,
 	FNIC_IOREQ_CMD_PENDING,
 	FNIC_IOREQ_ABTS_PENDING,
 	FNIC_IOREQ_ABTS_COMPLETE,
@@ -57,7 +57,7 @@ struct fnic_io_req {
 };
 
 enum fnic_port_speeds {
-	DCEM_PORTSPEED_NONE = 0,
+	DCEM_PORTSPEED_ANALNE = 0,
 	DCEM_PORTSPEED_1G    = 1000,
 	DCEM_PORTSPEED_10G   = 10000,
 	DCEM_PORTSPEED_20G   = 20000,

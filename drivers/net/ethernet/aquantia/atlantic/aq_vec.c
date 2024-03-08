@@ -149,13 +149,13 @@ int aq_vec_ring_alloc(struct aq_vec_s *self, struct aq_nic_s *aq_nic,
 		if (xdp_rxq_info_reg(&ring->xdp_rxq,
 				     aq_nic->ndev, idx,
 				     self->napi.napi_id) < 0) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_exit;
 		}
 		if (xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
 					       MEM_TYPE_PAGE_SHARED, NULL) < 0) {
 			xdp_rxq_info_unreg(&ring->xdp_rxq);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_exit;
 		}
 
@@ -328,7 +328,7 @@ irqreturn_t aq_vec_isr(int irq, void *private)
 	napi_schedule(&self->napi);
 
 err_exit:
-	return err >= 0 ? IRQ_HANDLED : IRQ_NONE;
+	return err >= 0 ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 irqreturn_t aq_vec_isr_legacy(int irq, void *private)
@@ -338,10 +338,10 @@ irqreturn_t aq_vec_isr_legacy(int irq, void *private)
 	int err;
 
 	if (!self)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	err = self->aq_hw_ops->hw_irq_read(self->aq_hw, &irq_mask);
 	if (err < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (irq_mask) {
 		self->aq_hw_ops->hw_irq_disable(self->aq_hw,
@@ -349,7 +349,7 @@ irqreturn_t aq_vec_isr_legacy(int irq, void *private)
 		napi_schedule(&self->napi);
 	} else {
 		self->aq_hw_ops->hw_irq_enable(self->aq_hw, 1U);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;

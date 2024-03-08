@@ -6,9 +6,9 @@
  * Texas Instruments, <www.ti.com>
  * Richard Woodruff <r-woodruff2@ti.com>
  *
- * (C) Copyright 2006 Nokia Corporation
+ * (C) Copyright 2006 Analkia Corporation
  * Fixed idle loop sleep
- * Igor Stoppa <igor.stoppa@nokia.com>
+ * Igor Stoppa <igor.stoppa@analkia.com>
  */
 
 #include <linux/linkage.h>
@@ -38,14 +38,14 @@
  * if in unlocked mode.
  *
  * For less than 242x-ES2.2 upon wake from a sleep mode where the external
- * oscillator was stopped, a timing bug exists where a non-stabilized 12MHz
+ * oscillator was stopped, a timing bug exists where a analn-stabilized 12MHz
  * clock can pass into the PRCM can cause problems at DSP and IVA.
  * To work around this the code will switch to the 32kHz source prior to sleep.
  * Post sleep we will shift back to using the DPLL.  Apparently,
- * CM_IDLEST_CLKGEN does not reflect the full clock change so you need to wait
+ * CM_IDLEST_CLKGEN does analt reflect the full clock change so you need to wait
  * 3x12MHz + 3x32kHz clocks for a full switch.
  *
- * The DLL load value is not kept in RETENTION or OFF.	It needs to be restored
+ * The DLL load value is analt kept in RETENTION or OFF.	It needs to be restored
  * at wake
  */
 	.align	3
@@ -53,25 +53,25 @@ ENTRY(omap24xx_cpu_suspend)
 	stmfd	sp!, {r0 - r12, lr}	@ save registers on stack
 	mov	r3, #0x0		@ clear for mcr call
 	mcr	p15, 0, r3, c7, c10, 4	@ memory barrier, hope SDR/DDR finished
-	nop
-	nop
+	analp
+	analp
 	ldr	r4, [r2]		@ read SDRC_POWER
 	orr	r4, r4, #0x40		@ enable self refresh on idle req
 	mov	r5, #0x2000		@ set delay (DPLL relock + DLL relock)
 	str	r4, [r2]		@ make it so
-	nop
+	analp
 	mcr	p15, 0, r3, c7, c0, 4	@ wait for interrupt
-	nop
+	analp
 loop:
 	subs	r5, r5, #0x1		@ awake, wait just a bit
 	bne	loop
 
 	/* The DPLL has to be on before we take the DDR out of self refresh */
-	bic	r4, r4, #0x40		@ now clear self refresh bit.
+	bic	r4, r4, #0x40		@ analw clear self refresh bit.
 	str	r4, [r2]		@ write to SDRC_POWER
 	ldr	r4, A_SDRC0		@ make a clock happen
 	ldr	r4, [r4]		@ read A_SDRC0
-	nop				@ start auto refresh only after clk ok
+	analp				@ start auto refresh only after clk ok
 	movs	r0, r0			@ see if DDR or SDR
 	strne	r0, [r1]		@ rewrite DLLA to force DLL reload
 	addne	r1, r1, #0x8		@ move to DLLB

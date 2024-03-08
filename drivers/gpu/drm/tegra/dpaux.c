@@ -152,7 +152,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 			return -EINVAL;
 		}
 	} else {
-		/* For non-zero-sized messages, set the CMDLEN field. */
+		/* For analn-zero-sized messages, set the CMDLEN field. */
 		value = DPAUX_DP_AUXCTL_CMDLEN(msg->size - 1);
 	}
 
@@ -219,7 +219,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 
 	if ((value & DPAUX_DP_AUXSTAT_RX_ERROR) ||
 	    (value & DPAUX_DP_AUXSTAT_SINKSTAT_ERROR) ||
-	    (value & DPAUX_DP_AUXSTAT_NO_STOP_ERROR))
+	    (value & DPAUX_DP_AUXSTAT_ANAL_STOP_ERROR))
 		return -EIO;
 
 	switch ((value & DPAUX_DP_AUXSTAT_REPLY_TYPE_MASK) >> 16) {
@@ -350,7 +350,7 @@ static int tegra_dpaux_pad_config(struct tegra_dpaux *dpaux, unsigned function)
 		return 0;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
@@ -402,7 +402,7 @@ static const struct pinctrl_ops tegra_dpaux_pinctrl_ops = {
 	.get_groups_count = tegra_dpaux_get_groups_count,
 	.get_group_name = tegra_dpaux_get_group_name,
 	.get_group_pins = tegra_dpaux_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -452,7 +452,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 
 	dpaux = devm_kzalloc(&pdev->dev, sizeof(*dpaux), GFP_KERNEL);
 	if (!dpaux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpaux->soc = of_device_get_match_data(&pdev->dev);
 	INIT_WORK(&dpaux->work, tegra_dpaux_hotplug);
@@ -501,7 +501,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 
 	dpaux->vdd = devm_regulator_get_optional(&pdev->dev, "vdd");
 	if (IS_ERR(dpaux->vdd)) {
-		if (PTR_ERR(dpaux->vdd) != -ENODEV) {
+		if (PTR_ERR(dpaux->vdd) != -EANALDEV) {
 			if (PTR_ERR(dpaux->vdd) != -EPROBE_DEFER)
 				dev_err(&pdev->dev,
 					"failed to get VDD supply: %ld\n",
@@ -537,7 +537,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	 * so power them up and configure them in I2C mode.
 	 *
 	 * The DPAUX code paths reconfigure the pads in AUX mode, but there
-	 * is no possibility to perform the I2C mode configuration in the
+	 * is anal possibility to perform the I2C mode configuration in the
 	 * HDMI path.
 	 */
 	err = tegra_dpaux_pad_config(dpaux, DPAUX_PADCTL_FUNC_I2C);
@@ -583,7 +583,7 @@ static void tegra_dpaux_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&dpaux->work);
 
-	/* make sure pads are powered down when not in use */
+	/* make sure pads are powered down when analt in use */
 	tegra_dpaux_pad_power_down(dpaux);
 
 	pm_runtime_put_sync(&pdev->dev);
@@ -694,14 +694,14 @@ struct platform_driver tegra_dpaux_driver = {
 	.remove_new = tegra_dpaux_remove,
 };
 
-struct drm_dp_aux *drm_dp_aux_find_by_of_node(struct device_node *np)
+struct drm_dp_aux *drm_dp_aux_find_by_of_analde(struct device_analde *np)
 {
 	struct tegra_dpaux *dpaux;
 
 	mutex_lock(&dpaux_lock);
 
 	list_for_each_entry(dpaux, &dpaux_list, list)
-		if (np == dpaux->dev->of_node) {
+		if (np == dpaux->dev->of_analde) {
 			mutex_unlock(&dpaux_lock);
 			return &dpaux->aux;
 		}

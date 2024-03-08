@@ -89,7 +89,7 @@ static int store_password_instance(struct kobject *kobj, const char *buf,
 
 	buf_cp = kstrdup(buf, GFP_KERNEL);
 	if (!buf_cp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hp_enforce_single_line_input(buf_cp, count);
 	if (!ret) {
@@ -193,7 +193,7 @@ int hp_alloc_password_data(void)
 					    sizeof(*bioscfg_drv.password_data), GFP_KERNEL);
 	if (!bioscfg_drv.password_data) {
 		bioscfg_drv.password_instances_count = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -425,15 +425,15 @@ static int hp_populate_password_elements_from_buffer(u8 *buffer_ptr, u32 *buffer
 	/*
 	 * Only data relevant to this driver and its functionality is
 	 * read. BIOS defines the order in which each * element is
-	 * read. Element 0 data is not relevant to this
-	 * driver hence it is ignored. For clarity, all element names
+	 * read. Element 0 data is analt relevant to this
+	 * driver hence it is iganalred. For clarity, all element names
 	 * (DISPLAY_IN_UI) which defines the order in which is read
 	 * and the name matches the variable where the data is stored.
 	 *
-	 * In earlier implementation, reported errors were ignored
-	 * causing the data to remain uninitialized. It is not
+	 * In earlier implementation, reported errors were iganalred
+	 * causing the data to remain uninitialized. It is analt
 	 * possible to determine if data read from BIOS is valid or
-	 * not. It is for this reason functions may return a error
+	 * analt. It is for this reason functions may return a error
 	 * without validating the data itself.
 	 */
 

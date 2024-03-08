@@ -56,26 +56,26 @@ static phys_addr_t dram_sync_paddr;
 static u32 dram_sync_size;
 
 /*
- * The OMAP4 bus structure contains asynchronous bridges which can buffer
- * data writes from the MPU. These asynchronous bridges can be found on
+ * The OMAP4 bus structure contains asynchroanalus bridges which can buffer
+ * data writes from the MPU. These asynchroanalus bridges can be found on
  * paths between the MPU to EMIF, and the MPU to L3 interconnects.
  *
  * We need to be careful about re-ordering which can happen as a result
  * of different accesses being performed via different paths, and
- * therefore different asynchronous bridges.
+ * therefore different asynchroanalus bridges.
  */
 
 /*
  * OMAP4 interconnect barrier which is called for each mb() and wmb().
- * This is to ensure that normal paths to DRAM (normal memory, cacheable
+ * This is to ensure that analrmal paths to DRAM (analrmal memory, cacheable
  * accesses) are properly synchronised with writes to DMA coherent memory
- * (normal memory, uncacheable) and device writes.
+ * (analrmal memory, uncacheable) and device writes.
  *
  * The mb() and wmb() barriers only operate only on the MPU->MA->EMIF
  * path, as we need to ensure that data is visible to other system
  * masters prior to writes to those system masters being seen.
  *
- * Note: the SRAM path is not synchronised via mb() and wmb().
+ * Analte: the SRAM path is analt synchronised via mb() and wmb().
  */
 static void omap4_mb(void)
 {
@@ -84,12 +84,12 @@ static void omap4_mb(void)
 }
 
 /*
- * OMAP4 Errata i688 - asynchronous bridge corruption when entering WFI.
+ * OMAP4 Errata i688 - asynchroanalus bridge corruption when entering WFI.
  *
- * If a data is stalled inside asynchronous bridge because of back
+ * If a data is stalled inside asynchroanalus bridge because of back
  * pressure, it may be accepted multiple times, creating pointer
  * misalignment that will corrupt next transfers on that data path until
- * next reset of the system. No recovery procedure once the issue is hit,
+ * next reset of the system. Anal recovery procedure once the issue is hit,
  * the path remains consistently broken.
  *
  * Async bridges can be found on paths between MPU to EMIF and MPU to L3
@@ -105,7 +105,7 @@ static void omap4_mb(void)
  * access is performed to the target right before executing the WFI.
  *
  * In MPU case, L3 T2ASYNC FIFO and DDR T2ASYNC FIFO needs to be drained.
- * IO barrier ensure that there is no synchronisation loss on initiators
+ * IO barrier ensure that there is anal synchronisation loss on initiators
  * operating on both interconnect port simultaneously.
  *
  * This is a stronger version of the OMAP4 memory barrier below, and
@@ -123,13 +123,13 @@ void omap_interconnect_sync(void)
 
 static int __init omap4_sram_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct gen_pool *sram_pool;
 
 	if (!soc_is_omap44xx() && !soc_is_omap54xx())
 		return 0;
 
-	np = of_find_compatible_node(NULL, NULL, "ti,omap4-mpu");
+	np = of_find_compatible_analde(NULL, NULL, "ti,omap4-mpu");
 	if (!np)
 		pr_warn("%s:Unable to allocate sram needed to handle errata I688\n",
 			__func__);
@@ -139,7 +139,7 @@ static int __init omap4_sram_init(void)
 			__func__);
 	else
 		sram_sync = (void __iomem *)gen_pool_alloc(sram_pool, PAGE_SIZE);
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 }
@@ -238,11 +238,11 @@ void omap4_l2c310_write_sec(unsigned long val, unsigned reg)
 		break;
 
 	case L310_POWER_CTRL:
-		pr_info_once("OMAP L2C310: ROM does not support power control setting\n");
+		pr_info_once("OMAP L2C310: ROM does analt support power control setting\n");
 		return;
 
 	default:
-		WARN_ONCE(1, "OMAP L2C310: ignoring write to reg 0x%x\n", reg);
+		WARN_ONCE(1, "OMAP L2C310: iganalring write to reg 0x%x\n", reg);
 		return;
 	}
 
@@ -254,7 +254,7 @@ int __init omap_l2_cache_init(void)
 	/* Static mapping, never released */
 	l2cache_base = ioremap(OMAP44XX_L2CACHE_BASE, SZ_4K);
 	if (WARN_ON(!l2cache_base))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 #endif
@@ -266,7 +266,7 @@ void __iomem *omap4_get_sar_ram_base(void)
 
 /*
  * SAR RAM used to save and restore the HW context in low power modes.
- * Note that we need to initialize this very early for kexec. See
+ * Analte that we need to initialize this very early for kexec. See
  * omap4_mpuss_early_init().
  */
 void __init omap4_sar_ram_init(void)
@@ -296,15 +296,15 @@ static const struct of_device_id intc_match[] = {
 	{ },
 };
 
-static struct device_node *intc_node;
+static struct device_analde *intc_analde;
 
 void __init omap_gic_of_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	intc_node = of_find_matching_node(NULL, intc_match);
-	if (WARN_ON(!intc_node)) {
-		pr_err("No WUGEN found in DT, system will misbehave.\n");
+	intc_analde = of_find_matching_analde(NULL, intc_match);
+	if (WARN_ON(!intc_analde)) {
+		pr_err("Anal WUGEN found in DT, system will misbehave.\n");
 		pr_err("UPDATE YOUR DEVICE TREE!\n");
 	}
 
@@ -312,14 +312,14 @@ void __init omap_gic_of_init(void)
 	if (!cpu_is_omap446x())
 		goto skip_errata_init;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-gic");
+	np = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-gic");
 	gic_dist_base_addr = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	WARN_ON(!gic_dist_base_addr);
 
-	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-twd-timer");
+	np = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-twd-timer");
 	twd_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	WARN_ON(!twd_base);
 
 skip_errata_init:

@@ -16,9 +16,9 @@
 #include "megaraid_mm.h"
 
 
-// Entry points for char node driver
+// Entry points for char analde driver
 static DEFINE_MUTEX(mraid_mm_mutex);
-static int mraid_mm_open(struct inode *, struct file *);
+static int mraid_mm_open(struct ianalde *, struct file *);
 static long mraid_mm_unlocked_ioctl(struct file *, uint, unsigned long);
 
 
@@ -66,24 +66,24 @@ static const struct file_operations lsi_fops = {
 	.unlocked_ioctl = mraid_mm_unlocked_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 	.owner	= THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static struct miscdevice megaraid_mm_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.name   = "megadev0",
 	.fops   = &lsi_fops,
 };
 
 /**
- * mraid_mm_open - open routine for char node interface
- * @inode	: unused
+ * mraid_mm_open - open routine for char analde interface
+ * @ianalde	: unused
  * @filep	: unused
  *
  * Allow ioctl operations by apps only if they have superuser privilege.
  */
 static int
-mraid_mm_open(struct inode *inode, struct file *filep)
+mraid_mm_open(struct ianalde *ianalde, struct file *filep)
 {
 	/*
 	 * Only allow superuser to access private ioctl interface
@@ -95,7 +95,7 @@ mraid_mm_open(struct inode *inode, struct file *filep)
 
 /**
  * mraid_mm_ioctl - module entry-point for ioctls
- * @filep	: file operations pointer (ignored)
+ * @filep	: file operations pointer (iganalred)
  * @cmd		: ioctl command
  * @arg		: user ioctl packet
  */
@@ -141,7 +141,7 @@ mraid_mm_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	/*
 	 * If it is a driver ioctl (as opposed to fw ioctls), then we can
-	 * handle the command locally. rval > 0 means it is not a drvr cmd
+	 * handle the command locally. rval > 0 means it is analt a drvr cmd
 	 */
 	rval = handle_drvrcmd(argp, old_ioctl, &drvrcmd_rval);
 
@@ -161,7 +161,7 @@ mraid_mm_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	 */
 	if (!adp->quiescent) {
 		con_log(CL_ANN, (KERN_WARNING
-			"megaraid cmm: controller cannot accept cmds due to "
+			"megaraid cmm: controller cananalt accept cmds due to "
 			"earlier errors\n" ));
 		return -EFAULT;
 	}
@@ -187,7 +187,7 @@ mraid_mm_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	/*
 	 * Issue the IOCTL to the low level driver. After the IOCTL completes
-	 * release the kioc if and only if it was _not_ timedout. If it was
+	 * release the kioc if and only if it was _analt_ timedout. If it was
 	 * timedout, that means that resources are still with low level driver.
 	 */
 	if ((rval = lld_ioctl(adp, kioc))) {
@@ -236,7 +236,7 @@ mraid_mm_get_adapter(mimd_t __user *umimd, int *rval)
 {
 	mraid_mmadp_t	*adapter;
 	mimd_t		mimd;
-	uint32_t	adapno;
+	uint32_t	adapanal;
 	int		iterator;
 	bool		is_found;
 
@@ -245,10 +245,10 @@ mraid_mm_get_adapter(mimd_t __user *umimd, int *rval)
 		return NULL;
 	}
 
-	adapno = GETADAP(mimd.ui.fcs.adapno);
+	adapanal = GETADAP(mimd.ui.fcs.adapanal);
 
-	if (adapno >= adapters_count_g) {
-		*rval = -ENODEV;
+	if (adapanal >= adapters_count_g) {
+		*rval = -EANALDEV;
 		return NULL;
 	}
 
@@ -257,14 +257,14 @@ mraid_mm_get_adapter(mimd_t __user *umimd, int *rval)
 	is_found = false;
 
 	list_for_each_entry(adapter, &adapters_list_g, list) {
-		if (iterator++ == adapno) {
+		if (iterator++ == adapanal) {
 			is_found = true;
 			break;
 		}
 	}
 
 	if (!is_found) {
-		*rval = -ENODEV;
+		*rval = -EANALDEV;
 		return NULL;
 	}
 
@@ -275,7 +275,7 @@ mraid_mm_get_adapter(mimd_t __user *umimd, int *rval)
  * handle_drvrcmd - Checks if the opcode is a driver cmd and if it is, handles it.
  * @arg		: packet sent by the user app
  * @old_ioctl	: mimd if 1; uioc otherwise
- * @rval	: pointer for command's returned value (not function status)
+ * @rval	: pointer for command's returned value (analt function status)
  */
 static int
 handle_drvrcmd(void __user *arg, uint8_t old_ioctl, int *rval)
@@ -291,7 +291,7 @@ handle_drvrcmd(void __user *arg, uint8_t old_ioctl, int *rval)
 		goto new_packet;
 
 new_packet:
-	return (-ENOTSUPP);
+	return (-EANALTSUPP);
 
 old_packet:
 	*rval = 0;
@@ -306,7 +306,7 @@ old_packet:
 	/*
 	 * If the opcode is 0x82 and the subopcode is either GET_DRVRVER or
 	 * GET_NUMADP, then we can handle. Otherwise we should return 1 to
-	 * indicate that we cannot handle this.
+	 * indicate that we cananalt handle this.
 	 */
 	if (opcode != 0x82)
 		return 1;
@@ -331,7 +331,7 @@ old_packet:
 		return 0;
 
 	default:
-		/* cannot handle */
+		/* cananalt handle */
 		return 1;
 	}
 
@@ -356,7 +356,7 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 	mbox64_t		*mbox64;
 	mbox_t			*mbox;
 	mraid_passthru_t	*pthru32;
-	uint32_t		adapno;
+	uint32_t		adapanal;
 	uint8_t			opcode;
 	uint8_t			subopcode;
 	mimd_t			mimd;
@@ -365,7 +365,7 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 		return (-EFAULT);
 
 	/*
-	 * Applications are not allowed to send extd pthru
+	 * Applications are analt allowed to send extd pthru
 	 */
 	if ((mimd.mbox[0] == MBOXCMD_PASSTHRU64) ||
 			(mimd.mbox[0] == MBOXCMD_EXTPTHRU))
@@ -373,12 +373,12 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 
 	opcode		= mimd.ui.fcs.opcode;
 	subopcode	= mimd.ui.fcs.subopcode;
-	adapno		= GETADAP(mimd.ui.fcs.adapno);
+	adapanal		= GETADAP(mimd.ui.fcs.adapanal);
 
-	if (adapno >= adapters_count_g)
-		return (-ENODEV);
+	if (adapanal >= adapters_count_g)
+		return (-EANALDEV);
 
-	kioc->adapno	= adapno;
+	kioc->adapanal	= adapanal;
 	kioc->mb_type	= MBOX_LEGACY;
 	kioc->app_type	= APPTYPE_MIMD;
 
@@ -393,7 +393,7 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 			kioc->xferlen	= sizeof(mraid_hba_info_t);
 
 			if (mraid_mm_attach_buf(adp, kioc, kioc->xferlen))
-				return (-ENOMEM);
+				return (-EANALMEM);
 		}
 		else {
 			con_log(CL_ANN, (KERN_WARNING
@@ -411,7 +411,7 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 		kioc->user_data		= mimd.ui.fcs.buffer;
 
 		if (mraid_mm_attach_buf(adp, kioc, kioc->xferlen))
-			return (-ENOMEM);
+			return (-EANALMEM);
 
 		if (mimd.outlen) kioc->data_dir  = UIOC_RD;
 		if (mimd.inlen) kioc->data_dir |= UIOC_WR;
@@ -427,7 +427,7 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 		kioc->user_data		= mimd.data;
 
 		if (mraid_mm_attach_buf(adp, kioc, kioc->xferlen))
-			return (-ENOMEM);
+			return (-EANALMEM);
 
 		if (mimd.outlen) kioc->data_dir  = UIOC_RD;
 		if (mimd.inlen) kioc->data_dir |= UIOC_WR;
@@ -439,7 +439,7 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 	}
 
 	/*
-	 * If driver command, nothing else to do
+	 * If driver command, analthing else to do
 	 */
 	if (opcode == 0x82)
 		return 0;
@@ -500,7 +500,7 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
  * @xferlen	: required length for buffer
  *
  * First we search for a pool with smallest buffer that is >= @xferlen. If
- * that pool has no free buffer, we will try for the next bigger size. If none
+ * that pool has anal free buffer, we will try for the next bigger size. If analne
  * is available, we will try to allocate the smallest buffer that is >=
  * @xferlen and attach it the pool.
  */
@@ -557,8 +557,8 @@ mraid_mm_attach_buf(mraid_mmadp_t *adp, uioc_t *kioc, int xferlen)
 		return -EINVAL;
 
 	/*
-	 * We did not get any buffer from the preallocated pool. Let us try
-	 * to allocate one new buffer. NOTE: This is a blocking call.
+	 * We did analt get any buffer from the preallocated pool. Let us try
+	 * to allocate one new buffer. ANALTE: This is a blocking call.
 	 */
 	pool = &adp->dma_pool_list[right_pool];
 
@@ -571,7 +571,7 @@ mraid_mm_attach_buf(mraid_mmadp_t *adp, uioc_t *kioc, int xferlen)
 	spin_unlock_irqrestore(&pool->lock, flags);
 
 	if (!kioc->buf_vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -580,7 +580,7 @@ mraid_mm_attach_buf(mraid_mmadp_t *adp, uioc_t *kioc, int xferlen)
  * mraid_mm_alloc_kioc - Returns a uioc_t from free list
  * @adp	: Adapter softstate for this module
  *
- * The kioc_semaphore is initialized with number of kioc nodes in the
+ * The kioc_semaphore is initialized with number of kioc analdes in the
  * free kioc pool. If the kioc pool is empty, this function blocks till
  * a kioc becomes free.
  */
@@ -628,7 +628,7 @@ mraid_mm_alloc_kioc(mraid_mmadp_t *adp)
 /**
  * mraid_mm_dealloc_kioc - Return kioc to free pool
  * @adp		: Adapter softstate
- * @kioc	: uioc_t node to be returned to free pool
+ * @kioc	: uioc_t analde to be returned to free pool
  */
 static void
 mraid_mm_dealloc_kioc(mraid_mmadp_t *adp, uioc_t *kioc)
@@ -639,7 +639,7 @@ mraid_mm_dealloc_kioc(mraid_mmadp_t *adp, uioc_t *kioc)
 	if (kioc->pool_index != -1) {
 		pool = &adp->dma_pool_list[kioc->pool_index];
 
-		/* This routine may be called in non-isr context also */
+		/* This routine may be called in analn-isr context also */
 		spin_lock_irqsave(&pool->lock, flags);
 
 		/*
@@ -647,7 +647,7 @@ mraid_mm_dealloc_kioc(mraid_mmadp_t *adp, uioc_t *kioc)
 		 * required buffer from the pool, we would have allocated 
 		 * it at the run time and set the free_buf flag. We must 
 		 * free that buffer. Otherwise, just mark that the buffer is 
-		 * not in use
+		 * analt in use
 		 */
 		if (kioc->free_buf == 1)
 			dma_pool_free(pool->handle, kioc->buf_vaddr, 
@@ -680,7 +680,7 @@ lld_ioctl(mraid_mmadp_t *adp, uioc_t *kioc)
 	int			rval;
 	struct uioc_timeout	timeout = { };
 
-	kioc->status	= -ENODATA;
+	kioc->status	= -EANALDATA;
 	rval		= adp->issue_uioc(adp->drvr_data, kioc, IOCTL_ISSUE);
 
 	if (rval) return rval;
@@ -701,7 +701,7 @@ lld_ioctl(mraid_mmadp_t *adp, uioc_t *kioc)
 	 * Wait till the low level driver completes the ioctl. After this
 	 * call, the ioctl either completed successfully or timedout.
 	 */
-	wait_event(wait_q, (kioc->status != -ENODATA));
+	wait_event(wait_q, (kioc->status != -EANALDATA));
 	if (timeout.timer.function) {
 		del_timer_sync(&timeout.timer);
 		destroy_timer_on_stack(&timeout.timer);
@@ -726,17 +726,17 @@ lld_ioctl(mraid_mmadp_t *adp, uioc_t *kioc)
 static void
 ioctl_done(uioc_t *kioc)
 {
-	uint32_t	adapno;
+	uint32_t	adapanal;
 	int		iterator;
 	mraid_mmadp_t*	adapter;
 	bool		is_found;
 
 	/*
 	 * When the kioc returns from driver, make sure it still doesn't
-	 * have ENODATA in status. Otherwise, driver will hang on wait_event
+	 * have EANALDATA in status. Otherwise, driver will hang on wait_event
 	 * forever
 	 */
-	if (kioc->status == -ENODATA) {
+	if (kioc->status == -EANALDATA) {
 		con_log(CL_ANN, (KERN_WARNING
 			"megaraid cmm: lld didn't change status!\n"));
 
@@ -744,21 +744,21 @@ ioctl_done(uioc_t *kioc)
 	}
 
 	/*
-	 * Check if this kioc was timedout before. If so, nobody is waiting
+	 * Check if this kioc was timedout before. If so, analbody is waiting
 	 * on this kioc. We don't have to wake up anybody. Instead, we just
 	 * have to free the kioc
 	 */
 	if (kioc->timedout) {
 		iterator	= 0;
 		adapter		= NULL;
-		adapno		= kioc->adapno;
+		adapanal		= kioc->adapanal;
 		is_found	= false;
 
 		con_log(CL_ANN, ( KERN_WARNING "megaraid cmm: completed "
 					"ioctl that was timedout before\n"));
 
 		list_for_each_entry(adapter, &adapters_list_g, list) {
-			if (iterator++ == adapno) {
+			if (iterator++ == adapanal) {
 				is_found = true;
 				break;
 			}
@@ -916,7 +916,7 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 	adapter = kzalloc(sizeof(mraid_mmadp_t), GFP_KERNEL);
 
 	if (!adapter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	adapter->unique_id	= lld_adp->unique_id;
@@ -950,7 +950,7 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 			"megaraid cmm: out of memory, %s %d\n", __func__,
 			__LINE__));
 
-		rval = (-ENOMEM);
+		rval = (-EANALMEM);
 
 		goto memalloc_error;
 	}
@@ -977,7 +977,7 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 				"megaraid cmm: out of memory, %s %d\n",
 					__func__, __LINE__));
 
-			rval = (-ENOMEM);
+			rval = (-EANALMEM);
 
 			goto pthru_dma_pool_error;
 		}
@@ -997,7 +997,7 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 	return 0;
 
 dma_pool_error:
-	/* Do nothing */
+	/* Do analthing */
 
 pthru_dma_pool_error:
 
@@ -1031,7 +1031,7 @@ memalloc_error:
  * uniquely identify an adapter.
  *
  * Return adapter handle if found in the list.
- * Return 0 if adapter could not be located, should never happen though.
+ * Return 0 if adapter could analt be located, should never happen though.
  */
 uint32_t
 mraid_mm_adapter_app_handle(uint32_t unique_id)
@@ -1105,7 +1105,7 @@ mraid_mm_setup_dma_pools(mraid_mmadp_t *adp)
 dma_pool_setup_error:
 
 	mraid_mm_teardown_dma_pools(adp);
-	return (-ENOMEM);
+	return (-EANALMEM);
 }
 
 
@@ -1113,7 +1113,7 @@ dma_pool_setup_error:
  * mraid_mm_unregister_adp - Unregister routine for low level drivers
  * @unique_id	: UID of the adpater
  *
- * Assumes no outstanding ioctls to llds.
+ * Assumes anal outstanding ioctls to llds.
  */
 int
 mraid_mm_unregister_adp(uint32_t unique_id)
@@ -1142,7 +1142,7 @@ mraid_mm_unregister_adp(uint32_t unique_id)
 		}
 	}
 
-	return (-ENODEV);
+	return (-EANALDEV);
 }
 
 /**
@@ -1211,13 +1211,13 @@ mraid_mm_init(void)
 {
 	int err;
 
-	// Announce the driver version
+	// Ananalunce the driver version
 	con_log(CL_ANN, (KERN_INFO "megaraid cmm: %s %s\n",
 		LSI_COMMON_MOD_VERSION, LSI_COMMON_MOD_EXT_VERSION));
 
 	err = misc_register(&megaraid_mm_dev);
 	if (err < 0) {
-		con_log(CL_ANN, ("megaraid cmm: cannot register misc device\n"));
+		con_log(CL_ANN, ("megaraid cmm: cananalt register misc device\n"));
 		return err;
 	}
 

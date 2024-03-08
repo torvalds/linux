@@ -132,7 +132,7 @@ static int __init pcap_rtc_probe(struct platform_device *pdev)
 {
 	struct pcap_rtc *pcap_rtc;
 	int timer_irq, alarm_irq;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	pcap_rtc = devm_kzalloc(&pdev->dev, sizeof(struct pcap_rtc),
 				GFP_KERNEL);

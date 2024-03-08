@@ -29,7 +29,7 @@
  *    The macro "Fld" encodes a bit field, given its size and its shift value
  *    with respect to bit 0.
  *
- * Note
+ * Analte
  *    A more intuitive way to encode bit fields would have been to use their
  *    mask. However, extracting size and shift value information from a bit
  *    field's mask is cumbersome and might break the assembler (255-character

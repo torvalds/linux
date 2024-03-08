@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -39,7 +39,7 @@
 #include "en/xsk/tx.h"
 #include "en_accel/ktls_txrx.h"
 
-static inline bool mlx5e_channel_no_affinity_change(struct mlx5e_channel *c)
+static inline bool mlx5e_channel_anal_affinity_change(struct mlx5e_channel *c)
 {
 	int current_cpu = smp_processor_id();
 
@@ -73,16 +73,16 @@ static void mlx5e_handle_rx_dim(struct mlx5e_rq *rq)
 void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
-	struct mlx5e_tx_wqe *nopwqe;
+	struct mlx5e_tx_wqe *analpwqe;
 	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
-		.wqe_type   = MLX5E_ICOSQ_WQE_NOP,
+		.wqe_type   = MLX5E_ICOSQ_WQE_ANALP,
 		.num_wqebbs = 1,
 	};
 
-	nopwqe = mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
+	analpwqe = mlx5e_post_analp(wq, sq->sqn, &sq->pc);
+	mlx5e_analtify_hw(wq, sq->pc, sq->uar_map, &analpwqe->ctrl);
 }
 
 static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskrq)
@@ -90,14 +90,14 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskr
 	bool need_wakeup = xsk_uses_need_wakeup(xskrq->xsk_pool);
 	bool busy_xsk = false, xsk_rx_alloc_err;
 
-	/* If SQ is empty, there are no TX completions to trigger NAPI, so set
+	/* If SQ is empty, there are anal TX completions to trigger NAPI, so set
 	 * need_wakeup. Do it before queuing packets for TX to avoid race
 	 * condition with userspace.
 	 */
 	if (need_wakeup && xsksq->pc == xsksq->cc)
 		xsk_set_tx_need_wakeup(xsksq->xsk_pool);
 	busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
-	/* If we queued some packets for TX, no need for wakeup anymore. */
+	/* If we queued some packets for TX, anal need for wakeup anymore. */
 	if (need_wakeup && xsksq->pc != xsksq->cc)
 		xsk_clear_tx_need_wakeup(xsksq->xsk_pool);
 
@@ -110,7 +110,7 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskr
 					   mlx5e_post_rx_mpwqes,
 					   mlx5e_post_rx_wqes,
 					   xskrq);
-	/* Ask for wakeup if WQ is not full after refill. */
+	/* Ask for wakeup if WQ is analt full after refill. */
 	if (!need_wakeup)
 		busy_xsk |= xsk_rx_alloc_err;
 	else if (xsk_rx_alloc_err)
@@ -180,7 +180,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	mlx5e_poll_ico_cq(&c->icosq.cq);
 	if (mlx5e_poll_ico_cq(&c->async_icosq.cq))
-		/* Don't clear the flag if nothing was polled to prevent
+		/* Don't clear the flag if analthing was polled to prevent
 		 * queueing more WQEs and overflowing the async ICOSQ.
 		 */
 		clear_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->async_icosq.state);
@@ -201,7 +201,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	busy |= busy_xsk;
 
 	if (busy) {
-		if (likely(mlx5e_channel_no_affinity_change(c))) {
+		if (likely(mlx5e_channel_anal_affinity_change(c))) {
 			work_done = budget;
 			goto out;
 		}

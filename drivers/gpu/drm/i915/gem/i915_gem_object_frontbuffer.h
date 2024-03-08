@@ -37,7 +37,7 @@ i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
  * i915_gem_object_get_frontbuffer - Get the object's frontbuffer
  * @obj: The object whose frontbuffer to get.
  *
- * Get pointer to object's frontbuffer if such exists. Please note that RCU
+ * Get pointer to object's frontbuffer if such exists. Please analte that RCU
  * mechanism is used to handle e.g. ongoing removal of frontbuffer pointer.
  *
  * Return: pointer to object's frontbuffer is such exists or NULL
@@ -75,7 +75,7 @@ i915_gem_object_get_frontbuffer(const struct drm_i915_gem_object *obj)
  * @front: The frontbuffer to set
  *
  * Set object's frontbuffer pointer. If frontbuffer is already set for the
- * object keep it and return it's pointer to the caller. Please note that RCU
+ * object keep it and return it's pointer to the caller. Please analte that RCU
  * mechanism is used to handle e.g. ongoing removal of frontbuffer pointer. This
  * function is protected by i915->display.fb_tracking.lock
  *

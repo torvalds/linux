@@ -33,7 +33,7 @@ struct mtk_cpufreq_platform_data {
  * 100mV < Vsram - Vproc < 200mV
  *
  * When scaling the clock frequency of a CPU clock domain, the clock source
- * needs to be switched to another stable PLL clock temporarily until
+ * needs to be switched to aanalther stable PLL clock temporarily until
  * the original PLL becomes stable at target frequency.
  */
 struct mtk_cpu_dvfs_info {
@@ -49,9 +49,9 @@ struct mtk_cpu_dvfs_info {
 	bool need_voltage_tracking;
 	int vproc_on_boot;
 	int pre_vproc;
-	/* Avoid race condition for regulators between notify and policy */
+	/* Avoid race condition for regulators between analtify and policy */
 	struct mutex reg_lock;
-	struct notifier_block opp_nb;
+	struct analtifier_block opp_nb;
 	unsigned int opp_cpu;
 	unsigned long current_freq;
 	const struct mtk_cpufreq_platform_data *soc_data;
@@ -239,7 +239,7 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	dev_pm_opp_put(opp);
 
 	/*
-	 * If MediaTek cci is supported but is not ready, we will use the value
+	 * If MediaTek cci is supported but is analt ready, we will use the value
 	 * of max(target cpu voltage, booting voltage) to prevent high freqeuncy
 	 * low voltage crash.
 	 */
@@ -313,7 +313,7 @@ out:
 	return ret;
 }
 
-static int mtk_cpufreq_opp_notifier(struct notifier_block *nb,
+static int mtk_cpufreq_opp_analtifier(struct analtifier_block *nb,
 				    unsigned long event, void *data)
 {
 	struct dev_pm_opp *opp = data;
@@ -349,7 +349,7 @@ static int mtk_cpufreq_opp_notifier(struct notifier_block *nb,
 				dev_err(info->cpu_dev,
 					"all opp items are disabled\n");
 				ret = PTR_ERR(new_opp);
-				return notifier_from_errno(ret);
+				return analtifier_from_erranal(ret);
 			}
 
 			dev_pm_opp_put(new_opp);
@@ -362,22 +362,22 @@ static int mtk_cpufreq_opp_notifier(struct notifier_block *nb,
 		}
 	}
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
 static struct device *of_get_cci(struct device *cpu_dev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct platform_device *pdev;
 
-	np = of_parse_phandle(cpu_dev->of_node, "mediatek,cci", 0);
+	np = of_parse_phandle(cpu_dev->of_analde, "mediatek,cci", 0);
 	if (!np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	pdev = of_find_device_by_node(np);
-	of_node_put(np);
+	pdev = of_find_device_by_analde(np);
+	of_analde_put(np);
 	if (!pdev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return &pdev->dev;
 }
@@ -392,7 +392,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev) {
 		dev_err(cpu_dev, "failed to get cpu%d device\n", cpu);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	info->cpu_dev = cpu_dev;
 
@@ -402,7 +402,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 		if (IS_ERR(info->cci_dev)) {
 			ret = PTR_ERR(info->cci_dev);
 			dev_err(cpu_dev, "cpu%d: failed to get cci device\n", cpu);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -461,7 +461,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 
 	ret = dev_pm_opp_of_cpumask_add_table(&info->cpus);
 	if (ret) {
-		dev_warn(cpu_dev, "cpu%d: no OPP table\n", cpu);
+		dev_warn(cpu_dev, "cpu%d: anal OPP table\n", cpu);
 		goto out_disable_sram_reg;
 	}
 
@@ -498,10 +498,10 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	info->current_freq = clk_get_rate(info->cpu_clk);
 
 	info->opp_cpu = cpu;
-	info->opp_nb.notifier_call = mtk_cpufreq_opp_notifier;
-	ret = dev_pm_opp_register_notifier(cpu_dev, &info->opp_nb);
+	info->opp_nb.analtifier_call = mtk_cpufreq_opp_analtifier;
+	ret = dev_pm_opp_register_analtifier(cpu_dev, &info->opp_nb);
 	if (ret) {
-		dev_err(cpu_dev, "cpu%d: failed to register opp notifier\n", cpu);
+		dev_err(cpu_dev, "cpu%d: failed to register opp analtifier\n", cpu);
 		goto out_disable_inter_clock;
 	}
 
@@ -567,7 +567,7 @@ static void mtk_cpu_dvfs_info_release(struct mtk_cpu_dvfs_info *info)
 	clk_disable_unprepare(info->inter_clk);
 	clk_put(info->inter_clk);
 	dev_pm_opp_of_cpumask_remove_table(&info->cpus);
-	dev_pm_opp_unregister_notifier(info->cpu_dev, &info->opp_nb);
+	dev_pm_opp_unregister_analtifier(info->cpu_dev, &info->opp_nb);
 }
 
 static int mtk_cpufreq_init(struct cpufreq_policy *policy)
@@ -578,7 +578,7 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 
 	info = mtk_cpu_dvfs_info_lookup(policy->cpu);
 	if (!info) {
-		pr_err("dvfs info for cpu%d is not initialized.\n",
+		pr_err("dvfs info for cpu%d is analt initialized.\n",
 			policy->cpu);
 		return -EINVAL;
 	}
@@ -610,7 +610,7 @@ static int mtk_cpufreq_exit(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver mtk_cpufreq_driver = {
 	.flags = CPUFREQ_NEED_INITIAL_FREQ_CHECK |
-		 CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
+		 CPUFREQ_HAVE_GOVERANALR_PER_POLICY |
 		 CPUFREQ_IS_COOLING_DEV,
 	.verify = cpufreq_generic_frequency_table_verify,
 	.target_index = mtk_cpufreq_set_target,
@@ -632,7 +632,7 @@ static int mtk_cpufreq_probe(struct platform_device *pdev)
 	if (!data) {
 		dev_err(&pdev->dev,
 			"failed to get mtk cpufreq platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for_each_possible_cpu(cpu) {
@@ -642,7 +642,7 @@ static int mtk_cpufreq_probe(struct platform_device *pdev)
 
 		info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 		if (!info) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto release_dvfs_info_list;
 		}
 
@@ -754,20 +754,20 @@ MODULE_DEVICE_TABLE(of, mtk_cpufreq_machines);
 
 static int __init mtk_cpufreq_driver_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *match;
 	const struct mtk_cpufreq_platform_data *data;
 	int err;
 
-	np = of_find_node_by_path("/");
+	np = of_find_analde_by_path("/");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	match = of_match_node(mtk_cpufreq_machines, np);
-	of_node_put(np);
+	match = of_match_analde(mtk_cpufreq_machines, np);
+	of_analde_put(np);
 	if (!match) {
-		pr_debug("Machine is not compatible with mtk-cpufreq\n");
-		return -ENODEV;
+		pr_debug("Machine is analt compatible with mtk-cpufreq\n");
+		return -EANALDEV;
 	}
 	data = match->data;
 
@@ -776,7 +776,7 @@ static int __init mtk_cpufreq_driver_init(void)
 		return err;
 
 	/*
-	 * Since there's no place to hold device registration code and no
+	 * Since there's anal place to hold device registration code and anal
 	 * device tree based way to match cpufreq driver yet, both the driver
 	 * and the device registration codes are put here to handle defer
 	 * probing.

@@ -31,8 +31,8 @@
 /*
  * File operation functions
  */
-static int hfi1_file_open(struct inode *inode, struct file *fp);
-static int hfi1_file_close(struct inode *inode, struct file *fp);
+static int hfi1_file_open(struct ianalde *ianalde, struct file *fp);
+static int hfi1_file_close(struct ianalde *ianalde, struct file *fp);
 static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from);
 static __poll_t hfi1_poll(struct file *fp, struct poll_table_struct *pt);
 static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma);
@@ -82,7 +82,7 @@ static const struct file_operations hfi1_file_ops = {
 	.unlocked_ioctl = hfi1_file_ioctl,
 	.poll = hfi1_poll,
 	.mmap = hfi1_file_mmap,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static const struct vm_operations_struct vm_ops = {
@@ -143,17 +143,17 @@ static inline int is_valid_mmap(u64 token)
 	return (HFI1_MMAP_TOKEN_GET(MAGIC, token) == HFI1_MMAP_MAGIC);
 }
 
-static int hfi1_file_open(struct inode *inode, struct file *fp)
+static int hfi1_file_open(struct ianalde *ianalde, struct file *fp)
 {
 	struct hfi1_filedata *fd;
-	struct hfi1_devdata *dd = container_of(inode->i_cdev,
+	struct hfi1_devdata *dd = container_of(ianalde->i_cdev,
 					       struct hfi1_devdata,
 					       user_cdev);
 
 	if (!((dd->flags & HFI1_PRESENT) && dd->kregbase1))
 		return -EINVAL;
 
-	if (!refcount_inc_not_zero(&dd->user_refcount))
+	if (!refcount_inc_analt_zero(&dd->user_refcount))
 		return -ENXIO;
 
 	/* The real work is performed later in assign_ctxt() */
@@ -161,20 +161,20 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
 
 	if (!fd || init_srcu_struct(&fd->pq_srcu))
-		goto nomem;
+		goto analmem;
 	spin_lock_init(&fd->pq_rcu_lock);
 	spin_lock_init(&fd->tid_lock);
 	spin_lock_init(&fd->invalid_lock);
-	fd->rec_cpu_num = -1; /* no cpu affinity by default */
+	fd->rec_cpu_num = -1; /* anal cpu affinity by default */
 	fd->dd = dd;
 	fp->private_data = fd;
 	return 0;
-nomem:
+analmem:
 	kfree(fd);
 	fp->private_data = NULL;
 	if (refcount_dec_and_test(&dd->user_refcount))
 		complete(&dd->user_comp);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
@@ -280,7 +280,7 @@ static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 
 	if (atomic_read(&pq->n_reqs) == pq->n_max_reqs) {
 		srcu_read_unlock(&fd->pq_srcu, idx);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	while (dim) {
@@ -361,7 +361,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 			(type == PIO_BUFS_SOP ?
 				(TXE_PIO_SIZE / 2) : 0); /* sop? */
 		/*
-		 * Map only the amount allocated to the context, not the
+		 * Map only the amount allocated to the context, analt the
 		 * entire available context's PIO space.
 		 */
 		memlen = PAGE_ALIGN(uctxt->sc->credits * PIO_BLOCK_SIZE);
@@ -392,9 +392,9 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		/*
 		 * The driver has already allocated memory for credit
 		 * returns and programmed it into the chip. Has that
-		 * memory been flagged as non-cached?
+		 * memory been flagged as analn-cached?
 		 */
-		/* vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot); */
+		/* vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot); */
 		break;
 	}
 	case RCV_HDRQ:
@@ -408,7 +408,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		int i;
 		/*
 		 * The RcvEgr buffer need to be handled differently
-		 * as multiple non-contiguous pages need to be mapped
+		 * as multiple analn-contiguous pages need to be mapped
 		 * into the user process.
 		 */
 		memlen = uctxt->egrbufs.size;
@@ -468,13 +468,13 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 */
 		memlen = PAGE_SIZE;
 		flags |= VM_DONTCOPY | VM_DONTEXPAND;
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 		mapio = 1;
 		break;
 	case EVENTS:
 		/*
 		 * Use the page where this context's flags are. User level
-		 * knows where it's own bitmap is within the page.
+		 * kanalws where it's own bitmap is within the page.
 		 */
 		memaddr = (unsigned long)
 			(dd->events + uctxt_offset(uctxt)) & PAGE_MASK;
@@ -589,7 +589,7 @@ done:
 }
 
 /*
- * Local (non-chip) user memory is not mapped right away but as it is
+ * Local (analn-chip) user memory is analt mapped right away but as it is
  * accessed by the user-level code.
  */
 static vm_fault_t vma_fault(struct vm_fault *vmf)
@@ -624,11 +624,11 @@ static __poll_t hfi1_poll(struct file *fp, struct poll_table_struct *pt)
 	return pollflag;
 }
 
-static int hfi1_file_close(struct inode *inode, struct file *fp)
+static int hfi1_file_close(struct ianalde *ianalde, struct file *fp)
 {
 	struct hfi1_filedata *fdata = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fdata->uctxt;
-	struct hfi1_devdata *dd = container_of(inode->i_cdev,
+	struct hfi1_devdata *dd = container_of(ianalde->i_cdev,
 					       struct hfi1_devdata,
 					       user_cdev);
 	unsigned long flags, *ev;
@@ -651,7 +651,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	hfi1_user_exp_rcv_free(fdata);
 
 	/*
-	 * fdata->uctxt is used in the above cleanup.  It is not ready to be
+	 * fdata->uctxt is used in the above cleanup.  It is analt ready to be
 	 * removed until here.
 	 */
 	fdata->uctxt = NULL;
@@ -681,8 +681,8 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 		     HFI1_RCVCTRL_INTRAVAIL_DIS |
 		     HFI1_RCVCTRL_TAILUPD_DIS |
 		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
-		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
-		     HFI1_RCVCTRL_NO_EGR_DROP_DIS |
+		     HFI1_RCVCTRL_ANAL_RHQ_DROP_DIS |
+		     HFI1_RCVCTRL_ANAL_EGR_DROP_DIS |
 		     HFI1_RCVCTRL_URGENT_DIS, uctxt);
 	/* Clear the context's J_KEY */
 	hfi1_clear_ctxt_jkey(dd, uctxt);
@@ -753,7 +753,7 @@ static int complete_subctxt(struct hfi1_filedata *fd)
 		!test_bit(HFI1_CTXT_BASE_UNINIT, &fd->uctxt->event_flags));
 
 	if (test_bit(HFI1_CTXT_BASE_FAILED, &fd->uctxt->event_flags))
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	/* Finish the sub-context init */
 	if (!ret) {
@@ -790,7 +790,7 @@ static int assign_ctxt(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 
 	swmajor = uinfo.userversion >> 16;
 	if (swmajor != HFI1_USER_SWMAJOR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (uinfo.subctxt_cnt > HFI1_MAX_SHARED_CTXTS)
 		return -EINVAL;
@@ -802,12 +802,12 @@ static int assign_ctxt(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 	mutex_lock(&hfi1_mutex);
 	/*
 	 * Get a sub context if available  (fd->uctxt will be set).
-	 * ret < 0 error, 0 no context, 1 sub-context found
+	 * ret < 0 error, 0 anal context, 1 sub-context found
 	 */
 	ret = find_sub_ctxt(fd, &uinfo);
 
 	/*
-	 * Allocate a base context if context sharing is not required or a
+	 * Allocate a base context if context sharing is analt required or a
 	 * sub context wasn't found.
 	 */
 	if (!ret)
@@ -867,7 +867,7 @@ static int match_ctxt(struct hfi1_filedata *fd,
 	/* Find an unused sub context */
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	if (bitmap_empty(uctxt->in_use_ctxts, HFI1_MAX_SHARED_CTXTS)) {
-		/* context is being closed, do not use */
+		/* context is being closed, do analt use */
 		spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 		return 0;
 	}
@@ -898,9 +898,9 @@ static int match_ctxt(struct hfi1_filedata *fd,
  * necessary to ensure serialized creation of shared contexts.
  *
  * Return:
- *    0      No sub-context found
+ *    0      Anal sub-context found
  *    1      Subcontext found and allocated
- *    errno  EINVAL (incorrect parameters)
+ *    erranal  EINVAL (incorrect parameters)
  *           EBUSY (all sub contexts in use)
  */
 static int find_sub_ctxt(struct hfi1_filedata *fd,
@@ -938,7 +938,7 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 	if (dd->flags & HFI1_FROZEN) {
 		/*
 		 * Pick an error that is unique from all other errors
-		 * that are returned so the user process knows that
+		 * that are returned so the user process kanalws that
 		 * it tried to allocate while the SPC was frozen.  It
 		 * it should be able to retry with success in a short
 		 * while.
@@ -950,14 +950,14 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 		return -EBUSY;
 
 	/*
-	 * If we don't have a NUMA node requested, preference is towards
-	 * device NUMA node.
+	 * If we don't have a NUMA analde requested, preference is towards
+	 * device NUMA analde.
 	 */
-	fd->rec_cpu_num = hfi1_get_proc_affinity(dd->node);
+	fd->rec_cpu_num = hfi1_get_proc_affinity(dd->analde);
 	if (fd->rec_cpu_num != -1)
-		numa = cpu_to_node(fd->rec_cpu_num);
+		numa = cpu_to_analde(fd->rec_cpu_num);
 	else
-		numa = numa_node_id();
+		numa = numa_analde_id();
 	ret = hfi1_create_ctxtdata(dd->pport, numa, &uctxt);
 	if (ret < 0) {
 		dd_dev_err(dd, "user ctxtdata allocation failed\n");
@@ -970,9 +970,9 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 	/*
 	 * Allocate and enable a PIO send context.
 	 */
-	uctxt->sc = sc_alloc(dd, SC_USER, uctxt->rcvhdrqentsize, dd->node);
+	uctxt->sc = sc_alloc(dd, SC_USER, uctxt->rcvhdrqentsize, dd->analde);
 	if (!uctxt->sc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto ctxdata_free;
 	}
 	hfi1_cdbg(PROC, "allocated send context %u(%u)", uctxt->sc->sw_index,
@@ -986,7 +986,7 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 	 * sub contexts.
 	 * This has to be done here so the rest of the sub-contexts find the
 	 * proper base context.
-	 * NOTE: _set_bit() can be used here because the context creation is
+	 * ANALTE: _set_bit() can be used here because the context creation is
 	 * protected by the mutex (rather than the spin_lock), and will be the
 	 * very first instance of this context.
 	 */
@@ -1042,20 +1042,20 @@ static int setup_subctxt(struct hfi1_ctxtdata *uctxt)
 
 	uctxt->subctxt_uregbase = vmalloc_user(PAGE_SIZE);
 	if (!uctxt->subctxt_uregbase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* We can take the size of the RcvHdr Queue from the master */
 	uctxt->subctxt_rcvhdr_base = vmalloc_user(rcvhdrq_size(uctxt) *
 						  num_subctxts);
 	if (!uctxt->subctxt_rcvhdr_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail_ureg;
 	}
 
 	uctxt->subctxt_rcvegrbuf = vmalloc_user(uctxt->egrbufs.size *
 						num_subctxts);
 	if (!uctxt->subctxt_rcvegrbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail_rhdr;
 	}
 
@@ -1080,7 +1080,7 @@ static void user_init(struct hfi1_ctxtdata *uctxt)
 	uctxt->urgent_poll = 0;
 
 	/*
-	 * Now enable the ctxt for receive.
+	 * Analw enable the ctxt for receive.
 	 * For chips that are set to DMA the tail register to memory
 	 * when they change (and when the update bit transitions from
 	 * 0 to 1.  So for those chips, we turn it off and then back on.
@@ -1101,16 +1101,16 @@ static void user_init(struct hfi1_ctxtdata *uctxt)
 	if (HFI1_CAP_UGET_MASK(uctxt->flags, HDRSUPP))
 		rcvctrl_ops |= HFI1_RCVCTRL_TIDFLOW_ENB;
 	/*
-	 * Ignore the bit in the flags for now until proper
+	 * Iganalre the bit in the flags for analw until proper
 	 * support for multiple packet per rcv array entry is
 	 * added.
 	 */
 	if (!HFI1_CAP_UGET_MASK(uctxt->flags, MULTI_PKT_EGR))
 		rcvctrl_ops |= HFI1_RCVCTRL_ONE_PKT_EGR_ENB;
-	if (HFI1_CAP_UGET_MASK(uctxt->flags, NODROP_EGR_FULL))
-		rcvctrl_ops |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
-	if (HFI1_CAP_UGET_MASK(uctxt->flags, NODROP_RHQ_FULL))
-		rcvctrl_ops |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, ANALDROP_EGR_FULL))
+		rcvctrl_ops |= HFI1_RCVCTRL_ANAL_EGR_DROP_ENB;
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, ANALDROP_RHQ_FULL))
+		rcvctrl_ops |= HFI1_RCVCTRL_ANAL_RHQ_DROP_ENB;
 	/*
 	 * The RcvCtxtCtrl.TailUpd bit has to be explicitly written.
 	 * We can't rely on the correct value to be set from prior
@@ -1137,9 +1137,9 @@ static int get_ctxt_info(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 				HFI1_CAP_MISC_MASK) << HFI1_CAP_USER_SHIFT) |
 			HFI1_CAP_UGET_MASK(uctxt->flags, MASK) |
 			HFI1_CAP_KGET_MASK(uctxt->flags, K2U);
-	/* adjust flag if this fd is not able to cache */
+	/* adjust flag if this fd is analt able to cache */
 	if (!fd->use_mn)
-		cinfo.runtime_flags |= HFI1_CAP_TID_UNMAP; /* no caching */
+		cinfo.runtime_flags |= HFI1_CAP_TID_UNMAP; /* anal caching */
 
 	cinfo.num_active = hfi1_count_active_units();
 	cinfo.unit = uctxt->dd->unit;
@@ -1149,7 +1149,7 @@ static int get_ctxt_info(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 				uctxt->dd->rcv_entries.group_size) +
 		uctxt->expected_count;
 	cinfo.credits = uctxt->sc->credits;
-	cinfo.numa_node = uctxt->numa_id;
+	cinfo.numa_analde = uctxt->numa_id;
 	cinfo.rec_cpu = fd->rec_cpu_num;
 	cinfo.send_ctxt = uctxt->sc->hw_context;
 
@@ -1190,7 +1190,7 @@ static int setup_base_ctxt(struct hfi1_filedata *fd,
 
 	hfi1_init_ctxt(uctxt->sc);
 
-	/* Now allocate the RcvHdr queue and eager buffers. */
+	/* Analw allocate the RcvHdr queue and eager buffers. */
 	ret = hfi1_create_rcvhdrq(dd, uctxt);
 	if (ret)
 		goto done;
@@ -1217,7 +1217,7 @@ static int setup_base_ctxt(struct hfi1_filedata *fd,
 
 	user_init(uctxt);
 
-	/* Now that the context is set up, the fd can get a reference. */
+	/* Analw that the context is set up, the fd can get a reference. */
 	fd->uctxt = uctxt;
 	hfi1_rcd_get(uctxt);
 
@@ -1231,7 +1231,7 @@ done:
 			set_bit(HFI1_CTXT_BASE_FAILED, &uctxt->event_flags);
 
 		/*
-		 * Base context is done (successfully or not), notify anybody
+		 * Base context is done (successfully or analt), analtify anybody
 		 * using a sub-context that is waiting for this completion.
 		 */
 		clear_bit(HFI1_CTXT_BASE_UNINIT, &uctxt->event_flags);
@@ -1446,7 +1446,7 @@ static __poll_t poll_urgent(struct file *fp,
 
 	spin_lock_irq(&dd->uctxt_lock);
 	if (uctxt->urgent != uctxt->urgent_poll) {
-		pollflag = EPOLLIN | EPOLLRDNORM;
+		pollflag = EPOLLIN | EPOLLRDANALRM;
 		uctxt->urgent_poll = uctxt->urgent;
 	} else {
 		pollflag = 0;
@@ -1473,7 +1473,7 @@ static __poll_t poll_next(struct file *fp,
 		hfi1_rcvctrl(dd, HFI1_RCVCTRL_INTRAVAIL_ENB, uctxt);
 		pollflag = 0;
 	} else {
-		pollflag = EPOLLIN | EPOLLRDNORM;
+		pollflag = EPOLLIN | EPOLLRDANALRM;
 	}
 	spin_unlock_irq(&dd->uctxt_lock);
 
@@ -1501,7 +1501,7 @@ int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit)
 			unsigned long *evs;
 			int i;
 			/*
-			 * subctxt_cnt is 0 if not shared, so do base
+			 * subctxt_cnt is 0 if analt shared, so do base
 			 * separately, first, then remaining subctxt, if any
 			 */
 			evs = dd->events + uctxt_offset(uctxt);
@@ -1543,8 +1543,8 @@ static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 		/*
 		 * On enable, force in-memory copy of the tail register to
 		 * 0, so that protocol code doesn't have to worry about
-		 * whether or not the chip has yet updated the in-memory
-		 * copy or not on return from the system call. The chip
+		 * whether or analt the chip has yet updated the in-memory
+		 * copy or analt on return from the system call. The chip
 		 * always resets it's tail register back to 0 on a
 		 * transition from disabled to enabled.
 		 */
@@ -1561,7 +1561,7 @@ static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 }
 
 /*
- * clear the event notifier events for this context.
+ * clear the event analtifier events for this context.
  * User process then performs actions appropriate to bit having been
  * set, if desired, and checks again in future.
  */
@@ -1609,7 +1609,7 @@ static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, unsigned long arg)
 		if (pkey == ppd->pkeys[i])
 			return hfi1_set_ctxt_pkey(dd, uctxt, pkey);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -1626,10 +1626,10 @@ static int ctxt_reset(struct hfi1_ctxtdata *uctxt)
 		return -EINVAL;
 
 	/*
-	 * There is no protection here. User level has to guarantee that
-	 * no one will be writing to the send context while it is being
+	 * There is anal protection here. User level has to guarantee that
+	 * anal one will be writing to the send context while it is being
 	 * re-initialized.  If user level breaks that guarantee, it will
-	 * break it's own context and no one else's.
+	 * break it's own context and anal one else's.
 	 */
 	dd = uctxt->dd;
 	sc = uctxt->sc;
@@ -1642,7 +1642,7 @@ static int ctxt_reset(struct hfi1_ctxtdata *uctxt)
 		sc->halt_wait, (sc->flags & SCF_HALTED),
 		msecs_to_jiffies(SEND_CTXT_HALT_TIMEOUT));
 	if (!(sc->flags & SCF_HALTED))
-		return -ENOLCK;
+		return -EANALLCK;
 
 	/*
 	 * If the send context was halted due to a Freeze, wait until the
@@ -1654,14 +1654,14 @@ static int ctxt_reset(struct hfi1_ctxtdata *uctxt)
 			!(READ_ONCE(dd->flags) & HFI1_FROZEN),
 			msecs_to_jiffies(SEND_CTXT_HALT_TIMEOUT));
 		if (dd->flags & HFI1_FROZEN)
-			return -ENOLCK;
+			return -EANALLCK;
 
 		if (dd->flags & HFI1_FORCED_FREEZE)
 			/*
 			 * Don't allow context reset if we are into
 			 * forced freeze
 			 */
-			return -ENODEV;
+			return -EANALDEV;
 
 		sc_disable(sc);
 		ret = sc_enable(sc);
@@ -1706,7 +1706,7 @@ int hfi1_device_create(struct hfi1_devdata *dd)
 
 /*
  * Remove per-unit files in /dev
- * void, core kernel returns no errors for this stuff
+ * void, core kernel returns anal errors for this stuff
  */
 void hfi1_device_remove(struct hfi1_devdata *dd)
 {

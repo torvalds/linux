@@ -2,7 +2,7 @@
 /*
  * core.c - Implementation of core module of MOST Linux driver stack
  *
- * Copyright (C) 2013-2020 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2020 Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #include <linux/module.h>
@@ -142,7 +142,7 @@ static void flush_channel_fifos(struct most_channel *c)
 	spin_unlock_irqrestore(&c->fifo_lock, hf_flags);
 
 	if (unlikely((!list_empty(&c->fifo) || !list_empty(&c->halt_fifo))))
-		dev_warn(&c->dev, "Channel or trash fifo not empty\n");
+		dev_warn(&c->dev, "Channel or trash fifo analt empty\n");
 }
 
 /**
@@ -424,7 +424,7 @@ static ssize_t interface_show(struct device *dev,
 	case ITYPE_PCIE:
 		return snprintf(buf, PAGE_SIZE, "pcie\n");
 	}
-	return snprintf(buf, PAGE_SIZE, "unknown\n");
+	return snprintf(buf, PAGE_SIZE, "unkanalwn\n");
 }
 
 static DEVICE_ATTR_RO(description);
@@ -561,7 +561,7 @@ inline int link_channel_to_component(struct most_channel *c,
 	else if (!c->pipe1.comp)
 		comp_ptr = &c->pipe1.comp;
 	else
-		return -ENOSPC;
+		return -EANALSPC;
 
 	*comp_ptr = comp;
 	ret = comp->probe_channel(c->iface, c->channel_id, &c->cfg, name,
@@ -578,7 +578,7 @@ int most_set_cfg_buffer_size(char *mdev, char *mdev_ch, u16 val)
 	struct most_channel *c = get_channel(mdev, mdev_ch);
 
 	if (!c)
-		return -ENODEV;
+		return -EANALDEV;
 	c->cfg.buffer_size = val;
 	return 0;
 }
@@ -588,7 +588,7 @@ int most_set_cfg_subbuffer_size(char *mdev, char *mdev_ch, u16 val)
 	struct most_channel *c = get_channel(mdev, mdev_ch);
 
 	if (!c)
-		return -ENODEV;
+		return -EANALDEV;
 	c->cfg.subbuffer_size = val;
 	return 0;
 }
@@ -598,7 +598,7 @@ int most_set_cfg_dbr_size(char *mdev, char *mdev_ch, u16 val)
 	struct most_channel *c = get_channel(mdev, mdev_ch);
 
 	if (!c)
-		return -ENODEV;
+		return -EANALDEV;
 	c->cfg.dbr_size = val;
 	return 0;
 }
@@ -608,7 +608,7 @@ int most_set_cfg_num_buffers(char *mdev, char *mdev_ch, u16 val)
 	struct most_channel *c = get_channel(mdev, mdev_ch);
 
 	if (!c)
-		return -ENODEV;
+		return -EANALDEV;
 	c->cfg.num_buffers = val;
 	return 0;
 }
@@ -619,7 +619,7 @@ int most_set_cfg_datatype(char *mdev, char *mdev_ch, char *buf)
 	struct most_channel *c = get_channel(mdev, mdev_ch);
 
 	if (!c)
-		return -ENODEV;
+		return -EANALDEV;
 	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
 		if (!strcmp(buf, ch_data_type[i].name)) {
 			c->cfg.data_type = ch_data_type[i].most_ch_data_type;
@@ -637,7 +637,7 @@ int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf)
 	struct most_channel *c = get_channel(mdev, mdev_ch);
 
 	if (!c)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!strcmp(buf, "dir_rx")) {
 		c->cfg.direction = MOST_CH_RX;
 	} else if (!strcmp(buf, "rx")) {
@@ -648,7 +648,7 @@ int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf)
 		c->cfg.direction = MOST_CH_TX;
 	} else {
 		dev_err(&c->dev, "Invalid direction\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 	return 0;
 }
@@ -658,7 +658,7 @@ int most_set_cfg_packets_xact(char *mdev, char *mdev_ch, u16 val)
 	struct most_channel *c = get_channel(mdev, mdev_ch);
 
 	if (!c)
-		return -ENODEV;
+		return -EANALDEV;
 	c->cfg.packets_per_xact = val;
 	return 0;
 }
@@ -669,7 +669,7 @@ int most_cfg_complete(char *comp_name)
 
 	comp = match_component(comp_name);
 	if (!comp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return comp->cfg_complete();
 }
@@ -681,7 +681,7 @@ int most_add_link(char *mdev, char *mdev_ch, char *comp_name, char *link_name,
 	struct most_component *comp = match_component(comp_name);
 
 	if (!c || !comp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return link_channel_to_component(c, comp, link_name, comp_param);
 }
@@ -693,10 +693,10 @@ int most_remove_link(char *mdev, char *mdev_ch, char *comp_name)
 
 	comp = match_component(comp_name);
 	if (!comp)
-		return -ENODEV;
+		return -EANALDEV;
 	c = get_channel(mdev, mdev_ch);
 	if (!c)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (comp->disconnect_channel(c->iface, c->channel_id))
 		return -EIO;
@@ -1099,12 +1099,12 @@ int most_start_channel(struct most_interface *iface, int id,
 
 	mutex_lock(&c->start_mutex);
 	if (c->pipe0.refs + c->pipe1.refs > 0)
-		goto out; /* already started by another component */
+		goto out; /* already started by aanalther component */
 
 	if (!try_module_get(iface->mod)) {
 		dev_err(&c->dev, "Failed to acquire HDM lock\n");
 		mutex_unlock(&c->start_mutex);
-		return -ENOLCK;
+		return -EANALLCK;
 	}
 
 	c->cfg.extra_len = 0;
@@ -1123,7 +1123,7 @@ int most_start_channel(struct most_interface *iface, int id,
 		num_buffer = arm_mbo_chain(c, c->cfg.direction,
 					   most_write_completion);
 	if (unlikely(!num_buffer)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_module;
 	}
 
@@ -1295,7 +1295,7 @@ int most_register_interface(struct most_interface *iface)
 	iface->p = kzalloc(sizeof(*iface->p), GFP_KERNEL);
 	if (!iface->p) {
 		ida_simple_remove(&mdev_id, id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_LIST_HEAD(&iface->p->channel_list);
@@ -1309,7 +1309,7 @@ int most_register_interface(struct most_interface *iface)
 		kfree(iface->p);
 		put_device(iface->dev);
 		ida_simple_remove(&mdev_id, id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < iface->num_channels; i++) {
@@ -1353,7 +1353,7 @@ int most_register_interface(struct most_interface *iface)
 			goto err_free_most_channel;
 		}
 	}
-	most_interface_register_notify(iface->description);
+	most_interface_register_analtify(iface->description);
 	return 0;
 
 err_free_most_channel:
@@ -1367,7 +1367,7 @@ err_free_resources:
 	kfree(iface->p);
 	device_unregister(iface->dev);
 	ida_simple_remove(&mdev_id, id);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(most_register_interface);
 
@@ -1408,8 +1408,8 @@ EXPORT_SYMBOL_GPL(most_deregister_interface);
  * @iface: pointer to interface
  * @id: channel id
  *
- * This is called by an HDM that _cannot_ attend to its duties and
- * is imminent to get run over by the core. The core is not going to
+ * This is called by an HDM that _cananalt_ attend to its duties and
+ * is imminent to get run over by the core. The core is analt going to
  * enqueue any further packets unless the flagging HDM calls
  * most_resume enqueue().
  */

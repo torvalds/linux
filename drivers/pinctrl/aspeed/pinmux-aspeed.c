@@ -29,12 +29,12 @@ static inline void aspeed_sig_desc_print_val(
  * @map: The IP block's regmap instance
  *
  * Return: 1 if the descriptor's bitfield is configured to the state
- * selected by @enabled, 0 if not, and less than zero if an unrecoverable
+ * selected by @enabled, 0 if analt, and less than zero if an unrecoverable
  * failure occurred
  *
- * Evaluation of descriptor state is non-trivial in that it is not a binary
+ * Evaluation of descriptor state is analn-trivial in that it is analt a binary
  * outcome: The bitfields can be greater than one bit in size and thus can take
- * a value that is neither the enabled nor disabled state recorded in the
+ * a value that is neither the enabled analr disabled state recorded in the
  * descriptor (typically this means a different function to the one of interest
  * is enabled). Thus we must explicitly test for either condition as required.
  */
@@ -46,7 +46,7 @@ int aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
 	u32 want;
 
 	if (!map)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = regmap_read(map, desc->reg, &raw);
 	if (ret)
@@ -66,7 +66,7 @@ int aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
  * @expr: An expression controlling the signal for a mux function on a pin
  * @enabled: True to query the enabled state, false to query disabled state
  *
- * Return: 1 if the expression composed by @enabled evaluates true, 0 if not,
+ * Return: 1 if the expression composed by @enabled evaluates true, 0 if analt,
  * and less than zero if an unrecoverable failure occurred.
  *
  * A mux function is enabled or disabled if the function's signal expression
@@ -77,7 +77,7 @@ int aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
  * If an expression's state is described by more than one bit, either through
  * multi-bit bitfields in a single signal descriptor or through multiple signal
  * descriptors of a single bit then it is possible for the expression to be in
- * neither the enabled nor disabled state. Thus we must explicitly test for
+ * neither the enabled analr disabled state. Thus we must explicitly test for
  * either condition as required.
  */
 int aspeed_sig_expr_eval(struct aspeed_pinmux_data *ctx,

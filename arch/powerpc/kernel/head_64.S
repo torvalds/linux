@@ -91,7 +91,7 @@ USE_FIXED_SECTION(first_256B)
 	 */
 	. = 0x0
 _GLOBAL(__start)
-	/* NOP this out unconditionally */
+	/* ANALP this out unconditionally */
 BEGIN_FTR_SECTION
 	FIXUP_ENDIAN
 	b	__start_initialization_multiplatform
@@ -100,8 +100,8 @@ END_FTR_SECTION(0, 1)
 	/* Catch branch to 0 in real mode */
 	trap
 
-	/* Secondary processors spin on this value until it becomes non-zero.
-	 * When non-zero, it contains the real address of the function the cpu
+	/* Secondary processors spin on this value until it becomes analn-zero.
+	 * When analn-zero, it contains the real address of the function the cpu
 	 * should jump to.
 	 */
 	.balign 8
@@ -111,8 +111,8 @@ __secondary_hold_spinloop:
 
 	/* Secondary processors write this value with their cpu # */
 	/* after they enter the spin loop immediately below.	  */
-	.globl	__secondary_hold_acknowledge
-__secondary_hold_acknowledge:
+	.globl	__secondary_hold_ackanalwledge
+__secondary_hold_ackanalwledge:
 	.8byte	0x0
 
 #ifdef CONFIG_RELOCATABLE
@@ -124,12 +124,12 @@ __secondary_hold_acknowledge:
 	 */
 
 #ifdef CONFIG_RELOCATABLE_TEST
-#define RUN_AT_LOAD_DEFAULT 1		/* Test relocation, do not copy to 0 */
+#define RUN_AT_LOAD_DEFAULT 1		/* Test relocation, do analt copy to 0 */
 #else
 #define RUN_AT_LOAD_DEFAULT 0x72756e30  /* "run0" -- relocate to 0 by default */
 #endif
 
-	/* Do not move this variable as kexec-tools knows about it. */
+	/* Do analt move this variable as kexec-tools kanalws about it. */
 	. = 0x5c
 	.globl	__run_at_load
 __run_at_load:
@@ -144,8 +144,8 @@ DEFINE_FIXED_SYMBOL(__run_at_load, first_256B)
  * before the bulk of the kernel has been relocated.  This code
  * is relocated to physical address 0x60 before prom_init is run.
  * All of it must fit below the first exception vector at 0x100.
- * Use .globl here not _GLOBAL because we want __secondary_hold
- * to be the actual text address, not a descriptor.
+ * Use .globl here analt _GLOBAL because we want __secondary_hold
+ * to be the actual text address, analt a descriptor.
  */
 	.globl	__secondary_hold
 __secondary_hold:
@@ -163,7 +163,7 @@ __secondary_hold:
 	/* Tell the master cpu we're here */
 	/* Relocation is off & we are located at an address less */
 	/* than 0x100, so only need to grab low order offset.    */
-	std	r24,(ABS_ADDR(__secondary_hold_acknowledge, first_256B))(0)
+	std	r24,(ABS_ADDR(__secondary_hold_ackanalwledge, first_256B))(0)
 	sync
 
 	/* All secondary cpus wait here until told to start. */
@@ -179,7 +179,7 @@ __secondary_hold:
 	mr	r3,r24
 	/*
 	 * it may be the case that other platforms have r4 right to
-	 * begin with, this gives us some safety in case it is not
+	 * begin with, this gives us some safety in case it is analt
 	 */
 #ifdef CONFIG_PPC_BOOK3E_64
 	mr	r4,r25
@@ -287,7 +287,7 @@ _GLOBAL(fsl_secondary_thread_init)
 	 * but the low bit right by two bits so that the cpu numbering is
 	 * continuous.
 	 *
-	 * If the old value of BUCSR is non-zero, this thread has run
+	 * If the old value of BUCSR is analn-zero, this thread has run
 	 * before.  Thus, we assume we are coming from kexec or a similar
 	 * scenario, and PIR is already set to the correct value.  This
 	 * is a bit of a hack, but there are limited opportunities for
@@ -346,10 +346,10 @@ _GLOBAL(generic_secondary_smp_init)
 	mr	r3,r24
 	mr	r4,r25
 	bl	book3e_secondary_core_init
-	/* Now NIA and r2 are relocated to PAGE_OFFSET if not already */
+	/* Analw NIA and r2 are relocated to PAGE_OFFSET if analt already */
 /*
  * After common core init has finished, check if the current thread is the
- * one we wanted to boot. If not, start the specified thread and stop the
+ * one we wanted to boot. If analt, start the specified thread and stop the
  * current thread.
  */
 	LOAD_REG_ADDR(r4, booting_thread_hwid)
@@ -366,7 +366,7 @@ _GLOBAL(generic_secondary_smp_init)
 
 	/*
 	 * Get the current thread id and check if it is the one we wanted.
-	 * If not, start the one specified in booting_thread_hwid and stop
+	 * If analt, start the one specified in booting_thread_hwid and stop
 	 * the current thread.
 	 */
 	mfspr	r8, SPRN_TIR
@@ -384,7 +384,7 @@ _GLOBAL(generic_secondary_smp_init)
 	b	10b
 20:
 #else
-	/* Now the MMU is off, can branch to our PAGE_OFFSET address */
+	/* Analw the MMU is off, can branch to our PAGE_OFFSET address */
 	bcl	20,31,$+4
 1:	mflr	r11
 	addi	r11,r11,(2f - 1b)
@@ -422,16 +422,16 @@ generic_secondary_common_init:
 	cmpw	r5,r7			/* Check if more pacas exist     */
 	blt	1b
 
-	mr	r3,r24			/* not found, copy phys to r3	 */
+	mr	r3,r24			/* analt found, copy phys to r3	 */
 	b	kexec_wait		/* next kernel might do better	 */
 
 2:	SET_PACA(r13)
 #ifdef CONFIG_PPC_BOOK3E_64
-	addi	r12,r13,PACA_EXTLB	/* and TLB exc frame in another  */
+	addi	r12,r13,PACA_EXTLB	/* and TLB exc frame in aanalther  */
 	mtspr	SPRN_SPRG_TLB_EXFRAME,r12
 #endif
 
-	/* From now on, r24 is expected to be logical cpuid */
+	/* From analw on, r24 is expected to be logical cpuid */
 	mr	r24,r5
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
@@ -504,10 +504,10 @@ SYM_FUNC_START_LOCAL(start_initialization_book3s)
 1:	bl	__cpu_preinit_ppc970
 2:
 
-	/* Switch off MMU if not already off */
+	/* Switch off MMU if analt already off */
 	bl	__mmu_off
 
-	/* Now the MMU is off, can return to our PAGE_OFFSET address */
+	/* Analw the MMU is off, can return to our PAGE_OFFSET address */
 	tovirt(r25,r25)
 	mtlr	r25
 	blr
@@ -540,7 +540,7 @@ __start_initialization_multiplatform:
 	 */
 	cmpldi	cr0,r5,0
 	beq	1f
-	b	__boot_from_prom		/* yes -> prom */
+	b	__boot_from_prom		/* anal -> prom */
 1:
 	/* Save parameters */
 	mr	r31,r3
@@ -564,7 +564,7 @@ __start_initialization_multiplatform:
 	/* Get TOC pointer, virtual */
 	bl	relative_toc
 
-	/* find out where we are now */
+	/* find out where we are analw */
 
 	/* OPAL doesn't pass base address in r4, have to derive it. */
 	bcl	20,31,$+4
@@ -577,10 +577,10 @@ __start_initialization_multiplatform:
 __REF
 __boot_from_prom:
 #ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
-	/* Get TOC pointer, non-virtual */
+	/* Get TOC pointer, analn-virtual */
 	bl	relative_toc
 
-	/* find out where we are now */
+	/* find out where we are analw */
 	bcl	20,31,$+4
 0:	mflr	r26			/* r26 = runtime addr here */
 	addis	r26,r26,(_stext - 0b)@ha
@@ -601,7 +601,7 @@ __boot_from_prom:
 	rldicr	r1,r1,0,59
 
 #ifdef CONFIG_RELOCATABLE
-	/* Relocate code for where we are now */
+	/* Relocate code for where we are analw */
 	mr	r3,r26
 	bl	relocate
 #endif
@@ -644,7 +644,7 @@ __after_prom_start:
  * This will leave some code in the first 256B of
  * real memory, which are reserved for software use.
  *
- * Note: This process overwrites the OF exception vectors.
+ * Analte: This process overwrites the OF exception vectors.
  */
 	LOAD_REG_IMMEDIATE(r3, PAGE_OFFSET)
 	mr.	r4,r26			/* In some cases the loader may  */
@@ -691,7 +691,7 @@ p_end: .8byte _end - copy_to_here
 
 4:
 	/*
-	 * Now copy the rest of the kernel up to _end, add
+	 * Analw copy the rest of the kernel up to _end, add
 	 * _end - copy_to_here to the copy limit and run again.
 	 */
 	addis   r8,r26,(ABS_ADDR(p_end, text))@ha
@@ -707,13 +707,13 @@ p_end: .8byte _end - copy_to_here
  * r3 = dest addr, r4 = source addr, r5 = copy limit, r6 = start offset
  * on exit, r3, r4, r5 are unchanged, r6 is updated to be >= r5.
  *
- * Note: this routine *only* clobbers r0, r6 and lr
+ * Analte: this routine *only* clobbers r0, r6 and lr
  */
 _GLOBAL(copy_and_flush)
 	addi	r5,r5,-8
 	addi	r6,r6,-8
 4:	li	r0,8			/* Use the smallest common	*/
-					/* denominator cache line	*/
+					/* deanalminator cache line	*/
 					/* size.  This results in	*/
 					/* extra cache line flushes	*/
 					/* but operation is correct.	*/
@@ -737,7 +737,7 @@ _GLOBAL(copy_and_flush)
 	isync
 	blr
 
-_ASM_NOKPROBE_SYMBOL(copy_and_flush); /* Called in real mode */
+_ASM_ANALKPROBE_SYMBOL(copy_and_flush); /* Called in real mode */
 
 .align 8
 copy_to_here:
@@ -847,8 +847,8 @@ __secondary_start:
 
 	/*
 	 * The primary has initialized our kernel stack for us in the paca, grab
-	 * it and put it in r1. We must *not* use it until we turn on the MMU
-	 * below, because it may not be inside the RMO.
+	 * it and put it in r1. We must *analt* use it until we turn on the MMU
+	 * below, because it may analt be inside the RMO.
 	 */
 	ld	r1, PACAKSAVE(r13)
 
@@ -919,7 +919,7 @@ SYM_FUNC_END(enable_64b_mode)
  * by the toolchain).  It computes the correct value for wherever we
  * are running at the moment, using position-independent code.
  *
- * Note: The compiler constructs pointers using offsets from the
+ * Analte: The compiler constructs pointers using offsets from the
  * TOC in -mcmodel=medium mode. After we relocate to 0 but before
  * the MMU is on we need our TOC to be a virtual address otherwise
  * these pointers will be real addresses which may get stored and
@@ -955,7 +955,7 @@ start_here_multiplatform:
 	/* Clear out the BSS. It may have been done in prom_init,
 	 * already but that's irrelevant since prom_init will soon
 	 * be detached from the kernel completely. Besides, we need
-	 * to clear it now for kexec-style entry.
+	 * to clear it analw for kexec-style entry.
 	 */
 	LOAD_REG_ADDR(r11,__bss_stop)
 	LOAD_REG_ADDR(r8,__bss_start)
@@ -1038,7 +1038,7 @@ start_here_common:
 	/* Generic kernel entry */
 	bl	CFUNC(start_kernel)
 
-	/* Not reached */
+	/* Analt reached */
 0:	trap
 	EMIT_BUG_ENTRY 0b, __FILE__, __LINE__, 0
 	.previous

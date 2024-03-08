@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -119,7 +119,7 @@ uint32_t dcn32_helper_mall_bytes_to_ways(
 uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
-		bool ignore_cursor_buf);
+		bool iganalre_cursor_buf);
 
 uint32_t dcn32_helper_calculate_num_ways_for_subvp(
 		struct dc *dc,
@@ -770,9 +770,9 @@ void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc
   MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0_RI(inst), SRII(CSC_MODE, MPC_OUT, inst),  \
       SRII(CSC_C11_C12_A, MPC_OUT, inst), SRII(CSC_C33_C34_A, MPC_OUT, inst),  \
       SRII(CSC_C11_C12_B, MPC_OUT, inst), SRII(CSC_C33_C34_B, MPC_OUT, inst),  \
-      SRII(DENORM_CONTROL, MPC_OUT, inst),                                     \
-      SRII(DENORM_CLAMP_G_Y, MPC_OUT, inst),                                   \
-      SRII(DENORM_CLAMP_B_CB, MPC_OUT, inst), SR(MPC_OUT_CSC_COEF_FORMAT)
+      SRII(DEANALRM_CONTROL, MPC_OUT, inst),                                     \
+      SRII(DEANALRM_CLAMP_G_Y, MPC_OUT, inst),                                   \
+      SRII(DEANALRM_CLAMP_B_CB, MPC_OUT, inst), SR(MPC_OUT_CSC_COEF_FORMAT)
 
 #define MPC_COMMON_REG_LIST_DCN1_0_RI(inst)                                    \
   SRII(MPCC_TOP_SEL, MPCC, inst), SRII(MPCC_BOT_SEL, MPCC, inst),              \
@@ -901,7 +901,7 @@ void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc
 	SRII(MPCC_MCM_3DLUT_DATA, MPCC_MCM, inst),\
 	SRII(MPCC_MCM_3DLUT_DATA_30BIT, MPCC_MCM, inst),\
 	SRII(MPCC_MCM_3DLUT_READ_WRITE_CONTROL, MPCC_MCM, inst),\
-	SRII(MPCC_MCM_3DLUT_OUT_NORM_FACTOR, MPCC_MCM, inst),\
+	SRII(MPCC_MCM_3DLUT_OUT_ANALRM_FACTOR, MPCC_MCM, inst),\
 	SRII(MPCC_MCM_3DLUT_OUT_OFFSET_R, MPCC_MCM, inst),\
 	SRII(MPCC_MCM_3DLUT_OUT_OFFSET_G, MPCC_MCM, inst),\
 	SRII(MPCC_MCM_3DLUT_OUT_OFFSET_B, MPCC_MCM, inst),\
@@ -1005,11 +1005,11 @@ void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc
       SRI_ARR(OTG_V_TOTAL_MIN, OTG, inst),                                     \
       SRI_ARR(OTG_V_TOTAL_CONTROL, OTG, inst),                                 \
       SRI_ARR(OTG_TRIGA_CNTL, OTG, inst),                                      \
-      SRI_ARR(OTG_FORCE_COUNT_NOW_CNTL, OTG, inst),                            \
+      SRI_ARR(OTG_FORCE_COUNT_ANALW_CNTL, OTG, inst),                            \
       SRI_ARR(OTG_STATIC_SCREEN_CONTROL, OTG, inst),                           \
       SRI_ARR(OTG_STATUS_FRAME_COUNT, OTG, inst),                              \
       SRI_ARR(OTG_STATUS, OTG, inst), SRI_ARR(OTG_STATUS_POSITION, OTG, inst), \
-      SRI_ARR(OTG_NOM_VERT_POSITION, OTG, inst),                               \
+      SRI_ARR(OTG_ANALM_VERT_POSITION, OTG, inst),                               \
       SRI_ARR(OTG_M_CONST_DTO0, OTG, inst),                                    \
       SRI_ARR(OTG_M_CONST_DTO1, OTG, inst),                                    \
       SRI_ARR(OTG_CLOCK_CONTROL, OTG, inst),                                   \
@@ -1049,10 +1049,10 @@ void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc
 /* HUBP */
 
 #define HUBP_REG_LIST_DCN_VM_RI(id)                                            \
-  SRI_ARR(NOM_PARAMETERS_0, HUBPREQ, id),                                      \
-      SRI_ARR(NOM_PARAMETERS_1, HUBPREQ, id),                                  \
-      SRI_ARR(NOM_PARAMETERS_2, HUBPREQ, id),                                  \
-      SRI_ARR(NOM_PARAMETERS_3, HUBPREQ, id),                                  \
+  SRI_ARR(ANALM_PARAMETERS_0, HUBPREQ, id),                                      \
+      SRI_ARR(ANALM_PARAMETERS_1, HUBPREQ, id),                                  \
+      SRI_ARR(ANALM_PARAMETERS_2, HUBPREQ, id),                                  \
+      SRI_ARR(ANALM_PARAMETERS_3, HUBPREQ, id),                                  \
       SRI_ARR(DCN_VM_MX_L1_TLB_CNTL, HUBPREQ, id)
 #define HUBP_REG_LIST_DCN_RI(id)                                               \
   SRI_ARR(DCHUBP_CNTL, HUBP, id), SRI_ARR(HUBPREQ_DEBUG_DB, HUBP, id),         \
@@ -1109,14 +1109,14 @@ void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc
       SRI_ARR(REF_FREQ_TO_PIX_FREQ, HUBPREQ, id),                              \
       SRI_ARR(VBLANK_PARAMETERS_1, HUBPREQ, id),                               \
       SRI_ARR(VBLANK_PARAMETERS_3, HUBPREQ, id),                               \
-      SRI_ARR(NOM_PARAMETERS_4, HUBPREQ, id),                                  \
-      SRI_ARR(NOM_PARAMETERS_5, HUBPREQ, id),                                  \
+      SRI_ARR(ANALM_PARAMETERS_4, HUBPREQ, id),                                  \
+      SRI_ARR(ANALM_PARAMETERS_5, HUBPREQ, id),                                  \
       SRI_ARR(PER_LINE_DELIVERY_PRE, HUBPREQ, id),                             \
       SRI_ARR(PER_LINE_DELIVERY, HUBPREQ, id),                                 \
       SRI_ARR(VBLANK_PARAMETERS_2, HUBPREQ, id),                               \
       SRI_ARR(VBLANK_PARAMETERS_4, HUBPREQ, id),                               \
-      SRI_ARR(NOM_PARAMETERS_6, HUBPREQ, id),                                  \
-      SRI_ARR(NOM_PARAMETERS_7, HUBPREQ, id),                                  \
+      SRI_ARR(ANALM_PARAMETERS_6, HUBPREQ, id),                                  \
+      SRI_ARR(ANALM_PARAMETERS_7, HUBPREQ, id),                                  \
       SRI_ARR(DCN_TTU_QOS_WM, HUBPREQ, id),                                    \
       SRI_ARR(DCN_GLOBAL_TTU_CNTL, HUBPREQ, id),                               \
       SRI_ARR(DCN_SURF0_TTU_CNTL0, HUBPREQ, id),                               \
@@ -1182,8 +1182,8 @@ void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc
       SR(DCN_VM_FB_LOCATION_BASE), SR(DCN_VM_FB_LOCATION_TOP),                 \
       SR(DCN_VM_FB_OFFSET), SR(DCN_VM_AGP_BOT), SR(DCN_VM_AGP_TOP),            \
       SR(DCN_VM_AGP_BASE), HUBBUB_SR_WATERMARK_REG_LIST(),                     \
-      SR(DCHUBBUB_ARB_FRAC_URG_BW_NOM_A), SR(DCHUBBUB_ARB_FRAC_URG_BW_NOM_B),  \
-      SR(DCHUBBUB_ARB_FRAC_URG_BW_NOM_C), SR(DCHUBBUB_ARB_FRAC_URG_BW_NOM_D),  \
+      SR(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_A), SR(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_B),  \
+      SR(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_C), SR(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_D),  \
       SR(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_A),                                     \
       SR(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_B),                                     \
       SR(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_C),                                     \
@@ -1221,7 +1221,7 @@ void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc
       DCCG_SRII(DTO_PARAM, DPPCLK, 3), DCCG_SRII(CLOCK_CNTL, HDMICHARCLK, 0),  \
       SR(PHYASYMCLK_CLOCK_CNTL), SR(PHYBSYMCLK_CLOCK_CNTL),                    \
       SR(PHYCSYMCLK_CLOCK_CNTL), SR(PHYDSYMCLK_CLOCK_CNTL),                    \
-      SR(PHYESYMCLK_CLOCK_CNTL), SR(DPSTREAMCLK_CNTL), SR(HDMISTREAMCLK_CNTL), \
+      SR(PHANALYMCLK_CLOCK_CNTL), SR(DPSTREAMCLK_CNTL), SR(HDMISTREAMCLK_CNTL), \
       SR(SYMCLK32_SE_CNTL), SR(SYMCLK32_LE_CNTL),                              \
       DCCG_SRII(PIXEL_RATE_CNTL, OTG, 0), DCCG_SRII(PIXEL_RATE_CNTL, OTG, 1),  \
       DCCG_SRII(PIXEL_RATE_CNTL, OTG, 2), DCCG_SRII(PIXEL_RATE_CNTL, OTG, 3),  \

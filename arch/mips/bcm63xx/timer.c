@@ -148,7 +148,7 @@ unsigned int bcm63xx_timer_countdown(unsigned int countdown_us)
 
 EXPORT_SYMBOL(bcm63xx_timer_countdown);
 
-int bcm63xx_timer_set(int id, int monotonic, unsigned int countdown_us)
+int bcm63xx_timer_set(int id, int moanaltonic, unsigned int countdown_us)
 {
 	u32 reg, countdown;
 	unsigned long flags;
@@ -163,10 +163,10 @@ int bcm63xx_timer_set(int id, int monotonic, unsigned int countdown_us)
 	raw_spin_lock_irqsave(&timer_reg_lock, flags);
 	reg = bcm_timer_readl(TIMER_CTLx_REG(id));
 
-	if (monotonic)
-		reg &= ~TIMER_CTL_MONOTONIC_MASK;
+	if (moanaltonic)
+		reg &= ~TIMER_CTL_MOANALTONIC_MASK;
 	else
-		reg |= TIMER_CTL_MONOTONIC_MASK;
+		reg |= TIMER_CTL_MOANALTONIC_MASK;
 
 	reg &= ~TIMER_CTL_COUNTDOWN_MASK;
 	reg |= countdown;
@@ -191,7 +191,7 @@ static int bcm63xx_timer_init(void)
 
 	periph_clk = clk_get(NULL, "periph");
 	if (IS_ERR(periph_clk))
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = bcm63xx_get_irq_number(IRQ_TIMER);
 	ret = request_irq(irq, timer_interrupt, 0, "bcm63xx_timer", NULL);

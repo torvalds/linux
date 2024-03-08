@@ -32,7 +32,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	ps->s_txreq = get_txreq(ps->dev, qp);
 	if (!ps->s_txreq)
-		goto bail_no_tx;
+		goto bail_anal_tx;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
@@ -242,7 +242,7 @@ done_free_tx:
 bail:
 	hfi1_put_txreq(ps->s_txreq);
 
-bail_no_tx:
+bail_anal_tx:
 	ps->s_txreq = NULL;
 	qp->s_flags &= ~RVT_S_BUSY;
 	return 0;
@@ -365,14 +365,14 @@ send_first:
 		}
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
-			goto no_immediate_data;
+			goto anal_immediate_data;
 		else if (opcode == OP(SEND_ONLY_WITH_IMMEDIATE))
 			goto send_last_imm;
 		fallthrough;
 	case OP(SEND_MIDDLE):
 		/* Check for invalid length PMTU or posted rwqe len. */
 		/*
-		 * There will be no padding for 9B packet but 16B packets
+		 * There will be anal padding for 9B packet but 16B packets
 		 * will come in with some padding since we always add
 		 * CRC and LT bytes which will need to be flit aligned
 		 */
@@ -390,7 +390,7 @@ send_last_imm:
 		wc.wc_flags = IB_WC_WITH_IMM;
 		goto send_last;
 	case OP(SEND_LAST):
-no_immediate_data:
+anal_immediate_data:
 		wc.ex.imm_data = 0;
 		wc.wc_flags = 0;
 send_last:
@@ -523,7 +523,7 @@ rdma_last:
 		break;
 
 	default:
-		/* Drop packet for unknown opcodes. */
+		/* Drop packet for unkanalwn opcodes. */
 		goto drop;
 	}
 	qp->r_psn++;

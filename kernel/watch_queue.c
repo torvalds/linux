@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Watch queue and general notification mechanism, built on pipes
+/* Watch queue and general analtification mechanism, built on pipes
  *
  * Copyright (C) 2020 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -30,14 +30,14 @@
 MODULE_DESCRIPTION("Watch queue");
 MODULE_AUTHOR("Red Hat, Inc.");
 
-#define WATCH_QUEUE_NOTE_SIZE 128
-#define WATCH_QUEUE_NOTES_PER_PAGE (PAGE_SIZE / WATCH_QUEUE_NOTE_SIZE)
+#define WATCH_QUEUE_ANALTE_SIZE 128
+#define WATCH_QUEUE_ANALTES_PER_PAGE (PAGE_SIZE / WATCH_QUEUE_ANALTE_SIZE)
 
 /*
  * This must be called under the RCU read-lock, which makes
  * sure that the wqueue still exists. It can then take the lock,
  * and check that the wqueue hasn't been destroyed, which in
- * turn makes sure that the notification pipe still exists.
+ * turn makes sure that the analtification pipe still exists.
  */
 static inline bool lock_wqueue(struct watch_queue *wqueue)
 {
@@ -54,30 +54,30 @@ static inline void unlock_wqueue(struct watch_queue *wqueue)
 	spin_unlock_bh(&wqueue->lock);
 }
 
-static void watch_queue_pipe_buf_release(struct pipe_inode_info *pipe,
+static void watch_queue_pipe_buf_release(struct pipe_ianalde_info *pipe,
 					 struct pipe_buffer *buf)
 {
 	struct watch_queue *wqueue = (struct watch_queue *)buf->private;
 	struct page *page;
 	unsigned int bit;
 
-	/* We need to work out which note within the page this refers to, but
-	 * the note might have been maximum size, so merely ANDing the offset
-	 * off doesn't work.  OTOH, the note must've been more than zero size.
+	/* We need to work out which analte within the page this refers to, but
+	 * the analte might have been maximum size, so merely ANDing the offset
+	 * off doesn't work.  OTOH, the analte must've been more than zero size.
 	 */
 	bit = buf->offset + buf->len;
-	if ((bit & (WATCH_QUEUE_NOTE_SIZE - 1)) == 0)
-		bit -= WATCH_QUEUE_NOTE_SIZE;
-	bit /= WATCH_QUEUE_NOTE_SIZE;
+	if ((bit & (WATCH_QUEUE_ANALTE_SIZE - 1)) == 0)
+		bit -= WATCH_QUEUE_ANALTE_SIZE;
+	bit /= WATCH_QUEUE_ANALTE_SIZE;
 
 	page = buf->page;
 	bit += page->index;
 
-	set_bit(bit, wqueue->notes_bitmap);
+	set_bit(bit, wqueue->analtes_bitmap);
 	generic_pipe_buf_release(pipe, buf);
 }
 
-// No try_steal function => no stealing
+// Anal try_steal function => anal stealing
 #define watch_queue_pipe_buf_try_steal NULL
 
 /* New data written to a pipe may be appended to a buffer with this type. */
@@ -88,20 +88,20 @@ static const struct pipe_buf_operations watch_queue_pipe_buf_ops = {
 };
 
 /*
- * Post a notification to a watch queue.
+ * Post a analtification to a watch queue.
  *
  * Must be called with the RCU lock for reading, and the
  * watch_queue lock held, which guarantees that the pipe
  * hasn't been released.
  */
-static bool post_one_notification(struct watch_queue *wqueue,
-				  struct watch_notification *n)
+static bool post_one_analtification(struct watch_queue *wqueue,
+				  struct watch_analtification *n)
 {
 	void *p;
-	struct pipe_inode_info *pipe = wqueue->pipe;
+	struct pipe_ianalde_info *pipe = wqueue->pipe;
 	struct pipe_buffer *buf;
 	struct page *page;
-	unsigned int head, tail, mask, note, offset, len;
+	unsigned int head, tail, mask, analte, offset, len;
 	bool done = false;
 
 	spin_lock_irq(&pipe->rd_wait.lock);
@@ -112,12 +112,12 @@ static bool post_one_notification(struct watch_queue *wqueue,
 	if (pipe_full(head, tail, pipe->ring_size))
 		goto lost;
 
-	note = find_first_bit(wqueue->notes_bitmap, wqueue->nr_notes);
-	if (note >= wqueue->nr_notes)
+	analte = find_first_bit(wqueue->analtes_bitmap, wqueue->nr_analtes);
+	if (analte >= wqueue->nr_analtes)
 		goto lost;
 
-	page = wqueue->notes[note / WATCH_QUEUE_NOTES_PER_PAGE];
-	offset = note % WATCH_QUEUE_NOTES_PER_PAGE * WATCH_QUEUE_NOTE_SIZE;
+	page = wqueue->analtes[analte / WATCH_QUEUE_ANALTES_PER_PAGE];
+	offset = analte % WATCH_QUEUE_ANALTES_PER_PAGE * WATCH_QUEUE_ANALTE_SIZE;
 	get_page(page);
 	len = n->info & WATCH_INFO_LENGTH;
 	p = kmap_atomic(page);
@@ -133,11 +133,11 @@ static bool post_one_notification(struct watch_queue *wqueue,
 	buf->flags = PIPE_BUF_FLAG_WHOLE;
 	smp_store_release(&pipe->head, head + 1); /* vs pipe_read() */
 
-	if (!test_and_clear_bit(note, wqueue->notes_bitmap)) {
+	if (!test_and_clear_bit(analte, wqueue->analtes_bitmap)) {
 		spin_unlock_irq(&pipe->rd_wait.lock);
 		BUG();
 	}
-	wake_up_interruptible_sync_poll_locked(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM);
+	wake_up_interruptible_sync_poll_locked(&pipe->rd_wait, EPOLLIN | EPOLLRDANALRM);
 	done = true;
 
 out:
@@ -153,10 +153,10 @@ lost:
 }
 
 /*
- * Apply filter rules to a notification.
+ * Apply filter rules to a analtification.
  */
-static bool filter_watch_notification(const struct watch_filter *wf,
-				      const struct watch_notification *n)
+static bool filter_watch_analtification(const struct watch_filter *wf,
+				      const struct watch_analtification *n)
 {
 	const struct watch_type_filter *wt;
 	unsigned int st_bits = sizeof(wt->subtype_filter[0]) * 8;
@@ -179,20 +179,20 @@ static bool filter_watch_notification(const struct watch_filter *wf,
 }
 
 /**
- * __post_watch_notification - Post an event notification
+ * __post_watch_analtification - Post an event analtification
  * @wlist: The watch list to post the event to.
- * @n: The notification record to post.
- * @cred: The creds of the process that triggered the notification.
+ * @n: The analtification record to post.
+ * @cred: The creds of the process that triggered the analtification.
  * @id: The ID to match on the watch.
  *
- * Post a notification of an event into a set of watch queues and let the users
- * know.
+ * Post a analtification of an event into a set of watch queues and let the users
+ * kanalw.
  *
- * The size of the notification should be set in n->info & WATCH_INFO_LENGTH and
+ * The size of the analtification should be set in n->info & WATCH_INFO_LENGTH and
  * should be in units of sizeof(*n).
  */
-void __post_watch_notification(struct watch_list *wlist,
-			       struct watch_notification *n,
+void __post_watch_analtification(struct watch_list *wlist,
+			       struct watch_analtification *n,
 			       const struct cred *cred,
 			       u64 id)
 {
@@ -207,7 +207,7 @@ void __post_watch_notification(struct watch_list *wlist,
 
 	rcu_read_lock();
 
-	hlist_for_each_entry_rcu(watch, &wlist->watchers, list_node) {
+	hlist_for_each_entry_rcu(watch, &wlist->watchers, list_analde) {
 		if (watch->id != id)
 			continue;
 		n->info &= ~WATCH_INFO_ID;
@@ -215,27 +215,27 @@ void __post_watch_notification(struct watch_list *wlist,
 
 		wqueue = rcu_dereference(watch->queue);
 		wf = rcu_dereference(wqueue->filter);
-		if (wf && !filter_watch_notification(wf, n))
+		if (wf && !filter_watch_analtification(wf, n))
 			continue;
 
-		if (security_post_notification(watch->cred, cred, n) < 0)
+		if (security_post_analtification(watch->cred, cred, n) < 0)
 			continue;
 
 		if (lock_wqueue(wqueue)) {
-			post_one_notification(wqueue, n);
+			post_one_analtification(wqueue, n);
 			unlock_wqueue(wqueue);
 		}
 	}
 
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(__post_watch_notification);
+EXPORT_SYMBOL(__post_watch_analtification);
 
 /*
  * Allocate sufficient pages to preallocation for the requested number of
- * notifications.
+ * analtifications.
  */
-long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
+long watch_queue_set_size(struct pipe_ianalde_info *pipe, unsigned int nr_analtes)
 {
 	struct watch_queue *wqueue = pipe->watch_queue;
 	struct page **pages;
@@ -244,16 +244,16 @@ long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
 	int ret, i, nr_pages;
 
 	if (!wqueue)
-		return -ENODEV;
-	if (wqueue->notes)
+		return -EANALDEV;
+	if (wqueue->analtes)
 		return -EBUSY;
 
-	if (nr_notes < 1 ||
-	    nr_notes > 512) /* TODO: choose a better hard limit */
+	if (nr_analtes < 1 ||
+	    nr_analtes > 512) /* TODO: choose a better hard limit */
 		return -EINVAL;
 
-	nr_pages = (nr_notes + WATCH_QUEUE_NOTES_PER_PAGE - 1);
-	nr_pages /= WATCH_QUEUE_NOTES_PER_PAGE;
+	nr_pages = (nr_analtes + WATCH_QUEUE_ANALTES_PER_PAGE - 1);
+	nr_pages /= WATCH_QUEUE_ANALTES_PER_PAGE;
 	user_bufs = account_pipe_buffers(pipe->user, pipe->nr_accounted, nr_pages);
 
 	if (nr_pages > pipe->max_usage &&
@@ -264,12 +264,12 @@ long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
 		goto error;
 	}
 
-	nr_notes = nr_pages * WATCH_QUEUE_NOTES_PER_PAGE;
-	ret = pipe_resize_ring(pipe, roundup_pow_of_two(nr_notes));
+	nr_analtes = nr_pages * WATCH_QUEUE_ANALTES_PER_PAGE;
+	ret = pipe_resize_ring(pipe, roundup_pow_of_two(nr_analtes));
 	if (ret < 0)
 		goto error;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		goto error;
@@ -278,18 +278,18 @@ long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
 		pages[i] = alloc_page(GFP_KERNEL);
 		if (!pages[i])
 			goto error_p;
-		pages[i]->index = i * WATCH_QUEUE_NOTES_PER_PAGE;
+		pages[i]->index = i * WATCH_QUEUE_ANALTES_PER_PAGE;
 	}
 
-	bitmap = bitmap_alloc(nr_notes, GFP_KERNEL);
+	bitmap = bitmap_alloc(nr_analtes, GFP_KERNEL);
 	if (!bitmap)
 		goto error_p;
 
-	bitmap_fill(bitmap, nr_notes);
-	wqueue->notes = pages;
-	wqueue->notes_bitmap = bitmap;
+	bitmap_fill(bitmap, nr_analtes);
+	wqueue->analtes = pages;
+	wqueue->analtes_bitmap = bitmap;
 	wqueue->nr_pages = nr_pages;
-	wqueue->nr_notes = nr_notes;
+	wqueue->nr_analtes = nr_analtes;
 	return 0;
 
 error_p:
@@ -304,18 +304,18 @@ error:
 /*
  * Set the filter on a watch queue.
  */
-long watch_queue_set_filter(struct pipe_inode_info *pipe,
-			    struct watch_notification_filter __user *_filter)
+long watch_queue_set_filter(struct pipe_ianalde_info *pipe,
+			    struct watch_analtification_filter __user *_filter)
 {
-	struct watch_notification_type_filter *tf;
-	struct watch_notification_filter filter;
+	struct watch_analtification_type_filter *tf;
+	struct watch_analtification_filter filter;
 	struct watch_type_filter *q;
 	struct watch_filter *wfilter;
 	struct watch_queue *wqueue = pipe->watch_queue;
 	int ret, nr_filter = 0, i;
 
 	if (!wqueue)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!_filter) {
 		/* Remove the old filter */
@@ -340,16 +340,16 @@ long watch_queue_set_filter(struct pipe_inode_info *pipe,
 		if ((tf[i].info_filter & ~tf[i].info_mask) ||
 		    tf[i].info_mask & WATCH_INFO_LENGTH)
 			goto err_filter;
-		/* Ignore any unknown types */
+		/* Iganalre any unkanalwn types */
 		if (tf[i].type >= WATCH_TYPE__NR)
 			continue;
 		nr_filter++;
 	}
 
-	/* Now we need to build the internal filter from only the relevant
+	/* Analw we need to build the internal filter from only the relevant
 	 * user-specified filters.
 	 */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	wfilter = kzalloc(struct_size(wfilter, filters, nr_filter), GFP_KERNEL);
 	if (!wfilter)
 		goto err_filter;
@@ -391,9 +391,9 @@ static void __put_watch_queue(struct kref *kref)
 	int i;
 
 	for (i = 0; i < wqueue->nr_pages; i++)
-		__free_page(wqueue->notes[i]);
-	kfree(wqueue->notes);
-	bitmap_free(wqueue->notes_bitmap);
+		__free_page(wqueue->analtes[i]);
+	kfree(wqueue->analtes);
+	bitmap_free(wqueue->analtes_bitmap);
 
 	wfilter = rcu_access_pointer(wqueue->filter);
 	if (wfilter)
@@ -446,8 +446,8 @@ static void put_watch(struct watch *watch)
 void init_watch(struct watch *watch, struct watch_queue *wqueue)
 {
 	kref_init(&watch->usage);
-	INIT_HLIST_NODE(&watch->list_node);
-	INIT_HLIST_NODE(&watch->queue_node);
+	INIT_HLIST_ANALDE(&watch->list_analde);
+	INIT_HLIST_ANALDE(&watch->queue_analde);
 	rcu_assign_pointer(watch->queue, wqueue);
 }
 
@@ -456,14 +456,14 @@ static int add_one_watch(struct watch *watch, struct watch_list *wlist, struct w
 	const struct cred *cred;
 	struct watch *w;
 
-	hlist_for_each_entry(w, &wlist->watchers, list_node) {
+	hlist_for_each_entry(w, &wlist->watchers, list_analde) {
 		struct watch_queue *wq = rcu_access_pointer(w->queue);
 		if (wqueue == wq && watch->id == w->id)
 			return -EBUSY;
 	}
 
 	cred = current_cred();
-	if (atomic_inc_return(&cred->user->nr_watches) > task_rlimit(current, RLIMIT_NOFILE)) {
+	if (atomic_inc_return(&cred->user->nr_watches) > task_rlimit(current, RLIMIT_ANALFILE)) {
 		atomic_dec(&cred->user->nr_watches);
 		return -EAGAIN;
 	}
@@ -473,8 +473,8 @@ static int add_one_watch(struct watch *watch, struct watch_list *wlist, struct w
 
 	kref_get(&wqueue->usage);
 	kref_get(&watch->usage);
-	hlist_add_head(&watch->queue_node, &wqueue->watches);
-	hlist_add_head_rcu(&watch->list_node, &wlist->watchers);
+	hlist_add_head(&watch->queue_analde, &wqueue->watches);
+	hlist_add_head_rcu(&watch->list_analde, &wlist->watchers);
 	return 0;
 }
 
@@ -483,7 +483,7 @@ static int add_one_watch(struct watch *watch, struct watch_list *wlist, struct w
  * @watch: The watch to add
  * @wlist: The watch list to add to
  *
- * @watch->queue must have been set to point to the queue to post notifications
+ * @watch->queue must have been set to point to the queue to post analtifications
  * to and the watch list of the object to be watched.  @watch->cred must also
  * have been set to the appropriate credentials and a ref taken on them.
  *
@@ -493,7 +493,7 @@ static int add_one_watch(struct watch *watch, struct watch_list *wlist, struct w
 int add_watch_to_object(struct watch *watch, struct watch_list *wlist)
 {
 	struct watch_queue *wqueue;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	rcu_read_lock();
 
@@ -513,17 +513,17 @@ EXPORT_SYMBOL(add_watch_to_object);
 /**
  * remove_watch_from_object - Remove a watch or all watches from an object.
  * @wlist: The watch list to remove from
- * @wq: The watch queue of interest (ignored if @all is true)
- * @id: The ID of the watch to remove (ignored if @all is true)
+ * @wq: The watch queue of interest (iganalred if @all is true)
+ * @id: The ID of the watch to remove (iganalred if @all is true)
  * @all: True to remove all objects
  *
- * Remove a specific watch or all watches from an object.  A notification is
+ * Remove a specific watch or all watches from an object.  A analtification is
  * sent to the watcher to tell them that this happened.
  */
 int remove_watch_from_object(struct watch_list *wlist, struct watch_queue *wq,
 			     u64 id, bool all)
 {
-	struct watch_notification_removal n;
+	struct watch_analtification_removal n;
 	struct watch_queue *wqueue;
 	struct watch *watch;
 	int ret = -EBADSLT;
@@ -532,7 +532,7 @@ int remove_watch_from_object(struct watch_list *wlist, struct watch_queue *wq,
 
 again:
 	spin_lock(&wlist->lock);
-	hlist_for_each_entry(watch, &wlist->watchers, list_node) {
+	hlist_for_each_entry(watch, &wlist->watchers, list_analde) {
 		if (all ||
 		    (watch->id == id && rcu_access_pointer(watch->queue) == wq))
 			goto found;
@@ -542,14 +542,14 @@ again:
 
 found:
 	ret = 0;
-	hlist_del_init_rcu(&watch->list_node);
+	hlist_del_init_rcu(&watch->list_analde);
 	rcu_assign_pointer(watch->watch_list, NULL);
 	spin_unlock(&wlist->lock);
 
-	/* We now own the reference on watch that used to belong to wlist. */
+	/* We analw own the reference on watch that used to belong to wlist. */
 
 	n.watch.type = WATCH_TYPE_META;
-	n.watch.subtype = WATCH_META_REMOVAL_NOTIFICATION;
+	n.watch.subtype = WATCH_META_REMOVAL_ANALTIFICATION;
 	n.watch.info = watch->info_id | watch_sizeof(n.watch);
 	n.id = id;
 	if (id != 0)
@@ -558,10 +558,10 @@ found:
 	wqueue = rcu_dereference(watch->queue);
 
 	if (lock_wqueue(wqueue)) {
-		post_one_notification(wqueue, &n.watch);
+		post_one_analtification(wqueue, &n.watch);
 
-		if (!hlist_unhashed(&watch->queue_node)) {
-			hlist_del_init_rcu(&watch->queue_node);
+		if (!hlist_unhashed(&watch->queue_analde)) {
+			hlist_del_init_rcu(&watch->queue_analde);
 			put_watch(watch);
 		}
 
@@ -589,7 +589,7 @@ EXPORT_SYMBOL(remove_watch_from_object);
 /*
  * Remove all the watches that are contributory to a queue.  This has the
  * potential to race with removal of the watches by the destruction of the
- * objects being watched or with the distribution of notifications.
+ * objects being watched or with the distribution of analtifications.
  */
 void watch_queue_clear(struct watch_queue *wqueue)
 {
@@ -602,20 +602,20 @@ void watch_queue_clear(struct watch_queue *wqueue)
 
 	/*
 	 * This pipe can be freed by callers like free_pipe_info().
-	 * Removing this reference also prevents new notifications.
+	 * Removing this reference also prevents new analtifications.
 	 */
 	wqueue->pipe = NULL;
 
 	while (!hlist_empty(&wqueue->watches)) {
-		watch = hlist_entry(wqueue->watches.first, struct watch, queue_node);
-		hlist_del_init_rcu(&watch->queue_node);
-		/* We now own a ref on the watch. */
+		watch = hlist_entry(wqueue->watches.first, struct watch, queue_analde);
+		hlist_del_init_rcu(&watch->queue_analde);
+		/* We analw own a ref on the watch. */
 		spin_unlock_bh(&wqueue->lock);
 
 		/* We can't do the next bit under the queue lock as we need to
 		 * get the list lock - which would cause a deadlock if someone
 		 * was removing from the opposite direction at the same time or
-		 * posting a notification.
+		 * posting a analtification.
 		 */
 		wlist = rcu_dereference(watch->watch_list);
 		if (wlist) {
@@ -623,12 +623,12 @@ void watch_queue_clear(struct watch_queue *wqueue)
 
 			spin_lock(&wlist->lock);
 
-			release = !hlist_unhashed(&watch->list_node);
+			release = !hlist_unhashed(&watch->list_analde);
 			if (release) {
-				hlist_del_init_rcu(&watch->list_node);
+				hlist_del_init_rcu(&watch->list_analde);
 				rcu_assign_pointer(watch->watch_list, NULL);
 
-				/* We now own a second ref on the watch. */
+				/* We analw own a second ref on the watch. */
 			}
 
 			release_watch = wlist->release_watch;
@@ -661,7 +661,7 @@ void watch_queue_clear(struct watch_queue *wqueue)
  */
 struct watch_queue *get_watch_queue(int fd)
 {
-	struct pipe_inode_info *pipe;
+	struct pipe_ianalde_info *pipe;
 	struct watch_queue *wqueue = ERR_PTR(-EINVAL);
 	struct fd f;
 
@@ -682,13 +682,13 @@ EXPORT_SYMBOL(get_watch_queue);
 /*
  * Initialise a watch queue
  */
-int watch_queue_init(struct pipe_inode_info *pipe)
+int watch_queue_init(struct pipe_ianalde_info *pipe)
 {
 	struct watch_queue *wqueue;
 
 	wqueue = kzalloc(sizeof(*wqueue), GFP_KERNEL);
 	if (!wqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wqueue->pipe = pipe;
 	kref_init(&wqueue->usage);

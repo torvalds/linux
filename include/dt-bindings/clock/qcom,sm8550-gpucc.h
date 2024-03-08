@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_QCOM_GPU_CC_SM8550_H
@@ -22,7 +22,7 @@
 #define GPU_CC_HUB_AON_CLK					12
 #define GPU_CC_HUB_CLK_SRC					13
 #define GPU_CC_HUB_CX_INT_CLK					14
-#define GPU_CC_MEMNOC_GFX_CLK					15
+#define GPU_CC_MEMANALC_GFX_CLK					15
 #define GPU_CC_MND1X_0_GFX3D_CLK				16
 #define GPU_CC_MND1X_1_GFX3D_CLK				17
 #define GPU_CC_PLL0						18

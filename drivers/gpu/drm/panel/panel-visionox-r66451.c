@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-2.0-only
-//Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+//Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
@@ -17,19 +17,19 @@
 
 #include <video/mipi_display.h>
 
-struct visionox_r66451 {
+struct visioanalx_r66451 {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[2];
 };
 
-static inline struct visionox_r66451 *to_visionox_r66451(struct drm_panel *panel)
+static inline struct visioanalx_r66451 *to_visioanalx_r66451(struct drm_panel *panel)
 {
-	return container_of(panel, struct visionox_r66451, panel);
+	return container_of(panel, struct visioanalx_r66451, panel);
 }
 
-static void visionox_r66451_reset(struct visionox_r66451 *ctx)
+static void visioanalx_r66451_reset(struct visioanalx_r66451 *ctx)
 {
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
 	usleep_range(10000, 10100);
@@ -39,7 +39,7 @@ static void visionox_r66451_reset(struct visionox_r66451 *ctx)
 	usleep_range(10000, 10100);
 }
 
-static int visionox_r66451_on(struct visionox_r66451 *ctx)
+static int visioanalx_r66451_on(struct visioanalx_r66451 *ctx)
 {
 	struct mipi_dsi_device *dsi = ctx->dsi;
 
@@ -110,15 +110,15 @@ static int visionox_r66451_on(struct visionox_r66451 *ctx)
 	return 0;
 }
 
-static int visionox_r66451_off(struct visionox_r66451 *ctx)
+static int visioanalx_r66451_off(struct visioanalx_r66451 *ctx)
 {
 	ctx->dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 	return 0;
 }
 
-static int visionox_r66451_prepare(struct drm_panel *panel)
+static int visioanalx_r66451_prepare(struct drm_panel *panel)
 {
-	struct visionox_r66451 *ctx = to_visionox_r66451(panel);
+	struct visioanalx_r66451 *ctx = to_visioanalx_r66451(panel);
 	struct mipi_dsi_device *dsi = ctx->dsi;
 	struct device *dev = &dsi->dev;
 	int ret;
@@ -128,9 +128,9 @@ static int visionox_r66451_prepare(struct drm_panel *panel)
 	if (ret < 0)
 		return ret;
 
-	visionox_r66451_reset(ctx);
+	visioanalx_r66451_reset(ctx);
 
-	ret = visionox_r66451_on(ctx);
+	ret = visioanalx_r66451_on(ctx);
 	if (ret < 0) {
 		dev_err(dev, "Failed to initialize panel: %d\n", ret);
 		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
@@ -143,13 +143,13 @@ static int visionox_r66451_prepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int visionox_r66451_unprepare(struct drm_panel *panel)
+static int visioanalx_r66451_unprepare(struct drm_panel *panel)
 {
-	struct visionox_r66451 *ctx = to_visionox_r66451(panel);
+	struct visioanalx_r66451 *ctx = to_visioanalx_r66451(panel);
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	ret = visionox_r66451_off(ctx);
+	ret = visioanalx_r66451_off(ctx);
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
 
@@ -159,7 +159,7 @@ static int visionox_r66451_unprepare(struct drm_panel *panel)
 	return 0;
 }
 
-static const struct drm_display_mode visionox_r66451_mode = {
+static const struct drm_display_mode visioanalx_r66451_mode = {
 	.clock = 345830,
 	.hdisplay = 1080,
 	.hsync_start = 1175,
@@ -174,16 +174,16 @@ static const struct drm_display_mode visionox_r66451_mode = {
 	.type = DRM_MODE_TYPE_DRIVER,
 };
 
-static int visionox_r66451_enable(struct drm_panel *panel)
+static int visioanalx_r66451_enable(struct drm_panel *panel)
 {
-	struct visionox_r66451 *ctx = to_visionox_r66451(panel);
+	struct visioanalx_r66451 *ctx = to_visioanalx_r66451(panel);
 	struct mipi_dsi_device *dsi = ctx->dsi;
 	struct drm_dsc_picture_parameter_set pps;
 	int ret;
 
 	if (!dsi->dsc) {
-		dev_err(&dsi->dev, "DSC not attached to DSI\n");
-		return -ENODEV;
+		dev_err(&dsi->dev, "DSC analt attached to DSI\n");
+		return -EANALDEV;
 	}
 
 	drm_dsc_pps_payload_pack(&pps, dsi->dsc);
@@ -210,9 +210,9 @@ static int visionox_r66451_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int visionox_r66451_disable(struct drm_panel *panel)
+static int visioanalx_r66451_disable(struct drm_panel *panel)
 {
-	struct visionox_r66451 *ctx = to_visionox_r66451(panel);
+	struct visioanalx_r66451 *ctx = to_visioanalx_r66451(panel);
 	struct mipi_dsi_device *dsi = ctx->dsi;
 	struct device *dev = &dsi->dev;
 	int ret;
@@ -234,22 +234,22 @@ static int visionox_r66451_disable(struct drm_panel *panel)
 	return 0;
 }
 
-static int visionox_r66451_get_modes(struct drm_panel *panel,
+static int visioanalx_r66451_get_modes(struct drm_panel *panel,
 				    struct drm_connector *connector)
 {
-	drm_connector_helper_get_modes_fixed(connector, &visionox_r66451_mode);
+	drm_connector_helper_get_modes_fixed(connector, &visioanalx_r66451_mode);
 	return 1;
 }
 
-static const struct drm_panel_funcs visionox_r66451_funcs = {
-	.prepare = visionox_r66451_prepare,
-	.unprepare = visionox_r66451_unprepare,
-	.get_modes = visionox_r66451_get_modes,
-	.enable = visionox_r66451_enable,
-	.disable = visionox_r66451_disable,
+static const struct drm_panel_funcs visioanalx_r66451_funcs = {
+	.prepare = visioanalx_r66451_prepare,
+	.unprepare = visioanalx_r66451_unprepare,
+	.get_modes = visioanalx_r66451_get_modes,
+	.enable = visioanalx_r66451_enable,
+	.disable = visioanalx_r66451_disable,
 };
 
-static int visionox_r66451_bl_update_status(struct backlight_device *bl)
+static int visioanalx_r66451_bl_update_status(struct backlight_device *bl)
 {
 	struct mipi_dsi_device *dsi = bl_get_data(bl);
 	u16 brightness = backlight_get_brightness(bl);
@@ -257,12 +257,12 @@ static int visionox_r66451_bl_update_status(struct backlight_device *bl)
 	return mipi_dsi_dcs_set_display_brightness(dsi, brightness);
 }
 
-static const struct backlight_ops visionox_r66451_bl_ops = {
-	.update_status = visionox_r66451_bl_update_status,
+static const struct backlight_ops visioanalx_r66451_bl_ops = {
+	.update_status = visioanalx_r66451_bl_update_status,
 };
 
 static struct backlight_device *
-visionox_r66451_create_backlight(struct mipi_dsi_device *dsi)
+visioanalx_r66451_create_backlight(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
 	const struct backlight_properties props = {
@@ -272,27 +272,27 @@ visionox_r66451_create_backlight(struct mipi_dsi_device *dsi)
 	};
 
 	return devm_backlight_device_register(dev, dev_name(dev), dev, dsi,
-					      &visionox_r66451_bl_ops, &props);
+					      &visioanalx_r66451_bl_ops, &props);
 }
 
-static int visionox_r66451_probe(struct mipi_dsi_device *dsi)
+static int visioanalx_r66451_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
-	struct visionox_r66451 *ctx;
+	struct visioanalx_r66451 *ctx;
 	struct drm_dsc_config *dsc;
 	int ret = 0;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dsc = devm_kzalloc(dev, sizeof(*dsc), GFP_KERNEL);
 	if (!dsc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set DSC params */
 	dsc->dsc_version_major = 0x1;
-	dsc->dsc_version_minor = 0x2;
+	dsc->dsc_version_mianalr = 0x2;
 
 	dsc->slice_height = 20;
 	dsc->slice_width = 540;
@@ -321,10 +321,10 @@ static int visionox_r66451_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	dsi->mode_flags = MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
-	drm_panel_init(&ctx->panel, dev, &visionox_r66451_funcs, DRM_MODE_CONNECTOR_DSI);
-	ctx->panel.backlight = visionox_r66451_create_backlight(dsi);
+	drm_panel_init(&ctx->panel, dev, &visioanalx_r66451_funcs, DRM_MODE_CONNECTOR_DSI);
+	ctx->panel.backlight = visioanalx_r66451_create_backlight(dsi);
 	if (IS_ERR(ctx->panel.backlight))
 		return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
 				"Failed to create backlight\n");
@@ -340,9 +340,9 @@ static int visionox_r66451_probe(struct mipi_dsi_device *dsi)
 	return ret;
 }
 
-static void visionox_r66451_remove(struct mipi_dsi_device *dsi)
+static void visioanalx_r66451_remove(struct mipi_dsi_device *dsi)
 {
-	struct visionox_r66451 *ctx = mipi_dsi_get_drvdata(dsi);
+	struct visioanalx_r66451 *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
 
 	ret = mipi_dsi_detach(dsi);
@@ -352,23 +352,23 @@ static void visionox_r66451_remove(struct mipi_dsi_device *dsi)
 	drm_panel_remove(&ctx->panel);
 }
 
-static const struct of_device_id visionox_r66451_of_match[] = {
-	{.compatible = "visionox,r66451"},
+static const struct of_device_id visioanalx_r66451_of_match[] = {
+	{.compatible = "visioanalx,r66451"},
 	{ /*sentinel*/ }
 };
-MODULE_DEVICE_TABLE(of, visionox_r66451_of_match);
+MODULE_DEVICE_TABLE(of, visioanalx_r66451_of_match);
 
-static struct mipi_dsi_driver visionox_r66451_driver = {
-	.probe = visionox_r66451_probe,
-	.remove = visionox_r66451_remove,
+static struct mipi_dsi_driver visioanalx_r66451_driver = {
+	.probe = visioanalx_r66451_probe,
+	.remove = visioanalx_r66451_remove,
 	.driver = {
-		.name = "panel-visionox-r66451",
-		.of_match_table = visionox_r66451_of_match,
+		.name = "panel-visioanalx-r66451",
+		.of_match_table = visioanalx_r66451_of_match,
 	},
 };
 
-module_mipi_dsi_driver(visionox_r66451_driver);
+module_mipi_dsi_driver(visioanalx_r66451_driver);
 
 MODULE_AUTHOR("Jessica Zhang <quic_jesszhan@quicinc.com>");
-MODULE_DESCRIPTION("Panel driver for the Visionox R66451 AMOLED DSI panel");
+MODULE_DESCRIPTION("Panel driver for the Visioanalx R66451 AMOLED DSI panel");
 MODULE_LICENSE("GPL");

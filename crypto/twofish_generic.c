@@ -30,7 +30,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bitops.h>
 
 /* Macros to compute the g() function in the encryption and decryption

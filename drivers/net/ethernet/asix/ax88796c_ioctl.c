@@ -105,7 +105,7 @@ ax88796c_get_regs(struct net_device *ndev, struct ethtool_regs *regs, void *_p)
 	mutex_lock(&ax_local->spi_lock);
 
 	for (offset = 0; offset < AX88796C_REGDUMP_LEN; offset += 2) {
-		if (!test_bit(offset / 2, ax88796c_no_regs_mask))
+		if (!test_bit(offset / 2, ax88796c_anal_regs_mask))
 			*p = AX_READ(&ax_local->ax_spi, offset);
 		p++;
 	}
@@ -139,7 +139,7 @@ ax88796c_get_sset_count(struct net_device *ndev, int stringset)
 		ret = ARRAY_SIZE(ax88796c_priv_flag_names);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -150,7 +150,7 @@ static int ax88796c_set_priv_flags(struct net_device *ndev, u32 flags)
 	struct ax88796c_device *ax_local = to_ax88796c_device(ndev);
 
 	if (flags & ~AX_PRIV_FLAGS_MASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((ax_local->priv_flags ^ flags) & AX_CAP_COMP)
 		if (netif_running(ndev))

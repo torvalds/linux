@@ -15,13 +15,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -78,7 +78,7 @@
 
 typedef struct drm_version_32 {
 	int version_major;	  /* Major version */
-	int version_minor;	  /* Minor version */
+	int version_mianalr;	  /* Mianalr version */
 	int version_patchlevel;	   /* Patch level */
 	u32 name_len;		  /* Length of name buffer */
 	u32 name;		  /* Name of driver */
@@ -114,7 +114,7 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 		return err;
 
 	v32.version_major = v.version_major;
-	v32.version_minor = v.version_minor;
+	v32.version_mianalr = v.version_mianalr;
 	v32.version_patchlevel = v.version_patchlevel;
 	v32.name_len = v.name_len;
 	v32.date_len = v.date_len;
@@ -353,7 +353,7 @@ static struct {
  *
  * Compatibility handler for 32 bit userspace running on 64 kernels. All actual
  * IOCTL handling is forwarded to drm_ioctl(), while marshalling structures as
- * appropriate. Note that this only handles DRM core IOCTLs, if the driver has
+ * appropriate. Analte that this only handles DRM core IOCTLs, if the driver has
  * botched IOCTL itself, it must handle those by wrapping this function.
  *
  * Returns:
@@ -363,12 +363,12 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned int nr = DRM_IOCTL_NR(cmd);
 	struct drm_file *file_priv = filp->private_data;
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_device *dev = file_priv->mianalr->dev;
 	drm_ioctl_compat_t *fn;
 	int ret;
 
 	/* Assume that ioctls without an explicit compat routine will just
-	 * work.  This may not always be a good assumption, but it's better
+	 * work.  This may analt always be a good assumption, but it's better
 	 * than always failing.
 	 */
 	if (nr >= ARRAY_SIZE(drm_compat_ioctls))
@@ -380,7 +380,7 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	drm_dbg_core(dev, "comm=\"%s\", pid=%d, dev=0x%lx, auth=%d, %s\n",
 		     current->comm, task_pid_nr(current),
-		     (long)old_encode_dev(file_priv->minor->kdev->devt),
+		     (long)old_encode_dev(file_priv->mianalr->kdev->devt),
 		     file_priv->authenticated,
 		     drm_compat_ioctls[nr].name);
 	ret = (*fn)(filp, cmd, arg);

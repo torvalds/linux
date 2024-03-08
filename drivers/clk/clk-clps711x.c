@@ -42,7 +42,7 @@ struct clps711x_clk {
 	struct clk_hw_onecell_data	clk_data;
 };
 
-static void __init clps711x_clk_init_dt(struct device_node *np)
+static void __init clps711x_clk_init_dt(struct device_analde *np)
 {
 	u32 tmp, f_cpu, f_pll, f_bus, f_tim, f_pwm, f_spi, fref = 0;
 	struct clps711x_clk *clps711x_clk;

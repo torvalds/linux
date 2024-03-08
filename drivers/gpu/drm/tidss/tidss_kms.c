@@ -126,13 +126,13 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 	for (i = 0; i < max_vps; i++) {
 		struct drm_panel *panel;
 		struct drm_bridge *bridge;
-		u32 enc_type = DRM_MODE_ENCODER_NONE;
+		u32 enc_type = DRM_MODE_ENCODER_ANALNE;
 		int ret;
 
-		ret = drm_of_find_panel_or_bridge(dev->of_node, i, 0,
+		ret = drm_of_find_panel_or_bridge(dev->of_analde, i, 0,
 						  &panel, &bridge);
-		if (ret == -ENODEV) {
-			dev_dbg(dev, "no panel/bridge for port %d\n", i);
+		if (ret == -EANALDEV) {
+			dev_dbg(dev, "anal panel/bridge for port %d\n", i);
 			continue;
 		} else if (ret) {
 			dev_dbg(dev, "port %d probe returned %d\n", i, ret);
@@ -256,7 +256,7 @@ int tidss_modeset_init(struct tidss_device *tidss)
 	ddev->mode_config.min_height = 8;
 	ddev->mode_config.max_width = 8096;
 	ddev->mode_config.max_height = 8096;
-	ddev->mode_config.normalize_zpos = true;
+	ddev->mode_config.analrmalize_zpos = true;
 	ddev->mode_config.funcs = &mode_config_funcs;
 	ddev->mode_config.helper_private = &mode_config_helper_funcs;
 

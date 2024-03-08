@@ -15,7 +15,7 @@ enum dr_ste_v0_entry_type {
 };
 
 enum dr_ste_v0_action_tunl {
-	DR_STE_TUNL_ACTION_NONE		= 0,
+	DR_STE_TUNL_ACTION_ANALNE		= 0,
 	DR_STE_TUNL_ACTION_ENABLE	= 1,
 	DR_STE_TUNL_ACTION_DECAP	= 2,
 	DR_STE_TUNL_ACTION_L3_DECAP	= 3,
@@ -40,7 +40,7 @@ enum dr_ste_v0_action_mdfy_op {
 			  DR_STE_V0_LU_TYPE_##lookup_type##_O)
 
 enum {
-	DR_STE_V0_LU_TYPE_NOP				= 0x00,
+	DR_STE_V0_LU_TYPE_ANALP				= 0x00,
 	DR_STE_V0_LU_TYPE_SRC_GVMI_AND_QP		= 0x05,
 	DR_STE_V0_LU_TYPE_ETHL2_TUNNELING_I		= 0x0a,
 	DR_STE_V0_LU_TYPE_ETHL2_DST_O			= 0x06,
@@ -348,7 +348,7 @@ static void dr_ste_v0_set_tx_push_vlan(u8 *hw_ste_p, u32 vlan_hdr,
 		 DR_STE_ACTION_TYPE_PUSH_VLAN);
 	MLX5_SET(ste_sx_transmit, hw_ste_p, encap_pointer_vlan_data, vlan_hdr);
 	/* Due to HW limitation we need to set this bit, otherwise reformat +
-	 * push vlan will not work.
+	 * push vlan will analt work.
 	 */
 	if (go_back)
 		dr_ste_v0_set_go_back_bit(hw_ste_p);
@@ -462,7 +462,7 @@ dr_ste_v0_set_actions_tx(struct mlx5dr_domain *dmn,
 		/* Whenever prio_tag_required enabled, we can be sure that the
 		 * previous table (ACL) already push vlan to our packet,
 		 * And due to HW limitation we need to set this bit, otherwise
-		 * push vlan + reformat will not work.
+		 * push vlan + reformat will analt work.
 		 */
 		if (MLX5_CAP_GEN(dmn->mdev, prio_tag_required))
 			dr_ste_v0_set_go_back_bit(last_ste);
@@ -604,7 +604,7 @@ dr_ste_v0_set_action_decap_l3_list(void *data, u32 data_sz,
 	required_actions = DR_STE_DECAP_L3_MIN_ACTION_NUM + !!vlan;
 
 	if (hw_action_num < required_actions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* dmac_47_16 */
 	MLX5_SET(dr_action_hw_set, hw_action,
@@ -1945,7 +1945,7 @@ static struct mlx5dr_ste_ctx ste_ctx_v0 = {
 	.get_byte_mask			= &dr_ste_v0_get_byte_mask,
 
 	/* Actions */
-	.actions_caps			= DR_STE_CTX_ACTION_CAP_NONE,
+	.actions_caps			= DR_STE_CTX_ACTION_CAP_ANALNE,
 	.set_actions_rx			= &dr_ste_v0_set_actions_rx,
 	.set_actions_tx			= &dr_ste_v0_set_actions_tx,
 	.modify_field_arr_sz		= ARRAY_SIZE(dr_ste_v0_action_modify_field_arr),

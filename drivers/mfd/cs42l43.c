@@ -10,7 +10,7 @@
 #include <linux/build_bug.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/mfd/core.h>
@@ -549,7 +549,7 @@ static int cs42l43_soft_reset(struct cs42l43 *cs42l43)
 }
 
 /*
- * This function is essentially a no-op on I2C, but will wait for the device to
+ * This function is essentially a anal-op on I2C, but will wait for the device to
  * attach when the device is used on a SoundWire bus.
  */
 static int cs42l43_wait_for_attach(struct cs42l43 *cs42l43)
@@ -579,7 +579,7 @@ static int cs42l43_wait_for_attach(struct cs42l43 *cs42l43)
  * This function will advance the firmware into boot stage 3 from boot stage 2.
  * Boot stage 3 is required to send commands to the firmware. This is achieved
  * by setting the firmware NEED configuration register to zero, this indicates
- * no configuration is required forcing the firmware to advance to boot stage 3.
+ * anal configuration is required forcing the firmware to advance to boot stage 3.
  *
  * Later revisions of the firmware require the use of an alternative register
  * for this purpose, which is indicated through the shadow flag.
@@ -614,9 +614,9 @@ static int cs42l43_mcu_stage_2_3(struct cs42l43 *cs42l43, bool shadow)
  * firmware will see it is missing a patch configuration and will pause in boot
  * stage 2.
  *
- * Note: Unlike cs42l43_mcu_stage_2_3 there is no need to consider the shadow
+ * Analte: Unlike cs42l43_mcu_stage_2_3 there is anal need to consider the shadow
  * register here as the driver will only return to boot stage 2 if the firmware
- * requires update which means the revision does not include shadow register
+ * requires update which means the revision does analt include shadow register
  * support.
  */
 static int cs42l43_mcu_stage_3_2(struct cs42l43 *cs42l43)
@@ -668,7 +668,7 @@ static void cs42l43_mcu_load_firmware(const struct firmware *firmware, void *con
 
 	if (!firmware) {
 		dev_err(cs42l43->dev, "Failed to load firmware\n");
-		cs42l43->firmware_error = -ENODEV;
+		cs42l43->firmware_error = -EANALDEV;
 		goto err;
 	}
 
@@ -731,12 +731,12 @@ static int cs42l43_mcu_update_step(struct cs42l43 *cs42l43)
 	}
 
 	bios_rev = (((mcu_rev & CS42L43_BIOS_MAJOR_REV_MASK) << 12) |
-		    ((mcu_rev & CS42L43_BIOS_MINOR_REV_MASK) << 4) |
-		    ((mcu_rev & CS42L43_BIOS_SUBMINOR_REV_MASK) >> 8)) >>
+		    ((mcu_rev & CS42L43_BIOS_MIANALR_REV_MASK) << 4) |
+		    ((mcu_rev & CS42L43_BIOS_SUBMIANALR_REV_MASK) >> 8)) >>
 		   CS42L43_BIOS_MAJOR_REV_SHIFT;
 	mcu_rev = ((mcu_rev & CS42L43_FW_MAJOR_REV_MASK) << 12) |
-		  ((mcu_rev & CS42L43_FW_MINOR_REV_MASK) << 4) |
-		  ((mcu_rev & CS42L43_FW_SUBMINOR_REV_MASK) >> 8);
+		  ((mcu_rev & CS42L43_FW_MIANALR_REV_MASK) << 4) |
+		  ((mcu_rev & CS42L43_FW_SUBMIANALR_REV_MASK) >> 8);
 
 	/*
 	 * The firmware has two revision numbers bringing either of them up to a
@@ -769,7 +769,7 @@ static int cs42l43_mcu_update_step(struct cs42l43 *cs42l43)
 	switch (boot_status) {
 	case CS42L43_MCU_BOOT_STAGE2:
 		if (!patched) {
-			ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+			ret = request_firmware_analwait(THIS_MODULE, FW_ACTION_UEVENT,
 						      "cs42l43.bin", cs42l43->dev,
 						      GFP_KERNEL, cs42l43,
 						      cs42l43_mcu_load_firmware);
@@ -846,7 +846,7 @@ static int cs42l43_irq_config(struct cs42l43 *cs42l43)
 	case IRQF_TRIGGER_RISING:
 	case IRQF_TRIGGER_FALLING:
 		break;
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 	default:
 		irq_flags = IRQF_TRIGGER_LOW;
 		break;
@@ -922,7 +922,7 @@ static void cs42l43_boot_work(struct work_struct *work)
 	if (ret)
 		goto err;
 
-	ret = devm_mfd_add_devices(cs42l43->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(cs42l43->dev, PLATFORM_DEVID_ANALNE,
 				   cs42l43_devs, ARRAY_SIZE(cs42l43_devs),
 				   NULL, 0, NULL);
 	if (ret) {
@@ -1058,7 +1058,7 @@ int cs42l43_dev_probe(struct cs42l43 *cs42l43)
 	 * The device is already powered up, but keep it from suspending until
 	 * the boot work runs.
 	 */
-	pm_runtime_get_noresume(cs42l43->dev);
+	pm_runtime_get_analresume(cs42l43->dev);
 	devm_pm_runtime_enable(cs42l43->dev);
 
 	queue_work(system_long_wq, &cs42l43->boot_work);
@@ -1083,18 +1083,18 @@ static int cs42l43_suspend(struct device *dev)
 	 * force_resume to always trigger an actual resume, so that register
 	 * state for the MCU/GPIOs is returned as soon as possible after system
 	 * resume. force_resume will resume if the reference count is resumed on
-	 * suspend hence the get_noresume.
+	 * suspend hence the get_analresume.
 	 */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 
 	ret = pm_runtime_force_suspend(dev);
 	if (ret) {
 		dev_err(cs42l43->dev, "Failed to force suspend: %d\n", ret);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		return ret;
 	}
 
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	ret = cs42l43_power_down(cs42l43);
 	if (ret)

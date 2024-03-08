@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/omapfb.h
  *
- * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2008 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -29,7 +29,7 @@ extern bool omapfb_debug;
 			printk(KERN_DEBUG "OMAPFB: " format, ## __VA_ARGS__); \
 	} while (0)
 #else
-#define DBG(format, ...) no_printk(format, ## __VA_ARGS__)
+#define DBG(format, ...) anal_printk(format, ## __VA_ARGS__)
 #endif
 
 #define FB2OFB(fb_info) ((struct omapfb_info *)(fb_info->par))
@@ -100,7 +100,7 @@ struct omapfb2_device {
 struct omapfb_colormode {
 	enum omap_color_mode dssmode;
 	u32 bits_per_pixel;
-	u32 nonstd;
+	u32 analnstd;
 	struct fb_bitfield red;
 	struct fb_bitfield green;
 	struct fb_bitfield blue;

@@ -98,10 +98,10 @@ struct i3c_ccc_mrl {
  *
  * @dyn_addr: dynamic address assigned to the I3C slave or 0 if the entry is
  *	      describing an I2C slave.
- * @dcr: DCR value (not applicable to entries describing I2C devices)
- * @lvr: LVR value (not applicable to entries describing I3C devices)
+ * @dcr: DCR value (analt applicable to entries describing I2C devices)
+ * @lvr: LVR value (analt applicable to entries describing I3C devices)
  * @bcr: BCR value or 0 if this entry is describing an I2C slave
- * @static_addr: static address or 0 if the device does not have a static
+ * @static_addr: static address or 0 if the device does analt have a static
  *		 address
  *
  * The DEFSLVS command should be passed an array of i3c_ccc_dev_desc

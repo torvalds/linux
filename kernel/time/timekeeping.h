@@ -4,7 +4,7 @@
 /*
  * Internal interfaces for kernel/time/
  */
-extern ktime_t ktime_get_update_offsets_now(unsigned int *cwsseq,
+extern ktime_t ktime_get_update_offsets_analw(unsigned int *cwsseq,
 					    ktime_t *offs_real,
 					    ktime_t *offs_boot,
 					    ktime_t *offs_tai);

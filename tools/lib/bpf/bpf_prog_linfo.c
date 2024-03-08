@@ -106,7 +106,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	nr_linfo = info->nr_line_info;
 
 	if (!nr_linfo)
-		return errno = EINVAL, NULL;
+		return erranal = EINVAL, NULL;
 
 	/*
 	 * The min size that bpf_prog_linfo has to access for
@@ -114,11 +114,11 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	 */
 	if (info->line_info_rec_size <
 	    offsetof(struct bpf_line_info, file_name_off))
-		return errno = EINVAL, NULL;
+		return erranal = EINVAL, NULL;
 
 	prog_linfo = calloc(1, sizeof(*prog_linfo));
 	if (!prog_linfo)
-		return errno = ENOMEM, NULL;
+		return erranal = EANALMEM, NULL;
 
 	/* Copy xlated line_info */
 	prog_linfo->nr_linfo = nr_linfo;
@@ -137,7 +137,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	    info->nr_jited_func_lens != nr_jited_func ||
 	    !info->jited_ksyms ||
 	    !info->jited_func_lens)
-		/* Not enough info to provide jited_line_info */
+		/* Analt eanalugh info to provide jited_line_info */
 		return prog_linfo;
 
 	/* Copy jited_line_info */
@@ -174,7 +174,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 
 err_free:
 	bpf_prog_linfo__free(prog_linfo);
-	return errno = EINVAL, NULL;
+	return erranal = EINVAL, NULL;
 }
 
 const struct bpf_line_info *
@@ -186,11 +186,11 @@ bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
 	const __u64 *jited_linfo;
 
 	if (func_idx >= prog_linfo->nr_jited_func)
-		return errno = ENOENT, NULL;
+		return erranal = EANALENT, NULL;
 
 	nr_linfo = prog_linfo->nr_jited_linfo_per_func[func_idx];
 	if (nr_skip >= nr_linfo)
-		return errno = ENOENT, NULL;
+		return erranal = EANALENT, NULL;
 
 	start = prog_linfo->jited_linfo_func_idx[func_idx] + nr_skip;
 	jited_rec_size = prog_linfo->jited_rec_size;
@@ -198,7 +198,7 @@ bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
 		(start * jited_rec_size);
 	jited_linfo = raw_jited_linfo;
 	if (addr < *jited_linfo)
-		return errno = ENOENT, NULL;
+		return erranal = EANALENT, NULL;
 
 	nr_linfo -= nr_skip;
 	rec_size = prog_linfo->rec_size;
@@ -225,13 +225,13 @@ bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
 
 	nr_linfo = prog_linfo->nr_linfo;
 	if (nr_skip >= nr_linfo)
-		return errno = ENOENT, NULL;
+		return erranal = EANALENT, NULL;
 
 	rec_size = prog_linfo->rec_size;
 	raw_linfo = prog_linfo->raw_linfo + (nr_skip * rec_size);
 	linfo = raw_linfo;
 	if (insn_off < linfo->insn_off)
-		return errno = ENOENT, NULL;
+		return erranal = EANALENT, NULL;
 
 	nr_linfo -= nr_skip;
 	for (i = 0; i < nr_linfo; i++) {

@@ -65,7 +65,7 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 	u8 backupPMKIDIndex = 0;
 	u8 backupTKIPCountermeasure = 0x00;
 	u32 backupTKIPcountermeasure_time = 0;
-	/*  add for CONFIG_IEEE80211W, none 11w also can use */
+	/*  add for CONFIG_IEEE80211W, analne 11w also can use */
 	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
 
 	spin_lock_bh(&adapter->security_key_mutex);
@@ -105,17 +105,17 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 		struct security_priv *psec_priv = &adapter->securitypriv;
 
 		psec_priv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;  /* open system */
-		psec_priv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
+		psec_priv->dot11PrivacyAlgrthm = _ANAL_PRIVACY_;
 		psec_priv->dot11PrivacyKeyIndex = 0;
 
-		psec_priv->dot118021XGrpPrivacy = _NO_PRIVACY_;
+		psec_priv->dot118021XGrpPrivacy = _ANAL_PRIVACY_;
 		psec_priv->dot118021XGrpKeyid = 1;
 
 		psec_priv->ndisauthtype = Ndis802_11AuthModeOpen;
 		psec_priv->ndisencryptstatus = Ndis802_11WEPDisabled;
 		/*  */
 	}
-	/*  add for CONFIG_IEEE80211W, none 11w also can use */
+	/*  add for CONFIG_IEEE80211W, analne 11w also can use */
 	spin_unlock_bh(&adapter->security_key_mutex);
 }
 
@@ -127,7 +127,7 @@ void rtw_os_indicate_disconnect(struct adapter *adapter)
 
 	rtw_cfg80211_indicate_disconnect(adapter);
 
-	/* modify for CONFIG_IEEE80211W, none 11w also can use the same command */
+	/* modify for CONFIG_IEEE80211W, analne 11w also can use the same command */
 	rtw_reset_securitypriv_cmd(adapter);
 }
 

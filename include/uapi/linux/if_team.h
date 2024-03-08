@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * include/linux/if_team.h - Network team device driver header
  * Copyright (c) 2011 Jiri Pirko <jpirko@redhat.com>
@@ -20,7 +20,7 @@
  **********************************/
 
 enum {
-	TEAM_CMD_NOOP,
+	TEAM_CMD_ANALOP,
 	TEAM_CMD_OPTIONS_SET,
 	TEAM_CMD_OPTIONS_GET,
 	TEAM_CMD_PORT_LIST_GET,

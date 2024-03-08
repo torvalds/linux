@@ -4,7 +4,7 @@
  * Copyright (C) 2018-2022 Linaro Ltd.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -77,7 +77,7 @@ static int ipa_open(struct net_device *netdev)
 err_disable_tx:
 	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
 err_power_put:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	return ret;
 }
@@ -139,17 +139,17 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		/* If a resume won't happen, just drop the packet */
 		if (ret < 0 && ret != -EINPROGRESS) {
 			ipa_power_modem_queue_active(ipa);
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_analidle(dev);
 			goto err_drop_skb;
 		}
 
-		/* No power (yet).  Stop the network stack from transmitting
+		/* Anal power (yet).  Stop the network stack from transmitting
 		 * until we're resumed; ipa_modem_resume() arranges for the
 		 * TX queue to be started again.
 		 */
 		ipa_power_modem_queue_stop(ipa);
 
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 
 		return NETDEV_TX_BUSY;
 	}
@@ -292,14 +292,14 @@ int ipa_modem_start(struct ipa *ipa)
 	state = atomic_cmpxchg(&ipa->modem_state, IPA_MODEM_STATE_STOPPED,
 			       IPA_MODEM_STATE_STARTING);
 
-	/* Silently ignore attempts when running, or when changing state */
+	/* Silently iganalre attempts when running, or when changing state */
 	if (state != IPA_MODEM_STATE_STOPPED)
 		return 0;
 
 	netdev = alloc_netdev(sizeof(struct ipa_priv), IPA_NETDEV_NAME,
-			      NET_NAME_UNKNOWN, ipa_modem_netdev_setup);
+			      NET_NAME_UNKANALWN, ipa_modem_netdev_setup);
 	if (!netdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_set_state;
 	}
 
@@ -338,7 +338,7 @@ int ipa_modem_stop(struct ipa *ipa)
 	state = atomic_cmpxchg(&ipa->modem_state, IPA_MODEM_STATE_RUNNING,
 			       IPA_MODEM_STATE_STOPPING);
 
-	/* Silently ignore attempts when already stopped */
+	/* Silently iganalre attempts when already stopped */
 	if (state == IPA_MODEM_STATE_STOPPED)
 		return 0;
 
@@ -402,7 +402,7 @@ static void ipa_modem_crashed(struct ipa *ipa)
 	if (ret)
 		dev_err(dev, "error %d stopping modem\n", ret);
 
-	/* Now prepare for the next modem boot */
+	/* Analw prepare for the next modem boot */
 	ret = ipa_mem_zero_modem(ipa);
 	if (ret)
 		dev_err(dev, "error %d zeroing modem memory regions\n", ret);
@@ -412,18 +412,18 @@ out_power_put:
 	(void)pm_runtime_put_autosuspend(dev);
 }
 
-static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
+static int ipa_modem_analtify(struct analtifier_block *nb, unsigned long action,
 			    void *data)
 {
 	struct ipa *ipa = container_of(nb, struct ipa, nb);
-	struct qcom_ssr_notify_data *notify_data = data;
+	struct qcom_ssr_analtify_data *analtify_data = data;
 	struct device *dev = &ipa->pdev->dev;
 
 	switch (action) {
 	case QCOM_SSR_BEFORE_POWERUP:
 		dev_info(dev, "received modem starting event\n");
 		ipa_uc_power(ipa);
-		ipa_smp2p_notify_reset(ipa);
+		ipa_smp2p_analtify_reset(ipa);
 		break;
 
 	case QCOM_SSR_AFTER_POWERUP:
@@ -432,7 +432,7 @@ static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
 
 	case QCOM_SSR_BEFORE_SHUTDOWN:
 		dev_info(dev, "received modem %s event\n",
-			 notify_data->crashed ? "crashed" : "stopping");
+			 analtify_data->crashed ? "crashed" : "stopping");
 		if (ipa->setup_complete)
 			ipa_modem_crashed(ipa);
 		break;
@@ -446,20 +446,20 @@ static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 int ipa_modem_config(struct ipa *ipa)
 {
-	void *notifier;
+	void *analtifier;
 
-	ipa->nb.notifier_call = ipa_modem_notify;
+	ipa->nb.analtifier_call = ipa_modem_analtify;
 
-	notifier = qcom_register_ssr_notifier("mpss", &ipa->nb);
-	if (IS_ERR(notifier))
-		return PTR_ERR(notifier);
+	analtifier = qcom_register_ssr_analtifier("mpss", &ipa->nb);
+	if (IS_ERR(analtifier))
+		return PTR_ERR(analtifier);
 
-	ipa->notifier = notifier;
+	ipa->analtifier = analtifier;
 
 	return 0;
 }
@@ -469,10 +469,10 @@ void ipa_modem_deconfig(struct ipa *ipa)
 	struct device *dev = &ipa->pdev->dev;
 	int ret;
 
-	ret = qcom_unregister_ssr_notifier(ipa->notifier, &ipa->nb);
+	ret = qcom_unregister_ssr_analtifier(ipa->analtifier, &ipa->nb);
 	if (ret)
-		dev_err(dev, "error %d unregistering notifier", ret);
+		dev_err(dev, "error %d unregistering analtifier", ret);
 
-	ipa->notifier = NULL;
+	ipa->analtifier = NULL;
 	memset(&ipa->nb, 0, sizeof(ipa->nb));
 }

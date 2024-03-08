@@ -30,7 +30,7 @@ int edac_workqueue_setup(void)
 {
 	wq = alloc_ordered_workqueue("edac-poller", WQ_MEM_RECLAIM);
 	if (!wq)
-		return -ENODEV;
+		return -EANALDEV;
 	else
 		return 0;
 }

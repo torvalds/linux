@@ -139,7 +139,7 @@ static int nft_log_modprobe(struct net *net, enum nf_log_type t)
 		break;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int nft_log_init(const struct nft_ctx *ctx,
@@ -165,7 +165,7 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	if (nla != NULL) {
 		priv->prefix = kmalloc(nla_len(nla) + 1, GFP_KERNEL);
 		if (priv->prefix == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		nla_strscpy(priv->prefix, nla, nla_len(nla) + 1);
 	} else {
 		priv->prefix = (char *)nft_log_null_prefix;

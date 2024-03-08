@@ -11,9 +11,9 @@ static int duration;
 
 /* AddressSanitizer sometimes crashes due to data dereference below, due to
  * this being mmap()'ed memory. Disable instrumentation with
- * no_sanitize_address attribute
+ * anal_sanitize_address attribute
  */
-__attribute__((no_sanitize_address))
+__attribute__((anal_sanitize_address))
 static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 {
 	int cpu_data = *(int *)data, duration = 0;
@@ -134,7 +134,7 @@ void serial_test_perf_buffer(void)
 		if (CHECK(err, "consume_buf", "cpu %d, err %d\n", j, err))
 			goto out_close;
 
-		if (CHECK(!CPU_ISSET(i, &cpu_seen), "cpu_seen", "cpu %d not seen\n", i))
+		if (CHECK(!CPU_ISSET(i, &cpu_seen), "cpu_seen", "cpu %d analt seen\n", i))
 			goto out_close;
 		j++;
 	}

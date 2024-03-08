@@ -1,7 +1,7 @@
 #ifndef IOU_CORE_H
 #define IOU_CORE_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/lockdep.h>
 #include <linux/resume_user_mode.h>
 #include <linux/kasan.h>
@@ -21,8 +21,8 @@ enum {
 
 	/*
 	 * Requeue the task_work to restart operations on this request. The
-	 * actual value isn't important, should just be not an otherwise
-	 * valid error code, yet less than -MAX_ERRNO and valid internally.
+	 * actual value isn't important, should just be analt an otherwise
+	 * valid error code, yet less than -MAX_ERRANAL and valid internally.
 	 */
 	IOU_REQUEUE		= -3072,
 
@@ -45,7 +45,7 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx);
 
 struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
 
-struct file *io_file_get_normal(struct io_kiocb *req, int fd);
+struct file *io_file_get_analrmal(struct io_kiocb *req, int fd);
 struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 			       unsigned issue_flags);
 
@@ -66,7 +66,7 @@ int io_ring_add_registered_file(struct io_uring_task *tctx, struct file *file,
 
 int io_poll_issue(struct io_kiocb *req, struct io_tw_state *ts);
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
-int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
+int io_do_iopoll(struct io_ring_ctx *ctx, bool force_analnspin);
 void __io_submit_flush_completions(struct io_ring_ctx *ctx);
 int io_req_prep_async(struct io_kiocb *req);
 
@@ -105,7 +105,7 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 		/*
 		 * ->submitter_task may be NULL and we can still post a CQE,
 		 * if the ring has been setup with IORING_SETUP_R_DISABLED.
-		 * Not from an SQE, as those cannot be submitted, but via
+		 * Analt from an SQE, as those cananalt be submitted, but via
 		 * updating tagged resources.
 		 */
 		if (ctx->submitter_task->flags & PF_EXITING)
@@ -215,7 +215,7 @@ static inline void io_ring_submit_lock(struct io_ring_ctx *ctx,
 				       unsigned issue_flags)
 {
 	/*
-	 * "Normal" inline submissions always hold the uring_lock, since we
+	 * "Analrmal" inline submissions always hold the uring_lock, since we
 	 * grab it from the system call. Same is true for the SQPOLL offload.
 	 * The only exception is when we've detached the request and issue it
 	 * from an async worker thread, grab the lock for that case.
@@ -234,7 +234,7 @@ static inline void io_commit_cqring(struct io_ring_ctx *ctx)
 static inline void io_poll_wq_wake(struct io_ring_ctx *ctx)
 {
 	if (wq_has_sleeper(&ctx->poll_wq))
-		__wake_up(&ctx->poll_wq, TASK_NORMAL, 0,
+		__wake_up(&ctx->poll_wq, TASK_ANALRMAL, 0,
 				poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
 }
 
@@ -247,11 +247,11 @@ static inline void io_cqring_wake(struct io_ring_ctx *ctx)
 	 *
 	 * Pass in EPOLLIN|EPOLL_URING_WAKE as the poll wakeup key. The latter
 	 * set in the mask so that if we recurse back into our own poll
-	 * waitqueue handlers, we know we have a dependency between eventfd or
+	 * waitqueue handlers, we kanalw we have a dependency between eventfd or
 	 * epoll and should terminate multishot poll at that point.
 	 */
 	if (wq_has_sleeper(&ctx->cq_wait))
-		__wake_up(&ctx->cq_wait, TASK_NORMAL, 0,
+		__wake_up(&ctx->cq_wait, TASK_ANALRMAL, 0,
 				poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
 }
 
@@ -275,18 +275,18 @@ static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 static inline int io_run_task_work(void)
 {
 	/*
-	 * Always check-and-clear the task_work notification signal. With how
-	 * signaling works for task_work, we can find it set with nothing to
+	 * Always check-and-clear the task_work analtification signal. With how
+	 * signaling works for task_work, we can find it set with analthing to
 	 * run. We need to clear it for that case, like get_signal() does.
 	 */
-	if (test_thread_flag(TIF_NOTIFY_SIGNAL))
-		clear_notify_signal();
+	if (test_thread_flag(TIF_ANALTIFY_SIGNAL))
+		clear_analtify_signal();
 	/*
 	 * PF_IO_WORKER never returns to userspace, so check here if we have
-	 * notify work that needs processing.
+	 * analtify work that needs processing.
 	 */
 	if (current->flags & PF_IO_WORKER &&
-	    test_thread_flag(TIF_NOTIFY_RESUME)) {
+	    test_thread_flag(TIF_ANALTIFY_RESUME)) {
 		__set_current_state(TASK_RUNNING);
 		resume_user_mode_work(NULL);
 	}
@@ -389,7 +389,7 @@ static inline void io_req_queue_tw_complete(struct io_kiocb *req, s32 res)
 }
 
 /*
- * IORING_SETUP_SQE128 contexts allocate twice the normal SQE size for each
+ * IORING_SETUP_SQE128 contexts allocate twice the analrmal SQE size for each
  * slot.
  */
 static inline size_t uring_sqe_size(struct io_ring_ctx *ctx)

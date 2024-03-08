@@ -10,7 +10,7 @@
  * Fan control is provided via pwm interface in the range [0-255].
  * Old AMD boards use [0-100] as range in the EC, the written value is
  * scaled to accommodate for that. Newer boards like the mini PRO and
- * AOK ZOE are not scaled but have the same EC layout.
+ * AOK ZOE are analt scaled but have the same EC layout.
  *
  * Copyright (C) 2022 Joaquín I. Aramendía <samsagax@gmail.com>
  */
@@ -353,7 +353,7 @@ static int oxp_platform_read(struct device *dev, enum hwmon_sensor_types type,
 	default:
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
@@ -393,10 +393,10 @@ static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
 	default:
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-/* Known sensors in the OXP EC controllers */
+/* Kanalwn sensors in the OXP EC controllers */
 static const struct hwmon_channel_info * const oxp_platform_sensors[] = {
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT),
@@ -466,7 +466,7 @@ static int __init oxp_platform_init(void)
 	 */
 	dmi_entry = dmi_first_match(dmi_table);
 	if (!dmi_entry || boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
-		return -ENODEV;
+		return -EANALDEV;
 
 	board = (enum oxp_board)(unsigned long)dmi_entry->driver_data;
 

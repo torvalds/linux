@@ -22,7 +22,7 @@
  * @iter: The output buffer (also specifies read length)
  *
  * Perform an unbuffered I/O or direct I/O from the file in @iocb to the
- * output buffer.  No use is made of the pagecache.
+ * output buffer.  Anal use is made of the pagecache.
  *
  * The caller must hold any appropriate locks.
  */
@@ -57,7 +57,7 @@ static ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_
 	 * we return.
 	 *
 	 * In such a case, extract an iterator to represent as much of the the
-	 * output buffer as we can manage.  Note that the extraction might not
+	 * output buffer as we can manage.  Analte that the extraction might analt
 	 * be able to allocate a sufficiently large bvec array and may shorten
 	 * the request.
 	 */
@@ -105,20 +105,20 @@ out:
  * @iter: The output buffer (also specifies read length)
  *
  * Perform an unbuffered I/O or direct I/O from the file in @iocb to the
- * output buffer.  No use is made of the pagecache.
+ * output buffer.  Anal use is made of the pagecache.
  */
 ssize_t netfs_unbuffered_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 	ssize_t ret;
 
 	if (!iter->count)
 		return 0; /* Don't update atime */
 
-	ret = netfs_start_io_direct(inode);
+	ret = netfs_start_io_direct(ianalde);
 	if (ret == 0) {
 		ret = netfs_unbuffered_read_iter_locked(iocb, iter);
-		netfs_end_io_direct(inode);
+		netfs_end_io_direct(ianalde);
 	}
 	return ret;
 }

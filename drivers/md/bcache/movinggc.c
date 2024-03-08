@@ -153,7 +153,7 @@ static void read_moving(struct cache_set *c)
 
 		w->private	= io;
 		io->w		= w;
-		io->op.inode	= KEY_INODE(&w->key);
+		io->op.ianalde	= KEY_IANALDE(&w->key);
 		io->op.c	= c;
 		io->op.wq	= c->moving_gc_wq;
 

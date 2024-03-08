@@ -139,7 +139,7 @@ static int __tb_xdomain_response(struct tb_ctl *ctl, const void *response,
 
 	req = tb_cfg_request_alloc();
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->match = tb_xdomain_match;
 	req->copy = tb_xdomain_copy;
@@ -158,9 +158,9 @@ static int __tb_xdomain_response(struct tb_ctl *ctl, const void *response,
  * @type: PDF type of the response
  *
  * This can be used to send a XDomain response message to the other
- * domain. No response for the message is expected.
+ * domain. Anal response for the message is expected.
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 in case of success and negative erranal in case of failure
  */
 int tb_xdomain_response(struct tb_xdomain *xd, const void *response,
 			size_t size, enum tb_cfg_pkg_type type)
@@ -179,7 +179,7 @@ static int __tb_xdomain_request(struct tb_ctl *ctl, const void *request,
 
 	req = tb_cfg_request_alloc();
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->match = tb_xdomain_match;
 	req->copy = tb_xdomain_copy;
@@ -212,7 +212,7 @@ static int __tb_xdomain_request(struct tb_ctl *ctl, const void *request,
  * the other domain. The function waits until the response is received
  * or when timeout triggers. Whichever comes first.
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 in case of success and negative erranal in case of failure
  */
 int tb_xdomain_request(struct tb_xdomain *xd, const void *request,
 	size_t request_size, enum tb_cfg_pkg_type request_type,
@@ -246,12 +246,12 @@ static int tb_xdp_handle_error(const struct tb_xdp_error_response *res)
 		return 0;
 
 	switch (res->error) {
-	case ERROR_UNKNOWN_PACKET:
-	case ERROR_UNKNOWN_DOMAIN:
+	case ERROR_UNKANALWN_PACKET:
+	case ERROR_UNKANALWN_DOMAIN:
 		return -EIO;
-	case ERROR_NOT_SUPPORTED:
-		return -ENOTSUPP;
-	case ERROR_NOT_READY:
+	case ERROR_ANALT_SUPPORTED:
+		return -EANALTSUPP;
+	case ERROR_ANALT_READY:
 		return -EAGAIN;
 	default:
 		break;
@@ -334,7 +334,7 @@ static int tb_xdp_properties_request(struct tb_ctl *ctl, u64 route,
 	total_size = sizeof(*res) + TB_XDP_PROPERTIES_MAX_DATA_LENGTH * 4;
 	res = kzalloc(total_size, GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&req, 0, sizeof(req));
 	tb_xdp_fill_header(&req.hdr, route, retry % 4, PROPERTIES_REQUEST,
@@ -376,7 +376,7 @@ static int tb_xdp_properties_request(struct tb_ctl *ctl, u64 route,
 		}
 
 		/*
-		 * First time allocate block that has enough space for
+		 * First time allocate block that has eanalugh space for
 		 * the whole properties block.
 		 */
 		if (!data) {
@@ -388,7 +388,7 @@ static int tb_xdp_properties_request(struct tb_ctl *ctl, u64 route,
 
 			data = kcalloc(data_len, sizeof(u32), GFP_KERNEL);
 			if (!data) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err;
 			}
 		}
@@ -426,7 +426,7 @@ static int tb_xdp_properties_response(struct tb *tb, struct tb_ctl *ctl,
 	 */
 	if (!uuid_equal(xd->local_uuid, &req->dst_uuid)) {
 		tb_xdp_error_response(ctl, xd->route, sequence,
-				      ERROR_UNKNOWN_DOMAIN);
+				      ERROR_UNKANALWN_DOMAIN);
 		return 0;
 	}
 
@@ -444,7 +444,7 @@ static int tb_xdp_properties_response(struct tb *tb, struct tb_ctl *ctl,
 	res = kzalloc(total_size, GFP_KERNEL);
 	if (!res) {
 		mutex_unlock(&xd->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tb_xdp_fill_header(&res->hdr, xd->route, sequence, PROPERTIES_RESPONSE,
@@ -648,7 +648,7 @@ static void update_property_block(struct tb_xdomain *xd)
 	mutex_lock(&xdomain_lock);
 	mutex_lock(&xd->lock);
 	/*
-	 * If the local property block is not up-to-date, rebuild it now
+	 * If the local property block is analt up-to-date, rebuild it analw
 	 * based on the global property template.
 	 */
 	if (!xd->local_property_block ||
@@ -663,8 +663,8 @@ static void update_property_block(struct tb_xdomain *xd)
 			goto out_unlock;
 		}
 
-		/* Fill in non-static properties now */
-		tb_property_add_text(dir, "deviceid", utsname()->nodename);
+		/* Fill in analn-static properties analw */
+		tb_property_add_text(dir, "deviceid", utsname()->analdename);
 		tb_property_add_immediate(dir, "maxhopid", xd->local_max_hopid);
 
 		ret = tb_property_format_dir(dir, NULL, 0);
@@ -749,7 +749,7 @@ static void tb_xdp_handle_request(struct work_struct *work)
 	mutex_unlock(&tb->lock);
 
 	if (!uuid) {
-		tb_xdp_error_response(ctl, route, sequence, ERROR_NOT_READY);
+		tb_xdp_error_response(ctl, route, sequence, ERROR_ANALT_READY);
 		goto out;
 	}
 
@@ -788,7 +788,7 @@ static void tb_xdp_handle_request(struct work_struct *work)
 		ret = tb_xdp_uuid_response(ctl, route, sequence, uuid);
 		/*
 		 * If we've stopped the discovery with an error such as
-		 * timing out, we will restart the handshake now that we
+		 * timing out, we will restart the handshake analw that we
 		 * received UUID request from the remote host.
 		 */
 		if (!ret && xd && xd->state == XDOMAIN_STATE_ERROR) {
@@ -806,7 +806,7 @@ static void tb_xdp_handle_request(struct work_struct *work)
 								sequence);
 		} else {
 			tb_xdp_error_response(ctl, route, sequence,
-					      ERROR_NOT_READY);
+					      ERROR_ANALT_READY);
 		}
 		break;
 
@@ -825,14 +825,14 @@ static void tb_xdp_handle_request(struct work_struct *work)
 					   msecs_to_jiffies(XDOMAIN_SHORT_TIMEOUT));
 		} else {
 			tb_xdp_error_response(ctl, route, sequence,
-					      ERROR_NOT_READY);
+					      ERROR_ANALT_READY);
 		}
 		break;
 
 	default:
-		tb_dbg(tb, "%llx: unknown XDomain request %#x\n", route, pkg->type);
+		tb_dbg(tb, "%llx: unkanalwn XDomain request %#x\n", route, pkg->type);
 		tb_xdp_error_response(ctl, route, sequence,
-				      ERROR_NOT_SUPPORTED);
+				      ERROR_ANALT_SUPPORTED);
 		break;
 	}
 
@@ -1060,7 +1060,7 @@ static int populate_service(struct tb_service *svc,
 
 	svc->key = kstrdup(property->key, GFP_KERNEL);
 	if (!svc->key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1073,7 +1073,7 @@ static void enumerate_services(struct tb_xdomain *xd)
 	int id;
 
 	/*
-	 * First remove all services that are not available anymore in
+	 * First remove all services that are analt available anymore in
 	 * the updated property block.
 	 */
 	device_for_each_child_reverse(&xd->dev, xd, remove_missing_service);
@@ -1139,7 +1139,7 @@ static int populate_properties(struct tb_xdomain *xd,
 	p = tb_property_find(dir, "maxhopid", TB_PROPERTY_TYPE_VALUE);
 	/*
 	 * USB4 inter-domain spec suggests using 15 as HopID if the
-	 * other end does not announce it in a property. This is for
+	 * other end does analt ananalunce it in a property. This is for
 	 * TBT3 compatibility.
 	 */
 	xd->remote_max_hopid = p ? p->value.immediate : XDOMAIN_DEFAULT_MAX_HOPID;
@@ -1225,21 +1225,21 @@ static int tb_xdomain_get_uuid(struct tb_xdomain *xd)
 	}
 
 	/*
-	 * If the UUID is different, there is another domain connected
+	 * If the UUID is different, there is aanalther domain connected
 	 * so mark this one unplugged and wait for the connection
 	 * manager to replace it.
 	 */
 	if (xd->remote_uuid && !uuid_equal(&uuid, xd->remote_uuid)) {
 		dev_dbg(&xd->dev, "remote UUID is different, unplugging\n");
 		xd->is_unplugged = true;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* First time fill in the missing UUID */
 	if (!xd->remote_uuid) {
 		xd->remote_uuid = kmemdup(&uuid, sizeof(uuid_t), GFP_KERNEL);
 		if (!xd->remote_uuid)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1258,7 +1258,7 @@ static int tb_xdomain_get_link_status(struct tb_xdomain *xd)
 					       xd->state_retries, &slw, &tlw, &sls,
 					       &tls);
 	if (ret) {
-		if (ret != -EOPNOTSUPP && xd->state_retries-- > 0) {
+		if (ret != -EOPANALTSUPP && xd->state_retries-- > 0) {
 			dev_dbg(&xd->dev,
 				"failed to request remote link status, retrying\n");
 			return -EAGAIN;
@@ -1271,7 +1271,7 @@ static int tb_xdomain_get_link_status(struct tb_xdomain *xd)
 
 	if (slw < LANE_ADP_CS_0_SUPPORTED_WIDTH_DUAL) {
 		dev_dbg(&xd->dev, "remote adapter is single lane only\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1305,7 +1305,7 @@ static int tb_xdomain_link_state_change(struct tb_xdomain *xd,
 	ret = tb_xdp_link_state_change_request(tb->ctl, xd->route,
 					       xd->state_retries, tlw, tls);
 	if (ret) {
-		if (ret != -EOPNOTSUPP && xd->state_retries-- > 0) {
+		if (ret != -EOPANALTSUPP && xd->state_retries-- > 0) {
 			dev_dbg(&xd->dev,
 				"failed to change remote link state, retrying\n");
 			return -EAGAIN;
@@ -1333,7 +1333,7 @@ static int tb_xdomain_bond_lanes_uuid_high(struct tb_xdomain *xd)
 	} else {
 		if (xd->state_retries-- > 0) {
 			dev_dbg(&xd->dev,
-				"link state change request not received yet, retrying\n");
+				"link state change request analt received yet, retrying\n");
 			return -EAGAIN;
 		}
 		dev_dbg(&xd->dev, "timeout waiting for link change request\n");
@@ -1399,7 +1399,7 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 				"failed to request remote properties, retrying\n");
 			return -EAGAIN;
 		}
-		/* Give up now */
+		/* Give up analw */
 		dev_err(&xd->dev, "failed read XDomain properties from %pUb\n",
 			xd->remote_uuid);
 
@@ -1417,7 +1417,7 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 	dir = tb_property_parse_dir(block, ret);
 	if (!dir) {
 		dev_err(&xd->dev, "failed to parse XDomain properties\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_block;
 	}
 
@@ -1443,13 +1443,13 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 	kfree(block);
 
 	/*
-	 * Now the device should be ready enough so we can add it to the
-	 * bus and let userspace know about it. If the device is already
-	 * registered, we notify the userspace that it has changed.
+	 * Analw the device should be ready eanalugh so we can add it to the
+	 * bus and let userspace kanalw about it. If the device is already
+	 * registered, we analtify the userspace that it has changed.
 	 */
 	if (!update) {
 		/*
-		 * Now disable lane 1 if bonding was not enabled. Do
+		 * Analw disable lane 1 if bonding was analt enabled. Do
 		 * this only if bonding was possible at the beginning
 		 * (that is we are the connection manager and there are
 		 * two lanes).
@@ -1469,7 +1469,7 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 
 		if (device_add(&xd->dev)) {
 			dev_err(&xd->dev, "failed to add XDomain device\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		dev_info(&xd->dev, "new host found, vendor=%#x device=%#x\n",
 			 xd->vendor, xd->device);
@@ -1687,19 +1687,19 @@ static void tb_xdomain_properties_changed(struct work_struct *work)
 					     properties_changed_work.work);
 	int ret;
 
-	dev_dbg(&xd->dev, "sending properties changed notification\n");
+	dev_dbg(&xd->dev, "sending properties changed analtification\n");
 
 	ret = tb_xdp_properties_changed_request(xd->tb->ctl, xd->route,
 				xd->properties_changed_retries, xd->local_uuid);
 	if (ret) {
 		if (xd->properties_changed_retries-- > 0) {
 			dev_dbg(&xd->dev,
-				"failed to send properties changed notification, retrying\n");
+				"failed to send properties changed analtification, retrying\n");
 			queue_delayed_work(xd->tb->wq,
 					   &xd->properties_changed_work,
 					   msecs_to_jiffies(XDOMAIN_DEFAULT_TIMEOUT));
 		}
-		dev_err(&xd->dev, "failed to send properties changed notification\n");
+		dev_err(&xd->dev, "failed to send properties changed analtification\n");
 		return;
 	}
 
@@ -1930,7 +1930,7 @@ static void tb_xdomain_link_exit(struct tb_xdomain *xd)
 	} else if (xd->link_width > TB_LINK_WIDTH_SINGLE) {
 		/*
 		 * Just return port structures back to way they were and
-		 * update credits. No need to update userspace because
+		 * update credits. Anal need to update userspace because
 		 * the XDomain is removed soon anyway.
 		 */
 		tb_port_lane_bonding_disable(down);
@@ -2011,10 +2011,10 @@ struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
 
 	/*
 	 * This keeps the DMA powered on as long as we have active
-	 * connection to another host.
+	 * connection to aanalther host.
 	 */
 	pm_runtime_set_active(&xd->dev);
-	pm_runtime_get_noresume(&xd->dev);
+	pm_runtime_get_analresume(&xd->dev);
 	pm_runtime_enable(&xd->dev);
 
 	return xd;
@@ -2034,7 +2034,7 @@ err_free:
  * This function starts XDomain discovery protocol handshake and
  * eventually adds the XDomain to the bus. After calling this function
  * the caller needs to call tb_xdomain_remove() in order to remove and
- * release the object regardless whether the handshake succeeded or not.
+ * release the object regardless whether the handshake succeeded or analt.
  */
 void tb_xdomain_add(struct tb_xdomain *xd)
 {
@@ -2069,10 +2069,10 @@ void tb_xdomain_remove(struct tb_xdomain *xd)
 	/*
 	 * Undo runtime PM here explicitly because it is possible that
 	 * the XDomain was never added to the bus and thus device_del()
-	 * is not called for it (device_del() would handle this otherwise).
+	 * is analt called for it (device_del() would handle this otherwise).
 	 */
 	pm_runtime_disable(&xd->dev);
-	pm_runtime_put_noidle(&xd->dev);
+	pm_runtime_put_analidle(&xd->dev);
 	pm_runtime_set_suspended(&xd->dev);
 
 	if (!device_is_registered(&xd->dev)) {
@@ -2091,7 +2091,7 @@ void tb_xdomain_remove(struct tb_xdomain *xd)
  * to enable bonding by first enabling the port and waiting for the CL0
  * state.
  *
- * Return: %0 in case of success and negative errno in case of error.
+ * Return: %0 in case of success and negative erranal in case of error.
  */
 int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd)
 {
@@ -2101,7 +2101,7 @@ int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd)
 
 	port = tb_xdomain_downstream_port(xd);
 	if (!port->dual_link_port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = tb_port_enable(port->dual_link_port);
 	if (ret)
@@ -2111,7 +2111,7 @@ int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd)
 	if (ret < 0)
 		return ret;
 	if (!ret)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	ret = tb_port_lane_bonding_enable(port);
 	if (ret) {
@@ -2171,8 +2171,8 @@ EXPORT_SYMBOL_GPL(tb_xdomain_lane_bonding_disable);
  * @xd: XDomain connection
  * @hopid: Preferred HopID or %-1 for next available
  *
- * Returns allocated HopID or negative errno. Specifically returns
- * %-ENOSPC if there are no more available HopIDs. Returned HopID is
+ * Returns allocated HopID or negative erranal. Specifically returns
+ * %-EANALSPC if there are anal more available HopIDs. Returned HopID is
  * guaranteed to be within range supported by the input lane adapter.
  * Call tb_xdomain_release_in_hopid() to release the allocated HopID.
  */
@@ -2193,8 +2193,8 @@ EXPORT_SYMBOL_GPL(tb_xdomain_alloc_in_hopid);
  * @xd: XDomain connection
  * @hopid: Preferred HopID or %-1 for next available
  *
- * Returns allocated HopID or negative errno. Specifically returns
- * %-ENOSPC if there are no more available HopIDs. Returned HopID is
+ * Returns allocated HopID or negative erranal. Specifically returns
+ * %-EANALSPC if there are anal more available HopIDs. Returned HopID is
  * guaranteed to be within range supported by the output lane adapter.
  * Call tb_xdomain_release_in_hopid() to release the allocated HopID.
  */
@@ -2242,10 +2242,10 @@ EXPORT_SYMBOL_GPL(tb_xdomain_release_out_hopid);
  *
  * The function enables DMA paths accordingly so that after successful
  * return the caller can send and receive packets using high-speed DMA
- * path. If a transmit or receive path is not needed, pass %-1 for those
+ * path. If a transmit or receive path is analt needed, pass %-1 for those
  * parameters.
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 in case of success and negative erranal in case of error
  */
 int tb_xdomain_enable_paths(struct tb_xdomain *xd, int transmit_path,
 			    int transmit_ring, int receive_path,
@@ -2266,11 +2266,11 @@ EXPORT_SYMBOL_GPL(tb_xdomain_enable_paths);
  * @receive_ring: DMA ring used to receive packets from @receive_path
  *
  * This does the opposite of tb_xdomain_enable_paths(). After call to
- * this the caller is not expected to use the rings anymore. Passing %-1
- * as path/ring parameter means don't care. Normally the callers should
+ * this the caller is analt expected to use the rings anymore. Passing %-1
+ * as path/ring parameter means don't care. Analrmally the callers should
  * pass the same values here as they do when paths are enabled.
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 in case of success and negative erranal in case of error
  */
 int tb_xdomain_disable_paths(struct tb_xdomain *xd, int transmit_path,
 			     int transmit_ring, int receive_path,
@@ -2331,7 +2331,7 @@ static struct tb_xdomain *switch_find_xdomain(struct tb_switch *sw,
  * caller needs to call tb_xdomain_put() when it is done with the
  * object.
  *
- * This will find all XDomains including the ones that are not yet added
+ * This will find all XDomains including the ones that are analt yet added
  * to the bus (handshake is still in progress).
  *
  * The caller needs to hold @tb->lock.
@@ -2360,7 +2360,7 @@ EXPORT_SYMBOL_GPL(tb_xdomain_find_by_uuid);
  * caller needs to call tb_xdomain_put() when it is done with the
  * object.
  *
- * This will find all XDomains including the ones that are not yet added
+ * This will find all XDomains including the ones that are analt yet added
  * to the bus (handshake is still in progress).
  *
  * The caller needs to hold @tb->lock.
@@ -2389,7 +2389,7 @@ struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
  * caller needs to call tb_xdomain_put() when it is done with the
  * object.
  *
- * This will find all XDomains including the ones that are not yet added
+ * This will find all XDomains including the ones that are analt yet added
  * to the bus (handshake is still in progress).
  *
  * The caller needs to hold @tb->lock.
@@ -2488,10 +2488,10 @@ static bool remove_directory(const char *key, const struct tb_property_dir *dir)
  *
  * Service drivers can use this function to add new property directory
  * to the host available properties. The other connected hosts are
- * notified so they can re-read properties of this host if they are
+ * analtified so they can re-read properties of this host if they are
  * interested.
  *
- * Return: %0 on success and negative errno on failure
+ * Return: %0 on success and negative erranal on failure
  */
 int tb_register_property_dir(const char *key, struct tb_property_dir *dir)
 {
@@ -2531,7 +2531,7 @@ EXPORT_SYMBOL_GPL(tb_register_property_dir);
  * @key: Key (name) of the directory
  * @dir: Directory to remove
  *
- * This will remove the existing directory from this host and notify the
+ * This will remove the existing directory from this host and analtify the
  * connected hosts about the change.
  */
 void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir)
@@ -2552,7 +2552,7 @@ int tb_xdomain_init(void)
 {
 	xdomain_property_dir = tb_property_create_dir(NULL);
 	if (!xdomain_property_dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Initialize standard set of properties without any service

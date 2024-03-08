@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-analte */
 /*
  * frontend.h
  *
@@ -103,7 +103,7 @@ enum fe_type {
  *
  * @name:			Name of the frontend
  * @type:			**DEPRECATED**.
- *				Should not be used on modern programs,
+ *				Should analt be used on modern programs,
  *				as a frontend may have more than one type.
  *				In order to get the support types of a given
  *				frontend, use :c:type:`DTV_ENUM_DELSYS`
@@ -118,11 +118,11 @@ enum fe_type {
  *				(for Cable/Satellite systems).
  * @symbol_rate_tolerance:	Maximal symbol rate tolerance, in ppm
  *				(for Cable/Satellite systems).
- * @notifier_delay:		**DEPRECATED**. Not used by any driver.
+ * @analtifier_delay:		**DEPRECATED**. Analt used by any driver.
  * @caps:			Capabilities supported by the frontend,
  *				as specified in &enum fe_caps.
  *
- * .. note:
+ * .. analte:
  *
  *    #. The frequencies are specified in Hz for Terrestrial and Cable
  *       systems.
@@ -138,7 +138,7 @@ struct dvb_frontend_info {
 	__u32      symbol_rate_min;
 	__u32      symbol_rate_max;
 	__u32      symbol_rate_tolerance;
-	__u32      notifier_delay;		/* DEPRECATED */
+	__u32      analtifier_delay;		/* DEPRECATED */
 	enum fe_caps caps;
 };
 
@@ -169,10 +169,10 @@ struct dvb_diseqc_master_cmd {
  *	an optional argument of up to 3 bytes of data.
  * @msg_len:
  *	Length of the DiSEqC message. Valid values are 0 to 4,
- *	where 0 means no message.
+ *	where 0 means anal message.
  * @timeout:
  *	Return from ioctl after timeout ms with errorcode when
- *	no message was received.
+ *	anal message was received.
  *
  * Check out the DiSEqC bus spec available on http://www.eutelsat.org/ for
  * the possible messages that can be used.
@@ -222,9 +222,9 @@ enum fe_sec_mini_cmd {
 
 /**
  * enum fe_status - Enumerates the possible frontend status.
- * @FE_NONE:		The frontend doesn't have any kind of lock.
+ * @FE_ANALNE:		The frontend doesn't have any kind of lock.
  *			That's the initial frontend status
- * @FE_HAS_SIGNAL:	Has found something above the noise level.
+ * @FE_HAS_SIGNAL:	Has found something above the analise level.
  * @FE_HAS_CARRIER:	Has found a signal.
  * @FE_HAS_VITERBI:	FEC inner coding (Viterbi, LDPC or other inner code).
  *			is stable.
@@ -235,7 +235,7 @@ enum fe_sec_mini_cmd {
  *			to reset DiSEqC, tone and parameters.
  */
 enum fe_status {
-	FE_NONE			= 0x00,
+	FE_ANALNE			= 0x00,
 	FE_HAS_SIGNAL		= 0x01,
 	FE_HAS_CARRIER		= 0x02,
 	FE_HAS_VITERBI		= 0x04,
@@ -253,7 +253,7 @@ enum fe_status {
  * @INVERSION_AUTO:	Autodetect spectral band inversion.
  *
  * This parameter indicates if spectral inversion should be presumed or
- * not. In the automatic setting (``INVERSION_AUTO``) the hardware will try
+ * analt. In the automatic setting (``INVERSION_AUTO``) the hardware will try
  * to figure out the correct setting by itself. If the hardware doesn't
  * support, the %dvb_frontend will try to lock at the carrier first with
  * inversion off. If it fails, it will try to enable inversion.
@@ -267,7 +267,7 @@ enum fe_spectral_inversion {
 /**
  * enum fe_code_rate - Type of Forward Error Correction (FEC)
  *
- * @FEC_NONE: No Forward Error Correction Code
+ * @FEC_ANALNE: Anal Forward Error Correction Code
  * @FEC_1_2:  Forward Error Correction Code 1/2
  * @FEC_2_3:  Forward Error Correction Code 2/3
  * @FEC_3_4:  Forward Error Correction Code 3/4
@@ -301,10 +301,10 @@ enum fe_spectral_inversion {
  * @FEC_14_45: Forward Error Correction Code 14/45
  * @FEC_7_15: Forward Error Correction Code 7/15
  *
- * Please note that not all FEC types are supported by a given standard.
+ * Please analte that analt all FEC types are supported by a given standard.
  */
 enum fe_code_rate {
-	FEC_NONE = 0,
+	FEC_ANALNE = 0,
 	FEC_1_2,
 	FEC_2_3,
 	FEC_3_4,
@@ -363,7 +363,7 @@ enum fe_code_rate {
  * @APSK_64:	64APSK modulation
  * @APSK_64_L:	64APSK-L modulation
  *
- * Please note that not all modulations are supported by a given standard.
+ * Please analte that analt all modulations are supported by a given standard.
  *
  */
 enum fe_modulation {
@@ -413,7 +413,7 @@ enum fe_modulation {
  * @TRANSMISSION_MODE_C3780:
  *	Multi Carrier (C=3780) transmission mode (DTMB only)
  *
- * Please note that not all transmission modes are supported by a given
+ * Please analte that analt all transmission modes are supported by a given
  * standard.
  */
 enum fe_transmit_mode {
@@ -444,7 +444,7 @@ enum fe_transmit_mode {
  * @GUARD_INTERVAL_PN945:	PN length 945 (1/9)
  * @GUARD_INTERVAL_1_64:	Guard interval 1/64
  *
- * Please note that not all guard intervals are supported by a given standard.
+ * Please analte that analt all guard intervals are supported by a given standard.
  */
 enum fe_guard_interval {
 	GUARD_INTERVAL_1_32,
@@ -463,16 +463,16 @@ enum fe_guard_interval {
 
 /**
  * enum fe_hierarchy - Hierarchy
- * @HIERARCHY_NONE:	No hierarchy
+ * @HIERARCHY_ANALNE:	Anal hierarchy
  * @HIERARCHY_AUTO:	Autodetect hierarchy (if supported)
  * @HIERARCHY_1:	Hierarchy 1
  * @HIERARCHY_2:	Hierarchy 2
  * @HIERARCHY_4:	Hierarchy 4
  *
- * Please note that not all hierarchy types are supported by a given standard.
+ * Please analte that analt all hierarchy types are supported by a given standard.
  */
 enum fe_hierarchy {
-	HIERARCHY_NONE,
+	HIERARCHY_ANALNE,
 	HIERARCHY_1,
 	HIERARCHY_2,
 	HIERARCHY_4,
@@ -481,15 +481,15 @@ enum fe_hierarchy {
 
 /**
  * enum fe_interleaving - Interleaving
- * @INTERLEAVING_NONE:	No interleaving.
+ * @INTERLEAVING_ANALNE:	Anal interleaving.
  * @INTERLEAVING_AUTO:	Auto-detect interleaving.
  * @INTERLEAVING_240:	Interleaving of 240 symbols.
  * @INTERLEAVING_720:	Interleaving of 720 symbols.
  *
- * Please note that, currently, only DTMB uses it.
+ * Please analte that, currently, only DTMB uses it.
  */
 enum fe_interleaving {
-	INTERLEAVING_NONE,
+	INTERLEAVING_ANALNE,
 	INTERLEAVING_AUTO,
 	INTERLEAVING_240,
 	INTERLEAVING_720,
@@ -560,8 +560,8 @@ enum fe_interleaving {
 /* ATSC-MH */
 #define DTV_ATSCMH_FIC_VER		45
 #define DTV_ATSCMH_PARADE_ID		46
-#define DTV_ATSCMH_NOG			47
-#define DTV_ATSCMH_TNOG			48
+#define DTV_ATSCMH_ANALG			47
+#define DTV_ATSCMH_TANALG			48
 #define DTV_ATSCMH_SGN			49
 #define DTV_ATSCMH_PRC			50
 #define DTV_ATSCMH_RS_FRAME_MODE	51
@@ -615,7 +615,7 @@ enum fe_pilot {
  * @ROLLOFF_10:		Rolloff factor: α=10%
  * @ROLLOFF_5:		Rolloff factor: α=5%
  *
- * .. note:
+ * .. analte:
  *
  *    Roloff factor of 35% is implied on DVB-S. On DVB-S2, it is default.
  */
@@ -643,7 +643,7 @@ enum fe_rolloff {
  * @SYS_DVBC2:
  *      Cable TV: DVB-C2
  * @SYS_ISDBC:
- *	Cable TV: ISDB-C (no drivers yet)
+ *	Cable TV: ISDB-C (anal drivers yet)
  * @SYS_DVBT:
  *	Terrestrial TV: DVB-T
  * @SYS_DVBT2:
@@ -665,11 +665,11 @@ enum fe_rolloff {
  * @SYS_ISDBS:
  *	Satellite TV: ISDB-S
  * @SYS_DAB:
- *	Digital audio: DAB (not fully supported)
+ *	Digital audio: DAB (analt fully supported)
  * @SYS_DSS:
- *	Satellite TV: DSS (not fully supported)
+ *	Satellite TV: DSS (analt fully supported)
  * @SYS_CMMB:
- *	Terrestrial TV (mobile): CMMB (not fully supported)
+ *	Terrestrial TV (mobile): CMMB (analt fully supported)
  * @SYS_DVBH:
  *	Terrestrial TV (mobile): DVB-H (standard deprecated)
  */
@@ -730,7 +730,7 @@ enum atscmh_sccc_block_mode {
  * @ATSCMH_SCCC_CODE_QTR:
  *	The outer code rate of a SCCC Block is 1/4 rate.
  * @ATSCMH_SCCC_CODE_RES:
- *	Reserved. Should not be used.
+ *	Reserved. Should analt be used.
  */
 enum atscmh_sccc_code_mode {
 	ATSCMH_SCCC_CODE_HLF     = 0,
@@ -782,13 +782,13 @@ enum atscmh_rs_code_mode {
 	ATSCMH_RSCODE_RES        = 3,
 };
 
-#define NO_STREAM_ID_FILTER	(~0U)
+#define ANAL_STREAM_ID_FILTER	(~0U)
 #define LNA_AUTO                (~0U)
 
 /**
  * enum fecap_scale_params - scale types for the quality parameters.
  *
- * @FE_SCALE_NOT_AVAILABLE: That QoS measure is not available. That
+ * @FE_SCALE_ANALT_AVAILABLE: That QoS measure is analt available. That
  *			    could indicate a temporary or a permanent
  *			    condition.
  * @FE_SCALE_DECIBEL: The scale is measured in 0.001 dB steps, typically
@@ -799,7 +799,7 @@ enum atscmh_rs_code_mode {
  *		      bit error, block error, lapsed time.
  */
 enum fecap_scale_params {
-	FE_SCALE_NOT_AVAILABLE = 0,
+	FE_SCALE_ANALT_AVAILABLE = 0,
 	FE_SCALE_DECIBEL,
 	FE_SCALE_RELATIVE,
 	FE_SCALE_COUNTER
@@ -823,7 +823,7 @@ enum fecap_scale_params {
  * For most delivery systems, this will return a single value for each
  * parameter.
  *
- * It should be noticed, however, that new OFDM delivery systems like
+ * It should be analticed, however, that new OFDM delivery systems like
  * ISDB can use different modulation types for each group of carriers.
  * On such standards, up to 8 groups of statistics can be provided, one
  * for each carrier group (called "layer" on ISDB).
@@ -831,9 +831,9 @@ enum fecap_scale_params {
  * In order to be consistent with other delivery systems, the first
  * value refers to the entire set of carriers ("global").
  *
- * @scale should use the value %FE_SCALE_NOT_AVAILABLE when
+ * @scale should use the value %FE_SCALE_ANALT_AVAILABLE when
  * the value for the entire group of carriers or from one specific layer
- * is not provided by the hardware.
+ * is analt provided by the hardware.
  *
  * @len should be filled with the latest filled status + 1.
  *
@@ -842,7 +842,7 @@ enum fecap_scale_params {
  *	u.st.stat.svalue[0] = global statistics;
  *	u.st.stat.scale[0] = FE_SCALE_DECIBEL;
  *	u.st.stat.value[1] = layer A statistics;
- *	u.st.stat.scale[1] = FE_SCALE_NOT_AVAILABLE (if not available);
+ *	u.st.stat.scale[1] = FE_SCALE_ANALT_AVAILABLE (if analt available);
  *	u.st.stat.svalue[2] = layer B statistics;
  *	u.st.stat.scale[2] = FE_SCALE_DECIBEL;
  *	u.st.stat.svalue[3] = layer C statistics;
@@ -880,7 +880,7 @@ struct dtv_fe_stats {
  * struct dtv_property - store one of frontend command and its value
  *
  * @cmd:		Digital TV command.
- * @reserved:		Not used.
+ * @reserved:		Analt used.
  * @u:			Union with the values for the command.
  * @u.data:		A unsigned 32 bits integer with command value.
  * @u.buffer:		Struct to store bigger properties.
@@ -909,7 +909,7 @@ struct dtv_property {
 	int result;
 } __attribute__ ((packed));
 
-/* num of properties cannot exceed DTV_IOCTL_MAX_MSGS per ioctl */
+/* num of properties cananalt exceed DTV_IOCTL_MAX_MSGS per ioctl */
 #define DTV_IOCTL_MAX_MSGS 64
 
 /**
@@ -924,9 +924,9 @@ struct dtv_properties {
 };
 
 /*
- * When set, this flag will disable any zigzagging or other "normal" tuning
- * behavior. Additionally, there will be no automatic monitoring of the lock
- * status, and hence no frontend events will be generated. If a frontend device
+ * When set, this flag will disable any zigzagging or other "analrmal" tuning
+ * behavior. Additionally, there will be anal automatic monitoring of the lock
+ * status, and hence anal frontend events will be generated. If a frontend device
  * is closed, this flag will be automatically turned off when the device is
  * reopened read-write.
  */
@@ -964,9 +964,9 @@ struct dtv_properties {
 /*
  * DEPRECATED: Everything below is deprecated in favor of DVBv5 API
  *
- * The DVBv3 only ioctls, structs and enums should not be used on
+ * The DVBv3 only ioctls, structs and enums should analt be used on
  * newer programs, as it doesn't support the second generation of
- * digital TV standards, nor supports newer delivery systems.
+ * digital TV standards, analr supports newer delivery systems.
  * They also don't support modern frontends with usually support multiple
  * delivery systems.
  *

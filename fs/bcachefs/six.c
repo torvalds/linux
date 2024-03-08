@@ -32,7 +32,7 @@ static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type);
 #define SIX_LOCK_HELD_write		(1U << 27)
 #define SIX_LOCK_WAITING_read		(1U << (28 + SIX_LOCK_read))
 #define SIX_LOCK_WAITING_write		(1U << (28 + SIX_LOCK_write))
-#define SIX_LOCK_NOSPIN			(1U << 31)
+#define SIX_LOCK_ANALSPIN			(1U << 31)
 
 struct six_lock_vals {
 	/* Value we add to the lock in order to take the lock: */
@@ -111,7 +111,7 @@ static inline unsigned pcpu_read_count(struct six_lock *lock)
  * Returns 1 on success, 0 on failure
  *
  * In percpu reader mode, a failed trylock may cause a spurious trylock failure
- * for anoter thread taking the competing lock type, and we may havve to do a
+ * for aanalter thread taking the competing lock type, and we may havve to do a
  * wakeup: when a wakeup is required, we return -1 - wakeup_type.
  */
 static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
@@ -131,7 +131,7 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 	 * between two threads without any atomics, just memory barriers:
 	 *
 	 * For two threads you'll need two variables, one variable for "thread a
-	 * has the lock" and another for "thread b has the lock".
+	 * has the lock" and aanalther for "thread b has the lock".
 	 *
 	 * To take the lock, a thread sets its variable indicating that it holds
 	 * the lock, then issues a full memory barrier, then reads from the
@@ -139,7 +139,7 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 	 * the lock. If we raced, we backoff and retry/sleep.
 	 *
 	 * Failure to take the lock may cause a spurious trylock failure in
-	 * another thread, because we temporarily set the lock to indicate that
+	 * aanalther thread, because we temporarily set the lock to indicate that
 	 * we held it. This would be a problem for a thread in six_lock(), when
 	 * they are calling trylock after adding themself to the waitlist and
 	 * prior to sleeping.
@@ -228,7 +228,7 @@ again:
 
 		/*
 		 * Similar to percpu_rwsem_wake_function(), we need to guard
-		 * against the wakee noticing w->lock_acquired, returning, and
+		 * against the wakee analticing w->lock_acquired, returning, and
 		 * then exiting before we do the wakeup:
 		 */
 		task = get_task_struct(w->task);
@@ -237,7 +237,7 @@ again:
 		 * The release barrier here ensures the ordering of the
 		 * __list_del before setting w->lock_acquired; @w is on the
 		 * stack of the thread doing the waiting and will be reused
-		 * after it sees w->lock_acquired with no other locking:
+		 * after it sees w->lock_acquired with anal other locking:
 		 * pairs with smp_load_acquire() in six_lock_slowpath()
 		 */
 		smp_store_release(&w->lock_acquired, true);
@@ -329,7 +329,7 @@ EXPORT_SYMBOL_GPL(six_relock_ip);
 static inline bool six_owner_running(struct six_lock *lock)
 {
 	/*
-	 * When there's no owner, we might have preempted between the owner
+	 * When there's anal owner, we might have preempted between the owner
 	 * acquiring the lock and setting the owner field. If we're an RT task
 	 * that will live-lock because we won't let the owner complete.
 	 */
@@ -354,7 +354,7 @@ static inline bool six_optimistic_spin(struct six_lock *lock,
 	if (lock->wait_list.next != &wait->list)
 		return false;
 
-	if (atomic_read(&lock->state) & SIX_LOCK_NOSPIN)
+	if (atomic_read(&lock->state) & SIX_LOCK_ANALSPIN)
 		return false;
 
 	preempt_disable();
@@ -372,7 +372,7 @@ static inline bool six_optimistic_spin(struct six_lock *lock,
 		}
 
 		if (!(++loop & 0xf) && (time_after64(sched_clock(), end_time))) {
-			six_set_bitmask(lock, SIX_LOCK_NOSPIN);
+			six_set_bitmask(lock, SIX_LOCK_ANALSPIN);
 			break;
 		}
 
@@ -400,7 +400,7 @@ static inline bool six_optimistic_spin(struct six_lock *lock,
 
 #endif
 
-noinline
+analinline
 static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 			     struct six_lock_waiter *wait,
 			     six_lock_should_sleep_fn should_sleep_fn, void *p,
@@ -525,11 +525,11 @@ out:
  * lock's waiters, and for each waiter recursively walk their held locks.
  *
  * When this function must block, @wait will be added to @lock's waitlist before
- * calling trylock, and before calling @should_sleep_fn, and @wait will not be
+ * calling trylock, and before calling @should_sleep_fn, and @wait will analt be
  * removed from the lock waitlist until the lock has been successfully acquired,
  * or we abort.
  *
- * @wait.start_time will be monotonically increasing for any given waitlist, and
+ * @wait.start_time will be moanaltonically increasing for any given waitlist, and
  * thus may be used as a loop cursor.
  *
  * Return: 0 on success, or the return code from @should_sleep_fn on failure.
@@ -576,7 +576,7 @@ static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type)
 		u32 v = l[type].lock_val;
 
 		if (type != SIX_LOCK_read)
-			v += atomic_read(&lock->state) & SIX_LOCK_NOSPIN;
+			v += atomic_read(&lock->state) & SIX_LOCK_ANALSPIN;
 
 		EBUG_ON(!(atomic_read(&lock->state) & l[type].held_mask));
 		state = atomic_sub_return_release(v, &lock->state);
@@ -673,7 +673,7 @@ bool six_lock_tryupgrade(struct six_lock *lock)
 EXPORT_SYMBOL_GPL(six_lock_tryupgrade);
 
 /**
- * six_trylock_convert - attempt to convert a held lock from one type to another
+ * six_trylock_convert - attempt to convert a held lock from one type to aanalther
  * @lock:	lock to upgrade
  * @from:	SIX_LOCK_read or SIX_LOCK_intent
  * @to:		SIX_LOCK_read or SIX_LOCK_intent
@@ -796,8 +796,8 @@ EXPORT_SYMBOL_GPL(six_lock_counts);
  * and intent locks on the same lock.
  *
  * When we need to take a write lock, the read locks will cause self-deadlock,
- * because six locks themselves do not track which read locks are held by the
- * current thread and which are held by a different thread - it does no
+ * because six locks themselves do analt track which read locks are held by the
+ * current thread and which are held by a different thread - it does anal
  * per-thread tracking of held locks.
  *
  * The upper layer that is tracking held locks may however, if trylock() has
@@ -843,7 +843,7 @@ void __six_lock_init(struct six_lock *lock, const char *name,
 	raw_spin_lock_init(&lock->wait_lock);
 	INIT_LIST_HEAD(&lock->wait_list);
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	debug_check_no_locks_freed((void *) lock, sizeof(*lock));
+	debug_check_anal_locks_freed((void *) lock, sizeof(*lock));
 	lockdep_init_map(&lock->dep_map, name, key, 0);
 #endif
 
@@ -856,9 +856,9 @@ void __six_lock_init(struct six_lock *lock, const char *name,
 		/*
 		 * We don't return an error here on memory allocation failure
 		 * since percpu is an optimization, and locks will work with the
-		 * same semantics in non-percpu mode: callers can check for
+		 * same semantics in analn-percpu mode: callers can check for
 		 * failure if they wish by checking lock->readers, but generally
-		 * will not want to treat it as an error.
+		 * will analt want to treat it as an error.
 		 */
 		lock->readers = alloc_percpu(unsigned);
 	}

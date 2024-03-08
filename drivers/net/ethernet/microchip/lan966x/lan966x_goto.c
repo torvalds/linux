@@ -16,16 +16,16 @@ int lan966x_goto_port_add(struct lan966x_port *port,
 				  true);
 	if (err == -EFAULT) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported goto chain");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (err == -EADDRINUSE) {
 		NL_SET_ERR_MSG_MOD(extack, "VCAP already enabled");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Could not enable VCAP lookups");
+		NL_SET_ERR_MSG_MOD(extack, "Could analt enable VCAP lookups");
 		return err;
 	}
 
@@ -42,7 +42,7 @@ int lan966x_goto_port_del(struct lan966x_port *port,
 	err = vcap_enable_lookups(lan966x->vcap_ctrl, port->dev, 0, 0,
 				  goto_id, false);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Could not disable VCAP lookups");
+		NL_SET_ERR_MSG_MOD(extack, "Could analt disable VCAP lookups");
 		return err;
 	}
 

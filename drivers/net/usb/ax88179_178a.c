@@ -62,7 +62,7 @@
 	#define AX_RX_CTL_PRO		0x0001
 	#define AX_RX_CTL_STOP		0x0000
 
-#define AX_NODE_ID				0x10
+#define AX_ANALDE_ID				0x10
 #define AX_MULFLTARY				0x16
 
 #define AX_MEDIUM_STATUS_MODE			0x22
@@ -216,12 +216,12 @@ static int __ax88179_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	if (!ax88179_in_pm(dev))
 		fn = usbnet_read_cmd;
 	else
-		fn = usbnet_read_cmd_nopm;
+		fn = usbnet_read_cmd_analpm;
 
 	ret = fn(dev, cmd, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 value, index, data, size);
 
-	if (unlikely((ret < 0) && !(ret == -ENODEV && ax179_data->disconnecting)))
+	if (unlikely((ret < 0) && !(ret == -EANALDEV && ax179_data->disconnecting)))
 		netdev_warn(dev->net, "Failed to read reg index 0x%04x: %d\n",
 			    index, ret);
 
@@ -240,12 +240,12 @@ static int __ax88179_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	if (!ax88179_in_pm(dev))
 		fn = usbnet_write_cmd;
 	else
-		fn = usbnet_write_cmd_nopm;
+		fn = usbnet_write_cmd_analpm;
 
 	ret = fn(dev, cmd, USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 value, index, data, size);
 
-	if (unlikely((ret < 0) && !(ret == -ENODEV && ax179_data->disconnecting)))
+	if (unlikely((ret < 0) && !(ret == -EANALDEV && ax179_data->disconnecting)))
 		netdev_warn(dev->net, "Failed to write reg index 0x%04x: %d\n",
 			    index, ret);
 
@@ -362,7 +362,7 @@ static inline int ax88179_phy_mmd_indirect(struct usbnet *dev, u16 prtad,
 	ret = ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
 				MII_MMD_DATA, 2, &tmp16);
 
-	tmp16 = devad | MII_MMD_CTRL_NOINCR;
+	tmp16 = devad | MII_MMD_CTRL_ANALINCR;
 	ret = ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
 				MII_MMD_CTRL, 2, &tmp16);
 
@@ -557,7 +557,7 @@ ax88179_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 	eeprom_buff = kmalloc_array(last_word - first_word + 1, sizeof(u16),
 				    GFP_KERNEL);
 	if (!eeprom_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ax88179/178A returns 2 bytes from eeprom on read */
 	for (i = first_word; i <= last_word; i++) {
@@ -600,7 +600,7 @@ ax88179_set_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 	eeprom_buff = kmalloc_array(last_word - first_word + 1, sizeof(u16),
 				    GFP_KERNEL);
 	if (!eeprom_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* align data to 16 bit boundaries, read the missing data from
 	   the EEPROM */
@@ -830,7 +830,7 @@ static int ax88179_set_eee(struct net_device *net, struct ethtool_eee *edata)
 	} else {
 		priv->eee_enabled = ax88179_chk_eee(dev);
 		if (!priv->eee_enabled)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		ax88179_enable_eee(dev);
 	}
@@ -975,12 +975,12 @@ static int ax88179_set_mac_addr(struct net_device *net, void *p)
 	if (netif_running(net))
 		return -EBUSY;
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(net, addr->sa_data);
 
 	/* Set the MAC address */
-	ret = ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN,
+	ret = ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_ANALDE_ID, ETH_ALEN,
 				 ETH_ALEN, net->dev_addr);
 	if (ret < 0)
 		return ret;
@@ -1265,7 +1265,7 @@ static void ax88179_get_mac_addr(struct usbnet *dev)
 		netif_dbg(dev, ifup, dev->net,
 			  "MAC address read from device tree");
 	} else {
-		ax88179_read_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN,
+		ax88179_read_cmd(dev, AX_ACCESS_MAC, AX_ANALDE_ID, ETH_ALEN,
 				 ETH_ALEN, mac);
 		netif_dbg(dev, ifup, dev->net,
 			  "MAC address read from ASIX chip");
@@ -1278,7 +1278,7 @@ static void ax88179_get_mac_addr(struct usbnet *dev)
 		eth_hw_addr_random(dev->net);
 	}
 
-	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN, ETH_ALEN,
+	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_ANALDE_ID, ETH_ALEN, ETH_ALEN,
 			  dev->net->dev_addr);
 }
 
@@ -1290,7 +1290,7 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	ax179_data = kzalloc(sizeof(*ax179_data), GFP_KERNEL);
 	if (!ax179_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->driver_priv = ax179_data;
 
@@ -1340,7 +1340,7 @@ static void ax88179_unbind(struct usbnet *dev, struct usb_interface *intf)
 static void
 ax88179_rx_checksum(struct sk_buff *skb, u32 *pkt_hdr)
 {
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	/* checksum error bit is set */
 	if ((*pkt_hdr & AX_RXHDR_L3CSUM_ERR) ||
@@ -1418,7 +1418,7 @@ static int ax88179_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		return 0;
 	pkt_hdr = (u32 *)(skb->data + hdr_off);
 
-	/* Packets must not overlap the metadata array */
+	/* Packets must analt overlap the metadata array */
 	skb_trim(skb, hdr_off);
 
 	for (; pkt_cnt > 0; pkt_cnt--, pkt_hdr++) {
@@ -1765,8 +1765,8 @@ static const struct driver_info samsung_info = {
 	.tx_fixup = ax88179_tx_fixup,
 };
 
-static const struct driver_info lenovo_info = {
-	.description = "Lenovo OneLinkDock Gigabit LAN",
+static const struct driver_info leanalvo_info = {
+	.description = "Leanalvo OneLinkDock Gigabit LAN",
 	.bind = ax88179_bind,
 	.unbind = ax88179_unbind,
 	.status = ax88179_status,
@@ -1882,9 +1882,9 @@ static const struct usb_device_id products[] = {
 	USB_DEVICE_AND_INTERFACE_INFO(0x04e8, 0xa100, 0xff, 0xff, 0),
 	.driver_info = (unsigned long)&samsung_info,
 }, {
-	/* Lenovo OneLinkDock Gigabit LAN */
+	/* Leanalvo OneLinkDock Gigabit LAN */
 	USB_DEVICE_AND_INTERFACE_INFO(0x17ef, 0x304b, 0xff, 0xff, 0),
-	.driver_info = (unsigned long)&lenovo_info,
+	.driver_info = (unsigned long)&leanalvo_info,
 }, {
 	/* Belkin B2B128 USB 3.0 Hub + Gigabit Ethernet Adapter */
 	USB_DEVICE_AND_INTERFACE_INFO(0x050d, 0x0128, 0xff, 0xff, 0),
@@ -1894,7 +1894,7 @@ static const struct usb_device_id products[] = {
 	USB_DEVICE_AND_INTERFACE_INFO(0x0930, 0x0a13, 0xff, 0xff, 0),
 	.driver_info = (unsigned long)&toshiba_info,
 }, {
-	/* Magic Control Technology U3-A9003 USB 3.0 Gigabit Ethernet Adapter */
+	/* Magic Control Techanallogy U3-A9003 USB 3.0 Gigabit Ethernet Adapter */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0711, 0x0179, 0xff, 0xff, 0),
 	.driver_info = (unsigned long)&mct_info,
 }, {

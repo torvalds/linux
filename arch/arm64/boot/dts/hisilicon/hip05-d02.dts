@@ -54,13 +54,13 @@
 	ranges = <0 0 0x0 0x90000000 0x08000000>,
 		 <1 0 0x0 0x98000000 0x08000000>;
 
-	nor-flash@0,0 {
+	analr-flash@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "numonyx,js28f00a", "cfi-flash";
 		reg = <0 0x0 0x08000000>;
 		bank-width = <2>;
-		/* The three parts may not used */
+		/* The three parts may analt used */
 		partition@0 {
 			label = "BIOS";
 			reg = <0x0 0x300000>;

@@ -37,7 +37,7 @@
 
 	/*
 	 * This seems to be actually an analog switch that either routes audio
-	 * to the headphone jack or nowhere. Given that we need to enable a GPIO
+	 * to the headphone jack or analwhere. Given that we need to enable a GPIO
 	 * to get sound on headphones, modelling it as simple-audio-amplifier
 	 * works just fine.
 	 */
@@ -180,7 +180,7 @@
 	qcom,micbias-lvl = <2800>;
 	qcom,mbhc-vthreshold-low = <75 100 120 180 500>;
 	qcom,mbhc-vthreshold-high = <75 100 120 180 500>;
-	qcom,hphl-jack-type-normally-open;
+	qcom,hphl-jack-type-analrmally-open;
 };
 
 &pm8916_resin {
@@ -214,7 +214,7 @@
 
 &sdhc_2 {
 	status = "okay";
-	non-removable;
+	analn-removable;
 };
 
 &sound {

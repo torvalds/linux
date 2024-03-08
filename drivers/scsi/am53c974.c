@@ -85,7 +85,7 @@ static bool am53c974_fenab = true;
 #define DC390_EE_MODE2_GREATER_1G   0x02
 #define DC390_EE_MODE2_RST_SCSI_BUS 0x04
 #define DC390_EE_MODE2_ACTIVE_NEGATION 0x08
-#define DC390_EE_MODE2_NO_SEEK      0x10
+#define DC390_EE_MODE2_ANAL_SEEK      0x10
 #define DC390_EE_MODE2_LUN_CHECK    0x20
 
 struct pci_esp_priv {
@@ -133,7 +133,7 @@ static int pci_esp_irq_pending(struct esp *esp)
 
 static void pci_esp_reset_dma(struct esp *esp)
 {
-	/* Nothing to do ? */
+	/* Analthing to do ? */
 }
 
 static void pci_esp_dma_drain(struct esp *esp)
@@ -144,7 +144,7 @@ static void pci_esp_dma_drain(struct esp *esp)
 
 	if ((esp->sreg & ESP_STAT_PMASK) == ESP_DOP ||
 	    (esp->sreg & ESP_STAT_PMASK) == ESP_DIP)
-		/* Data-In or Data-Out, nothing to be done */
+		/* Data-In or Data-Out, analthing to be done */
 		return;
 
 	while (--lim > 0) {
@@ -157,8 +157,8 @@ static void pci_esp_dma_drain(struct esp *esp)
 	/*
 	 * When there is a residual BCMPLT will never be set
 	 * (obviously). But we still have to issue the BLAST
-	 * command, otherwise the data will not being transferred.
-	 * But we'll never know when the BLAST operation is
+	 * command, otherwise the data will analt being transferred.
+	 * But we'll never kanalw when the BLAST operation is
 	 * finished. So check for some time and give up eventually.
 	 */
 	lim = 1000;
@@ -356,10 +356,10 @@ static void dc390_check_eeprom(struct esp *esp)
 	for (i = 0; i < DC390_EEPROM_LEN; i++, ptr++)
 		wval += *ptr;
 
-	/* no Tekram EEprom found */
+	/* anal Tekram EEprom found */
 	if (wval != 0x1234) {
 		dev_printk(KERN_INFO, &pdev->dev,
-			   "No valid Tekram EEprom found\n");
+			   "Anal valid Tekram EEprom found\n");
 		return;
 	}
 	esp->scsi_id = EEbuf[DC390_EE_ADAPT_SCSI_ID];
@@ -372,14 +372,14 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
 	const struct scsi_host_template *hostt = &scsi_esp_template;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	struct Scsi_Host *shost;
 	struct esp *esp;
 	struct pci_esp_priv *pep;
 
 	if (pci_enable_device(pdev)) {
-		dev_printk(KERN_INFO, &pdev->dev, "cannot enable device\n");
-		return -ENODEV;
+		dev_printk(KERN_INFO, &pdev->dev, "cananalt enable device\n");
+		return -EANALDEV;
 	}
 
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
@@ -392,7 +392,7 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 	if (!shost) {
 		dev_printk(KERN_INFO, &pdev->dev,
 			   "failed to allocate scsi host\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_disable_device;
 	}
 
@@ -400,7 +400,7 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 	if (!pep) {
 		dev_printk(KERN_INFO, &pdev->dev,
 			   "failed to allocate esp_priv\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_host_alloc;
 	}
 
@@ -443,7 +443,7 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 	if (!esp->command_block) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "failed to allocate command block\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail_unmap_regs;
 	}
 

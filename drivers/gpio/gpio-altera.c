@@ -81,7 +81,7 @@ static int altera_gpio_irq_set_type(struct irq_data *d,
 
 	altera_gc = gpiochip_get_data(irq_data_get_irq_chip_data(d));
 
-	if (type == IRQ_TYPE_NONE) {
+	if (type == IRQ_TYPE_ANALNE) {
 		irq_set_handler_locked(d, handle_bad_irq);
 		return 0;
 	}
@@ -246,18 +246,18 @@ static const struct irq_chip altera_gpio_irq_chip = {
 
 static int altera_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int reg, ret;
 	struct altera_gpio_chip *altera_gc;
 	struct gpio_irq_chip *girq;
 
 	altera_gc = devm_kzalloc(&pdev->dev, sizeof(*altera_gc), GFP_KERNEL);
 	if (!altera_gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_init(&altera_gc->gpio_lock);
 
-	if (of_property_read_u32(node, "altr,ngpio", &reg))
+	if (of_property_read_u32(analde, "altr,ngpio", &reg))
 		/* By default assume maximum ngpio */
 		altera_gc->mmchip.gc.ngpio = ALTERA_GPIO_MAX_NGPIO;
 	else
@@ -282,9 +282,9 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	if (altera_gc->mapped_irq < 0)
 		goto skip_irq;
 
-	if (of_property_read_u32(node, "altr,interrupt-type", &reg)) {
+	if (of_property_read_u32(analde, "altr,interrupt-type", &reg)) {
 		dev_err(&pdev->dev,
-			"altr,interrupt-type value not set in device tree\n");
+			"altr,interrupt-type value analt set in device tree\n");
 		return -EINVAL;
 	}
 	altera_gc->interrupt_trigger = reg;
@@ -300,13 +300,13 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	girq->parents = devm_kcalloc(&pdev->dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
-	girq->default_type = IRQ_TYPE_NONE;
+		return -EANALMEM;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 	girq->parents[0] = altera_gc->mapped_irq;
 
 skip_irq:
-	ret = of_mm_gpiochip_add_data(node, &altera_gc->mmchip, altera_gc);
+	ret = of_mm_gpiochip_add_data(analde, &altera_gc->mmchip, altera_gc);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed adding memory mapped gpiochip\n");
 		return ret;

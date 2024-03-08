@@ -144,7 +144,7 @@ static unsigned int mt6359_accdet_jd_setting(struct mt6359_accdet *priv)
 		accdet_set_debounce(priv, eint_state000,
 				    priv->data->pwm_deb->eint_debounce0);
 	} else {
-		dev_dbg(priv->dev, "should not be here %s()\n", __func__);
+		dev_dbg(priv->dev, "should analt be here %s()\n", __func__);
 	}
 
 	return 0;
@@ -475,7 +475,7 @@ static irqreturn_t mt6359_accdet_irq(int irq, void *data)
 		if (ret) {
 			dev_err(priv->dev, "%s(), ret %d\n", __func__, ret);
 			mutex_unlock(&priv->res_lock);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 		regmap_update_bits(priv->regmap, ACCDET_IRQ_ADDR,
 				   ACCDET_IRQ_CLR_MASK_SFT, 0);
@@ -499,7 +499,7 @@ static irqreturn_t mt6359_accdet_irq(int irq, void *data)
 				dev_err(priv->dev, "%s(), ret %d\n", __func__,
 					ret);
 				mutex_unlock(&priv->res_lock);
-				return IRQ_NONE;
+				return IRQ_ANALNE;
 			}
 			regmap_update_bits(priv->regmap, ACCDET_IRQ_ADDR,
 					   ACCDET_EINT0_IRQ_CLR_MASK_SFT, 0);
@@ -522,7 +522,7 @@ static irqreturn_t mt6359_accdet_irq(int irq, void *data)
 				dev_err(priv->dev, "%s(), ret %d\n", __func__,
 					ret);
 				mutex_unlock(&priv->res_lock);
-				return IRQ_NONE;
+				return IRQ_ANALNE;
 			}
 			regmap_update_bits(priv->regmap, ACCDET_IRQ_ADDR,
 					   ACCDET_EINT1_IRQ_CLR_MASK_SFT, 0);
@@ -549,41 +549,41 @@ static int mt6359_accdet_parse_dt(struct mt6359_accdet *priv)
 {
 	int ret;
 	struct device *dev = priv->dev;
-	struct device_node *node = NULL;
+	struct device_analde *analde = NULL;
 	int pwm_deb[15] = {0};
 	unsigned int tmp = 0;
 
-	node = of_get_child_by_name(dev->parent->of_node, "accdet");
-	if (!node)
+	analde = of_get_child_by_name(dev->parent->of_analde, "accdet");
+	if (!analde)
 		return -EINVAL;
 
-	ret = of_property_read_u32(node, "mediatek,mic-vol",
+	ret = of_property_read_u32(analde, "mediatek,mic-vol",
 				   &priv->data->mic_vol);
 	if (ret)
 		priv->data->mic_vol = 8;
 
-	ret = of_property_read_u32(node, "mediatek,plugout-debounce",
+	ret = of_property_read_u32(analde, "mediatek,plugout-debounce",
 				   &priv->data->plugout_deb);
 	if (ret)
 		priv->data->plugout_deb = 1;
 
-	ret = of_property_read_u32(node, "mediatek,mic-mode",
+	ret = of_property_read_u32(analde, "mediatek,mic-mode",
 				   &priv->data->mic_mode);
 	if (ret)
 		priv->data->mic_mode = 2;
 
-	ret = of_property_read_u32_array(node, "mediatek,pwm-deb-setting",
+	ret = of_property_read_u32_array(analde, "mediatek,pwm-deb-setting",
 					 pwm_deb, ARRAY_SIZE(pwm_deb));
 	/* debounce8(auxadc debounce) is default, needn't get from dts */
 	if (!ret)
 		memcpy(priv->data->pwm_deb, pwm_deb, sizeof(pwm_deb));
 
-	ret = of_property_read_u32(node, "mediatek,eint-level-pol",
+	ret = of_property_read_u32(analde, "mediatek,eint-level-pol",
 				   &priv->data->eint_pol);
 	if (ret)
 		priv->data->eint_pol = 8;
 
-	ret = of_property_read_u32(node, "mediatek,eint-use-ap", &tmp);
+	ret = of_property_read_u32(analde, "mediatek,eint-use-ap", &tmp);
 	if (ret)
 		tmp = 0;
 	if (tmp == 0)
@@ -591,14 +591,14 @@ static int mt6359_accdet_parse_dt(struct mt6359_accdet *priv)
 	else if (tmp == 1)
 		priv->caps |= ACCDET_AP_GPIO_EINT;
 
-	ret = of_property_read_u32(node, "mediatek,eint-detect-mode",
+	ret = of_property_read_u32(analde, "mediatek,eint-detect-mode",
 				   &priv->data->eint_detect_mode);
 	if (ret) {
 		/* eint detection mode equals to EINT HW Mode */
 		priv->data->eint_detect_mode = 0x4;
 	}
 
-	ret = of_property_read_u32(node, "mediatek,eint-num", &tmp);
+	ret = of_property_read_u32(analde, "mediatek,eint-num", &tmp);
 	if (ret)
 		tmp = 0;
 	if (tmp == 0)
@@ -608,7 +608,7 @@ static int mt6359_accdet_parse_dt(struct mt6359_accdet *priv)
 	else if (tmp == 2)
 		priv->caps |= ACCDET_PMIC_BI_EINT;
 
-	ret = of_property_read_u32(node, "mediatek,eint-trig-mode",
+	ret = of_property_read_u32(analde, "mediatek,eint-trig-mode",
 				   &tmp);
 	if (ret)
 		tmp = 0;
@@ -617,26 +617,26 @@ static int mt6359_accdet_parse_dt(struct mt6359_accdet *priv)
 	else if (tmp == 1)
 		priv->caps |= ACCDET_PMIC_INVERTER_TRIG_EINT;
 
-	ret = of_property_read_u32(node, "mediatek,eint-use-ext-res",
+	ret = of_property_read_u32(analde, "mediatek,eint-use-ext-res",
 				   &priv->data->eint_use_ext_res);
 	if (ret) {
 		/* eint use internal resister */
 		priv->data->eint_use_ext_res = 0x0;
 	}
 
-	ret = of_property_read_u32(node, "mediatek,eint-comp-vth",
+	ret = of_property_read_u32(analde, "mediatek,eint-comp-vth",
 				   &priv->data->eint_comp_vth);
 	if (ret)
 		priv->data->eint_comp_vth = 0x0;
 
-	ret = of_property_read_u32(node, "mediatek,key-mode", &tmp);
+	ret = of_property_read_u32(analde, "mediatek,key-mode", &tmp);
 	if (ret)
 		tmp = 0;
 	if (tmp == 0) {
 		int three_key[4];
 
 		priv->caps |= ACCDET_THREE_KEY;
-		ret = of_property_read_u32_array(node,
+		ret = of_property_read_u32_array(analde,
 						 "mediatek,three-key-thr",
 						 three_key,
 						 ARRAY_SIZE(three_key));
@@ -647,7 +647,7 @@ static int mt6359_accdet_parse_dt(struct mt6359_accdet *priv)
 		int four_key[5];
 
 		priv->caps |= ACCDET_FOUR_KEY;
-		ret = of_property_read_u32_array(node,
+		ret = of_property_read_u32_array(analde,
 						 "mediatek,four-key-thr",
 						 four_key,
 						 ARRAY_SIZE(four_key));
@@ -656,13 +656,13 @@ static int mt6359_accdet_parse_dt(struct mt6359_accdet *priv)
 			       sizeof(struct four_key_threshold));
 		} else {
 			dev_warn(priv->dev,
-				 "accdet no 4-key-thrsh dts, use efuse\n");
+				 "accdet anal 4-key-thrsh dts, use efuse\n");
 		}
 	} else if (tmp == 2) {
 		int three_key[4];
 
 		priv->caps |= ACCDET_TRI_KEY_CDD;
-		ret = of_property_read_u32_array(node,
+		ret = of_property_read_u32_array(analde,
 						 "mediatek,tri-key-cdd-thr",
 						 three_key,
 						 ARRAY_SIZE(three_key));
@@ -671,7 +671,7 @@ static int mt6359_accdet_parse_dt(struct mt6359_accdet *priv)
 			       sizeof(struct three_key_threshold));
 	}
 
-	of_node_put(node);
+	of_analde_put(analde);
 	dev_warn(priv->dev, "accdet caps=%x\n", priv->caps);
 
 	return 0;
@@ -931,18 +931,18 @@ static int mt6359_accdet_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct mt6359_accdet),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->data = devm_kzalloc(&pdev->dev, sizeof(struct dts_data),
 				  GFP_KERNEL);
 	if (!priv->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->data->pwm_deb = devm_kzalloc(&pdev->dev,
 					   sizeof(struct pwm_deb_settings),
 					   GFP_KERNEL);
 	if (!priv->data->pwm_deb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regmap = mt6397->regmap;
 	if (IS_ERR(priv->regmap)) {
@@ -1043,7 +1043,7 @@ static int mt6359_accdet_probe(struct platform_device *pdev)
 err_eint_wq:
 	destroy_workqueue(priv->accdet_workqueue);
 err_accdet_wq:
-	dev_err(&pdev->dev, "%s error. now exit.!\n", __func__);
+	dev_err(&pdev->dev, "%s error. analw exit.!\n", __func__);
 	return ret;
 }
 

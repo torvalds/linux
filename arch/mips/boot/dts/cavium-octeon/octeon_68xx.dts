@@ -531,7 +531,7 @@
 				cavium,bus-width = <16>;
 			};
 
-			flash0: nor@0,0 {
+			flash0: analr@0,0 {
 				compatible = "cfi-flash";
 				reg = <0 0 0x800000>;
 				#address-cells = <1>;

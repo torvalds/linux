@@ -23,21 +23,21 @@
 
 #define UCALL_PIO_PORT ((uint16_t)0x1000)
 
-struct ucall uc_none = {
-	.cmd = UCALL_NONE,
+struct ucall uc_analne = {
+	.cmd = UCALL_ANALNE,
 };
 
 /*
  * ucall is embedded here to protect against compiler reshuffling registers
  * before calling a function. In this test we only need to get KVM_EXIT_IO
- * vmexit and preserve RBX, no additional information is needed.
+ * vmexit and preserve RBX, anal additional information is needed.
  */
 void guest_code(void)
 {
 	asm volatile("1: in %[port], %%al\n"
 		     "add $0x1, %%rbx\n"
 		     "jmp 1b"
-		     : : [port] "d" (UCALL_PIO_PORT), "D" (&uc_none)
+		     : : [port] "d" (UCALL_PIO_PORT), "D" (&uc_analne)
 		     : "rax", "rbx");
 }
 
@@ -46,7 +46,7 @@ static void compare_regs(struct kvm_regs *left, struct kvm_regs *right)
 #define REG_COMPARE(reg) \
 	TEST_ASSERT(left->reg == right->reg, \
 		    "Register " #reg \
-		    " values did not match: 0x%llx, 0x%llx", \
+		    " values did analt match: 0x%llx, 0x%llx", \
 		    left->reg, right->reg)
 	REG_COMPARE(rax);
 	REG_COMPARE(rbx);
@@ -83,7 +83,7 @@ static void compare_vcpu_events(struct kvm_vcpu_events *left,
 
 /*
  * Set an exception as pending *and* injected while KVM is processing events.
- * KVM is supposed to ignore/drop pending exceptions if userspace is also
+ * KVM is supposed to iganalre/drop pending exceptions if userspace is also
  * requesting that an exception be injected.
  */
 static void *race_events_inj_pen(void *arg)
@@ -131,7 +131,7 @@ static void *race_events_exc(void *arg)
  * Toggle CR4.PAE while KVM is processing SREGS, EFER.LME=1 with CR4.PAE=0 is
  * illegal, and KVM's MMU heavily relies on vCPU state being valid.
  */
-static noinline void *race_sregs_cr4(void *arg)
+static analinline void *race_sregs_cr4(void *arg)
 {
 	struct kvm_run *run = (struct kvm_run *)arg;
 	__u64 *cr4 = &run->s.regs.sregs.cr4;
@@ -142,7 +142,7 @@ static noinline void *race_sregs_cr4(void *arg)
 		WRITE_ONCE(run->kvm_dirty_regs, KVM_SYNC_X86_SREGS);
 		WRITE_ONCE(*cr4, pae_enabled);
 		asm volatile(".rept 512\n\t"
-			     "nop\n\t"
+			     "analp\n\t"
 			     ".endr");
 		WRITE_ONCE(*cr4, pae_disabled);
 
@@ -187,7 +187,7 @@ static void race_sync_regs(void *racer)
 
 	for (t = time(NULL) + TIMEOUT; time(NULL) < t;) {
 		/*
-		 * Reload known good state if the vCPU triple faults, e.g. due
+		 * Reload kanalwn good state if the vCPU triple faults, e.g. due
 		 * to the unhandled #GPs being injected.  VMX preserves state
 		 * on shutdown, but SVM synthesizes an INIT as the VMCB state
 		 * is architecturally undefined on triple fault.
@@ -229,30 +229,30 @@ int main(int argc, char *argv[])
 	/* Request reading invalid register set from VCPU. */
 	run->kvm_valid_regs = INVALID_SYNC_FIELD;
 	rv = _vcpu_run(vcpu);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d",
+	TEST_ASSERT(rv < 0 && erranal == EINVAL,
+		    "Invalid kvm_valid_regs did analt cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_valid_regs = 0;
 
 	run->kvm_valid_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vcpu);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d",
+	TEST_ASSERT(rv < 0 && erranal == EINVAL,
+		    "Invalid kvm_valid_regs did analt cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_valid_regs = 0;
 
 	/* Request setting invalid register set into VCPU. */
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD;
 	rv = _vcpu_run(vcpu);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d",
+	TEST_ASSERT(rv < 0 && erranal == EINVAL,
+		    "Invalid kvm_dirty_regs did analt cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_dirty_regs = 0;
 
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vcpu);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d",
+	TEST_ASSERT(rv < 0 && erranal == EINVAL,
+		    "Invalid kvm_dirty_regs did analt cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_dirty_regs = 0;
 
@@ -309,8 +309,8 @@ int main(int argc, char *argv[])
 		    run->s.regs.regs.rbx);
 
 	/* Clear kvm_valid_regs bits and kvm_dirty_bits.
-	 * Verify s.regs values are not overwritten with existing guest values
-	 * and that guest values are not overwritten with kvm_sync_regs values.
+	 * Verify s.regs values are analt overwritten with existing guest values
+	 * and that guest values are analt overwritten with kvm_sync_regs values.
 	 */
 	run->kvm_valid_regs = 0;
 	run->kvm_dirty_regs = 0;
@@ -327,7 +327,7 @@ int main(int argc, char *argv[])
 		    "rbx guest value incorrect 0x%llx.",
 		    regs.rbx);
 
-	/* Clear kvm_valid_regs bits. Verify s.regs values are not overwritten
+	/* Clear kvm_valid_regs bits. Verify s.regs values are analt overwritten
 	 * with existing guest values but that guest values are overwritten
 	 * with kvm_sync_regs values.
 	 */

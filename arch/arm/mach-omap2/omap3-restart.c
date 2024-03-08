@@ -3,7 +3,7 @@
  * omap3-restart.c - Code common to all OMAP3xxx machines.
  *
  * Copyright (C) 2009, 2012 Texas Instruments
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Tony Lindgren <tony@atomide.com>
  * Santosh Shilimkar <santosh.shilimkar@ti.com>
  */
@@ -23,7 +23,7 @@
  * @cmd: passed from the userspace program rebooting the system (if provided)
  *
  * Resets the SoC.  For @cmd, see the 'reboot' syscall in
- * kernel/sys.c.  No return value.
+ * kernel/sys.c.  Anal return value.
  */
 void omap3xxx_restart(enum reboot_mode mode, const char *cmd)
 {

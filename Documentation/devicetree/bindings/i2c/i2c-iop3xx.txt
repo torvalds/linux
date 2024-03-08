@@ -9,7 +9,7 @@ Required properties:
 - #size-cells = <0>;
 
 Optional properties:
-- Child nodes conforming to i2c bus binding
+- Child analdes conforming to i2c bus binding
 
 Example:
 

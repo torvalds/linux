@@ -25,7 +25,7 @@
 
 #include <dt-bindings/iio/addac/adi,ad74413r.h>
 
-#define AD74413R_CRC_POLYNOMIAL	0x7
+#define AD74413R_CRC_POLYANALMIAL	0x7
 DECLARE_CRC8_TABLE(ad74413r_crc8_table);
 
 #define AD74413R_CHANNEL_MAX	4
@@ -92,7 +92,7 @@ struct ad74413r_state {
 	u8	reg_rx_buf[AD74413R_FRAME_SIZE];
 };
 
-#define AD74413R_REG_NOP		0x00
+#define AD74413R_REG_ANALP		0x00
 
 #define AD74413R_REG_CH_FUNC_SETUP_X(x)	(0x01 + (x))
 #define AD74413R_CH_FUNC_SETUP_MASK	GENMASK(3, 0)
@@ -106,7 +106,7 @@ struct ad74413r_state {
 #define AD74413R_ADC_RANGE_2P5V_INT_POW		0b010
 #define AD74413R_ADC_RANGE_5V_BI_DIR		0b011
 #define AD74413R_ADC_REJECTION_50_60		0b00
-#define AD74413R_ADC_REJECTION_NONE		0b01
+#define AD74413R_ADC_REJECTION_ANALNE		0b01
 #define AD74413R_ADC_REJECTION_50_60_HART	0b10
 #define AD74413R_ADC_REJECTION_HART		0b11
 
@@ -385,7 +385,7 @@ static int ad74413r_gpio_set_gpo_config(struct gpio_chip *chip,
 		return ad74413r_set_gpo_config(st, real_offset,
 			AD74413R_GPO_CONFIG_HIGH_IMPEDANCE);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -401,7 +401,7 @@ static int ad74413r_gpio_set_comp_config(struct gpio_chip *chip,
 		return ad74413r_set_comp_debounce(st, real_offset,
 			pinconf_to_config_argument(config));
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -479,7 +479,7 @@ static int ad74413r_set_adc_conv_seq(struct ad74413r_state *st,
 	int ret;
 
 	/*
-	 * These bits do not clear when a conversion completes.
+	 * These bits do analt clear when a conversion completes.
 	 * To enable a subsequent conversion, repeat the write.
 	 */
 	ret = regmap_write_bits(st->regmap, AD74413R_REG_ADC_CONV_CTRL,
@@ -553,7 +553,7 @@ static int ad74413r_rejection_to_rate(struct ad74413r_state *st,
 	case AD74413R_ADC_REJECTION_50_60:
 		*val = 20;
 		return 0;
-	case AD74413R_ADC_REJECTION_NONE:
+	case AD74413R_ADC_REJECTION_ANALNE:
 		*val = 4800;
 		return 0;
 	case AD74413R_ADC_REJECTION_50_60_HART:
@@ -576,7 +576,7 @@ static int ad74413r_rate_to_rejection(struct ad74413r_state *st,
 		*val = AD74413R_ADC_REJECTION_50_60;
 		return 0;
 	case 4800:
-		*val = AD74413R_ADC_REJECTION_NONE;
+		*val = AD74413R_ADC_REJECTION_ANALNE;
 		return 0;
 	case 10:
 		*val = AD74413R_ADC_REJECTION_50_60_HART;
@@ -798,7 +798,7 @@ static irqreturn_t ad74413r_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1193,14 +1193,14 @@ static const struct ad74413r_channels ad74413r_channels_map[] = {
 };
 
 static int ad74413r_parse_channel_config(struct iio_dev *indio_dev,
-					 struct fwnode_handle *channel_node)
+					 struct fwanalde_handle *channel_analde)
 {
 	struct ad74413r_state *st = iio_priv(indio_dev);
 	struct ad74413r_channel_config *config;
 	u32 index;
 	int ret;
 
-	ret = fwnode_property_read_u32(channel_node, "reg", &index);
+	ret = fwanalde_property_read_u32(channel_analde, "reg", &index);
 	if (ret) {
 		dev_err(st->dev, "Failed to read channel reg: %d\n", ret);
 		return ret;
@@ -1218,7 +1218,7 @@ static int ad74413r_parse_channel_config(struct iio_dev *indio_dev,
 	}
 
 	config->func = CH_FUNC_HIGH_IMPEDANCE;
-	fwnode_property_read_u32(channel_node, "adi,ch-func", &config->func);
+	fwanalde_property_read_u32(channel_analde, "adi,ch-func", &config->func);
 
 	if (config->func < CH_FUNC_MIN || config->func > CH_FUNC_MAX) {
 		dev_err(st->dev, "Invalid channel function %u\n", config->func);
@@ -1236,10 +1236,10 @@ static int ad74413r_parse_channel_config(struct iio_dev *indio_dev,
 	    config->func == CH_FUNC_DIGITAL_INPUT_LOOP_POWER)
 		st->num_comparator_gpios++;
 
-	config->gpo_comparator = fwnode_property_read_bool(channel_node,
+	config->gpo_comparator = fwanalde_property_read_bool(channel_analde,
 		"adi,gpo-comparator");
 
-	fwnode_property_read_u32(channel_node, "drive-strength-microamp",
+	fwanalde_property_read_u32(channel_analde, "drive-strength-microamp",
 				 &config->drive_strength);
 
 	if (!config->gpo_comparator)
@@ -1255,19 +1255,19 @@ static int ad74413r_parse_channel_config(struct iio_dev *indio_dev,
 static int ad74413r_parse_channel_configs(struct iio_dev *indio_dev)
 {
 	struct ad74413r_state *st = iio_priv(indio_dev);
-	struct fwnode_handle *channel_node = NULL;
+	struct fwanalde_handle *channel_analde = NULL;
 	int ret;
 
-	fwnode_for_each_available_child_node(dev_fwnode(st->dev), channel_node) {
-		ret = ad74413r_parse_channel_config(indio_dev, channel_node);
+	fwanalde_for_each_available_child_analde(dev_fwanalde(st->dev), channel_analde) {
+		ret = ad74413r_parse_channel_config(indio_dev, channel_analde);
 		if (ret)
-			goto put_channel_node;
+			goto put_channel_analde;
 	}
 
 	return 0;
 
-put_channel_node:
-	fwnode_handle_put(channel_node);
+put_channel_analde:
+	fwanalde_handle_put(channel_analde);
 
 	return ret;
 }
@@ -1283,7 +1283,7 @@ static int ad74413r_setup_channels(struct iio_dev *indio_dev)
 	channels = devm_kcalloc(st->dev, sizeof(*channels),
 				indio_dev->num_channels, GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->channels = channels;
 
@@ -1365,7 +1365,7 @@ static int ad74413r_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -1416,7 +1416,7 @@ static int ad74413r_probe(struct spi_device *spi)
 	st->trig = devm_iio_trigger_alloc(st->dev, "%s-dev%d",
 					  st->chip_info->name, iio_device_id(indio_dev));
 	if (!st->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->trig->ops = &ad74413r_trigger_ops;
 	iio_trigger_set_drvdata(st->trig, st);
@@ -1510,7 +1510,7 @@ static int ad74413r_unregister_driver(struct spi_driver *spi)
 
 static int __init ad74413r_register_driver(struct spi_driver *spi)
 {
-	crc8_populate_msb(ad74413r_crc8_table, AD74413R_CRC_POLYNOMIAL);
+	crc8_populate_msb(ad74413r_crc8_table, AD74413R_CRC_POLYANALMIAL);
 
 	return spi_register_driver(spi);
 }

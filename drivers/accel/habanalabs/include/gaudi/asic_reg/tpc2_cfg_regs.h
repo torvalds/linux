@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_TPC2_CFG_REGS_H_
@@ -573,7 +573,7 @@
 
 #define mmTPC2_CFG_SFLAGS                                            0xE86910
 
-#define mmTPC2_CFG_LFSR_POLYNOM                                      0xE86918
+#define mmTPC2_CFG_LFSR_POLYANALM                                      0xE86918
 
 #define mmTPC2_CFG_STATUS                                            0xE8691C
 

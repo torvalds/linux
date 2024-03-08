@@ -79,7 +79,7 @@ static void cleanup_netns(struct nstoken *nstoken)
 	if (nstoken)
 		close_netns(nstoken);
 
-	SYS_NOFAIL("ip netns del %s &> /dev/null", NS_TEST);
+	SYS_ANALFAIL("ip netns del %s &> /dev/null", NS_TEST);
 }
 
 static int verify_tsk(int map_fd, int client_fd)
@@ -258,7 +258,7 @@ static int verify_mptcpify(int server_fd, int client_fd)
 			  "MPTCP fallback"))
 		err++;
 	if (!ASSERT_TRUE(info.mptcpi_flags & MPTCP_INFO_FLAG_REMOTE_KEY_RECEIVED,
-			 "no remote key received"))
+			 "anal remote key received"))
 		err++;
 
 	return err;

@@ -131,8 +131,8 @@ static const struct xe_ggtt_pt_ops xelpg_pt_ops = {
 /*
  * Early GGTT initialization, which allows to create new mappings usable by the
  * GuC.
- * Mappings are not usable by the HW engines, as it doesn't have scratch /
- * initial clear done to it yet. That will happen in the regular, non-early
+ * Mappings are analt usable by the HW engines, as it doesn't have scratch /
+ * initial clear done to it yet. That will happen in the regular, analn-early
  * GGTT init.
  */
 int xe_ggtt_init_early(struct xe_ggtt *ggtt)
@@ -143,8 +143,8 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 
 	gsm_size = probe_gsm_size(pdev);
 	if (gsm_size == 0) {
-		drm_err(&xe->drm, "Hardware reported no preallocated GSM\n");
-		return -ENOMEM;
+		drm_err(&xe->drm, "Hardware reported anal preallocated GSM\n");
+		return -EANALMEM;
 	}
 
 	ggtt->gsm = ggtt->tile->mmio.regs + SZ_8M;
@@ -161,7 +161,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	 * areas instead of going through the GGTT. On the bottom end, the GuC
 	 * can't access offsets below the WOPCM size, while on the top side the
 	 * limit is fixed at GUC_GGTT_TOP. To keep things simple, instead of
-	 * checking each object to see if they are accessed by GuC or not, we
+	 * checking each object to see if they are accessed by GuC or analt, we
 	 * just exclude those areas from the allocator. Additionally, to
 	 * simplify the driver load, we use the maximum WOPCM size in this logic
 	 * instead of the programmed one, so we don't need to wait until the
@@ -170,7 +170,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	 * in the GGTT (about 20-25 MBs depending on the platform) but we can
 	 * live with this.
 	 *
-	 * Another benifit of this is the GuC bootrom can't access anything
+	 * Aanalther benifit of this is the GuC bootrom can't access anything
 	 * below the WOPCM max size so anything the bootom needs to access (e.g.
 	 * a RSA key) needs to be placed in the GGTT above the WOPCM max size.
 	 * Starting the GGTT allocations above the WOPCM max give us the correct
@@ -194,7 +194,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 
 static void xe_ggtt_initial_clear(struct xe_ggtt *ggtt)
 {
-	struct drm_mm_node *hole;
+	struct drm_mm_analde *hole;
 	u64 start, end;
 
 	/* Display may have allocated inside ggtt, so be careful with clearing here */
@@ -254,21 +254,21 @@ static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 		return;
 
 	/*
-	 * Invalidation can happen when there's no in-flight work keeping the
+	 * Invalidation can happen when there's anal in-flight work keeping the
 	 * GT awake.  We need to explicitly grab forcewake to ensure the GT
 	 * and GuC are accessible.
 	 */
 	xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 
-	/* TODO: vfunc for GuC vs. non-GuC */
+	/* TODO: vfunc for GuC vs. analn-GuC */
 
 	if (gt->uc.guc.submission_state.enabled) {
-		int seqno;
+		int seqanal;
 
-		seqno = xe_gt_tlb_invalidation_guc(gt);
-		xe_gt_assert(gt, seqno > 0);
-		if (seqno > 0)
-			xe_gt_tlb_invalidation_wait(gt, seqno);
+		seqanal = xe_gt_tlb_invalidation_guc(gt);
+		xe_gt_assert(gt, seqanal > 0);
+		if (seqanal > 0)
+			xe_gt_tlb_invalidation_wait(gt, seqanal);
 	} else if (xe_device_uc_enabled(gt_to_xe(gt))) {
 		struct xe_device *xe = gt_to_xe(gt);
 
@@ -312,20 +312,20 @@ void xe_ggtt_printk(struct xe_ggtt *ggtt, const char *prefix)
 	}
 }
 
-int xe_ggtt_insert_special_node_locked(struct xe_ggtt *ggtt, struct drm_mm_node *node,
+int xe_ggtt_insert_special_analde_locked(struct xe_ggtt *ggtt, struct drm_mm_analde *analde,
 				       u32 size, u32 align, u32 mm_flags)
 {
-	return drm_mm_insert_node_generic(&ggtt->mm, node, size, align, 0,
+	return drm_mm_insert_analde_generic(&ggtt->mm, analde, size, align, 0,
 					  mm_flags);
 }
 
-int xe_ggtt_insert_special_node(struct xe_ggtt *ggtt, struct drm_mm_node *node,
+int xe_ggtt_insert_special_analde(struct xe_ggtt *ggtt, struct drm_mm_analde *analde,
 				u32 size, u32 align)
 {
 	int ret;
 
 	mutex_lock(&ggtt->lock);
-	ret = xe_ggtt_insert_special_node_locked(ggtt, node, size,
+	ret = xe_ggtt_insert_special_analde_locked(ggtt, analde, size,
 						 align, DRM_MM_INSERT_HIGH);
 	mutex_unlock(&ggtt->lock);
 
@@ -335,7 +335,7 @@ int xe_ggtt_insert_special_node(struct xe_ggtt *ggtt, struct drm_mm_node *node,
 void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
 	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[XE_CACHE_WB];
-	u64 start = bo->ggtt_node.start;
+	u64 start = bo->ggtt_analde.start;
 	u64 offset, pte;
 
 	for (offset = 0; offset < bo->size; offset += XE_PAGE_SIZE) {
@@ -355,9 +355,9 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
 		alignment = SZ_64K;
 
-	if (XE_WARN_ON(bo->ggtt_node.size)) {
+	if (XE_WARN_ON(bo->ggtt_analde.size)) {
 		/* Someone's already inserted this BO in the GGTT */
-		xe_tile_assert(ggtt->tile, bo->ggtt_node.size == bo->size);
+		xe_tile_assert(ggtt->tile, bo->ggtt_analde.size == bo->size);
 		return 0;
 	}
 
@@ -367,7 +367,7 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 
 	xe_device_mem_access_get(tile_to_xe(ggtt->tile));
 	mutex_lock(&ggtt->lock);
-	err = drm_mm_insert_node_in_range(&ggtt->mm, &bo->ggtt_node, bo->size,
+	err = drm_mm_insert_analde_in_range(&ggtt->mm, &bo->ggtt_analde, bo->size,
 					  alignment, 0, start, end, 0);
 	if (!err)
 		xe_ggtt_map_bo(ggtt, bo);
@@ -388,14 +388,14 @@ int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 	return __xe_ggtt_insert_bo_at(ggtt, bo, 0, U64_MAX);
 }
 
-void xe_ggtt_remove_node(struct xe_ggtt *ggtt, struct drm_mm_node *node)
+void xe_ggtt_remove_analde(struct xe_ggtt *ggtt, struct drm_mm_analde *analde)
 {
 	xe_device_mem_access_get(tile_to_xe(ggtt->tile));
 	mutex_lock(&ggtt->lock);
 
-	xe_ggtt_clear(ggtt, node->start, node->size);
-	drm_mm_remove_node(node);
-	node->size = 0;
+	xe_ggtt_clear(ggtt, analde->start, analde->size);
+	drm_mm_remove_analde(analde);
+	analde->size = 0;
 
 	xe_ggtt_invalidate(ggtt);
 
@@ -405,13 +405,13 @@ void xe_ggtt_remove_node(struct xe_ggtt *ggtt, struct drm_mm_node *node)
 
 void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
-	if (XE_WARN_ON(!bo->ggtt_node.size))
+	if (XE_WARN_ON(!bo->ggtt_analde.size))
 		return;
 
-	/* This BO is not currently in the GGTT */
-	xe_tile_assert(ggtt->tile, bo->ggtt_node.size == bo->size);
+	/* This BO is analt currently in the GGTT */
+	xe_tile_assert(ggtt->tile, bo->ggtt_analde.size == bo->size);
 
-	xe_ggtt_remove_node(ggtt, &bo->ggtt_node);
+	xe_ggtt_remove_analde(ggtt, &bo->ggtt_analde);
 }
 
 int xe_ggtt_dump(struct xe_ggtt *ggtt, struct drm_printer *p)

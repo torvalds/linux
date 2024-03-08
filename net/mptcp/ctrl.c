@@ -101,7 +101,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.procname = "enabled",
 		.maxlen = sizeof(u8),
 		.mode = 0644,
-		/* users with CAP_NET_ADMIN or root (not and) can change this
+		/* users with CAP_NET_ADMIN or root (analt and) can change this
 		 * value, same as other sysctl or the 'net' tree.
 		 */
 		.proc_handler = proc_dou8vec_minmax,
@@ -193,7 +193,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void mptcp_pernet_del_table(struct mptcp_pernet *pernet)
@@ -225,7 +225,7 @@ static int __net_init mptcp_net_init(struct net *net)
 	return mptcp_pernet_new_table(net, pernet);
 }
 
-/* Note: the callback will only be called per extra netns */
+/* Analte: the callback will only be called per extra netns */
 static void __net_exit mptcp_net_exit(struct net *net)
 {
 	struct mptcp_pernet *pernet = mptcp_get_pernet(net);

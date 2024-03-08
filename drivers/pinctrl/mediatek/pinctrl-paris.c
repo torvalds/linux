@@ -131,7 +131,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 {
 	struct mtk_pinctrl *hw = pinctrl_dev_get_drvdata(pctldev);
 	u32 param = pinconf_to_config_param(*config);
-	int pullup, reg, err = -ENOTSUPP, ret = 1;
+	int pullup, reg, err = -EANALTSUPP, ret = 1;
 	const struct mtk_pin_desc *desc;
 
 	if (pin >= hw->soc->npins)
@@ -257,7 +257,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 {
 	struct mtk_pinctrl *hw = pinctrl_dev_get_drvdata(pctldev);
 	const struct mtk_pin_desc *desc;
-	int err = -ENOTSUPP;
+	int err = -EANALTSUPP;
 	u32 reg;
 
 	if (pin >= hw->soc->npins)
@@ -285,16 +285,16 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_SMT,
 				       MTK_DISABLE);
 		/* Keep set direction to consider the case that a GPIO pin
-		 *  does not have SMT control
+		 *  does analt have SMT control
 		 */
-		if (err != -ENOTSUPP)
+		if (err != -EANALTSUPP)
 			break;
 
 		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DIR,
 				       MTK_OUTPUT);
 		break;
 	case PIN_CONFIG_INPUT_ENABLE:
-		/* regard all non-zero value as enable */
+		/* regard all analn-zero value as enable */
 		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_IES, !!arg);
 		if (err)
 			break;
@@ -303,7 +303,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				       MTK_INPUT);
 		break;
 	case PIN_CONFIG_SLEW_RATE:
-		/* regard all non-zero value as enable */
+		/* regard all analn-zero value as enable */
 		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_SR, !!arg);
 		break;
 	case PIN_CONFIG_OUTPUT:
@@ -418,7 +418,7 @@ static bool mtk_pctrl_is_function_valid(struct mtk_pinctrl *hw, u32 pin_num,
 	return false;
 }
 
-static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
+static int mtk_pctrl_dt_analde_to_map_func(struct mtk_pinctrl *pctl,
 					 u32 pin, u32 fnum,
 					 struct mtk_pinctrl_group *grp,
 					 struct pinctrl_map **map,
@@ -428,7 +428,7 @@ static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
 	bool ret;
 
 	if (*num_maps == *reserved_maps)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	(*map)[*num_maps].type = PIN_MAP_TYPE_MUX_GROUP;
 	(*map)[*num_maps].data.mux.group = grp->name;
@@ -446,8 +446,8 @@ static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
 	return 0;
 }
 
-static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-				       struct device_node *node,
+static int mtk_pctrl_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+				       struct device_analde *analde,
 				       struct pinctrl_map **map,
 				       unsigned *reserved_maps,
 				       unsigned *num_maps)
@@ -462,14 +462,14 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	struct property *pins;
 	unsigned reserve = 0;
 
-	pins = of_find_property(node, "pinmux", NULL);
+	pins = of_find_property(analde, "pinmux", NULL);
 	if (!pins) {
-		dev_err(hw->dev, "missing pins property in node %pOFn .\n",
-			node);
+		dev_err(hw->dev, "missing pins property in analde %pOFn .\n",
+			analde);
 		return -EINVAL;
 	}
 
-	err = pinconf_generic_parse_dt_config(node, pctldev, &configs,
+	err = pinconf_generic_parse_dt_config(analde, pctldev, &configs,
 					      &num_configs);
 	if (err)
 		return err;
@@ -498,11 +498,11 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		goto exit;
 
 	for (i = 0; i < num_pins; i++) {
-		err = of_property_read_u32_index(node, "pinmux", i, &pinfunc);
+		err = of_property_read_u32_index(analde, "pinmux", i, &pinfunc);
 		if (err)
 			goto exit;
 
-		pin = MTK_GET_PIN_NO(pinfunc);
+		pin = MTK_GET_PIN_ANAL(pinfunc);
 		func = MTK_GET_PIN_FUNC(pinfunc);
 
 		if (pin >= hw->soc->npins ||
@@ -520,7 +520,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 			goto exit;
 		}
 
-		err = mtk_pctrl_dt_node_to_map_func(hw, pin, func, grp, map,
+		err = mtk_pctrl_dt_analde_to_map_func(hw, pin, func, grp, map,
 						    reserved_maps, num_maps);
 		if (err < 0)
 			goto exit;
@@ -545,12 +545,12 @@ exit:
 	return err;
 }
 
-static int mtk_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				    struct device_node *np_config,
+static int mtk_pctrl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				    struct device_analde *np_config,
 				    struct pinctrl_map **map,
 				    unsigned *num_maps)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned reserved_maps;
 	int ret;
 
@@ -558,13 +558,13 @@ static int mtk_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 	reserved_maps = 0;
 
-	for_each_child_of_node(np_config, np) {
-		ret = mtk_pctrl_dt_subnode_to_map(pctldev, np, map,
+	for_each_child_of_analde(np_config, np) {
+		ret = mtk_pctrl_dt_subanalde_to_map(pctldev, np, map,
 						  &reserved_maps,
 						  num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map, *num_maps);
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}
@@ -725,7 +725,7 @@ static void mtk_pctrl_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 }
 
 static const struct pinctrl_ops mtk_pctlops = {
-	.dt_node_to_map		= mtk_pctrl_dt_node_to_map,
+	.dt_analde_to_map		= mtk_pctrl_dt_analde_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 	.get_groups_count	= mtk_pctrl_get_groups_count,
 	.get_group_name		= mtk_pctrl_get_group_name,
@@ -825,8 +825,8 @@ static int mtk_pconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 
 	/*
 	 * Disable advanced drive strength mode if drive-strength-microamp
-	 * is not set. However, mediatek,drive-strength-adv takes precedence
-	 * as its value can explicitly request the mode be enabled or not.
+	 * is analt set. However, mediatek,drive-strength-adv takes precedence
+	 * as its value can explicitly request the mode be enabled or analt.
 	 */
 	if (hw->soc->adv_drive_set && !drive_strength_uA_found &&
 	    !adv_drve_strength_found)
@@ -938,12 +938,12 @@ static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 	const struct mtk_pin_desc *desc;
 
 	if (!hw->eint)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[offset];
 
 	if (desc->eint.eint_n == EINT_NA)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return mtk_eint_find_irq(hw->eint, desc->eint.eint_n);
 }
@@ -960,7 +960,7 @@ static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	if (!hw->eint ||
 	    pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE ||
 	    desc->eint.eint_n == EINT_NA)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
 
@@ -1002,13 +1002,13 @@ static int mtk_pctrl_build_state(struct platform_device *pdev)
 	hw->groups = devm_kmalloc_array(&pdev->dev, hw->soc->ngrps,
 					sizeof(*hw->groups), GFP_KERNEL);
 	if (!hw->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* We assume that one pin is one group, use pin name as group name. */
 	hw->grp_names = devm_kmalloc_array(&pdev->dev, hw->soc->ngrps,
 					   sizeof(*hw->grp_names), GFP_KERNEL);
 	if (!hw->grp_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hw->soc->npins; i++) {
 		const struct mtk_pin_desc *pin = hw->soc->pins + i;
@@ -1032,13 +1032,13 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev)
 
 	hw = devm_kzalloc(&pdev->dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, hw);
 
 	hw->soc = device_get_match_data(dev);
 	if (!hw->soc)
-		return -ENOENT;
+		return -EANALENT;
 
 	hw->dev = &pdev->dev;
 
@@ -1049,7 +1049,7 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev)
 	hw->base = devm_kmalloc_array(&pdev->dev, hw->soc->nbase_names,
 				      sizeof(*hw->base), GFP_KERNEL);
 	if (!hw->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hw->soc->nbase_names; i++) {
 		hw->base[i] = devm_platform_ioremap_resource_byname(pdev,
@@ -1060,7 +1060,7 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev)
 
 	hw->nbase = hw->soc->nbase_names;
 
-	if (of_find_property(hw->dev->of_node,
+	if (of_find_property(hw->dev->of_analde,
 			     "mediatek,rsel-resistance-in-si-unit", NULL))
 		hw->rsel_si_unit = true;
 	else
@@ -1076,7 +1076,7 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev)
 	pins = devm_kmalloc_array(&pdev->dev, hw->soc->npins, sizeof(*pins),
 				  GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hw->soc->npins; i++) {
 		pins[i].number = hw->soc->pins[i].number;
@@ -1132,7 +1132,7 @@ static int mtk_paris_pinctrl_resume(struct device *device)
 }
 
 EXPORT_GPL_DEV_SLEEP_PM_OPS(mtk_paris_pinctrl_pm_ops) = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(mtk_paris_pinctrl_suspend, mtk_paris_pinctrl_resume)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(mtk_paris_pinctrl_suspend, mtk_paris_pinctrl_resume)
 };
 
 MODULE_LICENSE("GPL v2");

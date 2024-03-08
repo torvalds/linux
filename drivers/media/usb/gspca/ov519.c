@@ -31,7 +31,7 @@
 #include "gspca.h"
 
 /* The jpeg_hdr is used by w996Xcf only */
-/* The CONEX_CAM define for jpeg.h needs renaming, now its used here too */
+/* The CONEX_CAM define for jpeg.h needs renaming, analw its used here too */
 #define CONEX_CAM
 #include "jpeg.h"
 
@@ -122,7 +122,7 @@ enum sensors {
 	SEN_OV9600,
 };
 
-/* Note this is a bit of a hack, but the w9968cf driver needs the code for all
+/* Analte this is a bit of a hack, but the w9968cf driver needs the code for all
    the ov sensors which is already present here. When we have the time we
    really should move the sensor drivers to v4l2 sub drivers. */
 #include "w996Xcf.c"
@@ -149,7 +149,7 @@ static const struct ctrl_valid valid_controls[] = {
 		.has_autogain = 1,
 	},
 	[SEN_OV3610] = {
-		/* No controls */
+		/* Anal controls */
 	},
 	[SEN_OV6620] = {
 		.has_brightness = 1,
@@ -236,75 +236,75 @@ static const struct ctrl_valid valid_controls[] = {
 };
 
 static const struct v4l2_pix_format ov519_vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
 static const struct v4l2_pix_format ov519_sif_mode[] = {
-	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
-	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
 
-/* Note some of the sizeimage values for the ov511 / ov518 may seem
+/* Analte some of the sizeimage values for the ov511 / ov518 may seem
    larger then necessary, however they need to be this big as the ov511 /
    ov518 always fills the entire isoc frame, using 0 padding bytes when
    it doesn't have any data. So with low framerates the amount of data
    transferred can become quite large (libv4l will remove all the 0 padding
    in userspace). */
 static const struct v4l2_pix_format ov518_vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_OV518, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_OV518, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
 static const struct v4l2_pix_format ov518_sif_mode[] = {
-	{160, 120, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_OV518, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 70000,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
-	{176, 144, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_OV518, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 70000,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{320, 240, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_OV518, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{352, 288, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_OV518, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -312,34 +312,34 @@ static const struct v4l2_pix_format ov518_sif_mode[] = {
 };
 
 static const struct v4l2_pix_format ov511_vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_OV511, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_OV511, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
 static const struct v4l2_pix_format ov511_sif_mode[] = {
-	{160, 120, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_OV511, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 70000,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
-	{176, 144, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_OV511, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 70000,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{320, 240, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_OV511, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{352, 288, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_OV511, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -347,50 +347,50 @@ static const struct v4l2_pix_format ov511_sif_mode[] = {
 };
 
 static const struct v4l2_pix_format ovfx2_ov2610_mode[] = {
-	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 800,
 		.sizeimage = 800 * 600,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1600,
 		.sizeimage = 1600 * 1200,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
-	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 800,
 		.sizeimage = 800 * 600,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{1024, 768, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{1024, 768, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1024,
 		.sizeimage = 1024 * 768,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1600,
 		.sizeimage = 1600 * 1200,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
-	{2048, 1536, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{2048, 1536, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 2048,
 		.sizeimage = 2048 * 1536,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
 static const struct v4l2_pix_format ovfx2_ov9600_mode[] = {
-	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{1280, 1024, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{1280, 1024, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 1024,
 		.colorspace = V4L2_COLORSPACE_SRGB},
@@ -458,7 +458,7 @@ static const struct v4l2_pix_format ovfx2_ov9600_mode[] = {
 /*#define OV511_ENDPOINT_ADDRESS 1	 * Isoc endpoint number */
 
 /*
- * The FX2 chip does not give us a zero length read at end of frame.
+ * The FX2 chip does analt give us a zero length read at end of frame.
  * It does, however, give a short read at the end of a frame, if
  * necessary, rather than run two frames together.
  *
@@ -469,17 +469,17 @@ static const struct v4l2_pix_format ovfx2_ov9600_mode[] = {
  * frame will be short.
  *
  * But it isn't that easy: the 2.6 kernel requires a multiple of 4KB,
- * otherwise EOVERFLOW "babbling" errors occur.  I have not been able
+ * otherwise EOVERFLOW "babbling" errors occur.  I have analt been able
  * to figure out why.  [PMiller]
  *
- * The constant (13 * 4096) is the largest "prime enough" number less than 64KB.
+ * The constant (13 * 4096) is the largest "prime eanalugh" number less than 64KB.
  *
- * It isn't enough to know the number of bytes per frame, in case we
+ * It isn't eanalugh to kanalw the number of bytes per frame, in case we
  * have data dropouts or buffer overruns (even though the FX2 double
  * buffers, there are some pretty strict real time constraints for
- * isochronous transfer for larger frame sizes).
+ * isochroanalus transfer for larger frame sizes).
  */
-/*jfm: this value does not work for 800x600 - see isoc_init */
+/*jfm: this value does analt work for 800x600 - see isoc_init */
 #define OVFX2_BULK_SIZE (13 * 4096)
 
 /* I2C registers */
@@ -588,11 +588,11 @@ struct ov_i2c_regvals {
 };
 
 /* Settings for OV2610 camera chip */
-static const struct ov_i2c_regvals norm_2610[] = {
+static const struct ov_i2c_regvals analrm_2610[] = {
 	{ 0x12, 0x80 },	/* reset */
 };
 
-static const struct ov_i2c_regvals norm_2610ae[] = {
+static const struct ov_i2c_regvals analrm_2610ae[] = {
 	{0x12, 0x80},	/* reset */
 	{0x13, 0xcd},
 	{0x09, 0x01},
@@ -605,14 +605,14 @@ static const struct ov_i2c_regvals norm_2610ae[] = {
 /* ms-win traces */
 	{0x11, 0x83},	/* clock / 3 ? */
 	{0x2d, 0x00},	/* 60 Hz filter */
-	{0x24, 0xb0},	/* normal colors */
+	{0x24, 0xb0},	/* analrmal colors */
 	{0x25, 0x90},
 	{0x10, 0x43},
 };
 
-static const struct ov_i2c_regvals norm_3620b[] = {
+static const struct ov_i2c_regvals analrm_3620b[] = {
 	/*
-	 * From the datasheet: "Note that after writing to register COMH
+	 * From the datasheet: "Analte that after writing to register COMH
 	 * (0x12) to change the sensor mode, registers related to the
 	 * sensor's cropping window will be reset back to their default
 	 * values."
@@ -660,7 +660,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    COMC[7:5] "Reserved"
 	 *                  =   0 (0x00) 000.....
 	 *    COMC[4] "Sleep Mode Enable"
-	 *                  =   0 (0x00) ...0.... "Normal mode"
+	 *                  =   0 (0x00) ...0.... "Analrmal mode"
 	 *    COMC[3:2] "Sensor sampling reset timing selection"
 	 *                  =   2 (0x02) ....10.. "Longer reset time"
 	 *    COMC[1:0] "Output drive current select"
@@ -678,7 +678,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    COMD[5:3] "Reserved"
 	 *                  =   1 (0x01) ..001...
 	 *    COMD[2] "Output Average On Off"
-	 *                  =   0 (0x00) .....0.. "Output Normal"
+	 *                  =   0 (0x00) .....0.. "Output Analrmal"
 	 *    COMD[1] "Sensor precharge voltage selection"
 	 *                  =   0 (0x00) ......0. "Selects internal
 	 *                                         reference precharge
@@ -764,9 +764,9 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *                                         data is dropped"
 	 *    COMJ[1] "Frame data drop"
 	 *                  =   1 (0x01) ......1. "Drop frame data if
-	 *                                         exposure is not within
+	 *                                         exposure is analt within
 	 *                                         tolerance.  In AEC mode,
-	 *                                         data is normally dropped
+	 *                                         data is analrmally dropped
 	 *                                         when data is out of
 	 *                                         range."
 	 *    COMJ[0] "Reserved"
@@ -802,17 +802,17 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    CHLF[7:6] "Sensor current control"
 	 *                  =   0 (0x00) 00......
 	 *    CHLF[5] "Sensor current range control"
-	 *                  =   0 (0x00) ..0..... "normal range"
+	 *                  =   0 (0x00) ..0..... "analrmal range"
 	 *    CHLF[4] "Sensor current"
-	 *                  =   0 (0x00) ...0.... "normal current"
+	 *                  =   0 (0x00) ...0.... "analrmal current"
 	 *    CHLF[3] "Sensor buffer current control"
 	 *                  =   1 (0x01) ....1... "half current"
 	 *    CHLF[2] "Column buffer current control"
-	 *                  =   0 (0x00) .....0.. "normal current"
+	 *                  =   0 (0x00) .....0.. "analrmal current"
 	 *    CHLF[1] "Analog DSP current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "analrmal current"
 	 *    CHLF[1] "ADC current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "analrmal current"
 	 */
 	{ 0x33, 0x09 },
 
@@ -990,17 +990,17 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    CHLF[7:6] "Sensor current control"
 	 *                  =   0 (0x00) 00......
 	 *    CHLF[5] "Sensor current range control"
-	 *                  =   0 (0x00) ..0..... "normal range"
+	 *                  =   0 (0x00) ..0..... "analrmal range"
 	 *    CHLF[4] "Sensor current"
 	 *                  =   1 (0x01) ...1.... "double current"
 	 *    CHLF[3] "Sensor buffer current control"
 	 *                  =   1 (0x01) ....1... "half current"
 	 *    CHLF[2] "Column buffer current control"
-	 *                  =   0 (0x00) .....0.. "normal current"
+	 *                  =   0 (0x00) .....0.. "analrmal current"
 	 *    CHLF[1] "Analog DSP current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "analrmal current"
 	 *    CHLF[1] "ADC current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "analrmal current"
 	 */
 	{ 0x33, 0x19 },
 
@@ -1030,17 +1030,17 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    CHLF[7:6] "Sensor current control"
 	 *                  =   0 (0x00) 00......
 	 *    CHLF[5] "Sensor current range control"
-	 *                  =   0 (0x00) ..0..... "normal range"
+	 *                  =   0 (0x00) ..0..... "analrmal range"
 	 *    CHLF[4] "Sensor current"
-	 *                  =   0 (0x00) ...0.... "normal current"
+	 *                  =   0 (0x00) ...0.... "analrmal current"
 	 *    CHLF[3] "Sensor buffer current control"
 	 *                  =   1 (0x01) ....1... "half current"
 	 *    CHLF[2] "Column buffer current control"
-	 *                  =   0 (0x00) .....0.. "normal current"
+	 *                  =   0 (0x00) .....0.. "analrmal current"
 	 *    CHLF[1] "Analog DSP current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "analrmal current"
 	 *    CHLF[1] "ADC current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "analrmal current"
 	 */
 	{ 0x33, 0x09 },
 
@@ -1060,7 +1060,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 * 12 COMH "Common Control H"
 	 *                  =  64 (0x40) 01000000
 	 *    COMH[7] "SRST"
-	 *                  =   0 (0x00) 0....... "No-op"
+	 *                  =   0 (0x00) 0....... "Anal-op"
 	 *    COMH[6:4] "Resolution selection"
 	 *                  =   4 (0x04) .100.... "XGA"
 	 *    COMH[3] "Master slave selection"
@@ -1147,7 +1147,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 * 12 COMH "Common Control H"
 	 *                  =   0 (0x00) 00000000
 	 *    COMH[7] "SRST"
-	 *                  =   0 (0x00) 0....... "No-op"
+	 *                  =   0 (0x00) 0....... "Anal-op"
 	 *    COMH[6:4] "Resolution selection"
 	 *                  =   0 (0x00) .000.... "QXGA"
 	 *    COMH[3] "Master slave selection"
@@ -1165,7 +1165,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 * 12 COMH "Common Control H"
 	 *                  =  64 (0x40) 01000000
 	 *    COMH[7] "SRST"
-	 *                  =   0 (0x00) 0....... "No-op"
+	 *                  =   0 (0x00) 0....... "Anal-op"
 	 *    COMH[6:4] "Resolution selection"
 	 *                  =   4 (0x04) .100.... "XGA"
 	 *    COMH[3] "Master slave selection"
@@ -1292,7 +1292,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	{ 0xff, 0x01 },
 };
 
-static const struct ov_i2c_regvals norm_6x20[] = {
+static const struct ov_i2c_regvals analrm_6x20[] = {
 	{ 0x12, 0x80 }, /* reset */
 	{ 0x11, 0x01 },
 	{ 0x03, 0x60 },
@@ -1328,14 +1328,14 @@ static const struct ov_i2c_regvals norm_6x20[] = {
 	 * They control the color balance */
 	{ 0x4a, 0x80 },
 	{ 0x4b, 0x80 },
-	{ 0x4d, 0xd2 }, /* This reduces noise a bit */
+	{ 0x4d, 0xd2 }, /* This reduces analise a bit */
 	{ 0x4e, 0xc1 },
 	{ 0x4f, 0x04 },
 /* Do 50-53 have any effect? */
 /* Toggle 0x12[2] off and on here? */
 };
 
-static const struct ov_i2c_regvals norm_6x30[] = {
+static const struct ov_i2c_regvals analrm_6x30[] = {
 	{ 0x12, 0x80 }, /* Reset */
 	{ 0x00, 0x1f }, /* Gain */
 	{ 0x01, 0x99 }, /* Blue gain */
@@ -1431,7 +1431,7 @@ static const struct ov_i2c_regvals norm_6x30[] = {
  * 0x05 (old driver setting): very overexposed, too much
  *	contrast
  */
-static const struct ov_i2c_regvals norm_7610[] = {
+static const struct ov_i2c_regvals analrm_7610[] = {
 	{ 0x10, 0xff },
 	{ 0x16, 0x06 },
 	{ 0x28, 0x24 },
@@ -1461,7 +1461,7 @@ static const struct ov_i2c_regvals norm_7610[] = {
 	{ 0x0d, 0x24 },
 };
 
-static const struct ov_i2c_regvals norm_7620[] = {
+static const struct ov_i2c_regvals analrm_7620[] = {
 	{ 0x12, 0x80 },		/* reset */
 	{ 0x00, 0x00 },		/* gain */
 	{ 0x01, 0x80 },		/* blue gain */
@@ -1529,7 +1529,7 @@ static const struct ov_i2c_regvals norm_7620[] = {
 };
 
 /* 7640 and 7648. The defaults should be OK for most registers. */
-static const struct ov_i2c_regvals norm_7640[] = {
+static const struct ov_i2c_regvals analrm_7640[] = {
 	{ 0x12, 0x80 },
 	{ 0x12, 0x14 },
 };
@@ -1553,7 +1553,7 @@ static const struct ov_regvals init_519_ov7660[] = {
 	{ 0x40,	0xff }, /* I2C timeout counter */
 	{ 0x46,	0x00 }, /* I2C clock prescaler */
 };
-static const struct ov_i2c_regvals norm_7660[] = {
+static const struct ov_i2c_regvals analrm_7660[] = {
 	{OV7670_R12_COM7, OV7670_COM7_RESET},
 	{OV7670_R11_CLKRC, 0x81},
 	{0x92, 0x00},			/* DM_LNL */
@@ -1677,7 +1677,7 @@ static const struct ov_i2c_regvals norm_7660[] = {
 			| OV7670_COM8_AEC},
 	{0xa1, 0xc8}
 };
-static const struct ov_i2c_regvals norm_9600[] = {
+static const struct ov_i2c_regvals analrm_9600[] = {
 	{0x12, 0x80},
 	{0x0c, 0x28},
 	{0x11, 0x80},
@@ -1696,7 +1696,7 @@ static const struct ov_i2c_regvals norm_9600[] = {
 
 /* 7670. Defaults taken from OmniVision provided data,
 *  as provided by Jonathan Corbet of OLPC		*/
-static const struct ov_i2c_regvals norm_7670[] = {
+static const struct ov_i2c_regvals analrm_7670[] = {
 	{ OV7670_R12_COM7, OV7670_COM7_RESET },
 	{ OV7670_R3A_TSLB, 0x04 },		/* OV */
 	{ OV7670_R12_COM7, OV7670_COM7_FMT_VGA }, /* VGA */
@@ -1740,7 +1740,7 @@ static const struct ov_i2c_regvals norm_7670[] = {
 	{ 0x88, 0xd7 },
 	{ 0x89, 0xe8 },
 
-/* AGC and AEC parameters.  Note we start by disabling those features,
+/* AGC and AEC parameters.  Analte we start by disabling those features,
    then turn them only after tweaking the values. */
 	{ OV7670_R13_COM8, OV7670_COM8_FASTAEC
 			 | OV7670_COM8_AECSTEP
@@ -1890,7 +1890,7 @@ static const struct ov_i2c_regvals norm_7670[] = {
 	{ 0x79, 0x26 },
 };
 
-static const struct ov_i2c_regvals norm_8610[] = {
+static const struct ov_i2c_regvals analrm_8610[] = {
 	{ 0x12, 0x80 },
 	{ 0x00, 0x00 },
 	{ 0x01, 0x80 },
@@ -2035,7 +2035,7 @@ leave:
 	}
 }
 
-/* Read from a OV519 register, note not valid for the w9968cf!! */
+/* Read from a OV519 register, analte analt valid for the w9968cf!! */
 /* returns: negative is error, pos or zero is data */
 static int reg_r(struct sd *sd, u16 index)
 {
@@ -2272,7 +2272,7 @@ static int ov511_i2c_r(struct sd *sd, u8 reg)
 
 /*
  * The OV518 I2C I/O procedure is different, hence, this function.
- * This is normally only called from i2c_w(). Note that this function
+ * This is analrmally only called from i2c_w(). Analte that this function
  * always succeeds regardless of whether the sensor is present and working.
  */
 static void ov518_i2c_w(struct sd *sd,
@@ -2301,7 +2301,7 @@ static void ov518_i2c_w(struct sd *sd,
  * returns: negative is error, pos or zero is data
  *
  * The OV518 I2C I/O procedure is different, hence, this function.
- * This is normally only called from i2c_r(). Note that this function
+ * This is analrmally only called from i2c_r(). Analte that this function
  * always succeeds regardless of whether the sensor is present and working.
  */
 static int ov518_i2c_r(struct sd *sd, u8 reg)
@@ -2490,7 +2490,7 @@ static inline void ov51x_stop(struct sd *sd)
 	}
 }
 
-/* Restarts OV511 after ov511_stop() is called. Has no effect if it is not
+/* Restarts OV511 after ov511_stop() is called. Has anal effect if it is analt
  * actually stopped (for performance). */
 static inline void ov51x_restart(struct sd *sd)
 {
@@ -2567,7 +2567,7 @@ static int init_ov_sensor(struct sd *sd, u8 slave)
 
 /* Set the read and write slave IDs. The "slave" argument is the write slave,
  * and the read slave will be set to (slave + 1).
- * This should not be called from outside the i2c I/O functions.
+ * This should analt be called from outside the i2c I/O functions.
  * Sets I2C read and write slave IDs. Returns <0 for error
  */
 static void ov51x_set_slave_ids(struct sd *sd,
@@ -2654,7 +2654,7 @@ static void ov_hires_configure(struct sd *sd)
 		}
 		break;
 	}
-	gspca_err(gspca_dev, "Error unknown sensor type: %02x%02x\n",
+	gspca_err(gspca_dev, "Error unkanalwn sensor type: %02x%02x\n",
 		  high, low);
 }
 
@@ -2677,7 +2677,7 @@ static void ov8xx0_configure(struct sd *sd)
 	if ((rc & 3) == 1)
 		sd->sensor = SEN_OV8610;
 	else
-		gspca_err(gspca_dev, "Unknown image sensor version: %d\n",
+		gspca_err(gspca_dev, "Unkanalwn image sensor version: %d\n",
 			  rc & 3);
 }
 
@@ -2714,7 +2714,7 @@ static void ov7xx0_configure(struct sd *sd)
 			sd->sensor = SEN_OV7610;
 		}
 	} else if ((rc & 3) == 1) {
-		/* I don't know what's different about the 76BE yet. */
+		/* I don't kanalw what's different about the 76BE yet. */
 		if (i2c_r(sd, 0x15) & 1) {
 			gspca_dbg(gspca_dev, D_PROBE, "Sensor is an OV7620AE\n");
 			sd->sensor = SEN_OV7620AE;
@@ -2738,7 +2738,7 @@ static void ov7xx0_configure(struct sd *sd)
 			switch (low) {
 			case 0x30:
 				gspca_err(gspca_dev, "Sensor is an OV7630/OV7635\n");
-				gspca_err(gspca_dev, "7630 is not supported by this driver\n");
+				gspca_err(gspca_dev, "7630 is analt supported by this driver\n");
 				return;
 			case 0x40:
 				gspca_dbg(gspca_dev, D_PROBE, "Sensor is an OV7645\n");
@@ -2757,7 +2757,7 @@ static void ov7xx0_configure(struct sd *sd)
 				sd->sensor = SEN_OV7660;
 				break;
 			default:
-				gspca_err(gspca_dev, "Unknown sensor: 0x76%02x\n",
+				gspca_err(gspca_dev, "Unkanalwn sensor: 0x76%02x\n",
 					  low);
 				return;
 			}
@@ -2766,7 +2766,7 @@ static void ov7xx0_configure(struct sd *sd)
 			sd->sensor = SEN_OV7620;
 		}
 	} else {
-		gspca_err(gspca_dev, "Unknown image sensor version: %d\n",
+		gspca_err(gspca_dev, "Unkanalwn image sensor version: %d\n",
 			  rc & 3);
 	}
 }
@@ -2811,7 +2811,7 @@ static void ov6xx0_configure(struct sd *sd)
 		pr_warn("WARNING: Sensor is an OV66307. Your camera may have been misdetected in previous driver versions.\n");
 		break;
 	default:
-		gspca_err(gspca_dev, "FATAL: Unknown sensor version: 0x%02x\n",
+		gspca_err(gspca_dev, "FATAL: Unkanalwn sensor version: 0x%02x\n",
 			  rc);
 		return;
 	}
@@ -2827,7 +2827,7 @@ static void ov51x_led_control(struct sd *sd, int on)
 		on = !on;
 
 	switch (sd->bridge) {
-	/* OV511 has no LED control */
+	/* OV511 has anal LED control */
 	case BRIDGE_OV511PLUS:
 		reg_w(sd, R511_SYS_LED_CTL, on);
 		break;
@@ -2848,7 +2848,7 @@ static void sd_reset_snapshot(struct gspca_dev *gspca_dev)
 	if (!sd->snapshot_needs_reset)
 		return;
 
-	/* Note it is important that we clear sd->snapshot_needs_reset,
+	/* Analte it is important that we clear sd->snapshot_needs_reset,
 	   before actually clearing the snapshot state in the bridge
 	   otherwise we might race with the pkt_scan interrupt handler */
 	sd->snapshot_needs_reset = 0;
@@ -2961,7 +2961,7 @@ static void ov511_configure(struct gspca_dev *gspca_dev)
 		{ R51x_SYS_RESET,	0x3d },
 	};
 
-	static const struct ov_regvals norm_511[] = {
+	static const struct ov_regvals analrm_511[] = {
 		{ R511_DRAM_FLOW_CTL,	0x01 },
 		{ R51x_SYS_SNAP,	0x00 },
 		{ R51x_SYS_SNAP,	0x02 },
@@ -2971,7 +2971,7 @@ static void ov511_configure(struct gspca_dev *gspca_dev)
 		{ R511_COMP_LUT_EN,	0x03 },
 	};
 
-	static const struct ov_regvals norm_511_p[] = {
+	static const struct ov_regvals analrm_511_p[] = {
 		{ R511_DRAM_FLOW_CTL,	0xff },
 		{ R51x_SYS_SNAP,	0x00 },
 		{ R51x_SYS_SNAP,	0x02 },
@@ -2999,10 +2999,10 @@ static void ov511_configure(struct gspca_dev *gspca_dev)
 
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
-		write_regvals(sd, norm_511, ARRAY_SIZE(norm_511));
+		write_regvals(sd, analrm_511, ARRAY_SIZE(analrm_511));
 		break;
 	case BRIDGE_OV511PLUS:
-		write_regvals(sd, norm_511_p, ARRAY_SIZE(norm_511_p));
+		write_regvals(sd, analrm_511_p, ARRAY_SIZE(analrm_511_p));
 		break;
 	}
 
@@ -3029,7 +3029,7 @@ static void ov518_configure(struct gspca_dev *gspca_dev)
 		{ 0x5d,			0x03 },
 	};
 
-	static const struct ov_regvals norm_518[] = {
+	static const struct ov_regvals analrm_518[] = {
 		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
 		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
 		{ 0x31,			0x0f },
@@ -3042,7 +3042,7 @@ static void ov518_configure(struct gspca_dev *gspca_dev)
 		{ 0x2f,			0x80 },
 	};
 
-	static const struct ov_regvals norm_518_p[] = {
+	static const struct ov_regvals analrm_518_p[] = {
 		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
 		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
 		{ 0x31,			0x0f },
@@ -3072,10 +3072,10 @@ static void ov518_configure(struct gspca_dev *gspca_dev)
 
 	switch (sd->bridge) {
 	case BRIDGE_OV518:
-		write_regvals(sd, norm_518, ARRAY_SIZE(norm_518));
+		write_regvals(sd, analrm_518, ARRAY_SIZE(analrm_518));
 		break;
 	case BRIDGE_OV518PLUS:
-		write_regvals(sd, norm_518_p, ARRAY_SIZE(norm_518_p));
+		write_regvals(sd, analrm_518_p, ARRAY_SIZE(analrm_518_p));
 		break;
 	}
 
@@ -3284,7 +3284,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	}
 
 	/* The OV519 must be more aggressive about sensor detection since
-	 * I2C write will never fail if the sensor is not present. We have
+	 * I2C write will never fail if the sensor is analt present. We have
 	 * to try to initialize the sensor to detect its presence */
 	sd->sensor = -1;
 
@@ -3361,7 +3361,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		if (sd->sif)
 			cam->nmodes = ARRAY_SIZE(w9968cf_vga_mode) - 1;
 
-		/* w9968cf needs initialisation once the sensor is known */
+		/* w9968cf needs initialisation once the sensor is kanalwn */
 		w9968cf_init(sd);
 		break;
 	}
@@ -3369,43 +3369,43 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	/* initialize the sensor */
 	switch (sd->sensor) {
 	case SEN_OV2610:
-		write_i2c_regvals(sd, norm_2610, ARRAY_SIZE(norm_2610));
+		write_i2c_regvals(sd, analrm_2610, ARRAY_SIZE(analrm_2610));
 
 		/* Enable autogain, autoexpo, awb, bandfilter */
 		i2c_w_mask(sd, 0x13, 0x27, 0x27);
 		break;
 	case SEN_OV2610AE:
-		write_i2c_regvals(sd, norm_2610ae, ARRAY_SIZE(norm_2610ae));
+		write_i2c_regvals(sd, analrm_2610ae, ARRAY_SIZE(analrm_2610ae));
 
 		/* enable autoexpo */
 		i2c_w_mask(sd, 0x13, 0x05, 0x05);
 		break;
 	case SEN_OV3610:
-		write_i2c_regvals(sd, norm_3620b, ARRAY_SIZE(norm_3620b));
+		write_i2c_regvals(sd, analrm_3620b, ARRAY_SIZE(analrm_3620b));
 
 		/* Enable autogain, autoexpo, awb, bandfilter */
 		i2c_w_mask(sd, 0x13, 0x27, 0x27);
 		break;
 	case SEN_OV6620:
-		write_i2c_regvals(sd, norm_6x20, ARRAY_SIZE(norm_6x20));
+		write_i2c_regvals(sd, analrm_6x20, ARRAY_SIZE(analrm_6x20));
 		break;
 	case SEN_OV6630:
 	case SEN_OV66308AF:
-		write_i2c_regvals(sd, norm_6x30, ARRAY_SIZE(norm_6x30));
+		write_i2c_regvals(sd, analrm_6x30, ARRAY_SIZE(analrm_6x30));
 		break;
 	default:
 /*	case SEN_OV7610: */
 /*	case SEN_OV76BE: */
-		write_i2c_regvals(sd, norm_7610, ARRAY_SIZE(norm_7610));
+		write_i2c_regvals(sd, analrm_7610, ARRAY_SIZE(analrm_7610));
 		i2c_w_mask(sd, 0x0e, 0x00, 0x40);
 		break;
 	case SEN_OV7620:
 	case SEN_OV7620AE:
-		write_i2c_regvals(sd, norm_7620, ARRAY_SIZE(norm_7620));
+		write_i2c_regvals(sd, analrm_7620, ARRAY_SIZE(analrm_7620));
 		break;
 	case SEN_OV7640:
 	case SEN_OV7648:
-		write_i2c_regvals(sd, norm_7640, ARRAY_SIZE(norm_7640));
+		write_i2c_regvals(sd, analrm_7640, ARRAY_SIZE(analrm_7640));
 		break;
 	case SEN_OV7660:
 		i2c_w(sd, OV7670_R12_COM7, OV7670_COM7_RESET);
@@ -3413,23 +3413,23 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		reg_w(sd, OV519_R57_SNAPSHOT, 0x23);
 		write_regvals(sd, init_519_ov7660,
 				ARRAY_SIZE(init_519_ov7660));
-		write_i2c_regvals(sd, norm_7660, ARRAY_SIZE(norm_7660));
+		write_i2c_regvals(sd, analrm_7660, ARRAY_SIZE(analrm_7660));
 		sd->gspca_dev.curr_mode = 1;	/* 640x480 */
 		ov519_set_mode(sd);
 		ov519_set_fr(sd);
 		sd_reset_snapshot(gspca_dev);
 		ov51x_restart(sd);
-		ov51x_stop(sd);			/* not in win traces */
+		ov51x_stop(sd);			/* analt in win traces */
 		ov51x_led_control(sd, 0);
 		break;
 	case SEN_OV7670:
-		write_i2c_regvals(sd, norm_7670, ARRAY_SIZE(norm_7670));
+		write_i2c_regvals(sd, analrm_7670, ARRAY_SIZE(analrm_7670));
 		break;
 	case SEN_OV8610:
-		write_i2c_regvals(sd, norm_8610, ARRAY_SIZE(norm_8610));
+		write_i2c_regvals(sd, analrm_8610, ARRAY_SIZE(analrm_8610));
 		break;
 	case SEN_OV9600:
-		write_i2c_regvals(sd, norm_9600, ARRAY_SIZE(norm_9600));
+		write_i2c_regvals(sd, analrm_9600, ARRAY_SIZE(analrm_9600));
 
 		/* enable autoexpo */
 /*		i2c_w_mask(sd, 0x13, 0x05, 0x05); */
@@ -3459,7 +3459,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 /* Set up the OV511/OV511+ with the given image parameters.
  *
- * Do not put any sensor-specific code in here (including I2C I/O functions)
+ * Do analt put any sensor-specific code in here (including I2C I/O functions)
  */
 static void ov511_mode_init_regs(struct sd *sd)
 {
@@ -3478,7 +3478,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 	}
 
 	if (alt->desc.bNumEndpoints < 1) {
-		sd->gspca_dev.usb_err = -ENODEV;
+		sd->gspca_dev.usb_err = -EANALDEV;
 		return;
 	}
 
@@ -3515,11 +3515,11 @@ static void ov511_mode_init_regs(struct sd *sd)
 
 	switch (sd->sensor) {
 	case SEN_OV6620:
-		/* No framerate control, doesn't like higher rates yet */
+		/* Anal framerate control, doesn't like higher rates yet */
 		sd->clockdiv = 3;
 		break;
 
-	/* Note once the FIXME's in mode_init_ov_sensor_regs() are fixed
+	/* Analte once the FIXME's in mode_init_ov_sensor_regs() are fixed
 	   for more sensors we need to do this for them too */
 	case SEN_OV7620:
 	case SEN_OV7620AE:
@@ -3535,7 +3535,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 		switch (sd->frame_rate) {
 		case 30:
 		case 25:
-			/* Not enough bandwidth to do 640x480 @ 30 fps */
+			/* Analt eanalugh bandwidth to do 640x480 @ 30 fps */
 			if (sd->gspca_dev.pixfmt.width != 640) {
 				sd->clockdiv = 0;
 				break;
@@ -3556,19 +3556,19 @@ static void ov511_mode_init_regs(struct sd *sd)
 		}
 		if (interlaced) {
 			sd->clockdiv = (sd->clockdiv + 1) * 2 - 1;
-			/* Higher then 10 does not work */
+			/* Higher then 10 does analt work */
 			if (sd->clockdiv > 10)
 				sd->clockdiv = 10;
 		}
 		break;
 
 	case SEN_OV8610:
-		/* No framerate control ?? */
+		/* Anal framerate control ?? */
 		sd->clockdiv = 0;
 		break;
 	}
 
-	/* Check if we have enough bandwidth to disable compression */
+	/* Check if we have eanalugh bandwidth to disable compression */
 	fps = (interlaced ? 60 : 30) / (sd->clockdiv + 1) + 1;
 	needed = fps * sd->gspca_dev.pixfmt.width *
 			sd->gspca_dev.pixfmt.height * 3 / 2;
@@ -3589,9 +3589,9 @@ static void ov511_mode_init_regs(struct sd *sd)
 /* Sets up the OV518/OV518+ with the given image parameters
  *
  * OV518 needs a completely different approach, until we can figure out what
- * the individual registers do. Also, only 15 FPS is supported now.
+ * the individual registers do. Also, only 15 FPS is supported analw.
  *
- * Do not put any sensor-specific code in here (including I2C I/O functions)
+ * Do analt put any sensor-specific code in here (including I2C I/O functions)
  */
 static void ov518_mode_init_regs(struct sd *sd)
 {
@@ -3609,7 +3609,7 @@ static void ov518_mode_init_regs(struct sd *sd)
 	}
 
 	if (alt->desc.bNumEndpoints < 1) {
-		sd->gspca_dev.usb_err = -ENODEV;
+		sd->gspca_dev.usb_err = -EANALDEV;
 		return;
 	}
 
@@ -3647,7 +3647,7 @@ static void ov518_mode_init_regs(struct sd *sd)
 	reg_w(sd, 0x39, hsegs);
 	reg_w(sd, 0x3a, vsegs);
 
-	/* Windows driver does this here; who knows why */
+	/* Windows driver does this here; who kanalws why */
 	reg_w(sd, 0x2f, 0x80);
 
 	/******** Set the framerate ********/
@@ -3669,7 +3669,7 @@ static void ov518_mode_init_regs(struct sd *sd)
 			/*
 			 * HdG: 640x480 needs special handling on device
 			 * revision 2, we check for device revision > 0 to
-			 * avoid regressions, as we don't know the correct
+			 * avoid regressions, as we don't kanalw the correct
 			 * thing todo for revision 1.
 			 *
 			 * Also this likely means we don't need to
@@ -3737,7 +3737,7 @@ static void ov518_mode_init_regs(struct sd *sd)
  * OV519 needs a completely different approach, until we can figure out what
  * the individual registers do.
  *
- * Do not put any sensor-specific code in here (including I2C I/O functions)
+ * Do analt put any sensor-specific code in here (including I2C I/O functions)
  */
 static void ov519_mode_init_regs(struct sd *sd)
 {
@@ -3998,9 +3998,9 @@ static void mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x28, qvga ? 0x00 : 0x20, 0x20);
 		/* Setting this undocumented bit in qvga mode removes a very
-		   annoying vertical shaking of the image */
+		   ananalying vertical shaking of the image */
 		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40);
-		/* Unknown */
+		/* Unkanalwn */
 		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0);
 		/* Allow higher automatic gain (to allow higher framerates) */
 		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
@@ -4239,7 +4239,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case BRIDGE_OV519:
 		ov519_mode_init_regs(sd);
 		break;
-	/* case BRIDGE_OVFX2: nothing to do */
+	/* case BRIDGE_OVFX2: analthing to do */
 	case BRIDGE_W9968CF:
 		w9968cf_mode_init_regs(sd);
 		break;
@@ -4277,7 +4277,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		w9968cf_stop0(sd);
 
 #if IS_ENABLED(CONFIG_INPUT)
-	/* If the last button state is pressed, release it now! */
+	/* If the last button state is pressed, release it analw! */
 	if (sd->snapshot_pressed) {
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
 		input_sync(gspca_dev->input_dev);
@@ -4303,7 +4303,7 @@ static void ov51x_handle_button(struct gspca_dev *gspca_dev, u8 state)
 		sd->snapshot_pressed = state;
 	} else {
 		/* On the ov511 / ov519 we need to reset the button state
-		   multiple times, as resetting does not work as long as the
+		   multiple times, as resetting does analt work as long as the
 		   button stays pressed */
 		switch (sd->bridge) {
 		case BRIDGE_OV511:
@@ -4323,7 +4323,7 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* SOF/EOF packets have 1st to 8th bytes zeroed and the 9th
-	 * byte non-zero. The EOF packet has image width/height in the
+	 * byte analn-zero. The EOF packet has image width/height in the
 	 * 10th and 11th bytes. The 9th byte is given as follows:
 	 *
 	 * bit 7: EOF
@@ -4359,7 +4359,7 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 	}
 
-	/* Ignore the packet number */
+	/* Iganalre the packet number */
 	len--;
 
 	/* intermediate packet */
@@ -4702,7 +4702,7 @@ static void setcolors(struct gspca_dev *gspca_dev, s32 val)
 		break;
 	case SEN_OV7670:
 		/* supported later once I work out how to do it
-		 * transparently fail now! */
+		 * transparently fail analw! */
 		/* set REG_COM13 values for UV sat auto mode */
 		break;
 	}
@@ -4766,7 +4766,7 @@ static void setfreq_i(struct sd *sd, s32 val)
 				i2c_w_mask(sd, 0x2a, 0x80, 0x80);
 				i2c_w(sd, 0x2b, 0xa8);
 			} else {
-				/* no framerate adj. */
+				/* anal framerate adj. */
 				i2c_w_mask(sd, 0x2a, 0x00, 0x80);
 			}
 			break;
@@ -4791,7 +4791,7 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->bridge != BRIDGE_W9968CF)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	memset(jcomp, 0, sizeof *jcomp);
 	jcomp->quality = v4l2_ctrl_g_ctrl(sd->jpegqual);
@@ -4806,7 +4806,7 @@ static int sd_set_jcomp(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->bridge != BRIDGE_W9968CF)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	v4l2_ctrl_s_ctrl(sd->jpegqual, jcomp->quality);
 	return 0;
@@ -4937,7 +4937,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			QUALITY_MIN, QUALITY_MAX, 1, QUALITY_DEF);
 
 	if (hdl->error) {
-		gspca_err(gspca_dev, "Could not initialize controls\n");
+		gspca_err(gspca_dev, "Could analt initialize controls\n");
 		return hdl->error;
 	}
 	if (gspca_dev->autogain)

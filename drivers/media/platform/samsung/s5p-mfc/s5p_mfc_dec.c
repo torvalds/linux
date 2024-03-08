@@ -30,42 +30,42 @@
 static struct s5p_mfc_fmt formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_NV12MT_16X16,
-		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.codec_mode	= S5P_MFC_CODEC_ANALNE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
 		.versions	= MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
 		.fourcc		= V4L2_PIX_FMT_NV12MT,
-		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.codec_mode	= S5P_MFC_CODEC_ANALNE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
 		.versions	= MFC_V5_BIT,
 	},
 	{
 		.fourcc		= V4L2_PIX_FMT_NV12M,
-		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.codec_mode	= S5P_MFC_CODEC_ANALNE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
 		.versions	= MFC_V6PLUS_BITS,
 	},
 	{
 		.fourcc		= V4L2_PIX_FMT_NV21M,
-		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.codec_mode	= S5P_MFC_CODEC_ANALNE,
 		.type		= MFC_FMT_RAW,
 		.num_planes	= 2,
 		.versions	= MFC_V6PLUS_BITS,
 	},
 	{
 		.fourcc         = V4L2_PIX_FMT_YUV420M,
-		.codec_mode     = S5P_MFC_CODEC_NONE,
+		.codec_mode     = S5P_MFC_CODEC_ANALNE,
 		.type           = MFC_FMT_RAW,
 		.num_planes     = 3,
 		.versions       = MFC_V12_BIT,
 	},
 	{
 		.fourcc         = V4L2_PIX_FMT_YVU420M,
-		.codec_mode     = S5P_MFC_CODEC_NONE,
+		.codec_mode     = S5P_MFC_CODEC_ANALNE,
 		.type           = MFC_FMT_RAW,
 		.num_planes     = 3,
 		.versions       = MFC_V12_BIT
@@ -283,7 +283,7 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 	if (ctx->state == MFCINST_RES_CHANGE_END &&
 		ctx->src_queue_cnt >= 1)
 		return 1;
-	mfc_debug(2, "ctx is not ready\n");
+	mfc_debug(2, "ctx is analt ready\n");
 	return 0;
 }
 
@@ -368,7 +368,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		   rectangle. */
 		pix_mp->width = ctx->buf_width;
 		pix_mp->height = ctx->buf_height;
-		pix_mp->field = V4L2_FIELD_NONE;
+		pix_mp->field = V4L2_FIELD_ANALNE;
 		pix_mp->num_planes = ctx->dst_fmt->num_planes;
 		/* Set pixelformat to the format in which MFC
 		   outputs the decoded frame */
@@ -385,16 +385,16 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		/* This is run on OUTPUT
 		   The buffer contains compressed image
-		   so width and height have no meaning */
+		   so width and height have anal meaning */
 		pix_mp->width = 0;
 		pix_mp->height = 0;
-		pix_mp->field = V4L2_FIELD_NONE;
+		pix_mp->field = V4L2_FIELD_ANALNE;
 		pix_mp->plane_fmt[0].bytesperline = ctx->dec_src_buf_size;
 		pix_mp->plane_fmt[0].sizeimage = ctx->dec_src_buf_size;
 		pix_mp->pixelformat = ctx->src_fmt->fourcc;
 		pix_mp->num_planes = ctx->src_fmt->num_planes;
 	} else {
-		mfc_err("Format could not be read\n");
+		mfc_err("Format could analt be read\n");
 		mfc_debug(2, "%s-- with error\n", __func__);
 		return -EINVAL;
 	}
@@ -415,8 +415,8 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			mfc_err("Unsupported format for source.\n");
 			return -EINVAL;
 		}
-		if (fmt->codec_mode == S5P_FIMV_CODEC_NONE) {
-			mfc_err("Unknown codec\n");
+		if (fmt->codec_mode == S5P_FIMV_CODEC_ANALNE) {
+			mfc_err("Unkanalwn codec\n");
 			return -EINVAL;
 		}
 		if ((dev->variant->version_bit & fmt->versions) == 0) {
@@ -569,7 +569,7 @@ static int reqbufs_capture(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
 			mfc_err("Failed to allocate decoding buffers\n");
 			reqbufs->count = 0;
 			vb2_reqbufs(&ctx->vq_dst, reqbufs);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			ctx->capture_state = QUEUE_FREE;
 			goto out;
 		}
@@ -676,9 +676,9 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 
 	switch (buf->type) {
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-		return vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_NONBLOCK);
+		return vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_ANALNBLOCK);
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
-		ret = vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_NONBLOCK);
+		ret = vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_ANALNBLOCK);
 		if (ret)
 			return ret;
 
@@ -773,7 +773,7 @@ static int s5p_mfc_dec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 			break;
 		} else if (ctx->state != MFCINST_INIT &&
 				ctx->state != MFCINST_RES_CHANGE_END) {
-			v4l2_err(&dev->v4l2_dev, "Decoding not initialised\n");
+			v4l2_err(&dev->v4l2_dev, "Decoding analt initialised\n");
 			return -EINVAL;
 		}
 		/* Should wait for the header to be parsed */
@@ -783,7 +783,7 @@ static int s5p_mfc_dec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 		    ctx->state < MFCINST_ABORT) {
 			ctrl->val = ctx->pb_count;
 		} else {
-			v4l2_err(&dev->v4l2_dev, "Decoding not initialised\n");
+			v4l2_err(&dev->v4l2_dev, "Decoding analt initialised\n");
 			return -EINVAL;
 		}
 		break;
@@ -813,7 +813,7 @@ static int vidioc_g_selection(struct file *file, void *priv,
 	    ctx->state != MFCINST_RUNNING &&
 	    ctx->state != MFCINST_FINISHING &&
 	    ctx->state != MFCINST_FINISHED) {
-		mfc_err("Can not get compose information\n");
+		mfc_err("Can analt get compose information\n");
 		return -EINVAL;
 	}
 	if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_H264) {
@@ -996,7 +996,7 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		psize[0] = ctx->dec_src_buf_size;
 		alloc_devs[0] = ctx->dev->mem_dev[BANK_L_CTX];
 	} else {
-		mfc_err("This video node is dedicated to decoding. Decoding not initialized\n");
+		mfc_err("This video analde is dedicated to decoding. Decoding analt initialized\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -1015,7 +1015,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 		for (i = 0; i < ctx->dst_fmt->num_planes; i++) {
 			if (IS_ERR_OR_NULL(ERR_PTR(
 					vb2_dma_contig_plane_dma_addr(vb, i)))) {
-				mfc_err("Plane mem not allocated\n");
+				mfc_err("Plane mem analt allocated\n");
 				return -EINVAL;
 			}
 		}
@@ -1046,7 +1046,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (IS_ERR_OR_NULL(ERR_PTR(
 					vb2_dma_contig_plane_dma_addr(vb, 0)))) {
-			mfc_err("Plane memory not allocated\n");
+			mfc_err("Plane memory analt allocated\n");
 			return -EINVAL;
 		}
 		if (vb2_plane_size(vb, 0) < ctx->dec_src_buf_size) {
@@ -1060,7 +1060,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 					vb2_dma_contig_plane_dma_addr(vb, 0);
 		ctx->src_bufs_cnt++;
 	} else {
-		mfc_err("s5p_mfc_buf_init: unknown queue type\n");
+		mfc_err("s5p_mfc_buf_init: unkanalwn queue type\n");
 		return -EINVAL;
 	}
 	return 0;

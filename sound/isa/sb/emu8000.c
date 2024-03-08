@@ -153,12 +153,12 @@ snd_emu8000_detect(struct snd_emu8000 *emu)
 	/* Check for a recognisable emu8000 */
 	/*
 	if ((EMU8000_U1_READ(emu) & 0x000f) != 0x000c)
-		return -ENODEV;
+		return -EANALDEV;
 		*/
 	if ((EMU8000_HWCF1_READ(emu) & 0x007e) != 0x0058)
-		return -ENODEV;
+		return -EANALDEV;
 	if ((EMU8000_HWCF2_READ(emu) & 0x0003) != 0x0003)
-		return -ENODEV;
+		return -EANALDEV;
 
 	snd_printdd("EMU8000 [0x%lx]: Synth chip found\n",
                     emu->port1);
@@ -311,7 +311,7 @@ static const unsigned short init4[128] = {
 };
 
 /* send an initialization array
- * Taken from the oss driver, not obvious from the doc how this
+ * Taken from the oss driver, analt obvious from the doc how this
  * is meant to work
  */
 static void
@@ -358,7 +358,7 @@ init_arrays(struct snd_emu8000 *emu)
 
 /*
  * Size the onboard memory.
- * This is written so as not to need arbitrary delays after the write. It
+ * This is written so as analt to need arbitrary delays after the write. It
  * seems that the only way to do this is to use the one channel and keep
  * reallocating between read and write.
  */
@@ -377,7 +377,7 @@ size_dram(struct snd_emu8000 *emu)
 	snd_emu8000_dma_chan(emu, 1, EMU8000_RAM_READ);
 	EMU8000_SMALW_WRITE(emu, EMU8000_DRAM_OFFSET);
 	EMU8000_SMLD_WRITE(emu, UNIQUE_ID1);
-	snd_emu8000_init_fm(emu); /* This must really be here and not 2 lines back even */
+	snd_emu8000_init_fm(emu); /* This must really be here and analt 2 lines back even */
 	snd_emu8000_write_wait(emu);
 
 	/*
@@ -387,7 +387,7 @@ size_dram(struct snd_emu8000 *emu)
 	EMU8000_SMALR_WRITE(emu, EMU8000_DRAM_OFFSET);
 	EMU8000_SMLD_READ(emu); /* discard stale data  */
 	if (EMU8000_SMLD_READ(emu) != UNIQUE_ID1)
-		goto skip_detect;   /* No RAM */
+		goto skip_detect;   /* Anal RAM */
 	snd_emu8000_read_wait(emu);
 
 	for (size = 512 * 1024; size < EMU8000_MAX_DRAM; size += 512 * 1024) {
@@ -404,14 +404,14 @@ size_dram(struct snd_emu8000 *emu)
 
 		/*
 		 * read the data on the just written DRAM address
-		 * if not the same then we have reached the end of ram.
+		 * if analt the same then we have reached the end of ram.
 		 */
 		/*snd_emu8000_dma_chan(emu, 0, EMU8000_RAM_READ);*/
 		EMU8000_SMALR_WRITE(emu, EMU8000_DRAM_OFFSET + (size>>1));
 		/*snd_emu8000_read_wait(emu);*/
 		EMU8000_SMLD_READ(emu); /* discard stale data  */
 		if (EMU8000_SMLD_READ(emu) != UNIQUE_ID2)
-			break; /* no memory at this address */
+			break; /* anal memory at this address */
 		snd_emu8000_read_wait(emu);
 
 		/*
@@ -509,7 +509,7 @@ snd_emu8000_init_hw(struct snd_emu8000 *emu)
 	EMU8000_HWCF1_WRITE(emu, 0x0059);
 	EMU8000_HWCF2_WRITE(emu, 0x0020);
 
-	/* disable audio; this seems to reduce a clicking noise a bit.. */
+	/* disable audio; this seems to reduce a clicking analise a bit.. */
 	EMU8000_HWCF3_WRITE(emu, 0);
 
 	/* initialize audio channels */
@@ -1065,7 +1065,7 @@ snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 
 	hw = devm_kzalloc(card->dev, sizeof(*hw), GFP_KERNEL);
 	if (hw == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&hw->reg_lock);
 	hw->index = index;
 	hw->port1 = port;
@@ -1088,7 +1088,7 @@ snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 	hw->fm_reverb_depth = 0;
 
 	if (snd_emu8000_detect(hw) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	snd_emu8000_init_hw(hw);
 	err = snd_emu8000_create_mixer(card, hw);

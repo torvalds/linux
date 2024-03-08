@@ -11,7 +11,7 @@
 const char *print_ip_addr(struct trace_seq *p, u32 *addr, u16 port, bool ivp4);
 const char *parse_iw_event_type(enum iw_cm_event_type iw_type);
 const char *parse_cm_event_type(enum irdma_cm_event_type cm_type);
-const char *parse_cm_state(enum irdma_cm_node_state);
+const char *parse_cm_state(enum irdma_cm_analde_state);
 #define __print_ip_addr(addr, port, ipv4) print_ip_addr(p, addr, port, ipv4)
 
 #undef TRACE_SYSTEM
@@ -98,18 +98,18 @@ DEFINE_EVENT(listener_template, irdma_del_multiple_qhash,
 	     TP_ARGS(listener));
 
 TRACE_EVENT(irdma_negotiate_mpa_v2,
-	    TP_PROTO(struct irdma_cm_node *cm_node),
-	    TP_ARGS(cm_node),
-	    TP_STRUCT__entry(__field(struct irdma_cm_node *, cm_node)
+	    TP_PROTO(struct irdma_cm_analde *cm_analde),
+	    TP_ARGS(cm_analde),
+	    TP_STRUCT__entry(__field(struct irdma_cm_analde *, cm_analde)
 			     __field(u16, ord_size)
 			     __field(u16, ird_size)
 		    ),
-	    TP_fast_assign(__entry->cm_node = cm_node;
-			   __entry->ord_size = cm_node->ord_size;
-			   __entry->ird_size = cm_node->ird_size;
+	    TP_fast_assign(__entry->cm_analde = cm_analde;
+			   __entry->ord_size = cm_analde->ord_size;
+			   __entry->ird_size = cm_analde->ird_size;
 		    ),
-	    TP_printk("MPVA2 Negotiated cm_node=%p ORD:[%d], IRD:[%d]",
-		      __entry->cm_node,
+	    TP_printk("MPVA2 Negotiated cm_analde=%p ORD:[%d], IRD:[%d]",
+		      __entry->cm_analde,
 		      __entry->ord_size,
 		      __entry->ird_size
 		    )
@@ -198,16 +198,16 @@ TRACE_EVENT(irdma_addr_resolve,
 );
 
 TRACE_EVENT(irdma_send_cm_event,
-	    TP_PROTO(struct irdma_cm_node *cm_node, struct iw_cm_id *cm_id,
+	    TP_PROTO(struct irdma_cm_analde *cm_analde, struct iw_cm_id *cm_id,
 		     enum iw_cm_event_type type, int status, void *caller),
-	    TP_ARGS(cm_node, cm_id, type, status, caller),
+	    TP_ARGS(cm_analde, cm_id, type, status, caller),
 	    TP_STRUCT__entry(__field(struct irdma_device *, iwdev)
-			     __field(struct irdma_cm_node *, cm_node)
+			     __field(struct irdma_cm_analde *, cm_analde)
 			     __field(struct iw_cm_id *, cm_id)
 			     __field(u32, refcount)
 			     __field(u16, lport)
 			     __field(u16, rport)
-			     __field(enum irdma_cm_node_state, state)
+			     __field(enum irdma_cm_analde_state, state)
 			     __field(bool, ipv4)
 			     __field(u16, vlan_id)
 			     __field(int, accel)
@@ -217,29 +217,29 @@ TRACE_EVENT(irdma_send_cm_event,
 			     __dynamic_array(u32, laddr, 4)
 			     __dynamic_array(u32, raddr, 4)
 		    ),
-	    TP_fast_assign(__entry->iwdev = cm_node->iwdev;
-			   __entry->cm_node = cm_node;
+	    TP_fast_assign(__entry->iwdev = cm_analde->iwdev;
+			   __entry->cm_analde = cm_analde;
 			   __entry->cm_id = cm_id;
-			   __entry->refcount = refcount_read(&cm_node->refcnt);
-			   __entry->state = cm_node->state;
-			   __entry->lport = cm_node->loc_port;
-			   __entry->rport = cm_node->rem_port;
-			   __entry->ipv4 = cm_node->ipv4;
-			   __entry->vlan_id = cm_node->vlan_id;
-			   __entry->accel = cm_node->accelerated;
+			   __entry->refcount = refcount_read(&cm_analde->refcnt);
+			   __entry->state = cm_analde->state;
+			   __entry->lport = cm_analde->loc_port;
+			   __entry->rport = cm_analde->rem_port;
+			   __entry->ipv4 = cm_analde->ipv4;
+			   __entry->vlan_id = cm_analde->vlan_id;
+			   __entry->accel = cm_analde->accelerated;
 			   __entry->type = type;
 			   __entry->status = status;
 			   __entry->caller = caller;
 			   memcpy(__get_dynamic_array(laddr),
-				  cm_node->loc_addr, 4);
+				  cm_analde->loc_addr, 4);
 			   memcpy(__get_dynamic_array(raddr),
-				  cm_node->rem_addr, 4);
+				  cm_analde->rem_addr, 4);
 		    ),
-	    TP_printk("iwdev=%p  caller=%pS  cm_id=%p  node=%p  refcnt=%d  vlan_id=%d  accel=%d  state=%s  event_type=%s  status=%d  loc: %s  rem: %s",
+	    TP_printk("iwdev=%p  caller=%pS  cm_id=%p  analde=%p  refcnt=%d  vlan_id=%d  accel=%d  state=%s  event_type=%s  status=%d  loc: %s  rem: %s",
 		      __entry->iwdev,
 		      __entry->caller,
 		      __entry->cm_id,
-		      __entry->cm_node,
+		      __entry->cm_analde,
 		      __entry->refcount,
 		      __entry->vlan_id,
 		      __entry->accel,
@@ -253,7 +253,7 @@ TRACE_EVENT(irdma_send_cm_event,
 		    )
 );
 
-TRACE_EVENT(irdma_send_cm_event_no_node,
+TRACE_EVENT(irdma_send_cm_event_anal_analde,
 	    TP_PROTO(struct iw_cm_id *cm_id, enum iw_cm_event_type type,
 		     int status, void *caller),
 	    TP_ARGS(cm_id, type, status, caller),
@@ -275,16 +275,16 @@ TRACE_EVENT(irdma_send_cm_event_no_node,
 		    )
 );
 
-DECLARE_EVENT_CLASS(cm_node_template,
-		    TP_PROTO(struct irdma_cm_node *cm_node,
+DECLARE_EVENT_CLASS(cm_analde_template,
+		    TP_PROTO(struct irdma_cm_analde *cm_analde,
 			     enum irdma_cm_event_type type, void *caller),
-		    TP_ARGS(cm_node, type, caller),
+		    TP_ARGS(cm_analde, type, caller),
 		    TP_STRUCT__entry(__field(struct irdma_device *, iwdev)
-				     __field(struct irdma_cm_node *, cm_node)
+				     __field(struct irdma_cm_analde *, cm_analde)
 				     __field(u32, refcount)
 				     __field(u16, lport)
 				     __field(u16, rport)
-				     __field(enum irdma_cm_node_state, state)
+				     __field(enum irdma_cm_analde_state, state)
 				     __field(bool, ipv4)
 				     __field(u16, vlan_id)
 				     __field(int, accel)
@@ -293,26 +293,26 @@ DECLARE_EVENT_CLASS(cm_node_template,
 				     __dynamic_array(u32, laddr, 4)
 				     __dynamic_array(u32, raddr, 4)
 			    ),
-		    TP_fast_assign(__entry->iwdev = cm_node->iwdev;
-				   __entry->cm_node = cm_node;
-				   __entry->refcount = refcount_read(&cm_node->refcnt);
-				   __entry->state = cm_node->state;
-				   __entry->lport = cm_node->loc_port;
-				   __entry->rport = cm_node->rem_port;
-				   __entry->ipv4 = cm_node->ipv4;
-				   __entry->vlan_id = cm_node->vlan_id;
-				   __entry->accel = cm_node->accelerated;
+		    TP_fast_assign(__entry->iwdev = cm_analde->iwdev;
+				   __entry->cm_analde = cm_analde;
+				   __entry->refcount = refcount_read(&cm_analde->refcnt);
+				   __entry->state = cm_analde->state;
+				   __entry->lport = cm_analde->loc_port;
+				   __entry->rport = cm_analde->rem_port;
+				   __entry->ipv4 = cm_analde->ipv4;
+				   __entry->vlan_id = cm_analde->vlan_id;
+				   __entry->accel = cm_analde->accelerated;
 				   __entry->type = type;
 				   __entry->caller = caller;
 				   memcpy(__get_dynamic_array(laddr),
-					  cm_node->loc_addr, 4);
+					  cm_analde->loc_addr, 4);
 				   memcpy(__get_dynamic_array(raddr),
-					  cm_node->rem_addr, 4);
+					  cm_analde->rem_addr, 4);
 			    ),
-		    TP_printk("iwdev=%p  caller=%pS  node=%p  refcnt=%d  vlan_id=%d  accel=%d  state=%s  event_type=%s  loc: %s  rem: %s",
+		    TP_printk("iwdev=%p  caller=%pS  analde=%p  refcnt=%d  vlan_id=%d  accel=%d  state=%s  event_type=%s  loc: %s  rem: %s",
 			      __entry->iwdev,
 			      __entry->caller,
-			      __entry->cm_node,
+			      __entry->cm_analde,
 			      __entry->refcount,
 			      __entry->vlan_id,
 			      __entry->accel,
@@ -325,112 +325,112 @@ DECLARE_EVENT_CLASS(cm_node_template,
 		    )
 );
 
-DEFINE_EVENT(cm_node_template, irdma_create_event,
-	     TP_PROTO(struct irdma_cm_node *cm_node,
+DEFINE_EVENT(cm_analde_template, irdma_create_event,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde,
 		      enum irdma_cm_event_type type, void *caller),
-	     TP_ARGS(cm_node, type, caller));
+	     TP_ARGS(cm_analde, type, caller));
 
-DEFINE_EVENT(cm_node_template, irdma_accept,
-	     TP_PROTO(struct irdma_cm_node *cm_node,
+DEFINE_EVENT(cm_analde_template, irdma_accept,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde,
 		      enum irdma_cm_event_type type, void *caller),
-	     TP_ARGS(cm_node, type, caller));
+	     TP_ARGS(cm_analde, type, caller));
 
-DEFINE_EVENT(cm_node_template, irdma_connect,
-	     TP_PROTO(struct irdma_cm_node *cm_node,
+DEFINE_EVENT(cm_analde_template, irdma_connect,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde,
 		      enum irdma_cm_event_type type, void *caller),
-	     TP_ARGS(cm_node, type, caller));
+	     TP_ARGS(cm_analde, type, caller));
 
-DEFINE_EVENT(cm_node_template, irdma_reject,
-	     TP_PROTO(struct irdma_cm_node *cm_node,
+DEFINE_EVENT(cm_analde_template, irdma_reject,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde,
 		      enum irdma_cm_event_type type, void *caller),
-	     TP_ARGS(cm_node, type, caller));
+	     TP_ARGS(cm_analde, type, caller));
 
-DEFINE_EVENT(cm_node_template, irdma_find_node,
-	     TP_PROTO(struct irdma_cm_node *cm_node,
+DEFINE_EVENT(cm_analde_template, irdma_find_analde,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde,
 		      enum irdma_cm_event_type type, void *caller),
-	     TP_ARGS(cm_node, type, caller));
+	     TP_ARGS(cm_analde, type, caller));
 
-DEFINE_EVENT(cm_node_template, irdma_send_reset,
-	     TP_PROTO(struct irdma_cm_node *cm_node,
+DEFINE_EVENT(cm_analde_template, irdma_send_reset,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde,
 		      enum irdma_cm_event_type type, void *caller),
-	     TP_ARGS(cm_node, type, caller));
+	     TP_ARGS(cm_analde, type, caller));
 
-DEFINE_EVENT(cm_node_template, irdma_rem_ref_cm_node,
-	     TP_PROTO(struct irdma_cm_node *cm_node,
+DEFINE_EVENT(cm_analde_template, irdma_rem_ref_cm_analde,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde,
 		      enum irdma_cm_event_type type, void *caller),
-	     TP_ARGS(cm_node, type, caller));
+	     TP_ARGS(cm_analde, type, caller));
 
-DEFINE_EVENT(cm_node_template, irdma_cm_event_handler,
-	     TP_PROTO(struct irdma_cm_node *cm_node,
+DEFINE_EVENT(cm_analde_template, irdma_cm_event_handler,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde,
 		      enum irdma_cm_event_type type, void *caller),
-	     TP_ARGS(cm_node, type, caller));
+	     TP_ARGS(cm_analde, type, caller));
 
 TRACE_EVENT(open_err_template,
-	    TP_PROTO(struct irdma_cm_node *cm_node, bool reset, void *caller),
-	    TP_ARGS(cm_node, reset, caller),
+	    TP_PROTO(struct irdma_cm_analde *cm_analde, bool reset, void *caller),
+	    TP_ARGS(cm_analde, reset, caller),
 	    TP_STRUCT__entry(__field(struct irdma_device *, iwdev)
-			     __field(struct irdma_cm_node *, cm_node)
-			     __field(enum irdma_cm_node_state, state)
+			     __field(struct irdma_cm_analde *, cm_analde)
+			     __field(enum irdma_cm_analde_state, state)
 			     __field(bool, reset)
 			     __field(void *, caller)
 		    ),
-	    TP_fast_assign(__entry->iwdev = cm_node->iwdev;
-			   __entry->cm_node = cm_node;
-			   __entry->state = cm_node->state;
+	    TP_fast_assign(__entry->iwdev = cm_analde->iwdev;
+			   __entry->cm_analde = cm_analde;
+			   __entry->state = cm_analde->state;
 			   __entry->reset = reset;
 			   __entry->caller = caller;
 		    ),
-	    TP_printk("iwdev=%p  caller=%pS  node%p reset=%d  state=%s",
+	    TP_printk("iwdev=%p  caller=%pS  analde%p reset=%d  state=%s",
 		      __entry->iwdev,
 		      __entry->caller,
-		      __entry->cm_node,
+		      __entry->cm_analde,
 		      __entry->reset,
 		      parse_cm_state(__entry->state)
 		    )
 );
 
 DEFINE_EVENT(open_err_template, irdma_active_open_err,
-	     TP_PROTO(struct irdma_cm_node *cm_node, bool reset, void *caller),
-	     TP_ARGS(cm_node, reset, caller));
+	     TP_PROTO(struct irdma_cm_analde *cm_analde, bool reset, void *caller),
+	     TP_ARGS(cm_analde, reset, caller));
 
 DEFINE_EVENT(open_err_template, irdma_passive_open_err,
-	     TP_PROTO(struct irdma_cm_node *cm_node, bool reset, void *caller),
-	     TP_ARGS(cm_node, reset, caller));
+	     TP_PROTO(struct irdma_cm_analde *cm_analde, bool reset, void *caller),
+	     TP_ARGS(cm_analde, reset, caller));
 
-DECLARE_EVENT_CLASS(cm_node_ah_template,
-		    TP_PROTO(struct irdma_cm_node *cm_node),
-		    TP_ARGS(cm_node),
+DECLARE_EVENT_CLASS(cm_analde_ah_template,
+		    TP_PROTO(struct irdma_cm_analde *cm_analde),
+		    TP_ARGS(cm_analde),
 		    TP_STRUCT__entry(__field(struct irdma_device *, iwdev)
-				     __field(struct irdma_cm_node *, cm_node)
+				     __field(struct irdma_cm_analde *, cm_analde)
 				     __field(struct irdma_sc_ah *, ah)
 				     __field(u32, refcount)
 				     __field(u16, lport)
 				     __field(u16, rport)
-				     __field(enum irdma_cm_node_state, state)
+				     __field(enum irdma_cm_analde_state, state)
 				     __field(bool, ipv4)
 				     __field(u16, vlan_id)
 				     __field(int, accel)
 				     __dynamic_array(u32, laddr, 4)
 				     __dynamic_array(u32, raddr, 4)
 			    ),
-		    TP_fast_assign(__entry->iwdev = cm_node->iwdev;
-				   __entry->cm_node = cm_node;
-				   __entry->ah = cm_node->ah;
-				   __entry->refcount = refcount_read(&cm_node->refcnt);
-				   __entry->lport = cm_node->loc_port;
-				   __entry->rport = cm_node->rem_port;
-				   __entry->state = cm_node->state;
-				   __entry->ipv4 = cm_node->ipv4;
-				   __entry->vlan_id = cm_node->vlan_id;
-				   __entry->accel = cm_node->accelerated;
+		    TP_fast_assign(__entry->iwdev = cm_analde->iwdev;
+				   __entry->cm_analde = cm_analde;
+				   __entry->ah = cm_analde->ah;
+				   __entry->refcount = refcount_read(&cm_analde->refcnt);
+				   __entry->lport = cm_analde->loc_port;
+				   __entry->rport = cm_analde->rem_port;
+				   __entry->state = cm_analde->state;
+				   __entry->ipv4 = cm_analde->ipv4;
+				   __entry->vlan_id = cm_analde->vlan_id;
+				   __entry->accel = cm_analde->accelerated;
 				   memcpy(__get_dynamic_array(laddr),
-					  cm_node->loc_addr, 4);
+					  cm_analde->loc_addr, 4);
 				   memcpy(__get_dynamic_array(raddr),
-					  cm_node->rem_addr, 4);
+					  cm_analde->rem_addr, 4);
 			    ),
-		    TP_printk("iwdev=%p  node=%p  ah=%p  refcnt=%d  vlan_id=%d  accel=%d  state=%s loc: %s  rem: %s",
+		    TP_printk("iwdev=%p  analde=%p  ah=%p  refcnt=%d  vlan_id=%d  accel=%d  state=%s loc: %s  rem: %s",
 			      __entry->iwdev,
-			      __entry->cm_node,
+			      __entry->cm_analde,
 			      __entry->ah,
 			      __entry->refcount,
 			      __entry->vlan_id,
@@ -443,13 +443,13 @@ DECLARE_EVENT_CLASS(cm_node_ah_template,
 		    )
 );
 
-DEFINE_EVENT(cm_node_ah_template, irdma_cm_free_ah,
-	     TP_PROTO(struct irdma_cm_node *cm_node),
-	     TP_ARGS(cm_node));
+DEFINE_EVENT(cm_analde_ah_template, irdma_cm_free_ah,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde),
+	     TP_ARGS(cm_analde));
 
-DEFINE_EVENT(cm_node_ah_template, irdma_create_ah,
-	     TP_PROTO(struct irdma_cm_node *cm_node),
-	     TP_ARGS(cm_node));
+DEFINE_EVENT(cm_analde_ah_template, irdma_create_ah,
+	     TP_PROTO(struct irdma_cm_analde *cm_analde),
+	     TP_ARGS(cm_analde));
 
 #endif  /* __TRACE_CM_H */
 

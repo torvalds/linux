@@ -1,6 +1,6 @@
 /*
  *  drivers/video/chipsfb.c -- frame buffer device for
- *  Chips & Technologies 65550 chip.
+ *  Chips & Techanallogies 65550 chip.
  *
  *  Copyright (C) 1998-2002 Paul Mackerras
  *
@@ -17,7 +17,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -76,7 +76,7 @@ static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *);
 static int chipsfb_check_var(struct fb_var_screeninfo *var,
 			     struct fb_info *info);
 static int chipsfb_set_par(struct fb_info *info);
-static int chipsfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int chipsfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *info);
 static int chipsfb_blank(int blank, struct fb_info *info);
 
@@ -95,8 +95,8 @@ static int chipsfb_check_var(struct fb_var_screeninfo *var,
 	if (var->xres > 800 || var->yres > 600
 	    || var->xres_virtual > 800 || var->yres_virtual > 600
 	    || (var->bits_per_pixel != 8 && var->bits_per_pixel != 16)
-	    || var->nonstd
-	    || (var->vmode & FB_VMODE_MASK) != FB_VMODE_NONINTERLACED)
+	    || var->analnstd
+	    || (var->vmode & FB_VMODE_MASK) != FB_VMODE_ANALNINTERLACED)
 		return -EINVAL;
 
 	var->xres = var->xres_virtual = 800;
@@ -146,15 +146,15 @@ static int chipsfb_blank(int blank, struct fb_info *info)
 	return 1;	/* get fb_blank to set the colormap to all black */
 }
 
-static int chipsfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int chipsfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *info)
 {
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
-	outb(regno, 0x3c8);
+	outb(reganal, 0x3c8);
 	udelay(1);
 	outb(red, 0x3c9);
 	outb(green, 0x3c9);
@@ -228,7 +228,7 @@ static struct chips_init_reg chips_init_fr[] = {
 	{ 0x0b, 0x11 },
 	{ 0x10, 0x0c },
 	{ 0x11, 0xe0 },
-	/* { 0x12, 0x40 }, -- 3400 needs 40, 2400 needs 48, no way to tell */
+	/* { 0x12, 0x40 }, -- 3400 needs 40, 2400 needs 48, anal way to tell */
 	{ 0x20, 0x63 },
 	{ 0x21, 0x68 },
 	{ 0x22, 0x19 },
@@ -294,7 +294,7 @@ static const struct fb_fix_screeninfo chipsfb_fix = {
 	.id =		"C&T 65550",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 	.line_length =	800,
 
 // FIXME: Assumes 1MB frame buffer, but 65550 supports 1MB or 2MB.
@@ -302,7 +302,7 @@ static const struct fb_fix_screeninfo chipsfb_fix = {
 // * 2400 has 1MB composed of 2 Mitsubishi M5M4V4265CTP DRAM chips.
 //   Motherboard actually supports 2MB -- there are two blank locations
 //   for a second pair of DRAMs.  (Thanks, Apple!)
-// * 3400 has 1MB (I think).  Don't know if it's expandable.
+// * 3400 has 1MB (I think).  Don't kanalw if it's expandable.
 // -- Tim Seufert
 	.smem_len =	0x100000,	/* 1MB */
 };
@@ -318,7 +318,7 @@ static const struct fb_var_screeninfo chipsfb_var = {
 	.blue = { .length = 8 },
 	.height = -1,
 	.width = -1,
-	.vmode = FB_VMODE_NONINTERLACED,
+	.vmode = FB_VMODE_ANALNINTERLACED,
 	.pixclock = 10000,
 	.left_margin = 16,
 	.right_margin = 16,
@@ -357,28 +357,28 @@ static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 
 	rc = pci_enable_device(dp);
 	if (rc < 0) {
-		dev_err(&dp->dev, "Cannot enable PCI device\n");
+		dev_err(&dp->dev, "Cananalt enable PCI device\n");
 		goto err_out;
 	}
 
 	if ((dp->resource[0].flags & IORESOURCE_MEM) == 0) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_disable;
 	}
 	addr = pci_resource_start(dp, 0);
 	if (addr == 0) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_disable;
 	}
 
 	p = framebuffer_alloc(0, &dp->dev);
 	if (p == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_disable;
 	}
 
 	if (pci_request_region(dp, 0, "chipsfb") != 0) {
-		dev_err(&dp->dev, "Cannot request framebuffer\n");
+		dev_err(&dp->dev, "Cananalt request framebuffer\n");
 		rc = -EBUSY;
 		goto err_release_fb;
 	}
@@ -410,8 +410,8 @@ static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 	p->screen_base = ioremap(addr, 0x200000);
 #endif
 	if (p->screen_base == NULL) {
-		dev_err(&dp->dev, "Cannot map framebuffer\n");
-		rc = -ENOMEM;
+		dev_err(&dp->dev, "Cananalt map framebuffer\n");
+		rc = -EANALMEM;
 		goto err_release_pci;
 	}
 
@@ -427,7 +427,7 @@ static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 
 	dev_info(&dp->dev,"fb%d: Chips 65550 frame buffer"
 		 " (%dK RAM detected)\n",
-		 p->node, p->fix.smem_len / 1024);
+		 p->analde, p->fix.smem_len / 1024);
 
 	return 0;
 
@@ -510,10 +510,10 @@ static struct pci_driver chipsfb_driver = {
 int __init chips_init(void)
 {
 	if (fb_modesetting_disabled("chipsfb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_get_options("chipsfb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pci_register_driver(&chipsfb_driver);
 }

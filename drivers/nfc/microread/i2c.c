@@ -41,7 +41,7 @@ struct microread_i2c_phy {
 
 	int hard_fault;		/*
 				 * < 0 if hardware error occured (e.g. i2c err)
-				 * and prevents normal operation.
+				 * and prevents analrmal operation.
 				 */
 };
 
@@ -145,7 +145,7 @@ static int microread_i2c_read(struct microread_i2c_phy *phy,
 
 	r = i2c_master_recv(client, &len, 1);
 	if (r != 1) {
-		nfc_err(&client->dev, "cannot read len byte\n");
+		nfc_err(&client->dev, "cananalt read len byte\n");
 		return -EREMOTEIO;
 	}
 
@@ -158,7 +158,7 @@ static int microread_i2c_read(struct microread_i2c_phy *phy,
 
 	*skb = alloc_skb(1 + len, GFP_KERNEL);
 	if (*skb == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto flush;
 	}
 
@@ -203,7 +203,7 @@ static irqreturn_t microread_i2c_irq_thread_fn(int irq, void *phy_id)
 
 	if (!phy || irq != phy->i2c_dev->irq) {
 		WARN_ON_ONCE(1);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (phy->hard_fault != 0)
@@ -216,7 +216,7 @@ static irqreturn_t microread_i2c_irq_thread_fn(int irq, void *phy_id)
 		nfc_hci_recv_frame(phy->hdev, NULL);
 
 		return IRQ_HANDLED;
-	} else if ((r == -ENOMEM) || (r == -EBADMSG)) {
+	} else if ((r == -EANALMEM) || (r == -EBADMSG)) {
 		return IRQ_HANDLED;
 	}
 
@@ -239,7 +239,7 @@ static int microread_i2c_probe(struct i2c_client *client)
 	phy = devm_kzalloc(&client->dev, sizeof(struct microread_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, phy);
 	phy->i2c_dev = client;

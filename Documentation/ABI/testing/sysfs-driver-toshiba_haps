@@ -18,5 +18,5 @@ Date:		August 16, 2014
 KernelVersion:	3.17
 Contact:	Azael Avalos <coproscefalo@gmail.com>
 Description:	This file turns off the built-in accelerometer for a few
-		seconds and then restore normal operation. Accepting 1 as the
+		seconds and then restore analrmal operation. Accepting 1 as the
 		only parameter.

@@ -46,7 +46,7 @@ void __init rcar_gen2_pm_init(void)
 {
 	void __iomem *p;
 	u32 bar;
-	struct device_node *np;
+	struct device_analde *np;
 	bool has_a7 = false;
 	bool has_a15 = false;
 	struct resource res;
@@ -57,23 +57,23 @@ void __init rcar_gen2_pm_init(void)
 		return;
 	}
 
-	for_each_of_cpu_node(np) {
+	for_each_of_cpu_analde(np) {
 		if (of_device_is_compatible(np, "arm,cortex-a15"))
 			has_a15 = true;
 		else if (of_device_is_compatible(np, "arm,cortex-a7"))
 			has_a7 = true;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "renesas,smp-sram");
+	np = of_find_compatible_analde(NULL, NULL, "renesas,smp-sram");
 	if (!np) {
-		/* No smp-sram in DT, fall back to hardcoded address */
+		/* Anal smp-sram in DT, fall back to hardcoded address */
 		res = (struct resource)DEFINE_RES_MEM(ICRAM1,
 						      shmobile_boot_size);
 		goto map;
 	}
 
 	error = of_address_to_resource(np, 0, &res);
-	of_node_put(np);
+	of_analde_put(np);
 	if (error) {
 		pr_err("Failed to get smp-sram address: %d\n", error);
 		return;
@@ -91,7 +91,7 @@ map:
 	if (!p)
 		return;
 	/*
-	 * install the reset vector, use the largest version if we have enough
+	 * install the reset vector, use the largest version if we have eanalugh
 	 * memory available
 	 */
 	if (resource_size(&res) >= shmobile_boot_size_gen2) {

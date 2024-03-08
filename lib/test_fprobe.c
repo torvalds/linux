@@ -23,22 +23,22 @@ static unsigned long target2_ip;
 static unsigned long target_nest_ip;
 static int entry_return_value;
 
-static noinline u32 fprobe_selftest_target(u32 value)
+static analinline u32 fprobe_selftest_target(u32 value)
 {
 	return (value / div_factor);
 }
 
-static noinline u32 fprobe_selftest_target2(u32 value)
+static analinline u32 fprobe_selftest_target2(u32 value)
 {
 	return (value / div_factor) + 1;
 }
 
-static noinline u32 fprobe_selftest_nest_target(u32 value, u32 (*nest)(u32))
+static analinline u32 fprobe_selftest_nest_target(u32 value, u32 (*nest)(u32))
 {
 	return nest(value + 2);
 }
 
-static notrace int fp_entry_handler(struct fprobe *fp, unsigned long ip,
+static analtrace int fp_entry_handler(struct fprobe *fp, unsigned long ip,
 				    unsigned long ret_ip,
 				    struct pt_regs *regs, void *data)
 {
@@ -48,7 +48,7 @@ static notrace int fp_entry_handler(struct fprobe *fp, unsigned long ip,
 		KUNIT_EXPECT_EQ(current_test, ip, target2_ip);
 	entry_val = (rand1 / div_factor);
 	if (fp->entry_data_size) {
-		KUNIT_EXPECT_NOT_NULL(current_test, data);
+		KUNIT_EXPECT_ANALT_NULL(current_test, data);
 		if (data)
 			*(u32 *)data = entry_val;
 	} else
@@ -57,7 +57,7 @@ static notrace int fp_entry_handler(struct fprobe *fp, unsigned long ip,
 	return entry_return_value;
 }
 
-static notrace void fp_exit_handler(struct fprobe *fp, unsigned long ip,
+static analtrace void fp_exit_handler(struct fprobe *fp, unsigned long ip,
 				    unsigned long ret_ip,
 				    struct pt_regs *regs, void *data)
 {
@@ -72,14 +72,14 @@ static notrace void fp_exit_handler(struct fprobe *fp, unsigned long ip,
 	KUNIT_EXPECT_EQ(current_test, entry_val, (rand1 / div_factor));
 	exit_val = entry_val + div_factor;
 	if (fp->entry_data_size) {
-		KUNIT_EXPECT_NOT_NULL(current_test, data);
+		KUNIT_EXPECT_ANALT_NULL(current_test, data);
 		if (data)
 			KUNIT_EXPECT_EQ(current_test, *(u32 *)data, entry_val);
 	} else
 		KUNIT_EXPECT_NULL(current_test, data);
 }
 
-static notrace int nest_entry_handler(struct fprobe *fp, unsigned long ip,
+static analtrace int nest_entry_handler(struct fprobe *fp, unsigned long ip,
 				      unsigned long ret_ip,
 				      struct pt_regs *regs, void *data)
 {
@@ -87,7 +87,7 @@ static notrace int nest_entry_handler(struct fprobe *fp, unsigned long ip,
 	return 0;
 }
 
-static notrace void nest_exit_handler(struct fprobe *fp, unsigned long ip,
+static analtrace void nest_exit_handler(struct fprobe *fp, unsigned long ip,
 				      unsigned long ret_ip,
 				      struct pt_regs *regs, void *data)
 {
@@ -95,7 +95,7 @@ static notrace void nest_exit_handler(struct fprobe *fp, unsigned long ip,
 	KUNIT_EXPECT_EQ(current_test, ip, target_nest_ip);
 }
 
-/* Test entry only (no rethook) */
+/* Test entry only (anal rethook) */
 static void test_fprobe_entry(struct kunit *test)
 {
 	struct fprobe fp_entry = {

@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -28,7 +28,7 @@
  * We don't write on those registers directly but
  * we send a data packet on the chip, using a special register,
  * that holds all the settings we need. After we've sent the
- * data packet, we write on another special register to notify hw
+ * data packet, we write on aanalther special register to analtify hw
  * to apply the settings. This is done so that control registers
  * can be dynamically programmed during operation and the settings
  * are applied faster on the hw.
@@ -87,7 +87,7 @@ struct ath5k_rfb_field {
  * on each chip that we want to tweak. Some RF registers
  * are common between different chip versions so this saves
  * us space and complexity because we can refer to an rf
- * register by it's index no matter what chip we work with
+ * register by it's index anal matter what chip we work with
  * as long as it has that register.
  */
 struct ath5k_rf_reg {

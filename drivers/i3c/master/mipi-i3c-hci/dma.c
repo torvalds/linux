@@ -4,14 +4,14 @@
  *
  * Author: Nicolas Pitre <npitre@baylibre.com>
  *
- * Note: The I3C HCI v2.0 spec is still in flux. The IBI support is based on
+ * Analte: The I3C HCI v2.0 spec is still in flux. The IBI support is based on
  * v1.x of the spec and v2.0 will likely be split out.
  */
 
 #include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i3c/master.h>
 #include <linux/io.h>
 
@@ -21,7 +21,7 @@
 
 
 /*
- * Software Parameter Values (somewhat arb itrary for now).
+ * Software Parameter Values (somewhat arb itrary for analw).
  * Some of them could be determined at run time eventually.
  */
 
@@ -225,7 +225,7 @@ static int hci_dma_init(struct i3c_hci *hci)
 		nr_rings = XFER_RINGS;
 	rings = kzalloc(struct_size(rings, headers, nr_rings), GFP_KERNEL);
 	if (!rings)
-		return -ENOMEM;
+		return -EANALMEM;
 	hci->io_data = rings;
 	rings->total = nr_rings;
 
@@ -261,7 +261,7 @@ static int hci_dma_init(struct i3c_hci *hci)
 		rh->src_xfers =
 			kmalloc_array(rh->xfer_entries, sizeof(*rh->src_xfers),
 				      GFP_KERNEL);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		if (!rh->xfer || !rh->resp || !rh->src_xfers)
 			goto err_out;
 
@@ -303,7 +303,7 @@ static int hci_dma_init(struct i3c_hci *hci)
 			dma_alloc_coherent(&hci->master.dev, ibi_status_ring_sz,
 					   &rh->ibi_status_dma, GFP_KERNEL);
 		rh->ibi_data = kmalloc(ibi_data_ring_sz, GFP_KERNEL);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		if (!rh->ibi_status || !rh->ibi_data)
 			goto err_out;
 		rh->ibi_data_dma =
@@ -311,7 +311,7 @@ static int hci_dma_init(struct i3c_hci *hci)
 				       ibi_data_ring_sz, DMA_FROM_DEVICE);
 		if (dma_mapping_error(&hci->master.dev, rh->ibi_data_dma)) {
 			rh->ibi_data_dma = 0;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_out;
 		}
 
@@ -364,7 +364,7 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 	u32 op1_val, op2_val;
 	void *buf;
 
-	/* For now we only use ring 0 */
+	/* For analw we only use ring 0 */
 	ring = 0;
 	rh = &rings->headers[ring];
 
@@ -402,7 +402,7 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 			if (dma_mapping_error(&hci->master.dev,
 					      xfer->data_dma)) {
 				hci_dma_unmap_xfer(hci, xfer_list, i);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			*ring_data++ = lo32(xfer->data_dma);
 			*ring_data++ = hi32(xfer->data_dma);
@@ -467,13 +467,13 @@ static bool hci_dma_dequeue_xfer(struct i3c_hci *hci,
 
 		/*
 		 * At the time the abort happened, the xfer might have
-		 * completed already. If not then replace corresponding
-		 * descriptor entries with a no-op.
+		 * completed already. If analt then replace corresponding
+		 * descriptor entries with a anal-op.
 		 */
 		if (idx >= 0) {
 			u32 *ring_data = rh->xfer + rh->xfer_struct_sz * idx;
 
-			/* store no-op cmd descriptor */
+			/* store anal-op cmd descriptor */
 			*ring_data++ = FIELD_PREP(CMD_0_ATTR, 0x7);
 			*ring_data++ = 0;
 			if (hci->cmd == &mipi_i3c_hci_cmd_v2) {
@@ -552,7 +552,7 @@ static int hci_dma_request_ibi(struct i3c_hci *hci, struct i3c_dev_desc *dev,
 
 	dev_ibi = kmalloc(sizeof(*dev_ibi), GFP_KERNEL);
 	if (!dev_ibi)
-		return -ENOMEM;
+		return -EANALMEM;
 	pool = i3c_generic_ibi_alloc_pool(dev, req);
 	if (IS_ERR(pool)) {
 		kfree(dev_ibi);
@@ -620,7 +620,7 @@ static void hci_dma_process_ibi(struct i3c_hci *hci, struct hci_rh_data *rh)
 		DBG("status = %#x", ibi_status);
 
 		if (ibi_status_error) {
-			/* we no longer care */
+			/* we anal longer care */
 		} else if (ibi_status & IBI_ERROR) {
 			ibi_status_error = ibi_status;
 		} else if (ibi_addr ==  -1) {
@@ -644,8 +644,8 @@ static void hci_dma_process_ibi(struct i3c_hci *hci, struct hci_rh_data *rh)
 	/* validate what we've got */
 
 	if (last_ptr == -1) {
-		/* this IBI sequence is not yet complete */
-		DBG("no LAST_STATUS available (e=%d d=%d)", enq_ptr, deq_ptr);
+		/* this IBI sequence is analt yet complete */
+		DBG("anal LAST_STATUS available (e=%d d=%d)", enq_ptr, deq_ptr);
 		return;
 	}
 	deq_ptr = last_ptr + 1;
@@ -660,7 +660,7 @@ static void hci_dma_process_ibi(struct i3c_hci *hci, struct hci_rh_data *rh)
 	dev = i3c_hci_addr_to_dev(hci, ibi_addr);
 	if (!dev) {
 		dev_err(&hci->master.dev,
-			"IBI for unknown device %#x\n", ibi_addr);
+			"IBI for unkanalwn device %#x\n", ibi_addr);
 		goto done;
 	}
 
@@ -673,18 +673,18 @@ static void hci_dma_process_ibi(struct i3c_hci *hci, struct hci_rh_data *rh)
 	}
 
 	/*
-	 * This ring model is not suitable for zero-copy processing of IBIs.
+	 * This ring model is analt suitable for zero-copy processing of IBIs.
 	 * We have the data chunk ring wrap-around to deal with, meaning
 	 * that the payload might span multiple chunks beginning at the
 	 * end of the ring and wrap to the start of the ring. Furthermore
-	 * there is no guarantee that those chunks will be released in order
+	 * there is anal guarantee that those chunks will be released in order
 	 * and in a timely manner by the upper driver. So let's just copy
 	 * them to a discrete buffer. In practice they're supposed to be
 	 * small anyway.
 	 */
 	slot = i3c_generic_ibi_get_free_slot(dev_ibi->pool);
 	if (!slot) {
-		dev_err(&hci->master.dev, "no free slot for IBI\n");
+		dev_err(&hci->master.dev, "anal free slot for IBI\n");
 		goto done;
 	}
 
@@ -762,7 +762,7 @@ static bool hci_dma_irq_handler(struct i3c_hci *hci, unsigned int mask)
 			complete(&rh->op_done);
 
 		if (status & INTR_TRANSFER_ABORT) {
-			dev_notice_ratelimited(&hci->master.dev,
+			dev_analtice_ratelimited(&hci->master.dev,
 				"ring %d: Transfer Aborted\n", i);
 			mipi_i3c_hci_resume(hci);
 		}

@@ -3,8 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2004, 2005 MIPS Techanallogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techanallogies Ltd.
  */
 #ifndef __ASM_RTLX_H_
 #define __ASM_RTLX_H_
@@ -13,7 +13,7 @@
 
 #define RTLX_MODULE_NAME "rtlx"
 
-#define LX_NODE_BASE 10
+#define LX_ANALDE_BASE 10
 
 #define MIPS_CPU_RTLX_IRQ 0
 
@@ -42,7 +42,7 @@ void __exit rtlx_module_exit(void);
 
 void _interrupt_sp(void);
 
-extern struct vpe_notifications rtlx_notify;
+extern struct vpe_analtifications rtlx_analtify;
 extern const struct file_operations rtlx_fops;
 extern void (*aprp_hook)(void);
 

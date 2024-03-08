@@ -55,7 +55,7 @@ examples:
       nuvoton,shm = <&shm>;
 
       flash@0 {
-        compatible = "jedec,spi-nor";
+        compatible = "jedec,spi-analr";
         reg = <0>;
       };
     };

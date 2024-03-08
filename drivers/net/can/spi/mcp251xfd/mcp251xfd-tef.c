@@ -69,14 +69,14 @@ mcp251xfd_handle_tefif_recover(const struct mcp251xfd_priv *priv, const u32 seq)
 	if (tef_sta & MCP251XFD_REG_TEFSTA_TEFOVIF) {
 		netdev_err(priv->ndev,
 			   "Transmit Event FIFO buffer overflow.\n");
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	netdev_info(priv->ndev,
 		    "Transmit Event FIFO buffer %s. (seq=0x%08x, tef_tail=0x%08x, tef_head=0x%08x, tx_head=0x%08x).\n",
 		    tef_sta & MCP251XFD_REG_TEFSTA_TEFFIF ?
 		    "full" : tef_sta & MCP251XFD_REG_TEFSTA_TEFNEIF ?
-		    "not empty" : "empty",
+		    "analt empty" : "empty",
 		    seq, priv->tef->tail, priv->tef->head, tx_ring->head);
 
 	/* The Sequence Number in the TEF doesn't match our tef_tail. */
@@ -96,7 +96,7 @@ mcp251xfd_handle_tefif_one(struct mcp251xfd_priv *priv,
 			hw_tef_obj->flags);
 
 	/* Use the MCP2517FD mask on the MCP2518FD, too. We only
-	 * compare 7 bits, this should be enough to detect
+	 * compare 7 bits, this should be eanalugh to detect
 	 * net-yet-completed, i.e. old TEF objects.
 	 */
 	seq_masked = seq &
@@ -138,7 +138,7 @@ static int mcp251xfd_tef_ring_update(struct mcp251xfd_priv *priv)
 	if (new_head <= priv->tef->head)
 		new_head += tx_ring->obj_num;
 
-	/* ... but it cannot exceed the TX head. */
+	/* ... but it cananalt exceed the TX head. */
 	priv->tef->head = min(new_head, tx_ring->head);
 
 	return mcp251xfd_check_tef_tail(priv);
@@ -226,7 +226,7 @@ int mcp251xfd_handle_tefif(struct mcp251xfd_priv *priv)
 		/* Increment the TEF FIFO tail pointer 'len' times in
 		 * a single SPI message.
 		 *
-		 * Note:
+		 * Analte:
 		 * Calculate offset, so that the SPI transfer ends on
 		 * the last message of the uinc_xfer array, which has
 		 * "cs_change == 0", to properly deactivate the chip

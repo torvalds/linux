@@ -7,7 +7,7 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -54,19 +54,19 @@ MODULE_DEVICE_TABLE(of, mtk_mdp_of_ids);
 static void mtk_mdp_clock_on(struct mtk_mdp_dev *mdp)
 {
 	struct device *dev = &mdp->pdev->dev;
-	struct mtk_mdp_comp *comp_node;
+	struct mtk_mdp_comp *comp_analde;
 
-	list_for_each_entry(comp_node, &mdp->comp_list, node)
-		mtk_mdp_comp_clock_on(dev, comp_node);
+	list_for_each_entry(comp_analde, &mdp->comp_list, analde)
+		mtk_mdp_comp_clock_on(dev, comp_analde);
 }
 
 static void mtk_mdp_clock_off(struct mtk_mdp_dev *mdp)
 {
 	struct device *dev = &mdp->pdev->dev;
-	struct mtk_mdp_comp *comp_node;
+	struct mtk_mdp_comp *comp_analde;
 
-	list_for_each_entry(comp_node, &mdp->comp_list, node)
-		mtk_mdp_comp_clock_off(dev, comp_node);
+	list_for_each_entry(comp_analde, &mdp->comp_list, analde)
+		mtk_mdp_comp_clock_off(dev, comp_analde);
 }
 
 static void mtk_mdp_wdt_worker(struct work_struct *work)
@@ -93,26 +93,26 @@ static void mtk_mdp_reset_handler(void *priv)
 void mtk_mdp_register_component(struct mtk_mdp_dev *mdp,
 				struct mtk_mdp_comp *comp)
 {
-	list_add(&comp->node, &mdp->comp_list);
+	list_add(&comp->analde, &mdp->comp_list);
 }
 
 void mtk_mdp_unregister_component(struct mtk_mdp_dev *mdp,
 				  struct mtk_mdp_comp *comp)
 {
-	list_del(&comp->node);
+	list_del(&comp->analde);
 }
 
 static int mtk_mdp_probe(struct platform_device *pdev)
 {
 	struct mtk_mdp_dev *mdp;
 	struct device *dev = &pdev->dev;
-	struct device_node *node, *parent;
+	struct device_analde *analde, *parent;
 	struct mtk_mdp_comp *comp, *comp_temp;
 	int ret = 0;
 
 	mdp = devm_kzalloc(dev, sizeof(*mdp), GFP_KERNEL);
 	if (!mdp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdp->id = pdev->id;
 	mdp->pdev = pdev;
@@ -122,28 +122,28 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 	mutex_init(&mdp->lock);
 	mutex_init(&mdp->vpulock);
 
-	/* Old dts had the components as child nodes */
-	node = of_get_next_child(dev->of_node, NULL);
-	if (node) {
-		of_node_put(node);
-		parent = dev->of_node;
+	/* Old dts had the components as child analdes */
+	analde = of_get_next_child(dev->of_analde, NULL);
+	if (analde) {
+		of_analde_put(analde);
+		parent = dev->of_analde;
 		dev_warn(dev, "device tree is out of date\n");
 	} else {
-		parent = dev->of_node->parent;
+		parent = dev->of_analde->parent;
 	}
 
 	/* Iterate over sibling MDP function blocks */
-	for_each_child_of_node(parent, node) {
+	for_each_child_of_analde(parent, analde) {
 		const struct of_device_id *of_id;
 		enum mtk_mdp_comp_type comp_type;
 
-		of_id = of_match_node(mtk_mdp_comp_dt_ids, node);
+		of_id = of_match_analde(mtk_mdp_comp_dt_ids, analde);
 		if (!of_id)
 			continue;
 
-		if (!of_device_is_available(node)) {
+		if (!of_device_is_available(analde)) {
 			dev_err(dev, "Skipping disabled component %pOF\n",
-				node);
+				analde);
 			continue;
 		}
 
@@ -151,14 +151,14 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 
 		comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 		if (!comp) {
-			ret = -ENOMEM;
-			of_node_put(node);
+			ret = -EANALMEM;
+			of_analde_put(analde);
 			goto err_comp;
 		}
 
-		ret = mtk_mdp_comp_init(dev, node, comp, comp_type);
+		ret = mtk_mdp_comp_init(dev, analde, comp, comp_type);
 		if (ret) {
-			of_node_put(node);
+			of_analde_put(analde);
 			goto err_comp;
 		}
 
@@ -168,14 +168,14 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 	mdp->job_wq = create_singlethread_workqueue(MTK_MDP_MODULE_NAME);
 	if (!mdp->job_wq) {
 		dev_err(&pdev->dev, "unable to alloc job workqueue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_job_wq;
 	}
 
 	mdp->wdt_wq = create_singlethread_workqueue("mdp_wdt_wq");
 	if (!mdp->wdt_wq) {
 		dev_err(&pdev->dev, "unable to alloc wdt workqueue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_wdt_wq;
 	}
 	INIT_WORK(&mdp->wdt_work, mtk_mdp_wdt_worker);
@@ -226,7 +226,7 @@ err_alloc_wdt_wq:
 err_alloc_job_wq:
 
 err_comp:
-	list_for_each_entry_safe(comp, comp_temp, &mdp->comp_list, node) {
+	list_for_each_entry_safe(comp, comp_temp, &mdp->comp_list, analde) {
 		mtk_mdp_unregister_component(mdp, comp);
 		mtk_mdp_comp_deinit(dev, comp);
 	}
@@ -249,7 +249,7 @@ static void mtk_mdp_remove(struct platform_device *pdev)
 
 	destroy_workqueue(mdp->job_wq);
 
-	list_for_each_entry_safe(comp, comp_temp, &mdp->comp_list, node) {
+	list_for_each_entry_safe(comp, comp_temp, &mdp->comp_list, analde) {
 		mtk_mdp_unregister_component(mdp, comp);
 		mtk_mdp_comp_deinit(&pdev->dev, comp);
 	}

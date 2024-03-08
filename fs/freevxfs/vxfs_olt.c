@@ -18,8 +18,8 @@
 static inline void
 vxfs_get_fshead(struct vxfs_oltfshead *fshp, struct vxfs_sb_info *infp)
 {
-	BUG_ON(infp->vsi_fshino);
-	infp->vsi_fshino = fs32_to_cpu(infp, fshp->olt_fsino[0]);
+	BUG_ON(infp->vsi_fshianal);
+	infp->vsi_fshianal = fs32_to_cpu(infp, fshp->olt_fsianal[0]);
 }
 
 static inline void
@@ -63,17 +63,17 @@ vxfs_read_olt(struct super_block *sbp, u_long bsize)
 
 	op = (struct vxfs_olt *)bp->b_data;
 	if (fs32_to_cpu(infp, op->olt_magic) != VXFS_OLT_MAGIC) {
-		printk(KERN_NOTICE "vxfs: ivalid olt magic number\n");
+		printk(KERN_ANALTICE "vxfs: ivalid olt magic number\n");
 		goto fail;
 	}
 
 	/*
 	 * It is in theory possible that vsi_oltsize is > 1.
-	 * I've not seen any such filesystem yet and I'm lazy..  --hch
+	 * I've analt seen any such filesystem yet and I'm lazy..  --hch
 	 */
 	if (infp->vsi_oltsize > 1) {
-		printk(KERN_NOTICE "vxfs: oltsize > 1 detected.\n");
-		printk(KERN_NOTICE "vxfs: please notify hch@infradead.org\n");
+		printk(KERN_ANALTICE "vxfs: oltsize > 1 detected.\n");
+		printk(KERN_ANALTICE "vxfs: please analtify hch@infradead.org\n");
 		goto fail;
 	}
 
@@ -97,7 +97,7 @@ vxfs_read_olt(struct super_block *sbp, u_long bsize)
 	}
 
 	brelse(bp);
-	return (infp->vsi_fshino && infp->vsi_iext) ? 0 : -EINVAL;
+	return (infp->vsi_fshianal && infp->vsi_iext) ? 0 : -EINVAL;
 
 fail:
 	brelse(bp);

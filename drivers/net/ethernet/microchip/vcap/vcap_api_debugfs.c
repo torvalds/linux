@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip VCAP API debug file system support
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  *
  */
 
@@ -175,7 +175,7 @@ static int vcap_debugfs_show_keysets(struct vcap_rule_internal *ri,
 						  admin->cache.maskstream,
 						  false, 0, &matches);
 	if (err) {
-		pr_err("%s:%d: could not find valid keysets: %d\n",
+		pr_err("%s:%d: could analt find valid keysets: %d\n",
 		       __func__, __LINE__, err);
 		return err;
 	}

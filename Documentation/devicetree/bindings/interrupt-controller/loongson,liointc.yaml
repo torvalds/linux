@@ -16,7 +16,7 @@ description: |
   Be aware of the following points.
   1.The Loongson-2K0500 is a single core CPU;
   2.The Loongson-2K0500/2K1000 has 64 device interrupt sources as inputs, so we
-    need to define two nodes in dts{i} to describe the "0-31" and "32-61" interrupt
+    need to define two analdes in dts{i} to describe the "0-31" and "32-61" interrupt
     sources respectively.
 
 allOf:

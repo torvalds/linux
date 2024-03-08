@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-/* Do not edit directly, auto-generated from: */
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/mptcp_pm.yaml */
 /* YNL-GEN kernel source */
 
@@ -60,8 +60,8 @@ const struct nla_policy mptcp_pm_set_flags_nl_policy[MPTCP_PM_ATTR_ADDR_REMOTE +
 	[MPTCP_PM_ATTR_ADDR_REMOTE] = NLA_POLICY_NESTED(mptcp_pm_address_nl_policy),
 };
 
-/* MPTCP_PM_CMD_ANNOUNCE - do */
-const struct nla_policy mptcp_pm_announce_nl_policy[MPTCP_PM_ATTR_TOKEN + 1] = {
+/* MPTCP_PM_CMD_ANANALUNCE - do */
+const struct nla_policy mptcp_pm_ananalunce_nl_policy[MPTCP_PM_ATTR_TOKEN + 1] = {
 	[MPTCP_PM_ATTR_ADDR] = NLA_POLICY_NESTED(mptcp_pm_address_nl_policy),
 	[MPTCP_PM_ATTR_TOKEN] = { .type = NLA_U32, },
 };
@@ -145,10 +145,10 @@ const struct genl_ops mptcp_pm_nl_ops[11] = {
 		.flags		= GENL_UNS_ADMIN_PERM,
 	},
 	{
-		.cmd		= MPTCP_PM_CMD_ANNOUNCE,
+		.cmd		= MPTCP_PM_CMD_ANANALUNCE,
 		.validate	= GENL_DONT_VALIDATE_STRICT,
-		.doit		= mptcp_pm_nl_announce_doit,
-		.policy		= mptcp_pm_announce_nl_policy,
+		.doit		= mptcp_pm_nl_ananalunce_doit,
+		.policy		= mptcp_pm_ananalunce_nl_policy,
 		.maxattr	= MPTCP_PM_ATTR_TOKEN,
 		.flags		= GENL_UNS_ADMIN_PERM,
 	},

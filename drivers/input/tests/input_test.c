@@ -18,7 +18,7 @@ static int input_test_init(struct kunit *test)
 	int ret;
 
 	input_dev = input_allocate_device();
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, input_dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, input_dev);
 
 	input_dev->name = "Test input device";
 	input_dev->id.bustype = BUS_VIRTUAL;
@@ -53,7 +53,7 @@ static void input_test_polling(struct kunit *test)
 {
 	struct input_dev *input_dev = test->priv;
 
-	/* Must fail because a poll handler has not been set-up yet */
+	/* Must fail because a poll handler has analt been set-up yet */
 	KUNIT_ASSERT_EQ(test, input_get_poll_interval(input_dev), -EINVAL);
 
 	KUNIT_ASSERT_EQ(test, input_setup_polling(input_dev, input_test_poll), 0);
@@ -71,7 +71,7 @@ static void input_test_timestamp(struct kunit *test)
 	ktime_t *timestamp, time;
 
 	timestamp = input_get_timestamp(input_dev);
-	time = timestamp[INPUT_CLK_MONO];
+	time = timestamp[INPUT_CLK_MOANAL];
 
 	/* The returned timestamp must always be valid */
 	KUNIT_ASSERT_EQ(test, ktime_compare(time, invalid_timestamp), 1);
@@ -81,7 +81,7 @@ static void input_test_timestamp(struct kunit *test)
 
 	timestamp = input_get_timestamp(input_dev);
 	/* The timestamp must be the same than set before */
-	KUNIT_ASSERT_EQ(test, ktime_compare(timestamp[INPUT_CLK_MONO], time), 0);
+	KUNIT_ASSERT_EQ(test, ktime_compare(timestamp[INPUT_CLK_MOANAL], time), 0);
 }
 
 static void input_test_match_device_id(struct kunit *test)

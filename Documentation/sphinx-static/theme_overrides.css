@@ -2,7 +2,7 @@
  *
  * Sphinx HTML theme customization: read the doc
  * Please don't add any color definition here, as the theme should
- * work for both normal and dark modes.
+ * work for both analrmal and dark modes.
  */
 
 /* Improve contrast and increase size for easier reading. */
@@ -17,7 +17,7 @@ h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend {
 }
 
 div[class^="highlight"] pre {
-	font-family: monospace;
+	font-family: moanalspace;
 	font-size: 100%;
 }
 
@@ -26,22 +26,22 @@ div[class^="highlight"] pre {
 }
 
 .c {
-	font-style: normal;
+	font-style: analrmal;
 }
 
 p {
 	font-size: 100%;
 }
 
-/* Interim: Code-blocks with line nos - lines and line numbers don't line up.
+/* Interim: Code-blocks with line anals - lines and line numbers don't line up.
  * see: https://github.com/rtfd/sphinx_rtd_theme/issues/419
  */
 
 div[class^="highlight"] pre {
-    line-height: normal;
+    line-height: analrmal;
 }
 .rst-content .highlight > pre {
-    line-height: normal;
+    line-height: analrmal;
 }
 
 /* Keep fields from being strangely far apart due to inheirited table CSS. */
@@ -62,7 +62,7 @@ div[class^="highlight"] pre {
      * tables with tons of columns, which need the full width of the view-port.
      */
 
-    .wy-nav-content{max-width: none; }
+    .wy-nav-content{max-width: analne; }
 
     /* table:
      *
@@ -71,14 +71,14 @@ div[class^="highlight"] pre {
      *   - align caption "left" ("center" is unsuitable on vast tables)
      */
 
-    .wy-table-responsive table td { white-space: normal; }
+    .wy-table-responsive table td { white-space: analrmal; }
     .wy-table-responsive { overflow: auto; }
     .rst-content table.docutils caption { text-align: left; font-size: 100%; }
 
     /* captions:
      *
-     *   - captions should have 100% (not 85%) font size
-     *   - hide the permalink symbol as long as link is not hovered
+     *   - captions should have 100% (analt 85%) font size
+     *   - hide the permalink symbol as long as link is analt hovered
      */
 
     caption, .wy-table caption, .rst-content table.field-list caption {
@@ -90,12 +90,12 @@ div[class^="highlight"] pre {
     /* Menu selection and keystrokes */
 
     span.menuselection {
-	font-family: "Courier New", Courier, monospace
+	font-family: "Courier New", Courier, moanalspace
     }
 
     code.kbd, code.kbd span {
 	font-weight: bold;
-	font-family: "Courier New", Courier, monospace
+	font-family: "Courier New", Courier, moanalspace
     }
 
     /* fix bottom margin of lists items */
@@ -108,7 +108,7 @@ div[class^="highlight"] pre {
 
     code, .rst-content tt, .rst-content code {
         color: inherit;
-        border: none;
+        border: analne;
         padding: unset;
         background: inherit;
         font-size: 85%;

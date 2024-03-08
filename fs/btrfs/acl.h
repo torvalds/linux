@@ -5,10 +5,10 @@
 
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
 
-struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu);
+struct posix_acl *btrfs_get_acl(struct ianalde *ianalde, int type, bool rcu);
 int btrfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct posix_acl *acl, int type);
-int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct inode *inode,
+int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct ianalde *ianalde,
 		    struct posix_acl *acl, int type);
 
 #else
@@ -16,10 +16,10 @@ int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct inode *inode,
 #define btrfs_get_acl NULL
 #define btrfs_set_acl NULL
 static inline int __btrfs_set_acl(struct btrfs_trans_handle *trans,
-				  struct inode *inode, struct posix_acl *acl,
+				  struct ianalde *ianalde, struct posix_acl *acl,
 				  int type)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif

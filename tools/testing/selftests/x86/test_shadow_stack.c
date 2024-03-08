@@ -20,7 +20,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <x86intrin.h>
 #include <asm/prctl.h>
@@ -59,10 +59,10 @@
 #define SS_SIZE 0x200000
 #define PAGE_SIZE 0x1000
 
-#if (__GNUC__ < 8) || (__GNUC__ == 8 && __GNUC_MINOR__ < 5)
+#if (__GNUC__ < 8) || (__GNUC__ == 8 && __GNUC_MIANALR__ < 5)
 int main(int argc, char *argv[])
 {
-	printf("[SKIP]\tCompiler does not support CET.\n");
+	printf("[SKIP]\tCompiler does analt support CET.\n");
 	return 0;
 }
 #else
@@ -85,11 +85,11 @@ static inline unsigned long __attribute__((always_inline)) get_ssp(void)
  * For use in inline enablement of shadow stack.
  *
  * The program can't return from the point where shadow stack gets enabled
- * because there will be no address on the shadow stack. So it can't use
+ * because there will be anal address on the shadow stack. So it can't use
  * syscall() for enablement, since it is a function.
  *
- * Based on code from nolibc.h. Keep a copy here because this can't pull in all
- * of nolibc.h.
+ * Based on code from anallibc.h. Keep a copy here because this can't pull in all
+ * of anallibc.h.
  */
 #define ARCH_PRCTL(arg1, arg2)					\
 ({								\
@@ -113,10 +113,10 @@ void *create_shstk(void *addr)
 	return (void *)syscall(__NR_map_shadow_stack, addr, SS_SIZE, SHADOW_STACK_SET_TOKEN);
 }
 
-void *create_normal_mem(void *addr)
+void *create_analrmal_mem(void *addr)
 {
 	return mmap(addr, SS_SIZE, PROT_READ | PROT_WRITE,
-		    MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+		    MAP_PRIVATE | MAP_AANALNYMOUS, 0, 0);
 }
 
 void free_shstk(void *shstk)
@@ -141,7 +141,7 @@ void try_shstk(unsigned long new_ssp)
 
 	asm volatile("rstorssp (%0)\n":: "r" (new_ssp));
 	asm volatile("saveprevssp");
-	printf("[INFO]\tssp is now %lx\n", get_ssp());
+	printf("[INFO]\tssp is analw %lx\n", get_ssp());
 
 	/* Switch back to original shadow stack */
 	ssp -= 8;
@@ -154,7 +154,7 @@ int test_shstk_pivot(void)
 	void *shstk = create_shstk(0);
 
 	if (shstk == MAP_FAILED) {
-		printf("[FAIL]\tError creating shadow stack: %d\n", errno);
+		printf("[FAIL]\tError creating shadow stack: %d\n", erranal);
 		return 1;
 	}
 	try_shstk((unsigned long)shstk + SS_SIZE - 8);
@@ -168,7 +168,7 @@ int test_shstk_faults(void)
 {
 	unsigned long *shstk = create_shstk(0);
 
-	/* Read shadow stack, test if it's zero to not get read optimized out */
+	/* Read shadow stack, test if it's zero to analt get read optimized out */
 	if (*shstk != 0)
 		goto err;
 
@@ -196,7 +196,7 @@ unsigned long saved_ssp;
 unsigned long saved_ssp_val;
 volatile bool segv_triggered;
 
-void __attribute__((noinline)) violate_ss(void)
+void __attribute__((analinline)) violate_ss(void)
 {
 	saved_ssp = get_ssp();
 	saved_ssp_val = *(unsigned long *)saved_ssp;
@@ -254,7 +254,7 @@ void reset_test_shstk(void *addr)
 
 void test_access_fix_handler(int signum, siginfo_t *si, void *uc)
 {
-	printf("[INFO]\tViolation from %s\n", is_shstk_access ? "shstk access" : "normal write");
+	printf("[INFO]\tViolation from %s\n", is_shstk_access ? "shstk access" : "analrmal write");
 
 	segv_triggered = true;
 
@@ -265,7 +265,7 @@ void test_access_fix_handler(int signum, siginfo_t *si, void *uc)
 	}
 
 	free_shstk(shstk_ptr);
-	create_normal_mem(shstk_ptr);
+	create_analrmal_mem(shstk_ptr);
 }
 
 bool test_shstk_access(void *ptr)
@@ -462,7 +462,7 @@ static void *uffd_thread(void *arg)
 		ret = read(uffd, &msg, sizeof(msg));
 		if (ret > 0)
 			break;
-		else if (errno == EAGAIN)
+		else if (erranal == EAGAIN)
 			continue;
 		return (void *)1;
 	}
@@ -492,7 +492,7 @@ int test_userfaultfd(void)
 	if (sigaction(SIGSEGV, &sa, NULL))
 		return 1;
 
-	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
+	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_ANALNBLOCK);
 	if (uffd < 0) {
 		printf("[SKIP]\tUserfaultfd unavailable.\n");
 		return 0;
@@ -538,8 +538,8 @@ err:
 }
 
 /* Simple linked list for keeping track of mappings in test_guard_gap() */
-struct node {
-	struct node *next;
+struct analde {
+	struct analde *next;
 	void *mapping;
 };
 
@@ -547,7 +547,7 @@ struct node {
  * This tests whether mmap will place other mappings in a shadow stack's guard
  * gap. The steps are:
  *   1. Finds an empty place by mapping and unmapping something.
- *   2. Map a shadow stack in the middle of the known empty area.
+ *   2. Map a shadow stack in the middle of the kanalwn empty area.
  *   3. Map a bunch of PAGE_SIZE mappings. These will use the search down
  *      direction, filling any gaps until it encounters the shadow stack's
  *      guard gap.
@@ -559,10 +559,10 @@ struct node {
 int test_guard_gap(void)
 {
 	void *free_area, *shstk, *test_map = (void *)0xFFFFFFFFFFFFFFFF;
-	struct node *head = NULL, *cur;
+	struct analde *head = NULL, *cur;
 
 	free_area = mmap(0, SS_SIZE * 3, PROT_READ | PROT_WRITE,
-			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	munmap(free_area, SS_SIZE * 3);
 
 	shstk = create_shstk(free_area + SS_SIZE);
@@ -571,7 +571,7 @@ int test_guard_gap(void)
 
 	while (test_map > shstk) {
 		test_map = mmap(0, PAGE_SIZE, PROT_READ | PROT_WRITE,
-				MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+				MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 		if (test_map == MAP_FAILED)
 			return 1;
 		cur = malloc(sizeof(*cur));
@@ -651,7 +651,7 @@ int test_32bit(void)
 
 	/* Create sigaction in 32 bit address range */
 	sa32 = mmap(0, 4096, PROT_READ | PROT_WRITE,
-		    MAP_32BIT | MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+		    MAP_32BIT | MAP_PRIVATE | MAP_AANALNYMOUS, 0, 0);
 	sa32->sa_flags = SA_SIGINFO;
 
 	sa.sa_sigaction = segv_gp_handler;
@@ -788,7 +788,7 @@ int main(int argc, char *argv[])
 	int ret = 0;
 
 	if (ARCH_PRCTL(ARCH_SHSTK_ENABLE, ARCH_SHSTK_SHSTK)) {
-		printf("[SKIP]\tCould not enable Shadow stack\n");
+		printf("[SKIP]\tCould analt enable Shadow stack\n");
 		return 1;
 	}
 
@@ -798,12 +798,12 @@ int main(int argc, char *argv[])
 	}
 
 	if (ARCH_PRCTL(ARCH_SHSTK_ENABLE, ARCH_SHSTK_SHSTK)) {
-		printf("[SKIP]\tCould not re-enable Shadow stack\n");
+		printf("[SKIP]\tCould analt re-enable Shadow stack\n");
 		return 1;
 	}
 
 	if (ARCH_PRCTL(ARCH_SHSTK_ENABLE, ARCH_SHSTK_WRSS)) {
-		printf("[SKIP]\tCould not enable WRSS\n");
+		printf("[SKIP]\tCould analt enable WRSS\n");
 		ret = 1;
 		goto out;
 	}

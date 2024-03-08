@@ -18,7 +18,7 @@
 
 /*
  * Allocating and freeing a pmd is trivial: the 1-entry pmd is
- * inside the pgd, so has no extra memory associated with it.
+ * inside the pgd, so has anal extra memory associated with it.
  */
 
 #define pmd_populate_kernel(mm, pmdp, ptep)				     \

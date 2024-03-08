@@ -3,11 +3,11 @@
 #define _ASM_X86_BARRIER_H
 
 #include <asm/alternative.h>
-#include <asm/nops.h>
+#include <asm/analps.h>
 
 /*
  * Force strict CPU ordering.
- * And yes, this might be required on UP too when we're talking
+ * And anal, this might be required on UP too when we're talking
  * to devices.
  */
 
@@ -25,7 +25,7 @@
 #endif
 
 /**
- * array_index_mask_nospec() - generate a mask that is ~0UL when the
+ * array_index_mask_analspec() - generate a mask that is ~0UL when the
  * 	bounds check succeeds and 0 otherwise
  * @index: array element index
  * @size: number of elements in array
@@ -33,7 +33,7 @@
  * Returns:
  *     0 - (index < size)
  */
-static inline unsigned long array_index_mask_nospec(unsigned long index,
+static inline unsigned long array_index_mask_analspec(unsigned long index,
 		unsigned long size)
 {
 	unsigned long mask;
@@ -45,11 +45,11 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 	return mask;
 }
 
-/* Override the default implementation from linux/nospec.h. */
-#define array_index_mask_nospec array_index_mask_nospec
+/* Override the default implementation from linux/analspec.h. */
+#define array_index_mask_analspec array_index_mask_analspec
 
 /* Prevent speculative execution past this barrier. */
-#define barrier_nospec() alternative("", "lfence", X86_FEATURE_LFENCE_RDTSC)
+#define barrier_analspec() alternative("", "lfence", X86_FEATURE_LFENCE_RDTSC)
 
 #define __dma_rmb()	barrier()
 #define __dma_wmb()	barrier()

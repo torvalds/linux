@@ -47,7 +47,7 @@ static int clu_set_table(struct vsp1_clu *clu, struct v4l2_ctrl *ctrl)
 
 	dlb = vsp1_dl_body_get(clu->pool);
 	if (!dlb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vsp1_dl_body_write(dlb, VI6_CLU_ADDR, 0);
 	for (i = 0; i < CLU_SIZE; ++i)
@@ -241,7 +241,7 @@ struct vsp1_clu *vsp1_clu_create(struct vsp1_device *vsp1)
 
 	clu = devm_kzalloc(vsp1->dev, sizeof(*clu), GFP_KERNEL);
 	if (clu == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&clu->lock);
 
@@ -262,7 +262,7 @@ struct vsp1_clu *vsp1_clu_create(struct vsp1_device *vsp1)
 	clu->pool = vsp1_dl_body_pool_create(clu->entity.vsp1, 3, CLU_SIZE + 1,
 					     0);
 	if (!clu->pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&clu->ctrls, 2);

@@ -43,14 +43,14 @@ struct Symbios_nvram {
 
 /* Controller set up 20 bytes */
 	u_char	v_major;	/* 0x00 */
-	u_char	v_minor;	/* 0x30 */
+	u_char	v_mianalr;	/* 0x30 */
 	u32	boot_crc;
 	u_short	flags;
 #define SYMBIOS_SCAM_ENABLE	(1)
 #define SYMBIOS_PARITY_ENABLE	(1<<1)
 #define SYMBIOS_VERBOSE_MSGS	(1<<2)
 #define SYMBIOS_CHS_MAPPING	(1<<3)
-#define SYMBIOS_NO_NVRAM	(1<<3)	/* ??? */
+#define SYMBIOS_ANAL_NVRAM	(1<<3)	/* ??? */
 	u_short	flags1;
 #define SYMBIOS_SCAN_HI_LO	(1)
 	u_short	term_state;
@@ -58,7 +58,7 @@ struct Symbios_nvram {
 #define SYMBIOS_TERM_ENABLED		(1)
 #define SYMBIOS_TERM_DISABLED		(2)
 	u_short	rmvbl_flags;
-#define SYMBIOS_RMVBL_NO_SUPPORT	(0)
+#define SYMBIOS_RMVBL_ANAL_SUPPORT	(0)
 #define SYMBIOS_RMVBL_BOOT_DEVICE	(1)
 #define SYMBIOS_RMVBL_MEDIA_INSTALLED	(2)
 	u_char	host_id;
@@ -71,7 +71,7 @@ struct Symbios_nvram {
 
 /* Boot order 14 bytes * 4 */
 	struct Symbios_host{
-		u_short	type;		/* 4:8xx / 0:nok */
+		u_short	type;		/* 4:8xx / 0:analk */
 		u_short	device_id;	/* PCI device id */
 		u_short	vendor_id;	/* PCI vendor id */
 		u_char	bus_nr;		/* PCI bus number */
@@ -104,9 +104,9 @@ struct Symbios_nvram {
 #define SYMBIOS_SCAM_SET_SPECIFIC_ID	(2)
 #define SYMBIOS_SCAM_USE_ORDER_GIVEN	(3)
 		u_short status;
-#define SYMBIOS_SCAM_UNKNOWN		(0)
-#define SYMBIOS_SCAM_DEVICE_NOT_FOUND	(1)
-#define SYMBIOS_SCAM_ID_NOT_SET		(2)
+#define SYMBIOS_SCAM_UNKANALWN		(0)
+#define SYMBIOS_SCAM_DEVICE_ANALT_FOUND	(1)
+#define SYMBIOS_SCAM_ID_ANALT_SET		(2)
 #define SYMBIOS_SCAM_ID_VALID		(3)
 		u_char	target_id;
 		u_char	rsvd;
@@ -194,7 +194,7 @@ static inline int sym_read_nvram(struct sym_device *np, struct sym_nvram *nvp)
 }
 static inline char *sym_nvram_type(struct sym_nvram *nvp)
 {
-	return "No NVRAM";
+	return "Anal NVRAM";
 }
 #endif
 

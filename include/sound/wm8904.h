@@ -11,7 +11,7 @@
 #define __MFD_WM8994_PDATA_H__
 
 /* Used to enable configuration of a GPIO to all zeros */
-#define WM8904_GPIO_NO_CONFIG 0x8000
+#define WM8904_GPIO_ANAL_CONFIG 0x8000
 
 /*
  * R6 (0x06) - Mic Bias Control 0
@@ -118,7 +118,7 @@
 
 /**
  * DRC configurations are specified with a label and a set of register
- * values to write (the enable bits will be ignored).  At runtime an
+ * values to write (the enable bits will be iganalred).  At runtime an
  * enumerated control will be presented for each DRC block allowing
  * the user to choose the configuration to use.
  *
@@ -133,7 +133,7 @@ struct wm8904_drc_cfg {
 
 /**
  * ReTune Mobile configurations are specified with a label, sample
- * rate and set of values to write (the enable bits will be ignored).
+ * rate and set of values to write (the enable bits will be iganalred).
  *
  * Configurations are expected to be generated using the ReTune Mobile
  * control panel in WISCE - see http://www.wolfsonmicro.com/wisce/

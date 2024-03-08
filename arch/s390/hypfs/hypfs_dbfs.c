@@ -38,12 +38,12 @@ static ssize_t dbfs_read(struct file *file, char __user *buf,
 	if (*ppos != 0)
 		return 0;
 
-	df = file_inode(file)->i_private;
+	df = file_ianalde(file)->i_private;
 	mutex_lock(&df->lock);
 	data = hypfs_dbfs_data_alloc(df);
 	if (!data) {
 		mutex_unlock(&df->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rc = df->data_create(&data->buf, &data->buf_free_ptr, &data->size);
 	if (rc) {
@@ -60,21 +60,21 @@ static ssize_t dbfs_read(struct file *file, char __user *buf,
 
 static long dbfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct hypfs_dbfs_file *df = file_inode(file)->i_private;
+	struct hypfs_dbfs_file *df = file_ianalde(file)->i_private;
 	long rc;
 
 	mutex_lock(&df->lock);
 	if (df->unlocked_ioctl)
 		rc = df->unlocked_ioctl(file, cmd, arg);
 	else
-		rc = -ENOTTY;
+		rc = -EANALTTY;
 	mutex_unlock(&df->lock);
 	return rc;
 }
 
 static const struct file_operations dbfs_ops = {
 	.read		= dbfs_read,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.unlocked_ioctl = dbfs_ioctl,
 };
 
@@ -92,7 +92,7 @@ void hypfs_dbfs_remove_file(struct hypfs_dbfs_file *df)
 
 static int __init hypfs_dbfs_init(void)
 {
-	int rc = -ENODATA;
+	int rc = -EANALDATA;
 
 	dbfs_dir = debugfs_create_dir("s390_hypfs", NULL);
 	if (hypfs_diag_init())

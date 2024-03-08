@@ -70,7 +70,7 @@ static int daemon_setup(char *str, char **mac_out, void *data)
 	remain = split_if_spec(str, mac_out, &init->sock_type, &init->ctl_sock,
 			       NULL);
 	if (remain != NULL)
-		printk(KERN_WARNING "daemon_setup : Ignoring data socket "
+		printk(KERN_WARNING "daemon_setup : Iganalring data socket "
 		       "specification\n");
 
 	return 1;

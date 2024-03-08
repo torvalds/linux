@@ -114,7 +114,7 @@ static int adi_axi_adc_read_raw(struct iio_dev *indio_dev,
 	struct adi_axi_adc_conv *conv = &st->client->conv;
 
 	if (!conv->read_raw)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return conv->read_raw(conv, chan, val, val2, mask);
 }
@@ -127,7 +127,7 @@ static int adi_axi_adc_write_raw(struct iio_dev *indio_dev,
 	struct adi_axi_adc_conv *conv = &st->client->conv;
 
 	if (!conv->write_raw)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return conv->write_raw(conv, chan, val, val2, mask);
 }
@@ -141,7 +141,7 @@ static int adi_axi_adc_read_avail(struct iio_dev *indio_dev,
 	struct adi_axi_adc_conv *conv = &st->client->conv;
 
 	if (!conv->read_avail)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return conv->read_avail(conv, chan, vals, type, length, mask);
 }
@@ -182,7 +182,7 @@ static struct adi_axi_adc_conv *adi_axi_adc_conv_register(struct device *dev,
 
 	cl = kzalloc(alloc_size, GFP_KERNEL);
 	if (!cl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&registered_clients_lock);
 
@@ -248,16 +248,16 @@ static struct adi_axi_adc_client *adi_axi_adc_attach_client(struct device *dev)
 {
 	const struct adi_axi_adc_core_info *info;
 	struct adi_axi_adc_client *cl;
-	struct device_node *cln;
+	struct device_analde *cln;
 
 	info = of_device_get_match_data(dev);
 	if (!info)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	cln = of_parse_phandle(dev->of_node, "adi,adc-dev", 0);
+	cln = of_parse_phandle(dev->of_analde, "adi,adc-dev", 0);
 	if (!cln) {
-		dev_err(dev, "No 'adi,adc-dev' node defined\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(dev, "Anal 'adi,adc-dev' analde defined\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	mutex_lock(&registered_clients_lock);
@@ -266,24 +266,24 @@ static struct adi_axi_adc_client *adi_axi_adc_attach_client(struct device *dev)
 		if (!cl->dev)
 			continue;
 
-		if (cl->dev->of_node != cln)
+		if (cl->dev->of_analde != cln)
 			continue;
 
 		if (!try_module_get(cl->dev->driver->owner)) {
 			mutex_unlock(&registered_clients_lock);
-			of_node_put(cln);
-			return ERR_PTR(-ENODEV);
+			of_analde_put(cln);
+			return ERR_PTR(-EANALDEV);
 		}
 
 		get_device(cl->dev);
 		cl->info = info;
 		mutex_unlock(&registered_clients_lock);
-		of_node_put(cln);
+		of_analde_put(cln);
 		return cl;
 	}
 
 	mutex_unlock(&registered_clients_lock);
-	of_node_put(cln);
+	of_analde_put(cln);
 
 	return ERR_PTR(-EPROBE_DEFER);
 }
@@ -364,7 +364,7 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->client = cl;
@@ -394,12 +394,12 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"IP core version is too old. Expected %d.%.2d.%c, Reported %d.%.2d.%c\n",
 			ADI_AXI_PCORE_VER_MAJOR(cl->info->version),
-			ADI_AXI_PCORE_VER_MINOR(cl->info->version),
+			ADI_AXI_PCORE_VER_MIANALR(cl->info->version),
 			ADI_AXI_PCORE_VER_PATCH(cl->info->version),
 			ADI_AXI_PCORE_VER_MAJOR(ver),
-			ADI_AXI_PCORE_VER_MINOR(ver),
+			ADI_AXI_PCORE_VER_MIANALR(ver),
 			ADI_AXI_PCORE_VER_PATCH(ver));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev->info = &adi_axi_adc_info;
@@ -422,7 +422,7 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "AXI ADC IP core (%d.%.2d.%c) probed\n",
 		 ADI_AXI_PCORE_VER_MAJOR(ver),
-		 ADI_AXI_PCORE_VER_MINOR(ver),
+		 ADI_AXI_PCORE_VER_MIANALR(ver),
 		 ADI_AXI_PCORE_VER_PATCH(ver));
 
 	return 0;

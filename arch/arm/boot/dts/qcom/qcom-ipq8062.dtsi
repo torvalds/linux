@@ -3,6 +3,6 @@
 #include "qcom-ipq8064-v2.0.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ8062";
+	model = "Qualcomm Techanallogies, Inc. IPQ8062";
 	compatible = "qcom,ipq8062", "qcom,ipq8064";
 };

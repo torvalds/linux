@@ -15,7 +15,7 @@ config SUPERH
 	select ARCH_HIBERNATION_POSSIBLE if MMU
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select CPU_NO_EFFICIENT_FFS
+	select CPU_ANAL_EFFICIENT_FFS
 	select DMA_DECLARE_COHERENT
 	select GENERIC_ATOMIC64
 	select GENERIC_CMOS_UPDATE if SH_SH03 || SH_DREAMCAST
@@ -64,8 +64,8 @@ config SUPERH
 	select LOCK_MM_AND_FIND_VMA
 	select MODULES_USE_ELF_RELA
 	select NEED_SG_DMA_LENGTH
-	select NO_DMA if !MMU && !DMA_COHERENT
-	select NO_GENERIC_PCI_IOPORT_MAP if PCI
+	select ANAL_DMA if !MMU && !DMA_COHERENT
+	select ANAL_GENERIC_PCI_IOPORT_MAP if PCI
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND
 	select PCI_DOMAINS if PCI
@@ -122,7 +122,7 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
-config NO_IOPORT_MAP
+config ANAL_IOPORT_MAP
 	def_bool !PCI
 	depends on !SH_SHMIN && !SH_HP6XX && !SH_SOLUTION_ENGINE
 
@@ -135,8 +135,8 @@ config SWAP_IO_SPACE
 config DMA_COHERENT
 	bool
 
-config DMA_NONCOHERENT
-	def_bool !NO_DMA && !DMA_COHERENT
+config DMA_ANALNCOHERENT
+	def_bool !ANAL_DMA && !DMA_COHERENT
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select DMA_DIRECT_REMAP
@@ -573,7 +573,7 @@ config SMP
 
 	  If you say N here, the kernel will run on uni- and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
+	  you say Y here, the kernel will run on many, but analt all,
 	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
@@ -583,7 +583,7 @@ config SMP
 	  See also <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO
 	  available at <https://www.tldp.org/docs.html#howto>.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
@@ -611,7 +611,7 @@ config GUSA
 	depends on !SMP
 	help
 	  This enables support for gUSA (general UserSpace Atomicity).
-	  This is the default implementation for both UP and non-ll/sc
+	  This is the default implementation for both UP and analn-ll/sc
 	  CPUs, and is used by the libc, amongst others.
 
 	  For additional information, design information can be found 
@@ -626,7 +626,7 @@ config GUSA_RB
 	help
 	  Enabling this option will allow the kernel to implement some
 	  atomic operations using a software implementation of load-locked/
-	  store-conditional (LLSC). On machines which do not have hardware
+	  store-conditional (LLSC). On machines which do analt have hardware
 	  LLSC, this should be more efficient than the other alternative of
 	  disabling interrupts around the atomic sequence.
 
@@ -652,7 +652,7 @@ config USE_BUILTIN_DTB
 	  Link a device tree blob for particular hardware into the kernel,
 	  suppressing use of the DTB pointer provided by the bootloader.
 	  This option should only be used with legacy bootloaders that are
-	  not capable of providing a DTB to the kernel, or for experimental
+	  analt capable of providing a DTB to the kernel, or for experimental
 	  hardware without stable device tree bindings.
 
 config BUILTIN_DTB_SOURCE

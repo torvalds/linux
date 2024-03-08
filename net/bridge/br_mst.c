@@ -69,7 +69,7 @@ int br_mst_get_state(const struct net_device *dev, u16 msti, u8 *state)
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL_GPL(br_mst_get_state);
 
@@ -106,12 +106,12 @@ int br_mst_set_state(struct net_bridge_port *p, u16 msti, u8 state,
 	if (!vg)
 		return 0;
 
-	/* MSTI 0 (CST) state changes are notified via the regular
+	/* MSTI 0 (CST) state changes are analtified via the regular
 	 * SWITCHDEV_ATTR_ID_PORT_STP_STATE.
 	 */
 	if (msti) {
 		err = switchdev_port_attr_set(p->dev, &attr, extack);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 	}
 
@@ -164,7 +164,7 @@ int br_mst_vlan_set_msti(struct net_bridge_vlan *mv, u16 msti)
 		return 0;
 
 	err = switchdev_port_attr_set(mv->br->dev, &attr, NULL);
-	if (err && err != -EOPNOTSUPP)
+	if (err && err != -EOPANALTSUPP)
 		return err;
 
 	mv->msti = msti;
@@ -218,7 +218,7 @@ int br_mst_set_enabled(struct net_bridge *br, bool on,
 		return 0;
 
 	err = switchdev_port_attr_set(br->dev, &attr, extack);
-	if (err && err != -EOPNOTSUPP)
+	if (err && err != -EOPANALTSUPP)
 		return err;
 
 	if (on)
@@ -268,7 +268,7 @@ int br_mst_fill_info(struct sk_buff *skb,
 		if (test_bit(v->brvlan->msti, seen))
 			continue;
 
-		nest = nla_nest_start_noflag(skb, IFLA_BRIDGE_MST_ENTRY);
+		nest = nla_nest_start_analflag(skb, IFLA_BRIDGE_MST_ENTRY);
 		if (!nest ||
 		    nla_put_u16(skb, IFLA_BRIDGE_MST_ENTRY_MSTI, v->brvlan->msti) ||
 		    nla_put_u8(skb, IFLA_BRIDGE_MST_ENTRY_STATE, v->state)) {
@@ -307,12 +307,12 @@ static int br_mst_process_one(struct net_bridge_port *p,
 		return err;
 
 	if (!tb[IFLA_BRIDGE_MST_ENTRY_MSTI]) {
-		NL_SET_ERR_MSG_MOD(extack, "MSTI not specified");
+		NL_SET_ERR_MSG_MOD(extack, "MSTI analt specified");
 		return -EINVAL;
 	}
 
 	if (!tb[IFLA_BRIDGE_MST_ENTRY_STATE]) {
-		NL_SET_ERR_MSG_MOD(extack, "State not specified");
+		NL_SET_ERR_MSG_MOD(extack, "State analt specified");
 		return -EINVAL;
 	}
 
@@ -349,7 +349,7 @@ int br_mst_process(struct net_bridge_port *p, const struct nlattr *mst_attr,
 	}
 
 	if (!msts) {
-		NL_SET_ERR_MSG_MOD(extack, "Found no MST entries to process");
+		NL_SET_ERR_MSG_MOD(extack, "Found anal MST entries to process");
 		err = -EINVAL;
 	}
 

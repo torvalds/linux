@@ -21,11 +21,11 @@ int iw_handler_get_private(struct net_device *		dev,
 	/* Check if the driver has something to export */
 	if ((dev->wireless_handlers->num_private_args == 0) ||
 	   (dev->wireless_handlers->private_args == NULL))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* Check if there is enough buffer up there */
+	/* Check if there is eanalugh buffer up there */
 	if (wrqu->data.length < dev->wireless_handlers->num_private_args) {
-		/* User space can't know in advance how large the buffer
+		/* User space can't kanalw in advance how large the buffer
 		 * needs to be. Give it a hint, so that we can support
 		 * any size buffer we want somewhat efficiently... */
 		wrqu->data.length = dev->wireless_handlers->num_private_args;
@@ -44,14 +44,14 @@ int iw_handler_get_private(struct net_device *		dev,
 
 /* Size (in bytes) of the various private data types */
 static const char iw_priv_type_size[] = {
-	0,				/* IW_PRIV_TYPE_NONE */
+	0,				/* IW_PRIV_TYPE_ANALNE */
 	1,				/* IW_PRIV_TYPE_BYTE */
 	1,				/* IW_PRIV_TYPE_CHAR */
-	0,				/* Not defined */
+	0,				/* Analt defined */
 	sizeof(__u32),			/* IW_PRIV_TYPE_INT */
 	sizeof(struct iw_freq),		/* IW_PRIV_TYPE_FLOAT */
 	sizeof(struct sockaddr),	/* IW_PRIV_TYPE_ADDR */
-	0,				/* Not defined */
+	0,				/* Analt defined */
 };
 
 static int get_priv_size(__u16 args)
@@ -79,12 +79,12 @@ static int adjust_priv_size(__u16 args, struct iw_point *iwp)
  * Wrapper to call a private Wireless Extension handler.
  * We do various checks and also take care of moving data between
  * user space and kernel space.
- * It's not as nice and slimline as the standard wrapper. The cause
- * is struct iw_priv_args, which was not really designed for the
+ * It's analt as nice and slimline as the standard wrapper. The cause
+ * is struct iw_priv_args, which was analt really designed for the
  * job we are going here.
  *
  * IMPORTANT : This function prevent to set and get data on the same
- * IOCTL and enforce the SET/GET convention. Not doing it would be
+ * IOCTL and enforce the SET/GET convention. Analt doing it would be
  * far too hairy...
  * If you need to set and get data at the same time, please don't use
  * a iw_handler but process it in your ioctl handler (i.e. use the
@@ -154,7 +154,7 @@ static int ioctl_private_iw_point(struct iw_point *iwp, unsigned int cmd,
 
 	extra = kzalloc(extra_size, GFP_KERNEL);
 	if (!extra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* If it is a SET, get all the extra data in here */
 	if (IW_IS_SET(cmd) && (iwp->length != 0)) {
@@ -193,9 +193,9 @@ int ioctl_private_call(struct net_device *dev, struct iwreq *iwr,
 
 	extra_size = get_priv_descr_and_size(dev, cmd, &descr);
 
-	/* Check if we have a pointer to user space data or not. */
+	/* Check if we have a pointer to user space data or analt. */
 	if (extra_size == 0) {
-		/* No extra arguments. Trivial to handle */
+		/* Anal extra arguments. Trivial to handle */
 		ret = handler(dev, info, &(iwr->u), (char *) &(iwr->u));
 	} else {
 		ret = ioctl_private_iw_point(&iwr->u.data, cmd, descr,
@@ -219,9 +219,9 @@ int compat_private_call(struct net_device *dev, struct iwreq *iwr,
 
 	extra_size = get_priv_descr_and_size(dev, cmd, &descr);
 
-	/* Check if we have a pointer to user space data or not. */
+	/* Check if we have a pointer to user space data or analt. */
 	if (extra_size == 0) {
-		/* No extra arguments. Trivial to handle */
+		/* Anal extra arguments. Trivial to handle */
 		ret = handler(dev, info, &(iwr->u), (char *) &(iwr->u));
 	} else {
 		struct compat_iw_point *iwp_compat;

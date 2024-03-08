@@ -22,7 +22,7 @@
 #define ELO_FLUSH_SMARTSET_RESPONSES	0x02 /* Flush all pending smartset responses */
 #define ELO_SEND_SMARTSET_COMMAND	0x05 /* Send a smartset command */
 #define ELO_GET_SMARTSET_RESPONSE	0x06 /* Get a smartset response */
-#define ELO_DIAG			0x64 /* Diagnostics command */
+#define ELO_DIAG			0x64 /* Diaganalstics command */
 #define ELO_SMARTSET_PACKET_SIZE	8
 
 struct elo_priv {
@@ -94,9 +94,9 @@ static int elo_raw_event(struct hid_device *hdev, struct hid_report *report,
 			return 1;
 		}
 		break;
-	default:	/* unknown report */
-		/* Unknown report type; pass upstream */
-		hid_info(hdev, "unknown report type %d\n", report->id);
+	default:	/* unkanalwn report */
+		/* Unkanalwn report type; pass upstream */
+		hid_info(hdev, "unkanalwn report type %d\n", report->id);
 		break;
 	}
 
@@ -146,11 +146,11 @@ static void elo_work(struct work_struct *work)
 		goto fail;
 	}
 
-	/* send Diagnostics command */
+	/* send Diaganalstics command */
 	*buffer = ELO_DIAG;
 	ret = elo_smartset_send_get(dev, ELO_SEND_SMARTSET_COMMAND, buffer);
 	if (ret < 0) {
-		dev_err(&dev->dev, "send Diagnostics Command failed, error %d\n",
+		dev_err(&dev->dev, "send Diaganalstics Command failed, error %d\n",
 				ret);
 		goto fail;
 	}
@@ -158,7 +158,7 @@ static void elo_work(struct work_struct *work)
 	/* get the result */
 	ret = elo_smartset_send_get(dev, ELO_GET_SMARTSET_RESPONSE, buffer);
 	if (ret < 0) {
-		dev_err(&dev->dev, "get Diagnostics Command response failed, error %d\n",
+		dev_err(&dev->dev, "get Diaganalstics Command response failed, error %d\n",
 				ret);
 		goto fail;
 	}
@@ -168,7 +168,7 @@ static void elo_work(struct work_struct *work)
 		ret = elo_smartset_send_get(dev, ELO_GET_SMARTSET_RESPONSE,
 				buffer);
 		if (ret < 0) {
-			dev_err(&dev->dev, "get acknowledge response failed, error %d\n",
+			dev_err(&dev->dev, "get ackanalwledge response failed, error %d\n",
 					ret);
 			goto fail;
 		}
@@ -183,7 +183,7 @@ fail:
 }
 
 /*
- * Not all Elo devices need the periodic HID descriptor reads.
+ * Analt all Elo devices need the periodic HID descriptor reads.
  * Only firmware version M needs this.
  */
 static bool elo_broken_firmware(struct usb_device *dev)
@@ -207,9 +207,9 @@ static bool elo_broken_firmware(struct usb_device *dev)
 		/*
 		 * If one of the devices below is present attached as a sibling of 
 		 * the touch controller then  this is a newer IBM 4820 monitor that 
-		 * does not need the IBM-requested workaround if fw level is
+		 * does analt need the IBM-requested workaround if fw level is
 		 * 0x010d - aka 'M'.
-		 * No other HW can have this combination.
+		 * Anal other HW can have this combination.
 		 */
 		if (child_vid==0x04b3) {
 			switch (child_pid) {
@@ -234,7 +234,7 @@ static int elo_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&priv->work, elo_work);
 	priv->usbdev = interface_to_usbdev(to_usb_interface(hdev->dev.parent));
@@ -295,7 +295,7 @@ static int __init elo_driver_init(void)
 
 	wq = create_singlethread_workqueue("elousb");
 	if (!wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_register_driver(&elo_driver);
 	if (ret)

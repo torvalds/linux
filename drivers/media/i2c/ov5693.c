@@ -26,7 +26,7 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 /* System Control */
 #define OV5693_SW_RESET_REG			CCI_REG8(0x0103)
@@ -36,7 +36,7 @@
 #define OV5693_SW_RESET				0x01
 
 #define OV5693_REG_CHIP_ID			CCI_REG16(0x300a)
-/* Yes, this is right. The datasheet for the OV5693 gives its ID as 0x5690 */
+/* Anal, this is right. The datasheet for the OV5693 gives its ID as 0x5690 */
 #define OV5693_CHIP_ID				0x5690
 
 /* Exposure */
@@ -745,7 +745,7 @@ static int ov5693_detect(struct ov5693_device *ov5693)
 		return ret;
 
 	if (id != OV5693_CHIP_ID)
-		return dev_err_probe(ov5693->dev, -ENODEV,
+		return dev_err_probe(ov5693->dev, -EANALDEV,
 				     "sensor ID mismatch. Got 0x%04llx\n", id);
 
 	return 0;
@@ -1000,7 +1000,7 @@ static int ov5693_s_stream(struct v4l2_subdev *sd, int enable)
 
 	return 0;
 err_power_down:
-	pm_runtime_put_noidle(ov5693->dev);
+	pm_runtime_put_analidle(ov5693->dev);
 	return ret;
 }
 
@@ -1021,7 +1021,7 @@ static int ov5693_get_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = fps;
+	interval->interval.deanalminator = fps;
 
 	return 0;
 }
@@ -1085,7 +1085,7 @@ static int ov5693_init_controls(struct ov5693_device *ov5693)
 {
 	const struct v4l2_ctrl_ops *ops = &ov5693_ctrl_ops;
 	struct ov5693_v4l2_ctrls *ctrls = &ov5693->ctrls;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	int vblank_max, vblank_def;
 	int exposure_max;
 	int hblank;
@@ -1164,12 +1164,12 @@ static int ov5693_init_controls(struct ov5693_device *ov5693)
 		goto err_free_handler;
 	}
 
-	/* set properties from fwnode (e.g. rotation, orientation) */
-	ret = v4l2_fwnode_device_parse(ov5693->dev, &props);
+	/* set properties from fwanalde (e.g. rotation, orientation) */
+	ret = v4l2_fwanalde_device_parse(ov5693->dev, &props);
 	if (ret)
 		goto err_free_handler;
 
-	ret = v4l2_ctrl_new_fwnode_properties(&ctrls->handler, ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(&ctrls->handler, ops,
 					      &props);
 	if (ret)
 		goto err_free_handler;
@@ -1224,20 +1224,20 @@ static int ov5693_get_regulators(struct ov5693_device *ov5693)
 
 static int ov5693_check_hwcfg(struct ov5693_device *ov5693)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(ov5693->dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *fwanalde = dev_fwanalde(ov5693->dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 	unsigned int i;
 	int ret;
 
-	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!endpoint)
 		return -EPROBE_DEFER; /* Could be provided by cio2-bridge */
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &bus_cfg);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(endpoint, &bus_cfg);
+	fwanalde_handle_put(endpoint);
 	if (ret)
 		return ret;
 
@@ -1248,7 +1248,7 @@ static int ov5693_check_hwcfg(struct ov5693_device *ov5693)
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(ov5693->dev, "no link frequencies defined\n");
+		dev_err(ov5693->dev, "anal link frequencies defined\n");
 		ret = -EINVAL;
 		goto out_free_bus_cfg;
 	}
@@ -1258,14 +1258,14 @@ static int ov5693_check_hwcfg(struct ov5693_device *ov5693)
 			break;
 
 	if (i == bus_cfg.nr_of_link_frequencies) {
-		dev_err(ov5693->dev, "supported link freq %ull not found\n",
+		dev_err(ov5693->dev, "supported link freq %ull analt found\n",
 			OV5693_LINK_FREQ_419_2MHZ);
 		ret = -EINVAL;
 		goto out_free_bus_cfg;
 	}
 
 out_free_bus_cfg:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1278,7 +1278,7 @@ static int ov5693_probe(struct i2c_client *client)
 
 	ov5693 = devm_kzalloc(&client->dev, sizeof(*ov5693), GFP_KERNEL);
 	if (!ov5693)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov5693->dev = &client->dev;
 
@@ -1303,7 +1303,7 @@ static int ov5693_probe(struct i2c_client *client)
 	if (ov5693->xvclk) {
 		xvclk_rate = clk_get_rate(ov5693->xvclk);
 	} else {
-		ret = fwnode_property_read_u32(dev_fwnode(&client->dev),
+		ret = fwanalde_property_read_u32(dev_fwanalde(&client->dev),
 				     "clock-frequency",
 				     &xvclk_rate);
 
@@ -1326,7 +1326,7 @@ static int ov5693_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, ret,
 				     "Error fetching regulators\n");
 
-	ov5693->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov5693->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov5693->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ov5693->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
@@ -1344,7 +1344,7 @@ static int ov5693_probe(struct i2c_client *client)
 
 	/*
 	 * We need the driver to work in the event that pm runtime is disable in
-	 * the kernel, so power up and verify the chip now. In the event that
+	 * the kernel, so power up and verify the chip analw. In the event that
 	 * runtime pm is disabled this will leave the chip on, so that streaming
 	 * will work.
 	 */
@@ -1358,7 +1358,7 @@ static int ov5693_probe(struct i2c_client *client)
 		goto err_powerdown;
 
 	pm_runtime_set_active(&client->dev);
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_enable(&client->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&ov5693->sd);
@@ -1376,7 +1376,7 @@ static int ov5693_probe(struct i2c_client *client)
 
 err_pm_runtime:
 	pm_runtime_disable(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 err_powerdown:
 	ov5693_sensor_powerdown(ov5693);
 err_media_entity_cleanup:

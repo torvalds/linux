@@ -9,22 +9,22 @@
 
 /* DCA Provider API */
 
-/* DCA Notifier Interface */
-void dca_register_notify(struct notifier_block *nb);
-void dca_unregister_notify(struct notifier_block *nb);
+/* DCA Analtifier Interface */
+void dca_register_analtify(struct analtifier_block *nb);
+void dca_unregister_analtify(struct analtifier_block *nb);
 
 #define DCA_PROVIDER_ADD     0x0001
 #define DCA_PROVIDER_REMOVE  0x0002
 
 struct dca_provider {
-	struct list_head	node;
+	struct list_head	analde;
 	const struct dca_ops	*ops;
 	struct device 		*cd;
 	int			 id;
 };
 
 struct dca_domain {
-	struct list_head	node;
+	struct list_head	analde;
 	struct list_head	dca_providers;
 	struct pci_bus		*pci_rc;
 };

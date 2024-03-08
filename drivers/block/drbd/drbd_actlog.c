@@ -4,7 +4,7 @@
 
    This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-   Copyright (C) 2003-2008, LINBIT Information Technologies GmbH.
+   Copyright (C) 2003-2008, LINBIT Information Techanallogies GmbH.
    Copyright (C) 2003-2008, Philipp Reisner <philipp.reisner@linbit.com>.
    Copyright (C) 2003-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -40,7 +40,7 @@ struct __packed al_transaction_on_disk {
 	__be16	transaction_type;
 
 	/* we currently allow only a few thousand extents,
-	 * so 16bit will be enough for the slot number. */
+	 * so 16bit will be eanalugh for the slot number. */
 
 	/* how many updates in this transaction */
 	__be16	n_updates;
@@ -63,7 +63,7 @@ struct __packed al_transaction_on_disk {
 	/* Reserve space for up to AL_UPDATES_PER_TRANSACTION changes
 	 * in one transaction, then use the remaining byte in the 4k block for
 	 * context information.  "Flexible" number of updates per transaction
-	 * does not help, as we have to account for the case when all update
+	 * does analt help, as we have to account for the case when all update
 	 * slots are used anyways, so it would only complicate code without
 	 * additional benefit.
 	 */
@@ -133,13 +133,13 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	blk_opf_t op_flags = 0;
 
 	device->md_io.done = 0;
-	device->md_io.error = -ENODEV;
+	device->md_io.error = -EANALDEV;
 
-	if ((op == REQ_OP_WRITE) && !test_bit(MD_NO_FUA, &device->flags))
+	if ((op == REQ_OP_WRITE) && !test_bit(MD_ANAL_FUA, &device->flags))
 		op_flags |= REQ_FUA | REQ_PREFLUSH;
 	op_flags |= REQ_SYNC;
 
-	bio = bio_alloc_bioset(bdev->md_bdev, 1, op | op_flags, GFP_NOIO,
+	bio = bio_alloc_bioset(bdev->md_bdev, 1, op | op_flags, GFP_ANALIO,
 			       &drbd_md_io_bio_set);
 	bio->bi_iter.bi_sector = sector;
 	err = -EIO;
@@ -149,12 +149,12 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	bio->bi_end_io = drbd_md_endio;
 
 	if (op != REQ_OP_WRITE && device->state.disk == D_DISKLESS && device->ldev == NULL)
-		/* special case, drbd_md_read() during drbd_adm_attach(): no get_ldev */
+		/* special case, drbd_md_read() during drbd_adm_attach(): anal get_ldev */
 		;
 	else if (!get_ldev_if_state(device, D_ATTACHING)) {
 		/* Corresponding put_ldev in drbd_md_endio() */
 		drbd_err(device, "ASSERT FAILED: get_ldev_if_state() == 1 in _drbd_md_sync_page_io()\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -209,13 +209,13 @@ static struct bm_extent *find_active_resync_extent(struct drbd_device *device, u
 	tmp = lc_find(device->resync, enr/AL_EXT_PER_BM_SECT);
 	if (unlikely(tmp != NULL)) {
 		struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
-		if (test_bit(BME_NO_WRITES, &bm_ext->flags))
+		if (test_bit(BME_ANAL_WRITES, &bm_ext->flags))
 			return bm_ext;
 	}
 	return NULL;
 }
 
-static struct lc_element *_al_get(struct drbd_device *device, unsigned int enr, bool nonblock)
+static struct lc_element *_al_get(struct drbd_device *device, unsigned int enr, bool analnblock)
 {
 	struct lc_element *al_ext;
 	struct bm_extent *bm_ext;
@@ -230,7 +230,7 @@ static struct lc_element *_al_get(struct drbd_device *device, unsigned int enr, 
 			wake_up(&device->al_wait);
 		return NULL;
 	}
-	if (nonblock)
+	if (analnblock)
 		al_ext = lc_try_get(device->act_log, enr);
 	else
 		al_ext = lc_get(device->act_log, enr);
@@ -280,7 +280,7 @@ bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *
 #if (PAGE_SHIFT + 3) < (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT)
 /* Currently BM_BLOCK_SHIFT, BM_EXT_SHIFT and AL_EXTENT_SHIFT
  * are still coupled, or assume too much about their relation.
- * Code below will not work if this is violated.
+ * Code below will analt work if this is violated.
  * Will be cleaned up with some followup patch.
  */
 # error FIXME
@@ -330,7 +330,7 @@ static int __al_write_transaction(struct drbd_device *device, struct al_transact
 
 	drbd_bm_reset_al_hints(device);
 
-	/* Even though no one can start to change this list
+	/* Even though anal one can start to change this list
 	 * once we set the LC_LOCKED -- from drbd_al_begin_io(),
 	 * lc_try_lock_for_transaction() --, someone may still
 	 * be in the process of changing it. */
@@ -405,7 +405,7 @@ static int al_write_transaction(struct drbd_device *device)
 	int err;
 
 	if (!get_ldev(device)) {
-		drbd_err(device, "disk is %s, cannot start al transaction\n",
+		drbd_err(device, "disk is %s, cananalt start al transaction\n",
 			drbd_disk_str(device->state.disk));
 		return -EIO;
 	}
@@ -413,7 +413,7 @@ static int al_write_transaction(struct drbd_device *device)
 	/* The bitmap write may have failed, causing a state change. */
 	if (device->state.disk < D_INCONSISTENT) {
 		drbd_err(device,
-			"disk is %s, cannot write al transaction\n",
+			"disk is %s, cananalt write al transaction\n",
 			drbd_disk_str(device->state.disk));
 		put_ldev(device);
 		return -EIO;
@@ -424,7 +424,7 @@ static int al_write_transaction(struct drbd_device *device)
 	if (!buffer) {
 		drbd_err(device, "disk failed while waiting for md_io buffer\n");
 		put_ldev(device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = __al_write_transaction(device, buffer);
@@ -481,7 +481,7 @@ void drbd_al_begin_io(struct drbd_device *device, struct drbd_interval *i)
 		drbd_al_begin_io_commit(device);
 }
 
-int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *i)
+int drbd_al_begin_io_analnblock(struct drbd_device *device, struct drbd_interval *i)
 {
 	struct lru_cache *al = device->act_log;
 	/* for bios crossing activity log extent boundaries,
@@ -507,12 +507,12 @@ int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *
 		 * If we have accumulated pending changes already,
 		 * we made progress.
 		 *
-		 * If we cannot get even a single pending change through,
+		 * If we cananalt get even a single pending change through,
 		 * stop the fast path until we made some progress,
 		 * or requests to "cold" extents could be starved. */
 		if (!al->pending_changes)
 			__set_bit(__LC_STARVING, &device->act_log->flags);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	/* Is resync active in this area? */
@@ -521,7 +521,7 @@ int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *
 		tmp = lc_find(device->resync, enr/AL_EXT_PER_BM_SECT);
 		if (unlikely(tmp != NULL)) {
 			struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
-			if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
+			if (test_bit(BME_ANAL_WRITES, &bm_ext->flags)) {
 				if (!test_and_set_bit(BME_PRIORITY, &bm_ext->flags))
 					return -EBUSY;
 				return -EWOULDBLOCK;
@@ -613,7 +613,7 @@ int drbd_al_initialize(struct drbd_device *device, void *buffer)
 	int i;
 
 	__al_write_transaction(device, al);
-	/* There may or may not have been a pending transaction. */
+	/* There may or may analt have been a pending transaction. */
 	spin_lock_irq(&device->al_lock);
 	lc_committed(device->act_log);
 	spin_unlock_irq(&device->al_lock);
@@ -692,7 +692,7 @@ static bool update_rs_extent(struct drbd_device *device,
 				ext->rs_left = drbd_bm_e_weight(device, enr);
 			}
 		} else {
-			/* Normally this element should be in the cache,
+			/* Analrmally this element should be in the cache,
 			 * since drbd_rs_begin_io() pulled it already in.
 			 *
 			 * But maybe an application write finished, and we set
@@ -719,14 +719,14 @@ static bool update_rs_extent(struct drbd_device *device,
 		}
 		if (mode != SET_OUT_OF_SYNC)
 			lc_put(device->resync, &ext->lce);
-		/* no race, we are within the al_lock! */
+		/* anal race, we are within the al_lock! */
 
 		if (ext->rs_left <= ext->rs_failed) {
 			ext->rs_failed = 0;
 			return true;
 		}
 	} else if (mode != SET_OUT_OF_SYNC) {
-		/* be quiet if lc_find() did not find it. */
+		/* be quiet if lc_find() did analt find it. */
 		drbd_err(device, "lc_get() failed! locked=%d/%d flags=%lu\n",
 		    device->resync_locked,
 		    device->resync->nr_elements,
@@ -738,14 +738,14 @@ static bool update_rs_extent(struct drbd_device *device,
 void drbd_advance_rs_marks(struct drbd_peer_device *peer_device, unsigned long still_to_go)
 {
 	struct drbd_device *device = peer_device->device;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	unsigned long last = device->rs_mark_time[device->rs_last_mark];
 	int next = (device->rs_last_mark + 1) % DRBD_SYNC_MARKS;
-	if (time_after_eq(now, last + DRBD_SYNC_MARK_STEP)) {
+	if (time_after_eq(analw, last + DRBD_SYNC_MARK_STEP)) {
 		if (device->rs_mark_left[device->rs_last_mark] != still_to_go &&
 		    device->state.conn != C_PAUSED_SYNC_T &&
 		    device->state.conn != C_PAUSED_SYNC_S) {
-			device->rs_mark_time[next] = now;
+			device->rs_mark_time[next] = analw;
 			device->rs_mark_left[next] = still_to_go;
 			device->rs_last_mark = next;
 		}
@@ -767,7 +767,7 @@ static void maybe_schedule_on_disk_bitmap_update(struct drbd_device *device, boo
 			set_bit(RS_DONE, &device->flags);
 			/* and also set RS_PROGRESS below */
 
-		/* Else: rather wait for explicit notification via receive_state,
+		/* Else: rather wait for explicit analtification via receive_state,
 		 * to avoid uuids-rotated-too-fast causing full resync
 		 * in next handshake, in case the replication link breaks
 		 * at the most unfortunate time... */
@@ -858,14 +858,14 @@ int __drbd_change_sync(struct drbd_peer_device *peer_device, sector_t sector, in
 		return 0;
 
 	if (!plausible_request_size(size)) {
-		drbd_err(device, "%s: sector=%llus size=%d nonsense!\n",
+		drbd_err(device, "%s: sector=%llus size=%d analnsense!\n",
 				drbd_change_sync_fname[mode],
 				(unsigned long long)sector, size);
 		return 0;
 	}
 
 	if (!get_ldev(device))
-		return 0; /* no disk, no metadata, no bitmap to manipulate bits in */
+		return 0; /* anal disk, anal metadata, anal bitmap to manipulate bits in */
 
 	nr_sectors = get_capacity(device->vdisk);
 	esector = sector + (size >> 9) - 1;
@@ -889,7 +889,7 @@ int __drbd_change_sync(struct drbd_peer_device *peer_device, sector_t sector, in
 		sbnr = BM_SECT_TO_BIT(sector + BM_SECT_PER_BIT-1);
 	} else {
 		/* We set it out of sync, or record resync failure.
-		 * Should not round anything here. */
+		 * Should analt round anything here. */
 		sbnr = BM_SECT_TO_BIT(sector);
 		ebnr = BM_SECT_TO_BIT(esector);
 	}
@@ -924,7 +924,7 @@ struct bm_extent *_bme_get(struct drbd_device *device, unsigned int enr)
 		}
 		if (bm_ext->lce.refcnt == 1)
 			device->resync_locked++;
-		set_bit(BME_NO_WRITES, &bm_ext->flags);
+		set_bit(BME_ANAL_WRITES, &bm_ext->flags);
 	}
 	rs_flags = device->resync->flags;
 	spin_unlock_irq(&device->al_lock);
@@ -988,7 +988,7 @@ retry:
 		if (sig || (sa && test_bit(BME_PRIORITY, &bm_ext->flags))) {
 			spin_lock_irq(&device->al_lock);
 			if (lc_put(device->resync, &bm_ext->lce) == 0) {
-				bm_ext->flags = 0; /* clears BME_NO_WRITES and eventually BME_PRIORITY */
+				bm_ext->flags = 0; /* clears BME_ANAL_WRITES and eventually BME_PRIORITY */
 				device->resync_locked--;
 				wake_up(&device->al_wait);
 			}
@@ -1005,11 +1005,11 @@ retry:
 }
 
 /**
- * drbd_try_rs_begin_io() - Gets an extent in the resync LRU cache, does not sleep
+ * drbd_try_rs_begin_io() - Gets an extent in the resync LRU cache, does analt sleep
  * @peer_device: DRBD device.
  * @sector:	The sector number.
  *
- * Gets an extent in the resync LRU cache, sets it to BME_NO_WRITES, then
+ * Gets an extent in the resync LRU cache, sets it to BME_ANAL_WRITES, then
  * tries to set it to BME_LOCKED.
  *
  * Returns: %0 upon success, and -EAGAIN
@@ -1025,8 +1025,8 @@ int drbd_try_rs_begin_io(struct drbd_peer_device *peer_device, sector_t sector)
 	int i;
 	bool throttle = drbd_rs_should_slow_down(peer_device, sector, true);
 
-	/* If we need to throttle, a half-locked (only marked BME_NO_WRITES,
-	 * not yet BME_LOCKED) extent needs to be kicked out explicitly if we
+	/* If we need to throttle, a half-locked (only marked BME_ANAL_WRITES,
+	 * analt yet BME_LOCKED) extent needs to be kicked out explicitly if we
 	 * need to throttle. There is at most one such half-locked extent,
 	 * which is remembered in resync_wenr. */
 
@@ -1052,8 +1052,8 @@ int drbd_try_rs_begin_io(struct drbd_peer_device *peer_device, sector_t sector)
 		bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
 		if (bm_ext) {
 			D_ASSERT(device, !test_bit(BME_LOCKED, &bm_ext->flags));
-			D_ASSERT(device, test_bit(BME_NO_WRITES, &bm_ext->flags));
-			clear_bit(BME_NO_WRITES, &bm_ext->flags);
+			D_ASSERT(device, test_bit(BME_ANAL_WRITES, &bm_ext->flags));
+			clear_bit(BME_ANAL_WRITES, &bm_ext->flags);
 			device->resync_wenr = LC_FREE;
 			if (lc_put(device->resync, &bm_ext->lce) == 0) {
 				bm_ext->flags = 0;
@@ -1070,11 +1070,11 @@ int drbd_try_rs_begin_io(struct drbd_peer_device *peer_device, sector_t sector)
 	if (bm_ext) {
 		if (test_bit(BME_LOCKED, &bm_ext->flags))
 			goto proceed;
-		if (!test_and_set_bit(BME_NO_WRITES, &bm_ext->flags)) {
+		if (!test_and_set_bit(BME_ANAL_WRITES, &bm_ext->flags)) {
 			device->resync_locked++;
 		} else {
-			/* we did set the BME_NO_WRITES,
-			 * but then could not set BME_LOCKED,
+			/* we did set the BME_ANAL_WRITES,
+			 * but then could analt set BME_LOCKED,
 			 * so we tried again.
 			 * drop the extra reference. */
 			bm_ext->lce.refcnt--;
@@ -1085,7 +1085,7 @@ int drbd_try_rs_begin_io(struct drbd_peer_device *peer_device, sector_t sector)
 		/* do we rather want to try later? */
 		if (device->resync_locked > device->resync->nr_elements-3)
 			goto try_again;
-		/* Do or do not. There is no try. -- Yoda */
+		/* Do or do analt. There is anal try. -- Yoda */
 		e = lc_get(device->resync, enr);
 		bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
 		if (!bm_ext) {
@@ -1103,7 +1103,7 @@ int drbd_try_rs_begin_io(struct drbd_peer_device *peer_device, sector_t sector)
 			wake_up(&device->al_wait);
 			D_ASSERT(device, test_bit(BME_LOCKED, &bm_ext->flags) == 0);
 		}
-		set_bit(BME_NO_WRITES, &bm_ext->flags);
+		set_bit(BME_ANAL_WRITES, &bm_ext->flags);
 		D_ASSERT(device, bm_ext->lce.refcnt == 1);
 		device->resync_locked++;
 		goto check_al;
@@ -1123,8 +1123,8 @@ try_again:
 	if (bm_ext) {
 		if (throttle) {
 			D_ASSERT(device, !test_bit(BME_LOCKED, &bm_ext->flags));
-			D_ASSERT(device, test_bit(BME_NO_WRITES, &bm_ext->flags));
-			clear_bit(BME_NO_WRITES, &bm_ext->flags);
+			D_ASSERT(device, test_bit(BME_ANAL_WRITES, &bm_ext->flags));
+			clear_bit(BME_ANAL_WRITES, &bm_ext->flags);
 			device->resync_wenr = LC_FREE;
 			if (lc_put(device->resync, &bm_ext->lce) == 0) {
 				bm_ext->flags = 0;
@@ -1151,7 +1151,7 @@ void drbd_rs_complete_io(struct drbd_device *device, sector_t sector)
 	if (!bm_ext) {
 		spin_unlock_irqrestore(&device->al_lock, flags);
 		if (drbd_ratelimit())
-			drbd_err(device, "drbd_rs_complete_io() called, but extent not found\n");
+			drbd_err(device, "drbd_rs_complete_io() called, but extent analt found\n");
 		return;
 	}
 
@@ -1164,7 +1164,7 @@ void drbd_rs_complete_io(struct drbd_device *device, sector_t sector)
 	}
 
 	if (lc_put(device->resync, &bm_ext->lce) == 0) {
-		bm_ext->flags = 0; /* clear BME_LOCKED, BME_NO_WRITES and BME_PRIORITY */
+		bm_ext->flags = 0; /* clear BME_LOCKED, BME_ANAL_WRITES and BME_PRIORITY */
 		device->resync_locked--;
 		wake_up(&device->al_wait);
 	}
@@ -1195,7 +1195,7 @@ void drbd_rs_cancel_all(struct drbd_device *device)
  * @device:	DRBD device.
  *
  * Returns: %0 upon success, -EAGAIN if at least one reference count was
- * not zero.
+ * analt zero.
  */
 int drbd_rs_del_all(struct drbd_device *device)
 {
@@ -1217,8 +1217,8 @@ int drbd_rs_del_all(struct drbd_device *device)
 				     " got 'synced' by application io\n",
 				     device->resync_wenr);
 				D_ASSERT(device, !test_bit(BME_LOCKED, &bm_ext->flags));
-				D_ASSERT(device, test_bit(BME_NO_WRITES, &bm_ext->flags));
-				clear_bit(BME_NO_WRITES, &bm_ext->flags);
+				D_ASSERT(device, test_bit(BME_ANAL_WRITES, &bm_ext->flags));
+				clear_bit(BME_ANAL_WRITES, &bm_ext->flags);
 				device->resync_wenr = LC_FREE;
 				lc_put(device->resync, &bm_ext->lce);
 			}
@@ -1230,7 +1230,7 @@ int drbd_rs_del_all(struct drbd_device *device)
 				return -EAGAIN;
 			}
 			D_ASSERT(device, !test_bit(BME_LOCKED, &bm_ext->flags));
-			D_ASSERT(device, !test_bit(BME_NO_WRITES, &bm_ext->flags));
+			D_ASSERT(device, !test_bit(BME_ANAL_WRITES, &bm_ext->flags));
 			lc_del(device->resync, &bm_ext->lce);
 		}
 		D_ASSERT(device, device->resync->used == 0);

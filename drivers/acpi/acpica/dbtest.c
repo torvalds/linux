@@ -23,26 +23,26 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 			u32 nesting_level, void *context, void **return_value);
 
 static acpi_status
-acpi_db_test_integer_type(struct acpi_namespace_node *node, u32 bit_length);
+acpi_db_test_integer_type(struct acpi_namespace_analde *analde, u32 bit_length);
 
 static acpi_status
-acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length);
+acpi_db_test_buffer_type(struct acpi_namespace_analde *analde, u32 bit_length);
 
 static acpi_status
-acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length);
+acpi_db_test_string_type(struct acpi_namespace_analde *analde, u32 byte_length);
 
-static acpi_status acpi_db_test_package_type(struct acpi_namespace_node *node);
+static acpi_status acpi_db_test_package_type(struct acpi_namespace_analde *analde);
 
 static acpi_status
 acpi_db_test_field_unit_type(union acpi_operand_object *obj_desc);
 
 static acpi_status
-acpi_db_read_from_object(struct acpi_namespace_node *node,
+acpi_db_read_from_object(struct acpi_namespace_analde *analde,
 			 acpi_object_type expected_type,
 			 union acpi_object **value);
 
 static acpi_status
-acpi_db_write_to_object(struct acpi_namespace_node *node,
+acpi_db_write_to_object(struct acpi_namespace_analde *analde,
 			union acpi_object *value);
 
 static void acpi_db_evaluate_all_predefined_names(char *count_arg);
@@ -83,14 +83,14 @@ static acpi_handle write_handle = NULL;
 #if 0
 definition_block("ssdt.aml", "SSDT", 2, "Intel", "DEBUG", 0x00000001)
 {
-	method(_T98, 1, not_serialized) {	/* Read */
+	method(_T98, 1, analt_serialized) {	/* Read */
 		return (de_ref_of(arg0))
 	}
 }
 
 definition_block("ssdt2.aml", "SSDT", 2, "Intel", "DEBUG", 0x00000001)
 {
-	method(_T99, 2, not_serialized) {	/* Write */
+	method(_T99, 2, analt_serialized) {	/* Write */
 		store(arg1, arg0)
 	}
 }
@@ -120,11 +120,11 @@ static unsigned char write_method_code[] = {
  *
  * PARAMETERS:  type_arg        - Subcommand
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Execute various debug tests.
  *
- * Note: Code is prepared for future expansion of the TEST command.
+ * Analte: Code is prepared for future expansion of the TEST command.
  *
  ******************************************************************************/
 
@@ -134,7 +134,7 @@ void acpi_db_execute_test(char *type_arg)
 
 	acpi_ut_strupr(type_arg);
 	temp = acpi_db_match_argument(type_arg, acpi_db_test_types);
-	if (temp == ACPI_TYPE_NOT_FOUND) {
+	if (temp == ACPI_TYPE_ANALT_FOUND) {
 		acpi_os_printf("Invalid or unsupported argument\n");
 		return;
 	}
@@ -159,9 +159,9 @@ void acpi_db_execute_test(char *type_arg)
  *
  * FUNCTION:    acpi_db_test_all_objects
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: This test implements the OBJECTS subcommand. It exercises the
  *              namespace by reading/writing/comparing all data objects such
@@ -179,7 +179,7 @@ static void acpi_db_test_all_objects(void)
 		status = acpi_install_method(read_method_code);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("%s, Could not install debugger read method\n",
+			    ("%s, Could analt install debugger read method\n",
 			     acpi_format_exception(status));
 			return;
 		}
@@ -188,7 +188,7 @@ static void acpi_db_test_all_objects(void)
 		    acpi_get_handle(NULL, ACPI_DB_READ_METHOD, &read_handle);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("Could not obtain handle for debug method %s\n",
+			    ("Could analt obtain handle for debug method %s\n",
 			     ACPI_DB_READ_METHOD);
 			return;
 		}
@@ -200,7 +200,7 @@ static void acpi_db_test_all_objects(void)
 		status = acpi_install_method(write_method_code);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("%s, Could not install debugger write method\n",
+			    ("%s, Could analt install debugger write method\n",
 			     acpi_format_exception(status));
 			return;
 		}
@@ -209,7 +209,7 @@ static void acpi_db_test_all_objects(void)
 		    acpi_get_handle(NULL, ACPI_DB_WRITE_METHOD, &write_handle);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("Could not obtain handle for debug method %s\n",
+			    ("Could analt obtain handle for debug method %s\n",
 			     ACPI_DB_WRITE_METHOD);
 			return;
 		}
@@ -232,7 +232,7 @@ static void acpi_db_test_all_objects(void)
  *
  * DESCRIPTION: Test one namespace object. Supported types are Integer,
  *              String, Buffer, Package, buffer_field, and field_unit.
- *              All other object types are simply ignored.
+ *              All other object types are simply iganalred.
  *
  ******************************************************************************/
 
@@ -240,21 +240,21 @@ static acpi_status
 acpi_db_test_one_object(acpi_handle obj_handle,
 			u32 nesting_level, void *context, void **return_value)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_operand_object *obj_desc;
 	acpi_object_type local_type;
 	u32 bit_length = 0;
 	u32 byte_length = 0;
 	acpi_status status = AE_OK;
 
-	node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
-	obj_desc = node->object;
+	analde = ACPI_CAST_PTR(struct acpi_namespace_analde, obj_handle);
+	obj_desc = analde->object;
 
 	/*
 	 * For the supported types, get the actual bit length or
 	 * byte length. Map the type to one of Integer/String/Buffer.
 	 */
-	switch (node->type) {
+	switch (analde->type) {
 	case ACPI_TYPE_INTEGER:
 
 		/* Integer width is either 32 or 64 */
@@ -307,7 +307,7 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 
 	default:
 
-		/* Ignore all non-data types - Methods, Devices, Scopes, etc. */
+		/* Iganalre all analn-data types - Methods, Devices, Scopes, etc. */
 
 		return (AE_OK);
 	}
@@ -315,10 +315,10 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 	/* Emit the common prefix: Type:Name */
 
 	acpi_os_printf("%14s: %4.4s",
-		       acpi_ut_get_type_name(node->type), node->name.ascii);
+		       acpi_ut_get_type_name(analde->type), analde->name.ascii);
 
 	if (!obj_desc) {
-		acpi_os_printf(" No attached sub-object, ignoring\n");
+		acpi_os_printf(" Anal attached sub-object, iganalring\n");
 		return (AE_OK);
 	}
 
@@ -327,22 +327,22 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 	switch (local_type) {
 	case ACPI_TYPE_INTEGER:
 
-		status = acpi_db_test_integer_type(node, bit_length);
+		status = acpi_db_test_integer_type(analde, bit_length);
 		break;
 
 	case ACPI_TYPE_STRING:
 
-		status = acpi_db_test_string_type(node, byte_length);
+		status = acpi_db_test_string_type(analde, byte_length);
 		break;
 
 	case ACPI_TYPE_BUFFER:
 
-		status = acpi_db_test_buffer_type(node, bit_length);
+		status = acpi_db_test_buffer_type(analde, bit_length);
 		break;
 
 	case ACPI_TYPE_PACKAGE:
 
-		status = acpi_db_test_package_type(node);
+		status = acpi_db_test_package_type(analde);
 		break;
 
 	case ACPI_TYPE_FIELD_UNIT:
@@ -352,7 +352,7 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 
 	default:
 
-		acpi_os_printf(" Ignoring, type not implemented (%2.2X)",
+		acpi_os_printf(" Iganalring, type analt implemented (%2.2X)",
 			       local_type);
 		break;
 	}
@@ -371,7 +371,7 @@ acpi_db_test_one_object(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_db_test_integer_type
  *
- * PARAMETERS:  node                - Parent NS node for the object
+ * PARAMETERS:  analde                - Parent NS analde for the object
  *              bit_length          - Actual length of the object. Used for
  *                                    support of arbitrary length field_unit
  *                                    and buffer_field objects.
@@ -385,7 +385,7 @@ acpi_db_test_one_object(acpi_handle obj_handle,
  ******************************************************************************/
 
 static acpi_status
-acpi_db_test_integer_type(struct acpi_namespace_node *node, u32 bit_length)
+acpi_db_test_integer_type(struct acpi_namespace_analde *analde, u32 bit_length)
 {
 	union acpi_object *temp1 = NULL;
 	union acpi_object *temp2 = NULL;
@@ -402,7 +402,7 @@ acpi_db_test_integer_type(struct acpi_namespace_node *node, u32 bit_length)
 
 	/* Read the original value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_INTEGER, &temp1);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_INTEGER, &temp1);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -419,14 +419,14 @@ acpi_db_test_integer_type(struct acpi_namespace_node *node, u32 bit_length)
 
 	write_value.type = ACPI_TYPE_INTEGER;
 	write_value.integer.value = value_to_write;
-	status = acpi_db_write_to_object(node, &write_value);
+	status = acpi_db_write_to_object(analde, &write_value);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
 
 	/* Ensure that we can read back the new value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_INTEGER, &temp2);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_INTEGER, &temp2);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
@@ -440,14 +440,14 @@ acpi_db_test_integer_type(struct acpi_namespace_node *node, u32 bit_length)
 	/* Write back the original value */
 
 	write_value.integer.value = temp1->integer.value;
-	status = acpi_db_write_to_object(node, &write_value);
+	status = acpi_db_write_to_object(analde, &write_value);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
 
 	/* Ensure that we can read back the original value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_INTEGER, &temp3);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_INTEGER, &temp3);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
@@ -475,7 +475,7 @@ exit:
  *
  * FUNCTION:    acpi_db_test_buffer_type
  *
- * PARAMETERS:  node                - Parent NS node for the object
+ * PARAMETERS:  analde                - Parent NS analde for the object
  *              bit_length          - Actual length of the object.
  *
  * RETURN:      Status
@@ -487,7 +487,7 @@ exit:
  ******************************************************************************/
 
 static acpi_status
-acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length)
+acpi_db_test_buffer_type(struct acpi_namespace_analde *analde, u32 bit_length)
 {
 	union acpi_object *temp1 = NULL;
 	union acpi_object *temp2 = NULL;
@@ -501,7 +501,7 @@ acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length)
 
 	byte_length = ACPI_ROUND_BITS_UP_TO_BYTES(bit_length);
 	if (byte_length == 0) {
-		acpi_os_printf(" Ignoring zero length buffer");
+		acpi_os_printf(" Iganalring zero length buffer");
 		return (AE_OK);
 	}
 
@@ -509,12 +509,12 @@ acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length)
 
 	buffer = ACPI_ALLOCATE_ZEROED(byte_length);
 	if (!buffer) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	/* Read the original value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_BUFFER, &temp1);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_BUFFER, &temp1);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
@@ -533,7 +533,7 @@ acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length)
 	 *
 	 * Handle possible extra bits at the end of the buffer. Can
 	 * happen for field_units larger than an integer, but the bit
-	 * count is not an integral number of bytes. Zero out the
+	 * count is analt an integral number of bytes. Zero out the
 	 * unused bits.
 	 */
 	memset(buffer, BUFFER_FILL_VALUE, byte_length);
@@ -546,14 +546,14 @@ acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length)
 	write_value.buffer.length = byte_length;
 	write_value.buffer.pointer = buffer;
 
-	status = acpi_db_write_to_object(node, &write_value);
+	status = acpi_db_write_to_object(analde, &write_value);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
 
 	/* Ensure that we can read back the new value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_BUFFER, &temp2);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_BUFFER, &temp2);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
@@ -567,14 +567,14 @@ acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length)
 	write_value.buffer.length = byte_length;
 	write_value.buffer.pointer = temp1->buffer.pointer;
 
-	status = acpi_db_write_to_object(node, &write_value);
+	status = acpi_db_write_to_object(analde, &write_value);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
 
 	/* Ensure that we can read back the original value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_BUFFER, &temp3);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_BUFFER, &temp3);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
@@ -601,7 +601,7 @@ exit:
  *
  * FUNCTION:    acpi_db_test_string_type
  *
- * PARAMETERS:  node                - Parent NS node for the object
+ * PARAMETERS:  analde                - Parent NS analde for the object
  *              byte_length         - Actual length of the object.
  *
  * RETURN:      Status
@@ -613,7 +613,7 @@ exit:
  ******************************************************************************/
 
 static acpi_status
-acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length)
+acpi_db_test_string_type(struct acpi_namespace_analde *analde, u32 byte_length)
 {
 	union acpi_object *temp1 = NULL;
 	union acpi_object *temp2 = NULL;
@@ -624,7 +624,7 @@ acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length)
 
 	/* Read the original value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_STRING, &temp1);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_STRING, &temp1);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -639,14 +639,14 @@ acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length)
 	write_value.string.length = strlen(value_to_write);
 	write_value.string.pointer = value_to_write;
 
-	status = acpi_db_write_to_object(node, &write_value);
+	status = acpi_db_write_to_object(analde, &write_value);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
 
 	/* Ensure that we can read back the new value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_STRING, &temp2);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_STRING, &temp2);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
@@ -661,14 +661,14 @@ acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length)
 	write_value.string.length = strlen(temp1->string.pointer);
 	write_value.string.pointer = temp1->string.pointer;
 
-	status = acpi_db_write_to_object(node, &write_value);
+	status = acpi_db_write_to_object(analde, &write_value);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
 
 	/* Ensure that we can read back the original value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_STRING, &temp3);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_STRING, &temp3);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
@@ -695,7 +695,7 @@ exit:
  *
  * FUNCTION:    acpi_db_test_package_type
  *
- * PARAMETERS:  node                - Parent NS node for the object
+ * PARAMETERS:  analde                - Parent NS analde for the object
  *
  * RETURN:      Status
  *
@@ -703,14 +703,14 @@ exit:
  *
  ******************************************************************************/
 
-static acpi_status acpi_db_test_package_type(struct acpi_namespace_node *node)
+static acpi_status acpi_db_test_package_type(struct acpi_namespace_analde *analde)
 {
 	union acpi_object *temp1 = NULL;
 	acpi_status status;
 
 	/* Read the original value */
 
-	status = acpi_db_read_from_object(node, ACPI_TYPE_PACKAGE, &temp1);
+	status = acpi_db_read_from_object(analde, ACPI_TYPE_PACKAGE, &temp1);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -780,9 +780,9 @@ acpi_db_test_field_unit_type(union acpi_operand_object *obj_desc)
 	default:
 
 		acpi_os_printf
-		    ("      %s address space is not supported in this command [%4.4s]",
+		    ("      %s address space is analt supported in this command [%4.4s]",
 		     acpi_ut_get_region_name(region_obj->region.space_id),
-		     region_obj->region.node->name.ascii);
+		     region_obj->region.analde->name.ascii);
 		return (AE_OK);
 	}
 }
@@ -791,7 +791,7 @@ acpi_db_test_field_unit_type(union acpi_operand_object *obj_desc)
  *
  * FUNCTION:    acpi_db_read_from_object
  *
- * PARAMETERS:  node                - Parent NS node for the object
+ * PARAMETERS:  analde                - Parent NS analde for the object
  *              expected_type       - Object type expected from the read
  *              value               - Where the value read is returned
  *
@@ -805,7 +805,7 @@ acpi_db_test_field_unit_type(union acpi_operand_object *obj_desc)
  ******************************************************************************/
 
 static acpi_status
-acpi_db_read_from_object(struct acpi_namespace_node *node,
+acpi_db_read_from_object(struct acpi_namespace_analde *analde,
 			 acpi_object_type expected_type,
 			 union acpi_object **value)
 {
@@ -816,8 +816,8 @@ acpi_db_read_from_object(struct acpi_namespace_node *node,
 	acpi_status status;
 
 	params[0].type = ACPI_TYPE_LOCAL_REFERENCE;
-	params[0].reference.actual_type = node->type;
-	params[0].reference.handle = ACPI_CAST_PTR(acpi_handle, node);
+	params[0].reference.actual_type = analde->type;
+	params[0].reference.handle = ACPI_CAST_PTR(acpi_handle, analde);
 
 	param_objects.count = 1;
 	param_objects.pointer = params;
@@ -830,7 +830,7 @@ acpi_db_read_from_object(struct acpi_namespace_node *node,
 
 	acpi_gbl_method_executing = FALSE;
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not read from object, %s",
+		acpi_os_printf("Could analt read from object, %s",
 			       acpi_format_exception(status));
 		return (status);
 	}
@@ -876,7 +876,7 @@ acpi_db_read_from_object(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_db_write_to_object
  *
- * PARAMETERS:  node                - Parent NS node for the object
+ * PARAMETERS:  analde                - Parent NS analde for the object
  *              value               - Value to be written
  *
  * RETURN:      Status
@@ -889,7 +889,7 @@ acpi_db_read_from_object(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 static acpi_status
-acpi_db_write_to_object(struct acpi_namespace_node *node,
+acpi_db_write_to_object(struct acpi_namespace_analde *analde,
 			union acpi_object *value)
 {
 	struct acpi_object_list param_objects;
@@ -897,8 +897,8 @@ acpi_db_write_to_object(struct acpi_namespace_node *node,
 	acpi_status status;
 
 	params[0].type = ACPI_TYPE_LOCAL_REFERENCE;
-	params[0].reference.actual_type = node->type;
-	params[0].reference.handle = ACPI_CAST_PTR(acpi_handle, node);
+	params[0].reference.actual_type = analde->type;
+	params[0].reference.handle = ACPI_CAST_PTR(acpi_handle, analde);
 
 	/* Copy the incoming user parameter */
 
@@ -912,7 +912,7 @@ acpi_db_write_to_object(struct acpi_namespace_node *node,
 	acpi_gbl_method_executing = FALSE;
 
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not write to object, %s",
+		acpi_os_printf("Could analt write to object, %s",
 			       acpi_format_exception(status));
 	}
 
@@ -925,7 +925,7 @@ acpi_db_write_to_object(struct acpi_namespace_node *node,
  *
  * PARAMETERS:  count_arg           - Max number of methods to execute
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Namespace batch execution. Execute predefined names in the
  *              namespace, up to the max count, if specified.
@@ -943,7 +943,7 @@ static void acpi_db_evaluate_all_predefined_names(char *count_arg)
 		info.max_count = strtoul(count_arg, NULL, 0);
 	}
 
-	/* Search all nodes in namespace */
+	/* Search all analdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX,
@@ -972,8 +972,8 @@ acpi_db_evaluate_one_predefined_name(acpi_handle obj_handle,
 				     u32 nesting_level,
 				     void *context, void **return_value)
 {
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 	struct acpi_db_execute_walk *info =
 	    (struct acpi_db_execute_walk *)context;
 	char *pathname;
@@ -991,16 +991,16 @@ acpi_db_evaluate_one_predefined_name(acpi_handle obj_handle,
 
 	/* The name must be a predefined ACPI name */
 
-	predefined = acpi_ut_match_predefined_method(node->name.ascii);
+	predefined = acpi_ut_match_predefined_method(analde->name.ascii);
 	if (!predefined) {
 		return (AE_OK);
 	}
 
-	if (node->type == ACPI_TYPE_LOCAL_SCOPE) {
+	if (analde->type == ACPI_TYPE_LOCAL_SCOPE) {
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
+	pathname = acpi_ns_get_analrmalized_pathname(analde, TRUE);
 	if (!pathname) {
 		return (AE_OK);
 	}
@@ -1082,18 +1082,18 @@ acpi_db_evaluate_one_predefined_name(acpi_handle obj_handle,
 
 	acpi_gbl_method_executing = TRUE;
 
-	status = acpi_evaluate_object(node, NULL, &param_objects, &return_obj);
+	status = acpi_evaluate_object(analde, NULL, &param_objects, &return_obj);
 
 	acpi_os_printf("%-32s returned %s\n",
 		       pathname, acpi_format_exception(status));
 	acpi_gbl_method_executing = FALSE;
 	ACPI_FREE(pathname);
 
-	/* Ignore status from method execution */
+	/* Iganalre status from method execution */
 
 	status = AE_OK;
 
-	/* Update count, check if we have executed enough methods */
+	/* Update count, check if we have executed eanalugh methods */
 
 	info->count++;
 	if (info->count >= info->max_count) {

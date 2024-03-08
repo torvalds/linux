@@ -35,7 +35,7 @@ struct nilfs_segment_buffer *nilfs_segbuf_new(struct super_block *sb)
 {
 	struct nilfs_segment_buffer *segbuf;
 
-	segbuf = kmem_cache_alloc(nilfs_segbuf_cachep, GFP_NOFS);
+	segbuf = kmem_cache_alloc(nilfs_segbuf_cachep, GFP_ANALFS);
 	if (unlikely(!segbuf))
 		return NULL;
 
@@ -99,7 +99,7 @@ int nilfs_segbuf_extend_segsum(struct nilfs_segment_buffer *segbuf)
 	bh = sb_getblk(segbuf->sb_super,
 		       segbuf->sb_pseg_start + segbuf->sb_sum.nsumblk);
 	if (unlikely(!bh))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lock_buffer(bh);
 	if (!buffer_uptodate(bh)) {
@@ -119,7 +119,7 @@ int nilfs_segbuf_extend_payload(struct nilfs_segment_buffer *segbuf,
 	bh = sb_getblk(segbuf->sb_super,
 		       segbuf->sb_pseg_start + segbuf->sb_sum.nblocks);
 	if (unlikely(!bh))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nilfs_segbuf_add_payload_buffer(segbuf, bh);
 	*bhp = bh;
@@ -127,7 +127,7 @@ int nilfs_segbuf_extend_payload(struct nilfs_segment_buffer *segbuf,
 }
 
 int nilfs_segbuf_reset(struct nilfs_segment_buffer *segbuf, unsigned int flags,
-		       time64_t ctime, __u64 cno)
+		       time64_t ctime, __u64 canal)
 {
 	int err;
 
@@ -140,7 +140,7 @@ int nilfs_segbuf_reset(struct nilfs_segment_buffer *segbuf, unsigned int flags,
 	segbuf->sb_sum.sumbytes = sizeof(struct nilfs_segment_summary);
 	segbuf->sb_sum.nfinfo = segbuf->sb_sum.nfileblk = 0;
 	segbuf->sb_sum.ctime = ctime;
-	segbuf->sb_sum.cno = cno;
+	segbuf->sb_sum.canal = canal;
 	return 0;
 }
 
@@ -166,7 +166,7 @@ void nilfs_segbuf_fill_in_segsum(struct nilfs_segment_buffer *segbuf)
 	raw_sum->ss_nfinfo   = cpu_to_le32(segbuf->sb_sum.nfinfo);
 	raw_sum->ss_sumbytes = cpu_to_le32(segbuf->sb_sum.sumbytes);
 	raw_sum->ss_pad      = 0;
-	raw_sum->ss_cno      = cpu_to_le64(segbuf->sb_sum.cno);
+	raw_sum->ss_canal      = cpu_to_le64(segbuf->sb_sum.canal);
 }
 
 /*
@@ -237,7 +237,7 @@ nilfs_segbuf_fill_in_super_root_crc(struct nilfs_segment_buffer *segbuf,
 	u32 crc;
 
 	raw_sr = (struct nilfs_super_root *)segbuf->sb_super_root->b_data;
-	srsize = NILFS_SR_BYTES(nilfs->ns_inode_size);
+	srsize = NILFS_SR_BYTES(nilfs->ns_ianalde_size);
 	crc = crc32_le(seed,
 		       (unsigned char *)raw_sr + sizeof(raw_sr->sr_sum),
 		       srsize - sizeof(raw_sr->sr_sum));
@@ -380,7 +380,7 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
  repeat:
 	if (!wi->bio) {
 		wi->bio = bio_alloc(wi->nilfs->ns_bdev, wi->nr_vecs,
-				    REQ_OP_WRITE, GFP_NOIO);
+				    REQ_OP_WRITE, GFP_ANALIO);
 		wi->bio->bi_iter.bi_sector = (wi->blocknr + wi->end) <<
 			(wi->nilfs->ns_blocksize_bits - 9);
 	}
@@ -408,7 +408,7 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
  *
  * %-EIO - I/O error
  *
- * %-ENOMEM - Insufficient memory available.
+ * %-EANALMEM - Insufficient memory available.
  */
 static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
 			      struct the_nilfs *nilfs)

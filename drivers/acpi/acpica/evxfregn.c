@@ -33,7 +33,7 @@ ACPI_MODULE_NAME("evxfregn")
  *
  * DESCRIPTION: Install a handler for all op_regions of a given space_id.
  *
- * NOTE: This function should only be called after acpi_enable_subsystem has
+ * ANALTE: This function should only be called after acpi_enable_subsystem has
  * been called. This is because any _REG methods associated with the Space ID
  * are executed here, and these methods can only be safely executed after
  * the default handlers have been installed and the hardware has been
@@ -49,7 +49,7 @@ acpi_install_address_space_handler_internal(acpi_handle device,
 					    acpi_adr_space_setup setup,
 					    void *context, u8 run_reg)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_install_address_space_handler);
@@ -67,8 +67,8 @@ acpi_install_address_space_handler_internal(acpi_handle device,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_validate_handle(device);
-	if (!node) {
+	analde = acpi_ns_validate_handle(device);
+	if (!analde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
@@ -76,7 +76,7 @@ acpi_install_address_space_handler_internal(acpi_handle device,
 	/* Install the handler for all Regions for this Space ID */
 
 	status =
-	    acpi_ev_install_space_handler(node, space_id, handler, setup,
+	    acpi_ev_install_space_handler(analde, space_id, handler, setup,
 					  context);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
@@ -85,7 +85,7 @@ acpi_install_address_space_handler_internal(acpi_handle device,
 	/* Run all _REG methods for this address space */
 
 	if (run_reg) {
-		acpi_ev_execute_reg_methods(node, space_id, ACPI_REG_CONNECT);
+		acpi_ev_execute_reg_methods(analde, space_id, ACPI_REG_CONNECT);
 	}
 
 unlock_and_exit:
@@ -106,7 +106,7 @@ acpi_install_address_space_handler(acpi_handle device,
 
 ACPI_EXPORT_SYMBOL(acpi_install_address_space_handler)
 acpi_status
-acpi_install_address_space_handler_no_reg(acpi_handle device,
+acpi_install_address_space_handler_anal_reg(acpi_handle device,
 					  acpi_adr_space_type space_id,
 					  acpi_adr_space_handler handler,
 					  acpi_adr_space_setup setup,
@@ -117,7 +117,7 @@ acpi_install_address_space_handler_no_reg(acpi_handle device,
 							   context, FALSE);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_install_address_space_handler_no_reg)
+ACPI_EXPORT_SYMBOL(acpi_install_address_space_handler_anal_reg)
 
 /*******************************************************************************
  *
@@ -141,7 +141,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 	union acpi_operand_object *handler_obj;
 	union acpi_operand_object *region_obj;
 	union acpi_operand_object **last_obj_ptr;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_remove_address_space_handler);
@@ -159,28 +159,28 @@ acpi_remove_address_space_handler(acpi_handle device,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_validate_handle(device);
-	if (!node ||
-	    ((node->type != ACPI_TYPE_DEVICE) &&
-	     (node->type != ACPI_TYPE_PROCESSOR) &&
-	     (node->type != ACPI_TYPE_THERMAL) &&
-	     (node != acpi_gbl_root_node))) {
+	analde = acpi_ns_validate_handle(device);
+	if (!analde ||
+	    ((analde->type != ACPI_TYPE_DEVICE) &&
+	     (analde->type != ACPI_TYPE_PROCESSOR) &&
+	     (analde->type != ACPI_TYPE_THERMAL) &&
+	     (analde != acpi_gbl_root_analde))) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
 	/* Make sure the internal object exists */
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (!obj_desc) {
-		status = AE_NOT_EXIST;
+		status = AE_ANALT_EXIST;
 		goto unlock_and_exit;
 	}
 
 	/* Find the address handler the user requested */
 
-	handler_obj = obj_desc->common_notify.handler;
-	last_obj_ptr = &obj_desc->common_notify.handler;
+	handler_obj = obj_desc->common_analtify.handler;
+	last_obj_ptr = &obj_desc->common_analtify.handler;
 	while (handler_obj) {
 
 		/* We have a handler, see if user requested this one */
@@ -201,7 +201,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 					  "on Device %p(%p)\n",
 					  handler_obj, handler,
 					  acpi_ut_get_region_name(space_id),
-					  node, obj_desc));
+					  analde, obj_desc));
 
 			region_obj = handler_obj->address_space.region_list;
 
@@ -211,7 +211,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 				/*
 				 * First disassociate the handler from the region.
 				 *
-				 * NOTE: this doesn't mean that the region goes away
+				 * ANALTE: this doesn't mean that the region goes away
 				 * The region is just inaccessible as indicated to
 				 * the _REG method
 				 */
@@ -229,7 +229,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 
 			*last_obj_ptr = handler_obj->address_space.next;
 
-			/* Now we can delete the handler object */
+			/* Analw we can delete the handler object */
 
 			acpi_os_release_mutex(handler_obj->address_space.
 					      context_mutex);
@@ -243,14 +243,14 @@ acpi_remove_address_space_handler(acpi_handle device,
 		handler_obj = handler_obj->address_space.next;
 	}
 
-	/* The handler does not exist */
+	/* The handler does analt exist */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-			  "Unable to remove address handler %p for %s(%X), DevNode %p, obj %p\n",
+			  "Unable to remove address handler %p for %s(%X), DevAnalde %p, obj %p\n",
 			  handler, acpi_ut_get_region_name(space_id), space_id,
-			  node, obj_desc));
+			  analde, obj_desc));
 
-	status = AE_NOT_EXIST;
+	status = AE_ANALT_EXIST;
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
@@ -273,7 +273,7 @@ ACPI_EXPORT_SYMBOL(acpi_remove_address_space_handler)
 acpi_status
 acpi_execute_reg_methods(acpi_handle device, acpi_adr_space_type space_id)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_execute_reg_methods);
@@ -291,12 +291,12 @@ acpi_execute_reg_methods(acpi_handle device, acpi_adr_space_type space_id)
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_validate_handle(device);
-	if (node) {
+	analde = acpi_ns_validate_handle(device);
+	if (analde) {
 
 		/* Run all _REG methods for this address space */
 
-		acpi_ev_execute_reg_methods(node, space_id, ACPI_REG_CONNECT);
+		acpi_ev_execute_reg_methods(analde, space_id, ACPI_REG_CONNECT);
 	} else {
 		status = AE_BAD_PARAMETER;
 	}

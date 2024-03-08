@@ -190,7 +190,7 @@ int test_user_ringbuf(void *ctx)
 }
 
 static long
-do_nothing_cb(struct bpf_dynptr *dynptr, void *context)
+do_analthing_cb(struct bpf_dynptr *dynptr, void *context)
 {
 	__sync_fetch_and_add(&read, 1);
 	return 0;
@@ -204,7 +204,7 @@ int test_user_ringbuf_epoll(void *ctx)
 	if (!is_test_process())
 		return 0;
 
-	num_samples = bpf_user_ringbuf_drain(&user_ringbuf, do_nothing_cb, NULL, 0);
+	num_samples = bpf_user_ringbuf_drain(&user_ringbuf, do_analthing_cb, NULL, 0);
 	if (num_samples <= 0)
 		err = 1;
 

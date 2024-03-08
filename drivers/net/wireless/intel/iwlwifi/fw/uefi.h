@@ -42,7 +42,7 @@ struct uefi_cnv_common_step_data {
 } __packed;
 
 /*
- * This is known to be broken on v4.19 and to work on v5.4.  Until we
+ * This is kanalwn to be broken on v4.19 and to work on v5.4.  Until we
  * figure out why this is the case and how to make it work, simply
  * disable the feature in old kernels.
  */
@@ -58,7 +58,7 @@ int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline int
@@ -66,13 +66,13 @@ iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 			    const u8 *data, size_t len,
 			    struct iwl_pnvm_image *pnvm_data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline u8 *
 iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void iwl_uefi_get_step_table(struct iwl_trans *trans)

@@ -10,7 +10,7 @@
  *	Ben Dooks <ben@simtec.co.uk>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/altera.h>

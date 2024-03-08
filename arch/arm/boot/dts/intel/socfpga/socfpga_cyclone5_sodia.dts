@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2016 Nobuhiro Iwamatsu <iwamatsu@nigauri.org>
+ * Copyright (C) 2016 Analbuhiro Iwamatsu <iwamatsu@nigauri.org>
  */
 
 #include "socfpga_cyclone5.dtsi"
@@ -116,7 +116,7 @@
 	flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q512a", "jedec,spi-nor";
+		compatible = "micron,n25q512a", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <100000000>;
 

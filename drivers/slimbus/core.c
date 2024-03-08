@@ -4,7 +4,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/idr.h>
@@ -151,7 +151,7 @@ static void slim_dev_release(struct device *dev)
 
 static int slim_add_device(struct slim_controller *ctrl,
 			   struct slim_device *sbdev,
-			   struct device_node *node)
+			   struct device_analde *analde)
 {
 	sbdev->dev.bus = &slimbus_bus;
 	sbdev->dev.parent = ctrl->dev;
@@ -160,8 +160,8 @@ static int slim_add_device(struct slim_controller *ctrl,
 	sbdev->ctrl = ctrl;
 	INIT_LIST_HEAD(&sbdev->stream_list);
 	spin_lock_init(&sbdev->stream_list_lock);
-	sbdev->dev.of_node = of_node_get(node);
-	sbdev->dev.fwnode = of_fwnode_handle(node);
+	sbdev->dev.of_analde = of_analde_get(analde);
+	sbdev->dev.fwanalde = of_fwanalde_handle(analde);
 
 	dev_set_name(&sbdev->dev, "%x:%x:%x:%x",
 				  sbdev->e_addr.manf_id,
@@ -174,7 +174,7 @@ static int slim_add_device(struct slim_controller *ctrl,
 
 static struct slim_device *slim_alloc_device(struct slim_controller *ctrl,
 					     struct slim_eaddr *eaddr,
-					     struct device_node *node)
+					     struct device_analde *analde)
 {
 	struct slim_device *sbdev;
 	int ret;
@@ -184,7 +184,7 @@ static struct slim_device *slim_alloc_device(struct slim_controller *ctrl,
 		return NULL;
 
 	sbdev->e_addr = *eaddr;
-	ret = slim_add_device(ctrl, sbdev, node);
+	ret = slim_add_device(ctrl, sbdev, analde);
 	if (ret) {
 		put_device(&sbdev->dev);
 		return NULL;
@@ -196,32 +196,32 @@ static struct slim_device *slim_alloc_device(struct slim_controller *ctrl,
 static void of_register_slim_devices(struct slim_controller *ctrl)
 {
 	struct device *dev = ctrl->dev;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	if (!ctrl->dev->of_node)
+	if (!ctrl->dev->of_analde)
 		return;
 
-	for_each_child_of_node(ctrl->dev->of_node, node) {
+	for_each_child_of_analde(ctrl->dev->of_analde, analde) {
 		struct slim_device *sbdev;
 		struct slim_eaddr e_addr;
 		const char *compat = NULL;
 		int reg[2], ret;
 		int manf_id, prod_code;
 
-		compat = of_get_property(node, "compatible", NULL);
+		compat = of_get_property(analde, "compatible", NULL);
 		if (!compat)
 			continue;
 
 		ret = sscanf(compat, "slim%x,%x", &manf_id, &prod_code);
 		if (ret != 2) {
-			dev_err(dev, "Manf ID & Product code not found %s\n",
+			dev_err(dev, "Manf ID & Product code analt found %s\n",
 				compat);
 			continue;
 		}
 
-		ret = of_property_read_u32_array(node, "reg", reg, 2);
+		ret = of_property_read_u32_array(analde, "reg", reg, 2);
 		if (ret) {
-			dev_err(dev, "Device and Instance id not found:%d\n",
+			dev_err(dev, "Device and Instance id analt found:%d\n",
 				ret);
 			continue;
 		}
@@ -231,7 +231,7 @@ static void of_register_slim_devices(struct slim_controller *ctrl)
 		e_addr.manf_id = manf_id;
 		e_addr.prod_code = prod_code;
 
-		sbdev = slim_alloc_device(ctrl, &e_addr, node);
+		sbdev = slim_alloc_device(ctrl, &e_addr, analde);
 		if (!sbdev)
 			continue;
 	}
@@ -280,7 +280,7 @@ EXPORT_SYMBOL_GPL(slim_register_controller);
 /* slim_remove_device: Remove the effect of slim_add_device() */
 static void slim_remove_device(struct slim_device *sbdev)
 {
-	of_node_put(sbdev->dev.of_node);
+	of_analde_put(sbdev->dev.of_analde);
 	device_unregister(&sbdev->dev);
 }
 
@@ -307,9 +307,9 @@ EXPORT_SYMBOL_GPL(slim_unregister_controller);
 
 /**
  * slim_report_absent() - Controller calls this function when a device
- *	reports absent, OR when the device cannot be communicated with
+ *	reports absent, OR when the device cananalt be communicated with
  *
- * @sbdev: Device that cannot be reached, or sent report absent
+ * @sbdev: Device that cananalt be reached, or sent report absent
  */
 void slim_report_absent(struct slim_device *sbdev)
 {
@@ -366,7 +366,7 @@ static struct slim_device *find_slim_device(struct slim_controller *ctrl,
  * @e_addr: Enumeration address of the device to be queried
  *
  * Return: pointer to a device if it has already reported. Creates a new
- * device and returns pointer to it if the device has not yet enumerated.
+ * device and returns pointer to it if the device has analt yet enumerated.
  */
 struct slim_device *slim_get_device(struct slim_controller *ctrl,
 				    struct slim_eaddr *e_addr)
@@ -377,7 +377,7 @@ struct slim_device *slim_get_device(struct slim_controller *ctrl,
 	if (!sbdev) {
 		sbdev = slim_alloc_device(ctrl, e_addr, NULL);
 		if (!sbdev)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	return sbdev;
@@ -386,14 +386,14 @@ EXPORT_SYMBOL_GPL(slim_get_device);
 
 static int of_slim_match_dev(struct device *dev, void *data)
 {
-	struct device_node *np = data;
+	struct device_analde *np = data;
 	struct slim_device *sbdev = to_slim_device(dev);
 
-	return (sbdev->dev.of_node == np);
+	return (sbdev->dev.of_analde == np);
 }
 
 static struct slim_device *of_find_slim_device(struct slim_controller *ctrl,
-					       struct device_node *np)
+					       struct device_analde *np)
 {
 	struct slim_device *sbdev;
 	struct device *dev;
@@ -408,16 +408,16 @@ static struct slim_device *of_find_slim_device(struct slim_controller *ctrl,
 }
 
 /**
- * of_slim_get_device() - get handle to a device using dt node.
+ * of_slim_get_device() - get handle to a device using dt analde.
  *
  * @ctrl: Controller on which this device will be added/queried
- * @np: node pointer to device
+ * @np: analde pointer to device
  *
  * Return: pointer to a device if it has already reported. Creates a new
- * device and returns pointer to it if the device has not yet enumerated.
+ * device and returns pointer to it if the device has analt yet enumerated.
  */
 struct slim_device *of_slim_get_device(struct slim_controller *ctrl,
-				       struct device_node *np)
+				       struct device_analde *np)
 {
 	return of_find_slim_device(ctrl, np);
 }
@@ -494,14 +494,14 @@ int slim_device_report_present(struct slim_controller *ctrl,
 	ret = pm_runtime_get_sync(ctrl->dev);
 
 	if (ctrl->sched.clk_state != SLIM_CLK_ACTIVE) {
-		dev_err(ctrl->dev, "slim ctrl not active,state:%d, ret:%d\n",
+		dev_err(ctrl->dev, "slim ctrl analt active,state:%d, ret:%d\n",
 				    ctrl->sched.clk_state, ret);
-		goto slimbus_not_active;
+		goto slimbus_analt_active;
 	}
 
 	sbdev = slim_get_device(ctrl, e_addr);
 	if (IS_ERR(sbdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (sbdev->is_laddr_valid) {
 		*laddr = sbdev->laddr;
@@ -510,7 +510,7 @@ int slim_device_report_present(struct slim_controller *ctrl,
 
 	ret = slim_device_alloc_laddr(sbdev, true);
 
-slimbus_not_active:
+slimbus_analt_active:
 	pm_runtime_mark_last_busy(ctrl->dev);
 	pm_runtime_put_autosuspend(ctrl->dev);
 	return ret;

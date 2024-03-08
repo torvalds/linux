@@ -9,9 +9,9 @@ LIBBPF_VERSION := $(shell \
 	grep -oE '^LIBBPF_([0-9.]+)' $(VERSION_SCRIPT) | \
 	sort -rV | head -n1 | cut -d'_' -f2)
 LIBBPF_MAJOR_VERSION := $(word 1,$(subst ., ,$(LIBBPF_VERSION)))
-LIBBPF_MINOR_VERSION := $(word 2,$(subst ., ,$(LIBBPF_VERSION)))
+LIBBPF_MIANALR_VERSION := $(word 2,$(subst ., ,$(LIBBPF_VERSION)))
 
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --anal-print-directory
 
 # This will work when bpf is built in tools env. where srctree
 # isn't set and when invoked from selftests build, where srctree
@@ -85,7 +85,7 @@ endif
 
 # Append required CFLAGS
 override CFLAGS += -std=gnu89
-override CFLAGS += $(EXTRA_WARNINGS) -Wno-switch-enum
+override CFLAGS += $(EXTRA_WARNINGS) -Wanal-switch-enum
 override CFLAGS += -Werror -Wall
 override CFLAGS += $(INCLUDES)
 override CFLAGS += -fvisibility=hidden
@@ -183,7 +183,7 @@ check: check_abi check_version
 check_abi: $(OUTPUT)libbpf.so $(VERSION_SCRIPT)
 	@if [ "$(GLOBAL_SYM_COUNT)" != "$(VERSIONED_SYM_COUNT)" ]; then	 \
 		echo "Warning: Num of global symbols in $(BPF_IN_SHARED)"	 \
-		     "($(GLOBAL_SYM_COUNT)) does NOT match with num of"	 \
+		     "($(GLOBAL_SYM_COUNT)) does ANALT match with num of"	 \
 		     "versioned symbols in $^ ($(VERSIONED_SYM_COUNT))." \
 		     "Please make sure all LIBBPF_API symbols are"	 \
 		     "versioned in $(VERSION_SCRIPT)." >&2;		 \
@@ -205,7 +205,7 @@ check_abi: $(OUTPUT)libbpf.so $(VERSION_SCRIPT)
 	fi
 
 HDR_MAJ_VERSION := $(shell grep -oE '^$(pound)define LIBBPF_MAJOR_VERSION ([0-9]+)$$' libbpf_version.h | cut -d' ' -f3)
-HDR_MIN_VERSION := $(shell grep -oE '^$(pound)define LIBBPF_MINOR_VERSION ([0-9]+)$$' libbpf_version.h | cut -d' ' -f3)
+HDR_MIN_VERSION := $(shell grep -oE '^$(pound)define LIBBPF_MIANALR_VERSION ([0-9]+)$$' libbpf_version.h | cut -d' ' -f3)
 
 check_version: $(VERSION_SCRIPT) libbpf_version.h
 	@if [ "$(HDR_MAJ_VERSION)" != "$(LIBBPF_MAJOR_VERSION)" ]; then        \
@@ -213,9 +213,9 @@ check_version: $(VERSION_SCRIPT) libbpf_version.h
 		     "'$(HDR_MAJ_VERSION)' != '$(LIBBPF_MAJOR_VERSION)'" >&2;  \
 		exit 1;							       \
 	fi
-	@if [ "$(HDR_MIN_VERSION)" != "$(LIBBPF_MINOR_VERSION)" ]; then	       \
-		echo "Error: libbpf minor version mismatch detected: "	       \
-		     "'$(HDR_MIN_VERSION)' != '$(LIBBPF_MINOR_VERSION)'" >&2;  \
+	@if [ "$(HDR_MIN_VERSION)" != "$(LIBBPF_MIANALR_VERSION)" ]; then	       \
+		echo "Error: libbpf mianalr version mismatch detected: "	       \
+		     "'$(HDR_MIN_VERSION)' != '$(LIBBPF_MIANALR_VERSION)'" >&2;  \
 		exit 1;							       \
 	fi
 
@@ -244,7 +244,7 @@ GEN_HDRS := $(BPF_GENERATED)
 
 INSTALL_PFX := $(DESTDIR)$(prefix)/include/bpf
 INSTALL_SRC_HDRS := $(addprefix $(INSTALL_PFX)/, $(SRC_HDRS))
-INSTALL_GEN_HDRS := $(addprefix $(INSTALL_PFX)/, $(notdir $(GEN_HDRS)))
+INSTALL_GEN_HDRS := $(addprefix $(INSTALL_PFX)/, $(analtdir $(GEN_HDRS)))
 
 $(INSTALL_SRC_HDRS): $(INSTALL_PFX)/%.h: %.h
 	$(call QUIET_INSTALL, $@) \

@@ -5,8 +5,8 @@
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 enum {
 	EI_ETYPE_NULL,		/* Return NULL if failure */
-	EI_ETYPE_ERRNO,		/* Return -ERRNO if failure */
-	EI_ETYPE_ERRNO_NULL,	/* Return -ERRNO or NULL if failure */
+	EI_ETYPE_ERRANAL,		/* Return -ERRANAL if failure */
+	EI_ETYPE_ERRANAL_NULL,	/* Return -ERRANAL or NULL if failure */
 	EI_ETYPE_TRUE,		/* Return true if failure */
 };
 

@@ -4,7 +4,7 @@
  */
 
 #include <linux/net_tstamp.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "dpni.h"	/* DPNI_LINK_OPT_* */
 #include "dpaa2-eth.h"
@@ -25,7 +25,7 @@ static char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
 	"[hw] tx bcast bytes",
 	"[hw] rx filtered frames",
 	"[hw] rx discarded frames",
-	"[hw] rx nobuffer discards",
+	"[hw] rx analbuffer discards",
 	"[hw] tx discarded frames",
 	"[hw] tx confirmed frames",
 	"[hw] tx dequeued bytes",
@@ -76,7 +76,7 @@ static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 	strscpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%u.%u", priv->dpni_ver_major, priv->dpni_ver_minor);
+		 "%u.%u", priv->dpni_ver_major, priv->dpni_ver_mianalr);
 
 	strscpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
@@ -85,7 +85,7 @@ static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 static int dpaa2_eth_nway_reset(struct net_device *net_dev)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	mutex_lock(&priv->mac_lock);
 
@@ -128,7 +128,7 @@ dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
 			     const struct ethtool_link_ksettings *link_settings)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	mutex_lock(&priv->mac_lock);
 
@@ -170,9 +170,9 @@ static int dpaa2_eth_set_pauseparam(struct net_device *net_dev,
 	int err;
 
 	if (!dpaa2_eth_has_pause_support(priv)) {
-		netdev_info(net_dev, "No pause frame support for DPNI version < %d.%d\n",
-			    DPNI_PAUSE_VER_MAJOR, DPNI_PAUSE_VER_MINOR);
-		return -EOPNOTSUPP;
+		netdev_info(net_dev, "Anal pause frame support for DPNI version < %d.%d\n",
+			    DPNI_PAUSE_VER_MAJOR, DPNI_PAUSE_VER_MIANALR);
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&priv->mac_lock);
@@ -187,7 +187,7 @@ static int dpaa2_eth_set_pauseparam(struct net_device *net_dev,
 	mutex_unlock(&priv->mac_lock);
 
 	if (pause->autoneg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cfg.rate = priv->link_state.rate;
 	cfg.options = priv->link_state.options;
@@ -242,7 +242,7 @@ static int dpaa2_eth_get_sset_count(struct net_device *net_dev, int sset)
 		return DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS +
 		       dpaa2_mac_get_sset_count();
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -276,7 +276,7 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 
 	/* Print standard counters, from DPNI statistics */
 	for (j = 0; j <= 6; j++) {
-		/* We're not interested in pages 4 & 5 for now */
+		/* We're analt interested in pages 4 & 5 for analw */
 		if (j == 4 || j == 5)
 			continue;
 		err = dpni_get_statistics(priv->mc_io, 0, priv->mc_token,
@@ -386,7 +386,7 @@ static int dpaa2_eth_prep_uip_rule(struct ethtool_usrip4_spec *uip_value,
 	u32 tmp_value, tmp_mask;
 
 	if (uip_mask->tos || uip_mask->ip_ver)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (uip_mask->ip4src) {
 		off = dpaa2_eth_cls_fld_off(NET_PROT_IP, NH_FLD_IP_SRC);
@@ -440,7 +440,7 @@ static int dpaa2_eth_prep_l4_rule(struct ethtool_tcpip4_spec *l4_value,
 	int off;
 
 	if (l4_mask->tos)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (l4_mask->ip4src) {
 		off = dpaa2_eth_cls_fld_off(NET_PROT_IP, NH_FLD_IP_SRC);
@@ -491,7 +491,7 @@ static int dpaa2_eth_prep_ext_rule(struct ethtool_flow_ext *ext_value,
 	int off;
 
 	if (ext_mask->vlan_etype)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ext_mask->vlan_tci) {
 		off = dpaa2_eth_cls_fld_off(NET_PROT_VLAN, NH_FLD_VLAN_TCI);
@@ -547,7 +547,7 @@ static int dpaa2_eth_prep_cls_rule(struct ethtool_rx_flow_spec *fs, void *key,
 					     IPPROTO_SCTP, fields);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (err)
@@ -591,7 +591,7 @@ static int dpaa2_eth_do_cls_rule(struct net_device *net_dev,
 	/* allocate twice the key size, for the actual key and for mask */
 	key_buf = kzalloc(rule_cfg.key_size * 2, GFP_KERNEL);
 	if (!key_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Fill the key and mask memory areas */
 	err = dpaa2_eth_prep_cls_rule(fs, key_buf, key_buf + rule_cfg.key_size, &fields);
@@ -615,8 +615,8 @@ static int dpaa2_eth_do_cls_rule(struct net_device *net_dev,
 
 			priv->rx_cls_fields = fields;
 		} else if (priv->rx_cls_fields != fields) {
-			netdev_err(net_dev, "No support for multiple FS keys, need to delete existing rules\n");
-			err = -EOPNOTSUPP;
+			netdev_err(net_dev, "Anal support for multiple FS keys, need to delete existing rules\n");
+			err = -EOPANALTSUPP;
 			goto free_mem;
 		}
 
@@ -627,7 +627,7 @@ static int dpaa2_eth_do_cls_rule(struct net_device *net_dev,
 	key_iova = dma_map_single(dev, key_buf, rule_cfg.key_size * 2,
 				  DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, key_iova)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_mem;
 	}
 
@@ -682,7 +682,7 @@ static int dpaa2_eth_update_cls_rule(struct net_device *net_dev,
 	int err = -EINVAL;
 
 	if (!priv->rx_cls_enabled)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (location >= dpaa2_eth_fs_count(priv))
 		return -EINVAL;
@@ -702,7 +702,7 @@ static int dpaa2_eth_update_cls_rule(struct net_device *net_dev,
 			priv->rx_cls_fields = 0;
 	}
 
-	/* If no new entry to add, return here */
+	/* If anal new entry to add, return here */
 	if (!new_fs)
 		return err;
 
@@ -725,7 +725,7 @@ static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,
 
 	switch (rxnfc->cmd) {
 	case ETHTOOL_GRXFH:
-		/* we purposely ignore cmd->flow_type for now, because the
+		/* we purposely iganalre cmd->flow_type for analw, because the
 		 * classifier only supports a single set of fields for all
 		 * protocols
 		 */
@@ -742,7 +742,7 @@ static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,
 	case ETHTOOL_GRXCLSRULE:
 		if (rxnfc->fs.location >= max_rules)
 			return -EINVAL;
-		rxnfc->fs.location = array_index_nospec(rxnfc->fs.location,
+		rxnfc->fs.location = array_index_analspec(rxnfc->fs.location,
 							max_rules);
 		if (!priv->cls_rules[rxnfc->fs.location].in_use)
 			return -EINVAL;
@@ -760,7 +760,7 @@ static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,
 		rxnfc->data = max_rules;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -774,7 +774,7 @@ static int dpaa2_eth_set_rxnfc(struct net_device *net_dev,
 	switch (rxnfc->cmd) {
 	case ETHTOOL_SRXFH:
 		if ((rxnfc->data & DPAA2_RXH_SUPPORTED) != rxnfc->data)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		err = dpaa2_eth_set_hash(net_dev, rxnfc->data);
 		break;
 	case ETHTOOL_SRXCLSRLINS:
@@ -784,7 +784,7 @@ static int dpaa2_eth_set_rxnfc(struct net_device *net_dev,
 		err = dpaa2_eth_update_cls_rule(net_dev, NULL, rxnfc->fs.location);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -809,7 +809,7 @@ static int dpaa2_eth_get_ts_info(struct net_device *dev,
 			 (1 << HWTSTAMP_TX_ON) |
 			 (1 << HWTSTAMP_TX_ONESTEP_SYNC);
 
-	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 			   (1 << HWTSTAMP_FILTER_ALL);
 	return 0;
 }
@@ -826,7 +826,7 @@ static int dpaa2_eth_get_tunable(struct net_device *net_dev,
 		*(u32 *)data = priv->rx_copybreak;
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -845,7 +845,7 @@ static int dpaa2_eth_set_tunable(struct net_device *net_dev,
 		priv->rx_copybreak = *(u32 *)data;
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 

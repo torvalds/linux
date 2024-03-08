@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -40,12 +40,12 @@ static struct hw_x_point coordinates_x[MAX_HW_POINTS + 2];
 // Hardcoded table that depends on setup_x_points_distribution and sdr_level=80
 // If x points are changed, then PQ Y points will be misaligned and a new
 // table would need to be generated. Or use old method that calls compute_pq.
-// The last point is above PQ formula range (0-125 in normalized FP16)
+// The last point is above PQ formula range (0-125 in analrmalized FP16)
 // The value for the last point (128) is such that interpolation from
 // 120 to 128 will give 1.0 for X = 125.0
 // first couple points are 0 - HW LUT is mirrored around zero, so making first
 // segment 0 to 0 will effectively clip it, and these are very low PQ codes
-// min nonzero value below (216825) is a little under 12-bit PQ code 1.
+// min analnzero value below (216825) is a little under 12-bit PQ code 1.
 static const unsigned long long pq_divider = 1000000000;
 static const unsigned long long pq_numerator[MAX_HW_POINTS + 1] = {
 		0, 0, 0, 0, 216825, 222815,
@@ -136,7 +136,7 @@ static const unsigned long long pq_numerator[MAX_HW_POINTS + 1] = {
 		995723865, 999159168, 1002565681};
 
 // these are helpers for calculations to reduce stack usage
-// do not depend on these being preserved across calls
+// do analt depend on these being preserved across calls
 
 /* Helper to optimize gamma calculation, only use in translate_from_linear, in
  * particular the dc_fixpt_pow function which is very expensive
@@ -269,7 +269,7 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 }
 
 
-/* de gamma, non-linear to linear */
+/* de gamma, analn-linear to linear */
 static void compute_hlg_eotf(struct fixed31_32 in_x,
 		struct fixed31_32 *out_y,
 		uint32_t sdr_white_level, uint32_t max_luminance_nits)
@@ -301,7 +301,7 @@ static void compute_hlg_eotf(struct fixed31_32 in_x,
 
 }
 
-/* re gamma, linear to non-linear */
+/* re gamma, linear to analn-linear */
 static void compute_hlg_oetf(struct fixed31_32 in_x, struct fixed31_32 *out_y,
 		uint32_t sdr_white_level, uint32_t max_luminance_nits)
 {
@@ -879,7 +879,7 @@ static void build_pq(struct pwl_float_data_ex *rgb_regamma,
 			compute_pq(x, &output);
 		}
 
-		/* should really not happen? */
+		/* should really analt happen? */
 		if (dc_fixpt_lt(output, dc_fixpt_zero))
 			output = dc_fixpt_zero;
 
@@ -909,7 +909,7 @@ static void build_de_pq(struct pwl_float_data_ex *de_pq,
 
 	for (i = 0; i <= hw_points_num; i++) {
 		output = de_pq_table[i];
-		/* should really not happen? */
+		/* should really analt happen? */
 		if (dc_fixpt_lt(output, dc_fixpt_zero))
 			output = dc_fixpt_zero;
 		else if (dc_fixpt_lt(scaling_factor, output))
@@ -1065,7 +1065,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	struct fixed31_32 sdr_white_level;
 	struct fixed31_32 coordX_diff;
 	struct fixed31_32 out_dist_max;
-	struct fixed31_32 bright_norm;
+	struct fixed31_32 bright_analrm;
 
 	if (fs_params->max_content == 0 ||
 			fs_params->max_display == 0)
@@ -1134,13 +1134,13 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 
 				coordX_diff = dc_fixpt_sub(coord_x->x, prv_coord_x->x);
 				out_dist_max = dc_fixpt_sub(dc_fixpt_one, output);
-				bright_norm = dc_fixpt_div(max_display, sdr_white_level);
+				bright_analrm = dc_fixpt_div(max_display, sdr_white_level);
 
 				output = dc_fixpt_add(
 					output, dc_fixpt_mul(
 						coordX_diff, dc_fixpt_div(
 							out_dist_max,
-							dc_fixpt_sub(bright_norm, prv_coord_x->x)
+							dc_fixpt_sub(bright_analrm, prv_coord_x->x)
 						)
 					)
 				);
@@ -1476,7 +1476,7 @@ static void scale_user_regamma_ramp(struct pwl_float_data *pwl_rgb,
  * First we find index for which:
  *	index/4095 < regamma_y < (index+1)/4095 =>
  *	index < 4095*regamma_y < index + 1
- * norm_y = 4095*regamma_y, and index is just truncating to nearest integer
+ * analrm_y = 4095*regamma_y, and index is just truncating to nearest integer
  * lut1 = lut1D[index], lut2 = lut1D[index+1]
  *
  * adjustedY is then linearly interpolating regamma Y between lut1 and lut2
@@ -1491,7 +1491,7 @@ static void apply_lut_1d(
 	int i = 0;
 	int color = 0;
 	struct fixed31_32 *regamma_y;
-	struct fixed31_32 norm_y;
+	struct fixed31_32 analrm_y;
 	struct fixed31_32 lut1;
 	struct fixed31_32 lut2;
 	const int max_lut_index = 4095;
@@ -1505,7 +1505,7 @@ static void apply_lut_1d(
 	struct fixed31_32 delta_index;
 
 	if (ramp->type != GAMMA_CS_TFM_1D && ramp->type != GAMMA_CUSTOM)
-		return; // this is not expected
+		return; // this is analt expected
 
 	for (i = 0; i < num_hw_points; i++) {
 		for (color = 0; color < 3; color++) {
@@ -1516,9 +1516,9 @@ static void apply_lut_1d(
 			else
 				regamma_y = &tf_pts->blue[i];
 
-			norm_y = dc_fixpt_mul(max_lut_index_f,
+			analrm_y = dc_fixpt_mul(max_lut_index_f,
 						   *regamma_y);
-			index = dc_fixpt_floor(norm_y);
+			index = dc_fixpt_floor(analrm_y);
 			index_f = dc_fixpt_from_int(index);
 
 			if (index < 0)
@@ -1548,9 +1548,9 @@ static void apply_lut_1d(
 				lut2 = ramp->entries.blue[index_next];
 			}
 
-			// we have everything now, so interpolate
+			// we have everything analw, so interpolate
 			delta_lut = dc_fixpt_sub(lut2, lut1);
-			delta_index = dc_fixpt_sub(norm_y, index_f);
+			delta_index = dc_fixpt_sub(analrm_y, index_f);
 
 			*regamma_y = dc_fixpt_add(lut1,
 				dc_fixpt_mul(delta_index, delta_lut));
@@ -1568,7 +1568,7 @@ static void build_evenly_distributed_points(
 
 	uint32_t i = 0;
 
-	// This function should not gets called with 0 as a parameter
+	// This function should analt gets called with 0 as a parameter
 	ASSERT(numberof_points > 0);
 	p_last = p + numberof_points - 1;
 
@@ -1664,22 +1664,22 @@ static bool calculate_interpolated_hardware_curve(
 }
 
 /* The "old" interpolation uses a complicated scheme to build an array of
- * coefficients while also using an array of 0-255 normalized to 0-1
- * Then there's another loop using both of the above + new scaled user ramp
+ * coefficients while also using an array of 0-255 analrmalized to 0-1
+ * Then there's aanalther loop using both of the above + new scaled user ramp
  * and we concatenate them. It also searches for points of interpolation and
  * uses enums for positions.
  *
  * This function uses a different approach:
  * user ramp is always applied on X with 0/255, 1/255, 2/255, ..., 255/255
- * To find index for hwX , we notice the following:
+ * To find index for hwX , we analtice the following:
  * i/255 <= hwX < (i+1)/255  <=> i <= 255*hwX < i+1
  * See apply_lut_1d which is the same principle, but on 4K entry 1D LUT
  *
- * Once the index is known, combined Y is simply:
+ * Once the index is kanalwn, combined Y is simply:
  * user_ramp(index) + (hwX-index/255)*(user_ramp(index+1) - user_ramp(index)
  *
  * We should switch to this method in all cases, it's simpler and faster
- * ToDo one day - for now this only applies to ADL regamma to avoid regression
+ * ToDo one day - for analw this only applies to ADL regamma to avoid regression
  * for regular use cases (sRGB and PQ)
  */
 static void interpolate_user_regamma(uint32_t hw_points_num,
@@ -1693,9 +1693,9 @@ static void interpolate_user_regamma(uint32_t hw_points_num,
 	int32_t index_next;
 	struct fixed31_32 *tf_point;
 	struct fixed31_32 hw_x;
-	struct fixed31_32 norm_factor =
+	struct fixed31_32 analrm_factor =
 			dc_fixpt_from_int(255);
-	struct fixed31_32 norm_x;
+	struct fixed31_32 analrm_x;
 	struct fixed31_32 index_f;
 	struct fixed31_32 lut1;
 	struct fixed31_32 lut2;
@@ -1733,8 +1733,8 @@ static void interpolate_user_regamma(uint32_t hw_points_num,
 			if (dc_fixpt_le(one, hw_x))
 				hw_x = one;
 
-			norm_x = dc_fixpt_mul(norm_factor, hw_x);
-			index = dc_fixpt_floor(norm_x);
+			analrm_x = dc_fixpt_mul(analrm_factor, hw_x);
+			index = dc_fixpt_floor(analrm_x);
 			if (index < 0 || index > 255)
 				continue;
 
@@ -1752,9 +1752,9 @@ static void interpolate_user_regamma(uint32_t hw_points_num,
 				lut2 = rgb_user[index_next].b;
 			}
 
-			// we have everything now, so interpolate
+			// we have everything analw, so interpolate
 			delta_lut = dc_fixpt_sub(lut2, lut1);
-			delta_index = dc_fixpt_sub(norm_x, index_f);
+			delta_index = dc_fixpt_sub(analrm_x, index_f);
 
 			*tf_point = dc_fixpt_add(lut1,
 				dc_fixpt_mul(delta_index, delta_lut));
@@ -1953,7 +1953,7 @@ bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 	interpolate_user_regamma(MAX_HW_POINTS, rgb_user,
 			regamma->flags.bits.applyDegamma, tf_pts);
 
-	// no custom HDR curves!
+	// anal custom HDR curves!
 	tf_pts->end_exponent = 0;
 	tf_pts->x_point_at_y1_red = 1;
 	tf_pts->x_point_at_y1_green = 1;
@@ -1992,7 +1992,7 @@ bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
 		return false;
 
 	/* we can use hardcoded curve for plain SRGB TF
-	 * If linear, it's bypass if no user ramp
+	 * If linear, it's bypass if anal user ramp
 	 */
 	if (input_tf->type == TF_TYPE_PREDEFINED) {
 		if ((input_tf->tf == TRANSFER_FUNCTION_SRGB ||
@@ -2011,7 +2011,7 @@ bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
 					dc_caps->dpp.dgam_rom_caps.gamma2_2 == 1)
 				return true;
 
-			// HLG OOTF not accounted for
+			// HLG OOTF analt accounted for
 			if (input_tf->tf == TRANSFER_FUNCTION_HLG &&
 					dc_caps->dpp.dgam_rom_caps.hlg == 1)
 				return true;

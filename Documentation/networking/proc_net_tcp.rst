@@ -5,7 +5,7 @@ The proc/net/tcp and proc/net/tcp6 variables
 ============================================
 
 This document describes the interfaces /proc/net/tcp and /proc/net/tcp6.
-Note that these interfaces are deprecated in favor of tcp_diag.
+Analte that these interfaces are deprecated in favor of tcp_diag.
 
 These /proc interfaces provide information about currently active TCP
 connections, and are implemented by tcp4_seq_show() in net/ipv4/tcp_ipv4.c
@@ -41,17 +41,17 @@ up into 3 parts because of the length of the line)::
     |          |    |     |    |     |------------> retransmit timeout
     |          |    |     |    |------------------> location of socket in memory
     |          |    |     |-----------------------> socket reference count
-    |          |    |-----------------------------> inode
+    |          |    |-----------------------------> ianalde
     |          |----------------------------------> unanswered 0-window probes
     |---------------------------------------------> uid
 
 timer_active:
 
  ==  ================================================================
-  0  no timer is pending
+  0  anal timer is pending
   1  retransmit-timer is pending
-  2  another timer (e.g. delayed ack or keepalive) is pending
-  3  this is a socket in TIME_WAIT state. Not all fields will contain
+  2  aanalther timer (e.g. delayed ack or keepalive) is pending
+  3  this is a socket in TIME_WAIT state. Analt all fields will contain
      data (or even exist)
   4  zero window probe timer is pending
  ==  ================================================================

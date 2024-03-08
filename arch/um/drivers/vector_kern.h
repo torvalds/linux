@@ -65,7 +65,7 @@ struct vector_estats {
 	uint64_t sg_linearized;
 };
 
-#define VERIFY_HEADER_NOK -1
+#define VERIFY_HEADER_ANALK -1
 #define VERIFY_HEADER_OK 0
 #define VERIFY_CSUM_OK 1
 

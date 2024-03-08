@@ -239,7 +239,7 @@
 #define LOAD_W_VEC_3(iop_num, ...) \
 	LOAD_W_VEC_3_##iop_num()
 
-/* Message scheduling. Note: 3 words per vector register.
+/* Message scheduling. Analte: 3 words per vector register.
  * Interleaving within round function needed for in-order CPUs. */
 #define SCHED_W_1_1(round, w0, w1, w2, w3, w4, w5) \
 	/* Load (w[i - 16]) => XTMP0 */            \

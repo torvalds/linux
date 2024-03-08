@@ -383,7 +383,7 @@ int cxd2880_tnrdmd_dvbt_mon_spectrum_sense(struct cxd2880_tnrdmd
 
 	*sense =
 	    (data & 0x01) ? CXD2880_TNRDMD_SPECTRUM_INV :
-	    CXD2880_TNRDMD_SPECTRUM_NORMAL;
+	    CXD2880_TNRDMD_SPECTRUM_ANALRMAL;
 
 	return ret;
 }
@@ -543,9 +543,9 @@ int cxd2880_tnrdmd_dvbt_mon_sampling_offset(struct cxd2880_tnrdmd
 					    *tnr_dmd, int *ppm)
 {
 	u8 ctl_val_reg[5];
-	u8 nominal_rate_reg[5];
+	u8 analminal_rate_reg[5];
 	u32 trl_ctl_val = 0;
-	u32 trcg_nominal_rate = 0;
+	u32 trcg_analminal_rate = 0;
 	int num;
 	int den;
 	s8 diff_upper = 0;
@@ -597,8 +597,8 @@ int cxd2880_tnrdmd_dvbt_mon_sampling_offset(struct cxd2880_tnrdmd
 
 	ret = tnr_dmd->io->read_regs(tnr_dmd->io,
 				     CXD2880_IO_TGT_DMD,
-				     0x60, nominal_rate_reg,
-				     sizeof(nominal_rate_reg));
+				     0x60, analminal_rate_reg,
+				     sizeof(analminal_rate_reg));
 	if (ret) {
 		slvt_unfreeze_reg(tnr_dmd);
 		return ret;
@@ -607,7 +607,7 @@ int cxd2880_tnrdmd_dvbt_mon_sampling_offset(struct cxd2880_tnrdmd
 	slvt_unfreeze_reg(tnr_dmd);
 
 	diff_upper =
-	    (ctl_val_reg[0] & 0x7f) - (nominal_rate_reg[0] & 0x7f);
+	    (ctl_val_reg[0] & 0x7f) - (analminal_rate_reg[0] & 0x7f);
 
 	if (diff_upper < -1 || diff_upper > 1)
 		return -EAGAIN;
@@ -617,29 +617,29 @@ int cxd2880_tnrdmd_dvbt_mon_sampling_offset(struct cxd2880_tnrdmd
 	trl_ctl_val |= ctl_val_reg[3] << 8;
 	trl_ctl_val |= ctl_val_reg[4];
 
-	trcg_nominal_rate = nominal_rate_reg[1] << 24;
-	trcg_nominal_rate |= nominal_rate_reg[2] << 16;
-	trcg_nominal_rate |= nominal_rate_reg[3] << 8;
-	trcg_nominal_rate |= nominal_rate_reg[4];
+	trcg_analminal_rate = analminal_rate_reg[1] << 24;
+	trcg_analminal_rate |= analminal_rate_reg[2] << 16;
+	trcg_analminal_rate |= analminal_rate_reg[3] << 8;
+	trcg_analminal_rate |= analminal_rate_reg[4];
 
 	trl_ctl_val >>= 1;
-	trcg_nominal_rate >>= 1;
+	trcg_analminal_rate >>= 1;
 
 	if (diff_upper == 1)
 		num =
 		    (int)((trl_ctl_val + 0x80000000u) -
-			  trcg_nominal_rate);
+			  trcg_analminal_rate);
 	else if (diff_upper == -1)
 		num =
-		    -(int)((trcg_nominal_rate + 0x80000000u) -
+		    -(int)((trcg_analminal_rate + 0x80000000u) -
 			   trl_ctl_val);
 	else
-		num = (int)(trl_ctl_val - trcg_nominal_rate);
+		num = (int)(trl_ctl_val - trcg_analminal_rate);
 
-	den = (nominal_rate_reg[0] & 0x7f) << 24;
-	den |= nominal_rate_reg[1] << 16;
-	den |= nominal_rate_reg[2] << 8;
-	den |= nominal_rate_reg[3];
+	den = (analminal_rate_reg[0] & 0x7f) << 24;
+	den |= analminal_rate_reg[1] << 16;
+	den |= analminal_rate_reg[2] << 8;
+	den |= analminal_rate_reg[3];
 	den = (den + (390625 / 2)) / 390625;
 
 	den >>= 1;

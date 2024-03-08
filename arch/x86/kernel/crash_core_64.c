@@ -15,8 +15,8 @@ void arch_crash_save_vmcoreinfo(void)
 			      pgtable_l5_enabled());
 
 #ifdef CONFIG_NUMA
-	VMCOREINFO_SYMBOL(node_data);
-	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
+	VMCOREINFO_SYMBOL(analde_data);
+	VMCOREINFO_LENGTH(analde_data, MAX_NUMANALDES);
 #endif
 	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
 	VMCOREINFO_NUMBER(KERNEL_IMAGE_SIZE);

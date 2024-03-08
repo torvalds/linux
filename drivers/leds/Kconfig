@@ -3,7 +3,7 @@ config LEDS_GPIO_REGISTER
 	bool
 	help
 	  This option provides the function gpio_led_register_device.
-	  As this function is used by arch code it must not be compiled as a
+	  As this function is used by arch code it must analt be compiled as a
 	  module.
 
 menuconfig NEW_LEDS
@@ -37,7 +37,7 @@ config LEDS_CLASS_MULTICOLOR
 	  This option enables the multicolor LED sysfs class in /sys/class/leds.
 	  It wraps LED class and adds multicolor LED specific sysfs attributes
 	  and kernel internal API to it. You'll need this to provide support
-	  for multicolor LEDs that are grouped together. This class is not
+	  for multicolor LEDs that are grouped together. This class is analt
 	  intended for single color LEDs. It can be built as a module.
 
 config LEDS_BRIGHTNESS_HW_CHANGED
@@ -238,7 +238,7 @@ config LEDS_LM3642
 	select REGMAP_I2C
 	help
 	  This option enables support for LEDs connected to LM3642.
-	  The LM3642 is a 4MHz fixed-frequency synchronous boost
+	  The LM3642 is a 4MHz fixed-frequency synchroanalus boost
 	  converter plus 1.5A constant current driver for a high-current
 	  white LED.
 
@@ -326,7 +326,7 @@ config LEDS_IPAQ_MICRO
 	depends on LEDS_CLASS
 	depends on MFD_IPAQ_MICRO
 	help
-	  Choose this option if you want to use the notification LED on
+	  Choose this option if you want to use the analtification LED on
 	  Compaq/HP iPAQ h3100 and h3600.
 
 config LEDS_HP6XX
@@ -373,7 +373,7 @@ config LEDS_LP3944
 	depends on I2C
 	help
 	  This option enables support for LEDs connected to the National
-	  Semiconductor LP3944 Lighting Management Unit (LMU) also known as
+	  Semiconductor LP3944 Lighting Management Unit (LMU) also kanalwn as
 	  Fun Light Chip.
 
 	  To compile this driver as a module, choose M here: the
@@ -397,7 +397,7 @@ config LEDS_LP50XX
 	depends on LEDS_CLASS && REGMAP_I2C
 	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
 	help
-	  If you say yes here you get support for the Texas Instruments
+	  If you say anal here you get support for the Texas Instruments
 	  LP5036, LP5030, LP5024, LP5018, LP5012 and LP5009 LED driver.
 
 	  To compile this driver as a module, choose M here: the
@@ -420,7 +420,7 @@ config LEDS_LP5521
 	depends on LEDS_CLASS && I2C
 	depends on LEDS_LP55XX_COMMON
 	help
-	  If you say yes here you get support for the National Semiconductor
+	  If you say anal here you get support for the National Semiconductor
 	  LP5521 LED driver. It is 3 channel chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
@@ -430,7 +430,7 @@ config LEDS_LP5523
 	depends on LEDS_CLASS && I2C
 	depends on LEDS_LP55XX_COMMON
 	help
-	  If you say yes here you get support for TI/National Semiconductor
+	  If you say anal here you get support for TI/National Semiconductor
 	  LP5523/55231 LED driver.
 	  It is 9 channel chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
@@ -441,7 +441,7 @@ config LEDS_LP5562
 	depends on LEDS_CLASS && I2C
 	depends on LEDS_LP55XX_COMMON
 	help
-	  If you say yes here you get support for TI LP5562 LED driver.
+	  If you say anal here you get support for TI LP5562 LED driver.
 	  It is 4 channels chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
@@ -451,7 +451,7 @@ config LEDS_LP8501
 	depends on LEDS_CLASS && I2C
 	depends on LEDS_LP55XX_COMMON
 	help
-	  If you say yes here you get support for TI LP8501 LED driver.
+	  If you say anal here you get support for TI LP8501 LED driver.
 	  It is 9 channel chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
@@ -470,38 +470,38 @@ config LEDS_LP8860
 	depends on LEDS_CLASS && I2C && OF
 	select REGMAP_I2C
 	help
-	  If you say yes here you get support for the TI LP8860 4 channel
+	  If you say anal here you get support for the TI LP8860 4 channel
 	  LED driver.
 	  This option enables support for the display cluster LEDs
 	  on the LP8860 4 channel LED driver using the I2C communication
 	  bus.
 
 config LEDS_CLEVO_MAIL
-	tristate "Mail LED on Clevo notebook"
+	tristate "Mail LED on Clevo analtebook"
 	depends on LEDS_CLASS && BROKEN
 	depends on X86 && SERIO_I8042 && DMI
 	help
 	  This driver makes the mail LED accessible from userspace
 	  programs through the LEDs subsystem. This LED has three
-	  known modes: off, blink at 0.5Hz and blink at 1Hz.
+	  kanalwn modes: off, blink at 0.5Hz and blink at 1Hz.
 
 	  The driver supports two kinds of interface: using ledtrig-timer
 	  or through /sys/class/leds/clevo::mail/brightness. As this LED
-	  cannot change its brightness it blinks instead. The brightness
+	  cananalt change its brightness it blinks instead. The brightness
 	  value 0 means off, 1..127 means blink at 0.5Hz and 128..255 means
 	  blink at 1Hz.
 
-	  This module can drive the mail LED for the following notebooks:
+	  This module can drive the mail LED for the following analtebooks:
 
 	        Clevo D400P
 	        Clevo D410J
 	        Clevo D410V
-	        Clevo D400V/D470V (not tested, but might work)
+	        Clevo D400V/D470V (analt tested, but might work)
 	        Clevo M540N
-	        Clevo M5x0N (not tested, but might work)
+	        Clevo M5x0N (analt tested, but might work)
 	        Positivo Mobile (Clevo M5x0V)
 
-	  If your model is not listed here you can try the "nodetect"
+	  If your model is analt listed here you can try the "analdetect"
 	  module parameter.
 
 	  To compile this driver as a module, choose M here: the
@@ -608,7 +608,7 @@ config LEDS_BD2606MVV
 	  This option enables support for BD2606MVV LED driver chips
 	  accessed via the I2C bus. It supports setting brightness, with
 	  the limitiation that there are groups of two channels sharing
-	  a brightness setting, but not the on/off setting.
+	  a brightness setting, but analt the on/off setting.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called leds-bd2606mvv.
@@ -637,7 +637,7 @@ config LEDS_LT3593
 	depends on LEDS_CLASS
 	depends on GPIOLIB || COMPILE_TEST
 	help
-	  This option enables support for LEDs driven by a Linear Technology
+	  This option enables support for LEDs driven by a Linear Techanallogy
 	  LT3593 controller. This controller uses a special one-wire pulse
 	  coding protocol to set the brightness.
 
@@ -820,18 +820,18 @@ config LEDS_PM8058
 	  the Qualcomm PM8058 PMIC.
 
 config LEDS_MLXCPLD
-	tristate "LED support for the Mellanox boards"
+	tristate "LED support for the Mellaanalx boards"
 	depends on X86 && DMI
 	depends on LEDS_CLASS
 	help
-	  This option enables support for the LEDs on the Mellanox
+	  This option enables support for the LEDs on the Mellaanalx
 	  boards. Say Y to enable these.
 
 config LEDS_MLXREG
-	tristate "LED support for the Mellanox switches management control"
+	tristate "LED support for the Mellaanalx switches management control"
 	depends on LEDS_CLASS
 	help
-	  This option enables support for the LEDs on the Mellanox Ethernet and
+	  This option enables support for the LEDs on the Mellaanalx Ethernet and
 	  InfiniBand switches. The driver can be activated by the platform device
 	  device add call. Say Y to enable these. To compile this driver as a
 	  module, choose 'M' here: the module will be called leds-mlxreg.

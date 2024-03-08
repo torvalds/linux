@@ -157,15 +157,15 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	int err;
 
 	if (!(oxfw->quirks & SND_OXFW_QUIRK_BLOCKING_TRANSMISSION))
-		flags |= CIP_NONBLOCKING;
+		flags |= CIP_ANALNBLOCKING;
 	else
 		flags |= CIP_BLOCKING;
 
-	// OXFW 970/971 has no function to generate playback timing according to the sequence
-	// of value in syt field, thus the packet should include NO_INFO value in the field.
-	// However, some models just ignore data blocks in packet with NO_INFO for audio data
+	// OXFW 970/971 has anal function to generate playback timing according to the sequence
+	// of value in syt field, thus the packet should include ANAL_INFO value in the field.
+	// However, some models just iganalre data blocks in packet with ANAL_INFO for audio data
 	// processing.
-	if (!(oxfw->quirks & SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET))
+	if (!(oxfw->quirks & SND_OXFW_QUIRK_IGANALRE_ANAL_INFO_PACKET))
 		flags |= CIP_UNAWARE_SYT;
 
 	if (stream == &oxfw->tx_stream) {
@@ -369,7 +369,7 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 				tx_init_skip_cycles = 400;
 			} else if (oxfw->quirks & SND_OXFW_QUIRK_VOLUNTARY_RECOVERY) {
 				// It takes a bit time for target device to adjust event frequency
-				// according to nominal event frequency in isochronous packets from
+				// according to analminal event frequency in isochroanalus packets from
 				// ALSA oxfw driver.
 				tx_init_skip_cycles = 4000;
 			} else {
@@ -377,7 +377,7 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 			}
 		}
 
-		// NOTE: The device ignores presentation time expressed by the value of syt field
+		// ANALTE: The device iganalres presentation time expressed by the value of syt field
 		// of CIP header in received packets. The sequence of the number of data blocks per
 		// packet is important for media clock recovery.
 		err = amdtp_domain_start(&oxfw->domain, tx_init_skip_cycles, replay_seq, false);
@@ -493,7 +493,7 @@ int snd_oxfw_stream_get_current_formation(struct snd_oxfw *oxfw,
 	len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
 	format = kmalloc(len, GFP_KERNEL);
 	if (format == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = avc_stream_get_format_single(oxfw->unit, dir, 0, format, &len);
 	if (err < 0)
@@ -580,7 +580,7 @@ int snd_oxfw_stream_parse_format(u8 *format,
 		/* Don't care */
 		case 0xff:
 		default:
-			return -ENXIO;	/* not supported */
+			return -ENXIO;	/* analt supported */
 		}
 	}
 
@@ -619,7 +619,7 @@ assume_stream_formats(struct snd_oxfw *oxfw, enum avc_general_plug_dir dir,
 	formats[eid] = devm_kmemdup(&oxfw->card->card_dev, buf, *len,
 				    GFP_KERNEL);
 	if (!formats[eid]) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto end;
 	}
 
@@ -638,7 +638,7 @@ assume_stream_formats(struct snd_oxfw *oxfw, enum avc_general_plug_dir dir,
 		formats[eid] = devm_kmemdup(&oxfw->card->card_dev, buf, *len,
 					    GFP_KERNEL);
 		if (formats[eid] == NULL) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto end;
 		}
 		formats[eid][2] = avc_stream_rate_table[i];
@@ -661,7 +661,7 @@ static int fill_stream_formats(struct snd_oxfw *oxfw,
 
 	buf = kmalloc(AVC_GENERIC_FRAME_MAXIMUM_BYTES, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dir == AVC_GENERAL_PLUG_DIR_OUT)
 		formats = oxfw->tx_stream_formats;
@@ -672,7 +672,7 @@ static int fill_stream_formats(struct snd_oxfw *oxfw,
 	len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
 	err = avc_stream_get_format_list(oxfw->unit, dir, 0, buf, &len, 0);
 	if (err == -ENXIO) {
-		/* LIST subfunction is not implemented */
+		/* LIST subfunction is analt implemented */
 		len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
 		err = assume_stream_formats(oxfw, dir, pid, buf, &len,
 					    formats);
@@ -701,7 +701,7 @@ static int fill_stream_formats(struct snd_oxfw *oxfw,
 		formats[eid] = devm_kmemdup(&oxfw->card->card_dev, buf, len,
 					    GFP_KERNEL);
 		if (!formats[eid]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -709,7 +709,7 @@ static int fill_stream_formats(struct snd_oxfw *oxfw,
 		len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
 		err = avc_stream_get_format_list(oxfw->unit, dir, 0,
 						 buf, &len, ++eid);
-		/* No entries remained. */
+		/* Anal entries remained. */
 		if (err == -EINVAL) {
 			err = 0;
 			break;
@@ -754,7 +754,7 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 			if (err != -ENXIO)
 				return err;
 
-			// The oPCR is not available for isoc communication.
+			// The oPCR is analt available for isoc communication.
 			err = 0;
 		} else {
 			for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
@@ -782,7 +782,7 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 			if (err != -ENXIO)
 				return err;
 
-			// The iPCR is not available for isoc communication.
+			// The iPCR is analt available for isoc communication.
 			err = 0;
 		} else {
 			for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {

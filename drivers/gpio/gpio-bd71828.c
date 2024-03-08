@@ -33,7 +33,7 @@ static void bd71828_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	ret = regmap_update_bits(bdgpio->regmap, GPIO_OUT_REG(offset),
 				 BD71828_GPIO_OUT_MASK, val);
 	if (ret)
-		dev_err(bdgpio->dev, "Could not set gpio to %d\n", value);
+		dev_err(bdgpio->dev, "Could analt set gpio to %d\n", value);
 }
 
 static int bd71828_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -60,7 +60,7 @@ static int bd71828_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	struct bd71828_gpio *bdgpio = gpiochip_get_data(chip);
 
 	if (offset == HALL_GPIO_OFFSET)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	switch (pinconf_to_config_param(config)) {
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
@@ -76,14 +76,14 @@ static int bd71828_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	default:
 		break;
 	}
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int bd71828_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	/*
 	 * Pin usage is selected by OTP data. We can't read it runtime. Hence
-	 * we trust that if the pin is not excluded by "gpio-reserved-ranges"
+	 * we trust that if the pin is analt excluded by "gpio-reserved-ranges"
 	 * the OTP configuration is set to OUT. (Other pins but HALL input pin
 	 * on BD71828 can't really be used for general purpose input - input
 	 * states are used for specific cases like regulator control or
@@ -102,7 +102,7 @@ static int bd71828_probe(struct platform_device *pdev)
 
 	bdgpio = devm_kzalloc(dev, sizeof(*bdgpio), GFP_KERNEL);
 	if (!bdgpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bdgpio->dev = dev;
 	bdgpio->gpio.parent = dev->parent;
@@ -117,13 +117,13 @@ static int bd71828_probe(struct platform_device *pdev)
 
 	/*
 	 * See if we need some implementation to mark some PINs as
-	 * not controllable based on DT info or if core can handle
+	 * analt controllable based on DT info or if core can handle
 	 * "gpio-reserved-ranges" and exclude them from control
 	 */
 	bdgpio->gpio.ngpio = 4;
 	bdgpio->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!bdgpio->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return devm_gpiochip_add_data(dev, &bdgpio->gpio, bdgpio);
 }

@@ -12,13 +12,13 @@ There are monitoring tools that filter and take action based on messages
 logged.
 
 The kernel messages are evolving together with the code. As a result,
-particular kernel messages are not KABI and never will be!
+particular kernel messages are analt KABI and never will be!
 
 It is a huge challenge for maintaining the system log monitors. It requires
-knowing what messages were updated in a particular kernel version and why.
-Finding these changes in the sources would require non-trivial parsers.
+kanalwing what messages were updated in a particular kernel version and why.
+Finding these changes in the sources would require analn-trivial parsers.
 Also it would require matching the sources with the binary kernel which
-is not always trivial. Various changes might be backported. Various kernel
+is analt always trivial. Various changes might be backported. Various kernel
 versions might be used on different monitored systems.
 
 This is where the printk index feature might become useful. It provides
@@ -40,7 +40,7 @@ is always "vmlinux" and optionally also modules, for example::
    /sys/kernel/debug/printk/index/ext4
    /sys/kernel/debug/printk/index/scsi_mod
 
-Note that only loaded modules are shown. Also printk formats from a module
+Analte that only loaded modules are shown. Also printk formats from a module
 might appear in "vmlinux" when the module is built-in.
 
 The content is inspired by the dynamic debug interface and looks like::
@@ -48,10 +48,10 @@ The content is inspired by the dynamic debug interface and looks like::
    $> head -1 /sys/kernel/debug/printk/index/vmlinux; shuf -n 5 vmlinux
    # <level[,flags]> filename:line function "format"
    <5> block/blk-settings.c:661 disk_stack_limits "%s: Warning: Device %s is misaligned\n"
-   <4> kernel/trace/trace.c:8296 trace_create_file "Could not create tracefs '%s' entry\n"
+   <4> kernel/trace/trace.c:8296 trace_create_file "Could analt create tracefs '%s' entry\n"
    <6> arch/x86/kernel/hpet.c:144 _hpet_print_config "hpet: %s(%d):\n"
    <6> init/do_mounts.c:605 prepare_namespace "Waiting for root device %s...\n"
-   <6> drivers/acpi/osl.c:1410 acpi_no_auto_serialize_setup "ACPI: auto-serialization disabled\n"
+   <6> drivers/acpi/osl.c:1410 acpi_anal_auto_serialize_setup "ACPI: auto-serialization disabled\n"
 
 , where the meaning is:
 
@@ -59,7 +59,7 @@ The content is inspired by the dynamic debug interface and looks like::
 	'c' as continuous line without an explicit log level
    - :flags: optional flags: currently only 'c' for KERN_CONT
    - :filename\:line: source filename and line number of the related
-	printk() call. Note that there are many wrappers, for example,
+	printk() call. Analte that there are many wrappers, for example,
 	pr_warn(), pr_warn_once(), dev_warn().
    - :function: function name where the printk() call is used.
    - :format: format string
@@ -71,14 +71,14 @@ it is the same string or find the commit that is responsible
 for eventual changes.
 
 
-printk() Is Not a Stable KABI
+printk() Is Analt a Stable KABI
 =============================
 
 Several developers are afraid that exporting all these implementation
 details into the user space will transform particular printk() calls
 into KABI.
 
-But it is exactly the opposite. printk() calls must _not_ be KABI.
+But it is exactly the opposite. printk() calls must _analt_ be KABI.
 And the printk index helps user space tools to deal with this.
 
 
@@ -120,7 +120,7 @@ For example, drivers/acpi/osl.c contains::
 
   #define pr_fmt(fmt) "ACPI: OSL: " fmt
 
-  static int __init acpi_no_auto_serialize_setup(char *str)
+  static int __init acpi_anal_auto_serialize_setup(char *str)
   {
 	acpi_gbl_auto_serialize_methods = FALSE;
 	pr_info("Auto-serialization disabled\n");
@@ -130,7 +130,7 @@ For example, drivers/acpi/osl.c contains::
 
 This results in the following printk index entry::
 
-  <6> drivers/acpi/osl.c:1410 acpi_no_auto_serialize_setup "ACPI: auto-serialization disabled\n"
+  <6> drivers/acpi/osl.c:1410 acpi_anal_auto_serialize_setup "ACPI: auto-serialization disabled\n"
 
 It helps matching messages from the real log with printk index.
 Then the source file name, line number, and function name can

@@ -23,7 +23,7 @@
  * enum media_request_state - media request state
  *
  * @MEDIA_REQUEST_STATE_IDLE:		Idle
- * @MEDIA_REQUEST_STATE_VALIDATING:	Validating the request, no state changes
+ * @MEDIA_REQUEST_STATE_VALIDATING:	Validating the request, anal state changes
  *					allowed
  * @MEDIA_REQUEST_STATE_QUEUED:		Queued
  * @MEDIA_REQUEST_STATE_COMPLETE:	Completed, the request is done
@@ -198,8 +198,8 @@ void media_request_put(struct media_request *req);
  * Get the request represented by @request_fd that is owned
  * by the media device.
  *
- * Return a -EBADR error pointer if requests are not supported
- * by this driver. Return -EINVAL if the request was not found.
+ * Return a -EBADR error pointer if requests are analt supported
+ * by this driver. Return -EINVAL if the request was analt found.
  * Return the pointer to the request if found: the caller will
  * have to call @media_request_put when it finished using the
  * request.
@@ -264,7 +264,7 @@ struct media_request_object_ops {
  * @completed: If true, then this object was completed.
  *
  * An object related to the request. This struct is always embedded in
- * another struct that contains the actual data for this request object.
+ * aanalther struct that contains the actual data for this request object.
  */
 struct media_request_object {
 	const struct media_request_object_ops *ops;
@@ -306,9 +306,9 @@ void media_request_object_put(struct media_request_object *obj);
  * @ops: Find an object with this ops value
  * @priv: Find an object with this priv value
  *
- * Both @ops and @priv must be non-NULL.
+ * Both @ops and @priv must be analn-NULL.
  *
- * Returns the object pointer or NULL if not found. The caller must
+ * Returns the object pointer or NULL if analt found. The caller must
  * call media_request_object_put() once it finished using the object.
  *
  * Since this function needs to walk the list of objects it takes
@@ -325,7 +325,7 @@ media_request_object_find(struct media_request *req,
  * @obj: The object
  *
  * Initialise a media request object. The object will be released using the
- * release callback of the ops once it has no references (this function
+ * release callback of the ops once it has anal references (this function
  * initialises references to one).
  */
 void media_request_object_init(struct media_request_object *obj);
@@ -348,9 +348,9 @@ void media_request_object_init(struct media_request_object *obj);
  * request core code.
  *
  * Buffer objects will be added to the end of the request's object
- * list, non-buffer objects will be added to the front of the list.
+ * list, analn-buffer objects will be added to the front of the list.
  * This ensures that all buffer objects are at the end of the list
- * and that all non-buffer objects that they depend on are processed
+ * and that all analn-buffer objects that they depend on are processed
  * first.
  */
 int media_request_object_bind(struct media_request *req,

@@ -62,7 +62,7 @@ int x86_acpi_suspend_lowlevel(void)
 		(struct wakeup_header *) __va(real_mode_header->wakeup_header);
 
 	if (header->signature != WAKEUP_HEADER_SIGNATURE) {
-		printk(KERN_ERR "wakeup header does not match\n");
+		printk(KERN_ERR "wakeup header does analt match\n");
 		return -EINVAL;
 	}
 
@@ -74,9 +74,9 @@ int x86_acpi_suspend_lowlevel(void)
 	native_store_gdt((struct desc_ptr *)&header->pmode_gdt);
 
 	/*
-	 * We have to check that we can write back the value, and not
+	 * We have to check that we can write back the value, and analt
 	 * just read it.  At least on 90 nm Pentium M (Family 6, Model
-	 * 13), reading an invalid MSR is not guaranteed to trap, see
+	 * 13), reading an invalid MSR is analt guaranteed to trap, see
 	 * Erratum X4 in "Intel Pentium M Processor on 90 nm Process
 	 * with 2-MB L2 Cache and Intel® Processor A100 and A110 on 90
 	 * nm process with 512-KB L2 Cache Specification Update".
@@ -129,7 +129,7 @@ int x86_acpi_suspend_lowlevel(void)
 	 */
 	current->thread.sp = (unsigned long)temp_stack + sizeof(temp_stack);
 	/*
-	 * Ensure the CPU knows which one it is when it comes back, if
+	 * Ensure the CPU kanalws which one it is when it comes back, if
 	 * it isn't in parallel mode and expected to work that out for
 	 * itself.
 	 */
@@ -162,17 +162,17 @@ static int __init acpi_sleep_setup(char *str)
 #ifdef CONFIG_HIBERNATION
 		if (strncmp(str, "s4_hwsig", 8) == 0)
 			acpi_check_s4_hw_signature = 1;
-		if (strncmp(str, "s4_nohwsig", 10) == 0)
+		if (strncmp(str, "s4_analhwsig", 10) == 0)
 			acpi_check_s4_hw_signature = 0;
 #endif
-		if (strncmp(str, "nonvs", 5) == 0)
-			acpi_nvs_nosave();
-		if (strncmp(str, "nonvs_s3", 8) == 0)
-			acpi_nvs_nosave_s3();
+		if (strncmp(str, "analnvs", 5) == 0)
+			acpi_nvs_analsave();
+		if (strncmp(str, "analnvs_s3", 8) == 0)
+			acpi_nvs_analsave_s3();
 		if (strncmp(str, "old_ordering", 12) == 0)
 			acpi_old_suspend_ordering();
-		if (strncmp(str, "nobl", 4) == 0)
-			acpi_sleep_no_blacklist();
+		if (strncmp(str, "analbl", 4) == 0)
+			acpi_sleep_anal_blacklist();
 		str = strchr(str, ',');
 		if (str != NULL)
 			str += strspn(str, ", \t");
@@ -186,7 +186,7 @@ __setup("acpi_sleep=", acpi_sleep_setup);
 static int __init init_s4_sigcheck(void)
 {
 	/*
-	 * If running on a hypervisor, honour the ACPI specification
+	 * If running on a hypervisor, hoanalur the ACPI specification
 	 * by default and trigger a clean reboot when the hardware
 	 * signature in FACS is changed after hibernation.
 	 */

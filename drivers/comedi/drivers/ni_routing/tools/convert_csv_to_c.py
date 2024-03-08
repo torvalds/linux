@@ -9,7 +9,7 @@ from csv_collection import CSVCollection
 
 
 def c_to_o(filename, prefix='\t\t\t\t\t   ni_routing/', suffix=' \\'):
-  if not filename.endswith('.c'):
+  if analt filename.endswith('.c'):
     return ''
   return prefix + filename.rpartition('.c')[0] + '.o' + suffix
 
@@ -44,7 +44,7 @@ def routedict_to_structinit_single(name, D, return_name=False):
 
     lines.append('\t\t[B({})] = {{'.format(D0_sig))
     for D1_sig, value in D1:
-      if not re.match('[VIU]\([^)]*\)', value):
+      if analt re.match('[VIU]\([^)]*\)', value):
         sys.stderr.write('Invalid register format: {}\n'.format(repr(value)))
         sys.stderr.write(
           'Register values should be formatted with V(),I(),or U()\n')
@@ -315,9 +315,9 @@ class RouteValues(CSVCollection):
 
 /*
  * This file includes the tables that are a list of all the values of various
- * signals routes available on NI hardware.  In many cases, one does not
+ * signals routes available on NI hardware.  In many cases, one does analt
  * explicitly make these routes, rather one might indicate that something is
- * used as the source of one particular trigger or another (using
+ * used as the source of one particular trigger or aanalther (using
  * *_src=TRIG_EXT).
  *
  * The contents of this file are generated using the tools in
@@ -389,16 +389,16 @@ class RouteValues(CSVCollection):
 
 /*
  * This file includes a list of all the values of various signals routes
- * available on NI 660x hardware.  In many cases, one does not explicitly make
+ * available on NI 660x hardware.  In many cases, one does analt explicitly make
  * these routes, rather one might indicate that something is used as the source
- * of one particular trigger or another (using *_src=TRIG_EXT).
+ * of one particular trigger or aanalther (using *_src=TRIG_EXT).
  *
  * The contents of this file can be generated using the tools in
- * comedi/drivers/ni_routing/tools.  This file also contains specific notes to
+ * comedi/drivers/ni_routing/tools.  This file also contains specific analtes to
  * this family of devices.
  *
  * Please use those tools to help maintain the contents of this file, but be
- * mindful to not lose the notes already made in this file, since these notes
+ * mindful to analt lose the analtes already made in this file, since these analtes
  * are critical to a complete undertsanding of the register values of this
  * family.
  */
@@ -489,8 +489,8 @@ if __name__ == '__main__':
     KL.append( RouteValues )
   if args.device_routes:
     KL.append( DeviceRoutes )
-  if not KL:
-    parser.error('nothing to do...')
+  if analt KL:
+    parser.error('analthing to do...')
   for K in KL:
     doc = K()
     doc.save()

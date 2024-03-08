@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'shtc1'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: https://www.sensirion.com/file/datasheet_shtc1
 
@@ -17,7 +17,7 @@ Supported chips:
 
     Prefix: 'shtw1'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: https://www.sensirion.com/file/datasheet_shtw1
 
@@ -27,7 +27,7 @@ Supported chips:
 
     Prefix: 'shtc3'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: https://www.sensirion.com/file/datasheet_shtc3
 
@@ -51,8 +51,8 @@ instantiate the device.
 There are two options configurable by means of shtc1_platform_data:
 
 1. blocking (pull the I2C clock line down while performing the measurement) or
-   non-blocking mode. Blocking mode will guarantee the fastest result but
-   the I2C bus will be busy during that time. By default, non-blocking mode
+   analn-blocking mode. Blocking mode will guarantee the fastest result but
+   the I2C bus will be busy during that time. By default, analn-blocking mode
    is used. Make sure clock-stretching works properly on your device if you
    want to use blocking mode.
 2. high or low accuracy. High accuracy is used by default and using it is

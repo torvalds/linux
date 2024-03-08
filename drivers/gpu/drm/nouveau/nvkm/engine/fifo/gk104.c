@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -252,7 +252,7 @@ gk104_engn_cxid(struct nvkm_engn *engn, bool *cgid)
 		return status.chan->id;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 bool
@@ -314,8 +314,8 @@ gk104_runq_intr_1(struct nvkm_runq *runq)
 	char msg[128];
 
 	if (stat & 0x80000000) {
-		if (runq->func->intr_1_ctxnotvalid &&
-		    runq->func->intr_1_ctxnotvalid(runq, chid))
+		if (runq->func->intr_1_ctxanaltvalid &&
+		    runq->func->intr_1_ctxanaltvalid(runq, chid))
 			stat &= ~0x80000000;
 	}
 
@@ -360,7 +360,7 @@ gk104_runq_intr_0_names[] = {
 	{ 0x02000000, "SEMAPHORE" },
 	{ 0x04000000, "ACQUIRE" },
 	{ 0x08000000, "PRI" },
-	{ 0x20000000, "NO_CTXSW_SEG" },
+	{ 0x20000000, "ANAL_CTXSW_SEG" },
 	{ 0x40000000, "PBSEG" },
 	{ 0x80000000, "SIGNATURE" },
 	{}
@@ -596,8 +596,8 @@ gk104_fifo_mmu_fault = {
 
 static const struct nvkm_enum
 gk104_fifo_intr_bind_reason[] = {
-	{ 0x01, "BIND_NOT_UNBOUND" },
-	{ 0x02, "SNOOP_WITHOUT_BAR1" },
+	{ 0x01, "BIND_ANALT_UNBOUND" },
+	{ 0x02, "SANALOP_WITHOUT_BAR1" },
 	{ 0x03, "UNBIND_WHILE_RUNNING" },
 	{ 0x05, "INVALID_RUNLIST" },
 	{ 0x06, "INVALID_CTX_TGT" },
@@ -716,7 +716,7 @@ gk104_fifo_intr(struct nvkm_inth *inth)
 
 	if (stat & 0x80000000) {
 		nvkm_wr32(device, 0x002100, 0x80000000);
-		nvkm_event_ntfy(&fifo->nonstall.event, 0, NVKM_FIFO_NONSTALL_EVENT);
+		nvkm_event_ntfy(&fifo->analnstall.event, 0, NVKM_FIFO_ANALNSTALL_EVENT);
 		stat &= ~0x80000000;
 	}
 
@@ -770,7 +770,7 @@ gk104_fifo_runl_ctor(struct nvkm_fifo *fifo)
 
 			nvkm_runq_foreach_cond(runq, fifo, gk104_runq_runm(runq) & BIT(runl->id)) {
 				if (WARN_ON(runl->runq_nr == ARRAY_SIZE(runl->runq)))
-					return -ENOMEM;
+					return -EANALMEM;
 
 				runl->runq[runl->runq_nr++] = runq;
 			}
@@ -816,7 +816,7 @@ gk104_fifo = {
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
 	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gk104_fifo_mmu_fault,
-	.nonstall = &gf100_fifo_nonstall,
+	.analnstall = &gf100_fifo_analnstall,
 	.runl = &gk104_runl,
 	.runq = &gk104_runq,
 	.engn = &gk104_engn,

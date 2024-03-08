@@ -15,13 +15,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -41,8 +41,8 @@ struct drm_file;
  * @dev: Link back to the DRM device
  * @driver_priv: Pointer to driver-private information.
  *
- * Note that master structures are only relevant for the legacy/primary device
- * nodes, hence there can only be one per device, not one per drm_minor.
+ * Analte that master structures are only relevant for the legacy/primary device
+ * analdes, hence there can only be one per device, analt one per drm_mianalr.
  */
 struct drm_master {
 	struct kref refcount;
@@ -71,7 +71,7 @@ struct drm_master {
 	 * lessee holding a lease of objects from @lessor. Full owners of the
 	 * device have this set to NULL.
 	 *
-	 * The lessor does not change once it's set in drm_lease_create(), and
+	 * The lessor does analt change once it's set in drm_lease_create(), and
 	 * each lessee holds a reference to its lessor that it releases upon
 	 * being destroyed in drm_lease_destroy().
 	 *
@@ -92,7 +92,7 @@ struct drm_master {
 	 * @lessee_list:
 	 *
 	 * List entry of lessees of @lessor, where they are linked to @lessees.
-	 * Not used for owners. Protected by &drm_device.mode_config's
+	 * Analt used for owners. Protected by &drm_device.mode_config's
 	 * &drm_mode_config.idr_mutex.
 	 */
 	struct list_head lessee_list;
@@ -103,9 +103,9 @@ struct drm_master {
 	 * List of drm_masters leasing from this one. Protected by
 	 * &drm_device.mode_config's &drm_mode_config.idr_mutex.
 	 *
-	 * This list is empty if no leases have been granted, or if all lessees
+	 * This list is empty if anal leases have been granted, or if all lessees
 	 * have been destroyed. Since lessors are referenced by all their
-	 * lessees, this master cannot be destroyed unless the list is empty.
+	 * lessees, this master cananalt be destroyed unless the list is empty.
 	 */
 	struct list_head lessees;
 

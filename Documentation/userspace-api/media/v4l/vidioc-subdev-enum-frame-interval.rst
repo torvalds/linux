@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL - Enumerate frame intervals
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL
@@ -57,7 +57,7 @@ information about the try formats.
 
 Sub-devices that support the frame interval enumeration ioctl should
 implemented it on a single pad only. Its behaviour when supported on
-multiple pads of the same sub-device is not defined.
+multiple pads of the same sub-device is analt defined.
 
 .. c:type:: v4l2_subdev_frame_interval_enum
 
@@ -102,12 +102,12 @@ multiple pads of the same sub-device is not defined.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`v4l2_subdev_frame_interval_enum` ``pad`` references a
-    non-existing pad, the ``which`` field has an unsupported value, one of the
+    analn-existing pad, the ``which`` field has an unsupported value, one of the
     ``code``, ``width`` or ``height`` fields are invalid for the given pad, or
     the ``index`` field is out of bounds.

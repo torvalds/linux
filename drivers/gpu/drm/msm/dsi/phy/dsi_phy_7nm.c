@@ -161,7 +161,7 @@ static void dsi_pll_calc_ssc(struct dsi_pll_7nm *pll, struct dsi_pll_config *con
 	u64 frac;
 
 	if (!config->enable_ssc) {
-		DBG("SSC not enabled\n");
+		DBG("SSC analt enabled\n");
 		return;
 	}
 
@@ -630,7 +630,7 @@ static int pll_7nm_register(struct dsi_pll_7nm *pll_7nm, struct clk_hw **provide
 		},
 		.num_parents = 1,
 		.name = clk_name,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 		.ops = &clk_ops_dsi_pll_7nm_vco,
 	};
 	struct device *dev = &pll_7nm->phy->pdev->dev;
@@ -763,7 +763,7 @@ static int dsi_pll_7nm_init(struct msm_dsi_phy *phy)
 
 	pll_7nm = devm_kzalloc(&pdev->dev, sizeof(*pll_7nm), GFP_KERNEL);
 	if (!pll_7nm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	DBG("DSI PLL%d", phy->id);
 
@@ -891,7 +891,7 @@ static int dsi_7nm_phy_enable(struct msm_dsi_phy *phy,
 					status, (status & BIT(0)),
 					delay_us, timeout_us);
 	if (ret) {
-		pr_err("Ref gen not ready. Aborting\n");
+		pr_err("Ref gen analt ready. Aborting\n");
 		return -EINVAL;
 	}
 
@@ -975,7 +975,7 @@ static int dsi_7nm_phy_enable(struct msm_dsi_phy *phy,
 	/* turn off resync FIFO */
 	dsi_phy_write(base + REG_DSI_7nm_PHY_CMN_RBUF_CTRL, 0x00);
 
-	/* program CMN_CTRL_4 for minor_ver 2 chipsets*/
+	/* program CMN_CTRL_4 for mianalr_ver 2 chipsets*/
 	if ((phy->cfg->quirks & DSI_PHY_7NM_QUIRK_V5_2) ||
 	    (dsi_phy_read(base + REG_DSI_7nm_PHY_CMN_REVISION_ID0) & (0xf0)) == 0x20)
 		dsi_phy_write(base + REG_DSI_7nm_PHY_CMN_CTRL_4, 0x04);

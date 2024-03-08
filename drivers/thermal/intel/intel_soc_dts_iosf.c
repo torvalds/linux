@@ -124,7 +124,7 @@ err_restore_ptmc:
 err_restore_ptps:
 	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 		       SOC_DTS_OFFSET_PTPS, store_ptps);
-	/* Nothing we can do if restore fails */
+	/* Analthing we can do if restore fails */
 
 	return status;
 }
@@ -242,7 +242,7 @@ static int add_dts_thermal_zone(int id, struct intel_soc_dts_sensor_entry *dts,
 
 	trip_mask = GENMASK(writable_trip_cnt - 1, 0);
 
-	/* Check if the writable trip we provide is not used by BIOS */
+	/* Check if the writable trip we provide is analt used by BIOS */
 	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			    SOC_DTS_OFFSET_PTPS, &store_ptps);
 	if (ret)
@@ -285,7 +285,7 @@ void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 	u32 ptmc_out;
 	unsigned long flags;
 
-	spin_lock_irqsave(&sensors->intr_notify_lock, flags);
+	spin_lock_irqsave(&sensors->intr_analtify_lock, flags);
 
 	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_PTMC, &ptmc_out);
@@ -301,7 +301,7 @@ void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 		/* reset sticky bit */
 		status = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
 					SOC_DTS_OFFSET_PTTSS, sticky_out);
-		spin_unlock_irqrestore(&sensors->intr_notify_lock, flags);
+		spin_unlock_irqrestore(&sensors->intr_analtify_lock, flags);
 
 		for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 			pr_debug("TZD update for zone %d\n", i);
@@ -309,7 +309,7 @@ void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 						   THERMAL_EVENT_UNSPECIFIED);
 		}
 	} else
-		spin_unlock_irqrestore(&sensors->intr_notify_lock, flags);
+		spin_unlock_irqrestore(&sensors->intr_analtify_lock, flags);
 }
 EXPORT_SYMBOL_GPL(intel_soc_dts_iosf_interrupt_handler);
 
@@ -329,7 +329,7 @@ intel_soc_dts_iosf_init(enum intel_soc_dts_interrupt_type intr_type,
 	int i;
 
 	if (!iosf_mbi_available())
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	tj_max = intel_tcc_get_tjmax(-1);
 	if (tj_max < 0)
@@ -337,9 +337,9 @@ intel_soc_dts_iosf_init(enum intel_soc_dts_interrupt_type intr_type,
 
 	sensors = kzalloc(sizeof(*sensors), GFP_KERNEL);
 	if (!sensors)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	spin_lock_init(&sensors->intr_notify_lock);
+	spin_lock_init(&sensors->intr_analtify_lock);
 	mutex_init(&sensors->dts_update_lock);
 	sensors->intr_type = intr_type;
 	sensors->tj_max = tj_max * 1000;

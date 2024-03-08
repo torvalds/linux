@@ -21,7 +21,7 @@ identifier distinguishes between them.
 1. Brief API summary
 ====================
 
-(See the full API usage docbook notes in livepatch/shadow.c.)
+(See the full API usage docbook analtes in livepatch/shadow.c.)
 
 A hashtable references all shadow variables.  These references are
 stored and retrieved through a <obj, id> pair.
@@ -36,13 +36,13 @@ stored and retrieved through a <obj, id> pair.
 
   - data[] - storage for shadow data
 
-It is important to note that the klp_shadow_alloc() and
+It is important to analte that the klp_shadow_alloc() and
 klp_shadow_get_or_alloc() are zeroing the variable by default.
-They also allow to call a custom constructor function when a non-zero
+They also allow to call a custom constructor function when a analn-zero
 value is needed. Callers should provide whatever mutual exclusion
 is required.
 
-Note that the constructor is called under klp_shadow_lock spinlock. It allows
+Analte that the constructor is called under klp_shadow_lock spinlock. It allows
 to do actions that can be done only once when a new variable is allocated.
 
 * klp_shadow_get() - retrieve a shadow variable data pointer
@@ -163,7 +163,7 @@ variable::
 In-flight parent objects
 ------------------------
 
-Sometimes it may not be convenient or possible to allocate shadow
+Sometimes it may analt be convenient or possible to allocate shadow
 variables alongside their parent objects.  Or a livepatch fix may
 require shadow variables for only a subset of parent object instances.
 In these cases, the klp_shadow_get_or_alloc() call can be used to attach
@@ -199,7 +199,7 @@ will use one that was already created for this <obj, id> pair.
 
 Like the previous use-case, the shadow spinlock needs to be cleaned up.
 A shadow variable can be freed just before its parent object is freed,
-or even when the shadow variable itself is no longer required.
+or even when the shadow variable itself is anal longer required.
 
 
 Other use-cases
@@ -221,6 +221,6 @@ suggests how to handle the parent object.
 
 * http://files.mkgnu.net/files/dynamos/doc/papers/dynamos_eurosys_07.pdf
 
-  Dynamic and Adaptive Updates of Non-Quiescent Subsystems in Commodity
+  Dynamic and Adaptive Updates of Analn-Quiescent Subsystems in Commodity
   Operating System Kernels (Kritis Makris, Kyung Dong Ryu 2007) presented
   a datatype update technique called "shadow data structures".

@@ -7,7 +7,7 @@
 //                         Oleksij Rempel <kernel@pengutronix.de>
 
 /* bus for j1939 remote devices
- * Since rtnetlink, no real bus is used.
+ * Since rtnetlink, anal real bus is used.
  */
 
 #include <net/sock.h>
@@ -142,7 +142,7 @@ static enum hrtimer_restart j1939_ecu_timer_handler(struct hrtimer *hrtimer)
 	j1939_ecu_put(ecu);
 	write_unlock_bh(&priv->lock);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 struct j1939_ecu *j1939_ecu_create_locked(struct j1939_priv *priv, name_t name)
@@ -153,12 +153,12 @@ struct j1939_ecu *j1939_ecu_create_locked(struct j1939_priv *priv, name_t name)
 
 	ecu = kzalloc(sizeof(*ecu), gfp_any());
 	if (!ecu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	kref_init(&ecu->kref);
 	ecu->addr = J1939_IDLE_ADDR;
 	ecu->name = name;
 
-	hrtimer_init(&ecu->ac_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
+	hrtimer_init(&ecu->ac_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_SOFT);
 	ecu->ac_timer.function = j1939_ecu_timer_handler;
 	INIT_LIST_HEAD(&ecu->list);
 
@@ -254,7 +254,7 @@ u8 j1939_name_to_addr(struct j1939_priv *priv, name_t name)
 	int addr = J1939_IDLE_ADDR;
 
 	if (!name)
-		return J1939_NO_ADDR;
+		return J1939_ANAL_ADDR;
 
 	read_lock_bh(&priv->lock);
 	ecu = j1939_ecu_find_by_name_locked(priv, name);
@@ -268,7 +268,7 @@ u8 j1939_name_to_addr(struct j1939_priv *priv, name_t name)
 }
 
 /* TX addr/name accounting
- * Transport protocol needs to know if a SA is local or not
+ * Transport protocol needs to kanalw if a SA is local or analt
  * These functions originate from userspace manipulating sockets,
  * so locking is straigforward
  */

@@ -194,21 +194,21 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 
 	rgb = devm_kzalloc(drm->dev, sizeof(*rgb), GFP_KERNEL);
 	if (!rgb)
-		return -ENOMEM;
+		return -EANALMEM;
 	rgb->tcon = tcon;
 	encoder = &rgb->encoder;
 
-	ret = drm_of_find_panel_or_bridge(tcon->dev->of_node, 1, 0,
+	ret = drm_of_find_panel_or_bridge(tcon->dev->of_analde, 1, 0,
 					  &rgb->panel, &rgb->bridge);
 	if (ret) {
-		dev_info(drm->dev, "No panel or bridge found... RGB output disabled\n");
+		dev_info(drm->dev, "Anal panel or bridge found... RGB output disabled\n");
 		return 0;
 	}
 
 	drm_encoder_helper_add(&rgb->encoder,
 			       &sun4i_rgb_enc_helper_funcs);
 	ret = drm_simple_encoder_init(drm, &rgb->encoder,
-				      DRM_MODE_ENCODER_NONE);
+				      DRM_MODE_ENCODER_ANALNE);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't initialise the rgb encoder\n");
 		goto err_out;
@@ -222,7 +222,7 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 					 &sun4i_rgb_con_helper_funcs);
 		ret = drm_connector_init(drm, &rgb->connector,
 					 &sun4i_rgb_con_funcs,
-					 DRM_MODE_CONNECTOR_Unknown);
+					 DRM_MODE_CONNECTOR_Unkanalwn);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't initialise the rgb connector\n");
 			goto err_cleanup_connector;

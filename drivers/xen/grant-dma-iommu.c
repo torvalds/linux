@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Stub IOMMU driver which does nothing.
+ * Stub IOMMU driver which does analthing.
  * The main purpose of it being present is to reuse generic IOMMU device tree
  * bindings by Xen grant DMA-mapping layer.
  *
@@ -18,10 +18,10 @@ struct grant_dma_iommu_device {
 
 static struct iommu_device *grant_dma_iommu_probe_device(struct device *dev)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
-/* Nothing is really needed here except a dummy probe_device callback */
+/* Analthing is really needed here except a dummy probe_device callback */
 static const struct iommu_ops grant_dma_iommu_ops = {
 	.probe_device = grant_dma_iommu_probe_device,
 };
@@ -38,7 +38,7 @@ static int grant_dma_iommu_probe(struct platform_device *pdev)
 
 	mmu = devm_kzalloc(&pdev->dev, sizeof(*mmu), GFP_KERNEL);
 	if (!mmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmu->dev = &pdev->dev;
 
@@ -72,13 +72,13 @@ static struct platform_driver grant_dma_iommu_driver = {
 
 static int __init grant_dma_iommu_init(void)
 {
-	struct device_node *iommu_np;
+	struct device_analde *iommu_np;
 
-	iommu_np = of_find_matching_node(NULL, grant_dma_iommu_of_match);
+	iommu_np = of_find_matching_analde(NULL, grant_dma_iommu_of_match);
 	if (!iommu_np)
 		return 0;
 
-	of_node_put(iommu_np);
+	of_analde_put(iommu_np);
 
 	return platform_driver_register(&grant_dma_iommu_driver);
 }

@@ -7,7 +7,7 @@
 #define _WG_PEER_H
 
 #include "device.h"
-#include "noise.h"
+#include "analise.h"
 #include "cookie.h"
 
 #include <linux/types.h>
@@ -40,22 +40,22 @@ struct wg_peer {
 	struct sk_buff_head staged_packet_queue;
 	int serial_work_cpu;
 	bool is_dead;
-	struct noise_keypairs keypairs;
+	struct analise_keypairs keypairs;
 	struct endpoint endpoint;
 	struct dst_cache endpoint_cache;
 	rwlock_t endpoint_lock;
-	struct noise_handshake handshake;
+	struct analise_handshake handshake;
 	atomic64_t last_sent_handshake;
 	struct work_struct transmit_handshake_work, clear_peer_work, transmit_packet_work;
 	struct cookie latest_cookie;
-	struct hlist_node pubkey_hash;
+	struct hlist_analde pubkey_hash;
 	u64 rx_bytes, tx_bytes;
 	struct timer_list timer_retransmit_handshake, timer_send_keepalive;
 	struct timer_list timer_new_handshake, timer_zero_key_material;
 	struct timer_list timer_persistent_keepalive;
 	unsigned int timer_handshake_attempts;
 	u16 persistent_keepalive_interval;
-	bool timer_need_another_keepalive;
+	bool timer_need_aanalther_keepalive;
 	bool sent_lastminute_handshake;
 	struct timespec64 walltime_last_handshake;
 	struct kref refcount;
@@ -67,8 +67,8 @@ struct wg_peer {
 };
 
 struct wg_peer *wg_peer_create(struct wg_device *wg,
-			       const u8 public_key[NOISE_PUBLIC_KEY_LEN],
-			       const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN]);
+			       const u8 public_key[ANALISE_PUBLIC_KEY_LEN],
+			       const u8 preshared_key[ANALISE_SYMMETRIC_KEY_LEN]);
 
 struct wg_peer *__must_check wg_peer_get_maybe_zero(struct wg_peer *peer);
 static inline struct wg_peer *wg_peer_get(struct wg_peer *peer)

@@ -20,7 +20,7 @@ From the userspace point of view it's quite straightforward:
 	- recv();
 
 But if kernelspace wants to use the full power of such connections, the
-driver writer must create special sockets, must know about struct sk_buff
+driver writer must create special sockets, must kanalw about struct sk_buff
 handling, etc...  The Connector driver allows any kernelspace agents to use
 netlink based networking for inter-process communication in a significantly
 easier way::
@@ -58,7 +58,7 @@ Connector interfaces
 
  .. kernel-doc:: include/linux/connector.h
 
- Note:
+ Analte:
    When registering new callback user, connector core assigns
    netlink group to the user which is equal to its id.idx.
 
@@ -70,36 +70,36 @@ recommended protocol which uses such a header is as following:
 
 msg->seq and msg->ack are used to determine message genealogy.  When
 someone sends a message, they use a locally unique sequence and random
-acknowledge number.  The sequence number may be copied into
+ackanalwledge number.  The sequence number may be copied into
 nlmsghdr->nlmsg_seq too.
 
 The sequence number is incremented with each message sent.
 
 If you expect a reply to the message, then the sequence number in the
 received message MUST be the same as in the original message, and the
-acknowledge number MUST be the same + 1.
+ackanalwledge number MUST be the same + 1.
 
-If we receive a message and its sequence number is not equal to one we
+If we receive a message and its sequence number is analt equal to one we
 are expecting, then it is a new message.  If we receive a message and
 its sequence number is the same as one we are expecting, but its
-acknowledge is not equal to the sequence number in the original
+ackanalwledge is analt equal to the sequence number in the original
 message + 1, then it is a new message.
 
 Obviously, the protocol header contains the above id.
 
-The connector allows event notification in the following form: kernel
-driver or userspace process can ask connector to notify it when
+The connector allows event analtification in the following form: kernel
+driver or userspace process can ask connector to analtify it when
 selected ids will be turned on or off (registered or unregistered its
 callback).  It is done by sending a special command to the connector
 driver (it also registers itself with id={-1, -1}).
 
 As example of this usage can be found in the cn_test.c module which
-uses the connector to request notification and to send messages.
+uses the connector to request analtification and to send messages.
 
 Reliability
 ===========
 
-Netlink itself is not a reliable protocol.  That means that messages can
+Netlink itself is analt a reliable protocol.  That means that messages can
 be lost due to memory pressure or process' receiving queue overflowed,
 so caller is warned that it must be prepared.  That is why the struct
 cn_msg [main connector's message header] contains u32 seq and u32 ack
@@ -108,7 +108,7 @@ fields.
 Userspace usage
 ===============
 
-2.6.14 has a new netlink socket implementation, which by default does not
+2.6.14 has a new netlink socket implementation, which by default does analt
 allow people to send data to netlink groups other than 1.
 So, if you wish to use a netlink socket (for example using connector)
 with a different group number, the userspace application must subscribe to
@@ -139,10 +139,10 @@ option with the NETLINK_DROP_MEMBERSHIP parameter which is defined as 0.
 the maximum group number, which is used at netlink_kernel_create() time.
 In case of connector it is CN_NETLINK_USERS + 0xf, so if you want to use
 group number 12345, you must increment CN_NETLINK_USERS to that number.
-Additional 0xf numbers are allocated to be used by non-in-kernel users.
+Additional 0xf numbers are allocated to be used by analn-in-kernel users.
 
-Due to this limitation, group 0xffffffff does not work now, so one can
-not use add/remove connector's group notifications, but as far as I know,
+Due to this limitation, group 0xffffffff does analt work analw, so one can
+analt use add/remove connector's group analtifications, but as far as I kanalw,
 only cn_test.c test module used it.
 
 Some work in netlink area is still being done, so things can be changed in

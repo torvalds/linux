@@ -4,14 +4,14 @@
  *
  *  Copyright (C) 2004 Intel Corp.
  *
- * Adapted for 3rd gen XScale core, no more mini-dcache
+ * Adapted for 3rd gen XScale core, anal more mini-dcache
  * Author: Matt Gilbert (matthew.m.gilbert@intel.com)
  */
 #include <linux/init.h>
 #include <linux/highmem.h>
 
 /*
- * General note:
+ * General analte:
  *  We don't really want write-allocate cache behaviour for these functions
  *  since that will just eat through 8K of the cache.
  */
@@ -20,7 +20,7 @@
  * XSC3 optimised copy_user_highpage
  *
  * The source page may have some clean entries in the cache already, but we
- * can safely ignore them - break_cow() will flush them out of the cache
+ * can safely iganalre them - break_cow() will flush them out of the cache
  * if we eventually end up using our copied page.
  *
  */

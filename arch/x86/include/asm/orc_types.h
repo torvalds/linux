@@ -13,7 +13,7 @@
  * The ORC_REG_* registers are base registers which are used to find other
  * registers on the stack.
  *
- * ORC_REG_PREV_SP, also known as DWARF Call Frame Address (CFA), is the
+ * ORC_REG_PREV_SP, also kanalwn as DWARF Call Frame Address (CFA), is the
  * address of the previous frame: the caller's SP before it called the current
  * function.
  *

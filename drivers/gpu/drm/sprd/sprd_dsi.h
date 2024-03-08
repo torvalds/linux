@@ -27,8 +27,8 @@ enum dsi_work_mode {
 };
 
 enum video_burst_mode {
-	VIDEO_NON_BURST_WITH_SYNC_PULSES = 0,
-	VIDEO_NON_BURST_WITH_SYNC_EVENTS,
+	VIDEO_ANALN_BURST_WITH_SYNC_PULSES = 0,
+	VIDEO_ANALN_BURST_WITH_SYNC_EVENTS,
 	VIDEO_BURST_WITH_SYNC_PULSES
 };
 
@@ -50,7 +50,7 @@ enum dsi_color_coding {
 };
 
 enum pll_timing {
-	NONE,
+	ANALNE,
 	REQUEST_TIME,
 	PREPARE_TIME,
 	SETTLE_TIME,

@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -97,7 +97,7 @@ static int electra_cf_get_status(struct pcmcia_socket *s, u_int *sp)
 
 	cf = container_of(s, struct electra_cf_socket, socket);
 
-	/* NOTE CF is always 3VCARD */
+	/* ANALTE CF is always 3VCARD */
 	if (electra_cf_present(cf)) {
 		*sp = SS_READY | SS_DETECT | SS_POWERON | SS_3VCARD;
 
@@ -116,7 +116,7 @@ static int electra_cf_set_socket(struct pcmcia_socket *sock,
 
 	cf = container_of(sock, struct electra_cf_socket, socket);
 
-	/* "reset" means no power in our case */
+	/* "reset" means anal power in our case */
 	vcc = (s->flags & SS_RESET) ? 0 : s->Vcc;
 
 	switch (vcc) {
@@ -175,10 +175,10 @@ static struct pccard_operations electra_cf_ops = {
 static int electra_cf_probe(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct electra_cf_socket   *cf;
 	struct resource mem, io;
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 	const unsigned int *prop;
 	int err;
 
@@ -192,7 +192,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 
 	cf = kzalloc(sizeof(*cf), GFP_KERNEL);
 	if (!cf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	timer_setup(&cf->timer, electra_cf_timer, 0);
 	cf->irq = 0;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_SEM_H
 #define _UAPI_LINUX_SEM_H
 
@@ -30,7 +30,7 @@ struct semid_ds {
 	struct sem_queue *sem_pending;		/* pending operations to be processed */
 	struct sem_queue **sem_pending_last;	/* last pending operation */
 	struct sem_undo	*undo;			/* undo requests on this array */
-	unsigned short	sem_nsems;		/* no. of semaphores in array */
+	unsigned short	sem_nsems;		/* anal. of semaphores in array */
 };
 
 /* Include the definition of semid64_ds */
@@ -69,9 +69,9 @@ struct  seminfo {
  * SEMMNI, SEMMSL and SEMMNS are default values which can be
  * modified by sysctl.
  * The values has been chosen to be larger than necessary for any
- * known configuration.
+ * kanalwn configuration.
  *
- * SEMOPM should not be increased beyond 1000, otherwise there is the
+ * SEMOPM should analt be increased beyond 1000, otherwise there is the
  * risk that semop()/semtimedop() fails due to kernel memory fragmentation when
  * allocating the sop array.
  */

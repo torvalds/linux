@@ -279,7 +279,7 @@ static int rt1017_sdca_read_prop(struct sdw_slave *slave)
 	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
 		sizeof(*prop->src_dpn_prop), GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->src_dpn_prop;
@@ -292,12 +292,12 @@ static int rt1017_sdca_read_prop(struct sdw_slave *slave)
 		i++;
 	}
 
-	/* do this again for sink now */
+	/* do this again for sink analw */
 	nval = hweight32(prop->sink_ports);
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
 		sizeof(*prop->sink_dpn_prop), GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	j = 0;
 	dpn = prop->sink_dpn_prop;
@@ -338,13 +338,13 @@ static int rt1017_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
 
-		/* make sure the device does not suspend immediately */
+		/* make sure the device does analt suspend immediately */
 		pm_runtime_mark_last_busy(&slave->dev);
 
 		pm_runtime_enable(&slave->dev);
 	}
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	/* sw reset */
 	regmap_write(rt1017->regmap, 0xc000, 0x02);
@@ -484,23 +484,23 @@ static int rt1017_sdca_feedback_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget rt1017_sdca_dapm_widgets[] = {
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("DP1RX", "DP1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT_E("DP2TX", "DP2 Capture", 0, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_IN("DP1RX", "DP1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT_E("DP2TX", "DP2 Capture", 0, SND_SOC_ANALPM, 0, 0,
 		rt1017_sdca_feedback_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Digital Interface */
-	SND_SOC_DAPM_SWITCH("DAC", SND_SOC_NOPM, 0, 0, &rt1017_sto_dac),
+	SND_SOC_DAPM_SWITCH("DAC", SND_SOC_ANALPM, 0, 0, &rt1017_sto_dac),
 
 	/* Output Lines */
-	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		rt1017_sdca_classd_event, SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPO"),
 
-	SND_SOC_DAPM_SUPPLY("PDE23", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE23", SND_SOC_ANALPM, 0, 0,
 		rt1017_sdca_pde23_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_PGA("I Sense", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("V Sense", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("I Sense", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("V Sense", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SIGGEN("I Gen"),
 	SND_SOC_DAPM_SIGGEN("V Gen"),
 };
@@ -638,7 +638,7 @@ static int rt1017_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT1017_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
+		dev_err(component->dev, "Rate %d is analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -708,7 +708,7 @@ static int rt1017_sdca_init(struct device *dev, struct regmap *regmap,
 
 	rt1017 = devm_kzalloc(dev, sizeof(*rt1017), GFP_KERNEL);
 	if (!rt1017)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt1017);
 	rt1017->sdw_slave = slave;
@@ -787,7 +787,7 @@ static int __maybe_unused rt1017_sdca_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT1017_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;

@@ -53,7 +53,7 @@ static int ls1x_gpio_probe(struct platform_device *pdev)
 
 	ls1x_gc = devm_kzalloc(dev, sizeof(*ls1x_gc), GFP_KERNEL);
 	if (!ls1x_gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ls1x_gc->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ls1x_gc->reg_base))

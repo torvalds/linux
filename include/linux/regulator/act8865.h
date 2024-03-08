@@ -61,13 +61,13 @@ enum {
  * @id: regulator id
  * @name: regulator name
  * @init_data: regulator init data
- * @of_node: device tree node (optional)
+ * @of_analde: device tree analde (optional)
  */
 struct act8865_regulator_data {
 	int id;
 	const char *name;
 	struct regulator_init_data *init_data;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 };
 
 /**

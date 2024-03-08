@@ -1,6 +1,6 @@
 PCM5102a audio CODECs
 
-These devices does not use I2C or SPI.
+These devices does analt use I2C or SPI.
 
 Required properties:
 

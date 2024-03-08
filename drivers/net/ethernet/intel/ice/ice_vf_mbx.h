@@ -7,9 +7,9 @@
 #include "ice_type.h"
 #include "ice_controlq.h"
 
-/* Defining the mailbox message threshold as 63 asynchronous
- * pending messages. Normal VF functionality does not require
- * sending more than 63 asynchronous pending message.
+/* Defining the mailbox message threshold as 63 asynchroanalus
+ * pending messages. Analrmal VF functionality does analt require
+ * sending more than 63 asynchroanalus pending message.
  */
 #define ICE_ASYNC_VF_MSG_THRESHOLD	63
 

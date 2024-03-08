@@ -32,7 +32,7 @@
 LEAF(resume)
 	mfc0	t1, CP0_STATUS
 	sw	t1, THREAD_STATUS(a0)
-	cpu_save_nonscratch a0
+	cpu_save_analnscratch a0
 	sw	ra, THREAD_REG31(a0)
 
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
@@ -46,7 +46,7 @@ LEAF(resume)
 	 * updating $28, $29 and kernelsp without disabling ints.
 	 */
 	move	$28, a2
-	cpu_restore_nonscratch a1
+	cpu_restore_analnscratch a1
 
 	addiu	t1, $28, _THREAD_SIZE - 32
 	sw	t1, kernelsp
@@ -55,7 +55,7 @@ LEAF(resume)
 	li	a3, 0xff01
 	and	t1, a3
 	lw	a2, THREAD_STATUS(a1)
-	nor	a3, $0, a3
+	analr	a3, $0, a3
 	and	a2, a3
 	or	a2, t1
 	mtc0	a2, CP0_STATUS

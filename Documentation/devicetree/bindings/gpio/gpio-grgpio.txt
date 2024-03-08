@@ -2,7 +2,7 @@ Aeroflex Gaisler GRGPIO General Purpose I/O cores.
 
 The GRGPIO GPIO core is available in the GRLIB VHDL IP core library.
 
-Note: In the ordinary environment for the GRGPIO core, a Leon SPARC system,
+Analte: In the ordinary environment for the GRGPIO core, a Leon SPARC system,
 these properties are built from information in the AMBA plug&play.
 
 Required properties:
@@ -15,11 +15,11 @@ Required properties:
 
 Optional properties:
 
-- nbits : The number of gpio lines. If not present driver assumes 32 lines.
+- nbits : The number of gpio lines. If analt present driver assumes 32 lines.
 
 - irqmap : An array with an index for each gpio line. An index is either a valid
 	index into the interrupts property array, or 0xffffffff that indicates
-	no irq for that line. Driver provides no interrupt support if not
+	anal irq for that line. Driver provides anal interrupt support if analt
 	present.
 
 For further information look in the documentation for the GLIB IP core library:

@@ -122,17 +122,17 @@ static ssize_t target_stat_tgt_status_show(struct config_item *item,
 		return snprintf(page, PAGE_SIZE, "deactivated");
 }
 
-static ssize_t target_stat_tgt_non_access_lus_show(struct config_item *item,
+static ssize_t target_stat_tgt_analn_access_lus_show(struct config_item *item,
 		char *page)
 {
-	int non_accessible_lus;
+	int analn_accessible_lus;
 
 	if (to_stat_tgt_dev(item)->export_count)
-		non_accessible_lus = 0;
+		analn_accessible_lus = 0;
 	else
-		non_accessible_lus = 1;
+		analn_accessible_lus = 1;
 
-	return snprintf(page, PAGE_SIZE, "%u\n", non_accessible_lus);
+	return snprintf(page, PAGE_SIZE, "%u\n", analn_accessible_lus);
 }
 
 static ssize_t target_stat_tgt_resets_show(struct config_item *item,
@@ -149,31 +149,31 @@ static ssize_t target_stat_tgt_aborts_complete_show(struct config_item *item,
 			atomic_long_read(&to_stat_tgt_dev(item)->aborts_complete));
 }
 
-static ssize_t target_stat_tgt_aborts_no_task_show(struct config_item *item,
+static ssize_t target_stat_tgt_aborts_anal_task_show(struct config_item *item,
 		char *page)
 {
 	return snprintf(page, PAGE_SIZE, "%lu\n",
-			atomic_long_read(&to_stat_tgt_dev(item)->aborts_no_task));
+			atomic_long_read(&to_stat_tgt_dev(item)->aborts_anal_task));
 }
 
 CONFIGFS_ATTR_RO(target_stat_tgt_, inst);
 CONFIGFS_ATTR_RO(target_stat_tgt_, indx);
 CONFIGFS_ATTR_RO(target_stat_tgt_, num_lus);
 CONFIGFS_ATTR_RO(target_stat_tgt_, status);
-CONFIGFS_ATTR_RO(target_stat_tgt_, non_access_lus);
+CONFIGFS_ATTR_RO(target_stat_tgt_, analn_access_lus);
 CONFIGFS_ATTR_RO(target_stat_tgt_, resets);
 CONFIGFS_ATTR_RO(target_stat_tgt_, aborts_complete);
-CONFIGFS_ATTR_RO(target_stat_tgt_, aborts_no_task);
+CONFIGFS_ATTR_RO(target_stat_tgt_, aborts_anal_task);
 
 static struct configfs_attribute *target_stat_scsi_tgt_dev_attrs[] = {
 	&target_stat_tgt_attr_inst,
 	&target_stat_tgt_attr_indx,
 	&target_stat_tgt_attr_num_lus,
 	&target_stat_tgt_attr_status,
-	&target_stat_tgt_attr_non_access_lus,
+	&target_stat_tgt_attr_analn_access_lus,
 	&target_stat_tgt_attr_resets,
 	&target_stat_tgt_attr_aborts_complete,
-	&target_stat_tgt_attr_aborts_no_task,
+	&target_stat_tgt_attr_aborts_anal_task,
 	NULL,
 };
 
@@ -224,7 +224,7 @@ static ssize_t target_stat_lu_lu_name_show(struct config_item *item, char *page)
 	/* scsiLuWwnName */
 	return snprintf(page, PAGE_SIZE, "%s\n",
 			(strlen(dev->t10_wwn.unit_serial)) ?
-			dev->t10_wwn.unit_serial : "None");
+			dev->t10_wwn.unit_serial : "Analne");
 }
 
 static ssize_t target_stat_lu_vend_show(struct config_item *item, char *page)
@@ -266,7 +266,7 @@ static ssize_t target_stat_lu_status_show(struct config_item *item, char *page)
 
 	/* scsiLuStatus */
 	return snprintf(page, PAGE_SIZE, "%s\n",
-		(dev->export_count) ? "available" : "notavailable");
+		(dev->export_count) ? "available" : "analtavailable");
 }
 
 static ssize_t target_stat_lu_state_bit_show(struct config_item *item,
@@ -422,7 +422,7 @@ static ssize_t target_stat_port_inst_show(struct config_item *item, char *page)
 {
 	struct se_lun *lun = to_stat_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -436,7 +436,7 @@ static ssize_t target_stat_port_dev_show(struct config_item *item, char *page)
 {
 	struct se_lun *lun = to_stat_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -450,7 +450,7 @@ static ssize_t target_stat_port_indx_show(struct config_item *item, char *page)
 {
 	struct se_lun *lun = to_stat_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -464,7 +464,7 @@ static ssize_t target_stat_port_role_show(struct config_item *item, char *page)
 {
 	struct se_lun *lun = to_stat_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -479,7 +479,7 @@ static ssize_t target_stat_port_busy_count_show(struct config_item *item,
 {
 	struct se_lun *lun = to_stat_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -526,7 +526,7 @@ static ssize_t target_stat_tgt_port_inst_show(struct config_item *item,
 {
 	struct se_lun *lun = to_stat_tgt_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -541,7 +541,7 @@ static ssize_t target_stat_tgt_port_dev_show(struct config_item *item,
 {
 	struct se_lun *lun = to_stat_tgt_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -556,7 +556,7 @@ static ssize_t target_stat_tgt_port_indx_show(struct config_item *item,
 {
 	struct se_lun *lun = to_stat_tgt_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -572,7 +572,7 @@ static ssize_t target_stat_tgt_port_name_show(struct config_item *item,
 	struct se_lun *lun = to_stat_tgt_port(item);
 	struct se_portal_group *tpg = lun->lun_tpg;
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -590,7 +590,7 @@ static ssize_t target_stat_tgt_port_port_index_show(struct config_item *item,
 	struct se_lun *lun = to_stat_tgt_port(item);
 	struct se_portal_group *tpg = lun->lun_tpg;
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -607,7 +607,7 @@ static ssize_t target_stat_tgt_port_in_cmds_show(struct config_item *item,
 {
 	struct se_lun *lun = to_stat_tgt_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -623,7 +623,7 @@ static ssize_t target_stat_tgt_port_write_mbytes_show(struct config_item *item,
 {
 	struct se_lun *lun = to_stat_tgt_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -639,7 +639,7 @@ static ssize_t target_stat_tgt_port_read_mbytes_show(struct config_item *item,
 {
 	struct se_lun *lun = to_stat_tgt_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -655,7 +655,7 @@ static ssize_t target_stat_tgt_port_hs_in_cmds_show(struct config_item *item,
 {
 	struct se_lun *lun = to_stat_tgt_port(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -710,7 +710,7 @@ static ssize_t target_stat_transport_inst_show(struct config_item *item,
 {
 	struct se_lun *lun = to_transport_stat(item);
 	struct se_device *dev;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -726,7 +726,7 @@ static ssize_t target_stat_transport_device_show(struct config_item *item,
 	struct se_lun *lun = to_transport_stat(item);
 	struct se_device *dev;
 	struct se_portal_group *tpg = lun->lun_tpg;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -745,7 +745,7 @@ static ssize_t target_stat_transport_indx_show(struct config_item *item,
 	struct se_lun *lun = to_transport_stat(item);
 	struct se_device *dev;
 	struct se_portal_group *tpg = lun->lun_tpg;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -763,7 +763,7 @@ static ssize_t target_stat_transport_dev_name_show(struct config_item *item,
 	struct se_device *dev;
 	struct se_portal_group *tpg = lun->lun_tpg;
 	struct t10_wwn *wwn;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -785,7 +785,7 @@ static ssize_t target_stat_transport_proto_id_show(struct config_item *item,
 	struct se_lun *lun = to_transport_stat(item);
 	struct se_device *dev;
 	struct se_portal_group *tpg = lun->lun_tpg;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	rcu_read_lock();
 	dev = rcu_dereference(lun->lun_se_dev);
@@ -852,7 +852,7 @@ static ssize_t target_stat_auth_inst_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	struct se_portal_group *tpg;
 	ssize_t ret;
@@ -861,7 +861,7 @@ static ssize_t target_stat_auth_inst_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	tpg = nacl->se_tpg;
 	/* scsiInstIndex */
@@ -875,7 +875,7 @@ static ssize_t target_stat_auth_dev_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -883,7 +883,7 @@ static ssize_t target_stat_auth_dev_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* scsiDeviceIndex */
@@ -896,7 +896,7 @@ static ssize_t target_stat_auth_port_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	struct se_portal_group *tpg;
 	ssize_t ret;
@@ -905,7 +905,7 @@ static ssize_t target_stat_auth_port_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	tpg = nacl->se_tpg;
 	/* scsiAuthIntrTgtPortIndex */
@@ -918,7 +918,7 @@ static ssize_t target_stat_auth_indx_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -926,7 +926,7 @@ static ssize_t target_stat_auth_indx_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* scsiAuthIntrIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", nacl->acl_index);
@@ -938,7 +938,7 @@ static ssize_t target_stat_auth_dev_or_port_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -946,7 +946,7 @@ static ssize_t target_stat_auth_dev_or_port_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* scsiAuthIntrDevOrPort */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", 1);
@@ -958,7 +958,7 @@ static ssize_t target_stat_auth_intr_name_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -966,7 +966,7 @@ static ssize_t target_stat_auth_intr_name_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* scsiAuthIntrName */
 	ret = snprintf(page, PAGE_SIZE, "%s\n", nacl->initiatorname);
@@ -978,7 +978,7 @@ static ssize_t target_stat_auth_map_indx_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -986,7 +986,7 @@ static ssize_t target_stat_auth_map_indx_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* FIXME: scsiAuthIntrLunMapIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
@@ -998,7 +998,7 @@ static ssize_t target_stat_auth_att_count_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -1006,7 +1006,7 @@ static ssize_t target_stat_auth_att_count_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* scsiAuthIntrAttachedTimes */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", deve->attach_count);
@@ -1018,7 +1018,7 @@ static ssize_t target_stat_auth_num_cmds_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -1026,7 +1026,7 @@ static ssize_t target_stat_auth_num_cmds_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* scsiAuthIntrOutCommands */
 	ret = snprintf(page, PAGE_SIZE, "%lu\n",
@@ -1039,7 +1039,7 @@ static ssize_t target_stat_auth_read_mbytes_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -1047,7 +1047,7 @@ static ssize_t target_stat_auth_read_mbytes_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* scsiAuthIntrReadMegaBytes */
 	ret = snprintf(page, PAGE_SIZE, "%u\n",
@@ -1060,7 +1060,7 @@ static ssize_t target_stat_auth_write_mbytes_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -1068,7 +1068,7 @@ static ssize_t target_stat_auth_write_mbytes_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* scsiAuthIntrWrittenMegaBytes */
 	ret = snprintf(page, PAGE_SIZE, "%u\n",
@@ -1081,7 +1081,7 @@ static ssize_t target_stat_auth_hs_num_cmds_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -1089,7 +1089,7 @@ static ssize_t target_stat_auth_hs_num_cmds_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* FIXME: scsiAuthIntrHSOutCommands */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
@@ -1101,7 +1101,7 @@ static ssize_t target_stat_auth_creation_time_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -1109,7 +1109,7 @@ static ssize_t target_stat_auth_creation_time_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* scsiAuthIntrLastCreation */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", (u32)(((u32)deve->creation_time -
@@ -1122,7 +1122,7 @@ static ssize_t target_stat_auth_row_status_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = auth_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -1130,7 +1130,7 @@ static ssize_t target_stat_auth_row_status_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* FIXME: scsiAuthIntrRowStatus */
 	ret = snprintf(page, PAGE_SIZE, "Ready\n");
@@ -1191,7 +1191,7 @@ static ssize_t target_stat_iport_inst_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = iport_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	struct se_portal_group *tpg;
 	ssize_t ret;
@@ -1200,7 +1200,7 @@ static ssize_t target_stat_iport_inst_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	tpg = nacl->se_tpg;
 	/* scsiInstIndex */
@@ -1214,7 +1214,7 @@ static ssize_t target_stat_iport_dev_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = iport_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -1222,7 +1222,7 @@ static ssize_t target_stat_iport_dev_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* scsiDeviceIndex */
@@ -1235,7 +1235,7 @@ static ssize_t target_stat_iport_port_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = iport_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	struct se_portal_group *tpg;
 	ssize_t ret;
@@ -1244,7 +1244,7 @@ static ssize_t target_stat_iport_port_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	tpg = nacl->se_tpg;
 	/* scsiPortIndex */
@@ -1257,7 +1257,7 @@ static ssize_t target_stat_iport_indx_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = iport_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_session *se_sess;
 	struct se_portal_group *tpg;
 	ssize_t ret;
@@ -1266,7 +1266,7 @@ static ssize_t target_stat_iport_indx_show(struct config_item *item,
 	se_sess = nacl->nacl_sess;
 	if (!se_sess) {
 		spin_unlock_irq(&nacl->nacl_sess_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tpg = nacl->se_tpg;
@@ -1281,7 +1281,7 @@ static ssize_t target_stat_iport_port_auth_indx_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = iport_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t ret;
 
@@ -1289,7 +1289,7 @@ static ssize_t target_stat_iport_port_auth_indx_show(struct config_item *item,
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* scsiAttIntrPortAuthIntrIdx */
 	ret = snprintf(page, PAGE_SIZE, "%u\n", nacl->acl_index);
@@ -1301,7 +1301,7 @@ static ssize_t target_stat_iport_port_ident_show(struct config_item *item,
 		char *page)
 {
 	struct se_lun_acl *lacl = iport_to_lacl(item);
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	struct se_session *se_sess;
 	struct se_portal_group *tpg;
 	ssize_t ret;
@@ -1311,7 +1311,7 @@ static ssize_t target_stat_iport_port_ident_show(struct config_item *item,
 	se_sess = nacl->nacl_sess;
 	if (!se_sess) {
 		spin_unlock_irq(&nacl->nacl_sess_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tpg = nacl->se_tpg;

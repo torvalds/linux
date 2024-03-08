@@ -31,7 +31,7 @@ static int nitrox_cmdq_init(struct nitrox_cmdq *cmdq, int align_bytes)
 						&cmdq->unalign_dma,
 						GFP_KERNEL);
 	if (!cmdq->unalign_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmdq->dma = PTR_ALIGN(cmdq->unalign_dma, align_bytes);
 	cmdq->base = cmdq->unalign_base + (cmdq->dma - cmdq->unalign_dma);
@@ -103,14 +103,14 @@ static int nitrox_alloc_aqm_queues(struct nitrox_device *ndev)
 		struct nitrox_cmdq *cmdq;
 		u64 offset;
 
-		cmdq = kzalloc_node(sizeof(*cmdq), GFP_KERNEL, ndev->node);
+		cmdq = kzalloc_analde(sizeof(*cmdq), GFP_KERNEL, ndev->analde);
 		if (!cmdq) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto aqmq_fail;
 		}
 
 		cmdq->ndev = ndev;
-		cmdq->qno = i;
+		cmdq->qanal = i;
 		cmdq->instr_size = sizeof(struct aqmq_command_s);
 
 		/* AQM Queue Doorbell Counter Register Address */
@@ -152,11 +152,11 @@ static int nitrox_alloc_pktin_queues(struct nitrox_device *ndev)
 {
 	int i, err;
 
-	ndev->pkt_inq = kcalloc_node(ndev->nr_queues,
+	ndev->pkt_inq = kcalloc_analde(ndev->nr_queues,
 				     sizeof(struct nitrox_cmdq),
-				     GFP_KERNEL, ndev->node);
+				     GFP_KERNEL, ndev->analde);
 	if (!ndev->pkt_inq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ndev->nr_queues; i++) {
 		struct nitrox_cmdq *cmdq;
@@ -164,7 +164,7 @@ static int nitrox_alloc_pktin_queues(struct nitrox_device *ndev)
 
 		cmdq = &ndev->pkt_inq[i];
 		cmdq->ndev = ndev;
-		cmdq->qno = i;
+		cmdq->qanal = i;
 		cmdq->instr_size = sizeof(struct nps_pkt_instr);
 
 		/* packet input ring doorbell address */
@@ -194,7 +194,7 @@ static int create_crypto_dma_pool(struct nitrox_device *ndev)
 	ndev->ctx_pool = dma_pool_create("nitrox-context",
 					 DEV(ndev), size, 16, 0);
 	if (!ndev->ctx_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

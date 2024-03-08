@@ -117,7 +117,7 @@ unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 	if (unlikely(__this_cpu_inc_return(bpf_prog_active) != 1)) {
 		/*
 		 * since some bpf program is already running on this cpu,
-		 * don't call into another bpf program (same or different)
+		 * don't call into aanalther bpf program (same or different)
 		 * and don't send kprobe event into ring-buffer,
 		 * so return zero here
 		 */
@@ -131,11 +131,11 @@ unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 	/*
 	 * Instead of moving rcu_read_lock/rcu_dereference/rcu_read_unlock
 	 * to all call sites, we did a bpf_prog_array_valid() there to check
-	 * whether call->prog_array is empty or not, which is
+	 * whether call->prog_array is empty or analt, which is
 	 * a heuristic to speed up execution.
 	 *
 	 * If bpf_prog_array_valid() fetched prog_array was
-	 * non-NULL, we go into trace_call_bpf() and do the actual
+	 * analn-NULL, we go into trace_call_bpf() and do the actual
 	 * proper rcu_dereference() under RCU lock.
 	 * If it turns out that prog_array is NULL then, we bail out.
 	 * For the opposite, if the bpf_prog_array_valid() fetched pointer
@@ -176,7 +176,7 @@ bpf_probe_read_user_common(void *dst, u32 size, const void __user *unsafe_ptr)
 {
 	int ret;
 
-	ret = copy_from_user_nofault(dst, unsafe_ptr, size);
+	ret = copy_from_user_analfault(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
 	return ret;
@@ -204,16 +204,16 @@ bpf_probe_read_user_str_common(void *dst, u32 size,
 	int ret;
 
 	/*
-	 * NB: We rely on strncpy_from_user() not copying junk past the NUL
+	 * NB: We rely on strncpy_from_user() analt copying junk past the NUL
 	 * terminator into `dst`.
 	 *
 	 * strncpy_from_user() does long-sized strides in the fast path. If the
-	 * strncpy does not mask out the bytes after the NUL in `unsafe_ptr`,
+	 * strncpy does analt mask out the bytes after the NUL in `unsafe_ptr`,
 	 * then there could be junk after the NUL in `dst`. If user takes `dst`
 	 * and keys a hash map with it, then semantically identical strings can
 	 * occupy multiple entries in the map.
 	 */
-	ret = strncpy_from_user_nofault(dst, unsafe_ptr, size);
+	ret = strncpy_from_user_analfault(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
 	return ret;
@@ -255,15 +255,15 @@ bpf_probe_read_kernel_str_common(void *dst, u32 size, const void *unsafe_ptr)
 	int ret;
 
 	/*
-	 * The strncpy_from_kernel_nofault() call will likely not fill the
+	 * The strncpy_from_kernel_analfault() call will likely analt fill the
 	 * entire buffer, but that's okay in this circumstance as we're probing
 	 * arbitrary memory anyway similar to bpf_probe_read_*() and might
 	 * as well probe the stack. Thus, memory is explicitly cleared
-	 * only in error case, so that improper users ignoring return
+	 * only in error case, so that improper users iganalring return
 	 * code altogether don't copy garbage; otherwise length of string
 	 * is returned that can be used for bpf_perf_event_output() et al.
 	 */
-	ret = strncpy_from_kernel_nofault(dst, unsafe_ptr, size);
+	ret = strncpy_from_kernel_analfault(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
 	return ret;
@@ -284,7 +284,7 @@ const struct bpf_func_proto bpf_probe_read_kernel_str_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+#ifdef CONFIG_ARCH_HAS_ANALN_OVERLAPPING_ADDRESS_SPACE
 BPF_CALL_3(bpf_probe_read_compat, void *, dst, u32, size,
 	   const void *, unsafe_ptr)
 {
@@ -322,20 +322,20 @@ static const struct bpf_func_proto bpf_probe_read_compat_str_proto = {
 	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
 	.arg3_type	= ARG_ANYTHING,
 };
-#endif /* CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE */
+#endif /* CONFIG_ARCH_HAS_ANALN_OVERLAPPING_ADDRESS_SPACE */
 
 BPF_CALL_3(bpf_probe_write_user, void __user *, unsafe_ptr, const void *, src,
 	   u32, size)
 {
 	/*
 	 * Ensure we're in user context which is safe for the helper to
-	 * run. This helper has no business in a kthread.
+	 * run. This helper has anal business in a kthread.
 	 *
-	 * access_ok() should prevent writing to non-user memory, but in
-	 * some situations (nommu, temporary switch, etc) access_ok() does
-	 * not provide enough validation, hence the check on KERNEL_DS.
+	 * access_ok() should prevent writing to analn-user memory, but in
+	 * some situations (analmmu, temporary switch, etc) access_ok() does
+	 * analt provide eanalugh validation, hence the check on KERNEL_DS.
 	 *
-	 * nmi_uaccess_okay() ensures the probe is not run in an interim
+	 * nmi_uaccess_okay() ensures the probe is analt run in an interim
 	 * state, when the task or mm are switched. This is specifically
 	 * required to prevent the use of temporary mm.
 	 */
@@ -346,7 +346,7 @@ BPF_CALL_3(bpf_probe_write_user, void __user *, unsafe_ptr, const void *, src,
 	if (unlikely(!nmi_uaccess_okay()))
 		return -EPERM;
 
-	return copy_to_user_nofault(unsafe_ptr, src, size);
+	return copy_to_user_analfault(unsafe_ptr, src, size);
 }
 
 static const struct bpf_func_proto bpf_probe_write_user_proto = {
@@ -415,7 +415,7 @@ static void __set_printk_clr_event(void)
 	 * the intent to see such events.
 	 */
 	if (trace_set_clr_event("bpf_trace", "bpf_trace_printk", 1))
-		pr_warn_ratelimited("could not enable bpf_trace_printk events");
+		pr_warn_ratelimited("could analt enable bpf_trace_printk events");
 }
 
 const struct bpf_func_proto *bpf_get_trace_printk_proto(void)
@@ -563,7 +563,7 @@ get_map_perf_counter(struct bpf_map *map, u64 flags,
 
 	ee = READ_ONCE(array->ptrs[index]);
 	if (!ee)
-		return -ENOENT;
+		return -EANALENT;
 
 	return perf_event_read_local(ee->event, value, enabled, running);
 }
@@ -635,7 +635,7 @@ __bpf_perf_event_output(struct pt_regs *regs, struct bpf_map *map,
 
 	ee = READ_ONCE(array->ptrs[index]);
 	if (!ee)
-		return -ENOENT;
+		return -EANALENT;
 
 	event = ee->event;
 	if (unlikely(event->attr.type != PERF_TYPE_SOFTWARE ||
@@ -643,13 +643,13 @@ __bpf_perf_event_output(struct pt_regs *regs, struct bpf_map *map,
 		return -EINVAL;
 
 	if (unlikely(event->oncpu != cpu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return perf_event_output(event, sd, regs);
 }
 
 /*
- * Support executing tracepoints in normal, irq, and nmi context that each call
+ * Support executing tracepoints in analrmal, irq, and nmi context that each call
  * bpf_perf_event_output
  */
 struct bpf_trace_sample_data {
@@ -852,7 +852,7 @@ static int bpf_send_signal_common(u32 sig, enum pid_type type)
 		return -EPERM;
 	if (unlikely(!nmi_uaccess_okay()))
 		return -EPERM;
-	/* Task should not be pid=1 to avoid kernel panic. */
+	/* Task should analt be pid=1 to avoid kernel panic. */
 	if (unlikely(is_global_init(current)))
 		return -EPERM;
 
@@ -919,7 +919,7 @@ BPF_CALL_3(bpf_d_path, struct path *, path, char *, buf, u32, sz)
 	 * but let's double check it's valid anyway to workaround
 	 * potentially broken verifier.
 	 */
-	len = copy_from_kernel_nofault(&copy, path, sizeof(*path));
+	len = copy_from_kernel_analfault(&copy, path, sizeof(*path));
 	if (len < 0)
 		return len;
 
@@ -937,7 +937,7 @@ BPF_CALL_3(bpf_d_path, struct path *, path, char *, buf, u32, sz)
 BTF_SET_START(btf_allowlist_d_path)
 #ifdef CONFIG_SECURITY
 BTF_ID(func, security_file_permission)
-BTF_ID(func, security_inode_getattr)
+BTF_ID(func, security_ianalde_getattr)
 BTF_ID(func, security_file_open)
 #endif
 #ifdef CONFIG_SECURITY_PATH
@@ -976,7 +976,7 @@ static const struct bpf_func_proto bpf_d_path_proto = {
 	.allowed	= bpf_d_path_allowed,
 };
 
-#define BTF_F_ALL	(BTF_F_COMPACT  | BTF_F_NONAME | \
+#define BTF_F_ALL	(BTF_F_COMPACT  | BTF_F_ANALNAME | \
 			 BTF_F_PTR_RAW | BTF_F_ZERO)
 
 static int bpf_btf_printf_prepare(struct btf_ptr *ptr, u32 btf_ptr_size,
@@ -1004,7 +1004,7 @@ static int bpf_btf_printf_prepare(struct btf_ptr *ptr, u32 btf_ptr_size,
 	if (*btf_id > 0)
 		t = btf_type_by_id(*btf, *btf_id);
 	if (*btf_id <= 0 || !t)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -1054,7 +1054,7 @@ static unsigned long get_entry_ip(unsigned long fentry_ip)
 	u32 instr;
 
 	/* Being extra safe in here in case entry ip is on the page-edge. */
-	if (get_kernel_nofault(instr, (u32 *) fentry_ip - 1))
+	if (get_kernel_analfault(instr, (u32 *) fentry_ip - 1))
 		return fentry_ip;
 	if (is_endbr(instr))
 		fentry_ip -= ENDBR_INSN_SIZE;
@@ -1183,7 +1183,7 @@ static const struct bpf_func_proto bpf_get_attach_cookie_proto_tracing = {
 BPF_CALL_3(bpf_get_branch_snapshot, void *, buf, u32, size, u64, flags)
 {
 #ifndef CONFIG_X86
-	return -ENOENT;
+	return -EANALENT;
 #else
 	static const u32 br_entry_size = sizeof(struct perf_branch_entry);
 	u32 entry_cnt = size / br_entry_size;
@@ -1194,7 +1194,7 @@ BPF_CALL_3(bpf_get_branch_snapshot, void *, buf, u32, size, u64, flags)
 		return -EINVAL;
 
 	if (!entry_cnt)
-		return -ENOENT;
+		return -EANALENT;
 
 	return entry_cnt * br_entry_size;
 #endif
@@ -1293,7 +1293,7 @@ __bpf_kfunc struct bpf_key *bpf_lookup_user_key(u32 serial, u64 flags)
 
 	/*
 	 * Permission check is deferred until the key is used, as the
-	 * intent of the caller is unknown here.
+	 * intent of the caller is unkanalwn here.
 	 */
 	key_ref = lookup_user_key(serial, flags, KEY_DEFER_PERM_CHECK);
 	if (IS_ERR(key_ref))
@@ -1467,10 +1467,10 @@ __bpf_kfunc int bpf_get_file_xattr(struct file *file, const char *name__str,
 		return -EINVAL;
 
 	dentry = file_dentry(file);
-	ret = inode_permission(&nop_mnt_idmap, dentry->d_inode, MAY_READ);
+	ret = ianalde_permission(&analp_mnt_idmap, dentry->d_ianalde, MAY_READ);
 	if (ret)
 		return ret;
-	return __vfs_getxattr(dentry, dentry->d_inode, name__str, value, value_len);
+	return __vfs_getxattr(dentry, dentry->d_ianalde, name__str, value, value_len);
 }
 
 __bpf_kfunc_end_defs();
@@ -1541,8 +1541,8 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return bpf_get_trace_printk_proto();
 	case BPF_FUNC_get_smp_processor_id:
 		return &bpf_get_smp_processor_id_proto;
-	case BPF_FUNC_get_numa_node_id:
-		return &bpf_get_numa_node_id_proto;
+	case BPF_FUNC_get_numa_analde_id:
+		return &bpf_get_numa_analde_id_proto;
 	case BPF_FUNC_perf_event_read:
 		return &bpf_perf_event_read_proto;
 	case BPF_FUNC_current_task_under_cgroup:
@@ -1562,7 +1562,7 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_probe_read_kernel_str:
 		return security_locked_down(LOCKDOWN_BPF_READ_KERNEL) < 0 ?
 		       NULL : &bpf_probe_read_kernel_str_proto;
-#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+#ifdef CONFIG_ARCH_HAS_ANALN_OVERLAPPING_ADDRESS_SPACE
 	case BPF_FUNC_probe_read:
 		return security_locked_down(LOCKDOWN_BPF_READ_KERNEL) < 0 ?
 		       NULL : &bpf_probe_read_compat_proto;
@@ -1724,7 +1724,7 @@ BPF_CALL_3(bpf_get_stackid_tp, void *, tp_buff, struct bpf_map *, map,
 
 	/*
 	 * Same comment as in bpf_perf_event_output_tp(), only that this time
-	 * the other helper's function body cannot be inlined due to being
+	 * the other helper's function body cananalt be inlined due to being
 	 * external, thus we need to call raw helper function.
 	 */
 	return bpf_get_stackid((unsigned long) regs, (unsigned long) map,
@@ -1836,10 +1836,10 @@ BPF_CALL_4(bpf_read_branch_records, struct bpf_perf_event_data_kern *, ctx,
 		return -EINVAL;
 
 	if (unlikely(!(ctx->data->sample_flags & PERF_SAMPLE_BRANCH_STACK)))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (unlikely(!br_stack))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (flags & BPF_F_GET_BRANCH_RECORDS_SIZE)
 		return br_stack->nr * br_entry_size;
@@ -1890,7 +1890,7 @@ pe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
  * inside bpf_*_event_output, bpf_get_stackid and/or bpf_get_stack.
  *
  * Since raw tracepoints run despite bpf_prog_active, support concurrent usage
- * in normal, irq, and nmi context.
+ * in analrmal, irq, and nmi context.
  */
 struct bpf_raw_tp_regs {
 	struct pt_regs regs[3];
@@ -2099,7 +2099,7 @@ int __weak bpf_prog_test_run_tracing(struct bpf_prog *prog,
 				     const union bpf_attr *kattr,
 				     union bpf_attr __user *uattr)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 const struct bpf_verifier_ops raw_tracepoint_verifier_ops = {
@@ -2287,7 +2287,7 @@ void perf_event_detach_bpf_prog(struct perf_event *event)
 
 	old_array = bpf_event_rcu_dereference(event->tp_event->prog_array);
 	ret = bpf_prog_array_copy(old_array, event->prog, NULL, 0, &new_array);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		goto unlock;
 	if (ret < 0) {
 		bpf_prog_array_delete_safe(old_array, event->prog);
@@ -2321,13 +2321,13 @@ int perf_event_query_prog_array(struct perf_event *event, void __user *info)
 	ids_len = query.ids_len;
 	if (ids_len > BPF_TRACE_MAX_PROGS)
 		return -E2BIG;
-	ids = kcalloc(ids_len, sizeof(u32), GFP_USER | __GFP_NOWARN);
+	ids = kcalloc(ids_len, sizeof(u32), GFP_USER | __GFP_ANALWARN);
 	if (!ids)
-		return -ENOMEM;
+		return -EANALMEM;
 	/*
 	 * The above kcalloc returns ZERO_SIZE_PTR when ids_len = 0, which
 	 * is required when user only wants to check for uquery->prog_cnt.
-	 * There is no need to check for it since the case is handled
+	 * There is anal need to check for it since the case is handled
 	 * gracefully in bpf_prog_array_copy_info.
 	 */
 
@@ -2468,11 +2468,11 @@ int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
 
 	prog = event->prog;
 	if (!prog)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* not supporting BPF_PROG_TYPE_PERF_EVENT yet */
+	/* analt supporting BPF_PROG_TYPE_PERF_EVENT yet */
 	if (prog->type == BPF_PROG_TYPE_PERF_EVENT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*prog_id = prog->aux->id;
 	flags = event->tp_event->flags;
@@ -2491,7 +2491,7 @@ int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
 			*probe_addr = 0x0;
 	} else {
 		/* kprobe/uprobe */
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 #ifdef CONFIG_KPROBE_EVENTS
 		if (flags & TRACE_EVENT_FL_KPROBE)
 			err = bpf_get_kprobe_info(event, fd_type, buf,
@@ -2524,7 +2524,7 @@ static int __init send_signal_irq_work_init(void)
 subsys_initcall(send_signal_irq_work_init);
 
 #ifdef CONFIG_MODULES
-static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
+static int bpf_event_analtify(struct analtifier_block *nb, unsigned long op,
 			    void *module)
 {
 	struct bpf_trace_module *btm, *tmp;
@@ -2544,7 +2544,7 @@ static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
 			btm->module = module;
 			list_add(&btm->list, &bpf_trace_modules);
 		} else {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 		}
 		break;
 	case MODULE_STATE_GOING:
@@ -2561,16 +2561,16 @@ static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
 	mutex_unlock(&bpf_module_mutex);
 
 out:
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
-static struct notifier_block bpf_module_nb = {
-	.notifier_call = bpf_event_notify,
+static struct analtifier_block bpf_module_nb = {
+	.analtifier_call = bpf_event_analtify,
 };
 
 static int __init bpf_event_init(void)
 {
-	register_module_notifier(&bpf_module_nb);
+	register_module_analtifier(&bpf_module_nb);
 	return 0;
 }
 
@@ -2605,7 +2605,7 @@ static int copy_user_syms(struct user_syms *us, unsigned long __user *usyms, u32
 	unsigned long __user usymbol;
 	const char **syms = NULL;
 	char *buf = NULL, *p;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	unsigned int i;
 
 	syms = kvmalloc_array(cnt, sizeof(*syms), GFP_KERNEL);
@@ -2695,7 +2695,7 @@ static int bpf_kprobe_multi_link_fill_link_info(const struct bpf_link *link,
 	if (!uaddrs)
 		return 0;
 	if (ucount < kmulti_link->cnt)
-		err = -ENOSPC;
+		err = -EANALSPC;
 	else
 		ucount = kmulti_link->cnt;
 
@@ -2872,7 +2872,7 @@ static int add_module(struct modules_array *arr, struct module *mod)
 		arr->mods_cap = max(16, arr->mods_cap * 3 / 2);
 		mods = krealloc_array(arr->mods, arr->mods_cap, sizeof(*mods), GFP_KERNEL);
 		if (!mods)
-			return -ENOMEM;
+			return -EANALMEM;
 		arr->mods = mods;
 	}
 
@@ -2902,7 +2902,7 @@ static int get_modules_for_addrs(struct module ***mods, unsigned long *addrs, u3
 
 		preempt_disable();
 		mod = __module_address(addrs[i]);
-		/* Either no module or we it's already stored  */
+		/* Either anal module or we it's already stored  */
 		if (!mod || has_module(&arr, mod)) {
 			preempt_enable();
 			continue;
@@ -2954,9 +2954,9 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	void __user *usyms;
 	int err;
 
-	/* no support for 32bit archs yet */
+	/* anal support for 32bit archs yet */
 	if (sizeof(u64) != sizeof(void *))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (prog->expected_attach_type != BPF_TRACE_KPROBE_MULTI)
 		return -EINVAL;
@@ -2979,13 +2979,13 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	size = cnt * sizeof(*addrs);
 	addrs = kvmalloc_array(cnt, sizeof(*addrs), GFP_KERNEL);
 	if (!addrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ucookies = u64_to_user_ptr(attr->link_create.kprobe_multi.cookies);
 	if (ucookies) {
 		cookies = kvmalloc_array(cnt, sizeof(*addrs), GFP_KERNEL);
 		if (!cookies) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 		if (copy_from_user(cookies, ucookies, size)) {
@@ -3028,7 +3028,7 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 
 	link = kzalloc(sizeof(*link), GFP_KERNEL);
 	if (!link) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -3087,7 +3087,7 @@ error:
 #else /* !CONFIG_FPROBE */
 int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx)
 {
@@ -3131,7 +3131,7 @@ static void bpf_uprobe_unregister(struct path *path, struct bpf_uprobe *uprobes,
 	u32 i;
 
 	for (i = 0; i < cnt; i++) {
-		uprobe_unregister(d_real_inode(path->dentry), uprobes[i].offset,
+		uprobe_unregister(d_real_ianalde(path->dentry), uprobes[i].offset,
 				  &uprobes[i].consumer);
 	}
 }
@@ -3188,7 +3188,7 @@ static int bpf_uprobe_multi_link_fill_link_info(const struct bpf_link *link,
 
 		buf = kmalloc(upath_size, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		p = d_path(&umulti_link->path, buf, upath_size);
 		if (IS_ERR(p)) {
 			kfree(buf);
@@ -3206,7 +3206,7 @@ static int bpf_uprobe_multi_link_fill_link_info(const struct bpf_link *link,
 		return 0;
 
 	if (ucount < umulti_link->cnt)
-		err = -ENOSPC;
+		err = -EANALSPC;
 	else
 		ucount = umulti_link->cnt;
 
@@ -3328,9 +3328,9 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	pid_t pid;
 	int err;
 
-	/* no support for 32bit archs yet */
+	/* anal support for 32bit archs yet */
 	if (sizeof(u64) != sizeof(void *))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (prog->expected_attach_type != BPF_TRACE_UPROBE_MULTI)
 		return -EINVAL;
@@ -3382,7 +3382,7 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		}
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	link = kzalloc(sizeof(*link), GFP_KERNEL);
 	uprobes = kvcalloc(cnt, sizeof(*uprobes), GFP_KERNEL);
@@ -3429,7 +3429,7 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		      &bpf_uprobe_multi_link_lops, prog);
 
 	for (i = 0; i < cnt; i++) {
-		err = uprobe_register_refctr(d_real_inode(link->path.dentry),
+		err = uprobe_register_refctr(d_real_ianalde(link->path.dentry),
 					     uprobes[i].offset,
 					     uprobes[i].ref_ctr_offset,
 					     &uprobes[i].consumer);
@@ -3457,7 +3457,7 @@ error_path_put:
 #else /* !CONFIG_UPROBES */
 int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static u64 bpf_uprobe_multi_cookie(struct bpf_run_ctx *ctx)
 {

@@ -137,9 +137,9 @@ static int sm_disk_new_block(struct dm_space_map *sm, dm_block_t *b)
 	 * Any block we allocate has to be free in both the old and current ll.
 	 */
 	r = sm_ll_find_common_free_block(&smd->old_ll, &smd->ll, smd->begin, smd->ll.nr_blocks, b);
-	if (r == -ENOSPC)
+	if (r == -EANALSPC)
 		/*
-		 * There's no free block between smd->begin and the end of the metadata device.
+		 * There's anal free block between smd->begin and the end of the metadata device.
 		 * We search before smd->begin in case something has been freed.
 		 */
 		r = sm_ll_find_common_free_block(&smd->old_ll, &smd->ll, 0, smd->begin, b);
@@ -188,7 +188,7 @@ static int sm_disk_copy_root(struct dm_space_map *sm, void *where_le, size_t max
 	root_le.ref_count_root = cpu_to_le64(smd->ll.ref_count_root);
 
 	if (max < sizeof(root_le))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memcpy(where_le, &root_le, sizeof(root_le));
 
@@ -222,7 +222,7 @@ struct dm_space_map *dm_sm_disk_create(struct dm_transaction_manager *tm,
 
 	smd = kmalloc(sizeof(*smd), GFP_KERNEL);
 	if (!smd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	smd->begin = 0;
 	smd->nr_allocated_this_transaction = 0;
@@ -256,7 +256,7 @@ struct dm_space_map *dm_sm_disk_open(struct dm_transaction_manager *tm,
 
 	smd = kmalloc(sizeof(*smd), GFP_KERNEL);
 	if (!smd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	smd->begin = 0;
 	smd->nr_allocated_this_transaction = 0;

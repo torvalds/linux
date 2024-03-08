@@ -364,7 +364,7 @@ static int rt1318_read_prop(struct sdw_slave *slave)
 	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
 		sizeof(*prop->src_dpn_prop), GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->src_dpn_prop;
@@ -377,12 +377,12 @@ static int rt1318_read_prop(struct sdw_slave *slave)
 		i++;
 	}
 
-	/* do this again for sink now */
+	/* do this again for sink analw */
 	nval = hweight32(prop->sink_ports);
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
 		sizeof(*prop->sink_dpn_prop), GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	j = 0;
 	dpn = prop->sink_dpn_prop;
@@ -419,7 +419,7 @@ static int rt1318_io_init(struct device *dev, struct sdw_slave *slave)
 		pm_runtime_set_active(&slave->dev);
 	}
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	/* blind write */
 	regmap_multi_reg_write(rt1318->regmap, rt1318_blind_write,
@@ -520,19 +520,19 @@ static const struct snd_kcontrol_new rt1318_sto_dac =
 
 static const struct snd_soc_dapm_widget rt1318_dapm_widgets[] = {
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("DP1RX", "DP1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP1RX", "DP1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Capture", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Digital Interface */
-	SND_SOC_DAPM_SWITCH("DAC", SND_SOC_NOPM, 0, 0, &rt1318_sto_dac),
+	SND_SOC_DAPM_SWITCH("DAC", SND_SOC_ANALPM, 0, 0, &rt1318_sto_dac),
 
 	/* Output */
-	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		rt1318_classd_event, SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPOL"),
 	SND_SOC_DAPM_OUTPUT("SPOR"),
 	/* Input */
-	SND_SOC_DAPM_PGA("FB Data", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("FB Data", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SIGGEN("FB Gen"),
 };
 
@@ -631,7 +631,7 @@ static int rt1318_sdw_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT1318_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
+		dev_err(component->dev, "Rate %d is analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -662,7 +662,7 @@ static int rt1318_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
 
 /*
  * slave_ops: callbacks for get_clock_stop_mode, clock_stop and
- * port_prep are not defined for now
+ * port_prep are analt defined for analw
  */
 static const struct sdw_slave_ops rt1318_slave_ops = {
 	.read_prop = rt1318_read_prop,
@@ -739,7 +739,7 @@ static int rt1318_sdw_init(struct device *dev, struct regmap *regmap,
 
 	rt1318 = devm_kzalloc(dev, sizeof(*rt1318), GFP_KERNEL);
 	if (!rt1318)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt1318);
 	rt1318->sdw_slave = slave;
@@ -765,14 +765,14 @@ static int rt1318_sdw_init(struct device *dev, struct regmap *regmap,
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -835,7 +835,7 @@ static int __maybe_unused rt1318_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT1318_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 		return -ETIMEDOUT;
 	}
 

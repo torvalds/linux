@@ -7,7 +7,7 @@ struct compat_if_dqblk {
 	compat_u64			dqb_curspace;
 	compat_u64			dqb_ihardlimit;
 	compat_u64			dqb_isoftlimit;
-	compat_u64			dqb_curinodes;
+	compat_u64			dqb_curianaldes;
 	compat_u64			dqb_btime;
 	compat_u64			dqb_itime;
 	compat_uint_t			dqb_valid;

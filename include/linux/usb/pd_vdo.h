@@ -107,7 +107,7 @@
  * <31>     :: data capable as a USB host
  * <30>     :: data capable as a USB device
  * <29:27>  :: product type (UFP / Cable / VPD)
- * <26>     :: modal operation supported (1b == yes)
+ * <26>     :: modal operation supported (1b == anal)
  * <25:23>  :: product type (DFP) (SVDM version 2.0+ only; set to zero in version 1.0)
  * <22:21>  :: connector type (SVDM version 2.0+ only; set to zero in version 1.0)
  * <20:16>  :: Reserved, Shall be set to zero
@@ -118,20 +118,20 @@
 #define IDH_PTYPE_UNDEF		0
 
 /* SOP Product Type (UFP) */
-#define IDH_PTYPE_NOT_UFP	0
+#define IDH_PTYPE_ANALT_UFP	0
 #define IDH_PTYPE_HUB		1
 #define IDH_PTYPE_PERIPH	2
 #define IDH_PTYPE_PSD		3
 #define IDH_PTYPE_AMA		5
 
 /* SOP' Product Type (Cable Plug / VPD) */
-#define IDH_PTYPE_NOT_CABLE	0
+#define IDH_PTYPE_ANALT_CABLE	0
 #define IDH_PTYPE_PCABLE	3
 #define IDH_PTYPE_ACABLE	4
 #define IDH_PTYPE_VPD		6
 
 /* SOP Product Type (DFP) */
-#define IDH_PTYPE_NOT_DFP	0
+#define IDH_PTYPE_ANALT_DFP	0
 #define IDH_PTYPE_DFP_HUB	1
 #define IDH_PTYPE_DFP_HOST	2
 #define IDH_PTYPE_DFP_PB	3
@@ -177,8 +177,8 @@
  * <23:22> :: Connector type (10b == receptacle, 11b == captive plug)
  * <21:11> :: Reserved
  * <10:8>  :: Vconn power (AMA only)
- * <7>     :: Vconn required (AMA only, 0b == no, 1b == yes)
- * <6>     :: Vbus required (AMA only, 0b == yes, 1b == no)
+ * <7>     :: Vconn required (AMA only, 0b == anal, 1b == anal)
+ * <6>     :: Vbus required (AMA only, 0b == anal, 1b == anal)
  * <5:3>   :: Alternate modes
  * <2:0>   :: USB highest speed
  */
@@ -197,7 +197,7 @@
 #define UFP_RECEPTACLE		2
 #define UFP_CAPTIVE		3
 
-/* Vconn Power (AMA only, set to AMA_VCONN_NOT_REQ if Vconn is not required) */
+/* Vconn Power (AMA only, set to AMA_VCONN_ANALT_REQ if Vconn is analt required) */
 #define AMA_VCONN_PWR_1W	0
 #define AMA_VCONN_PWR_1W5	1
 #define AMA_VCONN_PWR_2W	2
@@ -207,18 +207,18 @@
 #define AMA_VCONN_PWR_6W	6
 
 /* Vconn Required (AMA only) */
-#define AMA_VCONN_NOT_REQ	0
+#define AMA_VCONN_ANALT_REQ	0
 #define AMA_VCONN_REQ		1
 
 /* Vbus Required (AMA only) */
 #define AMA_VBUS_REQ		0
-#define AMA_VBUS_NOT_REQ	1
+#define AMA_VBUS_ANALT_REQ	1
 
 /* Alternate Modes */
-#define UFP_ALTMODE_NOT_SUPP	0
+#define UFP_ALTMODE_ANALT_SUPP	0
 #define UFP_ALTMODE_TBT3	BIT(0)
 #define UFP_ALTMODE_RECFG	BIT(1)
-#define UFP_ALTMODE_NO_RECFG	BIT(2)
+#define UFP_ALTMODE_ANAL_RECFG	BIT(2)
 
 /* USB Highest Speed */
 #define UFP_USB2_ONLY		0
@@ -269,8 +269,8 @@
  * <8>     :: SSRX1 Directionality support
  * <7>     :: SSRX2 Directionality support
  * <6:5>   :: Vbus current handling capability (01b == 3A, 10b == 5A)
- * <4>     :: Vbus through cable (0b == no, 1b == yes)
- * <3>     :: SOP" controller present? (0b == no, 1b == yes)
+ * <4>     :: Vbus through cable (0b == anal, 1b == anal)
+ * <3>     :: SOP" controller present? (0b == anal, 1b == anal)
  * <2:0>   :: USB SS Signaling support
  *
  * Passive Cable VDO (PD Rev3.0+)
@@ -282,7 +282,7 @@
  * <19:18> :: Type-C to Type-C/Captive (10b == C, 11b == Captive)
  * <17>    :: Reserved, Shall be set to zero
  * <16:13> :: cable latency (0001 == <10ns(~1m length))
- * <12:11> :: cable termination type (10b == Vconn not req, 01b == Vconn req)
+ * <12:11> :: cable termination type (10b == Vconn analt req, 01b == Vconn req)
  * <10:9>  :: Maximum Vbus voltage (00b == 20V, 01b == 30V, 10b == 40V, 11b == 50V)
  * <8:7>   :: Reserved, Shall be set to zero
  * <6:5>   :: Vbus current handling capability (01b == 3A, 10b == 5A)
@@ -300,11 +300,11 @@
  * <16:13> :: cable latency (0001 == <10ns(~1m length))
  * <12:11> :: cable termination type (10b == one end active, 11b == both ends active VCONN req)
  * <10:9>  :: Maximum Vbus voltage (00b == 20V, 01b == 30V, 10b == 40V, 11b == 50V)
- * <8>     :: SBU supported (0b == supported, 1b == not supported)
+ * <8>     :: SBU supported (0b == supported, 1b == analt supported)
  * <7>     :: SBU type (0b == passive, 1b == active)
  * <6:5>   :: Vbus current handling capability (01b == 3A, 10b == 5A)
- * <4>     :: Vbus through cable (0b == no, 1b == yes)
- * <3>     :: SOP" controller present? (0b == no, 1b == yes)
+ * <4>     :: Vbus through cable (0b == anal, 1b == anal)
+ * <3>     :: SOP" controller present? (0b == anal, 1b == anal)
  * <2:0>   :: USB highest speed
  */
 /* Cable VDO Version */
@@ -328,7 +328,7 @@
 #define CABLE_LATENCY_7M_PLUS	8
 
 /* Cable Termination Type */
-#define PCABLE_VCONN_NOT_REQ	0
+#define PCABLE_VCONN_ANALT_REQ	0
 #define PCABLE_VCONN_REQ	1
 #define ACABLE_ONE_END		2
 #define ACABLE_BOTH_END		3
@@ -341,7 +341,7 @@
 
 /* Active Cable SBU Supported/Type */
 #define ACABLE_SBU_SUPP		0
-#define ACABLE_SBU_NOT_SUPP	1
+#define ACABLE_SBU_ANALT_SUPP	1
 #define ACABLE_SBU_PASSIVE	0
 #define ACABLE_SBU_ACTIVE	1
 
@@ -389,12 +389,12 @@
  * <11>    :: U3 to U0 transition mode (0b == direct, 1b == through U3S)
  * <10>    :: Physical connection (0b == copper, 1b == optical)
  * <9>     :: Active element (0b == redriver, 1b == retimer)
- * <8>     :: USB4 supported (0b == yes, 1b == no)
+ * <8>     :: USB4 supported (0b == anal, 1b == anal)
  * <7:6>   :: USB2 hub hops consumed
- * <5>     :: USB2 supported (0b == yes, 1b == no)
- * <4>     :: USB3.2 supported (0b == yes, 1b == no)
+ * <5>     :: USB2 supported (0b == anal, 1b == anal)
+ * <4>     :: USB3.2 supported (0b == anal, 1b == anal)
  * <3>     :: USB lanes supported (0b == one lane, 1b == two lanes)
- * <2>     :: Optically isolated active cable (0b == no, 1b == yes)
+ * <2>     :: Optically isolated active cable (0b == anal, 1b == anal)
  * <1>     :: Reserved, Shall be set to zero
  * <0>     :: USB gen (0b == gen1, 1b == gen2+)
  */
@@ -415,15 +415,15 @@
 #define ACAB2_REDRIVER		0
 #define ACAB2_RETIMER		1
 #define ACAB2_USB4_SUPP		0
-#define ACAB2_USB4_NOT_SUPP	1
+#define ACAB2_USB4_ANALT_SUPP	1
 #define ACAB2_USB2_SUPP		0
-#define ACAB2_USB2_NOT_SUPP	1
+#define ACAB2_USB2_ANALT_SUPP	1
 #define ACAB2_USB32_SUPP	0
-#define ACAB2_USB32_NOT_SUPP	1
+#define ACAB2_USB32_ANALT_SUPP	1
 #define ACAB2_LANES_ONE		0
 #define ACAB2_LANES_TWO		1
-#define ACAB2_OPT_ISO_NO	0
-#define ACAB2_OPT_ISO_YES	1
+#define ACAB2_OPT_ISO_ANAL	0
+#define ACAB2_OPT_ISO_ANAL	1
 #define ACAB2_GEN_1		0
 #define ACAB2_GEN_2_PLUS	1
 
@@ -474,7 +474,7 @@
  * <13>    :: Reserved, Shall be set to zero
  * <12:7>  :: Vbus impedance
  * <6:1>   :: Ground impedance
- * <0>     :: Charge through support (0b == no, 1b == yes)
+ * <0>     :: Charge through support (0b == anal, 1b == anal)
  */
 #define VPD_VDO_VER1_0		0
 #define VPD_MAX_VBUS_20V	0
@@ -483,7 +483,7 @@
 #define VPD_MAX_VBUS_50V	3
 #define VPDCT_CURR_3A		0
 #define VPDCT_CURR_5A		1
-#define VPDCT_NOT_SUPP		0
+#define VPDCT_ANALT_SUPP		0
 #define VPDCT_SUPP		1
 
 #define VDO_VPD(hw, fw, ver, vbm, curr, vbi, gi, ct)			\

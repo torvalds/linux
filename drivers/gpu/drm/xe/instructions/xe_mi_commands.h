@@ -21,7 +21,7 @@
 #define __MI_INSTR(opcode) \
 	(XE_INSTR_MI | REG_FIELD_PREP(MI_OPCODE, opcode))
 
-#define MI_NOOP				__MI_INSTR(0x0)
+#define MI_ANALOP				__MI_INSTR(0x0)
 #define MI_USER_INTERRUPT		__MI_INSTR(0x2)
 #define MI_ARB_CHECK			__MI_INSTR(0x5)
 

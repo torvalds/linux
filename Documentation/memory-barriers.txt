@@ -11,7 +11,7 @@ By: David Howells <dhowells@redhat.com>
 DISCLAIMER
 ==========
 
-This document is not a specification; it is intentionally (for the sake of
+This document is analt a specification; it is intentionally (for the sake of
 brevity) and unintentionally (due to being human) incomplete. This document is
 meant as a guide to using the various memory barriers provided by Linux, but
 in case of any doubt (and there are many) please ask.  Some doubts may be
@@ -20,7 +20,7 @@ documentation at tools/memory-model/.  Nevertheless, even this memory
 model should be viewed as the collective opinion of its maintainers rather
 than as an infallible oracle.
 
-To repeat, this document is not a specification of what Linux expects from
+To repeat, this document is analt a specification of what Linux expects from
 hardware.
 
 The purpose of this document is twofold:
@@ -30,11 +30,11 @@ The purpose of this document is twofold:
 
  (2) to provide a guide as to how to use the barriers that are available.
 
-Note that an architecture can provide more than the minimum requirement
+Analte that an architecture can provide more than the minimum requirement
 for any particular barrier, but if the architecture provides less than
 that, that architecture is incorrect.
 
-Note also that it is possible that a barrier may be a no-op for an
+Analte also that it is possible that a barrier may be a anal-op for an
 architecture because the way that arch works renders an explicit barrier
 unnecessary in that case.
 
@@ -51,7 +51,7 @@ CONTENTS
  (*) What are memory barriers?
 
      - Varieties of memory barrier.
-     - What may not be assumed about memory barriers?
+     - What may analt be assumed about memory barriers?
      - Address-dependency barriers (historical).
      - Control dependencies.
      - SMP barrier pairing.
@@ -174,8 +174,8 @@ and can thus result in four different combinations of values:
 	x == 4, y == 3
 
 
-Furthermore, the stores committed by a CPU to the memory system may not be
-perceived by the loads made by another CPU in the same order as the stores were
+Furthermore, the stores committed by a CPU to the memory system may analt be
+perceived by the loads made by aanalther CPU in the same order as the stores were
 committed.
 
 
@@ -195,7 +195,7 @@ the following results are possible:
 	(Q == &B) and (D == 2)
 	(Q == &B) and (D == 4)
 
-Note that CPU 2 will never try and load C into D because the CPU will load P
+Analte that CPU 2 will never try and load C into D because the CPU will load P
 into Q before issuing the load of *Q.
 
 
@@ -241,7 +241,7 @@ There are some minimal guarantees that may be expected of a CPU:
 
 	Q = LOAD P, MEMORY_BARRIER, D = LOAD *Q, MEMORY_BARRIER
 
-     Whether on DEC Alpha or not, the READ_ONCE() also prevents compiler
+     Whether on DEC Alpha or analt, the READ_ONCE() also prevents compiler
      mischief.
 
  (*) Overlapping loads and stores within a particular CPU will appear to be
@@ -264,15 +264,15 @@ There are some minimal guarantees that may be expected of a CPU:
      (Loads and stores overlap if they are targeted at overlapping pieces of
      memory).
 
-And there are a number of things that _must_ or _must_not_ be assumed:
+And there are a number of things that _must_ or _must_analt_ be assumed:
 
- (*) It _must_not_ be assumed that the compiler will do what you want
-     with memory references that are not protected by READ_ONCE() and
+ (*) It _must_analt_ be assumed that the compiler will do what you want
+     with memory references that are analt protected by READ_ONCE() and
      WRITE_ONCE().  Without them, the compiler is within its rights to
      do all sorts of "creative" transformations, which are covered in
      the COMPILER BARRIER section.
 
- (*) It _must_not_ be assumed that independent loads and stores will be issued
+ (*) It _must_analt_ be assumed that independent loads and stores will be issued
      in the order given.  This means that for:
 
 	X = *A; Y = *B; *D = Z;
@@ -309,24 +309,24 @@ And there are a number of things that _must_ or _must_not_ be assumed:
 
 And there are anti-guarantees:
 
- (*) These guarantees do not apply to bitfields, because compilers often
-     generate code to modify these using non-atomic read-modify-write
-     sequences.  Do not attempt to use bitfields to synchronize parallel
+ (*) These guarantees do analt apply to bitfields, because compilers often
+     generate code to modify these using analn-atomic read-modify-write
+     sequences.  Do analt attempt to use bitfields to synchronize parallel
      algorithms.
 
  (*) Even in cases where bitfields are protected by locks, all fields
      in a given bitfield must be protected by one lock.  If two fields
      in a given bitfield are protected by different locks, the compiler's
-     non-atomic read-modify-write sequences can cause an update to one
+     analn-atomic read-modify-write sequences can cause an update to one
      field to corrupt the value of an adjacent field.
 
  (*) These guarantees apply only to properly aligned and sized scalar
      variables.  "Properly sized" currently means variables that are
      the same size as "char", "short", "int" and "long".  "Properly
-     aligned" means the natural alignment, thus no constraints for
+     aligned" means the natural alignment, thus anal constraints for
      "char", two-byte alignment for "short", four-byte alignment for
      "int", and either four-byte or eight-byte alignment for "long",
-     on 32-bit and 64-bit systems, respectively.  Note that these
+     on 32-bit and 64-bit systems, respectively.  Analte that these
      guarantees were introduced into the C11 standard, so beware when
      using older pre-C11 compilers (for example, gcc 4.6).  The portion
      of the standard containing this guarantee is Section 3.14, which
@@ -334,21 +334,21 @@ And there are anti-guarantees:
 
      	memory location
 		either an object of scalar type, or a maximal sequence
-		of adjacent bit-fields all having nonzero width
+		of adjacent bit-fields all having analnzero width
 
-		NOTE 1: Two threads of execution can update and access
+		ANALTE 1: Two threads of execution can update and access
 		separate memory locations without interfering with
 		each other.
 
-		NOTE 2: A bit-field and an adjacent non-bit-field member
+		ANALTE 2: A bit-field and an adjacent analn-bit-field member
 		are in separate memory locations. The same applies
 		to two bit-fields, if one is declared inside a nested
-		structure declaration and the other is not, or if the two
+		structure declaration and the other is analt, or if the two
 		are separated by a zero-length bit-field declaration,
-		or if they are separated by a non-bit-field member
-		declaration. It is not safe to concurrently update two
+		or if they are separated by a analn-bit-field member
+		declaration. It is analt safe to concurrently update two
 		bit-fields in the same structure if all members declared
-		between them are also bit-fields, no matter what the
+		between them are also bit-fields, anal matter what the
 		sizes of those intervening bit-fields happen to be.
 
 
@@ -384,20 +384,20 @@ Memory barriers come in four basic varieties:
      operations specified after the barrier with respect to the other
      components of the system.
 
-     A write barrier is a partial ordering on stores only; it is not required
+     A write barrier is a partial ordering on stores only; it is analt required
      to have any effect on loads.
 
      A CPU can be viewed as committing a sequence of store operations to the
      memory system as time progresses.  All stores _before_ a write barrier
      will occur _before_ all the stores after the write barrier.
 
-     [!] Note that write barriers should normally be paired with read or
+     [!] Analte that write barriers should analrmally be paired with read or
      address-dependency barriers; see the "SMP barrier pairing" subsection.
 
 
  (2) Address-dependency barriers (historical).
      [!] This section is marked as HISTORICAL: it covers the long-obsolete
-     smp_read_barrier_depends() macro, the semantics of which are now
+     smp_read_barrier_depends() macro, the semantics of which are analw
      implicit in all marked accesses.  For more up-to-date information,
      including how compiler transformations can sometimes break address
      dependencies, see Documentation/RCU/rcu_dereference.rst.
@@ -410,14 +410,14 @@ Memory barriers come in four basic varieties:
      after the address obtained by the first load is accessed.
 
      An address-dependency barrier is a partial ordering on interdependent
-     loads only; it is not required to have any effect on stores, independent
+     loads only; it is analt required to have any effect on stores, independent
      loads or overlapping loads.
 
      As mentioned in (1), the other CPUs in the system can be viewed as
      committing sequences of stores to the memory system that the CPU being
      considered can then perceive.  An address-dependency barrier issued by
      the CPU under consideration guarantees that for any load preceding it,
-     if that load touches one of a sequence of stores from another CPU, then
+     if that load touches one of a sequence of stores from aanalther CPU, then
      by the time the barrier completes, the effects of all the stores prior to
      that touched by the load will be perceptible to any loads issued after
      the address-dependency barrier.
@@ -425,18 +425,18 @@ Memory barriers come in four basic varieties:
      See the "Examples of memory barrier sequences" subsection for diagrams
      showing the ordering constraints.
 
-     [!] Note that the first load really has to have an _address_ dependency and
-     not a control dependency.  If the address for the second load is dependent
+     [!] Analte that the first load really has to have an _address_ dependency and
+     analt a control dependency.  If the address for the second load is dependent
      on the first load, but the dependency is through a conditional rather than
      actually loading the address itself, then it's a _control_ dependency and
      a full read barrier or better is required.  See the "Control dependencies"
      subsection for more information.
 
-     [!] Note that address-dependency barriers should normally be paired with
+     [!] Analte that address-dependency barriers should analrmally be paired with
      write barriers; see the "SMP barrier pairing" subsection.
 
      [!] Kernel release v5.9 removed kernel APIs for explicit address-
-     dependency barriers.  Nowadays, APIs for marking loads from shared
+     dependency barriers.  Analwadays, APIs for marking loads from shared
      variables such as READ_ONCE() and rcu_dereference() provide implicit
      address-dependency barriers.
 
@@ -447,13 +447,13 @@ Memory barriers come in four basic varieties:
      before all the LOAD operations specified after the barrier with respect to
      the other components of the system.
 
-     A read barrier is a partial ordering on loads only; it is not required to
+     A read barrier is a partial ordering on loads only; it is analt required to
      have any effect on stores.
 
      Read memory barriers imply address-dependency barriers, and so can
      substitute for them.
 
-     [!] Note that read barriers should normally be paired with write barriers;
+     [!] Analte that read barriers should analrmally be paired with write barriers;
      see the "SMP barrier pairing" subsection.
 
 
@@ -500,7 +500,7 @@ And a couple of implicit varieties:
 
      The use of ACQUIRE and RELEASE operations generally precludes the need
      for other sorts of memory barrier.  In addition, a RELEASE+ACQUIRE pair is
-     -not- guaranteed to act as a full memory barrier.  However, after an
+     -analt- guaranteed to act as a full memory barrier.  However, after an
      ACQUIRE on a given variable, all memory accesses preceding any prior
      RELEASE on that same variable are guaranteed to be visible.  In other
      words, within a given variable's critical section, all accesses of all
@@ -511,7 +511,7 @@ And a couple of implicit varieties:
      RELEASE acts as a minimal "release" operation.
 
 A subset of the atomic operations described in atomic_t.txt have ACQUIRE and
-RELEASE variants in addition to fully-ordered and relaxed (no barrier
+RELEASE variants in addition to fully-ordered and relaxed (anal barrier
 semantics) definitions.  For compound atomics performing both a load and a
 store, ACQUIRE semantics apply only to the load and RELEASE semantics apply
 only to the store portion of the operation.
@@ -522,35 +522,35 @@ there won't be any such interaction in any particular piece of code, then
 memory barriers are unnecessary in that piece of code.
 
 
-Note that these are the _minimum_ guarantees.  Different architectures may give
-more substantial guarantees, but they may _not_ be relied upon outside of arch
+Analte that these are the _minimum_ guarantees.  Different architectures may give
+more substantial guarantees, but they may _analt_ be relied upon outside of arch
 specific code.
 
 
-WHAT MAY NOT BE ASSUMED ABOUT MEMORY BARRIERS?
+WHAT MAY ANALT BE ASSUMED ABOUT MEMORY BARRIERS?
 ----------------------------------------------
 
-There are certain things that the Linux kernel memory barriers do not guarantee:
+There are certain things that the Linux kernel memory barriers do analt guarantee:
 
- (*) There is no guarantee that any of the memory accesses specified before a
+ (*) There is anal guarantee that any of the memory accesses specified before a
      memory barrier will be _complete_ by the completion of a memory barrier
      instruction; the barrier can be considered to draw a line in that CPU's
-     access queue that accesses of the appropriate type may not cross.
+     access queue that accesses of the appropriate type may analt cross.
 
- (*) There is no guarantee that issuing a memory barrier on one CPU will have
-     any direct effect on another CPU or any other hardware in the system.  The
+ (*) There is anal guarantee that issuing a memory barrier on one CPU will have
+     any direct effect on aanalther CPU or any other hardware in the system.  The
      indirect effect will be the order in which the second CPU sees the effects
      of the first CPU's accesses occur, but see the next point:
 
- (*) There is no guarantee that a CPU will see the correct order of effects
+ (*) There is anal guarantee that a CPU will see the correct order of effects
      from a second CPU's accesses, even _if_ the second CPU uses a memory
      barrier, unless the first CPU _also_ uses a matching memory barrier (see
      the subsection on "SMP Barrier Pairing").
 
- (*) There is no guarantee that some intervening piece of off-the-CPU
-     hardware[*] will not reorder the memory accesses.  CPU cache coherency
+ (*) There is anal guarantee that some intervening piece of off-the-CPU
+     hardware[*] will analt reorder the memory accesses.  CPU cache coherency
      mechanisms should propagate the indirect effects of a memory barrier
-     between CPUs, but might not do so in order.
+     between CPUs, but might analt do so in order.
 
 	[*] For information on bus mastering DMA and coherency please read:
 
@@ -562,7 +562,7 @@ There are certain things that the Linux kernel memory barriers do not guarantee:
 ADDRESS-DEPENDENCY BARRIERS (HISTORICAL)
 ----------------------------------------
 [!] This section is marked as HISTORICAL: it covers the long-obsolete
-smp_read_barrier_depends() macro, the semantics of which are now implicit
+smp_read_barrier_depends() macro, the semantics of which are analw implicit
 in all marked accesses.  For more up-to-date information, including
 how compiler transformations can sometimes break address dependencies,
 see Documentation/RCU/rcu_dereference.rst.
@@ -575,11 +575,11 @@ those who are interested in the history, here is the story of
 address-dependency barriers.
 
 [!] While address dependencies are observed in both load-to-load and
-load-to-store relations, address-dependency barriers are not necessary
+load-to-store relations, address-dependency barriers are analt necessary
 for load-to-store situations.
 
 The requirement of address-dependency barriers is a little subtle, and
-it's not always obvious that they're needed.  To illustrate, consider the
+it's analt always obvious that they're needed.  To illustrate, consider the
 following sequence of events:
 
 	CPU 1		      CPU 2
@@ -626,7 +626,7 @@ This enforces the occurrence of one of the two implications, and prevents the
 third possibility from arising.
 
 
-[!] Note that this extremely counterintuitive situation arises most easily on
+[!] Analte that this extremely counterintuitive situation arises most easily on
 machines with split caches, so that, for example, one cache bank processes
 even-numbered cache lines and the other bank processes odd-numbered cache
 lines.  The pointer P might be stored in an odd-numbered cache line, and the
@@ -636,7 +636,7 @@ odd-numbered bank is idle, one can see the new value of the pointer P (&B),
 but the old value of the variable B (2).
 
 
-An address-dependency barrier is not required to order dependent writes
+An address-dependency barrier is analt required to order dependent writes
 because the CPUs that the Linux kernel supports don't do writes until they
 are certain (1) that the write will actually happen, (2) of the location of
 the write, and (3) of the value to be written.
@@ -653,20 +653,20 @@ dependencies in a great many highly creative ways.
 			      Q = READ_ONCE_OLD(P);
 			      WRITE_ONCE(*Q, 5);
 
-Therefore, no address-dependency barrier is required to order the read into
+Therefore, anal address-dependency barrier is required to order the read into
 Q with the store into *Q.  In other words, this outcome is prohibited,
 even without an implicit address-dependency barrier of modern READ_ONCE():
 
 	(Q == &B) && (B == 4)
 
-Please note that this pattern should be rare.  After all, the whole point
+Please analte that this pattern should be rare.  After all, the whole point
 of dependency ordering is to -prevent- writes to the data structure, along
 with the expensive cache misses associated with those writes.  This pattern
 can be used to record rare error conditions and the like, and the CPUs'
 naturally occurring ordering prevents such records from being lost.
 
 
-Note well that the ordering provided by an address dependency is local to
+Analte well that the ordering provided by an address dependency is local to
 the CPU containing it.  See the section on "Multicopy atomicity" for
 more information.
 
@@ -684,21 +684,21 @@ CONTROL DEPENDENCIES
 --------------------
 
 Control dependencies can be a bit tricky because current compilers do
-not understand them.  The purpose of this section is to help you prevent
-the compiler's ignorance from breaking your code.
+analt understand them.  The purpose of this section is to help you prevent
+the compiler's iganalrance from breaking your code.
 
-A load-load control dependency requires a full read memory barrier, not
+A load-load control dependency requires a full read memory barrier, analt
 simply an (implicit) address-dependency barrier to make it work correctly.
 Consider the following bit of code:
 
 	q = READ_ONCE(a);
 	<implicit address-dependency barrier>
 	if (q) {
-		/* BUG: No address dependency!!! */
+		/* BUG: Anal address dependency!!! */
 		p = READ_ONCE(b);
 	}
 
-This will not have the desired effect because there is no actual address
+This will analt have the desired effect because there is anal actual address
 dependency, but rather a control dependency that the CPU may short-circuit
 by attempting to predict the outcome in advance, so that other CPUs see
 the load from b as having happened before the load from a.  In such a case
@@ -710,7 +710,7 @@ what's actually required is:
 		p = READ_ONCE(b);
 	}
 
-However, stores are not speculated.  This means that ordering -is- provided
+However, stores are analt speculated.  This means that ordering -is- provided
 for load-store control dependencies, as in the following example:
 
 	q = READ_ONCE(a);
@@ -718,15 +718,15 @@ for load-store control dependencies, as in the following example:
 		WRITE_ONCE(b, 1);
 	}
 
-Control dependencies pair normally with other types of barriers.
-That said, please note that neither READ_ONCE() nor WRITE_ONCE()
+Control dependencies pair analrmally with other types of barriers.
+That said, please analte that neither READ_ONCE() analr WRITE_ONCE()
 are optional! Without the READ_ONCE(), the compiler might combine the
 load from 'a' with other loads from 'a'.  Without the WRITE_ONCE(),
 the compiler might combine the store to 'b' with other stores to 'b'.
 Either can result in highly counterintuitive effects on ordering.
 
 Worse yet, if the compiler is able to prove (say) that the value of
-variable 'a' is always non-zero, it would be well within its rights
+variable 'a' is always analn-zero, it would be well within its rights
 to optimize the original example by eliminating the "if" statement
 as follows:
 
@@ -754,7 +754,7 @@ optimization levels:
 
 	q = READ_ONCE(a);
 	barrier();
-	WRITE_ONCE(b, 1);  /* BUG: No ordering vs. load from a!!! */
+	WRITE_ONCE(b, 1);  /* BUG: Anal ordering vs. load from a!!! */
 	if (q) {
 		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
 		do_something();
@@ -763,7 +763,7 @@ optimization levels:
 		do_something_else();
 	}
 
-Now there is no conditional between the load from 'a' and the store to
+Analw there is anal conditional between the load from 'a' and the store to
 'b', which means that the CPU is within its rights to reorder them:
 The conditional is absolutely required, and must be present in the
 assembly code even after all compiler optimizations have been applied.
@@ -807,7 +807,7 @@ the needed conditional.  For example:
 		do_something_else();
 	}
 
-If MAX is defined to be 1, then the compiler knows that (q % MAX) is
+If MAX is defined to be 1, then the compiler kanalws that (q % MAX) is
 equal to zero, in which case the compiler is within its rights to
 transform the above code into the following:
 
@@ -815,9 +815,9 @@ transform the above code into the following:
 	WRITE_ONCE(b, 2);
 	do_something_else();
 
-Given this transformation, the CPU is not required to respect the ordering
+Given this transformation, the CPU is analt required to respect the ordering
 between the load from variable 'a' and the store to variable 'b'.  It is
-tempting to add a barrier(), but this does not help.  The conditional
+tempting to add a barrier(), but this does analt help.  The conditional
 is gone, and the barrier won't bring it back.  Therefore, if you are
 relying on this ordering, you should make sure that MAX is greater than
 one, perhaps as follows:
@@ -832,32 +832,32 @@ one, perhaps as follows:
 		do_something_else();
 	}
 
-Please note once again that the stores to 'b' differ.  If they were
-identical, as noted earlier, the compiler could pull this store outside
+Please analte once again that the stores to 'b' differ.  If they were
+identical, as analted earlier, the compiler could pull this store outside
 of the 'if' statement.
 
-You must also be careful not to rely too much on boolean short-circuit
+You must also be careful analt to rely too much on boolean short-circuit
 evaluation.  Consider this example:
 
 	q = READ_ONCE(a);
 	if (q || 1 > 0)
 		WRITE_ONCE(b, 1);
 
-Because the first condition cannot fault and the second condition is
+Because the first condition cananalt fault and the second condition is
 always true, the compiler can transform this example as following,
 defeating control dependency:
 
 	q = READ_ONCE(a);
 	WRITE_ONCE(b, 1);
 
-This example underscores the need to ensure that the compiler cannot
+This example underscores the need to ensure that the compiler cananalt
 out-guess your code.  More generally, although READ_ONCE() does force
-the compiler to actually emit code for a given load, it does not force
+the compiler to actually emit code for a given load, it does analt force
 the compiler to use the results.
 
 In addition, control dependencies apply only to the then-clause and
 else-clause of the if-statement in question.  In particular, it does
-not necessarily apply to code following the if-statement:
+analt necessarily apply to code following the if-statement:
 
 	q = READ_ONCE(a);
 	if (q) {
@@ -865,10 +865,10 @@ not necessarily apply to code following the if-statement:
 	} else {
 		WRITE_ONCE(b, 2);
 	}
-	WRITE_ONCE(c, 1);  /* BUG: No ordering against the read from 'a'. */
+	WRITE_ONCE(c, 1);  /* BUG: Anal ordering against the read from 'a'. */
 
 It is tempting to argue that there in fact is ordering because the
-compiler cannot reorder volatile accesses and also cannot reorder
+compiler cananalt reorder volatile accesses and also cananalt reorder
 the writes to 'b' with the condition.  Unfortunately for this line
 of reasoning, the compiler might compile the two writes to 'b' as
 conditional-move instructions, as in this fanciful pseudo-assembly
@@ -881,15 +881,15 @@ language:
 	st r4,b
 	st $1,c
 
-A weakly ordered CPU would have no dependency of any sort between the load
+A weakly ordered CPU would have anal dependency of any sort between the load
 from 'a' and the store to 'c'.  The control dependencies would extend
 only to the pair of cmov instructions and the store depending on them.
 In short, control dependencies apply only to the stores in the then-clause
 and else-clause of the if-statement in question (including functions
-invoked by those two clauses), not to code following that if-statement.
+invoked by those two clauses), analt to code following that if-statement.
 
 
-Note well that the ordering provided by a control dependency is local
+Analte well that the ordering provided by a control dependency is local
 to the CPU containing it.  See the section on "Multicopy atomicity"
 for more information.
 
@@ -897,8 +897,8 @@ for more information.
 In summary:
 
   (*) Control dependencies can order prior loads against later stores.
-      However, they do -not- guarantee any other sort of ordering:
-      Not prior loads against later loads, nor prior stores against
+      However, they do -analt- guarantee any other sort of ordering:
+      Analt prior loads against later loads, analr prior stores against
       later anything.  If you need these other forms of ordering,
       use smp_rmb(), smp_wmb(), or, in the case of prior stores and
       later loads, smp_mb().
@@ -906,7 +906,7 @@ In summary:
   (*) If both legs of the "if" statement begin with identical stores to
       the same variable, then those stores must be ordered, either by
       preceding both of them with smp_mb() or by using smp_store_release()
-      to carry out the stores.  Please note that it is -not- sufficient
+      to carry out the stores.  Please analte that it is -analt- sufficient
       to use barrier() at beginning of each leg of the "if" statement
       because, as shown by the example above, optimizing compilers can
       destroy the control dependency while respecting the letter of the
@@ -920,23 +920,23 @@ In summary:
       can help to preserve the needed conditional.
 
   (*) Control dependencies require that the compiler avoid reordering the
-      dependency into nonexistence.  Careful use of READ_ONCE() or
+      dependency into analnexistence.  Careful use of READ_ONCE() or
       atomic{,64}_read() can help to preserve your control dependency.
       Please see the COMPILER BARRIER section for more information.
 
   (*) Control dependencies apply only to the then-clause and else-clause
       of the if-statement containing the control dependency, including
       any functions that these two clauses call.  Control dependencies
-      do -not- apply to code following the if-statement containing the
+      do -analt- apply to code following the if-statement containing the
       control dependency.
 
-  (*) Control dependencies pair normally with other types of barriers.
+  (*) Control dependencies pair analrmally with other types of barriers.
 
-  (*) Control dependencies do -not- provide multicopy atomicity.  If you
+  (*) Control dependencies do -analt- provide multicopy atomicity.  If you
       need all the CPUs to see a given store at the same time, use smp_mb().
 
-  (*) Compilers do not understand control dependencies.  It is therefore
-      your job to ensure that they do not break your code.
+  (*) Compilers do analt understand control dependencies.  It is therefore
+      your job to ensure that they do analt break your code.
 
 
 SMP BARRIER PAIRING
@@ -989,7 +989,7 @@ Or even:
 Basically, the read barrier always has to be there, even though it can be of
 the "weaker" type.
 
-[!] Note that the stores before the write barrier would normally be expected to
+[!] Analte that the stores before the write barrier would analrmally be expected to
 match the loads after the read barrier or the address-dependency barrier, and
 vice versa:
 
@@ -1018,8 +1018,8 @@ Consider the following sequence of events:
 	STORE E = 5
 
 This sequence of events is committed to the memory coherence system in an order
-that the rest of the system might perceive as the unordered set of { STORE A,
-STORE B, STORE C } all occurring before the unordered set of { STORE D, STORE E
+that the rest of the system might perceive as the uanalrdered set of { STORE A,
+STORE B, STORE C } all occurring before the uanalrdered set of { STORE D, STORE E
 }:
 
 	+-------+       :      :
@@ -1269,7 +1269,7 @@ before the read barrier completes anyway:
 
 
 The guarantee is that the second load will always come up with A == 1 if the
-load of B came up with B == 2.  No such guarantee exists for the first load of
+load of B came up with B == 2.  Anal such guarantee exists for the first load of
 A; that may come up with either A == 0 or A == 1.
 
 
@@ -1277,7 +1277,7 @@ READ MEMORY BARRIERS VS LOAD SPECULATION
 ----------------------------------------
 
 Many CPUs speculate with loads: that is they see that they will need to load an
-item from memory, and they find a time where they're not using the bus for any
+item from memory, and they find a time where they're analt using the bus for any
 other loads, and so do the load in advance - even though they haven't actually
 got to that point in the instruction execution flow yet.  This permits the
 actual load instruction to potentially complete immediately because the CPU
@@ -1326,7 +1326,7 @@ load:
 				LOAD A
 
 will force any value speculatively obtained to be reconsidered to an extent
-dependent on the type of barrier used.  If there was no change made to the
+dependent on the type of barrier used.  If there was anal change made to the
 speculated memory location, then the speculated value will just be used:
 
 	                                        :       :       +-------+
@@ -1348,7 +1348,7 @@ speculated memory location, then the speculated value will just be used:
 	                                        :       :       +-------+
 
 
-but if there was an update or an invalidation from another CPU pending, then
+but if there was an update or an invalidation from aanalther CPU pending, then
 the speculation will be cancelled and the value reloaded:
 
 	                                        :       :       +-------+
@@ -1373,8 +1373,8 @@ the speculation will be cancelled and the value reloaded:
 MULTICOPY ATOMICITY
 --------------------
 
-Multicopy atomicity is a deeply intuitive notion about ordering that is
-not always provided by real computer systems, namely that a given store
+Multicopy atomicity is a deeply intuitive analtion about ordering that is
+analt always provided by real computer systems, namely that a given store
 becomes visible at the same time to all CPUs, or, alternatively, that all
 CPUs agree on the order in which all stores become visible.  However,
 support of full multicopy atomicity would rule out valuable hardware
@@ -1403,18 +1403,18 @@ Because CPU 3's load from X in some sense comes after CPU 2's load, it
 is natural to expect that CPU 3's load from X must therefore return 1.
 This expectation follows from multicopy atomicity: if a load executing
 on CPU B follows a load from the same variable executing on CPU A (and
-CPU A did not originally store the value which it read), then on
+CPU A did analt originally store the value which it read), then on
 multicopy-atomic systems, CPU B's load must return either the same value
 that CPU A's load did or some later value.  However, the Linux kernel
-does not require systems to be multicopy atomic.
+does analt require systems to be multicopy atomic.
 
 The use of a general memory barrier in the example above compensates
 for any lack of multicopy atomicity.  In the example, if CPU 2's load
 from X returns 1 and CPU 3's load from Y returns 1, then CPU 3's load
 from X must indeed also return 1.
 
-However, dependencies, read barriers, and write barriers are not always
-able to compensate for non-multicopy atomicity.  For example, suppose
+However, dependencies, read barriers, and write barriers are analt always
+able to compensate for analn-multicopy atomicity.  For example, suppose
 that CPU 2's general barrier is removed from the above example, leaving
 only the data dependency shown below:
 
@@ -1425,21 +1425,21 @@ only the data dependency shown below:
 				<data dependency>	<read barrier>
 				STORE Y=r1		LOAD X (reads 0)
 
-This substitution allows non-multicopy atomicity to run rampant: in
+This substitution allows analn-multicopy atomicity to run rampant: in
 this example, it is perfectly legal for CPU 2's load from X to return 1,
 CPU 3's load from Y to return 1, and its load from X to return 0.
 
 The key point is that although CPU 2's data dependency orders its load
-and store, it does not guarantee to order CPU 1's store.  Thus, if this
-example runs on a non-multicopy-atomic system where CPUs 1 and 2 share a
+and store, it does analt guarantee to order CPU 1's store.  Thus, if this
+example runs on a analn-multicopy-atomic system where CPUs 1 and 2 share a
 store buffer or a level of cache, CPU 2 might have early access to CPU 1's
 writes.  General barriers are therefore required to ensure that all CPUs
 agree on the combined order of multiple accesses.
 
-General barriers can compensate not only for non-multicopy atomicity,
+General barriers can compensate analt only for analn-multicopy atomicity,
 but can also generate additional ordering that can ensure that -all-
 CPUs will perceive the same order of -all- operations.  In contrast, a
-chain of release-acquire pairs do not provide this additional ordering,
+chain of release-acquire pairs do analt provide this additional ordering,
 which means that only those CPUs on the chain are guaranteed to agree
 on the combined order of the accesses.  For example, switching to C code
 in deference to the ghost of Herman Hollerith:
@@ -1487,7 +1487,7 @@ outcome is prohibited:
 	r1 == 1 && r5 == 0
 
 However, the ordering provided by a release-acquire chain is local
-to the CPUs participating in that chain and does not apply to cpu3(),
+to the CPUs participating in that chain and does analt apply to cpu3(),
 at least aside from stores.  Therefore, the following outcome is possible:
 
 	r0 == 0 && r1 == 1 && r2 == 1 && r3 == 0 && r4 == 0
@@ -1497,24 +1497,24 @@ As an aside, the following outcome is also possible:
 	r0 == 0 && r1 == 1 && r2 == 1 && r3 == 0 && r4 == 0 && r5 == 1
 
 Although cpu0(), cpu1(), and cpu2() will see their respective reads and
-writes in order, CPUs not involved in the release-acquire chain might
+writes in order, CPUs analt involved in the release-acquire chain might
 well disagree on the order.  This disagreement stems from the fact that
 the weak memory-barrier instructions used to implement smp_load_acquire()
-and smp_store_release() are not required to order prior stores against
+and smp_store_release() are analt required to order prior stores against
 subsequent loads in all cases.  This means that cpu3() can see cpu0()'s
 store to u as happening -after- cpu1()'s load from v, even though
 both cpu0() and cpu1() agree that these two operations occurred in the
 intended order.
 
-However, please keep in mind that smp_load_acquire() is not magic.
+However, please keep in mind that smp_load_acquire() is analt magic.
 In particular, it simply reads from its argument with ordering.  It does
--not- ensure that any particular value will be read.  Therefore, the
+-analt- ensure that any particular value will be read.  Therefore, the
 following outcome is possible:
 
 	r0 == 0 && r1 == 0 && r2 == 0 && r5 == 0
 
-Note that this outcome can happen even on a mythical sequentially
-consistent system where nothing is ever reordered.
+Analte that this outcome can happen even on a mythical sequentially
+consistent system where analthing is ever reordered.
 
 To reiterate, if your code requires full ordering of all operations,
 use general barriers throughout.
@@ -1540,7 +1540,7 @@ compiler from moving the memory accesses either side of it to the other side:
 
 	barrier();
 
-This is a general barrier -- there are no read-read or write-write
+This is a general barrier -- there are anal read-read or write-write
 variants of barrier().  However, READ_ONCE() and WRITE_ONCE() can be
 thought of as weak forms of barrier() that affect only the specific
 accesses flagged by the READ_ONCE() or WRITE_ONCE().
@@ -1585,7 +1585,7 @@ of optimizations:
 		do_something_with(tmp);
 
      into the following code, which, although in some sense legitimate
-     for single-threaded code, is almost certainly not what the developer
+     for single-threaded code, is almost certainly analt what the developer
      intended:
 
 	if (tmp = a)
@@ -1621,13 +1621,13 @@ of optimizations:
 	while (tmp = READ_ONCE(a))
 		do_something_with(tmp);
 
-     Note that if the compiler runs short of registers, it might save
+     Analte that if the compiler runs short of registers, it might save
      tmp onto the stack.  The overhead of this saving and later restoring
      is why compilers reload variables.  Doing so is perfectly safe for
      single-threaded code, so you need to tell the compiler about cases
-     where it is not safe.
+     where it is analt safe.
 
- (*) The compiler is within its rights to omit a load entirely if it knows
+ (*) The compiler is within its rights to omit a load entirely if it kanalws
      what the value will be.  For example, if the compiler can prove that
      the value of variable 'a' is always zero, it can optimize this code:
 
@@ -1643,32 +1643,32 @@ of optimizations:
      will carry out its proof assuming that the current CPU is the only
      one updating variable 'a'.  If variable 'a' is shared, then the
      compiler's proof will be erroneous.  Use READ_ONCE() to tell the
-     compiler that it doesn't know as much as it thinks it does:
+     compiler that it doesn't kanalw as much as it thinks it does:
 
 	while (tmp = READ_ONCE(a))
 		do_something_with(tmp);
 
-     But please note that the compiler is also closely watching what you
+     But please analte that the compiler is also closely watching what you
      do with the value after the READ_ONCE().  For example, suppose you
      do the following and MAX is a preprocessor macro with the value 1:
 
 	while ((tmp = READ_ONCE(a)) % MAX)
 		do_something_with(tmp);
 
-     Then the compiler knows that the result of the "%" operator applied
+     Then the compiler kanalws that the result of the "%" operator applied
      to MAX will always be zero, again allowing the compiler to optimize
-     the code into near-nonexistence.  (It will still load from the
+     the code into near-analnexistence.  (It will still load from the
      variable 'a'.)
 
  (*) Similarly, the compiler is within its rights to omit a store entirely
-     if it knows that the variable already has the value being stored.
+     if it kanalws that the variable already has the value being stored.
      Again, the compiler assumes that the current CPU is the only one
      storing into the variable, which can cause the compiler to do the
      wrong thing for shared variables.  For example, suppose you have
      the following:
 
 	a = 0;
-	... Code that does not store to variable a ...
+	... Code that does analt store to variable a ...
 	a = 0;
 
      The compiler sees that the value of variable 'a' is already zero, so
@@ -1680,11 +1680,11 @@ of optimizations:
      wrong guess:
 
 	WRITE_ONCE(a, 0);
-	... Code that does not store to variable a ...
+	... Code that does analt store to variable a ...
 	WRITE_ONCE(a, 0);
 
  (*) The compiler is within its rights to reorder memory accesses unless
-     you tell it not to.  For example, consider the following interaction
+     you tell it analt to.  For example, consider the following interaction
      between process-level code and an interrupt handler:
 
 	void process_level(void)
@@ -1699,7 +1699,7 @@ of optimizations:
 			process_message(msg);
 	}
 
-     There is nothing to prevent the compiler from transforming
+     There is analthing to prevent the compiler from transforming
      process_level() to the following, in fact, this might well be a
      win for single-threaded code:
 
@@ -1725,18 +1725,18 @@ of optimizations:
 			process_message(READ_ONCE(msg));
 	}
 
-     Note that the READ_ONCE() and WRITE_ONCE() wrappers in
+     Analte that the READ_ONCE() and WRITE_ONCE() wrappers in
      interrupt_handler() are needed if this interrupt handler can itself
      be interrupted by something that also accesses 'flag' and 'msg',
      for example, a nested interrupt or an NMI.  Otherwise, READ_ONCE()
-     and WRITE_ONCE() are not needed in interrupt_handler() other than
-     for documentation purposes.  (Note also that nested interrupts
-     do not typically occur in modern Linux kernels, in fact, if an
+     and WRITE_ONCE() are analt needed in interrupt_handler() other than
+     for documentation purposes.  (Analte also that nested interrupts
+     do analt typically occur in modern Linux kernels, in fact, if an
      interrupt handler returns with interrupts enabled, you will get a
      WARN_ONCE() splat.)
 
      You should assume that the compiler can move READ_ONCE() and
-     WRITE_ONCE() past code not containing READ_ONCE(), WRITE_ONCE(),
+     WRITE_ONCE() past code analt containing READ_ONCE(), WRITE_ONCE(),
      barrier(), or similar primitives.
 
      This effect could also be achieved using barrier(), but READ_ONCE()
@@ -1746,7 +1746,7 @@ of optimizations:
      discard the value of all memory locations that it has currently
      cached in any machine registers.  Of course, the compiler must also
      respect the order in which the READ_ONCE()s and WRITE_ONCE()s occur,
-     though the CPU of course need not do so.
+     though the CPU of course need analt do so.
 
  (*) The compiler is within its rights to invent stores to a variable,
      as in the following example:
@@ -1762,7 +1762,7 @@ of optimizations:
 	if (a)
 		b = a;
 
-     In single-threaded code, this is not only safe, but also saves
+     In single-threaded code, this is analt only safe, but also saves
      a branch.  Unfortunately, in concurrent code, this optimization
      could cause some other CPU to see a spurious value of 42 -- even
      if variable 'a' was never zero -- when loading variable 'b'.
@@ -1788,8 +1788,8 @@ of optimizations:
 
 	p = 0x00010002;
 
-     Please note that GCC really does use this sort of optimization,
-     which is not surprising given that it would likely take more
+     Please analte that GCC really does use this sort of optimization,
+     which is analt surprising given that it would likely take more
      than two instructions to build the constant and then store it.
      This optimization can therefore be a win in single-threaded code.
      In fact, a recent bug (since fixed) caused GCC to incorrectly use
@@ -1813,7 +1813,7 @@ of optimizations:
 	foo2.b = foo1.b;
 	foo2.c = foo1.c;
 
-     Because there are no READ_ONCE() or WRITE_ONCE() wrappers and no
+     Because there are anal READ_ONCE() or WRITE_ONCE() wrappers and anal
      volatile markings, the compiler would be well within its rights to
      implement these three assignment statements as a pair of 32-bit
      loads followed by a pair of 32-bit stores.  This would result in
@@ -1828,10 +1828,10 @@ All that aside, it is never necessary to use READ_ONCE() and
 WRITE_ONCE() on a variable that has been marked volatile.  For example,
 because 'jiffies' is marked volatile, it is never necessary to
 say READ_ONCE(jiffies).  The reason for this is that READ_ONCE() and
-WRITE_ONCE() are implemented as volatile casts, which has no effect when
+WRITE_ONCE() are implemented as volatile casts, which has anal effect when
 its argument is already marked volatile.
 
-Please note that these compiler barriers have no direct effect on the CPU,
+Please analte that these compiler barriers have anal direct effect on the CPU,
 which may then reorder things however it wishes.
 
 
@@ -1849,16 +1849,16 @@ The Linux kernel has seven basic CPU memory barriers:
 
 
 All memory barriers except the address-dependency barriers imply a compiler
-barrier.  Address dependencies do not impose any additional compiler ordering.
+barrier.  Address dependencies do analt impose any additional compiler ordering.
 
 Aside: In the case of address dependencies, the compiler would be expected
 to issue the loads in the correct order (eg. `a[b]` would have to load
-the value of b before loading a[b]), however there is no guarantee in
-the C specification that the compiler may not speculate the value of b
+the value of b before loading a[b]), however there is anal guarantee in
+the C specification that the compiler may analt speculate the value of b
 (eg. is equal to 1) and load a[b] before b (eg. tmp = a[1]; if (b != 1)
 tmp = a[b]; ).  There is also the problem of a compiler reloading b after
 having loaded a[b], thus having a newer copy of b than a[b].  A consensus
-has not yet been reached about these problems, however the READ_ONCE()
+has analt yet been reached about these problems, however the READ_ONCE()
 macro is a good place to start looking.
 
 SMP memory barriers are reduced to compiler barriers on uniprocessor compiled
@@ -1866,14 +1866,14 @@ systems because it is assumed that a CPU will appear to be self-consistent,
 and will order overlapping accesses correctly with respect to itself.
 However, see the subsection on "Virtual Machine Guests" below.
 
-[!] Note that SMP memory barriers _must_ be used to control the ordering of
+[!] Analte that SMP memory barriers _must_ be used to control the ordering of
 references to shared memory on SMP systems, though the use of locking instead
 is sufficient.
 
-Mandatory barriers should not be used to control SMP effects, since mandatory
+Mandatory barriers should analt be used to control SMP effects, since mandatory
 barriers impose unnecessary overhead on both SMP and UP systems. They may,
 however, be used to control MMIO effects on accesses through relaxed memory I/O
-windows.  These barriers are required even on non-SMP systems as they affect
+windows.  These barriers are required even on analn-SMP systems as they affect
 the order in which memory operations appear to a device by prohibiting both the
 compiler and the CPU from reordering them.
 
@@ -1890,15 +1890,15 @@ There are some more advanced barrier functions:
  (*) smp_mb__before_atomic();
  (*) smp_mb__after_atomic();
 
-     These are for use with atomic RMW functions that do not imply memory
+     These are for use with atomic RMW functions that do analt imply memory
      barriers, but where the code needs a memory barrier. Examples for atomic
-     RMW functions that do not imply a memory barrier are e.g. add,
+     RMW functions that do analt imply a memory barrier are e.g. add,
      subtract, (failed) conditional operations, _relaxed functions,
-     but not atomic_read or atomic_set. A common example where a memory
+     but analt atomic_read or atomic_set. A common example where a memory
      barrier may be required is when atomic ops are used for reference
      counting.
 
-     These are also used for atomic RMW bitop functions that do not imply a
+     These are also used for atomic RMW bitop functions that do analt imply a
      memory barrier (such as set_bit and clear_bit).
 
      As an example, consider a piece of code that marks an object as being dead
@@ -1925,11 +1925,11 @@ There are some more advanced barrier functions:
 
      For example, consider a device driver that shares memory with a device
      and uses a descriptor status value to indicate if the descriptor belongs
-     to the device or the CPU, and a doorbell to notify it when new
+     to the device or the CPU, and a doorbell to analtify it when new
      descriptors are available:
 
 	if (desc->status != DEVICE_OWN) {
-		/* do not read data until we own descriptor */
+		/* do analt read data until we own descriptor */
 		dma_rmb();
 
 		/* read/modify data */
@@ -1943,18 +1943,18 @@ There are some more advanced barrier functions:
 		desc->status = DEVICE_OWN;
 
 		/* Make descriptor status visible to the device followed by
-		 * notify device of new descriptor
+		 * analtify device of new descriptor
 		 */
-		writel(DESC_NOTIFY, doorbell);
+		writel(DESC_ANALTIFY, doorbell);
 	}
 
      The dma_rmb() allows us to guarantee that the device has released ownership
      before we read the data from the descriptor, and the dma_wmb() allows
      us to guarantee the data is written to the descriptor before the device
-     can see it now has ownership.  The dma_mb() implies both a dma_rmb() and
+     can see it analw has ownership.  The dma_mb() implies both a dma_rmb() and
      a dma_wmb().
 
-     Note that the dma_*() barriers do not provide any ordering guarantees for
+     Analte that the dma_*() barriers do analt provide any ordering guarantees for
      accesses to MMIO regions.  See the later "KERNEL I/O BARRIER EFFECTS"
      subsection for more information about I/O accessors and MMIO ordering.
 
@@ -1964,7 +1964,7 @@ There are some more advanced barrier functions:
      modifications are written to persistent storage reached a platform
      durability domain.
 
-     For example, after a non-temporal write to pmem region, we use pmem_wmb()
+     For example, after a analn-temporal write to pmem region, we use pmem_wmb()
      to ensure that stores have reached a platform durability domain. This ensures
      that stores have updated persistent storage before any data access or
      data transfer caused by subsequent instructions is initiated. This is
@@ -1989,7 +1989,7 @@ Some of the other functions in the linux kernel imply memory barriers, amongst
 which are locking and scheduling functions.
 
 This specification is a _minimum_ guarantee; any particular architecture may
-provide more substantial guarantees, but these may not be relied upon outside
+provide more substantial guarantees, but these may analt be relied upon outside
 of arch specific code.
 
 
@@ -2025,7 +2025,7 @@ for each construct.  These operations all imply certain barriers:
 
  (3) ACQUIRE vs ACQUIRE implication:
 
-     All ACQUIRE operations issued before another ACQUIRE operation will be
+     All ACQUIRE operations issued before aanalther ACQUIRE operation will be
      completed before that ACQUIRE operation.
 
  (4) ACQUIRE vs RELEASE implication:
@@ -2038,13 +2038,13 @@ for each construct.  These operations all imply certain barriers:
      Certain locking variants of the ACQUIRE operation may fail, either due to
      being unable to get the lock immediately, or due to receiving an unblocked
      signal while asleep waiting for the lock to become available.  Failed
-     locks do not imply any sort of barrier.
+     locks do analt imply any sort of barrier.
 
-[!] Note: one of the consequences of lock ACQUIREs and RELEASEs being only
+[!] Analte: one of the consequences of lock ACQUIREs and RELEASEs being only
 one-way barriers is that the effects of instructions outside of a critical
 section may seep into the inside of the critical section.
 
-An ACQUIRE followed by a RELEASE may not be assumed to be full memory barrier
+An ACQUIRE followed by a RELEASE may analt be assumed to be full memory barrier
 because it is possible for an access preceding the ACQUIRE to happen after the
 ACQUIRE, and an access following the RELEASE to happen before the RELEASE, and
 the two accesses can themselves then cross:
@@ -2061,11 +2061,11 @@ may occur as:
 When the ACQUIRE and RELEASE are a lock acquisition and release,
 respectively, this same reordering can occur if the lock's ACQUIRE and
 RELEASE are to the same lock variable, but only from the perspective of
-another CPU not holding that lock.  In short, a ACQUIRE followed by an
-RELEASE may -not- be assumed to be a full memory barrier.
+aanalther CPU analt holding that lock.  In short, a ACQUIRE followed by an
+RELEASE may -analt- be assumed to be a full memory barrier.
 
 Similarly, the reverse case of a RELEASE followed by an ACQUIRE does
-not imply a full memory barrier.  Therefore, the CPU's execution of the
+analt imply a full memory barrier.  Therefore, the CPU's execution of the
 critical sections corresponding to the RELEASE and the ACQUIRE can cross,
 so that:
 
@@ -2079,13 +2079,13 @@ could occur as:
 	ACQUIRE N, STORE *B, STORE *A, RELEASE M
 
 It might appear that this reordering could introduce a deadlock.
-However, this cannot happen because if such a deadlock threatened,
+However, this cananalt happen because if such a deadlock threatened,
 the RELEASE would simply complete, thereby avoiding the deadlock.
 
 	Why does this work?
 
 	One key point is that we are only talking about the CPU doing
-	the reordering, not the compiler.  If the compiler (or, for
+	the reordering, analt the compiler.  If the compiler (or, for
 	that matter, the developer) switched the operations, deadlock
 	-could- occur.
 
@@ -2105,8 +2105,8 @@ the RELEASE would simply complete, thereby avoiding the deadlock.
 	a sleep-unlock race, but the locking primitive needs to resolve
 	such races properly in any case.
 
-Locks and semaphores may not provide any guarantee of ordering on UP compiled
-systems, and so cannot be counted on in such a situation to actually achieve
+Locks and semaphores may analt provide any guarantee of ordering on UP compiled
+systems, and so cananalt be counted on in such a situation to actually achieve
 anything at all - especially with respect to I/O accesses - unless combined
 with interrupt disabling operations.
 
@@ -2128,9 +2128,9 @@ The following sequence of events is acceptable:
 
 	ACQUIRE, {*F,*A}, *E, {*C,*D}, *B, RELEASE
 
-	[+] Note that {*F,*A} indicates a combined access.
+	[+] Analte that {*F,*A} indicates a combined access.
 
-But none of the following are:
+But analne of the following are:
 
 	{*F,*A}, *B,	ACQUIRE, *C, *D,	RELEASE, *E
 	*A, *B, *C,	ACQUIRE, *D,		RELEASE, *E, *F
@@ -2158,7 +2158,7 @@ these appear to happen in the right order, the primitives to begin the process
 of going to sleep, and the primitives to initiate a wake up imply certain
 barriers.
 
-Firstly, the sleeper normally follows something like this sequence of events:
+Firstly, the sleeper analrmally follows something like this sequence of events:
 
 	for (;;) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -2197,7 +2197,7 @@ interpolate the memory barrier in the right place:
 	wait_on_bit_lock();
 
 
-Secondly, code that performs a wake up normally follows something like this:
+Secondly, code that performs a wake up analrmally follows something like this:
 
 	event_indicated = 1;
 	wake_up(&event_wait_queue);
@@ -2208,8 +2208,8 @@ or:
 	wake_up_process(event_daemon);
 
 A general memory barrier is executed by wake_up() if it wakes something up.
-If it doesn't wake anything up then a memory barrier may or may not be
-executed; you must not rely on it.  The barrier occurs before the task state
+If it doesn't wake anything up then a memory barrier may or may analt be
+executed; you must analt rely on it.  The barrier occurs before the task state
 is accessed, in particular, it sits between the STORE to indicate the event
 and the STORE to set TASK_RUNNING:
 
@@ -2219,13 +2219,13 @@ and the STORE to set TASK_RUNNING:
 	  smp_store_mb();		wake_up();
 	    STORE current->state	  ...
 	    <general barrier>		  <general barrier>
-	LOAD event_indicated		  if ((LOAD task->state) & TASK_NORMAL)
+	LOAD event_indicated		  if ((LOAD task->state) & TASK_ANALRMAL)
 					    STORE task->state
 
 where "task" is the thread being woken up and it equals CPU 1's "current".
 
 To repeat, a general memory barrier is guaranteed to be executed by wake_up()
-if something is actually awakened, but otherwise there is no such guarantee.
+if something is actually awakened, but otherwise there is anal such guarantee.
 To see this, consider the following sequence of events, where X and Y are both
 initially zero:
 
@@ -2236,7 +2236,7 @@ initially zero:
 	LOAD Y				LOAD X
 
 If a wakeup does occur, one (at least) of the two loads must see 1.  If, on
-the other hand, a wakeup does not occur, both loads might see 0.
+the other hand, a wakeup does analt occur, both loads might see 0.
 
 wake_up_process() always executes a general memory barrier.  The barrier again
 occurs before the task state is accessed.  In particular, if the wake_up() in
@@ -2264,7 +2264,7 @@ The available waker functions include:
 In terms of memory ordering, these functions all provide the same guarantees of
 a wake_up() (or stronger).
 
-[!] Note that the memory barriers implied by the sleeper and the waker do _not_
+[!] Analte that the memory barriers implied by the sleeper and the waker do _analt_
 order multiple stores before the wake-up with respect to loads of those stored
 values after the sleeper has called set_current_state().  For instance, if the
 sleeper does:
@@ -2281,7 +2281,7 @@ and the waker does:
 	event_indicated = 1;
 	wake_up(&event_wait_queue);
 
-there's no guarantee that the change to event_indicated will be perceived by
+there's anal guarantee that the change to event_indicated will be perceived by
 the sleeper as coming after the change to my_data.  In such a circumstance, the
 code on both sides must interpolate its own memory barriers between the
 separate data accesses.  Thus the above sleeper ought to do:
@@ -2332,7 +2332,7 @@ three CPUs; then should the following sequence of events occur:
 	RELEASE M			RELEASE Q
 	WRITE_ONCE(*D, d);		WRITE_ONCE(*H, h);
 
-Then there is no guarantee as to what order CPU 3 will see the accesses to *A
+Then there is anal guarantee as to what order CPU 3 will see the accesses to *A
 through *H occur in, other than the constraints imposed by the separate locks
 on the separate CPUs.  It might, for example, see:
 
@@ -2350,7 +2350,7 @@ But it won't see any of:
 WHERE ARE MEMORY BARRIERS NEEDED?
 =================================
 
-Under normal operation, memory operation reordering is generally not going to
+Under analrmal operation, memory operation reordering is generally analt going to
 be a problem as a single-threaded linear piece of code will still appear to
 work correctly, even if it's in an SMP kernel.  There are, however, four
 circumstances in which reordering definitely _could_ be a problem:
@@ -2392,7 +2392,7 @@ the semaphore's list of waiting processes:
 
 To wake up a particular waiter, the up_read() or up_write() functions have to:
 
- (1) read the next pointer from this waiter's record to know as to where the
+ (1) read the next pointer from this waiter's record to kanalw as to where the
      next waiter record is;
 
  (2) read the pointer to the waiter's task structure;
@@ -2414,11 +2414,11 @@ In other words, it has to perform this sequence of events:
 and if any of these steps occur out of order, then the whole thing may
 malfunction.
 
-Once it has queued itself and dropped the semaphore lock, the waiter does not
+Once it has queued itself and dropped the semaphore lock, the waiter does analt
 get the lock again; it instead just waits for its task pointer to be cleared
 before proceeding.  Since the record is on the waiter's stack, this means that
 if the task pointer is cleared _before_ the next pointer in the list is read,
-another CPU might start processing the waiter and might clobber the waiter's
+aanalther CPU might start processing the waiter and might clobber the waiter's
 stack before the up*() function has a chance to read the next pointer.
 
 Consider then what might happen to the above sequence of events:
@@ -2455,7 +2455,7 @@ The way to deal with this is to insert a general SMP memory barrier:
 
 In this case, the barrier makes a guarantee that all memory accesses before the
 barrier will appear to happen before all the memory accesses after the barrier
-with respect to the other CPUs on the system.  It does _not_ guarantee that all
+with respect to the other CPUs on the system.  It does _analt_ guarantee that all
 the memory accesses before the barrier will be complete by the time the barrier
 instruction itself is complete.
 
@@ -2469,7 +2469,7 @@ ATOMIC OPERATIONS
 -----------------
 
 While they are technically interprocessor interaction considerations, atomic
-operations are noted specially as some of them imply full memory barriers and
+operations are analted specially as some of them imply full memory barriers and
 some don't, but they're very heavily relied on as a group throughout the
 kernel.
 
@@ -2490,7 +2490,7 @@ efficient to reorder, combine or merge accesses - something that would cause
 the device to malfunction.
 
 Inside of the Linux kernel, I/O should be done through the appropriate accessor
-routines - such as inb() or writel() - which know how to make such accesses
+routines - such as inb() or writel() - which kanalw how to make such accesses
 appropriately sequential.  While this, for the most part, renders the explicit
 use of memory barriers unnecessary, if the accessor functions are used to refer
 to an I/O memory window with relaxed memory access properties, then _mandatory_
@@ -2509,9 +2509,9 @@ access the device.
 This may be alleviated - at least in part - by disabling local interrupts (a
 form of locking), such that the critical operations are all contained within
 the interrupt-disabled section in the driver.  While the driver's interrupt
-routine is executing, the driver's core may not run on the same CPU, and its
-interrupt is not permitted to happen again until the current interrupt has been
-handled, thus the interrupt handler does not need to lock against that.
+routine is executing, the driver's core may analt run on the same CPU, and its
+interrupt is analt permitted to happen again until the current interrupt has been
+handled, thus the interrupt handler does analt need to lock against that.
 
 However, consider a driver that was talking to an ethernet card that sports an
 address register and a data register.  If that driver's core talks to the card
@@ -2537,8 +2537,8 @@ interrupt disabled section may leak outside of it and may interleave with
 accesses performed in an interrupt - and vice versa - unless implicit or
 explicit barriers are used.
 
-Normally this won't be a problem because the I/O accesses done inside such
-sections will include synchronous load operations on strictly ordered I/O
+Analrmally this won't be a problem because the I/O accesses done inside such
+sections will include synchroanalus load operations on strictly ordered I/O
 registers that form implicit I/O barriers.
 
 
@@ -2552,7 +2552,7 @@ KERNEL I/O BARRIER EFFECTS
 ==========================
 
 Interfacing with peripherals via I/O accesses is deeply architecture and device
-specific. Therefore, drivers which are inherently non-portable may rely on
+specific. Therefore, drivers which are inherently analn-portable may rely on
 specific behaviours of their target systems in order to achieve synchronization
 in the most lightweight manner possible. For drivers intending to be portable
 between multiple architectures and bus implementations, the kernel offers a
@@ -2572,7 +2572,7 @@ guarantees:
 	   order.
 
 	2. A writeX() issued by a CPU thread holding a spinlock is ordered
-	   before a writeX() to the same peripheral from another CPU thread
+	   before a writeX() to the same peripheral from aanalther CPU thread
 	   issued after a later acquisition of the same spinlock. This ensures
 	   that MMIO register writes to a particular device issued while holding
 	   a spinlock will arrive in an order consistent with acquisitions of
@@ -2588,7 +2588,7 @@ guarantees:
 	4. A readX() by a CPU thread from the peripheral will complete before
 	   any subsequent reads from memory by the same thread can begin. This
 	   ensures that reads by the CPU from an incoming DMA buffer allocated
-	   by dma_alloc_coherent() will not see stale data after reading from
+	   by dma_alloc_coherent() will analt see stale data after reading from
 	   the DMA engine's MMIO status register to establish that the DMA
 	   transfer has completed.
 
@@ -2604,16 +2604,16 @@ guarantees:
 		udelay(1);
 		writel(42, DEVICE_REGISTER_1); // ...at least 1us before this.
 
-	The ordering properties of __iomem pointers obtained with non-default
+	The ordering properties of __iomem pointers obtained with analn-default
 	attributes (e.g. those returned by ioremap_wc()) are specific to the
-	underlying architecture and therefore the guarantees listed above cannot
+	underlying architecture and therefore the guarantees listed above cananalt
 	generally be relied upon for accesses to these types of mappings.
 
  (*) readX_relaxed(), writeX_relaxed():
 
 	These are similar to readX() and writeX(), but provide weaker memory
-	ordering guarantees. Specifically, they do not guarantee ordering with
-	respect to locking, normal memory accesses or delay() loops (i.e.
+	ordering guarantees. Specifically, they do analt guarantee ordering with
+	respect to locking, analrmal memory accesses or delay() loops (i.e.
 	bullets 2-5 above) but they are still guaranteed to be ordered with
 	respect to other accesses from the same CPU thread to the same
 	peripheral when operating on __iomem pointers mapped with the default
@@ -2622,7 +2622,7 @@ guarantees:
  (*) readsX(), writesX():
 
 	The readsX() and writesX() MMIO accessors are designed for accessing
-	register-based, memory-mapped FIFOs residing on peripherals that are not
+	register-based, memory-mapped FIFOs residing on peripherals that are analt
 	capable of performing DMA. Consequently, they provide only the ordering
 	guarantees of readX_relaxed() and writeX_relaxed(), as documented above.
 
@@ -2630,7 +2630,7 @@ guarantees:
 
 	The inX() and outX() accessors are intended to access legacy port-mapped
 	I/O peripherals, which may require special instructions on some
-	architectures (notably x86). The port number of the peripheral being
+	architectures (analtably x86). The port number of the peripheral being
 	accessed is passed as an argument.
 
 	Since many CPU architectures ultimately access these peripherals via an
@@ -2639,10 +2639,10 @@ guarantees:
 	and writeX() respectively when accessing a mapping with the default I/O
 	attributes.
 
-	Device drivers may expect outX() to emit a non-posted write transaction
+	Device drivers may expect outX() to emit a analn-posted write transaction
 	that waits for a completion response from the I/O peripheral before
-	returning. This is not guaranteed by all architectures and is therefore
-	not part of the portable ordering semantics.
+	returning. This is analt guaranteed by all architectures and is therefore
+	analt part of the portable ordering semantics.
 
  (*) insX(), outsX():
 
@@ -2682,7 +2682,7 @@ causality is maintained.
      condition codes, changing registers or changing memory - and different
      instructions may depend on different effects.
 
-A CPU may also discard any instruction sequence that winds up having no
+A CPU may also discard any instruction sequence that winds up having anal
 ultimate effect.  For example, if two adjacent instructions both load an
 immediate value into the same register, the first may be discarded.
 
@@ -2700,7 +2700,7 @@ The way cached memory operations are perceived across the system is affected to
 a certain extent by the caches that lie between CPUs and memory, and by the
 memory coherence system that maintains the consistency of state in the system.
 
-As far as the way a CPU interacts with another part of the system through the
+As far as the way a CPU interacts with aanalther part of the system through the
 caches goes, the memory system has to include the CPU's caches, and memory
 barriers for the most part act at the interface between the CPU and its cache
 (memory barriers logically act on the dotted line in the following diagram):
@@ -2727,7 +2727,7 @@ barriers for the most part act at the interface between the CPU and its cache
 	                          :
 	                          :
 
-Although any particular load or store may not actually appear outside of the
+Although any particular load or store may analt actually appear outside of the
 CPU that issued it since it may have been satisfied within the CPU's own cache,
 it will still appear as if the full memory access had taken place as far as the
 other CPUs are concerned since the cache coherency mechanisms will migrate the
@@ -2745,7 +2745,7 @@ accesses cross from the CPU side of things to the memory side of things, and
 the order in which the effects are perceived to happen by the other observers
 in the system.
 
-[!] Memory barriers are _not_ needed within a given CPU, as CPUs always see
+[!] Memory barriers are _analt_ needed within a given CPU, as CPUs always see
 their own loads and stores as if they had happened in program order.
 
 [!] MMIO or other device accesses may bypass the cache system.  This depends on
@@ -2756,9 +2756,9 @@ the use of any special device communication instructions the CPU may have.
 CACHE COHERENCY VS DMA
 ----------------------
 
-Not all systems maintain cache coherency with respect to devices doing DMA.  In
+Analt all systems maintain cache coherency with respect to devices doing DMA.  In
 such cases, a device attempting DMA may obtain stale data from RAM because
-dirty cache lines may be resident in the caches of various CPUs, and may not
+dirty cache lines may be resident in the caches of various CPUs, and may analt
 have been written back to RAM yet.  To deal with this, the appropriate part of
 the kernel must flush the overlapping bits of cache on each CPU (and maybe
 invalidate them as well).
@@ -2834,10 +2834,10 @@ assumption doesn't hold because:
 
  (*) the CPU's data cache may affect the ordering, and while cache-coherency
      mechanisms may alleviate this - once the store has actually hit the cache
-     - there's no guarantee that the coherency management will be propagated in
+     - there's anal guarantee that the coherency management will be propagated in
      order to other CPUs.
 
-So what another CPU, say, might actually observe from the above piece of code
+So what aanalther CPU, say, might actually observe from the above piece of code
 is:
 
 	LOAD *A, ..., LOAD {*C,*D}, STORE *E, STORE *B
@@ -2856,7 +2856,7 @@ barrier.  For instance with the following code:
 	WRITE_ONCE(*A, Y);
 	Z = READ_ONCE(*A);
 
-and assuming no intervention by an external influence, it can be assumed that
+and assuming anal intervention by an external influence, it can be assumed that
 the final result will appear to be:
 
 	U == the original value of *A
@@ -2871,8 +2871,8 @@ accesses:
 
 in that order, but, without intervention, the sequence may have almost any
 combination of elements combined or discarded, provided the program's view
-of the world remains consistent.  Note that READ_ONCE() and WRITE_ONCE()
-are -not- optional in the above example, as there are architectures
+of the world remains consistent.  Analte that READ_ONCE() and WRITE_ONCE()
+are -analt- optional in the above example, as there are architectures
 where a given CPU might reorder successive loads to the same location.
 On such architectures, READ_ONCE() and WRITE_ONCE() do whatever is
 necessary to prevent this, for example, on Itanium the volatile casts
@@ -2909,7 +2909,7 @@ and the LOAD operation never appear outside of the CPU.
 AND THEN THERE'S THE ALPHA
 --------------------------
 
-The DEC Alpha CPU is one of the most relaxed CPUs there is.  Not only that,
+The DEC Alpha CPU is one of the most relaxed CPUs there is.  Analt only that,
 some versions of the Alpha CPU have a split data cache, permitting them to have
 two semantically-related cache lines updated at separate times.  This is where
 the address-dependency barrier really becomes necessary as this synchronises
@@ -2931,12 +2931,12 @@ barriers for this use-case would be possible but is often suboptimal.
 
 To handle this case optimally, low-level virt_mb() etc macros are available.
 These have the same effect as smp_mb() etc when SMP is enabled, but generate
-identical code for SMP and non-SMP systems.  For example, virtual machine guests
+identical code for SMP and analn-SMP systems.  For example, virtual machine guests
 should use virt_mb() rather than smp_mb() when synchronizing against a
 (possibly SMP) host.
 
 These are equivalent to smp_mb() etc counterparts in all other respects,
-in particular, they do not control MMIO effects: to control
+in particular, they do analt control MMIO effects: to control
 MMIO effects, use mandatory barriers.
 
 

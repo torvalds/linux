@@ -139,7 +139,7 @@ static int tc3589x_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	default:
 		break;
 	}
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct gpio_chip template_chip = {
@@ -268,7 +268,7 @@ static irqreturn_t tc3589x_gpio_irq(int irq, void *dev)
 	ret = tc3589x_block_read(tc3589x, TC3589x_GPIOMIS0,
 				 ARRAY_SIZE(status), status);
 	if (ret < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < ARRAY_SIZE(status); i++) {
 		unsigned int stat = status[i];
@@ -294,14 +294,14 @@ static irqreturn_t tc3589x_gpio_irq(int irq, void *dev)
 static int tc3589x_gpio_probe(struct platform_device *pdev)
 {
 	struct tc3589x *tc3589x = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct tc3589x_gpio *tc3589x_gpio;
 	struct gpio_irq_chip *girq;
 	int ret;
 	int irq;
 
 	if (!np) {
-		dev_err(&pdev->dev, "No Device Tree node found\n");
+		dev_err(&pdev->dev, "Anal Device Tree analde found\n");
 		return -EINVAL;
 	}
 
@@ -312,7 +312,7 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	tc3589x_gpio = devm_kzalloc(&pdev->dev, sizeof(struct tc3589x_gpio),
 				    GFP_KERNEL);
 	if (!tc3589x_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&tc3589x_gpio->irq_lock);
 
@@ -330,7 +330,7 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_simple_irq;
 	girq->threaded = true;
 

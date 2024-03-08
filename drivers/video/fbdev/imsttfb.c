@@ -19,7 +19,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -234,7 +234,7 @@ static struct initvalues ibm_initregs[] = {
 	{ SYSCLKCTL,	0x01 },
 
 	/*
-	 * Note that colors in X are correct only if all video data is
+	 * Analte that colors in X are correct only if all video data is
 	 * passed through the palette in the DAC.  That is, "indirect
 	 * color" must be configured.  This is the case for the IBM DAC
 	 * used in the 2MB and 4MB cards, at least.
@@ -783,8 +783,8 @@ imsttfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if ((var->bits_per_pixel != 8 && var->bits_per_pixel != 16
 	    && var->bits_per_pixel != 24 && var->bits_per_pixel != 32)
 	    || var->xres_virtual < var->xres || var->yres_virtual < var->yres
-	    || var->nonstd
-	    || (var->vmode & FB_VMODE_MASK) != FB_VMODE_NONINTERLACED)
+	    || var->analnstd
+	    || (var->vmode & FB_VMODE_MASK) != FB_VMODE_ANALNINTERLACED)
 		return -EINVAL;
 
 	if ((var->xres * var->yres) * (var->bits_per_pixel >> 3) > info->fix.smem_len
@@ -849,7 +849,7 @@ imsttfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->transp.msb_right = 0;
 	var->height = -1;
 	var->width = -1;
-	var->vmode = FB_VMODE_NONINTERLACED;
+	var->vmode = FB_VMODE_ANALNINTERLACED;
 	var->left_margin = var->right_margin = 16;
 	var->upper_margin = var->lower_margin = 16;
 	var->hsync_len = var->vsync_len = 8;
@@ -874,13 +874,13 @@ imsttfb_set_par(struct fb_info *info)
 }
 
 static int
-imsttfb_setcolreg (u_int regno, u_int red, u_int green, u_int blue,
+imsttfb_setcolreg (u_int reganal, u_int red, u_int green, u_int blue,
 		   u_int transp, struct fb_info *info)
 {
 	struct imstt_par *par = info->par;
 	u_int bpp = info->var.bits_per_pixel;
 
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;
 
 	red >>= 8;
@@ -889,29 +889,29 @@ imsttfb_setcolreg (u_int regno, u_int red, u_int green, u_int blue,
 
 	/* PADDRW/PDATA are the same as TVPPADDRW/TVPPDATA */
 	if (0 && bpp == 16)	/* screws up X */
-		par->cmap_regs[PADDRW] = regno << 3;
+		par->cmap_regs[PADDRW] = reganal << 3;
 	else
-		par->cmap_regs[PADDRW] = regno;
+		par->cmap_regs[PADDRW] = reganal;
 	eieio();
 
 	par->cmap_regs[PDATA] = red;	eieio();
 	par->cmap_regs[PDATA] = green;	eieio();
 	par->cmap_regs[PDATA] = blue;	eieio();
 
-	if (regno < 16)
+	if (reganal < 16)
 		switch (bpp) {
 			case 16:
-				par->palette[regno] =
-					(regno << (info->var.green.length ==
-					5 ? 10 : 11)) | (regno << 5) | regno;
+				par->palette[reganal] =
+					(reganal << (info->var.green.length ==
+					5 ? 10 : 11)) | (reganal << 5) | reganal;
 				break;
 			case 24:
-				par->palette[regno] =
-					(regno << 16) | (regno << 8) | regno;
+				par->palette[reganal] =
+					(reganal << 16) | (reganal << 8) | reganal;
 				break;
 			case 32: {
-				int i = (regno << 8) | regno;
-				par->palette[regno] = (i << 16) |i;
+				int i = (reganal << 8) | reganal;
+				par->palette[reganal] = (i << 16) |i;
 				break;
 			}
 		}
@@ -940,7 +940,7 @@ imsttfb_blank(int blank, struct fb_info *info)
 	ctrl = read_reg_le32(par->dc_regs, STGCTL);
 	if (blank > 0) {
 		switch (blank) {
-		case FB_BLANK_NORMAL:
+		case FB_BLANK_ANALRMAL:
 		case FB_BLANK_POWERDOWN:
 			ctrl &= ~0x00000380;
 			if (par->ramdac == IBM) {
@@ -1313,7 +1313,7 @@ imsttfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 				return -EFAULT;
 			return 0;
 		default:
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 	}
 }
 
@@ -1420,8 +1420,8 @@ static int init_imstt(struct fb_info *info)
 
 	if ((info->var.xres * info->var.yres) * (info->var.bits_per_pixel >> 3) > info->fix.smem_len
 	    || !(compute_imstt_regvals(par, info->var.xres, info->var.yres))) {
-		printk("imsttfb: %ux%ux%u not supported\n", info->var.xres, info->var.yres, info->var.bits_per_pixel);
-		return -ENODEV;
+		printk("imsttfb: %ux%ux%u analt supported\n", info->var.xres, info->var.yres, info->var.bits_per_pixel);
+		return -EANALDEV;
 	}
 
 	sprintf(info->fix.id, "IMS TT (%s)", par->ramdac == IBM ? "IBM" : "TVP");
@@ -1453,11 +1453,11 @@ static int init_imstt(struct fb_info *info)
 	              FBINFO_HWACCEL_YPAN;
 
 	if (fb_alloc_cmap(&info->cmap, 0, 0))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (register_framebuffer(info) < 0) {
 		fb_dealloc_cmap(&info->cmap);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tmp = (read_reg_le32(par->dc_regs, SSTATUS) & 0x0f00) >> 8;
@@ -1471,23 +1471,23 @@ static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long addr, size;
 	struct imstt_par *par;
 	struct fb_info *info;
-	struct device_node *dp;
+	struct device_analde *dp;
 	int ret;
 
 	ret = aperture_remove_conflicting_pci_devices(pdev, "imsttfb");
 	if (ret)
 		return ret;
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
-	dp = pci_device_to_OF_node(pdev);
+	dp = pci_device_to_OF_analde(pdev);
 	if(dp)
 		printk(KERN_INFO "%s: OF name %pOFn\n",__func__, dp);
 	else if (IS_ENABLED(CONFIG_OF))
-		printk(KERN_ERR "imsttfb: no OF node for pci device\n");
+		printk(KERN_ERR "imsttfb: anal OF analde for pci device\n");
 
 	info = framebuffer_alloc(sizeof(struct imstt_par), &pdev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 
@@ -1496,24 +1496,24 @@ static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!request_mem_region(addr, size, "imsttfb")) {
 		printk(KERN_ERR "imsttfb: Can't reserve memory region\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto release_info;
 	}
 
 	switch (pdev->device) {
 		case PCI_DEVICE_ID_IMS_TT128: /* IMS,tt128mbA */
 			par->ramdac = IBM;
-			if (of_node_name_eq(dp, "IMS,tt128mb8") ||
-			    of_node_name_eq(dp, "IMS,tt128mb8A"))
+			if (of_analde_name_eq(dp, "IMS,tt128mb8") ||
+			    of_analde_name_eq(dp, "IMS,tt128mb8A"))
 				par->ramdac = TVP;
 			break;
 		case PCI_DEVICE_ID_IMS_TT3D:  /* IMS,tt3d */
 			par->ramdac = TVP;
 			break;
 		default:
-			printk(KERN_INFO "imsttfb: Device 0x%x unknown, "
+			printk(KERN_INFO "imsttfb: Device 0x%x unkanalwn, "
 					 "contact maintainer.\n", pdev->device);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto release_mem_region;
 	}
 
@@ -1627,11 +1627,11 @@ static int __init imsttfb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("imsttfb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("imsttfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 
 	imsttfb_setup(option);
 #endif

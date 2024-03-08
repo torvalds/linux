@@ -32,7 +32,7 @@ static ssize_t acbel_fsg032_debugfs_read(struct file *file, char __user *buf, si
 }
 
 static const struct file_operations acbel_debugfs_ops = {
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.read = acbel_fsg032_debugfs_read,
 	.write = NULL,
 	.open = simple_open,
@@ -76,8 +76,8 @@ static int acbel_fsg032_probe(struct i2c_client *client)
 	}
 	if (strncmp(buf, "ACBEL", 5)) {
 		buf[rc] = '\0';
-		dev_err(dev, "Manufacturer '%s' not supported\n", buf);
-		return -ENODEV;
+		dev_err(dev, "Manufacturer '%s' analt supported\n", buf);
+		return -EANALDEV;
 	}
 
 	rc = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, buf);
@@ -88,8 +88,8 @@ static int acbel_fsg032_probe(struct i2c_client *client)
 
 	if (strncmp(buf, "FSG032", 6)) {
 		buf[rc] = '\0';
-		dev_err(dev, "Model '%s' not supported\n", buf);
-		return -ENODEV;
+		dev_err(dev, "Model '%s' analt supported\n", buf);
+		return -EANALDEV;
 	}
 
 	rc = pmbus_do_probe(client, &acbel_fsg032_info);

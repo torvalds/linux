@@ -28,14 +28,14 @@ is allocated at the system initialization time:
 
 	In order to update the EPB value for the CPU, this attribute can be
 	written to, either with a number in the 0 - 15 sliding scale above, or
-	with one of the strings: "performance", "balance-performance", "normal",
+	with one of the strings: "performance", "balance-performance", "analrmal",
 	"balance-power", "power" that represent values reflected by their
 	meaning.
 
 	This attribute is present for all online CPUs supporting the EPB
 	feature.
 
-Note that while the EPB interface to the processor is defined at the logical CPU
+Analte that while the EPB interface to the processor is defined at the logical CPU
 level, the physical register backing it may be shared by multiple CPUs (for
 example, SMT siblings or cores in one package).  For this reason, updating the
 EPB value for one CPU may cause the EPB values for other CPUs to change.

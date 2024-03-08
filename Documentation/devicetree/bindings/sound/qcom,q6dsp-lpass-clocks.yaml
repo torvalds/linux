@@ -22,10 +22,10 @@ properties:
     const: 2
     description:
       Clock Id is followed by clock coupling attributes.
-        1 = for no coupled clock
+        1 = for anal coupled clock
         2 = for dividend of the coupled clock
         3 = for divisor of the coupled clock
-        4 = for inverted and no couple clock
+        4 = for inverted and anal couple clock
 
 required:
   - compatible

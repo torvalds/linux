@@ -22,10 +22,10 @@ static void trigger_sigsys(struct pt_regs *regs)
 	struct kernel_siginfo info;
 
 	clear_siginfo(&info);
-	info.si_signo = SIGSYS;
+	info.si_siganal = SIGSYS;
 	info.si_code = SYS_USER_DISPATCH;
 	info.si_call_addr = (void __user *)KSTK_EIP(current);
-	info.si_errno = 0;
+	info.si_erranal = 0;
 	info.si_arch = syscall_get_arch(current);
 	info.si_syscall = syscall_get_nr(current, regs);
 

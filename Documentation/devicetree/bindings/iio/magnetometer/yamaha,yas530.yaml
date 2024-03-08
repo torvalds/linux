@@ -16,7 +16,7 @@ description:
   has been miniaturized and appeared in a number of different variants.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^magnetometer@[0-9a-f]+$'
 
   compatible:
@@ -58,7 +58,7 @@ properties:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             items:

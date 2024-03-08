@@ -191,7 +191,7 @@ static struct shash_alg alg = {
 static int __init md5_mod_init(void)
 {
 	if (!octeon_has_crypto())
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	return crypto_register_shash(&alg);
 }
 

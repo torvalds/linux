@@ -84,13 +84,13 @@
 			compatible = "motorola,cpcap-rtc";
 
 			interrupt-parent = <&cpcap>;
-			interrupts = <39 IRQ_TYPE_NONE>, <26 IRQ_TYPE_NONE>;
+			interrupts = <39 IRQ_TYPE_ANALNE>, <26 IRQ_TYPE_ANALNE>;
 		};
 
 		power_button: button {
 			compatible = "motorola,cpcap-pwrbutton";
 
-			interrupts = <23 IRQ_TYPE_NONE>;
+			interrupts = <23 IRQ_TYPE_ANALNE>;
 		};
 
 		cpcap_usb2_phy: phy {
@@ -267,6 +267,6 @@
 		regulator-min-microvolt = <2775000>;
 		regulator-max-microvolt = <2775000>;
 		regulator-enable-ramp-delay = <1000>;
-		regulator-initial-mode = <0x00>; /* NORMAL */
+		regulator-initial-mode = <0x00>; /* ANALRMAL */
 	};
 };

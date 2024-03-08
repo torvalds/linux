@@ -10,17 +10,17 @@ Required properties:
  - interrupt-controller	: Required
  - #interrupt-cells	: Has to be 1
 
-For other required and optional properties of SPI slave nodes please refer to
+For other required and optional properties of SPI slave analdes please refer to
 ../spi/spi-bus.txt.
 
-Required properties of subnodes:
+Required properties of subanaldes:
  - reg			: Should be position on the Moxtet bus (how many Moxtet
 			  modules are between this module and CPU module, so
 			  either 0 or a positive integer)
 
 The driver finds the devices connected to the bus by itself, but it may be
 needed to reference some of them from other parts of the device tree. In that
-case the devices can be defined as subnodes of the moxtet node.
+case the devices can be defined as subanaldes of the moxtet analde.
 
 Example:
 

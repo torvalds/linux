@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 
-/* run tests by reading or writing sysfs node: do_prints */
+/* run tests by reading or writing sysfs analde: do_prints */
 
 static void do_prints(void); /* device under test */
 static int param_set_do_prints(const char *instr, const struct kernel_param *kp)

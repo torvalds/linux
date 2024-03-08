@@ -63,7 +63,7 @@
 #define		AT91_RTC_DATEEN		BIT(31)		/* Date Alarm Enable */
 
 #define	AT91_RTC_SR		0x18			/* Status Register */
-#define		AT91_RTC_ACKUPD		BIT(0)		/* Acknowledge for Update */
+#define		AT91_RTC_ACKUPD		BIT(0)		/* Ackanalwledge for Update */
 #define		AT91_RTC_ALARM		BIT(1)		/* Alarm Flag */
 #define		AT91_RTC_SECEV		BIT(2)		/* Second Event */
 #define		AT91_RTC_TIMEV		BIT(3)		/* Time Event */
@@ -75,10 +75,10 @@
 #define	AT91_RTC_IMR		0x28			/* Interrupt Mask Register */
 
 #define	AT91_RTC_VER		0x2c			/* Valid Entry Register */
-#define		AT91_RTC_NVTIM		BIT(0)		/* Non valid Time */
-#define		AT91_RTC_NVCAL		BIT(1)		/* Non valid Calendar */
-#define		AT91_RTC_NVTIMALR	BIT(2)		/* Non valid Time Alarm */
-#define		AT91_RTC_NVCALALR	BIT(3)		/* Non valid Calendar Alarm */
+#define		AT91_RTC_NVTIM		BIT(0)		/* Analn valid Time */
+#define		AT91_RTC_NVCAL		BIT(1)		/* Analn valid Calendar */
+#define		AT91_RTC_NVTIMALR	BIT(2)		/* Analn valid Time Alarm */
+#define		AT91_RTC_NVCALALR	BIT(3)		/* Analn valid Calendar Alarm */
 
 #define AT91_RTC_CORR_DIVIDEND		3906000
 #define AT91_RTC_CORR_LOW_RATIO		20
@@ -127,7 +127,7 @@ static void at91_rtc_write_idr(u32 mask)
 	 * IDR-register write has reached the peripheral before updating
 	 * shadow mask.
 	 *
-	 * Note that there is still a possibility that the mask is updated
+	 * Analte that there is still a possibility that the mask is updated
 	 * before interrupts have actually been disabled in hardware. The only
 	 * way to be certain would be to poll the IMR-register, which is
 	 * the very register we are trying to emulate. The register read back
@@ -174,7 +174,7 @@ static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg,
 	tm->tm_hour = bcd2bin(FIELD_GET(AT91_RTC_HOUR, time));
 
 	/*
-	 * The Calendar Alarm register does not have a field for
+	 * The Calendar Alarm register does analt have a field for
 	 * the year - so these will return an invalid value.
 	 */
 	tm->tm_year  = bcd2bin(date & AT91_RTC_CENT) * 100;	/* century */
@@ -378,7 +378,7 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id)
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 	unsigned int rtsr;
 	unsigned long events = 0;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	spin_lock(&suspended_lock);
 	rtsr = at91_rtc_read(AT91_RTC_SR) & at91_rtc_read_imr();
@@ -474,11 +474,11 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 
 	at91_rtc_config = of_device_get_match_data(&pdev->dev);
 	if (!at91_rtc_config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
-		dev_err(&pdev->dev, "no mmio resource defined\n");
+		dev_err(&pdev->dev, "anal mmio resource defined\n");
 		return -ENXIO;
 	}
 
@@ -490,7 +490,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 				     resource_size(regs));
 	if (!at91_rtc_regs) {
 		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rtc = devm_rtc_allocate_device(&pdev->dev);
@@ -504,7 +504,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(sclk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		dev_err(&pdev->dev, "Could analt enable slow clock\n");
 		return ret;
 	}
 
@@ -635,7 +635,7 @@ static SIMPLE_DEV_PM_OPS(at91_rtc_pm_ops, at91_rtc_suspend, at91_rtc_resume);
 
 /*
  * at91_rtc_remove() lives in .exit.text. For drivers registered via
- * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * module_platform_driver_probe() this is ok because they cananalt get unbound at
  * runtime. So mark the driver struct with __refdata to prevent modpost
  * triggering a section mismatch warning.
  */

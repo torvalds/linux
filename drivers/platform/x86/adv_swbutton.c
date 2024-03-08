@@ -13,8 +13,8 @@
 
 #define ACPI_BUTTON_HID_SWBTN               "AHC0310"
 
-#define ACPI_BUTTON_NOTIFY_SWBTN_RELEASE    0x86
-#define ACPI_BUTTON_NOTIFY_SWBTN_PRESSED    0x85
+#define ACPI_BUTTON_ANALTIFY_SWBTN_RELEASE    0x86
+#define ACPI_BUTTON_ANALTIFY_SWBTN_PRESSED    0x85
 
 struct adv_swbutton {
 	struct input_dev *input;
@@ -25,17 +25,17 @@ struct adv_swbutton {
  *                               Driver Interface
  *--------------------------------------------------------------------------
  */
-static void adv_swbutton_notify(acpi_handle handle, u32 event, void *context)
+static void adv_swbutton_analtify(acpi_handle handle, u32 event, void *context)
 {
 	struct platform_device *device = context;
 	struct adv_swbutton *button = dev_get_drvdata(&device->dev);
 
 	switch (event) {
-	case ACPI_BUTTON_NOTIFY_SWBTN_RELEASE:
+	case ACPI_BUTTON_ANALTIFY_SWBTN_RELEASE:
 		input_report_key(button->input, KEY_PROG1, 0);
 		input_sync(button->input);
 		break;
-	case ACPI_BUTTON_NOTIFY_SWBTN_PRESSED:
+	case ACPI_BUTTON_ANALTIFY_SWBTN_PRESSED:
 		input_report_key(button->input, KEY_PROG1, 1);
 		input_sync(button->input);
 		break;
@@ -54,13 +54,13 @@ static int adv_swbutton_probe(struct platform_device *device)
 
 	button = devm_kzalloc(&device->dev, sizeof(*button), GFP_KERNEL);
 	if (!button)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&device->dev, button);
 
 	input = devm_input_allocate_device(&device->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	button->input = input;
 	snprintf(button->phys, sizeof(button->phys), "%s/button/input0", ACPI_BUTTON_HID_SWBTN);
@@ -78,12 +78,12 @@ static int adv_swbutton_probe(struct platform_device *device)
 
 	device_init_wakeup(&device->dev, true);
 
-	status = acpi_install_notify_handler(handle,
-					     ACPI_DEVICE_NOTIFY,
-					     adv_swbutton_notify,
+	status = acpi_install_analtify_handler(handle,
+					     ACPI_DEVICE_ANALTIFY,
+					     adv_swbutton_analtify,
 					     device);
 	if (ACPI_FAILURE(status)) {
-		dev_err(&device->dev, "Error installing notify handler\n");
+		dev_err(&device->dev, "Error installing analtify handler\n");
 		return -EIO;
 	}
 
@@ -94,8 +94,8 @@ static void adv_swbutton_remove(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
-	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY,
-				   adv_swbutton_notify);
+	acpi_remove_analtify_handler(handle, ACPI_DEVICE_ANALTIFY,
+				   adv_swbutton_analtify);
 }
 
 static const struct acpi_device_id button_device_ids[] = {

@@ -37,7 +37,7 @@
 #define RT1305_SPDIF_OUT_SET_3                 0x2b
 #define RT1305_I2S_SET_1                       0x2d
 #define RT1305_I2S_SET_2                      0x2e
-#define RT1305_PBTL_MONO_MODE_SRC            0x2f
+#define RT1305_PBTL_MOANAL_MODE_SRC            0x2f
 #define RT1305_MANUALLY_I2C_DEVICE 0x32
 #define RT1305_POWER_STATUS                  0x39
 #define RT1305_POWER_CTRL_1                  0x3a
@@ -151,7 +151,7 @@
 #define RT1305_I2S_DL_SEL_8B			(0x3 << 10)
 #define RT1305_I2S_BCLK_MASK		(0x1 << 9)
 #define RT1305_I2S_BCLK_SFT			9
-#define RT1305_I2S_BCLK_NORMAL		(0x0 << 9)
+#define RT1305_I2S_BCLK_ANALRMAL		(0x0 << 9)
 #define RT1305_I2S_BCLK_INV			(0x1 << 9)
 
 /* Power Control-1 (0x3a) */

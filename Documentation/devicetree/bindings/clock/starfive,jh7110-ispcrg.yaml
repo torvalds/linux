@@ -20,21 +20,21 @@ properties:
     items:
       - description: ISP Top core
       - description: ISP Top Axi
-      - description: NOC ISP Bus
+      - description: ANALC ISP Bus
       - description: external DVP
 
   clock-names:
     items:
       - const: isp_top_core
       - const: isp_top_axi
-      - const: noc_bus_isp_axi
+      - const: analc_bus_isp_axi
       - const: dvp_clk
 
   resets:
     items:
       - description: ISP Top core
       - description: ISP Top Axi
-      - description: NOC ISP Bus
+      - description: ANALC ISP Bus
 
   '#clock-cells':
     const: 1
@@ -74,13 +74,13 @@ examples:
         reg = <0x19810000 0x10000>;
         clocks = <&syscrg JH7110_SYSCLK_ISP_TOP_CORE>,
                  <&syscrg JH7110_SYSCLK_ISP_TOP_AXI>,
-                 <&syscrg JH7110_SYSCLK_NOC_BUS_ISP_AXI>,
+                 <&syscrg JH7110_SYSCLK_ANALC_BUS_ISP_AXI>,
                  <&dvp_clk>;
         clock-names = "isp_top_core", "isp_top_axi",
-                      "noc_bus_isp_axi", "dvp_clk";
+                      "analc_bus_isp_axi", "dvp_clk";
         resets = <&syscrg JH7110_SYSRST_ISP_TOP>,
                  <&syscrg JH7110_SYSRST_ISP_TOP_AXI>,
-                 <&syscrg JH7110_SYSRST_NOC_BUS_ISP_AXI>;
+                 <&syscrg JH7110_SYSRST_ANALC_BUS_ISP_AXI>;
         #clock-cells = <1>;
         #reset-cells = <1>;
         power-domains = <&pwrc JH7110_PD_ISP>;

@@ -30,7 +30,7 @@
 struct pci_controller {
 	struct list_head list;
 	struct pci_bus *bus;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 
 	struct pci_ops *pci_ops;
 	struct resource *mem_resource;
@@ -48,8 +48,8 @@ struct pci_controller {
 
 	/* Optional access methods for reading/writing the bus number
 	   of the PCI controller */
-	int (*get_busno)(void);
-	void (*set_busno)(int busno);
+	int (*get_busanal)(void);
+	void (*set_busanal)(int busanal);
 };
 
 /*
@@ -68,19 +68,19 @@ extern int pcibios_plat_dev_init(struct pci_dev *dev);
 extern char * (*pcibios_plat_setup)(char *str);
 
 #ifdef CONFIG_OF
-/* this function parses memory ranges from a device node */
+/* this function parses memory ranges from a device analde */
 extern void pci_load_of_ranges(struct pci_controller *hose,
-			       struct device_node *node);
+			       struct device_analde *analde);
 #else
 static inline void pci_load_of_ranges(struct pci_controller *hose,
-				      struct device_node *node) {}
+				      struct device_analde *analde) {}
 #endif
 
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
 static inline void set_pci_need_domain_info(struct pci_controller *hose,
 					    int need_domain_info)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 #elif defined(CONFIG_PCI_DOMAINS)
 static inline void set_pci_need_domain_info(struct pci_controller *hose,

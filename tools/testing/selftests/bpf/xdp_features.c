@@ -146,7 +146,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (get_xdp_feature(arg) < 0) {
 			fprintf(stderr, "Invalid xdp feature: %s\n", arg);
 			argp_usage(state);
-			return ARGP_ERR_UNKNOWN;
+			return ARGP_ERR_UNKANALWN;
 		}
 		break;
 	case 'D':
@@ -155,7 +155,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			fprintf(stderr,
 				"Invalid address assigned to the Device Under Test: %s\n",
 				arg);
-			return ARGP_ERR_UNKNOWN;
+			return ARGP_ERR_UNKANALWN;
 		}
 		break;
 	case 'C':
@@ -164,7 +164,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			fprintf(stderr,
 				"Invalid address assigned to the Device Under Test: %s\n",
 				arg);
-			return ARGP_ERR_UNKNOWN;
+			return ARGP_ERR_UNKANALWN;
 		}
 		break;
 	case 'T':
@@ -172,15 +172,15 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			fprintf(stderr,
 				"Invalid address assigned to the Tester device: %s\n",
 				arg);
-			return ARGP_ERR_UNKNOWN;
+			return ARGP_ERR_UNKANALWN;
 		}
 		break;
 	case ARGP_KEY_ARG:
-		errno = 0;
+		erranal = 0;
 		if (strlen(arg) >= IF_NAMESIZE) {
 			fprintf(stderr, "Invalid device name: %s\n", arg);
 			argp_usage(state);
-			return ARGP_ERR_UNKNOWN;
+			return ARGP_ERR_UNKANALWN;
 		}
 
 		env.ifindex = if_nametoindex(arg);
@@ -189,13 +189,13 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (!env.ifindex || !if_indextoname(env.ifindex, env.ifname)) {
 			fprintf(stderr,
 				"Bad interface index or name (%d): %s\n",
-				errno, strerror(errno));
+				erranal, strerror(erranal));
 			argp_usage(state);
-			return ARGP_ERR_UNKNOWN;
+			return ARGP_ERR_UNKANALWN;
 		}
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 
 	return 0;
@@ -211,8 +211,8 @@ static void set_env_default(void)
 {
 	env.feature.drv_feature = NETDEV_XDP_ACT_NDO_XMIT;
 	env.feature.action = -EINVAL;
-	env.ifindex = -ENODEV;
-	strcpy(env.ifname, "unknown");
+	env.ifindex = -EANALDEV;
+	strcpy(env.ifname, "unkanalwn");
 	make_sockaddr(AF_INET6, "::ffff:127.0.0.1", DUT_CTRL_PORT,
 		      &env.dut_ctrl_addr, NULL);
 	make_sockaddr(AF_INET6, "::ffff:127.0.0.1", DUT_ECHO_PORT,
@@ -239,7 +239,7 @@ static void *dut_echo_thread(void *arg)
 		if (ntohs(tlv->type) != CMD_ECHO)
 			continue;
 
-		sendto(sockfd, buf, sizeof(buf), MSG_NOSIGNAL | MSG_CONFIRM,
+		sendto(sockfd, buf, sizeof(buf), MSG_ANALSIGNAL | MSG_CONFIRM,
 		       (struct sockaddr *)&addr, addrlen);
 	}
 
@@ -259,7 +259,7 @@ static int dut_run_echo_thread(pthread_t *t, int *sockfd)
 		fprintf(stderr,
 			"Failed creating data UDP socket on device %s\n",
 			env.ifname);
-		return -errno;
+		return -erranal;
 	}
 
 	/* start echo channel */
@@ -349,7 +349,7 @@ static int recv_msg(int sockfd, void *buf, size_t bufsize, void *val,
 	if (val) {
 		len -= sizeof(*tlv);
 		if (len > val_size)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(val, tlv->data, len);
 	}
@@ -359,7 +359,7 @@ static int recv_msg(int sockfd, void *buf, size_t bufsize, void *val,
 
 static int dut_run(struct xdp_features *skel)
 {
-	int flags = XDP_FLAGS_UPDATE_IF_NOEXIST | XDP_FLAGS_DRV_MODE;
+	int flags = XDP_FLAGS_UPDATE_IF_ANALEXIST | XDP_FLAGS_DRV_MODE;
 	int state, err = 0, *sockfd, ctrl_sockfd, echo_sockfd;
 	struct sockaddr_storage ctrl_addr;
 	pthread_t dut_thread = 0;
@@ -370,7 +370,7 @@ static int dut_run(struct xdp_features *skel)
 	if (!sockfd) {
 		fprintf(stderr,
 			"Failed creating control socket on device %s\n", env.ifname);
-		return -errno;
+		return -erranal;
 	}
 
 	ctrl_sockfd = accept(*sockfd, (struct sockaddr *)&ctrl_addr, &addrlen);
@@ -379,7 +379,7 @@ static int dut_run(struct xdp_features *skel)
 			"Failed accepting connections on device %s control socket\n",
 			env.ifname);
 		free_fds(sockfd, 1);
-		return -errno;
+		return -erranal;
 	}
 
 	/* CTRL loop */
@@ -557,13 +557,13 @@ static int send_echo_msg(void)
 		fprintf(stderr,
 			"Failed creating data UDP socket on device %s\n",
 			env.ifname);
-		return -errno;
+		return -erranal;
 	}
 
 	tlv->type = htons(CMD_ECHO);
 	tlv->len = htons(sizeof(*tlv));
 
-	n = sendto(sockfd, buf, sizeof(*tlv), MSG_NOSIGNAL | MSG_CONFIRM,
+	n = sendto(sockfd, buf, sizeof(*tlv), MSG_ANALSIGNAL | MSG_CONFIRM,
 		   (struct sockaddr *)&env.dut_addr, sizeof(env.dut_addr));
 	close(sockfd);
 
@@ -572,7 +572,7 @@ static int send_echo_msg(void)
 
 static int tester_run(struct xdp_features *skel)
 {
-	int flags = XDP_FLAGS_UPDATE_IF_NOEXIST | XDP_FLAGS_DRV_MODE;
+	int flags = XDP_FLAGS_UPDATE_IF_ANALEXIST | XDP_FLAGS_DRV_MODE;
 	unsigned long long advertised_feature;
 	struct bpf_program *prog;
 	unsigned int stats;
@@ -583,7 +583,7 @@ static int tester_run(struct xdp_features *skel)
 	if (sockfd < 0) {
 		fprintf(stderr,
 			"Failed creating tester service control socket\n");
-		return -errno;
+		return -erranal;
 	}
 
 	if (settimeo(sockfd, 1000) < 0)
@@ -594,7 +594,7 @@ static int tester_run(struct xdp_features *skel)
 	if (err) {
 		fprintf(stderr,
 			"Failed connecting to the Device Under Test control socket\n");
-		return -errno;
+		return -erranal;
 	}
 
 	err = send_and_recv_msg(sockfd, CMD_GET_XDP_CAP, &advertised_feature,
@@ -643,9 +643,9 @@ static int tester_run(struct xdp_features *skel)
 	detected_cap = tester_collect_detected_cap(skel, ntohl(stats));
 
 	fprintf(stdout, "Feature %s: [%s][%s]\n", get_xdp_feature_str(),
-		detected_cap ? GREEN("DETECTED") : RED("NOT DETECTED"),
+		detected_cap ? GREEN("DETECTED") : RED("ANALT DETECTED"),
 		env.feature.drv_feature & advertised_feature ? GREEN("ADVERTISED")
-							     : RED("NOT ADVERTISED"));
+							     : RED("ANALT ADVERTISED"));
 out:
 	bpf_xdp_detach(env.ifindex, flags, NULL);
 	close(sockfd);
@@ -672,7 +672,7 @@ int main(int argc, char **argv)
 
 	if (env.ifindex < 0) {
 		fprintf(stderr, "Invalid device name %s\n", env.ifname);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Load and verify BPF application */

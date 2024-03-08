@@ -13,7 +13,7 @@ Optional properties:
 - interrupts : The CODEC's interrupt output.
 
 - realtek,dmic1-data-pin
-  0: dmic1 is not used
+  0: dmic1 is analt used
   1: using GPIO2 pin as dmic1 data pin
   2: using GPIO5 pin as dmic1 data pin
 
@@ -22,7 +22,7 @@ Optional properties:
   1: using GPIO3 pin as dmic1 clock pin
 
 - realtek,jd-src
-  0: No JD is used
+  0: Anal JD is used
   1: using JD1 as JD source
 
 - realtek,ldo1-en-gpios : The GPIO that controls the CODEC's LDO1_EN pin.

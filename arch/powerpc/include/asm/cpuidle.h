@@ -18,13 +18,13 @@
  * Bottom 8 bits track the idle state of each thread. Bit is cleared before
  * the thread executes an idle instruction (nap/sleep/winkle).
  *
- * Then there is winkle tracking. A core does not lose complete state
+ * Then there is winkle tracking. A core does analt lose complete state
  * until every thread is in winkle. So the winkle count field counts the
  * number of threads in winkle (small window of false positives is okay
- * around the sleep/wake, so long as there are no false negatives).
+ * around the sleep/wake, so long as there are anal false negatives).
  *
  * When the winkle count reaches 8 (the COUNT_ALL_BIT becomes set), then
- * the THREAD_WINKLE_BITS are set, which indicate which threads have not
+ * the THREAD_WINKLE_BITS are set, which indicate which threads have analt
  * yet woken from the winkle state.
  */
 #define NR_PNV_CORE_IDLE_LOCK_BIT		28
@@ -39,7 +39,7 @@
 #define PNV_CORE_IDLE_THREAD_BITS       	0x000000FF
 
 /*
- * ============================ NOTE =================================
+ * ============================ ANALTE =================================
  * The older firmware populates only the RL field in the psscr_val and
  * sets the psscr_mask to 0xf. On such a firmware, the kernel sets the
  * remaining PSSCR fields to default values as follows:

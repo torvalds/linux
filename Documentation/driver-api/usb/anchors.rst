@@ -7,7 +7,7 @@ What is anchor?
 A USB driver needs to support some callbacks requiring
 a driver to cease all IO to an interface. To do so, a
 driver has to keep track of the URBs it has submitted
-to know they've all completed or to call usb_kill_urb
+to kanalw they've all completed or to call usb_kill_urb
 for them. The anchor is a data structure takes care of
 keeping track of URBs and provides methods to deal with
 multiple URBs.
@@ -15,15 +15,15 @@ multiple URBs.
 Allocation and Initialisation
 =============================
 
-There's no API to allocate an anchor. It is simply declared
+There's anal API to allocate an anchor. It is simply declared
 as struct usb_anchor. :c:func:`init_usb_anchor` must be called to
 initialise the data structure.
 
 Deallocation
 ============
 
-Once it has no more URBs associated with it, the anchor can be
-freed with normal memory management operations.
+Once it has anal more URBs associated with it, the anchor can be
+freed with analrmal memory management operations.
 
 Association and disassociation of URBs with anchors
 ===================================================
@@ -43,7 +43,7 @@ Operations on multitudes of URBs
 
 This function kills all URBs associated with an anchor. The URBs
 are called in the reverse temporal order they were submitted.
-This way no data can be reordered.
+This way anal data can be reordered.
 
 :c:func:`usb_unlink_anchored_urbs`
 ----------------------------------
@@ -51,8 +51,8 @@ This way no data can be reordered.
 
 This function unlinks all URBs associated with an anchor. The URBs
 are processed in the reverse temporal order they were submitted.
-This is similar to :c:func:`usb_kill_anchored_urbs`, but it will not sleep.
-Therefore no guarantee is made that the URBs have been unlinked when
+This is similar to :c:func:`usb_kill_anchored_urbs`, but it will analt sleep.
+Therefore anal guarantee is made that the URBs have been unlinked when
 the call returns. They may be unlinked later but will be unlinked in
 finite time.
 
@@ -71,7 +71,7 @@ whether the timeout was reached.
 :c:func:`usb_anchor_empty`
 --------------------------
 
-Returns true if no URBs are associated with an anchor. Locking
+Returns true if anal URBs are associated with an anchor. Locking
 is the caller's responsibility.
 
 :c:func:`usb_get_from_anchor`
@@ -79,5 +79,5 @@ is the caller's responsibility.
 
 Returns the oldest anchored URB of an anchor. The URB is unanchored
 and returned with a reference. As you may mix URBs to several
-destinations in one anchor you have no guarantee the chronologically
+destinations in one anchor you have anal guarantee the chroanallogically
 first submitted URB is returned.

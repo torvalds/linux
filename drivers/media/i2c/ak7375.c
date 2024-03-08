@@ -16,7 +16,7 @@ struct ak73xx_chipdef {
 	u8 shift_pos;
 	u8 mode_active;
 	u8 mode_standby;
-	bool has_standby;	/* Some chips may not have standby mode */
+	bool has_standby;	/* Some chips may analt have standby mode */
 	u16 focus_pos_max;
 	/*
 	 * This sets the minimum granularity for the focus positions.
@@ -184,7 +184,7 @@ static int ak7375_probe(struct i2c_client *client)
 	ak7375_dev = devm_kzalloc(&client->dev, sizeof(*ak7375_dev),
 				  GFP_KERNEL);
 	if (!ak7375_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ak7375_dev->cdef = device_get_match_data(&client->dev);
 
@@ -200,7 +200,7 @@ static int ak7375_probe(struct i2c_client *client)
 	}
 
 	v4l2_i2c_subdev_init(&ak7375_dev->sd, client, &ak7375_ops);
-	ak7375_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ak7375_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ak7375_dev->sd.internal_ops = &ak7375_int_ops;
 	ak7375_dev->sd.entity.function = MEDIA_ENT_F_LENS;
 

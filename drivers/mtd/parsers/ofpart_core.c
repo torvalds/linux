@@ -33,7 +33,7 @@ static struct fixed_partitions_quirks linksys_ns_partitions_quirks = {
 
 static const struct of_device_id parse_ofpart_match_table[];
 
-static bool node_has_compatible(struct device_node *pp)
+static bool analde_has_compatible(struct device_analde *pp)
 {
 	return of_get_property(pp, "compatible", NULL);
 }
@@ -45,47 +45,47 @@ static int parse_fixed_partitions(struct mtd_info *master,
 	const struct fixed_partitions_quirks *quirks;
 	const struct of_device_id *of_id;
 	struct mtd_partition *parts;
-	struct device_node *mtd_node;
-	struct device_node *ofpart_node;
+	struct device_analde *mtd_analde;
+	struct device_analde *ofpart_analde;
 	const char *partname;
-	struct device_node *pp;
+	struct device_analde *pp;
 	int nr_parts, i, ret = 0;
 	bool dedicated = true;
 
-	/* Pull of_node from the master device node */
-	mtd_node = mtd_get_of_node(master);
-	if (!mtd_node)
+	/* Pull of_analde from the master device analde */
+	mtd_analde = mtd_get_of_analde(master);
+	if (!mtd_analde)
 		return 0;
 
 	if (!master->parent) { /* Master */
-		ofpart_node = of_get_child_by_name(mtd_node, "partitions");
-		if (!ofpart_node) {
+		ofpart_analde = of_get_child_by_name(mtd_analde, "partitions");
+		if (!ofpart_analde) {
 			/*
 			 * We might get here even when ofpart isn't used at all (e.g.,
-			 * when using another parser), so don't be louder than
+			 * when using aanalther parser), so don't be louder than
 			 * KERN_DEBUG
 			 */
-			pr_debug("%s: 'partitions' subnode not found on %pOF. Trying to parse direct subnodes as partitions.\n",
-				master->name, mtd_node);
-			ofpart_node = mtd_node;
+			pr_debug("%s: 'partitions' subanalde analt found on %pOF. Trying to parse direct subanaldes as partitions.\n",
+				master->name, mtd_analde);
+			ofpart_analde = mtd_analde;
 			dedicated = false;
 		}
 	} else { /* Partition */
-		ofpart_node = mtd_node;
+		ofpart_analde = mtd_analde;
 	}
 
-	of_id = of_match_node(parse_ofpart_match_table, ofpart_node);
+	of_id = of_match_analde(parse_ofpart_match_table, ofpart_analde);
 	if (dedicated && !of_id) {
-		/* The 'partitions' subnode might be used by another parser */
+		/* The 'partitions' subanalde might be used by aanalther parser */
 		return 0;
 	}
 
 	quirks = of_id ? of_id->data : NULL;
 
-	/* First count the subnodes */
+	/* First count the subanaldes */
 	nr_parts = 0;
-	for_each_child_of_node(ofpart_node,  pp) {
-		if (!dedicated && node_has_compatible(pp))
+	for_each_child_of_analde(ofpart_analde,  pp) {
+		if (!dedicated && analde_has_compatible(pp))
 			continue;
 
 		nr_parts++;
@@ -96,15 +96,15 @@ static int parse_fixed_partitions(struct mtd_info *master,
 
 	parts = kcalloc(nr_parts, sizeof(*parts), GFP_KERNEL);
 	if (!parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	for_each_child_of_node(ofpart_node,  pp) {
+	for_each_child_of_analde(ofpart_analde,  pp) {
 		const __be32 *reg;
 		int len;
 		int a_cells, s_cells;
 
-		if (!dedicated && node_has_compatible(pp))
+		if (!dedicated && analde_has_compatible(pp))
 			continue;
 
 		reg = of_get_property(pp, "reg", &len);
@@ -112,7 +112,7 @@ static int parse_fixed_partitions(struct mtd_info *master,
 			if (dedicated) {
 				pr_debug("%s: ofpart partition %pOF (%pOF) missing reg property.\n",
 					 master->name, pp,
-					 mtd_node);
+					 mtd_analde);
 				goto ofpart_fail;
 			} else {
 				nr_parts--;
@@ -124,10 +124,10 @@ static int parse_fixed_partitions(struct mtd_info *master,
 		s_cells = of_n_size_cells(pp);
 		if (!dedicated && s_cells == 0) {
 			/*
-			 * This is a ugly workaround to not create
+			 * This is a ugly workaround to analt create
 			 * regression on devices that are still creating
 			 * partitions as direct children of the nand controller.
-			 * This can happen in case the nand controller node has
+			 * This can happen in case the nand controller analde has
 			 * #size-cells equal to 0 and the firmware (e.g.
 			 * U-Boot) just add the partitions there assuming
 			 * 32-bit addressing.
@@ -138,19 +138,19 @@ static int parse_fixed_partitions(struct mtd_info *master,
 			 * This is working only for devices smaller than 4GiB.
 			 */
 			pr_warn("%s: ofpart partition %pOF (%pOF) #size-cells is wrongly set to <0>, assuming <1> for parsing partitions.\n",
-				master->name, pp, mtd_node);
+				master->name, pp, mtd_analde);
 			s_cells = 1;
 		}
 		if (len / 4 != a_cells + s_cells) {
 			pr_debug("%s: ofpart partition %pOF (%pOF) error parsing reg property.\n",
 				 master->name, pp,
-				 mtd_node);
+				 mtd_analde);
 			goto ofpart_fail;
 		}
 
 		parts[i].offset = of_read_number(reg, a_cells);
 		parts[i].size = of_read_number(reg + a_cells, s_cells);
-		parts[i].of_node = pp;
+		parts[i].of_analde = pp;
 
 		partname = of_get_property(pp, "label", &len);
 		if (!partname)
@@ -170,7 +170,7 @@ static int parse_fixed_partitions(struct mtd_info *master,
 	}
 
 	if (!nr_parts)
-		goto ofpart_none;
+		goto ofpart_analne;
 
 	if (quirks && quirks->post_parse)
 		quirks->post_parse(master, parts, nr_parts);
@@ -180,10 +180,10 @@ static int parse_fixed_partitions(struct mtd_info *master,
 
 ofpart_fail:
 	pr_err("%s: error parsing ofpart partition %pOF (%pOF)\n",
-	       master->name, pp, mtd_node);
+	       master->name, pp, mtd_analde);
 	ret = -EINVAL;
-ofpart_none:
-	of_node_put(pp);
+ofpart_analne:
+	of_analde_put(pp);
 	kfree(parts);
 	return ret;
 }
@@ -209,21 +209,21 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 				      struct mtd_part_parser_data *data)
 {
 	struct mtd_partition *parts;
-	struct device_node *dp;
+	struct device_analde *dp;
 	int i, plen, nr_parts;
 	const struct {
 		__be32 offset, len;
 	} *part;
 	const char *names;
 
-	/* Pull of_node from the master device node */
-	dp = mtd_get_of_node(master);
+	/* Pull of_analde from the master device analde */
+	dp = mtd_get_of_analde(master);
 	if (!dp)
 		return 0;
 
 	part = of_get_property(dp, "partitions", &plen);
 	if (!part)
-		return 0; /* No partitions found */
+		return 0; /* Anal partitions found */
 
 	pr_warn("Device tree uses obsolete partition map binding: %pOF\n", dp);
 
@@ -231,7 +231,7 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 
 	parts = kcalloc(nr_parts, sizeof(*parts), GFP_KERNEL);
 	if (!parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	names = of_get_property(dp, "partition-names", &plen);
 
@@ -284,7 +284,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Parser for MTD partitioning information in device tree");
 MODULE_AUTHOR("Vitaly Wool, David Gibson");
 /*
- * When MTD core cannot find the requested parser, it tries to load the module
+ * When MTD core cananalt find the requested parser, it tries to load the module
  * with the same name. Since we provide the ofoldpart parser, we should have
  * the corresponding alias.
  */

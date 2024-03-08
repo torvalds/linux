@@ -5,7 +5,7 @@
 #include <linux/types.h>
 
 /*
- * general notes:
+ * general analtes:
  *
  * CONFIG_UID16 is defined if the given architecture needs to
  * support backwards compatibility for old system calls.

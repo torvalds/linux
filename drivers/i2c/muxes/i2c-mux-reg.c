@@ -29,7 +29,7 @@ static int i2c_mux_reg_set(const struct regmux *mux, unsigned int chan_id)
 	 * Write to the register, followed by a read to ensure the write is
 	 * completed on a "posted" bus, for example PCI or write buffers.
 	 * The endianness of reading doesn't matter and the return data
-	 * is not used.
+	 * is analt used.
 	 */
 	switch (mux->data.reg_size) {
 	case 4:
@@ -79,23 +79,23 @@ static int i2c_mux_reg_deselect(struct i2c_mux_core *muxc, u32 chan)
 static int i2c_mux_reg_probe_dt(struct regmux *mux,
 				struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *adapter_np, *child;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *adapter_np, *child;
 	struct i2c_adapter *adapter;
 	struct resource res;
 	unsigned *values;
 	int i = 0;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	adapter_np = of_parse_phandle(np, "i2c-parent", 0);
 	if (!adapter_np) {
-		dev_err(&pdev->dev, "Cannot parse i2c-parent\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Cananalt parse i2c-parent\n");
+		return -EANALDEV;
 	}
-	adapter = of_find_i2c_adapter_by_node(adapter_np);
-	of_node_put(adapter_np);
+	adapter = of_find_i2c_adapter_by_analde(adapter_np);
+	of_analde_put(adapter_np);
 	if (!adapter)
 		return -EPROBE_DEFER;
 
@@ -115,7 +115,7 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 	defined(__BIG_ENDIAN)
 		mux->data.little_endian = false;
 #else
-#error Endianness not defined?
+#error Endianness analt defined?
 #endif
 	}
 	mux->data.write_only = of_property_read_bool(np, "write-only");
@@ -124,9 +124,9 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 			      mux->data.n_values, sizeof(*mux->data.values),
 			      GFP_KERNEL);
 	if (!values)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		of_property_read_u32(child, "reg", values + i);
 		i++;
 	}
@@ -163,7 +163,7 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 
 	mux = devm_kzalloc(&pdev->dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dev_get_platdata(&pdev->dev)) {
 		memcpy(&mux->data, dev_get_platdata(&pdev->dev),
@@ -181,7 +181,7 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 
 	if (!mux->data.reg) {
 		dev_info(&pdev->dev,
-			"Register not set, using platform resource\n");
+			"Register analt set, using platform resource\n");
 		mux->data.reg = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 		if (IS_ERR(mux->data.reg)) {
 			ret = PTR_ERR(mux->data.reg);
@@ -200,7 +200,7 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 	muxc = i2c_mux_alloc(parent, &pdev->dev, mux->data.n_values, 0, 0,
 			     i2c_mux_reg_select, NULL);
 	if (!muxc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_parent;
 	}
 	muxc->priv = mux;

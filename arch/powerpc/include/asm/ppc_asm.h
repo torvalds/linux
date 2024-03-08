@@ -22,7 +22,7 @@
  *
  *   op  reg, (offset + (width * reg))(base)
  *
- * Note that offset is not the offset of the first operation unless start
+ * Analte that offset is analt the offset of the first operation unless start
  * is zero (or width is zero).
  */
 .macro OP_REGS op, width, start, end, base, offset
@@ -184,7 +184,7 @@
  * Used to name C functions called from asm
  */
 #ifdef CONFIG_PPC_KERNEL_PCREL
-#define CFUNC(name) name@notoc
+#define CFUNC(name) name@analtoc
 #else
 #define CFUNC(name) name
 #endif
@@ -268,21 +268,21 @@ n:
 #endif
 
 /*
- * __kprobes (the C annotation) puts the symbol into the .kprobes.text
+ * __kprobes (the C ananaltation) puts the symbol into the .kprobes.text
  * section, which gets emitted at the end of regular text.
  *
- * _ASM_NOKPROBE_SYMBOL and NOKPROBE_SYMBOL just adds the symbol to
+ * _ASM_ANALKPROBE_SYMBOL and ANALKPROBE_SYMBOL just adds the symbol to
  * a blacklist. The former is for core kprobe functions/data, the
  * latter is for those that incdentially must be excluded from probing
  * and allows them to be linked at more optimal location within text.
  */
 #ifdef CONFIG_KPROBES
-#define _ASM_NOKPROBE_SYMBOL(entry)			\
+#define _ASM_ANALKPROBE_SYMBOL(entry)			\
 	.pushsection "_kprobe_blacklist","aw";		\
 	PPC_LONG (entry) ;				\
 	.popsection
 #else
-#define _ASM_NOKPROBE_SYMBOL(entry)
+#define _ASM_ANALKPROBE_SYMBOL(entry)
 #endif
 
 #define FUNC_START(name)	_GLOBAL(name)
@@ -291,8 +291,8 @@ n:
 /* 
  * LOAD_REG_IMMEDIATE(rn, expr)
  *   Loads the value of the constant expression 'expr' into register 'rn'
- *   using immediate instructions only.  Use this when it's important not
- *   to reference other data (i.e. on ppc64 when the TOC pointer is not
+ *   using immediate instructions only.  Use this when it's important analt
+ *   to reference other data (i.e. on ppc64 when the TOC pointer is analt
  *   valid) and when 'expr' is a constant or absolute address.
  *
  * LOAD_REG_ADDR(rn, name)
@@ -305,7 +305,7 @@ n:
  * LOAD_REG_ADDR_PIC(rn, name)
  *   Loads the address of label 'name' into register 'run'. Use this when
  *   the kernel doesn't run at the linked or relocated address. Please
- *   note that this macro will clobber the lr register.
+ *   analte that this macro will clobber the lr register.
  *
  * LOAD_REG_ADDRBASE(rn, name)
  * ADDROFF(name)
@@ -391,9 +391,9 @@ n:
 
 #ifdef CONFIG_PPC_BOOK3E_64
 /*
- * This is used in register-constrained interrupt handlers. Not to be used
- * by BOOK3S. ld complains with "got/toc optimization is not supported" if r2
- * is not used for the TOC offset, so use @got(tocreg). If the interrupt
+ * This is used in register-constrained interrupt handlers. Analt to be used
+ * by BOOK3S. ld complains with "got/toc optimization is analt supported" if r2
+ * is analt used for the TOC offset, so use @got(tocreg). If the interrupt
  * handlers saved r2 instead, LOAD_REG_ADDR could be used.
  */
 #define LOAD_REG_ADDR_ALTTOC(reg,tocreg,name)	\
@@ -470,12 +470,12 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 	mtcrf	(FXM), RS;		\
 	FTR_SECTION_ELSE_NESTED(848);	\
 	mtocrf (FXM), RS;		\
-	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_NOEXECUTE, 848)
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_ANALEXECUTE, 848)
 #endif
 
 /*
- * This instruction is not implemented on the PPC 603 or 601; however, on
- * the 403GCX and 405GP tlbia IS defined and tlbie is not.
+ * This instruction is analt implemented on the PPC 603 or 601; however, on
+ * the 403GCX and 405GP tlbia IS defined and tlbie is analt.
  * All of these instructions exist in the 8xx, they have magical powers,
  * and they must be used.
  */
@@ -795,7 +795,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
  * Create an endian fixup trampoline
  *
  * This starts with a "tdi 0,0,0x48" instruction which is
- * essentially a "trap never", and thus akin to a nop.
+ * essentially a "trap never", and thus akin to a analp.
  *
  * The opcode for this instruction read with the wrong endian
  * however results in a b . + 8
@@ -810,7 +810,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 #define FIXUP_ENDIAN
 #else
 /*
- * This version may be used in HV or non-HV context.
+ * This version may be used in HV or analn-HV context.
  * MSR[EE] must be disabled.
  */
 #define FIXUP_ENDIAN						   \
@@ -830,7 +830,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 
 /*
  * This version that may only be used with MSR[HV]=1
- * - Does not clear MSR[RI], so more robust.
+ * - Does analt clear MSR[RI], so more robust.
  * - Slightly smaller and faster.
  */
 #define FIXUP_ENDIAN_HV						   \

@@ -20,7 +20,7 @@ Overview
 ========
 
 This filesystem provides a fairly simple secure AFS filesystem driver. It is
-under development and does not yet provide the full feature set.  The features
+under development and does analt yet provide the full feature set.  The features
 it does support include:
 
  (*) Security (currently only AFS kaserver and KerberosIV tickets).
@@ -31,7 +31,7 @@ it does support include:
 
  (*) Local caching (via fscache).
 
-It does not yet support the following AFS features:
+It does analt yet support the following AFS features:
 
  (*) pioctl() system call.
 
@@ -97,7 +97,7 @@ R/O volume, but are willing to use a R/W volume instead (hash).
 The name of the volume can be suffixes with ".backup" or ".readonly" to
 specify connection to only volumes of those types.
 
-The name of the cell is optional, and if not given during a mount, then the
+The name of the cell is optional, and if analt given during a mount, then the
 named volume will be looked up in the cell specified during modprobe.
 
 Additional cells can be added through /proc (see later section).
@@ -132,7 +132,7 @@ Dynamic Root
 A mount option is available to create a serverless mount that is only usable
 for dynamic lookup.  Creating such a mount can be done by, for example::
 
-	mount -t afs none /afs -o dyn
+	mount -t afs analne /afs -o dyn
 
 This creates a mount that just has an empty directory at the root.  Attempting
 to look up a name in this directory will cause a mountpoint to be created that
@@ -146,7 +146,7 @@ Proc Filesystem
 
 The AFS module creates a "/proc/fs/afs/" directory and populates it:
 
-  (*) A "cells" file that lists cells currently known to the afs module and
+  (*) A "cells" file that lists cells currently kanalwn to the afs module and
       their usage counts::
 
 	[root@andromeda ~]# cat /proc/fs/afs/cells
@@ -154,7 +154,7 @@ The AFS module creates a "/proc/fs/afs/" directory and populates it:
 	  3 cambridge.redhat.com
 
   (*) A directory per cell that contains files that list volume location
-      servers, volumes, and active servers known within that cell::
+      servers, volumes, and active servers kanalwn within that cell::
 
 	[root@andromeda ~]# cat /proc/fs/afs/cambridge.redhat.com/servers
 	USE ADDR            STATE
@@ -170,7 +170,7 @@ The AFS module creates a "/proc/fs/afs/" directory and populates it:
 The Cell Database
 =================
 
-The filesystem maintains an internal database of all the cells it knows and the
+The filesystem maintains an internal database of all the cells it kanalws and the
 IP addresses of the volume location servers for those cells.  The cell to which
 the system belongs is added to the database when modprobe is performed by the
 "rootcell=" argument or, if compiled in, using a "kafs.rootcell=" argument on
@@ -181,7 +181,7 @@ Further cells can be added by commands similar to the following::
 	echo add CELLNAME VLADDR[:VLADDR][:VLADDR]... >/proc/fs/afs/cells
 	echo add grand.central.org 18.9.48.14:128.2.203.61:130.237.48.87 >/proc/fs/afs/cells
 
-No other cell database operations are available at this time.
+Anal other cell database operations are available at this time.
 
 
 Security
@@ -213,8 +213,8 @@ by cat'ing /proc/keys::
 Currently the username, realm, password and proposed ticket lifetime are
 compiled into the program.
 
-It is not required to acquire a key before using AFS facilities, but if one is
-not acquired then all operations will be governed by the anonymous user parts
+It is analt required to acquire a key before using AFS facilities, but if one is
+analt acquired then all operations will be governed by the aanalnymous user parts
 of the ACLs.
 
 If a key is acquired, then all AFS operations, including mounts and automounts,

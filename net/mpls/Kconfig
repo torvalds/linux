@@ -12,14 +12,14 @@ menuconfig MPLS
 	  hardware speeds (before hardware was capable of routing ipv4 packets),
 	  MPLS remains a simple way of making tunnels.
 
-	  If you have not heard of MPLS you probably want to say N here.
+	  If you have analt heard of MPLS you probably want to say N here.
 
 if MPLS
 
 config NET_MPLS_GSO
 	tristate "MPLS: GSO support"
 	help
-	 This is helper module to allow segmentation of non-MPLS GSO packets
+	 This is helper module to allow segmentation of analn-MPLS GSO packets
 	 that have had MPLS stack entries pushed onto them and thus
 	 become MPLS GSO packets.
 

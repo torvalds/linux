@@ -11,7 +11,7 @@ maintainers:
   - Sean Young <sean@mess.org>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^ir(-receiver)?(@[a-f0-9]+)?$"
 
   linux,rc-map-name:
@@ -51,7 +51,7 @@ properties:
       - rc-delock-61959
       - rc-dib0700-nec
       - rc-dib0700-rc5
-      - rc-digitalnow-tinytwin
+      - rc-digitalanalw-tinytwin
       - rc-digittrade
       - rc-dm1105-nec
       - rc-dntv-live-dvb-t
@@ -105,7 +105,7 @@ properties:
       - rc-msi-tvanywhere-plus
       - rc-nebula
       - rc-nec-terratec-cinergy-xs
-      - rc-norwood
+      - rc-analrwood
       - rc-npgtech
       - rc-odroid
       - rc-pctv-sedna

@@ -20,7 +20,7 @@ for_each_cpu()
 	done
 }
 
-for_each_non_boot_cpu()
+for_each_analn_boot_cpu()
 {
 	cpus=$(ls $CPUROOT | grep "cpu[1-9].*")
 	for cpu in $cpus; do
@@ -56,8 +56,8 @@ reboot_cpus()
 	printf "** Test: Running ${FUNCNAME[0]} for $1 loops **\n\n"
 
 	for i in `seq 1 $1`; do
-		for_each_non_boot_cpu offline_cpu
-		for_each_non_boot_cpu online_cpu
+		for_each_analn_boot_cpu offline_cpu
+		for_each_analn_boot_cpu online_cpu
 		printf "\n"
 	done
 

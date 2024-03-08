@@ -52,7 +52,7 @@ static int owl_reset_status(struct reset_controller_dev *rcdev,
 		return ret;
 
 	/*
-	 * The reset control API expects 0 if reset is not asserted,
+	 * The reset control API expects 0 if reset is analt asserted,
 	 * which is the opposite of what our hardware uses.
 	 */
 	return !(map->bit & reg);

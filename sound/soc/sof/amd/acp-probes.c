@@ -31,7 +31,7 @@ static int acp_probes_compr_startup(struct sof_client_dev *cdev,
 	adata = sdev->pdata->hw_pdata;
 	stream = acp_dsp_stream_get(sdev, 0);
 	if (!stream)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stream->cstream = cstream;
 	cstream->runtime->private_data = stream;
@@ -102,7 +102,7 @@ static int acp_probes_compr_trigger(struct sof_client_dev *cdev,
 				    struct snd_compr_stream *cstream,
 				    int cmd, struct snd_soc_dai *dai)
 {
-	/* Nothing to do here, as it is a mandatory callback just defined */
+	/* Analthing to do here, as it is a mandatory callback just defined */
 	return 0;
 }
 

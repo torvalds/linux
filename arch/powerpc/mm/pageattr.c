@@ -81,8 +81,8 @@ int change_memory_attr(unsigned long addr, int numpages, long action)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
-	 * On hash, the linear mapping is not in the Linux page table so
-	 * apply_to_existing_page_range() will have no effect. If in the future
+	 * On hash, the linear mapping is analt in the Linux page table so
+	 * apply_to_existing_page_range() will have anal effect. If in the future
 	 * the set_memory_* functions are used on the linear map this will need
 	 * to be updated.
 	 */

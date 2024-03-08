@@ -11,7 +11,7 @@ maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     oneOf:
@@ -24,8 +24,8 @@ properties:
           - const: actions,s500
       - items:
           - enum:
-              - caninos,labrador-base-m # Labrador Base Board M v1
-          - const: caninos,labrador-v2  # Labrador Core v2
+              - canianals,labrador-base-m # Labrador Base Board M v1
+          - const: canianals,labrador-v2  # Labrador Core v2
           - const: actions,s500
       - items:
           - enum:
@@ -36,8 +36,8 @@ properties:
       # The Actions Semi S700 is a quad-core ARM Cortex-A53 SoC.
       - items:
           - enum:
-              - caninos,labrador-base-m2 # Labrador Base Board M v2
-          - const: caninos,labrador-v3   # Labrador Core v3
+              - canianals,labrador-base-m2 # Labrador Base Board M v2
+          - const: canianals,labrador-v3   # Labrador Core v3
           - const: actions,s700
       - items:
           - enum:

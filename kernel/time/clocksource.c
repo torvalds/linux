@@ -37,7 +37,7 @@
  *
  * The @maxsec conversion range argument controls the time frame in
  * seconds which must be covered by the runtime conversion with the
- * calculated mult and shift factors. This guarantees that no 64bit
+ * calculated mult and shift factors. This guarantees that anal 64bit
  * overflow happens when the input value of the conversion is
  * multiplied with the calculated mult factor. Larger ranges may
  * reduce the conversion accuracy by choosing smaller mult and shift
@@ -114,7 +114,7 @@ static u64 suspend_start;
  * a lower bound for cs->uncertainty_margin values when registering clocks.
  *
  * The default of 500 parts per million is based on NTP's limits.
- * If a clocksource is good enough for NTP, it is good enough for us!
+ * If a clocksource is good eanalugh for NTP, it is good eanalugh for us!
  */
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG_MAX_SKEW_US
 #define MAX_SKEW_USEC	CONFIG_CLOCKSOURCE_WATCHDOG_MAX_SKEW_US
@@ -153,13 +153,13 @@ static void __clocksource_change_rating(struct clocksource *cs, int rating);
 static void clocksource_watchdog_work(struct work_struct *work)
 {
 	/*
-	 * We cannot directly run clocksource_watchdog_kthread() here, because
-	 * clocksource_select() calls timekeeping_notify() which uses
-	 * stop_machine(). One cannot use stop_machine() from a workqueue() due
+	 * We cananalt directly run clocksource_watchdog_kthread() here, because
+	 * clocksource_select() calls timekeeping_analtify() which uses
+	 * stop_machine(). One cananalt use stop_machine() from a workqueue() due
 	 * lock inversions wrt CPU hotplug.
 	 *
 	 * Also, we only ever run this work once or twice during the lifetime
-	 * of the kernel, so there is no point in creating a more permanent
+	 * of the kernel, so there is anal point in creating a more permanent
 	 * kthread for this.
 	 *
 	 * If kthread_run fails the next watchdog scan over the
@@ -222,7 +222,7 @@ enum wd_read_status {
 	WD_READ_SKIP
 };
 
-static enum wd_read_status cs_watchdog_read(struct clocksource *cs, u64 *csnow, u64 *wdnow)
+static enum wd_read_status cs_watchdog_read(struct clocksource *cs, u64 *csanalw, u64 *wdanalw)
 {
 	unsigned int nretries;
 	u64 wd_end, wd_end2, wd_delta;
@@ -230,13 +230,13 @@ static enum wd_read_status cs_watchdog_read(struct clocksource *cs, u64 *csnow, 
 
 	for (nretries = 0; nretries <= max_cswd_read_retries; nretries++) {
 		local_irq_disable();
-		*wdnow = watchdog->read(watchdog);
-		*csnow = cs->read(cs);
+		*wdanalw = watchdog->read(watchdog);
+		*csanalw = cs->read(cs);
 		wd_end = watchdog->read(watchdog);
 		wd_end2 = watchdog->read(watchdog);
 		local_irq_enable();
 
-		wd_delta = clocksource_delta(wd_end, *wdnow, watchdog->mask);
+		wd_delta = clocksource_delta(wd_end, *wdanalw, watchdog->mask);
 		wd_delay = clocksource_cyc2ns(wd_delta, watchdog->mult,
 					      watchdog->shift);
 		if (wd_delay <= WATCHDOG_MAX_SKEW) {
@@ -248,7 +248,7 @@ static enum wd_read_status cs_watchdog_read(struct clocksource *cs, u64 *csnow, 
 		}
 
 		/*
-		 * Now compute delay in consecutive watchdog read to see if
+		 * Analw compute delay in consecutive watchdog read to see if
 		 * there is too much external interferences that cause
 		 * significant delay in reading both clocksource and watchdog.
 		 *
@@ -274,7 +274,7 @@ skip_test:
 	return WD_READ_SKIP;
 }
 
-static u64 csnow_mid;
+static u64 csanalw_mid;
 static cpumask_t cpus_ahead;
 static cpumask_t cpus_behind;
 static cpumask_t cpus_chosen;
@@ -290,7 +290,7 @@ static void clocksource_verify_choose_cpus(void)
 		return;
 	}
 
-	/* If no checking desired, or no other CPU to check, leave. */
+	/* If anal checking desired, or anal other CPU to check, leave. */
 	cpumask_clear(&cpus_chosen);
 	if (n == 0 || num_online_cpus() <= 1)
 		return;
@@ -310,7 +310,7 @@ static void clocksource_verify_choose_cpus(void)
 	/*
 	 * Randomly select the specified number of CPUs.  If the same
 	 * CPU is selected multiple times, that CPU is checked only once,
-	 * and no replacement CPU is selected.  This gracefully handles
+	 * and anal replacement CPU is selected.  This gracefully handles
 	 * situations where verify_n_cpus is greater than the number of
 	 * CPUs that are currently online.
 	 */
@@ -331,13 +331,13 @@ static void clocksource_verify_one_cpu(void *csin)
 {
 	struct clocksource *cs = (struct clocksource *)csin;
 
-	csnow_mid = cs->read(cs);
+	csanalw_mid = cs->read(cs);
 }
 
 void clocksource_verify_percpu(struct clocksource *cs)
 {
 	int64_t cs_nsec, cs_nsec_max = 0, cs_nsec_min = LLONG_MAX;
-	u64 csnow_begin, csnow_end;
+	u64 csanalw_begin, csanalw_end;
 	int cpu, testcpu;
 	s64 delta;
 
@@ -351,7 +351,7 @@ void clocksource_verify_percpu(struct clocksource *cs)
 	if (cpumask_empty(&cpus_chosen)) {
 		preempt_enable();
 		cpus_read_unlock();
-		pr_warn("Not enough CPUs to check clocksource '%s'.\n", cs->name);
+		pr_warn("Analt eanalugh CPUs to check clocksource '%s'.\n", cs->name);
 		return;
 	}
 	testcpu = smp_processor_id();
@@ -359,16 +359,16 @@ void clocksource_verify_percpu(struct clocksource *cs)
 	for_each_cpu(cpu, &cpus_chosen) {
 		if (cpu == testcpu)
 			continue;
-		csnow_begin = cs->read(cs);
+		csanalw_begin = cs->read(cs);
 		smp_call_function_single(cpu, clocksource_verify_one_cpu, cs, 1);
-		csnow_end = cs->read(cs);
-		delta = (s64)((csnow_mid - csnow_begin) & cs->mask);
+		csanalw_end = cs->read(cs);
+		delta = (s64)((csanalw_mid - csanalw_begin) & cs->mask);
 		if (delta < 0)
 			cpumask_set_cpu(cpu, &cpus_behind);
-		delta = (csnow_end - csnow_mid) & cs->mask;
+		delta = (csanalw_end - csanalw_mid) & cs->mask;
 		if (delta < 0)
 			cpumask_set_cpu(cpu, &cpus_ahead);
-		delta = clocksource_delta(csnow_end, csnow_begin, cs->mask);
+		delta = clocksource_delta(csanalw_end, csanalw_begin, cs->mask);
 		cs_nsec = clocksource_cyc2ns(delta, cs->mult, cs->shift);
 		if (cs_nsec > cs_nsec_max)
 			cs_nsec_max = cs_nsec;
@@ -400,7 +400,7 @@ static inline void clocksource_reset_watchdog(void)
 
 static void clocksource_watchdog(struct timer_list *unused)
 {
-	u64 csnow, wdnow, cslast, wdlast, delta;
+	u64 csanalw, wdanalw, cslast, wdlast, delta;
 	int64_t wd_nsec, cs_nsec, interval;
 	int next_cpu, reset_pending;
 	struct clocksource *cs;
@@ -423,7 +423,7 @@ static void clocksource_watchdog(struct timer_list *unused)
 			continue;
 		}
 
-		read_ret = cs_watchdog_read(cs, &csnow, &wdnow);
+		read_ret = cs_watchdog_read(cs, &csanalw, &wdanalw);
 
 		if (read_ret == WD_READ_UNSTABLE) {
 			/* Clock readout unreliable, so give it up. */
@@ -453,32 +453,32 @@ static void clocksource_watchdog(struct timer_list *unused)
 		if (!(cs->flags & CLOCK_SOURCE_WATCHDOG) ||
 		    atomic_read(&watchdog_reset_pending)) {
 			cs->flags |= CLOCK_SOURCE_WATCHDOG;
-			cs->wd_last = wdnow;
-			cs->cs_last = csnow;
+			cs->wd_last = wdanalw;
+			cs->cs_last = csanalw;
 			continue;
 		}
 
-		delta = clocksource_delta(wdnow, cs->wd_last, watchdog->mask);
+		delta = clocksource_delta(wdanalw, cs->wd_last, watchdog->mask);
 		wd_nsec = clocksource_cyc2ns(delta, watchdog->mult,
 					     watchdog->shift);
 
-		delta = clocksource_delta(csnow, cs->cs_last, cs->mask);
+		delta = clocksource_delta(csanalw, cs->cs_last, cs->mask);
 		cs_nsec = clocksource_cyc2ns(delta, cs->mult, cs->shift);
 		wdlast = cs->wd_last; /* save these in case we print them */
 		cslast = cs->cs_last;
-		cs->cs_last = csnow;
-		cs->wd_last = wdnow;
+		cs->cs_last = csanalw;
+		cs->wd_last = wdanalw;
 
 		if (atomic_read(&watchdog_reset_pending))
 			continue;
 
 		/*
 		 * The processing of timer softirqs can get delayed (usually
-		 * on account of ksoftirqd not getting to run in a timely
+		 * on account of ksoftirqd analt getting to run in a timely
 		 * manner), which causes the watchdog interval to stretch.
 		 * Skew detection may fail for longer watchdog intervals
 		 * on account of fixed margins being used.
-		 * Some clocksources, e.g. acpi_pm, cannot tolerate
+		 * Some clocksources, e.g. acpi_pm, cananalt tolerate
 		 * watchdog intervals longer than a few seconds.
 		 */
 		interval = max(cs_nsec, wd_nsec);
@@ -502,10 +502,10 @@ static void clocksource_watchdog(struct timer_list *unused)
 
 			pr_warn("timekeeping watchdog on CPU%d: Marking clocksource '%s' as unstable because the skew is too large:\n",
 				smp_processor_id(), cs->name);
-			pr_warn("                      '%s' wd_nsec: %lld wd_now: %llx wd_last: %llx mask: %llx\n",
-				watchdog->name, wd_nsec, wdnow, wdlast, watchdog->mask);
-			pr_warn("                      '%s' cs_nsec: %lld cs_now: %llx cs_last: %llx mask: %llx\n",
-				cs->name, cs_nsec, csnow, cslast, cs->mask);
+			pr_warn("                      '%s' wd_nsec: %lld wd_analw: %llx wd_last: %llx mask: %llx\n",
+				watchdog->name, wd_nsec, wdanalw, wdlast, watchdog->mask);
+			pr_warn("                      '%s' cs_nsec: %lld cs_analw: %llx cs_last: %llx mask: %llx\n",
+				cs->name, cs_nsec, csanalw, cslast, cs->mask);
 			cs_wd_msec = div_s64_rem(cs_nsec - wd_nsec, 1000 * 1000, &wd_rem);
 			wd_msec = div_s64_rem(wd_nsec, 1000 * 1000, &wd_rem);
 			pr_warn("                      Clocksource '%s' skewed %lld ns (%lld ms) over watchdog '%s' interval of %lld ns (%lld ms)\n",
@@ -513,9 +513,9 @@ static void clocksource_watchdog(struct timer_list *unused)
 			if (curr_clocksource == cs)
 				pr_warn("                      '%s' is current clocksource.\n", cs->name);
 			else if (curr_clocksource)
-				pr_warn("                      '%s' (not '%s') is current clocksource.\n", curr_clocksource->name, cs->name);
+				pr_warn("                      '%s' (analt '%s') is current clocksource.\n", curr_clocksource->name, cs->name);
 			else
-				pr_warn("                      No current clocksource.\n");
+				pr_warn("                      Anal current clocksource.\n");
 			__clocksource_unstable(cs);
 			continue;
 		}
@@ -531,24 +531,24 @@ static void clocksource_watchdog(struct timer_list *unused)
 
 			/*
 			 * clocksource_done_booting() will sort it if
-			 * finished_booting is not set yet.
+			 * finished_booting is analt set yet.
 			 */
 			if (!finished_booting)
 				continue;
 
 			/*
-			 * If this is not the current clocksource let
+			 * If this is analt the current clocksource let
 			 * the watchdog thread reselect it. Due to the
 			 * change to high res this clocksource might
-			 * be preferred now. If it is the current
-			 * clocksource let the tick code know about
+			 * be preferred analw. If it is the current
+			 * clocksource let the tick code kanalw about
 			 * that change.
 			 */
 			if (cs != curr_clocksource) {
 				cs->flags |= CLOCK_SOURCE_RESELECT;
 				schedule_work(&watchdog_work);
 			} else {
-				tick_clock_notify();
+				tick_clock_analtify();
 			}
 		}
 	}
@@ -569,7 +569,7 @@ static void clocksource_watchdog(struct timer_list *unused)
 		next_cpu = cpumask_first(cpu_online_mask);
 
 	/*
-	 * Arm timer if not already pending: could race with concurrent
+	 * Arm timer if analt already pending: could race with concurrent
 	 * pair clocksource_stop_watchdog() clocksource_start_watchdog().
 	 */
 	if (!timer_pending(&watchdog_timer)) {
@@ -742,16 +742,16 @@ static void __clocksource_suspend_select(struct clocksource *cs)
 	/*
 	 * Skip the clocksource which will be stopped in suspend state.
 	 */
-	if (!(cs->flags & CLOCK_SOURCE_SUSPEND_NONSTOP))
+	if (!(cs->flags & CLOCK_SOURCE_SUSPEND_ANALNSTOP))
 		return;
 
 	/*
-	 * The nonstop clocksource can be selected as the suspend clocksource to
-	 * calculate the suspend time, so it should not supply suspend/resume
-	 * interfaces to suspend the nonstop clocksource when system suspends.
+	 * The analnstop clocksource can be selected as the suspend clocksource to
+	 * calculate the suspend time, so it should analt supply suspend/resume
+	 * interfaces to suspend the analnstop clocksource when system suspends.
 	 */
 	if (cs->suspend || cs->resume) {
-		pr_warn("Nonstop clocksource %s should not supply suspend/resume interfaces\n",
+		pr_warn("Analnstop clocksource %s should analt supply suspend/resume interfaces\n",
 			cs->name);
 	}
 
@@ -790,8 +790,8 @@ static void clocksource_suspend_select(bool fallback)
  * the suspend time when resuming system.
  *
  * This function is called late in the suspend process from timekeeping_suspend(),
- * that means processes are frozen, non-boot cpus and interrupts are disabled
- * now. It is therefore possible to start the suspend timer without taking the
+ * that means processes are frozen, analn-boot cpus and interrupts are disabled
+ * analw. It is therefore possible to start the suspend timer without taking the
  * clocksource mutex.
  */
 void clocksource_start_suspend_timing(struct clocksource *cs, u64 start_cycles)
@@ -801,7 +801,7 @@ void clocksource_start_suspend_timing(struct clocksource *cs, u64 start_cycles)
 
 	/*
 	 * If current clocksource is the suspend timer, we should use the
-	 * tkr_mono.cycle_last value as suspend_start to avoid same reading
+	 * tkr_moanal.cycle_last value as suspend_start to avoid same reading
 	 * from suspend timer.
 	 */
 	if (clocksource_is_suspend(cs)) {
@@ -811,7 +811,7 @@ void clocksource_start_suspend_timing(struct clocksource *cs, u64 start_cycles)
 
 	if (suspend_clocksource->enable &&
 	    suspend_clocksource->enable(suspend_clocksource)) {
-		pr_warn_once("Failed to enable the non-suspend-able clocksource.\n");
+		pr_warn_once("Failed to enable the analn-suspend-able clocksource.\n");
 		return;
 	}
 
@@ -821,36 +821,36 @@ void clocksource_start_suspend_timing(struct clocksource *cs, u64 start_cycles)
 /**
  * clocksource_stop_suspend_timing - Stop measuring the suspend timing
  * @cs:		current clocksource from timekeeping
- * @cycle_now:	current cycles from timekeeping
+ * @cycle_analw:	current cycles from timekeeping
  *
  * This function will calculate the suspend time from suspend timer.
  *
- * Returns nanoseconds since suspend started, 0 if no usable suspend clocksource.
+ * Returns naanalseconds since suspend started, 0 if anal usable suspend clocksource.
  *
  * This function is called early in the resume process from timekeeping_resume(),
- * that means there is only one cpu, no processes are running and the interrupts
+ * that means there is only one cpu, anal processes are running and the interrupts
  * are disabled. It is therefore possible to stop the suspend timer without
  * taking the clocksource mutex.
  */
-u64 clocksource_stop_suspend_timing(struct clocksource *cs, u64 cycle_now)
+u64 clocksource_stop_suspend_timing(struct clocksource *cs, u64 cycle_analw)
 {
-	u64 now, delta, nsec = 0;
+	u64 analw, delta, nsec = 0;
 
 	if (!suspend_clocksource)
 		return 0;
 
 	/*
 	 * If current clocksource is the suspend timer, we should use the
-	 * tkr_mono.cycle_last value from timekeeping as current cycle to
+	 * tkr_moanal.cycle_last value from timekeeping as current cycle to
 	 * avoid same reading from suspend timer.
 	 */
 	if (clocksource_is_suspend(cs))
-		now = cycle_now;
+		analw = cycle_analw;
 	else
-		now = suspend_clocksource->read(suspend_clocksource);
+		analw = suspend_clocksource->read(suspend_clocksource);
 
-	if (now > suspend_start) {
-		delta = clocksource_delta(now, suspend_start,
+	if (analw > suspend_start) {
+		delta = clocksource_delta(analw, suspend_start,
 					  suspend_clocksource->mask);
 		nsec = mul_u64_u32_shr(delta, suspend_clocksource->mult,
 				       suspend_clocksource->shift);
@@ -858,7 +858,7 @@ u64 clocksource_stop_suspend_timing(struct clocksource *cs, u64 cycle_now)
 
 	/*
 	 * Disable the suspend timer to save power if current clocksource is
-	 * not the suspend timer.
+	 * analt the suspend timer.
 	 */
 	if (!clocksource_is_suspend(cs) && suspend_clocksource->disable)
 		suspend_clocksource->disable(suspend_clocksource);
@@ -895,7 +895,7 @@ void clocksource_resume(void)
 /**
  * clocksource_touch_watchdog - Update watchdog
  *
- * Update the watchdog after exception contexts such as kgdb so as not
+ * Update the watchdog after exception contexts such as kgdb so as analt
  * to incorrectly trip the watchdog. This might fail when the kernel
  * was stopped in code which holds watchdog_lock.
  */
@@ -921,16 +921,16 @@ static u32 clocksource_max_adjustment(struct clocksource *cs)
 }
 
 /**
- * clocks_calc_max_nsecs - Returns maximum nanoseconds that can be converted
- * @mult:	cycle to nanosecond multiplier
- * @shift:	cycle to nanosecond divisor (power of two)
+ * clocks_calc_max_nsecs - Returns maximum naanalseconds that can be converted
+ * @mult:	cycle to naanalsecond multiplier
+ * @shift:	cycle to naanalsecond divisor (power of two)
  * @maxadj:	maximum adjustment value to mult (~11%)
- * @mask:	bitmask for two's complement subtraction of non 64 bit counters
- * @max_cyc:	maximum cycle value before potential overflow (does not include
+ * @mask:	bitmask for two's complement subtraction of analn 64 bit counters
+ * @max_cyc:	maximum cycle value before potential overflow (does analt include
  *		any safety margin)
  *
- * NOTE: This function includes a safety margin of 50%, in other words, we
- * return half the number of nanoseconds the hardware counter can technically
+ * ANALTE: This function includes a safety margin of 50%, in other words, we
+ * return half the number of naanalseconds the hardware counter can technically
  * cover. This is done so that we can potentially detect problems caused by
  * delayed timers or bad hardware, which might result in time intervals that
  * are larger than what the math used can handle without overflows.
@@ -949,7 +949,7 @@ u64 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask, u64 *max_cy
 	/*
 	 * The actual maximum number of cycles we can defer the clocksource is
 	 * determined by the minimum of max_cycles and mask.
-	 * Note: Here we subtract the maxadj to make sure we don't sleep for
+	 * Analte: Here we subtract the maxadj to make sure we don't sleep for
 	 * too long if there's a large negative adjustment.
 	 */
 	max_cycles = min(max_cycles, mask);
@@ -1019,22 +1019,22 @@ static void __clocksource_select(bool skipcur)
 		if (strcmp(cs->name, override_name) != 0)
 			continue;
 		/*
-		 * Check to make sure we don't switch to a non-highres
+		 * Check to make sure we don't switch to a analn-highres
 		 * capable clocksource if the tick code is in oneshot
-		 * mode (highres or nohz)
+		 * mode (highres or analhz)
 		 */
 		if (!(cs->flags & CLOCK_SOURCE_VALID_FOR_HRES) && oneshot) {
-			/* Override clocksource cannot be used. */
+			/* Override clocksource cananalt be used. */
 			if (cs->flags & CLOCK_SOURCE_UNSTABLE) {
-				pr_warn("Override clocksource %s is unstable and not HRT compatible - cannot switch while in HRT/NOHZ mode\n",
+				pr_warn("Override clocksource %s is unstable and analt HRT compatible - cananalt switch while in HRT/ANALHZ mode\n",
 					cs->name);
 				override_name[0] = 0;
 			} else {
 				/*
-				 * The override cannot be currently verified.
+				 * The override cananalt be currently verified.
 				 * Deferring to let the watchdog check.
 				 */
-				pr_info("Override clocksource %s is not currently HRT compatible - deferring\n",
+				pr_info("Override clocksource %s is analt currently HRT compatible - deferring\n",
 					cs->name);
 			}
 		} else
@@ -1044,7 +1044,7 @@ static void __clocksource_select(bool skipcur)
 	}
 
 found:
-	if (curr_clocksource != best && !timekeeping_notify(best)) {
+	if (curr_clocksource != best && !timekeeping_analtify(best)) {
 		pr_info("Switched to clocksource %s\n", best->name);
 		curr_clocksource = best;
 	}
@@ -1115,7 +1115,7 @@ static void clocksource_enqueue(struct clocksource *cs)
  *
  * This should only be called from the clocksource->enable() method.
  *
- * This *SHOULD NOT* be called directly! Please use the
+ * This *SHOULD ANALT* be called directly! Please use the
  * __clocksource_update_freq_hz() or __clocksource_update_freq_khz() helper
  * functions.
  */
@@ -1125,7 +1125,7 @@ void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq
 
 	/*
 	 * Default clocksources are *special* and self-define their mult/shift.
-	 * But, you're not special, so you should specify a freq value.
+	 * But, you're analt special, so you should specify a freq value.
 	 */
 	if (freq) {
 		/*
@@ -1150,8 +1150,8 @@ void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq
 	}
 
 	/*
-	 * If the uncertainty margin is not specified, calculate it.
-	 * If both scale and freq are non-zero, calculate the clock
+	 * If the uncertainty margin is analt specified, calculate it.
+	 * If both scale and freq are analn-zero, calculate the clock
 	 * period, but bound below at 2*WATCHDOG_MAX_SKEW.  However,
 	 * if either of scale or freq is zero, be very conservative and
 	 * take the tens-of-milliseconds WATCHDOG_THRESHOLD value for the
@@ -1203,7 +1203,7 @@ EXPORT_SYMBOL_GPL(__clocksource_update_freq_scale);
  *
  * Returns -EBUSY if registration fails, zero otherwise.
  *
- * This *SHOULD NOT* be called directly! Please use the
+ * This *SHOULD ANALT* be called directly! Please use the
  * clocksource_register_hz() or clocksource_register_khz helper functions.
  */
 int __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq)
@@ -1218,7 +1218,7 @@ int __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq)
 	    cs->vdso_clock_mode >= VDSO_CLOCKMODE_MAX) {
 		pr_warn("clocksource %s registered with invalid VDSO mode %d. Disabling VDSO support.\n",
 			cs->name, cs->vdso_clock_mode);
-		cs->vdso_clock_mode = VDSO_CLOCKMODE_NONE;
+		cs->vdso_clock_mode = VDSO_CLOCKMODE_ANALNE;
 	}
 
 	/* Initialize mult/shift and max_idle_ns */
@@ -1292,8 +1292,8 @@ static int clocksource_unbind(struct clocksource *cs)
 	if (clocksource_is_suspend(cs)) {
 		/*
 		 * Select and try to install a replacement suspend clocksource.
-		 * If no replacement suspend clocksource, we will just let the
-		 * clocksource go and have no suspend clocksource.
+		 * If anal replacement suspend clocksource, we will just let the
+		 * clocksource go and have anal suspend clocksource.
 		 */
 		clocksource_suspend_select(true);
 	}
@@ -1348,7 +1348,7 @@ ssize_t sysfs_get_uname(const char *buf, char *dst, size_t cnt)
 {
 	size_t ret = cnt;
 
-	/* strings from sysfs write are not 0 terminated! */
+	/* strings from sysfs write are analt 0 terminated! */
 	if (!cnt || cnt >= CS_NAME_LEN)
 		return -EINVAL;
 
@@ -1410,7 +1410,7 @@ static ssize_t unbind_clocksource_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	mutex_lock(&clocksource_mutex);
 	list_for_each_entry(cs, &clocksource_list, list) {
 		if (strcmp(cs->name, name))
@@ -1442,8 +1442,8 @@ static ssize_t available_clocksource_show(struct device *dev,
 	mutex_lock(&clocksource_mutex);
 	list_for_each_entry(src, &clocksource_list, list) {
 		/*
-		 * Don't show non-HRES clocksource if the tick code is
-		 * in one shot mode (highres=on or nohz=on)
+		 * Don't show analn-HRES clocksource if the tick code is
+		 * in one shot mode (highres=on or analhz=on)
 		 */
 		if (!tick_oneshot_mode_active() ||
 		    (src->flags & CLOCK_SOURCE_VALID_FOR_HRES))

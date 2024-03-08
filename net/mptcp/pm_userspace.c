@@ -60,7 +60,7 @@ static int mptcp_userspace_pm_append_new_local_addr(struct mptcp_sock *msk,
 		 */
 		e = sock_kmalloc(sk, sizeof(*e), GFP_ATOMIC);
 		if (!e) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto append_err;
 		}
 
@@ -81,9 +81,9 @@ append_err:
 	return ret;
 }
 
-/* If the subflow is closed from the other peer (not via a
+/* If the subflow is closed from the other peer (analt via a
  * subflow destroy command then), we want to keep the entry
- * not to assign the same ID to another address and to be
+ * analt to assign the same ID to aanalther address and to be
  * able to send RM_ADDR after the removal of the subflow.
  */
 static int mptcp_userspace_pm_delete_local_addr(struct mptcp_sock *msk,
@@ -157,7 +157,7 @@ int mptcp_userspace_pm_get_local_id(struct mptcp_sock *msk,
 	return mptcp_userspace_pm_append_new_local_addr(msk, &new_entry, true);
 }
 
-int mptcp_pm_nl_announce_doit(struct sk_buff *skb, struct genl_info *info)
+int mptcp_pm_nl_ananalunce_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *token = info->attrs[MPTCP_PM_ATTR_TOKEN];
 	struct nlattr *addr = info->attrs[MPTCP_PM_ATTR_ADDR];
@@ -183,34 +183,34 @@ int mptcp_pm_nl_announce_doit(struct sk_buff *skb, struct genl_info *info)
 	sk = (struct sock *)msk;
 
 	if (!mptcp_pm_is_userspace(msk)) {
-		GENL_SET_ERR_MSG(info, "invalid request; userspace PM not selected");
-		goto announce_err;
+		GENL_SET_ERR_MSG(info, "invalid request; userspace PM analt selected");
+		goto ananalunce_err;
 	}
 
 	err = mptcp_pm_parse_entry(addr, info, true, &addr_val);
 	if (err < 0) {
 		GENL_SET_ERR_MSG(info, "error parsing local address");
-		goto announce_err;
+		goto ananalunce_err;
 	}
 
 	if (addr_val.addr.id == 0 || !(addr_val.flags & MPTCP_PM_ADDR_FLAG_SIGNAL)) {
 		GENL_SET_ERR_MSG(info, "invalid addr id or flags");
 		err = -EINVAL;
-		goto announce_err;
+		goto ananalunce_err;
 	}
 
 	err = mptcp_userspace_pm_append_new_local_addr(msk, &addr_val, false);
 	if (err < 0) {
-		GENL_SET_ERR_MSG(info, "did not match address and id");
-		goto announce_err;
+		GENL_SET_ERR_MSG(info, "did analt match address and id");
+		goto ananalunce_err;
 	}
 
 	lock_sock(sk);
 	spin_lock_bh(&msk->pm.lock);
 
-	if (mptcp_pm_alloc_anno_list(msk, &addr_val.addr)) {
+	if (mptcp_pm_alloc_ananal_list(msk, &addr_val.addr)) {
 		msk->pm.add_addr_signaled++;
-		mptcp_pm_announce_addr(msk, &addr_val.addr, false);
+		mptcp_pm_ananalunce_addr(msk, &addr_val.addr, false);
 		mptcp_pm_nl_addr_send_ack(msk);
 	}
 
@@ -218,7 +218,7 @@ int mptcp_pm_nl_announce_doit(struct sk_buff *skb, struct genl_info *info)
 	release_sock(sk);
 
 	err = 0;
- announce_err:
+ ananalunce_err:
 	sock_put(sk);
 	return err;
 }
@@ -240,7 +240,7 @@ static int mptcp_userspace_pm_remove_id_zero_address(struct mptcp_sock *msk,
 		}
 	}
 	if (!has_id_0) {
-		GENL_SET_ERR_MSG(info, "address with id 0 not found");
+		GENL_SET_ERR_MSG(info, "address with id 0 analt found");
 		goto remove_err;
 	}
 
@@ -287,7 +287,7 @@ int mptcp_pm_nl_remove_doit(struct sk_buff *skb, struct genl_info *info)
 	sk = (struct sock *)msk;
 
 	if (!mptcp_pm_is_userspace(msk)) {
-		GENL_SET_ERR_MSG(info, "invalid request; userspace PM not selected");
+		GENL_SET_ERR_MSG(info, "invalid request; userspace PM analt selected");
 		goto out;
 	}
 
@@ -306,7 +306,7 @@ int mptcp_pm_nl_remove_doit(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (!match) {
-		GENL_SET_ERR_MSG(info, "address with specified id not found");
+		GENL_SET_ERR_MSG(info, "address with specified id analt found");
 		release_sock(sk);
 		goto out;
 	}
@@ -356,7 +356,7 @@ int mptcp_pm_nl_subflow_create_doit(struct sk_buff *skb, struct genl_info *info)
 	sk = (struct sock *)msk;
 
 	if (!mptcp_pm_is_userspace(msk)) {
-		GENL_SET_ERR_MSG(info, "invalid request; userspace PM not selected");
+		GENL_SET_ERR_MSG(info, "invalid request; userspace PM analt selected");
 		goto create_err;
 	}
 
@@ -381,7 +381,7 @@ int mptcp_pm_nl_subflow_create_doit(struct sk_buff *skb, struct genl_info *info)
 	local.addr = addr_l;
 	err = mptcp_userspace_pm_append_new_local_addr(msk, &local, false);
 	if (err < 0) {
-		GENL_SET_ERR_MSG(info, "did not match address and id");
+		GENL_SET_ERR_MSG(info, "did analt match address and id");
 		goto create_err;
 	}
 
@@ -479,7 +479,7 @@ int mptcp_pm_nl_subflow_destroy_doit(struct sk_buff *skb, struct genl_info *info
 	sk = (struct sock *)msk;
 
 	if (!mptcp_pm_is_userspace(msk)) {
-		GENL_SET_ERR_MSG(info, "invalid request; userspace PM not selected");
+		GENL_SET_ERR_MSG(info, "invalid request; userspace PM analt selected");
 		goto destroy_err;
 	}
 
@@ -506,7 +506,7 @@ int mptcp_pm_nl_subflow_destroy_doit(struct sk_buff *skb, struct genl_info *info
 	}
 #endif
 	if (addr_l.family != addr_r.family) {
-		GENL_SET_ERR_MSG(info, "address families do not match");
+		GENL_SET_ERR_MSG(info, "address families do analt match");
 		err = -EINVAL;
 		goto destroy_err;
 	}

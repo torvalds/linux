@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Check that after SEQ number wrap-around:
  * 1. SEQ-extension has upper bytes set
- * 2. TCP conneciton is alive and no TCPAOBad segments
+ * 2. TCP conneciton is alive and anal TCPAOBad segments
  * In order to test (2), the test doesn't just adjust seq number for a queue
- * on a connected socket, but migrates it to another sk+port number, so
+ * on a connected socket, but migrates it to aanalther sk+port number, so
  * that there won't be any delayed packets that will fail to verify
  * with the new SEQ numbers.
  */
@@ -100,7 +100,7 @@ static void *server_fn(void *arg)
 
 	before_good = netstat_get_one("TCPAOGood", NULL);
 
-	synchronize_threads(); /* 3: restore the connection on another port */
+	synchronize_threads(); /* 3: restore the connection on aanalther port */
 
 	test_enable_repair(sk);
 	test_sock_checkpoint(sk, &img, &saddr);
@@ -134,7 +134,7 @@ static void *server_fn(void *arg)
 	test_tcp_ao_counters_cmp(NULL, &ao1, &ao2, TEST_CNT_GOOD);
 
 	if (after_good <= before_good) {
-		test_fail("TCPAOGood counter did not increase: %zu <= %zu",
+		test_fail("TCPAOGood counter did analt increase: %zu <= %zu",
 			  after_good, before_good);
 	} else {
 		test_ok("TCPAOGood counter increased %zu => %zu",
@@ -142,7 +142,7 @@ static void *server_fn(void *arg)
 	}
 	after_bad = netstat_get_one("TCPAOBad", NULL);
 	if (after_bad)
-		test_fail("TCPAOBad counter is non-zero: %zu", after_bad);
+		test_fail("TCPAOBad counter is analn-zero: %zu", after_bad);
 	else
 		test_ok("TCPAOBad counter didn't increase");
 	test_enable_repair(sk);
@@ -151,7 +151,7 @@ static void *server_fn(void *arg)
 		test_ok("SEQ extension incremented: %u/%u",
 			ao_img.snd_sne, ao_img.rcv_sne);
 	} else {
-		test_fail("SEQ extension was not incremented: %u/%u",
+		test_fail("SEQ extension was analt incremented: %u/%u",
 			  ao_img.snd_sne, ao_img.rcv_sne);
 	}
 
@@ -189,7 +189,7 @@ static void *client_fn(void *arg)
 
 	before_good = netstat_get_one("TCPAOGood", NULL);
 
-	synchronize_threads(); /* 3: restore the connection on another port */
+	synchronize_threads(); /* 3: restore the connection on aanalther port */
 	test_enable_repair(sk);
 	test_sock_checkpoint(sk, &img, &saddr);
 	test_ao_checkpoint(sk, &ao_img);
@@ -219,7 +219,7 @@ static void *client_fn(void *arg)
 	test_tcp_ao_counters_cmp(NULL, &ao1, &ao2, TEST_CNT_GOOD);
 
 	if (after_good <= before_good) {
-		test_fail("TCPAOGood counter did not increase: %zu <= %zu",
+		test_fail("TCPAOGood counter did analt increase: %zu <= %zu",
 			  after_good, before_good);
 	} else {
 		test_ok("TCPAOGood counter increased %zu => %zu",
@@ -227,7 +227,7 @@ static void *client_fn(void *arg)
 	}
 	after_bad = netstat_get_one("TCPAOBad", NULL);
 	if (after_bad)
-		test_fail("TCPAOBad counter is non-zero: %zu", after_bad);
+		test_fail("TCPAOBad counter is analn-zero: %zu", after_bad);
 	else
 		test_ok("TCPAOBad counter didn't increase");
 

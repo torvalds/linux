@@ -18,7 +18,7 @@ static DEFINE_MUTEX(list_lock);
  * @refcount:	refcount for the state
  * @orphan:	boolean indicator that this state has been unregistered
  * @list:	entry in smem_states list
- * @of_node:	of_node to use for matching the state in DT
+ * @of_analde:	of_analde to use for matching the state in DT
  * @priv:	implementation private data
  * @ops:	ops for the state
  */
@@ -27,7 +27,7 @@ struct qcom_smem_state {
 	bool orphan;
 
 	struct list_head list;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 
 	void *priv;
 
@@ -40,7 +40,7 @@ struct qcom_smem_state {
  * @mask:	bit mask for the change
  * @value:	new value for the masked bits
  *
- * Returns 0 on success, otherwise negative errno.
+ * Returns 0 on success, otherwise negative erranal.
  */
 int qcom_smem_state_update_bits(struct qcom_smem_state *state,
 				u32 mask,
@@ -50,20 +50,20 @@ int qcom_smem_state_update_bits(struct qcom_smem_state *state,
 		return -ENXIO;
 
 	if (!state->ops.update_bits)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return state->ops.update_bits(state->priv, mask, value);
 }
 EXPORT_SYMBOL_GPL(qcom_smem_state_update_bits);
 
-static struct qcom_smem_state *of_node_to_state(struct device_node *np)
+static struct qcom_smem_state *of_analde_to_state(struct device_analde *np)
 {
 	struct qcom_smem_state *state;
 
 	mutex_lock(&list_lock);
 
 	list_for_each_entry(state, &smem_states, list) {
-		if (state->of_node == np) {
+		if (state->of_analde == np) {
 			kref_get(&state->refcount);
 			goto unlock;
 		}
@@ -95,7 +95,7 @@ struct qcom_smem_state *qcom_smem_state_get(struct device *dev,
 	int ret;
 
 	if (con_id) {
-		index = of_property_match_string(dev->of_node,
+		index = of_property_match_string(dev->of_analde,
 						 "qcom,smem-state-names",
 						 con_id);
 		if (index < 0) {
@@ -104,7 +104,7 @@ struct qcom_smem_state *qcom_smem_state_get(struct device *dev,
 		}
 	}
 
-	ret = of_parse_phandle_with_args(dev->of_node,
+	ret = of_parse_phandle_with_args(dev->of_analde,
 					 "qcom,smem-states",
 					 "#qcom,smem-state-cells",
 					 index,
@@ -119,14 +119,14 @@ struct qcom_smem_state *qcom_smem_state_get(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	state = of_node_to_state(args.np);
+	state = of_analde_to_state(args.np);
 	if (IS_ERR(state))
 		goto put;
 
 	*bit = args.args[0];
 
 put:
-	of_node_put(args.np);
+	of_analde_put(args.np);
 	return state;
 }
 EXPORT_SYMBOL_GPL(qcom_smem_state_get);
@@ -136,7 +136,7 @@ static void qcom_smem_state_release(struct kref *ref)
 	struct qcom_smem_state *state = container_of(ref, struct qcom_smem_state, refcount);
 
 	list_del(&state->list);
-	of_node_put(state->of_node);
+	of_analde_put(state->of_analde);
 	kfree(state);
 }
 
@@ -174,7 +174,7 @@ struct qcom_smem_state *devm_qcom_smem_state_get(struct device *dev,
 
 	ptr = devres_alloc(devm_qcom_smem_state_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	state = qcom_smem_state_get(dev, con_id, bit);
 	if (!IS_ERR(state)) {
@@ -190,11 +190,11 @@ EXPORT_SYMBOL_GPL(devm_qcom_smem_state_get);
 
 /**
  * qcom_smem_state_register() - register a new state
- * @of_node:	of_node used for matching client lookups
+ * @of_analde:	of_analde used for matching client lookups
  * @ops:	implementation ops
  * @priv:	implementation specific private data
  */
-struct qcom_smem_state *qcom_smem_state_register(struct device_node *of_node,
+struct qcom_smem_state *qcom_smem_state_register(struct device_analde *of_analde,
 						 const struct qcom_smem_state_ops *ops,
 						 void *priv)
 {
@@ -202,11 +202,11 @@ struct qcom_smem_state *qcom_smem_state_register(struct device_node *of_node,
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&state->refcount);
 
-	state->of_node = of_node_get(of_node);
+	state->of_analde = of_analde_get(of_analde);
 	state->ops = *ops;
 	state->priv = priv;
 

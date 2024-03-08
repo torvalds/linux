@@ -27,7 +27,7 @@ config DRM_XE_PREEMPT_TIMEOUT
 	default 640000 # microseconds
 	help
 	  How long to wait (in microseconds) for a preemption event to occur
-	  when submitting a new context. If the current context does not hit
+	  when submitting a new context. If the current context does analt hit
 	  an arbitration point and yield to HW before the timer expires, the
 	  HW will be reset to allow the more important context to execute.
 config DRM_XE_PREEMPT_TIMEOUT_MAX

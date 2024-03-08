@@ -91,10 +91,10 @@ wait_sr_ack:
 skip_pad_conf_2:
 	/* Zzz, enter stop mode */
 	wfi
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 
 	/* Restore pad config */
 	ldr	r1, [r0, #SUSPEND_INFO_MX53_IO_COUNT_OFFSET]

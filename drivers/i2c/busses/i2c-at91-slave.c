@@ -20,7 +20,7 @@ static irqreturn_t atmel_twi_interrupt_slave(int irq, void *dev_id)
 	u8 value;
 
 	if (!irqstatus)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* slave address has been detected on I2C bus */
 	if (irqstatus & AT91_TWI_SVACC) {
@@ -70,7 +70,7 @@ static int at91_reg_slave(struct i2c_client *slave)
 		return -EBUSY;
 
 	if (slave->flags & I2C_CLIENT_TEN)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	/* Make sure twi_clk doesn't get turned off! */
 	pm_runtime_get_sync(dev->dev);
@@ -124,7 +124,7 @@ int at91_twi_probe_slave(struct platform_device *pdev,
 	rc = devm_request_irq(&pdev->dev, dev->irq, atmel_twi_interrupt_slave,
 			      0, dev_name(dev->dev), dev);
 	if (rc) {
-		dev_err(dev->dev, "Cannot get irq %d: %d\n", dev->irq, rc);
+		dev_err(dev->dev, "Cananalt get irq %d: %d\n", dev->irq, rc);
 		return rc;
 	}
 

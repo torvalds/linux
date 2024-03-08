@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
@@ -30,7 +30,7 @@ static int diag224_idx2name(int index, char *name);
  * DIAG 204 member access functions.
  *
  * Since we have two different diag 204 data formats for old and new s390
- * machines, we do not access the structs directly, but use getter functions for
+ * machines, we do analt access the structs directly, but use getter functions for
  * each struct member instead. This should make the code more readable.
  */
 
@@ -137,7 +137,7 @@ static inline __u64 cpu_info__lp_time(enum diag204_format type, void *hdr)
 static inline __u64 cpu_info__online_time(enum diag204_format type, void *hdr)
 {
 	if (type == DIAG204_INFO_SIMPLE)
-		return 0;	/* online_time not available in simple info */
+		return 0;	/* online_time analt available in simple info */
 	else /* DIAG204_INFO_EXT */
 		return ((struct diag204_x_cpu_info *)hdr)->online_time;
 }
@@ -350,7 +350,7 @@ err_out:
 	return rc;
 }
 
-/* Diagnose 224 functions */
+/* Diaganalse 224 functions */
 
 static int diag224_idx2name(int index, char *name)
 {
@@ -366,10 +366,10 @@ static int diag224_get_name_table(void)
 	/* memory must be below 2GB */
 	diag224_cpu_names = (char *)__get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!diag224_cpu_names)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (diag224(diag224_cpu_names)) {
 		free_page((unsigned long)diag224_cpu_names);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	EBCASC(diag224_cpu_names + 16, (*diag224_cpu_names + 1) * 16);
 	return 0;

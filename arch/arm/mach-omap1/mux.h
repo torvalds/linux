@@ -4,14 +4,14 @@
  * PULL_DWN combinations.
  *
  * Copyright (C) 2004 - 2008 Texas Instruments Inc.
- * Copyright (C) 2003 - 2008 Nokia Corporation
+ * Copyright (C) 2003 - 2008 Analkia Corporation
  *
  * Written by Tony Lindgren
  *
- * NOTE: Please use the following naming style for new pin entries.
+ * ANALTE: Please use the following naming style for new pin entries.
  *	 For example, W8_1610_MMC2_DAT0, where:
  *	 - W8	     = ball
- *	 - 1610	     = 1510 or 1610, none if common for both 1510 and 1610
+ *	 - 1610	     = 1510 or 1610, analne if common for both 1510 and 1610
  *	 - MMC2_DAT0 = function
  */
 
@@ -20,8 +20,8 @@
 
 #include <linux/soc/ti/omap1-mux.h>
 
-#define PU_PD_SEL_NA		0	/* No pu_pd reg available */
-#define PULL_DWN_CTRL_NA	0	/* No pull-down control needed */
+#define PU_PD_SEL_NA		0	/* Anal pu_pd reg available */
+#define PULL_DWN_CTRL_NA	0	/* Anal pull-down control needed */
 
 #ifdef	CONFIG_OMAP_MUX_DEBUG
 #define MUX_REG(reg, mode_offset, mode) .mux_reg_name = "FUNC_MUX_CTRL_"#reg, \
@@ -87,7 +87,7 @@
 /*
  * OMAP730/850 has a slightly different config for the pin mux.
  * - config regs are the OMAP7XX_IO_CONF_x regs (see omap7xx.h) regs and
- *   not the FUNC_MUX_CTRL_x regs from hardware.h
+ *   analt the FUNC_MUX_CTRL_x regs from hardware.h
  * - for pull-up/down, only has one enable bit which is in the same register
  *   as mux config
  */
@@ -135,7 +135,7 @@ struct omap_mux_cfg {
 extern int omap1_mux_init(void);
 extern int omap_mux_register(struct omap_mux_cfg *);
 #else
-/* boot loader does it all (no warnings from CONFIG_OMAP_MUX_WARNINGS) */
+/* boot loader does it all (anal warnings from CONFIG_OMAP_MUX_WARNINGS) */
 static inline int omap1_mux_init(void) { return 0; }
 #endif
 

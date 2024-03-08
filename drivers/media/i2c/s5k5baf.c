@@ -26,7 +26,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -365,7 +365,7 @@ static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
 
 	d = devm_kcalloc(dev, count, sizeof(u16), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; ++i)
 		d[i] = le16_to_cpu(data[i]);
@@ -718,7 +718,7 @@ static void s5k5baf_hw_set_anti_flicker(struct s5k5baf *state, int v)
 static void s5k5baf_hw_set_colorfx(struct s5k5baf *state, int val)
 {
 	static const u16 colorfx[] = {
-		[V4L2_COLORFX_NONE] = 0,
+		[V4L2_COLORFX_ANALNE] = 0,
 		[V4L2_COLORFX_BW] = 1,
 		[V4L2_COLORFX_NEGATIVE] = 2,
 		[V4L2_COLORFX_SEPIA] = 3,
@@ -810,7 +810,7 @@ static void s5k5baf_hw_find_min_fiv(struct s5k5baf *state)
 			state->error = -EINVAL;
 		}
 	}
-	v4l2_err(&state->sd, "cannot find correct frame interval\n");
+	v4l2_err(&state->sd, "cananalt find correct frame interval\n");
 	state->error = -ERANGE;
 }
 
@@ -1020,7 +1020,7 @@ static int s5k5baf_load_setfile(struct s5k5baf *state)
 
 	ret = request_firmware(&fw, S5K5BAF_FW_FILENAME, &c->dev);
 	if (ret < 0) {
-		dev_warn(&c->dev, "firmware file (%s) not loaded\n",
+		dev_warn(&c->dev, "firmware file (%s) analt loaded\n",
 			 S5K5BAF_FW_FILENAME);
 		return ret;
 	}
@@ -1133,7 +1133,7 @@ static int s5k5baf_get_frame_interval(struct v4l2_subdev *sd,
 
 	mutex_lock(&state->lock);
 	fi->interval.numerator = state->fiv;
-	fi->interval.denominator = 10000;
+	fi->interval.deanalminator = 10000;
 	mutex_unlock(&state->lock);
 
 	return 0;
@@ -1144,11 +1144,11 @@ static void __s5k5baf_set_frame_interval(struct s5k5baf *state,
 {
 	struct v4l2_fract *i = &fi->interval;
 
-	if (fi->interval.denominator == 0)
+	if (fi->interval.deanalminator == 0)
 		state->req_fiv = S5K5BAF_MAX_FR_TIME;
 	else
 		state->req_fiv = clamp_t(u32,
-					 i->numerator * 10000 / i->denominator,
+					 i->numerator * 10000 / i->deanalminator,
 					 S5K5BAF_MIN_FR_TIME,
 					 S5K5BAF_MAX_FR_TIME);
 
@@ -1199,7 +1199,7 @@ static int s5k5baf_enum_frame_interval(struct v4l2_subdev *sd,
 			      S5K5BAF_CIS_HEIGHT, 1, 0);
 
 	fie->interval.numerator = S5K5BAF_MIN_FR_TIME + fie->index;
-	fie->interval.denominator = 10000;
+	fie->interval.deanalminator = 10000;
 
 	return 0;
 }
@@ -1259,7 +1259,7 @@ static void s5k5baf_try_cis_format(struct v4l2_mbus_framefmt *mf)
 	mf->height = S5K5BAF_CIS_HEIGHT;
 	mf->code = MEDIA_BUS_FMT_FIXED;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 }
 
 static int s5k5baf_try_isp_format(struct v4l2_mbus_framefmt *mf)
@@ -1275,7 +1275,7 @@ static int s5k5baf_try_isp_format(struct v4l2_mbus_framefmt *mf)
 
 	mf->colorspace = s5k5baf_formats[pixfmt].colorspace;
 	mf->code = s5k5baf_formats[pixfmt].code;
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 
 	return pixfmt;
 }
@@ -1299,7 +1299,7 @@ static int s5k5baf_get_fmt(struct v4l2_subdev *sd,
 		s5k5baf_try_cis_format(mf);
 		return 0;
 	}
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 	mutex_lock(&state->lock);
 	pixfmt = &s5k5baf_formats[state->pixfmt];
 	mf->width = state->crop_source.width;
@@ -1320,7 +1320,7 @@ static int s5k5baf_set_fmt(struct v4l2_subdev *sd,
 	const struct s5k5baf_pixfmt *pixfmt;
 	int ret = 0;
 
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = *mf;
@@ -1643,7 +1643,7 @@ static int s5k5baf_initialize_ctrls(struct s5k5baf *state)
 
 	ret = v4l2_ctrl_handler_init(hdl, 16);
 	if (ret < 0) {
-		v4l2_err(&state->sd, "cannot init ctrl handler (%d)\n", ret);
+		v4l2_err(&state->sd, "cananalt init ctrl handler (%d)\n", ret);
 		return ret;
 	}
 
@@ -1676,7 +1676,7 @@ static int s5k5baf_initialize_ctrls(struct s5k5baf *state)
 			       V4L2_CID_POWER_LINE_FREQUENCY_AUTO);
 
 	v4l2_ctrl_new_std_menu(hdl, ops, V4L2_CID_COLORFX,
-			       V4L2_COLORFX_SKY_BLUE, ~0x6f, V4L2_COLORFX_NONE);
+			       V4L2_COLORFX_SKY_BLUE, ~0x6f, V4L2_COLORFX_ANALNE);
 
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_WHITE_BALANCE_TEMPERATURE,
 			  0, 256, 1, 0);
@@ -1720,7 +1720,7 @@ static int s5k5baf_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	mf->code = s5k5baf_formats[0].code;
 	mf->width = s5k5baf_cis_rect.width;
 	mf->height = s5k5baf_cis_rect.height;
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 
 	*v4l2_subdev_state_get_crop(fh->state, PAD_CIS) = s5k5baf_cis_rect;
 	*v4l2_subdev_state_get_compose(fh->state, PAD_CIS) = s5k5baf_cis_rect;
@@ -1745,8 +1745,8 @@ static int s5k5baf_check_fw_revision(struct s5k5baf *state)
 		  api_ver, fw_rev, s_id);
 
 	if (api_ver != S5K5BAF_FW_APIVER) {
-		v4l2_err(&state->sd, "FW API version not supported\n");
-		return -ENODEV;
+		v4l2_err(&state->sd, "FW API version analt supported\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1829,19 +1829,19 @@ static int s5k5baf_configure_gpios(struct s5k5baf *state)
 	return 0;
 }
 
-static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
+static int s5k5baf_parse_device_analde(struct s5k5baf *state, struct device *dev)
 {
-	struct device_node *node = dev->of_node;
-	struct device_node *node_ep;
-	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *analde_ep;
+	struct v4l2_fwanalde_endpoint ep = { .bus_type = 0 };
 	int ret;
 
-	if (!node) {
-		dev_err(dev, "no device-tree node provided\n");
+	if (!analde) {
+		dev_err(dev, "anal device-tree analde provided\n");
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(node, "clock-frequency",
+	ret = of_property_read_u32(analde, "clock-frequency",
 				   &state->mclk_frequency);
 	if (ret < 0) {
 		state->mclk_frequency = S5K5BAF_DEFAULT_MCLK_FREQ;
@@ -1849,14 +1849,14 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 			 state->mclk_frequency);
 	}
 
-	node_ep = of_graph_get_next_endpoint(node, NULL);
-	if (!node_ep) {
-		dev_err(dev, "no endpoint defined at node %pOF\n", node);
+	analde_ep = of_graph_get_next_endpoint(analde, NULL);
+	if (!analde_ep) {
+		dev_err(dev, "anal endpoint defined at analde %pOF\n", analde);
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node_ep), &ep);
-	of_node_put(node_ep);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(analde_ep), &ep);
+	of_analde_put(analde_ep);
 	if (ret)
 		return ret;
 
@@ -1869,8 +1869,8 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 	case V4L2_MBUS_PARALLEL:
 		break;
 	default:
-		dev_err(dev, "unsupported bus in endpoint defined at node %pOF\n",
-			node);
+		dev_err(dev, "unsupported bus in endpoint defined at analde %pOF\n",
+			analde);
 		return -EINVAL;
 	}
 
@@ -1891,7 +1891,7 @@ static int s5k5baf_configure_subdevs(struct s5k5baf *state,
 		 i2c_adapter_id(c->adapter), c->addr);
 
 	sd->internal_ops = &s5k5baf_cis_subdev_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	state->cis_pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
@@ -1905,11 +1905,11 @@ static int s5k5baf_configure_subdevs(struct s5k5baf *state,
 		 i2c_adapter_id(c->adapter), c->addr);
 
 	sd->internal_ops = &s5k5baf_subdev_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	state->pads[PAD_CIS].flags = MEDIA_PAD_FL_SINK;
 	state->pads[PAD_OUT].flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.function = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
+	sd->entity.function = MEDIA_ENT_F_V4L2_SUBDEV_UNKANALWN;
 	ret = media_entity_pads_init(&sd->entity, NUM_ISP_PADS, state->pads);
 
 	if (!ret)
@@ -1917,7 +1917,7 @@ static int s5k5baf_configure_subdevs(struct s5k5baf *state,
 
 	media_entity_cleanup(&state->cis_sd.entity);
 err:
-	dev_err(&c->dev, "cannot init media entity %s\n", sd->name);
+	dev_err(&c->dev, "cananalt init media entity %s\n", sd->name);
 	return ret;
 }
 
@@ -1944,14 +1944,14 @@ static int s5k5baf_probe(struct i2c_client *c)
 
 	state = devm_kzalloc(&c->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&state->lock);
 	state->crop_sink = s5k5baf_cis_rect;
 	state->compose = s5k5baf_cis_rect;
 	state->crop_source = s5k5baf_cis_rect;
 
-	ret = s5k5baf_parse_device_node(state, &c->dev);
+	ret = s5k5baf_parse_device_analde(state, &c->dev);
 	if (ret < 0)
 		return ret;
 

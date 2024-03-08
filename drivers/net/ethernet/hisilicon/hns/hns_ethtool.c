@@ -139,7 +139,7 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 	ethtool_convert_link_mode_to_legacy_u32(&advertising,
 						cmd->link_modes.advertising);
 
-	/* When there is no phy, autoneg is off. */
+	/* When there is anal phy, autoneg is off. */
 	cmd->base.autoneg = false;
 	cmd->base.speed = speed;
 	cmd->base.duplex = duplex;
@@ -149,8 +149,8 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 
 	link_stat = hns_nic_get_link(net_dev);
 	if (!link_stat) {
-		cmd->base.speed = (u32)SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = (u32)SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	if (cmd->base.autoneg)
@@ -172,7 +172,7 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 	case HNAE_MEDIA_TYPE_COPPER:
 		cmd->base.port = PORT_TP;
 		break;
-	case HNAE_MEDIA_TYPE_UNKNOWN:
+	case HNAE_MEDIA_TYPE_UNKANALWN:
 	default:
 		break;
 	}
@@ -209,7 +209,7 @@ static int hns_nic_set_link_ksettings(struct net_device *net_dev,
 
 	if (!priv || !priv->ae_handle || !priv->ae_handle->dev ||
 	    !priv->ae_handle->dev->ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	h = priv->ae_handle;
 	speed = cmd->base.speed;
@@ -233,8 +233,8 @@ static int hns_nic_set_link_ksettings(struct net_device *net_dev,
 		     cmd->base.duplex != DUPLEX_FULL))
 			return -EINVAL;
 	} else {
-		netdev_err(net_dev, "Not supported!");
-		return -ENOTSUPP;
+		netdev_err(net_dev, "Analt supported!");
+		return -EANALTSUPP;
 	}
 
 	if (h->dev->ops->adjust_link) {
@@ -244,8 +244,8 @@ static int hns_nic_set_link_ksettings(struct net_device *net_dev,
 		return 0;
 	}
 
-	netdev_err(net_dev, "Not supported!");
-	return -ENOTSUPP;
+	netdev_err(net_dev, "Analt supported!");
+	return -EANALTSUPP;
 }
 
 static const char hns_nic_test_strs[][ETH_GSTRING_LEN] = {
@@ -302,10 +302,10 @@ static int __lb_setup(struct net_device *ndev,
 		if (h->dev->ops->set_loopback)
 			ret = h->dev->ops->set_loopback(h, loop, 0x1);
 		break;
-	case MAC_LOOP_PHY_NONE:
+	case MAC_LOOP_PHY_ANALNE:
 		ret = hns_nic_config_phy_loopback(phy_dev, 0x0);
 		fallthrough;
-	case MAC_LOOP_NONE:
+	case MAC_LOOP_ANALNE:
 		if (!ret && h->dev->ops->set_loopback) {
 			if (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII)
 				ret = h->dev->ops->set_loopback(h,
@@ -322,7 +322,7 @@ static int __lb_setup(struct net_device *ndev,
 	}
 
 	if (!ret) {
-		if (loop == MAC_LOOP_NONE)
+		if (loop == MAC_LOOP_ANALNE)
 			h->dev->ops->set_promisc_mode(
 				h, ndev->flags & IFF_PROMISC);
 		else
@@ -476,7 +476,7 @@ static int __lb_run_test(struct net_device *ndev,
 #define NIC_LB_TEST_RING_ID 0
 #define NIC_LB_TEST_FRAME_SIZE 128
 /* nic loopback test err  */
-#define NIC_LB_TEST_NO_MEM_ERR 1
+#define NIC_LB_TEST_ANAL_MEM_ERR 1
 #define NIC_LB_TEST_TX_CNT_ERR 2
 #define NIC_LB_TEST_RX_CNT_ERR 3
 
@@ -491,7 +491,7 @@ static int __lb_run_test(struct net_device *ndev,
 	/* allocate test skb */
 	skb = alloc_skb(size, GFP_KERNEL);
 	if (!skb)
-		return NIC_LB_TEST_NO_MEM_ERR;
+		return NIC_LB_TEST_ANAL_MEM_ERR;
 
 	/* place data into test skb */
 	(void)skb_put(skb, size);
@@ -554,9 +554,9 @@ static int __lb_down(struct net_device *ndev, enum hnae_loop loop)
 	int ret;
 
 	if (loop == MAC_INTERNALLOOP_PHY)
-		ret = __lb_setup(ndev, MAC_LOOP_PHY_NONE);
+		ret = __lb_setup(ndev, MAC_LOOP_PHY_ANALNE);
 	else
-		ret = __lb_setup(ndev, MAC_LOOP_NONE);
+		ret = __lb_setup(ndev, MAC_LOOP_ANALNE);
 	if (ret)
 		netdev_err(ndev, "%s: __lb_setup return error(%d)!\n",
 			   __func__,
@@ -589,11 +589,11 @@ static void hns_nic_self_test(struct net_device *ndev,
 	int i;
 	int test_index = 0;
 
-	st_param[0][0] = MAC_INTERNALLOOP_MAC; /* XGE not supported lb */
+	st_param[0][0] = MAC_INTERNALLOOP_MAC; /* XGE analt supported lb */
 	st_param[0][1] = (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII);
 	st_param[1][0] = MAC_INTERNALLOOP_SERDES;
 	st_param[1][1] = 1; /*serdes must exist*/
-	st_param[2][0] = MAC_INTERNALLOOP_PHY; /* only supporte phy node*/
+	st_param[2][0] = MAC_INTERNALLOOP_PHY; /* only supporte phy analde*/
 	st_param[2][1] = ((!!(priv->ae_handle->phy_dev)) &&
 		(priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII));
 
@@ -967,7 +967,7 @@ static int hns_get_sset_count(struct net_device *netdev, int stringset)
 
 	if (!ops->get_sset_count) {
 		netdev_err(netdev, "get_sset_count is null!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (stringset == ETH_SS_TEST) {
 		u32 cnt = (sizeof(hns_nic_test_strs) / ETH_GSTRING_LEN);
@@ -982,7 +982,7 @@ static int hns_get_sset_count(struct net_device *netdev, int stringset)
 	} else if (stringset == ETH_SS_STATS) {
 		return (HNS_NET_STATS_CNT + ops->get_sset_count(h, stringset));
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1121,7 +1121,7 @@ static int hns_get_regs_len(struct net_device *net_dev)
 	ops = priv->ae_handle->dev->ops;
 	if (!ops->get_regs_len) {
 		netdev_err(net_dev, "ops->get_regs_len is null!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	reg_num = ops->get_regs_len(priv->ae_handle);
@@ -1145,7 +1145,7 @@ static int hns_nic_nway_reset(struct net_device *netdev)
 		return 0;
 
 	if (!phy)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (phy->autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
@@ -1161,7 +1161,7 @@ hns_get_rss_key_size(struct net_device *netdev)
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
-			   "RSS feature is not supported on this hardware\n");
+			   "RSS feature is analt supported on this hardware\n");
 		return 0;
 	}
 
@@ -1177,7 +1177,7 @@ hns_get_rss_indir_size(struct net_device *netdev)
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
-			   "RSS feature is not supported on this hardware\n");
+			   "RSS feature is analt supported on this hardware\n");
 		return 0;
 	}
 
@@ -1193,8 +1193,8 @@ hns_get_rss(struct net_device *netdev, struct ethtool_rxfh_param *rxfh)
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
-			   "RSS feature is not supported on this hardware\n");
-		return -EOPNOTSUPP;
+			   "RSS feature is analt supported on this hardware\n");
+		return -EOPANALTSUPP;
 	}
 
 	ops = priv->ae_handle->dev->ops;
@@ -1215,16 +1215,16 @@ hns_set_rss(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
-			   "RSS feature is not supported on this hardware\n");
-		return -EOPNOTSUPP;
+			   "RSS feature is analt supported on this hardware\n");
+		return -EOPANALTSUPP;
 	}
 
 	ops = priv->ae_handle->dev->ops;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP) {
 		netdev_err(netdev, "Invalid hfunc!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ops->set_rss(priv->ae_handle,
@@ -1242,7 +1242,7 @@ static int hns_get_rxnfc(struct net_device *netdev,
 		cmd->data = priv->ae_handle->q_num;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

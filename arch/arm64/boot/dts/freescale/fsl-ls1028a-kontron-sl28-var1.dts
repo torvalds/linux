@@ -4,8 +4,8 @@
  *
  * This is for the network variant 1 which has one ethernet port. It is
  * different than the base variant, which also has one port, but here the
- * port is connected via RGMII. This port is not TSN aware.
- * None of the  four SerDes lanes are used by the module, instead they are
+ * port is connected via RGMII. This port is analt TSN aware.
+ * Analne of the  four SerDes lanes are used by the module, instead they are
  * all led out to the carrier for customer use.
  *
  * Copyright (C) 2021 Michael Walle <michael@walle.cc>
@@ -22,8 +22,8 @@
 };
 
 &enetc_mdio_pf3 {
-	/* Delete unused phy node */
-	/delete-node/ ethernet-phy@5;
+	/* Delete unused phy analde */
+	/delete-analde/ ethernet-phy@5;
 
 	phy0: ethernet-phy@4 {
 		reg = <0x4>;

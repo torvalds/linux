@@ -202,7 +202,7 @@ void ubi_dump_av(const struct ubi_ainf_volume *av)
 /**
  * ubi_dump_aeb - dump a &struct ubi_ainf_peb object.
  * @aeb: the object to dump
- * @type: object type: 0 - not corrupted, 1 - corrupted
+ * @type: object type: 0 - analt corrupted, 1 - corrupted
  */
 void ubi_dump_aeb(const struct ubi_ainf_peb *aeb, int type)
 {
@@ -249,9 +249,9 @@ static void dfs_create_fault_entry(struct dentry *parent)
 
 	dir = debugfs_create_dir("fault_inject", parent);
 	if (IS_ERR_OR_NULL(dir)) {
-		int err = dir ? PTR_ERR(dir) : -ENODEV;
+		int err = dir ? PTR_ERR(dir) : -EANALDEV;
 
-		pr_warn("UBI error: cannot create \"fault_inject\" debugfs directory, error %d\n",
+		pr_warn("UBI error: cananalt create \"fault_inject\" debugfs directory, error %d\n",
 			 err);
 		return;
 	}
@@ -301,9 +301,9 @@ int ubi_debugfs_init(void)
 
 	dfs_rootdir = debugfs_create_dir("ubi", NULL);
 	if (IS_ERR_OR_NULL(dfs_rootdir)) {
-		int err = dfs_rootdir ? PTR_ERR(dfs_rootdir) : -ENODEV;
+		int err = dfs_rootdir ? PTR_ERR(dfs_rootdir) : -EANALDEV;
 
-		pr_err("UBI error: cannot create \"ubi\" debugfs directory, error %d\n",
+		pr_err("UBI error: cananalt create \"ubi\" debugfs directory, error %d\n",
 		       err);
 		return err;
 	}
@@ -337,7 +337,7 @@ static ssize_t dfs_file_read(struct file *file, char __user *user_buf,
 
 	ubi = ubi_get_device(ubi_num);
 	if (!ubi)
-		return -ENODEV;
+		return -EANALDEV;
 	d = &ubi->dbg;
 
 	if (dent == d->dfs_chk_gen)
@@ -405,7 +405,7 @@ static ssize_t dfs_file_write(struct file *file, const char __user *user_buf,
 
 	ubi = ubi_get_device(ubi_num);
 	if (!ubi)
-		return -ENODEV;
+		return -EANALDEV;
 	d = &ubi->dbg;
 
 	buf_size = min_t(size_t, count, (sizeof(buf) - 1));
@@ -470,7 +470,7 @@ static const struct file_operations dfs_fops = {
 	.read   = dfs_file_read,
 	.write  = dfs_file_write,
 	.open	= simple_open,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.owner  = THIS_MODULE,
 };
 
@@ -545,7 +545,7 @@ static const struct seq_operations eraseblk_count_seq_ops = {
 	.show = eraseblk_count_seq_show
 };
 
-static int eraseblk_count_open(struct inode *inode, struct file *f)
+static int eraseblk_count_open(struct ianalde *ianalde, struct file *f)
 {
 	struct seq_file *s;
 	int err;
@@ -555,22 +555,22 @@ static int eraseblk_count_open(struct inode *inode, struct file *f)
 		return err;
 
 	s = f->private_data;
-	s->private = ubi_get_device((unsigned long)inode->i_private);
+	s->private = ubi_get_device((unsigned long)ianalde->i_private);
 
 	if (!s->private)
-		return -ENODEV;
+		return -EANALDEV;
 	else
 		return 0;
 }
 
-static int eraseblk_count_release(struct inode *inode, struct file *f)
+static int eraseblk_count_release(struct ianalde *ianalde, struct file *f)
 {
 	struct seq_file *s = f->private_data;
 	struct ubi_device *ubi = s->private;
 
 	ubi_put_device(ubi);
 
-	return seq_release(inode, f);
+	return seq_release(ianalde, f);
 }
 
 static const struct file_operations eraseblk_count_fops = {
@@ -671,7 +671,7 @@ void ubi_debugfs_exit_dev(struct ubi_device *ubi)
  * @ubi: UBI device description object
  * @caller: Flags set to indicate from where the function is being called
  *
- * Returns non-zero if a power cut was emulated, zero if not.
+ * Returns analn-zero if a power cut was emulated, zero if analt.
  */
 int ubi_dbg_power_cut(struct ubi_device *ubi, int caller)
 {

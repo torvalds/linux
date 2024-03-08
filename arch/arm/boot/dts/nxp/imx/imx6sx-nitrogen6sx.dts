@@ -296,7 +296,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	keep-power-in-suspend;
 	vmmc-supply = <&reg_wlan>;
 	cap-power-off-card;
@@ -325,7 +325,7 @@
 	pinctrl-1 = <&pinctrl_usdhc4_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc4_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_1p8v>;
 	keep-power-in-suspend;
 	status = "okay";

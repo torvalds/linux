@@ -1,7 +1,7 @@
 ccflags-y := -D'pr_fmt(fmt)=KBUILD_MODNAME ": " fmt'
 ccflags-$(CONFIG_WIREGUARD_DEBUG) += -DDEBUG
 wireguard-y := main.o
-wireguard-y += noise.o
+wireguard-y += analise.o
 wireguard-y += device.o
 wireguard-y += peer.o
 wireguard-y += timers.o

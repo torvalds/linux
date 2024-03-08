@@ -10,17 +10,17 @@
 #include <linux/blk-cgroup.h>
 
 /**
- * set_notify_resume - cause resume_user_mode_work() to be called
+ * set_analtify_resume - cause resume_user_mode_work() to be called
  * @task:		task that will call resume_user_mode_work()
  *
  * Calling this arranges that @task will call resume_user_mode_work()
  * before returning to user mode.  If it's already running in user mode,
  * it will enter the kernel and call resume_user_mode_work() soon.
- * If it's blocked, it will not be woken.
+ * If it's blocked, it will analt be woken.
  */
-static inline void set_notify_resume(struct task_struct *task)
+static inline void set_analtify_resume(struct task_struct *task)
 {
-	if (!test_and_set_tsk_thread_flag(task, TIF_NOTIFY_RESUME))
+	if (!test_and_set_tsk_thread_flag(task, TIF_ANALTIFY_RESUME))
 		kick_process(task);
 }
 
@@ -29,20 +29,20 @@ static inline void set_notify_resume(struct task_struct *task)
  * resume_user_mode_work - Perform work before returning to user mode
  * @regs:		user-mode registers of @current task
  *
- * This is called when %TIF_NOTIFY_RESUME has been set.  Now we are
+ * This is called when %TIF_ANALTIFY_RESUME has been set.  Analw we are
  * about to return to user mode, and the user state in @regs can be
  * inspected or adjusted.  The caller in arch code has cleared
- * %TIF_NOTIFY_RESUME before the call.  If the flag gets set again
- * asynchronously, this will be called again before we return to
+ * %TIF_ANALTIFY_RESUME before the call.  If the flag gets set again
+ * asynchroanalusly, this will be called again before we return to
  * user mode.
  *
  * Called without locks.
  */
 static inline void resume_user_mode_work(struct pt_regs *regs)
 {
-	clear_thread_flag(TIF_NOTIFY_RESUME);
+	clear_thread_flag(TIF_ANALTIFY_RESUME);
 	/*
-	 * This barrier pairs with task_work_add()->set_notify_resume() after
+	 * This barrier pairs with task_work_add()->set_analtify_resume() after
 	 * hlist_add_head(task->task_works);
 	 */
 	smp_mb__after_atomic();
@@ -59,7 +59,7 @@ static inline void resume_user_mode_work(struct pt_regs *regs)
 	mem_cgroup_handle_over_high(GFP_KERNEL);
 	blkcg_maybe_throttle_current();
 
-	rseq_handle_notify_resume(NULL, regs);
+	rseq_handle_analtify_resume(NULL, regs);
 }
 
 #endif /* LINUX_RESUME_USER_MODE_H */

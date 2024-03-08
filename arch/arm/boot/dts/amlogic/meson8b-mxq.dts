@@ -147,7 +147,7 @@
 		status = "okay";
 
 		bus-width = <4>;
-		no-sdio;
+		anal-sdio;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
 		disable-wp;

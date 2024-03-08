@@ -454,9 +454,9 @@
 &sdhc_1 {
 	status = "okay";
 
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 
 	vmmc-supply = <&vreg_l7b_2p9>;
 	vqmmc-supply = <&vreg_l19b_1p8>;
@@ -574,7 +574,7 @@
 	};
 };
 
-/* PINCTRL - additions to nodes defined in sc7280.dtsi */
+/* PINCTRL - additions to analdes defined in sc7280.dtsi */
 
 &dp_hot_plug_det {
 	bias-disable;
@@ -639,7 +639,7 @@
 &pm7325_gpios {
 	key_vol_up_default: key-vol-up-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		input-enable;
 		bias-pull-up;
 		power-source = <0>;
@@ -657,15 +657,15 @@
 };
 
 &qspi_clk {
-	bias-pull-down;		/* No external pulls or external pulldown */
+	bias-pull-down;		/* Anal external pulls or external pulldown */
 };
 
 &qspi_data0 {
-	bias-pull-down;		/* No external pulls or external pulldown */
+	bias-pull-down;		/* Anal external pulls or external pulldown */
 };
 
 &qspi_data1 {
-	bias-pull-down;		/* No external pulls or external pulldown */
+	bias-pull-down;		/* Anal external pulls or external pulldown */
 };
 
 &qup_uart5_tx {
@@ -690,13 +690,13 @@
 };
 
 &qup_uart7_rts {
-	/* We'll drive RTS, so no pull */
+	/* We'll drive RTS, so anal pull */
 	drive-strength = <2>;
 	bias-disable;
 };
 
 &qup_uart7_tx {
-	/* We'll drive TX, so no pull */
+	/* We'll drive TX, so anal pull */
 	drive-strength = <2>;
 	bias-disable;
 };
@@ -705,7 +705,7 @@
 	/*
 	 * Configure a pull-up on RX. This is needed to avoid
 	 * garbage data when the TX pin of the Bluetooth module is
-	 * in tri-state (module powered off or not driving the
+	 * in tri-state (module powered off or analt driving the
 	 * signal yet).
 	 */
 	bias-pull-up;

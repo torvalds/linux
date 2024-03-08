@@ -37,7 +37,7 @@
 #define KVMPPC_INST_SW_BREAKPOINT	0x00dddd00
 
 enum emulation_result {
-	EMULATE_DONE,         /* no further processing */
+	EMULATE_DONE,         /* anal further processing */
 	EMULATE_DO_MMIO,      /* kvm_run filled with MMIO request */
 	EMULATE_FAIL,         /* can't emulate this instruction */
 	EMULATE_AGAIN,        /* something went wrong. go again */
@@ -479,7 +479,7 @@ static inline u32 kvmppc_get_xics_latch(void)
  * be immediately cleared via kvmppc_clear_host_ipi() by the IPI handler on
  * the receiving side prior to processing the IPI work.
  *
- * NOTE:
+ * ANALTE:
  *
  * We currently issue an smp_mb() at the beginning of kvmppc_set_host_ipi().
  * This is to guard against sequences such as the following:
@@ -507,7 +507,7 @@ static inline u32 kvmppc_get_xics_latch(void)
  *    ->105:   message[CALL_FUNCTION] = 1
  *      105:   ppc_msgsnd_sync()/smp_mb()
  *      105:   ppc_msgsnd() -> 42
- *       42: local_paca->kvm_hstate.host_ipi == 0 // IPI ignored
+ *       42: local_paca->kvm_hstate.host_ipi == 0 // IPI iganalred
  *      105: // hangs waiting on 42 to process messages/call_single_queue
  *
  * We also issue an smp_mb() at the end of kvmppc_clear_host_ipi(). This is
@@ -537,7 +537,7 @@ static inline u32 kvmppc_get_xics_latch(void)
  *       42: // returns to executing guest
  *      105:   ppc_msgsnd_sync()/smp_mb()
  *      105:   ppc_msgsnd() -> 42
- *       42: local_paca->kvm_hstate.host_ipi == 0 // IPI ignored
+ *       42: local_paca->kvm_hstate.host_ipi == 0 // IPI iganalred
  *      105: // hangs waiting on 42 to process messages/call_single_queue
  */
 static inline void kvmppc_set_host_ipi(int cpu)
@@ -768,14 +768,14 @@ static inline int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 					   struct kvm_vcpu *vcpu, u32 cpu) { return -EBUSY; }
 static inline void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu) { }
 static inline int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
-					 struct irq_desc *host_desc) { return -ENODEV; }
+					 struct irq_desc *host_desc) { return -EANALDEV; }
 static inline int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
-					 struct irq_desc *host_desc) { return -ENODEV; }
+					 struct irq_desc *host_desc) { return -EANALDEV; }
 static inline u64 kvmppc_xive_get_icp(struct kvm_vcpu *vcpu) { return 0; }
-static inline int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval) { return -ENOENT; }
+static inline int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval) { return -EANALENT; }
 
 static inline int kvmppc_xive_set_irq(struct kvm *kvm, int irq_source_id, u32 irq,
-				      int level, bool line_status) { return -ENODEV; }
+				      int level, bool line_status) { return -EANALDEV; }
 static inline void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu) { }
 static inline void kvmppc_xive_pull_vcpu(struct kvm_vcpu *vcpu) { }
 static inline bool kvmppc_xive_rearm_escalation(struct kvm_vcpu *vcpu) { return true; }
@@ -790,7 +790,7 @@ static inline int kvmppc_xive_native_get_vp(struct kvm_vcpu *vcpu,
 { return 0; }
 static inline int kvmppc_xive_native_set_vp(struct kvm_vcpu *vcpu,
 					    union kvmppc_one_reg *val)
-{ return -ENOENT; }
+{ return -EANALENT; }
 
 #endif /* CONFIG_KVM_XIVE */
 
@@ -953,7 +953,7 @@ static inline void kvmppc_mmu_flush_icache(kvm_pfn_t pfn)
 static inline bool kvmppc_shared_big_endian(struct kvm_vcpu *vcpu)
 {
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
-	/* Only Book3S_64 PR supports bi-endian for now */
+	/* Only Book3S_64 PR supports bi-endian for analw */
 	return vcpu->arch.shared_big_endian;
 #elif defined(CONFIG_PPC_BOOK3S_64) && defined(__LITTLE_ENDIAN__)
 	/* Book3s_64 HV on little endian is always little endian */
@@ -1061,7 +1061,7 @@ static inline void kvmppc_set_sr(struct kvm_vcpu *vcpu, int nr, u32 val)
 
 /*
  * Please call after prepare_to_enter. This function puts the lazy ee and irq
- * disabled tracking state back to normal mode, without actually enabling
+ * disabled tracking state back to analrmal mode, without actually enabling
  * interrupts.
  */
 static inline void kvmppc_fix_ee_before_entry(void)

@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  */
@@ -152,7 +152,7 @@ struct rdac_controller {
 	u8			array_id[UNIQUE_ID_LEN];
 	int			use_ms10;
 	struct kref		kref;
-	struct list_head	node; /* list of all controllers */
+	struct list_head	analde; /* list of all controllers */
 	union			{
 		struct rdac_pg_legacy legacy;
 		struct rdac_pg_expanded expanded;
@@ -182,7 +182,7 @@ struct c2_inquiry {
 };
 
 struct rdac_dh_data {
-	struct list_head	node;
+	struct list_head	analde;
 	struct rdac_controller	*ctlr;
 	struct scsi_device	*sdev;
 #define UNINITIALIZED_LUN	(1 << 8)
@@ -197,12 +197,12 @@ struct rdac_dh_data {
 #define RDAC_STATE_PASSIVE	1
 	unsigned char		state;
 
-#define RDAC_LUN_UNOWNED	0
+#define RDAC_LUN_UANALWNED	0
 #define RDAC_LUN_OWNED		1
 	char			lun_state;
 
 #define RDAC_PREFERRED		0
-#define RDAC_NON_PREFERRED	1
+#define RDAC_ANALN_PREFERRED	1
 	char			preferred;
 
 	union			{
@@ -220,7 +220,7 @@ static const char *mode[] = {
 };
 static const char *lun_state[] =
 {
-	"unowned",
+	"uanalwned",
 	"owned",
 };
 
@@ -238,7 +238,7 @@ static void send_mode_select(struct work_struct *work);
 
 /*
  * module parameter to enable rdac debug logging.
- * 2 bits for each type of logging, only two types defined for now
+ * 2 bits for each type of logging, only two types defined for analw
  * Can be enhanced if required at later point
  */
 static int rdac_logging = 1;
@@ -319,7 +319,7 @@ static void release_controller(struct kref *kref)
 	struct rdac_controller *ctlr;
 	ctlr = container_of(kref, struct rdac_controller, kref);
 
-	list_del(&ctlr->node);
+	list_del(&ctlr->analde);
 	kfree(ctlr);
 }
 
@@ -328,7 +328,7 @@ static struct rdac_controller *get_controller(int index, char *array_name,
 {
 	struct rdac_controller *ctlr, *tmp;
 
-	list_for_each_entry(tmp, &ctlr_list, node) {
+	list_for_each_entry(tmp, &ctlr_list, analde) {
 		if ((memcmp(tmp->array_id, array_id, UNIQUE_ID_LEN) == 0) &&
 			  (tmp->index == index) &&
 			  (tmp->host == sdev->host)) {
@@ -353,7 +353,7 @@ static struct rdac_controller *get_controller(int index, char *array_name,
 	spin_lock_init(&ctlr->ms_lock);
 	INIT_WORK(&ctlr->ms_work, send_mode_select);
 	INIT_LIST_HEAD(&ctlr->ms_head);
-	list_add(&ctlr->node, &ctlr_list);
+	list_add(&ctlr->analde, &ctlr_list);
 	INIT_LIST_HEAD(&ctlr->dh_list);
 
 	return ctlr;
@@ -368,10 +368,10 @@ static int get_lun_info(struct scsi_device *sdev, struct rdac_dh_data *h,
 	if (!scsi_get_vpd_page(sdev, 0xC8, (unsigned char *)inqp,
 			       sizeof(struct c8_inquiry))) {
 		if (inqp->page_code != 0xc8)
-			return SCSI_DH_NOSYS;
+			return SCSI_DH_ANALSYS;
 		if (inqp->page_id[0] != 'e' || inqp->page_id[1] != 'd' ||
 		    inqp->page_id[2] != 'i' || inqp->page_id[3] != 'd')
-			return SCSI_DH_NOSYS;
+			return SCSI_DH_ANALSYS;
 		h->lun = inqp->lun[7]; /* Uses only the last byte */
 
 		for(i=0; i<ARRAY_LABEL_LEN-1; ++i)
@@ -407,7 +407,7 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 			h->lun_state = RDAC_LUN_OWNED;
 			access_state = SCSI_ACCESS_STATE_OPTIMAL;
 		} else {
-			h->lun_state = RDAC_LUN_UNOWNED;
+			h->lun_state = RDAC_LUN_UANALWNED;
 			if (h->mode == RDAC_MODE) {
 				h->state = RDAC_STATE_PASSIVE;
 				access_state = SCSI_ACCESS_STATE_STANDBY;
@@ -420,9 +420,9 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 			h->preferred = RDAC_PREFERRED;
 			access_state |= SCSI_ACCESS_STATE_PREFERRED;
 		} else
-			h->preferred = RDAC_NON_PREFERRED;
+			h->preferred = RDAC_ANALN_PREFERRED;
 		rcu_read_lock();
-		list_for_each_entry_rcu(tmp, &h->ctlr->dh_list, node) {
+		list_for_each_entry_rcu(tmp, &h->ctlr->dh_list, analde) {
 			/* h->sdev should always be valid */
 			BUG_ON(!tmp->sdev);
 			tmp->sdev->access_state = access_state;
@@ -454,7 +454,7 @@ static int initialize_controller(struct scsi_device *sdev,
 			err = SCSI_DH_RES_TEMP_UNAVAIL;
 		else {
 			h->sdev = sdev;
-			list_add_rcu(&h->node, &h->ctlr->dh_list);
+			list_add_rcu(&h->analde, &h->ctlr->dh_list);
 		}
 		spin_unlock(&list_lock);
 		err = SCSI_DH_OK;
@@ -492,14 +492,14 @@ static int mode_select_handle_sense(struct scsi_device *sdev,
 		goto done;
 
 	switch (sense_hdr->sense_key) {
-	case NO_SENSE:
+	case ANAL_SENSE:
 	case ABORTED_COMMAND:
 	case UNIT_ATTENTION:
 		err = SCSI_DH_RETRY;
 		break;
-	case NOT_READY:
+	case ANALT_READY:
 		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0x01)
-			/* LUN Not Ready and is in the Process of Becoming
+			/* LUN Analt Ready and is in the Process of Becoming
 			 * Ready
 			 */
 			err = SCSI_DH_RETRY;
@@ -626,11 +626,11 @@ static int rdac_activate(struct scsi_device *sdev,
 
 	switch (h->mode) {
 	case RDAC_MODE:
-		if (h->lun_state == RDAC_LUN_UNOWNED)
+		if (h->lun_state == RDAC_LUN_UANALWNED)
 			act = 1;
 		break;
 	case RDAC_MODE_IOSHIP:
-		if ((h->lun_state == RDAC_LUN_UNOWNED) &&
+		if ((h->lun_state == RDAC_LUN_UANALWNED) &&
 		    (h->preferred == RDAC_PREFERRED))
 			act = 1;
 		break;
@@ -672,28 +672,28 @@ static enum scsi_disposition rdac_check_sense(struct scsi_device *sdev,
 			sense_hdr->sense_key, sense_hdr->asc, sense_hdr->ascq);
 
 	switch (sense_hdr->sense_key) {
-	case NOT_READY:
+	case ANALT_READY:
 		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0x01)
-			/* LUN Not Ready - Logical Unit Not Ready and is in
+			/* LUN Analt Ready - Logical Unit Analt Ready and is in
 			* the process of becoming ready
 			* Just retry.
 			*/
 			return ADD_TO_MLQUEUE;
 		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0x81)
-			/* LUN Not Ready - Storage firmware incompatible
+			/* LUN Analt Ready - Storage firmware incompatible
 			 * Manual code synchonisation required.
 			 *
-			 * Nothing we can do here. Try to bypass the path.
+			 * Analthing we can do here. Try to bypass the path.
 			 */
 			return SUCCESS;
 		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0xA1)
-			/* LUN Not Ready - Quiescense in progress
+			/* LUN Analt Ready - Quiescense in progress
 			 *
 			 * Just retry and wait.
 			 */
 			return ADD_TO_MLQUEUE;
 		if (sense_hdr->asc == 0xA1  && sense_hdr->ascq == 0x02)
-			/* LUN Not Ready - Quiescense in progress
+			/* LUN Analt Ready - Quiescense in progress
 			 * or has been achieved
 			 * Just retry.
 			 */
@@ -702,7 +702,7 @@ static enum scsi_disposition rdac_check_sense(struct scsi_device *sdev,
 	case ILLEGAL_REQUEST:
 		if (sense_hdr->asc == 0x94 && sense_hdr->ascq == 0x01) {
 			/* Invalid Request - Current Logical Unit Ownership.
-			 * Controller is not the current owner of the LUN,
+			 * Controller is analt the current owner of the LUN,
 			 * Fail the path, so that the other path be used.
 			 */
 			h->state = RDAC_STATE_PASSIVE;
@@ -722,8 +722,8 @@ static enum scsi_disposition rdac_check_sense(struct scsi_device *sdev,
 			return ADD_TO_MLQUEUE;
 		break;
 	}
-	/* success just means we do not care what scsi-ml does */
-	return SCSI_RETURN_NOT_HANDLED;
+	/* success just means we do analt care what scsi-ml does */
+	return SCSI_RETURN_ANALT_HANDLED;
 }
 
 static int rdac_bus_attach(struct scsi_device *sdev)
@@ -735,7 +735,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 
 	h = kzalloc(sizeof(*h) , GFP_KERNEL);
 	if (!h)
-		return SCSI_DH_NOMEM;
+		return SCSI_DH_ANALMEM;
 	h->lun = UNINITIALIZED_LUN;
 	h->state = RDAC_STATE_ACTIVE;
 
@@ -755,7 +755,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	if (err != SCSI_DH_OK)
 		goto clean_ctlr;
 
-	sdev_printk(KERN_NOTICE, sdev,
+	sdev_printk(KERN_ANALTICE, sdev,
 		    "%s: LUN %d (%s) (%s)\n",
 		    RDAC_NAME, h->lun, mode[(int)h->mode],
 		    lun_state[(int)h->lun_state]);
@@ -782,7 +782,7 @@ static void rdac_bus_detach( struct scsi_device *sdev )
 
 	spin_lock(&list_lock);
 	if (h->ctlr) {
-		list_del_rcu(&h->node);
+		list_del_rcu(&h->analde);
 		kref_put(&h->ctlr->kref, release_controller);
 	}
 	spin_unlock(&list_lock);

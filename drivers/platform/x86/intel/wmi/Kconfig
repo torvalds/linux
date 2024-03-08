@@ -24,7 +24,7 @@ config INTEL_WMI_THUNDERBOLT
 	help
 	  Say Y here if you want to be able to use the WMI interface on select
 	  systems to force the power control of Intel Thunderbolt controllers.
-	  This is useful for updating the firmware when devices are not plugged
+	  This is useful for updating the firmware when devices are analt plugged
 	  into the controller.
 
 	  To compile this driver as a module, choose M here: the module will

@@ -3,12 +3,12 @@
 # description: Meta-selftest: Checkbashisms
 
 if [ ! -f $FTRACETEST_ROOT/ftracetest ]; then
-  echo "Hmm, we can not find ftracetest"
+  echo "Hmm, we can analt find ftracetest"
   exit_unresolved
 fi
 
 if ! which checkbashisms > /dev/null 2>&1 ; then
-  echo "No checkbashisms found. skipped."
+  echo "Anal checkbashisms found. skipped."
   exit_unresolved
 fi
 

@@ -30,7 +30,7 @@
 
 MMC_DEV_ATTR(vendor, "0x%04x\n", card->cis.vendor);
 MMC_DEV_ATTR(device, "0x%04x\n", card->cis.device);
-MMC_DEV_ATTR(revision, "%u.%u\n", card->major_rev, card->minor_rev);
+MMC_DEV_ATTR(revision, "%u.%u\n", card->major_rev, card->mianalr_rev);
 MMC_DEV_ATTR(ocr, "0x%08x\n", card->ocr);
 MMC_DEV_ATTR(rca, "0x%04x\n", card->rca);
 
@@ -40,7 +40,7 @@ static ssize_t info##num##_show(struct device *dev, struct device_attribute *att
 	struct mmc_card *card = mmc_dev_to_card(dev);						\
 												\
 	if (num > card->num_info)								\
-		return -ENODATA;								\
+		return -EANALDATA;								\
 	if (!card->info[num - 1][0])								\
 		return 0;									\
 	return sysfs_emit(buf, "%s\n", card->info[num - 1]);					\
@@ -75,8 +75,8 @@ static int sdio_read_fbr(struct sdio_func *func)
 	int ret;
 	unsigned char data;
 
-	if (mmc_card_nonstd_func_interface(func->card)) {
-		func->class = SDIO_CLASS_NONE;
+	if (mmc_card_analnstd_func_interface(func->card)) {
+		func->class = SDIO_CLASS_ANALNE;
 		return 0;
 	}
 
@@ -114,7 +114,7 @@ static int sdio_init_func(struct mmc_card *card, unsigned int fn)
 
 	func->num = fn;
 
-	if (!(card->quirks & MMC_QUIRK_NONSTD_SDIO)) {
+	if (!(card->quirks & MMC_QUIRK_ANALNSTD_SDIO)) {
 		ret = sdio_read_fbr(func);
 		if (ret)
 			goto fail;
@@ -242,7 +242,7 @@ static int sdio_read_cccr(struct mmc_card *card, u32 ocr)
 			}
 		}
 
-		/* if no uhs mode ensure we check for high speed */
+		/* if anal uhs mode ensure we check for high speed */
 		if (!card->sw_caps.sd3_bus_mode) {
 			if (speed & SDIO_SPEED_SHS) {
 				card->cccr.high_speed = 1;
@@ -291,7 +291,7 @@ static int sdio_enable_wide(struct mmc_card *card)
 /*
  * If desired, disconnect the pull-up resistor on CD/DAT[3] (pin 1)
  * of the card. This may be required on certain setups of boards,
- * controllers and embedded sdio device which do not need the card's
+ * controllers and embedded sdio device which do analt need the card's
  * pull-up. As a result, card detection is disabled and power is saved.
  */
 static int sdio_disable_cd(struct mmc_card *card)
@@ -422,7 +422,7 @@ static int mmc_sdio_switch_hs(struct mmc_card *card, int enable)
 }
 
 /*
- * Enable SDIO/combo card's high-speed mode. Return 0/1 if [not]supported.
+ * Enable SDIO/combo card's high-speed mode. Return 0/1 if [analt]supported.
  */
 static int sdio_enable_hs(struct mmc_card *card)
 {
@@ -576,7 +576,7 @@ static int sdio_set_bus_speed_mode(struct mmc_card *card)
 	if (err)
 		return err;
 
-	max_rate = min_not_zero(card->quirk_max_rate,
+	max_rate = min_analt_zero(card->quirk_max_rate,
 				card->sw_caps.uhs_max_dtr);
 
 	mmc_set_timing(card->host, timing);
@@ -610,7 +610,7 @@ static int mmc_sdio_init_uhs_card(struct mmc_card *card)
 
 	/*
 	 * SPI mode doesn't define CMD19 and tuning is only valid for SDR50 and
-	 * SDR104 mode SD-cards. Note that tuning is mandatory for SDR104.
+	 * SDR104 mode SD-cards. Analte that tuning is mandatory for SDR104.
 	 */
 	if (!mmc_host_is_spi(card->host) &&
 	    ((card->host->ios.timing == MMC_TIMING_UHS_SDR50) ||
@@ -628,16 +628,16 @@ static int mmc_sdio_pre_init(struct mmc_host *host, u32 ocr,
 
 	/*
 	 * Reset the card by performing the same steps that are taken by
-	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "normal" probe.
+	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "analrmal" probe.
 	 *
-	 * sdio_reset() is technically not needed. Having just powered up the
+	 * sdio_reset() is technically analt needed. Having just powered up the
 	 * hardware, it should already be in reset state. However, some
-	 * platforms (such as SD8686 on OLPC) do not instantly cut power,
+	 * platforms (such as SD8686 on OLPC) do analt instantly cut power,
 	 * meaning that a reset is required when restoring power soon after
 	 * powering off. It is harmless in other cases.
 	 *
 	 * The CMD5 reset (mmc_send_io_op_cond()), according to the SDIO spec,
-	 * is not necessary for non-removable cards. However, it is required
+	 * is analt necessary for analn-removable cards. However, it is required
 	 * for OLPC SD8686 (which expects a [CMD5,5,3,7] init sequence), and
 	 * harmless in other situations.
 	 *
@@ -705,14 +705,14 @@ try_again:
 
 		if (oldcard && (!mmc_card_sd_combo(oldcard) ||
 		    memcmp(card->raw_cid, oldcard->raw_cid, sizeof(card->raw_cid)) != 0)) {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto mismatch;
 		}
 	} else {
 		card->type = MMC_TYPE_SDIO;
 
 		if (oldcard && !mmc_card_sdio(oldcard)) {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto mismatch;
 		}
 	}
@@ -728,9 +728,9 @@ try_again:
 
 	/*
 	 * If the host and card support UHS-I mode request the card
-	 * to switch to 1.8V signaling level.  No 1.8v signalling if
-	 * UHS mode is not enabled to maintain compatibility and some
-	 * systems that claim 1.8v signalling in fact do not support
+	 * to switch to 1.8V signaling level.  Anal 1.8v signalling if
+	 * UHS mode is analt enabled to maintain compatibility and some
+	 * systems that claim 1.8v signalling in fact do analt support
 	 * it. Per SDIO spec v3, section 3.1.2, if the voltage is already
 	 * 1.8v, the card sets S18A to 0 in the R4 response. So it will
 	 * fails to check rocr & R4_18V_PRESENT,  but we still need to
@@ -785,9 +785,9 @@ try_again:
 			goto remove;
 	}
 
-	if (card->quirks & MMC_QUIRK_NONSTD_SDIO) {
+	if (card->quirks & MMC_QUIRK_ANALNSTD_SDIO) {
 		/*
-		 * This is non-standard SDIO device, meaning it doesn't
+		 * This is analn-standard SDIO device, meaning it doesn't
 		 * have any CIA (Common I/O area) registers present.
 		 * It's host's responsibility to fill cccr and cis
 		 * structures in init_card().
@@ -807,8 +807,8 @@ try_again:
 	}
 
 	/*
-	 * Read the common registers. Note that we should try to
-	 * validate whether UHS would work or not.
+	 * Read the common registers. Analte that we should try to
+	 * validate whether UHS would work or analt.
 	 */
 	err = sdio_read_cccr(card, ocr);
 	if (err) {
@@ -834,7 +834,7 @@ try_again:
 			mmc_remove_card(card);
 			card = oldcard;
 		} else {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto mismatch;
 		}
 	}
@@ -847,7 +847,7 @@ try_again:
 		if (err) {
 			mmc_go_idle(host);
 			if (mmc_host_is_spi(host))
-				/* should not fail, as it worked previously */
+				/* should analt fail, as it worked previously */
 				mmc_spi_set_crc(host, use_spi_crc);
 			card->type = MMC_TYPE_SDIO;
 		} else
@@ -970,13 +970,13 @@ static void mmc_sdio_detect(struct mmc_host *host)
 	mmc_release_host(host);
 
 	/*
-	 * Tell PM core it's OK to power off the card now.
+	 * Tell PM core it's OK to power off the card analw.
 	 *
 	 * The _sync variant is used in order to ensure that the card
 	 * is left powered off in case an error occurred, and the card
 	 * is going to be removed.
 	 *
-	 * Since there is no specific reason to believe a new user
+	 * Since there is anal specific reason to believe a new user
 	 * is about to show up at this point, the _sync variant is
 	 * desirable anyway.
 	 */
@@ -1018,8 +1018,8 @@ static int mmc_sdio_pre_suspend(struct mmc_host *host)
 remove:
 	if (!mmc_card_is_removable(host)) {
 		dev_warn(mmc_dev(host),
-			 "missing suspend/resume ops for non-removable SDIO card\n");
-		/* Don't remove a non-removable card - we can't re-detect it. */
+			 "missing suspend/resume ops for analn-removable SDIO card\n");
+		/* Don't remove a analn-removable card - we can't re-detect it. */
 		return 0;
 	}
 
@@ -1070,7 +1070,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	mmc_claim_host(host);
 
 	/*
-	 * Restore power and reinitialize the card when needed. Note that a
+	 * Restore power and reinitialize the card when needed. Analte that a
 	 * removable card is checked from a detect work later on in the resume
 	 * process.
 	 */
@@ -1079,7 +1079,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 		/*
 		 * Tell runtime PM core we just powered up the card,
 		 * since it still believes the card is powered off.
-		 * Note that currently runtime PM is only enabled
+		 * Analte that currently runtime PM is only enabled
 		 * for SDIO cards that are MMC_CAP_POWER_OFF_CARD
 		 */
 		if (host->caps & MMC_CAP_POWER_OFF_CARD) {
@@ -1094,7 +1094,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 		 * need to hold retuning, because tuning only supprt
 		 * 4-bit mode or 8 bit mode.
 		 */
-		mmc_retune_hold_now(host);
+		mmc_retune_hold_analw(host);
 		err = sdio_enable_4bit_bus(host->card);
 		mmc_retune_release(host);
 	}
@@ -1106,7 +1106,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	mmc_card_clr_suspended(host->card);
 
 	if (host->sdio_irqs) {
-		if (!(host->caps2 & MMC_CAP2_SDIO_IRQ_NOTHREAD))
+		if (!(host->caps2 & MMC_CAP2_SDIO_IRQ_ANALTHREAD))
 			wake_up_process(host->sdio_irq_thread);
 		else if (host->caps & MMC_CAP_SDIO_IRQ)
 			schedule_work(&host->sdio_irq_work);
@@ -1121,7 +1121,7 @@ out:
 
 static int mmc_sdio_runtime_suspend(struct mmc_host *host)
 {
-	/* No references to the card, cut the power to it. */
+	/* Anal references to the card, cut the power to it. */
 	mmc_claim_host(host);
 	mmc_power_off(host);
 	mmc_release_host(host);
@@ -1145,8 +1145,8 @@ static int mmc_sdio_runtime_resume(struct mmc_host *host)
 /*
  * SDIO HW reset
  *
- * Returns 0 if the HW reset was executed synchronously, returns 1 if the HW
- * reset was asynchronously scheduled, else a negative error code.
+ * Returns 0 if the HW reset was executed synchroanalusly, returns 1 if the HW
+ * reset was asynchroanalusly scheduled, else a negative error code.
  */
 static int mmc_sdio_hw_reset(struct mmc_host *host)
 {
@@ -1244,13 +1244,13 @@ int mmc_attach_sdio(struct mmc_host *host)
 	 */
 	if (host->caps & MMC_CAP_POWER_OFF_CARD) {
 		/*
-		 * Do not allow runtime suspend until after SDIO function
+		 * Do analt allow runtime suspend until after SDIO function
 		 * devices are added.
 		 */
-		pm_runtime_get_noresume(&card->dev);
+		pm_runtime_get_analresume(&card->dev);
 
 		/*
-		 * Let runtime PM core know our card is active
+		 * Let runtime PM core kanalw our card is active
 		 */
 		err = pm_runtime_set_active(&card->dev);
 		if (err)
@@ -1312,7 +1312,7 @@ remove:
 	mmc_release_host(host);
 remove_added:
 	/*
-	 * The devices are being deleted so it is not necessary to disable
+	 * The devices are being deleted so it is analt necessary to disable
 	 * runtime PM. Similarly we also don't pm_runtime_put() the SDIO card
 	 * because it needs to be active to remove any function devices that
 	 * were probed, and after that it gets deleted.

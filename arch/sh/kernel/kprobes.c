@@ -226,16 +226,16 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 
 	addr = (kprobe_opcode_t *) (regs->pc);
 
-	/* Check we're not actually recursing */
+	/* Check we're analt actually recursing */
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
 		if (p) {
 			if (kcb->kprobe_status == KPROBE_HIT_SS &&
 			    *p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
-				goto no_kprobe;
+				goto anal_kprobe;
 			}
 			/* We have reentered the kprobe_handler(), since
-			 * another probe was hit while within the handler.
+			 * aanalther probe was hit while within the handler.
 			 * We here save the original kprobes variables and
 			 * just single step on the instruction of the new probe
 			 * without calling any user handlers.
@@ -247,24 +247,24 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
 		}
-		goto no_kprobe;
+		goto anal_kprobe;
 	}
 
 	p = get_kprobe(addr);
 	if (!p) {
-		/* Not one of ours: let kernel handle it */
+		/* Analt one of ours: let kernel handle it */
 		if (*(kprobe_opcode_t *)addr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * The breakpoint instruction was removed right
-			 * after we hit it. Another cpu has removed
+			 * after we hit it. Aanalther cpu has removed
 			 * either a probepoint or a debugger breakpoint
-			 * at this address. In either case, no further
+			 * at this address. In either case, anal further
 			 * handling of this interrupt is appropriate.
 			 */
 			ret = 1;
 		}
 
-		goto no_kprobe;
+		goto anal_kprobe;
 	}
 
 	set_current_kprobe(p, regs, kcb);
@@ -273,7 +273,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	if (p->pre_handler && p->pre_handler(p, regs)) {
 		/* handler has already set things up, so skip ss setup */
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		return 1;
 	}
 
@@ -281,8 +281,8 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
 
-no_kprobe:
-	preempt_enable_no_resched();
+anal_kprobe:
+	preempt_enable_anal_resched();
 	return ret;
 }
 
@@ -295,7 +295,7 @@ static void __used kretprobe_trampoline_holder(void)
 {
 	asm volatile (".globl __kretprobe_trampoline\n"
 		      "__kretprobe_trampoline:\n\t"
-		      "nop\n");
+		      "analp\n");
 }
 
 /*
@@ -352,7 +352,7 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 	reset_current_kprobe();
 
 out:
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 
 	return 1;
 }
@@ -371,14 +371,14 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe, point the pc back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * analrmal page fault.
 		 */
 		regs->pc = (unsigned long)cur->addr;
 		if (kcb->kprobe_status == KPROBE_REENTER)
 			restore_previous_kprobe(kcb);
 		else
 			reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		break;
 	case KPROBE_HIT_ACTIVE:
 	case KPROBE_HIT_SSDONE:
@@ -392,7 +392,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		}
 
 		/*
-		 * fixup_exception() could not handle it,
+		 * fixup_exception() could analt handle it,
 		 * Let do_page_fault() fix it.
 		 */
 		break;
@@ -406,12 +406,12 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 /*
  * Wrapper routine to for handling exceptions.
  */
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+int __kprobes kprobe_exceptions_analtify(struct analtifier_block *self,
 				       unsigned long val, void *data)
 {
 	struct kprobe *p = NULL;
 	struct die_args *args = (struct die_args *)data;
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 	kprobe_opcode_t *addr = NULL;
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
@@ -420,20 +420,20 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	    args->trapnr == (BREAKPOINT_INSTRUCTION & 0xff)) {
 		if (!kprobe_running()) {
 			if (kprobe_handler(args->regs)) {
-				ret = NOTIFY_STOP;
+				ret = ANALTIFY_STOP;
 			} else {
-				/* Not a kprobe trap */
-				ret = NOTIFY_DONE;
+				/* Analt a kprobe trap */
+				ret = ANALTIFY_DONE;
 			}
 		} else {
 			p = get_kprobe(addr);
 			if ((kcb->kprobe_status == KPROBE_HIT_SS) ||
 			    (kcb->kprobe_status == KPROBE_REENTER)) {
 				if (post_kprobe_handler(args->regs))
-					ret = NOTIFY_STOP;
+					ret = ANALTIFY_STOP;
 			} else {
 				if (kprobe_handler(args->regs))
-					ret = NOTIFY_STOP;
+					ret = ANALTIFY_STOP;
 			}
 		}
 	}

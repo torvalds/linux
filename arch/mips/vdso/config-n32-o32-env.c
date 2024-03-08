@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Configuration file for O32 and N32 binaries.
- * Note: To be included before lib/vdso/gettimeofday.c
+ * Analte: To be included before lib/vdso/gettimeofday.c
  */
 #if defined(CONFIG_MIPS32_O32) || defined(CONFIG_MIPS32_N32)
 /*

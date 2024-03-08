@@ -39,7 +39,7 @@ struct catpt_alloc_stream_input {
 	/* flex array with entries here */
 	struct catpt_memory_info persistent_mem;
 	struct catpt_memory_info scratch_mem;
-	u32 num_notifications; /* obsolete */
+	u32 num_analtifications; /* obsolete */
 } __packed;
 
 int catpt_ipc_alloc_stream(struct catpt_dev *cdev,
@@ -67,7 +67,7 @@ int catpt_ipc_alloc_stream(struct catpt_dev *cdev,
 
 	payload = kzalloc(size, GFP_KERNEL);
 	if (!payload)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&input, 0, sizeof(input));
 	input.path_id = path_id;

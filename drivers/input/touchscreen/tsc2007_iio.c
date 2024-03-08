@@ -112,7 +112,7 @@ int tsc2007_iio_configure(struct tsc2007 *ts)
 	indio_dev = devm_iio_device_alloc(&ts->client->dev, sizeof(*iio));
 	if (!indio_dev) {
 		dev_err(&ts->client->dev, "iio_device_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	iio = iio_priv(indio_dev);

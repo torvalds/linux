@@ -9,7 +9,7 @@ Texas Instruments CPSW switchdev based ethernet driver
 Port renaming
 =============
 
-On older udev versions renaming of ethX to swXpY will not be automatically
+On older udev versions renaming of ethX to swXpY will analt be automatically
 supported
 
 In order to rename via udev::
@@ -33,8 +33,8 @@ Dual mac mode
    filtering, which is provides significant benefits when ports are joined
    to the same bridge, but without enabling "switch" mode, or to different
    bridges.
- - learning disabled on ports as it make not too much sense for
-   segregated ports - no forwarding in HW.
+ - learning disabled on ports as it make analt too much sense for
+   segregated ports - anal forwarding in HW.
  - enabled basic support for devlink.
 
    ::
@@ -116,7 +116,7 @@ Bridge setup
 
 	[*] if vlan_filtering=1. where default_pvid=1
 
-	Note. Steps [*] are mandatory.
+	Analte. Steps [*] are mandatory.
 
 
 On/off STP
@@ -133,7 +133,7 @@ VLAN configuration
 
   bridge vlan add dev br0 vid 1 pvid untagged self <---- add cpu port to VLAN 1
 
-Note. This step is mandatory for bridge/default_pvid.
+Analte. This step is mandatory for bridge/default_pvid.
 
 Add extra VLANs
 ===============
@@ -189,7 +189,7 @@ Access and Trunk port
  bridge vlan add dev br0 vid 100 self
  ip link add link br0 name br0.100 type vlan id 100
 
-Note. Setting PVID on Bridge device itself working only for
+Analte. Setting PVID on Bridge device itself working only for
 default VLAN (default_pvid).
 
 NFS
@@ -204,7 +204,7 @@ setup.sh::
 
 	#!/bin/sh
 	mkdir proc
-	mount -t proc none /proc
+	mount -t proc analne /proc
 	ifconfig br0  > /dev/null
 	if [ $? -ne 0 ]; then
 		echo "Setting up bridge"

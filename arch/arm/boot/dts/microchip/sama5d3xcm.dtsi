@@ -52,7 +52,7 @@
 			pinctr-name = "default";
 			status = "okay";
 
-			nor: flash@0,0 {
+			analr: flash@0,0 {
 				compatible = "cfi-flash";
 				linux,mtd-name = "physmap-flash.0";
 				#address-cells = <1>;

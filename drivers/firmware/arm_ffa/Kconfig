@@ -8,7 +8,7 @@ config ARM_FFA_TRANSPORT
 	  This Firmware Framework(FF) for Arm A-profile processors describes
 	  interfaces that standardize communication between the various
 	  software images which includes communication between images in
-	  the Secure world and Normal world. It also leverages the
+	  the Secure world and Analrmal world. It also leverages the
 	  virtualization extension to isolate software images provided
 	  by an ecosystem of vendors from each other.
 

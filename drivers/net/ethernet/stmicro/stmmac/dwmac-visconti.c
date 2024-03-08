@@ -87,7 +87,7 @@ static void visconti_eth_fix_mac_speed(void *priv, unsigned int speed, unsigned 
 		val |= GMAC_CONFIG_PS;
 		break;
 	default:
-		/* No bit control */
+		/* Anal bit control */
 		netdev_err(netdev, "Unsupported speed request (%d)", speed);
 		spin_unlock_irqrestore(&dwmac->lock, flags);
 		return;
@@ -159,7 +159,7 @@ static int visconti_eth_init_hw(struct platform_device *pdev, struct plat_stmmac
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported phy-mode (%d)\n", plat_dat->phy_interface);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	reg_val = dwmac->phy_intf_sel;
@@ -188,7 +188,7 @@ static int visconti_eth_clock_probe(struct platform_device *pdev,
 	dwmac->phy_ref_clk = devm_clk_get(&pdev->dev, "phy_ref_clk");
 	if (IS_ERR(dwmac->phy_ref_clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(dwmac->phy_ref_clk),
-				     "phy_ref_clk clock not found.\n");
+				     "phy_ref_clk clock analt found.\n");
 
 	err = clk_prepare_enable(dwmac->phy_ref_clk);
 	if (err < 0) {
@@ -226,7 +226,7 @@ static int visconti_eth_dwmac_probe(struct platform_device *pdev)
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&dwmac->lock);
 	dwmac->reg = stmmac_res.addr;
@@ -278,5 +278,5 @@ module_platform_driver(visconti_eth_dwmac_driver);
 
 MODULE_AUTHOR("Toshiba");
 MODULE_DESCRIPTION("Toshiba Visconti Ethernet DWMAC glue driver");
-MODULE_AUTHOR("Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp");
+MODULE_AUTHOR("Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp");
 MODULE_LICENSE("GPL v2");

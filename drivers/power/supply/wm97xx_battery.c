@@ -22,7 +22,7 @@
 static struct work_struct bat_work;
 static struct gpio_desc *charge_gpiod;
 static DEFINE_MUTEX(work_lock);
-static int bat_status = POWER_SUPPLY_STATUS_UNKNOWN;
+static int bat_status = POWER_SUPPLY_STATUS_UNKANALWN;
 static enum power_supply_property *prop;
 
 static unsigned long wm97xx_read_bat(struct power_supply *bat_ps)
@@ -53,10 +53,10 @@ static int wm97xx_bat_get_property(struct power_supply *bat_ps,
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = bat_status;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
 		val->intval = pdata->batt_tech;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		if (pdata->batt_aux >= 0)
 			val->intval = wm97xx_read_bat(bat_ps);
 		else
@@ -104,7 +104,7 @@ static void wm97xx_bat_update(struct power_supply *bat_ps)
 			(gpiod_get_value(charge_gpiod) ?
 			POWER_SUPPLY_STATUS_DISCHARGING :
 			POWER_SUPPLY_STATUS_CHARGING) :
-			POWER_SUPPLY_STATUS_UNKNOWN;
+			POWER_SUPPLY_STATUS_UNKANALWN;
 
 	if (old_status != bat_status) {
 		pr_debug("%s: %i -> %i\n", bat_ps->desc->name, old_status,
@@ -162,7 +162,7 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 	struct power_supply_config cfg = {};
 
 	if (!pdata) {
-		dev_err(&dev->dev, "No platform data supplied\n");
+		dev_err(&dev->dev, "Anal platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -188,11 +188,11 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 	}
 
 	if (pdata->batt_tech >= 0)
-		props++;	/* POWER_SUPPLY_PROP_TECHNOLOGY */
+		props++;	/* POWER_SUPPLY_PROP_TECHANALLOGY */
 	if (pdata->temp_aux >= 0)
 		props++;	/* POWER_SUPPLY_PROP_TEMP */
 	if (pdata->batt_aux >= 0)
-		props++;	/* POWER_SUPPLY_PROP_VOLTAGE_NOW */
+		props++;	/* POWER_SUPPLY_PROP_VOLTAGE_ANALW */
 	if (pdata->max_voltage >= 0)
 		props++;	/* POWER_SUPPLY_PROP_VOLTAGE_MAX */
 	if (pdata->min_voltage >= 0)
@@ -200,7 +200,7 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 
 	prop = kcalloc(props, sizeof(*prop), GFP_KERNEL);
 	if (!prop) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err3;
 	}
 
@@ -208,11 +208,11 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 	if (charge_gpiod)
 		prop[i++] = POWER_SUPPLY_PROP_STATUS;
 	if (pdata->batt_tech >= 0)
-		prop[i++] = POWER_SUPPLY_PROP_TECHNOLOGY;
+		prop[i++] = POWER_SUPPLY_PROP_TECHANALLOGY;
 	if (pdata->temp_aux >= 0)
 		prop[i++] = POWER_SUPPLY_PROP_TEMP;
 	if (pdata->batt_aux >= 0)
-		prop[i++] = POWER_SUPPLY_PROP_VOLTAGE_NOW;
+		prop[i++] = POWER_SUPPLY_PROP_VOLTAGE_ANALW;
 	if (pdata->max_voltage >= 0)
 		prop[i++] = POWER_SUPPLY_PROP_VOLTAGE_MAX;
 	if (pdata->min_voltage >= 0)

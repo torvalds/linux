@@ -128,7 +128,7 @@ static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 #define ioremap_prot ioremap_prot
 
 #define _PAGE_IOREMAP (_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | \
-		       _PAGE_ACCESSED | _PAGE_NO_CACHE)
+		       _PAGE_ACCESSED | _PAGE_ANAL_CACHE)
 
 #define ioremap_wc(addr, size)  \
 	ioremap_prot((addr), (size), _PAGE_IOREMAP)
@@ -243,7 +243,7 @@ extern void iowrite64be(u64 val, void __iomem *addr);
 
 #include <asm-generic/iomap.h>
 /*
- * These get provided from <asm-generic/iomap.h> since parisc does not
+ * These get provided from <asm-generic/iomap.h> since parisc does analt
  * select GENERIC_IOMAP.
  */
 #define ioport_map ioport_map

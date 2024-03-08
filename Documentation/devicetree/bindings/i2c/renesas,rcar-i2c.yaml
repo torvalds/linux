@@ -93,18 +93,18 @@ properties:
   i2c-scl-falling-time-ns:
     default: 35
     description:
-      Number of nanoseconds the SCL signal takes to fall; t(f) in the I2C
+      Number of naanalseconds the SCL signal takes to fall; t(f) in the I2C
       specification.
 
   i2c-scl-internal-delay-ns:
     default: 50
     description:
-      Number of nanoseconds the IP core additionally needs to setup SCL.
+      Number of naanalseconds the IP core additionally needs to setup SCL.
 
   i2c-scl-rising-time-ns:
     default: 200
     description:
-      Number of nanoseconds the SCL signal takes to rise; t(r) in the I2C
+      Number of naanalseconds the SCL signal takes to rise; t(r) in the I2C
       specification.
 
 required:

@@ -14,7 +14,7 @@
 #define SYS_write	-5
 #define SYS_lseek	-6
 
-static int errno;
+static int erranal;
 
 static inline int __simc(int a, int b, int c, int d)
 {
@@ -27,7 +27,7 @@ static inline int __simc(int a, int b, int c, int d)
 			: "+r"(a1), "+r"(c1)
 			: "r"(b1), "r"(d1)
 			: "memory");
-	errno = c1;
+	erranal = c1;
 	return a1;
 }
 

@@ -8,8 +8,8 @@
 
 typedef uint32_t	prid_t;		/* project ID */
 
-typedef uint32_t	xfs_agblock_t;	/* blockno in alloc. group */
-typedef uint32_t	xfs_agino_t;	/* inode # within allocation grp */
+typedef uint32_t	xfs_agblock_t;	/* blockanal in alloc. group */
+typedef uint32_t	xfs_agianal_t;	/* ianalde # within allocation grp */
 typedef uint32_t	xfs_extlen_t;	/* extent length in blocks */
 typedef uint32_t	xfs_rtxlen_t;	/* file extent length in rtextents */
 typedef uint32_t	xfs_agnumber_t;	/* allocation group number */
@@ -28,8 +28,8 @@ typedef int64_t		xfs_csn_t;	/* CIL sequence number */
 typedef uint32_t	xfs_dablk_t;	/* dir/attr block number (in file) */
 typedef uint32_t	xfs_dahash_t;	/* dir/attr hash value */
 
-typedef uint64_t	xfs_fsblock_t;	/* blockno in filesystem (agno|agbno) */
-typedef uint64_t	xfs_rfsblock_t;	/* blockno in filesystem (raw) */
+typedef uint64_t	xfs_fsblock_t;	/* blockanal in filesystem (aganal|agbanal) */
+typedef uint64_t	xfs_rfsblock_t;	/* blockanal in filesystem (raw) */
 typedef uint64_t	xfs_rtblock_t;	/* extent (block) in realtime area */
 typedef uint64_t	xfs_fileoff_t;	/* block number in a file */
 typedef uint64_t	xfs_filblks_t;	/* number of blocks in a file */
@@ -57,15 +57,15 @@ typedef void *		xfs_failaddr_t;
 
 #define NULLCOMMITLSN	((xfs_lsn_t)-1)
 
-#define	NULLFSINO	((xfs_ino_t)-1)
-#define	NULLAGINO	((xfs_agino_t)-1)
+#define	NULLFSIANAL	((xfs_ianal_t)-1)
+#define	NULLAGIANAL	((xfs_agianal_t)-1)
 
 /*
  * Minimum and maximum blocksize and sectorsize.
  * The blocksize upper limit is pretty much arbitrary.
  * The sectorsize upper limit is due to sizeof(sb_sectsize).
- * CRC enable filesystems use 512 byte inodes, meaning 512 byte block sizes
- * cannot be used.
+ * CRC enable filesystems use 512 byte ianaldes, meaning 512 byte block sizes
+ * cananalt be used.
  */
 #define XFS_MIN_BLOCKSIZE_LOG	9	/* i.e. 512 bytes */
 #define XFS_MAX_BLOCKSIZE_LOG	16	/* i.e. 65536 bytes */
@@ -78,7 +78,7 @@ typedef void *		xfs_failaddr_t;
 #define XFS_MAX_SECTORSIZE	(1 << XFS_MAX_SECTORSIZE_LOG)
 
 /*
- * Inode fork identifiers.
+ * Ianalde fork identifiers.
  */
 #define	XFS_DATA_FORK	0
 #define	XFS_ATTR_FORK	1
@@ -119,17 +119,17 @@ typedef enum {
  * please keep the TRACE_DEFINE_ENUMs for it up to date.
  */
 typedef enum {
-	XFS_BTNUM_BNOi, XFS_BTNUM_CNTi, XFS_BTNUM_RMAPi, XFS_BTNUM_BMAPi,
-	XFS_BTNUM_INOi, XFS_BTNUM_FINOi, XFS_BTNUM_REFCi, XFS_BTNUM_MAX
+	XFS_BTNUM_BANALi, XFS_BTNUM_CNTi, XFS_BTNUM_RMAPi, XFS_BTNUM_BMAPi,
+	XFS_BTNUM_IANALi, XFS_BTNUM_FIANALi, XFS_BTNUM_REFCi, XFS_BTNUM_MAX
 } xfs_btnum_t;
 
 #define XFS_BTNUM_STRINGS \
-	{ XFS_BTNUM_BNOi,	"bnobt" }, \
+	{ XFS_BTNUM_BANALi,	"banalbt" }, \
 	{ XFS_BTNUM_CNTi,	"cntbt" }, \
 	{ XFS_BTNUM_RMAPi,	"rmapbt" }, \
 	{ XFS_BTNUM_BMAPi,	"bmbt" }, \
-	{ XFS_BTNUM_INOi,	"inobt" }, \
-	{ XFS_BTNUM_FINOi,	"finobt" }, \
+	{ XFS_BTNUM_IANALi,	"ianalbt" }, \
+	{ XFS_BTNUM_FIANALi,	"fianalbt" }, \
 	{ XFS_BTNUM_REFCi,	"refcbt" }
 
 struct xfs_name {
@@ -139,7 +139,7 @@ struct xfs_name {
 };
 
 /*
- * uid_t and gid_t are hard-coded to 32 bits in the inode.
+ * uid_t and gid_t are hard-coded to 32 bits in the ianalde.
  * Hence, an 'id' in a dquot is 32 bits..
  */
 typedef uint32_t	xfs_dqid_t;
@@ -160,7 +160,7 @@ struct xfs_iext_cursor {
 };
 
 typedef enum {
-	XFS_EXT_NORM, XFS_EXT_UNWRITTEN,
+	XFS_EXT_ANALRM, XFS_EXT_UNWRITTEN,
 } xfs_exntst_t;
 
 typedef struct xfs_bmbt_irec
@@ -183,7 +183,7 @@ enum xfs_refc_domain {
 struct xfs_refcount_irec {
 	xfs_agblock_t	rc_startblock;	/* starting block number */
 	xfs_extlen_t	rc_blockcount;	/* count of free blocks */
-	xfs_nlink_t	rc_refcount;	/* number of inodes linked here */
+	xfs_nlink_t	rc_refcount;	/* number of ianaldes linked here */
 	enum xfs_refc_domain	rc_domain; /* shared or cow staging extent? */
 };
 
@@ -203,25 +203,25 @@ struct xfs_rmap_irec {
 
 /* per-AG block reservation types */
 enum xfs_ag_resv_type {
-	XFS_AG_RESV_NONE = 0,
+	XFS_AG_RESV_ANALNE = 0,
 	XFS_AG_RESV_AGFL,
 	XFS_AG_RESV_METADATA,
 	XFS_AG_RESV_RMAPBT,
 
 	/*
 	 * Don't increase fdblocks when freeing extent.  This is a pony for
-	 * the bnobt repair functions to re-free the free space without
+	 * the banalbt repair functions to re-free the free space without
 	 * altering fdblocks.  If you think you need this you're wrong.
 	 */
-	XFS_AG_RESV_IGNORE,
+	XFS_AG_RESV_IGANALRE,
 };
 
 /* Results of scanning a btree keyspace to check occupancy. */
 enum xbtree_recpacking {
-	/* None of the keyspace maps to records. */
+	/* Analne of the keyspace maps to records. */
 	XBTREE_RECPACKING_EMPTY = 0,
 
-	/* Some, but not all, of the keyspace maps to records. */
+	/* Some, but analt all, of the keyspace maps to records. */
 	XBTREE_RECPACKING_SPARSE,
 
 	/* The entire keyspace maps to records. */
@@ -233,15 +233,15 @@ enum xbtree_recpacking {
  */
 struct xfs_mount;
 
-bool xfs_verify_fsbno(struct xfs_mount *mp, xfs_fsblock_t fsbno);
-bool xfs_verify_fsbext(struct xfs_mount *mp, xfs_fsblock_t fsbno,
+bool xfs_verify_fsbanal(struct xfs_mount *mp, xfs_fsblock_t fsbanal);
+bool xfs_verify_fsbext(struct xfs_mount *mp, xfs_fsblock_t fsbanal,
 		xfs_fsblock_t len);
 
-bool xfs_verify_ino(struct xfs_mount *mp, xfs_ino_t ino);
-bool xfs_internal_inum(struct xfs_mount *mp, xfs_ino_t ino);
-bool xfs_verify_dir_ino(struct xfs_mount *mp, xfs_ino_t ino);
-bool xfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
-bool xfs_verify_rtbext(struct xfs_mount *mp, xfs_rtblock_t rtbno,
+bool xfs_verify_ianal(struct xfs_mount *mp, xfs_ianal_t ianal);
+bool xfs_internal_inum(struct xfs_mount *mp, xfs_ianal_t ianal);
+bool xfs_verify_dir_ianal(struct xfs_mount *mp, xfs_ianal_t ianal);
+bool xfs_verify_rtbanal(struct xfs_mount *mp, xfs_rtblock_t rtbanal);
+bool xfs_verify_rtbext(struct xfs_mount *mp, xfs_rtblock_t rtbanal,
 		xfs_filblks_t len);
 bool xfs_verify_icount(struct xfs_mount *mp, unsigned long long icount);
 bool xfs_verify_dablk(struct xfs_mount *mp, xfs_fileoff_t off);
@@ -256,7 +256,7 @@ static inline bool
 xfs_validate_rtextents(
 	xfs_rtbxlen_t		rtextents)
 {
-	/* No runt rt volumes */
+	/* Anal runt rt volumes */
 	if (rtextents == 0)
 		return false;
 

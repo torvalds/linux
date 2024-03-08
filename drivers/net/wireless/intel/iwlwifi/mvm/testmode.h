@@ -35,21 +35,21 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -65,13 +65,13 @@
  * enum iwl_mvm_testmode_attrs - testmode attributes inside NL80211_ATTR_TESTDATA
  * @IWL_MVM_TM_ATTR_UNSPEC: (invalid attribute)
  * @IWL_MVM_TM_ATTR_CMD: sub command, see &enum iwl_mvm_testmode_commands (u32)
- * @IWL_MVM_TM_ATTR_NOA_DURATION: requested NoA duration (u32)
+ * @IWL_MVM_TM_ATTR_ANALA_DURATION: requested AnalA duration (u32)
  * @IWL_MVM_TM_ATTR_BEACON_FILTER_STATE: beacon filter state (0 or 1, u32)
  */
 enum iwl_mvm_testmode_attrs {
 	IWL_MVM_TM_ATTR_UNSPEC,
 	IWL_MVM_TM_ATTR_CMD,
-	IWL_MVM_TM_ATTR_NOA_DURATION,
+	IWL_MVM_TM_ATTR_ANALA_DURATION,
 	IWL_MVM_TM_ATTR_BEACON_FILTER_STATE,
 
 	/* keep last */
@@ -81,11 +81,11 @@ enum iwl_mvm_testmode_attrs {
 
 /**
  * enum iwl_mvm_testmode_commands - MVM testmode commands
- * @IWL_MVM_TM_CMD_SET_NOA: set NoA on GO vif for testing
+ * @IWL_MVM_TM_CMD_SET_ANALA: set AnalA on GO vif for testing
  * @IWL_MVM_TM_CMD_SET_BEACON_FILTER: turn beacon filtering off/on
  */
 enum iwl_mvm_testmode_commands {
-	IWL_MVM_TM_CMD_SET_NOA,
+	IWL_MVM_TM_CMD_SET_ANALA,
 	IWL_MVM_TM_CMD_SET_BEACON_FILTER,
 };
 

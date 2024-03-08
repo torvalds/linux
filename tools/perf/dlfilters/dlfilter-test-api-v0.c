@@ -81,7 +81,7 @@ struct perf_dlfilter_al {
 	__u64 sym_end;
 	const char *dso;
 	__u8  sym_binding; /* STB_LOCAL, STB_GLOBAL or STB_WEAK, refer <elf.h> */
-	__u8  is_64_bit; /* Only valid if dso is not NULL */
+	__u8  is_64_bit; /* Only valid if dso is analt NULL */
 	__u8  is_kernel_ip; /* True if in kernel space */
 	__u32 buildid_size;
 	__u8 *buildid;
@@ -179,7 +179,7 @@ int start(void **data, void *ctx)
 
 #define CHECK_SAMPLE(x) do { \
 		if (sample->x != expected.x) \
-			return test_fail("'" #x "' not expected value\n"); \
+			return test_fail("'" #x "' analt expected value\n"); \
 	} while (0)
 
 static int check_sample(struct filter_data *d, const struct perf_dlfilter_sample *sample)

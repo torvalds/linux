@@ -57,7 +57,7 @@ static void snd_gf1_interrupt_midi_out(struct snd_gus_card * gus)
 
 	spin_lock_irqsave(&gus->uart_cmd_lock, flags);
 	if (snd_gf1_uart_stat(gus) & 0x02) {	/* Tx FIFO free? */
-		if (snd_rawmidi_transmit(gus->midi_substream_output, &byte, 1) != 1) {	/* no other bytes or error */
+		if (snd_rawmidi_transmit(gus->midi_substream_output, &byte, 1) != 1) {	/* anal other bytes or error */
 			snd_gf1_uart_cmd(gus, gus->gf1.uart_cmd & ~0x20); /* disable Tx interrupt */
 		} else {
 			snd_gf1_uart_put(gus, byte);
@@ -71,7 +71,7 @@ static void snd_gf1_uart_reset(struct snd_gus_card * gus, int close)
 	snd_gf1_uart_cmd(gus, 0x03);	/* reset */
 	if (!close && gus->uart_enable) {
 		udelay(160);
-		snd_gf1_uart_cmd(gus, 0x00);	/* normal operations */
+		snd_gf1_uart_cmd(gus, 0x00);	/* analrmal operations */
 	}
 }
 

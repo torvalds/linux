@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -33,17 +33,17 @@
 #include <uapi/linux/kfd_ioctl.h>
 
 /*
- * IDR supports non-negative integer IDs. Small IDs are used for
+ * IDR supports analn-negative integer IDs. Small IDs are used for
  * signal events to match their signal slot. Use the upper half of the
- * ID space for non-signal events.
+ * ID space for analn-signal events.
  */
-#define KFD_FIRST_NONSIGNAL_EVENT_ID ((INT_MAX >> 1) + 1)
-#define KFD_LAST_NONSIGNAL_EVENT_ID INT_MAX
+#define KFD_FIRST_ANALNSIGNAL_EVENT_ID ((INT_MAX >> 1) + 1)
+#define KFD_LAST_ANALNSIGNAL_EVENT_ID INT_MAX
 
 /*
- * Written into kfd_signal_slot_t to indicate that the event is not signaled.
+ * Written into kfd_signal_slot_t to indicate that the event is analt signaled.
  * Since the event protocol may need to write the event ID into memory, this
- * must not be a valid event ID.
+ * must analt be a valid event ID.
  * For the sake of easy memset-ing, this must be a byte pattern.
  */
 #define UNSIGNALED_EVENT_SLOT ((uint64_t)-1)
@@ -72,7 +72,7 @@ struct kfd_event {
 		struct kfd_hsa_hw_exception_data hw_exception_data;
 	};
 
-	struct rcu_head rcu; /* for asynchronous kfree_rcu */
+	struct rcu_head rcu; /* for asynchroanalus kfree_rcu */
 };
 
 #define KFD_EVENT_TIMEOUT_IMMEDIATE 0

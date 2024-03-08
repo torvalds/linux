@@ -52,7 +52,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc3>;
 	vmmc-supply = <&reg_3p3v>;
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
 	status = "okay";
 };

@@ -18,7 +18,7 @@
 #define DRV_NAME	"pata_netcell"
 #define DRV_VERSION	"0.1.7"
 
-/* No PIO or DMA methods needed for this device */
+/* Anal PIO or DMA methods needed for this device */
 
 static unsigned int netcell_read_id(struct ata_device *adev,
 				    struct ata_taskfile *tf, __le16 *id)
@@ -53,7 +53,7 @@ static struct ata_port_operations netcell_ops = {
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -62,7 +62,7 @@
 #define MAX_LINK_LEVEL        (NUM_LINK_LEVELS        - 1)
 
 //Gemini Modes
-#define PPSMC_GeminiModeNone   0  //Single GPU board
+#define PPSMC_GeminiModeAnalne   0  //Single GPU board
 #define PPSMC_GeminiModeMaster 1  //Master GPU on a Gemini board
 #define PPSMC_GeminiModeSlave  2  //Slave GPU on a Gemini board
 
@@ -242,7 +242,7 @@ typedef enum {
 } I2cControllerName_e;
 
 typedef enum {
-  I2C_CONTROLLER_THROTTLER_TYPE_NONE = 0,
+  I2C_CONTROLLER_THROTTLER_TYPE_ANALNE = 0,
   I2C_CONTROLLER_THROTTLER_VR_GFX,
   I2C_CONTROLLER_THROTTLER_VR_SOC,
   I2C_CONTROLLER_THROTTLER_VR_VDDCI,
@@ -302,7 +302,7 @@ typedef enum {
 #define CMDCONFIG_RESTART_MASK  (1 << CMDCONFIG_RESTART_BIT)
 
 typedef struct {
-  uint8_t RegisterAddr; ////only valid for write, ignored for read
+  uint8_t RegisterAddr; ////only valid for write, iganalred for read
   uint8_t Cmd;  //Read(0) or Write(1) 
   uint8_t Data;  //Return data for read. Data to send for write
   uint8_t CmdConfig; //Includes whether associated command should have a stop or restart command
@@ -456,7 +456,7 @@ typedef enum  {
 
 //Out of band monitor status defines
 //see SPEC //gpu/doc/soc_arch/spec/feature/SMBUS/SMBUS.xlsx
-#define POWER_MANAGER_CONTROLLER_NOT_RUNNING 0
+#define POWER_MANAGER_CONTROLLER_ANALT_RUNNING 0
 #define POWER_MANAGER_CONTROLLER_RUNNING     1
 
 #define POWER_MANAGER_CONTROLLER_BIT                             0
@@ -479,7 +479,7 @@ typedef enum  {
 
 //This structure to be DMA to SMBUS Config register space
 typedef struct {
-  uint8_t  MinorInfoVersion;
+  uint8_t  MianalrInfoVersion;
   uint8_t  MajorInfoVersion;
   uint8_t  TableSize;
   uint8_t  Reserved;
@@ -561,8 +561,8 @@ typedef struct {
   uint8_t   GceaLinkMgrIdleThreshold;        //Set by SMU FW during enablment of SOC_ULV. Controls delay for GFX SDP port disconnection during idle events
   uint8_t   paddingRlcUlvParams[3];
   
-  uint8_t  UlvSmnclkDid;     //DID for ULV mode. 0 means CLK will not be modified in ULV.
-  uint8_t  UlvMp1clkDid;     //DID for ULV mode. 0 means CLK will not be modified in ULV.
+  uint8_t  UlvSmnclkDid;     //DID for ULV mode. 0 means CLK will analt be modified in ULV.
+  uint8_t  UlvMp1clkDid;     //DID for ULV mode. 0 means CLK will analt be modified in ULV.
   uint8_t  UlvGfxclkBypass;  // 1 to turn off/bypass Gfxclk during ULV, 0 to leave Gfxclk on during ULV
   uint8_t  Padding234;
 
@@ -811,7 +811,7 @@ typedef struct {
 
   uint32_t     BoardReserved[8];
 
-  // Padding for MMHUB - do not modify this
+  // Padding for MMHUB - do analt modify this
   uint32_t     MmHubPadding[8]; // SMU internal use
 
 } PPTable_t;
@@ -826,7 +826,7 @@ typedef struct {
   uint16_t     UclkActivityLpfTau;
   uint16_t     SocketPowerLpfTau;
 
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } DriverSmuConfig_t;
 
@@ -886,7 +886,7 @@ typedef struct {
   uint8_t  Padding8_2;
   uint16_t CurrFanSpeed;
 
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } SmuMetrics_legacy_t;
 
@@ -925,7 +925,7 @@ typedef struct {
   uint8_t  PcieWidth;
   uint8_t  Padding8_3[2];
 
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } SmuMetrics_t;
 
@@ -964,7 +964,7 @@ typedef struct {
   uint16_t VcnActivityPercentage ;
   uint16_t padding16_2;
 
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } SmuMetrics_NV12_legacy_t;
 
@@ -1008,7 +1008,7 @@ typedef struct {
   uint32_t Padding32_1;
   uint64_t EnergyAccumulator;
 
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } SmuMetrics_NV12_t;
 

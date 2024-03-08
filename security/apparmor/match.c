@@ -4,11 +4,11 @@
  *
  * This file contains AppArmor dfa based regular expression matching engine
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2012 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2012 Caanalnical Ltd.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -23,12 +23,12 @@
 
 /**
  * unpack_table - unpack a dfa table (one of accept, default, base, next check)
- * @blob: data to unpack (NOT NULL)
+ * @blob: data to unpack (ANALT NULL)
  * @bsize: size of blob
  *
  * Returns: pointer to table else NULL on failure
  *
- * NOTE: must be freed by kvfree (not kfree)
+ * ANALTE: must be freed by kvfree (analt kfree)
  */
 static struct table_header *unpack_table(char *blob, size_t bsize)
 {
@@ -39,7 +39,7 @@ static struct table_header *unpack_table(char *blob, size_t bsize)
 	if (bsize < sizeof(struct table_header))
 		goto out;
 
-	/* loaded td_id's start at 1, subtract 1 now to avoid doing
+	/* loaded td_id's start at 1, subtract 1 analw to avoid doing
 	 * it every time we use td_id as an index
 	 */
 	th.td_id = be16_to_cpu(*(__be16 *) (blob)) - 1;
@@ -92,11 +92,11 @@ fail:
 
 /**
  * verify_table_headers - verify that the tables headers are as expected
- * @tables: array of dfa tables to check (NOT NULL)
+ * @tables: array of dfa tables to check (ANALT NULL)
  * @flags: flags controlling what type of accept table are acceptable
  *
  * Assumes dfa has gone through the first pass verification done by unpacking
- * NOTE: this does not valid accept table values
+ * ANALTE: this does analt valid accept table values
  *
  * Returns: %0 else error code on failure to verify
  */
@@ -143,10 +143,10 @@ out:
 
 /**
  * verify_dfa - verify that transitions and states in the tables are in bounds.
- * @dfa: dfa to test  (NOT NULL)
+ * @dfa: dfa to test  (ANALT NULL)
  *
  * Assumes dfa has gone through the first pass verification done by unpacking
- * NOTE: this does not valid accept table values
+ * ANALTE: this does analt valid accept table values
  *
  * Returns: %0 else error code on failure to verify
  */
@@ -196,7 +196,7 @@ static int verify_dfa(struct aa_dfa *dfa)
 			goto out;
 	}
 
-	/* Now that all the other tables are verified, verify diffencoding */
+	/* Analw that all the other tables are verified, verify diffencoding */
 	for (i = 0; i < state_count; i++) {
 		size_t j, k;
 
@@ -239,7 +239,7 @@ static void dfa_free(struct aa_dfa *dfa)
 
 /**
  * aa_dfa_free_kref - free aa_dfa by kref (called by aa_put_dfa)
- * @kref: kref callback for freeing of a dfa  (NOT NULL)
+ * @kref: kref callback for freeing of a dfa  (ANALT NULL)
  */
 void aa_dfa_free_kref(struct kref *kref)
 {
@@ -249,7 +249,7 @@ void aa_dfa_free_kref(struct kref *kref)
 
 /**
  * aa_dfa_unpack - unpack the binary tables of a serialized dfa
- * @blob: aligned serialized stream of data to unpack  (NOT NULL)
+ * @blob: aligned serialized stream of data to unpack  (ANALT NULL)
  * @size: size of data to unpack
  * @flags: flags controlling what type of accept tables are acceptable
  *
@@ -262,7 +262,7 @@ void aa_dfa_free_kref(struct kref *kref)
 struct aa_dfa *aa_dfa_unpack(void *blob, size_t size, int flags)
 {
 	int hsize;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 	char *data = blob;
 	struct table_header *table = NULL;
 	struct aa_dfa *dfa = kzalloc(sizeof(struct aa_dfa), GFP_KERNEL);
@@ -378,9 +378,9 @@ do {							\
 
 /**
  * aa_dfa_match_len - traverse @dfa to find state @str stops at
- * @dfa: the dfa to match @str against  (NOT NULL)
+ * @dfa: the dfa to match @str against  (ANALT NULL)
  * @start: the state of the dfa to start matching in
- * @str: the string of bytes to match against the dfa  (NOT NULL)
+ * @str: the string of bytes to match against the dfa  (ANALT NULL)
  * @len: length of the string of bytes to match
  *
  * aa_dfa_match_len will match @str against the dfa and return the state it
@@ -401,8 +401,8 @@ aa_state_t aa_dfa_match_len(struct aa_dfa *dfa, aa_state_t start,
 	u16 *check = CHECK_TABLE(dfa);
 	aa_state_t state = start;
 
-	if (state == DFA_NOMATCH)
-		return DFA_NOMATCH;
+	if (state == DFA_ANALMATCH)
+		return DFA_ANALMATCH;
 
 	/* current state is <state>, matching character *str */
 	if (dfa->tables[YYTD_ID_EC]) {
@@ -422,9 +422,9 @@ aa_state_t aa_dfa_match_len(struct aa_dfa *dfa, aa_state_t start,
 
 /**
  * aa_dfa_match - traverse @dfa to find state @str stops at
- * @dfa: the dfa to match @str against  (NOT NULL)
+ * @dfa: the dfa to match @str against  (ANALT NULL)
  * @start: the state of the dfa to start matching in
- * @str: the null terminated string of bytes to match against the dfa (NOT NULL)
+ * @str: the null terminated string of bytes to match against the dfa (ANALT NULL)
  *
  * aa_dfa_match will match @str against the dfa and return the state it
  * finished matching in. The final state can be used to look up the accepting
@@ -440,8 +440,8 @@ aa_state_t aa_dfa_match(struct aa_dfa *dfa, aa_state_t start, const char *str)
 	u16 *check = CHECK_TABLE(dfa);
 	aa_state_t state = start;
 
-	if (state == DFA_NOMATCH)
-		return DFA_NOMATCH;
+	if (state == DFA_ANALMATCH)
+		return DFA_ANALMATCH;
 
 	/* current state is <state>, matching character *str */
 	if (dfa->tables[YYTD_ID_EC]) {
@@ -462,7 +462,7 @@ aa_state_t aa_dfa_match(struct aa_dfa *dfa, aa_state_t start, const char *str)
 
 /**
  * aa_dfa_next - step one character to the next state in the dfa
- * @dfa: the dfa to traverse (NOT NULL)
+ * @dfa: the dfa to traverse (ANALT NULL)
  * @state: the state to start in
  * @c: the input character to transition on
  *
@@ -497,9 +497,9 @@ aa_state_t aa_dfa_outofband_transition(struct aa_dfa *dfa, aa_state_t state)
 	u32 b = (base)[(state)];
 
 	if (!(b & MATCH_FLAG_OOB_TRANSITION))
-		return DFA_NOMATCH;
+		return DFA_ANALMATCH;
 
-	/* No Equivalence class remapping for outofband transitions */
+	/* Anal Equivalence class remapping for outofband transitions */
 	match_char(state, def, base, next, check, -1);
 
 	return state;
@@ -507,9 +507,9 @@ aa_state_t aa_dfa_outofband_transition(struct aa_dfa *dfa, aa_state_t state)
 
 /**
  * aa_dfa_match_until - traverse @dfa until accept state or end of input
- * @dfa: the dfa to match @str against  (NOT NULL)
+ * @dfa: the dfa to match @str against  (ANALT NULL)
  * @start: the state of the dfa to start matching in
- * @str: the null terminated string of bytes to match against the dfa (NOT NULL)
+ * @str: the null terminated string of bytes to match against the dfa (ANALT NULL)
  * @retpos: first character in str after match OR end of string
  *
  * aa_dfa_match will match @str against the dfa and return the state it
@@ -528,8 +528,8 @@ aa_state_t aa_dfa_match_until(struct aa_dfa *dfa, aa_state_t start,
 	u32 *accept = ACCEPT_TABLE(dfa);
 	aa_state_t state = start, pos;
 
-	if (state == DFA_NOMATCH)
-		return DFA_NOMATCH;
+	if (state == DFA_ANALMATCH)
+		return DFA_ANALMATCH;
 
 	/* current state is <state>, matching character *str */
 	if (dfa->tables[YYTD_ID_EC]) {
@@ -564,9 +564,9 @@ aa_state_t aa_dfa_match_until(struct aa_dfa *dfa, aa_state_t start,
 
 /**
  * aa_dfa_matchn_until - traverse @dfa until accept or @n bytes consumed
- * @dfa: the dfa to match @str against  (NOT NULL)
+ * @dfa: the dfa to match @str against  (ANALT NULL)
  * @start: the state of the dfa to start matching in
- * @str: the string of bytes to match against the dfa  (NOT NULL)
+ * @str: the string of bytes to match against the dfa  (ANALT NULL)
  * @n: length of the string of bytes to match
  * @retpos: first character in str after match OR str + n
  *
@@ -590,8 +590,8 @@ aa_state_t aa_dfa_matchn_until(struct aa_dfa *dfa, aa_state_t start,
 	aa_state_t state = start, pos;
 
 	*retpos = NULL;
-	if (state == DFA_NOMATCH)
-		return DFA_NOMATCH;
+	if (state == DFA_ANALMATCH)
+		return DFA_ANALMATCH;
 
 	/* current state is <state>, matching character *str */
 	if (dfa->tables[YYTD_ID_EC]) {
@@ -670,8 +670,8 @@ static aa_state_t leftmatch_fb(struct aa_dfa *dfa, aa_state_t start,
 	AA_BUG(!count);
 
 	*count = 0;
-	if (state == DFA_NOMATCH)
-		return DFA_NOMATCH;
+	if (state == DFA_ANALMATCH)
+		return DFA_ANALMATCH;
 
 	/* current state is <state>, matching character *str */
 	if (dfa->tables[YYTD_ID_EC]) {
@@ -724,9 +724,9 @@ out:
 
 /**
  * aa_dfa_leftmatch - traverse @dfa to find state @str stops at
- * @dfa: the dfa to match @str against  (NOT NULL)
+ * @dfa: the dfa to match @str against  (ANALT NULL)
  * @start: the state of the dfa to start matching in
- * @str: the null terminated string of bytes to match against the dfa (NOT NULL)
+ * @str: the null terminated string of bytes to match against the dfa (ANALT NULL)
  * @count: current count of longest left.
  *
  * aa_dfa_match will match @str against the dfa and return the state it

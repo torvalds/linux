@@ -580,7 +580,7 @@ static int anx78xx_init_pdata(struct anx78xx *anx78xx)
 	pdata->dvdd10 = devm_regulator_get(dev, "dvdd10");
 	if (IS_ERR(pdata->dvdd10)) {
 		if (PTR_ERR(pdata->dvdd10) != -EPROBE_DEFER)
-			DRM_ERROR("DVDD10 regulator not found\n");
+			DRM_ERROR("DVDD10 regulator analt found\n");
 
 		return PTR_ERR(pdata->dvdd10);
 	}
@@ -628,7 +628,7 @@ static int anx78xx_dp_link_training(struct anx78xx *anx78xx)
 		break;
 
 	default:
-		DRM_DEBUG_KMS("DP bandwidth (%#02x) not supported\n", dp_bw);
+		DRM_DEBUG_KMS("DP bandwidth (%#02x) analt supported\n", dp_bw);
 		return -EINVAL;
 	}
 
@@ -892,14 +892,14 @@ static int anx78xx_bridge_attach(struct drm_bridge *bridge,
 	struct anx78xx *anx78xx = bridge_to_anx78xx(bridge);
 	int err;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR) {
 		DRM_ERROR("Fix bridge driver to make connector optional!");
 		return -EINVAL;
 	}
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
+		DRM_ERROR("Parent encoder object analt found");
+		return -EANALDEV;
 	}
 
 	/* Register aux channel */
@@ -959,7 +959,7 @@ anx78xx_bridge_mode_valid(struct drm_bridge *bridge,
 			  const struct drm_display_mode *mode)
 {
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	/* Max 1200p at 5.4 Ghz, one lane */
 	if (mode->clock > 154000)
@@ -1226,13 +1226,13 @@ static int anx78xx_i2c_probe(struct i2c_client *client)
 
 	anx78xx = devm_kzalloc(&client->dev, sizeof(*anx78xx), GFP_KERNEL);
 	if (!anx78xx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = &anx78xx->pdata;
 
 	mutex_init(&anx78xx->lock);
 
-	anx78xx->bridge.of_node = client->dev.of_node;
+	anx78xx->bridge.of_analde = client->dev.of_analde;
 
 	anx78xx->client = client;
 	i2c_set_clientdata(client, anx78xx);
@@ -1248,13 +1248,13 @@ static int anx78xx_i2c_probe(struct i2c_client *client)
 	pdata->hpd_irq = gpiod_to_irq(pdata->gpiod_hpd);
 	if (pdata->hpd_irq < 0) {
 		DRM_ERROR("Failed to get HPD IRQ: %d\n", pdata->hpd_irq);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pdata->intp_irq = client->irq;
 	if (!pdata->intp_irq) {
 		DRM_ERROR("Failed to get CABLE_DET and INTP IRQ\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Map slave addresses of ANX7814 */
@@ -1312,9 +1312,9 @@ static int anx78xx_i2c_probe(struct i2c_client *client)
 	}
 
 	if (!found) {
-		DRM_ERROR("ANX%x (ver. %d) not supported by this driver\n",
+		DRM_ERROR("ANX%x (ver. %d) analt supported by this driver\n",
 			  anx78xx->chipid, version);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_poweroff;
 	}
 

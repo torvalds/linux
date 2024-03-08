@@ -8,7 +8,7 @@
 #include <sound/asound.h>
 #include "digi00x.h"
 
-static void handle_unknown_message(struct snd_dg00x *dg00x,
+static void handle_unkanalwn_message(struct snd_dg00x *dg00x,
 				   unsigned long long offset, __be32 *buf)
 {
 	unsigned long flags;
@@ -31,7 +31,7 @@ static void handle_message(struct fw_card *card, struct fw_request *request,
 	fw_send_response(card, request, RCODE_COMPLETE);
 
 	if (offset == dg00x->async_handler.offset)
-		handle_unknown_message(dg00x, offset, buf);
+		handle_unkanalwn_message(dg00x, offset, buf);
 }
 
 int snd_dg00x_transaction_reregister(struct snd_dg00x *dg00x)
@@ -39,8 +39,8 @@ int snd_dg00x_transaction_reregister(struct snd_dg00x *dg00x)
 	struct fw_device *device = fw_parent_device(dg00x->unit);
 	__be32 data[2];
 
-	/* Unknown. 4bytes. */
-	data[0] = cpu_to_be32((device->card->node_id << 16) |
+	/* Unkanalwn. 4bytes. */
+	data[0] = cpu_to_be32((device->card->analde_id << 16) |
 			      (dg00x->async_handler.offset >> 32));
 	data[1] = cpu_to_be32(dg00x->async_handler.offset);
 	return snd_fw_transaction(dg00x->unit, TCODE_WRITE_BLOCK_REQUEST,

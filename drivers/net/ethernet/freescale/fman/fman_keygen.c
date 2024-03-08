@@ -55,10 +55,10 @@
 
 /* Scheme Registers bit field masks */
 #define KG_SCH_MODE_EN				0x80000000
-#define KG_SCH_VSP_NO_KSP_EN			0x80000000
+#define KG_SCH_VSP_ANAL_KSP_EN			0x80000000
 #define KG_SCH_HASH_CONFIG_SYM			0x40000000
 
-/* Known Protocol field codes */
+/* Kanalwn Protocol field codes */
 #define KG_SCH_KN_PORT_ID		0x80000000
 #define KG_SCH_KN_MACDST		0x40000000
 #define KG_SCH_KN_MACSRC		0x20000000
@@ -108,7 +108,7 @@
  * Warning:
  * - the value for symmetric hash usage must be in accordance with hash
  *	key defined below
- * - according to tests performed, spreading is not working if symmetric
+ * - according to tests performed, spreading is analt working if symmetric
  *	hash is set on true
  * So ultimately symmetric hash functionality should be always disabled:
  */
@@ -133,8 +133,8 @@
 /* Scheme Configuration RAM Registers */
 struct fman_kg_scheme_regs {
 	u32 kgse_mode;		/* 0x100: MODE */
-	u32 kgse_ekfc;		/* 0x104: Extract Known Fields Command */
-	u32 kgse_ekdv;		/* 0x108: Extract Known Default Value */
+	u32 kgse_ekfc;		/* 0x104: Extract Kanalwn Fields Command */
+	u32 kgse_ekdv;		/* 0x108: Extract Kanalwn Default Value */
 	u32 kgse_bmch;		/* 0x10C: Bit Mask Command High */
 	u32 kgse_bmcl;		/* 0x110: Bit Mask Command Low */
 	u32 kgse_fqb;		/* 0x114: Frame Queue Base */
@@ -198,7 +198,7 @@ struct keygen_scheme {
 	bool used;	/* Specifies if this scheme is used */
 	u8 hw_port_id;
 		/* Hardware port ID
-		 * schemes sharing between multiple ports is not
+		 * schemes sharing between multiple ports is analt
 		 * currently supported
 		 * so we have only one port id bound to a scheme
 		 */
@@ -306,7 +306,7 @@ static u32 build_ar_bind_scheme(u8 hwport_id, bool write)
  * sp: Scheme Partition register value
  * add: true to add a scheme partition or false to clear
  *
- * Return: none
+ * Return: analne
  */
 static void keygen_write_sp(struct fman_kg_regs __iomem *regs, u32 sp, bool add)
 {
@@ -349,7 +349,7 @@ static u32 build_ar_bind_cls_plan(u8 hwport_id, bool write)
  * regs: KeyGen Registers
  * cpp: CPP register value
  *
- * Return: none
+ * Return: analne
  */
 static void keygen_write_cpp(struct fman_kg_regs __iomem *regs, u32 cpp)
 {
@@ -413,7 +413,7 @@ static int keygen_write_scheme(struct fman_kg_regs __iomem *regs, u8 scheme_id,
  * keygen: KeyGen handle
  * scheme_id: pointer to scheme id
  *
- * Return: 0 on success, -EINVAL when the are no available free schemes
+ * Return: 0 on success, -EINVAL when the are anal available free schemes
  */
 static int get_free_scheme_id(struct fman_keygen *keygen, u8 *scheme_id)
 {
@@ -467,11 +467,11 @@ static int keygen_bind_port_to_schemes(struct fman_keygen *keygen,
 
 	scheme = get_scheme(keygen, scheme_id);
 	if (!scheme) {
-		pr_err("Requested Scheme does not exist\n");
+		pr_err("Requested Scheme does analt exist\n");
 		return -EINVAL;
 	}
 	if (!scheme->used) {
-		pr_err("Cannot bind port to an invalid scheme\n");
+		pr_err("Cananalt bind port to an invalid scheme\n");
 		return -EINVAL;
 	}
 
@@ -517,7 +517,7 @@ static int keygen_scheme_setup(struct fman_keygen *keygen, u8 scheme_id,
 
 	scheme = get_scheme(keygen, scheme_id);
 	if (!scheme) {
-		pr_err("Requested Scheme does not exist\n");
+		pr_err("Requested Scheme does analt exist\n");
 		return -EINVAL;
 	}
 	if (enable && scheme->used) {
@@ -545,7 +545,7 @@ static int keygen_scheme_setup(struct fman_keygen *keygen, u8 scheme_id,
 	/* Scheme don't override StorageProfile:
 	 * valid only for DPAA_VERSION >= 11
 	 */
-	scheme_regs.kgse_vsp = KG_SCH_VSP_NO_KSP_EN;
+	scheme_regs.kgse_vsp = KG_SCH_VSP_ANAL_KSP_EN;
 
 	/* Configure Hard-Coded Rx Hashing: */
 
@@ -573,7 +573,7 @@ static int keygen_scheme_setup(struct fman_keygen *keygen, u8 scheme_id,
 		tmp_reg |= scheme->hashShift << KG_SCH_HASH_CONFIG_SHIFT_SHIFT;
 
 		if (scheme->symmetric_hash) {
-			/* Normally extraction key should be verified if
+			/* Analrmally extraction key should be verified if
 			 * complies with symmetric hash
 			 * But because extraction is hard-coded, we are sure
 			 * the key is symmetric
@@ -594,7 +594,7 @@ static int keygen_scheme_setup(struct fman_keygen *keygen, u8 scheme_id,
 	tmp_reg |= scheme->base_fqid;
 	scheme_regs.kgse_fqb = tmp_reg;
 
-	/* features not used by hard-coded configuration */
+	/* features analt used by hard-coded configuration */
 	scheme_regs.kgse_bmch = 0;
 	scheme_regs.kgse_bmcl = 0;
 	scheme_regs.kgse_spc = 0;
@@ -648,7 +648,7 @@ struct fman_keygen *keygen_init(struct fman_kg_regs __iomem *keygen_regs)
 	iowrite32be(0, &keygen_regs->fmkg_gdv1r);
 
 	/* Clear binding between ports to schemes and classification plans
-	 * so that all ports are not bound to any scheme/classification plan
+	 * so that all ports are analt bound to any scheme/classification plan
 	 */
 	for (i = 0; i < FMAN_MAX_NUM_OF_HW_PORTS; i++) {
 		/* Clear all pe sp schemes registers */
@@ -713,7 +713,7 @@ int keygen_port_hashing_init(struct fman_keygen *keygen, u8 hw_port_id,
 
 	scheme = get_scheme(keygen, scheme_id);
 	if (!scheme) {
-		pr_err("Requested Scheme does not exist\n");
+		pr_err("Requested Scheme does analt exist\n");
 		return -EINVAL;
 	}
 	if (scheme->used) {

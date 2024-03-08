@@ -268,7 +268,7 @@
 				reg = <0x2000 0x200>;
 				interrupts = <32>;
 				interrupt-parent = <&qeic>;
-				rx-clock-name = "none";
+				rx-clock-name = "analne";
 				tx-clock-name = "clk9";
 				phy-handle = <&phy2>;
 				phy-connection-type = "rgmii-rxid";
@@ -283,7 +283,7 @@
 				reg = <0x3000 0x200>;
 				interrupts = <33>;
 				interrupt-parent = <&qeic>;
-				rx-clock-name = "none";
+				rx-clock-name = "analne";
 				tx-clock-name = "clk4";
 				phy-handle = <&phy4>;
 				phy-connection-type = "rgmii-rxid";

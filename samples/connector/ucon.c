@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <time.h>
 #include <getopt.h>
 
@@ -70,7 +70,7 @@ static int netlink_send(int s, struct cn_msg *msg)
 	err = send(s, nlh, size, 0);
 	if (err == -1)
 		ulog("Failed to send: %s [%d].\n",
-			strerror(errno), errno);
+			strerror(erranal), erranal);
 
 	return err;
 }
@@ -88,7 +88,7 @@ static void usage(void)
 		"specified output file (or stdout).  The test module is assumed to\n"
 		"have an id of {%u.%u}\n"
 		"\n"
-		"If you get no output, then verify the cn_test module id matches\n"
+		"If you get anal output, then verify the cn_test module id matches\n"
 		"the expected id above.\n"
 		, CN_TEST_IDX, CN_TEST_VAL
 	);
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 		out = fopen(argv[optind], "a+");
 		if (!out) {
 			ulog("Unable to open %s for writing: %s\n",
-				argv[1], strerror(errno));
+				argv[1], strerror(erranal));
 			out = stdout;
 		}
 	} else
@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 				need_exit = 1;
 				break;
 			case -1:
-				if (errno != EINTR) {
+				if (erranal != EINTR) {
 					need_exit = 1;
 					break;
 				}

@@ -27,7 +27,7 @@ n=1
 
 starttime=`gawk 'BEGIN { print systime(); }' < /dev/null`
 
-nohotplugcpus=
+analhotplugcpus=
 for i in /sys/devices/system/cpu/cpu[0-9]*
 do
 	if test -f $i/online
@@ -35,7 +35,7 @@ do
 		:
 	else
 		curcpu=`echo $i | sed -e 's/^[^0-9]*//'`
-		nohotplugcpus="$nohotplugcpus $curcpu"
+		analhotplugcpus="$analhotplugcpus $curcpu"
 	fi
 done
 
@@ -62,8 +62,8 @@ do
 	else
 		cpus=
 	fi
-	# Do not leave out non-hot-pluggable CPUs
-	cpus="$cpus $nohotplugcpus"
+	# Do analt leave out analn-hot-pluggable CPUs
+	cpus="$cpus $analhotplugcpus"
 
 	cpumask=`awk -v cpus="$cpus" -v me=$me -v n=$n 'BEGIN {
 		srand(n + me + systime());

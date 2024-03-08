@@ -29,21 +29,21 @@ struct wm8940_setup_data {
 
 #define WM8940_ADC		0x0E
 #define WM8940_ADCVOL		0x0F
-#define WM8940_NOTCH1		0x10
-#define WM8940_NOTCH2		0x11
-#define WM8940_NOTCH3		0x12
-#define WM8940_NOTCH4		0x13
-#define WM8940_NOTCH5		0x14
-#define WM8940_NOTCH6		0x15
-#define WM8940_NOTCH7		0x16
-#define WM8940_NOTCH8		0x17
+#define WM8940_ANALTCH1		0x10
+#define WM8940_ANALTCH2		0x11
+#define WM8940_ANALTCH3		0x12
+#define WM8940_ANALTCH4		0x13
+#define WM8940_ANALTCH5		0x14
+#define WM8940_ANALTCH6		0x15
+#define WM8940_ANALTCH7		0x16
+#define WM8940_ANALTCH8		0x17
 #define WM8940_DACLIM1		0x18
 #define WM8940_DACLIM2		0x19
 
 #define WM8940_ALC1		0x20
 #define WM8940_ALC2		0x21
 #define WM8940_ALC3		0x22
-#define WM8940_NOISEGATE	0x23
+#define WM8940_ANALISEGATE	0x23
 #define WM8940_PLLN		0x24
 #define WM8940_PLLK1		0x25
 #define WM8940_PLLK2		0x26
@@ -61,7 +61,7 @@ struct wm8940_setup_data {
 
 #define WM8940_SPKVOL		0x36
 
-#define WM8940_MONOMIX		0x38
+#define WM8940_MOANALMIX		0x38
 
 #define WM8940_CACHEREGNUM  0x57
 

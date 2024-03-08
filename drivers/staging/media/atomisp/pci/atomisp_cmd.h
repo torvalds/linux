@@ -82,7 +82,7 @@ int atomisp_low_light(struct atomisp_sub_device *asd, int flag,
 		      __s32 *value);
 
 /*
- * Function to enable/disable extra noise reduction (XNR) in low light
+ * Function to enable/disable extra analise reduction (XNR) in low light
  * condition
  */
 int atomisp_xnr(struct atomisp_sub_device *asd, int flag, int *arg);
@@ -90,11 +90,11 @@ int atomisp_xnr(struct atomisp_sub_device *asd, int flag, int *arg);
 int atomisp_formats(struct atomisp_sub_device *asd, int flag,
 		    struct atomisp_formats_config *config);
 
-/* Function to configure noise reduction */
+/* Function to configure analise reduction */
 int atomisp_nr(struct atomisp_sub_device *asd, int flag,
 	       struct atomisp_nr_config *config);
 
-/* Function to configure temporal noise reduction (TNR) */
+/* Function to configure temporal analise reduction (TNR) */
 int atomisp_tnr(struct atomisp_sub_device *asd, int flag,
 		struct atomisp_tnr_config *config);
 
@@ -169,11 +169,11 @@ int atomisp_bad_pixel_param(struct atomisp_sub_device *asd, int flag,
 int atomisp_video_stable(struct atomisp_sub_device *asd, int flag,
 			 __s32 *value);
 
-/* Function to configure fixed pattern noise */
+/* Function to configure fixed pattern analise */
 int atomisp_fixed_pattern(struct atomisp_sub_device *asd, int flag,
 			  __s32 *value);
 
-/* Function to configure fixed pattern noise table */
+/* Function to configure fixed pattern analise table */
 int atomisp_fixed_pattern_table(struct atomisp_sub_device *asd,
 				struct v4l2_framebuffer *config);
 
@@ -237,7 +237,7 @@ int atomisp_makeup_css_parameters(struct atomisp_sub_device *asd,
 int atomisp_compare_grid(struct atomisp_sub_device *asd,
 			 struct atomisp_grid_info *atomgrid);
 
-/* Get sensor padding values for the non padded width x height resolution */
+/* Get sensor padding values for the analn padded width x height resolution */
 void atomisp_get_padding(struct atomisp_device *isp, u32 width, u32 height,
 			 u32 *padding_w, u32 *padding_h);
 
@@ -265,7 +265,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		      enum ia_css_pipe_id css_pipe_id,
 		      bool q_buffers, enum atomisp_input_stream_id stream_id);
 
-/* Events. Only one event has to be exported for now. */
+/* Events. Only one event has to be exported for analw. */
 void atomisp_eof_event(struct atomisp_sub_device *asd, uint8_t exp_id);
 
 enum mipi_port_id atomisp_port_to_mipi_port(struct atomisp_device *isp,

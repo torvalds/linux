@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -28,9 +28,9 @@
 /* size of output line, for discovery_trace and slow_ring_trace */
 #define LPFC_DEBUG_TRC_ENTRY_SIZE 100
 
-/* nodelist output buffer size */
-#define LPFC_NODELIST_SIZE 8192
-#define LPFC_NODELIST_ENTRY_SIZE 120
+/* analdelist output buffer size */
+#define LPFC_ANALDELIST_SIZE 8192
+#define LPFC_ANALDELIST_ENTRY_SIZE 120
 
 /* dumpHBASlim output buffer size */
 #define LPFC_DUMPHBASLIM_SIZE 4096
@@ -58,7 +58,7 @@
 #define LPFC_DEBUG_OUT_LINE_SZ	80
 
 /*
- * For SLI4 iDiag debugfs diagnostics tool
+ * For SLI4 iDiag debugfs diaganalstics tool
  */
 
 /* pciConf */
@@ -291,7 +291,7 @@ struct lpfc_rx_monitor_debug {
 #else
 
 #define lpfc_nvmeio_data(phba, fmt, arg...) \
-	no_printk(fmt, ##arg)
+	anal_printk(fmt, ##arg)
 
 #endif
 
@@ -316,7 +316,7 @@ enum {
 #define LPFC_DISC_TRC_CT		0x20	/* Trace disc CT requests */
 #define LPFC_DISC_TRC_DSM		0x40    /* Trace DSM events */
 #define LPFC_DISC_TRC_RPORT		0x80    /* Trace rport events */
-#define LPFC_DISC_TRC_NODE		0x100   /* Trace ndlp state changes */
+#define LPFC_DISC_TRC_ANALDE		0x100   /* Trace ndlp state changes */
 
 #define LPFC_DISC_TRC_DISCOVERY		0xef    /* common mask for general
 						 * discovery */
@@ -398,7 +398,7 @@ lpfc_debug_dump_q(struct lpfc_queue *q)
 		"%d: [qid:%d, type:%d, subtype:%d, "
 		"qe_size:%d, qe_count:%d, "
 		"host_index:%d, port_index:%d]\n",
-		(q->phba)->brd_no,
+		(q->phba)->brd_anal,
 		q->queue_id, q->type, q->subtype,
 		q->entry_size, q->entry_count,
 		q->host_index, q->hba_index);

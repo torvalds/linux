@@ -125,7 +125,7 @@ static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 static int pcie_valid_config(struct pcie_port *pp, int bus, int dev)
 {
 	/*
-	 * Don't go out when trying to access nonexisting devices
+	 * Don't go out when trying to access analnexisting devices
 	 * on the local bus.
 	 */
 	if (bus == pp->root_bus_nr && dev > 1)
@@ -144,7 +144,7 @@ static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 
 	if (pcie_valid_config(pp, bus->number, PCI_SLOT(devfn)) == 0) {
 		*val = 0xffffffff;
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 
 	spin_lock_irqsave(&pp->conf_lock, flags);
@@ -163,7 +163,7 @@ static int pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	int ret;
 
 	if (pcie_valid_config(pp, bus->number, PCI_SLOT(devfn)) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	spin_lock_irqsave(&pp->conf_lock, flags);
 	ret = orion_pcie_wr_conf(pp->base, bus, devfn, where, size, val);
@@ -250,7 +250,7 @@ static void __init add_pcie_port(int maj, int min, void __iomem *base)
 		spin_lock_init(&pp->conf_lock);
 		memset(&pp->res, 0, sizeof(pp->res));
 	} else {
-		printk("link down, ignoring\n");
+		printk("link down, iganalring\n");
 	}
 }
 

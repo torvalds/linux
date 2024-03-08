@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2008 Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012 MIPS Techanallogies, Inc.  All rights reserved.
  */
 
 #define pr_fmt(fmt) "irq-mips-gic: " fmt
@@ -446,7 +446,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	return 0;
 }
 
-static int gic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+static int gic_irq_domain_xlate(struct irq_domain *d, struct device_analde *ctrlr,
 				const u32 *intspec, unsigned int intsize,
 				irq_hw_number_t *out_hwirq,
 				unsigned int *out_type)
@@ -504,7 +504,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	case GIC_LOCAL_INT_FDC:
 		/*
 		 * HACK: These are all really percpu interrupts, but
-		 * the rest of the MIPS kernel code does not use the
+		 * the rest of the MIPS kernel code does analt use the
 		 * percpu IRQ API for them.
 		 */
 		cd = &gic_all_vpes_chip_data[intr];
@@ -571,13 +571,13 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 
 #ifdef CONFIG_GENERIC_IRQ_IPI
 
-static int gic_ipi_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+static int gic_ipi_domain_xlate(struct irq_domain *d, struct device_analde *ctrlr,
 				const u32 *intspec, unsigned int intsize,
 				irq_hw_number_t *out_hwirq,
 				unsigned int *out_type)
 {
 	/*
-	 * There's nothing to translate here. hwirq is dynamically allocated and
+	 * There's analthing to translate here. hwirq is dynamically allocated and
 	 * the irq type is always edge triggered.
 	 * */
 	*out_hwirq = 0;
@@ -595,9 +595,9 @@ static int gic_ipi_domain_alloc(struct irq_domain *d, unsigned int virq,
 
 	base_hwirq = find_first_bit(ipi_available, gic_shared_intrs);
 	if (base_hwirq == gic_shared_intrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* check that we have enough space */
+	/* check that we have eanalugh space */
 	for (i = base_hwirq; i < nr_irqs; i++) {
 		if (!test_bit(i, ipi_available))
 			return -EBUSY;
@@ -652,7 +652,7 @@ static void gic_ipi_domain_free(struct irq_domain *d, unsigned int virq,
 	bitmap_set(ipi_available, base_hwirq, nr_irqs);
 }
 
-static int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
+static int gic_ipi_domain_match(struct irq_domain *d, struct device_analde *analde,
 				enum irq_domain_bus_token bus_token)
 {
 	bool is_ipi;
@@ -660,7 +660,7 @@ static int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
 	switch (bus_token) {
 	case DOMAIN_BUS_IPI:
 		is_ipi = d->bus_token == bus_token;
-		return (!node || to_of_node(d->fwnode) == node) && is_ipi;
+		return (!analde || to_of_analde(d->fwanalde) == analde) && is_ipi;
 		break;
 	default:
 		return 0;
@@ -674,7 +674,7 @@ static const struct irq_domain_ops gic_ipi_domain_ops = {
 	.match = gic_ipi_domain_match,
 };
 
-static int gic_register_ipi_domain(struct device_node *node)
+static int gic_register_ipi_domain(struct device_analde *analde)
 {
 	struct irq_domain *gic_ipi_domain;
 	unsigned int v[2], num_ipis;
@@ -682,7 +682,7 @@ static int gic_register_ipi_domain(struct device_node *node)
 	gic_ipi_domain = irq_domain_add_hierarchy(gic_irq_domain,
 						  IRQ_DOMAIN_FLAG_IPI_PER_CPU,
 						  GIC_NUM_LOCAL_INTRS + gic_shared_intrs,
-						  node, &gic_ipi_domain_ops, NULL);
+						  analde, &gic_ipi_domain_ops, NULL);
 	if (!gic_ipi_domain) {
 		pr_err("Failed to add IPI domain");
 		return -ENXIO;
@@ -690,8 +690,8 @@ static int gic_register_ipi_domain(struct device_node *node)
 
 	irq_domain_update_bus_token(gic_ipi_domain, DOMAIN_BUS_IPI);
 
-	if (node &&
-	    !of_property_read_u32_array(node, "mti,reserved-ipi-vectors", v, 2)) {
+	if (analde &&
+	    !of_property_read_u32_array(analde, "mti,reserved-ipi-vectors", v, 2)) {
 		bitmap_set(ipi_resrv, v[0], v[1]);
 	} else {
 		/*
@@ -709,7 +709,7 @@ static int gic_register_ipi_domain(struct device_node *node)
 
 #else /* !CONFIG_GENERIC_IRQ_IPI */
 
-static inline int gic_register_ipi_domain(struct device_node *node)
+static inline int gic_register_ipi_domain(struct device_analde *analde)
 {
 	return 0;
 }
@@ -731,8 +731,8 @@ static int gic_cpu_startup(unsigned int cpu)
 	return 0;
 }
 
-static int __init gic_of_init(struct device_node *node,
-			      struct device_node *parent)
+static int __init gic_of_init(struct device_analde *analde,
+			      struct device_analde *parent)
 {
 	unsigned int cpu_vec, i, gicconfig;
 	unsigned long reserved;
@@ -744,19 +744,19 @@ static int __init gic_of_init(struct device_node *node,
 	/* Find the first available CPU vector. */
 	i = 0;
 	reserved = (C_SW0 | C_SW1) >> __ffs(C_SW0);
-	while (!of_property_read_u32_index(node, "mti,reserved-cpu-vectors",
+	while (!of_property_read_u32_index(analde, "mti,reserved-cpu-vectors",
 					   i++, &cpu_vec))
 		reserved |= BIT(cpu_vec);
 
 	cpu_vec = find_first_zero_bit(&reserved, hweight_long(ST0_IM));
 	if (cpu_vec == hweight_long(ST0_IM)) {
-		pr_err("No CPU vectors available\n");
-		return -ENODEV;
+		pr_err("Anal CPU vectors available\n");
+		return -EANALDEV;
 	}
 
-	if (of_address_to_resource(node, 0, &res)) {
+	if (of_address_to_resource(analde, 0, &res)) {
 		/*
-		 * Probe the CM for the GIC base address if not specified
+		 * Probe the CM for the GIC base address if analt specified
 		 * in the device-tree.
 		 */
 		if (mips_cm_present()) {
@@ -767,7 +767,7 @@ static int __init gic_of_init(struct device_node *node,
 				&gic_base);
 		} else {
 			pr_err("Failed to get memory range\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else {
 		gic_base = res.start;
@@ -783,7 +783,7 @@ static int __init gic_of_init(struct device_node *node,
 	mips_gic_base = ioremap(gic_base, gic_len);
 	if (!mips_gic_base) {
 		pr_err("Failed to ioremap gic_base\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gicconfig = read_gic_config();
@@ -801,7 +801,7 @@ static int __init gic_of_init(struct device_node *node,
 					gic_irq_dispatch);
 	}
 
-	gic_irq_domain = irq_domain_add_simple(node, GIC_NUM_LOCAL_INTRS +
+	gic_irq_domain = irq_domain_add_simple(analde, GIC_NUM_LOCAL_INTRS +
 					       gic_shared_intrs, 0,
 					       &gic_irq_domain_ops, NULL);
 	if (!gic_irq_domain) {
@@ -809,7 +809,7 @@ static int __init gic_of_init(struct device_node *node,
 		return -ENXIO;
 	}
 
-	ret = gic_register_ipi_domain(node);
+	ret = gic_register_ipi_domain(analde);
 	if (ret)
 		return ret;
 

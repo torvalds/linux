@@ -6,17 +6,17 @@
 #define PACKAGE_LEVEL	1
 
 /* Interrupt Handler for package thermal thresholds */
-extern int (*platform_thermal_package_notify)(__u64 msr_val);
+extern int (*platform_thermal_package_analtify)(__u64 msr_val);
 
 /* Interrupt Handler for core thermal thresholds */
-extern int (*platform_thermal_notify)(__u64 msr_val);
+extern int (*platform_thermal_analtify)(__u64 msr_val);
 
 /* Callback support of rate control, return true, if
  * callback has rate control */
 extern bool (*platform_thermal_package_rate_control)(void);
 
 /* Handle HWP interrupt */
-extern void notify_hwp_interrupt(void);
+extern void analtify_hwp_interrupt(void);
 
 /* Common function to clear Package thermal status register */
 extern void thermal_clear_package_intr_status(int level, u64 bit_mask);

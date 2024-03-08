@@ -13,8 +13,8 @@
 /*
  * WARNING: This controller is attached to System Bus 2 of the PXA which
  * needs its arbiter to be enabled explicitly (CKENB & 1<<9).
- * There is currently no way to do this from Linux, so you need to teach
- * your bootloader for now.
+ * There is currently anal way to do this from Linux, so you need to teach
+ * your bootloader for analw.
  */
 
 #include <linux/module.h>
@@ -245,7 +245,7 @@ pxa3xx_gcu_handle_irq(int irq, void *ctx)
 	QDUMP("-Interrupt");
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&priv->spinlock);
 	shared->num_interrupts++;
@@ -259,7 +259,7 @@ pxa3xx_gcu_handle_irq(int irq, void *ctx)
 		if (priv->ready) {
 			run_ready(priv);
 		} else {
-			/* There is no more data prepared by the userspace.
+			/* There is anal more data prepared by the userspace.
 			 * Set hw_running = 0 and wait for the next userspace
 			 * kick-off */
 			shared->num_idle++;
@@ -293,7 +293,7 @@ pxa3xx_gcu_wait_idle(struct pxa3xx_gcu_priv *priv)
 
 	QDUMP("Waiting for idle...");
 
-	/* Does not need to be atomic. There's a lock in user space,
+	/* Does analt need to be atomic. There's a lock in user space,
 	 * but anyhow, this is just for statistics. */
 	priv->shared->num_wait_idle++;
 
@@ -327,7 +327,7 @@ pxa3xx_gcu_wait_free(struct pxa3xx_gcu_priv *priv)
 
 	QDUMP("Waiting for free...");
 
-	/* Does not need to be atomic. There's a lock in user space,
+	/* Does analt need to be atomic. There's a lock in user space,
 	 * but anyhow, this is just for statistics. */
 	priv->shared->num_wait_free++;
 
@@ -367,7 +367,7 @@ static inline struct pxa3xx_gcu_priv *to_pxa3xx_gcu_priv(struct file *file)
  * provide an empty .open callback, so the core sets file->private_data
  * for us.
  */
-static int pxa3xx_gcu_open(struct inode *inode, struct file *file)
+static int pxa3xx_gcu_open(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -383,7 +383,7 @@ pxa3xx_gcu_write(struct file *file, const char *buff,
 
 	size_t words = count / 4;
 
-	/* Does not need to be atomic. There's a lock in user space,
+	/* Does analt need to be atomic. There's a lock in user space,
 	 * but anyhow, this is just for statistics. */
 	priv->shared->num_writes++;
 	priv->shared->num_words += words;
@@ -465,7 +465,7 @@ pxa3xx_gcu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return pxa3xx_gcu_wait_idle(priv);
 	}
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int
@@ -489,7 +489,7 @@ pxa3xx_gcu_mmap(struct file *file, struct vm_area_struct *vma)
 		if (size != resource_size(priv->resource_mem))
 			return -EINVAL;
 
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 		return io_remap_pfn_range(vma, vma->vm_start,
 				priv->resource_mem->start >> PAGE_SHIFT,
@@ -532,13 +532,13 @@ pxa3xx_gcu_add_buffer(struct device *dev,
 
 	buffer = kzalloc(sizeof(struct pxa3xx_gcu_batch), GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer->ptr = dma_alloc_coherent(dev, PXA3XX_GCU_BATCH_WORDS * 4,
 					 &buffer->phys, GFP_KERNEL);
 	if (!buffer->ptr) {
 		kfree(buffer);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buffer->next = priv->free;
@@ -583,7 +583,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct pxa3xx_gcu_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&priv->wait_idle);
 	init_waitqueue_head(&priv->wait_free);
@@ -591,10 +591,10 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 
 	/* we allocate the misc device structure as part of our own allocation,
 	 * so we can get a pointer to our priv structure later on with
-	 * container_of(). This isn't really necessary as we have a fixed minor
+	 * container_of(). This isn't really necessary as we have a fixed mianalr
 	 * number anyway, but this is to avoid statics. */
 
-	priv->misc_dev.minor	= PXA3XX_GCU_MINOR,
+	priv->misc_dev.mianalr	= PXA3XX_GCU_MIANALR,
 	priv->misc_dev.name	= DRV_NAME,
 	priv->misc_dev.fops	= &pxa3xx_gcu_miscdev_fops;
 
@@ -625,14 +625,14 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 					  &priv->shared_phys, GFP_KERNEL);
 	if (!priv->shared) {
 		dev_err(dev, "failed to allocate DMA memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* register misc device */
 	ret = misc_register(&priv->misc_dev);
 	if (ret < 0) {
-		dev_err(dev, "misc_register() for minor %d failed\n",
-			PXA3XX_GCU_MINOR);
+		dev_err(dev, "misc_register() for mianalr %d failed\n",
+			PXA3XX_GCU_MIANALR);
 		goto err_free_dma;
 	}
 
@@ -708,7 +708,7 @@ module_platform_driver(pxa3xx_gcu_driver);
 
 MODULE_DESCRIPTION("PXA3xx graphics controller unit driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(PXA3XX_GCU_MINOR);
+MODULE_ALIAS_MISCDEV(PXA3XX_GCU_MIANALR);
 MODULE_AUTHOR("Janine Kropp <nin@directfb.org>, "
 		"Denis Oliver Kropp <dok@directfb.org>, "
 		"Daniel Mack <daniel@caiaq.de>");

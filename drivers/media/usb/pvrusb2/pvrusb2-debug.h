@@ -11,8 +11,8 @@ extern int pvrusb2_debug;
 #define pvr2_trace(msk, fmt, arg...) do {if (msk & pvrusb2_debug) pr_info("pvrusb2: " fmt "\n", ##arg); } while (0)
 
 /* These are listed in *rough* order of decreasing usefulness and
-   increasing noise level. */
-#define PVR2_TRACE_INFO       (1 <<  0) /* Normal messages */
+   increasing analise level. */
+#define PVR2_TRACE_INFO       (1 <<  0) /* Analrmal messages */
 #define PVR2_TRACE_ERROR_LEGS (1 <<  1) /* error messages */
 #define PVR2_TRACE_TOLERANCE  (1 <<  2) /* track tolerance-affected errors */
 #define PVR2_TRACE_TRAP       (1 <<  3) /* Trap & report app misbehavior */

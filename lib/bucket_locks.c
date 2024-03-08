@@ -33,7 +33,7 @@ int __alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *locks_mask,
 	if (sizeof(spinlock_t) != 0) {
 		tlocks = kvmalloc_array(size, sizeof(spinlock_t), gfp);
 		if (!tlocks)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (i = 0; i < size; i++) {
 			spin_lock_init(&tlocks[i]);
 			lockdep_init_map(&tlocks[i].dep_map, name, key, 0);

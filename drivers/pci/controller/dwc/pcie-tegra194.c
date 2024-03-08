@@ -73,12 +73,12 @@
 #define APPL_INTR_STATUS_L0_CDM_REG_CHK_INT	BIT(18)
 
 #define APPL_INTR_EN_L1_0_0				0x1C
-#define APPL_INTR_EN_L1_0_0_LINK_REQ_RST_NOT_INT_EN	BIT(1)
+#define APPL_INTR_EN_L1_0_0_LINK_REQ_RST_ANALT_INT_EN	BIT(1)
 #define APPL_INTR_EN_L1_0_0_RDLH_LINK_UP_INT_EN		BIT(3)
 #define APPL_INTR_EN_L1_0_0_HOT_RESET_DONE_INT_EN	BIT(30)
 
 #define APPL_INTR_STATUS_L1_0_0				0x20
-#define APPL_INTR_STATUS_L1_0_0_LINK_REQ_RST_NOT_CHGED	BIT(1)
+#define APPL_INTR_STATUS_L1_0_0_LINK_REQ_RST_ANALT_CHGED	BIT(1)
 #define APPL_INTR_STATUS_L1_0_0_RDLH_LINK_UP_CHGED	BIT(3)
 #define APPL_INTR_STATUS_L1_0_0_HOT_RESET_DONE		BIT(30)
 
@@ -126,7 +126,7 @@
 
 #define APPL_LTR_MSG_1				0xC4
 #define LTR_MSG_REQ				BIT(15)
-#define LTR_NOSNOOP_MSG_REQ			BIT(31)
+#define LTR_ANALSANALOP_MSG_REQ			BIT(31)
 
 #define APPL_LTR_MSG_2				0xC8
 #define APPL_LTR_MSG_2_LTR_MSG_REQ_STATE	BIT(3)
@@ -142,7 +142,7 @@
 #define LTSSM_STATE_PRE_DETECT			5
 
 #define APPL_RADM_STATUS			0xE4
-#define APPL_PM_XMT_TURNOFF_STATE		BIT(0)
+#define APPL_PM_XMT_TURANALFF_STATE		BIT(0)
 
 #define APPL_DM_TYPE				0x100
 #define APPL_DM_TYPE_MASK			GENMASK(3, 0)
@@ -341,8 +341,8 @@ static void apply_bad_link_workaround(struct dw_pcie_rp *pp)
 	u16 val;
 
 	/*
-	 * NOTE:- Since this scenario is uncommon and link as such is not
-	 * stable anyway, not waiting to confirm if link is really
+	 * ANALTE:- Since this scenario is uncommon and link as such is analt
+	 * stable anyway, analt waiting to confirm if link is really
 	 * transitioning to Gen-2 speed
 	 */
 	val = dw_pcie_readw_dbi(pci, pcie->pcie_cap_base + PCI_EXP_LNKSTA);
@@ -379,7 +379,7 @@ static irqreturn_t tegra_pcie_rp_irq_handler(int irq, void *arg)
 		status_l1 = appl_readl(pcie, APPL_INTR_STATUS_L1_0_0);
 		appl_writel(pcie, status_l1, APPL_INTR_STATUS_L1_0_0);
 		if (!pcie->of_data->has_sbr_reset_fix &&
-		    status_l1 & APPL_INTR_STATUS_L1_0_0_LINK_REQ_RST_NOT_CHGED) {
+		    status_l1 & APPL_INTR_STATUS_L1_0_0_LINK_REQ_RST_ANALT_CHGED) {
 			/* SBR & Surprise Link Down WAR */
 			val = appl_readl(pcie, APPL_CAR_RESET_OVRD);
 			val &= ~APPL_CAR_RESET_OVRD_CYA_OVERRIDE_CORE_RST_N;
@@ -495,13 +495,13 @@ static irqreturn_t tegra_pcie_ep_irq_thread(int irq, void *arg)
 	if (val & PCI_COMMAND_MASTER) {
 		ktime_t timeout;
 
-		/* 110us for both snoop and no-snoop */
+		/* 110us for both sanalop and anal-sanalop */
 		val = FIELD_PREP(PCI_LTR_VALUE_MASK, 110) |
 		      FIELD_PREP(PCI_LTR_SCALE_MASK, 2) |
 		      LTR_MSG_REQ |
-		      FIELD_PREP(PCI_LTR_NOSNOOP_VALUE, 110) |
-		      FIELD_PREP(PCI_LTR_NOSNOOP_SCALE, 2) |
-		      LTR_NOSNOOP_MSG_REQ;
+		      FIELD_PREP(PCI_LTR_ANALSANALOP_VALUE, 110) |
+		      FIELD_PREP(PCI_LTR_ANALSANALOP_SCALE, 2) |
+		      LTR_ANALSANALOP_MSG_REQ;
 		appl_writel(pcie, val, APPL_LTR_MSG_1);
 
 		/* Send LTR upstream */
@@ -747,7 +747,7 @@ static void tegra_pcie_enable_system_interrupts(struct dw_pcie_rp *pp)
 
 	if (!pcie->of_data->has_sbr_reset_fix) {
 		val = appl_readl(pcie, APPL_INTR_EN_L1_0_0);
-		val |= APPL_INTR_EN_L1_0_0_LINK_REQ_RST_NOT_INT_EN;
+		val |= APPL_INTR_EN_L1_0_0_LINK_REQ_RST_ANALT_INT_EN;
 		appl_writel(pcie, val, APPL_INTR_EN_L1_0_0);
 	}
 
@@ -933,7 +933,7 @@ static int tegra_pcie_dw_host_init(struct dw_pcie_rp *pp)
 
 	init_host_aspm(pcie);
 
-	/* Disable ASPM-L1SS advertisement if there is no CLKREQ routing */
+	/* Disable ASPM-L1SS advertisement if there is anal CLKREQ routing */
 	if (!pcie->supports_clkreq) {
 		disable_aspm_l11(pcie);
 		disable_aspm_l12(pcie);
@@ -941,7 +941,7 @@ static int tegra_pcie_dw_host_init(struct dw_pcie_rp *pp)
 
 	if (!pcie->of_data->has_l1ss_exit_fix) {
 		val = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);
-		val &= ~GEN3_RELATED_OFF_GEN3_ZRXDC_NONCOMPL;
+		val &= ~GEN3_RELATED_OFF_GEN3_ZRXDC_ANALNCOMPL;
 		dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, val);
 	}
 
@@ -1103,13 +1103,13 @@ phy_exit:
 static int tegra_pcie_dw_parse_dt(struct tegra_pcie_dw *pcie)
 {
 	struct platform_device *pdev = to_platform_device(pcie->dev);
-	struct device_node *np = pcie->dev->of_node;
+	struct device_analde *np = pcie->dev->of_analde;
 	int ret;
 
 	pcie->dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
 	if (!pcie->dbi_res) {
 		dev_err(pcie->dev, "Failed to find \"dbi\" region\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = of_property_read_u32(np, "nvidia,aspm-cmrt-us", &pcie->aspm_cmrt);
@@ -1159,12 +1159,12 @@ static int tegra_pcie_dw_parse_dt(struct tegra_pcie_dw *pcie)
 			pcie->enable_ext_refclk = true;
 	} else {
 		pcie->enable_ext_refclk =
-			of_property_read_bool(pcie->dev->of_node,
+			of_property_read_bool(pcie->dev->of_analde,
 					      "nvidia,enable-ext-refclk");
 	}
 
 	pcie->supports_clkreq =
-		of_property_read_bool(pcie->dev->of_node, "supports-clkreq");
+		of_property_read_bool(pcie->dev->of_analde, "supports-clkreq");
 
 	pcie->enable_cdm_check =
 		of_property_read_bool(np, "snps,enable-cdm-check");
@@ -1277,15 +1277,15 @@ static void tegra_pcie_downstream_dev_to_D0(struct tegra_pcie_dw *pcie)
 
 	/*
 	 * link doesn't go into L2 state with some of the endpoints with Tegra
-	 * if they are not in D0 state. So, need to make sure that immediate
+	 * if they are analt in D0 state. So, need to make sure that immediate
 	 * downstream devices are in D0 state before sending PME_TurnOff to put
 	 * link into L2 state.
 	 * This is as per PCI Express Base r4.0 v1.0 September 27-2017,
 	 * 5.2 Link State Power Management (Page #428).
 	 */
 
-	list_for_each_entry(child, &pp->bridge->bus->children, node) {
-		/* Bring downstream devices to D0 if they are not already in */
+	list_for_each_entry(child, &pp->bridge->bus->children, analde) {
+		/* Bring downstream devices to D0 if they are analt already in */
 		if (child->parent == pp->bridge->bus) {
 			root_bus = child;
 			break;
@@ -1311,7 +1311,7 @@ static int tegra_pcie_get_slot_regulators(struct tegra_pcie_dw *pcie)
 {
 	pcie->slot_ctl_3v3 = devm_regulator_get_optional(pcie->dev, "vpcie3v3");
 	if (IS_ERR(pcie->slot_ctl_3v3)) {
-		if (PTR_ERR(pcie->slot_ctl_3v3) != -ENODEV)
+		if (PTR_ERR(pcie->slot_ctl_3v3) != -EANALDEV)
 			return PTR_ERR(pcie->slot_ctl_3v3);
 
 		pcie->slot_ctl_3v3 = NULL;
@@ -1319,7 +1319,7 @@ static int tegra_pcie_get_slot_regulators(struct tegra_pcie_dw *pcie)
 
 	pcie->slot_ctl_12v = devm_regulator_get_optional(pcie->dev, "vpcie12v");
 	if (IS_ERR(pcie->slot_ctl_12v)) {
-		if (PTR_ERR(pcie->slot_ctl_12v) != -ENODEV)
+		if (PTR_ERR(pcie->slot_ctl_12v) != -EANALDEV)
 			return PTR_ERR(pcie->slot_ctl_12v);
 
 		pcie->slot_ctl_12v = NULL;
@@ -1453,7 +1453,7 @@ static int tegra_pcie_config_controller(struct tegra_pcie_dw *pcie,
 
 	if (pcie->enable_srns || pcie->enable_ext_refclk) {
 		/*
-		 * When Tegra PCIe RP is using external clock, it cannot supply
+		 * When Tegra PCIe RP is using external clock, it cananalt supply
 		 * same clock to its downstream hierarchy. Hence, gate PCIe RP
 		 * REFCLK out pads when RP & EP are using separate clocks or RP
 		 * is using an external REFCLK.
@@ -1564,7 +1564,7 @@ static int tegra_pcie_try_link_l2(struct tegra_pcie_dw *pcie)
 		return 0;
 
 	val = appl_readl(pcie, APPL_RADM_STATUS);
-	val |= APPL_PM_XMT_TURNOFF_STATE;
+	val |= APPL_PM_XMT_TURANALFF_STATE;
 	appl_writel(pcie, val, APPL_RADM_STATUS);
 
 	return readl_poll_timeout_atomic(pcie->appl_base + APPL_DEBUG, val,
@@ -1572,13 +1572,13 @@ static int tegra_pcie_try_link_l2(struct tegra_pcie_dw *pcie)
 				 1, PME_ACK_TIMEOUT);
 }
 
-static void tegra_pcie_dw_pme_turnoff(struct tegra_pcie_dw *pcie)
+static void tegra_pcie_dw_pme_turanalff(struct tegra_pcie_dw *pcie)
 {
 	u32 data;
 	int err;
 
 	if (!tegra_pcie_dw_link_up(&pcie->pci)) {
-		dev_dbg(pcie->dev, "PCIe link is not up...!\n");
+		dev_dbg(pcie->dev, "PCIe link is analt up...!\n");
 		return;
 	}
 
@@ -1587,7 +1587,7 @@ static void tegra_pcie_dw_pme_turnoff(struct tegra_pcie_dw *pcie)
 	 * controller doesn't handle interrupts. But in cases where
 	 * L2 entry fails, PERST# is asserted which can trigger surprise
 	 * link down AER. However this function call happens in
-	 * suspend_noirq(), so AER interrupt will not be processed.
+	 * suspend_analirq(), so AER interrupt will analt be processed.
 	 * Disable all interrupts to avoid such a scenario.
 	 */
 	appl_writel(pcie, 0x0, APPL_INTR_EN_L0_0);
@@ -1605,7 +1605,7 @@ static void tegra_pcie_dw_pme_turnoff(struct tegra_pcie_dw *pcie)
 		appl_writel(pcie, data, APPL_PINMUX);
 
 		/*
-		 * Some cards do not go to detect state even after de-asserting
+		 * Some cards do analt go to detect state even after de-asserting
 		 * PERST#. So, de-assert LTSSM to bring link to detect state.
 		 */
 		data = readl(pcie->appl_base + APPL_CTRL);
@@ -1623,7 +1623,7 @@ static void tegra_pcie_dw_pme_turnoff(struct tegra_pcie_dw *pcie)
 			dev_info(pcie->dev, "Link didn't go to detect state\n");
 	}
 	/*
-	 * DBI registers may not be accessible after this as PLL-E would be
+	 * DBI registers may analt be accessible after this as PLL-E would be
 	 * down depending on how CLKREQ is pulled by end point
 	 */
 	data = appl_readl(pcie, APPL_PINMUX);
@@ -1638,7 +1638,7 @@ static void tegra_pcie_deinit_controller(struct tegra_pcie_dw *pcie)
 {
 	tegra_pcie_downstream_dev_to_D0(pcie);
 	dw_pcie_host_deinit(&pcie->pci.pp);
-	tegra_pcie_dw_pme_turnoff(pcie);
+	tegra_pcie_dw_pme_turanalff(pcie);
 	tegra_pcie_unconfig_controller(pcie);
 }
 
@@ -1671,13 +1671,13 @@ static int tegra_pcie_config_rp(struct tegra_pcie_dw *pcie)
 
 	pcie->link_state = tegra_pcie_dw_link_up(&pcie->pci);
 	if (!pcie->link_state) {
-		ret = -ENOMEDIUM;
+		ret = -EANALMEDIUM;
 		goto fail_host_init;
 	}
 
-	name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_node);
+	name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_analde);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_host_init;
 	}
 
@@ -1863,7 +1863,7 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 
 	init_host_aspm(pcie);
 
-	/* Disable ASPM-L1SS advertisement if there is no CLKREQ routing */
+	/* Disable ASPM-L1SS advertisement if there is anal CLKREQ routing */
 	if (!pcie->supports_clkreq) {
 		disable_aspm_l11(pcie);
 		disable_aspm_l12(pcie);
@@ -1871,7 +1871,7 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 
 	if (!pcie->of_data->has_l1ss_exit_fix) {
 		val = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);
-		val &= ~GEN3_RELATED_OFF_GEN3_ZRXDC_NONCOMPL;
+		val &= ~GEN3_RELATED_OFF_GEN3_ZRXDC_ANALNCOMPL;
 		dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, val);
 	}
 
@@ -1901,7 +1901,7 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 		goto fail_init_complete;
 	}
 
-	dw_pcie_ep_init_notify(ep);
+	dw_pcie_ep_init_analtify(ep);
 
 	/* Program the private control to allow sending LTR upstream */
 	if (pcie->of_data->has_ltr_req_fix) {
@@ -1978,7 +1978,7 @@ static int tegra_pcie_ep_raise_msix_irq(struct tegra_pcie_dw *pcie, u16 irq)
 	return 0;
 }
 
-static int tegra_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int tegra_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_anal,
 				   unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -1995,7 +1995,7 @@ static int tegra_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 		return tegra_pcie_ep_raise_msix_irq(pcie, interrupt_num);
 
 	default:
-		dev_err(pci->dev, "Unknown IRQ type\n");
+		dev_err(pci->dev, "Unkanalwn IRQ type\n");
 		return -EPERM;
 	}
 
@@ -2003,8 +2003,8 @@ static int tegra_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 }
 
 static const struct pci_epc_features tegra_pcie_epc_features = {
-	.linkup_notifier = true,
-	.core_init_notifier = true,
+	.linkup_analtifier = true,
+	.core_init_analtifier = true,
 	.msi_capable = false,
 	.msix_capable = false,
 	.reserved_bar = 1 << BAR_2 | 1 << BAR_3 | 1 << BAR_4 | 1 << BAR_5,
@@ -2055,10 +2055,10 @@ static int tegra_pcie_config_ep(struct tegra_pcie_dw *pcie,
 			      pcie->cid);
 	if (!name) {
 		dev_err(dev, "Failed to create PERST IRQ string\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	irq_set_status_flags(pcie->pex_rst_irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(pcie->pex_rst_irq, IRQ_ANALAUTOEN);
 
 	pcie->ep_state = EP_STATE_DISABLED;
 
@@ -2102,7 +2102,7 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = &pcie->pci;
 	pci->dev = &pdev->dev;
@@ -2163,7 +2163,7 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 						      "appl");
 	if (!pcie->appl_res) {
 		dev_err(dev, "Failed to find \"appl\" region\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pcie->appl_base = devm_ioremap_resource(dev, pcie->appl_res);
@@ -2179,13 +2179,13 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 
 	phys = devm_kcalloc(dev, pcie->phy_count, sizeof(*phys), GFP_KERNEL);
 	if (!phys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pcie->phy_count; i++) {
 		name = kasprintf(GFP_KERNEL, "p2u-%u", i);
 		if (!name) {
 			dev_err(dev, "Failed to create P2U string\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		phys[i] = devm_phy_get(dev, name);
 		kfree(name);
@@ -2203,7 +2203,7 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 						   "atu_dma");
 	if (!atu_dma_res) {
 		dev_err(dev, "Failed to find \"atu_dma\" region\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pcie->atu_dma_res = atu_dma_res;
 
@@ -2248,7 +2248,7 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 		}
 
 		ret = tegra_pcie_config_rp(pcie);
-		if (ret && ret != -ENOMEDIUM)
+		if (ret && ret != -EANALMEDIUM)
 			goto fail;
 		else
 			return 0;
@@ -2328,7 +2328,7 @@ static int tegra_pcie_dw_suspend_late(struct device *dev)
 	return 0;
 }
 
-static int tegra_pcie_dw_suspend_noirq(struct device *dev)
+static int tegra_pcie_dw_suspend_analirq(struct device *dev)
 {
 	struct tegra_pcie_dw *pcie = dev_get_drvdata(dev);
 
@@ -2336,13 +2336,13 @@ static int tegra_pcie_dw_suspend_noirq(struct device *dev)
 		return 0;
 
 	tegra_pcie_downstream_dev_to_D0(pcie);
-	tegra_pcie_dw_pme_turnoff(pcie);
+	tegra_pcie_dw_pme_turanalff(pcie);
 	tegra_pcie_unconfig_controller(pcie);
 
 	return 0;
 }
 
-static int tegra_pcie_dw_resume_noirq(struct device *dev)
+static int tegra_pcie_dw_resume_analirq(struct device *dev)
 {
 	struct tegra_pcie_dw *pcie = dev_get_drvdata(dev);
 	int ret;
@@ -2379,8 +2379,8 @@ static int tegra_pcie_dw_resume_early(struct device *dev)
 	u32 val;
 
 	if (pcie->of_data->mode == DW_PCIE_EP_TYPE) {
-		dev_err(dev, "Suspend is not supported in EP mode");
-		return -ENOTSUPP;
+		dev_err(dev, "Suspend is analt supported in EP mode");
+		return -EANALTSUPP;
 	}
 
 	if (!pcie->link_state)
@@ -2415,7 +2415,7 @@ static void tegra_pcie_dw_shutdown(struct platform_device *pdev)
 		if (IS_ENABLED(CONFIG_PCI_MSI))
 			disable_irq(pcie->pci.pp.msi_irq[0]);
 
-		tegra_pcie_dw_pme_turnoff(pcie);
+		tegra_pcie_dw_pme_turanalff(pcie);
 		tegra_pcie_unconfig_controller(pcie);
 		pm_runtime_put_sync(pcie->dev);
 	} else {
@@ -2487,8 +2487,8 @@ static const struct of_device_id tegra_pcie_dw_of_match[] = {
 
 static const struct dev_pm_ops tegra_pcie_dw_pm_ops = {
 	.suspend_late = tegra_pcie_dw_suspend_late,
-	.suspend_noirq = tegra_pcie_dw_suspend_noirq,
-	.resume_noirq = tegra_pcie_dw_resume_noirq,
+	.suspend_analirq = tegra_pcie_dw_suspend_analirq,
+	.resume_analirq = tegra_pcie_dw_resume_analirq,
 	.resume_early = tegra_pcie_dw_resume_early,
 };
 

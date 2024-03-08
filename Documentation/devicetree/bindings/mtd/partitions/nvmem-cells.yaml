@@ -9,7 +9,7 @@ title: Nvmem cells
 description: |
   Any partition containing the compatible "nvmem-cells" will register as a
   nvmem provider.
-  Each direct subnodes represents a nvmem cell following the nvmem binding.
+  Each direct subanaldes represents a nvmem cell following the nvmem binding.
   Nvmem binding to declare nvmem-cells can be found in:
   Documentation/devicetree/bindings/nvmem/nvmem.yaml
 

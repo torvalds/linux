@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <bpf/bpf.h>
@@ -54,18 +54,18 @@ static void populate_map(uint32_t port_key, int magic_result)
 	assert(!ret);
 
 	ret = bpf_map_update_elem(PORT_H, &port_key, &magic_result,
-				  BPF_NOEXIST);
+				  BPF_ANALEXIST);
 	assert(!ret);
 
 	ret = bpf_map_update_elem(A_OF_PORT_A, &port_key, &PORT_A, BPF_ANY);
 	assert(!ret);
 	check_map_id(PORT_A, A_OF_PORT_A, port_key);
 
-	ret = bpf_map_update_elem(H_OF_PORT_A, &port_key, &PORT_A, BPF_NOEXIST);
+	ret = bpf_map_update_elem(H_OF_PORT_A, &port_key, &PORT_A, BPF_ANALEXIST);
 	assert(!ret);
 	check_map_id(PORT_A, H_OF_PORT_A, port_key);
 
-	ret = bpf_map_update_elem(H_OF_PORT_H, &port_key, &PORT_H, BPF_NOEXIST);
+	ret = bpf_map_update_elem(H_OF_PORT_H, &port_key, &PORT_H, BPF_ANALEXIST);
 	assert(!ret);
 	check_map_id(PORT_H, H_OF_PORT_H, port_key);
 }
@@ -91,7 +91,7 @@ static void test_map_in_map(void)
 
 		in6.sin6_addr.s6_addr16[7] = i;
 		ret = connect(-1, (struct sockaddr *)&in6, sizeof(in6));
-		assert(ret == -1 && errno == EBADF);
+		assert(ret == -1 && erranal == EBADF);
 
 		ret = bpf_map_lookup_elem(REG_RESULT_H, &result_key, &result);
 		assert(!ret);

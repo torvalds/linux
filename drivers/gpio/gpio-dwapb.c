@@ -66,7 +66,7 @@
 struct dwapb_gpio;
 
 struct dwapb_port_property {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	unsigned int idx;
 	unsigned int ngpio;
 	unsigned int gpio_base;
@@ -437,7 +437,7 @@ static int dwapb_convert_irqs(struct dwapb_gpio_port_irqchip *pirq,
 		pirq->irq[pirq->nr_irqs++] = pp->irq[i];
 	}
 
-	return pirq->nr_irqs ? 0 : -ENOENT;
+	return pirq->nr_irqs ? 0 : -EANALENT;
 }
 
 static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
@@ -454,13 +454,13 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		return;
 
 	if (dwapb_convert_irqs(pirq, pp)) {
-		dev_warn(gpio->dev, "no IRQ for port%d\n", pp->idx);
+		dev_warn(gpio->dev, "anal IRQ for port%d\n", pp->idx);
 		goto err_kfree_pirq;
 	}
 
 	girq = &gc->irq;
 	girq->handler = handle_bad_irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 
 	port->pirq = pirq;
 
@@ -512,7 +512,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 #ifdef CONFIG_PM_SLEEP
 	port->ctx = devm_kzalloc(gpio->dev, sizeof(*port->ctx), GFP_KERNEL);
 	if (!port->ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	dat = gpio->regs + GPIO_EXT_PORTA + pp->idx * GPIO_EXT_PORT_STRIDE;
@@ -528,7 +528,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 		return err;
 	}
 
-	port->gc.fwnode = pp->fwnode;
+	port->gc.fwanalde = pp->fwanalde;
 	port->gc.ngpio = pp->ngpio;
 	port->gc.base = pp->gpio_base;
 	port->gc.request = gpiochip_generic_request;
@@ -554,7 +554,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	return 0;
 }
 
-static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
+static void dwapb_get_irq(struct device *dev, struct fwanalde_handle *fwanalde,
 			  struct dwapb_port_property *pp)
 {
 	int irq, j;
@@ -563,7 +563,7 @@ static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
 		if (has_acpi_companion(dev))
 			irq = platform_get_irq_optional(to_platform_device(dev), j);
 		else
-			irq = fwnode_irq_get(fwnode, j);
+			irq = fwanalde_irq_get(fwanalde, j);
 		if (irq > 0)
 			pp->irq[j] = irq;
 	}
@@ -571,41 +571,41 @@ static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
 
 static struct dwapb_platform_data *dwapb_gpio_get_pdata(struct device *dev)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct dwapb_platform_data *pdata;
 	struct dwapb_port_property *pp;
 	int nports;
 	int i;
 
-	nports = device_get_child_node_count(dev);
+	nports = device_get_child_analde_count(dev);
 	if (nports == 0)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pdata->properties = devm_kcalloc(dev, nports, sizeof(*pp), GFP_KERNEL);
 	if (!pdata->properties)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pdata->nports = nports;
 
 	i = 0;
-	device_for_each_child_node(dev, fwnode)  {
+	device_for_each_child_analde(dev, fwanalde)  {
 		pp = &pdata->properties[i++];
-		pp->fwnode = fwnode;
+		pp->fwanalde = fwanalde;
 
-		if (fwnode_property_read_u32(fwnode, "reg", &pp->idx) ||
+		if (fwanalde_property_read_u32(fwanalde, "reg", &pp->idx) ||
 		    pp->idx >= DWAPB_MAX_PORTS) {
 			dev_err(dev,
 				"missing/invalid port index for port%d\n", i);
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return ERR_PTR(-EINVAL);
 		}
 
-		if (fwnode_property_read_u32(fwnode, "ngpios", &pp->ngpio) &&
-		    fwnode_property_read_u32(fwnode, "snps,nr-gpios", &pp->ngpio)) {
+		if (fwanalde_property_read_u32(fwanalde, "ngpios", &pp->ngpio) &&
+		    fwanalde_property_read_u32(fwanalde, "snps,nr-gpios", &pp->ngpio)) {
 			dev_info(dev,
 				 "failed to get number of gpios for port%d\n",
 				 i);
@@ -615,15 +615,15 @@ static struct dwapb_platform_data *dwapb_gpio_get_pdata(struct device *dev)
 		pp->gpio_base	= -1;
 
 		/* For internal use only, new platforms mustn't exercise this */
-		if (is_software_node(fwnode))
-			fwnode_property_read_u32(fwnode, "gpio-base", &pp->gpio_base);
+		if (is_software_analde(fwanalde))
+			fwanalde_property_read_u32(fwanalde, "gpio-base", &pp->gpio_base);
 
 		/*
 		 * Only port A can provide interrupts in all configurations of
 		 * the IP.
 		 */
 		if (pp->idx == 0)
-			dwapb_get_irq(dev, fwnode, pp);
+			dwapb_get_irq(dev, fwanalde, pp);
 	}
 
 	return pdata;
@@ -643,11 +643,11 @@ static int dwapb_get_reset(struct dwapb_gpio *gpio)
 	gpio->rst = devm_reset_control_get_optional_shared(gpio->dev, NULL);
 	if (IS_ERR(gpio->rst))
 		return dev_err_probe(gpio->dev, PTR_ERR(gpio->rst),
-				     "Cannot get reset descriptor\n");
+				     "Cananalt get reset descriptor\n");
 
 	err = reset_control_deassert(gpio->rst);
 	if (err) {
-		dev_err(gpio->dev, "Cannot deassert reset lane\n");
+		dev_err(gpio->dev, "Cananalt deassert reset lane\n");
 		return err;
 	}
 
@@ -672,11 +672,11 @@ static int dwapb_get_clks(struct dwapb_gpio *gpio)
 					 gpio->clks);
 	if (err)
 		return dev_err_probe(gpio->dev, err,
-				     "Cannot get APB/Debounce clocks\n");
+				     "Cananalt get APB/Debounce clocks\n");
 
 	err = clk_bulk_prepare_enable(DWAPB_NR_CLOCKS, gpio->clks);
 	if (err) {
-		dev_err(gpio->dev, "Cannot enable APB/Debounce clocks\n");
+		dev_err(gpio->dev, "Cananalt enable APB/Debounce clocks\n");
 		return err;
 	}
 
@@ -712,7 +712,7 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->dev = &pdev->dev;
 	gpio->nr_ports = pdata->nports;
@@ -724,7 +724,7 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 	gpio->ports = devm_kcalloc(&pdev->dev, gpio->nr_ports,
 				   sizeof(*gpio->ports), GFP_KERNEL);
 	if (!gpio->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio->regs))
@@ -798,7 +798,7 @@ static int dwapb_gpio_resume(struct device *dev)
 
 	err = clk_bulk_prepare_enable(DWAPB_NR_CLOCKS, gpio->clks);
 	if (err) {
-		dev_err(gpio->dev, "Cannot reenable APB/Debounce clocks\n");
+		dev_err(gpio->dev, "Cananalt reenable APB/Debounce clocks\n");
 		return err;
 	}
 
@@ -852,5 +852,5 @@ module_platform_driver(dwapb_gpio_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jamie Iles");
-MODULE_DESCRIPTION("Synopsys DesignWare APB GPIO driver");
+MODULE_DESCRIPTION("Syanalpsys DesignWare APB GPIO driver");
 MODULE_ALIAS("platform:" DWAPB_DRIVER_NAME);

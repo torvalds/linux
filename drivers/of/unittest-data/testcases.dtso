@@ -8,7 +8,7 @@
 	/*
 	 * testcase data that intentionally results in an error is located here
 	 * instead of in testcases_common.dtsi so that the static overlay apply
-	 * tests will not include the error.
+	 * tests will analt include the error.
 	 */
 	testcase-data {
 		testcase-device2 {

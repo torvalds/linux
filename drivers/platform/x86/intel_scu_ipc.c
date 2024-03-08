@@ -15,7 +15,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -78,7 +78,7 @@ struct intel_scu_ipc_dev {
 /* Timeout in jiffies */
 #define IPC_TIMEOUT		(10 * HZ)
 
-static struct intel_scu_ipc_dev *ipcdev; /* Only one for now */
+static struct intel_scu_ipc_dev *ipcdev; /* Only one for analw */
 static DEFINE_MUTEX(ipclock); /* lock used to prevent multiple call to SCU */
 
 static struct class intel_scu_ipc_class = {
@@ -90,12 +90,12 @@ static struct class intel_scu_ipc_class = {
  *
  * The recommended new API takes SCU IPC instance as parameter and this
  * function can be called by driver to get the instance. This also makes
- * sure the driver providing the IPC functionality cannot be unloaded
+ * sure the driver providing the IPC functionality cananalt be unloaded
  * while the caller has the instance.
  *
  * Call intel_scu_ipc_dev_put() to release the instance.
  *
- * Returns %NULL if SCU IPC is not currently available.
+ * Returns %NULL if SCU IPC is analt currently available.
  */
 struct intel_scu_ipc_dev *intel_scu_ipc_dev_get(void)
 {
@@ -154,10 +154,10 @@ static void devm_intel_scu_ipc_dev_release(struct device *dev, void *res)
  *
  * The recommended new API takes SCU IPC instance as parameter and this
  * function can be called by driver to get the instance. This also makes
- * sure the driver providing the IPC functionality cannot be unloaded
+ * sure the driver providing the IPC functionality cananalt be unloaded
  * while the caller has the instance.
  *
- * Returns %NULL if SCU IPC is not currently available.
+ * Returns %NULL if SCU IPC is analt currently available.
  */
 struct intel_scu_ipc_dev *devm_intel_scu_ipc_dev_get(struct device *dev)
 {
@@ -272,7 +272,7 @@ static struct intel_scu_ipc_dev *intel_scu_ipc_get(struct intel_scu_ipc_dev *scu
 	if (!scu)
 		scu = ipcdev;
 	if (!scu)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	status = ipc_read_status(scu);
 	if (status & IPC_STATUS_BUSY) {
@@ -440,8 +440,8 @@ EXPORT_SYMBOL(intel_scu_ipc_dev_update);
  * @cmd: Command
  * @sub: Sub type
  *
- * Issue a simple command to the SCU. Do not use this interface if you must
- * then access data as any data values may be overwritten by another SCU
+ * Issue a simple command to the SCU. Do analt use this interface if you must
+ * then access data as any data values may be overwritten by aanalther SCU
  * access by the time this function returns.
  *
  * This function may sleep. Locking for SCU accesses is handled for the
@@ -478,7 +478,7 @@ EXPORT_SYMBOL(intel_scu_ipc_dev_simple_command);
  * @in: Input data
  * @inlen: Input length in bytes
  * @size: Input size written to the IPC command register in whatever
- *	  units (dword, byte) the particular firmware requires. Normally
+ *	  units (dword, byte) the particular firmware requires. Analrmally
  *	  should be the same as @inlen.
  * @out: Output data
  * @outlen: Output length in bytes
@@ -532,9 +532,9 @@ EXPORT_SYMBOL(intel_scu_ipc_dev_command_with_size);
 /*
  * Interrupt handler gets called when ioc bit of IPC_COMMAND_REG set to 1
  * When ioc bit is set to 1, caller api must wait for interrupt handler called
- * which in turn unlocks the caller api. Currently this is not used
+ * which in turn unlocks the caller api. Currently this is analt used
  *
- * This is edge triggered so we need take no action to clear anything
+ * This is edge triggered so we need take anal action to clear anything
  */
 static irqreturn_t ioc(int irq, void *dev_id)
 {
@@ -588,7 +588,7 @@ __intel_scu_ipc_register(struct device *parent,
 
 	scu = kzalloc(sizeof(*scu), GFP_KERNEL);
 	if (!scu) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -605,7 +605,7 @@ __intel_scu_ipc_register(struct device *parent,
 
 	ipc_base = ioremap(scu_data->mem.start, resource_size(&scu_data->mem));
 	if (!ipc_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release;
 	}
 

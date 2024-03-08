@@ -258,7 +258,7 @@ struct bfa_ioc_cbfn_s {
 };
 
 /*
- * IOC event notification mechanism.
+ * IOC event analtification mechanism.
  */
 enum bfa_ioc_event_e {
 	BFA_IOC_E_ENABLED	= 1,
@@ -266,26 +266,26 @@ enum bfa_ioc_event_e {
 	BFA_IOC_E_FAILED	= 3,
 };
 
-typedef void (*bfa_ioc_notify_cbfn_t)(void *, enum bfa_ioc_event_e);
+typedef void (*bfa_ioc_analtify_cbfn_t)(void *, enum bfa_ioc_event_e);
 
-struct bfa_ioc_notify_s {
+struct bfa_ioc_analtify_s {
 	struct list_head		qe;
-	bfa_ioc_notify_cbfn_t	cbfn;
+	bfa_ioc_analtify_cbfn_t	cbfn;
 	void			*cbarg;
 };
 
 /*
- * Initialize a IOC event notification structure
+ * Initialize a IOC event analtification structure
  */
-#define bfa_ioc_notify_init(__notify, __cbfn, __cbarg) do {	\
-	(__notify)->cbfn = (__cbfn);      \
-	(__notify)->cbarg = (__cbarg);      \
+#define bfa_ioc_analtify_init(__analtify, __cbfn, __cbarg) do {	\
+	(__analtify)->cbfn = (__cbfn);      \
+	(__analtify)->cbarg = (__cbarg);      \
 } while (0)
 
 struct bfa_iocpf_s {
 	bfa_fsm_t		fsm;
 	struct bfa_ioc_s	*ioc;
-	bfa_boolean_t		fw_mismatch_notified;
+	bfa_boolean_t		fw_mismatch_analtified;
 	bfa_boolean_t		auto_recover;
 	u32			poll_time;
 };
@@ -299,7 +299,7 @@ struct bfa_ioc_s {
 	struct bfa_timer_s	sem_timer;
 	struct bfa_timer_s	hb_timer;
 	u32		hb_count;
-	struct list_head	notify_q;
+	struct list_head	analtify_q;
 	void			*dbg_fwsave;
 	int			dbg_fwsave_len;
 	bfa_boolean_t		dbg_fwsave_once;
@@ -335,7 +335,7 @@ struct bfa_ioc_hwif_s {
 	void		(*ioc_map_port)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_isr_mode_set)	(struct bfa_ioc_s *ioc,
 					bfa_boolean_t msix);
-	void		(*ioc_notify_fail)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_analtify_fail)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_ownership_reset)	(struct bfa_ioc_s *ioc);
 	bfa_boolean_t   (*ioc_sync_start)       (struct bfa_ioc_s *ioc);
 	void		(*ioc_sync_join)	(struct bfa_ioc_s *ioc);
@@ -386,7 +386,7 @@ enum iocfc_event {
 	IOCFC_E_DISABLE		= 5,	/* IOCFC disable request	*/
 	IOCFC_E_IOC_ENABLED	= 6,	/* IOC enabled message		*/
 	IOCFC_E_IOC_DISABLED	= 7,	/* IOC disabled message		*/
-	IOCFC_E_IOC_FAILED	= 8,	/* failure notice by IOC sm	*/
+	IOCFC_E_IOC_FAILED	= 8,	/* failure analtice by IOC sm	*/
 	IOCFC_E_DCONF_DONE	= 9,	/* dconf read/write done	*/
 	IOCFC_E_CFG_DONE	= 10,	/* IOCFC config complete	*/
 };
@@ -406,7 +406,7 @@ struct bfa_ablk_s {
 	struct bfa_mbox_cmd_s	mb;
 	bfa_ablk_cbfn_t		cbfn;
 	void			*cbarg;
-	struct bfa_ioc_notify_s	ioc_notify;
+	struct bfa_ioc_analtify_s	ioc_analtify;
 	struct bfa_mem_dma_s	ablk_dma;
 };
 #define BFA_MEM_ABLK_DMA(__bfa)		(&((__bfa)->modules.ablk.ablk_dma))
@@ -428,7 +428,7 @@ struct bfa_sfp_s {
 	struct bfa_mbox_cmd_s	mbcmd;
 	u8			*dbuf_kva; /* dma buf virtual address */
 	u64			dbuf_pa;   /* dma buf physical address */
-	struct bfa_ioc_notify_s	ioc_notify;
+	struct bfa_ioc_analtify_s	ioc_analtify;
 	enum bfa_defs_sfp_media_e *media;
 	enum bfa_port_speed	portspeed;
 	bfa_cb_sfp_t		state_query_cbfn;
@@ -487,7 +487,7 @@ struct bfa_flash_s {
 	struct bfa_cb_qe_s	hcb_qe; /*  comp: BFA callback qelem */
 	u32		addr_off;       /*  partition address offset */
 	struct bfa_mbox_cmd_s	mb;       /*  mailbox */
-	struct bfa_ioc_notify_s	ioc_notify; /*  ioc event notify */
+	struct bfa_ioc_analtify_s	ioc_analtify; /*  ioc event analtify */
 	struct bfa_mem_dma_s	flash_dma;
 };
 
@@ -621,7 +621,7 @@ struct bfa_diag_s {
 	u8		timer_active;
 	u8		rsvd[2];
 	u32		status;
-	struct bfa_ioc_notify_s	ioc_notify;
+	struct bfa_ioc_analtify_s	ioc_analtify;
 	struct bfa_mem_dma_s	diag_dma;
 };
 
@@ -679,7 +679,7 @@ struct bfa_phy_s {
 	struct bfa_cb_qe_s	hcb_qe; /* comp: BFA callback qelem */
 	u32	addr_off;       /* phy address offset */
 	struct bfa_mbox_cmd_s	mb;       /* mailbox */
-	struct bfa_ioc_notify_s	ioc_notify; /* ioc event notify */
+	struct bfa_ioc_analtify_s	ioc_analtify; /* ioc event analtify */
 	struct bfa_mem_dma_s	phy_dma;
 };
 #define BFA_PHY(__bfa)	(&(__bfa)->modules.phy)
@@ -728,7 +728,7 @@ struct bfa_fru_s {
 	struct bfa_cb_qe_s	hcb_qe;	/* comp: BFA callback qelem */
 	u32		addr_off;	/* fru address offset */
 	struct bfa_mbox_cmd_s mb;	/* mailbox */
-	struct bfa_ioc_notify_s ioc_notify; /* ioc event notify */
+	struct bfa_ioc_analtify_s ioc_analtify; /* ioc event analtify */
 	struct bfa_mem_dma_s	fru_dma;
 	u8		trfr_cmpl;
 };
@@ -829,9 +829,9 @@ bfa_status_t	bfa_dconf_update(struct bfa_s *bfa);
 #define BFA_IOC_FW_SMEM_SIZE(__ioc)			\
 	((bfa_ioc_asic_gen(__ioc) == BFI_ASIC_GEN_CB)	\
 	 ? BFI_SMEM_CB_SIZE : BFI_SMEM_CT_SIZE)
-#define BFA_IOC_FLASH_CHUNK_NO(off)		(off / BFI_FLASH_CHUNK_SZ_WORDS)
+#define BFA_IOC_FLASH_CHUNK_ANAL(off)		(off / BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
-#define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
+#define BFA_IOC_FLASH_CHUNK_ADDR(chunkanal)  (chunkanal * BFI_FLASH_CHUNK_SZ_WORDS)
 
 /*
  * IOC mailbox interface

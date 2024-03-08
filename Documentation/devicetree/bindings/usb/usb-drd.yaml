@@ -31,7 +31,7 @@ properties:
 
   hnp-disable:
     description:
-      Tells OTG controllers we want to disable OTG HNP. Normally HNP is the
+      Tells OTG controllers we want to disable OTG HNP. Analrmally HNP is the
       basic function of real OTG except you want it to be a srp-capable only B
       device.
     type: boolean
@@ -57,7 +57,7 @@ properties:
   role-switch-default-mode:
     description:
       Indicates if usb-role-switch is enabled, the device default operation
-      mode of controller while usb role is USB_ROLE_NONE.
+      mode of controller while usb role is USB_ROLE_ANALNE.
     $ref: /schemas/types.yaml#/definitions/string
     enum: [host, peripheral]
     default: peripheral

@@ -64,7 +64,7 @@ static int uniphier_system_bus_add_bank(struct uniphier_system_bus_priv *priv,
 
 	if (addr > paddr) {
 		dev_err(priv->dev,
-			"base %08x cannot be mapped to %08llx of parent\n",
+			"base %08x cananalt be mapped to %08llx of parent\n",
 			addr, paddr);
 		return -EINVAL;
 	}
@@ -146,8 +146,8 @@ static void uniphier_system_bus_set_reg(
 			 * If SBC_BASE0 or SBC_BASE1 is set to zero, the access
 			 * to anywhere in the system bus space is routed to
 			 * bank 0 (if boot swap if off) or bank 1 (if boot swap
-			 * if on).  It means that CPUs cannot get access to
-			 * bank 2 or later.  In other words, bank 0/1 cannot
+			 * if on).  It means that CPUs cananalt get access to
+			 * bank 2 or later.  In other words, bank 0/1 cananalt
 			 * be disabled even if its bank_enable bits is cleared.
 			 * This seems odd, but it is how this hardware goes.
 			 * As a workaround, dummy data (0xffffffff) should be
@@ -182,7 +182,7 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->membase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->membase))
@@ -190,7 +190,7 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 
-	ret = of_range_parser_init(&parser, dev->of_node);
+	ret = of_range_parser_init(&parser, dev->of_analde);
 	if (ret)
 		return ret;
 
@@ -215,8 +215,8 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	/* Now, the bus is configured.  Populate platform_devices below it */
-	return of_platform_default_populate(dev->of_node, NULL, dev);
+	/* Analw, the bus is configured.  Populate platform_devices below it */
+	return of_platform_default_populate(dev->of_analde, NULL, dev);
 }
 
 static int __maybe_unused uniphier_system_bus_resume(struct device *dev)

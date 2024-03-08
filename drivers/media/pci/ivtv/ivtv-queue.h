@@ -17,20 +17,20 @@
 
 static inline int ivtv_might_use_pio(struct ivtv_stream *s)
 {
-	return s->dma == DMA_NONE || (SLICED_VBI_PIO && s->type == IVTV_ENC_STREAM_TYPE_VBI);
+	return s->dma == DMA_ANALNE || (SLICED_VBI_PIO && s->type == IVTV_ENC_STREAM_TYPE_VBI);
 }
 
 static inline int ivtv_use_pio(struct ivtv_stream *s)
 {
 	struct ivtv *itv = s->itv;
 
-	return s->dma == DMA_NONE ||
+	return s->dma == DMA_ANALNE ||
 	    (SLICED_VBI_PIO && s->type == IVTV_ENC_STREAM_TYPE_VBI && itv->vbi.sliced_in->service_set);
 }
 
 static inline int ivtv_might_use_dma(struct ivtv_stream *s)
 {
-	return s->dma != DMA_NONE;
+	return s->dma != DMA_ANALNE;
 }
 
 static inline int ivtv_use_dma(struct ivtv_stream *s)

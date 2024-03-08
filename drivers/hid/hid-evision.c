@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID driver for EVision devices
- *  For now, only ignore bogus consumer reports
+ *  For analw, only iganalre bogus consumer reports
  *  sent after the keyboard has been configured
  *
  *  Copyright (c) 2022 Philippe Valembois
@@ -21,17 +21,17 @@ static int evision_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
 		return 0;
 
-	/* Ignore key down event */
+	/* Iganalre key down event */
 	if ((usage->hid & HID_USAGE) >> 8 == 0x05)
 		return -1;
-	/* Ignore key up event */
+	/* Iganalre key up event */
 	if ((usage->hid & HID_USAGE) >> 8 == 0x06)
 		return -1;
 
 	switch (usage->hid & HID_USAGE) {
-	/* Ignore configuration saved event */
+	/* Iganalre configuration saved event */
 	case 0x0401: return -1;
-	/* Ignore reset event */
+	/* Iganalre reset event */
 	case 0x0402: return -1;
 	}
 	return 0;

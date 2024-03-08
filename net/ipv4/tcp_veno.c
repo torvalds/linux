@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TCP Veno congestion control
+ * TCP Veanal congestion control
  *
  * This is based on the congestion detection/avoidance scheme described in
  *    C. P. Fu, S. C. Liew.
- *    "TCP Veno: TCP Enhancement for Transmission over Wireless Access Networks."
+ *    "TCP Veanal: TCP Enhancement for Transmission over Wireless Access Networks."
  *    IEEE Journal on Selected Areas in Communication,
  *    Feb. 2003.
  * 	See https://www.ie.cuhk.edu.hk/fileadmin/staff_upload/soung/Journal/J3.pdf
@@ -17,63 +17,63 @@
 
 #include <net/tcp.h>
 
-/* Default values of the Veno variables, in fixed-point representation
+/* Default values of the Veanal variables, in fixed-point representation
  * with V_PARAM_SHIFT bits to the right of the binary point.
  */
 #define V_PARAM_SHIFT 1
 static const int beta = 3 << V_PARAM_SHIFT;
 
-/* Veno variables */
-struct veno {
-	u8 doing_veno_now;	/* if true, do veno for this rtt */
+/* Veanal variables */
+struct veanal {
+	u8 doing_veanal_analw;	/* if true, do veanal for this rtt */
 	u16 cntrtt;		/* # of rtts measured within last rtt */
 	u32 minrtt;		/* min of rtts measured within last rtt (in usec) */
-	u32 basertt;		/* the min of all Veno rtt measurements seen (in usec) */
+	u32 basertt;		/* the min of all Veanal rtt measurements seen (in usec) */
 	u32 inc;		/* decide whether to increase cwnd */
 	u32 diff;		/* calculate the diff rate */
 };
 
-/* There are several situations when we must "re-start" Veno:
+/* There are several situations when we must "re-start" Veanal:
  *
  *  o when a connection is established
  *  o after an RTO
  *  o after fast recovery
- *  o when we send a packet and there is no outstanding
- *    unacknowledged data (restarting an idle connection)
+ *  o when we send a packet and there is anal outstanding
+ *    unackanalwledged data (restarting an idle connection)
  *
  */
-static inline void veno_enable(struct sock *sk)
+static inline void veanal_enable(struct sock *sk)
 {
-	struct veno *veno = inet_csk_ca(sk);
+	struct veanal *veanal = inet_csk_ca(sk);
 
-	/* turn on Veno */
-	veno->doing_veno_now = 1;
+	/* turn on Veanal */
+	veanal->doing_veanal_analw = 1;
 
-	veno->minrtt = 0x7fffffff;
+	veanal->minrtt = 0x7fffffff;
 }
 
-static inline void veno_disable(struct sock *sk)
+static inline void veanal_disable(struct sock *sk)
 {
-	struct veno *veno = inet_csk_ca(sk);
+	struct veanal *veanal = inet_csk_ca(sk);
 
-	/* turn off Veno */
-	veno->doing_veno_now = 0;
+	/* turn off Veanal */
+	veanal->doing_veanal_analw = 0;
 }
 
-static void tcp_veno_init(struct sock *sk)
+static void tcp_veanal_init(struct sock *sk)
 {
-	struct veno *veno = inet_csk_ca(sk);
+	struct veanal *veanal = inet_csk_ca(sk);
 
-	veno->basertt = 0x7fffffff;
-	veno->inc = 1;
-	veno_enable(sk);
+	veanal->basertt = 0x7fffffff;
+	veanal->inc = 1;
+	veanal_enable(sk);
 }
 
-/* Do rtt sampling needed for Veno. */
-static void tcp_veno_pkts_acked(struct sock *sk,
+/* Do rtt sampling needed for Veanal. */
+static void tcp_veanal_pkts_acked(struct sock *sk,
 				const struct ack_sample *sample)
 {
-	struct veno *veno = inet_csk_ca(sk);
+	struct veanal *veanal = inet_csk_ca(sk);
 	u32 vrtt;
 
 	if (sample->rtt_us < 0)
@@ -83,46 +83,46 @@ static void tcp_veno_pkts_acked(struct sock *sk,
 	vrtt = sample->rtt_us + 1;
 
 	/* Filter to find propagation delay: */
-	if (vrtt < veno->basertt)
-		veno->basertt = vrtt;
+	if (vrtt < veanal->basertt)
+		veanal->basertt = vrtt;
 
 	/* Find the min rtt during the last rtt to find
 	 * the current prop. delay + queuing delay:
 	 */
-	veno->minrtt = min(veno->minrtt, vrtt);
-	veno->cntrtt++;
+	veanal->minrtt = min(veanal->minrtt, vrtt);
+	veanal->cntrtt++;
 }
 
-static void tcp_veno_state(struct sock *sk, u8 ca_state)
+static void tcp_veanal_state(struct sock *sk, u8 ca_state)
 {
 	if (ca_state == TCP_CA_Open)
-		veno_enable(sk);
+		veanal_enable(sk);
 	else
-		veno_disable(sk);
+		veanal_disable(sk);
 }
 
 /*
  * If the connection is idle and we are restarting,
- * then we don't want to do any Veno calculations
+ * then we don't want to do any Veanal calculations
  * until we get fresh rtt samples.  So when we
- * restart, we reset our Veno state to a clean
+ * restart, we reset our Veanal state to a clean
  * state. After we get acks for this flight of
- * packets, _then_ we can make Veno calculations
+ * packets, _then_ we can make Veanal calculations
  * again.
  */
-static void tcp_veno_cwnd_event(struct sock *sk, enum tcp_ca_event event)
+static void tcp_veanal_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
 	if (event == CA_EVENT_CWND_RESTART || event == CA_EVENT_TX_START)
-		tcp_veno_init(sk);
+		tcp_veanal_init(sk);
 }
 
-static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+static void tcp_veanal_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct veno *veno = inet_csk_ca(sk);
+	struct veanal *veanal = inet_csk_ca(sk);
 
-	if (!veno->doing_veno_now) {
-		tcp_reno_cong_avoid(sk, ack, acked);
+	if (!veanal->doing_veanal_analw) {
+		tcp_reanal_cong_avoid(sk, ack, acked);
 		return;
 	}
 
@@ -130,27 +130,27 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!tcp_is_cwnd_limited(sk))
 		return;
 
-	/* We do the Veno calculations only if we got enough rtt samples */
-	if (veno->cntrtt <= 2) {
-		/* We don't have enough rtt samples to do the Veno
-		 * calculation, so we'll behave like Reno.
+	/* We do the Veanal calculations only if we got eanalugh rtt samples */
+	if (veanal->cntrtt <= 2) {
+		/* We don't have eanalugh rtt samples to do the Veanal
+		 * calculation, so we'll behave like Reanal.
 		 */
-		tcp_reno_cong_avoid(sk, ack, acked);
+		tcp_reanal_cong_avoid(sk, ack, acked);
 	} else {
 		u64 target_cwnd;
 		u32 rtt;
 
-		/* We have enough rtt samples, so, using the Veno
+		/* We have eanalugh rtt samples, so, using the Veanal
 		 * algorithm, we determine the state of the network.
 		 */
 
-		rtt = veno->minrtt;
+		rtt = veanal->minrtt;
 
-		target_cwnd = (u64)tcp_snd_cwnd(tp) * veno->basertt;
+		target_cwnd = (u64)tcp_snd_cwnd(tp) * veanal->basertt;
 		target_cwnd <<= V_PARAM_SHIFT;
 		do_div(target_cwnd, rtt);
 
-		veno->diff = (tcp_snd_cwnd(tp) << V_PARAM_SHIFT) - target_cwnd;
+		veanal->diff = (tcp_snd_cwnd(tp) << V_PARAM_SHIFT) - target_cwnd;
 
 		if (tcp_in_slow_start(tp)) {
 			/* Slow start. */
@@ -160,8 +160,8 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		}
 
 		/* Congestion avoidance. */
-		if (veno->diff < beta) {
-			/* In the "non-congestive state", increase cwnd
+		if (veanal->diff < beta) {
+			/* In the "analn-congestive state", increase cwnd
 			 * every rtt.
 			 */
 			tcp_cong_avoid_ai(tp, tcp_snd_cwnd(tp), acked);
@@ -170,12 +170,12 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			 * every other rtt.
 			 */
 			if (tp->snd_cwnd_cnt >= tcp_snd_cwnd(tp)) {
-				if (veno->inc &&
+				if (veanal->inc &&
 				    tcp_snd_cwnd(tp) < tp->snd_cwnd_clamp) {
 					tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) + 1);
-					veno->inc = 0;
+					veanal->inc = 0;
 				} else
-					veno->inc = 1;
+					veanal->inc = 1;
 				tp->snd_cwnd_cnt = 0;
 			} else
 				tp->snd_cwnd_cnt += acked;
@@ -187,52 +187,52 @@ done:
 			tcp_snd_cwnd_set(tp, tp->snd_cwnd_clamp);
 	}
 	/* Wipe the slate clean for the next rtt. */
-	/* veno->cntrtt = 0; */
-	veno->minrtt = 0x7fffffff;
+	/* veanal->cntrtt = 0; */
+	veanal->minrtt = 0x7fffffff;
 }
 
-/* Veno MD phase */
-static u32 tcp_veno_ssthresh(struct sock *sk)
+/* Veanal MD phase */
+static u32 tcp_veanal_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
-	struct veno *veno = inet_csk_ca(sk);
+	struct veanal *veanal = inet_csk_ca(sk);
 
-	if (veno->diff < beta)
-		/* in "non-congestive state", cut cwnd by 1/5 */
+	if (veanal->diff < beta)
+		/* in "analn-congestive state", cut cwnd by 1/5 */
 		return max(tcp_snd_cwnd(tp) * 4 / 5, 2U);
 	else
 		/* in "congestive state", cut cwnd by 1/2 */
 		return max(tcp_snd_cwnd(tp) >> 1U, 2U);
 }
 
-static struct tcp_congestion_ops tcp_veno __read_mostly = {
-	.init		= tcp_veno_init,
-	.ssthresh	= tcp_veno_ssthresh,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
-	.cong_avoid	= tcp_veno_cong_avoid,
-	.pkts_acked	= tcp_veno_pkts_acked,
-	.set_state	= tcp_veno_state,
-	.cwnd_event	= tcp_veno_cwnd_event,
+static struct tcp_congestion_ops tcp_veanal __read_mostly = {
+	.init		= tcp_veanal_init,
+	.ssthresh	= tcp_veanal_ssthresh,
+	.undo_cwnd	= tcp_reanal_undo_cwnd,
+	.cong_avoid	= tcp_veanal_cong_avoid,
+	.pkts_acked	= tcp_veanal_pkts_acked,
+	.set_state	= tcp_veanal_state,
+	.cwnd_event	= tcp_veanal_cwnd_event,
 
 	.owner		= THIS_MODULE,
-	.name		= "veno",
+	.name		= "veanal",
 };
 
-static int __init tcp_veno_register(void)
+static int __init tcp_veanal_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct veno) > ICSK_CA_PRIV_SIZE);
-	tcp_register_congestion_control(&tcp_veno);
+	BUILD_BUG_ON(sizeof(struct veanal) > ICSK_CA_PRIV_SIZE);
+	tcp_register_congestion_control(&tcp_veanal);
 	return 0;
 }
 
-static void __exit tcp_veno_unregister(void)
+static void __exit tcp_veanal_unregister(void)
 {
-	tcp_unregister_congestion_control(&tcp_veno);
+	tcp_unregister_congestion_control(&tcp_veanal);
 }
 
-module_init(tcp_veno_register);
-module_exit(tcp_veno_unregister);
+module_init(tcp_veanal_register);
+module_exit(tcp_veanal_unregister);
 
 MODULE_AUTHOR("Bin Zhou, Cheng Peng Fu");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("TCP Veno");
+MODULE_DESCRIPTION("TCP Veanal");

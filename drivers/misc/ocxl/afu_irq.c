@@ -74,14 +74,14 @@ static int setup_afu_irq(struct ocxl_context *ctx, struct afu_irq *irq)
 	irq->virq = irq_create_mapping(NULL, irq->hw_irq);
 	if (!irq->virq) {
 		pr_err("irq_create_mapping failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pr_debug("hw_irq %d mapped to virq %u\n", irq->hw_irq, irq->virq);
 
 	irq->name = kasprintf(GFP_KERNEL, "ocxl-afu-%u", irq->virq);
 	if (!irq->name) {
 		irq_dispose_mapping(irq->virq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = request_irq(irq->virq, afu_irq_handler, 0, irq->name, irq);
@@ -109,7 +109,7 @@ int ocxl_afu_irq_alloc(struct ocxl_context *ctx, int *irq_id)
 
 	irq = kzalloc(sizeof(struct afu_irq), GFP_KERNEL);
 	if (!irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We limit the number of afu irqs per context and per link to
@@ -121,7 +121,7 @@ int ocxl_afu_irq_alloc(struct ocxl_context *ctx, int *irq_id)
 	irq->id = idr_alloc(&ctx->irq_idr, irq, 0, MAX_IRQ_PER_CONTEXT,
 			GFP_KERNEL);
 	if (irq->id < 0) {
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		goto err_unlock;
 	}
 

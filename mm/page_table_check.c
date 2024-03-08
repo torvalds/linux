@@ -12,7 +12,7 @@
 #define pr_fmt(fmt)	"page_table_check: " fmt
 
 struct page_table_check {
-	atomic_t anon_map_count;
+	atomic_t aanaln_map_count;
 	atomic_t file_map_count;
 };
 
@@ -56,14 +56,14 @@ static struct page_table_check *get_page_table_check(struct page_ext *page_ext)
 
 /*
  * An entry is removed from the page table, decrement the counters for that page
- * verify that it is of correct type and counters do not become negative.
+ * verify that it is of correct type and counters do analt become negative.
  */
 static void page_table_check_clear(unsigned long pfn, unsigned long pgcnt)
 {
 	struct page_ext *page_ext;
 	struct page *page;
 	unsigned long i;
-	bool anon;
+	bool aanaln;
 
 	if (!pfn_valid(pfn))
 		return;
@@ -72,16 +72,16 @@ static void page_table_check_clear(unsigned long pfn, unsigned long pgcnt)
 	page_ext = page_ext_get(page);
 
 	BUG_ON(PageSlab(page));
-	anon = PageAnon(page);
+	aanaln = PageAanaln(page);
 
 	for (i = 0; i < pgcnt; i++) {
 		struct page_table_check *ptc = get_page_table_check(page_ext);
 
-		if (anon) {
+		if (aanaln) {
 			BUG_ON(atomic_read(&ptc->file_map_count));
-			BUG_ON(atomic_dec_return(&ptc->anon_map_count) < 0);
+			BUG_ON(atomic_dec_return(&ptc->aanaln_map_count) < 0);
 		} else {
-			BUG_ON(atomic_read(&ptc->anon_map_count));
+			BUG_ON(atomic_read(&ptc->aanaln_map_count));
 			BUG_ON(atomic_dec_return(&ptc->file_map_count) < 0);
 		}
 		page_ext = page_ext_next(page_ext);
@@ -91,7 +91,7 @@ static void page_table_check_clear(unsigned long pfn, unsigned long pgcnt)
 
 /*
  * A new entry is added to the page table, increment the counters for that page
- * verify that it is of correct type and is not being mapped with a different
+ * verify that it is of correct type and is analt being mapped with a different
  * type to a different process.
  */
 static void page_table_check_set(unsigned long pfn, unsigned long pgcnt,
@@ -100,7 +100,7 @@ static void page_table_check_set(unsigned long pfn, unsigned long pgcnt,
 	struct page_ext *page_ext;
 	struct page *page;
 	unsigned long i;
-	bool anon;
+	bool aanaln;
 
 	if (!pfn_valid(pfn))
 		return;
@@ -109,16 +109,16 @@ static void page_table_check_set(unsigned long pfn, unsigned long pgcnt,
 	page_ext = page_ext_get(page);
 
 	BUG_ON(PageSlab(page));
-	anon = PageAnon(page);
+	aanaln = PageAanaln(page);
 
 	for (i = 0; i < pgcnt; i++) {
 		struct page_table_check *ptc = get_page_table_check(page_ext);
 
-		if (anon) {
+		if (aanaln) {
 			BUG_ON(atomic_read(&ptc->file_map_count));
-			BUG_ON(atomic_inc_return(&ptc->anon_map_count) > 1 && rw);
+			BUG_ON(atomic_inc_return(&ptc->aanaln_map_count) > 1 && rw);
 		} else {
-			BUG_ON(atomic_read(&ptc->anon_map_count));
+			BUG_ON(atomic_read(&ptc->aanaln_map_count));
 			BUG_ON(atomic_inc_return(&ptc->file_map_count) < 0);
 		}
 		page_ext = page_ext_next(page_ext);
@@ -128,7 +128,7 @@ static void page_table_check_set(unsigned long pfn, unsigned long pgcnt,
 
 /*
  * page is on free list, or is being allocated, verify that counters are zeroes
- * crash if they are not.
+ * crash if they are analt.
  */
 void __page_table_check_zero(struct page *page, unsigned int order)
 {
@@ -142,7 +142,7 @@ void __page_table_check_zero(struct page *page, unsigned int order)
 	for (i = 0; i < (1ul << order); i++) {
 		struct page_table_check *ptc = get_page_table_check(page_ext);
 
-		BUG_ON(atomic_read(&ptc->anon_map_count));
+		BUG_ON(atomic_read(&ptc->aanaln_map_count));
 		BUG_ON(atomic_read(&ptc->file_map_count));
 		page_ext = page_ext_next(page_ext);
 	}

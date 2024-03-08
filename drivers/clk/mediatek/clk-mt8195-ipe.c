@@ -17,7 +17,7 @@ static const struct mtk_gate_regs ipe_cg_regs = {
 };
 
 #define GATE_IPE(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &ipe_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &ipe_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 static const struct mtk_gate ipe_clks[] = {
 	GATE_IPE(CLK_IPE_DPE, "ipe_dpe", "top_ipe", 0),

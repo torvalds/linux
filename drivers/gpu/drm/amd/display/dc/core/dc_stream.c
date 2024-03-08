@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -41,7 +41,7 @@
  ******************************************************************************/
 void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 {
-	if (sink->sink_signal == SIGNAL_TYPE_NONE)
+	if (sink->sink_signal == SIGNAL_TYPE_ANALNE)
 		stream->signal = stream->link->connector_signal;
 	else
 		stream->signal = sink->sink_signal;
@@ -111,7 +111,7 @@ bool dc_stream_construct(struct dc_stream_state *stream,
 	stream->timing.dsc_cfg.bits_per_pixel = 128;
 	stream->timing.dsc_cfg.block_pred_enable = 1;
 	stream->timing.dsc_cfg.linebuf_depth = 9;
-	stream->timing.dsc_cfg.version_minor = 2;
+	stream->timing.dsc_cfg.version_mianalr = 2;
 	stream->timing.dsc_cfg.ycbcr422_simple = 0;
 
 	update_stream_signal(stream, dc_sink_data);
@@ -296,11 +296,11 @@ bool dc_stream_set_cursor_attributes(
 
 	dc = stream->ctx->dc;
 
-	/* SubVP is not compatible with HW cursor larger than 64 x 64 x 4.
+	/* SubVP is analt compatible with HW cursor larger than 64 x 64 x 4.
 	 * Therefore, if cursor is greater than 64 x 64 x 4, fallback to SW cursor in the following case:
 	 * 1. If the config is a candidate for SubVP high refresh (both single an dual display configs)
-	 * 2. If not subvp high refresh, for single display cases, if resolution is >= 5K and refresh rate < 120hz
-	 * 3. If not subvp high refresh, for multi display cases, if resolution is >= 4K and refresh rate < 120hz
+	 * 2. If analt subvp high refresh, for single display cases, if resolution is >= 5K and refresh rate < 120hz
+	 * 3. If analt subvp high refresh, for multi display cases, if resolution is >= 4K and refresh rate < 120hz
 	 */
 	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384) {
 		if (check_subvp_sw_cursor_fallback_req(dc, stream))
@@ -608,7 +608,7 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 								custom_sdp_message,
 								sdp_message_size);
 		else
-			DC_LOG_WARNING("%s:send_immediate_sdp_message not implemented on this ASIC\n",
+			DC_LOG_WARNING("%s:send_immediate_sdp_message analt implemented on this ASIC\n",
 			__func__);
 
 	}
@@ -616,7 +616,7 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 	return true;
 }
 
-bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
+bool dc_stream_get_scaanalutpos(const struct dc_stream_state *stream,
 				  uint32_t *v_blank_start,
 				  uint32_t *v_blank_end,
 				  uint32_t *h_position,
@@ -634,7 +634,7 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 		if (res_ctx->pipe_ctx[i].stream != stream || !tg)
 			continue;
 
-		tg->funcs->get_scanoutpos(tg,
+		tg->funcs->get_scaanalutpos(tg,
 					  v_blank_start,
 					  v_blank_end,
 					  h_position,
@@ -660,7 +660,7 @@ bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream)
 		if (pipe->stream == stream)
 			break;
 	}
-	/* Stream not found, by default we'll assume HUBP fetched dm data */
+	/* Stream analt found, by default we'll assume HUBP fetched dm data */
 	if (i == MAX_PIPES)
 		return true;
 
@@ -715,7 +715,7 @@ enum dc_status dc_stream_add_dsc_to_resource(struct dc *dc,
 	if (dc->res_pool->funcs->add_dsc_to_stream_resource) {
 		return dc->res_pool->funcs->add_dsc_to_stream_resource(dc, state, stream);
 	} else {
-		return DC_NO_DSC_RESOURCE;
+		return DC_ANAL_DSC_RESOURCE;
 	}
 }
 
@@ -765,7 +765,7 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 
 	if (stream->sink) {
 		if (stream->sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
-			stream->sink->sink_signal != SIGNAL_TYPE_NONE) {
+			stream->sink->sink_signal != SIGNAL_TYPE_ANALNE) {
 
 			DC_LOG_DC(
 					"\tdispname: %s signal: %x\n",

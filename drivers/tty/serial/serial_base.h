@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Serial core related functions, serial port device drivers do not need this.
+ * Serial core related functions, serial port device drivers do analt need this.
  *
  * Copyright (C) 2023 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Tony Lindgren <tony@atomide.com>

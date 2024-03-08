@@ -66,7 +66,7 @@ asm (
 #ifdef CONFIG_X86_64
 
 #include <asm/ibt.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 asm (
 "	.pushsection    .text, \"ax\", @progbits\n"

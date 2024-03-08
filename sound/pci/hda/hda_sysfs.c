@@ -18,7 +18,7 @@
 #include <sound/hda_codec.h>
 #include "hda_local.h"
 #include <sound/hda_hwdep.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 
 /* hint string pair */
 struct hda_hint {
@@ -151,7 +151,7 @@ static int reconfig_codec(struct hda_codec *codec)
 /*
  * allocate a string at most len chars, and remove the trailing EOL
  */
-static char *kstrndup_noeol(const char *src, size_t len)
+static char *kstrndup_analeol(const char *src, size_t len)
 {
 	char *s = kstrndup(src, len, GFP_KERNEL);
 	char *p;
@@ -183,9 +183,9 @@ static ssize_t type##_store(struct device *dev,			\
 			    const char *buf, size_t count)	\
 {								\
 	struct hda_codec *codec = dev_get_drvdata(dev);		\
-	char *s = kstrndup_noeol(buf, 64);			\
+	char *s = kstrndup_analeol(buf, 64);			\
 	if (!s)							\
-		return -ENOMEM;					\
+		return -EANALMEM;					\
 	kfree(codec->field);					\
 	codec->field = s;					\
 	return count;						\
@@ -242,7 +242,7 @@ static int parse_init_verbs(struct hda_codec *codec, const char *buf)
 	v = snd_array_new(&codec->init_verbs);
 	if (!v) {
 		mutex_unlock(&codec->user_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	v->nid = nid;
 	v->verb = verb;
@@ -316,9 +316,9 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 		return 0;
 	if (*buf == '=')
 		return -EINVAL;
-	key = kstrndup_noeol(buf, 1024);
+	key = kstrndup_analeol(buf, 1024);
 	if (!key)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* extract key and val */
 	val = strchr(key, '=');
 	if (!val) {
@@ -347,7 +347,7 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 		hint->key = key;
 		hint->val = val;
 	} else {
-		err = -ENOMEM;
+		err = -EANALMEM;
 	}
  unlock:
 	mutex_unlock(&codec->user_mutex);
@@ -413,7 +413,7 @@ static DEVICE_ATTR_WO(clear);
  * @key: the hint key string
  *
  * Look for a hint key/value pair matching with the given key string
- * and returns the value string.  If nothing found, returns NULL.
+ * and returns the value string.  If analthing found, returns NULL.
  */
 const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
 {
@@ -428,7 +428,7 @@ EXPORT_SYMBOL_GPL(snd_hda_get_hint);
  * @key: the hint key string
  *
  * Look for a hint key/value pair matching with the given key string
- * and returns a boolean value parsed from the value.  If no matching
+ * and returns a boolean value parsed from the value.  If anal matching
  * key is found, return a negative value.
  */
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
@@ -439,11 +439,11 @@ int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 	mutex_lock(&codec->user_mutex);
 	p = snd_hda_get_hint(codec, key);
 	if (!p || !*p)
-		ret = -ENOENT;
+		ret = -EANALENT;
 	else {
 		switch (toupper(*p)) {
 		case 'T': /* true */
-		case 'Y': /* yes */
+		case 'Y': /* anal */
 		case '1':
 			ret = 1;
 			break;
@@ -464,7 +464,7 @@ EXPORT_SYMBOL_GPL(snd_hda_get_bool_hint);
  * @valp: pointer to store a value
  *
  * Look for a hint key/value pair matching with the given key string
- * and stores the integer value to @valp.  If no matching key is found,
+ * and stores the integer value to @valp.  If anal matching key is found,
  * return a negative error code.  Otherwise it returns zero.
  */
 int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
@@ -476,7 +476,7 @@ int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
 	mutex_lock(&codec->user_mutex);
 	p = snd_hda_get_hint(codec, key);
 	if (!p)
-		ret = -ENOENT;
+		ret = -EANALENT;
 	else if (kstrtoul(p, 0, &val))
 		ret = -EINVAL;
 	else {
@@ -513,7 +513,7 @@ static DEVICE_ATTR_RO(driver_pin_configs);
 
 /* parser mode */
 enum {
-	LINE_MODE_NONE,
+	LINE_MODE_ANALNE,
 	LINE_MODE_CODEC,
 	LINE_MODE_MODEL,
 	LINE_MODE_PINCFG,
@@ -662,11 +662,11 @@ static int parse_line_mode(char *buf, struct hda_bus *bus)
 		if (patch_items[i].alias && strmatch(buf, patch_items[i].alias))
 			return i;
 	}
-	return LINE_MODE_NONE;
+	return LINE_MODE_ANALNE;
 }
 
 /* copy one line from the buffer in fw, and update the fields in fw
- * return zero if it reaches to the end of the buffer, or non-zero
+ * return zero if it reaches to the end of the buffer, or analn-zero
  * if successfully copied a line
  *
  * the spaces at the beginning and the end of the line are stripped
@@ -715,7 +715,7 @@ int snd_hda_load_patch(struct hda_bus *bus, size_t fw_size, const void *fw_buf)
 	struct hda_codec *codec;
 	int line_mode;
 
-	line_mode = LINE_MODE_NONE;
+	line_mode = LINE_MODE_ANALNE;
 	codec = NULL;
 	while (get_line_from_fw(buf, sizeof(buf) - 1, &fw_size, &fw_buf)) {
 		if (!*buf || *buf == '#' || *buf == '\n')

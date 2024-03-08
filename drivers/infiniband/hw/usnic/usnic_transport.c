@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -47,8 +47,8 @@ static DEFINE_SPINLOCK(roce_bitmap_lock);
 const char *usnic_transport_to_str(enum usnic_transport_type type)
 {
 	switch (type) {
-	case USNIC_TRANSPORT_UNKNOWN:
-		return "Unknown";
+	case USNIC_TRANSPORT_UNKANALWN:
+		return "Unkanalwn";
 	case USNIC_TRANSPORT_ROCE_CUSTOM:
 		return "roce custom";
 	case USNIC_TRANSPORT_IPV4_UDP:
@@ -56,7 +56,7 @@ const char *usnic_transport_to_str(enum usnic_transport_type type)
 	case USNIC_TRANSPORT_MAX:
 		return "Max?";
 	default:
-		return "Not known";
+		return "Analt kanalwn";
 	}
 }
 
@@ -152,7 +152,7 @@ struct socket *usnic_transport_get_socket(int sock_fd)
 	if (!sock) {
 		usnic_err("Unable to lookup socket for fd %d with err %d\n",
 				sock_fd, err);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	usnic_transport_sock_to_str(buf, sizeof(buf), sock);
@@ -200,9 +200,9 @@ int usnic_transport_init(void)
 {
 	roce_bitmap = kzalloc(ROCE_BITMAP_SZ, GFP_KERNEL);
 	if (!roce_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Do not ever allocate bit 0, hence set it here */
+	/* Do analt ever allocate bit 0, hence set it here */
 	bitmap_set(roce_bitmap, 0, 1);
 	return 0;
 }

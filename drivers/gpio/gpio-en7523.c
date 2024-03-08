@@ -85,7 +85,7 @@ static int airoha_gpio_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->data = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctrl->data))

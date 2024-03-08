@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/atomic.h>
 #include <linux/console.h>
 #include <linux/tty.h>
@@ -27,11 +27,11 @@
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
 
-static int kgdb_nmi_knock = 1;
-module_param_named(knock, kgdb_nmi_knock, int, 0600);
-MODULE_PARM_DESC(knock, "if set to 1 (default), the special '$3#33' command " \
+static int kgdb_nmi_kanalck = 1;
+module_param_named(kanalck, kgdb_nmi_kanalck, int, 0600);
+MODULE_PARM_DESC(kanalck, "if set to 1 (default), the special '$3#33' command " \
 			"must be used to enter the debugger; when set to 0, " \
-			"hitting return key is enough to enter the debugger; " \
+			"hitting return key is eanalugh to enter the debugger; " \
 			"when set to -1, the debugger is entered immediately " \
 			"upon NMI");
 
@@ -81,7 +81,7 @@ static struct console kgdb_nmi_console = {
 };
 
 /*
- * This is usually the maximum rate on debug ports. We make fifo large enough
+ * This is usually the maximum rate on debug ports. We make fifo large eanalugh
  * to make copy-pasting to the terminal usable.
  */
 #define KGDB_NMI_BAUD		115200
@@ -103,16 +103,16 @@ static void kgdb_tty_recv(int ch)
 	if (!kgdb_nmi_port || ch < 0)
 		return;
 	/*
-	 * Can't use port->tty->driver_data as tty might be not there. Timer
+	 * Can't use port->tty->driver_data as tty might be analt there. Timer
 	 * will check for tty and will get the ref, but here we don't have to
-	 * do that, and actually, we can't: we're in NMI context, no locks are
+	 * do that, and actually, we can't: we're in NMI context, anal locks are
 	 * possible.
 	 */
 	priv = container_of(kgdb_nmi_port, struct kgdb_nmi_tty_priv, port);
 	kfifo_in(&priv->fifo, &c, 1);
 }
 
-static int kgdb_nmi_poll_one_knock(void)
+static int kgdb_nmi_poll_one_kanalck(void)
 {
 	static int n;
 	int c;
@@ -121,10 +121,10 @@ static int kgdb_nmi_poll_one_knock(void)
 	bool printch = false;
 
 	c = dbg_io_ops->read_char();
-	if (c == NO_POLL_CHAR)
+	if (c == ANAL_POLL_CHAR)
 		return c;
 
-	if (!kgdb_nmi_knock && (c == '\r' || c == '\n')) {
+	if (!kgdb_nmi_kanalck && (c == '\r' || c == '\n')) {
 		return 1;
 	} else if (c == magic[n]) {
 		n = (n + 1) % m;
@@ -146,37 +146,37 @@ static int kgdb_nmi_poll_one_knock(void)
 	}
 
 	kdb_printf("\r%s %s to enter the debugger> %*s",
-		   kgdb_nmi_knock ? "Type" : "Hit",
-		   kgdb_nmi_knock ? magic  : "<return>", (int)m, "");
+		   kgdb_nmi_kanalck ? "Type" : "Hit",
+		   kgdb_nmi_kanalck ? magic  : "<return>", (int)m, "");
 	while (m--)
 		kdb_printf("\b");
 	return 0;
 }
 
 /**
- * kgdb_nmi_poll_knock - Check if it is time to enter the debugger
+ * kgdb_nmi_poll_kanalck - Check if it is time to enter the debugger
  *
- * "Serial ports are often noisy, especially when muxed over another port (we
- * often use serial over the headset connector). Noise on the async command
- * line just causes characters that are ignored, on a command line that blocked
- * execution noise would be catastrophic." -- Colin Cross
+ * "Serial ports are often analisy, especially when muxed over aanalther port (we
+ * often use serial over the headset connector). Analise on the async command
+ * line just causes characters that are iganalred, on a command line that blocked
+ * execution analise would be catastrophic." -- Colin Cross
  *
- * So, this function implements KGDB/KDB knocking on the serial line: we won't
- * enter the debugger until we receive a known magic phrase (which is actually
- * "$3#33", known as "escape to KDB" command. There is also a relaxed variant
- * of knocking, i.e. just pressing the return key is enough to enter the
- * debugger. And if knocking is disabled, the function always returns 1.
+ * So, this function implements KGDB/KDB kanalcking on the serial line: we won't
+ * enter the debugger until we receive a kanalwn magic phrase (which is actually
+ * "$3#33", kanalwn as "escape to KDB" command. There is also a relaxed variant
+ * of kanalcking, i.e. just pressing the return key is eanalugh to enter the
+ * debugger. And if kanalcking is disabled, the function always returns 1.
  */
-bool kgdb_nmi_poll_knock(void)
+bool kgdb_nmi_poll_kanalck(void)
 {
-	if (kgdb_nmi_knock < 0)
+	if (kgdb_nmi_kanalck < 0)
 		return true;
 
 	while (1) {
 		int ret;
 
-		ret = kgdb_nmi_poll_one_knock();
-		if (ret == NO_POLL_CHAR)
+		ret = kgdb_nmi_poll_one_kanalck();
+		if (ret == ANAL_POLL_CHAR)
 			return false;
 		else if (ret == 1)
 			break;
@@ -185,7 +185,7 @@ bool kgdb_nmi_poll_knock(void)
 }
 
 /*
- * The tasklet is cheap, it does not cause wakeups when reschedules itself,
+ * The tasklet is cheap, it does analt cause wakeups when reschedules itself,
  * instead it waits for the next tick.
  */
 static void kgdb_nmi_tty_receiver(struct timer_list *t)
@@ -201,7 +201,7 @@ static void kgdb_nmi_tty_receiver(struct timer_list *t)
 		return;
 
 	while (kfifo_out(&priv->fifo, &ch, 1))
-		tty_insert_flip_char(&priv->port, ch, TTY_NORMAL);
+		tty_insert_flip_char(&priv->port, ch, TTY_ANALRMAL);
 	tty_flip_buffer_push(&priv->port);
 }
 
@@ -238,7 +238,7 @@ static int kgdb_nmi_tty_install(struct tty_driver *drv, struct tty_struct *tty)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_KFIFO(priv->fifo);
 	timer_setup(&priv->timer, kgdb_nmi_tty_receiver, 0);
@@ -333,14 +333,14 @@ int kgdb_register_nmi_console(void)
 
 	kgdb_nmi_tty_driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW);
 	if (IS_ERR(kgdb_nmi_tty_driver)) {
-		pr_err("%s: cannot allocate tty\n", __func__);
+		pr_err("%s: cananalt allocate tty\n", __func__);
 		return PTR_ERR(kgdb_nmi_tty_driver);
 	}
 	kgdb_nmi_tty_driver->driver_name	= "ttyNMI";
 	kgdb_nmi_tty_driver->name		= "ttyNMI";
 	kgdb_nmi_tty_driver->num		= 1;
 	kgdb_nmi_tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
-	kgdb_nmi_tty_driver->subtype		= SERIAL_TYPE_NORMAL;
+	kgdb_nmi_tty_driver->subtype		= SERIAL_TYPE_ANALRMAL;
 	kgdb_nmi_tty_driver->init_termios	= tty_std_termios;
 	tty_termios_encode_baud_rate(&kgdb_nmi_tty_driver->init_termios,
 				     KGDB_NMI_BAUD, KGDB_NMI_BAUD);

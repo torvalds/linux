@@ -24,7 +24,7 @@
  * General concept of alias management:
  * - PAV and DASD alias management is specific to the eckd discipline.
  * - A device is connected to an lcu as long as the device exists.
- *   dasd_alias_make_device_known_to_lcu will be called wenn the
+ *   dasd_alias_make_device_kanalwn_to_lcu will be called wenn the
  *   device is checked by the eckd discipline and
  *   dasd_alias_disconnect_device_from_lcu will be called
  *   before the device is deleted.
@@ -108,7 +108,7 @@ static struct alias_server *_allocate_server(struct dasd_uid *uid)
 
 	server = kzalloc(sizeof(*server), GFP_KERNEL);
 	if (!server)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	memcpy(server->uid.vendor, uid->vendor, sizeof(uid->vendor));
 	memcpy(server->uid.serial, uid->serial, sizeof(uid->serial));
 	INIT_LIST_HEAD(&server->server);
@@ -127,7 +127,7 @@ static struct alias_lcu *_allocate_lcu(struct dasd_uid *uid)
 
 	lcu = kzalloc(sizeof(*lcu), GFP_KERNEL);
 	if (!lcu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	lcu->uac = kzalloc(sizeof(*(lcu->uac)), GFP_KERNEL | GFP_DMA);
 	if (!lcu->uac)
 		goto out_err1;
@@ -145,7 +145,7 @@ static struct alias_lcu *_allocate_lcu(struct dasd_uid *uid)
 	memcpy(lcu->uid.vendor, uid->vendor, sizeof(uid->vendor));
 	memcpy(lcu->uid.serial, uid->serial, sizeof(uid->serial));
 	lcu->uid.ssid = uid->ssid;
-	lcu->pav = NO_PAV;
+	lcu->pav = ANAL_PAV;
 	lcu->flags = NEED_UAC_UPDATE | UPDATE_PENDING;
 	INIT_LIST_HEAD(&lcu->lcu);
 	INIT_LIST_HEAD(&lcu->inactive_devices);
@@ -165,7 +165,7 @@ out_err2:
 	kfree(lcu->uac);
 out_err1:
 	kfree(lcu);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void _free_lcu(struct alias_lcu *lcu)
@@ -180,11 +180,11 @@ static void _free_lcu(struct alias_lcu *lcu)
 /*
  * This is the function that will allocate all the server and lcu data,
  * so this function must be called first for a new device.
- * If the return value is 1, the lcu was already known before, if it
+ * If the return value is 1, the lcu was already kanalwn before, if it
  * is 0, this is a new lcu.
- * Negative return code indicates that something went wrong (e.g. -ENOMEM)
+ * Negative return code indicates that something went wrong (e.g. -EANALMEM)
  */
-int dasd_alias_make_device_known_to_lcu(struct dasd_device *device)
+int dasd_alias_make_device_kanalwn_to_lcu(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private = device->private;
 	unsigned long flags;
@@ -238,7 +238,7 @@ int dasd_alias_make_device_known_to_lcu(struct dasd_device *device)
 
 /*
  * This function removes a device from the scope of alias management.
- * The complicated part is to make sure that it is not in use by
+ * The complicated part is to make sure that it is analt in use by
  * any of the workers. If necessary cancel the work.
  */
 void dasd_alias_disconnect_device_from_lcu(struct dasd_device *device)
@@ -251,7 +251,7 @@ void dasd_alias_disconnect_device_from_lcu(struct dasd_device *device)
 	struct dasd_uid uid;
 
 	lcu = private->lcu;
-	/* nothing to do if already disconnected */
+	/* analthing to do if already disconnected */
 	if (!lcu)
 		return;
 	device->discipline->get_uid(device, &uid);
@@ -324,8 +324,8 @@ static int _add_device_to_lcu(struct alias_lcu *lcu,
 		lcu->uac->unit[private->uid.real_unit_addr].base_ua;
 	uid = private->uid;
 	spin_unlock(get_ccwdev_lock(device->cdev));
-	/* if we have no PAV anyway, we don't need to bother with PAV groups */
-	if (lcu->pav == NO_PAV) {
+	/* if we have anal PAV anyway, we don't need to bother with PAV groups */
+	if (lcu->pav == ANAL_PAV) {
 		list_move(&device->alias_list, &lcu->active_devices);
 		return 0;
 	}
@@ -333,7 +333,7 @@ static int _add_device_to_lcu(struct alias_lcu *lcu,
 	if (!group) {
 		group = kzalloc(sizeof(*group), GFP_ATOMIC);
 		if (!group)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(group->uid.vendor, uid.vendor, sizeof(uid.vendor));
 		memcpy(group->uid.serial, uid.serial, sizeof(uid.serial));
 		group->uid.ssid = uid.ssid;
@@ -376,22 +376,22 @@ static void _remove_device_from_lcu(struct alias_lcu *lcu,
 };
 
 static int
-suborder_not_supported(struct dasd_ccw_req *cqr)
+suborder_analt_supported(struct dasd_ccw_req *cqr)
 {
 	char *sense;
 	char reason;
 	char msg_format;
-	char msg_no;
+	char msg_anal;
 
 	/*
-	 * intrc values ENODEV, ENOLINK and EPERM
-	 * will be optained from sleep_on to indicate that no
+	 * intrc values EANALDEV, EANALLINK and EPERM
+	 * will be optained from sleep_on to indicate that anal
 	 * IO operation can be started
 	 */
-	if (cqr->intrc == -ENODEV)
+	if (cqr->intrc == -EANALDEV)
 		return 1;
 
-	if (cqr->intrc == -ENOLINK)
+	if (cqr->intrc == -EANALLINK)
 		return 1;
 
 	if (cqr->intrc == -EPERM)
@@ -403,10 +403,10 @@ suborder_not_supported(struct dasd_ccw_req *cqr)
 
 	reason = sense[0];
 	msg_format = (sense[7] & 0xF0);
-	msg_no = (sense[7] & 0x0F);
+	msg_anal = (sense[7] & 0x0F);
 
 	/* command reject, Format 0 MSG 4 - invalid parameter */
-	if ((reason == 0x80) && (msg_format == 0x00) && (msg_no == 0x04))
+	if ((reason == 0x80) && (msg_format == 0x00) && (msg_anal == 0x04))
 		return 1;
 
 	return 0;
@@ -465,9 +465,9 @@ static int read_unit_address_configuration(struct dasd_device *device,
 	if (!rc)
 		goto out;
 
-	if (suborder_not_supported(cqr)) {
-		/* suborder not supported or device unusable for IO */
-		rc = -EOPNOTSUPP;
+	if (suborder_analt_supported(cqr)) {
+		/* suborder analt supported or device unusable for IO */
+		rc = -EOPANALTSUPP;
 	} else {
 		/* IO failed but should be retried */
 		spin_lock_irqsave(&lcu->lock, flags);
@@ -512,14 +512,14 @@ static int _lcu_update(struct dasd_device *refdev, struct alias_lcu *lcu)
 
 	spin_lock_irqsave(&lcu->lock, flags);
 	/*
-	 * there is another update needed skip the remaining handling
+	 * there is aanalther update needed skip the remaining handling
 	 * the data might already be outdated
-	 * but especially do not add the device to an LCU with pending
+	 * but especially do analt add the device to an LCU with pending
 	 * update
 	 */
 	if (lcu->flags & NEED_UAC_UPDATE)
 		goto out;
-	lcu->pav = NO_PAV;
+	lcu->pav = ANAL_PAV;
 	for (i = 0; i < MAX_DEVICES_PER_LCU; ++i) {
 		switch (lcu->uac->unit[i].ua_type) {
 		case UA_BASE_PAV_ALIAS:
@@ -529,7 +529,7 @@ static int _lcu_update(struct dasd_device *refdev, struct alias_lcu *lcu)
 			lcu->pav = HYPER_PAV;
 			break;
 		}
-		if (lcu->pav != NO_PAV)
+		if (lcu->pav != ANAL_PAV)
 			break;
 	}
 
@@ -555,13 +555,13 @@ static void lcu_update_work(struct work_struct *work)
 	device = ruac_data->device;
 	rc = _lcu_update(device, lcu);
 	/*
-	 * Need to check flags again, as there could have been another
+	 * Need to check flags again, as there could have been aanalther
 	 * prepare_update or a new device a new device while we were still
 	 * processing the data
 	 */
 	spin_lock_irqsave(&lcu->lock, flags);
-	if ((rc && (rc != -EOPNOTSUPP)) || (lcu->flags & NEED_UAC_UPDATE)) {
-		DBF_DEV_EVENT(DBF_WARNING, device, "could not update"
+	if ((rc && (rc != -EOPANALTSUPP)) || (lcu->flags & NEED_UAC_UPDATE)) {
+		DBF_DEV_EVENT(DBF_WARNING, device, "could analt update"
 			    " alias data in lcu (rc = %d), retry later", rc);
 		if (!schedule_delayed_work(&lcu->ruac_data.dwork, 30*HZ))
 			dasd_put_device(device);
@@ -604,7 +604,7 @@ static int _schedule_lcu_update(struct alias_lcu *lcu,
 					  struct dasd_device, alias_list);
 	}
 	/*
-	 * if we haven't found a proper device yet, give up for now, the next
+	 * if we haven't found a proper device yet, give up for analw, the next
 	 * device that will be set active will trigger an lcu update
 	 */
 	if (!usedev)
@@ -663,7 +663,7 @@ int dasd_alias_remove_device(struct dasd_device *device)
 	struct alias_lcu *lcu = private->lcu;
 	unsigned long flags;
 
-	/* nothing to do if already removed */
+	/* analthing to do if already removed */
 	if (!lcu)
 		return 0;
 	spin_lock_irqsave(&lcu->lock, flags);
@@ -682,17 +682,17 @@ struct dasd_device *dasd_alias_get_start_dev(struct dasd_device *base_device)
 
 	if (!lcu)
 		return NULL;
-	if (lcu->pav == NO_PAV ||
+	if (lcu->pav == ANAL_PAV ||
 	    lcu->flags & (NEED_UAC_UPDATE | UPDATE_PENDING))
 		return NULL;
 	if (unlikely(!(private->features.feature[8] & 0x01))) {
 		/*
-		 * PAV enabled but prefix not, very unlikely
+		 * PAV enabled but prefix analt, very unlikely
 		 * seems to be a lost pathgroup
 		 * use base device to do IO
 		 */
 		DBF_DEV_EVENT(DBF_ERR, base_device, "%s",
-			      "Prefix not enabled with PAV enabled\n");
+			      "Prefix analt enabled with PAV enabled\n");
 		return NULL;
 	}
 
@@ -944,8 +944,8 @@ void dasd_alias_handle_summary_unit_check(struct work_struct *work)
 	lcu = private->lcu;
 	if (!lcu) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			    "device not ready to handle summary"
-			    " unit check (no lcu structure)");
+			    "device analt ready to handle summary"
+			    " unit check (anal lcu structure)");
 		goto out;
 	}
 	spin_lock_irqsave(&lcu->lock, flags);

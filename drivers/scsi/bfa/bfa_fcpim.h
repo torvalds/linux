@@ -174,7 +174,7 @@ struct bfa_ioim_s {
 	bfa_cb_cbfn_t		io_cbfn;	/*  IO completion handler */
 	struct bfa_ioim_sp_s	*iosp;		/*  slow-path IO handling */
 	u8			reqq;		/*  Request queue for I/O */
-	u8			mode;		/*  IO is passthrough or not */
+	u8			mode;		/*  IO is passthrough or analt */
 	u64			start_time;	/*  IO's Profile start val */
 };
 
@@ -196,7 +196,7 @@ struct bfa_tskim_s {
 	struct bfa_fcpim_s	*fcpim;	/*  parent fcpim module	*/
 	struct bfa_itnim_s	*itnim;	/*  i-t-n nexus for this IO  */
 	struct bfad_tskim_s	*dtsk;  /*  driver task mgmt cmnd	*/
-	bfa_boolean_t		notify;	/*  notify itnim on TM comp  */
+	bfa_boolean_t		analtify;	/*  analtify itnim on TM comp  */
 	struct scsi_lun		lun;	/*  lun if applicable	*/
 	enum fcp_tm_cmnd	tm_cmnd; /*  task management command  */
 	u16			tsk_tag; /*  FWI IO tag	*/
@@ -218,7 +218,7 @@ struct bfa_itnim_s {
 	struct bfa_rport_s	*rport;	/*  bfa rport	*/
 	void			*ditn;	/*  driver i-t-n structure	*/
 	struct bfi_mhdr_s	mhdr;	/*  pre-built mhdr	*/
-	u8			msg_no;	/*  itnim/rport firmware handle */
+	u8			msg_anal;	/*  itnim/rport firmware handle */
 	u8			reqq;	/*  CQ for requests	*/
 	struct bfa_cb_qe_s	hcb_qe;	/*  bfa callback qelem	*/
 	struct list_head pending_q;	/*  queue of pending IO requests */
@@ -345,7 +345,7 @@ void	bfa_cb_itnim_tov_begin(void *itnim);
 void	bfa_cb_itnim_tov(void *itnim);
 
 /*
- * BFA notification to FCS/driver for second level error recovery.
+ * BFA analtification to FCS/driver for second level error recovery.
  * Atleast one I/O request has timedout and target is unresponsive to
  * repeated abort requests. Second level error recovery should be initiated
  * by starting implicit logout and recovery procedures.
@@ -366,16 +366,16 @@ bfa_status_t	bfa_ioim_abort(struct bfa_ioim_s *ioim);
 void		bfa_ioim_delayed_comp(struct bfa_ioim_s *ioim,
 				      bfa_boolean_t iotov);
 /*
- * I/O completion notification.
+ * I/O completion analtification.
  *
  * @param[in]		dio			driver IO structure
  * @param[in]		io_status		IO completion status
  * @param[in]		scsi_status		SCSI status returned by target
- * @param[in]		sns_len			SCSI sense length, 0 if none
+ * @param[in]		sns_len			SCSI sense length, 0 if analne
  * @param[in]		sns_info		SCSI sense data, if any
  * @param[in]		residue			Residual length
  *
- * @return None
+ * @return Analne
  */
 void bfa_cb_ioim_done(void *bfad, struct bfad_ioim_s *dio,
 			enum bfi_ioim_status io_status,
@@ -383,12 +383,12 @@ void bfa_cb_ioim_done(void *bfad, struct bfad_ioim_s *dio,
 			u8 *sns_info, s32 residue);
 
 /*
- * I/O good completion notification.
+ * I/O good completion analtification.
  */
 void bfa_cb_ioim_good_comp(void *bfad, struct bfad_ioim_s *dio);
 
 /*
- * I/O abort completion notification
+ * I/O abort completion analtification
  */
 void bfa_cb_ioim_abort(void *bfad, struct bfad_ioim_s *dio);
 

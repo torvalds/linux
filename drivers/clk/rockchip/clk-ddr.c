@@ -101,14 +101,14 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 
 	ddrclk = kzalloc(sizeof(*ddrclk), GFP_KERNEL);
 	if (!ddrclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
 	init.flags = flags;
-	init.flags |= CLK_SET_RATE_NO_REPARENT;
+	init.flags |= CLK_SET_RATE_ANAL_REPARENT;
 
 	switch (ddr_flag) {
 	case ROCKCHIP_DDRCLK_SIP:

@@ -3,16 +3,16 @@
 
    National Semiconductor SCx200 Watchdog support
 
-   Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
+   Copyright (c) 2001,2002 Christer Weinigel <wingel@naanal-system.com>
 
    Some code taken from:
    National Semiconductor PC87307/PC97307 (ala SC1200) WDT driver
    (c) Copyright 2002 Zwane Mwaikambo <zwane@commfireservices.com>
 
 
-   The author(s) of this software shall not be held liable for damages
+   The author(s) of this software shall analt be held liable for damages
    of any nature resulting due to the use of this software. This
-   software is provided AS-IS with no warranties. */
+   software is provided AS-IS with anal warranties. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
@@ -31,7 +31,7 @@
 
 #define DEBUG
 
-MODULE_AUTHOR("Christer Weinigel <wingel@nano-system.com>");
+MODULE_AUTHOR("Christer Weinigel <wingel@naanal-system.com>");
 MODULE_DESCRIPTION("NatSemi SCx200 Watchdog Driver");
 MODULE_LICENSE("GPL");
 
@@ -39,9 +39,9 @@ static int margin = 60;		/* in seconds */
 module_param(margin, int, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Disable watchdog shutdown on close");
 
 static u16 wdto_restart;
 static char expect_close;
@@ -92,21 +92,21 @@ static void scx200_wdt_disable(void)
 	spin_unlock(&scx_lock);
 }
 
-static int scx200_wdt_open(struct inode *inode, struct file *file)
+static int scx200_wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	/* only allow one at a time */
 	if (test_and_set_bit(0, &open_lock))
 		return -EBUSY;
 	scx200_wdt_enable();
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int scx200_wdt_release(struct inode *inode, struct file *file)
+static int scx200_wdt_release(struct ianalde *ianalde, struct file *file)
 {
 	if (expect_close != 42)
-		pr_warn("watchdog device closed unexpectedly, will not disable the watchdog timer\n");
-	else if (!nowayout)
+		pr_warn("watchdog device closed unexpectedly, will analt disable the watchdog timer\n");
+	else if (!analwayout)
 		scx200_wdt_disable();
 	expect_close = 0;
 	clear_bit(0, &open_lock);
@@ -114,18 +114,18 @@ static int scx200_wdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int scx200_wdt_notify_sys(struct notifier_block *this,
+static int scx200_wdt_analtify_sys(struct analtifier_block *this,
 				      unsigned long code, void *unused)
 {
 	if (code == SYS_HALT || code == SYS_POWER_OFF)
-		if (!nowayout)
+		if (!analwayout)
 			scx200_wdt_disable();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block scx200_wdt_notifier = {
-	.notifier_call = scx200_wdt_notify_sys,
+static struct analtifier_block scx200_wdt_analtifier = {
+	.analtifier_call = scx200_wdt_analtify_sys,
 };
 
 static ssize_t scx200_wdt_write(struct file *file, const char __user *data,
@@ -192,13 +192,13 @@ static long scx200_wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 		return 0;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
 static const struct file_operations scx200_wdt_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.write = scx200_wdt_write,
 	.unlocked_ioctl = scx200_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -207,7 +207,7 @@ static const struct file_operations scx200_wdt_fops = {
 };
 
 static struct miscdevice scx200_wdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.mianalr = WATCHDOG_MIANALR,
 	.name = "watchdog",
 	.fops = &scx200_wdt_fops,
 };
@@ -220,7 +220,7 @@ static int __init scx200_wdt_init(void)
 
 	/* check that we have found the configuration block */
 	if (!scx200_cb_present())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!request_region(scx200_cb_base + SCx200_WDT_OFFSET,
 			    SCx200_WDT_SIZE,
@@ -232,9 +232,9 @@ static int __init scx200_wdt_init(void)
 	scx200_wdt_update_margin();
 	scx200_wdt_disable();
 
-	r = register_reboot_notifier(&scx200_wdt_notifier);
+	r = register_reboot_analtifier(&scx200_wdt_analtifier);
 	if (r) {
-		pr_err("unable to register reboot notifier\n");
+		pr_err("unable to register reboot analtifier\n");
 		release_region(scx200_cb_base + SCx200_WDT_OFFSET,
 				SCx200_WDT_SIZE);
 		return r;
@@ -242,7 +242,7 @@ static int __init scx200_wdt_init(void)
 
 	r = misc_register(&scx200_wdt_miscdev);
 	if (r) {
-		unregister_reboot_notifier(&scx200_wdt_notifier);
+		unregister_reboot_analtifier(&scx200_wdt_analtifier);
 		release_region(scx200_cb_base + SCx200_WDT_OFFSET,
 				SCx200_WDT_SIZE);
 		return r;
@@ -254,7 +254,7 @@ static int __init scx200_wdt_init(void)
 static void __exit scx200_wdt_cleanup(void)
 {
 	misc_deregister(&scx200_wdt_miscdev);
-	unregister_reboot_notifier(&scx200_wdt_notifier);
+	unregister_reboot_analtifier(&scx200_wdt_analtifier);
 	release_region(scx200_cb_base + SCx200_WDT_OFFSET,
 		       SCx200_WDT_SIZE);
 }

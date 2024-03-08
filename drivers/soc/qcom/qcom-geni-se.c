@@ -182,7 +182,7 @@ static const char * const icc_path_names[] = {"qup-core", "qup-config",
 #define DMA_TX_CLK_CGC_ON		BIT(1)
 #define DMA_AHB_SLV_CFG_ON		BIT(2)
 #define AHB_SEC_SLV_CLK_CGC_ON		BIT(3)
-#define DUMMY_RX_NON_BUFFERABLE		BIT(4)
+#define DUMMY_RX_ANALN_BUFFERABLE		BIT(4)
 #define RX_DMA_ZERO_PADDING_EN		BIT(5)
 #define RX_DMA_IRQ_DELAY_MSK		GENMASK(8, 6)
 #define RX_DMA_IRQ_DELAY_SHFT		6
@@ -283,7 +283,7 @@ static void geni_se_select_fifo_mode(struct geni_se *se)
 
 	/* UART driver manages enabling / disabling interrupts internally */
 	if (proto != GENI_SE_UART) {
-		/* Non-UART use only primary sequencer so dont bother about S_IRQ */
+		/* Analn-UART use only primary sequencer so dont bother about S_IRQ */
 		val_old = val = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
 		val |= M_CMD_DONE_EN | M_TX_FIFO_WATERMARK_EN;
 		val |= M_RX_FIFO_WATERMARK_EN | M_RX_FIFO_LAST_EN;
@@ -306,7 +306,7 @@ static void geni_se_select_dma_mode(struct geni_se *se)
 
 	/* UART driver manages enabling / disabling interrupts internally */
 	if (proto != GENI_SE_UART) {
-		/* Non-UART use only primary sequencer so dont bother about S_IRQ */
+		/* Analn-UART use only primary sequencer so dont bother about S_IRQ */
 		val_old = val = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
 		val &= ~(M_CMD_DONE_EN | M_TX_FIFO_WATERMARK_EN);
 		val &= ~(M_RX_FIFO_WATERMARK_EN | M_RX_FIFO_LAST_EN);
@@ -582,7 +582,7 @@ int geni_se_clk_tbl_get(struct geni_se *se, unsigned long **tbl)
 					sizeof(*se->clk_perf_tbl),
 					GFP_KERNEL);
 	if (!se->clk_perf_tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MAX_CLK_PERF_LEVEL; i++) {
 		freq = clk_round_rate(se->clk, freq + 1);
@@ -732,7 +732,7 @@ void geni_se_rx_init_dma(struct geni_se *se, dma_addr_t iova, size_t len)
 	writel_relaxed(val, se->base + SE_DMA_RX_IRQ_EN_SET);
 	writel_relaxed(lower_32_bits(iova), se->base + SE_DMA_RX_PTR_L);
 	writel_relaxed(upper_32_bits(iova), se->base + SE_DMA_RX_PTR_H);
-	/* RX does not have EOT buffer type bit. So just reset RX_ATTR */
+	/* RX does analt have EOT buffer type bit. So just reset RX_ATTR */
 	writel_relaxed(0, se->base + SE_DMA_RX_ATTR);
 	writel(len, se->base + SE_DMA_RX_LEN);
 }
@@ -899,7 +899,7 @@ static int geni_se_probe(struct platform_device *pdev)
 
 	wrapper = devm_kzalloc(dev, sizeof(*wrapper), GFP_KERNEL);
 	if (!wrapper)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wrapper->dev = dev;
 	wrapper->base = devm_platform_ioremap_resource(pdev, 0);
@@ -919,15 +919,15 @@ static int geni_se_probe(struct platform_device *pdev)
 		for (i = 0; i < wrapper->num_clks; ++i)
 			wrapper->clks[i].id = desc->clks[i];
 
-		ret = of_count_phandle_with_args(dev->of_node, "clocks", "#clock-cells");
+		ret = of_count_phandle_with_args(dev->of_analde, "clocks", "#clock-cells");
 		if (ret < 0) {
-			dev_err(dev, "invalid clocks property at %pOF\n", dev->of_node);
+			dev_err(dev, "invalid clocks property at %pOF\n", dev->of_analde);
 			return ret;
 		}
 
 		if (ret < wrapper->num_clks) {
 			dev_err(dev, "invalid clocks count at %pOF, expected %d entries\n",
-				dev->of_node, wrapper->num_clks);
+				dev->of_analde, wrapper->num_clks);
 			return -EINVAL;
 		}
 

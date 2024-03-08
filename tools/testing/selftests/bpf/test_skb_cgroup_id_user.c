@@ -99,7 +99,7 @@ int get_map_fd_by_prog_id(int prog_id)
 	}
 
 	if (!info.nr_map_ids) {
-		log_err("No maps found for prog fd %d", prog_fd);
+		log_err("Anal maps found for prog fd %d", prog_fd);
 		goto err;
 	}
 
@@ -122,7 +122,7 @@ int check_ancestor_cgroup_ids(int prog_id)
 	expected_ids[0] = get_cgroup_id("/..");	/* root cgroup */
 	expected_ids[1] = get_cgroup_id("");
 	expected_ids[2] = get_cgroup_id(CGROUP_PATH);
-	expected_ids[3] = 0; /* non-existent cgroup */
+	expected_ids[3] = 0; /* analn-existent cgroup */
 
 	map_fd = get_map_fd_by_prog_id(prog_id);
 	if (map_fd < 0)

@@ -164,7 +164,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 	};
@@ -353,7 +353,7 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_wifi>;
 	cap-power-off-card;
 	keep-power-in-suspend;
@@ -463,7 +463,7 @@
 
 	pinctrl_hdmi: hdmigrp {
 		fsl,pins = <
-			/* NOTE: DDC is done via I2C2, so DON'T
+			/* ANALTE: DDC is done via I2C2, so DON'T
 			 * configure DDC pins for HDMI!
 			 */
 			MX6QDL_PAD_EIM_A25__HDMI_TX_CEC_LINE	0x1f8b0

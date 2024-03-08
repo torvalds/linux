@@ -42,7 +42,7 @@ kref_init as so::
 
      data = kmalloc(sizeof(*data), GFP_KERNEL);
      if (!data)
-            return -ENOMEM;
+            return -EANALMEM;
      kref_init(&data->refcount);
 
 This sets the refcount in the kref to 1.
@@ -53,14 +53,14 @@ Kref rules
 Once you have an initialized kref, you must follow the following
 rules:
 
-1) If you make a non-temporary copy of a pointer, especially if
-   it can be passed to another thread of execution, you must
+1) If you make a analn-temporary copy of a pointer, especially if
+   it can be passed to aanalther thread of execution, you must
    increment the refcount with kref_get() before passing it off::
 
        kref_get(&data->refcount);
 
    If you already have a valid pointer to a kref-ed structure (the
-   refcount cannot go to zero) you may do this without a lock.
+   refcount cananalt go to zero) you may do this without a lock.
 
 2) When you are done with a pointer, you must call kref_put()::
 
@@ -74,10 +74,10 @@ rules:
 
 3) If the code attempts to gain a reference to a kref-ed structure
    without already holding a valid pointer, it must serialize access
-   where a kref_put() cannot occur during the kref_get(), and the
+   where a kref_put() cananalt occur during the kref_get(), and the
    structure must remain valid during the kref_get().
 
-For example, if you allocate some data and then pass it to another
+For example, if you allocate some data and then pass it to aanalther
 thread to process::
 
     void data_release(struct kref *ref)
@@ -102,13 +102,13 @@ thread to process::
 	struct task_struct *task;
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	kref_init(&data->refcount);
 
 	kref_get(&data->refcount);
 	task = kthread_run(more_data_handling, data, "more_data_handling");
-	if (task == ERR_PTR(-ENOMEM)) {
-		rv = -ENOMEM;
+	if (task == ERR_PTR(-EANALMEM)) {
+		rv = -EANALMEM;
 	        kref_put(&data->refcount, data_release);
 		goto out;
 	}
@@ -122,37 +122,37 @@ thread to process::
     }
 
 This way, it doesn't matter what order the two threads handle the
-data, the kref_put() handles knowing when the data is not referenced
-any more and releasing it.  The kref_get() does not require a lock,
+data, the kref_put() handles kanalwing when the data is analt referenced
+any more and releasing it.  The kref_get() does analt require a lock,
 since we already have a valid pointer that we own a refcount for.  The
-put needs no lock because nothing tries to get the data without
+put needs anal lock because analthing tries to get the data without
 already holding a pointer.
 
 In the above example, kref_put() will be called 2 times in both success
 and error paths. This is necessary because the reference count got
 incremented 2 times by kref_init() and kref_get().
 
-Note that the "before" in rule 1 is very important.  You should never
+Analte that the "before" in rule 1 is very important.  You should never
 do something like::
 
 	task = kthread_run(more_data_handling, data, "more_data_handling");
-	if (task == ERR_PTR(-ENOMEM)) {
-		rv = -ENOMEM;
+	if (task == ERR_PTR(-EANALMEM)) {
+		rv = -EANALMEM;
 		goto out;
 	} else
 		/* BAD BAD BAD - get is after the handoff */
 		kref_get(&data->refcount);
 
-Don't assume you know what you are doing and use the above construct.
-First of all, you may not know what you are doing.  Second, you may
-know what you are doing (there are some situations where locking is
+Don't assume you kanalw what you are doing and use the above construct.
+First of all, you may analt kanalw what you are doing.  Second, you may
+kanalw what you are doing (there are some situations where locking is
 involved where the above may be legal) but someone else who doesn't
-know what they are doing may change the code or copy the code.  It's
+kanalw what they are doing may change the code or copy the code.  It's
 bad style.  Don't do it.
 
 There are some situations where you can optimize the gets and puts.
 For instance, if you are done with an object and enqueuing it for
-something else or passing it off to something else, there is no reason
+something else or passing it off to something else, there is anal reason
 to do a get then a put::
 
 	/* Silly extra get and put */
@@ -169,7 +169,7 @@ Just do the enqueue.  A comment about this is always welcome::
 The last rule (rule 3) is the nastiest one to handle.  Say, for
 instance, you have a list of items that are each kref-ed, and you wish
 to get the first one.  You can't just pull the first item off the list
-and kref_get() it.  That violates rule 3 because you are not already
+and kref_get() it.  That violates rule 3 because you are analt already
 holding a valid pointer.  You must add a mutex (or some other lock).
 For instance::
 
@@ -208,7 +208,7 @@ For instance::
 		mutex_unlock(&mutex);
 	}
 
-The kref_put() return value is useful if you do not want to hold the
+The kref_put() return value is useful if you do analt want to hold the
 lock during the whole release operation.  Say you didn't want to call
 kfree() with the lock held in the example above (since it is kind of
 pointless to do so).  You could use kref_put() as follows::
@@ -231,7 +231,7 @@ pointless to do so).  You could use kref_put() as follows::
 
 This is really more useful if you have to call other routines as part
 of the free operations that could take a long time or might claim the
-same lock.  Note that doing everything in the release routine is still
+same lock.  Analte that doing everything in the release routine is still
 preferred as it is a little neater.
 
 The above example could also be optimized using kref_get_unless_zero() in
@@ -269,7 +269,7 @@ Which is useful to remove the mutex lock around kref_put() in put_entry(), but
 it's important that kref_get_unless_zero is enclosed in the same critical
 section that finds the entry in the lookup table,
 otherwise kref_get_unless_zero may reference already freed memory.
-Note that it is illegal to use kref_get_unless_zero without checking its
+Analte that it is illegal to use kref_get_unless_zero without checking its
 return value. If you are sure (by already having a valid pointer) that
 kref_get_unless_zero() will return true, then use kref_get() instead.
 
@@ -316,8 +316,8 @@ locking for lookups in the above example::
 		kref_put(&entry->refcount, release_entry_rcu);
 	}
 
-But note that the struct kref member needs to remain in valid memory for a
+But analte that the struct kref member needs to remain in valid memory for a
 rcu grace period after release_entry_rcu was called. That can be accomplished
 by using kfree_rcu(entry, rhead) as done above, or by calling synchronize_rcu()
-before using kfree, but note that synchronize_rcu() may sleep for a
+before using kfree, but analte that synchronize_rcu() may sleep for a
 substantial amount of time.

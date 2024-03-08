@@ -3,7 +3,7 @@
  * linux/include/video/mmp_disp.h
  * Header file for Marvell MMP Display Controller
  *
- * Copyright (C) 2012 Marvell Technology Group Ltd.
+ * Copyright (C) 2012 Marvell Techanallogy Group Ltd.
  * Authors: Zhou Zhu <zzhu3@marvell.com>
  */
 
@@ -80,7 +80,7 @@ struct mmp_win {
 	int	pix_fmt;
 	/*
 	 * pitch[0]: graphics/video layer line length or y pitch
-	 * pitch[1]/pitch[2]: video u/v pitch if non-zero
+	 * pitch[1]/pitch[2]: video u/v pitch if analn-zero
 	 */
 	u32	pitch[3];
 };
@@ -128,14 +128,14 @@ static inline const char *stat_name(int stat)
 	case MMP_ON:
 		return "ON";
 	default:
-		return "UNKNOWNSTAT";
+		return "UNKANALWNSTAT";
 	}
 }
 
 struct mmp_overlay_ops {
 	/* should be provided by driver */
 	void (*set_fetch)(struct mmp_overlay *overlay, int fetch_id);
-	void (*set_onoff)(struct mmp_overlay *overlay, int status);
+	void (*set_oanalff)(struct mmp_overlay *overlay, int status);
 	void (*set_win)(struct mmp_overlay *overlay, struct mmp_win *win);
 	int (*set_addr)(struct mmp_overlay *overlay, struct mmp_addr *addr);
 };
@@ -169,8 +169,8 @@ enum {
 };
 
 struct mmp_panel {
-	/* use node to register to list */
-	struct list_head node;
+	/* use analde to register to list */
+	struct list_head analde;
 	const char *name;
 	/* path name used to connect to proper path configed */
 	const char *plat_path_name;
@@ -181,7 +181,7 @@ struct mmp_panel {
 			struct mmp_mode **modelist);
 	void (*set_mode)(struct mmp_panel *panel,
 			struct mmp_mode *mode);
-	void (*set_onoff)(struct mmp_panel *panel,
+	void (*set_oanalff)(struct mmp_panel *panel,
 			int status);
 };
 
@@ -194,7 +194,7 @@ struct mmp_path_ops {
 
 	/* follow ops should be provided by driver */
 	void (*set_mode)(struct mmp_path *path, struct mmp_mode *mode);
-	void (*set_onoff)(struct mmp_path *path, int status);
+	void (*set_oanalff)(struct mmp_path *path, int status);
 	/* todo: add query */
 };
 
@@ -207,8 +207,8 @@ enum {
 
 /* path is main part of mmp-disp */
 struct mmp_path {
-	/* use node to register to list */
-	struct list_head node;
+	/* use analde to register to list */
+	struct list_head analde;
 
 	/* init data */
 	struct device *dev;
@@ -241,10 +241,10 @@ static inline void mmp_path_set_mode(struct mmp_path *path,
 	if (path)
 		path->ops.set_mode(path, mode);
 }
-static inline void mmp_path_set_onoff(struct mmp_path *path, int status)
+static inline void mmp_path_set_oanalff(struct mmp_path *path, int status)
 {
 	if (path)
-		path->ops.set_onoff(path, status);
+		path->ops.set_oanalff(path, status);
 }
 static inline int mmp_path_get_modelist(struct mmp_path *path,
 		struct mmp_mode **modelist)
@@ -266,11 +266,11 @@ static inline void mmp_overlay_set_fetch(struct mmp_overlay *overlay,
 	if (overlay)
 		overlay->ops->set_fetch(overlay, fetch_id);
 }
-static inline void mmp_overlay_set_onoff(struct mmp_overlay *overlay,
+static inline void mmp_overlay_set_oanalff(struct mmp_overlay *overlay,
 		int status)
 {
 	if (overlay)
-		overlay->ops->set_onoff(overlay, status);
+		overlay->ops->set_oanalff(overlay, status);
 }
 static inline void mmp_overlay_set_win(struct mmp_overlay *overlay,
 		struct mmp_win *win)
@@ -298,7 +298,7 @@ struct mmp_path_info {
 	int output_type;
 	int overlay_num;
 	void (*set_mode)(struct mmp_path *path, struct mmp_mode *mode);
-	void (*set_onoff)(struct mmp_path *path, int status);
+	void (*set_oanalff)(struct mmp_path *path, int status);
 	struct mmp_overlay_ops *overlay_ops;
 	void *plat_data;
 };
@@ -339,7 +339,7 @@ struct mmp_mach_plat_info {
 /* interface for panel drivers */
 struct mmp_mach_panel_info {
 	const char *name;
-	void (*plat_set_onoff)(int status);
+	void (*plat_set_oanalff)(int status);
 	const char *plat_path_name;
 };
 #endif	/* _MMP_DISP_H_ */

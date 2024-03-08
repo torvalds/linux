@@ -24,11 +24,11 @@
  *
  *     - start_src         TRIG_INT        TRIG_EXT
  *     - scan_begin_src    TRIG_TIMER      TRIG_EXT
- *     - convert_src       TRIG_NOW
+ *     - convert_src       TRIG_ANALW
  *     - scan_end_src      TRIG_COUNT
- *     - stop_src          TRIG_COUNT      TRIG_EXT        TRIG_NONE
+ *     - stop_src          TRIG_COUNT      TRIG_EXT        TRIG_ANALNE
  *
- *     The channel list must contain at least one channel with no repeated
+ *     The channel list must contain at least one channel with anal repeated
  *     channels.  The scan end count must equal the number of channels in
  *     the channel list.
  *
@@ -36,9 +36,9 @@
  *     scan_begin_src or stop_src may use TRIG_EXT.
  *
  * Configuration options:
- *   none
+ *   analne
  *
- * Manual configuration of PCI cards is not supported; they are configured
+ * Manual configuration of PCI cards is analt supported; they are configured
  * automatically.
  *
  * Output range selection - PCI224:
@@ -65,7 +65,7 @@
  *   LK1 which affects all channels, and jumpers LK2, LK3, LK4 and LK5
  *   which affect channels 0, 1, 2 and 3 individually.  LK1 chooses between
  *   an internal 5V reference and an external voltage reference (Vext).
- *   LK2/3/4/5 choose (per channel) to double the reference or not according
+ *   LK2/3/4/5 choose (per channel) to double the reference or analt according
  *   to the following table:
  *
  *     LK1 position   LK2/3/4/5 pos  Comedi range
@@ -79,12 +79,12 @@
  *
  *   1) All channels on the PCI224 share the same range.  Any change to the
  *      range as a result of insn_write or a streaming command will affect
- *      the output voltages of all channels, including those not specified
+ *      the output voltages of all channels, including those analt specified
  *      by the instruction or command.
  *
  *   2) For the analog output command,  the first scan may be triggered
  *      falsely at the start of acquisition.  This occurs when the DAC scan
- *      trigger source is switched from 'none' to 'timer' (scan_begin_src =
+ *      trigger source is switched from 'analne' to 'timer' (scan_begin_src =
  *      TRIG_TIMER) or 'external' (scan_begin_src == TRIG_EXT) at the start
  *      of acquisition and the trigger source is at logic level 1 at the
  *      time of the switch.  This is very likely for TRIG_TIMER.  For
@@ -123,7 +123,7 @@
 /* (r/w) Scan trigger. */
 #define PCI224_DACCON_TRIG(x)		(((x) & 0x7) << 0)
 #define PCI224_DACCON_TRIG_MASK		PCI224_DACCON_TRIG(7)
-#define PCI224_DACCON_TRIG_NONE		PCI224_DACCON_TRIG(0)	/* none */
+#define PCI224_DACCON_TRIG_ANALNE		PCI224_DACCON_TRIG(0)	/* analne */
 #define PCI224_DACCON_TRIG_SW		PCI224_DACCON_TRIG(1)	/* soft trig */
 #define PCI224_DACCON_TRIG_EXTP		PCI224_DACCON_TRIG(2)	/* ext + edge */
 #define PCI224_DACCON_TRIG_EXTN		PCI224_DACCON_TRIG(3)	/* ext - edge */
@@ -146,7 +146,7 @@
 #define PCI224_DACCON_FIFOWRAP		BIT(7)
 /* (r/w) FIFO enable.  It MUST be set! */
 #define PCI224_DACCON_FIFOENAB		BIT(8)
-/* (r/w) FIFO interrupt trigger level (most values are not very useful). */
+/* (r/w) FIFO interrupt trigger level (most values are analt very useful). */
 #define PCI224_DACCON_FIFOINTR(x)	(((x) & 0x7) << 9)
 #define PCI224_DACCON_FIFOINTR_MASK	PCI224_DACCON_FIFOINTR(7)
 #define PCI224_DACCON_FIFOINTR_EMPTY	PCI224_DACCON_FIFOINTR(0) /* empty */
@@ -166,7 +166,7 @@
 #define PCI224_DACCON_BUSY		BIT(15)
 /* (w-o) FIFO reset. */
 #define PCI224_DACCON_FIFORESET		BIT(12)
-/* (w-o) Global reset (not sure what it does). */
+/* (w-o) Global reset (analt sure what it does). */
 #define PCI224_DACCON_GLOBALRESET	BIT(13)
 
 /*
@@ -207,7 +207,7 @@ static unsigned int pci224_clk_config(unsigned int chan, unsigned int src)
 #define GAT_VCC		0	/* VCC (i.e. enabled) */
 #define GAT_GND		1	/* GND (i.e. disabled) */
 #define GAT_EXT		2	/* reserved (external gate input) */
-#define GAT_NOUTNM2	3	/* inverted output of channel-2 modulo total */
+#define GAT_ANALUTNM2	3	/* inverted output of channel-2 modulo total */
 
 static unsigned int pci224_gat_config(unsigned int chan, unsigned int src)
 {
@@ -215,11 +215,11 @@ static unsigned int pci224_gat_config(unsigned int chan, unsigned int src)
 }
 
 /*
- * Summary of CLK_OUTNM1 and GAT_NOUTNM2 connections for PCI224 and PCI234:
+ * Summary of CLK_OUTNM1 and GAT_ANALUTNM2 connections for PCI224 and PCI234:
  *
  *              Channel's       Channel's
  *              clock input     gate input
- * Channel      CLK_OUTNM1      GAT_NOUTNM2
+ * Channel      CLK_OUTNM1      GAT_ANALUTNM2
  * -------      ----------      -----------
  * Z2-CT0       Z2-CT2-OUT      /Z2-CT1-OUT
  * Z2-CT1       Z2-CT0-OUT      /Z2-CT2-OUT
@@ -318,7 +318,7 @@ static const struct comedi_lrange range_pci234 = {
 	}
 };
 
-/* N.B. PCI234 ignores the polarity bit, but software uses it. */
+/* N.B. PCI234 iganalres the polarity bit, but software uses it. */
 static const unsigned short hwrange_pci234[4] = {
 	PCI224_DACCON_POLAR_BI,
 	PCI224_DACCON_POLAR_BI,
@@ -449,11 +449,11 @@ static void pci224_ao_stop(struct comedi_device *dev,
 	devpriv->intsce = 0;
 	outb(0, devpriv->iobase1 + PCI224_INT_SCE);
 	/*
-	 * Interrupt routine may or may not be running.  We may or may not
+	 * Interrupt routine may or may analt be running.  We may or may analt
 	 * have been called from the interrupt routine (directly or
 	 * indirectly via a comedi_events() callback routine).  It's highly
 	 * unlikely that we've been called from some other interrupt routine
-	 * but who knows what strange things coders get up to!
+	 * but who kanalws what strange things coders get up to!
 	 *
 	 * If the interrupt routine is currently running, wait for it to
 	 * finish, unless we appear to have been called via the interrupt
@@ -536,7 +536,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 	if (room >= PCI224_FIFO_ROOM_ONETOHALF) {
 		/* FIFO is less than half-full. */
 		if (num_scans == 0) {
-			/* Nothing left to put in the FIFO. */
+			/* Analthing left to put in the FIFO. */
 			dev_err(dev->class_dev, "AO buffer underrun\n");
 			s->async->events |= COMEDI_CB_OVERFLOW;
 		}
@@ -569,15 +569,15 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		outw(devpriv->daccon, dev->iobase + PCI224_DACCON);
 	}
 	if ((devpriv->daccon & PCI224_DACCON_TRIG_MASK) ==
-	    PCI224_DACCON_TRIG_NONE) {
+	    PCI224_DACCON_TRIG_ANALNE) {
 		unsigned short trig;
 
 		/*
 		 * This is the initial DAC FIFO interrupt at the
 		 * start of the acquisition.  The DAC's scan trigger
-		 * has been set to 'none' up until now.
+		 * has been set to 'analne' up until analw.
 		 *
-		 * Now that data has been written to the FIFO, the
+		 * Analw that data has been written to the FIFO, the
 		 * DAC's scan trigger source can be set to the
 		 * correct value.
 		 *
@@ -631,7 +631,7 @@ static int pci224_ao_check_chanlist(struct comedi_device *dev,
 
 		if (chan_mask & (1 << chan)) {
 			dev_dbg(dev->class_dev,
-				"%s: entries in chanlist must contain no duplicate channels\n",
+				"%s: entries in chanlist must contain anal duplicate channels\n",
 				__func__);
 			return -EINVAL;
 		}
@@ -668,10 +668,10 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_INT | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_EXT | TRIG_TIMER);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= comedi_check_trigger_src(&cmd->stop_src,
-					TRIG_COUNT | TRIG_EXT | TRIG_NONE);
+					TRIG_COUNT | TRIG_EXT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -714,7 +714,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			    COMBINE(cmd->start_arg, 0, ~CR_FLAGS_MASK);
 			err |= -EINVAL;
 		}
-		/* The only flag allowed is CR_EDGE, which is ignored. */
+		/* The only flag allowed is CR_EDGE, which is iganalred. */
 		if (cmd->start_arg & CR_FLAGS_MASK & ~CR_EDGE) {
 			cmd->start_arg = COMBINE(cmd->start_arg, 0,
 						 CR_FLAGS_MASK & ~CR_EDGE);
@@ -740,7 +740,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			    COMBINE(cmd->scan_begin_arg, 0, ~CR_FLAGS_MASK);
 			err |= -EINVAL;
 		}
-		/* Only allow flags CR_EDGE and CR_INVERT.  Ignore CR_EDGE. */
+		/* Only allow flags CR_EDGE and CR_INVERT.  Iganalre CR_EDGE. */
 		if (cmd->scan_begin_arg & CR_FLAGS_MASK &
 		    ~(CR_EDGE | CR_INVERT)) {
 			cmd->scan_begin_arg =
@@ -766,13 +766,13 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			    COMBINE(cmd->stop_arg, 0, ~CR_FLAGS_MASK);
 			err |= -EINVAL;
 		}
-		/* The only flag allowed is CR_EDGE, which is ignored. */
+		/* The only flag allowed is CR_EDGE, which is iganalred. */
 		if (cmd->stop_arg & CR_FLAGS_MASK & ~CR_EDGE) {
 			cmd->stop_arg =
 			    COMBINE(cmd->stop_arg, 0, CR_FLAGS_MASK & ~CR_EDGE);
 		}
 		break;
-	case TRIG_NONE:
+	case TRIG_ANALNE:
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 		break;
 	}
@@ -837,7 +837,7 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int rank;
 	unsigned long flags;
 
-	/* Cannot handle null/empty chanlist. */
+	/* Cananalt handle null/empty chanlist. */
 	if (!cmd->chanlist || cmd->chanlist_len == 0)
 		return -EINVAL;
 
@@ -863,15 +863,15 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*
 	 * Set DAC range and polarity.
-	 * Set DAC scan trigger source to 'none'.
-	 * Set DAC FIFO interrupt trigger level to 'not half full'.
+	 * Set DAC scan trigger source to 'analne'.
+	 * Set DAC FIFO interrupt trigger level to 'analt half full'.
 	 * Reset DAC FIFO.
 	 *
 	 * N.B. DAC FIFO interrupts are currently disabled.
 	 */
 	devpriv->daccon =
 	    COMBINE(devpriv->daccon,
-		    board->ao_hwrange[range] | PCI224_DACCON_TRIG_NONE |
+		    board->ao_hwrange[range] | PCI224_DACCON_TRIG_ANALNE |
 		    PCI224_DACCON_FIFOINTR_NHALF,
 		    PCI224_DACCON_POLAR_MASK | PCI224_DACCON_VREF_MASK |
 		    PCI224_DACCON_TRIG_MASK | PCI224_DACCON_FIFOINTR_MASK);
@@ -1000,7 +1000,7 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 		board = &pci224_boards[context_model];
 	if (!board || !board->name) {
 		dev_err(dev->class_dev,
-			"amplc_pci224: BUG! cannot determine board type!\n");
+			"amplc_pci224: BUG! cananalt determine board type!\n");
 		return -EINVAL;
 	}
 	dev->board_ptr = board;
@@ -1011,7 +1011,7 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -1028,7 +1028,7 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 					      sizeof(devpriv->ao_scan_vals[0]),
 					      GFP_KERNEL);
 	if (!devpriv->ao_scan_vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate buffer to hold AO channel scan order. */
 	devpriv->ao_scan_order =
@@ -1036,7 +1036,7 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 					      sizeof(devpriv->ao_scan_order[0]),
 					      GFP_KERNEL);
 	if (!devpriv->ao_scan_order)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Disable interrupt sources. */
 	devpriv->intsce = 0;

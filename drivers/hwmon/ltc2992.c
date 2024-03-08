@@ -96,7 +96,7 @@
 #define LTC2992_GPIO3_FAULT_MSK(x)	(BIT(6) << (x))
 #define LTC2992_GPIO4_FAULT_MSK(x)	(BIT(4) << (x))
 
-#define LTC2992_IADC_NANOV_LSB		12500
+#define LTC2992_IADC_NAANALV_LSB		12500
 #define LTC2992_VADC_UV_LSB		25000
 #define LTC2992_VADC_GPIO_UV_LSB	500
 
@@ -315,7 +315,7 @@ static int ltc2992_config_gpio(struct ltc2992_state *st)
 		gpio_name = devm_kasprintf(&st->client->dev, GFP_KERNEL, "ltc2992-%x-%s",
 					   st->client->addr, ltc2992_gpio_names[i]);
 		if (!gpio_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		st->gpio_names[i] = gpio_name;
 	}
@@ -472,7 +472,7 @@ static int ltc2992_read_gpios_in(struct device *dev, u32 attr, int nr_gpio, long
 	case hwmon_in_max_alarm:
 		return ltc2992_read_gpio_alarm(st, nr_gpio, attr, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ltc2992_get_voltage(st, reg, LTC2992_VADC_GPIO_UV_LSB, val);
@@ -526,7 +526,7 @@ static int ltc2992_read_in(struct device *dev, u32 attr, int channel, long *val)
 	case hwmon_in_max_alarm:
 		return ltc2992_read_in_alarm(st, channel, val, attr);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ltc2992_get_voltage(st, reg, LTC2992_VADC_UV_LSB, val);
@@ -541,7 +541,7 @@ static int ltc2992_get_current(struct ltc2992_state *st, u32 reg, u32 channel, l
 		return reg_val;
 
 	reg_val = reg_val >> 4;
-	*val = DIV_ROUND_CLOSEST(reg_val * LTC2992_IADC_NANOV_LSB, st->r_sense_uohm[channel]);
+	*val = DIV_ROUND_CLOSEST(reg_val * LTC2992_IADC_NAANALV_LSB, st->r_sense_uohm[channel]);
 
 	return 0;
 }
@@ -550,7 +550,7 @@ static int ltc2992_set_current(struct ltc2992_state *st, u32 reg, u32 channel, l
 {
 	u32 reg_val;
 
-	reg_val = DIV_ROUND_CLOSEST(val * st->r_sense_uohm[channel], LTC2992_IADC_NANOV_LSB);
+	reg_val = DIV_ROUND_CLOSEST(val * st->r_sense_uohm[channel], LTC2992_IADC_NAANALV_LSB);
 	reg_val = reg_val << 4;
 
 	return ltc2992_write_reg(st, reg, 2, reg_val);
@@ -601,7 +601,7 @@ static int ltc2992_read_curr(struct device *dev, u32 attr, int channel, long *va
 	case hwmon_curr_max_alarm:
 		return ltc2992_read_curr_alarm(st, channel, val, attr);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ltc2992_get_current(st, reg, channel, val);
@@ -615,7 +615,7 @@ static int ltc2992_get_power(struct ltc2992_state *st, u32 reg, u32 channel, lon
 	if (reg_val < 0)
 		return reg_val;
 
-	*val = mul_u64_u32_div(reg_val, LTC2992_VADC_UV_LSB * LTC2992_IADC_NANOV_LSB,
+	*val = mul_u64_u32_div(reg_val, LTC2992_VADC_UV_LSB * LTC2992_IADC_NAANALV_LSB,
 			       st->r_sense_uohm[channel] * 1000);
 
 	return 0;
@@ -626,7 +626,7 @@ static int ltc2992_set_power(struct ltc2992_state *st, u32 reg, u32 channel, lon
 	u32 reg_val;
 
 	reg_val = mul_u64_u32_div(val, st->r_sense_uohm[channel] * 1000,
-				  LTC2992_VADC_UV_LSB * LTC2992_IADC_NANOV_LSB);
+				  LTC2992_VADC_UV_LSB * LTC2992_IADC_NAANALV_LSB);
 
 	return ltc2992_write_reg(st, reg, 3, reg_val);
 }
@@ -676,7 +676,7 @@ static int ltc2992_read_power(struct device *dev, u32 attr, int channel, long *v
 	case hwmon_power_max_alarm:
 		return ltc2992_read_power_alarm(st, channel, val, attr);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ltc2992_get_power(st, reg, channel, val);
@@ -693,7 +693,7 @@ static int ltc2992_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 	case hwmon_power:
 		return ltc2992_read_power(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -710,7 +710,7 @@ static int ltc2992_write_curr(struct device *dev, u32 attr, int channel, long va
 		reg = LTC2992_DSENSE_MAX_THRESH(channel);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ltc2992_set_current(st, reg, channel, val);
@@ -729,7 +729,7 @@ static int ltc2992_write_gpios_in(struct device *dev, u32 attr, int nr_gpio, lon
 		reg = ltc2992_gpio_addr_map[nr_gpio].max_thresh;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ltc2992_set_voltage(st, reg, LTC2992_VADC_GPIO_UV_LSB, val);
@@ -751,7 +751,7 @@ static int ltc2992_write_in(struct device *dev, u32 attr, int channel, long val)
 		reg = LTC2992_SENSE_MAX_THRESH(channel);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ltc2992_set_voltage(st, reg, LTC2992_VADC_UV_LSB, val);
@@ -770,7 +770,7 @@ static int ltc2992_write_power(struct device *dev, u32 attr, int channel, long v
 		reg = LTC2992_POWER_MAX_THRESH(channel);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ltc2992_set_power(st, reg, channel, val);
@@ -785,7 +785,7 @@ static int ltc2992_write_chip(struct device *dev, u32 attr, int channel, long va
 		return regmap_update_bits(st->regmap, LTC2992_CTRLB, LTC2992_RESET_HISTORY,
 					  LTC2992_RESET_HISTORY);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -802,7 +802,7 @@ static int ltc2992_write(struct device *dev, enum hwmon_sensor_types type, u32 a
 	case hwmon_power:
 		return ltc2992_write_power(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -854,31 +854,31 @@ static const struct regmap_config ltc2992_regmap_config = {
 
 static int ltc2992_parse_dt(struct ltc2992_state *st)
 {
-	struct fwnode_handle *fwnode;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *fwanalde;
+	struct fwanalde_handle *child;
 	u32 addr;
 	u32 val;
 	int ret;
 
-	fwnode = dev_fwnode(&st->client->dev);
+	fwanalde = dev_fwanalde(&st->client->dev);
 
-	fwnode_for_each_available_child_node(fwnode, child) {
-		ret = fwnode_property_read_u32(child, "reg", &addr);
+	fwanalde_for_each_available_child_analde(fwanalde, child) {
+		ret = fwanalde_property_read_u32(child, "reg", &addr);
 		if (ret < 0) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
 		if (addr > 1) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return -EINVAL;
 		}
 
-		ret = fwnode_property_read_u32(child, "shunt-resistor-micro-ohms", &val);
+		ret = fwanalde_property_read_u32(child, "shunt-resistor-micro-ohms", &val);
 		if (!ret) {
 			if (!val)
 				return dev_err_probe(&st->client->dev, -EINVAL,
-						     "shunt resistor value cannot be zero\n");
+						     "shunt resistor value cananalt be zero\n");
 			st->r_sense_uohm[addr] = val;
 		}
 	}
@@ -894,7 +894,7 @@ static int ltc2992_i2c_probe(struct i2c_client *client)
 
 	st = devm_kzalloc(&client->dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->client = client;
 	st->regmap = devm_regmap_init_i2c(client, &ltc2992_regmap_config);
@@ -939,5 +939,5 @@ static struct i2c_driver ltc2992_i2c_driver = {
 module_i2c_driver(ltc2992_i2c_driver);
 
 MODULE_AUTHOR("Alexandru Tachici <alexandru.tachici@analog.com>");
-MODULE_DESCRIPTION("Hwmon driver for Linear Technology 2992");
+MODULE_DESCRIPTION("Hwmon driver for Linear Techanallogy 2992");
 MODULE_LICENSE("Dual BSD/GPL");

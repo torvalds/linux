@@ -107,7 +107,7 @@ static int uvc_mc_init_entity(struct uvc_video_chain *chain,
 		case UVC_EXTERNAL_VENDOR_SPECIFIC:
 		case UVC_EXT_GPIO_UNIT:
 		default:
-			function = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
+			function = MEDIA_ENT_F_V4L2_SUBDEV_UNKANALWN;
 			break;
 		}
 

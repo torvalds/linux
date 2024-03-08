@@ -74,7 +74,7 @@ static irqreturn_t bbnsm_pwrkey_interrupt(int irq, void *dev_id)
 
 	regmap_read(bbnsm->regmap, BBNSM_EVENTS, &event);
 	if (!(event & BBNSM_BTN_OFF))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	pm_wakeup_event(bbnsm->input->dev.parent, 0);
 
@@ -98,14 +98,14 @@ static int bbnsm_pwrkey_probe(struct platform_device *pdev)
 {
 	struct bbnsm_pwrkey *bbnsm;
 	struct input_dev *input;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int error;
 
 	bbnsm = devm_kzalloc(&pdev->dev, sizeof(*bbnsm), GFP_KERNEL);
 	if (!bbnsm)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	bbnsm->regmap = syscon_node_to_regmap(np->parent);
+	bbnsm->regmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(bbnsm->regmap)) {
 		dev_err(&pdev->dev, "bbnsm pwerkey get regmap failed\n");
 		return PTR_ERR(bbnsm->regmap);
@@ -114,7 +114,7 @@ static int bbnsm_pwrkey_probe(struct platform_device *pdev)
 	if (device_property_read_u32(&pdev->dev, "linux,code",
 				     &bbnsm->keycode)) {
 		bbnsm->keycode = KEY_POWER;
-		dev_warn(&pdev->dev, "key code is not specified, using default KEY_POWER\n");
+		dev_warn(&pdev->dev, "key code is analt specified, using default KEY_POWER\n");
 	}
 
 	bbnsm->irq = platform_get_irq(pdev, 0);
@@ -133,7 +133,7 @@ static int bbnsm_pwrkey_probe(struct platform_device *pdev)
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
 		dev_err(&pdev->dev, "failed to allocate the input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input->name = pdev->name;
@@ -155,7 +155,7 @@ static int bbnsm_pwrkey_probe(struct platform_device *pdev)
 	error = devm_request_irq(&pdev->dev, bbnsm->irq, bbnsm_pwrkey_interrupt,
 				 IRQF_SHARED, pdev->name, pdev);
 	if (error) {
-		dev_err(&pdev->dev, "interrupt not available.\n");
+		dev_err(&pdev->dev, "interrupt analt available.\n");
 		return error;
 	}
 

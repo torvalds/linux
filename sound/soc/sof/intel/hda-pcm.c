@@ -67,7 +67,7 @@ u32 hda_dsp_get_mult_div(struct snd_sof_dev *sdev, int rate)
 	default:
 		dev_warn(sdev->dev, "can't find div rate %d using 48kHz\n",
 			 rate);
-		return 0; /* use 48KHz if not found */
+		return 0; /* use 48KHz if analt found */
 	}
 };
 
@@ -87,7 +87,7 @@ u32 hda_dsp_get_bits(struct snd_sof_dev *sdev, int sample_bits)
 	default:
 		dev_warn(sdev->dev, "can't find %d bits using 16bit\n",
 			 sample_bits);
-		return SDnFMT_BITS(1); /* use 16bits format if not found */
+		return SDnFMT_BITS(1); /* use 16bits format if analt found */
 	}
 };
 
@@ -108,7 +108,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 
 	/*
 	 * Use the codec required format val (which is link_bps adjusted) when
-	 * the DSP is not in use
+	 * the DSP is analt in use
 	 */
 	if (!sdev->dspless_mode_selected) {
 		u32 rate = hda_dsp_get_mult_div(sdev, params_rate(params));
@@ -119,9 +119,9 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 
 	hstream->bufsize = params_buffer_bytes(params);
 	hstream->period_bytes = params_period_bytes(params);
-	hstream->no_period_wakeup  =
-			(params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
-			(params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
+	hstream->anal_period_wakeup  =
+			(params->info & SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP) &&
+			(params->flags & SNDRV_PCM_HW_PARAMS_ANAL_PERIOD_WAKEUP);
 
 	ret = hda_dsp_stream_hw_params(sdev, hext_stream, dmab, params);
 	if (ret < 0) {
@@ -136,7 +136,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 		hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_DISABLE, 0);
 
 	if (hda)
-		platform_params->no_ipc_position = hda->no_ipc_position;
+		platform_params->anal_ipc_position = hda->anal_ipc_position;
 
 	platform_params->stream_tag = hstream->stream_tag;
 
@@ -191,7 +191,7 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 		return 0;
 	}
 
-	if (hda && !hda->no_ipc_position) {
+	if (hda && !hda->anal_ipc_position) {
 		/* read position from IPC position */
 		pos = spcm->stream[substream->stream].posn.host_posn;
 		goto found;
@@ -227,7 +227,7 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 	 * The status can still be mapped.
 	 */
 	if (hda_disable_rewinds)
-		runtime->hw.info |= SNDRV_PCM_INFO_NO_REWINDS | SNDRV_PCM_INFO_SYNC_APPLPTR;
+		runtime->hw.info |= SNDRV_PCM_INFO_ANAL_REWINDS | SNDRV_PCM_INFO_SYNC_APPLPTR;
 
 	/*
 	 * All playback streams are DMI L1 capable, capture streams need
@@ -243,8 +243,8 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 
 	dsp_stream = hda_dsp_stream_get(sdev, direction, flags);
 	if (!dsp_stream) {
-		dev_err(sdev->dev, "error: no stream available\n");
-		return -ENODEV;
+		dev_err(sdev->dev, "error: anal stream available\n");
+		return -EANALDEV;
 	}
 
 	/* minimum as per HDA spec */
@@ -274,8 +274,8 @@ int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 	ret = hda_dsp_stream_put(sdev, direction, hstream->stream_tag);
 
 	if (ret) {
-		dev_dbg(sdev->dev, "stream %s not opened!\n", substream->name);
-		return -ENODEV;
+		dev_dbg(sdev->dev, "stream %s analt opened!\n", substream->name);
+		return -EANALDEV;
 	}
 
 	/* unbinding pcm substream to hda stream */

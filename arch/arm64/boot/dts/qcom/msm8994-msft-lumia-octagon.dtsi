@@ -17,29 +17,29 @@
  * Delete all generic (msm8994.dtsi) reserved
  * memory mappings which are different in this device.
  */
-/delete-node/ &adsp_mem;
-/delete-node/ &audio_mem;
-/delete-node/ &cont_splash_mem;
-/delete-node/ &mba_mem;
-/delete-node/ &mpss_mem;
-/delete-node/ &peripheral_region;
-/delete-node/ &res_hyp_mem;
-/delete-node/ &rmtfs_mem;
-/delete-node/ &smem_mem;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &audio_mem;
+/delete-analde/ &cont_splash_mem;
+/delete-analde/ &mba_mem;
+/delete-analde/ &mpss_mem;
+/delete-analde/ &peripheral_region;
+/delete-analde/ &res_hyp_mem;
+/delete-analde/ &rmtfs_mem;
+/delete-analde/ &smem_mem;
 
 / {
 	/*
 	 * Most Lumia 950/XL users use GRUB to load their kernels,
-	 * hence there is no need for msm-id and friends.
+	 * hence there is anal need for msm-id and friends.
 	 */
 
 	/*
 	 * This enables graphical output via bootloader-enabled display.
-	 * acpi=no is required due to WP platforms having ACPI support, but
+	 * acpi=anal is required due to WP platforms having ACPI support, but
 	 * only for Windows-based OSes.
 	 */
 	chosen {
-		bootargs = "earlycon=efifb console=efifb acpi=no";
+		bootargs = "earlycon=efifb console=efifb acpi=anal";
 
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -127,98 +127,98 @@
 
 		uefi_mem: memory@200000 {
 			reg = <0 0x00200000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mppark_mem: memory@300000 {
 			reg = <0 0x00300000 0 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		fbpt_mem: memory@380000 {
 			reg = <0 0x00380000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		dbg2_mem: memory@381000 {
 			reg = <0 0x00381000 0 0x4000>;
-			no-map;
+			anal-map;
 		};
 
 		capsule_mem: memory@385000 {
 			reg = <0 0x00385000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		tpmctrl_mem: memory@386000 {
 			reg = <0 0x00386000 0 0x3000>;
-			no-map;
+			anal-map;
 		};
 
 		uefiinfo_mem: memory@389000 {
 			reg = <0 0x00389000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		reset_mem: memory@389000 {
 			reg = <0 0x00389000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		resuncached_mem: memory@38e000 {
 			reg = <0 0x0038e000 0 0x72000>;
-			no-map;
+			anal-map;
 		};
 
 		disp_mem: memory@400000 {
 			reg = <0 0x00400000 0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		uefistack_mem: memory@c00000 {
 			reg = <0 0x00c00000 0 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		cpuvect_mem: memory@c40000 {
 			reg = <0 0x00c40000 0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		rescached_mem: memory@400000 {
 			reg = <0 0x00c50000 0 0xb0000>;
-			no-map;
+			anal-map;
 		};
 
 		tzapps_mem: memory@6500000 {
 			reg = <0 0x06500000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: memory@6a00000 {
 			reg = <0 0x06a00000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		hyp_mem: memory@6c00000 {
 			reg = <0 0x06c00000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_mem: memory@6d00000 {
 			reg = <0 0x06d00000 0 0x160000>;
-			no-map;
+			anal-map;
 		};
 
 		rfsa_adsp_mem: memory@6e60000 {
 			reg = <0 0x06e60000 0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		rfsa_mpss_mem: memory@6e70000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0 0x06e70000 0 0x10000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 		};
@@ -229,7 +229,7 @@
 		 */
 		mba_mem: memory@6e80000 {
 			reg = <0 0x06e80000 0 0x180000>;
-			no-map;
+			anal-map;
 		};
 
 		/*
@@ -239,33 +239,33 @@
 
 		mpss_mem: memory@7000000 {
 			reg = <0 0x07000000 0 0x5a00000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: memory@ca00000 {
 			reg = <0 0x0ca00000 0 0x1800000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@e200000 {
 			reg = <0 0x0e200000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_metadata_mem: memory@e700000 {
 			reg = <0 0x0e700000 0 0x4000>;
-			no-map;
+			anal-map;
 		};
 
 		memory@e704000 {
 			reg = <0 0x0e704000 0 0x7fc000>;
-			no-map;
+			anal-map;
 		};
 		/* Peripheral Image loader region end */
 
 		cnss_mem: memory@ef00000 {
 			reg = <0 0x0ef00000 0 0x300000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -284,7 +284,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -396,10 +396,10 @@
 	};
 
 	/*
-	 * The QPDS-T900/QPDS-T930 is a customized part built for Nokia
+	 * The QPDS-T900/QPDS-T930 is a customized part built for Analkia
 	 * by Avago. It is very similar to the Avago APDS-9930 with some
-	 * minor differences. In the future a proper driver might need to
-	 * be written for this device. For now this works fine.
+	 * mianalr differences. In the future a proper driver might need to
+	 * be written for this device. For analw this works fine.
 	 */
 	qpdst900: qpdst900@39 {
 		compatible = "avago,apds9930";
@@ -472,7 +472,7 @@
 	bt_en_gpios: bt-en-gpios-state {
 		pinconf {
 			pins = "gpio19";
-			function = PMIC_GPIO_FUNC_NORMAL;
+			function = PMIC_GPIO_FUNC_ANALRMAL;
 			output-low;
 			power-source = <PM8994_GPIO_S4>;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -512,7 +512,7 @@
 
 	/*
 	 * This device uses a TI HD3SS460 Type-C MUX
-	 * As this device has no driver currently,
+	 * As this device has anal driver currently,
 	 * the configuration for USB Face Up is set-up here.
 	 *
 	 * TODO: remove once a driver is available
@@ -520,21 +520,21 @@
 	 */
 	hd3ss460_pol: pol-low-state {
 		pins = "gpio8";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		qcom,drive-strength = <3>;
 		bias-pull-down;
 	};
 
 	hd3ss460_amsel: amsel-high-state {
 		pins = "gpio9";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		qcom,drive-strength = <1>;
 		bias-pull-up;
 	};
 
 	hd3ss460_en: en-high-state {
 		pins = "gpio10";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		qcom,drive-strength = <1>;
 		bias-pull-up;
 	};

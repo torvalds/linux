@@ -48,7 +48,7 @@ dst := $(MODLIB)/$(INSTALL_MOD_DIR)
 endif
 
 $(foreach x, % :, $(if $(findstring $x, $(dst)), \
-	$(error module installation path cannot contain '$x')))
+	$(error module installation path cananalt contain '$x')))
 
 suffix-y				:=
 suffix-$(CONFIG_MODULE_COMPRESS_GZIP)	:= .gz

@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - eeprom access
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Analever <andreas.analever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -140,17 +140,17 @@ static int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
 	int res;
 
 	if (!sw->cap_plug_events) {
-		tb_sw_warn(sw, "no TB_CAP_PLUG_EVENTS, cannot read eeprom\n");
-		return -ENODEV;
+		tb_sw_warn(sw, "anal TB_CAP_PLUG_EVENTS, cananalt read eeprom\n");
+		return -EANALDEV;
 	}
 	res = tb_sw_read(sw, &cap, TB_CFG_SWITCH, sw->cap_plug_events,
 			     sizeof(cap) / 4);
 	if (res)
 		return res;
 
-	if (!cap.eeprom_ctl.present || cap.eeprom_ctl.not_present) {
-		tb_sw_warn(sw, "no NVM\n");
-		return -ENODEV;
+	if (!cap.eeprom_ctl.present || cap.eeprom_ctl.analt_present) {
+		tb_sw_warn(sw, "anal NVM\n");
+		return -EANALDEV;
 	}
 
 	if (cap.drom_offset > 0xffff) {
@@ -229,7 +229,7 @@ struct tb_drom_header {
 	u8 device_rom_revision; /* should be <= 1 */
 	u16 data_len:12;
 	u8 reserved:4;
-	/* BYTES 16-21 - Only for TBT DROM, nonexistent in USB4 DROM */
+	/* BYTES 16-21 - Only for TBT DROM, analnexistent in USB4 DROM */
 	u16 vendor_id;
 	u16 model_id;
 	u8 model_rev;
@@ -260,12 +260,12 @@ struct tb_drom_entry_port {
 	/* BYTE 2 */
 	u8 dual_link_port_rid:4;
 	u8 link_nr:1;
-	u8 unknown1:2;
+	u8 unkanalwn1:2;
 	bool has_dual_link_port:1;
 
 	/* BYTE 3 */
 	u8 dual_link_port_nr:6;
-	u8 unknown2:2;
+	u8 unkanalwn2:2;
 
 	/* BYTES 4 - 5 TODO decode */
 	u8 micro2:4;
@@ -274,10 +274,10 @@ struct tb_drom_entry_port {
 
 	/* BYTES 6-7, TODO: verify (find hardware that has these set) */
 	u8 peer_port_rid:4;
-	u8 unknown3:3;
+	u8 unkanalwn3:3;
 	bool has_peer_port:1;
 	u8 peer_port_nr:6;
-	u8 unknown4:2;
+	u8 unkanalwn4:2;
 } __packed;
 
 /* USB4 product descriptor */
@@ -296,7 +296,7 @@ struct tb_drom_entry_desc {
  * @sw: Router whose UID to read
  * @uid: UID is placed here
  *
- * Does not use the cached copy in sw->drom. Used during resume to check switch
+ * Does analt use the cached copy in sw->drom. Used during resume to check switch
  * identity.
  */
 int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid)
@@ -333,14 +333,14 @@ static int tb_drom_parse_entry_generic(struct tb_switch *sw,
 		sw->vendor_name = kstrndup(entry->data,
 			header->len - sizeof(*header), GFP_KERNEL);
 		if (!sw->vendor_name)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 
 	case 2:
 		sw->device_name = kstrndup(entry->data,
 			header->len - sizeof(*header), GFP_KERNEL);
 		if (!sw->device_name)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 	case 9: {
 		const struct tb_drom_entry_desc *desc =
@@ -369,7 +369,7 @@ static int tb_drom_parse_entry_port(struct tb_switch *sw,
 	 * so we skip those but allow the parser to continue.
 	 */
 	if (header->index > sw->config.max_port_number) {
-		dev_info_once(&sw->dev, "ignoring unnecessary extra entries in DROM\n");
+		dev_info_once(&sw->dev, "iganalring unnecessary extra entries in DROM\n");
 		return 0;
 	}
 
@@ -449,7 +449,7 @@ static int tb_drom_copy_efi(struct tb_switch *sw, u16 *size)
 
 	sw->drom = kmalloc(len, GFP_KERNEL);
 	if (!sw->drom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = device_property_read_u8_array(dev, "ThunderboltDROM", sw->drom,
 									len);
@@ -475,14 +475,14 @@ static int tb_drom_copy_nvm(struct tb_switch *sw, u16 *size)
 	int ret;
 
 	if (!sw->dma_port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = tb_eeprom_get_drom_offset(sw, &drom_offset);
 	if (ret)
 		return ret;
 
 	if (!drom_offset)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = dma_port_flash_read(sw->dma_port, drom_offset + 14, size,
 				  sizeof(*size));
@@ -493,7 +493,7 @@ static int tb_drom_copy_nvm(struct tb_switch *sw, u16 *size)
 	*size += 1 + 8 + 4;
 	sw->drom = kzalloc(*size, GFP_KERNEL);
 	if (!sw->drom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dma_port_flash_read(sw->dma_port, drom_offset, sw->drom, *size);
 	if (ret)
@@ -524,7 +524,7 @@ static int usb4_copy_drom(struct tb_switch *sw, u16 *size)
 	*size += 1 + 8 + 4;
 	sw->drom = kzalloc(*size, GFP_KERNEL);
 	if (!sw->drom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb4_switch_drom_read(sw, 0, sw->drom, *size);
 	if (ret) {
@@ -554,7 +554,7 @@ static int tb_drom_bit_bang(struct tb_switch *sw, u16 *size)
 
 	sw->drom = kzalloc(*size, GFP_KERNEL);
 	if (!sw->drom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = tb_eeprom_read_n(sw, 0, sw->drom, *size);
 	if (ret)
@@ -630,7 +630,7 @@ static int tb_drom_parse(struct tb_switch *sw, u16 size)
 		ret = usb4_drom_parse(sw);
 		break;
 	default:
-		tb_sw_warn(sw, "DROM device_rom_revision %#x unknown\n",
+		tb_sw_warn(sw, "DROM device_rom_revision %#x unkanalwn\n",
 			   header->device_rom_revision);
 		fallthrough;
 	case 1:
@@ -699,7 +699,7 @@ static int tb_drom_device_read(struct tb_switch *sw)
  * populates the fields in @sw accordingly. Can be called for any router
  * generation.
  *
- * Returns %0 in case of success and negative errno otherwise.
+ * Returns %0 in case of success and negative erranal otherwise.
  */
 int tb_drom_read(struct tb_switch *sw)
 {

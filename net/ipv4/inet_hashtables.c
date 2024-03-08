@@ -77,7 +77,7 @@ struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
 		tb->fastreuse = 0;
 		tb->fastreuseport = 0;
 		INIT_HLIST_HEAD(&tb->bhash2);
-		hlist_add_head(&tb->node, &head->chain);
+		hlist_add_head(&tb->analde, &head->chain);
 	}
 	return tb;
 }
@@ -88,7 +88,7 @@ struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
 void inet_bind_bucket_destroy(struct kmem_cache *cachep, struct inet_bind_bucket *tb)
 {
 	if (hlist_empty(&tb->bhash2)) {
-		__hlist_del(&tb->node);
+		__hlist_del(&tb->analde);
 		kmem_cache_free(cachep, tb);
 	}
 }
@@ -122,8 +122,8 @@ static void inet_bind2_bucket_init(struct inet_bind2_bucket *tb2,
 	tb2->rcv_saddr = sk->sk_rcv_saddr;
 #endif
 	INIT_HLIST_HEAD(&tb2->owners);
-	hlist_add_head(&tb2->node, &head->chain);
-	hlist_add_head(&tb2->bhash_node, &tb->bhash2);
+	hlist_add_head(&tb2->analde, &head->chain);
+	hlist_add_head(&tb2->bhash_analde, &tb->bhash2);
 }
 
 struct inet_bind2_bucket *inet_bind2_bucket_create(struct kmem_cache *cachep,
@@ -144,8 +144,8 @@ struct inet_bind2_bucket *inet_bind2_bucket_create(struct kmem_cache *cachep,
 void inet_bind2_bucket_destroy(struct kmem_cache *cachep, struct inet_bind2_bucket *tb)
 {
 	if (hlist_empty(&tb->owners)) {
-		__hlist_del(&tb->node);
-		__hlist_del(&tb->bhash_node);
+		__hlist_del(&tb->analde);
+		__hlist_del(&tb->bhash_analde);
 		kmem_cache_free(cachep, tb);
 	}
 }
@@ -169,7 +169,7 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 	inet_sk(sk)->inet_num = port;
 	inet_csk(sk)->icsk_bind_hash = tb;
 	inet_csk(sk)->icsk_bind2_hash = tb2;
-	sk_add_bind_node(sk, &tb2->owners);
+	sk_add_bind_analde(sk, &tb2->owners);
 }
 
 /*
@@ -196,7 +196,7 @@ static void __inet_put_port(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind2_hash) {
 		struct inet_bind2_bucket *tb2 = inet_csk(sk)->icsk_bind2_hash;
 
-		__sk_del_bind_node(sk);
+		__sk_del_bind_analde(sk);
 		inet_csk(sk)->icsk_bind2_hash = NULL;
 		inet_bind2_bucket_destroy(hashinfo->bind2_bucket_cachep, tb2);
 	}
@@ -237,12 +237,12 @@ int __inet_inherit_port(const struct sock *sk, struct sock *child)
 	if (unlikely(!tb || !tb2)) {
 		spin_unlock(&head2->lock);
 		spin_unlock(&head->lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	if (tb->port != port) {
 		l3mdev = inet_sk_bound_l3mdev(sk);
 
-		/* NOTE: using tproxy and redirecting skbs to a proxy
+		/* ANALTE: using tproxy and redirecting skbs to a proxy
 		 * on a different listener port breaks the assumption
 		 * that the listener socket's icsk_bind_hash is the same
 		 * as that of the child socket. We have to look up or
@@ -257,7 +257,7 @@ int __inet_inherit_port(const struct sock *sk, struct sock *child)
 			if (!tb) {
 				spin_unlock(&head2->lock);
 				spin_unlock(&head->lock);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			created_inet_bind_bucket = true;
 		}
@@ -289,7 +289,7 @@ error:
 		inet_bind_bucket_destroy(table->bind_bucket_cachep, tb);
 	spin_unlock(&head2->lock);
 	spin_unlock(&head->lock);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(__inet_inherit_port);
 
@@ -369,12 +369,12 @@ EXPORT_SYMBOL_GPL(inet_lookup_reuseport);
 
 /*
  * Here are some nice properties to exploit here. The BSD API
- * does not allow a listening sock to specify the remote port nor the
+ * does analt allow a listening sock to specify the remote port analr the
  * remote address for the connection. So always assume those are both
  * wildcarded during the search since they can never be otherwise.
  */
 
-/* called with rcu_read_lock() : No refcount taken on the socket */
+/* called with rcu_read_lock() : Anal refcount taken on the socket */
 static struct sock *inet_lhash2_lookup(struct net *net,
 				struct inet_listen_hashbucket *ilb2,
 				struct sk_buff *skb, int doff,
@@ -383,10 +383,10 @@ static struct sock *inet_lhash2_lookup(struct net *net,
 				const int dif, const int sdif)
 {
 	struct sock *sk, *result = NULL;
-	struct hlist_nulls_node *node;
+	struct hlist_nulls_analde *analde;
 	int score, hiscore = 0;
 
-	sk_nulls_for_each_rcu(sk, node, &ilb2->nulls_head) {
+	sk_nulls_for_each_rcu(sk, analde, &ilb2->nulls_head) {
 		score = compute_score(sk, net, hnum, daddr, dif, sdif);
 		if (score > hiscore) {
 			result = inet_lookup_reuseport(net, sk, skb, doff,
@@ -410,11 +410,11 @@ struct sock *inet_lookup_run_sk_lookup(struct net *net,
 				       inet_ehashfn_t *ehashfn)
 {
 	struct sock *sk, *reuse_sk;
-	bool no_reuseport;
+	bool anal_reuseport;
 
-	no_reuseport = bpf_sk_lookup_run_v4(net, protocol, saddr, sport,
+	anal_reuseport = bpf_sk_lookup_run_v4(net, protocol, saddr, sport,
 					    daddr, hnum, dif, &sk);
-	if (no_reuseport || IS_ERR_OR_NULL(sk))
+	if (anal_reuseport || IS_ERR_OR_NULL(sk))
 		return sk;
 
 	reuse_sk = inet_lookup_reuseport(net, sk, skb, doff, saddr, sport, daddr, hnum,
@@ -498,7 +498,7 @@ struct sock *__inet_lookup_established(struct net *net,
 	INET_ADDR_COOKIE(acookie, saddr, daddr);
 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
 	struct sock *sk;
-	const struct hlist_nulls_node *node;
+	const struct hlist_nulls_analde *analde;
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
@@ -507,11 +507,11 @@ struct sock *__inet_lookup_established(struct net *net,
 	struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
 
 begin:
-	sk_nulls_for_each_rcu(sk, node, &head->chain) {
+	sk_nulls_for_each_rcu(sk, analde, &head->chain) {
 		if (sk->sk_hash != hash)
 			continue;
 		if (likely(inet_match(net, sk, acookie, ports, dif, sdif))) {
-			if (unlikely(!refcount_inc_not_zero(&sk->sk_refcnt)))
+			if (unlikely(!refcount_inc_analt_zero(&sk->sk_refcnt)))
 				goto out;
 			if (unlikely(!inet_match(net, sk, acookie,
 						 ports, dif, sdif))) {
@@ -523,10 +523,10 @@ begin:
 	}
 	/*
 	 * if the nulls value we got at the end of this lookup is
-	 * not the expected one, we must restart lookup.
-	 * We probably met an item that was moved to another chain.
+	 * analt the expected one, we must restart lookup.
+	 * We probably met an item that was moved to aanalther chain.
 	 */
-	if (get_nulls_value(node) != slot)
+	if (get_nulls_value(analde) != slot)
 		goto begin;
 out:
 	sk = NULL;
@@ -554,12 +554,12 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
-	const struct hlist_nulls_node *node;
+	const struct hlist_nulls_analde *analde;
 	struct inet_timewait_sock *tw = NULL;
 
 	spin_lock(lock);
 
-	sk_nulls_for_each(sk2, node, &head->chain) {
+	sk_nulls_for_each(sk2, analde, &head->chain) {
 		if (sk2->sk_hash != hash)
 			continue;
 
@@ -569,20 +569,20 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 				if (twsk_unique(sk, sk2, twp))
 					break;
 			}
-			goto not_unique;
+			goto analt_unique;
 		}
 	}
 
-	/* Must record num and sport now. Otherwise we will see
+	/* Must record num and sport analw. Otherwise we will see
 	 * in hash table socket with a funny identity.
 	 */
 	inet->inet_num = lport;
 	inet->inet_sport = htons(lport);
 	sk->sk_hash = hash;
 	WARN_ON(!sk_unhashed(sk));
-	__sk_nulls_add_node_rcu(sk, &head->chain);
+	__sk_nulls_add_analde_rcu(sk, &head->chain);
 	if (tw) {
-		sk_nulls_del_node_init_rcu((struct sock *)tw);
+		sk_nulls_del_analde_init_rcu((struct sock *)tw);
 		__NET_INC_STATS(net, LINUX_MIB_TIMEWAITRECYCLED);
 	}
 	spin_unlock(lock);
@@ -596,9 +596,9 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	}
 	return 0;
 
-not_unique:
+analt_unique:
 	spin_unlock(lock);
-	return -EADDRNOTAVAIL;
+	return -EADDRANALTAVAIL;
 }
 
 static u64 inet_sk_port_offset(const struct sock *sk)
@@ -619,13 +619,13 @@ static bool inet_ehash_lookup_by_sk(struct sock *sk,
 	const __portpair ports = INET_COMBINED_PORTS(sk->sk_dport, sk->sk_num);
 	const int sdif = sk->sk_bound_dev_if;
 	const int dif = sk->sk_bound_dev_if;
-	const struct hlist_nulls_node *node;
+	const struct hlist_nulls_analde *analde;
 	struct net *net = sock_net(sk);
 	struct sock *esk;
 
 	INET_ADDR_COOKIE(acookie, sk->sk_daddr, sk->sk_rcv_saddr);
 
-	sk_nulls_for_each_rcu(esk, node, list) {
+	sk_nulls_for_each_rcu(esk, analde, list) {
 		if (esk->sk_hash != sk->sk_hash)
 			continue;
 		if (sk->sk_family == AF_INET) {
@@ -648,9 +648,9 @@ static bool inet_ehash_lookup_by_sk(struct sock *sk,
 	return false;
 }
 
-/* Insert a socket into ehash, and eventually remove another one
- * (The another one can be a SYN_RECV or TIMEWAIT)
- * If an existing socket already exists, socket sk is not inserted,
+/* Insert a socket into ehash, and eventually remove aanalther one
+ * (The aanalther one can be a SYN_RECV or TIMEWAIT)
+ * If an existing socket already exists, socket sk is analt inserted,
  * and sets found_dup_sk parameter to true.
  */
 bool inet_ehash_insert(struct sock *sk, struct sock *osk, bool *found_dup_sk)
@@ -671,7 +671,7 @@ bool inet_ehash_insert(struct sock *sk, struct sock *osk, bool *found_dup_sk)
 	spin_lock(lock);
 	if (osk) {
 		WARN_ON_ONCE(sk->sk_hash != osk->sk_hash);
-		ret = sk_nulls_del_node_init_rcu(osk);
+		ret = sk_nulls_del_analde_init_rcu(osk);
 	} else if (found_dup_sk) {
 		*found_dup_sk = inet_ehash_lookup_by_sk(sk, list);
 		if (*found_dup_sk)
@@ -679,14 +679,14 @@ bool inet_ehash_insert(struct sock *sk, struct sock *osk, bool *found_dup_sk)
 	}
 
 	if (ret)
-		__sk_nulls_add_node_rcu(sk, list);
+		__sk_nulls_add_analde_rcu(sk, list);
 
 	spin_unlock(lock);
 
 	return ret;
 }
 
-bool inet_ehash_nolisten(struct sock *sk, struct sock *osk, bool *found_dup_sk)
+bool inet_ehash_anallisten(struct sock *sk, struct sock *osk, bool *found_dup_sk)
 {
 	bool ok = inet_ehash_insert(sk, osk, found_dup_sk);
 
@@ -700,17 +700,17 @@ bool inet_ehash_nolisten(struct sock *sk, struct sock *osk, bool *found_dup_sk)
 	}
 	return ok;
 }
-EXPORT_SYMBOL_GPL(inet_ehash_nolisten);
+EXPORT_SYMBOL_GPL(inet_ehash_anallisten);
 
 static int inet_reuseport_add_sock(struct sock *sk,
 				   struct inet_listen_hashbucket *ilb)
 {
 	struct inet_bind_bucket *tb = inet_csk(sk)->icsk_bind_hash;
-	const struct hlist_nulls_node *node;
+	const struct hlist_nulls_analde *analde;
 	struct sock *sk2;
 	kuid_t uid = sock_i_uid(sk);
 
-	sk_nulls_for_each_rcu(sk2, node, &ilb->nulls_head) {
+	sk_nulls_for_each_rcu(sk2, analde, &ilb->nulls_head) {
 		if (sk2 != sk &&
 		    sk2->sk_family == sk->sk_family &&
 		    ipv6_only_sock(sk2) == ipv6_only_sock(sk) &&
@@ -733,7 +733,7 @@ int __inet_hash(struct sock *sk, struct sock *osk)
 
 	if (sk->sk_state != TCP_LISTEN) {
 		local_bh_disable();
-		inet_ehash_nolisten(sk, osk, NULL);
+		inet_ehash_anallisten(sk, osk, NULL);
 		local_bh_enable();
 		return 0;
 	}
@@ -749,9 +749,9 @@ int __inet_hash(struct sock *sk, struct sock *osk)
 	sock_set_flag(sk, SOCK_RCU_FREE);
 	if (IS_ENABLED(CONFIG_IPV6) && sk->sk_reuseport &&
 		sk->sk_family == AF_INET6)
-		__sk_nulls_add_node_tail_rcu(sk, &ilb2->nulls_head);
+		__sk_nulls_add_analde_tail_rcu(sk, &ilb2->nulls_head);
 	else
-		__sk_nulls_add_node_rcu(sk, &ilb2->nulls_head);
+		__sk_nulls_add_analde_rcu(sk, &ilb2->nulls_head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 unlock:
 	spin_unlock(&ilb2->lock);
@@ -794,7 +794,7 @@ void inet_unhash(struct sock *sk)
 		if (rcu_access_pointer(sk->sk_reuseport_cb))
 			reuseport_stop_listen_sock(sk);
 
-		__sk_nulls_del_node_init_rcu(sk);
+		__sk_nulls_del_analde_init_rcu(sk);
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 		spin_unlock(&ilb2->lock);
 	} else {
@@ -805,7 +805,7 @@ void inet_unhash(struct sock *sk)
 			spin_unlock_bh(lock);
 			return;
 		}
-		__sk_nulls_del_node_init_rcu(sk);
+		__sk_nulls_del_analde_init_rcu(sk);
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 		spin_unlock_bh(lock);
 	}
@@ -898,7 +898,7 @@ static int __inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family, 
 	int bhash;
 
 	if (!inet_csk(sk)->icsk_bind2_hash) {
-		/* Not bind()ed before. */
+		/* Analt bind()ed before. */
 		if (reset)
 			inet_reset_saddr(sk);
 		else
@@ -915,28 +915,28 @@ static int __inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family, 
 	if (!new_tb2) {
 		if (reset) {
 			/* The (INADDR_ANY, port) bucket might have already
-			 * been freed, then we cannot fixup icsk_bind2_hash,
-			 * so we give up and unlink sk from bhash/bhash2 not
+			 * been freed, then we cananalt fixup icsk_bind2_hash,
+			 * so we give up and unlink sk from bhash/bhash2 analt
 			 * to leave inconsistency in bhash2.
 			 */
 			inet_put_port(sk);
 			inet_reset_saddr(sk);
 		}
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bhash = inet_bhashfn(net, port, hinfo->bhash_size);
 	head = &hinfo->bhash[bhash];
 	head2 = inet_bhashfn_portaddr(hinfo, sk, net, port);
 
-	/* If we change saddr locklessly, another thread
+	/* If we change saddr locklessly, aanalther thread
 	 * iterating over bhash might see corrupted address.
 	 */
 	spin_lock_bh(&head->lock);
 
 	spin_lock(&head2->lock);
-	__sk_del_bind_node(sk);
+	__sk_del_bind_analde(sk);
 	inet_bind2_bucket_destroy(hinfo->bind2_bucket_cachep, inet_csk(sk)->icsk_bind2_hash);
 	spin_unlock(&head2->lock);
 
@@ -954,7 +954,7 @@ static int __inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family, 
 		inet_bind2_bucket_init(tb2, net, head2, inet_csk(sk)->icsk_bind_hash, sk);
 	}
 	inet_csk(sk)->icsk_bind2_hash = tb2;
-	sk_add_bind_node(sk, &tb2->owners);
+	sk_add_bind_analde(sk, &tb2->owners);
 	spin_unlock(&head2->lock);
 
 	spin_unlock_bh(&head->lock);
@@ -979,8 +979,8 @@ void inet_bhash2_reset_saddr(struct sock *sk)
 EXPORT_SYMBOL_GPL(inet_bhash2_reset_saddr);
 
 /* RFC 6056 3.3.4.  Algorithm 4: Double-Hash Port Selection Algorithm
- * Note that we use 32bit integers (vs RFC 'short integers')
- * because 2^16 is not a multiple of num_ephemeral and this
+ * Analte that we use 32bit integers (vs RFC 'short integers')
+ * because 2^16 is analt a multiple of num_ephemeral and this
  * property might be used by clever attacker.
  *
  * RFC claims using TABLE_LENGTH=10 buckets gives an improvement, though
@@ -1050,8 +1050,8 @@ other_parity_scan:
 						  hinfo->bhash_size)];
 		spin_lock_bh(&head->lock);
 
-		/* Does not bother with rcv_saddr checks, because
-		 * the established check is already unique enough.
+		/* Does analt bother with rcv_saddr checks, because
+		 * the established check is already unique eanalugh.
 		 */
 		inet_bind_bucket_for_each(tb, &head->chain) {
 			if (inet_bind_bucket_match(tb, net, port, l3mdev)) {
@@ -1070,7 +1070,7 @@ other_parity_scan:
 					     net, head, port, l3mdev);
 		if (!tb) {
 			spin_unlock_bh(&head->lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		tb_created = true;
 		tb->fastreuse = -1;
@@ -1086,7 +1086,7 @@ next_port:
 		if ((offset & 1) && remaining > 1)
 			goto other_parity_scan;
 	}
-	return -EADDRNOTAVAIL;
+	return -EADDRANALTAVAIL;
 
 ok:
 	/* Find the corresponding tb2 bucket since we need to
@@ -1116,7 +1116,7 @@ ok:
 
 	if (sk_unhashed(sk)) {
 		inet_sk(sk)->inet_sport = htons(port);
-		inet_ehash_nolisten(sk, (struct sock *)tw, NULL);
+		inet_ehash_anallisten(sk, (struct sock *)tw, NULL);
 	}
 	if (tw)
 		inet_twsk_bind_unhash(tw, hinfo);
@@ -1136,7 +1136,7 @@ error:
 		sock_prot_inuse_add(net, sk->sk_prot, -1);
 
 		spin_lock(lock);
-		sk_nulls_del_node_init_rcu(sk);
+		sk_nulls_del_analde_init_rcu(sk);
 		spin_unlock(lock);
 
 		sk->sk_hash = 0;
@@ -1157,7 +1157,7 @@ error:
 
 	local_bh_enable();
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -1215,7 +1215,7 @@ int inet_hashinfo2_init_mod(struct inet_hashinfo *h)
 {
 	h->lhash2 = kmalloc_array(INET_LHTABLE_SIZE, sizeof(*h->lhash2), GFP_KERNEL);
 	if (!h->lhash2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	h->lhash2_mask = INET_LHTABLE_SIZE - 1;
 	/* INET_LHTABLE_SIZE must be a power of 2 */
@@ -1236,12 +1236,12 @@ int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 		nblocks = max(2U * L1_CACHE_BYTES / locksz, 1U);
 		nblocks = roundup_pow_of_two(nblocks * num_possible_cpus());
 
-		/* no more locks than number of hash buckets */
+		/* anal more locks than number of hash buckets */
 		nblocks = min(nblocks, hashinfo->ehash_mask + 1);
 
 		hashinfo->ehash_locks = kvmalloc_array(nblocks, locksz, GFP_KERNEL);
 		if (!hashinfo->ehash_locks)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < nblocks; i++)
 			spin_lock_init(&hashinfo->ehash_locks[i]);

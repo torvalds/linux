@@ -2,7 +2,7 @@
 /*
  * Support for the FTS Systemmonitoring Chip "Teutates"
  *
- * Copyright (C) 2016 Fujitsu Technology Solutions GmbH,
+ * Copyright (C) 2016 Fujitsu Techanallogy Solutions GmbH,
  *		  Thilo Cestonaro <thilo.cestonaro@ts.fujitsu.com>
  */
 #include <linux/err.h>
@@ -41,13 +41,13 @@
 #define FTS_WATCHDOG_TIME_PRESET	0x000B
 #define FTS_WATCHDOG_CONTROL		0x5081
 
-#define FTS_NO_FAN_SENSORS		0x08
-#define FTS_NO_TEMP_SENSORS		0x10
-#define FTS_NO_VOLT_SENSORS		0x04
+#define FTS_ANAL_FAN_SENSORS		0x08
+#define FTS_ANAL_TEMP_SENSORS		0x10
+#define FTS_ANAL_VOLT_SENSORS		0x04
 
 #define FTS_FAN_SOURCE_INVALID		0xff
 
-static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x73, I2C_CLIENT_END };
 
 static const struct i2c_device_id fts_id[] = {
 	{ "ftsteutates", 0 },
@@ -71,14 +71,14 @@ struct fts_data {
 	enum WATCHDOG_RESOLUTION resolution;
 	bool valid; /* false until following fields are valid */
 
-	u8 volt[FTS_NO_VOLT_SENSORS];
+	u8 volt[FTS_ANAL_VOLT_SENSORS];
 
-	u8 temp_input[FTS_NO_TEMP_SENSORS];
+	u8 temp_input[FTS_ANAL_TEMP_SENSORS];
 	u8 temp_alarm;
 
 	u8 fan_present;
-	u8 fan_input[FTS_NO_FAN_SENSORS]; /* in rps */
-	u8 fan_source[FTS_NO_FAN_SENSORS];
+	u8 fan_input[FTS_ANAL_FAN_SENSORS]; /* in rps */
+	u8 fan_source[FTS_ANAL_FAN_SENSORS];
 	u8 fan_alarm;
 };
 
@@ -156,7 +156,7 @@ static int fts_update_device(struct fts_data *data)
 	if (err < 0)
 		goto exit;
 
-	data->valid = !!(err & 0x02); /* Data not ready yet */
+	data->valid = !!(err & 0x02); /* Data analt ready yet */
 	if (unlikely(!data->valid)) {
 		err = -EAGAIN;
 		goto exit;
@@ -172,7 +172,7 @@ static int fts_update_device(struct fts_data *data)
 		goto exit;
 	data->fan_alarm = err;
 
-	for (i = 0; i < FTS_NO_FAN_SENSORS; i++) {
+	for (i = 0; i < FTS_ANAL_FAN_SENSORS; i++) {
 		if (data->fan_present & BIT(i)) {
 			err = fts_read_byte(data->client, FTS_REG_FAN_INPUT(i));
 			if (err < 0)
@@ -195,14 +195,14 @@ static int fts_update_device(struct fts_data *data)
 		goto exit;
 	data->temp_alarm = err;
 
-	for (i = 0; i < FTS_NO_TEMP_SENSORS; i++) {
+	for (i = 0; i < FTS_ANAL_TEMP_SENSORS; i++) {
 		err = fts_read_byte(data->client, FTS_REG_TEMP_INPUT(i));
 		if (err < 0)
 			goto exit;
 		data->temp_input[i] = err;
 	}
 
-	for (i = 0; i < FTS_NO_VOLT_SENSORS; i++) {
+	for (i = 0; i < FTS_ANAL_VOLT_SENSORS; i++) {
 		err = fts_read_byte(data->client, FTS_REG_VOLT(i));
 		if (err < 0)
 			goto exit;
@@ -256,7 +256,7 @@ static int fts_wd_set_timeout(struct watchdog_device *wdd, unsigned int timeout)
 	int ret;
 
 	data = watchdog_get_drvdata(wdd);
-	/* switch watchdog resolution to minutes if timeout does not fit
+	/* switch watchdog resolution to minutes if timeout does analt fit
 	 * into a byte
 	 */
 	if (timeout > 0xFF) {
@@ -310,7 +310,7 @@ static int fts_watchdog_init(struct fts_data *data)
 	if (timeout < 0)
 		return timeout;
 
-	/* watchdog not running, set timeout to a default of 60 sec. */
+	/* watchdog analt running, set timeout to a default of 60 sec. */
 	if (timeout == 0) {
 		ret = fts_wd_set_resolution(data, seconds);
 		if (ret < 0)
@@ -448,7 +448,7 @@ static int fts_read(struct device *dev, enum hwmon_sensor_types type, u32 attr, 
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int fts_write(struct device *dev, enum hwmon_sensor_types type, u32 attr, int channel,
@@ -511,7 +511,7 @@ static int fts_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops fts_ops = {
@@ -585,20 +585,20 @@ static int fts_detect(struct i2c_client *client,
 	/* detection works with revision greater or equal to 0x2b */
 	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_REVISION_REG);
 	if (val < 0x2b)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Device Detect Regs must have 0x17 0x34 and 0x54 */
 	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_DETECT_REG_1);
 	if (val != 0x17)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_DETECT_REG_2);
 	if (val != 0x34)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_DETECT_REG_3);
 	if (val != 0x54)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * 0x10 == Baseboard Management Controller, 0x01 == Teutates
@@ -606,7 +606,7 @@ static int fts_detect(struct i2c_client *client,
 	 */
 	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_ID_REG);
 	if (val != 0x11)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, fts_id[0].name, I2C_NAME_SIZE);
 	info->flags = 0;
@@ -622,7 +622,7 @@ static int fts_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 
 	if (client->addr != 0x73)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Baseboard Management Controller check */
 	deviceid = i2c_smbus_read_byte_data(client, FTS_DEVICE_ID_REG);
@@ -632,18 +632,18 @@ static int fts_probe(struct i2c_client *client)
 			break;
 		default:
 			dev_dbg(&client->dev,
-				"No Baseboard Management Controller\n");
-			return -ENODEV;
+				"Anal Baseboard Management Controller\n");
+			return -EANALDEV;
 		}
 	} else {
-		dev_dbg(&client->dev, "No fujitsu board\n");
-		return -ENODEV;
+		dev_dbg(&client->dev, "Anal fujitsu board\n");
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(&client->dev, sizeof(struct fts_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->update_lock);
 	mutex_init(&data->access_lock);
@@ -680,7 +680,7 @@ static struct i2c_driver fts_driver = {
 	.id_table = fts_id,
 	.probe = fts_probe,
 	.detect = fts_detect,
-	.address_list = normal_i2c,
+	.address_list = analrmal_i2c,
 };
 
 module_i2c_driver(fts_driver);

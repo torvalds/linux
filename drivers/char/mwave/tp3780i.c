@@ -17,19 +17,19 @@
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
 *
-* NO WARRANTY
+* ANAL WARRANTY
 * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
 * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
 * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
 * solely responsible for determining the appropriateness of using and
 * distributing the Program and assumes all risks associated with its
-* exercise of rights under this Agreement, including but not limited to
+* exercise of rights under this Agreement, including but analt limited to
 * the risks and costs of program errors, damage to or loss of data,
 * programs or equipment, and unavailability or interruption of operations.
 *
 * DISCLAIMER OF LIABILITY
-* NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+* NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
 * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -38,7 +38,7 @@
 * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 *
 * You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
+* along with this program; if analt, write to the Free Software
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 *
 *
@@ -134,7 +134,7 @@ static irqreturn_t DspInterrupt(int irq, void *dev_id)
 					wake_up_interruptible(&pDrvData->IPCs[usPCNum - 1].ipc_wait_queue);
 				} else {
 					PRINTK_2(TRACE_TP3780I,
-						"tp3780i::DspInterrupt, no one waiting for IPC %x\n",
+						"tp3780i::DspInterrupt, anal one waiting for IPC %x\n",
 						usPCNum - 1);
 				}
 			}
@@ -165,7 +165,7 @@ int tp3780I_InitializeBoardData(THINKPAD_BD_DATA * pBDData)
 
 	retval = smapi_init();
 	if (retval) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_InitializeBoardData: Error: SMAPI is not available on this machine\n");
+		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_InitializeBoardData: Error: SMAPI is analt available on this machine\n");
 	} else {
 		if (mwave_3780i_irq || mwave_3780i_io || mwave_uart_irq || mwave_uart_io) {
 			retval = smapi_set_DSP_cfg();
@@ -192,7 +192,7 @@ int tp3780I_CalcResources(THINKPAD_BD_DATA * pBDData)
 		"tp3780i::tp3780I_CalcResources entry pBDData %p\n", pBDData);
 
 	if (smapi_query_DSP_cfg(&rSmapiInfo)) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_CalcResources: Error: Could not query DSP config. Aborting.\n");
+		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_CalcResources: Error: Could analt query DSP config. Aborting.\n");
 		return -EIO;
 	}
 
@@ -244,7 +244,7 @@ int tp3780I_ClaimResources(THINKPAD_BD_DATA * pBDData)
 	if ( pres == NULL ) retval = -EIO;
 
 	if (retval) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_ClaimResources: Error: Could not claim I/O region starting at %x\n", pSettings->usDspBaseIO);
+		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_ClaimResources: Error: Could analt claim I/O region starting at %x\n", pSettings->usDspBaseIO);
 		retval = -EIO;
 	}
 
@@ -289,7 +289,7 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 	}
 
 	if (!pSettings->bDSPEnabled) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780::tp3780I_EnableDSP: Error: pSettings->bDSPEnabled not set\n");
+		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780::tp3780I_EnableDSP: Error: pSettings->bDSPEnabled analt set\n");
 		goto exit_cleanup;
 	}
 
@@ -356,14 +356,14 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 	pSettings->usChipletEnable = TP_CFG_ChipletEnable;
 
 	if (request_irq(pSettings->usUartIrq, &UartInterrupt, 0, "mwave_uart", NULL)) {
-		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_EnableDSP: Error: Could not get UART IRQ %x\n", pSettings->usUartIrq);
+		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_EnableDSP: Error: Could analt get UART IRQ %x\n", pSettings->usUartIrq);
 		goto exit_cleanup;
-	} else {		/* no conflict just release */
+	} else {		/* anal conflict just release */
 		free_irq(pSettings->usUartIrq, NULL);
 	}
 
 	if (request_irq(pSettings->usDspIrq, &DspInterrupt, 0, "mwave_3780i", NULL)) {
-		PRINTK_ERROR("tp3780i::tp3780I_EnableDSP: Error: Could not get 3780i IRQ %x\n", pSettings->usDspIrq);
+		PRINTK_ERROR("tp3780i::tp3780I_EnableDSP: Error: Could analt get 3780i IRQ %x\n", pSettings->usDspIrq);
 		goto exit_cleanup;
 	} else {
 		PRINTK_3(TRACE_TP3780I,

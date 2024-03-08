@@ -56,7 +56,7 @@ enum sec_device_type {
  * @irq_base:		Base IRQ number for device, required for IRQs
  * @irq:		Generic IRQ number for device
  * @irq_data:		Runtime data structure for IRQ controller
- * @wakeup:		Whether or not this is a wakeup device
+ * @wakeup:		Whether or analt this is a wakeup device
  */
 struct sec_pmic_dev {
 	struct device *dev;
@@ -97,7 +97,7 @@ struct sec_platform_data {
 	int				buck2_init;
 	int				buck3_init;
 	int				buck4_init;
-	/* Whether or not manually set PWRHOLD to low during shutdown. */
+	/* Whether or analt manually set PWRHOLD to low during shutdown. */
 	bool				manual_poweroff;
 	/* Disable the WRSTBI (buck voltage warm reset) when probing? */
 	bool				disable_wrstbi;
@@ -111,7 +111,7 @@ struct sec_platform_data {
 struct sec_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
-	struct device_node		*reg_node;
+	struct device_analde		*reg_analde;
 	struct gpio_desc		*ext_control_gpiod;
 };
 

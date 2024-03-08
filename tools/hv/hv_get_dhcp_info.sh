@@ -9,7 +9,7 @@
 # Input: Name of the interface
 #
 # Output: The script prints the string "Enabled" to stdout to indicate
-#	that DHCP is enabled on the interface. If DHCP is not enabled,
+#	that DHCP is enabled on the interface. If DHCP is analt enabled,
 #	the script prints the string "Disabled" to stdout.
 #
 # Each Distro is expected to implement this script in a distro specific

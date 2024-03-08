@@ -41,8 +41,8 @@ static void dwc3_otg_clear_events(struct dwc3 *dwc)
 
 #define DWC3_OTG_ALL_EVENTS	(DWC3_OEVTEN_XHCIRUNSTPSETEN | \
 		DWC3_OEVTEN_DEVRUNSTPSETEN | DWC3_OEVTEN_HIBENTRYEN | \
-		DWC3_OEVTEN_CONIDSTSCHNGEN | DWC3_OEVTEN_HRRCONFNOTIFEN | \
-		DWC3_OEVTEN_HRRINITNOTIFEN | DWC3_OEVTEN_ADEVIDLEEN | \
+		DWC3_OEVTEN_CONIDSTSCHNGEN | DWC3_OEVTEN_HRRCONFANALTIFEN | \
+		DWC3_OEVTEN_HRRINITANALTIFEN | DWC3_OEVTEN_ADEVIDLEEN | \
 		DWC3_OEVTEN_ADEVBHOSTENDEN | DWC3_OEVTEN_ADEVHOSTEN | \
 		DWC3_OEVTEN_ADEVHNPCHNGEN | DWC3_OEVTEN_ADEVSRPDETEN | \
 		DWC3_OEVTEN_ADEVSESSENDDETEN | DWC3_OEVTEN_BDEVBHOSTENDEN | \
@@ -70,14 +70,14 @@ static irqreturn_t dwc3_otg_irq(int irq, void *_dwc)
 {
 	u32 reg;
 	struct dwc3 *dwc = _dwc;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	reg = dwc3_readl(dwc->regs, DWC3_OEVT);
 	if (reg) {
-		/* ignore non OTG events, we can't disable them in OEVTEN */
+		/* iganalre analn OTG events, we can't disable them in OEVTEN */
 		if (!(reg & DWC3_OTG_ALL_EVENTS)) {
 			dwc3_writel(dwc->regs, DWC3_OEVT, reg);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 
 		if (dwc->current_otg_role == DWC3_OTG_ROLE_HOST &&
@@ -325,7 +325,7 @@ static void dwc3_otg_device_exit(struct dwc3 *dwc)
 	dwc3_writel(dwc->regs, DWC3_OCTL, reg);
 }
 
-void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
+void dwc3_otg_update(struct dwc3 *dwc, bool iganalre_idstatus)
 {
 	int ret;
 	u32 reg;
@@ -335,11 +335,11 @@ void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
 	if (dwc->dr_mode != USB_DR_MODE_OTG)
 		return;
 
-	/* don't do anything if debug user changed role to not OTG */
+	/* don't do anything if debug user changed role to analt OTG */
 	if (dwc->current_dr_role != DWC3_GCTL_PRTCAP_OTG)
 		return;
 
-	if (!ignore_idstatus) {
+	if (!iganalre_idstatus) {
 		reg = dwc3_readl(dwc->regs, DWC3_OSTS);
 		id = !!(reg & DWC3_OSTS_CONIDSTS);
 
@@ -426,7 +426,7 @@ static void dwc3_drd_update(struct dwc3 *dwc)
 	}
 }
 
-static int dwc3_drd_notifier(struct notifier_block *nb,
+static int dwc3_drd_analtifier(struct analtifier_block *nb,
 			     unsigned long event, void *ptr)
 {
 	struct dwc3 *dwc = container_of(nb, struct dwc3, edev_nb);
@@ -435,7 +435,7 @@ static int dwc3_drd_notifier(struct notifier_block *nb,
 		      DWC3_GCTL_PRTCAP_HOST :
 		      DWC3_GCTL_PRTCAP_DEVICE);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 #if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
@@ -507,7 +507,7 @@ static int dwc3_setup_role_switch(struct dwc3 *dwc)
 	}
 	dwc3_set_mode(dwc, mode);
 
-	dwc3_role_switch.fwnode = dev_fwnode(dwc->dev);
+	dwc3_role_switch.fwanalde = dev_fwanalde(dwc->dev);
 	dwc3_role_switch.set = dwc3_usb_role_switch_set;
 	dwc3_role_switch.get = dwc3_usb_role_switch_get;
 	dwc3_role_switch.driver_data = dwc;
@@ -515,7 +515,7 @@ static int dwc3_setup_role_switch(struct dwc3 *dwc)
 	if (IS_ERR(dwc->role_sw))
 		return PTR_ERR(dwc->role_sw);
 
-	if (dwc->dev->of_node) {
+	if (dwc->dev->of_analde) {
 		/* populate connector entry */
 		int ret = devm_of_platform_populate(dwc->dev);
 
@@ -543,11 +543,11 @@ int dwc3_drd_init(struct dwc3 *dwc)
 		return dwc3_setup_role_switch(dwc);
 
 	if (dwc->edev) {
-		dwc->edev_nb.notifier_call = dwc3_drd_notifier;
-		ret = extcon_register_notifier(dwc->edev, EXTCON_USB_HOST,
+		dwc->edev_nb.analtifier_call = dwc3_drd_analtifier;
+		ret = extcon_register_analtifier(dwc->edev, EXTCON_USB_HOST,
 					       &dwc->edev_nb);
 		if (ret < 0) {
-			dev_err(dwc->dev, "couldn't register cable notifier\n");
+			dev_err(dwc->dev, "couldn't register cable analtifier\n");
 			return ret;
 		}
 
@@ -573,7 +573,7 @@ int dwc3_drd_init(struct dwc3 *dwc)
 		if (ret) {
 			dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
 				dwc->otg_irq, ret);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			return ret;
 		}
 
@@ -592,7 +592,7 @@ void dwc3_drd_exit(struct dwc3 *dwc)
 		usb_role_switch_unregister(dwc->role_sw);
 
 	if (dwc->edev)
-		extcon_unregister_notifier(dwc->edev, EXTCON_USB_HOST,
+		extcon_unregister_analtifier(dwc->edev, EXTCON_USB_HOST,
 					   &dwc->edev_nb);
 
 	cancel_work_sync(&dwc->drd_work);

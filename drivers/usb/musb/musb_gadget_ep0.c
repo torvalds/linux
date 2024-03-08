@@ -4,7 +4,7 @@
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
- * Copyright (C) 2006-2007 Nokia Corporation
+ * Copyright (C) 2006-2007 Analkia Corporation
  * Copyright (C) 2008-2009 MontaVista Software, Inc. <source@mvista.com>
  */
 
@@ -21,10 +21,10 @@
 #define	next_ep0_request(musb)	next_in_request(&(musb)->endpoints[0])
 
 /*
- * locking note:  we use only the controller lock, for simpler correctness.
+ * locking analte:  we use only the controller lock, for simpler correctness.
  * It's always held with IRQs blocked.
  *
- * It protects the ep0 request queue as well as ep0_state, not just the
+ * It protects the ep0 request queue as well as ep0_state, analt just the
  * controller and indexed registers.  And that lock stays held unless it
  * needs to be dropped to allow reentering this driver ... like upcalls to
  * the gadget driver, or adjusting endpoint halt status.
@@ -141,7 +141,7 @@ static int service_tx_status_request(
  * that is supposed to be a standard control request. Assumes the fifo to
  * be at least 2 bytes long.
  *
- * @return 0 if the request was NOT HANDLED,
+ * @return 0 if the request was ANALT HANDLED,
  * < 0 when error
  * > 0 when the request is processed
  *
@@ -150,7 +150,7 @@ static int service_tx_status_request(
 static int
 service_in_request(struct musb *musb, const struct usb_ctrlrequest *ctrlrequest)
 {
-	int handled = 0;	/* not handled */
+	int handled = 0;	/* analt handled */
 
 	if ((ctrlrequest->bRequestType & USB_TYPE_MASK)
 			== USB_TYPE_STANDARD) {
@@ -191,7 +191,7 @@ static inline void musb_try_b_hnp_enable(struct musb *musb)
 }
 
 /*
- * Handle all control requests with no DATA stage, including standard
+ * Handle all control requests with anal DATA stage, including standard
  * requests such as:
  * USB_REQ_SET_CONFIGURATION, USB_REQ_SET_INTERFACE, unrecognized
  *	always delegated to the gadget driver
@@ -257,7 +257,7 @@ __acquires(musb->lock)
 					break;
 
 				handled = 1;
-				/* Ignore request if endpoint is wedged */
+				/* Iganalre request if endpoint is wedged */
 				if (musb_ep->wedged)
 					break;
 
@@ -419,7 +419,7 @@ stall:
 				musb_ep_select(mbase, epnum);
 				if (is_in) {
 					csr = musb_readw(regs, MUSB_TXCSR);
-					if (csr & MUSB_TXCSR_FIFONOTEMPTY)
+					if (csr & MUSB_TXCSR_FIFOANALTEMPTY)
 						csr |= MUSB_TXCSR_FLUSHFIFO;
 					csr |= MUSB_TXCSR_P_SENDSTALL
 						| MUSB_TXCSR_CLRDATATOG
@@ -547,10 +547,10 @@ static void ep0_txstate(struct musb *musb)
 	} else
 		request = NULL;
 
-	/* report completions as soon as the fifo's loaded; there's no
+	/* report completions as soon as the fifo's loaded; there's anal
 	 * win in waiting till this last packet gets acked.  (other than
 	 * very precise fault reporting, needed by USB TMC; possible with
-	 * this hardware, but not usable from portable gadget drivers.)
+	 * this hardware, but analt usable from portable gadget drivers.)
 	 */
 	if (request) {
 		musb->ackpend = csr;
@@ -579,8 +579,8 @@ musb_read_setup(struct musb *musb, struct usb_ctrlrequest *req)
 
 	musb_read_fifo(&musb->endpoints[0], sizeof *req, (u8 *)req);
 
-	/* NOTE:  earlier 2.6 versions changed setup packets to host
-	 * order, but now USB packets always stay in USB byte order.
+	/* ANALTE:  earlier 2.6 versions changed setup packets to host
+	 * order, but analw USB packets always stay in USB byte order.
 	 */
 	musb_dbg(musb, "SETUP req%02x.%02x v%04x i%04x l%d",
 		req->bRequestType,
@@ -626,7 +626,7 @@ __acquires(musb->lock)
 {
 	int retval;
 	if (!musb->gadget_driver)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	spin_unlock(&musb->lock);
 	retval = musb->gadget_driver->setup(&musb->g, ctrlrequest);
 	spin_lock(&musb->lock);
@@ -644,7 +644,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 	u16		len;
 	void __iomem	*mbase = musb->mregs;
 	void __iomem	*regs = musb->endpoints[0].regs;
-	irqreturn_t	retval = IRQ_NONE;
+	irqreturn_t	retval = IRQ_ANALNE;
 
 	musb_ep_select(mbase, 0);	/* select ep0 */
 	csr = musb_readw(regs, MUSB_CSR0);
@@ -655,13 +655,13 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 
 	if (csr & MUSB_CSR0_P_DATAEND) {
 		/*
-		 * If DATAEND is set we should not call the callback,
-		 * hence the status stage is not complete.
+		 * If DATAEND is set we should analt call the callback,
+		 * hence the status stage is analt complete.
 		 */
 		return IRQ_HANDLED;
 	}
 
-	/* I sent a stall.. need to acknowledge it now.. */
+	/* I sent a stall.. need to ackanalwledge it analw.. */
 	if (csr & MUSB_CSR0_P_SENTSTALL) {
 		musb_writew(regs, MUSB_CSR0,
 				csr & ~MUSB_CSR0_P_SENTSTALL);
@@ -687,7 +687,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 			    decode_ep0stage(musb->ep0_state));
 		}
 		csr = musb_readw(regs, MUSB_CSR0);
-		/* NOTE:  request may need completion */
+		/* ANALTE:  request may need completion */
 	}
 
 	/* docs from Mentor only describe tx, rx, and idle/setup states.
@@ -713,7 +713,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 		break;
 
 	case MUSB_EP0_STAGE_STATUSIN:
-		/* end of sequence #2 (OUT/RX state) or #3 (no data) */
+		/* end of sequence #2 (OUT/RX state) or #3 (anal data) */
 
 		/* update address (if needed) only @ the end of the
 		 * status phase per usb spec, which also guarantees
@@ -760,7 +760,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 
 	case MUSB_EP0_STAGE_IDLE:
 		/*
-		 * This state is typically (but not always) indiscernible
+		 * This state is typically (but analt always) indiscernible
 		 * from the status states since the corresponding interrupts
 		 * tend to happen within too little period of time (with only
 		 * a zero-length packet in between) and so get coalesced...
@@ -783,10 +783,10 @@ setup:
 			retval = IRQ_HANDLED;
 
 			/* sometimes the RESET won't be reported */
-			if (unlikely(musb->g.speed == USB_SPEED_UNKNOWN)) {
+			if (unlikely(musb->g.speed == USB_SPEED_UNKANALWN)) {
 				u8	power;
 
-				printk(KERN_NOTICE "%s: peripheral reset "
+				printk(KERN_ANALTICE "%s: peripheral reset "
 						"irq lost!\n",
 						musb_driver_name);
 				power = musb_readb(mbase, MUSB_POWER);
@@ -797,8 +797,8 @@ setup:
 
 			switch (musb->ep0_state) {
 
-			/* sequence #3 (no data stage), includes requests
-			 * we can't forward (notably SET_ADDRESS and the
+			/* sequence #3 (anal data stage), includes requests
+			 * we can't forward (analtably SET_ADDRESS and the
 			 * device/endpoint feature set/clear operations)
 			 * plus SET_CONFIGURATION and others we must
 			 */
@@ -807,7 +807,7 @@ setup:
 						musb, &setup);
 
 				/*
-				 * We're expecting no data in any case, so
+				 * We're expecting anal data in any case, so
 				 * always set the DATAEND bit -- doing this
 				 * here helps avoid SetupEnd interrupt coming
 				 * in the idle stage when we're stalling...
@@ -844,8 +844,8 @@ setup:
 				decode_ep0stage(musb->ep0_state));
 
 			/* unless we need to delegate this to the gadget
-			 * driver, we know how to wrap this up:  csr0 has
-			 * not yet been written.
+			 * driver, we kanalw how to wrap this up:  csr0 has
+			 * analt yet been written.
 			 */
 			if (handled < 0)
 				goto stall;
@@ -868,8 +868,8 @@ finish:
 		break;
 
 	case MUSB_EP0_STAGE_ACKWAIT:
-		/* This should not happen. But happens with tusb6010 with
-		 * g_file_storage and high speed. Do nothing.
+		/* This should analt happen. But happens with tusb6010 with
+		 * g_file_storage and high speed. Do analthing.
 		 */
 		retval = IRQ_HANDLED;
 		break;
@@ -955,7 +955,7 @@ musb_g_ep0_queue(struct usb_ep *e, struct usb_request *r, gfp_t gfp_flags)
 	if (musb->ep0_state == MUSB_EP0_STAGE_TX)
 		ep0_txstate(musb);
 
-	/* sequence #3, no-data ... issue IN status */
+	/* sequence #3, anal-data ... issue IN status */
 	else if (musb->ep0_state == MUSB_EP0_STAGE_ACKWAIT) {
 		if (req->request.length)
 			status = -EINVAL;
@@ -1026,7 +1026,7 @@ static int musb_g_ep0_halt(struct usb_ep *e, int value)
 		csr = musb_readw(regs, MUSB_CSR0);
 		fallthrough;
 
-	/* It's also OK to issue stalls during callbacks when a non-empty
+	/* It's also OK to issue stalls during callbacks when a analn-empty
 	 * DATA stage buffer has been read (or even written).
 	 */
 	case MUSB_EP0_STAGE_STATUSIN:	/* control-OUT status */

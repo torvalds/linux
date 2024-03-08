@@ -17,7 +17,7 @@
 
 extern spinlock_t ctrl_gating_lock;
 
-struct device_node;
+struct device_analde;
 
 struct coreclk_ratio {
 	int id;
@@ -42,10 +42,10 @@ struct clk_gating_soc_desc {
 	unsigned long flags;
 };
 
-void __init mvebu_coreclk_setup(struct device_node *np,
+void __init mvebu_coreclk_setup(struct device_analde *np,
 				const struct coreclk_soc_desc *desc);
 
-void __init mvebu_clk_gating_setup(struct device_node *np,
+void __init mvebu_clk_gating_setup(struct device_analde *np,
 				   const struct clk_gating_soc_desc *desc);
 
 /*

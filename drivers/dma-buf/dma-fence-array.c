@@ -38,7 +38,7 @@ static void dma_fence_array_set_pending_error(struct dma_fence_array *array,
 
 static void dma_fence_array_clear_pending_error(struct dma_fence_array *array)
 {
-	/* Clear the error flag if not actually set. */
+	/* Clear the error flag if analt actually set. */
 	cmpxchg(&array->base.error, PENDING_ERROR, 0);
 }
 
@@ -78,9 +78,9 @@ static bool dma_fence_array_enable_signaling(struct dma_fence *fence)
 		/*
 		 * As we may report that the fence is signaled before all
 		 * callbacks are complete, we need to take an additional
-		 * reference count on the array so that we do not free it too
+		 * reference count on the array so that we do analt free it too
 		 * early. The core fence handling will only hold the reference
-		 * until we signal the array as complete (but that is now
+		 * until we signal the array as complete (but that is analw
 		 * insufficient).
 		 */
 		dma_fence_get(&array->base);
@@ -148,7 +148,7 @@ EXPORT_SYMBOL(dma_fence_array_ops);
  * @num_fences:		[in]	number of fences to add in the array
  * @fences:		[in]	array containing the fences
  * @context:		[in]	fence context to use
- * @seqno:		[in]	sequence number to use
+ * @seqanal:		[in]	sequence number to use
  * @signal_on_any:	[in]	signal on any fence in the array
  *
  * Allocate a dma_fence_array object and initialize the base fence with
@@ -164,7 +164,7 @@ EXPORT_SYMBOL(dma_fence_array_ops);
  */
 struct dma_fence_array *dma_fence_array_create(int num_fences,
 					       struct dma_fence **fences,
-					       u64 context, unsigned seqno,
+					       u64 context, unsigned seqanal,
 					       bool signal_on_any)
 {
 	struct dma_fence_array *array;
@@ -180,7 +180,7 @@ struct dma_fence_array *dma_fence_array_create(int num_fences,
 
 	spin_lock_init(&array->lock);
 	dma_fence_init(&array->base, &dma_fence_array_ops, &array->lock,
-		       context, seqno);
+		       context, seqanal);
 	init_irq_work(&array->work, irq_dma_fence_array_work);
 
 	array->num_fences = num_fences;

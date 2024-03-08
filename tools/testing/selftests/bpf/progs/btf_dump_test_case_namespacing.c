@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
 /*
- * BTF-to-C dumper test validating no name versioning happens between
+ * BTF-to-C dumper test validating anal name versioning happens between
  * independent C namespaces (struct/union/enum vs typedef/enum values).
  *
  * Copyright (c) 2019 Facebook

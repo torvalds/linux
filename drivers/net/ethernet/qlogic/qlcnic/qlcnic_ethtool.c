@@ -159,7 +159,7 @@ static const char qlcnic_83xx_rx_stats_strings[][ETH_GSTRING_LEN] = {
 	"ctx_num_lro_flows_added",
 	"ctx_num_lro_flows_removed",
 	"ctx_num_lro_flows_active",
-	"ctx_pkts_dropped_unknown",
+	"ctx_pkts_dropped_unkanalwn",
 };
 
 static const char qlcnic_gstrings_test[][ETH_GSTRING_LEN] = {
@@ -204,7 +204,7 @@ static int qlcnic_dev_statistics_len(struct qlcnic_adapter *adapter)
 	return len;
 }
 
-#define	QLCNIC_TX_INTR_NOT_CONFIGURED	0X78563412
+#define	QLCNIC_TX_INTR_ANALT_CONFIGURED	0X78563412
 
 #define QLCNIC_MAX_EEPROM_LEN   1024
 
@@ -270,12 +270,12 @@ static void
 qlcnic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	u32 fw_major, fw_minor, fw_build;
+	u32 fw_major, fw_mianalr, fw_build;
 	fw_major = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MAJOR);
-	fw_minor = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MINOR);
+	fw_mianalr = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MIANALR);
 	fw_build = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_SUB);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		"%d.%d.%d", fw_major, fw_minor, fw_build);
+		"%d.%d.%d", fw_major, fw_mianalr, fw_build);
 
 	strscpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
@@ -337,8 +337,8 @@ static int qlcnic_82xx_get_link_ksettings(struct qlcnic_adapter *adapter,
 			goto skip;
 		}
 
-		ecmd->base.speed = SPEED_UNKNOWN;
-		ecmd->base.duplex = DUPLEX_UNKNOWN;
+		ecmd->base.speed = SPEED_UNKANALWN;
+		ecmd->base.duplex = DUPLEX_UNKANALWN;
 		ecmd->base.autoneg = AUTONEG_DISABLE;
 	} else
 		return -EIO;
@@ -408,7 +408,7 @@ skip:
 
 	if (check_sfp_module) {
 		switch (adapter->ahw->module_type) {
-		case LINKEVENT_MODULE_OPTICAL_UNKNOWN:
+		case LINKEVENT_MODULE_OPTICAL_UNKANALWN:
 		case LINKEVENT_MODULE_OPTICAL_SRLR:
 		case LINKEVENT_MODULE_OPTICAL_LRM:
 		case LINKEVENT_MODULE_OPTICAL_SFP_1G:
@@ -473,8 +473,8 @@ static int qlcnic_set_port_config(struct qlcnic_adapter *adapter,
 
 	ret = qlcnic_fw_cmd_set_port(adapter, config);
 
-	if (ret == QLCNIC_RCODE_NOT_SUPPORTED)
-		return -EOPNOTSUPP;
+	if (ret == QLCNIC_RCODE_ANALT_SUPPORTED)
+		return -EOPANALTSUPP;
 	else if (ret)
 		return -EIO;
 	return ret;
@@ -490,7 +490,7 @@ static int qlcnic_set_link_ksettings(struct net_device *dev,
 		qlcnic_83xx_get_port_type(adapter);
 
 	if (adapter->ahw->port_type != QLCNIC_GBE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qlcnic_83xx_check(adapter))
 		ret = qlcnic_83xx_set_link_ksettings(adapter, ecmd);
@@ -558,7 +558,7 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	/* Marker btw regs and TX ring count */
 	regs_buff[i++] = 0xFFEFCDAB;
 
-	regs_buff[i++] = adapter->drv_tx_rings; /* No. of TX ring */
+	regs_buff[i++] = adapter->drv_tx_rings; /* Anal. of TX ring */
 	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 		tx_ring = &adapter->tx_ring[ring];
 		regs_buff[i++] = le32_to_cpu(*(tx_ring->hw_consumer));
@@ -568,17 +568,17 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 		if (tx_ring->crb_intr_mask)
 			regs_buff[i++] = readl(tx_ring->crb_intr_mask);
 		else
-			regs_buff[i++] = QLCNIC_TX_INTR_NOT_CONFIGURED;
+			regs_buff[i++] = QLCNIC_TX_INTR_ANALT_CONFIGURED;
 	}
 
-	regs_buff[i++] = adapter->max_rds_rings; /* No. of RX ring */
+	regs_buff[i++] = adapter->max_rds_rings; /* Anal. of RX ring */
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_rings = &recv_ctx->rds_rings[ring];
 		regs_buff[i++] = readl(rds_rings->crb_rcv_producer);
 		regs_buff[i++] = rds_rings->producer;
 	}
 
-	regs_buff[i++] = adapter->drv_sds_rings; /* No. of SDS ring */
+	regs_buff[i++] = adapter->drv_sds_rings; /* Anal. of SDS ring */
 	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &(recv_ctx->sds_rings[ring]);
 		regs_buff[i++] = readl(sds_ring->crb_sts_consumer);
@@ -673,7 +673,7 @@ qlcnic_set_ringparam(struct net_device *dev,
 	u16 num_rxd, num_jumbo_rxd, num_txd;
 
 	if (ring->rx_mini_pending)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	num_rxd = qlcnic_validate_ringparam(ring->rx_pending,
 			MIN_RCV_DESCRIPTORS, adapter->max_rxd, "rx");
@@ -705,7 +705,7 @@ static int qlcnic_validate_ring_count(struct qlcnic_adapter *adapter,
 	if (rx_ring != 0) {
 		if (rx_ring > adapter->max_sds_rings) {
 			netdev_err(adapter->netdev,
-				   "Invalid ring count, SDS ring count %d should not be greater than max %d driver sds rings.\n",
+				   "Invalid ring count, SDS ring count %d should analt be greater than max %d driver sds rings.\n",
 				   rx_ring, adapter->max_sds_rings);
 			return -EINVAL;
 		}
@@ -714,7 +714,7 @@ static int qlcnic_validate_ring_count(struct qlcnic_adapter *adapter,
 	if (tx_ring != 0) {
 		if (tx_ring > adapter->max_tx_rings) {
 			netdev_err(adapter->netdev,
-				   "Invalid ring count, Tx ring count %d should not be greater than max %d driver Tx rings.\n",
+				   "Invalid ring count, Tx ring count %d should analt be greater than max %d driver Tx rings.\n",
 				   tx_ring, adapter->max_tx_rings);
 			return -EINVAL;
 		}
@@ -741,7 +741,7 @@ static int qlcnic_set_channels(struct net_device *dev,
 	int err;
 
 	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
-		netdev_err(dev, "No RSS/TSS support in non MSI-X mode\n");
+		netdev_err(dev, "Anal RSS/TSS support in analn MSI-X mode\n");
 		return -EINVAL;
 	}
 
@@ -835,7 +835,7 @@ qlcnic_get_pauseparam(struct net_device *netdev,
 		else
 			pause->tx_pause = !(qlcnic_xg_get_xg1_mask(val));
 	} else {
-		dev_err(&netdev->dev, "Unknown board type: %x\n",
+		dev_err(&netdev->dev, "Unkanalwn board type: %x\n",
 					adapter->ahw->port_type);
 	}
 }
@@ -903,7 +903,7 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 		QLCWR32(adapter, QLCNIC_NIU_GB_PAUSE_CTL, val);
 	} else if (adapter->ahw->port_type == QLCNIC_XGBE) {
 		if (!pause->rx_pause || pause->autoneg)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if ((port < 0) || (port > QLCNIC_NIU_MAX_XG_PORTS))
 			return -EIO;
@@ -924,7 +924,7 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 		}
 		QLCWR32(adapter, QLCNIC_NIU_XG_PAUSE_CTL, val);
 	} else {
-		dev_err(&netdev->dev, "Unknown board type: %x\n",
+		dev_err(&netdev->dev, "Unkanalwn board type: %x\n",
 				adapter->ahw->port_type);
 	}
 	return 0;
@@ -968,7 +968,7 @@ static int qlcnic_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return qlcnic_dev_statistics_len(adapter);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1070,7 +1070,7 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 
 		if (!adapter->ahw->diag_cnt)
 			dev_warn(&adapter->pdev->dev,
-				 "LB Test: packet #%d was not received\n",
+				 "LB Test: packet #%d was analt received\n",
 				 i + 1);
 		else
 			cnt++;
@@ -1102,15 +1102,15 @@ static int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 
 	if (!(ahw->capabilities & QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK)) {
 		dev_info(&adapter->pdev->dev,
-			 "Firmware do not support loopback test\n");
-		return -EOPNOTSUPP;
+			 "Firmware do analt support loopback test\n");
+		return -EOPANALTSUPP;
 	}
 
 	dev_warn(&adapter->pdev->dev, "%s loopback test in progress\n",
 		 mode == QLCNIC_ILB_MODE ? "internal" : "external");
-	if (ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
+	if (ahw->op_mode == QLCNIC_ANALN_PRIV_FUNC) {
 		dev_warn(&adapter->pdev->dev,
-			 "Loopback test not supported in nonprivileged mode\n");
+			 "Loopback test analt supported in analnprivileged mode\n");
 		return 0;
 	}
 
@@ -1411,10 +1411,10 @@ static int qlcnic_set_led(struct net_device *dev,
 	if (qlcnic_83xx_check(adapter))
 		return qlcnic_83xx_set_led(dev, state);
 
-	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
-		netdev_warn(dev, "LED test not supported for non "
+	if (adapter->ahw->op_mode == QLCNIC_ANALN_PRIV_FUNC) {
+		netdev_warn(dev, "LED test analt supported for analn "
 				"privilege function\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (state) {
@@ -1502,7 +1502,7 @@ qlcnic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	int err = 0;
 
 	if (qlcnic_83xx_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 
@@ -1510,7 +1510,7 @@ qlcnic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (err == -EIO)
 		return err;
 	if (!(wol_cfg & (1 << adapter->portnum)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	wol_cfg = QLCRD32(adapter, QLCNIC_WOL_CONFIG, &err);
 	if (err == -EIO)
@@ -1526,7 +1526,7 @@ qlcnic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 
 /*
- * Set the coalescing parameters. Currently only normal is supported.
+ * Set the coalescing parameters. Currently only analrmal is supported.
  * If rx_coalesce_usecs == 0 or rx_max_coalesced_frames == 0 then set the
  * firmware coalescing to default.
  */
@@ -1657,8 +1657,8 @@ qlcnic_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
 	if (!fw_dump->tmpl_hdr) {
-		netdev_err(adapter->netdev, "FW Dump not supported\n");
-		return -ENOTSUPP;
+		netdev_err(adapter->netdev, "FW Dump analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	if (fw_dump->clr)
@@ -1686,12 +1686,12 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
 	if (!fw_dump->tmpl_hdr) {
-		netdev_err(netdev, "FW Dump not supported\n");
-		return -ENOTSUPP;
+		netdev_err(netdev, "FW Dump analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	if (!fw_dump->clr) {
-		netdev_info(netdev, "Dump not available\n");
+		netdev_info(netdev, "Dump analt available\n");
 		return -EINVAL;
 	}
 
@@ -1722,9 +1722,9 @@ static int qlcnic_set_dump_mask(struct qlcnic_adapter *adapter, u32 mask)
 
 	if (!qlcnic_check_fw_dump_state(adapter)) {
 		netdev_info(netdev,
-			    "Can not change driver mask to 0x%x. FW dump not enabled\n",
+			    "Can analt change driver mask to 0x%x. FW dump analt enabled\n",
 			    mask);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	fw_dump->cap_mask = mask;
@@ -1747,20 +1747,20 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	switch (val->flag) {
 	case QLCNIC_FORCE_FW_DUMP_KEY:
 		if (!fw_dump->tmpl_hdr) {
-			netdev_err(netdev, "FW dump not supported\n");
-			ret = -EOPNOTSUPP;
+			netdev_err(netdev, "FW dump analt supported\n");
+			ret = -EOPANALTSUPP;
 			break;
 		}
 
 		if (!qlcnic_check_fw_dump_state(adapter)) {
-			netdev_info(netdev, "FW dump not enabled\n");
-			ret = -EOPNOTSUPP;
+			netdev_info(netdev, "FW dump analt enabled\n");
+			ret = -EOPANALTSUPP;
 			break;
 		}
 
 		if (fw_dump->clr) {
 			netdev_info(netdev,
-				    "Previous dump not cleared, not forcing dump\n");
+				    "Previous dump analt cleared, analt forcing dump\n");
 			break;
 		}
 
@@ -1769,8 +1769,8 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 		break;
 	case QLCNIC_DISABLE_FW_DUMP:
 		if (!fw_dump->tmpl_hdr) {
-			netdev_err(netdev, "FW dump not supported\n");
-			ret = -EOPNOTSUPP;
+			netdev_err(netdev, "FW dump analt supported\n");
+			ret = -EOPANALTSUPP;
 			break;
 		}
 
@@ -1779,8 +1779,8 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 
 	case QLCNIC_ENABLE_FW_DUMP:
 		if (!fw_dump->tmpl_hdr) {
-			netdev_err(netdev, "FW dump not supported\n");
-			ret = -EOPNOTSUPP;
+			netdev_err(netdev, "FW dump analt supported\n");
+			ret = -EOPANALTSUPP;
 			break;
 		}
 
@@ -1796,13 +1796,13 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	case QLCNIC_SET_QUIESCENT:
 	case QLCNIC_RESET_QUIESCENT:
 		if (test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state))
-			netdev_info(netdev, "Device is in non-operational state\n");
+			netdev_info(netdev, "Device is in analn-operational state\n");
 		break;
 
 	default:
 		if (!fw_dump->tmpl_hdr) {
-			netdev_err(netdev, "FW dump not supported\n");
-			ret = -EOPNOTSUPP;
+			netdev_err(netdev, "FW dump analt supported\n");
+			ret = -EOPANALTSUPP;
 			break;
 		}
 

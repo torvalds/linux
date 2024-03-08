@@ -3,7 +3,7 @@
 // Freescale MPC5200 PSC DMA
 // ALSA SoC Platform driver
 //
-// Copyright (C) 2008 Secret Lab Technologies Ltd.
+// Copyright (C) 2008 Secret Lab Techanallogies Ltd.
 // Copyright (C) 2009 Jon Smirl, Digispeaker
 
 #include <linux/module.h>
@@ -49,12 +49,12 @@ static irqreturn_t psc_dma_status_irq(int irq, void *_psc_dma)
 }
 
 /**
- * psc_dma_bcom_enqueue_next_buffer - Enqueue another audio buffer
+ * psc_dma_bcom_enqueue_next_buffer - Enqueue aanalther audio buffer
  * @s: pointer to stream private data structure
  *
- * Enqueues another audio period buffer into the bestcomm queue.
+ * Enqueues aanalther audio period buffer into the bestcomm queue.
  *
- * Note: The routine must only be called when there is space available in
+ * Analte: The routine must only be called when there is space available in
  * the queue.  Otherwise the enqueue will fail and the audio ring buffer
  * will get out of sync
  */
@@ -321,28 +321,28 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 	int ret;
 
 	/* Fetch the registers and IRQ of the PSC */
-	irq = irq_of_parse_and_map(op->dev.of_node, 0);
-	if (of_address_to_resource(op->dev.of_node, 0, &res)) {
+	irq = irq_of_parse_and_map(op->dev.of_analde, 0);
+	if (of_address_to_resource(op->dev.of_analde, 0, &res)) {
 		dev_err(&op->dev, "Missing reg property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	regs = ioremap(res.start, resource_size(&res));
 	if (!regs) {
-		dev_err(&op->dev, "Could not map registers\n");
-		return -ENODEV;
+		dev_err(&op->dev, "Could analt map registers\n");
+		return -EANALDEV;
 	}
 
 	/* Allocate and initialize the driver private data */
 	psc_dma = kzalloc(sizeof *psc_dma, GFP_KERNEL);
 	if (!psc_dma) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 
 	/* Get the PSC ID */
-	prop = of_get_property(op->dev.of_node, "cell-index", &size);
+	prop = of_get_property(op->dev.of_analde, "cell-index", &size);
 	if (!prop || size < sizeof *prop) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free;
 	}
 
@@ -366,8 +366,8 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 		bcom_psc_gen_bd_tx_init(psc_dma->id, 10, fifo);
 	if (!psc_dma->capture.bcom_task ||
 	    !psc_dma->playback.bcom_task) {
-		dev_err(&op->dev, "Could not allocate bestcomm tasks\n");
-		ret = -ENODEV;
+		dev_err(&op->dev, "Could analt allocate bestcomm tasks\n");
+		ret = -EANALDEV;
 		goto out_free;
 	}
 
@@ -384,7 +384,7 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 
 	/* Set up mode register;
 	 * First write: RxRdy (FIFO Alarm) generates rx FIFO irq
-	 * Second write: register Normal mode for non loopback
+	 * Second write: register Analrmal mode for analn loopback
 	 */
 	out_8(&psc_dma->psc_regs->mode, 0);
 	out_8(&psc_dma->psc_regs->mode, 0);
@@ -408,7 +408,7 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 	rc |= request_irq(psc_dma->playback.irq, &psc_dma_bcom_irq, IRQF_SHARED,
 			  "psc-dma-playback", &psc_dma->playback);
 	if (rc) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_irq;
 	}
 

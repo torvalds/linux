@@ -33,7 +33,7 @@
 #define CPU_PORT			0
 #define TUNNEL_PORT			1
 
-#define HELLCREEK_VLAN_NO_MEMBER	0x0
+#define HELLCREEK_VLAN_ANAL_MEMBER	0x0
 #define HELLCREEK_VLAN_UNTAGGED_MEMBER	0x1
 #define HELLCREEK_VLAN_TAGGED_MEMBER	0x3
 #define HELLCREEK_NUM_EGRESS_QUEUES	8
@@ -300,7 +300,7 @@ struct hellcreek {
 /* A Qbv schedule can only started up to 8 seconds in the future. If the delta
  * between the base time and the current ptp time is larger than 8 seconds, then
  * use periodic work to check for the schedule to be started. The delayed work
- * cannot be armed directly to $base_time - 8 + X, because for large deltas the
+ * cananalt be armed directly to $base_time - 8 + X, because for large deltas the
  * PTP frequency matters.
  */
 #define HELLCREEK_SCHEDULE_PERIOD	(2 * HZ)

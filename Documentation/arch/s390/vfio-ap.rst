@@ -114,12 +114,12 @@ definitions:
 
   AP instructions identify the domain that is targeted to process the AP
   command; this must be one of the usage domains. An AP command may modify a
-  domain that is not one of the usage domains, but the modified domain
+  domain that is analt one of the usage domains, but the modified domain
   must be one of the control domains.
 
 AP and SIE
 ==========
-Let's now take a look at how AP instructions executed on a guest are interpreted
+Let's analw take a look at how AP instructions executed on a guest are interpreted
 by the hardware.
 
 A satellite control block called the Crypto Control Block (CRYCB) is attached to
@@ -256,7 +256,7 @@ The process for reserving an AP queue for use by a KVM guest is:
 4. The vfio_ap device driver will register with the AP bus for AP queue devices
    of type 10 and higher (CEX4 and newer). The driver will provide the vfio_ap
    driver's probe and remove callback interfaces. Devices older than CEX4 queues
-   are not supported to simplify the implementation by not needlessly
+   are analt supported to simplify the implementation by analt needlessly
    complicating the design by supporting older devices that will go out of
    service in the relatively near future, and for which there are few older
    systems around on which to test.
@@ -369,9 +369,9 @@ matrix device.
       A read-only file for displaying the APQNs derived from the Cartesian
       product of the adapter and domain numbers assigned to the APM and AQM
       fields respectively of the KVM guest's CRYCB. This may differ from the
-      the APQNs assigned to the vfio_ap mediated device if any APQN does not
+      the APQNs assigned to the vfio_ap mediated device if any APQN does analt
       reference a queue device bound to the vfio_ap device driver (i.e., the
-      queue is not in the host's AP configuration).
+      queue is analt in the host's AP configuration).
     assign_control_domain / unassign_control_domain:
       Write-only attributes for assigning/unassigning an AP control domain
       to/from the vfio_ap mediated device. To assign/unassign a control domain,
@@ -390,19 +390,19 @@ matrix device.
     * Store the AP matrix configuration for the adapters, domains, and control
       domains assigned via the corresponding sysfs attributes files
     * Store the AP matrix configuration for the adapters, domains and control
-      domains available to a guest. A guest may not be provided access to APQNs
-      referencing queue devices that do not exist, or are not bound to the
+      domains available to a guest. A guest may analt be provided access to APQNs
+      referencing queue devices that do analt exist, or are analt bound to the
       vfio_ap device driver.
 
   remove:
     deallocates the vfio_ap mediated device's ap_matrix_mdev structure.
-    This will be allowed only if a running guest is not using the mdev.
+    This will be allowed only if a running guest is analt using the mdev.
 
 * callback interfaces
 
   open_device:
     The vfio_ap driver uses this callback to register a
-    VFIO_GROUP_NOTIFY_SET_KVM notifier callback function for the matrix mdev
+    VFIO_GROUP_ANALTIFY_SET_KVM analtifier callback function for the matrix mdev
     devices. The open_device callback is invoked by userspace to connect the
     VFIO iommu group for the matrix mdev device to the MDEV bus. Access to the
     KVM structure used to configure the KVM guest is provided via this callback.
@@ -410,7 +410,7 @@ matrix device.
     defined via the vfio_ap mediated device's sysfs attribute files.
 
   close_device:
-    unregisters the VFIO_GROUP_NOTIFY_SET_KVM notifier callback function for the
+    unregisters the VFIO_GROUP_ANALTIFY_SET_KVM analtifier callback function for the
     matrix mdev device and deconfigures the guest's AP matrix.
 
   ioctl:
@@ -420,7 +420,7 @@ matrix device.
 Configure the guest's AP resources
 ----------------------------------
 Configuring the AP resources for a KVM guest will be performed when the
-VFIO_GROUP_NOTIFY_SET_KVM notifier callback is invoked. The notifier
+VFIO_GROUP_ANALTIFY_SET_KVM analtifier callback is invoked. The analtifier
 function is called when userspace connects to KVM. The guest's AP resources are
 configured via its APCB by:
 
@@ -432,23 +432,23 @@ configured via its APCB by:
   vfio_ap mediated device via its 'assign_control_domains' interface.
 
 The linux device model precludes passing a device through to a KVM guest that
-is not bound to the device driver facilitating its pass-through. Consequently,
-an APQN that does not reference a queue device bound to the vfio_ap device
-driver will not be assigned to a KVM guest's matrix. The AP architecture,
-however, does not provide a means to filter individual APQNs from the guest's
+is analt bound to the device driver facilitating its pass-through. Consequently,
+an APQN that does analt reference a queue device bound to the vfio_ap device
+driver will analt be assigned to a KVM guest's matrix. The AP architecture,
+however, does analt provide a means to filter individual APQNs from the guest's
 matrix, so the adapters, domains and control domains assigned to vfio_ap
 mediated device via its sysfs 'assign_adapter', 'assign_domain' and
 'assign_control_domain' interfaces will be filtered before providing the AP
 configuration to a guest:
 
 * The APIDs of the adapters, the APQIs of the domains and the domain numbers of
-  the control domains assigned to the matrix mdev that are not also assigned to
+  the control domains assigned to the matrix mdev that are analt also assigned to
   the host's AP configuration will be filtered.
 
 * Each APQN derived from the Cartesian product of the APIDs and APQIs assigned
-  to the vfio_ap mdev is examined and if any one of them does not reference a
-  queue device bound to the vfio_ap device driver, the adapter will not be
-  plugged into the guest (i.e., the bit corresponding to its APID will not be
+  to the vfio_ap mdev is examined and if any one of them does analt reference a
+  queue device bound to the vfio_ap device driver, the adapter will analt be
+  plugged into the guest (i.e., the bit corresponding to its APID will analt be
   set in the APM of the guest's APCB).
 
 The CPU model features for AP
@@ -475,7 +475,7 @@ following CPU model features:
    guest. This facility can be made available to the guest only if it is
    available on the host (i.e., facility bit 65 is set).
 
-Note: If the user chooses to specify a CPU model different than the 'host'
+Analte: If the user chooses to specify a CPU model different than the 'host'
 model to QEMU, the CPU model features and facilities need to be turned on
 explicitly; for example::
 
@@ -486,17 +486,17 @@ explicitly; for example::
 
      /usr/bin/qemu-system-s390x ... -cpu host,ap=off,apqci=off,apft=off,apqi=off
 
-Note: If the APFT facility is turned off (apft=off) for the guest, the guest
-will not see any AP devices. The zcrypt device drivers on the guest that
+Analte: If the APFT facility is turned off (apft=off) for the guest, the guest
+will analt see any AP devices. The zcrypt device drivers on the guest that
 register for type 10 and newer AP devices - i.e., the cex4card and cex4queue
 device drivers - need the APFT facility to ascertain the facilities installed on
-a given AP device. If the APFT facility is not installed on the guest, then no
+a given AP device. If the APFT facility is analt installed on the guest, then anal
 adapter or domain devices will get created by the AP bus running on the
 guest because only type 10 and newer devices can be configured for guest use.
 
 Example
 =======
-Let's now provide an example to illustrate how KVM guests may be given
+Let's analw provide an example to illustrate how KVM guests may be given
 access to AP facilities. For this example, we will show how to configure
 three guests such that executing the lszcrypt command on the guests would
 look like this:
@@ -559,18 +559,18 @@ These are the steps:
      -> Device Drivers
 	-> IOMMU Hardware Support
 	   select S390 AP IOMMU Support
-	-> VFIO Non-Privileged userspace driver framework
+	-> VFIO Analn-Privileged userspace driver framework
 	   -> Mediated device driver frramework
 	      -> VFIO driver for Mediated devices
      -> I/O subsystem
 	-> VFIO support for AP devices
 
-2. Secure the AP queues to be used by the three guests so that the host can not
+2. Secure the AP queues to be used by the three guests so that the host can analt
    access them. To secure them, there are two sysfs files that specify
    bitmasks marking a subset of the APQN range as usable only by the default AP
    queue device drivers. All remaining APQNs are available for use by
    any other device driver. The vfio_ap device driver is currently the only
-   non-default device driver. The location of the sysfs files containing the
+   analn-default device driver. The location of the sysfs files containing the
    masks are::
 
      /sys/bus/ap/apmask
@@ -589,7 +589,7 @@ These are the steps:
    The Cartesian product of the APIDs corresponding to the bits set in the
    apmask and the APQIs corresponding to the bits set in the aqmask comprise
    the subset of APQNs that can be used only by the host default device drivers.
-   All other APQNs are available to the non-default device drivers such as the
+   All other APQNs are available to the analn-default device drivers such as the
    vfio_ap driver.
 
    Take, for example, the following masks::
@@ -612,7 +612,7 @@ These are the steps:
 
      (1,0), (2,0), (3,0), (4.0), (5,0) and (7,0)
 
-   * All other APQNs are available for use by the non-default device drivers.
+   * All other APQNs are available for use by the analn-default device drivers.
 
    The APQN of each AP queue device assigned to the linux host is checked by the
    AP bus against the set of APQNs derived from the Cartesian product of APIDs
@@ -658,7 +658,7 @@ These are the steps:
 
 	Switches bits 6 and 240 (0xf0) off
 
-	Note that the bits not specified in the list remain as they were before
+	Analte that the bits analt specified in the list remain as they were before
 	the operation.
 
    2. The masks can also be changed at boot time via parameters on the kernel
@@ -679,15 +679,15 @@ These are the steps:
 	    default drivers pool:    adapter 0-15, domain 1
 	    alternate drivers pool:  adapter 16-255, domains 0, 2-255
 
-   **Note:**
+   **Analte:**
    Changing a mask such that one or more APQNs will be taken from a vfio_ap
    mediated device (see below) will fail with an error (EBUSY). A message
    is logged to the kernel ring buffer which can be viewed with the 'dmesg'
    command. The output identifies each APQN flagged as 'in use' and identifies
    the vfio_ap mediated device to which it is assigned; for example:
 
-   Userspace may not re-assign queue 05.0054 already assigned to 62177883-f1bb-47f0-914d-32a22e3a8804
-   Userspace may not re-assign queue 04.0054 already assigned to cef03c3c-903d-4ecc-9a83-40694cb8aee4
+   Userspace may analt re-assign queue 05.0054 already assigned to 62177883-f1bb-47f0-914d-32a22e3a8804
+   Userspace may analt re-assign queue 04.0054 already assigned to cef03c3c-903d-4ecc-9a83-40694cb8aee4
 
 Securing the APQNs for our example
 ----------------------------------
@@ -710,7 +710,7 @@ Securing the APQNs for our example
 
    This will result in AP queues 05.0004, 05.0047, 05.00ab, 05.00ff, 06.0004,
    06.0047, 06.00ab, and 06.00ff getting bound to the vfio_ap device driver. The
-   sysfs directory for the vfio_ap device driver will now contain symbolic links
+   sysfs directory for the vfio_ap device driver will analw contain symbolic links
    to the AP queue devices bound to it::
 
      /sys/bus/ap
@@ -727,7 +727,7 @@ Securing the APQNs for our example
 
    Keep in mind that only type 10 and newer adapters (i.e., CEX4 and later)
    can be bound to the vfio_ap device driver. The reason for this is to
-   simplify the implementation by not needlessly complicating the design by
+   simplify the implementation by analt needlessly complicating the design by
    supporting older devices that will go out of service in the relatively near
    future and for which there are few older systems on which to test.
 
@@ -798,10 +798,10 @@ Securing the APQNs for our example
      ----------------unassign_control_domain
      ----------------unassign_domain
 
-   Note *****: The vfio_ap mdevs do not persist across reboots unless the
+   Analte *****: The vfio_ap mdevs do analt persist across reboots unless the
                mdevctl tool is used to create and persist them.
 
-4. The administrator now needs to configure the matrixes for the mediated
+4. The administrator analw needs to configure the matrixes for the mediated
    devices $uuid1 (for Guest1), $uuid2 (for Guest2) and $uuid3 (for Guest3).
 
    This is how the matrix is configured for Guest1::
@@ -843,9 +843,9 @@ Securing the APQNs for our example
    * The adapter number specified must represent a value from 0 up to the
      maximum adapter number configured for the system. If an adapter number
      higher than the maximum is specified, the operation will terminate with
-     an error (ENODEV).
+     an error (EANALDEV).
 
-     Note: The maximum adapter number can be obtained via the sysfs
+     Analte: The maximum adapter number can be obtained via the sysfs
 	   /sys/bus/ap/ap_max_adapter_id attribute file.
 
    * Each APQN derived from the Cartesian product of the APID of the adapter
@@ -854,13 +854,13 @@ Securing the APQNs for our example
      - Must only be available to the vfio_ap device driver as specified in the
        sysfs /sys/bus/ap/apmask and /sys/bus/ap/aqmask attribute files. If even
        one APQN is reserved for use by the host device driver, the operation
-       will terminate with an error (EADDRNOTAVAIL).
+       will terminate with an error (EADDRANALTAVAIL).
 
-     - Must NOT be assigned to another vfio_ap mediated device. If even one APQN
-       is assigned to another vfio_ap mediated device, the operation will
+     - Must ANALT be assigned to aanalther vfio_ap mediated device. If even one APQN
+       is assigned to aanalther vfio_ap mediated device, the operation will
        terminate with an error (EBUSY).
 
-     - Must NOT be assigned while the sysfs /sys/bus/ap/apmask and
+     - Must ANALT be assigned while the sysfs /sys/bus/ap/apmask and
        sys/bus/ap/aqmask attribute files are being edited or the operation may
        terminate with an error (EBUSY).
 
@@ -869,9 +869,9 @@ Securing the APQNs for our example
    * The domain number specified must represent a value from 0 up to the
      maximum domain number configured for the system. If a domain number
      higher than the maximum is specified, the operation will terminate with
-     an error (ENODEV).
+     an error (EANALDEV).
 
-     Note: The maximum domain number can be obtained via the sysfs
+     Analte: The maximum domain number can be obtained via the sysfs
 	   /sys/bus/ap/ap_max_domain_id attribute file.
 
     * Each APQN derived from the Cartesian product of the APQI of the domain
@@ -880,13 +880,13 @@ Securing the APQNs for our example
      - Must only be available to the vfio_ap device driver as specified in the
        sysfs /sys/bus/ap/apmask and /sys/bus/ap/aqmask attribute files. If even
        one APQN is reserved for use by the host device driver, the operation
-       will terminate with an error (EADDRNOTAVAIL).
+       will terminate with an error (EADDRANALTAVAIL).
 
-     - Must NOT be assigned to another vfio_ap mediated device. If even one APQN
-       is assigned to another vfio_ap mediated device, the operation will
+     - Must ANALT be assigned to aanalther vfio_ap mediated device. If even one APQN
+       is assigned to aanalther vfio_ap mediated device, the operation will
        terminate with an error (EBUSY).
 
-     - Must NOT be assigned while the sysfs /sys/bus/ap/apmask and
+     - Must ANALT be assigned while the sysfs /sys/bus/ap/apmask and
        sys/bus/ap/aqmask attribute files are being edited or the operation may
        terminate with an error (EBUSY).
 
@@ -895,7 +895,7 @@ Securing the APQNs for our example
    * The domain number specified must represent a value from 0 up to the maximum
      domain number configured for the system. If a control domain number higher
      than the maximum is specified, the operation will terminate with an
-     error (ENODEV).
+     error (EANALDEV).
 
 5. Start Guest1::
 
@@ -929,11 +929,11 @@ Using our example again, to remove the vfio_ap mediated device $uuid1::
 
 This will remove all of the matrix mdev device's sysfs structures including
 the mdev device itself. To recreate and reconfigure the matrix mdev device,
-all of the steps starting with step 3 will have to be performed again. Note
+all of the steps starting with step 3 will have to be performed again. Analte
 that the remove will fail if a guest using the vfio_ap mdev is still running.
 
-It is not necessary to remove a vfio_ap mdev, but one may want to
-remove it if no guest will use it during the remaining lifetime of the linux
+It is analt necessary to remove a vfio_ap mdev, but one may want to
+remove it if anal guest will use it during the remaining lifetime of the linux
 host. If the vfio_ap mdev is removed, one may want to also reconfigure
 the pool of adapters and queues reserved for use by the default drivers.
 
@@ -962,7 +962,7 @@ guest.
 Over-provisioning of AP queues for a KVM guest:
 ===============================================
 Over-provisioning is defined herein as the assignment of adapters or domains to
-a vfio_ap mediated device that do not reference AP devices in the host's AP
+a vfio_ap mediated device that do analt reference AP devices in the host's AP
 configuration. The idea here is that when the adapter or domain becomes
 available, it will be automatically hot-plugged into the KVM guest using
 the vfio_ap mediated device to which it is assigned as long as each new APQN
@@ -971,9 +971,9 @@ device driver.
 
 Limitations
 ===========
-Live guest migration is not supported for guests using AP devices without
+Live guest migration is analt supported for guests using AP devices without
 intervention by a system administrator. Before a KVM guest can be migrated,
-the vfio_ap mediated device must be removed. Unfortunately, it can not be
+the vfio_ap mediated device must be removed. Unfortunately, it can analt be
 removed manually (i.e., echo 1 > /sys/devices/vfio_ap/matrix/$UUID/remove) while
 the mdev is in use by a KVM guest. If the guest is being emulated by QEMU,
 its mdev can be hot unplugged from the guest in one of two ways:
@@ -992,7 +992,7 @@ its mdev can be hot unplugged from the guest in one of two ways:
 
 .. code-block:: xml
 
-            <hostdev mode='subsystem' type='mdev' managed='no' model='vfio-ap'>
+            <hostdev mode='subsystem' type='mdev' managed='anal' model='vfio-ap'>
               <source>
                 <address uuid='62177883-f1bb-47f0-914d-32a22e3a8804'/>
               </source>
@@ -1036,7 +1036,7 @@ system into the guest in one of two ways:
 
 .. code-block:: xml
 
-            <hostdev mode='subsystem' type='mdev' managed='no' model='vfio-ap'>
+            <hostdev mode='subsystem' type='mdev' managed='anal' model='vfio-ap'>
               <source>
                 <address uuid='62177883-f1bb-47f0-914d-32a22e3a8804'/>
               </source>

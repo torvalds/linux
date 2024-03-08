@@ -29,7 +29,7 @@ Description:
 			* Inputs: id
 
 		* rm_all: Removes all the configured SLAs.
-			* Inputs: None
+			* Inputs: Analne
 
 		This attribute is only available for qat_4xxx devices.
 
@@ -144,7 +144,7 @@ Contact:	qat-linux@intel.com
 Description:
 		(RW) Peak information rate (PIR). The maximum rate that can be
 		achieved by that particular SLA. An SLA can reach a value
-		between CIR and PIR when the device is not fully utilized by
+		between CIR and PIR when the device is analt fully utilized by
 		requests from other users (assigned to different SLAs).
 
 		After sending a "get" to sla_op, this will be populated with the

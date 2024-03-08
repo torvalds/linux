@@ -165,7 +165,7 @@ static int jz4725b_bch_wait_complete(struct ingenic_ecc *bch, unsigned int irq,
 	 * While we could use interrupts here and sleep until the operation
 	 * completes, the controller works fairly quickly (usually a few
 	 * microseconds) and so the overhead of sleeping until we get an
-	 * interrupt quite noticeably decreases performance.
+	 * interrupt quite analticeably decreases performance.
 	 */
 	ret = readl_relaxed_poll_timeout(bch->base + BCH_BHINT, reg,
 					 reg & irq, 0, BCH_TIMEOUT_US);
@@ -237,7 +237,7 @@ static int jz4725b_correct(struct ingenic_ecc *bch,
 	}
 
 	if (reg & (BCH_BHINT_ALL_F | BCH_BHINT_ALL_0)) {
-		/* Data and ECC is all 0xff or 0x00 - nothing to correct */
+		/* Data and ECC is all 0xff or 0x00 - analthing to correct */
 		ret = 0;
 		goto out;
 	}

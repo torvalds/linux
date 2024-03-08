@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =============================================================
-General description of the CPUFreq core and CPUFreq notifiers
+General description of the CPUFreq core and CPUFreq analtifiers
 =============================================================
 
 Authors:
@@ -13,7 +13,7 @@ Authors:
 .. Contents:
 
    1.  CPUFreq core and interfaces
-   2.  CPUFreq notifiers
+   2.  CPUFreq analtifiers
    3.  CPUFreq Table Generation with Operating Performance Point (OPP)
 
 1. General Information
@@ -22,7 +22,7 @@ Authors:
 The CPUFreq core code is located in drivers/cpufreq/cpufreq.c. This
 cpufreq code offers a standardized interface for the CPUFreq
 architecture drivers (those pieces of code that do actual
-frequency transitions), as well as to "notifiers". These are device
+frequency transitions), as well as to "analtifiers". These are device
 drivers or other part of the kernel that need to be informed of
 policy changes (ex. thermal modules like ACPI) or of all
 frequency changes (ex. timing code) or even need to force certain
@@ -32,26 +32,26 @@ here.
 
 Reference counting of the cpufreq policies is done by cpufreq_cpu_get
 and cpufreq_cpu_put, which make sure that the cpufreq driver is
-correctly registered with the core, and will not be unloaded until
+correctly registered with the core, and will analt be unloaded until
 cpufreq_put_cpu is called. That also ensures that the respective cpufreq
 policy doesn't get freed while being used.
 
-2. CPUFreq notifiers
+2. CPUFreq analtifiers
 ====================
 
-CPUFreq notifiers conform to the standard kernel notifier interface.
-See linux/include/linux/notifier.h for details on notifiers.
+CPUFreq analtifiers conform to the standard kernel analtifier interface.
+See linux/include/linux/analtifier.h for details on analtifiers.
 
-There are two different CPUFreq notifiers - policy notifiers and
-transition notifiers.
+There are two different CPUFreq analtifiers - policy analtifiers and
+transition analtifiers.
 
 
-2.1 CPUFreq policy notifiers
+2.1 CPUFreq policy analtifiers
 ----------------------------
 
-These are notified when a new policy is created or removed.
+These are analtified when a new policy is created or removed.
 
-The phase is specified in the second argument to the notifier.  The phase is
+The phase is specified in the second argument to the analtifier.  The phase is
 CPUFREQ_CREATE_POLICY when the policy is first created and it is
 CPUFREQ_REMOVE_POLICY when the policy is removed.
 
@@ -60,11 +60,11 @@ consisting of several values, including min, max (the lower and upper
 frequencies (in kHz) of the new policy).
 
 
-2.2 CPUFreq transition notifiers
+2.2 CPUFreq transition analtifiers
 --------------------------------
 
-These are notified twice for each online CPU in the policy, when the
-CPUfreq driver switches the CPU core frequency and this change has no
+These are analtified twice for each online CPU in the policy, when the
+CPUfreq driver switches the CPU core frequency and this change has anal
 any external implications.
 
 The second argument specifies the phase - CPUFREQ_PRECHANGE or
@@ -91,7 +91,7 @@ dev_pm_opp_init_cpufreq_table -
 
 	.. Warning::
 
-	   Do not use this function in interrupt context.
+	   Do analt use this function in interrupt context.
 
 	Example::
 
@@ -104,7 +104,7 @@ dev_pm_opp_init_cpufreq_table -
 		/* Do other things */
 	 }
 
-	.. note::
+	.. analte::
 
 	   This function is available only if CONFIG_CPU_FREQ is enabled in
 	   addition to CONFIG_PM_OPP.

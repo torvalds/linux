@@ -54,7 +54,7 @@
 #define TRX_BD_IDX_MASK		GENMASK(11, 0)
 #define TRX_BD_HW_IDX_MASK	GENMASK(27, 16)
 
-/* BCNQ is specialized for rsvd page, does not need to specify a number */
+/* BCNQ is specialized for rsvd page, does analt need to specify a number */
 #define RTK_PCI_TXBD_NUM_H2CQ	0x1328
 #define RTK_PCI_TXBD_NUM_MGMTQ	0x380
 #define RTK_PCI_TXBD_NUM_BKQ	0x38A
@@ -150,7 +150,7 @@ enum rtw_pci_flags {
 	NUM_OF_RTW_PCI_FLAGS,
 };
 
-/* one element is reserved to know if the ring is closed */
+/* one element is reserved to kanalw if the ring is closed */
 static inline int avail_desc(u32 wp, u32 rp, u32 len)
 {
 	if (rp > wp)
@@ -224,7 +224,7 @@ struct rtw_pci {
 	struct rtw_pci_rx_ring rx_rings[RTK_MAX_RX_QUEUE_NUM];
 	u16 link_ctrl;
 	atomic_t link_usage;
-	bool rx_no_aspm;
+	bool rx_anal_aspm;
 	DECLARE_BITMAP(flags, NUM_OF_RTW_PCI_FLAGS);
 
 	void __iomem *mmap;

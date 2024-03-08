@@ -59,7 +59,7 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	int err;
 
 	/*
-	 * Older version of machine driver was ignoring GPIO polarity,
+	 * Older version of machine driver was iganalring GPIO polarity,
 	 * forcing it to active-low.  This means that all older device-trees
 	 * which set the polarity to active-high are wrong and we need to fix
 	 * them up.
@@ -89,7 +89,7 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 			return err;
 		}
 
-		if (of_property_read_bool(card->dev->of_node, "nvidia,headset"))
+		if (of_property_read_bool(card->dev->of_analde, "nvidia,headset"))
 			shrt = SND_JACK_MICROPHONE;
 
 		wm8903_mic_detect(component, machine->mic_jack,

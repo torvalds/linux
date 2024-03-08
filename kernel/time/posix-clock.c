@@ -45,7 +45,7 @@ static ssize_t posix_clock_read(struct file *fp, char __user *buf,
 	int err = -EINVAL;
 
 	if (!clk)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (clk->ops.read)
 		err = clk->ops.read(pccontext, fp->f_flags, buf, count);
@@ -77,10 +77,10 @@ static long posix_clock_ioctl(struct file *fp,
 {
 	struct posix_clock_context *pccontext = fp->private_data;
 	struct posix_clock *clk = get_posix_clock(fp);
-	int err = -ENOTTY;
+	int err = -EANALTTY;
 
 	if (!clk)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (clk->ops.ioctl)
 		err = clk->ops.ioctl(pccontext, cmd, arg);
@@ -96,10 +96,10 @@ static long posix_clock_compat_ioctl(struct file *fp,
 {
 	struct posix_clock_context *pccontext = fp->private_data;
 	struct posix_clock *clk = get_posix_clock(fp);
-	int err = -ENOTTY;
+	int err = -EANALTTY;
 
 	if (!clk)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (clk->ops.ioctl)
 		err = clk->ops.ioctl(pccontext, cmd, arg);
@@ -110,22 +110,22 @@ static long posix_clock_compat_ioctl(struct file *fp,
 }
 #endif
 
-static int posix_clock_open(struct inode *inode, struct file *fp)
+static int posix_clock_open(struct ianalde *ianalde, struct file *fp)
 {
 	int err;
 	struct posix_clock *clk =
-		container_of(inode->i_cdev, struct posix_clock, cdev);
+		container_of(ianalde->i_cdev, struct posix_clock, cdev);
 	struct posix_clock_context *pccontext;
 
 	down_read(&clk->rwsem);
 
 	if (clk->zombie) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 	pccontext = kzalloc(sizeof(*pccontext), GFP_KERNEL);
 	if (!pccontext) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	pccontext->clk = clk;
@@ -143,14 +143,14 @@ out:
 	return err;
 }
 
-static int posix_clock_release(struct inode *inode, struct file *fp)
+static int posix_clock_release(struct ianalde *ianalde, struct file *fp)
 {
 	struct posix_clock_context *pccontext = fp->private_data;
 	struct posix_clock *clk;
 	int err = 0;
 
 	if (!pccontext)
-		return -ENODEV;
+		return -EANALDEV;
 	clk = pccontext->clk;
 
 	if (clk->ops.release)
@@ -166,7 +166,7 @@ static int posix_clock_release(struct inode *inode, struct file *fp)
 
 static const struct file_operations posix_clock_file_operations = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.read		= posix_clock_read,
 	.poll		= posix_clock_poll,
 	.unlocked_ioctl	= posix_clock_ioctl,
@@ -187,7 +187,7 @@ int posix_clock_register(struct posix_clock *clk, struct device *dev)
 	err = cdev_device_add(&clk->cdev, dev);
 	if (err) {
 		pr_err("%s unable to add device %d:%d\n",
-			dev_name(dev), MAJOR(dev->devt), MINOR(dev->devt));
+			dev_name(dev), MAJOR(dev->devt), MIANALR(dev->devt));
 		return err;
 	}
 	clk->cdev.owner = clk->ops.owner;
@@ -228,7 +228,7 @@ static int get_clock_desc(const clockid_t id, struct posix_clock_desc *cd)
 	cd->fp = fp;
 	cd->clk = get_posix_clock(fp);
 
-	err = cd->clk ? 0 : -ENODEV;
+	err = cd->clk ? 0 : -EANALDEV;
 out:
 	if (err)
 		fput(fp);
@@ -258,7 +258,7 @@ static int pc_clock_adjtime(clockid_t id, struct __kernel_timex *tx)
 	if (cd.clk->ops.clock_adjtime)
 		err = cd.clk->ops.clock_adjtime(cd.clk, tx);
 	else
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 out:
 	put_clock_desc(&cd);
 
@@ -277,7 +277,7 @@ static int pc_clock_gettime(clockid_t id, struct timespec64 *ts)
 	if (cd.clk->ops.clock_gettime)
 		err = cd.clk->ops.clock_gettime(cd.clk, ts);
 	else
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 
 	put_clock_desc(&cd);
 
@@ -296,7 +296,7 @@ static int pc_clock_getres(clockid_t id, struct timespec64 *ts)
 	if (cd.clk->ops.clock_getres)
 		err = cd.clk->ops.clock_getres(cd.clk, ts);
 	else
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 
 	put_clock_desc(&cd);
 
@@ -320,7 +320,7 @@ static int pc_clock_settime(clockid_t id, const struct timespec64 *ts)
 	if (cd.clk->ops.clock_settime)
 		err = cd.clk->ops.clock_settime(cd.clk, ts);
 	else
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 out:
 	put_clock_desc(&cd);
 

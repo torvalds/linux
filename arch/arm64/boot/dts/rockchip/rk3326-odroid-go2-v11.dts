@@ -113,7 +113,7 @@
 	disable-wp;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&wifi_pwrseq>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&vcc_wifi>;
 	#address-cells = <1>;
 	#size-cells = <0>;

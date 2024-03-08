@@ -25,7 +25,7 @@ static inline void poke32(u32 addr, u32 data)
 
 /* This is all the chips recognized by this library */
 enum logical_chip_type {
-	SM_UNKNOWN,
+	SM_UNKANALWN,
 	SM718,
 	SM750,
 	SM750LE,
@@ -84,7 +84,7 @@ struct initchip_param {
 	unsigned short set_all_eng_off;
 
 	/*
-	 * 0 = Do not reset the memory controller
+	 * 0 = Do analt reset the memory controller
 	 * 1 = Reset the memory controller
 	 */
 	unsigned char reset_memory;

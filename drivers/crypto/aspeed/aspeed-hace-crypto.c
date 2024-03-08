@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 2021 Aspeed Technology Inc.
+ * Copyright (c) 2021 Aspeed Techanallogy Inc.
  */
 
 #include "aspeed-hace.h"
@@ -648,7 +648,7 @@ static int aspeed_crypto_cra_init(struct crypto_skcipher *tfm)
 	ctx->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_ASYNC |
 						  CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->fallback_tfm)) {
-		dev_err(ctx->hace_dev->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+		dev_err(ctx->hace_dev->dev, "ERROR: Cananalt allocate fallback for %s %ld\n",
 			name, PTR_ERR(ctx->fallback_tfm));
 		return PTR_ERR(ctx->fallback_tfm);
 	}

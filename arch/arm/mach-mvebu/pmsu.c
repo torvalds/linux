@@ -136,7 +136,7 @@ int mvebu_setup_boot_addr_wa(unsigned int crypto_eng_target,
 	sram_virt_base = ioremap(SRAM_PHYS_BASE, SZ_64K);
 	if (!sram_virt_base) {
 		pr_err("Unable to map SRAM to setup the boot address WA\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(sram_virt_base, &mvebu_boot_wa_start, code_len);
@@ -157,11 +157,11 @@ int mvebu_setup_boot_addr_wa(unsigned int crypto_eng_target,
 
 static int __init mvebu_v7_pmsu_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 	int ret = 0;
 
-	np = of_find_matching_node(NULL, of_pmsu_table);
+	np = of_find_matching_analde(NULL, of_pmsu_table);
 	if (!np)
 		return 0;
 
@@ -169,7 +169,7 @@ static int __init mvebu_v7_pmsu_init(void)
 
 	if (of_address_to_resource(np, 0, &res)) {
 		pr_err("unable to get resource\n");
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -192,12 +192,12 @@ static int __init mvebu_v7_pmsu_init(void)
 	if (!pmsu_mp_base) {
 		pr_err("unable to map registers\n");
 		release_mem_region(res.start, resource_size(&res));
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
  out:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -215,12 +215,12 @@ static void mvebu_v7_pmsu_enable_l2_powerdown_onidle(void)
 }
 
 enum pmsu_idle_prepare_flags {
-	PMSU_PREPARE_NORMAL = 0,
+	PMSU_PREPARE_ANALRMAL = 0,
 	PMSU_PREPARE_DEEP_IDLE = BIT(0),
-	PMSU_PREPARE_SNOOP_DISABLE = BIT(1),
+	PMSU_PREPARE_SANALOP_DISABLE = BIT(1),
 };
 
-/* No locking is needed because we only access per-CPU registers */
+/* Anal locking is needed because we only access per-CPU registers */
 static int mvebu_v7_pmsu_idle_prepare(unsigned long flags)
 {
 	unsigned int hw_cpu = cpu_logical_map(smp_processor_id());
@@ -231,7 +231,7 @@ static int mvebu_v7_pmsu_idle_prepare(unsigned long flags)
 
 	/*
 	 * Adjust the PMSU configuration to wait for WFI signal, enable
-	 * IRQ and FIQ as wakeup events, set wait for snoop queue empty
+	 * IRQ and FIQ as wakeup events, set wait for sanalop queue empty
 	 * indication and mask IRQ and FIQ from CPU
 	 */
 	reg = readl(pmsu_mp_base + PMSU_STATUS_AND_MASK(hw_cpu));
@@ -252,8 +252,8 @@ static int mvebu_v7_pmsu_idle_prepare(unsigned long flags)
 	reg |= PMSU_CONTROL_AND_CONFIG_PWDDN_REQ;
 	writel(reg, pmsu_mp_base + PMSU_CONTROL_AND_CONFIG(hw_cpu));
 
-	if (flags & PMSU_PREPARE_SNOOP_DISABLE) {
-		/* Disable snoop disable by HW - SW is taking care of it */
+	if (flags & PMSU_PREPARE_SANALOP_DISABLE) {
+		/* Disable sanalop disable by HW - SW is taking care of it */
 		reg = readl(pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
 		reg |= PMSU_CPU_POWER_DOWN_DIS_SNP_Q_SKIP;
 		writel(reg, pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
@@ -264,7 +264,7 @@ static int mvebu_v7_pmsu_idle_prepare(unsigned long flags)
 
 int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
 {
-	unsigned long flags = PMSU_PREPARE_SNOOP_DISABLE;
+	unsigned long flags = PMSU_PREPARE_SANALOP_DISABLE;
 	int ret;
 
 	if (deepidle)
@@ -335,7 +335,7 @@ static int armada_38x_cpu_suspend(unsigned long deepidle)
 	return cpu_suspend(false, armada_38x_do_cpu_suspend);
 }
 
-/* No locking is needed because we only access per-CPU registers */
+/* Anal locking is needed because we only access per-CPU registers */
 void mvebu_v7_pmsu_idle_exit(void)
 {
 	unsigned int hw_cpu = cpu_logical_map(smp_processor_id());
@@ -357,7 +357,7 @@ void mvebu_v7_pmsu_idle_exit(void)
 	writel(reg, pmsu_mp_base + PMSU_STATUS_AND_MASK(hw_cpu));
 }
 
-static int mvebu_v7_cpu_pm_notify(struct notifier_block *self,
+static int mvebu_v7_cpu_pm_analtify(struct analtifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	if (action == CPU_PM_ENTER) {
@@ -367,16 +367,16 @@ static int mvebu_v7_cpu_pm_notify(struct notifier_block *self,
 		mvebu_v7_pmsu_idle_exit();
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block mvebu_v7_cpu_pm_notifier = {
-	.notifier_call = mvebu_v7_cpu_pm_notify,
+static struct analtifier_block mvebu_v7_cpu_pm_analtifier = {
+	.analtifier_call = mvebu_v7_cpu_pm_analtify,
 };
 
 static struct platform_device mvebu_v7_cpuidle_device;
 
-static int broken_idle(struct device_node *np)
+static int broken_idle(struct device_analde *np)
 {
 	if (of_property_read_bool(np, "broken-idle")) {
 		pr_warn("CPU idle is currently broken: disabling\n");
@@ -388,12 +388,12 @@ static int broken_idle(struct device_node *np)
 
 static __init int armada_370_cpuidle_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	phys_addr_t redirect_reg;
 
-	np = of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric");
+	np = of_find_compatible_analde(NULL, NULL, "marvell,coherency-fabric");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (broken_idle(np))
 		goto end;
@@ -416,33 +416,33 @@ static __init int armada_370_cpuidle_init(void)
 	mvebu_v7_cpuidle_device.name = "cpuidle-armada-370";
 
 end:
-	of_node_put(np);
+	of_analde_put(np);
 	return 0;
 }
 
 static __init int armada_38x_cpuidle_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *mpsoc_base;
 	u32 reg;
 
 	pr_warn("CPU idle is currently broken on Armada 38x: disabling\n");
 	return 0;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_analde(NULL, NULL,
 				     "marvell,armada-380-coherency-fabric");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (broken_idle(np))
 		goto end;
 
-	of_node_put(np);
+	of_analde_put(np);
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_analde(NULL, NULL,
 				     "marvell,armada-380-mpcore-soc-ctrl");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 	mpsoc_base = of_iomap(np, 0);
 	BUG_ON(!mpsoc_base);
 
@@ -465,17 +465,17 @@ static __init int armada_38x_cpuidle_init(void)
 	mvebu_v7_cpuidle_device.name = "cpuidle-armada-38x";
 
 end:
-	of_node_put(np);
+	of_analde_put(np);
 	return 0;
 }
 
 static __init int armada_xp_cpuidle_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric");
+	np = of_find_compatible_analde(NULL, NULL, "marvell,coherency-fabric");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (broken_idle(np))
 		goto end;
@@ -485,19 +485,19 @@ static __init int armada_xp_cpuidle_init(void)
 	mvebu_v7_cpuidle_device.name = "cpuidle-armada-xp";
 
 end:
-	of_node_put(np);
+	of_analde_put(np);
 	return 0;
 }
 
 static int __init mvebu_v7_cpu_pm_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	np = of_find_matching_node(NULL, of_pmsu_table);
+	np = of_find_matching_analde(NULL, of_pmsu_table);
 	if (!np)
 		return 0;
-	of_node_put(np);
+	of_analde_put(np);
 
 	/*
 	 * Currently the CPU idle support for Armada 38x is broken, as
@@ -524,7 +524,7 @@ static int __init mvebu_v7_cpu_pm_init(void)
 	mvebu_v7_pmsu_enable_l2_powerdown_onidle();
 	if (mvebu_v7_cpuidle_device.name)
 		platform_device_register(&mvebu_v7_cpuidle_device);
-	cpu_pm_register_notifier(&mvebu_v7_cpu_pm_notifier);
+	cpu_pm_register_analtifier(&mvebu_v7_cpu_pm_analtifier);
 
 	return 0;
 }

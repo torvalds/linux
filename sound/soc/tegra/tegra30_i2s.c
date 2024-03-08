@@ -173,7 +173,7 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 	val = bitcnt << TEGRA30_I2S_TIMING_CHANNEL_BIT_COUNT_SHIFT;
 
 	if (i2sclock % (2 * srate))
-		val |= TEGRA30_I2S_TIMING_NON_SYM_ENABLE;
+		val |= TEGRA30_I2S_TIMING_ANALN_SYM_ENABLE;
 
 	regmap_write(i2s->regmap, TEGRA30_I2S_TIMING, val);
 
@@ -186,7 +186,7 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 	cif_conf.stereo_conv = 0;
 	cif_conf.replicate = 0;
 	cif_conf.truncate = 0;
-	cif_conf.mono_conv = 0;
+	cif_conf.moanal_conv = 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		cif_conf.direction = TEGRA30_AUDIOCIF_DIRECTION_RX;
@@ -413,15 +413,15 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(struct tegra30_i2s), GFP_KERNEL);
 	if (!i2s) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	dev_set_drvdata(&pdev->dev, i2s);
 
 	soc_data = of_device_get_match_data(&pdev->dev);
 	if (!soc_data) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "Error: Anal device match found\n");
+		ret = -EANALDEV;
 		goto err;
 	}
 	i2s->soc_data = soc_data;
@@ -429,7 +429,7 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 	i2s->dai = tegra30_i2s_dai_template;
 	i2s->dai.name = dev_name(&pdev->dev);
 
-	ret = of_property_read_u32_array(pdev->dev.of_node,
+	ret = of_property_read_u32_array(pdev->dev.of_analde,
 					 "nvidia,ahub-cif-ids", cif_ids,
 					 ARRAY_SIZE(cif_ids));
 	if (ret < 0)
@@ -469,13 +469,13 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 					    sizeof(i2s->playback_dma_chan),
 					    &i2s->playback_dma_data.addr);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not alloc TX FIFO: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt alloc TX FIFO: %d\n", ret);
 		goto err_pm_disable;
 	}
 	ret = tegra30_ahub_set_rx_cif_source(i2s->playback_i2s_cif,
 					     i2s->playback_fifo_cif);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not route TX FIFO: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt route TX FIFO: %d\n", ret);
 		goto err_free_tx_fifo;
 	}
 
@@ -486,21 +486,21 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 					    sizeof(i2s->capture_dma_chan),
 					    &i2s->capture_dma_data.addr);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not alloc RX FIFO: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt alloc RX FIFO: %d\n", ret);
 		goto err_unroute_tx_fifo;
 	}
 	ret = tegra30_ahub_set_rx_cif_source(i2s->capture_fifo_cif,
 					     i2s->capture_i2s_cif);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not route TX FIFO: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt route TX FIFO: %d\n", ret);
 		goto err_free_rx_fifo;
 	}
 
 	ret = snd_soc_register_component(&pdev->dev, &tegra30_i2s_component,
 				   &i2s->dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "Could analt register DAI: %d\n", ret);
+		ret = -EANALMEM;
 		goto err_unroute_rx_fifo;
 	}
 
@@ -508,7 +508,7 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 				&i2s->dma_config, i2s->playback_dma_chan,
 				i2s->capture_dma_chan);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register PCM: %d\n", ret);
 		goto err_unregister_component;
 	}
 

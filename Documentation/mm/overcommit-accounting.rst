@@ -18,9 +18,9 @@ The Linux kernel supports the following overcommit handling modes
 
 2
 	Don't overcommit. The total address space commit for the
-	system is not permitted to exceed swap + a configurable amount
+	system is analt permitted to exceed swap + a configurable amount
 	(default is 50%) of physical RAM.  Depending on the amount you
-	use, in most situations this means a process will not be
+	use, in most situations this means a process will analt be
 	killed while accessing pages but will receive errors on memory
 	allocation as appropriate.
 
@@ -43,9 +43,9 @@ Gotchas
 The C language stack growth does an implicit mremap. If you want absolute
 guarantees and run close to the edge you MUST mmap your stack for the
 largest size you think you will need. For typical stack usage this does
-not matter much but it's a corner case if you really really care
+analt matter much but it's a corner case if you really really care
 
-In mode 2 the MAP_NORESERVE flag is ignored.
+In mode 2 the MAP_ANALRESERVE flag is iganalred.
 
 
 How It Works
@@ -54,10 +54,10 @@ How It Works
 The overcommit is based on the following rules
 
 For a file backed map
-	| SHARED or READ-only	-	0 cost (the file is the map not swap)
+	| SHARED or READ-only	-	0 cost (the file is the map analt swap)
 	| PRIVATE WRITABLE	-	size of mapping per instance
 
-For an anonymous or ``/dev/zero`` map
+For an aanalnymous or ``/dev/zero`` map
 	| SHARED			-	size of mapping
 	| PRIVATE READ-only	-	0 cost (but of little use)
 	| PRIVATE WRITABLE	-	size of mapping per instance

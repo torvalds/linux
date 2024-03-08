@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * NOTE:
+ * ANALTE:
  *
  * This header has combined a lot of unrelated to each other stuff.
  * The process of splitting its content is in progress while keeping
- * backward compatibility. That's why it's highly recommended NOT to
- * include this header inside another header file, especially under
+ * backward compatibility. That's why it's highly recommended ANALT to
+ * include this header inside aanalther header file, especially under
  * generic or architectural include/ directory.
  */
 #ifndef _LINUX_KERNEL_H
@@ -43,7 +43,7 @@
  * REPEAT_BYTE - repeat the value @x multiple times as an unsigned long value
  * @x: value to repeat
  *
- * NOTE: @x is not checked for > 0xff; larger values produce odd results.
+ * ANALTE: @x is analt checked for > 0xff; larger values produce odd results.
  */
 #define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
 
@@ -125,30 +125,30 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
 extern void __cant_migrate(const char *file, int line);
 
 /**
- * might_sleep - annotation for functions that can sleep
+ * might_sleep - ananaltation for functions that can sleep
  *
  * this macro will print a stack trace if it is executed in an atomic
  * context (spinlock, irq-handler, ...). Additional sections where blocking is
- * not allowed can be annotated with non_block_start() and non_block_end()
+ * analt allowed can be ananaltated with analn_block_start() and analn_block_end()
  * pairs.
  *
- * This is a useful debugging help to be able to catch problems early and not
- * be bitten later when the calling function happens to sleep when it is not
+ * This is a useful debugging help to be able to catch problems early and analt
+ * be bitten later when the calling function happens to sleep when it is analt
  * supposed to.
  */
 # define might_sleep() \
 	do { __might_sleep(__FILE__, __LINE__); might_resched(); } while (0)
 /**
- * cant_sleep - annotation for functions that cannot sleep
+ * cant_sleep - ananaltation for functions that cananalt sleep
  *
  * this macro will print a stack trace if it is executed with preemption enabled
  */
 # define cant_sleep() \
 	do { __cant_sleep(__FILE__, __LINE__, 0); } while (0)
-# define sched_annotate_sleep()	(current->task_state_change = 0)
+# define sched_ananaltate_sleep()	(current->task_state_change = 0)
 
 /**
- * cant_migrate - annotation for functions that cannot migrate
+ * cant_migrate - ananaltation for functions that cananalt migrate
  *
  * Will print a stack trace if executed in code which is migratable
  */
@@ -159,22 +159,22 @@ extern void __cant_migrate(const char *file, int line);
 	} while (0)
 
 /**
- * non_block_start - annotate the start of section where sleeping is prohibited
+ * analn_block_start - ananaltate the start of section where sleeping is prohibited
  *
  * This is on behalf of the oom reaper, specifically when it is calling the mmu
- * notifiers. The problem is that if the notifier were to block on, for example,
+ * analtifiers. The problem is that if the analtifier were to block on, for example,
  * mutex_lock() and if the process which holds that mutex were to perform a
- * sleeping memory allocation, the oom reaper is now blocked on completion of
+ * sleeping memory allocation, the oom reaper is analw blocked on completion of
  * that memory allocation. Other blocking calls like wait_event() pose similar
  * issues.
  */
-# define non_block_start() (current->non_block_count++)
+# define analn_block_start() (current->analn_block_count++)
 /**
- * non_block_end - annotate the end of section where sleeping is prohibited
+ * analn_block_end - ananaltate the end of section where sleeping is prohibited
  *
- * Closes a section opened by non_block_start().
+ * Closes a section opened by analn_block_start().
  */
-# define non_block_end() WARN_ON(current->non_block_count-- == 0)
+# define analn_block_end() WARN_ON(current->analn_block_count-- == 0)
 #else
   static inline void __might_resched(const char *file, int line,
 				     unsigned int offsets) { }
@@ -182,9 +182,9 @@ static inline void __might_sleep(const char *file, int line) { }
 # define might_sleep() do { might_resched(); } while (0)
 # define cant_sleep() do { } while (0)
 # define cant_migrate()		do { } while (0)
-# define sched_annotate_sleep() do { } while (0)
-# define non_block_start() do { } while (0)
-# define non_block_end() do { } while (0)
+# define sched_ananaltate_sleep() do { } while (0)
+# define analn_block_start() do { } while (0)
+# define analn_block_end() do { } while (0)
 #endif
 
 #define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
@@ -197,7 +197,7 @@ void __might_fault(const char *file, int line);
 static inline void might_fault(void) { }
 #endif
 
-void do_exit(long error_code) __noreturn;
+void do_exit(long error_code) __analreturn;
 
 extern int get_option(char **str, int *pint);
 extern char *get_options(const char *str, int nints, int *ints);
@@ -210,14 +210,14 @@ extern int __kernel_text_address(unsigned long addr);
 extern int kernel_text_address(unsigned long addr);
 extern int func_ptr_is_kernel_text(void *ptr);
 
-extern void bust_spinlocks(int yes);
+extern void bust_spinlocks(int anal);
 
 extern int root_mountflags;
 
 extern bool early_boot_irqs_disabled;
 
 /*
- * Values used for system_state. Ordering of the states must not be changed
+ * Values used for system_state. Ordering of the states must analt be changed
  * as code checks for <, <=, >, >= STATE.
  */
 extern enum system_states {
@@ -245,14 +245,14 @@ extern enum system_states {
  *
  * tracing_stop/tracing_start has slightly more overhead. It is used
  * by things like suspend to ram where disabling the recording of the
- * trace is not enough, but tracing must actually stop because things
+ * trace is analt eanalugh, but tracing must actually stop because things
  * like calling smp_processor_id() may crash the system.
  *
  * Most likely, you want to use tracing_on/tracing_off.
  */
 
 enum ftrace_dump_mode {
-	DUMP_NONE,
+	DUMP_ANALNE,
 	DUMP_ALL,
 	DUMP_ORIG,
 };
@@ -281,11 +281,11 @@ do {									\
  * trace_printk - printf formatting in the ftrace buffer
  * @fmt: the printf format for printing
  *
- * Note: __trace_printk is an internal function for trace_printk() and
+ * Analte: __trace_printk is an internal function for trace_printk() and
  *       the @ip is passed in via the trace_printk() macro.
  *
  * This function allows a kernel developer to debug fast path sections
- * that printk is not appropriate for. By scattering in various
+ * that printk is analt appropriate for. By scattering in various
  * printk like tracing in the code, a developer can quickly see
  * where problems are occurring.
  *
@@ -295,12 +295,12 @@ do {									\
  * allocated when trace_printk() is used.)
  *
  * A little optimization trick is done here. If there's only one
- * argument, there's no need to scan the string for printf formats.
+ * argument, there's anal need to scan the string for printf formats.
  * The trace_puts() will suffice. But how can we take advantage of
  * using trace_puts() when trace_printk() has only one argument?
  * By stringifying the args and checking the size we can tell
- * whether or not there are args. __stringify((__VA_ARGS__)) will
- * turn into "()\0" with a size of 3 when there are no args, anything
+ * whether or analt there are args. __stringify((__VA_ARGS__)) will
+ * turn into "()\0" with a size of 3 when there are anal args, anything
  * else will be bigger. All we need to do is define a string to this,
  * and then take its size and compare to 3. If it's bigger, use
  * do_trace_printk() otherwise, optimize it to trace_puts(). Then just
@@ -340,7 +340,7 @@ int __trace_printk(unsigned long ip, const char *fmt, ...);
  * trace_puts - write a string into the ftrace buffer
  * @str: the string to record
  *
- * Note: __trace_bputs is an internal function for trace_puts and
+ * Analte: __trace_bputs is an internal function for trace_puts and
  *       the @ip is passed in via the trace_puts macro.
  *
  * This is similar to trace_printk() but is made for those really fast
@@ -348,7 +348,7 @@ int __trace_printk(unsigned long ip, const char *fmt, ...);
  * where the processing of the print format is still too much.
  *
  * This function allows a kernel developer to debug fast path sections
- * that printk is not appropriate for. By scattering in various
+ * that printk is analt appropriate for. By scattering in various
  * printk like tracing in the code, a developer can quickly see
  * where problems are occurring.
  *
@@ -357,7 +357,7 @@ int __trace_printk(unsigned long ip, const char *fmt, ...);
  * your code. (Extra memory is used for special buffers that are
  * allocated when trace_puts() is used.)
  *
- * Returns: 0 if nothing was written, positive # if string was.
+ * Returns: 0 if analthing was written, positive # if string was.
  *  (1 when __trace_bputs is used, strlen(str) when __trace_puts is used)
  */
 
@@ -378,7 +378,7 @@ extern void trace_dump_stack(int skip);
 
 /*
  * The double __builtin_constant_p is because gcc will give us an error
- * if we try to allocate the static variable to fmt if it is not a
+ * if we try to allocate the static variable to fmt if it is analt a
  * constant. Even with the outer if statement.
  */
 #define ftrace_vprintk(fmt, vargs)					\

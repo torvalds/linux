@@ -57,13 +57,13 @@ shared_block_test()
 		-t ip -q
 
 	tc_check_packets "block 22" 101 1
-	check_err $? "Did not match first incoming packet on a block"
+	check_err $? "Did analt match first incoming packet on a block"
 
 	$MZ $h2 -c 1 -p 64 -a $h2mac -b $swmac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip -q
 
 	tc_check_packets "block 22" 101 2
-	check_err $? "Did not match second incoming packet on a block"
+	check_err $? "Did analt match second incoming packet on a block"
 
 	tc filter del block 22 protocol ip pref 1 handle 101 flower
 
@@ -83,13 +83,13 @@ match_indev_test()
 		-t ip -q
 
 	tc_check_packets "block 22" 101 1
-	check_err $? "Did not match first incoming packet on a block"
+	check_err $? "Did analt match first incoming packet on a block"
 
 	$MZ $h2 -c 1 -p 64 -a $h2mac -b $swmac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip -q
 
 	tc_check_packets "block 22" 102 1
-	check_err $? "Did not match second incoming packet on a block"
+	check_err $? "Did analt match second incoming packet on a block"
 
 	tc filter del block 22 protocol ip pref 1 handle 101 flower
 	tc filter del block 22 protocol ip pref 2 handle 102 flower
@@ -143,7 +143,7 @@ tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
-	log_info "Could not test offloaded functionality"
+	log_info "Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests_run

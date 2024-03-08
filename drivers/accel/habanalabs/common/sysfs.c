@@ -16,7 +16,7 @@ static ssize_t clk_max_freq_mhz_show(struct device *dev, struct device_attribute
 	long value;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, false);
 	if (value < 0)
@@ -35,7 +35,7 @@ static ssize_t clk_max_freq_mhz_store(struct device *dev, struct device_attribut
 	u64 value;
 
 	if (!hl_device_operational(hdev, NULL)) {
-		count = -ENODEV;
+		count = -EANALDEV;
 		goto fail;
 	}
 
@@ -59,7 +59,7 @@ static ssize_t clk_cur_freq_mhz_show(struct device *dev, struct device_attribute
 	long value;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, true);
 	if (value < 0)
@@ -210,7 +210,7 @@ static ssize_t soft_reset_store(struct device *dev,
 	}
 
 	if (!hdev->asic_prop.allow_inference_soft_reset) {
-		dev_err(hdev->dev, "Device does not support inference soft-reset\n");
+		dev_err(hdev->dev, "Device does analt support inference soft-reset\n");
 		goto out;
 	}
 
@@ -328,7 +328,7 @@ static ssize_t max_power_show(struct device *dev, struct device_attribute *attr,
 	long val;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = hl_fw_get_max_power(hdev);
 	if (val < 0)
@@ -345,7 +345,7 @@ static ssize_t max_power_store(struct device *dev,
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL)) {
-		count = -ENODEV;
+		count = -EANALDEV;
 		goto out;
 	}
 
@@ -373,14 +373,14 @@ static ssize_t eeprom_read_handler(struct file *filp, struct kobject *kobj,
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!max_size)
 		return -EINVAL;
 
 	data = kzalloc(max_size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = hdev->asic_funcs->get_eeprom_data(hdev, data, max_size);
 	if (rc)

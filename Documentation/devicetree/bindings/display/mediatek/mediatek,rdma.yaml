@@ -15,7 +15,7 @@ description: |
   data into DMA. It provides real time data to the back-end panel
   driver, such as DSI, DPI and DP_INTF.
   It contains one line buffer to store the sufficient pixel data.
-  RDMA device node must be siblings to the central MMSYS_CONFIG node.
+  RDMA device analde must be siblings to the central MMSYS_CONFIG analde.
   For a description of the MMSYS_CONFIG binding, see
   Documentation/devicetree/bindings/arm/mediatek/mediatek,mmsys.yaml
   for details.

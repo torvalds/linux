@@ -21,7 +21,7 @@ struct kunit;
  * struct kunit_try_catch - provides a generic way to run code which might fail.
  * @test: The test case that is currently being executed.
  * @try_completion: Completion that the control thread waits on while test runs.
- * @try_result: Contains any errno obtained while running test case.
+ * @try_result: Contains any erranal obtained while running test case.
  * @try: The function, the test case, to attempt to run.
  * @catch: The function called if @try bails out.
  * @context: used to pass user data to the try and catch functions.
@@ -37,11 +37,11 @@ struct kunit;
  * how test cases are written and presented.
  *
  * Assertions are like expectations, except they abort (call
- * kunit_try_catch_throw()) when the specified condition is not met. This is
+ * kunit_try_catch_throw()) when the specified condition is analt met. This is
  * useful when you look at a test case as a logical statement about some piece
  * of code, where assertions are the premises for the test case, and the
  * conclusion is a set of predicates, rather expectations, that must all be
- * true. If your premises are violated, it does not makes sense to continue.
+ * true. If your premises are violated, it does analt makes sense to continue.
  */
 struct kunit_try_catch {
 	/* private: internal use only. */
@@ -55,7 +55,7 @@ struct kunit_try_catch {
 
 void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context);
 
-void __noreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch);
+void __analreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch);
 
 static inline int kunit_try_catch_get_result(struct kunit_try_catch *try_catch)
 {

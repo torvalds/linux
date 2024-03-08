@@ -9,7 +9,7 @@
 #ifndef __RENESAS_RZG2L_CPG_H__
 #define __RENESAS_RZG2L_CPG_H__
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #define CPG_SIPLL5_STBY		(0x140)
 #define CPG_SIPLL5_CLK1		(0x144)
@@ -92,7 +92,7 @@ struct cpg_core_clk {
 	const unsigned long invalid_rate;
 	const unsigned long max_rate;
 	const char * const *parent_names;
-	notifier_fn_t notifier;
+	analtifier_fn_t analtifier;
 	u32 flag;
 	u32 mux_flags;
 	int num_parents;
@@ -147,12 +147,12 @@ enum clk_types {
 		 .parent = _parent, .dtable = _dtable, \
 		 .flag = CLK_DIVIDER_READ_ONLY)
 #define DEF_G3S_DIV(_name, _id, _parent, _conf, _sconf, _dtable, _invalid_rate, \
-		    _max_rate, _clk_flags, _notif) \
+		    _max_rate, _clk_flags, _analtif) \
 	DEF_TYPE(_name, _id, CLK_TYPE_G3S_DIV, .conf = _conf, .sconf = _sconf, \
 		 .parent = _parent, .dtable = _dtable, \
 		 .invalid_rate = _invalid_rate, \
 		 .max_rate = _max_rate, .flag = (_clk_flags), \
-		 .notifier = _notif)
+		 .analtifier = _analtif)
 #define DEF_MUX(_name, _id, _conf, _parent_names) \
 	DEF_TYPE(_name, _id, CLK_TYPE_MUX, .conf = _conf, \
 		 .parent_names = _parent_names, \
@@ -163,11 +163,11 @@ enum clk_types {
 		 .parent_names = _parent_names, \
 		 .num_parents = ARRAY_SIZE(_parent_names), \
 		 .mux_flags = CLK_MUX_READ_ONLY)
-#define DEF_SD_MUX(_name, _id, _conf, _sconf, _parent_names, _mtable, _clk_flags, _notifier) \
+#define DEF_SD_MUX(_name, _id, _conf, _sconf, _parent_names, _mtable, _clk_flags, _analtifier) \
 	DEF_TYPE(_name, _id, CLK_TYPE_SD_MUX, .conf = _conf, .sconf = _sconf, \
 		 .parent_names = _parent_names, \
 		 .num_parents = ARRAY_SIZE(_parent_names), \
-		 .mtable = _mtable, .flag = _clk_flags, .notifier = _notifier)
+		 .mtable = _mtable, .flag = _clk_flags, .analtifier = _analtifier)
 #define DEF_PLL5_FOUTPOSTDIV(_name, _id, _parent) \
 	DEF_TYPE(_name, _id, CLK_TYPE_SIPLL5, .parent = _parent)
 #define DEF_PLL5_4_MUX(_name, _id, _conf, _parent_names) \
@@ -217,7 +217,7 @@ struct rzg2l_mod_clk {
  *
  * @off: register offset
  * @bit: reset bit
- * @monbit: monitor bit in CPG_RST_MON register, -1 if none
+ * @monbit: monitor bit in CPG_RST_MON register, -1 if analne
  */
 struct rzg2l_reset {
 	u16 off;
@@ -250,7 +250,7 @@ struct rzg2l_reset {
  * @num_resets: Number of entries in resets[]
  *
  * @crit_mod_clks: Array with Module Clock IDs of critical clocks that
- *                 should not be disabled without a knowledgeable driver
+ *                 should analt be disabled without a kanalwledgeable driver
  * @num_crit_mod_clks: Number of entries in crit_mod_clks[]
  * @has_clk_mon_regs: Flag indicating whether the SoC has CLK_MON registers
  */
@@ -266,15 +266,15 @@ struct rzg2l_cpg_info {
 	unsigned int num_mod_clks;
 	unsigned int num_hw_mod_clks;
 
-	/* No PM Module Clocks */
-	const unsigned int *no_pm_mod_clks;
-	unsigned int num_no_pm_mod_clks;
+	/* Anal PM Module Clocks */
+	const unsigned int *anal_pm_mod_clks;
+	unsigned int num_anal_pm_mod_clks;
 
 	/* Resets */
 	const struct rzg2l_reset *resets;
 	unsigned int num_resets;
 
-	/* Critical Module Clocks that should not be disabled */
+	/* Critical Module Clocks that should analt be disabled */
 	const unsigned int *crit_mod_clks;
 	unsigned int num_crit_mod_clks;
 
@@ -287,7 +287,7 @@ extern const struct rzg2l_cpg_info r9a07g054_cpg_info;
 extern const struct rzg2l_cpg_info r9a08g045_cpg_info;
 extern const struct rzg2l_cpg_info r9a09g011_cpg_info;
 
-int rzg2l_cpg_sd_clk_mux_notifier(struct notifier_block *nb, unsigned long event, void *data);
-int rzg3s_cpg_div_clk_notifier(struct notifier_block *nb, unsigned long event, void *data);
+int rzg2l_cpg_sd_clk_mux_analtifier(struct analtifier_block *nb, unsigned long event, void *data);
+int rzg3s_cpg_div_clk_analtifier(struct analtifier_block *nb, unsigned long event, void *data);
 
 #endif

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syanalpsys, Inc. and/or its affiliates.
  * stmmac XGMAC support.
  */
 
@@ -17,7 +17,7 @@ static int dwxgmac2_get_tx_status(struct stmmac_extra_stats *x,
 	if (unlikely(tdes3 & XGMAC_TDES3_OWN))
 		return tx_dma_own;
 	if (likely(!(tdes3 & XGMAC_TDES3_LD)))
-		return tx_not_ls;
+		return tx_analt_ls;
 
 	return ret;
 }
@@ -32,7 +32,7 @@ static int dwxgmac2_get_rx_status(struct stmmac_extra_stats *x,
 	if (unlikely(rdes3 & XGMAC_RDES3_CTXT))
 		return discard_frame;
 	if (likely(!(rdes3 & XGMAC_RDES3_LD)))
-		return rx_not_ls;
+		return rx_analt_ls;
 	if (unlikely((rdes3 & XGMAC_RDES3_ES) && (rdes3 & XGMAC_RDES3_LD)))
 		return discard_frame;
 
@@ -79,7 +79,7 @@ static void dwxgmac2_enable_tx_timestamp(struct dma_desc *p)
 
 static int dwxgmac2_get_tx_timestamp_status(struct dma_desc *p)
 {
-	return 0; /* Not supported */
+	return 0; /* Analt supported */
 }
 
 static inline void dwxgmac2_get_timestamp(void *desc, u32 ats, u64 *ts)

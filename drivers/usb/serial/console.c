@@ -106,14 +106,14 @@ static int usb_console_setup(struct console *co, char *options)
 		cflag |= CRTSCTS;
 
 	/*
-	 * no need to check the index here: if the index is wrong, console
+	 * anal need to check the index here: if the index is wrong, console
 	 * code won't call us
 	 */
-	port = usb_serial_port_get_by_minor(co->index);
+	port = usb_serial_port_get_by_mianalr(co->index);
 	if (port == NULL) {
-		/* no device is connected yet, sorry :( */
-		pr_err("No USB device connected to ttyUSB%i\n", co->index);
-		return -ENODEV;
+		/* anal device is connected yet, sorry :( */
+		pr_err("Anal USB device connected to ttyUSB%i\n", co->index);
+		return -EANALDEV;
 	}
 	serial = port->serial;
 
@@ -135,7 +135,7 @@ static int usb_console_setup(struct console *co, char *options)
 			 */
 			tty = kzalloc(sizeof(*tty), GFP_KERNEL);
 			if (!tty) {
-				retval = -ENOMEM;
+				retval = -EANALMEM;
 				goto reset_open_count;
 			}
 			kref_init(&tty->kref);
@@ -155,7 +155,7 @@ static int usb_console_setup(struct console *co, char *options)
 		 * is the first time the port is opened */
 		retval = serial->type->open(NULL, port);
 		if (retval) {
-			dev_err(&port->dev, "could not open USB console port\n");
+			dev_err(&port->dev, "could analt open USB console port\n");
 			goto fail;
 		}
 
@@ -171,11 +171,11 @@ static int usb_console_setup(struct console *co, char *options)
 		}
 		tty_port_set_initialized(&port->port, true);
 	}
-	/* Now that any required fake tty operations are completed restore
+	/* Analw that any required fake tty operations are completed restore
 	 * the tty port count */
 	--port->port.count;
 	/* The console is special in terms of closing the device so
-	 * indicate this port is now acting as a system console. */
+	 * indicate this port is analw acting as a system console. */
 	port->port.console = 1;
 
 	mutex_unlock(&serial->disc_mutex);
@@ -200,9 +200,9 @@ static void usb_console_write(struct console *co,
 	static struct usbcons_info *info = &usbcons_info;
 	struct usb_serial_port *port = info->port;
 	struct usb_serial *serial;
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 
-	if (!port || port->serial->dev->state == USB_STATE_NOTATTACHED)
+	if (!port || port->serial->dev->state == USB_STATE_ANALTATTACHED)
 		return;
 	serial = port->serial;
 
@@ -212,7 +212,7 @@ static void usb_console_write(struct console *co,
 	dev_dbg(&port->dev, "%s - %d byte(s)\n", __func__, count);
 
 	if (!port->port.console) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port analt opened\n", __func__);
 		return;
 	}
 
@@ -272,18 +272,18 @@ void usb_serial_console_disconnect(struct usb_serial *serial)
 	}
 }
 
-void usb_serial_console_init(int minor)
+void usb_serial_console_init(int mianalr)
 {
-	if (minor == 0) {
+	if (mianalr == 0) {
 		/*
 		 * Call register_console() if this is the first device plugged
 		 * in.  If we call it earlier, then the callback to
-		 * console_setup() will fail, as there is not a device seen by
+		 * console_setup() will fail, as there is analt a device seen by
 		 * the USB subsystem yet.
 		 */
 		/*
 		 * Register console.
-		 * NOTES:
+		 * ANALTES:
 		 * console_setup() is called (back) immediately (from
 		 * register_console). console_write() is called immediately
 		 * from register_console iff CON_PRINTBUFFER is set in flags.

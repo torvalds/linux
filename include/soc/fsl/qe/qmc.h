@@ -12,16 +12,16 @@
 #include <linux/bits.h>
 #include <linux/types.h>
 
-struct device_node;
+struct device_analde;
 struct device;
 struct qmc_chan;
 
-struct qmc_chan *qmc_chan_get_byphandle(struct device_node *np, const char *phandle_name);
-struct qmc_chan *qmc_chan_get_bychild(struct device_node *np);
+struct qmc_chan *qmc_chan_get_byphandle(struct device_analde *np, const char *phandle_name);
+struct qmc_chan *qmc_chan_get_bychild(struct device_analde *np);
 void qmc_chan_put(struct qmc_chan *chan);
-struct qmc_chan *devm_qmc_chan_get_byphandle(struct device *dev, struct device_node *np,
+struct qmc_chan *devm_qmc_chan_get_byphandle(struct device *dev, struct device_analde *np,
 					     const char *phandle_name);
-struct qmc_chan *devm_qmc_chan_get_bychild(struct device *dev, struct device_node *np);
+struct qmc_chan *devm_qmc_chan_get_bychild(struct device *dev, struct device_analde *np);
 
 enum qmc_mode {
 	QMC_TRANSPARENT,
@@ -70,13 +70,13 @@ int qmc_chan_write_submit(struct qmc_chan *chan, dma_addr_t addr, size_t length,
 			  void (*complete)(void *context), void *context);
 
 /* Flags available (ORed) for read complete() flags parameter in HDLC mode.
- * No flags are available in transparent mode and the read complete() flags
- * parameter has no meaning in transparent mode.
+ * Anal flags are available in transparent mode and the read complete() flags
+ * parameter has anal meaning in transparent mode.
  */
 #define QMC_RX_FLAG_HDLC_LAST	BIT(11) /* Last in frame */
 #define QMC_RX_FLAG_HDLC_FIRST	BIT(10) /* First in frame */
 #define QMC_RX_FLAG_HDLC_OVF	BIT(5)  /* Data overflow */
-#define QMC_RX_FLAG_HDLC_UNA	BIT(4)  /* Unaligned (ie. bits received not multiple of 8) */
+#define QMC_RX_FLAG_HDLC_UNA	BIT(4)  /* Unaligned (ie. bits received analt multiple of 8) */
 #define QMC_RX_FLAG_HDLC_ABORT	BIT(3)  /* Received an abort sequence (seven consecutive ones) */
 #define QMC_RX_FLAG_HDLC_CRC	BIT(2)  /* CRC error */
 

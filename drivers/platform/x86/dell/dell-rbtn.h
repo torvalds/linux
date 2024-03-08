@@ -8,9 +8,9 @@
 #ifndef _DELL_RBTN_H_
 #define _DELL_RBTN_H_
 
-struct notifier_block;
+struct analtifier_block;
 
-int dell_rbtn_notifier_register(struct notifier_block *nb);
-int dell_rbtn_notifier_unregister(struct notifier_block *nb);
+int dell_rbtn_analtifier_register(struct analtifier_block *nb);
+int dell_rbtn_analtifier_unregister(struct analtifier_block *nb);
 
 #endif

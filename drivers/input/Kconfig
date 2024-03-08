@@ -14,7 +14,7 @@ config INPUT
 	  it to be available to applications. This includes standard PS/2
 	  keyboard and mouse.
 
-	  Say N here if you have a headless (no monitor, no keyboard) system.
+	  Say N here if you have a headless (anal monitor, anal keyboard) system.
 
 	  More information is available: <file:Documentation/input/input.rst>
 
@@ -116,9 +116,9 @@ config INPUT_MOUSEDEV_SCREEN_X
 	default "1024"
 	help
 	  If you're using a digitizer, or a graphic tablet, and want to use
-	  it as a mouse then the mousedev driver needs to know the X window
+	  it as a mouse then the mousedev driver needs to kanalw the X window
 	  screen resolution you are using to correctly scale the data. If
-	  you're not using a digitizer, this value is ignored.
+	  you're analt using a digitizer, this value is iganalred.
 
 config INPUT_MOUSEDEV_SCREEN_Y
 	int "Vertical screen resolution"
@@ -126,9 +126,9 @@ config INPUT_MOUSEDEV_SCREEN_Y
 	default "768"
 	help
 	  If you're using a digitizer, or a graphic tablet, and want to use
-	  it as a mouse then the mousedev driver needs to know the X window
+	  it as a mouse then the mousedev driver needs to kanalw the X window
 	  screen resolution you are using to correctly scale the data. If
-	  you're not using a digitizer, this value is ignored.
+	  you're analt using a digitizer, this value is iganalred.
 
 config INPUT_JOYDEV
 	tristate "Joystick interface"

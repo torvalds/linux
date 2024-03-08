@@ -298,7 +298,7 @@ static int mt6397_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic->dev = &pdev->dev;
 
@@ -308,11 +308,11 @@ static int mt6397_probe(struct platform_device *pdev)
 	 */
 	pmic->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pmic->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pmic_core = of_device_get_match_data(&pdev->dev);
 	if (!pmic_core)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = regmap_read(pmic->regmap, pmic_core->cid_addr, &id);
 	if (ret) {
@@ -332,7 +332,7 @@ static int mt6397_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_ANALNE,
 				   pmic_core->cells, pmic_core->cell_size,
 				   NULL, 0, pmic->irq_domain);
 	if (ret) {

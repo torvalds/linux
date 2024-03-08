@@ -250,7 +250,7 @@ static const struct mt8188_afe_channel_merge *
 	}
 
 	if (id < 0) {
-		dev_dbg(afe->dev, "%s, memif %d cannot find CM!\n", __func__, dai->id);
+		dev_dbg(afe->dev, "%s, memif %d cananalt find CM!\n", __func__, dai->id);
 		return NULL;
 	}
 
@@ -962,160 +962,160 @@ static const struct snd_kcontrol_new dl8_dl11_data_sel_mux =
 
 static const struct snd_soc_dapm_widget mt8188_memif_widgets[] = {
 	/* DL6 */
-	SND_SOC_DAPM_MIXER("I000", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I001", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I000", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I001", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* DL3 */
-	SND_SOC_DAPM_MIXER("I020", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I021", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I020", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I021", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* DL11 */
-	SND_SOC_DAPM_MIXER("I022", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I023", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I024", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I025", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I026", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I027", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I028", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I029", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I030", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I031", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I032", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I033", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I034", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I035", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I036", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I037", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I022", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I023", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I024", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I025", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I026", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I027", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I028", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I029", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I030", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I031", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I032", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I033", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I034", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I035", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I036", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I037", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* DL11/DL8 */
-	SND_SOC_DAPM_MIXER("I046", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I047", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I048", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I049", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I050", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I051", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I052", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I053", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I054", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I055", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I056", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I057", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I058", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I059", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I060", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I061", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I046", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I047", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I048", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I049", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I050", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I051", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I052", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I053", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I054", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I055", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I056", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I057", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I058", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I059", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I060", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I061", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* DL2 */
-	SND_SOC_DAPM_MIXER("I070", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I071", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I070", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I071", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_MUX("DL8_DL11 Mux",
-			 SND_SOC_NOPM, 0, 0, &dl8_dl11_data_sel_mux),
+			 SND_SOC_ANALPM, 0, 0, &dl8_dl11_data_sel_mux),
 
 	/* UL9 */
-	SND_SOC_DAPM_MIXER("O002", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O002", SND_SOC_ANALPM, 0, 0,
 			   o002_mix, ARRAY_SIZE(o002_mix)),
-	SND_SOC_DAPM_MIXER("O003", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O003", SND_SOC_ANALPM, 0, 0,
 			   o003_mix, ARRAY_SIZE(o003_mix)),
-	SND_SOC_DAPM_MIXER("O004", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O004", SND_SOC_ANALPM, 0, 0,
 			   o004_mix, ARRAY_SIZE(o004_mix)),
-	SND_SOC_DAPM_MIXER("O005", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O005", SND_SOC_ANALPM, 0, 0,
 			   o005_mix, ARRAY_SIZE(o005_mix)),
-	SND_SOC_DAPM_MIXER("O006", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O006", SND_SOC_ANALPM, 0, 0,
 			   o006_mix, ARRAY_SIZE(o006_mix)),
-	SND_SOC_DAPM_MIXER("O007", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O007", SND_SOC_ANALPM, 0, 0,
 			   o007_mix, ARRAY_SIZE(o007_mix)),
-	SND_SOC_DAPM_MIXER("O008", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O008", SND_SOC_ANALPM, 0, 0,
 			   o008_mix, ARRAY_SIZE(o008_mix)),
-	SND_SOC_DAPM_MIXER("O009", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O009", SND_SOC_ANALPM, 0, 0,
 			   o009_mix, ARRAY_SIZE(o009_mix)),
-	SND_SOC_DAPM_MIXER("O010", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O010", SND_SOC_ANALPM, 0, 0,
 			   o010_mix, ARRAY_SIZE(o010_mix)),
-	SND_SOC_DAPM_MIXER("O011", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O011", SND_SOC_ANALPM, 0, 0,
 			   o011_mix, ARRAY_SIZE(o011_mix)),
-	SND_SOC_DAPM_MIXER("O012", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O012", SND_SOC_ANALPM, 0, 0,
 			   o012_mix, ARRAY_SIZE(o012_mix)),
-	SND_SOC_DAPM_MIXER("O013", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O013", SND_SOC_ANALPM, 0, 0,
 			   o013_mix, ARRAY_SIZE(o013_mix)),
-	SND_SOC_DAPM_MIXER("O014", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O014", SND_SOC_ANALPM, 0, 0,
 			   o014_mix, ARRAY_SIZE(o014_mix)),
-	SND_SOC_DAPM_MIXER("O015", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O015", SND_SOC_ANALPM, 0, 0,
 			   o015_mix, ARRAY_SIZE(o015_mix)),
-	SND_SOC_DAPM_MIXER("O016", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O016", SND_SOC_ANALPM, 0, 0,
 			   o016_mix, ARRAY_SIZE(o016_mix)),
-	SND_SOC_DAPM_MIXER("O017", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O017", SND_SOC_ANALPM, 0, 0,
 			   o017_mix, ARRAY_SIZE(o017_mix)),
-	SND_SOC_DAPM_MIXER("O018", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O018", SND_SOC_ANALPM, 0, 0,
 			   o018_mix, ARRAY_SIZE(o018_mix)),
-	SND_SOC_DAPM_MIXER("O019", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O019", SND_SOC_ANALPM, 0, 0,
 			   o019_mix, ARRAY_SIZE(o019_mix)),
-	SND_SOC_DAPM_MIXER("O020", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O020", SND_SOC_ANALPM, 0, 0,
 			   o020_mix, ARRAY_SIZE(o020_mix)),
-	SND_SOC_DAPM_MIXER("O021", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O021", SND_SOC_ANALPM, 0, 0,
 			   o021_mix, ARRAY_SIZE(o021_mix)),
-	SND_SOC_DAPM_MIXER("O022", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O022", SND_SOC_ANALPM, 0, 0,
 			   o022_mix, ARRAY_SIZE(o022_mix)),
-	SND_SOC_DAPM_MIXER("O023", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O023", SND_SOC_ANALPM, 0, 0,
 			   o023_mix, ARRAY_SIZE(o023_mix)),
-	SND_SOC_DAPM_MIXER("O024", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O024", SND_SOC_ANALPM, 0, 0,
 			   o024_mix, ARRAY_SIZE(o024_mix)),
-	SND_SOC_DAPM_MIXER("O025", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O025", SND_SOC_ANALPM, 0, 0,
 			   o025_mix, ARRAY_SIZE(o025_mix)),
-	SND_SOC_DAPM_MIXER("O026", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O026", SND_SOC_ANALPM, 0, 0,
 			   o026_mix, ARRAY_SIZE(o026_mix)),
-	SND_SOC_DAPM_MIXER("O027", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O027", SND_SOC_ANALPM, 0, 0,
 			   o027_mix, ARRAY_SIZE(o027_mix)),
-	SND_SOC_DAPM_MIXER("O028", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O028", SND_SOC_ANALPM, 0, 0,
 			   o028_mix, ARRAY_SIZE(o028_mix)),
-	SND_SOC_DAPM_MIXER("O029", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O029", SND_SOC_ANALPM, 0, 0,
 			   o029_mix, ARRAY_SIZE(o029_mix)),
-	SND_SOC_DAPM_MIXER("O030", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O030", SND_SOC_ANALPM, 0, 0,
 			   o030_mix, ARRAY_SIZE(o030_mix)),
-	SND_SOC_DAPM_MIXER("O031", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O031", SND_SOC_ANALPM, 0, 0,
 			   o031_mix, ARRAY_SIZE(o031_mix)),
-	SND_SOC_DAPM_MIXER("O032", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O032", SND_SOC_ANALPM, 0, 0,
 			   o032_mix, ARRAY_SIZE(o032_mix)),
-	SND_SOC_DAPM_MIXER("O033", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O033", SND_SOC_ANALPM, 0, 0,
 			   o033_mix, ARRAY_SIZE(o033_mix)),
 
 	/* UL4 */
-	SND_SOC_DAPM_MIXER("O034", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O034", SND_SOC_ANALPM, 0, 0,
 			   o034_mix, ARRAY_SIZE(o034_mix)),
-	SND_SOC_DAPM_MIXER("O035", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O035", SND_SOC_ANALPM, 0, 0,
 			   o035_mix, ARRAY_SIZE(o035_mix)),
 
 	/* UL5 */
-	SND_SOC_DAPM_MIXER("O036", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O036", SND_SOC_ANALPM, 0, 0,
 			   o036_mix, ARRAY_SIZE(o036_mix)),
-	SND_SOC_DAPM_MIXER("O037", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O037", SND_SOC_ANALPM, 0, 0,
 			   o037_mix, ARRAY_SIZE(o037_mix)),
 
 	/* UL10 */
-	SND_SOC_DAPM_MIXER("O038", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O038", SND_SOC_ANALPM, 0, 0,
 			   o038_mix, ARRAY_SIZE(o038_mix)),
-	SND_SOC_DAPM_MIXER("O039", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O039", SND_SOC_ANALPM, 0, 0,
 			   o039_mix, ARRAY_SIZE(o039_mix)),
-	SND_SOC_DAPM_MIXER("O182", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O182", SND_SOC_ANALPM, 0, 0,
 			   o182_mix, ARRAY_SIZE(o182_mix)),
-	SND_SOC_DAPM_MIXER("O183", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O183", SND_SOC_ANALPM, 0, 0,
 			   o183_mix, ARRAY_SIZE(o183_mix)),
 
 	/* UL2 */
-	SND_SOC_DAPM_MIXER("O040", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O040", SND_SOC_ANALPM, 0, 0,
 			   o040_mix, ARRAY_SIZE(o040_mix)),
-	SND_SOC_DAPM_MIXER("O041", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O041", SND_SOC_ANALPM, 0, 0,
 			   o041_mix, ARRAY_SIZE(o041_mix)),
-	SND_SOC_DAPM_MIXER("O042", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O042", SND_SOC_ANALPM, 0, 0,
 			   o042_mix, ARRAY_SIZE(o042_mix)),
-	SND_SOC_DAPM_MIXER("O043", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O043", SND_SOC_ANALPM, 0, 0,
 			   o043_mix, ARRAY_SIZE(o043_mix)),
-	SND_SOC_DAPM_MIXER("O044", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O044", SND_SOC_ANALPM, 0, 0,
 			   o044_mix, ARRAY_SIZE(o044_mix)),
-	SND_SOC_DAPM_MIXER("O045", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O045", SND_SOC_ANALPM, 0, 0,
 			   o045_mix, ARRAY_SIZE(o045_mix)),
-	SND_SOC_DAPM_MIXER("O046", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O046", SND_SOC_ANALPM, 0, 0,
 			   o046_mix, ARRAY_SIZE(o046_mix)),
-	SND_SOC_DAPM_MIXER("O047", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O047", SND_SOC_ANALPM, 0, 0,
 			   o047_mix, ARRAY_SIZE(o047_mix)),
 };
 
@@ -1557,43 +1557,43 @@ static const unsigned int mt8188_afe_fs_timing_sel_values[] = {
 };
 
 static SOC_VALUE_ENUM_SINGLE_DECL(dl2_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(dl3_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(dl6_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(dl8_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(dl11_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(ul2_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(ul4_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(ul5_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(ul9_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(ul10_fs_timing_sel_enum,
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  mt8188_afe_fs_timing_sel_text,
 				  mt8188_afe_fs_timing_sel_values);
 
@@ -1910,8 +1910,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON0,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moanal_reg = -1,
+		.moanal_shift = 0,
 		.int_odd_flag_reg = -1,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -1923,9 +1923,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = AFE_DL2_CON0,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0x1f,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 18,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 18,
 	},
 	[MT8188_AFE_MEMIF_DL3] = {
@@ -1937,8 +1937,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON0,
 		.fs_shift = 15,
 		.fs_maskbit = 0x1f,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moanal_reg = -1,
+		.moanal_shift = 0,
 		.int_odd_flag_reg = -1,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -1950,9 +1950,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = AFE_DL3_CON0,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0x1f,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 19,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 19,
 	},
 	[MT8188_AFE_MEMIF_DL6] = {
@@ -1964,8 +1964,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON1,
 		.fs_shift = 0,
 		.fs_maskbit = 0x1f,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moanal_reg = -1,
+		.moanal_shift = 0,
 		.int_odd_flag_reg = -1,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -1977,9 +1977,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = AFE_DL6_CON0,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0x1f,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 22,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 22,
 	},
 	[MT8188_AFE_MEMIF_DL7] = {
@@ -1991,8 +1991,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = -1,
 		.fs_shift = 0,
 		.fs_maskbit = 0,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moanal_reg = -1,
+		.moanal_shift = 0,
 		.int_odd_flag_reg = -1,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2004,9 +2004,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = AFE_DL7_CON0,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0x1f,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 23,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 23,
 	},
 	[MT8188_AFE_MEMIF_DL8] = {
@@ -2018,8 +2018,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON1,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moanal_reg = -1,
+		.moanal_shift = 0,
 		.int_odd_flag_reg = -1,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2031,9 +2031,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = AFE_DL8_CON0,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0x3f,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 24,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 24,
 	},
 	[MT8188_AFE_MEMIF_DL10] = {
@@ -2045,8 +2045,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON1,
 		.fs_shift = 20,
 		.fs_maskbit = 0x1f,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moanal_reg = -1,
+		.moanal_shift = 0,
 		.int_odd_flag_reg = -1,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2058,9 +2058,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = AFE_DL10_CON0,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0x1f,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 26,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 26,
 	},
 	[MT8188_AFE_MEMIF_DL11] = {
@@ -2072,8 +2072,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON1,
 		.fs_shift = 25,
 		.fs_maskbit = 0x1f,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moanal_reg = -1,
+		.moanal_shift = 0,
 		.int_odd_flag_reg = -1,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2085,9 +2085,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = AFE_DL11_CON0,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0x7f,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 27,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 27,
 	},
 	[MT8188_AFE_MEMIF_UL1] = {
@@ -2099,8 +2099,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = -1,
 		.fs_shift = 0,
 		.fs_maskbit = 0,
-		.mono_reg = AFE_UL1_CON0,
-		.mono_shift = 1,
+		.moanal_reg = AFE_UL1_CON0,
+		.moanal_shift = 1,
 		.int_odd_flag_reg = AFE_UL1_CON0,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2112,9 +2112,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = -1,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 0,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 0,
 	},
 	[MT8188_AFE_MEMIF_UL2] = {
@@ -2126,8 +2126,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON2,
 		.fs_shift = 5,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_UL2_CON0,
-		.mono_shift = 1,
+		.moanal_reg = AFE_UL2_CON0,
+		.moanal_shift = 1,
 		.int_odd_flag_reg = AFE_UL2_CON0,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2139,9 +2139,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = -1,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 1,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 1,
 	},
 	[MT8188_AFE_MEMIF_UL3] = {
@@ -2153,8 +2153,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON2,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_UL3_CON0,
-		.mono_shift = 1,
+		.moanal_reg = AFE_UL3_CON0,
+		.moanal_shift = 1,
 		.int_odd_flag_reg = AFE_UL3_CON0,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2166,9 +2166,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = -1,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 2,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 2,
 	},
 	[MT8188_AFE_MEMIF_UL4] = {
@@ -2180,8 +2180,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON2,
 		.fs_shift = 15,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_UL4_CON0,
-		.mono_shift = 1,
+		.moanal_reg = AFE_UL4_CON0,
+		.moanal_shift = 1,
 		.int_odd_flag_reg = AFE_UL4_CON0,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2193,9 +2193,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = -1,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 3,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 3,
 	},
 	[MT8188_AFE_MEMIF_UL5] = {
@@ -2207,8 +2207,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON2,
 		.fs_shift = 20,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_UL5_CON0,
-		.mono_shift = 1,
+		.moanal_reg = AFE_UL5_CON0,
+		.moanal_shift = 1,
 		.int_odd_flag_reg = AFE_UL5_CON0,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2220,9 +2220,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = -1,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 4,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 4,
 	},
 	[MT8188_AFE_MEMIF_UL6] = {
@@ -2234,8 +2234,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = -1,
 		.fs_shift = 0,
 		.fs_maskbit = 0,
-		.mono_reg = AFE_UL6_CON0,
-		.mono_shift = 1,
+		.moanal_reg = AFE_UL6_CON0,
+		.moanal_shift = 1,
 		.int_odd_flag_reg = AFE_UL6_CON0,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2247,9 +2247,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = -1,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 5,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 5,
 	},
 	[MT8188_AFE_MEMIF_UL8] = {
@@ -2261,8 +2261,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON3,
 		.fs_shift = 5,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_UL8_CON0,
-		.mono_shift = 1,
+		.moanal_reg = AFE_UL8_CON0,
+		.moanal_shift = 1,
 		.int_odd_flag_reg = AFE_UL8_CON0,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2274,9 +2274,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = -1,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 7,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 7,
 	},
 	[MT8188_AFE_MEMIF_UL9] = {
@@ -2288,8 +2288,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON3,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_UL9_CON0,
-		.mono_shift = 1,
+		.moanal_reg = AFE_UL9_CON0,
+		.moanal_shift = 1,
 		.int_odd_flag_reg = AFE_UL9_CON0,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2301,9 +2301,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = -1,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 8,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 8,
 	},
 	[MT8188_AFE_MEMIF_UL10] = {
@@ -2315,8 +2315,8 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_MEMIF_AGENT_FS_CON3,
 		.fs_shift = 15,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_UL10_CON0,
-		.mono_shift = 1,
+		.moanal_reg = AFE_UL10_CON0,
+		.moanal_shift = 1,
 		.int_odd_flag_reg = AFE_UL10_CON0,
 		.int_odd_flag_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
@@ -2328,9 +2328,9 @@ static const struct mtk_base_memif_data memif_data[MT8188_AFE_MEMIF_NUM] = {
 		.ch_num_reg = -1,
 		.ch_num_shift = 0,
 		.ch_num_maskbit = 0,
-		.msb_reg = AFE_NORMAL_BASE_ADR_MSB,
+		.msb_reg = AFE_ANALRMAL_BASE_ADR_MSB,
 		.msb_shift = 9,
-		.msb_end_reg = AFE_NORMAL_END_ADR_MSB,
+		.msb_end_reg = AFE_ANALRMAL_END_ADR_MSB,
 		.msb_end_shift = 9,
 	},
 };
@@ -2668,7 +2668,7 @@ static const int mt8188_afe_memif_const_irqs[MT8188_AFE_MEMIF_NUM] = {
 static bool mt8188_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/* these auto-gen reg has read-only bit, so put it as volatile */
-	/* volatile reg cannot be cached, so cannot be set when power off */
+	/* volatile reg cananalt be cached, so cananalt be set when power off */
 	switch (reg) {
 	case AUDIO_TOP_CON0:
 	case AUDIO_TOP_CON1:
@@ -3060,7 +3060,7 @@ static int init_memif_priv_data(struct mtk_base_afe *afe)
 					  sizeof(struct mtk_dai_memif_priv),
 					  GFP_KERNEL);
 		if (!memif_priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		afe_priv->dai_priv[i] = memif_priv;
 	}
@@ -3074,7 +3074,7 @@ static int mt8188_dai_memif_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 
@@ -3120,16 +3120,16 @@ static int mt8188_afe_init_registers(struct mtk_base_afe *afe)
 }
 
 static int mt8188_afe_parse_of(struct mtk_base_afe *afe,
-			       struct device_node *np)
+			       struct device_analde *np)
 {
 #if IS_ENABLED(CONFIG_SND_SOC_MT6359)
 	struct mt8188_afe_private *afe_priv = afe->platform_priv;
 
-	afe_priv->topckgen = syscon_regmap_lookup_by_phandle(afe->dev->of_node,
+	afe_priv->topckgen = syscon_regmap_lookup_by_phandle(afe->dev->of_analde,
 							     "mediatek,topckgen");
 	if (IS_ERR(afe_priv->topckgen))
 		return dev_err_probe(afe->dev,  PTR_ERR(afe_priv->topckgen),
-				     "%s() Cannot find topckgen controller\n",
+				     "%s() Cananalt find topckgen controller\n",
 				     __func__);
 #endif
 	return 0;
@@ -3209,12 +3209,12 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	afe = devm_kzalloc(&pdev->dev, sizeof(*afe), GFP_KERNEL);
 	if (!afe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe->platform_priv = devm_kzalloc(&pdev->dev, sizeof(*afe_priv),
 					  GFP_KERNEL);
 	if (!afe->platform_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe_priv = afe->platform_priv;
 	afe->dev = &pdev->dev;
@@ -3222,20 +3222,20 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(afe->base_addr))
 		return dev_err_probe(dev, PTR_ERR(afe->base_addr),
-				     "AFE base_addr not found\n");
+				     "AFE base_addr analt found\n");
 
-	infra_ao = syscon_regmap_lookup_by_phandle(dev->of_node,
+	infra_ao = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						   "mediatek,infracfg");
 	if (IS_ERR(infra_ao))
 		return dev_err_probe(dev, PTR_ERR(infra_ao),
-				     "%s() Cannot find infra_ao controller\n",
+				     "%s() Cananalt find infra_ao controller\n",
 				     __func__);
 
 	/* reset controller to reset audio regs before regmap cache */
 	rstc = devm_reset_control_get_exclusive(dev, "audiosys");
 	if (IS_ERR(rstc))
 		return dev_err_probe(dev, PTR_ERR(rstc),
-				     "could not get audiosys reset\n");
+				     "could analt get audiosys reset\n");
 
 	ret = bus_protect_enable(infra_ao);
 	if (ret) {
@@ -3269,7 +3269,7 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->irqs = devm_kcalloc(dev, afe->irqs_size, sizeof(*afe->irqs),
 				 GFP_KERNEL);
 	if (!afe->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < afe->irqs_size; i++)
 		afe->irqs[i].irq_data = &irq_data[i];
@@ -3279,7 +3279,7 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->memif = devm_kcalloc(dev, afe->memif_size, sizeof(*afe->memif),
 				  GFP_KERNEL);
 	if (!afe->memif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < afe->memif_size; i++) {
 		afe->memif[i].data = &memif_data[i];
@@ -3291,12 +3291,12 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 	/* request irq */
 	irq_id = platform_get_irq(pdev, 0);
 	if (irq_id < 0)
-		return dev_err_probe(dev, irq_id, "no irq found");
+		return dev_err_probe(dev, irq_id, "anal irq found");
 
 	ret = devm_request_irq(dev, irq_id, mt8188_afe_irq_handler,
-			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);
+			       IRQF_TRIGGER_ANALNE, "asys-isr", (void *)afe);
 	if (ret)
-		return dev_err_probe(dev, ret, "could not request_irq for asys-isr\n");
+		return dev_err_probe(dev, ret, "could analt request_irq for asys-isr\n");
 
 	/* init sub_dais */
 	INIT_LIST_HEAD(&afe->sub_dais);
@@ -3321,7 +3321,7 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, afe);
 
-	ret = mt8188_afe_parse_of(afe, pdev->dev.of_node);
+	ret = mt8188_afe_parse_of(afe, pdev->dev.of_analde);
 	if (ret)
 		return ret;
 

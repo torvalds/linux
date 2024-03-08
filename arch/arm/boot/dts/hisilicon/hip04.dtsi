@@ -344,8 +344,8 @@
 	};
 
 	replicator0 {
-		/* non-configurable replicators don't show up on the
-		 * AMBA bus.  As such no need to add "arm,primecell".
+		/* analn-configurable replicators don't show up on the
+		 * AMBA bus.  As such anal need to add "arm,primecell".
 		 */
 		compatible = "arm,coresight-static-replicator";
 
@@ -379,8 +379,8 @@
 	};
 
 	replicator1 {
-		/* non-configurable replicators don't show up on the
-		 * AMBA bus.  As such no need to add "arm,primecell".
+		/* analn-configurable replicators don't show up on the
+		 * AMBA bus.  As such anal need to add "arm,primecell".
 		 */
 		compatible = "arm,coresight-static-replicator";
 
@@ -414,8 +414,8 @@
 	};
 
 	replicator2 {
-		/* non-configurable replicators don't show up on the
-		 * AMBA bus.  As such no need to add "arm,primecell".
+		/* analn-configurable replicators don't show up on the
+		 * AMBA bus.  As such anal need to add "arm,primecell".
 		 */
 		compatible = "arm,coresight-static-replicator";
 
@@ -448,8 +448,8 @@
 	};
 
 	replicator3 {
-		/* non-configurable replicators don't show up on the
-		 * AMBA bus.  As such no need to add "arm,primecell".
+		/* analn-configurable replicators don't show up on the
+		 * AMBA bus.  As such anal need to add "arm,primecell".
 		 */
 		compatible = "arm,coresight-static-replicator";
 

@@ -15,7 +15,7 @@ int avc_stream_set_format(struct fw_unit *unit, enum avc_general_plug_dir dir,
 
 	buf = kmalloc(len + 10, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = 0x00;		/* CONTROL */
 	buf[1] = 0xff;		/* UNIT */
@@ -23,7 +23,7 @@ int avc_stream_set_format(struct fw_unit *unit, enum avc_general_plug_dir dir,
 	buf[3] = 0xc0;		/* SINGLE subfunction */
 	buf[4] = dir;		/* Plug Direction */
 	buf[5] = 0x00;		/* UNIT */
-	buf[6] = 0x00;		/* PCR (Isochronous Plug) */
+	buf[6] = 0x00;		/* PCR (Isochroanalus Plug) */
 	buf[7] = 0xff & pid;	/* Plug ID */
 	buf[8] = 0xff;		/* Padding */
 	buf[9] = 0xff;		/* Support status in response */
@@ -37,7 +37,7 @@ int avc_stream_set_format(struct fw_unit *unit, enum avc_general_plug_dir dir,
 		;
 	else if (err < len + 10)
 		err = -EIO;
-	else if (buf[0] == 0x08) /* NOT IMPLEMENTED */
+	else if (buf[0] == 0x08) /* ANALT IMPLEMENTED */
 		err = -ENXIO;
 	else if (buf[0] == 0x0a) /* REJECTED */
 		err = -EINVAL;
@@ -67,7 +67,7 @@ int avc_stream_get_format(struct fw_unit *unit,
 	buf[3] = subfunc;	/* SINGLE or LIST */
 	buf[4] = dir;		/* Plug Direction */
 	buf[5] = 0x00;		/* Unit */
-	buf[6] = 0x00;		/* PCR (Isochronous Plug) */
+	buf[6] = 0x00;		/* PCR (Isochroanalus Plug) */
 	buf[7] = 0xff & pid;	/* Plug ID */
 	buf[8] = 0xff;		/* Padding */
 	buf[9] = 0xff;		/* support status in response */
@@ -82,7 +82,7 @@ int avc_stream_get_format(struct fw_unit *unit,
 		;
 	else if (err < 12)
 		err = -EIO;
-	else if (buf[0] == 0x08)	/* NOT IMPLEMENTED */
+	else if (buf[0] == 0x08)	/* ANALT IMPLEMENTED */
 		err = -ENXIO;
 	else if (buf[0] == 0x0a)	/* REJECTED */
 		err = -EINVAL;
@@ -125,7 +125,7 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 
 	buf = kzalloc(8, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = 0x02;		/* SPECIFIC INQUIRY */
 	buf[1] = 0xff;		/* UNIT */
@@ -136,8 +136,8 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 	buf[3] = 0xff & pid;	/* plug id */
 	buf[4] = 0x90;		/* EOH_1, Form_1, FMT. AM824 */
 	buf[5] = 0x07 & sfc;	/* FDF-hi. AM824, frequency */
-	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (not used) */
-	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (not used) */
+	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (analt used) */
+	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (analt used) */
 
 	/* do transaction and check buf[1-5] are the same against command */
 	err = fcp_avc_transaction(unit, buf, 8, buf, 8,
@@ -146,7 +146,7 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 		;
 	else if (err < 8)
 		err = -EIO;
-	else if (buf[0] == 0x08)	/* NOT IMPLEMENTED */
+	else if (buf[0] == 0x08)	/* ANALT IMPLEMENTED */
 		err = -ENXIO;
 	if (err < 0)
 		goto end;

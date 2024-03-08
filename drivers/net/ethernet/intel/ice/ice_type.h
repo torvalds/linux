@@ -83,14 +83,14 @@ enum ice_aq_res_access_type {
 
 struct ice_driver_ver {
 	u8 major_ver;
-	u8 minor_ver;
+	u8 mianalr_ver;
 	u8 build_ver;
 	u8 subbuild_ver;
 	u8 driver_string[32];
 };
 
 enum ice_fc_mode {
-	ICE_FC_NONE = 0,
+	ICE_FC_ANALNE = 0,
 	ICE_FC_RX_PAUSE,
 	ICE_FC_TX_PAUSE,
 	ICE_FC_FULL,
@@ -105,7 +105,7 @@ enum ice_phy_cache_mode {
 };
 
 enum ice_fec_mode {
-	ICE_FEC_NONE = 0,
+	ICE_FEC_ANALNE = 0,
 	ICE_FEC_RS,
 	ICE_FEC_BASER,
 	ICE_FEC_AUTO
@@ -120,7 +120,7 @@ struct ice_phy_cache_mode_data {
 };
 
 enum ice_set_fc_aq_failures {
-	ICE_SET_FC_AQ_FAIL_NONE = 0,
+	ICE_SET_FC_AQ_FAIL_ANALNE = 0,
 	ICE_SET_FC_AQ_FAIL_GET,
 	ICE_SET_FC_AQ_FAIL_SET,
 	ICE_SET_FC_AQ_FAIL_UPDATE
@@ -128,7 +128,7 @@ enum ice_set_fc_aq_failures {
 
 /* Various MAC types */
 enum ice_mac_type {
-	ICE_MAC_UNKNOWN = 0,
+	ICE_MAC_UNKANALWN = 0,
 	ICE_MAC_E810,
 	ICE_MAC_E830,
 	ICE_MAC_GENERIC,
@@ -136,7 +136,7 @@ enum ice_mac_type {
 
 /* Media Types */
 enum ice_media_type {
-	ICE_MEDIA_UNKNOWN = 0,
+	ICE_MEDIA_UNKANALWN = 0,
 	ICE_MEDIA_FIBER,
 	ICE_MEDIA_BASET,
 	ICE_MEDIA_BACKPLANE,
@@ -161,7 +161,7 @@ struct ice_link_status {
 	u16 link_speed;
 	u16 req_speeds;
 	u8 link_cfg_err;
-	u8 lse_ena;	/* Link Status Event notification */
+	u8 lse_ena;	/* Link Status Event analtification */
 	u8 link_info;
 	u8 an_info;
 	u8 ext_info;
@@ -177,7 +177,7 @@ struct ice_link_status {
  * order to clean the Tx scheduler as a part of the reset
  */
 enum ice_disq_rst_src {
-	ICE_NO_RESET = 0,
+	ICE_ANAL_RESET = 0,
 	ICE_VM_RESET,
 	ICE_VF_RESET,
 };
@@ -201,40 +201,40 @@ struct ice_phy_info {
 
 /* protocol enumeration for filters */
 enum ice_fltr_ptype {
-	/* NONE - used for undef/error */
-	ICE_FLTR_PTYPE_NONF_NONE = 0,
-	ICE_FLTR_PTYPE_NONF_IPV4_UDP,
-	ICE_FLTR_PTYPE_NONF_IPV4_TCP,
-	ICE_FLTR_PTYPE_NONF_IPV4_SCTP,
-	ICE_FLTR_PTYPE_NONF_IPV4_OTHER,
-	ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_UDP,
-	ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_TCP,
-	ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_ICMP,
-	ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_OTHER,
-	ICE_FLTR_PTYPE_NONF_IPV6_GTPU_IPV6_OTHER,
-	ICE_FLTR_PTYPE_NONF_IPV4_L2TPV3,
-	ICE_FLTR_PTYPE_NONF_IPV6_L2TPV3,
-	ICE_FLTR_PTYPE_NONF_IPV4_ESP,
-	ICE_FLTR_PTYPE_NONF_IPV6_ESP,
-	ICE_FLTR_PTYPE_NONF_IPV4_AH,
-	ICE_FLTR_PTYPE_NONF_IPV6_AH,
-	ICE_FLTR_PTYPE_NONF_IPV4_NAT_T_ESP,
-	ICE_FLTR_PTYPE_NONF_IPV6_NAT_T_ESP,
-	ICE_FLTR_PTYPE_NONF_IPV4_PFCP_NODE,
-	ICE_FLTR_PTYPE_NONF_IPV4_PFCP_SESSION,
-	ICE_FLTR_PTYPE_NONF_IPV6_PFCP_NODE,
-	ICE_FLTR_PTYPE_NONF_IPV6_PFCP_SESSION,
-	ICE_FLTR_PTYPE_NON_IP_L2,
+	/* ANALNE - used for undef/error */
+	ICE_FLTR_PTYPE_ANALNF_ANALNE = 0,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_UDP,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_TCP,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_SCTP,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_OTHER,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_UDP,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_TCP,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_ICMP,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_OTHER,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_GTPU_IPV6_OTHER,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_L2TPV3,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_L2TPV3,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_ESP,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_ESP,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_AH,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_AH,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_NAT_T_ESP,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_NAT_T_ESP,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_PFCP_ANALDE,
+	ICE_FLTR_PTYPE_ANALNF_IPV4_PFCP_SESSION,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_PFCP_ANALDE,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_PFCP_SESSION,
+	ICE_FLTR_PTYPE_ANALN_IP_L2,
 	ICE_FLTR_PTYPE_FRAG_IPV4,
-	ICE_FLTR_PTYPE_NONF_IPV6_UDP,
-	ICE_FLTR_PTYPE_NONF_IPV6_TCP,
-	ICE_FLTR_PTYPE_NONF_IPV6_SCTP,
-	ICE_FLTR_PTYPE_NONF_IPV6_OTHER,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_UDP,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_TCP,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_SCTP,
+	ICE_FLTR_PTYPE_ANALNF_IPV6_OTHER,
 	ICE_FLTR_PTYPE_MAX,
 };
 
 enum ice_fd_hw_seg {
-	ICE_FD_HW_SEG_NON_TUN = 0,
+	ICE_FD_HW_SEG_ANALN_TUN = 0,
 	ICE_FD_HW_SEG_TUN,
 	ICE_FD_HW_SEG_MAX,
 };
@@ -406,7 +406,7 @@ struct ice_mac_info {
 
 /* Reset types used to determine which kind of reset was requested. These
  * defines match what the RESET_TYPE field of the GLGEN_RSTAT register.
- * ICE_RESET_PFR does not match any RESET_TYPE field in the GLGEN_RSTAT register
+ * ICE_RESET_PFR does analt match any RESET_TYPE field in the GLGEN_RSTAT register
  * because its reset source is different than the other types listed.
  */
 enum ice_reset_req {
@@ -441,13 +441,13 @@ struct ice_orom_info {
 struct ice_nvm_info {
 	u32 eetrack;
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 };
 
 /* netlist version information */
 struct ice_netlist_info {
 	u32 major;			/* major high/low */
-	u32 minor;			/* minor high/low */
+	u32 mianalr;			/* mianalr high/low */
 	u32 type;			/* type high/low */
 	u32 rev;			/* revision high/low */
 	u32 hash;			/* SHA-1 hash word */
@@ -464,7 +464,7 @@ enum ice_flash_bank {
 };
 
 /* Enumeration of which flash bank is desired to read from, either the active
- * bank or the inactive bank. Used to abstract 1st and 2nd bank notion from
+ * bank or the inactive bank. Used to abstract 1st and 2nd bank analtion from
  * code which just wants to read the active or inactive flash bank.
  */
 enum ice_bank_select {
@@ -493,7 +493,7 @@ struct ice_flash_info {
 	struct ice_bank_info banks;	/* Flash Bank information */
 	u16 sr_words;			/* Shadow RAM size in words */
 	u32 flash_size;			/* Size of available flash in bytes */
-	u8 blank_nvm_mode;		/* is NVM empty (no FW present) */
+	u8 blank_nvm_mode;		/* is NVM empty (anal FW present) */
 };
 
 struct ice_link_default_override_tlv {
@@ -527,19 +527,19 @@ struct ice_link_default_override_tlv {
 #define ice_for_each_traffic_class(_i)	\
 	for ((_i) = 0; (_i) < ICE_MAX_TRAFFIC_CLASS; (_i)++)
 
-/* ICE_DFLT_AGG_ID means that all new VM(s)/VSI node connects
+/* ICE_DFLT_AGG_ID means that all new VM(s)/VSI analde connects
  * to driver defined policy for default aggregator
  */
 #define ICE_INVAL_TEID 0xFFFFFFFF
 #define ICE_DFLT_AGG_ID 0
 
-struct ice_sched_node {
-	struct ice_sched_node *parent;
-	struct ice_sched_node *sibling; /* next sibling in the same layer */
-	struct ice_sched_node **children;
+struct ice_sched_analde {
+	struct ice_sched_analde *parent;
+	struct ice_sched_analde *sibling; /* next sibling in the same layer */
+	struct ice_sched_analde **children;
 	struct ice_aqc_txsched_elem_data info;
 	char *name;
-	struct devlink_rate *rate_node;
+	struct devlink_rate *rate_analde;
 	u64 tx_max;
 	u64 tx_share;
 	u32 agg_id;			/* aggregator group ID */
@@ -552,18 +552,18 @@ struct ice_sched_node {
 	u8 num_children;
 	u8 tc_num;
 	u8 owner;
-#define ICE_SCHED_NODE_OWNER_LAN	0
-#define ICE_SCHED_NODE_OWNER_RDMA	2
+#define ICE_SCHED_ANALDE_OWNER_LAN	0
+#define ICE_SCHED_ANALDE_OWNER_RDMA	2
 };
 
 /* Access Macros for Tx Sched Elements data */
-#define ICE_TXSCHED_GET_NODE_TEID(x) le32_to_cpu((x)->info.node_teid)
+#define ICE_TXSCHED_GET_ANALDE_TEID(x) le32_to_cpu((x)->info.analde_teid)
 
 /* The aggregator type determines if identifier is for a VSI group,
  * aggregator group, aggregator of queues, or queue group.
  */
 enum ice_agg_type {
-	ICE_AGG_TYPE_UNKNOWN = 0,
+	ICE_AGG_TYPE_UNKANALWN = 0,
 	ICE_AGG_TYPE_VSI,
 	ICE_AGG_TYPE_AGG, /* aggregator */
 	ICE_AGG_TYPE_Q,
@@ -572,7 +572,7 @@ enum ice_agg_type {
 
 /* Rate limit types */
 enum ice_rl_type {
-	ICE_UNKNOWN_BW = 0,
+	ICE_UNKANALWN_BW = 0,
 	ICE_MIN_BW,		/* for CIR profile */
 	ICE_MAX_BW,		/* for EIR profile */
 	ICE_SHARED_BW		/* for shared profile */
@@ -582,7 +582,7 @@ enum ice_rl_type {
 #define ICE_SCHED_MAX_BW		100000000	/* in Kbps */
 #define ICE_SCHED_DFLT_BW		0xFFFFFFFF	/* unlimited */
 #define ICE_SCHED_DFLT_RL_PROF_ID	0
-#define ICE_SCHED_NO_SHARED_RL_PROF_ID	0xFFFF
+#define ICE_SCHED_ANAL_SHARED_RL_PROF_ID	0xFFFF
 #define ICE_SCHED_DFLT_BW_WT		4
 #define ICE_SCHED_INVAL_PROF_ID		0xFFFF
 #define ICE_SCHED_DFLT_BURST_SIZE	(15 * 1024)	/* in bytes (15k) */
@@ -621,10 +621,10 @@ struct ice_q_ctx {
 	struct ice_bw_type_info bw_t_info;
 };
 
-/* VSI type list entry to locate corresponding VSI/aggregator nodes */
+/* VSI type list entry to locate corresponding VSI/aggregator analdes */
 struct ice_sched_vsi_info {
-	struct ice_sched_node *vsi_node[ICE_MAX_TRAFFIC_CLASS];
-	struct ice_sched_node *ag_node[ICE_MAX_TRAFFIC_CLASS];
+	struct ice_sched_analde *vsi_analde[ICE_MAX_TRAFFIC_CLASS];
+	struct ice_sched_analde *ag_analde[ICE_MAX_TRAFFIC_CLASS];
 	struct list_head list_entry;
 	u16 max_lanq[ICE_MAX_TRAFFIC_CLASS];
 	u16 max_rdmaq[ICE_MAX_TRAFFIC_CLASS];
@@ -696,7 +696,7 @@ struct ice_dcbx_cfg {
 #define ICE_DCBX_MODE_CEE	0x1
 #define ICE_DCBX_MODE_IEEE	0x2
 	u8 app_mode;
-#define ICE_DCBX_APPS_NON_WILLING	0x1
+#define ICE_DCBX_APPS_ANALN_WILLING	0x1
 };
 
 struct ice_qos_cfg {
@@ -708,9 +708,9 @@ struct ice_qos_cfg {
 };
 
 struct ice_port_info {
-	struct ice_sched_node *root;	/* Root Node per Port */
+	struct ice_sched_analde *root;	/* Root Analde per Port */
 	struct ice_hw *hw;		/* back pointer to HW instance */
-	u32 last_node_teid;		/* scheduler last node info */
+	u32 last_analde_teid;		/* scheduler last analde info */
 	u16 sw_id;			/* Initial switch ID belongs to port */
 	u16 pf_vf_num;
 	u8 port_state;
@@ -722,12 +722,12 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
-	struct ice_sched_node *
+	struct ice_sched_analde *
 		sib_head[ICE_MAX_TRAFFIC_CLASS][ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	/* List contain profile ID(s) and other params per layer */
 	struct list_head rl_prof_list[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	struct ice_qos_cfg qos_cfg;
-	struct xarray sched_node_ids;
+	struct xarray sched_analde_ids;
 	u8 is_vf:1;
 	u8 is_custom_tx_enabled:1;
 };
@@ -766,7 +766,7 @@ enum ice_mbx_snapshot_state {
  * 3. tail: tail of the mailbox snapshot in a circular mailbox buffer
  * 4. num_iterations: number of messages traversed in circular mailbox buffer
  * 5. num_msg_proc: number of messages processed in mailbox
- * 6. num_pending_arq: number of pending asynchronous messages
+ * 6. num_pending_arq: number of pending asynchroanalus messages
  * 7. max_num_msgs_mbx: maximum messages in mailbox for currently
  * serviced work item or interrupt.
  */
@@ -781,8 +781,8 @@ struct ice_mbx_snap_buffer_data {
 };
 
 /* Structure used to track a single VF's messages on the mailbox:
- * 1. list_entry: linked list entry node
- * 2. msg_count: the number of asynchronous messages sent by this VF
+ * 1. list_entry: linked list entry analde
+ * 2. msg_count: the number of asynchroanalus messages sent by this VF
  * 3. malicious: whether this VF has been detected as malicious before
  */
 struct ice_mbx_vf_info {
@@ -802,11 +802,11 @@ struct ice_mbx_snapshot {
 /* Structure to hold data to be used for capturing or updating a
  * static snapshot.
  * 1. num_msg_proc: number of messages processed in mailbox
- * 2. num_pending_arq: number of pending asynchronous messages
+ * 2. num_pending_arq: number of pending asynchroanalus messages
  * 3. max_num_msgs_mbx: maximum messages in mailbox for currently
  * serviced work item or interrupt.
  * 4. async_watermark_val: An upper threshold set by caller to determine
- * if the pending arq count is large enough to assume that there is
+ * if the pending arq count is large eanalugh to assume that there is
  * the possibility of a mailicious VF.
  */
 struct ice_mbx_data {
@@ -874,11 +874,11 @@ struct ice_hw {
 
 	u8 api_branch;		/* API branch version */
 	u8 api_maj_ver;		/* API major version */
-	u8 api_min_ver;		/* API minor version */
+	u8 api_min_ver;		/* API mianalr version */
 	u8 api_patch;		/* API patch version */
 	u8 fw_branch;		/* firmware branch version */
 	u8 fw_maj_ver;		/* firmware major version */
-	u8 fw_min_ver;		/* firmware minor version */
+	u8 fw_min_ver;		/* firmware mianalr version */
 	u8 fw_patch;		/* firmware patch version */
 	u32 fw_build;		/* firmware build number */
 
@@ -981,7 +981,7 @@ struct ice_eth_stats {
 	u64 rx_multicast;		/* mprc */
 	u64 rx_broadcast;		/* bprc */
 	u64 rx_discards;		/* rdpc */
-	u64 rx_unknown_protocol;	/* rupp */
+	u64 rx_unkanalwn_protocol;	/* rupp */
 	u64 tx_bytes;			/* gotc */
 	u64 tx_unicast;			/* uptc */
 	u64 tx_multicast;		/* mptc */
@@ -1037,12 +1037,12 @@ struct ice_hw_port_stats {
 
 enum ice_sw_fwd_act_type {
 	ICE_FWD_TO_VSI = 0,
-	ICE_FWD_TO_VSI_LIST, /* Do not use this when adding filter */
+	ICE_FWD_TO_VSI_LIST, /* Do analt use this when adding filter */
 	ICE_FWD_TO_Q,
 	ICE_FWD_TO_QGRP,
 	ICE_DROP_PACKET,
 	ICE_MIRROR_PACKET,
-	ICE_NOP,
+	ICE_ANALP,
 	ICE_INVAL_ACT
 };
 
@@ -1110,19 +1110,19 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_NETLIST_LINK_TOPO_OFFSET(n)		((n) + 2)
 
 #define ICE_LINK_TOPO_MODULE_LEN		ICE_NETLIST_LINK_TOPO_OFFSET(0x0000)
-#define ICE_LINK_TOPO_NODE_COUNT		ICE_NETLIST_LINK_TOPO_OFFSET(0x0001)
+#define ICE_LINK_TOPO_ANALDE_COUNT		ICE_NETLIST_LINK_TOPO_OFFSET(0x0001)
 
-#define ICE_LINK_TOPO_NODE_COUNT_M		ICE_M(0x3FF, 0)
+#define ICE_LINK_TOPO_ANALDE_COUNT_M		ICE_M(0x3FF, 0)
 
-/* The Netlist ID Block is located after all of the Link Topology nodes. */
+/* The Netlist ID Block is located after all of the Link Topology analdes. */
 #define ICE_NETLIST_ID_BLK_SIZE			0x30
 #define ICE_NETLIST_ID_BLK_OFFSET(n)		ICE_NETLIST_LINK_TOPO_OFFSET(0x0004 + 2 * (n))
 
 /* netlist ID block field offsets (word offsets) */
 #define ICE_NETLIST_ID_BLK_MAJOR_VER_LOW	0x02
 #define ICE_NETLIST_ID_BLK_MAJOR_VER_HIGH	0x03
-#define ICE_NETLIST_ID_BLK_MINOR_VER_LOW	0x04
-#define ICE_NETLIST_ID_BLK_MINOR_VER_HIGH	0x05
+#define ICE_NETLIST_ID_BLK_MIANALR_VER_LOW	0x04
+#define ICE_NETLIST_ID_BLK_MIANALR_VER_HIGH	0x05
 #define ICE_NETLIST_ID_BLK_TYPE_LOW		0x06
 #define ICE_NETLIST_ID_BLK_TYPE_HIGH		0x07
 #define ICE_NETLIST_ID_BLK_REV_LOW		0x08

@@ -149,7 +149,7 @@ static const struct pinctrl_ops ns_pinctrl_ops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -216,7 +216,7 @@ static int ns_pinctrl_probe(struct platform_device *pdev)
 
 	ns_pinctrl = devm_kzalloc(dev, sizeof(*ns_pinctrl), GFP_KERNEL);
 	if (!ns_pinctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 	pctldesc = &ns_pinctrl->pctldesc;
 	platform_set_drvdata(pdev, ns_pinctrl);
 
@@ -240,7 +240,7 @@ static int ns_pinctrl_probe(struct platform_device *pdev)
 				      sizeof(struct pinctrl_pin_desc),
 				      GFP_KERNEL);
 	if (!pctldesc->pins)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0, pin = (struct pinctrl_pin_desc *)&pctldesc->pins[0];
 	     i < ARRAY_SIZE(ns_pinctrl_pins); i++) {
 		const struct pinctrl_pin_desc *src = &ns_pinctrl_pins[i];

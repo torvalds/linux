@@ -12,7 +12,7 @@ maintainers:
 select: false
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^usb(@.*)?"
 
   phys:

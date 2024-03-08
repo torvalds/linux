@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Oskar Andero <oskar.andero@gmail.com>
- * Copyright (C) 2014 Rose Technology
- * 	   Allan Bendorff Jensen <abj@rosetechnology.dk>
- *	   Soren Andersen <san@rosetechnology.dk>
+ * Copyright (C) 2014 Rose Techanallogy
+ * 	   Allan Bendorff Jensen <abj@rosetechanallogy.dk>
+ *	   Soren Andersen <san@rosetechanallogy.dk>
  *
- * Driver for following ADC chips from Microchip Technology's:
+ * Driver for following ADC chips from Microchip Techanallogy's:
  * 10 Bit converter
  * MCP3001
  * MCP3002
@@ -78,7 +78,7 @@ struct mcp320x_chip_info {
  * @reg: regulator generating Vref
  * @lock: protects read sequences
  * @chip_info: ADC properties
- * @tx_buf: buffer for @transfer[0] (not used on single-channel converters)
+ * @tx_buf: buffer for @transfer[0] (analt used on single-channel converters)
  * @rx_buf: buffer for @transfer[1]
  */
 struct mcp320x {
@@ -177,7 +177,7 @@ static int mcp320x_adc_conversion(struct mcp320x *adc, u8 channel,
 		 */
 		raw >>= 8;
 		if (raw & BIT(22) && raw & BIT(23))
-			return -EIO; /* cannot have overrange AND underrange */
+			return -EIO; /* cananalt have overrange AND underrange */
 		else if (raw & BIT(22))
 			raw &= ~BIT(22); /* overrange */
 		else if (raw & BIT(23) || raw & BIT(21))
@@ -380,7 +380,7 @@ static int mcp320x_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
@@ -403,7 +403,7 @@ static int mcp320x_probe(struct spi_device *spi)
 	adc->transfer[1].len = DIV_ROUND_UP(chip_info->resolution, 8);
 
 	if (chip_info->num_channels == 1)
-		/* single-channel converters are rx only (no MOSI pin) */
+		/* single-channel converters are rx only (anal MOSI pin) */
 		spi_message_init_with_transfers(&adc->msg,
 						&adc->transfer[1], 1);
 	else
@@ -469,7 +469,7 @@ static void mcp320x_remove(struct spi_device *spi)
 }
 
 static const struct of_device_id mcp320x_dt_ids[] = {
-	/* NOTE: The use of compatibles with no vendor prefix is deprecated. */
+	/* ANALTE: The use of compatibles with anal vendor prefix is deprecated. */
 	{ .compatible = "mcp3001" },
 	{ .compatible = "mcp3002" },
 	{ .compatible = "mcp3004" },
@@ -526,5 +526,5 @@ static struct spi_driver mcp320x_driver = {
 module_spi_driver(mcp320x_driver);
 
 MODULE_AUTHOR("Oskar Andero <oskar.andero@gmail.com>");
-MODULE_DESCRIPTION("Microchip Technology MCP3x01/02/04/08 and MCP3550/1/3");
+MODULE_DESCRIPTION("Microchip Techanallogy MCP3x01/02/04/08 and MCP3550/1/3");
 MODULE_LICENSE("GPL v2");

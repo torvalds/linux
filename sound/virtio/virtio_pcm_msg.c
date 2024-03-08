@@ -127,7 +127,7 @@ static void virtsnd_pcm_sg_from(struct scatterlist *sgs, int nsgs, u8 *data,
  * @period_bytes), and creates @periods corresponding I/O messages.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -ENOMEM on failure.
+ * Return: 0 on success, -EANALMEM on failure.
  */
 int virtsnd_pcm_msg_alloc(struct virtio_pcm_substream *vss,
 			  unsigned int periods, unsigned int period_bytes)
@@ -137,7 +137,7 @@ int virtsnd_pcm_msg_alloc(struct virtio_pcm_substream *vss,
 
 	vss->msgs = kcalloc(periods, sizeof(*vss->msgs), GFP_KERNEL);
 	if (!vss->msgs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vss->nmsgs = periods;
 
@@ -148,7 +148,7 @@ int virtsnd_pcm_msg_alloc(struct virtio_pcm_substream *vss,
 
 		msg = kzalloc(struct_size(msg, sgs, sg_num + 2), GFP_KERNEL);
 		if (!msg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		msg->substream = vss;
 		sg_init_one(&msg->sgs[PCM_MSG_SG_XFER], &msg->xfer,
@@ -183,19 +183,19 @@ void virtsnd_pcm_msg_free(struct virtio_pcm_substream *vss)
 }
 
 /**
- * virtsnd_pcm_msg_send() - Send asynchronous I/O messages.
+ * virtsnd_pcm_msg_send() - Send asynchroanalus I/O messages.
  * @vss: VirtIO PCM substream.
  * @offset: starting position that has been updated
  * @bytes: number of bytes that has been updated
  *
  * All messages are organized in an ordered circular list. Each time the
- * function is called, all currently non-enqueued messages are added to the
+ * function is called, all currently analn-enqueued messages are added to the
  * virtqueue. For this, the function uses offset and bytes to calculate the
  * messages that need to be added.
  *
  * Context: Any context. Expects the tx/rx queue and the VirtIO substream
  *          spinlocks to be held by caller.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int virtsnd_pcm_msg_send(struct virtio_pcm_substream *vss, unsigned long offset,
 			 unsigned long bytes)
@@ -206,7 +206,7 @@ int virtsnd_pcm_msg_send(struct virtio_pcm_substream *vss, unsigned long offset,
 	unsigned long period_bytes = snd_pcm_lib_period_bytes(vss->substream);
 	unsigned long start, end, i;
 	unsigned int msg_count = vss->msg_count;
-	bool notify = false;
+	bool analtify = false;
 	int rc;
 
 	start = offset / period_bytes;
@@ -255,10 +255,10 @@ int virtsnd_pcm_msg_send(struct virtio_pcm_substream *vss, unsigned long offset,
 		return 0;
 
 	if (!(vss->features & (1U << VIRTIO_SND_PCM_F_MSG_POLLING)))
-		notify = virtqueue_kick_prepare(vqueue);
+		analtify = virtqueue_kick_prepare(vqueue);
 
-	if (notify)
-		virtqueue_notify(vqueue);
+	if (analtify)
+		virtqueue_analtify(vqueue);
 
 	return 0;
 }
@@ -342,12 +342,12 @@ static void virtsnd_pcm_msg_complete(struct virtio_pcm_msg *msg,
 }
 
 /**
- * virtsnd_pcm_notify_cb() - Process all completed I/O messages.
+ * virtsnd_pcm_analtify_cb() - Process all completed I/O messages.
  * @queue: Underlying tx/rx virtqueue.
  *
  * Context: Interrupt context. Takes and releases the tx/rx queue spinlock.
  */
-static inline void virtsnd_pcm_notify_cb(struct virtio_snd_queue *queue)
+static inline void virtsnd_pcm_analtify_cb(struct virtio_snd_queue *queue)
 {
 	struct virtio_pcm_msg *msg;
 	u32 written_bytes;
@@ -363,29 +363,29 @@ static inline void virtsnd_pcm_notify_cb(struct virtio_snd_queue *queue)
 }
 
 /**
- * virtsnd_pcm_tx_notify_cb() - Process all completed TX messages.
+ * virtsnd_pcm_tx_analtify_cb() - Process all completed TX messages.
  * @vqueue: Underlying tx virtqueue.
  *
  * Context: Interrupt context.
  */
-void virtsnd_pcm_tx_notify_cb(struct virtqueue *vqueue)
+void virtsnd_pcm_tx_analtify_cb(struct virtqueue *vqueue)
 {
 	struct virtio_snd *snd = vqueue->vdev->priv;
 
-	virtsnd_pcm_notify_cb(virtsnd_tx_queue(snd));
+	virtsnd_pcm_analtify_cb(virtsnd_tx_queue(snd));
 }
 
 /**
- * virtsnd_pcm_rx_notify_cb() - Process all completed RX messages.
+ * virtsnd_pcm_rx_analtify_cb() - Process all completed RX messages.
  * @vqueue: Underlying rx virtqueue.
  *
  * Context: Interrupt context.
  */
-void virtsnd_pcm_rx_notify_cb(struct virtqueue *vqueue)
+void virtsnd_pcm_rx_analtify_cb(struct virtqueue *vqueue)
 {
 	struct virtio_snd *snd = vqueue->vdev->priv;
 
-	virtsnd_pcm_notify_cb(virtsnd_rx_queue(snd));
+	virtsnd_pcm_analtify_cb(virtsnd_rx_queue(snd));
 }
 
 /**

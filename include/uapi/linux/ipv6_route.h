@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *	Linux INET6 implementation 
  *
@@ -19,24 +19,24 @@
 
 #define RTF_DEFAULT	0x00010000	/* default - learned via ND	*/
 #define RTF_ALLONLINK	0x00020000	/* (deprecated and will be removed)
-					   fallback, no routers on link */
+					   fallback, anal routers on link */
 #define RTF_ADDRCONF	0x00040000	/* addrconf route - RA		*/
 #define RTF_PREFIX_RT	0x00080000	/* A prefix only route - RA	*/
 #define RTF_ANYCAST	0x00100000	/* Anycast			*/
 
-#define RTF_NONEXTHOP	0x00200000	/* route with no nexthop	*/
+#define RTF_ANALNEXTHOP	0x00200000	/* route with anal nexthop	*/
 #define RTF_EXPIRES	0x00400000
 
 #define RTF_ROUTEINFO	0x00800000	/* route information - RA	*/
 
-#define RTF_CACHE	0x01000000	/* read-only: can not be set by user */
+#define RTF_CACHE	0x01000000	/* read-only: can analt be set by user */
 #define RTF_FLOW	0x02000000	/* flow significant route	*/
 #define RTF_POLICY	0x04000000	/* policy route			*/
 
 #define RTF_PREF(pref)	((pref) << 27)
 #define RTF_PREF_MASK	0x18000000
 
-#define RTF_PCPU	0x40000000	/* read-only: can not be set by user */
+#define RTF_PCPU	0x40000000	/* read-only: can analt be set by user */
 #define RTF_LOCAL	0x80000000
 
 

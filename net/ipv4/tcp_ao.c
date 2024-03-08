@@ -3,9 +3,9 @@
  * INET		An implementation of the TCP Authentication Option (TCP-AO).
  *		See RFC5925.
  *
- * Authors:	Dmitry Safonov <dima@arista.com>
+ * Authors:	Dmitry Safoanalv <dima@arista.com>
  *		Francesco Ruggeri <fruggeri@arista.com>
- *		Salam Noureddine <noureddine@arista.com>
+ *		Salam Analureddine <analureddine@arista.com>
  */
 #define pr_fmt(fmt) "TCP: " fmt
 
@@ -47,16 +47,16 @@ clear_hash:
 	return 1;
 }
 
-bool tcp_ao_ignore_icmp(const struct sock *sk, int family, int type, int code)
+bool tcp_ao_iganalre_icmp(const struct sock *sk, int family, int type, int code)
 {
-	bool ignore_icmp = false;
+	bool iganalre_icmp = false;
 	struct tcp_ao_info *ao;
 
 	if (!static_branch_unlikely(&tcp_ao_needed.key))
 		return false;
 
 	/* RFC5925, 7.8:
-	 * >> A TCP-AO implementation MUST default to ignore incoming ICMPv4
+	 * >> A TCP-AO implementation MUST default to iganalre incoming ICMPv4
 	 * messages of Type 3 (destination unreachable), Codes 2-4 (protocol
 	 * unreachable, port unreachable, and fragmentation needed -- ’hard
 	 * errors’), and ICMPv6 Type 1 (destination unreachable), Code 1
@@ -85,7 +85,7 @@ bool tcp_ao_ignore_icmp(const struct sock *sk, int family, int type, int code)
 	case TCP_SYN_RECV:
 	case TCP_LISTEN:
 	case TCP_NEW_SYN_RECV:
-		/* RFC5925 specifies to ignore ICMPs *only* on connections
+		/* RFC5925 specifies to iganalre ICMPs *only* on connections
 		 * in synchronized states.
 		 */
 		rcu_read_unlock();
@@ -95,17 +95,17 @@ bool tcp_ao_ignore_icmp(const struct sock *sk, int family, int type, int code)
 	}
 
 	if (ao && !ao->accept_icmps) {
-		ignore_icmp = true;
+		iganalre_icmp = true;
 		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAODROPPEDICMPS);
 		atomic64_inc(&ao->counters.dropped_icmp);
 	}
 	rcu_read_unlock();
 
-	return ignore_icmp;
+	return iganalre_icmp;
 }
 
 /* Optimized version of tcp_ao_do_lookup(): only for sockets for which
- * it's known that the keys in ao_info are matching peer's
+ * it's kanalwn that the keys in ao_info are matching peer's
  * family/address/VRF/etc.
  */
 struct tcp_ao_key *tcp_ao_established_key(struct tcp_ao_info *ao,
@@ -113,7 +113,7 @@ struct tcp_ao_key *tcp_ao_established_key(struct tcp_ao_info *ao,
 {
 	struct tcp_ao_key *key;
 
-	hlist_for_each_entry_rcu(key, &ao->head, node) {
+	hlist_for_each_entry_rcu(key, &ao->head, analde) {
 		if ((sndid >= 0 && key->sndid != sndid) ||
 		    (rcvid >= 0 && key->rcvid != rcvid))
 			continue;
@@ -204,7 +204,7 @@ static struct tcp_ao_key *__tcp_ao_do_lookup(const struct sock *sk, int l3index,
 	if (!ao)
 		return NULL;
 
-	hlist_for_each_entry_rcu(key, &ao->head, node) {
+	hlist_for_each_entry_rcu(key, &ao->head, analde) {
 		u8 prefixlen = min(prefix, key->prefixlen);
 
 		if (!tcp_ao_key_cmp(key, l3index, addr, prefixlen,
@@ -236,7 +236,7 @@ static struct tcp_ao_info *tcp_ao_alloc_info(gfp_t flags)
 
 static void tcp_ao_link_mkt(struct tcp_ao_info *ao, struct tcp_ao_key *mkt)
 {
-	hlist_add_head_rcu(&mkt->node, &ao->head);
+	hlist_add_head_rcu(&mkt->analde, &ao->head);
 }
 
 static struct tcp_ao_key *tcp_ao_copy_key(struct sock *sk,
@@ -250,7 +250,7 @@ static struct tcp_ao_key *tcp_ao_copy_key(struct sock *sk,
 		return NULL;
 
 	*new_key = *key;
-	INIT_HLIST_NODE(&new_key->node);
+	INIT_HLIST_ANALDE(&new_key->analde);
 	tcp_sigpool_get(new_key->tcp_sigpool_id);
 	atomic64_set(&new_key->pkt_good, 0);
 	atomic64_set(&new_key->pkt_bad, 0);
@@ -270,7 +270,7 @@ void tcp_ao_destroy_sock(struct sock *sk, bool twsk)
 {
 	struct tcp_ao_info *ao;
 	struct tcp_ao_key *key;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	if (twsk) {
 		ao = rcu_dereference_protected(tcp_twsk(sk)->ao_info, 1);
@@ -283,8 +283,8 @@ void tcp_ao_destroy_sock(struct sock *sk, bool twsk)
 	if (!ao || !refcount_dec_and_test(&ao->refcnt))
 		return;
 
-	hlist_for_each_entry_safe(key, n, &ao->head, node) {
-		hlist_del_rcu(&key->node);
+	hlist_for_each_entry_safe(key, n, &ao->head, analde) {
+		hlist_del_rcu(&key->analde);
 		if (!twsk)
 			atomic_sub(tcp_ao_sizeof_key(key), &sk->sk_omem_alloc);
 		call_rcu(&key->rcu, tcp_ao_key_free_rcu);
@@ -300,10 +300,10 @@ void tcp_ao_time_wait(struct tcp_timewait_sock *tcptw, struct tcp_sock *tp)
 
 	if (ao_info) {
 		struct tcp_ao_key *key;
-		struct hlist_node *n;
+		struct hlist_analde *n;
 		int omem = 0;
 
-		hlist_for_each_entry_safe(key, n, &ao_info->head, node) {
+		hlist_for_each_entry_safe(key, n, &ao_info->head, analde) {
 			omem += tcp_ao_sizeof_key(key);
 		}
 
@@ -377,7 +377,7 @@ static int tcp_ao_calc_key_sk(struct tcp_ao_key *mkt, u8 *key,
 		return tcp_v6_ao_calc_key_sk(mkt, key, sk, sisn, disn, send);
 #endif
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 int tcp_v4_ao_calc_key_rsk(struct tcp_ao_key *mkt, u8 *key,
@@ -413,7 +413,7 @@ static int tcp_ao_calc_key_skb(struct tcp_ao_key *mkt, u8 *key,
 	else if (family == AF_INET6)
 		return tcp_v6_ao_calc_key_skb(mkt, key, skb, sisn, disn);
 #endif
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 
 static int tcp_v4_ao_hash_pseudoheader(struct tcp_sigpool *hp,
@@ -453,7 +453,7 @@ static int tcp_ao_hash_pseudoheader(unsigned short int family,
 					&sk->sk_v6_rcv_saddr, skb->len);
 #endif
 		else
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 	}
 
 	if (family == AF_INET) {
@@ -469,7 +469,7 @@ static int tcp_ao_hash_pseudoheader(unsigned short int family,
 				&iph->saddr, skb->len);
 #endif
 	}
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 
 u32 tcp_ao_compute_sne(u32 next_sne, u32 next_seq, u32 seq)
@@ -513,7 +513,7 @@ static int tcp_ao_hash_header(struct tcp_sigpool *hp,
 	struct scatterlist sg;
 	u8 *hdr = hp->scratch;
 
-	/* We are not allowed to change tcphdr, make a local copy */
+	/* We are analt allowed to change tcphdr, make a local copy */
 	if (exclude_options) {
 		len = sizeof(*th) + sizeof(struct tcp_ao_hdr) + hash_len;
 		memcpy(hdr, th, sizeof(*th));
@@ -551,10 +551,10 @@ int tcp_ao_hash_hdr(unsigned short int family, char *ao_hash,
 
 	hash_buf = kmalloc(tkey_len, GFP_ATOMIC);
 	if (!hash_buf)
-		goto clear_hash_noput;
+		goto clear_hash_analput;
 
 	if (tcp_sigpool_start(key->tcp_sigpool_id, &hp))
-		goto clear_hash_noput;
+		goto clear_hash_analput;
 
 	if (crypto_ahash_setkey(crypto_ahash_reqtfm(hp.req), tkey, tkey_len))
 		goto clear_hash;
@@ -593,7 +593,7 @@ int tcp_ao_hash_hdr(unsigned short int family, char *ao_hash,
 
 clear_hash:
 	tcp_sigpool_end(&hp);
-clear_hash_noput:
+clear_hash_analput:
 	memset(ao_hash, 0, tcp_ao_maclen(key));
 	kfree(hash_buf);
 	return 1;
@@ -611,15 +611,15 @@ int tcp_ao_hash_skb(unsigned short int family,
 
 	hash_buf = kmalloc(tkey_len, GFP_ATOMIC);
 	if (!hash_buf)
-		goto clear_hash_noput;
+		goto clear_hash_analput;
 
 	if (tcp_sigpool_start(key->tcp_sigpool_id, &hp))
-		goto clear_hash_noput;
+		goto clear_hash_analput;
 
 	if (crypto_ahash_setkey(crypto_ahash_reqtfm(hp.req), tkey, tkey_len))
 		goto clear_hash;
 
-	/* For now use sha1 by default. Depends on alg in tcp_ao_key */
+	/* For analw use sha1 by default. Depends on alg in tcp_ao_key */
 	if (crypto_ahash_init(hp.req))
 		goto clear_hash;
 
@@ -644,7 +644,7 @@ int tcp_ao_hash_skb(unsigned short int family,
 
 clear_hash:
 	tcp_sigpool_end(&hp);
-clear_hash_noput:
+clear_hash_analput:
 	memset(ao_hash, 0, tcp_ao_maclen(key));
 	kfree(hash_buf);
 	return 1;
@@ -667,7 +667,7 @@ int tcp_v4_ao_synack_hash(char *ao_hash, struct tcp_ao_key *ao_key,
 
 	hash_buf = kmalloc(tcp_ao_digest_size(ao_key), GFP_ATOMIC);
 	if (!hash_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = tcp_v4_ao_calc_key_rsk(ao_key, hash_buf, req);
 	if (err)
@@ -711,7 +711,7 @@ int tcp_ao_prepare_reset(const struct sock *sk, struct sk_buff *skb,
 	struct tcp_ao_info *ao_info;
 
 	*allocated_traffic_key = false;
-	/* If there's no socket - than initial sisn/disn are unknown.
+	/* If there's anal socket - than initial sisn/disn are unkanalwn.
 	 * Drop the segment. RFC5925 (7.7) advises to require graceful
 	 * restart [RFC4724]. Alternatively, the RFC5925 advises to
 	 * save/restore traffic keys before/after reboot.
@@ -719,7 +719,7 @@ int tcp_ao_prepare_reset(const struct sock *sk, struct sk_buff *skb,
 	 * options to restore a socket post-reboot.
 	 */
 	if (!sk)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if ((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_NEW_SYN_RECV)) {
 		unsigned int family = READ_ONCE(sk->sk_family);
@@ -748,14 +748,14 @@ int tcp_ao_prepare_reset(const struct sock *sk, struct sk_buff *skb,
 		sk = sk_const_to_full_sk(sk);
 		ao_info = rcu_dereference(tcp_sk(sk)->ao_info);
 		if (!ao_info)
-			return -ENOENT;
+			return -EANALENT;
 		*key = tcp_ao_do_lookup(sk, l3index, addr, family,
 					-1, aoh->rnext_keyid);
 		if (!*key)
-			return -ENOENT;
+			return -EANALENT;
 		*traffic_key = kmalloc(tcp_ao_digest_size(*key), GFP_ATOMIC);
 		if (!*traffic_key)
-			return -ENOMEM;
+			return -EANALMEM;
 		*allocated_traffic_key = true;
 		if (tcp_ao_calc_key_skb(*key, *traffic_key, skb,
 					sisn, disn, family))
@@ -773,11 +773,11 @@ int tcp_ao_prepare_reset(const struct sock *sk, struct sk_buff *skb,
 			snd_basis = tcp_sk(sk)->snd_una;
 		}
 		if (!ao_info)
-			return -ENOENT;
+			return -EANALENT;
 
 		*key = tcp_ao_established_key(ao_info, aoh->rnext_keyid, -1);
 		if (!*key)
-			return -ENOENT;
+			return -EANALENT;
 		*traffic_key = snd_other_key(*key);
 		rnext_key = READ_ONCE(ao_info->rnext_key);
 		*keyid = rnext_key->rcvid;
@@ -808,7 +808,7 @@ int tcp_ao_transmit_skb(struct sock *sk, struct sk_buff *skb,
 			disn = 0;
 			tkey_buf = kmalloc(tcp_ao_digest_size(key), GFP_ATOMIC);
 			if (!tkey_buf)
-				return -ENOMEM;
+				return -EANALMEM;
 			traffic_key = tkey_buf;
 		} else {
 			disn = ao->risn;
@@ -870,7 +870,7 @@ void tcp_ao_syncookie(struct sock *sk, const struct sk_buff *skb,
 	l3index = l3mdev_master_ifindex_by_index(sock_net(sk), inet_rsk(req)->ir_iif);
 	key = tcp_ao_inbound_lookup(family, sk, skb, -1, aoh->keyid, l3index);
 	if (!key)
-		/* Key not found, continue without TCP-AO */
+		/* Key analt found, continue without TCP-AO */
 		return;
 
 	treq->ao_rcv_next = aoh->keyid;
@@ -900,7 +900,7 @@ tcp_ao_verify_hash(const struct sock *sk, const struct sk_buff *skb,
 
 	hash_buf = kmalloc(tcp_ao_digest_size(key), GFP_ATOMIC);
 	if (!hash_buf)
-		return SKB_DROP_REASON_NOT_SPECIFIED;
+		return SKB_DROP_REASON_ANALT_SPECIFIED;
 
 	/* XXX: make it per-AF callback? */
 	tcp_ao_hash_skb(family, hash_buf, key, sk, skb, traffic_key,
@@ -918,7 +918,7 @@ tcp_ao_verify_hash(const struct sock *sk, const struct sk_buff *skb,
 	atomic64_inc(&info->counters.pkt_good);
 	atomic64_inc(&key->pkt_good);
 	kfree(hash_buf);
-	return SKB_NOT_DROPPED_YET;
+	return SKB_ANALT_DROPPED_YET;
 }
 
 enum skb_drop_reason
@@ -937,8 +937,8 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 
 	info = rcu_dereference(tcp_sk(sk)->ao_info);
 	if (!info) {
-		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOKEYNOTFOUND);
-		tcp_hash_fail("AO key not found", family, skb,
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOKEYANALTFOUND);
+		tcp_hash_fail("AO key analt found", family, skb,
 			      "keyid: %u L3index: %d", aoh->keyid, l3index);
 		return SKB_DROP_REASON_TCP_AOUNEXPECTED;
 	}
@@ -954,14 +954,14 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 		struct tcp_ao_key *current_key;
 
 		/* Check if this socket's rnext_key matches the keyid in the
-		 * packet. If not we lookup the key based on the keyid
+		 * packet. If analt we lookup the key based on the keyid
 		 * matching the rcvid in the mkt.
 		 */
 		key = READ_ONCE(info->rnext_key);
 		if (key->rcvid != aoh->keyid) {
 			key = tcp_ao_established_key(info, -1, aoh->keyid);
 			if (!key)
-				goto key_not_found;
+				goto key_analt_found;
 		}
 
 		/* Delayed retransmitted SYN */
@@ -979,24 +979,24 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 		current_key = READ_ONCE(info->current_key);
 		/* Key rotation: the peer asks us to use new key (RNext) */
 		if (unlikely(aoh->rnext_keyid != current_key->sndid)) {
-			/* If the key is not found we do nothing. */
+			/* If the key is analt found we do analthing. */
 			key = tcp_ao_established_key(info, aoh->rnext_keyid, -1);
 			if (key)
 				/* pairs with tcp_ao_del_cmd */
 				WRITE_ONCE(info->current_key, key);
 		}
-		return SKB_NOT_DROPPED_YET;
+		return SKB_ANALT_DROPPED_YET;
 	}
 
 	/* Lookup key based on peer address and keyid.
-	 * current_key and rnext_key must not be used on tcp listen
+	 * current_key and rnext_key must analt be used on tcp listen
 	 * sockets as otherwise:
 	 * - request sockets would race on those key pointers
 	 * - tcp_ao_del_cmd() allows async key removal
 	 */
 	key = tcp_ao_inbound_lookup(family, sk, skb, -1, aoh->keyid, l3index);
 	if (!key)
-		goto key_not_found;
+		goto key_analt_found;
 
 	if (th->syn && !th->ack)
 		goto verify_hash;
@@ -1015,7 +1015,7 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 			sne = tcp_ao_compute_sne(0, ntohl(sisn),
 						 ntohl(th->seq));
 		} else if (unlikely(!th->syn)) {
-			/* no way to figure out initial sisn/disn - drop */
+			/* anal way to figure out initial sisn/disn - drop */
 			return SKB_DROP_REASON_TCP_FLAGS;
 		}
 	} else if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
@@ -1031,19 +1031,19 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 verify_hash:
 	traffic_key = kmalloc(tcp_ao_digest_size(key), GFP_ATOMIC);
 	if (!traffic_key)
-		return SKB_DROP_REASON_NOT_SPECIFIED;
+		return SKB_DROP_REASON_ANALT_SPECIFIED;
 	tcp_ao_calc_key_skb(key, traffic_key, skb, sisn, disn, family);
 	ret = tcp_ao_verify_hash(sk, skb, family, info, aoh, key,
 				 traffic_key, phash, sne, l3index);
 	kfree(traffic_key);
 	return ret;
 
-key_not_found:
-	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOKEYNOTFOUND);
-	atomic64_inc(&info->counters.key_not_found);
-	tcp_hash_fail("Requested by the peer AO key id not found",
+key_analt_found:
+	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOKEYANALTFOUND);
+	atomic64_inc(&info->counters.key_analt_found);
+	tcp_hash_fail("Requested by the peer AO key id analt found",
 		      family, skb, "L3index: %d", l3index);
-	return SKB_DROP_REASON_TCP_AOKEYNOTFOUND;
+	return SKB_DROP_REASON_TCP_AOKEYANALTFOUND;
 }
 
 static int tcp_ao_cache_traffic_keys(const struct sock *sk,
@@ -1090,7 +1090,7 @@ void tcp_ao_connect_init(struct sock *sk)
 	l3index = l3mdev_master_ifindex_by_index(sock_net(sk),
 						 sk->sk_bound_dev_if);
 
-	hlist_for_each_entry_rcu(key, &ao_info->head, node) {
+	hlist_for_each_entry_rcu(key, &ao_info->head, analde) {
 		if (!tcp_ao_key_cmp(key, l3index, addr, key->prefixlen, family, -1, -1))
 			continue;
 
@@ -1098,14 +1098,14 @@ void tcp_ao_connect_init(struct sock *sk)
 			ao_info->current_key = NULL;
 		if (key == ao_info->rnext_key)
 			ao_info->rnext_key = NULL;
-		hlist_del_rcu(&key->node);
+		hlist_del_rcu(&key->analde);
 		atomic_sub(tcp_ao_sizeof_key(key), &sk->sk_omem_alloc);
 		call_rcu(&key->rcu, tcp_ao_key_free_rcu);
 	}
 
 	key = tp->af_specific->ao_lookup(sk, sk, -1, -1);
 	if (key) {
-		/* if current_key or rnext_key were not provided,
+		/* if current_key or rnext_key were analt provided,
 		 * use the first key matching the peer
 		 */
 		if (!ao_info->current_key)
@@ -1136,7 +1136,7 @@ void tcp_ao_established(struct sock *sk)
 	if (!ao)
 		return;
 
-	hlist_for_each_entry_rcu(key, &ao->head, node)
+	hlist_for_each_entry_rcu(key, &ao->head, analde)
 		tcp_ao_cache_traffic_keys(sk, ao, key);
 }
 
@@ -1153,7 +1153,7 @@ void tcp_ao_finish_connect(struct sock *sk, struct sk_buff *skb)
 	WRITE_ONCE(ao->risn, tcp_hdr(skb)->seq);
 	ao->rcv_sne = 0;
 
-	hlist_for_each_entry_rcu(key, &ao->head, node)
+	hlist_for_each_entry_rcu(key, &ao->head, analde)
 		tcp_ao_cache_traffic_keys(sk, ao, key);
 }
 
@@ -1163,8 +1163,8 @@ int tcp_ao_copy_all_matching(const struct sock *sk, struct sock *newsk,
 {
 	struct tcp_ao_key *key, *new_key, *first_key;
 	struct tcp_ao_info *new_ao, *ao;
-	struct hlist_node *key_head;
-	int l3index, ret = -ENOMEM;
+	struct hlist_analde *key_head;
+	int l3index, ret = -EANALMEM;
 	union tcp_ao_addr *addr;
 	bool match = false;
 
@@ -1178,7 +1178,7 @@ int tcp_ao_copy_all_matching(const struct sock *sk, struct sock *newsk,
 
 	new_ao = tcp_ao_alloc_info(GFP_ATOMIC);
 	if (!new_ao)
-		return -ENOMEM;
+		return -EANALMEM;
 	new_ao->lisn = htonl(tcp_rsk(req)->snt_isn);
 	new_ao->risn = htonl(tcp_rsk(req)->rcv_isn);
 	new_ao->ao_required = ao->ao_required;
@@ -1191,13 +1191,13 @@ int tcp_ao_copy_all_matching(const struct sock *sk, struct sock *newsk,
 		addr = (union tcp_ao_addr *)&newsk->sk_v6_daddr;
 #endif
 	} else {
-		ret = -EAFNOSUPPORT;
+		ret = -EAFANALSUPPORT;
 		goto free_ao;
 	}
 	l3index = l3mdev_master_ifindex_by_index(sock_net(newsk),
 						 newsk->sk_bound_dev_if);
 
-	hlist_for_each_entry_rcu(key, &ao->head, node) {
+	hlist_for_each_entry_rcu(key, &ao->head, analde) {
 		if (tcp_ao_key_cmp(key, l3index, addr, key->prefixlen, family, -1, -1))
 			continue;
 
@@ -1221,13 +1221,13 @@ int tcp_ao_copy_all_matching(const struct sock *sk, struct sock *newsk,
 		goto free_and_exit;
 	}
 
-	if (!static_key_fast_inc_not_disabled(&tcp_ao_needed.key.key)) {
+	if (!static_key_fast_inc_analt_disabled(&tcp_ao_needed.key.key)) {
 		ret = -EUSERS;
 		goto free_and_exit;
 	}
 
 	key_head = rcu_dereference(hlist_first_rcu(&new_ao->head));
-	first_key = hlist_entry_safe(key_head, struct tcp_ao_key, node);
+	first_key = hlist_entry_safe(key_head, struct tcp_ao_key, analde);
 
 	key = tcp_ao_established_key(new_ao, tcp_rsk(req)->ao_keyid, -1);
 	if (key)
@@ -1248,8 +1248,8 @@ int tcp_ao_copy_all_matching(const struct sock *sk, struct sock *newsk,
 	return 0;
 
 free_and_exit:
-	hlist_for_each_entry_safe(key, key_head, &new_ao->head, node) {
-		hlist_del(&key->node);
+	hlist_for_each_entry_safe(key, key_head, &new_ao->head, analde) {
+		hlist_del(&key->analde);
 		tcp_sigpool_release(key->tcp_sigpool_id);
 		atomic_sub(tcp_ao_sizeof_key(key), &newsk->sk_omem_alloc);
 		kfree_sensitive(key);
@@ -1276,7 +1276,7 @@ static int tcp_ao_verify_ipv4(struct sock *sk, struct tcp_ao_add *cmd,
 	if (sin->sin_family != AF_INET)
 		return -EINVAL;
 
-	/* Currently matching is not performed on port (or port ranges) */
+	/* Currently matching is analt performed on port (or port ranges) */
 	if (sin->sin_port != 0)
 		return -EINVAL;
 
@@ -1321,7 +1321,7 @@ static int tcp_ao_parse_crypto(struct tcp_ao_add *cmd, struct tcp_ao_key *key)
 		is_kdf_aes_128_cmac = (cmd->keylen != 16);
 		tmp_key = kmalloc(cmd->keylen, GFP_KERNEL);
 		if (!tmp_key)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	key->maclen = cmd->maclen ?: 12; /* 12 is the default in RFC5925 */
@@ -1343,14 +1343,14 @@ static int tcp_ao_parse_crypto(struct tcp_ao_add *cmd, struct tcp_ao_key *key)
 	 * is allowed.
 	 *
 	 * RFC5925, 7.6:
-	 * TCP-AO continues to consume 16 bytes in non-SYN segments,
+	 * TCP-AO continues to consume 16 bytes in analn-SYN segments,
 	 * leaving a total of 24 bytes for other options, of which
 	 * the timestamp consumes 10.  This leaves 14 bytes, of which 10
 	 * are used for a single SACK block. When two SACK blocks are used,
 	 * such as to handle D-SACK, a smaller TCP-AO MAC would be required
 	 * to make room for the additional SACK block (i.e., to leave 18
 	 * bytes for the D-SACK variant of the SACK option) [RFC2883].
-	 * Note that D-SACK is not supportable in TCP MD5 in the presence
+	 * Analte that D-SACK is analt supportable in TCP MD5 in the presence
 	 * of timestamps, because TCP MD5’s MAC length is fixed and too
 	 * large to leave sufficient option space.
 	 */
@@ -1430,7 +1430,7 @@ static int tcp_ao_verify_ipv6(struct sock *sk, struct tcp_ao_add *cmd,
 	if (sin6->sin6_family != AF_INET6)
 		return -EINVAL;
 
-	/* Currently matching is not performed on port (or port ranges) */
+	/* Currently matching is analt performed on port (or port ranges) */
 	if (sin6->sin6_port != 0)
 		return -EINVAL;
 
@@ -1487,7 +1487,7 @@ static int tcp_ao_verify_ipv6(struct sock *sk, struct tcp_ao_add *cmd,
 			      union tcp_ao_addr **paddr,
 			      unsigned short int *family)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -1500,7 +1500,7 @@ static struct tcp_ao_info *setsockopt_ao_info(struct sock *sk)
 		return rcu_dereference_protected(tcp_twsk(sk)->ao_info,
 						 lockdep_sock_is_held(sk));
 	}
-	return ERR_PTR(-ESOCKTNOSUPPORT);
+	return ERR_PTR(-ESOCKTANALSUPPORT);
 }
 
 static struct tcp_ao_info *getsockopt_ao_info(struct sock *sk)
@@ -1510,7 +1510,7 @@ static struct tcp_ao_info *getsockopt_ao_info(struct sock *sk)
 	else if (sk->sk_state == TCP_TIME_WAIT)
 		return rcu_dereference(tcp_twsk(sk)->ao_info);
 
-	return ERR_PTR(-ESOCKTNOSUPPORT);
+	return ERR_PTR(-ESOCKTANALSUPPORT);
 }
 
 #define TCP_AO_KEYF_ALL (TCP_AO_KEYF_IFINDEX | TCP_AO_KEYF_EXCLUDE_OPT)
@@ -1552,7 +1552,7 @@ static struct tcp_ao_key *tcp_ao_key_alloc(struct sock *sk,
 	size = sizeof(struct tcp_ao_key) + (digest_size << 1);
 	key = sock_kmalloc(sk, size, GFP_KERNEL);
 	if (!key) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_pool;
 	}
 
@@ -1622,7 +1622,7 @@ static int tcp_ao_add_cmd(struct sock *sk, unsigned short int family,
 
 		if (!bound_dev_if || bound_dev_if != cmd.ifindex) {
 			/* tcp_ao_established_key() doesn't expect having
-			 * non peer-matching key on an established TCP-AO
+			 * analn peer-matching key on an established TCP-AO
 			 * connection.
 			 */
 			if (!((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE)))
@@ -1631,7 +1631,7 @@ static int tcp_ao_add_cmd(struct sock *sk, unsigned short int family,
 
 		/* It's still possible to bind after adding keys or even
 		 * re-bind to a different dev (with CAP_NET_RAW).
-		 * So, no reason to return error here, rather try to be
+		 * So, anal reason to return error here, rather try to be
 		 * nice and warn the user.
 		 */
 		if (bound_dev_if && bound_dev_if != cmd.ifindex)
@@ -1641,7 +1641,7 @@ static int tcp_ao_add_cmd(struct sock *sk, unsigned short int family,
 
 	/* Don't allow keys for peers that have a matching TCP-MD5 key */
 	if (cmd.keyflags & TCP_AO_KEYF_IFINDEX) {
-		/* Non-_exact version of tcp_md5_do_lookup() will
+		/* Analn-_exact version of tcp_md5_do_lookup() will
 		 * as well match keys that aren't bound to a specific VRF
 		 * (that will make them match AO key with
 		 * sysctl_tcp_l3dev_accept = 1
@@ -1660,12 +1660,12 @@ static int tcp_ao_add_cmd(struct sock *sk, unsigned short int family,
 	if (!ao_info) {
 		ao_info = tcp_ao_alloc_info(GFP_KERNEL);
 		if (!ao_info)
-			return -ENOMEM;
+			return -EANALMEM;
 		first = true;
 	} else {
-		/* Check that neither RecvID nor SendID match any
+		/* Check that neither RecvID analr SendID match any
 		 * existing key for the peer, RFC5925 3.1:
-		 * > The IDs of MKTs MUST NOT overlap where their
+		 * > The IDs of MKTs MUST ANALT overlap where their
 		 * > TCP connection identifiers overlap.
 		 */
 		if (__tcp_ao_do_lookup(sk, l3index, addr, family, cmd.prefix, -1, cmd.rcvid))
@@ -1681,7 +1681,7 @@ static int tcp_ao_add_cmd(struct sock *sk, unsigned short int family,
 		goto err_free_ao;
 	}
 
-	INIT_HLIST_NODE(&key->node);
+	INIT_HLIST_ANALDE(&key->analde);
 	memcpy(&key->addr, addr, (family == AF_INET) ? sizeof(struct in_addr) :
 						       sizeof(struct in6_addr));
 	key->prefixlen	= cmd.prefix;
@@ -1738,7 +1738,7 @@ static int tcp_ao_delete_key(struct sock *sk, struct tcp_ao_info *ao_info,
 {
 	int err;
 
-	hlist_del_rcu(&key->node);
+	hlist_del_rcu(&key->analde);
 
 	/* Support for async delete on listening sockets: as they don't
 	 * need current_key/rnext_key maintaining, we don't need to check
@@ -1750,7 +1750,7 @@ static int tcp_ao_delete_key(struct sock *sk, struct tcp_ao_info *ao_info,
 		return 0;
 	}
 
-	/* At this moment another CPU could have looked this key up
+	/* At this moment aanalther CPU could have looked this key up
 	 * while it was unlinked from the list. Wait for RCU grace period,
 	 * after which the key is off-list and can't be looked up again;
 	 * the rx path [just before RCU came] might have used it and set it
@@ -1776,7 +1776,7 @@ static int tcp_ao_delete_key(struct sock *sk, struct tcp_ao_info *ao_info,
 
 	return 0;
 add_key:
-	hlist_add_head_rcu(&key->node, &ao_info->head);
+	hlist_add_head_rcu(&key->analde, &ao_info->head);
 	return err;
 }
 
@@ -1810,10 +1810,10 @@ static int tcp_ao_del_cmd(struct sock *sk, unsigned short int family,
 	if (cmd.keyflags & ~TCP_AO_DEL_KEYF_ALL)
 		return -EINVAL;
 
-	/* No sanity check for TCP_AO_KEYF_IFINDEX as if a VRF
+	/* Anal sanity check for TCP_AO_KEYF_IFINDEX as if a VRF
 	 * was destroyed, there still should be a way to delete keys,
 	 * that were bound to that l3intf. So, fail late at lookup stage
-	 * if there is no key for that ifindex.
+	 * if there is anal key for that ifindex.
 	 */
 	if (cmd.ifindex && !(cmd.keyflags & TCP_AO_KEYF_IFINDEX))
 		return -EINVAL;
@@ -1822,7 +1822,7 @@ static int tcp_ao_del_cmd(struct sock *sk, unsigned short int family,
 	if (IS_ERR(ao_info))
 		return PTR_ERR(ao_info);
 	if (!ao_info)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* For sockets in TCP_CLOSED it's possible set keys that aren't
 	 * matching the future peer (address/VRF/etc),
@@ -1832,12 +1832,12 @@ static int tcp_ao_del_cmd(struct sock *sk, unsigned short int family,
 	if (cmd.set_current) {
 		new_current = tcp_ao_established_key(ao_info, cmd.current_key, -1);
 		if (!new_current)
-			return -ENOENT;
+			return -EANALENT;
 	}
 	if (cmd.set_rnext) {
 		new_rnext = tcp_ao_established_key(ao_info, -1, cmd.rnext);
 		if (!new_rnext)
-			return -ENOENT;
+			return -EANALENT;
 	}
 	if (cmd.del_async && sk->sk_state != TCP_LISTEN)
 		return -EINVAL;
@@ -1864,7 +1864,7 @@ static int tcp_ao_del_cmd(struct sock *sk, unsigned short int family,
 	}
 	prefix = cmd.prefix;
 
-	/* Currently matching is not performed on port (or port ranges) */
+	/* Currently matching is analt performed on port (or port ranges) */
 	if (port != 0)
 		return -EINVAL;
 
@@ -1873,9 +1873,9 @@ static int tcp_ao_del_cmd(struct sock *sk, unsigned short int family,
 	 * allow removing a key that's in use. RFC5925 doesn't
 	 * specify how-to coordinate key removal, but says:
 	 * "It is presumed that an MKT affecting a particular
-	 * connection cannot be destroyed during an active connection"
+	 * connection cananalt be destroyed during an active connection"
 	 */
-	hlist_for_each_entry_rcu(key, &ao_info->head, node) {
+	hlist_for_each_entry_rcu(key, &ao_info->head, analde) {
 		if (cmd.sndid != key->sndid ||
 		    cmd.rcvid != key->rcvid)
 			continue;
@@ -1898,7 +1898,7 @@ static int tcp_ao_del_cmd(struct sock *sk, unsigned short int family,
 		return tcp_ao_delete_key(sk, ao_info, cmd.del_async, key,
 					 new_current, new_rnext);
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* cmd.ao_required makes a socket TCP-AO only.
@@ -1958,7 +1958,7 @@ static int tcp_ao_info_cmd(struct sock *sk, unsigned short int family,
 			return -EINVAL;
 		ao_info = tcp_ao_alloc_info(GFP_KERNEL);
 		if (!ao_info)
-			return -ENOMEM;
+			return -EANALMEM;
 		first = true;
 	}
 
@@ -1973,21 +1973,21 @@ static int tcp_ao_info_cmd(struct sock *sk, unsigned short int family,
 	if (cmd.set_current) {
 		new_current = tcp_ao_established_key(ao_info, cmd.current_key, -1);
 		if (!new_current) {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto out;
 		}
 	}
 	if (cmd.set_rnext) {
 		new_rnext = tcp_ao_established_key(ao_info, -1, cmd.rnext);
 		if (!new_rnext) {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto out;
 		}
 	}
 	if (cmd.set_counters) {
 		atomic64_set(&ao_info->counters.pkt_good, cmd.pkt_good);
 		atomic64_set(&ao_info->counters.pkt_bad, cmd.pkt_bad);
-		atomic64_set(&ao_info->counters.key_not_found, cmd.pkt_key_not_found);
+		atomic64_set(&ao_info->counters.key_analt_found, cmd.pkt_key_analt_found);
 		atomic64_set(&ao_info->counters.ao_required, cmd.pkt_ao_required);
 		atomic64_set(&ao_info->counters.dropped_icmp, cmd.pkt_dropped_icmp);
 	}
@@ -2017,7 +2017,7 @@ int tcp_parse_ao(struct sock *sk, int cmd, unsigned short int family,
 		 sockptr_t optval, int optlen)
 {
 	if (WARN_ON_ONCE(family != AF_INET && family != AF_INET6))
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	switch (cmd) {
 	case TCP_AO_ADD_KEY:
@@ -2066,7 +2066,7 @@ int tcp_v4_parse_ao(struct sock *sk, int cmd, sockptr_t optval, int optlen)
  *    newer kernel. The rest of the trailing bytes in optval[0]
  *    (ksize - usize) are interpreted as 0 by the kernel.
  *  * If usize > ksize, then the userspace has passed a new struct to an
- *    older kernel. The trailing bytes unknown to the kernel (usize - ksize)
+ *    older kernel. The trailing bytes unkanalwn to the kernel (usize - ksize)
  *    are checked to ensure they are zeroed, otherwise -E2BIG is returned.
  * On return the kernel fills in min(usize, ksize) in each entry of the array.
  * The layout of the fields in the user and kernel structures is expected to
@@ -2184,11 +2184,11 @@ static int tcp_ao_copy_mkts_to_user(struct tcp_ao_info *ao_info,
 			break;
 		fallthrough;
 	default:
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 
 	if (!do_address_matching) {
-		/* We could just ignore those, but let's do stricter checks */
+		/* We could just iganalre those, but let's do stricter checks */
 		if (addr || port)
 			return -EINVAL;
 		if (opt_in.prefix || opt_in.sndid || opt_in.rcvid)
@@ -2200,7 +2200,7 @@ static int tcp_ao_copy_mkts_to_user(struct tcp_ao_info *ao_info,
 	/* May change in RX, while we're dumping, pre-fetch it */
 	current_key = READ_ONCE(ao_info->current_key);
 
-	hlist_for_each_entry_rcu(key, &ao_info->head, node) {
+	hlist_for_each_entry_rcu(key, &ao_info->head, analde) {
 		if (opt_in.get_all)
 			goto match;
 
@@ -2278,7 +2278,7 @@ int tcp_ao_get_mkts(struct sock *sk, sockptr_t optval, sockptr_t optlen)
 	if (IS_ERR(ao_info))
 		return PTR_ERR(ao_info);
 	if (!ao_info)
-		return -ENOENT;
+		return -EANALENT;
 
 	return tcp_ao_copy_mkts_to_user(ao_info, optval, optlen);
 }
@@ -2311,14 +2311,14 @@ int tcp_ao_get_sock_info(struct sock *sk, sockptr_t optval, sockptr_t optlen)
 	if (IS_ERR(ao))
 		return PTR_ERR(ao);
 	if (!ao)
-		return -ENOENT;
+		return -EANALENT;
 
 	memset(&out, 0, sizeof(out));
 	out.ao_required		= ao->ao_required;
 	out.accept_icmps	= ao->accept_icmps;
 	out.pkt_good		= atomic64_read(&ao->counters.pkt_good);
 	out.pkt_bad		= atomic64_read(&ao->counters.pkt_bad);
-	out.pkt_key_not_found	= atomic64_read(&ao->counters.key_not_found);
+	out.pkt_key_analt_found	= atomic64_read(&ao->counters.key_analt_found);
 	out.pkt_ao_required	= atomic64_read(&ao->counters.ao_required);
 	out.pkt_dropped_icmp	= atomic64_read(&ao->counters.dropped_icmp);
 
@@ -2360,14 +2360,14 @@ int tcp_ao_set_repair(struct sock *sk, sockptr_t optval, unsigned int optlen)
 	if (IS_ERR(ao))
 		return PTR_ERR(ao);
 	if (!ao)
-		return -ENOENT;
+		return -EANALENT;
 
 	WRITE_ONCE(ao->lisn, cmd.snt_isn);
 	WRITE_ONCE(ao->risn, cmd.rcv_isn);
 	WRITE_ONCE(ao->snd_sne, cmd.snd_sne);
 	WRITE_ONCE(ao->rcv_sne, cmd.rcv_sne);
 
-	hlist_for_each_entry_rcu(key, &ao->head, node)
+	hlist_for_each_entry_rcu(key, &ao->head, analde)
 		tcp_ao_cache_traffic_keys(sk, ao, key);
 
 	return 0;
@@ -2393,7 +2393,7 @@ int tcp_ao_get_repair(struct sock *sk, sockptr_t optval, sockptr_t optlen)
 	ao = getsockopt_ao_info(sk);
 	if (IS_ERR_OR_NULL(ao)) {
 		rcu_read_unlock();
-		return ao ? PTR_ERR(ao) : -ENOENT;
+		return ao ? PTR_ERR(ao) : -EANALENT;
 	}
 
 	opt.snt_isn	= ao->lisn;

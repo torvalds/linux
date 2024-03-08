@@ -40,67 +40,67 @@
 
 /* Underlying object management */
 
-static void release_inode(struct landlock_object *const object)
+static void release_ianalde(struct landlock_object *const object)
 	__releases(object->lock)
 {
-	struct inode *const inode = object->underobj;
+	struct ianalde *const ianalde = object->underobj;
 	struct super_block *sb;
 
-	if (!inode) {
+	if (!ianalde) {
 		spin_unlock(&object->lock);
 		return;
 	}
 
 	/*
 	 * Protects against concurrent use by hook_sb_delete() of the reference
-	 * to the underlying inode.
+	 * to the underlying ianalde.
 	 */
 	object->underobj = NULL;
 	/*
 	 * Makes sure that if the filesystem is concurrently unmounted,
 	 * hook_sb_delete() will wait for us to finish iput().
 	 */
-	sb = inode->i_sb;
-	atomic_long_inc(&landlock_superblock(sb)->inode_refs);
+	sb = ianalde->i_sb;
+	atomic_long_inc(&landlock_superblock(sb)->ianalde_refs);
 	spin_unlock(&object->lock);
 	/*
-	 * Because object->underobj was not NULL, hook_sb_delete() and
-	 * get_inode_object() guarantee that it is safe to reset
-	 * landlock_inode(inode)->object while it is not NULL.  It is therefore
-	 * not necessary to lock inode->i_lock.
+	 * Because object->underobj was analt NULL, hook_sb_delete() and
+	 * get_ianalde_object() guarantee that it is safe to reset
+	 * landlock_ianalde(ianalde)->object while it is analt NULL.  It is therefore
+	 * analt necessary to lock ianalde->i_lock.
 	 */
-	rcu_assign_pointer(landlock_inode(inode)->object, NULL);
+	rcu_assign_pointer(landlock_ianalde(ianalde)->object, NULL);
 	/*
-	 * Now, new rules can safely be tied to @inode with get_inode_object().
+	 * Analw, new rules can safely be tied to @ianalde with get_ianalde_object().
 	 */
 
-	iput(inode);
-	if (atomic_long_dec_and_test(&landlock_superblock(sb)->inode_refs))
-		wake_up_var(&landlock_superblock(sb)->inode_refs);
+	iput(ianalde);
+	if (atomic_long_dec_and_test(&landlock_superblock(sb)->ianalde_refs))
+		wake_up_var(&landlock_superblock(sb)->ianalde_refs);
 }
 
 static const struct landlock_object_underops landlock_fs_underops = {
-	.release = release_inode
+	.release = release_ianalde
 };
 
 /* Ruleset management */
 
-static struct landlock_object *get_inode_object(struct inode *const inode)
+static struct landlock_object *get_ianalde_object(struct ianalde *const ianalde)
 {
 	struct landlock_object *object, *new_object;
-	struct landlock_inode_security *inode_sec = landlock_inode(inode);
+	struct landlock_ianalde_security *ianalde_sec = landlock_ianalde(ianalde);
 
 	rcu_read_lock();
 retry:
-	object = rcu_dereference(inode_sec->object);
+	object = rcu_dereference(ianalde_sec->object);
 	if (object) {
-		if (likely(refcount_inc_not_zero(&object->usage))) {
+		if (likely(refcount_inc_analt_zero(&object->usage))) {
 			rcu_read_unlock();
 			return object;
 		}
 		/*
-		 * We are racing with release_inode(), the object is going
-		 * away.  Wait for release_inode(), then retry.
+		 * We are racing with release_ianalde(), the object is going
+		 * away.  Wait for release_ianalde(), then retry.
 		 */
 		spin_lock(&object->lock);
 		spin_unlock(&object->lock);
@@ -109,21 +109,21 @@ retry:
 	rcu_read_unlock();
 
 	/*
-	 * If there is no object tied to @inode, then create a new one (without
+	 * If there is anal object tied to @ianalde, then create a new one (without
 	 * holding any locks).
 	 */
-	new_object = landlock_create_object(&landlock_fs_underops, inode);
+	new_object = landlock_create_object(&landlock_fs_underops, ianalde);
 	if (IS_ERR(new_object))
 		return new_object;
 
 	/*
-	 * Protects against concurrent calls to get_inode_object() or
+	 * Protects against concurrent calls to get_ianalde_object() or
 	 * hook_sb_delete().
 	 */
-	spin_lock(&inode->i_lock);
-	if (unlikely(rcu_access_pointer(inode_sec->object))) {
+	spin_lock(&ianalde->i_lock);
+	if (unlikely(rcu_access_pointer(ianalde_sec->object))) {
 		/* Someone else just created the object, bail out and retry. */
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		kfree(new_object);
 
 		rcu_read_lock();
@@ -131,13 +131,13 @@ retry:
 	}
 
 	/*
-	 * @inode will be released by hook_sb_delete() on its superblock
-	 * shutdown, or by release_inode() when no more ruleset references the
+	 * @ianalde will be released by hook_sb_delete() on its superblock
+	 * shutdown, or by release_ianalde() when anal more ruleset references the
 	 * related object.
 	 */
-	ihold(inode);
-	rcu_assign_pointer(inode_sec->object, new_object);
-	spin_unlock(&inode->i_lock);
+	ihold(ianalde);
+	rcu_assign_pointer(ianalde_sec->object, new_object);
+	spin_unlock(&ianalde->i_lock);
 	return new_object;
 }
 
@@ -159,7 +159,7 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 {
 	int err;
 	struct landlock_id id = {
-		.type = LANDLOCK_KEY_INODE,
+		.type = LANDLOCK_KEY_IANALDE,
 	};
 
 	/* Files only get access rights that make sense. */
@@ -172,14 +172,14 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 	/* Transforms relative access rights to absolute ones. */
 	access_rights |= LANDLOCK_MASK_ACCESS_FS &
 			 ~landlock_get_fs_access_mask(ruleset, 0);
-	id.key.object = get_inode_object(d_backing_inode(path->dentry));
+	id.key.object = get_ianalde_object(d_backing_ianalde(path->dentry));
 	if (IS_ERR(id.key.object))
 		return PTR_ERR(id.key.object);
 	mutex_lock(&ruleset->lock);
 	err = landlock_insert_rule(ruleset, id, access_rights);
 	mutex_unlock(&ruleset->lock);
 	/*
-	 * No need to check for an error because landlock_insert_rule()
+	 * Anal need to check for an error because landlock_insert_rule()
 	 * increments the refcount for the new object if needed.
 	 */
 	landlock_put_object(id.key.object);
@@ -191,25 +191,25 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 /*
  * The lifetime of the returned rule is tied to @domain.
  *
- * Returns NULL if no rule is found or if @dentry is negative.
+ * Returns NULL if anal rule is found or if @dentry is negative.
  */
 static const struct landlock_rule *
 find_rule(const struct landlock_ruleset *const domain,
 	  const struct dentry *const dentry)
 {
 	const struct landlock_rule *rule;
-	const struct inode *inode;
+	const struct ianalde *ianalde;
 	struct landlock_id id = {
-		.type = LANDLOCK_KEY_INODE,
+		.type = LANDLOCK_KEY_IANALDE,
 	};
 
-	/* Ignores nonexistent leafs. */
+	/* Iganalres analnexistent leafs. */
 	if (d_is_negative(dentry))
 		return NULL;
 
-	inode = d_backing_inode(dentry);
+	ianalde = d_backing_ianalde(dentry);
 	rcu_read_lock();
-	id.key.object = rcu_dereference(landlock_inode(inode)->object);
+	id.key.object = rcu_dereference(landlock_ianalde(ianalde)->object);
 	rule = landlock_find_rule(domain, id);
 	rcu_read_unlock();
 	return rule;
@@ -220,11 +220,11 @@ find_rule(const struct landlock_ruleset *const domain,
  * sockfs, pipefs), but can still be reachable through
  * /proc/<pid>/fd/<file-descriptor>
  */
-static bool is_nouser_or_private(const struct dentry *dentry)
+static bool is_analuser_or_private(const struct dentry *dentry)
 {
-	return (dentry->d_sb->s_flags & SB_NOUSER) ||
+	return (dentry->d_sb->s_flags & SB_ANALUSER) ||
 	       (d_is_positive(dentry) &&
-		unlikely(IS_PRIVATE(d_backing_inode(dentry))));
+		unlikely(IS_PRIVATE(d_backing_ianalde(dentry))));
 }
 
 static access_mask_t
@@ -264,7 +264,7 @@ static const struct landlock_ruleset *get_current_fs_domain(void)
  *
  * @layer_masks_child2: Optional child masks.
  */
-static bool no_more_access(
+static bool anal_more_access(
 	const layer_mask_t (*const layer_masks_parent1)[LANDLOCK_NUM_ACCESS_FS],
 	const layer_mask_t (*const layer_masks_child1)[LANDLOCK_NUM_ACCESS_FS],
 	const bool child1_is_directory,
@@ -276,7 +276,7 @@ static bool no_more_access(
 
 	for (access_bit = 0; access_bit < ARRAY_SIZE(*layer_masks_parent2);
 	     access_bit++) {
-		/* Ignores accesses that only make sense for directories. */
+		/* Iganalres accesses that only make sense for directories. */
 		const bool is_file_access =
 			!!(BIT_ULL(access_bit) & ACCESS_FILE);
 
@@ -312,7 +312,7 @@ static bool no_more_access(
 }
 
 /*
- * Removes @layer_masks accesses that are not requested.
+ * Removes @layer_masks accesses that are analt requested.
  *
  * Returns true if the request is allowed, false otherwise.
  */
@@ -367,12 +367,12 @@ is_eacces(const layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS],
  * @layer_masks_parent1: Pointer to a matrix of layer masks per access
  *     masks, identifying the layers that forbid a specific access.  Bits from
  *     this matrix can be unset according to the @path walk.  An empty matrix
- *     means that @domain allows all possible Landlock accesses (i.e. not only
+ *     means that @domain allows all possible Landlock accesses (i.e. analt only
  *     those identified by @access_request_parent1).  This matrix can
  *     initially refer to domain layer masks and, when the accesses for the
  *     destination and source are the same, to requested layer masks.
  * @dentry_child1: Dentry to the initial child of the parent1 path.  This
- *     pointer must be NULL for non-refer actions (i.e. not link nor rename).
+ *     pointer must be NULL for analn-refer actions (i.e. analt link analr rename).
  * @access_request_parent2: Similar to @access_request_parent1 but for a
  *     request involving a source and a destination.  This refers to the
  *     destination, except in case of RENAME_EXCHANGE where it also refers to
@@ -386,7 +386,7 @@ is_eacces(const layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS],
  * This helper first checks that the destination has a superset of restrictions
  * compared to the source (if any) for a common path.  Because of
  * RENAME_EXCHANGE actions, source and destinations may be swapped.  It then
- * checks that the collected accesses and the remaining ones are enough to
+ * checks that the collected accesses and the remaining ones are eanalugh to
  * allow the request.
  *
  * Returns:
@@ -416,7 +416,7 @@ static bool is_access_to_paths_allowed(
 		return true;
 	if (WARN_ON_ONCE(!domain || !path))
 		return true;
-	if (is_nouser_or_private(path->dentry))
+	if (is_analuser_or_private(path->dentry))
 		return true;
 	if (WARN_ON_ONCE(domain->num_layers < 1 || !layer_masks_parent1))
 		return false;
@@ -446,7 +446,7 @@ static bool is_access_to_paths_allowed(
 			find_rule(domain, dentry_child1),
 			landlock_init_layer_masks(
 				domain, LANDLOCK_MASK_ACCESS_FS,
-				&_layer_masks_child1, LANDLOCK_KEY_INODE),
+				&_layer_masks_child1, LANDLOCK_KEY_IANALDE),
 			&_layer_masks_child1, ARRAY_SIZE(_layer_masks_child1));
 		layer_masks_child1 = &_layer_masks_child1;
 		child1_is_directory = d_is_dir(dentry_child1);
@@ -456,7 +456,7 @@ static bool is_access_to_paths_allowed(
 			find_rule(domain, dentry_child2),
 			landlock_init_layer_masks(
 				domain, LANDLOCK_MASK_ACCESS_FS,
-				&_layer_masks_child2, LANDLOCK_KEY_INODE),
+				&_layer_masks_child2, LANDLOCK_KEY_IANALDE),
 			&_layer_masks_child2, ARRAY_SIZE(_layer_masks_child2));
 		layer_masks_child2 = &_layer_masks_child2;
 		child2_is_directory = d_is_dir(dentry_child2);
@@ -465,7 +465,7 @@ static bool is_access_to_paths_allowed(
 	walker_path = *path;
 	path_get(&walker_path);
 	/*
-	 * We need to walk through all the hierarchy to not miss any relevant
+	 * We need to walk through all the hierarchy to analt miss any relevant
 	 * restriction.
 	 */
 	while (true) {
@@ -485,7 +485,7 @@ static bool is_access_to_paths_allowed(
 		 * foot.
 		 */
 		if (unlikely(is_dom_check &&
-			     no_more_access(
+			     anal_more_access(
 				     layer_masks_parent1, layer_masks_child1,
 				     child1_is_directory, layer_masks_parent2,
 				     layer_masks_child2,
@@ -500,7 +500,7 @@ static bool is_access_to_paths_allowed(
 				break;
 
 			/*
-			 * Now, downgrades the remaining checks from domain
+			 * Analw, downgrades the remaining checks from domain
 			 * handled accesses to requested accesses.
 			 */
 			is_dom_check = false;
@@ -522,12 +522,12 @@ static bool is_access_to_paths_allowed(
 jump_up:
 		if (walker_path.dentry == walker_path.mnt->mnt_root) {
 			if (follow_up(&walker_path)) {
-				/* Ignores hidden mount points. */
+				/* Iganalres hidden mount points. */
 				goto jump_up;
 			} else {
 				/*
 				 * Stops at the real root.  Denies access
-				 * because not all layers have granted access.
+				 * because analt all layers have granted access.
 				 */
 				break;
 			}
@@ -558,7 +558,7 @@ static int check_access_path(const struct landlock_ruleset *const domain,
 	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
 
 	access_request = landlock_init_layer_masks(
-		domain, access_request, &layer_masks, LANDLOCK_KEY_INODE);
+		domain, access_request, &layer_masks, LANDLOCK_KEY_IANALDE);
 	if (is_access_to_paths_allowed(domain, path, access_request,
 				       &layer_masks, NULL, 0, NULL, NULL))
 		return 0;
@@ -640,12 +640,12 @@ static bool collect_domain_accesses(
 
 	if (WARN_ON_ONCE(!domain || !mnt_root || !dir || !layer_masks_dom))
 		return true;
-	if (is_nouser_or_private(dir))
+	if (is_analuser_or_private(dir))
 		return true;
 
 	access_dom = landlock_init_layer_masks(domain, LANDLOCK_MASK_ACCESS_FS,
 					       layer_masks_dom,
-					       LANDLOCK_KEY_INODE);
+					       LANDLOCK_KEY_IANALDE);
 
 	dget(dir);
 	while (true) {
@@ -663,7 +663,7 @@ static bool collect_domain_accesses(
 			break;
 		}
 
-		/* We should not reach a root other than @mnt_root. */
+		/* We should analt reach a root other than @mnt_root. */
 		if (dir == mnt_root || WARN_ON_ONCE(IS_ROOT(dir)))
 			break;
 
@@ -685,9 +685,9 @@ static bool collect_domain_accesses(
  * @exchange: Sets to true if it is a rename operation with RENAME_EXCHANGE.
  *
  * Because of its unprivileged constraints, Landlock relies on file hierarchies
- * (and not only inodes) to tie access rights to files.  Being able to link or
+ * (and analt only ianaldes) to tie access rights to files.  Being able to link or
  * rename a file hierarchy brings some challenges.  Indeed, moving or linking a
- * file (i.e. creating a new reference to an inode) can have an impact on the
+ * file (i.e. creating a new reference to an ianalde) can have an impact on the
  * actions allowed for a set of files if it would change its parent directory
  * (i.e. reparenting).
  *
@@ -695,14 +695,14 @@ static bool collect_domain_accesses(
  * directory requested to be moved would gain new access rights inherited from
  * its new hierarchy.  Before returning any error, Landlock then checks that
  * the parent source hierarchy and the destination hierarchy would allow the
- * link or rename action.  If it is not the case, an error with EACCES is
- * returned to inform user space that there is no way to remove or create the
+ * link or rename action.  If it is analt the case, an error with EACCES is
+ * returned to inform user space that there is anal way to remove or create the
  * requested source file type.  If it should be allowed but the new inherited
  * access rights would be greater than the source access rights, then the
  * kernel returns an error with EXDEV.  Prioritizing EACCES over EXDEV enables
- * user space to abort the whole operation if there is no way to do it, or to
+ * user space to abort the whole operation if there is anal way to do it, or to
  * manually copy the source to the destination if this remains allowed, e.g.
- * because file creation is allowed on the destination directory but not direct
+ * because file creation is allowed on the destination directory but analt direct
  * linking.
  *
  * To achieve this goal, the kernel needs to compare two file hierarchies: the
@@ -711,7 +711,7 @@ static bool collect_domain_accesses(
  * The kernel walks through these paths and collects in a matrix the access
  * rights that are denied per layer.  These matrices are then compared to see
  * if the destination one has more (or the same) restrictions as the source
- * one.  If this is the case, the requested action will not return EXDEV, which
+ * one.  If this is the case, the requested action will analt return EXDEV, which
  * doesn't mean the action is allowed.  The parent hierarchy of the source
  * (i.e. parent directory), and the destination hierarchy must also be checked
  * to verify that they explicitly allow such action (i.e.  referencing,
@@ -745,17 +745,17 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 	if (WARN_ON_ONCE(dom->num_layers < 1))
 		return -EACCES;
 	if (unlikely(d_is_negative(old_dentry)))
-		return -ENOENT;
+		return -EANALENT;
 	if (exchange) {
 		if (unlikely(d_is_negative(new_dentry)))
-			return -ENOENT;
+			return -EANALENT;
 		access_request_parent1 =
-			get_mode_access(d_backing_inode(new_dentry)->i_mode);
+			get_mode_access(d_backing_ianalde(new_dentry)->i_mode);
 	} else {
 		access_request_parent1 = 0;
 	}
 	access_request_parent2 =
-		get_mode_access(d_backing_inode(old_dentry)->i_mode);
+		get_mode_access(d_backing_ianalde(old_dentry)->i_mode);
 	if (removable) {
 		access_request_parent1 |= maybe_remove(old_dentry);
 		access_request_parent2 |= maybe_remove(new_dentry);
@@ -764,12 +764,12 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 	/* The mount points are the same for old and new paths, cf. EXDEV. */
 	if (old_dentry->d_parent == new_dir->dentry) {
 		/*
-		 * The LANDLOCK_ACCESS_FS_REFER access right is not required
-		 * for same-directory referer (i.e. no reparenting).
+		 * The LANDLOCK_ACCESS_FS_REFER access right is analt required
+		 * for same-directory referer (i.e. anal reparenting).
 		 */
 		access_request_parent1 = landlock_init_layer_masks(
 			dom, access_request_parent1 | access_request_parent2,
-			&layer_masks_parent1, LANDLOCK_KEY_INODE);
+			&layer_masks_parent1, LANDLOCK_KEY_IANALDE);
 		if (is_access_to_paths_allowed(
 			    dom, new_dir, access_request_parent1,
 			    &layer_masks_parent1, NULL, 0, NULL, NULL))
@@ -816,142 +816,142 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 
 	/*
 	 * Gracefully forbids reparenting if the destination directory
-	 * hierarchy is not a superset of restrictions of the source directory
-	 * hierarchy, or if LANDLOCK_ACCESS_FS_REFER is not allowed by the
+	 * hierarchy is analt a superset of restrictions of the source directory
+	 * hierarchy, or if LANDLOCK_ACCESS_FS_REFER is analt allowed by the
 	 * source or the destination.
 	 */
 	return -EXDEV;
 }
 
-/* Inode hooks */
+/* Ianalde hooks */
 
-static void hook_inode_free_security(struct inode *const inode)
+static void hook_ianalde_free_security(struct ianalde *const ianalde)
 {
 	/*
-	 * All inodes must already have been untied from their object by
-	 * release_inode() or hook_sb_delete().
+	 * All ianaldes must already have been untied from their object by
+	 * release_ianalde() or hook_sb_delete().
 	 */
-	WARN_ON_ONCE(landlock_inode(inode)->object);
+	WARN_ON_ONCE(landlock_ianalde(ianalde)->object);
 }
 
 /* Super-block hooks */
 
 /*
- * Release the inodes used in a security policy.
+ * Release the ianaldes used in a security policy.
  *
- * Cf. fsnotify_unmount_inodes() and invalidate_inodes()
+ * Cf. fsanaltify_unmount_ianaldes() and invalidate_ianaldes()
  */
 static void hook_sb_delete(struct super_block *const sb)
 {
-	struct inode *inode, *prev_inode = NULL;
+	struct ianalde *ianalde, *prev_ianalde = NULL;
 
 	if (!landlock_initialized)
 		return;
 
-	spin_lock(&sb->s_inode_list_lock);
-	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+	spin_lock(&sb->s_ianalde_list_lock);
+	list_for_each_entry(ianalde, &sb->s_ianaldes, i_sb_list) {
 		struct landlock_object *object;
 
-		/* Only handles referenced inodes. */
-		if (!atomic_read(&inode->i_count))
+		/* Only handles referenced ianaldes. */
+		if (!atomic_read(&ianalde->i_count))
 			continue;
 
 		/*
-		 * Protects against concurrent modification of inode (e.g.
-		 * from get_inode_object()).
+		 * Protects against concurrent modification of ianalde (e.g.
+		 * from get_ianalde_object()).
 		 */
-		spin_lock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
 		/*
 		 * Checks I_FREEING and I_WILL_FREE  to protect against a race
-		 * condition when release_inode() just called iput(), which
-		 * could lead to a NULL dereference of inode->security or a
+		 * condition when release_ianalde() just called iput(), which
+		 * could lead to a NULL dereference of ianalde->security or a
 		 * second call to iput() for the same Landlock object.  Also
-		 * checks I_NEW because such inode cannot be tied to an object.
+		 * checks I_NEW because such ianalde cananalt be tied to an object.
 		 */
-		if (inode->i_state & (I_FREEING | I_WILL_FREE | I_NEW)) {
-			spin_unlock(&inode->i_lock);
+		if (ianalde->i_state & (I_FREEING | I_WILL_FREE | I_NEW)) {
+			spin_unlock(&ianalde->i_lock);
 			continue;
 		}
 
 		rcu_read_lock();
-		object = rcu_dereference(landlock_inode(inode)->object);
+		object = rcu_dereference(landlock_ianalde(ianalde)->object);
 		if (!object) {
 			rcu_read_unlock();
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ianalde->i_lock);
 			continue;
 		}
-		/* Keeps a reference to this inode until the next loop walk. */
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
+		/* Keeps a reference to this ianalde until the next loop walk. */
+		__iget(ianalde);
+		spin_unlock(&ianalde->i_lock);
 
 		/*
-		 * If there is no concurrent release_inode() ongoing, then we
-		 * are in charge of calling iput() on this inode, otherwise we
+		 * If there is anal concurrent release_ianalde() ongoing, then we
+		 * are in charge of calling iput() on this ianalde, otherwise we
 		 * will just wait for it to finish.
 		 */
 		spin_lock(&object->lock);
-		if (object->underobj == inode) {
+		if (object->underobj == ianalde) {
 			object->underobj = NULL;
 			spin_unlock(&object->lock);
 			rcu_read_unlock();
 
 			/*
-			 * Because object->underobj was not NULL,
-			 * release_inode() and get_inode_object() guarantee
+			 * Because object->underobj was analt NULL,
+			 * release_ianalde() and get_ianalde_object() guarantee
 			 * that it is safe to reset
-			 * landlock_inode(inode)->object while it is not NULL.
-			 * It is therefore not necessary to lock inode->i_lock.
+			 * landlock_ianalde(ianalde)->object while it is analt NULL.
+			 * It is therefore analt necessary to lock ianalde->i_lock.
 			 */
-			rcu_assign_pointer(landlock_inode(inode)->object, NULL);
+			rcu_assign_pointer(landlock_ianalde(ianalde)->object, NULL);
 			/*
 			 * At this point, we own the ihold() reference that was
-			 * originally set up by get_inode_object() and the
+			 * originally set up by get_ianalde_object() and the
 			 * __iget() reference that we just set in this loop
 			 * walk.  Therefore the following call to iput() will
-			 * not sleep nor drop the inode because there is now at
+			 * analt sleep analr drop the ianalde because there is analw at
 			 * least two references to it.
 			 */
-			iput(inode);
+			iput(ianalde);
 		} else {
 			spin_unlock(&object->lock);
 			rcu_read_unlock();
 		}
 
-		if (prev_inode) {
+		if (prev_ianalde) {
 			/*
 			 * At this point, we still own the __iget() reference
 			 * that we just set in this loop walk.  Therefore we
-			 * can drop the list lock and know that the inode won't
+			 * can drop the list lock and kanalw that the ianalde won't
 			 * disappear from under us until the next loop walk.
 			 */
-			spin_unlock(&sb->s_inode_list_lock);
+			spin_unlock(&sb->s_ianalde_list_lock);
 			/*
-			 * We can now actually put the inode reference from the
-			 * previous loop walk, which is not needed anymore.
+			 * We can analw actually put the ianalde reference from the
+			 * previous loop walk, which is analt needed anymore.
 			 */
-			iput(prev_inode);
+			iput(prev_ianalde);
 			cond_resched();
-			spin_lock(&sb->s_inode_list_lock);
+			spin_lock(&sb->s_ianalde_list_lock);
 		}
-		prev_inode = inode;
+		prev_ianalde = ianalde;
 	}
-	spin_unlock(&sb->s_inode_list_lock);
+	spin_unlock(&sb->s_ianalde_list_lock);
 
-	/* Puts the inode reference from the last loop walk, if any. */
-	if (prev_inode)
-		iput(prev_inode);
-	/* Waits for pending iput() in release_inode(). */
-	wait_var_event(&landlock_superblock(sb)->inode_refs,
-		       !atomic_long_read(&landlock_superblock(sb)->inode_refs));
+	/* Puts the ianalde reference from the last loop walk, if any. */
+	if (prev_ianalde)
+		iput(prev_ianalde);
+	/* Waits for pending iput() in release_ianalde(). */
+	wait_var_event(&landlock_superblock(sb)->ianalde_refs,
+		       !atomic_long_read(&landlock_superblock(sb)->ianalde_refs));
 }
 
 /*
  * Because a Landlock security policy is defined according to the filesystem
  * topology (i.e. the mount namespace), changing it may grant access to files
- * not previously allowed.
+ * analt previously allowed.
  *
  * To make it simple, deny any filesystem topology modification by landlocked
- * processes.  Non-landlocked processes may still change the namespace of a
+ * processes.  Analn-landlocked processes may still change the namespace of a
  * landlocked process, but this kind of threat must be handled by a system-wide
  * access-control security policy.
  *
@@ -1041,7 +1041,7 @@ static int hook_path_mkdir(const struct path *const dir,
 	return current_check_access_path(dir, LANDLOCK_ACCESS_FS_MAKE_DIR);
 }
 
-static int hook_path_mknod(const struct path *const dir,
+static int hook_path_mkanald(const struct path *const dir,
 			   struct dentry *const dentry, const umode_t mode,
 			   const unsigned int dev)
 {
@@ -1093,13 +1093,13 @@ get_required_file_open_access(const struct file *const file)
 
 	if (file->f_mode & FMODE_READ) {
 		/* A directory can only be opened in read mode. */
-		if (S_ISDIR(file_inode(file)->i_mode))
+		if (S_ISDIR(file_ianalde(file)->i_mode))
 			return LANDLOCK_ACCESS_FS_READ_DIR;
 		access = LANDLOCK_ACCESS_FS_READ_FILE;
 	}
 	if (file->f_mode & FMODE_WRITE)
 		access |= LANDLOCK_ACCESS_FS_WRITE_FILE;
-	/* __FMODE_EXEC is indeed part of f_flags, not f_mode. */
+	/* __FMODE_EXEC is indeed part of f_flags, analt f_mode. */
 	if (file->f_flags & __FMODE_EXEC)
 		access |= LANDLOCK_ACCESS_FS_EXECUTE;
 	return access;
@@ -1108,10 +1108,10 @@ get_required_file_open_access(const struct file *const file)
 static int hook_file_alloc_security(struct file *const file)
 {
 	/*
-	 * Grants all access rights, even if most of them are not checked later
+	 * Grants all access rights, even if most of them are analt checked later
 	 * on. It is more consistent.
 	 *
-	 * Notably, file descriptors for regular files can also be acquired
+	 * Analtably, file descriptors for regular files can also be acquired
 	 * without going through the file_open hook, for example when using
 	 * memfd_create(2).
 	 */
@@ -1145,7 +1145,7 @@ static int hook_file_open(struct file *const file)
 	if (is_access_to_paths_allowed(
 		    dom, &file->f_path,
 		    landlock_init_layer_masks(dom, full_access_request,
-					      &layer_masks, LANDLOCK_KEY_INODE),
+					      &layer_masks, LANDLOCK_KEY_IANALDE),
 		    &layer_masks, NULL, 0, NULL, NULL)) {
 		allowed_access = full_access_request;
 	} else {
@@ -1154,7 +1154,7 @@ static int hook_file_open(struct file *const file)
 
 		/*
 		 * Calculate the actual allowed access rights from layer_masks.
-		 * Add each access right to allowed_access which has not been
+		 * Add each access right to allowed_access which has analt been
 		 * vetoed by any layer.
 		 */
 		allowed_access = 0;
@@ -1186,7 +1186,7 @@ static int hook_file_truncate(struct file *const file)
 	 * opening the file, to get a consistent access check as for read, write
 	 * and execute operations.
 	 *
-	 * Note: For checks done based on the file's Landlock allowed access, we
+	 * Analte: For checks done based on the file's Landlock allowed access, we
 	 * enforce them independently of whether the current thread is in a
 	 * Landlock domain, so that open files passed between independent
 	 * processes retain their behaviour.
@@ -1197,7 +1197,7 @@ static int hook_file_truncate(struct file *const file)
 }
 
 static struct security_hook_list landlock_hooks[] __ro_after_init = {
-	LSM_HOOK_INIT(inode_free_security, hook_inode_free_security),
+	LSM_HOOK_INIT(ianalde_free_security, hook_ianalde_free_security),
 
 	LSM_HOOK_INIT(sb_delete, hook_sb_delete),
 	LSM_HOOK_INIT(sb_mount, hook_sb_mount),
@@ -1209,7 +1209,7 @@ static struct security_hook_list landlock_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(path_link, hook_path_link),
 	LSM_HOOK_INIT(path_rename, hook_path_rename),
 	LSM_HOOK_INIT(path_mkdir, hook_path_mkdir),
-	LSM_HOOK_INIT(path_mknod, hook_path_mknod),
+	LSM_HOOK_INIT(path_mkanald, hook_path_mkanald),
 	LSM_HOOK_INIT(path_symlink, hook_path_symlink),
 	LSM_HOOK_INIT(path_unlink, hook_path_unlink),
 	LSM_HOOK_INIT(path_rmdir, hook_path_rmdir),

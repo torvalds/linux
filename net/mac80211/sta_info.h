@@ -31,7 +31,7 @@
  * @WLAN_STA_PS_STA: Station is in power-save mode
  * @WLAN_STA_AUTHORIZED: Station is authorized to send/receive traffic.
  *	This bit is always checked so needs to be enabled for all stations
- *	when virtual port control is not in use.
+ *	when virtual port control is analt in use.
  * @WLAN_STA_SHORT_PREAMBLE: Station is capable of receiving short-preamble
  *	frames.
  * @WLAN_STA_WDS: Station is one of our WDS peers.
@@ -64,7 +64,7 @@
  * @WLAN_STA_4ADDR_EVENT: 4-addr event was already sent for this frame.
  * @WLAN_STA_INSERTED: This station is inserted into the hash table.
  * @WLAN_STA_RATE_CONTROL: rate control was initialized for this station.
- * @WLAN_STA_TOFFSET_KNOWN: toffset calculated for this station is valid.
+ * @WLAN_STA_TOFFSET_KANALWN: toffset calculated for this station is valid.
  * @WLAN_STA_MPSP_OWNER: local STA is owner of a mesh Peer Service Period.
  * @WLAN_STA_MPSP_RECIPIENT: local STA is recipient of a MPSP.
  * @WLAN_STA_PS_DELIVER: station woke up, but we're still blocking TX
@@ -98,7 +98,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_4ADDR_EVENT,
 	WLAN_STA_INSERTED,
 	WLAN_STA_RATE_CONTROL,
-	WLAN_STA_TOFFSET_KNOWN,
+	WLAN_STA_TOFFSET_KANALWN,
 	WLAN_STA_MPSP_OWNER,
 	WLAN_STA_MPSP_RECIPIENT,
 	WLAN_STA_PS_DELIVER,
@@ -208,7 +208,7 @@ struct tid_ampdu_tx {
  * @reorder_buf: buffer to reorder incoming aggregated MPDUs. An MPDU may be an
  *	A-MSDU with individually reported subframes.
  * @reorder_buf_filtered: bitmap indicating where there are filtered frames in
- *	the reorder buffer that should be ignored when releasing frames
+ *	the reorder buffer that should be iganalred when releasing frames
  * @reorder_time: jiffies when skb was added
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
  * @reorder_timer: releases expired frames from the reorder buffer.
@@ -272,7 +272,7 @@ struct tid_ampdu_rx {
  *	unexpected aggregation related frames outside a session
  * @work: work struct for starting/stopping aggregation
  * @tid_tx: aggregation info for Tx per TID
- * @tid_start_tx: sessions where start was requested, not just protected
+ * @tid_start_tx: sessions where start was requested, analt just protected
  *	by wiphy mutex but also sta->lock
  * @last_addba_req_time: timestamp of the last addBA request.
  * @addba_req_num: number of times addBA request has been sent.
@@ -297,7 +297,7 @@ struct sta_ampdu_mlme {
 };
 
 
-/* Value to indicate no TID reservation */
+/* Value to indicate anal TID reservation */
 #define IEEE80211_TID_UNRESERVED	0xff
 
 #define IEEE80211_FAST_XMIT_MAX_IV	18
@@ -309,11 +309,11 @@ struct sta_ampdu_mlme {
  * @hdr_len: actual 802.11 header length
  * @sa_offs: offset of the SA
  * @da_offs: offset of the DA
- * @pn_offs: offset where to put PN for crypto (or 0 if not needed)
+ * @pn_offs: offset where to put PN for crypto (or 0 if analt needed)
  * @band: band this will be transmitted on, for tx_info
  * @rcu_head: RCU head to free this struct
  *
- * This struct is small enough so that the common case (maximum crypto
+ * This struct is small eanalugh so that the common case (maximum crypto
  * header length of 8 like for CCMP/GCMP) fits into a single 64-byte
  * cache line.
  */
@@ -381,7 +381,7 @@ DECLARE_EWMA(mesh_tx_rate_avg, 8, 16)
  * 	calculating clockdrift
  * @local_pm: local link-specific power save mode
  * @peer_pm: peer-specific power save mode towards local STA
- * @nonpeer_pm: STA power save mode towards non-peer neighbors
+ * @analnpeer_pm: STA power save mode towards analn-peer neighbors
  * @processed_beacon: set to true after peer rates and capabilities are
  *	processed
  * @connected_to_gate: true if mesh STA has a path to a mesh gate
@@ -413,7 +413,7 @@ struct mesh_sta {
 	/* mesh power save */
 	enum nl80211_mesh_power_mode local_pm;
 	enum nl80211_mesh_power_mode peer_pm;
-	enum nl80211_mesh_power_mode nonpeer_pm;
+	enum nl80211_mesh_power_mode analnpeer_pm;
 
 	/* moving percentage of failed MSDUs */
 	struct ewma_mesh_fail_avg fail_avg;
@@ -477,12 +477,12 @@ struct ieee80211_fragment_cache {
 /**
  * struct link_sta_info - Link STA information
  * All link specific sta info are stored here for reference. This can be
- * a single entry for non-MLD STA or multiple entries for MLD STA
+ * a single entry for analn-MLD STA or multiple entries for MLD STA
  * @addr: Link MAC address - Can be same as MLD STA mac address and is always
- *	same for non-MLD STA. This is used as key for searching link STA
- * @link_id: Link ID uniquely identifying the link STA. This is 0 for non-MLD
+ *	same for analn-MLD STA. This is used as key for searching link STA
+ * @link_id: Link ID uniquely identifying the link STA. This is 0 for analn-MLD
  *	and set to the corresponding vif LinkId for MLD STA
- * @link_hash_node: hash node for rhashtable
+ * @link_hash_analde: hash analde for rhashtable
  * @sta: Points to the STA info
  * @gtk: group keys negotiated with this station, if any
  * @tx_stats: TX statistics
@@ -509,7 +509,7 @@ struct ieee80211_fragment_cache {
  * @status_stats.ack_signal_filled: last ACK signal validity
  * @status_stats.avg_ack_signal: average ACK signal
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
- *	taken from HT/VHT capabilities or VHT operating mode notification
+ *	taken from HT/VHT capabilities or VHT operating mode analtification
  * @debugfs_dir: debug filesystem directory dentry
  * @pub: public (driver visible) link STA data
  * TODO Move other link params from sta_info as required for MLD operation
@@ -518,7 +518,7 @@ struct link_sta_info {
 	u8 addr[ETH_ALEN];
 	u8 link_id;
 
-	struct rhlist_head link_hash_node;
+	struct rhlist_head link_hash_analde;
 
 	struct sta_info *sta;
 	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS +
@@ -526,14 +526,14 @@ struct link_sta_info {
 					NUM_DEFAULT_BEACON_KEYS];
 	struct ieee80211_sta_rx_stats __percpu *pcpu_rx_stats;
 
-	/* Updated from RX path only, no locking requirements */
+	/* Updated from RX path only, anal locking requirements */
 	struct ieee80211_sta_rx_stats rx_stats;
 	struct {
 		struct ewma_signal signal;
 		struct ewma_signal chain_signal[IEEE80211_MAX_CHAINS];
 	} rx_stats_avg;
 
-	/* Updated from TX status path only, no locking requirements */
+	/* Updated from TX status path only, anal locking requirements */
 	struct {
 		unsigned long filtered;
 		unsigned long retry_failed, retry_count;
@@ -547,7 +547,7 @@ struct link_sta_info {
 		struct ewma_avg_signal avg_ack_signal;
 	} status_stats;
 
-	/* Updated from TX path only, no locking requirements */
+	/* Updated from TX path only, anal locking requirements */
 	struct {
 		u64 packets[IEEE80211_NUM_ACS];
 		u64 bytes[IEEE80211_NUM_ACS];
@@ -573,7 +573,7 @@ struct link_sta_info {
  *
  * @list: global linked list entry
  * @free_list: list entry for keeping track of stations to free
- * @hash_node: hash node for rhashtable
+ * @hash_analde: hash analde for rhashtable
  * @addr: station's MAC address - duplicated from public part to
  *	let the hash table work with just a single cacheline
  * @local: pointer to the global information
@@ -588,7 +588,7 @@ struct link_sta_info {
  *	in the header file.
  * @drv_deliver_wk: used for delivering frames after driver PS unblocking
  * @listen_interval: listen interval of this station, when we're acting as AP
- * @_flags: STA flags, see &enum ieee80211_sta_info_flags, do not use directly
+ * @_flags: STA flags, see &enum ieee80211_sta_info_flags, do analt use directly
  * @ps_lock: used for powersave (when mac80211 is the AP) related locking
  * @ps_tx_buf: buffers (per AC) of frames to transmit to this station
  *	when it leaves power saving state or polls
@@ -601,7 +601,7 @@ struct link_sta_info {
  * @assoc_at: clock boottime (in ns) of last association
  * @last_connected: time (in seconds) when a station got connected
  * @last_seq_ctrl: last received seq/frag number from this STA (per TID
- *	plus one for non-QoS frames)
+ *	plus one for analn-QoS frames)
  * @tid_seq: per-TID sequence numbers for sending to this STA
  * @airtime: per-AC struct airtime_info describing airtime statistics for this
  *	station
@@ -619,8 +619,8 @@ struct link_sta_info {
  * @reserved_tid: reserved TID (if any, otherwise IEEE80211_TID_UNRESERVED)
  * @amsdu_mesh_control: track the mesh A-MSDU format used by the peer:
  *
- *	  * -1: not yet known
- *	  * 0: non-mesh A-MSDU length field
+ *	  * -1: analt yet kanalwn
+ *	  * 0: analn-mesh A-MSDU length field
  *	  * 1: big-endian mesh A-MSDU length field
  *	  * 2: little-endian mesh A-MSDU length field
  *
@@ -631,11 +631,11 @@ struct link_sta_info {
  * @frags: fragment cache
  * @cur: storage for aggregation data
  *	&struct ieee80211_sta points either here or to deflink.agg.
- * @deflink: This is the default link STA information, for non MLO STA all link
+ * @deflink: This is the default link STA information, for analn MLO STA all link
  *	specific STA information is accessed through @deflink or through
  *	link[0] which points to address of @deflink. For MLO Link STA
  *	the first added link STA will point to deflink.
- * @link: reference to Link Sta entries. For Non MLO STA, except 1st link,
+ * @link: reference to Link Sta entries. For Analn MLO STA, except 1st link,
  *	i.e link[0] all links would be assigned to NULL by default and
  *	would access link information via @deflink or link[0]. For MLO
  *	STA, first link STA being added will point its link pointer to
@@ -647,7 +647,7 @@ struct sta_info {
 	/* General information, mostly static */
 	struct list_head list, free_list;
 	struct rcu_head rcu_head;
-	struct rhlist_head hash_node;
+	struct rhlist_head hash_analde;
 	u8 addr[ETH_ALEN];
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -689,7 +689,7 @@ struct sta_info {
 	u64 assoc_at;
 	long last_connected;
 
-	/* Plus 1 for non-QoS frames */
+	/* Plus 1 for analn-QoS frames */
 	__le16 last_seq_ctrl[IEEE80211_NUM_TIDS + 1];
 
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
@@ -825,7 +825,7 @@ struct sta_info *sta_info_get_by_addrs(struct ieee80211_local *local,
 
 #define for_each_sta_info(local, _addr, _sta, _tmp)			\
 	rhl_for_each_entry_rcu(_sta, _tmp,				\
-			       sta_info_hash_lookup(local, _addr), hash_node)
+			       sta_info_hash_lookup(local, _addr), hash_analde)
 
 struct rhlist_head *link_sta_info_hash_lookup(struct ieee80211_local *local,
 					      const u8 *addr);
@@ -833,7 +833,7 @@ struct rhlist_head *link_sta_info_hash_lookup(struct ieee80211_local *local,
 #define for_each_link_sta_info(local, _addr, _sta, _tmp)		\
 	rhl_for_each_entry_rcu(_sta, _tmp,				\
 			       link_sta_info_hash_lookup(local, _addr),	\
-			       link_hash_node)
+			       link_hash_analde)
 
 struct link_sta_info *
 link_sta_info_get_bss(struct ieee80211_sub_if_data *sdata, const u8 *addr);
@@ -861,7 +861,7 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta);
  * Insert STA info into hash table/list, returns zero or a
  * -EEXIST if (if the same MAC address is already present).
  *
- * Calling the non-rcu version makes the caller relinquish,
+ * Calling the analn-rcu version makes the caller relinquish,
  * the _rcu version calls read_lock_rcu() and must be called
  * without it held.
  */

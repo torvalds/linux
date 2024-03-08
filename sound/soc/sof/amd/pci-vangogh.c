@@ -56,7 +56,7 @@ static const struct sof_dev_desc vangogh_desc = {
 	.default_fw_filename	= {
 		[SOF_IPC_TYPE_3] = "sof-vangogh.ri",
 	},
-	.nocodec_tplg_filename	= "sof-acp.tplg",
+	.analcodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_vangogh_ops,
 	.ops_init		= sof_vangogh_ops_init,
 };
@@ -66,11 +66,11 @@ static int acp_pci_vgh_probe(struct pci_dev *pci, const struct pci_device_id *pc
 	unsigned int flag;
 
 	if (pci->revision != ACP_VANGOGH_PCI_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	flag = snd_amd_acp_find_config(pci);
 	if (flag != FLAG_AMD_SOF && flag != FLAG_AMD_SOF_ONLY_DMIC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sof_pci_probe(pci, pci_id);
 };

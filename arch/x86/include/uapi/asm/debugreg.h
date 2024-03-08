@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_X86_DEBUGREG_H
 #define _UAPI_ASM_X86_DEBUGREG_H
 
@@ -13,7 +13,7 @@
 
 /* Define a few things for the status register.  We can use this to determine
    which debugging register was responsible for the trap.  The other bits
-   are either reserved or not of interest to us. */
+   are either reserved or analt of interest to us. */
 
 /* Define reserved bits in DR6 which are always set to 1 */
 #define DR6_RESERVED	(0xFFFF0FF0)
@@ -28,7 +28,7 @@
 #define DR_STEP		(0x4000)	/* single-step */
 #define DR_SWITCH	(0x8000)	/* task switch */
 
-/* Now define a bunch of things for manipulating the control register.
+/* Analw define a bunch of things for manipulating the control register.
    The top two bytes of the control register consist of 4 fields of 4
    bits - each field corresponds to one of the four debug registers,
    and indicates what types of access we trap on, and how large the data
@@ -64,7 +64,7 @@
 
 /* The second byte to the control register has a few special things.
    We can slow the instruction pipeline for instructions coming via the
-   gdt or the ldt if we want to.  I am not sure why this is an advantage */
+   gdt or the ldt if we want to.  I am analt sure why this is an advantage */
 
 #ifdef __i386__
 #define DR_CONTROL_RESERVED (0xFC00) /* Reserved by Intel */

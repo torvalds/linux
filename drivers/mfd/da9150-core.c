@@ -69,7 +69,7 @@ static int da9150_i2c_write_device(struct i2c_client *client, u8 addr,
 
 	reg_data = kzalloc(1 + count, GFP_KERNEL);
 	if (!reg_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reg_data[0] = addr;
 	memcpy(&reg_data[1], buf, count);
@@ -401,7 +401,7 @@ static int da9150_probe(struct i2c_client *client)
 
 	da9150 = devm_kzalloc(&client->dev, sizeof(*da9150), GFP_KERNEL);
 	if (!da9150)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	da9150->dev = &client->dev;
 	da9150->irq = client->irq;

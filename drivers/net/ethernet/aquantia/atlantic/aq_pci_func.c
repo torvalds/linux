@@ -128,7 +128,7 @@ static int aq_pci_func_init(struct pci_dev *pdev)
 	if (err)
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		err = -ENOSR;
+		err = -EANALSR;
 		goto err_exit;
 	}
 
@@ -228,7 +228,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 
 	ndev = aq_ndev_alloc();
 	if (!ndev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ndev;
 	}
 
@@ -246,7 +246,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 
 	self->aq_hw = kzalloc(sizeof(*self->aq_hw), GFP_KERNEL);
 	if (!self->aq_hw) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ioremap;
 	}
 	self->aq_hw->aq_nic_cfg = aq_nic_get_cfg(self);
@@ -255,7 +255,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 
 		self->aq_hw->priv = kzalloc(len, GFP_KERNEL);
 		if (!self->aq_hw->priv) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_free_aq_hw;
 		}
 	}

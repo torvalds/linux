@@ -169,7 +169,7 @@ static int sprd_pinctrl_get_id_by_name(struct sprd_pinctrl *sprd_pctl,
 			return info->pins[i].number;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct sprd_pin *
@@ -241,8 +241,8 @@ static int sprd_pctrl_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int sprd_dt_node_to_map(struct pinctrl_dev *pctldev,
-			       struct device_node *np,
+static int sprd_dt_analde_to_map(struct pinctrl_dev *pctldev,
+			       struct device_analde *np,
 			       struct pinctrl_map **map,
 			       unsigned int *num_maps)
 {
@@ -258,8 +258,8 @@ static int sprd_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	grp = sprd_pinctrl_find_group_by_name(pctl, np->name);
 	if (!grp) {
-		dev_err(pctl->dev, "unable to find group for node %s\n",
-			of_node_full_name(np));
+		dev_err(pctl->dev, "unable to find group for analde %s\n",
+			of_analde_full_name(np));
 		return -EINVAL;
 	}
 
@@ -276,16 +276,16 @@ static int sprd_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (ret < 0) {
 		if (ret != -EINVAL)
 			dev_err(pctl->dev,
-				"%s: could not parse property function\n",
-				of_node_full_name(np));
+				"%s: could analt parse property function\n",
+				of_analde_full_name(np));
 		function = NULL;
 	}
 
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(pctl->dev, "%s: could not parse node property\n",
-			of_node_full_name(np));
+		dev_err(pctl->dev, "%s: could analt parse analde property\n",
+			of_analde_full_name(np));
 		return ret;
 	}
 
@@ -343,7 +343,7 @@ static const struct pinctrl_ops sprd_pctrl_ops = {
 	.get_group_name = sprd_pctrl_group_name,
 	.get_group_pins = sprd_pctrl_group_pins,
 	.pin_dbg_show = sprd_pctrl_dbg_show,
-	.dt_node_to_map = sprd_dt_node_to_map,
+	.dt_analde_to_map = sprd_dt_analde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -505,10 +505,10 @@ static int sprd_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin_id,
 			arg = 0;
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	} else {
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -716,10 +716,10 @@ static int sprd_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin_id,
 			case PIN_CONFIG_SLEEP_HARDWARE_STATE:
 				continue;
 			default:
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 		} else {
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		if (pin->type == GLOBAL_CTRL_PIN) {
@@ -879,7 +879,7 @@ static struct pinctrl_desc sprd_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static int sprd_pinctrl_parse_groups(struct device_node *np,
+static int sprd_pinctrl_parse_groups(struct device_analde *np,
 				     struct sprd_pinctrl *sprd_pctl,
 				     struct sprd_pin_group *grp)
 {
@@ -897,7 +897,7 @@ static int sprd_pinctrl_parse_groups(struct device_node *np,
 				 grp->npins, sizeof(unsigned int),
 				 GFP_KERNEL);
 	if (!grp->pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	of_property_for_each_string(np, "pins", prop, pin_name) {
 		ret = sprd_pinctrl_get_id_by_name(sprd_pctl, pin_name);
@@ -914,14 +914,14 @@ static int sprd_pinctrl_parse_groups(struct device_node *np,
 	return 0;
 }
 
-static unsigned int sprd_pinctrl_get_groups(struct device_node *np)
+static unsigned int sprd_pinctrl_get_groups(struct device_analde *np)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	unsigned int group_cnt, cnt;
 
 	group_cnt = of_get_child_count(np);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		cnt = of_get_child_count(child);
 		if (cnt > 0)
 			group_cnt += cnt;
@@ -933,14 +933,14 @@ static unsigned int sprd_pinctrl_get_groups(struct device_node *np)
 static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 {
 	struct sprd_pinctrl_soc_info *info = sprd_pctl->info;
-	struct device_node *np = sprd_pctl->dev->of_node;
-	struct device_node *child, *sub_child;
+	struct device_analde *np = sprd_pctl->dev->of_analde;
+	struct device_analde *child, *sub_child;
 	struct sprd_pin_group *grp;
 	const char **temp;
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info->ngroups = sprd_pinctrl_get_groups(np);
 	if (!info->ngroups)
@@ -951,21 +951,21 @@ static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 				    sizeof(struct sprd_pin_group),
 				    GFP_KERNEL);
 	if (!info->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->grp_names = devm_kcalloc(sprd_pctl->dev,
 				       info->ngroups, sizeof(char *),
 				       GFP_KERNEL);
 	if (!info->grp_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	temp = info->grp_names;
 	grp = info->groups;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		ret = sprd_pinctrl_parse_groups(child, sprd_pctl, grp);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 
@@ -973,12 +973,12 @@ static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 		grp++;
 
 		if (of_get_child_count(child) > 0) {
-			for_each_child_of_node(child, sub_child) {
+			for_each_child_of_analde(child, sub_child) {
 				ret = sprd_pinctrl_parse_groups(sub_child,
 								sprd_pctl, grp);
 				if (ret) {
-					of_node_put(sub_child);
-					of_node_put(child);
+					of_analde_put(sub_child);
+					of_analde_put(child);
 					return ret;
 				}
 
@@ -1005,7 +1005,7 @@ static int sprd_pinctrl_add_pins(struct sprd_pinctrl *sprd_pctl,
 				  info->npins, sizeof(struct sprd_pin),
 				  GFP_KERNEL);
 	if (!info->pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, pin = info->pins; i < info->npins; i++, pin++) {
 		unsigned int reg;
@@ -1054,7 +1054,7 @@ int sprd_pinctrl_core_probe(struct platform_device *pdev,
 	sprd_pctl = devm_kzalloc(&pdev->dev, sizeof(struct sprd_pinctrl),
 				 GFP_KERNEL);
 	if (!sprd_pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sprd_pctl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sprd_pctl->base))
@@ -1064,7 +1064,7 @@ int sprd_pinctrl_core_probe(struct platform_device *pdev,
 				    sizeof(struct sprd_pinctrl_soc_info),
 				    GFP_KERNEL);
 	if (!pinctrl_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sprd_pctl->info = pinctrl_info;
 	sprd_pctl->dev = &pdev->dev;
@@ -1087,7 +1087,7 @@ int sprd_pinctrl_core_probe(struct platform_device *pdev,
 				sizeof(struct pinctrl_pin_desc),
 				GFP_KERNEL);
 	if (!pin_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pinctrl_info->npins; i++) {
 		pin_desc[i].number = pinctrl_info->pins[i].number;
@@ -1102,7 +1102,7 @@ int sprd_pinctrl_core_probe(struct platform_device *pdev,
 	sprd_pctl->pctl = pinctrl_register(&sprd_pinctrl_desc,
 					   &pdev->dev, (void *)sprd_pctl);
 	if (IS_ERR(sprd_pctl->pctl)) {
-		dev_err(&pdev->dev, "could not register pinctrl driver\n");
+		dev_err(&pdev->dev, "could analt register pinctrl driver\n");
 		return PTR_ERR(sprd_pctl->pctl);
 	}
 

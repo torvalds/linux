@@ -47,7 +47,7 @@ static int q6dma_set_channel_map(struct snd_soc_dai *dai,
 	case TX_CODEC_DMA_TX_4:
 	case TX_CODEC_DMA_TX_5:
 		if (!tx_ch_mask) {
-			dev_err(dai->dev, "tx slot not found\n");
+			dev_err(dai->dev, "tx slot analt found\n");
 			return -EINVAL;
 		}
 
@@ -71,7 +71,7 @@ static int q6dma_set_channel_map(struct snd_soc_dai *dai,
 	case RX_CODEC_DMA_RX_7:
 		/* rx */
 		if (!rx_ch_mask) {
-			dev_err(dai->dev, "rx slot not found\n");
+			dev_err(dai->dev, "rx slot analt found\n");
 			return -EINVAL;
 		}
 		if (rx_num > APM_PORT_MAX_AUDIO_CHAN_CNT) {
@@ -274,7 +274,7 @@ static int q6apm_lpass_dai_dev_probe(struct platform_device *pdev)
 
 	dai_data = devm_kzalloc(dev, sizeof(*dai_data), GFP_KERNEL);
 	if (!dai_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, dai_data);
 

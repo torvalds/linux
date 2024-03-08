@@ -24,7 +24,7 @@ description: |
 
   The current limits can be set to at/near double the rated current per channel
   to allow for transient peaks.
-  Current limit changes when the output is enabled are not supported, as a
+  Current limit changes when the output is enabled are analt supported, as a
   precaution against undefined behaviour.
 
   |----------------------------------------------|
@@ -52,7 +52,7 @@ description: |
   |----------------------------------------------|
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "pmic@[0-9a-f]{1,2}"
   compatible:
     enum:
@@ -121,7 +121,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               enum:
                 - dlg,da9122
@@ -194,7 +194,7 @@ examples:
             regulator-boot-on;
             regulator-initial-mode = <DA9121_BUCK_MODE_AUTO>;
             enable-gpios = <&gpio6 1 GPIO_ACTIVE_HIGH>;
-            dlg,ripple-cancel = <DA9121_BUCK_RIPPLE_CANCEL_NONE>;
+            dlg,ripple-cancel = <DA9121_BUCK_RIPPLE_CANCEL_ANALNE>;
           };
           DA9122_BUCK2: buck2 {
             regulator-name = "BUCK2";
@@ -205,7 +205,7 @@ examples:
             regulator-boot-on;
             regulator-initial-mode = <DA9121_BUCK_MODE_AUTO>;
             enable-gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;
-            dlg,ripple-cancel = <DA9121_BUCK_RIPPLE_CANCEL_NONE>;
+            dlg,ripple-cancel = <DA9121_BUCK_RIPPLE_CANCEL_ANALNE>;
           };
         };
       };

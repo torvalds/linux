@@ -19,7 +19,7 @@ For x86:
   export NDK_SYSROOT=${NDK}/platforms/android-24/arch-x86
 
 This method is only tested for Android NDK versions Revision 11b and later.
-perf uses some bionic enhancements that are not included in prior NDK versions.
+perf uses some bionic enhancements that are analt included in prior NDK versions.
 You can use method (b) described below instead.
 
 (b). Use the Android source tree

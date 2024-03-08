@@ -6,7 +6,7 @@
  *	Author: Al Stone <al.stone@linaro.org>
  *	Author: Graeme Gregory <graeme.gregory@linaro.org>
  *	Author: Hanjun Guo <hanjun.guo@linaro.org>
- *	Author: Tomasz Nowicki <tomasz.nowicki@linaro.org>
+ *	Author: Tomasz Analwicki <tomasz.analwicki@linaro.org>
  *	Author: Naresh Bhat <naresh.bhat@linaro.org>
  */
 
@@ -34,7 +34,7 @@
 #include <asm/daifflags.h>
 #include <asm/smp_plat.h>
 
-int acpi_noirq = 1;		/* skip ACPI IRQ initialization */
+int acpi_analirq = 1;		/* skip ACPI IRQ initialization */
 int acpi_disabled = 1;
 EXPORT_SYMBOL(acpi_disabled);
 
@@ -66,14 +66,14 @@ early_param("acpi", parse_acpi);
 
 static bool __init dt_is_stub(void)
 {
-	int node;
+	int analde;
 
-	fdt_for_each_subnode(node, initial_boot_params, 0) {
-		const char *name = fdt_get_name(initial_boot_params, node, NULL);
+	fdt_for_each_subanalde(analde, initial_boot_params, 0) {
+		const char *name = fdt_get_name(initial_boot_params, analde, NULL);
 		if (strcmp(name, "chosen") == 0)
 			continue;
 		if (strcmp(name, "hypervisor") == 0 &&
-		    of_flat_dt_is_compatible(node, "xen,xen"))
+		    of_flat_dt_is_compatible(analde, "xen,xen"))
 			continue;
 
 		return false;
@@ -135,21 +135,21 @@ static int __init acpi_fadt_sanity_check(void)
 		const char *msg = acpi_format_exception(status);
 
 		pr_err("Failed to get FADT table, %s\n", msg);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	fadt = (struct acpi_table_fadt *)table;
 
 	/*
 	 * Revision in table header is the FADT Major revision, and there
-	 * is a minor revision of FADT which was introduced by ACPI 5.1,
+	 * is a mianalr revision of FADT which was introduced by ACPI 5.1,
 	 * we only deal with ACPI 5.1 or newer revision to get GIC and SMP
 	 * boot protocol configuration data.
 	 */
 	if (table->revision < 5 ||
-	   (table->revision == 5 && fadt->minor_revision < 1)) {
+	   (table->revision == 5 && fadt->mianalr_revision < 1)) {
 		pr_err(FW_BUG "Unsupported FADT revision %d.%d, should be 5.1+\n",
-		       table->revision, fadt->minor_revision);
+		       table->revision, fadt->mianalr_revision);
 
 		if (!fadt->arm_boot_flags) {
 			ret = -EINVAL;
@@ -159,7 +159,7 @@ static int __init acpi_fadt_sanity_check(void)
 	}
 
 	if (!(fadt->flags & ACPI_FADT_HW_REDUCED)) {
-		pr_err("FADT not ACPI hardware reduced compliant\n");
+		pr_err("FADT analt ACPI hardware reduced compliant\n");
 		ret = -EINVAL;
 	}
 
@@ -185,7 +185,7 @@ out:
  * On return ACPI is enabled if either:
  *
  * - ACPI tables are initialized and sanity checks passed
- * - acpi=force was passed in the command line and ACPI was not disabled
+ * - acpi=force was passed in the command line and ACPI was analt disabled
  *   explicitly through acpi=off command line parameter
  *
  * ACPI is disabled on function return otherwise
@@ -195,9 +195,9 @@ void __init acpi_boot_table_init(void)
 	/*
 	 * Enable ACPI instead of device tree unless
 	 * - ACPI has been disabled explicitly (acpi=off), or
-	 * - the device tree is not empty (it has more than just a /chosen node,
-	 *   and a /hypervisor node when running on Xen)
-	 *   and ACPI has not been [force] enabled (acpi=on|force)
+	 * - the device tree is analt empty (it has more than just a /chosen analde,
+	 *   and a /hypervisor analde when running on Xen)
+	 *   and ACPI has analt been [force] enabled (acpi=on|force)
 	 */
 	if (param_acpi_off ||
 	    (!param_acpi_on && !param_acpi_force && !dt_is_stub()))
@@ -236,13 +236,13 @@ done:
 static pgprot_t __acpi_get_writethrough_mem_attribute(void)
 {
 	/*
-	 * Although UEFI specifies the use of Normal Write-through for
-	 * EFI_MEMORY_WT, it is seldom used in practice and not implemented
+	 * Although UEFI specifies the use of Analrmal Write-through for
+	 * EFI_MEMORY_WT, it is seldom used in practice and analt implemented
 	 * by most (all?) CPUs. Rather than allocate a MAIR just for this
-	 * purpose, emit a warning and use Normal Non-cacheable instead.
+	 * purpose, emit a warning and use Analrmal Analn-cacheable instead.
 	 */
-	pr_warn_once("No MAIR allocation for EFI_MEMORY_WT; treating as Normal Non-cacheable\n");
-	return __pgprot(PROT_NORMAL_NC);
+	pr_warn_once("Anal MAIR allocation for EFI_MEMORY_WT; treating as Analrmal Analn-cacheable\n");
+	return __pgprot(PROT_ANALRMAL_NC);
 }
 
 pgprot_t __acpi_get_mem_attribute(phys_addr_t addr)
@@ -261,7 +261,7 @@ pgprot_t __acpi_get_mem_attribute(phys_addr_t addr)
 	if (attr & EFI_MEMORY_WB)
 		return PAGE_KERNEL;
 	if (attr & EFI_MEMORY_WC)
-		return __pgprot(PROT_NORMAL_NC);
+		return __pgprot(PROT_ANALRMAL_NC);
 	if (attr & EFI_MEMORY_WT)
 		return __acpi_get_writethrough_mem_attribute();
 	return __pgprot(PROT_DEVICE_nGnRnE);
@@ -290,8 +290,8 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 	}
 
 	/*
-	 * It is fine for AML to remap regions that are not represented in the
-	 * EFI memory map at all, as it only describes normal memory, and MMIO
+	 * It is fine for AML to remap regions that are analt represented in the
+	 * EFI memory map at all, as it only describes analrmal memory, and MMIO
 	 * regions that require a virtual mapping to make them accessible to
 	 * the EFI runtime services.
 	 */
@@ -312,7 +312,7 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 			/*
 			 * Mapping kernel memory is permitted if the region in
 			 * question is covered by a single memblock with the
-			 * NOMAP attribute set: this enables the use of ACPI
+			 * ANALMAP attribute set: this enables the use of ACPI
 			 * table overrides passed via initramfs, which are
 			 * reserved in memory using arch_reserve_mem_area()
 			 * below. As this particular use case only requires
@@ -322,8 +322,8 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 
 		case EFI_RUNTIME_SERVICES_CODE:
 			/*
-			 * This would be unusual, but not problematic per se,
-			 * as long as we take care not to create a writable
+			 * This would be unusual, but analt problematic per se,
+			 * as long as we take care analt to create a writable
 			 * mapping for executable code.
 			 */
 			prot = PAGE_KERNEL_RO;
@@ -347,7 +347,7 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 			if (region->attribute & EFI_MEMORY_WB)
 				prot = PAGE_KERNEL;
 			else if (region->attribute & EFI_MEMORY_WC)
-				prot = __pgprot(PROT_NORMAL_NC);
+				prot = __pgprot(PROT_ANALRMAL_NC);
 			else if (region->attribute & EFI_MEMORY_WT)
 				prot = __acpi_get_writethrough_mem_attribute();
 		}
@@ -356,14 +356,14 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 }
 
 /*
- * Claim Synchronous External Aborts as a firmware first notification.
+ * Claim Synchroanalus External Aborts as a firmware first analtification.
  *
  * Used by KVM and the arch do_sea handler.
  * @regs may be NULL when called from process context.
  */
 int apei_claim_sea(struct pt_regs *regs)
 {
-	int err = -ENOENT;
+	int err = -EANALENT;
 	bool return_to_irqs_enabled;
 	unsigned long current_flags;
 
@@ -384,21 +384,21 @@ int apei_claim_sea(struct pt_regs *regs)
 	 */
 	local_daif_restore(DAIF_ERRCTX);
 	nmi_enter();
-	err = ghes_notify_sea();
+	err = ghes_analtify_sea();
 	nmi_exit();
 
 	/*
-	 * APEI NMI-like notifications are deferred to irq_work. Unless
-	 * we interrupted irqs-masked code, we can do that now.
+	 * APEI NMI-like analtifications are deferred to irq_work. Unless
+	 * we interrupted irqs-masked code, we can do that analw.
 	 */
 	if (!err) {
 		if (return_to_irqs_enabled) {
-			local_daif_restore(DAIF_PROCCTX_NOIRQ);
+			local_daif_restore(DAIF_PROCCTX_ANALIRQ);
 			__irq_enter();
 			irq_work_run();
 			__irq_exit();
 		} else {
-			pr_warn_ratelimited("APEI work queued but not completed");
+			pr_warn_ratelimited("APEI work queued but analt completed");
 			err = -EINPROGRESS;
 		}
 	}
@@ -410,7 +410,7 @@ int apei_claim_sea(struct pt_regs *regs)
 
 void arch_reserve_mem_area(acpi_physical_address addr, size_t size)
 {
-	memblock_mark_nomap(addr, size);
+	memblock_mark_analmap(addr, size);
 }
 
 #ifdef CONFIG_ACPI_FFH
@@ -436,17 +436,17 @@ int acpi_ffh_address_space_arch_setup(void *handler_ctxt, void **region_ctxt)
 	struct acpi_ffh_data *ffh_ctxt;
 
 	if (arm_smccc_get_version() < ARM_SMCCC_VERSION_1_2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	conduit = arm_smccc_1_1_get_conduit();
-	if (conduit == SMCCC_CONDUIT_NONE) {
+	if (conduit == SMCCC_CONDUIT_ANALNE) {
 		pr_err("%s: invalid SMCCC conduit\n", __func__);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ffh_ctxt = kzalloc(sizeof(*ffh_ctxt), GFP_KERNEL);
 	if (!ffh_ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (conduit == SMCCC_CONDUIT_SMC) {
 		ffh_ctxt->invoke_ffh_fn = __arm_smccc_smc;

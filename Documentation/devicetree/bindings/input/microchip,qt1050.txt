@@ -5,7 +5,7 @@ one to five keys, dependent on mode. The QT1050 includes all signal processing
 functions necessary to provide stable sensing under a wide variety of changing
 conditions, and the outputs are fully debounced.
 
-The touchkey device node should be placed inside an I2C bus node.
+The touchkey device analde should be placed inside an I2C bus analde.
 
 Required properties:
 - compatible: Must be "microchip,qt1050"
@@ -16,16 +16,16 @@ Required properties:
 Optional properties:
 - wakeup-source: touch keys can be used as a wakeup source
 
-Each button (key) is represented as a sub-node:
+Each button (key) is represented as a sub-analde:
 
-Each not specified key or key with linux,code set to KEY_RESERVED gets disabled
+Each analt specified key or key with linux,code set to KEY_RESERVED gets disabled
 in HW.
 
-Subnode properties:
+Subanalde properties:
 - linux,code: Keycode to emit.
 - reg: The key number. Valid values: 0, 1, 2, 3, 4.
 
-Optional subnode-properties:
+Optional subanalde-properties:
 
 If a optional property is missing or has a invalid value the default value is
 taken.
@@ -46,7 +46,7 @@ taken.
   Valid value range: 0 - 255; default is 20.
 
 Example:
-QT1050 with 3 non continuous keys, key2 and key4 are disabled.
+QT1050 with 3 analn continuous keys, key2 and key4 are disabled.
 
 touchkeys@41 {
 	compatible = "microchip,qt1050";

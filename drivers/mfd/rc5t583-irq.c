@@ -322,7 +322,7 @@ int rc5t583_irq_init(struct rc5t583 *rc5t583, int irq, int irq_base)
 	int i, ret;
 
 	if (!irq_base) {
-		dev_warn(rc5t583->dev, "No interrupt support on IRQ base\n");
+		dev_warn(rc5t583->dev, "Anal interrupt support on IRQ base\n");
 		return -EINVAL;
 	}
 
@@ -371,7 +371,7 @@ int rc5t583_irq_init(struct rc5t583 *rc5t583, int irq, int irq_base)
 		irq_set_chip_and_handler(__irq, &rc5t583_irq_chip,
 					 handle_simple_irq);
 		irq_set_nested_thread(__irq, 1);
-		irq_clear_status_flags(__irq, IRQ_NOREQUEST);
+		irq_clear_status_flags(__irq, IRQ_ANALREQUEST);
 	}
 
 	ret = devm_request_threaded_irq(rc5t583->dev, irq, NULL, rc5t583_irq,

@@ -30,7 +30,7 @@ static const char *verstr = "20160209";
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mtio.h>
 #include <linux/major.h>
 #include <linux/cdrom.h>
@@ -59,13 +59,13 @@ static const char *verstr = "20160209";
 
 
 /* The driver prints some debugging information on the console if DEBUG
-   is defined and non-zero. */
+   is defined and analn-zero. */
 #define DEBUG 1
-#define NO_DEBUG 0
+#define ANAL_DEBUG 0
 
-#define ST_DEB_MSG  KERN_NOTICE
+#define ST_DEB_MSG  KERN_ANALTICE
 #if DEBUG
-/* The message level for the debug messages is currently set to KERN_NOTICE
+/* The message level for the debug messages is currently set to KERN_ANALTICE
    so that people can easily see the messages. Later when the debugging messages
    in the drivers are more widely classified, this may be changed to KERN_DEBUG. */
 #define DEB(a) a
@@ -145,7 +145,7 @@ static struct st_dev_parm {
 #if ST_NBR_MODES > 16
 #error "Maximum number of modes is 16"
 #endif
-/* Bit reversed order to get same names for same minors with all
+/* Bit reversed order to get same names for same mianalrs with all
    mode counts */
 static const char *st_formats[] = {
 	"",  "r", "k", "s", "l", "t", "o", "u",
@@ -158,7 +158,7 @@ static const char *st_formats[] = {
 /* The buffer size should fit into the 24 bits for length in the
    6-byte SCSI read and write commands. */
 #if ST_FIXED_BUFFER_SIZE >= (2 << 24 - 1)
-#error "Buffer size should not exceed (2 << 24 - 1) bytes!"
+#error "Buffer size should analt exceed (2 << 24 - 1) bytes!"
 #endif
 
 static int debugging = DEBUG;
@@ -166,18 +166,18 @@ static int debugging = DEBUG;
 #define MAX_RETRIES 0
 #define MAX_WRITE_RETRIES 0
 #define MAX_READY_RETRIES 0
-#define NO_TAPE  NOT_READY
+#define ANAL_TAPE  ANALT_READY
 
 #define ST_TIMEOUT (900 * HZ)
 #define ST_LONG_TIMEOUT (14000 * HZ)
 
 /* Remove mode bits and auto-rewind bit (7) */
-#define TAPE_NR(x) ( ((iminor(x) & ~255) >> (ST_NBR_MODE_BITS + 1)) | \
-	(iminor(x) & ((1 << ST_MODE_SHIFT)-1)))
-#define TAPE_MODE(x) ((iminor(x) & ST_MODE_MASK) >> ST_MODE_SHIFT)
+#define TAPE_NR(x) ( ((imianalr(x) & ~255) >> (ST_NBR_MODE_BITS + 1)) | \
+	(imianalr(x) & ((1 << ST_MODE_SHIFT)-1)))
+#define TAPE_MODE(x) ((imianalr(x) & ST_MODE_MASK) >> ST_MODE_SHIFT)
 
-/* Construct the minor number from the device (d), mode (m), and non-rewind (n) data */
-#define TAPE_MINOR(d, m, n) (((d & ~(255 >> (ST_NBR_MODE_BITS + 1))) << (ST_NBR_MODE_BITS + 1)) | \
+/* Construct the mianalr number from the device (d), mode (m), and analn-rewind (n) data */
+#define TAPE_MIANALR(d, m, n) (((d & ~(255 >> (ST_NBR_MODE_BITS + 1))) << (ST_NBR_MODE_BITS + 1)) | \
   (d & (255 >> (ST_NBR_MODE_BITS + 1))) | (m << ST_MODE_SHIFT) | ((n != 0) << 7) )
 
 /* Internal ioctl to set both density (uppermost 8 bits) and blocksize (lower
@@ -191,7 +191,7 @@ static int modes_defined;
 
 static int enlarge_buffer(struct st_buffer *, int);
 static void clear_buffer(struct st_buffer *);
-static void normalize_buffer(struct st_buffer *);
+static void analrmalize_buffer(struct st_buffer *);
 static int append_to_buffer(const char __user *, struct st_buffer *, int);
 static int from_buffer(struct st_buffer *, char __user *, int);
 static void move_buffer_data(struct st_buffer *, int);
@@ -283,7 +283,7 @@ struct st_reject_data {
 	char *vendor;
 	char *model;
 	char *rev;
-	char *driver_hint; /* Name of the correct driver, NULL if unknown */
+	char *driver_hint; /* Name of the correct driver, NULL if unkanalwn */
 };
 
 static struct st_reject_data reject_list[] = {
@@ -292,7 +292,7 @@ static struct st_reject_data reject_list[] = {
 	{NULL, }};
 
 /* If the device signature is on the list of incompatible drives, the
-   function returns a pointer to the name of the correct driver (if known) */
+   function returns a pointer to the name of the correct driver (if kanalwn) */
 static char * st_incompatible(struct scsi_device* SDp)
 {
 	struct st_reject_data *rp;
@@ -304,7 +304,7 @@ static char * st_incompatible(struct scsi_device* SDp)
 			if (rp->driver_hint)
 				return rp->driver_hint;
 			else
-				return "unknown";
+				return "unkanalwn";
 		}
 	return NULL;
 }
@@ -324,7 +324,7 @@ static void st_analyze_sense(struct st_request *SRpnt, struct st_cmdstatus *s)
 	const u8 *ucp;
 	const u8 *sense = SRpnt->sense;
 
-	s->have_sense = scsi_normalize_sense(SRpnt->sense,
+	s->have_sense = scsi_analrmalize_sense(SRpnt->sense,
 				SCSI_SENSE_BUFFERSIZE, &s->sense_hdr);
 	s->flags = 0;
 
@@ -383,13 +383,13 @@ static int st_chk_result(struct scsi_tape *STp, struct st_request * SRpnt)
 			__scsi_print_sense(STp->device, name,
 					   SRpnt->sense, SCSI_SENSE_BUFFERSIZE);
 	} ) /* end DEB */
-	if (!debugging) { /* Abnormal conditions for tape */
+	if (!debugging) { /* Abanalrmal conditions for tape */
 		if (!cmdstatp->have_sense)
 			st_printk(KERN_WARNING, STp,
 			       "Error %x (driver bt 0, host bt 0x%x).\n",
 			       result, host_byte(result));
 		else if (cmdstatp->have_sense &&
-			 scode != NO_SENSE &&
+			 scode != ANAL_SENSE &&
 			 scode != RECOVERED_ERROR &&
 			 /* scode != UNIT_ATTENTION && */
 			 scode != BLANK_CHECK &&
@@ -415,9 +415,9 @@ static int st_chk_result(struct scsi_tape *STp, struct st_request * SRpnt)
 	    cmdstatp->sense_hdr.asc == 0 && cmdstatp->sense_hdr.ascq == 0x17)
 		STp->cleaning_req = 1; /* ASC and ASCQ => cleaning requested */
 	if (cmdstatp->have_sense && scode == UNIT_ATTENTION && cmdstatp->sense_hdr.asc == 0x29)
-		STp->pos_unknown = 1; /* ASC => power on / reset */
+		STp->pos_unkanalwn = 1; /* ASC => power on / reset */
 
-	STp->pos_unknown |= STp->device->was_reset;
+	STp->pos_unkanalwn |= STp->device->was_reset;
 
 	if (cmdstatp->have_sense &&
 	    scode == RECOVERED_ERROR
@@ -475,13 +475,13 @@ static void st_release_request(struct st_request *streq)
 static void st_do_stats(struct scsi_tape *STp, struct request *req)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
-	ktime_t now;
+	ktime_t analw;
 
-	now = ktime_get();
+	analw = ktime_get();
 	if (scmd->cmnd[0] == WRITE_6) {
-		now = ktime_sub(now, STp->stats->write_time);
-		atomic64_add(ktime_to_ns(now), &STp->stats->tot_write_time);
-		atomic64_add(ktime_to_ns(now), &STp->stats->tot_io_time);
+		analw = ktime_sub(analw, STp->stats->write_time);
+		atomic64_add(ktime_to_ns(analw), &STp->stats->tot_write_time);
+		atomic64_add(ktime_to_ns(analw), &STp->stats->tot_io_time);
 		atomic64_inc(&STp->stats->write_cnt);
 		if (scmd->result) {
 			atomic64_add(atomic_read(&STp->stats->last_write_size)
@@ -493,9 +493,9 @@ static void st_do_stats(struct scsi_tape *STp, struct request *req)
 			atomic64_add(atomic_read(&STp->stats->last_write_size),
 				&STp->stats->write_byte_cnt);
 	} else if (scmd->cmnd[0] == READ_6) {
-		now = ktime_sub(now, STp->stats->read_time);
-		atomic64_add(ktime_to_ns(now), &STp->stats->tot_read_time);
-		atomic64_add(ktime_to_ns(now), &STp->stats->tot_io_time);
+		analw = ktime_sub(analw, STp->stats->read_time);
+		atomic64_add(ktime_to_ns(analw), &STp->stats->tot_read_time);
+		atomic64_add(ktime_to_ns(analw), &STp->stats->tot_io_time);
 		atomic64_inc(&STp->stats->read_cnt);
 		if (scmd->result) {
 			atomic64_add(atomic_read(&STp->stats->last_read_size)
@@ -507,8 +507,8 @@ static void st_do_stats(struct scsi_tape *STp, struct request *req)
 			atomic64_add(atomic_read(&STp->stats->last_read_size),
 				&STp->stats->read_byte_cnt);
 	} else {
-		now = ktime_sub(now, STp->stats->other_time);
-		atomic64_add(ktime_to_ns(now), &STp->stats->tot_io_time);
+		analw = ktime_sub(analw, STp->stats->other_time);
+		atomic64_add(ktime_to_ns(analw), &STp->stats->tot_io_time);
 		atomic64_inc(&STp->stats->other_cnt);
 	}
 	atomic64_dec(&STp->stats->in_flight);
@@ -535,7 +535,7 @@ static enum rq_end_io_ret st_scsi_execute_end(struct request *req,
 
 	blk_rq_unmap_user(tmp);
 	blk_mq_free_request(req);
-	return RQ_END_IO_NONE;
+	return RQ_END_IO_ANALNE;
 }
 
 static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
@@ -586,7 +586,7 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	req->end_io = st_scsi_execute_end;
 	req->end_io_data = SRpnt;
 
-	blk_execute_rq_nowait(req, true);
+	blk_execute_rq_analwait(req, true);
 	return 0;
 }
 
@@ -601,7 +601,7 @@ st_do_scsi(struct st_request * SRpnt, struct scsi_tape * STp, unsigned char *cmd
 	struct rq_map_data *mdata = &STp->buffer->map_data;
 	int ret;
 
-	/* if async, make sure there's no command outstanding */
+	/* if async, make sure there's anal command outstanding */
 	if (!do_wait && ((STp->buffer)->last_SRpnt)) {
 		st_printk(KERN_ERR, STp,
 			  "Async command already active.\n");
@@ -646,7 +646,7 @@ st_do_scsi(struct st_request * SRpnt, struct scsi_tape * STp, unsigned char *cmd
 	ret = st_scsi_execute(SRpnt, cmd, direction, NULL, bytes, timeout,
 			      retries);
 	if (ret) {
-		/* could not allocate the buffer or request was too large */
+		/* could analt allocate the buffer or request was too large */
 		(STp->buffer)->syscall_result = (-EBUSY);
 		(STp->buffer)->last_SRpnt = NULL;
 	} else if (do_wait) {
@@ -659,9 +659,9 @@ st_do_scsi(struct st_request * SRpnt, struct scsi_tape * STp, unsigned char *cmd
 }
 
 
-/* Handle the write-behind checking (waits for completion). Returns -ENOSPC if
+/* Handle the write-behind checking (waits for completion). Returns -EANALSPC if
    write has been correct but EOM early warning reached, -EIO if write ended in
-   error or zero if write successful. Asynchronous writes are used only in
+   error or zero if write successful. Asynchroanalus writes are used only in
    variable block mode. */
 static int write_behind_check(struct scsi_tape * STp)
 {
@@ -704,12 +704,12 @@ static int write_behind_check(struct scsi_tape * STp)
 		retval = -EIO;
 		if (cmdstatp->have_sense && !cmdstatp->deferred &&
 		    (cmdstatp->flags & SENSE_EOM) &&
-		    (cmdstatp->sense_hdr.sense_key == NO_SENSE ||
+		    (cmdstatp->sense_hdr.sense_key == ANAL_SENSE ||
 		     cmdstatp->sense_hdr.sense_key == RECOVERED_ERROR)) {
 			/* EOM at write-behind, has all data been written? */
 			if (!cmdstatp->remainder_valid ||
 			    cmdstatp->uremainder64 == 0)
-				retval = -ENOSPC;
+				retval = -EANALSPC;
 		}
 		if (retval == -EIO)
 			STps->drv_block = -1;
@@ -725,7 +725,7 @@ static int write_behind_check(struct scsi_tape * STp)
 }
 
 
-/* Step over EOF if it has been inadvertently crossed (ioctl not used because
+/* Step over EOF if it has been inadvertently crossed (ioctl analt used because
    it messes up the block number). */
 static int cross_eof(struct scsi_tape * STp, int forward)
 {
@@ -744,7 +744,7 @@ static int cross_eof(struct scsi_tape * STp, int forward)
 	DEBC_printk(STp, "Stepping over filemark %s.\n",
 		    forward ? "forward" : "backward");
 
-	SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_NONE,
+	SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_ANALNE,
 			   STp->device->request_queue->rq_timeout,
 			   MAX_RETRIES, 1);
 	if (!SRpnt)
@@ -801,7 +801,7 @@ static int st_flush_write_buffer(struct scsi_tape * STp)
 
 			if (cmdstatp->have_sense && !cmdstatp->deferred &&
 			    (cmdstatp->flags & SENSE_EOM) &&
-			    (cmdstatp->sense_hdr.sense_key == NO_SENSE ||
+			    (cmdstatp->sense_hdr.sense_key == ANAL_SENSE ||
 			     cmdstatp->sense_hdr.sense_key == RECOVERED_ERROR) &&
 			    (!cmdstatp->remainder_valid ||
 			     cmdstatp->uremainder64 == 0)) { /* All written at EOM early warning */
@@ -809,7 +809,7 @@ static int st_flush_write_buffer(struct scsi_tape * STp)
 				(STp->buffer)->buffer_bytes = 0;
 				if (STps->drv_block >= 0)
 					STps->drv_block += blks;
-				result = (-ENOSPC);
+				result = (-EANALSPC);
 			} else {
 				st_printk(KERN_ERR, STp, "Error on flush.\n");
 				STps->drv_block = (-1);
@@ -839,7 +839,7 @@ static int flush_buffer(struct scsi_tape *STp, int seek_next)
 	 * If there was a bus reset, block further access
 	 * to this device.
 	 */
-	if (STp->pos_unknown)
+	if (STp->pos_unkanalwn)
 		return (-EIO);
 
 	if (STp->ready != ST_READY)
@@ -862,7 +862,7 @@ static int flush_buffer(struct scsi_tape *STp, int seek_next)
 		if (STps->eof == ST_FM_HIT) {
 			result = cross_eof(STp, 0);	/* Back over the EOF hit */
 			if (!result)
-				STps->eof = ST_NOEOF;
+				STps->eof = ST_ANALEOF;
 			else {
 				if (STps->drv_file >= 0)
 					STps->drv_file++;
@@ -875,7 +875,7 @@ static int flush_buffer(struct scsi_tape *STp, int seek_next)
 		if (STps->drv_file >= 0)
 			STps->drv_file++;
 		STps->drv_block = 0;
-		STps->eof = ST_NOEOF;
+		STps->eof = ST_ANALEOF;
 	}
 	return result;
 
@@ -938,11 +938,11 @@ static void reset_state(struct scsi_tape *STp)
 	int i;
 	struct st_partstat *STps;
 
-	STp->pos_unknown = 0;
+	STp->pos_unkanalwn = 0;
 	for (i = 0; i < ST_NBR_PARTITIONS; i++) {
 		STps = &(STp->ps[i]);
 		STps->rw = ST_IDLE;
-		STps->eof = ST_NOEOF;
+		STps->eof = ST_ANALEOF;
 		STps->at_sm = 0;
 		STps->last_block_valid = 0;
 		STps->drv_block = -1;
@@ -960,8 +960,8 @@ static void reset_state(struct scsi_tape *STp)
    error code. */
 #define CHKRES_READY       0
 #define CHKRES_NEW_SESSION 1
-#define CHKRES_NOT_READY   2
-#define CHKRES_NO_TAPE     3
+#define CHKRES_ANALT_READY   2
+#define CHKRES_ANAL_TAPE     3
 
 #define MAX_ATTENTIONS    10
 
@@ -978,7 +978,7 @@ static int test_ready(struct scsi_tape *STp, int do_wait)
 	for (attentions=waits=0; ; ) {
 		memset((void *) &cmd[0], 0, MAX_COMMAND_SIZE);
 		cmd[0] = TEST_UNIT_READY;
-		SRpnt = st_do_scsi(SRpnt, STp, cmd, 0, DMA_NONE,
+		SRpnt = st_do_scsi(SRpnt, STp, cmd, 0, DMA_ANALNE,
 				   STp->long_timeout, MAX_READY_RETRIES, 1);
 
 		if (!SRpnt) {
@@ -1002,7 +1002,7 @@ static int test_ready(struct scsi_tape *STp, int do_wait)
 				}
 			}
 
-			if (scode == NOT_READY) {
+			if (scode == ANALT_READY) {
 				if (waits < max_wait) {
 					if (msleep_interruptible(1000)) {
 						retval = (-EINTR);
@@ -1014,9 +1014,9 @@ static int test_ready(struct scsi_tape *STp, int do_wait)
 				else {
 					if ((STp->device)->scsi_level >= SCSI_2 &&
 					    cmdstatp->sense_hdr.asc == 0x3a)	/* Check ASC */
-						retval = CHKRES_NO_TAPE;
+						retval = CHKRES_ANAL_TAPE;
 					else
-						retval = CHKRES_NOT_READY;
+						retval = CHKRES_ANALT_READY;
 					break;
 				}
 			}
@@ -1035,9 +1035,9 @@ static int test_ready(struct scsi_tape *STp, int do_wait)
 
 
 /* See if the drive is ready and gather information about the tape. Return values:
-   < 0   negative error code from errno.h
+   < 0   negative error code from erranal.h
    0     drive ready
-   1     drive not ready (possibly no tape)
+   1     drive analt ready (possibly anal tape)
 */
 static int check_tape(struct scsi_tape *STp, struct file *filp)
 {
@@ -1047,8 +1047,8 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 	struct st_request *SRpnt = NULL;
 	struct st_modedef *STm;
 	struct st_partstat *STps;
-	struct inode *inode = file_inode(filp);
-	int mode = TAPE_MODE(inode);
+	struct ianalde *ianalde = file_ianalde(filp);
+	int mode = TAPE_MODE(ianalde);
 
 	STp->ready = ST_READY;
 
@@ -1063,14 +1063,14 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 	saved_cleaning = STp->cleaning_req;
 	STp->cleaning_req = 0;
 
-	do_wait = ((filp->f_flags & O_NONBLOCK) == 0);
+	do_wait = ((filp->f_flags & O_ANALNBLOCK) == 0);
 	retval = test_ready(STp, do_wait);
 
 	if (retval < 0)
 	    goto err_out;
 
 	if (retval == CHKRES_NEW_SESSION) {
-		STp->pos_unknown = 0;
+		STp->pos_unkanalwn = 0;
 		STp->partition = STp->new_partition = 0;
 		if (STp->can_partitions)
 			STp->nbr_partitions = 1; /* This guess will be updated later
@@ -1078,7 +1078,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 		for (i = 0; i < ST_NBR_PARTITIONS; i++) {
 			STps = &(STp->ps[i]);
 			STps->rw = ST_IDLE;
-			STps->eof = ST_NOEOF;
+			STps->eof = ST_ANALEOF;
 			STps->at_sm = 0;
 			STps->last_block_valid = 0;
 			STps->drv_block = 0;
@@ -1089,11 +1089,11 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 	else {
 		STp->cleaning_req |= saved_cleaning;
 
-		if (retval == CHKRES_NOT_READY || retval == CHKRES_NO_TAPE) {
-			if (retval == CHKRES_NO_TAPE)
-				STp->ready = ST_NO_TAPE;
+		if (retval == CHKRES_ANALT_READY || retval == CHKRES_ANAL_TAPE) {
+			if (retval == CHKRES_ANAL_TAPE)
+				STp->ready = ST_ANAL_TAPE;
 			else
-				STp->ready = ST_NOT_READY;
+				STp->ready = ST_ANALT_READY;
 
 			STp->density = 0;	/* Clear the erroneous "residue" */
 			STp->write_prot = 0;
@@ -1101,7 +1101,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 			STp->ps[0].drv_file = STp->ps[0].drv_block = (-1);
 			STp->partition = STp->new_partition = 0;
 			STp->door_locked = ST_UNLOCKED;
-			return CHKRES_NOT_READY;
+			return CHKRES_ANALT_READY;
 		}
 	}
 
@@ -1147,7 +1147,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 	}
 
 	if ((STp->buffer)->syscall_result != 0) {
-		DEBC_printk(STp, "No Mode Sense.\n");
+		DEBC_printk(STp, "Anal Mode Sense.\n");
 		STp->block_size = ST_DEFAULT_BLOCK;	/* Educated guess (?) */
 		(STp->buffer)->syscall_result = 0;	/* Prevent error propagation */
 		STp->drv_write_prot = 0;
@@ -1175,7 +1175,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 		STp->drv_write_prot = ((STp->buffer)->b_data[2] & 0x80) != 0;
 		if (!STp->drv_buffer && STp->immediate_filemark) {
 			st_printk(KERN_WARNING, STp,
-				  "non-buffered tape: disabling "
+				  "analn-buffered tape: disabling "
 				  "writing immediate filemarks\n");
 			STp->immediate_filemark = 0;
 		}
@@ -1246,16 +1246,16 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 
 /* Open the device. Needs to take the BKL only because of incrementing the SCSI host
    module count. */
-static int st_open(struct inode *inode, struct file *filp)
+static int st_open(struct ianalde *ianalde, struct file *filp)
 {
 	int i, retval = (-EIO);
 	int resumed = 0;
 	struct scsi_tape *STp;
 	struct st_partstat *STps;
-	int dev = TAPE_NR(inode);
+	int dev = TAPE_NR(ianalde);
 
 	/*
-	 * We really want to do nonseekable_open(inode, filp); here, but some
+	 * We really want to do analnseekable_open(ianalde, filp); here, but some
 	 * versions of tar incorrectly call lseek on tapes and bail out if that
 	 * fails.  So we disallow pread() and pwrite(), but permit lseeks.
 	 */
@@ -1277,7 +1277,7 @@ static int st_open(struct inode *inode, struct file *filp)
 
 	STp->in_use = 1;
 	spin_unlock(&st_use_lock);
-	STp->rew_at_close = STp->autorew_dev = (iminor(inode) & 0x80) == 0;
+	STp->rew_at_close = STp->autorew_dev = (imianalr(ianalde) & 0x80) == 0;
 
 	if (scsi_autopm_get_device(STp->device) < 0) {
 		retval = -EIO;
@@ -1308,7 +1308,7 @@ static int st_open(struct inode *inode, struct file *filp)
 		STps = &(STp->ps[i]);
 		STps->rw = ST_IDLE;
 	}
-	STp->try_dio_now = STp->try_dio;
+	STp->try_dio_analw = STp->try_dio;
 	STp->recover_count = 0;
 	DEB( STp->nbr_waits = STp->nbr_finished = 0;
 	     STp->nbr_requests = STp->nbr_dio = STp->nbr_pages = 0; )
@@ -1316,10 +1316,10 @@ static int st_open(struct inode *inode, struct file *filp)
 	retval = check_tape(STp, filp);
 	if (retval < 0)
 		goto err_out;
-	if ((filp->f_flags & O_NONBLOCK) == 0 &&
+	if ((filp->f_flags & O_ANALNBLOCK) == 0 &&
 	    retval != CHKRES_READY) {
-		if (STp->ready == NO_TAPE)
-			retval = (-ENOMEDIUM);
+		if (STp->ready == ANAL_TAPE)
+			retval = (-EANALMEDIUM);
 		else
 			retval = (-EIO);
 		goto err_out;
@@ -1327,7 +1327,7 @@ static int st_open(struct inode *inode, struct file *filp)
 	return 0;
 
  err_out:
-	normalize_buffer(STp->buffer);
+	analrmalize_buffer(STp->buffer);
 	spin_lock(&st_use_lock);
 	STp->in_use = 0;
 	spin_unlock(&st_use_lock);
@@ -1352,9 +1352,9 @@ static int st_flush(struct file *filp, fl_owner_t id)
 	if (file_count(filp) > 1)
 		return 0;
 
-	if (STps->rw == ST_WRITING && !STp->pos_unknown) {
+	if (STps->rw == ST_WRITING && !STp->pos_unkanalwn) {
 		result = st_flush_write_buffer(STp);
-		if (result != 0 && result != (-ENOSPC))
+		if (result != 0 && result != (-EANALSPC))
 			goto out;
 	}
 
@@ -1372,7 +1372,7 @@ static int st_flush(struct file *filp, fl_owner_t id)
 			  "pages %d.\n", STp->nbr_requests, STp->nbr_dio,
 			  STp->nbr_pages));
 
-	if (STps->rw == ST_WRITING && !STp->pos_unknown) {
+	if (STps->rw == ST_WRITING && !STp->pos_unkanalwn) {
 		struct st_cmdstatus *cmdstatp = &STp->buffer->cmdstat;
 
 #if DEBUG
@@ -1385,7 +1385,7 @@ static int st_flush(struct file *filp, fl_owner_t id)
 			cmd[1] = 1;
 		cmd[4] = 1 + STp->two_fm;
 
-		SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_NONE,
+		SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_ANALNE,
 				   STp->device->request_queue->rq_timeout,
 				   MAX_WRITE_RETRIES, 1);
 		if (!SRpnt) {
@@ -1396,7 +1396,7 @@ static int st_flush(struct file *filp, fl_owner_t id)
 		if (STp->buffer->syscall_result == 0 ||
 		    (cmdstatp->have_sense && !cmdstatp->deferred &&
 		     (cmdstatp->flags & SENSE_EOM) &&
-		     (cmdstatp->sense_hdr.sense_key == NO_SENSE ||
+		     (cmdstatp->sense_hdr.sense_key == ANAL_SENSE ||
 		      cmdstatp->sense_hdr.sense_key == RECOVERED_ERROR) &&
 		     (!cmdstatp->remainder_valid || cmdstatp->uremainder64 == 0))) {
 			/* Write successful at EOM */
@@ -1432,9 +1432,9 @@ static int st_flush(struct file *filp, fl_owner_t id)
 					STps->drv_block = 0;
 					STps->eof = ST_FM;
 				} else
-					STps->eof = ST_NOEOF;
+					STps->eof = ST_ANALEOF;
 			}
-		} else if ((STps->eof == ST_NOEOF &&
+		} else if ((STps->eof == ST_ANALEOF &&
 			    !(result = cross_eof(STp, 1))) ||
 			   STps->eof == ST_FM_HIT) {
 			if (STps->drv_file >= 0)
@@ -1454,16 +1454,16 @@ static int st_flush(struct file *filp, fl_owner_t id)
 }
 
 
-/* Close the device and release it. BKL is not needed: this is the only thread
+/* Close the device and release it. BKL is analt needed: this is the only thread
    accessing this tape. */
-static int st_release(struct inode *inode, struct file *filp)
+static int st_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct scsi_tape *STp = filp->private_data;
 
 	if (STp->door_locked == ST_LOCKED_AUTO)
 		do_door_lock(STp, 0);
 
-	normalize_buffer(STp->buffer);
+	analrmalize_buffer(STp->buffer);
 	spin_lock(&st_use_lock);
 	STp->in_use = 0;
 	spin_unlock(&st_use_lock);
@@ -1490,8 +1490,8 @@ static ssize_t rw_checks(struct scsi_tape *STp, struct file *filp, size_t count)
 	}
 
 	if (STp->ready != ST_READY) {
-		if (STp->ready == ST_NO_TAPE)
-			retval = (-ENOMEDIUM);
+		if (STp->ready == ST_ANAL_TAPE)
+			retval = (-EANALMEDIUM);
 		else
 			retval = (-EIO);
 		goto out;
@@ -1507,7 +1507,7 @@ static ssize_t rw_checks(struct scsi_tape *STp, struct file *filp, size_t count)
 	 * If there was a bus reset, block further access
 	 * to this device.
 	 */
-	if (STp->pos_unknown) {
+	if (STp->pos_unkanalwn) {
 		retval = (-EIO);
 		goto out;
 	}
@@ -1549,9 +1549,9 @@ static int setup_buffering(struct scsi_tape *STp, const char __user *buf,
 	struct st_buffer *STbp = STp->buffer;
 
 	if (is_read)
-		i = STp->try_dio_now && try_rdio;
+		i = STp->try_dio_analw && try_rdio;
 	else
-		i = STp->try_dio_now && try_wdio;
+		i = STp->try_dio_analw && try_wdio;
 
 	if (i && ((unsigned long)buf & queue_dma_alignment(
 					STp->device->request_queue)) == 0) {
@@ -1580,8 +1580,8 @@ static int setup_buffering(struct scsi_tape *STp, const char __user *buf,
 				STp->block_size : st_fixed_buffer_size;
 		else {
 			bufsize = count;
-			/* Make sure that data from previous user is not leaked even if
-			   HBA does not return correct residual */
+			/* Make sure that data from previous user is analt leaked even if
+			   HBA does analt return correct residual */
 			if (is_read && STp->sili && !STbp->cleared)
 				clear_buffer(STbp);
 		}
@@ -1644,7 +1644,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	/* Write must be integral number of blocks */
 	if (STp->block_size != 0 && (count % STp->block_size) != 0) {
 		st_printk(KERN_WARNING, STp,
-			  "Write not multiple of tape block size.\n");
+			  "Write analt multiple of tape block size.\n");
 		retval = (-EINVAL);
 		goto out;
 	}
@@ -1669,7 +1669,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 			goto out;
 		if (STm->default_compression != ST_DONT_TOUCH &&
 		    !(STp->compression_changed)) {
-			if (st_compression(STp, (STm->default_compression == ST_YES))) {
+			if (st_compression(STp, (STm->default_compression == ST_ANAL))) {
 				st_printk(KERN_WARNING, STp,
 					  "Can't set default compression.\n");
 				if (modes_defined) {
@@ -1683,7 +1683,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	STbp = STp->buffer;
 	i = write_behind_check(STp);
 	if (i) {
-		if (i == -ENOSPC)
+		if (i == -EANALSPC)
 			STps->eof = ST_EOM_OK;
 		else
 			STps->eof = ST_EOM_ERROR;
@@ -1691,7 +1691,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 
 	if (STps->eof == ST_EOM_OK) {
 		STps->eof = ST_EOD_1;  /* allow next write */
-		retval = (-ENOSPC);
+		retval = (-EANALSPC);
 		goto out;
 	}
 	else if (STps->eof == ST_EOM_ERROR) {
@@ -1750,10 +1750,10 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 			STm->do_async_writes && STps->eof < ST_EOM_OK;
 
 		if (STp->block_size != 0 && STm->do_buffer_writes &&
-		    !(STp->try_dio_now && try_wdio) && STps->eof < ST_EOM_OK &&
+		    !(STp->try_dio_analw && try_wdio) && STps->eof < ST_EOM_OK &&
 		    STbp->buffer_bytes < STbp->buffer_size) {
 			STp->dirty = 1;
-			/* Don't write a buffer that is not full enough. */
+			/* Don't write a buffer that is analt full eanalugh. */
 			if (!async_write && count == 0)
 				break;
 		}
@@ -1805,7 +1805,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 				if (STp->block_size != 0)
 					undone *= STp->block_size;
 				if (undone <= do_count) {
-					/* Only data from this write is not written */
+					/* Only data from this write is analt written */
 					count += undone;
 					b_point -= undone;
 					do_count -= undone;
@@ -1818,7 +1818,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 					*/
 					if (STp->block_size == 0 ||
 					    undone > 0 || count == 0)
-						retval = (-ENOSPC); /* EOM within current request */
+						retval = (-EANALSPC); /* EOM within current request */
 					DEBC_printk(STp, "EOM with %d "
 						    "bytes unwritten.\n",
 						    (int)count);
@@ -1826,7 +1826,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 					/* EOT within data buffered earlier (possible only
 					   in fixed block mode without direct i/o) */
 					if (!retry_eot && !cmdstatp->deferred &&
-					    (scode == NO_SENSE || scode == RECOVERED_ERROR)) {
+					    (scode == ANAL_SENSE || scode == RECOVERED_ERROR)) {
 						move_buffer_data(STp->buffer, transfer - undone);
 						retry_eot = 1;
 						if (STps->drv_block >= 0) {
@@ -1880,7 +1880,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	if (STps->eof == ST_EOD_1)
 		STps->eof = ST_EOM_OK;
 	else if (STps->eof != ST_EOM_OK)
-		STps->eof = ST_NOEOF;
+		STps->eof = ST_ANALEOF;
 	retval = total - count;
 
  out:
@@ -1892,7 +1892,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	return retval;
 }
 
-/* Read data from the tape. Returns zero in the normal case, one if the
+/* Read data from the tape. Returns zero in the analrmal case, one if the
    eof status has changed, and the negative error code in case of a
    fatal error. Otherwise updates the buffer and the eof state.
 
@@ -1921,7 +1921,7 @@ static long read_tape(struct scsi_tape *STp, long count,
 	if (STp->block_size == 0)
 		blks = bytes = count;
 	else {
-		if (!(STp->try_dio_now && try_rdio) && STm->do_read_ahead) {
+		if (!(STp->try_dio_analw && try_rdio) && STm->do_read_ahead) {
 			blks = (STp->buffer)->buffer_blocks;
 			bytes = blks * STp->block_size;
 		} else {
@@ -1968,7 +1968,7 @@ static long read_tape(struct scsi_tape *STp, long count,
 		if (cmdstatp->have_sense) {
 
 			if (cmdstatp->sense_hdr.sense_key == BLANK_CHECK)
-				cmdstatp->flags &= 0xcf;	/* No need for EOM in this case */
+				cmdstatp->flags &= 0xcf;	/* Anal need for EOM in this case */
 
 			if (cmdstatp->flags != 0) { /* EOF, EOM, or ILI */
 				/* Compute the residual count */
@@ -1986,7 +1986,7 @@ static long read_tape(struct scsi_tape *STp, long count,
 				if (cmdstatp->flags & SENSE_ILI) {	/* ILI */
 					if (STp->block_size == 0 &&
 					    transfer < 0) {
-						st_printk(KERN_NOTICE, STp,
+						st_printk(KERN_ANALTICE, STp,
 							  "Failed to read %d "
 							  "byte block with %d "
 							  "byte transfer.\n",
@@ -1995,14 +1995,14 @@ static long read_tape(struct scsi_tape *STp, long count,
 						if (STps->drv_block >= 0)
 							STps->drv_block += 1;
 						STbp->buffer_bytes = 0;
-						return (-ENOMEM);
+						return (-EANALMEM);
 					} else if (STp->block_size == 0) {
 						STbp->buffer_bytes = bytes - transfer;
 					} else {
 						st_release_request(SRpnt);
 						SRpnt = *aSRpnt = NULL;
-						if (transfer == blks) {	/* We did not get anything, error */
-							st_printk(KERN_NOTICE, STp,
+						if (transfer == blks) {	/* We did analt get anything, error */
+							st_printk(KERN_ANALTICE, STp,
 								  "Incorrect "
 								  "block size.\n");
 							if (STps->drv_block >= 0)
@@ -2014,7 +2014,7 @@ static long read_tape(struct scsi_tape *STp, long count,
 						STbp->buffer_bytes = (blks - transfer) *
 						    STp->block_size;
 						DEBC_printk(STp, "ILI but "
-							    "enough data "
+							    "eanalugh data "
 							    "received %ld "
 							    "%d.\n", count,
 							    STbp->buffer_bytes);
@@ -2053,7 +2053,7 @@ static long read_tape(struct scsi_tape *STp, long count,
 				}
 			}
 			/* end of EOF, EOM, ILI test */
-			else {	/* nonzero sense key */
+			else {	/* analnzero sense key */
 				DEBC_printk(STp, "Tape error while reading.\n");
 				STps->drv_block = (-1);
 				if (STps->eof == ST_FM &&
@@ -2070,7 +2070,7 @@ static long read_tape(struct scsi_tape *STp, long count,
 				STbp->buffer_bytes = 0;
 		}
 		/* End of extended sense test */
-		else {		/* Non-extended sense */
+		else {		/* Analn-extended sense */
 			retval = STbp->syscall_result;
 		}
 
@@ -2119,7 +2119,7 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 			retval = (-EINVAL);	/* Read must be integral number of blocks */
 			goto out;
 		}
-		STp->try_dio_now = 0;  /* Direct i/o can't handle split blocks */
+		STp->try_dio_analw = 0;  /* Direct i/o can't handle split blocks */
 	}
 
 	STps = &(STp->ps[STp->partition]);
@@ -2130,7 +2130,7 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 		STps->rw = ST_READING;
 	}
 	DEB(
-	if (debugging && STps->eof != ST_NOEOF)
+	if (debugging && STps->eof != ST_ANALEOF)
 		st_printk(ST_DEB_MSG, STp,
 			  "EOF/EOM flag up (%d). Bytes %d\n",
 			  STps->eof, STbp->buffer_bytes);
@@ -2167,13 +2167,13 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 	STps->rw = ST_READING;
 
 
-	/* Loop until enough data in buffer or a special condition found */
+	/* Loop until eanalugh data in buffer or a special condition found */
 	for (total = 0, special = 0; total < count && !special;) {
 
 		/* Get new data if the buffer is empty */
 		if (STbp->buffer_bytes == 0) {
 			special = read_tape(STp, count - total, &SRpnt);
-			if (special < 0) {	/* No need to continue read */
+			if (special < 0) {	/* Anal need to continue read */
 				retval = special;
 				goto out;
 			}
@@ -2182,7 +2182,7 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 		/* Move the data from driver buffer to user buffer */
 		if (STbp->buffer_bytes > 0) {
 			DEB(
-			if (debugging && STps->eof != ST_NOEOF)
+			if (debugging && STps->eof != ST_ANALEOF)
 				st_printk(ST_DEB_MSG, STp,
 					  "EOF up (%d). Left %d, needed %d.\n",
 					  STps->eof, STbp->buffer_bytes,
@@ -2207,7 +2207,7 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 	}			/* for (total = 0, special = 0;
                                    total < count && !special; ) */
 
-	/* Change the eof state if no data from tape or buffer */
+	/* Change the eof state if anal data from tape or buffer */
 	if (total == 0) {
 		if (STps->eof == ST_FM_HIT) {
 			STps->eof = ST_FM;
@@ -2222,7 +2222,7 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 		} else if (STps->eof == ST_EOD_2)
 			STps->eof = ST_EOD;
 	} else if (STps->eof == ST_FM)
-		STps->eof = ST_NOEOF;
+		STps->eof = ST_ANALEOF;
 	retval = total;
 
  out:
@@ -2257,13 +2257,13 @@ static void st_log_options(struct scsi_tape * STp, struct st_modedef * STm)
 			  STp->can_bsr, STp->two_fm, STp->fast_mteom,
 			  STp->do_auto_lock);
 		st_printk(KERN_INFO, STp,
-			  "    defs for wr: %d, no block limits: %d, "
+			  "    defs for wr: %d, anal block limits: %d, "
 			  "partitions: %d, s2 log: %d\n",
 			  STm->defaults_for_writes, STp->omit_blklims,
 			  STp->can_partitions, STp->scsi2_logical);
 		st_printk(KERN_INFO, STp,
-			  "    sysv: %d nowait: %d sili: %d "
-			  "nowait_filemark: %d\n",
+			  "    sysv: %d analwait: %d sili: %d "
+			  "analwait_filemark: %d\n",
 			  STm->sysv, STp->immediate, STp->sili,
 			  STp->immediate_filemark);
 		st_printk(KERN_INFO, STp, "    debugging: %d\n", debugging);
@@ -2306,12 +2306,12 @@ static int st_set_options(struct scsi_tape *STp, long options)
 		STp->fast_mteom = (options & MT_ST_FAST_MTEOM) != 0;
 		STp->do_auto_lock = (options & MT_ST_AUTO_LOCK) != 0;
 		STp->can_bsr = (options & MT_ST_CAN_BSR) != 0;
-		STp->omit_blklims = (options & MT_ST_NO_BLKLIMS) != 0;
+		STp->omit_blklims = (options & MT_ST_ANAL_BLKLIMS) != 0;
 		if ((STp->device)->scsi_level >= SCSI_2)
 			STp->can_partitions = (options & MT_ST_CAN_PARTITIONS) != 0;
 		STp->scsi2_logical = (options & MT_ST_SCSI2LOGICAL) != 0;
-		STp->immediate = (options & MT_ST_NOWAIT) != 0;
-		STp->immediate_filemark = (options & MT_ST_NOWAIT_EOF) != 0;
+		STp->immediate = (options & MT_ST_ANALWAIT) != 0;
+		STp->immediate_filemark = (options & MT_ST_ANALWAIT_EOF) != 0;
 		STm->sysv = (options & MT_ST_SYSV) != 0;
 		STp->sili = (options & MT_ST_SILI) != 0;
 		DEB( debugging = (options & MT_ST_DEBUGGING) != 0;
@@ -2334,16 +2334,16 @@ static int st_set_options(struct scsi_tape *STp, long options)
 			STp->do_auto_lock = value;
 		if ((options & MT_ST_CAN_BSR) != 0)
 			STp->can_bsr = value;
-		if ((options & MT_ST_NO_BLKLIMS) != 0)
+		if ((options & MT_ST_ANAL_BLKLIMS) != 0)
 			STp->omit_blklims = value;
 		if ((STp->device)->scsi_level >= SCSI_2 &&
 		    (options & MT_ST_CAN_PARTITIONS) != 0)
 			STp->can_partitions = value;
 		if ((options & MT_ST_SCSI2LOGICAL) != 0)
 			STp->scsi2_logical = value;
-		if ((options & MT_ST_NOWAIT) != 0)
+		if ((options & MT_ST_ANALWAIT) != 0)
 			STp->immediate = value;
-		if ((options & MT_ST_NOWAIT_EOF) != 0)
+		if ((options & MT_ST_ANALWAIT_EOF) != 0)
 			STp->immediate_filemark = value;
 		if ((options & MT_ST_SYSV) != 0)
 			STm->sysv = value;
@@ -2378,7 +2378,7 @@ static int st_set_options(struct scsi_tape *STp, long options)
 		} else {
 			blk_queue_rq_timeout(STp->device->request_queue,
 					     value * HZ);
-			DEBC_printk(STp, "Normal timeout set to %d seconds.\n",
+			DEBC_printk(STp, "Analrmal timeout set to %d seconds.\n",
 				    value);
 		}
 	} else if (code == MT_ST_SET_CLN) {
@@ -2436,13 +2436,13 @@ static int st_set_options(struct scsi_tape *STp, long options)
 						    STp->c_algo);
 				}
 				if ((value & 0xff) != 0xff) {
-					STm->default_compression = (value & 1 ? ST_YES : ST_NO);
+					STm->default_compression = (value & 1 ? ST_ANAL : ST_ANAL);
 					DEBC_printk(STp, "Compression default "
 						    "set to %x\n",
 						    (value & 1));
 					if (STp->ready == ST_READY) {
 						STp->compression_changed = 0;
-						st_compression(STp, (STm->default_compression == ST_YES));
+						st_compression(STp, (STm->default_compression == ST_ANAL));
 					}
 				}
 			}
@@ -2499,7 +2499,7 @@ static int read_mode_page(struct scsi_tape *STp, int page, int omit_block_descs)
 
 
 /* Send the mode page in the tape buffer to the drive. Assumes that the mode data
-   in the buffer is correctly formatted. The long timeout is used if slow is non-zero. */
+   in the buffer is correctly formatted. The long timeout is used if slow is analn-zero. */
 static int write_mode_page(struct scsi_tape *STp, int page, int slow)
 {
 	int pgo;
@@ -2543,11 +2543,11 @@ static int write_mode_page(struct scsi_tape *STp, int page, int slow)
 #define RED_MASK  0x60
 
 
-/* Control the compression with mode page 15. Algorithm not changed if zero.
+/* Control the compression with mode page 15. Algorithm analt changed if zero.
 
-   The block descriptors are read and written because Sony SDT-7000 does not
+   The block descriptors are read and written because Sony SDT-7000 does analt
    work without this (suggestion from Michael Schaefer <Michael.Schaefer@dlr.de>).
-   Including block descriptors should not cause any harm to other drives. */
+   Including block descriptors should analt cause any harm to other drives. */
 
 static int st_compression(struct scsi_tape * STp, int state)
 {
@@ -2561,7 +2561,7 @@ static int st_compression(struct scsi_tape * STp, int state)
 	/* Read the current page contents */
 	retval = read_mode_page(STp, COMPRESSION_PAGE, 0);
 	if (retval) {
-		DEBC_printk(STp, "Compression mode page not supported.\n");
+		DEBC_printk(STp, "Compression mode page analt supported.\n");
 		return (-EIO);
 	}
 
@@ -2571,7 +2571,7 @@ static int st_compression(struct scsi_tape * STp, int state)
 
 	/* Check if compression can be changed */
 	if ((b_data[mpoffs + CP_OFF_DCE_DCC] & DCC_MASK) == 0) {
-		DEBC_printk(STp, "Compression not supported.\n");
+		DEBC_printk(STp, "Compression analt supported.\n");
 		return (-EIO);
 	}
 
@@ -2584,7 +2584,7 @@ static int st_compression(struct scsi_tape * STp, int state)
 	else {
 		b_data[mpoffs + CP_OFF_DCE_DCC] &= ~DCE_MASK;
 		if (STp->c_algo != 0)
-			b_data[mpoffs + CP_OFF_C_ALGO] = 0; /* no compression */
+			b_data[mpoffs + CP_OFF_C_ALGO] = 0; /* anal compression */
 	}
 
 	retval = write_mode_page(STp, COMPRESSION_PAGE, 0);
@@ -2608,8 +2608,8 @@ static int do_load_unload(struct scsi_tape *STp, struct file *filp, int load_cod
 	struct st_request *SRpnt;
 
 	if (STp->ready != ST_READY && !load_code) {
-		if (STp->ready == ST_NO_TAPE)
-			return (-ENOMEDIUM);
+		if (STp->ready == ST_ANAL_TAPE)
+			return (-EANALMEDIUM);
 		else
 			return (-EIO);
 	}
@@ -2642,7 +2642,7 @@ static int do_load_unload(struct scsi_tape *STp, struct file *filp, int load_cod
 			st_printk(ST_DEB_MSG, STp, "Loading tape.\n");
 		);
 
-	SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_NONE,
+	SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_ANALNE,
 			   timeout, MAX_RETRIES, 1);
 	if (!SRpnt)
 		return (STp->buffer)->syscall_result;
@@ -2654,7 +2654,7 @@ static int do_load_unload(struct scsi_tape *STp, struct file *filp, int load_cod
 
 		if (!load_code) {
 			STp->rew_at_close = 0;
-			STp->ready = ST_NO_TAPE;
+			STp->ready = ST_ANAL_TAPE;
 		}
 		else {
 			STp->rew_at_close = STp->autorew_dev;
@@ -2704,20 +2704,20 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 	unsigned char cmd[MAX_COMMAND_SIZE];
 	struct st_request *SRpnt;
 	struct st_partstat *STps;
-	int fileno, blkno, at_sm, undone;
-	int datalen = 0, direction = DMA_NONE;
+	int fileanal, blkanal, at_sm, undone;
+	int datalen = 0, direction = DMA_ANALNE;
 
 	WARN_ON(STp->buffer->do_dio != 0);
 	if (STp->ready != ST_READY) {
-		if (STp->ready == ST_NO_TAPE)
-			return (-ENOMEDIUM);
+		if (STp->ready == ST_ANAL_TAPE)
+			return (-EANALMEDIUM);
 		else
 			return (-EIO);
 	}
 	timeout = STp->long_timeout;
 	STps = &(STp->ps[STp->partition]);
-	fileno = STps->drv_file;
-	blkno = STps->drv_block;
+	fileanal = STps->drv_file;
+	blkanal = STps->drv_block;
 	at_sm = STps->at_sm;
 
 	memset(cmd, 0, MAX_COMMAND_SIZE);
@@ -2732,9 +2732,9 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		cmd[3] = (arg >> 8);
 		cmd[4] = arg;
 		deb_space_print(STp, ST_DEB_FORWARD, "filemarks", cmd);
-		if (fileno >= 0)
-			fileno += arg;
-		blkno = 0;
+		if (fileanal >= 0)
+			fileanal += arg;
+		blkanal = 0;
 		at_sm &= (arg == 0);
 		break;
 	case MTBSFM:
@@ -2748,9 +2748,9 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		cmd[3] = (ltmp >> 8);
 		cmd[4] = ltmp;
 		deb_space_print(STp, ST_DEB_BACKWARD, "filemarks", cmd);
-		if (fileno >= 0)
-			fileno -= arg;
-		blkno = (-1);	/* We can't know the block number */
+		if (fileanal >= 0)
+			fileanal -= arg;
+		blkanal = (-1);	/* We can't kanalw the block number */
 		at_sm &= (arg == 0);
 		break;
 	case MTFSR:
@@ -2760,8 +2760,8 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		cmd[3] = (arg >> 8);
 		cmd[4] = arg;
 		deb_space_print(STp, ST_DEB_FORWARD, "blocks", cmd);
-		if (blkno >= 0)
-			blkno += arg;
+		if (blkanal >= 0)
+			blkanal += arg;
 		at_sm &= (arg == 0);
 		break;
 	case MTBSR:
@@ -2772,8 +2772,8 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		cmd[3] = (ltmp >> 8);
 		cmd[4] = ltmp;
 		deb_space_print(STp, ST_DEB_BACKWARD, "blocks", cmd);
-		if (blkno >= 0)
-			blkno -= arg;
+		if (blkanal >= 0)
+			blkanal -= arg;
 		at_sm &= (arg == 0);
 		break;
 	case MTFSS:
@@ -2784,7 +2784,7 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		cmd[4] = arg;
 		deb_space_print(STp, ST_DEB_FORWARD, "setmarks", cmd);
 		if (arg != 0) {
-			blkno = fileno = (-1);
+			blkanal = fileanal = (-1);
 			at_sm = 1;
 		}
 		break;
@@ -2797,7 +2797,7 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		cmd[4] = ltmp;
 		deb_space_print(STp, ST_DEB_BACKWARD, "setmarks", cmd);
 		if (arg != 0) {
-			blkno = fileno = (-1);
+			blkanal = fileanal = (-1);
 			at_sm = 1;
 		}
 		break;
@@ -2830,9 +2830,9 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 					  cmd[3] * 256 +
 					  cmd[4]);
 		)
-		if (fileno >= 0)
-			fileno += arg;
-		blkno = 0;
+		if (fileanal >= 0)
+			fileanal += arg;
+		blkanal = 0;
 		at_sm = (cmd_in == MTWSM);
 		break;
 	case MTREW:
@@ -2842,10 +2842,10 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 			timeout = STp->device->request_queue->rq_timeout;
 		}
 		DEBC_printk(STp, "Rewinding tape.\n");
-		fileno = blkno = at_sm = 0;
+		fileanal = blkanal = at_sm = 0;
 		break;
-	case MTNOP:
-		DEBC_printk(STp, "No op on tape.\n");
+	case MTANALP:
+		DEBC_printk(STp, "Anal op on tape.\n");
 		return 0;	/* Should do something ? */
 	case MTRETEN:
 		cmd[0] = START_STOP;
@@ -2855,32 +2855,32 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		}
 		cmd[4] = 3;
 		DEBC_printk(STp, "Retensioning tape.\n");
-		fileno = blkno = at_sm = 0;
+		fileanal = blkanal = at_sm = 0;
 		break;
 	case MTEOM:
 		if (!STp->fast_mteom) {
 			/* space to the end of tape */
 			ioctl_result = st_int_ioctl(STp, MTFSF, 0x7fffff);
-			fileno = STps->drv_file;
+			fileanal = STps->drv_file;
 			if (STps->eof >= ST_EOD_1)
 				return 0;
 			/* The next lines would hide the number of spaced FileMarks
-			   That's why I inserted the previous lines. I had no luck
-			   with detecting EOM with FSF, so we go now to EOM.
+			   That's why I inserted the previous lines. I had anal luck
+			   with detecting EOM with FSF, so we go analw to EOM.
 			   Joerg Weule */
 		} else
-			fileno = (-1);
+			fileanal = (-1);
 		cmd[0] = SPACE;
 		cmd[1] = 3;
 		DEBC_printk(STp, "Spacing to end of recorded medium.\n");
-		blkno = -1;
+		blkanal = -1;
 		at_sm = 0;
 		break;
 	case MTERASE:
 		if (STp->write_prot)
 			return (-EACCES);
 		cmd[0] = ERASE;
-		cmd[1] = (arg ? 1 : 0);	/* Long erase with non-zero argument */
+		cmd[1] = (arg ? 1 : 0);	/* Long erase with analn-zero argument */
 		if (STp->immediate) {
 			cmd[1] |= 2;	/* Don't wait for completion */
 			timeout = STp->device->request_queue->rq_timeout;
@@ -2889,7 +2889,7 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 			timeout = STp->long_timeout * 8;
 
 		DEBC_printk(STp, "Erasing tape.\n");
-		fileno = blkno = at_sm = 0;
+		fileanal = blkanal = at_sm = 0;
 		break;
 	case MTSETBLK:		/* Set block length */
 	case MTSETDENSITY:	/* Set tape density */
@@ -2897,7 +2897,7 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 	case SET_DENS_AND_BLK:	/* Set density and block size */
 		chg_eof = 0;
 		if (STp->dirty || (STp->buffer)->buffer_bytes != 0)
-			return (-EIO);	/* Not allowed if data in buffer */
+			return (-EIO);	/* Analt allowed if data in buffer */
 		if ((cmd_in == MTSETBLK || cmd_in == SET_DENS_AND_BLK) &&
 		    (arg & MT_ST_BLKSIZE_MASK) != 0 &&
 		    STp->max_block > 0 &&
@@ -2954,7 +2954,7 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		)
 		break;
 	default:
-		return (-ENOSYS);
+		return (-EANALSYS);
 	}
 
 	SRpnt = st_do_scsi(NULL, STp, cmd, datalen, direction,
@@ -2967,8 +2967,8 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 	if (!ioctl_result) {	/* SCSI command successful */
 		st_release_request(SRpnt);
 		SRpnt = NULL;
-		STps->drv_block = blkno;
-		STps->drv_file = fileno;
+		STps->drv_block = blkanal;
+		STps->drv_file = fileanal;
 		STps->at_sm = at_sm;
 
 		if (cmd_in == MTBSFM)
@@ -2995,11 +2995,11 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		else if (cmd_in == MTFSF)
 			STps->eof = ST_FM;
 		else if (chg_eof)
-			STps->eof = ST_NOEOF;
+			STps->eof = ST_ANALEOF;
 
 		if (cmd_in == MTWEOF || cmd_in == MTWEOFI)
 			STps->rw = ST_IDLE;  /* prevent automatic WEOF at close */
-	} else { /* SCSI command was not completely successful. Don't return
+	} else { /* SCSI command was analt completely successful. Don't return
                     from this block without releasing the SCSI command block! */
 		struct st_cmdstatus *cmdstatp = &STp->buffer->cmdstat;
 
@@ -3018,31 +3018,31 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		if ((cmd_in == MTWEOF || cmd_in == MTWEOFI) &&
 		    cmdstatp->have_sense &&
 		    (cmdstatp->flags & SENSE_EOM)) {
-			if (cmdstatp->sense_hdr.sense_key == NO_SENSE ||
+			if (cmdstatp->sense_hdr.sense_key == ANAL_SENSE ||
 			    cmdstatp->sense_hdr.sense_key == RECOVERED_ERROR) {
 				ioctl_result = 0;	/* EOF(s) written successfully at EOM */
-				STps->eof = ST_NOEOF;
+				STps->eof = ST_ANALEOF;
 			} else {  /* Writing EOF(s) failed */
-				if (fileno >= 0)
-					fileno -= undone;
+				if (fileanal >= 0)
+					fileanal -= undone;
 				if (undone < arg)
-					STps->eof = ST_NOEOF;
+					STps->eof = ST_ANALEOF;
 			}
-			STps->drv_file = fileno;
+			STps->drv_file = fileanal;
 		} else if ((cmd_in == MTFSF) || (cmd_in == MTFSFM)) {
-			if (fileno >= 0)
-				STps->drv_file = fileno - undone;
+			if (fileanal >= 0)
+				STps->drv_file = fileanal - undone;
 			else
-				STps->drv_file = fileno;
+				STps->drv_file = fileanal;
 			STps->drv_block = -1;
-			STps->eof = ST_NOEOF;
+			STps->eof = ST_ANALEOF;
 		} else if ((cmd_in == MTBSF) || (cmd_in == MTBSFM)) {
 			if (arg > 0 && undone < 0)  /* Some drives get this wrong */
 				undone = (-undone);
 			if (STps->drv_file >= 0)
-				STps->drv_file = fileno + undone;
+				STps->drv_file = fileanal + undone;
 			STps->drv_block = 0;
-			STps->eof = ST_NOEOF;
+			STps->eof = ST_ANALEOF;
 		} else if (cmd_in == MTFSR) {
 			if (cmdstatp->flags & SENSE_FMK) {	/* Hit filemark */
 				if (STps->drv_file >= 0)
@@ -3050,11 +3050,11 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 				STps->drv_block = 0;
 				STps->eof = ST_FM;
 			} else {
-				if (blkno >= undone)
-					STps->drv_block = blkno - undone;
+				if (blkanal >= undone)
+					STps->drv_block = blkanal - undone;
 				else
 					STps->drv_block = (-1);
-				STps->eof = ST_NOEOF;
+				STps->eof = ST_ANALEOF;
 			}
 		} else if (cmd_in == MTBSR) {
 			if (cmdstatp->flags & SENSE_FMK) {	/* Hit filemark */
@@ -3064,9 +3064,9 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 				if (arg > 0 && undone < 0)  /* Some drives get this wrong */
 					undone = (-undone);
 				if (STps->drv_block >= 0)
-					STps->drv_block = blkno + undone;
+					STps->drv_block = blkanal + undone;
 			}
-			STps->eof = ST_NOEOF;
+			STps->eof = ST_ANALEOF;
 		} else if (cmd_in == MTEOM) {
 			STps->drv_file = (-1);
 			STps->drv_block = (-1);
@@ -3077,7 +3077,7 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 			   cmd_in == SET_DENS_AND_BLK) {
 			if (cmdstatp->sense_hdr.sense_key == ILLEGAL_REQUEST &&
 			    !(STp->use_pf & PF_TESTED)) {
-				/* Try the other possible state of Page Format if not
+				/* Try the other possible state of Page Format if analt
 				   already tried */
 				STp->use_pf = (STp->use_pf ^ USE_PF) | PF_TESTED;
 				st_release_request(SRpnt);
@@ -3085,7 +3085,7 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 				return st_int_ioctl(STp, cmd_in, arg);
 			}
 		} else if (chg_eof)
-			STps->eof = ST_NOEOF;
+			STps->eof = ST_ANALEOF;
 
 		if (cmdstatp->sense_hdr.sense_key == BLANK_CHECK)
 			STps->eof = ST_EOD;
@@ -3225,13 +3225,13 @@ static int set_location(struct scsi_tape *STp, unsigned int block, int partition
 		timeout = STp->device->request_queue->rq_timeout;
 	}
 
-	SRpnt = st_do_scsi(NULL, STp, scmd, 0, DMA_NONE,
+	SRpnt = st_do_scsi(NULL, STp, scmd, 0, DMA_ANALNE,
 			   timeout, MAX_READY_RETRIES, 1);
 	if (!SRpnt)
 		return (STp->buffer)->syscall_result;
 
 	STps->drv_block = STps->drv_file = (-1);
-	STps->eof = ST_NOEOF;
+	STps->eof = ST_ANALEOF;
 	if ((STp->buffer)->syscall_result != 0) {
 		result = (-EIO);
 		if (STp->can_partitions &&
@@ -3345,7 +3345,7 @@ static int format_medium(struct scsi_tape *STp, int format)
 		timeout = STp->device->request_queue->rq_timeout;
 	}
 	DEBC_printk(STp, "Sending FORMAT MEDIUM\n");
-	SRpnt = st_do_scsi(NULL, STp, scmd, 0, DMA_NONE,
+	SRpnt = st_do_scsi(NULL, STp, scmd, 0, DMA_ANALNE,
 			   timeout, MAX_RETRIES, 1);
 	if (!SRpnt)
 		result = STp->buffer->syscall_result;
@@ -3356,18 +3356,18 @@ static int format_medium(struct scsi_tape *STp, int format)
 /* Partition the tape into two partitions if size > 0 or one partition if
    size == 0.
 
-   The block descriptors are read and written because Sony SDT-7000 does not
+   The block descriptors are read and written because Sony SDT-7000 does analt
    work without this (suggestion from Michael Schaefer <Michael.Schaefer@dlr.de>).
 
    My HP C1533A drive returns only one partition size field. This is used to
-   set the size of partition 1. There is no size field for the default partition.
+   set the size of partition 1. There is anal size field for the default partition.
    Michael Schaefer's Sony SDT-7000 returns two descriptors and the second is
    used to set the size of partition 1 (this is what the SCSI-3 standard specifies).
    The following algorithm is used to accommodate both drives: if the number of
    partition size fields is greater than the maximum number of additional partitions
    in the mode page, the second field is used. Otherwise the first field is used.
 
-   For Seagate DDS drives the page length must be 8 when no partitions is defined
+   For Seagate DDS drives the page length must be 8 when anal partitions is defined
    and 10 when 1 partition is defined (information from Eric Lee Green). This is
    is acceptable also to some other old drives and enforced if the first partition
    size field is used for the first additional partition size.
@@ -3405,7 +3405,7 @@ static int partition_tape(struct scsi_tape *STp, int size)
 	if (scsi3) {
 		needs_format = (bp[pgo + PP_OFF_FLAGS] & PP_MSK_POFM) != 0;
 		if (needs_format && size == 0) {
-			/* No need to write the mode page when clearing
+			/* Anal need to write the mode page when clearing
 			 *  partitioning
 			 */
 			DEBC_printk(STp, "Formatting tape with one partition.\n");
@@ -3416,7 +3416,7 @@ static int partition_tape(struct scsi_tape *STp, int size)
 			psd_cnt = 2;
 		if ((bp[pgo + PP_OFF_FLAGS] & PP_MSK_PSUM_UNITS) == PP_MSK_PSUM_UNITS) {
 			/* Use units scaling for large partitions if the device
-			 * suggests it and no precision lost. Required for IBM
+			 * suggests it and anal precision lost. Required for IBM
 			 * TS1140/50 drives that don't support MB units.
 			 */
 			if (size >= 1000 && (size % 1000) == 0) {
@@ -3433,7 +3433,7 @@ static int partition_tape(struct scsi_tape *STp, int size)
 		}
 	}
 
-	if (size >= 65535 ||  /* Does not fit into two bytes */
+	if (size >= 65535 ||  /* Does analt fit into two bytes */
 	    (target_partition == 0 && psd_cnt < 2)) {
 		result = -EINVAL;
 		goto out;
@@ -3564,7 +3564,7 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 			goto out;
 		}
 
-		if (!STp->pos_unknown) {
+		if (!STp->pos_unkanalwn) {
 
 			if (STps->eof == ST_FM_HIT) {
 				if (mtc.mt_op == MTFSF || mtc.mt_op == MTFSFM ||
@@ -3631,13 +3631,13 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 			STp->device->was_reset = 0;
 		}
 
-		if (mtc.mt_op != MTNOP && mtc.mt_op != MTSETBLK &&
+		if (mtc.mt_op != MTANALP && mtc.mt_op != MTSETBLK &&
 		    mtc.mt_op != MTSETDENSITY && mtc.mt_op != MTWSM &&
 		    mtc.mt_op != MTSETDRVBUFFER && mtc.mt_op != MTSETPART)
 			STps->rw = ST_IDLE;	/* Prevent automatic WEOF and fsf */
 
 		if (mtc.mt_op == MTOFFL && STp->door_locked != ST_UNLOCKED)
-			do_door_lock(STp, 0);	/* Ignore result! */
+			do_door_lock(STp, 0);	/* Iganalre result! */
 
 		if (mtc.mt_op == MTSETDRVBUFFER &&
 		    (mtc.mt_count & MT_ST_OPTIONS) != 0) {
@@ -3754,14 +3754,14 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 		mt_status.mt_dsreg =
 		    ((STp->block_size << MT_ST_BLKSIZE_SHIFT) & MT_ST_BLKSIZE_MASK) |
 		    ((STp->density << MT_ST_DENSITY_SHIFT) & MT_ST_DENSITY_MASK);
-		mt_status.mt_blkno = STps->drv_block;
-		mt_status.mt_fileno = STps->drv_file;
+		mt_status.mt_blkanal = STps->drv_block;
+		mt_status.mt_fileanal = STps->drv_file;
 		if (STp->block_size != 0) {
 			if (STps->rw == ST_WRITING)
-				mt_status.mt_blkno +=
+				mt_status.mt_blkanal +=
 				    (STp->buffer)->buffer_bytes / STp->block_size;
 			else if (STps->rw == ST_READING)
-				mt_status.mt_blkno -=
+				mt_status.mt_blkanal -=
                                         ((STp->buffer)->buffer_bytes +
                                          STp->block_size - 1) / STp->block_size;
 		}
@@ -3769,8 +3769,8 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 		mt_status.mt_gstat = 0;
 		if (STp->drv_write_prot)
 			mt_status.mt_gstat |= GMT_WR_PROT(0xffffffff);
-		if (mt_status.mt_blkno == 0) {
-			if (mt_status.mt_fileno == 0)
+		if (mt_status.mt_blkanal == 0) {
+			if (mt_status.mt_fileanal == 0)
 				mt_status.mt_gstat |= GMT_BOT(0xffffffff);
 			else
 				mt_status.mt_gstat |= GMT_EOF(0xffffffff);
@@ -3789,7 +3789,7 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 			mt_status.mt_gstat |= GMT_D_6250(0xffffffff);
 		if (STp->ready == ST_READY)
 			mt_status.mt_gstat |= GMT_ONLINE(0xffffffff);
-		if (STp->ready == ST_NO_TAPE)
+		if (STp->ready == ST_ANAL_TAPE)
 			mt_status.mt_gstat |= GMT_DR_OPEN(0xffffffff);
 		if (STps->at_sm)
 			mt_status.mt_gstat |= GMT_SM(0xffffffff);
@@ -3817,7 +3817,7 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 			retval = i;
 			goto out;
 		}
-		mt_pos.mt_blkno = blk;
+		mt_pos.mt_blkanal = blk;
 		retval = put_user_mtpos(p, &mt_pos);
 		goto out;
 	}
@@ -3838,7 +3838,7 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 	if (!retval && cmd_in == SCSI_IOCTL_STOP_UNIT) {
 		/* unload */
 		STp->rew_at_close = 0;
-		STp->ready = ST_NO_TAPE;
+		STp->ready = ST_ANAL_TAPE;
 	}
 	return retval;
 
@@ -3866,7 +3866,7 @@ static long st_compat_ioctl(struct file *file, unsigned int cmd_in, unsigned lon
 
 
 
-/* Try to allocate a new tape buffer. Calling function must not hold
+/* Try to allocate a new tape buffer. Calling function must analt hold
    dev_arr_lock. */
 static struct st_buffer *new_tape_buffer(int max_sg)
 {
@@ -3874,7 +3874,7 @@ static struct st_buffer *new_tape_buffer(int max_sg)
 
 	tb = kzalloc(sizeof(struct st_buffer), GFP_KERNEL);
 	if (!tb) {
-		printk(KERN_NOTICE "st: Can't allocate new tape buffer.\n");
+		printk(KERN_ANALTICE "st: Can't allocate new tape buffer.\n");
 		return NULL;
 	}
 	tb->frp_segs = 0;
@@ -3892,7 +3892,7 @@ static struct st_buffer *new_tape_buffer(int max_sg)
 }
 
 
-/* Try to allocate enough space in the tape buffer */
+/* Try to allocate eanalugh space in the tape buffer */
 #define ST_MAX_ORDER 6
 
 static int enlarge_buffer(struct st_buffer * STbuffer, int new_size)
@@ -3904,11 +3904,11 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size)
 		return 1;
 
 	if (STbuffer->buffer_size <= PAGE_SIZE)
-		normalize_buffer(STbuffer);  /* Avoid extra segment */
+		analrmalize_buffer(STbuffer);  /* Avoid extra segment */
 
 	max_segs = STbuffer->use_sg;
 
-	priority = GFP_KERNEL | __GFP_NOWARN;
+	priority = GFP_KERNEL | __GFP_ANALWARN;
 
 	if (STbuffer->cleared)
 		priority |= __GFP_ZERO;
@@ -3927,7 +3927,7 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size)
 	if (max_segs * (PAGE_SIZE << order) < new_size) {
 		if (order == ST_MAX_ORDER)
 			return 0;
-		normalize_buffer(STbuffer);
+		analrmalize_buffer(STbuffer);
 		return enlarge_buffer(STbuffer, new_size);
 	}
 
@@ -3938,7 +3938,7 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size)
 		page = alloc_pages(priority, order);
 		if (!page) {
 			DEB(STbuffer->buffer_size = got);
-			normalize_buffer(STbuffer);
+			analrmalize_buffer(STbuffer);
 			return 0;
 		}
 
@@ -3954,7 +3954,7 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size)
 }
 
 
-/* Make sure that no data from previous user is in the internal buffer */
+/* Make sure that anal data from previous user is in the internal buffer */
 static void clear_buffer(struct st_buffer * st_bp)
 {
 	int i;
@@ -3967,7 +3967,7 @@ static void clear_buffer(struct st_buffer * st_bp)
 
 
 /* Release the extra buffer */
-static void normalize_buffer(struct st_buffer * STbuffer)
+static void analrmalize_buffer(struct st_buffer * STbuffer)
 {
 	int i, order = STbuffer->reserved_page_order;
 
@@ -4155,36 +4155,36 @@ static const struct file_operations st_fops =
 	.open =		st_open,
 	.flush =	st_flush,
 	.release =	st_release,
-	.llseek =	noop_llseek,
+	.llseek =	analop_llseek,
 };
 
 static int create_one_cdev(struct scsi_tape *tape, int mode, int rew)
 {
 	int i, error;
-	dev_t cdev_devno;
+	dev_t cdev_devanal;
 	struct cdev *cdev;
 	struct device *dev;
 	struct st_modedef *STm = &(tape->modes[mode]);
 	char name[10];
 	int dev_num = tape->index;
 
-	cdev_devno = MKDEV(SCSI_TAPE_MAJOR, TAPE_MINOR(dev_num, mode, rew));
+	cdev_devanal = MKDEV(SCSI_TAPE_MAJOR, TAPE_MIANALR(dev_num, mode, rew));
 
 	cdev = cdev_alloc();
 	if (!cdev) {
-		pr_err("st%d: out of memory. Device not attached.\n", dev_num);
-		error = -ENOMEM;
+		pr_err("st%d: out of memory. Device analt attached.\n", dev_num);
+		error = -EANALMEM;
 		goto out;
 	}
 	cdev->owner = THIS_MODULE;
 	cdev->ops = &st_fops;
 	STm->cdevs[rew] = cdev;
 
-	error = cdev_add(cdev, cdev_devno, 1);
+	error = cdev_add(cdev, cdev_devanal, 1);
 	if (error) {
 		pr_err("st%d: Can't add %s-rewind mode %d\n", dev_num,
-		       rew ? "non" : "auto", mode);
-		pr_err("st%d: Device not attached.\n", dev_num);
+		       rew ? "analn" : "auto", mode);
+		pr_err("st%d: Device analt attached.\n", dev_num);
 		goto out_free;
 	}
 
@@ -4193,7 +4193,7 @@ static int create_one_cdev(struct scsi_tape *tape, int mode, int rew)
 		 tape->name, st_formats[i]);
 
 	dev = device_create(&st_sysfs_class, &tape->device->sdev_gendev,
-			    cdev_devno, &tape->modes[mode], "%s", name);
+			    cdev_devanal, &tape->modes[mode], "%s", name);
 	if (IS_ERR(dev)) {
 		pr_err("st%d: device_create failed\n", dev_num);
 		error = PTR_ERR(dev);
@@ -4252,13 +4252,13 @@ static int st_probe(struct device *dev)
 	int i, error;
 
 	if (SDp->type != TYPE_TAPE)
-		return -ENODEV;
+		return -EANALDEV;
 	if (st_incompatible(SDp)) {
 		sdev_printk(KERN_INFO, SDp,
-			    "OnStream tapes are no longer supported;\n");
+			    "OnStream tapes are anal longer supported;\n");
 		sdev_printk(KERN_INFO, SDp,
 			    "please mail to linux-scsi@vger.kernel.org.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	scsi_autopm_get_device(SDp);
@@ -4269,7 +4269,7 @@ static int st_probe(struct device *dev)
 	if (buffer == NULL) {
 		sdev_printk(KERN_ERR, SDp,
 			    "st: Can't allocate new tape buffer. "
-			    "Device not attached.\n");
+			    "Device analt attached.\n");
 		goto out;
 	}
 
@@ -4293,7 +4293,7 @@ static int st_probe(struct device *dev)
 	tpnt->inited = 0;
 	tpnt->dirty = 0;
 	tpnt->in_use = 0;
-	tpnt->drv_buffer = 1;	/* Try buffering if no mode sense */
+	tpnt->drv_buffer = 1;	/* Try buffering if anal mode sense */
 	tpnt->use_pf = (SDp->scsi_level >= SCSI_2);
 	tpnt->density = 0;
 	tpnt->do_auto_lock = ST_AUTO_LOCK;
@@ -4303,9 +4303,9 @@ static int st_probe(struct device *dev)
 	tpnt->fast_mteom = ST_FAST_MTEOM;
 	tpnt->scsi2_logical = ST_SCSI2LOGICAL;
 	tpnt->sili = ST_SILI;
-	tpnt->immediate = ST_NOWAIT;
+	tpnt->immediate = ST_ANALWAIT;
 	tpnt->immediate_filemark = 0;
-	tpnt->default_drvbuffer = 0xff;		/* No forced buffering */
+	tpnt->default_drvbuffer = 0xff;		/* Anal forced buffering */
 	tpnt->partition = 0;
 	tpnt->new_partition = 0;
 	tpnt->nbr_partitions = 0;
@@ -4322,15 +4322,15 @@ static int st_probe(struct device *dev)
 		STm->do_buffer_writes = ST_BUFFER_WRITES;
 		STm->do_read_ahead = ST_READ_AHEAD;
 		STm->default_compression = ST_DONT_TOUCH;
-		STm->default_blksize = (-1);	/* No forced size */
-		STm->default_density = (-1);	/* No forced density */
+		STm->default_blksize = (-1);	/* Anal forced size */
+		STm->default_density = (-1);	/* Anal forced density */
 		STm->tape = tpnt;
 	}
 
 	for (i = 0; i < ST_NBR_PARTITIONS; i++) {
 		STps = &(tpnt->ps[i]);
 		STps->rw = ST_IDLE;
-		STps->eof = ST_NOEOF;
+		STps->eof = ST_ANALEOF;
 		STps->at_sm = 0;
 		STps->last_block_valid = 0;
 		STps->drv_block = (-1);
@@ -4346,7 +4346,7 @@ static int st_probe(struct device *dev)
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&st_index_lock);
-	error = idr_alloc(&st_index_idr, tpnt, 0, ST_MAX_TAPES + 1, GFP_NOWAIT);
+	error = idr_alloc(&st_index_idr, tpnt, 0, ST_MAX_TAPES + 1, GFP_ANALWAIT);
 	spin_unlock(&st_index_lock);
 	idr_preload_end();
 	if (error < 0) {
@@ -4370,10 +4370,10 @@ static int st_probe(struct device *dev)
 		goto out_remove_devs;
 	scsi_autopm_put_device(SDp);
 
-	sdev_printk(KERN_NOTICE, SDp,
+	sdev_printk(KERN_ANALTICE, SDp,
 		    "Attached scsi tape %s\n", tpnt->name);
 	sdev_printk(KERN_INFO, SDp, "%s: try direct i/o: %s (alignment %d B)\n",
-		    tpnt->name, tpnt->try_dio ? "yes" : "no",
+		    tpnt->name, tpnt->try_dio ? "anal" : "anal",
 		    queue_dma_alignment(SDp->request_queue) + 1);
 
 	return 0;
@@ -4391,7 +4391,7 @@ out_buffer_free:
 	kfree(buffer);
 out:
 	scsi_autopm_put_device(SDp);
-	return -ENODEV;
+	return -EANALDEV;
 };
 
 
@@ -4428,7 +4428,7 @@ static void scsi_tape_release(struct kref *kref)
 	tpnt->device = NULL;
 
 	if (tpnt->buffer) {
-		normalize_buffer(tpnt->buffer);
+		analrmalize_buffer(tpnt->buffer);
 		kfree(tpnt->buffer->reserved_pages);
 		kfree(tpnt->buffer);
 	}
@@ -4452,7 +4452,7 @@ static int __init init_st(void)
 	printk(KERN_INFO "st: Version %s, fixed bufsize %d, s/g segs %d\n",
 		verstr, st_fixed_buffer_size, st_max_sg_segs);
 
-	debugging = (debug_flag > 0) ? debug_flag : NO_DEBUG;
+	debugging = (debug_flag > 0) ? debug_flag : ANAL_DEBUG;
 	if (debugging) {
 		printk(KERN_INFO "st: Debugging enabled debug_flag = %d\n",
 			debugging);
@@ -4535,7 +4535,7 @@ static ssize_t debug_flag_store(struct device_driver *ddp,
  */
 	if (count > 0) {
 		if (buf[0] == '0') {
-			debugging = NO_DEBUG;
+			debugging = ANAL_DEBUG;
 			return count;
 		} else if (buf[0] == '1') {
 			debugging = 1;
@@ -4630,12 +4630,12 @@ options_show(struct device *dev, struct device_attribute *attr, char *buf)
 	options |= STp->fast_mteom ? MT_ST_FAST_MTEOM : 0;
 	options |= STm->defaults_for_writes ? MT_ST_DEF_WRITES : 0;
 	options |= STp->can_bsr ? MT_ST_CAN_BSR : 0;
-	options |= STp->omit_blklims ? MT_ST_NO_BLKLIMS : 0;
+	options |= STp->omit_blklims ? MT_ST_ANAL_BLKLIMS : 0;
 	options |= STp->can_partitions ? MT_ST_CAN_PARTITIONS : 0;
 	options |= STp->scsi2_logical ? MT_ST_SCSI2LOGICAL : 0;
 	options |= STm->sysv ? MT_ST_SYSV : 0;
-	options |= STp->immediate ? MT_ST_NOWAIT : 0;
-	options |= STp->immediate_filemark ? MT_ST_NOWAIT_EOF : 0;
+	options |= STp->immediate ? MT_ST_ANALWAIT : 0;
+	options |= STp->immediate_filemark ? MT_ST_ANALWAIT_EOF : 0;
 	options |= STp->sili ? MT_ST_SILI : 0;
 
 	l = snprintf(buf, PAGE_SIZE, "0x%08x\n", options);
@@ -4730,7 +4730,7 @@ static ssize_t write_byte_cnt_show(struct device *dev,
 static DEVICE_ATTR_RO(write_byte_cnt);
 
 /**
- * write_ns_show - write ns - number of nanoseconds waiting on write
+ * write_ns_show - write ns - number of naanalseconds waiting on write
  * requests to complete.
  * @dev: struct device
  * @attr: attribute structure
@@ -4877,7 +4877,7 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
 
 	/* Too big */
         if (nr_pages > max_pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Hmm? */
 	if (count == 0)
@@ -4885,14 +4885,14 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
 
 	pages = kmalloc_array(max_pages, sizeof(*pages), GFP_KERNEL);
 	if (pages == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
         /* Try to fault in all of the necessary pages */
         /* rw==READ means read from drive, write into memory area */
 	res = pin_user_pages_fast(uaddr, nr_pages, rw == READ ? FOLL_WRITE : 0,
 				  pages);
 
-	/* Errors and no page mapped should return here */
+	/* Errors and anal page mapped should return here */
 	if (res < nr_pages)
 		goto out_unmap;
 

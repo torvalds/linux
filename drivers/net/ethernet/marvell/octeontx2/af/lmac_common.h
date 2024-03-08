@@ -60,7 +60,7 @@ struct mac_ops {
 	 * RPM DMAC_CTL0  0x4ff8
 	 */
 	u64			csr_offset;
-	/* For ATF to send events to kernel, there is no dedicated interrupt
+	/* For ATF to send events to kernel, there is anal dedicated interrupt
 	 * defined hence CGX uses OVERFLOW bit in CMR_INT. RPM block supports
 	 * SW_INT so that ATF triggers this interrupt after processing of
 	 * requested command
@@ -73,7 +73,7 @@ struct mac_ops {
 	u8			int_ena_bit;
 	u8			lmac_fwi;
 	u32			fifo_len;
-	bool			non_contiguous_serdes_lane;
+	bool			analn_contiguous_serdes_lane;
 	/* RPM & CGX differs in number of Receive/transmit stats */
 	u8			rx_stats_cnt;
 	u8			tx_stats_cnt;

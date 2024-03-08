@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1997, 1999, 2001, 06 by Ralf Baechle
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
 #ifndef _ASM_REBOOT_H
 #define _ASM_REBOOT_H

@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/fcntl.h>
@@ -27,18 +27,18 @@ MODULE_LICENSE("GPL");
 struct comedi_device *comedi_open(const char *filename)
 {
 	struct comedi_device *dev, *retval = NULL;
-	unsigned int minor;
+	unsigned int mianalr;
 
 	if (strncmp(filename, "/dev/comedi", 11) != 0)
 		return NULL;
 
-	if (kstrtouint(filename + 11, 0, &minor))
+	if (kstrtouint(filename + 11, 0, &mianalr))
 		return NULL;
 
-	if (minor >= COMEDI_NUM_BOARD_MINORS)
+	if (mianalr >= COMEDI_NUM_BOARD_MIANALRS)
 		return NULL;
 
-	dev = comedi_dev_get_from_minor(minor);
+	dev = comedi_dev_get_from_mianalr(mianalr);
 	if (!dev)
 		return NULL;
 
@@ -86,7 +86,7 @@ static int comedi_do_insn(struct comedi_device *dev,
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
 		dev_err(dev->class_dev,
-			"%d not usable subdevice\n", insn->subdev);
+			"%d analt usable subdevice\n", insn->subdev);
 		ret = -EIO;
 		goto error;
 	}
@@ -187,7 +187,7 @@ int comedi_dio_bitfield2(struct comedi_device *dev, unsigned int subdev,
 	data[1] = *bits;
 
 	/*
-	 * Most drivers ignore the base channel in insn->chanspec.
+	 * Most drivers iganalre the base channel in insn->chanspec.
 	 * Fix this here if the subdevice has <= 32 channels.
 	 */
 	if (n_chan <= 32) {
@@ -211,7 +211,7 @@ int comedi_find_subdevice_by_type(struct comedi_device *dev, int type,
 				  unsigned int subd)
 {
 	struct comedi_subdevice *s;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	down_read(&dev->attach_lock);
 	if (dev->attached)

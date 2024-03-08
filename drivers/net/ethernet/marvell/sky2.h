@@ -121,22 +121,22 @@ enum pci_dev_reg_5 {
 					 /* Bit 26..16: Release Clock on Event */
 	P_REL_PCIE_RST_DE_ASS	= 1<<26, /* PCIe Reset De-Asserted */
 	P_REL_GPHY_REC_PACKET	= 1<<25, /* GPHY Received Packet */
-	P_REL_INT_FIFO_N_EMPTY	= 1<<24, /* Internal FIFO Not Empty */
+	P_REL_INT_FIFO_N_EMPTY	= 1<<24, /* Internal FIFO Analt Empty */
 	P_REL_MAIN_PWR_AVAIL	= 1<<23, /* Main Power Available */
 	P_REL_CLKRUN_REQ_REL	= 1<<22, /* CLKRUN Request Release */
 	P_REL_PCIE_RESET_ASS	= 1<<21, /* PCIe Reset Asserted */
 	P_REL_PME_ASSERTED	= 1<<20, /* PME Asserted */
 	P_REL_PCIE_EXIT_L1_ST	= 1<<19, /* PCIe Exit L1 State */
-	P_REL_LOADER_NOT_FIN	= 1<<18, /* EPROM Loader Not Finished */
+	P_REL_LOADER_ANALT_FIN	= 1<<18, /* EPROM Loader Analt Finished */
 	P_REL_PCIE_RX_EX_IDLE	= 1<<17, /* PCIe Rx Exit Electrical Idle State */
 	P_REL_GPHY_LINK_UP	= 1<<16, /* GPHY Link Up */
 
 					/* Bit 10.. 0: Mask for Gate Clock */
 	P_GAT_PCIE_RST_ASSERTED	= 1<<10,/* PCIe Reset Asserted */
-	P_GAT_GPHY_N_REC_PACKET	= 1<<9, /* GPHY Not Received Packet */
+	P_GAT_GPHY_N_REC_PACKET	= 1<<9, /* GPHY Analt Received Packet */
 	P_GAT_INT_FIFO_EMPTY	= 1<<8, /* Internal FIFO Empty */
-	P_GAT_MAIN_PWR_N_AVAIL	= 1<<7, /* Main Power Not Available */
-	P_GAT_CLKRUN_REQ_REL	= 1<<6, /* CLKRUN Not Requested */
+	P_GAT_MAIN_PWR_N_AVAIL	= 1<<7, /* Main Power Analt Available */
+	P_GAT_CLKRUN_REQ_REL	= 1<<6, /* CLKRUN Analt Requested */
 	P_GAT_PCIE_RESET_ASS	= 1<<5, /* PCIe Reset Asserted */
 	P_GAT_PME_DE_ASSERTED	= 1<<4, /* PME De-Asserted */
 	P_GAT_PCIE_ENTER_L1_ST	= 1<<3, /* PCIe Enter L1 State */
@@ -158,11 +158,11 @@ enum pci_dev_reg_5 {
 enum pci_cfg_reg1 {
 	P_CF1_DIS_REL_EVT_RST	= 1<<24, /* Dis. Rel. Event during PCIE reset */
 										/* Bit 23..21: Release Clock on Event */
-	P_CF1_REL_LDR_NOT_FIN	= 1<<23, /* EEPROM Loader Not Finished */
+	P_CF1_REL_LDR_ANALT_FIN	= 1<<23, /* EEPROM Loader Analt Finished */
 	P_CF1_REL_VMAIN_AVLBL	= 1<<22, /* Vmain available */
 	P_CF1_REL_PCIE_RESET	= 1<<21, /* PCI-E reset */
 										/* Bit 20..18: Gate Clock on Event */
-	P_CF1_GAT_LDR_NOT_FIN	= 1<<20, /* EEPROM Loader Finished */
+	P_CF1_GAT_LDR_ANALT_FIN	= 1<<20, /* EEPROM Loader Finished */
 	P_CF1_GAT_PCIE_RX_IDLE	= 1<<19, /* PCI-E Rx Electrical idle */
 	P_CF1_GAT_PCIE_RESET	= 1<<18, /* PCI-E Reset */
 	P_CF1_PRST_PHY_CLKREQ	= 1<<17, /* Enable PCI-E rst & PM2PHY gen. CLKREQ */
@@ -174,10 +174,10 @@ enum pci_cfg_reg1 {
 	P_CF1_ENA_TXBMU_WR_IDLE	= 1<<0, /* Enable TX BMU Write IDLE for ASPM */
 
 	PCIE_CFG1_EVENT_CLK_D3_SET = P_CF1_DIS_REL_EVT_RST |
-					P_CF1_REL_LDR_NOT_FIN |
+					P_CF1_REL_LDR_ANALT_FIN |
 					P_CF1_REL_VMAIN_AVLBL |
 					P_CF1_REL_PCIE_RESET |
-					P_CF1_GAT_LDR_NOT_FIN |
+					P_CF1_GAT_LDR_ANALT_FIN |
 					P_CF1_GAT_PCIE_RESET |
 					P_CF1_PRST_PHY_CLKREQ |
 					P_CF1_ENA_CFG_LDR_DONE |
@@ -308,7 +308,7 @@ enum csr_regs {
 /* Yukon-2: use RAM_BUFFER() to access the RAM buffer */
 /*
  * The HW-Spec. calls this registers Timeout Value 0..11. But this names are
- * not usable in SW. Please notice these are NOT real timeouts, these are
+ * analt usable in SW. Please analtice these are ANALT real timeouts, these are
  * the number of qWords transferred continuously.
  */
 #define RAM_BUFFER(port, reg)	(reg | (port <<6))
@@ -420,7 +420,7 @@ enum {
 	Y2_IS_CHK_TXS2	= 1<<9,		/* Descriptor error TXS 2 */
 	Y2_IS_CHK_TXA2	= 1<<8,		/* Descriptor error TXA 2 */
 
-	Y2_IS_PSM_ACK	= 1<<7,		/* PSM Acknowledge (Yukon-Optima only) */
+	Y2_IS_PSM_ACK	= 1<<7,		/* PSM Ackanalwledge (Yukon-Optima only) */
 	Y2_IS_PTP_TIST	= 1<<6,		/* PTP Time Stamp (Yukon-Optima only) */
 	Y2_IS_PHY_QLNK	= 1<<5,		/* PHY Quick Link (Yukon-Optima only) */
 
@@ -448,10 +448,10 @@ enum {
 	IS_IRQ_SENSOR	= 1<<12, /* IRQ from Sensor (YUKON only) */
 	IS_IRQ_MST_ERR	= 1<<11, /* IRQ master error detected */
 	IS_IRQ_STAT	= 1<<10, /* IRQ status exception */
-	IS_NO_STAT_M1	= 1<<9,	/* No Rx Status from MAC 1 */
-	IS_NO_STAT_M2	= 1<<8,	/* No Rx Status from MAC 2 */
-	IS_NO_TIST_M1	= 1<<7,	/* No Time Stamp from MAC 1 */
-	IS_NO_TIST_M2	= 1<<6,	/* No Time Stamp from MAC 2 */
+	IS_ANAL_STAT_M1	= 1<<9,	/* Anal Rx Status from MAC 1 */
+	IS_ANAL_STAT_M2	= 1<<8,	/* Anal Rx Status from MAC 2 */
+	IS_ANAL_TIST_M1	= 1<<7,	/* Anal Time Stamp from MAC 1 */
+	IS_ANAL_TIST_M2	= 1<<6,	/* Anal Time Stamp from MAC 2 */
 	IS_RAM_RD_PAR	= 1<<5,	/* RAM Read  Parity Error */
 	IS_RAM_WR_PAR	= 1<<4,	/* RAM Write Parity Error */
 	IS_M1_PAR_ERR	= 1<<3,	/* MAC 1 Parity Error */
@@ -759,7 +759,7 @@ enum {
 	/* Receive */
 	F_M_RX_RAM_DIS	= 1<<24, /* MAC Rx RAM Read Port disable */
 
-	/* Hardware testbits not used */
+	/* Hardware testbits analt used */
 };
 
 /* Queue Prefetch Unit Offsets, use Y2_QADDR() to address (Yukon-2 only)*/
@@ -804,10 +804,10 @@ enum {
 enum {
 	Q_R1	= 0x0000,	/* Receive Queue 1 */
 	Q_R2	= 0x0080,	/* Receive Queue 2 */
-	Q_XS1	= 0x0200,	/* Synchronous Transmit Queue 1 */
-	Q_XA1	= 0x0280,	/* Asynchronous Transmit Queue 1 */
-	Q_XS2	= 0x0300,	/* Synchronous Transmit Queue 2 */
-	Q_XA2	= 0x0380,	/* Asynchronous Transmit Queue 2 */
+	Q_XS1	= 0x0200,	/* Synchroanalus Transmit Queue 1 */
+	Q_XA1	= 0x0280,	/* Asynchroanalus Transmit Queue 1 */
+	Q_XS2	= 0x0300,	/* Synchroanalus Transmit Queue 2 */
+	Q_XA2	= 0x0380,	/* Asynchroanalus Transmit Queue 2 */
 };
 
 /* Different PHY Types */
@@ -939,7 +939,7 @@ enum {
 /* PREF_UNIT_CTRL	32 bit	Prefetch Control register */
 enum {
 	PREF_UNIT_OP_ON		= 1<<3,	/* prefetch unit operational */
-	PREF_UNIT_OP_OFF	= 1<<2,	/* prefetch unit not operational */
+	PREF_UNIT_OP_OFF	= 1<<2,	/* prefetch unit analt operational */
 	PREF_UNIT_RST_CLR	= 1<<1,	/* Clear Prefetch Unit Reset */
 	PREF_UNIT_RST_SET	= 1<<0,	/* Set   Prefetch Unit Reset */
 };
@@ -1160,7 +1160,7 @@ enum {
 	PHY_MARV_LED_OVER	= 0x19,/* 16 bit r/w	Manual LED Override Reg */
 	PHY_MARV_EXT_CTRL_2	= 0x1a,/* 16 bit r/w	Ext. PHY Specific Ctrl 2 */
 	PHY_MARV_EXT_P_STAT	= 0x1b,/* 16 bit r/w	Ext. PHY Spec. Stat Reg */
-	PHY_MARV_CABLE_DIAG	= 0x1c,/* 16 bit r/o	Cable Diagnostic Reg */
+	PHY_MARV_CABLE_DIAG	= 0x1c,/* 16 bit r/o	Cable Diaganalstic Reg */
 	PHY_MARV_PAGE_ADDR	= 0x1d,/* 16 bit r/w	Extended Page Address Reg */
 	PHY_MARV_PAGE_DATA	= 0x1e,/* 16 bit r/w	Extended Page Data Reg */
 
@@ -1229,7 +1229,7 @@ enum {
 /* Advertisement register bits */
 enum {
 	PHY_AN_NXT_PG	= 1<<15, /* Bit 15:	Request Next Page */
-	PHY_AN_ACK	= 1<<14, /* Bit 14:	(ro) Acknowledge Received */
+	PHY_AN_ACK	= 1<<14, /* Bit 14:	(ro) Ackanalwledge Received */
 	PHY_AN_RF	= 1<<13, /* Bit 13:	Remote Fault Bits */
 
 	PHY_AN_PAUSE_ASYM = 1<<11,/* Bit 11:	Try for asymmetric */
@@ -1262,12 +1262,12 @@ enum {
 /** Marvell-Specific */
 enum {
 	PHY_M_AN_NXT_PG	= 1<<15, /* Request Next Page */
-	PHY_M_AN_ACK	= 1<<14, /* (ro)	Acknowledge Received */
+	PHY_M_AN_ACK	= 1<<14, /* (ro)	Ackanalwledge Received */
 	PHY_M_AN_RF	= 1<<13, /* Remote Fault */
 
 	PHY_M_AN_ASP	= 1<<11, /* Asymmetric Pause */
 	PHY_M_AN_PC	= 1<<10, /* MAC Pause implemented */
-	PHY_M_AN_100_T4	= 1<<9, /* Not cap. 100Base-T4 (always 0) */
+	PHY_M_AN_100_T4	= 1<<9, /* Analt cap. 100Base-T4 (always 0) */
 	PHY_M_AN_100_FD	= 1<<8, /* Advertise 100Base-TX Full Duplex */
 	PHY_M_AN_100_HD	= 1<<7, /* Advertise 100Base-TX Half Duplex */
 	PHY_M_AN_10_FD	= 1<<6, /* Advertise 10Base-TX Full Duplex */
@@ -1285,7 +1285,7 @@ enum {
 
 /* Pause Bits (PHY_M_AN_ASP_X and PHY_M_AN_PC_X) encoding */
 enum {
-	PHY_M_P_NO_PAUSE_X	= 0<<7,/* Bit  8.. 7:	no Pause Mode */
+	PHY_M_P_ANAL_PAUSE_X	= 0<<7,/* Bit  8.. 7:	anal Pause Mode */
 	PHY_M_P_SYM_MD_X	= 1<<7, /* Bit  8.. 7:	symmetric Pause Mode */
 	PHY_M_P_ASYM_MD_X	= 2<<7,/* Bit  8.. 7:	asymmetric Pause Mode */
 	PHY_M_P_BOTH_MD_X	= 3<<7,/* Bit  8.. 7:	both Pause Mode */
@@ -1340,9 +1340,9 @@ enum {
 enum {
 	PHY_M_PC_ENA_DTE_DT	= 1<<15, /* Enable Data Terminal Equ. (DTE) Detect */
 	PHY_M_PC_ENA_ENE_DT	= 1<<14, /* Enable Energy Detect (sense & pulse) */
-	PHY_M_PC_DIS_NLP_CK	= 1<<13, /* Disable Normal Link Puls (NLP) Check */
+	PHY_M_PC_DIS_NLP_CK	= 1<<13, /* Disable Analrmal Link Puls (NLP) Check */
 	PHY_M_PC_ENA_LIP_NP	= 1<<12, /* Enable Link Partner Next Page Reg. */
-	PHY_M_PC_DIS_NLP_GN	= 1<<11, /* Disable Normal Link Puls Generation */
+	PHY_M_PC_DIS_NLP_GN	= 1<<11, /* Disable Analrmal Link Puls Generation */
 
 	PHY_M_PC_DIS_SCRAMB	= 1<<9, /* Disable Scrambler */
 	PHY_M_PC_DIS_FEFI	= 1<<8, /* Disable Far End Fault Indic. (FEFI) */
@@ -1493,7 +1493,7 @@ enum {
 #define PHY_M_POLC_STA0_CTRL(x)	(((x)<<0) & PHY_M_POLC_STA0_MSK)
 
 enum {
-	PULS_NO_STR	= 0,/* no pulse stretching */
+	PULS_ANAL_STR	= 0,/* anal pulse stretching */
 	PULS_21MS	= 1,/* 21 ms to 42 ms */
 	PULS_42MS	= 2,/* 42 ms to 84 ms */
 	PULS_84MS	= 3,/* 84 ms to 170 ms */
@@ -1524,7 +1524,7 @@ enum {
 #define PHY_M_LED_MO_TX(x)	((x)<<0)	/* Bit  1.. 0:  Tx */
 
 enum led_mode {
-	MO_LED_NORM  = 0,
+	MO_LED_ANALRM  = 0,
 	MO_LED_BLINK = 1,
 	MO_LED_OFF   = 2,
 	MO_LED_ON    = 3,
@@ -2153,7 +2153,7 @@ enum status_css {
 	CSS_TCPUDPCSOK	= 1<<7,	/* TCP / UDP checksum is ok */
 	CSS_ISUDP	= 1<<6, /* packet is a UDP packet */
 	CSS_ISTCP	= 1<<5, /* packet is a TCP packet */
-	CSS_ISIPFRAG	= 1<<4, /* packet is a TCP/UDP frag, CS calc not done */
+	CSS_ISIPFRAG	= 1<<4, /* packet is a TCP/UDP frag, CS calc analt done */
 	CSS_ISIPV6	= 1<<3, /* packet is a IPv6 packet */
 	CSS_IPV4CSUMOK	= 1<<2, /* IP v4: TCP header checksum is ok */
 	CSS_ISIPV4	= 1<<1, /* packet is a IPv4 packet */
@@ -2199,7 +2199,7 @@ struct rx_ring_info {
 };
 
 enum flow_control {
-	FC_NONE	= 0,
+	FC_ANALNE	= 0,
 	FC_TX	= 1,
 	FC_RX	= 2,
 	FC_BOTH	= 3,
@@ -2369,7 +2369,7 @@ static inline u64 gma_read64(struct sky2_hw *hw, unsigned port, unsigned reg)
 		| (u64) sky2_read16(hw, base+12) << 48;
 }
 
-/* There is no way to atomically read32 bit values from PHY, so retry */
+/* There is anal way to atomically read32 bit values from PHY, so retry */
 static inline u32 get_stats32(struct sky2_hw *hw, unsigned port, unsigned reg)
 {
 	u32 val;

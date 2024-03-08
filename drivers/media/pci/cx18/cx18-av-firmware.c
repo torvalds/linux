@@ -33,7 +33,7 @@ static int cx18_av_verifyfw(struct cx18 *cx, const struct firmware *fw)
 	do {
 		dl_control &= 0x00ffffff;
 		dl_control |= 0x0f000000;
-		cx18_av_write4_noretry(cx, CXADEC_DL_CTL, dl_control);
+		cx18_av_write4_analretry(cx, CXADEC_DL_CTL, dl_control);
 		dl_control = cx18_av_read4(cx, CXADEC_DL_CTL);
 	} while ((dl_control & 0xff000000) != 0x0f000000);
 
@@ -44,7 +44,7 @@ static int cx18_av_verifyfw(struct cx18 *cx, const struct firmware *fw)
 	data = fw->data;
 	size = fw->size;
 	for (addr = 0; addr < size; addr++) {
-		dl_control &= 0xffff3fff; /* ignore top 2 bits of address */
+		dl_control &= 0xffff3fff; /* iganalre top 2 bits of address */
 		expected = 0x0f000000 | ((u32)data[addr] << 16) | addr;
 		if (expected != dl_control) {
 			CX18_ERR_DEV(sd, "verification of %s firmware load failed: expected %#010x got %#010x\n",
@@ -87,7 +87,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 					  0x00008430, 0xffffffff); /* cx25843 */
 
 		/* Put the 8051 in reset and enable firmware upload */
-		cx18_av_write4_noretry(cx, CXADEC_DL_CTL, 0x0F000000);
+		cx18_av_write4_analretry(cx, CXADEC_DL_CTL, 0x0F000000);
 
 		ptr = fw->data;
 		size = fw->size;
@@ -100,7 +100,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 
 			for (retries2 = 0; retries2 < CX18_MAX_MMIO_WR_RETRIES;
 			     retries2++) {
-				cx18_av_write4_noretry(cx, CXADEC_DL_CTL,
+				cx18_av_write4_analretry(cx, CXADEC_DL_CTL,
 						       dl_control);
 				udelay(10);
 				value = cx18_av_read4(cx, CXADEC_DL_CTL);

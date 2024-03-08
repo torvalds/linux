@@ -74,7 +74,7 @@ Supported chips:
 
     Datasheet:
 
-	Not published
+	Analt published
 
   * Generic PMBus devices
 
@@ -101,12 +101,12 @@ limit.
 Fan support will be added in a later version of this driver.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices, since there is no register
-which can be safely used to identify the chip (The MFG_ID register is not
-supported by all chips), and since there is no well defined address range for
+This driver does analt probe for PMBus devices, since there is anal register
+which can be safely used to identify the chip (The MFG_ID register is analt
+supported by all chips), and since there is anal well defined address range for
 PMBus devices. You will have to instantiate the devices explicitly.
 
 Example: the following will load the driver for an LTC2978 at address 0x60
@@ -125,7 +125,7 @@ Emerson DS1200 power modules might look as follows::
 
   static struct pmbus_driver_info ds1200_info = {
 	.pages = 1,
-	/* Note: All other sensors are in linear mode */
+	/* Analte: All other sensors are in linear mode */
 	.direct[PSC_VOLTAGE_OUT] = true,
 	.direct[PSC_TEMPERATURE] = true,
 	.direct[PSC_CURRENT_OUT] = true,

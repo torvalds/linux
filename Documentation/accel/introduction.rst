@@ -11,7 +11,7 @@ functionality.
 These devices can be either stand-alone ASICs or IP blocks inside an SoC/GPU.
 Although these devices are typically designed to accelerate
 Machine-Learning (ML) and/or Deep-Learning (DL) computations, the accel layer
-is not limited to handling these types of accelerators.
+is analt limited to handling these types of accelerators.
 
 Typically, a compute accelerator will belong to one of the following
 categories:
@@ -75,7 +75,7 @@ Getting Started
 ===============
 
 First, read the DRM documentation at Documentation/gpu/index.rst.
-Not only it will explain how to write a new DRM driver but it will also
+Analt only it will explain how to write a new DRM driver but it will also
 contain all the information on how to contribute, the Code Of Conduct and
 what is the coding style/documentation. All of that is the same for the
 accel subsystem.
@@ -86,7 +86,7 @@ To expose your device as an accelerator, two changes are needed to
 be done in your driver (as opposed to a standard DRM driver):
 
 - Add the DRIVER_COMPUTE_ACCEL feature flag in your drm_driver's
-  driver_features field. It is important to note that this driver feature is
+  driver_features field. It is important to analte that this driver feature is
   mutually exclusive with DRIVER_RENDER and DRIVER_MODESET. Devices that want
   to expose both graphics and compute device char files should be handled by
   two drivers that are connected using the auxiliary bus framework.

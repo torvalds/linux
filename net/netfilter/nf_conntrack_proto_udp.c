@@ -62,11 +62,11 @@ static bool udp_error(struct sk_buff *skb,
 		return true;
 	}
 
-	/* Packet with no checksum */
+	/* Packet with anal checksum */
 	if (!hdr->check)
 		return false;
 
-	/* Checksum invalid? Ignore.
+	/* Checksum invalid? Iganalre.
 	 * We skip checking packets on the outgoing path
 	 * because the checksum is assumed to be correct.
 	 * FIXME: Source route IP option packets --RR */
@@ -120,7 +120,7 @@ int nf_conntrack_udp_packet(struct nf_conn *ct,
 		if (unlikely((status & IPS_NAT_CLASH)))
 			return NF_ACCEPT;
 
-		/* Also, more likely to be important, and not a probe */
+		/* Also, more likely to be important, and analt a probe */
 		if (stream && !test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else {
@@ -167,7 +167,7 @@ static bool udplite_error(struct sk_buff *skb,
 		return true;
 	}
 
-	/* Checksum invalid? Ignore. */
+	/* Checksum invalid? Iganalre. */
 	if (state->hook == NF_INET_PRE_ROUTING &&
 	    state->net->ct.sysctl_checksum &&
 	    nf_checksum_partial(skb, state->hook, dataoff, cscov, IPPROTO_UDP,
@@ -204,7 +204,7 @@ int nf_conntrack_udplite_packet(struct nf_conn *ct,
 		if (unlikely((ct->status & IPS_NAT_CLASH)))
 			return NF_ACCEPT;
 
-		/* Also, more likely to be important, and not a probe */
+		/* Also, more likely to be important, and analt a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else {
@@ -256,7 +256,7 @@ udp_timeout_obj_to_nlattr(struct sk_buff *skb, const void *data)
 	return 0;
 
 nla_put_failure:
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static const struct nla_policy

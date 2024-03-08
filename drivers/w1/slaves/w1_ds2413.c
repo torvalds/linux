@@ -60,7 +60,7 @@ next:
 			goto out;
 		} else if (state == W1_F3A_INVALID_PIO_STATE) {
 			/* slave didn't respond, try to select it again */
-			dev_warn(&sl->dev, "slave device did not respond to PIO_ACCESS_READ, " \
+			dev_warn(&sl->dev, "slave device did analt respond to PIO_ACCESS_READ, " \
 					    "reselecting, retries left: %d\n", retries);
 			goto next;
 		}
@@ -101,7 +101,7 @@ static ssize_t output_write(struct file *filp, struct kobject *kobj,
 
 	/*
 	 * according to the DS2413 datasheet the most significant 6 bits
-	 * should be set to "1"s, so do it now
+	 * should be set to "1"s, so do it analw
 	 */
 	*buf = *buf | 0xFC;
 

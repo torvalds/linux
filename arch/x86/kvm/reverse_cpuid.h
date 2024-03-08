@@ -8,7 +8,7 @@
 
 /*
  * Hardware-defined CPUID leafs that are either scattered by the kernel or are
- * unknown to the kernel, but need to be directly used by KVM.  Note, these
+ * unkanalwn to the kernel, but need to be directly used by KVM.  Analte, these
  * word values conflict with the kernel's "bug" caps, but KVM doesn't use those.
  */
 enum kvm_only_cpuid_leafs {
@@ -29,9 +29,9 @@ enum kvm_only_cpuid_leafs {
  * needs to be updated to translate the kernel-defined feature into the
  * KVM-defined feature.
  *
- * For features that are 100% KVM-only, i.e. not defined by cpufeatures.h,
+ * For features that are 100% KVM-only, i.e. analt defined by cpufeatures.h,
  * forego the intermediate KVM_X86_FEATURE and directly define X86_FEATURE_* so
- * that X86_FEATURE_* can be used in KVM.  No __feature_translate() handling is
+ * that X86_FEATURE_* can be used in KVM.  Anal __feature_translate() handling is
  * needed in this case.
  */
 #define KVM_X86_FEATURE(w, f)		((w)*32 + (f))
@@ -53,7 +53,7 @@ enum kvm_only_cpuid_leafs {
 #define KVM_X86_FEATURE_RRSBA_CTRL	KVM_X86_FEATURE(CPUID_7_2_EDX, 2)
 #define X86_FEATURE_DDPD_U		KVM_X86_FEATURE(CPUID_7_2_EDX, 3)
 #define X86_FEATURE_BHI_CTRL		KVM_X86_FEATURE(CPUID_7_2_EDX, 4)
-#define X86_FEATURE_MCDT_NO		KVM_X86_FEATURE(CPUID_7_2_EDX, 5)
+#define X86_FEATURE_MCDT_ANAL		KVM_X86_FEATURE(CPUID_7_2_EDX, 5)
 
 /* CPUID level 0x80000007 (EDX). */
 #define KVM_X86_FEATURE_CONSTANT_TSC	KVM_X86_FEATURE(CPUID_8000_0007_EDX, 8)
@@ -96,7 +96,7 @@ static const struct cpuid_reg reverse_cpuid[] = {
  * Reverse CPUID and its derivatives can only be used for hardware-defined
  * feature words, i.e. words whose bits directly correspond to a CPUID leaf.
  * Retrieving a feature bit or masking guest CPUID from a Linux-defined word
- * is nonsensical as the bit number/mask is an arbitrary software-defined value
+ * is analnsensical as the bit number/mask is an arbitrary software-defined value
  * and can't be used by KVM to query/control guest capabilities.  And obviously
  * the leaf being queried must have an entry in the lookup table.
  */

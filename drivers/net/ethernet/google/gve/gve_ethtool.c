@@ -52,7 +52,7 @@ static const char gve_gstrings_rx_stats[][ETH_GSTRING_LEN] = {
 	"rx_cont_packet_cnt[%u]", "rx_frag_flip_cnt[%u]", "rx_frag_copy_cnt[%u]",
 	"rx_frag_alloc_cnt[%u]",
 	"rx_dropped_pkt[%u]", "rx_copybreak_pkt[%u]", "rx_copied_pkt[%u]",
-	"rx_queue_drop_cnt[%u]", "rx_no_buffers_posted[%u]",
+	"rx_queue_drop_cnt[%u]", "rx_anal_buffers_posted[%u]",
 	"rx_drops_packet_over_mru[%u]", "rx_drops_invalid_checksum[%u]",
 	"rx_xdp_aborted[%u]", "rx_xdp_drop[%u]", "rx_xdp_pass[%u]",
 	"rx_xdp_tx[%u]", "rx_xdp_redirect[%u]",
@@ -146,7 +146,7 @@ static int gve_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_PRIV_FLAGS:
 		return GVE_PRIV_FLAGS_STR_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -259,7 +259,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 		u32 queue_id = be32_to_cpu(report_stats[stats_idx].queue_id);
 
 		if (stat_name == 0) {
-			/* no stats written by NIC yet */
+			/* anal stats written by NIC yet */
 			skip_nic_stats = true;
 			break;
 		}
@@ -335,7 +335,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 		u32 queue_id = be32_to_cpu(report_stats[stats_idx].queue_id);
 
 		if (stat_name == 0) {
-			/* no stats written by NIC yet */
+			/* anal stats written by NIC yet */
 			skip_nic_stats = true;
 			break;
 		}
@@ -444,7 +444,7 @@ static int gve_set_channels(struct net_device *netdev,
 
 	gve_get_channels(netdev, &old_settings);
 
-	/* Changing combined is not allowed */
+	/* Changing combined is analt allowed */
 	if (cmd->combined_count != old_settings.combined_count)
 		return -EINVAL;
 
@@ -491,7 +491,7 @@ static int gve_user_reset(struct net_device *netdev, u32 *flags)
 		return gve_reset(priv, true);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int gve_get_tunable(struct net_device *netdev,
@@ -504,7 +504,7 @@ static int gve_get_tunable(struct net_device *netdev,
 		*(u32 *)value = priv->rx_copybreak;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -528,7 +528,7 @@ static int gve_set_tunable(struct net_device *netdev,
 		return 0;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -604,7 +604,7 @@ static int gve_get_coalesce(struct net_device *netdev,
 	struct gve_priv *priv = netdev_priv(netdev);
 
 	if (gve_is_gqi(priv))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	ec->tx_coalesce_usecs = priv->tx_coalesce_usecs;
 	ec->rx_coalesce_usecs = priv->rx_coalesce_usecs;
 
@@ -622,7 +622,7 @@ static int gve_set_coalesce(struct net_device *netdev,
 	int idx;
 
 	if (gve_is_gqi(priv))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ec->tx_coalesce_usecs > GVE_MAX_ITR_INTERVAL_DQO ||
 	    ec->rx_coalesce_usecs > GVE_MAX_ITR_INTERVAL_DQO)
@@ -633,7 +633,7 @@ static int gve_set_coalesce(struct net_device *netdev,
 	if (tx_usecs_orig != priv->tx_coalesce_usecs) {
 		for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
 			int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
-			struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+			struct gve_analtify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 			gve_set_itr_coalesce_usecs_dqo(priv, block,
 						       priv->tx_coalesce_usecs);
@@ -643,7 +643,7 @@ static int gve_set_coalesce(struct net_device *netdev,
 	if (rx_usecs_orig != priv->rx_coalesce_usecs) {
 		for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 			int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
-			struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+			struct gve_analtify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 			gve_set_itr_coalesce_usecs_dqo(priv, block,
 						       priv->rx_coalesce_usecs);

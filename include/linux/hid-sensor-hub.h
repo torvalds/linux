@@ -36,7 +36,7 @@ struct hid_sensor_hub_attribute_info {
 };
 
 /**
- * struct sensor_hub_pending - Synchronous read pending information
+ * struct sensor_hub_pending - Synchroanalus read pending information
  * @status:		Pending status true/false.
  * @ready:		Completion synchronization data.
  * @usage_id:		Usage id for physical device, E.g. Gyro usage id.
@@ -81,7 +81,7 @@ struct hid_sensor_hub_device {
  * @suspend:		Suspend callback.
  * @resume:		Resume callback.
  * @capture_sample:	Callback to get a sample.
- * @send_event:		Send notification to indicate all samples are
+ * @send_event:		Send analtification to indicate all samples are
  *			captured, process and send event
  */
 struct hid_sensor_hub_callbacks {
@@ -121,7 +121,7 @@ void sensor_hub_device_close(struct hid_sensor_hub_device *hsdev);
 *
 * Used to register callbacks by client processing drivers. Sensor
 * hub core driver will call these callbacks to offload processing
-* of data streams and notifications.
+* of data streams and analtifications.
 */
 int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 			u32 usage_id,
@@ -133,7 +133,7 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 * @usage_id:	Usage id of the client (E.g. 0x200076 for Gyro).
 *
 * If there is a callback registred, this call will remove that
-* callbacks, so that it will stop data and event notifications.
+* callbacks, so that it will stop data and event analtifications.
 */
 int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 			u32 usage_id);
@@ -158,15 +158,15 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 			struct hid_sensor_hub_attribute_info *info);
 
 /**
-* sensor_hub_input_attr_get_raw_value() - Synchronous read request
+* sensor_hub_input_attr_get_raw_value() - Synchroanalus read request
 * @hsdev:	Hub device instance.
 * @usage_id:	Attribute usage id of parent physical device as per spec
 * @attr_usage_id:	Attribute usage id as per spec
 * @report_id:	Report id to look for
-* @flag:      Synchronous or asynchronous read
+* @flag:      Synchroanalus or asynchroanalus read
 * @is_signed:   If true then fields < 32 bits will be sign-extended
 *
-* Issues a synchronous or asynchronous read request for an input attribute.
+* Issues a synchroanalus or asynchroanalus read request for an input attribute.
 * Return: data up to 32 bits.
 */
 

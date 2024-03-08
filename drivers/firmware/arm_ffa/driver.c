@@ -7,10 +7,10 @@
  * provided by an ecosystem of vendors from each other and describes
  * interfaces that standardize communication between the various software
  * images including communication between images in the Secure world and
- * Normal world. Any Hypervisor could use the FFA interfaces to enable
+ * Analrmal world. Any Hypervisor could use the FFA interfaces to enable
  * communication between VMs it manages.
  *
- * The Hypervisor a.k.a Partition managers in FFA terminology can assign
+ * The Hypervisor a.k.a Partition managers in FFA termianallogy can assign
  * system resources(Memory regions, Devices, CPU cycles) to the partitions
  * and manage isolation amongst them.
  *
@@ -54,32 +54,32 @@
 	(FIELD_PREP(SENDER_ID_MASK, (s)) | FIELD_PREP(RECEIVER_ID_MASK, (r)))
 
 /*
- * Keeping RX TX buffer size as 4K for now
+ * Keeping RX TX buffer size as 4K for analw
  * 64K may be preferred to keep it min a page in 64K PAGE_SIZE config
  */
 #define RXTX_BUFFER_SIZE	SZ_4K
 
-#define FFA_MAX_NOTIFICATIONS		64
+#define FFA_MAX_ANALTIFICATIONS		64
 
 static ffa_fn *invoke_ffa_fn;
 
 static const int ffa_linux_errmap[] = {
 	/* better than switch case as long as return value is continuous */
 	0,		/* FFA_RET_SUCCESS */
-	-EOPNOTSUPP,	/* FFA_RET_NOT_SUPPORTED */
+	-EOPANALTSUPP,	/* FFA_RET_ANALT_SUPPORTED */
 	-EINVAL,	/* FFA_RET_INVALID_PARAMETERS */
-	-ENOMEM,	/* FFA_RET_NO_MEMORY */
+	-EANALMEM,	/* FFA_RET_ANAL_MEMORY */
 	-EBUSY,		/* FFA_RET_BUSY */
 	-EINTR,		/* FFA_RET_INTERRUPTED */
 	-EACCES,	/* FFA_RET_DENIED */
 	-EAGAIN,	/* FFA_RET_RETRY */
 	-ECANCELED,	/* FFA_RET_ABORTED */
-	-ENODATA,	/* FFA_RET_NO_DATA */
+	-EANALDATA,	/* FFA_RET_ANAL_DATA */
 };
 
-static inline int ffa_to_linux_errno(int errno)
+static inline int ffa_to_linux_erranal(int erranal)
 {
-	int err_idx = -errno;
+	int err_idx = -erranal;
 
 	if (err_idx >= 0 && err_idx < ARRAY_SIZE(ffa_linux_errmap))
 		return ffa_linux_errmap[err_idx];
@@ -99,16 +99,16 @@ struct ffa_drv_info {
 	void *tx_buffer;
 	bool mem_ops_native;
 	bool bitmap_created;
-	bool notif_enabled;
+	bool analtif_enabled;
 	unsigned int sched_recv_irq;
 	unsigned int cpuhp_state;
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
-	struct workqueue_struct *notif_pcpu_wq;
-	struct work_struct notif_pcpu_work;
+	struct workqueue_struct *analtif_pcpu_wq;
+	struct work_struct analtif_pcpu_work;
 	struct work_struct irq_work;
 	struct xarray partition_info;
-	DECLARE_HASHTABLE(notifier_hash, ilog2(FFA_MAX_NOTIFICATIONS));
-	struct mutex notify_lock; /* lock to protect notifier hashtable  */
+	DECLARE_HASHTABLE(analtifier_hash, ilog2(FFA_MAX_ANALTIFICATIONS));
+	struct mutex analtify_lock; /* lock to protect analtifier hashtable  */
 };
 
 static struct ffa_drv_info *drv_info;
@@ -120,15 +120,15 @@ static void ffa_partitions_cleanup(void);
  * The specification states that if firmware supports a FFA implementation
  * that is incompatible with and at a greater version number than specified
  * by the caller(FFA_DRIVER_VERSION passed as parameter to FFA_VERSION),
- * it must return the NOT_SUPPORTED error code.
+ * it must return the ANALT_SUPPORTED error code.
  */
 static u32 ffa_compatible_version_find(u32 version)
 {
-	u16 major = FFA_MAJOR_VERSION(version), minor = FFA_MINOR_VERSION(version);
+	u16 major = FFA_MAJOR_VERSION(version), mianalr = FFA_MIANALR_VERSION(version);
 	u16 drv_major = FFA_MAJOR_VERSION(FFA_DRIVER_VERSION);
-	u16 drv_minor = FFA_MINOR_VERSION(FFA_DRIVER_VERSION);
+	u16 drv_mianalr = FFA_MIANALR_VERSION(FFA_DRIVER_VERSION);
 
-	if ((major < drv_major) || (major == drv_major && minor <= drv_minor))
+	if ((major < drv_major) || (major == drv_major && mianalr <= drv_mianalr))
 		return version;
 
 	pr_info("Firmware version higher than driver version, downgrading\n");
@@ -143,23 +143,23 @@ static int ffa_version_check(u32 *version)
 		      .a0 = FFA_VERSION, .a1 = FFA_DRIVER_VERSION,
 		      }, &ver);
 
-	if (ver.a0 == FFA_RET_NOT_SUPPORTED) {
-		pr_info("FFA_VERSION returned not supported\n");
-		return -EOPNOTSUPP;
+	if (ver.a0 == FFA_RET_ANALT_SUPPORTED) {
+		pr_info("FFA_VERSION returned analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (ver.a0 < FFA_MIN_VERSION) {
 		pr_err("Incompatible v%d.%d! Earliest supported v%d.%d\n",
-		       FFA_MAJOR_VERSION(ver.a0), FFA_MINOR_VERSION(ver.a0),
+		       FFA_MAJOR_VERSION(ver.a0), FFA_MIANALR_VERSION(ver.a0),
 		       FFA_MAJOR_VERSION(FFA_MIN_VERSION),
-		       FFA_MINOR_VERSION(FFA_MIN_VERSION));
+		       FFA_MIANALR_VERSION(FFA_MIN_VERSION));
 		return -EINVAL;
 	}
 
 	pr_info("Driver version %d.%d\n", FFA_MAJOR_VERSION(FFA_DRIVER_VERSION),
-		FFA_MINOR_VERSION(FFA_DRIVER_VERSION));
+		FFA_MIANALR_VERSION(FFA_DRIVER_VERSION));
 	pr_info("Firmware version %d.%d found\n", FFA_MAJOR_VERSION(ver.a0),
-		FFA_MINOR_VERSION(ver.a0));
+		FFA_MIANALR_VERSION(ver.a0));
 	*version = ffa_compatible_version_find(ver.a0);
 
 	return 0;
@@ -174,7 +174,7 @@ static int ffa_rx_release(void)
 		      }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	/* check for ret.a0 == FFA_RX_RELEASE ? */
 
@@ -191,7 +191,7 @@ static int ffa_rxtx_map(phys_addr_t tx_buf, phys_addr_t rx_buf, u32 pg_cnt)
 		      }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	return 0;
 }
@@ -205,7 +205,7 @@ static int ffa_rxtx_unmap(u16 vm_id)
 		      }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	return 0;
 }
@@ -221,7 +221,7 @@ __ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 	ffa_value_t partition_info;
 
 	if (drv_info->version > FFA_VERSION_1_0 &&
-	    (!buffer || !num_partitions)) /* Just get the count for now */
+	    (!buffer || !num_partitions)) /* Just get the count for analw */
 		flags = PARTITION_INFO_GET_RETURN_COUNT_ONLY;
 
 	mutex_lock(&drv_info->rx_lock);
@@ -233,7 +233,7 @@ __ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 
 	if (partition_info.a0 == FFA_ERROR) {
 		mutex_unlock(&drv_info->rx_lock);
-		return ffa_to_linux_errno((int)partition_info.a2);
+		return ffa_to_linux_erranal((int)partition_info.a2);
 	}
 
 	count = partition_info.a2;
@@ -275,7 +275,7 @@ ffa_partition_probe(const uuid_t *uuid, struct ffa_partition_info **buffer)
 
 	pbuf = kcalloc(count, sizeof(*pbuf), GFP_KERNEL);
 	if (!pbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	count = __ffa_partition_info_get(uuid0_4[0], uuid0_4[1], uuid0_4[2],
 					 uuid0_4[3], pbuf, count);
@@ -297,7 +297,7 @@ static int ffa_id_get(u16 *vm_id)
 		      }, &id);
 
 	if (id.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)id.a2);
+		return ffa_to_linux_erranal((int)id.a2);
 
 	*vm_id = FIELD_GET(VM_ID_MASK, (id.a2));
 
@@ -330,7 +330,7 @@ static int ffa_msg_send_direct_req(u16 src_id, u16 dst_id, bool mode_32bit,
 			      }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	if (ret.a0 == resp_id) {
 		data->data0 = ret.a3;
@@ -361,7 +361,7 @@ static int ffa_mem_first_frag(u32 func_id, phys_addr_t buf, u32 buf_sz,
 			      }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	if (ret.a0 == FFA_SUCCESS) {
 		if (handle)
@@ -370,7 +370,7 @@ static int ffa_mem_first_frag(u32 func_id, phys_addr_t buf, u32 buf_sz,
 		if (handle)
 			*handle = PACK_HANDLE(ret.a1, ret.a2);
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return frag_len;
@@ -393,14 +393,14 @@ static int ffa_mem_next_frag(u64 handle, u32 frag_len)
 			      }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	if (ret.a0 == FFA_MEM_FRAG_RX)
 		return ret.a3;
 	else if (ret.a0 == FFA_SUCCESS)
 		return 0;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -428,13 +428,13 @@ static u16 ffa_memory_attributes_get(u32 func_id)
 {
 	/*
 	 * For the memory lend or donate operation, if the receiver is a PE or
-	 * a proxy endpoint, the owner/sender must not specify the attributes
+	 * a proxy endpoint, the owner/sender must analt specify the attributes
 	 */
 	if (func_id == FFA_FN_NATIVE(MEM_LEND) ||
 	    func_id == FFA_MEM_LEND)
 		return 0;
 
-	return FFA_MEM_NORMAL | FFA_MEM_WRITE_BACK | FFA_MEM_INNER_SHAREABLE;
+	return FFA_MEM_ANALRMAL | FFA_MEM_WRITE_BACK | FFA_MEM_INNER_SHAREABLE;
 }
 
 static int
@@ -532,7 +532,7 @@ static int ffa_memory_ops(u32 func_id, struct ffa_mem_ops_args *args)
 	if (!args->use_txbuf) {
 		buffer = alloc_pages_exact(RXTX_BUFFER_SIZE, GFP_KERNEL);
 		if (!buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		buffer = drv_info->tx_buffer;
 		mutex_lock(&drv_info->tx_lock);
@@ -559,7 +559,7 @@ static int ffa_memory_reclaim(u64 g_handle, u32 flags)
 		      }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	return 0;
 }
@@ -572,7 +572,7 @@ static int ffa_features(u32 func_feat_id, u32 input_props,
 	if (!ARM_SMCCC_IS_FAST_CALL(func_feat_id) && input_props) {
 		pr_err("%s: Invalid Parameters: %x, %x", __func__,
 		       func_feat_id, input_props);
-		return ffa_to_linux_errno(FFA_RET_INVALID_PARAMETERS);
+		return ffa_to_linux_erranal(FFA_RET_INVALID_PARAMETERS);
 	}
 
 	invoke_ffa_fn((ffa_value_t){
@@ -580,7 +580,7 @@ static int ffa_features(u32 func_feat_id, u32 input_props,
 		}, &id);
 
 	if (id.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)id.a2);
+		return ffa_to_linux_erranal((int)id.a2);
 
 	if (if_props_1)
 		*if_props_1 = id.a2;
@@ -590,81 +590,81 @@ static int ffa_features(u32 func_feat_id, u32 input_props,
 	return 0;
 }
 
-static int ffa_notification_bitmap_create(void)
+static int ffa_analtification_bitmap_create(void)
 {
 	ffa_value_t ret;
 	u16 vcpu_count = nr_cpu_ids;
 
 	invoke_ffa_fn((ffa_value_t){
-		      .a0 = FFA_NOTIFICATION_BITMAP_CREATE,
+		      .a0 = FFA_ANALTIFICATION_BITMAP_CREATE,
 		      .a1 = drv_info->vm_id, .a2 = vcpu_count,
 		      }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	return 0;
 }
 
-static int ffa_notification_bitmap_destroy(void)
+static int ffa_analtification_bitmap_destroy(void)
 {
 	ffa_value_t ret;
 
 	invoke_ffa_fn((ffa_value_t){
-		      .a0 = FFA_NOTIFICATION_BITMAP_DESTROY,
+		      .a0 = FFA_ANALTIFICATION_BITMAP_DESTROY,
 		      .a1 = drv_info->vm_id,
 		      }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	return 0;
 }
 
-#define NOTIFICATION_LOW_MASK		GENMASK(31, 0)
-#define NOTIFICATION_HIGH_MASK		GENMASK(63, 32)
-#define NOTIFICATION_BITMAP_HIGH(x)	\
-		((u32)(FIELD_GET(NOTIFICATION_HIGH_MASK, (x))))
-#define NOTIFICATION_BITMAP_LOW(x)	\
-		((u32)(FIELD_GET(NOTIFICATION_LOW_MASK, (x))))
-#define PACK_NOTIFICATION_BITMAP(low, high)	\
-	(FIELD_PREP(NOTIFICATION_LOW_MASK, (low)) | \
-	 FIELD_PREP(NOTIFICATION_HIGH_MASK, (high)))
+#define ANALTIFICATION_LOW_MASK		GENMASK(31, 0)
+#define ANALTIFICATION_HIGH_MASK		GENMASK(63, 32)
+#define ANALTIFICATION_BITMAP_HIGH(x)	\
+		((u32)(FIELD_GET(ANALTIFICATION_HIGH_MASK, (x))))
+#define ANALTIFICATION_BITMAP_LOW(x)	\
+		((u32)(FIELD_GET(ANALTIFICATION_LOW_MASK, (x))))
+#define PACK_ANALTIFICATION_BITMAP(low, high)	\
+	(FIELD_PREP(ANALTIFICATION_LOW_MASK, (low)) | \
+	 FIELD_PREP(ANALTIFICATION_HIGH_MASK, (high)))
 
 #define RECEIVER_VCPU_MASK		GENMASK(31, 16)
-#define PACK_NOTIFICATION_GET_RECEIVER_INFO(vcpu_r, r) \
+#define PACK_ANALTIFICATION_GET_RECEIVER_INFO(vcpu_r, r) \
 	(FIELD_PREP(RECEIVER_VCPU_MASK, (vcpu_r)) | \
 	 FIELD_PREP(RECEIVER_ID_MASK, (r)))
 
-#define NOTIFICATION_INFO_GET_MORE_PEND_MASK	BIT(0)
-#define NOTIFICATION_INFO_GET_ID_COUNT		GENMASK(11, 7)
+#define ANALTIFICATION_INFO_GET_MORE_PEND_MASK	BIT(0)
+#define ANALTIFICATION_INFO_GET_ID_COUNT		GENMASK(11, 7)
 #define ID_LIST_MASK_64				GENMASK(51, 12)
 #define ID_LIST_MASK_32				GENMASK(31, 12)
 #define MAX_IDS_64				20
 #define MAX_IDS_32				10
 
-#define PER_VCPU_NOTIFICATION_FLAG		BIT(0)
+#define PER_VCPU_ANALTIFICATION_FLAG		BIT(0)
 #define SECURE_PARTITION_BITMAP			BIT(0)
-#define NON_SECURE_VM_BITMAP			BIT(1)
+#define ANALN_SECURE_VM_BITMAP			BIT(1)
 #define SPM_FRAMEWORK_BITMAP			BIT(2)
 #define NS_HYP_FRAMEWORK_BITMAP			BIT(3)
 
-static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
+static int ffa_analtification_bind_common(u16 dst_id, u64 bitmap,
 					u32 flags, bool is_bind)
 {
 	ffa_value_t ret;
 	u32 func, src_dst_ids = PACK_TARGET_INFO(dst_id, drv_info->vm_id);
 
-	func = is_bind ? FFA_NOTIFICATION_BIND : FFA_NOTIFICATION_UNBIND;
+	func = is_bind ? FFA_ANALTIFICATION_BIND : FFA_ANALTIFICATION_UNBIND;
 
 	invoke_ffa_fn((ffa_value_t){
 		  .a0 = func, .a1 = src_dst_ids, .a2 = flags,
-		  .a3 = NOTIFICATION_BITMAP_LOW(bitmap),
-		  .a4 = NOTIFICATION_BITMAP_HIGH(bitmap),
+		  .a3 = ANALTIFICATION_BITMAP_LOW(bitmap),
+		  .a4 = ANALTIFICATION_BITMAP_HIGH(bitmap),
 		  }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 	else if (ret.a0 != FFA_SUCCESS)
 		return -EINVAL;
 
@@ -672,50 +672,50 @@ static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 }
 
 static
-int ffa_notification_set(u16 src_id, u16 dst_id, u32 flags, u64 bitmap)
+int ffa_analtification_set(u16 src_id, u16 dst_id, u32 flags, u64 bitmap)
 {
 	ffa_value_t ret;
 	u32 src_dst_ids = PACK_TARGET_INFO(dst_id, src_id);
 
 	invoke_ffa_fn((ffa_value_t) {
-		  .a0 = FFA_NOTIFICATION_SET, .a1 = src_dst_ids, .a2 = flags,
-		  .a3 = NOTIFICATION_BITMAP_LOW(bitmap),
-		  .a4 = NOTIFICATION_BITMAP_HIGH(bitmap),
+		  .a0 = FFA_ANALTIFICATION_SET, .a1 = src_dst_ids, .a2 = flags,
+		  .a3 = ANALTIFICATION_BITMAP_LOW(bitmap),
+		  .a4 = ANALTIFICATION_BITMAP_HIGH(bitmap),
 		  }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 	else if (ret.a0 != FFA_SUCCESS)
 		return -EINVAL;
 
 	return 0;
 }
 
-struct ffa_notify_bitmaps {
+struct ffa_analtify_bitmaps {
 	u64 sp_map;
 	u64 vm_map;
 	u64 arch_map;
 };
 
-static int ffa_notification_get(u32 flags, struct ffa_notify_bitmaps *notify)
+static int ffa_analtification_get(u32 flags, struct ffa_analtify_bitmaps *analtify)
 {
 	ffa_value_t ret;
 	u16 src_id = drv_info->vm_id;
 	u16 cpu_id = smp_processor_id();
-	u32 rec_vcpu_ids = PACK_NOTIFICATION_GET_RECEIVER_INFO(cpu_id, src_id);
+	u32 rec_vcpu_ids = PACK_ANALTIFICATION_GET_RECEIVER_INFO(cpu_id, src_id);
 
 	invoke_ffa_fn((ffa_value_t){
-		  .a0 = FFA_NOTIFICATION_GET, .a1 = rec_vcpu_ids, .a2 = flags,
+		  .a0 = FFA_ANALTIFICATION_GET, .a1 = rec_vcpu_ids, .a2 = flags,
 		  }, &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 	else if (ret.a0 != FFA_SUCCESS)
 		return -EINVAL; /* Something else went wrong. */
 
-	notify->sp_map = PACK_NOTIFICATION_BITMAP(ret.a2, ret.a3);
-	notify->vm_map = PACK_NOTIFICATION_BITMAP(ret.a4, ret.a5);
-	notify->arch_map = PACK_NOTIFICATION_BITMAP(ret.a6, ret.a7);
+	analtify->sp_map = PACK_ANALTIFICATION_BITMAP(ret.a2, ret.a3);
+	analtify->vm_map = PACK_ANALTIFICATION_BITMAP(ret.a4, ret.a5);
+	analtify->arch_map = PACK_ANALTIFICATION_BITMAP(ret.a6, ret.a7);
 
 	return 0;
 }
@@ -747,7 +747,7 @@ static void __do_sched_recv_cb(u16 part_id, u16 vcpu, bool is_per_vcpu)
 		callback(vcpu, is_per_vcpu, cb_data);
 }
 
-static void ffa_notification_info_get(void)
+static void ffa_analtification_info_get(void)
 {
 	int idx, list, max_ids, lists_cnt, ids_processed, ids_count[MAX_IDS_64];
 	bool is_64b_resp;
@@ -756,12 +756,12 @@ static void ffa_notification_info_get(void)
 
 	do {
 		invoke_ffa_fn((ffa_value_t){
-			  .a0 = FFA_FN_NATIVE(NOTIFICATION_INFO_GET),
+			  .a0 = FFA_FN_NATIVE(ANALTIFICATION_INFO_GET),
 			  }, &ret);
 
 		if (ret.a0 != FFA_FN_NATIVE(SUCCESS) && ret.a0 != FFA_SUCCESS) {
-			if (ret.a2 != FFA_RET_NO_DATA)
-				pr_err("Notification Info fetch failed: 0x%lx (0x%lx)",
+			if (ret.a2 != FFA_RET_ANAL_DATA)
+				pr_err("Analtification Info fetch failed: 0x%lx (0x%lx)",
 				       ret.a0, ret.a2);
 			return;
 		}
@@ -769,7 +769,7 @@ static void ffa_notification_info_get(void)
 		is_64b_resp = (ret.a0 == FFA_FN64_SUCCESS);
 
 		ids_processed = 0;
-		lists_cnt = FIELD_GET(NOTIFICATION_INFO_GET_ID_COUNT, ret.a2);
+		lists_cnt = FIELD_GET(ANALTIFICATION_INFO_GET_ID_COUNT, ret.a2);
 		if (is_64b_resp) {
 			max_ids = MAX_IDS_64;
 			id_list = FIELD_GET(ID_LIST_MASK_64, ret.a2);
@@ -790,12 +790,12 @@ static void ffa_notification_info_get(void)
 
 			part_id = packed_id_list[ids_processed++];
 
-			if (!ids_count[list]) { /* Global Notification */
+			if (!ids_count[list]) { /* Global Analtification */
 				__do_sched_recv_cb(part_id, 0, false);
 				continue;
 			}
 
-			/* Per vCPU Notification */
+			/* Per vCPU Analtification */
 			for (idx = 0; idx < ids_count[list]; idx++) {
 				if (ids_processed >= max_ids - 1)
 					break;
@@ -805,7 +805,7 @@ static void ffa_notification_info_get(void)
 				__do_sched_recv_cb(part_id, vcpu_id, true);
 			}
 		}
-	} while (ret.a2 & NOTIFICATION_INFO_GET_MORE_PEND_MASK);
+	} while (ret.a2 & ANALTIFICATION_INFO_GET_MORE_PEND_MASK);
 }
 
 static int ffa_run(struct ffa_device *dev, u16 vcpu)
@@ -820,7 +820,7 @@ static int ffa_run(struct ffa_device *dev, u16 vcpu)
 			      &ret);
 
 	if (ret.a0 == FFA_ERROR)
-		return ffa_to_linux_errno((int)ret.a2);
+		return ffa_to_linux_erranal((int)ret.a2);
 
 	return 0;
 }
@@ -846,12 +846,12 @@ static int ffa_partition_info_get(const char *uuid_str,
 
 	if (uuid_parse(uuid_str, &uuid)) {
 		pr_err("invalid uuid (%s)\n", uuid_str);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	count = ffa_partition_probe(&uuid, &pbuf);
 	if (count <= 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	memcpy(buffer, pbuf, sizeof(*pbuf) * count);
 	kfree(pbuf);
@@ -880,8 +880,8 @@ static int ffa_memory_share(struct ffa_mem_ops_args *args)
 
 static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 {
-	/* Note that upon a successful MEM_LEND request the caller
-	 * must ensure that the memory region specified is not accessed
+	/* Analte that upon a successful MEM_LEND request the caller
+	 * must ensure that the memory region specified is analt accessed
 	 * until a successful MEM_RECALIM call has been made.
 	 * On systems with a hypervisor present this will been enforced,
 	 * however on systems without a hypervisor the responsibility
@@ -895,19 +895,19 @@ static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 
 #define FFA_SECURE_PARTITION_ID_FLAG	BIT(15)
 
-#define ffa_notifications_disabled()	(!drv_info->notif_enabled)
+#define ffa_analtifications_disabled()	(!drv_info->analtif_enabled)
 
-enum notify_type {
-	NON_SECURE_VM,
+enum analtify_type {
+	ANALN_SECURE_VM,
 	SECURE_PARTITION,
 	FRAMEWORK,
 };
 
-struct notifier_cb_info {
-	struct hlist_node hnode;
-	ffa_notifier_cb cb;
+struct analtifier_cb_info {
+	struct hlist_analde hanalde;
+	ffa_analtifier_cb cb;
 	void *cb_data;
-	enum notify_type type;
+	enum analtify_type type;
 };
 
 static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
@@ -916,8 +916,8 @@ static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
 	struct ffa_dev_part_info *partition;
 	bool cb_valid;
 
-	if (ffa_notifications_disabled())
-		return -EOPNOTSUPP;
+	if (ffa_analtifications_disabled())
+		return -EOPANALTSUPP;
 
 	partition = xa_load(&drv_info->partition_info, part_id);
 	if (!partition) {
@@ -951,37 +951,37 @@ static int ffa_sched_recv_cb_unregister(struct ffa_device *dev)
 	return ffa_sched_recv_cb_update(dev->vm_id, NULL, NULL, false);
 }
 
-static int ffa_notification_bind(u16 dst_id, u64 bitmap, u32 flags)
+static int ffa_analtification_bind(u16 dst_id, u64 bitmap, u32 flags)
 {
-	return ffa_notification_bind_common(dst_id, bitmap, flags, true);
+	return ffa_analtification_bind_common(dst_id, bitmap, flags, true);
 }
 
-static int ffa_notification_unbind(u16 dst_id, u64 bitmap)
+static int ffa_analtification_unbind(u16 dst_id, u64 bitmap)
 {
-	return ffa_notification_bind_common(dst_id, bitmap, 0, false);
+	return ffa_analtification_bind_common(dst_id, bitmap, 0, false);
 }
 
-/* Should be called while the notify_lock is taken */
-static struct notifier_cb_info *
-notifier_hash_node_get(u16 notify_id, enum notify_type type)
+/* Should be called while the analtify_lock is taken */
+static struct analtifier_cb_info *
+analtifier_hash_analde_get(u16 analtify_id, enum analtify_type type)
 {
-	struct notifier_cb_info *node;
+	struct analtifier_cb_info *analde;
 
-	hash_for_each_possible(drv_info->notifier_hash, node, hnode, notify_id)
-		if (type == node->type)
-			return node;
+	hash_for_each_possible(drv_info->analtifier_hash, analde, hanalde, analtify_id)
+		if (type == analde->type)
+			return analde;
 
 	return NULL;
 }
 
 static int
-update_notifier_cb(int notify_id, enum notify_type type, ffa_notifier_cb cb,
+update_analtifier_cb(int analtify_id, enum analtify_type type, ffa_analtifier_cb cb,
 		   void *cb_data, bool is_registration)
 {
-	struct notifier_cb_info *cb_info = NULL;
+	struct analtifier_cb_info *cb_info = NULL;
 	bool cb_found;
 
-	cb_info = notifier_hash_node_get(notify_id, type);
+	cb_info = analtifier_hash_analde_get(analtify_id, type);
 	cb_found = !!cb_info;
 
 	if (!(is_registration ^ cb_found))
@@ -990,151 +990,151 @@ update_notifier_cb(int notify_id, enum notify_type type, ffa_notifier_cb cb,
 	if (is_registration) {
 		cb_info = kzalloc(sizeof(*cb_info), GFP_KERNEL);
 		if (!cb_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cb_info->type = type;
 		cb_info->cb = cb;
 		cb_info->cb_data = cb_data;
 
-		hash_add(drv_info->notifier_hash, &cb_info->hnode, notify_id);
+		hash_add(drv_info->analtifier_hash, &cb_info->hanalde, analtify_id);
 	} else {
-		hash_del(&cb_info->hnode);
+		hash_del(&cb_info->hanalde);
 	}
 
 	return 0;
 }
 
-static enum notify_type ffa_notify_type_get(u16 vm_id)
+static enum analtify_type ffa_analtify_type_get(u16 vm_id)
 {
 	if (vm_id & FFA_SECURE_PARTITION_ID_FLAG)
 		return SECURE_PARTITION;
 	else
-		return NON_SECURE_VM;
+		return ANALN_SECURE_VM;
 }
 
-static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
+static int ffa_analtify_relinquish(struct ffa_device *dev, int analtify_id)
 {
 	int rc;
-	enum notify_type type = ffa_notify_type_get(dev->vm_id);
+	enum analtify_type type = ffa_analtify_type_get(dev->vm_id);
 
-	if (ffa_notifications_disabled())
-		return -EOPNOTSUPP;
+	if (ffa_analtifications_disabled())
+		return -EOPANALTSUPP;
 
-	if (notify_id >= FFA_MAX_NOTIFICATIONS)
+	if (analtify_id >= FFA_MAX_ANALTIFICATIONS)
 		return -EINVAL;
 
-	mutex_lock(&drv_info->notify_lock);
+	mutex_lock(&drv_info->analtify_lock);
 
-	rc = update_notifier_cb(notify_id, type, NULL, NULL, false);
+	rc = update_analtifier_cb(analtify_id, type, NULL, NULL, false);
 	if (rc) {
-		pr_err("Could not unregister notification callback\n");
-		mutex_unlock(&drv_info->notify_lock);
+		pr_err("Could analt unregister analtification callback\n");
+		mutex_unlock(&drv_info->analtify_lock);
 		return rc;
 	}
 
-	rc = ffa_notification_unbind(dev->vm_id, BIT(notify_id));
+	rc = ffa_analtification_unbind(dev->vm_id, BIT(analtify_id));
 
-	mutex_unlock(&drv_info->notify_lock);
+	mutex_unlock(&drv_info->analtify_lock);
 
 	return rc;
 }
 
-static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
-			      ffa_notifier_cb cb, void *cb_data, int notify_id)
+static int ffa_analtify_request(struct ffa_device *dev, bool is_per_vcpu,
+			      ffa_analtifier_cb cb, void *cb_data, int analtify_id)
 {
 	int rc;
 	u32 flags = 0;
-	enum notify_type type = ffa_notify_type_get(dev->vm_id);
+	enum analtify_type type = ffa_analtify_type_get(dev->vm_id);
 
-	if (ffa_notifications_disabled())
-		return -EOPNOTSUPP;
+	if (ffa_analtifications_disabled())
+		return -EOPANALTSUPP;
 
-	if (notify_id >= FFA_MAX_NOTIFICATIONS)
+	if (analtify_id >= FFA_MAX_ANALTIFICATIONS)
 		return -EINVAL;
 
-	mutex_lock(&drv_info->notify_lock);
+	mutex_lock(&drv_info->analtify_lock);
 
 	if (is_per_vcpu)
-		flags = PER_VCPU_NOTIFICATION_FLAG;
+		flags = PER_VCPU_ANALTIFICATION_FLAG;
 
-	rc = ffa_notification_bind(dev->vm_id, BIT(notify_id), flags);
+	rc = ffa_analtification_bind(dev->vm_id, BIT(analtify_id), flags);
 	if (rc) {
-		mutex_unlock(&drv_info->notify_lock);
+		mutex_unlock(&drv_info->analtify_lock);
 		return rc;
 	}
 
-	rc = update_notifier_cb(notify_id, type, cb, cb_data, true);
+	rc = update_analtifier_cb(analtify_id, type, cb, cb_data, true);
 	if (rc) {
 		pr_err("Failed to register callback for %d - %d\n",
-		       notify_id, rc);
-		ffa_notification_unbind(dev->vm_id, BIT(notify_id));
+		       analtify_id, rc);
+		ffa_analtification_unbind(dev->vm_id, BIT(analtify_id));
 	}
-	mutex_unlock(&drv_info->notify_lock);
+	mutex_unlock(&drv_info->analtify_lock);
 
 	return rc;
 }
 
-static int ffa_notify_send(struct ffa_device *dev, int notify_id,
+static int ffa_analtify_send(struct ffa_device *dev, int analtify_id,
 			   bool is_per_vcpu, u16 vcpu)
 {
 	u32 flags = 0;
 
-	if (ffa_notifications_disabled())
-		return -EOPNOTSUPP;
+	if (ffa_analtifications_disabled())
+		return -EOPANALTSUPP;
 
 	if (is_per_vcpu)
-		flags |= (PER_VCPU_NOTIFICATION_FLAG | vcpu << 16);
+		flags |= (PER_VCPU_ANALTIFICATION_FLAG | vcpu << 16);
 
-	return ffa_notification_set(dev->vm_id, drv_info->vm_id, flags,
-				    BIT(notify_id));
+	return ffa_analtification_set(dev->vm_id, drv_info->vm_id, flags,
+				    BIT(analtify_id));
 }
 
-static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
+static void handle_analtif_callbacks(u64 bitmap, enum analtify_type type)
 {
-	int notify_id;
-	struct notifier_cb_info *cb_info = NULL;
+	int analtify_id;
+	struct analtifier_cb_info *cb_info = NULL;
 
-	for (notify_id = 0; notify_id <= FFA_MAX_NOTIFICATIONS && bitmap;
-	     notify_id++, bitmap >>= 1) {
+	for (analtify_id = 0; analtify_id <= FFA_MAX_ANALTIFICATIONS && bitmap;
+	     analtify_id++, bitmap >>= 1) {
 		if (!(bitmap & 1))
 			continue;
 
-		mutex_lock(&drv_info->notify_lock);
-		cb_info = notifier_hash_node_get(notify_id, type);
-		mutex_unlock(&drv_info->notify_lock);
+		mutex_lock(&drv_info->analtify_lock);
+		cb_info = analtifier_hash_analde_get(analtify_id, type);
+		mutex_unlock(&drv_info->analtify_lock);
 
 		if (cb_info && cb_info->cb)
-			cb_info->cb(notify_id, cb_info->cb_data);
+			cb_info->cb(analtify_id, cb_info->cb_data);
 	}
 }
 
-static void notif_pcpu_irq_work_fn(struct work_struct *work)
+static void analtif_pcpu_irq_work_fn(struct work_struct *work)
 {
 	int rc;
-	struct ffa_notify_bitmaps bitmaps;
+	struct ffa_analtify_bitmaps bitmaps;
 
-	rc = ffa_notification_get(SECURE_PARTITION_BITMAP |
+	rc = ffa_analtification_get(SECURE_PARTITION_BITMAP |
 				  SPM_FRAMEWORK_BITMAP, &bitmaps);
 	if (rc) {
-		pr_err("Failed to retrieve notifications with %d!\n", rc);
+		pr_err("Failed to retrieve analtifications with %d!\n", rc);
 		return;
 	}
 
-	handle_notif_callbacks(bitmaps.vm_map, NON_SECURE_VM);
-	handle_notif_callbacks(bitmaps.sp_map, SECURE_PARTITION);
-	handle_notif_callbacks(bitmaps.arch_map, FRAMEWORK);
+	handle_analtif_callbacks(bitmaps.vm_map, ANALN_SECURE_VM);
+	handle_analtif_callbacks(bitmaps.sp_map, SECURE_PARTITION);
+	handle_analtif_callbacks(bitmaps.arch_map, FRAMEWORK);
 }
 
 static void
-ffa_self_notif_handle(u16 vcpu, bool is_per_vcpu, void *cb_data)
+ffa_self_analtif_handle(u16 vcpu, bool is_per_vcpu, void *cb_data)
 {
 	struct ffa_drv_info *info = cb_data;
 
 	if (!is_per_vcpu)
-		notif_pcpu_irq_work_fn(&info->notif_pcpu_work);
+		analtif_pcpu_irq_work_fn(&info->analtif_pcpu_work);
 	else
-		queue_work_on(vcpu, info->notif_pcpu_wq,
-			      &info->notif_pcpu_work);
+		queue_work_on(vcpu, info->analtif_pcpu_wq,
+			      &info->analtif_pcpu_work);
 }
 
 static const struct ffa_info_ops ffa_drv_info_ops = {
@@ -1157,12 +1157,12 @@ static const struct ffa_cpu_ops ffa_drv_cpu_ops = {
 	.run = ffa_run,
 };
 
-static const struct ffa_notifier_ops ffa_drv_notifier_ops = {
+static const struct ffa_analtifier_ops ffa_drv_analtifier_ops = {
 	.sched_recv_cb_register = ffa_sched_recv_cb_register,
 	.sched_recv_cb_unregister = ffa_sched_recv_cb_unregister,
-	.notify_request = ffa_notify_request,
-	.notify_relinquish = ffa_notify_relinquish,
-	.notify_send = ffa_notify_send,
+	.analtify_request = ffa_analtify_request,
+	.analtify_relinquish = ffa_analtify_relinquish,
+	.analtify_send = ffa_analtify_send,
 };
 
 static const struct ffa_ops ffa_drv_ops = {
@@ -1170,7 +1170,7 @@ static const struct ffa_ops ffa_drv_ops = {
 	.msg_ops = &ffa_drv_msg_ops,
 	.mem_ops = &ffa_drv_mem_ops,
 	.cpu_ops = &ffa_drv_cpu_ops,
-	.notifier_ops = &ffa_drv_notifier_ops,
+	.analtifier_ops = &ffa_drv_analtifier_ops,
 };
 
 void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
@@ -1181,7 +1181,7 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 	/*
 	 * FF-A v1.1 provides UUID for each partition as part of the discovery
 	 * API, the discovered UUID must be populated in the device's UUID and
-	 * there is no need to copy the same from the driver table.
+	 * there is anal need to copy the same from the driver table.
 	 */
 	if (drv_info->version > FFA_VERSION_1_0)
 		return;
@@ -1206,7 +1206,7 @@ static int ffa_setup_partitions(void)
 
 	count = ffa_partition_probe(&uuid_null, &pbuf);
 	if (count <= 0) {
-		pr_info("%s: No partitions found, error %d\n", __func__, count);
+		pr_info("%s: Anal partitions found, error %d\n", __func__, count);
 		return -EINVAL;
 	}
 
@@ -1214,7 +1214,7 @@ static int ffa_setup_partitions(void)
 	for (idx = 0, tpbuf = pbuf; idx < count; idx++, tpbuf++) {
 		import_uuid(&uuid, (u8 *)tpbuf->uuid);
 
-		/* Note that if the UUID will be uuid_null, that will require
+		/* Analte that if the UUID will be uuid_null, that will require
 		 * ffa_device_match() to find the UUID of this partition id
 		 * with help of ffa_device_match_uuid(). FF-A v1.1 and above
 		 * provides UUID here for each partition as part of the
@@ -1256,7 +1256,7 @@ static int ffa_setup_partitions(void)
 		       __func__, drv_info->vm_id);
 		/* Already registered devices are freed on bus_exit */
 		ffa_partitions_cleanup();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rwlock_init(&info->rw_lock);
@@ -1287,7 +1287,7 @@ static void ffa_partitions_cleanup(void)
 }
 
 /* FFA FEATURE IDs */
-#define FFA_FEAT_NOTIFICATION_PENDING_INT	(1)
+#define FFA_FEAT_ANALTIFICATION_PENDING_INT	(1)
 #define FFA_FEAT_SCHEDULE_RECEIVER_INT		(2)
 #define FFA_FEAT_MANAGED_EXIT_INT		(3)
 
@@ -1296,14 +1296,14 @@ static irqreturn_t irq_handler(int irq, void *irq_data)
 	struct ffa_pcpu_irq *pcpu = irq_data;
 	struct ffa_drv_info *info = pcpu->info;
 
-	queue_work(info->notif_pcpu_wq, &info->irq_work);
+	queue_work(info->analtif_pcpu_wq, &info->irq_work);
 
 	return IRQ_HANDLED;
 }
 
 static void ffa_sched_recv_irq_work_fn(struct work_struct *work)
 {
-	ffa_notification_info_get();
+	ffa_analtification_info_get();
 }
 
 static int ffa_sched_recv_irq_map(void)
@@ -1313,17 +1313,17 @@ static int ffa_sched_recv_irq_map(void)
 	/* The returned sr_intid is assumed to be SGI donated to NS world */
 	ret = ffa_features(FFA_FEAT_SCHEDULE_RECEIVER_INT, 0, &sr_intid, NULL);
 	if (ret < 0) {
-		if (ret != -EOPNOTSUPP)
+		if (ret != -EOPANALTSUPP)
 			pr_err("Failed to retrieve scheduler Rx interrupt\n");
 		return ret;
 	}
 
 	if (acpi_disabled) {
 		struct of_phandle_args oirq = {};
-		struct device_node *gic;
+		struct device_analde *gic;
 
 		/* Only GICv3 supported currently with the device tree */
-		gic = of_find_compatible_node(NULL, NULL, "arm,gic-v3");
+		gic = of_find_compatible_analde(NULL, NULL, "arm,gic-v3");
 		if (!gic)
 			return -ENXIO;
 
@@ -1331,7 +1331,7 @@ static int ffa_sched_recv_irq_map(void)
 		oirq.args_count = 1;
 		oirq.args[0] = sr_intid;
 		irq = irq_create_of_mapping(&oirq);
-		of_node_put(gic);
+		of_analde_put(gic);
 #ifdef CONFIG_ACPI
 	} else {
 		irq = acpi_register_gsi(NULL, sr_intid, ACPI_EDGE_SENSITIVE,
@@ -1341,7 +1341,7 @@ static int ffa_sched_recv_irq_map(void)
 
 	if (irq <= 0) {
 		pr_err("Failed to create IRQ mapping!\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	return irq;
@@ -1357,7 +1357,7 @@ static void ffa_sched_recv_irq_unmap(void)
 
 static int ffa_cpuhp_pcpu_irq_enable(unsigned int cpu)
 {
-	enable_percpu_irq(drv_info->sched_recv_irq, IRQ_TYPE_NONE);
+	enable_percpu_irq(drv_info->sched_recv_irq, IRQ_TYPE_ANALNE);
 	return 0;
 }
 
@@ -1374,9 +1374,9 @@ static void ffa_uninit_pcpu_irq(void)
 		drv_info->cpuhp_state = 0;
 	}
 
-	if (drv_info->notif_pcpu_wq) {
-		destroy_workqueue(drv_info->notif_pcpu_wq);
-		drv_info->notif_pcpu_wq = NULL;
+	if (drv_info->analtif_pcpu_wq) {
+		destroy_workqueue(drv_info->analtif_pcpu_wq);
+		drv_info->analtif_pcpu_wq = NULL;
 	}
 
 	if (drv_info->sched_recv_irq)
@@ -1395,7 +1395,7 @@ static int ffa_init_pcpu_irq(unsigned int irq)
 
 	irq_pcpu = alloc_percpu(struct ffa_pcpu_irq);
 	if (!irq_pcpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_present_cpu(cpu)
 		per_cpu_ptr(irq_pcpu, cpu)->info = drv_info;
@@ -1404,14 +1404,14 @@ static int ffa_init_pcpu_irq(unsigned int irq)
 
 	ret = request_percpu_irq(irq, irq_handler, "ARM-FFA", irq_pcpu);
 	if (ret) {
-		pr_err("Error registering notification IRQ %d: %d\n", irq, ret);
+		pr_err("Error registering analtification IRQ %d: %d\n", irq, ret);
 		return ret;
 	}
 
 	INIT_WORK(&drv_info->irq_work, ffa_sched_recv_irq_work_fn);
-	INIT_WORK(&drv_info->notif_pcpu_work, notif_pcpu_irq_work_fn);
-	drv_info->notif_pcpu_wq = create_workqueue("ffa_pcpu_irq_notification");
-	if (!drv_info->notif_pcpu_wq)
+	INIT_WORK(&drv_info->analtif_pcpu_work, analtif_pcpu_irq_work_fn);
+	drv_info->analtif_pcpu_wq = create_workqueue("ffa_pcpu_irq_analtification");
+	if (!drv_info->analtif_pcpu_wq)
 		return -EINVAL;
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "ffa/pcpu-irq:starting",
@@ -1425,31 +1425,31 @@ static int ffa_init_pcpu_irq(unsigned int irq)
 	return 0;
 }
 
-static void ffa_notifications_cleanup(void)
+static void ffa_analtifications_cleanup(void)
 {
 	ffa_uninit_pcpu_irq();
 	ffa_sched_recv_irq_unmap();
 
 	if (drv_info->bitmap_created) {
-		ffa_notification_bitmap_destroy();
+		ffa_analtification_bitmap_destroy();
 		drv_info->bitmap_created = false;
 	}
-	drv_info->notif_enabled = false;
+	drv_info->analtif_enabled = false;
 }
 
-static void ffa_notifications_setup(void)
+static void ffa_analtifications_setup(void)
 {
 	int ret, irq;
 
-	ret = ffa_features(FFA_NOTIFICATION_BITMAP_CREATE, 0, NULL, NULL);
+	ret = ffa_features(FFA_ANALTIFICATION_BITMAP_CREATE, 0, NULL, NULL);
 	if (ret) {
-		pr_info("Notifications not supported, continuing with it ..\n");
+		pr_info("Analtifications analt supported, continuing with it ..\n");
 		return;
 	}
 
-	ret = ffa_notification_bitmap_create();
+	ret = ffa_analtification_bitmap_create();
 	if (ret) {
-		pr_info("Notification bitmap create error %d\n", ret);
+		pr_info("Analtification bitmap create error %d\n", ret);
 		return;
 	}
 	drv_info->bitmap_created = true;
@@ -1466,14 +1466,14 @@ static void ffa_notifications_setup(void)
 	if (ret)
 		goto cleanup;
 
-	hash_init(drv_info->notifier_hash);
-	mutex_init(&drv_info->notify_lock);
+	hash_init(drv_info->analtifier_hash);
+	mutex_init(&drv_info->analtify_lock);
 
-	drv_info->notif_enabled = true;
+	drv_info->analtif_enabled = true;
 	return;
 cleanup:
-	pr_info("Notification setup failed %d, not enabled\n", ret);
-	ffa_notifications_cleanup();
+	pr_info("Analtification setup failed %d, analt enabled\n", ret);
+	ffa_analtifications_cleanup();
 }
 
 static int __init ffa_init(void)
@@ -1490,7 +1490,7 @@ static int __init ffa_init(void)
 
 	drv_info = kzalloc(sizeof(*drv_info), GFP_KERNEL);
 	if (!drv_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto ffa_bus_exit;
 	}
 
@@ -1500,19 +1500,19 @@ static int __init ffa_init(void)
 
 	if (ffa_id_get(&drv_info->vm_id)) {
 		pr_err("failed to obtain VM id for self\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_drv_info;
 	}
 
 	drv_info->rx_buffer = alloc_pages_exact(RXTX_BUFFER_SIZE, GFP_KERNEL);
 	if (!drv_info->rx_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_pages;
 	}
 
 	drv_info->tx_buffer = alloc_pages_exact(RXTX_BUFFER_SIZE, GFP_KERNEL);
 	if (!drv_info->tx_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_pages;
 	}
 
@@ -1529,23 +1529,23 @@ static int __init ffa_init(void)
 
 	ffa_set_up_mem_ops_native_flag();
 
-	ffa_notifications_setup();
+	ffa_analtifications_setup();
 
 	ret = ffa_setup_partitions();
 	if (ret) {
 		pr_err("failed to setup partitions\n");
-		goto cleanup_notifs;
+		goto cleanup_analtifs;
 	}
 
-	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_notif_handle,
+	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_analtif_handle,
 				       drv_info, true);
 	if (ret)
 		pr_info("Failed to register driver sched callback %d\n", ret);
 
 	return 0;
 
-cleanup_notifs:
-	ffa_notifications_cleanup();
+cleanup_analtifs:
+	ffa_analtifications_cleanup();
 free_pages:
 	if (drv_info->tx_buffer)
 		free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
@@ -1560,7 +1560,7 @@ subsys_initcall(ffa_init);
 
 static void __exit ffa_exit(void)
 {
-	ffa_notifications_cleanup();
+	ffa_analtifications_cleanup();
 	ffa_partitions_cleanup();
 	ffa_rxtx_unmap(drv_info->vm_id);
 	free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);

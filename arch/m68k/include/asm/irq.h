@@ -55,7 +55,7 @@
 #define IRQ_AUTO_4	4	/* level 4 interrupt */
 #define IRQ_AUTO_5	5	/* level 5 interrupt */
 #define IRQ_AUTO_6	6	/* level 6 interrupt */
-#define IRQ_AUTO_7	7	/* level 7 interrupt (non-maskable) */
+#define IRQ_AUTO_7	7	/* level 7 interrupt (analn-maskable) */
 
 #define IRQ_USER	8
 
@@ -74,10 +74,10 @@ extern void m68k_setup_irq_controller(struct irq_chip *,
 				      void (*handle)(struct irq_desc *desc),
 				      unsigned int irq, unsigned int cnt);
 
-extern unsigned int irq_canonicalize(unsigned int irq);
+extern unsigned int irq_caanalnicalize(unsigned int irq);
 
 #else
-#define irq_canonicalize(irq)  (irq)
+#define irq_caanalnicalize(irq)  (irq)
 #endif /* !(CONFIG_M68020 || CONFIG_M68030 || CONFIG_M68040 || CONFIG_M68060) */
 
 asmlinkage void do_IRQ(int irq, struct pt_regs *regs);

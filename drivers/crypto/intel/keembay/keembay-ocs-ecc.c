@@ -358,7 +358,7 @@ static int kmb_ocs_ecc_is_pubkey_valid_partial(struct ocs_ecc_dev *ecc_dev,
 	if (WARN_ON(pk->ndigits != curve->g.ndigits))
 		return -EINVAL;
 
-	/* Check 1: Verify key is not the zero point. */
+	/* Check 1: Verify key is analt the zero point. */
 	if (ecc_point_is_zero(pk))
 		return -EINVAL;
 
@@ -436,7 +436,7 @@ static int kmb_ocs_ecc_is_pubkey_valid_full(struct ocs_ecc_dev *ecc_dev,
 	/* Check 4: Verify that nQ is the zero point. */
 	nQ = ecc_alloc_point(pk->ndigits);
 	if (!nQ)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = kmb_ecc_point_mult(ecc_dev, nQ, pk, curve->n, curve);
 	if (rc)
@@ -543,13 +543,13 @@ static int kmb_ocs_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	if (rc)
 		goto cleanup;
 
-	/* Ensure key size is not bigger then expected. */
+	/* Ensure key size is analt bigger then expected. */
 	if (params.key_size > digits_to_bytes(tctx->curve->g.ndigits)) {
 		rc = -EINVAL;
 		goto cleanup;
 	}
 
-	/* Auto-generate private key is not provided. */
+	/* Auto-generate private key is analt provided. */
 	if (!params.key || !params.key_size) {
 		rc = kmb_ecc_gen_privkey(tctx->curve, tctx->private_key);
 		goto cleanup;
@@ -598,14 +598,14 @@ static int kmb_ecc_do_shared_secret(struct ocs_ecc_ctx *tctx,
 	/* Allocate and initialize public key point. */
 	pk = ecc_alloc_point(curve->g.ndigits);
 	if (!pk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ecc_swap_digits(pubk_buf, pk->x, curve->g.ndigits);
 	ecc_swap_digits(&pubk_buf[curve->g.ndigits], pk->y, curve->g.ndigits);
 
 	/*
 	 * Check the public key for following
-	 * Check 1: Verify key is not the zero point.
+	 * Check 1: Verify key is analt the zero point.
 	 * Check 2: Verify key is in the range [1, p-1].
 	 * Check 3: Verify that y^2 == (x^3 + a·x + b) mod p
 	 */
@@ -616,7 +616,7 @@ static int kmb_ecc_do_shared_secret(struct ocs_ecc_ctx *tctx,
 	/* Allocate point for storing computed shared secret. */
 	result = ecc_alloc_point(pk->ndigits);
 	if (!result) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit_free_pk;
 	}
 
@@ -670,7 +670,7 @@ static int kmb_ecc_do_public_key(struct ocs_ecc_ctx *tctx,
 
 	pk = ecc_alloc_point(curve->g.ndigits);
 	if (!pk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Public Key(pk) = priv * G. */
 	rc = kmb_ecc_point_mult(tctx->ecc_dev, pk, &curve->g, tctx->private_key,
@@ -733,11 +733,11 @@ static int kmb_ocs_ecdh_generate_public_key(struct kpp_request *req)
 	if (!req->dst)
 		return -EINVAL;
 
-	/* Check the request dst is big enough to hold the public key. */
+	/* Check the request dst is big eanalugh to hold the public key. */
 	if (req->dst_len < (2 * digits_to_bytes(curve->g.ndigits)))
 		return -EINVAL;
 
-	/* 'src' is not supposed to be present when generate pubk is called. */
+	/* 'src' is analt supposed to be present when generate pubk is called. */
 	if (req->src)
 		return -EINVAL;
 
@@ -787,7 +787,7 @@ static int kmb_ecc_tctx_init(struct ocs_ecc_ctx *tctx, unsigned int curve_id)
 
 	tctx->curve = ecc_get_curve(curve_id);
 	if (!tctx->curve)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -868,7 +868,7 @@ static irqreturn_t ocs_ecc_irq_handler(int irq, void *dev_id)
 	iowrite32(status, ecc_dev->base_reg + HW_OFFS_OCS_ECC_ISR);
 
 	if (!(status & HW_OCS_ECC_ISR_INT_STATUS_DONE))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	complete(&ecc_dev->irq_done);
 
@@ -883,7 +883,7 @@ static int kmb_ocs_ecc_probe(struct platform_device *pdev)
 
 	ecc_dev = devm_kzalloc(dev, sizeof(*ecc_dev), GFP_KERNEL);
 	if (!ecc_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ecc_dev->dev = dev;
 
@@ -910,7 +910,7 @@ static int kmb_ocs_ecc_probe(struct platform_device *pdev)
 	rc = devm_request_threaded_irq(dev, ecc_dev->irq, ocs_ecc_irq_handler,
 				       NULL, 0, "keembay-ocs-ecc", ecc_dev);
 	if (rc < 0) {
-		dev_err(dev, "Could not request IRQ\n");
+		dev_err(dev, "Could analt request IRQ\n");
 		goto list_del;
 	}
 
@@ -922,14 +922,14 @@ static int kmb_ocs_ecc_probe(struct platform_device *pdev)
 	/* Initialize crypto engine. */
 	ecc_dev->engine = crypto_engine_alloc_init(dev, 1);
 	if (!ecc_dev->engine) {
-		dev_err(dev, "Could not allocate crypto engine\n");
-		rc = -ENOMEM;
+		dev_err(dev, "Could analt allocate crypto engine\n");
+		rc = -EANALMEM;
 		goto list_del;
 	}
 
 	rc = crypto_engine_start(ecc_dev->engine);
 	if (rc) {
-		dev_err(dev, "Could not start crypto engine\n");
+		dev_err(dev, "Could analt start crypto engine\n");
 		goto cleanup;
 	}
 
@@ -937,14 +937,14 @@ static int kmb_ocs_ecc_probe(struct platform_device *pdev)
 	rc = crypto_engine_register_kpp(&ocs_ecdh_p256);
 	if (rc) {
 		dev_err(dev,
-			"Could not register OCS algorithms with Crypto API\n");
+			"Could analt register OCS algorithms with Crypto API\n");
 		goto cleanup;
 	}
 
 	rc = crypto_engine_register_kpp(&ocs_ecdh_p384);
 	if (rc) {
 		dev_err(dev,
-			"Could not register OCS algorithms with Crypto API\n");
+			"Could analt register OCS algorithms with Crypto API\n");
 		goto ocs_ecdh_p384_error;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -60,7 +60,7 @@ static int mlx5_fpga_conn_map_buf(struct mlx5_fpga_conn *conn,
 	err = dma_mapping_error(dma_device, buf->sg[0].dma_addr);
 	if (unlikely(err)) {
 		mlx5_fpga_warn(conn->fdev, "DMA error on sg 0: %d\n", err);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -74,7 +74,7 @@ static int mlx5_fpga_conn_map_buf(struct mlx5_fpga_conn *conn,
 		mlx5_fpga_warn(conn->fdev, "DMA error on sg 1: %d\n", err);
 		dma_unmap_single(dma_device, buf->sg[0].dma_addr,
 				 buf->sg[0].size, buf->dma_dir);
-		err = -ENOMEM;
+		err = -EANALMEM;
 	}
 
 out:
@@ -128,7 +128,7 @@ out:
 	return err;
 }
 
-static void mlx5_fpga_conn_notify_hw(struct mlx5_fpga_conn *conn, void *wqe)
+static void mlx5_fpga_conn_analtify_hw(struct mlx5_fpga_conn *conn, void *wqe)
 {
 	/* ensure wqe is visible to device before updating doorbell record */
 	dma_wmb();
@@ -169,7 +169,7 @@ static void mlx5_fpga_conn_post_send(struct mlx5_fpga_conn *conn,
 
 	conn->qp.sq.pc++;
 	conn->qp.sq.bufs[ix] = buf;
-	mlx5_fpga_conn_notify_hw(conn, ctrl);
+	mlx5_fpga_conn_analtify_hw(conn, ctrl);
 }
 
 int mlx5_fpga_conn_send(struct mlx5_fpga_conn *conn,
@@ -179,7 +179,7 @@ int mlx5_fpga_conn_send(struct mlx5_fpga_conn *conn,
 	int err;
 
 	if (!conn->qp.active)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	buf->dma_dir = DMA_TO_DEVICE;
 	err = mlx5_fpga_conn_map_buf(conn, buf);
@@ -207,7 +207,7 @@ static int mlx5_fpga_conn_post_recv_buf(struct mlx5_fpga_conn *conn)
 
 	buf = kzalloc(sizeof(*buf) + MLX5_FPGA_RECV_SIZE, 0);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->sg[0].data = (void *)(buf + 1);
 	buf->sg[0].size = MLX5_FPGA_RECV_SIZE;
@@ -230,7 +230,7 @@ static int mlx5_fpga_conn_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_PA);
@@ -358,7 +358,7 @@ static void mlx5_fpga_conn_handle_cqe(struct mlx5_fpga_conn *conn,
 
 static void mlx5_fpga_conn_arm_cq(struct mlx5_fpga_conn *conn)
 {
-	mlx5_cq_arm(&conn->cq.mcq, MLX5_CQ_DB_REQ_NOT,
+	mlx5_cq_arm(&conn->cq.mcq, MLX5_CQ_DB_REQ_ANALT,
 		    conn->fdev->conn_res.uar->map, conn->cq.wq.cc);
 }
 
@@ -424,8 +424,8 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	cq_size = roundup_pow_of_two(cq_size);
 	MLX5_SET(cqc, temp_cqc, log_cq_size, ilog2(cq_size));
 
-	wqp.buf_numa_node = mdev->priv.numa_node;
-	wqp.db_numa_node  = mdev->priv.numa_node;
+	wqp.buf_numa_analde = mdev->priv.numa_analde;
+	wqp.db_numa_analde  = mdev->priv.numa_analde;
 
 	err = mlx5_cqwq_create(mdev, &wqp, temp_cqc, &conn->cq.wq,
 			       &conn->cq.wq_ctrl);
@@ -441,7 +441,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 		sizeof(u64) * conn->cq.wq_ctrl.buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_cqwq;
 	}
 
@@ -502,8 +502,8 @@ static int mlx5_fpga_conn_create_wq(struct mlx5_fpga_conn *conn, void *qpc)
 	struct mlx5_core_dev *mdev = fdev->mdev;
 	struct mlx5_wq_param wqp;
 
-	wqp.buf_numa_node = mdev->priv.numa_node;
-	wqp.db_numa_node  = mdev->priv.numa_node;
+	wqp.buf_numa_analde = mdev->priv.numa_analde;
+	wqp.db_numa_analde  = mdev->priv.numa_analde;
 
 	return mlx5_wq_qp_create(mdev, &wqp, qpc, &conn->qp.wq,
 				 &conn->qp.wq_ctrl);
@@ -537,7 +537,7 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 				    sizeof(conn->qp.rq.bufs[0]),
 				    GFP_KERNEL);
 	if (!conn->qp.rq.bufs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_wq;
 	}
 
@@ -545,7 +545,7 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 				    sizeof(conn->qp.sq.bufs[0]),
 				    GFP_KERNEL);
 	if (!conn->qp.sq.bufs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_rq_bufs;
 	}
 
@@ -554,7 +554,7 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 		conn->qp.wq_ctrl.buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_sq_bufs;
 	}
 
@@ -569,7 +569,7 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 	MLX5_SET(qpc, qpc, pd, fdev->conn_res.pdn);
 	MLX5_SET(qpc, qpc, log_rq_stride, ilog2(MLX5_SEND_WQE_DS) - 4);
 	MLX5_SET(qpc, qpc, log_rq_size, ilog2(conn->qp.rq.size));
-	MLX5_SET(qpc, qpc, rq_type, MLX5_NON_ZERO_RQ);
+	MLX5_SET(qpc, qpc, rq_type, MLX5_ANALN_ZERO_RQ);
 	MLX5_SET(qpc, qpc, log_sq_size, ilog2(conn->qp.sq.size));
 	MLX5_SET(qpc, qpc, cqn_snd, conn->cq.mcq.cqn);
 	MLX5_SET(qpc, qpc, cqn_rcv, conn->cq.mcq.cqn);
@@ -820,7 +820,7 @@ struct mlx5_fpga_conn *mlx5_fpga_conn_create(struct mlx5_fpga_device *fdev,
 
 	conn = kzalloc(sizeof(*conn), GFP_KERNEL);
 	if (!conn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	conn->fdev = fdev;
 	INIT_LIST_HEAD(&conn->qp.sq.backlog);

@@ -14,7 +14,7 @@ enum ice_arfs_fltr_state {
 
 struct ice_arfs_entry {
 	struct ice_fdir_fltr fltr_info;
-	struct hlist_node list_entry;
+	struct hlist_analde list_entry;
 	u64 time_activated;	/* only valid for UDP flows */
 	u32 flow_id;
 	/* fltr_state = 0 - ICE_ARFS_INACTIVE:
@@ -30,7 +30,7 @@ struct ice_arfs_entry {
 
 struct ice_arfs_entry_ptr {
 	struct ice_arfs_entry *arfs_entry;
-	struct hlist_node list_entry;
+	struct hlist_analde list_entry;
 };
 
 struct ice_arfs_active_fltr_cntrs {
@@ -72,7 +72,7 @@ ice_rx_flow_steer(struct net_device __always_unused *netdev,
 		  const struct sk_buff __always_unused *skb,
 		  u16 __always_unused rxq_idx, u32 __always_unused flow_id)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline bool

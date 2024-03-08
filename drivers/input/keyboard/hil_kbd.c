@@ -8,26 +8,26 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *
  * References:
- * HP-HIL Technical Reference Manual.  Hewlett Packard Product No. 45918A
+ * HP-HIL Technical Reference Manual.  Hewlett Packard Product Anal. 45918A
  *
  */
 
@@ -129,8 +129,8 @@ static void hil_dev_handle_command_response(struct hil_dev *dev)
 	default:
 		/* These occur when device isn't present */
 		if (p != (HIL_ERR_INT | HIL_PKT_CMD)) {
-			/* Anything else we'd like to know about. */
-			printk(KERN_WARNING PREFIX "Device sent unknown record %x\n", p);
+			/* Anything else we'd like to kanalw about. */
+			printk(KERN_WARNING PREFIX "Device sent unkanalwn record %x\n", p);
 		}
 		goto out;
 	}
@@ -150,7 +150,7 @@ static void hil_dev_handle_kbd_events(struct hil_dev *kbd)
 	int i;
 
 	switch (kbd->data[0] & HIL_POL_CHARTYPE_MASK) {
-	case HIL_POL_CHARTYPE_NONE:
+	case HIL_POL_CHARTYPE_ANALNE:
 		return;
 
 	case HIL_POL_CHARTYPE_ASCII:
@@ -450,7 +450,7 @@ static int hil_dev_connect(struct serio *serio, struct serio_driver *drv)
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!dev || !input_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto bail0;
 	}
 
@@ -511,7 +511,7 @@ static int hil_dev_connect(struct serio *serio, struct serio_driver *drv)
 		if (HIL_IDD_NUM_BUTTONS(idd) ||
 		    HIL_IDD_NUM_AXES_PER_SET(*idd)) {
 			printk(KERN_INFO PREFIX
-				"combo devices are not supported.\n");
+				"combo devices are analt supported.\n");
 			error = -EINVAL;
 			goto bail1;
 		}
@@ -542,7 +542,7 @@ static int hil_dev_connect(struct serio *serio, struct serio_driver *drv)
 		serio_write(serio, HIL_PKT_CMD >> 8);
 		/* Enable Keyswitch Autorepeat 1 */
 		serio_write(serio, HIL_CMD_EK1);
-		/* No need to wait for completion */
+		/* Anal need to wait for completion */
 	}
 
 	error = input_register_device(input_dev);

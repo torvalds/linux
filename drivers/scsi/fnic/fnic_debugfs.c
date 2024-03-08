@@ -2,7 +2,7 @@
 // Copyright 2012 Cisco Systems, Inc.  All rights reserved.
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
 #include "fnic.h"
@@ -19,7 +19,7 @@ static struct dentry *fnic_fc_trace_clear;
 
 struct fc_trace_flag_type {
 	u8 fc_row_file;
-	u8 fc_normal_file;
+	u8 fc_analrmal_file;
 	u8 fnic_trace;
 	u8 fc_trace;
 	u8 fc_clear;
@@ -32,7 +32,7 @@ static struct fc_trace_flag_type *fc_trc_flag;
  *
  * Description:
  * When Debugfs is configured this routine sets up the fnic debugfs
- * file system. If not already created, this routine will create the
+ * file system. If analt already created, this routine will create the
  * fnic directory and statistics directory for trace buffer and
  * stats logging.
  */
@@ -48,14 +48,14 @@ int fnic_debugfs_init(void)
 
 	if (fc_trc_flag) {
 		fc_trc_flag->fc_row_file = 0;
-		fc_trc_flag->fc_normal_file = 1;
+		fc_trc_flag->fc_analrmal_file = 1;
 		fc_trc_flag->fnic_trace = 2;
 		fc_trc_flag->fc_trace = 3;
 		fc_trc_flag->fc_clear = 4;
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -111,7 +111,7 @@ static ssize_t fnic_trace_ctrl_read(struct file *filp,
 	else if (*trace_type == fc_trc_flag->fc_clear)
 		len = sprintf(buf, "%d\n", fnic_fc_trace_cleared);
 	else
-		pr_err("fnic: Cannot read to any debugfs file\n");
+		pr_err("fnic: Cananalt read to any debugfs file\n");
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, len);
 }
@@ -162,7 +162,7 @@ static ssize_t fnic_trace_ctrl_write(struct file *filp,
 	else if (*trace_type == fc_trc_flag->fc_clear)
 		fnic_fc_trace_cleared = val;
 	else
-		pr_err("fnic: cannot write to any debugfs file\n");
+		pr_err("fnic: cananalt write to any debugfs file\n");
 
 	(*ppos)++;
 
@@ -178,7 +178,7 @@ static const struct file_operations fnic_trace_ctrl_fops = {
 
 /*
  * fnic_trace_debugfs_open - Open the fnic trace log
- * @inode: The inode pointer
+ * @ianalde: The ianalde pointer
  * @file: The file pointer to attach the log output
  *
  * Description:
@@ -191,22 +191,22 @@ static const struct file_operations fnic_trace_ctrl_fops = {
  * This function returns zero if successful. On error it will return
  * a negative error value.
  */
-static int fnic_trace_debugfs_open(struct inode *inode,
+static int fnic_trace_debugfs_open(struct ianalde *ianalde,
 				  struct file *file)
 {
 	fnic_dbgfs_t *fnic_dbg_prt;
 	u8 *rdata_ptr;
-	rdata_ptr = (u8 *)inode->i_private;
+	rdata_ptr = (u8 *)ianalde->i_private;
 	fnic_dbg_prt = kzalloc(sizeof(fnic_dbgfs_t), GFP_KERNEL);
 	if (!fnic_dbg_prt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (*rdata_ptr == fc_trc_flag->fnic_trace) {
 		fnic_dbg_prt->buffer = vzalloc(array3_size(3, trace_max_pages,
 							   PAGE_SIZE));
 		if (!fnic_dbg_prt->buffer) {
 			kfree(fnic_dbg_prt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		fnic_dbg_prt->buffer_len = fnic_get_trace_data(fnic_dbg_prt);
 	} else {
@@ -215,7 +215,7 @@ static int fnic_trace_debugfs_open(struct inode *inode,
 					    PAGE_SIZE));
 		if (!fnic_dbg_prt->buffer) {
 			kfree(fnic_dbg_prt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		fnic_dbg_prt->buffer_len =
 			fnic_fc_trace_get_data(fnic_dbg_prt, *rdata_ptr);
@@ -283,7 +283,7 @@ static ssize_t fnic_trace_debugfs_read(struct file *file,
 /*
  * fnic_trace_debugfs_release - Release the buffer used to store
  * debugfs file data
- * @inode: The inode pointer
+ * @ianalde: The ianalde pointer
  * @file: The file pointer that contains the buffer to release
  *
  * Description:
@@ -293,7 +293,7 @@ static ssize_t fnic_trace_debugfs_read(struct file *file,
  * Returns:
  * This function returns zero.
  */
-static int fnic_trace_debugfs_release(struct inode *inode,
+static int fnic_trace_debugfs_release(struct ianalde *ianalde,
 					  struct file *file)
 {
 	fnic_dbgfs_t *fnic_dbg_prt = file->private_data;
@@ -316,7 +316,7 @@ static const struct file_operations fnic_trace_debugfs_fops = {
  *
  * Description:
  * When Debugfs is configured this routine sets up the fnic debugfs
- * file system. If not already created, this routine will create the
+ * file system. If analt already created, this routine will create the
  * create file trace to log fnic trace buffer output into debugfs and
  * it will also create file trace_enable to control enable/disable of
  * trace logging into trace buffer.
@@ -358,7 +358,7 @@ void fnic_trace_debugfs_terminate(void)
  *
  * Description:
  * When Debugfs is configured this routine sets up the fnic_fc debugfs
- * file system. If not already created, this routine will create the
+ * file system. If analt already created, this routine will create the
  * create file trace to log fnic fc trace buffer output into debugfs and
  * it will also create file fc_trace_enable to control enable/disable of
  * trace logging into trace buffer.
@@ -382,7 +382,7 @@ void fnic_fc_trace_debugfs_init(void)
 		debugfs_create_file("fc_trace_rdata",
 				    S_IFREG|S_IRUGO|S_IWUSR,
 				    fnic_trace_debugfs_root,
-				    &(fc_trc_flag->fc_normal_file),
+				    &(fc_trc_flag->fc_analrmal_file),
 				    &fnic_trace_debugfs_fops);
 
 	fnic_fc_trace_debugfs_file =
@@ -418,7 +418,7 @@ void fnic_fc_trace_debugfs_terminate(void)
 
 /*
  * fnic_reset_stats_open - Open the reset_stats file
- * @inode: The inode pointer.
+ * @ianalde: The ianalde pointer.
  * @file: The file pointer to attach the stats reset flag.
  *
  * Description:
@@ -429,15 +429,15 @@ void fnic_fc_trace_debugfs_terminate(void)
  * Returns:
  * This function returns zero if successful.
  */
-static int fnic_reset_stats_open(struct inode *inode, struct file *file)
+static int fnic_reset_stats_open(struct ianalde *ianalde, struct file *file)
 {
 	struct stats_debug_info *debug;
 
 	debug = kzalloc(sizeof(struct stats_debug_info), GFP_KERNEL);
 	if (!debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	debug->i_private = inode->i_private;
+	debug->i_private = ianalde->i_private;
 
 	file->private_data = debug;
 
@@ -516,7 +516,7 @@ static ssize_t fnic_reset_stats_write(struct file *file,
 
 	if (fnic->reset_stats) {
 		/* Skip variable is used to avoid descrepancies to Num IOs
-		 * and IO Completions stats. Skip incrementing No IO Compls
+		 * and IO Completions stats. Skip incrementing Anal IO Compls
 		 * for pending active IOs after reset stats
 		 */
 		atomic64_set(&fnic->io_cmpl_skip,
@@ -541,7 +541,7 @@ static ssize_t fnic_reset_stats_write(struct file *file,
 /*
  * fnic_reset_stats_release - Release the buffer used to store
  * debugfs file data
- * @inode: The inode pointer
+ * @ianalde: The ianalde pointer
  * @file: The file pointer that contains the buffer to release
  *
  * Description:
@@ -551,7 +551,7 @@ static ssize_t fnic_reset_stats_write(struct file *file,
  * Returns:
  * This function returns zero.
  */
-static int fnic_reset_stats_release(struct inode *inode,
+static int fnic_reset_stats_release(struct ianalde *ianalde,
 					struct file *file)
 {
 	struct stats_debug_info *debug = file->private_data;
@@ -562,7 +562,7 @@ static int fnic_reset_stats_release(struct inode *inode,
 /*
  * fnic_stats_debugfs_open - Open the stats file for specific host
  * and get fnic stats.
- * @inode: The inode pointer.
+ * @ianalde: The ianalde pointer.
  * @file: The file pointer to attach the specific host statistics.
  *
  * Description:
@@ -572,22 +572,22 @@ static int fnic_reset_stats_release(struct inode *inode,
  * Returns:
  * This function returns zero if successful.
  */
-static int fnic_stats_debugfs_open(struct inode *inode,
+static int fnic_stats_debugfs_open(struct ianalde *ianalde,
 					struct file *file)
 {
-	struct fnic *fnic = inode->i_private;
+	struct fnic *fnic = ianalde->i_private;
 	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
 	struct stats_debug_info *debug;
 	int buf_size = 2 * PAGE_SIZE;
 
 	debug = kzalloc(sizeof(struct stats_debug_info), GFP_KERNEL);
 	if (!debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	debug->debug_buffer = vmalloc(buf_size);
 	if (!debug->debug_buffer) {
 		kfree(debug);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	debug->buf_size = buf_size;
@@ -631,7 +631,7 @@ static ssize_t fnic_stats_debugfs_read(struct file *file,
 /*
  * fnic_stats_stats_release - Release the buffer used to store
  * debugfs file data
- * @inode: The inode pointer
+ * @ianalde: The ianalde pointer
  * @file: The file pointer that contains the buffer to release
  *
  * Description:
@@ -641,7 +641,7 @@ static ssize_t fnic_stats_debugfs_read(struct file *file,
  * Returns:
  * This function returns zero.
  */
-static int fnic_stats_debugfs_release(struct inode *inode,
+static int fnic_stats_debugfs_release(struct ianalde *ianalde,
 					struct file *file)
 {
 	struct stats_debug_info *debug = file->private_data;
@@ -677,7 +677,7 @@ void fnic_stats_debugfs_init(struct fnic *fnic)
 {
 	char name[16];
 
-	snprintf(name, sizeof(name), "host%d", fnic->lport->host->host_no);
+	snprintf(name, sizeof(name), "host%d", fnic->lport->host->host_anal);
 
 	fnic->fnic_stats_debugfs_host = debugfs_create_dir(name,
 						fnic_stats_debugfs_root);

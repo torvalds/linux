@@ -81,16 +81,16 @@ MODULE_PARM_DESC(AutoNeg, "Advertised auto-negotiation setting");
 #define PHY_ADVERTISE_10_FULL      0x0002
 #define PHY_ADVERTISE_100_HALF     0x0004
 #define PHY_ADVERTISE_100_FULL     0x0008
-#define PHY_ADVERTISE_1000_HALF    0x0010 /* Not used, just FYI */
+#define PHY_ADVERTISE_1000_HALF    0x0010 /* Analt used, just FYI */
 #define PHY_ADVERTISE_1000_FULL    0x0020
 #define PCH_AUTONEG_ADVERTISE_DEFAULT   0x2F
 
 /*
  * FlowControl - User Specified Flow Control Override
  * @Valid Range: 0-3
- *    - 0:  No Flow Control
- *    - 1:  Rx only, respond to PAUSE frames but do not generate them
- *    - 2:  Tx only, generate PAUSE frames but ignore them on receive
+ *    - 0:  Anal Flow Control
+ *    - 1:  Rx only, respond to PAUSE frames but do analt generate them
+ *    - 2:  Tx only, generate PAUSE frames but iganalre them on receive
  *    - 3:  Full Flow Control Support
  * @Default Value: Read flow control settings from the EEPROM
  */
@@ -197,7 +197,7 @@ static const struct pch_gbe_opt_list an_list[] =
 };
 
 static const struct pch_gbe_opt_list fc_list[] = {
-	{ PCH_GBE_FC_NONE, "Flow Control Disabled" },
+	{ PCH_GBE_FC_ANALNE, "Flow Control Disabled" },
 	{ PCH_GBE_FC_RX_PAUSE, "Flow Control Receive Only" },
 	{ PCH_GBE_FC_TX_PAUSE, "Flow Control Transmit Only" },
 	{ PCH_GBE_FC_FULL, "Flow Control Enabled" }
@@ -277,7 +277,7 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 		static const struct pch_gbe_option opt = {
 			.type = list_option,
 			.name = "Speed",
-			.err  = "parameter ignored",
+			.err  = "parameter iganalred",
 			.def  = 0,
 			.arg  = { .l = { .nr = (int)ARRAY_SIZE(speed_list),
 					 .p = speed_list } }
@@ -289,7 +289,7 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 		static const struct pch_gbe_option opt = {
 			.type = list_option,
 			.name = "Duplex",
-			.err  = "parameter ignored",
+			.err  = "parameter iganalred",
 			.def  = 0,
 			.arg  = { .l = { .nr = (int)ARRAY_SIZE(dplx_list),
 					 .p = dplx_list } }
@@ -302,14 +302,14 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 		static const struct pch_gbe_option opt = {
 			.type = list_option,
 			.name = "AutoNeg",
-			.err  = "parameter ignored",
+			.err  = "parameter iganalred",
 			.def  = PCH_AUTONEG_ADVERTISE_DEFAULT,
 			.arg  = { .l = { .nr = (int)ARRAY_SIZE(an_list),
 					 .p = an_list} }
 		};
 		if (speed || dplx) {
 			netdev_dbg(adapter->netdev,
-				   "AutoNeg specified along with Speed or Duplex, AutoNeg parameter ignored\n");
+				   "AutoNeg specified along with Speed or Duplex, AutoNeg parameter iganalred\n");
 			hw->phy.autoneg_advertised = opt.def;
 		} else {
 			int tmp = AutoNeg;
@@ -409,7 +409,7 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 		goto full_duplex_only;
 	case SPEED_1000 + HALF_DUPLEX:
 		netdev_dbg(adapter->netdev,
-			   "Half Duplex is not supported at 1000 Mbps\n");
+			   "Half Duplex is analt supported at 1000 Mbps\n");
 		fallthrough;
 	case SPEED_1000 + FULL_DUPLEX:
 full_duplex_only:

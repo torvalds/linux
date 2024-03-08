@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -68,22 +68,22 @@ int main(int argc, char *argvp[])
 	if (stat(path, &st2))
 		return pr_err("stat");
 
-	if (st1.st_ino != st2.st_ino)
+	if (st1.st_ianal != st2.st_ianal)
 		return pr_err("NS_GET_USERNS returned a wrong namespace");
 
 	init_uns = ioctl(uns, NS_GET_USERNS);
 	if (uns < 0)
 		return pr_err("Unable to get an owning user namespace");
 
-	if (ioctl(init_uns, NS_GET_USERNS) >= 0 || errno != EPERM)
+	if (ioctl(init_uns, NS_GET_USERNS) >= 0 || erranal != EPERM)
 		return pr_err("Don't get EPERM");
 
 	if (unshare(CLONE_NEWUSER))
 		return pr_err("unshare");
 
-	if (ioctl(ns, NS_GET_USERNS) >= 0 || errno != EPERM)
+	if (ioctl(ns, NS_GET_USERNS) >= 0 || erranal != EPERM)
 		return pr_err("Don't get EPERM");
-	if (ioctl(init_uns, NS_GET_USERNS) >= 0 || errno != EPERM)
+	if (ioctl(init_uns, NS_GET_USERNS) >= 0 || erranal != EPERM)
 		return pr_err("Don't get EPERM");
 
 	kill(pid, SIGKILL);

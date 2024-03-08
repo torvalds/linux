@@ -18,8 +18,8 @@
 
 #define DRIVER_NAME "tifm_ms"
 
-static bool no_dma;
-module_param(no_dma, bool, 0644);
+static bool anal_dma;
+module_param(anal_dma, bool, 0644);
 
 /*
  * Some control bits of TIFM appear to conform to Sony's reference design,
@@ -42,7 +42,7 @@ module_param(no_dma, bool, 0644);
 #define TIFM_MS_SYS_RESET    0x08000
 #define TIFM_MS_SYS_SRAC     0x04000
 #define TIFM_MS_SYS_INTEN    0x02000
-#define TIFM_MS_SYS_NOCRC    0x01000
+#define TIFM_MS_SYS_ANALCRC    0x01000
 #define TIFM_MS_SYS_INTCLR   0x00800
 #define TIFM_MS_SYS_MSIEN    0x00400
 #define TIFM_MS_SYS_FCLR     0x00200
@@ -68,7 +68,7 @@ struct tifm_ms {
 	struct tifm_dev         *dev;
 	struct timer_list       timer;
 	struct memstick_request *req;
-	struct tasklet_struct   notify;
+	struct tasklet_struct   analtify;
 	unsigned int            mode_mask;
 	unsigned int            block_pos;
 	unsigned long           timeout_jiffies;
@@ -260,7 +260,7 @@ static int tifm_ms_issue_cmd(struct tifm_ms *host)
 	host->io_word = 0;
 	host->cmd_flags = 0;
 
-	host->use_dma = !no_dma;
+	host->use_dma = !anal_dma;
 
 	if (host->req->long_data) {
 		data_len = host->req->sg.length;
@@ -281,7 +281,7 @@ static int tifm_ms_issue_cmd(struct tifm_ms *host)
 				     host->req->data_dir == READ
 				     ? DMA_FROM_DEVICE
 				     : DMA_TO_DEVICE)) {
-			host->req->error = -ENOMEM;
+			host->req->error = -EANALMEM;
 			return host->req->error;
 		}
 		data_len = sg_dma_len(&host->req->sg);
@@ -488,7 +488,7 @@ static void tifm_ms_submit_req(struct memstick_host *msh)
 {
 	struct tifm_ms *host = memstick_priv(msh);
 
-	tasklet_schedule(&host->notify);
+	tasklet_schedule(&host->analtify);
 }
 
 static int tifm_ms_set_param(struct memstick_host *msh,
@@ -563,7 +563,7 @@ static int tifm_ms_probe(struct tifm_dev *sock)
 
 	msh = memstick_alloc_host(sizeof(struct tifm_ms), &sock->dev);
 	if (!msh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = memstick_priv(msh);
 	tifm_set_drvdata(sock, msh);
@@ -571,7 +571,7 @@ static int tifm_ms_probe(struct tifm_dev *sock)
 	host->timeout_jiffies = msecs_to_jiffies(1000);
 
 	timer_setup(&host->timer, tifm_ms_abort, 0);
-	tasklet_init(&host->notify, tifm_ms_req_tasklet, (unsigned long)msh);
+	tasklet_init(&host->analtify, tifm_ms_req_tasklet, (unsigned long)msh);
 
 	msh->request = tifm_ms_submit_req;
 	msh->set_param = tifm_ms_set_param;
@@ -596,7 +596,7 @@ static void tifm_ms_remove(struct tifm_dev *sock)
 	unsigned long flags;
 
 	msh->request = tifm_ms_dummy_submit;
-	tasklet_kill(&host->notify);
+	tasklet_kill(&host->analtify);
 	spin_lock_irqsave(&sock->lock, flags);
 	host->eject = 1;
 	if (host->req) {

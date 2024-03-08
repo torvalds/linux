@@ -61,7 +61,7 @@ struct sh_mtu2_device {
 #define TCNT 5 /* channel register */
 #define TGR  6 /* channel register */
 
-#define TCR_CCLR_NONE		(0 << 5)
+#define TCR_CCLR_ANALNE		(0 << 5)
 #define TCR_CCLR_TGRA		(1 << 5)
 #define TCR_CCLR_TGRB		(2 << 5)
 #define TCR_CCLR_SYNC		(3 << 5)
@@ -98,7 +98,7 @@ struct sh_mtu2_device {
 #define TMDR_BFE		(1 << 6)
 #define TMDR_BFB		(1 << 5)
 #define TMDR_BFA		(1 << 4)
-#define TMDR_MD_NORMAL		(0 << 0)
+#define TMDR_MD_ANALRMAL		(0 << 0)
 #define TMDR_MD_PWM_1		(2 << 0)
 #define TMDR_MD_PWM_2		(3 << 0)
 #define TMDR_MD_PHASE_1		(4 << 0)
@@ -213,7 +213,7 @@ static int sh_mtu2_enable(struct sh_mtu2_channel *ch)
 	/* enable clock */
 	ret = clk_enable(ch->mtu->clk);
 	if (ret) {
-		dev_err(&ch->mtu->pdev->dev, "ch%u: cannot enable clock\n",
+		dev_err(&ch->mtu->pdev->dev, "ch%u: cananalt enable clock\n",
 			ch->index);
 		return ret;
 	}
@@ -233,7 +233,7 @@ static int sh_mtu2_enable(struct sh_mtu2_channel *ch)
 		      TIOC_IOCL(TIOR_OC_0_CLEAR));
 	sh_mtu2_write(ch, TGR, periodic);
 	sh_mtu2_write(ch, TCNT, 0);
-	sh_mtu2_write(ch, TMDR, TMDR_MD_NORMAL);
+	sh_mtu2_write(ch, TMDR, TMDR_MD_ANALRMAL);
 	sh_mtu2_write(ch, TIER, TIER_TGIEA);
 
 	/* enable channel */
@@ -258,11 +258,11 @@ static irqreturn_t sh_mtu2_interrupt(int irq, void *dev_id)
 {
 	struct sh_mtu2_channel *ch = dev_id;
 
-	/* acknowledge interrupt */
+	/* ackanalwledge interrupt */
 	sh_mtu2_read(ch, TSR);
 	sh_mtu2_write(ch, TSR, ~TSR_TGFA);
 
-	/* notify clockevent layer */
+	/* analtify clockevent layer */
 	ch->ced.event_handler(&ch->ced);
 	return IRQ_HANDLED;
 }
@@ -348,12 +348,12 @@ static int sh_mtu2_setup_channel(struct sh_mtu2_channel *ch, unsigned int index,
 	sprintf(name, "tgi%ua", index);
 	irq = platform_get_irq_byname(mtu->pdev, name);
 	if (irq < 0) {
-		/* Skip channels with no declared interrupt. */
+		/* Skip channels with anal declared interrupt. */
 		return 0;
 	}
 
 	ret = request_irq(irq, sh_mtu2_interrupt,
-			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_ANALBALANCING,
 			  dev_name(&ch->mtu->pdev->dev), ch);
 	if (ret) {
 		dev_err(&ch->mtu->pdev->dev, "ch%u: failed to request irq %d\n",
@@ -397,7 +397,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 	/* Get hold of clock. */
 	mtu->clk = clk_get(&mtu->pdev->dev, "fck");
 	if (IS_ERR(mtu->clk)) {
-		dev_err(&mtu->pdev->dev, "cannot get clock\n");
+		dev_err(&mtu->pdev->dev, "cananalt get clock\n");
 		return PTR_ERR(mtu->clk);
 	}
 
@@ -423,7 +423,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 	mtu->channels = kcalloc(mtu->num_channels, sizeof(*mtu->channels),
 				GFP_KERNEL);
 	if (mtu->channels == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap;
 	}
 
@@ -464,7 +464,7 @@ static int sh_mtu2_probe(struct platform_device *pdev)
 
 	mtu = kzalloc(sizeof(*mtu), GFP_KERNEL);
 	if (mtu == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sh_mtu2_setup(mtu, pdev);
 	if (ret) {

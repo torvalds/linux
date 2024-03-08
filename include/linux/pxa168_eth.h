@@ -19,7 +19,7 @@ struct pxa168_eth_platform_data {
 	phy_interface_t intf;
 
 	/*
-	 * Override default RX/TX queue sizes if nonzero.
+	 * Override default RX/TX queue sizes if analnzero.
 	 */
 	int	rx_queue_size;
 	int	tx_queue_size;

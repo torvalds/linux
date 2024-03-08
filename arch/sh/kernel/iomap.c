@@ -70,7 +70,7 @@ EXPORT_SYMBOL(iowrite32be);
 
 /*
  * These are the "repeat MMIO read/write" functions.
- * Note the "__raw" accesses, since we don't want to
+ * Analte the "__raw" accesses, since we don't want to
  * convert to CPU byte order. We write in "IO byte
  * order" (we also don't have IO barriers).
  */

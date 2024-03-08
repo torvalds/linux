@@ -14,7 +14,7 @@ extern void get_regs_from_mc(struct uml_pt_regs *, mcontext_t *);
 	{ \
 		(fi).cr2 = (mc)->cr2; \
 		(fi).error_code = (mc)->gregs[REG_ERR]; \
-		(fi).trap_no = (mc)->gregs[REG_TRAPNO]; \
+		(fi).trap_anal = (mc)->gregs[REG_TRAPANAL]; \
 	}
 
 #else
@@ -23,7 +23,7 @@ extern void get_regs_from_mc(struct uml_pt_regs *, mcontext_t *);
 	{ \
 		(fi).cr2 = (mc)->gregs[REG_CR2]; \
 		(fi).error_code = (mc)->gregs[REG_ERR]; \
-		(fi).trap_no = (mc)->gregs[REG_TRAPNO]; \
+		(fi).trap_anal = (mc)->gregs[REG_TRAPANAL]; \
 	}
 
 #endif

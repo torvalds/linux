@@ -260,22 +260,22 @@ init進程。參數按以下順序與用戶給定的內核命令行字符串相�
 你想知道引導配置裏有哪些關鍵字，可以使用 xbc_for_each_key_value() 迭代鍵值對。
 請注意，您需要使用 xbc_array_for_each_value() 訪問數組的值，例如::
 
- vnode = NULL;
- xbc_find_value("key.word", &vnode);
- if (vnode && xbc_node_is_array(vnode))
-    xbc_array_for_each_value(vnode, value) {
+ vanalde = NULL;
+ xbc_find_value("key.word", &vanalde);
+ if (vanalde && xbc_analde_is_array(vanalde))
+    xbc_array_for_each_value(vanalde, value) {
       printk("%s ", value);
     }
 
-如果您想查找具有前綴字符串的鍵，可以使用 xbc_find_node() 通過前綴字符串查找
-節點，然後用 xbc_node_for_each_key_value() 迭代前綴節點下的鍵。
+如果您想查找具有前綴字符串的鍵，可以使用 xbc_find_analde() 通過前綴字符串查找
+節點，然後用 xbc_analde_for_each_key_value() 迭代前綴節點下的鍵。
 
 但最典型的用法是獲取前綴下的命名值或前綴下的命名數組，例如::
 
- root = xbc_find_node("key.prefix");
- value = xbc_node_find_value(root, "option", &vnode);
+ root = xbc_find_analde("key.prefix");
+ value = xbc_analde_find_value(root, "option", &vanalde);
  ...
- xbc_node_for_each_array_value(root, "array-option", value, anode) {
+ xbc_analde_for_each_array_value(root, "array-option", value, aanalde) {
     ...
  }
 

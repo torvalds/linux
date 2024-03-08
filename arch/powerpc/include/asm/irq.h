@@ -24,7 +24,7 @@ extern atomic_t ppc_n_lost_interrupts;
 
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
 
-static __inline__ int irq_canonicalize(int irq)
+static __inline__ int irq_caanalnicalize(int irq)
 {
 	return irq;
 }

@@ -66,11 +66,11 @@ static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 static struct power_pmu *ppmu;
 
 /*
- * Normally, to ignore kernel events we set the FCS (freeze counters
+ * Analrmally, to iganalre kernel events we set the FCS (freeze counters
  * in supervisor mode) bit in MMCR0, but if the kernel runs with the
  * hypervisor bit set in the MSR, or if we are running on a processor
  * where the hypervisor bit is forced to 1 (as on Apple G5 processors),
- * then we need to use the FCHV bit to ignore kernel events.
+ * then we need to use the FCHV bit to iganalre kernel events.
  */
 static unsigned int freeze_events_kernel = MMCR0_FCS;
 
@@ -78,9 +78,9 @@ static unsigned int freeze_events_kernel = MMCR0_FCS;
  * 32-bit doesn't have MMCRA but does have an MMCR2,
  * and a few other names are different.
  * Also 32-bit doesn't have MMCR3, SIER2 and SIER3.
- * Define them as zero knowing that any code path accessing
+ * Define them as zero kanalwing that any code path accessing
  * these registers (via mtspr/mfspr) are done under ppmu flag
- * check for PPMU_ARCH_31 and we will not enter that code path
+ * check for PPMU_ARCH_31 and we will analt enter that code path
  * for 32-bit.
  */
 #ifdef CONFIG_PPC32
@@ -166,8 +166,8 @@ static bool regs_use_siar(struct pt_regs *regs)
 	 * using perf_read_regs() which overloads some fields, in particular
 	 * regs->result to tell us whether to use SIAR.
 	 *
-	 * However if the regs are from another exception, eg. a syscall, then
-	 * they have not been setup using perf_read_regs() and so regs->result
+	 * However if the regs are from aanalther exception, eg. a syscall, then
+	 * they have analt been setup using perf_read_regs() and so regs->result
 	 * is something random.
 	 */
 	return ((TRAP(regs) == INTERRUPT_PERFMON) && regs->result);
@@ -193,7 +193,7 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 
 /*
  * The user wants a data address recorded.
- * If we're not doing instruction sampling, give them the SDAR
+ * If we're analt doing instruction sampling, give them the SDAR
  * (sampled data address).  If we are doing instruction sampling, then
  * only give them the SDAR if it corresponds to the instruction
  * pointed to by SIAR; this is indicated by the [POWER6_]MMCRA_SDSYNC, the
@@ -213,7 +213,7 @@ static inline void perf_get_data_addr(struct perf_event *event, struct pt_regs *
 			sdsync = POWER7P_MMCRA_SDAR_VALID;
 		else if (ppmu->flags & PPMU_ALT_SIPR)
 			sdsync = POWER6_MMCRA_SDSYNC;
-		else if (ppmu->flags & PPMU_NO_SIAR)
+		else if (ppmu->flags & PPMU_ANAL_SIAR)
 			sdsync = MMCRA_SAMPLE_ENABLE;
 		else
 			sdsync = MMCRA_SDSYNC;
@@ -275,7 +275,7 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 	/*
 	 * Check the address in SIAR to identify the
 	 * privilege levels since the SIER[MSR_HV, MSR_PR]
-	 * bits are not set for marked events in power10
+	 * bits are analt set for marked events in power10
 	 * DD1.
 	 */
 	if (marked && (ppmu->flags & PPMU_P10_DD1)) {
@@ -297,7 +297,7 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 	 * SIAR which should give slightly more reliable
 	 * results
 	 */
-	if (ppmu->flags & PPMU_NO_SIPR) {
+	if (ppmu->flags & PPMU_ANAL_SIPR) {
 		unsigned long siar = mfspr(SPRN_SIAR);
 		if (is_kernel_addr(siar))
 			return PERF_RECORD_MISC_KERNEL;
@@ -319,7 +319,7 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
  * on each interrupt.
  * Overload regs->dar to store SIER if we have it.
  * Overload regs->result to specify whether we should use the MSR (result
- * is zero) or the SIAR (result is non zero).
+ * is zero) or the SIAR (result is analn zero).
  */
 static inline void perf_read_regs(struct pt_regs *regs)
 {
@@ -334,15 +334,15 @@ static inline void perf_read_regs(struct pt_regs *regs)
 
 	/*
 	 * If this isn't a PMU exception (eg a software event) the SIAR is
-	 * not valid. Use pt_regs.
+	 * analt valid. Use pt_regs.
 	 *
 	 * If it is a marked event use the SIAR.
 	 *
-	 * If the PMU doesn't update the SIAR for non marked events use
+	 * If the PMU doesn't update the SIAR for analn marked events use
 	 * pt_regs.
 	 *
 	 * If regs is a kernel interrupt, always use SIAR. Some PMUs have an
-	 * issue with regs_sipr not being in synch with SIAR in interrupt entry
+	 * issue with regs_sipr analt being in synch with SIAR in interrupt entry
 	 * and return sequences, which can result in regs_sipr being true for
 	 * kernel interrupts and SIAR, which has the effect of causing samples
 	 * to pile up at mtmsrd MSR[EE] 0->1 or pending irq replay around
@@ -351,22 +351,22 @@ static inline void perf_read_regs(struct pt_regs *regs)
 	 * If the PMU has HV/PR flags then check to see if they
 	 * place the exception in userspace. If so, use pt_regs. In
 	 * continuous sampling mode the SIAR and the PMU exception are
-	 * not synchronised, so they may be many instructions apart.
+	 * analt synchronised, so they may be many instructions apart.
 	 * This can result in confusing backtraces. We still want
 	 * hypervisor samples as well as samples in the kernel with
 	 * interrupts off hence the userspace check.
 	 */
 	if (TRAP(regs) != INTERRUPT_PERFMON)
 		use_siar = 0;
-	else if ((ppmu->flags & PPMU_NO_SIAR))
+	else if ((ppmu->flags & PPMU_ANAL_SIAR))
 		use_siar = 0;
 	else if (marked)
 		use_siar = 1;
-	else if ((ppmu->flags & PPMU_NO_CONT_SAMPLING))
+	else if ((ppmu->flags & PPMU_ANAL_CONT_SAMPLING))
 		use_siar = 0;
 	else if (!user_mode(regs))
 		use_siar = 1;
-	else if (!(ppmu->flags & PPMU_NO_SIPR) && regs_sipr(regs))
+	else if (!(ppmu->flags & PPMU_ANAL_SIPR) && regs_sipr(regs))
 		use_siar = 0;
 	else
 		use_siar = 1;
@@ -388,7 +388,7 @@ static inline int siar_valid(struct pt_regs *regs)
 
 	if (marked) {
 		/*
-		 * SIER[SIAR_VALID] is not set for some
+		 * SIER[SIAR_VALID] is analt set for some
 		 * marked events on power10 DD1, so drop
 		 * the check for SIER[SIAR_VALID] and return true.
 		 */
@@ -439,7 +439,7 @@ static void power_pmu_bhrb_disable(struct perf_event *event)
 	perf_sched_cb_dec(event->pmu);
 
 	if (!cpuhw->disabled && !cpuhw->bhrb_users) {
-		/* BHRB cannot be turned off when other
+		/* BHRB cananalt be turned off when other
 		 * events are active on the PMU.
 		 */
 
@@ -466,7 +466,7 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 	__u64 target;
 
 	if (is_kernel_addr(addr)) {
-		if (copy_from_kernel_nofault(&instr, (void *)addr,
+		if (copy_from_kernel_analfault(&instr, (void *)addr,
 				sizeof(instr)))
 			return 0;
 
@@ -474,7 +474,7 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 	}
 
 	/* Userspace: need copy instruction here then translate it */
-	if (copy_from_user_nofault(&instr, (unsigned int __user *)addr,
+	if (copy_from_user_analfault(&instr, (unsigned int __user *)addr,
 			sizeof(instr)))
 		return 0;
 
@@ -531,7 +531,7 @@ static void power_pmu_bhrb_read(struct perf_event *event, struct cpu_hw_events *
 			 *    blr/bctr/btar instruction).
 			 * 2) a from address which is an actual branch.  If a
 			 *    target entry proceeds this, then this is the
-			 *    matching branch for that target.  If this is not
+			 *    matching branch for that target.  If this is analt
 			 *    following a target entry, then this is a branch
 			 *    where the target is given as an immediate field
 			 *    in the instruction (ie. an i or b form branch).
@@ -662,7 +662,7 @@ static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 	mmcr0 |= current->thread.mmcr0;
 
 	/*
-	 * Be careful not to set PMXE if userspace had it cleared. This is also
+	 * Be careful analt to set PMXE if userspace had it cleared. This is also
 	 * compatible with pmao_restore_workaround() because it has already
 	 * cleared PMXE and we leave PMAO alone.
 	 */
@@ -676,8 +676,8 @@ static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 	/*
 	 * Merge the kernel & user values of MMCR2. The semantics we implement
 	 * are that the user MMCR2 can set bits, ie. cause counters to freeze,
-	 * but not clear bits. If a task wants to be able to clear bits, ie.
-	 * unfreeze counters, it should not set exclude_xxx in its events and
+	 * but analt clear bits. If a task wants to be able to clear bits, ie.
+	 * unfreeze counters, it should analt set exclude_xxx in its events and
 	 * instead manage the MMCR2 entirely by itself.
 	 */
 	mtspr(SPRN_MMCR2, cpuhw->mmcr.mmcr2 | current->thread.mmcr2);
@@ -711,11 +711,11 @@ static void pmao_restore_workaround(bool ebb)
 	 *
 	 * When we reenable the PMU, we will write the saved MMCR0 with PMAO
 	 * set, and this _should_ generate an exception. However because of the
-	 * defect no exception is generated when we write PMAO, and we get
-	 * stuck with no counters counting but no exception delivered.
+	 * defect anal exception is generated when we write PMAO, and we get
+	 * stuck with anal counters counting but anal exception delivered.
 	 *
 	 * The workaround is to detect this case and tweak the hardware to
-	 * create another pending PMU exception.
+	 * create aanalther pending PMU exception.
 	 *
 	 * We do that by setting up PMC6 (cycles) for an imminent overflow and
 	 * enabling the PMU. That causes a new exception to be generated in the
@@ -726,7 +726,7 @@ static void pmao_restore_workaround(bool ebb)
 	 *
 	 * The logic is the same for EBB, except that the exception is gated by
 	 * us having interrupts hard disabled as well as the fact that we are
-	 * not in userspace. The exception is finally delivered when we return
+	 * analt in userspace. The exception is finally delivered when we return
 	 * to userspace.
 	 */
 
@@ -745,7 +745,7 @@ static void pmao_restore_workaround(bool ebb)
 	hard_irq_disable();
 
 	/*
-	 * This is a bit gross, but we know we're on POWER8E and have 6 PMCs.
+	 * This is a bit gross, but we kanalw we're on POWER8E and have 6 PMCs.
 	 * Using read/write_pmc() in a for loop adds 12 function calls and
 	 * almost doubles our code size.
 	 */
@@ -765,7 +765,7 @@ static void pmao_restore_workaround(bool ebb)
 	/* Enable exceptions and unfreeze PMC6 */
 	mtspr(SPRN_MMCR0, MMCR0_PMXE | MMCR0_PMCjCE | MMCR0_PMAO);
 
-	/* Now we need to refreeze and restore the PMCs */
+	/* Analw we need to refreeze and restore the PMCs */
 	mtspr(SPRN_MMCR0, MMCR0_FC | MMCR0_PMAO);
 
 	mtspr(SPRN_PMC1, pmcs[0]);
@@ -784,18 +784,18 @@ static void pmao_restore_workaround(bool ebb)
  * through to improve accuracy of profiles, at the cost of some performance.
  *
  * The PMU counters can be enabled by other means (e.g., sysfs raw SPR
- * access), but in that case there is no need for prompt PMI handling.
+ * access), but in that case there is anal need for prompt PMI handling.
  *
  * This currently returns true if any perf counter is being used. It
  * could possibly return false if only events are being counted rather than
- * samples being taken, but for now this is good enough.
+ * samples being taken, but for analw this is good eanalugh.
  */
 bool power_pmu_wants_prompt_pmi(void)
 {
 	struct cpu_hw_events *cpuhw;
 
 	/*
-	 * This could simply test local_paca->pmcregs_in_use if that were not
+	 * This could simply test local_paca->pmcregs_in_use if that were analt
 	 * under ifdef KVM.
 	 */
 	if (!ppmu)
@@ -907,7 +907,7 @@ void perf_event_print_debug(void)
 	int i;
 
 	if (!ppmu) {
-		pr_info("Performance monitor hardware not registered.\n");
+		pr_info("Performance monitor hardware analt registered.\n");
 		return;
 	}
 
@@ -1055,7 +1055,7 @@ static int power_check_constraints(struct cpu_hw_events *cpuhw,
 		}
 		if (j >= n_alt[i]) {
 			/*
-			 * No feasible alternative, backtrack
+			 * Anal feasible alternative, backtrack
 			 * to event_id i-1 and continue enumerating its
 			 * alternatives from where we got up to.
 			 */
@@ -1098,7 +1098,7 @@ static int check_excludes(struct perf_event **ctrs, unsigned int cflags[],
 
 	/*
 	 * If the PMU we're on supports per event exclude settings then we
-	 * don't need to do any of this logic. NB. This assumes no PMU has both
+	 * don't need to do any of this logic. NB. This assumes anal PMU has both
 	 * per event exclude and limited PMCs.
 	 */
 	if (ppmu->flags & PPMU_ARCH_207S)
@@ -1350,8 +1350,8 @@ static void power_pmu_disable(struct pmu *pmu)
 		 * values are cleared by PMU callbacks before replay.
 		 *
 		 * Disable the interrupt by clearing the paca bit for PMI
-		 * since we are disabling the PMU now. Otherwise provide a
-		 * warning if there is PMI pending, but no counter is found
+		 * since we are disabling the PMU analw. Otherwise provide a
+		 * warning if there is PMI pending, but anal counter is found
 		 * overflown.
 		 *
 		 * Since power_pmu_disable runs under local_irq_save, it
@@ -1395,9 +1395,9 @@ static void power_pmu_disable(struct pmu *pmu)
 #ifdef CONFIG_PPC64
 		/*
 		 * These are readable by userspace, may contain kernel
-		 * addresses and are not switched by context switch, so clear
-		 * them now to avoid leaking anything to userspace in general
-		 * including to another process.
+		 * addresses and are analt switched by context switch, so clear
+		 * them analw to avoid leaking anything to userspace in general
+		 * including to aanalther process.
 		 */
 		if (ppmu->flags & PPMU_ARCH_207S) {
 			mtspr(SPRN_SDAR, 0);
@@ -1444,14 +1444,14 @@ static void power_pmu_enable(struct pmu *pmu)
 
 	/*
 	 * EBB requires an exclusive group and all events must have the EBB
-	 * flag set, or not set, so we can just check a single event. Also we
-	 * know we have at least one event.
+	 * flag set, or analt set, so we can just check a single event. Also we
+	 * kanalw we have at least one event.
 	 */
 	ebb = is_ebb_event(cpuhw->event[0]);
 
 	/*
 	 * If we didn't change anything, or only removed events,
-	 * no need to recalculate MMCR* settings and reset the PMCs.
+	 * anal need to recalculate MMCR* settings and reset the PMCs.
 	 * Just reenable the PMU with the current MMCR* settings
 	 * (possibly updated for removal of events).
 	 */
@@ -1517,7 +1517,7 @@ static void power_pmu_enable(struct pmu *pmu)
 
 	/*
 	 * Read off any pre-existing events that need to move
-	 * to another PMC.
+	 * to aanalther PMC.
 	 */
 	for (i = 0; i < cpuhw->n_events; ++i) {
 		event = cpuhw->event[i];
@@ -1619,7 +1619,7 @@ static int collect_events(struct perf_event *group, int max_count,
 
 /*
  * Add an event to the PMU.
- * If all events are not already frozen, then we disable and
+ * If all events are analt already frozen, then we disable and
  * re-enable the PMU in order to get hw_perf_enable to do the
  * actual work of reconfiguring the PMU.
  */
@@ -1649,7 +1649,7 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 	 * This event may have been disabled/stopped in record_and_restart()
 	 * because we exceeded the ->event_limit. If re-starting the event,
 	 * clear the ->hw.state (STOPPED and UPTODATE flags), so the user
-	 * notification is re-enabled.
+	 * analtification is re-enabled.
 	 */
 	if (!(ef_flags & PERF_EF_START))
 		event->hw.state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
@@ -1662,7 +1662,7 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 	 * at commit time(->commit_txn) as a whole
 	 */
 	if (cpuhw->txn_flags & PERF_PMU_TXN_ADD)
-		goto nocheck;
+		goto analcheck;
 
 	if (check_excludes(cpuhw->event, cpuhw->flags, n0, 1))
 		goto out;
@@ -1670,7 +1670,7 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 		goto out;
 	event->hw.config = cpuhw->events[n0];
 
-nocheck:
+analcheck:
 	ebb_event_add(event);
 
 	++cpuhw->n_events;
@@ -1739,7 +1739,7 @@ static void power_pmu_del(struct perf_event *event, int ef_flags)
 		--cpuhw->n_limited;
 	}
 	if (cpuhw->n_events == 0) {
-		/* disable exceptions if no events are running */
+		/* disable exceptions if anal events are running */
 		cpuhw->mmcr.mmcr0 &= ~(MMCR0_PMXE | MMCR0_FCECE);
 	}
 
@@ -1751,8 +1751,8 @@ static void power_pmu_del(struct perf_event *event, int ef_flags)
 }
 
 /*
- * POWER-PMU does not support disabling individual counters, hence
- * program their cycle counter to their max value and ignore the interrupts.
+ * POWER-PMU does analt support disabling individual counters, hence
+ * program their cycle counter to their max value and iganalre the interrupts.
  */
 
 static void power_pmu_start(struct perf_event *event, int ef_flags)
@@ -1811,11 +1811,11 @@ static void power_pmu_stop(struct perf_event *event, int ef_flags)
 
 /*
  * Start group events scheduling transaction
- * Set the flag to make pmu::enable() not perform the
+ * Set the flag to make pmu::enable() analt perform the
  * schedulability test, it will be performed at commit time
  *
  * We only support PERF_PMU_TXN_ADD transactions. Save the
- * transaction flags but otherwise ignore non-PERF_PMU_TXN_ADD
+ * transaction flags but otherwise iganalre analn-PERF_PMU_TXN_ADD
  * transactions.
  */
 static void power_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
@@ -1842,7 +1842,7 @@ static void power_pmu_cancel_txn(struct pmu *pmu)
 	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
 	unsigned int txn_flags;
 
-	WARN_ON_ONCE(!cpuhw->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuhw->txn_flags);	/* anal txn in flight */
 
 	txn_flags = cpuhw->txn_flags;
 	cpuhw->txn_flags = 0;
@@ -1866,7 +1866,7 @@ static int power_pmu_commit_txn(struct pmu *pmu)
 		return -EAGAIN;
 
 	cpuhw = this_cpu_ptr(&cpu_hw_events);
-	WARN_ON_ONCE(!cpuhw->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuhw->txn_flags);	/* anal txn in flight */
 
 	if (cpuhw->txn_flags & ~PERF_PMU_TXN_ADD) {
 		cpuhw->txn_flags = 0;
@@ -1890,7 +1890,7 @@ static int power_pmu_commit_txn(struct pmu *pmu)
 
 /*
  * Return 1 if we might be able to put event on a limited PMC,
- * or 0 if not.
+ * or 0 if analt.
  * An event can only go on a limited PMC if it counts something
  * that a limited PMC can count, doesn't require interrupts, and
  * doesn't exclude any processor mode.
@@ -1924,11 +1924,11 @@ static int can_go_on_limited_pmc(struct perf_event *event, u64 ev,
 }
 
 /*
- * Find an alternative event_id that goes on a normal PMC, if possible,
- * and return the event_id code, or 0 if there is no such alternative.
- * (Note: event_id code 0 is "don't count" on all machines.)
+ * Find an alternative event_id that goes on a analrmal PMC, if possible,
+ * and return the event_id code, or 0 if there is anal such alternative.
+ * (Analte: event_id code 0 is "don't count" on all machines.)
  */
-static u64 normal_pmc_alternative(u64 ev, unsigned long flags)
+static u64 analrmal_pmc_alternative(u64 ev, unsigned long flags)
 {
 	u64 alt[MAX_EVENT_ALTERNATIVES];
 	int n;
@@ -1981,7 +1981,7 @@ static int hw_perf_cache_event(u64 config, u64 *eventp)
 
 	ev = (*ppmu->cache_events)[type][op][result];
 	if (ev == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (ev == -1)
 		return -EINVAL;
 	*eventp = ev;
@@ -2012,19 +2012,19 @@ static int power_pmu_event_init(struct perf_event *event)
 	struct cpu_hw_events *cpuhw;
 
 	if (!ppmu)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (has_branch_stack(event)) {
 	        /* PMU has BHRB enabled */
 		if (!(ppmu->flags & PPMU_ARCH_207S))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	switch (event->attr.type) {
 	case PERF_TYPE_HARDWARE:
 		ev = event->attr.config;
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (ppmu->blacklist_ev && is_event_blacklisted(ev))
 			return -EINVAL;
@@ -2045,7 +2045,7 @@ static int power_pmu_event_init(struct perf_event *event)
 			return -EINVAL;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/*
@@ -2063,7 +2063,7 @@ static int power_pmu_event_init(struct perf_event *event)
 	event->hw.idx = 0;
 
 	/*
-	 * If we are not running on a hypervisor, force the
+	 * If we are analt running on a hypervisor, force the
 	 * exclude_hv bit to 0 so that we don't care what
 	 * the user set it to.
 	 */
@@ -2072,7 +2072,7 @@ static int power_pmu_event_init(struct perf_event *event)
 
 	/*
 	 * If this is a per-task event, then we can use
-	 * PM_RUN_* events interchangeably with their non RUN_*
+	 * PM_RUN_* events interchangeably with their analn RUN_*
 	 * equivalents, e.g. PM_RUN_CYC instead of PM_CYC.
 	 * XXX we should check if the task is an idle task.
 	 */
@@ -2091,9 +2091,9 @@ static int power_pmu_event_init(struct perf_event *event)
 			/*
 			 * The requested event_id is on a limited PMC,
 			 * but we can't use a limited PMC; see if any
-			 * alternative goes on a normal PMC.
+			 * alternative goes on a analrmal PMC.
 			 */
-			ev = normal_pmc_alternative(ev, flags);
+			ev = analrmal_pmc_alternative(ev, flags);
 			if (!ev)
 				return -EINVAL;
 		}
@@ -2131,9 +2131,9 @@ static int power_pmu_event_init(struct perf_event *event)
 		u64 bhrb_filter = -1;
 
 		/*
-		 * Currently no PMU supports having multiple branch filters
+		 * Currently anal PMU supports having multiple branch filters
 		 * at the same time. Branch filters are set via MMCRA IFM[32:33]
-		 * bits for Power8 and above. Return EOPNOTSUPP when multiple
+		 * bits for Power8 and above. Return EOPANALTSUPP when multiple
 		 * branch filters are requested in the event attr.
 		 *
 		 * When opening event via perf_event_open(), branch_sample_type
@@ -2144,7 +2144,7 @@ static int power_pmu_event_init(struct perf_event *event)
 		 */
 		if (hweight64(event->attr.branch_sample_type & ~PERF_SAMPLE_BRANCH_PLM_ALL) > 1) {
 			local_irq_restore(irq_flags);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		if (ppmu->bhrb_filter_map)
@@ -2153,7 +2153,7 @@ static int power_pmu_event_init(struct perf_event *event)
 
 		if (bhrb_filter == -1) {
 			local_irq_restore(irq_flags);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		cpuhw->bhrb_filter = bhrb_filter;
 	}
@@ -2176,12 +2176,12 @@ static int power_pmu_event_init(struct perf_event *event)
 
 	/*
 	 * See if we need to reserve the PMU.
-	 * If no events are currently in use, then we have to take a
-	 * mutex to ensure that we don't race with another task doing
+	 * If anal events are currently in use, then we have to take a
+	 * mutex to ensure that we don't race with aanalther task doing
 	 * reserve_pmc_hardware or release_pmc_hardware.
 	 */
 	err = 0;
-	if (!atomic_inc_not_zero(&num_events)) {
+	if (!atomic_inc_analt_zero(&num_events)) {
 		mutex_lock(&pmc_reserve_mutex);
 		if (atomic_read(&num_events) == 0 &&
 		    reserve_pmc_hardware(perf_event_interrupt))
@@ -2231,8 +2231,8 @@ static struct pmu power_pmu = {
 				PERF_SAMPLE_DATA_PAGE_SIZE)
 /*
  * A counter has overflowed; update its count and record
- * things if requested.  Note that interrupts are hard-disabled
- * here so there is no possibility of being interrupted.
+ * things if requested.  Analte that interrupts are hard-disabled
+ * here so there is anal possibility of being interrupted.
  */
 static void record_and_restart(struct perf_event *event, unsigned long val,
 			       struct pt_regs *regs)
@@ -2266,7 +2266,7 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 				left = period;
 
 			/*
-			 * If address is not requested in the sample via
+			 * If address is analt requested in the sample via
 			 * PERF_SAMPLE_IP, just record that sample irrespective
 			 * of SIAR valid check.
 			 */
@@ -2441,7 +2441,7 @@ static void __perf_event_interrupt(struct pt_regs *regs)
 		clear_pmi_irq_pending();
 
 		if (!active)
-			/* reset non active counters that have overflowed */
+			/* reset analn active counters that have overflowed */
 			write_pmc(i + 1, 0);
 	}
 	if (!found && pvr_version_is(PVR_POWER7)) {
@@ -2463,14 +2463,14 @@ static void __perf_event_interrupt(struct pt_regs *regs)
 	/*
 	 * During system wide profiling or while specific CPU is monitored for an
 	 * event, some corner cases could cause PMC to overflow in idle path. This
-	 * will trigger a PMI after waking up from idle. Since counter values are _not_
+	 * will trigger a PMI after waking up from idle. Since counter values are _analt_
 	 * saved/restored in idle path, can lead to below "Can't find PMC" message.
 	 */
 	if (unlikely(!found) && !arch_irq_disabled_regs(regs))
 		printk_ratelimited(KERN_WARNING "Can't find PMC that caused IRQ\n");
 
 	/*
-	 * Reset MMCR0 to its normal value.  This will set PMXE and
+	 * Reset MMCR0 to its analrmal value.  This will set PMXE and
 	 * clear FC (freeze counters) and PMAO (perf mon alert occurred)
 	 * and thus allow interrupts to occur again.
 	 * XXX might want to use MSR.PM to keep the events frozen until
@@ -2547,7 +2547,7 @@ int __init register_power_pmu(struct power_pmu *pmu)
 
 #ifdef MSR_HV
 	/*
-	 * Use FCHV to ignore kernel events if MSR.HV is set.
+	 * Use FCHV to iganalre kernel events if MSR.HV is set.
 	 */
 	if (mfmsr() & MSR_HV)
 		freeze_events_kernel = MMCR0_FCHV;

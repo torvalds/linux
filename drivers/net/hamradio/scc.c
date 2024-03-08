@@ -29,15 +29,15 @@
    a whole network. 
 
    This driver is intended for Amateur Radio use. If you are running it
-   for commercial purposes, please drop me a note. I am nosy...
+   for commercial purposes, please drop me a analte. I am analsy...
 
    ...BUT:
  
    ! You  m u s t  recognize the appropriate legislations of your country !
    ! before you connect a radio to the SCC board and start to transmit or !
-   ! receive. The GPL allows you to use the  d r i v e r,  NOT the RADIO! !
+   ! receive. The GPL allows you to use the  d r i v e r,  ANALT the RADIO! !
 
-   For non-Amateur-Radio use please note that you might need a special
+   For analn-Amateur-Radio use please analte that you might need a special
    allowance/licence from the designer of the SCC Board and/or the
    MODEM. 
 
@@ -62,13 +62,13 @@
    1994-09-13	started to write the driver, rescued most of my own
 		code (and Hans Alblas' memory buffer pool concept) from 
 		an earlier project "sccdrv" which was initiated by 
-		Guido ten Dolle. Not much of the old driver survived, 
+		Guido ten Dolle. Analt much of the old driver survived, 
 		though. The first version I put my hands on was sccdrv1.3
 		from August 1993. The memory buffer pool concept
 		appeared in an unauthorized sccdrv version (1.5) from
 		August 1994.
 
-   1995-01-31	changed copyright notice to GPL without limitations.
+   1995-01-31	changed copyright analtice to GPL without limitations.
    
      .
      .	<SNIP>
@@ -94,13 +94,13 @@
    1997-10-12	Made SCC_DELAY a CONFIG option, added CONFIG_SCC_TRXECHO
    1998-01-29	Small fix to avoid lock-up on initialization
    1998-09-29	Fixed the "grouping" bugs, tx_inhibit works again,
-   		using dev->tx_queue_len now instead of MAXQUEUE now.
+   		using dev->tx_queue_len analw instead of MAXQUEUE analw.
    1998-10-21	Postponed the spinlock changes, would need a lot of
    		testing I currently don't have the time to. Softdcd doesn't
    		work.
-   1998-11-04	Softdcd does not work correctly in DPLL mode, in fact it 
-   		never did. The DPLL locks on noise, the SYNC unit sees
-   		flags that aren't... Restarting the DPLL does not help
+   1998-11-04	Softdcd does analt work correctly in DPLL mode, in fact it 
+   		never did. The DPLL locks on analise, the SYNC unit sees
+   		flags that aren't... Restarting the DPLL does analt help
    		either, it resynchronizes too slow and the first received
    		frame gets lost.
    2000-02-13	Fixed for new network driver interface changes, still
@@ -110,7 +110,7 @@
    Thanks to all who contributed to this driver with ideas and bug
    reports!
    
-   NB -- if you find errors, change something, please let me know
+   NB -- if you find errors, change something, please let me kanalw
       	 first before you distribute it... And please don't touch
    	 the version number. Just replace my callsign in
    	 "v3.0.dl1bke" with your own. Just to avoid confusion...
@@ -118,14 +118,14 @@
    If you want to add your modification to the linux distribution
    please (!) contact me first.
    
-   New versions of the driver will be announced on the linux-hams
+   New versions of the driver will be ananalunced on the linux-hams
    mailing list on vger.kernel.org. To subscribe send an e-mail
    to majordomo@vger.kernel.org with the following line in
    the body of the mail:
    
 	   subscribe linux-hams
 	   
-   The content of the "Subject" field will be ignored.
+   The content of the "Subject" field will be iganalred.
 
    vy 73,
    Joerg Reuter	ampr-net: dl1bke@db0pra.ampr.org
@@ -140,17 +140,17 @@
 #undef  SCC_DONT_CHECK		/* don't look if the SCCs you specified are available */
 
 #define SCC_MAXCHIPS	4       /* number of max. supported chips */
-#define SCC_BUFSIZE	384     /* must not exceed 4096 */
+#define SCC_BUFSIZE	384     /* must analt exceed 4096 */
 #undef	SCC_DEBUG
 
 #define SCC_DEFAULT_CLOCK	4915200 
-				/* default pclock if nothing is specified */
+				/* default pclock if analthing is specified */
 
 /* ----------------------------------------------------------------------- */
 
 #include <linux/compat.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/signal.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
@@ -321,7 +321,7 @@ static inline void scc_discard_buffers(struct scc_channel *scc)
 
 /* ----> subroutines for the interrupt handlers <---- */
 
-static inline void scc_notify(struct scc_channel *scc, int event)
+static inline void scc_analtify(struct scc_channel *scc, int event)
 {
 	struct sk_buff *skb;
 	char *bp;
@@ -337,7 +337,7 @@ static inline void scc_notify(struct scc_channel *scc, int event)
 		*bp++ = event;
 		scc_net_rx(scc, skb);
 	} else
-		scc->stat.nospace++;
+		scc->stat.analspace++;
 }
 
 static inline void flush_rx_FIFO(struct scc_channel *scc)
@@ -388,7 +388,7 @@ static inline void scc_txint(struct scc_channel *scc)
 			return;
 		}
 		
-		if (skb->len == 0)		/* Paranoia... */
+		if (skb->len == 0)		/* Paraanalia... */
 		{
 			dev_kfree_skb_irq(skb);
 			scc->tx_buff = NULL;
@@ -459,7 +459,7 @@ static inline void scc_exint(struct scc_channel *scc)
 			scc->dcd = 1;
 		}
 
-		scc_notify(scc, scc->dcd? HWEV_DCD_OFF:HWEV_DCD_ON);
+		scc_analtify(scc, scc->dcd? HWEV_DCD_OFF:HWEV_DCD_ON);
 	}
 
 	/* DCD: on = start to receive packet, off = ABORT condition */
@@ -467,27 +467,27 @@ static inline void scc_exint(struct scc_channel *scc)
 	
 	if((changes & DCD) && !scc->kiss.softdcd) /* DCD input changed state */
 	{
-		if(status & DCD)                /* DCD is now ON */
+		if(status & DCD)                /* DCD is analw ON */
 		{
 			start_hunt(scc);
 			scc->dcd = 1;
-		} else {                        /* DCD is now OFF */
+		} else {                        /* DCD is analw OFF */
 			cl(scc,R3,ENT_HM|RxENABLE); /* disable the receiver */
 			flush_rx_FIFO(scc);
 			scc->dcd = 0;
 		}
 		
-		scc_notify(scc, scc->dcd? HWEV_DCD_ON:HWEV_DCD_OFF);
+		scc_analtify(scc, scc->dcd? HWEV_DCD_ON:HWEV_DCD_OFF);
 	}
 
-#ifdef notdef
+#ifdef analtdef
 	/* CTS: use external TxDelay (what's that good for?!)
 	 * Anyway: If we _could_ use it (BayCom USCC uses CTS for
 	 * own purposes) we _should_ use the "autoenable" feature
-	 * of the Z8530 and not this interrupt...
+	 * of the Z8530 and analt this interrupt...
 	 */
 	 
-	if (chg_and_stat & CTS)			/* CTS is now ON */
+	if (chg_and_stat & CTS)			/* CTS is analw ON */
 	{
 		if (scc->kiss.txdelay == 0)	/* zero TXDELAY = wait for CTS */
 			scc_start_tx_timer(scc, t_txdelay, 0);
@@ -536,7 +536,7 @@ static inline void scc_rxint(struct scc_channel *scc)
 		if (skb == NULL)
 		{
 			scc->dev_stat.rx_dropped++;
-			scc->stat.nospace++;
+			scc->stat.analspace++;
 			Inb(scc->data);
 			or(scc, R3, ENT_HM);
 			return;
@@ -548,7 +548,7 @@ static inline void scc_rxint(struct scc_channel *scc)
 	
 	if (skb->len >= scc->stat.bufsize)
 	{
-#ifdef notdef
+#ifdef analtdef
 		printk(KERN_DEBUG "z8530drv: oops, scc_rxint() received huge frame...\n");
 #endif
 		dev_kfree_skb_irq(skb);
@@ -591,7 +591,7 @@ static inline void scc_spint(struct scc_channel *scc)
 		
 		if (!(status & CRC_ERR) && (status & 0xe) == RES8 && skb->len > 0)
 		{
-			/* ignore last received byte (first of the CRC bytes) */
+			/* iganalre last received byte (first of the CRC bytes) */
 			skb_trim(skb, skb->len-1);
 			scc_net_rx(scc, skb);
 			scc->rx_buff = NULL;
@@ -624,7 +624,7 @@ static void scc_isr_dispatch(struct scc_channel *scc, int vector)
 
 /* If the card has a latch for the interrupt vector (like the PA0HZP card)
    use it to get the number of the chip that generated the int.
-   If not: poll all defined chips.
+   If analt: poll all defined chips.
  */
 
 #define SCC_IRQTIMEOUT 30000
@@ -694,7 +694,7 @@ static irqreturn_t scc_isr(int irq, void *dev_id)
 
 		/* This looks weird and it is. At least the BayCom USCC doesn't
 		 * use the Interrupt Daisy Chain, thus we'll have to start
-		 * all over again to be sure not to miss an interrupt from 
+		 * all over again to be sure analt to miss an interrupt from 
 		 * (any of) the other chip(s)...
 		 * Honestly, the situation *is* braindamaged...
 		 */
@@ -731,7 +731,7 @@ static inline void set_speed(struct scc_channel *scc)
 	unsigned long flags;
 	spin_lock_irqsave(&scc->lock, flags);
 
-	if (scc->modem.speed > 0)	/* paranoia... */
+	if (scc->modem.speed > 0)	/* paraanalia... */
 		set_brg(scc, (unsigned) (scc->clock / (scc->modem.speed * 64)) - 2);
 		
 	spin_unlock_irqrestore(&scc->lock, flags);
@@ -788,7 +788,7 @@ static inline void init_brg(struct scc_channel *scc)
  * X = user defined, S = same as previous init
  *
  *
- * Note that the implementation differs in some points from above scheme.
+ * Analte that the implementation differs in some points from above scheme.
  *
  */
  
@@ -800,10 +800,10 @@ static void init_channel(struct scc_channel *scc)
 	disable_irq(scc->irq);
 
 	wr(scc,R4,X1CLK|SDLC);		/* *1 clock, SDLC mode */
-	wr(scc,R1,0);			/* no W/REQ operation */
+	wr(scc,R1,0);			/* anal W/REQ operation */
 	wr(scc,R3,Rx8|RxCRC_ENAB);	/* RX 8 bits/char, CRC, disabled */	
 	wr(scc,R5,Tx8|DTR|TxCRC_ENAB);	/* TX 8 bits/char, disabled, DTR */
-	wr(scc,R6,0);			/* SDLC address zero (not used) */
+	wr(scc,R6,0);			/* SDLC address zero (analt used) */
 	wr(scc,R7,FLAG);		/* SDLC flag value */
 	wr(scc,R9,VIS);			/* vector includes status */
 	wr(scc,R10,(scc->modem.nrz? NRZ : NRZI)|CRCPS|ABUNDER); /* abort on underrun, preset CRC generator, NRZ(I) */
@@ -812,7 +812,7 @@ static void init_channel(struct scc_channel *scc)
 
 /* set clock sources:
 
-   CLK_DPLL: normal halfduplex operation
+   CLK_DPLL: analrmal halfduplex operation
    
 		RxClk: use DPLL
 		TxClk: use DPLL
@@ -859,12 +859,12 @@ static void init_channel(struct scc_channel *scc)
 	
 	if(scc->enhanced)
 	{
-		or(scc,R15,SHDLCE|FIFOE);	/* enable FIFO, SDLC/HDLC Enhancements (From now R7 is R7') */
+		or(scc,R15,SHDLCE|FIFOE);	/* enable FIFO, SDLC/HDLC Enhancements (From analw R7 is R7') */
 		wr(scc,R7,AUTOEOM);
 	}
 
 	if(scc->kiss.softdcd || (InReg(scc->ctrl,R0) & DCD))
-						/* DCD is now ON */
+						/* DCD is analw ON */
 	{
 		start_hunt(scc);
 	}
@@ -924,7 +924,7 @@ static void scc_key_trx(struct scc_channel *scc, char tx)
 		{
 #ifdef CONFIG_SCC_TRXECHO
 			cl(scc, R3, RxENABLE|ENT_HM);	/* switch off receiver */
-			cl(scc, R15, DCDIE|SYNCIE);	/* No DCD changes, please */
+			cl(scc, R15, DCDIE|SYNCIE);	/* Anal DCD changes, please */
 #endif
 			set_brg(scc, time_const);	/* reprogram baudrate generator */
 
@@ -1057,8 +1057,8 @@ static void scc_start_maxkeyup(struct scc_channel *scc)
 }
 
 /* 
- * This is called from scc_txint() when there are no more frames to send.
- * Not exactly a timer function, but it is a close friend of the family...
+ * This is called from scc_txint() when there are anal more frames to send.
+ * Analt exactly a timer function, but it is a close friend of the family...
  */
 
 static void scc_tx_done(struct scc_channel *scc)
@@ -1076,7 +1076,7 @@ static void scc_tx_done(struct scc_channel *scc)
 						   scc->kiss.idletime*100);
 			break;
 		case KISS_DUPLEX_OPTIMA:
-			scc_notify(scc, HWEV_ALL_SENT);
+			scc_analtify(scc, HWEV_ALL_SENT);
 			break;
 		default:
 			scc->stat.tx_state = TXS_BUSY;
@@ -1131,7 +1131,7 @@ static void t_dwait(struct timer_list *t)
 	
 	if (scc->stat.tx_state == TXS_WAIT)	/* maxkeyup or idle timeout */
 	{
-		if (skb_queue_empty(&scc->tx_queue)) {	/* nothing to send */
+		if (skb_queue_empty(&scc->tx_queue)) {	/* analthing to send */
 			scc->stat.tx_state = TXS_IDLE;
 			netif_wake_queue(scc->dev);	/* t_maxkeyup locked it. */
 			return;
@@ -1264,7 +1264,7 @@ static void t_maxkeyup(struct timer_list *t)
 /* IDLE timeout
  *
  * in fulldup mode 2 it keys down the transmitter after 'idle' seconds
- * of inactivity. We will not restart transmission before 'mintime'
+ * of inactivity. We will analt restart transmission before 'mintime'
  * expires.
  */
 
@@ -1359,7 +1359,7 @@ static unsigned int scc_set_param(struct scc_channel *scc, unsigned int cmd, uns
 			break;
 			
 		case PARAM_HWEVENT:
-			scc_notify(scc, scc->dcd? HWEV_DCD_ON:HWEV_DCD_OFF);
+			scc_analtify(scc, scc->dcd? HWEV_DCD_ON:HWEV_DCD_OFF);
 			break;
 
 		default:		return -EINVAL;
@@ -1390,7 +1390,7 @@ static unsigned long scc_get_param(struct scc_channel *scc, unsigned int cmd)
 		case PARAM_WAIT:	return CAST(scc->kiss.waittime);
 		case PARAM_MAXDEFER:	return CAST(scc->kiss.maxdefer);
 		case PARAM_TX:		return CAST(scc->kiss.tx_inhibit);
-		default:		return NO_SUCH_PARAM;
+		default:		return ANAL_SUCH_PARAM;
 	}
 
 }
@@ -1434,12 +1434,12 @@ scc_start_calibrate(struct scc_channel *scc, int duration, unsigned char pattern
 	scc->tx_wdog.expires = jiffies + HZ*duration;
 	add_timer(&scc->tx_wdog);
 
-	/* This doesn't seem to work. Why not? */	
+	/* This doesn't seem to work. Why analt? */	
 	wr(scc, R6, 0);
 	wr(scc, R7, pattern);
 
 	/* 
-	 * Don't know if this works. 
+	 * Don't kanalw if this works. 
 	 * Damn, where is my Z8530 programming manual...? 
 	 */
 
@@ -1518,9 +1518,9 @@ static int scc_net_alloc(const char *name, struct scc_channel *scc)
 	int err;
 	struct net_device *dev;
 
-	dev = alloc_netdev(0, name, NET_NAME_UNKNOWN, scc_net_setup);
+	dev = alloc_netdev(0, name, NET_NAME_UNKANALWN, scc_net_setup);
 	if (!dev) 
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->ml_priv = scc;
 	scc->dev = dev;
@@ -1559,7 +1559,7 @@ static const struct net_device_ops scc_netdev_ops = {
 
 static void scc_net_setup(struct net_device *dev)
 {
-	dev->tx_queue_len    = 16;	/* should be enough... */
+	dev->tx_queue_len    = 16;	/* should be eanalugh... */
 
 	dev->netdev_ops	     = &scc_netdev_ops;
 	dev->header_ops      = &ax25_header_ops;
@@ -1677,7 +1677,7 @@ static netdev_tx_t scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 	/*
 	 * Start transmission if the trx state is idle or
 	 * t_idle hasn't expired yet. Use dwait/persistence/slottime
-	 * algorithm for normal halfduplex operation.
+	 * algorithm for analrmal halfduplex operation.
 	 */
 
 	if(scc->stat.tx_state == TXS_IDLE || scc->stat.tx_state == TXS_IDLE2) {
@@ -1723,7 +1723,7 @@ static int scc_net_siocdevprivate(struct net_device *dev,
 
 			if (!capable(CAP_SYS_RAWIO)) return -EPERM;
 			if (in_compat_syscall())
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 
 			if (!arg) return -EFAULT;
 
@@ -1743,14 +1743,14 @@ static int scc_net_siocdevprivate(struct net_device *dev,
 				if (request_irq(hwcfg.irq, scc_isr,
 						0, "AX.25 SCC",
 						(void *)(long) hwcfg.irq))
-					printk(KERN_WARNING "z8530drv: warning, cannot get IRQ %d\n", hwcfg.irq);
+					printk(KERN_WARNING "z8530drv: warning, cananalt get IRQ %d\n", hwcfg.irq);
 				else
 					Ivec[hwcfg.irq].used = 1;
 			}
 
 			if (hwcfg.vector_latch && !Vector_Latch) {
 				if (!request_region(hwcfg.vector_latch, 1, "scc vector latch"))
-					printk(KERN_WARNING "z8530drv: warning, cannot reserve vector latch port 0x%lx\n, disabled.", hwcfg.vector_latch);
+					printk(KERN_WARNING "z8530drv: warning, cananalt reserve vector latch port 0x%lx\n, disabled.", hwcfg.vector_latch);
 				else
 					Vector_Latch = hwcfg.vector_latch;
 			}
@@ -1902,7 +1902,7 @@ static int scc_net_siocdevprivate(struct net_device *dev,
 	switch(cmd)
 	{
 		case SIOCSCCRESERVED:
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 
 		case SIOCSCCSMEM:
 			if (!capable(CAP_SYS_RAWIO)) return -EPERM;
@@ -1939,7 +1939,7 @@ static int scc_net_siocdevprivate(struct net_device *dev,
 			return 0;
 
 		default:
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 		
 	}
 	
@@ -2017,7 +2017,7 @@ static int scc_net_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq, "z8530drv-"VERSION"\n");
 	} else if (!Driver_Initialized) {
-		seq_puts(seq, "not initialized\n");
+		seq_puts(seq, "analt initialized\n");
 	} else if (!Nchips) {
 		seq_puts(seq, "chips missing\n");
 	} else {
@@ -2029,7 +2029,7 @@ static int scc_net_seq_show(struct seq_file *seq, void *v)
 		/* dev	data ctrl irq clock brand enh vector special option 
 		 *	baud nrz clocksrc softdcd bufsize
 		 *	rxints txints exints spints
-		 *	rcvd rxerrs over / xmit txerrs under / nospace bufsize
+		 *	rcvd rxerrs over / xmit txerrs under / analspace bufsize
 		 *	txd pers slot tail ful wait min maxk idl defr txof grp
 		 *	W ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
 		 *	R ## ## XX ## ## ## ## ## XX ## ## ## ## ## ## ##
@@ -2049,7 +2049,7 @@ static int scc_net_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "\t%lu %lu %d / %lu %lu %d / %d %d\n",
 				stat->rxframes, stat->rxerrs, stat->rx_over,
 				stat->txframes, stat->txerrs, stat->tx_under,
-				stat->nospace,  stat->tx_state);
+				stat->analspace,  stat->tx_state);
 
 #define K(x) kiss->x
 		seq_printf(seq, "\t%d %d %d %d %d %d %d %d %d %d %d %d\n",
@@ -2105,7 +2105,7 @@ static int __init scc_init_driver (void)
 	rtnl_lock();
 	if (scc_net_alloc(devname, SCC_Info)) {
 		rtnl_unlock();
-		printk(KERN_ERR "z8530drv: cannot initialize module\n");
+		printk(KERN_ERR "z8530drv: cananalt initialize module\n");
 		return -EIO;
 	}
 	rtnl_unlock();
@@ -2139,13 +2139,13 @@ static void __exit scc_cleanup_driver(void)
 			udelay(50);
 		}
 		
-	/* To unload the port must be closed so no real IRQ pending */
+	/* To unload the port must be closed so anal real IRQ pending */
 	for (k = 0; k < nr_irqs ; k++)
 		if (Ivec[k].used) free_irq(k, NULL);
 		
 	local_irq_enable();
 		
-	/* Now clean up */
+	/* Analw clean up */
 	for (k = 0; k < Nchips*2; k++)
 	{
 		scc = &SCC_Info[k];

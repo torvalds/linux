@@ -3,7 +3,7 @@
  * Copyright (C) ST-Ericsson SA 2010-2013
  * Author: Rickard Andersson <rickard.andersson@stericsson.com> for
  *         ST-Ericsson.
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org> for Linaro.
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org> for Linaro.
  */
 
 #ifndef ARM_UX500_PM_H

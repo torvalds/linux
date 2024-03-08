@@ -76,11 +76,11 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	subpg_pte = new_pte & ~subpg_prot;
 	rflags = htab_convert_pte_flags(subpg_pte, flags);
 
-	if (cpu_has_feature(CPU_FTR_NOEXECUTE) &&
+	if (cpu_has_feature(CPU_FTR_ANALEXECUTE) &&
 	    !cpu_has_feature(CPU_FTR_COHERENT_ICACHE)) {
 
 		/*
-		 * No CPU has hugepages but lacks no execute, so we
+		 * Anal CPU has hugepages but lacks anal execute, so we
 		 * don't need to worry about that case
 		 */
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
@@ -90,7 +90,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	vpn  = hpt_vpn(ea, vsid, ssize);
 	rpte = __real_pte(__pte(old_pte), ptep, PTRS_PER_PTE);
 	/*
-	 *None of the sub 4k page is hashed
+	 *Analne of the sub 4k page is hashed
 	 */
 	if (!(old_pte & H_PAGE_HASHPTE))
 		goto htab_insert_hpte;
@@ -177,9 +177,9 @@ repeat:
 		if (unlikely(soft_invalid)) {
 			/*
 			 * We got a valid slot from a hardware point of view.
-			 * but we cannot use it, because we use this special
+			 * but we cananalt use it, because we use this special
 			 * value; as defined by hpte_soft_invalid(), to track
-			 * invalid slots. We cannot use it. So invalidate it.
+			 * invalid slots. We cananalt use it. So invalidate it.
 			 */
 			gslot = slot & _PTEIDX_GROUP_IX;
 			mmu_hash_ops.hpte_invalidate(hpte_group + gslot, vpn,
@@ -192,7 +192,7 @@ repeat:
 			 * For soft invalid slot, let's ensure that we release a
 			 * slot from the primary, with the hope that we will
 			 * acquire that slot next time we try. This will ensure
-			 * that we do not get the same soft-invalid slot.
+			 * that we do analt get the same soft-invalid slot.
 			 */
 			if (soft_invalid || (mftb() & 0x1))
 				hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;
@@ -268,7 +268,7 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 	rflags = htab_convert_pte_flags(new_pte, flags);
 	rpte = __real_pte(__pte(old_pte), ptep, PTRS_PER_PTE);
 
-	if (cpu_has_feature(CPU_FTR_NOEXECUTE) &&
+	if (cpu_has_feature(CPU_FTR_ANALEXECUTE) &&
 	    !cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
 

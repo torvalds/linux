@@ -41,7 +41,7 @@
 
 /* Definitions for the core NCR5380 driver. */
 
-#define NCR5380_implementation_fields   /* none */
+#define NCR5380_implementation_fields   /* analne */
 
 #define NCR5380_read(reg)               in_8(hostdata->io + (reg))
 #define NCR5380_write(reg, value)       out_8(hostdata->io + (reg), value)
@@ -271,7 +271,7 @@ static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 	
 	if(dregs->fifo_count != count) { 
 		shost_printk(KERN_ERR, hostdata->host,
-		             "FIFO mismatch %04x not %04x\n",
+		             "FIFO mismatch %04x analt %04x\n",
 		             dregs->fifo_count, (unsigned int) count);
 		NCR5380_dprint(NDEBUG_DMA, hostdata->host);
 	}
@@ -291,7 +291,7 @@ static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 		udc_regs->rsel = UDC_RSEL_RECV;
 	}
 	
-	/* announce location of regs block */
+	/* ananalunce location of regs block */
 	sun3_udc_write(((dvma_vtob(udc_regs) & 0xff0000) >> 8),
 		       UDC_CHN_HI); 
 
@@ -559,12 +559,12 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 		ioaddr = NULL;
 	}
 	if (!ioaddr)
-		return -ENODEV;
+		return -EANALDEV;
 #else
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!irq || !mem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ioaddr = ioremap(mem->start, resource_size(mem));
 	dregs = (struct sun3_dma_regs *)(ioaddr + 8);
@@ -573,14 +573,14 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	if (!udc_regs) {
 		pr_err(PFX "couldn't allocate DVMA memory!\n");
 		iounmap(ioaddr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #endif
 
 	instance = scsi_host_alloc(&sun3_scsi_template,
 	                           sizeof(struct NCR5380_hostdata));
 	if (!instance) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_alloc;
 	}
 
@@ -597,8 +597,8 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	error = request_irq(instance->irq, scsi_sun3_intr, 0,
 	                    "NCR5380", instance);
 	if (error) {
-		pr_err(PFX "scsi%d: IRQ %d not free, bailing out\n",
-		       instance->host_no, instance->irq);
+		pr_err(PFX "scsi%d: IRQ %d analt free, bailing out\n",
+		       instance->host_anal, instance->irq);
 		goto fail_irq;
 	}
 

@@ -110,8 +110,8 @@ static const struct drm_bridge_funcs funcs = {
 static int lvds_codec_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *panel_node;
-	struct device_node *bus_node;
+	struct device_analde *panel_analde;
+	struct device_analde *bus_analde;
 	struct drm_panel *panel;
 	struct lvds_codec *lvds_codec;
 	u32 val;
@@ -119,7 +119,7 @@ static int lvds_codec_probe(struct platform_device *pdev)
 
 	lvds_codec = devm_kzalloc(dev, sizeof(*lvds_codec), GFP_KERNEL);
 	if (!lvds_codec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lvds_codec->dev = &pdev->dev;
 	lvds_codec->connector_type = (uintptr_t)of_device_get_match_data(dev);
@@ -135,17 +135,17 @@ static int lvds_codec_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(lvds_codec->powerdown_gpio),
 				     "powerdown GPIO failure\n");
 
-	/* Locate the panel DT node. */
-	panel_node = of_graph_get_remote_node(dev->of_node, 1, 0);
-	if (!panel_node) {
-		dev_dbg(dev, "panel DT node not found\n");
+	/* Locate the panel DT analde. */
+	panel_analde = of_graph_get_remote_analde(dev->of_analde, 1, 0);
+	if (!panel_analde) {
+		dev_dbg(dev, "panel DT analde analt found\n");
 		return -ENXIO;
 	}
 
-	panel = of_drm_find_panel(panel_node);
-	of_node_put(panel_node);
+	panel = of_drm_find_panel(panel_analde);
+	of_analde_put(panel_analde);
 	if (IS_ERR(panel)) {
-		dev_dbg(dev, "panel not found, deferring probe\n");
+		dev_dbg(dev, "panel analt found, deferring probe\n");
 		return PTR_ERR(panel);
 	}
 
@@ -160,19 +160,19 @@ static int lvds_codec_probe(struct platform_device *pdev)
 	/*
 	 * Decoder input LVDS format is a property of the decoder chip or even
 	 * its strapping. Handle data-mapping the same way lvds-panel does. In
-	 * case data-mapping is not present, do nothing, since there are still
-	 * legacy bindings which do not specify this property.
+	 * case data-mapping is analt present, do analthing, since there are still
+	 * legacy bindings which do analt specify this property.
 	 */
 	if (lvds_codec->connector_type != DRM_MODE_CONNECTOR_LVDS) {
-		bus_node = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
-		if (!bus_node) {
-			dev_dbg(dev, "bus DT node not found\n");
+		bus_analde = of_graph_get_endpoint_by_regs(dev->of_analde, 0, 0);
+		if (!bus_analde) {
+			dev_dbg(dev, "bus DT analde analt found\n");
 			return -ENXIO;
 		}
 
-		ret = drm_of_lvds_get_data_mapping(bus_node);
-		of_node_put(bus_node);
-		if (ret == -ENODEV) {
+		ret = drm_of_lvds_get_data_mapping(bus_analde);
+		of_analde_put(bus_analde);
+		if (ret == -EANALDEV) {
 			dev_warn(dev, "missing 'data-mapping' DT property\n");
 		} else if (ret < 0) {
 			dev_err(dev, "invalid 'data-mapping' DT property\n");
@@ -190,18 +190,18 @@ static int lvds_codec_probe(struct platform_device *pdev)
 	 * the sampling edge.
 	 */
 	if (lvds_codec->connector_type == DRM_MODE_CONNECTOR_LVDS &&
-	    !of_property_read_u32(dev->of_node, "pclk-sample", &val)) {
+	    !of_property_read_u32(dev->of_analde, "pclk-sample", &val)) {
 		lvds_codec->timings.input_bus_flags = val ?
 			DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE :
 			DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE;
 	}
 
 	/*
-	 * The panel_bridge bridge is attached to the panel's of_node,
-	 * but we need a bridge attached to our of_node for our user
+	 * The panel_bridge bridge is attached to the panel's of_analde,
+	 * but we need a bridge attached to our of_analde for our user
 	 * to look up.
 	 */
-	lvds_codec->bridge.of_node = dev->of_node;
+	lvds_codec->bridge.of_analde = dev->of_analde;
 	lvds_codec->bridge.timings = &lvds_codec->timings;
 	drm_bridge_add(&lvds_codec->bridge);
 

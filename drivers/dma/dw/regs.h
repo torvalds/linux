@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Driver for the Synopsys DesignWare AHB DMA Controller
+ * Driver for the Syanalpsys DesignWare AHB DMA Controller
  *
  * Copyright (C) 2005-2007 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 
 #include "internal.h"
 
@@ -148,10 +148,10 @@ enum dw_dma_msize {
 #define DWC_CTLL_INT_EN		(1 << 0)	/* irqs enabled? */
 #define DWC_CTLL_DST_WIDTH(n)	((n)<<1)	/* bytes per element */
 #define DWC_CTLL_SRC_WIDTH(n)	((n)<<4)
-#define DWC_CTLL_DST_INC	(0<<7)		/* DAR update/not */
+#define DWC_CTLL_DST_INC	(0<<7)		/* DAR update/analt */
 #define DWC_CTLL_DST_DEC	(1<<7)
 #define DWC_CTLL_DST_FIX	(2<<7)
-#define DWC_CTLL_SRC_INC	(0<<9)		/* SAR update/not */
+#define DWC_CTLL_SRC_INC	(0<<9)		/* SAR update/analt */
 #define DWC_CTLL_SRC_DEC	(1<<9)
 #define DWC_CTLL_SRC_FIX	(2<<9)
 #define DWC_CTLL_DST_MSIZE(n)	((n)<<11)	/* burst, #elements */
@@ -271,7 +271,7 @@ struct dw_dma_chan {
 	enum dma_transfer_direction	direction;
 
 	/* software emulation of the LLP transfers */
-	struct list_head	*tx_node_active;
+	struct list_head	*tx_analde_active;
 
 	spinlock_t		lock;
 
@@ -284,7 +284,7 @@ struct dw_dma_chan {
 
 	/* hardware configuration */
 	unsigned int		block_size;
-	bool			nollp;
+	bool			analllp;
 	u32			max_burst;
 
 	/* custom slave configuration */
@@ -368,7 +368,7 @@ static inline struct dw_dma *to_dw_dma(struct dma_device *ddev)
 
 /* LLI == Linked List Item; a.k.a. DMA block descriptor */
 struct dw_lli {
-	/* values that are not changed by hardware */
+	/* values that are analt changed by hardware */
 	__le32		sar;
 	__le32		dar;
 	__le32		llp;		/* chain to next lli */
@@ -392,7 +392,7 @@ struct dw_desc {
 #define lli_write(d, reg, v)		((d)->lli.reg = cpu_to_le32(v))
 
 	/* THEN values for driver housekeeping */
-	struct list_head		desc_node;
+	struct list_head		desc_analde;
 	struct list_head		tx_list;
 	struct dma_async_tx_descriptor	txd;
 	size_t				len;
@@ -400,7 +400,7 @@ struct dw_desc {
 	u32				residue;
 };
 
-#define to_dw_desc(h)	list_entry(h, struct dw_desc, desc_node)
+#define to_dw_desc(h)	list_entry(h, struct dw_desc, desc_analde)
 
 static inline struct dw_desc *
 txd_to_dw_desc(struct dma_async_tx_descriptor *txd)

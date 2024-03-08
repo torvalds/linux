@@ -473,7 +473,7 @@ enum prot_type {
 	PROT_TYPE_DAT  = 3,
 	PROT_TYPE_IEP  = 4,
 	/* Dummy value for passing an initialized value when code != PGM_PROTECTION */
-	PROT_NONE,
+	PROT_ANALNE,
 };
 
 static int trans_exc_ending(struct kvm_vcpu *vcpu, int code, unsigned long gva, u8 ar,
@@ -489,7 +489,7 @@ static int trans_exc_ending(struct kvm_vcpu *vcpu, int code, unsigned long gva, 
 	switch (code) {
 	case PGM_PROTECTION:
 		switch (prot) {
-		case PROT_NONE:
+		case PROT_ANALNE:
 			/* We should never get here, acts like termination */
 			WARN_ON_ONCE(1);
 			break;
@@ -537,7 +537,7 @@ static int trans_exc_ending(struct kvm_vcpu *vcpu, int code, unsigned long gva, 
 	case PGM_EXTENDED_AUTHORITY:
 		/*
 		 * We can always store exc_access_id, as it is
-		 * undefined for non-ar cases. It is undefined for
+		 * undefined for analn-ar cases. It is undefined for
 		 * most DAT protection exceptions.
 		 */
 		pgm->exc_access_id = ar;
@@ -602,8 +602,8 @@ static int deref_table(struct kvm *kvm, unsigned long gpa, unsigned long *val)
  *
  * Translate a guest virtual address into a guest absolute address by means
  * of dynamic address translation as specified by the architecture.
- * If the resulting absolute address is not available in the configuration
- * an addressing exception is indicated and @gpa will not be changed.
+ * If the resulting absolute address is analt available in the configuration
+ * an addressing exception is indicated and @gpa will analt be changed.
  *
  * Returns: - zero on success; @gpa contains the resulting absolute address
  *	    - a negative value if guest access failed due to e.g. broken
@@ -834,7 +834,7 @@ static bool fetch_prot_override_applicable(struct kvm_vcpu *vcpu, enum gacc_mode
 		/* check if fetch protection override enabled */
 		override = vcpu->arch.sie_block->gcr[0];
 		override &= CR0_FETCH_PROTECTION_OVERRIDE;
-		/* not applicable if subject to DAT && private space */
+		/* analt applicable if subject to DAT && private space */
 		override = override && !(psw_bits(*psw).dat && asce.p);
 		return override;
 	}
@@ -871,7 +871,7 @@ static int vcpu_check_access_key(struct kvm_vcpu *vcpu, u8 access_key,
 		return 0;
 	/*
 	 * caller needs to ensure that gfn is accessible, so we can
-	 * assume that this cannot fail
+	 * assume that this cananalt fail
 	 */
 	hva = gfn_to_hva(vcpu->kvm, gpa_to_gfn(gpa));
 	mmap_read_lock(current->mm);
@@ -920,14 +920,14 @@ static int vcpu_check_access_key(struct kvm_vcpu *vcpu, u8 access_key,
  * a correct exception into the guest.
  * The resulting gpas are stored into @gpas, unless it is NULL.
  *
- * Note: All fragments except the first one start at the beginning of a page.
+ * Analte: All fragments except the first one start at the beginning of a page.
  *	 When deriving the boundaries of a fragment from a gpa, all but the last
  *	 fragment end at the end of the page.
  *
  * Return:
  * * 0		- success
- * * <0		- translation could not be performed, for example if  guest
- *		  memory could not be accessed
+ * * <0		- translation could analt be performed, for example if  guest
+ *		  memory could analt be accessed
  * * >0		- an access exception occurred. In this case the returned value
  *		  is the program interruption code and the contents of pgm may
  *		  be used to inject an exception into the guest.
@@ -959,7 +959,7 @@ static int guest_range_to_gpas(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 			gpa = kvm_s390_real_to_abs(vcpu, ga);
 			if (kvm_is_error_gpa(vcpu->kvm, gpa)) {
 				rc = PGM_ADDRESSING;
-				prot = PROT_NONE;
+				prot = PROT_ANALNE;
 			}
 		}
 		if (rc)
@@ -1012,7 +1012,7 @@ access_guest_page_with_key(struct kvm *kvm, enum gacc_mode mode, gpa_t gpa,
 	 * Don't try to actually handle that case.
 	 */
 	if (!writable && mode == GACC_STORE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	hva += offset_in_page(gpa);
 	if (mode == GACC_STORE)
 		rc = copy_to_user_key((void __user *)hva, data, len, access_key);
@@ -1072,7 +1072,7 @@ int access_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 	if (nr_pages > ARRAY_SIZE(gpa_array))
 		gpas = vmalloc(array_size(nr_pages, sizeof(unsigned long)));
 	if (!gpas)
-		return -ENOMEM;
+		return -EANALMEM;
 	try_fetch_prot_override = fetch_prot_override_applicable(vcpu, mode, asce);
 	try_storage_prot_override = storage_prot_override_applicable(vcpu);
 	need_ipte_lock = psw_bits(*psw).dat && !asce.r;
@@ -1115,7 +1115,7 @@ int access_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 		if (rc == PGM_PROTECTION)
 			prot = PROT_TYPE_KEYC;
 		else
-			prot = PROT_NONE;
+			prot = PROT_ANALNE;
 		rc = trans_exc_ending(vcpu, rc, ga, ar, mode, prot, terminate);
 	}
 out_unlock:
@@ -1149,7 +1149,7 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * @kvm: Virtual machine instance.
  * @gpa: Absolute guest address of the location to be changed.
  * @len: Operand length of the cmpxchg, required: 1 <= len <= 16. Providing a
- *       non power of two will result in failure.
+ *       analn power of two will result in failure.
  * @old_addr: Pointer to old value. If the location at @gpa contains this value,
  *            the exchange will succeed. After calling cmpxchg_guest_abs_with_key()
  *            *@old_addr contains the value at @gpa before the attempt to
@@ -1159,14 +1159,14 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * @success: output value indicating if an exchange occurred.
  *
  * Atomically exchange the value at @gpa by @new, if it contains *@old.
- * Honors storage keys.
+ * Hoanalrs storage keys.
  *
  * Return: * 0: successful exchange
  *         * >0: a program interruption code indicating the reason cmpxchg could
- *               not be attempted
- *         * -EINVAL: address misaligned or len not power of two
+ *               analt be attempted
+ *         * -EINVAL: address misaligned or len analt power of two
  *         * -EAGAIN: transient failure (len 1 or 2)
- *         * -EOPNOTSUPP: read-only memslot (should never occur)
+ *         * -EOPANALTSUPP: read-only memslot (should never occur)
  */
 int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len,
 			       __uint128_t *old_addr, __uint128_t new,
@@ -1185,12 +1185,12 @@ int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len,
 	if (kvm_is_error_hva(hva))
 		return PGM_ADDRESSING;
 	/*
-	 * Check if it's a read-only memslot, even though that cannot occur
+	 * Check if it's a read-only memslot, even though that cananalt occur
 	 * since those are unsupported.
 	 * Don't try to actually handle that case.
 	 */
 	if (!writable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	hva += offset_in_page(gpa);
 	/*
@@ -1263,9 +1263,9 @@ int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len,
  * @access_key: access key to mach the storage key with
  *
  * Parameter semantics are the same as the ones from guest_translate.
- * The memory contents at the guest address are not changed.
+ * The memory contents at the guest address are analt changed.
  *
- * Note: The IPTE lock is not taken during this function, so the caller
+ * Analte: The IPTE lock is analt taken during this function, so the caller
  * has to take care of this.
  */
 int guest_translate_address_with_key(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
@@ -1340,7 +1340,7 @@ int check_gpa_range(struct kvm *kvm, unsigned long gpa, unsigned long length,
  * Checks whether an address is subject to low-address protection and set
  * up vcpu->arch.pgm accordingly if necessary.
  *
- * Return: 0 if no protection exception, or PGM_PROTECTION if protected.
+ * Return: 0 if anal protection exception, or PGM_PROTECTION if protected.
  */
 int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
 {
@@ -1359,7 +1359,7 @@ int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
  *	 successful (return value 0), or to the first invalid DAT entry in
  *	 case of exceptions (return value > 0)
  * @dat_protection: referenced memory is write protected
- * @fake: pgt references contiguous guest memory block, not a pgtable
+ * @fake: pgt references contiguous guest memory block, analt a pgtable
  */
 static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 				  unsigned long *pgt, int *dat_protection,
@@ -1556,7 +1556,7 @@ shadow_pgt:
  *	    - > 0 (pgm exception code) on exceptions while faulting
  *	    - -EAGAIN if the caller can retry immediately
  *	    - -EFAULT when accessing invalid guest addresses
- *	    - -ENOMEM if out of memory
+ *	    - -EANALMEM if out of memory
  */
 int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
 			  unsigned long saddr, unsigned long *datptr)
@@ -1591,7 +1591,7 @@ int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
 	case PGM_REGION_THIRD_TRANS:
 	case PGM_REGION_SECOND_TRANS:
 	case PGM_REGION_FIRST_TRANS:
-		pgt |= PEI_NOT_PTE;
+		pgt |= PEI_ANALT_PTE;
 		break;
 	case 0:
 		pgt += vaddr.px * 8;

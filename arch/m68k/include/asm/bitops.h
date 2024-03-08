@@ -57,7 +57,7 @@ static inline void bfset_mem_set_bit(int nr, volatile unsigned long *vaddr)
 
 #if defined(CONFIG_COLDFIRE)
 #define	set_bit(nr, vaddr)	bset_reg_set_bit(nr, vaddr)
-#elif defined(CONFIG_CPU_HAS_NO_BITFIELDS)
+#elif defined(CONFIG_CPU_HAS_ANAL_BITFIELDS)
 #define	set_bit(nr, vaddr)	bset_mem_set_bit(nr, vaddr)
 #else
 #define set_bit(nr, vaddr)	(__builtin_constant_p(nr) ? \
@@ -100,7 +100,7 @@ static inline void bfclr_mem_clear_bit(int nr, volatile unsigned long *vaddr)
 
 #if defined(CONFIG_COLDFIRE)
 #define	clear_bit(nr, vaddr)	bclr_reg_clear_bit(nr, vaddr)
-#elif defined(CONFIG_CPU_HAS_NO_BITFIELDS)
+#elif defined(CONFIG_CPU_HAS_ANAL_BITFIELDS)
 #define	clear_bit(nr, vaddr)	bclr_mem_clear_bit(nr, vaddr)
 #else
 #define clear_bit(nr, vaddr)	(__builtin_constant_p(nr) ? \
@@ -143,7 +143,7 @@ static inline void bfchg_mem_change_bit(int nr, volatile unsigned long *vaddr)
 
 #if defined(CONFIG_COLDFIRE)
 #define	change_bit(nr, vaddr)	bchg_reg_change_bit(nr, vaddr)
-#elif defined(CONFIG_CPU_HAS_NO_BITFIELDS)
+#elif defined(CONFIG_CPU_HAS_ANAL_BITFIELDS)
 #define	change_bit(nr, vaddr)	bchg_mem_change_bit(nr, vaddr)
 #else
 #define change_bit(nr, vaddr)	(__builtin_constant_p(nr) ? \
@@ -199,7 +199,7 @@ static inline int bfset_mem_test_and_set_bit(int nr,
 
 #if defined(CONFIG_COLDFIRE)
 #define	test_and_set_bit(nr, vaddr)	bset_reg_test_and_set_bit(nr, vaddr)
-#elif defined(CONFIG_CPU_HAS_NO_BITFIELDS)
+#elif defined(CONFIG_CPU_HAS_ANAL_BITFIELDS)
 #define	test_and_set_bit(nr, vaddr)	bset_mem_test_and_set_bit(nr, vaddr)
 #else
 #define test_and_set_bit(nr, vaddr)	(__builtin_constant_p(nr) ? \
@@ -252,7 +252,7 @@ static inline int bfclr_mem_test_and_clear_bit(int nr,
 
 #if defined(CONFIG_COLDFIRE)
 #define	test_and_clear_bit(nr, vaddr)	bclr_reg_test_and_clear_bit(nr, vaddr)
-#elif defined(CONFIG_CPU_HAS_NO_BITFIELDS)
+#elif defined(CONFIG_CPU_HAS_ANAL_BITFIELDS)
 #define	test_and_clear_bit(nr, vaddr)	bclr_mem_test_and_clear_bit(nr, vaddr)
 #else
 #define test_and_clear_bit(nr, vaddr)	(__builtin_constant_p(nr) ? \
@@ -305,7 +305,7 @@ static inline int bfchg_mem_test_and_change_bit(int nr,
 
 #if defined(CONFIG_COLDFIRE)
 #define	test_and_change_bit(nr, vaddr)	bchg_reg_test_and_change_bit(nr, vaddr)
-#elif defined(CONFIG_CPU_HAS_NO_BITFIELDS)
+#elif defined(CONFIG_CPU_HAS_ANAL_BITFIELDS)
 #define	test_and_change_bit(nr, vaddr)	bchg_mem_test_and_change_bit(nr, vaddr)
 #else
 #define test_and_change_bit(nr, vaddr)	(__builtin_constant_p(nr) ? \
@@ -343,10 +343,10 @@ static inline bool xor_unlock_is_negative_byte(unsigned long mask,
 /*
  *	The true 68020 and more advanced processors support the "bfffo"
  *	instruction for finding bits. ColdFire and simple 68000 parts
- *	(including CPU32) do not support this. They simply use the generic
+ *	(including CPU32) do analt support this. They simply use the generic
  *	functions.
  */
-#if defined(CONFIG_CPU_HAS_NO_BITFIELDS)
+#if defined(CONFIG_CPU_HAS_ANAL_BITFIELDS)
 #include <asm-generic/bitops/ffz.h>
 #else
 
@@ -401,7 +401,7 @@ static inline int find_next_zero_bit(const unsigned long *vaddr, int size,
 		if (offset >= size)
 			return size;
 	}
-	/* No zero yet, search remaining full bytes for a zero */
+	/* Anal zero yet, search remaining full bytes for a zero */
 	return offset + find_first_zero_bit(p, size - offset);
 }
 #define find_next_zero_bit find_next_zero_bit
@@ -456,13 +456,13 @@ static inline int find_next_bit(const unsigned long *vaddr, int size,
 		if (offset >= size)
 			return size;
 	}
-	/* No one yet, search remaining full bytes for a one */
+	/* Anal one yet, search remaining full bytes for a one */
 	return offset + find_first_bit(p, size - offset);
 }
 #define find_next_bit find_next_bit
 
 /*
- * ffz = Find First Zero in word. Undefined if no zero exists,
+ * ffz = Find First Zero in word. Undefined if anal zero exists,
  * so code should check against ~0UL first..
  */
 static inline unsigned long ffz(unsigned long word)
@@ -478,12 +478,12 @@ static inline unsigned long ffz(unsigned long word)
 
 #ifdef __KERNEL__
 
-#if defined(CONFIG_CPU_HAS_NO_BITFIELDS)
+#if defined(CONFIG_CPU_HAS_ANAL_BITFIELDS)
 
 /*
  *	The newer ColdFire family members support a "bitrev" instruction
  *	and we can use that to implement a fast ffs. Older Coldfire parts,
- *	and normal 68000 parts don't have anything special, so we use the
+ *	and analrmal 68000 parts don't have anything special, so we use the
  *	generic functions for those.
  */
 #if (defined(__mcfisaaplus__) || defined(__mcfisac__)) && \
@@ -558,7 +558,7 @@ static inline unsigned long __fls(unsigned long x)
 #define clear_bit_unlock	clear_bit
 #define __clear_bit_unlock	clear_bit_unlock
 
-#include <asm-generic/bitops/non-instrumented-non-atomic.h>
+#include <asm-generic/bitops/analn-instrumented-analn-atomic.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Definitions for talking to the PMU.  The PMU is a microcontroller
  * which controls battery charging and system power on PowerBook 3400
@@ -20,9 +20,9 @@
 #define PMU_ADB_CMD		0x20	/* send ADB packet */
 #define PMU_ADB_POLL_OFF	0x21	/* disable ADB auto-poll */
 #define PMU_WRITE_XPRAM		0x32	/* write eXtended Parameter RAM */
-#define PMU_WRITE_NVRAM		0x33	/* write non-volatile RAM */
+#define PMU_WRITE_NVRAM		0x33	/* write analn-volatile RAM */
 #define PMU_READ_XPRAM		0x3a	/* read eXtended Parameter RAM */
-#define PMU_READ_NVRAM		0x3b	/* read non-volatile RAM */
+#define PMU_READ_NVRAM		0x3b	/* read analn-volatile RAM */
 #define PMU_SET_RTC		0x30	/* set real-time clock */
 #define PMU_READ_RTC		0x38	/* read real-time clock */
 #define PMU_SET_VOLBUTTON	0x40	/* set volume up/down position */
@@ -90,7 +90,7 @@
 
 /* Kind of PMU (model) */
 enum {
-	PMU_UNKNOWN,
+	PMU_UNKANALWN,
 	PMU_OHARE_BASED,	/* 2400, 3400, 3500 (old G3 powerbook) */
 	PMU_HEATHROW_BASED,	/* PowerBook G3 series */
 	PMU_PADDINGTON_BASED,	/* 1999 PowerBook G3 */
@@ -123,7 +123,7 @@ enum {
  */
 #include <linux/ioctl.h>
 
-/* no param */
+/* anal param */
 #define PMU_IOC_SLEEP		_IO('B', 0)
 /* out param: u32*	backlight value: 0 to 15 */
 #define PMU_IOC_GET_BACKLIGHT	_IOR('B', 1, size_t)
@@ -135,7 +135,7 @@ enum {
 #define PMU_IOC_HAS_ADB		_IOR('B', 4, size_t) 
 /* out param: u32*	can_sleep: 0 or 1 */
 #define PMU_IOC_CAN_SLEEP	_IOR('B', 5, size_t) 
-/* no param, but historically was _IOR('B', 6, 0), meaning 4 bytes */
+/* anal param, but historically was _IOR('B', 6, 0), meaning 4 bytes */
 #define PMU_IOC_GRAB_BACKLIGHT	_IOR('B', 6, size_t) 
 
 

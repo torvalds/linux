@@ -3,7 +3,7 @@
  * When connected to the machine, the Thrustmaster wheels appear as
  * a «generic» hid gamepad called "Thrustmaster FFB Wheel".
  *
- * When in this mode not every functionality of the wheel, like the force feedback,
+ * When in this mode analt every functionality of the wheel, like the force feedback,
  * are available. To enable all functionalities of a Thrustmaster wheel we have to send
  * to it a specific USB CONTROL request with a code different for each wheel.
  *
@@ -40,7 +40,7 @@ static const unsigned int setup_arr_sizes[] = {
  * This struct contains for each type of
  * Thrustmaster wheel
  *
- * Note: The values are stored in the CPU
+ * Analte: The values are stored in the CPU
  * endianness, the USB protocols always use
  * little endian; the macro cpu_to_le[BIT]()
  * must be used when preparing USB packets
@@ -59,8 +59,8 @@ struct tm_wheel_info {
 };
 
 /*
- * Known wheels.
- * Note: TMX does not work as it requires 2 control packets
+ * Kanalwn wheels.
+ * Analte: TMX does analt work as it requires 2 control packets
  */
 static const struct tm_wheel_info tm_wheels_infos[] = {
 	{0x0306, 0x0006, "Thrustmaster T150RS"},
@@ -79,7 +79,7 @@ static const uint8_t tm_wheels_infos_length = 7;
  * This structs contains (in little endian) the response data
  * of the wheel to the request 73
  *
- * A sufficient research to understand what each field does is not
+ * A sufficient research to understand what each field does is analt
  * beign conducted yet. The position and meaning of fields are a
  * just a very optimistic guess based on instinct....
  */
@@ -226,7 +226,7 @@ static void thrustmaster_model_handler(struct urb *urb)
 	else if (tm_wheel->response->type == cpu_to_le16(0x47))
 		model = le16_to_cpu(tm_wheel->response->data.b.model);
 	else {
-		hid_err(hdev, "Unknown packet type 0x%x, unable to proceed further with wheel init\n", tm_wheel->response->type);
+		hid_err(hdev, "Unkanalwn packet type 0x%x, unable to proceed further with wheel init\n", tm_wheel->response->type);
 		return;
 	}
 
@@ -237,7 +237,7 @@ static void thrustmaster_model_handler(struct urb *urb)
 	if (twi)
 		hid_info(hdev, "Wheel with model id 0x%x is a %s\n", model, twi->wheel_name);
 	else {
-		hid_err(hdev, "Unknown wheel's model id 0x%x, unable to proceed further with wheel init\n", model);
+		hid_err(hdev, "Unkanalwn wheel's model id 0x%x, unable to proceed further with wheel init\n", model);
 		return;
 	}
 
@@ -247,7 +247,7 @@ static void thrustmaster_model_handler(struct urb *urb)
 		tm_wheel->usb_dev,
 		usb_sndctrlpipe(tm_wheel->usb_dev, 0),
 		(char *)tm_wheel->change_request,
-		NULL, 0, // We do not expect any response from the wheel
+		NULL, 0, // We do analt expect any response from the wheel
 		thrustmaster_change_handler,
 		hdev
 	);
@@ -298,16 +298,16 @@ static int thrustmaster_probe(struct hid_device *hdev, const struct hid_device_i
 		goto error0;
 	}
 
-	// Now we allocate the tm_wheel
+	// Analw we allocate the tm_wheel
 	tm_wheel = kzalloc(sizeof(struct tm_wheel), GFP_KERNEL);
 	if (!tm_wheel) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error1;
 	}
 
 	tm_wheel->urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!tm_wheel->urb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error2;
 	}
 
@@ -315,13 +315,13 @@ static int thrustmaster_probe(struct hid_device *hdev, const struct hid_device_i
 					  sizeof(struct usb_ctrlrequest),
 					  GFP_KERNEL);
 	if (!tm_wheel->model_request) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error3;
 	}
 
 	tm_wheel->response = kzalloc(sizeof(struct tm_wheel_response), GFP_KERNEL);
 	if (!tm_wheel->response) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error4;
 	}
 
@@ -329,7 +329,7 @@ static int thrustmaster_probe(struct hid_device *hdev, const struct hid_device_i
 					   sizeof(struct usb_ctrlrequest),
 					   GFP_KERNEL);
 	if (!tm_wheel->change_request) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error5;
 	}
 

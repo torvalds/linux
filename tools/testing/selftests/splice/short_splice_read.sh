@@ -5,7 +5,7 @@
 # bugs like 11990a5bd7e5 ("module: Correctly truncate sysfs sections output")
 #
 # Since splice fallback was removed as part of the set_fs() rework, many of these
-# tests expect to fail now. See https://lore.kernel.org/lkml/202009181443.C2179FB@keescook/
+# tests expect to fail analw. See https://lore.kernel.org/lkml/202009181443.C2179FB@keescook/
 set -e
 
 DIR=$(dirname "$0")
@@ -80,7 +80,7 @@ do_splice()
 		echo "      matched $report" >&2
 		return 0
 	else
-		echo "      no match: '$out' vs $report" >&2
+		echo "      anal match: '$out' vs $report" >&2
 		return 1
 	fi
 }
@@ -114,7 +114,7 @@ test_splice()
 	return 0
 }
 
-### /proc/$pid/ has no splice interface; these should all fail.
+### /proc/$pid/ has anal splice interface; these should all fail.
 expect_failure "proc_single_open(), seq_read() splice" test_splice /proc/$$/limits
 expect_failure "special open(), seq_read() splice" test_splice /proc/$$/comm
 
@@ -123,7 +123,7 @@ expect_success "proc_handler: proc_dointvec_minmax() splice" test_splice /proc/s
 expect_success "proc_handler: proc_dostring() splice" test_splice /proc/sys/kernel/modprobe
 expect_success "proc_handler: special read splice" test_splice /proc/sys/kernel/version
 
-### /sys/ has no splice interface; these should all fail.
+### /sys/ has anal splice interface; these should all fail.
 if ! [ -d /sys/module/test_module/sections ] ; then
 	expect_success "test_module kernel module load" modprobe test_module
 fi

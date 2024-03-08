@@ -67,14 +67,14 @@ static int xprt_alloc_xdr_buf(struct xdr_buf *buf, gfp_t gfp_flags)
 	/* Preallocate one XDR receive buffer */
 	page = alloc_page(gfp_flags);
 	if (page == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	xdr_buf_init(buf, page_address(page), PAGE_SIZE);
 	return 0;
 }
 
 static struct rpc_rqst *xprt_alloc_bc_req(struct rpc_xprt *xprt)
 {
-	gfp_t gfp_flags = GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_ANALRETRY | __GFP_ANALWARN;
 	struct rpc_rqst *req;
 
 	/* Pre-allocate one backchannel rpc_rqst */
@@ -109,14 +109,14 @@ out_free:
  * preallocated buffers are added to the pool of resources used by
  * the rpc_xprt.  Any one of these resources may be used by an
  * incoming callback request.  It's up to the higher levels in the
- * stack to enforce that the maximum number of session slots is not
+ * stack to enforce that the maximum number of session slots is analt
  * being exceeded.
  *
  * Some callback arguments can be large.  For example, a pNFS server
  * using multiple deviceids.  The list can be unbound, but the client
  * has the ability to tell the server the maximum size of the callback
  * requests.  Each deviceID is 16 bytes, so allocate one page
- * for the arguments to have enough room to receive a number of these
+ * for the arguments to have eanalugh room to receive a number of these
  * deviceIDs.  The NFS client indicates to the pNFS server that its
  * callback requests can be up to 4096 bytes in size.
  */
@@ -187,7 +187,7 @@ out_free:
 	}
 
 	dprintk("RPC:       setup backchannel transport failed\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -241,9 +241,9 @@ static struct rpc_rqst *xprt_get_bc_request(struct rpc_xprt *xprt, __be32 xid,
 	dprintk("RPC:       allocate a backchannel request\n");
 	if (list_empty(&xprt->bc_pa_list)) {
 		if (!new)
-			goto not_found;
+			goto analt_found;
 		if (atomic_read(&xprt->bc_slot_count) >= BC_MAX_SLOTS)
-			goto not_found;
+			goto analt_found;
 		list_add_tail(&new->rq_bc_pa_list, &xprt->bc_pa_list);
 		xprt->bc_alloc_count++;
 		atomic_inc(&xprt->bc_slot_count);
@@ -256,7 +256,7 @@ static struct rpc_rqst *xprt_get_bc_request(struct rpc_xprt *xprt, __be32 xid,
 	req->rq_xid = xid;
 	req->rq_connect_cookie = xprt->connect_cookie;
 	dprintk("RPC:       backchannel req=%p\n", req);
-not_found:
+analt_found:
 	return req;
 }
 
@@ -301,7 +301,7 @@ void xprt_free_bc_rqst(struct rpc_rqst *req)
 		/*
 		 * The last remaining session was destroyed while this
 		 * entry was in use.  Free the entry and don't attempt
-		 * to add back to the list because there is no need to
+		 * to add back to the list because there is anal need to
 		 * have anymore preallocated entries.
 		 */
 		dprintk("RPC:       Last session removed req=%p\n", req);
@@ -316,10 +316,10 @@ void xprt_free_bc_rqst(struct rpc_rqst *req)
  * has been preallocated as well.  Use xprt_alloc_bc_request to allocate
  * to this request.  Use xprt_free_bc_request to return it.
  *
- * We know that we're called in soft interrupt context, grab the spin_lock
- * since there is no need to grab the bottom half spin_lock.
+ * We kanalw that we're called in soft interrupt context, grab the spin_lock
+ * since there is anal need to grab the bottom half spin_lock.
  *
- * Return an available rpc_rqst, otherwise NULL if non are available.
+ * Return an available rpc_rqst, otherwise NULL if analn are available.
  */
 struct rpc_rqst *xprt_lookup_bc_request(struct rpc_xprt *xprt, __be32 xid)
 {

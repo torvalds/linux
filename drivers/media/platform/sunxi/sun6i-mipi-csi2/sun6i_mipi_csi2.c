@@ -15,7 +15,7 @@
 #include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "sun6i_mipi_csi2.h"
 #include "sun6i_mipi_csi2_reg.h"
@@ -184,7 +184,7 @@ static int sun6i_mipi_csi2_s_stream(struct v4l2_subdev *subdev, int on)
 	int ret;
 
 	if (!source_subdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!on) {
 		v4l2_subdev_call(source_subdev, video, s_stream, 0);
@@ -203,14 +203,14 @@ static int sun6i_mipi_csi2_s_stream(struct v4l2_subdev *subdev, int on)
 	ctrl = v4l2_ctrl_find(source_subdev->ctrl_handler, V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
 		dev_err(dev, "missing sensor pixel rate\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_pm;
 	}
 
 	pixel_rate = (unsigned long)v4l2_ctrl_g_ctrl_int64(ctrl);
 	if (!pixel_rate) {
 		dev_err(dev, "missing (zero) sensor pixel rate\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_pm;
 	}
 
@@ -218,13 +218,13 @@ static int sun6i_mipi_csi2_s_stream(struct v4l2_subdev *subdev, int on)
 
 	if (!lanes_count) {
 		dev_err(dev, "missing (zero) MIPI CSI-2 lanes count\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_pm;
 	}
 
 	format = sun6i_mipi_csi2_format_find(mbus_format->code);
 	if (WARN_ON(!format)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_pm;
 	}
 
@@ -232,7 +232,7 @@ static int sun6i_mipi_csi2_s_stream(struct v4l2_subdev *subdev, int on)
 					 dphy_cfg);
 
 	/*
-	 * Note that our hardware is using DDR, which is not taken in account by
+	 * Analte that our hardware is using DDR, which is analt taken in account by
 	 * phy_mipi_dphy_get_default_config when calculating hs_clk_rate from
 	 * the pixel rate, lanes count and bpp.
 	 *
@@ -274,7 +274,7 @@ static int sun6i_mipi_csi2_s_stream(struct v4l2_subdev *subdev, int on)
 	/* Source */
 
 	ret = v4l2_subdev_call(source_subdev, video, s_stream, 1);
-	if (ret && ret != -ENOIOCTLCMD)
+	if (ret && ret != -EANALIOCTLCMD)
 		goto disable;
 
 	return 0;
@@ -299,7 +299,7 @@ sun6i_mipi_csi2_mbus_format_prepare(struct v4l2_mbus_framefmt *mbus_format)
 	if (!sun6i_mipi_csi2_format_find(mbus_format->code))
 		mbus_format->code = sun6i_mipi_csi2_formats[0].mbus_code;
 
-	mbus_format->field = V4L2_FIELD_NONE;
+	mbus_format->field = V4L2_FIELD_ANALNE;
 	mbus_format->colorspace = V4L2_COLORSPACE_RAW;
 	mbus_format->quantization = V4L2_QUANTIZATION_DEFAULT;
 	mbus_format->xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -408,14 +408,14 @@ static const struct media_entity_operations sun6i_mipi_csi2_entity_ops = {
 /* V4L2 Async */
 
 static int
-sun6i_mipi_csi2_notifier_bound(struct v4l2_async_notifier *notifier,
+sun6i_mipi_csi2_analtifier_bound(struct v4l2_async_analtifier *analtifier,
 			       struct v4l2_subdev *remote_subdev,
 			       struct v4l2_async_connection *async_subdev)
 {
-	struct v4l2_subdev *subdev = notifier->sd;
+	struct v4l2_subdev *subdev = analtifier->sd;
 	struct sun6i_mipi_csi2_device *csi2_dev =
-		container_of(notifier, struct sun6i_mipi_csi2_device,
-			     bridge.notifier);
+		container_of(analtifier, struct sun6i_mipi_csi2_device,
+			     bridge.analtifier);
 	struct media_entity *sink_entity = &subdev->entity;
 	struct media_entity *source_entity = &remote_subdev->entity;
 	struct device *dev = csi2_dev->dev;
@@ -423,7 +423,7 @@ sun6i_mipi_csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 	int source_pad_index;
 	int ret;
 
-	ret = media_entity_get_fwnode_pad(source_entity, remote_subdev->fwnode,
+	ret = media_entity_get_fwanalde_pad(source_entity, remote_subdev->fwanalde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (ret < 0) {
 		dev_err(dev, "missing source pad in external entity %s\n",
@@ -452,9 +452,9 @@ sun6i_mipi_csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations
-sun6i_mipi_csi2_notifier_ops = {
-	.bound	= sun6i_mipi_csi2_notifier_bound,
+static const struct v4l2_async_analtifier_operations
+sun6i_mipi_csi2_analtifier_ops = {
+	.bound	= sun6i_mipi_csi2_analtifier_bound,
 };
 
 /* Bridge */
@@ -462,32 +462,32 @@ sun6i_mipi_csi2_notifier_ops = {
 static int
 sun6i_mipi_csi2_bridge_source_setup(struct sun6i_mipi_csi2_device *csi2_dev)
 {
-	struct v4l2_async_notifier *notifier = &csi2_dev->bridge.notifier;
-	struct v4l2_fwnode_endpoint *endpoint = &csi2_dev->bridge.endpoint;
+	struct v4l2_async_analtifier *analtifier = &csi2_dev->bridge.analtifier;
+	struct v4l2_fwanalde_endpoint *endpoint = &csi2_dev->bridge.endpoint;
 	struct v4l2_async_connection *subdev_async;
-	struct fwnode_handle *handle;
+	struct fwanalde_handle *handle;
 	struct device *dev = csi2_dev->dev;
 	int ret;
 
-	handle = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0,
-						 FWNODE_GRAPH_ENDPOINT_NEXT);
+	handle = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev), 0, 0,
+						 FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	endpoint->bus_type = V4L2_MBUS_CSI2_DPHY;
 
-	ret = v4l2_fwnode_endpoint_parse(handle, endpoint);
+	ret = v4l2_fwanalde_endpoint_parse(handle, endpoint);
 	if (ret)
 		goto complete;
 
 	subdev_async =
-		v4l2_async_nf_add_fwnode_remote(notifier, handle,
+		v4l2_async_nf_add_fwanalde_remote(analtifier, handle,
 						struct v4l2_async_connection);
 	if (IS_ERR(subdev_async))
 		ret = PTR_ERR(subdev_async);
 
 complete:
-	fwnode_handle_put(handle);
+	fwanalde_handle_put(handle);
 
 	return ret;
 }
@@ -496,10 +496,10 @@ static int sun6i_mipi_csi2_bridge_setup(struct sun6i_mipi_csi2_device *csi2_dev)
 {
 	struct sun6i_mipi_csi2_bridge *bridge = &csi2_dev->bridge;
 	struct v4l2_subdev *subdev = &bridge->subdev;
-	struct v4l2_async_notifier *notifier = &bridge->notifier;
+	struct v4l2_async_analtifier *analtifier = &bridge->analtifier;
 	struct media_pad *pads = bridge->pads;
 	struct device *dev = csi2_dev->dev;
-	bool notifier_registered = false;
+	bool analtifier_registered = false;
 	int ret;
 
 	mutex_init(&bridge->lock);
@@ -509,7 +509,7 @@ static int sun6i_mipi_csi2_bridge_setup(struct sun6i_mipi_csi2_device *csi2_dev)
 	v4l2_subdev_init(subdev, &sun6i_mipi_csi2_subdev_ops);
 	subdev->internal_ops = &sun6i_mipi_csi2_internal_ops;
 	strscpy(subdev->name, SUN6I_MIPI_CSI2_NAME, sizeof(subdev->name));
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	subdev->owner = THIS_MODULE;
 	subdev->dev = dev;
 
@@ -534,36 +534,36 @@ static int sun6i_mipi_csi2_bridge_setup(struct sun6i_mipi_csi2_device *csi2_dev)
 
 	/* V4L2 Async */
 
-	v4l2_async_subdev_nf_init(notifier, subdev);
-	notifier->ops = &sun6i_mipi_csi2_notifier_ops;
+	v4l2_async_subdev_nf_init(analtifier, subdev);
+	analtifier->ops = &sun6i_mipi_csi2_analtifier_ops;
 
 	ret = sun6i_mipi_csi2_bridge_source_setup(csi2_dev);
-	if (ret && ret != -ENODEV)
-		goto error_v4l2_notifier_cleanup;
+	if (ret && ret != -EANALDEV)
+		goto error_v4l2_analtifier_cleanup;
 
-	/* Only register the notifier when a sensor is connected. */
-	if (ret != -ENODEV) {
-		ret = v4l2_async_nf_register(notifier);
+	/* Only register the analtifier when a sensor is connected. */
+	if (ret != -EANALDEV) {
+		ret = v4l2_async_nf_register(analtifier);
 		if (ret < 0)
-			goto error_v4l2_notifier_cleanup;
+			goto error_v4l2_analtifier_cleanup;
 
-		notifier_registered = true;
+		analtifier_registered = true;
 	}
 
 	/* V4L2 Subdev */
 
 	ret = v4l2_async_register_subdev(subdev);
 	if (ret < 0)
-		goto error_v4l2_notifier_unregister;
+		goto error_v4l2_analtifier_unregister;
 
 	return 0;
 
-error_v4l2_notifier_unregister:
-	if (notifier_registered)
-		v4l2_async_nf_unregister(notifier);
+error_v4l2_analtifier_unregister:
+	if (analtifier_registered)
+		v4l2_async_nf_unregister(analtifier);
 
-error_v4l2_notifier_cleanup:
-	v4l2_async_nf_cleanup(notifier);
+error_v4l2_analtifier_cleanup:
+	v4l2_async_nf_cleanup(analtifier);
 
 	media_entity_cleanup(&subdev->entity);
 
@@ -574,11 +574,11 @@ static void
 sun6i_mipi_csi2_bridge_cleanup(struct sun6i_mipi_csi2_device *csi2_dev)
 {
 	struct v4l2_subdev *subdev = &csi2_dev->bridge.subdev;
-	struct v4l2_async_notifier *notifier = &csi2_dev->bridge.notifier;
+	struct v4l2_async_analtifier *analtifier = &csi2_dev->bridge.analtifier;
 
 	v4l2_async_unregister_subdev(subdev);
-	v4l2_async_nf_unregister(notifier);
-	v4l2_async_nf_cleanup(notifier);
+	v4l2_async_nf_unregister(analtifier);
+	v4l2_async_nf_cleanup(analtifier);
 	media_entity_cleanup(&subdev->entity);
 }
 
@@ -719,7 +719,7 @@ static int sun6i_mipi_csi2_probe(struct platform_device *platform_dev)
 
 	csi2_dev = devm_kzalloc(dev, sizeof(*csi2_dev), GFP_KERNEL);
 	if (!csi2_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi2_dev->dev = dev;
 	platform_set_drvdata(platform_dev, csi2_dev);

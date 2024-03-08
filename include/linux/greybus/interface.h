@@ -14,26 +14,26 @@
 
 enum gb_interface_type {
 	GB_INTERFACE_TYPE_INVALID = 0,
-	GB_INTERFACE_TYPE_UNKNOWN,
+	GB_INTERFACE_TYPE_UNKANALWN,
 	GB_INTERFACE_TYPE_DUMMY,
 	GB_INTERFACE_TYPE_UNIPRO,
 	GB_INTERFACE_TYPE_GREYBUS,
 };
 
-#define GB_INTERFACE_QUIRK_NO_CPORT_FEATURES		BIT(0)
-#define GB_INTERFACE_QUIRK_NO_INIT_STATUS		BIT(1)
-#define GB_INTERFACE_QUIRK_NO_GMP_IDS			BIT(2)
+#define GB_INTERFACE_QUIRK_ANAL_CPORT_FEATURES		BIT(0)
+#define GB_INTERFACE_QUIRK_ANAL_INIT_STATUS		BIT(1)
+#define GB_INTERFACE_QUIRK_ANAL_GMP_IDS			BIT(2)
 #define GB_INTERFACE_QUIRK_FORCED_DISABLE		BIT(3)
 #define GB_INTERFACE_QUIRK_LEGACY_MODE_SWITCH		BIT(4)
-#define GB_INTERFACE_QUIRK_NO_BUNDLE_ACTIVATE		BIT(5)
-#define GB_INTERFACE_QUIRK_NO_PM			BIT(6)
+#define GB_INTERFACE_QUIRK_ANAL_BUNDLE_ACTIVATE		BIT(5)
+#define GB_INTERFACE_QUIRK_ANAL_PM			BIT(6)
 
 struct gb_interface {
 	struct device dev;
 	struct gb_control *control;
 
 	struct list_head bundles;
-	struct list_head module_node;
+	struct list_head module_analde;
 	struct list_head manifest_descs;
 	u8 interface_id;	/* Physical location within the Endo */
 	u8 device_id;

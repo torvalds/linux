@@ -127,7 +127,7 @@ u32 pci_ide_read_reg(int reg)
 	case PCI_CACHE_LINE_SIZE:
 		_rdmsr(SB_MSR_REG(SB_CTRL), &hi, &lo);
 		hi &= 0x000000f8;
-		conf_data = CFG_PCI_CACHE_LINE_SIZE(PCI_NORMAL_HEADER_TYPE, hi);
+		conf_data = CFG_PCI_CACHE_LINE_SIZE(PCI_ANALRMAL_HEADER_TYPE, hi);
 		break;
 	case PCI_BAR4_REG:
 		_rdmsr(GLCP_MSR_REG(GLCP_SOFT_COM), &hi, &lo);

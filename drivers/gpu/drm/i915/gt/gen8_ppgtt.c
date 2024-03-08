@@ -21,7 +21,7 @@ static u64 gen8_pde_encode(const dma_addr_t addr,
 {
 	u64 pde = addr | GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
 
-	if (level != I915_CACHE_NONE)
+	if (level != I915_CACHE_ANALNE)
 		pde |= PPAT_CACHED_PDE;
 	else
 		pde |= PPAT_UNCACHED;
@@ -44,7 +44,7 @@ static u64 gen8_pte_encode(dma_addr_t addr,
 	 * See translation table defined by LEGACY_CACHELEVEL.
 	 */
 	switch (pat_index) {
-	case I915_CACHE_NONE:
+	case I915_CACHE_ANALNE:
 		pte |= PPAT_UNCACHED;
 		break;
 	case I915_CACHE_WT:
@@ -85,7 +85,7 @@ static u64 gen12_pte_encode(dma_addr_t addr,
 	return pte;
 }
 
-static void gen8_ppgtt_notify_vgt(struct i915_ppgtt *ppgtt, bool create)
+static void gen8_ppgtt_analtify_vgt(struct i915_ppgtt *ppgtt, bool create)
 {
 	struct drm_i915_private *i915 = ppgtt->vm.i915;
 	struct intel_uncore *uncore = ppgtt->vm.gt->uncore;
@@ -127,8 +127,8 @@ static void gen8_ppgtt_notify_vgt(struct i915_ppgtt *ppgtt, bool create)
 			VGT_G2V_PPGTT_L3_PAGE_TABLE_DESTROY;
 	}
 
-	/* g2v_notify atomically (via hv trap) consumes the message packet. */
-	intel_uncore_write(uncore, vgtif_reg(g2v_notify), msg);
+	/* g2v_analtify atomically (via hv trap) consumes the message packet. */
+	intel_uncore_write(uncore, vgtif_reg(g2v_analtify), msg);
 
 	mutex_unlock(&i915->vgpu.lock);
 }
@@ -227,7 +227,7 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 		i915_gem_object_put(vm->rsvd.obj);
 
 	if (intel_vgpu_active(vm->i915))
-		gen8_ppgtt_notify_vgt(ppgtt, false);
+		gen8_ppgtt_analtify_vgt(ppgtt, false);
 
 	if (ppgtt->pd)
 		__gen8_ppgtt_cleanup(vm, ppgtt->pd,
@@ -545,7 +545,7 @@ xehpsdv_ppgtt_insert_huge(struct i915_address_space *vm,
 				/*
 				 * Device local-memory on these platforms should
 				 * always use 64K pages or larger (including GTT
-				 * alignment), therefore if we know the whole
+				 * alignment), therefore if we kanalw the whole
 				 * page-table needs to be filled we can always
 				 * safely use the compact-layout. Otherwise fall
 				 * back to the TLB hint with PS64. If this is
@@ -693,13 +693,13 @@ static void gen8_ppgtt_insert_huge(struct i915_address_space *vm,
 		 * Is it safe to mark the 2M block as 64K? -- Either we have
 		 * filled whole page-table with 64K entries, or filled part of
 		 * it and have reached the end of the sg table and we have
-		 * enough padding.
+		 * eanalugh padding.
 		 */
 		if (maybe_64K != -1 &&
 		    (index == I915_PDES ||
 		     (i915_vm_has_scratch_64K(vm) &&
 		      !iter->sg && IS_ALIGNED(vma_res->start +
-					      vma_res->node_size,
+					      vma_res->analde_size,
 					      I915_GTT_PAGE_SIZE_2M)))) {
 			vaddr = px_vaddr(pd);
 			vaddr[maybe_64K] |= GEN8_PDE_IPS_64K;
@@ -830,7 +830,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	int i;
 
 	/*
-	 * If everybody agrees to not to write into the scratch page,
+	 * If everybody agrees to analt to write into the scratch page,
 	 * we can reuse it for all vm, keeping contexts and processes separate.
 	 */
 	if (vm->has_read_only && vm->gt->vm && !i915_is_ggtt(vm->gt->vm)) {
@@ -856,7 +856,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	vm->scratch[0]->encode =
 		vm->pte_encode(px_dma(vm->scratch[0]),
 			       i915_gem_get_pat_index(vm->i915,
-						      I915_CACHE_NONE),
+						      I915_CACHE_ANALNE),
 			       pte_flags);
 
 	for (i = 1; i <= vm->top; i++) {
@@ -875,7 +875,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 		}
 
 		fill_px(obj, vm->scratch[i - 1]->encode);
-		obj->encode = gen8_pde_encode(px_dma(obj), I915_CACHE_NONE);
+		obj->encode = gen8_pde_encode(px_dma(obj), I915_CACHE_ANALNE);
 
 		vm->scratch[i] = obj;
 	}
@@ -932,7 +932,7 @@ gen8_alloc_top_pd(struct i915_address_space *vm)
 
 	pd = __alloc_pd(count);
 	if (unlikely(!pd))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pd->pt.base = vm->alloc_pt_dma(vm, I915_GTT_PAGE_SIZE_4K);
 	if (IS_ERR(pd->pt.base)) {
@@ -982,7 +982,7 @@ static int gen8_init_rsvd(struct i915_address_space *vm)
 
 	vm->rsvd.vma = i915_vma_make_unshrinkable(vma);
 	vm->rsvd.obj = obj;
-	vm->total -= vma->node.size;
+	vm->total -= vma->analde.size;
 	return 0;
 unref:
 	i915_gem_object_put(obj);
@@ -991,7 +991,7 @@ unref:
 
 /*
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
- * with a net effect resembling a 2-level page table in normal x86 terms. Each
+ * with a net effect resembling a 2-level page table in analrmal x86 terms. Each
  * PDP represents 1GB of memory 4 * 512 * 512 * 4096 = 4GB legacy 32b address
  * space.
  *
@@ -1005,7 +1005,7 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt,
 
 	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
 	if (!ppgtt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ppgtt_init(ppgtt, gt, lmem_pt_obj_flags);
 	ppgtt->vm.top = i915_vm_is_4lvl(&ppgtt->vm) ? 3 : 2;
@@ -1015,7 +1015,7 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt,
 	 * From bdw, there is hw support for read-only pages in the PPGTT.
 	 *
 	 * Gen11 has HSDES#:1807136187 unresolved. Disable ro support
-	 * for now.
+	 * for analw.
 	 *
 	 * Gen12 has inherited the same read-only fault issue from gen11.
 	 */
@@ -1027,7 +1027,7 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt,
 		ppgtt->vm.alloc_pt_dma = alloc_pt_dma;
 
 	/*
-	 * Using SMEM here instead of LMEM has the advantage of not reserving
+	 * Using SMEM here instead of LMEM has the advantage of analt reserving
 	 * high performance memory for a "never" used filler page. It also
 	 * removes the device access that would be required to initialise the
 	 * scratch page, reducing pressure on an even scarcer resource.
@@ -1068,7 +1068,7 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt,
 	}
 
 	if (intel_vgpu_active(gt->i915))
-		gen8_ppgtt_notify_vgt(ppgtt, true);
+		gen8_ppgtt_analtify_vgt(ppgtt, true);
 
 	err = gen8_init_rsvd(&ppgtt->vm);
 	if (err)

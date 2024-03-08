@@ -23,14 +23,14 @@ struct vc4_mock_output_desc {
 struct vc4_mock_pipe_desc {
 	const struct vc4_crtc_data *data;
 	const struct vc4_mock_output_desc *outputs;
-	unsigned int noutputs;
+	unsigned int analutputs;
 };
 
 #define VC4_MOCK_CRTC_DESC(_data, ...)							\
 	{										\
 		.data = _data,								\
 		.outputs = (struct vc4_mock_output_desc[]) { __VA_ARGS__ },		\
-		.noutputs = sizeof((struct vc4_mock_output_desc[]) { __VA_ARGS__ }) /	\
+		.analutputs = sizeof((struct vc4_mock_output_desc[]) { __VA_ARGS__ }) /	\
 			     sizeof(struct vc4_mock_output_desc),			\
 	}
 
@@ -116,14 +116,14 @@ static int __build_one_pipe(struct kunit *test, struct drm_device *drm,
 	unsigned int i;
 
 	dummy_plane = vc4_dummy_plane(test, drm, DRM_PLANE_TYPE_PRIMARY);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dummy_plane);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dummy_plane);
 
 	plane = &dummy_plane->plane.base;
 	dummy_crtc = vc4_mock_pv(test, drm, plane, pipe->data);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dummy_crtc);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dummy_crtc);
 
 	crtc = &dummy_crtc->crtc.base;
-	for (i = 0; i < pipe->noutputs; i++) {
+	for (i = 0; i < pipe->analutputs; i++) {
 		const struct vc4_mock_output_desc *mock_output = &pipe->outputs[i];
 		struct vc4_dummy_output *dummy_output;
 
@@ -131,7 +131,7 @@ static int __build_one_pipe(struct kunit *test, struct drm_device *drm,
 						mock_output->vc4_encoder_type,
 						mock_output->encoder_type,
 						mock_output->connector_type);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dummy_output);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dummy_output);
 	}
 
 	return 0;
@@ -167,18 +167,18 @@ static struct vc4_dev *__mock_device(struct kunit *test, bool is_vc5)
 	int ret;
 
 	dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dev);
 
 	vc4 = drm_kunit_helper_alloc_drm_device_with_driver(test, dev,
 							    struct vc4_dev, base,
 							    drv);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, vc4);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, vc4);
 
 	vc4->dev = dev;
 	vc4->is_vc5 = is_vc5;
 
 	vc4->hvs = __vc4_hvs_alloc(vc4, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, vc4->hvs);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, vc4->hvs);
 
 	drm = &vc4->base;
 	ret = __build_mock(test, drm, desc);

@@ -119,7 +119,7 @@ static struct amd_iommu_event_desc amd_iommu_v2_event_descs[] = {
 	AMD_IOMMU_EVENT_DESC(cmd_processed_inv,       "csource=0x12"),
 	AMD_IOMMU_EVENT_DESC(tlb_inv,                 "csource=0x13"),
 	AMD_IOMMU_EVENT_DESC(ign_rd_wr_mmio_1ff8h,    "csource=0x14"),
-	AMD_IOMMU_EVENT_DESC(vapic_int_non_guest,     "csource=0x15"),
+	AMD_IOMMU_EVENT_DESC(vapic_int_analn_guest,     "csource=0x15"),
 	AMD_IOMMU_EVENT_DESC(vapic_int_guest,         "csource=0x16"),
 	AMD_IOMMU_EVENT_DESC(smi_recv,                "csource=0x17"),
 	AMD_IOMMU_EVENT_DESC(smi_blk,                 "csource=0x18"),
@@ -175,7 +175,7 @@ static int get_next_avail_iommu_bnk_cntr(struct perf_event *event)
 			}
 		}
 	}
-	retval = -ENOSPC;
+	retval = -EANALSPC;
 out:
 	raw_spin_unlock_irqrestore(&piommu->lock, flags);
 	return retval;
@@ -209,12 +209,12 @@ static int perf_iommu_event_init(struct perf_event *event)
 
 	/* test the event attr type check for PMU enumeration */
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * IOMMU counters are shared across all cores.
-	 * Therefore, it does not support per-process mode.
-	 * Also, it does not support event sampling mode.
+	 * Therefore, it does analt support per-process mode.
+	 * Also, it does analt support event sampling mode.
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
@@ -387,7 +387,7 @@ static __init int _init_events_attrs(void)
 
 	attrs = kcalloc(i + 1, sizeof(*attrs), GFP_KERNEL);
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (j = 0; j < i; j++)
 		attrs[j] = &amd_iommu_v2_event_descs[j].attr.attr;
@@ -412,7 +412,7 @@ static const struct pmu iommu_pmu __initconst = {
 	.read		= perf_iommu_read,
 	.task_ctx_nr	= perf_invalid_context,
 	.attr_groups	= amd_iommu_attr_groups,
-	.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+	.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 };
 
 static __init int init_one_iommu(unsigned int idx)
@@ -422,7 +422,7 @@ static __init int init_one_iommu(unsigned int idx)
 
 	perf_iommu = kzalloc(sizeof(struct perf_amd_iommu), GFP_KERNEL);
 	if (!perf_iommu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_init(&perf_iommu->lock);
 
@@ -459,7 +459,7 @@ static __init int amd_iommu_pc_init(void)
 
 	/* Make sure the IOMMU PC resource is available */
 	if (!amd_iommu_pc_supported())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = _init_events_attrs();
 	if (ret)
@@ -467,7 +467,7 @@ static __init int amd_iommu_pc_init(void)
 
 	/*
 	 * An IOMMU PMU is specific to an IOMMU, and can function independently.
-	 * So we go through all IOMMUs and ignore the one that fails init
+	 * So we go through all IOMMUs and iganalre the one that fails init
 	 * unless all IOMMU are failing.
 	 */
 	for (i = 0; i < amd_iommu_get_num_iommus(); i++) {
@@ -478,7 +478,7 @@ static __init int amd_iommu_pc_init(void)
 
 	if (!cnt) {
 		kfree(amd_iommu_events_group.attrs);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Init cpumask attributes to only core 0 */

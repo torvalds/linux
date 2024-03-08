@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _SPARC_ASI_H
 #define _SPARC_ASI_H
 
@@ -42,9 +42,9 @@
 #define ASI_M_MXCC          0x02   /* Access to TI VIKING MXCC registers */
 #define ASI_M_FLUSH_PROBE   0x03   /* Reference MMU Flush/Probe; rw, ss */
 #define ASI_M_MMUREGS       0x04   /* MMU Registers; rw, ss */
-#define ASI_M_TLBDIAG       0x05   /* MMU TLB only Diagnostics */
-#define ASI_M_DIAGS         0x06   /* Reference MMU Diagnostics */
-#define ASI_M_IODIAG        0x07   /* MMU I/O TLB only Diagnostics */
+#define ASI_M_TLBDIAG       0x05   /* MMU TLB only Diaganalstics */
+#define ASI_M_DIAGS         0x06   /* Reference MMU Diaganalstics */
+#define ASI_M_IODIAG        0x07   /* MMU I/O TLB only Diaganalstics */
 #define ASI_M_USERTXT       0x08   /* Same as ASI_USERTXT; rw, as */
 #define ASI_M_KERNELTXT     0x09   /* Same as ASI_KERNELTXT; rw, as */
 #define ASI_M_USERDATA      0x0A   /* Same as ASI_USERDATA; rw, as */
@@ -101,7 +101,7 @@
 #define ASI_M_IC_FLCLEAR   0x36
 #define ASI_M_DC_FLCLEAR   0x37
 
-#define ASI_M_DCDR         0x39   /* Data Cache Diagnostics Register rw, ss */
+#define ASI_M_DCDR         0x39   /* Data Cache Diaganalstics Register rw, ss */
 
 #define ASI_M_VIKING_TMP1  0x40	  /* Emulation temporary 1 on Viking */
 /* only available on SuperSparc I */
@@ -110,7 +110,7 @@
 #define ASI_M_ACTION       0x4c   /* Breakpoint Action Register (GNU/Viking) */
 
 /* LEON ASI */
-#define ASI_LEON_NOCACHE        0x01
+#define ASI_LEON_ANALCACHE        0x01
 
 #define ASI_LEON_DCACHE_MISS    0x01
 
@@ -132,12 +132,12 @@
 #define ASI_AIUSL		0x19 /* Secondary, user, little endian	*/
 #define ASI_P			0x80 /* Primary, implicit		*/
 #define ASI_S			0x81 /* Secondary, implicit		*/
-#define ASI_PNF			0x82 /* Primary, no fault		*/
-#define ASI_SNF			0x83 /* Secondary, no fault		*/
+#define ASI_PNF			0x82 /* Primary, anal fault		*/
+#define ASI_SNF			0x83 /* Secondary, anal fault		*/
 #define ASI_PL			0x88 /* Primary, implicit, l-endian	*/
 #define ASI_SL			0x89 /* Secondary, implicit, l-endian	*/
-#define ASI_PNFL		0x8a /* Primary, no fault, l-endian	*/
-#define ASI_SNFL		0x8b /* Secondary, no fault, l-endian	*/
+#define ASI_PNFL		0x8a /* Primary, anal fault, l-endian	*/
+#define ASI_SNFL		0x8b /* Secondary, anal fault, l-endian	*/
 
 /* SpitFire and later extended ASIs.  The "(III)" marker designates
  * UltraSparc-III and later specific ASIs.  The "(CMT)" marker designates
@@ -168,12 +168,12 @@
 #define ASI_PCACHE_DATA_STATUS	0x30 /* (III) PCache data stat RAM diag	*/
 #define ASI_PCACHE_DATA		0x31 /* (III) PCache data RAM diag	*/
 #define ASI_PCACHE_TAG		0x32 /* (III) PCache tag RAM diag	*/
-#define ASI_PCACHE_SNOOP_TAG	0x33 /* (III) PCache snoop tag RAM diag	*/
+#define ASI_PCACHE_SANALOP_TAG	0x33 /* (III) PCache sanalop tag RAM diag	*/
 #define ASI_QUAD_LDD_PHYS	0x34 /* (III+) PADDR, qword load	*/
 #define ASI_WCACHE_VALID_BITS	0x38 /* (III) WCache Valid Bits diag	*/
 #define ASI_WCACHE_DATA		0x39 /* (III) WCache data RAM diag	*/
 #define ASI_WCACHE_TAG		0x3a /* (III) WCache tag RAM diag	*/
-#define ASI_WCACHE_SNOOP_TAG	0x3b /* (III) WCache snoop tag RAM diag	*/
+#define ASI_WCACHE_SANALOP_TAG	0x3b /* (III) WCache sanalop tag RAM diag	*/
 #define ASI_QUAD_LDD_PHYS_L	0x3c /* (III+) PADDR, qw-load, l-endian	*/
 #define ASI_SRAM_FAST_INIT	0x40 /* (III+) Fast SRAM init		*/
 #define ASI_CORE_AVAILABLE	0x41 /* (CMT) LP Available		*/
@@ -187,7 +187,7 @@
 #define ASI_CMT_ERROR_STEERING	0x41 /* (CMT) Error Steering RW		*/
 #define ASI_DCACHE_INVALIDATE	0x42 /* (III) DCache Invalidate diag	*/
 #define ASI_DCACHE_UTAG		0x43 /* (III) DCache uTag diag		*/
-#define ASI_DCACHE_SNOOP_TAG	0x44 /* (III) DCache snoop tag RAM diag	*/
+#define ASI_DCACHE_SANALOP_TAG	0x44 /* (III) DCache sanalop tag RAM diag	*/
 #define ASI_LSU_CONTROL		0x45 /* Load-store control unit		*/
 #define ASI_DCU_CONTROL_REG	0x45 /* (III) DCache Unit Control reg	*/
 #define ASI_DCACHE_DATA		0x46 /* DCache data-ram diag access	*/
@@ -223,7 +223,7 @@
 #define ASI_CESR_ID		0x63 /* (CMT) CESR ID register		*/
 #define ASI_IC_INSTR		0x66 /* Insn cache instrucion ram diag	*/
 #define ASI_IC_TAG		0x67 /* Insn cache tag/valid ram diag 	*/
-#define ASI_IC_STAG		0x68 /* (III) Insn cache snoop tag ram	*/
+#define ASI_IC_STAG		0x68 /* (III) Insn cache sanalop tag ram	*/
 #define ASI_IC_PRE_DECODE	0x6e /* Insn cache pre-decode ram diag	*/
 #define ASI_IC_NEXT_FIELD	0x6f /* Insn cache next-field ram diag	*/
 #define ASI_BRPRED_ARRAY	0x6f /* (III) Branch Prediction RAM diag*/

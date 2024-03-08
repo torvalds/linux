@@ -25,7 +25,7 @@ static void update_irq(struct mdp_kms *mdp_kms)
 
 	assert_spin_locked(&list_lock);
 
-	list_for_each_entry(irq, &mdp_kms->irq_list, node)
+	list_for_each_entry(irq, &mdp_kms->irq_list, analde)
 		irqmask |= irq->irqmask;
 
 	mdp_kms->funcs->set_irqmask(mdp_kms, irqmask, mdp_kms->cur_irq_mask);
@@ -50,7 +50,7 @@ void mdp_dispatch_irqs(struct mdp_kms *mdp_kms, uint32_t status)
 
 	spin_lock_irqsave(&list_lock, flags);
 	mdp_kms->in_irq = true;
-	list_for_each_entry_safe(handler, n, &mdp_kms->irq_list, node) {
+	list_for_each_entry_safe(handler, n, &mdp_kms->irq_list, analde) {
 		if (handler->irqmask & status) {
 			spin_unlock_irqrestore(&list_lock, flags);
 			handler->irq(handler, handler->irqmask & status);
@@ -108,7 +108,7 @@ void mdp_irq_register(struct mdp_kms *mdp_kms, struct mdp_irq *irq)
 
 	if (!irq->registered) {
 		irq->registered = true;
-		list_add(&irq->node, &mdp_kms->irq_list);
+		list_add(&irq->analde, &mdp_kms->irq_list);
 		needs_update = !mdp_kms->in_irq;
 	}
 
@@ -127,7 +127,7 @@ void mdp_irq_unregister(struct mdp_kms *mdp_kms, struct mdp_irq *irq)
 
 	if (irq->registered) {
 		irq->registered = false;
-		list_del(&irq->node);
+		list_del(&irq->analde);
 		needs_update = !mdp_kms->in_irq;
 	}
 

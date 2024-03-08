@@ -21,7 +21,7 @@ void intel_hti_init(struct drm_i915_private *i915)
 
 bool intel_hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
 {
-	if (drm_WARN_ON(&i915->drm, phy == PHY_NONE))
+	if (drm_WARN_ON(&i915->drm, phy == PHY_ANALNE))
 		return false;
 
 	return i915->display.hti.state & HDPORT_ENABLED &&
@@ -34,7 +34,7 @@ u32 intel_hti_dpll_mask(struct drm_i915_private *i915)
 		return 0;
 
 	/*
-	 * Note: This is subtle. The values must coincide with what's defined
+	 * Analte: This is subtle. The values must coincide with what's defined
 	 * for the platform.
 	 */
 	return REG_FIELD_GET(HDPORT_DPLL_USED_MASK, i915->display.hti.state);

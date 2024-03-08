@@ -525,7 +525,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 			return ret;
 	}
 
-	/* tx free notify event from WA for band0 */
+	/* tx free analtify event from WA for band0 */
 	if (!is_mt7915(mdev)) {
 		wa_rx_base = MT_RXQ_RING_BASE(MT_RXQ_MAIN_WA);
 		wa_rx_idx = MT_RXQ_ID(MT_RXQ_MAIN_WA);
@@ -564,7 +564,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 		if (ret)
 			return ret;
 
-		/* tx free notify event from WA for band1 */
+		/* tx free analtify event from WA for band1 */
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_BAND1_WA],
 				       MT_RXQ_ID(MT_RXQ_BAND1_WA),
 				       MT7915_RX_MCU_RING_SIZE,

@@ -1,17 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _SPARC_IOCTL_H
 #define _SPARC_IOCTL_H
 
 /*
  * Our DIR and SIZE overlap in order to simulteneously provide
- * a non-zero _IOC_NONE (for binary compatibility) and
+ * a analn-zero _IOC_ANALNE (for binary compatibility) and
  * 14 bits of size as on i386. Here's the layout:
  *
  *   0xE0000000   DIR
  *   0x80000000     DIR = WRITE
  *   0x40000000     DIR = READ
- *   0x20000000     DIR = NONE
- *   0x3FFF0000   SIZE (overlaps NONE bit)
+ *   0x20000000     DIR = ANALNE
+ *   0x3FFF0000   SIZE (overlaps ANALNE bit)
  *   0x0000FF00   TYPE
  *   0x000000FF   NR (CMD)
  */
@@ -32,7 +32,7 @@
 #define _IOC_SIZESHIFT   (_IOC_TYPESHIFT + _IOC_TYPEBITS)
 #define _IOC_DIRSHIFT    (_IOC_SIZESHIFT + _IOC_SIZEBITS)
 
-#define _IOC_NONE        1U
+#define _IOC_ANALNE        1U
 #define _IOC_READ        2U
 #define _IOC_WRITE       4U
 
@@ -42,7 +42,7 @@
          ((nr)   << _IOC_NRSHIFT) | \
          ((size) << _IOC_SIZESHIFT))
 
-#define _IO(type,nr)        _IOC(_IOC_NONE,(type),(nr),0)
+#define _IO(type,nr)        _IOC(_IOC_ANALNE,(type),(nr),0)
 #define _IOR(type,nr,size)  _IOC(_IOC_READ,(type),(nr),sizeof(size))
 #define _IOW(type,nr,size)  _IOC(_IOC_WRITE,(type),(nr),sizeof(size))
 #define _IOWR(type,nr,size) _IOC(_IOC_READ|_IOC_WRITE,(type),(nr),sizeof(size))
@@ -61,7 +61,7 @@
 /* ...and for the PCMCIA and sound. */
 #define IOC_IN          (_IOC_WRITE << _IOC_DIRSHIFT)
 #define IOC_OUT         (_IOC_READ << _IOC_DIRSHIFT)
-#define IOC_INOUT       ((_IOC_WRITE|_IOC_READ) << _IOC_DIRSHIFT)
+#define IOC_IANALUT       ((_IOC_WRITE|_IOC_READ) << _IOC_DIRSHIFT)
 #define IOCSIZE_MASK    (_IOC_XSIZEMASK << _IOC_SIZESHIFT)
 #define IOCSIZE_SHIFT   (_IOC_SIZESHIFT)
 

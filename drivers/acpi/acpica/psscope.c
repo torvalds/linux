@@ -59,7 +59,7 @@ u8 acpi_ps_has_completed_scope(struct acpi_parse_state * parser_state)
  * FUNCTION:    acpi_ps_init_scope
  *
  * PARAMETERS:  parser_state        - Current parser state object
- *              root                - the Root Node of this new scope
+ *              root                - the Root Analde of this new scope
  *
  * RETURN:      Status
  *
@@ -77,7 +77,7 @@ acpi_ps_init_scope(struct acpi_parse_state * parser_state,
 
 	scope = acpi_ut_create_generic_state();
 	if (!scope) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	scope->common.descriptor_type = ACPI_DESC_TYPE_STATE_RPSCOPE;
@@ -118,7 +118,7 @@ acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 
 	scope = acpi_ut_create_generic_state();
 	if (!scope) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	scope->common.descriptor_type = ACPI_DESC_TYPE_STATE_PSCOPE;
@@ -203,7 +203,7 @@ acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
  *
  * PARAMETERS:  parser_state        - Current parser state object
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Destroy available list, remaining stack levels, and return
  *              root scope

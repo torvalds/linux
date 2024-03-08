@@ -1,7 +1,7 @@
 /*
- * SMI (Serial Memory Controller) device driver for Serial NOR Flash on
+ * SMI (Serial Memory Controller) device driver for Serial ANALR Flash on
  * SPEAr platform
- * The serial nor interface is largely based on m25p80.c, however the SPI
+ * The serial analr interface is largely based on m25p80.c, however the SPI
  * interface has been replaced by SMI.
  *
  * Copyright © 2010 STMicroelectronics.
@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -151,7 +151,7 @@ static struct flash_device flash_devices[] = {
 
 /* Define spear specific structures */
 
-struct spear_snor_flash;
+struct spear_sanalr_flash;
 
 /**
  * struct spear_smi - Structure for SMI Device
@@ -162,9 +162,9 @@ struct spear_snor_flash;
  * @lock: lock to prevent parallel access of SMI.
  * @io_base: base address for registers of SMI.
  * @pdev: platform device
- * @cmd_complete: queue to wait for command completion of NOR-flash.
+ * @cmd_complete: queue to wait for command completion of ANALR-flash.
  * @num_flashes: number of flashes actually present on board.
- * @flash: separate structure for each Serial NOR-flash attached to SMI.
+ * @flash: separate structure for each Serial ANALR-flash attached to SMI.
  */
 struct spear_smi {
 	struct clk *clk;
@@ -175,24 +175,24 @@ struct spear_smi {
 	struct platform_device *pdev;
 	wait_queue_head_t cmd_complete;
 	u32 num_flashes;
-	struct spear_snor_flash *flash[MAX_NUM_FLASH_CHIP];
+	struct spear_sanalr_flash *flash[MAX_NUM_FLASH_CHIP];
 };
 
 /**
- * struct spear_snor_flash - Structure for Serial NOR Flash
+ * struct spear_sanalr_flash - Structure for Serial ANALR Flash
  *
- * @bank: Bank number(0, 1, 2, 3) for each NOR-flash.
- * @dev_id: Device ID of NOR-flash.
+ * @bank: Bank number(0, 1, 2, 3) for each ANALR-flash.
+ * @dev_id: Device ID of ANALR-flash.
  * @lock: lock to manage flash read, write and erase operations
- * @mtd: MTD info for each NOR-flash.
- * @num_parts: Total number of partition in each bank of NOR-flash.
- * @parts: Partition info for each bank of NOR-flash.
- * @page_size: Page size of NOR-flash.
- * @base_addr: Base address of NOR-flash.
+ * @mtd: MTD info for each ANALR-flash.
+ * @num_parts: Total number of partition in each bank of ANALR-flash.
+ * @parts: Partition info for each bank of ANALR-flash.
+ * @page_size: Page size of ANALR-flash.
+ * @base_addr: Base address of ANALR-flash.
  * @erase_cmd: erase command may vary on different flash types
  * @fast_mode: flash supports read in fast mode
  */
-struct spear_snor_flash {
+struct spear_sanalr_flash {
 	u32 bank;
 	u32 dev_id;
 	struct mutex lock;
@@ -205,9 +205,9 @@ struct spear_snor_flash {
 	u8 fast_mode;
 };
 
-static inline struct spear_snor_flash *get_flash_data(struct mtd_info *mtd)
+static inline struct spear_sanalr_flash *get_flash_data(struct mtd_info *mtd)
 {
-	return container_of(mtd, struct spear_snor_flash, mtd);
+	return container_of(mtd, struct spear_sanalr_flash, mtd);
 }
 
 /**
@@ -301,7 +301,7 @@ static irqreturn_t spear_smi_int_handler(int irq, void *dev_id)
 	status = readl(dev->io_base + SMI_SR);
 
 	if (unlikely(!status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* clear all interrupt conditions */
 	writel(0, dev->io_base + SMI_SR);
@@ -348,9 +348,9 @@ static void spear_smi_hw_init(struct spear_smi *dev)
 
 /**
  * get_flash_index - match chip id from a flash list.
- * @flash_id: a valid nor flash chip id obtained from board.
+ * @flash_id: a valid analr flash chip id obtained from board.
  *
- * try to validate the chip id by matching from a list, if not found then simply
+ * try to validate the chip id by matching from a list, if analt found then simply
  * returns negative. In case of success returns index in to the flash devices
  * array.
  */
@@ -358,14 +358,14 @@ static int get_flash_index(u32 flash_id)
 {
 	int index;
 
-	/* Matches chip-id to entire list of 'serial-nor flash' ids */
+	/* Matches chip-id to entire list of 'serial-analr flash' ids */
 	for (index = 0; index < ARRAY_SIZE(flash_devices); index++) {
 		if (flash_devices[index].device_id == flash_id)
 			return index;
 	}
 
-	/* Memory chip is not listed and not supported */
-	return -ENODEV;
+	/* Memory chip is analt listed and analt supported */
+	return -EANALDEV;
 }
 
 /**
@@ -417,7 +417,7 @@ static int spear_smi_write_enable(struct spear_smi *dev, u32 bank)
 }
 
 static inline u32
-get_sector_erase_cmd(struct spear_snor_flash *flash, u32 offset)
+get_sector_erase_cmd(struct spear_sanalr_flash *flash, u32 offset)
 {
 	u32 cmd;
 	u8 *x = (u8 *)&cmd;
@@ -439,7 +439,7 @@ get_sector_erase_cmd(struct spear_snor_flash *flash, u32 offset)
  *
  * Erase one sector of flash memory at offset ``offset'' which is any
  * address within the sector which should be erased.
- * Returns 0 if successful, non-zero otherwise.
+ * Returns 0 if successful, analn-zero otherwise.
  */
 static int spear_smi_erase_sector(struct spear_smi *dev,
 		u32 bank, u32 command, u32 bytes)
@@ -493,13 +493,13 @@ static int spear_smi_erase_sector(struct spear_smi *dev,
  */
 static int spear_mtd_erase(struct mtd_info *mtd, struct erase_info *e_info)
 {
-	struct spear_snor_flash *flash = get_flash_data(mtd);
+	struct spear_sanalr_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
 	u32 addr, command, bank;
 	int len, ret;
 
 	if (!flash || !dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bank = flash->bank;
 	if (bank > dev->num_flashes - 1) {
@@ -512,7 +512,7 @@ static int spear_mtd_erase(struct mtd_info *mtd, struct erase_info *e_info)
 
 	mutex_lock(&flash->lock);
 
-	/* now erase sectors in loop */
+	/* analw erase sectors in loop */
 	while (len) {
 		command = get_sector_erase_cmd(flash, addr);
 		/* preparing the command for flash */
@@ -540,19 +540,19 @@ static int spear_mtd_erase(struct mtd_info *mtd, struct erase_info *e_info)
  *
  * Read an address range from the flash chip. The address range
  * may be any size provided it is within the physical boundaries.
- * Returns 0 on success, non zero otherwise
+ * Returns 0 on success, analn zero otherwise
  */
 static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, u8 *buf)
 {
-	struct spear_snor_flash *flash = get_flash_data(mtd);
+	struct spear_sanalr_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
 	void __iomem *src;
 	u32 ctrlreg1, val;
 	int ret;
 
 	if (!flash || !dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (flash->bank > dev->num_flashes - 1) {
 		dev_err(&dev->pdev->dev, "Invalid Bank Num");
@@ -572,7 +572,7 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
 	mutex_lock(&dev->lock);
-	/* put smi in hw mode not wbt mode */
+	/* put smi in hw mode analt wbt mode */
 	ctrlreg1 = val = readl(dev->io_base + SMI_CR1);
 	val &= ~(SW_MODE | WB_MODE);
 	if (flash->fast_mode)
@@ -595,8 +595,8 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 /*
  * The purpose of this function is to ensure a memcpy_toio() with byte writes
  * only. Its structure is inspired from the ARM implementation of _memcpy_toio()
- * which also does single byte writes but cannot be used here as this is just an
- * implementation detail and not part of the API. Not mentioning the comment
+ * which also does single byte writes but cananalt be used here as this is just an
+ * implementation detail and analt part of the API. Analt mentioning the comment
  * stating that _memcpy_toio() should be optimized.
  */
 static void spear_smi_memcpy_toio_b(volatile void __iomem *dest,
@@ -641,8 +641,8 @@ static inline int spear_smi_cpy_toio(struct spear_smi *dev, u32 bank,
 	 * The ARM implementation of memcpy_toio() will optimize the number of
 	 * I/O by using as much 4-byte writes as possible, surrounded by
 	 * 2-byte/1-byte access if:
-	 * - the destination is not 4-byte aligned
-	 * - the length is not a multiple of 4-byte.
+	 * - the destination is analt 4-byte aligned
+	 * - the length is analt a multiple of 4-byte.
 	 * Avoid this alternance of write access size by using our own 'byte
 	 * access' helper if at least one of the two conditions above is true.
 	 */
@@ -669,19 +669,19 @@ static inline int spear_smi_cpy_toio(struct spear_smi *dev, u32 bank,
  * Write an address range to the flash chip. Data must be written in
  * flash_page_size chunks. The address range may be any size provided
  * it is within the physical boundaries.
- * Returns 0 on success, non zero otherwise
+ * Returns 0 on success, analn zero otherwise
  */
 static int spear_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t *retlen, const u8 *buf)
 {
-	struct spear_snor_flash *flash = get_flash_data(mtd);
+	struct spear_sanalr_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
 	void __iomem *dest;
 	u32 page_offset, page_size;
 	int ret;
 
 	if (!flash || !dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (flash->bank > dev->num_flashes - 1) {
 		dev_err(&dev->pdev->dev, "Invalid Bank Num");
@@ -734,7 +734,7 @@ err_write:
 }
 
 /**
- * spear_smi_probe_flash - Detects the NOR Flash chip.
+ * spear_smi_probe_flash - Detects the ANALR Flash chip.
  * @dev: structure of SMI information.
  * @bank: bank on which flash must be probed
  *
@@ -769,7 +769,7 @@ static int spear_smi_probe_flash(struct spear_smi *dev, u32 bank)
 	ret = wait_event_interruptible_timeout(dev->cmd_complete,
 			dev->status & TFF, SMI_CMD_TIMEOUT);
 	if (ret <= 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_probe;
 	}
 
@@ -790,17 +790,17 @@ err_probe:
 
 #ifdef CONFIG_OF
 static int spear_smi_probe_config_dt(struct platform_device *pdev,
-				     struct device_node *np)
+				     struct device_analde *np)
 {
 	struct spear_smi_plat_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *pp;
+	struct device_analde *pp;
 	const __be32 *addr;
 	u32 val;
 	int len;
 	int i = 0;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	of_property_read_u32(np, "clock-rate", &val);
 	pdata->clk_rate = val;
@@ -809,10 +809,10 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 					       sizeof(*pdata->board_flash_info),
 					       GFP_KERNEL);
 	if (!pdata->board_flash_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Fill structs for each subnode (flash device) */
-	for_each_child_of_node(np, pp) {
+	/* Fill structs for each subanalde (flash device) */
+	for_each_child_of_analde(np, pp) {
 		pdata->np[i] = pp;
 
 		/* Read base-addr and size from DT */
@@ -832,19 +832,19 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 }
 #else
 static int spear_smi_probe_config_dt(struct platform_device *pdev,
-				     struct device_node *np)
+				     struct device_analde *np)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif
 
 static int spear_smi_setup_banks(struct platform_device *pdev,
-				 u32 bank, struct device_node *np)
+				 u32 bank, struct device_analde *np)
 {
 	struct spear_smi *dev = platform_get_drvdata(pdev);
 	struct spear_smi_flash_info *flash_info;
 	struct spear_smi_plat_data *pdata;
-	struct spear_snor_flash *flash;
+	struct spear_sanalr_flash *flash;
 	struct mtd_partition *parts = NULL;
 	int count = 0;
 	int flash_index;
@@ -856,22 +856,22 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
 
 	flash_info = &pdata->board_flash_info[bank];
 	if (!flash_info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	flash = devm_kzalloc(&pdev->dev, sizeof(*flash), GFP_ATOMIC);
 	if (!flash)
-		return -ENOMEM;
+		return -EANALMEM;
 	flash->bank = bank;
 	flash->fast_mode = flash_info->fast_mode ? 1 : 0;
 	mutex_init(&flash->lock);
 
-	/* verify whether nor flash is really present on board */
+	/* verify whether analr flash is really present on board */
 	flash_index = spear_smi_probe_flash(dev, bank);
 	if (flash_index < 0) {
-		dev_info(&dev->pdev->dev, "smi-nor%d not found\n", bank);
+		dev_info(&dev->pdev->dev, "smi-analr%d analt found\n", bank);
 		return flash_index;
 	}
-	/* map the memory for nor flash chip */
+	/* map the memory for analr flash chip */
 	flash->base_addr = devm_ioremap(&pdev->dev, flash_info->mem_base,
 					flash_info->size);
 	if (!flash->base_addr)
@@ -886,10 +886,10 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
 		flash->mtd.name = flash_devices[flash_index].name;
 
 	flash->mtd.dev.parent = &pdev->dev;
-	mtd_set_of_node(&flash->mtd, np);
-	flash->mtd.type = MTD_NORFLASH;
+	mtd_set_of_analde(&flash->mtd, np);
+	flash->mtd.type = MTD_ANALRFLASH;
 	flash->mtd.writesize = 1;
-	flash->mtd.flags = MTD_CAP_NORFLASH;
+	flash->mtd.flags = MTD_CAP_ANALRFLASH;
 	flash->mtd.size = flash_info->size;
 	flash->mtd.erasesize = flash_devices[flash_index].sectorsize;
 	flash->page_size = flash_devices[flash_index].pagesize;
@@ -930,11 +930,11 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
  * This is the first routine which gets invoked during booting and does all
  * initialization/allocation work. The routine looks for available memory banks,
  * and do proper init for any found one.
- * Returns 0 on success, non zero otherwise
+ * Returns 0 on success, analn zero otherwise
  */
 static int spear_smi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct spear_smi_plat_data *pdata = NULL;
 	struct spear_smi *dev;
 	int irq, ret = 0;
@@ -943,34 +943,34 @@ static int spear_smi_probe(struct platform_device *pdev)
 	if (np) {
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		pdev->dev.platform_data = pdata;
 		ret = spear_smi_probe_config_dt(pdev, np);
 		if (ret) {
-			ret = -ENODEV;
-			dev_err(&pdev->dev, "no platform data\n");
+			ret = -EANALDEV;
+			dev_err(&pdev->dev, "anal platform data\n");
 			goto err;
 		}
 	} else {
 		pdata = dev_get_platdata(&pdev->dev);
 		if (!pdata) {
-			ret = -ENODEV;
-			dev_err(&pdev->dev, "no platform data\n");
+			ret = -EANALDEV;
+			dev_err(&pdev->dev, "anal platform data\n");
 			goto err;
 		}
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1011,7 +1011,7 @@ static int spear_smi_probe(struct platform_device *pdev)
 	spear_smi_hw_init(dev);
 	platform_set_drvdata(pdev, dev);
 
-	/* loop for each serial nor-flash which is connected to smi */
+	/* loop for each serial analr-flash which is connected to smi */
 	for (i = 0; i < dev->num_flashes; i++) {
 		ret = spear_smi_setup_banks(pdev, i, pdata->np[i]);
 		if (ret) {
@@ -1034,12 +1034,12 @@ err:
 static void spear_smi_remove(struct platform_device *pdev)
 {
 	struct spear_smi *dev;
-	struct spear_snor_flash *flash;
+	struct spear_sanalr_flash *flash;
 	int i;
 
 	dev = platform_get_drvdata(pdev);
 
-	/* clean up for all nor flash */
+	/* clean up for all analr flash */
 	for (i = 0; i < dev->num_flashes; i++) {
 		flash = dev->flash[i];
 		if (!flash)
@@ -1099,4 +1099,4 @@ module_platform_driver(spear_smi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ashish Priyadarshi, Shiraz Hashim <shiraz.linux.kernel@gmail.com>");
-MODULE_DESCRIPTION("MTD SMI driver for serial nor flash chips");
+MODULE_DESCRIPTION("MTD SMI driver for serial analr flash chips");

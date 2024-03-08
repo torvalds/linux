@@ -4,9 +4,9 @@
 
 
 #if defined(CONFIG_SUN3) || defined(CONFIG_COLDFIRE)
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 #else
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 #endif
 
 #include <asm/setup.h>
@@ -162,20 +162,20 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
  * Macro to mark a page protection value as "uncacheable".
  */
 #ifdef CONFIG_COLDFIRE
-# define pgprot_noncached(prot) (__pgprot(pgprot_val(prot) | CF_PAGE_NOCACHE))
+# define pgprot_analncached(prot) (__pgprot(pgprot_val(prot) | CF_PAGE_ANALCACHE))
 #else
-#ifdef SUN3_PAGE_NOCACHE
-# define __SUN3_PAGE_NOCACHE	SUN3_PAGE_NOCACHE
+#ifdef SUN3_PAGE_ANALCACHE
+# define __SUN3_PAGE_ANALCACHE	SUN3_PAGE_ANALCACHE
 #else
-# define __SUN3_PAGE_NOCACHE	0
+# define __SUN3_PAGE_ANALCACHE	0
 #endif
-#define pgprot_noncached(prot)							\
+#define pgprot_analncached(prot)							\
 	(MMU_IS_SUN3								\
-	 ? (__pgprot(pgprot_val(prot) | __SUN3_PAGE_NOCACHE))			\
+	 ? (__pgprot(pgprot_val(prot) | __SUN3_PAGE_ANALCACHE))			\
 	 : ((MMU_IS_851 || MMU_IS_030)						\
-	    ? (__pgprot(pgprot_val(prot) | _PAGE_NOCACHE030))			\
+	    ? (__pgprot(pgprot_val(prot) | _PAGE_ANALCACHE030))			\
 	    : (MMU_IS_040 || MMU_IS_060)					\
-	    ? (__pgprot((pgprot_val(prot) & _CACHEMASK040) | _PAGE_NOCACHE_S))	\
+	    ? (__pgprot((pgprot_val(prot) & _CACHEMASK040) | _PAGE_ANALCACHE_S))	\
 	    : (prot)))
 
 pgprot_t pgprot_dmacoherent(pgprot_t prot);

@@ -34,63 +34,63 @@ FIXTURE_VARIANT(bind_wildcard)
 {
 	const __u32 addr4_const;
 	const struct in6_addr *addr6_const;
-	int expected_errno;
+	int expected_erranal;
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_any)
 {
 	.addr4_const = INADDR_ANY,
 	.addr6_const = &in6addr_any,
-	.expected_errno = EADDRINUSE,
+	.expected_erranal = EADDRINUSE,
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_local)
 {
 	.addr4_const = INADDR_ANY,
 	.addr6_const = &in6addr_loopback,
-	.expected_errno = 0,
+	.expected_erranal = 0,
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_any)
 {
 	.addr4_const = INADDR_ANY,
 	.addr6_const = &in6addr_v4mapped_any,
-	.expected_errno = EADDRINUSE,
+	.expected_erranal = EADDRINUSE,
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_local)
 {
 	.addr4_const = INADDR_ANY,
 	.addr6_const = &in6addr_v4mapped_loopback,
-	.expected_errno = EADDRINUSE,
+	.expected_erranal = EADDRINUSE,
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_any)
 {
 	.addr4_const = INADDR_LOOPBACK,
 	.addr6_const = &in6addr_any,
-	.expected_errno = EADDRINUSE,
+	.expected_erranal = EADDRINUSE,
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_local)
 {
 	.addr4_const = INADDR_LOOPBACK,
 	.addr6_const = &in6addr_loopback,
-	.expected_errno = 0,
+	.expected_erranal = 0,
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_any)
 {
 	.addr4_const = INADDR_LOOPBACK,
 	.addr6_const = &in6addr_v4mapped_any,
-	.expected_errno = EADDRINUSE,
+	.expected_erranal = EADDRINUSE,
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_local)
 {
 	.addr4_const = INADDR_LOOPBACK,
 	.addr6_const = &in6addr_v4mapped_loopback,
-	.expected_errno = EADDRINUSE,
+	.expected_erranal = EADDRINUSE,
 };
 
 FIXTURE_SETUP(bind_wildcard)
@@ -110,7 +110,7 @@ FIXTURE_TEARDOWN(bind_wildcard)
 
 void bind_sockets(struct __test_metadata *_metadata,
 		  FIXTURE_DATA(bind_wildcard) *self,
-		  int expected_errno,
+		  int expected_erranal,
 		  struct sockaddr *addr1, socklen_t addrlen1,
 		  struct sockaddr *addr2, socklen_t addrlen2)
 {
@@ -132,9 +132,9 @@ void bind_sockets(struct __test_metadata *_metadata,
 	ASSERT_GT(fd[1], 0);
 
 	ret = bind(fd[1], addr2, addrlen2);
-	if (expected_errno) {
+	if (expected_erranal) {
 		ASSERT_EQ(ret, -1);
-		ASSERT_EQ(errno, expected_errno);
+		ASSERT_EQ(erranal, expected_erranal);
 	} else {
 		ASSERT_EQ(ret, 0);
 	}
@@ -145,14 +145,14 @@ void bind_sockets(struct __test_metadata *_metadata,
 
 TEST_F(bind_wildcard, v4_v6)
 {
-	bind_sockets(_metadata, self, variant->expected_errno,
+	bind_sockets(_metadata, self, variant->expected_erranal,
 		     (struct sockaddr *)&self->addr4, sizeof(self->addr4),
 		     (struct sockaddr *)&self->addr6, sizeof(self->addr6));
 }
 
 TEST_F(bind_wildcard, v6_v4)
 {
-	bind_sockets(_metadata, self, variant->expected_errno,
+	bind_sockets(_metadata, self, variant->expected_erranal,
 		     (struct sockaddr *)&self->addr6, sizeof(self->addr6),
 		     (struct sockaddr *)&self->addr4, sizeof(self->addr4));
 }

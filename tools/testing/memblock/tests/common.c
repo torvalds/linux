@@ -16,7 +16,7 @@ static int __maybe_unused nr_prefixes;
 static const char *short_opts = "hmv";
 static const struct option long_opts[] = {
 	{"help", 0, NULL, 'h'},
-	{"movable-node", 0, NULL, 'm'},
+	{"movable-analde", 0, NULL, 'm'},
 	{"verbose", 0, NULL, 'v'},
 	{NULL, 0, NULL, 0}
 };
@@ -24,7 +24,7 @@ static const struct option long_opts[] = {
 static const char * const help_opts[] = {
 	"display this help message and exit",
 	"disallow allocations from regions marked as hotplugged\n\t\t\t"
-		"by simulating enabling the \"movable_node\" kernel\n\t\t\t"
+		"by simulating enabling the \"movable_analde\" kernel\n\t\t\t"
 		"parameter",
 	"enable verbose output, which includes the name of the\n\t\t\t"
 		"memblock function being tested, the name of the test,\n\t\t\t"
@@ -33,8 +33,8 @@ static const char * const help_opts[] = {
 
 static int verbose;
 
-/* sets global variable returned by movable_node_is_enabled() stub */
-bool movable_node_enabled;
+/* sets global variable returned by movable_analde_is_enabled() stub */
+bool movable_analde_enabled;
 
 void reset_memblock_regions(void)
 {
@@ -73,29 +73,29 @@ void setup_memblock(void)
 
 /**
  * setup_numa_memblock:
- * Set up a memory layout with multiple NUMA nodes in a previously allocated
+ * Set up a memory layout with multiple NUMA analdes in a previously allocated
  * dummy physical memory.
- * @node_fracs: an array representing the fraction of MEM_SIZE contained in
- *              each node in basis point units (one hundredth of 1% or 1/10000).
- *              For example, if node 0 should contain 1/8 of MEM_SIZE,
- *              node_fracs[0] = 1250.
+ * @analde_fracs: an array representing the fraction of MEM_SIZE contained in
+ *              each analde in basis point units (one hundredth of 1% or 1/10000).
+ *              For example, if analde 0 should contain 1/8 of MEM_SIZE,
+ *              analde_fracs[0] = 1250.
  *
- * The nids will be set to 0 through NUMA_NODES - 1.
+ * The nids will be set to 0 through NUMA_ANALDES - 1.
  */
-void setup_numa_memblock(const unsigned int node_fracs[])
+void setup_numa_memblock(const unsigned int analde_fracs[])
 {
 	phys_addr_t base;
 	int flags;
 
 	reset_memblock_regions();
 	base = (phys_addr_t)memory_block.base;
-	flags = (movable_node_is_enabled()) ? MEMBLOCK_NONE : MEMBLOCK_HOTPLUG;
+	flags = (movable_analde_is_enabled()) ? MEMBLOCK_ANALNE : MEMBLOCK_HOTPLUG;
 
-	for (int i = 0; i < NUMA_NODES; i++) {
-		assert(node_fracs[i] <= BASIS);
-		phys_addr_t size = MEM_SIZE * node_fracs[i] / BASIS;
+	for (int i = 0; i < NUMA_ANALDES; i++) {
+		assert(analde_fracs[i] <= BASIS);
+		phys_addr_t size = MEM_SIZE * analde_fracs[i] / BASIS;
 
-		memblock_add_node(base, size, i, flags);
+		memblock_add_analde(base, size, i, flags);
 		base += size;
 	}
 	fill_memblock();
@@ -140,7 +140,7 @@ void parse_args(int argc, char **argv)
 				     NULL)) != -1) {
 		switch (c) {
 		case 'm':
-			movable_node_enabled = true;
+			movable_analde_enabled = true;
 			break;
 		case 'v':
 			verbose = 1;
@@ -177,11 +177,11 @@ void test_pass(void)
 void test_print(const char *fmt, ...)
 {
 	if (verbose) {
-		int saved_errno = errno;
+		int saved_erranal = erranal;
 		va_list args;
 
 		va_start(args, fmt);
-		errno = saved_errno;
+		erranal = saved_erranal;
 		vprintf(fmt, args);
 		va_end(args);
 	}

@@ -128,7 +128,7 @@ static const struct regulator_ops tps65132_regulator_ops = {
 	.set_active_discharge = regulator_set_active_discharge_regmap,
 };
 
-static int tps65132_of_parse_cb(struct device_node *np,
+static int tps65132_of_parse_cb(struct device_analde *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
@@ -136,27 +136,27 @@ static int tps65132_of_parse_cb(struct device_node *np,
 	struct tps65132_reg_pdata *rpdata = &tps->reg_pdata[desc->id];
 	int ret;
 
-	rpdata->en_gpiod = devm_fwnode_gpiod_get(tps->dev, of_fwnode_handle(np),
+	rpdata->en_gpiod = devm_fwanalde_gpiod_get(tps->dev, of_fwanalde_handle(np),
 						 "enable", GPIOD_ASIS,
 						 "enable");
 	if (IS_ERR(rpdata->en_gpiod)) {
 		ret = PTR_ERR(rpdata->en_gpiod);
 
-		/* Ignore the error other than probe defer */
+		/* Iganalre the error other than probe defer */
 		if (ret == -EPROBE_DEFER)
 			return ret;
 		return 0;
 	}
 
-	rpdata->act_dis_gpiod = devm_fwnode_gpiod_get(tps->dev,
-						      of_fwnode_handle(np),
+	rpdata->act_dis_gpiod = devm_fwanalde_gpiod_get(tps->dev,
+						      of_fwanalde_handle(np),
 						      "active-discharge",
 						      GPIOD_ASIS,
 						      "active-discharge");
 	if (IS_ERR(rpdata->act_dis_gpiod)) {
 		ret = PTR_ERR(rpdata->act_dis_gpiod);
 
-		/* Ignore the error other than probe defer */
+		/* Iganalre the error other than probe defer */
 		if (ret == -EPROBE_DEFER)
 			return ret;
 
@@ -201,23 +201,23 @@ static const struct regulator_desc tps_regs_desc[TPS65132_MAX_REGULATORS] = {
 	TPS65132_REGULATOR_DESC(VNEG, outn),
 };
 
-static const struct regmap_range tps65132_no_reg_ranges[] = {
+static const struct regmap_range tps65132_anal_reg_ranges[] = {
 	regmap_reg_range(TPS65132_REG_APPS_DISP_DISN + 1,
 			 TPS65132_REG_CONTROL - 1),
 };
 
-static const struct regmap_access_table tps65132_no_reg_table = {
-	.no_ranges = tps65132_no_reg_ranges,
-	.n_no_ranges = ARRAY_SIZE(tps65132_no_reg_ranges),
+static const struct regmap_access_table tps65132_anal_reg_table = {
+	.anal_ranges = tps65132_anal_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(tps65132_anal_reg_ranges),
 };
 
 static const struct regmap_config tps65132_regmap_config = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
 	.max_register	= TPS65132_REG_CONTROL,
-	.cache_type	= REGCACHE_NONE,
-	.rd_table	= &tps65132_no_reg_table,
-	.wr_table	= &tps65132_no_reg_table,
+	.cache_type	= REGCACHE_ANALNE,
+	.rd_table	= &tps65132_anal_reg_table,
+	.wr_table	= &tps65132_anal_reg_table,
 };
 
 static int tps65132_probe(struct i2c_client *client)
@@ -232,7 +232,7 @@ static int tps65132_probe(struct i2c_client *client)
 
 	tps = devm_kzalloc(dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rmap = devm_regmap_init_i2c(client, &tps65132_regmap_config);
 	if (IS_ERR(rmap)) {
@@ -270,7 +270,7 @@ MODULE_DEVICE_TABLE(i2c, tps65132_id);
 static struct i2c_driver tps65132_i2c_driver = {
 	.driver = {
 		.name = "tps65132",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = tps65132_probe,
 	.id_table = tps65132_id,

@@ -21,7 +21,7 @@
  *
  *  Used from driver probe and bus matching to check whether a RIO device
  *  matches a device id structure provided by a RIO driver. Returns the
- *  matching &struct rio_device_id or %NULL if there is no match.
+ *  matching &struct rio_device_id or %NULL if there is anal match.
  */
 static const struct rio_device_id *rio_match_device(const struct rio_device_id
 						    *id,
@@ -47,7 +47,7 @@ static const struct rio_device_id *rio_match_device(const struct rio_device_id
  *
  * Each live reference to a device should be refcounted.
  *
- * Drivers for RIO devices should normally record such references in
+ * Drivers for RIO devices should analrmally record such references in
  * their probe() methods, when they bind to a device, and release
  * them by calling rio_dev_put(), in their disconnect() methods.
  */
@@ -84,7 +84,7 @@ static int rio_device_probe(struct device *dev)
 {
 	struct rio_driver *rdrv = to_rio_driver(dev->driver);
 	struct rio_dev *rdev = to_rio_dev(dev);
-	int error = -ENODEV;
+	int error = -EANALDEV;
 	const struct rio_device_id *id;
 
 	if (!rdev->driver && rdrv->probe) {
@@ -142,8 +142,8 @@ static void rio_device_shutdown(struct device *dev)
  *  @rdrv: the RIO driver structure to register
  *
  *  Adds a &struct rio_driver to the list of registered drivers.
- *  Returns a negative value on error, otherwise 0. If no error
- *  occurred, the driver remains registered even if no device
+ *  Returns a negative value on error, otherwise 0. If anal error
+ *  occurred, the driver remains registered even if anal device
  *  was claimed during registration.
  */
 int rio_register_driver(struct rio_driver *rdrv)
@@ -184,7 +184,7 @@ EXPORT_SYMBOL_GPL(rio_attach_device);
  *  Used by a driver to check whether a RIO device present in the
  *  system is in its list of supported devices. Returns 1 if
  *  there is a matching &struct rio_device_id or 0 if there is
- *  no match.
+ *  anal match.
  */
 static int rio_match_bus(struct device *dev, struct device_driver *drv)
 {
@@ -209,15 +209,15 @@ static int rio_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	const struct rio_dev *rdev;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rdev = to_rio_dev(dev);
 	if (!rdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (add_uevent_var(env, "MODALIAS=rapidio:v%04Xd%04Xav%04Xad%04X",
 			   rdev->vid, rdev->did, rdev->asm_vid, rdev->asm_did))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

@@ -6,7 +6,7 @@
  */
 
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 
 static struct resource cobalt_buttons_resource __initdata = {
@@ -22,7 +22,7 @@ static __init int cobalt_add_buttons(void)
 
 	pd = platform_device_alloc("Cobalt buttons", -1);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = platform_device_add_resources(pd, &cobalt_buttons_resource, 1);
 	if (error)

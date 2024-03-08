@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -228,7 +228,7 @@ static void scu_busy_loop(void __iomem *scu_base)
 }
 
 /*
- *	You don't want to know, you really really don't want to know....
+ *	You don't want to kanalw, you really really don't want to kanalw....
  *
  *	This is magic. However it's safe magic because of the way the platform
  *	works and it is necessary magic.
@@ -522,7 +522,7 @@ static enum drm_mode_status oaktrail_hdmi_mode_valid(struct drm_connector *conne
 		return MODE_CLOCK_LOW;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 
 	return MODE_OK;
 }
@@ -574,7 +574,7 @@ static int oaktrail_hdmi_get_modes(struct drm_connector *connector)
 	 */
 	i2c_adap = i2c_get_adapter(3);
 	if (i2c_adap == NULL) {
-		DRM_ERROR("No ddc adapter available!\n");
+		DRM_ERROR("Anal ddc adapter available!\n");
 		edid = (struct edid *)raw_edid;
 	} else {
 		edid = (struct edid *)raw_edid;
@@ -774,7 +774,7 @@ void oaktrail_hdmi_save(struct drm_device *dev)
 	pipeb->stride = PSB_RVDC32(DSPBSTRIDE);
 	pipeb->addr = PSB_RVDC32(DSPBBASE);
 	pipeb->surf = PSB_RVDC32(DSPBSURF);
-	pipeb->linoff = PSB_RVDC32(DSPBLINOFF);
+	pipeb->lianalff = PSB_RVDC32(DSPBLIANALFF);
 	pipeb->tileoff = PSB_RVDC32(DSPBTILEOFF);
 
 	/* cursor B */
@@ -825,7 +825,7 @@ void oaktrail_hdmi_restore(struct drm_device *dev)
 	PSB_WVDC32(hdmi_dev->savePCH_PIPEBCONF, PCH_PIPEBCONF);
 
 	/* plane */
-	PSB_WVDC32(pipeb->linoff, DSPBLINOFF);
+	PSB_WVDC32(pipeb->lianalff, DSPBLIANALFF);
 	PSB_WVDC32(pipeb->stride, DSPBSTRIDE);
 	PSB_WVDC32(pipeb->tileoff, DSPBTILEOFF);
 	PSB_WVDC32(pipeb->cntr, DSPBCNTR);

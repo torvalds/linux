@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <net/if.h>
 #include <linux/compiler.h>
@@ -29,7 +29,7 @@ static int prepare_netns(void)
 
 	if (CHECK(unshare(CLONE_NEWNET), "create netns",
 		  "unshare(CLONE_NEWNET): %s (%d)",
-		  strerror(errno), errno))
+		  strerror(erranal), erranal))
 		return -1;
 
 	if (CHECK(system("ip link set dev lo up"),
@@ -85,8 +85,8 @@ static void test_conn(void)
 		return;
 
 	err = getsockname(listen_fd, (struct sockaddr *)&srv_sa6, &addrlen);
-	if (CHECK(err, "getsockname(listen_fd)", "err:%d errno:%d\n", err,
-		  errno))
+	if (CHECK(err, "getsockname(listen_fd)", "err:%d erranal:%d\n", err,
+		  erranal))
 		goto done;
 	memcpy(&skel->bss->srv_sa6, &srv_sa6, sizeof(srv_sa6));
 	srv_port = ntohs(srv_sa6.sin6_port);
@@ -140,8 +140,8 @@ static void test_syncookie(void)
 		return;
 
 	err = getsockname(listen_fd, (struct sockaddr *)&srv_sa6, &addrlen);
-	if (CHECK(err, "getsockname(listen_fd)", "err:%d errno:%d\n", err,
-		  errno))
+	if (CHECK(err, "getsockname(listen_fd)", "err:%d erranal:%d\n", err,
+		  erranal))
 		goto done;
 	memcpy(&skel->bss->srv_sa6, &srv_sa6, sizeof(srv_sa6));
 	srv_port = ntohs(srv_sa6.sin6_port);

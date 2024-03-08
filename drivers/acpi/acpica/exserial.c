@@ -147,7 +147,7 @@ acpi_ex_read_serial_bus(union acpi_operand_object *obj_desc,
 	 * This is an SMBus, GSBus or IPMI read. We must create a buffer to
 	 * hold the data and then directly access the region handler.
 	 *
-	 * Note: SMBus and GSBus protocol value is passed in upper 16-bits
+	 * Analte: SMBus and GSBus protocol value is passed in upper 16-bits
 	 * of Function
 	 *
 	 * Common buffer format:
@@ -209,7 +209,7 @@ acpi_ex_read_serial_bus(union acpi_operand_object *obj_desc,
 
 	buffer_desc = acpi_ut_create_buffer_object(buffer_length);
 	if (!buffer_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Lock entire transaction if requested */
@@ -267,7 +267,7 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 	 * Source must be a buffer of sufficient size, these are fixed size:
 	 * ACPI_SMBUS_BUFFER_SIZE, or ACPI_IPMI_BUFFER_SIZE.
 	 *
-	 * Note: SMBus and GSBus protocol type is passed in upper 16-bits
+	 * Analte: SMBus and GSBus protocol type is passed in upper 16-bits
 	 * of Function
 	 *
 	 * Common buffer format:
@@ -337,7 +337,7 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 
 	buffer_desc = acpi_ut_create_buffer_object(buffer_length);
 	if (!buffer_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Copy the input buffer data to the transfer buffer */

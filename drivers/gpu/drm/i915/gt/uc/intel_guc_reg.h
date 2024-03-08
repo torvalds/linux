@@ -145,7 +145,7 @@ struct guc_doorbell_info {
 #define GUC_INTR_DOORBELL_RANG		BIT(10)
 #define GUC_INTR_DMA_DONE		BIT(9)
 #define GUC_INTR_FATAL_ERROR		BIT(8)
-#define GUC_INTR_NOTIF_ERROR		BIT(7)
+#define GUC_INTR_ANALTIF_ERROR		BIT(7)
 #define GUC_INTR_SW_INT_6		BIT(6)
 #define GUC_INTR_SW_INT_5		BIT(5)
 #define GUC_INTR_SW_INT_4		BIT(4)

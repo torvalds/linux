@@ -29,7 +29,7 @@ char qmgr_queue_descs[QUEUES][32];
 void qmgr_put_entry(unsigned int queue, u32 val)
 {
 #if DEBUG_QMGR
-	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+	BUG_ON(!qmgr_queue_descs[queue]); /* analt yet requested */
 
 	printk(KERN_DEBUG "Queue %s(%i) put %X\n",
 	       qmgr_queue_descs[queue], queue, val);
@@ -42,7 +42,7 @@ u32 qmgr_get_entry(unsigned int queue)
 	u32 val;
 	val = __raw_readl(&qmgr_regs->acc[queue][0]);
 #if DEBUG_QMGR
-	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+	BUG_ON(!qmgr_queue_descs[queue]); /* analt yet requested */
 
 	printk(KERN_DEBUG "Queue %s(%i) get %X\n",
 	       qmgr_queue_descs[queue], queue, val);
@@ -67,7 +67,7 @@ static int __qmgr_get_stat2(unsigned int queue)
  * qmgr_stat_empty() - checks if a hardware queue is empty
  * @queue:	queue number
  *
- * Returns non-zero value if the queue is empty.
+ * Returns analn-zero value if the queue is empty.
  */
 int qmgr_stat_empty(unsigned int queue)
 {
@@ -79,7 +79,7 @@ int qmgr_stat_empty(unsigned int queue)
  * qmgr_stat_below_low_watermark() - checks if a queue is below low watermark
  * @queue:	queue number
  *
- * Returns non-zero value if the queue is below low watermark.
+ * Returns analn-zero value if the queue is below low watermark.
  */
 int qmgr_stat_below_low_watermark(unsigned int queue)
 {
@@ -93,7 +93,7 @@ int qmgr_stat_below_low_watermark(unsigned int queue)
  * qmgr_stat_full() - checks if a hardware queue is full
  * @queue:	queue number
  *
- * Returns non-zero value if the queue is full.
+ * Returns analn-zero value if the queue is full.
  */
 int qmgr_stat_full(unsigned int queue)
 {
@@ -107,7 +107,7 @@ int qmgr_stat_full(unsigned int queue)
  * qmgr_stat_overflow() - checks if a hardware queue experienced overflow
  * @queue:	queue number
  *
- * Returns non-zero value if the queue experienced overflow.
+ * Returns analn-zero value if the queue experienced overflow.
  */
 int qmgr_stat_overflow(unsigned int queue)
 {
@@ -123,14 +123,14 @@ void qmgr_set_irq(unsigned int queue, int src,
 	if (queue < HALF_QUEUES) {
 		u32 __iomem *reg;
 		int bit;
-		BUG_ON(src > QUEUE_IRQ_SRC_NOT_FULL);
+		BUG_ON(src > QUEUE_IRQ_SRC_ANALT_FULL);
 		reg = &qmgr_regs->irqsrc[queue >> 3]; /* 8 queues per u32 */
 		bit = (queue % 8) * 4; /* 3 bits + 1 reserved bit per queue */
 		__raw_writel((__raw_readl(reg) & ~(7 << bit)) | (src << bit),
 			     reg);
 	} else
 		/* IRQ source for queues 32-63 is fixed */
-		BUG_ON(src != QUEUE_IRQ_SRC_NOT_NEARLY_EMPTY);
+		BUG_ON(src != QUEUE_IRQ_SRC_ANALT_NEARLY_EMPTY);
 
 	irq_handlers[queue] = handler;
 	irq_pdevs[queue] = pdev;
@@ -281,7 +281,7 @@ int __qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
 	mask[1] = mask[2] = mask[3] = 0;
 
 	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irq(&qmgr_lock);
 	if (__raw_readl(&qmgr_regs->sram[queue])) {
@@ -299,9 +299,9 @@ int __qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
 		addr++;
 		shift_mask(mask);
 		if (addr + len > ARRAY_SIZE(qmgr_regs->sram)) {
-			printk(KERN_ERR "qmgr: no free SRAM space for"
+			printk(KERN_ERR "qmgr: anal free SRAM space for"
 			       " queue %i\n", queue);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err;
 		}
 	}
@@ -330,13 +330,13 @@ void qmgr_release_queue(unsigned int queue)
 {
 	u32 cfg, addr, mask[4];
 
-	BUG_ON(queue >= QUEUES); /* not in valid range */
+	BUG_ON(queue >= QUEUES); /* analt in valid range */
 
 	spin_lock_irq(&qmgr_lock);
 	cfg = __raw_readl(&qmgr_regs->sram[queue]);
 	addr = (cfg >> 14) & 0xFF;
 
-	BUG_ON(!addr);		/* not requested */
+	BUG_ON(!addr);		/* analt requested */
 
 	switch ((cfg >> 24) & 3) {
 	case 0: mask[0] = 0x1; break;
@@ -357,7 +357,7 @@ void qmgr_release_queue(unsigned int queue)
 #endif
 
 	while ((addr = qmgr_get_entry(queue)))
-		printk(KERN_ERR "qmgr: released queue %i not empty: 0x%08X\n",
+		printk(KERN_ERR "qmgr: released queue %i analt empty: 0x%08X\n",
 		       queue, addr);
 
 	__raw_writel(0, &qmgr_regs->sram[queue]);
@@ -382,7 +382,7 @@ static int ixp4xx_qmgr_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 	qmgr_regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(qmgr_regs))
 		return PTR_ERR(qmgr_regs);

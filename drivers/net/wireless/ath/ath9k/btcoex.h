@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -51,14 +51,14 @@
 enum ath_stomp_type {
 	ATH_BTCOEX_STOMP_ALL,
 	ATH_BTCOEX_STOMP_LOW,
-	ATH_BTCOEX_STOMP_NONE,
+	ATH_BTCOEX_STOMP_ANALNE,
 	ATH_BTCOEX_STOMP_LOW_FTP,
 	ATH_BTCOEX_STOMP_AUDIO,
 	ATH_BTCOEX_STOMP_MAX
 };
 
 enum ath_btcoex_scheme {
-	ATH_BTCOEX_CFG_NONE,
+	ATH_BTCOEX_CFG_ANALNE,
 	ATH_BTCOEX_CFG_2WIRE,
 	ATH_BTCOEX_CFG_3WIRE,
 	ATH_BTCOEX_CFG_MCI,
@@ -84,12 +84,12 @@ struct ath9k_hw_mci {
 	bool unhalt_bt_gpm; /* need send UNHALT */
 	bool halted_bt_gpm; /* HALT sent */
 	bool need_flush_btinfo;
-	bool bt_version_known;
+	bool bt_version_kanalwn;
 	bool wlan_channels_update;
 	u8 wlan_ver_major;
-	u8 wlan_ver_minor;
+	u8 wlan_ver_mianalr;
 	u8 bt_ver_major;
-	u8 bt_ver_minor;
+	u8 bt_ver_mianalr;
 	u8 bt_state;
 	u8 stomp_ftp;
 	bool concur_tx;

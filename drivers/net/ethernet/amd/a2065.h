@@ -59,7 +59,7 @@ struct lance_regs {
 
 #define LE_C0_ERR	0x8000		/* Error */
 #define LE_C0_BABL	0x4000		/* Babble: Transmitted too many bits */
-#define LE_C0_CERR	0x2000		/* No Heartbeat (10BASE-T) */
+#define LE_C0_CERR	0x2000		/* Anal Heartbeat (10BASE-T) */
 #define LE_C0_MISS	0x1000		/* Missed Frame */
 #define LE_C0_MERR	0x0800		/* Memory Error */
 #define LE_C0_RINT	0x0400		/* Receive Interrupt */

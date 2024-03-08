@@ -43,7 +43,7 @@ static int s5c73m3_get_af_status(struct s5c73m3 *state, struct v4l2_ctrl *ctrl)
 		ctrl->val = V4L2_AUTO_FOCUS_STATUS_REACHED;
 		break;
 	default:
-		v4l2_info(&state->sensor_sd, "Unknown AF status %#x\n", reg);
+		v4l2_info(&state->sensor_sd, "Unkanalwn AF status %#x\n", reg);
 		fallthrough;
 	case REG_CAF_STATUS_UNFOCUSED:
 	case REG_AF_STATUS_UNFOCUSED:
@@ -78,8 +78,8 @@ static int s5c73m3_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 static int s5c73m3_set_colorfx(struct s5c73m3 *state, int val)
 {
 	static const unsigned short colorfx[][2] = {
-		{ V4L2_COLORFX_NONE,	 COMM_IMAGE_EFFECT_NONE },
-		{ V4L2_COLORFX_BW,	 COMM_IMAGE_EFFECT_MONO },
+		{ V4L2_COLORFX_ANALNE,	 COMM_IMAGE_EFFECT_ANALNE },
+		{ V4L2_COLORFX_BW,	 COMM_IMAGE_EFFECT_MOANAL },
 		{ V4L2_COLORFX_SEPIA,	 COMM_IMAGE_EFFECT_SEPIA },
 		{ V4L2_COLORFX_NEGATIVE, COMM_IMAGE_EFFECT_NEGATIVE },
 		{ V4L2_COLORFX_AQUA,	 COMM_IMAGE_EFFECT_AQUA },
@@ -213,7 +213,7 @@ static int s5c73m3_set_auto_focus(struct s5c73m3 *state, int caf)
 
 	if (c->af_distance->is_new) {
 		u16 mode = (c->af_distance->val == V4L2_AUTO_FOCUS_RANGE_MACRO)
-				? COMM_AF_MODE_MACRO : COMM_AF_MODE_NORMAL;
+				? COMM_AF_MODE_MACRO : COMM_AF_MODE_ANALRMAL;
 		ret = s5c73m3_isp_command(state, COMM_AF_MODE, mode);
 		if (ret != 0)
 			return ret;
@@ -276,7 +276,7 @@ static int s5c73m3_set_jpeg_quality(struct s5c73m3 *state, int quality)
 	int reg;
 
 	if (quality <= 65)
-		reg = COMM_IMAGE_QUALITY_NORMAL;
+		reg = COMM_IMAGE_QUALITY_ANALRMAL;
 	else if (quality <= 75)
 		reg = COMM_IMAGE_QUALITY_FINE;
 	else
@@ -288,9 +288,9 @@ static int s5c73m3_set_jpeg_quality(struct s5c73m3 *state, int quality)
 static int s5c73m3_set_scene_program(struct s5c73m3 *state, int val)
 {
 	static const unsigned short scene_lookup[] = {
-		COMM_SCENE_MODE_NONE,	     /* V4L2_SCENE_MODE_NONE */
+		COMM_SCENE_MODE_ANALNE,	     /* V4L2_SCENE_MODE_ANALNE */
 		COMM_SCENE_MODE_AGAINST_LIGHT,/* V4L2_SCENE_MODE_BACKLIGHT */
-		COMM_SCENE_MODE_BEACH,	     /* V4L2_SCENE_MODE_BEACH_SNOW */
+		COMM_SCENE_MODE_BEACH,	     /* V4L2_SCENE_MODE_BEACH_SANALW */
 		COMM_SCENE_MODE_CANDLE,	     /* V4L2_SCENE_MODE_CANDLE_LIGHT */
 		COMM_SCENE_MODE_DAWN,	     /* V4L2_SCENE_MODE_DAWN_DUSK */
 		COMM_SCENE_MODE_FALL,	     /* V4L2_SCENE_MODE_FALL_COLORS */
@@ -312,11 +312,11 @@ static int s5c73m3_set_scene_program(struct s5c73m3 *state, int val)
 
 static int s5c73m3_set_power_line_freq(struct s5c73m3 *state, int val)
 {
-	unsigned int pwr_line_freq = COMM_FLICKER_NONE;
+	unsigned int pwr_line_freq = COMM_FLICKER_ANALNE;
 
 	switch (val) {
 	case V4L2_CID_POWER_LINE_FREQUENCY_DISABLED:
-		pwr_line_freq = COMM_FLICKER_NONE;
+		pwr_line_freq = COMM_FLICKER_ANALNE;
 		break;
 	case V4L2_CID_POWER_LINE_FREQUENCY_50HZ:
 		pwr_line_freq = COMM_FLICKER_AUTO_50HZ;
@@ -326,7 +326,7 @@ static int s5c73m3_set_power_line_freq(struct s5c73m3 *state, int val)
 		break;
 	default:
 	case V4L2_CID_POWER_LINE_FREQUENCY_AUTO:
-		pwr_line_freq = COMM_FLICKER_NONE;
+		pwr_line_freq = COMM_FLICKER_ANALNE;
 	}
 
 	return s5c73m3_isp_command(state, COMM_FLICKER_MODE, pwr_line_freq);
@@ -343,8 +343,8 @@ static int s5c73m3_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	mutex_lock(&state->lock);
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any controls to H/W at this time. Instead
+	 * If the device is analt powered up by the host driver do
+	 * analt apply any controls to H/W at this time. Instead
 	 * the controls will be restored right after power-up.
 	 */
 	if (state->power == 0)
@@ -487,9 +487,9 @@ int s5c73m3_init_controls(struct s5c73m3 *state)
 	ctrls->af_distance = v4l2_ctrl_new_std_menu(hdl, ops,
 			V4L2_CID_AUTO_FOCUS_RANGE,
 			V4L2_AUTO_FOCUS_RANGE_MACRO,
-			~(1 << V4L2_AUTO_FOCUS_RANGE_NORMAL |
+			~(1 << V4L2_AUTO_FOCUS_RANGE_ANALRMAL |
 			  1 << V4L2_AUTO_FOCUS_RANGE_MACRO),
-			V4L2_AUTO_FOCUS_RANGE_NORMAL);
+			V4L2_AUTO_FOCUS_RANGE_ANALRMAL);
 	/* ISO sensitivity */
 	ctrls->auto_iso = v4l2_ctrl_new_std_menu(hdl, ops,
 			V4L2_CID_ISO_SENSITIVITY_AUTO, 1, 0,
@@ -512,7 +512,7 @@ int s5c73m3_init_controls(struct s5c73m3 *state)
 			V4L2_CID_ZOOM_ABSOLUTE, 0, 30, 1, 0);
 
 	ctrls->colorfx = v4l2_ctrl_new_std_menu(hdl, ops, V4L2_CID_COLORFX,
-			V4L2_COLORFX_AQUA, ~0x40f, V4L2_COLORFX_NONE);
+			V4L2_COLORFX_AQUA, ~0x40f, V4L2_COLORFX_ANALNE);
 
 	ctrls->wdr = v4l2_ctrl_new_std(hdl, ops,
 			V4L2_CID_WIDE_DYNAMIC_RANGE, 0, 1, 1, 0);
@@ -529,7 +529,7 @@ int s5c73m3_init_controls(struct s5c73m3 *state)
 
 	ctrls->scene_mode = v4l2_ctrl_new_std_menu(hdl, ops,
 			V4L2_CID_SCENE_MODE, V4L2_SCENE_MODE_TEXT, ~0x3fff,
-			V4L2_SCENE_MODE_NONE);
+			V4L2_SCENE_MODE_ANALNE);
 
 	ctrls->aaa_lock = v4l2_ctrl_new_std(hdl, ops,
 			V4L2_CID_3A_LOCK, 0, 0x7, 0, 0);

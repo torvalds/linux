@@ -122,7 +122,7 @@ struct aat2870_data {
 
 	struct mutex io_lock;
 	struct aat2870_register *reg_cache; /* register cache */
-	int en_pin; /* enable GPIO pin (if < 0, ignore this value) */
+	int en_pin; /* enable GPIO pin (if < 0, iganalre this value) */
 	bool is_enable;
 
 	/* init and uninit for platform specified */
@@ -145,7 +145,7 @@ struct aat2870_subdev_info {
 };
 
 struct aat2870_platform_data {
-	int en_pin; /* enable GPIO pin (if < 0, ignore this value) */
+	int en_pin; /* enable GPIO pin (if < 0, iganalre this value) */
 
 	struct aat2870_subdev_info *subdevs;
 	int num_subdevs;

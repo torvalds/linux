@@ -22,7 +22,7 @@ struct _ddebug {
 	const char *function;
 	const char *filename;
 	const char *format;
-	unsigned int lineno:18;
+	unsigned int lineanal:18;
 #define CLS_BITS 6
 	unsigned int class_id:CLS_BITS;
 #define _DPRINTK_CLASS_DFLT		((1 << CLS_BITS) - 1)
@@ -31,17 +31,17 @@ struct _ddebug {
 	 * The bits here are changed dynamically when the user
 	 * writes commands to <debugfs>/dynamic_debug/control
 	 */
-#define _DPRINTK_FLAGS_NONE	0
+#define _DPRINTK_FLAGS_ANALNE	0
 #define _DPRINTK_FLAGS_PRINT	(1<<0) /* printk() a message using the format */
 #define _DPRINTK_FLAGS_INCL_MODNAME	(1<<1)
 #define _DPRINTK_FLAGS_INCL_FUNCNAME	(1<<2)
-#define _DPRINTK_FLAGS_INCL_LINENO	(1<<3)
+#define _DPRINTK_FLAGS_INCL_LINEANAL	(1<<3)
 #define _DPRINTK_FLAGS_INCL_TID		(1<<4)
 #define _DPRINTK_FLAGS_INCL_SOURCENAME	(1<<5)
 
 #define _DPRINTK_FLAGS_INCL_ANY		\
 	(_DPRINTK_FLAGS_INCL_MODNAME | _DPRINTK_FLAGS_INCL_FUNCNAME |\
-	 _DPRINTK_FLAGS_INCL_LINENO  | _DPRINTK_FLAGS_INCL_TID |\
+	 _DPRINTK_FLAGS_INCL_LINEANAL  | _DPRINTK_FLAGS_INCL_TID |\
 	 _DPRINTK_FLAGS_INCL_SOURCENAME)
 
 #if defined DEBUG
@@ -78,7 +78,7 @@ enum class_map_type {
 	/**
 	 * DD_CLASS_TYPE_LEVEL_NAMES: input is a CSV of [+-]CLASS_NAMES,
 	 * intended for names like: INFO,DEBUG,TRACE, with a module prefix
-	 * avoid EMERG,ALERT,CRIT,ERR,WARNING: they're not debug
+	 * avoid EMERG,ALERT,CRIT,ERR,WARNING: they're analt debug
 	 */
 };
 
@@ -93,7 +93,7 @@ struct ddebug_class_map {
 };
 
 /**
- * DECLARE_DYNDBG_CLASSMAP - declare classnames known by a module
+ * DECLARE_DYNDBG_CLASSMAP - declare classnames kanalwn by a module
  * @_var:   a struct ddebug_class_map, passed to module_param_cb
  * @_type:  enum class_map_type, chooses bits/verbose, numeric/symbolic
  * @_base:  offset of 1st class-name. splits .class_id space
@@ -167,7 +167,7 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 		.function = __func__,				\
 		.filename = __FILE__,				\
 		.format = (fmt),				\
-		.lineno = __LINE__,				\
+		.lineanal = __LINE__,				\
 		.flags = _DPRINTK_FLAGS_DEFAULT,		\
 		.class_id = cls,				\
 		_DPRINTK_KEY_INIT				\
@@ -216,7 +216,7 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
  * name/label multiple times, and tie the elements together.
  * Multiple flavors:
  * (|_cls):	adds in _DPRINT_CLASS_DFLT as needed
- * (|_no_desc):	former gets callsite descriptor as 1st arg (for prdbgs)
+ * (|_anal_desc):	former gets callsite descriptor as 1st arg (for prdbgs)
  */
 #define __dynamic_func_call_cls(id, cls, fmt, func, ...) do {	\
 	DEFINE_DYNAMIC_DEBUG_METADATA_CLS(id, cls, fmt);	\
@@ -227,13 +227,13 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 	__dynamic_func_call_cls(id, _DPRINTK_CLASS_DFLT, fmt,		\
 				func, ##__VA_ARGS__)
 
-#define __dynamic_func_call_cls_no_desc(id, cls, fmt, func, ...) do {	\
+#define __dynamic_func_call_cls_anal_desc(id, cls, fmt, func, ...) do {	\
 	DEFINE_DYNAMIC_DEBUG_METADATA_CLS(id, cls, fmt);		\
 	if (DYNAMIC_DEBUG_BRANCH(id))					\
 		func(__VA_ARGS__);					\
 } while (0)
-#define __dynamic_func_call_no_desc(id, fmt, func, ...)			\
-	__dynamic_func_call_cls_no_desc(id, _DPRINTK_CLASS_DFLT,	\
+#define __dynamic_func_call_anal_desc(id, fmt, func, ...)			\
+	__dynamic_func_call_cls_anal_desc(id, _DPRINTK_CLASS_DFLT,	\
 					fmt, func, ##__VA_ARGS__)
 
 /*
@@ -241,7 +241,7 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
  * DYNAMIC_DEBUG_BRANCH. The dynamic debug descriptor will be
  * initialized using the fmt argument. The function will be called with
  * the address of the descriptor as first argument, followed by all
- * the varargs. Note that fmt is repeated in invocations of this
+ * the varargs. Analte that fmt is repeated in invocations of this
  * macro.
  */
 #define _dynamic_func_call_cls(cls, fmt, func, ...)			\
@@ -250,15 +250,15 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 	_dynamic_func_call_cls(_DPRINTK_CLASS_DFLT, fmt, func, ##__VA_ARGS__)
 
 /*
- * A variant that does the same, except that the descriptor is not
+ * A variant that does the same, except that the descriptor is analt
  * passed as the first argument to the function; it is only called
  * with precisely the macro's varargs.
  */
-#define _dynamic_func_call_cls_no_desc(cls, fmt, func, ...)		\
-	__dynamic_func_call_cls_no_desc(__UNIQUE_ID(ddebug), cls, fmt,	\
+#define _dynamic_func_call_cls_anal_desc(cls, fmt, func, ...)		\
+	__dynamic_func_call_cls_anal_desc(__UNIQUE_ID(ddebug), cls, fmt,	\
 					func, ##__VA_ARGS__)
-#define _dynamic_func_call_no_desc(fmt, func, ...)			\
-	_dynamic_func_call_cls_no_desc(_DPRINTK_CLASS_DFLT, fmt,	\
+#define _dynamic_func_call_anal_desc(fmt, func, ...)			\
+	_dynamic_func_call_cls_anal_desc(_DPRINTK_CLASS_DFLT, fmt,	\
 				       func, ##__VA_ARGS__)
 
 #define dynamic_pr_debug_cls(cls, fmt, ...)				\
@@ -283,7 +283,7 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 
 #define dynamic_hex_dump(prefix_str, prefix_type, rowsize,		\
 			 groupsize, buf, len, ascii)			\
-	_dynamic_func_call_no_desc(__builtin_constant_p(prefix_str) ? prefix_str : "hexdump", \
+	_dynamic_func_call_anal_desc(__builtin_constant_p(prefix_str) ? prefix_str : "hexdump", \
 				   print_hex_dump,			\
 				   KERN_DEBUG, prefix_str, prefix_type,	\
 				   rowsize, groupsize, buf, len, ascii)
@@ -298,7 +298,7 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 #else /* !(CONFIG_DYNAMIC_DEBUG || (CONFIG_DYNAMIC_DEBUG_CORE && DYNAMIC_DEBUG_MODULE)) */
 
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/printk.h>
 
 #define DEFINE_DYNAMIC_DEBUG_METADATA(name, fmt)
@@ -335,7 +335,7 @@ static inline int ddebug_dyndbg_module_param_cb(char *param, char *val,
 		/* avoid pr_warn(), which wants pr_fmt() fully defined */
 		printk(KERN_WARNING "dyndbg param is supported only in "
 			"CONFIG_DYNAMIC_DEBUG builds\n");
-		return 0; /* allow and ignore */
+		return 0; /* allow and iganalre */
 	}
 	return -EINVAL;
 }

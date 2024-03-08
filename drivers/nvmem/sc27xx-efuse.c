@@ -167,7 +167,7 @@ static int sc27xx_efuse_read(void *context, u32 offset, void *val, size_t bytes)
 
 	/*
 	 * Polling the read done status to make sure the reading process
-	 * is completed, that means the data can be read out now.
+	 * is completed, that means the data can be read out analw.
 	 */
 	ret = sc27xx_efuse_poll_status(efuse, SC27XX_EFUSE_RD_DONE);
 	if (ret)
@@ -201,7 +201,7 @@ unlock_efuse:
 
 static int sc27xx_efuse_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct nvmem_config econfig = { };
 	struct nvmem_device *nvmem;
 	struct sc27xx_efuse *efuse;
@@ -209,12 +209,12 @@ static int sc27xx_efuse_probe(struct platform_device *pdev)
 
 	efuse = devm_kzalloc(&pdev->dev, sizeof(*efuse), GFP_KERNEL);
 	if (!efuse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	efuse->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!efuse->regmap) {
 		dev_err(&pdev->dev, "failed to get efuse regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = of_property_read_u32(np, "reg", &efuse->base);

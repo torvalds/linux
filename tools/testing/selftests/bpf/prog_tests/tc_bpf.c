@@ -173,15 +173,15 @@ static int test_tc_bpf_api(struct bpf_tc_hook *hook, int fd)
 
 	inv_hook.attach_point = BPF_TC_CUSTOM;
 	inv_hook.parent = 0;
-	/* These return EOPNOTSUPP instead of EINVAL as parent is checked after
+	/* These return EOPANALTSUPP instead of EINVAL as parent is checked after
 	 * attach_point of the hook.
 	 */
 	ret = bpf_tc_hook_create(&inv_hook);
-	if (!ASSERT_EQ(ret, -EOPNOTSUPP, "bpf_tc_hook_create invalid hook parent"))
+	if (!ASSERT_EQ(ret, -EOPANALTSUPP, "bpf_tc_hook_create invalid hook parent"))
 		return -EINVAL;
 
 	ret = bpf_tc_hook_destroy(&inv_hook);
-	if (!ASSERT_EQ(ret, -EOPNOTSUPP, "bpf_tc_hook_destroy invalid hook parent"))
+	if (!ASSERT_EQ(ret, -EOPANALTSUPP, "bpf_tc_hook_destroy invalid hook parent"))
 		return -EINVAL;
 
 	ret = bpf_tc_attach(&inv_hook, &attach_opts);
@@ -271,7 +271,7 @@ static int test_tc_bpf_api(struct bpf_tc_hook *hook, int fd)
 		if (!ASSERT_EQ(ret, -EINVAL, "bpf_tc_query invalid priority > UINT16_MAX"))
 			return -EINVAL;
 
-		/* when chain is not present, kernel returns -EINVAL */
+		/* when chain is analt present, kernel returns -EINVAL */
 		ret = bpf_tc_query(hook, &opts_hp);
 		if (!ASSERT_EQ(ret, -EINVAL, "bpf_tc_query valid handle, priority set"))
 			return -EINVAL;
@@ -353,7 +353,7 @@ void tc_bpf_root(void)
 	hook.attach_point = BPF_TC_CUSTOM;
 	hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_INGRESS);
 	ret = bpf_tc_hook_create(&hook);
-	if (!ASSERT_EQ(ret, -EOPNOTSUPP, "bpf_tc_hook_create invalid hook.attach_point"))
+	if (!ASSERT_EQ(ret, -EOPANALTSUPP, "bpf_tc_hook_create invalid hook.attach_point"))
 		goto end;
 
 	ret = test_tc_bpf_basic(&hook, cls_fd);
@@ -361,7 +361,7 @@ void tc_bpf_root(void)
 		goto end;
 
 	ret = bpf_tc_hook_destroy(&hook);
-	if (!ASSERT_EQ(ret, -EOPNOTSUPP, "bpf_tc_hook_destroy invalid hook.attach_point"))
+	if (!ASSERT_EQ(ret, -EOPANALTSUPP, "bpf_tc_hook_destroy invalid hook.attach_point"))
 		goto end;
 
 	hook.attach_point = BPF_TC_INGRESS;
@@ -395,13 +395,13 @@ end:
 	test_tc_bpf__destroy(skel);
 }
 
-void tc_bpf_non_root(void)
+void tc_bpf_analn_root(void)
 {
 	struct test_tc_bpf *skel = NULL;
 	__u64 caps = 0;
 	int ret;
 
-	/* In case CAP_BPF and CAP_PERFMON is not set */
+	/* In case CAP_BPF and CAP_PERFMON is analt set */
 	ret = cap_enable_effective(1ULL << CAP_BPF | 1ULL << CAP_NET_ADMIN, &caps);
 	if (!ASSERT_OK(ret, "set_cap_bpf_cap_net_admin"))
 		return;
@@ -424,6 +424,6 @@ void test_tc_bpf(void)
 {
 	if (test__start_subtest("tc_bpf_root"))
 		tc_bpf_root();
-	if (test__start_subtest("tc_bpf_non_root"))
-		tc_bpf_non_root();
+	if (test__start_subtest("tc_bpf_analn_root"))
+		tc_bpf_analn_root();
 }

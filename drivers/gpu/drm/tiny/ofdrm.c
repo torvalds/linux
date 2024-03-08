@@ -26,7 +26,7 @@
 #define DRIVER_DESC	"DRM driver for OF platform devices"
 #define DRIVER_DATE	"20220501"
 #define DRIVER_MAJOR	1
-#define DRIVER_MINOR	0
+#define DRIVER_MIANALR	0
 
 #define PCI_VENDOR_ID_ATI_R520	0x7100
 #define PCI_VENDOR_ID_ATI_R600	0x9400
@@ -59,7 +59,7 @@
 #define AVIVO_DC_LUTB_WHITE_OFFSET_RED          0x6cd8
 
 enum ofdrm_model {
-	OFDRM_MODEL_UNKNOWN,
+	OFDRM_MODEL_UNKANALWN,
 	OFDRM_MODEL_MACH64, /* ATI Mach64 */
 	OFDRM_MODEL_RAGE128, /* ATI Rage128 */
 	OFDRM_MODEL_RAGE_M3A, /* ATI Rage Mobility M3 Head A */
@@ -71,7 +71,7 @@ enum ofdrm_model {
 };
 
 /*
- * Helpers for display nodes
+ * Helpers for display analdes
  */
 
 static int display_get_validated_int(struct drm_device *dev, const char *name, uint32_t value)
@@ -116,7 +116,7 @@ static const struct drm_format_info *display_get_validated_format(struct drm_dev
 
 	/*
 	 * DRM formats assume little-endian byte order. Update the format
-	 * if the scanout buffer uses big-endian ordering.
+	 * if the scaanalut buffer uses big-endian ordering.
 	 */
 	if (big_endian) {
 		switch (format) {
@@ -139,87 +139,87 @@ static const struct drm_format_info *display_get_validated_format(struct drm_dev
 
 	info = drm_format_info(format);
 	if (!info) {
-		drm_err(dev, "cannot find framebuffer format for depth %u\n", depth);
+		drm_err(dev, "cananalt find framebuffer format for depth %u\n", depth);
 		return ERR_PTR(-EINVAL);
 	}
 
 	return info;
 }
 
-static int display_read_u32_of(struct drm_device *dev, struct device_node *of_node,
+static int display_read_u32_of(struct drm_device *dev, struct device_analde *of_analde,
 			       const char *name, u32 *value)
 {
-	int ret = of_property_read_u32(of_node, name, value);
+	int ret = of_property_read_u32(of_analde, name, value);
 
 	if (ret)
-		drm_err(dev, "cannot parse framebuffer %s: error %d\n", name, ret);
+		drm_err(dev, "cananalt parse framebuffer %s: error %d\n", name, ret);
 	return ret;
 }
 
-static bool display_get_big_endian_of(struct drm_device *dev, struct device_node *of_node)
+static bool display_get_big_endian_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	bool big_endian;
 
 #ifdef __BIG_ENDIAN
-	big_endian = !of_property_read_bool(of_node, "little-endian");
+	big_endian = !of_property_read_bool(of_analde, "little-endian");
 #else
-	big_endian = of_property_read_bool(of_node, "big-endian");
+	big_endian = of_property_read_bool(of_analde, "big-endian");
 #endif
 
 	return big_endian;
 }
 
-static int display_get_width_of(struct drm_device *dev, struct device_node *of_node)
+static int display_get_width_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	u32 width;
-	int ret = display_read_u32_of(dev, of_node, "width", &width);
+	int ret = display_read_u32_of(dev, of_analde, "width", &width);
 
 	if (ret)
 		return ret;
 	return display_get_validated_int0(dev, "width", width);
 }
 
-static int display_get_height_of(struct drm_device *dev, struct device_node *of_node)
+static int display_get_height_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	u32 height;
-	int ret = display_read_u32_of(dev, of_node, "height", &height);
+	int ret = display_read_u32_of(dev, of_analde, "height", &height);
 
 	if (ret)
 		return ret;
 	return display_get_validated_int0(dev, "height", height);
 }
 
-static int display_get_depth_of(struct drm_device *dev, struct device_node *of_node)
+static int display_get_depth_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	u32 depth;
-	int ret = display_read_u32_of(dev, of_node, "depth", &depth);
+	int ret = display_read_u32_of(dev, of_analde, "depth", &depth);
 
 	if (ret)
 		return ret;
 	return display_get_validated_int0(dev, "depth", depth);
 }
 
-static int display_get_linebytes_of(struct drm_device *dev, struct device_node *of_node)
+static int display_get_linebytes_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	u32 linebytes;
-	int ret = display_read_u32_of(dev, of_node, "linebytes", &linebytes);
+	int ret = display_read_u32_of(dev, of_analde, "linebytes", &linebytes);
 
 	if (ret)
 		return ret;
 	return display_get_validated_int(dev, "linebytes", linebytes);
 }
 
-static u64 display_get_address_of(struct drm_device *dev, struct device_node *of_node)
+static u64 display_get_address_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	u32 address;
 	int ret;
 
 	/*
-	 * Not all devices provide an address property, it's not
+	 * Analt all devices provide an address property, it's analt
 	 * a bug if this fails. The driver will try to find the
 	 * framebuffer base address from the device's memory regions.
 	 */
-	ret = of_property_read_u32(of_node, "address", &address);
+	ret = of_property_read_u32(of_analde, "address", &address);
 	if (ret)
 		return OF_BAD_ADDR;
 
@@ -234,30 +234,30 @@ static bool is_avivo(u32 vendor, u32 device)
 		(PCI_VENDOR_ID_ATI_R600 >= 0x9400));
 }
 
-static enum ofdrm_model display_get_model_of(struct drm_device *dev, struct device_node *of_node)
+static enum ofdrm_model display_get_model_of(struct drm_device *dev, struct device_analde *of_analde)
 {
-	enum ofdrm_model model = OFDRM_MODEL_UNKNOWN;
+	enum ofdrm_model model = OFDRM_MODEL_UNKANALWN;
 
-	if (of_node_name_prefix(of_node, "ATY,Rage128")) {
+	if (of_analde_name_prefix(of_analde, "ATY,Rage128")) {
 		model = OFDRM_MODEL_RAGE128;
-	} else if (of_node_name_prefix(of_node, "ATY,RageM3pA") ||
-		   of_node_name_prefix(of_node, "ATY,RageM3p12A")) {
+	} else if (of_analde_name_prefix(of_analde, "ATY,RageM3pA") ||
+		   of_analde_name_prefix(of_analde, "ATY,RageM3p12A")) {
 		model = OFDRM_MODEL_RAGE_M3A;
-	} else if (of_node_name_prefix(of_node, "ATY,RageM3pB")) {
+	} else if (of_analde_name_prefix(of_analde, "ATY,RageM3pB")) {
 		model = OFDRM_MODEL_RAGE_M3B;
-	} else if (of_node_name_prefix(of_node, "ATY,Rage6")) {
+	} else if (of_analde_name_prefix(of_analde, "ATY,Rage6")) {
 		model = OFDRM_MODEL_RADEON;
-	} else if (of_node_name_prefix(of_node, "ATY,")) {
+	} else if (of_analde_name_prefix(of_analde, "ATY,")) {
 		return OFDRM_MODEL_MACH64;
-	} else if (of_device_is_compatible(of_node, "pci1014,b7") ||
-		   of_device_is_compatible(of_node, "pci1014,21c")) {
+	} else if (of_device_is_compatible(of_analde, "pci1014,b7") ||
+		   of_device_is_compatible(of_analde, "pci1014,21c")) {
 		model = OFDRM_MODEL_GXT2000;
-	} else if (of_node_name_prefix(of_node, "vga,Display-")) {
-		struct device_node *of_parent;
+	} else if (of_analde_name_prefix(of_analde, "vga,Display-")) {
+		struct device_analde *of_parent;
 		const __be32 *vendor_p, *device_p;
 
 		/* Look for AVIVO initialized by SLOF */
-		of_parent = of_get_parent(of_node);
+		of_parent = of_get_parent(of_analde);
 		vendor_p = of_get_property(of_parent, "vendor-id", NULL);
 		device_p = of_get_property(of_parent, "device-id", NULL);
 		if (vendor_p && device_p) {
@@ -267,8 +267,8 @@ static enum ofdrm_model display_get_model_of(struct drm_device *dev, struct devi
 			if (is_avivo(vendor, device))
 				model = OFDRM_MODEL_AVIVO;
 		}
-		of_node_put(of_parent);
-	} else if (of_device_is_compatible(of_node, "qemu,std-vga")) {
+		of_analde_put(of_parent);
+	} else if (of_device_is_compatible(of_analde, "qemu,std-vga")) {
 		model = OFDRM_MODEL_QEMU;
 	}
 
@@ -283,7 +283,7 @@ struct ofdrm_device;
 
 struct ofdrm_device_funcs {
 	void __iomem *(*cmap_ioremap)(struct ofdrm_device *odev,
-				      struct device_node *of_node,
+				      struct device_analde *of_analde,
 				      u64 fb_bas);
 	void (*cmap_write)(struct ofdrm_device *odev, unsigned char index,
 			   unsigned char r, unsigned char g, unsigned char b);
@@ -322,25 +322,25 @@ static struct ofdrm_device *ofdrm_device_of_dev(struct drm_device *dev)
  */
 
 #if defined(CONFIG_PCI)
-static struct pci_dev *display_get_pci_dev_of(struct drm_device *dev, struct device_node *of_node)
+static struct pci_dev *display_get_pci_dev_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	const __be32 *vendor_p, *device_p;
 	u32 vendor, device;
 	struct pci_dev *pcidev;
 
-	vendor_p = of_get_property(of_node, "vendor-id", NULL);
+	vendor_p = of_get_property(of_analde, "vendor-id", NULL);
 	if (!vendor_p)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	vendor = be32_to_cpup(vendor_p);
 
-	device_p = of_get_property(of_node, "device-id", NULL);
+	device_p = of_get_property(of_analde, "device-id", NULL);
 	if (!device_p)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	device = be32_to_cpup(device_p);
 
 	pcidev = pci_get_device(vendor, device, NULL);
 	if (!pcidev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return pcidev;
 }
@@ -356,7 +356,7 @@ static int ofdrm_device_init_pci(struct ofdrm_device *odev)
 {
 	struct drm_device *dev = &odev->dev;
 	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct device_node *of_node = pdev->dev.of_node;
+	struct device_analde *of_analde = pdev->dev.of_analde;
 	struct pci_dev *pcidev;
 	int ret;
 
@@ -367,9 +367,9 @@ static int ofdrm_device_init_pci(struct ofdrm_device *odev)
 	 * the lifetime of the platform device until the native driver
 	 * takes over.
 	 */
-	pcidev = display_get_pci_dev_of(dev, of_node);
+	pcidev = display_get_pci_dev_of(dev, of_analde);
 	if (IS_ERR(pcidev))
-		return 0; /* no PCI device found; ignore the error */
+		return 0; /* anal PCI device found; iganalre the error */
 
 	ret = pci_enable_device(pcidev);
 	if (ret) {
@@ -420,8 +420,8 @@ static struct resource *ofdrm_find_fb_resource(struct ofdrm_device *odev,
  * Colormap / Palette
  */
 
-static void __iomem *get_cmap_address_of(struct ofdrm_device *odev, struct device_node *of_node,
-					 int bar_no, unsigned long offset, unsigned long size)
+static void __iomem *get_cmap_address_of(struct ofdrm_device *odev, struct device_analde *of_analde,
+					 int bar_anal, unsigned long offset, unsigned long size)
 {
 	struct drm_device *dev = &odev->dev;
 	const __be32 *addr_p;
@@ -429,31 +429,31 @@ static void __iomem *get_cmap_address_of(struct ofdrm_device *odev, struct devic
 	unsigned int flags;
 	void __iomem *mem;
 
-	addr_p = of_get_pci_address(of_node, bar_no, &max_size, &flags);
+	addr_p = of_get_pci_address(of_analde, bar_anal, &max_size, &flags);
 	if (!addr_p)
-		addr_p = of_get_address(of_node, bar_no, &max_size, &flags);
+		addr_p = of_get_address(of_analde, bar_anal, &max_size, &flags);
 	if (!addr_p)
-		return IOMEM_ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-EANALDEV);
 
 	if ((flags & (IORESOURCE_IO | IORESOURCE_MEM)) == 0)
-		return IOMEM_ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-EANALDEV);
 
 	if ((offset + size) >= max_size)
-		return IOMEM_ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-EANALDEV);
 
-	address = of_translate_address(of_node, addr_p);
+	address = of_translate_address(of_analde, addr_p);
 	if (address == OF_BAD_ADDR)
-		return IOMEM_ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-EANALDEV);
 
 	mem = devm_ioremap(dev->dev, address + offset, size);
 	if (!mem)
-		return IOMEM_ERR_PTR(-ENOMEM);
+		return IOMEM_ERR_PTR(-EANALMEM);
 
 	return mem;
 }
 
 static void __iomem *ofdrm_mach64_cmap_ioremap(struct ofdrm_device *odev,
-					       struct device_node *of_node,
+					       struct device_analde *of_analde,
 					       u64 fb_base)
 {
 	struct drm_device *dev = &odev->dev;
@@ -465,7 +465,7 @@ static void __iomem *ofdrm_mach64_cmap_ioremap(struct ofdrm_device *odev,
 
 	cmap_base = devm_ioremap(dev->dev, address, 0x1000);
 	if (!cmap_base)
-		return IOMEM_ERR_PTR(-ENOMEM);
+		return IOMEM_ERR_PTR(-EANALMEM);
 
 	return cmap_base;
 }
@@ -483,10 +483,10 @@ static void ofdrm_mach64_cmap_write(struct ofdrm_device *odev, unsigned char ind
 }
 
 static void __iomem *ofdrm_rage128_cmap_ioremap(struct ofdrm_device *odev,
-						struct device_node *of_node,
+						struct device_analde *of_analde,
 						u64 fb_base)
 {
-	return get_cmap_address_of(odev, of_node, 2, 0, 0x1fff);
+	return get_cmap_address_of(odev, of_analde, 2, 0, 0x1fff);
 }
 
 static void ofdrm_rage128_cmap_write(struct ofdrm_device *odev, unsigned char index,
@@ -501,10 +501,10 @@ static void ofdrm_rage128_cmap_write(struct ofdrm_device *odev, unsigned char in
 }
 
 static void __iomem *ofdrm_rage_m3a_cmap_ioremap(struct ofdrm_device *odev,
-						 struct device_node *of_node,
+						 struct device_analde *of_analde,
 						 u64 fb_base)
 {
-	return get_cmap_address_of(odev, of_node, 2, 0, 0x1fff);
+	return get_cmap_address_of(odev, of_analde, 2, 0, 0x1fff);
 }
 
 static void ofdrm_rage_m3a_cmap_write(struct ofdrm_device *odev, unsigned char index,
@@ -527,10 +527,10 @@ static void ofdrm_rage_m3a_cmap_write(struct ofdrm_device *odev, unsigned char i
 }
 
 static void __iomem *ofdrm_rage_m3b_cmap_ioremap(struct ofdrm_device *odev,
-						 struct device_node *of_node,
+						 struct device_analde *of_analde,
 						 u64 fb_base)
 {
-	return get_cmap_address_of(odev, of_node, 2, 0, 0x1fff);
+	return get_cmap_address_of(odev, of_analde, 2, 0, 0x1fff);
 }
 
 static void ofdrm_rage_m3b_cmap_write(struct ofdrm_device *odev, unsigned char index,
@@ -553,17 +553,17 @@ static void ofdrm_rage_m3b_cmap_write(struct ofdrm_device *odev, unsigned char i
 }
 
 static void __iomem *ofdrm_radeon_cmap_ioremap(struct ofdrm_device *odev,
-					       struct device_node *of_node,
+					       struct device_analde *of_analde,
 					       u64 fb_base)
 {
-	return get_cmap_address_of(odev, of_node, 1, 0, 0x1fff);
+	return get_cmap_address_of(odev, of_analde, 1, 0, 0x1fff);
 }
 
 static void __iomem *ofdrm_gxt2000_cmap_ioremap(struct ofdrm_device *odev,
-						struct device_node *of_node,
+						struct device_analde *of_analde,
 						u64 fb_base)
 {
-	return get_cmap_address_of(odev, of_node, 0, 0x6000, 0x1000);
+	return get_cmap_address_of(odev, of_analde, 0, 0x6000, 0x1000);
 }
 
 static void ofdrm_gxt2000_cmap_write(struct ofdrm_device *odev, unsigned char index,
@@ -576,15 +576,15 @@ static void ofdrm_gxt2000_cmap_write(struct ofdrm_device *odev, unsigned char in
 }
 
 static void __iomem *ofdrm_avivo_cmap_ioremap(struct ofdrm_device *odev,
-					      struct device_node *of_node,
+					      struct device_analde *of_analde,
 					      u64 fb_base)
 {
-	struct device_node *of_parent;
+	struct device_analde *of_parent;
 	void __iomem *cmap_base;
 
-	of_parent = of_get_parent(of_node);
+	of_parent = of_get_parent(of_analde);
 	cmap_base = get_cmap_address_of(odev, of_parent, 0, 0, 0x10000);
-	of_node_put(of_parent);
+	of_analde_put(of_parent);
 
 	return cmap_base;
 }
@@ -597,7 +597,7 @@ static void ofdrm_avivo_cmap_write(struct ofdrm_device *odev, unsigned char inde
 	void __iomem *data = odev->cmap_base + AVIVO_DC_LUT_30_COLOR;
 	u32 color = (r << 22) | (g << 12) | (b << 2);
 
-	/* Write to both LUTs for now */
+	/* Write to both LUTs for analw */
 
 	writel(1, lutsel);
 	writeb(index, addr);
@@ -609,7 +609,7 @@ static void ofdrm_avivo_cmap_write(struct ofdrm_device *odev, unsigned char inde
 }
 
 static void __iomem *ofdrm_qemu_cmap_ioremap(struct ofdrm_device *odev,
-					     struct device_node *of_node,
+					     struct device_analde *of_analde,
 					     u64 fb_base)
 {
 	static const __be32 io_of_addr[3] = {
@@ -622,13 +622,13 @@ static void __iomem *ofdrm_qemu_cmap_ioremap(struct ofdrm_device *odev,
 	u64 address;
 	void __iomem *cmap_base;
 
-	address = of_translate_address(of_node, io_of_addr);
+	address = of_translate_address(of_analde, io_of_addr);
 	if (address == OF_BAD_ADDR)
-		return IOMEM_ERR_PTR(-ENODEV);
+		return IOMEM_ERR_PTR(-EANALDEV);
 
 	cmap_base = devm_ioremap(dev->dev, address + 0x3c8, 2);
 	if (!cmap_base)
-		return IOMEM_ERR_PTR(-ENOMEM);
+		return IOMEM_ERR_PTR(-EANALMEM);
 
 	return cmap_base;
 }
@@ -772,8 +772,8 @@ static int ofdrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 		new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_plane_state->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, false);
 	if (ret)
 		return ret;
@@ -787,7 +787,7 @@ static int ofdrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 		buf = drm_format_conv_state_reserve(&new_shadow_plane_state->fmtcnv_state,
 						    odev->pitch, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_plane_state->crtc);
@@ -1029,7 +1029,7 @@ static const struct drm_mode_config_funcs ofdrm_mode_config_funcs = {
  * Init / Cleanup
  */
 
-static const struct ofdrm_device_funcs ofdrm_unknown_device_funcs = {
+static const struct ofdrm_device_funcs ofdrm_unkanalwn_device_funcs = {
 };
 
 static const struct ofdrm_device_funcs ofdrm_mach64_device_funcs = {
@@ -1090,7 +1090,7 @@ static struct drm_display_mode ofdrm_mode(unsigned int width, unsigned int heigh
 static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 						struct platform_device *pdev)
 {
-	struct device_node *of_node = pdev->dev.of_node;
+	struct device_analde *of_analde = pdev->dev.of_analde;
 	struct ofdrm_device *odev;
 	struct drm_device *dev;
 	enum ofdrm_model model;
@@ -1120,15 +1120,15 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 		return ERR_PTR(ret);
 
 	/*
-	 * OF display-node settings
+	 * OF display-analde settings
 	 */
 
-	model = display_get_model_of(dev, of_node);
+	model = display_get_model_of(dev, of_analde);
 	drm_dbg(dev, "detected model %d\n", model);
 
 	switch (model) {
-	case OFDRM_MODEL_UNKNOWN:
-		odev->funcs = &ofdrm_unknown_device_funcs;
+	case OFDRM_MODEL_UNKANALWN:
+		odev->funcs = &ofdrm_unkanalwn_device_funcs;
 		break;
 	case OFDRM_MODEL_MACH64:
 		odev->funcs = &ofdrm_mach64_device_funcs;
@@ -1156,18 +1156,18 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 		break;
 	}
 
-	big_endian = display_get_big_endian_of(dev, of_node);
+	big_endian = display_get_big_endian_of(dev, of_analde);
 
-	width = display_get_width_of(dev, of_node);
+	width = display_get_width_of(dev, of_analde);
 	if (width < 0)
 		return ERR_PTR(width);
-	height = display_get_height_of(dev, of_node);
+	height = display_get_height_of(dev, of_analde);
 	if (height < 0)
 		return ERR_PTR(height);
-	depth = display_get_depth_of(dev, of_node);
+	depth = display_get_depth_of(dev, of_analde);
 	if (depth < 0)
 		return ERR_PTR(depth);
-	linebytes = display_get_linebytes_of(dev, of_node);
+	linebytes = display_get_linebytes_of(dev, of_analde);
 	if (linebytes < 0)
 		return ERR_PTR(linebytes);
 
@@ -1188,11 +1188,11 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	 * dodgy heuristic that happens to work in practice.
 	 *
 	 * On most machines, the "address" property contains what we need, though
-	 * not on Matrox cards found in IBM machines. What appears to give good
+	 * analt on Matrox cards found in IBM machines. What appears to give good
 	 * results is to go through the PCI ranges and pick one that encloses the
-	 * "address" property. If none match, we pick the largest.
+	 * "address" property. If analne match, we pick the largest.
 	 */
-	address = display_get_address_of(dev, of_node);
+	address = display_get_address_of(dev, of_analde);
 	if (address != OF_BAD_ADDR) {
 		struct resource fb_res = DEFINE_RES_MEM(address, fb_size);
 
@@ -1221,26 +1221,26 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 
 	ret = devm_aperture_acquire_from_firmware(dev, fb_pgbase, fb_pgsize);
 	if (ret) {
-		drm_err(dev, "could not acquire memory range %pr: error %d\n", &res, ret);
+		drm_err(dev, "could analt acquire memory range %pr: error %d\n", &res, ret);
 		return ERR_PTR(ret);
 	}
 
 	mem = devm_request_mem_region(&pdev->dev, fb_pgbase, fb_pgsize, drv->name);
 	if (!mem) {
-		drm_warn(dev, "could not acquire memory region %pr\n", &res);
-		return ERR_PTR(-ENOMEM);
+		drm_warn(dev, "could analt acquire memory region %pr\n", &res);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	screen_base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
 	if (!screen_base)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (odev->funcs->cmap_ioremap) {
-		void __iomem *cmap_base = odev->funcs->cmap_ioremap(odev, of_node, fb_base);
+		void __iomem *cmap_base = odev->funcs->cmap_ioremap(odev, of_analde, fb_base);
 
 		if (IS_ERR(cmap_base)) {
 			/* Don't fail; continue without colormap */
-			drm_warn(dev, "could not find colormap: error %ld\n", PTR_ERR(cmap_base));
+			drm_warn(dev, "could analt find colormap: error %ld\n", PTR_ERR(cmap_base));
 		} else {
 			odev->cmap_base = cmap_base;
 		}
@@ -1310,7 +1310,7 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	/* Encoder */
 
 	encoder = &odev->encoder;
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_NONE);
+	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_ANALNE);
 	if (ret)
 		return ERR_PTR(ret);
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
@@ -1319,12 +1319,12 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 
 	connector = &odev->connector;
 	ret = drm_connector_init(dev, connector, &ofdrm_connector_funcs,
-				 DRM_MODE_CONNECTOR_Unknown);
+				 DRM_MODE_CONNECTOR_Unkanalwn);
 	if (ret)
 		return ERR_PTR(ret);
 	drm_connector_helper_add(connector, &ofdrm_connector_helper_funcs);
 	drm_connector_set_panel_orientation_with_quirk(connector,
-						       DRM_MODE_PANEL_ORIENTATION_UNKNOWN,
+						       DRM_MODE_PANEL_ORIENTATION_UNKANALWN,
 						       width, height);
 
 	ret = drm_connector_attach_encoder(connector, encoder);
@@ -1348,7 +1348,7 @@ static struct drm_driver ofdrm_driver = {
 	.desc			= DRIVER_DESC,
 	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
-	.minor			= DRIVER_MINOR,
+	.mianalr			= DRIVER_MIANALR,
 	.driver_features	= DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 	.fops			= &ofdrm_fops,
 };

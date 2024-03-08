@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <syscall.h>
 #include <unistd.h>
@@ -47,7 +47,7 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 
 int main(int argc, char **argv)
 {
-	const char *probe_name = "syscalls/sys_enter_nanosleep";
+	const char *probe_name = "syscalls/sys_enter_naanalsleep";
 	const char *file = "get_cgroup_id_kern.bpf.o";
 	int err, bytes, efd, prog_fd, pmu_fd;
 	int cgroup_fd, cgidmap_fd, pidmap_fd;
@@ -63,24 +63,24 @@ int main(int argc, char **argv)
 	};
 
 	cgroup_fd = cgroup_setup_and_join(TEST_CGROUP);
-	if (CHECK(cgroup_fd < 0, "cgroup_setup_and_join", "err %d errno %d\n", cgroup_fd, errno))
+	if (CHECK(cgroup_fd < 0, "cgroup_setup_and_join", "err %d erranal %d\n", cgroup_fd, erranal))
 		return 1;
 
 	/* Use libbpf 1.0 API mode */
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "bpf_prog_test_load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "bpf_prog_test_load", "err %d erranal %d\n", err, erranal))
 		goto cleanup_cgroup_env;
 
 	cgidmap_fd = bpf_find_map(__func__, obj, "cg_ids");
-	if (CHECK(cgidmap_fd < 0, "bpf_find_map", "err %d errno %d\n",
-		  cgidmap_fd, errno))
+	if (CHECK(cgidmap_fd < 0, "bpf_find_map", "err %d erranal %d\n",
+		  cgidmap_fd, erranal))
 		goto close_prog;
 
 	pidmap_fd = bpf_find_map(__func__, obj, "pidmap");
-	if (CHECK(pidmap_fd < 0, "bpf_find_map", "err %d errno %d\n",
-		  pidmap_fd, errno))
+	if (CHECK(pidmap_fd < 0, "bpf_find_map", "err %d erranal %d\n",
+		  pidmap_fd, erranal))
 		goto close_prog;
 
 	pid = getpid();
@@ -94,12 +94,12 @@ int main(int argc, char **argv)
 			 "/sys/kernel/debug/tracing/events/%s/id", probe_name);
 	}
 	efd = open(buf, O_RDONLY, 0);
-	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
+	if (CHECK(efd < 0, "open", "err %d erranal %d\n", efd, erranal))
 		goto close_prog;
 	bytes = read(efd, buf, sizeof(buf));
 	close(efd);
 	if (CHECK(bytes <= 0 || bytes >= sizeof(buf), "read",
-		  "bytes %d errno %d\n", bytes, errno))
+		  "bytes %d erranal %d\n", bytes, erranal))
 		goto close_prog;
 
 	attr.config = strtol(buf, NULL, 0);
@@ -112,25 +112,25 @@ int main(int argc, char **argv)
 	 * cgroup associated with this pid.
 	 */
 	pmu_fd = syscall(__NR_perf_event_open, &attr, getpid(), -1, -1, 0);
-	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d errno %d\n", pmu_fd,
-		  errno))
+	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d erranal %d\n", pmu_fd,
+		  erranal))
 		goto close_prog;
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
-	if (CHECK(err, "perf_event_ioc_enable", "err %d errno %d\n", err,
-		  errno))
+	if (CHECK(err, "perf_event_ioc_enable", "err %d erranal %d\n", err,
+		  erranal))
 		goto close_pmu;
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd);
-	if (CHECK(err, "perf_event_ioc_set_bpf", "err %d errno %d\n", err,
-		  errno))
+	if (CHECK(err, "perf_event_ioc_set_bpf", "err %d erranal %d\n", err,
+		  erranal))
 		goto close_pmu;
 
 	/* trigger some syscalls */
-	syscall(__NR_nanosleep, &req, NULL);
+	syscall(__NR_naanalsleep, &req, NULL);
 
 	err = bpf_map_lookup_elem(cgidmap_fd, &key, &kcgid);
-	if (CHECK(err, "bpf_map_lookup_elem", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "bpf_map_lookup_elem", "err %d erranal %d\n", err, erranal))
 		goto close_pmu;
 
 	ucgid = get_cgroup_id(TEST_CGROUP);

@@ -24,7 +24,7 @@ enum {
 	GSSX_NULL = 0,	/* Unused */
         GSSX_INDICATE_MECHS = 1,
         GSSX_GET_CALL_CONTEXT = 2,
-        GSSX_IMPORT_AND_CANON_NAME = 3,
+        GSSX_IMPORT_AND_CAANALN_NAME = 3,
         GSSX_EXPORT_CRED = 4,
         GSSX_IMPORT_CRED = 5,
         GSSX_ACQUIRE_CRED = 6,
@@ -53,7 +53,7 @@ enum {
 static const struct rpc_procinfo gssp_procedures[] = {
 	PROC(INDICATE_MECHS, indicate_mechs),
         PROC(GET_CALL_CONTEXT, get_call_context),
-        PROC(IMPORT_AND_CANON_NAME, import_and_canon_name),
+        PROC(IMPORT_AND_CAANALN_NAME, import_and_caanaln_name),
         PROC(EXPORT_CRED, export_cred),
         PROC(IMPORT_CRED, import_cred),
         PROC(ACQUIRE_CRED, acquire_cred),
@@ -92,14 +92,14 @@ static int gssp_rpc_create(struct net *net, struct rpc_clnt **_clnt)
 		.version	= GSSPROXY_VERS_1,
 		.authflavor	= RPC_AUTH_NULL,
 		/*
-		 * Note we want connection to be done in the caller's
+		 * Analte we want connection to be done in the caller's
 		 * filesystem namespace.  We therefore turn off the idle
 		 * timeout, which would result in reconnections being
 		 * done without the correct namespace:
 		 */
-		.flags		= RPC_CLNT_CREATE_NOPING |
+		.flags		= RPC_CLNT_CREATE_ANALPING |
 				  RPC_CLNT_CREATE_CONNECTED |
-				  RPC_CLNT_CREATE_NO_IDLE_TIMEOUT
+				  RPC_CLNT_CREATE_ANAL_IDLE_TIMEOUT
 	};
 	struct rpc_clnt *clnt;
 	int result = 0;
@@ -107,7 +107,7 @@ static int gssp_rpc_create(struct net *net, struct rpc_clnt **_clnt)
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
 		dprintk("RPC:       failed to create AF_LOCAL gssproxy "
-				"client (errno %ld).\n", PTR_ERR(clnt));
+				"client (erranal %ld).\n", PTR_ERR(clnt));
 		result = PTR_ERR(clnt);
 		*_clnt = NULL;
 		goto out;
@@ -179,12 +179,12 @@ static int gssp_call(struct net *net, struct rpc_message *msg)
 	if (status < 0) {
 		dprintk("gssp: rpc_call returned error %d\n", -status);
 		switch (status) {
-		case -EPROTONOSUPPORT:
+		case -EPROTOANALSUPPORT:
 			status = -EINVAL;
 			break;
 		case -ECONNREFUSED:
 		case -ETIMEDOUT:
-		case -ENOTCONN:
+		case -EANALTCONN:
 			status = -EAGAIN;
 			break;
 		case -ERESTARTSYS:
@@ -216,12 +216,12 @@ static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
 	arg->npages = DIV_ROUND_UP(NGROUPS_MAX * 4, PAGE_SIZE);
 	arg->pages = kcalloc(arg->npages, sizeof(struct page *), GFP_KERNEL);
 	if (!arg->pages)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < arg->npages; i++) {
 		arg->pages[i] = alloc_page(GFP_KERNEL);
 		if (!arg->pages[i]) {
 			gssp_free_receive_pages(arg);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;
@@ -250,7 +250,7 @@ static void gssp_hostbased_service(char **principal)
 			*c = '@';
 	}
 	if (!c) {
-		/* not a service principal */
+		/* analt a service principal */
 		kfree(*principal);
 		*principal = NULL;
 	}
@@ -260,7 +260,7 @@ static void gssp_hostbased_service(char **principal)
  * Public functions
  */
 
-/* numbers somewhat arbitrary but large enough for current needs */
+/* numbers somewhat arbitrary but large eanalugh for current needs */
 #define GSSX_MAX_OUT_HANDLE	128
 #define GSSX_MAX_SRC_PRINC	256
 #define GSSX_KMEMBUF (GSSX_max_output_handle_sz + \
@@ -316,7 +316,7 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	/* we need to fetch all data even in case of error so
 	 * that we can free special strctures is they have been allocated */
 	data->major_status = res.status.major_status;
-	data->minor_status = res.status.minor_status;
+	data->mianalr_status = res.status.mianalr_status;
 	if (res.context_handle) {
 		data->out_handle = rctxh.exported_context_token;
 		data->mech_oid.len = rctxh.mech.len;
@@ -339,7 +339,7 @@ int gssp_accept_sec_context_upcall(struct net *net,
 			data->creds = *(struct svc_cred *)value->data;
 			data->found_creds = 1;
 		}
-		/* whether we use it or not, free data */
+		/* whether we use it or analt, free data */
 		kfree(value->data);
 	}
 

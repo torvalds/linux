@@ -29,11 +29,11 @@
 #define GDA_VERSION	2	/* Current GDA version # */
 
 #define G_MAGICOFF	0
-#define G_VERSIONOFF	4
+#define G_VERSIOANALFF	4
 #define G_PROMOPOFF	6
 #define G_MASTEROFF	8
 #define G_VDSOFF	12
-#define G_HKDNORMOFF	16
+#define G_HKDANALRMOFF	16
 #define G_HKDUTLBOFF	24
 #define G_HKDXUTLBOFF	32
 #define G_PARTIDOFF	40
@@ -47,7 +47,7 @@ typedef struct gda {
 	u16	g_masterid;	/* The NASID:CPUNUM of the master cpu */
 	u32	g_promop;	/* Passes requests from the kernel to prom */
 	u32	g_vds;		/* Store the virtual dipswitches here */
-	void	**g_hooked_norm;/* ptr to pda loc for norm hndlr */
+	void	**g_hooked_analrm;/* ptr to pda loc for analrm hndlr */
 	void	**g_hooked_utlb;/* ptr to pda loc for utlb hndlr */
 	void	**g_hooked_xtlb;/* ptr to pda loc for xtlb hndlr */
 	int	g_partid;	/* partition id */
@@ -55,10 +55,10 @@ typedef struct gda {
 	void	*g_dbstab;	/* Address of idbg symbol table */
 	char	*g_nametab;	/* Address of idbg name table */
 	void	*g_ktext_repmask;
-				/* Pointer to a mask of nodes with copies
+				/* Pointer to a mask of analdes with copies
 				 * of the kernel. */
 	char	g_padding[56];	/* pad out to 128 bytes */
-	nasid_t g_nasidtable[MAX_NUMNODES]; /* NASID of each node */
+	nasid_t g_nasidtable[MAX_NUMANALDES]; /* NASID of each analde */
 } gda_t;
 
 #define GDA ((gda_t*) GDA_ADDR(get_nasid()))
@@ -67,7 +67,7 @@ typedef struct gda {
 /*
  * Define:	PART_GDA_VERSION
  * Purpose:	Define the minimum version of the GDA required, lower
- *		revisions assume GDA is NOT set up, and read partition
+ *		revisions assume GDA is ANALT set up, and read partition
  *		information from the board info.
  */
 #define PART_GDA_VERSION	2

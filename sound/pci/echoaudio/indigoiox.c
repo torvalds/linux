@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ALSA driver for Echoaudio soundcards.
- *  Copyright (C) 2009 Giuliano Pochini <pochini@shiny.it>
+ *  Copyright (C) 2009 Giuliaanal Pochini <pochini@shiny.it>
  */
 
 #define INDIGO_FAMILY

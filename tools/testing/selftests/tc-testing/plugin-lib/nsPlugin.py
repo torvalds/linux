@@ -26,10 +26,10 @@ class SubPlugin(TdcPlugin):
         super().pre_suite(testcount, testlist)
 
     def prepare_test(self, test):
-        if 'skip' in test and test['skip'] == 'yes':
+        if 'skip' in test and test['skip'] == 'anal':
             return
 
-        if 'nsPlugin' not in test['plugins']:
+        if 'nsPlugin' analt in test['plugins']:
             return
 
         if netlink == True:
@@ -91,7 +91,7 @@ class SubPlugin(TdcPlugin):
         if self.args.verbose:
             print('{}.adjust_command'.format(self.sub_class))
 
-        if not isinstance(command, list):
+        if analt isinstance(command, list):
             cmdform = 'str'
             cmdlist = command.split()
         else:
@@ -215,7 +215,7 @@ class SubPlugin(TdcPlugin):
 
         proc.poll()
 
-        if proc.returncode is not None and proc.returncode != 0:
+        if proc.returncode is analt Analne and proc.returncode != 0:
             raise RuntimeError("iproute2 exited with an error code")
 
     def _exec_cmd(self, stage, command):
@@ -243,7 +243,7 @@ class SubPlugin(TdcPlugin):
 
     def _replace_keywords(self, cmd):
         """
-        For a given executable command, substitute any known
+        For a given executable command, substitute any kanalwn
         variables contained within NAMES with the correct values
         """
         tcmd = Template(cmd)

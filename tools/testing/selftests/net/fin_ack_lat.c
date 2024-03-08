@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -41,29 +41,29 @@ static void client(int port)
 
 		sock = socket(AF_INET, SOCK_STREAM, 0);
 		if (sock < 0)
-			error(-1, errno, "socket creation");
+			error(-1, erranal, "socket creation");
 
-		sl.l_onoff = 1;
+		sl.l_oanalff = 1;
 		sl.l_linger = 0;
 		if (setsockopt(sock, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl)))
-			error(-1, errno, "setsockopt(linger)");
+			error(-1, erranal, "setsockopt(linger)");
 
-		if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+		if (setsockopt(sock, IPPROTO_TCP, TCP_ANALDELAY,
 					&flag, sizeof(flag)))
-			error(-1, errno, "setsockopt(nodelay)");
+			error(-1, erranal, "setsockopt(analdelay)");
 
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(port);
 
 		if (inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) <= 0)
-			error(-1, errno, "inet_pton");
+			error(-1, erranal, "inet_pton");
 
 		if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-			error(-1, errno, "connect");
+			error(-1, erranal, "connect");
 
 		send(sock, &buffer, sizeof(buffer), 0);
 		if (read(sock, &buffer, sizeof(buffer)) == -1)
-			error(-1, errno, "waiting read");
+			error(-1, erranal, "waiting read");
 
 		gettimeofday(&end, NULL);
 		lat = timediff(start, end);
@@ -73,7 +73,7 @@ static void client(int port)
 			goto close;
 
 		if (getsockname(sock, (struct sockaddr *)&laddr, &len) == -1)
-			error(-1, errno, "getsockname");
+			error(-1, erranal, "getsockname");
 		printf("port: %d, lat: %lu, avg: %lu, nr: %lu\n",
 				ntohs(laddr.sin_port), lat,
 				sum_lat / nr_lat, nr_lat);
@@ -93,10 +93,10 @@ static void server(int sock, struct sockaddr_in address)
 		accepted = accept(sock, (struct sockaddr *)&address,
 				(socklen_t *)&addrlen);
 		if (accepted < 0)
-			error(-1, errno, "accept");
+			error(-1, erranal, "accept");
 
 		if (read(accepted, &buffer, sizeof(buffer)) == -1)
-			error(-1, errno, "read");
+			error(-1, erranal, "read");
 		close(accepted);
 	}
 }
@@ -116,15 +116,15 @@ int main(int argc, char const *argv[])
 	socklen_t len = sizeof(laddr);
 
 	if (signal(SIGTERM, sig_handler) == SIG_ERR)
-		error(-1, errno, "signal");
+		error(-1, erranal, "signal");
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0)
-		error(-1, errno, "socket");
+		error(-1, erranal, "socket");
 
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
 				&opt, sizeof(opt)) == -1)
-		error(-1, errno, "setsockopt");
+		error(-1, erranal, "setsockopt");
 
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
@@ -132,13 +132,13 @@ int main(int argc, char const *argv[])
 	address.sin_port = 0;
 
 	if (bind(sock, (struct sockaddr *)&address, sizeof(address)) < 0)
-		error(-1, errno, "bind");
+		error(-1, erranal, "bind");
 
 	if (listen(sock, 3) < 0)
-		error(-1, errno, "listen");
+		error(-1, erranal, "listen");
 
 	if (getsockname(sock, (struct sockaddr *)&laddr, &len) == -1)
-		error(-1, errno, "getsockname");
+		error(-1, erranal, "getsockname");
 
 	fprintf(stderr, "server port: %d\n", ntohs(laddr.sin_port));
 	child_pid = fork();

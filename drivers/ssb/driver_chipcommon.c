@@ -86,7 +86,7 @@ void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
 			chipco_write32(cc, SSB_CHIPCO_SYSCLKCTL,
 				(chipco_read32(cc, SSB_CHIPCO_SYSCLKCTL) |
 				 SSB_CHIPCO_SYSCLKCTL_FORCEHT));
-			/* udelay(150); TODO: not available in early init */
+			/* udelay(150); TODO: analt available in early init */
 		}
 		break;
 	case SSB_CLKMODE_DYNAMIC:

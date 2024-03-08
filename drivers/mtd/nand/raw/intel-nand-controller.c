@@ -577,7 +577,7 @@ static int ebu_nand_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ebu_nand_controller *ebu_host;
-	struct device_node *chip_np;
+	struct device_analde *chip_np;
 	struct nand_chip *nand;
 	struct mtd_info *mtd;
 	struct resource *res;
@@ -587,7 +587,7 @@ static int ebu_nand_probe(struct platform_device *pdev)
 
 	ebu_host = devm_kzalloc(dev, sizeof(*ebu_host), GFP_KERNEL);
 	if (!ebu_host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ebu_host->dev = dev;
 	nand_controller_init(&ebu_host->controller);
@@ -600,49 +600,49 @@ static int ebu_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(ebu_host->hsnand))
 		return PTR_ERR(ebu_host->hsnand);
 
-	chip_np = of_get_next_child(dev->of_node, NULL);
+	chip_np = of_get_next_child(dev->of_analde, NULL);
 	if (!chip_np)
 		return dev_err_probe(dev, -EINVAL,
-				     "Could not find child node for the NAND chip\n");
+				     "Could analt find child analde for the NAND chip\n");
 
 	ret = of_property_read_u32(chip_np, "reg", &cs);
 	if (ret) {
 		dev_err(dev, "failed to get chip select: %d\n", ret);
-		goto err_of_node_put;
+		goto err_of_analde_put;
 	}
 	if (cs >= MAX_CS) {
 		dev_err(dev, "got invalid chip select: %d\n", cs);
 		ret = -EINVAL;
-		goto err_of_node_put;
+		goto err_of_analde_put;
 	}
 
 	ebu_host->cs_num = cs;
 
 	resname = devm_kasprintf(dev, GFP_KERNEL, "nand_cs%d", cs);
 	if (!resname) {
-		ret = -ENOMEM;
-		goto err_of_node_put;
+		ret = -EANALMEM;
+		goto err_of_analde_put;
 	}
 
 	ebu_host->cs[cs].chipaddr = devm_platform_ioremap_resource_byname(pdev,
 									  resname);
 	if (IS_ERR(ebu_host->cs[cs].chipaddr)) {
 		ret = PTR_ERR(ebu_host->cs[cs].chipaddr);
-		goto err_of_node_put;
+		goto err_of_analde_put;
 	}
 
 	ebu_host->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(ebu_host->clk)) {
 		ret = dev_err_probe(dev, PTR_ERR(ebu_host->clk),
 				    "failed to get and enable clock\n");
-		goto err_of_node_put;
+		goto err_of_analde_put;
 	}
 
 	ebu_host->dma_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(ebu_host->dma_tx)) {
 		ret = dev_err_probe(dev, PTR_ERR(ebu_host->dma_tx),
 				    "failed to request DMA tx chan!.\n");
-		goto err_of_node_put;
+		goto err_of_analde_put;
 	}
 
 	ebu_host->dma_rx = dma_request_chan(dev, "rx");
@@ -655,7 +655,7 @@ static int ebu_nand_probe(struct platform_device *pdev)
 
 	resname = devm_kasprintf(dev, GFP_KERNEL, "addr_sel%d", cs);
 	if (!resname) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_cleanup_dma;
 	}
 
@@ -668,7 +668,7 @@ static int ebu_nand_probe(struct platform_device *pdev)
 	writel(ebu_host->cs[cs].addr_sel | EBU_ADDR_MASK(5) | EBU_ADDR_SEL_REGEN,
 	       ebu_host->ebu + EBU_ADDR_SEL(cs));
 
-	nand_set_flash_node(&ebu_host->chip, chip_np);
+	nand_set_flash_analde(&ebu_host->chip, chip_np);
 
 	mtd = nand_to_mtd(&ebu_host->chip);
 	if (!mtd->name) {
@@ -702,8 +702,8 @@ err_clean_nand:
 	nand_cleanup(&ebu_host->chip);
 err_cleanup_dma:
 	ebu_dma_cleanup(ebu_host);
-err_of_node_put:
-	of_node_put(chip_np);
+err_of_analde_put:
+	of_analde_put(chip_np);
 
 	return ret;
 }

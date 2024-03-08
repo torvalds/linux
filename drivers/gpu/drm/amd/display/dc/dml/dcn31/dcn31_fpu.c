@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -43,11 +43,11 @@
  * pattern:
  *
  * 1. Functions that use FPU operations should be isolated in static functions.
- * 2. The FPU functions should have the noinline attribute to ensure anything
+ * 2. The FPU functions should have the analinline attribute to ensure anything
  *    that deals with FP register is contained within this call.
  * 3. All function that needs to be accessed outside this file requires a
- *    public interface that not uses any FPU reference.
- * 4. Developers **must not** use DC_FP_START/END in this file, but they need
+ *    public interface that analt uses any FPU reference.
+ * 4. Developers **must analt** use DC_FP_START/END in this file, but they need
  *    to ensure that the caller invokes it before access any function available
  *    in this file. For this reason, public functions in this file must invoke
  *    dc_assert_fp_enabled();
@@ -184,8 +184,8 @@ static struct _vcs_dpi_soc_bounding_box_st dcn3_1_soc = {
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 65.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 60.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 30.0,
-	.max_avg_sdp_bw_use_normal_percent = 60.0,
-	.max_avg_dram_bw_use_normal_percent = 60.0,
+	.max_avg_sdp_bw_use_analrmal_percent = 60.0,
+	.max_avg_dram_bw_use_analrmal_percent = 60.0,
 	.fabric_datapath_to_dcn_data_return_bytes = 32,
 	.return_bus_width_bytes = 64,
 	.downspread_percent = 0.38,
@@ -280,8 +280,8 @@ static struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 65.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 60.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 30.0,
-	.max_avg_sdp_bw_use_normal_percent = 60.0,
-	.max_avg_dram_bw_use_normal_percent = 60.0,
+	.max_avg_sdp_bw_use_analrmal_percent = 60.0,
+	.max_avg_dram_bw_use_analrmal_percent = 60.0,
 	.fabric_datapath_to_dcn_data_return_bytes = 32,
 	.return_bus_width_bytes = 64,
 	.downspread_percent = 0.38,
@@ -427,8 +427,8 @@ static struct _vcs_dpi_soc_bounding_box_st dcn3_16_soc = {
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 65.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 60.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 30.0,
-	.max_avg_sdp_bw_use_normal_percent = 60.0,
-	.max_avg_dram_bw_use_normal_percent = 60.0,
+	.max_avg_sdp_bw_use_analrmal_percent = 60.0,
+	.max_avg_dram_bw_use_analrmal_percent = 60.0,
 	.fabric_datapath_to_dcn_data_return_bytes = 32,
 	.return_bus_width_bytes = 64,
 	.downspread_percent = 0.38,
@@ -517,7 +517,7 @@ void dcn31_calculate_wm_and_dlg_fp(
 	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_z8_ns = get_wm_z8_stutter_enter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_exit_z8_ns = get_wm_z8_stutter_exit(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.a.pte_meta_urgent_ns = get_wm_memory_trip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_analm = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.a.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b = context->bw_ctx.bw.dcn.watermarks.a;
@@ -703,7 +703,7 @@ void dcn315_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 
 
 	/* Set vco to max_dispclk * 2 to make sure the highest dispclk is always available for dml calcs,
-	 * no impact outside of dml validation
+	 * anal impact outside of dml validation
 	 */
 	dcn3_15_soc.dispclk_dppclk_vco_speed_mhz = max_dispclk_mhz * 2;
 
@@ -765,7 +765,7 @@ void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		if (clk_table->num_entries == 1 &&
 		    s[i].dcfclk_mhz <
 		    dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz) {
-			/*SMU fix not released yet*/
+			/*SMU fix analt released yet*/
 			s[i].dcfclk_mhz =
 				dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz;
 		}
@@ -808,7 +808,7 @@ void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 	dml_init_instance(&dc->dml, &dcn3_16_soc, &dcn3_16_ip, DML_PROJECT_DCN31);
 }
 
-int dcn_get_max_non_odm_pix_rate_100hz(struct _vcs_dpi_soc_bounding_box_st *soc)
+int dcn_get_max_analn_odm_pix_rate_100hz(struct _vcs_dpi_soc_bounding_box_st *soc)
 {
 	return soc->clock_limits[0].dispclk_mhz * 10000.0 / (1.0 + soc->dcn_downspread_percent / 100.0);
 }

@@ -54,7 +54,7 @@ MODULE_LICENSE("GPL");
 static char *adi_names[] = {	"WingMan Extreme Digital", "ThunderPad Digital", "SideCar", "CyberMan 2",
 				"WingMan Interceptor", "WingMan Formula", "WingMan GamePad",
 				"WingMan Extreme Digital 3D", "WingMan GamePad Extreme",
-				"WingMan GamePad USB", "Unknown Device %#x" };
+				"WingMan GamePad USB", "Unkanalwn Device %#x" };
 
 static char adi_wmgpe_abs[] =	{ ABS_X, ABS_Y, ABS_HAT0X, ABS_HAT0Y };
 static char adi_wmi_abs[] =	{ ABS_X, ABS_Y, ABS_THROTTLE, ABS_HAT0X, ABS_HAT0Y, ABS_HAT1X, ABS_HAT1Y, ABS_HAT2X, ABS_HAT2Y };
@@ -336,7 +336,7 @@ static void adi_id_decode(struct adi *adi, struct adi_port *port)
 	adi->buttons = adi_get_bits(adi, 6);
 
 	if (adi_get_bits(adi, 6) != 8 && adi->hats) {
-		printk(KERN_WARNING "adi: Other than 8-dir POVs not supported yet.\n");
+		printk(KERN_WARNING "adi: Other than 8-dir POVs analt supported yet.\n");
 		adi->length = 0;
 		return;
 	}
@@ -387,7 +387,7 @@ static int adi_init_input(struct adi *adi, struct adi_port *port, int half)
 
 	adi->dev = input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t = adi->id < ADI_ID_MAX ? adi->id : ADI_ID_MAX;
 
@@ -458,7 +458,7 @@ static int adi_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 	port = kzalloc(sizeof(struct adi_port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->gameport = gameport;
 
@@ -486,7 +486,7 @@ static int adi_connect(struct gameport *gameport, struct gameport_driver *drv)
 	}
 
 	if (!port->adi[0].length && !port->adi[1].length) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 

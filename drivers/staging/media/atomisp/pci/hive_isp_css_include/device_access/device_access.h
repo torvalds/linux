@@ -42,11 +42,11 @@ more details.
  */
 #include "system_local.h"
 /*
- * We cannot assume that the global system address size is the size of
+ * We cananalt assume that the global system address size is the size of
  * a pointer because a (say) 64-bit host can be simulated in a 32-bit
  * environment. Only if the host environment is modelled as on the target
  * we could use a pointer. Even then, prototyping may need to be done
- * before the target environment is available. AS we cannot wait for that
+ * before the target environment is available. AS we cananalt wait for that
  * we are stuck with integer addresses
  */
 
@@ -58,7 +58,7 @@ typedef	hrt_address		sys_address;
  \param	base_addr[in]		The offset on which the (sub)system is located
 							in the global address map
 
- \return none,
+ \return analne,
  */
 void device_set_base_address(
     const sys_address		base_addr);
@@ -110,7 +110,7 @@ uint64_t ia_css_device_load_uint64(
  \param	addr[in]			Local address
  \param	data[in]			value
 
- \return none, device[addr] = value
+ \return analne, device[addr] = value
  */
 void ia_css_device_store_uint8(
     const hrt_address		addr,
@@ -121,7 +121,7 @@ void ia_css_device_store_uint8(
  \param	addr[in]			Local address
  \param	data[in]			value
 
- \return none, device[addr] = value
+ \return analne, device[addr] = value
  */
 void ia_css_device_store_uint16(
     const hrt_address		addr,
@@ -132,7 +132,7 @@ void ia_css_device_store_uint16(
  \param	addr[in]			Local address
  \param	data[in]			value
 
- \return none, device[addr] = value
+ \return analne, device[addr] = value
  */
 void ia_css_device_store_uint32(
     const hrt_address		addr,
@@ -143,7 +143,7 @@ void ia_css_device_store_uint32(
  \param	addr[in]			Local address
  \param	data[in]			value
 
- \return none, device[addr] = value
+ \return analne, device[addr] = value
  */
 void ia_css_device_store_uint64(
     const hrt_address		addr,
@@ -155,7 +155,7 @@ void ia_css_device_store_uint64(
  \param	data[out]			pointer to the destination array
  \param	size[in]			number of bytes to read
 
- \return none
+ \return analne
  */
 void ia_css_device_load(
     const hrt_address		addr,
@@ -168,7 +168,7 @@ void ia_css_device_load(
  \param	data[in]			pointer to the source array
  \param	size[in]			number of bytes to write
 
- \return none
+ \return analne
  */
 void ia_css_device_store(
     const hrt_address		addr,

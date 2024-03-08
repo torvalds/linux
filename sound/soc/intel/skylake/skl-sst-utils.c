@@ -70,7 +70,7 @@ struct adsp_fw_hdr {
 	u32 fw_image_flags;
 	u32 feature_mask;
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 	u16 hotfix;
 	u16 build;
 	u32 num_modules;
@@ -83,7 +83,7 @@ struct skl_ext_manifest_hdr {
 	u32 id;
 	u32 len;
 	u16 version_major;
-	u16 version_minor;
+	u16 version_mianalr;
 	u32 entries;
 };
 
@@ -247,10 +247,10 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 
 	buf = stripped_fw.data;
 
-	/* check if we have enough space in file to move to header */
+	/* check if we have eanalugh space in file to move to header */
 	safe_file = sizeof(*adsp_hdr) + offset;
 	if (stripped_fw.size <= safe_file) {
-		dev_err(ctx->dev, "Small fw file size, No space for hdr\n");
+		dev_err(ctx->dev, "Small fw file size, Anal space for hdr\n");
 		return -EINVAL;
 	}
 
@@ -259,7 +259,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 	/* check 1st module entry is in file */
 	safe_file += adsp_hdr->len + sizeof(*mod_entry);
 	if (stripped_fw.size <= safe_file) {
-		dev_err(ctx->dev, "Small fw file size, No module entry\n");
+		dev_err(ctx->dev, "Small fw file size, Anal module entry\n");
 		return -EINVAL;
 	}
 
@@ -270,7 +270,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 	/* check all entries are in file */
 	safe_file += num_entry * sizeof(*mod_entry);
 	if (stripped_fw.size <= safe_file) {
-		dev_err(ctx->dev, "Small fw file size, No modules\n");
+		dev_err(ctx->dev, "Small fw file size, Anal modules\n");
 		return -EINVAL;
 	}
 
@@ -286,7 +286,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 	for (i = 0; i < num_entry; i++, mod_entry++) {
 		module = kzalloc(sizeof(*module), GFP_KERNEL);
 		if (!module) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_uuid_list;
 		}
 
@@ -298,7 +298,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 		size = sizeof(int) * mod_entry->instance_max_count;
 		module->instance_id = devm_kzalloc(ctx->dev, size, GFP_KERNEL);
 		if (!module->instance_id) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			kfree(module);
 			goto free_uuid_list;
 		}
@@ -340,7 +340,7 @@ int skl_dsp_strip_extended_manifest(struct firmware *fw)
 
 	/* check if fw file is greater than header we are looking */
 	if (fw->size < sizeof(hdr)) {
-		pr_err("%s: Firmware file small, no hdr\n", __func__);
+		pr_err("%s: Firmware file small, anal hdr\n", __func__);
 		return -EINVAL;
 	}
 
@@ -366,8 +366,8 @@ int skl_sst_ctx_init(struct device *dev, int irq, const char *fw_name,
 	INIT_LIST_HEAD(&skl->uuid_list);
 	skl->dsp = skl_dsp_ctx_init(dev, skl_dev, irq);
 	if (!skl->dsp) {
-		dev_err(skl->dev, "%s: no device\n", __func__);
-		return -ENODEV;
+		dev_err(skl->dev, "%s: anal device\n", __func__);
+		return -EANALDEV;
 	}
 
 	sst = skl->dsp;

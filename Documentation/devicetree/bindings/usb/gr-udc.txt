@@ -3,7 +3,7 @@ USB Peripheral Controller driver for Aeroflex Gaisler GRUSBDC.
 The GRUSBDC USB Device Controller core is available in the GRLIB VHDL
 IP core library.
 
-Note: In the ordinary environment for the core, a Leon SPARC system,
+Analte: In the ordinary environment for the core, a Leon SPARC system,
 these properties are built from information in the AMBA plug&play.
 
 Required properties:

@@ -56,7 +56,7 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 {
 	int num_domains, i;
 	struct device *dev = &sdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct scmi_pm_domain *scmi_pd;
 	struct genpd_onecell_data *scmi_pd_data;
 	struct generic_pm_domain **domains;
@@ -64,7 +64,7 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 	struct scmi_protocol_handle *ph;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	power_ops = handle->devm_protocol_get(sdev, SCMI_PROTOCOL_POWER, &ph);
 	if (IS_ERR(power_ops))
@@ -72,21 +72,21 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 
 	num_domains = power_ops->num_domains_get(ph);
 	if (num_domains < 0) {
-		dev_err(dev, "number of domains not found\n");
+		dev_err(dev, "number of domains analt found\n");
 		return num_domains;
 	}
 
 	scmi_pd = devm_kcalloc(dev, num_domains, sizeof(*scmi_pd), GFP_KERNEL);
 	if (!scmi_pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scmi_pd_data = devm_kzalloc(dev, sizeof(*scmi_pd_data), GFP_KERNEL);
 	if (!scmi_pd_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	domains = devm_kcalloc(dev, num_domains, sizeof(*domains), GFP_KERNEL);
 	if (!domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_domains; i++, scmi_pd++) {
 		u32 state;
@@ -122,7 +122,7 @@ static void scmi_pm_domain_remove(struct scmi_device *sdev)
 	int i;
 	struct genpd_onecell_data *scmi_pd_data;
 	struct device *dev = &sdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	of_genpd_del_provider(np);
 

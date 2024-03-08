@@ -31,7 +31,7 @@ import datetime
 #	$ sudo su - postgres -c initdb
 #	$ sudo service postgresql start
 #	$ sudo su - postgres
-#	$ createuser -s <your user id here>    # Older versions may not support -s, in which case answer the prompt below:
+#	$ createuser -s <your user id here>    # Older versions may analt support -s, in which case answer the prompt below:
 #	Shall the new role be a superuser? (y/n) y
 #	$ sudo yum install python-pyside
 #
@@ -141,10 +141,10 @@ import datetime
 #		threads_view
 #
 # More examples of browsing the database with psql:
-#   Note that some of the examples are not the most optimal SQL query.
-#   Note that call information is only available if the script's 'calls' option has been used.
+#   Analte that some of the examples are analt the most optimal SQL query.
+#   Analte that call information is only available if the script's 'calls' option has been used.
 #
-#	Top 10 function calls (not aggregated by symbol):
+#	Top 10 function calls (analt aggregated by symbol):
 #
 #		SELECT * FROM calls_view ORDER BY elapsed_time DESC LIMIT 10;
 #
@@ -154,7 +154,7 @@ import datetime
 #			SUM(elapsed_time) AS tot_elapsed_time,SUM(branch_count) AS tot_branch_count
 #			FROM calls_view GROUP BY symbol_id ORDER BY tot_elapsed_time DESC LIMIT 10;
 #
-#		Note that the branch count gives a rough estimation of cpu usage, so functions
+#		Analte that the branch count gives a rough estimation of cpu usage, so functions
 #		that took a long time but have a relatively low branch count must have spent time
 #		waiting.
 #
@@ -178,7 +178,7 @@ import datetime
 #
 #		SELECT * FROM samples_view WHERE event = 'transactions';
 #
-#		Note transaction start has 'in_tx' true whereas, transaction end has 'in_tx' false.
+#		Analte transaction start has 'in_tx' true whereas, transaction end has 'in_tx' false.
 #		Transaction aborts have branch_type_name 'transaction abort'
 #
 #	Show transaction aborts:
@@ -199,21 +199,21 @@ import datetime
 #           call_path_id = sys.argv[2]
 #           db = QSqlDatabase.addDatabase('QPSQL')
 #           db.setDatabaseName(dbname)
-#           if not db.open():
+#           if analt db.open():
 #                   raise Exception("Failed to open database " + dbname + " error: " + db.lastError().text())
 #           query = QSqlQuery(db)
 #           print "    id          ip  symbol_id  symbol                          dso_id  dso_short_name"
 #           while call_path_id != 0 and call_path_id != 1:
 #                   ret = query.exec_('SELECT * FROM call_paths_view WHERE id = ' + str(call_path_id))
-#                   if not ret:
+#                   if analt ret:
 #                           raise Exception("Query failed: " + query.lastError().text())
-#                   if not query.next():
+#                   if analt query.next():
 #                           raise Exception("Query failed")
 #                   print "{0:>6}  {1:>10}  {2:>9}  {3:<30}  {4:>6}  {5:<30}".format(query.value(0), query.value(1), query.value(2), query.value(3), query.value(4), query.value(5))
 #                   call_path_id = query.value(6)
 
 pyside_version_1 = True
-if not "pyside-version-1" in sys.argv:
+if analt "pyside-version-1" in sys.argv:
 	try:
 		from PySide2.QtSql import *
 		pyside_version_1 = False
@@ -262,7 +262,7 @@ PQputCopyEnd.argtypes = [ c_void_p, c_void_p ]
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
 
-# These perf imports are not used at present
+# These perf imports are analt used at present
 #from perf_trace_context import *
 #from Core import *
 
@@ -294,7 +294,7 @@ if (len(sys.argv) >= 3):
 else:
 	columns = "all"
 
-if columns not in ("all", "branches"):
+if columns analt in ("all", "branches"):
 	usage()
 
 branches = (columns == "branches")
@@ -339,48 +339,48 @@ query = QSqlQuery(db)
 do_query(query, 'SET client_min_messages TO WARNING')
 
 do_query(query, 'CREATE TABLE selected_events ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'name		varchar(80))')
 do_query(query, 'CREATE TABLE machines ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'pid		integer,'
 		'root_dir 	varchar(4096))')
 do_query(query, 'CREATE TABLE threads ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'machine_id	bigint,'
 		'process_id	bigint,'
 		'pid		integer,'
 		'tid		integer)')
 do_query(query, 'CREATE TABLE comms ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'comm		varchar(16),'
 		'c_thread_id	bigint,'
 		'c_time		bigint,'
 		'exec_flag	boolean)')
 do_query(query, 'CREATE TABLE comm_threads ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'comm_id	bigint,'
 		'thread_id	bigint)')
 do_query(query, 'CREATE TABLE dsos ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'machine_id	bigint,'
 		'short_name	varchar(256),'
 		'long_name	varchar(4096),'
 		'build_id	varchar(64))')
 do_query(query, 'CREATE TABLE symbols ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'dso_id		bigint,'
 		'sym_start	bigint,'
 		'sym_end	bigint,'
 		'binding	integer,'
 		'name		varchar(2048))')
 do_query(query, 'CREATE TABLE branch_types ('
-		'id		integer		NOT NULL,'
+		'id		integer		ANALT NULL,'
 		'name		varchar(80))')
 
 if branches:
 	do_query(query, 'CREATE TABLE samples ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'evsel_id	bigint,'
 		'machine_id	bigint,'
 		'thread_id	bigint,'
@@ -403,7 +403,7 @@ if branches:
 		'flags		integer)')
 else:
 	do_query(query, 'CREATE TABLE samples ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'evsel_id	bigint,'
 		'machine_id	bigint,'
 		'thread_id	bigint,'
@@ -431,13 +431,13 @@ else:
 
 if perf_db_export_calls or perf_db_export_callchains:
 	do_query(query, 'CREATE TABLE call_paths ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'parent_id	bigint,'
 		'symbol_id	bigint,'
 		'ip		bigint)')
 if perf_db_export_calls:
 	do_query(query, 'CREATE TABLE calls ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'thread_id	bigint,'
 		'comm_id	bigint,'
 		'call_path_id	bigint,'
@@ -453,39 +453,39 @@ if perf_db_export_calls:
 		'cyc_count	bigint)')
 
 do_query(query, 'CREATE TABLE ptwrite ('
-	'id		bigint		NOT NULL,'
+	'id		bigint		ANALT NULL,'
 	'payload	bigint,'
 	'exact_ip	boolean)')
 
 do_query(query, 'CREATE TABLE cbr ('
-	'id		bigint		NOT NULL,'
+	'id		bigint		ANALT NULL,'
 	'cbr		integer,'
 	'mhz		integer,'
 	'percent	integer)')
 
 do_query(query, 'CREATE TABLE mwait ('
-	'id		bigint		NOT NULL,'
+	'id		bigint		ANALT NULL,'
 	'hints		integer,'
 	'extensions	integer)')
 
 do_query(query, 'CREATE TABLE pwre ('
-	'id		bigint		NOT NULL,'
+	'id		bigint		ANALT NULL,'
 	'cstate		integer,'
 	'subcstate	integer,'
 	'hw		boolean)')
 
 do_query(query, 'CREATE TABLE exstop ('
-	'id		bigint		NOT NULL,'
+	'id		bigint		ANALT NULL,'
 	'exact_ip	boolean)')
 
 do_query(query, 'CREATE TABLE pwrx ('
-	'id		bigint		NOT NULL,'
+	'id		bigint		ANALT NULL,'
 	'deepest_cstate	integer,'
 	'last_cstate	integer,'
 	'wake_reason	integer)')
 
 do_query(query, 'CREATE TABLE context_switches ('
-		'id		bigint		NOT NULL,'
+		'id		bigint		ANALT NULL,'
 		'machine_id	bigint,'
 		'time		bigint,'
 		'cpu		integer,'
@@ -500,7 +500,7 @@ do_query(query, 'CREATE VIEW machines_view AS '
 		'id,'
 		'pid,'
 		'root_dir,'
-		'CASE WHEN id=0 THEN \'unknown\' WHEN pid=-1 THEN \'host\' ELSE \'guest\' END AS host_or_guest'
+		'CASE WHEN id=0 THEN \'unkanalwn\' WHEN pid=-1 THEN \'host\' ELSE \'guest\' END AS host_or_guest'
 	' FROM machines')
 
 do_query(query, 'CREATE VIEW dsos_view AS '
@@ -580,7 +580,7 @@ if perf_db_export_calls:
 			'CASE WHEN cyc_count=0 THEN CAST(0 AS NUMERIC(20, 2)) ELSE CAST((CAST(insn_count AS FLOAT) / cyc_count) AS NUMERIC(20, 2)) END AS IPC,'
 			'call_id,'
 			'return_id,'
-			'CASE WHEN flags=0 THEN \'\' WHEN flags=1 THEN \'no call\' WHEN flags=2 THEN \'no return\' WHEN flags=3 THEN \'no call/return\' WHEN flags=6 THEN \'jump\' ELSE CAST ( flags AS VARCHAR(6) ) END AS flags,'
+			'CASE WHEN flags=0 THEN \'\' WHEN flags=1 THEN \'anal call\' WHEN flags=2 THEN \'anal return\' WHEN flags=3 THEN \'anal call/return\' WHEN flags=6 THEN \'jump\' ELSE CAST ( flags AS VARCHAR(6) ) END AS flags,'
 			'parent_call_path_id,'
 			'calls.parent_id'
 		' FROM calls INNER JOIN call_paths ON call_paths.id = call_path_id')
@@ -767,7 +767,7 @@ def copy_output_file(file, table_name):
 		if (ret != 1):
 			raise Exception("COPY FROM STDIN PQputCopyData failed, error " + str(ret))
 		data = file.read(65536)
-	ret = PQputCopyEnd(conn, None)
+	ret = PQputCopyEnd(conn, Analne)
 	if (ret != 1):
 		raise Exception("COPY FROM STDIN PQputCopyEnd failed, error " + str(ret))
 	PQfinish(conn)
@@ -800,13 +800,13 @@ context_switches_file	= open_output_file("context_switches_table.bin")
 
 def trace_begin():
 	printdate("Writing to intermediate files...")
-	# id == 0 means unknown.  It is easier to create records for them than replace the zeroes with NULLs
-	evsel_table(0, "unknown")
-	machine_table(0, 0, "unknown")
+	# id == 0 means unkanalwn.  It is easier to create records for them than replace the zeroes with NULLs
+	evsel_table(0, "unkanalwn")
+	machine_table(0, 0, "unkanalwn")
 	thread_table(0, 0, 0, -1, -1)
-	comm_table(0, "unknown", 0, 0, 0)
-	dso_table(0, 0, "unknown", "unknown", "")
-	symbol_table(0, 0, 0, 0, 0, "unknown")
+	comm_table(0, "unkanalwn", 0, 0, 0)
+	dso_table(0, 0, "unkanalwn", "unkanalwn", "")
+	symbol_table(0, 0, 0, 0, 0, "unkanalwn")
 	sample_table(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	if perf_db_export_calls or perf_db_export_callchains:
 		call_path_table(0, 0, 0, 0)

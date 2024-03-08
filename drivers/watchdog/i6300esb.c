@@ -54,7 +54,7 @@
 /* Lock register bits */
 #define ESB_WDT_FUNC    (0x01 << 2)   /* Watchdog functionality            */
 #define ESB_WDT_ENABLE  (0x01 << 1)   /* Enable WDT                        */
-#define ESB_WDT_LOCK    (0x01 << 0)   /* Lock (nowayout)                   */
+#define ESB_WDT_LOCK    (0x01 << 0)   /* Lock (analwayout)                   */
 
 /* Config register bits */
 #define ESB_WDT_REBOOT  (0x01 << 5)   /* Enable reboot on timeout          */
@@ -82,11 +82,11 @@ MODULE_PARM_DESC(heartbeat,
 	"Watchdog heartbeat in seconds. (" ESB_HEARTBEAT_RANGE
 	", default=" __MODULE_STRING(ESB_HEARTBEAT_DEFAULT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /* internal variables */
 struct esb_dev {
@@ -116,13 +116,13 @@ static inline void esb_unlock_registers(struct esb_dev *edev)
 static int esb_timer_start(struct watchdog_device *wdd)
 {
 	struct esb_dev *edev = to_esb_dev(wdd);
-	int _wdd_nowayout = test_bit(WDOG_NO_WAY_OUT, &wdd->status);
+	int _wdd_analwayout = test_bit(WDOG_ANAL_WAY_OUT, &wdd->status);
 	u8 val;
 
 	esb_unlock_registers(edev);
 	writew(ESB_WDT_RELOAD, ESB_RELOAD_REG(edev));
 	/* Enable or Enable + Lock? */
-	val = ESB_WDT_ENABLE | (_wdd_nowayout ? ESB_WDT_LOCK : 0x00);
+	val = ESB_WDT_ENABLE | (_wdd_analwayout ? ESB_WDT_LOCK : 0x00);
 	pci_write_config_byte(edev->pdev, ESB_LOCK_REG, val);
 	return 0;
 }
@@ -139,7 +139,7 @@ static int esb_timer_stop(struct watchdog_device *wdd)
 	pci_write_config_byte(edev->pdev, ESB_LOCK_REG, 0x0);
 	pci_read_config_byte(edev->pdev, ESB_LOCK_REG, &val);
 
-	/* Returns 0 if the timer was disabled, non-zero otherwise */
+	/* Returns 0 if the timer was disabled, analn-zero otherwise */
 	return val & ESB_WDT_ENABLE;
 }
 
@@ -258,18 +258,18 @@ static void esb_initdevice(struct esb_dev *edev)
 	 * Bits 1:0 : 11 = WDT_INT_TYPE Disabled.
 	 * The watchdog has two timers, it can be setup so that the
 	 * expiry of timer1 results in an interrupt and the expiry of
-	 * timer2 results in a reboot. We set it to not generate
-	 * any interrupts as there is not much we can do with it
-	 * right now.
+	 * timer2 results in a reboot. We set it to analt generate
+	 * any interrupts as there is analt much we can do with it
+	 * right analw.
 	 */
 	pci_write_config_word(edev->pdev, ESB_CONFIG_REG, 0x0003);
 
 	/* Check that the WDT isn't already locked */
 	pci_read_config_byte(edev->pdev, ESB_LOCK_REG, &val1);
 	if (val1 & ESB_WDT_LOCK)
-		dev_warn(&edev->pdev->dev, "nowayout already set\n");
+		dev_warn(&edev->pdev->dev, "analwayout already set\n");
 
-	/* Set the timer to watchdog mode and disable it for now */
+	/* Set the timer to watchdog mode and disable it for analw */
 	pci_write_config_byte(edev->pdev, ESB_LOCK_REG, 0x00);
 
 	/* Check if the watchdog was previously triggered */
@@ -294,21 +294,21 @@ static int esb_probe(struct pci_dev *pdev,
 
 	edev = devm_kzalloc(&pdev->dev, sizeof(*edev), GFP_KERNEL);
 	if (!edev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Check whether or not the hardware watchdog is there */
+	/* Check whether or analt the hardware watchdog is there */
 	edev->pdev = pdev;
 	if (!esb_getdevice(edev))
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Initialize the watchdog and make sure it does not run */
+	/* Initialize the watchdog and make sure it does analt run */
 	edev->wdd.info = &esb_info;
 	edev->wdd.ops = &esb_ops;
 	edev->wdd.min_timeout = ESB_HEARTBEAT_MIN;
 	edev->wdd.max_timeout = ESB_HEARTBEAT_MAX;
 	edev->wdd.timeout = ESB_HEARTBEAT_DEFAULT;
 	watchdog_init_timeout(&edev->wdd, heartbeat, NULL);
-	watchdog_set_nowayout(&edev->wdd, nowayout);
+	watchdog_set_analwayout(&edev->wdd, analwayout);
 	watchdog_stop_on_reboot(&edev->wdd);
 	watchdog_stop_on_unregister(&edev->wdd);
 	esb_initdevice(edev);
@@ -318,8 +318,8 @@ static int esb_probe(struct pci_dev *pdev,
 	if (ret != 0)
 		goto err_unmap;
 	dev_info(&pdev->dev,
-		"initialized. heartbeat=%d sec (nowayout=%d)\n",
-		edev->wdd.timeout, nowayout);
+		"initialized. heartbeat=%d sec (analwayout=%d)\n",
+		edev->wdd.timeout, analwayout);
 	return 0;
 
 err_unmap:

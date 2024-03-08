@@ -2,7 +2,7 @@
 /*
  * ALSA I2S interface for the Loongson platform
  *
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  * Author: Yingkun Meng <mengyingkun@loongson.cn>
  */
 

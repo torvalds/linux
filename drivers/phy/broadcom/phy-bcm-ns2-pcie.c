@@ -46,7 +46,7 @@ static int ns2_pci_phy_probe(struct mdio_device *mdiodev)
 	struct phy_provider *provider;
 	struct phy *phy;
 
-	phy = devm_phy_create(dev, dev->of_node, &ns2_pci_phy_ops);
+	phy = devm_phy_create(dev, dev->of_analde, &ns2_pci_phy_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create Phy\n");
 		return PTR_ERR(phy);
@@ -84,6 +84,6 @@ static struct mdio_driver ns2_pci_phy_driver = {
 mdio_module_driver(ns2_pci_phy_driver);
 
 MODULE_AUTHOR("Broadcom");
-MODULE_DESCRIPTION("Broadcom Northstar2 PCI Phy driver");
+MODULE_DESCRIPTION("Broadcom Analrthstar2 PCI Phy driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:phy-bcm-ns2-pci");

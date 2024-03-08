@@ -7,9 +7,9 @@
  *
  *  Copyright (C) 2007 Texas Instruments, Inc.
  *  Copyright (c) 2010, 2012, 2018 The Linux Foundation. All rights reserved.
- *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  *
- *  Acknowledgements:
+ *  Ackanalwledgements:
  *  This file is based on hci_ll.c, which was...
  *  Written by Ohad Ben-Cohen <ohad@bencohen.org>
  *  which was in turn based on hci_h4.c, which was written
@@ -119,7 +119,7 @@ enum qca_memdump_states {
 };
 
 struct qca_memdump_info {
-	u32 current_seq_no;
+	u32 current_seq_anal;
 	u32 received_dump;
 	u32 ram_dump_size;
 };
@@ -128,7 +128,7 @@ struct qca_memdump_event_hdr {
 	__u8    evt;
 	__u8    plen;
 	__u16   opcode;
-	__le16   seq_no;
+	__le16   seq_anal;
 	__u8    reserved;
 } __packed;
 
@@ -360,7 +360,7 @@ static int send_hci_ibs_cmd(u8 cmd, struct hci_uart *hu)
 	skb = bt_skb_alloc(1, GFP_ATOMIC);
 	if (!skb) {
 		BT_ERR("Failed to allocate memory for HCI_IBS packet");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Assign HCI_IBS type */
@@ -416,11 +416,11 @@ static void qca_wq_awake_rx(struct work_struct *work)
 	spin_lock_irqsave(&qca->hci_ibs_lock, flags);
 	qca->rx_ibs_state = HCI_IBS_RX_AWAKE;
 
-	/* Always acknowledge device wake up,
+	/* Always ackanalwledge device wake up,
 	 * sending IBS message doesn't count as TX ON.
 	 */
 	if (send_hci_ibs_cmd(HCI_IBS_WAKE_ACK, hu) < 0)
-		BT_ERR("Failed to acknowledge device wake up");
+		BT_ERR("Failed to ackanalwledge device wake up");
 
 	qca->ibs_sent_wacks++;
 
@@ -452,7 +452,7 @@ static void qca_wq_serial_tx_clock_vote_off(struct work_struct *work)
 	/* Run HCI tx handling unlocked */
 	hci_uart_tx_wakeup(hu);
 
-	/* Now that message queued to tty driver, vote for tty clocks off.
+	/* Analw that message queued to tty driver, vote for tty clocks off.
 	 * It is up to the tty driver to pend the clocks off until tx done.
 	 */
 	serial_clock_vote(HCI_IBS_TX_VOTE_CLOCK_OFF, hu);
@@ -512,10 +512,10 @@ static void hci_ibs_wake_retrans_timeout(struct timer_list *t)
 
 	switch (qca->tx_ibs_state) {
 	case HCI_IBS_TX_WAKING:
-		/* No WAKE_ACK, retransmit WAKE */
+		/* Anal WAKE_ACK, retransmit WAKE */
 		retransmit = true;
 		if (send_hci_ibs_cmd(HCI_IBS_WAKE_IND, hu) < 0) {
-			BT_ERR("Failed to acknowledge device wake up");
+			BT_ERR("Failed to ackanalwledge device wake up");
 			break;
 		}
 		qca->ibs_sent_wakes++;
@@ -567,11 +567,11 @@ static int qca_open(struct hci_uart *hu)
 	BT_DBG("hu %p qca_open", hu);
 
 	if (!hci_uart_has_flow_control(hu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	qca = kzalloc(sizeof(struct qca_data), GFP_KERNEL);
 	if (!qca)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&qca->txq);
 	skb_queue_head_init(&qca->tx_wait_q);
@@ -580,9 +580,9 @@ static int qca_open(struct hci_uart *hu)
 	mutex_init(&qca->hci_memdump_lock);
 	qca->workqueue = alloc_ordered_workqueue("qca_wq", 0);
 	if (!qca->workqueue) {
-		BT_ERR("QCA Workqueue not initialized properly");
+		BT_ERR("QCA Workqueue analt initialized properly");
 		kfree(qca);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_WORK(&qca->ws_awake_rx, qca_wq_awake_rx);
@@ -715,7 +715,7 @@ static int qca_close(struct hci_uart *hu)
 	 * Shut the timers down so they can't be rearmed when
 	 * destroy_workqueue() drains pending work which in turn might try
 	 * to arm a timer.  After shutdown rearm attempts are silently
-	 * ignored by the timer core code.
+	 * iganalred by the timer core code.
 	 */
 	timer_shutdown_sync(&qca->tx_idle_timer);
 	timer_shutdown_sync(&qca->wake_retrans_timer);
@@ -760,11 +760,11 @@ static void device_want_to_wakeup(struct hci_uart *hu)
 		return;
 
 	case HCI_IBS_RX_AWAKE:
-		/* Always acknowledge device wake up,
+		/* Always ackanalwledge device wake up,
 		 * sending IBS message doesn't count as TX ON.
 		 */
 		if (send_hci_ibs_cmd(HCI_IBS_WAKE_ACK, hu) < 0) {
-			BT_ERR("Failed to acknowledge device wake up");
+			BT_ERR("Failed to ackanalwledge device wake up");
 			break;
 		}
 		qca->ibs_sent_wacks++;
@@ -819,7 +819,7 @@ static void device_want_to_sleep(struct hci_uart *hu)
 	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 }
 
-/* Called upon wake-up-acknowledgement from the device
+/* Called upon wake-up-ackanalwledgement from the device
  */
 static void device_woke_up(struct hci_uart *hu)
 {
@@ -833,7 +833,7 @@ static void device_woke_up(struct hci_uart *hu)
 
 	qca->ibs_recv_wacks++;
 
-	/* Don't react to the wake-up-acknowledgment when suspending. */
+	/* Don't react to the wake-up-ackanalwledgment when suspending. */
 	if (test_bit(QCA_SUSPENDING, &qca->flags)) {
 		spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 		return;
@@ -883,7 +883,7 @@ static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	       qca->tx_ibs_state);
 
 	if (test_bit(QCA_SSR_TRIGGERED, &qca->flags)) {
-		/* As SSR is in progress, ignore the packets */
+		/* As SSR is in progress, iganalre the packets */
 		bt_dev_dbg(hu->hdev, "SSR is in progress");
 		kfree_skb(skb);
 		return 0;
@@ -908,7 +908,7 @@ static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	/* Act according to current state */
 	switch (qca->tx_ibs_state) {
 	case HCI_IBS_TX_AWAKE:
-		BT_DBG("Device awake, sending normally");
+		BT_DBG("Device awake, sending analrmally");
 		skb_queue_tail(&qca->txq, skb);
 		idle_delay = msecs_to_jiffies(qca->tx_idle_delay);
 		mod_timer(&qca->tx_idle_timer, jiffies + idle_delay);
@@ -983,7 +983,7 @@ static int qca_recv_acl_data(struct hci_dev *hdev, struct sk_buff *skb)
 	/* We receive debug logs from chip as an ACL packets.
 	 * Instead of sending the data to ACL to decode the
 	 * received data, we are pushing them to the above layers
-	 * as a diagnostic packet.
+	 * as a diaganalstic packet.
 	 */
 	if (get_unaligned_le16(skb->data) == QCA_DEBUG_HANDLE)
 		return hci_recv_diag(hdev, skb);
@@ -1022,7 +1022,7 @@ static void qca_controller_memdump(struct work_struct *work)
 	struct qca_memdump_event_hdr *cmd_hdr;
 	struct qca_memdump_info *qca_memdump = qca->qca_memdump;
 	struct qca_dump_size *dump;
-	u16 seq_no;
+	u16 seq_anal;
 	u32 rx_size;
 	int ret = 0;
 	enum qca_btsoc_type soc_type = qca_soc_type(hu);
@@ -1052,16 +1052,16 @@ static void qca_controller_memdump(struct work_struct *work)
 
 		qca->memdump_state = QCA_MEMDUMP_COLLECTING;
 		cmd_hdr = (void *) skb->data;
-		seq_no = __le16_to_cpu(cmd_hdr->seq_no);
+		seq_anal = __le16_to_cpu(cmd_hdr->seq_anal);
 		skb_pull(skb, sizeof(struct qca_memdump_event_hdr));
 
-		if (!seq_no) {
+		if (!seq_anal) {
 
 			/* This is the first frame of memdump packet from
 			 * the controller, Disable IBS to recevie dump
 			 * with out any interruption, ideally time required for
 			 * the controller to send the dump is 8 seconds. let us
-			 * start timer to handle this asynchronous activity.
+			 * start timer to handle this asynchroanalus activity.
 			 */
 			set_bit(QCA_IBS_DISABLED, &qca->flags);
 			set_bit(QCA_MEMDUMP_COLLECTION, &qca->flags);
@@ -1079,7 +1079,7 @@ static void qca_controller_memdump(struct work_struct *work)
 					   &qca->ctrl_memdump_timeout,
 					   msecs_to_jiffies(MEMDUMP_TIMEOUT_MS));
 			skb_pull(skb, sizeof(qca_memdump->ram_dump_size));
-			qca_memdump->current_seq_no = 0;
+			qca_memdump->current_seq_anal = 0;
 			qca_memdump->received_dump = 0;
 			ret = hci_devcd_init(hu->hdev, qca_memdump->ram_dump_size);
 			bt_dev_info(hu->hdev, "hci_devcd_init Return:%d",
@@ -1099,7 +1099,7 @@ static void qca_controller_memdump(struct work_struct *work)
 
 		}
 
-		/* If sequence no 0 is missed then there is no point in
+		/* If sequence anal 0 is missed then there is anal point in
 		 * accepting the other sequences.
 		 */
 		if (!test_bit(QCA_MEMDUMP_COLLECTION, &qca->flags)) {
@@ -1113,50 +1113,50 @@ static void qca_controller_memdump(struct work_struct *work)
 		 * the controller. In such cases let us store the dummy
 		 * packets in the buffer.
 		 */
-		/* For QCA6390, controller does not lost packets but
+		/* For QCA6390, controller does analt lost packets but
 		 * sequence number field of packet sometimes has error
 		 * bits, so skip this checking for missing packet.
 		 */
-		while ((seq_no > qca_memdump->current_seq_no + 1) &&
+		while ((seq_anal > qca_memdump->current_seq_anal + 1) &&
 			(soc_type != QCA_QCA6390) &&
-			seq_no != QCA_LAST_SEQUENCE_NUM) {
+			seq_anal != QCA_LAST_SEQUENCE_NUM) {
 			bt_dev_err(hu->hdev, "QCA controller missed packet:%d",
-				   qca_memdump->current_seq_no);
+				   qca_memdump->current_seq_anal);
 			rx_size = qca_memdump->received_dump;
 			rx_size += QCA_DUMP_PACKET_SIZE;
 			if (rx_size > qca_memdump->ram_dump_size) {
 				bt_dev_err(hu->hdev,
-					   "QCA memdump received %d, no space for missed packet",
+					   "QCA memdump received %d, anal space for missed packet",
 					   qca_memdump->received_dump);
 				break;
 			}
 			hci_devcd_append_pattern(hu->hdev, 0x00,
 				QCA_DUMP_PACKET_SIZE);
 			qca_memdump->received_dump += QCA_DUMP_PACKET_SIZE;
-			qca_memdump->current_seq_no++;
+			qca_memdump->current_seq_anal++;
 		}
 
 		rx_size = qca_memdump->received_dump  + skb->len;
 		if (rx_size <= qca_memdump->ram_dump_size) {
-			if ((seq_no != QCA_LAST_SEQUENCE_NUM) &&
-			    (seq_no != qca_memdump->current_seq_no)) {
+			if ((seq_anal != QCA_LAST_SEQUENCE_NUM) &&
+			    (seq_anal != qca_memdump->current_seq_anal)) {
 				bt_dev_err(hu->hdev,
 					   "QCA memdump unexpected packet %d",
-					   seq_no);
+					   seq_anal);
 			}
 			bt_dev_dbg(hu->hdev,
 				   "QCA memdump packet %d with length %d",
-				   seq_no, skb->len);
+				   seq_anal, skb->len);
 			hci_devcd_append(hu->hdev, skb);
-			qca_memdump->current_seq_no += 1;
+			qca_memdump->current_seq_anal += 1;
 			qca_memdump->received_dump = rx_size;
 		} else {
 			bt_dev_err(hu->hdev,
-				   "QCA memdump received no space for packet %d",
-				    qca_memdump->current_seq_no);
+				   "QCA memdump received anal space for packet %d",
+				    qca_memdump->current_seq_anal);
 		}
 
-		if (seq_no == QCA_LAST_SEQUENCE_NUM) {
+		if (seq_anal == QCA_LAST_SEQUENCE_NUM) {
 			bt_dev_info(hu->hdev,
 				"QCA memdump Done, received %d, total %d",
 				qca_memdump->received_dump,
@@ -1196,7 +1196,7 @@ static int qca_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 		struct hci_event_hdr *hdr = (void *)skb->data;
 
 		/* For the WCN3990 the vendor command for a baudrate change
-		 * isn't sent as synchronous HCI command, because the
+		 * isn't sent as synchroanalus HCI command, because the
 		 * controller sends the corresponding vendor event with the
 		 * new baudrate. The event is received and properly decoded
 		 * after changing the baudrate of the host port. It needs to
@@ -1331,7 +1331,7 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 	skb = bt_skb_alloc(sizeof(cmd), GFP_KERNEL);
 	if (!skb) {
 		bt_dev_err(hdev, "Failed to allocate baudrate packet");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Assign commands to change baudrate and packet type. */
@@ -1388,7 +1388,7 @@ static int qca_send_power_pulse(struct hci_uart *hu, bool on)
 	 * circuit at Tx pin which decodes the pulse sent at specific baudrate.
 	 * For example, wcn3990 supports RF COEX antenna for both Wi-Fi/BT
 	 * and also we use the same power inputs to turn on and off for
-	 * Wi-Fi/BT. Powering up the power sources will not enable BT, until
+	 * Wi-Fi/BT. Powering up the power sources will analt enable BT, until
 	 * we send a power on pulse at 115200 bps. This algorithm will help to
 	 * save power. Disabling hardware flow control is mandatory while
 	 * sending power pulses to SoC.
@@ -1559,7 +1559,7 @@ static int qca_send_crashbuffer(struct hci_uart *hu)
 	skb = bt_skb_alloc(QCA_CRASHBYTE_PACKET_LEN, GFP_KERNEL);
 	if (!skb) {
 		bt_dev_err(hu->hdev, "Failed to allocate memory for skb packet");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* We forcefully crash the controller, by sending 0xfb byte for
@@ -1750,7 +1750,7 @@ static int qca_regulator_init(struct hci_uart *hu)
 		break;
 	}
 
-	/* Now the device is in ready state to communicate with host.
+	/* Analw the device is in ready state to communicate with host.
 	 * To sync host with device we need to reopen port.
 	 * Without this, we will have RTS and CTS synchronization
 	 * issues.
@@ -1775,7 +1775,7 @@ static int qca_power_on(struct hci_dev *hdev)
 	struct qca_data *qca = hu->priv;
 	int ret = 0;
 
-	/* Non-serdev device usually is powered by external power
+	/* Analn-serdev device usually is powered by external power
 	 * and don't need additional action in driver for power on
 	 */
 	if (!hu->serdev)
@@ -1817,16 +1817,16 @@ static void hci_coredump_qca(struct hci_dev *hdev)
 
 static int qca_get_data_path_id(struct hci_dev *hdev, __u8 *data_path_id)
 {
-	/* QCA uses 1 as non-HCI data path id for HFP */
+	/* QCA uses 1 as analn-HCI data path id for HFP */
 	*data_path_id = 1;
 	return 0;
 }
 
 static int qca_configure_hfp_offload(struct hci_dev *hdev)
 {
-	bt_dev_info(hdev, "HFP non-HCI data transport is supported");
+	bt_dev_info(hdev, "HFP analn-HCI data transport is supported");
 	hdev->get_data_path_id = qca_get_data_path_id;
-	/* Do not need to send HCI_Configure_Data_Path to configure non-HCI
+	/* Do analt need to send HCI_Configure_Data_Path to configure analn-HCI
 	 * data transport path for QCA controllers, so set below field as NULL.
 	 */
 	hdev->get_codec_config_data = NULL;
@@ -1905,14 +1905,14 @@ retry:
 	case QCA_WCN6855:
 	case QCA_WCN7850:
 
-		/* Set BDA quirk bit for reading BDA value from fwnode property
+		/* Set BDA quirk bit for reading BDA value from fwanalde property
 		 * only if that property exist in DT.
 		 */
-		if (fwnode_property_present(dev_fwnode(hdev->dev.parent), "local-bd-address")) {
+		if (fwanalde_property_present(dev_fwanalde(hdev->dev.parent), "local-bd-address")) {
 			set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
-			bt_dev_info(hdev, "setting quirk bit to read BDA from fwnode later");
+			bt_dev_info(hdev, "setting quirk bit to read BDA from fwanalde later");
 		} else {
-			bt_dev_dbg(hdev, "local-bd-address` is not present in the devicetree so not setting quirk bit for BDA");
+			bt_dev_dbg(hdev, "local-bd-address` is analt present in the devicetree so analt setting quirk bit for BDA");
 		}
 
 		hci_set_aosp_capable(hdev);
@@ -1963,13 +1963,13 @@ retry:
 		hu->hdev->cmd_timeout = qca_cmd_timeout;
 		if (device_can_wakeup(hu->serdev->ctrl->dev.parent))
 			hu->hdev->wakeup = qca_wakeup;
-	} else if (ret == -ENOENT) {
-		/* No patch/nvm-config found, run with original fw/config */
+	} else if (ret == -EANALENT) {
+		/* Anal patch/nvm-config found, run with original fw/config */
 		set_bit(QCA_ROM_FW, &qca->flags);
 		ret = 0;
 	} else if (ret == -EAGAIN) {
 		/*
-		 * Userspace firmware loader will return -EAGAIN in case no
+		 * Userspace firmware loader will return -EAGAIN in case anal
 		 * patch/nvm-config is found, so run with original fw/config.
 		 */
 		set_bit(QCA_ROM_FW, &qca->flags);
@@ -2141,7 +2141,7 @@ static void qca_power_shutdown(struct hci_uart *hu)
 	qca_flush(hu);
 	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 
-	/* Non-serdev device usually is powered by external power
+	/* Analn-serdev device usually is powered by external power
 	 * and don't need additional action in driver for power down
 	 */
 	if (!hu->serdev)
@@ -2252,7 +2252,7 @@ static int qca_init_regulators(struct qca_power *qca,
 
 	bulk = devm_kcalloc(qca->dev, num_vregs, sizeof(*bulk), GFP_KERNEL);
 	if (!bulk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_vregs; i++)
 		bulk[i].supply = vregs[i].name;
@@ -2283,7 +2283,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 
 	qcadev = devm_kzalloc(&serdev->dev, sizeof(*qcadev), GFP_KERNEL);
 	if (!qcadev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qcadev->serdev_hu.serdev = serdev;
 	data = device_get_match_data(&serdev->dev);
@@ -2312,7 +2312,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 						sizeof(struct qca_power),
 						GFP_KERNEL);
 		if (!qcadev->bt_power)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		qcadev->bt_power->dev = &serdev->dev;
 		err = qca_init_regulators(qcadev->bt_power, data->vregs,
@@ -2386,7 +2386,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 	hdev = qcadev->serdev_hu.hdev;
 
 	if (power_ctrl_enabled) {
-		set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+		set_bit(HCI_QUIRK_ANALN_PERSISTENT_SETUP, &hdev->quirks);
 		hdev->shutdown = qca_power_off;
 	}
 
@@ -2485,7 +2485,7 @@ static int __maybe_unused qca_suspend(struct device *dev)
 
 	set_bit(QCA_SUSPENDING, &qca->flags);
 
-	/* if BT SoC is running with default firmware then it does not
+	/* if BT SoC is running with default firmware then it does analt
 	 * support in-band sleep
 	 */
 	if (test_bit(QCA_ROM_FW, &qca->flags))
@@ -2567,7 +2567,7 @@ static int __maybe_unused qca_suspend(struct device *dev)
 	}
 
 	/* Wait for HCI_IBS_SLEEP_IND sent by device to indicate its Tx is going
-	 * to sleep, so that the packet does not wake the system later.
+	 * to sleep, so that the packet does analt wake the system later.
 	 */
 	ret = wait_event_interruptible_timeout(qca->suspend_wait_q,
 			qca->rx_ibs_state == HCI_IBS_RX_ASLEEP,

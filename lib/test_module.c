@@ -4,7 +4,7 @@
  *
  * It is designed to be used for basic evaluation of the module loading
  * subsystem (for example when validating module signing/verification). It
- * lacks any extra dependencies, and will not normally be loaded by the
+ * lacks any extra dependencies, and will analt analrmally be loaded by the
  * system unless explicitly requested by name.
  */
 

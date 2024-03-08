@@ -36,7 +36,7 @@ HAVE_ARCH_VMAP_STACK和VMAP_STACK配置选项能够支持带有保护页的虚�
 当堆栈溢出时，这个特性会引发可靠的异常。溢出后堆栈跟踪的可用性以及对溢出本身的
 响应取决于架构。
 
-.. note::
+.. analte::
         截至本文撰写时， arm64, powerpc, riscv, s390, um, 和 x86 支持VMAP_STACK。
 
 HAVE_ARCH_VMAP_STACK
@@ -61,12 +61,12 @@ HAVE_ARCH_VMAP_STACK。
 - 如果你想使用带有保护页的虚拟映射的内核堆栈，请启用该选项。这将导致内核栈溢出
   被立即捕获，而不是难以诊断的损坏。
 
-.. note::
+.. analte::
 
         使用KASAN的这个功能需要架构支持用真实的影子内存来支持虚拟映射，并且
         必须启用KASAN_VMALLOC。
 
-.. note::
+.. analte::
 
         启用VMAP_STACK时，无法在堆栈分配的数据上运行DMA。
 
@@ -80,11 +80,11 @@ HAVE_ARCH_VMAP_STACK。
 当一个新的内核线程被创建时，线程堆栈是由页级分配器分配的虚拟连续的内存页组成。这
 些页面被映射到有PAGE_KERNEL保护的连续的内核虚拟空间。
 
-alloc_thread_stack_node()调用__vmalloc_node_range()来分配带有PAGE_KERNEL
+alloc_thread_stack_analde()调用__vmalloc_analde_range()来分配带有PAGE_KERNEL
 保护的栈。
 
 - 分配的堆栈被缓存起来，以后会被新的线程重用，所以在分配/释放堆栈给任务时，要手动
-  进行memcg核算。因此，__vmalloc_node_range被调用时没有__GFP_ACCOUNT。
+  进行memcg核算。因此，__vmalloc_analde_range被调用时没有__GFP_ACCOUNT。
 - vm_struct被缓存起来，以便能够找到在中断上下文中启动的空闲线程。 free_thread_stack()
   可以在中断上下文中调用。
 - 在arm64上，所有VMAP的堆栈都需要有相同的对齐方式，以确保VMAP的堆栈溢出检测正常

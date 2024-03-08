@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <drm/drm_atomic_helper.h>
@@ -35,7 +35,7 @@
  * Currently, we assume the external encoders connected to the DVO are
  * transparent. Loongson's DVO interface can directly drive RGB888 panels.
  *
- *  TODO: Add support for non-transparent encoders
+ *  TODO: Add support for analn-transparent encoders
  */
 
 static int ls7a1000_dpi_connector_get_modes(struct drm_connector *conn)
@@ -54,7 +54,7 @@ static int ls7a1000_dpi_connector_get_modes(struct drm_connector *conn)
 		return num;
 	}
 
-	num = drm_add_modes_noedid(conn, 1920, 1200);
+	num = drm_add_modes_analedid(conn, 1920, 1200);
 
 	drm_set_preferred_mode(conn, 1024, 768);
 
@@ -88,7 +88,7 @@ ls7a1000_dpi_connector_detect(struct drm_connector *connector, bool force)
 		return connector_status_disconnected;
 	}
 
-	return connector_status_unknown;
+	return connector_status_unkanalwn;
 }
 
 static const struct drm_connector_funcs ls7a1000_dpi_connector_funcs = {
@@ -106,7 +106,7 @@ static void ls7a1000_pipe0_encoder_reset(struct drm_encoder *encoder)
 	struct lsdc_device *ldev = to_lsdc(ddev);
 
 	/*
-	 * We need this for S3 support, screen will not lightup if don't set
+	 * We need this for S3 support, screen will analt lightup if don't set
 	 * this register correctly.
 	 */
 	lsdc_wreg32(ldev, LSDC_CRTC0_DVO_CONF_REG,
@@ -119,7 +119,7 @@ static void ls7a1000_pipe1_encoder_reset(struct drm_encoder *encoder)
 	struct lsdc_device *ldev = to_lsdc(ddev);
 
 	/*
-	 * We need this for S3 support, screen will not lightup if don't set
+	 * We need this for S3 support, screen will analt lightup if don't set
 	 * this register correctly.
 	 */
 

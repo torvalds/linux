@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <asm/mach/sharpsl_param.h>
 
-#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_NORMAL)
+#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_ANALRMAL)
 
 /* Register Addresses */
 #define RESCTL_ADRS     0x00
@@ -497,13 +497,13 @@ static int corgi_lcd_probe(struct spi_device *spi)
 	int ret = 0;
 
 	if (pdata == NULL) {
-		dev_err(&spi->dev, "platform data not available\n");
+		dev_err(&spi->dev, "platform data analt available\n");
 		return -EINVAL;
 	}
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(struct corgi_lcd), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lcd->spi_dev = spi;
 

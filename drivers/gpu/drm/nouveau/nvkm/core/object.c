@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,18 +32,18 @@ nvkm_object_search(struct nvkm_client *client, u64 handle,
 	struct nvkm_object *object;
 
 	if (handle) {
-		struct rb_node *node = client->objroot.rb_node;
-		while (node) {
-			object = rb_entry(node, typeof(*object), node);
+		struct rb_analde *analde = client->objroot.rb_analde;
+		while (analde) {
+			object = rb_entry(analde, typeof(*object), analde);
 			if (handle < object->object)
-				node = node->rb_left;
+				analde = analde->rb_left;
 			else
 			if (handle > object->object)
-				node = node->rb_right;
+				analde = analde->rb_right;
 			else
 				goto done;
 		}
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	} else {
 		object = &client->object;
 	}
@@ -57,18 +57,18 @@ done:
 void
 nvkm_object_remove(struct nvkm_object *object)
 {
-	if (!RB_EMPTY_NODE(&object->node))
-		rb_erase(&object->node, &object->client->objroot);
+	if (!RB_EMPTY_ANALDE(&object->analde))
+		rb_erase(&object->analde, &object->client->objroot);
 }
 
 bool
 nvkm_object_insert(struct nvkm_object *object)
 {
-	struct rb_node **ptr = &object->client->objroot.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **ptr = &object->client->objroot.rb_analde;
+	struct rb_analde *parent = NULL;
 
 	while (*ptr) {
-		struct nvkm_object *this = rb_entry(*ptr, typeof(*this), node);
+		struct nvkm_object *this = rb_entry(*ptr, typeof(*this), analde);
 		parent = *ptr;
 		if (object->object < this->object)
 			ptr = &parent->rb_left;
@@ -79,8 +79,8 @@ nvkm_object_insert(struct nvkm_object *object)
 			return false;
 	}
 
-	rb_link_node(&object->node, parent, ptr);
-	rb_insert_color(&object->node, &object->client->objroot);
+	rb_link_analde(&object->analde, parent, ptr);
+	rb_insert_color(&object->analde, &object->client->objroot);
 	return true;
 }
 
@@ -89,7 +89,7 @@ nvkm_object_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	if (likely(object->func->mthd))
 		return object->func->mthd(object, mthd, data, size);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -98,7 +98,7 @@ nvkm_object_ntfy(struct nvkm_object *object, u32 mthd,
 {
 	if (likely(object->func->ntfy))
 		return object->func->ntfy(object, mthd, pevent);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -107,7 +107,7 @@ nvkm_object_map(struct nvkm_object *object, void *argv, u32 argc,
 {
 	if (likely(object->func->map))
 		return object->func->map(object, argv, argc, type, addr, size);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -115,7 +115,7 @@ nvkm_object_unmap(struct nvkm_object *object)
 {
 	if (likely(object->func->unmap))
 		return object->func->unmap(object);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -123,7 +123,7 @@ nvkm_object_rd08(struct nvkm_object *object, u64 addr, u8 *data)
 {
 	if (likely(object->func->rd08))
 		return object->func->rd08(object, addr, data);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -131,7 +131,7 @@ nvkm_object_rd16(struct nvkm_object *object, u64 addr, u16 *data)
 {
 	if (likely(object->func->rd16))
 		return object->func->rd16(object, addr, data);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -139,7 +139,7 @@ nvkm_object_rd32(struct nvkm_object *object, u64 addr, u32 *data)
 {
 	if (likely(object->func->rd32))
 		return object->func->rd32(object, addr, data);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -147,7 +147,7 @@ nvkm_object_wr08(struct nvkm_object *object, u64 addr, u8 data)
 {
 	if (likely(object->func->wr08))
 		return object->func->wr08(object, addr, data);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -155,7 +155,7 @@ nvkm_object_wr16(struct nvkm_object *object, u64 addr, u16 data)
 {
 	if (likely(object->func->wr16))
 		return object->func->wr16(object, addr, data);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -163,7 +163,7 @@ nvkm_object_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
 	if (likely(object->func->wr32))
 		return object->func->wr32(object, addr, data);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -172,7 +172,7 @@ nvkm_object_bind(struct nvkm_object *object, struct nvkm_gpuobj *gpuobj,
 {
 	if (object->func->bind)
 		return object->func->bind(object, gpuobj, align, pgpuobj);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int
@@ -304,7 +304,7 @@ nvkm_object_ctor(const struct nvkm_object_func *func,
 	object->object = oclass->object;
 	INIT_LIST_HEAD(&object->head);
 	INIT_LIST_HEAD(&object->tree);
-	RB_CLEAR_NODE(&object->node);
+	RB_CLEAR_ANALDE(&object->analde);
 	WARN_ON(IS_ERR(object->engine));
 }
 
@@ -315,11 +315,11 @@ nvkm_object_new_(const struct nvkm_object_func *func,
 {
 	if (size == 0) {
 		if (!(*pobject = kzalloc(sizeof(**pobject), GFP_KERNEL)))
-			return -ENOMEM;
+			return -EANALMEM;
 		nvkm_object_ctor(func, oclass, *pobject);
 		return 0;
 	}
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static const struct nvkm_object_func

@@ -22,7 +22,7 @@ properties:
   arm,vexpress,config-bridge:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Phandle to the sysreg node.
+      Phandle to the sysreg analde.
 
   muxfpga:
     type: object

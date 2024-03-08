@@ -18,7 +18,7 @@
 
 static void __iomem * sched_clk_base;
 
-static u64 notrace integrator_read_sched_clock(void)
+static u64 analtrace integrator_read_sched_clock(void)
 {
 	return -readl(sched_clk_base + TIMER_VALUE);
 }
@@ -155,7 +155,7 @@ static int integrator_clockevent_init(unsigned long inrate,
 	return 0;
 }
 
-static int __init integrator_ap_timer_init_of(struct device_node *node)
+static int __init integrator_ap_timer_init_of(struct device_analde *analde)
 {
 	const char *path;
 	void __iomem *base;
@@ -163,15 +163,15 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 	int irq;
 	struct clk *clk;
 	unsigned long rate;
-	struct device_node *alias_node;
+	struct device_analde *alias_analde;
 
-	base = of_io_request_and_map(node, 0, "integrator-timer");
+	base = of_io_request_and_map(analde, 0, "integrator-timer");
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(analde, 0);
 	if (IS_ERR(clk)) {
-		pr_err("No clock for %pOFn\n", node);
+		pr_err("Anal clock for %pOFn\n", analde);
 		return PTR_ERR(clk);
 	}
 	clk_prepare_enable(clk);
@@ -185,16 +185,16 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 		return err;
 	}
 
-	alias_node = of_find_node_by_path(path);
+	alias_analde = of_find_analde_by_path(path);
 
 	/*
-	 * The pointer is used as an identifier not as a pointer, we
-	 * can drop the refcount on the of__node immediately after
+	 * The pointer is used as an identifier analt as a pointer, we
+	 * can drop the refcount on the of__analde immediately after
 	 * getting it.
 	 */
-	of_node_put(alias_node);
+	of_analde_put(alias_analde);
 
-	if (node == alias_node)
+	if (analde == alias_analde)
 		/* The primary timer lacks IRQ, use as clocksource */
 		return integrator_clocksource_init(rate, base);
 
@@ -205,13 +205,13 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 		return err;
 	}
 
-	alias_node = of_find_node_by_path(path);
+	alias_analde = of_find_analde_by_path(path);
 
-	of_node_put(alias_node);
+	of_analde_put(alias_analde);
 
-	if (node == alias_node) {
+	if (analde == alias_analde) {
 		/* The secondary timer will drive the clock event */
-		irq = irq_of_parse_and_map(node, 0);
+		irq = irq_of_parse_and_map(analde, 0);
 		return integrator_clockevent_init(rate, base, irq);
 	}
 

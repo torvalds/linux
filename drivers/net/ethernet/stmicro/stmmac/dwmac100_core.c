@@ -91,7 +91,7 @@ static void dwmac100_set_filter(struct mac_device_info *hw,
 		value &= ~(MAC_CONTROL_PR | MAC_CONTROL_IF | MAC_CONTROL_HO);
 		writel(0xffffffff, ioaddr + MAC_HASH_HIGH);
 		writel(0xffffffff, ioaddr + MAC_HASH_LOW);
-	} else if (netdev_mc_empty(dev)) {	/* no multicast */
+	} else if (netdev_mc_empty(dev)) {	/* anal multicast */
 		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_PR | MAC_CONTROL_IF |
 			   MAC_CONTROL_HO | MAC_CONTROL_HP);
 	} else {
@@ -136,7 +136,7 @@ static void dwmac100_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 	writel(flow, ioaddr + MAC_FLOW_CTRL);
 }
 
-/* No PMT module supported on ST boards with this Eth chip. */
+/* Anal PMT module supported on ST boards with this Eth chip. */
 static void dwmac100_pmt(struct mac_device_info *hw, unsigned long mode)
 {
 	return;

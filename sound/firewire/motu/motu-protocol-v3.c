@@ -26,10 +26,10 @@
 #define  V3_ENABLE_OPT_IN_IFACE_B	0x00000002
 #define  V3_ENABLE_OPT_OUT_IFACE_A	0x00000100
 #define  V3_ENABLE_OPT_OUT_IFACE_B	0x00000200
-#define  V3_NO_ADAT_OPT_IN_IFACE_A	0x00010000
-#define  V3_NO_ADAT_OPT_IN_IFACE_B	0x00100000
-#define  V3_NO_ADAT_OPT_OUT_IFACE_A	0x00040000
-#define  V3_NO_ADAT_OPT_OUT_IFACE_B	0x00400000
+#define  V3_ANAL_ADAT_OPT_IN_IFACE_A	0x00010000
+#define  V3_ANAL_ADAT_OPT_IN_IFACE_B	0x00100000
+#define  V3_ANAL_ADAT_OPT_OUT_IFACE_A	0x00040000
+#define  V3_ANAL_ADAT_OPT_OUT_IFACE_B	0x00400000
 
 #define V3_MSG_FLAG_CLK_CHANGED		0x00000002
 #define V3_CLK_WAIT_MSEC		4000
@@ -146,12 +146,12 @@ int snd_motu_protocol_v3_get_clock_source(struct snd_motu *motu,
 		options = be32_to_cpu(reg);
 
 		if (data == V3_CLOCK_SRC_OPT_IFACE_A) {
-			if (options & V3_NO_ADAT_OPT_IN_IFACE_A)
+			if (options & V3_ANAL_ADAT_OPT_IN_IFACE_A)
 				*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT_A;
 			else
 				*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT_A;
 		} else {
-			if (options & V3_NO_ADAT_OPT_IN_IFACE_B)
+			if (options & V3_ANAL_ADAT_OPT_IN_IFACE_B)
 				*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT_B;
 			else
 				*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT_B;
@@ -159,7 +159,7 @@ int snd_motu_protocol_v3_get_clock_source(struct snd_motu *motu,
 		break;
 	}
 	default:
-		*src = SND_MOTU_CLOCK_SOURCE_UNKNOWN;
+		*src = SND_MOTU_CLOCK_SOURCE_UNKANALWN;
 		break;
 	}
 
@@ -192,7 +192,7 @@ int snd_motu_protocol_v3_switch_fetching_mode(struct snd_motu *motu,
 static int detect_packet_formats_with_opt_ifaces(struct snd_motu *motu, u32 data)
 {
 	if (data & V3_ENABLE_OPT_IN_IFACE_A) {
-		if (data & V3_NO_ADAT_OPT_IN_IFACE_A) {
+		if (data & V3_ANAL_ADAT_OPT_IN_IFACE_A) {
 			motu->tx_packet_formats.pcm_chunks[0] += 4;
 			motu->tx_packet_formats.pcm_chunks[1] += 4;
 		} else {
@@ -202,7 +202,7 @@ static int detect_packet_formats_with_opt_ifaces(struct snd_motu *motu, u32 data
 	}
 
 	if (data & V3_ENABLE_OPT_IN_IFACE_B) {
-		if (data & V3_NO_ADAT_OPT_IN_IFACE_B) {
+		if (data & V3_ANAL_ADAT_OPT_IN_IFACE_B) {
 			motu->tx_packet_formats.pcm_chunks[0] += 4;
 			motu->tx_packet_formats.pcm_chunks[1] += 4;
 		} else {
@@ -212,7 +212,7 @@ static int detect_packet_formats_with_opt_ifaces(struct snd_motu *motu, u32 data
 	}
 
 	if (data & V3_ENABLE_OPT_OUT_IFACE_A) {
-		if (data & V3_NO_ADAT_OPT_OUT_IFACE_A) {
+		if (data & V3_ANAL_ADAT_OPT_OUT_IFACE_A) {
 			motu->rx_packet_formats.pcm_chunks[0] += 4;
 			motu->rx_packet_formats.pcm_chunks[1] += 4;
 		} else {
@@ -222,7 +222,7 @@ static int detect_packet_formats_with_opt_ifaces(struct snd_motu *motu, u32 data
 	}
 
 	if (data & V3_ENABLE_OPT_OUT_IFACE_B) {
-		if (data & V3_NO_ADAT_OPT_OUT_IFACE_B) {
+		if (data & V3_ANAL_ADAT_OPT_OUT_IFACE_B) {
 			motu->rx_packet_formats.pcm_chunks[0] += 4;
 			motu->rx_packet_formats.pcm_chunks[1] += 4;
 		} else {

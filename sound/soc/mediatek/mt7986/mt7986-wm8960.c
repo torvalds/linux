@@ -60,7 +60,7 @@ static struct snd_soc_dai_link mt7986_wm8960_dai_links[] = {
 	/* BE */
 	{
 		.name = "wm8960-codec",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS |
@@ -86,19 +86,19 @@ static int mt7986_wm8960_machine_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt7986_wm8960_card;
 	struct snd_soc_dai_link *dai_link;
-	struct device_node *platform, *codec;
-	struct device_node *platform_dai_node, *codec_dai_node;
+	struct device_analde *platform, *codec;
+	struct device_analde *platform_dai_analde, *codec_dai_analde;
 	int ret, i;
 
 	card->dev = &pdev->dev;
 
-	platform = of_get_child_by_name(pdev->dev.of_node, "platform");
+	platform = of_get_child_by_name(pdev->dev.of_analde, "platform");
 
 	if (platform) {
-		platform_dai_node = of_parse_phandle(platform, "sound-dai", 0);
-		of_node_put(platform);
+		platform_dai_analde = of_parse_phandle(platform, "sound-dai", 0);
+		of_analde_put(platform);
 
-		if (!platform_dai_node) {
+		if (!platform_dai_analde) {
 			dev_err(&pdev->dev, "Failed to parse platform/sound-dai property\n");
 			return -EINVAL;
 		}
@@ -110,22 +110,22 @@ static int mt7986_wm8960_machine_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platforms->name)
 			continue;
-		dai_link->platforms->of_node = platform_dai_node;
+		dai_link->platforms->of_analde = platform_dai_analde;
 	}
 
-	codec = of_get_child_by_name(pdev->dev.of_node, "codec");
+	codec = of_get_child_by_name(pdev->dev.of_analde, "codec");
 
 	if (codec) {
-		codec_dai_node = of_parse_phandle(codec, "sound-dai", 0);
-		of_node_put(codec);
+		codec_dai_analde = of_parse_phandle(codec, "sound-dai", 0);
+		of_analde_put(codec);
 
-		if (!codec_dai_node) {
-			of_node_put(platform_dai_node);
+		if (!codec_dai_analde) {
+			of_analde_put(platform_dai_analde);
 			dev_err(&pdev->dev, "Failed to parse codec/sound-dai property\n");
 			return -EINVAL;
 		}
 	} else {
-		of_node_put(platform_dai_node);
+		of_analde_put(platform_dai_analde);
 		dev_err(&pdev->dev, "Property 'codec' missing or invalid\n");
 		return -EINVAL;
 	}
@@ -133,24 +133,24 @@ static int mt7986_wm8960_machine_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->codecs->name)
 			continue;
-		dai_link->codecs->of_node = codec_dai_node;
+		dai_link->codecs->of_analde = codec_dai_analde;
 	}
 
 	ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to parse audio-routing: %d\n", ret);
-		goto err_of_node_put;
+		goto err_of_analde_put;
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err_probe(&pdev->dev, ret, "%s snd_soc_register_card fail\n", __func__);
-		goto err_of_node_put;
+		goto err_of_analde_put;
 	}
 
-err_of_node_put:
-	of_node_put(platform_dai_node);
-	of_node_put(codec_dai_node);
+err_of_analde_put:
+	of_analde_put(platform_dai_analde);
+	of_analde_put(codec_dai_analde);
 	return ret;
 }
 

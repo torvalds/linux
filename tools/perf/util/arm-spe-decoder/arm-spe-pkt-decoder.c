@@ -190,7 +190,7 @@ static int arm_spe_do_get_packet(const unsigned char *buf, size_t len,
 	if (hdr == SPE_HEADER0_PAD)
 		return arm_spe_get_pad(packet);
 
-	if (hdr == SPE_HEADER0_END) /* no timestamp at end of record */
+	if (hdr == SPE_HEADER0_END) /* anal timestamp at end of record */
 		return arm_spe_get_end(packet);
 
 	if (hdr == SPE_HEADER0_TIMESTAMP)
@@ -309,8 +309,8 @@ static int arm_spe_pkt_desc_event(const struct arm_spe_pkt *packet,
 		arm_spe_pkt_out_string(&err, &buf, &buf_len, " TLB-ACCESS");
 	if (payload & BIT(EV_TLB_WALK))
 		arm_spe_pkt_out_string(&err, &buf, &buf_len, " TLB-REFILL");
-	if (payload & BIT(EV_NOT_TAKEN))
-		arm_spe_pkt_out_string(&err, &buf, &buf_len, " NOT-TAKEN");
+	if (payload & BIT(EV_ANALT_TAKEN))
+		arm_spe_pkt_out_string(&err, &buf, &buf_len, " ANALT-TAKEN");
 	if (payload & BIT(EV_MISPRED))
 		arm_spe_pkt_out_string(&err, &buf, &buf_len, " MISPRED");
 	if (payload & BIT(EV_LLC_ACCESS))
@@ -416,7 +416,7 @@ static int arm_spe_pkt_desc_op_type(const struct arm_spe_pkt *packet,
 
 		break;
 	default:
-		/* Unknown index */
+		/* Unkanalwn index */
 		err = -1;
 		break;
 	}
@@ -458,7 +458,7 @@ static int arm_spe_pkt_desc_addr(const struct arm_spe_pkt *packet,
 				       payload, ns, ch, pat);
 		break;
 	default:
-		/* Unknown index */
+		/* Unkanalwn index */
 		err = -1;
 		break;
 	}
@@ -530,7 +530,7 @@ int arm_spe_pkt_desc(const struct arm_spe_pkt *packet, char *buf,
 		err = arm_spe_pkt_desc_counter(packet, buf, buf_len);
 		break;
 	default:
-		/* Unknown packet type */
+		/* Unkanalwn packet type */
 		err = -1;
 		break;
 	}

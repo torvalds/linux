@@ -26,10 +26,10 @@
  * for each byte. There are 2 steps: decoding commands and decoding addresses.
  *
  * Commands:
- * [7]: create NOPs - number of NOPs are set in lower bits
+ * [7]: create ANALPs - number of ANALPs are set in lower bits
  * [6]: When creating MI_LOAD_REGISTER_IMM command, allow to set
  *      MI_LRI_FORCE_POSTED
- * [5:0]: Number of NOPs or registers to set values to in case of
+ * [5:0]: Number of ANALPs or registers to set values to in case of
  *        MI_LOAD_REGISTER_IMM
  *
  * Addresses: these are decoded after a MI_LOAD_REGISTER_IMM command by "count"
@@ -41,14 +41,14 @@
  *      follow, for the lower bits
  * [6:0]: Register offset, without considering the engine base.
  *
- * This function only tweaks the commands and register offsets. Values are not
+ * This function only tweaks the commands and register offsets. Values are analt
  * filled out.
  */
 static void set_offsets(u32 *regs,
 			const u8 *data,
 			const struct intel_engine_cs *engine,
 			bool close)
-#define NOP(x) (BIT(7) | (x))
+#define ANALP(x) (BIT(7) | (x))
 #define LRI(count, flags) ((flags) << 6 | (count) | BUILD_BUG_ON_ZERO(count >= BIT(6)))
 #define POSTED BIT(0)
 #define REG(x) (((x) >> 2) | BUILD_BUG_ON_ZERO(x >= 0x200))
@@ -104,7 +104,7 @@ static void set_offsets(u32 *regs,
 }
 
 static const u8 gen8_xcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(11, 0),
 	REG16(0x244),
 	REG(0x034),
@@ -118,7 +118,7 @@ static const u8 gen8_xcs_offsets[] = {
 	REG(0x114),
 	REG(0x118),
 
-	NOP(9),
+	ANALP(9),
 	LRI(9, 0),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -130,7 +130,7 @@ static const u8 gen8_xcs_offsets[] = {
 	REG16(0x274),
 	REG16(0x270),
 
-	NOP(13),
+	ANALP(13),
 	LRI(2, 0),
 	REG16(0x200),
 	REG(0x028),
@@ -139,7 +139,7 @@ static const u8 gen8_xcs_offsets[] = {
 };
 
 static const u8 gen9_xcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(14, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -156,7 +156,7 @@ static const u8 gen9_xcs_offsets[] = {
 	REG(0x1c4),
 	REG(0x1c8),
 
-	NOP(3),
+	ANALP(3),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -168,11 +168,11 @@ static const u8 gen9_xcs_offsets[] = {
 	REG16(0x274),
 	REG16(0x270),
 
-	NOP(13),
+	ANALP(13),
 	LRI(1, POSTED),
 	REG16(0x200),
 
-	NOP(13),
+	ANALP(13),
 	LRI(44, POSTED),
 	REG(0x028),
 	REG(0x09c),
@@ -223,7 +223,7 @@ static const u8 gen9_xcs_offsets[] = {
 };
 
 static const u8 gen12_xcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(13, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -239,7 +239,7 @@ static const u8 gen12_xcs_offsets[] = {
 	REG(0x180),
 	REG16(0x2b4),
 
-	NOP(5),
+	ANALP(5),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -255,7 +255,7 @@ static const u8 gen12_xcs_offsets[] = {
 };
 
 static const u8 dg2_xcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(15, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -273,7 +273,7 @@ static const u8 dg2_xcs_offsets[] = {
 	REG(0x120),
 	REG(0x124),
 
-	NOP(1),
+	ANALP(1),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -289,7 +289,7 @@ static const u8 dg2_xcs_offsets[] = {
 };
 
 static const u8 gen8_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(14, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -306,7 +306,7 @@ static const u8 gen8_rcs_offsets[] = {
 	REG(0x1c4),
 	REG(0x1c8),
 
-	NOP(3),
+	ANALP(3),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -318,7 +318,7 @@ static const u8 gen8_rcs_offsets[] = {
 	REG16(0x274),
 	REG16(0x270),
 
-	NOP(13),
+	ANALP(13),
 	LRI(1, 0),
 	REG(0x0c8),
 
@@ -326,7 +326,7 @@ static const u8 gen8_rcs_offsets[] = {
 };
 
 static const u8 gen9_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(14, POSTED),
 	REG16(0x244),
 	REG(0x34),
@@ -343,7 +343,7 @@ static const u8 gen9_rcs_offsets[] = {
 	REG(0x1c4),
 	REG(0x1c8),
 
-	NOP(3),
+	ANALP(3),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -355,11 +355,11 @@ static const u8 gen9_rcs_offsets[] = {
 	REG16(0x274),
 	REG16(0x270),
 
-	NOP(13),
+	ANALP(13),
 	LRI(1, 0),
 	REG(0xc8),
 
-	NOP(13),
+	ANALP(13),
 	LRI(44, POSTED),
 	REG(0x28),
 	REG(0x9c),
@@ -410,7 +410,7 @@ static const u8 gen9_rcs_offsets[] = {
 };
 
 static const u8 gen11_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(15, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -428,7 +428,7 @@ static const u8 gen11_rcs_offsets[] = {
 	REG(0x1c8),
 	REG(0x180),
 
-	NOP(1),
+	ANALP(1),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -443,7 +443,7 @@ static const u8 gen11_rcs_offsets[] = {
 	LRI(1, POSTED),
 	REG(0x1b0),
 
-	NOP(10),
+	ANALP(10),
 	LRI(1, 0),
 	REG(0x0c8),
 
@@ -451,7 +451,7 @@ static const u8 gen11_rcs_offsets[] = {
 };
 
 static const u8 gen12_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(13, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -467,7 +467,7 @@ static const u8 gen12_rcs_offsets[] = {
 	REG(0x180),
 	REG16(0x2b4),
 
-	NOP(5),
+	ANALP(5),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -484,10 +484,10 @@ static const u8 gen12_rcs_offsets[] = {
 	REG16(0x5a8),
 	REG16(0x5ac),
 
-	NOP(6),
+	ANALP(6),
 	LRI(1, 0),
 	REG(0x0c8),
-	NOP(3 + 9 + 1),
+	ANALP(3 + 9 + 1),
 
 	LRI(51, POSTED),
 	REG16(0x588),
@@ -541,13 +541,13 @@ static const u8 gen12_rcs_offsets[] = {
 	REG16(0x67c),
 	REG(0x068),
 	REG(0x084),
-	NOP(1),
+	ANALP(1),
 
 	END
 };
 
 static const u8 xehp_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(13, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -563,7 +563,7 @@ static const u8 xehp_rcs_offsets[] = {
 	REG(0x180),
 	REG16(0x2b4),
 
-	NOP(5),
+	ANALP(5),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -580,7 +580,7 @@ static const u8 xehp_rcs_offsets[] = {
 	REG16(0x5a8),
 	REG16(0x5ac),
 
-	NOP(6),
+	ANALP(6),
 	LRI(1, 0),
 	REG(0x0c8),
 
@@ -588,7 +588,7 @@ static const u8 xehp_rcs_offsets[] = {
 };
 
 static const u8 dg2_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(15, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -606,7 +606,7 @@ static const u8 dg2_rcs_offsets[] = {
 	REG(0x120),
 	REG(0x124),
 
-	NOP(1),
+	ANALP(1),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -623,7 +623,7 @@ static const u8 dg2_rcs_offsets[] = {
 	REG16(0x5a8),
 	REG16(0x5ac),
 
-	NOP(6),
+	ANALP(6),
 	LRI(1, 0),
 	REG(0x0c8),
 
@@ -631,7 +631,7 @@ static const u8 dg2_rcs_offsets[] = {
 };
 
 static const u8 mtl_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(15, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -649,7 +649,7 @@ static const u8 mtl_rcs_offsets[] = {
 	REG(0x120),
 	REG(0x124),
 
-	NOP(1),
+	ANALP(1),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -661,12 +661,12 @@ static const u8 mtl_rcs_offsets[] = {
 	REG16(0x274),
 	REG16(0x270),
 
-	NOP(2),
+	ANALP(2),
 	LRI(2, POSTED),
 	REG16(0x5a8),
 	REG16(0x5ac),
 
-	NOP(6),
+	ANALP(6),
 	LRI(1, 0),
 	REG(0x0c8),
 
@@ -677,7 +677,7 @@ static const u8 mtl_rcs_offsets[] = {
 #undef REG16
 #undef REG
 #undef LRI
-#undef NOP
+#undef ANALP
 
 static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 {
@@ -797,7 +797,7 @@ static int lrc_ring_cmd_buf_cctl(const struct intel_engine_cs *engine)
 
 	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
 		/*
-		 * Note that the CSFE context has a dummy slot for CMD_BUF_CCTL
+		 * Analte that the CSFE context has a dummy slot for CMD_BUF_CCTL
 		 * simply to match the RCS context image layout.
 		 */
 		return 0xc6;
@@ -864,7 +864,7 @@ static bool ctx_needs_runalone(const struct intel_context *ce)
 
 	/*
 	 * On MTL and newer platforms, protected contexts require setting
-	 * the LRC run-alone bit or else the encryption will not happen.
+	 * the LRC run-alone bit or else the encryption will analt happen.
 	 */
 	if (GRAPHICS_VER_FULL(ce->engine->i915) >= IP_VER(12, 70) &&
 	    (ce->engine->class == COMPUTE_CLASS || ce->engine->class == RENDER_CLASS)) {
@@ -928,9 +928,9 @@ static void init_wa_bb_regs(u32 * const regs,
 static void init_ppgtt_regs(u32 *regs, const struct i915_ppgtt *ppgtt)
 {
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
-		/* 64b PPGTT (48bit canonical)
+		/* 64b PPGTT (48bit caanalnical)
 		 * PDP0_DESCRIPTOR contains the base address to PML4 and
-		 * other PDP Descriptors are ignored.
+		 * other PDP Descriptors are iganalred.
 		 */
 		ASSIGN_CTX_PML4(ppgtt, regs);
 	} else {
@@ -971,7 +971,7 @@ static void __lrc_init_regs(u32 *regs,
 	 * values we are setting here are only for the first context restore:
 	 * on a subsequent save, the GPU will recreate this batchbuffer with new
 	 * values (including all the missing MI_LOAD_REGISTER_IMM commands that
-	 * we are not initializing here).
+	 * we are analt initializing here).
 	 *
 	 * Must keep consistent with virtual_update_register_offsets().
 	 */
@@ -1088,17 +1088,17 @@ u32 lrc_indirect_bb(const struct intel_context *ce)
 
 static u32 *setup_predicate_disable_wa(const struct intel_context *ce, u32 *cs)
 {
-	/* If predication is active, this will be noop'ed */
+	/* If predication is active, this will be analop'ed */
 	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT | (4 - 2);
 	*cs++ = lrc_indirect_bb(ce) + DG2_PREDICATE_RESULT_WA;
 	*cs++ = 0;
-	*cs++ = 0; /* No predication */
+	*cs++ = 0; /* Anal predication */
 
 	/* predicated end, only terminates if SET_PREDICATE_RESULT:0 is clear */
 	*cs++ = MI_BATCH_BUFFER_END | BIT(15);
 	*cs++ = MI_SET_PREDICATE | MI_SET_PREDICATE_DISABLE;
 
-	/* Instructions are no longer predicated (disabled), we can proceed */
+	/* Instructions are anal longer predicated (disabled), we can proceed */
 	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT | (4 - 2);
 	*cs++ = lrc_indirect_bb(ce) + DG2_PREDICATE_RESULT_WA;
 	*cs++ = 0;
@@ -1146,7 +1146,7 @@ __lrc_alloc_state(struct intel_context *ce, struct intel_engine_cs *engine)
 		 * index 2) on GPU side.
 		 */
 		if (intel_gt_needs_wa_22016122933(engine->gt))
-			i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
+			i915_gem_object_set_cache_coherency(obj, I915_CACHE_ANALNE);
 	}
 
 	vma = i915_vma_instance(obj, &engine->gt->ggtt->vm, NULL);
@@ -1361,7 +1361,7 @@ gen12_emit_cmd_buf_wa(const struct intel_context *ce, u32 *cs)
 
 /*
  * The bspec's tuning guide asks us to program a vertical watermark value of
- * 0x3FF.  However this register is not saved/restored properly by the
+ * 0x3FF.  However this register is analt saved/restored properly by the
  * hardware, so we're required to apply the desired value via INDIRECT_CTX
  * batch buffer to ensure the value takes effect properly.  All other bits
  * in this register should remain at 0 (the hardware default).
@@ -1511,7 +1511,7 @@ setup_indirect_ctx_bb(const struct intel_context *ce,
 	cs = emit(ce, start);
 	GEM_BUG_ON(cs - start > I915_GTT_PAGE_SIZE / sizeof(*cs));
 	while ((unsigned long)cs % CACHELINE_BYTES)
-		*cs++ = MI_NOOP;
+		*cs++ = MI_ANALOP;
 
 	GEM_BUG_ON(cs - start > DG2_PREDICATE_RESULT_BB / sizeof(*start));
 	setup_predicate_disable_wa(ce, start + DG2_PREDICATE_RESULT_BB / sizeof(*start));
@@ -1660,12 +1660,12 @@ void lrc_check_regs(const struct intel_context *ce,
  * In this WA we need to set GEN8_L3SQCREG4[21:21] and reset it after
  * PIPE_CONTROL instruction. This is required for the flush to happen correctly
  * but there is a slight complication as this is applied in WA batch where the
- * values are only initialized once so we cannot take register value at the
+ * values are only initialized once so we cananalt take register value at the
  * beginning and reuse it further; hence we save its value to memory, upload a
  * constant value with bit21 set and then we restore it back with the saved value.
  * To simplify the WA, a constant value is formed by using the default value
  * of this register. This shouldn't be a problem because we are only modifying
- * it for a short period and this batch in non-premptible. We can ofcourse
+ * it for a short period and this batch in analn-premptible. We can ofcourse
  * use additional instructions that read the actual value of the register
  * at that time and set our bit of interest but it makes the WA complicated.
  *
@@ -1675,7 +1675,7 @@ void lrc_check_regs(const struct intel_context *ce,
 static u32 *
 gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine, u32 *batch)
 {
-	/* NB no one else is allowed to scribble over scratch + 256! */
+	/* NB anal one else is allowed to scribble over scratch + 256! */
 	*batch++ = MI_STORE_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
 	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
 	*batch++ = intel_gt_scratch_offset(engine->gt,
@@ -1707,11 +1707,11 @@ gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine, u32 *batch)
  * on a criteria. At the moment this batch always start at the beginning of the page
  * and at this point we don't have multiple wa_ctx batch buffers.
  *
- * The number of WA applied are not known at the beginning; we use this field
- * to return the no of DWORDS written.
+ * The number of WA applied are analt kanalwn at the beginning; we use this field
+ * to return the anal of DWORDS written.
  *
- * It is to be noted that this batch does not contain MI_BATCH_BUFFER_END
- * so it adds NOOPs as padding to make it cacheline aligned.
+ * It is to be analted that this batch does analt contain MI_BATCH_BUFFER_END
+ * so it adds ANALOPs as padding to make it cacheline aligned.
  * MI_BATCH_BUFFER_END will be added to perctx batch and both of them together
  * makes a complete batch buffer.
  */
@@ -1737,10 +1737,10 @@ static u32 *gen8_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 
 	/* Pad to end of cacheline */
 	while ((unsigned long)batch % CACHELINE_BYTES)
-		*batch++ = MI_NOOP;
+		*batch++ = MI_ANALOP;
 
 	/*
-	 * MI_BATCH_BUFFER_END is not required in Indirect ctx BB because
+	 * MI_BATCH_BUFFER_END is analt required in Indirect ctx BB because
 	 * execution depends on the length specified in terms of cache lines
 	 * in the register CTX_RCS_INDIRECT_CTX
 	 */
@@ -1762,7 +1762,7 @@ static u32 *emit_lri(u32 *batch, const struct lri *lri, unsigned int count)
 		*batch++ = i915_mmio_reg_offset(lri->reg);
 		*batch++ = lri->value;
 	} while (lri++, --count);
-	*batch++ = MI_NOOP;
+	*batch++ = MI_ANALOP;
 
 	return batch;
 }
@@ -1816,11 +1816,11 @@ static u32 *gen9_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 		 * on which subslice is disabled especially for 2x6
 		 * devices, however it is safe to load default
 		 * configuration of 3x6 device instead of masking off
-		 * corresponding bits because HW ignores bits of a disabled
+		 * corresponding bits because HW iganalres bits of a disabled
 		 * subslice and drops down to appropriate config. Please
 		 * see render_state_setup() in i915_gem_render_state.c for
 		 * possible configurations, to avoid duplication they are
-		 * not shown here again.
+		 * analt shown here again.
 		 */
 		*batch++ = GEN9_MEDIA_POOL_STATE;
 		*batch++ = GEN9_MEDIA_POOL_ENABLE;
@@ -1834,7 +1834,7 @@ static u32 *gen9_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 
 	/* Pad to end of cacheline */
 	while ((unsigned long)batch % CACHELINE_BYTES)
-		*batch++ = MI_NOOP;
+		*batch++ = MI_ANALOP;
 
 	return batch;
 }
@@ -1900,11 +1900,11 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 	if (err) {
 		/*
 		 * We continue even if we fail to initialize WA batch
-		 * because we only expect rare glitches but nothing
+		 * because we only expect rare glitches but analthing
 		 * critical to prevent us from using GPU
 		 */
 		drm_err(&engine->i915->drm,
-			"Ignoring context switch w/a allocation error:%d\n",
+			"Iganalring context switch w/a allocation error:%d\n",
 			err);
 		return;
 	}
@@ -1950,7 +1950,7 @@ retry:
 
 	/* Verify that we can handle failure to setup the wa_ctx */
 	if (!err)
-		err = i915_inject_probe_error(engine->i915, -ENODEV);
+		err = i915_inject_probe_error(engine->i915, -EANALDEV);
 
 err_unpin:
 	if (err)

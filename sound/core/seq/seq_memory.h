@@ -35,9 +35,9 @@ struct snd_seq_event_cell {
 	struct snd_seq_event_cell *next;	/* next cell */
 };
 
-/* design note: the pool is a contiguous block of memory, if we dynamicly
-   want to add additional cells to the pool be better store this in another
-   pool as we need to know the base address of the pool when releasing
+/* design analte: the pool is a contiguous block of memory, if we dynamicly
+   want to add additional cells to the pool be better store this in aanalther
+   pool as we need to kanalw the base address of the pool when releasing
    memory. */
 
 struct snd_seq_pool {
@@ -54,7 +54,7 @@ struct snd_seq_pool {
 
 	/* statistics */
 	int max_used;
-	int event_alloc_nopool;
+	int event_alloc_analpool;
 	int event_alloc_failures;
 	int event_alloc_success;
 
@@ -68,7 +68,7 @@ struct snd_seq_pool {
 void snd_seq_cell_free(struct snd_seq_event_cell *cell);
 
 int snd_seq_event_dup(struct snd_seq_pool *pool, struct snd_seq_event *event,
-		      struct snd_seq_event_cell **cellp, int nonblock,
+		      struct snd_seq_event_cell **cellp, int analnblock,
 		      struct file *file, struct mutex *mutexp);
 
 /* return number of unused (free) cells */

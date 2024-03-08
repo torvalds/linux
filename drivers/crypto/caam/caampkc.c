@@ -5,7 +5,7 @@
  * Copyright 2016 Freescale Semiconductor, Inc.
  * Copyright 2018-2019, 2023 NXP
  *
- * There is no Shared Descriptor for PKC so that the Job Descriptor must carry
+ * There is anal Shared Descriptor for PKC so that the Job Descriptor must carry
  * all the desired key parameters, input and output pointers.
  */
 #include "compat.h"
@@ -140,8 +140,8 @@ static void rsa_pub_done(struct device *dev, u32 *desc, u32 err, void *context)
 	kfree(edesc);
 
 	/*
-	 * If no backlog flag, the completion of the request is done
-	 * by CAAM, not crypto engine.
+	 * If anal backlog flag, the completion of the request is done
+	 * by CAAM, analt crypto engine.
 	 */
 	if (!has_bklog)
 		akcipher_request_complete(req, ecode);
@@ -183,8 +183,8 @@ static void rsa_priv_f_done(struct device *dev, u32 *desc, u32 err,
 	kfree(edesc);
 
 	/*
-	 * If no backlog flag, the completion of the request is done
-	 * by CAAM, not crypto engine.
+	 * If anal backlog flag, the completion of the request is done
+	 * by CAAM, analt crypto engine.
 	 */
 	if (!has_bklog)
 		akcipher_request_complete(req, ecode);
@@ -219,7 +219,7 @@ static int caam_rsa_count_leading_zeros(struct scatterlist *sgl,
 	lzeros = 0;
 	len = 0;
 	while (nbytes > 0) {
-		/* do not strip more than given bytes */
+		/* do analt strip more than given bytes */
 		while (len && !*buff && lzeros < nbytes) {
 			lzeros++;
 			len--;
@@ -295,7 +295,7 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 				      DMA_TO_DEVICE);
 	if (unlikely(!mapped_src_nents)) {
 		dev_err(dev, "unable to map source\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	mapped_dst_nents = dma_map_sg(dev, req->dst, dst_nents,
 				      DMA_FROM_DEVICE);
@@ -305,7 +305,7 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 	}
 
 	if (!diff_size && mapped_src_nents == 1)
-		sec4_sg_len = 0; /* no need for an input hw s/g table */
+		sec4_sg_len = 0; /* anal need for an input hw s/g table */
 	else
 		sec4_sg_len = mapped_src_nents + !!diff_size;
 	sec4_sg_index = sec4_sg_len;
@@ -368,7 +368,7 @@ dst_fail:
 	dma_unmap_sg(dev, req->dst, dst_nents, DMA_FROM_DEVICE);
 src_fail:
 	dma_unmap_sg(dev, req_ctx->fixup_src, src_nents, DMA_TO_DEVICE);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static int akcipher_do_one_req(struct crypto_engine *engine, void *areq)
@@ -387,7 +387,7 @@ static int akcipher_do_one_req(struct crypto_engine *engine, void *areq)
 
 	ret = caam_jr_enqueue(jrdev, desc, req_ctx->akcipher_op_done, req);
 
-	if (ret == -ENOSPC && engine->retry_support)
+	if (ret == -EANALSPC && engine->retry_support)
 		return ret;
 
 	if (ret != -EINPROGRESS) {
@@ -415,14 +415,14 @@ static int set_rsa_pub_pdb(struct akcipher_request *req,
 	pdb->n_dma = dma_map_single(dev, key->n, key->n_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, pdb->n_dma)) {
 		dev_err(dev, "Unable to map RSA modulus memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pdb->e_dma = dma_map_single(dev, key->e, key->e_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, pdb->e_dma)) {
 		dev_err(dev, "Unable to map RSA public exponent memory\n");
 		dma_unmap_single(dev, pdb->n_dma, key->n_sz, DMA_TO_DEVICE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (edesc->mapped_src_nents > 1) {
@@ -460,14 +460,14 @@ static int set_rsa_priv_f1_pdb(struct akcipher_request *req,
 	pdb->n_dma = dma_map_single(dev, key->n, key->n_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, pdb->n_dma)) {
 		dev_err(dev, "Unable to map modulus memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pdb->d_dma = dma_map_single(dev, key->d, key->d_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, pdb->d_dma)) {
 		dev_err(dev, "Unable to map RSA private exponent memory\n");
 		dma_unmap_single(dev, pdb->n_dma, key->n_sz, DMA_TO_DEVICE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (edesc->mapped_src_nents > 1) {
@@ -509,7 +509,7 @@ static int set_rsa_priv_f2_pdb(struct akcipher_request *req,
 	pdb->d_dma = dma_map_single(dev, key->d, key->d_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, pdb->d_dma)) {
 		dev_err(dev, "Unable to map RSA private exponent memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pdb->p_dma = dma_map_single(dev, key->p, p_sz, DMA_TO_DEVICE);
@@ -568,7 +568,7 @@ unmap_p:
 unmap_d:
 	dma_unmap_single(dev, pdb->d_dma, key->d_sz, DMA_TO_DEVICE);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int set_rsa_priv_f3_pdb(struct akcipher_request *req,
@@ -586,7 +586,7 @@ static int set_rsa_priv_f3_pdb(struct akcipher_request *req,
 	pdb->p_dma = dma_map_single(dev, key->p, p_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, pdb->p_dma)) {
 		dev_err(dev, "Unable to map RSA prime factor p memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pdb->q_dma = dma_map_single(dev, key->q, q_sz, DMA_TO_DEVICE);
@@ -661,7 +661,7 @@ unmap_q:
 unmap_p:
 	dma_unmap_single(dev, pdb->p_dma, p_sz, DMA_TO_DEVICE);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int akcipher_enqueue_req(struct device *jrdev,
@@ -981,7 +981,7 @@ static int caam_rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 	return 0;
 err:
 	caam_rsa_free_key(rsa_key);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void caam_rsa_set_priv_key_form(struct caam_rsa_ctx *ctx,
@@ -1094,7 +1094,7 @@ static int caam_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 
 err:
 	caam_rsa_free_key(rsa_key);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static unsigned int caam_rsa_max_size(struct crypto_akcipher *tfm)
@@ -1124,7 +1124,7 @@ static int caam_rsa_init_tfm(struct crypto_akcipher *tfm)
 	if (dma_mapping_error(ctx->dev, ctx->padding_dma)) {
 		dev_err(ctx->dev, "unable to map padding\n");
 		caam_jr_free(ctx->dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1183,22 +1183,22 @@ int caam_pkc_init(struct device *ctrldev)
 
 		/*
 		 * Newer CAAMs support partially disabled functionality. If this is the
-		 * case, the number is non-zero, but this bit is set to indicate that
-		 * no encryption or decryption is supported. Only signing and verifying
+		 * case, the number is analn-zero, but this bit is set to indicate that
+		 * anal encryption or decryption is supported. Only signing and verifying
 		 * is supported.
 		 */
-		if (pkha & CHA_VER_MISC_PKHA_NO_CRYPT)
+		if (pkha & CHA_VER_MISC_PKHA_ANAL_CRYPT)
 			pk_inst = 0;
 	}
 
-	/* Do not register algorithms if PKHA is not present. */
+	/* Do analt register algorithms if PKHA is analt present. */
 	if (!pk_inst)
 		return 0;
 
 	/* allocate zero buffer, used for padding input */
 	zero_buffer = kzalloc(CAAM_RSA_MAX_INPUT_SIZE - 1, GFP_KERNEL);
 	if (!zero_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = crypto_engine_register_akcipher(&caam_rsa.akcipher);
 

@@ -6,7 +6,7 @@
  * Copyright (C) 1998, 1999, 2000 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2007 by Maciej W. Rozycki
- * Copyright (C) 2011, 2012 MIPS Technologies, Inc.
+ * Copyright (C) 2011, 2012 MIPS Techanallogies, Inc.
  */
 #include <linux/export.h>
 #include <asm/asm.h>
@@ -39,8 +39,8 @@
 #define EVA_MODE    2
 
 /*
- * No need to protect it with EVA #ifdefery. The generated block of code
- * will never be assembled if EVA is not enabled.
+ * Anal need to protect it with EVA #ifdefery. The generated block of code
+ * will never be assembled if EVA is analt enabled.
  */
 #define __EVAFY(insn, reg, addr) __BUILD_EVA_INSN(insn##e, reg, addr)
 #define ___BUILD_EVA_INSN(insn, reg, addr) __EVAFY(insn, reg, addr)
@@ -87,13 +87,13 @@
 	 */
 	.macro __BUILD_BZERO mode
 	/* Initialize __memset if this is the first time we call this macro */
-	.ifnotdef __memset
+	.ifanaltdef __memset
 	.set __memset, 1
-	.hidden __memset /* Make sure it does not leak */
+	.hidden __memset /* Make sure it does analt leak */
 	.endif
 
 	sltiu		t0, a2, STORSIZE	/* very small region? */
-	.set		noreorder
+	.set		analreorder
 	bnez		t0, .Lsmall_memset\@
 	 andi		t0, a0, STORMASK	/* aligned? */
 	.set		reorder
@@ -102,12 +102,12 @@
 	move		t8, a1			/* used by 'swp' instruction */
 	move		t9, a1
 #endif
-	.set		noreorder
+	.set		analreorder
 #ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	beqz		t0, 1f
 	 PTR_SUBU	t0, STORSIZE		/* alignment in bytes */
 #else
-	.set		noat
+	.set		analat
 	li		AT, STORSIZE
 	beqz		t0, 1f
 	 PTR_SUBU	t0, AT			/* alignment in bytes */
@@ -115,7 +115,7 @@
 #endif
 	.set		reorder
 
-#ifndef CONFIG_CPU_NO_LOAD_STORE_LR
+#ifndef CONFIG_CPU_ANAL_LOAD_STORE_LR
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
@@ -125,10 +125,10 @@
 	PTR_SUBU	a0, t0			/* long align ptr */
 	PTR_ADDU	a2, t0			/* correct size */
 
-#else /* CONFIG_CPU_NO_LOAD_STORE_LR */
+#else /* CONFIG_CPU_ANAL_LOAD_STORE_LR */
 #define STORE_BYTE(N)				\
 	EX(sb, a1, N(a0), .Lbyte_fixup\@);	\
-	.set		noreorder;		\
+	.set		analreorder;		\
 	beqz		t0, 0f;			\
 	 PTR_ADDU	t0, 1;			\
 	.set		reorder;
@@ -150,11 +150,11 @@
 	ori		a0, STORMASK
 	xori		a0, STORMASK
 	PTR_ADDIU	a0, STORSIZE
-#endif /* CONFIG_CPU_NO_LOAD_STORE_LR */
+#endif /* CONFIG_CPU_ANAL_LOAD_STORE_LR */
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
 	andi		t0, a2, 0x40-STORSIZE
-	beqz		t1, .Lmemset_partial\@	/* no block to fill */
+	beqz		t1, .Lmemset_partial\@	/* anal block to fill */
 
 	PTR_ADDU	t1, a0			/* end address */
 1:	PTR_ADDIU	a0, 64
@@ -171,7 +171,7 @@
 #if LONGSIZE == 4
 	PTR_SUBU	t1, FILLPTRG
 #else
-	.set		noat
+	.set		analat
 	LONG_SRL	AT, FILLPTRG, 1
 	PTR_SUBU	t1, AT
 	.set		at
@@ -183,9 +183,9 @@
 	f_fill64 a0, -64, FILL64RG, .Lpartial_fixup\@, \mode
 2:	andi		a2, STORMASK		/* At most one long to go */
 
-	.set		noreorder
+	.set		analreorder
 	beqz		a2, 1f
-#ifndef CONFIG_CPU_NO_LOAD_STORE_LR
+#ifndef CONFIG_CPU_ANAL_LOAD_STORE_LR
 	 PTR_ADDU	a0, a2			/* What's left */
 	.set		reorder
 	R10KCBARRIER(0(ra))
@@ -194,10 +194,10 @@
 #else
 	EX(LONG_S_L, a1, -1(a0), .Llast_fixup\@)
 #endif
-#else /* CONFIG_CPU_NO_LOAD_STORE_LR */
+#else /* CONFIG_CPU_ANAL_LOAD_STORE_LR */
 	 PTR_SUBU	t0, $0, a2
 	.set		reorder
-	move		a2, zero		/* No remaining longs */
+	move		a2, zero		/* Anal remaining longs */
 	PTR_ADDIU	t0, 1
 	STORE_BYTE(0)
 	STORE_BYTE(1)
@@ -211,7 +211,7 @@
 	EX(sb, a1, 6(a0), .Lbyte_fixup\@)
 #endif
 0:
-#endif /* CONFIG_CPU_NO_LOAD_STORE_LR */
+#endif /* CONFIG_CPU_ANAL_LOAD_STORE_LR */
 1:	move		a2, zero
 	jr		ra
 
@@ -221,7 +221,7 @@
 
 1:	PTR_ADDIU	a0, 1			/* fill bytewise */
 	R10KCBARRIER(0(ra))
-	.set		noreorder
+	.set		analreorder
 	bne		t1, a0, 1b
 	 EX(sb, a1, -1(a0), .Lsmall_fixup\@)
 	.set		reorder
@@ -234,7 +234,7 @@
 	.hidden __memset
 	.endif
 
-#ifdef CONFIG_CPU_NO_LOAD_STORE_LR
+#ifdef CONFIG_CPU_ANAL_LOAD_STORE_LR
 .Lbyte_fixup\@:
 	/*
 	 * unset_bytes = (#bytes - (#unaligned bytes)) - (-#unaligned bytes remaining + 1) + 1
@@ -243,7 +243,7 @@
 	PTR_SUBU	a2, t0
 	PTR_ADDIU	a2, 1
 	jr		ra
-#endif /* CONFIG_CPU_NO_LOAD_STORE_LR */
+#endif /* CONFIG_CPU_ANAL_LOAD_STORE_LR */
 
 .Lfirst_fixup\@:
 	/* unset_bytes already in a2 */

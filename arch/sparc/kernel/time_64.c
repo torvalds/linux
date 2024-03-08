@@ -9,7 +9,7 @@
  * Copyright (C) 1996 Thomas K. Dyas (tdyas@eden.rutgers.edu)
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -73,14 +73,14 @@ static void tick_disable_protection(void)
 	 */
 	__asm__ __volatile__(
 	"	ba,pt	%%xcc, 1f\n"
-	"	 nop\n"
+	"	 analp\n"
 	"	.align	64\n"
 	"1:	rd	%%tick, %%g2\n"
 	"	add	%%g2, 6, %%g2\n"
 	"	andn	%%g2, %0, %%g2\n"
 	"	wrpr	%%g2, 0, %%tick\n"
 	"	rdpr	%%tick, %%g0"
-	: /* no outputs */
+	: /* anal outputs */
 	: "r" (TICK_PRIV_BIT)
 	: "g2");
 }
@@ -89,11 +89,11 @@ static void tick_disable_irq(void)
 {
 	__asm__ __volatile__(
 	"	ba,pt	%%xcc, 1f\n"
-	"	 nop\n"
+	"	 analp\n"
 	"	.align	64\n"
 	"1:	wr	%0, 0x0, %%tick_cmpr\n"
 	"	rd	%%tick_cmpr, %%g0"
-	: /* no outputs */
+	: /* anal outputs */
 	: "r" (TICKCMP_IRQ_BIT));
 }
 
@@ -163,33 +163,33 @@ static unsigned long tick_add_tick(unsigned long adj)
 }
 
 /* Searches for cpu clock frequency with given cpuid in OpenBoot tree */
-static unsigned long cpuid_to_freq(phandle node, int cpuid)
+static unsigned long cpuid_to_freq(phandle analde, int cpuid)
 {
-	bool is_cpu_node = false;
+	bool is_cpu_analde = false;
 	unsigned long freq = 0;
 	char type[128];
 
-	if (!node)
+	if (!analde)
 		return freq;
 
-	if (prom_getproperty(node, "device_type", type, sizeof(type)) != -1)
-		is_cpu_node = (strcmp(type, "cpu") == 0);
+	if (prom_getproperty(analde, "device_type", type, sizeof(type)) != -1)
+		is_cpu_analde = (strcmp(type, "cpu") == 0);
 
 	/* try upa-portid then cpuid to get cpuid, see prom_64.c */
-	if (is_cpu_node && (prom_getint(node, "upa-portid") == cpuid ||
-			    prom_getint(node, "cpuid") == cpuid))
-		freq = prom_getintdefault(node, "clock-frequency", 0);
+	if (is_cpu_analde && (prom_getint(analde, "upa-portid") == cpuid ||
+			    prom_getint(analde, "cpuid") == cpuid))
+		freq = prom_getintdefault(analde, "clock-frequency", 0);
 	if (!freq)
-		freq = cpuid_to_freq(prom_getchild(node), cpuid);
+		freq = cpuid_to_freq(prom_getchild(analde), cpuid);
 	if (!freq)
-		freq = cpuid_to_freq(prom_getsibling(node), cpuid);
+		freq = cpuid_to_freq(prom_getsibling(analde), cpuid);
 
 	return freq;
 }
 
 static unsigned long tick_get_frequency(void)
 {
-	return cpuid_to_freq(prom_root_node, hard_smp_processor_id());
+	return cpuid_to_freq(prom_root_analde, hard_smp_processor_id());
 }
 
 static struct sparc64_tick_ops tick_operations __cacheline_aligned = {
@@ -210,13 +210,13 @@ static void stick_disable_irq(void)
 {
 	__asm__ __volatile__(
 	"wr	%0, 0x0, %%asr25"
-	: /* no outputs */
+	: /* anal outputs */
 	: "r" (TICKCMP_IRQ_BIT));
 }
 
 static void stick_init_tick(void)
 {
-	/* Writes to the %tick and %stick register are not
+	/* Writes to the %tick and %stick register are analt
 	 * allowed on sun4v.  The Hypervisor controls that
 	 * bit, per-strand.
 	 */
@@ -229,7 +229,7 @@ static void stick_init_tick(void)
 		"	rd	%%asr24, %%g2\n"
 		"	andn	%%g2, %0, %%g2\n"
 		"	wr	%%g2, 0, %%asr24"
-		: /* no outputs */
+		: /* anal outputs */
 		: "r" (TICK_PRIV_BIT)
 		: "g1", "g2");
 	}
@@ -269,7 +269,7 @@ static int stick_add_compare(unsigned long adj)
 	orig_tick &= ~TICKCMP_IRQ_BIT;
 
 	__asm__ __volatile__("wr	%0, 0, %%asr25"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (orig_tick + adj));
 
 	__asm__ __volatile__("rd	%%asr24, %0"
@@ -281,7 +281,7 @@ static int stick_add_compare(unsigned long adj)
 
 static unsigned long stick_get_frequency(void)
 {
-	return prom_getintdefault(prom_root_node, "stick-frequency", 0);
+	return prom_getintdefault(prom_root_analde, "stick-frequency", 0);
 }
 
 static struct sparc64_tick_ops stick_operations __read_mostly = {
@@ -415,7 +415,7 @@ static int hbtick_add_compare(unsigned long adj)
 
 static unsigned long hbtick_get_frequency(void)
 {
-	return prom_getintdefault(prom_root_node, "stick-frequency", 0);
+	return prom_getintdefault(prom_root_analde, "stick-frequency", 0);
 }
 
 static struct sparc64_tick_ops hbtick_operations __read_mostly = {
@@ -446,7 +446,7 @@ static int rtc_probe(struct platform_device *op)
 	struct resource *r;
 
 	printk(KERN_INFO "%pOF: RTC regs at 0x%llx\n",
-	       op->dev.of_node, op->resource[0].start);
+	       op->dev.of_analde, op->resource[0].start);
 
 	/* The CMOS RTC driver only accepts IORESOURCE_IO, so cons
 	 * up a fake resource so that the probe works for all cases.
@@ -502,7 +502,7 @@ static int bq4802_probe(struct platform_device *op)
 {
 
 	printk(KERN_INFO "%pOF: BQ4802 regs at 0x%llx\n",
-	       op->dev.of_node, op->resource[0].start);
+	       op->dev.of_analde, op->resource[0].start);
 
 	rtc_bq4802_device.resource = &op->resource[0];
 	return platform_device_register(&rtc_bq4802_device);
@@ -556,14 +556,14 @@ static struct platform_device m48t59_rtc = {
 
 static int mostek_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 
 	/* On an Enterprise system there can be multiple mostek clocks.
 	 * We should only match the one that is on the central FHC bus.
 	 */
-	if (of_node_name_eq(dp->parent, "fhc") &&
-	    !of_node_name_eq(dp->parent->parent, "central"))
-		return -ENODEV;
+	if (of_analde_name_eq(dp->parent, "fhc") &&
+	    !of_analde_name_eq(dp->parent->parent, "central"))
+		return -EANALDEV;
 
 	printk(KERN_INFO "%pOF: Mostek regs at 0x%llx\n",
 	       dp, op->resource[0].start);
@@ -649,7 +649,7 @@ EXPORT_SYMBOL(sparc64_get_clock_tick);
 
 #ifdef CONFIG_CPU_FREQ
 
-static int sparc64_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
+static int sparc64_cpufreq_analtifier(struct analtifier_block *nb, unsigned long val,
 				    void *data)
 {
 	struct cpufreq_freqs *freq = data;
@@ -675,19 +675,19 @@ static int sparc64_cpufreq_notifier(struct notifier_block *nb, unsigned long val
 	return 0;
 }
 
-static struct notifier_block sparc64_cpufreq_notifier_block = {
-	.notifier_call	= sparc64_cpufreq_notifier
+static struct analtifier_block sparc64_cpufreq_analtifier_block = {
+	.analtifier_call	= sparc64_cpufreq_analtifier
 };
 
-static int __init register_sparc64_cpufreq_notifier(void)
+static int __init register_sparc64_cpufreq_analtifier(void)
 {
 
-	cpufreq_register_notifier(&sparc64_cpufreq_notifier_block,
-				  CPUFREQ_TRANSITION_NOTIFIER);
+	cpufreq_register_analtifier(&sparc64_cpufreq_analtifier_block,
+				  CPUFREQ_TRANSITION_ANALTIFIER);
 	return 0;
 }
 
-core_initcall(register_sparc64_cpufreq_notifier);
+core_initcall(register_sparc64_cpufreq_analtifier);
 
 #endif /* CONFIG_CPU_FREQ */
 
@@ -755,7 +755,7 @@ void setup_sparc64_timer(void)
 
 	/* Restore PSTATE_IE. */
 	__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (pstate));
 
 	sevt = this_cpu_ptr(&sparc64_events);
@@ -836,7 +836,7 @@ void __init time_init_early(void)
 	if (tlb_type == spitfire) {
 		if (is_hummingbird()) {
 			init_tick_ops(&hbtick_operations);
-			clocksource_tick.archdata.vclock_mode = VCLOCK_NONE;
+			clocksource_tick.archdata.vclock_mode = VCLOCK_ANALNE;
 		} else {
 			init_tick_ops(&tick_operations);
 			clocksource_tick.archdata.vclock_mode = VCLOCK_TICK;

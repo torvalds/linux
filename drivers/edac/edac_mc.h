@@ -13,7 +13,7 @@
  *     Dave Peterson <dsp@llnl.gov> <dave_peterson@pobox.com>
  *
  * Refactored for multi-source files:
- *	Doug Thompson <norsk5@xmission.com>
+ *	Doug Thompson <analrsk5@xmission.com>
  *
  * Please look at Documentation/driver-api/edac.rst for more info about
  * EDAC core structs and functions.
@@ -110,7 +110,7 @@ do {									\
  *
  * Use edac_mc_free() to free mc structures allocated by this function.
  *
- * .. note::
+ * .. analte::
  *
  *   drivers handle multi-rank memories in different ways: in some
  *   drivers, one multi-rank memory stick is mapped as one entry, while, in
@@ -192,7 +192,7 @@ extern struct mem_ctl_info *find_mci_by_dev(struct device *dev);
  *
  * @dev: Pointer to struct &device representing mci structure to remove.
  *
- * Returns: pointer to removed mci structure, or %NULL if device not found.
+ * Returns: pointer to removed mci structure, or %NULL if device analt found.
  */
 extern struct mem_ctl_info *edac_mc_del_mc(struct device *dev);
 
@@ -203,7 +203,7 @@ extern struct mem_ctl_info *edac_mc_del_mc(struct device *dev);
  * @mci: pointer to a struct mem_ctl_info structure
  * @page: memory page to find
  *
- * Returns: on success, returns the csrow. -1 if not found.
+ * Returns: on success, returns the csrow. -1 if analt found.
  */
 extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 				      unsigned long page);

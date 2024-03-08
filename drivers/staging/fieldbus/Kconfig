@@ -13,7 +13,7 @@ menuconfig FIELDBUS_DEV
 	  This framework is designed to provide a generic interface to Fieldbus
 	  Devices from both the Linux Kernel and the userspace.
 
-	  If unsure, say no.
+	  If unsure, say anal.
 
 source "drivers/staging/fieldbus/anybuss/Kconfig"
 

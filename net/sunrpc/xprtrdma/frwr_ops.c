@@ -7,19 +7,19 @@
 /* Lightweight memory registration using Fast Registration Work
  * Requests (FRWR).
  *
- * FRWR features ordered asynchronous registration and invalidation
+ * FRWR features ordered asynchroanalus registration and invalidation
  * of arbitrarily-sized memory regions. This is the fastest and safest
  * but most complex memory registration mode.
  */
 
-/* Normal operation
+/* Analrmal operation
  *
  * A Memory Region is prepared for RDMA Read or Write using a FAST_REG
  * Work Request (frwr_map). When the RDMA operation is finished, this
  * Memory Region is invalidated using a LOCAL_INV Work Request
  * (frwr_unmap_async and frwr_unmap_sync).
  *
- * Typically FAST_REG Work Requests are not signaled, and neither are
+ * Typically FAST_REG Work Requests are analt signaled, and neither are
  * RDMA Send Work Requests (with the exception of signaling occasionally
  * to prevent provider work queue overflows). This greatly reduces HCA
  * interrupt workload.
@@ -27,7 +27,7 @@
 
 /* Transport recovery
  *
- * frwr_map and frwr_unmap_* cannot run at the same time the transport
+ * frwr_map and frwr_unmap_* cananalt run at the same time the transport
  * connect worker is running. The connect worker holds the transport
  * send lock, just as ->send_request does. This prevents frwr_map and
  * the connect worker from running concurrently. When a connection is
@@ -87,7 +87,7 @@ static void frwr_mr_put(struct rpcrdma_mr *mr)
 	frwr_mr_unmap(mr->mr_xprt, mr);
 
 	/* The MR is returned to the req's MR free list instead
-	 * of to the xprt's MR free list. No spinlock is needed.
+	 * of to the xprt's MR free list. Anal spinlock is needed.
 	 */
 	rpcrdma_mr_push(mr, &mr->mr_req->rl_free_mrs);
 }
@@ -98,8 +98,8 @@ static void frwr_mr_put(struct rpcrdma_mr *mr)
  * Used after a failed marshal. For FRWR, this means the MRs
  * don't have to be fully released and recreated.
  *
- * NB: This is safe only as long as none of @req's MRs are
- * involved with an ongoing asynchronous FAST_REG or LOCAL_INV
+ * NB: This is safe only as long as analne of @req's MRs are
+ * involved with an ongoing asynchroanalus FAST_REG or LOCAL_INV
  * Work Request.
  */
 void frwr_reset(struct rpcrdma_req *req)
@@ -115,7 +115,7 @@ void frwr_reset(struct rpcrdma_req *req)
  * @r_xprt: controlling transport instance
  * @mr: generic MR to prepare for FRWR
  *
- * Returns zero if successful. Otherwise a negative errno
+ * Returns zero if successful. Otherwise a negative erranal
  * is returned.
  */
 int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
@@ -125,10 +125,10 @@ int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 	struct scatterlist *sg;
 	struct ib_mr *frmr;
 
-	sg = kcalloc_node(depth, sizeof(*sg), XPRTRDMA_GFP_FLAGS,
-			  ibdev_to_node(ep->re_id->device));
+	sg = kcalloc_analde(depth, sizeof(*sg), XPRTRDMA_GFP_FLAGS,
+			  ibdev_to_analde(ep->re_id->device));
 	if (!sg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	frmr = ib_alloc_mr(ep->re_pd, ep->re_mrtype, depth);
 	if (IS_ERR(frmr))
@@ -165,8 +165,8 @@ out_mr_err:
  *
  * Return values:
  *   On success, returns zero.
- *   %-EINVAL - the device does not support FRWR memory registration
- *   %-ENOMEM - the device is not sufficiently capable for NFS/RDMA
+ *   %-EINVAL - the device does analt support FRWR memory registration
+ *   %-EANALMEM - the device is analt sufficiently capable for NFS/RDMA
  */
 int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 {
@@ -176,7 +176,7 @@ int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 
 	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) ||
 	    attrs->max_fast_reg_page_list_len == 0) {
-		pr_err("rpcrdma: 'frwr' mode is not supported by device %s\n",
+		pr_err("rpcrdma: 'frwr' mode is analt supported by device %s\n",
 		       device->name);
 		return -EINVAL;
 	}
@@ -185,7 +185,7 @@ int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 			RPCRDMA_MAX_SEND_SGES);
 	if (max_sge < RPCRDMA_MIN_SEND_SGES) {
 		pr_err("rpcrdma: HCA provides only %u send SGEs\n", max_sge);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ep->re_attr.cap.max_send_sge = max_sge;
 	ep->re_attr.cap.max_recv_sge = 1;
@@ -195,7 +195,7 @@ int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 		ep->re_mrtype = IB_MR_TYPE_SG_GAPS;
 
 	/* Quirk: Some devices advertise a large max_fast_reg_page_list_len
-	 * capability, but perform optimally when the MRs are not larger
+	 * capability, but perform optimally when the MRs are analt larger
 	 * than a page.
 	 */
 	if (attrs->max_sge_rd > RPCRDMA_MAX_HDR_SEGS)
@@ -231,14 +231,14 @@ int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 	max_qp_wr -= RPCRDMA_BACKWARD_WRS;
 	max_qp_wr -= 1;
 	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (ep->re_max_requests > max_qp_wr)
 		ep->re_max_requests = max_qp_wr;
 	ep->re_attr.cap.max_send_wr = ep->re_max_requests * depth;
 	if (ep->re_attr.cap.max_send_wr > max_qp_wr) {
 		ep->re_max_requests = max_qp_wr / depth;
 		if (!ep->re_max_requests)
-			return -ENOMEM;
+			return -EANALMEM;
 		ep->re_attr.cap.max_send_wr = ep->re_max_requests * depth;
 	}
 	ep->re_attr.cap.max_send_wr += RPCRDMA_BACKWARD_WRS;
@@ -257,11 +257,11 @@ int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 
 	/* Ensure the underlying device is capable of conveying the
 	 * largest r/wsize NFS will ask for. This guarantees that
-	 * failing over from one RDMA device to another will not
+	 * failing over from one RDMA device to aanalther will analt
 	 * break NFS I/O.
 	 */
 	if ((ep->re_max_rdma_segs * ep->re_max_fr_depth) < RPCRDMA_MAX_SEGS)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -278,7 +278,7 @@ int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
  * Prepare a REG_MR Work Request to register a memory region
  * for remote access via RDMA READ or RDMA WRITE.
  *
- * Returns the next segment or a negative errno pointer.
+ * Returns the next segment or a negative erranal pointer.
  * On success, @mr is filled in.
  */
 struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
@@ -485,7 +485,7 @@ static void frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 /**
  * frwr_unmap_sync - invalidate memory regions that were registered for @req
  * @r_xprt: controlling transport instance
- * @req: rpcrdma_req with a non-empty list of MRs to process
+ * @req: rpcrdma_req with a analn-empty list of MRs to process
  *
  * Sleeps until it is safe for the host CPU to access the previously mapped
  * memory regions. This guarantees that registered MRs are properly fenced
@@ -545,7 +545,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 	/* The final LOCAL_INV WR in the chain is supposed to
 	 * do the wake. If it was never posted, the wake will
-	 * not happen, so don't wait in that case.
+	 * analt happen, so don't wait in that case.
 	 */
 	if (bad_wr != first)
 		wait_for_completion(&mr->mr_linv_done);
@@ -592,7 +592,7 @@ static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 /**
  * frwr_unmap_async - invalidate memory regions that were registered for @req
  * @r_xprt: controlling transport instance
- * @req: rpcrdma_req with a non-empty list of MRs to process
+ * @req: rpcrdma_req with a analn-empty list of MRs to process
  *
  * This guarantees that registered MRs are properly fenced from the
  * server before the RPC consumer accesses the data in them. It also
@@ -650,7 +650,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 	/* The final LOCAL_INV WR in the chain is supposed to
 	 * do the wake. If it was never posted, the wake does
-	 * not happen. Unpin the rqst in preparation for its
+	 * analt happen. Unpin the rqst in preparation for its
 	 * retransmission.
 	 */
 	rpcrdma_unpin_rqst(req->rl_reply);
@@ -664,7 +664,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
  * frwr_wp_create - Create an MR for padding Write chunks
  * @r_xprt: transport resources to use
  *
- * Return 0 on success, negative errno on failure.
+ * Return 0 on success, negative erranal on failure.
  */
 int frwr_wp_create(struct rpcrdma_xprt *r_xprt)
 {

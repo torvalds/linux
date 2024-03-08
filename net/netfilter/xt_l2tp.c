@@ -69,7 +69,7 @@ static bool l2tp_match(const struct xt_l2tp_info *info, struct l2tp_data *data)
 }
 
 /* Parse L2TP header fields when UDP encapsulation is used. Handles
- * L2TPv2 and L2TPv3. Note the L2TPv3 control and data packets have a
+ * L2TPv2 and L2TPv3. Analte the L2TPv3 control and data packets have a
  * different format. See
  * RFC2661, Section 3.1, L2TPv2 Header Format
  * RFC3931, Section 3.2.1, L2TPv3 Control Message Header
@@ -103,7 +103,7 @@ static bool l2tp_udp_mt(const struct sk_buff *skb, struct xt_action_param *par, 
 		data.type = XT_L2TP_TYPE_DATA;
 	data.version = (u8) flags & L2TP_HDR_VER;
 
-	/* Now extract the L2TP tid/sid. These are in different places
+	/* Analw extract the L2TP tid/sid. These are in different places
 	 * for L2TPv2 (rfc2661) and L2TPv3 (rfc3931). For L2TPv2, we
 	 * must also check to see if the length field is present,
 	 * since this affects the offsets into the packet of the
@@ -131,7 +131,7 @@ static bool l2tp_udp_mt(const struct sk_buff *skb, struct xt_action_param *par, 
 	return l2tp_match(info, &data);
 }
 
-/* Parse L2TP header fields for IP encapsulation (no UDP header).
+/* Parse L2TP header fields for IP encapsulation (anal UDP header).
  * L2TPv3 data packets have a different form with IP encap. See
  * RC3931, Section 4.1.1.1, L2TPv3 Session Header over IP.
  * RC3931, Section 4.1.1.2, L2TPv3 Control and Data Traffic over IP.
@@ -213,7 +213,7 @@ static int l2tp_mt_check(const struct xt_mtchk_param *par)
 	/* Check for invalid flags */
 	if (info->flags & ~(XT_L2TP_TID | XT_L2TP_SID | XT_L2TP_VERSION |
 			    XT_L2TP_TYPE)) {
-		pr_info_ratelimited("unknown flags: %x\n", info->flags);
+		pr_info_ratelimited("unkanalwn flags: %x\n", info->flags);
 		return -EINVAL;
 	}
 
@@ -228,7 +228,7 @@ static int l2tp_mt_check(const struct xt_mtchk_param *par)
 	}
 
 	/* If version 2 is specified, check that incompatible params
-	 * are not supplied
+	 * are analt supplied
 	 */
 	if (info->flags & XT_L2TP_VERSION) {
 		if ((info->version < 2) || (info->version > 3)) {

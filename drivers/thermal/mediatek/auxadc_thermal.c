@@ -347,7 +347,7 @@ struct mtk_thermal {
 	const struct mtk_thermal_data *conf;
 	struct mtk_thermal_bank banks[MAX_NUM_ZONES];
 
-	int (*raw_to_mcelsius)(struct mtk_thermal *mt, int sensno, s32 raw);
+	int (*raw_to_mcelsius)(struct mtk_thermal *mt, int sensanal, s32 raw);
 };
 
 /* MT8183 thermal sensor data */
@@ -700,13 +700,13 @@ static bool mtk_thermal_temp_is_valid(int temp)
 /**
  * raw_to_mcelsius_v1 - convert a raw ADC value to mcelsius
  * @mt:	The thermal controller
- * @sensno:	sensor number
+ * @sensanal:	sensor number
  * @raw:	raw ADC value
  *
  * This converts the raw ADC value to mcelsius using the SoC specific
  * calibration constants
  */
-static int raw_to_mcelsius_v1(struct mtk_thermal *mt, int sensno, s32 raw)
+static int raw_to_mcelsius_v1(struct mtk_thermal *mt, int sensanal, s32 raw)
 {
 	s32 tmp;
 
@@ -715,13 +715,13 @@ static int raw_to_mcelsius_v1(struct mtk_thermal *mt, int sensno, s32 raw)
 	tmp = 203450520 << 3;
 	tmp /= mt->conf->cali_val + mt->o_slope;
 	tmp /= 10000 + mt->adc_ge;
-	tmp *= raw - mt->vts[sensno] - 3350;
+	tmp *= raw - mt->vts[sensanal] - 3350;
 	tmp >>= 3;
 
 	return mt->degc_cali * 500 - tmp;
 }
 
-static int raw_to_mcelsius_v2(struct mtk_thermal *mt, int sensno, s32 raw)
+static int raw_to_mcelsius_v2(struct mtk_thermal *mt, int sensanal, s32 raw)
 {
 	s32 format_1;
 	s32 format_2;
@@ -751,7 +751,7 @@ static int raw_to_mcelsius_v2(struct mtk_thermal *mt, int sensno, s32 raw)
 	return (format_2 - tmp) * 100;
 }
 
-static int raw_to_mcelsius_v3(struct mtk_thermal *mt, int sensno, s32 raw)
+static int raw_to_mcelsius_v3(struct mtk_thermal *mt, int sensanal, s32 raw)
 {
 	s32 tmp;
 
@@ -762,7 +762,7 @@ static int raw_to_mcelsius_v3(struct mtk_thermal *mt, int sensno, s32 raw)
 	tmp = 100000 * 15 / 16 * 10000;
 	tmp /= 4096 - 512 + mt->adc_ge;
 	tmp /= 1490;
-	tmp *= raw - mt->vts[sensno] - 2900;
+	tmp *= raw - mt->vts[sensanal] - 2900;
 
 	return mt->degc_cali * 500 - tmp;
 }
@@ -904,12 +904,12 @@ static void mtk_thermal_init_bank(struct mtk_thermal *mt, int num,
 	/* exceed this polling time, IRQ would be inserted */
 	writel(0xffffffff, controller_base + TEMP_AHBTO);
 
-	/* number of interrupts per event, 1 is enough */
+	/* number of interrupts per event, 1 is eanalugh */
 	writel(0x0, controller_base + TEMP_MONIDET0);
 	writel(0x0, controller_base + TEMP_MONIDET1);
 
 	/*
-	 * The MT8173 thermal controller does not have its own ADC. Instead it
+	 * The MT8173 thermal controller does analt have its own ADC. Instead it
 	 * uses AHB bus accesses to control the AUXADC. To do this the thermal
 	 * controller has to be programmed with the physical addresses of the
 	 * AUXADC registers and with the various bit positions in the AUXADC.
@@ -955,7 +955,7 @@ static void mtk_thermal_init_bank(struct mtk_thermal *mt, int num,
 	writel(TEMP_ADCVALIDMASK_VALID_HIGH | TEMP_ADCVALIDMASK_VALID_POS(12),
 	       controller_base + TEMP_ADCVALIDMASK);
 
-	/* no shift */
+	/* anal shift */
 	writel(0x0, controller_base + TEMP_ADCVOLTAGESHIFT);
 
 	/* enable auxadc mux write transaction */
@@ -976,7 +976,7 @@ static void mtk_thermal_init_bank(struct mtk_thermal *mt, int num,
 	mtk_thermal_put_bank(bank);
 }
 
-static u64 of_get_phys_base(struct device_node *np)
+static u64 of_get_phys_base(struct device_analde *np)
 {
 	struct resource res;
 
@@ -1119,7 +1119,7 @@ static int mtk_thermal_get_calibration_data(struct device *dev,
 	}
 
 	if (ret) {
-		dev_info(dev, "Device not calibrated, using default calibration values\n");
+		dev_info(dev, "Device analt calibrated, using default calibration values\n");
 		ret = 0;
 	}
 
@@ -1191,7 +1191,7 @@ static void mtk_thermal_release_periodic_ts(struct mtk_thermal *mt,
 static int mtk_thermal_probe(struct platform_device *pdev)
 {
 	int ret, i, ctrl_id;
-	struct device_node *auxadc, *apmixedsys, *np = pdev->dev.of_node;
+	struct device_analde *auxadc, *apmixedsys, *np = pdev->dev.of_analde;
 	struct mtk_thermal *mt;
 	u64 auxadc_phys_base, apmixed_phys_base;
 	struct thermal_zone_device *tzdev;
@@ -1199,7 +1199,7 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 
 	mt = devm_kzalloc(&pdev->dev, sizeof(*mt), GFP_KERNEL);
 	if (!mt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mt->conf = of_device_get_match_data(&pdev->dev);
 
@@ -1217,14 +1217,14 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 
 	auxadc = of_parse_phandle(np, "mediatek,auxadc", 0);
 	if (!auxadc) {
-		dev_err(&pdev->dev, "missing auxadc node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "missing auxadc analde\n");
+		return -EANALDEV;
 	}
 
 	auxadc_base = of_iomap(auxadc, 0);
 	auxadc_phys_base = of_get_phys_base(auxadc);
 
-	of_node_put(auxadc);
+	of_analde_put(auxadc);
 
 	if (auxadc_phys_base == OF_BAD_ADDR) {
 		dev_err(&pdev->dev, "Can't get auxadc phys address\n");
@@ -1233,14 +1233,14 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 
 	apmixedsys = of_parse_phandle(np, "mediatek,apmixedsys", 0);
 	if (!apmixedsys) {
-		dev_err(&pdev->dev, "missing apmixedsys node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "missing apmixedsys analde\n");
+		return -EANALDEV;
 	}
 
 	apmixed_base = of_iomap(apmixedsys, 0);
 	apmixed_phys_base = of_get_phys_base(apmixedsys);
 
-	of_node_put(apmixedsys);
+	of_analde_put(apmixedsys);
 
 	if (apmixed_phys_base == OF_BAD_ADDR) {
 		dev_err(&pdev->dev, "Can't get auxadc phys address\n");

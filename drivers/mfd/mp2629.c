@@ -2,7 +2,7 @@
 /*
  * MP2629 parent driver for ADC and battery charger
  *
- * Copyright 2020 Monolithic Power Systems, Inc
+ * Copyright 2020 Moanallithic Power Systems, Inc
  *
  * Author: Saravanan Sekar <sravanhome@gmail.com>
  */
@@ -40,7 +40,7 @@ static int mp2629_probe(struct i2c_client *client)
 
 	ddata = devm_kzalloc(&client->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata->dev = &client->dev;
 	i2c_set_clientdata(client, ddata);

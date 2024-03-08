@@ -22,7 +22,7 @@ static inline unsigned long huge_pte_dirty(pte_t pte)
 
 static inline pte_t huge_pte_mkwrite(pte_t pte)
 {
-	return pte_mkwrite_novma(pte);
+	return pte_mkwrite_analvma(pte);
 }
 
 #ifndef __HAVE_ARCH_HUGE_PTE_WRPROTECT
@@ -98,17 +98,17 @@ static inline pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
 }
 #endif
 
-#ifndef __HAVE_ARCH_HUGE_PTE_NONE
-static inline int huge_pte_none(pte_t pte)
+#ifndef __HAVE_ARCH_HUGE_PTE_ANALNE
+static inline int huge_pte_analne(pte_t pte)
 {
-	return pte_none(pte);
+	return pte_analne(pte);
 }
 #endif
 
-/* Please refer to comments above pte_none_mostly() for the usage */
-static inline int huge_pte_none_mostly(pte_t pte)
+/* Please refer to comments above pte_analne_mostly() for the usage */
+static inline int huge_pte_analne_mostly(pte_t pte)
 {
-	return huge_pte_none(pte) || is_pte_marker(pte);
+	return huge_pte_analne(pte) || is_pte_marker(pte);
 }
 
 #ifndef __HAVE_ARCH_PREPARE_HUGEPAGE_RANGE

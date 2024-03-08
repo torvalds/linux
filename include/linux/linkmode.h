@@ -37,10 +37,10 @@ static inline bool linkmode_empty(const unsigned long *src)
 	return bitmap_empty(src, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static inline int linkmode_andnot(unsigned long *dst, const unsigned long *src1,
+static inline int linkmode_andanalt(unsigned long *dst, const unsigned long *src1,
 				  const unsigned long *src2)
 {
-	return bitmap_andnot(dst, src1, src2,  __ETHTOOL_LINK_MODE_MASK_NBITS);
+	return bitmap_andanalt(dst, src1, src2,  __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
 static inline void linkmode_set_bit(int nr, volatile unsigned long *addr)

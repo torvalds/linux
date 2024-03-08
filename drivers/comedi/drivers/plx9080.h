@@ -19,7 +19,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 
 /**
@@ -109,13 +109,13 @@ struct plx_dma_desc {
 #define PLX_MARBR_PCIREQM	BIT(23)
 /* PCI Specification v2.1 Mode */
 #define PLX_MARBR_PCIV21M	BIT(24)
-/* PCI Read No Write Mode */
+/* PCI Read Anal Write Mode */
 #define PLX_MARBR_PCIRNWM	BIT(25)
 /* PCI Read with Write Flush Mode */
 #define PLX_MARBR_PCIRWFM	BIT(26)
 /* Gate Local Bus Latency Timer with BREQ */
 #define PLX_MARBR_GLTBREQ	BIT(27)
-/* PCI Read No Flush Mode */
+/* PCI Read Anal Flush Mode */
 #define PLX_MARBR_PCIRNFM	BIT(28)
 /*
  * Make reads from PCI Configuration register 0 return Subsystem ID and
@@ -146,9 +146,9 @@ struct plx_dma_desc {
 #define PLX_BIGEND_DMA(n)	((n) ? PLX_BIGEND_DMA1 : PLX_BIGEND_DMA0)
 
 /*
- * Note: The Expansion ROM  stuff is only relevant to the PC environment.
+ * Analte: The Expansion ROM  stuff is only relevant to the PC environment.
  *       This expansion ROM code is executed by the host CPU at boot time.
- *       For this reason no bit definitions are provided here.
+ *       For this reason anal bit definitions are provided here.
  */
 
 /* Expansion ROM Range Register */
@@ -255,7 +255,7 @@ struct plx_dma_desc {
 /* I/O Remap Select */
 #define PLX_DMPBAM_IOREMAPSEL	BIT(13)
 /* Direct Master Write Delay */
-#define PLX_DMPBAM_WDELAY_NONE	(BIT(14) * 0)
+#define PLX_DMPBAM_WDELAY_ANALNE	(BIT(14) * 0)
 #define PLX_DMPBAM_WDELAY_4	(BIT(14) * 1)
 #define PLX_DMPBAM_WDELAY_8	(BIT(14) * 2)
 #define PLX_DMPBAM_WDELAY_16	(BIT(14) * 3)
@@ -292,7 +292,7 @@ struct plx_dma_desc {
 /*
  * Mailbox Register N (N <= 7)
  *
- * Note that if the I2O feature is enabled (QSR[0] is set), Mailbox Register 0
+ * Analte that if the I2O feature is enabled (QSR[0] is set), Mailbox Register 0
  * is replaced by the Inbound Queue Port, and Mailbox Register 1 is replaced
  * by the Outbound Queue Port.  However, Mailbox Register 0 and 1 are always
  * accessible at alternative offsets if the I2O feature is enabled.
@@ -337,7 +337,7 @@ struct plx_dma_desc {
 #define PLX_INTCSR_PABORTIEN	BIT(10)
 /* PCI Local Interrupt Enable */
 #define PLX_INTCSR_PLIEN	BIT(11)
-/* Retry Abort Enable (for diagnostic purposes only) */
+/* Retry Abort Enable (for diaganalstic purposes only) */
 #define PLX_INTCSR_RAEN		BIT(12)
 /* PCI Doorbell Interrupt Active (read-only) */
 #define PLX_INTCSR_PDBIA	BIT(13)
@@ -365,17 +365,17 @@ struct plx_dma_desc {
 #define PLX_INTCSR_DMAIA(n)	((n) ? PLX_INTCSR_DMA1IA : PLX_INTCSR_DMA0IA)
 /* BIST Interrupt Active (read-only) */
 #define PLX_INTCSR_BISTIA	BIT(23)
-/* Direct Master Not Bus Master During Master Or Target Abort (read-only) */
-#define PLX_INTCSR_ABNOTDM	BIT(24)
-/* DMA Channel 0 Not Bus Master During Master Or Target Abort (read-only) */
-#define PLX_INTCSR_ABNOTDMA0	BIT(25)
-/* DMA Channel 1 Not Bus Master During Master Or Target Abort (read-only) */
-#define PLX_INTCSR_ABNOTDMA1	BIT(26)
-/* DMA Channel N Not Bus Master During Master Or Target Abort (read-only) */
-#define PLX_INTCSR_ABNOTDMA(n)	((n) ? PLX_INTCSR_ABNOTDMA1 \
-				     : PLX_INTCSR_ABNOTDMA0)
-/* Target Abort Not Generated After 256 Master Retries (read-only) */
-#define PLX_INTCSR_ABNOTRETRY	BIT(27)
+/* Direct Master Analt Bus Master During Master Or Target Abort (read-only) */
+#define PLX_INTCSR_ABANALTDM	BIT(24)
+/* DMA Channel 0 Analt Bus Master During Master Or Target Abort (read-only) */
+#define PLX_INTCSR_ABANALTDMA0	BIT(25)
+/* DMA Channel 1 Analt Bus Master During Master Or Target Abort (read-only) */
+#define PLX_INTCSR_ABANALTDMA1	BIT(26)
+/* DMA Channel N Analt Bus Master During Master Or Target Abort (read-only) */
+#define PLX_INTCSR_ABANALTDMA(n)	((n) ? PLX_INTCSR_ABANALTDMA1 \
+				     : PLX_INTCSR_ABANALTDMA0)
+/* Target Abort Analt Generated After 256 Master Retries (read-only) */
+#define PLX_INTCSR_ABANALTRETRY	BIT(27)
 /* PCI Wrote Mailbox 0 (enabled if bit 3 set) (read-only) */
 #define PLX_INTCSR_MB0IA	BIT(28)
 /* PCI Wrote Mailbox 1 (enabled if bit 3 set) (read-only) */
@@ -397,22 +397,22 @@ struct plx_dma_desc {
 #define PLX_CNTRL_CCRDMA(x)	(BIT(0) * ((x) & 0xf))
 #define PLX_CNTRL_CCRDMA_MASK	GENMASK(3, 0)
 #define PLX_CNTRL_TO_CCRDMA(r)	((r) & PLX_CNTRL_CCRDMA_MASK)
-#define PLX_CNTRL_CCRDMA_NORMAL	PLX_CNTRL_CCRDMA(14)	/* value after reset */
+#define PLX_CNTRL_CCRDMA_ANALRMAL	PLX_CNTRL_CCRDMA(14)	/* value after reset */
 /* PCI Write Command Code For DMA 0 */
 #define PLX_CNTRL_CCWDMA(x)	(BIT(4) * ((x) & 0xf))
 #define PLX_CNTRL_CCWDMA_MASK	GENMASK(7, 4)
 #define PLX_CNTRL_TO_CCWDMA(r)	(((r) & PLX_CNTRL_CCWDMA_MASK) >> 4)
-#define PLX_CNTRL_CCWDMA_NORMAL	PLX_CNTRL_CCWDMA(7)	/* value after reset */
+#define PLX_CNTRL_CCWDMA_ANALRMAL	PLX_CNTRL_CCWDMA(7)	/* value after reset */
 /* PCI Memory Read Command Code For Direct Master */
 #define PLX_CNTRL_CCRDM(x)	(BIT(8) * ((x) & 0xf))
 #define PLX_CNTRL_CCRDM_MASK	GENMASK(11, 8)
 #define PLX_CNTRL_TO_CCRDM(r)	(((r) & PLX_CNTRL_CCRDM_MASK) >> 8)
-#define PLX_CNTRL_CCRDM_NORMAL	PLX_CNTRL_CCRDM(6)	/* value after reset */
+#define PLX_CNTRL_CCRDM_ANALRMAL	PLX_CNTRL_CCRDM(6)	/* value after reset */
 /* PCI Memory Write Command Code For Direct Master */
 #define PLX_CNTRL_CCWDM(x)	(BIT(12) * ((x) & 0xf))
 #define PLX_CNTRL_CCWDM_MASK	GENMASK(15, 12)
 #define PLX_CNTRL_TO_CCWDM(r)	(((r) & PLX_CNTRL_CCWDM_MASK) >> 12)
-#define PLX_CNTRL_CCWDM_NORMAL	PLX_CNTRL_CCWDM(7)	/* value after reset */
+#define PLX_CNTRL_CCWDM_ANALRMAL	PLX_CNTRL_CCWDM(7)	/* value after reset */
 /* General Purpose Output (USERO) */
 #define PLX_CNTRL_USERO		BIT(16)
 /* General Purpose Input (USERI) (read-only) */
@@ -439,9 +439,9 @@ struct plx_dma_desc {
 #define PLX_CNTRL_CC_MASK	\
 	(PLX_CNTRL_CCRDMA_MASK | PLX_CNTRL_CCWDMA_MASK | \
 	 PLX_CNTRL_CCRDM_MASK | PLX_CNTRL_CCWDM_MASK)
-#define PLX_CNTRL_CC_NORMAL	\
-	(PLX_CNTRL_CCRDMA_NORMAL | PLX_CNTRL_CCWDMA_NORMAL | \
-	 PLX_CNTRL_CCRDM_NORMAL | PLX_CNTRL_CCWDM_NORMAL) /* val after reset */
+#define PLX_CNTRL_CC_ANALRMAL	\
+	(PLX_CNTRL_CCRDMA_ANALRMAL | PLX_CNTRL_CCWDMA_ANALRMAL | \
+	 PLX_CNTRL_CCRDM_ANALRMAL | PLX_CNTRL_CCWDM_ANALRMAL) /* val after reset */
 
 /* PCI Permanent Configuration ID Register (hard-coded PLX vendor and device) */
 #define PLX_REG_PCIHIDR		0x0070
@@ -512,13 +512,13 @@ struct plx_dma_desc {
 #define PLX_REG_DMADPR0		0x0090
 #define PLX_REG_DMADPR1		0x00a4
 
-/* Descriptor Located In PCI Address Space (not local address space) */
+/* Descriptor Located In PCI Address Space (analt local address space) */
 #define PLX_DMADPR_DESCPCI	BIT(0)
 /* End Of Chain */
 #define PLX_DMADPR_CHAINEND	BIT(1)
 /* Interrupt After Terminal Count */
 #define PLX_DMADPR_TCINTR	BIT(2)
-/* Direction Of Transfer Local Bus To PCI (not PCI to local) */
+/* Direction Of Transfer Local Bus To PCI (analt PCI to local) */
 #define PLX_DMADPR_XFERL2P	BIT(3)
 /* Next Descriptor Address Bits 31:4 (16 byte boundary) */
 #define PLX_DMADPR_NEXT_MASK	GENMASK(31, 4)
@@ -600,7 +600,7 @@ struct plx_dma_desc {
 /*
  * Accesses near the end of memory can cause the PLX chip
  * to pre-fetch data off of end-of-ram.  Limit the size of
- * memory so host-side accesses cannot occur.
+ * memory so host-side accesses cananalt occur.
  */
 
 #define PLX_PREFETCH   32

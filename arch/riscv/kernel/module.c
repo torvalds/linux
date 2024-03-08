@@ -6,7 +6,7 @@
 
 #include <linux/elf.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hashtable.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
@@ -23,7 +23,7 @@ struct used_bucket {
 };
 
 struct relocation_head {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct list_head *rel_entry;
 	void *location;
 };
@@ -157,7 +157,7 @@ static int apply_r_riscv_pcrel_hi20_rela(struct module *me, void *location,
 
 	if (!riscv_insn_valid_32bit_offset(offset)) {
 		pr_err(
-		  "%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
+		  "%s: target %016llx can analt be addressed by the 32-bit offset from PC = %p\n",
 		  me->name, (long long)v, location);
 		return -EINVAL;
 	}
@@ -193,7 +193,7 @@ static int apply_r_riscv_hi20_rela(struct module *me, void *location,
 {
 	if (IS_ENABLED(CONFIG_CMODEL_MEDLOW)) {
 		pr_err(
-		  "%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
+		  "%s: target %016llx can analt be addressed by the 32-bit offset from PC = %p\n",
 		  me->name, (long long)v, location);
 		return -EINVAL;
 	}
@@ -233,7 +233,7 @@ static int apply_r_riscv_got_hi20_rela(struct module *me, void *location,
 		offset = (void *)module_emit_got_entry(me, v) - location;
 	} else {
 		pr_err(
-		  "%s: can not generate the GOT entry for symbol = %016llx from PC = %p\n",
+		  "%s: can analt generate the GOT entry for symbol = %016llx from PC = %p\n",
 		  me->name, (long long)v, location);
 		return -EINVAL;
 	}
@@ -253,7 +253,7 @@ static int apply_r_riscv_call_plt_rela(struct module *me, void *location,
 			offset = (void *)module_emit_plt_entry(me, v) - location;
 		} else {
 			pr_err(
-			  "%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
+			  "%s: target %016llx can analt be addressed by the 32-bit offset from PC = %p\n",
 			  me->name, (long long)v, location);
 			return -EINVAL;
 		}
@@ -273,7 +273,7 @@ static int apply_r_riscv_call_rela(struct module *me, void *location,
 
 	if (!riscv_insn_valid_32bit_offset(offset)) {
 		pr_err(
-		  "%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
+		  "%s: target %016llx can analt be addressed by the 32-bit offset from PC = %p\n",
 		  me->name, (long long)v, location);
 		return -EINVAL;
 	}
@@ -353,17 +353,17 @@ static int apply_r_riscv_sub64_rela(struct module *me, void *location,
 	return 0;
 }
 
-static int dynamic_linking_not_supported(struct module *me, void *location,
+static int dynamic_linking_analt_supported(struct module *me, void *location,
 					 Elf_Addr v)
 {
-	pr_err("%s: Dynamic linking not supported in kernel modules PC = %p\n",
+	pr_err("%s: Dynamic linking analt supported in kernel modules PC = %p\n",
 	       me->name, location);
 	return -EINVAL;
 }
 
-static int tls_not_supported(struct module *me, void *location, Elf_Addr v)
+static int tls_analt_supported(struct module *me, void *location, Elf_Addr v)
 {
-	pr_err("%s: Thread local storage not supported in kernel modules PC = %p\n",
+	pr_err("%s: Thread local storage analt supported in kernel modules PC = %p\n",
 	       me->name, location);
 	return -EINVAL;
 }
@@ -423,7 +423,7 @@ static int apply_r_riscv_plt32_rela(struct module *me, void *location,
 		if (IS_ENABLED(CONFIG_MODULE_SECTIONS)) {
 			offset = (void *)module_emit_plt_entry(me, v) - location;
 		} else {
-			pr_err("%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
+			pr_err("%s: target %016llx can analt be addressed by the 32-bit offset from PC = %p\n",
 			       me->name, (long long)v, location);
 			return -EINVAL;
 		}
@@ -525,33 +525,33 @@ static int apply_uleb128_accumulation(struct module *me, void *location, long bu
 static const struct relocation_handlers reloc_handlers[] = {
 	[R_RISCV_32]		= { .reloc_handler = apply_r_riscv_32_rela },
 	[R_RISCV_64]		= { .reloc_handler = apply_r_riscv_64_rela },
-	[R_RISCV_RELATIVE]	= { .reloc_handler = dynamic_linking_not_supported },
-	[R_RISCV_COPY]		= { .reloc_handler = dynamic_linking_not_supported },
-	[R_RISCV_JUMP_SLOT]	= { .reloc_handler = dynamic_linking_not_supported },
-	[R_RISCV_TLS_DTPMOD32]	= { .reloc_handler = dynamic_linking_not_supported },
-	[R_RISCV_TLS_DTPMOD64]	= { .reloc_handler = dynamic_linking_not_supported },
-	[R_RISCV_TLS_DTPREL32]	= { .reloc_handler = dynamic_linking_not_supported },
-	[R_RISCV_TLS_DTPREL64]	= { .reloc_handler = dynamic_linking_not_supported },
-	[R_RISCV_TLS_TPREL32]	= { .reloc_handler = dynamic_linking_not_supported },
-	[R_RISCV_TLS_TPREL64]	= { .reloc_handler = dynamic_linking_not_supported },
+	[R_RISCV_RELATIVE]	= { .reloc_handler = dynamic_linking_analt_supported },
+	[R_RISCV_COPY]		= { .reloc_handler = dynamic_linking_analt_supported },
+	[R_RISCV_JUMP_SLOT]	= { .reloc_handler = dynamic_linking_analt_supported },
+	[R_RISCV_TLS_DTPMOD32]	= { .reloc_handler = dynamic_linking_analt_supported },
+	[R_RISCV_TLS_DTPMOD64]	= { .reloc_handler = dynamic_linking_analt_supported },
+	[R_RISCV_TLS_DTPREL32]	= { .reloc_handler = dynamic_linking_analt_supported },
+	[R_RISCV_TLS_DTPREL64]	= { .reloc_handler = dynamic_linking_analt_supported },
+	[R_RISCV_TLS_TPREL32]	= { .reloc_handler = dynamic_linking_analt_supported },
+	[R_RISCV_TLS_TPREL64]	= { .reloc_handler = dynamic_linking_analt_supported },
 	/* 12-15 undefined */
 	[R_RISCV_BRANCH]	= { .reloc_handler = apply_r_riscv_branch_rela },
 	[R_RISCV_JAL]		= { .reloc_handler = apply_r_riscv_jal_rela },
 	[R_RISCV_CALL]		= { .reloc_handler = apply_r_riscv_call_rela },
 	[R_RISCV_CALL_PLT]	= { .reloc_handler = apply_r_riscv_call_plt_rela },
 	[R_RISCV_GOT_HI20]	= { .reloc_handler = apply_r_riscv_got_hi20_rela },
-	[R_RISCV_TLS_GOT_HI20]	= { .reloc_handler = tls_not_supported },
-	[R_RISCV_TLS_GD_HI20]	= { .reloc_handler = tls_not_supported },
+	[R_RISCV_TLS_GOT_HI20]	= { .reloc_handler = tls_analt_supported },
+	[R_RISCV_TLS_GD_HI20]	= { .reloc_handler = tls_analt_supported },
 	[R_RISCV_PCREL_HI20]	= { .reloc_handler = apply_r_riscv_pcrel_hi20_rela },
 	[R_RISCV_PCREL_LO12_I]	= { .reloc_handler = apply_r_riscv_pcrel_lo12_i_rela },
 	[R_RISCV_PCREL_LO12_S]	= { .reloc_handler = apply_r_riscv_pcrel_lo12_s_rela },
 	[R_RISCV_HI20]		= { .reloc_handler = apply_r_riscv_hi20_rela },
 	[R_RISCV_LO12_I]	= { .reloc_handler = apply_r_riscv_lo12_i_rela },
 	[R_RISCV_LO12_S]	= { .reloc_handler = apply_r_riscv_lo12_s_rela },
-	[R_RISCV_TPREL_HI20]	= { .reloc_handler = tls_not_supported },
-	[R_RISCV_TPREL_LO12_I]	= { .reloc_handler = tls_not_supported },
-	[R_RISCV_TPREL_LO12_S]	= { .reloc_handler = tls_not_supported },
-	[R_RISCV_TPREL_ADD]	= { .reloc_handler = tls_not_supported },
+	[R_RISCV_TPREL_HI20]	= { .reloc_handler = tls_analt_supported },
+	[R_RISCV_TPREL_LO12_I]	= { .reloc_handler = tls_analt_supported },
+	[R_RISCV_TPREL_LO12_S]	= { .reloc_handler = tls_analt_supported },
+	[R_RISCV_TPREL_ADD]	= { .reloc_handler = tls_analt_supported },
 	[R_RISCV_ADD8]		= { .reloc_handler = apply_r_riscv_add8_rela,
 				    .accumulate_handler = apply_8_bit_accumulation },
 	[R_RISCV_ADD16]		= { .reloc_handler = apply_r_riscv_add16_rela,
@@ -585,14 +585,14 @@ static const struct relocation_handlers reloc_handlers[] = {
 	[R_RISCV_SET32]		= { .reloc_handler = apply_r_riscv_set32_rela,
 				    .accumulate_handler = apply_32_bit_accumulation },
 	[R_RISCV_32_PCREL]	= { .reloc_handler = apply_r_riscv_32_pcrel_rela },
-	[R_RISCV_IRELATIVE]	= { .reloc_handler = dynamic_linking_not_supported },
+	[R_RISCV_IRELATIVE]	= { .reloc_handler = dynamic_linking_analt_supported },
 	[R_RISCV_PLT32]		= { .reloc_handler = apply_r_riscv_plt32_rela },
 	[R_RISCV_SET_ULEB128]	= { .reloc_handler = apply_r_riscv_set_uleb128,
 				    .accumulate_handler = apply_uleb128_accumulation },
 	[R_RISCV_SUB_ULEB128]	= { .reloc_handler = apply_r_riscv_sub_uleb128,
 				    .accumulate_handler = apply_uleb128_accumulation },
 	/* 62-191 reserved for future standard use */
-	/* 192-255 nonstandard ABI extensions  */
+	/* 192-255 analnstandard ABI extensions  */
 };
 
 static void
@@ -620,7 +620,7 @@ process_accumulated_relocations(struct module *me,
 	struct used_bucket *bucket_iter;
 	struct used_bucket *bucket_iter_tmp;
 	struct relocation_head *rel_head_iter;
-	struct hlist_node *rel_head_iter_tmp;
+	struct hlist_analde *rel_head_iter_tmp;
 	struct relocation_entry *rel_entry_iter;
 	struct relocation_entry *rel_entry_iter_tmp;
 	int curr_type;
@@ -630,7 +630,7 @@ process_accumulated_relocations(struct module *me,
 	list_for_each_entry_safe(bucket_iter, bucket_iter_tmp,
 				 used_buckets_list, head) {
 		hlist_for_each_entry_safe(rel_head_iter, rel_head_iter_tmp,
-					  bucket_iter->bucket, node) {
+					  bucket_iter->bucket, analde) {
 			buffer = 0;
 			location = rel_head_iter->location;
 			list_for_each_entry_safe(rel_entry_iter,
@@ -667,7 +667,7 @@ static int add_relocation_to_accumulate(struct module *me, int type,
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&entry->head);
 	entry->type = type;
@@ -684,7 +684,7 @@ static int add_relocation_to_accumulate(struct module *me, int type,
 	bool found = false;
 	struct relocation_head *rel_head_iter;
 
-	hlist_for_each_entry(rel_head_iter, current_head, node) {
+	hlist_for_each_entry(rel_head_iter, current_head, analde) {
 		if (rel_head_iter->location == location) {
 			found = true;
 			rel_head = rel_head_iter;
@@ -693,7 +693,7 @@ static int add_relocation_to_accumulate(struct module *me, int type,
 	}
 
 	/*
-	 * If there has not yet been any relocations at the provided location,
+	 * If there has analt yet been any relocations at the provided location,
 	 * create a relocation_head for that location and populate it with this
 	 * relocation_entry.
 	 */
@@ -702,7 +702,7 @@ static int add_relocation_to_accumulate(struct module *me, int type,
 
 		if (!rel_head) {
 			kfree(entry);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		rel_head->rel_entry =
@@ -711,12 +711,12 @@ static int add_relocation_to_accumulate(struct module *me, int type,
 		if (!rel_head->rel_entry) {
 			kfree(entry);
 			kfree(rel_head);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		INIT_LIST_HEAD(rel_head->rel_entry);
 		rel_head->location = location;
-		INIT_HLIST_NODE(&rel_head->node);
+		INIT_HLIST_ANALDE(&rel_head->analde);
 		if (!current_head->first) {
 			bucket =
 				kmalloc(sizeof(struct used_bucket), GFP_KERNEL);
@@ -725,14 +725,14 @@ static int add_relocation_to_accumulate(struct module *me, int type,
 				kfree(entry);
 				kfree(rel_head->rel_entry);
 				kfree(rel_head);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			INIT_LIST_HEAD(&bucket->head);
 			bucket->bucket = current_head;
 			list_add(&bucket->head, used_buckets_list);
 		}
-		hlist_add_head(&rel_head->node, current_head);
+		hlist_add_head(&rel_head->analde, current_head);
 	}
 
 	/* Add relocation to head of discovered rel_head */
@@ -745,7 +745,7 @@ static unsigned int
 initialize_relocation_hashtable(unsigned int num_relocations,
 				struct hlist_head **relocation_hashtable)
 {
-	/* Can safely assume that bits is not greater than sizeof(long) */
+	/* Can safely assume that bits is analt greater than sizeof(long) */
 	unsigned long hashtable_size = roundup_pow_of_two(num_relocations);
 	/*
 	 * When hashtable_size == 1, hashtable_bits == 0.
@@ -795,7 +795,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 							 &relocation_hashtable);
 
 	if (!relocation_hashtable)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&used_buckets_list);
 
@@ -810,12 +810,12 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		sym = (Elf_Sym *)sechdrs[symindex].sh_addr
 			+ ELF_RISCV_R_SYM(rel[i].r_info);
 		if (IS_ERR_VALUE(sym->st_value)) {
-			/* Ignore unresolved weak symbol */
+			/* Iganalre unresolved weak symbol */
 			if (ELF_ST_BIND(sym->st_info) == STB_WEAK)
 				continue;
-			pr_warn("%s: Unknown symbol %s\n",
+			pr_warn("%s: Unkanalwn symbol %s\n",
 				me->name, strtab + sym->st_name);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		type = ELF_RISCV_R_TYPE(rel[i].r_info);
@@ -826,7 +826,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			handler = NULL;
 
 		if (!handler) {
-			pr_err("%s: Unknown relocation type %u\n",
+			pr_err("%s: Unkanalwn relocation type %u\n",
 			       me->name, type);
 			return -EINVAL;
 		}
@@ -879,7 +879,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 
 			if (!found) {
 				pr_err(
-				  "%s: Can not find HI20 relocation information\n",
+				  "%s: Can analt find HI20 relocation information\n",
 				  me->name);
 				return -EINVAL;
 			}
@@ -908,10 +908,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 #if defined(CONFIG_MMU) && defined(CONFIG_64BIT)
 void *module_alloc(unsigned long size)
 {
-	return __vmalloc_node_range(size, 1, MODULES_VADDR,
+	return __vmalloc_analde_range(size, 1, MODULES_VADDR,
 				    MODULES_END, GFP_KERNEL,
 				    PAGE_KERNEL, VM_FLUSH_RESET_PERMS,
-				    NUMA_NO_NODE,
+				    NUMA_ANAL_ANALDE,
 				    __builtin_return_address(0));
 }
 #endif

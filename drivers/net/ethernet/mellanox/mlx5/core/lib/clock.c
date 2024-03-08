@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -142,7 +142,7 @@ static int mlx5_set_mtutc(struct mlx5_core_dev *dev, u32 *mtutc, u32 size)
 	u32 out[MLX5_ST_SZ_DW(mtutc_reg)] = {};
 
 	if (!MLX5_CAP_MCAM_REG(dev, mtutc))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mlx5_core_access_reg(dev, mtutc, size, out, sizeof(out),
 				    MLX5_REG_MTUTC, 0, 1);
@@ -429,7 +429,7 @@ static int mlx5_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 			return err;
 	}
 
-	mult = (u32)adjust_by_scaled_ppm(timer->nominal_c_mult, scaled_ppm);
+	mult = (u32)adjust_by_scaled_ppm(timer->analminal_c_mult, scaled_ppm);
 
 	write_seqlock_irqsave(&clock->lock, flags);
 	timecounter_read(&timer->tc);
@@ -456,20 +456,20 @@ static int mlx5_extts_configure(struct ptp_clock_info *ptp,
 	int err = 0;
 
 	if (!MLX5_PPS_CAP(mdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Reject requests with unsupported flags */
 	if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
 				PTP_RISING_EDGE |
 				PTP_FALLING_EDGE |
 				PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Reject requests to enable time stamping on both edges. */
 	if ((rq->extts.flags & PTP_STRICT_FLAGS) &&
 	    (rq->extts.flags & PTP_ENABLE_FEATURE) &&
 	    (rq->extts.flags & PTP_EXTTS_EDGES) == PTP_EXTTS_EDGES)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rq->extts.index >= clock->ptp_info.n_pins)
 		return -EINVAL;
@@ -505,22 +505,22 @@ static int mlx5_extts_configure(struct ptp_clock_info *ptp,
 static u64 find_target_cycles(struct mlx5_core_dev *mdev, s64 target_ns)
 {
 	struct mlx5_clock *clock = &mdev->clock;
-	u64 cycles_now, cycles_delta;
-	u64 nsec_now, nsec_delta;
+	u64 cycles_analw, cycles_delta;
+	u64 nsec_analw, nsec_delta;
 	struct mlx5_timer *timer;
 	unsigned long flags;
 
 	timer = &clock->timer;
 
-	cycles_now = mlx5_read_time(mdev, NULL, false);
+	cycles_analw = mlx5_read_time(mdev, NULL, false);
 	write_seqlock_irqsave(&clock->lock, flags);
-	nsec_now = timecounter_cyc2time(&timer->tc, cycles_now);
-	nsec_delta = target_ns - nsec_now;
+	nsec_analw = timecounter_cyc2time(&timer->tc, cycles_analw);
+	nsec_delta = target_ns - nsec_analw;
 	cycles_delta = div64_u64(nsec_delta << timer->cycles.shift,
 				 timer->cycles.mult);
 	write_sequnlock_irqrestore(&clock->lock, flags);
 
-	return cycles_now + cycles_delta;
+	return cycles_analw + cycles_delta;
 }
 
 static u64 perout_conf_internal_timer(struct mlx5_core_dev *mdev, s64 sec)
@@ -582,7 +582,7 @@ static int mlx5_perout_conf_out_pulse_duration(struct mlx5_core_dev *mdev,
 
 	if (out_pulse_duration < pps_info->min_out_pulse_duration_ns ||
 	    out_pulse_duration > MLX5_MAX_PULSE_DURATION) {
-		mlx5_core_err(mdev, "NPPS pulse duration %u is not in [%llu, %lu]\n",
+		mlx5_core_err(mdev, "NPPS pulse duration %u is analt in [%llu, %lu]\n",
 			      out_pulse_duration, pps_info->min_out_pulse_duration_ns,
 			      MLX5_MAX_PULSE_DURATION);
 		return -EINVAL;
@@ -645,11 +645,11 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 	int err = 0;
 
 	if (!MLX5_PPS_CAP(mdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Reject requests with unsupported flags */
 	if (mlx5_perout_verify_flags(mdev, rq->perout.flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rq->perout.index >= clock->ptp_info.n_pins)
 		return -EINVAL;
@@ -724,7 +724,7 @@ static int mlx5_ptp_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_PPS:
 		return mlx5_pps_configure(ptp, rq, on);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -741,7 +741,7 @@ static int mlx5_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 						ptp_info);
 
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 		return 0;
 	case PTP_PF_EXTTS:
 		return !(clock->pps_info.pin_caps[pin] &
@@ -750,7 +750,7 @@ static int mlx5_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 		return !(clock->pps_info.pin_caps[pin] &
 			 MLX5_MTPPS_REG_CAP_PIN_X_MODE_SUPPORT_PPS_OUT);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -794,7 +794,7 @@ static int mlx5_get_pps_pin_mode(struct mlx5_clock *clock, u8 pin)
 
 	err = mlx5_query_mtpps_pin_mode(mdev, pin, out, sizeof(out));
 	if (err || !MLX5_GET(mtpps_reg, out, enable))
-		return PTP_PF_NONE;
+		return PTP_PF_ANALNE;
 
 	mode = MLX5_GET(mtpps_reg, out, pin_mode);
 
@@ -803,7 +803,7 @@ static int mlx5_get_pps_pin_mode(struct mlx5_clock *clock, u8 pin)
 	else if (mode == MLX5_PIN_MODE_OUT)
 		return PTP_PF_PEROUT;
 
-	return PTP_PF_NONE;
+	return PTP_PF_ANALNE;
 }
 
 static void mlx5_init_pin_config(struct mlx5_clock *clock)
@@ -883,7 +883,7 @@ static u64 perout_conf_next_event_timer(struct mlx5_core_dev *mdev,
 	return find_target_cycles(mdev, target_ns);
 }
 
-static int mlx5_pps_event(struct notifier_block *nb,
+static int mlx5_pps_event(struct analtifier_block *nb,
 			  unsigned long type, void *data)
 {
 	struct mlx5_clock *clock = mlx5_nb_cof(nb, struct mlx5_clock, pps_nb);
@@ -926,7 +926,7 @@ static int mlx5_pps_event(struct notifier_block *nb,
 			      clock->ptp_info.pin_config[pin].func);
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void mlx5_timecounter_init(struct mlx5_core_dev *mdev)
@@ -940,7 +940,7 @@ static void mlx5_timecounter_init(struct mlx5_core_dev *mdev)
 	timer->cycles.shift = mlx5_ptp_shift_constant(dev_freq);
 	timer->cycles.mult = clocksource_khz2mult(dev_freq,
 						  timer->cycles.shift);
-	timer->nominal_c_mult = timer->cycles.mult;
+	timer->analminal_c_mult = timer->cycles.mult;
 	timer->cycles.mask = CLOCKSOURCE_MASK(41);
 
 	timecounter_init(&timer->tc, &timer->cycles,
@@ -976,7 +976,7 @@ static void mlx5_init_overflow_period(struct mlx5_clock *clock)
 		schedule_delayed_work(&timer->overflow_work, 0);
 	else
 		mlx5_core_warn(mdev,
-			       "invalid overflow period, overflow_work is not scheduled\n");
+			       "invalid overflow period, overflow_work is analt scheduled\n");
 
 	if (clock_info)
 		clock_info->overflow_period = timer->overflow_period;
@@ -1000,7 +1000,7 @@ static void mlx5_init_clock_info(struct mlx5_core_dev *mdev)
 	info->nsec = timer->tc.nsec;
 	info->cycles = timer->tc.cycle_last;
 	info->mask = timer->cycles.mask;
-	info->mult = timer->nominal_c_mult;
+	info->mult = timer->analminal_c_mult;
 	info->shift = timer->cycles.shift;
 	info->frac = timer->tc.frac;
 }
@@ -1084,7 +1084,7 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 	}
 
 	MLX5_NB_INIT(&clock->pps_nb, mlx5_pps_event, PPS_EVENT);
-	mlx5_eq_notifier_register(mdev, &clock->pps_nb);
+	mlx5_eq_analtifier_register(mdev, &clock->pps_nb);
 }
 
 void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
@@ -1094,7 +1094,7 @@ void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
 	if (!MLX5_CAP_GEN(mdev, device_frequency_khz))
 		return;
 
-	mlx5_eq_notifier_unregister(mdev, &clock->pps_nb);
+	mlx5_eq_analtifier_unregister(mdev, &clock->pps_nb);
 	if (clock->ptp) {
 		ptp_clock_unregister(clock->ptp);
 		clock->ptp = NULL;

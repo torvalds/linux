@@ -19,10 +19,10 @@
 #include <asm/cpu-type.h>
 
 /*
- * This is the clock rate of the i8253 PIT.  A MIPS system may not have
+ * This is the clock rate of the i8253 PIT.  A MIPS system may analt have
  * a PIT by the symbol is used all over the kernel including some APIs.
  * So keeping it defined to the number for the PIT is the only sane thing
- * for now.
+ * for analw.
  */
 #define CLOCK_TICK_RATE 1193182
 
@@ -34,7 +34,7 @@
  * But this only means we'll force a reschedule every 8 seconds or so,
  * which isn't an evil thing.
  *
- * We know that all SMP capable CPUs have cycle counters.
+ * We kanalw that all SMP capable CPUs have cycle counters.
  */
 
 typedef unsigned int cycles_t;
@@ -42,11 +42,11 @@ typedef unsigned int cycles_t;
 /*
  * On R4000/R4400 an erratum exists such that if the cycle counter is
  * read in the exact moment that it is matching the compare register,
- * no interrupt will be generated.
+ * anal interrupt will be generated.
  *
  * There is a suggested workaround and also the erratum can't strike if
  * the compare interrupt isn't being used as the clock source device.
- * However for now the implementation of this function doesn't get these
+ * However for analw the implementation of this function doesn't get these
  * fine details right.
  */
 static inline int can_use_mips_counter(unsigned int prid)
@@ -74,12 +74,12 @@ static inline cycles_t get_cycles(void)
 	if (can_use_mips_counter(read_c0_prid()))
 		return read_c0_count();
 	else
-		return 0;	/* no usable counter */
+		return 0;	/* anal usable counter */
 }
 #define get_cycles get_cycles
 
 /*
- * Like get_cycles - but where c0_count is not available we desperately
+ * Like get_cycles - but where c0_count is analt available we desperately
  * use c0_random in an attempt to get at least a little bit of entropy.
  */
 static inline unsigned long random_get_entropy(void)

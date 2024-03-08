@@ -37,7 +37,7 @@
 #define CORE_ACTMON_CNTR_REG(data, cl, cpu)	(CLUSTER_ACTMON_BASE(data, cl) + CORE_OFFSET(cpu))
 
 /* cpufreq transisition latency */
-#define TEGRA_CPUFREQ_TRANSITION_LATENCY (300 * 1000) /* unit in nanoseconds */
+#define TEGRA_CPUFREQ_TRANSITION_LATENCY (300 * 1000) /* unit in naanalseconds */
 
 struct tegra_cpu_data {
 	u32 cpuid;
@@ -90,7 +90,7 @@ static int tegra_cpufreq_set_bw(struct cpufreq_policy *policy, unsigned long fre
 
 	dev = get_cpu_device(policy->cpu);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	opp = dev_pm_opp_find_freq_exact(dev, freq_khz * KHZ, true);
 	if (IS_ERR(opp))
@@ -163,7 +163,7 @@ static void tegra234_read_counters(struct tegra_cpu_ctr *c)
 
 	/*
 	 * The sampling window is based on the minimum number of reference
-	 * clock cycles which is known to give a stable value of CPU frequency.
+	 * clock cycles which is kanalwn to give a stable value of CPU frequency.
 	 */
 	do {
 		val = readq(actmon_reg);
@@ -253,7 +253,7 @@ static void tegra194_read_counters(struct tegra_cpu_ctr *c)
 
 	/*
 	 * The sampling window is based on the minimum number of reference
-	 * clock cycles which is known to give a stable value of CPU frequency.
+	 * clock cycles which is kanalwn to give a stable value of CPU frequency.
 	 */
 	do {
 		val = read_freq_feedback();
@@ -436,7 +436,7 @@ static int tegra_cpufreq_init_cpufreq_table(struct cpufreq_policy *policy,
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
 		pr_err("%s: failed to get cpu%d device\n", __func__, policy->cpu);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Initialize OPP table mentioned in operating-points-v2 property in DT */
@@ -465,7 +465,7 @@ static int tegra_cpufreq_init_cpufreq_table(struct cpufreq_policy *policy,
 
 	freq_table = kcalloc((max_opps + 1), sizeof(*freq_table), GFP_KERNEL);
 	if (!freq_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Cross check the frequencies from BPMP-FW LUT against the OPP's present in DT.
@@ -537,7 +537,7 @@ static int tegra194_cpufreq_init(struct cpufreq_policy *policy)
 
 static int tegra194_cpufreq_online(struct cpufreq_policy *policy)
 {
-	/* We did light-weight tear down earlier, nothing to do here */
+	/* We did light-weight tear down earlier, analthing to do here */
 	return 0;
 }
 
@@ -639,7 +639,7 @@ tegra_cpufreq_bpmp_read_lut(struct platform_device *pdev, struct tegra_bpmp *bpm
 	if (err)
 		return ERR_PTR(err);
 	if (msg.rx.ret == -BPMP_EINVAL) {
-		/* Cluster not available */
+		/* Cluster analt available */
 		return NULL;
 	}
 	if (msg.rx.ret)
@@ -669,7 +669,7 @@ tegra_cpufreq_bpmp_read_lut(struct platform_device *pdev, struct tegra_bpmp *bpm
 	freq_table = devm_kcalloc(&pdev->dev, num_freqs + 1,
 				  sizeof(*freq_table), GFP_KERNEL);
 	if (!freq_table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (index = 0, ndiv = resp.ndiv_min;
 			ndiv < resp.ndiv_max;
@@ -718,7 +718,7 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc = of_device_get_match_data(&pdev->dev);
 
@@ -732,7 +732,7 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 	data->bpmp_luts = devm_kcalloc(&pdev->dev, data->soc->num_clusters,
 				       sizeof(*data->bpmp_luts), GFP_KERNEL);
 	if (!data->bpmp_luts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (soc->actmon_cntr_base) {
 		/* mmio registers are used for frequency request and re-construction */
@@ -745,7 +745,7 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 				      data->soc->maxcpus_per_cluster,
 				      sizeof(*data->cpu_data), GFP_KERNEL);
 	if (!data->cpu_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, data);
 
@@ -783,7 +783,7 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 		goto err_free_res;
 	}
 
-	if (dev_pm_opp_of_get_opp_desc_node(cpu_dev)) {
+	if (dev_pm_opp_of_get_opp_desc_analde(cpu_dev)) {
 		err = dev_pm_opp_of_find_icc_paths(cpu_dev, NULL);
 		if (!err)
 			data->icc_dram_bw_scaling = true;

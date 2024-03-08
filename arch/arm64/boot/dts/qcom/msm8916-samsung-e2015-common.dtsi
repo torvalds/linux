@@ -12,7 +12,7 @@
 
 	i2c-muic {
 		/* SM5504 MUIC instead of SM5502 */
-		/delete-node/ extcon@25;
+		/delete-analde/ extcon@25;
 
 		muic: extcon@14 {
 			compatible = "siliconmitus,sm5504-muic";
@@ -42,8 +42,8 @@
 
 &blsp_i2c2 {
 	/* lis2hh12 accelerometer instead of BMC150 */
-	/delete-node/ accelerometer@10;
-	/delete-node/ magnetometer@12;
+	/delete-analde/ accelerometer@10;
+	/delete-analde/ magnetometer@12;
 
 	accelerometer@1d {
 		compatible = "st,lis2hh12";

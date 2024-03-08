@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * A driver for the Griffin Technology, Inc. "PowerMate" USB controller dial.
+ * A driver for the Griffin Techanallogy, Inc. "PowerMate" USB controller dial.
  *
  * v1.1, (c)2002 William R Sowerbutts <will@sowerbutts.com>
  *
- * This device is a anodised aluminium knob which connects over USB. It can measure
+ * This device is a aanaldised aluminium kanalb which connects over USB. It can measure
  * clockwise and anticlockwise rotation. The dial also acts as a pushbutton with
  * a spring for automatic release. The base contains a pair of LEDs which illuminate
  * the translucent base. It rotates without limit and reports its relative rotation
  * back to the host when polled by the USB controller.
  *
- * Testing with the knob I have has shown that it measures approximately 94 "clicks"
+ * Testing with the kanalb I have has shown that it measures approximately 94 "clicks"
  * for one full rotation. Testing with my High Speed Rotation Actuator (ok, it was
  * a variable speed cordless electric drill) has shown that the device can measure
  * speeds of up to 7 clicks either clockwise or anticlockwise between pollings from
@@ -18,7 +18,7 @@
  * to zero and start counting again. This was at quite high speed, however, almost
  * certainly faster than the human hand could turn it. Griffin say that it loses a
  * pulse or two on a direction change; the granularity is so fine that I never
- * noticed this in practice.
+ * analticed this in practice.
  *
  * The device's microcontroller can be programmed to set the LED to either a constant
  * intensity, or to a rhythmic pulsing. Several patterns and speeds are available.
@@ -35,9 +35,9 @@
 #include <linux/spinlock.h>
 #include <linux/usb/input.h>
 
-#define POWERMATE_VENDOR	0x077d	/* Griffin Technology, Inc. */
+#define POWERMATE_VENDOR	0x077d	/* Griffin Techanallogy, Inc. */
 #define POWERMATE_PRODUCT_NEW	0x0410	/* Griffin PowerMate */
-#define POWERMATE_PRODUCT_OLD	0x04AA	/* Griffin soundKnob */
+#define POWERMATE_PRODUCT_OLD	0x04AA	/* Griffin soundKanalb */
 
 #define CONTOUR_VENDOR		0x05f3	/* Contour Design, Inc. */
 #define CONTOUR_JOG		0x0240	/* Jog and Shuttle */
@@ -78,7 +78,7 @@ struct powermate_device {
 };
 
 static char pm_name_powermate[] = "Griffin PowerMate";
-static char pm_name_soundknob[] = "Griffin SoundKnob";
+static char pm_name_soundkanalb[] = "Griffin SoundKanalb";
 
 static void powermate_config_complete(struct urb *urb);
 
@@ -94,14 +94,14 @@ static void powermate_irq(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(dev, "%s - analnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -122,7 +122,7 @@ exit:
 static void powermate_sync_state(struct powermate_device *pm)
 {
 	if (pm->requires_update == 0)
-		return; /* no updates are required */
+		return; /* anal updates are required */
 	if (pm->config->status == -EINPROGRESS)
 		return; /* an update is already in progress; it'll issue this update when it completes */
 
@@ -139,7 +139,7 @@ static void powermate_sync_state(struct powermate_device *pm)
 		/* the powermate takes an operation and an argument for its pulse algorithm.
 		   the operation can be:
 		   0: divide the speed
-		   1: pulse at normal speed
+		   1: pulse at analrmal speed
 		   2: multiply the speed
 		   the argument only has an effect for operations 0 and 2, and ranges between
 		   1 (least effect) to 255 (maximum effect).
@@ -148,7 +148,7 @@ static void powermate_sync_state(struct powermate_device *pm)
 
 		   we map this onto a range from 0 to 510, with:
 		   0 -- 254    -- use divide (0 = slowest)
-		   255         -- use normal speed
+		   255         -- use analrmal speed
 		   256 -- 510  -- use multiple (510 = fastest).
 
 		   Only values of 'arg' quite close to 255 are particularly useful/spectacular.
@@ -160,7 +160,7 @@ static void powermate_sync_state(struct powermate_device *pm)
 			op = 2;                   // multiply
 			arg = pm->pulse_speed - 255;
 		} else {
-			op = 1;                   // normal speed
+			op = 1;                   // analrmal speed
 			arg = 0;                  // can be any value
 		}
 		pm->configcr->wValue = cpu_to_le16( (pm->pulse_table << 8) | SET_PULSE_MODE );
@@ -171,7 +171,7 @@ static void powermate_sync_state(struct powermate_device *pm)
 		pm->configcr->wIndex = cpu_to_le16( pm->static_brightness );
 		pm->requires_update &= ~UPDATE_STATIC_BRIGHTNESS;
 	} else {
-		printk(KERN_ERR "powermate: unknown update required");
+		printk(KERN_ERR "powermate: unkanalwn update required");
 		pm->requires_update = 0; /* fudge the bug */
 		return;
 	}
@@ -190,7 +190,7 @@ static void powermate_sync_state(struct powermate_device *pm)
 		printk(KERN_ERR "powermate: usb_submit_urb(config) failed");
 }
 
-/* Called when our asynchronous control message completes. We may need to issue another immediately */
+/* Called when our asynchroanalus control message completes. We may need to issue aanalther immediately */
 static void powermate_config_complete(struct urb *urb)
 {
 	struct powermate_device *pm = urb->context;
@@ -284,7 +284,7 @@ static int powermate_alloc_buffers(struct usb_device *udev, struct powermate_dev
 
 	pm->configcr = kmalloc(sizeof(*(pm->configcr)), GFP_KERNEL);
 	if (!pm->configcr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -305,7 +305,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	struct powermate_device *pm;
 	struct input_dev *input_dev;
 	int pipe, maxp;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	interface = intf->cur_altsetting;
 	if (interface->desc.bNumEndpoints < 1)
@@ -350,11 +350,11 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 		input_dev->name = pm_name_powermate;
 		break;
 	case POWERMATE_PRODUCT_OLD:
-		input_dev->name = pm_name_soundknob;
+		input_dev->name = pm_name_soundkanalb;
 		break;
 	default:
-		input_dev->name = pm_name_soundknob;
-		printk(KERN_WARNING "powermate: unknown product id %04x\n",
+		input_dev->name = pm_name_soundkanalb;
+		printk(KERN_WARNING "powermate: unkanalwn product id %04x\n",
 		       le16_to_cpu(udev->descriptor.idProduct));
 	}
 
@@ -386,7 +386,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 			 maxp, powermate_irq,
 			 pm, endpoint->bInterval);
 	pm->irq->transfer_dma = pm->data_dma;
-	pm->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	pm->irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	/* register our interrupt URB with the USB system */
 	if (usb_submit_urb(pm->irq, GFP_KERNEL)) {
@@ -453,5 +453,5 @@ static struct usb_driver powermate_driver = {
 module_usb_driver(powermate_driver);
 
 MODULE_AUTHOR( "William R Sowerbutts" );
-MODULE_DESCRIPTION( "Griffin Technology, Inc PowerMate driver" );
+MODULE_DESCRIPTION( "Griffin Techanallogy, Inc PowerMate driver" );
 MODULE_LICENSE("GPL");

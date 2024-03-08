@@ -39,7 +39,7 @@ properties:
     type: boolean
     deprecated: true
     description:
-      Telling whether or not this PMIC is controlling the system power.
+      Telling whether or analt this PMIC is controlling the system power.
 
   system-power-controller: true
 
@@ -101,7 +101,7 @@ properties:
       buck1/2 can be controlled by gpio dvs, this is GPIO specifiers for
       2 host gpio's used for dvs. The format of the gpio specifier
       depends in the gpio controller. If DVS GPIOs aren't present,
-      voltage changes will happen very quickly with no slow ramp time.
+      voltage changes will happen very quickly with anal slow ramp time.
     maxItems: 2
 
   regulators:

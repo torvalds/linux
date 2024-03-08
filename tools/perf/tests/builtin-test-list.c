@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
@@ -28,7 +28,7 @@
 
 /*
  * As this is a singleton built once for the run of the process, there is
- * no value in trying to free it and just let it stay around until process
+ * anal value in trying to free it and just let it stay around until process
  * exits when it's cleaned up.
  */
 static size_t files_num = 0;
@@ -131,7 +131,7 @@ static void append_script(const char *dir, const char *file, const char *desc)
 		pr_err("Too many script files\n");
 		abort();
 	}
-	/* Realloc is good enough, though we could realloc by chunks, not that
+	/* Realloc is good eanalugh, though we could realloc by chunks, analt that
 	 * anyone will ever measure performance here */
 	files_tmp = realloc(files,
 			    (files_num_tmp + 1) * sizeof(struct script_file));
@@ -192,7 +192,7 @@ const struct script_file *list_script_files(void)
 	const char *path;
 
 	if (files)
-		return files; /* Singleton - we already know our list */
+		return files; /* Singleton - we already kanalw our list */
 
 	path = shell_tests__dir(path_dir, sizeof(path_dir)); /* Walk  dir */
 	append_scripts_in_dir(path);

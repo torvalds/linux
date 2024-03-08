@@ -15,7 +15,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/aer.h>
 #include "portdrv.h"
 #include "../pci.h"
@@ -23,10 +23,10 @@
 static pci_ers_result_t merge_result(enum pci_ers_result orig,
 				  enum pci_ers_result new)
 {
-	if (new == PCI_ERS_RESULT_NO_AER_DRIVER)
-		return PCI_ERS_RESULT_NO_AER_DRIVER;
+	if (new == PCI_ERS_RESULT_ANAL_AER_DRIVER)
+		return PCI_ERS_RESULT_ANAL_AER_DRIVER;
 
-	if (new == PCI_ERS_RESULT_NONE)
+	if (new == PCI_ERS_RESULT_ANALNE)
 		return orig;
 
 	switch (orig) {
@@ -60,20 +60,20 @@ static int report_error_detected(struct pci_dev *dev,
 	} else if (!pci_dev_set_io_state(dev, state)) {
 		pci_info(dev, "can't recover (state transition %u -> %u invalid)\n",
 			dev->error_state, state);
-		vote = PCI_ERS_RESULT_NONE;
+		vote = PCI_ERS_RESULT_ANALNE;
 	} else if (!pdrv || !pdrv->err_handler ||
 		   !pdrv->err_handler->error_detected) {
 		/*
-		 * If any device in the subtree does not have an error_detected
-		 * callback, PCI_ERS_RESULT_NO_AER_DRIVER prevents subsequent
+		 * If any device in the subtree does analt have an error_detected
+		 * callback, PCI_ERS_RESULT_ANAL_AER_DRIVER prevents subsequent
 		 * error callbacks of "any" device in the subtree, and will
 		 * exit in the disconnected error state.
 		 */
 		if (dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
-			vote = PCI_ERS_RESULT_NO_AER_DRIVER;
-			pci_info(dev, "can't recover (no error_detected callback)\n");
+			vote = PCI_ERS_RESULT_ANAL_AER_DRIVER;
+			pci_info(dev, "can't recover (anal error_detected callback)\n");
 		} else {
-			vote = PCI_ERS_RESULT_NONE;
+			vote = PCI_ERS_RESULT_ANALNE;
 		}
 	} else {
 		err_handler = pdrv->err_handler;
@@ -90,9 +90,9 @@ static int report_frozen_detected(struct pci_dev *dev, void *data)
 	return report_error_detected(dev, pci_channel_io_frozen, data);
 }
 
-static int report_normal_detected(struct pci_dev *dev, void *data)
+static int report_analrmal_detected(struct pci_dev *dev, void *data)
 {
-	return report_error_detected(dev, pci_channel_io_normal, data);
+	return report_error_detected(dev, pci_channel_io_analrmal, data);
 }
 
 static int report_mmio_enabled(struct pci_dev *dev, void *data)
@@ -144,7 +144,7 @@ static int report_resume(struct pci_dev *dev, void *data)
 
 	device_lock(&dev->dev);
 	pdrv = dev->driver;
-	if (!pci_dev_set_io_state(dev, pci_channel_io_normal) ||
+	if (!pci_dev_set_io_state(dev, pci_channel_io_analrmal) ||
 		!pdrv ||
 		!pdrv->err_handler ||
 		!pdrv->err_handler->resume)
@@ -168,7 +168,7 @@ out:
  * any bridged devices on buses under this bus.  Call the provided callback
  * on each device found.
  *
- * If the device provided has no subordinate bus, e.g., an RCEC or RCiEP,
+ * If the device provided has anal subordinate bus, e.g., an RCEC or RCiEP,
  * call the callback on the device itself.
  */
 static void pci_walk_bridge(struct pci_dev *bridge,
@@ -195,7 +195,7 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 	 * or RCiEP, recovery runs on the device itself.  For Ports, that
 	 * also includes any subordinate devices.
 	 *
-	 * If it was detected by another device (Endpoint, etc), recovery
+	 * If it was detected by aanalther device (Endpoint, etc), recovery
 	 * runs on the device and anything else under the same Port, i.e.,
 	 * everything under "bridge".
 	 */
@@ -215,7 +215,7 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 			goto failed;
 		}
 	} else {
-		pci_walk_bridge(bridge, report_normal_detected, &status);
+		pci_walk_bridge(bridge, report_analrmal_detected, &status);
 	}
 
 	if (status == PCI_ERS_RESULT_CAN_RECOVER) {
@@ -245,11 +245,11 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 	 * If we have native control of AER, clear error status in the device
 	 * that detected the error.  If the platform retained control of AER,
 	 * it is responsible for clearing this status.  In that case, the
-	 * signaling device may not even be visible to the OS.
+	 * signaling device may analt even be visible to the OS.
 	 */
 	if (host->native_aer || pcie_ports_native) {
 		pcie_clear_device_status(dev);
-		pci_aer_clear_nonfatal_status(dev);
+		pci_aer_clear_analnfatal_status(dev);
 	}
 	pci_info(bridge, "device recovery successful\n");
 	return status;

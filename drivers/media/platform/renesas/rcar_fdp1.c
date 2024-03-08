@@ -87,7 +87,7 @@ MODULE_PARM_DESC(debug, "activate debug info");
 #define FD1_CTL_OPMODE_PRG		BIT(4)
 #define FD1_CTL_OPMODE_VIMD_INTERRUPT	(0 << 0)
 #define FD1_CTL_OPMODE_VIMD_BESTEFFORT	(1 << 0)
-#define FD1_CTL_OPMODE_VIMD_NOINTERRUPT	(2 << 0)
+#define FD1_CTL_OPMODE_VIMD_ANALINTERRUPT	(2 << 0)
 
 #define FD1_CTL_VPERIOD			0x0014
 #define FD1_CTL_CLKCTRL			0x0018
@@ -166,7 +166,7 @@ MODULE_PARM_DESC(debug, "activate debug info");
 
 #define FD1_WPF_RNDCTL			0x00c4
 #define FD1_WPF_RNDCTL_CBRM		BIT(28)
-#define FD1_WPF_RNDCTL_CLMD_NOCLIP	(0 << 12)
+#define FD1_WPF_RNDCTL_CLMD_ANALCLIP	(0 << 12)
 #define FD1_WPF_RNDCTL_CLMD_CLIP_16_235	(1 << 12)
 #define FD1_WPF_RNDCTL_CLMD_CLIP_1_254	(2 << 12)
 
@@ -521,7 +521,7 @@ struct fdp1_field_buffer {
 	struct vb2_v4l2_buffer		*vb;
 	dma_addr_t			addrs[3];
 
-	/* Should be NONE:TOP:BOTTOM only */
+	/* Should be ANALNE:TOP:BOTTOM only */
 	enum v4l2_field			field;
 
 	/* Flag to indicate this is the last field in the vb */
@@ -911,7 +911,7 @@ static void fdp1_configure_rpf(struct fdp1_ctx *ctx,
 		smsk_addr = ctx->smsk_addr[1];
 	}
 
-	/* Deint mode is non-zero when deinterlacing */
+	/* Deint mode is analn-zero when deinterlacing */
 	if (ctx->deint_mode)
 		format |= FD1_RPF_FORMAT_CIPM;
 
@@ -980,7 +980,7 @@ static void fdp1_configure_wpf(struct fdp1_ctx *ctx,
 
 	/* Determine picture rounding and clipping */
 	rndctl = FD1_WPF_RNDCTL_CBRM; /* Rounding Off */
-	rndctl |= FD1_WPF_RNDCTL_CLMD_NOCLIP;
+	rndctl |= FD1_WPF_RNDCTL_CLMD_ANALCLIP;
 
 	/* WPF Swap needs both ISWAP and OSWAP setting */
 	swap = q_data->fmt->swap << FD1_WPF_SWAP_OSWAP_SHIFT;
@@ -1000,7 +1000,7 @@ static void fdp1_configure_deint_mode(struct fdp1_ctx *ctx,
 				      struct fdp1_job *job)
 {
 	struct fdp1_dev *fdp1 = ctx->fdp1;
-	u32 opmode = FD1_CTL_OPMODE_VIMD_NOINTERRUPT;
+	u32 opmode = FD1_CTL_OPMODE_VIMD_ANALINTERRUPT;
 	u32 ipcmode = FD1_IPC_MODE_DLI; /* Always set */
 	u32 channels = FD1_CTL_CHACT_WR | FD1_CTL_CHACT_RD1; /* Always on */
 
@@ -1038,7 +1038,7 @@ static void fdp1_configure_deint_mode(struct fdp1_ctx *ctx,
 	case FDP1_FIXED2D:
 		dprintk(fdp1, "Fixed 2D Mode\n");
 		ipcmode |= FD1_IPC_MODE_DIM_FIXED2D;
-		/* No extra channels enabled */
+		/* Anal extra channels enabled */
 		break;
 	case FDP1_PREVFIELD:
 		dprintk(fdp1, "Previous Field Mode\n");
@@ -1076,8 +1076,8 @@ static int fdp1_device_process(struct fdp1_ctx *ctx)
 	job = get_queued_job(fdp1);
 	if (!job) {
 		/*
-		 * VINT can call us to see if we can queue another job.
-		 * If we have no work to do, we simply return.
+		 * VINT can call us to see if we can queue aanalther job.
+		 * If we have anal work to do, we simply return.
 		 */
 		spin_unlock_irqrestore(&fdp1->device_process_lock, flags);
 		return 0;
@@ -1109,7 +1109,7 @@ static int fdp1_device_process(struct fdp1_ctx *ctx)
 
 	/* Finally, the Immediate Registers */
 
-	/* This job is now in the HW queue */
+	/* This job is analw in the HW queue */
 	queue_hw_job(fdp1, job);
 
 	/* Start the command */
@@ -1150,7 +1150,7 @@ static int fdp1_m2m_job_ready(void *priv)
 
 	if (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) < srcbufs
 	    || v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx) < dstbufs) {
-		dprintk(ctx->fdp1, "Not enough buffers available\n");
+		dprintk(ctx->fdp1, "Analt eanalugh buffers available\n");
 		return 0;
 	}
 
@@ -1195,14 +1195,14 @@ static struct fdp1_job *fdp1_prepare_job(struct fdp1_ctx *ctx)
 
 	job = fdp1_job_alloc(fdp1);
 	if (!job) {
-		dprintk(fdp1, "No free jobs currently available\n");
+		dprintk(fdp1, "Anal free jobs currently available\n");
 		return NULL;
 	}
 
 	job->active = fdp1_dequeue_field(ctx);
 	if (!job->active) {
 		/* Buffer check should prevent this ever happening */
-		dprintk(fdp1, "No input buffers currently available\n");
+		dprintk(fdp1, "Anal input buffers currently available\n");
 
 		fdp1_job_free(fdp1, job);
 		return NULL;
@@ -1288,7 +1288,7 @@ static void fdp1_m2m_device_run(void *priv)
 		;
 
 	if (ctx->translen == 0) {
-		dprintk(fdp1, "No jobs were processed. M2M action complete\n");
+		dprintk(fdp1, "Anal jobs were processed. M2M action complete\n");
 		v4l2_m2m_job_finish(fdp1->m2m_dev, ctx->fh.m2m_ctx);
 		return;
 	}
@@ -1382,7 +1382,7 @@ static int fdp1_enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		}
 	}
 
-	/* Format not found */
+	/* Format analt found */
 	if (i >= ARRAY_SIZE(fdp1_formats))
 		return -EINVAL;
 
@@ -1472,7 +1472,7 @@ static void fdp1_try_fmt_output(struct fdp1_ctx *ctx,
 	 * Progressive video and all interlaced field orders are acceptable.
 	 * Default to V4L2_FIELD_INTERLACED.
 	 */
-	if (pix->field != V4L2_FIELD_NONE &&
+	if (pix->field != V4L2_FIELD_ANALNE &&
 	    pix->field != V4L2_FIELD_ALTERNATE &&
 	    !V4L2_FIELD_HAS_BOTH(pix->field))
 		pix->field = V4L2_FIELD_INTERLACED;
@@ -1549,7 +1549,7 @@ static void fdp1_try_fmt_capture(struct fdp1_ctx *ctx,
 
 	pix->pixelformat = fmt->fourcc;
 	pix->num_planes = fmt->num_planes;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	/*
 	 * The colorspace on the capture queue is copied from the output queue
@@ -1615,7 +1615,7 @@ static void fdp1_set_format(struct fdp1_ctx *ctx,
 	q_data->format = *pix;
 
 	q_data->vsize = pix->height;
-	if (pix->field != V4L2_FIELD_NONE)
+	if (pix->field != V4L2_FIELD_ANALNE)
 		q_data->vsize /= 2;
 
 	q_data->stride_y = pix->plane_fmt[0].bytesperline;
@@ -1629,7 +1629,7 @@ static void fdp1_set_format(struct fdp1_ctx *ctx,
 		q_data->stride_c *= 2;
 	}
 
-	/* Propagate the format from the output node to the capture node. */
+	/* Propagate the format from the output analde to the capture analde. */
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		struct fdp1_q_data *dst_data = &ctx->cap_q;
 
@@ -1641,7 +1641,7 @@ static void fdp1_set_format(struct fdp1_ctx *ctx,
 		memset(dst_data->format.plane_fmt, 0,
 		       sizeof(dst_data->format.plane_fmt));
 
-		dst_data->format.field = V4L2_FIELD_NONE;
+		dst_data->format.field = V4L2_FIELD_ANALNE;
 		if (pix->field == V4L2_FIELD_ALTERNATE)
 			dst_data->format.height *= 2;
 
@@ -1803,7 +1803,7 @@ static void fdp1_buf_prepare_field(struct fdp1_q_data *q_data,
 	case V4L2_FIELD_INTERLACED:
 		/*
 		 * Interlaced means bottom-top for 60Hz TV standards (NTSC) and
-		 * top-bottom for 50Hz. As TV standards are not applicable to
+		 * top-bottom for 50Hz. As TV standards are analt applicable to
 		 * the mem-to-mem API, use the height as a heuristic.
 		 */
 		fbuf->field = (q_data->format.height < 576) == field_num
@@ -1857,8 +1857,8 @@ static int fdp1_buf_prepare(struct vb2_buffer *vb)
 
 		/* Validate the buffer field. */
 		switch (q_data->format.field) {
-		case V4L2_FIELD_NONE:
-			if (vbuf->field != V4L2_FIELD_NONE)
+		case V4L2_FIELD_ANALNE:
+			if (vbuf->field != V4L2_FIELD_ANALNE)
 				field_valid = false;
 			break;
 
@@ -1885,7 +1885,7 @@ static int fdp1_buf_prepare(struct vb2_buffer *vb)
 			return -EINVAL;
 		}
 	} else {
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 	}
 
 	/* Validate the planes sizes. */
@@ -1894,13 +1894,13 @@ static int fdp1_buf_prepare(struct vb2_buffer *vb)
 
 		if (vb2_plane_size(vb, i) < size) {
 			dprintk(ctx->fdp1,
-				"data will not fit into plane [%u/%u] (%lu < %lu)\n",
+				"data will analt fit into plane [%u/%u] (%lu < %lu)\n",
 				i, q_data->format.num_planes,
 				vb2_plane_size(vb, i), size);
 			return -EINVAL;
 		}
 
-		/* We have known size formats all around */
+		/* We have kanalwn size formats all around */
 		vb2_set_plane_payload(vb, i, size);
 	}
 
@@ -1927,10 +1927,10 @@ static int fdp1_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
 		/*
 		 * Force our deint_mode when we are progressive,
-		 * ignoring any setting on the device from the user,
+		 * iganalring any setting on the device from the user,
 		 * Otherwise, lock in the requested de-interlace mode.
 		 */
-		if (q_data->format.field == V4L2_FIELD_NONE)
+		if (q_data->format.field == V4L2_FIELD_ANALNE)
 			ctx->deint_mode = FDP1_PROGRESSIVE;
 
 		if (ctx->deint_mode == FDP1_ADAPT2D3D) {
@@ -1947,7 +1947,7 @@ static int fdp1_start_streaming(struct vb2_queue *q, unsigned int count)
 
 			if (ctx->smsk_cpu == NULL) {
 				dprintk(ctx->fdp1, "Failed to alloc smsk\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			ctx->smsk_addr[0] = smsk_base;
@@ -1997,7 +1997,7 @@ static void fdp1_stop_streaming(struct vb2_queue *q)
 		}
 
 		WARN(!list_empty(&ctx->fields_queue),
-		     "Buffer queue not empty");
+		     "Buffer queue analt empty");
 	} else {
 		/* Empty Capture queues (Jobs) */
 		struct fdp1_job *job;
@@ -2019,10 +2019,10 @@ static void fdp1_stop_streaming(struct vb2_queue *q)
 		fdp1_field_complete(ctx, ctx->previous);
 
 		WARN(!list_empty(&ctx->fdp1->queued_job_list),
-		     "Queued Job List not empty");
+		     "Queued Job List analt empty");
 
 		WARN(!list_empty(&ctx->fdp1->hw_job_list),
-		     "HW Job list not empty");
+		     "HW Job list analt empty");
 	}
 }
 
@@ -2085,7 +2085,7 @@ static int fdp1_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -2192,7 +2192,7 @@ static const struct video_device fdp1_videodev = {
 	.fops		= &fdp1_fops,
 	.device_caps	= V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING,
 	.ioctl_ops	= &fdp1_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release_empty,
 };
 
@@ -2240,7 +2240,7 @@ static irqreturn_t fdp1_irq_handler(int irq, void *dev_id)
 
 	/* Spurious interrupt */
 	if (!(FD1_CTL_IRQ_MASK & int_status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Work completed, release the frame */
 	if (FD1_CTL_IRQ_VERE & int_status)
@@ -2255,7 +2255,7 @@ static int fdp1_probe(struct platform_device *pdev)
 {
 	struct fdp1_dev *fdp1;
 	struct video_device *vfd;
-	struct device_node *fcp_node;
+	struct device_analde *fcp_analde;
 	struct clk *clk;
 	unsigned int i;
 
@@ -2264,7 +2264,7 @@ static int fdp1_probe(struct platform_device *pdev)
 
 	fdp1 = devm_kzalloc(&pdev->dev, sizeof(*fdp1), GFP_KERNEL);
 	if (!fdp1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&fdp1->free_job_list);
 	INIT_LIST_HEAD(&fdp1->queued_job_list);
@@ -2295,17 +2295,17 @@ static int fdp1_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, fdp1->irq, fdp1_irq_handler, 0,
 			       dev_name(&pdev->dev), fdp1);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot claim IRQ %d\n", fdp1->irq);
+		dev_err(&pdev->dev, "cananalt claim IRQ %d\n", fdp1->irq);
 		return ret;
 	}
 
 	/* FCP */
-	fcp_node = of_parse_phandle(pdev->dev.of_node, "renesas,fcp", 0);
-	if (fcp_node) {
-		fdp1->fcp = rcar_fcp_get(fcp_node);
-		of_node_put(fcp_node);
+	fcp_analde = of_parse_phandle(pdev->dev.of_analde, "renesas,fcp", 0);
+	if (fcp_analde) {
+		fdp1->fcp = rcar_fcp_get(fcp_analde);
+		of_analde_put(fcp_analde);
 		if (IS_ERR(fdp1->fcp)) {
-			dev_dbg(&pdev->dev, "FCP not found (%ld)\n",
+			dev_dbg(&pdev->dev, "FCP analt found (%ld)\n",
 				PTR_ERR(fdp1->fcp));
 			return PTR_ERR(fdp1->fcp);
 		}

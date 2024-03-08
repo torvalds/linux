@@ -231,7 +231,7 @@ static int vc3_pfd_mux_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops vc3_pfd_mux_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent = vc3_pfd_mux_set_parent,
 	.get_parent = vc3_pfd_mux_get_parent,
 };
@@ -249,7 +249,7 @@ static unsigned long vc3_pfd_recalc_rate(struct clk_hw *hw,
 	if (pfd->num == VC3_PFD1) {
 		/* The bypass_prediv is set, PLL fed from Ref_in directly. */
 		if (prediv & pfd->mdiv1_bitmsk) {
-			/* check doubler is set or not */
+			/* check doubler is set or analt */
 			regmap_read(vc3->regmap, VC3_PLL1_CTRL_OUTDIV5, &premul);
 			if (premul & VC3_PLL1_CTRL_OUTDIV5_PLL1_MDIV_DOUBLER)
 				parent_rate *= 2;
@@ -260,7 +260,7 @@ static unsigned long vc3_pfd_recalc_rate(struct clk_hw *hw,
 		/* The bypass_prediv is set, PLL fed from Ref_in directly. */
 		if (prediv & pfd->mdiv1_bitmsk) {
 			regmap_read(vc3->regmap, VC3_PLL2_M_DIVIDER, &premul);
-			/* check doubler is set or not */
+			/* check doubler is set or analt */
 			if (premul & VC3_PLL2_MDIV_DOUBLER)
 				parent_rate *= 2;
 			return parent_rate;
@@ -290,7 +290,7 @@ static long vc3_pfd_round_rate(struct clk_hw *hw, unsigned long rate,
 	const struct vc3_pfd_data *pfd = vc3->data;
 	unsigned long idiv;
 
-	/* PLL cannot operate with input clock above 50 MHz. */
+	/* PLL cananalt operate with input clock above 50 MHz. */
 	if (rate > 50000000)
 		return -EINVAL;
 
@@ -460,7 +460,7 @@ static int vc3_div_mux_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops vc3_div_mux_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent = vc3_div_mux_set_parent,
 	.get_parent = vc3_div_mux_get_parent,
 };
@@ -602,7 +602,7 @@ static struct vc3_hw_data clk_pfd_mux[] = {
 			.ops = &vc3_pfd_mux_ops,
 			.parent_data = pfd_mux_parent_data,
 			.num_parents = 2,
-			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT
+			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT
 		}
 	},
 	[VC3_PFD3_MUX] = {
@@ -615,7 +615,7 @@ static struct vc3_hw_data clk_pfd_mux[] = {
 			.ops = &vc3_pfd_mux_ops,
 			.parent_data = pfd_mux_parent_data,
 			.num_parents = 2,
-			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT
+			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT
 		}
 	}
 };
@@ -757,7 +757,7 @@ static struct vc3_hw_data clk_div_mux[] = {
 			.ops = &vc3_div_mux_ops,
 			.parent_data = div_mux_parent_data[VC3_DIV1_MUX],
 			.num_parents = 2,
-			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT
+			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT
 		}
 	},
 	[VC3_DIV3_MUX] = {
@@ -770,7 +770,7 @@ static struct vc3_hw_data clk_div_mux[] = {
 			.ops = &vc3_div_mux_ops,
 			.parent_data = div_mux_parent_data[VC3_DIV3_MUX],
 			.num_parents = 2,
-			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT
+			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT
 		}
 	},
 	[VC3_DIV4_MUX] = {
@@ -783,7 +783,7 @@ static struct vc3_hw_data clk_div_mux[] = {
 			.ops = &vc3_div_mux_ops,
 			.parent_data = div_mux_parent_data[VC3_DIV4_MUX],
 			.num_parents = 2,
-			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT
+			.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT
 		}
 	}
 };
@@ -991,7 +991,7 @@ static int vc3_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(regmap),
 				     "failed to allocate register map\n");
 
-	ret = of_property_read_u8_array(dev->of_node, "renesas,settings",
+	ret = of_property_read_u8_array(dev->of_analde, "renesas,settings",
 					settings, ARRAY_SIZE(settings));
 	if (!ret) {
 		/*

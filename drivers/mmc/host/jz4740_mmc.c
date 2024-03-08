@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
- *  Copyright (C) 2013, Imagination Technologies
+ *  Copyright (C) 2013, Imagination Techanallogies
  *
  *  JZ4740 SD/MMC controller driver
  */
@@ -34,8 +34,8 @@
 #define JZ_REG_MMC_RESTO	0x10
 #define JZ_REG_MMC_RDTO		0x14
 #define JZ_REG_MMC_BLKLEN	0x18
-#define JZ_REG_MMC_NOB		0x1C
-#define JZ_REG_MMC_SNOB		0x20
+#define JZ_REG_MMC_ANALB		0x1C
+#define JZ_REG_MMC_SANALB		0x20
 #define JZ_REG_MMC_IMASK	0x24
 #define JZ_REG_MMC_IREG		0x28
 #define JZ_REG_MMC_CMD		0x2C
@@ -128,13 +128,13 @@ enum jz4740_mmc_state {
 };
 
 /*
- * The MMC core allows to prepare a mmc_request while another mmc_request
+ * The MMC core allows to prepare a mmc_request while aanalther mmc_request
  * is in-flight. This is used via the pre_req/post_req hooks.
  * This driver uses the pre_req/post_req hooks to map/unmap the mmc_request.
  * Following what other drivers do (sdhci, dw_mmc) we use the following cookie
  * flags to keep track of the mmc_request mapping state.
  *
- * COOKIE_UNMAPPED: the request is not mapped.
+ * COOKIE_UNMAPPED: the request is analt mapped.
  * COOKIE_PREMAPPED: the request was mapped in pre_req,
  * and should be unmapped in post_req.
  * COOKIE_MAPPED: the request was mapped in the irq handler,
@@ -233,7 +233,7 @@ static int jz4740_mmc_acquire_dma_channels(struct jz4740_mmc_host *host)
 	if (!IS_ERR(host->dma_tx))
 		return 0;
 
-	if (PTR_ERR(host->dma_tx) != -ENODEV) {
+	if (PTR_ERR(host->dma_tx) != -EANALDEV) {
 		dev_err(dev, "Failed to get dma tx-rx channel\n");
 		return PTR_ERR(host->dma_tx);
 	}
@@ -368,7 +368,7 @@ static int jz4740_mmc_start_dma_transfer(struct jz4740_mmc_host *host,
 dma_unmap:
 	if (data->host_cookie == COOKIE_MAPPED)
 		jz4740_mmc_dma_unmap(host, data);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void jz4740_mmc_pre_request(struct mmc_host *mmc,
@@ -728,7 +728,7 @@ static void jz4740_mmc_send_command(struct jz4740_mmc_host *host,
 		}
 
 		writew(cmd->data->blksz, host->base + JZ_REG_MMC_BLKLEN);
-		writew(cmd->data->blocks, host->base + JZ_REG_MMC_NOB);
+		writew(cmd->data->blocks, host->base + JZ_REG_MMC_ANALB);
 	}
 
 	writeb(cmd->opcode, host->base + JZ_REG_MMC_CMD);
@@ -786,7 +786,7 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 			timeout = jz4740_mmc_start_dma_transfer(host, data);
 			data->bytes_xfered = data->blocks * data->blksz;
 		} else if (data->flags & MMC_DATA_READ)
-			/* Use PIO if DMA is not enabled.
+			/* Use PIO if DMA is analt enabled.
 			 * Data transfer direction was defined before
 			 * by relying on data flags in
 			 * jz_mmc_prepare_data_transfer().
@@ -1007,7 +1007,7 @@ static int jz4740_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 		return ret < 0 ? ret : 0;
 	}
 
-	/* no vqmmc regulator, assume fixed regulator at 3/3.3V */
+	/* anal vqmmc regulator, assume fixed regulator at 3/3.3V */
 	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
 		return 0;
 
@@ -1045,17 +1045,17 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 	mmc = mmc_alloc_host(sizeof(struct jz4740_mmc_host), &pdev->dev);
 	if (!mmc) {
 		dev_err(&pdev->dev, "Failed to alloc mmc host structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	host = mmc_priv(mmc);
 
-	/* Default if no match is JZ4740 */
+	/* Default if anal match is JZ4740 */
 	host->version = (enum jz4740_mmc_version)device_get_match_data(&pdev->dev);
 
 	ret = mmc_of_parse(mmc);
 	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "could not parse device properties\n");
+		dev_err_probe(&pdev->dev, ret, "could analt parse device properties\n");
 		goto err_free_host;
 	}
 
@@ -1194,7 +1194,7 @@ static struct platform_driver jz4740_mmc_driver = {
 	.remove_new = jz4740_mmc_remove,
 	.driver = {
 		.name = "jz4740-mmc",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = jz4740_mmc_of_match,
 		.pm = pm_sleep_ptr(&jz4740_mmc_pm_ops),
 	},

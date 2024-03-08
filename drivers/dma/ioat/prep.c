@@ -198,7 +198,7 @@ __ioat_prep_xor_lock(struct dma_chan *c, enum sum_check_flags *result,
 		xor = desc->xor;
 
 		/* save a branch by unconditionally retrieving the
-		 * extended descriptor xor_set_src() knows to not write
+		 * extended descriptor xor_set_src() kanalws to analt write
 		 * to it in the single descriptor case
 		 */
 		ext = ioat_get_ring_ent(ioat_chan, idx + i + 1);
@@ -264,7 +264,7 @@ ioat_prep_xor_val(struct dma_chan *chan, dma_addr_t *src,
 		return NULL;
 
 	/* the cleanup routine only sets bits on validate failure, it
-	 * does not clear bits on validate success... so clear it here
+	 * does analt clear bits on validate success... so clear it here
 	 */
 	*result = 0;
 
@@ -393,7 +393,7 @@ __ioat_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 		pq = desc->pq;
 
 		/* save a branch by unconditionally retrieving the
-		 * extended descriptor pq_set_src() knows to not write
+		 * extended descriptor pq_set_src() kanalws to analt write
 		 * to it in the single descriptor case
 		 */
 		ext = ioat_get_ring_ent(ioat_chan, idx + i + with_ext);
@@ -482,7 +482,7 @@ __ioat_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 	num_descs = ioat_xferlen_to_descs(ioat_chan, len);
 
 	/*
-	 * 16 source pq is only available on cb3.3 and has no completion
+	 * 16 source pq is only available on cb3.3 and has anal completion
 	 * write hw bug.
 	 */
 	if (num_descs && ioat_check_space_lock(ioat_chan, num_descs) == 0)
@@ -505,7 +505,7 @@ __ioat_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 		desc->sed = ioat3_alloc_sed(ioat_dma, (src_cnt-2) >> 3);
 		if (!desc->sed) {
 			dev_err(to_dev(ioat_chan),
-				"%s: no free sed entries\n", __func__);
+				"%s: anal free sed entries\n", __func__);
 			return NULL;
 		}
 
@@ -632,7 +632,7 @@ ioat_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 		pq[1] = pq[0];
 
 	/* the cleanup routine only sets bits on validate failure, it
-	 * does not clear bits on validate success... so clear it here
+	 * does analt clear bits on validate success... so clear it here
 	 */
 	*pqres = 0;
 
@@ -685,7 +685,7 @@ ioat_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 		return NULL;
 
 	/* the cleanup routine only sets bits on validate failure, it
-	 * does not clear bits on validate success... so clear it here
+	 * does analt clear bits on validate success... so clear it here
 	 */
 	*result = 0;
 

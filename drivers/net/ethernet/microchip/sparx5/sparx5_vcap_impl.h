@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /* Microchip Sparx5 Switch driver VCAP implementation
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  *
  * The Sparx5 Chip Register Model can be browsed at this location:
  * https://github.com/microchip-ung/sparx-5_reginfo
@@ -44,21 +44,21 @@
 
 /* IS0 ethernet, IPv4, IPv6 traffic type keyset generation */
 enum vcap_is0_port_sel_etype {
-	VCAP_IS0_PS_ETYPE_DEFAULT, /* None or follow depending on class */
+	VCAP_IS0_PS_ETYPE_DEFAULT, /* Analne or follow depending on class */
 	VCAP_IS0_PS_ETYPE_MLL,
 	VCAP_IS0_PS_ETYPE_SGL_MLBS,
 	VCAP_IS0_PS_ETYPE_DBL_MLBS,
 	VCAP_IS0_PS_ETYPE_TRI_MLBS,
 	VCAP_IS0_PS_ETYPE_TRI_VID,
 	VCAP_IS0_PS_ETYPE_LL_FULL,
-	VCAP_IS0_PS_ETYPE_NORMAL_SRC,
-	VCAP_IS0_PS_ETYPE_NORMAL_DST,
-	VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE,
-	VCAP_IS0_PS_ETYPE_NORMAL_5TUPLE_IP4,
+	VCAP_IS0_PS_ETYPE_ANALRMAL_SRC,
+	VCAP_IS0_PS_ETYPE_ANALRMAL_DST,
+	VCAP_IS0_PS_ETYPE_ANALRMAL_7TUPLE,
+	VCAP_IS0_PS_ETYPE_ANALRMAL_5TUPLE_IP4,
 	VCAP_IS0_PS_ETYPE_PURE_5TUPLE_IP4,
 	VCAP_IS0_PS_ETYPE_DBL_VID_IDX,
 	VCAP_IS0_PS_ETYPE_ETAG,
-	VCAP_IS0_PS_ETYPE_NO_LOOKUP,
+	VCAP_IS0_PS_ETYPE_ANAL_LOOKUP,
 };
 
 /* IS0 MPLS traffic type keyset generation */
@@ -70,14 +70,14 @@ enum vcap_is0_port_sel_mpls_uc_mc {
 	VCAP_IS0_PS_MPLS_TRI_MLBS,
 	VCAP_IS0_PS_MPLS_TRI_VID,
 	VCAP_IS0_PS_MPLS_LL_FULL,
-	VCAP_IS0_PS_MPLS_NORMAL_SRC,
-	VCAP_IS0_PS_MPLS_NORMAL_DST,
-	VCAP_IS0_PS_MPLS_NORMAL_7TUPLE,
-	VCAP_IS0_PS_MPLS_NORMAL_5TUPLE_IP4,
+	VCAP_IS0_PS_MPLS_ANALRMAL_SRC,
+	VCAP_IS0_PS_MPLS_ANALRMAL_DST,
+	VCAP_IS0_PS_MPLS_ANALRMAL_7TUPLE,
+	VCAP_IS0_PS_MPLS_ANALRMAL_5TUPLE_IP4,
 	VCAP_IS0_PS_MPLS_PURE_5TUPLE_IP4,
 	VCAP_IS0_PS_MPLS_DBL_VID_IDX,
 	VCAP_IS0_PS_MPLS_ETAG,
-	VCAP_IS0_PS_MPLS_NO_LOOKUP,
+	VCAP_IS0_PS_MPLS_ANAL_LOOKUP,
 };
 
 /* IS0 MBLS traffic type keyset generation */
@@ -86,17 +86,17 @@ enum vcap_is0_port_sel_mlbs {
 	VCAP_IS0_PS_MLBS_SGL_MLBS,
 	VCAP_IS0_PS_MLBS_DBL_MLBS,
 	VCAP_IS0_PS_MLBS_TRI_MLBS,
-	VCAP_IS0_PS_MLBS_NO_LOOKUP = 17,
+	VCAP_IS0_PS_MLBS_ANAL_LOOKUP = 17,
 };
 
 /* IS2 port keyset selection control */
 
-/* IS2 non-ethernet traffic type keyset generation */
-enum vcap_is2_port_sel_noneth {
-	VCAP_IS2_PS_NONETH_MAC_ETYPE,
-	VCAP_IS2_PS_NONETH_CUSTOM_1,
-	VCAP_IS2_PS_NONETH_CUSTOM_2,
-	VCAP_IS2_PS_NONETH_NO_LOOKUP
+/* IS2 analn-ethernet traffic type keyset generation */
+enum vcap_is2_port_sel_analneth {
+	VCAP_IS2_PS_ANALNETH_MAC_ETYPE,
+	VCAP_IS2_PS_ANALNETH_CUSTOM_1,
+	VCAP_IS2_PS_ANALNETH_CUSTOM_2,
+	VCAP_IS2_PS_ANALNETH_ANAL_LOOKUP
 };
 
 /* IS2 IPv4 unicast traffic type keyset generation */
@@ -141,7 +141,7 @@ enum vcap_is2_port_sel_arp {
 
 /* ES0 Egress port traffic type classification */
 enum vcap_es0_port_sel {
-	VCAP_ES0_PS_NORMAL_SELECTION,
+	VCAP_ES0_PS_ANALRMAL_SELECTION,
 	VCAP_ES0_PS_FORCE_ISDX_LOOKUPS,
 	VCAP_ES0_PS_FORCE_VID_LOOKUPS,
 	VCAP_ES0_PS_RESERVED,
@@ -202,6 +202,6 @@ void sparx5_vcap_set_port_keyset(struct net_device *ndev,
 				 struct vcap_keyset_list *orig);
 
 /* Check if the ethertype is supported by the vcap port classification */
-bool sparx5_vcap_is_known_etype(struct vcap_admin *admin, u16 etype);
+bool sparx5_vcap_is_kanalwn_etype(struct vcap_admin *admin, u16 etype);
 
 #endif /* __SPARX5_VCAP_IMPL_H__ */

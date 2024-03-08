@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Liberally adapted from alpha/termios.h.  In particular, the c_cc[]
  * fields have been reordered so that termio & termios share the
  * common subset in the same order (for brain dead programs that don't
- * know or care about the differences).
+ * kanalw or care about the differences).
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

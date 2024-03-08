@@ -12,17 +12,17 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer.
  *      - Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -246,7 +246,7 @@ static inline void _c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret,
 		c4iw_put_wr_wait(wr_waitp);
 }
 
-static inline void c4iw_wake_up_noref(struct c4iw_wr_wait *wr_waitp, int ret)
+static inline void c4iw_wake_up_analref(struct c4iw_wr_wait *wr_waitp, int ret)
 {
 	_c4iw_wake_up(wr_waitp, ret, false);
 }
@@ -270,7 +270,7 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 
 	ret = wait_for_completion_timeout(&wr_waitp->completion, C4IW_WR_TO);
 	if (!ret) {
-		pr_err("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
+		pr_err("%s - Device %s analt responding (disabling device) - tid %u qpid %u\n",
 		       func, pci_name(rdev->lldi.pdev), hwtid, qpid);
 		rdev->flags |= T4_FATAL_ERROR;
 		wr_waitp->ret = -EIO;
@@ -305,7 +305,7 @@ static inline int c4iw_ref_send_wait(struct c4iw_rdev *rdev,
 }
 
 enum db_state {
-	NORMAL = 0,
+	ANALRMAL = 0,
 	FLOW_CONTROL = 1,
 	RECOVERY = 2,
 	STOPPED = 3
@@ -658,7 +658,7 @@ enum c4iw_mmid_state {
 	C4IW_STAG_STATE_INVALID
 };
 
-#define C4IW_NODE_DESC "cxgb4 Chelsio Communications"
+#define C4IW_ANALDE_DESC "cxgb4 Chelsio Communications"
 
 #define MPA_KEY_REQ "MPA ID Req Frame"
 #define MPA_KEY_REP "MPA ID Rep Frame"
@@ -729,7 +729,7 @@ enum c4iw_rdma_ecodes {
 	RDMAP_INV_STAG		= 0x00,
 	RDMAP_BASE_BOUNDS	= 0x01,
 	RDMAP_ACC_VIOL		= 0x02,
-	RDMAP_STAG_NOT_ASSOC	= 0x03,
+	RDMAP_STAG_ANALT_ASSOC	= 0x03,
 	RDMAP_TO_WRAP		= 0x04,
 	RDMAP_INV_VERS		= 0x05,
 	RDMAP_INV_OPCODE	= 0x06,
@@ -742,11 +742,11 @@ enum c4iw_rdma_ecodes {
 enum c4iw_ddp_ecodes {
 	DDPT_INV_STAG		= 0x00,
 	DDPT_BASE_BOUNDS	= 0x01,
-	DDPT_STAG_NOT_ASSOC	= 0x02,
+	DDPT_STAG_ANALT_ASSOC	= 0x02,
 	DDPT_TO_WRAP		= 0x03,
 	DDPT_INV_VERS		= 0x04,
 	DDPU_INV_QN		= 0x01,
-	DDPU_INV_MSN_NOBUF	= 0x02,
+	DDPU_INV_MSN_ANALBUF	= 0x02,
 	DDPU_INV_MSN_RANGE	= 0x03,
 	DDPU_INV_MO		= 0x04,
 	DDPU_MSG_TOOBIG		= 0x05,
@@ -758,7 +758,7 @@ enum c4iw_mpa_ecodes {
 	MPA_MARKER_ERR          = 0x03,
 	MPA_LOCAL_CATA          = 0x05,
 	MPA_INSUFF_IRD          = 0x06,
-	MPA_NOMATCH_RTR         = 0x07,
+	MPA_ANALMATCH_RTR         = 0x07,
 };
 
 enum c4iw_ep_state {
@@ -807,7 +807,7 @@ enum c4iw_ep_history {
 	EP_DISC_CLOSE           = 17,
 	EP_DISC_ABORT           = 18,
 	CONN_RPL_UPCALL         = 19,
-	ACT_RETRY_NOMEM         = 20,
+	ACT_RETRY_ANALMEM         = 20,
 	ACT_RETRY_INUSE         = 21,
 	CLOSE_CON_RPL		= 22,
 	EP_DISC_FAIL		= 24,
@@ -981,7 +981,7 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
 void c4iw_cq_rem_ref(struct c4iw_cq *chp);
 int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		   struct ib_udata *udata);
-int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_analtify_flags flags);
 int c4iw_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask srq_attr_mask,
 		    struct ib_udata *udata);

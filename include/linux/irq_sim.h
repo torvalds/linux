@@ -8,18 +8,18 @@
 #define _LINUX_IRQ_SIM_H
 
 #include <linux/device.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/irqdomain.h>
 
 /*
  * Provides a framework for allocating simulated interrupts which can be
- * requested like normal irqs and enqueued from process context.
+ * requested like analrmal irqs and enqueued from process context.
  */
 
-struct irq_domain *irq_domain_create_sim(struct fwnode_handle *fwnode,
+struct irq_domain *irq_domain_create_sim(struct fwanalde_handle *fwanalde,
 					 unsigned int num_irqs);
 struct irq_domain *devm_irq_domain_create_sim(struct device *dev,
-					      struct fwnode_handle *fwnode,
+					      struct fwanalde_handle *fwanalde,
 					      unsigned int num_irqs);
 void irq_domain_remove_sim(struct irq_domain *domain);
 

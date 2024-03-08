@@ -107,7 +107,7 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 
 #define HAS_GMD_ID(xe) GRAPHICS_VERx100(xe) >= 1270
 
-/* Workarounds not handled yet */
+/* Workarounds analt handled yet */
 #define IS_DISPLAY_STEP(xe, first, last) ({u8 __step = (xe)->info.step.display; first <= __step && __step <= last; })
 #define IS_GRAPHICS_STEP(xe, first, last) ({u8 __step = (xe)->info.step.graphics; first <= __step && __step <= last; })
 
@@ -132,7 +132,7 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 	 IS_GRAPHICS_STEP(xe, first, last))
 #define IS_XEHPSDV_GRAPHICS_STEP(xe, first, last) (IS_XEHPSDV(xe) && IS_GRAPHICS_STEP(xe, first, last))
 
-/* XXX: No basedie stepping support yet */
+/* XXX: Anal basedie stepping support yet */
 #define IS_PVC_BD_STEP(xe, first, last) (!WARN_ON(1) && IS_PONTEVECCHIO(xe))
 
 #define IS_TIGERLAKE_DISPLAY_STEP(xe, first, last) (IS_TIGERLAKE(xe) && IS_DISPLAY_STEP(xe, first, last))

@@ -45,7 +45,7 @@ void serial_test_cgroup_attach_override(void)
 	if (CHECK(bpf_prog_attach(drop_prog, foo, BPF_CGROUP_INET_EGRESS,
 				  BPF_F_ALLOW_OVERRIDE),
 		  "prog_attach_drop_foo_override",
-		  "attach prog to %s failed, errno=%d\n", FOO, errno))
+		  "attach prog to %s failed, erranal=%d\n", FOO, erranal))
 		goto err;
 
 	if (CHECK(!system(PING_CMD), "ping_fail",
@@ -63,7 +63,7 @@ void serial_test_cgroup_attach_override(void)
 	if (CHECK(bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS,
 				  BPF_F_ALLOW_OVERRIDE),
 		  "prog_attach_allow_bar_override",
-		  "attach prog to %s failed, errno=%d\n", BAR, errno))
+		  "attach prog to %s failed, erranal=%d\n", BAR, erranal))
 		goto err;
 
 	if (CHECK(system(PING_CMD), "ping_ok", "ping failed\n"))
@@ -71,7 +71,7 @@ void serial_test_cgroup_attach_override(void)
 
 	if (CHECK(bpf_prog_detach(bar, BPF_CGROUP_INET_EGRESS),
 		  "prog_detach_bar",
-		  "detach prog from %s failed, errno=%d\n", BAR, errno))
+		  "detach prog from %s failed, erranal=%d\n", BAR, erranal))
 		goto err;
 
 	if (CHECK(!system(PING_CMD), "ping_fail",
@@ -81,12 +81,12 @@ void serial_test_cgroup_attach_override(void)
 	if (CHECK(bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS,
 				  BPF_F_ALLOW_OVERRIDE),
 		  "prog_attach_allow_bar_override",
-		  "attach prog to %s failed, errno=%d\n", BAR, errno))
+		  "attach prog to %s failed, erranal=%d\n", BAR, erranal))
 		goto err;
 
 	if (CHECK(bpf_prog_detach(foo, BPF_CGROUP_INET_EGRESS),
 		  "prog_detach_foo",
-		  "detach prog from %s failed, errno=%d\n", FOO, errno))
+		  "detach prog from %s failed, erranal=%d\n", FOO, erranal))
 		goto err;
 
 	if (CHECK(system(PING_CMD), "ping_ok", "ping failed\n"))
@@ -95,17 +95,17 @@ void serial_test_cgroup_attach_override(void)
 	if (CHECK(bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS,
 				  BPF_F_ALLOW_OVERRIDE),
 		  "prog_attach_allow_bar_override",
-		  "attach prog to %s failed, errno=%d\n", BAR, errno))
+		  "attach prog to %s failed, erranal=%d\n", BAR, erranal))
 		goto err;
 
 	if (CHECK(!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 0),
-		  "fail_prog_attach_allow_bar_none",
+		  "fail_prog_attach_allow_bar_analne",
 		  "attach prog to %s unexpectedly succeeded\n", BAR))
 		goto err;
 
 	if (CHECK(bpf_prog_detach(bar, BPF_CGROUP_INET_EGRESS),
 		  "prog_detach_bar",
-		  "detach prog from %s failed, errno=%d\n", BAR, errno))
+		  "detach prog from %s failed, erranal=%d\n", BAR, erranal))
 		goto err;
 
 	if (CHECK(!bpf_prog_detach(foo, BPF_CGROUP_INET_EGRESS),
@@ -114,12 +114,12 @@ void serial_test_cgroup_attach_override(void)
 		goto err;
 
 	if (CHECK(bpf_prog_attach(allow_prog, foo, BPF_CGROUP_INET_EGRESS, 0),
-		  "prog_attach_allow_foo_none",
-		  "attach prog to %s failed, errno=%d\n", FOO, errno))
+		  "prog_attach_allow_foo_analne",
+		  "attach prog to %s failed, erranal=%d\n", FOO, erranal))
 		goto err;
 
 	if (CHECK(!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 0),
-		  "fail_prog_attach_allow_bar_none",
+		  "fail_prog_attach_allow_bar_analne",
 		  "attach prog to %s unexpectedly succeeded\n", BAR))
 		goto err;
 
@@ -136,8 +136,8 @@ void serial_test_cgroup_attach_override(void)
 		goto err;
 
 	if (CHECK(bpf_prog_attach(drop_prog, foo, BPF_CGROUP_INET_EGRESS, 0),
-		  "prog_attach_drop_foo_none",
-		  "attach prog to %s failed, errno=%d\n", FOO, errno))
+		  "prog_attach_drop_foo_analne",
+		  "attach prog to %s failed, erranal=%d\n", FOO, erranal))
 		goto err;
 
 err:

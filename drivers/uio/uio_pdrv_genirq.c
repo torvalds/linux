@@ -40,7 +40,7 @@ enum {
 	UIO_IRQ_DISABLED = 0,
 };
 
-static int uio_pdrv_genirq_open(struct uio_info *info, struct inode *inode)
+static int uio_pdrv_genirq_open(struct uio_info *info, struct ianalde *ianalde)
 {
 	struct uio_pdrv_genirq_platdata *priv = info->priv;
 
@@ -49,7 +49,7 @@ static int uio_pdrv_genirq_open(struct uio_info *info, struct inode *inode)
 	return 0;
 }
 
-static int uio_pdrv_genirq_release(struct uio_info *info, struct inode *inode)
+static int uio_pdrv_genirq_release(struct uio_info *info, struct ianalde *ianalde)
 {
 	struct uio_pdrv_genirq_platdata *priv = info->priv;
 
@@ -68,7 +68,7 @@ static irqreturn_t uio_pdrv_genirq_handler(int irq, struct uio_info *dev_info)
 
 	spin_lock(&priv->lock);
 	if (!__test_and_set_bit(UIO_IRQ_DISABLED, &priv->flags))
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 	spin_unlock(&priv->lock);
 
 	return IRQ_HANDLED;
@@ -93,7 +93,7 @@ static int uio_pdrv_genirq_irqcontrol(struct uio_info *dev_info, s32 irq_on)
 			enable_irq(dev_info->irq);
 	} else {
 		if (!__test_and_set_bit(UIO_IRQ_DISABLED, &priv->flags))
-			disable_irq_nosync(dev_info->irq);
+			disable_irq_analsync(dev_info->irq);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -110,13 +110,13 @@ static void uio_pdrv_genirq_cleanup(void *data)
 static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 {
 	struct uio_info *uioinfo = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct uio_pdrv_genirq_platdata *priv;
 	struct uio_mem *uiomem;
 	int ret = -EINVAL;
 	int i;
 
-	if (node) {
+	if (analde) {
 		const char *name;
 
 		/* alloc uioinfo for one device */
@@ -124,17 +124,17 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 				       GFP_KERNEL);
 		if (!uioinfo) {
 			dev_err(&pdev->dev, "unable to kmalloc\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
-		if (!of_property_read_string(node, "linux,uio-name", &name))
+		if (!of_property_read_string(analde, "linux,uio-name", &name))
 			uioinfo->name = devm_kstrdup(&pdev->dev, name, GFP_KERNEL);
 		else
 			uioinfo->name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-						       "%pOFn", node);
+						       "%pOFn", analde);
 
 		uioinfo->version = "devicetree";
-		/* Multiple IRQs are not supported */
+		/* Multiple IRQs are analt supported */
 	}
 
 	if (!uioinfo || !uioinfo->name || !uioinfo->version) {
@@ -151,7 +151,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "unable to kmalloc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->uioinfo = uioinfo;
@@ -163,7 +163,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 		ret = platform_get_irq_optional(pdev, 0);
 		uioinfo->irq = ret;
 		if (ret == -ENXIO)
-			uioinfo->irq = UIO_IRQ_NONE;
+			uioinfo->irq = UIO_IRQ_ANALNE;
 		else if (ret == -EPROBE_DEFER)
 			return ret;
 		else if (ret < 0) {
@@ -218,13 +218,13 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 		++uiomem;
 	}
 
-	/* This driver requires no hardware specific kernel code to handle
+	/* This driver requires anal hardware specific kernel code to handle
 	 * interrupts. Instead, the interrupt handler simply disables the
 	 * interrupt in the interrupt controller. User space is responsible
-	 * for performing hardware specific acknowledge and re-enabling of
+	 * for performing hardware specific ackanalwledge and re-enabling of
 	 * the interrupt in the interrupt controller.
 	 *
-	 * Interrupt sharing is not supported.
+	 * Interrupt sharing is analt supported.
 	 */
 
 	uioinfo->handler = uio_pdrv_genirq_handler;
@@ -252,7 +252,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int uio_pdrv_genirq_runtime_nop(struct device *dev)
+static int uio_pdrv_genirq_runtime_analp(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
@@ -262,7 +262,7 @@ static int uio_pdrv_genirq_runtime_nop(struct device *dev)
 	 * Runtime PM code to turn off power to the device while the
 	 * device is unused, ie before open() and after release().
 	 *
-	 * This Runtime PM callback does not need to save or restore
+	 * This Runtime PM callback does analt need to save or restore
 	 * any registers since user space is responsbile for hardware
 	 * register reinitialization after open().
 	 */
@@ -270,8 +270,8 @@ static int uio_pdrv_genirq_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops uio_pdrv_genirq_dev_pm_ops = {
-	.runtime_suspend = uio_pdrv_genirq_runtime_nop,
-	.runtime_resume = uio_pdrv_genirq_runtime_nop,
+	.runtime_suspend = uio_pdrv_genirq_runtime_analp,
+	.runtime_resume = uio_pdrv_genirq_runtime_analp,
 };
 
 #ifdef CONFIG_OF

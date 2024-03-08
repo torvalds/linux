@@ -48,7 +48,7 @@ struct drm_panel;
 #define TVE200_CTRL			0x18
 #define TVE200_CTRL_YUV420		BIT(31)
 #define TVE200_CTRL_CSMODE		BIT(30)
-#define TVE200_CTRL_NONINTERLACE	BIT(28) /* 0 = non-interlace CCIR656 */
+#define TVE200_CTRL_ANALNINTERLACE	BIT(28) /* 0 = analn-interlace CCIR656 */
 #define TVE200_CTRL_TVCLKP		BIT(27) /* Inverted clock phase */
 /* Bits 24..26 define the burst size after arbitration on the bus */
 #define TVE200_CTRL_BURST_4_WORDS	(0 << 24)

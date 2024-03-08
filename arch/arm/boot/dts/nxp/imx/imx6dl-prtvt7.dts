@@ -166,7 +166,7 @@
 	};
 
 	panel {
-		compatible = "innolux,g070y2-t02";
+		compatible = "inanallux,g070y2-t02";
 		backlight = <&backlight_lcd>;
 		power-supply = <&reg_3v3>;
 

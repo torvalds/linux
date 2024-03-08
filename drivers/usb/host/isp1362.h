@@ -34,7 +34,7 @@
 #define REG_WIDTH_16			0x000
 #define REG_WIDTH_32			0x100
 #define REG_WIDTH_MASK			0x100
-#define REG_NO_MASK			0x0ff
+#define REG_ANAL_MASK			0x0ff
 
 #ifdef ISP1362_DEBUG
 typedef const unsigned int isp1362_reg_t;
@@ -44,7 +44,7 @@ typedef const unsigned int isp1362_reg_t;
 #define REG_ACCESS_RW			0x600
 #define REG_ACCESS_MASK			0x600
 
-#define ISP1362_REG_NO(r)		((r) & REG_NO_MASK)
+#define ISP1362_REG_ANAL(r)		((r) & REG_ANAL_MASK)
 
 #define ISP1362_REG(name, addr, width, rw) \
 static isp1362_reg_t ISP1362_REG_##name = ((addr) | (width) | (rw))
@@ -53,7 +53,7 @@ static isp1362_reg_t ISP1362_REG_##name = ((addr) | (width) | (rw))
 #define REG_WIDTH_TEST(r, w) BUG_ON(((r) & REG_WIDTH_MASK) != (w))
 #else
 typedef const unsigned char isp1362_reg_t;
-#define ISP1362_REG_NO(r)		(r)
+#define ISP1362_REG_ANAL(r)		(r)
 
 #define ISP1362_REG(name, addr, width, rw) \
 static isp1362_reg_t __maybe_unused ISP1362_REG_##name = addr
@@ -64,7 +64,7 @@ static isp1362_reg_t __maybe_unused ISP1362_REG_##name = addr
 
 /* OHCI compatible registers */
 /*
- * Note: Some of the ISP1362 'OHCI' registers implement only
+ * Analte: Some of the ISP1362 'OHCI' registers implement only
  * a subset of the bits defined in the OHCI spec.
  *
  * Bitmasks for the individual bits of these registers are defined in "ohci.h"
@@ -91,7 +91,7 @@ ISP1362_REG(HCHWCFG,	0x20,	REG_WIDTH_16,	REG_ACCESS_RW);
 #define HCHWCFG_GLOBAL_PWRDOWN	(1 << 14)
 #define HCHWCFG_PULLDOWN_DS2	(1 << 13)
 #define HCHWCFG_PULLDOWN_DS1	(1 << 12)
-#define HCHWCFG_CLKNOTSTOP	(1 << 11)
+#define HCHWCFG_CLKANALTSTOP	(1 << 11)
 #define HCHWCFG_ANALOG_OC	(1 << 10)
 #define HCHWCFG_ONEINT		(1 << 9)
 #define HCHWCFG_DACK_MODE	(1 << 8)
@@ -230,12 +230,12 @@ struct ptd {
 /*
  * Hardware transfer status codes -- CC from PTD
  */
-#define PTD_CC_NOERROR      0x00
+#define PTD_CC_ANALERROR      0x00
 #define PTD_CC_CRC          0x01
 #define PTD_CC_BITSTUFFING  0x02
 #define PTD_CC_DATATOGGLEM  0x03
 #define PTD_CC_STALL        0x04
-#define PTD_DEVNOTRESP      0x05
+#define PTD_DEVANALTRESP      0x05
 #define PTD_PIDCHECKFAIL    0x06
 #define PTD_UNEXPECTEDPID   0x07
 #define PTD_DATAOVERRUN     0x08
@@ -244,17 +244,17 @@ struct ptd {
 #define PTD_BUFFEROVERRUN   0x0C
 #define PTD_BUFFERUNDERRUN  0x0D
     /* 0x0E, 0x0F reserved for HCD */
-#define PTD_NOTACCESSED     0x0F
+#define PTD_ANALTACCESSED     0x0F
 
 
-/* map OHCI TD status codes (CC) to errno values */
+/* map OHCI TD status codes (CC) to erranal values */
 static const int cc_to_error[16] = {
-	/* No  Error  */               0,
+	/* Anal  Error  */               0,
 	/* CRC Error  */               -EILSEQ,
 	/* Bit Stuff  */               -EPROTO,
 	/* Data Togg  */               -EILSEQ,
 	/* Stall      */               -EPIPE,
-	/* DevNotResp */               -ETIMEDOUT,
+	/* DevAnaltResp */               -ETIMEDOUT,
 	/* PIDCheck   */               -EPROTO,
 	/* UnExpPID   */               -EPROTO,
 	/* DataOver   */               -EOVERFLOW,
@@ -262,7 +262,7 @@ static const int cc_to_error[16] = {
 	/* (for hw)   */               -EIO,
 	/* (for hw)   */               -EIO,
 	/* BufferOver */               -ECOMM,
-	/* BuffUnder  */               -ENOSR,
+	/* BuffUnder  */               -EANALSR,
 	/* (for HCD)  */               -EALREADY,
 	/* (for HCD)  */               -EALREADY
 };
@@ -298,7 +298,7 @@ static const int cc_to_error[16] = {
 #define OHCI_INTR_SF	(1 << 2)	/* start frame */
 #define OHCI_INTR_RD	(1 << 3)	/* resume detect */
 #define OHCI_INTR_UE	(1 << 4)	/* unrecoverable error */
-#define OHCI_INTR_FNO	(1 << 5)	/* frame number overflow */
+#define OHCI_INTR_FANAL	(1 << 5)	/* frame number overflow */
 #define OHCI_INTR_RHSC	(1 << 6)	/* root hub status change */
 #define OHCI_INTR_OC	(1 << 30)	/* ownership change */
 #define OHCI_INTR_MIE	(1 << 31)	/* master interrupt enable */
@@ -332,10 +332,10 @@ static const int cc_to_error[16] = {
 /* roothub.a masks */
 #define	RH_A_NDP	(0xff << 0)		/* number of downstream ports */
 #define	RH_A_PSM	(1 << 8)		/* power switching mode */
-#define	RH_A_NPS	(1 << 9)		/* no power switching */
+#define	RH_A_NPS	(1 << 9)		/* anal power switching */
 #define	RH_A_DT		(1 << 10)		/* device type (mbz) */
 #define	RH_A_OCPM	(1 << 11)		/* over current protection mode */
-#define	RH_A_NOCP	(1 << 12)		/* no over current protection */
+#define	RH_A_ANALCP	(1 << 12)		/* anal over current protection */
 #define	RH_A_POTPGT	(0xff << 24)		/* power on to power good time */
 
 #define	FI			0x2edf		/* 12000 bits per frame (-1) */
@@ -459,7 +459,7 @@ struct isp1362_hcd {
 	struct list_head	periodic;
 	u16			fmindex;
 
-	/* periodic schedule: isochronous */
+	/* periodic schedule: isochroanalus */
 	struct list_head	isoc;
 	unsigned int		istl_flip:1;
 	unsigned int		irq_active:1;
@@ -501,7 +501,7 @@ static inline const char *ISP1362_INT_NAME(int n)
 	case ISP1362_INT_INTL:   return "INTL";
 	case ISP1362_INT_ATL:    return "ATL";
 	case ISP1362_INT_OTG:    return "OTG";
-	default:                 return "unknown";
+	default:                 return "unkanalwn";
 	}
 }
 
@@ -578,15 +578,15 @@ static inline struct usb_hcd *isp1362_hcd_to_hcd(struct isp1362_hcd *isp1362_hcd
 })
 
 /* basic access functions for ISP1362 chip registers */
-/* NOTE: The contents of the address pointer register cannot be read back! The driver must ensure,
+/* ANALTE: The contents of the address pointer register cananalt be read back! The driver must ensure,
  * that all register accesses are performed with interrupts disabled, since the interrupt
- * handler has no way of restoring the previous state.
+ * handler has anal way of restoring the previous state.
  */
 static void isp1362_write_addr(struct isp1362_hcd *isp1362_hcd, isp1362_reg_t reg)
 {
 	REG_ACCESS_TEST(reg);
 	DUMMY_DELAY_ACCESS;
-	writew(ISP1362_REG_NO(reg), isp1362_hcd->addr_reg);
+	writew(ISP1362_REG_ANAL(reg), isp1362_hcd->addr_reg);
 	DUMMY_DELAY_ACCESS;
 	isp1362_delay(isp1362_hcd, 1);
 }
@@ -680,7 +680,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 		return;
 
 	if ((unsigned long)dp & 0x1) {
-		/* not aligned */
+		/* analt aligned */
 		for (; len > 1; len -= 2) {
 			data = *dp++;
 			data |= *dp++ << 8;
@@ -725,7 +725,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 	isp1362_write_addr(d, ISP1362_REG_##r);				\
 	__v = isp1362_read_data16(d);					\
 	RDBG("%s: Read %04x from %s[%02x]\n", __func__, __v, #r,	\
-	     ISP1362_REG_NO(ISP1362_REG_##r));				\
+	     ISP1362_REG_ANAL(ISP1362_REG_##r));				\
 	__v;								\
 })
 
@@ -735,7 +735,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 	isp1362_write_addr(d, ISP1362_REG_##r);				\
 	__v = isp1362_read_data32(d);					\
 	RDBG("%s: Read %08x from %s[%02x]\n", __func__, __v, #r,	\
-	     ISP1362_REG_NO(ISP1362_REG_##r));				\
+	     ISP1362_REG_ANAL(ISP1362_REG_##r));				\
 	__v;								\
 })
 
@@ -744,7 +744,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 	isp1362_write_addr(d, (ISP1362_REG_##r) | ISP1362_REG_WRITE_OFFSET);	\
 	isp1362_write_data16(d, (u16)(v));					\
 	RDBG("%s: Wrote %04x to %s[%02x]\n", __func__, (u16)(v), #r,	\
-	     ISP1362_REG_NO(ISP1362_REG_##r));					\
+	     ISP1362_REG_ANAL(ISP1362_REG_##r));					\
 }
 
 #define isp1362_write_reg32(d, r, v)	{					\
@@ -752,7 +752,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 	isp1362_write_addr(d, (ISP1362_REG_##r) | ISP1362_REG_WRITE_OFFSET);	\
 	isp1362_write_data32(d, (u32)(v));					\
 	RDBG("%s: Wrote %08x to %s[%02x]\n", __func__, (u32)(v), #r,	\
-	     ISP1362_REG_NO(ISP1362_REG_##r));					\
+	     ISP1362_REG_ANAL(ISP1362_REG_##r));					\
 }
 
 #define isp1362_set_mask16(d, r, m) {			\
@@ -786,10 +786,10 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 #define isp1362_show_reg(d, r) {								\
 	if ((ISP1362_REG_##r & REG_WIDTH_MASK) == REG_WIDTH_32)			\
 		DBG(0, "%-12s[%02x]: %08x\n", #r,					\
-			ISP1362_REG_NO(ISP1362_REG_##r), isp1362_read_reg32(d, r));	\
+			ISP1362_REG_ANAL(ISP1362_REG_##r), isp1362_read_reg32(d, r));	\
 	else									\
 		DBG(0, "%-12s[%02x]:     %04x\n", #r,					\
-			ISP1362_REG_NO(ISP1362_REG_##r), isp1362_read_reg16(d, r));	\
+			ISP1362_REG_ANAL(ISP1362_REG_##r), isp1362_read_reg16(d, r));	\
 }
 
 static void isp1362_write_diraddr(struct isp1362_hcd *isp1362_hcd, u16 offset, u16 len)

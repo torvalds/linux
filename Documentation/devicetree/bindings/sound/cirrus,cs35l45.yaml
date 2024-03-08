@@ -11,7 +11,7 @@ maintainers:
   - Richard Fitzgerald <rf@opensource.cirrus.com>
 
 description: |
-  CS35L45 is a Boosted Mono Class D Amplifier with DSP
+  CS35L45 is a Boosted Moanal Class D Amplifier with DSP
   Speaker Protection and Adaptive Battery Management.
 
 allOf:
@@ -88,7 +88,7 @@ patternProperties:
         description:
           GPIO output polarity select. Valid only when 'gpio-ctrl' is 1
           and 'gpio-dir' is 0
-            0 = Non-inverted, Active High
+            0 = Analn-inverted, Active High
             1 = Inverted, Active Low
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0

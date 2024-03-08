@@ -2,7 +2,7 @@
 /*
  * Core interface for Renesas Synchronization Management Unit (SMU) devices.
  *
- * Copyright (C) 2021 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2021 Integrated Device Techanallogy, Inc., a Renesas Company.
  */
 
 #ifndef __LINUX_MFD_RSMU_H
@@ -11,7 +11,7 @@
 #define RSMU_MAX_WRITE_COUNT	(255)
 #define RSMU_MAX_READ_COUNT	(255)
 
-/* The supported devices are ClockMatrix, Sabre and SnowLotus */
+/* The supported devices are ClockMatrix, Sabre and SanalwLotus */
 enum rsmu_type {
 	RSMU_CM		= 0x34000,
 	RSMU_SABRE	= 0x33810,
@@ -25,7 +25,7 @@ enum rsmu_type {
  * @dev:    i2c/spi device.
  * @regmap: i2c/spi bus access.
  * @lock:   mutex used by sub devices to make sure a series of
- *          bus access requests are not interrupted.
+ *          bus access requests are analt interrupted.
  * @type:   RSMU device type.
  * @page:   i2c/spi bus driver internal use only.
  */

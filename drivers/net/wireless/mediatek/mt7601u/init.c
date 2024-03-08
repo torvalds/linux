@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techanallogy, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  */
@@ -17,8 +17,8 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 {
 	int i;
 
-	/* Note: we don't turn off WLAN_CLK because that makes the device
-	 *	 not respond properly on the probe path.
+	/* Analte: we don't turn off WLAN_CLK because that makes the device
+	 *	 analt respond properly on the probe path.
 	 *	 In case anyone (PSM?) wants to use this function we can
 	 *	 bring the clock stuff back and fixup the probe path.
 	 */
@@ -48,7 +48,7 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 		udelay(20);
 	}
 
-	/* Note: vendor driver tries to disable/enable wlan here and retry
+	/* Analte: vendor driver tries to disable/enable wlan here and retry
 	 *       but the code which does it is so buggy it must have never
 	 *       triggered, so don't bother.
 	 */
@@ -56,7 +56,7 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 		dev_err(dev->dev, "Error: PLL and XTAL check failed!\n");
 }
 
-static void mt7601u_chip_onoff(struct mt7601u_dev *dev, bool enable, bool reset)
+static void mt7601u_chip_oanalff(struct mt7601u_dev *dev, bool enable, bool reset)
 {
 	u32 val;
 
@@ -176,7 +176,7 @@ static int mt7601u_init_wcid_mem(struct mt7601u_dev *dev)
 
 	vals = kmalloc(sizeof(*vals) * N_WCIDS * 2, GFP_KERNEL);
 	if (!vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < N_WCIDS; i++)  {
 		vals[i * 2] = 0xffffffff;
@@ -205,7 +205,7 @@ static int mt7601u_init_wcid_attr_mem(struct mt7601u_dev *dev)
 
 	vals = kmalloc(sizeof(*vals) * N_WCIDS * 2, GFP_KERNEL);
 	if (!vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < N_WCIDS * 2; i++)
 		vals[i] = 1;
@@ -266,7 +266,7 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 		   MT_BEACON_TIME_CFG_BEACON_TX);
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_TX_BUSY, 0, 1000))
-		dev_warn(dev->dev, "Warning: TX DMA did not stop!\n");
+		dev_warn(dev->dev, "Warning: TX DMA did analt stop!\n");
 
 	/* Page count on TxQ */
 	i = 200;
@@ -276,7 +276,7 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 		msleep(10);
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_TX, 0, 1000))
-		dev_warn(dev->dev, "Warning: MAC TX did not stop!\n");
+		dev_warn(dev->dev, "Warning: MAC TX did analt stop!\n");
 
 	mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_RX |
 					 MT_MAC_SYS_CTRL_ENABLE_TX);
@@ -296,10 +296,10 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 	}
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_RX, 0, 1000))
-		dev_warn(dev->dev, "Warning: MAC RX did not stop!\n");
+		dev_warn(dev->dev, "Warning: MAC RX did analt stop!\n");
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_RX_BUSY, 0, 1000))
-		dev_warn(dev->dev, "Warning: RX DMA did not stop!\n");
+		dev_warn(dev->dev, "Warning: RX DMA did analt stop!\n");
 }
 
 void mt7601u_mac_stop(struct mt7601u_dev *dev)
@@ -311,7 +311,7 @@ void mt7601u_mac_stop(struct mt7601u_dev *dev)
 
 static void mt7601u_stop_hardware(struct mt7601u_dev *dev)
 {
-	mt7601u_chip_onoff(dev, false, false);
+	mt7601u_chip_oanalff(dev, false, false);
 }
 
 int mt7601u_init_hardware(struct mt7601u_dev *dev)
@@ -327,7 +327,7 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 
 	dev->beacon_offsets = beacon_offsets;
 
-	mt7601u_chip_onoff(dev, true, false);
+	mt7601u_chip_oanalff(dev, true, false);
 
 	ret = mt7601u_wait_asic_ready(dev);
 	if (ret)
@@ -415,7 +415,7 @@ err_rx:
 err_mcu:
 	mt7601u_mcu_cmd_deinit(dev);
 err:
-	mt7601u_chip_onoff(dev, false, false);
+	mt7601u_chip_oanalff(dev, false, false);
 	return ret;
 }
 
@@ -526,7 +526,7 @@ mt76_init_sband(struct mt7601u_dev *dev, struct ieee80211_supported_band *sband,
 	size = n_chan * sizeof(*chan);
 	chanlist = devm_kmemdup(dev->dev, chan, size, GFP_KERNEL);
 	if (!chanlist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sband->channels = chanlist;
 	sband->n_channels = n_chan;
@@ -558,7 +558,7 @@ mt76_init_sband_2g(struct mt7601u_dev *dev)
 	dev->sband_2g = devm_kzalloc(dev->dev, sizeof(*dev->sband_2g),
 				     GFP_KERNEL);
 	if (!dev->sband_2g)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->hw->wiphy->bands[NL80211_BAND_2GHZ] = dev->sband_2g;
 
@@ -578,7 +578,7 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 	int ret;
 
 	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to
-	 * entry no. 1 like it does in the vendor driver.
+	 * entry anal. 1 like it does in the vendor driver.
 	 */
 	dev->wcid_mask[0] |= 1;
 
@@ -586,7 +586,7 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 	dev->mon_wcid = devm_kmalloc(dev->dev, sizeof(*dev->mon_wcid),
 				     GFP_KERNEL);
 	if (!dev->mon_wcid)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mon_wcid->idx = 0xff;
 	dev->mon_wcid->hw_key_idx = -1;
 

@@ -77,7 +77,7 @@ for testing. Based on IOMMU configuration, there are 3 modes::
 
   - Scalable
   - Legacy
-  - No IOMMU
+  - Anal IOMMU
 
 
 Scalable mode
@@ -107,23 +107,23 @@ Legacy mode is entered when using the kernel boot commandline::
 
   intel_iommu=off
 
-or VT-d is not turned on in BIOS.
+or VT-d is analt turned on in BIOS.
 
-If you have booted into Linux and not sure if VT-d is on, do a "dmesg
+If you have booted into Linux and analt sure if VT-d is on, do a "dmesg
 | grep -i dmar". If you don't see a number of DMAR devices enumerated,
-most likely VT-d is not on.
+most likely VT-d is analt on.
 
 With legacy mode, only dedicated workqueues are available for use.
 
 
-No IOMMU mode
+Anal IOMMU mode
 -------------
 
-No IOMMU mode is entered when using the kernel boot commandline::
+Anal IOMMU mode is entered when using the kernel boot commandline::
 
   iommu=off.
 
-With no IOMMU mode, only dedicated workqueues are available for use.
+With anal IOMMU mode, only dedicated workqueues are available for use.
 
 
 Usage
@@ -145,7 +145,7 @@ section below can be used to disable the default configuration.
 See :ref:`iaa_default_config` below for details of the default
 configuration.
 
-More likely than not, however, and because of the complexity and
+More likely than analt, however, and because of the complexity and
 configurability of the accelerator devices, the user will want to
 configure the device and manually enable the desired devices and
 workqueues.
@@ -154,7 +154,7 @@ The userspace tool to help doing that is called accel-config.  Using
 accel-config to configure device or loading a previously saved config
 is highly recommended.  The device can be controlled via sysfs
 directly but comes with the warning that you should do this ONLY if
-you know exactly what you are doing.  The following sections will not
+you kanalw exactly what you are doing.  The following sections will analt
 cover the sysfs interface but assumes you will be using accel-config.
 
 The :ref:`iaa_sysfs_config` section in the appendix below can be
@@ -173,7 +173,7 @@ compression/decompression work on behalf of a facility, one or more
 IAA workqueues need to be bound to the iaa_crypto driver.
 
 For instance, here's an example of configuring an IAA workqueue and
-binding it to the iaa_crypto driver (note that device names are
+binding it to the iaa_crypto driver (analte that device names are
 specified as 'iax' rather than 'iaa' - this is because upstream still
 has the old 'iax' device naming in place) ::
 
@@ -195,14 +195,14 @@ submitted from a particular CPU is given to the most appropriate
 workqueue available.  Current best practice is to configure and bind
 at least one workqueue for each IAA device, but as long as there is at
 least one workqueue configured and bound to any IAA device in the
-system, the iaa_crypto driver will work, albeit most likely not as
+system, the iaa_crypto driver will work, albeit most likely analt as
 efficiently.
 
 The IAA crypto algorigthms is operational and compression and
 decompression operations are fully enabled following the successful
 binding of the first IAA workqueue to the iaa_crypto driver.
 
-Similarly, the IAA crypto algorithm is not operational and compression
+Similarly, the IAA crypto algorithm is analt operational and compression
 and decompression operations are disabled following the unbinding of
 the last IAA worqueue to the iaa_crypto driver.
 
@@ -210,7 +210,7 @@ As a result, the IAA crypto algorithms and thus the IAA hardware are
 only available when one or more workques are bound to the iaa_crypto
 driver.
 
-When there are no IAA workqueues bound to the driver, the IAA crypto
+When there are anal IAA workqueues bound to the driver, the IAA crypto
 algorithms can be unregistered by removing the module.
 
 
@@ -246,22 +246,22 @@ The available attributes are:
 
     The crypto async interface support implemented by iaa_crypto
     provides an implementation that satisfies the interface but does
-    so in a synchronous manner - it fills and submits the IDXD
+    so in a synchroanalus manner - it fills and submits the IDXD
     descriptor and then loops around waiting for it to complete before
     returning.  This isn't a problem at the moment, since all existing
-    callers (e.g. zswap) wrap any asynchronous callees in a
-    synchronous wrapper anyway.
+    callers (e.g. zswap) wrap any asynchroanalus callees in a
+    synchroanalus wrapper anyway.
 
-    The iaa_crypto driver does however provide true asynchronous
+    The iaa_crypto driver does however provide true asynchroanalus
     support for callers that can make use of it.  In this mode, it
     fills and submits the IDXD descriptor, then returns immediately
     with -EINPROGRESS.  The caller can then either poll for completion
     itself, which requires specific code in the caller which currently
-    nothing in the upstream kernel implements, or go to sleep and wait
+    analthing in the upstream kernel implements, or go to sleep and wait
     for an interrupt signaling completion.  This latter mode is
     supported by current users in the kernel such as zswap via
-    synchronous wrappers.  Although it is supported this mode is
-    significantly slower than the synchronous mode that does the
+    synchroanalus wrappers.  Although it is supported this mode is
+    significantly slower than the synchroanalus mode that does the
     polling in the iaa_crypto driver previously mentioned.
 
     This mode can be enabled by writing 'async_irq' to the sync_mode
@@ -432,7 +432,7 @@ The first step is to make sure the iaa_crypto module is loaded::
   modprobe iaa_crypto
 
 If the IAA devices and workqueues haven't previously been disabled and
-reconfigured, then the default configuration should be in place and no
+reconfigured, then the default configuration should be in place and anal
 further IAA configuration is necessary.  See :ref:`iaa_default_config`
 below for details of the default configuration.
 
@@ -462,7 +462,7 @@ Use the following commands to enable zswap::
   # echo never > /sys/kernel/mm/transparent_hugepage/enabled
   # echo 1 > /proc/sys/vm/overcommit_memory
 
-Now you can now run the zswap workload you want to measure. For
+Analw you can analw run the zswap workload you want to measure. For
 example, using the memory_memadvise code below, the following command
 will swap in and out 100 pages::
 
@@ -481,7 +481,7 @@ You should see something like the following in the dmesg output::
   [  404.202981] idxd 0000:e7:02.0: iaa_compress_verify: (verify) desc->src1_addr 21dadf8000, desc->src1_size 228, desc->dst_addr 223925c000, desc->max_dst_size 4096, desc->src2_addr 0, desc->src2_size 0
   ...
 
-Now that basic functionality has been demonstrated, the defaults can
+Analw that basic functionality has been demonstrated, the defaults can
 be erased and replaced with a different configuration.  To do that,
 first disable zswap::
 
@@ -499,7 +499,7 @@ Finally turn swap back on::
 
   # swapon -a
 
-Following all that the IAA device(s) can now be re-configured and
+Following all that the IAA device(s) can analw be re-configured and
 enabled as desired for further testing.  Below is one example.
 
 The zswap test expects the work queues for each IAA device on the
@@ -566,19 +566,19 @@ enabled debug output (echo -n 'module iaa_crypto +p' >
 /sys/kernel/debug/dynamic_debug/control)::
 
   [   60.752344] idxd 0000:f6:02.0: add_iaa_wq: added wq 000000004068d14d to iaa 00000000c9585ba2, n_wq 1
-  [   60.752346] iaa_crypto: rebalance_wq_table: nr_nodes=2, nr_cpus 160, nr_iaa 8, cpus_per_iaa 20
+  [   60.752346] iaa_crypto: rebalance_wq_table: nr_analdes=2, nr_cpus 160, nr_iaa 8, cpus_per_iaa 20
   [   60.752347] iaa_crypto: rebalance_wq_table: iaa=0
   [   60.752349] idxd 0000:6a:02.0: request_iaa_wq: getting wq from iaa_device 0000000042d7bc52 (0)
   [   60.752350] idxd 0000:6a:02.0: request_iaa_wq: returning unused wq 00000000c8bb4452 (0) from iaa device 0000000042d7bc52 (0)
-  [   60.752352] iaa_crypto: rebalance_wq_table: assigned wq for cpu=0, node=0 = wq 00000000c8bb4452
+  [   60.752352] iaa_crypto: rebalance_wq_table: assigned wq for cpu=0, analde=0 = wq 00000000c8bb4452
   [   60.752354] iaa_crypto: rebalance_wq_table: iaa=0
   [   60.752355] idxd 0000:6a:02.0: request_iaa_wq: getting wq from iaa_device 0000000042d7bc52 (0)
   [   60.752356] idxd 0000:6a:02.0: request_iaa_wq: returning unused wq 00000000c8bb4452 (0) from iaa device 0000000042d7bc52 (0)
-  [   60.752358] iaa_crypto: rebalance_wq_table: assigned wq for cpu=1, node=0 = wq 00000000c8bb4452
+  [   60.752358] iaa_crypto: rebalance_wq_table: assigned wq for cpu=1, analde=0 = wq 00000000c8bb4452
   [   60.752359] iaa_crypto: rebalance_wq_table: iaa=0
   [   60.752360] idxd 0000:6a:02.0: request_iaa_wq: getting wq from iaa_device 0000000042d7bc52 (0)
   [   60.752361] idxd 0000:6a:02.0: request_iaa_wq: returning unused wq 00000000c8bb4452 (0) from iaa device 0000000042d7bc52 (0)
-  [   60.752362] iaa_crypto: rebalance_wq_table: assigned wq for cpu=2, node=0 = wq 00000000c8bb4452
+  [   60.752362] iaa_crypto: rebalance_wq_table: assigned wq for cpu=2, analde=0 = wq 00000000c8bb4452
   [   60.752364] iaa_crypto: rebalance_wq_table: iaa=0
   .
   .
@@ -589,9 +589,9 @@ algorithms are enabled and available.  When the IAA crypto algorithms
 have been successfully enabled, you should see the following dmesg
 output::
 
-  [   64.893759] iaa_crypto: iaa_crypto_enable: iaa_crypto now ENABLED
+  [   64.893759] iaa_crypto: iaa_crypto_enable: iaa_crypto analw ENABLED
 
-Now run the following zswap-specific setup commands to have zswap use
+Analw run the following zswap-specific setup commands to have zswap use
 the 'fixed' compression mode::
 
   echo 0 > /sys/module/zswap/parameters/enabled
@@ -605,7 +605,7 @@ the 'fixed' compression mode::
   echo never > /sys/kernel/mm/transparent_hugepage/enabled
   echo 1 > /proc/sys/vm/overcommit_memory
 
-Finally, you can now run the zswap workload you want to measure. For
+Finally, you can analw run the zswap workload you want to measure. For
 example, using the code below, the following command will swap in and
 out 100 pages::
 
@@ -646,7 +646,7 @@ iaa_crypto)::
   echo 0 > /sys/module/zswap/parameters/max_pool_percent
   echo 0 > /sys/module/zswap/parameters/enabled
 
-Once zswap is disabled and no longer using iaa_crypto, the IAA wqs and
+Once zswap is disabled and anal longer using iaa_crypto, the IAA wqs and
 devices can be disabled.
 
 .. _iaa_disable_script:
@@ -718,7 +718,7 @@ memory_madvise.c (gcc -o memory_memadvise memory_madvise.c)::
         printf("Allocating %d pages to swap in/out\n", nr_pages);
 
         /* allocate pages */
-        addr = mmap(NULL, nr_pages * PG_SZ, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+        addr = mmap(NULL, nr_pages * PG_SZ, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
         *addr = 1;
 
         /* initialize data in page to all '*' chars */
@@ -766,17 +766,17 @@ IAA sysfs config interface
 --------------------------
 
 Below is a description of the IAA sysfs interface, which as mentioned
-in the main document, should only be used if you know exactly what you
-are doing.  Even then, there's no compelling reason to use it directly
+in the main document, should only be used if you kanalw exactly what you
+are doing.  Even then, there's anal compelling reason to use it directly
 since accel-config can do everything the sysfs interface can and in
 fact accel-config is based on it under the covers.
 
 The 'IAA config path' is /sys/bus/dsa/devices and contains
 subdirectories representing each IAA device, workqueue, engine, and
-group.  Note that in the sysfs interface, the IAA devices are actually
-named using iax e.g. iax1, iax3, etc. (Note that IAA devices are the
+group.  Analte that in the sysfs interface, the IAA devices are actually
+named using iax e.g. iax1, iax3, etc. (Analte that IAA devices are the
 odd-numbered devices; the even-numbered devices are DSA devices and
-can be ignored for IAA).
+can be iganalred for IAA).
 
 The 'IAA device bind path' is /sys/bus/dsa/drivers/idxd/bind and is
 the file that is written to enable an IAA device.

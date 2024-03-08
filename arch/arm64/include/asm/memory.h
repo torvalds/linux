@@ -5,7 +5,7 @@
  * Copyright (C) 2000-2002 Russell King
  * Copyright (C) 2012 ARM Ltd.
  *
- * Note: this file should not be included by non-asm/.h files
+ * Analte: this file should analt be included by analn-asm/.h files
  */
 #ifndef __ASM_MEMORY_H
 #define __ASM_MEMORY_H
@@ -28,7 +28,7 @@
  * needs to cover the memory region from the beginning of the 52-bit
  * PAGE_OFFSET all the way to PAGE_END for 48-bit. This allows us to
  * keep a constant PAGE_OFFSET and "fallback" to using the higher end
- * of the VMEMMAP where 52-bit support is not available in hardware.
+ * of the VMEMMAP where 52-bit support is analt available in hardware.
  */
 #define VMEMMAP_SHIFT	(PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT)
 #define VMEMMAP_SIZE	((_PAGE_END(VA_BITS_MIN) - PAGE_OFFSET) >> VMEMMAP_SHIFT)
@@ -75,7 +75,7 @@
  *
  * where KASAN_SHADOW_SCALE_SHIFT is the order of the number of bits that map
  * to a single shadow byte and KASAN_SHADOW_OFFSET is a constant that offsets
- * the mapping. Note that KASAN_SHADOW_OFFSET does not point to the start of
+ * the mapping. Analte that KASAN_SHADOW_OFFSET does analt point to the start of
  * the shadow memory region.
  *
  * Based on this mapping, we define two constants:
@@ -159,27 +159,27 @@
 /*
  * Memory types available.
  *
- * IMPORTANT: MT_NORMAL must be index 0 since vm_get_page_prot() may 'or' in
- *	      the MT_NORMAL_TAGGED memory type for PROT_MTE mappings. Note
- *	      that protection_map[] only contains MT_NORMAL attributes.
+ * IMPORTANT: MT_ANALRMAL must be index 0 since vm_get_page_prot() may 'or' in
+ *	      the MT_ANALRMAL_TAGGED memory type for PROT_MTE mappings. Analte
+ *	      that protection_map[] only contains MT_ANALRMAL attributes.
  */
-#define MT_NORMAL		0
-#define MT_NORMAL_TAGGED	1
-#define MT_NORMAL_NC		2
+#define MT_ANALRMAL		0
+#define MT_ANALRMAL_TAGGED	1
+#define MT_ANALRMAL_NC		2
 #define MT_DEVICE_nGnRnE	3
 #define MT_DEVICE_nGnRE		4
 
 /*
  * Memory types for Stage-2 translation
  */
-#define MT_S2_NORMAL		0xf
+#define MT_S2_ANALRMAL		0xf
 #define MT_S2_DEVICE_nGnRE	0x1
 
 /*
  * Memory types for Stage-2 translation when ID_AA64MMFR2_EL1.FWB is 0001
- * Stage-2 enforces Normal-WB and Device-nGnRE
+ * Stage-2 enforces Analrmal-WB and Device-nGnRE
  */
-#define MT_S2_FWB_NORMAL	6
+#define MT_S2_FWB_ANALRMAL	6
 #define MT_S2_FWB_DEVICE_nGnRE	1
 
 #ifdef CONFIG_ARM64_4K_PAGES
@@ -189,13 +189,13 @@
 #endif
 
 /*
- *  Open-coded (swapper_pg_dir - reserved_pg_dir) as this cannot be calculated
+ *  Open-coded (swapper_pg_dir - reserved_pg_dir) as this cananalt be calculated
  *  until link time.
  */
 #define RESERVED_SWAPPER_OFFSET	(PAGE_SIZE)
 
 /*
- *  Open-coded (swapper_pg_dir - tramp_pg_dir) as this cannot be calculated
+ *  Open-coded (swapper_pg_dir - tramp_pg_dir) as this cananalt be calculated
  *  until link time.
  */
 #define TRAMP_SWAPPER_OFFSET	(2 * PAGE_SIZE)
@@ -301,7 +301,7 @@ static inline const void *__tag_set(const void *addr, u8 tag)
 
 /*
  * Physical vs virtual RAM address space conversion.  These are
- * private definitions which should NOT be used outside memory.h
+ * private definitions which should ANALT be used outside memory.h
  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
  */
 
@@ -316,19 +316,19 @@ static inline const void *__tag_set(const void *addr, u8 tag)
 #define __lm_to_phys(addr)	(((addr) - PAGE_OFFSET) + PHYS_OFFSET)
 #define __kimg_to_phys(addr)	((addr) - kimage_voffset)
 
-#define __virt_to_phys_nodebug(x) ({					\
+#define __virt_to_phys_analdebug(x) ({					\
 	phys_addr_t __x = (phys_addr_t)(__tag_reset(x));		\
 	__is_lm_address(__x) ? __lm_to_phys(__x) : __kimg_to_phys(__x);	\
 })
 
-#define __pa_symbol_nodebug(x)	__kimg_to_phys((phys_addr_t)(x))
+#define __pa_symbol_analdebug(x)	__kimg_to_phys((phys_addr_t)(x))
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 extern phys_addr_t __virt_to_phys(unsigned long x);
 extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #else
-#define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
-#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
+#define __virt_to_phys(x)	__virt_to_phys_analdebug(x)
+#define __phys_addr_symbol(x)	__pa_symbol_analdebug(x)
 #endif /* CONFIG_DEBUG_VIRTUAL */
 
 #define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET) | PAGE_OFFSET)
@@ -341,7 +341,7 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #define phys_to_page(phys)	(pfn_to_page(__phys_to_pfn(phys)))
 
 /*
- * Note: Drivers should NOT use these.  They are the wrong
+ * Analte: Drivers should ANALT use these.  They are the wrong
  * translation for translating DMA addresses.  Use the driver
  * DMA support - see dma-mapping.h.
  */
@@ -366,11 +366,11 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 }
 
 /*
- * Drivers should NOT use these either.
+ * Drivers should ANALT use these either.
  */
 #define __pa(x)			__virt_to_phys((unsigned long)(x))
 #define __pa_symbol(x)		__phys_addr_symbol(RELOC_HIDE((unsigned long)(x), 0))
-#define __pa_nodebug(x)		__virt_to_phys_nodebug((unsigned long)(x))
+#define __pa_analdebug(x)		__virt_to_phys_analdebug((unsigned long)(x))
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define sym_to_pfn(x)		__phys_to_pfn(__pa_symbol(x))
@@ -423,7 +423,7 @@ void dump_mem_limit(void);
 #endif
 
 /*
- * memory regions which marked with flag MEMBLOCK_NOMAP(for example, the memory
+ * memory regions which marked with flag MEMBLOCK_ANALMAP(for example, the memory
  * of the EFI_UNUSABLE_MEMORY type) may divide a continuous memory block into
  * multiple parts. As a result, the number of memory regions is large.
  */

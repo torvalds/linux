@@ -8,18 +8,18 @@ $schema: http://devicetree.org/meta-schemas/base.yaml#
 title: Thermal zone
 
 maintainers:
-  - Daniel Lezcano <daniel.lezcano@linaro.org>
+  - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
 
 description: |
   Thermal management is achieved in devicetree by describing the sensor hardware
   and the software abstraction of cooling devices and thermal zones required to
   take appropriate action to mitigate thermal overloads.
 
-  The following node types are used to completely describe a thermal management
+  The following analde types are used to completely describe a thermal management
   system in devicetree:
    - thermal-sensor: device that measures temperature, has SoC-specific bindings
    - cooling-device: device used to dissipate heat either passively or actively
-   - thermal-zones: a container of the following node types used to describe all
+   - thermal-zones: a container of the following analde types used to describe all
      thermal data for the platform
 
   This binding describes the thermal-zones.
@@ -32,18 +32,18 @@ description: |
 
   The maximum dT/dt is highly bound to hardware power consumption and
   dissipation capability. The delays should be chosen to account for said
-  max dT/dt, such that a device does not cross several trip boundaries
+  max dT/dt, such that a device does analt cross several trip boundaries
   unexpectedly between polls. Choosing the right polling delays shall avoid
   having the device in temperature ranges that may damage the silicon structures
   and reduce silicon lifetime.
 
 properties:
-  $nodename:
+  $analdename:
     const: thermal-zones
     description:
-      A /thermal-zones node is required in order to use the thermal framework to
+      A /thermal-zones analde is required in order to use the thermal framework to
       manage input from the various thermal zones in the system in order to
-      mitigate thermal overload conditions. It does not represent a real device
+      mitigate thermal overload conditions. It does analt represent a real device
       in the system, but acts as a container to link a thermal sensor device,
       platform-data regarding temperature thresholds and the mitigation actions
       to take when the temperature crosses those thresholds.
@@ -52,10 +52,10 @@ patternProperties:
   "^[a-zA-Z][a-zA-Z0-9\\-]{1,12}-thermal$":
     type: object
     description:
-      Each thermal zone node contains information about how frequently it
+      Each thermal zone analde contains information about how frequently it
       must be checked, the sensor responsible for reporting temperature for
-      this zone, one sub-node containing the various trip points for this
-      zone and one sub-node containing all the zone cooling-maps.
+      this zone, one sub-analde containing the various trip points for this
+      zone and one sub-analde containing all the zone cooling-maps.
 
     properties:
       polling-delay:
@@ -80,7 +80,7 @@ patternProperties:
         description: |
           The action the OS should perform after the critical temperature is reached.
           By default the system will shutdown as a safe action to prevent damage
-          to the hardware, if the property is not set.
+          to the hardware, if the property is analt set.
           The shutdown action should be always the default and preferred one.
           Choose 'reboot' with care, as the hardware may be in thermal stress,
           thus leading to infinite reboots that may cause damage to the hardware.
@@ -108,7 +108,7 @@ patternProperties:
             z = c0 * x0 + c1 * x1 + ... + c(n-1) * x(n-1) + cn
           where c0, c1, .., cn are the coefficients.
 
-          Coefficients default to 1 in case this property is not specified. The
+          Coefficients default to 1 in case this property is analt specified. The
           coefficients are ordered and are matched with sensors by means of the
           sensor ID. Additional coefficients are interpreted as constant offset.
 
@@ -123,9 +123,9 @@ patternProperties:
       trips:
         type: object
         description:
-          This node describes a set of points in the temperature domain at
+          This analde describes a set of points in the temperature domain at
           which the thermal framework needs to take action. The actions to
-          be taken are defined in another node called cooling-maps.
+          be taken are defined in aanalther analde called cooling-maps.
 
         patternProperties:
           "^[a-zA-Z][a-zA-Z0-9\\-_]{0,63}$":
@@ -155,8 +155,8 @@ patternProperties:
                 enum:
                   - active   # enable active cooling e.g. fans
                   - passive  # enable passive cooling e.g. throttling cpu
-                  - hot      # send notification to driver
-                  - critical # send notification to driver, trigger shutdown
+                  - hot      # send analtification to driver
+                  - critical # send analtification to driver, trigger shutdown
                 description: |
                   There are four valid trip types: active, passive, hot,
                   critical.
@@ -167,8 +167,8 @@ patternProperties:
                   reboot. Hitting the critical threshold triggers a system
                   shutdown.
 
-                  The hot trip type can be used to send a notification to
-                  the thermal driver (if a .notify callback is registered).
+                  The hot trip type can be used to send a analtification to
+                  the thermal driver (if a .analtify callback is registered).
                   The action to be taken is left to the driver.
 
                   The passive trip type can be used to slow down HW e.g. run
@@ -189,9 +189,9 @@ patternProperties:
         type: object
         additionalProperties: false
         description:
-          This node describes the action to be taken when a thermal zone
+          This analde describes the action to be taken when a thermal zone
           crosses one of the temperature thresholds described in the trips
-          node. The action takes the form of a mapping relation between a
+          analde. The action takes the form of a mapping relation between a
           trip and the target cooling device state.
 
         patternProperties:
@@ -202,14 +202,14 @@ patternProperties:
               trip:
                 $ref: /schemas/types.yaml#/definitions/phandle
                 description:
-                  A phandle of a trip point node within this thermal zone.
+                  A phandle of a trip point analde within this thermal zone.
 
               cooling-device:
                 $ref: /schemas/types.yaml#/definitions/phandle-array
                 description:
                   A list of cooling device phandles along with the minimum
                   and maximum cooling state specifiers for each cooling
-                  device. Using the THERMAL_NO_LIMIT (-1UL) constant in the
+                  device. Using the THERMAL_ANAL_LIMIT (-1UL) constant in the
                   cooling-device phandle limit specifier lets the framework
                   use the minimum and maximum cooling state for that cooling
                   device automatically.

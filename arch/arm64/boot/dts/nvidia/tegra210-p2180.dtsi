@@ -182,7 +182,7 @@
 					regulator-enable-ramp-delay = <26>;
 					regulator-ramp-delay = <100000>;
 
-					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_ANALNE>;
 				};
 
 				vdd_pex_1v05: ldo1 {
@@ -206,7 +206,7 @@
 					regulator-enable-ramp-delay = <62>;
 					regulator-ramp-delay = <100000>;
 
-					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_ANALNE>;
 				};
 
 				vdd_cam_hv: ldo3 {
@@ -217,7 +217,7 @@
 					regulator-enable-ramp-delay = <50>;
 					regulator-ramp-delay = <100000>;
 
-					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_ANALNE>;
 				};
 
 				vdd_rtc: ldo4 {
@@ -241,7 +241,7 @@
 					regulator-enable-ramp-delay = <62>;
 					regulator-ramp-delay = <100000>;
 
-					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_ANALNE>;
 				};
 
 				vdd_ts: ldo6 {
@@ -299,7 +299,7 @@
 	mmc@700b0600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		analn-removable;
 		vqmmc-supply = <&vdd_1v8>;
 	};
 

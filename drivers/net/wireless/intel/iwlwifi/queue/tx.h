@@ -31,7 +31,7 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 {
 	if (test_and_clear_bit(txq->id, trans->txqs.queue_stopped)) {
 		IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d\n", txq->id);
-		iwl_op_mode_queue_not_full(trans->op_mode, txq->id);
+		iwl_op_mode_queue_analt_full(trans->op_mode, txq->id);
 	}
 }
 

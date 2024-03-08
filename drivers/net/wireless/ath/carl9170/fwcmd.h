@@ -16,20 +16,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -69,7 +69,7 @@ enum carl9170_cmd_oids {
 	CARL9170_CMD_FREQ_START		= 0x23,
 	CARL9170_CMD_PSM		= 0x24,
 
-	/* Asychronous command flag */
+	/* Asychroanalus command flag */
 	CARL9170_CMD_ASYNC_FLAG		= 0x40,
 	CARL9170_CMD_WREG_ASYNC		= (CARL9170_CMD_WREG |
 					   CARL9170_CMD_ASYNC_FLAG),
@@ -164,7 +164,7 @@ struct carl9170_psm {
 #define CARL9170_PSM_SIZE		4
 
 /*
- * Note: If a bit in rx_filter is set, then it
+ * Analte: If a bit in rx_filter is set, then it
  * means that the particular frames which matches
  * the condition are FILTERED/REMOVED/DISCARDED!
  * (This is can be a bit confusing, especially
@@ -253,7 +253,7 @@ struct carl9170_cmd {
 
 #ifdef __CARL9170FW__
 /*
- * NOTE:
+ * ANALTE:
  * Both structs [carl9170_tx_status and _carl9170_tx_status]
  * need to be "bit for bit" in sync.
  */

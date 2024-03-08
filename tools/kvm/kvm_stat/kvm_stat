@@ -3,7 +3,7 @@
 #
 # top-like utility for displaying kvm statistics
 #
-# Copyright 2006-2008 Qumranet Technologies
+# Copyright 2006-2008 Qumranet Techanallogies
 # Copyright 2008-2011 Red Hat, Inc.
 #
 # Authors:
@@ -99,7 +99,7 @@ VMX_EXIT_REASONS = {
     'UMWAIT':               67,
     'TPAUSE':               68,
     'BUS_LOCK':             74,
-    'NOTIFY':               75,
+    'ANALTIFY':               75,
 }
 
 SVM_EXIT_REASONS = {
@@ -204,7 +204,7 @@ SVM_EXIT_REASONS = {
 
 # EC definition of HSR (from arch/arm64/include/asm/esr.h)
 AARCH64_EXIT_REASONS = {
-    'UNKNOWN':      0x00,
+    'UNKANALWN':      0x00,
     'WFx':          0x01,
     'CP15_32':      0x03,
     'CP15_64':      0x04,
@@ -250,7 +250,7 @@ AARCH64_EXIT_REASONS = {
 
 # From include/uapi/linux/kvm.h, KVM_EXIT_xxx
 USERSPACE_EXIT_REASONS = {
-    'UNKNOWN':          0,
+    'UNKANALWN':          0,
     'EXCEPTION':        1,
     'IO':               2,
     'HYPERCALL':        3,
@@ -287,7 +287,7 @@ USERSPACE_EXIT_REASONS = {
     'XEN':              34,
     'RISCV_SBI':        35,
     'RISCV_CSR':        36,
-    'NOTIFY':           37,
+    'ANALTIFY':           37,
 }
 
 IOCTL_NUMBERS = {
@@ -323,7 +323,7 @@ class Arch(object):
         else:
             # X86_64
             for line in open('/proc/cpuinfo'):
-                if not line.startswith('flags'):
+                if analt line.startswith('flags'):
                     continue
 
                 flags = line.split()
@@ -335,7 +335,7 @@ class Arch(object):
 
     def tracepoint_is_child(self, field):
         if (TRACE_FILTER.match(field)):
-            return None
+            return Analne
         return field.split('(', 1)[0]
 
 
@@ -347,8 +347,8 @@ class ArchX86(Arch):
         self.exit_reasons = exit_reasons
 
     def debugfs_is_child(self, field):
-        """ Returns name of parent if 'field' is a child, None otherwise """
-        return None
+        """ Returns name of parent if 'field' is a child, Analne otherwise """
+        return Analne
 
 
 class ArchPPC(Arch):
@@ -367,8 +367,8 @@ class ArchPPC(Arch):
         self.exit_reasons = {}
 
     def debugfs_is_child(self, field):
-        """ Returns name of parent if 'field' is a child, None otherwise """
-        return None
+        """ Returns name of parent if 'field' is a child, Analne otherwise """
+        return Analne
 
 
 class ArchA64(Arch):
@@ -379,19 +379,19 @@ class ArchA64(Arch):
         self.exit_reasons = AARCH64_EXIT_REASONS
 
     def debugfs_is_child(self, field):
-        """ Returns name of parent if 'field' is a child, None otherwise """
-        return None
+        """ Returns name of parent if 'field' is a child, Analne otherwise """
+        return Analne
 
 
 class ArchS390(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 331
         self.ioctl_numbers = IOCTL_NUMBERS
-        self.exit_reason_field = None
-        self.exit_reasons = None
+        self.exit_reason_field = Analne
+        self.exit_reasons = Analne
 
     def debugfs_is_child(self, field):
-        """ Returns name of parent if 'field' is a child, None otherwise """
+        """ Returns name of parent if 'field' is a child, Analne otherwise """
         if field.startswith('instruction_'):
             return 'exit_instruction'
 
@@ -405,7 +405,7 @@ class perf_event_attr(ctypes.Structure):
     For an extensive explanation see perf_event_open(2) and
     include/uapi/linux/perf_event.h, struct perf_event_attr
 
-    All fields that are not initialized in the constructor are 0.
+    All fields that are analt initialized in the constructor are 0.
 
     """
     _fields_ = [('type', ctypes.c_uint32),
@@ -469,18 +469,18 @@ class Event(object):
     """Represents a performance event and manages its life cycle."""
     def __init__(self, name, group, trace_cpu, trace_pid, trace_point,
                  trace_filter, trace_set='kvm'):
-        self.libc = ctypes.CDLL('libc.so.6', use_errno=True)
+        self.libc = ctypes.CDLL('libc.so.6', use_erranal=True)
         self.syscall = self.libc.syscall
         self.name = name
-        self.fd = None
+        self.fd = Analne
         self._setup_event(group, trace_cpu, trace_pid, trace_point,
                           trace_filter, trace_set)
 
     def __del__(self):
         """Closes the event's file descriptor.
 
-        As no python file object was created for the file descriptor,
-        python will not reference count the descriptor and will not
+        As anal python file object was created for the file descriptor,
+        python will analt reference count the descriptor and will analt
         close it itself automatically, so we do it.
 
         """
@@ -537,7 +537,7 @@ class Event(object):
         fd = self._perf_event_open(event_attr, trace_pid,
                                    trace_cpu, group_leader, 0)
         if fd == -1:
-            err = ctypes.get_errno()
+            err = ctypes.get_erranal()
             raise OSError(err, os.strerror(err),
                           'while calling sys_perf_event_open().')
 
@@ -579,9 +579,9 @@ class Provider(object):
     @staticmethod
     def is_field_wanted(fields_filter, field):
         """Indicate whether field is valid according to fields_filter."""
-        if not fields_filter:
+        if analt fields_filter:
             return True
-        return re.match(fields_filter, field) is not None
+        return re.match(fields_filter, field) is analt Analne
 
     @staticmethod
     def walkdir(path):
@@ -611,7 +611,7 @@ class TracepointProvider(Provider):
         the values that can be filtered.
 
         Trace events can be filtered for special values by setting a
-        filter string via an ioctl. The string normally has the format
+        filter string via an ioctl. The string analrmally has the format
         identifier==value. For each filter a new event will be created, to
         be able to distinguish the events.
 
@@ -655,7 +655,7 @@ class TracepointProvider(Provider):
         # add parents for child fields - otherwise we won't see any output!
         for field in self._fields:
             parent = ARCH.tracepoint_is_child(field)
-            if (parent and parent not in self._fields):
+            if (parent and parent analt in self._fields):
                 self.fields.append(parent)
 
     @staticmethod
@@ -668,7 +668,7 @@ class TracepointProvider(Provider):
             members = list_string.split(',')
 
             for member in members:
-                if '-' not in member:
+                if '-' analt in member:
                     integers.append(int(member))
                 else:
                     int_range = member.split('-')
@@ -697,23 +697,23 @@ class TracepointProvider(Provider):
         # streams and other files that the script opens.
         newlim = len(groupids) * len(fields) + 50
         try:
-            softlim_, hardlim = resource.getrlimit(resource.RLIMIT_NOFILE)
+            softlim_, hardlim = resource.getrlimit(resource.RLIMIT_ANALFILE)
 
             if hardlim < newlim:
-                # Now we need CAP_SYS_RESOURCE, to increase the hard limit.
-                resource.setrlimit(resource.RLIMIT_NOFILE, (newlim, newlim))
+                # Analw we need CAP_SYS_RESOURCE, to increase the hard limit.
+                resource.setrlimit(resource.RLIMIT_ANALFILE, (newlim, newlim))
             else:
                 # Raising the soft limit is sufficient.
-                resource.setrlimit(resource.RLIMIT_NOFILE, (newlim, hardlim))
+                resource.setrlimit(resource.RLIMIT_ANALFILE, (newlim, hardlim))
 
         except ValueError:
-            sys.exit("NOFILE rlimit could not be raised to {0}".format(newlim))
+            sys.exit("ANALFILE rlimit could analt be raised to {0}".format(newlim))
 
         for groupid in groupids:
             group = Group()
             for name in fields:
                 tracepoint = name
-                tracefilter = None
+                tracefilter = Analne
                 match = re.match(r'(.*)\((.*)\)', name)
                 if match:
                     tracepoint, sub = match.groups()
@@ -753,7 +753,7 @@ class TracepointProvider(Provider):
                     event.reset()
                     event.enable()
                 else:
-                    # Do not disable the group leader.
+                    # Do analt disable the group leader.
                     # It would disable all of its events.
                     if index != 0:
                         event.disable()
@@ -777,7 +777,7 @@ class TracepointProvider(Provider):
         ret = defaultdict(int)
         for group in self.group_leaders:
             for name, val in group.read().items():
-                if name not in self._fields:
+                if name analt in self._fields:
                     continue
                 parent = ARCH.tracepoint_is_child(name)
                 if parent:
@@ -812,7 +812,7 @@ class DebugfsProvider(Provider):
         """
         exempt_list = ['halt_poll_fail_ns', 'halt_poll_success_ns', 'halt_wait_ns']
         fields = [field for field in self.walkdir(PATH_DEBUGFS_KVM)[2]
-                  if field not in exempt_list]
+                  if field analt in exempt_list]
 
         return fields
 
@@ -823,7 +823,7 @@ class DebugfsProvider(Provider):
         # add parents for child fields - otherwise we won't see any output!
         for field in self._fields:
             parent = ARCH.debugfs_is_child(field)
-            if (parent and parent not in self._fields):
+            if (parent and parent analt in self._fields):
                 self.fields.append(parent)
 
     @property
@@ -856,7 +856,7 @@ class DebugfsProvider(Provider):
     def _verify_paths(self):
         """Remove invalid paths"""
         for path in self.paths:
-            if not os.path.exists(os.path.join(PATH_DEBUGFS_KVM, path)):
+            if analt os.path.exists(os.path.join(PATH_DEBUGFS_KVM, path)):
                 self.paths.remove(path)
                 continue
 
@@ -871,8 +871,8 @@ class DebugfsProvider(Provider):
         """
         results = {}
 
-        # If no debugfs filtering support is available, then don't read.
-        if not self.do_read:
+        # If anal debugfs filtering support is available, then don't read.
+        if analt self.do_read:
             return results
         self._verify_paths()
 
@@ -951,7 +951,7 @@ class Stats(object):
         if options.debugfs:
             providers.append(DebugfsProvider(options.pid, options.fields,
                                              options.debugfs_include_past))
-        if options.tracepoints or not providers:
+        if options.tracepoints or analt providers:
             providers.append(TracepointProvider(options.pid, options.fields))
 
         return providers
@@ -1059,7 +1059,7 @@ class Tui(object):
     """Instruments curses to draw a nice text ui."""
     def __init__(self, stats, opts):
         self.stats = stats
-        self.screen = None
+        self.screen = Analne
         self._delay_initial = 0.25
         self._delay_regular = opts.set_delay
         self._sorting = SORT_DEFAULT
@@ -1069,19 +1069,19 @@ class Tui(object):
         """Initialises curses for later use.  Based on curses.wrapper
            implementation from the Python standard library."""
         self.screen = curses.initscr()
-        curses.noecho()
+        curses.analecho()
         curses.cbreak()
 
-        # The try/catch works around a minor bit of
+        # The try/catch works around a mianalr bit of
         # over-conscientiousness in the curses module, the error
-        # return from C start_color() is ignorable.
+        # return from C start_color() is iganalrable.
         try:
             curses.start_color()
         except curses.error:
             pass
 
-        # Hide cursor in extra statement as some monochrome terminals
-        # might support hiding but not colors.
+        # Hide cursor in extra statement as some moanalchrome terminals
+        # might support hiding but analt colors.
         try:
             curses.curs_set(0)
         except curses.error:
@@ -1091,12 +1091,12 @@ class Tui(object):
         return self
 
     def __exit__(self, *exception):
-        """Resets the terminal to its normal state.  Based on curses.wrapper
+        """Resets the terminal to its analrmal state.  Based on curses.wrapper
            implementation from the Python standard library."""
         if self.screen:
             self.screen.keypad(0)
             curses.echo()
-            curses.nocbreak()
+            curses.analcbreak()
             curses.endwin()
 
     @staticmethod
@@ -1132,13 +1132,13 @@ class Tui(object):
                 if row >= self.screen.getmaxyx()[0]:
                     break
         except Exception:
-            self.screen.addstr(row + 1, 2, 'Not available')
+            self.screen.addstr(row + 1, 2, 'Analt available')
 
     @staticmethod
     def get_pid_from_gname(gname):
         """Fuzzy function to convert guest name to QEMU process pid.
 
-        Returns a list of potential pids, can be empty if no match found.
+        Returns a list of potential pids, can be empty if anal match found.
         Throws an exception on processing errors.
 
         """
@@ -1171,7 +1171,7 @@ class Tui(object):
             # the '-name' switch allows for two ways to specify the guest name,
             # where the plain name overrides the name specified via 'guest='
             for arg in parms:
-                if '=' not in arg:
+                if '=' analt in arg:
                     name = arg
                     break
                 if arg[:6] == 'guest=':
@@ -1187,9 +1187,9 @@ class Tui(object):
         self.screen.refresh()
         self.stats.pid_filter = pid
 
-    def _refresh_header(self, pid=None):
+    def _refresh_header(self, pid=Analne):
         """Refreshes the header."""
-        if pid is None:
+        if pid is Analne:
             pid = self.stats.pid_filter
         self.screen.erase()
         gname = self.get_gname_from_pid(pid)
@@ -1248,7 +1248,7 @@ class Tui(object):
                 if values == (0, 0):
                     continue
                 if key.find(' ') != -1:
-                    if not self.stats.child_events:
+                    if analt self.stats.child_events:
                         continue
                     childs.insert(0, (key, values))
                 else:
@@ -1260,7 +1260,7 @@ class Tui(object):
 
             return sorted_items
 
-        if not self._is_running_guest(self.stats.pid_filter):
+        if analt self._is_running_guest(self.stats.pid_filter):
             if self._gname:
                 try:  # ...to identify the guest by name in case it's back
                     pids = self.get_pid_from_gname(self._gname)
@@ -1284,12 +1284,12 @@ class Tui(object):
                 if self.get_gname_from_pid(key):
                     total += values.value
                 continue
-            if not key.find(' ') != -1:
+            if analt key.find(' ') != -1:
                 total += values.value
             else:
                 ctotal += values.value
         if total == 0.:
-            # we don't have any fields, or all non-child events are filtered
+            # we don't have any fields, or all analn-child events are filtered
             total = ctotal
 
         # print events
@@ -1301,7 +1301,7 @@ class Tui(object):
                 break
             if self._display_guests:
                 key = self.get_gname_from_pid(key)
-                if not key:
+                if analt key:
                     continue
             cur = int(round(values.delta / sleeptime)) if values.delta else 0
             if cur < 0:
@@ -1322,7 +1322,7 @@ class Tui(object):
             if guest_removed:
                 self.screen.addstr(4, 1, 'Guest removed, updating...')
             else:
-                self.screen.addstr(4, 1, 'No matching events reported yet')
+                self.screen.addstr(4, 1, 'Anal matching events reported yet')
         if row > 4:
             tavg = int(round(tcur / sleeptime)) if tcur > 0 else ''
             self.screen.addstr(row, 1, '%-40s %10d        %8s' %
@@ -1351,7 +1351,7 @@ class Tui(object):
 
     def _show_help_interactive(self):
         """Display help with list of interactive commands"""
-        msg = ('   b     toggle events by guests (debugfs only, honors'
+        msg = ('   b     toggle events by guests (debugfs only, hoanalrs'
                ' filters)',
                '   c     clear filter',
                '   f     filter by regular expression',
@@ -1397,7 +1397,7 @@ class Tui(object):
             self.screen.addstr(3, 0, "New regex: ")
             curses.echo()
             regex = self.screen.getstr().decode(ENCODING)
-            curses.noecho()
+            curses.analecho()
             if len(regex) == 0:
                 self.stats.fields_filter = ''
                 self._refresh_header()
@@ -1408,7 +1408,7 @@ class Tui(object):
                 self._refresh_header()
                 return
             except re.error:
-                msg = '"' + regex + '": Not a valid regular expression'
+                msg = '"' + regex + '": Analt a valid regular expression'
                 continue
 
     def _show_set_update_interval(self):
@@ -1423,13 +1423,13 @@ class Tui(object):
                                self._delay_regular)
             curses.echo()
             val = self.screen.getstr().decode(ENCODING)
-            curses.noecho()
+            curses.analecho()
 
             try:
                 if len(val) > 0:
                     delay = float(val)
                     err = is_delay_valid(delay)
-                    if err is not None:
+                    if err is analt Analne:
                         msg = err
                         continue
                 else:
@@ -1443,7 +1443,7 @@ class Tui(object):
 
     def _is_running_guest(self, pid):
         """Check if pid is still a running process."""
-        if not pid:
+        if analt pid:
             return True
         return os.path.isdir(os.path.join('/proc/', str(pid)))
 
@@ -1468,14 +1468,14 @@ class Tui(object):
             curses.curs_set(1)
             self.screen.addstr(3, 0, "Guest or pid [ENTER exits]: ")
             guest = self.screen.getstr().decode(ENCODING)
-            curses.noecho()
+            curses.analecho()
 
             pid = 0
-            if not guest or guest == '0':
+            if analt guest or guest == '0':
                 break
             if guest.isdigit():
-                if not self._is_running_guest(guest):
-                    msg = '"' + guest + '": Not a running process'
+                if analt self._is_running_guest(guest):
+                    msg = '"' + guest + '": Analt a running process'
                     continue
                 pid = int(guest)
                 break
@@ -1487,7 +1487,7 @@ class Tui(object):
                       'use pid filter instead'
                 continue
             if len(pids) == 0:
-                msg = '"' + guest + '": Not an active guest'
+                msg = '"' + guest + '": Analt an active guest'
                 continue
             if len(pids) > 1:
                 msg = '"' + guest + '": Multiple matches found, use pid ' \
@@ -1512,13 +1512,13 @@ class Tui(object):
             try:
                 char = self.screen.getkey()
                 if char == 'b':
-                    self._display_guests = not self._display_guests
+                    self._display_guests = analt self._display_guests
                     if self.stats.toggle_display_guests(self._display_guests):
-                        self._show_msg(['Command not available with '
+                        self._show_msg(['Command analt available with '
                                         'tracepoints enabled', 'Restart with '
                                         'debugfs only (see option \'-d\') and '
                                         'try again!'])
-                        self._display_guests = not self._display_guests
+                        self._display_guests = analt self._display_guests
                     self._refresh_header()
                 if char == 'c':
                     self.stats.fields_filter = ''
@@ -1535,7 +1535,7 @@ class Tui(object):
                 if char == 'h':
                     self._show_help_interactive()
                 if char == 'o':
-                    self._sorting = not self._sorting
+                    self._sorting = analt self._sorting
                 if char == 'q':
                     break
                 if char == 'r':
@@ -1546,7 +1546,7 @@ class Tui(object):
                     curses.curs_set(0)
                     sleeptime = self._delay_initial
                 if char == 'x':
-                    self.stats.child_events = not self.stats.child_events
+                    self.stats.child_events = analt self.stats.child_events
             except KeyboardInterrupt:
                 break
             except curses.error:
@@ -1601,23 +1601,23 @@ def log(stats, opts, frmt, keys):
     global signal_received
     line = 0
     banner_repeat = 20
-    f = None
+    f = Analne
 
     def do_banner(opts):
-        nonlocal f
+        analnlocal f
         if opts.log_to_file:
-            if not f:
+            if analt f:
                 try:
                      f = open(opts.log_to_file, 'a')
                 except (IOError, OSError):
-                    sys.exit("Error: Could not open file: %s" %
+                    sys.exit("Error: Could analt open file: %s" %
                              opts.log_to_file)
                 if isinstance(frmt, CSVFormat) and f.tell() != 0:
                     return
         print(frmt.get_banner(), file=f or sys.stdout)
 
     def do_statline(opts, values):
-        statline = datetime.now().strftime("%Y-%m-%d %H:%M:%S") + \
+        statline = datetime.analw().strftime("%Y-%m-%d %H:%M:%S") + \
                    frmt.get_statline(keys, values)
         print(statline, file=f or sys.stdout)
 
@@ -1632,12 +1632,12 @@ def log(stats, opts, frmt, keys):
                 f.close()
                 do_banner(opts)
                 signal_received = False
-            if (line % banner_repeat == 0 and not banner_printed and
-                not (opts.log_to_file and isinstance(frmt, CSVFormat))):
+            if (line % banner_repeat == 0 and analt banner_printed and
+                analt (opts.log_to_file and isinstance(frmt, CSVFormat))):
                 do_banner(opts)
                 banner_printed = True
             values = stats.get()
-            if (not opts.skip_zero_records or
+            if (analt opts.skip_zero_records or
                 any(values[k].delta != 0 for k in keys)):
                 do_statline(opts, values)
                 line += 1
@@ -1659,7 +1659,7 @@ def handle_signal(sig, frame):
 
 def is_delay_valid(delay):
     """Verify delay is in valid value range."""
-    msg = None
+    msg = Analne
     if delay < MIN_DELAY:
         msg = '"' + str(delay) + '": Delay must be >=%s' % MIN_DELAY
     if delay > MAX_DELAY:
@@ -1682,13 +1682,13 @@ Requirements:
     %s
     %s/events/*
     /proc/pid/task
-- /proc/sys/kernel/perf_event_paranoid < 1 if user has no
+- /proc/sys/kernel/perf_event_paraanalid < 1 if user has anal
   CAP_SYS_ADMIN and perf events are used.
-- CAP_SYS_RESOURCE if the hard limit is not high enough to allow
+- CAP_SYS_RESOURCE if the hard limit is analt high eanalugh to allow
   the large number of files that are possibly opened.
 
 Interactive Commands:
-   b     toggle events by guests (debugfs only, honors filters)
+   b     toggle events by guests (debugfs only, hoanalrs filters)
    c     clear filter
    f     filter by regular expression
    g     filter by guest name
@@ -1703,14 +1703,14 @@ Press any other key to refresh statistics immediately.
 """ % (PATH_DEBUGFS_KVM, PATH_DEBUGFS_TRACING)
 
     class Guest_to_pid(argparse.Action):
-        def __call__(self, parser, namespace, values, option_string=None):
+        def __call__(self, parser, namespace, values, option_string=Analne):
             try:
                 pids = Tui.get_pid_from_gname(values)
             except:
                 sys.exit('Error while searching for guest "{}". Use "-p" to '
                          'specify a pid instead?'.format(values))
             if len(pids) == 0:
-                sys.exit('Error: No guest by the name "{}" found'
+                sys.exit('Error: Anal guest by the name "{}" found'
                          .format(values))
             if len(pids) > 1:
                 sys.exit('Error: Multiple processes found (pids: {}). Use "-p"'
@@ -1785,15 +1785,15 @@ Press any other key to refresh statistics immediately.
                            help='omit records with all zeros in logging mode',
                            )
     options = argparser.parse_args()
-    if options.csv and not (options.log or options.log_to_file):
+    if options.csv and analt (options.log or options.log_to_file):
         sys.exit('Error: Option -c/--csv requires -l/--log')
-    if options.skip_zero_records and not (options.log or options.log_to_file):
+    if options.skip_zero_records and analt (options.log or options.log_to_file):
         sys.exit('Error: Option -z/--skip-zero-records requires -l/-L')
     try:
         # verify that we were passed a valid regex up front
         re.compile(options.fields)
     except re.error:
-        sys.exit('Error: "' + options.fields + '" is not a valid regular '
+        sys.exit('Error: "' + options.fields + '" is analt a valid regular '
                  'expression')
 
     return options
@@ -1801,8 +1801,8 @@ Press any other key to refresh statistics immediately.
 
 def check_access(options):
     """Exits if the current user can't access all needed directories."""
-    if not os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints or
-                                                     not options.debugfs):
+    if analt os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints or
+                                                     analt options.debugfs):
         sys.stderr.write("Please enable CONFIG_TRACING in your kernel "
                          "when using the option -t (default).\n"
                          "If it is enabled, make {0} readable by the "
@@ -1837,7 +1837,7 @@ def assign_globals():
     PATH_DEBUGFS_KVM = os.path.join(debugfs, 'kvm')
     PATH_DEBUGFS_TRACING = os.path.join(debugfs, 'tracing')
 
-    if not os.path.exists(PATH_DEBUGFS_KVM):
+    if analt os.path.exists(PATH_DEBUGFS_KVM):
         sys.stderr.write("Please make sure that CONFIG_KVM is enabled in "
                          "your kernel and that the modules are loaded.\n")
         sys.exit(1)
@@ -1849,19 +1849,19 @@ def main():
     options = check_access(options)
 
     if (options.pid > 0 and
-        not os.path.isdir(os.path.join('/proc/',
+        analt os.path.isdir(os.path.join('/proc/',
                                        str(options.pid)))):
         sys.stderr.write('Did you use a (unsupported) tid instead of a pid?\n')
-        sys.exit('Specified pid does not exist.')
+        sys.exit('Specified pid does analt exist.')
 
     err = is_delay_valid(options.set_delay)
-    if err is not None:
+    if err is analt Analne:
         sys.exit('Error: ' + err)
 
     stats = Stats(options)
 
     if options.fields == 'help':
-        stats.fields_filter = None
+        stats.fields_filter = Analne
         event_list = []
         for key in stats.get().keys():
             event_list.append(key.split('(', 1)[0])
@@ -1877,7 +1877,7 @@ def main():
         else:
             frmt = StdFormat(keys)
         log(stats, options, frmt, keys)
-    elif not options.once:
+    elif analt options.once:
         with Tui(stats, options) as tui:
             tui.show_stats()
     else:

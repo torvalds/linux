@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,7 +28,7 @@
 
 #include <nvhw/class/cl507d.h>
 
-#include "nouveau_bo.h"
+#include "analuveau_bo.h"
 
 int
 core507d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
@@ -40,30 +40,30 @@ core507d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
 		return ret;
 
 	if (ntfy) {
-		PUSH_MTHD(push, NV507D, SET_NOTIFIER_CONTROL,
-			  NVDEF(NV507D, SET_NOTIFIER_CONTROL, MODE, WRITE) |
-			  NVVAL(NV507D, SET_NOTIFIER_CONTROL, OFFSET, NV50_DISP_CORE_NTFY >> 2) |
-			  NVDEF(NV507D, SET_NOTIFIER_CONTROL, NOTIFY, ENABLE));
+		PUSH_MTHD(push, NV507D, SET_ANALTIFIER_CONTROL,
+			  NVDEF(NV507D, SET_ANALTIFIER_CONTROL, MODE, WRITE) |
+			  NVVAL(NV507D, SET_ANALTIFIER_CONTROL, OFFSET, NV50_DISP_CORE_NTFY >> 2) |
+			  NVDEF(NV507D, SET_ANALTIFIER_CONTROL, ANALTIFY, ENABLE));
 	}
 
 	PUSH_MTHD(push, NV507D, UPDATE, interlock[NV50_DISP_INTERLOCK_BASE] |
 					interlock[NV50_DISP_INTERLOCK_OVLY] |
-		  NVDEF(NV507D, UPDATE, NOT_DRIVER_FRIENDLY, FALSE) |
-		  NVDEF(NV507D, UPDATE, NOT_DRIVER_UNFRIENDLY, FALSE) |
+		  NVDEF(NV507D, UPDATE, ANALT_DRIVER_FRIENDLY, FALSE) |
+		  NVDEF(NV507D, UPDATE, ANALT_DRIVER_UNFRIENDLY, FALSE) |
 		  NVDEF(NV507D, UPDATE, INHIBIT_INTERRUPTS, FALSE),
 
-				SET_NOTIFIER_CONTROL,
-		  NVDEF(NV507D, SET_NOTIFIER_CONTROL, NOTIFY, DISABLE));
+				SET_ANALTIFIER_CONTROL,
+		  NVDEF(NV507D, SET_ANALTIFIER_CONTROL, ANALTIFY, DISABLE));
 
 	return PUSH_KICK(push);
 }
 
 int
-core507d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
+core507d_ntfy_wait_done(struct analuveau_bo *bo, u32 offset,
 			struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		if (NVBO_TD32(bo, offset, NV_DISP_CORE_NOTIFIER_1, COMPLETION_0, DONE, ==, TRUE))
+		if (NVBO_TD32(bo, offset, NV_DISP_CORE_ANALTIFIER_1, COMPLETION_0, DONE, ==, TRUE))
 			break;
 		usleep_range(1, 2);
 	);
@@ -71,10 +71,10 @@ core507d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
 }
 
 void
-core507d_ntfy_init(struct nouveau_bo *bo, u32 offset)
+core507d_ntfy_init(struct analuveau_bo *bo, u32 offset)
 {
-	NVBO_WR32(bo, offset, NV_DISP_CORE_NOTIFIER_1, COMPLETION_0,
-			NVDEF(NV_DISP_CORE_NOTIFIER_1, COMPLETION_0, DONE, FALSE));
+	NVBO_WR32(bo, offset, NV_DISP_CORE_ANALTIFIER_1, COMPLETION_0,
+			NVDEF(NV_DISP_CORE_ANALTIFIER_1, COMPLETION_0, DONE, FALSE));
 }
 
 int
@@ -87,29 +87,29 @@ core507d_read_caps(struct nv50_disp *disp)
 	if (ret)
 		return ret;
 
-	PUSH_MTHD(push, NV507D, SET_NOTIFIER_CONTROL,
-		  NVDEF(NV507D, SET_NOTIFIER_CONTROL, MODE, WRITE) |
-		  NVVAL(NV507D, SET_NOTIFIER_CONTROL, OFFSET, NV50_DISP_CORE_NTFY >> 2) |
-		  NVDEF(NV507D, SET_NOTIFIER_CONTROL, NOTIFY, ENABLE));
+	PUSH_MTHD(push, NV507D, SET_ANALTIFIER_CONTROL,
+		  NVDEF(NV507D, SET_ANALTIFIER_CONTROL, MODE, WRITE) |
+		  NVVAL(NV507D, SET_ANALTIFIER_CONTROL, OFFSET, NV50_DISP_CORE_NTFY >> 2) |
+		  NVDEF(NV507D, SET_ANALTIFIER_CONTROL, ANALTIFY, ENABLE));
 
 	PUSH_MTHD(push, NV507D, GET_CAPABILITIES, 0x00000000);
 
-	PUSH_MTHD(push, NV507D, SET_NOTIFIER_CONTROL,
-		  NVDEF(NV507D, SET_NOTIFIER_CONTROL, NOTIFY, DISABLE));
+	PUSH_MTHD(push, NV507D, SET_ANALTIFIER_CONTROL,
+		  NVDEF(NV507D, SET_ANALTIFIER_CONTROL, ANALTIFY, DISABLE));
 
 	return PUSH_KICK(push);
 }
 
 int
-core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
+core507d_caps_init(struct analuveau_drm *drm, struct nv50_disp *disp)
 {
 	struct nv50_core *core = disp->core;
-	struct nouveau_bo *bo = disp->sync;
+	struct analuveau_bo *bo = disp->sync;
 	s64 time;
 	int ret;
 
-	NVBO_WR32(bo, NV50_DISP_CORE_NTFY, NV_DISP_CORE_NOTIFIER_1, CAPABILITIES_1,
-				     NVDEF(NV_DISP_CORE_NOTIFIER_1, CAPABILITIES_1, DONE, FALSE));
+	NVBO_WR32(bo, NV50_DISP_CORE_NTFY, NV_DISP_CORE_ANALTIFIER_1, CAPABILITIES_1,
+				     NVDEF(NV_DISP_CORE_ANALTIFIER_1, CAPABILITIES_1, DONE, FALSE));
 
 	ret = core507d_read_caps(disp);
 	if (ret < 0)
@@ -117,12 +117,12 @@ core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 
 	time = nvif_msec(core->chan.base.device, 2000ULL,
 			 if (NVBO_TD32(bo, NV50_DISP_CORE_NTFY,
-				       NV_DISP_CORE_NOTIFIER_1, CAPABILITIES_1, DONE, ==, TRUE))
+				       NV_DISP_CORE_ANALTIFIER_1, CAPABILITIES_1, DONE, ==, TRUE))
 				 break;
 			 usleep_range(1, 2);
 			 );
 	if (time < 0)
-		NV_ERROR(drm, "core caps notifier timeout\n");
+		NV_ERROR(drm, "core caps analtifier timeout\n");
 
 	return 0;
 }
@@ -136,7 +136,7 @@ core507d_init(struct nv50_core *core)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_MTHD(push, NV507D, SET_CONTEXT_DMA_NOTIFIER, core->chan.sync.handle);
+	PUSH_MTHD(push, NV507D, SET_CONTEXT_DMA_ANALTIFIER, core->chan.sync.handle);
 	return PUSH_KICK(push);
 }
 
@@ -154,7 +154,7 @@ core507d = {
 };
 
 int
-core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
+core507d_new_(const struct nv50_core_func *func, struct analuveau_drm *drm,
 	      s32 oclass, struct nv50_core **pcore)
 {
 	struct nvif_disp_chan_v0 args = {};
@@ -163,7 +163,7 @@ core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
 	int ret;
 
 	if (!(core = *pcore = kzalloc(sizeof(*core), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	core->func = func;
 
 	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
@@ -178,7 +178,7 @@ core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
 }
 
 int
-core507d_new(struct nouveau_drm *drm, s32 oclass, struct nv50_core **pcore)
+core507d_new(struct analuveau_drm *drm, s32 oclass, struct nv50_core **pcore)
 {
 	return core507d_new_(&core507d, drm, oclass, pcore);
 }

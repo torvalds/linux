@@ -57,17 +57,17 @@
         "ArchStdEvent": "TTBR_WRITE_RETIRED"
     },
     {
-        "PublicDescription": "This event counts all branches, taken or not. This excludes exception entries, debug entries and CCFAIL branches",
+        "PublicDescription": "This event counts all branches, taken or analt. This excludes exception entries, debug entries and CCFAIL branches",
         "ArchStdEvent": "BR_RETIRED"
     },
     {
-        "PublicDescription": "This event counts any branch counted by BR_RETIRED which is not correctly predicted and causes a pipeline flush",
+        "PublicDescription": "This event counts any branch counted by BR_RETIRED which is analt correctly predicted and causes a pipeline flush",
         "ArchStdEvent": "BR_MIS_PRED_RETIRED"
     },
     {
-        "PublicDescription": "Operation speculatively executed, NOP",
+        "PublicDescription": "Operation speculatively executed, ANALP",
         "EventCode": "0x100",
-        "EventName": "NOP_SPEC",
-        "BriefDescription": "Speculatively executed, NOP"
+        "EventName": "ANALP_SPEC",
+        "BriefDescription": "Speculatively executed, ANALP"
     }
 ]

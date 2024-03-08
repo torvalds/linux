@@ -34,7 +34,7 @@ struct ins_ops *mips__associate_ins_ops(struct arch *arch, const char *name)
 }
 
 static
-int mips__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+int mips__ananaltate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	if (!arch->initialized) {
 		arch->associate_instruction_ops = mips__associate_ins_ops;

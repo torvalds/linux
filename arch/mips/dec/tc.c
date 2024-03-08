@@ -10,7 +10,7 @@
  *	directory of this archive for more details.
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/tc.h>

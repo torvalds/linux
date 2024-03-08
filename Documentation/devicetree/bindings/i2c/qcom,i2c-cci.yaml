@@ -148,7 +148,7 @@ allOf:
           minItems: 6
         clock-names:
           items:
-            - const: camnoc_axi
+            - const: camanalc_axi
             - const: soc_ahb
             - const: slow_ahb_src
             - const: cpas_ahb
@@ -170,7 +170,7 @@ allOf:
           maxItems: 5
         clock-names:
           items:
-            - const: camnoc_axi
+            - const: camanalc_axi
             - const: slow_ahb_src
             - const: cpas_ahb
             - const: cci
@@ -193,20 +193,20 @@ examples:
         interrupts = <GIC_SPI 460 IRQ_TYPE_EDGE_RISING>;
         power-domains = <&clock_camcc TITAN_TOP_GDSC>;
 
-        clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,
+        clocks = <&clock_camcc CAM_CC_CAMANALC_AXI_CLK>,
                  <&clock_camcc CAM_CC_SOC_AHB_CLK>,
                  <&clock_camcc CAM_CC_SLOW_AHB_CLK_SRC>,
                  <&clock_camcc CAM_CC_CPAS_AHB_CLK>,
                  <&clock_camcc CAM_CC_CCI_CLK>,
                  <&clock_camcc CAM_CC_CCI_CLK_SRC>;
-        clock-names = "camnoc_axi",
+        clock-names = "camanalc_axi",
                       "soc_ahb",
                       "slow_ahb_src",
                       "cpas_ahb",
                       "cci",
                       "cci_src";
 
-        assigned-clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,
+        assigned-clocks = <&clock_camcc CAM_CC_CAMANALC_AXI_CLK>,
                           <&clock_camcc CAM_CC_CCI_CLK>;
         assigned-clock-rates = <80000000>,
                                <37500000>;

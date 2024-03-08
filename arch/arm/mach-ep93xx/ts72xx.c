@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/ts72xx.c
- * Technologic Systems TS72xx SBC support.
+ * Techanallogic Systems TS72xx SBC support.
  *
  * Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
  */
@@ -87,7 +87,7 @@ static void ts72xx_nand_hwcontrol(struct nand_chip *chip,
 		__raw_writeb(bits, addr);
 	}
 
-	if (cmd != NAND_CMD_NONE)
+	if (cmd != NAND_CMD_ANALNE)
 		__raw_writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
@@ -154,7 +154,7 @@ static void __init ts72xx_register_flash(struct mtd_partition *parts, int n,
 				  resource_size_t start)
 {
 	/*
-	 * TS7200 has NOR flash all other TS72xx board have NAND flash.
+	 * TS7200 has ANALR flash all other TS72xx board have NAND flash.
 	 */
 	if (board_is_ts7200()) {
 		ep93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_16M);
@@ -242,7 +242,7 @@ static struct mmc_spi_platform_data bk3_spi_mmc_data = {
 	.detect_delay	= 500,
 	.powerup_msecs	= 100,
 	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.caps		= MMC_CAP_NONREMOVABLE,
+	.caps		= MMC_CAP_ANALNREMOVABLE,
 	.setpower       = bk3_mmc_spi_setpower,
 };
 
@@ -261,7 +261,7 @@ static struct spi_board_info bk3_spi_board_info[] __initdata = {
 };
 
 /*
- * This is a stub -> the FGPIO[3] pin is not connected on the schematic
+ * This is a stub -> the FGPIO[3] pin is analt connected on the schematic
  * The all work is performed automatically by !SPI_FRAME (SFRM1) and
  * goes through CPLD
  */
@@ -346,7 +346,7 @@ static void __init ts72xx_init_machine(void)
 			    ARRAY_SIZE(ts72xx_spi_devices));
 }
 
-MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
+MACHINE_START(TS72XX, "Techanallogic Systems TS-72xx SBC")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
 	.atag_offset	= 0x100,
 	.nr_irqs	= NR_EP93XX_IRQS,

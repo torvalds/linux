@@ -2,7 +2,7 @@
 //
 // nau8822.c  --  NAU8822 ALSA Soc Audio driver
 //
-// Copyright 2017 Nuvoton Technology Crop.
+// Copyright 2017 Nuvoton Techanallogy Crop.
 //
 // Author: David Lin <ctlin0@nuvoton.com>
 // Co-author: John Hsu <kchsu0@nuvoton.com>
@@ -60,14 +60,14 @@ static const struct reg_default nau8822_reg_defaults[] = {
 	{ NAU8822_REG_EQ5, 0x002c },
 	{ NAU8822_REG_DAC_LIMITER_1, 0x0032 },
 	{ NAU8822_REG_DAC_LIMITER_2, 0x0000 },
-	{ NAU8822_REG_NOTCH_FILTER_1, 0x0000 },
-	{ NAU8822_REG_NOTCH_FILTER_2, 0x0000 },
-	{ NAU8822_REG_NOTCH_FILTER_3, 0x0000 },
-	{ NAU8822_REG_NOTCH_FILTER_4, 0x0000 },
+	{ NAU8822_REG_ANALTCH_FILTER_1, 0x0000 },
+	{ NAU8822_REG_ANALTCH_FILTER_2, 0x0000 },
+	{ NAU8822_REG_ANALTCH_FILTER_3, 0x0000 },
+	{ NAU8822_REG_ANALTCH_FILTER_4, 0x0000 },
 	{ NAU8822_REG_ALC_CONTROL_1, 0x0038 },
 	{ NAU8822_REG_ALC_CONTROL_2, 0x000b },
 	{ NAU8822_REG_ALC_CONTROL_3, 0x0032 },
-	{ NAU8822_REG_NOISE_GATE, 0x0010 },
+	{ NAU8822_REG_ANALISE_GATE, 0x0010 },
 	{ NAU8822_REG_PLL_N, 0x0008 },
 	{ NAU8822_REG_PLL_K1, 0x000c },
 	{ NAU8822_REG_PLL_K2, 0x0093 },
@@ -115,7 +115,7 @@ static bool nau8822_readable_reg(struct device *dev, unsigned int reg)
 	case NAU8822_REG_RIGHT_ADC_DIGITAL_VOLUME:
 	case NAU8822_REG_EQ1 ... NAU8822_REG_EQ5:
 	case NAU8822_REG_DAC_LIMITER_1 ... NAU8822_REG_DAC_LIMITER_2:
-	case NAU8822_REG_NOTCH_FILTER_1 ... NAU8822_REG_NOTCH_FILTER_4:
+	case NAU8822_REG_ANALTCH_FILTER_1 ... NAU8822_REG_ANALTCH_FILTER_4:
 	case NAU8822_REG_ALC_CONTROL_1 ...NAU8822_REG_PLL_K3:
 	case NAU8822_REG_3D_CONTROL:
 	case NAU8822_REG_RIGHT_SPEAKER_CONTROL:
@@ -139,7 +139,7 @@ static bool nau8822_writeable_reg(struct device *dev, unsigned int reg)
 	case NAU8822_REG_RIGHT_ADC_DIGITAL_VOLUME:
 	case NAU8822_REG_EQ1 ... NAU8822_REG_EQ5:
 	case NAU8822_REG_DAC_LIMITER_1 ... NAU8822_REG_DAC_LIMITER_2:
-	case NAU8822_REG_NOTCH_FILTER_1 ... NAU8822_REG_NOTCH_FILTER_4:
+	case NAU8822_REG_ANALTCH_FILTER_1 ... NAU8822_REG_ANALTCH_FILTER_4:
 	case NAU8822_REG_ALC_CONTROL_1 ...NAU8822_REG_PLL_K3:
 	case NAU8822_REG_3D_CONTROL:
 	case NAU8822_REG_RIGHT_SPEAKER_CONTROL:
@@ -222,7 +222,7 @@ static int nau8822_eq_put(struct snd_kcontrol *kcontrol,
 	data = kmemdup(ucontrol->value.bytes.data,
 		params->max, GFP_KERNEL | GFP_DMA);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	val = (u16 *)data;
 	reg = NAU8822_REG_EQ1;
@@ -264,7 +264,7 @@ static const struct soc_enum nau8822_eqmode_enum =
 		ARRAY_SIZE(nau8822_eqmode), nau8822_eqmode);
 
 static const char * const nau8822_alc1[] = {"Off", "Right", "Left", "Both"};
-static const char * const nau8822_alc3[] = {"Normal", "Limiter"};
+static const char * const nau8822_alc3[] = {"Analrmal", "Limiter"};
 
 static const struct soc_enum nau8822_alc_enable_enum =
 	SOC_ENUM_SINGLE(NAU8822_REG_ALC_CONTROL_1, NAU8822_ALCEN_SFT,
@@ -331,10 +331,10 @@ static const struct snd_kcontrol_new nau8822_snd_controls[] = {
 		NAU8822_REG_ALC_CONTROL_3, 4, 10, 0),
 	SOC_SINGLE("ALC Attack",
 		NAU8822_REG_ALC_CONTROL_3, 0, 10, 0),
-	SOC_SINGLE("ALC Noise Gate Switch",
-		NAU8822_REG_NOISE_GATE, 3, 1, 0),
-	SOC_SINGLE("ALC Noise Gate Threshold",
-		NAU8822_REG_NOISE_GATE, 0, 7, 0),
+	SOC_SINGLE("ALC Analise Gate Switch",
+		NAU8822_REG_ANALISE_GATE, 3, 1, 0),
+	SOC_SINGLE("ALC Analise Gate Threshold",
+		NAU8822_REG_ANALISE_GATE, 0, 7, 0),
 
 	SOC_DOUBLE_R("PGA ZC Switch",
 		NAU8822_REG_LEFT_INP_PGA_CONTROL,
@@ -509,7 +509,7 @@ static const struct snd_soc_dapm_widget nau8822_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("PLL",
 		NAU8822_REG_POWER_MANAGEMENT_1,	5, 0, NULL, 0),
 
-	SND_SOC_DAPM_SWITCH("Digital Loopback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Digital Loopback", SND_SOC_ANALPM, 0, 0,
 		&nau8822_loopback),
 
 	SND_SOC_DAPM_INPUT("LMICN"),
@@ -703,7 +703,7 @@ static int nau8822_config_clkdiv(struct snd_soc_dai *dai, int div, int rate)
 		/* master clock from PLL and enable PLL */
 		if (pll->mclk_scaler != div) {
 			dev_err(component->dev,
-			"master clock prescaler not meet PLL parameters\n");
+			"master clock prescaler analt meet PLL parameters\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -992,7 +992,7 @@ static const struct snd_soc_dai_ops nau8822_dai_ops = {
 	.set_fmt	= nau8822_set_dai_fmt,
 	.set_sysclk	= nau8822_set_dai_sysclk,
 	.set_pll	= nau8822_set_pll,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver nau8822_dai = {
@@ -1059,7 +1059,7 @@ static const int update_reg[] = {
 static int nau8822_probe(struct snd_soc_component *component)
 {
 	int i;
-	struct device_node *of_node = component->dev->of_node;
+	struct device_analde *of_analde = component->dev->of_analde;
 
 	/*
 	 * Set the update bit in all registers, that have one. This way all
@@ -1073,7 +1073,7 @@ static int nau8822_probe(struct snd_soc_component *component)
 	/* Check property to configure the two loudspeaker outputs as
 	 * a single Bridge Tied Load output
 	 */
-	if (of_property_read_bool(of_node, "nuvoton,spk-btl"))
+	if (of_property_read_bool(of_analde, "nuvoton,spk-btl"))
 		snd_soc_component_update_bits(component,
 					      NAU8822_REG_RIGHT_SPEAKER_CONTROL,
 					      NAU8822_RSUBBYP, NAU8822_RSUBBYP);
@@ -1121,7 +1121,7 @@ static int nau8822_i2c_probe(struct i2c_client *i2c)
 	if (!nau8822) {
 		nau8822 = devm_kzalloc(dev, sizeof(*nau8822), GFP_KERNEL);
 		if (nau8822 == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	i2c_set_clientdata(i2c, nau8822);
 

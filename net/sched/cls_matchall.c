@@ -2,7 +2,7 @@
 /*
  * net/sched/cls_matchll.c		Match-all classifier
  *
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include <linux/kernel.h>
@@ -93,7 +93,7 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 
 	cls_mall.rule =	flow_rule_alloc(tcf_exts_num_actions(&head->exts));
 	if (!cls_mall.rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = TC_CLSMATCHALL_REPLACE;
@@ -191,7 +191,7 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	err = tcf_exts_init(&new->exts, net, TCA_MATCHALL_ACT, 0);
 	if (err)
@@ -203,7 +203,7 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	new->flags = userflags;
 	new->pf = alloc_percpu(struct tc_matchall_pcnt);
 	if (!new->pf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_percpu;
 	}
 
@@ -226,7 +226,7 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	if (!tc_in_hw(new->flags))
-		new->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
+		new->flags |= TCA_CLS_FLAGS_ANALT_IN_HW;
 
 	*arg = head;
 	rcu_assign_pointer(tp->root, new);
@@ -283,7 +283,7 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 
 	cls_mall.rule =	flow_rule_alloc(tcf_exts_num_actions(&head->exts));
 	if (!cls_mall.rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = add ?
@@ -339,7 +339,7 @@ static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = head->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -412,6 +412,6 @@ static void __exit cls_mall_exit(void)
 module_init(cls_mall_init);
 module_exit(cls_mall_exit);
 
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellaanalx.com>");
 MODULE_DESCRIPTION("Match-all classifier");
 MODULE_LICENSE("GPL v2");

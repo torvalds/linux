@@ -5,7 +5,7 @@
  * I-O DATA Device, Inc. LANDISK Support
  *
  * Copyright (C) 2005-2007 kogiidena
- * Copyright (C) 2011 Nobuhiro Iwamatsu
+ * Copyright (C) 2011 Analbuhiro Iwamatsu
  *
  * Copyright (C) 2001  Ian da Silva, Jeremy Siegel
  * Based largely on io_se.c.

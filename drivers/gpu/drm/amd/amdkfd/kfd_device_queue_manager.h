@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@
 #define KFD_MES_GANG_QUANTUM		10000
 #define USE_DEFAULT_GRACE_PERIOD 0xffffffff
 
-struct device_process_node {
+struct device_process_analde {
 	struct qcm_process_device *qpd;
 	struct list_head list;
 };
@@ -110,7 +110,7 @@ union GRBM_GFX_INDEX_BITS {
  *
  * @destroy_kernel_queue: Destroys kernel queue. Used for debug queue.
  *
- * @set_cache_memory_policy: Sets memory policy (cached/ non cached) for the
+ * @set_cache_memory_policy: Sets memory policy (cached/ analn cached) for the
  * memory apertures.
  *
  * @process_termination: Clears all process queues belongs to that device.
@@ -208,7 +208,7 @@ struct device_queue_manager_asic_ops {
 				struct queue *q,
 				struct qcm_process_device *qpd);
 	struct mqd_manager *	(*mqd_manager_init)(enum KFD_MQD_TYPE type,
-				 struct kfd_node *dev);
+				 struct kfd_analde *dev);
 };
 
 /**
@@ -229,7 +229,7 @@ struct device_queue_manager {
 
 	struct mqd_manager	*mqd_mgrs[KFD_MQD_TYPE_MAX];
 	struct packet_manager	packet_mgr;
-	struct kfd_node		*dev;
+	struct kfd_analde		*dev;
 	struct mutex		lock_hidden; /* use dqm_lock/unlock(dqm) */
 	struct list_head	queues;
 	unsigned int		saved_flags;
@@ -314,18 +314,18 @@ get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 	return (pdd->lds_base >> 60) & 0x0E;
 }
 
-/* The DQM lock can be taken in MMU notifiers. Make sure no reclaim-FS
+/* The DQM lock can be taken in MMU analtifiers. Make sure anal reclaim-FS
  * happens while holding this lock anywhere to prevent deadlocks when
- * an MMU notifier runs in reclaim-FS context.
+ * an MMU analtifier runs in reclaim-FS context.
  */
 static inline void dqm_lock(struct device_queue_manager *dqm)
 {
 	mutex_lock(&dqm->lock_hidden);
-	dqm->saved_flags = memalloc_noreclaim_save();
+	dqm->saved_flags = memalloc_analreclaim_save();
 }
 static inline void dqm_unlock(struct device_queue_manager *dqm)
 {
-	memalloc_noreclaim_restore(dqm->saved_flags);
+	memalloc_analreclaim_restore(dqm->saved_flags);
 	mutex_unlock(&dqm->lock_hidden);
 }
 

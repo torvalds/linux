@@ -8,7 +8,7 @@
  */
 
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -52,7 +52,7 @@ static int hypfs_sprp_create(void **data_ptr, void **free_ptr, size_t *size)
 
 	data = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = hypfs_sprp_diag304(data, DIAG304_QUERY_PRP);
 	if (rc != 1) {
 		*data_ptr = *free_ptr = NULL;
@@ -73,7 +73,7 @@ static int __hypfs_sprp_ioctl(void __user *user_area)
 	void *data;
 	int rc;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	data = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	diag304 = kzalloc(sizeof(*diag304), GFP_KERNEL);
 	if (!data || !diag304)
@@ -123,8 +123,8 @@ static long hypfs_sprp_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case HYPFS_DIAG304:
 		return __hypfs_sprp_ioctl(argp);
-	default: /* unknown ioctl number */
-		return -ENOTTY;
+	default: /* unkanalwn ioctl number */
+		return -EANALTTY;
 	}
 	return 0;
 }

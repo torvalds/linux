@@ -13,7 +13,7 @@ description: |
   • 10-bits resolution for 16 voltage channels.
   • The device split into two individual engine and each contains 8 voltage
   channels.
-  • Channel scanning can be non-continuous.
+  • Channel scanning can be analn-continuous.
   • Programmable ADC clock frequency.
   • Programmable upper and lower threshold for each channels.
   • Interrupt when larger or less than threshold for each channels.

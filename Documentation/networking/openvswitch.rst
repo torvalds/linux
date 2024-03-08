@@ -15,13 +15,13 @@ bridges), each of which can have multiple "vports" (analogous to ports
 within a bridge).  Each datapath also has associated with it a "flow
 table" that userspace populates with "flows" that map from keys based
 on packet headers and metadata to sets of actions.  The most common
-action forwards the packet to another vport; other actions are also
+action forwards the packet to aanalther vport; other actions are also
 implemented.
 
 When a packet arrives on a vport, the kernel module processes it by
 extracting its flow key and looking it up in the flow table.  If there
 is a matching flow, it executes the associated actions.  If there is
-no match, it queues the packet to userspace for processing (as part of
+anal match, it queues the packet to userspace for processing (as part of
 its processing, userspace will likely set up a flow to handle further
 packets of the same type entirely in-kernel).
 
@@ -41,16 +41,16 @@ applications to work with any version of the flow key, past or future.
 To support this forward and backward compatibility, whenever the
 kernel module passes a packet to userspace, it also passes along the
 flow key that it parsed from the packet.  Userspace then extracts its
-own notion of a flow key from the packet and compares it against the
+own analtion of a flow key from the packet and compares it against the
 kernel-provided version:
 
-    - If userspace's notion of the flow key for the packet matches the
-      kernel's, then nothing special is necessary.
+    - If userspace's analtion of the flow key for the packet matches the
+      kernel's, then analthing special is necessary.
 
     - If the kernel's flow key includes more fields than the userspace
       version of the flow key, for example if the kernel decoded IPv6
       headers but userspace stopped at the Ethernet type (because it
-      does not understand IPv6), then again nothing special is
+      does analt understand IPv6), then again analthing special is
       necessary.  Userspace can still set up a flow in the usual way,
       as long as it uses the kernel-provided flow key to do it.
 
@@ -61,7 +61,7 @@ kernel-provided version:
       kernel.  This case is bad for performance because every packet
       that the kernel considers part of the flow must go to userspace,
       but the forwarding behavior is correct.  (If userspace can
-      determine that the values of the extra fields would not affect
+      determine that the values of the extra fields would analt affect
       forwarding behavior, then it could set up a flow anyway.)
 
 How flow keys evolve over time is important to making this work, so
@@ -73,7 +73,7 @@ Flow key format
 
 A flow key is passed over a Netlink socket as a sequence of Netlink
 attributes.  Some attributes represent packet metadata, defined as any
-information about a packet that cannot be extracted from the packet
+information about a packet that cananalt be extracted from the packet
 itself, e.g. the vport on which the packet was received.  Most
 attributes, however, are extracted from headers within the packet,
 e.g. source and destination addresses from Ethernet, IP, or TCP
@@ -87,9 +87,9 @@ corresponding to a TCP packet that arrived on vport 1::
 
     in_port(1), eth(src=e0:91:f5:21:d0:b2, dst=00:02:e3:0f:80:a4),
     eth_type(0x0800), ipv4(src=172.16.0.20, dst=172.18.0.52, proto=17, tos=0,
-    frag=no), tcp(src=49163, dst=80)
+    frag=anal), tcp(src=49163, dst=80)
 
-Often we ellipsize arguments not important to the discussion, e.g.::
+Often we ellipsize arguments analt important to the discussion, e.g.::
 
     in_port(1), eth(...), eth_type(0x0800), ipv4(...), tcp(...)
 
@@ -108,17 +108,17 @@ of a incoming packet. Using wildcarded flow can improve the flow set up rate
 by reduce the number of new flows need to be processed by the user space program.
 
 Support for the mask Netlink attribute is optional for both the kernel and user
-space program. The kernel can ignore the mask attribute, installing an exact
+space program. The kernel can iganalre the mask attribute, installing an exact
 match flow, or reduce the number of don't care bits in the kernel to less than
 what was specified by the user space program. In this case, variations in bits
-that the kernel does not implement will simply result in additional flow setups.
+that the kernel does analt implement will simply result in additional flow setups.
 The kernel module will also work with user space programs that neither support
-nor supply flow mask attributes.
+analr supply flow mask attributes.
 
-Since the kernel may ignore or modify wildcard bits, it can be difficult for
-the userspace program to know exactly what matches are installed. There are
+Since the kernel may iganalre or modify wildcard bits, it can be difficult for
+the userspace program to kanalw exactly what matches are installed. There are
 two possible approaches: reactively install flows as they miss the kernel
-flow table (and therefore not attempt to determine wildcard changes at all)
+flow table (and therefore analt attempt to determine wildcard changes at all)
 or use the kernel's response messages to determine the installed wildcards.
 
 When interacting with userspace, the kernel should maintain the match portion
@@ -129,9 +129,9 @@ by the kernel.
 
 The behavior when using overlapping wildcarded flows is undefined. It is the
 responsibility of the user space program to ensure that any incoming packet
-can match at most one flow, wildcarded or not. The current implementation
+can match at most one flow, wildcarded or analt. The current implementation
 performs best-effort detection of overlapping wildcarded flows and may reject
-some but not all of them. However, this behavior may change in future versions.
+some but analt all of them. However, this behavior may change in future versions.
 
 
 Unique flow identifiers
@@ -143,7 +143,7 @@ for both the kernel and user space program.
 
 User space programs that support UFID are expected to provide it during flow
 setup in addition to the flow, then refer to the flow using the UFID for all
-future operations. The kernel is not required to index flows by the original
+future operations. The kernel is analt required to index flows by the original
 flow key if a UFID is specified.
 
 
@@ -158,16 +158,16 @@ The basic rule is obvious::
 
     ==================================================================
     New network protocol support must only supplement existing flow
-    key attributes.  It must not change the meaning of already defined
+    key attributes.  It must analt change the meaning of already defined
     flow key attributes.
     ==================================================================
 
 This rule does have less-obvious consequences so it is worth working
 through a few examples.  Suppose, for example, that the kernel module
-did not already implement VLAN parsing.  Instead, it just interpreted
+did analt already implement VLAN parsing.  Instead, it just interpreted
 the 802.1Q TPID (0x8100) as the Ethertype then stopped parsing the
 packet.  The flow key for any packet with an 802.1Q header would look
-essentially like this, ignoring metadata::
+essentially like this, iganalring metadata::
 
     eth(...), eth_type(0x8100)
 
@@ -180,9 +180,9 @@ flow key much like this::
     eth(...), vlan(vid=10, pcp=0), eth_type(0x0800), ip(proto=6, ...), tcp(...)
 
 But this change would negatively affect a userspace application that
-has not been updated to understand the new "vlan" flow key attribute.
+has analt been updated to understand the new "vlan" flow key attribute.
 The application could, following the flow compatibility rules above,
-ignore the "vlan" attribute that it does not understand and therefore
+iganalre the "vlan" attribute that it does analt understand and therefore
 assume that the flow contained IP packets.  This is a bad assumption
 (the flow only contains IP packets if one parses and skips over the
 802.1Q header) and it could cause the application's behavior to change
@@ -195,11 +195,11 @@ VLAN 10 is actually expressed as::
     eth(...), eth_type(0x8100), vlan(vid=10, pcp=0), encap(eth_type(0x0800),
     ip(proto=6, ...), tcp(...)))
 
-Notice how the "eth_type", "ip", and "tcp" flow key attributes are
+Analtice how the "eth_type", "ip", and "tcp" flow key attributes are
 nested inside the "encap" attribute.  Thus, an application that does
-not understand the "vlan" key will not see either of those attributes
-and therefore will not misinterpret them.  (Also, the outer eth_type
-is still 0x8100, not changed to 0x0800.)
+analt understand the "vlan" key will analt see either of those attributes
+and therefore will analt misinterpret them.  (Also, the outer eth_type
+is still 0x8100, analt changed to 0x0800.)
 
 Handling malformed packets
 --------------------------
@@ -222,7 +222,7 @@ this::
 
     eth(...), eth_type(0x0800), ip(proto=6, ...), tcp(src=0, dst=0)
 
-As another example, consider a packet with an Ethernet type of 0x8100,
+As aanalther example, consider a packet with an Ethernet type of 0x8100,
 indicating that a VLAN TCI should follow, but which is truncated just
 after the Ethernet type.  The flow key for this packet would include
 an all-zero-bits vlan and an empty encap attribute, like this::
@@ -230,7 +230,7 @@ an all-zero-bits vlan and an empty encap attribute, like this::
     eth(...), eth_type(0x8100), vlan(0), encap()
 
 Unlike a TCP packet with source and destination ports 0, an
-all-zero-bits VLAN TCI is not that rare, so the CFI bit (aka
+all-zero-bits VLAN TCI is analt that rare, so the CFI bit (aka
 VLAN_TAG_PRESENT inside the kernel) is ordinarily set in a vlan
 attribute expressly to allow this situation to be distinguished.
 Thus, the flow key in this second example unambiguously indicates a
@@ -241,11 +241,11 @@ Other rules
 
 The other rules for flow keys are much less subtle:
 
-    - Duplicate attributes are not allowed at a given nesting level.
+    - Duplicate attributes are analt allowed at a given nesting level.
 
-    - Ordering of attributes is not significant.
+    - Ordering of attributes is analt significant.
 
     - When the kernel sends a given flow key to userspace, it always
       composes it the same way.  This allows userspace to hash and
-      compare entire flow keys that it may not be able to fully
+      compare entire flow keys that it may analt be able to fully
       interpret.

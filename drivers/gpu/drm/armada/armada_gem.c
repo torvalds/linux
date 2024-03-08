@@ -56,7 +56,7 @@ void armada_gem_free_object(struct drm_gem_object *obj)
 	} else if (dobj->linear) {
 		/* linear backed memory */
 		mutex_lock(&priv->linear_lock);
-		drm_mm_remove_node(dobj->linear);
+		drm_mm_remove_analde(dobj->linear);
 		mutex_unlock(&priv->linear_lock);
 		kfree(dobj->linear);
 		if (dobj->addr)
@@ -115,12 +115,12 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 	 *
 	 * The CPU virtual address may be either an address in the kernel
 	 * direct mapped region (for example, as it would be on x86) or
-	 * it may be remapped into another part of kernel memory space
+	 * it may be remapped into aanalther part of kernel memory space
 	 * (eg, as it would be on ARM.)  This means virt_to_phys() on the
 	 * returned virtual address is invalid depending on the architecture
 	 * implementation.
 	 *
-	 * The device address may also not be a physical address; it may
+	 * The device address may also analt be a physical address; it may
 	 * be that there is some kind of remapping between the device and
 	 * system RAM, which makes the use of the device address also
 	 * unsafe to re-use as a physical address.
@@ -131,35 +131,35 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 
 	/* Otherwise, grab it from our linear allocation */
 	if (!obj->page) {
-		struct drm_mm_node *node;
+		struct drm_mm_analde *analde;
 		unsigned align = min_t(unsigned, size, SZ_2M);
 		void __iomem *ptr;
 		int ret;
 
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node)
-			return -ENOSPC;
+		analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+		if (!analde)
+			return -EANALSPC;
 
 		mutex_lock(&priv->linear_lock);
-		ret = drm_mm_insert_node_generic(&priv->linear, node,
+		ret = drm_mm_insert_analde_generic(&priv->linear, analde,
 						 size, align, 0, 0);
 		mutex_unlock(&priv->linear_lock);
 		if (ret) {
-			kfree(node);
+			kfree(analde);
 			return ret;
 		}
 
-		obj->linear = node;
+		obj->linear = analde;
 
 		/* Ensure that the memory we're returning is cleared. */
 		ptr = ioremap_wc(obj->linear->start, size);
 		if (!ptr) {
 			mutex_lock(&priv->linear_lock);
-			drm_mm_remove_node(obj->linear);
+			drm_mm_remove_analde(obj->linear);
 			mutex_unlock(&priv->linear_lock);
 			kfree(obj->linear);
 			obj->linear = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		memset_io(ptr, 0, size);
@@ -253,7 +253,7 @@ int armada_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 
 	dobj = armada_gem_alloc_private_object(dev, size);
 	if (dobj == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = armada_gem_linear_back(dev, dobj);
 	if (ret)
@@ -265,7 +265,7 @@ int armada_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 
 	args->handle = handle;
 
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	DRM_DEBUG_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
  err:
 	drm_gem_object_put(&dobj->obj);
@@ -283,13 +283,13 @@ int armada_gem_create_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (args->size == 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = args->size;
 
 	dobj = armada_gem_alloc_object(dev, size);
 	if (dobj == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = drm_gem_handle_create(file, &dobj->obj, &handle);
 	if (ret)
@@ -297,7 +297,7 @@ int armada_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	args->handle = handle;
 
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	DRM_DEBUG_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
  err:
 	drm_gem_object_put(&dobj->obj);
@@ -314,7 +314,7 @@ int armada_gem_mmap_ioctl(struct drm_device *dev, void *data,
 
 	dobj = armada_gem_object_lookup(file, args->handle);
 	if (dobj == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!dobj->obj.filp) {
 		drm_gem_object_put(&dobj->obj);
@@ -356,7 +356,7 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 
 	dobj = armada_gem_object_lookup(file, args->handle);
 	if (dobj == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Must be a kernel-mapped object */
 	if (!dobj->addr)
@@ -428,7 +428,7 @@ armada_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 		if (dma_map_sgtable(attach->dev, sgt, dir, 0))
 			goto free_table;
 	} else if (dobj->linear) {
-		/* Single contiguous physical region - no struct page */
+		/* Single contiguous physical region - anal struct page */
 		if (sg_alloc_table(sgt, 1, GFP_KERNEL))
 			goto free_sgt;
 		sg_dma_address(sgt->sgl) = dobj->dev_addr;
@@ -521,7 +521,7 @@ armada_gem_prime_import(struct drm_device *dev, struct dma_buf *buf)
 	dobj = armada_gem_alloc_private_object(dev, buf->size);
 	if (!dobj) {
 		dma_buf_detach(buf, attach);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	dobj->obj.import_attach = attach;
@@ -529,7 +529,7 @@ armada_gem_prime_import(struct drm_device *dev, struct dma_buf *buf)
 
 	/*
 	 * Don't call dma_buf_map_attachment() here - it maps the
-	 * scatterlist immediately for DMA, and this is not always
+	 * scatterlist immediately for DMA, and this is analt always
 	 * an appropriate thing to do.
 	 */
 	return &dobj->obj;

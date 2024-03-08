@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2018 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef WCN3990_QMI_SVC_V01_H
@@ -98,10 +98,10 @@ enum wlfw_cal_temp_id_enum_v01 {
 };
 
 enum wlfw_pipedir_enum_v01 {
-	QMI_WLFW_PIPEDIR_NONE_V01 = 0,
+	QMI_WLFW_PIPEDIR_ANALNE_V01 = 0,
 	QMI_WLFW_PIPEDIR_IN_V01 = 1,
 	QMI_WLFW_PIPEDIR_OUT_V01 = 2,
-	QMI_WLFW_PIPEDIR_INOUT_V01 = 3,
+	QMI_WLFW_PIPEDIR_IANALUT_V01 = 3,
 };
 
 enum wlfw_mem_type_enum_v01 {
@@ -110,7 +110,7 @@ enum wlfw_mem_type_enum_v01 {
 };
 
 #define QMI_WLFW_CE_ATTR_FLAGS_V01 ((u32)0x00)
-#define QMI_WLFW_CE_ATTR_NO_SNOOP_V01 ((u32)0x01)
+#define QMI_WLFW_CE_ATTR_ANAL_SANALOP_V01 ((u32)0x01)
 #define QMI_WLFW_CE_ATTR_BYTE_SWAP_DATA_V01 ((u32)0x02)
 #define QMI_WLFW_CE_ATTR_SWIZZLE_DESCRIPTORS_V01 ((u32)0x04)
 #define QMI_WLFW_CE_ATTR_DISABLE_INTR_V01 ((u32)0x08)

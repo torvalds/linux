@@ -101,10 +101,10 @@ static ssize_t pci_dev_show_local_cpu(struct device *dev, bool list,
 	const struct cpumask *mask;
 
 #ifdef CONFIG_NUMA
-	if (dev_to_node(dev) == NUMA_NO_NODE)
+	if (dev_to_analde(dev) == NUMA_ANAL_ANALDE)
 		mask = cpu_online_mask;
 	else
-		mask = cpumask_of_node(dev_to_node(dev));
+		mask = cpumask_of_analde(dev_to_analde(dev));
 #else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 #endif
@@ -328,39 +328,39 @@ static ssize_t enable_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RW(enable);
 
 #ifdef CONFIG_NUMA
-static ssize_t numa_node_store(struct device *dev,
+static ssize_t numa_analde_store(struct device *dev,
 			       struct device_attribute *attr, const char *buf,
 			       size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	int node;
+	int analde;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (kstrtoint(buf, 0, &node) < 0)
+	if (kstrtoint(buf, 0, &analde) < 0)
 		return -EINVAL;
 
-	if ((node < 0 && node != NUMA_NO_NODE) || node >= MAX_NUMNODES)
+	if ((analde < 0 && analde != NUMA_ANAL_ANALDE) || analde >= MAX_NUMANALDES)
 		return -EINVAL;
 
-	if (node != NUMA_NO_NODE && !node_online(node))
+	if (analde != NUMA_ANAL_ANALDE && !analde_online(analde))
 		return -EINVAL;
 
 	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
-	pci_alert(pdev, FW_BUG "Overriding NUMA node to %d.  Contact your vendor for updates.",
-		  node);
+	pci_alert(pdev, FW_BUG "Overriding NUMA analde to %d.  Contact your vendor for updates.",
+		  analde);
 
-	dev->numa_node = node;
+	dev->numa_analde = analde;
 	return count;
 }
 
-static ssize_t numa_node_show(struct device *dev, struct device_attribute *attr,
+static ssize_t numa_analde_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	return sysfs_emit(buf, "%d\n", dev->numa_node);
+	return sysfs_emit(buf, "%d\n", dev->numa_analde);
 }
-static DEVICE_ATTR_RW(numa_node);
+static DEVICE_ATTR_RW(numa_analde);
 #endif
 
 static ssize_t dma_mask_bits_show(struct device *dev,
@@ -387,8 +387,8 @@ static ssize_t msi_bus_show(struct device *dev, struct device_attribute *attr,
 	struct pci_bus *subordinate = pdev->subordinate;
 
 	return sysfs_emit(buf, "%u\n", subordinate ?
-			  !(subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-			    : !pdev->no_msi);
+			  !(subordinate->bus_flags & PCI_BUS_FLAGS_ANAL_MSI)
+			    : !pdev->anal_msi);
 }
 
 static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
@@ -405,21 +405,21 @@ static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	/*
-	 * "no_msi" and "bus_flags" only affect what happens when a driver
+	 * "anal_msi" and "bus_flags" only affect what happens when a driver
 	 * requests MSI or MSI-X.  They don't affect any drivers that have
 	 * already requested MSI or MSI-X.
 	 */
 	if (!subordinate) {
-		pdev->no_msi = !val;
+		pdev->anal_msi = !val;
 		pci_info(pdev, "MSI/MSI-X %s for future drivers\n",
 			 val ? "allowed" : "disallowed");
 		return count;
 	}
 
 	if (val)
-		subordinate->bus_flags &= ~PCI_BUS_FLAGS_NO_MSI;
+		subordinate->bus_flags &= ~PCI_BUS_FLAGS_ANAL_MSI;
 	else
-		subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
+		subordinate->bus_flags |= PCI_BUS_FLAGS_ANAL_MSI;
 
 	dev_info(&subordinate->dev, "MSI/MSI-X %s for future drivers of devices on this bus\n",
 		 val ? "allowed" : "disallowed");
@@ -491,7 +491,7 @@ static ssize_t remove_store(struct device *dev, struct device_attribute *attr,
 		pci_stop_and_remove_bus_device_locked(to_pci_dev(dev));
 	return count;
 }
-static DEVICE_ATTR_IGNORE_LOCKDEP(remove, 0220, NULL,
+static DEVICE_ATTR_IGANALRE_LOCKDEP(remove, 0220, NULL,
 				  remove_store);
 
 static ssize_t bus_rescan_store(struct device *dev,
@@ -550,7 +550,7 @@ static ssize_t devspec_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct device_node *np = pci_device_to_OF_node(pdev);
+	struct device_analde *np = pci_device_to_OF_analde(pdev);
 
 	if (np == NULL)
 		return 0;
@@ -600,7 +600,7 @@ static struct attribute *pci_dev_attrs[] = {
 	&dev_attr_local_cpulist.attr,
 	&dev_attr_modalias.attr,
 #ifdef CONFIG_NUMA
-	&dev_attr_numa_node.attr,
+	&dev_attr_numa_analde.attr,
 #endif
 	&dev_attr_dma_mask_bits.attr,
 	&dev_attr_consistent_dma_mask_bits.attr,
@@ -924,7 +924,7 @@ static int pci_mmap_legacy_mem(struct file *filp, struct kobject *kobj,
  *
  * Uses an arch specific callback, pci_mmap_legacy_io_page_range, to mmap
  * legacy IO space (first meg of bus space) into application virtual
- * memory space. Returns -ENOSYS if the operation isn't supported
+ * memory space. Returns -EANALSYS if the operation isn't supported
  */
 static int pci_mmap_legacy_io(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *attr,
@@ -1008,7 +1008,7 @@ legacy_io_err:
 	kfree(b->legacy_io);
 	b->legacy_io = NULL;
 kzalloc_err:
-	dev_warn(&b->dev, "could not create legacy I/O port and ISA memory resources in sysfs\n");
+	dev_warn(&b->dev, "could analt create legacy I/O port and ISA memory resources in sysfs\n");
 }
 
 void pci_remove_legacy_files(struct pci_bus *b)
@@ -1023,19 +1023,19 @@ void pci_remove_legacy_files(struct pci_bus *b)
 
 #if defined(HAVE_PCI_MMAP) || defined(ARCH_GENERIC_PCI_MMAP_RESOURCE)
 
-int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma,
+int pci_mmap_fits(struct pci_dev *pdev, int resanal, struct vm_area_struct *vma,
 		  enum pci_mmap_api mmap_api)
 {
 	unsigned long nr, start, size;
 	resource_size_t pci_start = 0, pci_end;
 
-	if (pci_resource_len(pdev, resno) == 0)
+	if (pci_resource_len(pdev, resanal) == 0)
 		return 0;
 	nr = vma_pages(vma);
 	start = vma->vm_pgoff;
-	size = ((pci_resource_len(pdev, resno) - 1) >> PAGE_SHIFT) + 1;
+	size = ((pci_resource_len(pdev, resanal) - 1) >> PAGE_SHIFT) + 1;
 	if (mmap_api == PCI_MMAP_PROCFS) {
-		pci_resource_to_user(pdev, resno, &pdev->resource[resno],
+		pci_resource_to_user(pdev, resanal, &pdev->resource[resanal],
 				     &pci_start, &pci_end);
 		pci_start >>= PAGE_SHIFT;
 	}
@@ -1193,7 +1193,7 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 
 	res_attr = kzalloc(sizeof(*res_attr) + name_len, GFP_ATOMIC);
 	if (!res_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res_attr_name = (char *)(res_attr + 1);
 
@@ -1216,8 +1216,8 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 		res_attr->f_mapping = iomem_get_mapping;
 		/*
 		 * generic_file_llseek() consults f_mapping->host to determine
-		 * the file size. As iomem_inode knows nothing about the
-		 * attribute, it's not going to work, so override it as well.
+		 * the file size. As iomem_ianalde kanalws analthing about the
+		 * attribute, it's analt going to work, so override it as well.
 		 */
 		res_attr->llseek = pci_llseek_resource;
 	}

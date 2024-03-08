@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  *
- * derived from imx-hdmi.c(renamed to bridge/dw_hdmi.c now)
+ * derived from imx-hdmi.c(renamed to bridge/dw_hdmi.c analw)
  */
 
 #include <linux/component.h>
@@ -110,7 +110,7 @@ static const struct dw_hdmi_phy_config imx_phy_config[] = {
 static void dw_hdmi_imx_encoder_enable(struct drm_encoder *encoder)
 {
 	struct imx_hdmi *hdmi = enc_to_imx_hdmi(encoder);
-	int mux = drm_of_encoder_active_port_id(hdmi->dev->of_node, encoder);
+	int mux = drm_of_encoder_active_port_id(hdmi->dev->of_analde, encoder);
 
 	regmap_update_bits(hdmi->regmap, IOMUXC_GPR3,
 			   IMX6Q_GPR3_HDMI_MUX_CTL_MASK,
@@ -204,7 +204,7 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	hdmi_encoder->hdmi = dev_get_drvdata(dev);
 	encoder = &hdmi_encoder->encoder;
 
-	ret = imx_drm_encoder_parse_of(drm, encoder, dev->of_node);
+	ret = imx_drm_encoder_parse_of(drm, encoder, dev->of_analde);
 	if (ret)
 		return ret;
 
@@ -219,14 +219,14 @@ static const struct component_ops dw_hdmi_imx_ops = {
 
 static int dw_hdmi_imx_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match = of_match_node(dw_hdmi_imx_dt_ids, np);
+	struct device_analde *np = pdev->dev.of_analde;
+	const struct of_device_id *match = of_match_analde(dw_hdmi_imx_dt_ids, np);
 	struct imx_hdmi *hdmi;
 	int ret;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, hdmi);
 	hdmi->dev = &pdev->dev;
@@ -245,7 +245,7 @@ static int dw_hdmi_imx_probe(struct platform_device *pdev)
 	if (!hdmi->bridge) {
 		dev_err(hdmi->dev, "Unable to find bridge\n");
 		dw_hdmi_remove(hdmi->hdmi);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = component_add(&pdev->dev, &dw_hdmi_imx_ops);

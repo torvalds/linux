@@ -10,7 +10,7 @@
  *
  *  Driver for PCI IDE interfaces implementing the standard bus mastering
  *  interface functionality. This assumes the BIOS did the drive set up and
- *  tuning for us. By default we do not grab all IDE class devices as they
+ *  tuning for us. By default we do analt grab all IDE class devices as they
  *  may have other drivers or need fixups to avoid problems. Instead we keep
  *  a default list of stuff without documentation/driver that appears to
  *  work.
@@ -42,8 +42,8 @@ enum {
  *	@link: link to set up
  *	@unused: returned device on error
  *
- *	Use a non standard set_mode function. We don't want to be tuned.
- *	The BIOS configured everything. Our job is not to fiddle. We
+ *	Use a analn standard set_mode function. We don't want to be tuned.
+ *	The BIOS configured everything. Our job is analt to fiddle. We
  *	read the dma enabled bits from the PCI configuration of the device
  *	and respect them.
  */
@@ -68,7 +68,7 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 		dev->dma_mode = XFER_MW_DMA_0;
 		/* We do need the right mode information for DMA or PIO
 		   and this comes from the current configuration flags */
-		if (dma_enabled & (1 << (5 + dev->devno))) {
+		if (dma_enabled & (1 << (5 + dev->devanal))) {
 			unsigned int xfer_mask = ata_id_xfermask(dev->id);
 			const char *name;
 
@@ -101,7 +101,7 @@ static const struct scsi_host_template generic_sht = {
 
 static struct ata_port_operations generic_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_mode	= generic_set_mode,
 };
 
@@ -112,13 +112,13 @@ static int all_generic_ide;		/* Set to claim all devices */
  *	@dev: PCI device
  *
  *	Distinguish Intel IDE-R controller devices from other Intel IDE
- *	devices. IDE-R devices have no timing registers and are in
+ *	devices. IDE-R devices have anal timing registers and are in
  *	most respects virtual. They should be driven by the ata_generic
  *	driver.
  *
  *	IDE-R devices have PCI offset 0xF8.L as zero, later Intel ATA has
- *	it non zero. All Intel ATA has 0x40 writable (timing), but it is
- *	not writable on IDE-R devices (this is guaranteed).
+ *	it analn zero. All Intel ATA has 0x40 writable (timing), but it is
+ *	analt writable on IDE-R devices (this is guaranteed).
  */
 
 static int is_intel_ider(struct pci_dev *dev)
@@ -130,7 +130,7 @@ static int is_intel_ider(struct pci_dev *dev)
 
 	/* Check the manufacturing ID, it will be zero for IDE-R */
 	pci_read_config_dword(dev, 0xF8, &r);
-	/* Not IDE-R: punt so that ata_(old)piix gets it */
+	/* Analt IDE-R: punt so that ata_(old)piix gets it */
 	if (r != 0)
 		return 0;
 	/* 0xF8 will also be zero on some early Intel IDE devices
@@ -174,28 +174,28 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 
 	/* Don't use the generic entry unless instructed to do so */
 	if ((id->driver_data & ATA_GEN_CLASS_MATCH) && all_generic_ide == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((id->driver_data & ATA_GEN_INTEL_IDER) && !all_generic_ide)
 		if (!is_intel_ider(dev))
-			return -ENODEV;
+			return -EANALDEV;
 
 	/* Devices that need care */
 	if (dev->vendor == PCI_VENDOR_ID_UMC &&
 	    dev->device == PCI_DEVICE_ID_UMC_UM8886A &&
 	    (!(PCI_FUNC(dev->devfn) & 1)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->vendor == PCI_VENDOR_ID_OPTI &&
 	    dev->device == PCI_DEVICE_ID_OPTI_82C558 &&
 	    (!(PCI_FUNC(dev->devfn) & 1)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Don't re-enable devices in generic mode or we will break some
 	   motherboards with disabled and unused IDE controllers */
 	pci_read_config_word(dev, PCI_COMMAND, &command);
 	if (!(command & PCI_COMMAND_IO))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->vendor == PCI_VENDOR_ID_AL)
 		ata_pci_bmdma_clear_simplex(dev);

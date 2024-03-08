@@ -19,8 +19,8 @@
 #define MODULE_NAME "xo15-ebook"
 
 #define XO15_EBOOK_CLASS		MODULE_NAME
-#define XO15_EBOOK_TYPE_UNKNOWN	0x00
-#define XO15_EBOOK_NOTIFY_STATUS	0x80
+#define XO15_EBOOK_TYPE_UNKANALWN	0x00
+#define XO15_EBOOK_ANALTIFY_STATUS	0x80
 
 #define XO15_EBOOK_SUBCLASS		"ebook"
 #define XO15_EBOOK_HID			"XO15EBK"
@@ -56,11 +56,11 @@ static int ebook_send_state(struct acpi_device *device)
 	return 0;
 }
 
-static void ebook_switch_notify(struct acpi_device *device, u32 event)
+static void ebook_switch_analtify(struct acpi_device *device, u32 event)
 {
 	switch (event) {
 	case ACPI_FIXED_HARDWARE_EVENT:
-	case XO15_EBOOK_NOTIFY_STATUS:
+	case XO15_EBOOK_ANALTIFY_STATUS:
 		ebook_send_state(device);
 		break;
 	default:
@@ -89,13 +89,13 @@ static int ebook_switch_add(struct acpi_device *device)
 
 	button = kzalloc(sizeof(struct ebook_switch), GFP_KERNEL);
 	if (!button)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device->driver_data = button;
 
 	button->input = input = input_allocate_device();
 	if (!input) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_button;
 	}
 
@@ -105,7 +105,7 @@ static int ebook_switch_add(struct acpi_device *device)
 	id = acpi_match_acpi_device(ebook_device_ids, device);
 	if (!id) {
 		dev_err(&device->dev, "Unsupported hid\n");
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_free_input;
 	}
 
@@ -159,7 +159,7 @@ static struct acpi_driver xo15_ebook_driver = {
 	.ops = {
 		.add = ebook_switch_add,
 		.remove = ebook_switch_remove,
-		.notify = ebook_switch_notify,
+		.analtify = ebook_switch_analtify,
 	},
 	.drv.pm = &ebook_switch_pm,
 };

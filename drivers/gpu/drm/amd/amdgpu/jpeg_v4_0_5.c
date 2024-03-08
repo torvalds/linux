@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -169,7 +169,7 @@ static int jpeg_v4_0_5_hw_init(void *handle)
  *
  * @handle: amdgpu_device pointer
  *
- * Stop the JPEG block, mark ring as not ready any more
+ * Stop the JPEG block, mark ring as analt ready any more
  */
 static int jpeg_v4_0_5_hw_fini(void *handle)
 {
@@ -279,9 +279,9 @@ static int jpeg_v4_0_5_disable_static_power_gating(struct amdgpu_device *adev)
 {
 	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG) {
 		WREG32(SOC15_REG_OFFSET(JPEG, 0, regUVD_IPX_DLDO_CONFIG),
-			1 << UVD_IPX_DLDO_CONFIG__ONO1_PWR_CONFIG__SHIFT);
+			1 << UVD_IPX_DLDO_CONFIG__OANAL1_PWR_CONFIG__SHIFT);
 		SOC15_WAIT_ON_RREG(JPEG, 0, regUVD_IPX_DLDO_STATUS,
-			0, UVD_IPX_DLDO_STATUS__ONO1_PWR_STATUS_MASK);
+			0, UVD_IPX_DLDO_STATUS__OANAL1_PWR_STATUS_MASK);
 	}
 
 	/* disable anti hang mechanism */
@@ -304,10 +304,10 @@ static int jpeg_v4_0_5_enable_static_power_gating(struct amdgpu_device *adev)
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG) {
 		WREG32(SOC15_REG_OFFSET(JPEG, 0, regUVD_IPX_DLDO_CONFIG),
-			2 << UVD_IPX_DLDO_CONFIG__ONO1_PWR_CONFIG__SHIFT);
+			2 << UVD_IPX_DLDO_CONFIG__OANAL1_PWR_CONFIG__SHIFT);
 		SOC15_WAIT_ON_RREG(JPEG, 0, regUVD_IPX_DLDO_STATUS,
-			1 << UVD_IPX_DLDO_STATUS__ONO1_PWR_STATUS__SHIFT,
-			UVD_IPX_DLDO_STATUS__ONO1_PWR_STATUS_MASK);
+			1 << UVD_IPX_DLDO_STATUS__OANAL1_PWR_STATUS__SHIFT,
+			UVD_IPX_DLDO_STATUS__OANAL1_PWR_STATUS_MASK);
 	}
 
 	return 0;
@@ -576,7 +576,7 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_5_dec_ring_vm_funcs = {
 	.emit_vm_flush = jpeg_v2_0_dec_ring_emit_vm_flush,
 	.test_ring = amdgpu_jpeg_dec_ring_test_ring,
 	.test_ib = amdgpu_jpeg_dec_ring_test_ib,
-	.insert_nop = jpeg_v2_0_dec_ring_nop,
+	.insert_analp = jpeg_v2_0_dec_ring_analp,
 	.insert_start = jpeg_v2_0_dec_ring_insert_start,
 	.insert_end = jpeg_v2_0_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -606,7 +606,7 @@ static void jpeg_v4_0_5_set_irq_funcs(struct amdgpu_device *adev)
 const struct amdgpu_ip_block_version jpeg_v4_0_5_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_JPEG,
 	.major = 4,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 5,
 	.funcs = &jpeg_v4_0_5_ip_funcs,
 };

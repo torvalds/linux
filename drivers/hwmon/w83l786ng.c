@@ -8,7 +8,7 @@
  * Supports following chips:
  *
  * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * w83l786ng	3	2	2	2	0x7b	0x5ca3	yes	no
+ * w83l786ng	3	2	2	2	0x7b	0x5ca3	anal	anal
  */
 
 #include <linux/module.h>
@@ -22,13 +22,13 @@
 #include <linux/jiffies.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2e, 0x2f, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2e, 0x2f, I2C_CLIENT_END };
 
 /* Insmod parameters */
 
 static bool reset;
 module_param(reset, bool, 0);
-MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
+MODULE_PARM_DESC(reset, "Set to 1 to reset chip, analt recommended");
 
 #define W83L786NG_REG_IN_MIN(nr)	(0x2C + (nr) * 2)
 #define W83L786NG_REG_IN_MAX(nr)	(0x2B + (nr) * 2)
@@ -114,8 +114,8 @@ struct w83l786ng_data {
 	struct mutex update_lock;
 	bool valid;			/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
-	unsigned long last_nonvolatile;	/* In jiffies, last time we update the
-					 * nonvolatile registers */
+	unsigned long last_analnvolatile;	/* In jiffies, last time we update the
+					 * analnvolatile registers */
 
 	u8 in[3];
 	u8 in_max[3];
@@ -319,7 +319,7 @@ show_fan_div(struct device *dev, struct device_attribute *attr,
 }
 
 /*
- * Note: we save and restore the fan minimum here, because its value is
+ * Analte: we save and restore the fan minimum here, because its value is
  * determined in part by the fan divisor.  This follows the principle of
  * least surprise; the user doesn't expect the fan minimum to change just
  * because the divisor changed.
@@ -664,13 +664,13 @@ w83l786ng_detect(struct i2c_client *client, struct i2c_board_info *info)
 	u8 chip_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Detection */
 	if ((w83l786ng_read_value(client, W83L786NG_REG_CONFIG) & 0x80)) {
 		dev_dbg(&adapter->dev, "W83L786NG detection failed at 0x%02x\n",
 			client->addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Identification */
@@ -683,7 +683,7 @@ w83l786ng_detect(struct i2c_client *client, struct i2c_board_info *info)
 		dev_dbg(&adapter->dev,
 			"Unsupported chip (man_id=0x%04X, chip_id=0x%02X)\n",
 			man_id, chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, "w83l786ng", I2C_NAME_SIZE);
@@ -715,7 +715,7 @@ w83l786ng_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct w83l786ng_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -754,7 +754,7 @@ static struct i2c_driver w83l786ng_driver = {
 	.probe		= w83l786ng_probe,
 	.id_table	= w83l786ng_id,
 	.detect		= w83l786ng_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(w83l786ng_driver);

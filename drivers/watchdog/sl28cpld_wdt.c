@@ -28,10 +28,10 @@
 
 #define WDT_DEFAULT_TIMEOUT		10
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static int timeout;
 module_param(timeout, int, 0);
@@ -60,7 +60,7 @@ static int sl28cpld_wdt_start(struct watchdog_device *wdd)
 	val = WDT_CTRL_EN | WDT_CTRL_ASSERT_SYS_RESET;
 	if (wdt->assert_wdt_timeout)
 		val |= WDT_CTRL_ASSERT_WDT_TIMEOUT;
-	if (nowayout)
+	if (analwayout)
 		val |= WDT_CTRL_LOCK;
 
 	return regmap_update_bits(wdt->regmap, wdt->offset + WDT_CTRL,
@@ -126,15 +126,15 @@ static int sl28cpld_wdt_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!pdev->dev.parent)
-		return -ENODEV;
+		return -EANALDEV;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!wdt->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = device_property_read_u32(&pdev->dev, "reg", &wdt->offset);
 	if (ret)
@@ -183,10 +183,10 @@ static int sl28cpld_wdt_probe(struct platform_device *pdev)
 	watchdog_init_timeout(wdd, timeout, &pdev->dev);
 	sl28cpld_wdt_set_timeout(wdd, wdd->timeout);
 
-	/* if the watchdog is locked, we set nowayout */
+	/* if the watchdog is locked, we set analwayout */
 	if (status & WDT_CTRL_LOCK)
-		nowayout = true;
-	watchdog_set_nowayout(wdd, nowayout);
+		analwayout = true;
+	watchdog_set_analwayout(wdd, analwayout);
 
 	/*
 	 * If watchdog is already running, keep it enabled, but make
@@ -204,7 +204,7 @@ static int sl28cpld_wdt_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "initial timeout %d sec%s\n",
-		 wdd->timeout, nowayout ? ", nowayout" : "");
+		 wdd->timeout, analwayout ? ", analwayout" : "");
 
 	return 0;
 }

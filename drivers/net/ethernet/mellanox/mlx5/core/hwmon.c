@@ -88,7 +88,7 @@ static int mlx5_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32
 	int err;
 
 	if (type != hwmon_temp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = mlx5_hwmon_query_mtmp(hwmon->mdev, hwmon->temp_channel_desc[channel].sensor_index,
 				    mtmp_out);
@@ -106,7 +106,7 @@ static int mlx5_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32
 		*val = mtmp_temp_to_mdeg(MLX5_GET(mtmp_reg, mtmp_out, temp_threshold_hi));
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -116,7 +116,7 @@ static int mlx5_hwmon_write(struct device *dev, enum hwmon_sensor_types type, u3
 	struct mlx5_hwmon *hwmon = dev_get_drvdata(dev);
 
 	if (type != hwmon_temp || attr != hwmon_temp_reset_history)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mlx5_hwmon_reset_max_temp(hwmon->mdev,
 				hwmon->temp_channel_desc[channel].sensor_index);
@@ -147,7 +147,7 @@ static int mlx5_hwmon_read_string(struct device *dev, enum hwmon_sensor_types ty
 	struct mlx5_hwmon *hwmon = dev_get_drvdata(dev);
 
 	if (type != hwmon_temp || attr != hwmon_temp_label)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*str = (const char *)hwmon->temp_channel_desc[channel].sensor_name;
 	return 0;
@@ -300,13 +300,13 @@ static struct mlx5_hwmon *mlx5_hwmon_alloc(struct mlx5_core_dev *mdev)
 
 	hwmon = kzalloc(sizeof(*mdev->hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = mlx5_hwmon_get_sensors_count(mdev, &hwmon->asic_platform_scount);
 	if (err)
 		goto err_free_hwmon;
 
-	/* check if module sensor has thermal mon cap. if yes, allocate channel desc for it */
+	/* check if module sensor has thermal mon cap. if anal, allocate channel desc for it */
 	err = mlx5_hwmon_is_module_mon_cap(mdev, &mon_cap);
 	if (err)
 		goto err_free_hwmon;
@@ -316,7 +316,7 @@ static struct mlx5_hwmon *mlx5_hwmon_alloc(struct mlx5_core_dev *mdev)
 	hwmon->temp_channel_desc = kcalloc(sensors_count, sizeof(*hwmon->temp_channel_desc),
 					   GFP_KERNEL);
 	if (!hwmon->temp_channel_desc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_hwmon;
 	}
 
@@ -324,7 +324,7 @@ static struct mlx5_hwmon *mlx5_hwmon_alloc(struct mlx5_core_dev *mdev)
 	hwmon->temp_channel_config = kcalloc(sensors_count + 1, sizeof(*hwmon->temp_channel_config),
 					     GFP_KERNEL);
 	if (!hwmon->temp_channel_config) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_temp_channel_desc;
 	}
 

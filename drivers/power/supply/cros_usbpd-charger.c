@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
-#include <linux/platform_data/cros_usbpd_notify.h>
+#include <linux/platform_data/cros_usbpd_analtify.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
@@ -36,7 +36,7 @@ struct port_data {
 	int psy_status;
 	int psy_current_max;
 	int psy_voltage_max_design;
-	int psy_voltage_now;
+	int psy_voltage_analw;
 	int psy_power_max;
 	struct charger_data *charger;
 	unsigned long last_update;
@@ -50,7 +50,7 @@ struct charger_data {
 	int num_usbpd_ports;
 	int num_registered_psy;
 	struct port_data *ports[EC_USB_PD_MAX_PORTS];
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 };
 
 static enum power_supply_property cros_usbpd_charger_props[] = {
@@ -60,7 +60,7 @@ static enum power_supply_property cros_usbpd_charger_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_USB_TYPE
@@ -69,11 +69,11 @@ static enum power_supply_property cros_usbpd_charger_props[] = {
 static enum power_supply_property cros_usbpd_dedicated_charger_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 static enum power_supply_usb_type cros_usbpd_charger_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
 	POWER_SUPPLY_USB_TYPE_CDP,
@@ -83,9 +83,9 @@ static enum power_supply_usb_type cros_usbpd_charger_usb_types[] = {
 	POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID
 };
 
-/* Input voltage/current limit in mV/mA. Default to none. */
-static u16 input_voltage_limit = EC_POWER_LIMIT_NONE;
-static u16 input_current_limit = EC_POWER_LIMIT_NONE;
+/* Input voltage/current limit in mV/mA. Default to analne. */
+static u16 input_voltage_limit = EC_POWER_LIMIT_ANALNE;
+static u16 input_current_limit = EC_POWER_LIMIT_ANALNE;
 
 static bool cros_usbpd_charger_port_is_dedicated(struct port_data *port)
 {
@@ -106,7 +106,7 @@ static int cros_usbpd_charger_ec_command(struct charger_data *charger,
 
 	msg = kzalloc(struct_size(msg, data, max(outsize, insize)), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->version = version;
 	msg->command = ec_dev->cmd_offset + command;
@@ -204,28 +204,28 @@ static int cros_usbpd_charger_get_power_info(struct port_data *port)
 
 	switch (resp.role) {
 	case USB_PD_PORT_POWER_DISCONNECTED:
-		port->psy_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		port->psy_status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		port->psy_online = 0;
 		break;
 	case USB_PD_PORT_POWER_SOURCE:
-		port->psy_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		port->psy_status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		port->psy_online = 0;
 		break;
 	case USB_PD_PORT_POWER_SINK:
 		port->psy_status = POWER_SUPPLY_STATUS_CHARGING;
 		port->psy_online = 1;
 		break;
-	case USB_PD_PORT_POWER_SINK_NOT_CHARGING:
-		port->psy_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+	case USB_PD_PORT_POWER_SINK_ANALT_CHARGING:
+		port->psy_status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		port->psy_online = 1;
 		break;
 	default:
-		dev_err(dev, "Unknown role %d\n", resp.role);
+		dev_err(dev, "Unkanalwn role %d\n", resp.role);
 		break;
 	}
 
 	port->psy_voltage_max_design = resp.meas.voltage_max;
-	port->psy_voltage_now = resp.meas.voltage_now;
+	port->psy_voltage_analw = resp.meas.voltage_analw;
 	port->psy_current_max = resp.meas.current_max;
 	port->psy_power_max = resp.max_power;
 
@@ -234,10 +234,10 @@ static int cros_usbpd_charger_get_power_info(struct port_data *port)
 	case USB_CHG_TYPE_VBUS:
 		port->psy_usb_type = POWER_SUPPLY_USB_TYPE_SDP;
 		break;
-	case USB_CHG_TYPE_NONE:
+	case USB_CHG_TYPE_ANALNE:
 		/*
 		 * For dual-role devices when we are a source, the firmware
-		 * reports the type as NONE. Report such chargers as type
+		 * reports the type as ANALNE. Report such chargers as type
 		 * USB_PD_DRP.
 		 */
 		if (resp.role == USB_PD_PORT_POWER_SOURCE && resp.dualrole)
@@ -264,14 +264,14 @@ static int cros_usbpd_charger_get_power_info(struct port_data *port)
 		else
 			port->psy_usb_type = POWER_SUPPLY_USB_TYPE_PD;
 		break;
-	case USB_CHG_TYPE_UNKNOWN:
+	case USB_CHG_TYPE_UNKANALWN:
 		/*
 		 * While the EC is trying to determine the type of charger that
 		 * has been plugged in, it will report the charger type as
-		 * unknown. Additionally since the power capabilities are
-		 * unknown, report the max current and voltage as zero.
+		 * unkanalwn. Additionally since the power capabilities are
+		 * unkanalwn, report the max current and voltage as zero.
 		 */
-		port->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		port->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 		port->psy_voltage_max_design = 0;
 		port->psy_current_max = 0;
 		break;
@@ -286,9 +286,9 @@ static int cros_usbpd_charger_get_power_info(struct port_data *port)
 		port->psy_desc.type = POWER_SUPPLY_TYPE_USB;
 
 	dev_dbg(dev,
-		"Port %d: type=%d vmax=%d vnow=%d cmax=%d clim=%d pmax=%d\n",
+		"Port %d: type=%d vmax=%d vanalw=%d cmax=%d clim=%d pmax=%d\n",
 		port->port_number, resp.type, resp.meas.voltage_max,
-		resp.meas.voltage_now, resp.meas.current_max,
+		resp.meas.voltage_analw, resp.meas.current_max,
 		resp.meas.current_lim, resp.max_power);
 
 	/*
@@ -378,15 +378,15 @@ static int cros_usbpd_charger_get_prop(struct power_supply *psy,
 		 * other properties are read.
 		 *
 		 * Allow an ec_port_status refresh for online property check
-		 * if we're not already online to check for plug events if
-		 * not mkbp_event_supported.
+		 * if we're analt already online to check for plug events if
+		 * analt mkbp_event_supported.
 		 */
 		if (ec_device->mkbp_event_supported || port->psy_online)
 			break;
 		fallthrough;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = cros_usbpd_charger_get_port_status(port, true);
 		if (ret < 0) {
 			dev_err(dev, "Failed to get port status (err:0x%x)\n",
@@ -411,20 +411,20 @@ static int cros_usbpd_charger_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
 		val->intval = port->psy_voltage_max_design * 1000;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = port->psy_voltage_now * 1000;
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		val->intval = port->psy_voltage_analw * 1000;
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		val->intval = port->psy_usb_type;
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
-		if (input_current_limit == EC_POWER_LIMIT_NONE)
+		if (input_current_limit == EC_POWER_LIMIT_ANALNE)
 			val->intval = -1;
 		else
 			val->intval = input_current_limit * 1000;
 		break;
 	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
-		if (input_voltage_limit == EC_POWER_LIMIT_NONE)
+		if (input_voltage_limit == EC_POWER_LIMIT_ANALNE)
 			val->intval = -1;
 		else
 			val->intval = input_voltage_limit * 1000;
@@ -457,7 +457,7 @@ static int cros_usbpd_charger_set_prop(struct power_supply *psy,
 		return -EINVAL;
 	/* A negative number is used to clear the limit */
 	if (val->intval < 0)
-		intval = EC_POWER_LIMIT_NONE;
+		intval = EC_POWER_LIMIT_ANALNE;
 	else	/* Convert from uA/uV to mA/mV */
 		intval = val->intval / 1000;
 
@@ -469,7 +469,7 @@ static int cros_usbpd_charger_set_prop(struct power_supply *psy,
 			break;
 
 		input_current_limit = intval;
-		if (input_current_limit == EC_POWER_LIMIT_NONE)
+		if (input_current_limit == EC_POWER_LIMIT_ANALNE)
 			dev_info(dev,
 			  "External Current Limit cleared for all ports\n");
 		else
@@ -485,7 +485,7 @@ static int cros_usbpd_charger_set_prop(struct power_supply *psy,
 			break;
 
 		input_voltage_limit = intval;
-		if (input_voltage_limit == EC_POWER_LIMIT_NONE)
+		if (input_voltage_limit == EC_POWER_LIMIT_ANALNE)
 			dev_info(dev,
 			  "External Voltage Limit cleared for all ports\n");
 		else
@@ -517,22 +517,22 @@ static int cros_usbpd_charger_property_is_writeable(struct power_supply *psy,
 	return ret;
 }
 
-static int cros_usbpd_charger_ec_event(struct notifier_block *nb,
+static int cros_usbpd_charger_ec_event(struct analtifier_block *nb,
 				       unsigned long host_event,
-				       void *_notify)
+				       void *_analtify)
 {
 	struct charger_data *charger = container_of(nb, struct charger_data,
-						    notifier);
+						    analtifier);
 
 	cros_usbpd_charger_power_changed(charger->ports[0]->psy);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static void cros_usbpd_charger_unregister_notifier(void *data)
+static void cros_usbpd_charger_unregister_analtifier(void *data)
 {
 	struct charger_data *charger = data;
 
-	cros_usbpd_unregister_notify(&charger->notifier);
+	cros_usbpd_unregister_analtify(&charger->analtifier);
 }
 
 static int cros_usbpd_charger_probe(struct platform_device *pd)
@@ -550,7 +550,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	charger = devm_kzalloc(dev, sizeof(struct charger_data),
 			       GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	charger->dev = dev;
 	charger->ec_dev = ec_dev;
@@ -559,7 +559,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	platform_set_drvdata(pd, charger);
 
 	/*
-	 * We need to know the number of USB PD ports in order to know whether
+	 * We need to kanalw the number of USB PD ports in order to kanalw whether
 	 * there is a dedicated port. The dedicated port will always be
 	 * after the USB PD ports, and there should be only one.
 	 */
@@ -568,21 +568,21 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	if (charger->num_usbpd_ports <= 0) {
 		/*
 		 * This can happen on a system that doesn't support USB PD.
-		 * Log a message, but no need to warn.
+		 * Log a message, but anal need to warn.
 		 */
-		dev_info(dev, "No USB PD charging ports found\n");
+		dev_info(dev, "Anal USB PD charging ports found\n");
 	}
 
 	charger->num_charger_ports = cros_usbpd_charger_get_num_ports(charger);
 	if (charger->num_charger_ports < 0) {
 		/*
 		 * This can happen on a system that doesn't support USB PD.
-		 * Log a message, but no need to warn.
-		 * Older ECs do not support the above command, in that case
+		 * Log a message, but anal need to warn.
+		 * Older ECs do analt support the above command, in that case
 		 * let's set up the number of charger ports equal to the number
 		 * of USB PD ports
 		 */
-		dev_info(dev, "Could not get charger port count\n");
+		dev_info(dev, "Could analt get charger port count\n");
 		charger->num_charger_ports = charger->num_usbpd_ports;
 	}
 
@@ -590,11 +590,11 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 		/*
 		 * This can happen on a system that doesn't support USB PD and
 		 * doesn't have a dedicated port.
-		 * Log a message, but no need to warn.
+		 * Log a message, but anal need to warn.
 		 */
-		dev_info(dev, "No charging ports found\n");
-		ret = -ENODEV;
-		goto fail_nowarn;
+		dev_info(dev, "Anal charging ports found\n");
+		ret = -EANALDEV;
+		goto fail_analwarn;
 	}
 
 	/*
@@ -605,7 +605,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	    charger->num_charger_ports > (charger->num_usbpd_ports + 1)) {
 		dev_err(dev, "Unexpected number of charge port count\n");
 		ret = -EPROTO;
-		goto fail_nowarn;
+		goto fail_analwarn;
 	}
 
 	for (i = 0; i < charger->num_charger_ports; i++) {
@@ -613,7 +613,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 
 		port = devm_kzalloc(dev, sizeof(struct port_data), GFP_KERNEL);
 		if (!port) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
@@ -649,7 +649,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 
 		psy_desc->name = port->name;
 
-		psy = devm_power_supply_register_no_ws(dev, psy_desc,
+		psy = devm_power_supply_register_anal_ws(dev, psy_desc,
 						       &psy_cfg);
 		if (IS_ERR(psy)) {
 			dev_err(dev, "Failed to register power supply\n");
@@ -661,19 +661,19 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	}
 
 	if (!charger->num_registered_psy) {
-		ret = -ENODEV;
-		dev_err(dev, "No power supplies registered\n");
+		ret = -EANALDEV;
+		dev_err(dev, "Anal power supplies registered\n");
 		goto fail;
 	}
 
 	/* Get PD events from the EC */
-	charger->notifier.notifier_call = cros_usbpd_charger_ec_event;
-	ret = cros_usbpd_register_notify(&charger->notifier);
+	charger->analtifier.analtifier_call = cros_usbpd_charger_ec_event;
+	ret = cros_usbpd_register_analtify(&charger->analtifier);
 	if (ret < 0) {
-		dev_warn(dev, "failed to register notifier\n");
+		dev_warn(dev, "failed to register analtifier\n");
 	} else {
 		ret = devm_add_action_or_reset(dev,
-				cros_usbpd_charger_unregister_notifier,
+				cros_usbpd_charger_unregister_analtifier,
 				charger);
 		if (ret < 0)
 			goto fail;
@@ -684,7 +684,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 fail:
 	WARN(1, "%s: Failing probe (err:0x%x)\n", dev_name(dev), ret);
 
-fail_nowarn:
+fail_analwarn:
 	dev_info(dev, "Failing probe (err:0x%x)\n", ret);
 	return ret;
 }

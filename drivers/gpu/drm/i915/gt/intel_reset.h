@@ -47,8 +47,8 @@ bool intel_gt_unset_wedged(struct intel_gt *gt);
 int intel_gt_terminally_wedged(struct intel_gt *gt);
 
 /*
- * There's no unset_wedged_on_init paired with this one.
- * Once we're wedged on init, there's no going back.
+ * There's anal unset_wedged_on_init paired with this one.
+ * Once we're wedged on init, there's anal going back.
  * Same thing for unset_wedged_on_fini.
  */
 void intel_gt_set_wedged_on_init(struct intel_gt *gt);

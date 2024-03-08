@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -116,7 +116,7 @@ void print_usage(void)
 		"Hammer GPIO lines, 0->1->0->1...\n"
 		"  -n <name>  Hammer GPIOs on a named device (must be stated)\n"
 		"  -o <n>     Offset[s] to hammer, at least one, several can be stated\n"
-		" [-c <n>]    Do <n> loops (optional, infinite loop if not stated)\n"
+		" [-c <n>]    Do <n> loops (optional, infinite loop if analt stated)\n"
 		"  -?         This helptext\n"
 		"\n"
 		"Example:\n"
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 			break;
 		case 'o':
 			/*
-			 * Avoid overflow. Do not immediately error, we want to
+			 * Avoid overflow. Do analt immediately error, we want to
 			 * be able to accurately report on the amount of times
 			 * '-o' was given to give an accurate error message
 			 */

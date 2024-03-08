@@ -116,7 +116,7 @@ static int tmu_get_temp(struct thermal_zone_device *tz, int *temp)
 				     val & TRITSR_V,
 				     USEC_PER_MSEC,
 				     10 * USEC_PER_MSEC))
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (qdata->ver == TMU_VER1) {
 		*temp = (val & GENMASK(7, 0)) * MILLIDEGREE_PER_DEGREE;
@@ -152,7 +152,7 @@ static int qoriq_tmu_register_tmu_zone(struct device *dev,
 						    &tmu_tz_ops);
 		ret = PTR_ERR_OR_ZERO(tzd);
 		if (ret) {
-			if (ret == -ENODEV)
+			if (ret == -EANALDEV)
 				continue;
 
 			return ret;
@@ -184,7 +184,7 @@ static int qoriq_tmu_calibration(struct device *dev,
 	int i, val, len;
 	u32 range[4];
 	const u32 *calibration;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	len = of_property_count_u32_elems(np, "fsl,tmu-range");
 	if (len < 0 || len > 4) {
@@ -205,7 +205,7 @@ static int qoriq_tmu_calibration(struct device *dev,
 	calibration = of_get_property(np, "fsl,tmu-calibration", &len);
 	if (calibration == NULL || len % 8) {
 		dev_err(dev, "invalid calibration data.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < len; i += 8, calibration += 2) {
@@ -236,7 +236,7 @@ static void qoriq_tmu_init_device(struct qoriq_tmu_data *data)
 	regmap_write(data->regmap, REGS_TMR, TMR_DISABLE);
 }
 
-static const struct regmap_range qoriq_yes_ranges[] = {
+static const struct regmap_range qoriq_anal_ranges[] = {
 	regmap_reg_range(REGS_TMR, REGS_TSCFGR),
 	regmap_reg_range(REGS_TTRnCR(0), REGS_TTRnCR(15)),
 	regmap_reg_range(REGS_V2_TEUMR(0), REGS_V2_TEUMR(2)),
@@ -247,13 +247,13 @@ static const struct regmap_range qoriq_yes_ranges[] = {
 };
 
 static const struct regmap_access_table qoriq_wr_table = {
-	.yes_ranges	= qoriq_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(qoriq_yes_ranges) - 1,
+	.anal_ranges	= qoriq_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(qoriq_anal_ranges) - 1,
 };
 
 static const struct regmap_access_table qoriq_rd_table = {
-	.yes_ranges	= qoriq_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(qoriq_yes_ranges),
+	.anal_ranges	= qoriq_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(qoriq_anal_ranges),
 };
 
 static void qoriq_tmu_action(void *p)
@@ -269,7 +269,7 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 	int ret;
 	u32 ver;
 	struct qoriq_tmu_data *data;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	const bool little_endian = of_property_read_bool(np, "little-endian");
 	const enum regmap_endian format_endian =
@@ -288,7 +288,7 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 	data = devm_kzalloc(dev, sizeof(struct qoriq_tmu_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	ret = PTR_ERR_OR_ZERO(base);

@@ -6,7 +6,7 @@ ISO7816 Serial Communications
 ===============
 
   ISO/IEC7816 is a series of standards specifying integrated circuit cards (ICC)
-  also known as smart cards.
+  also kanalwn as smart cards.
 
 2. Hardware-related considerations
 ==================================
@@ -46,7 +46,7 @@ ISO7816 Serial Communications
 	/* Open your specific device (e.g., /dev/mydevice): */
 	int fd = open ("/dev/mydevice", O_RDWR);
 	if (fd < 0) {
-		/* Error handling. See errno. */
+		/* Error handling. See erranal. */
 	}
 
 	struct serial_iso7816 iso7816conf;
@@ -74,14 +74,14 @@ ISO7816 Serial Communications
 	iso7816conf.sc_di = 1;
 
 	if (ioctl(fd_usart, TIOCSISO7816, &iso7816conf) < 0) {
-		/* Error handling. See errno. */
+		/* Error handling. See erranal. */
 	}
 
 	/* Use read() and write() syscalls here... */
 
 	/* Close the device when finished: */
 	if (close (fd) < 0) {
-		/* Error handling. See errno. */
+		/* Error handling. See erranal. */
 	}
 
 5. References

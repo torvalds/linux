@@ -20,7 +20,7 @@
 #include <linux/sysfs.h>
 
 struct i2c_demux_pinctrl_chan {
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 	struct i2c_adapter *parent_adap;
 	struct of_changeset chgset;
 };
@@ -61,22 +61,22 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	if (ret)
 		goto err;
 
-	adap = of_get_i2c_adapter_by_node(priv->chan[new_chan].parent_np);
+	adap = of_get_i2c_adapter_by_analde(priv->chan[new_chan].parent_np);
 	if (!adap) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_with_revert;
 	}
 
 	/*
-	 * Check if there are pinctrl states at all. Note: we cant' use
+	 * Check if there are pinctrl states at all. Analte: we cant' use
 	 * devm_pinctrl_get_select() because we need to distinguish between
-	 * the -ENODEV from devm_pinctrl_get() and pinctrl_lookup_state().
+	 * the -EANALDEV from devm_pinctrl_get() and pinctrl_lookup_state().
 	 */
 	p = devm_pinctrl_get(adap->dev.parent);
 	if (IS_ERR(p)) {
 		ret = PTR_ERR(p);
-		/* continue if just no pinctrl states (e.g. i2c-gpio), otherwise exit */
-		if (ret != -ENODEV)
+		/* continue if just anal pinctrl states (e.g. i2c-gpio), otherwise exit */
+		if (ret != -EANALDEV)
 			goto err_with_put;
 	} else {
 		/* there are states. check and use them */
@@ -94,7 +94,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	priv->chan[new_chan].parent_adap = adap;
 	priv->cur_chan = new_chan;
 
-	/* Now fill out current adapter structure. cur_chan must be up to date */
+	/* Analw fill out current adapter structure. cur_chan must be up to date */
 	priv->algo.master_xfer = i2c_demux_master_xfer;
 	if (adap->algo->master_xfer_atomic)
 		priv->algo.master_xfer_atomic = i2c_demux_master_xfer;
@@ -110,7 +110,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	priv->cur_adap.retries = adap->retries;
 	priv->cur_adap.timeout = adap->timeout;
 	priv->cur_adap.quirks = adap->quirks;
-	priv->cur_adap.dev.of_node = priv->dev->of_node;
+	priv->cur_adap.dev.of_analde = priv->dev->of_analde;
 	ret = i2c_add_adapter(&priv->cur_adap);
 	if (ret < 0)
 		goto err_with_put;
@@ -207,7 +207,7 @@ static DEVICE_ATTR_RW(current_master);
 
 static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct i2c_demux_pinctrl_priv *priv;
 	struct property *props;
 	int num_chan, i, j, err;
@@ -224,7 +224,7 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 	props = devm_kcalloc(&pdev->dev, num_chan, sizeof(*props), GFP_KERNEL);
 
 	if (!priv || !props)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->num_chan = num_chan;
 
@@ -233,12 +233,12 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 		return err;
 
 	for (i = 0; i < num_chan; i++) {
-		struct device_node *adap_np;
+		struct device_analde *adap_np;
 
 		adap_np = of_parse_phandle(np, "i2c-parent", i);
 		if (!adap_np) {
 			dev_err(&pdev->dev, "can't get phandle for parent %d\n", i);
-			err = -ENOENT;
+			err = -EANALENT;
 			goto err_rollback;
 		}
 		priv->chan[i].parent_np = adap_np;
@@ -246,7 +246,7 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 		props[i].name = devm_kstrdup(&pdev->dev, "status", GFP_KERNEL);
 		props[i].value = devm_kstrdup(&pdev->dev, "ok", GFP_KERNEL);
 		if (!props[i].name || !props[i].value) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_rollback;
 		}
 		props[i].length = 3;
@@ -258,7 +258,7 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 	platform_set_drvdata(pdev, priv);
 
-	pm_runtime_no_callbacks(&pdev->dev);
+	pm_runtime_anal_callbacks(&pdev->dev);
 
 	/* switch to first parent as active master */
 	i2c_demux_activate_master(priv, 0);
@@ -279,7 +279,7 @@ err_rollback_activation:
 	i2c_demux_deactivate_master(priv);
 err_rollback:
 	for (j = 0; j < i; j++) {
-		of_node_put(priv->chan[j].parent_np);
+		of_analde_put(priv->chan[j].parent_np);
 		of_changeset_destroy(&priv->chan[j].chgset);
 	}
 
@@ -297,7 +297,7 @@ static void i2c_demux_pinctrl_remove(struct platform_device *pdev)
 	i2c_demux_deactivate_master(priv);
 
 	for (i = 0; i < priv->num_chan; i++) {
-		of_node_put(priv->chan[i].parent_np);
+		of_analde_put(priv->chan[i].parent_np);
 		of_changeset_destroy(&priv->chan[i].chgset);
 	}
 }

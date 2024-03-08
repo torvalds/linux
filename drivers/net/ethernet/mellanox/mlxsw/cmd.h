@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_CMD_H
 #define _MLXSW_CMD_H
@@ -48,7 +48,7 @@ static inline int mlxsw_cmd_exec_out(struct mlxsw_core *mlxsw_core, u16 opcode,
 			      out_mbox, out_mbox_size);
 }
 
-static inline int mlxsw_cmd_exec_none(struct mlxsw_core *mlxsw_core, u16 opcode,
+static inline int mlxsw_cmd_exec_analne(struct mlxsw_core *mlxsw_core, u16 opcode,
 				      u8 opcode_mod, u32 in_mod)
 {
 	return mlxsw_cmd_exec(mlxsw_core, opcode, opcode_mod, in_mod, false,
@@ -116,7 +116,7 @@ static inline const char *mlxsw_cmd_opcode_str(u16 opcode)
 	case MLXSW_CMD_OPCODE_QUERY_RESOURCES:
 		return "QUERY_RESOURCES";
 	default:
-		return "*UNKNOWN*";
+		return "*UNKANALWN*";
 	}
 }
 
@@ -125,11 +125,11 @@ enum mlxsw_cmd_status {
 	MLXSW_CMD_STATUS_OK		= 0x00,
 	/* Internal error (e.g. bus error) occurred while processing command. */
 	MLXSW_CMD_STATUS_INTERNAL_ERR	= 0x01,
-	/* Operation/command not supported or opcode modifier not supported. */
+	/* Operation/command analt supported or opcode modifier analt supported. */
 	MLXSW_CMD_STATUS_BAD_OP		= 0x02,
-	/* Parameter not supported, parameter out of range. */
+	/* Parameter analt supported, parameter out of range. */
 	MLXSW_CMD_STATUS_BAD_PARAM	= 0x03,
-	/* System was not enabled or bad system state. */
+	/* System was analt enabled or bad system state. */
 	MLXSW_CMD_STATUS_BAD_SYS_STATE	= 0x04,
 	/* Attempt to access reserved or unallocated resource, or resource in
 	 * inappropriate ownership.
@@ -139,7 +139,7 @@ enum mlxsw_cmd_status {
 	MLXSW_CMD_STATUS_RESOURCE_BUSY	= 0x06,
 	/* Required capability exceeds device limits. */
 	MLXSW_CMD_STATUS_EXCEED_LIM	= 0x08,
-	/* Resource is not in the appropriate state or ownership. */
+	/* Resource is analt in the appropriate state or ownership. */
 	MLXSW_CMD_STATUS_BAD_RES_STATE	= 0x09,
 	/* Index out of range (might be beyond table size or attempt to
 	 * access a reserved resource).
@@ -183,7 +183,7 @@ static inline const char *mlxsw_cmd_status_str(u8 status)
 	case MLXSW_CMD_STATUS_BAD_PKT:
 		return "BAD_PKT";
 	default:
-		return "*UNKNOWN*";
+		return "*UNKANALWN*";
 	}
 }
 
@@ -213,15 +213,15 @@ MLXSW_ITEM32(cmd_mbox, query_fw, fw_pages, 0x00, 16, 16);
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_major, 0x00, 0, 16);
 
-/* cmd_mbox_query_fw_fw_rev_subminor
- * Firmware Sub-minor version (Patch level)
+/* cmd_mbox_query_fw_fw_rev_submianalr
+ * Firmware Sub-mianalr version (Patch level)
  */
-MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_subminor, 0x04, 16, 16);
+MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_submianalr, 0x04, 16, 16);
 
-/* cmd_mbox_query_fw_fw_rev_minor
- * Firmware Revision - Minor
+/* cmd_mbox_query_fw_fw_rev_mianalr
+ * Firmware Revision - Mianalr
  */
-MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_minor, 0x04, 0, 16);
+MLXSW_ITEM32(cmd_mbox, query_fw, fw_rev_mianalr, 0x04, 0, 16);
 
 /* cmd_mbox_query_fw_core_clk
  * Internal Clock Frequency (in MHz)
@@ -230,7 +230,7 @@ MLXSW_ITEM32(cmd_mbox, query_fw, core_clk, 0x08, 16, 16);
 
 /* cmd_mbox_query_fw_cmd_interface_rev
  * Command Interface Interpreter Revision ID. This number is bumped up
- * every time a non-backward-compatible change is done for the command
+ * every time a analn-backward-compatible change is done for the command
  * interface. The current cmd_interface_rev is 1.
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, cmd_interface_rev, 0x08, 0, 16);
@@ -277,13 +277,13 @@ MLXSW_ITEM32(cmd_mbox, query_fw, fw_month, 0x14, 8, 8);
 MLXSW_ITEM32(cmd_mbox, query_fw, fw_day, 0x14, 0, 8);
 
 /* cmd_mbox_query_fw_lag_mode_support
- * 0: CONFIG_PROFILE.lag_mode is not supported by FW
+ * 0: CONFIG_PROFILE.lag_mode is analt supported by FW
  * 1: CONFIG_PROFILE.lag_mode is supported by FW
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, lag_mode_support, 0x18, 1, 1);
 
 /* cmd_mbox_query_fw_cff_support
- * 0: CONFIG_PROFILE.flood_mode = 5 (CFF) is not supported by FW
+ * 0: CONFIG_PROFILE.flood_mode = 5 (CFF) is analt supported by FW
  * 1: CONFIG_PROFILE.flood_mode = 5 (CFF) is supported by FW
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, cff_support, 0x18, 2, 1);
@@ -383,7 +383,7 @@ static inline int mlxsw_cmd_boardinfo(struct mlxsw_core *mlxsw_core,
 
 /* cmd_mbox_boardinfo_intapin
  * When PCIe interrupt messages are being used, this value is used for clearing
- * an interrupt. When using MSI-X, this register is not used.
+ * an interrupt. When using MSI-X, this register is analt used.
  */
 MLXSW_ITEM32(cmd_mbox, boardinfo, intapin, 0x10, 24, 8);
 
@@ -405,16 +405,16 @@ MLXSW_ITEM_BUF(cmd_mbox, boardinfo, vsd, 0x20, MLXSW_CMD_BOARDINFO_VSD_LEN);
 /* cmd_mbox_boardinfo_psid
  * The PSID field is a 16-ascii (byte) character string which acts as
  * the board ID. The PSID format is used in conjunction with
- * Mellanox vsd_vendor_id (15B3h).
+ * Mellaanalx vsd_vendor_id (15B3h).
  */
 #define MLXSW_CMD_BOARDINFO_PSID_LEN 16
 MLXSW_ITEM_BUF(cmd_mbox, boardinfo, psid, 0xF0, MLXSW_CMD_BOARDINFO_PSID_LEN);
 
-/* QUERY_AQ_CAP - Query Asynchronous Queues Capabilities
+/* QUERY_AQ_CAP - Query Asynchroanalus Queues Capabilities
  * -----------------------------------------------------
  * OpMod == 0 (N/A), INMmod == 0 (N/A)
  * -----------------------------------
- * The QUERY_AQ_CAP command returns the device asynchronous queues
+ * The QUERY_AQ_CAP command returns the device asynchroanalus queues
  * capabilities supported.
  */
 
@@ -471,13 +471,13 @@ MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_eq_sz, 0x0C, 24, 8);
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_num_eqs, 0x0C, 0, 8);
 
 /* cmd_mbox_query_aq_cap_max_sg_sq
- * The maximum S/G list elements in an DSQ. DSQ must not contain
+ * The maximum S/G list elements in an DSQ. DSQ must analt contain
  * more S/G entries than indicated here.
  */
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_sg_sq, 0x10, 8, 8);
 
 /* cmd_mbox_query_aq_cap_
- * The maximum S/G list elements in an DRQ. DRQ must not contain
+ * The maximum S/G list elements in an DRQ. DRQ must analt contain
  * more S/G entries than indicated here.
  */
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_sg_rq, 0x10, 0, 8);
@@ -520,14 +520,14 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, map_fa, log2size, 0x00, 0, 5, 0x08, 0x04, false);
  * OpMod == 0 (N/A), INMmod == 0 (N/A)
  * -----------------------------------
  * The UNMAP_FA command unload the firmware and unmaps all the
- * firmware area. After this command is completed the device will not access
+ * firmware area. After this command is completed the device will analt access
  * the pages that were mapped to the firmware area. After executing UNMAP_FA
  * command, software reset must be done prior to execution of MAP_FW command.
  */
 
 static inline int mlxsw_cmd_unmap_fa(struct mlxsw_core *mlxsw_core)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_UNMAP_FA, 0, 0);
+	return mlxsw_cmd_exec_analne(mlxsw_core, MLXSW_CMD_OPCODE_UNMAP_FA, 0, 0);
 }
 
 /* QUERY_RESOURCES - Query chip resources
@@ -537,7 +537,7 @@ static inline int mlxsw_cmd_unmap_fa(struct mlxsw_core *mlxsw_core)
  * The QUERY_RESOURCES command retrieves information related to chip resources
  * by resource ID. Every command returns 32 entries. INmod is being use as base.
  * for example, index 1 will return entries 32-63. When the tables end and there
- * are no more sources in the table, will return resource id 0xFFF to indicate
+ * are anal more sources in the table, will return resource id 0xFFF to indicate
  * it.
  */
 
@@ -571,7 +571,7 @@ MLXSW_ITEM64_INDEXED(cmd_mbox, query_resource, data,
  * The CONFIG_PROFILE command sets the switch profile. The command can be
  * executed on the device only once at startup in order to allocate and
  * configure all switch resources and prepare it for operational mode.
- * It is not possible to change the device profile after the chip is
+ * It is analt possible to change the device profile after the chip is
  * in operational mode.
  * Failure of the CONFIG_PROFILE command leaves the hardware in an indeterminate
  * state therefore it is required to perform software reset to the device
@@ -812,7 +812,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile,
 /* cmd_mbox_config_profile_max_fid_flood_tables
  * Maximum number of per-FID flooding tables.
  *
- * Note: This flooding tables cover special FIDs only (vFIDs), starting at
+ * Analte: This flooding tables cover special FIDs only (vFIDs), starting at
  * FID value 4K and higher.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_fid_flood_tables, 0x38, 24, 4);
@@ -838,27 +838,27 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_pkey, 0x44, 0, 15);
  * Describes the number of adaptive routing sub-groups
  * 0 - disable primary/secondary (single group)
  * 1 - enable primary/secondary (2 sub-groups)
- * 2 - 3 sub-groups: Not supported in SwitchX, SwitchX-2
- * 3 - 4 sub-groups: Not supported in SwitchX, SwitchX-2
+ * 2 - 3 sub-groups: Analt supported in SwitchX, SwitchX-2
+ * 3 - 4 sub-groups: Analt supported in SwitchX, SwitchX-2
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, ar_sec, 0x4C, 24, 2);
 
 /* cmd_mbox_config_profile_adaptive_routing_group_cap
  * Adaptive Routing Group Capability. Indicates the number of AR groups
- * supported. Note that when Primary/secondary is enabled, each
+ * supported. Analte that when Primary/secondary is enabled, each
  * primary/secondary couple consumes 2 adaptive routing entries.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, adaptive_routing_group_cap, 0x4C, 0, 16);
 
 /* cmd_mbox_config_profile_arn
- * Adaptive Routing Notification Enable
- * Not supported in SwitchX, SwitchX-2
+ * Adaptive Routing Analtification Enable
+ * Analt supported in SwitchX, SwitchX-2
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, arn, 0x50, 31, 1);
 
 /* cmd_mbox_config_profile_ubridge
  * Unified Bridge
- * 0 - non unified bridge
+ * 0 - analn unified bridge
  * 1 - unified bridge
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, ubridge, 0x50, 4, 1);
@@ -916,7 +916,7 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_mask,
 
 /* cmd_mbox_config_profile_swid_config_type
  * Switch Partition type.
- * 0000 - disabled (Switch Partition does not exist)
+ * 0000 - disabled (Switch Partition does analt exist)
  * 0001 - InfiniBand
  * 0010 - Ethernet
  * 1000 - router port (SwitchX-2 only)
@@ -945,7 +945,7 @@ enum mlxsw_cmd_mbox_config_profile_cqe_time_stamp_type {
 };
 
 /* cmd_mbox_config_profile_cqe_time_stamp_type
- * CQE time_stamp_type for non-mirror-packets.
+ * CQE time_stamp_type for analn-mirror-packets.
  * Configured if set_cqe_time_stamp_type is set.
  * Reserved when SwitchX/-2, Switch-IB/2 and Spectrum-1.
  */
@@ -1022,13 +1022,13 @@ MLXSW_ITEM32(cmd_mbox, sw2hw_dq, cq, 0x00, 24, 8);
 
 enum mlxsw_cmd_mbox_sw2hw_dq_sdq_lp {
 	MLXSW_CMD_MBOX_SW2HW_DQ_SDQ_LP_WQE,
-	MLXSW_CMD_MBOX_SW2HW_DQ_SDQ_LP_IGNORE_WQE,
+	MLXSW_CMD_MBOX_SW2HW_DQ_SDQ_LP_IGANALRE_WQE,
 };
 
 /* cmd_mbox_sw2hw_dq_sdq_lp
  * SDQ local Processing
  * 0: local processing by wqe.lp
- * 1: local processing (ignoring wqe.lp)
+ * 1: local processing (iganalring wqe.lp)
  */
 MLXSW_ITEM32(cmd_mbox, sw2hw_dq, sdq_lp, 0x00, 23, 1);
 
@@ -1055,13 +1055,13 @@ MLXSW_ITEM64_INDEXED(cmd_mbox, sw2hw_dq, pa, 0x10, 12, 52, 0x08, 0x00, true);
  * ----------------------------------------------
  * The HW2SW_DQ command transitions a descriptor queue from hardware to
  * software ownership. Incoming packets on the DQ are silently discarded,
- * SW should not post descriptors on nonoperational DQs.
+ * SW should analt post descriptors on analanalperational DQs.
  */
 
 static inline int __mlxsw_cmd_hw2sw_dq(struct mlxsw_core *mlxsw_core,
 				       u32 dq_number, u8 opcode_mod)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_DQ,
+	return mlxsw_cmd_exec_analne(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_DQ,
 				   opcode_mod, dq_number);
 }
 
@@ -1096,7 +1096,7 @@ static inline int mlxsw_cmd_hw2sw_rdq(struct mlxsw_core *mlxsw_core,
 static inline int __mlxsw_cmd_2err_dq(struct mlxsw_core *mlxsw_core,
 				      u32 dq_number, u8 opcode_mod)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_2ERR_DQ,
+	return mlxsw_cmd_exec_analne(mlxsw_core, MLXSW_CMD_OPCODE_2ERR_DQ,
 				   opcode_mod, dq_number);
 }
 
@@ -1121,7 +1121,7 @@ static inline int mlxsw_cmd_2err_rdq(struct mlxsw_core *mlxsw_core,
  * ----------------------------------------------
  * The QUERY_DQ command retrieves a snapshot of DQ parameters from the hardware.
  *
- * Note: Output mailbox has the same format as SW2HW_DQ.
+ * Analte: Output mailbox has the same format as SW2HW_DQ.
  */
 
 static inline int __mlxsw_cmd_query_dq(struct mlxsw_core *mlxsw_core,
@@ -1182,7 +1182,7 @@ MLXSW_ITEM32(cmd_mbox, sw2hw_cq, c_eqn, 0x00, 24, 1);
 /* cmd_mbox_sw2hw_cq_st
  * Event delivery state machine
  * 0x0 - FIRED
- * 0x1 - ARMED (Request for Notification)
+ * 0x1 - ARMED (Request for Analtification)
  */
 MLXSW_ITEM32(cmd_mbox, sw2hw_cq, st, 0x00, 8, 1);
 
@@ -1214,7 +1214,7 @@ MLXSW_ITEM64_INDEXED(cmd_mbox, sw2hw_cq, pa, 0x10, 11, 53, 0x08, 0x00, true);
 static inline int mlxsw_cmd_hw2sw_cq(struct mlxsw_core *mlxsw_core,
 				     u32 cq_number)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_CQ,
+	return mlxsw_cmd_exec_analne(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_CQ,
 				   0, cq_number);
 }
 
@@ -1224,10 +1224,10 @@ static inline int mlxsw_cmd_hw2sw_cq(struct mlxsw_core *mlxsw_core,
  * -------------------------------------
  * The QUERY_CQ command retrieves a snapshot of the current CQ context entry.
  * The command stores the snapshot in the output mailbox in the software format.
- * Note that the CQ context state and values are not affected by the QUERY_CQ
+ * Analte that the CQ context state and values are analt affected by the QUERY_CQ
  * command. The QUERY_CQ command is for debug purposes only.
  *
- * Note: Output mailbox has the same format as SW2HW_CQ.
+ * Analte: Output mailbox has the same format as SW2HW_CQ.
  */
 
 static inline int mlxsw_cmd_query_cq(struct mlxsw_core *mlxsw_core,
@@ -1264,7 +1264,7 @@ MLXSW_ITEM32(cmd_mbox, sw2hw_eq, int_msix, 0x00, 24, 1);
 /* cmd_mbox_sw2hw_eq_st
  * Event delivery state machine
  * 0x0 - FIRED
- * 0x1 - ARMED (Request for Notification)
+ * 0x1 - ARMED (Request for Analtification)
  * 0x11 - Always ARMED
  * other - reserved
  */
@@ -1296,7 +1296,7 @@ MLXSW_ITEM64_INDEXED(cmd_mbox, sw2hw_eq, pa, 0x10, 11, 53, 0x08, 0x00, true);
 static inline int mlxsw_cmd_hw2sw_eq(struct mlxsw_core *mlxsw_core,
 				     u32 eq_number)
 {
-	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_EQ,
+	return mlxsw_cmd_exec_analne(mlxsw_core, MLXSW_CMD_OPCODE_HW2SW_EQ,
 				   0, eq_number);
 }
 
@@ -1305,7 +1305,7 @@ static inline int mlxsw_cmd_hw2sw_eq(struct mlxsw_core *mlxsw_core,
  * OpMod == 0 (N/A), INMmod == EQ number
  * -------------------------------------
  *
- * Note: Output mailbox has the same format as SW2HW_EQ.
+ * Analte: Output mailbox has the same format as SW2HW_EQ.
  */
 
 static inline int mlxsw_cmd_query_eq(struct mlxsw_core *mlxsw_core,

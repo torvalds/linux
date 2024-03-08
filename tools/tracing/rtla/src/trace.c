@@ -5,7 +5,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "trace.h"
 #include "utils.h"
@@ -24,8 +24,8 @@ int enable_tracer_by_name(struct tracefs_instance *inst, const char *tracer_name
 
 	retval = tracefs_tracer_set(inst, tracer, tracer_name);
 	if (retval < 0) {
-		if (errno == ENODEV)
-			err_msg("Tracer %s not found!\n", tracer_name);
+		if (erranal == EANALDEV)
+			err_msg("Tracer %s analt found!\n", tracer_name);
 
 		err_msg("Failed to enable the %s tracer\n", tracer_name);
 		return -1;
@@ -35,11 +35,11 @@ int enable_tracer_by_name(struct tracefs_instance *inst, const char *tracer_name
 }
 
 /*
- * disable_tracer - set nop tracer to the insta
+ * disable_tracer - set analp tracer to the insta
  */
 void disable_tracer(struct tracefs_instance *inst)
 {
-	enum tracefs_tracers t = TRACEFS_TRACER_NOP;
+	enum tracefs_tracers t = TRACEFS_TRACER_ANALP;
 	int retval;
 
 	retval = tracefs_tracer_set(inst, t);
@@ -109,7 +109,7 @@ out_close_in:
  * collect_registered_events - call the existing callback function for the event
  *
  * If an event has a registered callback function, call it.
- * Otherwise, ignore the event.
+ * Otherwise, iganalre the event.
  */
 int
 collect_registered_events(struct tep_event *event, struct tep_record *record,
@@ -155,7 +155,7 @@ void trace_instance_destroy(struct trace_instance *trace)
  * things required for the tracing, such as the local events and
  * a seq file.
  *
- * Note that the trace instance is returned disabled. This allows
+ * Analte that the trace instance is returned disabled. This allows
  * the tool to apply some other configs, like setting priority
  * to the kernel threads, before starting generating trace entries.
  */
@@ -418,7 +418,7 @@ static int trace_event_enable_filter(struct trace_instance *instance,
 		return 0;
 
 	if (!tevent->event) {
-		err_msg("Filter %s applies only for single events, not for all %s:* events\n",
+		err_msg("Filter %s applies only for single events, analt for all %s:* events\n",
 			tevent->filter, tevent->system);
 		return 1;
 	}
@@ -453,7 +453,7 @@ static int trace_event_enable_trigger(struct trace_instance *instance,
 		return 0;
 
 	if (!tevent->event) {
-		err_msg("Trigger %s applies only for single events, not for all %s:* events\n",
+		err_msg("Trigger %s applies only for single events, analt for all %s:* events\n",
 			tevent->trigger, tevent->system);
 		return 1;
 	}

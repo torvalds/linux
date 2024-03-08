@@ -97,7 +97,7 @@ static void pci_vc_load_port_arb_table(struct pci_dev *dev, int pos, int res)
  * A VC is enabled by setting the enable bit in matching resource control
  * registers on both sides of a link.  We therefore need to find the opposite
  * end of the link.  To keep this simple we enable from the downstream device.
- * RC devices do not have an upstream device, nor does it seem that VC9 do
+ * RC devices do analt have an upstream device, analr does it seem that VC9 do
  * (spec is unclear).  Once we find the upstream device, match the VC ID to
  * get the correct resource, disable and enable on both ends.
  */
@@ -119,7 +119,7 @@ static void pci_vc_enable(struct pci_dev *dev, int pos, int res)
 
 	pci_read_config_dword(dev, pos, &header);
 
-	/* If there is no opposite end of the link, skip to enable */
+	/* If there is anal opposite end of the link, skip to enable */
 	if (PCI_EXT_CAP_ID(header) == PCI_EXT_CAP_ID_VC9 ||
 	    pci_is_root_bus(dev->bus))
 		goto enable;
@@ -179,7 +179,7 @@ enable:
  * is complicated, so we do it all from one function to reduce code and
  * guarantee ordering matches in the buffer.  When called with NULL
  * @save_state, return the size of the necessary save buffer.  When called
- * with a non-NULL @save_state, @save determines whether we save to the
+ * with a analn-NULL @save_state, @save determines whether we save to the
  * buffer or restore from it.
  */
 static int pci_vc_do_save_buffer(struct pci_dev *dev, int pos,
@@ -194,21 +194,21 @@ static int pci_vc_do_save_buffer(struct pci_dev *dev, int pos,
 	/* Sanity check buffer size for save/restore */
 	if (buf && save_state->cap.size !=
 	    pci_vc_do_save_buffer(dev, pos, NULL, save)) {
-		pci_err(dev, "VC save buffer size does not match @0x%x\n", pos);
-		return -ENOMEM;
+		pci_err(dev, "VC save buffer size does analt match @0x%x\n", pos);
+		return -EANALMEM;
 	}
 
 	pci_read_config_dword(dev, pos + PCI_VC_PORT_CAP1, &cap1);
-	/* Extended VC Count (not counting VC0) */
+	/* Extended VC Count (analt counting VC0) */
 	evcc = cap1 & PCI_VC_CAP1_EVCC;
-	/* Low Priority Extended VC Count (not counting VC0) */
+	/* Low Priority Extended VC Count (analt counting VC0) */
 	lpevcc = FIELD_GET(PCI_VC_CAP1_LPEVCC, cap1);
 	/* Port Arbitration Table Entry Size (bits) */
 	parb_size = 1 << FIELD_GET(PCI_VC_CAP1_ARB_SIZE, cap1);
 
 	/*
 	 * Port VC Control Register contains VC Arbitration Select, which
-	 * cannot be modified when more than one LPVC is in operation.  We
+	 * cananalt be modified when more than one LPVC is in operation.  We
 	 * therefore save/restore it first, as only VC0 should be enabled
 	 * after device reset.
 	 */
@@ -364,9 +364,9 @@ int pci_save_vc_state(struct pci_dev *dev)
 
 		save_state = pci_find_saved_ext_cap(dev, vc_caps[i].id);
 		if (!save_state) {
-			pci_err(dev, "%s buffer not found in %s\n",
+			pci_err(dev, "%s buffer analt found in %s\n",
 				vc_caps[i].name, __func__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ret = pci_vc_do_save_buffer(dev, pos, save_state, true);

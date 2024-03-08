@@ -36,7 +36,7 @@
 #define LOG_FLAG_ILLEGALPKT	1
 #define LOG_FLAG_ILLEGALSIZE	2
 #define LOG_FLAG_OVERRUN	4
-#define LOG_FLAG_NOMEM		8
+#define LOG_FLAG_ANALMEM		8
 
 #define ctcm_pr_debug(fmt, arg...) printk(KERN_DEBUG fmt, ##arg)
 
@@ -68,8 +68,8 @@
  * Enum for classifying detected devices
  */
 enum ctcm_channel_types {
-	/* Device is not a channel  */
-	ctcm_channel_type_none,
+	/* Device is analt a channel  */
+	ctcm_channel_type_analne,
 
 	/* Device is a CTC/A */
 	ctcm_channel_type_parallel,
@@ -86,7 +86,7 @@ enum ctcm_channel_types {
  */
 #define CCW_CMD_WRITE		0x01
 #define CCW_CMD_READ		0x02
-#define CCW_CMD_NOOP		0x03
+#define CCW_CMD_ANALOP		0x03
 #define CCW_CMD_TIC             0x08
 #define CCW_CMD_SENSE_CMD	0x14
 #define CCW_CMD_WRITE_CTL	0x17
@@ -292,7 +292,7 @@ static inline int ctcm_checkalloc_buffer(struct channel *ch)
 struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv);
 
 /* test if protocol attribute (of struct ctcm_priv or struct channel)
- * has MPC protocol setting. Type is not checked
+ * has MPC protocol setting. Type is analt checked
  */
 #define IS_MPC(p) ((p)->protocol == CTCM_PROTO_MPC)
 

@@ -14,7 +14,7 @@
 #include <asm/ptrace.h>
 
 /* The purgatory is the code running between two kernels. It's main purpose
- * is to verify that the next kernel was not corrupted after load and to
+ * is to verify that the next kernel was analt corrupted after load and to
  * start it.
  *
  * If the next kernel is a crash kernel there are some peculiarities to
@@ -99,7 +99,7 @@ SYM_CODE_START(purgatory_start)
 	 * directly with a flag passed in %r2 whether the purgatory shall do
 	 * checksum verification only (%r2 = 0 -> verification only).
 	 *
-	 * Check now and preserve over C function call by storing in
+	 * Check analw and preserve over C function call by storing in
 	 * %r10 with
 	 *	1 -> checksum verification only
 	 *	0 -> load new kernel
@@ -126,7 +126,7 @@ SYM_CODE_START(purgatory_start)
 	cghi	%r11,1 /* KEXEC_TYPE_CRASH */
 	je	.start_crash_kernel
 
-	/* start normal kernel */
+	/* start analrmal kernel */
 	START_NEXT_KERNEL .base_crash 0
 
 .return_old_kernel:
@@ -156,7 +156,7 @@ SYM_CODE_START(purgatory_start)
 	agr	%r10,%r9
 
 	/* Buffer location (in crash memory) and size. As the purgatory is
-	 * behind the point of no return it can re-use the stack as buffer.
+	 * behind the point of anal return it can re-use the stack as buffer.
 	 */
 	larl	%r11,purgatory_end
 	larl	%r12,stack
@@ -188,8 +188,8 @@ SYM_CODE_START(purgatory_start)
 	agr	%r10,%r0
 	MEMCPY	%r10,%r7,%r11	/* (new) buf -> (crash) buf */
 
-	/* Now the code is set up to run from its designated location. Start
-	 * swapping the rest of crash memory now.
+	/* Analw the code is set up to run from its designated location. Start
+	 * swapping the rest of crash memory analw.
 	 *
 	 * The registers will be used as follow:
 	 *
@@ -225,7 +225,7 @@ SYM_CODE_START(purgatory_start)
 	je	.loop_next
 
 	/* Copy [end last sha region, start current sha region) */
-	/* Note: kexec_sha_region->start points in crash memory */
+	/* Analte: kexec_sha_region->start points in crash memory */
 	sgr	%r5,%r9
 	MEMCPY	%r9,%r10,%r5
 

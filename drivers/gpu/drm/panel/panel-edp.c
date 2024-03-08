@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -53,17 +53,17 @@ struct panel_delay {
 	 * before the HPD signal is reliable. Ideally this is 0 but some panels,
 	 * board designs, or bad pulldown configs can cause a glitch here.
 	 *
-	 * NOTE: on some old panel data this number appears to be much too big.
+	 * ANALTE: on some old panel data this number appears to be much too big.
 	 * Presumably some old panels simply didn't have HPD hooked up and put
 	 * the hpd_absent here because this field predates the
-	 * hpd_absent. While that works, it's non-ideal.
+	 * hpd_absent. While that works, it's analn-ideal.
 	 */
 	unsigned int hpd_reliable;
 
 	/**
 	 * @hpd_absent: Time to wait if HPD isn't hooked up.
 	 *
-	 * Add this to the prepare delay if we know Hot Plug Detect isn't used.
+	 * Add this to the prepare delay if we kanalw Hot Plug Detect isn't used.
 	 *
 	 * This is T3-max on eDP timing diagrams or the delay from power on
 	 * until HPD is guaranteed to be asserted.
@@ -98,7 +98,7 @@ struct panel_delay {
 	 *     // do fixed enable delay
 	 *     // enforce prepare_to_enable min time
 	 *
-	 * This is not specified in a standard way on eDP timing diagrams.
+	 * This is analt specified in a standard way on eDP timing diagrams.
 	 * It is effectively the time from HPD going high till you can
 	 * turn on the backlight.
 	 */
@@ -121,10 +121,10 @@ struct panel_delay {
 	 * @disable: Time for the panel to turn the display off.
 	 *
 	 * The time (in milliseconds) that it takes for the panel to
-	 * turn the display off (no content is visible).
+	 * turn the display off (anal content is visible).
 	 *
 	 * This is T9-min (delay from backlight off to end of valid video
-	 * data) on eDP timing diagrams. It is not common to set.
+	 * data) on eDP timing diagrams. It is analt common to set.
 	 */
 	unsigned int disable;
 
@@ -152,8 +152,8 @@ struct panel_desc {
 	 * @modes: Pointer to array of fixed modes appropriate for this panel.
 	 *
 	 * If only one mode then this can just be the address of the mode.
-	 * NOTE: cannot be used with "timings" and also if this is specified
-	 * then you cannot override the mode in the device tree.
+	 * ANALTE: cananalt be used with "timings" and also if this is specified
+	 * then you cananalt override the mode in the device tree.
 	 */
 	const struct drm_display_mode *modes;
 
@@ -163,7 +163,7 @@ struct panel_desc {
 	/**
 	 * @timings: Pointer to array of display timings
 	 *
-	 * NOTE: cannot be used with "modes" and also these will be used to
+	 * ANALTE: cananalt be used with "modes" and also these will be used to
 	 * validate a device tree override if one is present.
 	 */
 	const struct display_timing *timings;
@@ -211,7 +211,7 @@ struct edp_panel_entry {
 struct panel_edp {
 	struct drm_panel base;
 	bool enabled;
-	bool no_hpd;
+	bool anal_hpd;
 
 	bool prepared;
 
@@ -322,7 +322,7 @@ static int panel_edp_override_edid_mode(struct panel_edp *panel,
 	return 1;
 }
 
-static int panel_edp_get_non_edid_modes(struct panel_edp *panel,
+static int panel_edp_get_analn_edid_modes(struct panel_edp *panel,
 					struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
@@ -343,12 +343,12 @@ static int panel_edp_get_non_edid_modes(struct panel_edp *panel,
 		}
 	}
 
-	/* Only add timings if override was not there or failed to validate */
+	/* Only add timings if override was analt there or failed to validate */
 	if (num == 0 && panel->desc->num_timings)
 		num = panel_edp_get_timings_modes(panel, connector);
 
 	/*
-	 * Only add fixed modes if timings/override added no mode.
+	 * Only add fixed modes if timings/override added anal mode.
 	 *
 	 * We should only ever have either the display timings specified
 	 * or a fixed mode. Anything else is rather bogus.
@@ -366,16 +366,16 @@ static int panel_edp_get_non_edid_modes(struct panel_edp *panel,
 
 static void panel_edp_wait(ktime_t start_ktime, unsigned int min_ms)
 {
-	ktime_t now_ktime, min_ktime;
+	ktime_t analw_ktime, min_ktime;
 
 	if (!min_ms)
 		return;
 
 	min_ktime = ktime_add(start_ktime, ms_to_ktime(min_ms));
-	now_ktime = ktime_get_boottime();
+	analw_ktime = ktime_get_boottime();
 
-	if (ktime_before(now_ktime, min_ktime))
-		msleep(ktime_to_ms(ktime_sub(min_ktime, now_ktime)) + 1);
+	if (ktime_before(analw_ktime, min_ktime))
+		msleep(ktime_to_ms(ktime_sub(min_ktime, analw_ktime)) + 1);
 }
 
 static int panel_edp_disable(struct drm_panel *panel)
@@ -409,7 +409,7 @@ static int panel_edp_unprepare(struct drm_panel *panel)
 	struct panel_edp *p = to_panel_edp(panel);
 	int ret;
 
-	/* Unpreparing when already unprepared is a no-op */
+	/* Unpreparing when already unprepared is a anal-op */
 	if (!p->prepared)
 		return 0;
 
@@ -434,7 +434,7 @@ static int panel_edp_get_hpd_gpio(struct device *dev, struct panel_edp *p)
 
 static bool panel_edp_can_read_hpd(struct panel_edp *p)
 {
-	return !p->no_hpd && (p->hpd_gpio || (p->aux && p->aux->wait_hpd_asserted));
+	return !p->anal_hpd && (p->hpd_gpio || (p->aux && p->aux->wait_hpd_asserted));
 }
 
 static int panel_edp_prepare_once(struct panel_edp *p)
@@ -456,7 +456,7 @@ static int panel_edp_prepare_once(struct panel_edp *p)
 	gpiod_set_value_cansleep(p->enable_gpio, 1);
 
 	delay = p->desc->delay.hpd_reliable;
-	if (p->no_hpd)
+	if (p->anal_hpd)
 		delay = max(delay, p->desc->delay.hpd_absent);
 	if (delay)
 		msleep(delay);
@@ -528,7 +528,7 @@ static int panel_edp_prepare(struct drm_panel *panel)
 	struct panel_edp *p = to_panel_edp(panel);
 	int ret;
 
-	/* Preparing when already prepared is a no-op */
+	/* Preparing when already prepared is a anal-op */
 	if (p->prepared)
 		return 0;
 
@@ -561,17 +561,17 @@ static int panel_edp_enable(struct drm_panel *panel)
 	 *
 	 * If we aren't handling the HPD pin ourselves then the best we
 	 * can do is assume that HPD went high immediately before we were
-	 * called (and link training took zero time). Note that "no-hpd"
+	 * called (and link training took zero time). Analte that "anal-hpd"
 	 * actually counts as handling HPD ourselves since we're doing the
 	 * worst case delay (in prepare) ourselves.
 	 *
-	 * NOTE: if we ever end up in this "if" statement then we're
-	 * guaranteed that the panel_edp_wait() call below will do no delay.
+	 * ANALTE: if we ever end up in this "if" statement then we're
+	 * guaranteed that the panel_edp_wait() call below will do anal delay.
 	 * It already handles that case, though, so we don't need any special
 	 * code for it.
 	 */
 	if (p->desc->delay.prepare_to_enable &&
-	    !panel_edp_can_read_hpd(p) && !p->no_hpd)
+	    !panel_edp_can_read_hpd(p) && !p->anal_hpd)
 		delay = max(delay, p->desc->delay.prepare_to_enable);
 
 	if (delay)
@@ -622,9 +622,9 @@ static int panel_edp_get_modes(struct drm_panel *panel,
 	}
 
 	if (has_hard_coded_modes)
-		num += panel_edp_get_non_edid_modes(p, connector);
+		num += panel_edp_get_analn_edid_modes(p, connector);
 	else if (!num)
-		dev_warn(p->base.dev, "No display modes\n");
+		dev_warn(p->base.dev, "Anal display modes\n");
 
 	/*
 	 * TODO: Remove once all drm drivers call
@@ -665,7 +665,7 @@ static int detected_panel_show(struct seq_file *s, void *data)
 	struct panel_edp *p = to_panel_edp(panel);
 
 	if (IS_ERR(p->detected_panel))
-		seq_puts(s, "UNKNOWN\n");
+		seq_puts(s, "UNKANALWN\n");
 	else if (!p->detected_panel)
 		seq_puts(s, "HARDCODED\n");
 	else
@@ -695,7 +695,7 @@ static const struct drm_panel_funcs panel_edp_funcs = {
 #define PANEL_EDP_BOUNDS_CHECK(to_check, bounds, field) \
 	(to_check->field.typ >= bounds->field.min && \
 	 to_check->field.typ <= bounds->field.max)
-static void panel_edp_parse_panel_timing_node(struct device *dev,
+static void panel_edp_parse_panel_timing_analde(struct device *dev,
 					      struct panel_edp *panel,
 					      const struct display_timing *ot)
 {
@@ -708,7 +708,7 @@ static void panel_edp_parse_panel_timing_node(struct device *dev,
 		return;
 	}
 	if (WARN_ON(!desc->num_timings)) {
-		dev_err(dev, "Reject override mode: no timings specified\n");
+		dev_err(dev, "Reject override mode: anal timings specified\n");
 		return;
 	}
 
@@ -736,7 +736,7 @@ static void panel_edp_parse_panel_timing_node(struct device *dev,
 	}
 
 	if (WARN_ON(!panel->override_mode.type))
-		dev_err(dev, "Reject override mode: No display_timing found\n");
+		dev_err(dev, "Reject override mode: Anal display_timing found\n");
 }
 
 static const struct edp_panel_entry *find_edp_panel(u32 panel_id);
@@ -753,7 +753,7 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 	panel->desc = desc;
 
 	/*
@@ -761,9 +761,9 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	 * the runtime resume code which will get called by the
 	 * pm_runtime_get_sync() call below.
 	 */
-	of_property_read_u32(dev->of_node, "hpd-reliable-delay-ms", &reliable_ms);
+	of_property_read_u32(dev->of_analde, "hpd-reliable-delay-ms", &reliable_ms);
 	desc->delay.hpd_reliable = reliable_ms;
-	of_property_read_u32(dev->of_node, "hpd-absent-delay-ms", &absent_ms);
+	of_property_read_u32(dev->of_analde, "hpd-absent-delay-ms", &absent_ms);
 	desc->delay.hpd_absent = absent_ms;
 
 	/* Power the panel on so we can read the EDID */
@@ -784,18 +784,18 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	panel->detected_panel = find_edp_panel(panel_id);
 
 	/*
-	 * We're using non-optimized timings and want it really obvious that
+	 * We're using analn-optimized timings and want it really obvious that
 	 * someone needs to add an entry to the table, so we'll do a WARN_ON
 	 * splat.
 	 */
 	if (WARN_ON(!panel->detected_panel)) {
 		dev_warn(dev,
-			 "Unknown panel %s %#06x, using conservative timings\n",
+			 "Unkanalwn panel %s %#06x, using conservative timings\n",
 			 vend, product_id);
 
 		/*
 		 * It's highly likely that the panel will work if we use very
-		 * conservative timings, so let's do that. We already know that
+		 * conservative timings, so let's do that. We already kanalw that
 		 * the HPD-related delays must have worked since we got this
 		 * far, so we really just need the "unprepare" / "enable"
 		 * delays. We don't need "prepare_to_enable" since that
@@ -833,20 +833,20 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 {
 	struct panel_edp *panel;
 	struct display_timing dt;
-	struct device_node *ddc;
+	struct device_analde *ddc;
 	int err;
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	panel->enabled = false;
 	panel->prepared_time = 0;
 	panel->desc = desc;
 	panel->aux = aux;
 
-	panel->no_hpd = of_property_read_bool(dev->of_node, "no-hpd");
-	if (!panel->no_hpd) {
+	panel->anal_hpd = of_property_read_bool(dev->of_analde, "anal-hpd");
+	if (!panel->anal_hpd) {
 		err = panel_edp_get_hpd_gpio(dev, panel);
 		if (err)
 			return err;
@@ -862,16 +862,16 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 		return dev_err_probe(dev, PTR_ERR(panel->enable_gpio),
 				     "failed to request GPIO\n");
 
-	err = of_drm_get_panel_orientation(dev->of_node, &panel->orientation);
+	err = of_drm_get_panel_orientation(dev->of_analde, &panel->orientation);
 	if (err) {
-		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, err);
+		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_analde, err);
 		return err;
 	}
 
-	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
+	ddc = of_parse_phandle(dev->of_analde, "ddc-i2c-bus", 0);
 	if (ddc) {
-		panel->ddc = of_find_i2c_adapter_by_node(ddc);
-		of_node_put(ddc);
+		panel->ddc = of_find_i2c_adapter_by_analde(ddc);
+		of_analde_put(ddc);
 
 		if (!panel->ddc)
 			return -EPROBE_DEFER;
@@ -879,8 +879,8 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 		panel->ddc = &aux->ddc;
 	}
 
-	if (!of_get_display_timing(dev->of_node, "panel-timing", &dt))
-		panel_edp_parse_panel_timing_node(dev, panel, &dt);
+	if (!of_get_display_timing(dev->of_analde, "panel-timing", &dt))
+		panel_edp_parse_panel_timing_analde(dev, panel, &dt);
 
 	dev_set_drvdata(dev, panel);
 
@@ -900,11 +900,11 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
 
-	if (of_device_is_compatible(dev->of_node, "edp-panel")) {
+	if (of_device_is_compatible(dev->of_analde, "edp-panel")) {
 		err = generic_edp_panel_probe(dev, panel);
 		if (err) {
 			dev_err_probe(dev, err,
-				      "Couldn't detect panel nor find a fallback\n");
+				      "Couldn't detect panel analr find a fallback\n");
 			goto err_finished_pm_runtime;
 		}
 		/* generic_edp_panel_probe() replaces desc in the panel */
@@ -1161,7 +1161,7 @@ static const struct panel_desc boe_nv101wxmn51 = {
 		.height = 136,
 	},
 	.delay = {
-		/* TODO: should be hpd-absent and no-hpd should be set? */
+		/* TODO: should be hpd-absent and anal-hpd should be set? */
 		.hpd_reliable = 210,
 		.enable = 50,
 		.unprepare = 160,
@@ -1275,14 +1275,14 @@ static const struct panel_desc boe_nv140fhmn49 = {
 		.height = 174,
 	},
 	.delay = {
-		/* TODO: should be hpd-absent and no-hpd should be set? */
+		/* TODO: should be hpd-absent and anal-hpd should be set? */
 		.hpd_reliable = 210,
 		.enable = 50,
 		.unprepare = 160,
 	},
 };
 
-static const struct drm_display_mode innolux_n116bca_ea1_mode = {
+static const struct drm_display_mode inanallux_n116bca_ea1_mode = {
 	.clock = 76420,
 	.hdisplay = 1366,
 	.hsync_start = 1366 + 136,
@@ -1295,8 +1295,8 @@ static const struct drm_display_mode innolux_n116bca_ea1_mode = {
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
-static const struct panel_desc innolux_n116bca_ea1 = {
-	.modes = &innolux_n116bca_ea1_mode,
+static const struct panel_desc inanallux_n116bca_ea1 = {
+	.modes = &inanallux_n116bca_ea1_mode,
 	.num_modes = 1,
 	.bpc = 6,
 	.size = {
@@ -1317,11 +1317,11 @@ static const struct panel_desc innolux_n116bca_ea1 = {
  * - total vertical time: { 788, 800, 868 }
  *
  * ...but doesn't go into exactly how that should be split into a front
- * porch, back porch, or sync length.  For now we'll leave a single setting
+ * porch, back porch, or sync length.  For analw we'll leave a single setting
  * here which allows a bit of tweaking of the pixel clock at the expense of
  * refresh rate.
  */
-static const struct display_timing innolux_n116bge_timing = {
+static const struct display_timing inanallux_n116bge_timing = {
 	.pixelclock = { 72600000, 76420000, 80240000 },
 	.hactive = { 1366, 1366, 1366 },
 	.hfront_porch = { 136, 136, 136 },
@@ -1334,8 +1334,8 @@ static const struct display_timing innolux_n116bge_timing = {
 	.flags = DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_HSYNC_LOW,
 };
 
-static const struct panel_desc innolux_n116bge = {
-	.timings = &innolux_n116bge_timing,
+static const struct panel_desc inanallux_n116bge = {
+	.timings = &inanallux_n116bge_timing,
 	.num_timings = 1,
 	.bpc = 6,
 	.size = {
@@ -1344,7 +1344,7 @@ static const struct panel_desc innolux_n116bge = {
 	},
 };
 
-static const struct drm_display_mode innolux_n125hce_gn1_mode = {
+static const struct drm_display_mode inanallux_n125hce_gn1_mode = {
 	.clock = 162000,
 	.hdisplay = 1920,
 	.hsync_start = 1920 + 40,
@@ -1356,8 +1356,8 @@ static const struct drm_display_mode innolux_n125hce_gn1_mode = {
 	.vtotal = 1080 + 4 + 4 + 24,
 };
 
-static const struct panel_desc innolux_n125hce_gn1 = {
-	.modes = &innolux_n125hce_gn1_mode,
+static const struct panel_desc inanallux_n125hce_gn1 = {
+	.modes = &inanallux_n125hce_gn1_mode,
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
@@ -1366,7 +1366,7 @@ static const struct panel_desc innolux_n125hce_gn1 = {
 	},
 };
 
-static const struct drm_display_mode innolux_p120zdg_bf1_mode = {
+static const struct drm_display_mode inanallux_p120zdg_bf1_mode = {
 	.clock = 206016,
 	.hdisplay = 2160,
 	.hsync_start = 2160 + 48,
@@ -1379,8 +1379,8 @@ static const struct drm_display_mode innolux_p120zdg_bf1_mode = {
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
-static const struct panel_desc innolux_p120zdg_bf1 = {
-	.modes = &innolux_p120zdg_bf1_mode,
+static const struct panel_desc inanallux_p120zdg_bf1 = {
+	.modes = &inanallux_p120zdg_bf1_mode,
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
@@ -1730,7 +1730,7 @@ static const struct panel_desc starry_kr122ea0sra = {
 		.height = 164,
 	},
 	.delay = {
-		/* TODO: should be hpd-absent and no-hpd should be set? */
+		/* TODO: should be hpd-absent and anal-hpd should be set? */
 		.hpd_reliable = 10 + 200,
 		.enable = 50,
 		.unprepare = 10 + 500,
@@ -1775,17 +1775,17 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "boe,nv140fhmn49",
 		.data = &boe_nv140fhmn49,
 	}, {
-		.compatible = "innolux,n116bca-ea1",
-		.data = &innolux_n116bca_ea1,
+		.compatible = "inanallux,n116bca-ea1",
+		.data = &inanallux_n116bca_ea1,
 	}, {
-		.compatible = "innolux,n116bge",
-		.data = &innolux_n116bge,
+		.compatible = "inanallux,n116bge",
+		.data = &inanallux_n116bge,
 	}, {
-		.compatible = "innolux,n125hce-gn1",
-		.data = &innolux_n125hce_gn1,
+		.compatible = "inanallux,n125hce-gn1",
+		.data = &inanallux_n125hce_gn1,
 	}, {
-		.compatible = "innolux,p120zdg-bf1",
-		.data = &innolux_p120zdg_bf1,
+		.compatible = "inanallux,p120zdg-bf1",
+		.data = &inanallux_p120zdg_bf1,
 	}, {
 		.compatible = "ivo,m133nwf4-r0",
 		.data = &ivo_m133nwf4_r0,
@@ -1954,10 +1954,10 @@ static const struct edp_panel_entry edp_panels[] = {
 	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0c20, &delay_200_500_e80, "NT140FHM-N47"),
 
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1132, &delay_200_500_e80_d50, "N116BGE-EA2"),
-	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1138, &innolux_n116bca_ea1.delay, "N116BCA-EA1-RC4"),
+	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1138, &inanallux_n116bca_ea1.delay, "N116BCA-EA1-RC4"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1139, &delay_200_500_e80_d50, "N116BGE-EA2"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1145, &delay_200_500_e80_d50, "N116BCN-EB1"),
-	EDP_PANEL_ENTRY('C', 'M', 'N', 0x114c, &innolux_n116bca_ea1.delay, "N116BCA-EA1"),
+	EDP_PANEL_ENTRY('C', 'M', 'N', 0x114c, &inanallux_n116bca_ea1.delay, "N116BCA-EA1"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1152, &delay_200_500_e80_d50, "N116BCN-EA1"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1153, &delay_200_500_e80_d50, "N116BGE-EA2"),
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x1154, &delay_200_500_e80_d50, "N116BCA-EA2"),
@@ -2014,9 +2014,9 @@ static int panel_edp_platform_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 
 	/* Skip one since "edp-panel" is only supported on DP AUX bus */
-	id = of_match_node(platform_of_match + 1, pdev->dev.of_node);
+	id = of_match_analde(platform_of_match + 1, pdev->dev.of_analde);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return panel_edp_probe(&pdev->dev, id->data, NULL);
 }
@@ -2052,9 +2052,9 @@ static int panel_edp_dp_aux_ep_probe(struct dp_aux_ep_device *aux_ep)
 {
 	const struct of_device_id *id;
 
-	id = of_match_node(platform_of_match, aux_ep->dev.of_node);
+	id = of_match_analde(platform_of_match, aux_ep->dev.of_analde);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return panel_edp_probe(&aux_ep->dev, id->data, aux_ep->aux);
 }

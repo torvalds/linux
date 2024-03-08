@@ -4,12 +4,12 @@
 |	fpsp_unfl --- FPSP handler for underflow exception
 |
 | Trap disabled results
-|	For 881/2 compatibility, sw must denormalize the intermediate
-| result, then store the result.  Denormalization is accomplished
-| by taking the intermediate result (which is always normalized) and
+|	For 881/2 compatibility, sw must deanalrmalize the intermediate
+| result, then store the result.  Deanalrmalization is accomplished
+| by taking the intermediate result (which is always analrmalized) and
 | shifting the mantissa right while incrementing the exponent until
-| it is equal to the denormalized exponent for the destination
-| format.  After denormalization, the result is rounded to the
+| it is equal to the deanalrmalized exponent for the destination
+| format.  After deanalrmalization, the result is rounded to the
 | destination format.
 |
 | Trap enabled results
@@ -30,7 +30,7 @@ X_UNFL:	|idnt    2,1 | Motorola 040 Floating Point Software Package
 
 #include "fpsp.h"
 
-	|xref	denorm
+	|xref	deanalrm
 	|xref	round
 	|xref	store
 	|xref	g_rndpr
@@ -50,26 +50,26 @@ fpsp_unfl:
 	fmoveml	%fpcr/%fpsr/%fpiar,USER_FPCR(%a6)
 
 |
-	bsrl		unf_res	|denormalize, round & store interm op
+	bsrl		unf_res	|deanalrmalize, round & store interm op
 |
-| If underflow exceptions are not enabled, check for inexact
+| If underflow exceptions are analt enabled, check for inexact
 | exception
 |
 	btstb		#unfl_bit,FPCR_ENABLE(%a6)
 	beqs		ck_inex
 
 	btstb		#E3,E_BYTE(%a6)
-	beqs		no_e3_1
+	beqs		anal_e3_1
 |
 | Clear dirty bit on dest resister in the frame before branching
 | to b1238_fix.
 |
-	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg no
+	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg anal
 	bclrb		%d0,FPR_DIRTY_BITS(%a6)	|clr dest dirty bit
 	bsrl		b1238_fix		|test for bug1238 case
 	movel		USER_FPSR(%a6),FPSR_SHADOW(%a6)
 	orl		#sx_mask,E_BYTE(%a6)
-no_e3_1:
+anal_e3_1:
 	moveml		USER_DA(%a6),%d0-%d1/%a0-%a1
 	fmovemx	USER_FP0(%a6),%fp0-%fp3
 	fmoveml	USER_FPCR(%a6),%fpcr/%fpsr/%fpiar
@@ -93,17 +93,17 @@ ck_inex:
 |
 take_inex:
 	btstb		#E3,E_BYTE(%a6)
-	beqs		no_e3_2
+	beqs		anal_e3_2
 |
 | Clear dirty bit on dest resister in the frame before branching
 | to b1238_fix.
 |
-	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg no
+	bfextu		CMDREG3B(%a6){#6:#3},%d0	|get dest reg anal
 	bclrb		%d0,FPR_DIRTY_BITS(%a6)	|clr dest dirty bit
 	bsrl		b1238_fix		|test for bug1238 case
 	movel		USER_FPSR(%a6),FPSR_SHADOW(%a6)
 	orl		#sx_mask,E_BYTE(%a6)
-no_e3_2:
+anal_e3_2:
 	moveb		#INEX_VEC,EXC_VEC+1(%a6)
 	moveml         USER_DA(%a6),%d0-%d1/%a0-%a1
 	fmovemx        USER_FP0(%a6),%fp0-%fp3
@@ -119,7 +119,7 @@ unfl_done:
 | Clear dirty bit on dest resister in the frame before branching
 | to b1238_fix.
 |
-	bfextu		CMDREG3B(%a6){#6:#3},%d0		|get dest reg no
+	bfextu		CMDREG3B(%a6){#6:#3},%d0		|get dest reg anal
 	bclrb		%d0,FPR_DIRTY_BITS(%a6)	|clr dest dirty bit
 	bsrl		b1238_fix		|test for bug1238 case
 	movel		USER_FPSR(%a6),FPSR_SHADOW(%a6)
@@ -154,10 +154,10 @@ unf_res:
 	btstb		#E3,E_BYTE(%a6)
 	beqs		unf_E1
 unf_E3:
-	lea		WBTEMP(%a6),%a0	|a0 now points to operand
+	lea		WBTEMP(%a6),%a0	|a0 analw points to operand
 |
 | Test for fsgldiv and fsglmul.  If the inst was one of these, then
-| force the precision to extended for the denorm routine.  Use
+| force the precision to extended for the deanalrm routine.  Use
 | the user's precision for the round routine.
 |
 	movew		CMDREG3B(%a6),%d1	|check for fsgldiv or fsglmul
@@ -165,23 +165,23 @@ unf_E3:
 	cmpiw		#0x30,%d1		|check for sgldiv
 	beqs		unf_sgl
 	cmpiw		#0x33,%d1		|check for sglmul
-	bnes		unf_cont	|if not, use fpcr prec in round
+	bnes		unf_cont	|if analt, use fpcr prec in round
 unf_sgl:
 	clrl		%d0
 	movew		#0x1,(%a7)	|override g_rndpr precision
 |					;force single
 	bras		unf_cont
 unf_E1:
-	lea		FPTEMP(%a6),%a0	|a0 now points to operand
+	lea		FPTEMP(%a6),%a0	|a0 analw points to operand
 unf_cont:
 	bclrb		#sign_bit,LOCAL_EX(%a0)	|clear sign bit
 	sne		LOCAL_SGN(%a0)		|store sign
 
-	bsrl		denorm		|returns denorm, a0 points to it
+	bsrl		deanalrm		|returns deanalrm, a0 points to it
 |
 | WARNING:
 |				;d0 has guard,round sticky bit
-|				;make sure that it is not corrupted
+|				;make sure that it is analt corrupted
 |				;before it reaches the round subroutine
 |				;also ensure that a0 isn't corrupted
 
@@ -193,9 +193,9 @@ unf_cont:
 |						;mode in lower d1
 	addl		(%a7)+,%d1		|merge PREC/MODE
 |
-| WARNING: a0 and d0 are assumed to be intact between the denorm and
+| WARNING: a0 and d0 are assumed to be intact between the deanalrm and
 | round subroutines. All code between these two subroutines
-| must not corrupt a0 and d0.
+| must analt corrupt a0 and d0.
 |
 |
 | Perform Round
@@ -206,28 +206,28 @@ unf_cont:
 |	Output:		a0 points to rounded operand
 |
 
-	bsrl		round		|returns rounded denorm at (a0)
+	bsrl		round		|returns rounded deanalrm at (a0)
 |
 | Differentiate between store to memory vs. store to register
 |
 unf_store:
 	bsrl		g_opcls		|returns opclass in d0{2:0}
 	cmpib		#0x3,%d0
-	bnes		not_opc011
+	bnes		analt_opc011
 |
 | At this point, a store to memory is pending
 |
 opc011:
 	bsrl		g_dfmtou
 	tstb		%d0
-	beqs		ext_opc011	|If extended, do not subtract
+	beqs		ext_opc011	|If extended, do analt subtract
 |				;If destination format is sgl/dbl,
-	tstb		LOCAL_HI(%a0)	|If rounded result is normal,don't
+	tstb		LOCAL_HI(%a0)	|If rounded result is analrmal,don't
 |					;subtract
 	bmis		ext_opc011
-	subqw		#1,LOCAL_EX(%a0)	|account for denorm bias vs.
-|				;normalized bias
-|				;          normalized   denormalized
+	subqw		#1,LOCAL_EX(%a0)	|account for deanalrm bias vs.
+|				;analrmalized bias
+|				;          analrmalized   deanalrmalized
 |				;single       $7f           $7e
 |				;double       $3ff          $3fe
 |
@@ -238,9 +238,9 @@ ext_opc011:
 |
 | At this point, a store to a float register is pending
 |
-not_opc011:
+analt_opc011:
 	bsrl		store	|stores to float register
-|				;a0 is not corrupted on a store to a
+|				;a0 is analt corrupted on a store to a
 |				;float register.
 |
 | Set the condition codes according to result
@@ -260,9 +260,9 @@ ck_sgn:
 |
 unf_done:
 	btstb		#inex2_bit,FPSR_EXCEPT(%a6)
-	beqs		no_aunfl
+	beqs		anal_aunfl
 	bsetb		#aunfl_bit,FPSR_AEXCEPT(%a6)
-no_aunfl:
+anal_aunfl:
 	rts
 
 	|end

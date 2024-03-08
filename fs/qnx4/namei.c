@@ -20,7 +20,7 @@
 /*
  * check if the filename is correct. For some obscure reason, qnx writes a
  * new file twice in the directory entry, first with all possible options at 0
- * and for a second time the way it is, they want us not to access the qnx
+ * and for a second time the way it is, they want us analt to access the qnx
  * filesystem when whe are using linux.
  */
 static int qnx4_match(int len, const char *name,
@@ -47,8 +47,8 @@ static int qnx4_match(int len, const char *name,
 	return 0;
 }
 
-static struct buffer_head *qnx4_find_entry(int len, struct inode *dir,
-	   const char *name, struct qnx4_inode_entry **res_dir, int *ino)
+static struct buffer_head *qnx4_find_entry(int len, struct ianalde *dir,
+	   const char *name, struct qnx4_ianalde_entry **res_dir, int *ianal)
 {
 	unsigned long block, offset, blkofs;
 	struct buffer_head *bh;
@@ -66,9 +66,9 @@ static struct buffer_head *qnx4_find_entry(int len, struct inode *dir,
 				continue;
 			}
 		}
-		*res_dir = (struct qnx4_inode_entry *) (bh->b_data + offset);
+		*res_dir = (struct qnx4_ianalde_entry *) (bh->b_data + offset);
 		if (qnx4_match(len, name, bh, &offset)) {
-			*ino = block * QNX4_INODES_PER_BLOCK +
+			*ianal = block * QNX4_IANALDES_PER_BLOCK +
 			    (offset / QNX4_DIR_ENTRY_SIZE) - 1;
 			return bh;
 		}
@@ -85,31 +85,31 @@ static struct buffer_head *qnx4_find_entry(int len, struct inode *dir,
 	return NULL;
 }
 
-struct dentry * qnx4_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+struct dentry * qnx4_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
-	int ino;
-	struct qnx4_inode_entry *de;
+	int ianal;
+	struct qnx4_ianalde_entry *de;
 	struct qnx4_link_info *lnk;
 	struct buffer_head *bh;
 	const char *name = dentry->d_name.name;
 	int len = dentry->d_name.len;
-	struct inode *foundinode = NULL;
+	struct ianalde *foundianalde = NULL;
 
-	if (!(bh = qnx4_find_entry(len, dir, name, &de, &ino)))
+	if (!(bh = qnx4_find_entry(len, dir, name, &de, &ianal)))
 		goto out;
 	/* The entry is linked, let's get the real info */
 	if ((de->di_status & QNX4_FILE_LINK) == QNX4_FILE_LINK) {
 		lnk = (struct qnx4_link_info *) de;
-		ino = (le32_to_cpu(lnk->dl_inode_blk) - 1) *
-                    QNX4_INODES_PER_BLOCK +
-		    lnk->dl_inode_ndx;
+		ianal = (le32_to_cpu(lnk->dl_ianalde_blk) - 1) *
+                    QNX4_IANALDES_PER_BLOCK +
+		    lnk->dl_ianalde_ndx;
 	}
 	brelse(bh);
 
-	foundinode = qnx4_iget(dir->i_sb, ino);
-	if (IS_ERR(foundinode))
+	foundianalde = qnx4_iget(dir->i_sb, ianal);
+	if (IS_ERR(foundianalde))
 		QNX4DEBUG((KERN_ERR "qnx4: lookup->iget -> error %ld\n",
-			   PTR_ERR(foundinode)));
+			   PTR_ERR(foundianalde)));
 out:
-	return d_splice_alias(foundinode, dentry);
+	return d_splice_alias(foundianalde, dentry);
 }

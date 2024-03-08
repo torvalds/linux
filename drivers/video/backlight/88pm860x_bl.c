@@ -99,7 +99,7 @@ static int pm860x_backlight_set(struct backlight_device *bl, int brightness)
 			ret = pm860x_set_bits(data->i2c, data->reg_always_on,
 					      PM8606_WLED_ON, PM8606_WLED_ON);
 		} else {
-			/* clear WLED_ON bit since it's not 100% */
+			/* clear WLED_ON bit since it's analt 100% */
 			ret = pm860x_set_bits(data->i2c, data->reg_always_on,
 					      PM8606_WLED_ON, 0);
 		}
@@ -151,26 +151,26 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 				    struct pm860x_backlight_data *data,
 				    char *name)
 {
-	struct device_node *nproot, *np;
+	struct device_analde *nproot, *np;
 	int iset = 0;
 
-	nproot = of_get_child_by_name(pdev->dev.parent->of_node, "backlights");
+	nproot = of_get_child_by_name(pdev->dev.parent->of_analde, "backlights");
 	if (!nproot) {
-		dev_err(&pdev->dev, "failed to find backlights node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "failed to find backlights analde\n");
+		return -EANALDEV;
 	}
-	for_each_child_of_node(nproot, np) {
-		if (of_node_name_eq(np, name)) {
+	for_each_child_of_analde(nproot, np) {
+		if (of_analde_name_eq(np, name)) {
 			of_property_read_u32(np, "marvell,88pm860x-iset",
 					     &iset);
 			data->iset = PM8606_WLED_CURRENT(iset);
 			of_property_read_u32(np, "marvell,88pm860x-pwm",
 					     &data->pwm);
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 	}
-	of_node_put(nproot);
+	of_analde_put(nproot);
 	return 0;
 }
 #else
@@ -191,22 +191,22 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_backlight_data),
 			    GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "duty cycle");
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resource for duty cycle\n");
+		dev_err(&pdev->dev, "Anal REG resource for duty cycle\n");
 		return -ENXIO;
 	}
 	data->reg_duty_cycle = res->start;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "always on");
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resource for always on\n");
+		dev_err(&pdev->dev, "Anal REG resource for always on\n");
 		return -ENXIO;
 	}
 	data->reg_always_on = res->start;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "current");
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resource for current\n");
+		dev_err(&pdev->dev, "Anal REG resource for current\n");
 		return -ENXIO;
 	}
 	data->reg_current = res->start;

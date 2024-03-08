@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
@@ -51,9 +51,9 @@
  (((val)<<(sb)) & (mask))
 
 #define DRIVE_TX		0
-#define DO_NOT_DRIVE_TX		1
+#define DO_ANALT_DRIVE_TX		1
 
-#define DO_NOT_QUEUE_DMA	0
+#define DO_ANALT_QUEUE_DMA	0
 #define QUEUE_DMA		1
 
 #define RX_TRANSFER		1
@@ -130,8 +130,8 @@
  * SSP Status Register - SSP_SR
  */
 #define SSP_SR_MASK_TFE		(0x1UL << 0) /* Transmit FIFO empty */
-#define SSP_SR_MASK_TNF		(0x1UL << 1) /* Transmit FIFO not full */
-#define SSP_SR_MASK_RNE		(0x1UL << 2) /* Receive FIFO not empty */
+#define SSP_SR_MASK_TNF		(0x1UL << 1) /* Transmit FIFO analt full */
+#define SSP_SR_MASK_RNE		(0x1UL << 2) /* Receive FIFO analt empty */
 #define SSP_SR_MASK_RFF		(0x1UL << 3) /* Receive FIFO full */
 #define SSP_SR_MASK_BSY		(0x1UL << 4) /* Busy Flag */
 
@@ -396,7 +396,7 @@ struct pl022 {
  * @dmacr: Value of DMA control Register of SSP
  * @cpsr: Value of Clock prescale register
  * @n_bytes: how many bytes(power of 2) reqd for a given data width of client
- * @enable_dma: Whether to enable DMA or not
+ * @enable_dma: Whether to enable DMA or analt
  * @read: function ptr to be used to read when doing xfer for this chip
  * @write: function ptr to be used to write when doing xfer for this chip
  * @xfer_type: polling/interrupt/DMA
@@ -516,7 +516,7 @@ static void restore_state(struct pl022 *pl022)
 	GEN_MASK_BITS(LOOPBACK_DISABLED, SSP_CR1_MASK_LBM, 0) | \
 	GEN_MASK_BITS(SSP_DISABLED, SSP_CR1_MASK_SSE, 1) | \
 	GEN_MASK_BITS(SSP_MASTER, SSP_CR1_MASK_MS, 2) | \
-	GEN_MASK_BITS(DO_NOT_DRIVE_TX, SSP_CR1_MASK_SOD, 3) \
+	GEN_MASK_BITS(DO_ANALT_DRIVE_TX, SSP_CR1_MASK_SOD, 3) \
 )
 
 /* ST versions extend this register to use all 16 bits */
@@ -530,18 +530,18 @@ static void restore_state(struct pl022 *pl022)
 )
 
 /*
- * The PL023 variant has further differences: no loopback mode, no microwire
+ * The PL023 variant has further differences: anal loopback mode, anal microwire
  * support, and a new clock feedback delay setting.
  */
 #define DEFAULT_SSP_REG_CR1_ST_PL023 ( \
 	GEN_MASK_BITS(SSP_DISABLED, SSP_CR1_MASK_SSE, 1) | \
 	GEN_MASK_BITS(SSP_MASTER, SSP_CR1_MASK_MS, 2) | \
-	GEN_MASK_BITS(DO_NOT_DRIVE_TX, SSP_CR1_MASK_SOD, 3) | \
+	GEN_MASK_BITS(DO_ANALT_DRIVE_TX, SSP_CR1_MASK_SOD, 3) | \
 	GEN_MASK_BITS(SSP_RX_MSB, SSP_CR1_MASK_RENDN_ST, 4) | \
 	GEN_MASK_BITS(SSP_TX_MSB, SSP_CR1_MASK_TENDN_ST, 5) | \
 	GEN_MASK_BITS(SSP_RX_1_OR_MORE_ELEM, SSP_CR1_MASK_RXIFLSEL_ST, 7) | \
 	GEN_MASK_BITS(SSP_TX_1_OR_MORE_EMPTY_LOC, SSP_CR1_MASK_TXIFLSEL_ST, 10) | \
-	GEN_MASK_BITS(SSP_FEEDBACK_CLK_DELAY_NONE, SSP_CR1_MASK_FBCLKDEL_ST, 13) \
+	GEN_MASK_BITS(SSP_FEEDBACK_CLK_DELAY_ANALNE, SSP_CR1_MASK_FBCLKDEL_ST, 13) \
 )
 
 #define DEFAULT_SSP_REG_CPSR ( \
@@ -817,12 +817,12 @@ static int configure_dma(struct pl022 *pl022)
 
 	/* Check that the channels are available */
 	if (!rxchan || !txchan)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * If supplied, the DMA burstsize should equal the FIFO trigger level.
-	 * Notice that the DMA engine uses one-to-one mapping. Since we can
-	 * not trigger on 2 elements this needs explicit mapping rather than
+	 * Analtice that the DMA engine uses one-to-one mapping. Since we can
+	 * analt trigger on 2 elements this needs explicit mapping rather than
 	 * calculation.
 	 */
 	switch (pl022->rx_lev_trig) {
@@ -982,7 +982,7 @@ err_rx_sgmap:
 err_alloc_tx_sg:
 	sg_free_table(&pl022->sgt_rx);
 err_alloc_rx_sg:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int pl022_dma_probe(struct pl022 *pl022)
@@ -993,28 +993,28 @@ static int pl022_dma_probe(struct pl022 *pl022)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 	/*
-	 * We need both RX and TX channels to do DMA, else do none
+	 * We need both RX and TX channels to do DMA, else do analne
 	 * of them.
 	 */
 	pl022->dma_rx_channel = dma_request_channel(mask,
 					    pl022->host_info->dma_filter,
 					    pl022->host_info->dma_rx_param);
 	if (!pl022->dma_rx_channel) {
-		dev_dbg(&pl022->adev->dev, "no RX DMA channel!\n");
-		goto err_no_rxchan;
+		dev_dbg(&pl022->adev->dev, "anal RX DMA channel!\n");
+		goto err_anal_rxchan;
 	}
 
 	pl022->dma_tx_channel = dma_request_channel(mask,
 					    pl022->host_info->dma_filter,
 					    pl022->host_info->dma_tx_param);
 	if (!pl022->dma_tx_channel) {
-		dev_dbg(&pl022->adev->dev, "no TX DMA channel!\n");
-		goto err_no_txchan;
+		dev_dbg(&pl022->adev->dev, "anal TX DMA channel!\n");
+		goto err_anal_txchan;
 	}
 
 	pl022->dummypage = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pl022->dummypage)
-		goto err_no_dummypage;
+		goto err_anal_dummypage;
 
 	dev_info(&pl022->adev->dev, "setup for DMA on RX %s, TX %s\n",
 		 dma_chan_name(pl022->dma_rx_channel),
@@ -1022,15 +1022,15 @@ static int pl022_dma_probe(struct pl022 *pl022)
 
 	return 0;
 
-err_no_dummypage:
+err_anal_dummypage:
 	dma_release_channel(pl022->dma_tx_channel);
-err_no_txchan:
+err_anal_txchan:
 	dma_release_channel(pl022->dma_rx_channel);
 	pl022->dma_rx_channel = NULL;
-err_no_rxchan:
+err_anal_rxchan:
 	dev_err(&pl022->adev->dev,
 			"Failed to work in dma mode, work without dma!\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int pl022_dma_autoprobe(struct pl022 *pl022)
@@ -1039,11 +1039,11 @@ static int pl022_dma_autoprobe(struct pl022 *pl022)
 	struct dma_chan *chan;
 	int err;
 
-	/* automatically configure DMA channels from platform, normally using DT */
+	/* automatically configure DMA channels from platform, analrmally using DT */
 	chan = dma_request_chan(dev, "rx");
 	if (IS_ERR(chan)) {
 		err = PTR_ERR(chan);
-		goto err_no_rxchan;
+		goto err_anal_rxchan;
 	}
 
 	pl022->dma_rx_channel = chan;
@@ -1051,26 +1051,26 @@ static int pl022_dma_autoprobe(struct pl022 *pl022)
 	chan = dma_request_chan(dev, "tx");
 	if (IS_ERR(chan)) {
 		err = PTR_ERR(chan);
-		goto err_no_txchan;
+		goto err_anal_txchan;
 	}
 
 	pl022->dma_tx_channel = chan;
 
 	pl022->dummypage = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pl022->dummypage) {
-		err = -ENOMEM;
-		goto err_no_dummypage;
+		err = -EANALMEM;
+		goto err_anal_dummypage;
 	}
 
 	return 0;
 
-err_no_dummypage:
+err_anal_dummypage:
 	dma_release_channel(pl022->dma_tx_channel);
 	pl022->dma_tx_channel = NULL;
-err_no_txchan:
+err_anal_txchan:
 	dma_release_channel(pl022->dma_rx_channel);
 	pl022->dma_rx_channel = NULL;
-err_no_rxchan:
+err_anal_rxchan:
 	return err;
 }
 
@@ -1101,7 +1101,7 @@ static void pl022_dma_remove(struct pl022 *pl022)
 #else
 static inline int configure_dma(struct pl022 *pl022)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int pl022_dma_autoprobe(struct pl022 *pl022)
@@ -1132,8 +1132,8 @@ static inline void pl022_dma_remove(struct pl022 *pl022)
  * If a receive overrun (ROR) interrupt is there then we disable SSP, flag the
  * current message's state as STATE_ERROR and schedule the tasklet
  * pump_transfers which will do the postprocessing of the current message by
- * calling giveback(). Otherwise it reads data from RX FIFO till there is no
- * more data, and writes data in TX FIFO till it is not full. If we complete
+ * calling giveback(). Otherwise it reads data from RX FIFO till there is anal
+ * more data, and writes data in TX FIFO till it is analt full. If we complete
  * the transfer we move to the next transfer and schedule the tasklet.
  */
 static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
@@ -1144,11 +1144,11 @@ static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 	irq_status = readw(SSP_MIS(pl022->virtbase));
 
 	if (unlikely(!irq_status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * This handles the FIFO interrupts, the timeout
-	 * interrupts are flatly ignored, they cannot be
+	 * interrupts are flatly iganalred, they cananalt be
 	 * trusted.
 	 */
 	if (unlikely(irq_status & SSP_MIS_MASK_RORMIS)) {
@@ -1359,7 +1359,7 @@ static int pl022_unprepare_transfer_hardware(struct spi_controller *host)
 {
 	struct pl022 *pl022 = spi_controller_get_devdata(host);
 
-	/* nothing more to do - disable spi/ssp and power off */
+	/* analthing more to do - disable spi/ssp and power off */
 	writew((readw(SSP_CR1(pl022->virtbase)) &
 		(~SSP_CR1_MASK_SSE)), SSP_CR1(pl022->virtbase));
 
@@ -1378,7 +1378,7 @@ static int verify_controller_parameters(struct pl022 *pl022,
 	if ((chip_info->iface == SSP_INTERFACE_UNIDIRECTIONAL) &&
 	    (!pl022->vendor->unidir)) {
 		dev_err(&pl022->adev->dev,
-			"unidirectional mode not supported in this "
+			"unidirectional mode analt supported in this "
 			"hardware version\n");
 		return -EINVAL;
 	}
@@ -1539,7 +1539,7 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 					found = 1;
 			}
 			/*
-			 * increased scr will give lower rates, which are not
+			 * increased scr will give lower rates, which are analt
 			 * required
 			 */
 			break;
@@ -1548,7 +1548,7 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 		scr = SCR_MIN;
 	}
 
-	WARN(!best_freq, "pl022: Matching cpsdvsr and scr not found for %d Hz rate \n",
+	WARN(!best_freq, "pl022: Matching cpsdvsr and scr analt found for %d Hz rate \n",
 			freq);
 
 	clk_freq->cpsdvsr = (u8) (best_cpsdvsr & 0xFF);
@@ -1570,7 +1570,7 @@ static const struct pl022_config_chip pl022_default_chip_info = {
 	.com_mode = INTERRUPT_TRANSFER,
 	.iface = SSP_INTERFACE_MOTOROLA_SPI,
 	.hierarchy = SSP_MASTER,
-	.slave_tx_disable = DO_NOT_DRIVE_TX,
+	.slave_tx_disable = DO_ANALT_DRIVE_TX,
 	.rx_lev_trig = SSP_RX_1_OR_MORE_ELEM,
 	.tx_lev_trig = SSP_TX_1_OR_MORE_EMPTY_LOC,
 	.ctrl_len = SSP_BITS_8,
@@ -1586,8 +1586,8 @@ static const struct pl022_config_chip pl022_default_chip_info = {
  * controller. If it is the first time when setup is called by this device,
  * this function will initialize the runtime state for this chip and save
  * the same in the device structure. Else it will update the runtime info
- * with the updated chip info. Nothing is really being written to the
- * controller hardware here, that is not done until the actual transfer
+ * with the updated chip info. Analthing is really being written to the
+ * controller hardware here, that is analt done until the actual transfer
  * commence.
  */
 static int pl022_setup(struct spi_device *spi)
@@ -1600,7 +1600,7 @@ static int pl022_setup(struct spi_device *spi)
 	struct pl022 *pl022 = spi_controller_get_devdata(spi->controller);
 	unsigned int bits = spi->bits_per_word;
 	u32 tmp;
-	struct device_node *np = spi->dev.of_node;
+	struct device_analde *np = spi->dev.of_analde;
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
@@ -1611,7 +1611,7 @@ static int pl022_setup(struct spi_device *spi)
 	if (chip == NULL) {
 		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
 		if (!chip)
-			return -ENOMEM;
+			return -EANALMEM;
 		dev_dbg(&spi->dev,
 			"allocated memory for controller's runtime state\n");
 	}
@@ -1642,7 +1642,7 @@ static int pl022_setup(struct spi_device *spi)
 			chip_info = &chip_info_dt;
 		} else {
 			chip_info = &pl022_default_chip_info;
-			/* spi_board_info.controller_data not is supplied */
+			/* spi_board_info.controller_data analt is supplied */
 			dev_dbg(&spi->dev,
 				"using default controller_data settings\n");
 		}
@@ -1684,12 +1684,12 @@ static int pl022_setup(struct spi_device *spi)
 	pl022->rx_lev_trig = chip_info->rx_lev_trig;
 	pl022->tx_lev_trig = chip_info->tx_lev_trig;
 
-	/* Now set controller state based on controller data */
+	/* Analw set controller state based on controller data */
 	chip->xfer_type = chip_info->com_mode;
 
 	/* Check bits per word with vendor specific range */
 	if ((bits <= 3) || (bits > pl022->vendor->max_bpw)) {
-		status = -ENOTSUPP;
+		status = -EANALTSUPP;
 		dev_err(&spi->dev, "illegal data size for this controller!\n");
 		dev_err(&spi->dev, "This controller can only handle 4 <= n <= %d bit words\n",
 				pl022->vendor->max_bpw);
@@ -1711,7 +1711,7 @@ static int pl022_setup(struct spi_device *spi)
 		chip->write = WRITING_U32;
 	}
 
-	/* Now Initialize all register settings required for this chip */
+	/* Analw Initialize all register settings required for this chip */
 	chip->cr0 = 0;
 	chip->cr1 = 0;
 	chip->dmacr = 0;
@@ -1726,7 +1726,7 @@ static int pl022_setup(struct spi_device *spi)
 			       SSP_DMACR_MASK_TXDMAE, 1);
 	} else {
 		chip->enable_dma = false;
-		dev_dbg(&spi->dev, "DMA mode NOT set in controller state\n");
+		dev_dbg(&spi->dev, "DMA mode ANALT set in controller state\n");
 		SSP_WRITE_BITS(chip->dmacr, SSP_DMA_DISABLED,
 			       SSP_DMACR_MASK_RXDMAE, 0);
 		SSP_WRITE_BITS(chip->dmacr, SSP_DMA_DISABLED,
@@ -1744,7 +1744,7 @@ static int pl022_setup(struct spi_device *spi)
 			SSP_WRITE_BITS(chip->cr1, chip_info->clkdelay,
 				       SSP_CR1_MASK_FBCLKDEL_ST, 13);
 		} else {
-			/* These bits are in the PL022 but not PL023 */
+			/* These bits are in the PL022 but analt PL023 */
 			SSP_WRITE_BITS(chip->cr0, chip_info->duplex,
 				       SSP_CR0_MASK_HALFDUP_ST, 5);
 			SSP_WRITE_BITS(chip->cr0, chip_info->ctrl_len,
@@ -1831,11 +1831,11 @@ static void pl022_cleanup(struct spi_device *spi)
 static struct pl022_ssp_controller *
 pl022_platform_data_dt_get(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct pl022_ssp_controller *pd;
 
 	if (!np) {
-		dev_err(dev, "no dt node defined\n");
+		dev_err(dev, "anal dt analde defined\n");
 		return NULL;
 	}
 
@@ -1866,15 +1866,15 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		platform_info = pl022_platform_data_dt_get(dev);
 
 	if (!platform_info) {
-		dev_err(dev, "probe: no platform data defined\n");
-		return -ENODEV;
+		dev_err(dev, "probe: anal platform data defined\n");
+		return -EANALDEV;
 	}
 
 	/* Allocate host with space for data */
 	host = spi_alloc_host(dev, sizeof(struct pl022));
 	if (host == NULL) {
-		dev_err(&adev->dev, "probe - cannot alloc SPI host\n");
-		return -ENOMEM;
+		dev_err(&adev->dev, "probe - cananalt alloc SPI host\n");
+		return -EANALMEM;
 	}
 
 	pl022 = spi_controller_get_devdata(host);
@@ -1896,7 +1896,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	host->handle_err = pl022_handle_err;
 	host->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
 	host->rt = platform_info->rt;
-	host->dev.of_node = dev->of_node;
+	host->dev.of_analde = dev->of_analde;
 	host->use_gpio_descriptors = true;
 
 	/*
@@ -1907,18 +1907,18 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	if (pl022->vendor->extended_cr)
 		host->mode_bits |= SPI_LSB_FIRST;
 
-	dev_dbg(&adev->dev, "BUSNO: %d\n", host->bus_num);
+	dev_dbg(&adev->dev, "BUSANAL: %d\n", host->bus_num);
 
 	status = amba_request_regions(adev, NULL);
 	if (status)
-		goto err_no_ioregion;
+		goto err_anal_ioregion;
 
 	pl022->phybase = adev->res.start;
 	pl022->virtbase = devm_ioremap(dev, adev->res.start,
 				       resource_size(&adev->res));
 	if (pl022->virtbase == NULL) {
-		status = -ENOMEM;
-		goto err_no_ioremap;
+		status = -EANALMEM;
+		goto err_anal_ioremap;
 	}
 	dev_info(&adev->dev, "mapped registers from %pa to %p\n",
 		&adev->res.start, pl022->virtbase);
@@ -1926,8 +1926,8 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->clk = devm_clk_get_enabled(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {
 		status = PTR_ERR(pl022->clk);
-		dev_err(&adev->dev, "could not retrieve SSP/SPI bus clock\n");
-		goto err_no_clk;
+		dev_err(&adev->dev, "could analt retrieve SSP/SPI bus clock\n");
+		goto err_anal_clk;
 	}
 
 	/* Disable SSP */
@@ -1938,15 +1938,15 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	status = devm_request_irq(dev, adev->irq[0], pl022_interrupt_handler,
 				  0, "pl022", pl022);
 	if (status < 0) {
-		dev_err(&adev->dev, "probe - cannot get IRQ (%d)\n", status);
-		goto err_no_irq;
+		dev_err(&adev->dev, "probe - cananalt get IRQ (%d)\n", status);
+		goto err_anal_irq;
 	}
 
 	/* Get DMA channels, try autoconfiguration first */
 	status = pl022_dma_autoprobe(pl022);
 	if (status == -EPROBE_DEFER) {
 		dev_dbg(dev, "deferring probe to get DMA channel\n");
-		goto err_no_irq;
+		goto err_anal_irq;
 	}
 
 	/* If that failed, use channels from platform_info */
@@ -1984,11 +1984,11 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
  err_spi_register:
 	if (platform_info->enable_dma)
 		pl022_dma_remove(pl022);
- err_no_irq:
- err_no_clk:
- err_no_ioremap:
+ err_anal_irq:
+ err_anal_clk:
+ err_anal_ioremap:
 	amba_release_regions(adev);
- err_no_ioregion:
+ err_anal_ioregion:
 	spi_controller_put(host);
 	return status;
 }
@@ -2002,10 +2002,10 @@ pl022_remove(struct amba_device *adev)
 		return;
 
 	/*
-	 * undo pm_runtime_put() in probe.  I assume that we're not
+	 * undo pm_runtime_put() in probe.  I assume that we're analt
 	 * accessing the primecell here.
 	 */
-	pm_runtime_get_noresume(&adev->dev);
+	pm_runtime_get_analresume(&adev->dev);
 
 	load_ssp_default_config(pl022);
 	if (pl022->host_info->enable_dma)
@@ -2142,10 +2142,10 @@ static const struct amba_id pl022_ids[] = {
 	},
 	{
 		/*
-		 * ST-Ericsson derivative "PL023" (this is not
+		 * ST-Ericsson derivative "PL023" (this is analt
 		 * an official ARM number), this is a PL022 SSP block
 		 * stripped to SPI mode only, it has 32bit wide
-		 * and 32 locations deep TX/RX FIFO but no extended
+		 * and 32 locations deep TX/RX FIFO but anal extended
 		 * CR0/CR1 register
 		 */
 		.id	= 0x00080023,

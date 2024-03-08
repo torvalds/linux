@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/err.h>
@@ -233,8 +233,8 @@ void kvm_check_vpid(struct kvm_vcpu *vcpu)
 	 * Check if our vpid is of an older version
 	 *
 	 * We also discard the stored vpid if we've executed on
-	 * another CPU, as the guest mappings may have changed without
-	 * hypervisor knowledge.
+	 * aanalther CPU, as the guest mappings may have changed without
+	 * hypervisor kanalwledge.
 	 */
 	ver = vcpu->arch.vpid & ~vpid_mask;
 	old = context->vpid_cache  & ~vpid_mask;
@@ -257,7 +257,7 @@ void kvm_init_vmcs(struct kvm *kvm)
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 int kvm_arch_hardware_enable(void)
@@ -319,14 +319,14 @@ static int kvm_loongarch_env_init(void)
 	vmcs = alloc_percpu(struct kvm_context);
 	if (!vmcs) {
 		pr_err("kvm: failed to allocate percpu kvm_context\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	kvm_loongarch_ops = kzalloc(sizeof(*kvm_loongarch_ops), GFP_KERNEL);
 	if (!kvm_loongarch_ops) {
 		free_percpu(vmcs);
 		vmcs = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -344,7 +344,7 @@ static int kvm_loongarch_env_init(void)
 		vmcs = NULL;
 		kfree(kvm_loongarch_ops);
 		kvm_loongarch_ops = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(addr, kvm_exc_entry, kvm_exception_size);
@@ -391,8 +391,8 @@ static int kvm_loongarch_init(void)
 	int r;
 
 	if (!cpu_has_lvz) {
-		kvm_info("Hardware virtualization not available\n");
-		return -ENODEV;
+		kvm_info("Hardware virtualization analt available\n");
+		return -EANALDEV;
 	}
 	r = kvm_loongarch_env_init();
 	if (r)

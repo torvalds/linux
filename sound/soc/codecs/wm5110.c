@@ -213,7 +213,7 @@ static int wm5110_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	return wm_adsp_early_event(w, kcontrol, event);
 }
 
-static const struct reg_sequence wm5110_no_dre_left_enable[] = {
+static const struct reg_sequence wm5110_anal_dre_left_enable[] = {
 	{ 0x3024, 0xE410 },
 	{ 0x3025, 0x0056 },
 	{ 0x301B, 0x0224 },
@@ -249,7 +249,7 @@ static const struct reg_sequence wm5110_dre_left_enable[] = {
 	{ 0x3039, 0x0B00 },
 };
 
-static const struct reg_sequence wm5110_no_dre_right_enable[] = {
+static const struct reg_sequence wm5110_anal_dre_right_enable[] = {
 	{ 0x3074, 0xE414 },
 	{ 0x3075, 0x0056 },
 	{ 0x306B, 0x0224 },
@@ -300,8 +300,8 @@ static int wm5110_hp_pre_enable(struct snd_soc_dapm_widget *w)
 			wseq = wm5110_dre_left_enable;
 			nregs = ARRAY_SIZE(wm5110_dre_left_enable);
 		} else {
-			wseq = wm5110_no_dre_left_enable;
-			nregs = ARRAY_SIZE(wm5110_no_dre_left_enable);
+			wseq = wm5110_anal_dre_left_enable;
+			nregs = ARRAY_SIZE(wm5110_anal_dre_left_enable);
 			priv->out_up_delay += 10;
 		}
 		break;
@@ -310,8 +310,8 @@ static int wm5110_hp_pre_enable(struct snd_soc_dapm_widget *w)
 			wseq = wm5110_dre_right_enable;
 			nregs = ARRAY_SIZE(wm5110_dre_right_enable);
 		} else {
-			wseq = wm5110_no_dre_right_enable;
-			nregs = ARRAY_SIZE(wm5110_no_dre_right_enable);
+			wseq = wm5110_anal_dre_right_enable;
+			nregs = ARRAY_SIZE(wm5110_anal_dre_right_enable);
 			priv->out_up_delay += 10;
 		}
 		break;
@@ -586,7 +586,7 @@ static int wm5110_in_ev(struct snd_soc_dapm_widget *w,
 static DECLARE_TLV_DB_SCALE(ana_tlv, 0, 100, 0);
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
-static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
+static DECLARE_TLV_DB_SCALE(analise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 #define WM5110_NG_SRC(name, base) \
@@ -609,7 +609,7 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 	{ name " NG Internal", NULL, name " Channel" }, \
 	{ name " NG External", NULL, "RXANC NG External Clock" }, \
 	{ name " NG External", NULL, name " Channel" }, \
-	{ name " NG Mux", "None", name " Channel" }, \
+	{ name " NG Mux", "Analne", name " Channel" }, \
 	{ name " NG Mux", "Internal", name " NG Internal" }, \
 	{ name " NG Mux", "External", name " NG External" }, \
 	{ name " Channel", "Left", name " Left Input" }, \
@@ -804,10 +804,10 @@ ARIZONA_MIXER_CONTROLS("DSP4L", ARIZONA_DSP4LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP4R", ARIZONA_DSP4RMIX_INPUT_1_SOURCE),
 
 ARIZONA_MIXER_CONTROLS("Mic", ARIZONA_MICMIX_INPUT_1_SOURCE),
-ARIZONA_MIXER_CONTROLS("Noise", ARIZONA_NOISEMIX_INPUT_1_SOURCE),
+ARIZONA_MIXER_CONTROLS("Analise", ARIZONA_ANALISEMIX_INPUT_1_SOURCE),
 
-SOC_SINGLE_TLV("Noise Generator Volume", ARIZONA_COMFORT_NOISE_GENERATOR,
-	       ARIZONA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, noise_tlv),
+SOC_SINGLE_TLV("Analise Generator Volume", ARIZONA_COMFORT_ANALISE_GENERATOR,
+	       ARIZONA_ANALISE_GEN_GAIN_SHIFT, 0x16, 0, analise_tlv),
 
 ARIZONA_MIXER_CONTROLS("HPOUT1L", ARIZONA_OUT1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("HPOUT1R", ARIZONA_OUT1RMIX_INPUT_1_SOURCE),
@@ -884,24 +884,24 @@ SOC_DOUBLE_EXT("HPOUT3 DRE Switch", ARIZONA_DRE_ENABLE,
 SOC_ENUM("Output Ramp Up", arizona_out_vi_ramp),
 SOC_ENUM("Output Ramp Down", arizona_out_vd_ramp),
 
-SOC_SINGLE("Noise Gate Switch", ARIZONA_NOISE_GATE_CONTROL,
+SOC_SINGLE("Analise Gate Switch", ARIZONA_ANALISE_GATE_CONTROL,
 	   ARIZONA_NGATE_ENA_SHIFT, 1, 0),
-SOC_SINGLE_TLV("Noise Gate Threshold Volume", ARIZONA_NOISE_GATE_CONTROL,
+SOC_SINGLE_TLV("Analise Gate Threshold Volume", ARIZONA_ANALISE_GATE_CONTROL,
 	       ARIZONA_NGATE_THR_SHIFT, 7, 1, ng_tlv),
-SOC_ENUM("Noise Gate Hold", arizona_ng_hold),
+SOC_ENUM("Analise Gate Hold", arizona_ng_hold),
 
-WM5110_NG_SRC("HPOUT1L", ARIZONA_NOISE_GATE_SELECT_1L),
-WM5110_NG_SRC("HPOUT1R", ARIZONA_NOISE_GATE_SELECT_1R),
-WM5110_NG_SRC("HPOUT2L", ARIZONA_NOISE_GATE_SELECT_2L),
-WM5110_NG_SRC("HPOUT2R", ARIZONA_NOISE_GATE_SELECT_2R),
-WM5110_NG_SRC("HPOUT3L", ARIZONA_NOISE_GATE_SELECT_3L),
-WM5110_NG_SRC("HPOUT3R", ARIZONA_NOISE_GATE_SELECT_3R),
-WM5110_NG_SRC("SPKOUTL", ARIZONA_NOISE_GATE_SELECT_4L),
-WM5110_NG_SRC("SPKOUTR", ARIZONA_NOISE_GATE_SELECT_4R),
-WM5110_NG_SRC("SPKDAT1L", ARIZONA_NOISE_GATE_SELECT_5L),
-WM5110_NG_SRC("SPKDAT1R", ARIZONA_NOISE_GATE_SELECT_5R),
-WM5110_NG_SRC("SPKDAT2L", ARIZONA_NOISE_GATE_SELECT_6L),
-WM5110_NG_SRC("SPKDAT2R", ARIZONA_NOISE_GATE_SELECT_6R),
+WM5110_NG_SRC("HPOUT1L", ARIZONA_ANALISE_GATE_SELECT_1L),
+WM5110_NG_SRC("HPOUT1R", ARIZONA_ANALISE_GATE_SELECT_1R),
+WM5110_NG_SRC("HPOUT2L", ARIZONA_ANALISE_GATE_SELECT_2L),
+WM5110_NG_SRC("HPOUT2R", ARIZONA_ANALISE_GATE_SELECT_2R),
+WM5110_NG_SRC("HPOUT3L", ARIZONA_ANALISE_GATE_SELECT_3L),
+WM5110_NG_SRC("HPOUT3R", ARIZONA_ANALISE_GATE_SELECT_3R),
+WM5110_NG_SRC("SPKOUTL", ARIZONA_ANALISE_GATE_SELECT_4L),
+WM5110_NG_SRC("SPKOUTR", ARIZONA_ANALISE_GATE_SELECT_4R),
+WM5110_NG_SRC("SPKDAT1L", ARIZONA_ANALISE_GATE_SELECT_5L),
+WM5110_NG_SRC("SPKDAT1R", ARIZONA_ANALISE_GATE_SELECT_5R),
+WM5110_NG_SRC("SPKDAT2L", ARIZONA_ANALISE_GATE_SELECT_6L),
+WM5110_NG_SRC("SPKDAT2R", ARIZONA_ANALISE_GATE_SELECT_6R),
 
 ARIZONA_MIXER_CONTROLS("AIF1TX1", ARIZONA_AIF1TX1MIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("AIF1TX2", ARIZONA_AIF1TX2MIX_INPUT_1_SOURCE),
@@ -969,7 +969,7 @@ ARIZONA_MIXER_ENUMS(DSP4R, ARIZONA_DSP4RMIX_INPUT_1_SOURCE);
 ARIZONA_DSP_AUX_ENUMS(DSP4, ARIZONA_DSP4AUX1MIX_INPUT_1_SOURCE);
 
 ARIZONA_MIXER_ENUMS(Mic, ARIZONA_MICMIX_INPUT_1_SOURCE);
-ARIZONA_MIXER_ENUMS(Noise, ARIZONA_NOISEMIX_INPUT_1_SOURCE);
+ARIZONA_MIXER_ENUMS(Analise, ARIZONA_ANALISEMIX_INPUT_1_SOURCE);
 
 ARIZONA_MIXER_ENUMS(PWM1, ARIZONA_PWM1MIX_INPUT_1_SOURCE);
 ARIZONA_MIXER_ENUMS(PWM2, ARIZONA_PWM2MIX_INPUT_1_SOURCE);
@@ -1114,7 +1114,7 @@ SND_SOC_DAPM_REGULATOR_SUPPLY("SPKVDDL", 0, 0),
 SND_SOC_DAPM_REGULATOR_SUPPLY("SPKVDDR", 0, 0),
 
 SND_SOC_DAPM_SIGGEN("TONE"),
-SND_SOC_DAPM_SIGGEN("NOISE"),
+SND_SOC_DAPM_SIGGEN("ANALISE"),
 SND_SOC_DAPM_SIGGEN("HAPTICS"),
 
 SND_SOC_DAPM_INPUT("IN1L"),
@@ -1131,7 +1131,7 @@ SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
 SND_SOC_DAPM_OUTPUT("DSP Voice Trigger"),
 
-SND_SOC_DAPM_SWITCH("DSP3 Voice Trigger", SND_SOC_NOPM, 2, 0,
+SND_SOC_DAPM_SWITCH("DSP3 Voice Trigger", SND_SOC_ANALPM, 2, 0,
 		    &arizona_voice_trigger_switch[2]),
 
 SND_SOC_DAPM_PGA_E("IN1L PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN1L_ENA_SHIFT,
@@ -1180,15 +1180,15 @@ SND_SOC_DAPM_SUPPLY("MICBIAS2", ARIZONA_MIC_BIAS_CTRL_2,
 SND_SOC_DAPM_SUPPLY("MICBIAS3", ARIZONA_MIC_BIAS_CTRL_3,
 		    ARIZONA_MICB1_ENA_SHIFT, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA("Noise Generator", ARIZONA_COMFORT_NOISE_GENERATOR,
-		 ARIZONA_NOISE_GEN_ENA_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Analise Generator", ARIZONA_COMFORT_ANALISE_GENERATOR,
+		 ARIZONA_ANALISE_GEN_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA("Tone Generator 1", ARIZONA_TONE_GENERATOR_1,
 		 ARIZONA_TONE1_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("Tone Generator 2", ARIZONA_TONE_GENERATOR_1,
 		 ARIZONA_TONE2_ENA_SHIFT, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA("Mic Mute Mixer", ARIZONA_MIC_NOISE_MIX_CONTROL_1,
+SND_SOC_DAPM_PGA("Mic Mute Mixer", ARIZONA_MIC_ANALISE_MIX_CONTROL_1,
 		 ARIZONA_MICMUTE_MIX_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA("EQ1", ARIZONA_EQ1_1, ARIZONA_EQ1_ENA_SHIFT, 0, NULL, 0),
@@ -1290,63 +1290,63 @@ SND_SOC_DAPM_PGA("ISRC3DEC4", ARIZONA_ISRC_3_CTRL_3,
 SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0, &wm5110_aec_loopback_mux),
 
-SND_SOC_DAPM_SUPPLY("RXANC NG External Clock", SND_SOC_NOPM,
+SND_SOC_DAPM_SUPPLY("RXANC NG External Clock", SND_SOC_ANALPM,
 		    ARIZONA_EXT_NG_SEL_SET_SHIFT, 0, arizona_anc_ev,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_PGA("RXANCL NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_PGA("RXANCR NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCL NG External", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCR NG External", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_SUPPLY("RXANC NG Clock", SND_SOC_NOPM,
+SND_SOC_DAPM_SUPPLY("RXANC NG Clock", SND_SOC_ANALPM,
 		    ARIZONA_CLK_NG_ENA_SET_SHIFT, 0, arizona_anc_ev,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_PGA("RXANCL NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_PGA("RXANCR NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCL NG Internal", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCR NG Internal", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("RXANCL Left Input", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("RXANCL Left Input", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_anc_input_mux[0]),
-SND_SOC_DAPM_MUX("RXANCL Right Input", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("RXANCL Right Input", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_anc_input_mux[0]),
-SND_SOC_DAPM_MUX("RXANCL Channel", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("RXANCL Channel", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_anc_input_mux[1]),
-SND_SOC_DAPM_MUX("RXANCL NG Mux", SND_SOC_NOPM, 0, 0, &wm5110_anc_ng_mux),
-SND_SOC_DAPM_MUX("RXANCR Left Input", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("RXANCL NG Mux", SND_SOC_ANALPM, 0, 0, &wm5110_anc_ng_mux),
+SND_SOC_DAPM_MUX("RXANCR Left Input", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_anc_input_mux[2]),
-SND_SOC_DAPM_MUX("RXANCR Right Input", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("RXANCR Right Input", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_anc_input_mux[2]),
-SND_SOC_DAPM_MUX("RXANCR Channel", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("RXANCR Channel", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_anc_input_mux[3]),
-SND_SOC_DAPM_MUX("RXANCR NG Mux", SND_SOC_NOPM, 0, 0, &wm5110_anc_ng_mux),
+SND_SOC_DAPM_MUX("RXANCR NG Mux", SND_SOC_ANALPM, 0, 0, &wm5110_anc_ng_mux),
 
-SND_SOC_DAPM_PGA_E("RXANCL", SND_SOC_NOPM, ARIZONA_CLK_L_ENA_SET_SHIFT,
+SND_SOC_DAPM_PGA_E("RXANCL", SND_SOC_ANALPM, ARIZONA_CLK_L_ENA_SET_SHIFT,
 		   0, NULL, 0, arizona_anc_ev,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_PGA_E("RXANCR", SND_SOC_NOPM, ARIZONA_CLK_R_ENA_SET_SHIFT,
+SND_SOC_DAPM_PGA_E("RXANCR", SND_SOC_ANALPM, ARIZONA_CLK_R_ENA_SET_SHIFT,
 		   0, NULL, 0, arizona_anc_ev,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-SND_SOC_DAPM_MUX("HPOUT1L ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("HPOUT1L ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[0]),
-SND_SOC_DAPM_MUX("HPOUT1R ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("HPOUT1R ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[1]),
-SND_SOC_DAPM_MUX("HPOUT2L ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("HPOUT2L ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[2]),
-SND_SOC_DAPM_MUX("HPOUT2R ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("HPOUT2R ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[3]),
-SND_SOC_DAPM_MUX("HPOUT3L ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("HPOUT3L ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[4]),
-SND_SOC_DAPM_MUX("HPOUT3R ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("HPOUT3R ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[5]),
-SND_SOC_DAPM_MUX("SPKOUTL ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("SPKOUTL ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[6]),
-SND_SOC_DAPM_MUX("SPKOUTR ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("SPKOUTR ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[7]),
-SND_SOC_DAPM_MUX("SPKDAT1L ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("SPKDAT1L ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[8]),
-SND_SOC_DAPM_MUX("SPKDAT1R ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("SPKDAT1R ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[9]),
-SND_SOC_DAPM_MUX("SPKDAT2L ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("SPKDAT2L ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[10]),
-SND_SOC_DAPM_MUX("SPKDAT2R ANC Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("SPKDAT2R ANC Source", SND_SOC_ANALPM, 0, 0,
 		 &wm5110_output_anc_src[11]),
 
 SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 0,
@@ -1469,11 +1469,11 @@ SND_SOC_DAPM_AIF_IN("AIF3RX1", NULL, 0,
 SND_SOC_DAPM_AIF_IN("AIF3RX2", NULL, 1,
 		    ARIZONA_AIF3_RX_ENABLES, ARIZONA_AIF3RX2_ENA_SHIFT, 0),
 
-SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_NOPM,
+SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_ANALPM,
 		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, wm5110_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("OUT1R", SND_SOC_NOPM,
+SND_SOC_DAPM_PGA_E("OUT1R", SND_SOC_ANALPM,
 		   ARIZONA_OUT1R_ENA_SHIFT, 0, NULL, 0, wm5110_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
@@ -1522,7 +1522,7 @@ ARIZONA_MIXER_WIDGETS(LHPF3, "LHPF3"),
 ARIZONA_MIXER_WIDGETS(LHPF4, "LHPF4"),
 
 ARIZONA_MIXER_WIDGETS(Mic, "Mic"),
-ARIZONA_MIXER_WIDGETS(Noise, "Noise"),
+ARIZONA_MIXER_WIDGETS(Analise, "Analise"),
 
 ARIZONA_MIXER_WIDGETS(PWM1, "PWM1"),
 ARIZONA_MIXER_WIDGETS(PWM2, "PWM2"),
@@ -1627,7 +1627,7 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 };
 
 #define ARIZONA_MIXER_INPUT_ROUTES(name)	\
-	{ name, "Noise Generator", "Noise Generator" }, \
+	{ name, "Analise Generator", "Analise Generator" }, \
 	{ name, "Tone Generator 1", "Tone Generator 1" }, \
 	{ name, "Tone Generator 2", "Tone Generator 2" }, \
 	{ name, "Haptics", "HAPTICS" }, \
@@ -1783,11 +1783,11 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "MICBIAS2", NULL, "MICVDD" },
 	{ "MICBIAS3", NULL, "MICVDD" },
 
-	{ "Noise Generator", NULL, "SYSCLK" },
+	{ "Analise Generator", NULL, "SYSCLK" },
 	{ "Tone Generator 1", NULL, "SYSCLK" },
 	{ "Tone Generator 2", NULL, "SYSCLK" },
 
-	{ "Noise Generator", NULL, "NOISE" },
+	{ "Analise Generator", NULL, "ANALISE" },
 	{ "Tone Generator 1", NULL, "TONE" },
 	{ "Tone Generator 2", NULL, "TONE" },
 
@@ -1941,7 +1941,7 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	ARIZONA_MIXER_ROUTES("LHPF3", "LHPF3"),
 	ARIZONA_MIXER_ROUTES("LHPF4", "LHPF4"),
 
-	ARIZONA_MIXER_ROUTES("Mic Mute Mixer", "Noise"),
+	ARIZONA_MIXER_ROUTES("Mic Mute Mixer", "Analise"),
 	ARIZONA_MIXER_ROUTES("Mic Mute Mixer", "Mic"),
 
 	ARIZONA_MUX_ROUTES("ASRC1L", "ASRC1L"),
@@ -2068,7 +2068,7 @@ static int wm5110_set_fll(struct snd_soc_component *component, int fll_id,
 	}
 }
 
-#define WM5110_RATES SNDRV_PCM_RATE_KNOT
+#define WM5110_RATES SNDRV_PCM_RATE_KANALT
 
 #define WM5110_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
@@ -2259,7 +2259,7 @@ static int wm5110_open(struct snd_soc_component *component,
 		n_adsp = 0;
 	} else {
 		dev_err(arizona->dev,
-			"No suitable compressed stream for DAI '%s'\n",
+			"Anal suitable compressed stream for DAI '%s'\n",
 			snd_soc_rtd_to_codec(rtd, 0)->name);
 		return -EINVAL;
 	}
@@ -2277,19 +2277,19 @@ static irqreturn_t wm5110_adsp2_irq(int irq, void *data)
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
 		ret = wm_adsp_compr_handle_irq(&priv->core.adsp[i]);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			serviced++;
 		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
 			info.core = i;
-			arizona_call_notifiers(arizona,
-					       ARIZONA_NOTIFY_VOICE_TRIGGER,
+			arizona_call_analtifiers(arizona,
+					       ARIZONA_ANALTIFY_VOICE_TRIGGER,
 					       &info);
 		}
 	}
 
 	if (!serviced) {
 		dev_err(arizona->dev, "Spurious compressed data IRQ\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -2310,7 +2310,7 @@ static int wm5110_component_probe(struct snd_soc_component *component)
 		return ret;
 
 	arizona_init_gpio(component);
-	arizona_init_mono(component);
+	arizona_init_moanal(component);
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
 		ret = wm_adsp2_component_probe(&priv->core.adsp[i], component);
@@ -2400,7 +2400,7 @@ static int wm5110_probe(struct platform_device *pdev)
 	wm5110 = devm_kzalloc(&pdev->dev, sizeof(struct wm5110_priv),
 			      GFP_KERNEL);
 	if (wm5110 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, wm5110);
 
 	if (IS_ENABLED(CONFIG_OF)) {

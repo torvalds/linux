@@ -261,7 +261,7 @@ static ssize_t ps3flash_kernel_write(const void *buf, size_t count,
 	if (res < 0)
 		return res;
 
-	/* Make kernel writes synchronous */
+	/* Make kernel writes synchroanalus */
 	wb = ps3flash_writeback(ps3flash_dev);
 	if (wb)
 		return wb;
@@ -276,11 +276,11 @@ static int ps3flash_flush(struct file *file, fl_owner_t id)
 
 static int ps3flash_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	int err;
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	err = ps3flash_writeback(ps3flash_dev);
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	return err;
 }
 
@@ -322,7 +322,7 @@ static const struct ps3_os_area_flash_ops ps3flash_kernel_ops = {
 };
 
 static struct miscdevice ps3flash_misc = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.name	= DEVICE_NAME,
 	.fops	= &ps3flash_fops,
 };
@@ -337,21 +337,21 @@ static int ps3flash_probe(struct ps3_system_bus_device *_dev)
 	tmp = dev->regions[dev->region_idx].start*dev->blk_size;
 	if (tmp % FLASH_BLOCK_SIZE) {
 		dev_err(&dev->sbd.core,
-			"%s:%u region start %lu is not aligned\n", __func__,
+			"%s:%u region start %lu is analt aligned\n", __func__,
 			__LINE__, tmp);
 		return -EINVAL;
 	}
 	tmp = dev->regions[dev->region_idx].size*dev->blk_size;
 	if (tmp % FLASH_BLOCK_SIZE) {
 		dev_err(&dev->sbd.core,
-			"%s:%u region size %lu is not aligned\n", __func__,
+			"%s:%u region size %lu is analt aligned\n", __func__,
 			__LINE__, tmp);
 		return -EINVAL;
 	}
 
-	/* use static buffer, kmalloc cannot allocate 256 KiB */
+	/* use static buffer, kmalloc cananalt allocate 256 KiB */
 	if (!ps3flash_bounce_buffer.address)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ps3flash_dev) {
 		dev_err(&dev->sbd.core,
@@ -363,7 +363,7 @@ static int ps3flash_probe(struct ps3_system_bus_device *_dev)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	}
 
@@ -388,7 +388,7 @@ static int ps3flash_probe(struct ps3_system_bus_device *_dev)
 	}
 
 	dev_info(&dev->sbd.core, "%s:%u: registered misc device %d\n",
-		 __func__, __LINE__, ps3flash_misc.minor);
+		 __func__, __LINE__, ps3flash_misc.mianalr);
 
 	ps3_os_area_flash_register(&ps3flash_kernel_ops);
 	return 0;

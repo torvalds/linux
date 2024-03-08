@@ -3,7 +3,7 @@
  * Pid namespaces
  *
  * Authors:
- *    (C) 2007 Pavel Emelyanov <xemul@openvz.org>, OpenVZ, SWsoft Inc.
+ *    (C) 2007 Pavel Emelyaanalv <xemul@openvz.org>, OpenVZ, SWsoft Inc.
  *    (C) 2007 Sukadev Bhattiprolu <sukadev@us.ibm.com>, IBM
  *     Many thanks to Oleg Nesterov for comments and help
  *
@@ -82,14 +82,14 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	if (!in_userns(parent_pid_ns->user_ns, user_ns))
 		goto out;
 
-	err = -ENOSPC;
+	err = -EANALSPC;
 	if (level > MAX_PID_NS_LEVEL)
 		goto out;
 	ucounts = inc_pid_namespaces(user_ns);
 	if (!ucounts)
 		goto out;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ns = kmem_cache_zalloc(pid_ns_cachep, GFP_KERNEL);
 	if (ns == NULL)
 		goto out_dec;
@@ -112,7 +112,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->ucounts = ucounts;
 	ns->pid_allocated = PIDNS_ADDING;
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
-	ns->memfd_noexec_scope = pidns_memfd_noexec_scope(parent_pid_ns);
+	ns->memfd_analexec_scope = pidns_memfd_analexec_scope(parent_pid_ns);
 #endif
 	return ns;
 
@@ -179,7 +179,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	disable_pid_allocation(pid_ns);
 
 	/*
-	 * Ignore SIGCHLD causing any terminated children to autoreap.
+	 * Iganalre SIGCHLD causing any terminated children to autoreap.
 	 * This speeds up the namespace shutdown, plus see the comment
 	 * below.
 	 */
@@ -192,7 +192,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 * Find remaining pid_ts in the namespace, signal and wait for them
 	 * to exit.
 	 *
-	 * Note:  This signals each threads in the namespace - even those that
+	 * Analte:  This signals each threads in the namespace - even those that
 	 * 	  belong to the same thread group, To avoid this, we would have
 	 * 	  to walk the entire tasklist looking a processes in this
 	 * 	  namespace, but that could be unnecessarily expensive if the
@@ -212,7 +212,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	rcu_read_unlock();
 
 	/*
-	 * Reap the EXIT_ZOMBIE children we had before we ignored SIGCHLD.
+	 * Reap the EXIT_ZOMBIE children we had before we iganalred SIGCHLD.
 	 * kernel_wait4() will also block until our children traced from the
 	 * parent namespace are detached and become EXIT_DEAD.
 	 */
@@ -226,12 +226,12 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 * process whose parents processes are outside of the pid
 	 * namespace.  Such processes are created with setns()+fork().
 	 *
-	 * If those EXIT_ZOMBIE processes are not reaped by their
+	 * If those EXIT_ZOMBIE processes are analt reaped by their
 	 * parents before their parents exit, they will be reparented
 	 * to pid_ns->child_reaper.  Thus pidns->child_reaper needs to
 	 * stay valid until they all go away.
 	 *
-	 * The code relies on the pid_ns->child_reaper ignoring
+	 * The code relies on the pid_ns->child_reaper iganalring
 	 * SIGCHILD to cause those EXIT_ZOMBIE processes to be
 	 * autoreaped if reparented.
 	 *
@@ -260,7 +260,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 		 * 5) *DEADLOCK*
 		 *
 		 * It is considered safe to release tasks_rcu_exit_srcu here
-		 * because we assume the current task can not be concurrently
+		 * because we assume the current task can analt be concurrently
 		 * reaped at this point.
 		 */
 		exit_tasks_rcu_stop();
@@ -336,7 +336,7 @@ int reboot_pid_ns(struct pid_namespace *pid_ns, int cmd)
 
 	do_exit(0);
 
-	/* Not reached */
+	/* Analt reached */
 	return 0;
 }
 
@@ -402,7 +402,7 @@ static int pidns_install(struct nsset *nsset, struct ns_common *ns)
 	 *
 	 * This is required for fork to return a usable pid value and
 	 * this maintains the property that processes and their
-	 * children can not escape their current pid namespace.
+	 * children can analt escape their current pid namespace.
 	 */
 	if (new->level < active->level)
 		return -EINVAL;

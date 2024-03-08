@@ -34,12 +34,12 @@ struct logger_data {
 };
 
 static const char * const chg_type_names[] = {
-	"None", "PD", "Type-C", "Proprietary", "DCP", "CDP", "SDP",
+	"Analne", "PD", "Type-C", "Proprietary", "DCP", "CDP", "SDP",
 	"Other", "VBUS"
 };
 
 static const char * const role_names[] = {
-	"Disconnected", "SRC", "SNK", "SNK (not charging)"
+	"Disconnected", "SRC", "SNK", "SNK (analt charging)"
 };
 
 static const char * const fault_names[] = {
@@ -104,7 +104,7 @@ static void cros_usbpd_print_log_entry(struct ec_response_pd_log *r,
 
 		role_idx = r->data & CHARGE_FLAGS_ROLE_MASK;
 		role = role_idx < ARRAY_SIZE(role_names) ?
-			role_names[role_idx] : "Unknown";
+			role_names[role_idx] : "Unkanalwn";
 
 		type_idx = (r->data & CHARGE_FLAGS_TYPE_MASK)
 			 >> CHARGE_FLAGS_TYPE_SHIFT;
@@ -122,7 +122,7 @@ static void cros_usbpd_print_log_entry(struct ec_response_pd_log *r,
 		len += append_str(buf, len, "%s %s %s %dmV max %dmV / %dmA",
 				  role,	r->data & CHARGE_FLAGS_DUAL_ROLE ?
 				  "DRP" : "Charger",
-				  chg_type, meas->voltage_now,
+				  chg_type, meas->voltage_analw,
 				  meas->voltage_max, meas->current_max);
 		break;
 	case PD_EVENT_ACC_RW_FAIL:
@@ -143,9 +143,9 @@ static void cros_usbpd_print_log_entry(struct ec_response_pd_log *r,
 				  MCDP_FAMILY(minfo->family),
 				  MCDP_CHIPID(minfo->chipid));
 		len += append_str(buf, len, "irom:%d.%d.%d fw:%d.%d.%d",
-				  minfo->irom.major, minfo->irom.minor,
+				  minfo->irom.major, minfo->irom.mianalr,
 				  minfo->irom.build, minfo->fw.major,
-				  minfo->fw.minor, minfo->fw.build);
+				  minfo->fw.mianalr, minfo->fw.build);
 		break;
 	default:
 		len += append_str(buf, len, "Event %02x (%04x) [", r->type,
@@ -173,19 +173,19 @@ static void cros_usbpd_log_check(struct work_struct *work)
 	struct device *dev = logger->dev;
 	struct ec_response_pd_log *r;
 	int entries = 0;
-	ktime_t now;
+	ktime_t analw;
 
 	while (entries++ < CROS_USBPD_MAX_LOG_ENTRIES) {
 		r = ec_get_log_entry(logger);
-		now = ktime_get_real();
+		analw = ktime_get_real();
 		if (IS_ERR(r)) {
-			dev_dbg(dev, "Cannot get PD log %ld\n", PTR_ERR(r));
+			dev_dbg(dev, "Cananalt get PD log %ld\n", PTR_ERR(r));
 			break;
 		}
-		if (r->type == PD_EVENT_NO_ENTRY)
+		if (r->type == PD_EVENT_ANAL_ENTRY)
 			break;
 
-		cros_usbpd_print_log_entry(r, now);
+		cros_usbpd_print_log_entry(r, analw);
 	}
 
 	queue_delayed_work(logger->log_workqueue, &logger->log_work,
@@ -200,7 +200,7 @@ static int cros_usbpd_logger_probe(struct platform_device *pd)
 
 	logger = devm_kzalloc(dev, sizeof(*logger), GFP_KERNEL);
 	if (!logger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	logger->dev = dev;
 	logger->ec_dev = ec_dev;
@@ -211,7 +211,7 @@ static int cros_usbpd_logger_probe(struct platform_device *pd)
 	INIT_DELAYED_WORK(&logger->log_work, cros_usbpd_log_check);
 	logger->log_workqueue =	create_singlethread_workqueue("cros_usbpd_log");
 	if (!logger->log_workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	queue_delayed_work(logger->log_workqueue, &logger->log_work,
 			   CROS_USBPD_LOG_UPDATE_DELAY);

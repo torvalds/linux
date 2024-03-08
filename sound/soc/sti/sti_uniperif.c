@@ -130,7 +130,7 @@ int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	int i, frame_size, avail_slots;
 
 	if (!UNIPERIF_TYPE_IS_TDM(uni)) {
-		dev_err(uni->dev, "cpu dai not in tdm mode\n");
+		dev_err(uni->dev, "cpu dai analt in tdm mode\n");
 		return -EINVAL;
 	}
 
@@ -153,7 +153,7 @@ int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	/* check frame size is allowed */
 	if ((frame_size > UNIPERIF_MAX_FRAME_SZ) ||
 	    (frame_size & ~(int)UNIPERIF_ALLOWED_FRAME_SZ)) {
-		dev_err(uni->dev, "frame size not allowed: %d bytes\n",
+		dev_err(uni->dev, "frame size analt allowed: %d bytes\n",
 			frame_size);
 		return -EINVAL;
 	}
@@ -191,7 +191,7 @@ int sti_uniperiph_fix_tdm_format(struct snd_pcm_hw_params *params,
 		format = SNDRV_PCM_FMTBIT_S32_LE;
 		break;
 	default:
-		dev_err(uni->dev, "format not supported: %d bits\n",
+		dev_err(uni->dev, "format analt supported: %d bits\n",
 			uni->tdm_slot.slot_width);
 		return -EINVAL;
 	}
@@ -384,7 +384,7 @@ static const struct snd_soc_component_driver sti_uniperiph_dai_component = {
 	.legacy_dai_naming = 1,
 };
 
-static int sti_uniperiph_cpu_dai_of(struct device_node *node,
+static int sti_uniperiph_cpu_dai_of(struct device_analde *analde,
 				    struct sti_uniperiph_data *priv)
 {
 	struct device *dev = &priv->pdev->dev;
@@ -398,7 +398,7 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 	int ret;
 
 	/* Populate data structure depending on compatibility */
-	of_id = of_match_node(snd_soc_sti_match, node);
+	of_id = of_match_analde(snd_soc_sti_match, analde);
 	if (!of_id->data) {
 		dev_err(dev, "data associated to device is missing\n");
 		return -EINVAL;
@@ -407,7 +407,7 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 
 	uni = devm_kzalloc(dev, sizeof(*uni), GFP_KERNEL);
 	if (!uni)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uni->id = dev_data->id;
 	uni->ver = dev_data->version;
@@ -431,7 +431,7 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 
 	/* check if player should be configured for tdm */
 	if (dev_data->type & SND_ST_UNIPERIF_TYPE_TDM) {
-		if (!of_property_read_string(node, "st,tdm-mode", &mode))
+		if (!of_property_read_string(analde, "st,tdm-mode", &mode))
 			uni->type = SND_ST_UNIPERIF_TYPE_TDM;
 		else
 			uni->type = SND_ST_UNIPERIF_TYPE_PCM;
@@ -464,20 +464,20 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 static int sti_uniperiph_probe(struct platform_device *pdev)
 {
 	struct sti_uniperiph_data *priv;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int ret;
 
 	/* Allocate the private data and the CPU_DAI array */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dai = devm_kzalloc(&pdev->dev, sizeof(*priv->dai), GFP_KERNEL);
 	if (!priv->dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pdev = pdev;
 
-	ret = sti_uniperiph_cpu_dai_of(node, priv);
+	ret = sti_uniperiph_cpu_dai_of(analde, priv);
 	if (ret < 0)
 		return ret;
 

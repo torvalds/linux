@@ -18,7 +18,7 @@
 #include <signal.h>
 #include <limits.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <err.h>
 
 #define NR_CHILDS 2
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 	warnx("(pid=%d) Starting testcase", pid);
 
 	/*
-	 * This rlimit is not a problem for root because it can be exceeded.
+	 * This rlimit is analt a problem for root because it can be exceeded.
 	 */
 	setrlimit_nproc(1);
 
@@ -116,13 +116,13 @@ int main(int argc, char **argv)
 			if (child[i] <= 0)
 				continue;
 
-			errno = 0;
-			pid_t ret = waitpid(child[i], &wstatus[i], WNOHANG);
+			erranal = 0;
+			pid_t ret = waitpid(child[i], &wstatus[i], WANALHANG);
 
 			if (!ret || (!WIFEXITED(wstatus[i]) && !WIFSIGNALED(wstatus[i])))
 				continue;
 
-			if (ret < 0 && errno != ECHILD)
+			if (ret < 0 && erranal != ECHILD)
 				warn("(pid=%d): waitpid(%d)", pid, child[i]);
 
 			child[i] *= -1;

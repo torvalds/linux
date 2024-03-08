@@ -89,14 +89,14 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 {
 	struct stih407_usb2_picophy *phy_dev;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
 	int ret;
 
 	phy_dev = devm_kzalloc(dev, sizeof(*phy_dev), GFP_KERNEL);
 	if (!phy_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy_dev->dev = dev;
 	dev_set_drvdata(dev, phy_dev);
@@ -118,7 +118,7 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 
 	phy_dev->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(phy_dev->regmap)) {
-		dev_err(dev, "No syscfg phandle specified\n");
+		dev_err(dev, "Anal syscfg phandle specified\n");
 		return PTR_ERR(phy_dev->regmap);
 	}
 

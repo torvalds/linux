@@ -2,7 +2,7 @@
 #ifndef _LINUX_NVRAM_H
 #define _LINUX_NVRAM_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <uapi/linux/nvram.h>
 
 #ifdef CONFIG_PPC
@@ -17,7 +17,7 @@
  * @write_byte: store a single byte to NVRAM
  * @get_size: return the fixed number of bytes in the NVRAM
  *
- * Architectures which provide an nvram ops struct need not implement all
+ * Architectures which provide an nvram ops struct need analt implement all
  * of these methods. If the NVRAM hardware can be accessed only one byte
  * at a time then it may be sufficient to provide .read_byte and .write_byte.
  * If the NVRAM has a checksum (and it is to be checked) the .read and
@@ -52,7 +52,7 @@ static inline ssize_t nvram_get_size(void)
 	if (arch_nvram_ops.get_size)
 		return arch_nvram_ops.get_size();
 #endif
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline unsigned char nvram_read_byte(int addr)

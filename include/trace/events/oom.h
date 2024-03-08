@@ -36,38 +36,38 @@ TRACE_EVENT(reclaim_retry_zone,
 		unsigned long reclaimable,
 		unsigned long available,
 		unsigned long min_wmark,
-		int no_progress_loops,
+		int anal_progress_loops,
 		bool wmark_check),
 
-	TP_ARGS(zoneref, order, reclaimable, available, min_wmark, no_progress_loops, wmark_check),
+	TP_ARGS(zoneref, order, reclaimable, available, min_wmark, anal_progress_loops, wmark_check),
 
 	TP_STRUCT__entry(
-		__field(	int, node)
+		__field(	int, analde)
 		__field(	int, zone_idx)
 		__field(	int,	order)
 		__field(	unsigned long,	reclaimable)
 		__field(	unsigned long,	available)
 		__field(	unsigned long,	min_wmark)
-		__field(	int,	no_progress_loops)
+		__field(	int,	anal_progress_loops)
 		__field(	bool,	wmark_check)
 	),
 
 	TP_fast_assign(
-		__entry->node = zone_to_nid(zoneref->zone);
+		__entry->analde = zone_to_nid(zoneref->zone);
 		__entry->zone_idx = zoneref->zone_idx;
 		__entry->order = order;
 		__entry->reclaimable = reclaimable;
 		__entry->available = available;
 		__entry->min_wmark = min_wmark;
-		__entry->no_progress_loops = no_progress_loops;
+		__entry->anal_progress_loops = anal_progress_loops;
 		__entry->wmark_check = wmark_check;
 	),
 
-	TP_printk("node=%d zone=%-8s order=%d reclaimable=%lu available=%lu min_wmark=%lu no_progress_loops=%d wmark_check=%d",
-			__entry->node, __print_symbolic(__entry->zone_idx, ZONE_TYPE),
+	TP_printk("analde=%d zone=%-8s order=%d reclaimable=%lu available=%lu min_wmark=%lu anal_progress_loops=%d wmark_check=%d",
+			__entry->analde, __print_symbolic(__entry->zone_idx, ZONE_TYPE),
 			__entry->order,
 			__entry->reclaimable, __entry->available, __entry->min_wmark,
-			__entry->no_progress_loops,
+			__entry->anal_progress_loops,
 			__entry->wmark_check)
 );
 

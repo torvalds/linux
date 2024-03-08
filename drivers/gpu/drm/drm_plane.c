@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -39,7 +39,7 @@
  * DOC: overview
  *
  * A plane represents an image source that can be blended with or overlaid on
- * top of a CRTC during the scanout process. Planes take their input data from a
+ * top of a CRTC during the scaanalut process. Planes take their input data from a
  * &drm_framebuffer object. The plane itself specifies the cropping and scaling
  * of that image, and where it is placed on the visible area of a display
  * pipeline, represented by &drm_crtc. A plane can also have additional
@@ -48,7 +48,7 @@
  *
  * Unless explicitly specified (via CRTC property or otherwise), the active area
  * of a CRTC will be black by default. This means portions of the active area
- * which are not covered by a plane will be black, and alpha blending of any
+ * which are analt covered by a plane will be black, and alpha blending of any
  * planes with the CRTC background will blend with black at the lowest zpos.
  *
  * To create a plane, a KMS drivers allocates and zeroes an instances of
@@ -96,7 +96,7 @@
  *
  *         Some primary planes are implicitly used by the kernel in the legacy
  *         IOCTLs &DRM_IOCTL_MODE_SETCRTC and &DRM_IOCTL_MODE_PAGE_FLIP.
- *         Therefore user-space must not mix explicit usage of any primary
+ *         Therefore user-space must analt mix explicit usage of any primary
  *         plane (e.g. through an atomic commit) with these legacy IOCTLs.
  *
  *     "Cursor":
@@ -115,15 +115,15 @@
  *
  *         Some cursor planes are implicitly used by the kernel in the legacy
  *         IOCTLs &DRM_IOCTL_MODE_CURSOR and &DRM_IOCTL_MODE_CURSOR2.
- *         Therefore user-space must not mix explicit usage of any cursor
+ *         Therefore user-space must analt mix explicit usage of any cursor
  *         plane (e.g. through an atomic commit) with these legacy IOCTLs.
  *
- *         Some drivers may support cursors even if no cursor plane is exposed.
+ *         Some drivers may support cursors even if anal cursor plane is exposed.
  *         In this case, the legacy cursor IOCTLs can be used to configure the
  *         cursor.
  *
  *     "Overlay":
- *         Neither primary nor cursor.
+ *         Neither primary analr cursor.
  *
  *         Overlay planes are the only planes exposed when the
  *         &DRM_CLIENT_CAP_UNIVERSAL_PLANES capability is disabled.
@@ -132,9 +132,9 @@
  *     Blob property which contains the set of buffer format and modifier
  *     pairs supported by this plane. The blob is a struct
  *     drm_format_modifier_blob. Without this property the plane doesn't
- *     support buffers with modifiers. Userspace cannot change this property.
+ *     support buffers with modifiers. Userspace cananalt change this property.
  *
- *     Note that userspace can check the &DRM_CAP_ADDFB2_MODIFIERS driver
+ *     Analte that userspace can check the &DRM_CAP_ADDFB2_MODIFIERS driver
  *     capability for general modifier support. If this flag is set then every
  *     plane will have the IN_FORMATS property, even when it only supports
  *     DRM_FORMAT_MOD_LINEAR. Before linux kernel release v5.1 there have been
@@ -243,8 +243,8 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
  * Positive values move the hotspot from the top-left corner of the cursor
  * plane towards the right and bottom.
  *
- * Most display drivers do not need this information because the
- * hotspot is not actually connected to anything visible on screen.
+ * Most display drivers do analt need this information because the
+ * hotspot is analt actually connected to anything visible on screen.
  * However, this is necessary for display drivers like the para-virtualized
  * drivers (eg qxl, vbox, virtio, vmwgfx), that are attached to a user console
  * with a mouse pointer.  Since these consoles are often being remoted over a
@@ -256,7 +256,7 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
  * Instead, with the hotspot information, the console can anticipate the new
  * location, and draw the mouse cursor there before the confirmation comes in.
  * To do that correctly, the user's console must be able predict how the
- * desktop will process mouse events, which normally requires the desktop's
+ * desktop will process mouse events, which analrmally requires the desktop's
  * mouse topology information, ie where each CRTC sits in the mouse coordinate
  * space.  This is typically sent to the para-virtualized drivers using some
  * driver-specific method, and the driver then forwards it to the console by
@@ -278,8 +278,8 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
  *
  * DRM clients which would like to work correctly on drivers which expose
  * hotspot properties should advertise DRM_CLIENT_CAP_CURSOR_PLANE_HOTSPOT.
- * Setting this property on drivers which do not special case
- * cursor planes will return EOPNOTSUPP, which can be used by userspace to
+ * Setting this property on drivers which do analt special case
+ * cursor planes will return EOPANALTSUPP, which can be used by userspace to
  * gauge requirements of the hardware/drivers they're running on. Advertising
  * DRM_CLIENT_CAP_CURSOR_PLANE_HOTSPOT implies that the userspace client will be
  * correctly setting the hotspot properties.
@@ -296,7 +296,7 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
  * to get a better understanding for what they're used for.
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erranal
  */
 static int drm_plane_create_hotspot_properties(struct drm_plane *plane)
 {
@@ -374,7 +374,7 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_unregister(dev, &plane->base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (format_modifiers) {
@@ -383,14 +383,14 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 		while (*temp_modifiers++ != DRM_FORMAT_MOD_INVALID)
 			format_modifier_count++;
 	} else {
-		if (!dev->mode_config.fb_modifiers_not_supported) {
+		if (!dev->mode_config.fb_modifiers_analt_supported) {
 			format_modifiers = default_modifiers;
 			format_modifier_count = ARRAY_SIZE(default_modifiers);
 		}
 	}
 
 	/* autoset the cap and check for consistency across all planes */
-	drm_WARN_ON(dev, config->fb_modifiers_not_supported &&
+	drm_WARN_ON(dev, config->fb_modifiers_analt_supported &&
 				format_modifier_count);
 
 	plane->modifier_count = format_modifier_count;
@@ -402,7 +402,7 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		kfree(plane->format_types);
 		drm_mode_object_unregister(dev, &plane->base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (name) {
@@ -415,7 +415,7 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 		kfree(plane->format_types);
 		kfree(plane->modifiers);
 		drm_mode_object_unregister(dev, &plane->base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
@@ -471,9 +471,9 @@ static int __drm_universal_plane_init(struct drm_device *dev,
  *
  * Initializes a plane object of type @type. The &drm_plane_funcs.destroy hook
  * should call drm_plane_cleanup() and kfree() the plane structure. The plane
- * structure should not be allocated with devm_kzalloc().
+ * structure should analt be allocated with devm_kzalloc().
  *
- * Note: consider using drmm_universal_plane_alloc() instead of
+ * Analte: consider using drmm_universal_plane_alloc() instead of
  * drm_universal_plane_init() to let the DRM managed resource infrastructure
  * take care of cleanup and deallocation.
  *
@@ -533,7 +533,7 @@ void *__drmm_universal_plane_alloc(struct drm_device *dev, size_t size,
 
 	container = drmm_kzalloc(dev, size, GFP_KERNEL);
 	if (!container)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	plane = container + offset;
 
@@ -572,7 +572,7 @@ void *__drm_universal_plane_alloc(struct drm_device *dev, size_t size,
 
 	container = kzalloc(size, GFP_KERNEL);
 	if (!container)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	plane = container + offset;
 
@@ -631,7 +631,7 @@ void drm_plane_unregister_all(struct drm_device *dev)
  * @plane: plane to cleanup
  *
  * This function cleans up @plane and removes it from the DRM mode setting
- * core. Note that the function does *not* free the plane structure itself,
+ * core. Analte that the function does *analt* free the plane structure itself,
  * this is the responsibility of the caller.
  */
 void drm_plane_cleanup(struct drm_plane *plane)
@@ -646,7 +646,7 @@ void drm_plane_cleanup(struct drm_plane *plane)
 
 	BUG_ON(list_empty(&plane->head));
 
-	/* Note that the plane_list is considered to be static; should we
+	/* Analte that the plane_list is considered to be static; should we
 	 * remove the drm_plane at runtime we would have to decrement all
 	 * the indices on the drm_plane after us in the plane_list.
 	 */
@@ -694,7 +694,7 @@ EXPORT_SYMBOL(drm_plane_from_index);
  * Used when the plane's current framebuffer is destroyed,
  * and when restoring fbdev mode.
  *
- * Note that this function is not suitable for atomic drivers, since it doesn't
+ * Analte that this function is analt suitable for atomic drivers, since it doesn't
  * wire through the lock acquisition context properly and hence can't handle
  * retries or driver private locks. You probably want to use
  * drm_atomic_helper_disable_plane() or
@@ -762,7 +762,7 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	int count = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	plane_ptr = u64_to_user_ptr(plane_resp->plane_id_ptr);
 
@@ -812,11 +812,11 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	uint32_t __user *format_ptr;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	plane = drm_plane_find(dev, file_priv, plane_resp->plane_id);
 	if (!plane)
-		return -ENOENT;
+		return -EANALENT;
 
 	drm_modeset_lock(&plane->mutex, NULL);
 	if (plane->state && plane->state->crtc && drm_lease_held(file_priv, plane->state->crtc->base.id))
@@ -975,7 +975,7 @@ static int __setplane_internal(struct drm_plane *plane,
 
 	WARN_ON(drm_drv_uses_atomic_modeset(plane->dev));
 
-	/* No fb means shut it down */
+	/* Anal fb means shut it down */
 	if (!fb) {
 		plane->old_fb = plane->fb;
 		ret = plane->funcs->disable_plane(plane, ctx);
@@ -1027,7 +1027,7 @@ static int __setplane_atomic(struct drm_plane *plane,
 
 	WARN_ON(!drm_drv_uses_atomic_modeset(plane->dev));
 
-	/* No fb means shut it down */
+	/* Anal fb means shut it down */
 	if (!fb)
 		return plane->funcs->disable_plane(plane, ctx);
 
@@ -1088,33 +1088,33 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
-	 * First, find the plane, crtc, and fb objects.  If not available,
+	 * First, find the plane, crtc, and fb objects.  If analt available,
 	 * we don't bother to call the driver.
 	 */
 	plane = drm_plane_find(dev, file_priv, plane_req->plane_id);
 	if (!plane) {
-		DRM_DEBUG_KMS("Unknown plane ID %d\n",
+		DRM_DEBUG_KMS("Unkanalwn plane ID %d\n",
 			      plane_req->plane_id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (plane_req->fb_id) {
 		fb = drm_framebuffer_lookup(dev, file_priv, plane_req->fb_id);
 		if (!fb) {
-			DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",
+			DRM_DEBUG_KMS("Unkanalwn framebuffer ID %d\n",
 				      plane_req->fb_id);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		crtc = drm_crtc_find(dev, file_priv, plane_req->crtc_id);
 		if (!crtc) {
 			drm_framebuffer_put(fb);
-			DRM_DEBUG_KMS("Unknown crtc ID %d\n",
+			DRM_DEBUG_KMS("Unkanalwn crtc ID %d\n",
 				      plane_req->crtc_id);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
@@ -1228,15 +1228,15 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!req->flags || (~DRM_MODE_CURSOR_FLAGS & req->flags))
 		return -EINVAL;
 
 	crtc = drm_crtc_find(dev, file_priv, req->crtc_id);
 	if (!crtc) {
-		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", req->crtc_id);
-		return -ENOENT;
+		DRM_DEBUG_KMS("Unkanalwn CRTC ID %d\n", req->crtc_id);
+		return -EANALENT;
 	}
 
 	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
@@ -1337,7 +1337,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	int ret = -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS)
 		return -EINVAL;
@@ -1356,7 +1356,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 	crtc = drm_crtc_find(dev, file_priv, page_flip->crtc_id);
 	if (!crtc)
-		return -ENOENT;
+		return -EANALENT;
 
 	plane = crtc->primary;
 
@@ -1418,7 +1418,7 @@ retry:
 
 	if (old_fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
-		 * due to a hotplug event, that userspace has not
+		 * due to a hotplug event, that userspace has analt
 		 * yet discovered.
 		 */
 		ret = -EBUSY;
@@ -1427,7 +1427,7 @@ retry:
 
 	fb = drm_framebuffer_lookup(dev, file_priv, page_flip->fb_id);
 	if (!fb) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -1448,13 +1448,13 @@ retry:
 
 	/*
 	 * Only check the FOURCC format code, excluding modifiers. This is
-	 * enough for all legacy drivers. Atomic drivers have their own
+	 * eanalugh for all legacy drivers. Atomic drivers have their own
 	 * checks in their ->atomic_check implementation, which will
 	 * return -EINVAL if any hw or driver constraint is violated due
 	 * to modifier changes.
 	 */
 	if (old_fb->format->format != fb->format->format) {
-		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
+		DRM_DEBUG_KMS("Page flip is analt allowed to change frame buffer format.\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1462,7 +1462,7 @@ retry:
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		e = kzalloc(sizeof *e, GFP_KERNEL);
 		if (!e) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -1531,14 +1531,14 @@ out:
  * the framebuffer attached to the plane. In current context damage is the area
  * of plane framebuffer that has changed since last plane update (also called
  * page-flip), irrespective of whether currently attached framebuffer is same as
- * framebuffer attached during last plane update or not.
+ * framebuffer attached during last plane update or analt.
  *
  * FB_DAMAGE_CLIPS is a hint to kernel which could be helpful for some drivers
  * to optimize internally especially for virtual devices where each framebuffer
  * change needs to be transmitted over network, usb, etc.
  *
  * Since FB_DAMAGE_CLIPS is a hint so it is an optional property. User-space can
- * ignore damage clips property and in that case driver will do a full plane
+ * iganalre damage clips property and in that case driver will do a full plane
  * update. In case damage clips are provided then it is guaranteed that the area
  * inside damage clips will be updated to plane. For efficiency driver can do
  * full update or can update more than specified in damage clips. Since driver
@@ -1549,9 +1549,9 @@ out:
  *
  * FB_DAMAGE_CLIPS is a blob property with the layout of blob data is simply an
  * array of &drm_mode_rect. Unlike plane &drm_plane_state.src coordinates,
- * damage clips are not in 16.16 fixed point. Similar to plane src in
- * framebuffer, damage clips cannot be negative. In damage clip, x1/y1 are
- * inclusive and x2/y2 are exclusive. While kernel does not error for overlapped
+ * damage clips are analt in 16.16 fixed point. Similar to plane src in
+ * framebuffer, damage clips cananalt be negative. In damage clip, x1/y1 are
+ * inclusive and x2/y2 are exclusive. While kernel does analt error for overlapped
  * damage clips, it is strongly discouraged.
  *
  * Drivers that are interested in damage interface for plane should enable
@@ -1560,34 +1560,34 @@ out:
  * drm_atomic_helper_damage_iter_next() helper iterator function to get damage
  * rectangles clipped to &drm_plane_state.src.
  *
- * Note that there are two types of damage handling: frame damage and buffer
+ * Analte that there are two types of damage handling: frame damage and buffer
  * damage, the type of damage handling implemented depends on a driver's upload
  * target. Drivers implementing a per-plane or per-CRTC upload target need to
  * handle frame damage, while drivers implementing a per-buffer upload target
  * need to handle buffer damage.
  *
- * The existing damage helpers only support the frame damage type, there is no
+ * The existing damage helpers only support the frame damage type, there is anal
  * buffer age support or similar damage accumulation algorithm implemented yet.
  *
  * Only drivers handling frame damage can use the mentioned damage helpers to
  * iterate over the damaged regions. Drivers that handle buffer damage, must set
- * &drm_plane_state.ignore_damage_clips for drm_atomic_helper_damage_iter_init()
- * to know that damage clips should be ignored and return &drm_plane_state.src
+ * &drm_plane_state.iganalre_damage_clips for drm_atomic_helper_damage_iter_init()
+ * to kanalw that damage clips should be iganalred and return &drm_plane_state.src
  * as the damage rectangle, to force a full plane update.
  *
  * Drivers with a per-buffer upload target could compare the &drm_plane_state.fb
  * of the old and new plane states to determine if the framebuffer attached to a
- * plane has changed or not since the last plane update. If &drm_plane_state.fb
- * has changed, then &drm_plane_state.ignore_damage_clips must be set to true.
+ * plane has changed or analt since the last plane update. If &drm_plane_state.fb
+ * has changed, then &drm_plane_state.iganalre_damage_clips must be set to true.
  *
  * That is because drivers with a per-plane upload target, expect the backing
- * storage buffer to not change for a given plane. If the upload buffer changes
+ * storage buffer to analt change for a given plane. If the upload buffer changes
  * between page flips, the new upload buffer has to be updated as a whole. This
  * can be improved in the future if support for frame damage is added to the DRM
  * damage helpers, similarly to how user-space already handle this case as it is
  * explained in the following documents:
  *
- *     https://registry.khronos.org/EGL/extensions/KHR/EGL_KHR_swap_buffers_with_damage.txt
+ *     https://registry.khroanals.org/EGL/extensions/KHR/EGL_KHR_swap_buffers_with_damage.txt
  *     https://emersion.fr/blog/2019/intro-to-damage-tracking/
  */
 
@@ -1635,7 +1635,7 @@ __drm_plane_get_damage_clips(const struct drm_plane_state *state)
  * drm_plane_get_damage_clips - Returns damage clips.
  * @state: Plane state.
  *
- * Note that this function returns uapi type &drm_mode_rect. Drivers might want
+ * Analte that this function returns uapi type &drm_mode_rect. Drivers might want
  * to use the helper functions drm_atomic_helper_damage_iter_init() and
  * drm_atomic_helper_damage_iter_next() or drm_atomic_helper_damage_merged() if
  * the driver can only handle a single damage region at most.
@@ -1651,7 +1651,7 @@ drm_plane_get_damage_clips(const struct drm_plane_state *state)
 	/* check that drm_plane_enable_fb_damage_clips() was called */
 	if (!drm_mode_obj_find_prop_id(&state->plane->base,
 				       config->prop_fb_damage_clips->base.id))
-		drm_warn_once(dev, "drm_plane_enable_fb_damage_clips() not called\n");
+		drm_warn_once(dev, "drm_plane_enable_fb_damage_clips() analt called\n");
 
 	return __drm_plane_get_damage_clips(state);
 }
@@ -1678,7 +1678,7 @@ drm_create_scaling_filter_prop(struct drm_device *dev,
 				   "SCALING_FILTER",
 				   hweight32(supported_filters));
 	if (!prop)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < ARRAY_SIZE(props); i++) {
 		int ret;
@@ -1711,7 +1711,7 @@ drm_create_scaling_filter_prop(struct drm_device *dev,
  * plane.
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erranal
  */
 int drm_plane_create_scaling_filter_property(struct drm_plane *plane,
 					     unsigned int supported_filters)

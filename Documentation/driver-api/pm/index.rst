@@ -8,7 +8,7 @@ CPU and Device Power Management
 
    cpuidle
    devices
-   notifiers
+   analtifiers
    types
 
 .. only::  subproject and html

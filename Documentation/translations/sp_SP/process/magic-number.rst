@@ -52,17 +52,17 @@ Changelog::
   algo cambiará antes de 2.2.x. Las entradas son
   ordenados por campo numérico.
 
-					Krzysztof G. Baranowski
+					Krzysztof G. Baraanalwski
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
   Se actualizó la tabla mágica a Linux 2.5.45. Justo sobre el feature
-  freeze, pero es posible que algunos nuevos números mágicos se cuelen en
+  freeze, pero es posible que alguanals nuevos números mágicos se cuelen en
   el kernel antes de 2.6.x todavía.
 
 					Petr Baudis
 					<pasky@ucw.cz>
-					03 Nov 2002
+					03 Analv 2002
 
   La tabla mágica ha sido actualizada para Linux 2.5.74.
 

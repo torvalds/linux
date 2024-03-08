@@ -20,8 +20,8 @@
 
 /* Command and Configuration Register (COMMAND_CONFIG) */
 #define CMD_CFG_EN_TIMESTAMP		0x00100000
-#define CMD_CFG_NO_LEN_CHK		0x00020000
-#define CMD_CFG_PAUSE_IGNORE		0x00000100
+#define CMD_CFG_ANAL_LEN_CHK		0x00020000
+#define CMD_CFG_PAUSE_IGANALRE		0x00000100
 #define CMF_CFG_CRC_FWD			0x00000040
 #define CMD_CFG_PROMIS_EN		0x00000010
 #define CMD_CFG_RX_EN			0x00000002
@@ -168,7 +168,7 @@ struct tgec_regs {
 };
 
 struct tgec_cfg {
-	bool pause_ignore;
+	bool pause_iganalre;
 	bool promiscuous_mode_enable;
 	u16 max_frame_length;
 	u16 pause_quant;
@@ -209,7 +209,7 @@ static void set_mac_address(struct tgec_regs __iomem *regs, const u8 *adr)
 static void set_dflts(struct tgec_cfg *cfg)
 {
 	cfg->promiscuous_mode_enable = false;
-	cfg->pause_ignore = false;
+	cfg->pause_iganalre = false;
 	cfg->tx_ipg_length = DEFAULT_TX_IPG_LENGTH;
 	cfg->max_frame_length = DEFAULT_MAX_FRAME_LENGTH;
 	cfg->pause_quant = DEFAULT_PAUSE_QUANT;
@@ -224,10 +224,10 @@ static int init(struct tgec_regs __iomem *regs, struct tgec_cfg *cfg,
 	tmp = CMF_CFG_CRC_FWD;
 	if (cfg->promiscuous_mode_enable)
 		tmp |= CMD_CFG_PROMIS_EN;
-	if (cfg->pause_ignore)
-		tmp |= CMD_CFG_PAUSE_IGNORE;
+	if (cfg->pause_iganalre)
+		tmp |= CMD_CFG_PAUSE_IGANALRE;
 	/* Payload length check disable */
-	tmp |= CMD_CFG_NO_LEN_CHK;
+	tmp |= CMD_CFG_ANAL_LEN_CHK;
 	iowrite32be(tmp, &regs->command_config);
 
 	/* Max Frame Length */
@@ -326,7 +326,7 @@ static void tgec_err_exception(void *handle)
 	struct tgec_regs __iomem *regs = tgec->regs;
 	u32 event;
 
-	/* do not handle MDIO events */
+	/* do analt handle MDIO events */
 	event = ioread32be(&regs->ievent) &
 			   ~(TGEC_IMASK_MDIO_SCAN_EVENT |
 			   TGEC_IMASK_MDIO_CMD_CMPL);
@@ -423,9 +423,9 @@ static int tgec_accept_rx_pause_frames(struct fman_mac *tgec, bool en)
 
 	tmp = ioread32be(&regs->command_config);
 	if (!en)
-		tmp |= CMD_CFG_PAUSE_IGNORE;
+		tmp |= CMD_CFG_PAUSE_IGANALRE;
 	else
-		tmp &= ~CMD_CFG_PAUSE_IGNORE;
+		tmp &= ~CMD_CFG_PAUSE_IGANALRE;
 	iowrite32be(tmp, &regs->command_config);
 
 	return 0;
@@ -494,7 +494,7 @@ static int tgec_add_hash_mac_address(struct fman_mac *tgec,
 	addr = ENET_ADDR_TO_UINT64(*eth_addr);
 
 	if (!(addr & GROUP_ADDRESS)) {
-		/* Unicast addresses not supported in hash */
+		/* Unicast addresses analt supported in hash */
 		pr_err("Unicast Address\n");
 		return -EINVAL;
 	}
@@ -507,11 +507,11 @@ static int tgec_add_hash_mac_address(struct fman_mac *tgec,
 	/* Create element to be added to the driver hash table */
 	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
 	if (!hash_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	hash_entry->addr = addr;
-	INIT_LIST_HEAD(&hash_entry->node);
+	INIT_LIST_HEAD(&hash_entry->analde);
 
-	list_add_tail(&hash_entry->node,
+	list_add_tail(&hash_entry->analde,
 		      &tgec->multicast_addr_hash->lsts[hash]);
 	iowrite32be((hash | TGEC_HASH_MCAST_EN), &regs->hashtable_ctrl);
 
@@ -575,7 +575,7 @@ static int tgec_del_hash_mac_address(struct fman_mac *tgec,
 	list_for_each(pos, &tgec->multicast_addr_hash->lsts[hash]) {
 		hash_entry = ETH_HASH_ENTRY_OBJ(pos);
 		if (hash_entry && hash_entry->addr == addr) {
-			list_del_init(&hash_entry->node);
+			list_del_init(&hash_entry->analde);
 			kfree(hash_entry);
 			break;
 		}
@@ -675,14 +675,14 @@ static int tgec_init(struct fman_mac *tgec)
 	if (!tgec->multicast_addr_hash) {
 		free_init_resources(tgec);
 		pr_err("allocation hash table is FAILED\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tgec->unicast_addr_hash = alloc_hash_table(TGEC_HASH_TABLE_SIZE);
 	if (!tgec->unicast_addr_hash) {
 		free_init_resources(tgec);
 		pr_err("allocation hash table is FAILED\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fman_register_intr(tgec->fm, FMAN_MOD_MAC, tgec->mac_id,
@@ -757,7 +757,7 @@ static struct fman_mac *tgec_config(struct mac_device *mac_dev,
 }
 
 int tgec_initialization(struct mac_device *mac_dev,
-			struct device_node *mac_node,
+			struct device_analde *mac_analde,
 			struct fman_mac_params *params)
 {
 	int err;

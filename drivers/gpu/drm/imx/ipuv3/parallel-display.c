@@ -55,7 +55,7 @@ static inline struct imx_parallel_display *bridge_to_imxpd(struct drm_bridge *b)
 static int imx_pd_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_parallel_display *imxpd = con_to_imxpd(connector);
-	struct device_node *np = imxpd->dev->of_node;
+	struct device_analde *np = imxpd->dev->of_analde;
 	int num_modes;
 
 	num_modes = drm_panel_get_modes(imxpd->panel, connector);
@@ -170,14 +170,14 @@ imx_pd_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	u32 *input_fmts;
 
 	/*
-	 * If the next bridge does not support bus format negotiation, let's
+	 * If the next bridge does analt support bus format negotiation, let's
 	 * use the static bus format definition (imxpd->bus_format) if it's
-	 * specified, RGB888 when it's not.
+	 * specified, RGB888 when it's analt.
 	 */
 	if (output_fmt == MEDIA_BUS_FMT_FIXED)
 		output_fmt = imxpd->bus_format ? : MEDIA_BUS_FMT_RGB888_1X24;
 
-	/* Now make sure the requested output format is supported. */
+	/* Analw make sure the requested output format is supported. */
 	if ((imxpd->bus_format && imxpd->bus_format != output_fmt) ||
 	    !imx_pd_format_supported(output_fmt)) {
 		*num_input_fmts = 0;
@@ -265,7 +265,7 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	int ret;
 
 	imxpd_encoder = drmm_simple_encoder_alloc(drm, struct imx_parallel_display_encoder,
-						  encoder, DRM_MODE_ENCODER_NONE);
+						  encoder, DRM_MODE_ENCODER_ANALNE);
 	if (IS_ERR(imxpd_encoder))
 		return PTR_ERR(imxpd_encoder);
 
@@ -274,7 +274,7 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	encoder = &imxpd_encoder->encoder;
 	bridge = &imxpd_encoder->bridge;
 
-	ret = imx_drm_encoder_parse_of(drm, encoder, imxpd->dev->of_node);
+	ret = imx_drm_encoder_parse_of(drm, encoder, imxpd->dev->of_analde);
 	if (ret)
 		return ret;
 
@@ -311,7 +311,7 @@ static const struct component_ops imx_pd_ops = {
 static int imx_pd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const u8 *edidp;
 	struct imx_parallel_display *imxpd;
 	int edid_len;
@@ -321,12 +321,12 @@ static int imx_pd_probe(struct platform_device *pdev)
 
 	imxpd = devm_kzalloc(dev, sizeof(*imxpd), GFP_KERNEL);
 	if (!imxpd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* port@1 is the output port */
 	ret = drm_of_find_panel_or_bridge(np, 1, 0, &imxpd->panel,
 					  &imxpd->next_bridge);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return ret;
 
 	edidp = of_get_property(np, "edid", &edid_len);

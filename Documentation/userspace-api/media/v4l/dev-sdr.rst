@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _sdr:
 
@@ -12,7 +12,7 @@ is intended for controlling and data streaming of such devices.
 
 SDR devices are accessed through character device special files named
 ``/dev/swradio0`` to ``/dev/swradio255`` with major number 81 and
-dynamically allocated minor numbers 0 to 255.
+dynamically allocated mianalr numbers 0 to 255.
 
 
 Querying Capabilities
@@ -49,11 +49,11 @@ frequency (RF).
 The ``V4L2_TUNER_SDR`` tuner type is used for setting SDR device ADC/DAC
 frequency, and the ``V4L2_TUNER_RF`` tuner type is used for setting
 radio frequency. The tuner index of the RF tuner (if any) must always
-follow the SDR tuner index. Normally the SDR tuner is #0 and the RF
+follow the SDR tuner index. Analrmally the SDR tuner is #0 and the RF
 tuner is #1.
 
 The :ref:`VIDIOC_S_HW_FREQ_SEEK` ioctl is
-not supported.
+analt supported.
 
 
 Data Format Negotiation

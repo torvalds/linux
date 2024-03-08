@@ -100,7 +100,7 @@ static int cbmem_entry_probe(struct coreboot_device *dev)
 
 	entry = devm_kzalloc(&dev->dev, sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&dev->dev, entry);
 	entry->mem_file_buf = devm_memremap(&dev->dev, dev->cbmem_entry.address,

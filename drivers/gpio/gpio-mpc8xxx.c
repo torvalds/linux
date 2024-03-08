@@ -55,7 +55,7 @@ static inline u32 mpc_pin2mask(unsigned int offset)
 }
 
 /* Workaround GPIO 1 errata on MPC8572/MPC8536. The status of GPIOs
- * defined as output cannot be determined by reading GPDAT register,
+ * defined as output cananalt be determined by reading GPDAT register,
  * so we use shadow data register instead. The status of input pins
  * is determined by reading GPDAT register.
  */
@@ -298,16 +298,16 @@ static const struct of_device_id mpc8xxx_gpio_ids[] = {
 
 static int mpc8xxx_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc;
 	struct gpio_chip	*gc;
 	const struct mpc8xxx_gpio_devtype *devtype = NULL;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	int ret;
 
 	mpc8xxx_gc = devm_kzalloc(&pdev->dev, sizeof(*mpc8xxx_gc), GFP_KERNEL);
 	if (!mpc8xxx_gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mpc8xxx_gc);
 
@@ -368,11 +368,11 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	 * associated input enable must be set (GPIOxGPIE[IEn]=1) to propagate
 	 * the port value to the GPIO Data Register.
 	 */
-	fwnode = dev_fwnode(&pdev->dev);
+	fwanalde = dev_fwanalde(&pdev->dev);
 	if (of_device_is_compatible(np, "fsl,qoriq-gpio") ||
 	    of_device_is_compatible(np, "fsl,ls1028a-gpio") ||
 	    of_device_is_compatible(np, "fsl,ls1088a-gpio") ||
-	    is_acpi_node(fwnode)) {
+	    is_acpi_analde(fwanalde)) {
 		gc->write_reg(mpc8xxx_gc->regs + GPIO_IBE, 0xffffffff);
 		/* Also, latch state of GPIOs configured as output by bootloader. */
 		gc->bgpio_data = gc->read_reg(mpc8xxx_gc->regs + GPIO_DAT) &
@@ -390,7 +390,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	if (mpc8xxx_gc->irqn < 0)
 		return mpc8xxx_gc->irqn;
 
-	mpc8xxx_gc->irq = irq_domain_create_linear(fwnode,
+	mpc8xxx_gc->irq = irq_domain_create_linear(fwanalde,
 						   MPC8XXX_GPIO_PINS,
 						   &mpc8xxx_gpio_irq_ops,
 						   mpc8xxx_gc);
@@ -404,7 +404,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, mpc8xxx_gc->irqn,
 			       mpc8xxx_gpio_irq_cascade,
-			       IRQF_NO_THREAD | IRQF_SHARED, "gpio-cascade",
+			       IRQF_ANAL_THREAD | IRQF_SHARED, "gpio-cascade",
 			       mpc8xxx_gc);
 	if (ret) {
 		dev_err(&pdev->dev,

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright(c) 2005 - 2006 Attansic Corporation. All rights reserved.
- * Copyright(c) 2006 - 2007 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2006 - 2007 Chris Sanalok <csanalok@redhat.com>
  * Copyright(c) 2006 - 2008 Jay Cliburn <jcliburn@gmail.com>
  *
  * Derived from Intel e1000 driver
@@ -200,8 +200,8 @@ static u32 atl1_check_link(struct atl1_adapter *adapter);
 
 /* CMB/SMB Control Register */
 #define REG_CSMB_CTRL				0x15D0
-#define CSMB_CTRL_CMB_NOW			1
-#define CSMB_CTRL_SMB_NOW			2
+#define CSMB_CTRL_CMB_ANALW			1
+#define CSMB_CTRL_SMB_ANALW			2
 #define CSMB_CTRL_CMB_EN			4
 #define CSMB_CTRL_SMB_EN			8
 
@@ -262,17 +262,17 @@ static u32 atl1_check_link(struct atl1_adapter *adapter);
 #define ISR_DIS_SMB				0x20000000
 #define ISR_DIS_DMA				0x40000000
 
-/* Normal Interrupt mask without RX/TX enabled */
-#define IMR_NORXTX_MASK	(\
+/* Analrmal Interrupt mask without RX/TX enabled */
+#define IMR_ANALRXTX_MASK	(\
 	ISR_SMB		|\
 	ISR_GPHY	|\
 	ISR_PHY_LINKDOWN|\
 	ISR_DMAR_TO_RST	|\
 	ISR_DMAW_TO_RST)
 
-/* Normal Interrupt mask  */
-#define IMR_NORMAL_MASK	(\
-	IMR_NORXTX_MASK	|\
+/* Analrmal Interrupt mask  */
+#define IMR_ANALRMAL_MASK	(\
+	IMR_ANALRXTX_MASK	|\
 	ISR_CMB_TX	|\
 	ISR_CMB_RX)
 
@@ -315,7 +315,7 @@ struct stats_msg_block {
 	u32 rx_ctrl;		/* RX control packets other than pause frames */
 	u32 rx_fcs_err;		/* RX packets with bad FCS */
 	u32 rx_len_err;		/* RX packets with length != actual size */
-	u32 rx_byte_cnt;	/* good bytes received. FCS is NOT included */
+	u32 rx_byte_cnt;	/* good bytes received. FCS is ANALT included */
 	u32 rx_runt;		/* RX packets < 64 bytes with good FCS */
 	u32 rx_frag;		/* RX packets < 64 bytes with bad FCS */
 	u32 rx_sz_64;		/* 64 byte RX packets */
@@ -341,7 +341,7 @@ struct stats_msg_block {
 	u32 tx_exc_defer;	/* TX packets deferred excessively */
 	u32 tx_ctrl;		/* TX control frames, excluding pause frames */
 	u32 tx_defer;		/* TX packets deferred */
-	u32 tx_byte_cnt;	/* bytes transmitted, FCS is NOT included */
+	u32 tx_byte_cnt;	/* bytes transmitted, FCS is ANALT included */
 	u32 tx_sz_64;		/* 64 byte TX packets */
 	u32 tx_sz_65_127;
 	u32 tx_sz_128_255;
@@ -356,7 +356,7 @@ struct stats_msg_block {
 	u32 tx_underrun;	/* TX packets aborted due to TX FIFO underrun
 				 * or TRD FIFO underrun */
 	u32 tx_rd_eop;		/* reads beyond the EOP into the next frame
-				 * when TRD was not written timely */
+				 * when TRD was analt written timely */
 	u32 tx_len_err;		/* TX packets where length != actual size */
 	u32 tx_trunc;		/* TX packets truncated due to size > MTU */
 	u32 tx_bcast_byte;	/* broadcast bytes transmitted, excluding FCS */
@@ -708,7 +708,7 @@ struct atl1_hw {
 	u16 tx_jumbo_task_th;
 	u16 txf_burst;		/* Number of data bytes to read in a cache-
 				 * aligned burst. Each SRAM entry is 8 bytes */
-	u16 rx_jumbo_th;	/* Jumbo packet size for non-VLAN packet. VLAN
+	u16 rx_jumbo_th;	/* Jumbo packet size for analn-VLAN packet. VLAN
 				 * packets should add 4 bytes */
 	u16 rx_jumbo_lkah;
 	u16 rrd_ret_timer;	/* RRD retirement timer. Decrement by 1 after
@@ -776,7 +776,7 @@ struct atl1_adapter {
 
 	/*
 	 * Use this value to check is napi handler allowed to
-	 * enable ints or not
+	 * enable ints or analt
 	 */
 	bool int_enabled;
 

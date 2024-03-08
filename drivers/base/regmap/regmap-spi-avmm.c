@@ -65,7 +65,7 @@
 #define TRANS_CODE_SEQ_WRITE	0x4
 #define TRANS_CODE_READ		0x10
 #define TRANS_CODE_SEQ_READ	0x14
-#define TRANS_CODE_NO_TRANS	0x7f
+#define TRANS_CODE_ANAL_TRANS	0x7f
 
 #define SPI_AVMM_XFER_TIMEOUT	(msecs_to_jiffies(200))
 
@@ -102,7 +102,7 @@ struct trans_resp_header {
  * the write request format is: Transaction request header + data
  * the read request format is: Transaction request header
  * the write response format is: Transaction response header
- * the read response format is: pure data, no Transaction response header
+ * the read response format is: pure data, anal Transaction response header
  */
 #define TRANS_WR_TX_SIZE(n)	(TRANS_REQ_HD_SIZE + SPI_AVMM_VAL_SIZE * (n))
 #define TRANS_RD_TX_SIZE	TRANS_REQ_HD_SIZE
@@ -149,7 +149,7 @@ struct trans_resp_header {
  * @phy_len: length of valid data in phy_buf.
  * @trans_buf: the bridge buffer for transaction layer data.
  * @phy_buf: the bridge buffer for physical layer data.
- * @swap_words: the word swapping cb for phy data. NULL if not needed.
+ * @swap_words: the word swapping cb for phy data. NULL if analt needed.
  *
  * As a device's registers are implemented on the AVMM bus address space, it
  * requires the driver to issue formatted requests to spi slave to AVMM bus
@@ -207,7 +207,7 @@ static int br_trans_tx_prepare(struct spi_avmm_bridge *br, bool is_read, u32 reg
 	if (!is_read) {
 		trans_len += SPI_AVMM_VAL_SIZE * count;
 		if (trans_len > sizeof(br->trans_buf))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data = (__le32 *)(br->trans_buf + TRANS_REQ_HD_SIZE);
 
@@ -229,9 +229,9 @@ static int br_trans_tx_prepare(struct spi_avmm_bridge *br, bool is_read, u32 reg
  * phy_buf len should be aligned with SPI's BPW. Spare bytes should be padded
  * with PHY_IDLE, then the slave will just drop them.
  *
- * The driver will not simply pad 4a at the tail. The concern is that driver
- * will not store MISO data during tx phase, if the driver pads 4a at the tail,
- * it is possible that if the slave is fast enough to response at the padding
+ * The driver will analt simply pad 4a at the tail. The concern is that driver
+ * will analt store MISO data during tx phase, if the driver pads 4a at the tail,
+ * it is possible that if the slave is fast eanalugh to response at the padding
  * time. As a result these rx bytes are lost. In the following case, 7a,7c,00
  * will lost.
  * MOSI ...|7a|7c|00|10| |00|00|04|02| |4b|7d|5a|7b| |40|4a|4a|4a| |XX|XX|...
@@ -241,7 +241,7 @@ static int br_trans_tx_prepare(struct spi_avmm_bridge *br, bool is_read, u32 reg
  * then fill the hole with PHY_IDLE. As following:
  * before pad ...|7a|7c|00|10| |00|00|04|02| |4b|7d|5a|7b| |40|
  * after pad  ...|7a|7c|00|10| |00|00|04|02| |4b|7d|5a|4a| |4a|4a|7b|40|
- * Then if the slave will not get the entire packet before the tx phase is
+ * Then if the slave will analt get the entire packet before the tx phase is
  * over, it can't responsed to anything either.
  */
 static int br_pkt_phy_tx_prepare(struct spi_avmm_bridge *br)
@@ -303,7 +303,7 @@ static int br_pkt_phy_tx_prepare(struct spi_avmm_bridge *br)
 
 	/* The phy buffer is used out but transaction layer data remains */
 	if (tb < tb_end)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Store valid phy data length for spi transfer */
 	br->phy_len = pb - br->phy_buf;
@@ -314,7 +314,7 @@ static int br_pkt_phy_tx_prepare(struct spi_avmm_bridge *br)
 	/* Do phy buf padding if word_len > 1 byte. */
 	aligned_phy_len = ALIGN(br->phy_len, br->word_len);
 	if (aligned_phy_len > sizeof(br->phy_buf))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (aligned_phy_len == br->phy_len)
 		return 0;
@@ -334,7 +334,7 @@ static int br_pkt_phy_tx_prepare(struct spi_avmm_bridge *br)
 
 /*
  * In tx phase, the slave only returns PHY_IDLE (0x4a). So the driver will
- * ignore rx in tx phase.
+ * iganalre rx in tx phase.
  */
 static int br_do_tx(struct spi_avmm_bridge *br)
 {
@@ -351,7 +351,7 @@ static int br_do_tx(struct spi_avmm_bridge *br)
  * them to transaction layer data in br->trans_buf. It also stores the length
  * of rx transaction layer data in br->trans_len
  *
- * The slave may send an unknown number of PHY_IDLEs in rx phase, so we cannot
+ * The slave may send an unkanalwn number of PHY_IDLEs in rx phase, so we cananalt
  * prepare a fixed length buffer to receive all of the rx data in a batch. We
  * have to read word by word and convert them to transaction layer data at
  * once.
@@ -391,7 +391,7 @@ static int br_do_rx_and_pkt_phy_parse(struct spi_avmm_bridge *br)
 
 			/*
 			 * We don't support multiple channels, so error out if
-			 * a non-zero channel number is found.
+			 * a analn-zero channel number is found.
 			 */
 			if (channel_found) {
 				if (pb[i] != 0) {
@@ -416,8 +416,8 @@ static int br_do_rx_and_pkt_phy_parse(struct spi_avmm_bridge *br)
 				break;
 			case PKT_EOP:
 				/*
-				 * No special char is expected after ESC char.
-				 * No special char (except ESC & PHY_IDLE) is
+				 * Anal special char is expected after ESC char.
+				 * Anal special char (except ESC & PHY_IDLE) is
 				 * expected after EOP char.
 				 *
 				 * The special chars are all dropped.
@@ -441,7 +441,7 @@ static int br_do_rx_and_pkt_phy_parse(struct spi_avmm_bridge *br)
 				esc_found = true;
 				break;
 			default:
-				/* Record the normal byte in trans_buf. */
+				/* Record the analrmal byte in trans_buf. */
 				if (esc_found) {
 					*tb++ = pb[i] ^ 0x20;
 					esc_found = false;
@@ -450,8 +450,8 @@ static int br_do_rx_and_pkt_phy_parse(struct spi_avmm_bridge *br)
 				}
 
 				/*
-				 * We get the last normal byte after EOP, it is
-				 * time we finish. Normally the function should
+				 * We get the last analrmal byte after EOP, it is
+				 * time we finish. Analrmally the function should
 				 * return here.
 				 */
 				if (eop_found) {
@@ -484,7 +484,7 @@ static int br_do_rx_and_pkt_phy_parse(struct spi_avmm_bridge *br)
 	}
 
 	/*
-	 * We have used out all transfer layer buffer but cannot find the end
+	 * We have used out all transfer layer buffer but cananalt find the end
 	 * of the byte stream.
 	 */
 	dev_err(dev, "%s transfer buffer is full but rx doesn't end\n",
@@ -619,9 +619,9 @@ spi_avmm_bridge_ctx_gen(struct spi_device *spi)
 	struct spi_avmm_bridge *br;
 
 	if (!spi)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	/* Only support BPW == 8 or 32 now. Try 32 BPW first. */
+	/* Only support BPW == 8 or 32 analw. Try 32 BPW first. */
 	spi->mode = SPI_MODE_1;
 	spi->bits_per_word = 32;
 	if (spi_setup(spi)) {
@@ -632,7 +632,7 @@ spi_avmm_bridge_ctx_gen(struct spi_device *spi)
 
 	br = kzalloc(sizeof(*br), GFP_KERNEL);
 	if (!br)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	br->spi = spi;
 	br->word_len = spi->bits_per_word / 8;

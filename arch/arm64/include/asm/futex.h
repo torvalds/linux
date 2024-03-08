@@ -8,7 +8,7 @@
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #define FUTEX_MAX_LOOPS	128 /* What's the largest number you can think of? */
 
@@ -68,7 +68,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *_uaddr)
 				  ret, oldval, uaddr, tmp, oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	if (!ret)

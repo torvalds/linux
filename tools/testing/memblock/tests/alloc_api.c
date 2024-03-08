@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "alloc_api.h"
 
-static int alloc_test_flags = TEST_F_NONE;
+static int alloc_test_flags = TEST_F_ANALNE;
 
 static inline const char * const get_memblock_alloc_name(int flags)
 {
@@ -64,7 +64,7 @@ static int alloc_top_down_simple_check(void)
  *
  * The allocation direction is top-down and region arrays are sorted from lower
  * to higher addresses, so the new region will be the first entry in
- * memory.reserved array. The previously reserved region does not get modified.
+ * memory.reserved array. The previously reserved region does analt get modified.
  * Region counter and total size get updated.
  */
 static int alloc_top_down_disjoint_check(void)
@@ -111,7 +111,7 @@ static int alloc_top_down_disjoint_check(void)
 }
 
 /*
- * A test that tries to allocate memory when there is enough space at the end
+ * A test that tries to allocate memory when there is eanalugh space at the end
  * of the previously reserved block (i.e. first fit):
  *
  *  |              +--------+--------------|
@@ -153,7 +153,7 @@ static int alloc_top_down_before_check(void)
 }
 
 /*
- * A test that tries to allocate memory when there is not enough space at the
+ * A test that tries to allocate memory when there is analt eanalugh space at the
  * end of the previously reserved block (i.e. second fit):
  *
  *  |            +-----------+------+     |
@@ -252,7 +252,7 @@ static int alloc_top_down_second_fit_check(void)
 
 /*
  * A test that tries to allocate memory when there are two reserved regions with
- * a gap big enough to accommodate the new region:
+ * a gap big eanalugh to accommodate the new region:
  *
  *  |     +--------+--------+--------+     |
  *  |     |   r2   |   r3   |   r1   |     |
@@ -269,7 +269,7 @@ static int alloc_in_between_generic_check(void)
 	phys_addr_t gap_size = SMP_CACHE_BYTES;
 	phys_addr_t r3_size = SZ_64;
 	/*
-	 * Calculate regions size so there's just enough space for the new entry
+	 * Calculate regions size so there's just eanalugh space for the new entry
 	 */
 	phys_addr_t rgn_size = (MEM_SIZE - (2 * gap_size + r3_size)) / 2;
 	phys_addr_t total_size;
@@ -315,7 +315,7 @@ static int alloc_in_between_generic_check(void)
  *    |    | res |    | res |    | res |    |
  *    +----+-----+----+-----+----+-----+----+
  *
- * Expect no allocation to happen.
+ * Expect anal allocation to happen.
  */
 static int alloc_small_gaps_generic_check(void)
 {
@@ -345,7 +345,7 @@ static int alloc_small_gaps_generic_check(void)
 
 /*
  * A test that tries to allocate memory when all memory is reserved.
- * Expect no allocation to happen.
+ * Expect anal allocation to happen.
  */
 static int alloc_all_reserved_generic_check(void)
 {
@@ -368,7 +368,7 @@ static int alloc_all_reserved_generic_check(void)
 
 /*
  * A test that tries to allocate memory when the memory is almost full,
- * with not enough space left for the new region:
+ * with analt eanalugh space left for the new region:
  *
  *                                +-------+
  *                                |  new  |
@@ -377,9 +377,9 @@ static int alloc_all_reserved_generic_check(void)
  *  |          reserved           |   |
  *  +-----------------------------+---+
  *
- * Expect no allocation to happen.
+ * Expect anal allocation to happen.
  */
-static int alloc_no_space_generic_check(void)
+static int alloc_anal_space_generic_check(void)
 {
 	void *allocated_ptr = NULL;
 	phys_addr_t available_size = SZ_256;
@@ -402,7 +402,7 @@ static int alloc_no_space_generic_check(void)
 
 /*
  * A test that tries to allocate memory when the memory is almost full,
- * but there is just enough space left:
+ * but there is just eanalugh space left:
  *
  *  |---------------------------+---------|
  *  |          reserved         |   new   |
@@ -441,11 +441,11 @@ static int alloc_limited_space_generic_check(void)
 }
 
 /*
- * A test that tries to allocate memory when there is no available memory
+ * A test that tries to allocate memory when there is anal available memory
  * registered (i.e. memblock.memory has only a dummy entry).
- * Expect no allocation to happen.
+ * Expect anal allocation to happen.
  */
-static int alloc_no_memory_generic_check(void)
+static int alloc_anal_memory_generic_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
@@ -477,7 +477,7 @@ static int alloc_no_memory_generic_check(void)
  *  |                                 |
  *  +---------------------------------+
  *
- * Expect no allocation to happen.
+ * Expect anal allocation to happen.
  */
 static int alloc_too_large_generic_check(void)
 {
@@ -542,7 +542,7 @@ static int alloc_bottom_up_simple_check(void)
  *                      Aligned address boundary
  *
  * The allocation direction is bottom-up, so the new region will be the second
- * entry in memory.reserved array. The previously reserved region does not get
+ * entry in memory.reserved array. The previously reserved region does analt get
  * modified. Region counter and total size get updated.
  */
 static int alloc_bottom_up_disjoint_check(void)
@@ -588,7 +588,7 @@ static int alloc_bottom_up_disjoint_check(void)
 }
 
 /*
- * A test that tries to allocate memory when there is enough space at
+ * A test that tries to allocate memory when there is eanalugh space at
  * the beginning of the previously reserved block (i.e. first fit):
  *
  *  |------------------+--------+         |
@@ -627,7 +627,7 @@ static int alloc_bottom_up_before_check(void)
 }
 
 /*
- * A test that tries to allocate memory when there is not enough space at
+ * A test that tries to allocate memory when there is analt eanalugh space at
  * the beginning of the previously reserved block (i.e. second fit):
  *
  *  |    +--------+--------------+         |
@@ -807,11 +807,11 @@ static int alloc_all_reserved_check(void)
 	return 0;
 }
 
-static int alloc_no_space_check(void)
+static int alloc_anal_space_check(void)
 {
 	test_print("\tRunning %s...\n", __func__);
-	run_top_down(alloc_no_space_generic_check);
-	run_bottom_up(alloc_no_space_generic_check);
+	run_top_down(alloc_anal_space_generic_check);
+	run_bottom_up(alloc_anal_space_generic_check);
 
 	return 0;
 }
@@ -825,11 +825,11 @@ static int alloc_limited_space_check(void)
 	return 0;
 }
 
-static int alloc_no_memory_check(void)
+static int alloc_anal_memory_check(void)
 {
 	test_print("\tRunning %s...\n", __func__);
-	run_top_down(alloc_no_memory_generic_check);
-	run_bottom_up(alloc_no_memory_generic_check);
+	run_top_down(alloc_anal_memory_generic_check);
+	run_bottom_up(alloc_anal_memory_generic_check);
 
 	return 0;
 }
@@ -863,9 +863,9 @@ static int memblock_alloc_checks_internal(int flags)
 	alloc_small_gaps_check();
 	alloc_in_between_check();
 	alloc_all_reserved_check();
-	alloc_no_space_check();
+	alloc_anal_space_check();
 	alloc_limited_space_check();
-	alloc_no_memory_check();
+	alloc_anal_memory_check();
 	alloc_too_large_check();
 
 	dummy_physical_memory_cleanup();
@@ -877,7 +877,7 @@ static int memblock_alloc_checks_internal(int flags)
 
 int memblock_alloc_checks(void)
 {
-	memblock_alloc_checks_internal(TEST_F_NONE);
+	memblock_alloc_checks_internal(TEST_F_ANALNE);
 	memblock_alloc_checks_internal(TEST_F_RAW);
 
 	return 0;

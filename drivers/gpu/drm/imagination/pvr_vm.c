@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_vm.h"
 
@@ -16,7 +16,7 @@
 
 #include <linux/container_of.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp_types.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
@@ -59,7 +59,7 @@ struct pvr_vm_context {
 
 	/**
 	 * @dummy_gem: GEM object to enable VM reservation. All private BOs
-	 * should use the @dummy_gem.resv and not their own _resv field.
+	 * should use the @dummy_gem.resv and analt their own _resv field.
 	 */
 	struct drm_gem_object dummy_gem;
 };
@@ -256,7 +256,7 @@ pvr_vm_bind_op_map_init(struct pvr_vm_bind_op *bind_op,
 	bind_op->prev_va = kzalloc(sizeof(*bind_op->prev_va), GFP_KERNEL);
 	bind_op->next_va = kzalloc(sizeof(*bind_op->next_va), GFP_KERNEL);
 	if (!bind_op->new_va || !bind_op->prev_va || !bind_op->next_va) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_bind_op_fini;
 	}
 
@@ -303,7 +303,7 @@ pvr_vm_bind_op_unmap_init(struct pvr_vm_bind_op *bind_op,
 	bind_op->prev_va = kzalloc(sizeof(*bind_op->prev_va), GFP_KERNEL);
 	bind_op->next_va = kzalloc(sizeof(*bind_op->next_va), GFP_KERNEL);
 	if (!bind_op->prev_va || !bind_op->next_va) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_bind_op_fini;
 	}
 
@@ -415,8 +415,8 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 	if (err)
 		return err;
 
-	/* No actual remap required: the page table tree depth is fixed to 3,
-	 * and we use 4k page table entries only for now.
+	/* Anal actual remap required: the page table tree depth is fixed to 3,
+	 * and we use 4k page table entries only for analw.
 	 */
 	drm_gpuva_remap(&ctx->prev_va->base, &ctx->next_va->base, &op->remap);
 
@@ -473,12 +473,12 @@ pvr_device_addr_is_valid(u64 device_addr)
  * is right at the end of device-virtual address space.
  *
  * This function catches that corner case, as well as checking that
- * @size is non-zero.
+ * @size is analn-zero.
  *
  * Return:
  *  * %true if @device_addr is device page aligned; @size is device page
  *    aligned; the range specified by @device_addr and @size is within the
- *    bounds of the device-virtual address space, and @size is non-zero, or
+ *    bounds of the device-virtual address space, and @size is analn-zero, or
  *  * %false otherwise.
  */
 bool
@@ -524,7 +524,7 @@ fw_mem_context_init(void *cpu_ptr, void *priv)
  *  * A handle to the newly-minted VM context on success,
  *  * -%EINVAL if the feature "virtual address space bits" on @pvr_dev is
  *    missing or has an unsupported value,
- *  * -%ENOMEM if allocation of the structure behind the opaque handle fails,
+ *  * -%EANALMEM if allocation of the structure behind the opaque handle fails,
  *    or
  *  * Any error encountered while setting up internal structures.
  */
@@ -554,7 +554,7 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 
 	vm_ctx = kzalloc(sizeof(*vm_ctx), GFP_KERNEL);
 	if (!vm_ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vm_ctx->pvr_dev = pvr_dev;
 
@@ -596,7 +596,7 @@ err_free:
  * pvr_vm_context_release() - Teardown a VM context.
  * @ref_count: Pointer to reference counter of the VM context.
  *
- * This function ensures that no mappings are left dangling by unmapping them
+ * This function ensures that anal mappings are left dangling by unmapping them
  * all in order of ascending device-virtual address.
  */
 static void
@@ -627,7 +627,7 @@ pvr_vm_context_release(struct kref *ref_count)
  *
  * Returns:
  *  * The requested object on success, or
- *  * %NULL on failure (object does not exist in list, or is not a VM context)
+ *  * %NULL on failure (object does analt exist in list, or is analt a VM context)
  */
 struct pvr_vm_context *
 pvr_vm_context_lookup(struct pvr_file *pvr_file, u32 handle)
@@ -676,7 +676,7 @@ void pvr_destroy_vm_contexts_for_file(struct pvr_file *pvr_file)
 	unsigned long handle;
 
 	xa_for_each(&pvr_file->vm_ctx_handles, handle, vm_ctx) {
-		/* vm_ctx is not used here because that would create a race with xa_erase */
+		/* vm_ctx is analt used here because that would create a race with xa_erase */
 		pvr_vm_context_put(xa_erase(&pvr_file->vm_ctx_handles, handle));
 	}
 }
@@ -704,15 +704,15 @@ pvr_vm_lock_extra(struct drm_gpuvm_exec *vm_exec)
  * @device_addr: Virtual device address at the start of the requested mapping.
  * @size: Size of the requested mapping.
  *
- * No handle is returned to represent the mapping. Instead, callers should
+ * Anal handle is returned to represent the mapping. Instead, callers should
  * remember @device_addr and use that as a handle.
  *
  * Return:
  *  * 0 on success,
- *  * -%EINVAL if @device_addr is not a valid page-aligned device-virtual
- *    address; the region specified by @pvr_obj_offset and @size does not fall
+ *  * -%EINVAL if @device_addr is analt a valid page-aligned device-virtual
+ *    address; the region specified by @pvr_obj_offset and @size does analt fall
  *    entirely within @pvr_obj, or any part of the specified region of @pvr_obj
- *    is not device-virtual page-aligned,
+ *    is analt device-virtual page-aligned,
  *  * Any error encountered while performing internal operations required to
  *    destroy the mapping (returned from pvr_vm_gpuva_map or
  *    pvr_vm_gpuva_remap).
@@ -725,7 +725,7 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx, struct pvr_gem_object *pvr_obj,
 	struct drm_gpuvm_exec vm_exec = {
 		.vm = &vm_ctx->gpuvm_mgr,
 		.flags = DRM_EXEC_INTERRUPTIBLE_WAIT |
-			 DRM_EXEC_IGNORE_DUPLICATES,
+			 DRM_EXEC_IGANALRE_DUPLICATES,
 		.extra = {
 			.fn = pvr_vm_lock_extra,
 			.priv = &bind_op,
@@ -763,7 +763,7 @@ err_cleanup:
  *
  * Return:
  *  * 0 on success,
- *  * -%EINVAL if @device_addr is not a valid page-aligned device-virtual
+ *  * -%EINVAL if @device_addr is analt a valid page-aligned device-virtual
  *    address,
  *  * Any error encountered while performing internal operations required to
  *    destroy the mapping (returned from pvr_vm_gpuva_unmap or
@@ -776,7 +776,7 @@ pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr, u64 size)
 	struct drm_gpuvm_exec vm_exec = {
 		.vm = &vm_ctx->gpuvm_mgr,
 		.flags = DRM_EXEC_INTERRUPTIBLE_WAIT |
-			 DRM_EXEC_IGNORE_DUPLICATES,
+			 DRM_EXEC_IGANALRE_DUPLICATES,
 		.extra = {
 			.fn = pvr_vm_lock_extra,
 			.priv = &bind_op,
@@ -977,7 +977,7 @@ copy_out:
  * @end: Inclusive end of the target range.
  *
  * It is an error to call this function with values of @start and @end that do
- * not satisfy the condition @start <= @end.
+ * analt satisfy the condition @start <= @end.
  */
 static __always_inline bool
 pvr_heap_contains_range(const struct drm_pvr_heap *pvr_heap, u64 start, u64 end)
@@ -996,7 +996,7 @@ pvr_heap_contains_range(const struct drm_pvr_heap *pvr_heap, u64 start, u64 end)
  *  * A pointer to a constant instance of struct drm_pvr_heap representing the
  *    heap containing the entire range specified by @start and @size on
  *    success, or
- *  * %NULL if no such heap exists.
+ *  * %NULL if anal such heap exists.
  */
 const struct drm_pvr_heap *
 pvr_find_heap_containing(struct pvr_device *pvr_dev, u64 start, u64 size)
@@ -1007,7 +1007,7 @@ pvr_find_heap_containing(struct pvr_device *pvr_dev, u64 start, u64 size)
 		return NULL;
 
 	/*
-	 * There are no guarantees about the order of address ranges in
+	 * There are anal guarantees about the order of address ranges in
 	 * &pvr_heaps, so iterate over the entire array for a heap whose
 	 * range completely encompasses the given range.
 	 */
@@ -1033,9 +1033,9 @@ pvr_find_heap_containing(struct pvr_device *pvr_dev, u64 start, u64 size)
  *               object.
  * @mapped_offset_out: [OUT] Pointer to location to write offset of the start
  *                     of the mapped region within the buffer object. May be
- *                     %NULL if this information is not required.
+ *                     %NULL if this information is analt required.
  * @mapped_size_out: [OUT] Pointer to location to write size of the mapped
- *                   region. May be %NULL if this information is not required.
+ *                   region. May be %NULL if this information is analt required.
  *
  * If successful, a reference will be taken on the buffer object. The caller
  * must drop the reference with pvr_gem_object_put().
@@ -1081,7 +1081,7 @@ err_unlock:
  *
  * Returns:
  *  * FW object representing firmware memory context, or
- *  * %NULL if this VM context does not have a firmware memory context.
+ *  * %NULL if this VM context does analt have a firmware memory context.
  */
 struct pvr_fw_object *
 pvr_vm_get_fw_mem_context(struct pvr_vm_context *vm_ctx)

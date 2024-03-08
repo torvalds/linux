@@ -26,12 +26,12 @@ static void test_ops(struct kunit *test)
 	const struct xe_lmtt_ops *ops = p->ops;
 	unsigned int n;
 
-	KUNIT_ASSERT_NOT_NULL(test, ops->lmtt_root_pd_level);
-	KUNIT_ASSERT_NOT_NULL(test, ops->lmtt_pte_num);
-	KUNIT_ASSERT_NOT_NULL(test, ops->lmtt_pte_size);
-	KUNIT_ASSERT_NOT_NULL(test, ops->lmtt_pte_shift);
-	KUNIT_ASSERT_NOT_NULL(test, ops->lmtt_pte_index);
-	KUNIT_ASSERT_NOT_NULL(test, ops->lmtt_pte_encode);
+	KUNIT_ASSERT_ANALT_NULL(test, ops->lmtt_root_pd_level);
+	KUNIT_ASSERT_ANALT_NULL(test, ops->lmtt_pte_num);
+	KUNIT_ASSERT_ANALT_NULL(test, ops->lmtt_pte_size);
+	KUNIT_ASSERT_ANALT_NULL(test, ops->lmtt_pte_shift);
+	KUNIT_ASSERT_ANALT_NULL(test, ops->lmtt_pte_index);
+	KUNIT_ASSERT_ANALT_NULL(test, ops->lmtt_pte_encode);
 
 	KUNIT_EXPECT_NE(test, ops->lmtt_root_pd_level(), 0);
 

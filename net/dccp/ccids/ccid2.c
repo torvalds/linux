@@ -30,13 +30,13 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hc)
 	/* check if we have space to preserve the pointer to the buffer */
 	if (hc->tx_seqbufc >= (sizeof(hc->tx_seqbuf) /
 			       sizeof(struct ccid2_seq *)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate buffer and initialize linked list */
 	seqp = kmalloc_array(CCID2_SEQBUF_LEN, sizeof(struct ccid2_seq),
 			     gfp_any());
 	if (seqp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < (CCID2_SEQBUF_LEN - 1); i++) {
 		seqp[i].ccid2s_next = &seqp[i + 1];
@@ -76,8 +76,8 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
 	u32 max_ratio = DIV_ROUND_UP(ccid2_hc_tx_sk(sk)->tx_cwnd, 2);
 
 	/*
-	 * Ensure that Ack Ratio does not exceed ceil(cwnd/2), which is (2) from
-	 * RFC 4341, 6.1.2. We ignore the statement that Ack Ratio 2 is always
+	 * Ensure that Ack Ratio does analt exceed ceil(cwnd/2), which is (2) from
+	 * RFC 4341, 6.1.2. We iganalre the statement that Ack Ratio 2 is always
 	 * acceptable since this causes starvation/deadlock whenever cwnd < 2.
 	 * The same problem arises when Ack Ratio is 0 (ie. Ack Ratio disabled).
 	 */
@@ -97,7 +97,7 @@ static void ccid2_check_l_ack_ratio(struct sock *sk)
 	 * After a loss, idle period, application limited period, or RTO we
 	 * need to check that the ack ratio is still less than the congestion
 	 * window. Otherwise, we will send an entire congestion window of
-	 * packets and got no response because we haven't sent ack ratio
+	 * packets and got anal response because we haven't sent ack ratio
 	 * packets yet.
 	 * If the ack ratio does need to be reduced, we reduce it to half of
 	 * the congestion window (or 1 if that's zero) instead of to the
@@ -162,7 +162,7 @@ static void ccid2_hc_tx_rto_expire(struct timer_list *t)
 	hc->tx_rpdupack = -1;
 	ccid2_change_l_ack_ratio(sk, 1);
 
-	/* if we were blocked before, we may now send cwnd=1 packet */
+	/* if we were blocked before, we may analw send cwnd=1 packet */
 	if (sender_was_blocked)
 		dccp_tasklet_schedule(sk);
 	/* restart backed-off timer */
@@ -187,7 +187,7 @@ MODULE_PARM_DESC(ccid2_do_cwv, "Perform RFC2861 Congestion Window Validation");
  * This is done in addition to CWV. The sender needs to have an idea of how many
  * packets may be in flight, to set the local Sequence Window value accordingly
  * (RFC 4340, 7.5.2). The CWV mechanism is exploited to keep track of the
- * maximum-used window. We use an EWMA low-pass filter to filter out noise.
+ * maximum-used window. We use an EWMA low-pass filter to filter out analise.
  */
 static void ccid2_update_used_window(struct ccid2_hc_tx_sock *hc, u32 new_wnd)
 {
@@ -195,7 +195,7 @@ static void ccid2_update_used_window(struct ccid2_hc_tx_sock *hc, u32 new_wnd)
 }
 
 /* This borrows the code of tcp_cwnd_application_limited() */
-static void ccid2_cwnd_application_limited(struct sock *sk, const u32 now)
+static void ccid2_cwnd_application_limited(struct sock *sk, const u32 analw)
 {
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 	/* don't reduce cwnd below the initial window (IW) */
@@ -208,18 +208,18 @@ static void ccid2_cwnd_application_limited(struct sock *sk, const u32 now)
 		hc->tx_cwnd = (hc->tx_cwnd + win_used) >> 1;
 	}
 	hc->tx_cwnd_used  = 0;
-	hc->tx_cwnd_stamp = now;
+	hc->tx_cwnd_stamp = analw;
 
 	ccid2_check_l_ack_ratio(sk);
 }
 
 /* This borrows the code of tcp_cwnd_restart() */
-static void ccid2_cwnd_restart(struct sock *sk, const u32 now)
+static void ccid2_cwnd_restart(struct sock *sk, const u32 analw)
 {
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 	u32 cwnd = hc->tx_cwnd, restart_cwnd,
 	    iwnd = rfc3390_bytes_to_packets(dccp_sk(sk)->dccps_mss_cache);
-	s32 delta = now - hc->tx_lsndtime;
+	s32 delta = analw - hc->tx_lsndtime;
 
 	hc->tx_ssthresh = max(hc->tx_ssthresh, (cwnd >> 1) + (cwnd >> 2));
 
@@ -229,7 +229,7 @@ static void ccid2_cwnd_restart(struct sock *sk, const u32 now)
 	while ((delta -= hc->tx_rto) >= 0 && cwnd > restart_cwnd)
 		cwnd >>= 1;
 	hc->tx_cwnd = max(cwnd, restart_cwnd);
-	hc->tx_cwnd_stamp = now;
+	hc->tx_cwnd_stamp = analw;
 	hc->tx_cwnd_used  = 0;
 
 	ccid2_check_l_ack_ratio(sk);
@@ -239,35 +239,35 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-	const u32 now = ccid2_jiffies32;
+	const u32 analw = ccid2_jiffies32;
 	struct ccid2_seq *next;
 
 	/* slow-start after idle periods (RFC 2581, RFC 2861) */
 	if (ccid2_do_cwv && !hc->tx_pipe &&
-	    (s32)(now - hc->tx_lsndtime) >= hc->tx_rto)
-		ccid2_cwnd_restart(sk, now);
+	    (s32)(analw - hc->tx_lsndtime) >= hc->tx_rto)
+		ccid2_cwnd_restart(sk, analw);
 
-	hc->tx_lsndtime = now;
+	hc->tx_lsndtime = analw;
 	hc->tx_pipe    += 1;
 
 	/* see whether cwnd was fully used (RFC 2861), update expected window */
 	if (ccid2_cwnd_network_limited(hc)) {
 		ccid2_update_used_window(hc, hc->tx_cwnd);
 		hc->tx_cwnd_used  = 0;
-		hc->tx_cwnd_stamp = now;
+		hc->tx_cwnd_stamp = analw;
 	} else {
 		if (hc->tx_pipe > hc->tx_cwnd_used)
 			hc->tx_cwnd_used = hc->tx_pipe;
 
 		ccid2_update_used_window(hc, hc->tx_cwnd_used);
 
-		if (ccid2_do_cwv && (s32)(now - hc->tx_cwnd_stamp) >= hc->tx_rto)
-			ccid2_cwnd_application_limited(sk, now);
+		if (ccid2_do_cwv && (s32)(analw - hc->tx_cwnd_stamp) >= hc->tx_rto)
+			ccid2_cwnd_application_limited(sk, analw);
 	}
 
 	hc->tx_seqh->ccid2s_seq   = dp->dccps_gss;
 	hc->tx_seqh->ccid2s_acked = 0;
-	hc->tx_seqh->ccid2s_sent  = now;
+	hc->tx_seqh->ccid2s_sent  = analw;
 
 	next = hc->tx_seqh->ccid2s_next;
 	/* check if we need to alloc more space */
@@ -289,10 +289,10 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 	 * from the socket struct. The `ackloss' variable was always set to 0,
 	 * and with arsent there are several problems:
 	 *  (i) it doesn't just count the number of Acks, but all sent packets;
-	 *  (ii) it is expressed in # of packets, not # of windows, so the
+	 *  (ii) it is expressed in # of packets, analt # of windows, so the
 	 *  comparison below uses the wrong formula: Appendix A of RFC 4341
 	 *  comes up with the number K = cwnd / (R^2 - R) of consecutive windows
-	 *  of data with no lost or marked Ack packets. If arsent were the # of
+	 *  of data with anal lost or marked Ack packets. If arsent were the # of
 	 *  consecutive Acks received without loss, then Ack Ratio needs to be
 	 *  decreased by 1 when
 	 *	      arsent >=  K * cwnd / R  =  cwnd^2 / (R^3 - R^2)
@@ -313,16 +313,16 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 			hc->tx_ackloss = 0;
 		}
 	} else {
-		/* No acks lost up to now... */
-		/* decrease ack ratio if enough packets were sent */
+		/* Anal acks lost up to analw... */
+		/* decrease ack ratio if eanalugh packets were sent */
 		if (dp->dccps_l_ack_ratio > 1) {
-			/* XXX don't calculate denominator each time */
-			int denom = dp->dccps_l_ack_ratio * dp->dccps_l_ack_ratio -
+			/* XXX don't calculate deanalminator each time */
+			int deanalm = dp->dccps_l_ack_ratio * dp->dccps_l_ack_ratio -
 				    dp->dccps_l_ack_ratio;
 
-			denom = hc->tx_cwnd * hc->tx_cwnd / denom;
+			deanalm = hc->tx_cwnd * hc->tx_cwnd / deanalm;
 
-			if (hc->tx_arsent >= denom) {
+			if (hc->tx_arsent >= deanalm) {
 				ccid2_change_l_ack_ratio(sk, dp->dccps_l_ack_ratio - 1);
 				hc->tx_arsent = 0;
 			}
@@ -356,7 +356,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
  *
  * This code is almost identical with TCP's tcp_rtt_estimator(), since
  * - it has a higher sampling frequency (recommended by RFC 1323),
- * - the RTO does not collapse into RTT due to RTTVAR going towards zero,
+ * - the RTO does analt collapse into RTT due to RTTVAR going towards zero,
  * - it is simple (cf. more complex proposals such as Eifel timer or research
  *   which suggests that the gain should be set according to window size),
  * - in tests it was found to work well with CCID2 [gerrit].
@@ -422,7 +422,7 @@ static void ccid2_rtt_estimator(struct sock *sk, const long mrtt)
 	 * Set RTO from SRTT and RTTVAR
 	 * As in TCP, 4 * RTTVAR >= TCP_RTO_MIN, giving a minimum RTO of 200 ms.
 	 * This agrees with RFC 4341, 5:
-	 *	"Because DCCP does not retransmit data, DCCP does not require
+	 *	"Because DCCP does analt retransmit data, DCCP does analt require
 	 *	 TCP's recommended minimum timeout of one second".
 	 */
 	hc->tx_rto = (hc->tx_srtt >> 3) + hc->tx_rttvar;
@@ -467,11 +467,11 @@ static void ccid2_new_ack(struct sock *sk, struct ccid2_seq *seqp,
 		ccid2_change_l_seq_window(sk, dp->dccps_l_seq_win / 2);
 
 	/*
-	 * FIXME: RTT is sampled several times per acknowledgment (for each
+	 * FIXME: RTT is sampled several times per ackanalwledgment (for each
 	 * entry in the Ack Vector), instead of once per Ack (as in TCP SACK).
 	 * This causes the RTT to be over-estimated, since the older entries
 	 * in the Ack Vector have earlier sending times.
-	 * The cleanest solution is to not use the ccid2s_sent field at all
+	 * The cleanest solution is to analt use the ccid2s_sent field at all
 	 * and instead use DCCP timestamps: requires changes in other places.
 	 */
 	ccid2_rtt_estimator(sk, ccid2_jiffies32 - seqp->ccid2s_sent);
@@ -514,31 +514,31 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 	const bool sender_was_blocked = ccid2_cwnd_network_limited(hc);
 	struct dccp_ackvec_parsed *avp;
-	u64 ackno, seqno;
+	u64 ackanal, seqanal;
 	struct ccid2_seq *seqp;
 	int done = 0;
 	unsigned int maxincr = 0;
 
 	/* check reverse path congestion */
-	seqno = DCCP_SKB_CB(skb)->dccpd_seq;
+	seqanal = DCCP_SKB_CB(skb)->dccpd_seq;
 
 	/* XXX this whole "algorithm" is broken.  Need to fix it to keep track
-	 * of the seqnos of the dupacks so that rpseq and rpdupack are correct
+	 * of the seqanals of the dupacks so that rpseq and rpdupack are correct
 	 * -sorbo.
 	 */
 	/* need to bootstrap */
 	if (hc->tx_rpdupack == -1) {
 		hc->tx_rpdupack = 0;
-		hc->tx_rpseq    = seqno;
+		hc->tx_rpseq    = seqanal;
 	} else {
 		/* check if packet is consecutive */
-		if (dccp_delta_seqno(hc->tx_rpseq, seqno) == 1)
-			hc->tx_rpseq = seqno;
+		if (dccp_delta_seqanal(hc->tx_rpseq, seqanal) == 1)
+			hc->tx_rpseq = seqanal;
 		/* it's a later packet */
-		else if (after48(seqno, hc->tx_rpseq)) {
+		else if (after48(seqanal, hc->tx_rpseq)) {
 			hc->tx_rpdupack++;
 
-			/* check if we got enough dupacks */
+			/* check if we got eanalugh dupacks */
 			if (hc->tx_rpdupack >= NUMDUPACK) {
 				hc->tx_rpdupack = -1; /* XXX lame */
 				hc->tx_rpseq    = 0;
@@ -564,12 +564,12 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	if (hc->tx_seqh == hc->tx_seqt)
 		goto done;
 
-	ackno = DCCP_SKB_CB(skb)->dccpd_ack_seq;
-	if (after48(ackno, hc->tx_high_ack))
-		hc->tx_high_ack = ackno;
+	ackanal = DCCP_SKB_CB(skb)->dccpd_ack_seq;
+	if (after48(ackanal, hc->tx_high_ack))
+		hc->tx_high_ack = ackanal;
 
 	seqp = hc->tx_seqt;
-	while (before48(seqp->ccid2s_seq, ackno)) {
+	while (before48(seqp->ccid2s_seq, ackanal)) {
 		seqp = seqp->ccid2s_next;
 		if (seqp == hc->tx_seqh) {
 			seqp = hc->tx_seqh->ccid2s_prev;
@@ -579,28 +579,28 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 	/*
 	 * In slow-start, cwnd can increase up to a maximum of Ack Ratio/2
-	 * packets per acknowledgement. Rounding up avoids that cwnd is not
+	 * packets per ackanalwledgement. Rounding up avoids that cwnd is analt
 	 * advanced when Ack Ratio is 1 and gives a slight edge otherwise.
 	 */
 	if (hc->tx_cwnd < hc->tx_ssthresh)
 		maxincr = DIV_ROUND_UP(dp->dccps_l_ack_ratio, 2);
 
 	/* go through all ack vectors */
-	list_for_each_entry(avp, &hc->tx_av_chunks, node) {
+	list_for_each_entry(avp, &hc->tx_av_chunks, analde) {
 		/* go through this ack vector */
 		for (; avp->len--; avp->vec++) {
-			u64 ackno_end_rl = SUB48(ackno,
+			u64 ackanal_end_rl = SUB48(ackanal,
 						 dccp_ackvec_runlen(avp->vec));
 
 			ccid2_pr_debug("ackvec %llu |%u,%u|\n",
-				       (unsigned long long)ackno,
+				       (unsigned long long)ackanal,
 				       dccp_ackvec_state(avp->vec) >> 6,
 				       dccp_ackvec_runlen(avp->vec));
-			/* if the seqno we are analyzing is larger than the
-			 * current ackno, then move towards the tail of our
-			 * seqnos.
+			/* if the seqanal we are analyzing is larger than the
+			 * current ackanal, then move towards the tail of our
+			 * seqanals.
 			 */
-			while (after48(seqp->ccid2s_seq, ackno)) {
+			while (after48(seqp->ccid2s_seq, ackanal)) {
 				if (seqp == hc->tx_seqt) {
 					done = 1;
 					break;
@@ -610,14 +610,14 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			if (done)
 				break;
 
-			/* check all seqnos in the range of the vector
+			/* check all seqanals in the range of the vector
 			 * run length
 			 */
-			while (between48(seqp->ccid2s_seq,ackno_end_rl,ackno)) {
+			while (between48(seqp->ccid2s_seq,ackanal_end_rl,ackanal)) {
 				const u8 state = dccp_ackvec_state(avp->vec);
 
 				/* new packet received or marked */
-				if (state != DCCPAV_NOT_RECEIVED &&
+				if (state != DCCPAV_ANALT_RECEIVED &&
 				    !seqp->ccid2s_acked) {
 					if (state == DCCPAV_ECN_MARKED)
 						ccid2_congestion_event(sk,
@@ -640,13 +640,13 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			if (done)
 				break;
 
-			ackno = SUB48(ackno_end_rl, 1);
+			ackanal = SUB48(ackanal_end_rl, 1);
 		}
 		if (done)
 			break;
 	}
 
-	/* The state about what is acked should be correct now
+	/* The state about what is acked should be correct analw
 	 * Check for NUMDUPACK
 	 */
 	seqp = hc->tx_seqt;
@@ -669,7 +669,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		seqp = seqp->ccid2s_prev;
 	}
 
-	/* If there are at least 3 acknowledgements, anything unacknowledged
+	/* If there are at least 3 ackanalwledgements, anything unackanalwledged
 	 * below the last sequence number is considered lost
 	 */
 	if (done == NUMDUPACK) {
@@ -703,7 +703,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		hc->tx_seqt = hc->tx_seqt->ccid2s_next;
 	}
 
-	/* restart RTO timer if not all outstanding data has been acked */
+	/* restart RTO timer if analt all outstanding data has been acked */
 	if (hc->tx_pipe == 0)
 		sk_stop_timer(sk, &hc->tx_rtotimer);
 	else
@@ -735,7 +735,7 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 	/* XXX init ~ to window size... */
 	if (ccid2_hc_tx_alloc_seq(hc))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hc->tx_rto	 = DCCP_TIMEOUT_INIT;
 	hc->tx_rpdupack  = -1;

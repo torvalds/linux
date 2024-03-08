@@ -56,7 +56,7 @@ static int get_flipped(struct tca_apb *ta, bool *flipped)
 	ret = extcon_get_property(ta->phy.edev, EXTCON_USB_HOST,
 				  EXTCON_PROP_USB_TYPEC_POLARITY, &property);
 	if (ret) {
-		dev_err(ta->phy.dev, "no polarity property from extcon\n");
+		dev_err(ta->phy.dev, "anal polarity property from extcon\n");
 		return ret;
 	}
 
@@ -169,19 +169,19 @@ static void tca_work(struct work_struct *work)
 		dev_err(ta->phy.dev, "failed to set VBUS\n");
 }
 
-static int id_notifier(struct notifier_block *nb, unsigned long event, void *ptr)
+static int id_analtifier(struct analtifier_block *nb, unsigned long event, void *ptr)
 {
 	struct tca_apb *ta = container_of(nb, struct tca_apb, phy.id_nb);
 
 	if (ta->phy_initialized)
 		schedule_work(&ta->wk);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int vbus_notifier(struct notifier_block *nb, unsigned long evnt, void *ptr)
+static int vbus_analtifier(struct analtifier_block *nb, unsigned long evnt, void *ptr)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int phy_probe(struct platform_device *pdev)
@@ -194,7 +194,7 @@ static int phy_probe(struct platform_device *pdev)
 
 	ta = devm_kzalloc(dev, sizeof(*ta), GFP_KERNEL);
 	if (!ta)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ta);
 	INIT_WORK(&ta->wk, tca_work);
@@ -206,8 +206,8 @@ static int phy_probe(struct platform_device *pdev)
 	phy->init = phy_init;
 	phy->shutdown = phy_shutdown;
 	phy->set_vbus = phy_set_vbus;
-	phy->id_nb.notifier_call = id_notifier;
-	phy->vbus_nb.notifier_call = vbus_notifier;
+	phy->id_nb.analtifier_call = id_analtifier;
+	phy->vbus_nb.analtifier_call = vbus_analtifier;
 
 	phy->io_priv = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy->io_priv))
@@ -220,7 +220,7 @@ static int phy_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(CTL_RESETS); i++) {
 		resets[i] = devm_reset_control_get_exclusive(dev, CTL_RESETS[i]);
 		if (IS_ERR(resets[i])) {
-			dev_err(dev, "%s reset not found\n", CTL_RESETS[i]);
+			dev_err(dev, "%s reset analt found\n", CTL_RESETS[i]);
 			return PTR_ERR(resets[i]);
 		}
 	}
@@ -228,7 +228,7 @@ static int phy_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(PHY_RESETS); i++) {
 		ta->resets[i] = devm_reset_control_get_exclusive(dev, PHY_RESETS[i]);
 		if (IS_ERR(ta->resets[i])) {
-			dev_err(dev, "%s reset not found\n", PHY_RESETS[i]);
+			dev_err(dev, "%s reset analt found\n", PHY_RESETS[i]);
 			return PTR_ERR(ta->resets[i]);
 		}
 	}

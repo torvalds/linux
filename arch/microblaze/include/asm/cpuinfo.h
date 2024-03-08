@@ -90,10 +90,10 @@ extern struct cpuinfo cpuinfo;
 void setup_cpuinfo(void);
 void setup_cpuinfo_clk(void);
 
-void set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu);
-void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu);
+void set_cpuinfo_static(struct cpuinfo *ci, struct device_analde *cpu);
+void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_analde *cpu);
 
-static inline unsigned int fcpu(struct device_node *cpu, char *n)
+static inline unsigned int fcpu(struct device_analde *cpu, char *n)
 {
 	u32 val = 0;
 

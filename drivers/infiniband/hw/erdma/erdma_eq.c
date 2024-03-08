@@ -8,7 +8,7 @@
 
 #define MAX_POLL_CHUNK_SIZE 16
 
-void notify_eq(struct erdma_eq *eq)
+void analtify_eq(struct erdma_eq *eq)
 {
 	u64 db_data = FIELD_PREP(ERDMA_EQDB_CI_MASK, eq->ci) |
 		      FIELD_PREP(ERDMA_EQDB_ARM_MASK, 1);
@@ -16,7 +16,7 @@ void notify_eq(struct erdma_eq *eq)
 	*eq->db_record = db_data;
 	writeq(db_data, eq->db);
 
-	atomic64_inc(&eq->notify_num);
+	atomic64_inc(&eq->analtify_num);
 }
 
 void *get_next_valid_eqe(struct erdma_eq *eq)
@@ -77,7 +77,7 @@ void erdma_aeq_event_handler(struct erdma_dev *dev)
 		}
 	}
 
-	notify_eq(&dev->aeq);
+	analtify_eq(&dev->aeq);
 }
 
 int erdma_aeq_init(struct erdma_dev *dev)
@@ -92,11 +92,11 @@ int erdma_aeq_init(struct erdma_dev *dev)
 		dma_alloc_coherent(&dev->pdev->dev, WARPPED_BUFSIZE(buf_size),
 				   &eq->qbuf_dma_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!eq->qbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&eq->lock);
 	atomic64_set(&eq->event_num, 0);
-	atomic64_set(&eq->notify_num, 0);
+	atomic64_set(&eq->analtify_num, 0);
 
 	eq->db = dev->func_bar + ERDMA_REGS_AEQ_DB_REG;
 	eq->db_record = (u64 *)(eq->qbuf + buf_size);
@@ -153,7 +153,7 @@ void erdma_ceq_completion_handler(struct erdma_eq_cb *ceq_cb)
 			cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 	}
 
-	notify_eq(&ceq_cb->eq);
+	analtify_eq(&ceq_cb->eq);
 }
 
 static irqreturn_t erdma_intr_ceq_handler(int irq, void *data)
@@ -182,7 +182,7 @@ static int erdma_set_ceq_irq(struct erdma_dev *dev, u16 ceqn)
 	tasklet_init(&dev->ceqs[ceqn].tasklet, erdma_intr_ceq_task,
 		     (unsigned long)&dev->ceqs[ceqn]);
 
-	cpumask_set_cpu(cpumask_local_spread(ceqn + 1, dev->attrs.numa_node),
+	cpumask_set_cpu(cpumask_local_spread(ceqn + 1, dev->attrs.numa_analde),
 			&eqc->irq.affinity_hint_mask);
 
 	err = request_irq(eqc->irq.msix_vector, erdma_intr_ceq_handler, 0,
@@ -236,11 +236,11 @@ static int erdma_ceq_init_one(struct erdma_dev *dev, u16 ceqn)
 		dma_alloc_coherent(&dev->pdev->dev, WARPPED_BUFSIZE(buf_size),
 				   &eq->qbuf_dma_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!eq->qbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&eq->lock);
 	atomic64_set(&eq->event_num, 0);
-	atomic64_set(&eq->notify_num, 0);
+	atomic64_set(&eq->analtify_num, 0);
 
 	eq->depth = ERDMA_DEFAULT_EQ_DEPTH;
 	eq->db = dev->func_bar + ERDMA_REGS_CEQ_DB_BASE_REG +

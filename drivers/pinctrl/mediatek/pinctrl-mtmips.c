@@ -78,7 +78,7 @@ static const struct pinctrl_ops mtmips_pctrl_ops = {
 	.get_groups_count	= mtmips_get_group_count,
 	.get_group_name		= mtmips_get_group_name,
 	.get_group_pins		= mtmips_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 };
 
@@ -165,7 +165,7 @@ static int mtmips_pmx_group_gpio_request_enable(struct pinctrl_dev *pctrldev,
 	struct mtmips_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
 	if (!p->gpio[pin]) {
-		dev_err(p->dev, "pin %d is not set to gpio mux\n", pin);
+		dev_err(p->dev, "pin %d is analt set to gpio mux\n", pin);
 		return -EINVAL;
 	}
 
@@ -206,7 +206,7 @@ static int mtmips_pinctrl_index(struct mtmips_priv *p)
 	p->group_names = devm_kcalloc(p->dev, p->group_count,
 				      sizeof(char *), GFP_KERNEL);
 	if (!p->group_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < p->group_count; i++) {
 		p->group_names[i] = p->groups[i].name;
@@ -222,9 +222,9 @@ static int mtmips_pinctrl_index(struct mtmips_priv *p)
 	gpio_func.groups = devm_kcalloc(p->dev, p->group_count, sizeof(int),
 					GFP_KERNEL);
 	if (!p->func || !gpio_func.groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* add a backpointer to the function so it knows its group */
+	/* add a backpointer to the function so it kanalws its group */
 	gpio_func.group_count = p->group_count;
 	for (i = 0; i < gpio_func.group_count; i++)
 		gpio_func.groups[i] = i;
@@ -239,7 +239,7 @@ static int mtmips_pinctrl_index(struct mtmips_priv *p)
 			p->func[c]->groups = devm_kzalloc(p->dev, sizeof(int),
 						    GFP_KERNEL);
 			if (!p->func[c]->groups)
-				return -ENOMEM;
+				return -EANALMEM;
 			p->func[c]->groups[0] = i;
 			p->func[c]->group_count = 1;
 			c++;
@@ -267,7 +267,7 @@ static int mtmips_pinctrl_pins(struct mtmips_priv *p)
 						sizeof(int),
 						GFP_KERNEL);
 		if (!p->func[i]->pins)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (j = 0; j < p->func[i]->pin_count; j++)
 			p->func[i]->pins[j] = p->func[i]->pin_first + j;
 
@@ -282,7 +282,7 @@ static int mtmips_pinctrl_pins(struct mtmips_priv *p)
 	p->pads = devm_kcalloc(p->dev, p->max_pins,
 			       sizeof(struct pinctrl_pin_desc), GFP_KERNEL);
 	if (!p->pads || !p->gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(p->gpio, 1, sizeof(u8) * p->max_pins);
 	for (i = 0; i < p->func_count; i++) {
@@ -302,7 +302,7 @@ static int mtmips_pinctrl_pins(struct mtmips_priv *p)
 		char *name = devm_kzalloc(p->dev, 5, GFP_KERNEL);
 
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 		snprintf(name, 5, "io%d", i);
 		p->pads[i].number = i;
 		p->pads[i].name = name;
@@ -321,12 +321,12 @@ int mtmips_pinctrl_init(struct platform_device *pdev,
 	int err;
 
 	if (!data)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* setup the private data */
 	p = devm_kzalloc(&pdev->dev, sizeof(struct mtmips_priv), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->dev = &pdev->dev;
 	p->desc = &mtmips_pctrl_desc;

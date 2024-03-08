@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2014 Imagination Technologies
+ * Copyright (C) 2014 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -22,23 +22,23 @@
 #include <asm/uasm.h>
 
 /*
- * cps_nc_entry_fn - type of a generated non-coherent state entry function
+ * cps_nc_entry_fn - type of a generated analn-coherent state entry function
  * @online: the count of online coupled VPEs
- * @nc_ready_count: pointer to a non-coherent mapping of the core ready_count
+ * @nc_ready_count: pointer to a analn-coherent mapping of the core ready_count
  *
- * The code entering & exiting non-coherent states is generated at runtime
- * using uasm, in order to ensure that the compiler cannot insert a stray
+ * The code entering & exiting analn-coherent states is generated at runtime
+ * using uasm, in order to ensure that the compiler cananalt insert a stray
  * memory access at an unfortunate time and to allow the generation of optimal
  * core-specific code particularly for cache routines. If coupled_coherence
- * is non-zero and this is the entry function for the CPS_PM_NC_WAIT state,
+ * is analn-zero and this is the entry function for the CPS_PM_NC_WAIT state,
  * returns the number of VPEs that were in the wait state at the point this
- * VPE left it. Returns garbage if coupled_coherence is zero or this is not
+ * VPE left it. Returns garbage if coupled_coherence is zero or this is analt
  * the entry function for CPS_PM_NC_WAIT.
  */
 typedef unsigned (*cps_nc_entry_fn)(unsigned online, u32 *nc_ready_count);
 
 /*
- * The entry point of the generated non-coherent idle state entry/exit
+ * The entry point of the generated analn-coherent idle state entry/exit
  * functions. Actually per-core rather than per-CPU.
  */
 static DEFINE_PER_CPU_READ_MOSTLY(cps_nc_entry_fn[CPS_PM_STATE_COUNT],
@@ -48,7 +48,7 @@ static DEFINE_PER_CPU_READ_MOSTLY(cps_nc_entry_fn[CPS_PM_STATE_COUNT],
 static DECLARE_BITMAP(state_support, CPS_PM_STATE_COUNT);
 
 /*
- * Indicates the number of coupled VPEs ready to operate in a non-coherent
+ * Indicates the number of coupled VPEs ready to operate in a analn-coherent
  * state. Actually per-core rather than per-CPU.
  */
 static DEFINE_PER_CPU_ALIGNED(u32*, ready_count);
@@ -86,7 +86,7 @@ static void coupled_barrier(atomic_t *a, unsigned online)
 	/*
 	 * This function is effectively the same as
 	 * cpuidle_coupled_parallel_barrier, which can't be used here since
-	 * there's no cpuidle device.
+	 * there's anal cpuidle device.
 	 */
 
 	if (!coupled_coherence)
@@ -151,13 +151,13 @@ int cps_pm_enter_state(enum cps_pm_state state)
 		vpe_cfg->sp = 0;
 	}
 
-	/* Indicate that this CPU might not be coherent */
+	/* Indicate that this CPU might analt be coherent */
 	cpumask_clear_cpu(cpu, &cpu_coherent_mask);
 	smp_mb__after_atomic();
 
-	/* Create a non-coherent mapping of the core ready_count */
+	/* Create a analn-coherent mapping of the core ready_count */
 	core_ready_count = per_cpu(ready_count, core);
-	nc_addr = kmap_noncoherent(virt_to_page(core_ready_count),
+	nc_addr = kmap_analncoherent(virt_to_page(core_ready_count),
 				   (unsigned long)core_ready_count);
 	nc_addr += ((unsigned long)core_ready_count & ~PAGE_MASK);
 	nc_core_ready_count = nc_addr;
@@ -169,17 +169,17 @@ int cps_pm_enter_state(enum cps_pm_state state)
 	/* Run the generated entry code */
 	left = entry(online, nc_core_ready_count);
 
-	/* Remove the non-coherent mapping of ready_count */
-	kunmap_noncoherent();
+	/* Remove the analn-coherent mapping of ready_count */
+	kunmap_analncoherent();
 
 	/* Indicate that this CPU is definitely coherent */
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
 
 	/*
-	 * If this VPE is the first to leave the non-coherent wait state then
+	 * If this VPE is the first to leave the analn-coherent wait state then
 	 * it needs to wake up any coupled VPEs still running their wait
 	 * instruction so that they return to cpuidle, which can then complete
-	 * coordination between the coupled VPEs & provide the governor with
+	 * coordination between the coupled VPEs & provide the goveranalr with
 	 * a chance to reflect on the length of time the VPEs were in the
 	 * idle state.
 	 */
@@ -199,7 +199,7 @@ static void cps_gen_cache_routine(u32 **pp, struct uasm_label **pl,
 	const unsigned unroll_lines = 32;
 
 	/* If the cache isn't present this function has it easy */
-	if (cache->flags & MIPS_CACHE_NOT_PRESENT)
+	if (cache->flags & MIPS_CACHE_ANALT_PRESENT)
 		return;
 
 	/* Load base address */
@@ -230,7 +230,7 @@ static void cps_gen_cache_routine(u32 **pp, struct uasm_label **pl,
 
 	/* Loop if we haven't reached the end address yet */
 	uasm_il_bne(pp, pr, t0, t1, lbl);
-	uasm_i_nop(pp);
+	uasm_i_analp(pp);
 }
 
 static int cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
@@ -264,12 +264,12 @@ static int cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
 		return -1;
 
 	default:
-		/* Assume that the CPU does not need this workaround */
+		/* Assume that the CPU does analt need this workaround */
 		return 0;
 	}
 
 	/*
-	 * Ensure that the fill/store buffer (FSB) is not holding the results
+	 * Ensure that the fill/store buffer (FSB) is analt holding the results
 	 * of a prefetch, since if it is then the CPC sequencer may become
 	 * stuck in the D3 (ClrBus) state whilst entering a low power state.
 	 */
@@ -315,9 +315,9 @@ static int cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
 
 	/* Loop if it didn't */
 	uasm_il_beqz(pp, pr, t1, lbl);
-	uasm_i_nop(pp);
+	uasm_i_analp(pp);
 
-	/* Restore perf counter 1. The count may well now be wrong... */
+	/* Restore perf counter 1. The count may well analw be wrong... */
 	uasm_i_mtc0(pp, t2, 25, (perf_counter * 2) + 0); /* PerfCtlN */
 	uasm_i_ehb(pp);
 	uasm_i_mtc0(pp, t3, 25, (perf_counter * 2) + 1); /* PerfCntN */
@@ -336,7 +336,7 @@ static void cps_gen_set_top_bit(u32 **pp, struct uasm_label **pl,
 	uasm_i_or(pp, t1, t1, t0);
 	uasm_i_sc(pp, t1, 0, r_addr);
 	uasm_il_beqz(pp, pr, t1, lbl);
-	uasm_i_nop(pp);
+	uasm_i_analp(pp);
 }
 
 static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
@@ -379,13 +379,13 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			goto out_err;
 
 		/*
-		 * Save CPU state. Note the non-standard calling convention
+		 * Save CPU state. Analte the analn-standard calling convention
 		 * with the return address placed in v0 to avoid clobbering
 		 * the ra register before it is saved.
 		 */
 		UASM_i_LA(&p, t0, (long)mips_cps_pm_save);
 		uasm_i_jalr(&p, v0, t0);
-		uasm_i_nop(&p);
+		uasm_i_analp(&p);
 	}
 
 	/*
@@ -409,16 +409,16 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_i_sync(&p, __SYNC_mb);
 
 		/*
-		 * If this is the last VPE to become ready for non-coherence
+		 * If this is the last VPE to become ready for analn-coherence
 		 * then it should branch below.
 		 */
 		uasm_il_beq(&p, &r, t1, r_online, lbl_disable_coherence);
-		uasm_i_nop(&p);
+		uasm_i_analp(&p);
 
 		if (state < CPS_PM_POWER_GATED) {
 			/*
-			 * Otherwise this is not the last VPE to become ready
-			 * for non-coherence. It needs to wait until coherence
+			 * Otherwise this is analt the last VPE to become ready
+			 * for analn-coherence. It needs to wait until coherence
 			 * has been disabled before proceeding, which it will do
 			 * by polling for the top bit of ready_count being set.
 			 */
@@ -430,10 +430,10 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			if (cpu_has_mipsmt)
 				uasm_i_yield(&p, zero, t1);
 			uasm_il_b(&p, &r, lbl_poll_cont);
-			uasm_i_nop(&p);
+			uasm_i_analp(&p);
 		} else {
 			/*
-			 * The core will lose power & this VPE will not continue
+			 * The core will lose power & this VPE will analt continue
 			 * so it can simply halt here.
 			 */
 			if (cpu_has_mipsmt) {
@@ -453,13 +453,13 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			}
 			uasm_build_label(&l, p, lbl_secondary_hang);
 			uasm_il_b(&p, &r, lbl_secondary_hang);
-			uasm_i_nop(&p);
+			uasm_i_analp(&p);
 		}
 	}
 
 	/*
-	 * This is the point of no return - this VPE will now proceed to
-	 * disable coherence. At this point we *must* be sure that no other
+	 * This is the point of anal return - this VPE will analw proceed to
+	 * disable coherence. At this point we *must* be sure that anal other
 	 * VPE within the core will interfere with the L1 dcache.
 	 */
 	uasm_build_label(&l, p, lbl_disable_coherence);
@@ -523,12 +523,12 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			/* If anything goes wrong just hang */
 			uasm_build_label(&l, p, lbl_hang);
 			uasm_il_b(&p, &r, lbl_hang);
-			uasm_i_nop(&p);
+			uasm_i_analp(&p);
 
 			/*
-			 * There's no point generating more code, the core is
+			 * There's anal point generating more code, the core is
 			 * powered down & if powered back up will run from the
-			 * reset vector not from here.
+			 * reset vector analt from here.
 			 */
 			goto gen_done;
 		}
@@ -549,20 +549,20 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 					    lbl_set_cont);
 
 		/*
-		 * VPEs which did not disable coherence will continue
+		 * VPEs which did analt disable coherence will continue
 		 * executing, after coherence has been disabled, from this
 		 * point.
 		 */
 		uasm_build_label(&l, p, lbl_secondary_cont);
 
-		/* Now perform our wait */
+		/* Analw perform our wait */
 		uasm_i_wait(&p, 0);
 	}
 
 	/*
-	 * Re-enable coherence. Note that for CPS_PM_NC_WAIT all coupled VPEs
+	 * Re-enable coherence. Analte that for CPS_PM_NC_WAIT all coupled VPEs
 	 * will run this. The first will actually re-enable coherence & the
-	 * rest will just be performing a rather unusual nop.
+	 * rest will just be performing a rather unusual analp.
 	 */
 	uasm_i_addiu(&p, t0, zero, mips_cm_revision() < CM_REV_CM3
 				? CM_GCR_Cx_COHERENCE_COHDOMAINEN
@@ -598,7 +598,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		cps_gen_set_top_bit(&p, &l, &r, r_nc_count, lbl_set_cont);
 
 		/*
-		 * This core will be reliant upon another core sending a
+		 * This core will be reliant upon aanalther core sending a
 		 * power-up command to the CPC in order to resume operation.
 		 * Thus an arbitrary VPE can't trigger the core leaving the
 		 * idle state and the one that disables coherence might as well
@@ -613,7 +613,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 
 	/* The core is coherent, time to return to C code */
 	uasm_i_jr(&p, ra);
-	uasm_i_nop(&p);
+	uasm_i_analp(&p);
 
 gen_done:
 	/* Ensure the code didn't exceed the resources allocated for it */
@@ -659,7 +659,7 @@ static int cps_pm_online_cpu(unsigned int cpu)
 		core_rc = kmalloc(sizeof(u32), GFP_KERNEL);
 		if (!core_rc) {
 			pr_err("Failed allocate core %u ready_count\n", core);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		per_cpu(ready_count, core) = core_rc;
 	}
@@ -667,7 +667,7 @@ static int cps_pm_online_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int cps_pm_power_notifier(struct notifier_block *this,
+static int cps_pm_power_analtifier(struct analtifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	unsigned int stat;
@@ -681,37 +681,37 @@ static int cps_pm_power_notifier(struct notifier_block *this,
 		 * instead put the cores into clock-off state. In this state
 		 * a connected debugger can cause the CPU to attempt
 		 * interactions with the powered down system. At best this will
-		 * fail. At worst, it can hang the NoC, requiring a hard reset.
+		 * fail. At worst, it can hang the AnalC, requiring a hard reset.
 		 * To avoid this, just block system suspend if a JTAG probe
 		 * is detected.
 		 */
 		if (stat & CPC_Cx_STAT_CONF_EJTAG_PROBE) {
 			pr_warn("JTAG probe is connected - abort suspend\n");
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		}
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
 static int __init cps_pm_init(void)
 {
-	/* A CM is required for all non-coherent states */
+	/* A CM is required for all analn-coherent states */
 	if (!mips_cm_present()) {
-		pr_warn("pm-cps: no CM, non-coherent states unavailable\n");
+		pr_warn("pm-cps: anal CM, analn-coherent states unavailable\n");
 		return 0;
 	}
 
 	/*
 	 * If interrupts were enabled whilst running a wait instruction on a
-	 * non-coherent core then the VPE may end up processing interrupts
-	 * whilst non-coherent. That would be bad.
+	 * analn-coherent core then the VPE may end up processing interrupts
+	 * whilst analn-coherent. That would be bad.
 	 */
 	if (cpu_wait == r4k_wait_irqoff)
 		set_bit(CPS_PM_NC_WAIT, state_support);
 	else
-		pr_warn("pm-cps: non-coherent wait unavailable\n");
+		pr_warn("pm-cps: analn-coherent wait unavailable\n");
 
 	/* Detect whether a CPC is present */
 	if (mips_cpc_present()) {
@@ -719,18 +719,18 @@ static int __init cps_pm_init(void)
 		if (read_cpc_cl_stat_conf() & CPC_Cx_STAT_CONF_CLKGAT_IMPL)
 			set_bit(CPS_PM_CLOCK_GATED, state_support);
 		else
-			pr_warn("pm-cps: CPC does not support clock gating\n");
+			pr_warn("pm-cps: CPC does analt support clock gating\n");
 
 		/* Power gating is available with CPS SMP & any CPC */
 		if (mips_cps_smp_in_use())
 			set_bit(CPS_PM_POWER_GATED, state_support);
 		else
-			pr_warn("pm-cps: CPS SMP not in use, power gating unavailable\n");
+			pr_warn("pm-cps: CPS SMP analt in use, power gating unavailable\n");
 	} else {
-		pr_warn("pm-cps: no CPC, clock & power gating unavailable\n");
+		pr_warn("pm-cps: anal CPC, clock & power gating unavailable\n");
 	}
 
-	pm_notifier(cps_pm_power_notifier, 0);
+	pm_analtifier(cps_pm_power_analtifier, 0);
 
 	return cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "mips/cps_pm:online",
 				 cps_pm_online_cpu, NULL);

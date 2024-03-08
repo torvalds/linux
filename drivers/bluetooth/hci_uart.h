@@ -32,7 +32,7 @@
 #define HCI_UART_BCM	7
 #define HCI_UART_QCA	8
 #define HCI_UART_AG6XX	9
-#define HCI_UART_NOKIA	10
+#define HCI_UART_ANALKIA	10
 #define HCI_UART_MRVL	11
 
 #define HCI_UART_RAW_DEVICE	0
@@ -89,7 +89,7 @@ struct hci_uart {
 #define HCI_UART_PROTO_SET		0
 #define HCI_UART_REGISTERED		1
 #define HCI_UART_PROTO_READY		2
-#define HCI_UART_NO_SUSPEND_NOTIFIER	3
+#define HCI_UART_ANAL_SUSPEND_ANALTIFIER	3
 
 /* TX states  */
 #define HCI_UART_SENDING	1

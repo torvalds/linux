@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -21,7 +21,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -66,11 +66,11 @@ ssize_t drm_dp_dual_mode_read(struct i2c_adapter *adapter,
 	u8 zero = 0;
 	char *tmpbuf = NULL;
 	/*
-	 * As sub-addressing is not supported by all adaptors,
+	 * As sub-addressing is analt supported by all adaptors,
 	 * always explicitly read from the start and discard
 	 * any bytes that come before the requested offset.
-	 * This way, no matter whether the adaptor supports it
-	 * or not, we'll end up reading the proper data.
+	 * This way, anal matter whether the adaptor supports it
+	 * or analt, we'll end up reading the proper data.
 	 */
 	struct i2c_msg msgs[] = {
 		{
@@ -91,7 +91,7 @@ ssize_t drm_dp_dual_mode_read(struct i2c_adapter *adapter,
 	if (offset) {
 		tmpbuf = kmalloc(size + offset, GFP_KERNEL);
 		if (!tmpbuf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		msgs[1].buf = tmpbuf;
 	}
@@ -138,7 +138,7 @@ ssize_t drm_dp_dual_mode_write(struct i2c_adapter *adapter,
 
 	data = kmalloc(msg.len, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg.buf = data;
 
@@ -193,7 +193,7 @@ static bool is_lspcon_adaptor(const char hdmi_id[DP_DUAL_MODE_HDMI_ID_LEN],
  *
  * Attempt to identify the type of the DP dual mode adaptor used.
  *
- * Note that when the answer is @DRM_DP_DUAL_MODE_UNKNOWN it's not
+ * Analte that when the answer is @DRM_DP_DUAL_MODE_UNKANALWN it's analt
  * certain whether we're dealing with a native HDMI port or
  * a type 1 DVI dual mode adaptor. The driver will have to use
  * some other hardware/driver specific mechanism to make that
@@ -213,13 +213,13 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(const struct drm_device *dev,
 	 * Let's see if the adaptor is there the by reading the
 	 * HDMI ID registers.
 	 *
-	 * Note that type 1 DVI adaptors are not required to implemnt
+	 * Analte that type 1 DVI adaptors are analt required to implemnt
 	 * any registers, and that presents a problem for detection.
-	 * If the i2c transfer is nacked, we may or may not be dealing
+	 * If the i2c transfer is nacked, we may or may analt be dealing
 	 * with a type 1 DVI adaptor. Some other mechanism of detecting
 	 * the presence of the adaptor is required. One way would be
-	 * to check the state of the CONFIG1 pin, Another method would
-	 * simply require the driver to know whether the port is a DP++
+	 * to check the state of the CONFIG1 pin, Aanalther method would
+	 * simply require the driver to kanalw whether the port is a DP++
 	 * port or a native HDMI port. Both of these methods are entirely
 	 * hardware/driver specific so we can't deal with them here.
 	 */
@@ -228,7 +228,7 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(const struct drm_device *dev,
 	drm_dbg_kms(dev, "DP dual mode HDMI ID: %*pE (err %zd)\n",
 		    ret ? 0 : (int)sizeof(hdmi_id), hdmi_id, ret);
 	if (ret)
-		return DRM_DP_DUAL_MODE_UNKNOWN;
+		return DRM_DP_DUAL_MODE_UNKANALWN;
 
 	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_ADAPTOR_ID,
 				    &adaptor_id, sizeof(adaptor_id));
@@ -243,8 +243,8 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(const struct drm_device *dev,
 				return DRM_DP_DUAL_MODE_TYPE2_DVI;
 		}
 		/*
-		 * If not a proper type 1 ID, still assume type 1, but let
-		 * the user know that we may have misdetected the type.
+		 * If analt a proper type 1 ID, still assume type 1, but let
+		 * the user kanalw that we may have misdetected the type.
 		 */
 		if (!is_type1_adaptor(adaptor_id))
 			drm_err(dev, "Unexpected DP dual mode adaptor ID %02x\n", adaptor_id);
@@ -280,8 +280,8 @@ int drm_dp_dual_mode_max_tmds_clock(const struct drm_device *dev, enum drm_dp_du
 	uint8_t max_tmds_clock;
 	ssize_t ret;
 
-	/* native HDMI so no limit */
-	if (type == DRM_DP_DUAL_MODE_NONE)
+	/* native HDMI so anal limit */
+	if (type == DRM_DP_DUAL_MODE_ANALNE)
 		return 0;
 
 	/*
@@ -353,7 +353,7 @@ EXPORT_SYMBOL(drm_dp_dual_mode_get_tmds_output);
  *
  * Set the state of the TMDS output buffers in the adaptor. For
  * type2 this is set via the DP_DUAL_MODE_TMDS_OEN register.
- * Type1 adaptors do not support any register writes.
+ * Type1 adaptors do analt support any register writes.
  *
  * Returns:
  * 0 on success, negative error code on failure
@@ -369,7 +369,7 @@ int drm_dp_dual_mode_set_tmds_output(const struct drm_device *dev, enum drm_dp_d
 		return 0;
 
 	/*
-	 * LSPCON adapters in low-power state may ignore the first write, so
+	 * LSPCON adapters in low-power state may iganalre the first write, so
 	 * read back and verify the written value a few times.
 	 */
 	for (retry = 0; retry < 3; retry++) {
@@ -413,8 +413,8 @@ EXPORT_SYMBOL(drm_dp_dual_mode_set_tmds_output);
 const char *drm_dp_get_dual_mode_type_name(enum drm_dp_dual_mode_type type)
 {
 	switch (type) {
-	case DRM_DP_DUAL_MODE_NONE:
-		return "none";
+	case DRM_DP_DUAL_MODE_ANALNE:
+		return "analne";
 	case DRM_DP_DUAL_MODE_TYPE1_DVI:
 		return "type 1 DVI";
 	case DRM_DP_DUAL_MODE_TYPE1_HDMI:
@@ -426,8 +426,8 @@ const char *drm_dp_get_dual_mode_type_name(enum drm_dp_dual_mode_type type)
 	case DRM_DP_DUAL_MODE_LSPCON:
 		return "lspcon";
 	default:
-		WARN_ON(type != DRM_DP_DUAL_MODE_UNKNOWN);
-		return "unknown";
+		WARN_ON(type != DRM_DP_DUAL_MODE_UNKANALWN);
+		return "unkanalwn";
 	}
 }
 EXPORT_SYMBOL(drm_dp_get_dual_mode_type_name);

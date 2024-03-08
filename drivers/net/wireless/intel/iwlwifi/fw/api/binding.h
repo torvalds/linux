@@ -80,7 +80,7 @@ struct iwl_time_quota_data_v1 {
  * struct iwl_time_quota_cmd - configuration of time quota between bindings
  * ( TIME_QUOTA_CMD = 0x2c )
  * @quotas: allocations per binding
- * Note: on non-CDB the fourth one is the auxilary mac and is
+ * Analte: on analn-CDB the fourth one is the auxilary mac and is
  *	essentially zero.
  *	On CDB the fourth one is a regular binding.
  */
@@ -89,7 +89,7 @@ struct iwl_time_quota_cmd_v1 {
 } __packed; /* TIME_QUOTA_ALLOCATION_CMD_API_S_VER_1 */
 
 enum iwl_quota_low_latency {
-	IWL_QUOTA_LOW_LATENCY_NONE = 0,
+	IWL_QUOTA_LOW_LATENCY_ANALNE = 0,
 	IWL_QUOTA_LOW_LATENCY_TX = BIT(0),
 	IWL_QUOTA_LOW_LATENCY_RX = BIT(1),
 	IWL_QUOTA_LOW_LATENCY_TX_RX =
@@ -114,7 +114,7 @@ struct iwl_time_quota_data {
 /**
  * struct iwl_time_quota_cmd - configuration of time quota between bindings
  * ( TIME_QUOTA_CMD = 0x2c )
- * Note: on non-CDB the fourth one is the auxilary mac and is essentially zero.
+ * Analte: on analn-CDB the fourth one is the auxilary mac and is essentially zero.
  * On CDB the fourth one is a regular binding.
  *
  * @quotas: allocations per binding

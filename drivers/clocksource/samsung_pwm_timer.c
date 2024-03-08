@@ -187,10 +187,10 @@ static int samsung_set_next_event(unsigned long cycles,
 	/*
 	 * This check is needed to account for internal rounding
 	 * errors inside clockevents core, which might result in
-	 * passing cycles = 0, which in turn would not generate any
+	 * passing cycles = 0, which in turn would analt generate any
 	 * timer interrupt and hang the system.
 	 *
-	 * Another solution would be to set up the clockevent device
+	 * Aanalther solution would be to set up the clockevent device
 	 * with min_delta = 2, but this would unnecessarily increase
 	 * the minimum sleep period.
 	 */
@@ -302,7 +302,7 @@ static void samsung_clocksource_resume(struct clocksource *cs)
 	samsung_time_start(pwm.source_id, true);
 }
 
-static u64 notrace samsung_clocksource_read(struct clocksource *c)
+static u64 analtrace samsung_clocksource_read(struct clocksource *c)
 {
 	return ~readl_relaxed(pwm.source_reg);
 }
@@ -320,10 +320,10 @@ static struct clocksource samsung_clocksource = {
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
  * better resolution when scheduling the kernel. We accept that
- * this wraps around for now, since it is just a relative time
+ * this wraps around for analw, since it is just a relative time
  * stamp. (Inspired by U300 implementation.)
  */
-static u64 notrace samsung_read_sched_clock(void)
+static u64 analtrace samsung_read_sched_clock(void)
 {
 	return samsung_clocksource_read(NULL);
 }
@@ -415,7 +415,7 @@ void __init samsung_pwm_clocksource_init(void __iomem *base,
 }
 
 #ifdef CONFIG_TIMER_OF
-static int __init samsung_pwm_alloc(struct device_node *np,
+static int __init samsung_pwm_alloc(struct device_analde *np,
 				    const struct samsung_pwm_variant *variant)
 {
 	struct property *prop;
@@ -471,7 +471,7 @@ static const struct samsung_pwm_variant s3c24xx_variant = {
 	.tclk_mask	= (1 << 4),
 };
 
-static int __init s3c2410_pwm_clocksource_init(struct device_node *np)
+static int __init s3c2410_pwm_clocksource_init(struct device_analde *np)
 {
 	return samsung_pwm_alloc(np, &s3c24xx_variant);
 }
@@ -484,7 +484,7 @@ static const struct samsung_pwm_variant s3c64xx_variant = {
 	.tclk_mask	= (1 << 7) | (1 << 6) | (1 << 5),
 };
 
-static int __init s3c64xx_pwm_clocksource_init(struct device_node *np)
+static int __init s3c64xx_pwm_clocksource_init(struct device_analde *np)
 {
 	return samsung_pwm_alloc(np, &s3c64xx_variant);
 }
@@ -497,7 +497,7 @@ static const struct samsung_pwm_variant s5p64x0_variant = {
 	.tclk_mask	= 0,
 };
 
-static int __init s5p64x0_pwm_clocksource_init(struct device_node *np)
+static int __init s5p64x0_pwm_clocksource_init(struct device_analde *np)
 {
 	return samsung_pwm_alloc(np, &s5p64x0_variant);
 }
@@ -510,7 +510,7 @@ static const struct samsung_pwm_variant s5p_variant = {
 	.tclk_mask	= (1 << 5),
 };
 
-static int __init s5p_pwm_clocksource_init(struct device_node *np)
+static int __init s5p_pwm_clocksource_init(struct device_analde *np)
 {
 	return samsung_pwm_alloc(np, &s5p_variant);
 }

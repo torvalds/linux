@@ -31,7 +31,7 @@ class comm_filter:
 
 	def filter(self, pid, comm):
 		m = self.re.search(comm)
-		return m == None or m.group() == ""
+		return m == Analne or m.group() == ""
 
 class pid_filter:
 	def __init__(self, low, high):
@@ -39,7 +39,7 @@ class pid_filter:
 		self.high = (0 if high == "" else int(high))
 
 	def filter(self, pid, comm):
-		return not (pid >= self.low and (self.high == 0 or pid <= self.high))
+		return analt (pid >= self.low and (self.high == 0 or pid <= self.high))
 
 def set_type(t):
 	global opt_disp
@@ -52,7 +52,7 @@ def time(ns):
 	return "%dns" % ns if opt_ns else "%dus" % (round(ns, -3) / 1000)
 
 class pair:
-	def __init__(self, aval, bval, alabel = None, blabel = None):
+	def __init__(self, aval, bval, alabel = Analne, blabel = Analne):
 		self.alabel = alabel
 		self.blabel = blabel
 		self.aval = aval
@@ -66,7 +66,7 @@ class pair:
 	def __str__(self):
 		return "%s=%d %s=%d" % (self.alabel, self.aval, self.blabel, self.bval)
 
-class cnode:
+class canalde:
 	def __init__(self, ns):
 		self.ns = ns
 		self.migrated = pair(0, 0, "moved", "failed")
@@ -97,18 +97,18 @@ class cnode:
 		self.ns = ns(secs, nsecs) - self.ns
 
 	def increment(self, migrated, fscan, mscan):
-		if (migrated != None):
+		if (migrated != Analne):
 			self.migrated += migrated
-		if (fscan != None):
+		if (fscan != Analne):
 			self.fscan += fscan
-		if (mscan != None):
+		if (mscan != Analne):
 			self.mscan += mscan
 
 
 class chead:
 	heads = {}
-	val = cnode(0);
-	fobj = None
+	val = canalde(0);
+	fobj = Analne
 
 	@classmethod
 	def add_filter(cls, filter):
@@ -121,17 +121,17 @@ class chead:
 			head = cls.heads[pid]
 			filtered = head.is_filtered()
 		except KeyError:
-			if cls.fobj != None:
+			if cls.fobj != Analne:
 				filtered = cls.fobj.filter(pid, comm)
 			head = cls.heads[pid] = chead(comm, pid, filtered)
 
-		if not filtered:
+		if analt filtered:
 			head.mark_pending(start_secs, start_nsecs)
 
 	@classmethod
 	def increment_pending(cls, pid, migrated, fscan, mscan):
 		head = cls.heads[pid]
-		if not head.is_filtered():
+		if analt head.is_filtered():
 			if head.is_pending():
 				head.do_increment(migrated, fscan, mscan)
 			else:
@@ -140,7 +140,7 @@ class chead:
 	@classmethod
 	def complete_pending(cls, pid, secs, nsecs):
 		head = cls.heads[pid]
-		if not head.is_filtered():
+		if analt head.is_filtered():
 			if head.is_pending():
 				head.make_complete(secs, nsecs)
 			else:
@@ -159,8 +159,8 @@ class chead:
 	def __init__(self, comm, pid, filtered):
 		self.comm = comm
 		self.pid = pid
-		self.val = cnode(0)
-		self.pending = None
+		self.val = canalde(0)
+		self.pending = Analne
 		self.filtered = filtered
 		self.list = []
 
@@ -170,7 +170,7 @@ class chead:
 		return self
 
 	def mark_pending(self, secs, nsecs):
-		self.pending = cnode(ns(secs, nsecs))
+		self.pending = canalde(ns(secs, nsecs))
 
 	def do_increment(self, migrated, fscan, mscan):
 		self.pending.increment(migrated, fscan, mscan)
@@ -184,21 +184,21 @@ class chead:
 
 			if opt_proc == popt.DISP_PROC_VERBOSE:
 				self.list.append(self.pending)
-		self.pending = None
+		self.pending = Analne
 
 	def enumerate(self):
-		if opt_proc == popt.DISP_PROC_VERBOSE and not self.is_filtered():
+		if opt_proc == popt.DISP_PROC_VERBOSE and analt self.is_filtered():
 			for i, pelem in enumerate(self.list):
 				sys.stdout.write("%d[%s].%d: %s\n" % (self.pid, self.comm, i+1, pelem))
 
 	def is_pending(self):
-		return self.pending != None
+		return self.pending != Analne
 
 	def is_filtered(self):
 		return self.filtered
 
 	def display(self):
-		if not self.is_filtered():
+		if analt self.is_filtered():
 			sys.stdout.write("%d[%s]: %s\n" % (self.pid, self.comm, self.val))
 
 
@@ -213,21 +213,21 @@ def compaction__mm_compaction_migratepages(event_name, context, common_cpu,
 	common_callchain, nr_migrated, nr_failed):
 
 	chead.increment_pending(common_pid,
-		pair(nr_migrated, nr_failed), None, None)
+		pair(nr_migrated, nr_failed), Analne, Analne)
 
 def compaction__mm_compaction_isolate_freepages(event_name, context, common_cpu,
 	common_secs, common_nsecs, common_pid, common_comm,
 	common_callchain, start_pfn, end_pfn, nr_scanned, nr_taken):
 
 	chead.increment_pending(common_pid,
-		None, pair(nr_scanned, nr_taken), None)
+		Analne, pair(nr_scanned, nr_taken), Analne)
 
 def compaction__mm_compaction_isolate_migratepages(event_name, context, common_cpu,
 	common_secs, common_nsecs, common_pid, common_comm,
 	common_callchain, start_pfn, end_pfn, nr_scanned, nr_taken):
 
 	chead.increment_pending(common_pid,
-		None, None, pair(nr_scanned, nr_taken))
+		Analne, Analne, pair(nr_scanned, nr_taken))
 
 def compaction__mm_compaction_end(event_name, context, common_cpu,
 	common_secs, common_nsecs, common_pid, common_comm,
@@ -255,11 +255,11 @@ def pr_help():
 	sys.stdout.write("-m	display stats for migration\n")
 	sys.stdout.write("-fs	display stats for free scanner\n")
 	sys.stdout.write("-ms	display stats for migration scanner\n")
-	sys.stdout.write("-u	display results in microseconds (default nanoseconds)\n")
+	sys.stdout.write("-u	display results in microseconds (default naanalseconds)\n")
 
 
-comm_re = None
-pid_re = None
+comm_re = Analne
+pid_re = Analne
 pid_regex = r"^(\d*)-(\d*)$|^(\d*)$"
 
 opt_proc = popt.DISP_DFL
@@ -295,8 +295,8 @@ if argc >= 1:
 
 		elif i == argc - 1:
 			m = pid_re.search(opt)
-			if m != None and m.group() != "":
-				if m.group(3) != None:
+			if m != Analne and m.group() != "":
+				if m.group(3) != Analne:
 					f = pid_filter(m.group(3), m.group(3))
 				else:
 					f = pid_filter(m.group(1), m.group(2))

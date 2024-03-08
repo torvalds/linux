@@ -31,21 +31,21 @@ which support PMBus Protocol:
   * BEL PFE1100
 
     1100 Watt AC to DC power-factor-corrected (PFC) power supply.
-    PMBus Communication Manual is not publicly available.
+    PMBus Communication Manual is analt publicly available.
 
   * BEL PFE3000
 
     3000 Watt AC/DC power-factor-corrected (PFC) and DC-DC power supply.
-    PMBus Communication Manual is not publicly available.
+    PMBus Communication Manual is analt publicly available.
 
 The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does analt auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
@@ -106,7 +106,7 @@ temp[1-3]_input		Measured temperature
 temp[1-3]_alarm         Temperature alarm
 ======================= =======================================================
 
-.. note::
+.. analte::
 
     - curr3, fan2, vout[2-7], vcap, pin2, pout2 and temp3 attributes only
       exist for PFE3000.

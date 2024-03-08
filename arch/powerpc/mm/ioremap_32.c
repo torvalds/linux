@@ -40,7 +40,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 
 #ifndef CONFIG_CRASH_DUMP
 	/*
-	 * Don't allow anybody to remap normal RAM that we're using.
+	 * Don't allow anybody to remap analrmal RAM that we're using.
 	 * mem_init() sets high_memory so only do the check after that.
 	 */
 	if (slab_is_available() && p <= virt_to_phys(high_memory - 1) &&
@@ -81,7 +81,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *call
 void iounmap(volatile void __iomem *addr)
 {
 	/*
-	 * If mapped by BATs then there is nothing to do.
+	 * If mapped by BATs then there is analthing to do.
 	 * Calling vfree() generates a benign warning.
 	 */
 	if (v_block_mapped((unsigned long)addr))

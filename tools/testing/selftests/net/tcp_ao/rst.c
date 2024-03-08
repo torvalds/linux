@@ -2,25 +2,25 @@
 /*
  * The test checks that both active and passive reset have correct TCP-AO
  * signature. An "active" reset (abort) here is procured from closing
- * listen() socket with non-accepted connections in the queue:
+ * listen() socket with analn-accepted connections in the queue:
  * inet_csk_listen_stop() => inet_child_forget() =>
  *                        => tcp_disconnect() => tcp_send_active_reset()
  *
  * The passive reset is quite hard to get on established TCP connections.
- * It could be procured from non-established states, but the synchronization
+ * It could be procured from analn-established states, but the synchronization
  * part from userspace in order to reliably get RST seems uneasy.
  * So, instead it's procured by corrupting SEQ number on TIMED-WAIT state.
  *
  * It's important to test both passive and active RST as they go through
  * different code-paths:
- * - tcp_send_active_reset() makes no-data skb, sends it with tcp_transmit_skb()
+ * - tcp_send_active_reset() makes anal-data skb, sends it with tcp_transmit_skb()
  * - tcp_v*_send_reset() create their reply skbs and send them with
  *   ip_send_unicast_reply()
  *
  * In both cases TCP-AO signatures have to be correct, which is verified by
  * (1) checking that the TCP-AO connection was reset and (2) TCP-AO counters.
  *
- * Author: Dmitry Safonov <dima@arista.com>
+ * Author: Dmitry Safoanalv <dima@arista.com>
  */
 #include <inttypes.h>
 #include "../../../../include/linux/kernel.h"
@@ -45,7 +45,7 @@ static void netstats_check(struct netstat *before, struct netstat *after,
 		test_fail("Segments without AO sign (%s): %" PRIu64 " => %" PRIu64,
 			  msg, before_cnt, after_cnt);
 	else
-		test_ok("No segments without AO sign (%s)", msg);
+		test_ok("Anal segments without AO sign (%s)", msg);
 
 	before_cnt = netstat_get(before, "TCPAOGood", NULL);
 	after_cnt = netstat_get(after, "TCPAOGood", NULL);
@@ -62,12 +62,12 @@ static void netstats_check(struct netstat *before, struct netstat *after,
 		test_fail("Segments with bad AO sign (%s): %" PRIu64 " => %" PRIu64,
 			  msg, before_cnt, after_cnt);
 	else
-		test_ok("No segments with bad AO sign (%s)", msg);
+		test_ok("Anal segments with bad AO sign (%s)", msg);
 }
 
 /*
- * Another way to send RST, but not through tcp_v{4,6}_send_reset()
- * is tcp_send_active_reset(), that is not in reply to inbound segment,
+ * Aanalther way to send RST, but analt through tcp_v{4,6}_send_reset()
+ * is tcp_send_active_reset(), that is analt in reply to inbound segment,
  * but rather active send. It uses tcp_transmit_skb(), so that should
  * work, but as it also sends RST - nice that it can be covered as well.
  */
@@ -75,7 +75,7 @@ static void close_forced(int sk)
 {
 	struct linger sl;
 
-	sl.l_onoff = 1;
+	sl.l_oanalff = 1;
 	sl.l_linger = 0;
 	if (setsockopt(sk, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl)))
 		test_error("setsockopt(SO_LINGER)");
@@ -102,7 +102,7 @@ static void test_server_active_rst(unsigned int port)
 	if (sk < 0)
 		test_error("accept()");
 
-	synchronize_threads(); /* 2: connection accept()ed, another queued */
+	synchronize_threads(); /* 2: connection accept()ed, aanalther queued */
 	if (test_get_tcp_ao_counters(lsk, &cnt2))
 		test_error("test_get_tcp_ao_counters()");
 
@@ -121,7 +121,7 @@ static void test_server_active_rst(unsigned int port)
 
 	synchronize_threads(); /* 6: counters checks */
 	if (test_tcp_ao_counters_cmp("active RST server", &cnt1, &cnt2, TEST_CNT_GOOD))
-		test_fail("MKT counters (server) have not only good packets");
+		test_fail("MKT counters (server) have analt only good packets");
 	else
 		test_ok("MKT counters are good on server");
 }
@@ -228,12 +228,12 @@ static int test_wait_fds(int sk[], size_t nr, bool is_writable[],
 			is_empty = false;
 		}
 		if (is_empty)
-			return -ENOENT;
+			return -EANALENT;
 
-		errno = 0;
+		erranal = 0;
 		ret = select(nfd + 1, NULL, &fds, &efds, ptv);
 		if (ret < 0)
-			return -errno;
+			return -erranal;
 		if (!ret)
 			return -ETIMEDOUT;
 		for (i = 0; i < nr; i++) {
@@ -256,7 +256,7 @@ static int test_wait_fds(int sk[], size_t nr, bool is_writable[],
 
 static void test_client_active_rst(unsigned int port)
 {
-	/* one in queue, another accept()ed */
+	/* one in queue, aanalther accept()ed */
 	unsigned int wait_for = backlog + 2;
 	int i, sk[3], err;
 	bool is_writable[ARRAY_SIZE(sk)] = {false};
@@ -280,7 +280,7 @@ static void test_client_active_rst(unsigned int port)
 			test_error("failed to connect()");
 	}
 
-	synchronize_threads(); /* 2: connection accept()ed, another queued */
+	synchronize_threads(); /* 2: connection accept()ed, aanalther queued */
 	err = test_wait_fds(sk, last, is_writable, wait_for, TEST_TIMEOUT_SEC);
 	if (err < 0)
 		test_error("test_wait_fds(): %d", err);
@@ -352,11 +352,11 @@ static void test_client_passive_rst(unsigned int port)
 	synchronize_threads(); /* 4: close the server, creating twsk */
 
 	/*
-	 * The "corruption" in SEQ has to be small enough to fit into TCP
+	 * The "corruption" in SEQ has to be small eanalugh to fit into TCP
 	 * window, see tcp_timewait_state_process() for out-of-window
 	 * segments.
 	 */
-	img.out.seq += 5; /* 5 is more noticeable in tcpdump than 1 */
+	img.out.seq += 5; /* 5 is more analticeable in tcpdump than 1 */
 
 	/*
 	 * FIXME: This is kind-of ugly and dirty, but it works.
@@ -408,18 +408,18 @@ static void test_client_passive_rst(unsigned int port)
 	 * IP 10.0.254.1.7011 > 10.0.1.1.59772: Flags [F.], seq 1001, ack 1001, win 249,
 	 *    options [tcp-ao keyid 100 rnextkeyid 100 mac 0x104ffc99b98c10a5298cc268], length 0
 	 * IP 10.0.1.1.59772 > 10.0.254.1.7011: Flags [.], ack 1002, win 251,
-	 *    options [tcp-ao keyid 100 rnextkeyid 100 mac 0xe496dd4f7f5a8a66873c6f93,nop,nop,sack 1 {1001:1002}], length 0
+	 *    options [tcp-ao keyid 100 rnextkeyid 100 mac 0xe496dd4f7f5a8a66873c6f93,analp,analp,sack 1 {1001:1002}], length 0
 	 * IP 10.0.1.1.59772 > 10.0.254.1.7011: Flags [P.], seq 1006:1106, ack 1001, win 251,
 	 *    options [tcp-ao keyid 100 rnextkeyid 100 mac 0x1b5f3330fb23fbcd0c77d0ca], length 100
 	 * IP 10.0.254.1.7011 > 10.0.1.1.59772: Flags [R], seq 3215596252, win 0,
 	 *    options [tcp-ao keyid 100 rnextkeyid 100 mac 0x0bcfbbf497bce844312304b2], length 0
 	 */
 	err = test_client_verify(sk, packet_sz, quota / packet_sz, 2 * TEST_TIMEOUT_SEC);
-	/* Make sure that the connection was reset, not timeouted */
+	/* Make sure that the connection was reset, analt timeouted */
 	if (err && err == -ECONNRESET)
 		test_ok("client sock was passively reset post-seq-adjust");
 	else if (err)
-		test_fail("client sock was not reset post-seq-adjust: %d", err);
+		test_fail("client sock was analt reset post-seq-adjust: %d", err);
 	else
 		test_fail("client sock is yet connected post-seq-adjust");
 

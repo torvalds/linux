@@ -3,7 +3,7 @@
 #include <linux/stddef.h>
 
 static const char *const initial_sid_to_string[] = {
-	NULL, /* zero placeholder, not used */
+	NULL, /* zero placeholder, analt used */
 	"kernel", /* kernel / SECINITSID_KERNEL */
 	"security", /* security / SECINITSID_SECURITY */
 	"unlabeled", /* unlabeled / SECINITSID_UNLABELED */
@@ -15,7 +15,7 @@ static const char *const initial_sid_to_string[] = {
 	"port", /* port / SECINITSID_PORT */
 	"netif", /* netif / SECINITSID_NETIF */
 	"netmsg", /* netmsg / SECINITSID_NETMSG */
-	"node", /* node / SECINITSID_NODE */
+	"analde", /* analde / SECINITSID_ANALDE */
 	NULL, /* igmp_packet */
 	NULL, /* icmp_socket */
 	NULL, /* tcp_socket */

@@ -23,17 +23,17 @@
 		ranges;
 
 		vga_memory: framebuffer@5f000000 {
-			no-map;
+			anal-map;
 			reg = <0x5f000000 0x01000000>; /* 16M */
 		};
 
 		coldfire_memory: codefire_memory@5ee00000 {
 			reg = <0x5ee00000 0x00200000>;
-			no-map;
+			anal-map;
 		};
 
 		flash_memory: region@5c000000 {
-			no-map;
+			anal-map;
 			reg = <0x5C000000 0x02000000>; /* 32MB */
 		};
 	};
@@ -101,7 +101,7 @@
 		status = "okay";
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
-		label = "pnor";
+		label = "panalr";
 	};
 };
 
@@ -367,7 +367,7 @@
 			reg = <0x3400 0x400>;
 			#address-cells = <2>;
 			#size-cells = <0>;
-			no-scan-on-init;
+			anal-scan-on-init;
 		};
 	};
 };

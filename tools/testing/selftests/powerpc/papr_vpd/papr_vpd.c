@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,8 +17,8 @@ static int dev_papr_vpd_open_close(void)
 {
 	const int devfd = open(DEVPATH, O_RDONLY);
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 	FAIL_IF(close(devfd) != 0);
@@ -33,14 +33,14 @@ static int dev_papr_vpd_get_handle_all(void)
 	off_t size;
 	int fd;
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
-	errno = 0;
+	erranal = 0;
 	fd = ioctl(devfd, PAPR_VPD_IOC_CREATE_HANDLE, &lc);
-	FAIL_IF(errno != 0);
+	FAIL_IF(erranal != 0);
 	FAIL_IF(fd < 0);
 
 	FAIL_IF(close(devfd) != 0);
@@ -71,14 +71,14 @@ static int dev_papr_vpd_get_handle_byte_at_a_time(void)
 	struct papr_location_code lc = { .str = "", };
 	int fd;
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
-	errno = 0;
+	erranal = 0;
 	fd = ioctl(devfd, PAPR_VPD_IOC_CREATE_HANDLE, &lc);
-	FAIL_IF(errno != 0);
+	FAIL_IF(erranal != 0);
 	FAIL_IF(fd < 0);
 
 	FAIL_IF(close(devfd) != 0);
@@ -88,11 +88,11 @@ static int dev_papr_vpd_get_handle_byte_at_a_time(void)
 		ssize_t res;
 		char c;
 
-		errno = 0;
+		erranal = 0;
 		res = read(fd, &c, sizeof(c));
 		FAIL_IF(res > sizeof(c));
 		FAIL_IF(res < 0);
-		FAIL_IF(errno != 0);
+		FAIL_IF(erranal != 0);
 		consumed += res;
 		if (res == 0)
 			break;
@@ -112,21 +112,21 @@ static int dev_papr_vpd_unterm_loc_code(void)
 	struct papr_location_code lc = {};
 	int fd;
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
 	/*
-	 * Place a non-null byte in every element of loc_code; the
+	 * Place a analn-null byte in every element of loc_code; the
 	 * driver should reject this input.
 	 */
 	memset(lc.str, 'x', ARRAY_SIZE(lc.str));
 
-	errno = 0;
+	erranal = 0;
 	fd = ioctl(devfd, PAPR_VPD_IOC_CREATE_HANDLE, &lc);
 	FAIL_IF(fd != -1);
-	FAIL_IF(errno != EINVAL);
+	FAIL_IF(erranal != EINVAL);
 
 	FAIL_IF(close(devfd) != 0);
 	return 0;
@@ -137,15 +137,15 @@ static int dev_papr_vpd_null_handle(void)
 	const int devfd = open(DEVPATH, O_RDONLY);
 	int rc;
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
-	errno = 0;
+	erranal = 0;
 	rc = ioctl(devfd, PAPR_VPD_IOC_CREATE_HANDLE, NULL);
 	FAIL_IF(rc != -1);
-	FAIL_IF(errno != EFAULT);
+	FAIL_IF(erranal != EFAULT);
 
 	FAIL_IF(close(devfd) != 0);
 	return 0;
@@ -157,14 +157,14 @@ static int papr_vpd_close_handle_without_reading(void)
 	struct papr_location_code lc;
 	int fd;
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
-	errno = 0;
+	erranal = 0;
 	fd = ioctl(devfd, PAPR_VPD_IOC_CREATE_HANDLE, &lc);
-	FAIL_IF(errno != 0);
+	FAIL_IF(erranal != 0);
 	FAIL_IF(fd < 0);
 
 	/* close the handle without reading it */
@@ -180,14 +180,14 @@ static int papr_vpd_reread(void)
 	struct papr_location_code lc = { .str = "", };
 	int fd;
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
-	errno = 0;
+	erranal = 0;
 	fd = ioctl(devfd, PAPR_VPD_IOC_CREATE_HANDLE, &lc);
-	FAIL_IF(errno != 0);
+	FAIL_IF(erranal != 0);
 	FAIL_IF(fd < 0);
 
 	FAIL_IF(close(devfd) != 0);
@@ -263,16 +263,16 @@ static int papr_vpd_system_loc_code(void)
 	off_t size;
 	int fd;
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 	SKIP_IF_MSG(get_system_loc_code(&lc),
-		    "Cannot determine system location code");
+		    "Cananalt determine system location code");
 
 	FAIL_IF(devfd < 0);
 
-	errno = 0;
+	erranal = 0;
 	fd = ioctl(devfd, PAPR_VPD_IOC_CREATE_HANDLE, &lc);
-	FAIL_IF(errno != 0);
+	FAIL_IF(erranal != 0);
 	FAIL_IF(fd < 0);
 
 	FAIL_IF(close(devfd) != 0);

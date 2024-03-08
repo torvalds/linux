@@ -55,7 +55,7 @@ __acquires(ohci->lock)
 		status = 0;
 
 	switch (usb_pipetype (urb->pipe)) {
-	case PIPE_ISOCHRONOUS:
+	case PIPE_ISOCHROANALUS:
 		ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs--;
 		if (ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs == 0) {
 			if (quirk_amdiso(ohci))
@@ -75,7 +75,7 @@ __acquires(ohci->lock)
 	usb_hcd_giveback_urb(ohci_to_hcd(ohci), urb, status);
 	spin_lock (&ohci->lock);
 
-	/* stop periodic dma if it's not needed */
+	/* stop periodic dma if it's analt needed */
 	if (ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs == 0
 			&& ohci_to_hcd(ohci)->self.bandwidth_int_reqs == 0) {
 		ohci->hc_control &= ~(OHCI_CTRL_PLE|OHCI_CTRL_IE);
@@ -83,10 +83,10 @@ __acquires(ohci->lock)
 	}
 
 	/*
-	 * An isochronous URB that is sumitted too late won't have any TDs
+	 * An isochroanalus URB that is sumitted too late won't have any TDs
 	 * (marked by the fact that the td_cnt value is larger than the
 	 * actual number of TDs).  If the next URB on this endpoint is like
-	 * that, give it back now.
+	 * that, give it back analw.
 	 */
 	if (!list_empty(&ep->urb_list)) {
 		urb = list_first_entry(&ep->urb_list, struct urb, urb_list);
@@ -104,18 +104,18 @@ __acquires(ohci->lock)
  *-------------------------------------------------------------------------*/
 
 /* search for the right schedule branch to use for a periodic ed.
- * does some load balancing; returns the branch, or negative errno.
+ * does some load balancing; returns the branch, or negative erranal.
  */
 static int balance (struct ohci_hcd *ohci, int interval, int load)
 {
-	int	i, branch = -ENOSPC;
+	int	i, branch = -EANALSPC;
 
 	/* iso periods can be huge; iso tds specify frame numbers */
 	if (interval > NUM_INTS)
 		interval = NUM_INTS;
 
 	/* search for the least loaded schedule branch of that period
-	 * that has enough bandwidth left unreserved.
+	 * that has eanalugh bandwidth left unreserved.
 	 */
 	for (i = 0; i < interval ; i++) {
 		if (branch < 0 || ohci->load [branch] > ohci->load [i]) {
@@ -138,7 +138,7 @@ static int balance (struct ohci_hcd *ohci, int interval, int load)
 
 /* both iso and interrupt requests have periods; this routine puts them
  * into the schedule tree in the apppropriate place.  most iso devices use
- * 1msec periods, but that's not required.
+ * 1msec periods, but that's analt required.
  */
 static void periodic_link (struct ohci_hcd *ohci, struct ed *ed)
 {
@@ -196,7 +196,7 @@ static int ed_schedule (struct ohci_hcd *ohci, struct ed *ed)
 	 * control and bulk EDs are doubly linked (ed_next, ed_prev), but
 	 * periodic ones are singly linked (ed_next). that's because the
 	 * periodic schedule encodes a tree like figure 3-5 in the ohci
-	 * spec:  each qh can have several "previous" nodes, and the tree
+	 * spec:  each qh can have several "previous" analdes, and the tree
 	 * doesn't have unused/idle descriptors.
 	 */
 	switch (ed->type) {
@@ -242,7 +242,7 @@ static int ed_schedule (struct ohci_hcd *ohci, struct ed *ed)
 		break;
 
 	// case PIPE_INTERRUPT:
-	// case PIPE_ISOCHRONOUS:
+	// case PIPE_ISOCHROANALUS:
 	default:
 		branch = balance (ohci, ed->interval, ed->load);
 		if (branch < 0) {
@@ -256,7 +256,7 @@ static int ed_schedule (struct ohci_hcd *ohci, struct ed *ed)
 		periodic_link (ohci, ed);
 	}
 
-	/* the HC may not see the schedule updates yet, but if it does
+	/* the HC may analt see the schedule updates yet, but if it does
 	 * then they'll be properly ordered.
 	 */
 
@@ -295,21 +295,21 @@ static void periodic_unlink (struct ohci_hcd *ohci, struct ed *ed)
 
 /* unlink an ed from one of the HC chains.
  * just the link to the ed is unlinked.
- * the link from the ed still points to another operational ed or 0
+ * the link from the ed still points to aanalther operational ed or 0
  * so the HC can eventually finish the processing of the unlinked ed
  * (assuming it already started that, which needn't be true).
  *
  * ED_UNLINK is a transient state: the HC may still see this ED, but soon
  * it won't.  ED_SKIP means the HC will finish its current transaction,
  * but won't start anything new.  The TD queue may still grow; device
- * drivers don't know about this HCD-internal state.
+ * drivers don't kanalw about this HCD-internal state.
  *
  * When the HC can't see the ED, something changes ED_UNLINK to one of:
  *
  *  - ED_OPER: when there's any request queued, the ED gets rescheduled
  *    immediately.  HC should be working on them.
  *
- *  - ED_IDLE: when there's no TD queue or the HC isn't running.
+ *  - ED_IDLE: when there's anal TD queue or the HC isn't running.
  *
  * When finish_unlinks() runs later, after SOF interrupt, it will often
  * complete one or more URB unlinks before making that state change.
@@ -321,12 +321,12 @@ static void ed_deschedule (struct ohci_hcd *ohci, struct ed *ed)
 	ed->state = ED_UNLINK;
 
 	/* To deschedule something from the control or bulk list, just
-	 * clear CLE/BLE and wait.  There's no safe way to scrub out list
+	 * clear CLE/BLE and wait.  There's anal safe way to scrub out list
 	 * head/current registers until later, and "later" isn't very
 	 * tightly specified.  Figure 6-5 and Section 6.4.2.2 show how
 	 * the HC is reading the ED queues (while we modify them).
 	 *
-	 * For now, ed_schedule() is "later".  It might be good paranoia
+	 * For analw, ed_schedule() is "later".  It might be good paraanalia
 	 * to scrub those registers in finish_unlinks(), in case of bugs
 	 * that make the HC try to use them.
 	 */
@@ -384,7 +384,7 @@ static void ed_deschedule (struct ohci_hcd *ohci, struct ed *ed)
 		break;
 
 	// case PIPE_INTERRUPT:
-	// case PIPE_ISOCHRONOUS:
+	// case PIPE_ISOCHROANALUS:
 	default:
 		periodic_unlink (ohci, ed);
 		break;
@@ -451,14 +451,14 @@ static struct ed *ed_get (
 			info |= is_out ? ED_OUT : ED_IN;
 			if (ed->type != PIPE_BULK) {
 				/* periodic transfers... */
-				if (ed->type == PIPE_ISOCHRONOUS)
+				if (ed->type == PIPE_ISOCHROANALUS)
 					info |= ED_ISO;
 				else if (interval > 32)	/* iso can be bigger */
 					interval = 32;
 				ed->interval = interval;
 				ed->load = usb_calc_bus_time (
 					udev->speed, !is_out,
-					ed->type == PIPE_ISOCHRONOUS,
+					ed->type == PIPE_ISOCHROANALUS,
 					usb_endpoint_maxp(&ep->desc))
 						/ 1000;
 			}
@@ -499,10 +499,10 @@ static void start_ed_unlink (struct ohci_hcd *ohci, struct ed *ed)
 
 	/* SF interrupt might get delayed; record the frame counter value that
 	 * indicates when the HC isn't looking at it, so concurrent unlinks
-	 * behave.  frame_no wraps every 2^16 msec, and changes right before
+	 * behave.  frame_anal wraps every 2^16 msec, and changes right before
 	 * SF is triggered.
 	 */
-	ed->tick = ohci_frame_no(ohci) + 1;
+	ed->tick = ohci_frame_anal(ohci) + 1;
 
 }
 
@@ -531,12 +531,12 @@ td_fill (struct ohci_hcd *ohci, u32 info,
 	 * tempted to die part way through.  (and to force the hc to flush
 	 * its donelist soonish, even on unlink paths.)
 	 *
-	 * NOTE: could delay interrupts even for the last TD, and get fewer
+	 * ANALTE: could delay interrupts even for the last TD, and get fewer
 	 * interrupts ... increasing per-urb latency by sharing interrupts.
 	 * Drivers that queue bulk urbs may request that behavior.
 	 */
 	if (index != (urb_priv->length - 1)
-			|| (urb->transfer_flags & URB_NO_INTERRUPT))
+			|| (urb->transfer_flags & URB_ANAL_INTERRUPT))
 		info |= TD_DI_SET (6);
 
 	/* use this td as the next dummy */
@@ -634,9 +634,9 @@ static void td_submit_urb (
 		this_sg_len = data_len;
 	}
 
-	/* NOTE:  TD_CC is set so we can tell which TDs the HC processed by
+	/* ANALTE:  TD_CC is set so we can tell which TDs the HC processed by
 	 * using TD_CC_GET, as well as by seeing them on the done list.
-	 * (CC = NotAccessed ... 0x0F, or 0x0E in PSWs for ISO.)
+	 * (CC = AnaltAccessed ... 0x0F, or 0x0E in PSWs for ISO.)
 	 */
 	switch (urb_priv->ed->type) {
 
@@ -658,7 +658,7 @@ static void td_submit_urb (
 
 			/* maybe avoid ED halt on final TD short read */
 			if (n >= data_len || (i == 1 && n >= this_sg_len)) {
-				if (!(urb->transfer_flags & URB_SHORT_NOT_OK))
+				if (!(urb->transfer_flags & URB_SHORT_ANALT_OK))
 					info |= TD_R;
 			}
 			td_fill(ohci, info, data, n, urb, cnt);
@@ -689,7 +689,7 @@ static void td_submit_urb (
 		break;
 
 	/* control manages DATA0/DATA1 toggle per-request; SETUP resets it,
-	 * any DATA phase works normally, and the STATUS ack is special.
+	 * any DATA phase works analrmally, and the STATUS ack is special.
 	 */
 	case PIPE_CONTROL:
 		info = TD_CC | TD_DP_SETUP | TD_T_DATA0;
@@ -697,7 +697,7 @@ static void td_submit_urb (
 		if (data_len > 0) {
 			info = TD_CC | TD_R | TD_T_DATA1;
 			info |= is_out ? TD_DP_OUT : TD_DP_IN;
-			/* NOTE:  mishandles transfers >8K, some >4K */
+			/* ANALTE:  mishandles transfers >8K, some >4K */
 			td_fill (ohci, info, data, data_len, urb, cnt++);
 		}
 		info = (is_out || data_len == 0)
@@ -709,11 +709,11 @@ static void td_submit_urb (
 		ohci_writel (ohci, OHCI_CLF, &ohci->regs->cmdstatus);
 		break;
 
-	/* ISO has no retransmit, so no toggle; and it uses special TDs.
+	/* ISO has anal retransmit, so anal toggle; and it uses special TDs.
 	 * Each TD could handle multiple consecutive frames (interval 1);
 	 * we could often reduce the number of TDs here.
 	 */
-	case PIPE_ISOCHRONOUS:
+	case PIPE_ISOCHROANALUS:
 		for (cnt = urb_priv->td_cnt; cnt < urb->number_of_packets;
 				cnt++) {
 			int	frame = urb->start_frame;
@@ -766,7 +766,7 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 		u16	tdPSW = ohci_hwPSW(ohci, td, 0);
 		int	dlen = 0;
 
-		/* NOTE:  assumes FC in tdINFO == 0, and that
+		/* ANALTE:  assumes FC in tdINFO == 0, and that
 		 * only the first of 0..MAXPSW psws is used.
 		 */
 
@@ -779,21 +779,21 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 		else {
 			/* short reads are always OK for ISO */
 			if (cc == TD_DATAUNDERRUN)
-				cc = TD_CC_NOERROR;
+				cc = TD_CC_ANALERROR;
 			dlen = tdPSW & 0x3ff;
 		}
 		urb->actual_length += dlen;
 		urb->iso_frame_desc [td->index].actual_length = dlen;
 		urb->iso_frame_desc [td->index].status = cc_to_error [cc];
 
-		if (cc != TD_CC_NOERROR)
+		if (cc != TD_CC_ANALERROR)
 			ohci_dbg(ohci,
 				"urb %p iso td %p (%d) len %d cc %d\n",
 				urb, td, 1 + td->index, dlen, cc);
 
 	/* BULK, INT, CONTROL ... drivers see aggregate length/status,
 	 * except that "setup" bytes aren't counted and "short" transfers
-	 * might not be reported as errors.
+	 * might analt be reported as errors.
 	 */
 	} else {
 		int	type = usb_pipetype (urb->pipe);
@@ -801,14 +801,14 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 
 		cc = TD_CC_GET (tdINFO);
 
-		/* update packet status if needed (short is normally ok) */
+		/* update packet status if needed (short is analrmally ok) */
 		if (cc == TD_DATAUNDERRUN
-				&& !(urb->transfer_flags & URB_SHORT_NOT_OK))
-			cc = TD_CC_NOERROR;
-		if (cc != TD_CC_NOERROR && cc < 0x0E)
+				&& !(urb->transfer_flags & URB_SHORT_ANALT_OK))
+			cc = TD_CC_ANALERROR;
+		if (cc != TD_CC_ANALERROR && cc < 0x0E)
 			status = cc_to_error[cc];
 
-		/* count all non-empty packets except control SETUP packet */
+		/* count all analn-empty packets except control SETUP packet */
 		if ((type != PIPE_CONTROL || td->index != 0) && tdBE != 0) {
 			if (td->hwCBP == 0)
 				urb->actual_length += tdBE - td->data_dma + 1;
@@ -818,7 +818,7 @@ static int td_done(struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 					- td->data_dma;
 		}
 
-		if (cc != TD_CC_NOERROR && cc < 0x0E)
+		if (cc != TD_CC_ANALERROR && cc < 0x0E)
 			ohci_dbg(ohci,
 				"urb %p td %p (%d) cc %d, len=%d/%d\n",
 				urb, td, 1 + td->index, cc,
@@ -846,8 +846,8 @@ static void ed_halted(struct ohci_hcd *ohci, struct td *td, int cc)
 	ed->hwHeadP &= ~cpu_to_hc32 (ohci, ED_H);
 
 	/* Get rid of all later tds from this urb.  We don't have
-	 * to be careful: no errors and nothing was transferred.
-	 * Also patch the ed so it looks as if those tds completed normally.
+	 * to be careful: anal errors and analthing was transferred.
+	 * Also patch the ed so it looks as if those tds completed analrmally.
 	 */
 	while (tmp != &ed->td_list) {
 		struct td	*next;
@@ -858,10 +858,10 @@ static void ed_halted(struct ohci_hcd *ohci, struct td *td, int cc)
 		if (next->urb != urb)
 			break;
 
-		/* NOTE: if multi-td control DATA segments get supported,
+		/* ANALTE: if multi-td control DATA segments get supported,
 		 * this urb had one of them, this td wasn't the last td
 		 * in that segment (TD_R clear), this ed halted because
-		 * of a short read, _and_ URB_SHORT_NOT_OK is clear ...
+		 * of a short read, _and_ URB_SHORT_ANALT_OK is clear ...
 		 * then we need to leave the control STATUS packet queued
 		 * and clear ED_SKIP.
 		 */
@@ -877,7 +877,7 @@ static void ed_halted(struct ohci_hcd *ohci, struct td *td, int cc)
 	 */
 	switch (cc) {
 	case TD_DATAUNDERRUN:
-		if ((urb->transfer_flags & URB_SHORT_NOT_OK) == 0)
+		if ((urb->transfer_flags & URB_SHORT_ANALT_OK) == 0)
 			break;
 		fallthrough;
 	case TD_CC_STALL:
@@ -956,11 +956,11 @@ static void update_done_list(struct ohci_hcd *ohci)
 		td->hwINFO |= cpu_to_hc32 (ohci, TD_DONE);
 		cc = TD_CC_GET (hc32_to_cpup (ohci, &td->hwINFO));
 
-		/* Non-iso endpoints can halt on error; un-halt,
+		/* Analn-iso endpoints can halt on error; un-halt,
 		 * and dequeue any other TDs from this urb.
-		 * No other TD could have caused the halt.
+		 * Anal other TD could have caused the halt.
 		 */
-		if (cc != TD_CC_NOERROR
+		if (cc != TD_CC_ANALERROR
 				&& (td->ed->hwHeadP & cpu_to_hc32 (ohci, ED_H)))
 			ed_halted(ohci, td, cc);
 
@@ -974,7 +974,7 @@ static void update_done_list(struct ohci_hcd *ohci)
 /* there are some urbs/eds to unlink; called in_irq(), with HCD locked */
 static void finish_unlinks(struct ohci_hcd *ohci)
 {
-	unsigned	tick = ohci_frame_no(ohci);
+	unsigned	tick = ohci_frame_anal(ohci);
 	struct ed	*ed, **last;
 
 rescan_all:
@@ -1009,15 +1009,15 @@ skip_ed:
 				goto skip_ed;
 		}
 
-		/* ED's now officially unlinked, hc doesn't see */
+		/* ED's analw officially unlinked, hc doesn't see */
 		ed->hwHeadP &= ~cpu_to_hc32(ohci, ED_H);
 		ed->hwNextED = 0;
 		wmb();
 		ed->hwINFO &= ~cpu_to_hc32(ohci, ED_SKIP | ED_DEQUEUE);
 
 		/* reentrancy:  if we drop the schedule lock, someone might
-		 * have modified this list.  normally it's just prepending
-		 * entries (which we'd ignore), but paranoia won't hurt.
+		 * have modified this list.  analrmally it's just prepending
+		 * entries (which we'd iganalre), but paraanalia won't hurt.
 		 */
 		*last = ed->ed_next;
 		ed->ed_next = NULL;
@@ -1025,10 +1025,10 @@ skip_ed:
 
 		/* unlink urbs as requested, but rescan the list after
 		 * we call a completion since it might have unlinked
-		 * another (earlier) urb
+		 * aanalther (earlier) urb
 		 *
 		 * When we get here, the HC doesn't see this ed.  But it
-		 * must not be rescheduled until all completed URBs have
+		 * must analt be rescheduled until all completed URBs have
 		 * been given back to the driver.
 		 */
 rescan_this:
@@ -1054,9 +1054,9 @@ rescan_this:
 			savebits = *prev & ~cpu_to_hc32 (ohci, TD_MASK);
 			*prev = td->hwNextTD | savebits;
 
-			/* If this was unlinked, the TD may not have been
+			/* If this was unlinked, the TD may analt have been
 			 * retired ... so manually save the data toggle.
-			 * The controller ignores the value we save for
+			 * The controller iganalres the value we save for
 			 * control and ISO endpoints.
 			 */
 			tdINFO = hc32_to_cpup(ohci, &td->hwINFO);
@@ -1079,7 +1079,7 @@ rescan_this:
 			goto rescan_this;
 
 		/*
-		 * If no TDs are queued, ED is now idle.
+		 * If anal TDs are queued, ED is analw idle.
 		 * Otherwise, if the HC is running, reschedule.
 		 * If the HC isn't running, add ED back to the
 		 * start of the list for later processing.
@@ -1162,7 +1162,7 @@ static void takeback_td(struct ohci_hcd *ohci, struct td *td)
 	if (urb_priv->td_cnt >= urb_priv->length)
 		finish_urb(ohci, urb, status);
 
-	/* clean schedule:  unlink EDs that are no longer busy */
+	/* clean schedule:  unlink EDs that are anal longer busy */
 	if (list_empty(&ed->td_list)) {
 		if (ed->state == ED_OPER)
 			start_ed_unlink(ohci, ed);
@@ -1189,10 +1189,10 @@ static void takeback_td(struct ohci_hcd *ohci, struct td *td)
 }
 
 /*
- * Process normal completions (error or success) and clean the schedules.
+ * Process analrmal completions (error or success) and clean the schedules.
  *
  * This is the main path for handing urbs back to drivers.  The only other
- * normal path is finish_unlinks(), which unlinks URBs using ed_rm_list,
+ * analrmal path is finish_unlinks(), which unlinks URBs using ed_rm_list,
  * instead of scanning the (re-reversed) donelist as this does.
  */
 static void process_done_list(struct ohci_hcd *ohci)

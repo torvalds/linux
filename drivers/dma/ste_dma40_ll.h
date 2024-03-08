@@ -335,7 +335,7 @@
  * @reg_lnk: The link register.
  *
  * These registers are set up for both physical and logical transfers
- * Note that the bit in each register means differently in logical and
+ * Analte that the bit in each register means differently in logical and
  * physical(standard) mode.
  *
  * This struct must be 16 bytes aligned, and only contain physical registers
@@ -370,7 +370,7 @@ struct d40_phy_lli_bidir {
  * @lcsp13: Either maps to register lcsp1 if src or lcsp3 if dst.
  *
  * This struct must be 8 bytes aligned since it will be accessed directy by
- * the DMA. Never add any none hw mapped registers to this struct.
+ * the DMA. Never add any analne hw mapped registers to this struct.
  */
 
 struct d40_log_lli {

@@ -23,7 +23,7 @@
 /* Commands codes in a raw output report */
 enum {
 	MCP2221_I2C_WR_DATA = 0x90,
-	MCP2221_I2C_WR_NO_STOP = 0x94,
+	MCP2221_I2C_WR_ANAL_STOP = 0x94,
 	MCP2221_I2C_RD_DATA = 0x91,
 	MCP2221_I2C_RD_RPT_START = 0x93,
 	MCP2221_I2C_GET_DATA = 0x40,
@@ -51,8 +51,8 @@ enum {
 	MCP2221_I2C_ADDR_NACK = 0x25,
 	MCP2221_I2C_READ_PARTIAL = 0x54,
 	MCP2221_I2C_READ_COMPL = 0x55,
-	MCP2221_ALT_F_NOT_GPIOV = 0xEE,
-	MCP2221_ALT_F_NOT_GPIOD = 0xEF,
+	MCP2221_ALT_F_ANALT_GPIOV = 0xEE,
+	MCP2221_ALT_F_ANALT_GPIOD = 0xEF,
 };
 
 /* MCP GPIO direction encoding */
@@ -86,7 +86,7 @@ struct mcp_get_gpio {
 } __packed;
 
 /*
- * There is no way to distinguish responses. Therefore next command
+ * There is anal way to distinguish responses. Therefore next command
  * is sent only after response to previous has been received. Mutex
  * lock is used for this purpose mainly.
  */
@@ -124,7 +124,7 @@ struct mcp2221_iio {
  */
 static uint i2c_clk_freq = 400;
 
-/* Synchronously send output report to the device */
+/* Synchroanalusly send output report to the device */
 static int mcp_send_report(struct mcp2221 *mcp,
 					u8 *out_report, size_t len)
 {
@@ -133,7 +133,7 @@ static int mcp_send_report(struct mcp2221 *mcp,
 
 	buf = kmemdup(out_report, len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* mcp2221 uses interrupt endpoint for out reports */
 	ret = hid_hw_output_report(mcp->hdev, buf, len);
@@ -146,7 +146,7 @@ static int mcp_send_report(struct mcp2221 *mcp,
 
 /*
  * Send o/p report to the device and wait for i/p report to be
- * received from the device. If the device does not respond,
+ * received from the device. If the device does analt respond,
  * we timeout.
  */
 static int mcp_send_data_req_status(struct mcp2221 *mcp,
@@ -377,7 +377,7 @@ static int mcp_i2c_xfer(struct i2c_adapter *adapter,
 			 (msgs[1].flags & I2C_M_RD)) {
 
 			ret = mcp_i2c_write(mcp, &msgs[0],
-						MCP2221_I2C_WR_NO_STOP, 0);
+						MCP2221_I2C_WR_ANAL_STOP, 0);
 			if (ret)
 				goto exit;
 
@@ -390,16 +390,16 @@ static int mcp_i2c_xfer(struct i2c_adapter *adapter,
 		} else {
 			dev_err(&adapter->dev,
 				"unsupported multi-msg i2c transaction\n");
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		}
 	} else {
 		dev_err(&adapter->dev,
 			"unsupported multi-msg i2c transaction\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 exit:
-	hid_hw_power(mcp->hdev, PM_HINT_NORMAL);
+	hid_hw_power(mcp->hdev, PM_HINT_ANALRMAL);
 	mutex_unlock(&mcp->lock);
 	return ret;
 }
@@ -483,7 +483,7 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	case I2C_SMBUS_BYTE_DATA:
 		if (read_write == I2C_SMBUS_READ) {
 			ret = mcp_smbus_write(mcp, addr, command, NULL,
-						0, MCP2221_I2C_WR_NO_STOP, 0);
+						0, MCP2221_I2C_WR_ANAL_STOP, 0);
 			if (ret)
 				goto exit;
 
@@ -498,7 +498,7 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	case I2C_SMBUS_WORD_DATA:
 		if (read_write == I2C_SMBUS_READ) {
 			ret = mcp_smbus_write(mcp, addr, command, NULL,
-						0, MCP2221_I2C_WR_NO_STOP, 0);
+						0, MCP2221_I2C_WR_ANAL_STOP, 0);
 			if (ret)
 				goto exit;
 
@@ -514,7 +514,7 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	case I2C_SMBUS_BLOCK_DATA:
 		if (read_write == I2C_SMBUS_READ) {
 			ret = mcp_smbus_write(mcp, addr, command, NULL,
-						0, MCP2221_I2C_WR_NO_STOP, 1);
+						0, MCP2221_I2C_WR_ANAL_STOP, 1);
 			if (ret)
 				goto exit;
 
@@ -537,7 +537,7 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 		if (read_write == I2C_SMBUS_READ) {
 			ret = mcp_smbus_write(mcp, addr, command, NULL,
-						0, MCP2221_I2C_WR_NO_STOP, 1);
+						0, MCP2221_I2C_WR_ANAL_STOP, 1);
 			if (ret)
 				goto exit;
 
@@ -560,7 +560,7 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	case I2C_SMBUS_PROC_CALL:
 		ret = mcp_smbus_write(mcp, addr, command,
 						(u8 *)&data->word,
-						2, MCP2221_I2C_WR_NO_STOP, 0);
+						2, MCP2221_I2C_WR_ANAL_STOP, 0);
 		if (ret)
 			goto exit;
 
@@ -571,7 +571,7 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	case I2C_SMBUS_BLOCK_PROC_CALL:
 		ret = mcp_smbus_write(mcp, addr, command, data->block,
 						data->block[0] + 1,
-						MCP2221_I2C_WR_NO_STOP, 0);
+						MCP2221_I2C_WR_ANAL_STOP, 0);
 		if (ret)
 			goto exit;
 
@@ -583,11 +583,11 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	default:
 		dev_err(&mcp->adapter.dev,
 			"unsupported smbus transaction size:%d\n", size);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 exit:
-	hid_hw_power(mcp->hdev, PM_HINT_NORMAL);
+	hid_hw_power(mcp->hdev, PM_HINT_ANALRMAL);
 	mutex_unlock(&mcp->lock);
 	return ret;
 }
@@ -760,7 +760,7 @@ static int mcp2221_raw_event(struct hid_device *hdev,
 	switch (data[0]) {
 
 	case MCP2221_I2C_WR_DATA:
-	case MCP2221_I2C_WR_NO_STOP:
+	case MCP2221_I2C_WR_ANAL_STOP:
 	case MCP2221_I2C_RD_DATA:
 	case MCP2221_I2C_RD_RPT_START:
 		switch (data[1]) {
@@ -831,9 +831,9 @@ static int mcp2221_raw_event(struct hid_device *hdev,
 	case MCP2221_GPIO_GET:
 		switch (data[1]) {
 		case MCP2221_SUCCESS:
-			if ((data[mcp->gp_idx] == MCP2221_ALT_F_NOT_GPIOV) ||
-				(data[mcp->gp_idx + 1] == MCP2221_ALT_F_NOT_GPIOD)) {
-				mcp->status = -ENOENT;
+			if ((data[mcp->gp_idx] == MCP2221_ALT_F_ANALT_GPIOV) ||
+				(data[mcp->gp_idx + 1] == MCP2221_ALT_F_ANALT_GPIOD)) {
+				mcp->status = -EANALENT;
 			} else {
 				mcp->status = !!data[mcp->gp_idx];
 				mcp->gpio_dir = data[mcp->gp_idx + 1];
@@ -848,9 +848,9 @@ static int mcp2221_raw_event(struct hid_device *hdev,
 	case MCP2221_GPIO_SET:
 		switch (data[1]) {
 		case MCP2221_SUCCESS:
-			if ((data[mcp->gp_idx] == MCP2221_ALT_F_NOT_GPIOV) ||
-				(data[mcp->gp_idx - 1] == MCP2221_ALT_F_NOT_GPIOV)) {
-				mcp->status = -ENOENT;
+			if ((data[mcp->gp_idx] == MCP2221_ALT_F_ANALT_GPIOV) ||
+				(data[mcp->gp_idx - 1] == MCP2221_ALT_F_ANALT_GPIOV)) {
+				mcp->status = -EANALENT;
 			} else {
 				mcp->status = 0;
 			}
@@ -1103,18 +1103,18 @@ static void mcp_init_work(struct work_struct *work)
 
 unlock:
 	mutex_unlock(&mcp->lock);
-	hid_hw_power(mcp->hdev, PM_HINT_NORMAL);
+	hid_hw_power(mcp->hdev, PM_HINT_ANALRMAL);
 
 	return;
 
 reschedule_task:
 	mutex_unlock(&mcp->lock);
-	hid_hw_power(mcp->hdev, PM_HINT_NORMAL);
+	hid_hw_power(mcp->hdev, PM_HINT_ANALRMAL);
 
 	if (!retries--)
 		return;
 
-	/* Device is not ready to read SRAM or FLASH data, try again */
+	/* Device is analt ready to read SRAM or FLASH data, try again */
 	schedule_delayed_work(&mcp->init_work, msecs_to_jiffies(100));
 }
 #endif
@@ -1127,7 +1127,7 @@ static int mcp2221_probe(struct hid_device *hdev,
 
 	mcp = devm_kzalloc(&hdev->dev, sizeof(*mcp), GFP_KERNEL);
 	if (!mcp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -1136,7 +1136,7 @@ static int mcp2221_probe(struct hid_device *hdev,
 	}
 
 	/*
-	 * This driver uses the .raw_event callback and therefore does not need any
+	 * This driver uses the .raw_event callback and therefore does analt need any
 	 * HID_CONNECT_xxx flags.
 	 */
 	ret = hid_hw_start(hdev, 0);
@@ -1198,7 +1198,7 @@ static int mcp2221_probe(struct hid_device *hdev,
 	/* Setup GPIO chip */
 	mcp->gc = devm_kzalloc(&hdev->dev, sizeof(*mcp->gc), GFP_KERNEL);
 	if (!mcp->gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mcp->gc->label = "mcp2221_gpio";
 	mcp->gc->direction_input = mcp_gpio_direction_input;

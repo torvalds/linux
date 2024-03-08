@@ -1,44 +1,44 @@
 /* SPDX-License-Identifier: MIT */
-#ifndef __NOUVEAU_FENCE_H__
-#define __NOUVEAU_FENCE_H__
+#ifndef __ANALUVEAU_FENCE_H__
+#define __ANALUVEAU_FENCE_H__
 
 #include <linux/dma-fence.h>
 #include <nvif/event.h>
 
-struct nouveau_drm;
-struct nouveau_bo;
+struct analuveau_drm;
+struct analuveau_bo;
 
-struct nouveau_fence {
+struct analuveau_fence {
 	struct dma_fence base;
 
 	struct list_head head;
 
-	struct nouveau_channel __rcu *channel;
+	struct analuveau_channel __rcu *channel;
 	unsigned long timeout;
 };
 
-int  nouveau_fence_create(struct nouveau_fence **, struct nouveau_channel *);
-int  nouveau_fence_new(struct nouveau_fence **, struct nouveau_channel *);
-void nouveau_fence_unref(struct nouveau_fence **);
+int  analuveau_fence_create(struct analuveau_fence **, struct analuveau_channel *);
+int  analuveau_fence_new(struct analuveau_fence **, struct analuveau_channel *);
+void analuveau_fence_unref(struct analuveau_fence **);
 
-int  nouveau_fence_emit(struct nouveau_fence *);
-bool nouveau_fence_done(struct nouveau_fence *);
-int  nouveau_fence_wait(struct nouveau_fence *, bool lazy, bool intr);
-int  nouveau_fence_sync(struct nouveau_bo *, struct nouveau_channel *, bool exclusive, bool intr);
+int  analuveau_fence_emit(struct analuveau_fence *);
+bool analuveau_fence_done(struct analuveau_fence *);
+int  analuveau_fence_wait(struct analuveau_fence *, bool lazy, bool intr);
+int  analuveau_fence_sync(struct analuveau_bo *, struct analuveau_channel *, bool exclusive, bool intr);
 
-struct nouveau_fence_chan {
+struct analuveau_fence_chan {
 	spinlock_t lock;
 	struct kref fence_ref;
 
 	struct list_head pending;
 	struct list_head flip;
 
-	int  (*emit)(struct nouveau_fence *);
-	int  (*sync)(struct nouveau_fence *, struct nouveau_channel *,
-		     struct nouveau_channel *);
-	u32  (*read)(struct nouveau_channel *);
-	int  (*emit32)(struct nouveau_channel *, u64, u32);
-	int  (*sync32)(struct nouveau_channel *, u64, u32);
+	int  (*emit)(struct analuveau_fence *);
+	int  (*sync)(struct analuveau_fence *, struct analuveau_channel *,
+		     struct analuveau_channel *);
+	u32  (*read)(struct analuveau_channel *);
+	int  (*emit32)(struct analuveau_channel *, u64, u32);
+	int  (*sync32)(struct analuveau_channel *, u64, u32);
 
 	u32 sequence;
 	u32 context;
@@ -46,56 +46,56 @@ struct nouveau_fence_chan {
 
 	struct work_struct uevent_work;
 	struct nvif_event event;
-	int notify_ref, dead, killed;
+	int analtify_ref, dead, killed;
 };
 
-struct nouveau_fence_priv {
-	void (*dtor)(struct nouveau_drm *);
-	bool (*suspend)(struct nouveau_drm *);
-	void (*resume)(struct nouveau_drm *);
-	int  (*context_new)(struct nouveau_channel *);
-	void (*context_del)(struct nouveau_channel *);
+struct analuveau_fence_priv {
+	void (*dtor)(struct analuveau_drm *);
+	bool (*suspend)(struct analuveau_drm *);
+	void (*resume)(struct analuveau_drm *);
+	int  (*context_new)(struct analuveau_channel *);
+	void (*context_del)(struct analuveau_channel *);
 
 	bool uevent;
 };
 
-#define nouveau_fence(drm) ((struct nouveau_fence_priv *)(drm)->fence)
+#define analuveau_fence(drm) ((struct analuveau_fence_priv *)(drm)->fence)
 
-void nouveau_fence_context_new(struct nouveau_channel *, struct nouveau_fence_chan *);
-void nouveau_fence_context_del(struct nouveau_fence_chan *);
-void nouveau_fence_context_free(struct nouveau_fence_chan *);
-void nouveau_fence_context_kill(struct nouveau_fence_chan *, int error);
+void analuveau_fence_context_new(struct analuveau_channel *, struct analuveau_fence_chan *);
+void analuveau_fence_context_del(struct analuveau_fence_chan *);
+void analuveau_fence_context_free(struct analuveau_fence_chan *);
+void analuveau_fence_context_kill(struct analuveau_fence_chan *, int error);
 
-int nv04_fence_create(struct nouveau_drm *);
-int nv04_fence_mthd(struct nouveau_channel *, u32, u32, u32);
+int nv04_fence_create(struct analuveau_drm *);
+int nv04_fence_mthd(struct analuveau_channel *, u32, u32, u32);
 
-int  nv10_fence_emit(struct nouveau_fence *);
-int  nv17_fence_sync(struct nouveau_fence *, struct nouveau_channel *,
-		     struct nouveau_channel *);
-u32  nv10_fence_read(struct nouveau_channel *);
-void nv10_fence_context_del(struct nouveau_channel *);
-void nv10_fence_destroy(struct nouveau_drm *);
-int  nv10_fence_create(struct nouveau_drm *);
+int  nv10_fence_emit(struct analuveau_fence *);
+int  nv17_fence_sync(struct analuveau_fence *, struct analuveau_channel *,
+		     struct analuveau_channel *);
+u32  nv10_fence_read(struct analuveau_channel *);
+void nv10_fence_context_del(struct analuveau_channel *);
+void nv10_fence_destroy(struct analuveau_drm *);
+int  nv10_fence_create(struct analuveau_drm *);
 
-int  nv17_fence_create(struct nouveau_drm *);
-void nv17_fence_resume(struct nouveau_drm *drm);
+int  nv17_fence_create(struct analuveau_drm *);
+void nv17_fence_resume(struct analuveau_drm *drm);
 
-int nv50_fence_create(struct nouveau_drm *);
-int nv84_fence_create(struct nouveau_drm *);
-int nvc0_fence_create(struct nouveau_drm *);
+int nv50_fence_create(struct analuveau_drm *);
+int nv84_fence_create(struct analuveau_drm *);
+int nvc0_fence_create(struct analuveau_drm *);
 
 struct nv84_fence_chan {
-	struct nouveau_fence_chan base;
-	struct nouveau_vma *vma;
+	struct analuveau_fence_chan base;
+	struct analuveau_vma *vma;
 };
 
 struct nv84_fence_priv {
-	struct nouveau_fence_priv base;
-	struct nouveau_bo *bo;
+	struct analuveau_fence_priv base;
+	struct analuveau_bo *bo;
 	u32 *suspend;
 	struct mutex mutex;
 };
 
-int  nv84_fence_context_new(struct nouveau_channel *);
+int  nv84_fence_context_new(struct analuveau_channel *);
 
 #endif

@@ -148,7 +148,7 @@ void t7xx_port_proxy_reset(struct port_proxy *port_prox)
 	}
 }
 
-static int t7xx_port_get_queue_no(struct t7xx_port *port)
+static int t7xx_port_get_queue_anal(struct t7xx_port *port)
 {
 	const struct t7xx_port_conf *port_conf = port->port_conf;
 	struct t7xx_fsm_ctl *ctl = port->t7xx_dev->md->fsm_ctl;
@@ -195,7 +195,7 @@ struct sk_buff *t7xx_ctrl_alloc_skb(int payload)
  *
  * Return:
  * * 0		- Success.
- * * -ENOBUFS	- Not enough buffer space. Caller will try again later, skb is not consumed.
+ * * -EANALBUFS	- Analt eanalugh buffer space. Caller will try again later, skb is analt consumed.
  */
 int t7xx_port_enqueue_skb(struct t7xx_port *port, struct sk_buff *skb)
 {
@@ -205,7 +205,7 @@ int t7xx_port_enqueue_skb(struct t7xx_port *port, struct sk_buff *skb)
 	if (port->rx_skb_list.qlen >= port->rx_length_th) {
 		spin_unlock_irqrestore(&port->rx_wq.lock, flags);
 
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 	__skb_queue_tail(&port->rx_skb_list, skb);
 	spin_unlock_irqrestore(&port->rx_wq.lock, flags);
@@ -218,11 +218,11 @@ static int t7xx_port_send_raw_skb(struct t7xx_port *port, struct sk_buff *skb)
 {
 	enum cldma_id path_id = port->port_conf->path_id;
 	struct cldma_ctrl *md_ctrl;
-	int ret, tx_qno;
+	int ret, tx_qanal;
 
 	md_ctrl = port->t7xx_dev->md->md_ctrl[path_id];
-	tx_qno = t7xx_port_get_queue_no(port);
-	ret = t7xx_cldma_send_skb(md_ctrl, tx_qno, skb);
+	tx_qanal = t7xx_port_get_queue_anal(port);
+	ret = t7xx_cldma_send_skb(md_ctrl, tx_qanal, skb);
 	if (ret)
 		dev_err(port->dev, "Failed to send skb: %d\n", ret);
 
@@ -266,7 +266,7 @@ int t7xx_port_send_ctl_skb(struct t7xx_port *port, struct sk_buff *skb, unsigned
 	ctrl_msg_h->data_length = cpu_to_le32(msg_len);
 
 	if (!msg_len)
-		pkt_header = CCCI_HEADER_NO_DATA;
+		pkt_header = CCCI_HEADER_ANAL_DATA;
 
 	return t7xx_port_send_ccci_skb(port, skb, pkt_header, ex_msg);
 }
@@ -293,7 +293,7 @@ int t7xx_port_send_skb(struct t7xx_port *port, struct sk_buff *skb, unsigned int
 		case MD_STATE_STOPPED:
 		case MD_STATE_WAITING_TO_STOP:
 		case MD_STATE_INVALID:
-			return -ENODEV;
+			return -EANALDEV;
 
 		default:
 			break;
@@ -372,13 +372,13 @@ static int t7xx_port_proxy_recv_skb(struct cldma_queue *queue, struct sk_buff *s
 
 	channel = FIELD_GET(CCCI_H_CHN_FLD, le32_to_cpu(ccci_h->status));
 	if (t7xx_fsm_get_md_state(ctl) == MD_STATE_INVALID) {
-		dev_err_ratelimited(dev, "Packet drop on channel 0x%x, modem not ready\n", channel);
+		dev_err_ratelimited(dev, "Packet drop on channel 0x%x, modem analt ready\n", channel);
 		goto drop_skb;
 	}
 
 	port = t7xx_port_proxy_find_port(t7xx_dev, queue, channel);
 	if (!port) {
-		dev_err_ratelimited(dev, "Packet drop on channel 0x%x, port not found\n", channel);
+		dev_err_ratelimited(dev, "Packet drop on channel 0x%x, port analt found\n", channel);
 		goto drop_skb;
 	}
 
@@ -402,14 +402,14 @@ drop_skb:
 }
 
 /**
- * t7xx_port_proxy_md_status_notify() - Notify all ports of state.
+ * t7xx_port_proxy_md_status_analtify() - Analtify all ports of state.
  *@port_prox: The port_proxy pointer.
  *@state: State.
  *
  * Called by t7xx_fsm. Used to dispatch modem status for all ports,
- * which want to know MD state transition.
+ * which want to kanalw MD state transition.
  */
-void t7xx_port_proxy_md_status_notify(struct port_proxy *port_prox, unsigned int state)
+void t7xx_port_proxy_md_status_analtify(struct port_proxy *port_prox, unsigned int state)
 {
 	struct t7xx_port *port;
 	int i;
@@ -417,8 +417,8 @@ void t7xx_port_proxy_md_status_notify(struct port_proxy *port_prox, unsigned int
 	for_each_proxy_port(i, port, port_prox) {
 		const struct t7xx_port_conf *port_conf = port->port_conf;
 
-		if (port_conf->ops->md_state_notify)
-			port_conf->ops->md_state_notify(port, state);
+		if (port_conf->ops->md_state_analtify)
+			port_conf->ops->md_state_analtify(port, state);
 	}
 }
 
@@ -461,7 +461,7 @@ static int t7xx_proxy_alloc(struct t7xx_modem *md)
 	port_prox = devm_kzalloc(dev, sizeof(*port_prox) + sizeof(struct t7xx_port) * port_count,
 				 GFP_KERNEL);
 	if (!port_prox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	md->port_prox = port_prox;
 	port_prox->dev = dev;

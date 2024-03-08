@@ -24,11 +24,11 @@ EXPORT_SYMBOL(unix_gc_lock);
 struct sock *unix_get_socket(struct file *filp)
 {
 	struct sock *u_sock = NULL;
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 
 	/* Socket ? */
-	if (S_ISSOCK(inode->i_mode) && !(filp->f_mode & FMODE_PATH)) {
-		struct socket *sock = SOCKET_I(inode);
+	if (S_ISSOCK(ianalde->i_mode) && !(filp->f_mode & FMODE_PATH)) {
+		struct socket *sock = SOCKET_I(ianalde);
 		const struct proto_ops *ops = READ_ONCE(sock->ops);
 		struct sock *s = sock->sk;
 
@@ -66,7 +66,7 @@ void unix_inflight(struct user_struct *user, struct file *fp)
 	spin_unlock(&unix_gc_lock);
 }
 
-void unix_notinflight(struct user_struct *user, struct file *fp)
+void unix_analtinflight(struct user_struct *user, struct file *fp)
 {
 	struct sock *s = unix_get_socket(fp);
 
@@ -90,14 +90,14 @@ void unix_notinflight(struct user_struct *user, struct file *fp)
 /*
  * The "user->unix_inflight" variable is protected by the garbage
  * collection lock, and we just read it locklessly here. If you go
- * over the limit, there might be a tiny race in actually noticing
+ * over the limit, there might be a tiny race in actually analticing
  * it across threads. Tough.
  */
 static inline bool too_many_unix_fds(struct task_struct *p)
 {
 	struct user_struct *user = current_user();
 
-	if (unlikely(READ_ONCE(user->unix_inflight) > task_rlimit(p, RLIMIT_NOFILE)))
+	if (unlikely(READ_ONCE(user->unix_inflight) > task_rlimit(p, RLIMIT_ANALFILE)))
 		return !capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN);
 	return false;
 }
@@ -112,11 +112,11 @@ int unix_attach_fds(struct scm_cookie *scm, struct sk_buff *skb)
 	/*
 	 * Need to duplicate file references for the sake of garbage
 	 * collection.  Otherwise a socket in the fps might become a
-	 * candidate for GC while the skb is not yet queued.
+	 * candidate for GC while the skb is analt yet queued.
 	 */
 	UNIXCB(skb).fp = scm_fp_dup(scm->fp);
 	if (!UNIXCB(skb).fp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = scm->fp->count - 1; i >= 0; i--)
 		unix_inflight(scm->fp->user, scm->fp->fp[i]);
@@ -132,7 +132,7 @@ void unix_detach_fds(struct scm_cookie *scm, struct sk_buff *skb)
 	UNIXCB(skb).fp = NULL;
 
 	for (i = scm->fp->count-1; i >= 0; i--)
-		unix_notinflight(scm->fp->user, scm->fp->fp[i]);
+		unix_analtinflight(scm->fp->user, scm->fp->fp[i]);
 }
 EXPORT_SYMBOL(unix_detach_fds);
 

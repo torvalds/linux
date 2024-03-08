@@ -14,13 +14,13 @@ bool arch_ima_get_secureboot(void)
 
 /*
  * The "secure_rules" are enabled only on "secureboot" enabled systems.
- * These rules verify the file signatures against known good values.
- * The "appraise_type=imasig|modsig" option allows the known good signature
+ * These rules verify the file signatures against kanalwn good values.
+ * The "appraise_type=imasig|modsig" option allows the kanalwn good signature
  * to be stored as an xattr or as an appended signature.
  *
  * To avoid duplicate signature verification as much as possible, the IMA
  * policy rule for module appraisal is added only if CONFIG_MODULE_SIG
- * is not enabled.
+ * is analt enabled.
  */
 static const char *const secure_rules[] = {
 	"appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig|modsig",

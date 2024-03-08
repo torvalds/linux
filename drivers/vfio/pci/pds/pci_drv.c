@@ -24,11 +24,11 @@ static void pds_vfio_recovery(struct pds_vfio_pci_device *pds_vfio)
 	bool deferred_reset_needed = false;
 
 	/*
-	 * Documentation states that the kernel migration driver must not
-	 * generate asynchronous device state transitions outside of
+	 * Documentation states that the kernel migration driver must analt
+	 * generate asynchroanalus device state transitions outside of
 	 * manipulation by the user or the VFIO_DEVICE_RESET ioctl.
 	 *
-	 * Since recovery is an asynchronous event received from the device,
+	 * Since recovery is an asynchroanalus event received from the device,
 	 * initiate a deferred reset. Issue a deferred reset in the following
 	 * situations:
 	 *   1. Migration is in progress, which will cause the next step of
@@ -62,18 +62,18 @@ static void pds_vfio_recovery(struct pds_vfio_pci_device *pds_vfio)
 	}
 }
 
-static int pds_vfio_pci_notify_handler(struct notifier_block *nb,
+static int pds_vfio_pci_analtify_handler(struct analtifier_block *nb,
 				       unsigned long ecode, void *data)
 {
 	struct pds_vfio_pci_device *pds_vfio =
 		container_of(nb, struct pds_vfio_pci_device, nb);
 	struct device *dev = pds_vfio_to_dev(pds_vfio);
-	union pds_core_notifyq_comp *event = data;
+	union pds_core_analtifyq_comp *event = data;
 
 	dev_dbg(dev, "%s: event code %lu\n", __func__, ecode);
 
 	/*
-	 * We don't need to do anything for RESET state==0 as there is no notify
+	 * We don't need to do anything for RESET state==0 as there is anal analtify
 	 * or feedback mechanism available, and it is possible that we won't
 	 * even see a state==0 event since the pds_core recovery is pending.
 	 *
@@ -85,7 +85,7 @@ static int pds_vfio_pci_notify_handler(struct notifier_block *nb,
 			 __func__, event->reset.state);
 		/*
 		 * pds_core device finished recovery and sent us the
-		 * notification (state == 1) to allow us to recover
+		 * analtification (state == 1) to allow us to recover
 		 */
 		if (event->reset.state == 1)
 			pds_vfio_recovery(pds_vfio);
@@ -98,14 +98,14 @@ static int
 pds_vfio_pci_register_event_handler(struct pds_vfio_pci_device *pds_vfio)
 {
 	struct device *dev = pds_vfio_to_dev(pds_vfio);
-	struct notifier_block *nb = &pds_vfio->nb;
+	struct analtifier_block *nb = &pds_vfio->nb;
 	int err;
 
-	if (!nb->notifier_call) {
-		nb->notifier_call = pds_vfio_pci_notify_handler;
-		err = pdsc_register_notify(nb);
+	if (!nb->analtifier_call) {
+		nb->analtifier_call = pds_vfio_pci_analtify_handler;
+		err = pdsc_register_analtify(nb);
 		if (err) {
-			nb->notifier_call = NULL;
+			nb->analtifier_call = NULL;
 			dev_err(dev,
 				"failed to register pds event handler: %pe\n",
 				ERR_PTR(err));
@@ -120,9 +120,9 @@ pds_vfio_pci_register_event_handler(struct pds_vfio_pci_device *pds_vfio)
 static void
 pds_vfio_pci_unregister_event_handler(struct pds_vfio_pci_device *pds_vfio)
 {
-	if (pds_vfio->nb.notifier_call) {
-		pdsc_unregister_notify(&pds_vfio->nb);
-		pds_vfio->nb.notifier_call = NULL;
+	if (pds_vfio->nb.analtifier_call) {
+		pdsc_unregister_analtify(&pds_vfio->nb);
+		pds_vfio->nb.analtifier_call = NULL;
 	}
 }
 

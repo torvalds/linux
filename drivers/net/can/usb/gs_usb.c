@@ -2,7 +2,7 @@
 /* CAN driver for Geschwister Schneider USB/CAN devices
  * and bytewerk.org candleLight USB CAN interfaces.
  *
- * Copyright (C) 2013-2016 Geschwister Schneider Technologie-,
+ * Copyright (C) 2013-2016 Geschwister Schneider Techanallogie-,
  * Entwicklungs- und Vertriebs UG (Haftungsbeschränkt).
  * Copyright (C) 2016 Hubert Denkmair
  * Copyright (c) 2023 Pengutronix, Marc Kleine-Budde <kernel@pengutronix.de>
@@ -103,7 +103,7 @@ enum gs_can_termination_state {
 /* data types passed between host and device */
 
 /* The firmware on the original USB2CAN by Geschwister Schneider
- * Technologie Entwicklungs- und Vertriebs UG exchanges all data
+ * Techanallogie Entwicklungs- und Vertriebs UG exchanges all data
  * between the host and the device in host byte order. This is done
  * with the struct gs_host_config::byte_order member, which is sent
  * first to indicate the desired byte order.
@@ -124,7 +124,7 @@ struct gs_device_config {
 	__le32 hw_version;
 } __packed;
 
-#define GS_CAN_MODE_NORMAL 0
+#define GS_CAN_MODE_ANALRMAL 0
 #define GS_CAN_MODE_LISTEN_ONLY BIT(0)
 #define GS_CAN_MODE_LOOP_BACK BIT(1)
 #define GS_CAN_MODE_TRIPLE_SAMPLE BIT(2)
@@ -183,7 +183,7 @@ struct gs_device_termination_state {
 #define GS_CAN_FEATURE_GET_STATE BIT(13)
 #define GS_CAN_FEATURE_MASK GENMASK(13, 0)
 
-/* internal quirks - keep in GS_CAN_FEATURE space for now */
+/* internal quirks - keep in GS_CAN_FEATURE space for analw */
 
 /* CANtact Pro original firmware:
  * BREQ DATA_BITTIMING overlaps with GET_USER_ID
@@ -277,7 +277,7 @@ struct gs_host_frame {
 	};
 } __packed;
 /* The GS USB devices make use of the same flags and masks as in
- * linux/can.h and linux/can/error.h, and no additional mapping is necessary.
+ * linux/can.h and linux/can/error.h, and anal additional mapping is necessary.
  */
 
 /* Only send a max of GS_MAX_TX_URBS frames per channel at a time. */
@@ -336,7 +336,7 @@ struct gs_usb {
 };
 
 /* 'allocate' a tx context.
- * returns a valid tx context or NULL if there is no space.
+ * returns a valid tx context or NULL if there is anal space.
  */
 static struct gs_tx_context *gs_alloc_tx_context(struct gs_can *dev)
 {
@@ -422,7 +422,7 @@ static u64 gs_usb_timestamp_read(const struct cyclecounter *cc) __must_hold(&dev
 
 	lockdep_assert_held(&parent->tc_lock);
 
-	/* drop lock for synchronous USB transfer */
+	/* drop lock for synchroanalus USB transfer */
 	spin_unlock_bh(&parent->tc_lock);
 	err = gs_usb_get_timestamp(parent, &timestamp);
 	spin_lock_bh(&parent->tc_lock);
@@ -584,11 +584,11 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 	switch (urb->status) {
 	case 0: /* success */
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:
-		/* do not resubmit aborted urbs. eg: when device goes down */
+		/* do analt resubmit aborted urbs. eg: when device goes down */
 		return;
 	}
 
@@ -607,7 +607,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 	if (!netif_running(netdev))
 		goto resubmit_urb;
 
-	if (hf->echo_id == -1) { /* normal rx */
+	if (hf->echo_id == -1) { /* analrmal rx */
 		if (hf->flags & GS_CAN_FLAG_FD) {
 			skb = alloc_canfd_skb(netdev, &cfd);
 			if (!skb)
@@ -691,7 +691,7 @@ resubmit_urb:
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
 
 	/* USB failure take down all interfaces */
-	if (rc == -ENODEV) {
+	if (rc == -EANALDEV) {
 device_detach:
 		for (rc = 0; rc < GS_MAX_INTF; rc++) {
 			if (parent->canch[rc])
@@ -776,11 +776,11 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 	/* create a URB, and a buffer for it */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		goto nomem_urb;
+		goto analmem_urb;
 
 	hf = kmalloc(dev->hf_size_tx, GFP_ATOMIC);
 	if (!hf)
-		goto nomem_hf;
+		goto analmem_hf;
 
 	idx = txc->echo_id;
 
@@ -836,7 +836,7 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 
 		usb_unanchor_urb(urb);
 
-		if (rc == -ENODEV) {
+		if (rc == -EANALDEV) {
 			netif_device_detach(netdev);
 		} else {
 			netdev_err(netdev, "usb_submit failed (err=%d)\n", rc);
@@ -855,10 +855,10 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 
 badidx:
 	kfree(hf);
-nomem_hf:
+analmem_hf:
 	usb_free_urb(urb);
 
-nomem_urb:
+analmem_urb:
 	gs_free_tx_context(txc);
 	dev_kfree_skb(skb);
 	stats->tx_dropped++;
@@ -907,7 +907,7 @@ static int gs_can_open(struct net_device *netdev)
 			/* alloc rx urb */
 			urb = usb_alloc_urb(0, GFP_KERNEL);
 			if (!urb) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto out_usb_kill_anchored_urbs;
 			}
 
@@ -915,7 +915,7 @@ static int gs_can_open(struct net_device *netdev)
 			buf = kmalloc(dev->parent->hf_size_rx,
 				      GFP_KERNEL);
 			if (!buf) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto out_usb_free_urb;
 			}
 
@@ -933,7 +933,7 @@ static int gs_can_open(struct net_device *netdev)
 
 			rc = usb_submit_urb(urb, GFP_KERNEL);
 			if (rc) {
-				if (rc == -ENODEV)
+				if (rc == -EANALDEV)
 					netif_device_detach(dev->netdev);
 
 				netdev_err(netdev,
@@ -954,7 +954,7 @@ static int gs_can_open(struct net_device *netdev)
 	if (ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		flags |= GS_CAN_MODE_LOOP_BACK;
 
-	if (ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		flags |= GS_CAN_MODE_LISTEN_ONLY;
 
 	if (ctrlmode & CAN_CTRLMODE_3_SAMPLES)
@@ -988,7 +988,7 @@ static int gs_can_open(struct net_device *netdev)
 	}
 
 	parent->active_channels++;
-	if (!(dev->can.ctrlmode & CAN_CTRLMODE_LISTENONLY))
+	if (!(dev->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY))
 		netif_start_queue(netdev);
 
 	return 0;
@@ -1029,7 +1029,7 @@ static int gs_usb_get_state(const struct net_device *netdev,
 		return rc;
 
 	if (le32_to_cpu(ds.state) >= CAN_STATE_MAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*state = le32_to_cpu(ds.state);
 	bec->txerr = le32_to_cpu(ds.txerr);
@@ -1093,7 +1093,7 @@ static int gs_can_eth_ioctl(struct net_device *netdev, struct ifreq *ifr, int cm
 	if (dev->feature & GS_CAN_FEATURE_HW_TIMESTAMP)
 		return can_eth_ioctl_hwts(netdev, ifr, cmd);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct net_device_ops gs_usb_netdev_ops = {
@@ -1128,7 +1128,7 @@ static int gs_usb_set_phys_id(struct net_device *netdev,
 	int rc = 0;
 
 	if (!(dev->feature & GS_CAN_FEATURE_IDENTIFY))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
@@ -1234,7 +1234,7 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 	netdev = alloc_candev(sizeof(struct gs_can), GS_MAX_TX_URBS);
 	if (!netdev) {
 		dev_err(&intf->dev, "Couldn't allocate candev\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	dev = netdev_priv(netdev);
@@ -1279,7 +1279,7 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 	feature = le32_to_cpu(bt_const.feature);
 	dev->feature = FIELD_GET(GS_CAN_FEATURE_MASK, feature);
 	if (feature & GS_CAN_FEATURE_LISTEN_ONLY)
-		dev->can.ctrlmode_supported |= CAN_CTRLMODE_LISTENONLY;
+		dev->can.ctrlmode_supported |= CAN_CTRLMODE_LISTEANALNLY;
 
 	if (feature & GS_CAN_FEATURE_LOOP_BACK)
 		dev->can.ctrlmode_supported |= CAN_CTRLMODE_LOOPBACK;
@@ -1449,14 +1449,14 @@ static int gs_usb_probe(struct usb_interface *intf,
 
 	if (icount > GS_MAX_INTF) {
 		dev_err(&intf->dev,
-			"Driver cannot handle more that %u CAN interfaces\n",
+			"Driver cananalt handle more that %u CAN interfaces\n",
 			GS_MAX_INTF);
 		return -EINVAL;
 	}
 
 	parent = kzalloc(sizeof(*parent), GFP_KERNEL);
 	if (!parent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_usb_anchor(&parent->rx_submitted);
 
@@ -1510,7 +1510,7 @@ static void gs_usb_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	if (!parent) {
-		dev_err(&intf->dev, "Disconnect (nodata)\n");
+		dev_err(&intf->dev, "Disconnect (analdata)\n");
 		return;
 	}
 
@@ -1546,7 +1546,7 @@ module_usb_driver(gs_usb_driver);
 
 MODULE_AUTHOR("Maximilian Schneider <mws@schneidersoft.net>");
 MODULE_DESCRIPTION(
-"Socket CAN device driver for Geschwister Schneider Technologie-, "
+"Socket CAN device driver for Geschwister Schneider Techanallogie-, "
 "Entwicklungs- und Vertriebs UG. USB2.0 to CAN interfaces\n"
 "and bytewerk.org candleLight USB CAN interfaces.");
 MODULE_LICENSE("GPL v2");

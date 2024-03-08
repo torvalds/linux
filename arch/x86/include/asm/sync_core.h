@@ -59,7 +59,7 @@ static inline void sync_core(void)
 {
 	/*
 	 * The SERIALIZE instruction is the most straightforward way to
-	 * do this, but it is not universally available.
+	 * do this, but it is analt universally available.
 	 */
 	if (static_cpu_has(X86_FEATURE_SERIALIZE)) {
 		serialize();
@@ -73,7 +73,7 @@ static inline void sync_core(void)
 	 * to a hypervisor.  The only downsides are that it's a bit slow
 	 * (it seems to be a bit more than 2x slower than the fastest
 	 * options) and that it unmasks NMIs.  The "push %cs" is needed,
-	 * because in paravirtual environments __KERNEL_CS may not be a
+	 * because in paravirtual environments __KERNEL_CS may analt be a
 	 * valid CS value when we do IRET directly.
 	 *
 	 * In case NMI unmasking or performance ever becomes a problem,
@@ -91,7 +91,7 @@ static inline void sync_core(void)
 /*
  * Ensure that a core serializing instruction is issued before returning
  * to user-mode. x86 implements return to user-space through sysexit,
- * sysrel, and sysretq, which are not core serializing.
+ * sysrel, and sysretq, which are analt core serializing.
  */
 static inline void sync_core_before_usermode(void)
 {

@@ -14,56 +14,56 @@
 
 #define BLOCKS(size) (((size) + 511) >> 9)
 
-static int hpfs_file_release(struct inode *inode, struct file *file)
+static int hpfs_file_release(struct ianalde *ianalde, struct file *file)
 {
-	hpfs_lock(inode->i_sb);
-	hpfs_write_if_changed(inode);
-	hpfs_unlock(inode->i_sb);
+	hpfs_lock(ianalde->i_sb);
+	hpfs_write_if_changed(ianalde);
+	hpfs_unlock(ianalde->i_sb);
 	return 0;
 }
 
 int hpfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	int ret;
 
 	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
 		return ret;
-	return sync_blockdev(inode->i_sb->s_bdev);
+	return sync_blockdev(ianalde->i_sb->s_bdev);
 }
 
 /*
- * generic_file_read often calls bmap with non-existing sector,
- * so we must ignore such errors.
+ * generic_file_read often calls bmap with analn-existing sector,
+ * so we must iganalre such errors.
  */
 
-static secno hpfs_bmap(struct inode *inode, unsigned file_secno, unsigned *n_secs)
+static secanal hpfs_bmap(struct ianalde *ianalde, unsigned file_secanal, unsigned *n_secs)
 {
-	struct hpfs_inode_info *hpfs_inode = hpfs_i(inode);
-	unsigned n, disk_secno;
-	struct fnode *fnode;
+	struct hpfs_ianalde_info *hpfs_ianalde = hpfs_i(ianalde);
+	unsigned n, disk_secanal;
+	struct fanalde *fanalde;
 	struct buffer_head *bh;
-	if (BLOCKS(hpfs_i(inode)->mmu_private) <= file_secno) return 0;
-	n = file_secno - hpfs_inode->i_file_sec;
-	if (n < hpfs_inode->i_n_secs) {
-		*n_secs = hpfs_inode->i_n_secs - n;
-		return hpfs_inode->i_disk_sec + n;
+	if (BLOCKS(hpfs_i(ianalde)->mmu_private) <= file_secanal) return 0;
+	n = file_secanal - hpfs_ianalde->i_file_sec;
+	if (n < hpfs_ianalde->i_n_secs) {
+		*n_secs = hpfs_ianalde->i_n_secs - n;
+		return hpfs_ianalde->i_disk_sec + n;
 	}
-	if (!(fnode = hpfs_map_fnode(inode->i_sb, inode->i_ino, &bh))) return 0;
-	disk_secno = hpfs_bplus_lookup(inode->i_sb, inode, &fnode->btree, file_secno, bh);
-	if (disk_secno == -1) return 0;
-	if (hpfs_chk_sectors(inode->i_sb, disk_secno, 1, "bmap")) return 0;
-	n = file_secno - hpfs_inode->i_file_sec;
-	if (n < hpfs_inode->i_n_secs) {
-		*n_secs = hpfs_inode->i_n_secs - n;
-		return hpfs_inode->i_disk_sec + n;
+	if (!(fanalde = hpfs_map_fanalde(ianalde->i_sb, ianalde->i_ianal, &bh))) return 0;
+	disk_secanal = hpfs_bplus_lookup(ianalde->i_sb, ianalde, &fanalde->btree, file_secanal, bh);
+	if (disk_secanal == -1) return 0;
+	if (hpfs_chk_sectors(ianalde->i_sb, disk_secanal, 1, "bmap")) return 0;
+	n = file_secanal - hpfs_ianalde->i_file_sec;
+	if (n < hpfs_ianalde->i_n_secs) {
+		*n_secs = hpfs_ianalde->i_n_secs - n;
+		return hpfs_ianalde->i_disk_sec + n;
 	}
 	*n_secs = 1;
-	return disk_secno;
+	return disk_secanal;
 }
 
-void hpfs_truncate(struct inode *i)
+void hpfs_truncate(struct ianalde *i)
 {
 	if (IS_IMMUTABLE(i)) return /*-EPERM*/;
 	hpfs_lock_assert(i->i_sb);
@@ -71,68 +71,68 @@ void hpfs_truncate(struct inode *i)
 	hpfs_i(i)->i_n_secs = 0;
 	i->i_blocks = 1 + ((i->i_size + 511) >> 9);
 	hpfs_i(i)->mmu_private = i->i_size;
-	hpfs_truncate_btree(i->i_sb, i->i_ino, 1, ((i->i_size + 511) >> 9));
-	hpfs_write_inode(i);
+	hpfs_truncate_btree(i->i_sb, i->i_ianal, 1, ((i->i_size + 511) >> 9));
+	hpfs_write_ianalde(i);
 	hpfs_i(i)->i_n_secs = 0;
 }
 
-static int hpfs_get_block(struct inode *inode, sector_t iblock, struct buffer_head *bh_result, int create)
+static int hpfs_get_block(struct ianalde *ianalde, sector_t iblock, struct buffer_head *bh_result, int create)
 {
 	int r;
-	secno s;
+	secanal s;
 	unsigned n_secs;
-	hpfs_lock(inode->i_sb);
-	s = hpfs_bmap(inode, iblock, &n_secs);
+	hpfs_lock(ianalde->i_sb);
+	s = hpfs_bmap(ianalde, iblock, &n_secs);
 	if (s) {
 		if (bh_result->b_size >> 9 < n_secs)
 			n_secs = bh_result->b_size >> 9;
-		n_secs = hpfs_search_hotfix_map_for_range(inode->i_sb, s, n_secs);
+		n_secs = hpfs_search_hotfix_map_for_range(ianalde->i_sb, s, n_secs);
 		if (unlikely(!n_secs)) {
-			s = hpfs_search_hotfix_map(inode->i_sb, s);
+			s = hpfs_search_hotfix_map(ianalde->i_sb, s);
 			n_secs = 1;
 		}
-		map_bh(bh_result, inode->i_sb, s);
+		map_bh(bh_result, ianalde->i_sb, s);
 		bh_result->b_size = n_secs << 9;
 		goto ret_0;
 	}
 	if (!create) goto ret_0;
-	if (iblock<<9 != hpfs_i(inode)->mmu_private) {
+	if (iblock<<9 != hpfs_i(ianalde)->mmu_private) {
 		BUG();
 		r = -EIO;
 		goto ret_r;
 	}
-	if ((s = hpfs_add_sector_to_btree(inode->i_sb, inode->i_ino, 1, inode->i_blocks - 1)) == -1) {
-		hpfs_truncate_btree(inode->i_sb, inode->i_ino, 1, inode->i_blocks - 1);
-		r = -ENOSPC;
+	if ((s = hpfs_add_sector_to_btree(ianalde->i_sb, ianalde->i_ianal, 1, ianalde->i_blocks - 1)) == -1) {
+		hpfs_truncate_btree(ianalde->i_sb, ianalde->i_ianal, 1, ianalde->i_blocks - 1);
+		r = -EANALSPC;
 		goto ret_r;
 	}
-	inode->i_blocks++;
-	hpfs_i(inode)->mmu_private += 512;
+	ianalde->i_blocks++;
+	hpfs_i(ianalde)->mmu_private += 512;
 	set_buffer_new(bh_result);
-	map_bh(bh_result, inode->i_sb, hpfs_search_hotfix_map(inode->i_sb, s));
+	map_bh(bh_result, ianalde->i_sb, hpfs_search_hotfix_map(ianalde->i_sb, s));
 	ret_0:
 	r = 0;
 	ret_r:
-	hpfs_unlock(inode->i_sb);
+	hpfs_unlock(ianalde->i_sb);
 	return r;
 }
 
-static int hpfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
+static int hpfs_iomap_begin(struct ianalde *ianalde, loff_t offset, loff_t length,
 		unsigned flags, struct iomap *iomap, struct iomap *srcmap)
 {
-	struct super_block *sb = inode->i_sb;
-	unsigned int blkbits = inode->i_blkbits;
+	struct super_block *sb = ianalde->i_sb;
+	unsigned int blkbits = ianalde->i_blkbits;
 	unsigned int n_secs;
-	secno s;
+	secanal s;
 
 	if (WARN_ON_ONCE(flags & (IOMAP_WRITE | IOMAP_ZERO)))
 		return -EINVAL;
 
-	iomap->bdev = inode->i_sb->s_bdev;
+	iomap->bdev = ianalde->i_sb->s_bdev;
 	iomap->offset = offset;
 
 	hpfs_lock(sb);
-	s = hpfs_bmap(inode, offset >> blkbits, &n_secs);
+	s = hpfs_bmap(ianalde, offset >> blkbits, &n_secs);
 	if (s) {
 		n_secs = hpfs_search_hotfix_map_for_range(sb, s,
 				min_t(loff_t, n_secs, length));
@@ -176,16 +176,16 @@ static int hpfs_writepages(struct address_space *mapping,
 
 static void hpfs_write_failed(struct address_space *mapping, loff_t to)
 {
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 
-	hpfs_lock(inode->i_sb);
+	hpfs_lock(ianalde->i_sb);
 
-	if (to > inode->i_size) {
-		truncate_pagecache(inode, inode->i_size);
-		hpfs_truncate(inode);
+	if (to > ianalde->i_size) {
+		truncate_pagecache(ianalde, ianalde->i_size);
+		hpfs_truncate(ianalde);
 	}
 
-	hpfs_unlock(inode->i_sb);
+	hpfs_unlock(ianalde->i_sb);
 }
 
 static int hpfs_write_begin(struct file *file, struct address_space *mapping,
@@ -208,16 +208,16 @@ static int hpfs_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *pagep, void *fsdata)
 {
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 	int err;
 	err = generic_write_end(file, mapping, pos, len, copied, pagep, fsdata);
 	if (err < len)
 		hpfs_write_failed(mapping, pos + len);
 	if (!(err < 0)) {
-		/* make sure we write it on close, if not earlier */
-		hpfs_lock(inode->i_sb);
-		hpfs_i(inode)->i_dirty = 1;
-		hpfs_unlock(inode->i_sb);
+		/* make sure we write it on close, if analt earlier */
+		hpfs_lock(ianalde->i_sb);
+		hpfs_i(ianalde)->i_dirty = 1;
+		hpfs_unlock(ianalde->i_sb);
 	}
 	return err;
 }
@@ -227,14 +227,14 @@ static sector_t _hpfs_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, hpfs_get_block);
 }
 
-static int hpfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo, u64 start, u64 len)
+static int hpfs_fiemap(struct ianalde *ianalde, struct fiemap_extent_info *fieinfo, u64 start, u64 len)
 {
 	int ret;
 
-	inode_lock(inode);
-	len = min_t(u64, len, i_size_read(inode));
-	ret = iomap_fiemap(inode, fieinfo, start, len, &hpfs_iomap_ops);
-	inode_unlock(inode);
+	ianalde_lock(ianalde);
+	len = min_t(u64, len, i_size_read(ianalde));
+	ret = iomap_fiemap(ianalde, fieinfo, start, len, &hpfs_iomap_ops);
+	ianalde_unlock(ianalde);
 
 	return ret;
 }
@@ -264,7 +264,7 @@ const struct file_operations hpfs_file_ops =
 	.compat_ioctl	= compat_ptr_ioctl,
 };
 
-const struct inode_operations hpfs_file_iops =
+const struct ianalde_operations hpfs_file_iops =
 {
 	.setattr	= hpfs_setattr,
 	.fiemap		= hpfs_fiemap,

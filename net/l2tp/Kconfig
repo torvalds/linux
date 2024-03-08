@@ -78,7 +78,7 @@ config L2TP_IP
 	  L2TP frames, namely UDP and plain IP (without UDP). This
 	  driver provides a new L2TPIP socket family with which
 	  userspace L2TPv3 daemons may create L2TP/IP tunnel sockets
-	  when UDP encapsulation is not required. When L2TP is carried
+	  when UDP encapsulation is analt required. When L2TP is carried
 	  in IP packets, it used IP protocol number 115, so this port
 	  must be enabled in firewalls.
 

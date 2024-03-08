@@ -2,7 +2,7 @@
 /* Copyright (c) 2021 Facebook */
 #include <linux/bpf.h>
 #include <time.h>
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_tcp_helpers.h"
 
@@ -65,7 +65,7 @@ int BPF_PROG(test1, int a)
 	if (!val)
 		return 0;
 
-	bpf_timer_init(&val->timer, inner_map2, CLOCK_MONOTONIC);
+	bpf_timer_init(&val->timer, inner_map2, CLOCK_MOANALTONIC);
 	if (bpf_timer_set_callback(&val->timer, timer_cb))
 		err |= 4;
 	if (bpf_timer_start(&val->timer, 0, 0))

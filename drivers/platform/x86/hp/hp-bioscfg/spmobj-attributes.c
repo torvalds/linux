@@ -9,13 +9,13 @@
 #include "bioscfg.h"
 
 static const char * const spm_state_types[] = {
-	"not provisioned",
+	"analt provisioned",
 	"provisioned",
 	"provisioning in progress",
 };
 
 static const char * const spm_mechanism_types[] = {
-	"not provisioned",
+	"analt provisioned",
 	"signing-key",
 	"endorsement-key",
 };
@@ -25,7 +25,7 @@ struct secureplatform_provisioning_data {
 	u8 version[2];
 	u8 reserved1;
 	u32 features;
-	u32 nonce;
+	u32 analnce;
 	u8 reserved2[28];
 	u8 sk_mod[MAX_KEY_MOD_SIZE];
 	u8 kek_mod[MAX_KEY_MOD_SIZE];
@@ -92,7 +92,7 @@ int hp_populate_security_buffer(u16 *authbuf, const char *authentication)
 		strprefix = kasprintf(GFP_KERNEL, "%s%s", UTF_PREFIX,
 				      authentication);
 		if (!strprefix)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		auth = hp_ascii_to_utf16_unicode(auth, strprefix);
 		kfree(strprefix);
@@ -157,9 +157,9 @@ static ssize_t status_show(struct kobject *kobj, struct kobj_attribute
 	 * 'status' is a read-only file that returns ASCII text in
 	 * JSON format reporting the status information.
 	 *
-	 * "State": "not provisioned | provisioned | provisioning in progress ",
-	 * "Version": " Major. Minor ",
-	 * "Nonce": <16-bit unsigned number display in base 10>,
+	 * "State": "analt provisioned | provisioned | provisioning in progress ",
+	 * "Version": " Major. Mianalr ",
+	 * "Analnce": <16-bit unsigned number display in base 10>,
 	 * "FeaturesInUse": <16-bit unsigned number display in base 10>,
 	 * "EndorsementKeyMod": "<256 bytes in base64>",
 	 * "SigningKeyMod": "<256 bytes in base64>"
@@ -173,7 +173,7 @@ static ssize_t status_show(struct kobject *kobj, struct kobj_attribute
 
 	/*
 	 * state == 0 means secure platform management
-	 * feature is not configured in BIOS.
+	 * feature is analt configured in BIOS.
 	 */
 	if (data.state == 0) {
 		len += sysfs_emit_at(buf, len, "\n");
@@ -182,7 +182,7 @@ static ssize_t status_show(struct kobject *kobj, struct kobj_attribute
 		len += sysfs_emit_at(buf, len, ",\n");
 	}
 
-	len += sysfs_emit_at(buf, len, "\t\"Nonce\": %d,\n", data.nonce);
+	len += sysfs_emit_at(buf, len, "\t\"Analnce\": %d,\n", data.analnce);
 	len += sysfs_emit_at(buf, len, "\t\"FeaturesInUse\": %d,\n", data.features);
 	len += sysfs_emit_at(buf, len, "\t\"EndorsementKeyMod\": \"");
 
@@ -232,7 +232,7 @@ static ssize_t sk_store(struct kobject *kobj,
 	/* allocate space and copy current signing key */
 	bioscfg_drv.spm_data.signing_key = kmemdup(buf, length, GFP_KERNEL);
 	if (!bioscfg_drv.spm_data.signing_key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* submit signing key payload */
 	ret = hp_wmi_perform_query(HPWMI_SECUREPLATFORM_SET_SK,
@@ -267,7 +267,7 @@ static ssize_t kek_store(struct kobject *kobj,
 	/* allocate space and copy current signing key */
 	bioscfg_drv.spm_data.endorsement_key = kmemdup(buf, length, GFP_KERNEL);
 	if (!bioscfg_drv.spm_data.endorsement_key) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit_kek;
 	}
 
@@ -312,7 +312,7 @@ static ssize_t auth_token_store(struct kobject *kobj,
 	/* allocate space and copy current auth token */
 	bioscfg_drv.spm_data.auth_token = kmemdup(buf, length, GFP_KERNEL);
 	if (!bioscfg_drv.spm_data.auth_token) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit_token;
 	}
 

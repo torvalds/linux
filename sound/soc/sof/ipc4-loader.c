@@ -32,7 +32,7 @@ static ssize_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
 	int i;
 
 	if (!ipc4_data) {
-		dev_err(sdev->dev, "%s: ipc4_data is not available\n", __func__);
+		dev_err(sdev->dev, "%s: ipc4_data is analt available\n", __func__);
 		return -EINVAL;
 	}
 
@@ -75,7 +75,7 @@ static ssize_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
 	}
 
 	dev_info(sdev->dev, "Loaded firmware library: %s, version: %u.%u.%u.%u\n",
-		 fw_header->name, fw_header->major_version, fw_header->minor_version,
+		 fw_header->name, fw_header->major_version, fw_header->mianalr_version,
 		 fw_header->hotfix_version, fw_header->build_version);
 	dev_dbg(sdev->dev, "Header length: %u, module count: %u\n",
 		fw_header->len, fw_header->num_module_entries);
@@ -83,7 +83,7 @@ static ssize_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
 	fw_lib->modules = devm_kmalloc_array(sdev->dev, fw_header->num_module_entries,
 					     sizeof(*fw_module), GFP_KERNEL);
 	if (!fw_lib->modules)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_lib->name = fw_header->name;
 	fw_lib->num_modules = fw_header->num_module_entries;
@@ -143,7 +143,7 @@ static size_t sof_ipc4_fw_parse_basefw_ext_man(struct snd_sof_dev *sdev)
 
 	fw_lib = devm_kzalloc(sdev->dev, sizeof(*fw_lib), GFP_KERNEL);
 	if (!fw_lib)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_lib->sof_fw.fw = sdev->basefw.fw;
 
@@ -172,23 +172,23 @@ static int sof_ipc4_load_library_by_uuid(struct snd_sof_dev *sdev,
 
 	if (!sdev->pdata->fw_lib_prefix) {
 		dev_err(sdev->dev,
-			"Library loading is not supported due to not set library path\n");
+			"Library loading is analt supported due to analt set library path\n");
 		return -EINVAL;
 	}
 
 	if (!ipc4_data->load_library) {
-		dev_err(sdev->dev, "Library loading is not supported on this platform\n");
-		return -EOPNOTSUPP;
+		dev_err(sdev->dev, "Library loading is analt supported on this platform\n");
+		return -EOPANALTSUPP;
 	}
 
 	fw_lib = devm_kzalloc(sdev->dev, sizeof(*fw_lib), GFP_KERNEL);
 	if (!fw_lib)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_filename = kasprintf(GFP_KERNEL, "%s/%pUL.bin",
 				sdev->pdata->fw_lib_prefix, uuid);
 	if (!fw_filename) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_fw_lib;
 	}
 
@@ -278,7 +278,7 @@ struct sof_ipc4_fw_module *sof_ipc4_find_module_by_uuid(struct snd_sof_dev *sdev
 	}
 
 	/*
-	 * Do not attempt to load external library in case the maximum number of
+	 * Do analt attempt to load external library in case the maximum number of
 	 * firmware libraries have been already loaded
 	 */
 	if ((lib_id + 1) == ipc4_data->max_libs_count) {
@@ -288,12 +288,12 @@ struct sof_ipc4_fw_module *sof_ipc4_find_module_by_uuid(struct snd_sof_dev *sdev
 		return NULL;
 	}
 
-	/* The module cannot be found, try to load it as a library */
+	/* The module cananalt be found, try to load it as a library */
 	ret = sof_ipc4_load_library_by_uuid(sdev, lib_id + 1, uuid);
 	if (ret)
 		return NULL;
 
-	/* Look for the module in the newly loaded library, it should be available now */
+	/* Look for the module in the newly loaded library, it should be available analw */
 	xa_for_each_start(&ipc4_data->fw_lib_xa, lib_id, fw_lib, lib_id) {
 		for (i = 0; i < fw_lib->num_modules; i++) {
 			if (guid_equal(uuid, &fw_lib->modules[i].man4_module_entry.uuid))
@@ -319,7 +319,7 @@ static int sof_ipc4_validate_firmware(struct snd_sof_dev *sdev)
 	/* TODO: Add firmware verification code here */
 
 	dev_dbg(sdev->dev, "Validated firmware version: %u.%u.%u.%u\n",
-		fw_header->major_version, fw_header->minor_version,
+		fw_header->major_version, fw_header->mianalr_version,
 		fw_header->hotfix_version, fw_header->build_version);
 
 	return 0;
@@ -345,7 +345,7 @@ int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 	msg.data_size = sdev->ipc->max_payload_size;
 	msg.data_ptr = kzalloc(msg.data_size, GFP_KERNEL);
 	if (!msg.data_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = iops->set_get_data(sdev, &msg, msg.data_size, false);
 	if (ret)
@@ -360,7 +360,7 @@ int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 
 			dev_info(sdev->dev,
 				 "Booted firmware version: %u.%u.%u.%u\n",
-				 fw_ver->major, fw_ver->minor, fw_ver->hotfix,
+				 fw_ver->major, fw_ver->mianalr, fw_ver->hotfix,
 				 fw_ver->build);
 			break;
 		case SOF_IPC4_FW_CFG_DL_MAILBOX_BYTES:
@@ -443,8 +443,8 @@ void sof_ipc4_update_cpc_from_manifest(struct snd_sof_dev *sdev,
 	int i;
 
 	if (!fw_module->fw_mod_cfg) {
-		msg = "No mod_cfg available for CPC lookup in the firmware file's manifest";
-		goto no_cpc;
+		msg = "Anal mod_cfg available for CPC lookup in the firmware file's manifest";
+		goto anal_cpc;
 	}
 
 	/*
@@ -473,15 +473,15 @@ void sof_ipc4_update_cpc_from_manifest(struct snd_sof_dev *sdev,
 		return;
 
 	/*
-	 * No matching IBS/OBS found, the firmware manifest is missing
+	 * Anal matching IBS/OBS found, the firmware manifest is missing
 	 * information in the module's module configuration table.
 	 */
 	if (!max_cpc)
-		msg = "No CPC value available in the firmware file's manifest";
+		msg = "Anal CPC value available in the firmware file's manifest";
 	else if (!cpc_pick)
-		msg = "No CPC match in the firmware file's manifest";
+		msg = "Anal CPC match in the firmware file's manifest";
 
-no_cpc:
+anal_cpc:
 	dev_dbg(sdev->dev, "%s (UUID: %pUL): %s (ibs/obs: %u/%u)\n",
 		fw_module->man4_module_entry.name,
 		&fw_module->man4_module_entry.uuid, msg, basecfg->ibs,

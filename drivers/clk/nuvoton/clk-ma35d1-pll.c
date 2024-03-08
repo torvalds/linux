@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023 Nuvoton Technology Corp.
+ * Copyright (C) 2023 Nuvoton Techanallogy Corp.
  * Author: Chi-Fang Li <cfli0@nuvoton.com>
  */
 
@@ -178,7 +178,7 @@ static int ma35d1_pll_find_closest(struct ma35d1_clk_pll *pll, unsigned long rat
 		}
 	}
 	if (*freq == 0)
-		return -EINVAL; /* cannot find even one valid setting */
+		return -EINVAL; /* cananalt find even one valid setting */
 	return 0;
 }
 
@@ -330,7 +330,7 @@ struct clk_hw *ma35d1_reg_clk_pll(struct device *dev, u32 id, u8 u8mode, const c
 
 	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll->id = id;
 	pll->mode = u8mode;

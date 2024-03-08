@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017 Netronome Systems, Inc. */
+/* Copyright (C) 2017 Netroanalme Systems, Inc. */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -26,7 +26,7 @@ struct nfp_nsp_identify *__nfp_nsp_identify(struct nfp_nsp *nsp)
 	struct nsp_identify *ni;
 	int ret;
 
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 15)
+	if (nfp_nsp_get_abi_ver_mianalr(nsp) < 15)
 		return NULL;
 
 	ni = kzalloc(sizeof(*ni), GFP_KERNEL);

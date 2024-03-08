@@ -23,7 +23,7 @@ static int test_fpu(void)
 {
 	/*
 	 * This sequence of operations tests that rounding mode is
-	 * to nearest and that denormal numbers are supported.
+	 * to nearest and that deanalrmal numbers are supported.
 	 * Volatile variables are used to avoid compiler optimizing
 	 * the calculations away.
 	 */
@@ -39,10 +39,10 @@ static int test_fpu(void)
 	/* Result depends on rounding mode */
 	e = a + b / 2;
 
-	/* Denormal and very large values */
+	/* Deanalrmal and very large values */
 	f = b / c;
 
-	/* Depends on denormal support */
+	/* Depends on deanalrmal support */
 	g = a + c * f;
 
 	if (d > a && e > a && g > a)
@@ -70,7 +70,7 @@ static int __init test_fpu_init(void)
 {
 	selftest_dir = debugfs_create_dir("selftest_helpers", NULL);
 	if (!selftest_dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	debugfs_create_file_unsafe("test_fpu", 0444, selftest_dir, NULL,
 				   &test_fpu_fops);

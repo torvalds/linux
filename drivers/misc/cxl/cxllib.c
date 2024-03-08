@@ -25,7 +25,7 @@ bool cxllib_slot_is_supported(struct pci_dev *dev, unsigned long flags)
 	u32 phb_index;
 	u64 chip_id, capp_unit_id;
 
-	/* No flags currently supported */
+	/* Anal flags currently supported */
 	if (flags)
 		return false;
 
@@ -38,7 +38,7 @@ bool cxllib_slot_is_supported(struct pci_dev *dev, unsigned long flags)
 	if (cxl_slot_is_switched(dev))
 		return false;
 
-	/* on p9, some pci slots are not connected to a CAPP unit */
+	/* on p9, some pci slots are analt connected to a CAPP unit */
 	rc = cxl_calc_capp_routing(dev, &chip_id, &phb_index, &capp_unit_id);
 	if (rc)
 		return false;
@@ -62,7 +62,7 @@ static int allocate_dummy_read_buf(void)
 	buf_size = CXL_DUMMY_READ_SIZE + (1ull << CXL_DUMMY_READ_ALIGN);
 	buf = (u64) kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vaddr = (buf + (1ull << CXL_DUMMY_READ_ALIGN) - 1) &
 					(~0ull << CXL_DUMMY_READ_ALIGN);
@@ -122,11 +122,11 @@ int cxllib_switch_phb_mode(struct pci_dev *dev, enum cxllib_mode mode,
 		 * We currently don't support going back to PCI mode
 		 * However, we'll turn the invalidations off, so that
 		 * the firmware doesn't have to ack them and can do
-		 * things like reset, etc.. with no worries.
+		 * things like reset, etc.. with anal worries.
 		 * So always return EPERM (can't go back to PCI) or
-		 * EBUSY if we couldn't even turn off snooping
+		 * EBUSY if we couldn't even turn off sanaloping
 		 */
-		rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SNOOP_OFF);
+		rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SANALOP_OFF);
 		if (rc)
 			rc = -EBUSY;
 		else
@@ -139,7 +139,7 @@ int cxllib_switch_phb_mode(struct pci_dev *dev, enum cxllib_mode mode,
 		rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_DMA_TVT1);
 		if (rc)
 			return rc;
-		rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SNOOP_ON);
+		rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SANALOP_ON);
 		break;
 	default:
 		rc = -EINVAL;
@@ -153,7 +153,7 @@ EXPORT_SYMBOL_GPL(cxllib_switch_phb_mode);
  * the Partitionable Endpoint is set in bypass mode, like
  * in PCI mode.
  * Configure the device dma to use TVT#1, which is done
- * by calling dma_set_mask() with a mask large enough.
+ * by calling dma_set_mask() with a mask large eanalugh.
  */
 int cxllib_set_device_dma(struct pci_dev *dev, unsigned long flags)
 {
@@ -252,8 +252,8 @@ int cxllib_handle_fault(struct mm_struct *mm, u64 addr, u64 size, u64 flags)
 			 * It means the VMAs can be altered between 2
 			 * loop iterations and we could theoretically
 			 * miss a page (however unlikely). But that's
-			 * not really a problem, as the driver will
-			 * retry access, get another page fault on the
+			 * analt really a problem, as the driver will
+			 * retry access, get aanalther page fault on the
 			 * missing page and call us again.
 			 */
 			rc = get_vma_info(mm, dar, &vma_start, &vma_end,

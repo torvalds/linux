@@ -61,8 +61,8 @@ enum iwl_tlc_mng_cfg_chains {
 /**
  * enum iwl_tlc_mng_cfg_mode - supported modes
  * @IWL_TLC_MNG_MODE_CCK: enable CCK
- * @IWL_TLC_MNG_MODE_OFDM_NON_HT: enable OFDM (non HT)
- * @IWL_TLC_MNG_MODE_NON_HT: enable non HT
+ * @IWL_TLC_MNG_MODE_OFDM_ANALN_HT: enable OFDM (analn HT)
+ * @IWL_TLC_MNG_MODE_ANALN_HT: enable analn HT
  * @IWL_TLC_MNG_MODE_HT: enable HT
  * @IWL_TLC_MNG_MODE_VHT: enable VHT
  * @IWL_TLC_MNG_MODE_HE: enable HE
@@ -70,8 +70,8 @@ enum iwl_tlc_mng_cfg_chains {
  */
 enum iwl_tlc_mng_cfg_mode {
 	IWL_TLC_MNG_MODE_CCK = 0,
-	IWL_TLC_MNG_MODE_OFDM_NON_HT = IWL_TLC_MNG_MODE_CCK,
-	IWL_TLC_MNG_MODE_NON_HT = IWL_TLC_MNG_MODE_CCK,
+	IWL_TLC_MNG_MODE_OFDM_ANALN_HT = IWL_TLC_MNG_MODE_CCK,
+	IWL_TLC_MNG_MODE_ANALN_HT = IWL_TLC_MNG_MODE_CCK,
 	IWL_TLC_MNG_MODE_HT,
 	IWL_TLC_MNG_MODE_VHT,
 	IWL_TLC_MNG_MODE_HE,
@@ -141,7 +141,7 @@ enum IWL_TLC_MCS_PER_BW {
  * @chains: bitmask of &enum iwl_tlc_mng_cfg_chains
  * @amsdu: TX amsdu is supported
  * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
- * @non_ht_rates: bitmap of supported legacy rates
+ * @analn_ht_rates: bitmap of supported legacy rates
  * @ht_rates: bitmap of &enum iwl_tlc_mng_ht_rates, per &enum IWL_TLC_MCS_PER_BW
  *	      <nss, channel-width> pair (0 - 80mhz width and below, 1 - 160mhz).
  * @max_mpdu_len: max MPDU length, in bytes
@@ -149,7 +149,7 @@ enum IWL_TLC_MCS_PER_BW {
  *		       use BIT(@enum iwl_tlc_mng_cfg_cw)
  * @reserved2: reserved
  * @max_tx_op: max TXOP in uSecs for all AC (BK, BE, VO, VI),
- *	       set zero for no limit.
+ *	       set zero for anal limit.
  */
 struct iwl_tlc_config_cmd_v3 {
 	u8 sta_id;
@@ -159,7 +159,7 @@ struct iwl_tlc_config_cmd_v3 {
 	u8 chains;
 	u8 amsdu;
 	__le16 flags;
-	__le16 non_ht_rates;
+	__le16 analn_ht_rates;
 	__le16 ht_rates[IWL_TLC_NSS_MAX][IWL_TLC_MCS_PER_BW_NUM_V3];
 	__le16 max_mpdu_len;
 	u8 sgi_ch_width_supp;
@@ -177,12 +177,12 @@ struct iwl_tlc_config_cmd_v3 {
  * @sgi_ch_width_supp: bitmap of SGI support per channel width
  *		       use BIT(&enum iwl_tlc_mng_cfg_cw)
  * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
- * @non_ht_rates: bitmap of supported legacy rates
+ * @analn_ht_rates: bitmap of supported legacy rates
  * @ht_rates: bitmap of &enum iwl_tlc_mng_ht_rates, per <nss, channel-width>
  *	      pair (0 - 80mhz width and below, 1 - 160mhz, 2 - 320mhz).
  * @max_mpdu_len: max MPDU length, in bytes
  * @max_tx_op: max TXOP in uSecs for all AC (BK, BE, VO, VI),
- *	       set zero for no limit.
+ *	       set zero for anal limit.
  */
 struct iwl_tlc_config_cmd_v4 {
 	u8 sta_id;
@@ -192,7 +192,7 @@ struct iwl_tlc_config_cmd_v4 {
 	u8 chains;
 	u8 sgi_ch_width_supp;
 	__le16 flags;
-	__le16 non_ht_rates;
+	__le16 analn_ht_rates;
 	__le16 ht_rates[IWL_TLC_NSS_MAX][IWL_TLC_MCS_PER_BW_NUM_V4];
 	__le16 max_mpdu_len;
 	__le16 max_tx_op;
@@ -200,24 +200,24 @@ struct iwl_tlc_config_cmd_v4 {
 
 /**
  * enum iwl_tlc_update_flags - updated fields
- * @IWL_TLC_NOTIF_FLAG_RATE: last initial rate update
- * @IWL_TLC_NOTIF_FLAG_AMSDU: umsdu parameters update
+ * @IWL_TLC_ANALTIF_FLAG_RATE: last initial rate update
+ * @IWL_TLC_ANALTIF_FLAG_AMSDU: umsdu parameters update
  */
 enum iwl_tlc_update_flags {
-	IWL_TLC_NOTIF_FLAG_RATE  = BIT(0),
-	IWL_TLC_NOTIF_FLAG_AMSDU = BIT(1),
+	IWL_TLC_ANALTIF_FLAG_RATE  = BIT(0),
+	IWL_TLC_ANALTIF_FLAG_AMSDU = BIT(1),
 };
 
 /**
- * struct iwl_tlc_update_notif - TLC notification from FW
+ * struct iwl_tlc_update_analtif - TLC analtification from FW
  * @sta_id: station id
  * @reserved: reserved
- * @flags: bitmap of notifications reported
+ * @flags: bitmap of analtifications reported
  * @rate: current initial rate
  * @amsdu_size: Max AMSDU size, in bytes
  * @amsdu_enabled: bitmap for per-TID AMSDU enablement
  */
-struct iwl_tlc_update_notif {
+struct iwl_tlc_update_analtif {
 	u8 sta_id;
 	u8 reserved[3];
 	__le32 flags;
@@ -264,7 +264,7 @@ enum {
 	IWL_RATE_MCS_5_INDEX = IWL_RATE_48M_INDEX,
 	IWL_RATE_54M_INDEX,
 	IWL_RATE_MCS_6_INDEX = IWL_RATE_54M_INDEX,
-	IWL_LAST_NON_HT_RATE = IWL_RATE_54M_INDEX,
+	IWL_LAST_ANALN_HT_RATE = IWL_RATE_54M_INDEX,
 	IWL_RATE_60M_INDEX,
 	IWL_RATE_MCS_7_INDEX = IWL_RATE_60M_INDEX,
 	IWL_LAST_HT_RATE = IWL_RATE_MCS_7_INDEX,
@@ -274,7 +274,7 @@ enum {
 	IWL_RATE_MCS_10_INDEX,
 	IWL_RATE_MCS_11_INDEX,
 	IWL_LAST_HE_RATE = IWL_RATE_MCS_11_INDEX,
-	IWL_RATE_COUNT_LEGACY = IWL_LAST_NON_HT_RATE + 1,
+	IWL_RATE_COUNT_LEGACY = IWL_LAST_ANALN_HT_RATE + 1,
 	IWL_RATE_COUNT = IWL_LAST_HE_RATE + 1,
 	IWL_RATE_INVM_INDEX = IWL_RATE_COUNT,
 	IWL_RATE_INVALID = IWL_RATE_COUNT,
@@ -411,7 +411,7 @@ enum {
 #define RATE_MCS_CHAN_WIDTH_POS		11
 #define RATE_MCS_CHAN_WIDTH_MSK_V1	(3 << RATE_MCS_CHAN_WIDTH_POS)
 
-/* Bit 13: (1) Short guard interval (0.4 usec), (0) normal GI (0.8 usec) */
+/* Bit 13: (1) Short guard interval (0.4 usec), (0) analrmal GI (0.8 usec) */
 #define RATE_MCS_SGI_POS_V1		13
 #define RATE_MCS_SGI_MSK_V1		BIT(RATE_MCS_SGI_POS_V1)
 
@@ -452,7 +452,7 @@ enum {
  *	0			1xLTF+1.6us
  *	1			2xLTF+1.6us
  *	2			4xLTF+3.2us
- *	3			(does not occur)
+ *	3			(does analt occur)
  * EHT MU:
  *	0			2xLTF+0.8us
  *	1			2xLTF+1.6us
@@ -470,7 +470,7 @@ enum {
 #define RATE_MCS_HE_TYPE_TRIG_V1	(3 << RATE_MCS_HE_TYPE_POS_V1)
 #define RATE_MCS_HE_TYPE_MSK_V1		(3 << RATE_MCS_HE_TYPE_POS_V1)
 
-/* Bit 24-25: (0) 20MHz (no dup), (1) 2x20MHz, (2) 4x20MHz, 3 8x20MHz */
+/* Bit 24-25: (0) 20MHz (anal dup), (1) 2x20MHz, (2) 4x20MHz, 3 8x20MHz */
 #define RATE_MCS_DUP_POS_V1		24
 #define RATE_MCS_DUP_MSK_V1		(3 << RATE_MCS_DUP_POS_V1)
 
@@ -478,7 +478,7 @@ enum {
 #define RATE_MCS_LDPC_POS_V1		27
 #define RATE_MCS_LDPC_MSK_V1		BIT(RATE_MCS_LDPC_POS_V1)
 
-/* Bit 28: (1) 106-tone RX (8 MHz RU), (0) normal bandwidth */
+/* Bit 28: (1) 106-tone RX (8 MHz RU), (0) analrmal bandwidth */
 #define RATE_MCS_HE_106T_POS_V1		28
 #define RATE_MCS_HE_106T_MSK_V1		BIT(RATE_MCS_HE_106T_POS_V1)
 
@@ -628,7 +628,7 @@ enum {
 #define RATE_MCS_DUP_POS		25
 #define RATE_MCS_DUP_MSK		(1 << RATE_MCS_DUP_POS)
 
-/* Bit 26: (1) 106-tone RX (8 MHz RU), (0) normal bandwidth */
+/* Bit 26: (1) 106-tone RX (8 MHz RU), (0) analrmal bandwidth */
 #define RATE_MCS_HE_106T_POS		26
 #define RATE_MCS_HE_106T_MSK		(1 << RATE_MCS_HE_106T_POS)
 
@@ -661,16 +661,16 @@ enum {
 #define LQ_FLAG_COLOR_SET(_f, _c)	((_c) | ((_f) & ~LQ_FLAG_COLOR_MSK))
 
 /* Bit 4-5: Tx RTS BW Signalling
- * (0) No RTS BW signalling
+ * (0) Anal RTS BW signalling
  * (1) Static BW signalling
  * (2) Dynamic BW signalling
  */
 #define LQ_FLAG_RTS_BW_SIG_POS          4
-#define LQ_FLAG_RTS_BW_SIG_NONE         (0 << LQ_FLAG_RTS_BW_SIG_POS)
+#define LQ_FLAG_RTS_BW_SIG_ANALNE         (0 << LQ_FLAG_RTS_BW_SIG_POS)
 #define LQ_FLAG_RTS_BW_SIG_STATIC       (1 << LQ_FLAG_RTS_BW_SIG_POS)
 #define LQ_FLAG_RTS_BW_SIG_DYNAMIC      (2 << LQ_FLAG_RTS_BW_SIG_POS)
 
-/* Bit 6: (0) No dynamic BW selection (1) Allow dynamic BW selection
+/* Bit 6: (0) Anal dynamic BW selection (1) Allow dynamic BW selection
  * Dyanmic BW selection allows Tx with narrower BW then requested in rates
  */
 #define LQ_FLAG_DYNAMIC_BW_POS          6
@@ -682,11 +682,11 @@ enum {
  */
 
 /* Bit 0-1: Max STBC streams allowed. Can be 0-3.
- * (0) - No STBC allowed
+ * (0) - Anal STBC allowed
  * (1) - 2x1 STBC allowed (HT/VHT)
  * (2) - 4x2 STBC allowed (HT/VHT)
  * (3) - 3x2 STBC allowed (HT only)
- * All our chips are at most 2 antennas so only (1) is valid for now.
+ * All our chips are at most 2 antennas so only (1) is valid for analw.
  */
 #define LQ_SS_STBC_ALLOWED_POS          0
 #define LQ_SS_STBC_ALLOWED_MSK		(3 << LQ_SS_STBC_ALLOWED_MSK)
@@ -716,7 +716,7 @@ enum {
  * struct iwl_lq_cmd - link quality command
  * @sta_id: station to update
  * @reduced_tpc: reduced transmit power control value
- * @control: not used
+ * @control: analt used
  * @flags: combination of LQ_FLAG_*
  * @mimo_delim: the first SISO index in rs_table, which separates MIMO
  *	and SISO rates
@@ -727,11 +727,11 @@ enum {
  * @agg_time_limit: aggregation max time threshold in usec/100, meaning
  *	value of 100 is one usec. Range is 100 to 8000
  * @agg_disable_start_th: try-count threshold for starting aggregation.
- *	If a frame has higher try-count, it should not be selected for
+ *	If a frame has higher try-count, it should analt be selected for
  *	starting an aggregation sequence.
  * @agg_frame_cnt_limit: max frame count in an aggregation.
- *	0: no limit
- *	1: no aggregation (one frame per aggregation)
+ *	0: anal limit
+ *	1: anal aggregation (one frame per aggregation)
  *	2 - 0x3f: maximal number of frames (up to 3f == 63)
  * @reserved2: reserved
  * @rs_table: array of rates for each TX try, each is rate_n_flags,

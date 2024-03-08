@@ -1,4 +1,4 @@
-* ST-Microelectronics SPI FSM Serial (NOR) Flash Controller
+* ST-Microelectronics SPI FSM Serial (ANALR) Flash Controller
 
 Required properties:
   - compatible : Should be "st,spi-fsm"

@@ -7,7 +7,7 @@
   {
     "EventCode": "0x4F056",
     "EventName": "PM_RADIX_PWC_L1_PDE_FROM_L3MISS",
-    "BriefDescription": "A Page Directory Entry was reloaded to a level 1 page walk cache from beyond the core's L3 data cache. The source could be local/remote/distant memory or another core's cache"
+    "BriefDescription": "A Page Directory Entry was reloaded to a level 1 page walk cache from beyond the core's L3 data cache. The source could be local/remote/distant memory or aanalther core's cache"
   },
   {
     "EventCode": "0x24158",
@@ -17,12 +17,12 @@
   {
     "EventCode": "0x1E046",
     "EventName": "PM_DPTEG_FROM_L31_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's L3 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther core's L3 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x3C04A",
     "EventName": "PM_DATA_FROM_RMEM",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's memory on the same Analde or Group ( Remote) due to a demand load"
   },
   {
     "EventCode": "0x2C01C",
@@ -32,7 +32,7 @@
   {
     "EventCode": "0x44040",
     "EventName": "PM_INST_FROM_L2_DISP_CONFLICT_OTHER",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with dispatch conflict due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with dispatch conflict due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x2E050",
@@ -42,12 +42,12 @@
   {
     "EventCode": "0x2D02E",
     "EventName": "PM_RADIX_PWC_L3_PTE_FROM_L2",
-    "BriefDescription": "A Page Table Entry was reloaded to a level 3 page walk cache from the core's L2 data cache. This implies that a level 4 PWC access was not necessary for this translation"
+    "BriefDescription": "A Page Table Entry was reloaded to a level 3 page walk cache from the core's L2 data cache. This implies that a level 4 PWC access was analt necessary for this translation"
   },
   {
     "EventCode": "0x3F05E",
     "EventName": "PM_RADIX_PWC_L3_PTE_FROM_L3",
-    "BriefDescription": "A Page Table Entry was reloaded to a level 3 page walk cache from the core's L3 data cache. This implies that a level 4 PWC access was not necessary for this translation"
+    "BriefDescription": "A Page Table Entry was reloaded to a level 3 page walk cache from the core's L3 data cache. This implies that a level 4 PWC access was analt necessary for this translation"
   },
   {
     "EventCode": "0x2E01E",
@@ -67,7 +67,7 @@
   {
     "EventCode": "0x3F144",
     "EventName": "PM_MRK_DPTEG_FROM_L31_ECO_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's ECO L3 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther core's ECO L3 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x4D058",
@@ -76,8 +76,8 @@
   },
   {
     "EventCode": "0x14040",
-    "EventName": "PM_INST_FROM_L2_NO_CONFLICT",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 without conflict due to an instruction fetch (not prefetch)"
+    "EventName": "PM_INST_FROM_L2_ANAL_CONFLICT",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 without conflict due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x4404E",
@@ -87,17 +87,17 @@
   {
     "EventCode": "0x3003A",
     "EventName": "PM_CMPLU_STALL_EXCEPTION",
-    "BriefDescription": "Cycles in which the NTC instruction is not allowed to complete because it was interrupted by ANY exception, which has to be serviced before the instruction can complete"
+    "BriefDescription": "Cycles in which the NTC instruction is analt allowed to complete because it was interrupted by ANY exception, which has to be serviced before the instruction can complete"
   },
   {
     "EventCode": "0x4F144",
     "EventName": "PM_MRK_DPTEG_FROM_L31_ECO_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's ECO L3 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther core's ECO L3 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x3E044",
     "EventName": "PM_DPTEG_FROM_L31_ECO_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's ECO L3 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther core's ECO L3 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x300F6",
@@ -117,7 +117,7 @@
   {
     "EventCode": "0x4404C",
     "EventName": "PM_INST_FROM_DMEM",
-    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group (Distant) due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from aanalther chip's memory on the same Analde or Group (Distant) due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x3000E",
@@ -132,7 +132,7 @@
   {
     "EventCode": "0x3000A",
     "EventName": "PM_CMPLU_STALL_PM",
-    "BriefDescription": "Finish stall because the NTF instruction was issued to the Permute execution pipe and waiting to finish. Includes permute and decimal fixed point instructions (128 bit BCD arithmetic) + a few 128 bit fixpoint add/subtract instructions with carry. Not qualified by vector or multicycle"
+    "BriefDescription": "Finish stall because the NTF instruction was issued to the Permute execution pipe and waiting to finish. Includes permute and decimal fixed point instructions (128 bit BCD arithmetic) + a few 128 bit fixpoint add/subtract instructions with carry. Analt qualified by vector or multicycle"
   },
   {
     "EventCode": "0x1504E",
@@ -152,7 +152,7 @@
   {
     "EventCode": "0x14042",
     "EventName": "PM_INST_FROM_L2",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x4000C",
@@ -177,22 +177,22 @@
   {
     "EventCode": "0x1C046",
     "EventName": "PM_DATA_FROM_L31_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's L3 on the same chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther core's L3 on the same chip due to a demand load"
   },
   {
     "EventCode": "0x2C044",
     "EventName": "PM_DATA_FROM_L31_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another core's L3 on the same chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther core's L3 on the same chip due to a demand load"
   },
   {
     "EventCode": "0x2C04A",
     "EventName": "PM_DATA_FROM_RL4",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's L4 on the same Analde or Group ( Remote) due to a demand load"
   },
   {
     "EventCode": "0x24044",
     "EventName": "PM_INST_FROM_L31_MOD",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another core's L3 on the same chip due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from aanalther core's L3 on the same chip due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x4C050",
@@ -237,7 +237,7 @@
   {
     "EventCode": "0x4C04A",
     "EventName": "PM_DATA_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to a demand load"
   },
   {
     "EventCode": "0x400FE",
@@ -267,7 +267,7 @@
   {
     "EventCode": "0x30028",
     "EventName": "PM_CMPLU_STALL_SPEC_FINISH",
-    "BriefDescription": "Finish stall while waiting for the non-speculative finish of either a stcx waiting for its result or a load waiting for non-critical sectors of data and ECC"
+    "BriefDescription": "Finish stall while waiting for the analn-speculative finish of either a stcx waiting for its result or a load waiting for analn-critical sectors of data and ECC"
   },
   {
     "EventCode": "0x400F4",
@@ -277,7 +277,7 @@
   {
     "EventCode": "0x3404C",
     "EventName": "PM_INST_FROM_DL4",
-    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from aanalther chip's L4 on a different Analde or Group (Distant) due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x3D05A",
@@ -307,7 +307,7 @@
   {
     "EventCode": "0x1404C",
     "EventName": "PM_INST_FROM_LL4",
-    "BriefDescription": "The processor's Instruction cache was reloaded from the local chip's L4 cache due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from the local chip's L4 cache due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x200FD",
@@ -317,7 +317,7 @@
   {
     "EventCode": "0x34040",
     "EventName": "PM_INST_FROM_L2_DISP_CONFLICT_LDHITST",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with load hit store conflict due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with load hit store conflict due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x20138",
@@ -327,12 +327,12 @@
   {
     "EventCode": "0x44048",
     "EventName": "PM_INST_FROM_DL2L3_MOD",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x35046",
     "EventName": "PM_IPTEG_FROM_L21_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's L2 on the same chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther core's L2 on the same chip due to a instruction side request"
   },
   {
     "EventCode": "0x4C04E",
@@ -347,12 +347,12 @@
   {
     "EventCode": "0x2C128",
     "EventName": "PM_MRK_DATA_FROM_DL2L3_SHR_CYC",
-    "BriefDescription": "Duration in cycles to reload with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load"
+    "BriefDescription": "Duration in cycles to reload with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a marked load"
   },
   {
     "EventCode": "0x34044",
     "EventName": "PM_INST_FROM_L31_ECO_SHR",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another core's ECO L3 on the same chip due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from aanalther core's ECO L3 on the same chip due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x4E018",
@@ -362,7 +362,7 @@
   {
     "EventCode": "0x2E05E",
     "EventName": "PM_LMQ_EMPTY_CYC",
-    "BriefDescription": "Cycles in which the LMQ has no pending load misses for this thread"
+    "BriefDescription": "Cycles in which the LMQ has anal pending load misses for this thread"
   },
   {
     "EventCode": "0x4C122",
@@ -372,12 +372,12 @@
   {
     "EventCode": "0x4F058",
     "EventName": "PM_RADIX_PWC_L2_PTE_FROM_L3",
-    "BriefDescription": "A Page Table Entry was reloaded to a level 2 page walk cache from the core's L3 data cache. This implies that level 3 and level 4 PWC accesses were not necessary for this translation"
+    "BriefDescription": "A Page Table Entry was reloaded to a level 2 page walk cache from the core's L3 data cache. This implies that level 3 and level 4 PWC accesses were analt necessary for this translation"
   },
   {
     "EventCode": "0x14046",
     "EventName": "PM_INST_FROM_L31_SHR",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another core's L3 on the same chip due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from aanalther core's L3 on the same chip due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x3012C",
@@ -397,7 +397,7 @@
   {
     "EventCode": "0x300FE",
     "EventName": "PM_DATA_FROM_L3MISS",
-    "BriefDescription": "Demand LD - L3 Miss (not L2 hit and not L3 hit)"
+    "BriefDescription": "Demand LD - L3 Miss (analt L2 hit and analt L3 hit)"
   },
   {
     "EventCode": "0x30006",
@@ -407,7 +407,7 @@
   {
     "EventCode": "0x1005C",
     "EventName": "PM_CMPLU_STALL_DP",
-    "BriefDescription": "Finish stall because the NTF instruction was a scalar instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format. Not qualified multicycle. Qualified by NOT vector"
+    "BriefDescription": "Finish stall because the NTF instruction was a scalar instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format. Analt qualified multicycle. Qualified by ANALT vector"
   },
   {
     "EventCode": "0x1E042",
@@ -427,7 +427,7 @@
   {
     "EventCode": "0x4F05E",
     "EventName": "PM_RADIX_PWC_L3_PTE_FROM_L3MISS",
-    "BriefDescription": "A Page Table Entry was reloaded to a level 3 page walk cache from beyond the core's L3 data cache. This implies that a level 4 PWC access was not necessary for this translation. The source could be local/remote/distant memory or another core's cache"
+    "BriefDescription": "A Page Table Entry was reloaded to a level 3 page walk cache from beyond the core's L3 data cache. This implies that a level 4 PWC access was analt necessary for this translation. The source could be local/remote/distant memory or aanalther core's cache"
   },
   {
     "EventCode": "0x400FC",
@@ -436,13 +436,13 @@
   },
   {
     "EventCode": "0x1E044",
-    "EventName": "PM_DPTEG_FROM_L3_NO_CONFLICT",
+    "EventName": "PM_DPTEG_FROM_L3_ANAL_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without conflict due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x4D05A",
-    "EventName": "PM_NON_MATH_FLOP_CMPL",
-    "BriefDescription": "Non FLOP operation completed"
+    "EventName": "PM_ANALN_MATH_FLOP_CMPL",
+    "BriefDescription": "Analn FLOP operation completed"
   },
   {
     "EventCode": "0x101E2",
@@ -457,7 +457,7 @@
   {
     "EventCode": "0x1C048",
     "EventName": "PM_DATA_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from aanalther core's L2/L3 on the same chip due to a demand load"
   },
   {
     "EventCode": "0x1C054",
@@ -487,7 +487,7 @@
   {
     "EventCode": "0x3C044",
     "EventName": "PM_DATA_FROM_L31_ECO_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's ECO L3 on the same chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther core's ECO L3 on the same chip due to a demand load"
   },
   {
     "EventCode": "0x4C052",
@@ -512,7 +512,7 @@
   {
     "EventCode": "0x4000A",
     "EventName": "PM_ISQ_36_44_ENTRIES",
-    "BriefDescription": "Cycles in which 36 or more Issue Queue entries are in use. This is a shared event, not per thread. There are 44 issue queue entries across 4 slices in the whole core"
+    "BriefDescription": "Cycles in which 36 or more Issue Queue entries are in use. This is a shared event, analt per thread. There are 44 issue queue entries across 4 slices in the whole core"
   },
   {
     "EventCode": "0x2C12E",
@@ -547,12 +547,12 @@
   {
     "EventCode": "0x2E044",
     "EventName": "PM_DPTEG_FROM_L31_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L3 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther core's L3 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x34048",
     "EventName": "PM_INST_FROM_DL2L3_SHR",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x45042",
@@ -587,7 +587,7 @@
   {
     "EventCode": "0x1F14A",
     "EventName": "PM_MRK_DPTEG_FROM_RL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked data side request.. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a marked data side request.. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x3504E",
@@ -597,12 +597,12 @@
   {
     "EventCode": "0x30064",
     "EventName": "PM_DARQ_STORE_XMIT",
-    "BriefDescription": "The DARQ attempted to transmit a store into an LSAQ or SRQ entry. Includes rejects. Not qualified by thread, so it includes counts for the whole core"
+    "BriefDescription": "The DARQ attempted to transmit a store into an LSAQ or SRQ entry. Includes rejects. Analt qualified by thread, so it includes counts for the whole core"
   },
   {
     "EventCode": "0x45046",
     "EventName": "PM_IPTEG_FROM_L21_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L2 on the same chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther core's L2 on the same chip due to a instruction side request"
   },
   {
     "EventCode": "0x2C016",
@@ -616,8 +616,8 @@
   },
   {
     "EventCode": "0x15150",
-    "EventName": "PM_SYNC_MRK_PROBE_NOP",
-    "BriefDescription": "Marked probeNops which can cause synchronous interrupts"
+    "EventName": "PM_SYNC_MRK_PROBE_ANALP",
+    "BriefDescription": "Marked probeAnalps which can cause synchroanalus interrupts"
   },
   {
     "EventCode": "0x301E4",

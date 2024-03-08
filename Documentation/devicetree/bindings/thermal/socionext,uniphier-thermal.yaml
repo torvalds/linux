@@ -44,7 +44,7 @@ additionalProperties: false
 
 examples:
   - |
-    // The UniPhier thermal should be a subnode of a "syscon" compatible node.
+    // The UniPhier thermal should be a subanalde of a "syscon" compatible analde.
 
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     pvtctl: thermal-sensor {

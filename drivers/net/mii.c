@@ -14,8 +14,8 @@
 		to the terms of the GNU General Public License (GPL),
 		incorporated herein by reference.  Drivers based on
 		or derived from this code fall under the GPL and must
-		retain the authorship, copyright and license notice.
-		This file is not a complete program and may only be
+		retain the authorship, copyright and license analtice.
+		This file is analt a complete program and may only be
 		used when the entire operating system is licensed
 		under the GPL.
 
@@ -128,7 +128,7 @@ void mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 
 	mii->full_duplex = ecmd->duplex;
 
-	/* ignore maxtxpkt, maxrxpkt for now */
+	/* iganalre maxtxpkt, maxrxpkt for analw */
 }
 
 /**
@@ -222,7 +222,7 @@ void mii_ethtool_get_link_ksettings(struct mii_if_info *mii,
 	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.lp_advertising,
 						lp_advertising);
 
-	/* ignore maxtxpkt, maxrxpkt for now */
+	/* iganalre maxtxpkt, maxrxpkt for analw */
 }
 
 /**
@@ -254,7 +254,7 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 	if ((speed == SPEED_1000) && (!mii->supports_gmii))
 		return -EINVAL;
 
-	/* ignore supported, maxtxpkt, maxrxpkt */
+	/* iganalre supported, maxtxpkt, maxrxpkt */
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		u32 bmcr, advert, tmp;
@@ -346,7 +346,7 @@ int mii_ethtool_set_link_ksettings(struct mii_if_info *mii,
 	if ((speed == SPEED_1000) && (!mii->supports_gmii))
 		return -EINVAL;
 
-	/* ignore supported, maxtxpkt, maxrxpkt */
+	/* iganalre supported, maxtxpkt, maxrxpkt */
 
 	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		u32 bmcr, advert, tmp;
@@ -496,7 +496,7 @@ void mii_check_link (struct mii_if_info *mii)
  * @ok_to_print: OK to print link up/down messages
  * @init_media: OK to save duplex mode in @mii
  *
- * Returns 1 if the duplex mode changed, 0 if not.
+ * Returns 1 if the duplex mode changed, 0 if analt.
  * If the media type is forced, always returns 0.
  */
 unsigned int mii_check_media (struct mii_if_info *mii,
@@ -511,18 +511,18 @@ unsigned int mii_check_media (struct mii_if_info *mii,
 	old_carrier = netif_carrier_ok(mii->dev) ? 1 : 0;
 	new_carrier = (unsigned int) mii_link_ok(mii);
 
-	/* if carrier state did not change, this is a "bounce",
+	/* if carrier state did analt change, this is a "bounce",
 	 * just exit as everything is already set correctly
 	 */
 	if ((!init_media) && (old_carrier == new_carrier))
-		return 0; /* duplex did not change */
+		return 0; /* duplex did analt change */
 
-	/* no carrier, nothing much to do */
+	/* anal carrier, analthing much to do */
 	if (!new_carrier) {
 		netif_carrier_off(mii->dev);
 		if (ok_to_print)
 			netdev_info(mii->dev, "link down\n");
-		return 0; /* duplex did not change */
+		return 0; /* duplex did analt change */
 	}
 
 	/*
@@ -533,7 +533,7 @@ unsigned int mii_check_media (struct mii_if_info *mii,
 	if (mii->force_media) {
 		if (ok_to_print)
 			netdev_info(mii->dev, "link up\n");
-		return 0; /* duplex did not change */
+		return 0; /* duplex did analt change */
 	}
 
 	/* get MII advertise and LPA values */
@@ -566,7 +566,7 @@ unsigned int mii_check_media (struct mii_if_info *mii,
 		return 1; /* duplex changed */
 	}
 
-	return 0; /* duplex did not change */
+	return 0; /* duplex did analt change */
 }
 
 /**
@@ -574,7 +574,7 @@ unsigned int mii_check_media (struct mii_if_info *mii,
  * @mii_if: the MII interface
  * @mii_data: MII ioctl data structure
  * @cmd: MII ioctl command
- * @duplex_chg_out: pointer to @duplex_changed status if there was no
+ * @duplex_chg_out: pointer to @duplex_changed status if there was anal
  *	ioctl error
  *
  * Returns 0 on success, negative on error.
@@ -627,7 +627,7 @@ int generic_mii_ioctl(struct mii_if_info *mii_if,
 				mii_if->advertising = val;
 				break;
 			default:
-				/* do nothing */
+				/* do analthing */
 				break;
 			}
 		}
@@ -638,7 +638,7 @@ int generic_mii_ioctl(struct mii_if_info *mii_if,
 	}
 
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		break;
 	}
 

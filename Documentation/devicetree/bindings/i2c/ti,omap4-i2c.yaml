@@ -51,16 +51,16 @@ properties:
     description:
       Must be "i2c<n>", n being the instance number (1-based).
       This property is applicable only on legacy platforms mainly omap2/3
-      and ti81xx and should not be used on other platforms.
+      and ti81xx and should analt be used on other platforms.
     $ref: /schemas/types.yaml#/definitions/string
     deprecated: true
 
-# subnode's properties
+# subanalde's properties
 patternProperties:
   "@[0-9a-f]+$":
     type: object
     description:
-      Flash device uses the below defined properties in the subnode.
+      Flash device uses the below defined properties in the subanalde.
 
 required:
   - compatible

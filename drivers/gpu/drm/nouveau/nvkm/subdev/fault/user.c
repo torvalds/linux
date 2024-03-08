@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -37,7 +37,7 @@ nvkm_ufault_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm
 	if (!uevent)
 		return 0;
 	if (argc != sizeof(args->vn))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return nvkm_uevent_add(uevent, &buffer->fault->event, buffer->id,
 			       NVKM_FAULT_BUFFER_EVENT_PENDING, NULL);
@@ -95,7 +95,7 @@ nvkm_ufault_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 	} *args = argv;
 	struct nvkm_fault *fault = device->fault;
 	struct nvkm_fault_buffer *buffer = fault->buffer[fault->func->user.rp];
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
 		args->v0.entries = buffer->entries;

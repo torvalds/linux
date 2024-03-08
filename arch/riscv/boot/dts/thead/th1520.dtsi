@@ -158,7 +158,7 @@
 		interrupt-parent = <&plic>;
 		#address-cells = <2>;
 		#size-cells = <2>;
-		dma-noncoherent;
+		dma-analncoherent;
 		ranges;
 
 		plic: interrupt-controller@ffd8000000 {

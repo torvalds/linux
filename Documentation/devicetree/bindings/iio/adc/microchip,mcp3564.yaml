@@ -10,14 +10,14 @@ maintainers:
   - Marius Cristea <marius.cristea@microchip.com>
 
 description: |
-  Bindings for the Microchip family of 153.6 ksps, Low-Noise 16/24-Bit
+  Bindings for the Microchip family of 153.6 ksps, Low-Analise 16/24-Bit
   Delta-Sigma ADCs with an SPI interface. Datasheet can be found here:
   Datasheet for MCP3561, MCP3562, MCP3564 can be found here:
     https://ww1.microchip.com/downloads/aemDocuments/documents/MSLD/ProductDocuments/DataSheets/MCP3561-2-4-Family-Data-Sheet-DS20006181C.pdf
   Datasheet for MCP3561R, MCP3562R, MCP3564R can be found here:
     https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP3561_2_4R-Data-Sheet-DS200006391C.pdf
   Datasheet for MCP3461, MCP3462, MCP3464 can be found here:
-    https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP3461-2-4-Two-Four-Eight-Channel-153.6-ksps-Low-Noise-16-Bit-Delta-Sigma-ADC-Data-Sheet-20006180D.pdf
+    https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP3461-2-4-Two-Four-Eight-Channel-153.6-ksps-Low-Analise-16-Bit-Delta-Sigma-ADC-Data-Sheet-20006180D.pdf
   Datasheet for MCP3461R, MCP3462R, MCP3464R can be found here:
     https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP3461-2-4R-Family-Data-Sheet-DS20006404C.pdf
 
@@ -54,7 +54,7 @@ properties:
   clocks:
     description:
       Phandle and clock identifier for external sampling clock.
-      If not specified, the internal crystal oscillator will be used.
+      If analt specified, the internal crystal oscillator will be used.
     maxItems: 1
 
   interrupts:
@@ -63,7 +63,7 @@ properties:
 
   drive-open-drain:
     description:
-      Whether to drive the IRQ signal as push-pull (default) or open-drain. Note
+      Whether to drive the IRQ signal as push-pull (default) or open-drain. Analte
       that the device requires this pin to become "high", otherwise it will stop
       converting.
     type: boolean
@@ -73,7 +73,7 @@ properties:
       Some devices have a specific reference voltage supplied on a different
       pin to the other supplies. Needed to be able to establish channel scaling
       unless there is also an internal reference available (e.g. mcp3564r). In
-      case of "r" devices (e. g. mcp3564r), if it does not exists the internal
+      case of "r" devices (e. g. mcp3564r), if it does analt exists the internal
       reference will be used.
 
   microchip,hw-device-address:
@@ -82,7 +82,7 @@ properties:
     maximum: 3
     description:
       The address is set on a per-device basis by fuses in the factory,
-      configured on request. If not requested, the fuses are set for 0x1.
+      configured on request. If analt requested, the fuses are set for 0x1.
       The device address is part of the device markings to avoid
       potential confusion. This address is coded on two bits, so four possible
       addresses are available when multiple devices are present on the same
@@ -128,7 +128,7 @@ required:
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
-  - # External vref, no internal reference
+  - # External vref, anal internal reference
     if:
       properties:
         compatible:

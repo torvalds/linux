@@ -22,12 +22,12 @@ properties:
   reg:
     items:
       - description: DDR Memory Controller registers
-      - description: NOC registers corresponding to DDR Memory Controller
+      - description: ANALC registers corresponding to DDR Memory Controller
 
   reg-names:
     items:
       - const: base
-      - const: noc
+      - const: analc
 
   interrupts:
     maxItems: 1
@@ -50,7 +50,7 @@ examples:
       memory-controller@f6150000 {
         compatible = "xlnx,versal-ddrmc";
         reg = <0x0 0xf6150000 0x0 0x2000>, <0x0 0xf6070000 0x0 0x20000>;
-        reg-names = "base", "noc";
+        reg-names = "base", "analc";
         interrupt-parent = <&gic>;
         interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
       };

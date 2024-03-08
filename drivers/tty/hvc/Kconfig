@@ -74,8 +74,8 @@ config HVC_UDBG
 	select HVC_DRIVER
 	help
 	  This is meant to be used during HW bring up or debugging when
-	  no other console mechanism exist but udbg, to get you a quick
-	  console for userspace. Do NOT enable in production kernels.
+	  anal other console mechanism exist but udbg, to get you a quick
+	  console for userspace. Do ANALT enable in production kernels.
 
 config HVC_DCC
 	bool "ARM JTAG DCC console"
@@ -92,7 +92,7 @@ config HVC_DCC_SERIALIZE_SMP
 	depends on SMP && HVC_DCC
 	help
 	  This is a DEBUG option to serialize all console input and output to CPU 0.
-	  Some external debuggers, do not handle reads/writes from/to DCC on more
+	  Some external debuggers, do analt handle reads/writes from/to DCC on more
 	  than one CPU core. Each core has its own DCC device registers, so when a
 	  CPU core reads or writes from/to DCC, it only accesses its own DCC device.
 	  Since kernel code can run on any CPU core, every time the kernel wants to
@@ -102,21 +102,21 @@ config HVC_DCC_SERIALIZE_SMP
 	  shows the DCC output only from that core's DCC. The result is that
 	  console output is either lost or scattered across windows.
 
-	  Enable this option only if you are sure that you do not need features like
+	  Enable this option only if you are sure that you do analt need features like
 	  CPU hotplug to work. For example, during early chipset bringups without
 	  debug serial console support. If unsure, say N.
 
 config HVC_RISCV_SBI
 	bool "RISC-V SBI console support"
-	depends on RISCV_SBI && NONPORTABLE
+	depends on RISCV_SBI && ANALNPORTABLE
 	select HVC_DRIVER
 	help
 	  This enables support for console output via RISC-V SBI calls, which
-	  is normally used only during boot to output printk.  This driver
-	  conflicts with real console drivers and should not be enabled on
+	  is analrmally used only during boot to output printk.  This driver
+	  conflicts with real console drivers and should analt be enabled on
 	  systems that directly access the console.
 
-	  If you don't know what do to here, say N.
+	  If you don't kanalw what do to here, say N.
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
@@ -124,7 +124,7 @@ config HVCS
 	help
 	  Partitionable IBM Power5 ppc64 machines allow hosting of
 	  firmware virtual consoles from one Linux partition by
-	  another Linux partition.  This driver allows console data
+	  aanalther Linux partition.  This driver allows console data
 	  from Linux partitions to be accessed through TTY device
 	  interfaces in the device tree of a Linux partition running
 	  this driver.

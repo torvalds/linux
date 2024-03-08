@@ -15,7 +15,7 @@
 
 #include "../mtk_vcodec_dec_drv.h"
 
-#define NAL_NON_IDR_SLICE			0x01
+#define NAL_ANALN_IDR_SLICE			0x01
 #define NAL_IDR_SLICE				0x05
 #define NAL_TYPE(value)				((value) & 0x1F)
 
@@ -125,7 +125,7 @@ struct slice_h264_dpb_entry {
 	unsigned long long reference_ts;
 	unsigned short frame_num;
 	unsigned short pic_num;
-	/* Note that field is indicated by v4l2_buffer.field */
+	/* Analte that field is indicated by v4l2_buffer.field */
 	int top_field_order_cnt;
 	int bottom_field_order_cnt;
 	unsigned int flags;

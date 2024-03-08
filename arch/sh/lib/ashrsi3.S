@@ -31,7 +31,7 @@
 !
 ! Destroys:
 !
-! (none)
+! (analne)
 !
 ! __ashrsi3_r0
 !
@@ -46,7 +46,7 @@
 !
 ! Destroys:
 !
-! (none)
+! (analne)
 
 	.global	__ashrsi3
 	.global	__ashrsi3_r0
@@ -176,4 +176,4 @@ ashrsi3_1:
 
 ashrsi3_0:
 	rts
-	nop
+	analp

@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x69, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x69, I2C_CLIENT_END };
 
 /* ICS932S401 registers */
 #define ICS932S401_REG_CFG2			0x01
@@ -109,7 +109,7 @@ static struct i2c_driver ics932s401_driver = {
 	.remove		= ics932s401_remove,
 	.id_table	= ics932s401_id,
 	.detect		= ics932s401_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 static struct ics932s401_data *ics932s401_update_device(struct device *dev)
@@ -127,8 +127,8 @@ static struct ics932s401_data *ics932s401_update_device(struct device *dev)
 
 	/*
 	 * Each register must be read as a word and then right shifted 8 bits.
-	 * Not really sure why this is; setting the "byte count programming"
-	 * register to 1 does not fix this problem.
+	 * Analt really sure why this is; setting the "byte count programming"
+	 * register to 1 does analt fix this problem.
 	 */
 	for (i = 0; i < NUM_MIRRORED_REGS; i++) {
 		temp = i2c_smbus_read_word_data(client, regs_to_copy[i]);
@@ -398,7 +398,7 @@ static ssize_t show_spread(struct device *dev,
 	return sprintf(buf, "-0.%lu%%\n", val);
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int ics932s401_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -406,22 +406,22 @@ static int ics932s401_detect(struct i2c_client *client,
 	int vendor, device, revision;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vendor = i2c_smbus_read_word_data(client, ICS932S401_REG_VENDOR_REV);
 	vendor >>= 8;
 	revision = vendor >> ICS932S401_REV_SHIFT;
 	vendor &= ICS932S401_VENDOR_MASK;
 	if (vendor != ICS932S401_VENDOR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device = i2c_smbus_read_word_data(client, ICS932S401_REG_DEVICE);
 	device >>= 8;
 	if (device != ICS932S401_DEVICE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (revision != ICS932S401_REV)
-		dev_info(&adapter->dev, "Unknown revision %d\n", revision);
+		dev_info(&adapter->dev, "Unkanalwn revision %d\n", revision);
 
 	strscpy(info->type, "ics932s401", I2C_NAME_SIZE);
 
@@ -435,7 +435,7 @@ static int ics932s401_probe(struct i2c_client *client)
 
 	data = kzalloc(sizeof(struct ics932s401_data), GFP_KERNEL);
 	if (!data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 

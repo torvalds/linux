@@ -45,7 +45,7 @@ enum wfx_hif_mib_ids {
 	HIF_MIB_ID_DOT11_RTS_THRESHOLD              = 0x2044,
 	HIF_MIB_ID_SLOT_TIME                        = 0x2045,
 	HIF_MIB_ID_CURRENT_TX_POWER_LEVEL           = 0x2046,
-	HIF_MIB_ID_NON_ERP_PROTECTION               = 0x2047,
+	HIF_MIB_ID_ANALN_ERP_PROTECTION               = 0x2047,
 	HIF_MIB_ID_TEMPLATE_FRAME                   = 0x2048,
 	HIF_MIB_ID_BEACON_WAKEUP_PERIOD             = 0x2049,
 	HIF_MIB_ID_RCPI_RSSI_THRESHOLD              = 0x204A,
@@ -108,7 +108,7 @@ struct wfx_hif_mib_rx_filter {
 struct wfx_hif_ie_table_entry {
 	u8     ie_id;
 	u8     has_changed:1;
-	u8     no_longer:1;
+	u8     anal_longer:1;
 	u8     has_appeared:1;
 	u8     reserved:1;
 	u8     num_match_data:4;
@@ -140,7 +140,7 @@ struct wfx_hif_mib_extended_count_table {
 	__le32 count_rx_frames_failed;
 	__le32 count_drop_decryption;
 	__le32 count_drop_tkip_mic;
-	__le32 count_drop_no_key;
+	__le32 count_drop_anal_key;
 	__le32 count_tx_frames_multicast;
 	__le32 count_tx_frames_success;
 	__le32 count_tx_frames_failed;
@@ -172,7 +172,7 @@ struct wfx_hif_mib_count_table {
 	__le32 count_rx_frames_failed;
 	__le32 count_drop_decryption;
 	__le32 count_drop_tkip_mic;
-	__le32 count_drop_no_key;
+	__le32 count_drop_anal_key;
 	__le32 count_tx_frames_multicast;
 	__le32 count_tx_frames_success;
 	__le32 count_tx_frames_failed;
@@ -212,7 +212,7 @@ struct wfx_hif_mib_current_tx_power_level {
 	__le32 power_level; /* signed value */
 } __packed;
 
-struct wfx_hif_mib_non_erp_protection {
+struct wfx_hif_mib_analn_erp_protection {
 	u8     use_cts_to_self:1;
 	u8     reserved1:7;
 	u8     reserved2[3];
@@ -268,7 +268,7 @@ struct wfx_hif_mib_block_ack_policy {
 } __packed;
 
 enum wfx_hif_mpdu_start_spacing {
-	HIF_MPDU_START_SPACING_NO_RESTRIC = 0x0,
+	HIF_MPDU_START_SPACING_ANAL_RESTRIC = 0x0,
 	HIF_MPDU_START_SPACING_QUARTER    = 0x1,
 	HIF_MPDU_START_SPACING_HALF       = 0x2,
 	HIF_MPDU_START_SPACING_ONE        = 0x3,

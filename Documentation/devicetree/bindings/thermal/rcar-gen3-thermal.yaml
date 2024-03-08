@@ -83,7 +83,7 @@ else:
         - description: TSC3 registers
         - description: TSC4 registers
   if:
-    not:
+    analt:
       properties:
         compatible:
           contains:

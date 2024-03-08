@@ -98,7 +98,7 @@ static int caam_rng_read_one(struct device *jrdev,
 	dst_dma = dma_map_single(jrdev, dst, len, DMA_FROM_DEVICE);
 	if (dma_mapping_error(jrdev, dst_dma)) {
 		dev_err(jrdev, "unable to map destination memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	init_completion(done);
@@ -224,17 +224,17 @@ static int caam_init(struct hwrng *rng)
 	ctx->desc_sync = devm_kzalloc(ctx->ctrldev, CAAM_RNG_DESC_LEN,
 				      GFP_KERNEL);
 	if (!ctx->desc_sync)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->desc_async = devm_kzalloc(ctx->ctrldev, CAAM_RNG_DESC_LEN,
 				       GFP_KERNEL);
 	if (!ctx->desc_async)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (kfifo_alloc(&ctx->fifo, ALIGN(CAAM_RNG_MAX_FIFO_STORE_SIZE,
 					  dma_get_cache_alignment()),
 			GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&ctx->worker, caam_rng_worker);
 
@@ -280,11 +280,11 @@ int caam_rng_init(struct device *ctrldev)
 		return 0;
 
 	if (!devres_open_group(ctrldev, caam_rng_init, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = devm_kzalloc(ctrldev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->ctrldev = ctrldev;
 

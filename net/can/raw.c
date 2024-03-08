@@ -8,28 +8,28 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this analtice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are analt restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -67,7 +67,7 @@ MODULE_ALIAS("can-proto-1");
 
 /* A raw socket has a list of can_filters attached to it, each receiving
  * the CAN frames matching that filter.  If the filter list is empty,
- * no CAN frames will be received by the socket.  The default after
+ * anal CAN frames will be received by the socket.  The default after
  * opening the socket, is to have one filter which receives all frames.
  * The filter list is allocated dynamically with the exception of the
  * list containing only one item.  This common case is optimized by
@@ -86,7 +86,7 @@ struct raw_sock {
 	int ifindex;
 	struct net_device *dev;
 	netdevice_tracker dev_tracker;
-	struct list_head notifier;
+	struct list_head analtifier;
 	int loopback;
 	int recv_own_msgs;
 	int fd_frames;
@@ -99,9 +99,9 @@ struct raw_sock {
 	struct uniqframe __percpu *uniq;
 };
 
-static LIST_HEAD(raw_notifier_list);
-static DEFINE_SPINLOCK(raw_notifier_lock);
-static struct raw_sock *raw_busy_notifier;
+static LIST_HEAD(raw_analtifier_list);
+static DEFINE_SPINLOCK(raw_analtifier_lock);
+static struct raw_sock *raw_busy_analtifier;
 
 /* Return pointer to store the extra msg flags for raw_recvmsg().
  * We use the space of one unsigned int beyond the 'struct sockaddr_can'
@@ -133,7 +133,7 @@ static void raw_rcv(struct sk_buff *oskb, void *data)
 	if (!ro->recv_own_msgs && oskb->sk == sk)
 		return;
 
-	/* make sure to not pass oversized frames to the socket */
+	/* make sure to analt pass oversized frames to the socket */
 	if ((!ro->fd_frames && can_is_canfd_skb(oskb)) ||
 	    (!ro->xl_frames && can_is_canxl_skb(oskb)))
 		return;
@@ -271,7 +271,7 @@ static int raw_enable_allfilters(struct net *net, struct net_device *dev,
 	return err;
 }
 
-static void raw_notify(struct raw_sock *ro, unsigned long msg,
+static void raw_analtify(struct raw_sock *ro, unsigned long msg,
 		       struct net_device *dev)
 {
 	struct sock *sk = &ro->sk;
@@ -300,7 +300,7 @@ static void raw_notify(struct raw_sock *ro, unsigned long msg,
 		ro->count = 0;
 		release_sock(sk);
 
-		sk->sk_err = ENODEV;
+		sk->sk_err = EANALDEV;
 		if (!sock_flag(sk, SOCK_DEAD))
 			sk_error_report(sk);
 		break;
@@ -313,27 +313,27 @@ static void raw_notify(struct raw_sock *ro, unsigned long msg,
 	}
 }
 
-static int raw_notifier(struct notifier_block *nb, unsigned long msg,
+static int raw_analtifier(struct analtifier_block *nb, unsigned long msg,
 			void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	if (dev->type != ARPHRD_CAN)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	if (msg != NETDEV_UNREGISTER && msg != NETDEV_DOWN)
-		return NOTIFY_DONE;
-	if (unlikely(raw_busy_notifier)) /* Check for reentrant bug. */
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
+	if (unlikely(raw_busy_analtifier)) /* Check for reentrant bug. */
+		return ANALTIFY_DONE;
 
-	spin_lock(&raw_notifier_lock);
-	list_for_each_entry(raw_busy_notifier, &raw_notifier_list, notifier) {
-		spin_unlock(&raw_notifier_lock);
-		raw_notify(raw_busy_notifier, msg, dev);
-		spin_lock(&raw_notifier_lock);
+	spin_lock(&raw_analtifier_lock);
+	list_for_each_entry(raw_busy_analtifier, &raw_analtifier_list, analtifier) {
+		spin_unlock(&raw_analtifier_lock);
+		raw_analtify(raw_busy_analtifier, msg, dev);
+		spin_lock(&raw_analtifier_lock);
 	}
-	raw_busy_notifier = NULL;
-	spin_unlock(&raw_notifier_lock);
-	return NOTIFY_DONE;
+	raw_busy_analtifier = NULL;
+	spin_unlock(&raw_analtifier_lock);
+	return ANALTIFY_DONE;
 }
 
 static int raw_init(struct sock *sk)
@@ -360,12 +360,12 @@ static int raw_init(struct sock *sk)
 	/* alloc_percpu provides zero'ed memory */
 	ro->uniq = alloc_percpu(struct uniqframe);
 	if (unlikely(!ro->uniq))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* set notifier */
-	spin_lock(&raw_notifier_lock);
-	list_add_tail(&ro->notifier, &raw_notifier_list);
-	spin_unlock(&raw_notifier_lock);
+	/* set analtifier */
+	spin_lock(&raw_analtifier_lock);
+	list_add_tail(&ro->analtifier, &raw_analtifier_list);
+	spin_unlock(&raw_analtifier_lock);
 
 	return 0;
 }
@@ -380,14 +380,14 @@ static int raw_release(struct socket *sock)
 
 	ro = raw_sk(sk);
 
-	spin_lock(&raw_notifier_lock);
-	while (raw_busy_notifier == ro) {
-		spin_unlock(&raw_notifier_lock);
+	spin_lock(&raw_analtifier_lock);
+	while (raw_busy_analtifier == ro) {
+		spin_unlock(&raw_analtifier_lock);
 		schedule_timeout_uninterruptible(1);
-		spin_lock(&raw_notifier_lock);
+		spin_lock(&raw_analtifier_lock);
 	}
-	list_del(&ro->notifier);
-	spin_unlock(&raw_notifier_lock);
+	list_del(&ro->analtifier);
+	spin_unlock(&raw_analtifier_lock);
 
 	rtnl_lock();
 	lock_sock(sk);
@@ -430,7 +430,7 @@ static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 	struct net_device *dev = NULL;
 	int ifindex;
 	int err = 0;
-	int notify_enetdown = 0;
+	int analtify_enetdown = 0;
 
 	if (len < RAW_MIN_NAMELEN)
 		return -EINVAL;
@@ -446,16 +446,16 @@ static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 	if (addr->can_ifindex) {
 		dev = dev_get_by_index(sock_net(sk), addr->can_ifindex);
 		if (!dev) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out;
 		}
 		if (dev->type != ARPHRD_CAN) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out_put_dev;
 		}
 
 		if (!(dev->flags & IFF_UP))
-			notify_enetdown = 1;
+			analtify_enetdown = 1;
 
 		ifindex = dev->ifindex;
 
@@ -498,7 +498,7 @@ out:
 	release_sock(sk);
 	rtnl_unlock();
 
-	if (notify_enetdown) {
+	if (analtify_enetdown) {
 		sk->sk_err = ENETDOWN;
 		if (!sock_flag(sk, SOCK_DEAD))
 			sk_error_report(sk);
@@ -515,7 +515,7 @@ static int raw_getname(struct socket *sock, struct sockaddr *uaddr,
 	struct raw_sock *ro = raw_sk(sk);
 
 	if (peer)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(addr, 0, RAW_MIN_NAMELEN);
 	addr->can_family  = AF_CAN;
@@ -551,7 +551,7 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 		count = optlen / sizeof(struct can_filter);
 
 		if (count > 1) {
-			/* filter does not fit into dfilter => alloc space */
+			/* filter does analt fit into dfilter => alloc space */
 			filter = memdup_sockptr(optval, optlen);
 			if (IS_ERR(filter))
 				return PTR_ERR(filter);
@@ -568,7 +568,7 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 			if (dev->reg_state != NETREG_REGISTERED) {
 				if (count > 1)
 					kfree(filter);
-				err = -ENODEV;
+				err = -EANALDEV;
 				goto out_fil;
 			}
 		}
@@ -626,7 +626,7 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 		dev = ro->dev;
 		if (ro->bound && dev) {
 			if (dev->reg_state != NETREG_REGISTERED) {
-				err = -ENODEV;
+				err = -EANALDEV;
 				goto out_err;
 			}
 		}
@@ -708,7 +708,7 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 	return err;
 }
@@ -793,7 +793,7 @@ static int raw_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	if (put_user(len, optlen))
@@ -805,7 +805,7 @@ static int raw_getsockopt(struct socket *sock, int level, int optname,
 
 static bool raw_bad_txframe(struct raw_sock *ro, struct sk_buff *skb, int mtu)
 {
-	/* Classical CAN -> no checks for flags and device capabilities */
+	/* Classical CAN -> anal checks for flags and device capabilities */
 	if (can_is_can_skb(skb))
 		return false;
 
@@ -945,31 +945,31 @@ static int raw_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	return size;
 }
 
-static int raw_sock_no_ioctlcmd(struct socket *sock, unsigned int cmd,
+static int raw_sock_anal_ioctlcmd(struct socket *sock, unsigned int cmd,
 				unsigned long arg)
 {
-	/* no ioctls for socket layer -> hand it down to NIC layer */
-	return -ENOIOCTLCMD;
+	/* anal ioctls for socket layer -> hand it down to NIC layer */
+	return -EANALIOCTLCMD;
 }
 
 static const struct proto_ops raw_ops = {
 	.family        = PF_CAN,
 	.release       = raw_release,
 	.bind          = raw_bind,
-	.connect       = sock_no_connect,
-	.socketpair    = sock_no_socketpair,
-	.accept        = sock_no_accept,
+	.connect       = sock_anal_connect,
+	.socketpair    = sock_anal_socketpair,
+	.accept        = sock_anal_accept,
 	.getname       = raw_getname,
 	.poll          = datagram_poll,
-	.ioctl         = raw_sock_no_ioctlcmd,
+	.ioctl         = raw_sock_anal_ioctlcmd,
 	.gettstamp     = sock_gettstamp,
-	.listen        = sock_no_listen,
-	.shutdown      = sock_no_shutdown,
+	.listen        = sock_anal_listen,
+	.shutdown      = sock_anal_shutdown,
 	.setsockopt    = raw_setsockopt,
 	.getsockopt    = raw_getsockopt,
 	.sendmsg       = raw_sendmsg,
 	.recvmsg       = raw_recvmsg,
-	.mmap          = sock_no_mmap,
+	.mmap          = sock_anal_mmap,
 };
 
 static struct proto raw_proto __read_mostly = {
@@ -986,8 +986,8 @@ static const struct can_proto raw_can_proto = {
 	.prot       = &raw_proto,
 };
 
-static struct notifier_block canraw_notifier = {
-	.notifier_call = raw_notifier
+static struct analtifier_block canraw_analtifier = {
+	.analtifier_call = raw_analtifier
 };
 
 static __init int raw_module_init(void)
@@ -996,7 +996,7 @@ static __init int raw_module_init(void)
 
 	pr_info("can: raw protocol\n");
 
-	err = register_netdevice_notifier(&canraw_notifier);
+	err = register_netdevice_analtifier(&canraw_analtifier);
 	if (err)
 		return err;
 
@@ -1009,14 +1009,14 @@ static __init int raw_module_init(void)
 	return 0;
 
 register_proto_failed:
-	unregister_netdevice_notifier(&canraw_notifier);
+	unregister_netdevice_analtifier(&canraw_analtifier);
 	return err;
 }
 
 static __exit void raw_module_exit(void)
 {
 	can_proto_unregister(&raw_can_proto);
-	unregister_netdevice_notifier(&canraw_notifier);
+	unregister_netdevice_analtifier(&canraw_analtifier);
 }
 
 module_init(raw_module_init);

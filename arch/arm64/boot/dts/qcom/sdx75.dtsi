@@ -2,7 +2,7 @@
 /*
  * SDX75 SoC device tree source
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  *
  */
 
@@ -269,139 +269,139 @@
 
 		gunyah_hyp_mem: gunyah-hyp@80000000 {
 			reg = <0x0 0x80000000 0x0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		hyp_elf_package_mem: hyp-elf-package@80800000 {
 			reg = <0x0 0x80800000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		access_control_db_mem: access-control-db@81380000 {
 			reg = <0x0 0x81380000 0x0 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		qteetz_mem: qteetz@814e0000 {
 			reg = <0x0 0x814e0000 0x0 0x2a0000>;
-			no-map;
+			anal-map;
 		};
 
 		trusted_apps_mem: trusted-apps@81780000 {
 			reg = <0x0 0x81780000 0x0 0xa00000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_ramdump_mem: xbl-ramdump@87a00000 {
 			reg = <0x0 0x87a00000 0x0 0x1c0000>;
-			no-map;
+			anal-map;
 		};
 
 		cpucp_fw_mem: cpucp-fw@87c00000 {
 			reg = <0x0 0x87c00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_dtlog_mem: xbl-dtlog@87d00000 {
 			reg = <0x0 0x87d00000 0x0 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_sc_mem: xbl-sc@87d40000 {
 			reg = <0x0 0x87d40000 0x0 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		modem_efs_shared_mem: modem-efs-shared@87d80000 {
 			reg = <0x0 0x87d80000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_image_mem: aop-image@87e00000 {
 			reg = <0x0 0x87e00000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: smem@87e20000 {
 			reg = <0x0 0x87e20000 0x0 0xc0000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_cmd_db_mem: aop-cmd-db@87ee0000 {
 			compatible = "qcom,cmd-db";
 			reg = <0x0 0x87ee0000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_config_mem: aop-config@87f00000 {
 			reg = <0x0 0x87f00000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: ipa-fw@87f20000 {
 			reg = <0x0 0x87f20000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		secdata_mem: secdata@87f30000 {
 			reg = <0x0 0x87f30000 0x0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		tme_crashdump_mem: tme-crashdump@87f31000 {
 			reg = <0x0 0x87f31000 0x0 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		tme_log_mem: tme-log@87f71000 {
 			reg = <0x0 0x87f71000 0x0 0x4000>;
-			no-map;
+			anal-map;
 		};
 
 		uefi_log_mem: uefi-log@87f75000 {
 			reg = <0x0 0x87f75000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		qdss_mem: qdss@88800000 {
 			reg = <0x0 0x88800000 0x0 0x300000>;
-			no-map;
+			anal-map;
 		};
 
 		audio_heap_mem: audio-heap@88b00000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x88b00000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_dsmharq_mem: mpss-dsmharq@88f00000 {
 			reg = <0x0 0x88f00000 0x0 0x5080000>;
-			no-map;
+			anal-map;
 		};
 
 		q6_mpss_dtb_mem: q6-mpss-dtb@8df80000 {
 			reg = <0x0 0x8df80000 0x0 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		mpssadsp_mem: mpssadsp@8e000000 {
 			reg = <0x0 0x8e000000 0x0 0xf400000>;
-			no-map;
+			anal-map;
 		};
 
 		gunyah_trace_buffer_mem: gunyah-trace-buffer@bdb00000 {
 			reg = <0x0 0xbdb00000 0x0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		smmu_debug_buf_mem: smmu-debug-buf@bfb00000 {
 			reg = <0x0 0xbfb00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		hyp_smmu_s2_pt_mem: hyp-smmu-s2-pt@bfc00000 {
 			reg = <0x0 0xbfc00000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -464,8 +464,8 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &system_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>;
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &system_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config";
 				interrupts = <GIC_SPI 338 IRQ_TYPE_LEVEL_HIGH>;
@@ -518,15 +518,15 @@
 			status = "disabled";
 		};
 
-		system_noc: interconnect@1640000 {
-			compatible = "qcom,sdx75-system-noc";
+		system_analc: interconnect@1640000 {
+			compatible = "qcom,sdx75-system-analc";
 			reg = <0x0 0x01640000 0x0 0x4b400>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		pcie_anoc: interconnect@16c0000 {
-			compatible = "qcom,sdx75-pcie-anoc";
+		pcie_aanalc: interconnect@16c0000 {
+			compatible = "qcom,sdx75-pcie-aanalc";
 			reg = <0x0 0x016c0000 0x0 0x14200>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -550,7 +550,7 @@
 				 <&gcc GCC_USB30_MSTR_AXI_CLK>,
 				 <&gcc GCC_USB30_SLEEP_CLK>,
 				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -573,10 +573,10 @@
 
 			resets = <&gcc GCC_USB30_BCR>;
 
-			interconnects = <&system_noc MASTER_USB3_0 QCOM_ICC_TAG_ALWAYS
+			interconnects = <&system_analc MASTER_USB3_0 QCOM_ICC_TAG_ALWAYS
 					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
-					<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-					 &system_noc SLAVE_USB3 QCOM_ICC_TAG_ALWAYS>;
+					<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+					 &system_analc SLAVE_USB3 QCOM_ICC_TAG_ALWAYS>;
 			interconnect-names = "usb-ddr",
 					     "apps-usb";
 
@@ -853,16 +853,16 @@
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 					};
 
-					rpmhpd_opp_nom: opp-256 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					rpmhpd_opp_analm: opp-256 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					};
 
-					rpmhpd_opp_nom_l1: opp-320 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					rpmhpd_opp_analm_l1: opp-320 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					};
 
-					rpmhpd_opp_nom_l2: opp-336 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+					rpmhpd_opp_analm_l2: opp-336 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L2>;
 					};
 
 					rpmhpd_opp_turbo: opp-384 {
@@ -890,15 +890,15 @@
 			#clock-cells = <1>;
 		};
 
-		dc_noc: interconnect@190e0000 {
-			compatible = "qcom,sdx75-dc-noc";
+		dc_analc: interconnect@190e0000 {
+			compatible = "qcom,sdx75-dc-analc";
 			reg = <0x0 0x190e0000 0x0 0x8200>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		gem_noc: interconnect@19100000 {
-			compatible = "qcom,sdx75-gem-noc";
+		gem_analc: interconnect@19100000 {
+			compatible = "qcom,sdx75-gem-analc";
 			reg = <0x0 0x19100000 0x0 0x34080>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;

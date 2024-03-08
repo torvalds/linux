@@ -27,7 +27,7 @@ properties:
           The multiplexer for clock input of the bus.
       - description:
           A parent of "bus" clock which is used as an intermediate clock source
-          when the original clock source (PLL) is under transition and not
+          when the original clock source (PLL) is under transition and analt
           stable yet.
 
   clock-names:
@@ -49,7 +49,7 @@ properties:
       voltage. When it is present, the implementation needs to do
       "voltage tracking" to step by step scale up/down Vproc and Vsram to fit
       SoC specific needs. When absent, the voltage scaling flow is handled by
-      hardware, hence no software "voltage tracking" is needed.
+      hardware, hence anal software "voltage tracking" is needed.
 
 required:
   - compatible

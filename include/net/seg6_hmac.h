@@ -23,7 +23,7 @@
 #define SEG6_HMAC_RING_SIZE		256
 
 struct seg6_hmac_info {
-	struct rhash_head node;
+	struct rhash_head analde;
 	struct rcu_head rcu;
 
 	u32 hmackeyid;

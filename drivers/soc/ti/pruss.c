@@ -27,11 +27,11 @@
 
 /**
  * struct pruss_private_data - PRUSS driver private data
- * @has_no_sharedram: flag to indicate the absence of PRUSS Shared Data RAM
+ * @has_anal_sharedram: flag to indicate the absence of PRUSS Shared Data RAM
  * @has_core_mux_clock: flag to indicate the presence of PRUSS core clock
  */
 struct pruss_private_data {
-	bool has_no_sharedram;
+	bool has_anal_sharedram;
 	bool has_core_mux_clock;
 };
 
@@ -44,14 +44,14 @@ struct pruss_private_data {
  * so always use pruss_put() to decrement it back once pruss isn't needed
  * anymore.
  *
- * This API doesn't check if @rproc is valid or not. It is expected the caller
+ * This API doesn't check if @rproc is valid or analt. It is expected the caller
  * will have done a pru_rproc_get() on @rproc, before calling this API to make
  * sure that @rproc is valid.
  *
  * Return: pruss handle on success, and an ERR_PTR on failure using one
  * of the following error values
  *    -EINVAL if invalid parameter
- *    -ENODEV if PRU device or PRUSS device is not found
+ *    -EANALDEV if PRU device or PRUSS device is analt found
  */
 struct pruss *pruss_get(struct rproc *rproc)
 {
@@ -66,12 +66,12 @@ struct pruss *pruss_get(struct rproc *rproc)
 
 	/* make sure it is PRU rproc */
 	if (!dev->parent || !is_pru_rproc(dev->parent))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	ppdev = to_platform_device(dev->parent->parent);
 	pruss = platform_get_drvdata(ppdev);
 	if (!pruss)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	get_device(pruss->dev);
 
@@ -288,10 +288,10 @@ EXPORT_SYMBOL_GPL(pruss_cfg_xfr_enable);
 
 static void pruss_of_free_clk_provider(void *data)
 {
-	struct device_node *clk_mux_np = data;
+	struct device_analde *clk_mux_np = data;
 
 	of_clk_del_provider(clk_mux_np);
-	of_node_put(clk_mux_np);
+	of_analde_put(clk_mux_np);
 }
 
 static void pruss_clk_unregister_mux(void *data)
@@ -300,9 +300,9 @@ static void pruss_clk_unregister_mux(void *data)
 }
 
 static int pruss_clk_mux_setup(struct pruss *pruss, struct clk *clk_mux,
-			       char *mux_name, struct device_node *clks_np)
+			       char *mux_name, struct device_analde *clks_np)
 {
-	struct device_node *clk_mux_np;
+	struct device_analde *clk_mux_np;
 	struct device *dev = pruss->dev;
 	char *clk_mux_name;
 	unsigned int num_parents;
@@ -313,9 +313,9 @@ static int pruss_clk_mux_setup(struct pruss *pruss, struct clk *clk_mux,
 
 	clk_mux_np = of_get_child_by_name(clks_np, mux_name);
 	if (!clk_mux_np) {
-		dev_err(dev, "%pOF is missing its '%s' node\n", clks_np,
+		dev_err(dev, "%pOF is missing its '%s' analde\n", clks_np,
 			mux_name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	num_parents = of_clk_get_parent_count(clk_mux_np);
@@ -328,7 +328,7 @@ static int pruss_clk_mux_setup(struct pruss *pruss, struct clk *clk_mux,
 	parent_names = devm_kcalloc(dev, sizeof(*parent_names), num_parents,
 				    GFP_KERNEL);
 	if (!parent_names) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_clk_mux_np;
 	}
 
@@ -337,7 +337,7 @@ static int pruss_clk_mux_setup(struct pruss *pruss, struct clk *clk_mux,
 	clk_mux_name = devm_kasprintf(dev, GFP_KERNEL, "%s.%pOFn",
 				      dev_name(dev), clk_mux_np);
 	if (!clk_mux_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_clk_mux_np;
 	}
 
@@ -374,23 +374,23 @@ static int pruss_clk_mux_setup(struct pruss *pruss, struct clk *clk_mux,
 	return 0;
 
 put_clk_mux_np:
-	of_node_put(clk_mux_np);
+	of_analde_put(clk_mux_np);
 	return ret;
 }
 
-static int pruss_clk_init(struct pruss *pruss, struct device_node *cfg_node)
+static int pruss_clk_init(struct pruss *pruss, struct device_analde *cfg_analde)
 {
 	const struct pruss_private_data *data;
-	struct device_node *clks_np;
+	struct device_analde *clks_np;
 	struct device *dev = pruss->dev;
 	int ret = 0;
 
 	data = of_device_get_match_data(dev);
 
-	clks_np = of_get_child_by_name(cfg_node, "clocks");
+	clks_np = of_get_child_by_name(cfg_analde, "clocks");
 	if (!clks_np) {
-		dev_err(dev, "%pOF is missing its 'clocks' node\n", cfg_node);
-		return -ENODEV;
+		dev_err(dev, "%pOF is missing its 'clocks' analde\n", cfg_analde);
+		return -EANALDEV;
 	}
 
 	if (data && data->has_core_mux_clock) {
@@ -398,7 +398,7 @@ static int pruss_clk_init(struct pruss *pruss, struct device_node *cfg_node)
 					  "coreclk-mux", clks_np);
 		if (ret) {
 			dev_err(dev, "failed to setup coreclk-mux\n");
-			goto put_clks_node;
+			goto put_clks_analde;
 		}
 	}
 
@@ -406,11 +406,11 @@ static int pruss_clk_init(struct pruss *pruss, struct device_node *cfg_node)
 				  clks_np);
 	if (ret) {
 		dev_err(dev, "failed to setup iepclk-mux\n");
-		goto put_clks_node;
+		goto put_clks_analde;
 	}
 
-put_clks_node:
-	of_node_put(clks_np);
+put_clks_analde:
+	of_analde_put(clks_np);
 
 	return ret;
 }
@@ -423,26 +423,26 @@ static struct regmap_config regmap_conf = {
 
 static int pruss_cfg_of_init(struct device *dev, struct pruss *pruss)
 {
-	struct device_node *np = dev_of_node(dev);
-	struct device_node *child;
+	struct device_analde *np = dev_of_analde(dev);
+	struct device_analde *child;
 	struct resource res;
 	int ret;
 
 	child = of_get_child_by_name(np, "cfg");
 	if (!child) {
-		dev_err(dev, "%pOF is missing its 'cfg' node\n", child);
-		return -ENODEV;
+		dev_err(dev, "%pOF is missing its 'cfg' analde\n", child);
+		return -EANALDEV;
 	}
 
 	if (of_address_to_resource(child, 0, &res)) {
-		ret = -ENOMEM;
-		goto node_put;
+		ret = -EANALMEM;
+		goto analde_put;
 	}
 
 	pruss->cfg_base = devm_ioremap(dev, res.start, resource_size(&res));
 	if (!pruss->cfg_base) {
-		ret = -ENOMEM;
-		goto node_put;
+		ret = -EANALMEM;
+		goto analde_put;
 	}
 
 	regmap_conf.name = kasprintf(GFP_KERNEL, "%pOFn@%llx", child,
@@ -456,23 +456,23 @@ static int pruss_cfg_of_init(struct device *dev, struct pruss *pruss)
 		dev_err(dev, "regmap_init_mmio failed for cfg, ret = %ld\n",
 			PTR_ERR(pruss->cfg_regmap));
 		ret = PTR_ERR(pruss->cfg_regmap);
-		goto node_put;
+		goto analde_put;
 	}
 
 	ret = pruss_clk_init(pruss, child);
 	if (ret)
 		dev_err(dev, "pruss_clk_init failed, ret = %d\n", ret);
 
-node_put:
-	of_node_put(child);
+analde_put:
+	of_analde_put(child);
 	return ret;
 }
 
 static int pruss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev);
-	struct device_node *child;
+	struct device_analde *np = dev_of_analde(dev);
+	struct device_analde *child;
 	struct pruss *pruss;
 	struct resource res;
 	int ret, i, index;
@@ -489,15 +489,15 @@ static int pruss_probe(struct platform_device *pdev)
 
 	pruss = devm_kzalloc(dev, sizeof(*pruss), GFP_KERNEL);
 	if (!pruss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pruss->dev = dev;
 	mutex_init(&pruss->lock);
 
 	child = of_get_child_by_name(np, "memories");
 	if (!child) {
-		dev_err(dev, "%pOF is missing its 'memories' node\n", child);
-		return -ENODEV;
+		dev_err(dev, "%pOF is missing its 'memories' analde\n", child);
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < PRUSS_MEM_MAX; i++) {
@@ -505,18 +505,18 @@ static int pruss_probe(struct platform_device *pdev)
 		 * On AM437x one of two PRUSS units don't contain Shared RAM,
 		 * skip it
 		 */
-		if (data && data->has_no_sharedram && i == PRUSS_MEM_SHRD_RAM2)
+		if (data && data->has_anal_sharedram && i == PRUSS_MEM_SHRD_RAM2)
 			continue;
 
 		index = of_property_match_string(child, "reg-names",
 						 mem_names[i]);
 		if (index < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			return index;
 		}
 
 		if (of_address_to_resource(child, index, &res)) {
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
@@ -525,8 +525,8 @@ static int pruss_probe(struct platform_device *pdev)
 		if (!pruss->mem_regions[i].va) {
 			dev_err(dev, "failed to parse and map memory resource %d %s\n",
 				i, mem_names[i]);
-			of_node_put(child);
-			return -ENOMEM;
+			of_analde_put(child);
+			return -EANALMEM;
 		}
 		pruss->mem_regions[i].pa = res.start;
 		pruss->mem_regions[i].size = resource_size(&res);
@@ -535,7 +535,7 @@ static int pruss_probe(struct platform_device *pdev)
 			mem_names[i], &pruss->mem_regions[i].pa,
 			pruss->mem_regions[i].size, pruss->mem_regions[i].va);
 	}
-	of_node_put(child);
+	of_analde_put(child);
 
 	platform_set_drvdata(pdev, pruss);
 
@@ -577,11 +577,11 @@ static void pruss_remove(struct platform_device *pdev)
 
 /* instance-specific driver private data */
 static const struct pruss_private_data am437x_pruss1_data = {
-	.has_no_sharedram = false,
+	.has_anal_sharedram = false,
 };
 
 static const struct pruss_private_data am437x_pruss0_data = {
-	.has_no_sharedram = true,
+	.has_anal_sharedram = true,
 };
 
 static const struct pruss_private_data am65x_j721e_pruss_data = {

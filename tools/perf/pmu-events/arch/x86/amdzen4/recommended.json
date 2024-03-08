@@ -1,7 +1,7 @@
 [
   {
     "MetricName": "branch_misprediction_ratio",
-    "BriefDescription": "Execution-time branch misprediction ratio (non-speculative).",
+    "BriefDescription": "Execution-time branch misprediction ratio (analn-speculative).",
     "MetricExpr": "d_ratio(ex_ret_brn_misp, ex_ret_brn)",
     "MetricGroup": "branch_prediction",
     "ScaleUnit": "100%"
@@ -15,7 +15,7 @@
   {
     "MetricName": "all_l2_cache_accesses",
     "BriefDescription": "All L2 cache accesses.",
-    "MetricExpr": "l2_request_g1.all_no_prefetch + l2_pf_hit_l2.all + l2_pf_miss_l2_hit_l3.all + l2_pf_miss_l2_l3.all",
+    "MetricExpr": "l2_request_g1.all_anal_prefetch + l2_pf_hit_l2.all + l2_pf_miss_l2_hit_l3.all + l2_pf_miss_l2_l3.all",
     "MetricGroup": "l2_cache"
   },
   {
@@ -111,19 +111,19 @@
   },
   {
     "MetricName": "ic_fetch_miss_ratio",
-    "BriefDescription": "Instruction cache miss ratio for all fetches. An instruction cache miss will not be counted by this metric if it is an OC hit.",
+    "BriefDescription": "Instruction cache miss ratio for all fetches. An instruction cache miss will analt be counted by this metric if it is an OC hit.",
     "MetricExpr": "d_ratio(ic_tag_hit_miss.instruction_cache_miss, ic_tag_hit_miss.all_instruction_cache_accesses)",
     "ScaleUnit": "100%"
   },
   {
     "MetricName": "l1_data_cache_fills_from_memory",
-    "BriefDescription": "L1 data cache fills from DRAM or MMIO in any NUMA node.",
+    "BriefDescription": "L1 data cache fills from DRAM or MMIO in any NUMA analde.",
     "MetricExpr": "ls_any_fills_from_sys.dram_io_all",
     "MetricGroup": "l1_dcache"
   },
   {
-    "MetricName": "l1_data_cache_fills_from_remote_node",
-    "BriefDescription": "L1 data cache fills from a different NUMA node.",
+    "MetricName": "l1_data_cache_fills_from_remote_analde",
+    "BriefDescription": "L1 data cache fills from a different NUMA analde.",
     "MetricExpr": "ls_any_fills_from_sys.far_all",
     "MetricGroup": "l1_dcache"
   },
@@ -135,7 +135,7 @@
   },
   {
     "MetricName": "l1_data_cache_fills_from_different_ccx",
-    "BriefDescription": "L1 data cache fills from another CCX cache in any NUMA node.",
+    "BriefDescription": "L1 data cache fills from aanalther CCX cache in any NUMA analde.",
     "MetricExpr": "ls_any_fills_from_sys.remote_cache",
     "MetricGroup": "l1_dcache"
   },
@@ -159,25 +159,25 @@
   },
   {
     "MetricName": "l1_demand_data_cache_fills_from_near_cache",
-    "BriefDescription": "L1 demand data cache fills from another CCX cache in the same NUMA node.",
+    "BriefDescription": "L1 demand data cache fills from aanalther CCX cache in the same NUMA analde.",
     "MetricExpr": "ls_dmnd_fills_from_sys.near_cache",
     "MetricGroup": "l1_dcache"
   },
   {
     "MetricName": "l1_demand_data_cache_fills_from_near_memory",
-    "BriefDescription": "L1 demand data cache fills from DRAM or MMIO in the same NUMA node.",
+    "BriefDescription": "L1 demand data cache fills from DRAM or MMIO in the same NUMA analde.",
     "MetricExpr": "ls_dmnd_fills_from_sys.dram_io_near",
     "MetricGroup": "l1_dcache"
   },
   {
     "MetricName": "l1_demand_data_cache_fills_from_far_cache",
-    "BriefDescription": "L1 demand data cache fills from another CCX cache in a different NUMA node.",
+    "BriefDescription": "L1 demand data cache fills from aanalther CCX cache in a different NUMA analde.",
     "MetricExpr": "ls_dmnd_fills_from_sys.far_cache",
     "MetricGroup": "l1_dcache"
   },
   {
     "MetricName": "l1_demand_data_cache_fills_from_far_memory",
-    "BriefDescription": "L1 demand data cache fills from DRAM or MMIO in a different NUMA node.",
+    "BriefDescription": "L1 demand data cache fills from DRAM or MMIO in a different NUMA analde.",
     "MetricExpr": "ls_dmnd_fills_from_sys.dram_io_far",
     "MetricGroup": "l1_dcache"
   },

@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -98,7 +98,7 @@ static int make_parent_dir(const char *path)
 	strncpy(tmp, path, sizeof(tmp));
 	tmp[sizeof(tmp) - 1] = 0;
 
-	/* Remove the base name. Just return if nothing is left */
+	/* Remove the base name. Just return if analthing is left */
 	p = strrchr(tmp, '/');
 	if (!p)
 		return 0;
@@ -153,7 +153,7 @@ static void conf_message(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 static const char *conf_filename;
-static int conf_lineno, conf_warnings;
+static int conf_lineanal, conf_warnings;
 
 bool conf_errors(void)
 {
@@ -166,7 +166,7 @@ static void conf_warning(const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	fprintf(stderr, "%s:%d:warning: ", conf_filename, conf_lineno);
+	fprintf(stderr, "%s:%d:warning: ", conf_filename, conf_lineanal);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -244,12 +244,12 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 		/* fall through */
 	case S_BOOLEAN:
 		if (p[0] == 'y') {
-			sym->def[def].tri = yes;
+			sym->def[def].tri = anal;
 			sym->flags |= def_flags;
 			break;
 		}
 		if (p[0] == 'n') {
-			sym->def[def].tri = no;
+			sym->def[def].tri = anal;
 			sym->flags |= def_flags;
 			break;
 		}
@@ -258,7 +258,7 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 				     p, sym->name);
 		return 1;
 	case S_STRING:
-		/* No escaping for S_DEF_AUTO (include/config/auto.conf) */
+		/* Anal escaping for S_DEF_AUTO (include/config/auto.conf) */
 		if (def != S_DEF_AUTO) {
 			if (*p++ != '"')
 				break;
@@ -372,9 +372,9 @@ int conf_read_simple(const char *name, int def)
 	char *p, *val;
 	struct symbol *sym;
 	int i, def_flags;
-	const char *warn_unknown, *sym_name;
+	const char *warn_unkanalwn, *sym_name;
 
-	warn_unknown = getenv("KCONFIG_WARN_UNKNOWN_SYMBOLS");
+	warn_unkanalwn = getenv("KCONFIG_WARN_UNKANALWN_SYMBOLS");
 	if (name) {
 		in = zconf_fopen(name);
 	} else {
@@ -425,7 +425,7 @@ int conf_read_simple(const char *name, int def)
 
 load:
 	conf_filename = name;
-	conf_lineno = 0;
+	conf_lineanal = 0;
 	conf_warnings = 0;
 
 	def_flags = SYMBOL_DEF << def;
@@ -442,12 +442,12 @@ load:
 			/* fall through */
 		default:
 			sym->def[def].val = NULL;
-			sym->def[def].tri = no;
+			sym->def[def].tri = anal;
 		}
 	}
 
 	while (getline_stripped(&line, &line_asize, in) != -1) {
-		conf_lineno++;
+		conf_lineanal++;
 
 		if (!line[0]) /* blank line */
 			continue;
@@ -463,7 +463,7 @@ load:
 			if (!p)
 				continue;
 			*p++ = 0;
-			if (strcmp(p, "is not set"))
+			if (strcmp(p, "is analt set"))
 				continue;
 
 			val = "n";
@@ -489,13 +489,13 @@ load:
 				/*
 				 * Reading from include/config/auto.conf.
 				 * If CONFIG_FOO previously existed in auto.conf
-				 * but it is missing now, include/config/FOO
+				 * but it is missing analw, include/config/FOO
 				 * must be touched.
 				 */
 				conf_touch_dep(sym_name);
 			} else {
-				if (warn_unknown)
-					conf_warning("unknown symbol: %s", sym_name);
+				if (warn_unkanalwn)
+					conf_warning("unkanalwn symbol: %s", sym_name);
 
 				conf_set_changed(true);
 			}
@@ -511,16 +511,16 @@ load:
 		if (sym && sym_is_choice_value(sym)) {
 			struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
 			switch (sym->def[def].tri) {
-			case no:
+			case anal:
 				break;
 			case mod:
-				if (cs->def[def].tri == yes) {
+				if (cs->def[def].tri == anal) {
 					conf_warning("%s creates inconsistent choice state", sym->name);
 					cs->flags &= ~def_flags;
 				}
 				break;
-			case yes:
-				if (cs->def[def].tri != no)
+			case anal:
+				if (cs->def[def].tri != anal)
 					conf_warning("override: %s changes choice state", sym->name);
 				cs->def[def].val = sym;
 				break;
@@ -551,7 +551,7 @@ int conf_read(const char *name)
 
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
-		if (sym_is_choice(sym) || (sym->flags & SYMBOL_NO_WRITE))
+		if (sym_is_choice(sym) || (sym->flags & SYMBOL_ANAL_WRITE))
 			continue;
 		if (sym_has_value(sym) && (sym->flags & SYMBOL_WRITE)) {
 			/* check that calculated value agrees with saved value */
@@ -567,7 +567,7 @@ int conf_read(const char *name)
 				break;
 			}
 		} else if (!sym_has_value(sym) && !(sym->flags & SYMBOL_WRITE))
-			/* no previous value and not saved */
+			/* anal previous value and analt saved */
 			continue;
 		conf_unsaved++;
 		/* maybe print value in verbose mode... */
@@ -580,7 +580,7 @@ int conf_read(const char *name)
 			 * doesn't quite work if the Kconfig and the saved
 			 * configuration disagree.
 			 */
-			if (sym->visible == no && !conf_unsaved)
+			if (sym->visible == anal && !conf_unsaved)
 				sym->flags &= ~SYMBOL_DEF_USER;
 			switch (sym->type) {
 			case S_STRING:
@@ -629,7 +629,7 @@ static void conf_write_heading(FILE *fp, const struct comment_style *cs)
 
 	fprintf(fp, "%s\n", cs->prefix);
 
-	fprintf(fp, "%s Automatically generated file; DO NOT EDIT.\n",
+	fprintf(fp, "%s Automatically generated file; DO ANALT EDIT.\n",
 		cs->decoration);
 
 	fprintf(fp, "%s %s\n", cs->decoration, rootmenu.prompt->text);
@@ -680,7 +680,7 @@ static char *escape_string_value(const char *in)
 	return out;
 }
 
-enum output_n { OUTPUT_N, OUTPUT_N_AS_UNSET, OUTPUT_N_NONE };
+enum output_n { OUTPUT_N, OUTPUT_N_AS_UNSET, OUTPUT_N_ANALNE };
 
 static void __print_symbol(FILE *fp, struct symbol *sym, enum output_n output_n,
 			   bool escape_string)
@@ -688,7 +688,7 @@ static void __print_symbol(FILE *fp, struct symbol *sym, enum output_n output_n,
 	const char *val;
 	char *escaped = NULL;
 
-	if (sym->type == S_UNKNOWN)
+	if (sym->type == S_UNKANALWN)
 		return;
 
 	val = sym_get_string_value(sym);
@@ -696,7 +696,7 @@ static void __print_symbol(FILE *fp, struct symbol *sym, enum output_n output_n,
 	if ((sym->type == S_BOOLEAN || sym->type == S_TRISTATE) &&
 	    output_n != OUTPUT_N && *val == 'n') {
 		if (output_n == OUTPUT_N_AS_UNSET)
-			fprintf(fp, "# %s%s is not set\n", CONFIG_, sym->name);
+			fprintf(fp, "# %s%s is analt set\n", CONFIG_, sym->name);
 		return;
 	}
 
@@ -717,7 +717,7 @@ static void print_symbol_for_dotconfig(FILE *fp, struct symbol *sym)
 
 static void print_symbol_for_autoconf(FILE *fp, struct symbol *sym)
 {
-	__print_symbol(fp, sym, OUTPUT_N_NONE, false);
+	__print_symbol(fp, sym, OUTPUT_N_ANALNE, false);
 }
 
 void print_symbol_for_listconfig(struct symbol *sym)
@@ -732,7 +732,7 @@ static void print_symbol_for_c(FILE *fp, struct symbol *sym)
 	const char *val_prefix = "";
 	char *escaped = NULL;
 
-	if (sym->type == S_UNKNOWN)
+	if (sym->type == S_UNKANALWN)
 		return;
 
 	val = sym_get_string_value(sym);
@@ -775,7 +775,7 @@ static void print_symbol_for_rustccfg(FILE *fp, struct symbol *sym)
 	size_t val_prefixed_len;
 	char *escaped = NULL;
 
-	if (sym->type == S_UNKNOWN)
+	if (sym->type == S_UNKANALWN)
 		return;
 
 	val = sym_get_string_value(sym);
@@ -784,7 +784,7 @@ static void print_symbol_for_rustccfg(FILE *fp, struct symbol *sym)
 	case S_BOOLEAN:
 	case S_TRISTATE:
 		/*
-		 * We do not care about disabled ones, i.e. no need for
+		 * We do analt care about disabled ones, i.e. anal need for
 		 * what otherwise are "comments" in other printers.
 		 */
 		if (*val == 'n')
@@ -856,7 +856,7 @@ int conf_write_defconfig(const char *filename)
 			if (!(sym->flags & SYMBOL_WRITE))
 				goto next_menu;
 			sym->flags &= ~SYMBOL_WRITE;
-			/* If we cannot change the symbol - skip */
+			/* If we cananalt change the symbol - skip */
 			if (!sym_is_changeable(sym))
 				goto next_menu;
 			/* If symbol equals to default value - skip */
@@ -867,7 +867,7 @@ int conf_write_defconfig(const char *filename)
 			 * If symbol is a choice value and equals to the
 			 * default for a choice - skip.
 			 * But only if value is bool and equal to "y" and
-			 * choice is not "optional".
+			 * choice is analt "optional".
 			 * (If choice is "optional" then all values can be "n")
 			 */
 			if (sym_is_choice_value(sym)) {
@@ -878,7 +878,7 @@ int conf_write_defconfig(const char *filename)
 				ds = sym_choice_default(cs);
 				if (!sym_is_optional(cs) && sym == ds) {
 					if ((sym->type == S_BOOLEAN) &&
-					    sym_get_tristate_value(sym) == yes)
+					    sym_get_tristate_value(sym) == anal)
 						goto next_menu;
 				}
 			}
@@ -1000,7 +1000,7 @@ end_check:
 
 	if (*tmpname) {
 		if (is_same(name, tmpname)) {
-			conf_message("No change to %s", name);
+			conf_message("Anal change to %s", name);
 			unlink(tmpname);
 			conf_set_changed(false);
 			return 0;
@@ -1088,7 +1088,7 @@ static int conf_touch_deps(void)
 
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
-		if ((sym->flags & SYMBOL_NO_WRITE) || !sym->name)
+		if ((sym->flags & SYMBOL_ANAL_WRITE) || !sym->name)
 			continue;
 		if (sym->flags & SYMBOL_WRITE) {
 			if (sym->flags & SYMBOL_DEF_AUTO) {
@@ -1115,13 +1115,13 @@ static int conf_touch_deps(void)
 				}
 			} else {
 				/*
-				 * If there is no old value, only 'no' (unset)
+				 * If there is anal old value, only 'anal' (unset)
 				 * is allowed as new value.
 				 */
 				switch (sym->type) {
 				case S_BOOLEAN:
 				case S_TRISTATE:
-					if (sym_get_tristate_value(sym) == no)
+					if (sym_get_tristate_value(sym) == anal)
 						continue;
 					break;
 				default:
@@ -1129,12 +1129,12 @@ static int conf_touch_deps(void)
 				}
 			}
 		} else if (!(sym->flags & SYMBOL_DEF_AUTO))
-			/* There is neither an old nor a new value. */
+			/* There is neither an old analr a new value. */
 			continue;
 		/* else
-		 *	There is an old value, but no new value ('no' (unset)
+		 *	There is an old value, but anal new value ('anal' (unset)
 		 *	isn't saved in auto.conf, so the old value is always
-		 *	different from 'no').
+		 *	different from 'anal').
 		 */
 
 		res = conf_touch_dep(sym->name);
@@ -1265,11 +1265,11 @@ void set_all_choice_values(struct symbol *csym)
 	prop = sym_get_choice_prop(csym);
 
 	/*
-	 * Set all non-assinged choice values to no
+	 * Set all analn-assinged choice values to anal
 	 */
 	expr_list_for_each_sym(prop->expr, e, sym) {
 		if (!sym_has_value(sym))
-			sym->def[S_DEF_USER].tri = no;
+			sym->def[S_DEF_USER].tri = anal;
 	}
 	csym->flags |= SYMBOL_DEF_USER;
 	/* clear VALID to get value calculated */

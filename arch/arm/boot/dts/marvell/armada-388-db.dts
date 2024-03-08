@@ -101,7 +101,7 @@
 				wp-inverted;
 				bus-width = <8>;
 				status = "okay";
-				no-1-8-v;
+				anal-1-8-v;
 			};
 
 			audio-controller@e8000 {
@@ -205,7 +205,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "w25q32", "jedec,spi-nor";
+		compatible = "w25q32", "jedec,spi-analr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <108000000>;
 	};

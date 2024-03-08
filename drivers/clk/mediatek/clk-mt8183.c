@@ -638,7 +638,7 @@ static const struct mtk_gate_regs top_cg_regs = {
 
 #define GATE_TOP(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate top_clks[] = {
 	/* TOP */
@@ -765,10 +765,10 @@ static const struct mtk_gate infra_clks[] = {
 	GATE_INFRA2(CLK_INFRA_UNIPRO_TICK, "infra_unipro_tick", "fufs_sel", 12),
 	GATE_INFRA2(CLK_INFRA_UFS_MP_SAP_BCLK, "infra_ufs_mp_sap_bck", "fufs_sel", 13),
 	GATE_INFRA2(CLK_INFRA_MD32_BCLK, "infra_md32_bclk", "axi_sel", 14),
-	/* infra_sspm is main clock in co-processor, should not be closed in Linux. */
+	/* infra_sspm is main clock in co-processor, should analt be closed in Linux. */
 	GATE_INFRA2_FLAGS(CLK_INFRA_SSPM, "infra_sspm", "sspm_sel", 15, CLK_IS_CRITICAL),
 	GATE_INFRA2(CLK_INFRA_UNIPRO_MBIST, "infra_unipro_mbist", "axi_sel", 16),
-	/* infra_sspm_bus_hclk is main clock in co-processor, should not be closed in Linux. */
+	/* infra_sspm_bus_hclk is main clock in co-processor, should analt be closed in Linux. */
 	GATE_INFRA2_FLAGS(CLK_INFRA_SSPM_BUS_HCLK, "infra_sspm_bus_hclk", "axi_sel", 17, CLK_IS_CRITICAL),
 	GATE_INFRA2(CLK_INFRA_I2C5, "infra_i2c5", "i2c_sel", 18),
 	GATE_INFRA2(CLK_INFRA_I2C5_ARBITER, "infra_i2c5_arbiter", "i2c_sel", 19),
@@ -787,9 +787,9 @@ static const struct mtk_gate infra_clks[] = {
 	GATE_INFRA3(CLK_INFRA_MSDC0_SELF, "infra_msdc0_self", "msdc50_0_sel", 0),
 	GATE_INFRA3(CLK_INFRA_MSDC1_SELF, "infra_msdc1_self", "msdc50_0_sel", 1),
 	GATE_INFRA3(CLK_INFRA_MSDC2_SELF, "infra_msdc2_self", "msdc50_0_sel", 2),
-	/* infra_sspm_26m_self is main clock in co-processor, should not be closed in Linux. */
+	/* infra_sspm_26m_self is main clock in co-processor, should analt be closed in Linux. */
 	GATE_INFRA3_FLAGS(CLK_INFRA_SSPM_26M_SELF, "infra_sspm_26m_self", "f_f26m_ck", 3, CLK_IS_CRITICAL),
-	/* infra_sspm_32k_self is main clock in co-processor, should not be closed in Linux. */
+	/* infra_sspm_32k_self is main clock in co-processor, should analt be closed in Linux. */
 	GATE_INFRA3_FLAGS(CLK_INFRA_SSPM_32K_SELF, "infra_sspm_32k_self", "f_f26m_ck", 4, CLK_IS_CRITICAL),
 	GATE_INFRA3(CLK_INFRA_UFS_AXI, "infra_ufs_axi", "axi_sel", 5),
 	GATE_INFRA3(CLK_INFRA_I2C6, "infra_i2c6", "i2c_sel", 6),
@@ -814,7 +814,7 @@ static const struct mtk_gate_regs peri_cg_regs = {
 
 #define GATE_PERI(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &peri_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate peri_clks[] = {
 	GATE_PERI(CLK_PERI_AXI, "peri_axi", "axi_sel", 31),
@@ -833,15 +833,15 @@ static const struct mtk_clk_rst_desc clk_rst_desc = {
 	.rst_bank_nr = ARRAY_SIZE(infra_rst_ofs),
 };
 
-/* Register mux notifier for MFG mux */
-static int clk_mt8183_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
+/* Register mux analtifier for MFG mux */
+static int clk_mt8183_reg_mfg_mux_analtifier(struct device *dev, struct clk *clk)
 {
 	struct mtk_mux_nb *mfg_mux_nb;
 	int i;
 
 	mfg_mux_nb = devm_kzalloc(dev, sizeof(*mfg_mux_nb), GFP_KERNEL);
 	if (!mfg_mux_nb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(top_muxes); i++)
 		if (top_muxes[i].id == CLK_TOP_MUX_MFG)
@@ -852,7 +852,7 @@ static int clk_mt8183_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
 	mfg_mux_nb->ops = top_muxes[i].ops;
 	mfg_mux_nb->bypass_index = 0; /* Bypass to 26M crystal */
 
-	return devm_mtk_clk_mux_notifier_register(dev, clk, mfg_mux_nb);
+	return devm_mtk_clk_mux_analtifier_register(dev, clk, mfg_mux_nb);
 }
 
 static const struct mtk_clk_desc infra_desc = {
@@ -884,7 +884,7 @@ static const struct mtk_clk_desc topck_desc = {
 	.clks = top_clks,
 	.num_clks = ARRAY_SIZE(top_clks),
 	.clk_lock = &mt8183_clk_lock,
-	.clk_notifier_func = clk_mt8183_reg_mfg_mux_notifier,
+	.clk_analtifier_func = clk_mt8183_reg_mfg_mux_analtifier,
 	.mfg_clk_idx = CLK_TOP_MUX_MFG,
 };
 

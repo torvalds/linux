@@ -1,10 +1,10 @@
 #
 # arch/loongarch/boot/Makefile
 #
-# Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+# Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
 #
 
-drop-sections := .comment .note .options .note.gnu.build-id
+drop-sections := .comment .analte .options .analte.gnu.build-id
 strip-flags   := $(addprefix --remove-section=,$(drop-sections)) -S
 OBJCOPYFLAGS_vmlinux.efi := -O binary $(strip-flags)
 

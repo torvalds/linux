@@ -5,7 +5,7 @@
 u32 cm_get(void);
 void cm_control(u32, u32);
 
-struct device_node;
+struct device_analde;
 void cm_init(void);
 void cm_clear_irqs(void);
 

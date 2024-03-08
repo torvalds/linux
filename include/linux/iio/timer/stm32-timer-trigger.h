@@ -78,7 +78,7 @@ bool is_stm32_timer_trigger(struct iio_trigger *trig);
 static inline bool is_stm32_timer_trigger(struct iio_trigger *trig)
 {
 #if IS_ENABLED(CONFIG_IIO_STM32_TIMER_TRIGGER)
-	pr_warn_once("stm32-timer-trigger not linked in\n");
+	pr_warn_once("stm32-timer-trigger analt linked in\n");
 #endif
 	return false;
 }

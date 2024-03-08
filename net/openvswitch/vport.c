@@ -37,7 +37,7 @@ int ovs_vport_init(void)
 	dev_table = kcalloc(VPORT_HASH_BUCKETS, sizeof(struct hlist_head),
 			    GFP_KERNEL);
 	if (!dev_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -97,7 +97,7 @@ struct vport *ovs_vport_locate(const struct net *net, const char *name)
 	struct hlist_head *bucket = hash_bucket(net, name);
 	struct vport *vport;
 
-	hlist_for_each_entry_rcu(vport, bucket, hash_node,
+	hlist_for_each_entry_rcu(vport, bucket, hash_analde,
 				 lockdep_ovsl_is_held())
 		if (!strcmp(name, ovs_vport_name(vport)) &&
 		    net_eq(ovs_dp_get_net(vport->dp), net))
@@ -116,7 +116,7 @@ struct vport *ovs_vport_locate(const struct net *net, const char *name)
  * Allocate and initialize a new vport defined by @ops.  The vport will contain
  * a private data area of size @priv_size that can be accessed using
  * vport_priv().  Some parameters of the vport will be initialized from @parms.
- * @vports that are no longer needed should be released with
+ * @vports that are anal longer needed should be released with
  * vport_free().
  */
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
@@ -134,18 +134,18 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 
 	vport = kzalloc(alloc_size, GFP_KERNEL);
 	if (!vport)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vport->upcall_stats = netdev_alloc_pcpu_stats(struct vport_upcall_stats_percpu);
 	if (!vport->upcall_stats) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_kfree_vport;
 	}
 
 	vport->dp = parms->dp;
-	vport->port_no = parms->port_no;
+	vport->port_anal = parms->port_anal;
 	vport->ops = ops;
-	INIT_HLIST_NODE(&vport->dp_hash_node);
+	INIT_HLIST_ANALDE(&vport->dp_hash_analde);
 
 	if (ovs_vport_set_upcall_portids(vport, parms->upcall_portids)) {
 		err = -EINVAL;
@@ -167,7 +167,7 @@ EXPORT_SYMBOL_GPL(ovs_vport_alloc);
  *
  * @vport: vport to free
  *
- * Frees a vport allocated with vport_alloc() when it is no longer needed.
+ * Frees a vport allocated with vport_alloc() when it is anal longer needed.
  *
  * The caller must ensure that an RCU grace period has passed since the last
  * time @vport was in a datapath.
@@ -212,7 +212,7 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 		struct hlist_head *bucket;
 
 		if (!try_module_get(ops->owner))
-			return ERR_PTR(-EAFNOSUPPORT);
+			return ERR_PTR(-EAFANALSUPPORT);
 
 		vport = ops->create(parms);
 		if (IS_ERR(vport)) {
@@ -222,7 +222,7 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 
 		bucket = hash_bucket(ovs_dp_get_net(vport->dp),
 				     ovs_vport_name(vport));
-		hlist_add_head_rcu(&vport->hash_node, bucket);
+		hlist_add_head_rcu(&vport->hash_analde, bucket);
 		return vport;
 	}
 
@@ -235,7 +235,7 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 	ovs_lock();
 
 	if (!ovs_vport_lookup(parms))
-		return ERR_PTR(-EAFNOSUPPORT);
+		return ERR_PTR(-EAFANALSUPPORT);
 	else
 		return ERR_PTR(-EAGAIN);
 }
@@ -252,7 +252,7 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 int ovs_vport_set_options(struct vport *vport, struct nlattr *options)
 {
 	if (!vport->ops->set_options)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return vport->ops->set_options(vport, options);
 }
 
@@ -266,7 +266,7 @@ int ovs_vport_set_options(struct vport *vport, struct nlattr *options)
  */
 void ovs_vport_del(struct vport *vport)
 {
-	hlist_del_rcu(&vport->hash_node);
+	hlist_del_rcu(&vport->hash_analde);
 	module_put(vport->ops->owner);
 	vport->ops->destroy(vport);
 }
@@ -328,7 +328,7 @@ int ovs_vport_get_upcall_stats(struct vport *vport, struct sk_buff *skb)
 		} while (u64_stats_fetch_retry(&stats->syncp, start));
 	}
 
-	nla = nla_nest_start_noflag(skb, OVS_VPORT_ATTR_UPCALL_STATS);
+	nla = nla_nest_start_analflag(skb, OVS_VPORT_ATTR_UPCALL_STATS);
 	if (!nla)
 		return -EMSGSIZE;
 
@@ -358,7 +358,7 @@ int ovs_vport_get_upcall_stats(struct vport *vport, struct sk_buff *skb)
  * %OVS_VPORT_ATTR_OPTIONS attribute that in turn contains nested
  * vport-specific attributes to @skb.
  *
- * Returns 0 if successful, -EMSGSIZE if @skb has insufficient room, or another
+ * Returns 0 if successful, -EMSGSIZE if @skb has insufficient room, or aanalther
  * negative error code if a real error occurred.  If an error occurs, @skb is
  * left unmodified.
  *
@@ -372,7 +372,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
 	if (!vport->ops->get_options)
 		return 0;
 
-	nla = nla_nest_start_noflag(skb, OVS_VPORT_ATTR_OPTIONS);
+	nla = nla_nest_start_analflag(skb, OVS_VPORT_ATTR_OPTIONS);
 	if (!nla)
 		return -EMSGSIZE;
 
@@ -394,7 +394,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
  *
  * Sets the vport's upcall_portids to @ids.
  *
- * Returns 0 if successful, -EINVAL if @ids is zero length or cannot be parsed
+ * Returns 0 if successful, -EINVAL if @ids is zero length or cananalt be parsed
  * as an array of U32.
  *
  * Must be called with ovs_mutex.
@@ -411,7 +411,7 @@ int ovs_vport_set_upcall_portids(struct vport *vport, const struct nlattr *ids)
 	vport_portids = kmalloc(sizeof(*vport_portids) + nla_len(ids),
 				GFP_KERNEL);
 	if (!vport_portids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vport_portids->n_ids = nla_len(ids) / sizeof(u32);
 	vport_portids->rn_ids = reciprocal_value(vport_portids->n_ids);
@@ -488,7 +488,7 @@ u32 ovs_vport_find_upcall_portid(const struct vport *vport,
  * @skb: skb that was received
  * @tun_info: tunnel (if any) that carried packet
  *
- * Must be called with rcu_read_lock.  The packet cannot be shared and
+ * Must be called with rcu_read_lock.  The packet cananalt be shared and
  * skb->data should point to the Ethernet header.
  */
 int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
@@ -529,7 +529,7 @@ static int packet_length(const struct sk_buff *skb,
 		length -= VLAN_HLEN;
 
 	/* Don't subtract for multiple VLAN tags. Most (all?) drivers allow
-	 * (ETH_LEN + VLAN_HLEN) in addition to the mtu value, but almost none
+	 * (ETH_LEN + VLAN_HLEN) in addition to the mtu value, but almost analne
 	 * account for 802.1ad. e.g. is_skb_forwardable().
 	 */
 
@@ -541,12 +541,12 @@ void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto)
 	int mtu = vport->dev->mtu;
 
 	switch (vport->dev->type) {
-	case ARPHRD_NONE:
+	case ARPHRD_ANALNE:
 		if (mac_proto == MAC_PROTO_ETHERNET) {
 			skb_reset_network_header(skb);
 			skb_reset_mac_len(skb);
 			skb->protocol = htons(ETH_P_TEB);
-		} else if (mac_proto != MAC_PROTO_NONE) {
+		} else if (mac_proto != MAC_PROTO_ANALNE) {
 			WARN_ON_ONCE(1);
 			goto drop;
 		}

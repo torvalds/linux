@@ -175,7 +175,7 @@ static inline u32 to_d71_input_id(struct komeda_component_state *st, int idx)
 {
 	struct komeda_component_output *input = &st->inputs[idx];
 
-	/* if input is not active, set hw input_id(0) to disable it */
+	/* if input is analt active, set hw input_id(0) to disable it */
 	if (has_bit(idx, st->active_inputs))
 		return input->component->hw_id + input->output_port;
 	else
@@ -581,7 +581,7 @@ static void compiz_enable_input(u32 __iomem *id_reg,
 	u32 ctrl = CU_INPUT_CTRL_EN;
 	u8 blend = cin->pixel_blend_mode;
 
-	if (blend == DRM_MODE_BLEND_PIXEL_NONE)
+	if (blend == DRM_MODE_BLEND_PIXEL_ANALNE)
 		ctrl |= CU_INPUT_CTRL_PAD;
 	else if (blend == DRM_MODE_BLEND_PREMULTI)
 		ctrl |= CU_INPUT_CTRL_PMUL;
@@ -874,7 +874,7 @@ static int d71_downscaling_clk_check(struct komeda_pipeline *pipe,
 	u32 h_in = dflow->in_w;
 	u32 v_in = dflow->in_h;
 	u32 v_out = dflow->out_h;
-	u64 fraction, denominator;
+	u64 fraction, deanalminator;
 
 	/* D71 downscaling must satisfy the following equation
 	 *
@@ -897,13 +897,13 @@ static int d71_downscaling_clk_check(struct komeda_pipeline *pipe,
 	 */
 	if (v_in == v_out) {
 		fraction = h_in;
-		denominator = mode->hdisplay - 3;
+		deanalminator = mode->hdisplay - 3;
 	} else {
 		fraction = h_in * v_in;
-		denominator = (mode->htotal - 1) * v_out -  2 * v_in;
+		deanalminator = (mode->htotal - 1) * v_out -  2 * v_in;
 	}
 
-	return aclk_rate * denominator >= mode->crtc_clock * 1000 * fraction ?
+	return aclk_rate * deanalminator >= mode->crtc_clock * 1000 * fraction ?
 	       0 : -EINVAL;
 }
 
@@ -1344,7 +1344,7 @@ int d71_probe_block(struct d71_dev *d71,
 		break;
 
 	default:
-		DRM_ERROR("Unknown block (block_info: 0x%x) is found\n",
+		DRM_ERROR("Unkanalwn block (block_info: 0x%x) is found\n",
 			  blk->block_info);
 		err = -EINVAL;
 		break;

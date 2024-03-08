@@ -36,7 +36,7 @@ static long do_spu_run(struct file *filp,
 			__u32 __user *ustatus)
 {
 	long ret;
-	struct spufs_inode_info *i;
+	struct spufs_ianalde_info *i;
 	u32 npc, status;
 
 	ret = -EFAULT;
@@ -48,7 +48,7 @@ static long do_spu_run(struct file *filp,
 	if (filp->f_op != &spufs_context_fops)
 		goto out;
 
-	i = SPUFS_I(file_inode(filp));
+	i = SPUFS_I(file_ianalde(filp));
 	ret = spufs_run_spu(i->i_ctx, &npc, &status);
 
 	if (put_user(npc, unpc))
@@ -80,10 +80,10 @@ static long do_spu_create(const char __user *pathname, unsigned int flags,
 struct spufs_calls spufs_calls = {
 	.create_thread = do_spu_create,
 	.spu_run = do_spu_run,
-	.notify_spus_active = do_notify_spus_active,
+	.analtify_spus_active = do_analtify_spus_active,
 	.owner = THIS_MODULE,
 #ifdef CONFIG_COREDUMP
-	.coredump_extra_notes_size = spufs_coredump_extra_notes_size,
-	.coredump_extra_notes_write = spufs_coredump_extra_notes_write,
+	.coredump_extra_analtes_size = spufs_coredump_extra_analtes_size,
+	.coredump_extra_analtes_write = spufs_coredump_extra_analtes_write,
 #endif
 };

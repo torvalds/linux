@@ -28,7 +28,7 @@
  * CPER record length contains the CPER fields which are relevant for further
  * handling of a memory error in userspace (we don't carry all the fields
  * defined in the UEFI spec because some of them don't make any sense.)
- * Currently, a length of 256 should be more than enough.
+ * Currently, a length of 256 should be more than eanalugh.
  */
 #define CPER_REC_LEN					256
 /*
@@ -52,41 +52,41 @@ enum {
 #define CPER_VALID_PARTITION_ID			0x0004
 
 /*
- * Notification type used to generate error record, used in
- * notification_type in struct cper_record_header.  These UUIDs are defined
+ * Analtification type used to generate error record, used in
+ * analtification_type in struct cper_record_header.  These UUIDs are defined
  * in the UEFI spec v2.7, sec N.2.1.
  */
 
 /* Corrected Machine Check */
-#define CPER_NOTIFY_CMC							\
+#define CPER_ANALTIFY_CMC							\
 	GUID_INIT(0x2DCE8BB1, 0xBDD7, 0x450e, 0xB9, 0xAD, 0x9C, 0xF4,	\
 		  0xEB, 0xD4, 0xF8, 0x90)
 /* Corrected Platform Error */
-#define CPER_NOTIFY_CPE							\
+#define CPER_ANALTIFY_CPE							\
 	GUID_INIT(0x4E292F96, 0xD843, 0x4a55, 0xA8, 0xC2, 0xD4, 0x81,	\
 		  0xF2, 0x7E, 0xBE, 0xEE)
 /* Machine Check Exception */
-#define CPER_NOTIFY_MCE							\
+#define CPER_ANALTIFY_MCE							\
 	GUID_INIT(0xE8F56FFE, 0x919C, 0x4cc5, 0xBA, 0x88, 0x65, 0xAB,	\
 		  0xE1, 0x49, 0x13, 0xBB)
 /* PCI Express Error */
-#define CPER_NOTIFY_PCIE						\
+#define CPER_ANALTIFY_PCIE						\
 	GUID_INIT(0xCF93C01F, 0x1A16, 0x4dfc, 0xB8, 0xBC, 0x9C, 0x4D,	\
 		  0xAF, 0x67, 0xC1, 0x04)
 /* INIT Record (for IPF) */
-#define CPER_NOTIFY_INIT						\
+#define CPER_ANALTIFY_INIT						\
 	GUID_INIT(0xCC5263E8, 0x9308, 0x454a, 0x89, 0xD0, 0x34, 0x0B,	\
 		  0xD3, 0x9B, 0xC9, 0x8E)
-/* Non-Maskable Interrupt */
-#define CPER_NOTIFY_NMI							\
+/* Analn-Maskable Interrupt */
+#define CPER_ANALTIFY_NMI							\
 	GUID_INIT(0x5BAD89FF, 0xB7E6, 0x42c9, 0x81, 0x4A, 0xCF, 0x24,	\
 		  0x85, 0xD6, 0xE9, 0x8A)
 /* BOOT Error Record */
-#define CPER_NOTIFY_BOOT						\
+#define CPER_ANALTIFY_BOOT						\
 	GUID_INIT(0x3D61A466, 0xAB40, 0x409a, 0xA6, 0x98, 0xF3, 0x62,	\
 		  0xD4, 0x64, 0xB3, 0x8F)
 /* DMA Remapping Error */
-#define CPER_NOTIFY_DMAR						\
+#define CPER_ANALTIFY_DMAR						\
 	GUID_INIT(0x667DD791, 0xC6B3, 0x4c27, 0x8A, 0x6B, 0x0F, 0x8E,	\
 		  0x72, 0x2D, 0xEB, 0x41)
 
@@ -145,7 +145,7 @@ enum {
  */
 #define CPER_SEC_PRIMARY			0x0001
 /*
- * If set, the error was not contained within the processor or memory
+ * If set, the error was analt contained within the processor or memory
  * hierarchy and the error may have propagated to persistent storage
  * or network
  */
@@ -155,15 +155,15 @@ enum {
 /* If set, Linux may choose to discontinue use of the resource */
 #define CPER_SEC_ERROR_THRESHOLD_EXCEEDED	0x0008
 /*
- * If set, resource could not be queried for error information due to
+ * If set, resource could analt be queried for error information due to
  * conflicts with other system software or resources. Some fields of
  * the section will be invalid
  */
-#define CPER_SEC_RESOURCE_NOT_ACCESSIBLE	0x0010
+#define CPER_SEC_RESOURCE_ANALT_ACCESSIBLE	0x0010
 /*
  * If set, action has been taken to ensure error containment (such as
- * poisoning data), but the error has not been fully corrected and the
- * data has not been consumed. Linux may choose to take further
+ * poisoning data), but the error has analt been fully corrected and the
+ * data has analt been consumed. Linux may choose to take further
  * corrective action before the data is consumed
  */
 #define CPER_SEC_LATENT_ERROR			0x0020
@@ -238,7 +238,7 @@ enum {
 #define CPER_MEM_VALID_ERROR_STATUS		0x0001
 #define CPER_MEM_VALID_PA			0x0002
 #define CPER_MEM_VALID_PA_MASK			0x0004
-#define CPER_MEM_VALID_NODE			0x0008
+#define CPER_MEM_VALID_ANALDE			0x0008
 #define CPER_MEM_VALID_CARD			0x0010
 #define CPER_MEM_VALID_MODULE			0x0020
 #define CPER_MEM_VALID_BANK			0x0040
@@ -356,7 +356,7 @@ struct cper_record_header {
 	guid_t	platform_id;
 	guid_t	partition_id;
 	guid_t	creator_id;
-	guid_t	notification_type;
+	guid_t	analtification_type;
 	u64	record_id;
 	u32	flags;
 	u64	persistence_information;
@@ -464,7 +464,7 @@ struct cper_sec_mem_err_old {
 	u64	error_status;
 	u64	physical_addr;
 	u64	physical_addr_mask;
-	u16	node;
+	u16	analde;
 	u16	card;
 	u16	module;
 	u16	bank;
@@ -484,7 +484,7 @@ struct cper_sec_mem_err {
 	u64	error_status;
 	u64	physical_addr;
 	u64	physical_addr_mask;
-	u16	node;
+	u16	analde;
 	u16	card;
 	u16	module;
 	u16	bank;
@@ -504,7 +504,7 @@ struct cper_sec_mem_err {
 
 struct cper_mem_err_compact {
 	u64	validation_bits;
-	u16	node;
+	u16	analde;
 	u16	card;
 	u16	module;
 	u16	bank;
@@ -533,7 +533,7 @@ struct cper_sec_pcie {
 	u64		validation_bits;
 	u32		port_type;
 	struct {
-		u8	minor;
+		u8	mianalr;
 		u8	major;
 		u8	reserved[2];
 	}		version;

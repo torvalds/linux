@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <pthread.h>
 
 #include "test_util.h"
@@ -43,8 +43,8 @@ static void sev_ioctl(int vm_fd, int cmd_id, void *data)
 
 	ret = __sev_ioctl(vm_fd, cmd_id, data, &fw_error);
 	TEST_ASSERT(ret == 0 && fw_error == SEV_RET_SUCCESS,
-		    "%d failed: return code: %d, errno: %d, fw error: %d",
-		    cmd_id, ret, errno, fw_error);
+		    "%d failed: return code: %d, erranal: %d, fw error: %d",
+		    cmd_id, ret, erranal, fw_error);
 }
 
 static struct kvm_vm *sev_vm_create(bool es)
@@ -91,7 +91,7 @@ static void sev_migrate_from(struct kvm_vm *dst, struct kvm_vm *src)
 	int ret;
 
 	ret = __sev_migrate_from(dst, src);
-	TEST_ASSERT(!ret, "Migration failed, ret: %d, errno: %d", ret, errno);
+	TEST_ASSERT(!ret, "Migration failed, ret: %d, erranal: %d", ret, erranal);
 }
 
 static void test_sev_migrate_from(bool es)
@@ -112,9 +112,9 @@ static void test_sev_migrate_from(bool es)
 
 	/* Migrate the guest back to the original VM. */
 	ret = __sev_migrate_from(src_vm, dst_vms[NR_MIGRATE_TEST_VMS - 1]);
-	TEST_ASSERT(ret == -1 && errno == EIO,
-		    "VM that was migrated from should be dead. ret %d, errno: %d", ret,
-		    errno);
+	TEST_ASSERT(ret == -1 && erranal == EIO,
+		    "VM that was migrated from should be dead. ret %d, erranal: %d", ret,
+		    erranal);
 
 	kvm_vm_free(src_vm);
 	for (i = 0; i < NR_MIGRATE_TEST_VMS; ++i)
@@ -164,56 +164,56 @@ static void test_sev_migrate_locking(void)
 
 static void test_sev_migrate_parameters(void)
 {
-	struct kvm_vm *sev_vm, *sev_es_vm, *vm_no_vcpu, *vm_no_sev,
-		*sev_es_vm_no_vmsa;
+	struct kvm_vm *sev_vm, *sev_es_vm, *vm_anal_vcpu, *vm_anal_sev,
+		*sev_es_vm_anal_vmsa;
 	int ret;
 
-	vm_no_vcpu = vm_create_barebones();
-	vm_no_sev = aux_vm_create(true);
-	ret = __sev_migrate_from(vm_no_vcpu, vm_no_sev);
-	TEST_ASSERT(ret == -1 && errno == EINVAL,
-		    "Migrations require SEV enabled. ret %d, errno: %d", ret,
-		    errno);
+	vm_anal_vcpu = vm_create_barebones();
+	vm_anal_sev = aux_vm_create(true);
+	ret = __sev_migrate_from(vm_anal_vcpu, vm_anal_sev);
+	TEST_ASSERT(ret == -1 && erranal == EINVAL,
+		    "Migrations require SEV enabled. ret %d, erranal: %d", ret,
+		    erranal);
 
 	if (!have_sev_es)
 		goto out;
 
 	sev_vm = sev_vm_create(/* es= */ false);
 	sev_es_vm = sev_vm_create(/* es= */ true);
-	sev_es_vm_no_vmsa = vm_create_barebones();
-	sev_ioctl(sev_es_vm_no_vmsa->fd, KVM_SEV_ES_INIT, NULL);
-	__vm_vcpu_add(sev_es_vm_no_vmsa, 1);
+	sev_es_vm_anal_vmsa = vm_create_barebones();
+	sev_ioctl(sev_es_vm_anal_vmsa->fd, KVM_SEV_ES_INIT, NULL);
+	__vm_vcpu_add(sev_es_vm_anal_vmsa, 1);
 
 	ret = __sev_migrate_from(sev_vm, sev_es_vm);
 	TEST_ASSERT(
-		ret == -1 && errno == EINVAL,
-		"Should not be able migrate to SEV enabled VM. ret: %d, errno: %d",
-		ret, errno);
+		ret == -1 && erranal == EINVAL,
+		"Should analt be able migrate to SEV enabled VM. ret: %d, erranal: %d",
+		ret, erranal);
 
 	ret = __sev_migrate_from(sev_es_vm, sev_vm);
 	TEST_ASSERT(
-		ret == -1 && errno == EINVAL,
-		"Should not be able migrate to SEV-ES enabled VM. ret: %d, errno: %d",
-		ret, errno);
+		ret == -1 && erranal == EINVAL,
+		"Should analt be able migrate to SEV-ES enabled VM. ret: %d, erranal: %d",
+		ret, erranal);
 
-	ret = __sev_migrate_from(vm_no_vcpu, sev_es_vm);
+	ret = __sev_migrate_from(vm_anal_vcpu, sev_es_vm);
 	TEST_ASSERT(
-		ret == -1 && errno == EINVAL,
-		"SEV-ES migrations require same number of vCPUS. ret: %d, errno: %d",
-		ret, errno);
+		ret == -1 && erranal == EINVAL,
+		"SEV-ES migrations require same number of vCPUS. ret: %d, erranal: %d",
+		ret, erranal);
 
-	ret = __sev_migrate_from(vm_no_vcpu, sev_es_vm_no_vmsa);
+	ret = __sev_migrate_from(vm_anal_vcpu, sev_es_vm_anal_vmsa);
 	TEST_ASSERT(
-		ret == -1 && errno == EINVAL,
-		"SEV-ES migrations require UPDATE_VMSA. ret %d, errno: %d",
-		ret, errno);
+		ret == -1 && erranal == EINVAL,
+		"SEV-ES migrations require UPDATE_VMSA. ret %d, erranal: %d",
+		ret, erranal);
 
 	kvm_vm_free(sev_vm);
 	kvm_vm_free(sev_es_vm);
-	kvm_vm_free(sev_es_vm_no_vmsa);
+	kvm_vm_free(sev_es_vm_anal_vmsa);
 out:
-	kvm_vm_free(vm_no_vcpu);
-	kvm_vm_free(vm_no_sev);
+	kvm_vm_free(vm_anal_vcpu);
+	kvm_vm_free(vm_anal_sev);
 }
 
 static int __sev_mirror_create(struct kvm_vm *dst, struct kvm_vm *src)
@@ -227,7 +227,7 @@ static void sev_mirror_create(struct kvm_vm *dst, struct kvm_vm *src)
 	int ret;
 
 	ret = __sev_mirror_create(dst, src);
-	TEST_ASSERT(!ret, "Copying context failed, ret: %d, errno: %d", ret, errno);
+	TEST_ASSERT(!ret, "Copying context failed, ret: %d, erranal: %d", ret, erranal);
 }
 
 static void verify_mirror_allowed_cmds(int vm_fd)
@@ -240,7 +240,7 @@ static void verify_mirror_allowed_cmds(int vm_fd)
 
 		/*
 		 * These commands are allowed for mirror VMs, all others are
-		 * not.
+		 * analt.
 		 */
 		switch (cmd_id) {
 		case KVM_SEV_LAUNCH_UPDATE_VMSA:
@@ -258,9 +258,9 @@ static void verify_mirror_allowed_cmds(int vm_fd)
 		 */
 		ret = __sev_ioctl(vm_fd, cmd_id, NULL, &fw_error);
 		TEST_ASSERT(
-			ret == -1 && errno == EINVAL,
-			"Should not be able call command: %d. ret: %d, errno: %d",
-			cmd_id, ret, errno);
+			ret == -1 && erranal == EINVAL,
+			"Should analt be able call command: %d. ret: %d, erranal: %d",
+			cmd_id, ret, erranal);
 	}
 
 	sev_ioctl(vm_fd, KVM_SEV_GUEST_STATUS, &status);
@@ -291,29 +291,29 @@ static void test_sev_mirror(bool es)
 
 static void test_sev_mirror_parameters(void)
 {
-	struct kvm_vm *sev_vm, *sev_es_vm, *vm_no_vcpu, *vm_with_vcpu;
+	struct kvm_vm *sev_vm, *sev_es_vm, *vm_anal_vcpu, *vm_with_vcpu;
 	int ret;
 
 	sev_vm = sev_vm_create(/* es= */ false);
 	vm_with_vcpu = aux_vm_create(true);
-	vm_no_vcpu = aux_vm_create(false);
+	vm_anal_vcpu = aux_vm_create(false);
 
 	ret = __sev_mirror_create(sev_vm, sev_vm);
 	TEST_ASSERT(
-		ret == -1 && errno == EINVAL,
-		"Should not be able copy context to self. ret: %d, errno: %d",
-		ret, errno);
+		ret == -1 && erranal == EINVAL,
+		"Should analt be able copy context to self. ret: %d, erranal: %d",
+		ret, erranal);
 
-	ret = __sev_mirror_create(vm_no_vcpu, vm_with_vcpu);
-	TEST_ASSERT(ret == -1 && errno == EINVAL,
-		    "Copy context requires SEV enabled. ret %d, errno: %d", ret,
-		    errno);
+	ret = __sev_mirror_create(vm_anal_vcpu, vm_with_vcpu);
+	TEST_ASSERT(ret == -1 && erranal == EINVAL,
+		    "Copy context requires SEV enabled. ret %d, erranal: %d", ret,
+		    erranal);
 
 	ret = __sev_mirror_create(vm_with_vcpu, sev_vm);
 	TEST_ASSERT(
-		ret == -1 && errno == EINVAL,
-		"SEV copy context requires no vCPUS on the destination. ret: %d, errno: %d",
-		ret, errno);
+		ret == -1 && erranal == EINVAL,
+		"SEV copy context requires anal vCPUS on the destination. ret: %d, erranal: %d",
+		ret, erranal);
 
 	if (!have_sev_es)
 		goto out;
@@ -321,22 +321,22 @@ static void test_sev_mirror_parameters(void)
 	sev_es_vm = sev_vm_create(/* es= */ true);
 	ret = __sev_mirror_create(sev_vm, sev_es_vm);
 	TEST_ASSERT(
-		ret == -1 && errno == EINVAL,
-		"Should not be able copy context to SEV enabled VM. ret: %d, errno: %d",
-		ret, errno);
+		ret == -1 && erranal == EINVAL,
+		"Should analt be able copy context to SEV enabled VM. ret: %d, erranal: %d",
+		ret, erranal);
 
 	ret = __sev_mirror_create(sev_es_vm, sev_vm);
 	TEST_ASSERT(
-		ret == -1 && errno == EINVAL,
-		"Should not be able copy context to SEV-ES enabled VM. ret: %d, errno: %d",
-		ret, errno);
+		ret == -1 && erranal == EINVAL,
+		"Should analt be able copy context to SEV-ES enabled VM. ret: %d, erranal: %d",
+		ret, erranal);
 
 	kvm_vm_free(sev_es_vm);
 
 out:
 	kvm_vm_free(sev_vm);
 	kvm_vm_free(vm_with_vcpu);
-	kvm_vm_free(vm_no_vcpu);
+	kvm_vm_free(vm_anal_vcpu);
 }
 
 static void test_sev_move_copy(void)

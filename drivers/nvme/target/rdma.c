@@ -317,7 +317,7 @@ out_err:
 		if (sg_page(sg))
 			__free_page(sg_page(sg));
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int nvmet_rdma_alloc_cmd(struct nvmet_rdma_device *ndev,
@@ -354,7 +354,7 @@ out_free_cmd:
 	kfree(c->nvme_cmd);
 
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void nvmet_rdma_free_cmd(struct nvmet_rdma_device *ndev,
@@ -439,7 +439,7 @@ static int nvmet_rdma_alloc_rsp(struct nvmet_rdma_device *ndev,
 out_free_rsp:
 	kfree(r->req.cqe);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void nvmet_rdma_free_rsp(struct nvmet_rdma_device *ndev,
@@ -607,8 +607,8 @@ static void nvmet_rdma_set_sig_attrs(struct nvmet_req *req,
 	memset(sig_attrs, 0, sizeof(*sig_attrs));
 
 	if (control & NVME_RW_PRINFO_PRACT) {
-		/* for WRITE_INSERT/READ_STRIP no wire domain */
-		sig_attrs->wire.sig_type = IB_SIG_TYPE_NONE;
+		/* for WRITE_INSERT/READ_STRIP anal wire domain */
+		sig_attrs->wire.sig_type = IB_SIG_TYPE_ANALNE;
 		nvmet_rdma_set_sig_domain(bi, cmd, &sig_attrs->mem, control,
 					  pi_type);
 		/* Clear the PRACT bit since HCA will generate/verify the PI */
@@ -869,7 +869,7 @@ static u16 nvmet_rdma_map_sgl_inline(struct nvmet_rdma_rsp *rsp)
 		return NVME_SC_SGL_INVALID_OFFSET | NVME_SC_DNR;
 	}
 
-	/* no data command? */
+	/* anal data command? */
 	if (!len)
 		return 0;
 
@@ -889,7 +889,7 @@ static u16 nvmet_rdma_map_sgl_keyed(struct nvmet_rdma_rsp *rsp,
 
 	rsp->req.transfer_len = get_unaligned_le24(sgl->length);
 
-	/* no data command? */
+	/* anal data command? */
 	if (!rsp->req.transfer_len)
 		return 0;
 
@@ -1096,7 +1096,7 @@ nvmet_rdma_init_srq(struct nvmet_rdma_device *ndev)
 
 	nsrq = kzalloc(sizeof(*nsrq), GFP_KERNEL);
 	if (!nsrq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	srq_attr.attr.max_wr = srq_size;
 	srq_attr.attr.max_sge = 1 + ndev->inline_page_count;
@@ -1141,10 +1141,10 @@ static int nvmet_rdma_init_srqs(struct nvmet_rdma_device *ndev)
 
 	if (!ndev->device->attrs.max_srq_wr || !ndev->device->attrs.max_srq) {
 		/*
-		 * If SRQs aren't supported we just go ahead and use normal
-		 * non-shared receive queues.
+		 * If SRQs aren't supported we just go ahead and use analrmal
+		 * analn-shared receive queues.
 		 */
-		pr_info("SRQ requested but not supported.\n");
+		pr_info("SRQ requested but analt supported.\n");
 		return 0;
 	}
 
@@ -1155,7 +1155,7 @@ static int nvmet_rdma_init_srqs(struct nvmet_rdma_device *ndev)
 
 	ndev->srqs = kcalloc(ndev->srq_count, sizeof(*ndev->srqs), GFP_KERNEL);
 	if (!ndev->srqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ndev->srq_count; i++) {
 		ndev->srqs[i] = nvmet_rdma_init_srq(ndev);
@@ -1201,7 +1201,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 
 	mutex_lock(&device_list_mutex);
 	list_for_each_entry(ndev, &device_list, entry) {
-		if (ndev->device->node_guid == cm_id->device->node_guid &&
+		if (ndev->device->analde_guid == cm_id->device->analde_guid &&
 		    kref_get_unless_zero(&ndev->ref))
 			goto out_unlock;
 	}
@@ -1214,7 +1214,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	inline_sge_count = max(cm_id->device->attrs.max_sge_rd,
 				cm_id->device->attrs.max_recv_sge) - 1;
 	if (inline_page_count > inline_sge_count) {
-		pr_warn("inline_data_size %d cannot be supported by device %s. Reducing to %lu.\n",
+		pr_warn("inline_data_size %d cananalt be supported by device %s. Reducing to %lu.\n",
 			nport->inline_data_size, cm_id->device->name,
 			inline_sge_count * PAGE_SIZE);
 		nport->inline_data_size = inline_sge_count * PAGE_SIZE;
@@ -1225,7 +1225,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 
 	if (nport->pi_enable && !(cm_id->device->attrs.kernel_cap_flags &
 				  IBK_INTEGRITY_HANDOVER)) {
-		pr_warn("T10-PI is not supported by device %s. Disabling it\n",
+		pr_warn("T10-PI is analt supported by device %s. Disabling it\n",
 			cm_id->device->name);
 		nport->pi_enable = false;
 	}
@@ -1429,13 +1429,13 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 	if (!queue) {
-		ret = NVME_RDMA_CM_NO_RSC;
+		ret = NVME_RDMA_CM_ANAL_RSC;
 		goto out_reject;
 	}
 
 	ret = nvmet_sq_init(&queue->nvme_sq);
 	if (ret) {
-		ret = NVME_RDMA_CM_NO_RSC;
+		ret = NVME_RDMA_CM_ANAL_RSC;
 		goto out_free_queue;
 	}
 
@@ -1463,7 +1463,7 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 
 	queue->idx = ida_alloc(&nvmet_rdma_queue_ida, GFP_KERNEL);
 	if (queue->idx < 0) {
-		ret = NVME_RDMA_CM_NO_RSC;
+		ret = NVME_RDMA_CM_ANAL_RSC;
 		goto out_destroy_sq;
 	}
 
@@ -1477,7 +1477,7 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 
 	ret = nvmet_rdma_alloc_rsps(queue);
 	if (ret) {
-		ret = NVME_RDMA_CM_NO_RSC;
+		ret = NVME_RDMA_CM_ANAL_RSC;
 		goto out_ida_remove;
 	}
 
@@ -1488,7 +1488,7 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 				queue->recv_queue_size,
 				!queue->host_qid);
 		if (IS_ERR(queue->cmds)) {
-			ret = NVME_RDMA_CM_NO_RSC;
+			ret = NVME_RDMA_CM_ANAL_RSC;
 			goto out_free_responses;
 		}
 	}
@@ -1497,7 +1497,7 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	if (ret) {
 		pr_err("%s: creating RDMA queue failed (%d).\n",
 			__func__, ret);
-		ret = NVME_RDMA_CM_NO_RSC;
+		ret = NVME_RDMA_CM_ANAL_RSC;
 		goto out_free_cmds;
 	}
 
@@ -1528,7 +1528,7 @@ static void nvmet_rdma_qp_event(struct ib_event *event, void *priv)
 
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
-		rdma_notify(queue->cm_id, event->event);
+		rdma_analtify(queue->cm_id, event->event);
 		break;
 	case IB_EVENT_QP_LAST_WQE_REACHED:
 		pr_debug("received last WQE reached event for queue=0x%p\n",
@@ -1547,7 +1547,7 @@ static int nvmet_rdma_cm_accept(struct rdma_cm_id *cm_id,
 {
 	struct rdma_conn_param  param = { };
 	struct nvme_rdma_cm_rep priv = { };
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	param.rnr_retry_count = 7;
 	param.flow_control = 1;
@@ -1574,13 +1574,13 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 
 	ndev = nvmet_rdma_find_get_device(cm_id);
 	if (!ndev) {
-		nvmet_rdma_cm_reject(cm_id, NVME_RDMA_CM_NO_RSC);
+		nvmet_rdma_cm_reject(cm_id, NVME_RDMA_CM_ANAL_RSC);
 		return -ECONNREFUSED;
 	}
 
 	queue = nvmet_rdma_alloc_queue(ndev, cm_id, event);
 	if (!queue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_device;
 	}
 
@@ -1604,7 +1604,7 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 	if (ret) {
 		/*
 		 * Don't destroy the cm_id in free path, as we implicitly
-		 * destroy the cm_id here with non-zero ret code.
+		 * destroy the cm_id here with analn-zero ret code.
 		 */
 		queue->cm_id = NULL;
 		goto free_queue;
@@ -1720,15 +1720,15 @@ static void nvmet_rdma_queue_connect_fail(struct rdma_cm_id *cm_id,
  * @cm_id:	rdma_cm id, used for nvmet port
  * @queue:      nvmet rdma queue (cm id qp_context)
  *
- * DEVICE_REMOVAL event notifies us that the RDMA device is about
- * to unplug. Note that this event can be generated on a normal
+ * DEVICE_REMOVAL event analtifies us that the RDMA device is about
+ * to unplug. Analte that this event can be generated on a analrmal
  * queue cm_id and/or a device bound listener cm_id (where in this
  * case queue will be null).
  *
  * We registered an ib_client to handle device removal for queues,
  * so we only need to handle the listening port cm_ids. In this case
  * we nullify the priv to prevent double cm_id destruction and destroying
- * the cm_id implicitely by returning a non-zero rc to the callout.
+ * the cm_id implicitely by returning a analn-zero rc to the callout.
  */
 static int nvmet_rdma_device_removal(struct rdma_cm_id *cm_id,
 		struct nvmet_rdma_queue *queue)
@@ -1857,9 +1857,9 @@ static void nvmet_rdma_disable_port(struct nvmet_rdma_port *port)
 		rdma_destroy_id(cm_id);
 
 	/*
-	 * Destroy the remaining queues, which are not belong to any
+	 * Destroy the remaining queues, which are analt belong to any
 	 * controller yet. Do it here after the RDMA-CM was destroyed
-	 * guarantees that no new queue will be created.
+	 * guarantees that anal new queue will be created.
 	 */
 	nvmet_rdma_destroy_port_queues(port);
 }
@@ -1927,7 +1927,7 @@ static int nvmet_rdma_add_port(struct nvmet_port *nport)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nport->priv = port;
 	port->nport = nport;
@@ -1941,7 +1941,7 @@ static int nvmet_rdma_add_port(struct nvmet_port *nport)
 		af = AF_INET6;
 		break;
 	default:
-		pr_err("address family %d not supported\n",
+		pr_err("address family %d analt supported\n",
 			nport->disc_addr.adrfam);
 		ret = -EINVAL;
 		goto out_free_port;

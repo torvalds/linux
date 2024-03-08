@@ -143,22 +143,22 @@ struct tegra_mc_reset_ops {
 #define TEGRA_MC_ICC_TAG_ISO					BIT(0)
 
 struct tegra_mc_icc_ops {
-	int (*set)(struct icc_node *src, struct icc_node *dst);
-	int (*aggregate)(struct icc_node *node, u32 tag, u32 avg_bw,
+	int (*set)(struct icc_analde *src, struct icc_analde *dst);
+	int (*aggregate)(struct icc_analde *analde, u32 tag, u32 avg_bw,
 			 u32 peak_bw, u32 *agg_avg, u32 *agg_peak);
-	struct icc_node* (*xlate)(struct of_phandle_args *spec, void *data);
-	struct icc_node_data *(*xlate_extended)(struct of_phandle_args *spec,
+	struct icc_analde* (*xlate)(struct of_phandle_args *spec, void *data);
+	struct icc_analde_data *(*xlate_extended)(struct of_phandle_args *spec,
 						void *data);
-	int (*get_bw)(struct icc_node *node, u32 *avg, u32 *peak);
+	int (*get_bw)(struct icc_analde *analde, u32 *avg, u32 *peak);
 };
 
-struct icc_node *tegra_mc_icc_xlate(struct of_phandle_args *spec, void *data);
+struct icc_analde *tegra_mc_icc_xlate(struct of_phandle_args *spec, void *data);
 extern const struct tegra_mc_icc_ops tegra_mc_icc_ops;
 
 struct tegra_mc_ops {
 	/*
 	 * @probe: Callback to set up SoC-specific bits of the memory controller. This is called
-	 * after basic, common set up that is done by the SoC-agnostic bits.
+	 * after basic, common set up that is done by the SoC-aganalstic bits.
 	 */
 	int (*probe)(struct tegra_mc *mc);
 	void (*remove)(struct tegra_mc *mc);
@@ -238,20 +238,20 @@ int tegra_mc_get_carveout_info(struct tegra_mc *mc, unsigned int id,
 static inline struct tegra_mc *
 devm_tegra_memory_controller_get(struct device *dev)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline int
 tegra_mc_probe_device(struct tegra_mc *mc, struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int
 tegra_mc_get_carveout_info(struct tegra_mc *mc, unsigned int id,
                            phys_addr_t *base, u64 *size)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ASM_SH_IO_NOIOPORT_H
-#define __ASM_SH_IO_NOIOPORT_H
+#ifndef __ASM_SH_IO_ANALIOPORT_H
+#define __ASM_SH_IO_ANALIOPORT_H
 
 static inline u8 inb(unsigned long addr)
 {
@@ -76,4 +76,4 @@ static inline void outsl(unsigned long port, const void *src, unsigned long coun
 	BUG();
 }
 
-#endif /* __ASM_SH_IO_NOIOPORT_H */
+#endif /* __ASM_SH_IO_ANALIOPORT_H */

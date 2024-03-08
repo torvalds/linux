@@ -63,7 +63,7 @@ enum regnames {
 	GDB_CONFIG,
 	GDB_MPUBASE,
 	GDB_MPUACC,
-	/* do not change the last entry or anything below! */
+	/* do analt change the last entry or anything below! */
 	GDB_NUMREGBYTES		/* number of registers */
 };
 

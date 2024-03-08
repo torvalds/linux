@@ -34,7 +34,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	skb = dev_alloc_skb(data_length + rt2x00dev->hw->extra_tx_headroom);
 	if (unlikely(!skb)) {
 		rt2x00_warn(rt2x00dev, "Failed to create RTS/CTS frame\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_reserve(skb, rt2x00dev->hw->extra_tx_headroom);
@@ -42,10 +42,10 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Copy TX information over from original frame to
-	 * RTS/CTS frame. Note that we set the no encryption flag
+	 * RTS/CTS frame. Analte that we set the anal encryption flag
 	 * since we don't want this frame to be encrypted.
 	 * RTS frames should be acked, while CTS-to-self frames
-	 * should not. The ready for TX flag is cleared to prevent
+	 * should analt. The ready for TX flag is cleared to prevent
 	 * it being automatically send when the descriptor is
 	 * written to the hardware.
 	 */
@@ -55,9 +55,9 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	rts_info->control.rates[0].flags &= ~IEEE80211_TX_RC_USE_CTS_PROTECT;
 
 	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
-		rts_info->flags |= IEEE80211_TX_CTL_NO_ACK;
+		rts_info->flags |= IEEE80211_TX_CTL_ANAL_ACK;
 	else
-		rts_info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
+		rts_info->flags &= ~IEEE80211_TX_CTL_ANAL_ACK;
 
 	/* Disable hardware encryption */
 	rts_info->control.hw_key = NULL;
@@ -98,7 +98,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 	/*
 	 * Mac80211 might be calling this function while we are trying
 	 * to remove the device or perhaps suspending it.
-	 * Note that we can only stop the TX queues inside the TX path
+	 * Analte that we can only stop the TX queues inside the TX path
 	 * due to possible race conditions in mac80211.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
@@ -121,9 +121,9 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 
 	/*
 	 * If CTS/RTS is required. create and queue that frame first.
-	 * Make sure we have at least enough entries available to send
+	 * Make sure we have at least eanalugh entries available to send
 	 * this CTS/RTS frame as well as the data frame.
-	 * Note that when the driver has set the set_rts_threshold()
+	 * Analte that when the driver has set the set_rts_threshold()
 	 * callback function it doesn't need software generation of
 	 * either RTS or CTS-to-self frame and handles everything
 	 * inside the hardware.
@@ -215,7 +215,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
 	    !test_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Loop through all beacon queues to find a free
@@ -230,10 +230,10 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	}
 
 	if (unlikely(i == queue->limit))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/*
-	 * We are now absolutely sure the interface can be created,
+	 * We are analw absolutely sure the interface can be created,
 	 * increase interface count and start initialization.
 	 */
 
@@ -250,7 +250,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * has been initialized. Otherwise the device can reset
 	 * the MAC registers.
 	 * The BSSID address must only be configured in AP mode,
-	 * however we should not send an empty BSSID address for
+	 * however we should analt send an empty BSSID address for
 	 * STA interfaces at this time, since this can cause
 	 * invalid behavior in the device.
 	 */
@@ -277,7 +277,7 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	/*
 	 * Don't allow interfaces to be remove while
 	 * either the device has disappeared or when
-	 * no interface is present.
+	 * anal interface is present.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
 	    (vif->type == NL80211_IFTYPE_AP && !rt2x00dev->intf_ap_count) ||
@@ -325,7 +325,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 */
 	rt2x00queue_stop_queue(rt2x00dev->rx);
 
-	/* Do not race with link tuner. */
+	/* Do analt race with link tuner. */
 	mutex_lock(&rt2x00dev->conf_mutex);
 
 	/*
@@ -338,7 +338,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 * After the radio has been enabled we need to configure
 	 * the antenna to the default settings. rt2x00lib_config_antenna()
 	 * should determine if any action should be taken based on
-	 * checking if diversity has been enabled or no antenna changes
+	 * checking if diversity has been enabled or anal antenna changes
 	 * have been made since the last configuration change.
 	 */
 	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
@@ -360,7 +360,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
 	/*
-	 * Mask off any flags we are going to ignore
+	 * Mask off any flags we are going to iganalre
 	 * from the total_flags field.
 	 */
 	*total_flags &=
@@ -383,7 +383,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	 * If the device has a single filter for all control frames,
 	 * FIF_CONTROL and FIF_PSPOLL flags imply each other.
 	 * And if the device has more than one filter for control frames
-	 * of different types, but has no a separate filter for PS Poll frames,
+	 * of different types, but has anal a separate filter for PS Poll frames,
 	 * FIF_CONTROL flag implies FIF_PSPOLL.
 	 */
 	if (!rt2x00_has_cap_control_filters(rt2x00dev)) {
@@ -469,27 +469,27 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	/* The hardware can't do MFP */
 	if (!rt2x00_has_cap_hw_crypto(rt2x00dev) || (sta && sta->mfp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * To support IBSS RSN, don't program group keys in IBSS, the
-	 * hardware will then not attempt to decrypt the frames.
+	 * hardware will then analt attempt to decrypt the frames.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (key->keylen > 32)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(&crypto, 0, sizeof(crypto));
 
 	crypto.bssidx = rt2x00lib_get_bssidx(rt2x00dev, vif);
 	crypto.cipher = rt2x00crypto_key_to_cipher(key);
-	if (crypto.cipher == CIPHER_NONE)
-		return -EOPNOTSUPP;
+	if (crypto.cipher == CIPHER_ANALNE)
+		return -EOPANALTSUPP;
 	if (crypto.cipher == CIPHER_TKIP && rt2x00_is_usb(rt2x00dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	crypto.cmd = cmd;
 
@@ -517,7 +517,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * Both pairwise as shared key indeces are determined by
 	 * driver. This is required because the hardware requires
 	 * keys to be assigned in correct order (When key 1 is
-	 * provided but key 0 is not, then the key is not found
+	 * provided but key 0 is analt, then the key is analt found
 	 * by the hardware during RX).
 	 */
 	if (cmd == SET_KEY)
@@ -529,7 +529,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		set_key = rt2x00dev->ops->lib->config_shared_key;
 
 	if (!set_key)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return set_key(rt2x00dev, &crypto, key);
 }
@@ -651,7 +651,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	 * When the association status has changed we must reset the link
 	 * tuner counter. This is because some drivers determine if they
 	 * should perform link tuning based on the number of seconds
-	 * while associated or not associated.
+	 * while associated or analt associated.
 	 */
 	if (changes & BSS_CHANGED_ASSOC) {
 		rt2x00dev->link.count = 0;
@@ -689,7 +689,7 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw,
 
 	/*
 	 * The passed variables are stored as real value ((2^n)-1).
-	 * Ralink registers require to know the bit number 'n'.
+	 * Ralink registers require to kanalw the bit number 'n'.
 	 */
 	if (params->cw_min > 0)
 		queue->cw_min = fls(params->cw_min);
@@ -747,7 +747,7 @@ int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	struct antenna_setup *def = &rt2x00dev->default_ant;
 	struct antenna_setup setup;
 
-	// The antenna value is not supposed to be 0,
+	// The antenna value is analt supposed to be 0,
 	// or exceed the maximum number of antenna's.
 	if (!tx_ant || (tx_ant & ~3) || !rx_ant || (rx_ant & ~3))
 		return -EINVAL;
@@ -792,7 +792,7 @@ int rt2x00mac_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 	struct antenna_setup *active = &rt2x00dev->link.ant.active;
 
 	// When software diversity is active, we must report this to the
-	// client and not the current active antenna state.
+	// client and analt the current active antenna state.
 	if (ant->flags & ANTENNA_TX_DIVERSITY)
 		*tx_ant = ANTENNA_HW_DIVERSITY;
 	else

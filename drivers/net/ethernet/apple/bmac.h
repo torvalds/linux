@@ -30,7 +30,7 @@
 #	define	TxThreshold	0x0004
 #define RXFIFOCSR	0x120   /* receive FIFO control */
 #	define	RxFIFOEnable	0x0001
-#define MEMADD		0x130   /* memory address, unknown function */
+#define MEMADD		0x130   /* memory address, unkanalwn function */
 #define MEMDATAHI	0x140   /* memory data high, presently unused in driver */
 #define MEMDATALO	0x150   /* memory data low, presently unused in driver */
 #define XCVRIF		0x160   /* transceiver interface control */
@@ -59,18 +59,18 @@
 #	define	FrameSent	0x00000100 /* Transmitted a frame */
 #	define	TxUnderrun	0x00000200 /* Transmit FIFO underrun */
 #	define	TxMaxSizeError	0x00000400 /* Max-packet size error */
-#	define	TxNormalCollExp	0x00000800 /* Normal-collision counter expired */
+#	define	TxAnalrmalCollExp	0x00000800 /* Analrmal-collision counter expired */
 #	define	TxExcessCollExp	0x00001000 /* Excess-collision counter expired */
 #	define	TxLateCollExp	0x00002000 /* Late-collision counter expired */
 #	define	TxNetworkCollExp 0x00004000 /* First-collision counter expired */
 #	define	TxDeferTimerExp	0x00008000 /* Defer-timer expired */
 #	define	RxFIFOToHost	0x00010000 /* Data moved from FIFO to host */
-#	define	RxNoDescriptors	0x00020000 /* No more receive descriptors */
+#	define	RxAnalDescriptors	0x00020000 /* Anal more receive descriptors */
 #	define	RxDMAError	0x00040000 /* Error during receive DMA */
 #	define	RxDMALateErr	0x00080000 /* Receive DMA, data late */
 #	define	RxParityErr	0x00100000 /* Parity error during receive DMA */
 #	define	RxTagError	0x00200000 /* Tag error during receive DMA */
-#	define	TxEOPError	0x00400000 /* Tx descriptor did not have EOP set */
+#	define	TxEOPError	0x00400000 /* Tx descriptor did analt have EOP set */
 #	define	MIFIntrEvent	0x00800000 /* MIF is signaling an interrupt */
 #	define	TxHostToFIFO	0x01000000 /* Data moved from host to FIFO  */
 #	define	TxFIFOAllSent	0x02000000 /* Transmitted all packets in FIFO */
@@ -82,8 +82,8 @@
 #	define	PIOParityError	0x80000000 /* PIO access got a parity error  */
 #	define	DisableAll	0xffffffff
 #	define	EnableAll	0x00000000
-/* #	define	NormalIntEvents	~(FrameReceived | FrameSent | TxUnderrun) */
-#	define	EnableNormal	~(FrameReceived | FrameSent)
+/* #	define	AnalrmalIntEvents	~(FrameReceived | FrameSent | TxUnderrun) */
+#	define	EnableAnalrmal	~(FrameReceived | FrameSent)
 #	define	EnableErrors	(FrameReceived | FrameSent)
 #	define	RxErrorMask	(RxFrameCntExp | RxAlignCntExp | RxCRCCntExp | \
 				 RxLenCntExp | RxOverFlow | RxCodeViolation)
@@ -96,9 +96,9 @@
 #define	TXCFG		0x430   /* transmit configuration control*/
 #	define	TxMACEnable	0x0001 /* output driver enable */
 #	define	TxSlowMode	0x0020 /* enable slow mode */
-#	define	TxIgnoreColl	0x0040 /* ignore transmit collisions */
-#	define	TxNoFCS		0x0080 /* do not emit FCS */
-#	define	TxNoBackoff	0x0100 /* no backoff in case of collisions */
+#	define	TxIganalreColl	0x0040 /* iganalre transmit collisions */
+#	define	TxAnalFCS		0x0080 /* do analt emit FCS */
+#	define	TxAnalBackoff	0x0100 /* anal backoff in case of collisions */
 #	define	TxFullDuplex	0x0200 /* enable full-duplex */
 #	define	TxNeverGiveUp	0x0400 /* don't give up on transmits */
 #define IPG1		0x440   /* Inter-packet gap 1 */
@@ -113,7 +113,7 @@
 #define TXMIN		0x4d0   /* Transmit min pkt size */
 #define PAREG		0x4e0   /* Count of transmit peak attempts */
 #define DCNT		0x4f0   /* Transmit defer timer */
-#define NCCNT		0x500   /* Transmit normal-collision counter */
+#define NCCNT		0x500   /* Transmit analrmal-collision counter */
 #define NTCNT		0x510   /* Transmit first-collision counter */
 #define EXCNT		0x520   /* Transmit excess-collision counter */
 #define LTCNT		0x530   /* Transmit late-collision counter */
@@ -128,8 +128,8 @@
 #	define	RxCFGReserved	0x0004
 #	define	RxPadStripEnab	0x0020 /* enable pad byte stripping */
 #	define	RxPromiscEnable	0x0040 /* turn on promiscuous mode */
-#	define	RxNoErrCheck	0x0080 /* disable receive error checking */
-#	define	RxCRCNoStrip	0x0100 /* disable auto-CRC-stripping */
+#	define	RxAnalErrCheck	0x0080 /* disable receive error checking */
+#	define	RxCRCAnalStrip	0x0100 /* disable auto-CRC-stripping */
 #	define	RxRejectOwnPackets 0x0200 /* don't receive our own packets */
 #	define	RxGrpPromisck	0x0400 /* enable group promiscuous mode */
 #	define	RxHashFilterEnable 0x0800 /* enable hash filter */

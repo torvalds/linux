@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips { f75373, f75375, f75387 };
 
@@ -133,7 +133,7 @@ static struct i2c_driver f75375_driver = {
 	.remove = f75375_remove,
 	.id_table = f75375_id,
 	.detect = f75375_detect,
-	.address_list = normal_i2c,
+	.address_list = analrmal_i2c,
 };
 
 static inline int f75375_read8(struct i2c_client *client, u8 reg)
@@ -368,10 +368,10 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 
 	fanmode = f75375_read8(client, F75375_REG_FAN_TIMER);
 	if (data->kind == f75387) {
-		/* For now, deny dangerous toggling of duty mode */
+		/* For analw, deny dangerous toggling of duty mode */
 		if (duty_mode_enabled(data->pwm_enable[nr]) !=
 				duty_mode_enabled(val))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		/* clear each fanX_mode bit before setting them properly */
 		fanmode &= ~(1 << F75387_FAN_DUTY_MODE(nr));
 		fanmode &= ~(1 << F75387_FAN_MANU_MODE(nr));
@@ -459,7 +459,7 @@ static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *attr,
 	if (!(val == 0 || val == 1))
 		return -EINVAL;
 
-	/* F75373 does not support DC (linear voltage) fan control mode */
+	/* F75373 does analt support DC (linear voltage) fan control mode */
 	if (data->kind == f75373 && val == 0)
 		return -EINVAL;
 
@@ -826,7 +826,7 @@ static int f75375_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct f75375_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -871,7 +871,7 @@ static void f75375_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &f75375_group);
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int f75375_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
@@ -883,7 +883,7 @@ static int f75375_detect(struct i2c_client *client,
 	vendid = f75375_read16(client, F75375_REG_VENDOR);
 	chipid = f75375_read16(client, F75375_CHIP_ID);
 	if (vendid != 0x1934)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (chipid == 0x0306)
 		name = "f75375";
@@ -892,7 +892,7 @@ static int f75375_detect(struct i2c_client *client,
 	else if (chipid == 0x0410)
 		name = "f75387";
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	version = f75375_read8(client, F75375_REG_VERSION);
 	dev_info(&adapter->dev, "found %s version: %02X\n", name, version);

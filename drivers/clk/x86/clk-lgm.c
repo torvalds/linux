@@ -118,7 +118,7 @@
 
 /*
  * Below table defines the pair's of regval & effective dividers.
- * It's more efficient to provide an explicit table due to non-linear
+ * It's more efficient to provide an explicit table due to analn-linear
  * relation between values.
  */
 static const struct clk_div_table pll_div[] = {
@@ -159,7 +159,7 @@ static const struct clk_parent_data pllcm_p[] = {
 };
 static const struct clk_parent_data emmc_p[] = {
 	{ .fw_name = "emmc4", .name = "emmc4" },
-	{ .fw_name = "noc4", .name = "noc4" },
+	{ .fw_name = "analc4", .name = "analc4" },
 };
 static const struct clk_parent_data sdxc_p[] = {
 	{ .fw_name = "sdxc3", .name = "sdxc3" },
@@ -175,16 +175,16 @@ static const struct clk_parent_data cbphy_p[] = {
 };
 
 static const struct lgm_pll_clk_data lgm_pll_clks[] = {
-	LGM_PLL(LGM_CLK_PLL0CZ, "pll0cz", pll_p, CLK_IGNORE_UNUSED,
+	LGM_PLL(LGM_CLK_PLL0CZ, "pll0cz", pll_p, CLK_IGANALRE_UNUSED,
 		CGU_PLL0CZ_CFG0, TYPE_ROPLL),
-	LGM_PLL(LGM_CLK_PLL0CM0, "pll0cm0", pllcm_p, CLK_IGNORE_UNUSED,
+	LGM_PLL(LGM_CLK_PLL0CM0, "pll0cm0", pllcm_p, CLK_IGANALRE_UNUSED,
 		CGU_PLL0CM0_CFG0, TYPE_ROPLL),
-	LGM_PLL(LGM_CLK_PLL0CM1, "pll0cm1", pllcm_p, CLK_IGNORE_UNUSED,
+	LGM_PLL(LGM_CLK_PLL0CM1, "pll0cm1", pllcm_p, CLK_IGANALRE_UNUSED,
 		CGU_PLL0CM1_CFG0, TYPE_ROPLL),
-	LGM_PLL(LGM_CLK_PLL0B, "pll0b", pll_p, CLK_IGNORE_UNUSED,
+	LGM_PLL(LGM_CLK_PLL0B, "pll0b", pll_p, CLK_IGANALRE_UNUSED,
 		CGU_PLL0B_CFG0, TYPE_ROPLL),
 	LGM_PLL(LGM_CLK_PLL1, "pll1", pll_p, 0, CGU_PLL1_CFG0, TYPE_ROPLL),
-	LGM_PLL(LGM_CLK_PLL2, "pll2", pll_p, CLK_IGNORE_UNUSED,
+	LGM_PLL(LGM_CLK_PLL2, "pll2", pll_p, CLK_IGANALRE_UNUSED,
 		CGU_PLL2_CFG0, TYPE_ROPLL),
 	LGM_PLL(LGM_CLK_PLLPP, "pllpp", pll_p, 0, CGU_PLLPP_CFG0, TYPE_ROPLL),
 	LGM_PLL(LGM_CLK_LJPLL3, "ljpll3", pll_p, 0, CGU_LJPLL3_CFG0, TYPE_LJPLL),
@@ -200,13 +200,13 @@ static const struct lgm_clk_branch lgm_branch_clks[] = {
 		8, PLL_DIV_WIDTH, 26, 1, 0, 0, pll_div),
 	LGM_DIV(LGM_CLK_PP_TBM, "pp_tbm", "pllpp", 0, PLL_DIV(CGU_PLLPP_CFG0),
 		12, PLL_DIV_WIDTH, 27, 1, 0, 0, pll_div),
-	LGM_DIV(LGM_CLK_DDR, "ddr", "pll2", CLK_IGNORE_UNUSED,
+	LGM_DIV(LGM_CLK_DDR, "ddr", "pll2", CLK_IGANALRE_UNUSED,
 		PLL_DIV(CGU_PLL2_CFG0), 0, PLL_DIV_WIDTH, 24, 1, 0, 0,
 		pll_div),
 	LGM_DIV(LGM_CLK_CM, "cpu_cm", "pll0cz", 0, PLL_DIV(CGU_PLL0CZ_CFG0),
 		0, PLL_DIV_WIDTH, 24, 1, 0, 0, pll_div),
 
-	LGM_DIV(LGM_CLK_IC, "cpu_ic", "pll0cz", CLK_IGNORE_UNUSED,
+	LGM_DIV(LGM_CLK_IC, "cpu_ic", "pll0cz", CLK_IGANALRE_UNUSED,
 		PLL_DIV(CGU_PLL0CZ_CFG0), 4, PLL_DIV_WIDTH, 25,
 		1, 0, 0, pll_div),
 
@@ -214,23 +214,23 @@ static const struct lgm_clk_branch lgm_branch_clks[] = {
 		8, PLL_DIV_WIDTH, 26, 1, 0, 0, pll_div),
 
 	LGM_DIV(LGM_CLK_CPU0, "cm0", "pll0cm0",
-		CLK_IGNORE_UNUSED, PLL_DIV(CGU_PLL0CM0_CFG0),
+		CLK_IGANALRE_UNUSED, PLL_DIV(CGU_PLL0CM0_CFG0),
 		0, PLL_DIV_WIDTH, 24, 1, 0, 0, pll_div),
 	LGM_DIV(LGM_CLK_CPU1, "cm1", "pll0cm1",
-		CLK_IGNORE_UNUSED, PLL_DIV(CGU_PLL0CM1_CFG0),
+		CLK_IGANALRE_UNUSED, PLL_DIV(CGU_PLL0CM1_CFG0),
 		0, PLL_DIV_WIDTH, 24, 1, 0, 0, pll_div),
 
 	/*
-	 * Marking ngi_clk (next generation interconnect) and noc_clk
+	 * Marking ngi_clk (next generation interconnect) and analc_clk
 	 * (network on chip peripheral clk) as critical clocks because
 	 * these are shared parent clock sources for many different
 	 * peripherals.
 	 */
 	LGM_DIV(LGM_CLK_NGI, "ngi", "pll0b",
-		(CLK_IGNORE_UNUSED|CLK_IS_CRITICAL), PLL_DIV(CGU_PLL0B_CFG0),
+		(CLK_IGANALRE_UNUSED|CLK_IS_CRITICAL), PLL_DIV(CGU_PLL0B_CFG0),
 		0, PLL_DIV_WIDTH, 24, 1, 0, 0, pll_div),
-	LGM_DIV(LGM_CLK_NOC4, "noc4", "pll0b",
-		(CLK_IGNORE_UNUSED|CLK_IS_CRITICAL), PLL_DIV(CGU_PLL0B_CFG0),
+	LGM_DIV(LGM_CLK_ANALC4, "analc4", "pll0b",
+		(CLK_IGANALRE_UNUSED|CLK_IS_CRITICAL), PLL_DIV(CGU_PLL0B_CFG0),
 		4, PLL_DIV_WIDTH, 25, 1, 0, 0, pll_div),
 	LGM_DIV(LGM_CLK_SW, "switch", "pll0b", 0, PLL_DIV(CGU_PLL0B_CFG0),
 		8, PLL_DIV_WIDTH, 26, 1, 0, 0, pll_div),
@@ -245,7 +245,7 @@ static const struct lgm_clk_branch lgm_branch_clks[] = {
 
 	LGM_FIXED_FACTOR(LGM_CLK_EMMC4, "emmc4", "sdxc3", 0,  0,
 			 0, 0, 0, 0, 1, 4),
-	LGM_FIXED_FACTOR(LGM_CLK_SDXC2, "sdxc2", "noc4", 0,  0,
+	LGM_FIXED_FACTOR(LGM_CLK_SDXC2, "sdxc2", "analc4", 0,  0,
 			 0, 0, 0, 0, 1, 4),
 	LGM_MUX(LGM_CLK_EMMC, "emmc", emmc_p, 0, CGU_IF_CLK1,
 		0, 1, CLK_MUX_ROUND_CLOSEST, 0),
@@ -256,11 +256,11 @@ static const struct lgm_clk_branch lgm_branch_clks[] = {
 		  8, 2, CLOCK_FLAG_VAL_INIT, 8192000, 2),
 	LGM_FIXED(LGM_CLK_DOCSIS, "v_docsis", NULL, 0, 0, 0, 0, 0, 16000000, 0),
 	LGM_DIV(LGM_CLK_DCL, "dcl", "v_ifclk", CLK_SET_RATE_PARENT, CGU_PCMCR,
-		25, 3, 0, 0, DIV_CLK_NO_MASK, 0, dcl_div),
+		25, 3, 0, 0, DIV_CLK_ANAL_MASK, 0, dcl_div),
 	LGM_MUX(LGM_CLK_PCM, "pcm", pcm_p, 0, CGU_C55_PCMCR,
 		0, 1, CLK_MUX_ROUND_CLOSEST, 0),
 	LGM_FIXED_FACTOR(LGM_CLK_DDR_PHY, "ddr_phy", "ddr",
-			 CLK_IGNORE_UNUSED, 0,
+			 CLK_IGANALRE_UNUSED, 0,
 			 0, 0, 0, 0, 2, 1),
 	LGM_FIXED_FACTOR(LGM_CLK_PONDEF, "pondef", "dd_pool",
 			 CLK_SET_RATE_PARENT, 0, 0, 0, 0, 0, 1, 2),
@@ -314,27 +314,27 @@ static const struct lgm_clk_branch lgm_branch_clks[] = {
 		 G_I2C2_SHIFT, 0, 0),
 	LGM_GATE(LGM_GCLK_I2C3, "g_i2c3", NULL, 0, CGU_GATE1,
 		 G_I2C3_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_SSC0, "g_ssc0", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_SSC0, "g_ssc0", "analc4", 0, CGU_GATE1,
 		 G_SSC0_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_SSC1, "g_ssc1", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_SSC1, "g_ssc1", "analc4", 0, CGU_GATE1,
 		 G_SSC1_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_SSC2, "g_ssc2", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_SSC2, "g_ssc2", "analc4", 0, CGU_GATE1,
 		 G_SSC2_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_SSC3, "g_ssc3", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_SSC3, "g_ssc3", "analc4", 0, CGU_GATE1,
 		 G_SSC3_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_GPTC0, "g_gptc0", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_GPTC0, "g_gptc0", "analc4", 0, CGU_GATE1,
 		 G_GPTC0_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_GPTC1, "g_gptc1", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_GPTC1, "g_gptc1", "analc4", 0, CGU_GATE1,
 		 G_GPTC1_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_GPTC2, "g_gptc2", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_GPTC2, "g_gptc2", "analc4", 0, CGU_GATE1,
 		 G_GPTC2_SHIFT, 0, 0),
 	LGM_GATE(LGM_GCLK_GPTC3, "g_gptc3", "osc", 0, CGU_GATE1,
 		 G_GPTC3_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_ASC0, "g_asc0", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_ASC0, "g_asc0", "analc4", 0, CGU_GATE1,
 		 G_ASC0_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_ASC1, "g_asc1", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_ASC1, "g_asc1", "analc4", 0, CGU_GATE1,
 		 G_ASC1_SHIFT, 0, 0),
-	LGM_GATE(LGM_GCLK_ASC2, "g_asc2", "noc4", 0, CGU_GATE1,
+	LGM_GATE(LGM_GCLK_ASC2, "g_asc2", "analc4", 0, CGU_GATE1,
 		 G_ASC2_SHIFT, 0, 0),
 	LGM_GATE(LGM_GCLK_ASC3, "g_asc3", "osc", 0, CGU_GATE1,
 		 G_ASC3_SHIFT, 0, 0),
@@ -425,17 +425,17 @@ static int lgm_cgu_probe(struct platform_device *pdev)
 {
 	struct lgm_clk_provider *ctx;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	ctx = devm_kzalloc(dev, struct_size(ctx, clk_data.hws, CLK_NR_CLKS),
 			   GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->clk_data.num = CLK_NR_CLKS;
 
-	ctx->membase = syscon_node_to_regmap(np);
+	ctx->membase = syscon_analde_to_regmap(np);
 	if (IS_ERR(ctx->membase)) {
 		dev_err(dev, "Failed to get clk CGU iomem\n");
 		return PTR_ERR(ctx->membase);

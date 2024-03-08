@@ -35,7 +35,7 @@ int hv_init(void)
 {
 	hv_context.cpu_context = alloc_percpu(struct hv_per_cpu_context);
 	if (!hv_context.cpu_context)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -96,7 +96,7 @@ int hv_post_message(union hv_connection_id connection_id,
 
 int hv_synic_alloc(void)
 {
-	int cpu, ret = -ENOMEM;
+	int cpu, ret = -EANALMEM;
 	struct hv_per_cpu_context *hv_cpu;
 
 	/*
@@ -109,7 +109,7 @@ int hv_synic_alloc(void)
 		memset(hv_cpu, 0, sizeof(*hv_cpu));
 	}
 
-	hv_context.hv_numa_map = kcalloc(nr_node_ids, sizeof(struct cpumask),
+	hv_context.hv_numa_map = kcalloc(nr_analde_ids, sizeof(struct cpumask),
 					 GFP_KERNEL);
 	if (hv_context.hv_numa_map == NULL) {
 		pr_err("Unable to allocate NUMA map\n");
@@ -256,7 +256,7 @@ void hv_synic_free(void)
 /*
  * hv_synic_init - Initialize the Synthetic Interrupt Controller.
  *
- * If it is already initialized by another entity (ie x2v shim), we need to
+ * If it is already initialized by aanalther entity (ie x2v shim), we need to
  * retrieve the initialized message and event pages.  Otherwise, we create and
  * initialize the message and event pages.
  */
@@ -412,7 +412,7 @@ void hv_synic_disable_regs(unsigned int cpu)
  * Return 'true', if there is still any set bit after this operation; 'false', otherwise.
  *
  * If a bit is set, that means there is a pending channel interrupt.  The expectation is
- * that the normal interrupt handling mechanism will find and process the channel interrupt
+ * that the analrmal interrupt handling mechanism will find and process the channel interrupt
  * "very soon", and in the process clear the bit.
  */
 static bool hv_synic_event_pending(void)
@@ -450,9 +450,9 @@ int hv_synic_cleanup(unsigned int cpu)
 		goto always_cleanup;
 
 	/*
-	 * Hyper-V does not provide a way to change the connect CPU once
+	 * Hyper-V does analt provide a way to change the connect CPU once
 	 * it is set; we must prevent the connect CPU from going offline
-	 * while the VM is running normally. But in the panic or kexec()
+	 * while the VM is running analrmally. But in the panic or kexec()
 	 * path where the vmbus is already disconnected, the CPU must be
 	 * allowed to shut down.
 	 */

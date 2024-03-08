@@ -30,7 +30,7 @@ enum geni_se_xfer_mode {
 
 /* Protocols supported by GENI Serial Engines */
 enum geni_se_protocol_type {
-	GENI_SE_NONE,
+	GENI_SE_ANALNE,
 	GENI_SE_SPI,
 	GENI_SE_UART,
 	GENI_SE_I2C,
@@ -275,21 +275,21 @@ struct geni_se {
 
 #define HW_VER_MAJOR_MASK		GENMASK(31, 28)
 #define HW_VER_MAJOR_SHFT		28
-#define HW_VER_MINOR_MASK		GENMASK(27, 16)
-#define HW_VER_MINOR_SHFT		16
+#define HW_VER_MIANALR_MASK		GENMASK(27, 16)
+#define HW_VER_MIANALR_SHFT		16
 #define HW_VER_STEP_MASK		GENMASK(15, 0)
 
 #define GENI_SE_VERSION_MAJOR(ver) ((ver & HW_VER_MAJOR_MASK) >> HW_VER_MAJOR_SHFT)
-#define GENI_SE_VERSION_MINOR(ver) ((ver & HW_VER_MINOR_MASK) >> HW_VER_MINOR_SHFT)
+#define GENI_SE_VERSION_MIANALR(ver) ((ver & HW_VER_MIANALR_MASK) >> HW_VER_MIANALR_SHFT)
 #define GENI_SE_VERSION_STEP(ver) (ver & HW_VER_STEP_MASK)
 
-/* QUP SE VERSION value for major number 2 and minor number 5 */
+/* QUP SE VERSION value for major number 2 and mianalr number 5 */
 #define QUP_SE_VERSION_2_5                  0x20050000
 
 /*
  * Define bandwidth thresholds that cause the underlying Core 2X interconnect
  * clock to run at the named frequency. These baseline values are recommended
- * by the hardware team, and are not dynamically scaled with GENI bandwidth
+ * by the hardware team, and are analt dynamically scaled with GENI bandwidth
  * beyond basic on/off.
  */
 #define CORE_2X_19_2_MHZ		960
@@ -420,13 +420,13 @@ static inline void geni_se_abort_s_cmd(struct geni_se *se)
  */
 static inline u32 geni_se_get_tx_fifo_depth(struct geni_se *se)
 {
-	u32 val, hw_version, hw_major, hw_minor, tx_fifo_depth_mask;
+	u32 val, hw_version, hw_major, hw_mianalr, tx_fifo_depth_mask;
 
 	hw_version = geni_se_get_qup_hw_version(se);
 	hw_major = GENI_SE_VERSION_MAJOR(hw_version);
-	hw_minor = GENI_SE_VERSION_MINOR(hw_version);
+	hw_mianalr = GENI_SE_VERSION_MIANALR(hw_version);
 
-	if ((hw_major == 3 && hw_minor >= 10) || hw_major > 3)
+	if ((hw_major == 3 && hw_mianalr >= 10) || hw_major > 3)
 		tx_fifo_depth_mask = TX_FIFO_DEPTH_MSK_256_BYTES;
 	else
 		tx_fifo_depth_mask = TX_FIFO_DEPTH_MSK;
@@ -466,13 +466,13 @@ static inline u32 geni_se_get_tx_fifo_width(struct geni_se *se)
  */
 static inline u32 geni_se_get_rx_fifo_depth(struct geni_se *se)
 {
-	u32 val, hw_version, hw_major, hw_minor, rx_fifo_depth_mask;
+	u32 val, hw_version, hw_major, hw_mianalr, rx_fifo_depth_mask;
 
 	hw_version = geni_se_get_qup_hw_version(se);
 	hw_major = GENI_SE_VERSION_MAJOR(hw_version);
-	hw_minor = GENI_SE_VERSION_MINOR(hw_version);
+	hw_mianalr = GENI_SE_VERSION_MIANALR(hw_version);
 
-	if ((hw_major == 3 && hw_minor >= 10) || hw_major > 3)
+	if ((hw_major == 3 && hw_mianalr >= 10) || hw_major > 3)
 		rx_fifo_depth_mask = RX_FIFO_DEPTH_MSK_256_BYTES;
 	else
 		rx_fifo_depth_mask = RX_FIFO_DEPTH_MSK;

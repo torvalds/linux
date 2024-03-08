@@ -169,9 +169,9 @@ enum {
 #define IWL_LEGACY_SUCCESS_LIMIT	480
 #define IWL_LEGACY_TABLE_COUNT		160
 
-#define IWL_NONE_LEGACY_FAILURE_LIMIT	400
-#define IWL_NONE_LEGACY_SUCCESS_LIMIT	4500
-#define IWL_NONE_LEGACY_TABLE_COUNT	1500
+#define IWL_ANALNE_LEGACY_FAILURE_LIMIT	400
+#define IWL_ANALNE_LEGACY_SUCCESS_LIMIT	4500
+#define IWL_ANALNE_LEGACY_TABLE_COUNT	1500
 
 /* Success ratio (ACKed / attempted tx frames) values (perfect is 128 * 100) */
 #define IWL_RS_GOOD_RATIO		12800	/* 100% */
@@ -244,7 +244,7 @@ enum {
 extern const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT];
 
 enum iwl_table_type {
-	LQ_NONE,
+	LQ_ANALNE,
 	LQ_G,		/* legacy types */
 	LQ_A,
 	LQ_SISO,	/* high-throughput types */
@@ -382,7 +382,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta,
 /*
  * iwl_rate_control_register - Register the rate control algorithm callbacks
  *
- * Since the rate control algorithm is hardware specific, there is no need
+ * Since the rate control algorithm is hardware specific, there is anal need
  * or reason to place it as a stand alone module.  The driver can call
  * iwl_rate_control_register in order to register the rate control callbacks
  * with the mac80211 subsystem.  This should be performed prior to calling

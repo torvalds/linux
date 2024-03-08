@@ -66,7 +66,7 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 
 	decoder = devm_kzalloc(dev, sizeof(*decoder), GFP_KERNEL);
 	if (!decoder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	decoder->dev = dev;
 	device_property_read_u32(dev, "linux,axis", &decoder->axis);
@@ -78,7 +78,7 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 	}
 
 	if (decoder->input_gpios->ndescs < 2) {
-		dev_err(dev, "not enough gpios found\n");
+		dev_err(dev, "analt eanalugh gpios found\n");
 		return -EINVAL;
 	}
 
@@ -87,7 +87,7 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_drvdata(input, decoder);
 

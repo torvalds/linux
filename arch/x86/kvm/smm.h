@@ -88,7 +88,7 @@ struct kvm_smram_state_64 {
 	struct kvm_smm_seg_state_64 idtr; /* IDTR has only base and limit*/
 	struct kvm_smm_seg_state_64 tr;
 
-	/* I/O restart and auto halt restart are not implemented by KVM */
+	/* I/O restart and auto halt restart are analt implemented by KVM */
 	u64 io_restart_rip;
 	u64 io_restart_rcx;
 	u64 io_restart_rsi;
@@ -97,7 +97,7 @@ struct kvm_smram_state_64 {
 	u32 reserved1;
 	u8 io_inst_restart;
 	u8 auto_hlt_restart;
-	u8 amd_nmi_mask; /* Documented in AMD BKDG as NMI mask, not used by KVM */
+	u8 amd_nmi_mask; /* Documented in AMD BKDG as NMI mask, analt used by KVM */
 	u8 int_shadow;
 	u32 reserved2;
 
@@ -109,14 +109,14 @@ struct kvm_smram_state_64 {
 	 */
 	u64 svm_guest_flag;
 	u64 svm_guest_vmcb_gpa;
-	u64 svm_guest_virtual_int; /* unknown purpose, not implemented */
+	u64 svm_guest_virtual_int; /* unkanalwn purpose, analt implemented */
 
 	u32 reserved3[3];
 	u32 smm_revison;
 	u32 smbase;
 	u32 reserved4[5];
 
-	/* ssp and svm_* fields below are not implemented by KVM */
+	/* ssp and svm_* fields below are analt implemented by KVM */
 	u64 ssp;
 	u64 svm_guest_pat;
 	u64 svm_host_efer;
@@ -156,7 +156,7 @@ void enter_smm(struct kvm_vcpu *vcpu);
 int emulator_leave_smm(struct x86_emulate_ctxt *ctxt);
 void process_smi(struct kvm_vcpu *vcpu);
 #else
-static inline int kvm_inject_smi(struct kvm_vcpu *vcpu) { return -ENOTTY; }
+static inline int kvm_inject_smi(struct kvm_vcpu *vcpu) { return -EANALTTY; }
 static inline bool is_smm(struct kvm_vcpu *vcpu) { return false; }
 
 /*

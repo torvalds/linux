@@ -163,7 +163,7 @@ Example (4)
 		 * a, with sideband data being RID[14:0].
 		 * Devices with bus number 128-255 are mastered via
 		 * IOMMU b, with sideband data being RID[14:0].
-		 * No devices master via IOMMU c.
+		 * Anal devices master via IOMMU c.
 		 */
 		iommu-map = <0x0000 &iommu_a 0x0000 0x8000>,
 			    <0x8000 &iommu_b 0x0000 0x8000>;

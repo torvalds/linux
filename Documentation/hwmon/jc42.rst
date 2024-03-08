@@ -132,7 +132,7 @@ temp1_crit_hyst. Other hysteresis attributes are read-only.
 
 If the BIOS has configured the sensor for automatic temperature management, it
 is likely that it has locked the registers, i.e., that the temperature limits
-cannot be changed.
+cananalt be changed.
 
 Sysfs entries
 -------------

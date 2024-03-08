@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2019 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2019 Netroanalme Systems, Inc. */
 
 #include <linux/bitfield.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/if_link.h>
 #include <linux/if_ether.h>
@@ -20,13 +20,13 @@ nfp_net_sriov_check(struct nfp_app *app, int vf, u16 cap, const char *msg, bool 
 	u16 cap_vf;
 
 	if (!app || !app->pf->vfcfg_tbl2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cap_vf = readw(app->pf->vfcfg_tbl2 + NFP_NET_VF_CFG_MB_CAP);
 	if ((cap_vf & cap) != cap) {
 		if (warn)
-			nfp_warn(app->pf->cpp, "ndo_set_vf_%s not supported\n", msg);
-		return -EOPNOTSUPP;
+			nfp_warn(app->pf->cpp, "ndo_set_vf_%s analt supported\n", msg);
+		return -EOPANALTSUPP;
 	}
 
 	if (vf < 0 || vf >= app->pf->num_vfs) {
@@ -57,7 +57,7 @@ nfp_net_sriov_update(struct nfp_app *app, int vf, u16 update, const char *msg)
 	ret = readw(app->pf->vfcfg_tbl2 + NFP_NET_VF_CFG_MB_RET);
 	if (ret)
 		nfp_warn(app->pf->cpp,
-			 "FW refused VF %s update with errno: %d\n", msg, ret);
+			 "FW refused VF %s update with erranal: %d\n", msg, ret);
 	return -ret;
 }
 
@@ -108,7 +108,7 @@ int nfp_app_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
 		return err;
 
 	if (!eth_type_vlan(vlan_proto))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vlan > 4095 || qos > 7) {
 		nfp_warn(app->pf->cpp,
@@ -116,14 +116,14 @@ int nfp_app_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
 		return -EINVAL;
 	}
 
-	/* Check if fw supports or not */
+	/* Check if fw supports or analt */
 	err = nfp_net_sriov_check(app, vf, NFP_NET_VF_CFG_MB_CAP_VLAN_PROTO, "vlan_proto", true);
 	if (err)
 		is_proto_sup = false;
 
 	if (vlan_proto != htons(ETH_P_8021Q)) {
 		if (!is_proto_sup)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		update |= NFP_NET_VF_CFG_MB_UPD_VLAN_PROTO;
 	}
 
@@ -132,7 +132,7 @@ int nfp_app_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
 		FIELD_PREP(NFP_NET_VF_CFG_VLAN_QOS, qos);
 
 	/* vlan_tag of 0 means that the configuration should be cleared and in
-	 * such circumstances setting the TPID has no meaning when
+	 * such circumstances setting the TPID has anal meaning when
 	 * configuring firmware.
 	 */
 	if (vlan_tag && is_proto_sup)

@@ -18,7 +18,7 @@
  * Thanks go to its authors for providing a base to grow on.
  *
  *
- * IRQ support is currently not implemented.
+ * IRQ support is currently analt implemented.
  *
  * As it turns out, i2c-algo-pcf is really written with i2c-elektor's
  * edge-triggered ISA interrupts in mind, while the Amiga's Zorro bus has
@@ -26,11 +26,11 @@
  * have to tell the PCF8584 to shut up immediately, or it will keep the
  * interrupt line busy and cause an IRQ storm.
 
- * However, because of the PCF8584's host-side protocol, there is no good
+ * However, because of the PCF8584's host-side protocol, there is anal good
  * way to just quieten it without side effects. Rather, we have to perform
  * the next read/write operation straight away, which will reset the /INT
  * pin. This entails re-designing the core of i2c-algo-pcf in the future.
- * For now, we never request an IRQ from the PCF8584, and poll it instead.
+ * For analw, we never request an IRQ from the PCF8584, and poll it instead.
  */
 
 #include <linux/delay.h>
@@ -114,7 +114,7 @@ static const struct property_entry icy_ltc2990_props[] = {
 	{ }
 };
 
-static const struct software_node icy_ltc2990_node = {
+static const struct software_analde icy_ltc2990_analde = {
 	.properties = icy_ltc2990_props,
 };
 
@@ -125,16 +125,16 @@ static int icy_probe(struct zorro_dev *z,
 	struct i2c_algo_pcf_data *algo_data;
 	struct i2c_board_info ltc2990_info = {
 		.type		= "ltc2990",
-		.swnode		= &icy_ltc2990_node,
+		.swanalde		= &icy_ltc2990_analde,
 	};
 
 	i2c = devm_kzalloc(&z->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	algo_data = devm_kzalloc(&z->dev, sizeof(*algo_data), GFP_KERNEL);
 	if (!algo_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&z->dev, i2c);
 	i2c->adapter.dev.parent = &z->dev;
@@ -165,7 +165,7 @@ static int icy_probe(struct zorro_dev *z,
 		return -ENXIO;
 	}
 
-	dev_info(&z->dev, "ICY I2C controller at %pa, IRQ not implemented\n",
+	dev_info(&z->dev, "ICY I2C controller at %pa, IRQ analt implemented\n",
 		 &z->resource.start);
 
 	/*

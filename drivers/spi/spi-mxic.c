@@ -25,7 +25,7 @@
 #define HC_CFG_INDIVIDUAL	BIT(30)
 #define HC_CFG_NIO(x)		(((x) / 4) << 27)
 #define HC_CFG_TYPE(s, t)	((t) << (23 + ((s) * 2)))
-#define HC_CFG_TYPE_SPI_NOR	0
+#define HC_CFG_TYPE_SPI_ANALR	0
 #define HC_CFG_TYPE_SPI_NAND	1
 #define HC_CFG_TYPE_SPI_RAM	2
 #define HC_CFG_TYPE_RAW_NAND	3
@@ -53,9 +53,9 @@
 #define INT_LRD_DIS		BIT(11)
 #define INT_SDMA_INT		BIT(10)
 #define INT_DMA_FINISH		BIT(9)
-#define INT_RX_NOT_FULL		BIT(3)
-#define INT_RX_NOT_EMPTY	BIT(2)
-#define INT_TX_NOT_FULL		BIT(1)
+#define INT_RX_ANALT_FULL		BIT(3)
+#define INT_RX_ANALT_EMPTY	BIT(2)
+#define INT_TX_ANALT_FULL		BIT(1)
 #define INT_TX_EMPTY		BIT(0)
 
 #define HC_EN			0x10
@@ -289,7 +289,7 @@ static void mxic_spi_hw_init(struct mxic_spi *mxic)
 	writel(0, mxic->regs + HC_EN);
 	writel(0, mxic->regs + LRD_CFG);
 	writel(0, mxic->regs + LRD_CTRL);
-	writel(HC_CFG_NIO(1) | HC_CFG_TYPE(0, HC_CFG_TYPE_SPI_NOR) |
+	writel(HC_CFG_NIO(1) | HC_CFG_TYPE(0, HC_CFG_TYPE_SPI_ANALR) |
 	       HC_CFG_SLV_ACT(0) | HC_CFG_MAN_CS_EN | HC_CFG_IDLE_SIO_LVL(1),
 	       mxic->regs + HC_CFG);
 }
@@ -306,7 +306,7 @@ static u32 mxic_spi_prep_hc_cfg(struct spi_device *spi, u32 flags)
 		nio = 2;
 
 	return flags | HC_CFG_NIO(nio) |
-	       HC_CFG_TYPE(spi_get_chipselect(spi, 0), HC_CFG_TYPE_SPI_NOR) |
+	       HC_CFG_TYPE(spi_get_chipselect(spi, 0), HC_CFG_TYPE_SPI_ANALR) |
 	       HC_CFG_SLV_ACT(spi_get_chipselect(spi, 0)) | HC_CFG_IDLE_SIO_LVL(1);
 }
 
@@ -325,7 +325,7 @@ static u32 mxic_spi_mem_prep_op_cfg(const struct spi_mem_op *op,
 	if (op->dummy.nbytes)
 		cfg |= OP_DUMMY_CYC(op->dummy.nbytes);
 
-	/* Direct mapping data.nbytes field is not populated */
+	/* Direct mapping data.nbytes field is analt populated */
 	if (data_len) {
 		cfg |= OP_DATA_BUSW(fls(op->data.buswidth) - 1) |
 		       (op->data.dtr ? OP_DATA_DDR : 0);
@@ -369,7 +369,7 @@ static int mxic_spi_data_xfer(struct mxic_spi *mxic, const void *txbuf,
 			return ret;
 
 		ret = readl_poll_timeout(mxic->regs + INT_STS, sts,
-					 sts & INT_RX_NOT_EMPTY, 0,
+					 sts & INT_RX_ANALT_EMPTY, 0,
 					 USEC_PER_SEC);
 		if (ret)
 			return ret;
@@ -379,7 +379,7 @@ static int mxic_spi_data_xfer(struct mxic_spi *mxic, const void *txbuf,
 			data >>= (8 * (4 - nbytes));
 			memcpy(rxbuf + pos, &data, nbytes);
 		}
-		WARN_ON(readl(mxic->regs + INT_STS) & INT_RX_NOT_EMPTY);
+		WARN_ON(readl(mxic->regs + INT_STS) & INT_RX_ANALT_EMPTY);
 
 		pos += nbytes;
 	}
@@ -502,7 +502,7 @@ static int mxic_spi_mem_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		return -EINVAL;
 
 	if (!mxic_spi_mem_supports_op(desc->mem, &desc->info.op_tmpl))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -605,7 +605,7 @@ static int mxic_spi_transfer_one(struct spi_controller *host,
 		     !(spi->mode & SPI_RX_QUAD)) ||
 		    ((spi->mode & SPI_TX_DUAL) &&
 		     !(spi->mode & SPI_RX_DUAL)))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 	}
 
 	ret = mxic_spi_set_freq(mxic, t->speed_hz);
@@ -695,7 +695,7 @@ static int mxic_spi_mem_ecc_probe(struct platform_device *pdev,
 	struct nand_ecc_engine *eng;
 
 	if (!mxic_ecc_get_pipelined_ops())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	eng = mxic_ecc_get_pipelined_engine(pdev);
 	if (IS_ERR(eng))
@@ -730,7 +730,7 @@ static int __maybe_unused mxic_spi_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(mxic->ps_clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable ps_clock.\n");
+		dev_err(dev, "Cananalt enable ps_clock.\n");
 		return ret;
 	}
 
@@ -751,14 +751,14 @@ static int mxic_spi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(struct mxic_spi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
 
 	mxic = spi_controller_get_devdata(host);
 	mxic->dev = &pdev->dev;
 
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 
 	mxic->ps_clk = devm_clk_get(&pdev->dev, "ps_clk");
 	if (IS_ERR(mxic->ps_clk))

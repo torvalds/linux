@@ -15,7 +15,7 @@
 #define LARGE_MAX_OFFSET 32
 #define LARGE_SIZE_START 4096
 
-/* This is big enough to fit LARGE_SIZE and works on 4K & 64K kernels */
+/* This is big eanalugh to fit LARGE_SIZE and works on 4K & 64K kernels */
 #define MAP_SIZE (64 * 1024)
 
 #define MAX_OFFSET_DIFF_S1_S2 48
@@ -62,7 +62,7 @@ static void test_one(char *s1, char *s2, unsigned long max_offset,
 			}
 
 			if (vmx_count != 0) {
-				printf("vmx enter/exit not paired.(offset:%ld size:%ld s1:%p s2:%p vc:%d\n",
+				printf("vmx enter/exit analt paired.(offset:%ld size:%ld s1:%p s2:%p vc:%d\n",
 					offset, size, s1, s2, vmx_count);
 				printf("\n");
 				abort();
@@ -82,7 +82,7 @@ static int testcase(bool islarge)
 	iterations = islarge ? LARGE_ITERATIONS : ITERATIONS;
 
 	p = mmap(NULL, 4 * MAP_SIZE, PROT_READ | PROT_WRITE,
-		 MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		 MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	FAIL_IF(p == MAP_FAILED);
 
 	/* Put s1/s2 at the end of a page */

@@ -8,8 +8,8 @@
 void arch_crash_save_vmcoreinfo(void)
 {
 #ifdef CONFIG_NUMA
-	VMCOREINFO_SYMBOL(node_data);
-	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
+	VMCOREINFO_SYMBOL(analde_data);
+	VMCOREINFO_LENGTH(analde_data, MAX_NUMANALDES);
 #endif
 #ifdef CONFIG_X86_PAE
 	VMCOREINFO_CONFIG(X86_PAE);

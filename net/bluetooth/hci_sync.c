@@ -88,7 +88,7 @@ static void hci_cmd_sync_add(struct hci_request *req, u16 opcode, u32 plen,
 
 	bt_dev_dbg(hdev, "opcode 0x%4.4x plen %d", opcode, plen);
 
-	/* If an error occurred during request building, there is no point in
+	/* If an error occurred during request building, there is anal point in
 	 * queueing the HCI command. We can simply return.
 	 */
 	if (req->err)
@@ -96,9 +96,9 @@ static void hci_cmd_sync_add(struct hci_request *req, u16 opcode, u32 plen,
 
 	skb = hci_cmd_sync_alloc(hdev, opcode, plen, param, sk);
 	if (!skb) {
-		bt_dev_err(hdev, "no memory for command (opcode 0x%4.4x)",
+		bt_dev_err(hdev, "anal memory for command (opcode 0x%4.4x)",
 			   opcode);
-		req->err = -ENOMEM;
+		req->err = -EANALMEM;
 		return;
 	}
 
@@ -126,9 +126,9 @@ static int hci_cmd_sync_run(struct hci_request *req)
 		return req->err;
 	}
 
-	/* Do not allow empty requests */
+	/* Do analt allow empty requests */
 	if (skb_queue_empty(&req->cmd_q))
-		return -ENODATA;
+		return -EANALDATA;
 
 	skb = skb_peek_tail(&req->cmd_q);
 	bt_cb(skb)->hci.req_complete_skb = hci_cmd_sync_complete;
@@ -173,7 +173,7 @@ struct sk_buff *__hci_cmd_sync_sk(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	switch (hdev->req_status) {
 	case HCI_REQ_DONE:
-		err = -bt_to_errno(hdev->req_result);
+		err = -bt_to_erranal(hdev->req_result);
 		break;
 
 	case HCI_REQ_CANCELED:
@@ -254,7 +254,7 @@ int __hci_cmd_sync_status_sk(struct hci_dev *hdev, u16 opcode, u32 plen,
 	}
 
 	/* If command return a status event skb will be set to NULL as there are
-	 * no parameters, in case of failure IS_ERR(skb) would have be set to
+	 * anal parameters, in case of failure IS_ERR(skb) would have be set to
 	 * the actual error would be found with PTR_ERR(skb).
 	 */
 	if (!skb)
@@ -360,7 +360,7 @@ static void le_scan_disable(struct work_struct *work)
 	 * we were running both LE and BR/EDR inquiry simultaneously,
 	 * and BR/EDR inquiry is already finished, stop discovery,
 	 * otherwise BR/EDR inquiry will stop discovery when finished.
-	 * If we will resolve remote device name, do not change
+	 * If we will resolve remote device name, do analt change
 	 * discovery state.
 	 */
 
@@ -448,7 +448,7 @@ static void cancel_adv_timeout(struct hci_dev *hdev)
 
 /* For a single instance:
  * - force == true: The instance will be removed even when its remaining
- *   lifetime is not zero.
+ *   lifetime is analt zero.
  * - force == false: the instance will be deactivated but kept stored unless
  *   the remaining lifetime is zero.
  *
@@ -615,7 +615,7 @@ EXPORT_SYMBOL(hci_cmd_sync_cancel);
 
 /* Submit HCI command to be run in as cmd_sync_work:
  *
- * - hdev must _not_ be unregistered
+ * - hdev must _analt_ be unregistered
  */
 int hci_cmd_sync_submit(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 			void *data, hci_cmd_sync_work_destroy_t destroy)
@@ -625,13 +625,13 @@ int hci_cmd_sync_submit(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 
 	mutex_lock(&hdev->unregister_lock);
 	if (hci_dev_test_flag(hdev, HCI_UNREGISTER)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unlock;
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 	entry->func = func;
@@ -724,7 +724,7 @@ int hci_update_class_sync(struct hci_dev *hdev)
 	if (hci_dev_test_flag(hdev, HCI_SERVICE_CACHE))
 		return 0;
 
-	cod[0] = hdev->minor_class;
+	cod[0] = hdev->mianalr_class;
 	cod[1] = hdev->major_class;
 	cod[2] = get_service_classes(hdev);
 
@@ -740,13 +740,13 @@ int hci_update_class_sync(struct hci_dev *hdev)
 
 static bool is_advertising_allowed(struct hci_dev *hdev, bool connectable)
 {
-	/* If there is no connection we are OK to advertise. */
+	/* If there is anal connection we are OK to advertise. */
 	if (hci_conn_num(hdev, LE_LINK) == 0)
 		return true;
 
 	/* Check le_states if there is any connection in peripheral role. */
 	if (hdev->conn_hash.le_num_peripheral > 0) {
-		/* Peripheral connection state and non connectable mode
+		/* Peripheral connection state and analn connectable mode
 		 * bit 20.
 		 */
 		if (!connectable && !(hdev->le_states[2] & 0x10))
@@ -762,7 +762,7 @@ static bool is_advertising_allowed(struct hci_dev *hdev, bool connectable)
 
 	/* Check le_states if there is any connection in central role. */
 	if (hci_conn_num(hdev, LE_LINK) != hdev->conn_hash.le_num_peripheral) {
-		/* Central connection state and non connectable mode bit 18. */
+		/* Central connection state and analn connectable mode bit 18. */
 		if (!connectable && !(hdev->le_states[2] & 0x02))
 			return false;
 
@@ -779,7 +779,7 @@ static bool is_advertising_allowed(struct hci_dev *hdev, bool connectable)
 
 static bool adv_use_rpa(struct hci_dev *hdev, uint32_t flags)
 {
-	/* If privacy is not enabled don't use RPA */
+	/* If privacy is analt enabled don't use RPA */
 	if (!hci_dev_test_flag(hdev, HCI_PRIVACY))
 		return false;
 
@@ -794,7 +794,7 @@ static bool adv_use_rpa(struct hci_dev *hdev, uint32_t flags)
 	    hci_dev_test_flag(hdev, HCI_BONDABLE))
 		return false;
 
-	/* We're neither bondable nor discoverable in the limited
+	/* We're neither bondable analr discoverable in the limited
 	 * privacy mode, therefore use RPA.
 	 */
 	return true;
@@ -859,21 +859,21 @@ int hci_update_random_address_sync(struct hci_dev *hdev, bool require_privacy,
 	}
 
 	/* In case of required privacy without resolvable private address,
-	 * use an non-resolvable private address. This is useful for active
-	 * scanning and non-connectable advertising.
+	 * use an analn-resolvable private address. This is useful for active
+	 * scanning and analn-connectable advertising.
 	 */
 	if (require_privacy) {
 		bdaddr_t nrpa;
 
 		while (true) {
-			/* The non-resolvable private address is generated
+			/* The analn-resolvable private address is generated
 			 * from random six bytes with the two most significant
 			 * bits cleared.
 			 */
 			get_random_bytes(&nrpa, 6);
 			nrpa.b[5] &= 0x3f;
 
-			/* The non-resolvable private address shall not be
+			/* The analn-resolvable private address shall analt be
 			 * equal to the public address.
 			 */
 			if (bacmp(&hdev->bdaddr, &nrpa))
@@ -885,7 +885,7 @@ int hci_update_random_address_sync(struct hci_dev *hdev, bool require_privacy,
 		return hci_set_random_addr_sync(hdev, &nrpa);
 	}
 
-	/* If forcing static address is in use or there is no public
+	/* If forcing static address is in use or there is anal public
 	 * address use the static address as random address (but skip
 	 * the HCI command if the current random address is already the
 	 * static one.
@@ -905,7 +905,7 @@ int hci_update_random_address_sync(struct hci_dev *hdev, bool require_privacy,
 		return 0;
 	}
 
-	/* Neither privacy nor static address is being used so use a
+	/* Neither privacy analr static address is being used so use a
 	 * public address.
 	 */
 	*own_addr_type = ADDR_LE_DEV_PUBLIC;
@@ -928,7 +928,7 @@ static int hci_disable_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 		if (!adv)
 			return -EINVAL;
 
-		/* If not enabled there is nothing to do */
+		/* If analt enabled there is analthing to do */
 		if (!adv->enabled)
 			return 0;
 	}
@@ -1007,8 +1007,8 @@ int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 
 	flags = hci_adv_instance_flags(hdev, instance);
 
-	/* If the "connectable" instance flag was not set, then choose between
-	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
+	/* If the "connectable" instance flag was analt set, then choose between
+	 * ADV_IND and ADV_ANALNCONN_IND based on the global connectable setting.
 	 */
 	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE) ||
 		      mgmt_get_connectable(hdev);
@@ -1016,9 +1016,9 @@ int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 	if (!is_advertising_allowed(hdev, connectable))
 		return -EPERM;
 
-	/* Set require_privacy to true only when non-connectable
+	/* Set require_privacy to true only when analn-connectable
 	 * advertising is used. In that case it is fine to use a
-	 * non-resolvable private address.
+	 * analn-resolvable private address.
 	 */
 	err = hci_get_random_address(hdev, !connectable,
 				     adv_use_rpa(hdev, flags), adv,
@@ -1035,7 +1035,7 @@ int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 	} else {
 		hci_cpu_to_le24(hdev->le_adv_min_interval, cp.min_interval);
 		hci_cpu_to_le24(hdev->le_adv_max_interval, cp.max_interval);
-		cp.tx_power = HCI_ADV_TX_POWER_NO_PREFERENCE;
+		cp.tx_power = HCI_ADV_TX_POWER_ANAL_PREFERENCE;
 	}
 
 	secondary_adv = (flags & MGMT_ADV_FLAG_SEC_MASK);
@@ -1053,9 +1053,9 @@ int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 			cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_SCAN_IND);
 	} else {
 		if (secondary_adv)
-			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_NON_CONN_IND);
+			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_ANALN_CONN_IND);
 		else
-			cp.evt_properties = cpu_to_le16(LE_LEGACY_NONCONN_IND);
+			cp.evt_properties = cpu_to_le16(LE_LEGACY_ANALNCONN_IND);
 	}
 
 	/* If Own_Address_Type equals 0x02 or 0x03, the Peer_Address parameter
@@ -1132,7 +1132,7 @@ static int hci_set_ext_scan_rsp_data_sync(struct hci_dev *hdev, u8 instance)
 	pdu.cp.handle = instance;
 	pdu.cp.length = len;
 	pdu.cp.operation = LE_SET_ADV_DATA_OP_COMPLETE;
-	pdu.cp.frag_pref = LE_SET_ADV_DATA_NO_FRAG;
+	pdu.cp.frag_pref = LE_SET_ADV_DATA_ANAL_FRAG;
 
 	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_EXT_SCAN_RSP_DATA,
 				    sizeof(pdu.cp) + len, &pdu.cp,
@@ -1194,7 +1194,7 @@ int hci_enable_ext_advertising_sync(struct hci_dev *hdev, u8 instance)
 		adv = hci_find_adv_instance(hdev, instance);
 		if (!adv)
 			return -EINVAL;
-		/* If already enabled there is nothing to do */
+		/* If already enabled there is analthing to do */
 		if (adv->enabled)
 			return 0;
 	} else {
@@ -1249,7 +1249,7 @@ int hci_disable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 	struct hci_cp_le_set_per_adv_enable cp;
 	struct adv_info *adv = NULL;
 
-	/* If periodic advertising already disabled there is nothing to do. */
+	/* If periodic advertising already disabled there is analthing to do. */
 	adv = hci_find_adv_instance(hdev, instance);
 	if (!adv || !adv->periodic || !adv->enabled)
 		return 0;
@@ -1318,7 +1318,7 @@ static int hci_enable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 	struct hci_cp_le_set_per_adv_enable cp;
 	struct adv_info *adv = NULL;
 
-	/* If periodic advertising already enabled there is nothing to do. */
+	/* If periodic advertising already enabled there is analthing to do. */
 	adv = hci_find_adv_instance(hdev, instance);
 	if (adv && adv->periodic && adv->enabled)
 		return 0;
@@ -1332,31 +1332,31 @@ static int hci_enable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }
 
-/* Checks if periodic advertising data contains a Basic Announcement and if it
- * does generates a Broadcast ID and add Broadcast Announcement.
+/* Checks if periodic advertising data contains a Basic Ananaluncement and if it
+ * does generates a Broadcast ID and add Broadcast Ananaluncement.
  */
-static int hci_adv_bcast_annoucement(struct hci_dev *hdev, struct adv_info *adv)
+static int hci_adv_bcast_ananalucement(struct hci_dev *hdev, struct adv_info *adv)
 {
 	u8 bid[3];
 	u8 ad[4 + 3];
 
 	/* Skip if NULL adv as instance 0x00 is used for general purpose
-	 * advertising so it cannot used for the likes of Broadcast Announcement
+	 * advertising so it cananalt used for the likes of Broadcast Ananaluncement
 	 * as it can be overwritten at any point.
 	 */
 	if (!adv)
 		return 0;
 
-	/* Check if PA data doesn't contains a Basic Audio Announcement then
-	 * there is nothing to do.
+	/* Check if PA data doesn't contains a Basic Audio Ananaluncement then
+	 * there is analthing to do.
 	 */
 	if (!eir_get_service_data(adv->per_adv_data, adv->per_adv_data_len,
 				  0x1851, NULL))
 		return 0;
 
-	/* Check if advertising data already has a Broadcast Announcement since
+	/* Check if advertising data already has a Broadcast Ananaluncement since
 	 * the process may want to control the Broadcast ID directly and in that
-	 * case the kernel shall no interfere.
+	 * case the kernel shall anal interfere.
 	 */
 	if (eir_get_service_data(adv->adv_data, adv->adv_data_len, 0x1852,
 				 NULL))
@@ -1382,7 +1382,7 @@ int hci_start_per_adv_sync(struct hci_dev *hdev, u8 instance, u8 data_len,
 
 	if (instance) {
 		adv = hci_find_adv_instance(hdev, instance);
-		/* Create an instance if that could not be found */
+		/* Create an instance if that could analt be found */
 		if (!adv) {
 			adv = hci_add_per_instance(hdev, instance, flags,
 						   data_len, data,
@@ -1400,7 +1400,7 @@ int hci_start_per_adv_sync(struct hci_dev *hdev, u8 instance, u8 data_len,
 	if (err < 0)
 		goto fail;
 
-	err = hci_adv_bcast_annoucement(hdev, adv);
+	err = hci_adv_bcast_ananalucement(hdev, adv);
 	if (err < 0)
 		goto fail;
 
@@ -1461,8 +1461,8 @@ int hci_enable_advertising_sync(struct hci_dev *hdev)
 	flags = hci_adv_instance_flags(hdev, hdev->cur_adv_instance);
 	adv_instance = hci_find_adv_instance(hdev, hdev->cur_adv_instance);
 
-	/* If the "connectable" instance flag was not set, then choose between
-	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
+	/* If the "connectable" instance flag was analt set, then choose between
+	 * ADV_IND and ADV_ANALNCONN_IND based on the global connectable setting.
 	 */
 	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE) ||
 		      mgmt_get_connectable(hdev);
@@ -1475,15 +1475,15 @@ int hci_enable_advertising_sync(struct hci_dev *hdev)
 		return status;
 
 	/* Clear the HCI_LE_ADV bit temporarily so that the
-	 * hci_update_random_address knows that it's safe to go ahead
+	 * hci_update_random_address kanalws that it's safe to go ahead
 	 * and write a new random address. The flag will be set back on
 	 * as soon as the SET_ADV_ENABLE HCI command completes.
 	 */
 	hci_dev_clear_flag(hdev, HCI_LE_ADV);
 
-	/* Set require_privacy to true only when non-connectable
+	/* Set require_privacy to true only when analn-connectable
 	 * advertising is used. In that case it is fine to use a
-	 * non-resolvable private address.
+	 * analn-resolvable private address.
 	 */
 	status = hci_update_random_address_sync(hdev, !connectable,
 						adv_use_rpa(hdev, flags),
@@ -1507,7 +1507,7 @@ int hci_enable_advertising_sync(struct hci_dev *hdev)
 		if (hci_adv_instance_is_scannable(hdev, hdev->cur_adv_instance))
 			cp.type = LE_ADV_SCAN_IND;
 		else
-			cp.type = LE_ADV_NONCONN_IND;
+			cp.type = LE_ADV_ANALNCONN_IND;
 
 		if (!hci_dev_test_flag(hdev, HCI_DISCOVERABLE) ||
 		    hci_dev_test_flag(hdev, HCI_LIMITED_DISCOVERABLE)) {
@@ -1624,7 +1624,7 @@ static int hci_set_ext_adv_data_sync(struct hci_dev *hdev, u8 instance)
 	pdu.cp.length = len;
 	pdu.cp.handle = instance;
 	pdu.cp.operation = LE_SET_ADV_DATA_OP_COMPLETE;
-	pdu.cp.frag_pref = LE_SET_ADV_DATA_NO_FRAG;
+	pdu.cp.frag_pref = LE_SET_ADV_DATA_ANAL_FRAG;
 
 	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_EXT_ADV_DATA,
 				    sizeof(pdu.cp) + len, &pdu.cp,
@@ -1652,7 +1652,7 @@ static int hci_set_adv_data_sync(struct hci_dev *hdev, u8 instance)
 
 	len = eir_create_adv_data(hdev, instance, cp.data);
 
-	/* There's nothing to do if the data hasn't changed */
+	/* There's analthing to do if the data hasn't changed */
 	if (hdev->adv_data_len == len &&
 	    memcmp(cp.data, hdev->adv_data, len) == 0)
 		return 0;
@@ -1691,10 +1691,10 @@ int hci_schedule_adv_instance_sync(struct hci_dev *hdev, u8 instance,
 
 	adv = hci_find_adv_instance(hdev, instance);
 	if (!adv)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* A zero timeout means unlimited advertising. As long as there is
-	 * only one instance, duration should be ignored. We still set a timeout
+	 * only one instance, duration should be iganalred. We still set a timeout
 	 * in case further instances are being added later on.
 	 *
 	 * If the remaining lifetime of the instance is more than the duration
@@ -1720,7 +1720,7 @@ int hci_schedule_adv_instance_sync(struct hci_dev *hdev, u8 instance,
 				   msecs_to_jiffies(timeout * 1000));
 	}
 
-	/* If we're just re-scheduling the same instance again then do not
+	/* If we're just re-scheduling the same instance again then do analt
 	 * execute any HCI commands. This happens when a single instance is
 	 * being advertised.
 	 */
@@ -1760,12 +1760,12 @@ static int hci_clear_adv_sync(struct hci_dev *hdev, struct sock *sk, bool force)
 	if (ext_adv_capable(hdev))
 		return err;
 
-	/* This is safe as long as there is no command send while the lock is
+	/* This is safe as long as there is anal command send while the lock is
 	 * held.
 	 */
 	hci_dev_lock(hdev);
 
-	/* Cleanup non-ext instances */
+	/* Cleanup analn-ext instances */
 	list_for_each_entry_safe(adv, n, &hdev->adv_instances, list) {
 		u8 instance = adv->instance;
 		int err;
@@ -1794,7 +1794,7 @@ static int hci_remove_adv_sync(struct hci_dev *hdev, u8 instance,
 	if (ext_adv_capable(hdev))
 		return err;
 
-	/* This is safe as long as there is no command send while the lock is
+	/* This is safe as long as there is anal command send while the lock is
 	 * held.
 	 */
 	hci_dev_lock(hdev);
@@ -1810,7 +1810,7 @@ static int hci_remove_adv_sync(struct hci_dev *hdev, u8 instance,
 
 /* For a single instance:
  * - force == true: The instance will be removed even when its remaining
- *   lifetime is not zero.
+ *   lifetime is analt zero.
  * - force == false: the instance will be deactivated but kept stored unless
  *   the remaining lifetime is zero.
  *
@@ -1893,7 +1893,7 @@ int hci_disable_advertising_sync(struct hci_dev *hdev)
 	u8 enable = 0x00;
 	int err = 0;
 
-	/* If controller is not advertising we are done. */
+	/* If controller is analt advertising we are done. */
 	if (!hci_dev_test_flag(hdev, HCI_LE_ADV))
 		return 0;
 
@@ -1948,7 +1948,7 @@ static int hci_le_set_addr_resolution_enable_sync(struct hci_dev *hdev, u8 val)
 	if (!use_ll_privacy(hdev))
 		return 0;
 
-	/* If controller is not/already resolving we are done. */
+	/* If controller is analt/already resolving we are done. */
 	if (val == hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION))
 		return 0;
 
@@ -1960,7 +1960,7 @@ static int hci_scan_disable_sync(struct hci_dev *hdev)
 {
 	int err;
 
-	/* If controller is not scanning we are done. */
+	/* If controller is analt scanning we are done. */
 	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
 		return 0;
 
@@ -1985,14 +1985,14 @@ static bool scan_use_rpa(struct hci_dev *hdev)
 
 static void hci_start_interleave_scan(struct hci_dev *hdev)
 {
-	hdev->interleave_scan_state = INTERLEAVE_SCAN_NO_FILTER;
+	hdev->interleave_scan_state = INTERLEAVE_SCAN_ANAL_FILTER;
 	queue_delayed_work(hdev->req_workqueue,
 			   &hdev->interleave_scan, 0);
 }
 
 static bool is_interleave_scanning(struct hci_dev *hdev)
 {
-	return hdev->interleave_scan_state != INTERLEAVE_SCAN_NONE;
+	return hdev->interleave_scan_state != INTERLEAVE_SCAN_ANALNE;
 }
 
 static void cancel_interleave_scan(struct hci_dev *hdev)
@@ -2001,7 +2001,7 @@ static void cancel_interleave_scan(struct hci_dev *hdev)
 
 	cancel_delayed_work_sync(&hdev->interleave_scan);
 
-	hdev->interleave_scan_state = INTERLEAVE_SCAN_NONE;
+	hdev->interleave_scan_state = INTERLEAVE_SCAN_ANALNE;
 }
 
 /* Return true if interleave_scan wasn't started until exiting this function,
@@ -2012,7 +2012,7 @@ static bool hci_update_interleaved_scan_sync(struct hci_dev *hdev)
 	/* Do interleaved scan only if all of the following are true:
 	 * - There is at least one ADV monitor
 	 * - At least one pending LE connection or one device to be scanned for
-	 * - Monitor offloading is not supported
+	 * - Monitor offloading is analt supported
 	 * If so, we should alternate between allowlist scan and one without
 	 * any filters to save power.
 	 */
@@ -2020,7 +2020,7 @@ static bool hci_update_interleaved_scan_sync(struct hci_dev *hdev)
 				!(list_empty(&hdev->pend_le_conns) &&
 				  list_empty(&hdev->pend_le_reports)) &&
 				hci_get_adv_monitor_offload_ext(hdev) ==
-				    HCI_ADV_MONITOR_EXT_NONE;
+				    HCI_ADV_MONITOR_EXT_ANALNE;
 	bool is_interleaving = is_interleave_scanning(hdev);
 
 	if (use_interleaving && !is_interleaving) {
@@ -2071,7 +2071,7 @@ static int hci_le_del_accept_list_sync(struct hci_dev *hdev,
 	cp.bdaddr_type = bdaddr_type;
 	bacpy(&cp.bdaddr, bdaddr);
 
-	/* Ignore errors when removing from resolving list as that is likely
+	/* Iganalre errors when removing from resolving list as that is likely
 	 * that the device was never added.
 	 */
 	hci_le_del_resolve_list_sync(hdev, &cp.bdaddr, cp.bdaddr_type);
@@ -2126,7 +2126,7 @@ static int hci_le_add_resolve_list_sync(struct hci_dev *hdev,
 	if (!irk)
 		return 0;
 
-	/* Check if the IK has _not_ been programmed yet. */
+	/* Check if the IK has _analt_ been programmed yet. */
 	entry = hci_bdaddr_list_lookup_with_irk(&hdev->le_resolv_list,
 						&params->addr,
 						params->addr_type);
@@ -2167,7 +2167,7 @@ static int hci_le_set_privacy_mode_sync(struct hci_dev *hdev,
 	struct hci_cp_le_set_privacy_mode cp;
 	struct smp_irk *irk;
 
-	/* If device privacy mode has already been set there is nothing to do */
+	/* If device privacy mode has already been set there is analthing to do */
 	if (params->privacy_mode == HCI_DEVICE_PRIVACY)
 		return 0;
 
@@ -2187,7 +2187,7 @@ static int hci_le_set_privacy_mode_sync(struct hci_dev *hdev,
 	bacpy(&cp.bdaddr, &irk->bdaddr);
 	cp.mode = HCI_DEVICE_PRIVACY;
 
-	/* Note: params->privacy_mode is not updated since it is a copy */
+	/* Analte: params->privacy_mode is analt updated since it is a copy */
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_PRIVACY_MODE,
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
@@ -2214,9 +2214,9 @@ static int hci_le_add_accept_list_sync(struct hci_dev *hdev,
 
 	/* Select filter policy to accept all advertising */
 	if (*num_entries >= hdev->le_accept_list_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
-	/* Accept list can not be used with RPAs */
+	/* Accept list can analt be used with RPAs */
 	if (!use_ll_privacy(hdev) &&
 	    hci_find_irk_by_addr(hdev, &params->addr, params->addr_type))
 		return -EINVAL;
@@ -2268,7 +2268,7 @@ static int hci_pause_advertising_sync(struct hci_dev *hdev)
 	int err;
 	int old_state;
 
-	/* If already been paused there is nothing to do. */
+	/* If already been paused there is analthing to do. */
 	if (hdev->advertising_paused)
 		return 0;
 
@@ -2290,7 +2290,7 @@ static int hci_pause_advertising_sync(struct hci_dev *hdev)
 	bt_dev_dbg(hdev, "Pausing advertising instances");
 
 	/* Call to disable any advertisements active on the controller.
-	 * This will succeed even if no advertisements are configured.
+	 * This will succeed even if anal advertisements are configured.
 	 */
 	err = hci_disable_advertising_sync(hdev);
 	if (err)
@@ -2312,7 +2312,7 @@ static int hci_resume_advertising_sync(struct hci_dev *hdev)
 	struct adv_info *adv, *tmp;
 	int err;
 
-	/* If advertising has not been paused there is nothing  to do. */
+	/* If advertising has analt been paused there is analthing  to do. */
 	if (!hdev->advertising_paused)
 		return 0;
 
@@ -2333,7 +2333,7 @@ static int hci_resume_advertising_sync(struct hci_dev *hdev)
 			if (!err)
 				continue;
 
-			/* If the instance cannot be resumed remove it */
+			/* If the instance cananalt be resumed remove it */
 			hci_remove_ext_adv_instance_sync(hdev, adv->instance,
 							 NULL);
 		}
@@ -2361,16 +2361,16 @@ static int hci_pause_addr_resolution(struct hci_dev *hdev)
 	if (!hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION))
 		return 0;
 
-	/* Cannot disable addr resolution if scanning is enabled or
+	/* Cananalt disable addr resolution if scanning is enabled or
 	 * when initiating an LE connection.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_LE_SCAN) ||
 	    hci_lookup_le_connect(hdev)) {
-		bt_dev_err(hdev, "Command not allowed when scan/LE connect");
+		bt_dev_err(hdev, "Command analt allowed when scan/LE connect");
 		return -EPERM;
 	}
 
-	/* Cannot disable addr resolution if advertising is enabled. */
+	/* Cananalt disable addr resolution if advertising is enabled. */
 	err = hci_pause_advertising_sync(hdev);
 	if (err) {
 		bt_dev_err(hdev, "Pause advertising failed: %d", err);
@@ -2382,7 +2382,7 @@ static int hci_pause_addr_resolution(struct hci_dev *hdev)
 		bt_dev_err(hdev, "Unable to disable Address Resolution: %d",
 			   err);
 
-	/* Return if address resolution is disabled and RPA is not used. */
+	/* Return if address resolution is disabled and RPA is analt used. */
 	if (!err && scan_use_rpa(hdev))
 		return 0;
 
@@ -2426,7 +2426,7 @@ static struct conn_params *conn_params_copy(struct list_head *list, size_t *n)
 		if (i >= *n)
 			break;
 
-		/* No hdev->lock, but: addr, addr_type are immutable.
+		/* Anal hdev->lock, but: addr, addr_type are immutable.
 		 * privacy_mode is only written by us or in
 		 * hci_cc_le_set_privacy_mode that we wait for.
 		 * We should be idempotent so MGMT updating flags
@@ -2445,7 +2445,7 @@ static struct conn_params *conn_params_copy(struct list_head *list, size_t *n)
 	return p;
 }
 
-/* Device must not be scanning when updating the accept list.
+/* Device must analt be scanning when updating the accept list.
  *
  * Update is done using the following sequence:
  *
@@ -2459,7 +2459,7 @@ static struct conn_params *conn_params_copy(struct list_head *list, size_t *n)
  *
  * In case of failure advertising shall be restored to its original state and
  * return would disable accept list since either accept or resolving list could
- * not be programmed.
+ * analt be programmed.
  *
  */
 static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
@@ -2473,7 +2473,7 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 	int err;
 
 	/* Pause advertising if resolving list can be used as controllers
-	 * cannot accept resolving list modifications while advertising.
+	 * cananalt accept resolving list modifications while advertising.
 	 */
 	if (use_ll_privacy(hdev)) {
 		err = hci_pause_advertising_sync(hdev);
@@ -2496,14 +2496,14 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 	/* Go through the current accept list programmed into the
 	 * controller one by one and check if that address is connected or is
 	 * still in the list of pending connections or list of devices to
-	 * report. If not present in either list, then remove it from
+	 * report. If analt present in either list, then remove it from
 	 * the controller.
 	 */
 	list_for_each_entry_safe(b, t, &hdev->le_accept_list, list) {
 		if (hci_conn_hash_lookup_le(hdev, &b->bdaddr, b->bdaddr_type))
 			continue;
 
-		/* Pointers not dereferenced, no locks needed */
+		/* Pointers analt dereferenced, anal locks needed */
 		pend_conn = hci_pend_le_action_lookup(&hdev->pend_le_conns,
 						      &b->bdaddr,
 						      b->bdaddr_type);
@@ -2511,7 +2511,7 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 							&b->bdaddr,
 							b->bdaddr_type);
 
-		/* If the device is not likely to connect or report,
+		/* If the device is analt likely to connect or report,
 		 * remove it from the acceptlist.
 		 */
 		if (!pend_conn && !pend_report) {
@@ -2523,14 +2523,14 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 		num_entries++;
 	}
 
-	/* Since all no longer valid accept list entries have been
+	/* Since all anal longer valid accept list entries have been
 	 * removed, walk through the list of pending connections
 	 * and ensure that any new device gets programmed into
 	 * the controller.
 	 *
 	 * If the list of the devices is larger than the list of
 	 * available accept list entries in the controller, then
-	 * just abort and return filer policy value to not use the
+	 * just abort and return filer policy value to analt use the
 	 * accept list.
 	 *
 	 * The list and params may be mutated while we wait for events,
@@ -2539,7 +2539,7 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 
 	params = conn_params_copy(&hdev->pend_le_conns, &n);
 	if (!params) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 
@@ -2561,7 +2561,7 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 
 	params = conn_params_copy(&hdev->pend_le_reports, &n);
 	if (!params) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 
@@ -2577,12 +2577,12 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 	kvfree(params);
 
 	/* Use the allowlist unless the following conditions are all true:
-	 * - We are not currently suspending
-	 * - There are 1 or more ADV monitors registered and it's not offloaded
-	 * - Interleaved scanning is not currently using the allowlist
+	 * - We are analt currently suspending
+	 * - There are 1 or more ADV monitors registered and it's analt offloaded
+	 * - Interleaved scanning is analt currently using the allowlist
 	 */
 	if (!idr_is_empty(&hdev->adv_monitors_idr) && !hdev->suspended &&
-	    hci_get_adv_monitor_offload_ext(hdev) == HCI_ADV_MONITOR_EXT_NONE &&
+	    hci_get_adv_monitor_offload_ext(hdev) == HCI_ADV_MONITOR_EXT_ANALNE &&
 	    hdev->interleave_scan_state != INTERLEAVE_SCAN_ALLOWLIST)
 		err = -EINVAL;
 
@@ -2706,8 +2706,8 @@ static int hci_passive_scan_sync(struct hci_dev *hdev)
 		return err;
 	}
 
-	/* Set require_privacy to false since no SCAN_REQ are send
-	 * during passive scanning. Not using an non-resolvable address
+	/* Set require_privacy to false since anal SCAN_REQ are send
+	 * during passive scanning. Analt using an analn-resolvable address
 	 * here is important so that peer devices using direct
 	 * advertising with our address will be correctly reported
 	 * by the controller.
@@ -2724,18 +2724,18 @@ static int hci_passive_scan_sync(struct hci_dev *hdev)
 
 	/* Adding or removing entries from the accept list must
 	 * happen before enabling scanning. The controller does
-	 * not allow accept list modification while scanning.
+	 * analt allow accept list modification while scanning.
 	 */
 	filter_policy = hci_update_accept_list_sync(hdev);
 
 	/* When the controller is using random resolvable addresses and
 	 * with that having LE privacy enabled, then controllers with
-	 * Extended Scanner Filter Policies support can now enable support
+	 * Extended Scanner Filter Policies support can analw enable support
 	 * for handling directed advertising.
 	 *
-	 * So instead of using filter polices 0x00 (no acceptlist)
+	 * So instead of using filter polices 0x00 (anal acceptlist)
 	 * and 0x01 (acceptlist enabled) use the new filter policies
-	 * 0x02 (no acceptlist) and 0x03 (acceptlist enabled).
+	 * 0x02 (anal acceptlist) and 0x03 (acceptlist enabled).
 	 */
 	if (hci_dev_test_flag(hdev, HCI_PRIVACY) &&
 	    (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY))
@@ -2794,7 +2794,7 @@ int hci_update_passive_scan_sync(struct hci_dev *hdev)
 	    hci_dev_test_flag(hdev, HCI_UNREGISTER))
 		return 0;
 
-	/* No point in doing scanning if LE support hasn't been enabled */
+	/* Anal point in doing scanning if LE support hasn't been enabled */
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return 0;
 
@@ -2819,8 +2819,8 @@ int hci_update_passive_scan_sync(struct hci_dev *hdev)
 	    list_empty(&hdev->pend_le_reports) &&
 	    !hci_is_adv_monitoring(hdev) &&
 	    !hci_dev_test_flag(hdev, HCI_PA_SYNC)) {
-		/* If there is no pending LE connections or devices
-		 * to be scanned for or no ADV monitors, we should stop the
+		/* If there is anal pending LE connections or devices
+		 * to be scanned for or anal ADV monitors, we should stop the
 		 * background scanning.
 		 */
 
@@ -2835,8 +2835,8 @@ int hci_update_passive_scan_sync(struct hci_dev *hdev)
 		 * keep the background scan running.
 		 */
 
-		/* If controller is connecting, we should not start scanning
-		 * since some controllers are not able to scan and connect at
+		/* If controller is connecting, we should analt start scanning
+		 * since some controllers are analt able to scan and connect at
 		 * the same time.
 		 */
 		if (hci_lookup_le_connect(hdev))
@@ -2958,7 +2958,7 @@ static int hci_powered_update_adv_sync(struct hci_dev *hdev)
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return 0;
 
-	/* If RPA Resolution has not been enable yet it means the
+	/* If RPA Resolution has analt been enable yet it means the
 	 * resolving list is empty and we should attempt to program the
 	 * local IRK in order to support using own_addr_type
 	 * ADDR_LE_DEV_RANDOM_RESOLVED (0x03).
@@ -3172,7 +3172,7 @@ int hci_powered_update_sync(struct hci_dev *hdev)
 		hci_update_eir_sync(hdev);
 	}
 
-	/* If forcing static address is in use or there is no public
+	/* If forcing static address is in use or there is anal public
 	 * address use the static address as random address (but skip
 	 * the HCI command if the current random address is already the
 	 * static one.
@@ -3195,22 +3195,22 @@ int hci_powered_update_sync(struct hci_dev *hdev)
 /**
  * hci_dev_get_bd_addr_from_property - Get the Bluetooth Device Address
  *				       (BD_ADDR) for a HCI device from
- *				       a firmware node property.
+ *				       a firmware analde property.
  * @hdev:	The HCI device
  *
- * Search the firmware node for 'local-bd-address'.
+ * Search the firmware analde for 'local-bd-address'.
  *
  * All-zero BD addresses are rejected, because those could be properties
- * that exist in the firmware tables, but were not updated by the firmware. For
+ * that exist in the firmware tables, but were analt updated by the firmware. For
  * example, the DTS could define 'local-bd-address', with zero BD addresses.
  */
 static void hci_dev_get_bd_addr_from_property(struct hci_dev *hdev)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(hdev->dev.parent);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(hdev->dev.parent);
 	bdaddr_t ba;
 	int ret;
 
-	ret = fwnode_property_read_u8_array(fwnode, "local-bd-address",
+	ret = fwanalde_property_read_u8_array(fwanalde, "local-bd-address",
 					    (u8 *)&ba, sizeof(ba));
 	if (ret < 0 || !bacmp(&ba, BDADDR_ANY))
 		return;
@@ -3316,7 +3316,7 @@ static int hci_unconf_init_sync(struct hci_dev *hdev)
 /* Read Local Supported Features. */
 static int hci_read_local_features_sync(struct hci_dev *hdev)
 {
-	 /* Not all AMP controllers support this command */
+	 /* Analt all AMP controllers support this command */
 	if (hdev->dev_type == HCI_AMP && !(hdev->commands[14] & 0x20))
 		return 0;
 
@@ -3342,7 +3342,7 @@ static int hci_read_local_cmds_sync(struct hci_dev *hdev)
 	 * HCI command for reading the local supported commands.
 	 *
 	 * Unfortunately some controllers indicate Bluetooth 1.2 support,
-	 * but do not have support for this command. If that is the case,
+	 * but do analt have support for this command. If that is the case,
 	 * the driver can quirk the behavior and skip reading the local
 	 * supported commands.
 	 */
@@ -3420,7 +3420,7 @@ static int hci_init1_sync(struct hci_dev *hdev)
 		hdev->flow_ctl_mode = HCI_FLOW_CTL_MODE_BLOCK_BASED;
 		return hci_init_stage_sync(hdev, amp_init1);
 	default:
-		bt_dev_err(hdev, "Unknown device type %d", hdev->dev_type);
+		bt_dev_err(hdev, "Unkanalwn device type %d", hdev->dev_type);
 		break;
 	}
 
@@ -3508,7 +3508,7 @@ static int hci_clear_event_filter_sync(struct hci_dev *hdev)
 	if (!hci_dev_test_flag(hdev, HCI_EVENT_FILTER_CONFIGURED))
 		return 0;
 
-	/* In theory the state machine should not reach here unless
+	/* In theory the state machine should analt reach here unless
 	 * a hci_set_event_filter_sync() call succeeds, but we do
 	 * the check both for parity and as a future reminder.
 	 */
@@ -3559,7 +3559,7 @@ static int hci_write_ssp_mode_1_sync(struct hci_dev *hdev)
 	/* When SSP is available, then the host features page
 	 * should also be available as well. However some
 	 * controllers list the max_page as 0 as long as SSP
-	 * has not been enabled. To achieve proper debugging
+	 * has analt been enabled. To achieve proper debugging
 	 * output, force the minimum max_page to 1 at least.
 	 */
 	hdev->max_page = 0x01;
@@ -3726,7 +3726,7 @@ static int hci_set_event_mask_sync(struct hci_dev *hdev)
 	 */
 	u8 events[8] = { 0xff, 0xff, 0xfb, 0xff, 0x00, 0x00, 0x00, 0x00 };
 
-	/* CSR 1.1 dongles does not accept any bitfield so don't try to set
+	/* CSR 1.1 dongles does analt accept any bitfield so don't try to set
 	 * any event mask for pre 1.2 devices.
 	 */
 	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
@@ -3787,8 +3787,8 @@ static int hci_set_event_mask_sync(struct hci_dev *hdev)
 		events[4] |= 0x04; /* Read Remote Extended Features Complete */
 
 	if (lmp_esco_capable(hdev)) {
-		events[5] |= 0x08; /* Synchronous Connection Complete */
-		events[5] |= 0x10; /* Synchronous Connection Changed */
+		events[5] |= 0x08; /* Synchroanalus Connection Complete */
+		events[5] |= 0x10; /* Synchroanalus Connection Changed */
 	}
 
 	if (lmp_sniffsubr_capable(hdev))
@@ -3800,7 +3800,7 @@ static int hci_set_event_mask_sync(struct hci_dev *hdev)
 	if (lmp_ext_inq_capable(hdev))
 		events[5] |= 0x40; /* Extended Inquiry Result */
 
-	if (lmp_no_flush_capable(hdev))
+	if (lmp_anal_flush_capable(hdev))
 		events[7] |= 0x01; /* Enhanced Flush Complete */
 
 	if (lmp_lsto_capable(hdev))
@@ -3813,10 +3813,10 @@ static int hci_set_event_mask_sync(struct hci_dev *hdev)
 		events[6] |= 0x08;	/* User Passkey Request */
 		events[6] |= 0x10;	/* Remote OOB Data Request */
 		events[6] |= 0x20;	/* Simple Pairing Complete */
-		events[7] |= 0x04;	/* User Passkey Notification */
-		events[7] |= 0x08;	/* Keypress Notification */
+		events[7] |= 0x04;	/* User Passkey Analtification */
+		events[7] |= 0x08;	/* Keypress Analtification */
 		events[7] |= 0x10;	/* Remote Host Supported
-					 * Features Notification
+					 * Features Analtification
 					 */
 	}
 
@@ -3890,7 +3890,7 @@ static int hci_read_def_err_data_reporting_sync(struct hci_dev *hdev)
 
 static int hci_read_page_scan_type_sync(struct hci_dev *hdev)
 {
-	/* Some older Broadcom based Bluetooth 1.2 controllers do not
+	/* Some older Broadcom based Bluetooth 1.2 controllers do analt
 	 * support the Read Page Scan Type command. Check support for
 	 * this command in the bit mask of supported commands.
 	 */
@@ -4065,7 +4065,7 @@ static int hci_le_read_adv_tx_power_sync(struct hci_dev *hdev)
 	if ((hdev->commands[25] & 0x40) && !ext_adv_capable(hdev)) {
 		/* HCI TS spec forbids mixing of legacy and extended
 		 * advertising commands wherein READ_ADV_TX_POWER is
-		 * also included. So do not call it if extended adv
+		 * also included. So do analt call it if extended adv
 		 * is supported otherwise controller will return
 		 * COMMAND_DISALLOWED for extended commands.
 		 */
@@ -4178,7 +4178,7 @@ static int hci_set_le_support_sync(struct hci_dev *hdev)
 {
 	struct hci_cp_write_le_host_supported cp;
 
-	/* LE-only devices do not support explicit enablement */
+	/* LE-only devices do analt support explicit enablement */
 	if (!lmp_bredr_capable(hdev))
 		return 0;
 
@@ -4206,7 +4206,7 @@ static int hci_le_set_host_feature_sync(struct hci_dev *hdev)
 
 	memset(&cp, 0, sizeof(cp));
 
-	/* Connected Isochronous Channels (Host Support) */
+	/* Connected Isochroanalus Channels (Host Support) */
 	cp.bit_number = 32;
 	cp.bit_value = 1;
 
@@ -4265,13 +4265,13 @@ static int hci_delete_stored_link_key_sync(struct hci_dev *hdev)
 {
 	struct hci_cp_delete_stored_link_key cp;
 
-	/* Some Broadcom based Bluetooth controllers do not support the
+	/* Some Broadcom based Bluetooth controllers do analt support the
 	 * Delete Stored Link Key command. They are clearly indicating its
 	 * absence in the bit mask of supported commands.
 	 *
 	 * Check the supported commands and only if the command is marked
-	 * as supported send it. If not supported assume that the controller
-	 * does not have actual support for stored link keys which makes this
+	 * as supported send it. If analt supported assume that the controller
+	 * does analt have actual support for stored link keys which makes this
 	 * command redundant anyway.
 	 *
 	 * Some controllers indicate that they support handling deleting
@@ -4328,9 +4328,9 @@ static int hci_set_event_mask_page_2_sync(struct hci_dev *hdev)
 	}
 
 	/* Some Broadcom based controllers indicate support for Set Event
-	 * Mask Page 2 command, but then actually do not support it. Since
+	 * Mask Page 2 command, but then actually do analt support it. Since
 	 * the default value is all bits set to zero, the command is only
-	 * required if the event mask has to be changed. In case no change
+	 * required if the event mask has to be changed. In case anal change
 	 * to the event mask is needed, skip this command.
 	 */
 	if (!changed)
@@ -4463,7 +4463,7 @@ static int hci_le_set_default_phy_sync(struct hci_dev *hdev)
 	struct hci_cp_le_set_default_phy cp;
 
 	if (!(hdev->commands[35] & 0x20)) {
-		/* If the command is not supported it means only 1M PHY is
+		/* If the command is analt supported it means only 1M PHY is
 		 * supported.
 		 */
 		hdev->le_tx_def_phys = HCI_LE_SET_PHY_1M;
@@ -4548,11 +4548,11 @@ static int hci_init_sync(struct hci_dev *hdev)
 
 	/* This function is only called when the controller is actually in
 	 * configured state. When the controller is marked as unconfigured,
-	 * this initialization procedure is not run.
+	 * this initialization procedure is analt run.
 	 *
 	 * It means that it is possible that a controller runs through its
 	 * setup phase and then discovers missing settings. If that is the
-	 * case, then this function will not be called. It then will only
+	 * case, then this function will analt be called. It then will only
 	 * be called during the config phase.
 	 *
 	 * So only when in setup phase or config phase, create the debugfs
@@ -4583,27 +4583,27 @@ static const struct {
 	const char *desc;
 } hci_broken_table[] = {
 	HCI_QUIRK_BROKEN(LOCAL_COMMANDS,
-			 "HCI Read Local Supported Commands not supported"),
+			 "HCI Read Local Supported Commands analt supported"),
 	HCI_QUIRK_BROKEN(STORED_LINK_KEY,
 			 "HCI Delete Stored Link Key command is advertised, "
-			 "but not supported."),
+			 "but analt supported."),
 	HCI_QUIRK_BROKEN(ERR_DATA_REPORTING,
 			 "HCI Read Default Erroneous Data Reporting command is "
-			 "advertised, but not supported."),
+			 "advertised, but analt supported."),
 	HCI_QUIRK_BROKEN(READ_TRANSMIT_POWER,
 			 "HCI Read Transmit Power Level command is advertised, "
-			 "but not supported."),
+			 "but analt supported."),
 	HCI_QUIRK_BROKEN(FILTER_CLEAR_ALL,
-			 "HCI Set Event Filter command not supported."),
+			 "HCI Set Event Filter command analt supported."),
 	HCI_QUIRK_BROKEN(ENHANCED_SETUP_SYNC_CONN,
-			 "HCI Enhanced Setup Synchronous Connection command is "
-			 "advertised, but not supported."),
+			 "HCI Enhanced Setup Synchroanalus Connection command is "
+			 "advertised, but analt supported."),
 	HCI_QUIRK_BROKEN(SET_RPA_TIMEOUT,
 			 "HCI LE Set Random Private Address Timeout command is "
-			 "advertised, but not supported."),
+			 "advertised, but analt supported."),
 	HCI_QUIRK_BROKEN(LE_CODED,
 			 "HCI LE Coded PHY feature bit is set, "
-			 "but its usage is not supported.")
+			 "but its usage is analt supported.")
 };
 
 /* This function handles hdev setup stage:
@@ -4618,7 +4618,7 @@ static int hci_dev_setup_sync(struct hci_dev *hdev)
 	size_t i;
 
 	if (!hci_dev_test_flag(hdev, HCI_SETUP) &&
-	    !test_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks))
+	    !test_bit(HCI_QUIRK_ANALN_PERSISTENT_SETUP, &hdev->quirks))
 		return 0;
 
 	bt_dev_dbg(hdev, "");
@@ -4698,7 +4698,7 @@ static int hci_dev_init_sync(struct hci_dev *hdev)
 
 	if (hci_dev_test_flag(hdev, HCI_CONFIG)) {
 		/* If public address change is configured, ensure that
-		 * the address gets programmed. If the driver does not
+		 * the address gets programmed. If the driver does analt
 		 * support changing the public address, fail the power
 		 * on procedure.
 		 */
@@ -4706,7 +4706,7 @@ static int hci_dev_init_sync(struct hci_dev *hdev)
 		    hdev->set_bdaddr)
 			ret = hdev->set_bdaddr(hdev, &hdev->public_addr);
 		else
-			ret = -EADDRNOTAVAIL;
+			ret = -EADDRANALTAVAIL;
 	}
 
 	if (!ret) {
@@ -4718,11 +4718,11 @@ static int hci_dev_init_sync(struct hci_dev *hdev)
 		}
 	}
 
-	/* If the HCI Reset command is clearing all diagnostic settings,
+	/* If the HCI Reset command is clearing all diaganalstic settings,
 	 * then they need to be reprogrammed after the init procedure
 	 * completed.
 	 */
-	if (test_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks) &&
+	if (test_bit(HCI_QUIRK_ANALN_PERSISTENT_DIAG, &hdev->quirks) &&
 	    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
 	    hci_dev_test_flag(hdev, HCI_VENDOR_DIAG) && hdev->set_diag)
 		ret = hdev->set_diag(hdev, true);
@@ -4744,7 +4744,7 @@ int hci_dev_open_sync(struct hci_dev *hdev)
 	bt_dev_dbg(hdev, "");
 
 	if (hci_dev_test_flag(hdev, HCI_UNREGISTER)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -4761,20 +4761,20 @@ int hci_dev_open_sync(struct hci_dev *hdev)
 		/* Check for valid public address or a configured static
 		 * random address, but let the HCI setup proceed to
 		 * be able to determine if there is a public address
-		 * or not.
+		 * or analt.
 		 *
-		 * In case of user channel usage, it is not important
+		 * In case of user channel usage, it is analt important
 		 * if a public address or static random address is
 		 * available.
 		 *
 		 * This check is only valid for BR/EDR controllers
-		 * since AMP controllers do not have an address.
+		 * since AMP controllers do analt have an address.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
 		    hdev->dev_type == HCI_PRIMARY &&
 		    !bacmp(&hdev->bdaddr, BDADDR_ANY) &&
 		    !bacmp(&hdev->static_addr, BDADDR_ANY)) {
-			ret = -EADDRNOTAVAIL;
+			ret = -EADDRANALTAVAIL;
 			goto done;
 		}
 	}
@@ -4997,7 +4997,7 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 	clear_bit(HCI_RUNNING, &hdev->flags);
 	hci_sock_dev_event(hdev, HCI_DEV_CLOSE);
 
-	/* After this point our queues are empty and no tasks are scheduled. */
+	/* After this point our queues are empty and anal tasks are scheduled. */
 	hdev->close(hdev);
 
 	/* Clear flags */
@@ -5038,7 +5038,7 @@ static int hci_power_on_sync(struct hci_dev *hdev)
 		return err;
 
 	/* During the HCI setup phase, a few error conditions are
-	 * ignored and they need to be checked now. If they are still
+	 * iganalred and they need to be checked analw. If they are still
 	 * valid, it is important to return the device back off.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_RFKILLED) ||
@@ -5064,12 +5064,12 @@ static int hci_power_on_sync(struct hci_dev *hdev)
 		 * the Index Added event. For unconfigured devices,
 		 * it will send Unconfigued Index Added event.
 		 *
-		 * Devices with HCI_QUIRK_RAW_DEVICE are ignored
-		 * and no event will be send.
+		 * Devices with HCI_QUIRK_RAW_DEVICE are iganalred
+		 * and anal event will be send.
 		 */
 		mgmt_index_added(hdev);
 	} else if (hci_dev_test_and_clear_flag(hdev, HCI_CONFIG)) {
-		/* When the controller is now configured, then it
+		/* When the controller is analw configured, then it
 		 * is important to clear the HCI_RAW flag.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
@@ -5130,7 +5130,7 @@ int hci_stop_discovery_sync(struct hci_dev *hdev)
 	if (use_ll_privacy(hdev))
 		hci_resume_advertising_sync(hdev);
 
-	/* No further actions needed for LE-only discovery */
+	/* Anal further actions needed for LE-only discovery */
 	if (d->type == DISCOV_TYPE_LE)
 		return 0;
 
@@ -5182,7 +5182,7 @@ static int hci_disconnect_sync(struct hci_dev *hdev, struct hci_conn *conn,
 	cp.handle = cpu_to_le16(conn->handle);
 	cp.reason = reason;
 
-	/* Wait for HCI_EV_DISCONN_COMPLETE, not HCI_EV_CMD_STATUS, when the
+	/* Wait for HCI_EV_DISCONN_COMPLETE, analt HCI_EV_CMD_STATUS, when the
 	 * reason is anything but HCI_ERROR_REMOTE_POWER_OFF. This reason is
 	 * used when suspending or powering off, where we don't want to wait
 	 * for the peer's response.
@@ -5232,11 +5232,11 @@ static int hci_connect_cancel_sync(struct hci_dev *hdev, struct hci_conn *conn,
 		if (test_bit(HCI_CONN_CREATE_CIS, &conn->flags))
 			return hci_disconnect_sync(hdev, conn, reason);
 
-		/* CIS with no Create CIS sent have nothing to cancel */
+		/* CIS with anal Create CIS sent have analthing to cancel */
 		if (bacmp(&conn->dst, BDADDR_ANY))
 			return HCI_ERROR_LOCAL_HOST_TERM;
 
-		/* There is no way to cancel a BIS without terminating the BIG
+		/* There is anal way to cancel a BIS without terminating the BIG
 		 * which is done later on connection cleanup.
 		 */
 		return 0;
@@ -5245,7 +5245,7 @@ static int hci_connect_cancel_sync(struct hci_dev *hdev, struct hci_conn *conn,
 	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
 		return 0;
 
-	/* Wait for HCI_EV_CONN_COMPLETE, not HCI_EV_CMD_STATUS, when the
+	/* Wait for HCI_EV_CONN_COMPLETE, analt HCI_EV_CMD_STATUS, when the
 	 * reason is anything but HCI_ERROR_REMOTE_POWER_OFF. This reason is
 	 * used when suspending or powering off, where we don't want to wait
 	 * for the peer's response.
@@ -5346,7 +5346,7 @@ int hci_abort_conn_sync(struct hci_dev *hdev, struct hci_conn *conn, u8 reason)
 		goto unlock;
 	}
 
-	/* Cleanup hci_conn object if it cannot be cancelled as it
+	/* Cleanup hci_conn object if it cananalt be cancelled as it
 	 * likelly means the controller and host stack are out of sync
 	 * or in case of LE it was still scanning so it can be cleanup
 	 * safely.
@@ -5371,7 +5371,7 @@ static int hci_disconnect_all_sync(struct hci_dev *hdev, u8 reason)
 
 	rcu_read_lock();
 	while ((conn = list_first_or_null_rcu(head, struct hci_conn, list))) {
-		/* Make sure the connection is not freed while unlocking */
+		/* Make sure the connection is analt freed while unlocking */
 		conn = hci_conn_get(conn);
 		rcu_read_unlock();
 		/* Disregard possible errors since hci_conn_del shall have been
@@ -5399,7 +5399,7 @@ static int hci_power_off_sync(struct hci_dev *hdev)
 {
 	int err;
 
-	/* If controller is already down there is nothing to do */
+	/* If controller is already down there is analthing to do */
 	if (!test_bit(HCI_UP, &hdev->flags))
 		return 0;
 
@@ -5531,7 +5531,7 @@ int hci_update_connectable_sync(struct hci_dev *hdev)
 	if (err)
 		return err;
 
-	/* If BR/EDR is not enabled and we disable advertising as a
+	/* If BR/EDR is analt enabled and we disable advertising as a
 	 * by-product of disabling connectable, we need to update the
 	 * advertising flags.
 	 */
@@ -5585,7 +5585,7 @@ static int hci_inquiry_sync(struct hci_dev *hdev, u8 length)
 static int hci_active_scan_sync(struct hci_dev *hdev, uint16_t interval)
 {
 	u8 own_addr_type;
-	/* Accept list is not used for discovery */
+	/* Accept list is analt used for discovery */
 	u8 filter_policy = 0x00;
 	/* Default is to enable duplicates filter */
 	u8 filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
@@ -5613,7 +5613,7 @@ static int hci_active_scan_sync(struct hci_dev *hdev, uint16_t interval)
 		goto failed;
 
 	/* All active scans will be done with either a resolvable private
-	 * address (when privacy feature has been enabled) or non-resolvable
+	 * address (when privacy feature has been enabled) or analn-resolvable
 	 * private address.
 	 */
 	err = hci_update_random_address_sync(hdev, true, scan_use_rpa(hdev),
@@ -5632,7 +5632,7 @@ static int hci_active_scan_sync(struct hci_dev *hdev, uint16_t interval)
 		 * If controller does strict duplicate filtering and the
 		 * discovery requires result filtering disables controller based
 		 * filtering since that can cause reports that would match the
-		 * host filter to not be reported.
+		 * host filter to analt be reported.
 		 */
 		filter_dup = LE_SCAN_FILTER_DUP_DISABLE;
 	}
@@ -5734,7 +5734,7 @@ static int hci_pause_discovery_sync(struct hci_dev *hdev)
 	int old_state = hdev->discovery.state;
 	int err;
 
-	/* If discovery already stopped/stopping/paused there nothing to do */
+	/* If discovery already stopped/stopping/paused there analthing to do */
 	if (old_state == DISCOVERY_STOPPED || old_state == DISCOVERY_STOPPING ||
 	    hdev->discovery_paused)
 		return 0;
@@ -5816,9 +5816,9 @@ static int hci_pause_scan_sync(struct hci_dev *hdev)
  *
  * Pause discovery (active scanning/inquiry)
  * Pause Directed Advertising/Advertising
- * Pause Scanning (passive scanning in case discovery was not active)
+ * Pause Scanning (passive scanning in case discovery was analt active)
  * Disconnect all connections
- * Set suspend_status to BT_SUSPEND_DISCONNECT if hdev cannot wakeup
+ * Set suspend_status to BT_SUSPEND_DISCONNECT if hdev cananalt wakeup
  * otherwise:
  * Update event mask (only set events that are allowed to wake up the host)
  * Update event filter (with devices marked with HCI_CONN_FLAG_REMOTE_WAKEUP)
@@ -5829,14 +5829,14 @@ int hci_suspend_sync(struct hci_dev *hdev)
 {
 	int err;
 
-	/* If marked as suspended there nothing to do */
+	/* If marked as suspended there analthing to do */
 	if (hdev->suspended)
 		return 0;
 
 	/* Mark device as suspended */
 	hdev->suspended = true;
 
-	/* Pause discovery if not already stopped */
+	/* Pause discovery if analt already stopped */
 	hci_pause_discovery_sync(hdev);
 
 	/* Pause other advertisements */
@@ -5852,7 +5852,7 @@ int hci_suspend_sync(struct hci_dev *hdev)
 		/* Soft disconnect everything (power off) */
 		err = hci_disconnect_all_sync(hdev, HCI_ERROR_REMOTE_POWER_OFF);
 		if (err) {
-			/* Set state to BT_RUNNING so resume doesn't notify */
+			/* Set state to BT_RUNNING so resume doesn't analtify */
 			hdev->suspend_state = BT_RUNNING;
 			hci_resume_sync(hdev);
 			return err;
@@ -5894,7 +5894,7 @@ static int hci_resume_discovery_sync(struct hci_dev *hdev)
 {
 	int err;
 
-	/* If discovery not paused there nothing to do */
+	/* If discovery analt paused there analthing to do */
 	if (!hdev->discovery_paused)
 		return 0;
 
@@ -5931,7 +5931,7 @@ static int hci_resume_scan_sync(struct hci_dev *hdev)
 
 	hci_update_scan_sync(hdev);
 
-	/* Reset passive scanning to normal */
+	/* Reset passive scanning to analrmal */
 	hci_update_passive_scan_sync(hdev);
 
 	return 0;
@@ -5941,13 +5941,13 @@ static int hci_resume_scan_sync(struct hci_dev *hdev)
  *
  * Restore event mask
  * Clear event filter
- * Update passive scanning (normal duty cycle)
+ * Update passive scanning (analrmal duty cycle)
  * Resume Directed Advertising/Advertising
  * Resume discovery (active scanning/inquiry)
  */
 int hci_resume_sync(struct hci_dev *hdev)
 {
-	/* If not marked as suspended there nothing to do */
+	/* If analt marked as suspended there analthing to do */
 	if (!hdev->suspended)
 		return 0;
 
@@ -6016,7 +6016,7 @@ static int hci_le_ext_directed_advertising_sync(struct hci_dev *hdev,
 
 	/* As per Core Spec 5.2 Vol 2, PART E, Sec 7.8.53, for
 	 * advertising_event_property LE_LEGACY_ADV_DIRECT_IND
-	 * does not supports advertising data when the advertising set already
+	 * does analt supports advertising data when the advertising set already
 	 * contains some, the controller shall return erroc code 'Invalid
 	 * HCI Command Parameters(0x12).
 	 * So it is required to remove adv set for handle 0x00. since we use
@@ -6056,7 +6056,7 @@ static int hci_le_directed_advertising_sync(struct hci_dev *hdev,
 		return hci_le_ext_directed_advertising_sync(hdev, conn);
 
 	/* Clear the HCI_LE_ADV bit temporarily so that the
-	 * hci_update_random_address knows that it's safe to go ahead
+	 * hci_update_random_address kanalws that it's safe to go ahead
 	 * and write a new random address. The flag will be set back on
 	 * as soon as the SET_ADV_ENABLE HCI command completes.
 	 */
@@ -6072,9 +6072,9 @@ static int hci_le_directed_advertising_sync(struct hci_dev *hdev,
 
 	memset(&cp, 0, sizeof(cp));
 
-	/* Some controllers might reject command if intervals are not
+	/* Some controllers might reject command if intervals are analt
 	 * within range for undirected advertising.
-	 * BCM20702A0 is known to be affected by this.
+	 * BCM20702A0 is kanalwn to be affected by this.
 	 */
 	cp.min_interval = cpu_to_le16(0x0020);
 	cp.max_interval = cpu_to_le16(0x0020);
@@ -6170,7 +6170,7 @@ int hci_le_create_conn_sync(struct hci_dev *hdev, struct hci_conn *conn)
 
 	/* If requested to connect as peripheral use directed advertising */
 	if (conn->role == HCI_ROLE_SLAVE) {
-		/* If we're active scanning and simultaneous roles is not
+		/* If we're active scanning and simultaneous roles is analt
 		 * enabled simply reject the attempt.
 		 */
 		if (hci_dev_test_flag(hdev, HCI_LE_SCAN) &&
@@ -6187,7 +6187,7 @@ int hci_le_create_conn_sync(struct hci_dev *hdev, struct hci_conn *conn)
 		goto done;
 	}
 
-	/* Disable advertising if simultaneous roles is not in use. */
+	/* Disable advertising if simultaneous roles is analt in use. */
 	if (!hci_dev_test_flag(hdev, HCI_LE_SIMULTANEOUS_ROLES))
 		hci_pause_advertising_sync(hdev);
 
@@ -6205,9 +6205,9 @@ int hci_le_create_conn_sync(struct hci_dev *hdev, struct hci_conn *conn)
 	}
 
 	/* If controller is scanning, we stop it since some controllers are
-	 * not able to scan and connect at the same time. Also set the
+	 * analt able to scan and connect at the same time. Also set the
 	 * HCI_LE_SCAN_INTERRUPTED flag so that the command complete
-	 * handler for scan disabling knows to set the correct discovery
+	 * handler for scan disabling kanalws to set the correct discovery
 	 * state.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
@@ -6216,7 +6216,7 @@ int hci_le_create_conn_sync(struct hci_dev *hdev, struct hci_conn *conn)
 	}
 
 	/* Update random address, but set require_privacy to false so
-	 * that we never connect with an non-resolvable address.
+	 * that we never connect with an analn-resolvable address.
 	 */
 	err = hci_update_random_address_sync(hdev, false, conn_use_rpa(conn),
 					     &own_addr_type);
@@ -6275,7 +6275,7 @@ int hci_le_create_cis_sync(struct hci_dev *hdev)
 	u8 cig = BT_ISO_QOS_CIG_UNSET;
 
 	/* The spec allows only one pending LE Create CIS command at a time. If
-	 * the command is pending now, don't do anything. We check for pending
+	 * the command is pending analw, don't do anything. We check for pending
 	 * connections after each CIS Established event.
 	 *
 	 * BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E
@@ -6439,21 +6439,21 @@ int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 	}
 
 	/* In case of required privacy without resolvable private address,
-	 * use an non-resolvable private address. This is useful for
-	 * non-connectable advertising.
+	 * use an analn-resolvable private address. This is useful for
+	 * analn-connectable advertising.
 	 */
 	if (require_privacy) {
 		bdaddr_t nrpa;
 
 		while (true) {
-			/* The non-resolvable private address is generated
+			/* The analn-resolvable private address is generated
 			 * from random six bytes with the two most significant
 			 * bits cleared.
 			 */
 			get_random_bytes(&nrpa, 6);
 			nrpa.b[5] &= 0x3f;
 
-			/* The non-resolvable private address shall not be
+			/* The analn-resolvable private address shall analt be
 			 * equal to the public address.
 			 */
 			if (bacmp(&hdev->bdaddr, &nrpa))
@@ -6466,7 +6466,7 @@ int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 		return 0;
 	}
 
-	/* No privacy so use a public address. */
+	/* Anal privacy so use a public address. */
 	*own_addr_type = ADDR_LE_DEV_PUBLIC;
 
 	return 0;

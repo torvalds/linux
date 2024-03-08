@@ -194,8 +194,8 @@ struct dsp_spos_instance {
 	/* CODEC input SCB */
 	struct dsp_scb_descriptor * codec_in_scb;
 
-	/* reference snooper */
-	struct dsp_scb_descriptor * ref_snoop_scb;
+	/* reference sanaloper */
+	struct dsp_scb_descriptor * ref_sanalop_scb;
 
 	/* SPDIF output  PCM reference  */
 	struct dsp_scb_descriptor * spdif_pcm_input_scb;

@@ -17,7 +17,7 @@
 #include "xfs_btree.h"
 #include "xfs_ag.h"
 #include "xfs_rtbitmap.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_icache.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -29,15 +29,15 @@
  *
  * The basics of filesystem summary counter checking are that we iterate the
  * AGs counting the number of free blocks, free space btree blocks, per-AG
- * reservations, inodes, delayed allocation reservations, and free inodes.
+ * reservations, ianaldes, delayed allocation reservations, and free ianaldes.
  * Then we compare what we computed against the in-core counters.
  *
  * However, the reality is that summary counters are a tricky beast to check.
  * While we /could/ freeze the filesystem and scramble around the AGs counting
- * the free blocks, in practice we prefer not do that for a scan because
+ * the free blocks, in practice we prefer analt do that for a scan because
  * freezing is costly.  To get around this, we added a per-cpu counter of the
  * delalloc reservations so that we can rotor around the AGs relatively
- * quickly, and we allow the counts to be slightly off because we're not taking
+ * quickly, and we allow the counts to be slightly off because we're analt taking
  * any locks while we do this.
  *
  * So the first thing we do is warm up the buffer cache in the setup routine by
@@ -69,7 +69,7 @@ struct xchk_fscounters {
 /*
  * Make sure the per-AG structure has been initialized from the on-disk header
  * contents and trust that the incore counters match the ondisk counters.  (The
- * AGF and AGI scrubbers check them, and a normal xfs_scrub run checks the
+ * AGF and AGI scrubbers check them, and a analrmal xfs_scrub run checks the
  * summary counters after checking all AG headers).  Do this from the setup
  * function so that the inner AG aggregation loop runs as quickly as possible.
  *
@@ -84,10 +84,10 @@ xchk_fscount_warmup(
 	struct xfs_buf		*agi_bp = NULL;
 	struct xfs_buf		*agf_bp = NULL;
 	struct xfs_perag	*pag = NULL;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 	int			error = 0;
 
-	for_each_perag(mp, agno, pag) {
+	for_each_perag(mp, aganal, pag) {
 		if (xchk_should_terminate(sc, &error))
 			break;
 		if (xfs_perag_initialised_agi(pag) &&
@@ -151,7 +151,7 @@ xchk_fsthaw(
 }
 
 /*
- * We couldn't stabilize the filesystem long enough to sample all the variables
+ * We couldn't stabilize the filesystem long eanalugh to sample all the variables
  * that comprise the summary counters and compare them to the percpu counters.
  * We need to disable all writer threads, which means taking the first two
  * freeze levels to put userspace to sleep, and the third freeze level to
@@ -219,7 +219,7 @@ xchk_setup_fscounters(
 
 	sc->buf = kzalloc(sizeof(struct xchk_fscounters), XCHK_GFP_FLAGS);
 	if (!sc->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	sc->buf_cleanup = xchk_fscounters_cleanup;
 	fsc = sc->buf;
 	fsc->sc = sc;
@@ -247,12 +247,12 @@ xchk_setup_fscounters(
 
 /*
  * Part 1: Collecting filesystem summary counts.  For each AG, we add its
- * summary counts (total inodes, free inodes, free data blocks) to an incore
+ * summary counts (total ianaldes, free ianaldes, free data blocks) to an incore
  * copy of the overall filesystem summary counts.
  *
  * To avoid false corruption reports in part 2, any failure in this part must
- * set the INCOMPLETE flag even when a negative errno is returned.  This care
- * must be taken with certain errno values (i.e. EFSBADCRC, EFSCORRUPTED,
+ * set the INCOMPLETE flag even when a negative erranal is returned.  This care
+ * must be taken with certain erranal values (i.e. EFSBADCRC, EFSCORRUPTED,
  * ECANCELED) that are absorbed into a scrub state flag update by
  * xchk_*_process_error.
  */
@@ -262,16 +262,16 @@ static int
 xchk_fscount_btreeblks(
 	struct xfs_scrub	*sc,
 	struct xchk_fscounters	*fsc,
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t		aganal)
 {
 	xfs_extlen_t		blocks;
 	int			error;
 
-	error = xchk_ag_init_existing(sc, agno, &sc->sa);
+	error = xchk_ag_init_existing(sc, aganal, &sc->sa);
 	if (error)
 		goto out_free;
 
-	error = xfs_btree_count_blocks(sc->sa.bno_cur, &blocks);
+	error = xfs_btree_count_blocks(sc->sa.banal_cur, &blocks);
 	if (error)
 		goto out_free;
 	fsc->fdblocks += blocks - 1;
@@ -300,7 +300,7 @@ xchk_fscount_aggregate_agcounts(
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_perag	*pag;
 	uint64_t		delayed;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 	int			tries = 8;
 	int			error = 0;
 
@@ -309,7 +309,7 @@ retry:
 	fsc->ifree = 0;
 	fsc->fdblocks = 0;
 
-	for_each_perag(mp, agno, pag) {
+	for_each_perag(mp, aganal, pag) {
 		if (xchk_should_terminate(sc, &error))
 			break;
 
@@ -320,17 +320,17 @@ retry:
 			break;
 		}
 
-		/* Count all the inodes */
+		/* Count all the ianaldes */
 		fsc->icount += pag->pagi_count;
 		fsc->ifree += pag->pagi_freecount;
 
-		/* Add up the free/freelist/bnobt/cntbt blocks */
+		/* Add up the free/freelist/banalbt/cntbt blocks */
 		fsc->fdblocks += pag->pagf_freeblks;
 		fsc->fdblocks += pag->pagf_flcount;
 		if (xfs_has_lazysbcount(sc->mp)) {
 			fsc->fdblocks += pag->pagf_btreeblks;
 		} else {
-			error = xchk_fscount_btreeblks(sc, fsc, agno);
+			error = xchk_fscount_btreeblks(sc, fsc, aganal);
 			if (error)
 				break;
 		}
@@ -358,7 +358,7 @@ retry:
 
 	/*
 	 * Delayed allocation reservations are taken out of the incore counters
-	 * but not recorded on disk, so leave them and their indlen blocks out
+	 * but analt recorded on disk, so leave them and their indlen blocks out
 	 * of the computation.
 	 */
 	delayed = percpu_counter_sum(&mp->m_delalloc_blks);
@@ -368,7 +368,7 @@ retry:
 			delayed);
 
 
-	/* Bail out if the values we compute are totally nonsense. */
+	/* Bail out if the values we compute are totally analnsense. */
 	if (fsc->icount < fsc->icount_min || fsc->icount > fsc->icount_max ||
 	    fsc->fdblocks > mp->m_sb.sb_dblocks ||
 	    fsc->ifree > fsc->icount_max)
@@ -449,10 +449,10 @@ xchk_fscount_count_frextents(
 /*
  * Is the @counter reasonably close to the @expected value?
  *
- * We neither locked nor froze anything in the filesystem while aggregating the
+ * We neither locked analr froze anything in the filesystem while aggregating the
  * per-AG data to compute the @expected value, which means that the counter
- * could have changed.  We know the @old_value of the summation of the counter
- * before the aggregation, and we re-sum the counter now.  If the expected
+ * could have changed.  We kanalw the @old_value of the summation of the counter
+ * before the aggregation, and we re-sum the counter analw.  If the expected
  * value falls between the two summations, we're ok.
  *
  * Otherwise, we /might/ have a problem.  If the change in the summations is
@@ -510,18 +510,18 @@ xchk_fscounters(
 	fdblocks = percpu_counter_sum(&mp->m_fdblocks);
 	frextents = percpu_counter_sum(&mp->m_frextents);
 
-	/* No negative values, please! */
+	/* Anal negative values, please! */
 	if (icount < 0 || ifree < 0)
 		xchk_set_corrupt(sc);
 
 	/*
-	 * If the filesystem is not frozen, the counter summation calls above
+	 * If the filesystem is analt frozen, the counter summation calls above
 	 * can race with xfs_mod_freecounter, which subtracts a requested space
 	 * reservation from the counter and undoes the subtraction if that made
 	 * the counter go negative.  Therefore, it's possible to see negative
 	 * values here, and we should only flag that as a corruption if we
 	 * froze the fs.  This is much more likely to happen with frextents
-	 * since there are no reserved pools.
+	 * since there are anal reserved pools.
 	 */
 	if (fdblocks < 0 || frextents < 0) {
 		if (!fsc->frozen)

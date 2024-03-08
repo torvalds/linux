@@ -10,9 +10,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -55,12 +55,12 @@ struct inquiry_data {
 
 struct inquiry_entry {
 	struct list_head	all;		/* inq_cache.all */
-	struct list_head	list;		/* unknown or resolve */
+	struct list_head	list;		/* unkanalwn or resolve */
 	enum {
-		NAME_NOT_KNOWN,
+		NAME_ANALT_KANALWN,
 		NAME_NEEDED,
 		NAME_PENDING,
-		NAME_KNOWN,
+		NAME_KANALWN,
 	} name_state;
 	__u32			timestamp;
 	struct inquiry_data	data;
@@ -76,7 +76,7 @@ struct discovery_state {
 		DISCOVERY_STOPPING,
 	} state;
 	struct list_head	all;	/* All devices found during inquiry */
-	struct list_head	unknown;	/* Name state not known */
+	struct list_head	unkanalwn;	/* Name state analt kanalwn */
 	struct list_head	resolve;	/* Name needs to be resolved */
 	__u32			timestamp;
 	bdaddr_t		last_adv_addr;
@@ -96,7 +96,7 @@ struct discovery_state {
 	unsigned long		name_resolve_timeout;
 };
 
-#define SUSPEND_NOTIFIER_TIMEOUT	msecs_to_jiffies(2000) /* 2 seconds */
+#define SUSPEND_ANALTIFIER_TIMEOUT	msecs_to_jiffies(2000) /* 2 seconds */
 
 enum suspend_tasks {
 	SUSPEND_PAUSE_DISCOVERY,
@@ -111,7 +111,7 @@ enum suspend_tasks {
 
 	SUSPEND_POWERING_DOWN,
 
-	SUSPEND_PREPARE_NOTIFIER,
+	SUSPEND_PREPARE_ANALTIFIER,
 
 	SUSPEND_SET_ADV_FILTER,
 	__SUSPEND_NUM_TASKS
@@ -270,7 +270,7 @@ struct adv_info {
 #define HCI_MAX_ADV_INSTANCES		5
 #define HCI_DEFAULT_ADV_DURATION	2
 
-#define HCI_ADV_TX_POWER_NO_PREFERENCE 0x7F
+#define HCI_ADV_TX_POWER_ANAL_PREFERENCE 0x7F
 
 #define DATA_CMP(_d1, _l1, _d2, _l2) \
 	(_l1 == _l2 ? memcmp(_d1, _d2, _l1) : _l1 - _l2)
@@ -287,7 +287,7 @@ struct monitored_device {
 	bdaddr_t bdaddr;
 	__u8     addr_type;
 	__u16    handle;
-	bool     notified;
+	bool     analtified;
 };
 
 struct adv_pattern {
@@ -312,7 +312,7 @@ struct adv_monitor {
 	__u16		handle;
 
 	enum {
-		ADV_MONITOR_STATE_NOT_REGISTERED,
+		ADV_MONITOR_STATE_ANALT_REGISTERED,
 		ADV_MONITOR_STATE_REGISTERED,
 		ADV_MONITOR_STATE_OFFLOADED
 	} state;
@@ -321,7 +321,7 @@ struct adv_monitor {
 #define HCI_MIN_ADV_MONITOR_HANDLE		1
 #define HCI_MAX_ADV_MONITOR_NUM_HANDLES		32
 #define HCI_MAX_ADV_MONITOR_NUM_PATTERNS	16
-#define HCI_ADV_MONITOR_EXT_NONE		1
+#define HCI_ADV_MONITOR_EXT_ANALNE		1
 #define HCI_ADV_MONITOR_EXT_MSFT		2
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10
@@ -374,7 +374,7 @@ struct hci_dev {
 	__u16		appearance;
 	__u8		dev_class[3];
 	__u8		major_class;
-	__u8		minor_class;
+	__u8		mianalr_class;
 	__u8		max_page;
 	__u8		features[HCI_MAX_PAGES][8];
 	__u8		le_features[8];
@@ -437,7 +437,7 @@ struct hci_dev {
 	__u8		hw_error_code;
 	__u32		clock;
 	__u16		advmon_allowlist_duration;
-	__u16		advmon_no_filter_duration;
+	__u16		advmon_anal_filter_duration;
 	__u8		enable_advmon_interleave_scan;
 
 	__u16		devid_source;
@@ -563,7 +563,7 @@ struct hci_dev {
 	int			advertising_old_state;
 	bool			advertising_paused;
 
-	struct notifier_block	suspend_notifier;
+	struct analtifier_block	suspend_analtifier;
 	enum suspended_state	suspend_state_next;
 	enum suspended_state	suspend_state;
 	bool			scanning_paused;
@@ -633,15 +633,15 @@ struct hci_dev {
 	struct delayed_work	mesh_send_done;
 
 	enum {
-		INTERLEAVE_SCAN_NONE,
-		INTERLEAVE_SCAN_NO_FILTER,
+		INTERLEAVE_SCAN_ANALNE,
+		INTERLEAVE_SCAN_ANAL_FILTER,
 		INTERLEAVE_SCAN_ALLOWLIST
 	} interleave_scan_state;
 
 	struct delayed_work	interleave_scan;
 
 	struct list_head	monitored_devices;
-	bool			advmon_pend_notify;
+	bool			advmon_pend_analtify;
 
 #if IS_ENABLED(CONFIG_BT_LEDS)
 	struct led_trigger	*power_led;
@@ -664,7 +664,7 @@ struct hci_dev {
 	int (*setup)(struct hci_dev *hdev);
 	int (*shutdown)(struct hci_dev *hdev);
 	int (*send)(struct hci_dev *hdev, struct sk_buff *skb);
-	void (*notify)(struct hci_dev *hdev, unsigned int evt);
+	void (*analtify)(struct hci_dev *hdev, unsigned int evt);
 	void (*hw_error)(struct hci_dev *hdev, u8 code);
 	int (*post_init)(struct hci_dev *hdev);
 	int (*set_diag)(struct hci_dev *hdev, bool enable);
@@ -721,7 +721,7 @@ struct hci_conn {
 	__u8		pin_length;
 	__u8		enc_key_size;
 	__u8		io_capability;
-	__u32		passkey_notify;
+	__u32		passkey_analtify;
 	__u8		passkey_entered;
 	__u16		disc_timeout;
 	__u16		conn_timeout;
@@ -902,7 +902,7 @@ static inline void discovery_init(struct hci_dev *hdev)
 {
 	hdev->discovery.state = DISCOVERY_STOPPED;
 	INIT_LIST_HEAD(&hdev->discovery.all);
-	INIT_LIST_HEAD(&hdev->discovery.unknown);
+	INIT_LIST_HEAD(&hdev->discovery.unkanalwn);
 	INIT_LIST_HEAD(&hdev->discovery.resolve);
 	hdev->discovery.report_invalid_rssi = true;
 	hdev->discovery.rssi = HCI_RSSI_INVALID;
@@ -942,7 +942,7 @@ static inline long inquiry_entry_age(struct inquiry_entry *e)
 
 struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev,
 					       bdaddr_t *bdaddr);
-struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
+struct inquiry_entry *hci_inquiry_cache_lookup_unkanalwn(struct hci_dev *hdev,
 						       bdaddr_t *bdaddr);
 struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
 						       bdaddr_t *bdaddr,
@@ -950,7 +950,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
 void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
 				      struct inquiry_entry *ie);
 u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
-			     bool name_known);
+			     bool name_kanalwn);
 void hci_inquiry_cache_flush(struct hci_dev *hdev);
 
 /* ----- HCI Connections ----- */
@@ -1527,7 +1527,7 @@ u8 hci_conn_set_handle(struct hci_conn *conn, u16 handle);
 
 /*
  * hci_conn_get() and hci_conn_put() are used to control the life-time of an
- * "hci_conn" object. They do not guarantee that the hci_conn object is running,
+ * "hci_conn" object. They do analt guarantee that the hci_conn object is running,
  * working or anything else. They just guarantee that the object is available
  * and can be dereferenced. So you can use its locks, local variables and any
  * other constant data.
@@ -1541,8 +1541,8 @@ u8 hci_conn_set_handle(struct hci_conn *conn, u16 handle);
  * long as you hold a device, you must also guarantee that you have a valid
  * reference to the device via hci_conn_get() (or the initial reference from
  * hci_conn_add()).
- * The hold()/drop() ref-count is known to drop below 0 sometimes, which doesn't
- * break because nobody cares for that. But this means, we cannot use
+ * The hold()/drop() ref-count is kanalwn to drop below 0 sometimes, which doesn't
+ * break because analbody cares for that. But this means, we cananalt use
  * _get()/_drop() in it, but require the caller to have a valid ref (FIXME).
  */
 
@@ -1655,8 +1655,8 @@ void hci_free_dev(struct hci_dev *hdev);
 int hci_register_dev(struct hci_dev *hdev);
 void hci_unregister_dev(struct hci_dev *hdev);
 void hci_release_dev(struct hci_dev *hdev);
-int hci_register_suspend_notifier(struct hci_dev *hdev);
-int hci_unregister_suspend_notifier(struct hci_dev *hdev);
+int hci_register_suspend_analtifier(struct hci_dev *hdev);
+int hci_unregister_suspend_analtifier(struct hci_dev *hdev);
 int hci_suspend_dev(struct hci_dev *hdev);
 int hci_resume_dev(struct hci_dev *hdev);
 int hci_reset_dev(struct hci_dev *hdev);
@@ -1819,7 +1819,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_park_capable(dev)      ((dev)->features[0][1] & LMP_PARK)
 #define lmp_inq_rssi_capable(dev)  ((dev)->features[0][3] & LMP_RSSI_INQ)
 #define lmp_esco_capable(dev)      ((dev)->features[0][3] & LMP_ESCO)
-#define lmp_bredr_capable(dev)     (!((dev)->features[0][4] & LMP_NO_BREDR))
+#define lmp_bredr_capable(dev)     (!((dev)->features[0][4] & LMP_ANAL_BREDR))
 #define lmp_le_capable(dev)        ((dev)->features[0][4] & LMP_LE)
 #define lmp_sniffsubr_capable(dev) ((dev)->features[0][5] & LMP_SNIFF_SUBR)
 #define lmp_pause_enc_capable(dev) ((dev)->features[0][5] & LMP_PAUSE_ENC)
@@ -1827,7 +1827,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_ext_inq_capable(dev)   ((dev)->features[0][6] & LMP_EXT_INQ)
 #define lmp_le_br_capable(dev)     (!!((dev)->features[0][6] & LMP_SIMUL_LE_BR))
 #define lmp_ssp_capable(dev)       ((dev)->features[0][6] & LMP_SIMPLE_PAIR)
-#define lmp_no_flush_capable(dev)  ((dev)->features[0][6] & LMP_NO_FLUSH)
+#define lmp_anal_flush_capable(dev)  ((dev)->features[0][6] & LMP_ANAL_FLUSH)
 #define lmp_lsto_capable(dev)      ((dev)->features[0][7] & LMP_LSTO)
 #define lmp_inq_tx_pwr_capable(dev) ((dev)->features[0][7] & LMP_INQ_TX_PWR)
 #define lmp_ext_feat_capable(dev)  ((dev)->features[0][7] & LMP_EXTFEATURES)
@@ -1884,8 +1884,8 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define privacy_mode_capable(dev) (use_ll_privacy(dev) && \
 				   (hdev->commands[39] & 0x04))
 
-/* Use enhanced synchronous connection if command is supported and its quirk
- * has not been set.
+/* Use enhanced synchroanalus connection if command is supported and its quirk
+ * has analt been set.
  */
 #define enhanced_sync_conn_capable(dev) \
 	(((dev)->commands[29] & 0x08) && \
@@ -1949,7 +1949,7 @@ static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		return iso_connect_ind(hdev, bdaddr, flags);
 
 	default:
-		BT_ERR("unknown link type %d", type);
+		BT_ERR("unkanalwn link type %d", type);
 		return -EINVAL;
 	}
 }
@@ -2174,7 +2174,7 @@ void hci_send_monitor_ctrl_event(struct hci_dev *hdev, u16 event,
 void hci_sock_dev_event(struct hci_dev *hdev, int event);
 
 #define HCI_MGMT_VAR_LEN	BIT(0)
-#define HCI_MGMT_NO_HDEV	BIT(1)
+#define HCI_MGMT_ANAL_HDEV	BIT(1)
 #define HCI_MGMT_UNTRUSTED	BIT(2)
 #define HCI_MGMT_UNCONFIGURED	BIT(3)
 #define HCI_MGMT_HDEV_OPTIONAL	BIT(4)
@@ -2261,7 +2261,7 @@ int mgmt_user_passkey_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 				     u8 link_type, u8 addr_type, u8 status);
 int mgmt_user_passkey_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 					 u8 link_type, u8 addr_type, u8 status);
-int mgmt_user_passkey_notify(struct hci_dev *hdev, bdaddr_t *bdaddr,
+int mgmt_user_passkey_analtify(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			     u8 link_type, u8 addr_type, u32 passkey,
 			     u8 entered);
 void mgmt_auth_failed(struct hci_conn *conn, u8 status);

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,12 +27,12 @@
 
 // addressBlock: hdp_hdpdec
 // base address: 0x3c80
-#define regHDP_NONSURFACE_BASE                                                                          0x0040
-#define regHDP_NONSURFACE_BASE_BASE_IDX                                                                 0
-#define regHDP_NONSURFACE_INFO                                                                          0x0041
-#define regHDP_NONSURFACE_INFO_BASE_IDX                                                                 0
-#define regHDP_NONSURFACE_BASE_HI                                                                       0x0042
-#define regHDP_NONSURFACE_BASE_HI_BASE_IDX                                                              0
+#define regHDP_ANALNSURFACE_BASE                                                                          0x0040
+#define regHDP_ANALNSURFACE_BASE_BASE_IDX                                                                 0
+#define regHDP_ANALNSURFACE_INFO                                                                          0x0041
+#define regHDP_ANALNSURFACE_INFO_BASE_IDX                                                                 0
+#define regHDP_ANALNSURFACE_BASE_HI                                                                       0x0042
+#define regHDP_ANALNSURFACE_BASE_HI_BASE_IDX                                                              0
 #define regHDP_SURFACE_WRITE_FLAGS                                                                      0x00c4
 #define regHDP_SURFACE_WRITE_FLAGS_BASE_IDX                                                             0
 #define regHDP_SURFACE_READ_FLAGS                                                                       0x00c5
@@ -41,10 +41,10 @@
 #define regHDP_SURFACE_WRITE_FLAGS_CLR_BASE_IDX                                                         0
 #define regHDP_SURFACE_READ_FLAGS_CLR                                                                   0x00c7
 #define regHDP_SURFACE_READ_FLAGS_CLR_BASE_IDX                                                          0
-#define regHDP_NONSURF_FLAGS                                                                            0x00c8
-#define regHDP_NONSURF_FLAGS_BASE_IDX                                                                   0
-#define regHDP_NONSURF_FLAGS_CLR                                                                        0x00c9
-#define regHDP_NONSURF_FLAGS_CLR_BASE_IDX                                                               0
+#define regHDP_ANALNSURF_FLAGS                                                                            0x00c8
+#define regHDP_ANALNSURF_FLAGS_BASE_IDX                                                                   0
+#define regHDP_ANALNSURF_FLAGS_CLR                                                                        0x00c9
+#define regHDP_ANALNSURF_FLAGS_CLR_BASE_IDX                                                               0
 #define regHDP_HOST_PATH_CNTL                                                                           0x00cc
 #define regHDP_HOST_PATH_CNTL_BASE_IDX                                                                  0
 #define regHDP_SW_SEMAPHORE                                                                             0x00cd

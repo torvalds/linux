@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /******************************************************************************
 *******************************************************************************
 **
@@ -39,10 +39,10 @@
 /*
  * Flags to dlm_lock
  *
- * DLM_LKF_NOQUEUE
+ * DLM_LKF_ANALQUEUE
  *
- * Do not queue the lock request on the wait queue if it cannot be granted
- * immediately.  If the lock cannot be granted because of this flag, DLM will
+ * Do analt queue the lock request on the wait queue if it cananalt be granted
+ * immediately.  If the lock cananalt be granted because of this flag, DLM will
  * either return -EAGAIN from the dlm_lock call or will return 0 from
  * dlm_lock and -EAGAIN in the lock status block when the AST is executed.
  *
@@ -54,7 +54,7 @@
  * DLM_LKF_CONVERT
  *
  * Indicates a lock conversion request.  For conversions the name and namelen
- * are ignored and the lock ID in the LKSB is used to identify the lock.
+ * are iganalred and the lock ID in the LKSB is used to identify the lock.
  *
  * DLM_LKF_VALBLK
  *
@@ -81,33 +81,33 @@
  *
  * DLM_LKF_PERSISTENT
  *
- * Only relevant to locks originating in userspace.  A persistent lock will not
+ * Only relevant to locks originating in userspace.  A persistent lock will analt
  * be removed if the process holding the lock exits.
  *
- * DLM_LKF_NODLCKWT
+ * DLM_LKF_ANALDLCKWT
  *
- * Do not cancel the lock if it gets into conversion deadlock.
+ * Do analt cancel the lock if it gets into conversion deadlock.
  *
- * DLM_LKF_NODLCKBLK
+ * DLM_LKF_ANALDLCKBLK
  *
  * net yet implemented
  *
  * DLM_LKF_EXPEDITE
  *
  * Used only with new requests for NL mode locks.  Tells the lock manager
- * to grant the lock, ignoring other locks in convert and wait queues.
+ * to grant the lock, iganalring other locks in convert and wait queues.
  *
- * DLM_LKF_NOQUEUEBAST
+ * DLM_LKF_ANALQUEUEBAST
  *
  * Send blocking AST's before returning -EAGAIN to the caller.  It is only
- * used along with the NOQUEUE flag.  Blocking AST's are not sent for failed
- * NOQUEUE requests otherwise.
+ * used along with the ANALQUEUE flag.  Blocking AST's are analt sent for failed
+ * ANALQUEUE requests otherwise.
  *
  * DLM_LKF_HEADQUE
  *
  * Add a lock to the head of the convert or wait queue rather than the tail.
  *
- * DLM_LKF_NOORDER
+ * DLM_LKF_ANALORDER
  *
  * Disregard the standard grant order rules and grant a lock as soon as it
  * is compatible with other granted locks.
@@ -118,7 +118,7 @@
  *
  * DLM_LKF_ALTPR
  *
- * If the requested mode cannot be granted immediately, try to grant the lock
+ * If the requested mode cananalt be granted immediately, try to grant the lock
  * in PR mode instead.  If this alternate mode is granted instead of the
  * requested mode, DLM_SBF_ALTMODE is returned in the lksb.
  *
@@ -133,11 +133,11 @@
  *
  * DLM_LKF_TIMEOUT
  *
- * This value is deprecated and reserved. DO NOT USE!
+ * This value is deprecated and reserved. DO ANALT USE!
  *
  */
 
-#define DLM_LKF_NOQUEUE		0x00000001
+#define DLM_LKF_ANALQUEUE		0x00000001
 #define DLM_LKF_CANCEL		0x00000002
 #define DLM_LKF_CONVERT		0x00000004
 #define DLM_LKF_VALBLK		0x00000008
@@ -145,12 +145,12 @@
 #define DLM_LKF_IVVALBLK	0x00000020
 #define DLM_LKF_CONVDEADLK	0x00000040
 #define DLM_LKF_PERSISTENT	0x00000080
-#define DLM_LKF_NODLCKWT	0x00000100
-#define DLM_LKF_NODLCKBLK	0x00000200
+#define DLM_LKF_ANALDLCKWT	0x00000100
+#define DLM_LKF_ANALDLCKBLK	0x00000200
 #define DLM_LKF_EXPEDITE	0x00000400
-#define DLM_LKF_NOQUEUEBAST	0x00000800
+#define DLM_LKF_ANALQUEUEBAST	0x00000800
 #define DLM_LKF_HEADQUE		0x00001000
-#define DLM_LKF_NOORDER		0x00002000
+#define DLM_LKF_ANALORDER		0x00002000
 #define DLM_LKF_ORPHAN		0x00004000
 #define DLM_LKF_ALTPR		0x00008000
 #define DLM_LKF_ALTCW		0x00010000
@@ -158,7 +158,7 @@
 #define DLM_LKF_TIMEOUT		0x00040000
 
 /*
- * Some return codes that are not in errno.h
+ * Some return codes that are analt in erranal.h
  */
 
 #define DLM_ECANCEL		0x10001

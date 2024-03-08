@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -91,8 +91,8 @@ void vega20_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.vcn.vcn_ring4_5 = AMDGPU_VEGA20_DOORBELL64_VCN4_5;
 	adev->doorbell_index.vcn.vcn_ring6_7 = AMDGPU_VEGA20_DOORBELL64_VCN6_7;
 
-	adev->doorbell_index.first_non_cp = AMDGPU_VEGA20_DOORBELL64_FIRST_NON_CP;
-	adev->doorbell_index.last_non_cp = AMDGPU_VEGA20_DOORBELL64_LAST_NON_CP;
+	adev->doorbell_index.first_analn_cp = AMDGPU_VEGA20_DOORBELL64_FIRST_ANALN_CP;
+	adev->doorbell_index.last_analn_cp = AMDGPU_VEGA20_DOORBELL64_LAST_ANALN_CP;
 
 	adev->doorbell_index.max_assignment = AMDGPU_VEGA20_DOORBELL_MAX_ASSIGNMENT << 1;
 	adev->doorbell_index.sdma_doorbell_range = 20;

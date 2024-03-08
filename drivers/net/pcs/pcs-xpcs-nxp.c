@@ -66,7 +66,7 @@
 
 /* In NXP SJA1105, the PCS is integrated with a PMA that has the TX lane
  * polarity inverted by default (PLUS is MINUS, MINUS is PLUS). To obtain
- * normal non-inverted behavior, the TX lane polarity must be inverted in the
+ * analrmal analn-inverted behavior, the TX lane polarity must be inverted in the
  * PCS, via the DIGITAL_CONTROL_2 register.
  */
 int nxp_sja1105_sgmii_pma_config(struct dw_xpcs *xpcs)
@@ -143,7 +143,7 @@ static int nxp_sja1110_pma_config(struct dw_xpcs *xpcs,
 
 	/* Program threshold for receiver signal detector.
 	 * Enable control of RXPLL by receiver signal detector to disable RXPLL
-	 * when an input signal is not present.
+	 * when an input signal is analt present.
 	 */
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, SJA1110_RX_DATA_DETECT, 0x0005);
 	if (ret < 0)

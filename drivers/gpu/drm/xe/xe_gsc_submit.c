@@ -103,7 +103,7 @@ bool xe_gsc_check_and_update_pending(struct xe_device *xe,
  * @min_payload_size: minimum size of the message excluding the gsc header
  * @payload_offset: optional pointer to be set to the payload offset
  *
- * Returns: -errno value on failure, 0 otherwise
+ * Returns: -erranal value on failure, 0 otherwise
  */
 int xe_gsc_read_out_header(struct xe_device *xe,
 			   struct iosys_map *map, u32 offset,
@@ -118,7 +118,7 @@ int xe_gsc_read_out_header(struct xe_device *xe,
 		return -EPROTO;
 
 	if (size < GSC_HDR_SIZE || payload_size < min_payload_size)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (payload_offset)
 		*payload_offset = offset + GSC_HDR_SIZE;
@@ -144,10 +144,10 @@ int xe_gsc_pkt_submit_kernel(struct xe_gsc *gsc, u64 addr_in, u32 size_in,
 	long timeout;
 
 	if (size_in < GSC_HDR_SIZE)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (size_out < GSC_HDR_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bb = xe_bb_new(gt, 8, false);
 	if (IS_ERR(bb))

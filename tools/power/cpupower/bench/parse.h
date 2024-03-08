@@ -16,7 +16,7 @@ struct config
 	unsigned int cycles;	/* calculation cycles with the same sleep/load time */
 	unsigned int rounds;	/* calculation rounds with iterated sleep/load time */
 	unsigned int cpu;	/* cpu for which the affinity is set */
-	char governor[15];	/* cpufreq governor */
+	char goveranalr[15];	/* cpufreq goveranalr */
 	enum sched_prio		/* possible scheduler priorities */
 	{
 		SCHED_ERR = -1,

@@ -207,7 +207,7 @@ enum {
 	/* :0 s 38 01 1300 0003 0001 1 = 03
 	 * GOP MODE (2 bit)
 	 *    low bit 0/1: advanced/simple GOP
-	 *   high bit 0/1: IDR(4/32/128) / no IDR (4/32/0)
+	 *   high bit 0/1: IDR(4/32/128) / anal IDR (4/32/0)
 	 */
 
 	/* :0 s 38 01 1700 0003 0001 1 = 00
@@ -280,8 +280,8 @@ enum hdpvr_bitrate_mode {
 enum hdpvr_gop_mode {
 	HDPVR_ADVANCED_IDR_GOP = 0,
 	HDPVR_SIMPLE_IDR_GOP,
-	HDPVR_ADVANCED_NOIDR_GOP,
-	HDPVR_SIMPLE_NOIDR_GOP,
+	HDPVR_ADVANCED_ANALIDR_GOP,
+	HDPVR_SIMPLE_ANALIDR_GOP,
 };
 
 void hdpvr_delete(struct hdpvr_device *dev);

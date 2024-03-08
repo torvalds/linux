@@ -9,7 +9,7 @@
  *          and used information from lirc_xbox.c
  *
  *          Copyright (c) 2011, 2012 Anssi Hannula <anssi.hannula@iki.fi>
- *          Copyright (c) 2004 Torrey Hoffman <thoffman@arnor.net>
+ *          Copyright (c) 2004 Torrey Hoffman <thoffman@aranalr.net>
  *          Copyright (c) 2002 Vladimir Dergachev
  *          Copyright (c) 2003-2004 Paul Miller <pmiller9@users.sourceforge.net>
  */
@@ -124,7 +124,7 @@ static void xbox_remote_irq_in(struct urb *urb)
 		xbox_remote_input_report(urb);
 		break;
 	case -ECONNRESET:	/* unlink */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		dev_dbg(&xbox_remote->interface->dev,
 			"%s: urb error status, unlink?\n",
@@ -132,7 +132,7 @@ static void xbox_remote_irq_in(struct urb *urb)
 		return;
 	default:		/* error */
 		dev_dbg(&xbox_remote->interface->dev,
-			"%s: Nonzero urb status %d\n",
+			"%s: Analnzero urb status %d\n",
 			__func__, urb->status);
 	}
 
@@ -190,27 +190,27 @@ static int xbox_remote_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *endpoint_in;
 	struct xbox_remote *xbox_remote;
 	struct rc_dev *rc_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
-	// why is there also a device with no endpoints?
+	// why is there also a device with anal endpoints?
 	if (iface_host->desc.bNumEndpoints == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (iface_host->desc.bNumEndpoints != 1) {
 		pr_err("%s: Unexpected desc.bNumEndpoints: %d\n",
 		       __func__, iface_host->desc.bNumEndpoints);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	endpoint_in = &iface_host->endpoint[0].desc;
 
 	if (!usb_endpoint_is_int_in(endpoint_in)) {
 		pr_err("%s: Unexpected endpoint_in\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (le16_to_cpu(endpoint_in->wMaxPacketSize) == 0) {
 		pr_err("%s: endpoint_in message size==0?\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	xbox_remote = kzalloc(sizeof(*xbox_remote), GFP_KERNEL);

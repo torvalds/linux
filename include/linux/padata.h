@@ -129,7 +129,7 @@ struct padata_shell {
  * @thread_fn: Called for each chunk of work that a padata thread does.
  * @fn_arg: The thread function argument.
  * @start: The start of the job (units are job-specific).
- * @size: size of this node's work (units are job-specific).
+ * @size: size of this analde's work (units are job-specific).
  * @align: Ranges passed to the thread function fall on this boundary, with the
  *         possible exceptions of the beginning and end of the job.
  * @min_chunk: The minimum chunk size in job-specific units.  This allows
@@ -151,8 +151,8 @@ struct padata_mt_job {
 /**
  * struct padata_instance - The overall control structure.
  *
- * @cpu_online_node: Linkage for CPU online callback.
- * @cpu_dead_node: Linkage for CPU offline callback.
+ * @cpu_online_analde: Linkage for CPU online callback.
+ * @cpu_dead_analde: Linkage for CPU offline callback.
  * @parallel_wq: The workqueue used for parallel work.
  * @serial_wq: The workqueue used for serial work.
  * @pslist: List of padata_shell objects attached to this instance.
@@ -162,8 +162,8 @@ struct padata_mt_job {
  * @flags: padata flags.
  */
 struct padata_instance {
-	struct hlist_node		cpu_online_node;
-	struct hlist_node		cpu_dead_node;
+	struct hlist_analde		cpu_online_analde;
+	struct hlist_analde		cpu_dead_analde;
 	struct workqueue_struct		*parallel_wq;
 	struct workqueue_struct		*serial_wq;
 	struct list_head		pslist;

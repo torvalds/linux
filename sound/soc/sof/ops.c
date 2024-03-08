@@ -146,12 +146,12 @@ EXPORT_SYMBOL(snd_sof_dsp_update_bits_forced);
  * snd_sof_dsp_panic - handle a received DSP panic message
  * @sdev: Pointer to the device's sdev
  * @offset: offset of panic information
- * @non_recoverable: the panic is fatal, no recovery will be done by the caller
+ * @analn_recoverable: the panic is fatal, anal recovery will be done by the caller
  */
-void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool non_recoverable)
+void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool analn_recoverable)
 {
 	/*
-	 * if DSP is not ready and the dsp_oops_offset is not yet set, use the
+	 * if DSP is analt ready and the dsp_oops_offset is analt yet set, use the
 	 * offset from the panic message.
 	 */
 	if (!sdev->dsp_oops_offset)
@@ -167,13 +167,13 @@ void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool non_recoverabl
 			 __func__, sdev->dsp_oops_offset, offset);
 
 	/*
-	 * Set the fw_state to crashed only in case of non recoverable DSP panic
+	 * Set the fw_state to crashed only in case of analn recoverable DSP panic
 	 * event.
 	 * Use different message within the snd_sof_dsp_dbg_dump() depending on
-	 * the non_recoverable flag.
+	 * the analn_recoverable flag.
 	 */
 	sdev->dbg_dump_printed = false;
-	if (non_recoverable) {
+	if (analn_recoverable) {
 		snd_sof_dsp_dbg_dump(sdev, "DSP panic!",
 				     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 		sof_set_fw_state(sdev, SOF_FW_CRASHED);

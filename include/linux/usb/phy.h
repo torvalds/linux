@@ -11,12 +11,12 @@
 #define __LINUX_USB_PHY_H
 
 #include <linux/extcon.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/usb.h>
 #include <uapi/linux/usb/charger.h>
 
 enum usb_phy_interface {
-	USBPHY_INTERFACE_MODE_UNKNOWN,
+	USBPHY_INTERFACE_MODE_UNKANALWN,
 	USBPHY_INTERFACE_MODE_UTMI,
 	USBPHY_INTERFACE_MODE_UTMIW,
 	USBPHY_INTERFACE_MODE_ULPI,
@@ -25,7 +25,7 @@ enum usb_phy_interface {
 };
 
 enum usb_phy_events {
-	USB_EVENT_NONE,         /* no events or cable disconnected */
+	USB_EVENT_ANALNE,         /* anal events or cable disconnected */
 	USB_EVENT_VBUS,         /* vbus valid event */
 	USB_EVENT_ID,           /* id was grounded */
 	USB_EVENT_CHARGER,      /* usb dedicated charger */
@@ -102,9 +102,9 @@ struct usb_phy {
 	/* to support extcon device */
 	struct extcon_dev	*edev;
 	struct extcon_dev	*id_edev;
-	struct notifier_block	vbus_nb;
-	struct notifier_block	id_nb;
-	struct notifier_block	type_nb;
+	struct analtifier_block	vbus_nb;
+	struct analtifier_block	id_nb;
+	struct analtifier_block	type_nb;
 
 	/* Support USB charger */
 	enum usb_charger_type	chg_type;
@@ -112,8 +112,8 @@ struct usb_phy {
 	struct usb_charger_current	chg_cur;
 	struct work_struct		chg_work;
 
-	/* for notification of usb_phy_events */
-	struct atomic_notifier_head	notifier;
+	/* for analtification of usb_phy_events */
+	struct atomic_analtifier_head	analtifier;
 
 	/* to pass extra port status to the root hub */
 	u16			port_status;
@@ -129,7 +129,7 @@ struct usb_phy {
 	/* enable/disable VBUS */
 	int	(*set_vbus)(struct usb_phy *x, int on);
 
-	/* effective for B devices, ignored for A-peripheral */
+	/* effective for B devices, iganalred for A-peripheral */
 	int	(*set_power)(struct usb_phy *x,
 				unsigned mA);
 
@@ -144,10 +144,10 @@ struct usb_phy {
 	 */
 	int	(*set_wakeup)(struct usb_phy *x, bool enabled);
 
-	/* notify phy connect status change */
-	int	(*notify_connect)(struct usb_phy *x,
+	/* analtify phy connect status change */
+	int	(*analtify_connect)(struct usb_phy *x,
 			enum usb_device_speed speed);
-	int	(*notify_disconnect)(struct usb_phy *x,
+	int	(*analtify_disconnect)(struct usb_phy *x,
 			enum usb_device_speed speed);
 
 	/*
@@ -220,8 +220,8 @@ extern struct usb_phy *devm_usb_get_phy(struct device *dev,
 	enum usb_phy_type type);
 extern struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
 	const char *phandle, u8 index);
-extern struct usb_phy *devm_usb_get_phy_by_node(struct device *dev,
-	struct device_node *node, struct notifier_block *nb);
+extern struct usb_phy *devm_usb_get_phy_by_analde(struct device *dev,
+	struct device_analde *analde, struct analtifier_block *nb);
 extern void usb_put_phy(struct usb_phy *);
 extern void devm_usb_put_phy(struct device *dev, struct usb_phy *x);
 extern void usb_phy_set_event(struct usb_phy *x, unsigned long event);
@@ -249,8 +249,8 @@ static inline struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
 	return ERR_PTR(-ENXIO);
 }
 
-static inline struct usb_phy *devm_usb_get_phy_by_node(struct device *dev,
-	struct device_node *node, struct notifier_block *nb)
+static inline struct usb_phy *devm_usb_get_phy_by_analde(struct device *dev,
+	struct device_analde *analde, struct analtifier_block *nb)
 {
 	return ERR_PTR(-ENXIO);
 }
@@ -317,34 +317,34 @@ usb_phy_set_wakeup(struct usb_phy *x, bool enabled)
 }
 
 static inline int
-usb_phy_notify_connect(struct usb_phy *x, enum usb_device_speed speed)
+usb_phy_analtify_connect(struct usb_phy *x, enum usb_device_speed speed)
 {
-	if (x && x->notify_connect)
-		return x->notify_connect(x, speed);
+	if (x && x->analtify_connect)
+		return x->analtify_connect(x, speed);
 	else
 		return 0;
 }
 
 static inline int
-usb_phy_notify_disconnect(struct usb_phy *x, enum usb_device_speed speed)
+usb_phy_analtify_disconnect(struct usb_phy *x, enum usb_device_speed speed)
 {
-	if (x && x->notify_disconnect)
-		return x->notify_disconnect(x, speed);
+	if (x && x->analtify_disconnect)
+		return x->analtify_disconnect(x, speed);
 	else
 		return 0;
 }
 
-/* notifiers */
+/* analtifiers */
 static inline int
-usb_register_notifier(struct usb_phy *x, struct notifier_block *nb)
+usb_register_analtifier(struct usb_phy *x, struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_register(&x->notifier, nb);
+	return atomic_analtifier_chain_register(&x->analtifier, nb);
 }
 
 static inline void
-usb_unregister_notifier(struct usb_phy *x, struct notifier_block *nb)
+usb_unregister_analtifier(struct usb_phy *x, struct analtifier_block *nb)
 {
-	atomic_notifier_chain_unregister(&x->notifier, nb);
+	atomic_analtifier_chain_unregister(&x->analtifier, nb);
 }
 
 static inline const char *usb_phy_type_string(enum usb_phy_type type)
@@ -355,7 +355,7 @@ static inline const char *usb_phy_type_string(enum usb_phy_type type)
 	case USB_PHY_TYPE_USB3:
 		return "USB3 PHY";
 	default:
-		return "UNKNOWN PHY TYPE";
+		return "UNKANALWN PHY TYPE";
 	}
 }
 #endif /* __LINUX_USB_PHY_H */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/semaphore.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/vmalloc.h>
 #include <linux/err.h>
 #include <asm/byteorder.h>
@@ -110,7 +110,7 @@ static int queue_alloc_page(struct hinic_hwif *hwif, u64 **vaddr, u64 *paddr,
 				    GFP_KERNEL);
 	if (!*vaddr) {
 		dev_err(&pdev->dev, "Failed to allocate dma for wqs page\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*paddr = (u64)dma_addr;
@@ -124,7 +124,7 @@ static int queue_alloc_page(struct hinic_hwif *hwif, u64 **vaddr, u64 *paddr,
 
 err_shadow_vaddr:
 	dma_free_coherent(&pdev->dev, page_sz, *vaddr, dma_addr);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -195,7 +195,7 @@ static int alloc_page_arrays(struct hinic_wqs *wqs)
 	wqs->page_paddr = devm_kcalloc(&pdev->dev, wqs->num_pages,
 				       sizeof(*wqs->page_paddr), GFP_KERNEL);
 	if (!wqs->page_paddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wqs->page_vaddr = devm_kcalloc(&pdev->dev, wqs->num_pages,
 				       sizeof(*wqs->page_vaddr), GFP_KERNEL);
@@ -215,7 +215,7 @@ err_page_shadow_vaddr:
 
 err_page_vaddr:
 	devm_kfree(&pdev->dev, wqs->page_paddr);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void free_page_arrays(struct hinic_wqs *wqs)
@@ -240,7 +240,7 @@ static int wqs_next_block(struct hinic_wqs *wqs, int *page_idx,
 	if (wqs->num_free_blks < 0) {
 		wqs->num_free_blks++;
 		up(&wqs->alloc_blocks_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pos = wqs->alloc_blk_pos++;
@@ -319,7 +319,7 @@ int hinic_wqs_alloc(struct hinic_wqs *wqs, int max_wqs,
 	if (alloc_page_arrays(wqs)) {
 		dev_err(&pdev->dev,
 			"Failed to allocate mem for page addresses\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (page_idx = 0; page_idx < wqs->num_pages; page_idx++) {
@@ -333,7 +333,7 @@ int hinic_wqs_alloc(struct hinic_wqs *wqs, int max_wqs,
 	wqs->free_blocks = devm_kzalloc(&pdev->dev, WQS_FREE_BLOCKS_SIZE(wqs),
 					GFP_KERNEL);
 	if (!wqs->free_blocks) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_blocks;
 	}
 
@@ -381,7 +381,7 @@ static int alloc_wqes_shadow(struct hinic_wq *wq)
 	wq->shadow_wqe = devm_kcalloc(&pdev->dev, wq->num_q_pages,
 				      wq->max_wqe_size, GFP_KERNEL);
 	if (!wq->shadow_wqe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wq->shadow_idx = devm_kcalloc(&pdev->dev, wq->num_q_pages,
 				      sizeof(*wq->shadow_idx), GFP_KERNEL);
@@ -392,7 +392,7 @@ static int alloc_wqes_shadow(struct hinic_wq *wq)
 
 err_shadow_idx:
 	devm_kfree(&pdev->dev, wq->shadow_wqe);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -486,7 +486,7 @@ static int alloc_wq_pages(struct hinic_wq *wq, struct hinic_hwif *hwif,
 
 err_alloc_wq_pages:
 	free_wq_pages(wq, hwif, i);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -605,7 +605,7 @@ int hinic_wqs_cmdq_alloc(struct hinic_cmdq_pages *cmdq_pages,
 	u16 num_wqebbs_per_page_shift;
 	u16 num_wqebbs_per_page;
 	u16 wqebb_size_shift;
-	int i, j, err = -ENOMEM;
+	int i, j, err = -EANALMEM;
 
 	if (!is_power_of_2(wqebb_size)) {
 		dev_err(&pdev->dev, "wqebb_size must be power of 2\n");
@@ -869,7 +869,7 @@ struct hinic_hw_wqe *hinic_read_wqe_direct(struct hinic_wq *wq, u16 cons_idx)
  * @wq: wq of the wqe
  * @wqe: the wqe for shadow checking
  *
- * Return true - shadow, false - Not shadow
+ * Return true - shadow, false - Analt shadow
  **/
 static inline bool wqe_shadow(struct hinic_wq *wq, struct hinic_hw_wqe *wqe)
 {

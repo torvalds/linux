@@ -46,7 +46,7 @@ struct t_wiphy_priv {
 					     t_wiphy_exit,		\
 					     GFP_KERNEL, &(ctx));	\
 									\
-		KUNIT_ASSERT_NOT_NULL(test, __wiphy);			\
+		KUNIT_ASSERT_ANALT_NULL(test, __wiphy);			\
 		__wiphy;						\
 	})
 #define t_wiphy_ctx(wiphy) (((struct t_wiphy_priv *)wiphy_priv(wiphy))->ctx)

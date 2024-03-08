@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# Makefile for nolibc tests
+# Makefile for anallibc tests
 include ../../../scripts/Makefile.include
 include ../../../scripts/utilities.mak
 # We need this for the "cc-option" macro.
@@ -11,7 +11,7 @@ $(error Only absolute O= parameters are supported)
 endif
 endif
 
-# we're in ".../tools/testing/selftests/nolibc"
+# we're in ".../tools/testing/selftests/anallibc"
 ifeq ($(srctree),)
 srctree := $(patsubst %/tools/testing/selftests/,%,$(dir $(CURDIR)))
 endif
@@ -34,7 +34,7 @@ objtree ?= $(srctree)
 #  ppc64        | powerpc   | 64 bits big endian
 #  ppc64le      | powerpc   | 64 bits little endian
 #
-# It is recommended to only use XARCH, though it does not harm if
+# It is recommended to only use XARCH, though it does analt harm if
 # ARCH is already set. For simplicity, ARCH is sufficient for all
 # architectures where both are equal.
 
@@ -66,7 +66,7 @@ IMAGE_riscv      = arch/riscv/boot/Image
 IMAGE_s390       = arch/s390/boot/bzImage
 IMAGE_loongarch  = arch/loongarch/boot/vmlinuz.efi
 IMAGE            = $(objtree)/$(IMAGE_$(XARCH))
-IMAGE_NAME       = $(notdir $(IMAGE))
+IMAGE_NAME       = $(analtdir $(IMAGE))
 
 # default kernel configurations that appear to be usable
 DEFCONFIG_i386       = defconfig
@@ -117,23 +117,23 @@ QEMU_ARGS_BIOS = -bios $(QEMU_BIOS_$(XARCH))
 endif
 
 # QEMU_ARGS : some arch-specific args to pass to qemu
-QEMU_ARGS_i386       = -M pc -append "console=ttyS0,9600 i8042.noaux panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_x86_64     = -M pc -append "console=ttyS0,9600 i8042.noaux panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_x86        = -M pc -append "console=ttyS0,9600 i8042.noaux panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_arm64      = -M virt -cpu cortex-a53 -append "panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_arm        = -M virt -append "panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_mips32le   = -M malta -append "panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_mips32be   = -M malta -append "panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_ppc        = -M g3beige -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_ppc64      = -M powernv -append "console=hvc0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_ppc64le    = -M powernv -append "console=hvc0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_riscv      = -M virt -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_s390       = -M s390-ccw-virtio -m 1G -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_loongarch  = -M virt -append "console=ttyS0,115200 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
+QEMU_ARGS_i386       = -M pc -append "console=ttyS0,9600 i8042.analaux panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_x86_64     = -M pc -append "console=ttyS0,9600 i8042.analaux panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_x86        = -M pc -append "console=ttyS0,9600 i8042.analaux panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_arm64      = -M virt -cpu cortex-a53 -append "panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_arm        = -M virt -append "panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_mips32le   = -M malta -append "panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_mips32be   = -M malta -append "panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_ppc        = -M g3beige -append "console=ttyS0 panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_ppc64      = -M powernv -append "console=hvc0 panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_ppc64le    = -M powernv -append "console=hvc0 panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_riscv      = -M virt -append "console=ttyS0 panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_s390       = -M s390-ccw-virtio -m 1G -append "console=ttyS0 panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
+QEMU_ARGS_loongarch  = -M virt -append "console=ttyS0,115200 panic=-1 $(TEST:%=ANALLIBC_TEST=%)"
 QEMU_ARGS            = $(QEMU_ARGS_$(XARCH)) $(QEMU_ARGS_BIOS) $(QEMU_ARGS_EXTRA)
 
 # OUTPUT is only set when run from the main makefile, otherwise
-# it defaults to this nolibc directory.
+# it defaults to this anallibc directory.
 OUTPUT ?= $(CURDIR)/
 
 ifeq ($(V),1)
@@ -143,15 +143,15 @@ Q=@
 endif
 
 CFLAGS_i386 = $(call cc-option,-m32)
-CFLAGS_ppc = -m32 -mbig-endian -mno-vsx $(call cc-option,-mmultiple)
-CFLAGS_ppc64 = -m64 -mbig-endian -mno-vsx $(call cc-option,-mmultiple)
-CFLAGS_ppc64le = -m64 -mlittle-endian -mno-vsx $(call cc-option,-mabi=elfv2)
+CFLAGS_ppc = -m32 -mbig-endian -manal-vsx $(call cc-option,-mmultiple)
+CFLAGS_ppc64 = -m64 -mbig-endian -manal-vsx $(call cc-option,-mmultiple)
+CFLAGS_ppc64le = -m64 -mlittle-endian -manal-vsx $(call cc-option,-mabi=elfv2)
 CFLAGS_s390 = -m64
 CFLAGS_mips32le = -EL -mabi=32 -fPIC
 CFLAGS_mips32be = -EB -mabi=32
 CFLAGS_STACKPROTECTOR ?= $(call cc-option,-mstack-protector-guard=global $(call cc-option,-fstack-protector-all))
-CFLAGS  ?= -Os -fno-ident -fno-asynchronous-unwind-tables -std=c89 -W -Wall -Wextra \
-		$(call cc-option,-fno-stack-protector) \
+CFLAGS  ?= -Os -fanal-ident -fanal-asynchroanalus-unwind-tables -std=c89 -W -Wall -Wextra \
+		$(call cc-option,-fanal-stack-protector) \
 		$(CFLAGS_$(XARCH)) $(CFLAGS_STACKPROTECTOR)
 LDFLAGS :=
 
@@ -161,15 +161,15 @@ REPORT  ?= awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{if (!f) printf("\n"); f++
 		printf("\nSee all results in %s\n", ARGV[1]); }'
 
 help:
-	@echo "Supported targets under selftests/nolibc:"
+	@echo "Supported targets under selftests/anallibc:"
 	@echo "  all               call the \"run\" target below"
 	@echo "  help              this help"
-	@echo "  sysroot           create the nolibc sysroot here (uses \$$ARCH)"
-	@echo "  nolibc-test       build the executable (uses \$$CC and \$$CROSS_COMPILE)"
+	@echo "  sysroot           create the anallibc sysroot here (uses \$$ARCH)"
+	@echo "  anallibc-test       build the executable (uses \$$CC and \$$CROSS_COMPILE)"
 	@echo "  libc-test         build an executable using the compiler's default libc instead"
 	@echo "  run-user          runs the executable under QEMU (uses \$$XARCH, \$$TEST)"
-	@echo "  initramfs.cpio    prepare the initramfs archive with nolibc-test"
-	@echo "  initramfs         prepare the initramfs tree with nolibc-test"
+	@echo "  initramfs.cpio    prepare the initramfs archive with anallibc-test"
+	@echo "  initramfs         prepare the initramfs tree with anallibc-test"
 	@echo "  defconfig         create a fresh new default config (uses \$$XARCH)"
 	@echo "  kernel            (re)build the kernel (uses \$$XARCH)"
 	@echo "  kernel-standalone (re)build the kernel with the initramfs (uses \$$XARCH)"
@@ -186,8 +186,8 @@ help:
 	@echo "  CC            = $(CC)"
 	@echo "  OUTPUT        = $(OUTPUT)"
 	@echo "  TEST          = $(TEST)"
-	@echo "  QEMU_ARCH     = $(if $(QEMU_ARCH),$(QEMU_ARCH),UNKNOWN_ARCH) [determined from \$$XARCH]"
-	@echo "  IMAGE_NAME    = $(if $(IMAGE_NAME),$(IMAGE_NAME),UNKNOWN_ARCH) [determined from \$$XARCH]"
+	@echo "  QEMU_ARCH     = $(if $(QEMU_ARCH),$(QEMU_ARCH),UNKANALWN_ARCH) [determined from \$$XARCH]"
+	@echo "  IMAGE_NAME    = $(if $(IMAGE_NAME),$(IMAGE_NAME),UNKANALWN_ARCH) [determined from \$$XARCH]"
 	@echo ""
 
 all: run
@@ -198,44 +198,44 @@ sysroot/$(ARCH)/include:
 	$(Q)rm -rf sysroot/$(ARCH) sysroot/sysroot
 	$(QUIET_MKDIR)mkdir -p sysroot
 	$(Q)$(MAKE) -C $(srctree) outputmakefile
-	$(Q)$(MAKE) -C $(srctree)/tools/include/nolibc ARCH=$(ARCH) OUTPUT=$(CURDIR)/sysroot/ headers_standalone
+	$(Q)$(MAKE) -C $(srctree)/tools/include/anallibc ARCH=$(ARCH) OUTPUT=$(CURDIR)/sysroot/ headers_standalone
 	$(Q)mv sysroot/sysroot sysroot/$(ARCH)
 
-ifneq ($(NOLIBC_SYSROOT),0)
-nolibc-test: nolibc-test.c nolibc-test-linkage.c sysroot/$(ARCH)/include
+ifneq ($(ANALLIBC_SYSROOT),0)
+anallibc-test: anallibc-test.c anallibc-test-linkage.c sysroot/$(ARCH)/include
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
-	  -nostdlib -nostdinc -static -Isysroot/$(ARCH)/include nolibc-test.c nolibc-test-linkage.c -lgcc
+	  -analstdlib -analstdinc -static -Isysroot/$(ARCH)/include anallibc-test.c anallibc-test-linkage.c -lgcc
 else
-nolibc-test: nolibc-test.c nolibc-test-linkage.c
+anallibc-test: anallibc-test.c anallibc-test-linkage.c
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
-	  -nostdlib -static -include $(srctree)/tools/include/nolibc/nolibc.h nolibc-test.c nolibc-test-linkage.c -lgcc
+	  -analstdlib -static -include $(srctree)/tools/include/anallibc/anallibc.h anallibc-test.c anallibc-test-linkage.c -lgcc
 endif
 
-libc-test: nolibc-test.c nolibc-test-linkage.c
-	$(QUIET_CC)$(HOSTCC) -o $@ nolibc-test.c nolibc-test-linkage.c
+libc-test: anallibc-test.c anallibc-test-linkage.c
+	$(QUIET_CC)$(HOSTCC) -o $@ anallibc-test.c anallibc-test-linkage.c
 
 # local libc-test
 run-libc-test: libc-test
 	$(Q)./libc-test > "$(CURDIR)/run.out" || :
 	$(Q)$(REPORT) $(CURDIR)/run.out
 
-# local nolibc-test
-run-nolibc-test: nolibc-test
-	$(Q)./nolibc-test > "$(CURDIR)/run.out" || :
+# local anallibc-test
+run-anallibc-test: anallibc-test
+	$(Q)./anallibc-test > "$(CURDIR)/run.out" || :
 	$(Q)$(REPORT) $(CURDIR)/run.out
 
 # qemu user-land test
-run-user: nolibc-test
-	$(Q)qemu-$(QEMU_ARCH_USER) ./nolibc-test > "$(CURDIR)/run.out" || :
+run-user: anallibc-test
+	$(Q)qemu-$(QEMU_ARCH_USER) ./anallibc-test > "$(CURDIR)/run.out" || :
 	$(Q)$(REPORT) $(CURDIR)/run.out
 
-initramfs.cpio: kernel nolibc-test
-	$(QUIET_GEN)echo 'file /init nolibc-test 755 0 0' | $(objtree)/usr/gen_init_cpio - > initramfs.cpio
+initramfs.cpio: kernel anallibc-test
+	$(QUIET_GEN)echo 'file /init anallibc-test 755 0 0' | $(objtree)/usr/gen_init_cpio - > initramfs.cpio
 
-initramfs: nolibc-test
+initramfs: anallibc-test
 	$(QUIET_MKDIR)mkdir -p initramfs
 	$(call QUIET_INSTALL, initramfs/init)
-	$(Q)cp nolibc-test initramfs/init
+	$(Q)cp anallibc-test initramfs/init
 
 defconfig:
 	$(Q)$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) mrproper $(DEFCONFIG) prepare
@@ -252,12 +252,12 @@ kernel-standalone: initramfs
 
 # run the tests after building the kernel
 run: kernel initramfs.cpio
-	$(Q)qemu-system-$(QEMU_ARCH) -display none -no-reboot -kernel "$(IMAGE)" -initrd initramfs.cpio -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
+	$(Q)qemu-system-$(QEMU_ARCH) -display analne -anal-reboot -kernel "$(IMAGE)" -initrd initramfs.cpio -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
 	$(Q)$(REPORT) $(CURDIR)/run.out
 
 # re-run the tests from an existing kernel
 rerun:
-	$(Q)qemu-system-$(QEMU_ARCH) -display none -no-reboot -kernel "$(IMAGE)" -initrd initramfs.cpio -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
+	$(Q)qemu-system-$(QEMU_ARCH) -display analne -anal-reboot -kernel "$(IMAGE)" -initrd initramfs.cpio -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
 	$(Q)$(REPORT) $(CURDIR)/run.out
 
 # report with existing test log
@@ -267,8 +267,8 @@ report:
 clean:
 	$(call QUIET_CLEAN, sysroot)
 	$(Q)rm -rf sysroot
-	$(call QUIET_CLEAN, nolibc-test)
-	$(Q)rm -f nolibc-test
+	$(call QUIET_CLEAN, anallibc-test)
+	$(Q)rm -f anallibc-test
 	$(call QUIET_CLEAN, libc-test)
 	$(Q)rm -f libc-test
 	$(call QUIET_CLEAN, initramfs.cpio)

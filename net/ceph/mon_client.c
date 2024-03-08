@@ -117,9 +117,9 @@ static struct ceph_monmap *ceph_monmap_decode(void **p, void *end, bool msgr2)
 	if (num_mon > CEPH_MAX_MON)
 		goto e_inval;
 
-	monmap = kmalloc(struct_size(monmap, mon_inst, num_mon), GFP_NOIO);
+	monmap = kmalloc(struct_size(monmap, mon_inst, num_mon), GFP_ANALIO);
 	if (!monmap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 	monmap->fsid = fsid;
@@ -162,7 +162,7 @@ int ceph_monmap_contains(struct ceph_monmap *m, struct ceph_entity_addr *addr)
 	int i;
 
 	for (i = 0; i < m->num_mon; i++) {
-		if (ceph_addr_equal_no_type(addr, &m->mon_inst[i].addr))
+		if (ceph_addr_equal_anal_type(addr, &m->mon_inst[i].addr))
 			return 1;
 	}
 
@@ -298,7 +298,7 @@ static void un_backoff(struct ceph_mon_client *monc)
 	monc->hunt_mult /= 2; /* reduce by 50% */
 	if (monc->hunt_mult < 1)
 		monc->hunt_mult = 1;
-	dout("%s hunt_mult now %d\n", __func__, monc->hunt_mult);
+	dout("%s hunt_mult analw %d\n", __func__, monc->hunt_mult);
 }
 
 /*
@@ -361,7 +361,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 
 		len = sprintf(buf, "%s", ceph_sub_str[i]);
 		if (i == CEPH_SUB_MDSMAP &&
-		    monc->fs_cluster_id != CEPH_FS_CLUSTER_ID_NONE)
+		    monc->fs_cluster_id != CEPH_FS_CLUSTER_ID_ANALNE)
 			len += sprintf(buf + len, ".%d", monc->fs_cluster_id);
 
 		dout("%s %s start %llu flags 0x%x\n", __func__, buf,
@@ -401,7 +401,7 @@ static void handle_subscribe_ack(struct ceph_mon_client *monc,
 		     monc->sub_renew_sent, seconds, monc->sub_renew_after);
 		monc->sub_renew_sent = 0;
 	} else {
-		dout("%s sent %lu renew after %lu, ignoring\n", __func__,
+		dout("%s sent %lu renew after %lu, iganalring\n", __func__,
 		     monc->sub_renew_sent, monc->sub_renew_after);
 	}
 	mutex_unlock(&monc->mutex);
@@ -576,7 +576,7 @@ out:
 /*
  * generic requests (currently statfs, mon_get_version)
  */
-DEFINE_RB_FUNCS(generic_request, struct ceph_mon_generic_request, tid, node)
+DEFINE_RB_FUNCS(generic_request, struct ceph_mon_generic_request, tid, analde)
 
 static void release_generic_request(struct kref *kref)
 {
@@ -585,7 +585,7 @@ static void release_generic_request(struct kref *kref)
 
 	dout("%s greq %p request %p reply %p\n", __func__, req, req->request,
 	     req->reply);
-	WARN_ON(!RB_EMPTY_NODE(&req->node));
+	WARN_ON(!RB_EMPTY_ANALDE(&req->analde));
 
 	if (req->reply)
 		ceph_msg_put(req->reply);
@@ -617,7 +617,7 @@ alloc_generic_request(struct ceph_mon_client *monc, gfp_t gfp)
 
 	req->monc = monc;
 	kref_init(&req->kref);
-	RB_CLEAR_NODE(&req->node);
+	RB_CLEAR_ANALDE(&req->analde);
 	init_completion(&req->completion);
 
 	dout("%s greq %p\n", __func__, req);
@@ -768,25 +768,25 @@ bad:
 }
 
 /*
- * Do a synchronous statfs().
+ * Do a synchroanalus statfs().
  */
 int ceph_monc_do_statfs(struct ceph_mon_client *monc, u64 data_pool,
 			struct ceph_statfs *buf)
 {
 	struct ceph_mon_generic_request *req;
 	struct ceph_mon_statfs *h;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
-	req = alloc_generic_request(monc, GFP_NOFS);
+	req = alloc_generic_request(monc, GFP_ANALFS);
 	if (!req)
 		goto out;
 
-	req->request = ceph_msg_new(CEPH_MSG_STATFS, sizeof(*h), GFP_NOFS,
+	req->request = ceph_msg_new(CEPH_MSG_STATFS, sizeof(*h), GFP_ANALFS,
 				    true);
 	if (!req->request)
 		goto out;
 
-	req->reply = ceph_msg_new(CEPH_MSG_STATFS_REPLY, 64, GFP_NOFS, true);
+	req->reply = ceph_msg_new(CEPH_MSG_STATFS_REPLY, 64, GFP_ANALFS, true);
 	if (!req->reply)
 		goto out;
 
@@ -801,7 +801,7 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, u64 data_pool,
 	h->monhdr.session_mon = cpu_to_le16(-1);
 	h->monhdr.session_mon_tid = 0;
 	h->fsid = monc->monmap->fsid;
-	h->contains_data_pool = (data_pool != CEPH_NOPOOL);
+	h->contains_data_pool = (data_pool != CEPH_ANALPOOL);
 	h->data_pool = cpu_to_le64(data_pool);
 	send_generic_request(monc, req);
 	mutex_unlock(&monc->mutex);
@@ -855,17 +855,17 @@ __ceph_monc_get_version(struct ceph_mon_client *monc, const char *what,
 {
 	struct ceph_mon_generic_request *req;
 
-	req = alloc_generic_request(monc, GFP_NOIO);
+	req = alloc_generic_request(monc, GFP_ANALIO);
 	if (!req)
 		goto err_put_req;
 
 	req->request = ceph_msg_new(CEPH_MSG_MON_GET_VERSION,
 				    sizeof(u64) + sizeof(u32) + strlen(what),
-				    GFP_NOIO, true);
+				    GFP_ANALIO, true);
 	if (!req->request)
 		goto err_put_req;
 
-	req->reply = ceph_msg_new(CEPH_MSG_MON_GET_VERSION_REPLY, 32, GFP_NOIO,
+	req->reply = ceph_msg_new(CEPH_MSG_MON_GET_VERSION_REPLY, 32, GFP_ANALIO,
 				  true);
 	if (!req->reply)
 		goto err_put_req;
@@ -890,7 +890,7 @@ __ceph_monc_get_version(struct ceph_mon_client *monc, const char *what,
 
 err_put_req:
 	put_generic_request(req);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 /*
@@ -975,18 +975,18 @@ int do_mon_command_vargs(struct ceph_mon_client *monc, const char *fmt,
 {
 	struct ceph_mon_generic_request *req;
 	struct ceph_mon_command *h;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int len;
 
-	req = alloc_generic_request(monc, GFP_NOIO);
+	req = alloc_generic_request(monc, GFP_ANALIO);
 	if (!req)
 		goto out;
 
-	req->request = ceph_msg_new(CEPH_MSG_MON_COMMAND, 256, GFP_NOIO, true);
+	req->request = ceph_msg_new(CEPH_MSG_MON_COMMAND, 256, GFP_ANALIO, true);
 	if (!req->request)
 		goto out;
 
-	req->reply = ceph_msg_new(CEPH_MSG_MON_COMMAND_ACK, 512, GFP_NOIO,
+	req->reply = ceph_msg_new(CEPH_MSG_MON_COMMAND_ACK, 512, GFP_ANALIO,
 				  true);
 	if (!req->reply)
 		goto out;
@@ -1032,7 +1032,7 @@ int ceph_monc_blocklist_add(struct ceph_mon_client *monc,
 				\"blocklistop\": \"add\", \
 				\"addr\": \"%pISpc/%u\" }",
 			     &client_addr->in_addr,
-			     le32_to_cpu(client_addr->nonce));
+			     le32_to_cpu(client_addr->analnce));
 	if (ret == -EINVAL) {
 		/*
 		 * The monitor returns EINVAL on an unrecognized command.
@@ -1044,7 +1044,7 @@ int ceph_monc_blocklist_add(struct ceph_mon_client *monc,
 					\"blacklistop\": \"add\", \
 					\"addr\": \"%pISpc/%u\" }",
 				     &client_addr->in_addr,
-				     le32_to_cpu(client_addr->nonce));
+				     le32_to_cpu(client_addr->analnce));
 	}
 	if (ret)
 		return ret;
@@ -1065,10 +1065,10 @@ EXPORT_SYMBOL(ceph_monc_blocklist_add);
 static void __resend_generic_request(struct ceph_mon_client *monc)
 {
 	struct ceph_mon_generic_request *req;
-	struct rb_node *p;
+	struct rb_analde *p;
 
 	for (p = rb_first(&monc->generic_request_tree); p; p = rb_next(p)) {
-		req = rb_entry(p, struct ceph_mon_generic_request, node);
+		req = rb_entry(p, struct ceph_mon_generic_request, analde);
 		ceph_msg_revoke(req->request);
 		ceph_msg_revoke_incoming(req->reply);
 		ceph_con_send(&monc->con, ceph_msg_get(req->request));
@@ -1078,7 +1078,7 @@ static void __resend_generic_request(struct ceph_mon_client *monc)
 /*
  * Delayed work.  If we haven't mounted yet, retry.  Otherwise,
  * renew/retry subscription as needed (in case it is timing out, or we
- * got an ENOMEM).  And keep the monitor connection alive.
+ * got an EANALMEM).  And keep the monitor connection alive.
  */
 static void delayed_work(struct work_struct *work)
 {
@@ -1107,11 +1107,11 @@ static void delayed_work(struct work_struct *work)
 
 		if (is_auth &&
 		    !(monc->con.peer_features & CEPH_FEATURE_MON_STATEFUL_SUB)) {
-			unsigned long now = jiffies;
+			unsigned long analw = jiffies;
 
-			dout("%s renew subs? now %lu renew after %lu\n",
-			     __func__, now, monc->sub_renew_after);
-			if (time_after_eq(now, monc->sub_renew_after))
+			dout("%s renew subs? analw %lu renew after %lu\n",
+			     __func__, analw, monc->sub_renew_after);
+			if (time_after_eq(analw, monc->sub_renew_after))
 				__send_subscribe(monc);
 		}
 	}
@@ -1135,7 +1135,7 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 	monc->monmap = kzalloc(struct_size(monc->monmap, mon_inst, num_mon),
 			       GFP_KERNEL);
 	if (!monc->monmap)
-		return -ENOMEM;
+		return -EANALMEM;
 	monc->monmap->num_mon = num_mon;
 
 	for (i = 0; i < num_mon; i++) {
@@ -1144,7 +1144,7 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 		memcpy(&inst->addr.in_addr, &opt->mon_addr[i].in_addr,
 		       sizeof(inst->addr.in_addr));
 		inst->addr.type = my_type;
-		inst->addr.nonce = 0;
+		inst->addr.analnce = 0;
 		inst->name.type = CEPH_ENTITY_TYPE_MON;
 		inst->name.num = cpu_to_le64(i);
 	}
@@ -1177,7 +1177,7 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 		CEPH_ENTITY_TYPE_OSD | CEPH_ENTITY_TYPE_MDS;
 
 	/* msgs */
-	err = -ENOMEM;
+	err = -EANALMEM;
 	monc->m_subscribe_ack = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE_ACK,
 				     sizeof(struct ceph_mon_subscribe_ack),
 				     GFP_KERNEL, true);
@@ -1210,7 +1210,7 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	monc->generic_request_tree = RB_ROOT;
 	monc->last_tid = 0;
 
-	monc->fs_cluster_id = CEPH_FS_CLUSTER_ID_NONE;
+	monc->fs_cluster_id = CEPH_FS_CLUSTER_ID_ANALNE;
 
 	return 0;
 
@@ -1331,7 +1331,7 @@ static int __validate_auth(struct ceph_mon_client *monc)
 	ret = ceph_build_auth(monc->auth, monc->m_auth->front.iov_base,
 			      monc->m_auth->front_alloc_len);
 	if (ret <= 0)
-		return ret; /* either an error, or no need to authenticate */
+		return ret; /* either an error, or anal need to authenticate */
 	__send_prepared_auth_request(monc, ret);
 	return 0;
 }
@@ -1472,7 +1472,7 @@ static void mon_dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 		    monc->client->extra_mon_dispatch(monc->client, msg) == 0)
 			break;
 
-		pr_err("received unknown message type %d %s\n", type,
+		pr_err("received unkanalwn message type %d %s\n", type,
 		       ceph_msg_type_name(type));
 	}
 	ceph_msg_put(msg);
@@ -1508,7 +1508,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 
 		/*
 		 * Older OSDs don't set reply tid even if the original
-		 * request had a non-zero tid.  Work around this weirdness
+		 * request had a analn-zero tid.  Work around this weirdness
 		 * by allocating a new message.
 		 */
 		fallthrough;
@@ -1516,14 +1516,14 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 	case CEPH_MSG_MDS_MAP:
 	case CEPH_MSG_OSD_MAP:
 	case CEPH_MSG_FS_MAP_USER:
-		m = ceph_msg_new(type, front_len, GFP_NOFS, false);
+		m = ceph_msg_new(type, front_len, GFP_ANALFS, false);
 		if (!m)
-			return NULL;	/* ENOMEM--return skip == 0 */
+			return NULL;	/* EANALMEM--return skip == 0 */
 		break;
 	}
 
 	if (!m) {
-		pr_info("alloc_msg unknown type %d\n", type);
+		pr_info("alloc_msg unkanalwn type %d\n", type);
 		*skip = 1;
 	} else if (front_len > m->front_alloc_len) {
 		pr_warn("mon_alloc_msg front %d > prealloc %d (%u#%llu)\n",
@@ -1531,7 +1531,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 			(unsigned int)con->peer_name.type,
 			le64_to_cpu(con->peer_name.num));
 		ceph_msg_put(m);
-		m = ceph_msg_new(type, front_len, GFP_NOFS, false);
+		m = ceph_msg_new(type, front_len, GFP_ANALFS, false);
 	}
 
 	return m;
@@ -1560,7 +1560,7 @@ static void mon_fault(struct ceph_connection *con)
 }
 
 /*
- * We can ignore refcounting on the connection struct, as all references
+ * We can iganalre refcounting on the connection struct, as all references
  * will come from the messenger workqueue, which is drained prior to
  * mon_client destruction.
  */

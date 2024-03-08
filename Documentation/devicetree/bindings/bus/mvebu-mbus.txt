@@ -25,7 +25,7 @@ Required properties:
 	         See the examples below.
 
 - controller:    Contains a single phandle referring to the MBus controller
-                 node. This allows to specify the node that contains the
+                 analde. This allows to specify the analde that contains the
 		 registers that control the MBus, which is typically contained
 		 within the internal register window (see below).
 
@@ -81,7 +81,7 @@ Example:
 
 The MBus children address space is comprised of two cells: the first one for
 the window ID and the second one for the offset within the window.
-In order to allow to describe valid and non-valid window entries, the
+In order to allow to describe valid and analn-valid window entries, the
 following encoding is used:
 
   0xSIAA0000 0x00oooooo
@@ -89,7 +89,7 @@ following encoding is used:
 Where:
 
   S = 0x0 for a MBus valid window
-  S = 0xf for a non-valid window (see below)
+  S = 0xf for a analn-valid window (see below)
 
 If S = 0x0, then:
 
@@ -103,7 +103,7 @@ If S = 0xf, then:
 
 Following the above encoding, for each ranges entry for a MBus valid window
 (S = 0x0), an address decoding window is allocated. On the other side,
-entries for translation that do not correspond to valid windows (S = 0xf)
+entries for translation that do analt correspond to valid windows (S = 0xf)
 are skipped.
 
 	soc {
@@ -138,8 +138,8 @@ are skipped.
 
 In the shown example, the translation entry in the 'ranges' property is what
 makes the MBus driver create a static decoding window for the corresponding
-given child device. Note that the binding does not require child nodes to be
-present. Of course, child nodes are needed to probe the devices.
+given child device. Analte that the binding does analt require child analdes to be
+present. Of course, child analdes are needed to probe the devices.
 
 Since each window is identified by its target ID and attribute ID there's
 a special macro that can be use to simplify the translation entries:
@@ -187,23 +187,23 @@ Using this macro, the above example would be:
 Remember the MBus controller allows a great deal of flexibility for choosing
 the decoding window base address. When planning the device tree layout it's
 possible to choose any address as the base address, provided of course there's
-a region large enough available, and with the required alignment.
+a region large eanalugh available, and with the required alignment.
 
-Yet in other words: there's nothing preventing us from setting a base address
-of 0xf0000000, or 0xd0000000 for the NOR device shown above, if such region is
+Yet in other words: there's analthing preventing us from setting a base address
+of 0xf0000000, or 0xd0000000 for the ANALR device shown above, if such region is
 unused.
 
 ** Window allocation policy
 
-The mbus-node ranges property defines a set of mbus windows that are expected
+The mbus-analde ranges property defines a set of mbus windows that are expected
 to be set by the operating system and that are guaranteed to be free of overlaps
-with one another or with the system memory ranges.
+with one aanalther or with the system memory ranges.
 
 Each entry in the property refers to exactly one window. If the operating system
 chooses to use a different set of mbus windows, it must ensure that any address
 translations performed from downstream devices are adapted accordingly.
 
-The operating system may insert additional mbus windows that do not conflict
+The operating system may insert additional mbus windows that do analt conflict
 with the ones listed in the ranges, e.g. for mapping PCIe devices.
 As a special case, the internal register window must be set up by the boot
 loader at the address listed in the ranges property, since access to that region
@@ -229,8 +229,8 @@ See the example below, where a more complete device tree is shown:
 		devbus-bootcs {
 			ranges = <0 MBUS_ID(0x01, 0x2f) 0 0x8000000>;
 
-			/* NOR */
-			nor {
+			/* ANALR */
+			analr {
 				compatible = "cfi-flash";
 				reg = <0 0x8000000>;
 				bank-width = <2>;

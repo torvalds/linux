@@ -55,7 +55,7 @@ static int log_tg_check(const struct xt_tgchk_param *par)
 	}
 
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
-		pr_debug("prefix is not null-terminated\n");
+		pr_debug("prefix is analt null-terminated\n");
 		return -EINVAL;
 	}
 

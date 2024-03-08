@@ -10,7 +10,7 @@
  */
 
 #include <linux/cache.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
@@ -56,31 +56,31 @@ static int proc_match(const char *name, struct proc_dir_entry *de, unsigned int 
 static struct proc_dir_entry *pde_subdir_first(struct proc_dir_entry *dir)
 {
 	return rb_entry_safe(rb_first(&dir->subdir), struct proc_dir_entry,
-			     subdir_node);
+			     subdir_analde);
 }
 
 static struct proc_dir_entry *pde_subdir_next(struct proc_dir_entry *dir)
 {
-	return rb_entry_safe(rb_next(&dir->subdir_node), struct proc_dir_entry,
-			     subdir_node);
+	return rb_entry_safe(rb_next(&dir->subdir_analde), struct proc_dir_entry,
+			     subdir_analde);
 }
 
 static struct proc_dir_entry *pde_subdir_find(struct proc_dir_entry *dir,
 					      const char *name,
 					      unsigned int len)
 {
-	struct rb_node *node = dir->subdir.rb_node;
+	struct rb_analde *analde = dir->subdir.rb_analde;
 
-	while (node) {
-		struct proc_dir_entry *de = rb_entry(node,
+	while (analde) {
+		struct proc_dir_entry *de = rb_entry(analde,
 						     struct proc_dir_entry,
-						     subdir_node);
+						     subdir_analde);
 		int result = proc_match(name, de, len);
 
 		if (result < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (result > 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return de;
 	}
@@ -91,13 +91,13 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 			      struct proc_dir_entry *de)
 {
 	struct rb_root *root = &dir->subdir;
-	struct rb_node **new = &root->rb_node, *parent = NULL;
+	struct rb_analde **new = &root->rb_analde, *parent = NULL;
 
-	/* Figure out where to put new node */
+	/* Figure out where to put new analde */
 	while (*new) {
 		struct proc_dir_entry *this = rb_entry(*new,
 						       struct proc_dir_entry,
-						       subdir_node);
+						       subdir_analde);
 		int result = proc_match(de->name, this, de->namelen);
 
 		parent = *new;
@@ -109,27 +109,27 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 			return false;
 	}
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&de->subdir_node, parent, new);
-	rb_insert_color(&de->subdir_node, root);
+	/* Add new analde and rebalance tree. */
+	rb_link_analde(&de->subdir_analde, parent, new);
+	rb_insert_color(&de->subdir_analde, root);
 	return true;
 }
 
-static int proc_notify_change(struct mnt_idmap *idmap,
+static int proc_analtify_change(struct mnt_idmap *idmap,
 			      struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = d_inode(dentry);
-	struct proc_dir_entry *de = PDE(inode);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct proc_dir_entry *de = PDE(ianalde);
 	int error;
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
+	error = setattr_prepare(&analp_mnt_idmap, dentry, iattr);
 	if (error)
 		return error;
 
-	setattr_copy(&nop_mnt_idmap, inode, iattr);
+	setattr_copy(&analp_mnt_idmap, ianalde, iattr);
 
-	proc_set_user(de, inode->i_uid, inode->i_gid);
-	de->mode = inode->i_mode;
+	proc_set_user(de, ianalde->i_uid, ianalde->i_gid);
+	de->mode = ianalde->i_mode;
 	return 0;
 }
 
@@ -137,21 +137,21 @@ static int proc_getattr(struct mnt_idmap *idmap,
 			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
-	struct proc_dir_entry *de = PDE(inode);
+	struct ianalde *ianalde = d_ianalde(path->dentry);
+	struct proc_dir_entry *de = PDE(ianalde);
 	if (de) {
 		nlink_t nlink = READ_ONCE(de->nlink);
 		if (nlink > 0) {
-			set_nlink(inode, nlink);
+			set_nlink(ianalde, nlink);
 		}
 	}
 
-	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+	generic_fillattr(&analp_mnt_idmap, request_mask, ianalde, stat);
 	return 0;
 }
 
-static const struct inode_operations proc_file_inode_operations = {
-	.setattr	= proc_notify_change,
+static const struct ianalde_operations proc_file_ianalde_operations = {
+	.setattr	= proc_analtify_change,
 };
 
 /*
@@ -170,7 +170,7 @@ static int __xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 		de = pde_subdir_find(de, cp, next - cp);
 		if (!de) {
 			WARN(1, "name '%s'\n", name);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		cp = next + 1;
 	}
@@ -195,7 +195,7 @@ static DEFINE_IDA(proc_inum_ida);
 #define PROC_DYNAMIC_FIRST 0xF0000000U
 
 /*
- * Return an inode number between PROC_DYNAMIC_FIRST and
+ * Return an ianalde number between PROC_DYNAMIC_FIRST and
  * 0xffffffff, or zero on failure.
  */
 int proc_alloc_inum(unsigned int *inum)
@@ -221,14 +221,14 @@ static int proc_misc_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	if (atomic_read(&PDE(d_inode(dentry))->in_use) < 0)
+	if (atomic_read(&PDE(d_ianalde(dentry))->in_use) < 0)
 		return 0; /* revalidate */
 	return 1;
 }
 
 static int proc_misc_d_delete(const struct dentry *dentry)
 {
-	return atomic_read(&PDE(d_inode(dentry))->in_use) < 0;
+	return atomic_read(&PDE(d_ianalde(dentry))->in_use) < 0;
 }
 
 static const struct dentry_operations proc_misc_dentry_ops = {
@@ -237,47 +237,47 @@ static const struct dentry_operations proc_misc_dentry_ops = {
 };
 
 /*
- * Don't create negative dentries here, return -ENOENT by hand
+ * Don't create negative dentries here, return -EANALENT by hand
  * instead.
  */
-struct dentry *proc_lookup_de(struct inode *dir, struct dentry *dentry,
+struct dentry *proc_lookup_de(struct ianalde *dir, struct dentry *dentry,
 			      struct proc_dir_entry *de)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	read_lock(&proc_subdir_lock);
 	de = pde_subdir_find(de, dentry->d_name.name, dentry->d_name.len);
 	if (de) {
 		pde_get(de);
 		read_unlock(&proc_subdir_lock);
-		inode = proc_get_inode(dir->i_sb, de);
-		if (!inode)
-			return ERR_PTR(-ENOMEM);
+		ianalde = proc_get_ianalde(dir->i_sb, de);
+		if (!ianalde)
+			return ERR_PTR(-EANALMEM);
 		d_set_d_op(dentry, de->proc_dops);
-		return d_splice_alias(inode, dentry);
+		return d_splice_alias(ianalde, dentry);
 	}
 	read_unlock(&proc_subdir_lock);
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
-struct dentry *proc_lookup(struct inode *dir, struct dentry *dentry,
+struct dentry *proc_lookup(struct ianalde *dir, struct dentry *dentry,
 		unsigned int flags)
 {
 	struct proc_fs_info *fs_info = proc_sb_info(dir->i_sb);
 
 	if (fs_info->pidonly == PROC_PIDONLY_ON)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return proc_lookup_de(dir, dentry, PDE(dir));
 }
 
 /*
- * This returns non-zero if at EOF, so that the /proc
+ * This returns analn-zero if at EOF, so that the /proc
  * root directory can use this and check if it should
  * continue with the <pid> entries..
  *
- * Note that the VFS-layer doesn't care about the return
- * value of the readdir() call, as long as it's non-negative
+ * Analte that the VFS-layer doesn't care about the return
+ * value of the readdir() call, as long as it's analn-negative
  * for success..
  */
 int proc_readdir_de(struct file *file, struct dir_context *ctx,
@@ -307,7 +307,7 @@ int proc_readdir_de(struct file *file, struct dir_context *ctx,
 		pde_get(de);
 		read_unlock(&proc_subdir_lock);
 		if (!dir_emit(ctx, de->name, de->namelen,
-			    de->low_ino, de->mode >> 12)) {
+			    de->low_ianal, de->mode >> 12)) {
 			pde_put(de);
 			return 0;
 		}
@@ -323,13 +323,13 @@ int proc_readdir_de(struct file *file, struct dir_context *ctx,
 
 int proc_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
-	struct proc_fs_info *fs_info = proc_sb_info(inode->i_sb);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct proc_fs_info *fs_info = proc_sb_info(ianalde->i_sb);
 
 	if (fs_info->pidonly == PROC_PIDONLY_ON)
 		return 1;
 
-	return proc_readdir_de(file, ctx, PDE(inode));
+	return proc_readdir_de(file, ctx, PDE(ianalde));
 }
 
 /*
@@ -354,19 +354,19 @@ const struct dentry_operations proc_net_dentry_ops = {
 };
 
 /*
- * proc directories can do almost nothing..
+ * proc directories can do almost analthing..
  */
-static const struct inode_operations proc_dir_inode_operations = {
+static const struct ianalde_operations proc_dir_ianalde_operations = {
 	.lookup		= proc_lookup,
 	.getattr	= proc_getattr,
-	.setattr	= proc_notify_change,
+	.setattr	= proc_analtify_change,
 };
 
 /* returns the registered entry, or frees dp and returns NULL on failure */
 struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
 		struct proc_dir_entry *dp)
 {
-	if (proc_alloc_inum(&dp->low_ino))
+	if (proc_alloc_inum(&dp->low_ianal))
 		goto out_free_entry;
 
 	write_lock(&proc_subdir_lock);
@@ -382,7 +382,7 @@ struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
 
 	return dp;
 out_free_inum:
-	proc_free_inum(dp->low_ino);
+	proc_free_inum(dp->low_ianal);
 out_free_entry:
 	pde_free(dp);
 	return NULL;
@@ -467,7 +467,7 @@ struct proc_dir_entry *proc_symlink(const char *name,
 		ent->data = kmalloc((ent->size=strlen(dest))+1, GFP_KERNEL);
 		if (ent->data) {
 			strcpy((char*)ent->data,dest);
-			ent->proc_iops = &proc_link_inode_operations;
+			ent->proc_iops = &proc_link_ianalde_operations;
 			ent = proc_register(parent, ent);
 		} else {
 			pde_free(ent);
@@ -490,7 +490,7 @@ struct proc_dir_entry *_proc_mkdir(const char *name, umode_t mode,
 	if (ent) {
 		ent->data = data;
 		ent->proc_dir_ops = &proc_dir_operations;
-		ent->proc_iops = &proc_dir_inode_operations;
+		ent->proc_iops = &proc_dir_ianalde_operations;
 		if (force_lookup) {
 			pde_force_lookup(ent);
 		}
@@ -551,7 +551,7 @@ struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
 
 	p = __proc_create(parent, name, mode, 1);
 	if (p) {
-		p->proc_iops = &proc_file_inode_operations;
+		p->proc_iops = &proc_file_ianalde_operations;
 		p->data = data;
 	}
 	return p;
@@ -586,26 +586,26 @@ struct proc_dir_entry *proc_create(const char *name, umode_t mode,
 }
 EXPORT_SYMBOL(proc_create);
 
-static int proc_seq_open(struct inode *inode, struct file *file)
+static int proc_seq_open(struct ianalde *ianalde, struct file *file)
 {
-	struct proc_dir_entry *de = PDE(inode);
+	struct proc_dir_entry *de = PDE(ianalde);
 
 	if (de->state_size)
 		return seq_open_private(file, de->seq_ops, de->state_size);
 	return seq_open(file, de->seq_ops);
 }
 
-static int proc_seq_release(struct inode *inode, struct file *file)
+static int proc_seq_release(struct ianalde *ianalde, struct file *file)
 {
-	struct proc_dir_entry *de = PDE(inode);
+	struct proc_dir_entry *de = PDE(ianalde);
 
 	if (de->state_size)
-		return seq_release_private(inode, file);
-	return seq_release(inode, file);
+		return seq_release_private(ianalde, file);
+	return seq_release(ianalde, file);
 }
 
 static const struct proc_ops proc_seq_ops = {
-	/* not permanent -- can call into arbitrary seq_operations */
+	/* analt permanent -- can call into arbitrary seq_operations */
 	.proc_open	= proc_seq_open,
 	.proc_read_iter	= seq_read_iter,
 	.proc_lseek	= seq_lseek,
@@ -628,15 +628,15 @@ struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,
 }
 EXPORT_SYMBOL(proc_create_seq_private);
 
-static int proc_single_open(struct inode *inode, struct file *file)
+static int proc_single_open(struct ianalde *ianalde, struct file *file)
 {
-	struct proc_dir_entry *de = PDE(inode);
+	struct proc_dir_entry *de = PDE(ianalde);
 
 	return single_open(file, de->single_show, de->data);
 }
 
 static const struct proc_ops proc_single_ops = {
-	/* not permanent -- can call into arbitrary ->single_show */
+	/* analt permanent -- can call into arbitrary ->single_show */
 	.proc_open	= proc_single_open,
 	.proc_read_iter = seq_read_iter,
 	.proc_lseek	= seq_lseek,
@@ -674,13 +674,13 @@ EXPORT_SYMBOL(proc_set_user);
 void pde_put(struct proc_dir_entry *pde)
 {
 	if (refcount_dec_and_test(&pde->refcnt)) {
-		proc_free_inum(pde->low_ino);
+		proc_free_inum(pde->low_ianal);
 		pde_free(pde);
 	}
 }
 
 /*
- * Remove a /proc entry and free it if it's not currently in use.
+ * Remove a /proc entry and free it if it's analt currently in use.
  */
 void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 {
@@ -701,7 +701,7 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 			WARN(1, "removing permanent /proc entry '%s'", de->name);
 			de = NULL;
 		} else {
-			rb_erase(&de->subdir_node, &parent->subdir);
+			rb_erase(&de->subdir_analde, &parent->subdir);
 			if (S_ISDIR(de->mode))
 				parent->nlink--;
 		}
@@ -715,7 +715,7 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	proc_entry_rundown(de);
 
 	WARN(pde_subdir_first(de),
-	     "%s: removing non-empty directory '%s/%s', leaking at least '%s'\n",
+	     "%s: removing analn-empty directory '%s/%s', leaking at least '%s'\n",
 	     __func__, de->parent->name, de->name, pde_subdir_first(de)->name);
 	pde_put(de);
 }
@@ -730,14 +730,14 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 	write_lock(&proc_subdir_lock);
 	if (__xlate_proc_name(name, &parent, &fn) != 0) {
 		write_unlock(&proc_subdir_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	len = strlen(fn);
 
 	root = pde_subdir_find(parent, fn, len);
 	if (!root) {
 		write_unlock(&proc_subdir_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	if (unlikely(pde_is_permanent(root))) {
 		write_unlock(&proc_subdir_lock);
@@ -745,7 +745,7 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 			root->parent->name, root->name);
 		return -EINVAL;
 	}
-	rb_erase(&root->subdir_node, &parent->subdir);
+	rb_erase(&root->subdir_analde, &parent->subdir);
 
 	de = root;
 	while (1) {
@@ -757,7 +757,7 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 					next->parent->name, next->name);
 				return -EINVAL;
 			}
-			rb_erase(&next->subdir_node, &de->subdir);
+			rb_erase(&next->subdir_analde, &de->subdir);
 			de = next;
 			continue;
 		}
@@ -779,9 +779,9 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 }
 EXPORT_SYMBOL(remove_proc_subtree);
 
-void *proc_get_parent_data(const struct inode *inode)
+void *proc_get_parent_data(const struct ianalde *ianalde)
 {
-	struct proc_dir_entry *de = PDE(inode);
+	struct proc_dir_entry *de = PDE(ianalde);
 	return de->parent->data;
 }
 EXPORT_SYMBOL_GPL(proc_get_parent_data);
@@ -801,7 +801,7 @@ EXPORT_SYMBOL(proc_remove);
 ssize_t proc_simple_write(struct file *f, const char __user *ubuf, size_t size,
 			  loff_t *_pos)
 {
-	struct proc_dir_entry *pde = PDE(file_inode(f));
+	struct proc_dir_entry *pde = PDE(file_ianalde(f));
 	char *buf;
 	int ret;
 

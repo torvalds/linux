@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  */
 
@@ -240,7 +240,7 @@ static void dpu_hw_intf_enable_timing_engine(
 		u8 enable)
 {
 	struct dpu_hw_blk_reg_map *c = &intf->hw;
-	/* Note: Display interface select is handled in top block hw layer */
+	/* Analte: Display interface select is handled in top block hw layer */
 	DPU_REG_WRITE(c, INTF_TIMING_ENGINE_EN, enable != 0);
 }
 
@@ -253,7 +253,7 @@ static void dpu_hw_intf_setup_prg_fetch(
 
 	/*
 	 * Fetch should always be outside the active lines. If the fetching
-	 * is programmed within active region, hardware behavior is unknown.
+	 * is programmed within active region, hardware behavior is unkanalwn.
 	 */
 
 	fetch_enable = DPU_REG_READ(c, INTF_CONFIG);
@@ -477,7 +477,7 @@ static void dpu_hw_intf_disable_autorefresh(struct dpu_hw_intf *intf,
 	struct dpu_hw_pp_vsync_info info;
 	int trial = 0;
 
-	/* If autorefresh is already disabled, we have nothing to do */
+	/* If autorefresh is already disabled, we have analthing to do */
 	if (!dpu_hw_intf_get_autorefresh_config(intf, NULL))
 		return;
 
@@ -536,14 +536,14 @@ struct dpu_hw_intf *dpu_hw_intf_init(struct drm_device *dev,
 {
 	struct dpu_hw_intf *c;
 
-	if (cfg->type == INTF_NONE) {
-		DPU_DEBUG("Skip intf %d with type NONE\n", cfg->id - INTF_0);
+	if (cfg->type == INTF_ANALNE) {
+		DPU_DEBUG("Skip intf %d with type ANALNE\n", cfg->id - INTF_0);
 		return NULL;
 	}
 
 	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->hw.blk_addr = addr + cfg->base;
 	c->hw.log_mask = DPU_DBG_MASK_INTF;
@@ -578,7 +578,7 @@ struct dpu_hw_intf *dpu_hw_intf_init(struct drm_device *dev,
 
 	/* Technically, INTF_CONFIG2 is present for DPU 5.0+, but
 	 * we can configure it for DPU 7.0+ since the wide bus and DSC flags
-	 * would not be set for DPU < 7.0 anyways
+	 * would analt be set for DPU < 7.0 anyways
 	 */
 	if (mdss_rev->core_major_ver >= 7)
 		c->ops.program_intf_cmd_cfg = dpu_hw_intf_program_intf_cmd_cfg;

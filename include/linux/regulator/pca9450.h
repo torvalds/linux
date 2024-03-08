@@ -221,7 +221,7 @@ enum {
 
 /* PCA9450_REG_RESET_CTRL bits */
 #define WDOG_B_CFG_MASK			0xC0
-#define WDOG_B_CFG_NONE			0x00
+#define WDOG_B_CFG_ANALNE			0x00
 #define WDOG_B_CFG_WARM			0x40
 #define WDOG_B_CFG_COLD_LDO12		0x80
 #define WDOG_B_CFG_COLD			0xC0

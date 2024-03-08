@@ -7,7 +7,7 @@
  *  states that lose GPRs, and it will return transparently with
  *  SRR1 wakeup reason return value.
  *
- *  The platform / CPU caller must ensure SPRs and any other non-GPR
+ *  The platform / CPU caller must ensure SPRs and any other analn-GPR
  *  state is saved and restored correctly, handle KVM, interrupts, etc.
  */
 
@@ -21,14 +21,14 @@
 /*
  * Desired PSSCR in r3
  *
- * No state will be lost regardless of wakeup mechanism (interrupt or NIA).
+ * Anal state will be lost regardless of wakeup mechanism (interrupt or NIA).
  *
  * An EC=0 type wakeup will return with a value of 0. SRESET wakeup (which can
  * happen with xscom SRESET and possibly MCE) may clobber volatiles except LR,
  * and must blr, to return to caller with r3 set according to caller's expected
  * return code (for Book3S/64 that is SRR1).
  */
-_GLOBAL(isa300_idle_stop_noloss)
+_GLOBAL(isa300_idle_stop_analloss)
 	mtspr 	SPRN_PSSCR,r3
 	PPC_STOP
 	li	r3,0
@@ -42,7 +42,7 @@ _GLOBAL(isa300_idle_stop_noloss)
  * idle_return_gpr_loss with r3 set to desired return value.
  *
  * A wakeup without GPR loss may alteratively be handled as in
- * isa300_idle_stop_noloss and blr directly, as an optimisation.
+ * isa300_idle_stop_analloss and blr directly, as an optimisation.
  *
  * The caller is responsible for saving/restoring SPRs, MSR, timebase,
  * etc.
@@ -54,7 +54,7 @@ _GLOBAL(isa300_idle_stop_mayloss)
 	mfcr	r5
 	/*
 	 * Use the stack red zone rather than a new frame for saving regs since
-	 * in the case of no GPR loss the wakeup code branches directly back to
+	 * in the case of anal GPR loss the wakeup code branches directly back to
 	 * the caller without deallocating the stack frame first.
 	 */
 	std	r2,-8*1(r1)
@@ -88,7 +88,7 @@ _GLOBAL(isa300_idle_stop_mayloss)
  * The idle wakeup SRESET interrupt can call this after calling
  * to return to the idle sleep function caller with r3 as the return code.
  *
- * This must not be used if idle was entered via a _noloss function (use
+ * This must analt be used if idle was entered via a _analloss function (use
  * a simple blr instead).
  */
 _GLOBAL(idle_return_gpr_loss)
@@ -131,7 +131,7 @@ _GLOBAL(idle_return_gpr_loss)
  * GPR we store, or where we store it. We have already stored r2 to the
  * stack at -8(r1) in isa206_idle_insn_mayloss, so use that.
  */
-#define IDLE_STATE_ENTER_SEQ_NORET(IDLE_INST)			\
+#define IDLE_STATE_ENTER_SEQ_ANALRET(IDLE_INST)			\
 	/* Magic NAP/SLEEP/WINKLE mode enter sequence */	\
 	std	r2,-8(r1);					\
 	ptesync;						\
@@ -149,7 +149,7 @@ _GLOBAL(idle_return_gpr_loss)
  * idle_return_gpr_loss with r3 set to desired return value.
  *
  * A wakeup without GPR loss may alteratively be handled as in
- * isa300_idle_stop_noloss and blr directly, as an optimisation.
+ * isa300_idle_stop_analloss and blr directly, as an optimisation.
  *
  * The caller is responsible for saving/restoring SPRs, MSR, timebase,
  * etc.
@@ -162,7 +162,7 @@ _GLOBAL(isa206_idle_insn_mayloss)
 	mfcr	r5
 	/*
 	 * Use the stack red zone rather than a new frame for saving regs since
-	 * in the case of no GPR loss the wakeup code branches directly back to
+	 * in the case of anal GPR loss the wakeup code branches directly back to
 	 * the caller without deallocating the stack frame first.
 	 */
 	std	r2,-8*1(r1)
@@ -188,11 +188,11 @@ _GLOBAL(isa206_idle_insn_mayloss)
 	std	r5,-8*21(r1)
 	cmpwi	r3,PNV_THREAD_NAP
 	bne	1f
-	IDLE_STATE_ENTER_SEQ_NORET(PPC_NAP)
+	IDLE_STATE_ENTER_SEQ_ANALRET(PPC_NAP)
 1:	cmpwi	r3,PNV_THREAD_SLEEP
 	bne	2f
-	IDLE_STATE_ENTER_SEQ_NORET(PPC_SLEEP)
-2:	IDLE_STATE_ENTER_SEQ_NORET(PPC_WINKLE)
+	IDLE_STATE_ENTER_SEQ_ANALRET(PPC_SLEEP)
+2:	IDLE_STATE_ENTER_SEQ_ANALRET(PPC_WINKLE)
 #endif
 
 #ifdef CONFIG_PPC_970_NAP

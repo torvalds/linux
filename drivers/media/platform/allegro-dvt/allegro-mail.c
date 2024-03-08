@@ -8,7 +8,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/videodev2.h>
 
@@ -144,8 +144,8 @@ allegro_encode_config_blob(u32 *dst, struct create_channel_param *param)
 
 	dst[i++] = FIELD_PREP(GENMASK(15, 8), param->beta_offset) |
 		   FIELD_PREP(GENMASK(7, 0), param->tc_offset);
-	dst[i++] = param->unknown11;
-	dst[i++] = param->unknown12;
+	dst[i++] = param->unkanalwn11;
+	dst[i++] = param->unkanalwn12;
 	dst[i++] = param->num_slices;
 	dst[i++] = param->encoder_buffer_offset;
 	dst[i++] = param->encoder_buffer_enabled;
@@ -218,7 +218,7 @@ allegro_encode_config_blob(u32 *dst, struct create_channel_param *param)
 	dst[i++] = param->subframe_latency;
 	dst[i++] = param->lda_control_mode;
 	if (version < MCU_MSG_VERSION_2019_2)
-		dst[i++] = param->unknown41;
+		dst[i++] = param->unkanalwn41;
 
 	if (version >= MCU_MSG_VERSION_2019_2) {
 		for (j = 0; j < 6; j++)

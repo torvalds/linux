@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Dell privacy notification driver
+ * Dell privacy analtification driver
  *
  * Copyright (C) 2021 Dell Inc. All Rights Reserved.
  */
@@ -88,8 +88,8 @@ EXPORT_SYMBOL_GPL(dell_privacy_has_mic_mute);
  * 5) Userland picks up key and modifies kcontrol for SW mute
  * 6) Codec kernel driver catches and calls ledtrig_audio_set which will call
  *    led_set_brightness() on the LED registered by dell_privacy_leds_setup()
- * 7) dell-privacy notifies EC, the timeout is cancelled and the HW mute activates.
- *    If the EC is not notified then the HW mic mute will activate when the timeout
+ * 7) dell-privacy analtifies EC, the timeout is cancelled and the HW mute activates.
+ *    If the EC is analt analtified then the HW mic mute will activate when the timeout
  *    triggers, just a bit later than with the active ack.
  */
 bool dell_privacy_process_event(int type, int code, int status)
@@ -107,7 +107,7 @@ bool dell_privacy_process_event(int type, int code, int status)
 
 	key = sparse_keymap_entry_from_scancode(priv->input_dev, (type << 16) | code);
 	if (!key) {
-		dev_warn(&priv->wdev->dev, "Unknown key with type 0x%04x and code 0x%04x pressed\n",
+		dev_warn(&priv->wdev->dev, "Unkanalwn key with type 0x%04x and code 0x%04x pressed\n",
 			type, code);
 		goto error;
 	}
@@ -125,7 +125,7 @@ bool dell_privacy_process_event(int type, int code, int status)
 		ret = true;
 		break;
 	default:
-		dev_dbg(&priv->wdev->dev, "unknown event type 0x%04x 0x%04x\n", type, code);
+		dev_dbg(&priv->wdev->dev, "unkanalwn event type 0x%04x 0x%04x\n", type, code);
 	}
 
 error:
@@ -187,14 +187,14 @@ ATTRIBUTE_GROUPS(privacy);
 
 /*
  * Describes the Device State class exposed by BIOS which can be consumed by
- * various applications interested in knowing the Privacy feature capabilities.
+ * various applications interested in kanalwing the Privacy feature capabilities.
  * class DeviceState
  * {
  *  [key, read] string InstanceName;
  *  [read] boolean ReadOnly;
  *
  *  [WmiDataId(1), read] uint32 DevicesSupported;
- *   0 - None; 0x1 - Microphone; 0x2 - Camera; 0x4 - ePrivacy  Screen
+ *   0 - Analne; 0x1 - Microphone; 0x2 - Camera; 0x4 - ePrivacy  Screen
  *
  *  [WmiDataId(2), read] uint32 CurrentState;
  *   0 - Off; 1 - On; Bit0 - Microphone; Bit1 - Camera; Bit2 - ePrivacyScreen
@@ -219,11 +219,11 @@ static int get_current_status(struct wmi_device *wdev)
 	}
 
 	if (obj_present->type != ACPI_TYPE_BUFFER) {
-		dev_err(&wdev->dev, "Binary MOF is not a buffer!\n");
+		dev_err(&wdev->dev, "Binary MOF is analt a buffer!\n");
 		ret = -EIO;
 		goto obj_free;
 	}
-	/*  Although it's not technically a failure, this would lead to
+	/*  Although it's analt technically a failure, this would lead to
 	 *  unexpected behavior
 	 */
 	if (obj_present->buffer.length != 8) {
@@ -271,13 +271,13 @@ static int dell_privacy_micmute_led_set(struct led_classdev *led_cdev,
  * off the mute. The LED is in the same circuit, so it reflects the true
  * state of the HW mute.  The reason for the EC "ack" is so that software
  * can first invoke a SW mute before the HW circuit is cut off.  Without SW
- * cutting this off first does not affect the time delayed muting or status
- * of the LED but there is a possibility of a "popping" noise.
+ * cutting this off first does analt affect the time delayed muting or status
+ * of the LED but there is a possibility of a "popping" analise.
  *
  * If the EC receives the SW ack, the circuit will be activated before the
  * delay completed.
  *
- * Exposing as an LED device allows the codec drivers notification path to
+ * Exposing as an LED device allows the codec drivers analtification path to
  * EC ACK to work
  */
 static int dell_privacy_leds_setup(struct device *dev)
@@ -304,7 +304,7 @@ static int dell_privacy_wmi_probe(struct wmi_device *wdev, const void *context)
 
 	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&wdev->dev, priv);
 	priv->wdev = wdev;
@@ -316,13 +316,13 @@ static int dell_privacy_wmi_probe(struct wmi_device *wdev, const void *context)
 	/* create evdev passing interface */
 	priv->input_dev = devm_input_allocate_device(&wdev->dev);
 	if (!priv->input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* remap the wmi keymap event to new keymap */
 	keymap = kcalloc(ARRAY_SIZE(dell_wmi_keymap_type_0012),
 			sizeof(struct key_entry), GFP_KERNEL);
 	if (!keymap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* remap the keymap code with Dell privacy key type 0x12 as prefix
 	 * KEY_MICMUTE scancode will be reported as 0x120001

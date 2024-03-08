@@ -26,8 +26,8 @@ static int tee_params_to_amd_params(struct tee_param *tee, u32 count,
 
 	amd->param_types = 0;
 	for (i = 0; i < count; i++) {
-		/* AMD TEE does not support meta parameter */
-		if (tee[i].attr > TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT)
+		/* AMD TEE does analt support meta parameter */
+		if (tee[i].attr > TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT)
 			return -EINVAL;
 
 		amd->param_types |= ((tee[i].attr & 0xF) << i * 4);
@@ -40,11 +40,11 @@ static int tee_params_to_amd_params(struct tee_param *tee, u32 count,
 		if (type == TEE_OP_PARAM_TYPE_INVALID)
 			return -EINVAL;
 
-		if (type == TEE_OP_PARAM_TYPE_NONE)
+		if (type == TEE_OP_PARAM_TYPE_ANALNE)
 			continue;
 
 		/* It is assumed that all values are within 2^32-1 */
-		if (type > TEE_OP_PARAM_TYPE_VALUE_INOUT) {
+		if (type > TEE_OP_PARAM_TYPE_VALUE_IANALUT) {
 			u32 buf_id = get_buffer_id(tee[i].u.memref.shm);
 
 			amd->params[i].mref.buf_id = buf_id;
@@ -87,10 +87,10 @@ static int amd_params_to_tee_params(struct tee_param *tee, u32 count,
 		pr_debug("%s: type[%d] = 0x%x\n", __func__, i, type);
 
 		if (type == TEE_OP_PARAM_TYPE_INVALID ||
-		    type > TEE_OP_PARAM_TYPE_MEMREF_INOUT)
+		    type > TEE_OP_PARAM_TYPE_MEMREF_IANALUT)
 			return -EINVAL;
 
-		if (type == TEE_OP_PARAM_TYPE_NONE ||
+		if (type == TEE_OP_PARAM_TYPE_ANALNE ||
 		    type == TEE_OP_PARAM_TYPE_VALUE_INPUT ||
 		    type == TEE_OP_PARAM_TYPE_MEMREF_INPUT)
 			continue;
@@ -108,7 +108,7 @@ static int amd_params_to_tee_params(struct tee_param *tee, u32 count,
 				 i, amd->params[i].mref.offset,
 				 i, amd->params[i].mref.size);
 		} else {
-			/* field 'c' not supported by AMD TEE */
+			/* field 'c' analt supported by AMD TEE */
 			tee[i].u.value.a = amd->params[i].val.a;
 			tee[i].u.value.b = amd->params[i].val.b;
 			tee[i].u.value.c = 0;
@@ -130,7 +130,7 @@ static u32 get_ta_refcount(u32 ta_handle)
 	u32 count = 0;
 
 	/* Caller must hold a mutex */
-	list_for_each_entry(ta_data, &ta_list, list_node)
+	list_for_each_entry(ta_data, &ta_list, list_analde)
 		if (ta_data->ta_handle == ta_handle)
 			return ++ta_data->refcount;
 
@@ -139,7 +139,7 @@ static u32 get_ta_refcount(u32 ta_handle)
 		ta_data->ta_handle = ta_handle;
 		ta_data->refcount = 1;
 		count = ta_data->refcount;
-		list_add(&ta_data->list_node, &ta_list);
+		list_add(&ta_data->list_analde, &ta_list);
 	}
 
 	return count;
@@ -151,11 +151,11 @@ static u32 put_ta_refcount(u32 ta_handle)
 	u32 count = 0;
 
 	/* Caller must hold a mutex */
-	list_for_each_entry(ta_data, &ta_list, list_node)
+	list_for_each_entry(ta_data, &ta_list, list_analde)
 		if (ta_data->ta_handle == ta_handle) {
 			count = --ta_data->refcount;
 			if (count == 0) {
-				list_del(&ta_data->list_node);
+				list_del(&ta_data->list_analde);
 				kfree(ta_data);
 				break;
 			}
@@ -178,7 +178,7 @@ int handle_unload_ta(u32 ta_handle)
 	count = put_ta_refcount(ta_handle);
 
 	if (count) {
-		pr_debug("unload ta: not unloading %u count %u\n",
+		pr_debug("unload ta: analt unloading %u count %u\n",
 			 ta_handle, count);
 		ret = -EBUSY;
 		goto unlock;
@@ -295,7 +295,7 @@ int handle_map_shmem(u32 count, struct shmem_desc *start, u32 *buf_id)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Size must be page aligned */
 	for (i = 0; i < count ; i++) {
@@ -339,7 +339,7 @@ int handle_map_shmem(u32 count, struct shmem_desc *start, u32 *buf_id)
 		pr_debug("mapped buffer ID = 0x%x\n", *buf_id);
 	} else {
 		pr_err("map shared memory: status = 0x%x\n", status);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 free_cmd:

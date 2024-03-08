@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig NTB
-	tristate "Non-Transparent Bridge support"
+	tristate "Analn-Transparent Bridge support"
 	depends on PCI
 	help
-	 The PCI-E Non-transparent bridge hardware is a point-to-point PCI-E bus
+	 The PCI-E Analn-transparent bridge hardware is a point-to-point PCI-E bus
 	 connecting 2 systems.  When configured, writes to the device's PCI
 	 mapped memory will be mirrored to a buffer on the remote system.  The
 	 ntb Linux driver uses this point-to-point communication as a method to

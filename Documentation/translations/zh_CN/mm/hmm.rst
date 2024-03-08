@@ -113,13 +113,13 @@ struct page可以与现有的 mm 机制进行最简单、最干净的集成。�
 =====================
 
 地址空间镜像的主要目标是允许将一定范围的 CPU 页表复制到一个设备页表中；HMM 有助于
-保持两者同步。想要镜像进程地址空间的设备驱动程序必须从注册 mmu_interval_notifier
+保持两者同步。想要镜像进程地址空间的设备驱动程序必须从注册 mmu_interval_analtifier
 开始::
 
- int mmu_interval_notifier_insert(struct mmu_interval_notifier *interval_sub,
+ int mmu_interval_analtifier_insert(struct mmu_interval_analtifier *interval_sub,
 				  struct mm_struct *mm, unsigned long start,
 				  unsigned long length,
-				  const struct mmu_interval_notifier_ops *ops);
+				  const struct mmu_interval_analtifier_ops *ops);
 
 在 ops->invalidate() 回调期间，设备驱动程序必须对范围执行更新操作（将范围标记为只
 读，或完全取消映射等）。设备必须在驱动程序回调返回之前完成更新。
@@ -142,16 +142,16 @@ struct page可以与现有的 mm 机制进行最简单、最干净的集成。�
       struct hmm_range range;
       ...
 
-      range.notifier = &interval_sub;
+      range.analtifier = &interval_sub;
       range.start = ...;
       range.end = ...;
       range.hmm_pfns = ...;
 
-      if (!mmget_not_zero(interval_sub->notifier.mm))
+      if (!mmget_analt_zero(interval_sub->analtifier.mm))
           return -EFAULT;
 
  again:
-      range.notifier_seq = mmu_interval_read_begin(&interval_sub);
+      range.analtifier_seq = mmu_interval_read_begin(&interval_sub);
       mmap_read_lock(mm);
       ret = hmm_range_fault(&range);
       if (ret) {
@@ -163,7 +163,7 @@ struct page可以与现有的 mm 机制进行最简单、最干净的集成。�
       mmap_read_unlock(mm);
 
       take_lock(driver->update);
-      if (mmu_interval_read_retry(&ni, range.notifier_seq) {
+      if (mmu_interval_read_retry(&ni, range.analtifier_seq) {
           release_lock(driver->update);
           goto again;
       }
@@ -240,7 +240,7 @@ migrate_vma_finalize() 函数旨在使驱动程序更易于编写并集中跨驱
     pagemap.range.end = res->end;
     pagemap.nr_range = 1;
     pagemap.ops = &device_devmem_ops;
-    memremap_pages(&pagemap, numa_node_id());
+    memremap_pages(&pagemap, numa_analde_id());
 
     memunmap_pages(&pagemap);
     release_mem_region(pagemap.range.start, range_len(&pagemap.range));
@@ -266,16 +266,16 @@ devm_memunmap_pages() 和 devm_release_mem_region() 当资源可以绑定到 ``s
    私有页。这就避免了试图迁移驻留在其他设备中的设备私有页。目前，只有匿名的私有VMA
    范围可以被迁移到系统内存和设备私有内存。
 
-   migrate_vma_setup()所做的第一步是用 ``mmu_notifier_invalidate_range_start()``
-   和 ``mmu_notifier_invalidate_range_end()`` 调用来遍历设备周围的页表，使
+   migrate_vma_setup()所做的第一步是用 ``mmu_analtifier_invalidate_range_start()``
+   和 ``mmu_analtifier_invalidate_range_end()`` 调用来遍历设备周围的页表，使
    其他设备的MMU无效，以便在 ``args->src`` 数组中填写要迁移的PFN。
-   ``invalidate_range_start()`` 回调传递给一个``struct mmu_notifier_range`` ，
-   其 ``event`` 字段设置为MMU_NOTIFY_MIGRATE， ``owner`` 字段设置为传递给
+   ``invalidate_range_start()`` 回调传递给一个``struct mmu_analtifier_range`` ，
+   其 ``event`` 字段设置为MMU_ANALTIFY_MIGRATE， ``owner`` 字段设置为传递给
    migrate_vma_setup()的 ``args->pgmap_owner`` 字段。这允许设备驱动跳过无
    效化回调，只无效化那些实际正在迁移的设备私有MMU映射。这一点将在下一节详细解释。
 
 
-   在遍历页表时，一个 ``pte_none()`` 或 ``is_zero_pfn()`` 条目导致一个有效
+   在遍历页表时，一个 ``pte_analne()`` 或 ``is_zero_pfn()`` 条目导致一个有效
    的  “zero” PFN 存储在 ``args->src`` 阵列中。这让驱动分配设备私有内存并清
    除它，而不是复制一个零页。到系统内存或设备私有结构页的有效PTE条目将被
    ``lock_page()``锁定，与LRU隔离（如果系统内存和设备私有页不在LRU上），从进
@@ -305,7 +305,7 @@ devm_memunmap_pages() 和 devm_release_mem_region() 当资源可以绑定到 ``s
 
    这一步是实际“提交”迁移的地方。
 
-   如果源页是 ``pte_none()`` 或 ``is_zero_pfn()`` 页，这时新分配的页会被插
+   如果源页是 ``pte_analne()`` 或 ``is_zero_pfn()`` 页，这时新分配的页会被插
    入到CPU的页表中。如果一个CPU线程在同一页面上发生异常，这可能会失败。然而，页
    表被锁定，只有一个新页会被插入。如果它失去了竞争，设备驱动将看到
    ``MIGRATE_PFN_MIGRATE`` 位被清除。

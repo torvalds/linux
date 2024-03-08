@@ -16,7 +16,7 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	/* just 4 cpus now, 128 needed in full config */
+	/* just 4 cpus analw, 128 needed in full config */
 	cpus {
 		#address-cells = <0x2>;
 		#size-cells = <0x0>;
@@ -107,7 +107,7 @@
 
 		/*
 		 * PCI ranges:
-		 *   IO		no supported
+		 *   IO		anal supported
 		 *   MEM        0x4000_0000 - 0x6000_0000
 		 *   MEM64 pref 0x40_0000_0000 - 0x60_0000_0000
 		 */

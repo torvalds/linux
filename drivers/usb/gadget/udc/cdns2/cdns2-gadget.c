@@ -129,7 +129,7 @@ static int cdns2_alloc_tr_segment(struct cdns2_endpoint *pep)
 					    GFP_DMA32 | GFP_ATOMIC,
 					    &ring->dma);
 		if (!ring->trbs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	memset(ring->trbs, 0, TR_SEG_SIZE);
@@ -197,7 +197,7 @@ static void cdns2_ep_inc_deq(struct cdns2_ring *ring)
 /*
  * Enable/disable LPM.
  *
- * If bit USBCS_LPMNYET is not set and device receive Extended Token packet,
+ * If bit USBCS_LPMNYET is analt set and device receive Extended Token packet,
  * then controller answer with ACK handshake.
  * If bit USBCS_LPMNYET is set and device receive Extended Token packet,
  * then controller answer with NYET handshake.
@@ -221,7 +221,7 @@ static enum usb_device_speed cdns2_get_speed(struct cdns2_device *pdev)
 	else if (speed & SPEEDCTRL_FS)
 		return USB_SPEED_FULL;
 
-	return USB_SPEED_UNKNOWN;
+	return USB_SPEED_UNKANALWN;
 }
 
 static struct cdns2_trb *cdns2_next_trb(struct cdns2_endpoint *pep,
@@ -325,8 +325,8 @@ static int cdns2_prepare_ring(struct cdns2_device *pdev,
 
 	if (num_trbs > ring->free_trbs) {
 		pep->ep_state |= EP_RING_FULL;
-		trace_cdns2_no_room_on_ring("Ring full\n");
-		return -ENOBUFS;
+		trace_cdns2_anal_room_on_ring("Ring full\n");
+		return -EANALBUFS;
 	}
 
 	if ((ring->enqueue + num_trbs)  >= (TRBS_PER_SEGMENT - 1)) {
@@ -336,7 +336,7 @@ static int cdns2_prepare_ring(struct cdns2_device *pdev,
 		/* Driver can't update LINK TRB if it is current processed. */
 		if (doorbell && dma_index == TRBS_PER_SEGMENT - 1) {
 			pep->ep_state |= EP_DEFERRED_DRDY;
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 
 		/* Update C bt in Link TRB before starting DMA. */
@@ -387,7 +387,7 @@ static unsigned int cdns2_count_trbs(struct cdns2_endpoint *pep,
 
 	if (pep->type == USB_ENDPOINT_XFER_ISOC) {
 		/*
-		 * To speed up DMA performance address should not exceed 4KB.
+		 * To speed up DMA performance address should analt exceed 4KB.
 		 * for high bandwidth transfer and driver will split
 		 * such buffer into two TRBs.
 		 */
@@ -424,13 +424,13 @@ static unsigned int cdns2_count_sg_trbs(struct cdns2_endpoint *pep,
 		len = min(len, full_len);
 
 		/*
-		 * For HS ISO transfer TRBs should not exceed max packet size.
+		 * For HS ISO transfer TRBs should analt exceed max packet size.
 		 * When DMA is working, and data exceed max packet size then
 		 * some data will be read in single mode instead burst mode.
 		 * This behavior will drastically reduce the copying speed.
 		 * To avoid this we need one or two extra TRBs.
 		 * This issue occurs for UVC class with sg_supported = 1
-		 * because buffers addresses are not aligned to 1024.
+		 * because buffers addresses are analt aligned to 1024.
 		 */
 		if (pep->type == USB_ENDPOINT_XFER_ISOC) {
 			u8 temp;
@@ -517,8 +517,8 @@ static void cdns2_ep_tx_isoc(struct cdns2_endpoint *pep,
 	u32 length;
 
 	/*
-	 * For OUT direction 1 TD per interval is enough
-	 * because TRBs are not dumped by controller.
+	 * For OUT direction 1 TD per interval is eanalugh
+	 * because TRBs are analt dumped by controller.
 	 */
 	num_tds = pep->dir ? pep->interval : 1;
 	split_size = preq->request.num_sgs ? 1024 : 3072;
@@ -553,7 +553,7 @@ static void cdns2_ep_tx_isoc(struct cdns2_endpoint *pep,
 			if (trb_buff_len > full_len - enqd_len)
 				trb_buff_len = full_len - enqd_len;
 
-			control = TRB_TYPE(TRB_NORMAL);
+			control = TRB_TYPE(TRB_ANALRMAL);
 
 			/*
 			 * For IN direction driver has to set the IOC for
@@ -635,7 +635,7 @@ static void cdns2_ep_tx_bulk(struct cdns2_endpoint *pep,
 	ring = &pep->ring;
 
 	for (sg_iter = 0; sg_iter < trbs_per_td; sg_iter++) {
-		control = TRB_TYPE(TRB_NORMAL) | ring->pcs | TRB_ISP;
+		control = TRB_TYPE(TRB_ANALRMAL) | ring->pcs | TRB_ISP;
 		trb = pep->ring.trbs + ring->enqueue;
 
 		if (pep->dir && sg_iter == trbs_per_td - 1) {
@@ -735,7 +735,7 @@ static int cdns2_prepare_first_isoc_transfer(struct cdns2_device *pdev,
 	trb = &pep->ring.trbs[TRBS_PER_SEGMENT];
 	trb->length = 0;
 	trb->buffer = cpu_to_le32(TRB_BUFFER(buffer));
-	trb->control = cpu_to_le32((hw_ccs ? TRB_CYCLE : 0) | TRB_TYPE(TRB_NORMAL));
+	trb->control = cpu_to_le32((hw_ccs ? TRB_CYCLE : 0) | TRB_TYPE(TRB_ANALRMAL));
 
 	/*
 	 * LINK TRB is used to force updating cycle bit in controller and
@@ -757,7 +757,7 @@ static int cdns2_prepare_first_isoc_transfer(struct cdns2_device *pdev,
 	return 0;
 }
 
-/* Prepare and start transfer on no-default endpoint. */
+/* Prepare and start transfer on anal-default endpoint. */
 static int cdns2_ep_run_transfer(struct cdns2_endpoint *pep,
 				 struct cdns2_request *preq)
 {
@@ -817,7 +817,7 @@ static int cdns2_ep_run_transfer(struct cdns2_endpoint *pep,
 	return 0;
 }
 
-/* Prepare and start transfer for all not started requests. */
+/* Prepare and start transfer for all analt started requests. */
 static int cdns2_start_all_request(struct cdns2_device *pdev,
 				   struct cdns2_endpoint *pep)
 {
@@ -844,7 +844,7 @@ static int cdns2_start_all_request(struct cdns2_device *pdev,
  *
  * Endpoint must be selected before invoking this function.
  *
- * Returns false if request has not been handled by DMA, else returns true.
+ * Returns false if request has analt been handled by DMA, else returns true.
  *
  * SR - start ring
  * ER - end ring
@@ -1095,7 +1095,7 @@ static void cdns2_handle_epx_interrupt(struct cdns2_endpoint *pep)
 	}
 
 	/*
-	 * Sometimes ISO Error for mult=1 or mult=2 is not propagated on time
+	 * Sometimes ISO Error for mult=1 or mult=2 is analt propagated on time
 	 * from USB module to DMA module. To protect against this driver
 	 * checks also the txcs/rxcs registers.
 	 */
@@ -1121,7 +1121,7 @@ static void cdns2_handle_epx_interrupt(struct cdns2_endpoint *pep)
 			cdns2_ep_stall_flush(pep);
 
 		/*
-		 * For isochronous transfer driver completes request on
+		 * For isochroanalus transfer driver completes request on
 		 * IOC or on TRBERR. IOC appears only when device receive
 		 * OUT data packet. If host disable stream or lost some packet
 		 * then the only way to finish all queued transfer is to do it
@@ -1176,7 +1176,7 @@ static irqreturn_t cdns2_usb_irq_handler(int irq, void *data)
 	u8 reg_ext_irq;
 
 	if (pdev->in_lpm)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	reg_usb_irq_m = readb(&pdev->interrupt_regs->usbien);
 	reg_ext_irq_m = readb(&pdev->interrupt_regs->extien);
@@ -1203,7 +1203,7 @@ static irqreturn_t cdns2_usb_irq_handler(int irq, void *data)
 	writeb(EXTIRQ_WAKEUP, &pdev->interrupt_regs->extien);
 	writel(~0, &pdev->adma_regs->ep_ien);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t cdns2_thread_usb_irq_handler(struct cdns2_device *pdev)
@@ -1219,7 +1219,7 @@ static irqreturn_t cdns2_thread_usb_irq_handler(struct cdns2_device *pdev)
 	writeb(usb_irq, &pdev->interrupt_regs->usbirq);
 
 	if (!ext_irq && !usb_irq)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	trace_cdns2_usb_irq(usb_irq, ext_irq);
 
@@ -1258,7 +1258,7 @@ static irqreturn_t cdns2_thread_usb_irq_handler(struct cdns2_device *pdev)
 
 			/*
 			 * The USBIRQ_URESET is reported at the beginning of
-			 * reset signal. 100ms is enough time to finish reset
+			 * reset signal. 100ms is eanalugh time to finish reset
 			 * process. For high-speed reset procedure is completed
 			 * when controller detect HS mode.
 			 */
@@ -1446,7 +1446,7 @@ static int cdns2_ep_config(struct cdns2_endpoint *pep, bool enable)
 		max_packet_size = is_iso_ep ? 1024 : 512;
 		break;
 	default:
-		/* All other speed are not supported. */
+		/* All other speed are analt supported. */
 		return -EINVAL;
 	}
 
@@ -1637,7 +1637,7 @@ static int cdns2_gadget_ep_disable(struct usb_ep *ep)
 	/*
 	 * Driver needs some time before resetting endpoint.
 	 * It need waits for clearing DBUSY bit or for timeout expired.
-	 * 10us is enough time for controller to stop transfer.
+	 * 10us is eanalugh time for controller to stop transfer.
 	 */
 	readl_poll_timeout_atomic(&pdev->adma_regs->ep_sts, val,
 				  !(val & DMA_EP_STS_DBUSY), 1, 10);
@@ -1777,7 +1777,7 @@ int cdns2_gadget_ep_dequeue(struct usb_ep *ep,
 			goto found;
 	}
 
-	goto not_found;
+	goto analt_found;
 
 found:
 	link_trb = preq->trb;
@@ -1814,7 +1814,7 @@ found:
 	if (preq)
 		cdns2_rearm_transfer(pep, 1);
 
-not_found:
+analt_found:
 	spin_unlock_irqrestore(&pep->pdev->lock, flags);
 	return 0;
 }
@@ -1950,7 +1950,7 @@ cdns2_endpoint *cdns2_find_available_ep(struct cdns2_device *pdev,
 			return pep;
 	}
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 /*
@@ -1968,7 +1968,7 @@ usb_ep *cdns2_gadget_match_ep(struct usb_gadget *gadget,
 
 	pep = cdns2_find_available_ep(pdev, desc);
 	if (IS_ERR(pep)) {
-		dev_err(pdev->dev, "no available ep\n");
+		dev_err(pdev->dev, "anal available ep\n");
 		return NULL;
 	}
 
@@ -2104,7 +2104,7 @@ static int cdns2_gadget_udc_start(struct usb_gadget *gadget,
 		dev_err(pdev->dev, "invalid maximum_speed parameter %d\n",
 			max_speed);
 		fallthrough;
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 		/* Default to highspeed. */
 		max_speed = USB_SPEED_HIGH;
 		break;
@@ -2133,7 +2133,7 @@ static int cdns2_gadget_udc_stop(struct usb_gadget *gadget)
 	int val;
 
 	pdev->gadget_driver = NULL;
-	pdev->gadget.speed = USB_SPEED_UNKNOWN;
+	pdev->gadget.speed = USB_SPEED_UNKANALWN;
 
 	list_for_each_entry(ep, &pdev->gadget.ep_list, ep_list) {
 		pep = ep_to_cdns2_ep(ep);
@@ -2233,12 +2233,12 @@ static int cdns2_init_eps(struct cdns2_device *pdev)
 		dev_dbg(pdev->dev, "Init %s, SupType: CTRL: %s, INT: %s, "
 			"BULK: %s, ISOC %s, SupDir IN: %s, OUT: %s\n",
 			pep->name,
-			(pep->endpoint.caps.type_control) ? "yes" : "no",
-			(pep->endpoint.caps.type_int) ? "yes" : "no",
-			(pep->endpoint.caps.type_bulk) ? "yes" : "no",
-			(pep->endpoint.caps.type_iso) ? "yes" : "no",
-			(pep->endpoint.caps.dir_in) ? "yes" : "no",
-			(pep->endpoint.caps.dir_out) ? "yes" : "no");
+			(pep->endpoint.caps.type_control) ? "anal" : "anal",
+			(pep->endpoint.caps.type_int) ? "anal" : "anal",
+			(pep->endpoint.caps.type_bulk) ? "anal" : "anal",
+			(pep->endpoint.caps.type_iso) ? "anal" : "anal",
+			(pep->endpoint.caps.dir_in) ? "anal" : "anal",
+			(pep->endpoint.caps.dir_out) ? "anal" : "anal");
 
 		INIT_LIST_HEAD(&pep->pending_list);
 		INIT_LIST_HEAD(&pep->deferred_list);
@@ -2281,7 +2281,7 @@ static int cdns2_gadget_start(struct cdns2_device *pdev)
 
 	/*
 	 * Driver assumes that each USBHS controller has at least
-	 * one IN and one OUT non control endpoint.
+	 * one IN and one OUT analn control endpoint.
 	 */
 	if (!pdev->onchip_tx_buf && !pdev->onchip_rx_buf) {
 		ret = -EINVAL;
@@ -2291,7 +2291,7 @@ static int cdns2_gadget_start(struct cdns2_device *pdev)
 
 	if (!(pdev->eps_supported & ~0x00010001)) {
 		ret = -EINVAL;
-		dev_err(pdev->dev, "No hardware endpoints available\n");
+		dev_err(pdev->dev, "Anal hardware endpoints available\n");
 		goto put_gadget;
 	}
 
@@ -2305,13 +2305,13 @@ static int cdns2_gadget_start(struct cdns2_device *pdev)
 		dev_err(pdev->dev, "invalid maximum_speed parameter %d\n",
 			max_speed);
 		fallthrough;
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 		max_speed = USB_SPEED_HIGH;
 		break;
 	}
 
 	pdev->gadget.max_speed = max_speed;
-	pdev->gadget.speed = USB_SPEED_UNKNOWN;
+	pdev->gadget.speed = USB_SPEED_UNKANALWN;
 	pdev->gadget.ops = &cdns2_gadget_ops;
 	pdev->gadget.name = "usbhs-gadget";
 	pdev->gadget.quirk_avoids_skb_reserve = 1;
@@ -2326,7 +2326,7 @@ static int cdns2_gadget_start(struct cdns2_device *pdev)
 					     TR_SEG_SIZE, 8, 0);
 	if (!pdev->eps_dma_pool) {
 		dev_err(pdev->dev, "Failed to create TRB dma pool\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_gadget;
 	}
 
@@ -2340,7 +2340,7 @@ static int cdns2_gadget_start(struct cdns2_device *pdev)
 
 	pdev->zlp_buf = kzalloc(CDNS2_EP_ZLP_BUF_SIZE, GFP_KERNEL);
 	if (!pdev->zlp_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto destroy_dma_pool;
 	}
 
@@ -2350,7 +2350,7 @@ static int cdns2_gadget_start(struct cdns2_device *pdev)
 	pdev->ep0_preq.request.buf = buf;
 
 	if (!pdev->ep0_preq.request.buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_zlp_buf;
 	}
 
@@ -2383,10 +2383,10 @@ int cdns2_gadget_suspend(struct cdns2_device *pdev)
 	cdns2_disconnect_gadget(pdev);
 
 	spin_lock_irqsave(&pdev->lock, flags);
-	pdev->gadget.speed = USB_SPEED_UNKNOWN;
+	pdev->gadget.speed = USB_SPEED_UNKANALWN;
 
-	trace_cdns2_device_state("notattached");
-	usb_gadget_set_state(&pdev->gadget, USB_STATE_NOTATTACHED);
+	trace_cdns2_device_state("analtattached");
+	usb_gadget_set_state(&pdev->gadget, USB_STATE_ANALTATTACHED);
 	cdns2_enable_l1(pdev, 0);
 
 	/* Disable interrupt for device. */

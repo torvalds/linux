@@ -22,7 +22,7 @@
 #include <sound/soc.h>
 #include <sound/tas2781.h>
 
-#define TASDEVICE_CRC8_POLYNOMIAL	0x4d
+#define TASDEVICE_CRC8_POLYANALMIAL	0x4d
 
 static const struct regmap_range_cfg tasdevice_ranges[] = {
 	{
@@ -39,7 +39,7 @@ static const struct regmap_range_cfg tasdevice_ranges[] = {
 static const struct regmap_config tasdevice_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.ranges = tasdevice_ranges,
 	.num_ranges = ARRAY_SIZE(tasdevice_ranges),
 	.max_register = 256 * 128,
@@ -58,7 +58,7 @@ static int tasdevice_change_chn_book(struct tasdevice_priv *tas_priv,
 		if (client->addr != tasdev->dev_addr) {
 			client->addr = tasdev->dev_addr;
 			/* All tas2781s share the same regmap, clear the page
-			 * inside regmap once switching to another tas2781.
+			 * inside regmap once switching to aanalther tas2781.
 			 * Register 0 at any pages and any books inside tas2781
 			 * is the same one for page-switching.
 			 */
@@ -81,7 +81,7 @@ static int tasdevice_change_chn_book(struct tasdevice_priv *tas_priv,
 		}
 	} else {
 		ret = -EINVAL;
-		dev_err(tas_priv->dev, "%s, no such channel(%d)\n", __func__,
+		dev_err(tas_priv->dev, "%s, anal such channel(%d)\n", __func__,
 			chn);
 	}
 
@@ -107,7 +107,7 @@ int tasdevice_dev_read(struct tasdevice_priv *tas_priv,
 			dev_err(tas_priv->dev, "%s, E=%d\n", __func__, ret);
 	} else {
 		ret = -EINVAL;
-		dev_err(tas_priv->dev, "%s, no such channel(%d)\n", __func__,
+		dev_err(tas_priv->dev, "%s, anal such channel(%d)\n", __func__,
 			chn);
 	}
 
@@ -135,7 +135,7 @@ int tasdevice_dev_write(struct tasdevice_priv *tas_priv,
 			dev_err(tas_priv->dev, "%s, E=%d\n", __func__, ret);
 	} else {
 		ret = -EINVAL;
-		dev_err(tas_priv->dev, "%s, no such channel(%d)\n", __func__,
+		dev_err(tas_priv->dev, "%s, anal such channel(%d)\n", __func__,
 			chn);
 	}
 
@@ -165,7 +165,7 @@ int tasdevice_dev_bulk_write(
 			dev_err(tas_priv->dev, "%s, E=%d\n", __func__, ret);
 	} else {
 		ret = -EINVAL;
-		dev_err(tas_priv->dev, "%s, no such channel(%d)\n", __func__,
+		dev_err(tas_priv->dev, "%s, anal such channel(%d)\n", __func__,
 			chn);
 	}
 
@@ -192,7 +192,7 @@ int tasdevice_dev_bulk_read(struct tasdevice_priv *tas_priv,
 		if (ret < 0)
 			dev_err(tas_priv->dev, "%s, E=%d\n", __func__, ret);
 	} else
-		dev_err(tas_priv->dev, "%s, no such channel(%d)\n", __func__,
+		dev_err(tas_priv->dev, "%s, anal such channel(%d)\n", __func__,
 			chn);
 
 out:
@@ -219,7 +219,7 @@ int tasdevice_dev_update_bits(
 		if (ret < 0)
 			dev_err(tas_priv->dev, "%s, E=%d\n", __func__, ret);
 	} else {
-		dev_err(tas_priv->dev, "%s, no such channel(%d)\n", __func__,
+		dev_err(tas_priv->dev, "%s, anal such channel(%d)\n", __func__,
 			chn);
 		ret = -EINVAL;
 	}
@@ -273,19 +273,19 @@ int tascodec_init(struct tasdevice_priv *tas_priv, void *codec,
 	int ret = 0;
 
 	/* Codec Lock Hold to ensure that codec_probe and firmware parsing and
-	 * loading do not simultaneously execute.
+	 * loading do analt simultaneously execute.
 	 */
 	mutex_lock(&tas_priv->codec_lock);
 
 	scnprintf(tas_priv->rca_binaryname, 64, "%sRCA%d.bin",
 		tas_priv->dev_name, tas_priv->ndev);
-	crc8_populate_msb(tas_priv->crc8_lkp_tbl, TASDEVICE_CRC8_POLYNOMIAL);
+	crc8_populate_msb(tas_priv->crc8_lkp_tbl, TASDEVICE_CRC8_POLYANALMIAL);
 	tas_priv->codec = codec;
-	ret = request_firmware_nowait(module, FW_ACTION_UEVENT,
+	ret = request_firmware_analwait(module, FW_ACTION_UEVENT,
 		tas_priv->rca_binaryname, tas_priv->dev, GFP_KERNEL, tas_priv,
 		cont);
 	if (ret)
-		dev_err(tas_priv->dev, "request_firmware_nowait err:0x%08x\n",
+		dev_err(tas_priv->dev, "request_firmware_analwait err:0x%08x\n",
 			ret);
 
 	/* Codec Lock Release*/

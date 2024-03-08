@@ -15,7 +15,7 @@ description: |-
   with 100 mA output current sink capability. VCM current is controlled with
   a linear mode driver. The DAC is controlled via a 2-wire (I2C-compatible)
   serial interface that operates at clock rates up to 1MHz. This chip
-  integrates Advanced Actuator Control (AAC) technology and is intended for
+  integrates Advanced Actuator Control (AAC) techanallogy and is intended for
   driving voice coil lenses in camera modules.
 
 properties:

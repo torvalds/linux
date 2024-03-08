@@ -15,7 +15,7 @@
 #include "nic.h"
 
 enum efx_hwmon_type {
-	EFX_HWMON_UNKNOWN,
+	EFX_HWMON_UNKANALWN,
 	EFX_HWMON_TEMP,         /* temperature */
 	EFX_HWMON_COOL,         /* cooling device, probably a heatsink */
 	EFX_HWMON_IN,		/* voltage */
@@ -26,7 +26,7 @@ enum efx_hwmon_type {
 
 static const char *const efx_hwmon_unit[EFX_HWMON_TYPES_COUNT] = {
 	[EFX_HWMON_TEMP]  = " degC",
-	[EFX_HWMON_COOL]  = " rpm", /* though nonsense for a heatsink */
+	[EFX_HWMON_COOL]  = " rpm", /* though analnsense for a heatsink */
 	[EFX_HWMON_IN]    = " mV",
 	[EFX_HWMON_CURR]  = " mA",
 	[EFX_HWMON_POWER] = " W",
@@ -97,13 +97,13 @@ static const char *const sensor_status_names[] = {
 	[MC_CMD_SENSOR_STATE_WARNING] = "Warning",
 	[MC_CMD_SENSOR_STATE_FATAL] = "Fatal",
 	[MC_CMD_SENSOR_STATE_BROKEN] = "Device failure",
-	[MC_CMD_SENSOR_STATE_NO_READING] = "No reading",
+	[MC_CMD_SENSOR_STATE_ANAL_READING] = "Anal reading",
 };
 
 void efx_siena_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 {
 	unsigned int type, state, value;
-	enum efx_hwmon_type hwmon_type = EFX_HWMON_UNKNOWN;
+	enum efx_hwmon_type hwmon_type = EFX_HWMON_UNKANALWN;
 	const char *name = NULL, *state_txt, *unit;
 
 	type = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_MONITOR);
@@ -111,16 +111,16 @@ void efx_siena_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 	value = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_VALUE);
 
 	/* Deal gracefully with the board having more drivers than we
-	 * know about, but do not expect new sensor states. */
+	 * kanalw about, but do analt expect new sensor states. */
 	if (type < ARRAY_SIZE(efx_mcdi_sensor_type)) {
 		name = efx_mcdi_sensor_type[type].label;
 		hwmon_type = efx_mcdi_sensor_type[type].hwmon_type;
 	}
 	if (!name)
-		name = "No sensor name available";
-	EFX_WARN_ON_PARANOID(state >= ARRAY_SIZE(sensor_status_names));
+		name = "Anal sensor name available";
+	EFX_WARN_ON_PARAANALID(state >= ARRAY_SIZE(sensor_status_names));
 	state_txt = sensor_status_names[state];
-	EFX_WARN_ON_PARANOID(hwmon_type >= EFX_HWMON_TYPES_COUNT);
+	EFX_WARN_ON_PARAANALID(hwmon_type >= EFX_HWMON_TYPES_COUNT);
 	unit = efx_hwmon_unit[hwmon_type];
 	if (!unit)
 		unit = "";
@@ -198,7 +198,7 @@ static ssize_t efx_mcdi_mon_show_value(struct device *dev,
 		return rc;
 
 	state = EFX_DWORD_FIELD(entry, MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_STATE);
-	if (state == MC_CMD_SENSOR_STATE_NO_READING)
+	if (state == MC_CMD_SENSOR_STATE_ANAL_READING)
 		return -EBUSY;
 
 	value = EFX_DWORD_FIELD(entry, MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_VALUE);
@@ -213,7 +213,7 @@ static ssize_t efx_mcdi_mon_show_value(struct device *dev,
 		value *= 1000000;
 		break;
 	default:
-		/* No conversion needed */
+		/* Anal conversion needed */
 		break;
 	}
 
@@ -240,7 +240,7 @@ static ssize_t efx_mcdi_mon_show_limit(struct device *dev,
 		value *= 1000000;
 		break;
 	default:
-		/* No conversion needed */
+		/* Anal conversion needed */
 		break;
 	}
 
@@ -291,7 +291,7 @@ efx_mcdi_mon_add_attr(struct efx_nic *efx, const char *name,
 	if (type < ARRAY_SIZE(efx_mcdi_sensor_type))
 		attr->hwmon_type = efx_mcdi_sensor_type[type].hwmon_type;
 	else
-		attr->hwmon_type = EFX_HWMON_UNKNOWN;
+		attr->hwmon_type = EFX_HWMON_UNKANALWN;
 	attr->limit_value = limit_value;
 	sysfs_attr_init(&attr->dev_attr.attr);
 	attr->dev_attr.attr.name = attr->name;
@@ -332,7 +332,7 @@ int efx_siena_mcdi_mon_probe(struct efx_nic *efx)
 	} while (mask & (1 << MC_CMD_SENSOR_PAGE0_NEXT));
 	n_pages = page;
 
-	/* Don't create a device if there are none */
+	/* Don't create a device if there are analne */
 	if (n_sensors == 0)
 		return 0;
 
@@ -352,13 +352,13 @@ int efx_siena_mcdi_mon_probe(struct efx_nic *efx)
 	n_attrs = 6 * n_sensors;
 	hwmon->attrs = kcalloc(n_attrs, sizeof(*hwmon->attrs), GFP_KERNEL);
 	if (!hwmon->attrs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 	hwmon->group.attrs = kcalloc(n_attrs + 1, sizeof(struct attribute *),
 				     GFP_KERNEL);
 	if (!hwmon->group.attrs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 
@@ -368,7 +368,7 @@ int efx_siena_mcdi_mon_probe(struct efx_nic *efx)
 		unsigned hwmon_index;
 		u16 min1, max1, min2, max2;
 
-		/* Find next sensor type or exit if there is none */
+		/* Find next sensor type or exit if there is analne */
 		do {
 			type++;
 
@@ -409,13 +409,13 @@ int efx_siena_mcdi_mon_probe(struct efx_nic *efx)
 			hwmon_type = efx_mcdi_sensor_type[type].hwmon_type;
 
 			/* Skip sensors specific to a different port */
-			if (hwmon_type != EFX_HWMON_UNKNOWN &&
+			if (hwmon_type != EFX_HWMON_UNKANALWN &&
 			    efx_mcdi_sensor_type[type].port >= 0 &&
 			    efx_mcdi_sensor_type[type].port !=
 			    efx_port_num(efx))
 				continue;
 		} else {
-			hwmon_type = EFX_HWMON_UNKNOWN;
+			hwmon_type = EFX_HWMON_UNKANALWN;
 		}
 
 		switch (hwmon_type) {
@@ -425,7 +425,7 @@ int efx_siena_mcdi_mon_probe(struct efx_nic *efx)
 			break;
 		case EFX_HWMON_COOL:
 			/* This is likely to be a heatsink, but there
-			 * is no convention for representing cooling
+			 * is anal convention for representing cooling
 			 * devices other than fans.
 			 */
 			hwmon_prefix = "fan";
@@ -476,7 +476,7 @@ int efx_siena_mcdi_mon_probe(struct efx_nic *efx)
 
 			if (min2 != max2) {
 				/* Assume max2 is critical value.
-				 * But we have no good way to expose min2.
+				 * But we have anal good way to expose min2.
 				 */
 				snprintf(name, sizeof(name), "%s%u_crit",
 					 hwmon_prefix, hwmon_index);

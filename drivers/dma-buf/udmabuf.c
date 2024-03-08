@@ -92,7 +92,7 @@ static struct sg_table *get_sg_table(struct device *dev, struct dma_buf *buf,
 
 	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
 	if (!sg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ret = sg_alloc_table_from_pages(sg, ubuf->pages, ubuf->pagecount,
 					0, ubuf->pagecount << PAGE_SHIFT,
 					GFP_KERNEL);
@@ -210,7 +210,7 @@ static long udmabuf_create(struct miscdevice *device,
 
 	ubuf = kzalloc(sizeof(*ubuf), GFP_KERNEL);
 	if (!ubuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pglimit = (size_limit_mb * 1024 * 1024) >> PAGE_SHIFT;
 	for (i = 0; i < head->count; i++) {
@@ -229,7 +229,7 @@ static long udmabuf_create(struct miscdevice *device,
 	ubuf->pages = kmalloc_array(ubuf->pagecount, sizeof(*ubuf->pages),
 				    GFP_KERNEL);
 	if (!ubuf->pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -343,7 +343,7 @@ static long udmabuf_ioctl(struct file *filp, unsigned int ioctl,
 		ret = udmabuf_ioctl_create_list(filp, arg);
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 	return ret;
@@ -358,7 +358,7 @@ static const struct file_operations udmabuf_fops = {
 };
 
 static struct miscdevice udmabuf_misc = {
-	.minor          = MISC_DYNAMIC_MINOR,
+	.mianalr          = MISC_DYNAMIC_MIANALR,
 	.name           = "udmabuf",
 	.fops           = &udmabuf_fops,
 };
@@ -369,14 +369,14 @@ static int __init udmabuf_dev_init(void)
 
 	ret = misc_register(&udmabuf_misc);
 	if (ret < 0) {
-		pr_err("Could not initialize udmabuf device\n");
+		pr_err("Could analt initialize udmabuf device\n");
 		return ret;
 	}
 
 	ret = dma_coerce_mask_and_coherent(udmabuf_misc.this_device,
 					   DMA_BIT_MASK(64));
 	if (ret < 0) {
-		pr_err("Could not setup DMA mask for udmabuf device\n");
+		pr_err("Could analt setup DMA mask for udmabuf device\n");
 		misc_deregister(&udmabuf_misc);
 		return ret;
 	}

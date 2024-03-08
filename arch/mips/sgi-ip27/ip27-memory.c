@@ -16,7 +16,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/export.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/swap.h>
 #include <linux/pfn.h>
 #include <linux/highmem.h>
@@ -34,9 +34,9 @@
 #define SLOT_PFNSHIFT		(SLOT_SHIFT - PAGE_SHIFT)
 #define PFN_NASIDSHFT		(NASID_SHFT - PAGE_SHIFT)
 
-struct node_data *__node_data[MAX_NUMNODES];
+struct analde_data *__analde_data[MAX_NUMANALDES];
 
-EXPORT_SYMBOL(__node_data);
+EXPORT_SYMBOL(__analde_data);
 
 static u64 gen_region_mask(void)
 {
@@ -46,7 +46,7 @@ static u64 gen_region_mask(void)
 
 	region_shift = get_region_shift();
 	region_mask = 0;
-	for_each_online_node(nasid)
+	for_each_online_analde(nasid)
 		region_mask |= BIT_ULL(nasid >> region_shift);
 
 	return region_mask;
@@ -74,12 +74,12 @@ static void router_recurse(klrou_t *router_a, klrou_t *router_b, int depth)
 		if (router_a->rou_port[port].port_nasid == INVALID_NASID)
 			continue;
 
-		brd = (lboard_t *)NODE_OFFSET_TO_K0(
+		brd = (lboard_t *)ANALDE_OFFSET_TO_K0(
 			router_a->rou_port[port].port_nasid,
 			router_a->rou_port[port].port_offset);
 
 		if (brd->brd_type == KLTYPE_ROUTER) {
-			router = (klrou_t *)NODE_OFFSET_TO_K0(NASID_GET(brd), brd->brd_compts[0]);
+			router = (klrou_t *)ANALDE_OFFSET_TO_K0(NASID_GET(brd), brd->brd_compts[0]);
 			if (router == router_b) {
 				if (depth < router_distance)
 					router_distance = depth;
@@ -92,18 +92,18 @@ static void router_recurse(klrou_t *router_a, klrou_t *router_b, int depth)
 	router_a->rou_rflag = 0;
 }
 
-unsigned char __node_distances[MAX_NUMNODES][MAX_NUMNODES];
-EXPORT_SYMBOL(__node_distances);
+unsigned char __analde_distances[MAX_NUMANALDES][MAX_NUMANALDES];
+EXPORT_SYMBOL(__analde_distances);
 
-static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
+static int __init compute_analde_distance(nasid_t nasid_a, nasid_t nasid_b)
 {
 	klrou_t *router, *router_a = NULL, *router_b = NULL;
 	lboard_t *brd, *dest_brd;
 	nasid_t nasid;
 	int port;
 
-	/* Figure out which routers nodes in question are connected to */
-	for_each_online_node(nasid) {
+	/* Figure out which routers analdes in question are connected to */
+	for_each_online_analde(nasid) {
 		brd = find_lboard_class((lboard_t *)KL_CONFIG_INFO(nasid),
 					KLTYPE_ROUTER);
 
@@ -114,14 +114,14 @@ static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
 			if (brd->brd_flags & DUPLICATE_BOARD)
 				continue;
 
-			router = (klrou_t *)NODE_OFFSET_TO_K0(NASID_GET(brd), brd->brd_compts[0]);
+			router = (klrou_t *)ANALDE_OFFSET_TO_K0(NASID_GET(brd), brd->brd_compts[0]);
 			router->rou_rflag = 0;
 
 			for (port = 1; port <= MAX_ROUTER_PORTS; port++) {
 				if (router->rou_port[port].port_nasid == INVALID_NASID)
 					continue;
 
-				dest_brd = (lboard_t *)NODE_OFFSET_TO_K0(
+				dest_brd = (lboard_t *)ANALDE_OFFSET_TO_K0(
 					router->rou_port[port].port_nasid,
 					router->rou_port[port].port_offset);
 
@@ -143,11 +143,11 @@ static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
 		return LOCAL_DISTANCE + 1;
 
 	if (router_a == NULL) {
-		pr_info("node_distance: router_a NULL\n");
+		pr_info("analde_distance: router_a NULL\n");
 		return 255;
 	}
 	if (router_b == NULL) {
-		pr_info("node_distance: router_b NULL\n");
+		pr_info("analde_distance: router_b NULL\n");
 		return 255;
 	}
 
@@ -161,14 +161,14 @@ static void __init init_topology_matrix(void)
 {
 	nasid_t row, col;
 
-	for (row = 0; row < MAX_NUMNODES; row++)
-		for (col = 0; col < MAX_NUMNODES; col++)
-			__node_distances[row][col] = -1;
+	for (row = 0; row < MAX_NUMANALDES; row++)
+		for (col = 0; col < MAX_NUMANALDES; col++)
+			__analde_distances[row][col] = -1;
 
-	for_each_online_node(row) {
-		for_each_online_node(col) {
-			__node_distances[row][col] =
-				compute_node_distance(row, col);
+	for_each_online_analde(row) {
+		for_each_online_analde(col) {
+			__analde_distances[row][col] =
+				compute_analde_distance(row, col);
 		}
 	}
 }
@@ -185,17 +185,17 @@ static void __init dump_topology(void)
 	pr_info("************** Topology ********************\n");
 
 	pr_info("    ");
-	for_each_online_node(col)
+	for_each_online_analde(col)
 		pr_cont("%02d ", col);
 	pr_cont("\n");
-	for_each_online_node(row) {
+	for_each_online_analde(row) {
 		pr_info("%02d  ", row);
-		for_each_online_node(col)
-			pr_cont("%2d ", node_distance(row, col));
+		for_each_online_analde(col)
+			pr_cont("%2d ", analde_distance(row, col));
 		pr_cont("\n");
 	}
 
-	for_each_online_node(nasid) {
+	for_each_online_analde(nasid) {
 		brd = find_lboard_class((lboard_t *)KL_CONFIG_INFO(nasid),
 					KLTYPE_ROUTER);
 
@@ -208,13 +208,13 @@ static void __init dump_topology(void)
 			pr_cont("Router %d:", router_num);
 			router_num++;
 
-			router = (klrou_t *)NODE_OFFSET_TO_K0(NASID_GET(brd), brd->brd_compts[0]);
+			router = (klrou_t *)ANALDE_OFFSET_TO_K0(NASID_GET(brd), brd->brd_compts[0]);
 
 			for (port = 1; port <= MAX_ROUTER_PORTS; port++) {
 				if (router->rou_port[port].port_nasid == INVALID_NASID)
 					continue;
 
-				dest_brd = (lboard_t *)NODE_OFFSET_TO_K0(
+				dest_brd = (lboard_t *)ANALDE_OFFSET_TO_K0(
 					router->rou_port[port].port_nasid,
 					router->rou_port[port].port_offset);
 
@@ -240,7 +240,7 @@ static unsigned long __init slot_psize_compute(nasid_t nasid, int slot)
 	klmembnk_t *banks;
 	unsigned long size;
 
-	/* Find the node board */
+	/* Find the analde board */
 	brd = find_lboard((lboard_t *)KL_CONFIG_INFO(nasid), KLTYPE_IP27);
 	if (!brd)
 		return 0;
@@ -279,7 +279,7 @@ static void __init mlreset(void)
 	 * mapping tables.  We need to do this as early as possible.
 	 */
 #ifdef CONFIG_SMP
-	cpu_node_probe();
+	cpu_analde_probe();
 #endif
 
 	init_topology_matrix();
@@ -290,13 +290,13 @@ static void __init mlreset(void)
 	setup_replication_mask();
 
 	/*
-	 * Set all nodes' calias sizes to 8k
+	 * Set all analdes' calias sizes to 8k
 	 */
-	for_each_online_node(nasid) {
+	for_each_online_analde(nasid) {
 		/*
-		 * Always have node 0 in the region mask, otherwise
+		 * Always have analde 0 in the region mask, otherwise
 		 * CALIAS accesses get exceptions since the hub
-		 * thinks it is a node 0 address.
+		 * thinks it is a analde 0 address.
 		 */
 		REMOTE_HUB_S(nasid, PI_REGION_PRESENT, (region_mask | 1));
 		REMOTE_HUB_S(nasid, PI_CALIAS_SIZE, PI_CALIAS_SIZE_0);
@@ -315,57 +315,57 @@ static void __init mlreset(void)
 
 static void __init szmem(void)
 {
-	unsigned long slot_psize, slot0sz = 0, nodebytes;	/* Hack to detect problem configs */
+	unsigned long slot_psize, slot0sz = 0, analdebytes;	/* Hack to detect problem configs */
 	int slot;
-	nasid_t node;
+	nasid_t analde;
 
-	for_each_online_node(node) {
-		nodebytes = 0;
+	for_each_online_analde(analde) {
+		analdebytes = 0;
 		for (slot = 0; slot < MAX_MEM_SLOTS; slot++) {
-			slot_psize = slot_psize_compute(node, slot);
+			slot_psize = slot_psize_compute(analde, slot);
 			if (slot == 0)
 				slot0sz = slot_psize;
 			/*
 			 * We need to refine the hack when we have replicated
 			 * kernel text.
 			 */
-			nodebytes += (1LL << SLOT_SHIFT);
+			analdebytes += (1LL << SLOT_SHIFT);
 
 			if (!slot_psize)
 				continue;
 
-			if ((nodebytes >> PAGE_SHIFT) * (sizeof(struct page)) >
+			if ((analdebytes >> PAGE_SHIFT) * (sizeof(struct page)) >
 						(slot0sz << PAGE_SHIFT)) {
-				pr_info("Ignoring slot %d onwards on node %d\n",
-								slot, node);
+				pr_info("Iganalring slot %d onwards on analde %d\n",
+								slot, analde);
 				slot = MAX_MEM_SLOTS;
 				continue;
 			}
-			memblock_add_node(PFN_PHYS(slot_getbasepfn(node, slot)),
-					  PFN_PHYS(slot_psize), node,
-					  MEMBLOCK_NONE);
+			memblock_add_analde(PFN_PHYS(slot_getbasepfn(analde, slot)),
+					  PFN_PHYS(slot_psize), analde,
+					  MEMBLOCK_ANALNE);
 		}
 	}
 }
 
-static void __init node_mem_init(nasid_t node)
+static void __init analde_mem_init(nasid_t analde)
 {
-	unsigned long slot_firstpfn = slot_getbasepfn(node, 0);
-	unsigned long slot_freepfn = node_getfirstfree(node);
+	unsigned long slot_firstpfn = slot_getbasepfn(analde, 0);
+	unsigned long slot_freepfn = analde_getfirstfree(analde);
 	unsigned long start_pfn, end_pfn;
 
-	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
+	get_pfn_range_for_nid(analde, &start_pfn, &end_pfn);
 
 	/*
-	 * Allocate the node data structures on the node first.
+	 * Allocate the analde data structures on the analde first.
 	 */
-	__node_data[node] = __va(slot_freepfn << PAGE_SHIFT);
-	memset(__node_data[node], 0, PAGE_SIZE);
+	__analde_data[analde] = __va(slot_freepfn << PAGE_SHIFT);
+	memset(__analde_data[analde], 0, PAGE_SIZE);
 
-	NODE_DATA(node)->node_start_pfn = start_pfn;
-	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
+	ANALDE_DATA(analde)->analde_start_pfn = start_pfn;
+	ANALDE_DATA(analde)->analde_spanned_pages = end_pfn - start_pfn;
 
-	cpumask_clear(&hub_data(node)->h_cpus);
+	cpumask_clear(&hub_data(analde)->h_cpus);
 
 	slot_freepfn += PFN_UP(sizeof(struct pglist_data) +
 			       sizeof(struct hub_data));
@@ -375,34 +375,34 @@ static void __init node_mem_init(nasid_t node)
 }
 
 /*
- * A node with nothing.	 We use it to avoid any special casing in
- * cpumask_of_node
+ * A analde with analthing.	 We use it to avoid any special casing in
+ * cpumask_of_analde
  */
-static struct node_data null_node = {
+static struct analde_data null_analde = {
 	.hub = {
-		.h_cpus = CPU_MASK_NONE
+		.h_cpus = CPU_MASK_ANALNE
 	}
 };
 
 /*
- * Currently, the intranode memory hole support assumes that each slot
+ * Currently, the intraanalde memory hole support assumes that each slot
  * contains at least 32 MBytes of memory. We assume all bootmem data
  * fits on the first slot.
  */
 void __init prom_meminit(void)
 {
-	nasid_t node;
+	nasid_t analde;
 
 	mlreset();
 	szmem();
 	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
-	for (node = 0; node < MAX_NUMNODES; node++) {
-		if (node_online(node)) {
-			node_mem_init(node);
+	for (analde = 0; analde < MAX_NUMANALDES; analde++) {
+		if (analde_online(analde)) {
+			analde_mem_init(analde);
 			continue;
 		}
-		__node_data[node] = &null_node;
+		__analde_data[analde] = &null_analde;
 	}
 }
 
@@ -413,7 +413,7 @@ void __init paging_init(void)
 	unsigned long zones_size[MAX_NR_ZONES] = {0, };
 
 	pagetable_init();
-	zones_size[ZONE_NORMAL] = max_low_pfn;
+	zones_size[ZONE_ANALRMAL] = max_low_pfn;
 	free_area_init(zones_size);
 }
 
@@ -421,15 +421,15 @@ void __init mem_init(void)
 {
 	high_memory = (void *) __va(get_num_physpages() << PAGE_SHIFT);
 	memblock_free_all();
-	setup_zero_pages();	/* This comes from node 0 */
+	setup_zero_pages();	/* This comes from analde 0 */
 }
 
-pg_data_t * __init arch_alloc_nodedata(int nid)
+pg_data_t * __init arch_alloc_analdedata(int nid)
 {
 	return memblock_alloc(sizeof(pg_data_t), SMP_CACHE_BYTES);
 }
 
-void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+void arch_refresh_analdedata(int nid, pg_data_t *pgdat)
 {
-	__node_data[nid] = (struct node_data *)pgdat;
+	__analde_data[nid] = (struct analde_data *)pgdat;
 }

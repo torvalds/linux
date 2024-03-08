@@ -17,7 +17,7 @@ static const struct mtk_gate_regs wpe_cg_regs = {
 };
 
 #define GATE_WPE(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &wpe_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &wpe_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate wpe_clks[] = {
 	GATE_WPE(CLK_WPE_CK_EN, "wpe", "top_wpe", 17),

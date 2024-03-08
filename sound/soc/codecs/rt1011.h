@@ -603,10 +603,10 @@
 #define RT1011_STP_T0_EN		(0x1 << 6)
 
 /* Cross Biquad Setting-1 (0x0702) */
-#define RT1011_MONO_LR_SEL_MASK			(0x3 << 5)
-#define RT1011_MONO_L_CHANNEL			(0x0 << 5)
-#define RT1011_MONO_R_CHANNEL			(0x1 << 5)
-#define RT1011_MONO_LR_MIX_CHANNEL			(0x2 << 5)
+#define RT1011_MOANAL_LR_SEL_MASK			(0x3 << 5)
+#define RT1011_MOANAL_L_CHANNEL			(0x0 << 5)
+#define RT1011_MOANAL_R_CHANNEL			(0x1 << 5)
+#define RT1011_MOANAL_LR_MIX_CHANNEL			(0x2 << 5)
 
 /* ClassD Internal Setting-1 (0x1300) */
 #define RT1011_DRIVER_READY_SPK			(0x1 << 12)
@@ -655,7 +655,7 @@ enum {
 };
 
 enum {
-	RT1011_I2S_REF_NONE,
+	RT1011_I2S_REF_ANALNE,
 	RT1011_I2S_REF_LEFT_CH,
 	RT1011_I2S_REF_RIGHT_CH,
 };

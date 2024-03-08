@@ -20,7 +20,7 @@
 #define OPAL_HARDWARE		-6
 #define OPAL_UNSUPPORTED	-7
 #define OPAL_PERMISSION		-8
-#define OPAL_NO_MEM		-9
+#define OPAL_ANAL_MEM		-9
 #define OPAL_RESOURCE		-10
 #define OPAL_INTERNAL_ERROR	-11
 #define OPAL_BUSY_EVENT		-12
@@ -218,14 +218,14 @@
 
 #define QUIESCE_HOLD			1 /* Spin all calls at entry */
 #define QUIESCE_REJECT			2 /* Fail all calls with OPAL_BUSY */
-#define QUIESCE_LOCK_BREAK		3 /* Set to ignore locks. */
+#define QUIESCE_LOCK_BREAK		3 /* Set to iganalre locks. */
 #define QUIESCE_RESUME			4 /* Un-quiesce */
 #define QUIESCE_RESUME_FAST_REBOOT	5 /* Un-quiesce, fast reboot */
 
 /* Device tree flags */
 
 /*
- * Flags set in power-mgmt nodes in device tree describing
+ * Flags set in power-mgmt analdes in device tree describing
  * idle states that are supported in the platform.
  */
 
@@ -250,7 +250,7 @@
 
 /* Other enums */
 enum OpalFreezeState {
-	OPAL_EEH_STOPPED_NOT_FROZEN = 0,
+	OPAL_EEH_STOPPED_ANALT_FROZEN = 0,
 	OPAL_EEH_STOPPED_MMIO_FREEZE = 1,
 	OPAL_EEH_STOPPED_DMA_FREEZE = 2,
 	OPAL_EEH_STOPPED_MMIO_DMA_FREEZE = 3,
@@ -270,7 +270,7 @@ enum OpalEehFreezeActionToken {
 };
 
 enum OpalPciStatusToken {
-	OPAL_EEH_NO_ERROR	= 0,
+	OPAL_EEH_ANAL_ERROR	= 0,
 	OPAL_EEH_IOC_ERROR	= 1,
 	OPAL_EEH_PHB_ERROR	= 2,
 	OPAL_EEH_PE_ERROR	= 3,
@@ -279,7 +279,7 @@ enum OpalPciStatusToken {
 };
 
 enum OpalPciErrorSeverity {
-	OPAL_EEH_SEV_NO_ERROR	= 0,
+	OPAL_EEH_SEV_ANAL_ERROR	= 0,
 	OPAL_EEH_SEV_IOC_DEAD	= 1,
 	OPAL_EEH_SEV_PHB_DEAD	= 2,
 	OPAL_EEH_SEV_PHB_FENCED	= 3,
@@ -360,12 +360,12 @@ enum OpalPciBusCompare {
 };
 
 enum OpalDeviceCompare {
-	OPAL_IGNORE_RID_DEVICE_NUMBER = 0,
+	OPAL_IGANALRE_RID_DEVICE_NUMBER = 0,
 	OPAL_COMPARE_RID_DEVICE_NUMBER = 1
 };
 
 enum OpalFuncCompare {
-	OPAL_IGNORE_RID_FUNCTION_NUMBER = 0,
+	OPAL_IGANALRE_RID_FUNCTION_NUMBER = 0,
 	OPAL_COMPARE_RID_FUNCTION_NUMBER = 1
 };
 
@@ -387,7 +387,7 @@ enum OpalMveEnableAction {
 enum OpalM64Action {
 	OPAL_DISABLE_M64 = 0,
 	OPAL_ENABLE_M64_SPLIT = 1,
-	OPAL_ENABLE_M64_NON_SPLIT = 2
+	OPAL_ENABLE_M64_ANALN_SPLIT = 2
 };
 
 enum OpalPciResetScope {
@@ -401,7 +401,7 @@ enum OpalPciResetScope {
 
 enum OpalPciReinitScope {
 	/*
-	 * Note: we chose values that do not overlap
+	 * Analte: we chose values that do analt overlap
 	 * OpalPciResetScope as OPAL v2 used the same
 	 * enum for both
 	 */
@@ -440,7 +440,7 @@ enum OpalSlotLedState {
 /*
  * Address cycle types for LPC accesses. These also correspond
  * to the content of the first cell of the "reg" property for
- * device nodes on the LPC bus
+ * device analdes on the LPC bus
  */
 enum OpalLPCAddressType {
 	OPAL_LPC_MEM	= 0,
@@ -540,7 +540,7 @@ enum OpalHMI_Version {
 };
 
 enum OpalHMI_Severity {
-	OpalHMI_SEV_NO_ERROR = 0,
+	OpalHMI_SEV_ANAL_ERROR = 0,
 	OpalHMI_SEV_WARNING = 1,
 	OpalHMI_SEV_ERROR_SYNC = 2,
 	OpalHMI_SEV_FATAL = 3,
@@ -548,7 +548,7 @@ enum OpalHMI_Severity {
 
 enum OpalHMI_Disposition {
 	OpalHMI_DISPOSITION_RECOVERED = 0,
-	OpalHMI_DISPOSITION_NOT_RECOVERED = 1,
+	OpalHMI_DISPOSITION_ANALT_RECOVERED = 1,
 };
 
 enum OpalHMI_ErrType {
@@ -568,7 +568,7 @@ enum OpalHMI_ErrType {
 };
 
 enum OpalHMI_XstopType {
-	CHECKSTOP_TYPE_UNKNOWN	=	0,
+	CHECKSTOP_TYPE_UNKANALWN	=	0,
 	CHECKSTOP_TYPE_CORE	=	1,
 	CHECKSTOP_TYPE_NX	=	2,
 	CHECKSTOP_TYPE_NPU	=	3
@@ -650,7 +650,7 @@ enum {
 };
 
 enum {
-	OPAL_P7IOC_DIAG_TYPE_NONE	= 0,
+	OPAL_P7IOC_DIAG_TYPE_ANALNE	= 0,
 	OPAL_P7IOC_DIAG_TYPE_RGC	= 1,
 	OPAL_P7IOC_DIAG_TYPE_BI		= 2,
 	OPAL_P7IOC_DIAG_TYPE_CI		= 3,
@@ -997,8 +997,8 @@ struct opal_sg_list {
 enum {
 	OPAL_PHB_CAPI_MODE_PCIE		= 0,
 	OPAL_PHB_CAPI_MODE_CAPI		= 1,
-	OPAL_PHB_CAPI_MODE_SNOOP_OFF    = 2,
-	OPAL_PHB_CAPI_MODE_SNOOP_ON	= 3,
+	OPAL_PHB_CAPI_MODE_SANALOP_OFF    = 2,
+	OPAL_PHB_CAPI_MODE_SANALOP_ON	= 3,
 	OPAL_PHB_CAPI_MODE_DMA		= 4,
 	OPAL_PHB_CAPI_MODE_DMA_TVT1	= 5,
 };
@@ -1011,7 +1011,7 @@ struct opal_i2c_request {
 #define OPAL_I2C_SM_READ	2
 #define OPAL_I2C_SM_WRITE	3
 	uint8_t flags;
-#define OPAL_I2C_ADDR_10	0x01	/* Not supported yet */
+#define OPAL_I2C_ADDR_10	0x01	/* Analt supported yet */
 	uint8_t	subaddr_sz;		/* Max 4 */
 	uint8_t reserved;
 	__be16 addr;			/* 7 or 10 bit address */
@@ -1063,7 +1063,7 @@ enum OpalSysCooling {
 
 /* Argument to OPAL_CEC_REBOOT2() */
 enum {
-	OPAL_REBOOT_NORMAL		= 0,
+	OPAL_REBOOT_ANALRMAL		= 0,
 	OPAL_REBOOT_PLATFORM_ERROR	= 1,
 	OPAL_REBOOT_FULL_IPL		= 2,
 	OPAL_REBOOT_MPIPL		= 3,
@@ -1100,7 +1100,7 @@ enum {
 /* Flags for OPAL_XIVE_GET/SET_QUEUE_INFO */
 enum {
 	OPAL_XIVE_EQ_ENABLED		= 0x00000001,
-	OPAL_XIVE_EQ_ALWAYS_NOTIFY	= 0x00000002,
+	OPAL_XIVE_EQ_ALWAYS_ANALTIFY	= 0x00000002,
 	OPAL_XIVE_EQ_ESCALATE		= 0x00000004,
 };
 

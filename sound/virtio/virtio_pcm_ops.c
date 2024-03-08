@@ -100,7 +100,7 @@ static int virtsnd_pcm_sync_stop(struct snd_pcm_substream *substream);
  * @substream: Kernel ALSA substream.
  *
  * Context: Process context.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_pcm_open(struct snd_pcm_substream *substream)
 {
@@ -148,7 +148,7 @@ static int virtsnd_pcm_close(struct snd_pcm_substream *substream)
  * @rate: Selected frame rate.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_pcm_dev_set_params(struct virtio_pcm_substream *vss,
 				      unsigned int buffer_bytes,
@@ -183,7 +183,7 @@ static int virtsnd_pcm_dev_set_params(struct virtio_pcm_substream *vss,
 	msg = virtsnd_pcm_ctl_msg_alloc(vss, VIRTIO_SND_R_PCM_SET_PARAMS,
 					GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	request = virtsnd_ctl_msg_request(msg);
 	request->buffer_bytes = cpu_to_le32(buffer_bytes);
@@ -209,7 +209,7 @@ static int virtsnd_pcm_dev_set_params(struct virtio_pcm_substream *vss,
  * @hw_params: Hardware parameters.
  *
  * Context: Process context.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *hw_params)
@@ -265,7 +265,7 @@ static int virtsnd_pcm_hw_free(struct snd_pcm_substream *substream)
  * @substream: Kernel ALSA substream.
  *
  * Context: Process context.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_pcm_prepare(struct snd_pcm_substream *substream)
 {
@@ -307,7 +307,7 @@ static int virtsnd_pcm_prepare(struct snd_pcm_substream *substream)
 	msg = virtsnd_pcm_ctl_msg_alloc(vss, VIRTIO_SND_R_PCM_PREPARE,
 					GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return virtsnd_ctl_msg_send_sync(vss->snd, msg);
 }
@@ -319,7 +319,7 @@ static int virtsnd_pcm_prepare(struct snd_pcm_substream *substream)
  *
  * Context: Any context. Takes and releases the VirtIO substream spinlock.
  *          May take and release the tx/rx queue spinlock.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 {
@@ -353,7 +353,7 @@ static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 			vss->xfer_enabled = false;
 			spin_unlock_irqrestore(&vss->lock, flags);
 
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		return virtsnd_ctl_msg_send_sync(snd, msg);
@@ -371,7 +371,7 @@ static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 		msg = virtsnd_pcm_ctl_msg_alloc(vss, VIRTIO_SND_R_PCM_STOP,
 						GFP_KERNEL);
 		if (!msg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		return virtsnd_ctl_msg_send_sync(snd, msg);
 	default:
@@ -380,14 +380,14 @@ static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 }
 
 /**
- * virtsnd_pcm_sync_stop() - Synchronous PCM substream stop.
+ * virtsnd_pcm_sync_stop() - Synchroanalus PCM substream stop.
  * @substream: Kernel ALSA substream.
  *
  * The function can be called both from the upper level or from the driver
  * itself.
  *
  * Context: Process context. Takes and releases the VirtIO substream spinlock.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_pcm_sync_stop(struct snd_pcm_substream *substream)
 {
@@ -405,7 +405,7 @@ static int virtsnd_pcm_sync_stop(struct snd_pcm_substream *substream)
 	msg = virtsnd_pcm_ctl_msg_alloc(vss, VIRTIO_SND_R_PCM_RELEASE,
 					GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = virtsnd_ctl_msg_send_sync(snd, msg);
 	if (rc)

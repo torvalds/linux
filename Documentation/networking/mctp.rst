@@ -104,7 +104,7 @@ than a response.
 The ``smctp_tag`` value will configure the tags accepted from the remote side of
 this socket. Given the above, the only valid value is ``MCTP_TAG_OWNER``, which
 will result in remotely "owned" tags being routed to this socket. Since
-``MCTP_TAG_OWNER`` is set, the 3 least-significant bits of ``smctp_tag`` are not
+``MCTP_TAG_OWNER`` is set, the 3 least-significant bits of ``smctp_tag`` are analt
 used; callers must set them to zero.
 
 A ``smctp_network`` value of ``MCTP_NET_ANY`` will configure the socket to
@@ -117,7 +117,7 @@ local destination EID.
 
 The ``smctp_type`` field specifies which message types to receive. Only the
 lower 7 bits of the type is matched on incoming messages (ie., the
-most-significant IC bit is not part of the match). This results in the socket
+most-significant IC bit is analt part of the match). This results in the socket
 receiving packets with and without a message integrity check footer.
 
 ``sendto()``, ``sendmsg()``, ``send()`` : transmit an MCTP message
@@ -147,11 +147,11 @@ An MCTP message is transmitted using one of the ``sendto()``, ``sendmsg()`` or
                     (struct sockaddr_mctp *)&addr, sizeof(addr));
 
 The network and address fields of ``addr`` define the remote address to send to.
-If ``smctp_tag`` has the ``MCTP_TAG_OWNER``, the kernel will ignore any bits set
+If ``smctp_tag`` has the ``MCTP_TAG_OWNER``, the kernel will iganalre any bits set
 in ``MCTP_TAG_VALUE``, and generate a tag value suitable for the destination
-EID. If ``MCTP_TAG_OWNER`` is not set, the message will be sent with the tag
-value as specified. If a tag value cannot be allocated, the system call will
-report an errno of ``EAGAIN``.
+EID. If ``MCTP_TAG_OWNER`` is analt set, the message will be sent with the tag
+value as specified. If a tag value cananalt be allocated, the system call will
+report an erranal of ``EAGAIN``.
 
 The application must provide the message type byte as the first byte of the
 message buffer passed to ``sendto()``. If a message integrity check is to be
@@ -159,12 +159,12 @@ included in the transmitted message, it must also be provided in the message
 buffer, and the most-significant bit of the message type byte must be 1.
 
 The ``sendmsg()`` system call allows a more compact argument interface, and the
-message buffer to be specified as a scatter-gather list. At present no ancillary
+message buffer to be specified as a scatter-gather list. At present anal ancillary
 message types (used for the ``msg_control`` data passed to ``sendmsg()``) are
 defined.
 
 Transmitting a message on an unconnected socket with ``MCTP_TAG_OWNER``
-specified will cause an allocation of a tag, if no valid tag is already
+specified will cause an allocation of a tag, if anal valid tag is already
 allocated for that destination. The (destination-eid,tag) tuple acts as an
 implicit local socket address, to allow the socket to receive responses to this
 outgoing message. If any previous allocation has been performed (to for a
@@ -205,9 +205,9 @@ in order to reply to the message).
 The first byte of the message buffer will contain the message type byte. If an
 integrity check follows the message, it will be included in the received buffer.
 
-The ``recv()`` system call behaves in a similar way, but does not provide a
+The ``recv()`` system call behaves in a similar way, but does analt provide a
 remote address to the application. Therefore, these are only useful if the
-remote address is already known, or the message does not require a reply.
+remote address is already kanalwn, or the message does analt require a reply.
 
 Like the send calls, sockets will only receive responses to requests they have
 sent (TO=1) and may only respond (TO=0) to requests they have received.
@@ -220,7 +220,7 @@ These tags give applications more control over MCTP message tags, by allocating
 allocating a per-message tag at ``sendmsg()`` time.
 
 In general, you will only need to use these ioctls if your MCTP protocol does
-not fit the usual request/response model. For example, if you need to persist
+analt fit the usual request/response model. For example, if you need to persist
 tags across multiple requests, or a request may generate more than one response.
 In these cases, the ioctls allow you to decouple the tag allocation (and
 release) from individual message send and receive operations.
@@ -249,7 +249,7 @@ The allocated tag will have the following tag bits set:
    preallocated tag.
 
  - ... and the actual tag value, within the least-significant three bits
-   (``MCTP_TAG_MASK``). Note that zero is a valid tag value.
+   (``MCTP_TAG_MASK``). Analte that zero is a valid tag value.
 
 The tag value should be used as-is for the ``smctp_tag`` member of ``struct
 sockaddr_mctp``.

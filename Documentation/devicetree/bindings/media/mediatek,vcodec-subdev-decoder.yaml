@@ -13,7 +13,7 @@ maintainers:
 description: |
   Mediatek Video Decode is the video decode hardware present in Mediatek
   SoCs which supports high resolution decoding functionalities. Required
-  parent and child device node.
+  parent and child device analde.
 
   About the Decoder Hardware Block Diagram, please check below:
 
@@ -42,7 +42,7 @@ description: |
   writing the result to output buffer, disable hardware when core decode done. These two
   hardwares will decode each frame cyclically.
 
-  For the smi common may not the same for each hardware, can't combine all hardware in one node,
+  For the smi common may analt the same for each hardware, can't combine all hardware in one analde,
   or leading to iommu fault when access dram data.
 
   Lat soc is a hardware which is related with some larb(local arbiter) ports. For mt8195
@@ -76,7 +76,7 @@ properties:
   mediatek,scp:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      The node of system control processor (SCP), using
+      The analde of system control processor (SCP), using
       the remoteproc & rpmsg framework.
 
   "#address-cells":
@@ -87,7 +87,7 @@ properties:
 
   ranges: true
 
-# Required child node:
+# Required child analde:
 patternProperties:
   '^video-codec@[0-9a-f]+$':
     type: object

@@ -3,7 +3,7 @@
  * Device Tree Source for the R-Car M1A (R8A77781) SoC
  *
  * Copyright (C) 2013  Renesas Solutions Corp.
- * Copyright (C) 2013  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2013  Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  *
  * based on r8a7779
  *

@@ -40,9 +40,9 @@ extern const struct nvdimm_security_ops *intel_security_ops;
 #define ND_INTEL_STATUS_SIZE		4
 #define ND_INTEL_PASSPHRASE_SIZE	32
 
-#define ND_INTEL_STATUS_NOT_SUPPORTED	1
+#define ND_INTEL_STATUS_ANALT_SUPPORTED	1
 #define ND_INTEL_STATUS_RETRY		5
-#define ND_INTEL_STATUS_NOT_READY	9
+#define ND_INTEL_STATUS_ANALT_READY	9
 #define ND_INTEL_STATUS_INVALID_STATE	10
 #define ND_INTEL_STATUS_INVALID_PASS	11
 #define ND_INTEL_STATUS_OVERWRITE_UNSUPPORTED	0x10007
@@ -116,13 +116,13 @@ struct nd_intel_master_secure_erase {
 #define ND_INTEL_FWA_ARMED 1
 #define ND_INTEL_FWA_BUSY 2
 
-#define ND_INTEL_DIMM_FWA_NONE 0
-#define ND_INTEL_DIMM_FWA_NOTSTAGED 1
+#define ND_INTEL_DIMM_FWA_ANALNE 0
+#define ND_INTEL_DIMM_FWA_ANALTSTAGED 1
 #define ND_INTEL_DIMM_FWA_SUCCESS 2
 #define ND_INTEL_DIMM_FWA_NEEDRESET 3
 #define ND_INTEL_DIMM_FWA_MEDIAFAILED 4
 #define ND_INTEL_DIMM_FWA_ABORT 5
-#define ND_INTEL_DIMM_FWA_NOTSUPP 6
+#define ND_INTEL_DIMM_FWA_ANALTSUPP 6
 #define ND_INTEL_DIMM_FWA_ERROR 7
 
 struct nd_intel_fw_activate_dimminfo {
@@ -156,11 +156,11 @@ struct nd_intel_bus_fw_activate_businfo {
 	u64 max_quiesce_tmo;
 } __packed;
 
-#define ND_INTEL_BUS_FWA_STATUS_NOARM  (6 | 1 << 16)
+#define ND_INTEL_BUS_FWA_STATUS_ANALARM  (6 | 1 << 16)
 #define ND_INTEL_BUS_FWA_STATUS_BUSY   (6 | 2 << 16)
-#define ND_INTEL_BUS_FWA_STATUS_NOFW   (6 | 3 << 16)
+#define ND_INTEL_BUS_FWA_STATUS_ANALFW   (6 | 3 << 16)
 #define ND_INTEL_BUS_FWA_STATUS_TMO    (6 | 4 << 16)
-#define ND_INTEL_BUS_FWA_STATUS_NOIDLE (6 | 5 << 16)
+#define ND_INTEL_BUS_FWA_STATUS_ANALIDLE (6 | 5 << 16)
 #define ND_INTEL_BUS_FWA_STATUS_ABORT  (6 | 6 << 16)
 
 #define ND_INTEL_BUS_FWA_IODEV_FORCE_IDLE (0)

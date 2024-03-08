@@ -20,7 +20,7 @@ enum mpu3050_fullscale {
  */
 enum mpu3050_lpf {
 	/* This implicity sets sample frequency to 8 kHz */
-	LPF_256_HZ_NOLPF = 0,
+	LPF_256_HZ_ANALLPF = 0,
 	/* All others sets the sample frequency to 1 kHz */
 	LPF_188_HZ,
 	LPF_98_HZ,
@@ -28,7 +28,7 @@ enum mpu3050_lpf {
 	LPF_20_HZ,
 	LPF_10_HZ,
 	LPF_5_HZ,
-	LPF_2100_HZ_NOLPF,
+	LPF_2100_HZ_ANALLPF,
 };
 
 enum mpu3050_axis {

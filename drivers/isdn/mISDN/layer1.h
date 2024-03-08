@@ -3,7 +3,7 @@
  *
  * Layer 1 defines
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #define FLG_L1_ACTIVATING	1

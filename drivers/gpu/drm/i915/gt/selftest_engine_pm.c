@@ -254,7 +254,7 @@ static int live_engine_busy_stats(void *arg)
 	 */
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	GEM_BUG_ON(intel_gt_pm_is_awake(gt));
 	for_each_engine(engine, gt, id) {
@@ -295,7 +295,7 @@ static int live_engine_busy_stats(void *arg)
 		/* 100% busy */
 		rq = igt_spinner_create_request(&spin,
 						engine->kernel_context,
-						MI_NOOP);
+						MI_ANALOP);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto end;
@@ -353,7 +353,7 @@ static int live_engine_pm(void *arg)
 	enum intel_engine_id id;
 
 	/*
-	 * Check we can call intel_engine_pm_put from any context. No
+	 * Check we can call intel_engine_pm_put from any context. Anal
 	 * failures are reported directly, but if we mess up lockdep should
 	 * tell us.
 	 */
@@ -368,8 +368,8 @@ static int live_engine_pm(void *arg)
 
 		for (p = igt_atomic_phases; p->name; p++) {
 			/*
-			 * Acquisition is always synchronous, except if we
-			 * know that the engine is already awake, in which
+			 * Acquisition is always synchroanalus, except if we
+			 * kanalw that the engine is already awake, in which
 			 * case we should use intel_engine_pm_get_if_awake()
 			 * to atomically grab the wakeref.
 			 *
@@ -379,7 +379,7 @@ static int live_engine_pm(void *arg)
 			 * occurs in one thread, while simultaneously
 			 *    intel_engine_pm_get_if_awake();
 			 *    intel_engine_pm_put();
-			 * occurs from atomic context in another.
+			 * occurs from atomic context in aanalther.
 			 */
 			GEM_BUG_ON(intel_engine_pm_is_awake(engine));
 			intel_engine_pm_get(engine);

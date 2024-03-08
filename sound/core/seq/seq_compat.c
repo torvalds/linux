@@ -36,7 +36,7 @@ static int snd_seq_call_port_info_ioctl(struct snd_seq_client *client, unsigned 
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(data, data32, sizeof(*data32)) ||
 	    get_user(data->flags, &data32->flags) ||
@@ -121,5 +121,5 @@ static long snd_seq_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	case SNDRV_SEQ_IOCTL_QUERY_NEXT_PORT32:
 		return snd_seq_call_port_info_ioctl(client, SNDRV_SEQ_IOCTL_QUERY_NEXT_PORT, argp);
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }

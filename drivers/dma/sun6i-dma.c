@@ -104,7 +104,7 @@
  * Various hardware related defines
  */
 #define LLI_LAST_ITEM	0xfffff800
-#define NORMAL_WAIT	8
+#define ANALRMAL_WAIT	8
 #define DRQ_SDRAM	1
 #define LINEAR_MODE     0
 #define IO_MODE         1
@@ -127,9 +127,9 @@ struct sun6i_dma_config {
 	 * In the datasheets/user manuals of newer Allwinner SoCs, a special
 	 * bit (bit 2 at register 0x20) is present.
 	 * It's named "DMA MCLK interface circuit auto gating bit" in the
-	 * documents, and the footnote of this register says that this bit
+	 * documents, and the footanalte of this register says that this bit
 	 * should be set up when initializing the DMA controller.
-	 * Allwinner A23/A33 user manuals do not have this bit documented,
+	 * Allwinner A23/A33 user manuals do analt have this bit documented,
 	 * however these SoCs really have and need this bit, as seen in the
 	 * BSP kernel source code.
 	 */
@@ -160,7 +160,7 @@ struct sun6i_dma_lli {
 	u32			p_lli_next;
 
 	/*
-	 * This field is not used by the DMA controller, but will be
+	 * This field is analt used by the DMA controller, but will be
 	 * used by the CPU to go through the list (mostly for dumping
 	 * or freeing it).
 	 */
@@ -184,7 +184,7 @@ struct sun6i_pchan {
 
 struct sun6i_vchan {
 	struct virt_dma_chan	vc;
-	struct list_head	node;
+	struct list_head	analde;
 	struct dma_slave_config	cfg;
 	struct sun6i_pchan	*phy;
 	u8			port;
@@ -447,7 +447,7 @@ static int sun6i_dma_start_desc(struct sun6i_vchan *vchan)
 		return -EAGAIN;
 	}
 
-	list_del(&desc->node);
+	list_del(&desc->analde);
 
 	pchan->desc = to_sun6i_desc(&desc->tx);
 	pchan->done = NULL;
@@ -482,7 +482,7 @@ static void sun6i_dma_tasklet(struct tasklet_struct *t)
 	unsigned int pchan_alloc = 0;
 	unsigned int pchan_idx;
 
-	list_for_each_entry(vchan, &sdev->slave.channels, vc.chan.device_node) {
+	list_for_each_entry(vchan, &sdev->slave.channels, vc.chan.device_analde) {
 		spin_lock_irq(&vchan->vc.lock);
 
 		pchan = vchan->phy;
@@ -490,7 +490,7 @@ static void sun6i_dma_tasklet(struct tasklet_struct *t)
 		if (pchan && pchan->done) {
 			if (sun6i_dma_start_desc(vchan)) {
 				/*
-				 * No current txd associated with this channel
+				 * Anal current txd associated with this channel
 				 */
 				dev_dbg(sdev->slave.dev, "pchan %u: free\n",
 					pchan->idx);
@@ -511,10 +511,10 @@ static void sun6i_dma_tasklet(struct tasklet_struct *t)
 			continue;
 
 		vchan = list_first_entry(&sdev->pending,
-					 struct sun6i_vchan, node);
+					 struct sun6i_vchan, analde);
 
 		/* Remove from pending channels */
-		list_del_init(&vchan->node);
+		list_del_init(&vchan->analde);
 		pchan_alloc |= BIT(pchan_idx);
 
 		/* Mark this channel allocated */
@@ -544,7 +544,7 @@ static irqreturn_t sun6i_dma_interrupt(int irq, void *dev_id)
 	struct sun6i_dma_dev *sdev = dev_id;
 	struct sun6i_vchan *vchan;
 	struct sun6i_pchan *pchan;
-	int i, j, ret = IRQ_NONE;
+	int i, j, ret = IRQ_ANALNE;
 	u32 status;
 
 	for (i = 0; i < sdev->num_pchans / DMA_IRQ_CHAN_NR; i++) {
@@ -663,18 +663,18 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 	if (!len)
 		return NULL;
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc(sizeof(*txd), GFP_ANALWAIT);
 	if (!txd)
 		return NULL;
 
-	v_lli = dma_pool_alloc(sdev->pool, GFP_DMA32 | GFP_NOWAIT, &p_lli);
+	v_lli = dma_pool_alloc(sdev->pool, GFP_DMA32 | GFP_ANALWAIT, &p_lli);
 	if (!v_lli) {
 		dev_err(sdev->slave.dev, "Failed to alloc lli memory\n");
 		goto err_txd_free;
 	}
 
 	v_lli->len = len;
-	v_lli->para = NORMAL_WAIT;
+	v_lli->para = ANALRMAL_WAIT;
 	sun6i_dma_set_addr(sdev, v_lli, src, dest);
 
 	burst = convert_burst(8);
@@ -721,17 +721,17 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 		return NULL;
 	}
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc(sizeof(*txd), GFP_ANALWAIT);
 	if (!txd)
 		return NULL;
 
 	for_each_sg(sgl, sg, sg_len, i) {
-		v_lli = dma_pool_alloc(sdev->pool, GFP_DMA32 | GFP_NOWAIT, &p_lli);
+		v_lli = dma_pool_alloc(sdev->pool, GFP_DMA32 | GFP_ANALWAIT, &p_lli);
 		if (!v_lli)
 			goto err_lli_free;
 
 		v_lli->len = sg_dma_len(sg);
-		v_lli->para = NORMAL_WAIT;
+		v_lli->para = ANALRMAL_WAIT;
 
 		if (dir == DMA_MEM_TO_DEV) {
 			sun6i_dma_set_addr(sdev, v_lli,
@@ -804,19 +804,19 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_cyclic(
 		return NULL;
 	}
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc(sizeof(*txd), GFP_ANALWAIT);
 	if (!txd)
 		return NULL;
 
 	for (i = 0; i < periods; i++) {
-		v_lli = dma_pool_alloc(sdev->pool, GFP_DMA32 | GFP_NOWAIT, &p_lli);
+		v_lli = dma_pool_alloc(sdev->pool, GFP_DMA32 | GFP_ANALWAIT, &p_lli);
 		if (!v_lli) {
 			dev_err(sdev->slave.dev, "Failed to alloc lli memory\n");
 			goto err_lli_free;
 		}
 
 		v_lli->len = period_len;
-		v_lli->para = NORMAL_WAIT;
+		v_lli->para = ANALRMAL_WAIT;
 
 		if (dir == DMA_MEM_TO_DEV) {
 			sun6i_dma_set_addr(sdev, v_lli,
@@ -874,7 +874,7 @@ static int sun6i_dma_pause(struct dma_chan *chan)
 		       pchan->base + DMA_CHAN_PAUSE);
 	} else {
 		spin_lock(&sdev->lock);
-		list_del_init(&vchan->node);
+		list_del_init(&vchan->analde);
 		spin_unlock(&sdev->lock);
 	}
 
@@ -897,7 +897,7 @@ static int sun6i_dma_resume(struct dma_chan *chan)
 		       pchan->base + DMA_CHAN_PAUSE);
 	} else if (!list_empty(&vchan->vc.desc_issued)) {
 		spin_lock(&sdev->lock);
-		list_add_tail(&vchan->node, &sdev->pending);
+		list_add_tail(&vchan->analde, &sdev->pending);
 		spin_unlock(&sdev->lock);
 	}
 
@@ -915,7 +915,7 @@ static int sun6i_dma_terminate_all(struct dma_chan *chan)
 	LIST_HEAD(head);
 
 	spin_lock(&sdev->lock);
-	list_del_init(&vchan->node);
+	list_del_init(&vchan->analde);
 	spin_unlock(&sdev->lock);
 
 	spin_lock_irqsave(&vchan->vc.lock, flags);
@@ -926,7 +926,7 @@ static int sun6i_dma_terminate_all(struct dma_chan *chan)
 			struct virt_dma_desc *vd = &pchan->desc->vd;
 			struct virt_dma_chan *vc = &vchan->vc;
 
-			list_add_tail(&vd->node, &vc->desc_completed);
+			list_add_tail(&vd->analde, &vc->desc_completed);
 		}
 	}
 
@@ -998,8 +998,8 @@ static void sun6i_dma_issue_pending(struct dma_chan *chan)
 	if (vchan_issue_pending(&vchan->vc)) {
 		spin_lock(&sdev->lock);
 
-		if (!vchan->phy && list_empty(&vchan->node)) {
-			list_add_tail(&vchan->node, &sdev->pending);
+		if (!vchan->phy && list_empty(&vchan->analde)) {
+			list_add_tail(&vchan->analde, &sdev->pending);
 			tasklet_schedule(&sdev->task);
 			dev_dbg(chan2dev(chan), "vchan %p: issued\n",
 				&vchan->vc);
@@ -1007,7 +1007,7 @@ static void sun6i_dma_issue_pending(struct dma_chan *chan)
 
 		spin_unlock(&sdev->lock);
 	} else {
-		dev_dbg(chan2dev(chan), "vchan %p: nothing to issue\n",
+		dev_dbg(chan2dev(chan), "vchan %p: analthing to issue\n",
 			&vchan->vc);
 	}
 
@@ -1021,7 +1021,7 @@ static void sun6i_dma_free_chan_resources(struct dma_chan *chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sdev->lock, flags);
-	list_del_init(&vchan->node);
+	list_del_init(&vchan->analde);
 	spin_unlock_irqrestore(&sdev->lock, flags);
 
 	vchan_free_chan_resources(&vchan->vc);
@@ -1071,7 +1071,7 @@ static inline void sun6i_dma_free(struct sun6i_dma_dev *sdev)
 	for (i = 0; i < sdev->num_vchans; i++) {
 		struct sun6i_vchan *vchan = &sdev->vchans[i];
 
-		list_del(&vchan->vc.chan.device_node);
+		list_del(&vchan->vc.chan.device_analde);
 		tasklet_kill(&vchan->vc.task);
 	}
 }
@@ -1179,7 +1179,7 @@ static struct sun6i_dma_config sun8i_h3_dma_cfg = {
 
 /*
  * The A64 binding uses the number of dma channels from the
- * device tree node.
+ * device tree analde.
  */
 static struct sun6i_dma_config sun50i_a64_dma_cfg = {
 	.clock_autogate_enable = sun6i_enable_clock_autogate_h3,
@@ -1200,7 +1200,7 @@ static struct sun6i_dma_config sun50i_a64_dma_cfg = {
 
 /*
  * The A100 binding uses the number of dma channels from the
- * device tree node.
+ * device tree analde.
  */
 static struct sun6i_dma_config sun50i_a100_dma_cfg = {
 	.clock_autogate_enable = sun6i_enable_clock_autogate_h3,
@@ -1223,7 +1223,7 @@ static struct sun6i_dma_config sun50i_a100_dma_cfg = {
 
 /*
  * The H6 binding uses the number of dma channels from the
- * device tree node.
+ * device tree analde.
  */
 static struct sun6i_dma_config sun50i_h6_dma_cfg = {
 	.clock_autogate_enable = sun6i_enable_clock_autogate_h3,
@@ -1282,17 +1282,17 @@ MODULE_DEVICE_TABLE(of, sun6i_dma_match);
 
 static int sun6i_dma_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct sun6i_dma_dev *sdc;
 	int ret, i;
 
 	sdc = devm_kzalloc(&pdev->dev, sizeof(*sdc), GFP_KERNEL);
 	if (!sdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdc->cfg = of_device_get_match_data(&pdev->dev);
 	if (!sdc->cfg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sdc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sdc->base))
@@ -1304,29 +1304,29 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 
 	sdc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sdc->clk)) {
-		dev_err(&pdev->dev, "No clock specified\n");
+		dev_err(&pdev->dev, "Anal clock specified\n");
 		return PTR_ERR(sdc->clk);
 	}
 
 	if (sdc->cfg->has_mbus_clk) {
 		sdc->clk_mbus = devm_clk_get(&pdev->dev, "mbus");
 		if (IS_ERR(sdc->clk_mbus)) {
-			dev_err(&pdev->dev, "No mbus clock specified\n");
+			dev_err(&pdev->dev, "Anal mbus clock specified\n");
 			return PTR_ERR(sdc->clk_mbus);
 		}
 	}
 
 	sdc->rstc = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(sdc->rstc)) {
-		dev_err(&pdev->dev, "No reset controller specified\n");
+		dev_err(&pdev->dev, "Anal reset controller specified\n");
 		return PTR_ERR(sdc->rstc);
 	}
 
 	sdc->pool = dmam_pool_create(dev_name(&pdev->dev), &pdev->dev,
 				     sizeof(struct sun6i_dma_lli), 4, 0);
 	if (!sdc->pool) {
-		dev_err(&pdev->dev, "No memory for descriptors dma pool\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Anal memory for descriptors dma pool\n");
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, sdc);
@@ -1377,7 +1377,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If the number of vchans is not specified, derive it from the
+	 * If the number of vchans is analt specified, derive it from the
 	 * highest port number, at most one channel per port and direction.
 	 */
 	if (!sdc->num_vchans)
@@ -1386,12 +1386,12 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	sdc->pchans = devm_kcalloc(&pdev->dev, sdc->num_pchans,
 				   sizeof(struct sun6i_pchan), GFP_KERNEL);
 	if (!sdc->pchans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdc->vchans = devm_kcalloc(&pdev->dev, sdc->num_vchans,
 				   sizeof(struct sun6i_vchan), GFP_KERNEL);
 	if (!sdc->vchans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tasklet_setup(&sdc->task, sun6i_dma_tasklet);
 
@@ -1405,7 +1405,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < sdc->num_vchans; i++) {
 		struct sun6i_vchan *vchan = &sdc->vchans[i];
 
-		INIT_LIST_HEAD(&vchan->node);
+		INIT_LIST_HEAD(&vchan->analde);
 		vchan->vc.desc_free = sun6i_dma_free_desc;
 		vchan_init(&vchan->vc, &sdc->slave);
 	}
@@ -1433,7 +1433,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, sdc->irq, sun6i_dma_interrupt, 0,
 			       dev_name(&pdev->dev), sdc);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request IRQ\n");
+		dev_err(&pdev->dev, "Cananalt request IRQ\n");
 		goto err_mbus_clk_disable;
 	}
 
@@ -1443,7 +1443,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 		goto err_irq_disable;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node, sun6i_dma_of_xlate,
+	ret = of_dma_controller_register(pdev->dev.of_analde, sun6i_dma_of_xlate,
 					 sdc);
 	if (ret) {
 		dev_err(&pdev->dev, "of_dma_controller_register failed\n");
@@ -1474,7 +1474,7 @@ static void sun6i_dma_remove(struct platform_device *pdev)
 {
 	struct sun6i_dma_dev *sdc = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&sdc->slave);
 
 	sun6i_kill_tasklet(sdc);

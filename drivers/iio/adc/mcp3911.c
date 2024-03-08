@@ -3,7 +3,7 @@
  * Driver for Microchip MCP3911, Two-channel Analog Front End
  *
  * Copyright (C) 2018 Marcus Folkesson <marcus.folkesson@gmail.com>
- * Copyright (C) 2018 Kent Gustavsson <kent@minoris.se>
+ * Copyright (C) 2018 Kent Gustavsson <kent@mianalris.se>
  */
 #include <linux/bitfield.h>
 #include <linux/bits.h>
@@ -283,11 +283,11 @@ static int mcp3911_write_raw_get_fmt(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		return IIO_VAL_INT;
 	default:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	}
 }
 
@@ -303,7 +303,7 @@ static int mcp3911_read_avail(struct iio_dev *indio_dev,
 		*length = ARRAY_SIZE(mcp3911_osr_table);
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SCALE:
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		*vals = (int *)mcp3911_scale_table;
 		*length = ARRAY_SIZE(mcp3911_scale_table) * 2;
 		return IIO_AVAIL_LIST;
@@ -344,7 +344,7 @@ static int mcp3911_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = mcp3911_scale_table[ilog2(adc->gain[channel->channel])][0];
 		*val2 = mcp3911_scale_table[ilog2(adc->gain[channel->channel])][1];
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -532,7 +532,7 @@ static irqreturn_t mcp3911_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &adc->scan,
 					   iio_get_time_ns(indio_dev));
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -590,7 +590,7 @@ static int mcp3911_config(struct mcp3911 *adc)
 	else
 		regval |= FIELD_PREP(MCP3911_STATUSCOM_DRHIZ, 1);
 
-	/* Disable offset to ignore any old values in offset register */
+	/* Disable offset to iganalre any old values in offset register */
 	regval &= ~MCP3911_STATUSCOM_EN_OFFCAL;
 
 	ret =  mcp3911_write(adc, MCP3911_REG_STATUSCOM, regval, 2);
@@ -673,7 +673,7 @@ static int mcp3910_config(struct mcp3911 *adc)
 	if (ret)
 		return ret;
 
-	/* Disable offset to ignore any old values in offset register */
+	/* Disable offset to iganalre any old values in offset register */
 	return adc->chip->enable_offset(adc, 0);
 }
 
@@ -708,7 +708,7 @@ static int mcp3911_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
@@ -716,7 +716,7 @@ static int mcp3911_probe(struct spi_device *spi)
 
 	adc->vref = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(adc->vref)) {
-		if (PTR_ERR(adc->vref) == -ENODEV) {
+		if (PTR_ERR(adc->vref) == -EANALDEV) {
 			adc->vref = NULL;
 		} else {
 			return dev_err_probe(dev, PTR_ERR(adc->vref), "failed to get regulator\n");
@@ -734,7 +734,7 @@ static int mcp3911_probe(struct spi_device *spi)
 
 	adc->clki = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(adc->clki)) {
-		if (PTR_ERR(adc->clki) == -ENOENT) {
+		if (PTR_ERR(adc->clki) == -EANALENT) {
 			adc->clki = NULL;
 		} else {
 			return dev_err_probe(dev, PTR_ERR(adc->clki), "failed to get adc clk\n");
@@ -787,7 +787,7 @@ static int mcp3911_probe(struct spi_device *spi)
 		adc->trig = devm_iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
 						   iio_device_id(indio_dev));
 		if (!adc->trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		adc->trig->ops = &mcp3911_trigger_ops;
 		iio_trigger_set_drvdata(adc->trig, adc);
@@ -797,11 +797,11 @@ static int mcp3911_probe(struct spi_device *spi)
 
 		/*
 		 * The device generates interrupts as long as it is powered up.
-		 * Some platforms might not allow the option to power it down so
+		 * Some platforms might analt allow the option to power it down so
 		 * don't enable the interrupt to avoid extra load on the system.
 		 */
 		ret = devm_request_irq(dev, spi->irq, &iio_trigger_generic_data_rdy_poll,
-				       IRQF_NO_AUTOEN | IRQF_ONESHOT,
+				       IRQF_ANAL_AUTOEN | IRQF_ONESHOT,
 				       indio_dev->name, adc->trig);
 		if (ret)
 			return ret;
@@ -929,6 +929,6 @@ static struct spi_driver mcp3911_driver = {
 module_spi_driver(mcp3911_driver);
 
 MODULE_AUTHOR("Marcus Folkesson <marcus.folkesson@gmail.com>");
-MODULE_AUTHOR("Kent Gustavsson <kent@minoris.se>");
-MODULE_DESCRIPTION("Microchip Technology MCP3911");
+MODULE_AUTHOR("Kent Gustavsson <kent@mianalris.se>");
+MODULE_DESCRIPTION("Microchip Techanallogy MCP3911");
 MODULE_LICENSE("GPL v2");

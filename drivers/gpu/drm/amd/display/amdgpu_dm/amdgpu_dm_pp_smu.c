@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -59,7 +59,7 @@ bool dm_pp_apply_display_requirements(
 
 		adev->pm.pm_display_cfg.num_display =
 				pp_display_cfg->display_count;
-		adev->pm.pm_display_cfg.num_path_including_non_display =
+		adev->pm.pm_display_cfg.num_path_including_analn_display =
 				pp_display_cfg->display_count;
 
 		adev->pm.pm_display_cfg.min_core_set_clock =
@@ -328,13 +328,13 @@ bool dm_pp_get_clock_levels_by_type(
 	validation_clks.engine_max_clock *= 10;
 	validation_clks.memory_max_clock *= 10;
 
-	/* Determine the highest non-boosted level from the Validation Clocks */
+	/* Determine the highest analn-boosted level from the Validation Clocks */
 	if (clk_type == DM_PP_CLOCK_TYPE_ENGINE_CLK) {
 		for (i = 0; i < dc_clks->num_levels; i++) {
 			if (dc_clks->clocks_in_khz[i] > validation_clks.engine_max_clock) {
 				/* This clock is higher the validation clock.
 				 * Than means the previous one is the highest
-				 * non-boosted one.
+				 * analn-boosted one.
 				 */
 				DRM_INFO("DM_PPLIB: reducing engine clock level from %d to %d\n",
 						dc_clks->num_levels, i);
@@ -396,14 +396,14 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 	return true;
 }
 
-bool dm_pp_notify_wm_clock_changes(
+bool dm_pp_analtify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
 
 	/*
-	 * Limit this watermark setting for Polaris for now
+	 * Limit this watermark setting for Polaris for analw
 	 * TODO: expand this to other ASICs
 	 */
 	if ((adev->asic_type >= CHIP_POLARIS10) &&
@@ -438,7 +438,7 @@ bool dm_pp_apply_clock_for_voltage_request(
 		return false;
 
 	ret = amdgpu_dpm_display_clock_voltage_request(adev, &pp_clock_request);
-	if (ret && (ret != -EOPNOTSUPP))
+	if (ret && (ret != -EOPANALTSUPP))
 		return false;
 
 	return true;
@@ -515,7 +515,7 @@ static void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
 
-	amdgpu_dpm_notify_smu_enable_pwe(adev);
+	amdgpu_dpm_analtify_smu_enable_pwe(adev);
 }
 
 static void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
@@ -568,7 +568,7 @@ static enum pp_smu_status pp_nv_set_display_count(struct pp_smu *pp, int count)
 	int ret = 0;
 
 	ret = amdgpu_dpm_set_active_display_count(adev, count);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return PP_SMU_RESULT_UNSUPPORTED;
 	else if (ret)
 		/* 0: successful or smu.ppt_funcs->set_display_count = NULL;  1: fail */
@@ -586,7 +586,7 @@ pp_nv_set_min_deep_sleep_dcfclk(struct pp_smu *pp, int mhz)
 
 	/* 0: successful or smu.ppt_funcs->set_deep_sleep_dcefclk = NULL;1: fail */
 	ret = amdgpu_dpm_set_min_deep_sleep_dcefclk(adev, mhz);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return PP_SMU_RESULT_UNSUPPORTED;
 	else if (ret)
 		return PP_SMU_RESULT_FAIL;
@@ -609,7 +609,7 @@ static enum pp_smu_status pp_nv_set_hard_min_dcefclk_by_freq(
 	 * 1: fail
 	 */
 	ret = amdgpu_dpm_display_clock_voltage_request(adev, &clock_req);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return PP_SMU_RESULT_UNSUPPORTED;
 	else if (ret)
 		return PP_SMU_RESULT_FAIL;
@@ -632,7 +632,7 @@ pp_nv_set_hard_min_uclk_by_freq(struct pp_smu *pp, int mhz)
 	 * 1: fail
 	 */
 	ret = amdgpu_dpm_display_clock_voltage_request(adev, &clock_req);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return PP_SMU_RESULT_UNSUPPORTED;
 	else if (ret)
 		return PP_SMU_RESULT_FAIL;
@@ -680,7 +680,7 @@ static enum pp_smu_status pp_nv_set_voltage_by_freq(struct pp_smu *pp,
 	 * 1: fail
 	 */
 	ret = amdgpu_dpm_display_clock_voltage_request(adev, &clock_req);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return PP_SMU_RESULT_UNSUPPORTED;
 	else if (ret)
 		return PP_SMU_RESULT_FAIL;
@@ -697,7 +697,7 @@ static enum pp_smu_status pp_nv_get_maximum_sustainable_clocks(
 
 	ret = amdgpu_dpm_get_max_sustainable_clocks_by_dc(adev,
 							  max_clocks);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return PP_SMU_RESULT_UNSUPPORTED;
 	else if (ret)
 		return PP_SMU_RESULT_FAIL;
@@ -715,7 +715,7 @@ static enum pp_smu_status pp_nv_get_uclk_dpm_states(struct pp_smu *pp,
 	ret = amdgpu_dpm_get_uclk_dpm_states(adev,
 					     clock_values_in_khz,
 					    num_states);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return PP_SMU_RESULT_UNSUPPORTED;
 	else if (ret)
 		return PP_SMU_RESULT_FAIL;
@@ -731,7 +731,7 @@ static enum pp_smu_status pp_rn_get_dpm_clock_table(
 	int ret = 0;
 
 	ret = amdgpu_dpm_get_dpm_clock_table(adev, clock_table);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return PP_SMU_RESULT_UNSUPPORTED;
 	else if (ret)
 		return PP_SMU_RESULT_FAIL;
@@ -782,7 +782,7 @@ void dm_pp_get_funcs(
 				pp_nv_set_voltage_by_freq;
 		funcs->nv_funcs.set_wm_ranges = pp_nv_set_wm_ranges;
 
-		/* todo set_pme_wa_enable cause 4k@6ohz display not light up */
+		/* todo set_pme_wa_enable cause 4k@6ohz display analt light up */
 		funcs->nv_funcs.set_pme_wa_enable = NULL;
 		/* todo debug waring message */
 		funcs->nv_funcs.set_hard_min_uclk_by_freq = pp_nv_set_hard_min_uclk_by_freq;
@@ -800,7 +800,7 @@ void dm_pp_get_funcs(
 		funcs->rn_funcs.get_dpm_clock_table = pp_rn_get_dpm_clock_table;
 		break;
 	default:
-		DRM_ERROR("smu version is not supported !\n");
+		DRM_ERROR("smu version is analt supported !\n");
 		break;
 	}
 }

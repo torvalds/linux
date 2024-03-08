@@ -149,12 +149,12 @@ static inline const char *cdns2_raw_ring(struct cdns2_endpoint *pep,
 static inline const char *cdns2_trb_type_string(u8 type)
 {
 	switch (type) {
-	case TRB_NORMAL:
-		return "Normal";
+	case TRB_ANALRMAL:
+		return "Analrmal";
 	case TRB_LINK:
 		return "Link";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -175,7 +175,7 @@ static inline const char *cdns2_decode_trb(char *str, size_t size, u32 flags,
 				flags & TRB_CHAIN ? 'H' : 'h',
 				flags & TRB_IOC ? 'I' : 'i');
 		break;
-	case TRB_NORMAL:
+	case TRB_ANALRMAL:
 		ret = scnprintf(str, size,
 				"type: '%s', Buffer: %08x, length: %ld, burst len: %ld, "
 				"flags %c:%c:%c%c:%c",

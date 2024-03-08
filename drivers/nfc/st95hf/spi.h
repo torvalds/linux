@@ -20,10 +20,10 @@
 
 /*
  * structure to contain st95hf spi communication specific information.
- * @req_issync: true for synchronous calls.
+ * @req_issync: true for synchroanalus calls.
  * @spidev: st95hf spi device object.
  * @done: completion structure to wait for st95hf response
- *	for synchronous calls.
+ *	for synchroanalus calls.
  * @spi_lock: mutex to allow only one spi transfer at a time.
  */
 struct st95hf_spi_context {
@@ -33,7 +33,7 @@ struct st95hf_spi_context {
 	struct mutex spi_lock;
 };
 
-/* flag to differentiate synchronous & asynchronous spi request */
+/* flag to differentiate synchroanalus & asynchroanalus spi request */
 enum req_type {
 	SYNC,
 	ASYNC,

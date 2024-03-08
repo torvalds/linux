@@ -8,7 +8,7 @@
  *   Wu Hao <hao.wu@intel.com>
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enanal Luebbers <enanal.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Henry Mitchel <henry.mitchel@intel.com>
@@ -114,7 +114,7 @@ int __afu_port_disable(struct platform_device *pdev)
  * functional failure (e.g. DMA or PR operation failure) and be recoverable
  * from the failure.
  *
- * Note: the accelerator (AFU) is not accessible when its port is in reset
+ * Analte: the accelerator (AFU) is analt accessible when its port is in reset
  * (disabled). Any attempts on MMIO access to AFU while in reset, will
  * result errors reported via port error reporting sub feature (if present).
  */
@@ -436,8 +436,8 @@ port_hdr_ioctl(struct platform_device *pdev, struct dfl_feature *feature,
 			ret = -EINVAL;
 		break;
 	default:
-		dev_dbg(&pdev->dev, "%x cmd not handled", cmd);
-		ret = -ENODEV;
+		dev_dbg(&pdev->dev, "%x cmd analt handled", cmd);
+		ret = -EANALDEV;
 	}
 
 	return ret;
@@ -553,8 +553,8 @@ port_uint_ioctl(struct platform_device *pdev, struct dfl_feature *feature,
 	case DFL_FPGA_PORT_UINT_SET_IRQ:
 		return dfl_feature_ioctl_set_irq(pdev, feature, arg);
 	default:
-		dev_dbg(&pdev->dev, "%x cmd not handled", cmd);
-		return -ENODEV;
+		dev_dbg(&pdev->dev, "%x cmd analt handled", cmd);
+		return -EANALDEV;
 	}
 }
 
@@ -593,15 +593,15 @@ static struct dfl_feature_driver port_feature_drvs[] = {
 	}
 };
 
-static int afu_open(struct inode *inode, struct file *filp)
+static int afu_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct platform_device *fdev = dfl_fpga_inode_to_feature_dev(inode);
+	struct platform_device *fdev = dfl_fpga_ianalde_to_feature_dev(ianalde);
 	struct dfl_feature_platform_data *pdata;
 	int ret;
 
 	pdata = dev_get_platdata(&fdev->dev);
 	if (WARN_ON(!pdata))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&pdata->lock);
 	ret = dfl_feature_dev_use_begin(pdata, filp->f_flags & O_EXCL);
@@ -615,7 +615,7 @@ static int afu_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static int afu_release(struct inode *inode, struct file *filp)
+static int afu_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct platform_device *pdev = filp->private_data;
 	struct dfl_feature_platform_data *pdata;
@@ -643,7 +643,7 @@ static int afu_release(struct inode *inode, struct file *filp)
 static long afu_ioctl_check_extension(struct dfl_feature_platform_data *pdata,
 				      unsigned long arg)
 {
-	/* No extension support for now */
+	/* Anal extension support for analw */
 	return 0;
 }
 
@@ -781,14 +781,14 @@ static long afu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	default:
 		/*
 		 * Let sub-feature's ioctl function to handle the cmd
-		 * Sub-feature's ioctl returns -ENODEV when cmd is not
+		 * Sub-feature's ioctl returns -EANALDEV when cmd is analt
 		 * handled in this sub feature, and returns 0 and other
 		 * error code if cmd is handled.
 		 */
 		dfl_fpga_dev_for_each_feature(pdata, f)
 			if (f->ops && f->ops->ioctl) {
 				ret = f->ops->ioctl(pdev, f, cmd, arg);
-				if (ret != -ENODEV)
+				if (ret != -EANALDEV)
 					return ret;
 			}
 	}
@@ -834,7 +834,7 @@ static int afu_mmap(struct file *filp, struct vm_area_struct *vma)
 	/* Support debug access to the mapping */
 	vma->vm_ops = &afu_vma_ops;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	return remap_pfn_range(vma, vma->vm_start,
 			(region.phys + (offset - region.offset)) >> PAGE_SHIFT,
@@ -856,7 +856,7 @@ static int afu_dev_init(struct platform_device *pdev)
 
 	afu = devm_kzalloc(&pdev->dev, sizeof(*afu), GFP_KERNEL);
 	if (!afu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afu->pdata = pdata;
 

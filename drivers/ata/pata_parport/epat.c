@@ -3,7 +3,7 @@
  * (c) 1997-1998  Grant R. Guenther <grant@torque.net>
  *
  * This is the low level protocol driver for the EPAT parallel
- * to IDE adapter from Shuttle Technologies.  This adapter is
+ * to IDE adapter from Shuttle Techanallogies.  This adapter is
  * used in many popular parallel port disk products such as the
  * SyQuest EZ drives, the Avatar Shark and the Imation SuperDisk.
  */
@@ -359,7 +359,7 @@ static void __exit epat_exit(void)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
-MODULE_DESCRIPTION("Shuttle Technologies EPAT parallel port IDE adapter "
+MODULE_DESCRIPTION("Shuttle Techanallogies EPAT parallel port IDE adapter "
 		   "protocol driver");
 module_init(epat_init)
 module_exit(epat_exit)

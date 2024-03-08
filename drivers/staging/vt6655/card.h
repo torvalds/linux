@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Provide functions to setup NIC operation mode
@@ -22,7 +22,7 @@
  *
  * LOBYTE is MAC LB mode, HIBYTE is MII LB mode
  */
-#define CARD_LB_NONE            MAKEWORD(MAC_LB_NONE, 0)
+#define CARD_LB_ANALNE            MAKEWORD(MAC_LB_ANALNE, 0)
 /* PHY must ISO, avoid MAC loopback packet go out */
 #define CARD_LB_MAC             MAKEWORD(MAC_LB_INTERNAL, 0)
 #define CARD_LB_PHY             MAKEWORD(MAC_LB_EXT, 0)

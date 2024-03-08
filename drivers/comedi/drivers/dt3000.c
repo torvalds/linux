@@ -16,20 +16,20 @@
  * Updated: Mon, 14 Apr 2008 15:41:24 +0100
  * Status: works
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  *
- * There is code to support AI commands, but it may not work.
+ * There is code to support AI commands, but it may analt work.
  *
- * AO commands are not supported.
+ * AO commands are analt supported.
  */
 
 /*
  * The DT3000 series is Data Translation's attempt to make a PCI
  * data acquisition board.  The design of this series is very nice,
  * since each board has an on-board DSP (Texas Instruments TMS320C52).
- * However, a few details are a little annoying.  The boards lack
+ * However, a few details are a little ananalying.  The boards lack
  * bus-mastering DMA, which eliminates them from serious work.
- * They also are not capable of autocalibration, which is a common
+ * They also are analt capable of autocalibration, which is a common
  * feature in modern hardware.  The default firmware is pretty bad,
  * making it nearly impossible to write an RT compatible driver.
  * It would make an interesting project to write a decent firmware
@@ -79,10 +79,10 @@
 #define DPR_RESPONSE_MBX	(4 * 0xffe)
 #define DPR_CMD_MBX		(4 * 0xfff)
 #define DPR_CMD_COMPLETION(x)	((x) << 8)
-#define DPR_CMD_NOTPROCESSED	DPR_CMD_COMPLETION(0x00)
-#define DPR_CMD_NOERROR		DPR_CMD_COMPLETION(0x55)
+#define DPR_CMD_ANALTPROCESSED	DPR_CMD_COMPLETION(0x00)
+#define DPR_CMD_ANALERROR		DPR_CMD_COMPLETION(0x55)
 #define DPR_CMD_ERROR		DPR_CMD_COMPLETION(0xaa)
-#define DPR_CMD_NOTSUPPORTED	DPR_CMD_COMPLETION(0xff)
+#define DPR_CMD_ANALTSUPPORTED	DPR_CMD_COMPLETION(0xff)
 #define DPR_CMD_COMPLETION_MASK	DPR_CMD_COMPLETION(0xff)
 #define DPR_CMD(x)		((x) << 0)
 #define DPR_CMD_GETBRDINFO	DPR_CMD(0)
@@ -233,12 +233,12 @@ static void dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 	for (i = 0; i < DPR_CMD_TIMEOUT; i++) {
 		status = readw(dev->mmio + DPR_CMD_MBX);
 		status &= DPR_CMD_COMPLETION_MASK;
-		if (status != DPR_CMD_NOTPROCESSED)
+		if (status != DPR_CMD_ANALTPROCESSED)
 			break;
 		udelay(1);
 	}
 
-	if (status != DPR_CMD_NOERROR)
+	if (status != DPR_CMD_ANALERROR)
 		dev_dbg(dev->class_dev, "%s: timeout/error status=0x%04x\n",
 			__func__, status);
 }
@@ -320,7 +320,7 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	unsigned int status;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = readw(dev->mmio + DPR_INTR_FLAG);
 
@@ -338,30 +338,30 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
+static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *naanalsec,
 			    unsigned int flags)
 {
 	unsigned int divider, base, prescale;
 
 	/* This function needs improvement */
-	/* Don't know if divider==0 works. */
+	/* Don't kanalw if divider==0 works. */
 
 	for (prescale = 0; prescale < 16; prescale++) {
 		base = timer_base * (prescale + 1);
 		switch (flags & CMDF_ROUND_MASK) {
 		case CMDF_ROUND_NEAREST:
 		default:
-			divider = DIV_ROUND_CLOSEST(*nanosec, base);
+			divider = DIV_ROUND_CLOSEST(*naanalsec, base);
 			break;
 		case CMDF_ROUND_DOWN:
-			divider = (*nanosec) / base;
+			divider = (*naanalsec) / base;
 			break;
 		case CMDF_ROUND_UP:
-			divider = DIV_ROUND_UP(*nanosec, base);
+			divider = DIV_ROUND_UP(*naanalsec, base);
 			break;
 		}
 		if (divider < 65536) {
-			*nanosec = divider * base;
+			*naanalsec = divider * base;
 			return (prescale << 16) | (divider);
 		}
 	}
@@ -369,7 +369,7 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 	prescale = 15;
 	base = timer_base * (prescale + 1);
 	divider = 65535;
-	*nanosec = divider * base;
+	*naanalsec = divider * base;
 	return (prescale << 16) | (divider);
 }
 
@@ -382,7 +382,7 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
@@ -417,7 +417,7 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -617,13 +617,13 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(dt3k_boardtypes))
 		board = &dt3k_boardtypes[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret < 0)
@@ -631,7 +631,7 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 
 	dev->mmio = pci_ioremap_bar(pcidev, 0);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pcidev->irq) {
 		ret = request_irq(pcidev->irq, dt3k_interrupt, IRQF_SHARED,
@@ -695,7 +695,7 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 0x1000;
 	s->maxdata	= 0xff;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkanalwn;
 	s->insn_read	= dt3k_mem_insn_read;
 
 	return 0;

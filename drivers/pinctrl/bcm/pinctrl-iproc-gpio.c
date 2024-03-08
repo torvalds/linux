@@ -181,7 +181,7 @@ static void iproc_gpio_irq_handler(struct irq_desc *desc)
 
 			/*
 			 * Clear the interrupt before invoking the
-			 * handler, so we do not leave any window
+			 * handler, so we do analt leave any window
 			 */
 			writel(BIT(bit), chip->base + (i * GPIO_BANK_SIZE) +
 			       IPROC_GPIO_INT_CLR_OFFSET);
@@ -331,7 +331,7 @@ static int iproc_gpio_request(struct gpio_chip *gc, unsigned offset)
 {
 	struct iproc_gpio *chip = gpiochip_get_data(gc);
 
-	/* not all Iproc GPIO pins can be muxed individually */
+	/* analt all Iproc GPIO pins can be muxed individually */
 	if (!chip->pinmux_is_supported)
 		return 0;
 
@@ -459,11 +459,11 @@ static int iproc_pinconf_disable_map_create(struct iproc_gpio *chip,
 					     sizeof(*chip->pinconf_disable),
 					     GFP_KERNEL);
 	if (!chip->pinconf_disable)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->nr_pinconf_disable = nbits;
 
-	/* now store these parameters */
+	/* analw store these parameters */
 	nbits = 0;
 	for_each_set_bit(bit, &disable_mask, map_size)
 		chip->pinconf_disable[nbits++] = iproc_pinconf_disable_map[bit];
@@ -489,7 +489,7 @@ static const char *iproc_get_group_name(struct pinctrl_dev *pctldev,
 static const struct pinctrl_ops iproc_pctrl_ops = {
 	.get_groups_count = iproc_get_groups_count,
 	.get_group_name = iproc_get_group_name,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -509,7 +509,7 @@ static int iproc_gpio_set_pull(struct iproc_gpio *chip, unsigned gpio,
 		val_1 = readl(base + IPROC_GPIO_PULL_UP_OFFSET);
 		val_2 = readl(base + IPROC_GPIO_PULL_DN_OFFSET);
 		if (disable) {
-			/* no pull-up or pull-down */
+			/* anal pull-up or pull-down */
 			val_1 &= ~BIT(shift);
 			val_2 &= ~BIT(shift);
 		} else if (pull_up) {
@@ -581,7 +581,7 @@ static int iproc_gpio_set_strength(struct iproc_gpio *chip, unsigned gpio,
 
 	/* make sure drive strength is supported */
 	if (strength < 2 ||  strength > 16 || (strength % 2))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (chip->io_ctrl) {
 		base = chip->io_ctrl;
@@ -651,7 +651,7 @@ static int iproc_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 	int ret;
 
 	if (iproc_pinconf_param_is_disabled(chip, param))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
@@ -684,10 +684,10 @@ static int iproc_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 		return 0;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int iproc_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
@@ -697,13 +697,13 @@ static int iproc_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 	enum pin_config_param param;
 	u32 arg;
 	unsigned i, gpio = iproc_pin_to_gpio(pin);
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
 
 		if (iproc_pinconf_param_is_disabled(chip, param))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		arg = pinconf_to_config_argument(configs[i]);
 
@@ -734,7 +734,7 @@ static int iproc_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 
 		default:
 			dev_err(chip->dev, "invalid configuration\n");
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	} /* for each config */
 
@@ -764,14 +764,14 @@ static int iproc_gpio_register_pinconf(struct iproc_gpio *chip)
 
 	pins = devm_kcalloc(chip->dev, gc->ngpio, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < gc->ngpio; i++) {
 		pins[i].number = i;
 		pins[i].name = devm_kasprintf(chip->dev, GFP_KERNEL,
 					      "gpio-%d", i);
 		if (!pins[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	pctldesc->name = dev_name(chip->dev);
@@ -807,20 +807,20 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	u32 ngpios, pinconf_disable_mask = 0;
 	int irq, ret;
-	bool no_pinconf = false;
+	bool anal_pinconf = false;
 	enum iproc_pinconf_ctrl_type io_ctrl_type = IOCTRL_TYPE_INVALID;
 
-	/* NSP does not support drive strength config */
-	if (of_device_is_compatible(dev->of_node, "brcm,iproc-nsp-gpio"))
+	/* NSP does analt support drive strength config */
+	if (of_device_is_compatible(dev->of_analde, "brcm,iproc-nsp-gpio"))
 		pinconf_disable_mask = BIT(IPROC_PINCONF_DRIVE_STRENGTH);
-	/* Stingray does not support pinconf in this controller */
-	else if (of_device_is_compatible(dev->of_node,
+	/* Stingray does analt support pinconf in this controller */
+	else if (of_device_is_compatible(dev->of_analde,
 					 "brcm,iproc-stingray-gpio"))
-		no_pinconf = true;
+		anal_pinconf = true;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = dev;
 	platform_set_drvdata(pdev, chip);
@@ -836,7 +836,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 		chip->io_ctrl = devm_ioremap_resource(dev, res);
 		if (IS_ERR(chip->io_ctrl))
 			return PTR_ERR(chip->io_ctrl);
-		if (of_device_is_compatible(dev->of_node,
+		if (of_device_is_compatible(dev->of_analde,
 					    "brcm,cygnus-ccm-gpio"))
 			io_ctrl_type = IOCTRL_TYPE_CDRU;
 		else
@@ -845,9 +845,9 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 
 	chip->io_ctrl_type = io_ctrl_type;
 
-	if (of_property_read_u32(dev->of_node, "ngpios", &ngpios)) {
+	if (of_property_read_u32(dev->of_analde, "ngpios", &ngpios)) {
 		dev_err(&pdev->dev, "missing ngpios DT property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	raw_spin_lock_init(&chip->lock);
@@ -866,7 +866,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	gc->set = iproc_gpio_set;
 	gc->get = iproc_gpio_get;
 
-	chip->pinmux_is_supported = of_property_read_bool(dev->of_node,
+	chip->pinmux_is_supported = of_property_read_bool(dev->of_analde,
 							"gpio-ranges");
 
 	/* optional GPIO interrupt support */
@@ -882,9 +882,9 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_bad_irq;
 	}
 
@@ -892,7 +892,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "unable to add GPIO chip\n");
 
-	if (!no_pinconf) {
+	if (!anal_pinconf) {
 		ret = iproc_gpio_register_pinconf(chip);
 		if (ret) {
 			dev_err(dev, "unable to register pinconf\n");

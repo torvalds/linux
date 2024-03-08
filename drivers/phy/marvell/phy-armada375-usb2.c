@@ -35,7 +35,7 @@ static int armada375_usb_phy_init(struct phy *phy)
 
 	cluster_phy = phy_get_drvdata(phy);
 	if (!cluster_phy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = readl(cluster_phy->reg);
 	if (cluster_phy->use_usb3)
@@ -57,8 +57,8 @@ static const struct phy_ops armada375_usb_phy_ops = {
  * when two controllers want to use this PHY. But if this case occurs
  * then we provide a phy to the first one and return an error for the
  * next one. This error has also to be an error returned by
- * devm_phy_optional_get() so different from ENODEV for USB2. In the
- * USB3 case it still optional and we use ENODEV.
+ * devm_phy_optional_get() so different from EANALDEV for USB2. In the
+ * USB3 case it still optional and we use EANALDEV.
  */
 static struct phy *armada375_usb_phy_xlate(struct device *dev,
 					struct of_phandle_args *args)
@@ -66,7 +66,7 @@ static struct phy *armada375_usb_phy_xlate(struct device *dev,
 	struct armada375_cluster_phy *cluster_phy = dev_get_drvdata(dev);
 
 	if (!cluster_phy)
-		return  ERR_PTR(-ENODEV);
+		return  ERR_PTR(-EANALDEV);
 
 	/*
 	 * Either the phy had never been requested and then the first
@@ -74,14 +74,14 @@ static struct phy *armada375_usb_phy_xlate(struct device *dev,
 	 * requested in this case, we only allow to use it with the
 	 * same configuration.
 	 */
-	if (WARN_ON((cluster_phy->phy_provided != PHY_NONE) &&
+	if (WARN_ON((cluster_phy->phy_provided != PHY_ANALNE) &&
 			(cluster_phy->phy_provided != args->args[0]))) {
 		dev_err(dev, "This PHY has already been provided!\n");
 		dev_err(dev, "Check your device tree, only one controller can use it\n.");
 		if (args->args[0] == PHY_TYPE_USB2)
 			return ERR_PTR(-EBUSY);
 		else
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 	}
 
 	if (args->args[0] == PHY_TYPE_USB2)
@@ -90,7 +90,7 @@ static struct phy *armada375_usb_phy_xlate(struct device *dev,
 		cluster_phy->use_usb3 = true;
 	else {
 		dev_err(dev, "Invalid PHY mode\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	/* Store which phy mode is used for next test */
@@ -109,7 +109,7 @@ static int armada375_usb_phy_probe(struct platform_device *pdev)
 
 	cluster_phy = devm_kzalloc(dev, sizeof(*cluster_phy), GFP_KERNEL);
 	if (!cluster_phy)
-		return  -ENOMEM;
+		return  -EANALMEM;
 
 	usb_cluster_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(usb_cluster_base))

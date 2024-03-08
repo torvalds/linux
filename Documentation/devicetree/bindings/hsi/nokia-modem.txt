@@ -1,14 +1,14 @@
-Nokia modem client bindings
+Analkia modem client bindings
 
-The Nokia modem HSI client follows the common HSI client binding
+The Analkia modem HSI client follows the common HSI client binding
 and inherits all required properties. The following additional
-properties are needed by the Nokia modem HSI client:
+properties are needed by the Analkia modem HSI client:
 
 Required properties:
 - compatible:		Should be one of
-      "nokia,n900-modem"
-      "nokia,n950-modem"
-      "nokia,n9-modem"
+      "analkia,n900-modem"
+      "analkia,n950-modem"
+      "analkia,n9-modem"
 - hsi-channel-names:	Should contain the following strings
       "mcsaab-control"
       "speech-control"
@@ -28,7 +28,7 @@ Example:
 
 &ssi_port {
 	modem: hsi-client {
-		compatible = "nokia,n900-modem";
+		compatible = "analkia,n900-modem";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&modem_pins>;

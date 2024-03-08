@@ -124,7 +124,7 @@
 #define LNB_CONTROL(i)			(LNB_BASE + (i) * 0x20 + 0x00)
 
 #define LNB_CMD				(7ULL << 0)
-#define LNB_CMD_NOP			0
+#define LNB_CMD_ANALP			0
 #define LNB_CMD_INIT			1
 #define LNB_CMD_LOW			3
 #define LNB_CMD_HIGH			4

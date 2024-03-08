@@ -51,8 +51,8 @@ properties:
 patternProperties:
   "^input@[0-15]$":
     description:
-      Wake-up input nodes. These are usually described in the "board" part of
-      the Device Tree. Note also that input 0 is linked to the wake-up pin and
+      Wake-up input analdes. These are usually described in the "board" part of
+      the Device Tree. Analte also that input 0 is linked to the wake-up pin and
       is frequently used.
     type: object
     properties:

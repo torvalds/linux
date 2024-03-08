@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2020, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2020, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #include <rdma/uverbs_ioctl.h>
@@ -49,7 +49,7 @@ static int fill_vport_icm_addr(struct mlx5_core_dev *mdev, u16 vport,
 		MLX5_SET(query_esw_vport_context_in, in, vport_number, vport);
 		MLX5_SET(query_esw_vport_context_in, in, other_vport, true);
 
-		err = mlx5_cmd_exec_inout(mdev, query_esw_vport_context, in,
+		err = mlx5_cmd_exec_ianalut(mdev, query_esw_vport_context, in,
 					  out);
 
 		if (err)
@@ -89,7 +89,7 @@ static int fill_vport_vhca_id(struct mlx5_core_dev *mdev, u16 vport,
 
 	out = kzalloc(out_sz, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, other_function, true);
@@ -120,7 +120,7 @@ static int fill_switchdev_info(struct mlx5_ib_dev *dev, u32 port_num,
 
 	rep = dev->port[port_num - 1].rep;
 	if (!rep)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mdev = mlx5_eswitch_get_core_dev(rep->esw);
 	if (!mdev)

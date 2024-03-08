@@ -50,7 +50,7 @@
 #define SYN_CAP_SUBMODEL_ID(c)		(((c) & GENMASK(15, 8)) >> 8)
 #define SYN_EXT_CAP_REQUESTS(c)		(((c) & GENMASK(22, 20)) >> 20)
 #define SYN_CAP_MB_MASK			GENMASK(15, 12)
-#define SYN_CAP_MULTI_BUTTON_NO(ec)	(((ec) & SYN_CAP_MB_MASK) >> 12)
+#define SYN_CAP_MULTI_BUTTON_ANAL(ec)	(((ec) & SYN_CAP_MB_MASK) >> 12)
 #define SYN_CAP_PRODUCT_ID(ec)		(((ec) & GENMASK(23, 16)) >> 16)
 #define SYN_MEXT_CAP_BIT(m)		((m) & BIT(1))
 
@@ -63,18 +63,18 @@
  *					can be adjusted
  * 1	0x02	report max		query 0x0d gives max coord reported
  * 1	0x04	clearpad		sensor is ClearPad product
- * 1	0x08	advanced gesture	not particularly meaningful
+ * 1	0x08	advanced gesture	analt particularly meaningful
  * 1	0x10	clickpad bit 0		1-button ClickPad
  * 1	0x60	multifinger mode	identifies firmware finger counting
- *					(not reporting!) algorithm.
- *					Not particularly meaningful
+ *					(analt reporting!) algorithm.
+ *					Analt particularly meaningful
  * 1	0x80	covered pad		W clipped to 14, 15 == pad mostly covered
  * 2	0x01	clickpad bit 1		2-button ClickPad
  * 2	0x02	deluxe LED controls	touchpad support LED commands
  *					ala multimedia control bar
  * 2	0x04	reduced filtering	firmware does less filtering on
  *					position data, driver should watch
- *					for noise.
+ *					for analise.
  * 2	0x08	image sensor		image sensor tracks 5 fingers, but only
  *					reports 2.
  * 2	0x01	uniform clickpad	whole clickpad moves instead of being
@@ -125,8 +125,8 @@
 /* synaptics identify query bits */
 #define SYN_ID_MODEL(i)			(((i) & GENMASK(7, 4)) >> 4)
 #define SYN_ID_MAJOR(i)			(((i) & GENMASK(3, 0)) >> 0)
-#define SYN_ID_MINOR(i)			(((i) & GENMASK(23, 16)) >> 16)
-#define SYN_ID_FULL(i)			((SYN_ID_MAJOR(i) << 8) | SYN_ID_MINOR(i))
+#define SYN_ID_MIANALR(i)			(((i) & GENMASK(23, 16)) >> 16)
+#define SYN_ID_FULL(i)			((SYN_ID_MAJOR(i) << 8) | SYN_ID_MIANALR(i))
 #define SYN_ID_IS_SYNAPTICS(i)		(((i) & GENMASK(15, 8)) == 0x004700U)
 #define SYN_ID_DISGEST_SUPPORTED(i)	(SYN_ID_MAJOR(i) >= 4)
 

@@ -85,7 +85,7 @@
 #define	COMP_CFG_V1		0
 #define	COMP_TRUST_CFG_V1	0x14
 
-/* Resource group info for manager, and non-ported generic device-components */
+/* Resource group info for manager, and analn-ported generic device-components */
 #define EE_MGR_RSC_GRP	(1 << 10)
 #define EE_NGD_2	(2 << 6)
 #define EE_NGD_1	0
@@ -196,7 +196,7 @@ static irqreturn_t qcom_slim_handle_tx_irq(struct qcom_slim_ctrl *ctrl,
 			intf_intr_stat, intf_stat);
 		dev_err(ctrl->dev, "TX Nack INTF:ie:0x%x\n",
 			intf_ie_stat);
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 	}
 
 	slim_ack_txn(ctrl, err);
@@ -217,7 +217,7 @@ static irqreturn_t qcom_slim_handle_rx_irq(struct qcom_slim_ctrl *ctrl,
 	mc = SLIM_HEADER_GET_MC(pkt[0]>>8);
 
 	/*
-	 * this message cannot be handled by ISR, so
+	 * this message cananalt be handled by ISR, so
 	 * let work-queue handle it
 	 */
 	if (mt == SLIM_MSG_MT_CORE && mc == SLIM_MSG_MC_REPORT_PRESENT) {
@@ -264,7 +264,7 @@ static irqreturn_t qcom_slim_interrupt(int irq, void *d)
 {
 	struct qcom_slim_ctrl *ctrl = d;
 	u32 stat = readl_relaxed(ctrl->base + MGR_INT_STAT);
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	if (stat & MGR_INT_TX_MSG_SENT || stat & MGR_INT_TX_NACKED_2)
 		ret = qcom_slim_handle_tx_irq(ctrl, stat);
@@ -347,7 +347,7 @@ static int qcom_xfer_msg(struct slim_controller *sctrl,
 	}
 
 	if (retries < 0 && !pbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	puc = (u8 *)pbuf;
 	head = (u32 *)pbuf;
@@ -425,7 +425,7 @@ static int slim_get_current_rxbuf(struct qcom_slim_ctrl *ctrl, void *buf)
 	spin_lock_irqsave(&ctrl->rx.lock, flags);
 	if (ctrl->rx.tail == ctrl->rx.head) {
 		spin_unlock_irqrestore(&ctrl->rx.lock, flags);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 	memcpy(buf, ctrl->rx.base + (ctrl->rx.head * ctrl->rx.sl_sz),
 				ctrl->rx.sl_sz);
@@ -444,7 +444,7 @@ static void qcom_slim_rxwq(struct work_struct *work)
 	struct qcom_slim_ctrl *ctrl = container_of(work, struct qcom_slim_ctrl,
 						 wd);
 
-	while ((slim_get_current_rxbuf(ctrl, buf)) != -ENODATA) {
+	while ((slim_get_current_rxbuf(ctrl, buf)) != -EANALDATA) {
 		mt = SLIM_HEADER_GET_MT(buf[0]);
 		mc = SLIM_HEADER_GET_MC(buf[1]);
 		if (mt == SLIM_MSG_MT_CORE &&
@@ -492,7 +492,7 @@ static int qcom_slim_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->hclk = devm_clk_get(&pdev->dev, "iface");
 	if (IS_ERR(ctrl->hclk))
@@ -532,7 +532,7 @@ static int qcom_slim_probe(struct platform_device *pdev)
 	ctrl->wr_comp = kcalloc(QCOM_TX_MSGS, sizeof(struct completion *),
 				GFP_KERNEL);
 	if (!ctrl->wr_comp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ctrl->rx.lock);
 	spin_lock_init(&ctrl->tx.lock);
@@ -540,7 +540,7 @@ static int qcom_slim_probe(struct platform_device *pdev)
 	ctrl->rxwq = create_singlethread_workqueue("qcom_slim_rx");
 	if (!ctrl->rxwq) {
 		dev_err(ctrl->dev, "Failed to start Rx WQ\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctrl->framer.rootfreq = SLIM_ROOT_FREQ / 8;
@@ -569,14 +569,14 @@ static int qcom_slim_probe(struct platform_device *pdev)
 	ctrl->tx.base = devm_kcalloc(&pdev->dev, ctrl->tx.n, ctrl->tx.sl_sz,
 				     GFP_KERNEL);
 	if (!ctrl->tx.base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	ctrl->rx.base = devm_kcalloc(&pdev->dev,ctrl->rx.n, ctrl->rx.sl_sz,
 				     GFP_KERNEL);
 	if (!ctrl->rx.base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -639,7 +639,7 @@ static int qcom_slim_remove(struct platform_device *pdev)
 }
 
 /*
- * If PM_RUNTIME is not defined, these 2 functions become helper
+ * If PM_RUNTIME is analt defined, these 2 functions become helper
  * functions to be called from system suspend/resume.
  */
 #ifdef CONFIG_PM
@@ -651,7 +651,7 @@ static int qcom_slim_runtime_suspend(struct device *device)
 	dev_dbg(device, "pm_runtime: suspending...\n");
 	ret = slim_ctrl_clk_pause(&ctrl->ctrl, false, SLIM_CLK_UNSPECIFIED);
 	if (ret) {
-		dev_err(device, "clk pause not entered:%d", ret);
+		dev_err(device, "clk pause analt entered:%d", ret);
 	} else {
 		disable_irq(ctrl->irq);
 		clk_disable_unprepare(ctrl->hclk);
@@ -668,7 +668,7 @@ static int qcom_slim_runtime_resume(struct device *device)
 	dev_dbg(device, "pm_runtime: resuming...\n");
 	ret = slim_ctrl_clk_pause(&ctrl->ctrl, true, 0);
 	if (ret)
-		dev_err(device, "clk pause not exited:%d", ret);
+		dev_err(device, "clk pause analt exited:%d", ret);
 	return ret;
 }
 #endif

@@ -20,7 +20,7 @@
 #include <linux/bpf.h>
 #include <string.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <linux/if_ether.h>
@@ -41,7 +41,7 @@ static int test_sock(void)
 	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(key), sizeof(value),
 				256, NULL);
 	if (map_fd < 0) {
-		printf("failed to create map '%s'\n", strerror(errno));
+		printf("failed to create map '%s'\n", strerror(erranal));
 		goto cleanup;
 	}
 
@@ -68,7 +68,7 @@ static int test_sock(void)
 	prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL",
 				prog, insns_cnt, &opts);
 	if (prog_fd < 0) {
-		printf("failed to load prog '%s'\n", strerror(errno));
+		printf("failed to load prog '%s'\n", strerror(erranal));
 		goto cleanup;
 	}
 
@@ -76,7 +76,7 @@ static int test_sock(void)
 
 	if (setsockopt(sock, SOL_SOCKET, SO_ATTACH_BPF, &prog_fd,
 		       sizeof(prog_fd)) < 0) {
-		printf("setsockopt %s\n", strerror(errno));
+		printf("setsockopt %s\n", strerror(erranal));
 		goto cleanup;
 	}
 

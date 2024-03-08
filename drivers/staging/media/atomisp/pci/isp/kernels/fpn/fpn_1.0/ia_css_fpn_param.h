@@ -22,7 +22,7 @@
 
 #define FPN_BITS_PER_PIXEL	16
 
-/* FPNR (Fixed Pattern Noise Reduction) */
+/* FPNR (Fixed Pattern Analise Reduction) */
 struct sh_css_isp_fpn_params {
 	s32 shift;
 	s32 enabled;

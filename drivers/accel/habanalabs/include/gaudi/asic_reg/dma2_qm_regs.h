@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DMA2_QM_REGS_H_
@@ -37,15 +37,15 @@
 
 #define mmDMA2_QM_GLBL_SECURE_PROPS_4                                0x548020
 
-#define mmDMA2_QM_GLBL_NON_SECURE_PROPS_0                            0x548024
+#define mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_0                            0x548024
 
-#define mmDMA2_QM_GLBL_NON_SECURE_PROPS_1                            0x548028
+#define mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_1                            0x548028
 
-#define mmDMA2_QM_GLBL_NON_SECURE_PROPS_2                            0x54802C
+#define mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_2                            0x54802C
 
-#define mmDMA2_QM_GLBL_NON_SECURE_PROPS_3                            0x548030
+#define mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_3                            0x548030
 
-#define mmDMA2_QM_GLBL_NON_SECURE_PROPS_4                            0x548034
+#define mmDMA2_QM_GLBL_ANALN_SECURE_PROPS_4                            0x548034
 
 #define mmDMA2_QM_GLBL_STS0                                          0x548038
 
@@ -709,7 +709,7 @@
 
 #define mmDMA2_QM_ARB_MSG_AWUSER_SEC_PROP                            0x548B4C
 
-#define mmDMA2_QM_ARB_MSG_AWUSER_NON_SEC_PROP                        0x548B50
+#define mmDMA2_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP                        0x548B50
 
 #define mmDMA2_QM_ARB_BASE_LO                                        0x548B54
 

@@ -77,7 +77,7 @@ static int wm8739_write(struct v4l2_subdev *sd, int reg, u16 val)
 		if (i2c_smbus_write_byte_data(client,
 				(reg << 1) | (val >> 8), val & 0xff) == 0)
 			return 0;
-	v4l2_err(sd, "I2C: cannot write %03x to register R%d\n", val, reg);
+	v4l2_err(sd, "I2C: cananalt write %03x to register R%d\n", val, reg);
 	return -1;
 }
 
@@ -98,7 +98,7 @@ static int wm8739_s_ctrl(struct v4l2_ctrl *ctrl)
 		return -EINVAL;
 	}
 
-	/* normalize ( 65535 to 0 -> 31 to 0 (12dB to -34.5dB) ) */
+	/* analrmalize ( 65535 to 0 -> 31 to 0 (12dB to -34.5dB) ) */
 	work_l = (min(65536 - state->balance->val, 32768) * state->volume->val) / 32768;
 	work_r = (min(state->balance->val, 32768) * state->volume->val) / 32768;
 
@@ -192,7 +192,7 @@ static int wm8739_probe(struct i2c_client *client)
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &wm8739_ops);
 	v4l2_ctrl_handler_init(&state->hdl, 2);
@@ -224,7 +224,7 @@ static int wm8739_probe(struct i2c_client *client)
 	/* Digital Audio interface format:
 	   Enable Master mode, 24 bit, MSB first/left justified */
 	wm8739_write(sd, R7, 0x049);
-	/* sampling control: normal, 256fs, 48KHz sampling rate */
+	/* sampling control: analrmal, 256fs, 48KHz sampling rate */
 	wm8739_write(sd, R8, 0x000);
 	/* activate */
 	wm8739_write(sd, R9, 0x001);

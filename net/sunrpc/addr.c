@@ -12,8 +12,8 @@
  * presentation format IP address followed by a port number in
  * "hibyte.lobyte" format.
  *
- * IPv6 addresses can also include a scope ID, typically denoted by
- * a '%' followed by a device name or a non-negative integer.  Refer to
+ * IPv6 addresses can also include a scope ID, typically deanalted by
+ * a '%' followed by a device name or a analn-negative integer.  Refer to
  * RFC 4291, Section 2.2 for details on IPv6 presentation formats.
  */
 
@@ -25,7 +25,7 @@
 
 #if IS_ENABLED(CONFIG_IPV6)
 
-static size_t rpc_ntop6_noscopeid(const struct sockaddr *sap,
+static size_t rpc_ntop6_analscopeid(const struct sockaddr *sap,
 				  char *buf, const int buflen)
 {
 	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
@@ -71,7 +71,7 @@ static size_t rpc_ntop6(const struct sockaddr *sap,
 	size_t len;
 	int rc;
 
-	len = rpc_ntop6_noscopeid(sap, buf, buflen);
+	len = rpc_ntop6_analscopeid(sap, buf, buflen);
 	if (unlikely(len == 0))
 		return len;
 
@@ -95,7 +95,7 @@ static size_t rpc_ntop6(const struct sockaddr *sap,
 
 #else	/* !IS_ENABLED(CONFIG_IPV6) */
 
-static size_t rpc_ntop6_noscopeid(const struct sockaddr *sap,
+static size_t rpc_ntop6_analscopeid(const struct sockaddr *sap,
 				  char *buf, const int buflen)
 {
 	return 0;
@@ -275,7 +275,7 @@ char *rpc_sockaddr2uaddr(const struct sockaddr *sap, gfp_t gfp_flags)
 		port = ntohs(((struct sockaddr_in *)sap)->sin_port);
 		break;
 	case AF_INET6:
-		if (rpc_ntop6_noscopeid(sap, addrbuf, sizeof(addrbuf)) == 0)
+		if (rpc_ntop6_analscopeid(sap, addrbuf, sizeof(addrbuf)) == 0)
 			return NULL;
 		port = ntohs(((struct sockaddr_in6 *)sap)->sin6_port);
 		break;
@@ -301,7 +301,7 @@ char *rpc_sockaddr2uaddr(const struct sockaddr *sap, gfp_t gfp_flags)
  * @sap: buffer into which to plant socket address
  * @salen: size of buffer
  *
- * @uaddr does not have to be '\0'-terminated, but kstrtou8() and
+ * @uaddr does analt have to be '\0'-terminated, but kstrtou8() and
  * rpc_pton() require proper string termination to be successful.
  *
  * Returns the size of the socket address if successful; otherwise

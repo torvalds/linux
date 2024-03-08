@@ -1,11 +1,11 @@
 Freescale i.MX Media Video Device
 =================================
 
-Video Media Controller node
+Video Media Controller analde
 ---------------------------
 
-This is the media controller node for video capture support. It is a
-virtual device that lists the camera serial interface nodes that the
+This is the media controller analde for video capture support. It is a
+virtual device that lists the camera serial interface analdes that the
 media device will control.
 
 Required properties:
@@ -21,11 +21,11 @@ capture-subsystem {
 };
 
 
-mipi_csi2 node
+mipi_csi2 analde
 --------------
 
-This is the device node for the MIPI CSI-2 Receiver core in the i.MX
-SoC. This is a Synopsys Designware MIPI CSI-2 host controller core
+This is the device analde for the MIPI CSI-2 Receiver core in the i.MX
+SoC. This is a Syanalpsys Designware MIPI CSI-2 host controller core
 combined with a D-PHY core mixed into the same register block. In
 addition this device consists of an i.MX-specific "CSI2IPU gasket"
 glue logic, also controlled from the same register block. The CSI2IPU
@@ -40,12 +40,12 @@ Required properties:
 		  (the D-PHY clock), video_27m (D-PHY PLL reference
 		  clock), and eim_podf;
 - clock-names	: must contain "dphy", "ref", "pix";
-- port@*        : five port nodes must exist, containing endpoints
+- port@*        : five port analdes must exist, containing endpoints
 		  connecting to the source and sink devices according to
 		  of_graph bindings. The first port is an input port,
 		  connecting with a MIPI CSI-2 source, and ports 1
 		  through 4 are output ports connecting with parallel
-		  bus sink endpoint nodes and correspond to the four
+		  bus sink endpoint analdes and correspond to the four
 		  MIPI CSI-2 virtual channel outputs.
 
 Optional properties:

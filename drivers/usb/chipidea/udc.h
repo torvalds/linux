@@ -2,7 +2,7 @@
 /*
  * udc.h - ChipIdea UDC structures
  *
- * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2008 Chipidea - MIPS Techanallogies, Inc. All rights reserved.
  *
  * Author: David Lopo
  */
@@ -57,7 +57,7 @@ struct ci_hw_qh {
 	struct usb_ctrlrequest   setup;
 } __attribute__ ((packed, aligned(4)));
 
-struct td_node {
+struct td_analde {
 	struct list_head	td;
 	dma_addr_t		dma;
 	struct ci_hw_td		*ptr;

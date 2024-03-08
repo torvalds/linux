@@ -216,7 +216,7 @@ static int mc13783_set_fmt_sync(struct snd_soc_dai *dai, unsigned int fmt)
 		return ret;
 
 	/*
-	 * In synchronous mode force the voice codec into consumer mode
+	 * In synchroanalus mode force the voice codec into consumer mode
 	 * so that the clock / framesync from the stereo DAC is used
 	 */
 	fmt &= ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
@@ -465,19 +465,19 @@ static const struct snd_soc_dapm_widget mc13783_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("MC2 Amp", MC13783_AUDIO_TX, 9, 0, &mc2_amp_ctl),
 	SND_SOC_DAPM_SWITCH("TXIN Amp", MC13783_AUDIO_TX, 11, 0, &atx_amp_ctl),
 
-	SND_SOC_DAPM_MUX("PGA Left Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PGA Left Input Mux", SND_SOC_ANALPM, 0, 0,
 			      &left_input_mux),
-	SND_SOC_DAPM_MUX("PGA Right Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PGA Right Input Mux", SND_SOC_ANALPM, 0, 0,
 			      &right_input_mux),
 
-	SND_SOC_DAPM_MUX("Speaker Amp Source MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Speaker Amp Source MUX", SND_SOC_ANALPM, 0, 0,
 			 &speaker_amp_source_mux),
 
-	SND_SOC_DAPM_MUX("Headset Amp Source MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Headset Amp Source MUX", SND_SOC_ANALPM, 0, 0,
 			 &headset_amp_source_mux),
 
-	SND_SOC_DAPM_PGA("PGA Left Input", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PGA Right Input", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PGA Left Input", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PGA Right Input", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_ADC("ADC", "Capture", MC13783_AUDIO_CODEC, 11, 0),
 	SND_SOC_DAPM_SUPPLY("ADC_Reset", MC13783_AUDIO_CODEC, 15, 0, NULL, 0),
@@ -502,7 +502,7 @@ static const struct snd_soc_dapm_widget mc13783_dapm_widgets[] = {
 			&cdcout_ctl),
 	SND_SOC_DAPM_SWITCH("Speaker Amp Switch", MC13783_AUDIO_RX0, 3, 0,
 			&samp_ctl),
-	SND_SOC_DAPM_SWITCH("Loudspeaker Amp", SND_SOC_NOPM, 0, 0, &lamp_ctl),
+	SND_SOC_DAPM_SWITCH("Loudspeaker Amp", SND_SOC_ANALPM, 0, 0, &lamp_ctl),
 	SND_SOC_DAPM_SWITCH("Headset Amp Left", MC13783_AUDIO_RX0, 10, 0,
 			&hlamp_ctl),
 	SND_SOC_DAPM_SWITCH("Headset Amp Right", MC13783_AUDIO_RX0, 9, 0,
@@ -561,7 +561,7 @@ static struct snd_soc_dapm_route mc13783_routes[] = {
 };
 
 static const char * const mc13783_3d_mixer[] = {"Stereo", "Phase Mix",
-						"Mono", "Mono Mix"};
+						"Moanal", "Moanal Mix"};
 
 static SOC_ENUM_SINGLE_DECL(mc13783_enum_3d_mixer,
 			    MC13783_AUDIO_RX1, 16,
@@ -733,34 +733,34 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 {
 	struct mc13783_priv *priv;
 	struct mc13xxx_codec_platform_data *pdata = pdev->dev.platform_data;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdata) {
 		priv->adc_ssi_port = pdata->adc_ssi_port;
 		priv->dac_ssi_port = pdata->dac_ssi_port;
 	} else {
-		np = of_get_child_by_name(pdev->dev.parent->of_node, "codec");
+		np = of_get_child_by_name(pdev->dev.parent->of_analde, "codec");
 		if (!np)
-			return -ENOSYS;
+			return -EANALSYS;
 
 		ret = of_property_read_u32(np, "adc-port", &priv->adc_ssi_port);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
 		ret = of_property_read_u32(np, "dac-port", &priv->dac_ssi_port);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	dev_set_drvdata(&pdev->dev, priv);

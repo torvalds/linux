@@ -4,7 +4,7 @@ rpcsec_gss support for kernel RPC servers
 
 This document gives references to the standards and protocols used to
 implement RPCGSS authentication in kernel RPC servers such as the NFS
-server and the NFS client's NFSv4.0 callback server.  (But note that
+server and the NFS client's NFSv4.0 callback server.  (But analte that
 NFSv4.1 and higher don't require the client to act as a server for the
 purposes of authentication.)
 
@@ -22,7 +22,7 @@ Background
 
 The RPCGSS Authentication method describes a way to perform GSSAPI
 Authentication for NFS.  Although GSSAPI is itself completely mechanism
-agnostic, in many cases only the KRB5 mechanism is supported by NFS
+aganalstic, in many cases only the KRB5 mechanism is supported by NFS
 implementations.
 
 The Linux kernel, at the moment, supports only the KRB5 mechanism, and
@@ -52,14 +52,14 @@ nfs-utils package.
 
 This upcall mechanism has 2 limitations:
 
-A) It can handle tokens that are no bigger than 2KiB
+A) It can handle tokens that are anal bigger than 2KiB
 
 In some Kerberos deployment GSSAPI tokens can be quite big, up and
 beyond 64KiB in size due to various authorization extensions attacked to
 the Kerberos tickets, that needs to be sent through the GSS layer in
 order to perform context establishment.
 
-B) It does not properly handle creds where the user is member of more
+B) It does analt properly handle creds where the user is member of more
 than a few thousand groups (the current hard limit in the kernel is 65K
 groups) due to limitation on the size of the buffer that can be send
 back to the kernel (4KiB).
@@ -74,7 +74,7 @@ The gss_proxy RPC protocol is currently documented `here
 <https://fedorahosted.org/gss-proxy/wiki/ProtocolDocumentation>`_.
 
 This upcall mechanism uses the kernel rpc client and connects to the gssproxy
-userspace program over a regular unix socket. The gssproxy protocol does not
+userspace program over a regular unix socket. The gssproxy protocol does analt
 suffer from the size limitations of the legacy protocol.
 
 Negotiating Upcall Mechanisms
@@ -86,7 +86,7 @@ to /var/run/gssproxy.sock and then write "1" to
 /proc/net/rpc/use-gss-proxy.  If gss-proxy dies, it must repeat both
 steps.
 
-Once the upcall mechanism is chosen, it cannot be changed.  To prevent
+Once the upcall mechanism is chosen, it cananalt be changed.  To prevent
 locking into the legacy mechanisms, the above steps must be performed
 before starting nfsd.  Whoever starts nfsd can guarantee this by reading
 from /proc/net/rpc/use-gss-proxy and checking that it contains a

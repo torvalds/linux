@@ -134,14 +134,14 @@ static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int aspeed_gfx_load(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
 	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct aspeed_gfx_config *config;
 	struct resource *res;
 	int ret;
@@ -221,7 +221,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 
 	ret = aspeed_gfx_create_pipe(drm);
 	if (ret < 0) {
-		dev_err(drm->dev, "Cannot setup simple display pipe\n");
+		dev_err(drm->dev, "Cananalt setup simple display pipe\n");
 		return ret;
 	}
 
@@ -252,7 +252,7 @@ static const struct drm_driver aspeed_gfx_driver = {
 	.desc = "ASPEED GFX DRM",
 	.date = "20180319",
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 };
 
 static ssize_t dac_mux_store(struct device *dev, struct device_attribute *attr,

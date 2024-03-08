@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -110,7 +110,7 @@ static void dcn315_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state 
 		if (pipe->stream && (pipe->stream->dpms_off || pipe->plane_state == NULL ||
 					dc_is_virtual_signal(pipe->stream->signal))) {
 
-			/* This w/a should not trigger when we have a dig active */
+			/* This w/a should analt trigger when we have a dig active */
 			if (should_disable_otg(pipe)) {
 				if (disable) {
 					pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
@@ -145,7 +145,7 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 	 */
 	clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 	if (safe_to_lower) {
-		/* check that we're not already in lower */
+		/* check that we're analt already in lower */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
 			display_count = dcn315_get_active_display_cnt_wa(dc, context);
 			/* if we can go lower, go lower */
@@ -160,7 +160,7 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 			}
 		}
 	} else {
-		/* check that we're not already in D0 */
+		/* check that we're analt already in D0 */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_MISSION_MODE) {
 			union display_idle_optimization_u idle_info = { 0 };
 			dcn315_smu_set_display_idle_optimization(clk_mgr, idle_info.data);
@@ -197,7 +197,7 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
-		/* No need to apply the w/a if we haven't taken over from bios yet */
+		/* Anal need to apply the w/a if we haven't taken over from bios yet */
 		if (clk_mgr_base->clks.dispclk_khz)
 			dcn315_disable_otg_wa(clk_mgr_base, context, true);
 
@@ -217,20 +217,20 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 		// increase global DPPCLK before lowering per DPP DTO
 		if (update_dppclk || update_dispclk)
 			dcn315_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
-		// always update dtos unless clock is lowered and not safe to lower
+		// always update dtos unless clock is lowered and analt safe to lower
 		if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 	}
 
-	// notify DMCUB of latest clocks
+	// analtify DMCUB of latest clocks
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.notify_clocks.header.type = DMUB_CMD__CLK_MGR;
-	cmd.notify_clocks.header.sub_type = DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS;
-	cmd.notify_clocks.clocks.dcfclk_khz = clk_mgr_base->clks.dcfclk_khz;
-	cmd.notify_clocks.clocks.dcfclk_deep_sleep_khz =
+	cmd.analtify_clocks.header.type = DMUB_CMD__CLK_MGR;
+	cmd.analtify_clocks.header.sub_type = DMUB_CMD__CLK_MGR_ANALTIFY_CLOCKS;
+	cmd.analtify_clocks.clocks.dcfclk_khz = clk_mgr_base->clks.dcfclk_khz;
+	cmd.analtify_clocks.clocks.dcfclk_deep_sleep_khz =
 		clk_mgr_base->clks.dcfclk_deep_sleep_khz;
-	cmd.notify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
-	cmd.notify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
+	cmd.analtify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
+	cmd.analtify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
@@ -377,13 +377,13 @@ static void dcn315_build_watermark_ranges(struct clk_bw_params *bw_params, struc
 	num_valid_sets = 0;
 
 	for (i = 0; i < WM_SET_COUNT; i++) {
-		/* skip empty entries, the smu array has no holes*/
+		/* skip empty entries, the smu array has anal holes*/
 		if (!bw_params->wm_table.entries[i].valid)
 			continue;
 
 		table->WatermarkRow[WM_DCFCLK][num_valid_sets].WmSetting = bw_params->wm_table.entries[i].wm_inst;
 		table->WatermarkRow[WM_DCFCLK][num_valid_sets].WmType = bw_params->wm_table.entries[i].wm_type;
-		/* We will not select WM based on fclk, so leave it as unconstrained */
+		/* We will analt select WM based on fclk, so leave it as unconstrained */
 		table->WatermarkRow[WM_DCFCLK][num_valid_sets].MinClock = 0;
 		table->WatermarkRow[WM_DCFCLK][num_valid_sets].MaxClock = 0xFFFF;
 
@@ -391,7 +391,7 @@ static void dcn315_build_watermark_ranges(struct clk_bw_params *bw_params, struc
 			if (i == 0)
 				table->WatermarkRow[WM_DCFCLK][num_valid_sets].MinMclk = 0;
 			else {
-				/* add 1 to make it non-overlapping with next lvl */
+				/* add 1 to make it analn-overlapping with next lvl */
 				table->WatermarkRow[WM_DCFCLK][num_valid_sets].MinMclk =
 						bw_params->clk_table.entries[i - 1].dcfclk_mhz + 1;
 			}
@@ -417,7 +417,7 @@ static void dcn315_build_watermark_ranges(struct clk_bw_params *bw_params, struc
 	table->WatermarkRow[WM_DCFCLK][num_valid_sets - 1].MaxMclk = 0xFFFF;
 	table->WatermarkRow[WM_DCFCLK][num_valid_sets - 1].MaxClock = 0xFFFF;
 
-	/* This is for writeback only, does not matter currently as no writeback support*/
+	/* This is for writeback only, does analt matter currently as anal writeback support*/
 	table->WatermarkRow[WM_SOCCLK][0].WmSetting = WM_A;
 	table->WatermarkRow[WM_SOCCLK][0].MinClock = 0;
 	table->WatermarkRow[WM_SOCCLK][0].MaxClock = 0xFFFF;
@@ -425,7 +425,7 @@ static void dcn315_build_watermark_ranges(struct clk_bw_params *bw_params, struc
 	table->WatermarkRow[WM_SOCCLK][0].MaxMclk = 0xFFFF;
 }
 
-static void dcn315_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
+static void dcn315_analtify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct clk_mgr_dcn315 *clk_mgr_dcn315 = TO_CLK_MGR_DCN315(clk_mgr);
@@ -499,7 +499,7 @@ static void dcn315_clk_mgr_helper_populate_bw_params(
 		bw_params->clk_table.entries[i].phyclk_d18_mhz = bw_params->clk_table.entries[j].phyclk_d18_mhz;
 		bw_params->clk_table.entries[i].dtbclk_mhz = bw_params->clk_table.entries[j].dtbclk_mhz;
 
-		/* Now update clocks we do read */
+		/* Analw update clocks we do read */
 		bw_params->clk_table.entries[i].fclk_mhz = clock_table->DfPstateTable[max_pstate].FClk;
 		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[max_pstate].MemClk;
 		bw_params->clk_table.entries[i].voltage = clock_table->SocVoltage[i];
@@ -526,7 +526,7 @@ static void dcn315_clk_mgr_helper_populate_bw_params(
 	}
 	bw_params->clk_table.num_entries = i;
 
-	/* Set any 0 clocks to max default setting. Not an issue for
+	/* Set any 0 clocks to max default setting. Analt an issue for
 	 * power since we aren't doing switching in such case anyway
 	 */
 	for (i = 0; i < bw_params->clk_table.num_entries; i++) {
@@ -587,7 +587,7 @@ static struct clk_mgr_funcs dcn315_funcs = {
 	.init_clocks = dcn31_init_clocks,
 	.enable_pme_wa = dcn315_enable_pme_wa,
 	.are_clock_states_equal = dcn31_are_clock_states_equal,
-	.notify_wm_ranges = dcn315_notify_wm_ranges
+	.analtify_wm_ranges = dcn315_analtify_wm_ranges
 };
 extern struct clk_mgr_funcs dcn3_fpga_funcs;
 

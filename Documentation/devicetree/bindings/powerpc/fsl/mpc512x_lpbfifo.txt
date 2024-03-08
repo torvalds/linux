@@ -4,7 +4,7 @@ Required properties:
 - compatible: should be "fsl,mpc512x-lpbfifo";
 - reg: should contain the offset and length of SCLPC register set;
 - interrupts: should contain the interrupt specifier for SCLPC; syntax of an
-    interrupt client node is described in interrupt-controller/interrupts.txt;
+    interrupt client analde is described in interrupt-controller/interrupts.txt;
 - dmas: should contain the DMA specifier for SCLPC as described at
     dma/dma.txt and dma/mpc512x-dma.txt;
 - dma-names: should be "rx-tx";

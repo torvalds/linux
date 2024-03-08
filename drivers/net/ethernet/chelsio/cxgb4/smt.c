@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -122,7 +122,7 @@ void do_smt_write_rpl(struct adapter *adap, const struct cpl_smt_write_rpl *rpl)
 	unsigned int smtidx = TID_TID_G(GET_TID(rpl));
 	struct smt_data *s = adap->smt;
 
-	if (unlikely(rpl->status != CPL_ERR_NONE)) {
+	if (unlikely(rpl->status != CPL_ERR_ANALNE)) {
 		struct smt_entry *e = &s->smtab[smtidx];
 
 		dev_err(adap->pdev_dev,
@@ -148,7 +148,7 @@ static int write_smt_entry(struct adapter *adapter, struct smt_entry *e)
 		size = sizeof(*req);
 		skb = alloc_skb(size, GFP_ATOMIC);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Source MAC Table (SMT) contains 256 SMAC entries
 		 * organized in 128 rows of 2 entries each.
 		 */
@@ -184,7 +184,7 @@ static int write_smt_entry(struct adapter *adapter, struct smt_entry *e)
 		size = sizeof(*t6req);
 		skb = alloc_skb(size, GFP_ATOMIC);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Source MAC Table (SMT) contains 256 SMAC entries */
 		t6req = (struct cpl_t6_smt_write_req *)__skb_put(skb, size);
 		INIT_TP_WR(t6req, 0);
@@ -199,7 +199,7 @@ static int write_smt_entry(struct adapter *adapter, struct smt_entry *e)
 	OPCODE_TID(req) =
 		htonl(MK_OPCODE_TID(CPL_SMT_WRITE_REQ, e->idx |
 				    TID_QID_V(adapter->sge.fw_evtq.abs_id)));
-	req->params = htonl(SMTW_NORPL_V(0) |
+	req->params = htonl(SMTW_ANALRPL_V(0) |
 			    SMTW_IDX_V(row) |
 			    SMTW_OVLAN_IDX_V(0));
 	t4_mgmt_tx(adapter, skb);

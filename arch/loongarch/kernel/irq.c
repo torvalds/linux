@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/kernel.h>
 #include <linux/acpi.h>
@@ -68,7 +68,7 @@ static int __init early_pci_mcfg_parse(struct acpi_table_header *header)
 
 	for (i = 0; i < n; i++, mptr++) {
 		msi_group[i].pci_segment = mptr->pci_segment;
-		pch_group[i].node = msi_group[i].node = (mptr->address >> 44) & 0xf;
+		pch_group[i].analde = msi_group[i].analde = (mptr->address >> 44) & 0xf;
 	}
 
 	return 0;
@@ -80,8 +80,8 @@ static void __init init_vec_parent_group(void)
 
 	for (i = 0; i < MAX_IO_PICS; i++) {
 		msi_group[i].pci_segment = -1;
-		msi_group[i].node = -1;
-		pch_group[i].node = -1;
+		msi_group[i].analde = -1;
+		pch_group[i].analde = -1;
 	}
 
 	acpi_table_parse(ACPI_SIG_MCFG, early_pci_mcfg_parse);
@@ -89,7 +89,7 @@ static void __init init_vec_parent_group(void)
 
 static int __init get_ipi_irq(void)
 {
-	struct irq_domain *d = irq_find_matching_fwnode(cpuintc_handle, DOMAIN_BUS_ANY);
+	struct irq_domain *d = irq_find_matching_fwanalde(cpuintc_handle, DOMAIN_BUS_ANY);
 
 	if (d)
 		return irq_create_mapping(d, INT_IPI);
@@ -123,10 +123,10 @@ void __init init_IRQ(void)
 #endif
 
 	for (i = 0; i < NR_IRQS; i++)
-		irq_set_noprobe(i);
+		irq_set_analprobe(i);
 
 	for_each_possible_cpu(i) {
-		page = alloc_pages_node(cpu_to_node(i), GFP_KERNEL, order);
+		page = alloc_pages_analde(cpu_to_analde(i), GFP_KERNEL, order);
 
 		per_cpu(irq_stack, i) = (unsigned long)page_address(page);
 		pr_debug("CPU%d IRQ stack at 0x%lx - 0x%lx\n", i,

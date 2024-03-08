@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -24,7 +24,7 @@ static int vnic_wq_alloc_bufs(struct vnic_wq *wq)
 	for (i = 0; i < blks; i++) {
 		wq->bufs[i] = kzalloc(VNIC_WQ_BUF_BLK_SZ(count), GFP_KERNEL);
 		if (!wq->bufs[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for (i = 0; i < blks; i++) {

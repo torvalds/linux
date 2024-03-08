@@ -13,7 +13,7 @@
 #include "iss_video.h"
 
 enum ipipe_input_entity {
-	IPIPE_INPUT_NONE,
+	IPIPE_INPUT_ANALNE,
 	IPIPE_INPUT_IPIPEIF,
 };
 

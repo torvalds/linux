@@ -31,7 +31,7 @@ struct nv50_dma_v0 {
 #define NV50_DMA_V0_PART_256                                               0x01
 #define NV50_DMA_V0_PART_1KB                                               0x02
 	__u8  part;
-#define NV50_DMA_V0_COMP_NONE                                              0x00
+#define NV50_DMA_V0_COMP_ANALNE                                              0x00
 #define NV50_DMA_V0_COMP_1                                                 0x01
 #define NV50_DMA_V0_COMP_2                                                 0x02
 #define NV50_DMA_V0_COMP_VM                                                0x03

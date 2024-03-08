@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _codec-stateless-controls:
 
@@ -85,7 +85,7 @@ Stateless Codec Control ID
       - ``offset_for_ref_frame[255]``
       -
     * - __s32
-      - ``offset_for_non_ref_pic``
+      - ``offset_for_analn_ref_pic``
       -
     * - __s32
       - ``offset_for_top_to_bottom_field``
@@ -102,7 +102,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _h264_sps_constraints_set_flags:
 
@@ -224,7 +224,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _h264_pps_flags:
 
@@ -364,11 +364,11 @@ Stateless Codec Control ID
       -
     * - __u8
       - ``num_ref_idx_l0_active_minus1``
-      - If num_ref_idx_active_override_flag is not set, this field must be
+      - If num_ref_idx_active_override_flag is analt set, this field must be
         set to the value of num_ref_idx_l0_default_active_minus1
     * - __u8
       - ``num_ref_idx_l1_active_minus1``
-      - If num_ref_idx_active_override_flag is not set, this field must be
+      - If num_ref_idx_active_override_flag is analt set, this field must be
         set to the value of num_ref_idx_l1_default_active_minus1
     * - __u8
       - ``reserved``
@@ -385,7 +385,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _h264_slice_flags:
 
@@ -426,10 +426,10 @@ Stateless Codec Control ID
     :widths:       1 1 2
 
     * - __u16
-      - ``luma_log2_weight_denom``
+      - ``luma_log2_weight_deanalm``
       -
     * - __u16
-      - ``chroma_log2_weight_denom``
+      - ``chroma_log2_weight_deanalm``
       -
     * - struct :c:type:`v4l2_h264_weight_factors`
       - ``weight_factors[2]``
@@ -438,7 +438,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. c:type:: v4l2_h264_weight_factors
 
@@ -468,7 +468,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``Picture Reference``
 
@@ -516,7 +516,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_H264_DECODE_PARAMS (struct)``
     Specifies the decode parameters (as extracted from the bitstream)
@@ -590,7 +590,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _h264_decode_params_flags:
 
@@ -625,7 +625,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. c:type:: v4l2_h264_dpb_entry
 
@@ -677,7 +677,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _h264_dpb_flags:
 
@@ -696,7 +696,7 @@ Stateless Codec Control ID
 
     * - ``V4L2_H264_DPB_ENTRY_FLAG_VALID``
       - 0x00000001
-      - The DPB entry is valid (non-empty) and should be considered.
+      - The DPB entry is valid (analn-empty) and should be considered.
     * - ``V4L2_H264_DPB_ENTRY_FLAG_ACTIVE``
       - 0x00000002
       - The DPB entry is used for reference.
@@ -709,7 +709,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_H264_DECODE_MODE (enum)``
     Specifies the decoding mode to use. Currently exposes slice-based and
@@ -750,11 +750,11 @@ Stateless Codec Control ID
         This mode will be supported by devices that
         parse the slice(s) header(s) in hardware. When this mode is
         selected, the ``V4L2_CID_STATELESS_H264_SLICE_PARAMS``
-        control shall not be set.
+        control shall analt be set.
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_H264_START_CODE (enum)``
     Specifies the H264 slice start code expected for each slice.
@@ -778,7 +778,7 @@ Stateless Codec Control ID
     :stub-columns: 0
     :widths:       4 1 4
 
-    * - ``V4L2_STATELESS_H264_START_CODE_NONE``
+    * - ``V4L2_STATELESS_H264_START_CODE_ANALNE``
       - 0
       - Selecting this value specifies that H264 slices are passed
         to the driver without any start code. The bitstream data should be
@@ -792,7 +792,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _codec-stateless-fwht:
 
@@ -849,7 +849,7 @@ Stateless Codec Control ID
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _fwht-flags:
 
@@ -921,7 +921,7 @@ FWHT Flags
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _v4l2-codec-stateless-vp8:
 
@@ -978,7 +978,7 @@ FWHT Flags
       - Bitstream version.
     * - __u8
       - ``prob_skip_false``
-      - Indicates the probability that the macroblock is not skipped.
+      - Indicates the probability that the macroblock is analt skipped.
     * - __u8
       - ``prob_intra``
       - Indicates the probability that a macroblock is intra-predicted.
@@ -1029,7 +1029,7 @@ FWHT Flags
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _vp8_frame_flags:
 
@@ -1053,9 +1053,9 @@ FWHT Flags
     * - ``V4L2_VP8_FRAME_FLAG_SHOW_FRAME``
       - 0x04
       - Show frame flag, indicates if the frame is for display.
-    * - ``V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF``
+    * - ``V4L2_VP8_FRAME_FLAG_MB_ANAL_SKIP_COEFF``
       - 0x08
-      - Enable/disable skipping of macroblocks with no non-zero coefficients.
+      - Enable/disable skipping of macroblocks with anal analn-zero coefficients.
     * - ``V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN``
       - 0x10
       - Sign of motion vectors when the golden frame is referenced.
@@ -1145,7 +1145,7 @@ FWHT Flags
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. c:type:: v4l2_vp8_loop_filter
 
@@ -1197,7 +1197,7 @@ FWHT Flags
     * - ``V4L2_VP8_LF_FILTER_TYPE_SIMPLE``
       - 0x04
       - If set, indicates the filter type is simple.
-        If cleared, the filter type is normal.
+        If cleared, the filter type is analrmal.
 
 .. c:type:: v4l2_vp8_quantization
 
@@ -1319,7 +1319,7 @@ FWHT Flags
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_MPEG2_PICTURE (struct)``
     Specifies the picture parameters (as extracted from the bitstream) for the
@@ -1417,7 +1417,7 @@ FWHT Flags
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_MPEG2_QUANTISATION (struct)``
     Specifies quantisation matrices, in zigzag scanning order, for the
@@ -1449,33 +1449,33 @@ FWHT Flags
       - The quantisation matrix coefficients for intra-coded frames, in zigzag
 	scanning order. It is relevant for both luma and chroma components,
 	although it can be superseded by the chroma-specific matrix for
-	non-4:2:0 YUV formats.
+	analn-4:2:0 YUV formats.
     * - __u8
-      - ``non_intra_quantiser_matrix[64]``
-      - The quantisation matrix coefficients for non-intra-coded frames, in
+      - ``analn_intra_quantiser_matrix[64]``
+      - The quantisation matrix coefficients for analn-intra-coded frames, in
 	zigzag scanning order. It is relevant for both luma and chroma
 	components, although it can be superseded by the chroma-specific matrix
-	for non-4:2:0 YUV formats.
+	for analn-4:2:0 YUV formats.
     * - __u8
       - ``chroma_intra_quantiser_matrix[64]``
       - The quantisation matrix coefficients for the chominance component of
 	intra-coded frames, in zigzag scanning order. Only relevant for
-	non-4:2:0 YUV formats.
+	analn-4:2:0 YUV formats.
     * - __u8
-      - ``chroma_non_intra_quantiser_matrix[64]``
+      - ``chroma_analn_intra_quantiser_matrix[64]``
       - The quantisation matrix coefficients for the chrominance component of
-	non-intra-coded frames, in zigzag scanning order. Only relevant for
-	non-4:2:0 YUV formats.
+	analn-intra-coded frames, in zigzag scanning order. Only relevant for
+	analn-4:2:0 YUV formats.
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _v4l2-codec-stateless-vp9:
 
 ``V4L2_CID_STATELESS_VP9_COMPRESSED_HDR (struct)``
     Stores VP9 probabilities updates as parsed from the current compressed frame
-    header. A value of zero in an array element means no update of the relevant
+    header. A value of zero in an array element means anal update of the relevant
     probability. Motion vector-related updates contain a new value or zero. All
     other updates contain values translated with inv_map_table[] (see 6.3.5 in
     :ref:`vp9`).
@@ -1641,13 +1641,13 @@ See section '7.3.1 Tx mode semantics' of the :ref:`vp9` specification for more d
     * - __u16
       - ``render_width_minus_1``
       - Add 1 to get the expected render width expressed in pixels. This is
-        not used during the decoding process but might be used by HW scalers to
-        prepare a frame that's ready for scanout. See section 7.2.4 in :ref:`vp9`.
+        analt used during the decoding process but might be used by HW scalers to
+        prepare a frame that's ready for scaanalut. See section 7.2.4 in :ref:`vp9`.
     * - __u16
       - render_height_minus_1
       - Add 1 to get the expected render height expressed in pixels. This is
-        not used during the decoding process but might be used by HW scalers to
-        prepare a frame that's ready for scanout. See section 7.2.4 in :ref:`vp9`.
+        analt used during the decoding process but might be used by HW scalers to
+        prepare a frame that's ready for scaanalut. See section 7.2.4 in :ref:`vp9`.
     * - __u64
       - ``last_frame_ts``
       - "last" reference buffer timestamp.
@@ -1686,7 +1686,7 @@ See section '7.3.1 Tx mode semantics' of the :ref:`vp9` specification for more d
       - VP9 profile. Can be 0, 1, 2 or 3.
     * - __u8
       - ``bit_depth``
-      - Component depth in bits. Can be 8, 10 or 12. Note that not all profiles
+      - Component depth in bits. Can be 8, 10 or 12. Analte that analt all profiles
         support 10 and/or 12 bits depths.
     * - __u8
       - ``interpolation_filter``
@@ -1704,11 +1704,11 @@ See section '7.3.1 Tx mode semantics' of the :ref:`vp9` specification for more d
     * - __u8
       - ``reference_mode``
       - Specifies the type of inter prediction to be used. See
-        :ref:`Reference Mode<vp9_reference_mode>` for more details. Note that
+        :ref:`Reference Mode<vp9_reference_mode>` for more details. Analte that
 	this is derived as part of the compressed header parsing process and
 	for this reason should have been part of
 	:c:type: `v4l2_ctrl_vp9_compressed_hdr` optional control. It is safe to
-	set this value to zero if the driver does not require compressed
+	set this value to zero if the driver does analt require compressed
 	headers.
     * - __u8
       - ``reserved[7]``
@@ -1716,7 +1716,7 @@ See section '7.3.1 Tx mode semantics' of the :ref:`vp9` specification for more d
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _vp9_frame_flags:
 
@@ -1740,7 +1740,7 @@ See section '7.3.1 Tx mode semantics' of the :ref:`vp9` specification for more d
       - The decoding should be error resilient.
     * - ``V4L2_VP9_FRAME_FLAG_INTRA_ONLY``
       - 0x008
-      - The frame does not reference other frames.
+      - The frame does analt reference other frames.
     * - ``V4L2_VP9_FRAME_FLAG_ALLOW_HIGH_PREC_MV``
       - 0x010
       - The frame can use high precision motion vectors.
@@ -1792,9 +1792,9 @@ See section '7.3.1 Tx mode semantics' of the :ref:`vp9` specification for more d
     :stub-columns: 0
     :widths:       1 1 2
 
-    * - ``V4L2_VP9_RESET_FRAME_CTX_NONE``
+    * - ``V4L2_VP9_RESET_FRAME_CTX_ANALNE``
       - 0
-      - Do not reset any frame context.
+      - Do analt reset any frame context.
     * - ``V4L2_VP9_RESET_FRAME_CTX_SPEC``
       - 1
       - Reset the frame context pointed to by
@@ -1854,7 +1854,7 @@ for more details.
     * - ``V4L2_VP9_REFERENCE_MODE_COMPOUND_REFERENCE``
       - 1
       - Requires all the inter blocks to use compound mode. Single reference
-        frame prediction is not allowed.
+        frame prediction is analt allowed.
     * - ``V4L2_VP9_REFERENCE_MODE_SELECT``
       - 2
       - Allows each individual inter block to select between single and
@@ -2163,7 +2163,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _hevc_sps_flags:
 
@@ -2210,7 +2210,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_HEVC_PPS (struct)``
     Specifies the Picture Parameter Set fields (as extracted from the
@@ -2369,7 +2369,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_HEVC_SLICE_PARAMS (struct)``
     Specifies various slice-specific parameters, especially from the NAL unit
@@ -2497,7 +2497,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _hevc_slice_params_flags:
 
@@ -2545,7 +2545,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_HEVC_ENTRY_POINT_OFFSETS (integer)``
     Specifies entry point offsets in bytes.
@@ -2613,7 +2613,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. c:type:: v4l2_hevc_dpb_entry
 
@@ -2654,7 +2654,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _hevc_dpb_field_pic_flags:
 
@@ -2713,7 +2713,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{0.8cm}|p{10.6cm}|p{5.9cm}|
 
@@ -2753,12 +2753,12 @@ This structure contains all loop filter related parameters. See sections
       - The difference of the additive offset applied to the chroma
         prediction values for list 1.
     * - __u8
-      - ``luma_log2_weight_denom``
-      - The base 2 logarithm of the denominator for all luma weighting
+      - ``luma_log2_weight_deanalm``
+      - The base 2 logarithm of the deanalminator for all luma weighting
         factors.
     * - __s8
-      - ``delta_chroma_log2_weight_denom``
-      - The difference of the base 2 logarithm of the denominator for
+      - ``delta_chroma_log2_weight_deanalm``
+      - The difference of the base 2 logarithm of the deanalminator for
         all chroma weighting factors.
     * - __u8
       - ``padding[6]``
@@ -2766,7 +2766,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_HEVC_DECODE_MODE (enum)``
     Specifies the decoding mode to use. Currently exposes slice-based and
@@ -2803,7 +2803,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_STATELESS_HEVC_START_CODE (enum)``
     Specifies the HEVC slice start code expected for each slice.
@@ -2823,7 +2823,7 @@ This structure contains all loop filter related parameters. See sections
     :stub-columns: 0
     :widths:       1 1 2
 
-    * - ``V4L2_STATELESS_HEVC_START_CODE_NONE``
+    * - ``V4L2_STATELESS_HEVC_START_CODE_ANALNE``
       - 0
       - Selecting this value specifies that HEVC slices are passed
         to the driver without any start code. The bitstream data should be
@@ -2837,7 +2837,7 @@ This structure contains all loop filter related parameters. See sections
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 ``V4L2_CID_MPEG_VIDEO_BASELAYER_PRIORITY_ID (integer)``
     Specifies a priority identifier for the NAL unit, which will be applied to
@@ -2954,7 +2954,7 @@ This structure contains all loop filter related parameters. See sections
     * - ``V4L2_HEVC_DECODE_PARAM_FLAG_IDR_PIC``
       - 0x00000002
       -
-    * - ``V4L2_HEVC_DECODE_PARAM_FLAG_NO_OUTPUT_OF_PRIOR``
+    * - ``V4L2_HEVC_DECODE_PARAM_FLAG_ANAL_OUTPUT_OF_PRIOR``
       - 0x00000004
       -
 
@@ -3010,7 +3010,7 @@ This structure contains all loop filter related parameters. See sections
     * - ``V4L2_AV1_SEQUENCE_FLAG_STILL_PICTURE``
       - 0x00000001
       - If set, specifies that the coded video sequence contains only one coded
-        frame. If not set, specifies that the coded video sequence contains one
+        frame. If analt set, specifies that the coded video sequence contains one
         or more coded frames.
     * - ``V4L2_AV1_SEQUENCE_FLAG_USE_128X128_SUPERBLOCK``
       - 0x00000002
@@ -3021,26 +3021,26 @@ This structure contains all loop filter related parameters. See sections
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_FILTER_INTRA``
       - 0x00000004
       - If set, specifies that the use_filter_intra syntax element may be
-        present. If not set, specifies that the use_filter_intra syntax element
-        will not be present.
+        present. If analt set, specifies that the use_filter_intra syntax element
+        will analt be present.
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_INTRA_EDGE_FILTER``
       - 0x00000008
       - Specifies whether the intra edge filtering process should be enabled.
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_INTERINTRA_COMPOUND``
       - 0x00000010
       - If set, specifies that the mode info for inter blocks may contain the
-        syntax element interintra. If not set, specifies that the syntax element
-        interintra will not be present.
+        syntax element interintra. If analt set, specifies that the syntax element
+        interintra will analt be present.
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_MASKED_COMPOUND``
       - 0x00000020
       - If set, specifies that the mode info for inter blocks may contain the
-        syntax element compound_type. If not set, specifies that the syntax
-        element compound_type will not be present.
+        syntax element compound_type. If analt set, specifies that the syntax
+        element compound_type will analt be present.
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_WARPED_MOTION``
       - 0x00000040
       - If set, indicates that the allow_warped_motion syntax element may be
-        present. If not set, indicates that the allow_warped_motion syntax
-        element will not be present.
+        present. If analt set, indicates that the allow_warped_motion syntax
+        element will analt be present.
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_DUAL_FILTER``
       - 0x00000080
       - If set, indicates that the inter prediction filter type may be specified
@@ -3050,7 +3050,7 @@ This structure contains all loop filter related parameters. See sections
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_ORDER_HINT``
       - 0x00000100
       - If set, indicates that tools based on the values of order hints may be
-        used. If not set, indicates that tools based on order hints are
+        used. If analt set, indicates that tools based on order hints are
         disabled.
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_JNT_COMP``
       - 0x00000200
@@ -3059,30 +3059,30 @@ This structure contains all loop filter related parameters. See sections
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_REF_FRAME_MVS``
       - 0x00000400
       - If set, indicates that the use_ref_frame_mvs syntax element may be
-        present. If not set, indicates that the use_ref_frame_mvs syntax element
-        will not be present.
+        present. If analt set, indicates that the use_ref_frame_mvs syntax element
+        will analt be present.
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_SUPERRES``
       - 0x00000800
       - If set, specifies that the use_superres syntax element will be present
-        in the uncompressed header. If not set, specifies that the use_superres
-        syntax element will not be present (instead use_superres will be set to
+        in the uncompressed header. If analt set, specifies that the use_superres
+        syntax element will analt be present (instead use_superres will be set to
         0 in the uncompressed header without being read).
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_CDEF``
       - 0x00001000
-      - If set, specifies that cdef filtering may be enabled. If not set,
+      - If set, specifies that cdef filtering may be enabled. If analt set,
         specifies that cdef filtering is disabled.
     * - ``V4L2_AV1_SEQUENCE_FLAG_ENABLE_RESTORATION``
       - 0x00002000
-      - If set, specifies that loop restoration filtering may be enabled. If not
+      - If set, specifies that loop restoration filtering may be enabled. If analt
         set, specifies that loop restoration filtering is disabled.
-    * - ``V4L2_AV1_SEQUENCE_FLAG_MONO_CHROME``
+    * - ``V4L2_AV1_SEQUENCE_FLAG_MOANAL_CHROME``
       - 0x00004000
-      - If set, indicates that the video does not contain U and V color planes.
-        If not set, indicates that the video contains Y, U, and V color planes.
+      - If set, indicates that the video does analt contain U and V color planes.
+        If analt set, indicates that the video contains Y, U, and V color planes.
     * - ``V4L2_AV1_SEQUENCE_FLAG_COLOR_RANGE``
       - 0x00008000
       - If set, signals full swing representation, i.e. "Full Range
-        Quantization". If not set, signals studio swing representation, i.e.
+        Quantization". If analt set, signals studio swing representation, i.e.
         "Limited Range Quantization".
     * - ``V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_X``
       - 0x00010000
@@ -3097,11 +3097,11 @@ This structure contains all loop filter related parameters. See sections
     * - ``V4L2_AV1_SEQUENCE_FLAG_SEPARATE_UV_DELTA_Q``
       - 0x00080000
       - If set, indicates that the U and V planes may have separate delta
-        quantizer values. If not set, indicates that the U and V planes will share
+        quantizer values. If analt set, indicates that the U and V planes will share
         the same delta quantizer value.
 
 ``V4L2_CID_STATELESS_AV1_TILE_GROUP_ENTRY (struct)``
-    Represents a single AV1 tile inside an AV1 Tile Group. Note that MiRowStart,
+    Represents a single AV1 tile inside an AV1 Tile Group. Analte that MiRowStart,
     MiRowEnd, MiColStart and MiColEnd can be retrieved from struct
     v4l2_av1_tile_info in struct v4l2_ctrl_av1_frame using tile_row and
     tile_col. See section 6.10.1 "General tile group OBU semantics" in
@@ -3278,9 +3278,9 @@ AV1 Frame Restoration Type.
     :stub-columns: 0
     :widths:       1 1 2
 
-    * - ``V4L2_AV1_FRAME_RESTORE_NONE``
+    * - ``V4L2_AV1_FRAME_RESTORE_ANALNE``
       - 0
-      - No filtering is applied.
+      - Anal filtering is applied.
     * - ``V4L2_AV1_FRAME_RESTORE_WIENER``
       - 1
       - Wiener filter process is invoked.
@@ -3457,28 +3457,28 @@ semantics" of :ref:`av1`.
     * - ``V4L2_AV1_SEGMENTATION_FLAG_ENABLED``
       - 0x00000001
       - If set, indicates that this frame makes use of the segmentation tool. If
-        not set, indicates that the frame does not use segmentation.
+        analt set, indicates that the frame does analt use segmentation.
     * - ``V4L2_AV1_SEGMENTATION_FLAG_UPDATE_MAP``
       - 0x00000002
       - If set, indicates that the segmentation map are updated during the
-        decoding of this frame. If not set, indicates that the segmentation map
+        decoding of this frame. If analt set, indicates that the segmentation map
         from the previous frame is used.
     * - ``V4L2_AV1_SEGMENTATION_FLAG_TEMPORAL_UPDATE``
       - 0x00000004
       - If set, indicates that the updates to the segmentation map are coded
-        relative to the existing segmentation map. If not set, indicates that
+        relative to the existing segmentation map. If analt set, indicates that
         the new segmentation map is coded without reference to the existing
         segmentation map.
     * - ``V4L2_AV1_SEGMENTATION_FLAG_UPDATE_DATA``
       - 0x00000008
       - If set, indicates that the updates to the segmentation map are coded
-        relative to the existing segmentation map. If not set, indicates that
+        relative to the existing segmentation map. If analt set, indicates that
         the new segmentation map is coded without reference to the existing
         segmentation map.
     * - ``V4L2_AV1_SEGMENTATION_FLAG_SEG_ID_PRE_SKIP``
       - 0x00000010
       - If set, indicates that the segment id will be read before the skip
-        syntax element. If not set, indicates that the skip syntax element will
+        syntax element. If analt set, indicates that the skip syntax element will
         be read first.
 
 .. c:type:: v4l2_av1_loop_filter
@@ -3514,12 +3514,12 @@ AV1 Loop filter params as defined in section 6.8.10 "Loop filter semantics" of
     * - __u8
       - ``ref_deltas[V4L2_AV1_TOTAL_REFS_PER_FRAME]``
       - contains the adjustment needed for the filter level based on the
-        chosen reference frame. If this syntax element is not present, it
+        chosen reference frame. If this syntax element is analt present, it
         maintains its previous value.
     * - __u8
       - ``mode_deltas[2]``
       - contains the adjustment needed for the filter level based on
-        the chosen mode. If this syntax element is not present, it maintains its
+        the chosen mode. If this syntax element is analt present, it maintains its
         previous value.
     * - __u8
       - ``delta_lf_res``
@@ -3540,13 +3540,13 @@ AV1 Loop filter params as defined in section 6.8.10 "Loop filter semantics" of
     * - ``V4L2_AV1_LOOP_FILTER_FLAG_DELTA_ENABLED``
       - 0x00000001
       - If set, means that the filter level depends on the mode and reference
-        frame used to predict a block. If not set, means that the filter level
-        does not depend on the mode and reference frame.
+        frame used to predict a block. If analt set, means that the filter level
+        does analt depend on the mode and reference frame.
     * - ``V4L2_AV1_LOOP_FILTER_FLAG_DELTA_UPDATE``
       - 0x00000002
       - If set, means that additional syntax elements are present that specify
-        which mode and reference frame deltas are to be updated. If not set,
-        means that these syntax elements are not present.
+        which mode and reference frame deltas are to be updated. If analt set,
+        means that these syntax elements are analt present.
     * - ``V4L2_AV1_LOOP_FILTER_FLAG_DELTA_LF_PRESENT``
       - 0x00000004
       - Specifies whether loop filter delta values are present
@@ -3625,7 +3625,7 @@ semantics" of :ref:`av1`.
     * - ``V4L2_AV1_QUANTIZATION_FLAG_DIFF_UV_DELTA``
       - 0x00000001
       - If set, indicates that the U and V delta quantizer values are coded
-        separately. If not set, indicates that the U and V delta quantizer
+        separately. If analt set, indicates that the U and V delta quantizer
         values share a common value.
     * - ``V4L2_AV1_QUANTIZATION_FLAG_USING_QMATRIX``
       - 0x00000002
@@ -3697,7 +3697,7 @@ AV1 Tile info as defined in section 6.8.14 "Tile info semantics" of ref:`av1`.
       - 0x00000001
       - If set, means that the tiles are uniformly spaced across the frame. (In
         other words, all tiles are the same size except for the ones at the
-        right and bottom edge which can be smaller). If not set means that the
+        right and bottom edge which can be smaller). If analt set means that the
         tile sizes are coded.
 
 .. c:type:: v4l2_av1_frame_type
@@ -3810,8 +3810,8 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
       - ``segmentation``
       - Segmentation parameters.
     * - __u8
-      - ``superres_denom``
-      - The denominator for the upscaling ratio.
+      - ``superres_deanalm``
+      - The deanalminator for the upscaling ratio.
     * - struct :c:type:`v4l2_av1_loop_filter`
       - ``loop_filter``
       - Loop filter params
@@ -3867,7 +3867,7 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
     * - __u32
       - ``current_frame_id``
       - Specifies the frame id number for the current frame. Frame
-        id numbers are additional information that do not affect the decoding
+        id numbers are additional information that do analt affect the decoding
         process, but provide decoders with a way of detecting missing reference
         frames so that appropriate action can be taken.
     * - __u8
@@ -3883,8 +3883,8 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
       - Specifies the expected output order hint for each reference frame.
         This field corresponds to the OrderHints variable from the specification
         (section 5.9.2  "Uncompressed header syntax"). As such, this is only
-        used for non-intra frames and ignored otherwise. order_hints[0] is
-        always ignored.
+        used for analn-intra frames and iganalred otherwise. order_hints[0] is
+        always iganalred.
     * - __u64
       - ``reference_frame_ts[V4L2_AV1_TOTAL_REFS_PER_FRAME]``
       - The V4L2 timestamp for each of the reference frames enumerated in
@@ -3919,14 +3919,14 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
     * - ``V4L2_AV1_FRAME_FLAG_SHOW_FRAME``
       - 0x00000001
       - If set, specifies that this frame should be immediately output once
-        decoded. If not set, specifies that this frame should not be immediately
+        decoded. If analt set, specifies that this frame should analt be immediately
         output; it may be output later if a later uncompressed header uses
         show_existing_frame equal to 1.
     * - ``V4L2_AV1_FRAME_FLAG_SHOWABLE_FRAME``
       - 0x00000002
       - If set, specifies that the frame may be output using the
-        show_existing_frame mechanism. If not set, specifies that this frame
-        will not be output using the show_existing_frame mechanism.
+        show_existing_frame mechanism. If analt set, specifies that this frame
+        will analt be output using the show_existing_frame mechanism.
     * - ``V4L2_AV1_FRAME_FLAG_ERROR_RESILIENT_MODE``
       - 0x00000004
       - Specifies whether error resilient mode is enabled.
@@ -3936,46 +3936,46 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
         be disabled.
     * - ``V4L2_AV1_FRAME_FLAG_ALLOW_SCREEN_CONTENT_TOOLS``
       - 0x00000010
-      - If set, indicates that intra blocks may use palette encoding. If not
+      - If set, indicates that intra blocks may use palette encoding. If analt
         set, indicates that palette encoding is never used.
     * - ``V4L2_AV1_FRAME_FLAG_FORCE_INTEGER_MV``
       - 0x00000020
-      - If set, specifies that motion vectors will always be integers. If not
+      - If set, specifies that motion vectors will always be integers. If analt
         set, specifies that motion vectors can contain fractional bits.
     * - ``V4L2_AV1_FRAME_FLAG_ALLOW_INTRABC``
       - 0x00000040
       - If set, indicates that intra block copy may be used in this frame. If
-        not set, indicates that intra block copy is not allowed in this frame.
+        analt set, indicates that intra block copy is analt allowed in this frame.
     * - ``V4L2_AV1_FRAME_FLAG_USE_SUPERRES``
       - 0x00000080
       - If set, indicates that upscaling is needed.
     * - ``V4L2_AV1_FRAME_FLAG_ALLOW_HIGH_PRECISION_MV``
       - 0x00000100
       - If set, specifies that motion vectors are specified to eighth pel
-        precision. If not set, specifies that motion vectors are specified to
+        precision. If analt set, specifies that motion vectors are specified to
         quarter pel precision;
     * - ``V4L2_AV1_FRAME_FLAG_IS_MOTION_MODE_SWITCHABLE``
       - 0x00000200
-      - If not set, specifies that only the SIMPLE motion mode will be used.
+      - If analt set, specifies that only the SIMPLE motion mode will be used.
     * - ``V4L2_AV1_FRAME_FLAG_USE_REF_FRAME_MVS``
       - 0x00000400
       - If set specifies that motion vector information from a previous frame
-        can be used when decoding the current frame. If not set, specifies that
-        this information will not be used.
+        can be used when decoding the current frame. If analt set, specifies that
+        this information will analt be used.
     * - ``V4L2_AV1_FRAME_FLAG_DISABLE_FRAME_END_UPDATE_CDF``
       - 0x00000800
-      - If set indicates that the end of frame CDF update is disabled. If not
+      - If set indicates that the end of frame CDF update is disabled. If analt
         set, indicates that the end of frame CDF update is enabled
     * - ``V4L2_AV1_FRAME_FLAG_ALLOW_WARPED_MOTION``
       - 0x00001000
       - If set, indicates that the syntax element motion_mode may be present, if
-        not set, indicates that the syntax element motion_mode will not be
+        analt set, indicates that the syntax element motion_mode will analt be
         present.
     * - ``V4L2_AV1_FRAME_FLAG_REFERENCE_SELECT``
       - 0x00002000
       - If set, specifies that the mode info for inter blocks contains the
         syntax element comp_mode that indicates whether to use single or
-        compound reference prediction. If not set, specifies that all inter
+        compound reference prediction. If analt set, specifies that all inter
         blocks will use single prediction.
     * - ``V4L2_AV1_FRAME_FLAG_REDUCED_TX_SET``
       - 0x00004000
@@ -3987,22 +3987,22 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
     * - ``V4L2_AV1_FRAME_FLAG_SKIP_MODE_PRESENT``
       - 0x00010000
       - If set, specifies that the syntax element skip_mode will be present, if
-        not set, specifies that skip_mode will not be used for this frame.
+        analt set, specifies that skip_mode will analt be used for this frame.
     * - ``V4L2_AV1_FRAME_FLAG_FRAME_SIZE_OVERRIDE``
       - 0x00020000
       - If set, specifies that the frame size will either be specified as the
         size of one of the reference frames, or computed from the
-        frame_width_minus_1 and frame_height_minus_1 syntax elements. If not
+        frame_width_minus_1 and frame_height_minus_1 syntax elements. If analt
         set, specifies that the frame size is equal to the size in the sequence
         header.
     * - ``V4L2_AV1_FRAME_FLAG_BUFFER_REMOVAL_TIME_PRESENT``
       - 0x00040000
-      - If set, specifies that buffer_removal_time is present. If not set,
-        specifies that buffer_removal_time is not present.
+      - If set, specifies that buffer_removal_time is present. If analt set,
+        specifies that buffer_removal_time is analt present.
     * - ``V4L2_AV1_FRAME_FLAG_FRAME_REFS_SHORT_SIGNALING``
       - 0x00080000
       - If set, indicates that only two reference frames are explicitly
-        signaled. If not set, indicates that all reference frames are explicitly
+        signaled. If analt set, indicates that all reference frames are explicitly
         signaled.
 
 ``V4L2_CID_STATELESS_AV1_FILM_GRAIN (struct)``
@@ -4140,11 +4140,11 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
 
     * - ``V4L2_AV1_FILM_GRAIN_FLAG_APPLY_GRAIN``
       - 0x00000001
-      - If set, specifies that film grain should be added to this frame. If not
-        set, specifies that film grain should not be added.
+      - If set, specifies that film grain should be added to this frame. If analt
+        set, specifies that film grain should analt be added.
     * - ``V4L2_AV1_FILM_GRAIN_FLAG_UPDATE_GRAIN``
       - 0x00000002
-      - If set, means that a new set of parameters should be sent. If not set,
+      - If set, means that a new set of parameters should be sent. If analt set,
         specifies that the previous set of parameters should be used.
     * - ``V4L2_AV1_FILM_GRAIN_FLAG_CHROMA_SCALING_FROM_LUMA``
       - 0x00000004
@@ -4153,12 +4153,12 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
     * - ``V4L2_AV1_FILM_GRAIN_FLAG_OVERLAP``
       - 0x00000008
       - If set, indicates that the overlap between film grain blocks shall be
-        applied. If not set, indicates that the overlap between film grain blocks
-        shall not be applied.
+        applied. If analt set, indicates that the overlap between film grain blocks
+        shall analt be applied.
     * - ``V4L2_AV1_FILM_GRAIN_FLAG_CLIP_TO_RESTRICTED_RANGE``
       - 0x00000010
       - If set, indicates that clipping to the restricted (studio, i.e. limited)
         range shall be applied to the sample values after adding the film grain
         (see the semantics for color_range for an explanation of studio swing).
-        If not set, indicates that clipping to the full range shall be applied
+        If analt set, indicates that clipping to the full range shall be applied
         to the sample values after adding the film grain.

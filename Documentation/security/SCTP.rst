@@ -96,7 +96,7 @@ To support Dynamic Address Reconfiguration the following parameters must be
 enabled on both endpoints (or use the appropriate **setsockopt**\(2))::
 
     /proc/sys/net/sctp/addip_enable
-    /proc/sys/net/sctp/addip_noauth_enable
+    /proc/sys/net/sctp/addip_analauth_enable
 
 then the following *_PARAM_*'s are sent to the peer in an
 ASCONF chunk when the corresponding ``@optname``'s are present::
@@ -154,7 +154,7 @@ establishing an association.
                                              Call security_sctp_assoc_request()
                                              to set the peer label if first
                                              association.
-                                             If not first association, check
+                                             If analt first association, check
                                              whether allowed, IF so send:
           <----------------------------------------------- INIT ACK
           |                                  ELSE audit event and silently
@@ -283,7 +283,7 @@ Policy Statements
 The following class and permissions to support SCTP are available within the
 kernel::
 
-    class sctp_socket inherits socket { node_bind }
+    class sctp_socket inherits socket { analde_bind }
 
 whenever the following policy capability is enabled::
 
@@ -309,8 +309,8 @@ the sockets peer label, and only if they are different will the
 socket peer sid against the received packets peer sid to determine whether
 the association should be allowed or denied.
 
-NOTES:
-   1) If peer labeling is not enabled, then the peer context will always be
+ANALTES:
+   1) If peer labeling is analt enabled, then the peer context will always be
       ``SECINITSID_UNLABELED`` (``unlabeled_t`` in Reference Policy).
 
    2) As SCTP can support more than one transport address per endpoint
@@ -322,7 +322,7 @@ NOTES:
    3) **getpeercon**\(3) may be used by userspace to retrieve the sockets peer
       context.
 
-   4) While not SCTP specific, be aware when using NetLabel that if a label
+   4) While analt SCTP specific, be aware when using NetLabel that if a label
       is assigned to a specific interface, and that interface 'goes down',
       then the NetLabel service will remove the entry. Therefore ensure that
       the network startup scripts call **netlabelctl**\(8) to set the required
@@ -334,11 +334,11 @@ NOTES:
    6) CIPSO is only supported for IPv4 addressing: ``socket(AF_INET, ...)``
       CALIPSO is only supported for IPv6 addressing: ``socket(AF_INET6, ...)``
 
-      Note the following when testing CIPSO/CALIPSO:
-         a) CIPSO will send an ICMP packet if an SCTP packet cannot be
+      Analte the following when testing CIPSO/CALIPSO:
+         a) CIPSO will send an ICMP packet if an SCTP packet cananalt be
             delivered because of an invalid label.
-         b) CALIPSO does not send an ICMP packet, just silently discards it.
+         b) CALIPSO does analt send an ICMP packet, just silently discards it.
 
-   7) IPSEC is not supported as RFC 3554 - sctp/ipsec support has not been
+   7) IPSEC is analt supported as RFC 3554 - sctp/ipsec support has analt been
       implemented in userspace (**racoon**\(8) or **ipsec_pluto**\(8)),
       although the kernel supports SCTP/IPSEC.

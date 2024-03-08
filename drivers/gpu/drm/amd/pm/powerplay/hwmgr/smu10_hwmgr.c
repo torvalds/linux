@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -114,7 +114,7 @@ static int smu10_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 					PHM_PlatformCaps_SclkDeepSleep);
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_SclkThrottleLowNotification);
+				PHM_PlatformCaps_SclkThrottleLowAnaltification);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_PowerPlaySupport);
@@ -137,8 +137,8 @@ static int smu10_init_dynamic_state_adjustment_rule_settings(
 				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
-		pr_err("Can not allocate memory!\n");
-		return -ENOMEM;
+		pr_err("Can analt allocate memory!\n");
+		return -EANALMEM;
 	}
 
 	table_clk_vlt->count = count;
@@ -475,7 +475,7 @@ static int smu10_get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 
 	ptable = kzalloc(struct_size(ptable, entries, num_entry), GFP_KERNEL);
 	if (NULL == ptable)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptable->count = num_entry;
 
@@ -553,7 +553,7 @@ static int smu10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	data = kzalloc(sizeof(struct smu10_hwmgr), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->backend = data;
 
@@ -632,7 +632,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	uint32_t fine_grain_min_freq = 0, fine_grain_max_freq = 0;
 
 	if (hwmgr->smu_version < 0x1E3700) {
-		pr_info("smu firmware version too old, can not set dpm level\n");
+		pr_info("smu firmware version too old, can analt set dpm level\n");
 		return 0;
 	}
 
@@ -1030,18 +1030,18 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu10_hwmgr *data = (struct smu10_hwmgr *)(hwmgr->backend);
 	struct smu10_voltage_dependency_table *mclk_table =
 			data->clock_vol_info.vdd_dep_on_fclk;
-	uint32_t i, now, size = 0;
+	uint32_t i, analw, size = 0;
 	uint32_t min_freq, max_freq = 0;
 	uint32_t ret = 0;
 
 	switch (type) {
 	case PP_SCLK:
-		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetGfxclkFrequency, &now);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetGfxclkFrequency, &analw);
 
-	/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
-		if (now == data->gfx_max_freq_limit/100)
+	/* driver only kanalw min/max gfx_clk, Add level 1 for all other gfx clks */
+		if (analw == data->gfx_max_freq_limit/100)
 			i = 2;
-		else if (now == data->gfx_min_freq_limit/100)
+		else if (analw == data->gfx_min_freq_limit/100)
 			i = 0;
 		else
 			i = 1;
@@ -1050,21 +1050,21 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 					data->gfx_min_freq_limit/100,
 					i == 0 ? "*" : "");
 		size += sprintf(buf + size, "1: %uMhz %s\n",
-					i == 1 ? now : SMU10_UMD_PSTATE_GFXCLK,
+					i == 1 ? analw : SMU10_UMD_PSTATE_GFXCLK,
 					i == 1 ? "*" : "");
 		size += sprintf(buf + size, "2: %uMhz %s\n",
 					data->gfx_max_freq_limit/100,
 					i == 2 ? "*" : "");
 		break;
 	case PP_MCLK:
-		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency, &now);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency, &analw);
 
 		for (i = 0; i < mclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i,
 					mclk_table->entries[i].clk / 100,
 					((mclk_table->entries[i].clk / 100)
-					 == now) ? "*" : "");
+					 == analw) ? "*" : "");
 		break;
 	case OD_SCLK:
 		if (hwmgr->od_enabled) {
@@ -1123,8 +1123,8 @@ static int smu10_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_h
 		level->coreClock = data->gfx_max_freq_limit;
 	}
 
-	level->nonLocalMemoryFreq = 0;
-	level->nonLocalMemoryWidth = 0;
+	level->analnLocalMemoryFreq = 0;
+	level->analnLocalMemoryWidth = 0;
 
 	return 0;
 }
@@ -1330,7 +1330,7 @@ static int smu10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
 		if (!has_gfx_busy)
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		else {
 			ret = smum_send_msg_to_smc(hwmgr,
 						   PPSMC_MSG_GetGfxBusy,
@@ -1342,7 +1342,7 @@ static int smu10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		}
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1373,7 +1373,7 @@ static int smu10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int smu10_smus_notify_pwe(struct pp_hwmgr *hwmgr)
+static int smu10_smus_analtify_pwe(struct pp_hwmgr *hwmgr)
 {
 
 	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SetRccPfcPmeRestoreRegister, NULL);
@@ -1504,7 +1504,7 @@ static int smu10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uin
 		smu10_gfx_off_control(hwmgr, false);
 		hwmgr->gfxoff_state_changed_by_workload = true;
 	}
-	result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ActiveProcessNotify,
+	result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ActiveProcessAnaltify,
 						1 << workload_type,
 						NULL);
 	if (!result)
@@ -1534,18 +1534,18 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 	int ret = 0;
 
 	if (!hwmgr->od_enabled) {
-		pr_err("Fine grain not support\n");
+		pr_err("Fine grain analt support\n");
 		return -EINVAL;
 	}
 
 	if (!smu10_data->fine_grain_enabled) {
-		pr_err("pp_od_clk_voltage is not accessible if power_dpm_force_performance_level is not in manual mode!\n");
+		pr_err("pp_od_clk_voltage is analt accessible if power_dpm_force_performance_level is analt in manual mode!\n");
 		return -EINVAL;
 	}
 
 	if (type == PP_OD_EDIT_SCLK_VDDC_TABLE) {
 		if (size != 2) {
-			pr_err("Input parameter number not correct\n");
+			pr_err("Input parameter number analt correct\n");
 			return -EINVAL;
 		}
 
@@ -1570,7 +1570,7 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 		}
 	} else if (type == PP_OD_RESTORE_DEFAULT_TABLE) {
 		if (size != 0) {
-			pr_err("Input parameter number not correct\n");
+			pr_err("Input parameter number analt correct\n");
 			return -EINVAL;
 		}
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency, &min_freq);
@@ -1580,7 +1580,7 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 		smu10_data->gfx_actual_soft_max_freq = max_freq;
 	} else if (type == PP_OD_COMMIT_DPM_TABLE) {
 		if (size != 0) {
-			pr_err("Input parameter number not correct\n");
+			pr_err("Input parameter number analt correct\n");
 			return -EINVAL;
 		}
 
@@ -1651,7 +1651,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.power_state_set = smu10_set_power_state_tasks,
 	.dynamic_state_management_disable = smu10_disable_dpm_tasks,
 	.powergate_mmhub = smu10_powergate_mmhub,
-	.smus_notify_pwe = smu10_smus_notify_pwe,
+	.smus_analtify_pwe = smu10_smus_analtify_pwe,
 	.display_clock_voltage_request = smu10_display_clock_voltage_request,
 	.powergate_gfx = smu10_gfx_off_control,
 	.powergate_sdma = smu10_powergate_sdma,

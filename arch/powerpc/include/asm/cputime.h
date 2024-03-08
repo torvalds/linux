@@ -55,7 +55,7 @@ static inline void arch_vtime_task_switch(struct task_struct *prev)
  * account_cpu_user_entry/exit runs "unreconciled", so can't trace,
  * can't use get_paca()
  */
-static notrace inline void account_cpu_user_entry(void)
+static analtrace inline void account_cpu_user_entry(void)
 {
 	unsigned long tb = mftb();
 	struct cpu_accounting_data *acct = raw_get_accounting(current);
@@ -64,7 +64,7 @@ static notrace inline void account_cpu_user_entry(void)
 	acct->starttime = tb;
 }
 
-static notrace inline void account_cpu_user_exit(void)
+static analtrace inline void account_cpu_user_exit(void)
 {
 	unsigned long tb = mftb();
 	struct cpu_accounting_data *acct = raw_get_accounting(current);
@@ -73,7 +73,7 @@ static notrace inline void account_cpu_user_exit(void)
 	acct->starttime_user = tb;
 }
 
-static notrace inline void account_stolen_time(void)
+static analtrace inline void account_stolen_time(void)
 {
 #ifdef CONFIG_PPC_SPLPAR
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
@@ -93,7 +93,7 @@ static inline void account_cpu_user_entry(void)
 static inline void account_cpu_user_exit(void)
 {
 }
-static notrace inline void account_stolen_time(void)
+static analtrace inline void account_stolen_time(void)
 {
 }
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */

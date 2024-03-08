@@ -30,8 +30,8 @@
 ALL_TESTS="
 	ping_ipv4
 	test_update
-	test_no_update
-	test_pedit_norewrite
+	test_anal_update
+	test_pedit_analrewrite
 	test_dscp_leftover
 "
 
@@ -226,16 +226,16 @@ test_update()
 	__test_update 1 reprioritize
 }
 
-test_no_update()
+test_anal_update()
 {
 	echo "Test net.ipv4.ip_forward_update_priority=0"
 	__test_update 0 echo
 }
 
 # Test that when DSCP is updated in pedit, the DSCP rewrite is turned off.
-test_pedit_norewrite()
+test_pedit_analrewrite()
 {
-	echo "Test no DSCP rewrite after DSCP is updated by pedit"
+	echo "Test anal DSCP rewrite after DSCP is updated by pedit"
 
 	tc filter add dev $swp1 ingress handle 101 pref 1 prot ip flower \
 	    action pedit ex munge ip dsfield set $((3 << 2)) retain 0xfc \
@@ -247,7 +247,7 @@ test_pedit_norewrite()
 }
 
 # Test that when the last APP rule is removed, the prio->DSCP map is properly
-# set to zeroes, and that the last APP rule does not stay active in the ASIC.
+# set to zeroes, and that the last APP rule does analt stay active in the ASIC.
 test_dscp_leftover()
 {
 	echo "Test that last removed DSCP rule is deconfigured correctly"

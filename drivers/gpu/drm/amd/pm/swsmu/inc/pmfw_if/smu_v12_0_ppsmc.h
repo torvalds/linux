@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,7 +27,7 @@
 // SMU Response Codes:
 #define PPSMC_Result_OK                    0x1
 #define PPSMC_Result_Failed                0xFF
-#define PPSMC_Result_UnknownCmd            0xFE
+#define PPSMC_Result_UnkanalwnCmd            0xFE
 #define PPSMC_Result_CmdRejectedPrereq     0xFD
 #define PPSMC_Result_CmdRejectedBusy       0xFC
 
@@ -51,7 +51,7 @@
 #define PPSMC_MSG_spare2                        0x12
 #define PPSMC_MSG_SetAllowFclkSwitch            0x13
 #define PPSMC_MSG_SetMinVideoGfxclkFreq         0x14
-#define PPSMC_MSG_ActiveProcessNotify           0x15
+#define PPSMC_MSG_ActiveProcessAnaltify           0x15
 #define PPSMC_MSG_SetCustomPolicy               0x16
 #define PPSMC_MSG_SetVideoFps                   0x17
 #define PPSMC_MSG_SetDisplayCount               0x18 // Moved to VBIOS
@@ -76,7 +76,7 @@
 #define PPSMC_MSG_GetFclkFrequency              0x2B
 #define PPSMC_MSG_GetMinGfxclkFrequency         0x2C
 #define PPSMC_MSG_GetMaxGfxclkFrequency         0x2D
-#define PPSMC_MSG_SoftReset                     0x2E // Not supported
+#define PPSMC_MSG_SoftReset                     0x2E // Analt supported
 #define PPSMC_MSG_SetGfxCGPG                    0x2F
 #define PPSMC_MSG_SetSoftMaxGfxClk              0x30
 #define PPSMC_MSG_SetHardMinGfxClk              0x31

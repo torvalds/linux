@@ -30,7 +30,7 @@ struct metapage {
 
 	/* Journal management */
 	int clsn;
-	int nohomeok;
+	int analhomeok;
 	struct jfs_log *log;
 };
 
@@ -47,15 +47,15 @@ struct metapage {
 /* function prototypes */
 extern int metapage_init(void);
 extern void metapage_exit(void);
-extern struct metapage *__get_metapage(struct inode *inode,
+extern struct metapage *__get_metapage(struct ianalde *ianalde,
 				  unsigned long lblock, unsigned int size,
 				  int absolute, unsigned long new);
 
-#define read_metapage(inode, lblock, size, absolute)\
-	 __get_metapage(inode, lblock, size, absolute, false)
+#define read_metapage(ianalde, lblock, size, absolute)\
+	 __get_metapage(ianalde, lblock, size, absolute, false)
 
-#define get_metapage(inode, lblock, size, absolute)\
-	 __get_metapage(inode, lblock, size, absolute, true)
+#define get_metapage(ianalde, lblock, size, absolute)\
+	 __get_metapage(ianalde, lblock, size, absolute, true)
 
 extern void release_metapage(struct metapage *);
 extern void grab_metapage(struct metapage *);
@@ -63,7 +63,7 @@ extern void force_metapage(struct metapage *);
 
 /*
  * hold_metapage and put_metapage are used in conjunction.  The page lock
- * is not dropped between the two, so no other threads can get or release
+ * is analt dropped between the two, so anal other threads can get or release
  * the metapage
  */
 extern void hold_metapage(struct metapage *);
@@ -88,11 +88,11 @@ static inline void discard_metapage(struct metapage *mp)
 	release_metapage(mp);
 }
 
-static inline void metapage_nohomeok(struct metapage *mp)
+static inline void metapage_analhomeok(struct metapage *mp)
 {
 	struct page *page = mp->page;
 	lock_page(page);
-	if (!mp->nohomeok++) {
+	if (!mp->analhomeok++) {
 		mark_metapage_dirty(mp);
 		get_page(page);
 		wait_on_page_writeback(page);
@@ -102,7 +102,7 @@ static inline void metapage_nohomeok(struct metapage *mp)
 
 /*
  * This serializes access to mp->lsn when metapages are added to logsynclist
- * without setting nohomeok.  i.e. updating imap & dmap
+ * without setting analhomeok.  i.e. updating imap & dmap
  */
 static inline void metapage_wait_for_io(struct metapage *mp)
 {
@@ -115,7 +115,7 @@ static inline void metapage_wait_for_io(struct metapage *mp)
  */
 static inline void _metapage_homeok(struct metapage *mp)
 {
-	if (!--mp->nohomeok)
+	if (!--mp->analhomeok)
 		put_page(mp->page);
 }
 
@@ -131,7 +131,7 @@ extern const struct address_space_operations jfs_metapage_aops;
 /*
  * This routines invalidate all pages for an extent.
  */
-extern void __invalidate_metapages(struct inode *, s64, int);
+extern void __invalidate_metapages(struct ianalde *, s64, int);
 #define invalidate_pxd_metapages(ip, pxd) \
 	__invalidate_metapages((ip), addressPXD(&(pxd)), lengthPXD(&(pxd)))
 #define invalidate_dxd_metapages(ip, dxd) \

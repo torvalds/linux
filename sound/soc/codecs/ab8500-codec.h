@@ -148,7 +148,7 @@
 
 #define AB8500_MASK_ALL				0xFF
 #define AB8500_MASK_SLOT(slot)			((slot & 1) ? 0xF0 : 0x0F)
-#define AB8500_MASK_NONE			0x00
+#define AB8500_MASK_ANALNE			0x00
 
 /* AB8500_POWERUP */
 #define AB8500_POWERUP_POWERUP			7

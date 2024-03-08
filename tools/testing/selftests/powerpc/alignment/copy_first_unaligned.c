@@ -2,7 +2,7 @@
 /*
  * Copyright 2016, Chris Smart, IBM Corporation.
  *
- * Calls to copy_first which are not 128-byte aligned should be
+ * Calls to copy_first which are analt 128-byte aligned should be
  * caught and sent a SIGBUS.
  */
 
@@ -57,7 +57,7 @@ int test_copy_first_unaligned(void)
 	/* +1 makes buf unaligned */
 	copy_first(cacheline_buf+1);
 
-	/* We should not get here */
+	/* We should analt get here */
 	return 1;
 }
 

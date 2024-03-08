@@ -23,7 +23,7 @@
 #define AFS_PROBE_MAX_LIFESPAN	30
 
 typedef u64			afs_volid_t;
-typedef u64			afs_vnodeid_t;
+typedef u64			afs_vanaldeid_t;
 typedef u64			afs_dataversion_t;
 
 typedef enum {
@@ -51,17 +51,17 @@ typedef enum {
  */
 struct afs_fid {
 	afs_volid_t	vid;		/* volume ID */
-	afs_vnodeid_t	vnode;		/* Lower 64-bits of file index within volume */
-	u32		vnode_hi;	/* Upper 32-bits of file index */
+	afs_vanaldeid_t	vanalde;		/* Lower 64-bits of file index within volume */
+	u32		vanalde_hi;	/* Upper 32-bits of file index */
 	u32		unique;		/* unique ID number (file index version) */
 };
 
 /*
- * AFS callback notification
+ * AFS callback analtification
  */
 typedef enum {
-	AFSCM_CB_UNTYPED	= 0,	/* no type set on CB break */
-	AFSCM_CB_EXCLUSIVE	= 1,	/* CB exclusive to CM [not implemented] */
+	AFSCM_CB_UNTYPED	= 0,	/* anal type set on CB break */
+	AFSCM_CB_EXCLUSIVE	= 1,	/* CB exclusive to CM [analt implemented] */
 	AFSCM_CB_SHARED		= 2,	/* CB shared by other CM's */
 	AFSCM_CB_DROPPED	= 3,	/* CB promise cancelled by file server */
 } afs_callback_type_t;
@@ -85,7 +85,7 @@ struct afs_uuid {
 	__be16		time_hi_and_version;		/* high part of timestamp and version  */
 	__s8		clock_seq_hi_and_reserved;	/* clock seq hi and variant */
 	__s8		clock_seq_low;			/* clock seq low */
-	__s8		node[6];			/* spatially unique node ID (MAC addr) */
+	__s8		analde[6];			/* spatially unique analde ID (MAC addr) */
 };
 
 /*
@@ -135,7 +135,7 @@ struct afs_file_status {
 	s64			owner;		/* owner ID */
 	s64			group;		/* group ID */
 	afs_access_t		caller_access;	/* access rights for authenticated caller */
-	afs_access_t		anon_access;	/* access rights for unauthenticated caller */
+	afs_access_t		aanaln_access;	/* access rights for unauthenticated caller */
 	umode_t			mode;		/* UNIX mode */
 	afs_file_type_t		type;		/* file type */
 	u32			nlink;		/* link count */
@@ -200,7 +200,7 @@ struct afs_uuid__xdr {
 	__be32		time_hi_and_version;
 	__be32		clock_seq_hi_and_reserved;
 	__be32		clock_seq_low;
-	__be32		node[6];
+	__be32		analde[6];
 };
 
 #endif /* AFS_H */

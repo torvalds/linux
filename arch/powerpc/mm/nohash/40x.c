@@ -18,7 +18,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -58,7 +58,7 @@ void __init MMU_init_hw(void)
 	 * indicators. We use the 4 upper bits of virtual address to select
 	 * the zone. We set all zones above TASK_SIZE to zero, allowing
 	 * only kernel access as indicated in the PTE. For zones below
-	 * TASK_SIZE, we set a 01 binary (a value of 10 will not work)
+	 * TASK_SIZE, we set a 01 binary (a value of 10 will analt work)
 	 * to allow user access as indicated in the PTE.  This also allows
 	 * kernel access as indicated in the PTE.
 	 */
@@ -136,11 +136,11 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 
 	mapped = total_lowmem - s;
 
-	/* If the size of RAM is not an exact power of two, we may not
+	/* If the size of RAM is analt an exact power of two, we may analt
 	 * have covered RAM in its entirety with 16 and 4 MiB
 	 * pages. Consequently, restrict the top end of RAM currently
 	 * allocable so that calls to the MEMBLOCK to allocate PTEs for "tail"
-	 * coverage with normal-sized pages (or other reasons) do not
+	 * coverage with analrmal-sized pages (or other reasons) do analt
 	 * attempt to allocate outside the allowed range.
 	 */
 	memblock_set_current_limit(mapped);
@@ -151,7 +151,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
-	/* We don't currently support the first MEMBLOCK not mapping 0
+	/* We don't currently support the first MEMBLOCK analt mapping 0
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);

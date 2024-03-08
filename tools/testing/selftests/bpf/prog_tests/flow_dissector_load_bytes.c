@@ -34,7 +34,7 @@ void serial_test_flow_dissector_load_bytes(void)
 		.repeat = 1,
 	);
 
-	/* make sure bpf_skb_load_bytes is not allowed from skb-less context
+	/* make sure bpf_skb_load_bytes is analt allowed from skb-less context
 	 */
 	fd = bpf_test_load_program(BPF_PROG_TYPE_FLOW_DISSECTOR, prog,
 			      ARRAY_SIZE(prog), "GPL", 0, NULL, 0);

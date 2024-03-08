@@ -30,7 +30,7 @@
  * @offset is updated with position at which first matching token is
  * located.
  *
- * Returns 0 on success, -ENOENT if not found and error code otherwise.
+ * Returns 0 on success, -EANALENT if analt found and error code otherwise.
  */
 static int
 avs_tplg_vendor_array_lookup(struct snd_soc_tplg_vendor_array *tuples,
@@ -56,7 +56,7 @@ avs_tplg_vendor_array_lookup(struct snd_soc_tplg_vendor_array *tuples,
 		tuples = avs_tplg_vendor_array_next(tuples);
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
@@ -90,7 +90,7 @@ avs_tplg_vendor_array_lookup_next(struct snd_soc_tplg_vendor_array *tuples,
 /*
  * Scan provided block of tuples for the specified token which marks
  * the border of an entry block. Behavior is similar to
- * avs_tplg_vendor_array_lookup() except 0 is also returned if no
+ * avs_tplg_vendor_array_lookup() except 0 is also returned if anal
  * matching token has been found. In such case, returned @size is
  * assigned to @block_size as the entire block belongs to the current
  * entry.
@@ -104,7 +104,7 @@ avs_tplg_vendor_entry_size(struct snd_soc_tplg_vendor_array *tuples,
 	int ret;
 
 	ret = avs_tplg_vendor_array_lookup_next(tuples, block_size, entry_id_token, size);
-	if (ret == -ENOENT) {
+	if (ret == -EANALENT) {
 		*size = block_size;
 		ret = 0;
 	}
@@ -205,7 +205,7 @@ static int avs_parse_uuid_tokens(struct snd_soc_component *comp, void *object,
 		tuple = &tuples->uuid[i];
 
 		for (j = 0; j < count; j++) {
-			/* Ignore non-UUID tokens. */
+			/* Iganalre analn-UUID tokens. */
 			if (parsers[j].type != SND_SOC_TPLG_TUPLE_TYPE_UUID ||
 			    parsers[j].token != le32_to_cpu(tuple->token))
 				continue;
@@ -231,7 +231,7 @@ static int avs_parse_string_tokens(struct snd_soc_component *comp, void *object,
 		tuple = &tuples->string[i];
 
 		for (j = 0; j < count; j++) {
-			/* Ignore non-string tokens. */
+			/* Iganalre analn-string tokens. */
 			if (parsers[j].type != SND_SOC_TPLG_TUPLE_TYPE_STRING ||
 			    parsers[j].token != le32_to_cpu(tuple->token))
 				continue;
@@ -257,7 +257,7 @@ static int avs_parse_word_tokens(struct snd_soc_component *comp, void *object,
 		tuple = &tuples->value[i];
 
 		for (j = 0; j < count; j++) {
-			/* Ignore non-integer tokens. */
+			/* Iganalre analn-integer tokens. */
 			if (!(parsers[j].type == SND_SOC_TPLG_TUPLE_TYPE_WORD ||
 			      parsers[j].type == SND_SOC_TPLG_TUPLE_TYPE_SHORT ||
 			      parsers[j].type == SND_SOC_TPLG_TUPLE_TYPE_BYTE ||
@@ -290,7 +290,7 @@ static int avs_parse_tokens(struct snd_soc_component *comp, void *object,
 			return -EINVAL;
 		}
 
-		/* Make sure there is enough data before parsing. */
+		/* Make sure there is eanalugh data before parsing. */
 		priv_size -= array_size;
 		if (priv_size < 0) {
 			dev_err(comp->dev, "invalid array size 0x%x\n", array_size);
@@ -311,7 +311,7 @@ static int avs_parse_tokens(struct snd_soc_component *comp, void *object,
 			ret = avs_parse_word_tokens(comp, object, parsers, count, tuples);
 			break;
 		default:
-			dev_err(comp->dev, "unknown token type %d\n", tuples->type);
+			dev_err(comp->dev, "unkanalwn token type %d\n", tuples->type);
 			ret = -EINVAL;
 		}
 
@@ -380,7 +380,7 @@ static int avs_ssp_sprint(char *buf, size_t size, const char *fmt, int port, int
 	/*
 	 * If there is %d present in fmt string it should be replaced by either
 	 * SSP or SSP:TDM, where SSP and TDM are numbers, all other formatting
-	 * will be ignored.
+	 * will be iganalred.
 	 */
 	if (needle) {
 		retsize = scnprintf(buf, min_t(size_t, size, needle - fmt + 1), "%s", fmt);
@@ -439,7 +439,7 @@ parse_dictionary_header(struct snd_soc_component *comp,
 	*num_entries = le32_to_cpu(tuple->value);
 	*dict = devm_kcalloc(comp->card->dev, *num_entries, entry_size, GFP_KERNEL);
 	if (!*dict)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -908,7 +908,7 @@ static int avs_tplg_parse_modcfg_ext(struct snd_soc_component *comp,
 
 		pins = devm_kcalloc(comp->card->dev, num_pins, sizeof(*pins), GFP_KERNEL);
 		if (!pins)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		tuples = avs_tplg_vendor_array_at(tuples, esize);
 		ret = parse_dictionary_entries(comp, tuples, block_size,
@@ -1129,7 +1129,7 @@ avs_tplg_module_create(struct snd_soc_component *comp, struct avs_tplg_pipeline 
 
 	module = devm_kzalloc(comp->card->dev, sizeof(*module), GFP_KERNEL);
 	if (!module)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = avs_parse_tokens(comp, module, module_parsers,
 			       ARRAY_SIZE(module_parsers), tuples, block_size);
@@ -1137,7 +1137,7 @@ avs_tplg_module_create(struct snd_soc_component *comp, struct avs_tplg_pipeline 
 		return ERR_PTR(ret);
 
 	module->owner = owner;
-	INIT_LIST_HEAD(&module->node);
+	INIT_LIST_HEAD(&module->analde);
 
 	return module;
 }
@@ -1182,7 +1182,7 @@ avs_tplg_pipeline_create(struct snd_soc_component *comp, struct avs_tplg_path *o
 
 	pipeline = devm_kzalloc(comp->card->dev, sizeof(*pipeline), GFP_KERNEL);
 	if (!pipeline)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pipeline->owner = owner;
 	INIT_LIST_HEAD(&pipeline->mod_list);
@@ -1208,7 +1208,7 @@ avs_tplg_pipeline_create(struct snd_soc_component *comp, struct avs_tplg_path *o
 	ret = avs_tplg_vendor_array_lookup_next(tuples, block_size,
 						AVS_TKN_PPL_BINDING_ID_U32, &offset);
 	if (ret) {
-		if (ret != -ENOENT)
+		if (ret != -EANALENT)
 			return ERR_PTR(ret);
 
 		/* Does header information match actual block layout? */
@@ -1220,7 +1220,7 @@ avs_tplg_pipeline_create(struct snd_soc_component *comp, struct avs_tplg_path *o
 		pipeline->bindings = devm_kcalloc(comp->card->dev, pipeline->num_bindings,
 						  sizeof(*pipeline->bindings), GFP_KERNEL);
 		if (!pipeline->bindings)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		modblk_size = offset;
 	}
@@ -1242,7 +1242,7 @@ avs_tplg_pipeline_create(struct snd_soc_component *comp, struct avs_tplg_path *o
 			return ERR_CAST(module);
 		}
 
-		list_add_tail(&module->node, &pipeline->mod_list);
+		list_add_tail(&module->analde, &pipeline->mod_list);
 		modblk_size -= esize;
 		tuples = avs_tplg_vendor_array_at(tuples, esize);
 	} while (modblk_size > 0);
@@ -1291,16 +1291,16 @@ avs_tplg_path_create(struct snd_soc_component *comp, struct avs_tplg_path_templa
 
 	path = devm_kzalloc(comp->card->dev, sizeof(*path), GFP_KERNEL);
 	if (!path)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	path->owner = owner;
 	INIT_LIST_HEAD(&path->ppl_list);
-	INIT_LIST_HEAD(&path->node);
+	INIT_LIST_HEAD(&path->analde);
 
 	/* Path header MAY be followed by one or more pipelines. */
 	ret = avs_tplg_vendor_array_lookup(tuples, block_size,
 					   AVS_TKN_PPL_ID_U32, &offset);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		offset = block_size;
 	else if (ret)
 		return ERR_PTR(ret);
@@ -1329,7 +1329,7 @@ avs_tplg_path_create(struct snd_soc_component *comp, struct avs_tplg_path_templa
 			return ERR_CAST(pipeline);
 		}
 
-		list_add_tail(&pipeline->node, &path->ppl_list);
+		list_add_tail(&pipeline->analde, &path->ppl_list);
 		block_size -= esize;
 		tuples = avs_tplg_vendor_array_at(tuples, esize);
 	}
@@ -1384,7 +1384,7 @@ static int parse_path_template(struct snd_soc_component *comp,
 			return PTR_ERR(path);
 		}
 
-		list_add_tail(&path->node, &template->path_list);
+		list_add_tail(&path->analde, &template->path_list);
 		block_size -= esize;
 		tuples = avs_tplg_vendor_array_at(tuples, esize);
 	} while (block_size > 0);
@@ -1401,11 +1401,11 @@ avs_tplg_path_template_create(struct snd_soc_component *comp, struct avs_tplg *o
 
 	template = devm_kzalloc(comp->card->dev, sizeof(*template), GFP_KERNEL);
 	if (!template)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	template->owner = owner; /* Used to access component tplg is assigned to. */
 	INIT_LIST_HEAD(&template->path_list);
-	INIT_LIST_HEAD(&template->node);
+	INIT_LIST_HEAD(&template->analde);
 
 	ret = parse_path_template(comp, tuples, block_size, template, path_tmpl_parsers,
 				  ARRAY_SIZE(path_tmpl_parsers), path_parsers,
@@ -1458,9 +1458,9 @@ static int avs_widget_load(struct snd_soc_component *comp, int index,
 	if (!le32_to_cpu(dw->priv.size))
 		return 0;
 
-	if (w->ignore_suspend && !AVS_S0IX_SUPPORTED) {
-		dev_info_once(comp->dev, "Device does not support S0IX, check BIOS settings\n");
-		w->ignore_suspend = false;
+	if (w->iganalre_suspend && !AVS_S0IX_SUPPORTED) {
+		dev_info_once(comp->dev, "Device does analt support S0IX, check BIOS settings\n");
+		w->iganalre_suspend = false;
 	}
 
 	tplg = acomp->tplg;
@@ -1479,7 +1479,7 @@ static int avs_widget_load(struct snd_soc_component *comp, int index,
 
 		buf = kmalloc(size, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		avs_ssp_sprint(buf, size, dw->name, ssp_port, tdm_slot);
 		kfree(w->name);
 		/* w->name is freed later by soc_tplg_dapm_widget_create() */
@@ -1496,7 +1496,7 @@ static_name:
 	}
 
 	w->priv = template; /* link path information to widget */
-	list_add_tail(&template->node, &tplg->path_tmpl_list);
+	list_add_tail(&template->analde, &tplg->path_tmpl_list);
 	return 0;
 }
 
@@ -1530,20 +1530,20 @@ static int avs_dai_load(struct snd_soc_component *comp, int index,
 static int avs_link_load(struct snd_soc_component *comp, int index, struct snd_soc_dai_link *link,
 			 struct snd_soc_tplg_link_config *cfg)
 {
-	if (link->ignore_suspend && !AVS_S0IX_SUPPORTED) {
-		dev_info_once(comp->dev, "Device does not support S0IX, check BIOS settings\n");
-		link->ignore_suspend = false;
+	if (link->iganalre_suspend && !AVS_S0IX_SUPPORTED) {
+		dev_info_once(comp->dev, "Device does analt support S0IX, check BIOS settings\n");
+		link->iganalre_suspend = false;
 	}
 
-	if (!link->no_pcm) {
+	if (!link->anal_pcm) {
 		/* Stream control handled by IPCs. */
-		link->nonatomic = true;
+		link->analnatomic = true;
 
 		/* Open LINK (BE) pipes last and close them first to prevent xruns. */
 		link->trigger[0] = SND_SOC_DPCM_TRIGGER_PRE;
 		link->trigger[1] = SND_SOC_DPCM_TRIGGER_PRE;
 	} else {
-		/* Do not ignore codec capabilities. */
+		/* Do analt iganalre codec capabilities. */
 		link->dpcm_merged_format = 1;
 	}
 
@@ -1714,7 +1714,7 @@ avs_control_load(struct snd_soc_component *comp, int index, struct snd_kcontrol_
 
 	ctl_data = devm_kzalloc(comp->card->dev, sizeof(*ctl_data), GFP_KERNEL);
 	if (!ctl_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = parse_dictionary_entries(comp, tuples, block_size, ctl_data, 1, sizeof(*ctl_data),
 				       AVS_TKN_KCONTROL_ID_U32, control_parsers,

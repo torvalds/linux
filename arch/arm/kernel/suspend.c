@@ -70,7 +70,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 /*
  * This is called by __cpu_suspend() to save the state, and do whatever
  * flushing is required to ensure that when the CPU goes to sleep we have
- * the necessary data available when the caches are not searched.
+ * the necessary data available when the caches are analt searched.
  */
 void __cpu_suspend_save(u32 *ptr, u32 ptrsz, u32 sp, u32 *save_ptr)
 {
@@ -88,7 +88,7 @@ void __cpu_suspend_save(u32 *ptr, u32 ptrsz, u32 sp, u32 *save_ptr)
 	flush_cache_louis();
 
 	/*
-	 * flush_cache_louis does not guarantee that
+	 * flush_cache_louis does analt guarantee that
 	 * save_ptr and ptr are cleaned to main memory,
 	 * just up to the Level of Unification Inner Shareable.
 	 * Since the context pointer and context itself
@@ -113,7 +113,7 @@ static int cpu_suspend_alloc_sp(void)
 	ctx_ptr = kcalloc(mpidr_hash_size(), sizeof(u32), GFP_KERNEL);
 
 	if (WARN_ON(!ctx_ptr))
-		return -ENOMEM;
+		return -EANALMEM;
 	sleep_save_sp.save_ptr_stash = ctx_ptr;
 	sleep_save_sp.save_ptr_stash_phys = virt_to_phys(ctx_ptr);
 	sync_cache_w(&sleep_save_sp);

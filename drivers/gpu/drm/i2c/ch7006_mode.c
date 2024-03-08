@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -26,14 +26,14 @@
 
 #include "ch7006_priv.h"
 
-const char * const ch7006_tv_norm_names[] = {
-	[TV_NORM_PAL] = "PAL",
-	[TV_NORM_PAL_M] = "PAL-M",
-	[TV_NORM_PAL_N] = "PAL-N",
-	[TV_NORM_PAL_NC] = "PAL-Nc",
-	[TV_NORM_PAL_60] = "PAL-60",
-	[TV_NORM_NTSC_M] = "NTSC-M",
-	[TV_NORM_NTSC_J] = "NTSC-J",
+const char * const ch7006_tv_analrm_names[] = {
+	[TV_ANALRM_PAL] = "PAL",
+	[TV_ANALRM_PAL_M] = "PAL-M",
+	[TV_ANALRM_PAL_N] = "PAL-N",
+	[TV_ANALRM_PAL_NC] = "PAL-Nc",
+	[TV_ANALRM_PAL_60] = "PAL-60",
+	[TV_ANALRM_NTSC_M] = "NTSC-M",
+	[TV_ANALRM_NTSC_J] = "NTSC-J",
 };
 
 #define NTSC_LIKE_TIMINGS .vrefresh = 60 * fixed1/1.001,		\
@@ -46,29 +46,29 @@ const char * const ch7006_tv_norm_names[] = {
 		.vtotal = 625,					\
 		.hvirtual = 810
 
-const struct ch7006_tv_norm_info ch7006_tv_norms[] = {
-	[TV_NORM_NTSC_M] = {
+const struct ch7006_tv_analrm_info ch7006_tv_analrms[] = {
+	[TV_ANALRM_NTSC_M] = {
 		NTSC_LIKE_TIMINGS,
 		.black_level = 0.339 * fixed1,
 		.subc_freq = 3579545 * fixed1,
 		.dispmode = bitfs(CH7006_DISPMODE_OUTPUT_STD, NTSC),
 		.voffset = 0,
 	},
-	[TV_NORM_NTSC_J] = {
+	[TV_ANALRM_NTSC_J] = {
 		NTSC_LIKE_TIMINGS,
 		.black_level = 0.286 * fixed1,
 		.subc_freq = 3579545 * fixed1,
 		.dispmode = bitfs(CH7006_DISPMODE_OUTPUT_STD, NTSC_J),
 		.voffset = 0,
 	},
-	[TV_NORM_PAL] = {
+	[TV_ANALRM_PAL] = {
 		PAL_LIKE_TIMINGS,
 		.black_level = 0.3 * fixed1,
 		.subc_freq = 4433618.75 * fixed1,
 		.dispmode = bitfs(CH7006_DISPMODE_OUTPUT_STD, PAL),
 		.voffset = 0,
 	},
-	[TV_NORM_PAL_M] = {
+	[TV_ANALRM_PAL_M] = {
 		NTSC_LIKE_TIMINGS,
 		.black_level = 0.339 * fixed1,
 		.subc_freq = 3575611.433 * fixed1,
@@ -79,21 +79,21 @@ const struct ch7006_tv_norm_info ch7006_tv_norms[] = {
 	/* The following modes seem to work right but they're
 	 * undocumented */
 
-	[TV_NORM_PAL_N] = {
+	[TV_ANALRM_PAL_N] = {
 		PAL_LIKE_TIMINGS,
 		.black_level = 0.339 * fixed1,
 		.subc_freq = 4433618.75 * fixed1,
 		.dispmode = bitfs(CH7006_DISPMODE_OUTPUT_STD, PAL),
 		.voffset = 0,
 	},
-	[TV_NORM_PAL_NC] = {
+	[TV_ANALRM_PAL_NC] = {
 		PAL_LIKE_TIMINGS,
 		.black_level = 0.3 * fixed1,
 		.subc_freq = 3582056.25 * fixed1,
 		.dispmode = bitfs(CH7006_DISPMODE_OUTPUT_STD, PAL),
 		.voffset = 0,
 	},
-	[TV_NORM_PAL_60] = {
+	[TV_ANALRM_PAL_60] = {
 		NTSC_LIKE_TIMINGS,
 		.black_level = 0.3 * fixed1,
 		.subc_freq = 4433618.75 * fixed1,
@@ -103,7 +103,7 @@ const struct ch7006_tv_norm_info ch7006_tv_norms[] = {
 };
 
 #define __MODE(f, hd, vd, ht, vt, hsynp, vsynp,				\
-	       subc, scale, scale_mask, norm_mask, e_hd, e_vd) {	\
+	       subc, scale, scale_mask, analrm_mask, e_hd, e_vd) {	\
 		.mode = {						\
 			.name = #hd "x" #vd,				\
 			.status = 0,					\
@@ -128,18 +128,18 @@ const struct ch7006_tv_norm_info ch7006_tv_norms[] = {
 		.dispmode = bitfs(CH7006_DISPMODE_SCALING_RATIO, scale) | \
 			    bitfs(CH7006_DISPMODE_INPUT_RES, e_hd##x##e_vd), \
 		.valid_scales = scale_mask,				\
-		.valid_norms = norm_mask				\
+		.valid_analrms = analrm_mask				\
 	 }
 
 #define MODE(f, hd, vd, ht, vt, hsynp, vsynp,				\
-	     subc, scale, scale_mask, norm_mask)			\
+	     subc, scale, scale_mask, analrm_mask)			\
 	__MODE(f, hd, vd, ht, vt, hsynp, vsynp, subc, scale,		\
-	       scale_mask, norm_mask, hd, vd)
+	       scale_mask, analrm_mask, hd, vd)
 
-#define NTSC_LIKE (1 << TV_NORM_NTSC_M | 1 << TV_NORM_NTSC_J |		\
-		   1 << TV_NORM_PAL_M | 1 << TV_NORM_PAL_60)
+#define NTSC_LIKE (1 << TV_ANALRM_NTSC_M | 1 << TV_ANALRM_NTSC_J |		\
+		   1 << TV_ANALRM_PAL_M | 1 << TV_ANALRM_PAL_60)
 
-#define PAL_LIKE (1 << TV_NORM_PAL | 1 << TV_NORM_PAL_N | 1 << TV_NORM_PAL_NC)
+#define PAL_LIKE (1 << TV_ANALRM_PAL | 1 << TV_ANALRM_PAL_N | 1 << TV_ANALRM_PAL_NC)
 
 const struct ch7006_mode ch7006_modes[] = {
 	MODE(21000, 512, 384, 840, 500, N, N, 181.797557582, 5_4, 0x6, PAL_LIKE),
@@ -178,7 +178,7 @@ const struct ch7006_mode *ch7006_lookup_mode(struct drm_encoder *encoder,
 
 	for (mode = ch7006_modes; mode->mode.clock; mode++) {
 
-		if (~mode->valid_norms & 1<<priv->norm)
+		if (~mode->valid_analrms & 1<<priv->analrm)
 			continue;
 
 		if (mode->mode.hdisplay != drm_mode->hdisplay ||
@@ -201,13 +201,13 @@ void ch7006_setup_levels(struct drm_encoder *encoder)
 	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	uint8_t *regs = priv->state.regs;
-	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
+	const struct ch7006_tv_analrm_info *analrm = &ch7006_tv_analrms[priv->analrm];
 	int gain;
 	int black_level;
 
 	/* Set DAC_GAIN if the voltage drop between white and black is
-	 * high enough. */
-	if (norm->black_level < 339*fixed1/1000) {
+	 * high eanalugh. */
+	if (analrm->black_level < 339*fixed1/1000) {
 		gain = 76;
 
 		regs[CH7006_INPUT_FORMAT] |= CH7006_INPUT_FORMAT_DAC_GAIN;
@@ -217,7 +217,7 @@ void ch7006_setup_levels(struct drm_encoder *encoder)
 		regs[CH7006_INPUT_FORMAT] &= ~CH7006_INPUT_FORMAT_DAC_GAIN;
 	}
 
-	black_level = round_fixed(norm->black_level*26625)/gain;
+	black_level = round_fixed(analrm->black_level*26625)/gain;
 
 	/* Correct it with the specified brightness. */
 	black_level = interpolate(90, black_level, 208, priv->brightness);
@@ -232,12 +232,12 @@ void ch7006_setup_subcarrier(struct drm_encoder *encoder)
 	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	struct ch7006_state *state = &priv->state;
-	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
+	const struct ch7006_tv_analrm_info *analrm = &ch7006_tv_analrms[priv->analrm];
 	const struct ch7006_mode *mode = priv->mode;
 	uint32_t subc_inc;
 
 	subc_inc = round_fixed((mode->subc_coeff >> 8)
-			       * (norm->subc_freq >> 24));
+			       * (analrm->subc_freq >> 24));
 
 	setbitf(state, CH7006_SUBC_INC0, 28, subc_inc);
 	setbitf(state, CH7006_SUBC_INC1, 24, subc_inc);
@@ -309,7 +309,7 @@ void ch7006_setup_power_state(struct drm_encoder *encoder)
 			*power |= bitfs(CH7006_POWER_LEVEL, SVIDEO_OFF);
 			break;
 		case DRM_MODE_SUBCONNECTOR_SCART:
-			*power |= bitfs(CH7006_POWER_LEVEL, NORMAL) |
+			*power |= bitfs(CH7006_POWER_LEVEL, ANALRMAL) |
 				CH7006_POWER_SCART;
 			break;
 		}
@@ -327,7 +327,7 @@ void ch7006_setup_properties(struct drm_encoder *encoder)
 	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	struct ch7006_state *state = &priv->state;
-	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
+	const struct ch7006_tv_analrm_info *analrm = &ch7006_tv_analrms[priv->analrm];
 	const struct ch7006_mode *ch_mode = priv->mode;
 	const struct drm_display_mode *mode = &ch_mode->mode;
 	uint8_t *regs = state->regs;
@@ -342,20 +342,20 @@ void ch7006_setup_properties(struct drm_encoder *encoder)
 	contrast = interpolate(0, 5, 7, priv->contrast);
 	regs[CH7006_CONTRAST] = bitf(CH7006_CONTRAST_0, contrast);
 
-	scale = norm->vtotal*fixed1;
+	scale = analrm->vtotal*fixed1;
 	do_div(scale, mode->vtotal);
 
 	aspect = ch_mode->enc_hdisp*fixed1;
 	do_div(aspect, ch_mode->enc_vdisp);
 
-	hpos = round_fixed((norm->hvirtual * aspect - mode->hdisplay * scale)
-			   * priv->hmargin * mode->vtotal) / norm->vtotal / 100 / 4;
+	hpos = round_fixed((analrm->hvirtual * aspect - mode->hdisplay * scale)
+			   * priv->hmargin * mode->vtotal) / analrm->vtotal / 100 / 4;
 
 	setbitf(state, CH7006_POV, HPOS_8, hpos);
 	setbitf(state, CH7006_HPOS, 0, hpos);
 
-	vpos = max(0, norm->vdisplay - round_fixed(mode->vdisplay*scale)
-		   + norm->voffset) * priv->vmargin / 100 / 2;
+	vpos = max(0, analrm->vdisplay - round_fixed(mode->vdisplay*scale)
+		   + analrm->voffset) * priv->vmargin / 100 / 2;
 
 	setbitf(state, CH7006_POV, VPOS_8, vpos);
 	setbitf(state, CH7006_VPOS, 0, vpos);

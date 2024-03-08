@@ -4,6 +4,6 @@
 
 /* overlay_13 - disable using absolute target path (i2c) */
 
-&{/testcase-data/overlay-node/test-bus/i2c-test-bus/test-unittest13} {
+&{/testcase-data/overlay-analde/test-bus/i2c-test-bus/test-unittest13} {
 	status = "disabled";
 };

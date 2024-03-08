@@ -33,19 +33,19 @@ struct qnx6_sb_info {
 	int			s_ptrbits;	/* indirect pointer bitfield */
 	unsigned long		s_mount_opt;	/* all mount options */
 	int			s_bytesex;	/* holds endianess info */
-	struct inode *		inodes;
-	struct inode *		longfile;
+	struct ianalde *		ianaldes;
+	struct ianalde *		longfile;
 };
 
-struct qnx6_inode_info {
-	__fs32			di_block_ptr[QNX6_NO_DIRECT_POINTERS];
+struct qnx6_ianalde_info {
+	__fs32			di_block_ptr[QNX6_ANAL_DIRECT_POINTERS];
 	__u8			di_filelevels;
 	__u32			i_dir_start_lookup;
-	struct inode		vfs_inode;
+	struct ianalde		vfs_ianalde;
 };
 
-extern struct inode *qnx6_iget(struct super_block *sb, unsigned ino);
-extern struct dentry *qnx6_lookup(struct inode *dir, struct dentry *dentry,
+extern struct ianalde *qnx6_iget(struct super_block *sb, unsigned ianal);
+extern struct dentry *qnx6_lookup(struct ianalde *dir, struct dentry *dentry,
 					unsigned int flags);
 
 #ifdef CONFIG_QNX6FS_DEBUG
@@ -53,7 +53,7 @@ extern void qnx6_superblock_debug(struct qnx6_super_block *,
 						struct super_block *);
 #endif
 
-extern const struct inode_operations qnx6_dir_inode_operations;
+extern const struct ianalde_operations qnx6_dir_ianalde_operations;
 extern const struct file_operations qnx6_dir_operations;
 
 static inline struct qnx6_sb_info *QNX6_SB(struct super_block *sb)
@@ -61,9 +61,9 @@ static inline struct qnx6_sb_info *QNX6_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline struct qnx6_inode_info *QNX6_I(struct inode *inode)
+static inline struct qnx6_ianalde_info *QNX6_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct qnx6_inode_info, vfs_inode);
+	return container_of(ianalde, struct qnx6_ianalde_info, vfs_ianalde);
 }
 
 #define clear_opt(o, opt)		(o &= ~(QNX6_MOUNT_##opt))
@@ -132,5 +132,5 @@ static inline void qnx6_put_page(struct page *page)
 	put_page(page);
 }
 
-extern unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
+extern unsigned qnx6_find_entry(int len, struct ianalde *dir, const char *name,
 				struct page **res_page);

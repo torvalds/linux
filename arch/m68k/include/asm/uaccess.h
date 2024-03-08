@@ -13,7 +13,7 @@
 #include <asm-generic/access_ok.h>
 
 /*
- * Not all varients of the 68k family support the notion of address spaces.
+ * Analt all varients of the 68k family support the analtion of address spaces.
  * The traditional 680x0 parts do, and they use the sfc/dfc registers and
  * the "moves" instruction to access user space from kernel space. Other
  * family members like ColdFire don't support this, and only have a single
@@ -380,7 +380,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 #define INLINE_COPY_FROM_USER
 #define INLINE_COPY_TO_USER
 
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	type *__gk_dst = (type *)(dst);					\
 	type *__gk_src = (type *)(src);					\
@@ -409,7 +409,7 @@ do {									\
 		goto err_label;						\
 } while (0)
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	type __pk_src = *(type *)(src);					\
 	type *__pk_dst = (type *)(dst);					\

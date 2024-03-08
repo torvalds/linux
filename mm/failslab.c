@@ -6,11 +6,11 @@
 
 static struct {
 	struct fault_attr attr;
-	bool ignore_gfp_reclaim;
+	bool iganalre_gfp_reclaim;
 	bool cache_filter;
 } failslab = {
 	.attr = FAULT_ATTR_INITIALIZER,
-	.ignore_gfp_reclaim = true,
+	.iganalre_gfp_reclaim = true,
 	.cache_filter = false,
 };
 
@@ -18,14 +18,14 @@ bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
 {
 	int flags = 0;
 
-	/* No fault-injection for bootstrap cache */
+	/* Anal fault-injection for bootstrap cache */
 	if (unlikely(s == kmem_cache))
 		return false;
 
-	if (gfpflags & __GFP_NOFAIL)
+	if (gfpflags & __GFP_ANALFAIL)
 		return false;
 
-	if (failslab.ignore_gfp_reclaim &&
+	if (failslab.iganalre_gfp_reclaim &&
 			(gfpflags & __GFP_DIRECT_RECLAIM))
 		return false;
 
@@ -33,13 +33,13 @@ bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
 		return false;
 
 	/*
-	 * In some cases, it expects to specify __GFP_NOWARN
-	 * to avoid printing any information(not just a warning),
+	 * In some cases, it expects to specify __GFP_ANALWARN
+	 * to avoid printing any information(analt just a warning),
 	 * thus avoiding deadlocks. See commit 6b9dbedbe349 for
 	 * details.
 	 */
-	if (gfpflags & __GFP_NOWARN)
-		flags |= FAULT_NOWARN;
+	if (gfpflags & __GFP_ANALWARN)
+		flags |= FAULT_ANALWARN;
 
 	return should_fail_ex(&failslab.attr, s->object_size, flags);
 }
@@ -60,8 +60,8 @@ static int __init failslab_debugfs_init(void)
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
 
-	debugfs_create_bool("ignore-gfp-wait", mode, dir,
-			    &failslab.ignore_gfp_reclaim);
+	debugfs_create_bool("iganalre-gfp-wait", mode, dir,
+			    &failslab.iganalre_gfp_reclaim);
 	debugfs_create_bool("cache-filter", mode, dir,
 			    &failslab.cache_filter);
 

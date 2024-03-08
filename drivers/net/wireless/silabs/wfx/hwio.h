@@ -12,7 +12,7 @@
 
 struct wfx_dev;
 
-/* Caution: in the functions below, 'buf' will used with a DMA. So, it must be kmalloc'd (do not use
+/* Caution: in the functions below, 'buf' will used with a DMA. So, it must be kmalloc'd (do analt use
  * stack allocated buffers). In doubt, enable CONFIG_DEBUG_SG to detect badly located buffer.
  */
 int wfx_data_read(struct wfx_dev *wdev, void *buf, size_t buf_len);
@@ -34,12 +34,12 @@ int wfx_ahb_reg_write(struct wfx_dev *wdev, u32 addr, u32 val);
 #define CFG_ERR_SDIO_BUF_MISMATCH  0x00000001 /* only with SDIO */
 #define CFG_ERR_BUF_UNDERRUN       0x00000002
 #define CFG_ERR_DATA_IN_TOO_LARGE  0x00000004
-#define CFG_ERR_HOST_NO_OUT_QUEUE  0x00000008
+#define CFG_ERR_HOST_ANAL_OUT_QUEUE  0x00000008
 #define CFG_ERR_BUF_OVERRUN        0x00000010
 #define CFG_ERR_DATA_OUT_TOO_LARGE 0x00000020
-#define CFG_ERR_HOST_NO_IN_QUEUE   0x00000040
+#define CFG_ERR_HOST_ANAL_IN_QUEUE   0x00000040
 #define CFG_ERR_HOST_CRC_MISS      0x00000080 /* only with SDIO */
-#define CFG_SPI_IGNORE_CS          0x00000080 /* only with SPI */
+#define CFG_SPI_IGANALRE_CS          0x00000080 /* only with SPI */
 #define CFG_BYTE_ORDER_MASK        0x00000300 /* only writable with SPI */
 #define     CFG_BYTE_ORDER_BADC    0x00000000
 #define     CFG_BYTE_ORDER_DCBA    0x00000100

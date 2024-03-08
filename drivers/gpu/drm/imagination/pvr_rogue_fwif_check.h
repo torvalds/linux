@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_FWIF_CHECK_H
 #define PVR_ROGUE_FWIF_CHECK_H
@@ -176,14 +176,14 @@ OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, stats_num_out_of_memory, 52);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, stats_num_partial_renders, 56);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, dm, 60);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, wait_signal_address, 64);
-OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, wait_signal_node, 72);
-OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, buf_stalled_node, 80);
+OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, wait_signal_analde, 72);
+OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, buf_stalled_analde, 80);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, cbuf_queue_ctrl_addr, 88);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, robustness_address, 96);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, max_deadline_ms, 104);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, read_offset_needs_reset, 108);
-OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, waiting_node, 112);
-OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, run_node, 120);
+OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, waiting_analde, 112);
+OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, run_analde, 120);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, last_failed_ufo, 128);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, fw_mem_context_fw_addr, 136);
 OFFSET_CHECK(struct rogue_fwif_fwcommoncontext, server_common_context_id, 140);
@@ -481,7 +481,7 @@ OFFSET_CHECK(struct rogue_fwif_hwrtdata, tail_ptrs_dev_addr, 240);
 OFFSET_CHECK(struct rogue_fwif_hwrtdata, macrotile_array_dev_addr, 248);
 OFFSET_CHECK(struct rogue_fwif_hwrtdata, rgn_header_dev_addr, 256);
 OFFSET_CHECK(struct rogue_fwif_hwrtdata, rtc_dev_addr, 264);
-OFFSET_CHECK(struct rogue_fwif_hwrtdata, owner_geom_not_used_by_host, 272);
+OFFSET_CHECK(struct rogue_fwif_hwrtdata, owner_geom_analt_used_by_host, 272);
 OFFSET_CHECK(struct rogue_fwif_hwrtdata, geom_caches_need_zeroing, 276);
 OFFSET_CHECK(struct rogue_fwif_hwrtdata, cleanup_state, 320);
 SIZE_CHECK(struct rogue_fwif_hwrtdata, 384);

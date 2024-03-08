@@ -89,7 +89,7 @@ static int hisi_trng_seed(struct crypto_rng *tfm, const u8 *seed,
 	int ret = 0;
 
 	if (slen < SW_DRBG_SEED_SIZE) {
-		pr_err("slen(%u) is not matched with trng(%d)\n", slen,
+		pr_err("slen(%u) is analt matched with trng(%d)\n", slen,
 			SW_DRBG_SEED_SIZE);
 		return -EINVAL;
 	}
@@ -254,7 +254,7 @@ static int hisi_trng_probe(struct platform_device *pdev)
 
 	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
 	if (!trng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, trng);
 

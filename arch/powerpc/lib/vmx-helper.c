@@ -19,7 +19,7 @@ int enter_vmx_usercopy(void)
 	/*
 	 * We need to disable page faults as they can call schedule and
 	 * thus make us lose the VMX context. So on page faults, we just
-	 * fail which will cause a fallback to the normal non-vmx copy.
+	 * fail which will cause a fallback to the analrmal analn-vmx copy.
 	 */
 	pagefault_disable();
 
@@ -36,11 +36,11 @@ int exit_vmx_usercopy(void)
 {
 	disable_kernel_altivec();
 	pagefault_enable();
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 	/*
 	 * Must never explicitly call schedule (including preempt_enable())
 	 * while in a kuap-unlocked user copy, because the AMR register will
-	 * not be saved and restored across context switch. However preempt
+	 * analt be saved and restored across context switch. However preempt
 	 * kernels need to be preempted as soon as possible if need_resched is
 	 * set and we are preemptible. The hack here is to schedule a
 	 * decrementer to fire here and reschedule for us if necessary.

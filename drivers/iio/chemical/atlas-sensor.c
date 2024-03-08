@@ -3,7 +3,7 @@
  * atlas-sensor.c - Support for Atlas Scientific OEM SM sensors
  *
  * Copyright (C) 2015-2019 Konsulko Group
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  */
 
 #include <linux/module.h>
@@ -249,7 +249,7 @@ static int atlas_check_ph_calibration(struct atlas_data *data)
 		return ret;
 
 	if (!(val & ATLAS_REG_PH_CALIB_STATUS_MASK)) {
-		dev_warn(dev, "device has not been calibrated\n");
+		dev_warn(dev, "device has analt been calibrated\n");
 		return 0;
 	}
 
@@ -284,7 +284,7 @@ static int atlas_check_ec_calibration(struct atlas_data *data)
 		return ret;
 
 	if (!(val & ATLAS_REG_EC_CALIB_STATUS_MASK)) {
-		dev_warn(dev, "device has not been calibrated\n");
+		dev_warn(dev, "device has analt been calibrated\n");
 		return 0;
 	}
 
@@ -315,7 +315,7 @@ static int atlas_check_orp_calibration(struct atlas_data *data)
 		return ret;
 
 	if (!val)
-		dev_warn(dev, "device has not been calibrated\n");
+		dev_warn(dev, "device has analt been calibrated\n");
 
 	return 0;
 }
@@ -331,7 +331,7 @@ static int atlas_check_do_calibration(struct atlas_data *data)
 		return ret;
 
 	if (!(val & ATLAS_REG_DO_CALIB_STATUS_MASK)) {
-		dev_warn(dev, "device has not been calibrated\n");
+		dev_warn(dev, "device has analt been calibrated\n");
 		return 0;
 	}
 
@@ -461,7 +461,7 @@ static irqreturn_t atlas_trigger_handler(int irq, void *private)
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 				iio_get_time_ns(indio_dev));
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -552,7 +552,7 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 		case IIO_CONCENTRATION:
 			*val = 0; /* 0.000000001 */
 			*val2 = 1000;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_VOLTAGE:
 			*val = 1; /* 0.1 */
 			*val2 = 10;
@@ -618,7 +618,7 @@ static int atlas_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = i2c_get_match_data(client);
 
@@ -632,7 +632,7 @@ static int atlas_probe(struct i2c_client *client)
 				      indio_dev->name, iio_device_id(indio_dev));
 
 	if (!trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;
@@ -665,7 +665,7 @@ static int atlas_probe(struct i2c_client *client)
 	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
 		&atlas_trigger_handler, &atlas_buffer_setup_ops);
 	if (ret) {
-		dev_err(&client->dev, "cannot setup iio trigger\n");
+		dev_err(&client->dev, "cananalt setup iio trigger\n");
 		goto unregister_trigger;
 	}
 
@@ -689,7 +689,7 @@ static int atlas_probe(struct i2c_client *client)
 
 	ret = atlas_set_powermode(data, 1);
 	if (ret) {
-		dev_err(&client->dev, "cannot power device on");
+		dev_err(&client->dev, "cananalt power device on");
 		goto unregister_buffer;
 	}
 
@@ -769,6 +769,6 @@ static struct i2c_driver atlas_driver = {
 };
 module_i2c_driver(atlas_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("Atlas Scientific SM sensors");
 MODULE_LICENSE("GPL");

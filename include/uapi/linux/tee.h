@@ -5,19 +5,19 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice,
+ * 1. Redistributions of source code must retain the above copyright analtice,
  * this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * 2. Redistributions in binary form must reproduce the above copyright analtice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -133,14 +133,14 @@ struct tee_ioctl_buf_data {
 /*
  * Attributes for struct tee_ioctl_param, selects field in the union
  */
-#define TEE_IOCTL_PARAM_ATTR_TYPE_NONE		0	/* parameter not used */
+#define TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE		0	/* parameter analt used */
 
 /*
  * These defines value parameters (struct tee_ioctl_param_value)
  */
 #define TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT	1
 #define TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT	2
-#define TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT	3	/* input and output */
+#define TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT	3	/* input and output */
 
 /*
  * These defines shared memory reference parameters (struct
@@ -148,7 +148,7 @@ struct tee_ioctl_buf_data {
  */
 #define TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT	5
 #define TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT	6
-#define TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT	7	/* input and output */
+#define TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT	7	/* input and output */
 
 /*
  * Mask for the type part of the attribute, leaves room for more types
@@ -158,7 +158,7 @@ struct tee_ioctl_buf_data {
 /* Meta parameter carrying extra information about the message. */
 #define TEE_IOCTL_PARAM_ATTR_META		0x100
 
-/* Mask of all known attr bits */
+/* Mask of all kanalwn attr bits */
 #define TEE_IOCTL_PARAM_ATTR_MASK \
 	(TEE_IOCTL_PARAM_ATTR_TYPE_MASK | TEE_IOCTL_PARAM_ATTR_META)
 
@@ -191,8 +191,8 @@ struct tee_ioctl_buf_data {
  *
  * @attr & TEE_PARAM_ATTR_TYPE_MASK indicates if memref or value is used in
  * the union. TEE_PARAM_ATTR_TYPE_VALUE_* indicates value and
- * TEE_PARAM_ATTR_TYPE_MEMREF_* indicates memref. TEE_PARAM_ATTR_TYPE_NONE
- * indicates that none of the members are used.
+ * TEE_PARAM_ATTR_TYPE_MEMREF_* indicates memref. TEE_PARAM_ATTR_TYPE_ANALNE
+ * indicates that analne of the members are used.
  *
  * Shared memory is allocated with TEE_IOC_SHM_ALLOC which returns an
  * identifier representing the shared memory object. A memref can reference

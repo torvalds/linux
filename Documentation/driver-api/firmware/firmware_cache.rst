@@ -4,7 +4,7 @@ Firmware cache
 
 When Linux resumes from suspend some device drivers require firmware lookups to
 re-initialize devices. During resume there may be a period of time during which
-firmware lookups are not possible, during this short period of time firmware
+firmware lookups are analt possible, during this short period of time firmware
 requests will fail. Time is of essence though, and delaying drivers to wait for
 the root filesystem for firmware delays user experience with device
 functionality. In order to support these requirements the firmware
@@ -24,13 +24,13 @@ root filesystem mounts.
 Some implementation details about the firmware cache setup:
 
 * The firmware cache is setup by adding a devres entry for each device that
-  uses all synchronous call except :c:func:`request_firmware_into_buf`.
+  uses all synchroanalus call except :c:func:`request_firmware_into_buf`.
 
-* If an asynchronous call is used the firmware cache is only set up for a
-  device if the second argument (uevent) to request_firmware_nowait() is
+* If an asynchroanalus call is used the firmware cache is only set up for a
+  device if the second argument (uevent) to request_firmware_analwait() is
   true. When uevent is true it requests that a kobject uevent be sent to
   userspace for the firmware request through the sysfs fallback mechanism
-  if the firmware file is not found.
+  if the firmware file is analt found.
 
 * If the firmware cache is determined to be needed as per the above two
   criteria the firmware cache is setup by adding a devres entry for the
@@ -44,8 +44,8 @@ Some implementation details about the firmware cache setup:
   as the firmware cache is set up during suspend, the timeout is set back to
   the old value you had configured after the cache is set up.
 
-* Upon suspend any pending non-uevent firmware requests are killed to avoid
+* Upon suspend any pending analn-uevent firmware requests are killed to avoid
   stalling the kernel, this is done with kill_requests_without_uevent(). Kernel
-  calls requiring the non-uevent therefore need to implement their own firmware
-  cache mechanism but must not use the firmware API on suspend.
+  calls requiring the analn-uevent therefore need to implement their own firmware
+  cache mechanism but must analt use the firmware API on suspend.
 

@@ -8,7 +8,7 @@
 #include <net/act_api.h>
 #include <net/net_namespace.h>
 
-/* TC action not accessible from user space */
+/* TC action analt accessible from user space */
 #define TC_ACT_CONSUMED		(TC_ACT_VALUE_MAX + 1)
 
 /* Basic packet classifier frontend definitions. */
@@ -17,9 +17,9 @@ struct tcf_walker {
 	int	stop;
 	int	skip;
 	int	count;
-	bool	nonempty;
+	bool	analnempty;
 	unsigned long cookie;
-	int	(*fn)(struct tcf_proto *, void *node, struct tcf_walker *);
+	int	(*fn)(struct tcf_proto *, void *analde, struct tcf_walker *);
 };
 
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
@@ -67,7 +67,7 @@ static inline bool tcf_block_shared(struct tcf_block *block)
 	return block->index;
 }
 
-static inline bool tcf_block_non_null_shared(struct tcf_block *block)
+static inline bool tcf_block_analn_null_shared(struct tcf_block *block)
 {
 	return block && block->index;
 }
@@ -102,7 +102,7 @@ static inline bool tcf_block_shared(struct tcf_block *block)
 	return false;
 }
 
-static inline bool tcf_block_non_null_shared(struct tcf_block *block)
+static inline bool tcf_block_analn_null_shared(struct tcf_block *block)
 {
 	return false;
 }
@@ -170,8 +170,8 @@ tcf_bind_filter(struct tcf_proto *tp, struct tcf_result *r, unsigned long base)
 {
 	struct Qdisc *q = tp->chain->block->q;
 
-	/* Check q as it is not set for shared blocks. In that case,
-	 * setting class is not supported.
+	/* Check q as it is analt set for shared blocks. In that case,
+	 * setting class is analt supported.
 	 */
 	if (!q)
 		return;
@@ -218,7 +218,7 @@ struct tcf_exts {
 	struct tc_action **actions;
 	struct net	*net;
 	netns_tracker	ns_tracker;
-	struct tcf_exts_miss_cookie_node *miss_cookie_node;
+	struct tcf_exts_miss_cookie_analde *miss_cookie_analde;
 #endif
 	/* Map to export classifier specific extension TLV types to the
 	 * generic extensions API. Unsupported extensions must be set to 0.
@@ -233,12 +233,12 @@ static inline int tcf_exts_init(struct tcf_exts *exts, struct net *net,
 #ifdef CONFIG_NET_CLS
 	return tcf_exts_init_ex(exts, net, action, police, NULL, 0, false);
 #else
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 #endif
 }
 
 /* Return false if the netns is being destroyed in cleanup_net(). Callers
- * need to do cleanup synchronously in this case, otherwise may race with
+ * need to do cleanup synchroanalusly in this case, otherwise may race with
  * tc_action_net_exit(). Return true for other cases.
  */
 static inline bool tcf_exts_get_net(struct tcf_exts *exts)
@@ -325,7 +325,7 @@ static inline bool tcf_exts_has_actions(struct tcf_exts *exts)
  * @exts: tc filter extensions handle
  * @res: desired result
  *
- * Executes all configured extensions. Returns TC_ACT_OK on a normal execution,
+ * Executes all configured extensions. Returns TC_ACT_OK on a analrmal execution,
  * a negative number if the filter must be considered unmatched or
  * a positive action code (TC_ACT_*) which must be returned to the
  * underlying layer.
@@ -490,8 +490,8 @@ int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
  * through all ematches respecting their logic relations returning
  * as soon as the result is obvious.
  *
- * Returns 1 if the ematch tree as-one matches, no ematches are configured
- * or ematch is not enabled in the kernel, otherwise 0 is returned.
+ * Returns 1 if the ematch tree as-one matches, anal ematches are configured
+ * or ematch is analt enabled in the kernel, otherwise 0 is returned.
  */
 static inline int tcf_em_tree_match(struct sk_buff *skb,
 				    struct tcf_ematch_tree *tree,
@@ -554,8 +554,8 @@ tcf_change_indev(struct net *net, struct nlattr *indev_tlv,
 	dev = __dev_get_by_name(net, indev);
 	if (!dev) {
 		NL_SET_ERR_MSG_ATTR(extack, indev_tlv,
-				    "Network device not found");
-		return -ENODEV;
+				    "Network device analt found");
+		return -EANALDEV;
 	}
 	return dev->ifindex;
 }
@@ -641,7 +641,7 @@ static inline int tcf_qevent_dump(struct sk_buff *skb, int attr_name, struct tcf
 }
 #endif
 
-struct tc_cls_u32_knode {
+struct tc_cls_u32_kanalde {
 	struct tcf_exts *exts;
 	struct tcf_result *res;
 	struct tc_u32_sel *sel;
@@ -652,28 +652,28 @@ struct tc_cls_u32_knode {
 	u8 fshift;
 };
 
-struct tc_cls_u32_hnode {
+struct tc_cls_u32_hanalde {
 	u32 handle;
 	u32 prio;
 	unsigned int divisor;
 };
 
 enum tc_clsu32_command {
-	TC_CLSU32_NEW_KNODE,
-	TC_CLSU32_REPLACE_KNODE,
-	TC_CLSU32_DELETE_KNODE,
-	TC_CLSU32_NEW_HNODE,
-	TC_CLSU32_REPLACE_HNODE,
-	TC_CLSU32_DELETE_HNODE,
+	TC_CLSU32_NEW_KANALDE,
+	TC_CLSU32_REPLACE_KANALDE,
+	TC_CLSU32_DELETE_KANALDE,
+	TC_CLSU32_NEW_HANALDE,
+	TC_CLSU32_REPLACE_HANALDE,
+	TC_CLSU32_DELETE_HANALDE,
 };
 
 struct tc_cls_u32_offload {
 	struct flow_cls_common_offload common;
-	/* knode values */
+	/* kanalde values */
 	enum tc_clsu32_command command;
 	union {
-		struct tc_cls_u32_knode knode;
-		struct tc_cls_u32_hnode hnode;
+		struct tc_cls_u32_kanalde kanalde;
+		struct tc_cls_u32_hanalde hanalde;
 	};
 };
 
@@ -840,8 +840,8 @@ enum tc_htb_command {
 	TC_HTB_LEAF_DEL_LAST,
 	/* TC_HTB_LEAF_DEL_LAST, but delete driver data on hardware errors. */
 	TC_HTB_LEAF_DEL_LAST_FORCE,
-	/* Modify parameters of a node. */
-	TC_HTB_NODE_MODIFY,
+	/* Modify parameters of a analde. */
+	TC_HTB_ANALDE_MODIFY,
 
 	/* Class qdisc */
 	TC_HTB_LEAF_QUERY_QUEUE, /* Query qid by classid. */
@@ -876,7 +876,7 @@ struct tc_red_qopt_offload_params {
 	u32 limit;
 	bool is_ecn;
 	bool is_harddrop;
-	bool is_nodrop;
+	bool is_analdrop;
 	struct gnet_stats_queue *qstats;
 };
 

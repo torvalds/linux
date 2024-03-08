@@ -5,7 +5,7 @@ config INFINIBAND_QIB
 	depends on PCI
 	help
 	This is a low-level driver for Intel PCIe QLE InfiniBand host
-	channel adapters.  This driver does not support the Intel
+	channel adapters.  This driver does analt support the Intel
 	HyperTransport card (model QHT7140).
 
 config INFINIBAND_QIB_DCA

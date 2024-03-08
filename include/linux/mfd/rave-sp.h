@@ -3,13 +3,13 @@
 /*
  * Core definitions for RAVE SP MFD driver.
  *
- * Copyright (C) 2017 Zodiac Inflight Innovations
+ * Copyright (C) 2017 Zodiac Inflight Inanalvations
  */
 
 #ifndef _LINUX_RAVE_SP_H_
 #define _LINUX_RAVE_SP_H_
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 enum rave_sp_command {
 	RAVE_SP_CMD_GET_FIRMWARE_VERSION	= 0x20,
@@ -56,7 +56,7 @@ int rave_sp_exec(struct rave_sp *sp,
 		 void *reply_data, size_t reply_data_size);
 
 struct device;
-int devm_rave_sp_register_event_notifier(struct device *dev,
-					 struct notifier_block *nb);
+int devm_rave_sp_register_event_analtifier(struct device *dev,
+					 struct analtifier_block *nb);
 
 #endif /* _LINUX_RAVE_SP_H_ */

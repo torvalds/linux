@@ -37,7 +37,7 @@ io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] = {
 static int check_custom_allocator(enum io_pgtable_fmt fmt,
 				  struct io_pgtable_cfg *cfg)
 {
-	/* No custom allocator, no need to check the format. */
+	/* Anal custom allocator, anal need to check the format. */
 	if (!cfg->alloc && !cfg->free)
 		return 0;
 
@@ -85,7 +85,7 @@ EXPORT_SYMBOL_GPL(alloc_io_pgtable_ops);
 
 /*
  * It is the IOMMU driver's responsibility to ensure that the page table
- * is no longer accessible to the walker by this point.
+ * is anal longer accessible to the walker by this point.
  */
 void free_io_pgtable_ops(struct io_pgtable_ops *ops)
 {

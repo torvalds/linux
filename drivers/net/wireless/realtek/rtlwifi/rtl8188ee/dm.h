@@ -179,7 +179,7 @@
 
 #define WAIOTTHVAL					25
 
-#define TXHIGHPWRLEVEL_NORMAL				0
+#define TXHIGHPWRLEVEL_ANALRMAL				0
 #define TXHIGHPWRLEVEL_LEVEL1				1
 #define TXHIGHPWRLEVEL_LEVEL2				2
 #define TXHIGHPWRLEVEL_BT1				3
@@ -205,7 +205,7 @@ struct swat_t {
 };
 
 enum FAT_STATE {
-	FAT_NORMAL_STATE = 0,
+	FAT_ANALRMAL_STATE = 0,
 	FAT_TRAINING_STATE = 1,
 };
 
@@ -228,7 +228,7 @@ enum dm_1r_cca_e {
 
 enum dm_rf_e {
 	RF_SAVE = 0,
-	RF_NORMAL = 1,
+	RF_ANALRMAL = 1,
 	RF_MAX = 2,
 };
 

@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -46,7 +46,7 @@
 /* Temperature events */
 #define LPFC_CRIT_TEMP		0x1
 #define LPFC_THRESHOLD_TEMP	0x2
-#define LPFC_NORMAL_TEMP	0x3
+#define LPFC_ANALRMAL_TEMP	0x3
 /*
  * All net link event payloads will begin with and event type
  * and subcategory. The event type must come first.
@@ -171,7 +171,7 @@ struct lpfc_adapter_event_header {
 /* event codes for temp_event */
 #define LPFC_CRIT_TEMP		0x1
 #define LPFC_THRESHOLD_TEMP	0x2
-#define LPFC_NORMAL_TEMP	0x3
+#define LPFC_ANALRMAL_TEMP	0x3
 
 struct temp_event {
 	uint32_t event_type;

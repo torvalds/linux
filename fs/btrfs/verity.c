@@ -12,7 +12,7 @@
 #include <linux/sched/mm.h>
 #include "messages.h"
 #include "ctree.h"
-#include "btrfs_inode.h"
+#include "btrfs_ianalde.h"
 #include "transaction.h"
 #include "disk-io.h"
 #include "locking.h"
@@ -27,20 +27,20 @@
  *
  * The main question is how and where to store the verity descriptor and the
  * Merkle tree. We store both in dedicated btree items in the filesystem tree,
- * together with the rest of the inode metadata. This means we'll need to do
+ * together with the rest of the ianalde metadata. This means we'll need to do
  * extra work to encrypt them once encryption is supported in btrfs, but btrfs
  * has a lot of careful code around i_size and it seems better to make a new key
  * type than try and adjust all of our expectations for i_size.
  *
- * Note that this differs from the implementation in ext4 and f2fs, where
+ * Analte that this differs from the implementation in ext4 and f2fs, where
  * this data is stored as if it were in the file, but past EOF. However, btrfs
- * does not have a widespread mechanism for caching opaque metadata pages, so we
+ * does analt have a widespread mechanism for caching opaque metadata pages, so we
  * do pretend that the Merkle tree pages themselves are past EOF for the
- * purposes of caching them (as opposed to creating a virtual inode).
+ * purposes of caching them (as opposed to creating a virtual ianalde).
  *
  * fs verity items are stored under two different key types on disk.
  * The descriptor items:
- * [ inode objectid, BTRFS_VERITY_DESC_ITEM_KEY, offset ]
+ * [ ianalde objectid, BTRFS_VERITY_DESC_ITEM_KEY, offset ]
  *
  * At offset 0, we store a btrfs_verity_descriptor_item which tracks the
  * size of the descriptor item and some extra data for encryption.
@@ -49,14 +49,14 @@
  * the higher level verity code.  The most common descriptor size is 256 bytes.
  *
  * The merkle tree items:
- * [ inode objectid, BTRFS_VERITY_MERKLE_ITEM_KEY, offset ]
+ * [ ianalde objectid, BTRFS_VERITY_MERKLE_ITEM_KEY, offset ]
  *
  * These also start at offset 0, and correspond to the merkle tree bytes.
  * So when fsverity asks for page 0 of the merkle tree, we pull up one page
  * starting at offset 0 for this key type.  These are also opaque to btrfs,
  * we're blindly storing whatever fsverity sends down.
  *
- * Another important consideration is the fact that the Merkle tree data scales
+ * Aanalther important consideration is the fact that the Merkle tree data scales
  * linearly with the size of the file (with 4K pages/blocks and SHA-256, it's
  * ~1/127th the size) so for large files, writing the tree can be a lengthy
  * operation. For that reason, we guard the whole enable verity operation
@@ -71,7 +71,7 @@
 /*
  * Compute the logical file offset where we cache the Merkle tree.
  *
- * @inode:  inode of the verity file
+ * @ianalde:  ianalde of the verity file
  *
  * For the purposes of caching the Merkle tree pages, as required by
  * fs-verity, it is convenient to do size computations in terms of a file
@@ -83,21 +83,21 @@
  *
  * Returns the file offset on success, negative error code on failure.
  */
-static loff_t merkle_file_pos(const struct inode *inode)
+static loff_t merkle_file_pos(const struct ianalde *ianalde)
 {
-	u64 sz = inode->i_size;
+	u64 sz = ianalde->i_size;
 	u64 rounded = round_up(sz, MERKLE_START_ALIGN);
 
-	if (rounded > inode->i_sb->s_maxbytes)
+	if (rounded > ianalde->i_sb->s_maxbytes)
 		return -EFBIG;
 
 	return rounded;
 }
 
 /*
- * Drop all the items for this inode with this key_type.
+ * Drop all the items for this ianalde with this key_type.
  *
- * @inode:     inode to drop items for
+ * @ianalde:     ianalde to drop items for
  * @key_type:  type of items to drop (BTRFS_VERITY_DESC_ITEM or
  *             BTRFS_VERITY_MERKLE_ITEM)
  *
@@ -106,10 +106,10 @@ static loff_t merkle_file_pos(const struct inode *inode)
  *
  * Returns number of dropped items on success, negative error code on failure.
  */
-static int drop_verity_items(struct btrfs_inode *inode, u8 key_type)
+static int drop_verity_items(struct btrfs_ianalde *ianalde, u8 key_type)
 {
 	struct btrfs_trans_handle *trans;
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = ianalde->root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	int count = 0;
@@ -117,7 +117,7 @@ static int drop_verity_items(struct btrfs_inode *inode, u8 key_type)
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (1) {
 		/* 1 for the item being dropped */
@@ -131,14 +131,14 @@ static int drop_verity_items(struct btrfs_inode *inode, u8 key_type)
 		 * Walk backwards through all the items until we find one that
 		 * isn't from our key type or objectid
 		 */
-		key.objectid = btrfs_ino(inode);
+		key.objectid = btrfs_ianal(ianalde);
 		key.type = key_type;
 		key.offset = (u64)-1;
 
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 		if (ret > 0) {
 			ret = 0;
-			/* No more keys of this type, we're done */
+			/* Anal more keys of this type, we're done */
 			if (path->slots[0] == 0)
 				break;
 			path->slots[0]--;
@@ -147,15 +147,15 @@ static int drop_verity_items(struct btrfs_inode *inode, u8 key_type)
 			goto out;
 		}
 
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 
-		/* No more keys of this type, we're done */
-		if (key.objectid != btrfs_ino(inode) || key.type != key_type)
+		/* Anal more keys of this type, we're done */
+		if (key.objectid != btrfs_ianal(ianalde) || key.type != key_type)
 			break;
 
 		/*
 		 * This shouldn't be a performance sensitive function because
-		 * it's not used as part of truncate.  If it ever becomes
+		 * it's analt used as part of truncate.  If it ever becomes
 		 * perf sensitive, change this to walk forward and bulk delete
 		 * items
 		 */
@@ -178,21 +178,21 @@ out:
 /*
  * Drop all verity items
  *
- * @inode:  inode to drop verity items for
+ * @ianalde:  ianalde to drop verity items for
  *
  * In most contexts where we are dropping verity items, we want to do it for all
- * the types of verity items, not a particular one.
+ * the types of verity items, analt a particular one.
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int btrfs_drop_verity_items(struct btrfs_inode *inode)
+int btrfs_drop_verity_items(struct btrfs_ianalde *ianalde)
 {
 	int ret;
 
-	ret = drop_verity_items(inode, BTRFS_VERITY_DESC_ITEM_KEY);
+	ret = drop_verity_items(ianalde, BTRFS_VERITY_DESC_ITEM_KEY);
 	if (ret < 0)
 		return ret;
-	ret = drop_verity_items(inode, BTRFS_VERITY_MERKLE_ITEM_KEY);
+	ret = drop_verity_items(ianalde, BTRFS_VERITY_MERKLE_ITEM_KEY);
 	if (ret < 0)
 		return ret;
 
@@ -200,26 +200,26 @@ int btrfs_drop_verity_items(struct btrfs_inode *inode)
 }
 
 /*
- * Insert and write inode items with a given key type and offset.
+ * Insert and write ianalde items with a given key type and offset.
  *
- * @inode:     inode to insert for
+ * @ianalde:     ianalde to insert for
  * @key_type:  key type to insert
  * @offset:    item offset to insert at
  * @src:       source data to write
  * @len:       length of source data to write
  *
  * Write len bytes from src into items of up to 2K length.
- * The inserted items will have key (ino, key_type, offset + off) where off is
+ * The inserted items will have key (ianal, key_type, offset + off) where off is
  * consecutively increasing from 0 up to the last item ending at offset + len.
  *
  * Returns 0 on success and a negative error code on failure.
  */
-static int write_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
+static int write_key_bytes(struct btrfs_ianalde *ianalde, u8 key_type, u64 offset,
 			   const char *src, u64 len)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_path *path;
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = ianalde->root;
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 	unsigned long copy_bytes;
@@ -229,7 +229,7 @@ static int write_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (len > 0) {
 		/* 1 for the new item being inserted */
@@ -239,7 +239,7 @@ static int write_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 			break;
 		}
 
-		key.objectid = btrfs_ino(inode);
+		key.objectid = btrfs_ianal(ianalde);
 		key.type = key_type;
 		key.offset = offset;
 
@@ -255,7 +255,7 @@ static int write_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 			break;
 		}
 
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 
 		data = btrfs_item_ptr(leaf, path->slots[0], void);
 		write_extent_buffer(leaf, src + src_offset,
@@ -273,32 +273,32 @@ static int write_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 }
 
 /*
- * Read inode items of the given key type and offset from the btree.
+ * Read ianalde items of the given key type and offset from the btree.
  *
- * @inode:      inode to read items of
+ * @ianalde:      ianalde to read items of
  * @key_type:   key type to read
  * @offset:     item offset to read from
  * @dest:       Buffer to read into. This parameter has slightly tricky
- *              semantics.  If it is NULL, the function will not do any copying
+ *              semantics.  If it is NULL, the function will analt do any copying
  *              and will just return the size of all the items up to len bytes.
  *              If dest_page is passed, then the function will kmap_local the
- *              page and ignore dest, but it must still be non-NULL to avoid the
+ *              page and iganalre dest, but it must still be analn-NULL to avoid the
  *              counting-only behavior.
  * @len:        length in bytes to read
  * @dest_page:  copy into this page instead of the dest buffer
  *
  * Helper function to read items from the btree.  This returns the number of
  * bytes read or < 0 for errors.  We can return short reads if the items don't
- * exist on disk or aren't big enough to fill the desired length.  Supports
+ * exist on disk or aren't big eanalugh to fill the desired length.  Supports
  * reading into a provided buffer (dest) or into the page cache
  *
  * Returns number of bytes read or a negative error code on failure.
  */
-static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
+static int read_key_bytes(struct btrfs_ianalde *ianalde, u8 key_type, u64 offset,
 			  char *dest, u64 len, struct page *dest_page)
 {
 	struct btrfs_path *path;
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = ianalde->root;
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 	u64 item_end;
@@ -313,12 +313,12 @@ static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dest_page)
 		path->reada = READA_FORWARD;
 
-	key.objectid = btrfs_ino(inode);
+	key.objectid = btrfs_ianal(ianalde);
 	key.type = key_type;
 	key.offset = offset;
 
@@ -333,10 +333,10 @@ static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 	}
 
 	while (len > 0) {
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 
-		if (key.objectid != btrfs_ino(inode) || key.type != key_type)
+		if (key.objectid != btrfs_ianal(ianalde) || key.type != key_type)
 			break;
 
 		item_end = btrfs_item_size(leaf, path->slots[0]) + key.offset;
@@ -390,7 +390,7 @@ static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 		copied += copy_bytes;
 
 		path->slots[0]++;
-		if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
+		if (path->slots[0] >= btrfs_header_nritems(path->analdes[0])) {
 			/*
 			 * We've reached the last slot in this leaf and we need
 			 * to go to the next leaf.
@@ -415,31 +415,31 @@ out:
  * Delete an fsverity orphan
  *
  * @trans:  transaction to do the delete in
- * @inode:  inode to orphan
+ * @ianalde:  ianalde to orphan
  *
  * Capture verity orphan specific logic that is repeated in the couple places
- * we delete verity orphans. Specifically, handling ENOENT and ignoring inodes
+ * we delete verity orphans. Specifically, handling EANALENT and iganalring ianaldes
  * with 0 links.
  *
  * Returns zero on success or a negative error code on failure.
  */
-static int del_orphan(struct btrfs_trans_handle *trans, struct btrfs_inode *inode)
+static int del_orphan(struct btrfs_trans_handle *trans, struct btrfs_ianalde *ianalde)
 {
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = ianalde->root;
 	int ret;
 
 	/*
-	 * If the inode has no links, it is either already unlinked, or was
+	 * If the ianalde has anal links, it is either already unlinked, or was
 	 * created with O_TMPFILE. In either case, it should have an orphan from
 	 * that other operation. Rather than reference count the orphans, we
-	 * simply ignore them here, because we only invoke the verity path in
+	 * simply iganalre them here, because we only invoke the verity path in
 	 * the orphan logic when i_nlink is 1.
 	 */
-	if (!inode->vfs_inode.i_nlink)
+	if (!ianalde->vfs_ianalde.i_nlink)
 		return 0;
 
-	ret = btrfs_del_orphan_item(trans, root, btrfs_ino(inode));
-	if (ret == -ENOENT)
+	ret = btrfs_del_orphan_item(trans, root, btrfs_ianal(ianalde));
+	if (ret == -EANALENT)
 		ret = 0;
 	return ret;
 }
@@ -447,33 +447,33 @@ static int del_orphan(struct btrfs_trans_handle *trans, struct btrfs_inode *inod
 /*
  * Rollback in-progress verity if we encounter an error.
  *
- * @inode:  inode verity had an error for
+ * @ianalde:  ianalde verity had an error for
  *
  * We try to handle recoverable errors while enabling verity by rolling it back
- * and just failing the operation, rather than having an fs level error no
+ * and just failing the operation, rather than having an fs level error anal
  * matter what. However, any error in rollback is unrecoverable.
  *
  * Returns 0 on success, negative error code on failure.
  */
-static int rollback_verity(struct btrfs_inode *inode)
+static int rollback_verity(struct btrfs_ianalde *ianalde)
 {
 	struct btrfs_trans_handle *trans = NULL;
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = ianalde->root;
 	int ret;
 
-	ASSERT(inode_is_locked(&inode->vfs_inode));
-	truncate_inode_pages(inode->vfs_inode.i_mapping, inode->vfs_inode.i_size);
-	clear_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags);
-	ret = btrfs_drop_verity_items(inode);
+	ASSERT(ianalde_is_locked(&ianalde->vfs_ianalde));
+	truncate_ianalde_pages(ianalde->vfs_ianalde.i_mapping, ianalde->vfs_ianalde.i_size);
+	clear_bit(BTRFS_IANALDE_VERITY_IN_PROGRESS, &ianalde->runtime_flags);
+	ret = btrfs_drop_verity_items(ianalde);
 	if (ret) {
 		btrfs_handle_fs_error(root->fs_info, ret,
 				"failed to drop verity items in rollback %llu",
-				(u64)inode->vfs_inode.i_ino);
+				(u64)ianalde->vfs_ianalde.i_ianal);
 		goto out;
 	}
 
 	/*
-	 * 1 for updating the inode flag
+	 * 1 for updating the ianalde flag
 	 * 1 for deleting the orphan
 	 */
 	trans = btrfs_start_transaction(root, 2);
@@ -482,17 +482,17 @@ static int rollback_verity(struct btrfs_inode *inode)
 		trans = NULL;
 		btrfs_handle_fs_error(root->fs_info, ret,
 			"failed to start transaction in verity rollback %llu",
-			(u64)inode->vfs_inode.i_ino);
+			(u64)ianalde->vfs_ianalde.i_ianal);
 		goto out;
 	}
-	inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;
-	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
-	ret = btrfs_update_inode(trans, inode);
+	ianalde->ro_flags &= ~BTRFS_IANALDE_RO_VERITY;
+	btrfs_sync_ianalde_flags_to_i_flags(&ianalde->vfs_ianalde);
+	ret = btrfs_update_ianalde(trans, ianalde);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
-	ret = del_orphan(trans, inode);
+	ret = del_orphan(trans, ianalde);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -506,45 +506,45 @@ out:
 /*
  * Finalize making the file a valid verity file
  *
- * @inode:      inode to be marked as verity
- * @desc:       contents of the verity descriptor to write (not NULL)
+ * @ianalde:      ianalde to be marked as verity
+ * @desc:       contents of the verity descriptor to write (analt NULL)
  * @desc_size:  size of the verity descriptor
  *
  * Do the actual work of finalizing verity after successfully writing the Merkle
  * tree:
  *
  * - write out the descriptor items
- * - mark the inode with the verity flag
+ * - mark the ianalde with the verity flag
  * - delete the orphan item
  * - mark the ro compat bit
  * - clear the in progress bit
  *
  * Returns 0 on success, negative error code on failure.
  */
-static int finish_verity(struct btrfs_inode *inode, const void *desc,
+static int finish_verity(struct btrfs_ianalde *ianalde, const void *desc,
 			 size_t desc_size)
 {
 	struct btrfs_trans_handle *trans = NULL;
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = ianalde->root;
 	struct btrfs_verity_descriptor_item item;
 	int ret;
 
 	/* Write out the descriptor item */
 	memset(&item, 0, sizeof(item));
 	btrfs_set_stack_verity_descriptor_size(&item, desc_size);
-	ret = write_key_bytes(inode, BTRFS_VERITY_DESC_ITEM_KEY, 0,
+	ret = write_key_bytes(ianalde, BTRFS_VERITY_DESC_ITEM_KEY, 0,
 			      (const char *)&item, sizeof(item));
 	if (ret)
 		goto out;
 
 	/* Write out the descriptor itself */
-	ret = write_key_bytes(inode, BTRFS_VERITY_DESC_ITEM_KEY, 1,
+	ret = write_key_bytes(ianalde, BTRFS_VERITY_DESC_ITEM_KEY, 1,
 			      desc, desc_size);
 	if (ret)
 		goto out;
 
 	/*
-	 * 1 for updating the inode flag
+	 * 1 for updating the ianalde flag
 	 * 1 for deleting the orphan
 	 */
 	trans = btrfs_start_transaction(root, 2);
@@ -552,15 +552,15 @@ static int finish_verity(struct btrfs_inode *inode, const void *desc,
 		ret = PTR_ERR(trans);
 		goto out;
 	}
-	inode->ro_flags |= BTRFS_INODE_RO_VERITY;
-	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
-	ret = btrfs_update_inode(trans, inode);
+	ianalde->ro_flags |= BTRFS_IANALDE_RO_VERITY;
+	btrfs_sync_ianalde_flags_to_i_flags(&ianalde->vfs_ianalde);
+	ret = btrfs_update_ianalde(trans, ianalde);
 	if (ret)
 		goto end_trans;
-	ret = del_orphan(trans, inode);
+	ret = del_orphan(trans, ianalde);
 	if (ret)
 		goto end_trans;
-	clear_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags);
+	clear_bit(BTRFS_IANALDE_VERITY_IN_PROGRESS, &ianalde->runtime_flags);
 	btrfs_set_fs_compat_ro(root->fs_info, VERITY);
 end_trans:
 	btrfs_end_transaction(trans);
@@ -581,14 +581,14 @@ out:
  */
 static int btrfs_begin_enable_verity(struct file *filp)
 {
-	struct btrfs_inode *inode = BTRFS_I(file_inode(filp));
-	struct btrfs_root *root = inode->root;
+	struct btrfs_ianalde *ianalde = BTRFS_I(file_ianalde(filp));
+	struct btrfs_root *root = ianalde->root;
 	struct btrfs_trans_handle *trans;
 	int ret;
 
-	ASSERT(inode_is_locked(file_inode(filp)));
+	ASSERT(ianalde_is_locked(file_ianalde(filp)));
 
-	if (test_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags))
+	if (test_bit(BTRFS_IANALDE_VERITY_IN_PROGRESS, &ianalde->runtime_flags))
 		return -EBUSY;
 
 	/*
@@ -597,7 +597,7 @@ static int btrfs_begin_enable_verity(struct file *filp)
 	 * interrupted or failed while rolling back, failed to cleanup the
 	 * orphan, and finally attempt to enable verity again.
 	 */
-	ret = btrfs_drop_verity_items(inode);
+	ret = btrfs_drop_verity_items(ianalde);
 	if (ret)
 		return ret;
 
@@ -606,9 +606,9 @@ static int btrfs_begin_enable_verity(struct file *filp)
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	ret = btrfs_orphan_add(trans, inode);
+	ret = btrfs_orphan_add(trans, ianalde);
 	if (!ret)
-		set_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags);
+		set_bit(BTRFS_IANALDE_VERITY_IN_PROGRESS, &ianalde->runtime_flags);
 	btrfs_end_transaction(trans);
 
 	return 0;
@@ -630,24 +630,24 @@ static int btrfs_begin_enable_verity(struct file *filp)
 static int btrfs_end_enable_verity(struct file *filp, const void *desc,
 				   size_t desc_size, u64 merkle_tree_size)
 {
-	struct btrfs_inode *inode = BTRFS_I(file_inode(filp));
+	struct btrfs_ianalde *ianalde = BTRFS_I(file_ianalde(filp));
 	int ret = 0;
 	int rollback_ret;
 
-	ASSERT(inode_is_locked(file_inode(filp)));
+	ASSERT(ianalde_is_locked(file_ianalde(filp)));
 
 	if (desc == NULL)
 		goto rollback;
 
-	ret = finish_verity(inode, desc, desc_size);
+	ret = finish_verity(ianalde, desc, desc_size);
 	if (ret)
 		goto rollback;
 	return ret;
 
 rollback:
-	rollback_ret = rollback_verity(inode);
+	rollback_ret = rollback_verity(ianalde);
 	if (rollback_ret)
-		btrfs_err(inode->root->fs_info,
+		btrfs_err(ianalde->root->fs_info,
 			  "failed to rollback verity items: %d", rollback_ret);
 	return ret;
 }
@@ -655,7 +655,7 @@ rollback:
 /*
  * fsverity op that gets the struct fsverity_descriptor.
  *
- * @inode:     inode to get the descriptor of
+ * @ianalde:     ianalde to get the descriptor of
  * @buf:       output buffer for the descriptor contents
  * @buf_size:  size of the output buffer. 0 to query the size
  *
@@ -665,14 +665,14 @@ rollback:
  *
  * Returns the size on success or a negative error code on failure.
  */
-int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size)
+int btrfs_get_verity_descriptor(struct ianalde *ianalde, void *buf, size_t buf_size)
 {
 	u64 true_size;
 	int ret = 0;
 	struct btrfs_verity_descriptor_item item;
 
 	memset(&item, 0, sizeof(item));
-	ret = read_key_bytes(BTRFS_I(inode), BTRFS_VERITY_DESC_ITEM_KEY, 0,
+	ret = read_key_bytes(BTRFS_I(ianalde), BTRFS_VERITY_DESC_ITEM_KEY, 0,
 			     (char *)&item, sizeof(item), NULL);
 	if (ret < 0)
 		return ret;
@@ -689,7 +689,7 @@ int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size)
 	if (buf_size < true_size)
 		return -ERANGE;
 
-	ret = read_key_bytes(BTRFS_I(inode), BTRFS_VERITY_DESC_ITEM_KEY, 1,
+	ret = read_key_bytes(BTRFS_I(ianalde), BTRFS_VERITY_DESC_ITEM_KEY, 1,
 			     buf, buf_size, NULL);
 	if (ret < 0)
 		return ret;
@@ -702,37 +702,37 @@ int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size)
 /*
  * fsverity op that reads and caches a merkle tree page.
  *
- * @inode:         inode to read a merkle tree page for
+ * @ianalde:         ianalde to read a merkle tree page for
  * @index:         page index relative to the start of the merkle tree
- * @num_ra_pages:  number of pages to readahead. Optional, we ignore it
+ * @num_ra_pages:  number of pages to readahead. Optional, we iganalre it
  *
  * The Merkle tree is stored in the filesystem btree, but its pages are cached
- * with a logical position past EOF in the inode's mapping.
+ * with a logical position past EOF in the ianalde's mapping.
  *
  * Returns the page we read, or an ERR_PTR on error.
  */
-static struct page *btrfs_read_merkle_tree_page(struct inode *inode,
+static struct page *btrfs_read_merkle_tree_page(struct ianalde *ianalde,
 						pgoff_t index,
 						unsigned long num_ra_pages)
 {
 	struct folio *folio;
 	u64 off = (u64)index << PAGE_SHIFT;
-	loff_t merkle_pos = merkle_file_pos(inode);
+	loff_t merkle_pos = merkle_file_pos(ianalde);
 	int ret;
 
 	if (merkle_pos < 0)
 		return ERR_PTR(merkle_pos);
-	if (merkle_pos > inode->i_sb->s_maxbytes - off - PAGE_SIZE)
+	if (merkle_pos > ianalde->i_sb->s_maxbytes - off - PAGE_SIZE)
 		return ERR_PTR(-EFBIG);
 	index += merkle_pos >> PAGE_SHIFT;
 again:
-	folio = __filemap_get_folio(inode->i_mapping, index, FGP_ACCESSED, 0);
+	folio = __filemap_get_folio(ianalde->i_mapping, index, FGP_ACCESSED, 0);
 	if (!IS_ERR(folio)) {
 		if (folio_test_uptodate(folio))
 			goto out;
 
 		folio_lock(folio);
-		/* If it's not uptodate after we have the lock, we got a read error. */
+		/* If it's analt uptodate after we have the lock, we got a read error. */
 		if (!folio_test_uptodate(folio)) {
 			folio_unlock(folio);
 			folio_put(folio);
@@ -742,12 +742,12 @@ again:
 		goto out;
 	}
 
-	folio = filemap_alloc_folio(mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS),
+	folio = filemap_alloc_folio(mapping_gfp_constraint(ianalde->i_mapping, ~__GFP_FS),
 				    0);
 	if (!folio)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	ret = filemap_add_folio(inode->i_mapping, folio, index, GFP_NOFS);
+	ret = filemap_add_folio(ianalde->i_mapping, folio, index, GFP_ANALFS);
 	if (ret) {
 		folio_put(folio);
 		/* Did someone else insert a folio here? */
@@ -760,9 +760,9 @@ again:
 	 * Merkle item keys are indexed from byte 0 in the merkle tree.
 	 * They have the form:
 	 *
-	 * [ inode objectid, BTRFS_MERKLE_ITEM_KEY, offset in bytes ]
+	 * [ ianalde objectid, BTRFS_MERKLE_ITEM_KEY, offset in bytes ]
 	 */
-	ret = read_key_bytes(BTRFS_I(inode), BTRFS_VERITY_MERKLE_ITEM_KEY, off,
+	ret = read_key_bytes(BTRFS_I(ianalde), BTRFS_VERITY_MERKLE_ITEM_KEY, off,
 			     folio_address(folio), PAGE_SIZE, &folio->page);
 	if (ret < 0) {
 		folio_put(folio);
@@ -781,24 +781,24 @@ out:
 /*
  * fsverity op that writes a Merkle tree block into the btree.
  *
- * @inode:	inode to write a Merkle tree block for
+ * @ianalde:	ianalde to write a Merkle tree block for
  * @buf:	Merkle tree block to write
  * @pos:	the position of the block in the Merkle tree (in bytes)
  * @size:	the Merkle tree block size (in bytes)
  *
  * Returns 0 on success or negative error code on failure
  */
-static int btrfs_write_merkle_tree_block(struct inode *inode, const void *buf,
+static int btrfs_write_merkle_tree_block(struct ianalde *ianalde, const void *buf,
 					 u64 pos, unsigned int size)
 {
-	loff_t merkle_pos = merkle_file_pos(inode);
+	loff_t merkle_pos = merkle_file_pos(ianalde);
 
 	if (merkle_pos < 0)
 		return merkle_pos;
-	if (merkle_pos > inode->i_sb->s_maxbytes - pos - size)
+	if (merkle_pos > ianalde->i_sb->s_maxbytes - pos - size)
 		return -EFBIG;
 
-	return write_key_bytes(BTRFS_I(inode), BTRFS_VERITY_MERKLE_ITEM_KEY,
+	return write_key_bytes(BTRFS_I(ianalde), BTRFS_VERITY_MERKLE_ITEM_KEY,
 			       pos, buf, size);
 }
 

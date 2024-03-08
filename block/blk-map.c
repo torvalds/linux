@@ -141,7 +141,7 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 
 	bmd = bio_alloc_map_data(iter, gfp_mask);
 	if (!bmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We need to do a deep copy of the iov_iter including the iovecs.
@@ -153,7 +153,7 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 
 	nr_pages = bio_max_segs(DIV_ROUND_UP(offset + len, PAGE_SIZE));
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		goto out_bmd;
@@ -173,7 +173,7 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 
 		if (map_data) {
 			if (i == map_data->nr_entries * nr_pages) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto cleanup;
 			}
 
@@ -182,9 +182,9 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 
 			i++;
 		} else {
-			page = alloc_page(GFP_NOIO | gfp_mask);
+			page = alloc_page(GFP_ANALIO | gfp_mask);
 			if (!page) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto cleanup;
 			}
 		}
@@ -284,7 +284,7 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 
 	bio = blk_rq_map_bio_alloc(rq, nr_vecs, gfp_mask);
 	if (bio == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (blk_queue_pci_p2pdma(rq->q))
 		extraction_flags |= ITER_ALLOW_P2PDMA;
@@ -400,7 +400,7 @@ static struct bio *bio_map_kern(struct request_queue *q, void *data,
 
 	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, 0);
 
 	if (is_vmalloc) {
@@ -490,7 +490,7 @@ static struct bio *bio_copy_kern(struct request_queue *q, void *data,
 	nr_pages = end - start;
 	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, 0);
 
 	while (len) {
@@ -500,7 +500,7 @@ static struct bio *bio_copy_kern(struct request_queue *q, void *data,
 		if (bytes > len)
 			bytes = len;
 
-		page = alloc_page(GFP_NOIO | __GFP_ZERO | gfp_mask);
+		page = alloc_page(GFP_ANALIO | __GFP_ZERO | gfp_mask);
 		if (!page)
 			goto cleanup;
 
@@ -527,7 +527,7 @@ cleanup:
 	bio_free_pages(bio);
 	bio_uninit(bio);
 	kfree(bio);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 /*
@@ -575,10 +575,10 @@ static int blk_rq_map_user_bvec(struct request *rq, const struct iov_iter *iter)
 	if (nr_segs > queue_max_segments(q))
 		return -EINVAL;
 
-	/* no iovecs to alloc, as we already have a BVEC iterator */
+	/* anal iovecs to alloc, as we already have a BVEC iterator */
 	bio = blk_rq_map_bio_alloc(rq, 0, GFP_KERNEL);
 	if (bio == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bio_iov_bvec_set(bio, (struct iov_iter *)iter);
 	blk_rq_bio_prep(rq, bio, nr_segs);

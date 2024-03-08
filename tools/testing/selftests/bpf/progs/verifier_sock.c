@@ -47,14 +47,14 @@ struct {
 	__uint(max_entries, 0);
 	__type(key, int);
 	__type(value, struct val);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 } sk_storage_map SEC(".maps");
 
 SEC("cgroup/skb")
-__description("skb->sk: no NULL check")
+__description("skb->sk: anal NULL check")
 __failure __msg("invalid mem access 'sock_common_or_null'")
 __failure_unpriv
-__naked void skb_sk_no_null_check(void)
+__naked void skb_sk_anal_null_check(void)
 {
 	asm volatile ("					\
 	r1 = *(u64*)(r1 + %[__sk_buff_sk]);		\
@@ -67,9 +67,9 @@ __naked void skb_sk_no_null_check(void)
 }
 
 SEC("cgroup/skb")
-__description("skb->sk: sk->family [non fullsock field]")
+__description("skb->sk: sk->family [analn fullsock field]")
 __success __success_unpriv __retval(0)
-__naked void sk_family_non_fullsock_field_1(void)
+__naked void sk_family_analn_fullsock_field_1(void)
 {
 	asm volatile ("					\
 	r1 = *(u64*)(r1 + %[__sk_buff_sk]);		\
@@ -106,10 +106,10 @@ l0_%=:	r0 = *(u32*)(r1 + %[bpf_sock_type]);		\
 }
 
 SEC("cgroup/skb")
-__description("bpf_sk_fullsock(skb->sk): no !skb->sk check")
+__description("bpf_sk_fullsock(skb->sk): anal !skb->sk check")
 __failure __msg("type=sock_common_or_null expected=sock_common")
 __failure_unpriv
-__naked void sk_no_skb_sk_check_1(void)
+__naked void sk_anal_skb_sk_check_1(void)
 {
 	asm volatile ("					\
 	r1 = *(u64*)(r1 + %[__sk_buff_sk]);		\
@@ -123,10 +123,10 @@ __naked void sk_no_skb_sk_check_1(void)
 }
 
 SEC("cgroup/skb")
-__description("sk_fullsock(skb->sk): no NULL check on ret")
+__description("sk_fullsock(skb->sk): anal NULL check on ret")
 __failure __msg("invalid mem access 'sock_or_null'")
 __failure_unpriv
-__naked void no_null_check_on_ret_1(void)
+__naked void anal_null_check_on_ret_1(void)
 {
 	asm volatile ("					\
 	r1 = *(u64*)(r1 + %[__sk_buff_sk]);		\
@@ -169,9 +169,9 @@ l1_%=:	r0 = *(u32*)(r0 + %[bpf_sock_type]);		\
 }
 
 SEC("cgroup/skb")
-__description("sk_fullsock(skb->sk): sk->family [non fullsock field]")
+__description("sk_fullsock(skb->sk): sk->family [analn fullsock field]")
 __success __success_unpriv __retval(0)
-__naked void sk_family_non_fullsock_field_2(void)
+__naked void sk_family_analn_fullsock_field_2(void)
 {
 	asm volatile ("					\
 	r1 = *(u64*)(r1 + %[__sk_buff_sk]);		\
@@ -462,10 +462,10 @@ l1_%=:	r0 = *(u32*)(r0 + %[bpf_sock_rx_queue_mapping__end]);\
 }
 
 SEC("cgroup/skb")
-__description("bpf_tcp_sock(skb->sk): no !skb->sk check")
+__description("bpf_tcp_sock(skb->sk): anal !skb->sk check")
 __failure __msg("type=sock_common_or_null expected=sock_common")
 __failure_unpriv
-__naked void sk_no_skb_sk_check_2(void)
+__naked void sk_anal_skb_sk_check_2(void)
 {
 	asm volatile ("					\
 	r1 = *(u64*)(r1 + %[__sk_buff_sk]);		\
@@ -479,10 +479,10 @@ __naked void sk_no_skb_sk_check_2(void)
 }
 
 SEC("cgroup/skb")
-__description("bpf_tcp_sock(skb->sk): no NULL check on ret")
+__description("bpf_tcp_sock(skb->sk): anal NULL check on ret")
 __failure __msg("invalid mem access 'tcp_sock_or_null'")
 __failure_unpriv
-__naked void no_null_check_on_ret_2(void)
+__naked void anal_null_check_on_ret_2(void)
 {
 	asm volatile ("					\
 	r1 = *(u64*)(r1 + %[__sk_buff_sk]);		\
@@ -755,7 +755,7 @@ l1_%=:	r4 = 1;						\
 
 SEC("tc")
 __description("bpf_map_lookup_elem(smap, &key)")
-__failure __msg("cannot pass map_type 24 into func bpf_map_lookup_elem")
+__failure __msg("cananalt pass map_type 24 into func bpf_map_lookup_elem")
 __naked void map_lookup_elem_smap_key(void)
 {
 	asm volatile ("					\

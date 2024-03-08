@@ -5,7 +5,7 @@ VFIO AP Locks Overview
 ======================
 This document describes the locks that are pertinent to the secure operation
 of the vfio_ap device driver. Throughout this document, the following variables
-will be used to denote instances of the structures herein described:
+will be used to deanalte instances of the structures herein described:
 
 .. code-block:: c
 
@@ -85,8 +85,8 @@ KVM guest. This lock must be held:
    the mediated device is passed through (matrix_mdev->kvm != NULL) and if so,
    to unplug the adapter.
 
-It is not necessary to take the Guests Lock to access the KVM pointer if the
-pointer is not used to plug/unplug devices passed through to the KVM guest;
+It is analt necessary to take the Guests Lock to access the KVM pointer if the
+pointer is analt used to plug/unplug devices passed through to the KVM guest;
 however, in this case, the Matrix Devices Lock (matrix_dev->mdevs_lock) must be
 held in order to access the KVM pointer since it is set and cleared under the
 protection of the Matrix Devices Lock. A case in point is the function that

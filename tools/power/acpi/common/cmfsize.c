@@ -23,7 +23,7 @@ ACPI_MODULE_NAME("cmfsize")
  * RETURN:      File Size. On error, -1 (ACPI_UINT32_MAX)
  *
  * DESCRIPTION: Get the size of a file. Uses seek-to-EOF. File must be open.
- *              Does not disturb the current file pointer.
+ *              Does analt disturb the current file pointer.
  *
  ******************************************************************************/
 u32 cm_get_file_size(ACPI_FILE file)
@@ -59,10 +59,10 @@ u32 cm_get_file_size(ACPI_FILE file)
 	return ((u32)file_size);
 
 offset_error:
-	fprintf(stderr, "Could not get file offset\n");
+	fprintf(stderr, "Could analt get file offset\n");
 	return (ACPI_UINT32_MAX);
 
 seek_error:
-	fprintf(stderr, "Could not set file offset\n");
+	fprintf(stderr, "Could analt set file offset\n");
 	return (ACPI_UINT32_MAX);
 }

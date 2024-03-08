@@ -19,7 +19,7 @@ int tcx_prog_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	rtnl_lock();
 	dev = __dev_get_by_index(net, attr->target_ifindex);
 	if (!dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	if (attr->attach_flags & BPF_F_REPLACE) {
@@ -33,7 +33,7 @@ int tcx_prog_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	}
 	entry = tcx_entry_fetch_or_create(dev, ingress, &created);
 	if (!entry) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ret = bpf_mprog_attach(entry, &entry_new, prog, NULL, replace_prog,
@@ -67,12 +67,12 @@ int tcx_prog_detach(const union bpf_attr *attr, struct bpf_prog *prog)
 	rtnl_lock();
 	dev = __dev_get_by_index(net, attr->target_ifindex);
 	if (!dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	entry = tcx_entry_fetch(dev, ingress);
 	if (!entry) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	ret = bpf_mprog_detach(entry, &entry_new, prog, NULL, attr->attach_flags,
@@ -129,7 +129,7 @@ int tcx_prog_query(const union bpf_attr *attr, union bpf_attr __user *uattr)
 	rtnl_lock();
 	dev = __dev_get_by_index(net, attr->query.target_ifindex);
 	if (!dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	ret = bpf_mprog_query(attr, uattr, tcx_entry_fetch(dev, ingress));
@@ -150,7 +150,7 @@ static int tcx_link_prog_attach(struct bpf_link *link, u32 flags, u32 id_or_fd,
 	ASSERT_RTNL();
 	entry = tcx_entry_fetch_or_create(dev, ingress, &created);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = bpf_mprog_attach(entry, &entry_new, link->prog, link, NULL, flags,
 			       id_or_fd, revision);
 	if (!ret) {
@@ -180,7 +180,7 @@ static void tcx_link_release(struct bpf_link *link)
 		goto out;
 	entry = tcx_entry_fetch(dev, ingress);
 	if (!entry) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	ret = bpf_mprog_detach(entry, &entry_new, link->prog, link, 0, 0, 0);
@@ -212,7 +212,7 @@ static int tcx_link_update(struct bpf_link *link, struct bpf_prog *nprog,
 	rtnl_lock();
 	dev = tcx->dev;
 	if (!dev) {
-		ret = -ENOLINK;
+		ret = -EANALLINK;
 		goto out;
 	}
 	if (oprog && link->prog != oprog) {
@@ -226,7 +226,7 @@ static int tcx_link_update(struct bpf_link *link, struct bpf_prog *nprog,
 	}
 	entry = tcx_entry_fetch(dev, ingress);
 	if (!entry) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	ret = bpf_mprog_attach(entry, &entry_new, nprog, link, oprog,
@@ -318,12 +318,12 @@ int tcx_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	rtnl_lock();
 	dev = __dev_get_by_index(net, attr->link_create.target_ifindex);
 	if (!dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	tcx = kzalloc(sizeof(*tcx), GFP_USER);
 	if (!tcx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ret = tcx_link_init(tcx, &link_primer, attr, dev, prog);

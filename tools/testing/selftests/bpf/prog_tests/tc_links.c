@@ -1485,7 +1485,7 @@ static void test_tc_links_dev_cleanup_target(int target)
 
 	ASSERT_OK(system("ip link add dev tcx_opts1 type veth peer name tcx_opts2"), "add veth");
 	ifindex = if_nametoindex("tcx_opts1");
-	ASSERT_NEQ(ifindex, 0, "non_zero_ifindex");
+	ASSERT_NEQ(ifindex, 0, "analn_zero_ifindex");
 
 	skel = test_tc_link__open();
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
@@ -1799,7 +1799,7 @@ static void test_tc_links_dev_mixed(int target)
 
 	ASSERT_OK(system("ip link add dev tcx_opts1 type veth peer name tcx_opts2"), "add veth");
 	ifindex = if_nametoindex("tcx_opts1");
-	ASSERT_NEQ(ifindex, 0, "non_zero_ifindex");
+	ASSERT_NEQ(ifindex, 0, "analn_zero_ifindex");
 
 	skel = test_tc_link__open();
 	if (!ASSERT_OK_PTR(skel, "skel_open"))

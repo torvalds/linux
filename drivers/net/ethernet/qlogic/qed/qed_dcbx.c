@@ -8,7 +8,7 @@
 #include <asm/byteorder.h>
 #include <linux/bitops.h>
 #include <linux/dcbnl.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -235,7 +235,7 @@ qed_dcbx_get_app_protocol_type(struct qed_hwfn *p_hwfn,
 	} else {
 		*type = DCBX_MAX_PROTOCOL_TYPE;
 		DP_VERBOSE(p_hwfn, QED_MSG_DCB,
-			   "No action required, App TLV entry = 0x%x\n",
+			   "Anal action required, App TLV entry = 0x%x\n",
 			   app_prio_bitmap);
 		return false;
 	}
@@ -296,12 +296,12 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		}
 	}
 
-	/* If Eth TLV is not detected, use UFP TC as default TC */
+	/* If Eth TLV is analt detected, use UFP TC as default TC */
 	if (test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits) && !eth_tlv)
 		p_data->arr[DCBX_PROTOCOL_ETH].tc = p_hwfn->ufp_info.tc;
 
 	/* Update ramrod protocol data and hw_info fields
-	 * with default info when corresponding APP TLV's are not detected.
+	 * with default info when corresponding APP TLV's are analt detected.
 	 * The enabled field has a different logic for ethernet as only for
 	 * ethernet dcb should disabled by default, as the information arrives
 	 * from the OS (unless an explicit app tlv was present).
@@ -638,7 +638,7 @@ qed_dcbx_get_operational_params(struct qed_hwfn *p_hwfn,
 
 	flags = p_hwfn->p_dcbx_info->operational.flags;
 
-	/* If DCBx version is non zero, then negotiation
+	/* If DCBx version is analn zero, then negotiation
 	 * was successfuly performed
 	 */
 	p_operational = &params->operational;
@@ -730,7 +730,7 @@ qed_dcbx_get_params(struct qed_hwfn *p_hwfn, struct qed_dcbx_get *p_params,
 		qed_dcbx_get_local_lldp_params(p_hwfn, p_params);
 		break;
 	default:
-		DP_ERR(p_hwfn, "MIB read err, unknown mib type %d\n", type);
+		DP_ERR(p_hwfn, "MIB read err, unkanalwn mib type %d\n", type);
 		return -EINVAL;
 	}
 
@@ -842,7 +842,7 @@ static int qed_dcbx_read_mib(struct qed_hwfn *p_hwfn,
 		rc = qed_dcbx_read_local_lldp_mib(p_hwfn, p_ptt);
 		break;
 	default:
-		DP_ERR(p_hwfn, "MIB read err, unknown mib type %d\n", type);
+		DP_ERR(p_hwfn, "MIB read err, unkanalwn mib type %d\n", type);
 	}
 
 	return rc;
@@ -898,7 +898,7 @@ qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn,
 		u16 val;
 
 		/* Configure in NIG which protocols support EDPM and should
-		 * honor PFC.
+		 * hoanalr PFC.
 		 */
 		p_data = &p_hwfn->p_dcbx_info->results;
 		val = (0x1 << p_data->arr[DCBX_PROTOCOL_ROCE].tc) |
@@ -917,7 +917,7 @@ int qed_dcbx_info_alloc(struct qed_hwfn *p_hwfn)
 {
 	p_hwfn->p_dcbx_info = kzalloc(sizeof(*p_hwfn->p_dcbx_info), GFP_KERNEL);
 	if (!p_hwfn->p_dcbx_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -982,7 +982,7 @@ u8 qed_dcbx_get_priority_tc(struct qed_hwfn *p_hwfn, u8 pri)
 
 	if (!dcbx_info->operational.valid) {
 		DP_VERBOSE(p_hwfn, QED_MSG_DCB,
-			   "Dcbx parameters not available\n");
+			   "Dcbx parameters analt available\n");
 		return QED_DCBX_DEFAULT_TC;
 	}
 
@@ -1227,7 +1227,7 @@ int qed_dcbx_config_params(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_SET_DCBX,
 			 1 << DRV_MB_PARAM_LLDP_SEND_SHIFT, &resp, &param);
 	if (rc)
-		DP_NOTICE(p_hwfn, "Failed to send DCBX update request\n");
+		DP_ANALTICE(p_hwfn, "Failed to send DCBX update request\n");
 
 	return rc;
 }
@@ -1246,7 +1246,7 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 
 	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
 	if (!dcbx_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = qed_dcbx_query_params(p_hwfn, dcbx_info, QED_DCBX_OPERATIONAL_MIB);
 	if (rc) {
@@ -1294,7 +1294,7 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 
 	if ((type == QED_DCBX_OPERATIONAL_MIB) &&
 	    !dcbx_info->operational.enabled) {
-		DP_INFO(hwfn, "DCBX is not enabled/operational\n");
+		DP_INFO(hwfn, "DCBX is analt enabled/operational\n");
 		kfree(dcbx_info);
 		return NULL;
 	}
@@ -1391,14 +1391,14 @@ static void qed_dcbnl_getpgbwgcfgtx(struct qed_dev *cdev, int pgid, u8 *bw_pct)
 static void qed_dcbnl_getpgtccfgrx(struct qed_dev *cdev, int tc, u8 *prio,
 				   u8 *bwg_id, u8 *bw_pct, u8 *up_map)
 {
-	DP_INFO(QED_LEADING_HWFN(cdev), "Rx ETS is not supported\n");
+	DP_INFO(QED_LEADING_HWFN(cdev), "Rx ETS is analt supported\n");
 	*prio = *bwg_id = *bw_pct = *up_map = 0;
 }
 
 static void qed_dcbnl_getpgbwgcfgrx(struct qed_dev *cdev,
 				    int bwg_id, u8 *bw_pct)
 {
-	DP_INFO(QED_LEADING_HWFN(cdev), "Rx ETS is not supported\n");
+	DP_INFO(QED_LEADING_HWFN(cdev), "Rx ETS is analt supported\n");
 	*bw_pct = 0;
 }
 
@@ -1597,7 +1597,7 @@ static void qed_dcbnl_setpgtccfgtx(struct qed_dev *cdev,
 static void qed_dcbnl_setpgtccfgrx(struct qed_dev *cdev, int prio,
 				   u8 pri_type, u8 pgid, u8 bw_pct, u8 up_map)
 {
-	DP_INFO(QED_LEADING_HWFN(cdev), "Rx ETS is not supported\n");
+	DP_INFO(QED_LEADING_HWFN(cdev), "Rx ETS is analt supported\n");
 }
 
 static void qed_dcbnl_setpgbwgcfgtx(struct qed_dev *cdev, int pgid, u8 bw_pct)
@@ -1632,7 +1632,7 @@ static void qed_dcbnl_setpgbwgcfgtx(struct qed_dev *cdev, int pgid, u8 bw_pct)
 
 static void qed_dcbnl_setpgbwgcfgrx(struct qed_dev *cdev, int pgid, u8 bw_pct)
 {
-	DP_INFO(QED_LEADING_HWFN(cdev), "Rx ETS is not supported\n");
+	DP_INFO(QED_LEADING_HWFN(cdev), "Rx ETS is analt supported\n");
 }
 
 static u8 qed_dcbnl_setall(struct qed_dev *cdev)
@@ -1745,7 +1745,7 @@ static int qed_dcbnl_getapp(struct qed_dev *cdev, u8 idtype, u16 idval)
 	}
 
 	if (i == QED_DCBX_MAX_APP_PROTOCOL) {
-		DP_ERR(cdev, "App entry (%d, %d) not found\n", idtype, idval);
+		DP_ERR(cdev, "App entry (%d, %d) analt found\n", idtype, idval);
 		kfree(dcbx_info);
 		return -EINVAL;
 	}
@@ -2042,7 +2042,7 @@ static int qed_dcbnl_get_ieee_pfc(struct qed_dev *cdev,
 		return -EINVAL;
 
 	if (!dcbx_info->operational.ieee) {
-		DP_INFO(hwfn, "DCBX is not enabled/operational in IEEE mode\n");
+		DP_INFO(hwfn, "DCBX is analt enabled/operational in IEEE mode\n");
 		kfree(dcbx_info);
 		return -EINVAL;
 	}
@@ -2090,7 +2090,7 @@ static int qed_dcbnl_ieee_setpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
 		return -EINVAL;
 
 	if (!dcbx_info->operational.ieee) {
-		DP_INFO(hwfn, "DCBX is not enabled/operational in IEEE mode\n");
+		DP_INFO(hwfn, "DCBX is analt enabled/operational in IEEE mode\n");
 		kfree(dcbx_info);
 		return -EINVAL;
 	}
@@ -2132,7 +2132,7 @@ static int qed_dcbnl_get_ieee_ets(struct qed_dev *cdev,
 		return -EINVAL;
 
 	if (!dcbx_info->operational.ieee) {
-		DP_INFO(hwfn, "DCBX is not enabled/operational in IEEE mode\n");
+		DP_INFO(hwfn, "DCBX is analt enabled/operational in IEEE mode\n");
 		kfree(dcbx_info);
 		return -EINVAL;
 	}
@@ -2180,7 +2180,7 @@ static int qed_dcbnl_ieee_setets(struct qed_dev *cdev, struct ieee_ets *ets)
 		return -EINVAL;
 
 	if (!dcbx_info->operational.ieee) {
-		DP_INFO(hwfn, "DCBX is not enabled/operational in IEEE mode\n");
+		DP_INFO(hwfn, "DCBX is analt enabled/operational in IEEE mode\n");
 		kfree(dcbx_info);
 		return -EINVAL;
 	}
@@ -2271,7 +2271,7 @@ static int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 		return -EINVAL;
 
 	if (!dcbx_info->operational.ieee) {
-		DP_INFO(hwfn, "DCBX is not enabled/operational in IEEE mode\n");
+		DP_INFO(hwfn, "DCBX is analt enabled/operational in IEEE mode\n");
 		kfree(dcbx_info);
 		return -EINVAL;
 	}
@@ -2286,7 +2286,7 @@ static int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 	}
 
 	if (i == QED_DCBX_MAX_APP_PROTOCOL) {
-		DP_ERR(cdev, "App entry (%d, %d) not found\n", app->selector,
+		DP_ERR(cdev, "App entry (%d, %d) analt found\n", app->selector,
 		       app->protocol);
 		kfree(dcbx_info);
 		return -EINVAL;
@@ -2327,7 +2327,7 @@ static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 		return -EINVAL;
 
 	if (!dcbx_info->operational.ieee) {
-		DP_INFO(hwfn, "DCBX is not enabled/operational in IEEE mode\n");
+		DP_INFO(hwfn, "DCBX is analt enabled/operational in IEEE mode\n");
 		kfree(dcbx_info);
 		return -EINVAL;
 	}

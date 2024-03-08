@@ -26,14 +26,14 @@ bool qeth_bridgeport_allowed(struct qeth_card *card);
 struct qeth_mac {
 	u8 mac_addr[ETH_ALEN];
 	u8 disp_flag:2;
-	struct hlist_node hnode;
+	struct hlist_analde hanalde;
 };
 
 static inline bool qeth_bridgeport_is_in_use(struct qeth_card *card)
 {
 	return card->options.sbp.role ||
 	       card->options.sbp.reflect_promisc ||
-	       card->options.sbp.hostnotification;
+	       card->options.sbp.hostanaltification;
 }
 
 #endif /* __QETH_L2_H__ */

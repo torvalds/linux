@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -214,7 +214,7 @@ void lio_cn6xxx_setup_global_output_regs(struct octeon_device *oct)
 	 */
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_DPADDR, 0xFFFFFFFF);
 
-	/* No Relaxed Ordering, No Snoop, 64-bit swap for Output
+	/* Anal Relaxed Ordering, Anal Sanalop, 64-bit swap for Output
 	 * Queue ScatterList
 	 */
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_SLIST_ROR, 0);
@@ -228,7 +228,7 @@ void lio_cn6xxx_setup_global_output_regs(struct octeon_device *oct)
 	octeon_write_csr64(oct, CN6XXX_SLI_PKT_SLIST_ES64, 0ULL);
 #endif
 
-	/* / No Relaxed Ordering, No Snoop, 64-bit swap for Output Queue Data */
+	/* / Anal Relaxed Ordering, Anal Sanalop, 64-bit swap for Output Queue Data */
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_DATA_OUT_ROR, 0);
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_DATA_OUT_NS, 0);
 	octeon_write_csr64(oct, CN6XXX_SLI_PKT_DATA_OUT_ES64,
@@ -261,25 +261,25 @@ static int lio_cn6xxx_setup_device_regs(struct octeon_device *oct)
 	return 0;
 }
 
-void lio_cn6xxx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
+void lio_cn6xxx_setup_iq_regs(struct octeon_device *oct, u32 iq_anal)
 {
-	struct octeon_instr_queue *iq = oct->instr_queue[iq_no];
+	struct octeon_instr_queue *iq = oct->instr_queue[iq_anal];
 
-	octeon_write_csr64(oct, CN6XXX_SLI_IQ_PKT_INSTR_HDR64(iq_no), 0);
+	octeon_write_csr64(oct, CN6XXX_SLI_IQ_PKT_INSTR_HDR64(iq_anal), 0);
 
 	/* Write the start of the input queue's ring and its size  */
-	octeon_write_csr64(oct, CN6XXX_SLI_IQ_BASE_ADDR64(iq_no),
+	octeon_write_csr64(oct, CN6XXX_SLI_IQ_BASE_ADDR64(iq_anal),
 			   iq->base_addr_dma);
-	octeon_write_csr(oct, CN6XXX_SLI_IQ_SIZE(iq_no), iq->max_count);
+	octeon_write_csr(oct, CN6XXX_SLI_IQ_SIZE(iq_anal), iq->max_count);
 
 	/* Remember the doorbell & instruction count register addr for this
 	 * queue
 	 */
-	iq->doorbell_reg = oct->mmio[0].hw_addr + CN6XXX_SLI_IQ_DOORBELL(iq_no);
+	iq->doorbell_reg = oct->mmio[0].hw_addr + CN6XXX_SLI_IQ_DOORBELL(iq_anal);
 	iq->inst_cnt_reg = oct->mmio[0].hw_addr
-			   + CN6XXX_SLI_IQ_INSTR_COUNT(iq_no);
+			   + CN6XXX_SLI_IQ_INSTR_COUNT(iq_anal);
 	dev_dbg(&oct->pci_dev->dev, "InstQ[%d]:dbell reg @ 0x%p instcnt_reg @ 0x%p\n",
-		iq_no, iq->doorbell_reg, iq->inst_cnt_reg);
+		iq_anal, iq->doorbell_reg, iq->inst_cnt_reg);
 
 	/* Store the current instruction counter
 	 * (used in flush_iq calculation)
@@ -287,43 +287,43 @@ void lio_cn6xxx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
 	iq->reset_instr_cnt = readl(iq->inst_cnt_reg);
 }
 
-static void lio_cn66xx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
+static void lio_cn66xx_setup_iq_regs(struct octeon_device *oct, u32 iq_anal)
 {
-	lio_cn6xxx_setup_iq_regs(oct, iq_no);
+	lio_cn6xxx_setup_iq_regs(oct, iq_anal);
 
 	/* Backpressure for this queue - WMARK set to all F's. This effectively
 	 * disables the backpressure mechanism.
 	 */
-	octeon_write_csr64(oct, CN66XX_SLI_IQ_BP64(iq_no),
+	octeon_write_csr64(oct, CN66XX_SLI_IQ_BP64(iq_anal),
 			   (0xFFFFFFFFULL << 32));
 }
 
-void lio_cn6xxx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
+void lio_cn6xxx_setup_oq_regs(struct octeon_device *oct, u32 oq_anal)
 {
 	u32 intr;
-	struct octeon_droq *droq = oct->droq[oq_no];
+	struct octeon_droq *droq = oct->droq[oq_anal];
 
-	octeon_write_csr64(oct, CN6XXX_SLI_OQ_BASE_ADDR64(oq_no),
+	octeon_write_csr64(oct, CN6XXX_SLI_OQ_BASE_ADDR64(oq_anal),
 			   droq->desc_ring_dma);
-	octeon_write_csr(oct, CN6XXX_SLI_OQ_SIZE(oq_no), droq->max_count);
+	octeon_write_csr(oct, CN6XXX_SLI_OQ_SIZE(oq_anal), droq->max_count);
 
-	octeon_write_csr(oct, CN6XXX_SLI_OQ_BUFF_INFO_SIZE(oq_no),
+	octeon_write_csr(oct, CN6XXX_SLI_OQ_BUFF_INFO_SIZE(oq_anal),
 			 droq->buffer_size);
 
 	/* Get the mapped address of the pkt_sent and pkts_credit regs */
 	droq->pkts_sent_reg =
-		oct->mmio[0].hw_addr + CN6XXX_SLI_OQ_PKTS_SENT(oq_no);
+		oct->mmio[0].hw_addr + CN6XXX_SLI_OQ_PKTS_SENT(oq_anal);
 	droq->pkts_credit_reg =
-		oct->mmio[0].hw_addr + CN6XXX_SLI_OQ_PKTS_CREDIT(oq_no);
+		oct->mmio[0].hw_addr + CN6XXX_SLI_OQ_PKTS_CREDIT(oq_anal);
 
 	/* Enable this output queue to generate Packet Timer Interrupt */
 	intr = octeon_read_csr(oct, CN6XXX_SLI_PKT_TIME_INT_ENB);
-	intr |= (1 << oq_no);
+	intr |= (1 << oq_anal);
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_TIME_INT_ENB, intr);
 
 	/* Enable this output queue to generate Packet Timer Interrupt */
 	intr = octeon_read_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB);
-	intr |= (1 << oq_no);
+	intr |= (1 << oq_anal);
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB, intr);
 }
 
@@ -451,7 +451,7 @@ lio_cn6xxx_update_read_index(struct octeon_instr_queue *iq)
 	u32 new_idx = readl(iq->inst_cnt_reg);
 
 	/* The new instr cnt reg is a 32-bit counter that can roll over. We have
-	 * noted the counter's initial value at init time into
+	 * analted the counter's initial value at init time into
 	 * reset_instr_cnt
 	 */
 	if (iq->reset_instr_cnt < new_idx)
@@ -506,7 +506,7 @@ lio_cn6xxx_process_pcie_error_intr(struct octeon_device *oct, u64 intr64)
 static int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 {
 	struct octeon_droq *droq;
-	int oq_no;
+	int oq_anal;
 	u32 pkt_count, droq_time_mask, droq_mask, droq_int_enb;
 	u32 droq_cnt_enb, droq_cnt_mask;
 
@@ -522,14 +522,14 @@ static int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 
 	oct->droq_intr = 0;
 
-	for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES(oct); oq_no++) {
-		if (!(droq_mask & BIT_ULL(oq_no)))
+	for (oq_anal = 0; oq_anal < MAX_OCTEON_OUTPUT_QUEUES(oct); oq_anal++) {
+		if (!(droq_mask & BIT_ULL(oq_anal)))
 			continue;
 
-		droq = oct->droq[oq_no];
+		droq = oct->droq[oq_anal];
 		pkt_count = octeon_droq_check_hw_for_pkts(droq);
 		if (pkt_count) {
-			oct->droq_intr |= BIT_ULL(oq_no);
+			oct->droq_intr |= BIT_ULL(oq_anal);
 			if (droq->ops.poll_mode) {
 				u32 value;
 				u32 reg;
@@ -542,11 +542,11 @@ static int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 					(&cn6xxx->lock_for_droq_int_enb_reg);
 				reg = CN6XXX_SLI_PKT_TIME_INT_ENB;
 				value = octeon_read_csr(oct, reg);
-				value &= ~(1 << oq_no);
+				value &= ~(1 << oq_anal);
 				octeon_write_csr(oct, reg, value);
 				reg = CN6XXX_SLI_PKT_CNT_INT_ENB;
 				value = octeon_read_csr(oct, reg);
-				value &= ~(1 << oq_no);
+				value &= ~(1 << oq_anal);
 				octeon_write_csr(oct, reg, value);
 
 				spin_unlock(&cn6xxx->lock_for_droq_int_enb_reg);
@@ -580,7 +580,7 @@ irqreturn_t lio_cn6xxx_process_interrupt_regs(void *dev)
 	 * and the PCI read fails.
 	 */
 	if (!intr64 || (intr64 == 0xFFFFFFFFFFFFFFFFULL))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	oct->int_status = 0;
 
@@ -686,7 +686,7 @@ int lio_setup_cn66xx_octeon_device(struct octeon_device *oct)
 	cn6xxx->conf = (struct octeon_config *)
 		       oct_get_config_info(oct, LIO_210SV);
 	if (!cn6xxx->conf) {
-		dev_err(&oct->pci_dev->dev, "%s No Config found for CN66XX\n",
+		dev_err(&oct->pci_dev->dev, "%s Anal Config found for CN66XX\n",
 			__func__);
 		octeon_unmap_pci_barx(oct, 0);
 		octeon_unmap_pci_barx(oct, 1);
@@ -729,7 +729,7 @@ int lio_validate_cn6xxx_config_info(struct octeon_device *oct,
 	}
 
 	if (!(CFG_GET_OQ_INTR_TIME(conf6xxx))) {
-		dev_err(&oct->pci_dev->dev, "%s: No Time Interrupt for OQ\n",
+		dev_err(&oct->pci_dev->dev, "%s: Anal Time Interrupt for OQ\n",
 			__func__);
 		return 1;
 	}

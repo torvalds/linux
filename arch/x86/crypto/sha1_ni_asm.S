@@ -30,21 +30,21 @@
  * are met:
  *
  * 	* Redistributions of source code must retain the above copyright
- * 	  notice, this list of conditions and the following disclaimer.
+ * 	  analtice, this list of conditions and the following disclaimer.
  * 	* Redistributions in binary form must reproduce the above copyright
- * 	  notice, this list of conditions and the following disclaimer in
+ * 	  analtice, this list of conditions and the following disclaimer in
  * 	  the documentation and/or other materials provided with the
  * 	  distribution.
- * 	* Neither the name of Intel Corporation nor the names of its
+ * 	* Neither the name of Intel Corporation analr the names of its
  * 	  contributors may be used to endorse or promote products derived
  * 	  from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -79,12 +79,12 @@
  * The function takes a pointer to the current hash values, a pointer to the
  * input data, and a number of 64 byte blocks to process.  Once all blocks have
  * been processed, the digest pointer is  updated with the resulting hash value.
- * The function only processes complete blocks, there is no functionality to
+ * The function only processes complete blocks, there is anal functionality to
  * store partial blocks. All message padding and hash value initialization must
  * be done outside the update function.
  *
  * The indented lines in the loop are instructions related to rounds processing.
- * The non-indented lines are instructions related to the message schedule.
+ * The analn-indented lines are instructions related to the message schedule.
  *
  * void sha1_ni_transform(uint32_t *digest, const void *data,
 		uint32_t numBlocks)

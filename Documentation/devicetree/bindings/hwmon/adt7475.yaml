@@ -25,7 +25,7 @@ description: |
   https://www.onsemi.com/pub/Collateral/ADT7476-D.PDF
   https://www.onsemi.com/pub/Collateral/ADT7490-D.PDF
 
-  Description taken from onsemiconductors specification sheets, with minor
+  Description taken from onsemiconductors specification sheets, with mianalr
   rephrasing.
 
 properties:
@@ -56,7 +56,7 @@ patternProperties:
     description: |
       Configures bypassing the individual voltage input attenuator. If
       set to 1 the attenuator is bypassed if set to 0 the attenuator is
-      not bypassed. If the property is absent then the attenuator
+      analt bypassed. If the property is absent then the attenuator
       retains its configuration from the bios/bootloader.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]

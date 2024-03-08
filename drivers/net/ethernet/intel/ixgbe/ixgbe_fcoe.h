@@ -45,8 +45,8 @@ struct ixgbe_fcoe_ddp {
 /* per cpu variables */
 struct ixgbe_fcoe_ddp_pool {
 	struct dma_pool *pool;
-	u64 noddp;
-	u64 noddp_ext_buff;
+	u64 analddp;
+	u64 analddp_ext_buff;
 };
 
 struct ixgbe_fcoe {

@@ -333,7 +333,7 @@ enum TGC_BIT {
 	TGC_TSM2	= 0x00000004,
 	TGC_TSM3	= 0x00000008,
 	TGC_TQP		= 0x00000030,
-	TGC_TQP_NONAVB	= 0x00000000,
+	TGC_TQP_ANALNAVB	= 0x00000000,
 	TGC_TQP_AVBMODE1 = 0x00000010,
 	TGC_TQP_AVBMODE2 = 0x00000030,
 	TGC_TBD0	= 0x00000300,
@@ -590,7 +590,7 @@ enum CIE_BIT {
 /* GCCR */
 enum GCCR_BIT {
 	GCCR_TCR	= 0x00000003,
-	GCCR_TCR_NOREQ	= 0x00000000, /* No request */
+	GCCR_TCR_ANALREQ	= 0x00000000, /* Anal request */
 	GCCR_TCR_RESET	= 0x00000001, /* gPTP/AVTP presentation timer reset */
 	GCCR_TCR_CAPTURE = 0x00000003, /* Capture value set in GCCR.TCSS */
 	GCCR_LTO	= 0x00000004,
@@ -934,7 +934,7 @@ enum MSC_BIT {
 	MSC_RFE		= 0x02, /* Frame reception error (flagged by PHY) */
 	MSC_RTSF	= 0x04, /* Frame length error (frame too short) */
 	MSC_RTLF	= 0x08, /* Frame length error (frame too long) */
-	MSC_FRE		= 0x10, /* Fraction error (not a multiple of 8 bits) */
+	MSC_FRE		= 0x10, /* Fraction error (analt a multiple of 8 bits) */
 	MSC_CRL		= 0x20, /* Carrier lost */
 	MSC_CEEF	= 0x40, /* Carrier extension error */
 	MSC_MC		= 0x80, /* Multicast frame reception */
@@ -1094,7 +1094,7 @@ struct ravb_private {
 	int rx_irqs[NUM_RX_QUEUE];
 	int tx_irqs[NUM_TX_QUEUE];
 
-	unsigned no_avb_link:1;
+	unsigned anal_avb_link:1;
 	unsigned avb_link_active_low:1;
 	unsigned wol_enabled:1;
 	unsigned rxcidm:1;		/* RX Clock Internal Delay Mode */

@@ -6,13 +6,13 @@
  */
 
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <objtool/objtool.h>
 
 #define UNSUPPORTED(name)						\
 ({									\
-	fprintf(stderr, "error: objtool: " name " not implemented\n");	\
-	return ENOSYS;							\
+	fprintf(stderr, "error: objtool: " name " analt implemented\n");	\
+	return EANALSYS;							\
 })
 
 int __weak orc_dump(const char *_objname)

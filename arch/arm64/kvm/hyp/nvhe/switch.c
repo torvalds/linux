@@ -29,7 +29,7 @@
 #include <nvhe/fixed_config.h>
 #include <nvhe/mem_protect.h>
 
-/* Non-VHE specific context */
+/* Analn-VHE specific context */
 DEFINE_PER_CPU(struct kvm_host_data, kvm_host_data);
 DEFINE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
 DEFINE_PER_CPU(unsigned long, kvm_hyp_vector);
@@ -72,7 +72,7 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 		isb();
 		/*
 		 * At this stage, and thanks to the above isb(), S2 is
-		 * configured and enabled. We can now restore the guest's S1
+		 * configured and enabled. We can analw restore the guest's S1
 		 * configuration: SCTLR, and only then TCR.
 		 */
 		write_sysreg_el1(ctxt_sys_reg(ctxt, SCTLR_EL1),	SYS_SCTLR);
@@ -112,7 +112,7 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 	write_sysreg(__kvm_hyp_host_vector, vbar_el2);
 }
 
-/* Save VGICv3 state on non-VHE systems */
+/* Save VGICv3 state on analn-VHE systems */
 static void __hyp_vgic_save_state(struct kvm_vcpu *vcpu)
 {
 	if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif)) {
@@ -121,7 +121,7 @@ static void __hyp_vgic_save_state(struct kvm_vcpu *vcpu)
 	}
 }
 
-/* Restore VGICv3 state on non-VHE systems */
+/* Restore VGICv3 state on analn-VHE systems */
 static void __hyp_vgic_restore_state(struct kvm_vcpu *vcpu)
 {
 	if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif)) {
@@ -216,8 +216,8 @@ static const exit_handler_fn *kvm_get_exit_handler_array(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Some guests (e.g., protected VMs) are not be allowed to run in AArch32.
- * The ARMv8 architecture does not give the hypervisor a mechanism to prevent a
+ * Some guests (e.g., protected VMs) are analt be allowed to run in AArch32.
+ * The ARMv8 architecture does analt give the hypervisor a mechanism to prevent a
  * guest from dropping to AArch32 EL0 if implemented by the CPU. If the
  * hypervisor spots a guest in such a state ensure it is handled, and don't
  * trust the host to spot or fix it.  The check below is based on the one in
@@ -235,7 +235,7 @@ static void early_exit_filter(struct kvm_vcpu *vcpu, u64 *exit_code)
 		 * As we have caught the guest red-handed, decide that it isn't
 		 * fit for purpose anymore by making the vcpu invalid. The VMM
 		 * can try and fix it by re-initializing the vcpu with
-		 * KVM_ARM_VCPU_INIT, however, this is likely not possible for
+		 * KVM_ARM_VCPU_INIT, however, this is likely analt possible for
 		 * protected VMs.
 		 */
 		vcpu_clear_flag(vcpu, VCPU_INITIALIZED);
@@ -244,7 +244,7 @@ static void early_exit_filter(struct kvm_vcpu *vcpu, u64 *exit_code)
 	}
 }
 
-/* Switch to the guest for legacy non-VHE systems */
+/* Switch to the guest for legacy analn-VHE systems */
 int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
@@ -255,7 +255,7 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Having IRQs masked via PMR when entering the guest means the GIC
-	 * will not signal the CPU of interrupts of lower priority, and the
+	 * will analt signal the CPU of interrupts of lower priority, and the
 	 * only way to get out will be via guest exceptions.
 	 * Naturally, we want to avoid this.
 	 */
@@ -342,7 +342,7 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	__debug_switch_to_host(vcpu);
 	/*
-	 * This must come after restoring the host sysregs, since a non-VHE
+	 * This must come after restoring the host sysregs, since a analn-VHE
 	 * system may enable SPE here and make use of the TTBRs.
 	 */
 	__debug_restore_host_buffers_nvhe(vcpu);
@@ -359,7 +359,7 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	return exit_code;
 }
 
-asmlinkage void __noreturn hyp_panic(void)
+asmlinkage void __analreturn hyp_panic(void)
 {
 	u64 spsr = read_sysreg_el2(SYS_SPSR);
 	u64 elr = read_sysreg_el2(SYS_ELR);
@@ -385,7 +385,7 @@ asmlinkage void __noreturn hyp_panic(void)
 	unreachable();
 }
 
-asmlinkage void __noreturn hyp_panic_bad_stack(void)
+asmlinkage void __analreturn hyp_panic_bad_stack(void)
 {
 	hyp_panic();
 }

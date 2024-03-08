@@ -2,7 +2,7 @@
 /*
  * NAU88L24 ALSA SoC audio driver
  *
- * Copyright 2016 Nuvoton Technology Corp.
+ * Copyright 2016 Nuvoton Techanallogy Corp.
  * Author: John Hsu <KCHSU0@nuvoton.com>
  */
 
@@ -29,7 +29,7 @@
 #include "nau8824.h"
 
 #define NAU8824_JD_ACTIVE_HIGH			BIT(0)
-#define NAU8824_MONO_SPEAKER			BIT(1)
+#define NAU8824_MOANAL_SPEAKER			BIT(1)
 
 static int nau8824_quirk;
 static int quirk_override = -1;
@@ -134,8 +134,8 @@ static const struct reg_default nau8824_reg_defaults[] = {
 	{ NAU8824_REG_ADC_FILTER_CTRL, 0x0002 },
 	{ NAU8824_REG_DAC_FILTER_CTRL_1, 0x0000 },
 	{ NAU8824_REG_DAC_FILTER_CTRL_2, 0x0000 },
-	{ NAU8824_REG_NOTCH_FILTER_1, 0x0000 },
-	{ NAU8824_REG_NOTCH_FILTER_2, 0x0000 },
+	{ NAU8824_REG_ANALTCH_FILTER_1, 0x0000 },
+	{ NAU8824_REG_ANALTCH_FILTER_2, 0x0000 },
 	{ NAU8824_REG_EQ1_LOW, 0x112C },
 	{ NAU8824_REG_EQ2_EQ3, 0x2C2C },
 	{ NAU8824_REG_EQ4_EQ5, 0x2C2C },
@@ -484,12 +484,12 @@ static int nau8824_pump_event(struct snd_soc_dapm_widget *w,
 		msleep(10);
 		regmap_update_bits(nau8824->regmap,
 			NAU8824_REG_CHARGE_PUMP_CONTROL,
-			NAU8824_JAMNODCLOW, NAU8824_JAMNODCLOW);
+			NAU8824_JAMANALDCLOW, NAU8824_JAMANALDCLOW);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_update_bits(nau8824->regmap,
 			NAU8824_REG_CHARGE_PUMP_CONTROL,
-			NAU8824_JAMNODCLOW, 0);
+			NAU8824_JAMANALDCLOW, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -522,8 +522,8 @@ static int system_clock_control(struct snd_soc_dapm_widget *w,
 		}
 	} else {
 		dev_dbg(nau8824->dev, "system clock control : POWER ON\n");
-		/* Check the clock source setting is proper or not
-		 * no matter the source is from FLL or MCLK.
+		/* Check the clock source setting is proper or analt
+		 * anal matter the source is from FLL or MCLK.
 		 */
 		regmap_read(regmap, NAU8824_REG_FLL1, &value);
 		clk_fll = value & NAU8824_FLL_RATIO_MASK;
@@ -641,7 +641,7 @@ static const struct snd_kcontrol_new nau8824_dacr_mux =
 
 
 static const struct snd_soc_dapm_widget nau8824_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY("System Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("System Clock", SND_SOC_ANALPM, 0, 0,
 		system_clock_control, SND_SOC_DAPM_POST_PMD |
 		SND_SOC_DAPM_POST_PMU),
 
@@ -662,16 +662,16 @@ static const struct snd_soc_dapm_widget nau8824_dapm_widgets[] = {
 		NAU8824_DMIC1_EN_SFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DMIC34 Power", NAU8824_REG_BIAS_ADJ,
 		NAU8824_DMIC2_EN_SFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DMIC Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("DMIC Clock", SND_SOC_ANALPM, 0, 0,
 		dmic_clock_control, SND_SOC_DAPM_POST_PMU),
 
-	SND_SOC_DAPM_SWITCH("DMIC1 Enable", SND_SOC_NOPM,
+	SND_SOC_DAPM_SWITCH("DMIC1 Enable", SND_SOC_ANALPM,
 		0, 0, &nau8824_adc_ch0_dmic),
-	SND_SOC_DAPM_SWITCH("DMIC2 Enable", SND_SOC_NOPM,
+	SND_SOC_DAPM_SWITCH("DMIC2 Enable", SND_SOC_ANALPM,
 		0, 0, &nau8824_adc_ch1_dmic),
-	SND_SOC_DAPM_SWITCH("DMIC3 Enable", SND_SOC_NOPM,
+	SND_SOC_DAPM_SWITCH("DMIC3 Enable", SND_SOC_ANALPM,
 		0, 0, &nau8824_adc_ch2_dmic),
-	SND_SOC_DAPM_SWITCH("DMIC4 Enable", SND_SOC_NOPM,
+	SND_SOC_DAPM_SWITCH("DMIC4 Enable", SND_SOC_ANALPM,
 		0, 0, &nau8824_adc_ch3_dmic),
 
 	SND_SOC_DAPM_MIXER("Left ADC", NAU8824_REG_POWER_UP_CONTROL,
@@ -686,8 +686,8 @@ static const struct snd_soc_dapm_widget nau8824_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADCR", NULL, NAU8824_REG_ANALOG_ADC_2,
 		NAU8824_ADCR_EN_SFT, 0),
 
-	SND_SOC_DAPM_AIF_OUT("AIFTX", "Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIFRX", "Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIFTX", "Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFRX", "Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_DAC("DACL", NULL, NAU8824_REG_RDAC,
 		NAU8824_DACL_EN_SFT, 0),
@@ -698,8 +698,8 @@ static const struct snd_soc_dapm_widget nau8824_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("DACR Clock", NAU8824_REG_RDAC,
 		NAU8824_DACR_CLK_SFT, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("DACL Mux", SND_SOC_NOPM, 0, 0, &nau8824_dacl_mux),
-	SND_SOC_DAPM_MUX("DACR Mux", SND_SOC_NOPM, 0, 0, &nau8824_dacr_mux),
+	SND_SOC_DAPM_MUX("DACL Mux", SND_SOC_ANALPM, 0, 0, &nau8824_dacl_mux),
+	SND_SOC_DAPM_MUX("DACR Mux", SND_SOC_ANALPM, 0, 0, &nau8824_dacr_mux),
 
 	SND_SOC_DAPM_PGA_S("Output DACL", 0, NAU8824_REG_CHARGE_PUMP_CONTROL,
 		8, 1, nau8824_output_dac_event,
@@ -958,7 +958,7 @@ static irqreturn_t nau8824_interrupt(int irq, void *data)
 
 	if (regmap_read(regmap, NAU8824_REG_IRQ, &active_irq)) {
 		dev_err(nau8824->dev, "failed to read irq status\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	dev_dbg(nau8824->dev, "IRQ %x\n", active_irq);
 
@@ -1071,7 +1071,7 @@ static int nau8824_hw_params(struct snd_pcm_substream *substream,
 
 	/* CLK_DAC or CLK_ADC = OSR * FS
 	 * DAC or ADC clock frequency is defined as Over Sampling Rate (OSR)
-	 * multiplied by the audio sample rate (Fs). Note that the OSR and Fs
+	 * multiplied by the audio sample rate (Fs). Analte that the OSR and Fs
 	 * values must be selected such that the maximum frequency is less
 	 * than 6.144 MHz.
 	 */
@@ -1203,7 +1203,7 @@ static int nau8824_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
  * nau8824_set_tdm_slot - configure DAI TDM.
  * @dai: DAI
  * @tx_mask: Bitmask representing active TX slots. Ex.
- *                 0xf for normal 4 channel TDM.
+ *                 0xf for analrmal 4 channel TDM.
  *                 0xf0 for shifted 4 channel TDM
  * @rx_mask: Bitmask [0:1] representing active DACR RX slots.
  *                 Bitmask [2:3] representing active DACL RX slots.
@@ -1289,7 +1289,7 @@ static int nau8824_calc_fll_param(unsigned int fll_in,
 	fll_param->ratio = fll_ratio[i].val;
 
 	/* Calculate the frequency of DCO (FDCO) given freq_out = 256 * Fs.
-	 * FDCO must be within the 90MHz - 124MHz or the FFL cannot be
+	 * FDCO must be within the 90MHz - 124MHz or the FFL cananalt be
 	 * guaranteed across the full range of operation.
 	 * FDCO = freq_out * 2 * mclk_src_scaling
 	 */
@@ -1634,7 +1634,7 @@ int nau8824_enable_jack_detect(struct snd_soc_component *component,
 		nau8824_interrupt, IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 		"nau8824", nau8824);
 	if (ret) {
-		dev_err(nau8824->dev, "Cannot request irq %d (%d)\n",
+		dev_err(nau8824->dev, "Cananalt request irq %d (%d)\n",
 			nau8824->irq, ret);
 	}
 
@@ -1884,7 +1884,7 @@ static const struct dmi_system_id nau8824_quirk_table[] = {
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "20170531"),
 		},
 		.driver_data = (void *)(NAU8824_JD_ACTIVE_HIGH |
-					NAU8824_MONO_SPEAKER),
+					NAU8824_MOANAL_SPEAKER),
 	},
 	{
 		/* CUBE iwork8 Air */
@@ -1893,7 +1893,7 @@ static const struct dmi_system_id nau8824_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "i1-TF"),
 			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
 		},
-		.driver_data = (void *)(NAU8824_MONO_SPEAKER),
+		.driver_data = (void *)(NAU8824_MOANAL_SPEAKER),
 	},
 	{
 		/* Pipo W2S */
@@ -1901,12 +1901,12 @@ static const struct dmi_system_id nau8824_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "PIPO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "W2S"),
 		},
-		.driver_data = (void *)(NAU8824_MONO_SPEAKER),
+		.driver_data = (void *)(NAU8824_MOANAL_SPEAKER),
 	},
 	{
 		/* Positivo CW14Q01P */
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Positivo Tecnologia SA"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Positivo Tecanallogia SA"),
 			DMI_MATCH(DMI_BOARD_NAME, "CW14Q01P"),
 		},
 		.driver_data = (void *)(NAU8824_JD_ACTIVE_HIGH),
@@ -1914,7 +1914,7 @@ static const struct dmi_system_id nau8824_quirk_table[] = {
 	{
 		/* Positivo K1424G */
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Positivo Tecnologia SA"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Positivo Tecanallogia SA"),
 			DMI_MATCH(DMI_BOARD_NAME, "K1424G"),
 		},
 		.driver_data = (void *)(NAU8824_JD_ACTIVE_HIGH),
@@ -1922,7 +1922,7 @@ static const struct dmi_system_id nau8824_quirk_table[] = {
 	{
 		/* Positivo N14ZP74G */
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Positivo Tecnologia SA"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Positivo Tecanallogia SA"),
 			DMI_MATCH(DMI_BOARD_NAME, "N14ZP74G"),
 		},
 		.driver_data = (void *)(NAU8824_JD_ACTIVE_HIGH),
@@ -1948,7 +1948,7 @@ const char *nau8824_components(void)
 {
 	nau8824_check_quirks();
 
-	if (nau8824_quirk & NAU8824_MONO_SPEAKER)
+	if (nau8824_quirk & NAU8824_MOANAL_SPEAKER)
 		return "cfg-spk:1";
 	else
 		return "cfg-spk:2";
@@ -1964,7 +1964,7 @@ static int nau8824_i2c_probe(struct i2c_client *i2c)
 	if (!nau8824) {
 		nau8824 = devm_kzalloc(dev, sizeof(*nau8824), GFP_KERNEL);
 		if (!nau8824)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = nau8824_read_device_properties(dev, nau8824);
 		if (ret)
 			return ret;

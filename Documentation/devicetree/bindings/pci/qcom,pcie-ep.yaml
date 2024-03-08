@@ -161,7 +161,7 @@ allOf:
             - description: PCIe Slave Q2A AXI clock
             - description: PCIe Reference clock
             - description: PCIe DDRSS SF TBU clock
-            - description: PCIe AGGRE NOC AXI clock
+            - description: PCIe AGGRE ANALC AXI clock
         clock-names:
           items:
             - const: aux
@@ -171,7 +171,7 @@ allOf:
             - const: slave_q2a
             - const: ref
             - const: ddrss_sf_tbu
-            - const: aggre_noc_axi
+            - const: aggre_analc_axi
 
 unevaluatedProperties: false
 
@@ -208,8 +208,8 @@ examples:
         interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "global", "doorbell";
-        interconnects = <&system_noc MASTER_PCIE &mc_virt SLAVE_EBI_CH0>,
-                        <&mem_noc MASTER_AMPSS_M0 &system_noc SLAVE_PCIE_0>;
+        interconnects = <&system_analc MASTER_PCIE &mc_virt SLAVE_EBI_CH0>,
+                        <&mem_analc MASTER_AMPSS_M0 &system_analc SLAVE_PCIE_0>;
         interconnect-names = "pcie-mem", "cpu-pcie";
         reset-gpios = <&tlmm 57 GPIO_ACTIVE_LOW>;
         wake-gpios = <&tlmm 53 GPIO_ACTIVE_LOW>;

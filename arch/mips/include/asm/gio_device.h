@@ -10,7 +10,7 @@ struct gio_device {
 	struct device	dev;
 	struct resource resource;
 	unsigned int	irq;
-	unsigned int	slotno;
+	unsigned int	slotanal;
 
 	const char	*name;
 	struct gio_device_id id;

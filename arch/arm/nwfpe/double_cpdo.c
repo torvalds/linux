@@ -47,7 +47,7 @@ static float64 (*const dyadic_double[16])(struct roundingData*, float64 rFn, flo
 	[RDF_CODE >> 20] = float64_rdv,
 	[RMF_CODE >> 20] = float64_rem,
 
-	/* strictly, these opcodes should not be implemented */
+	/* strictly, these opcodes should analt be implemented */
 	[FML_CODE >> 20] = float64_mul,
 	[FDV_CODE >> 20] = float64_div,
 	[FRD_CODE >> 20] = float64_rdv,

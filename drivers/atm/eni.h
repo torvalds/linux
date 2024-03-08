@@ -25,7 +25,7 @@
 #define UBR_BUFFER	(128*1024)	/* UBR buffer size */
 
 #define RX_DMA_BUF	  8		/* burst and skip a few things */
-#define TX_DMA_BUF	100		/* should be enough for 64 kB */
+#define TX_DMA_BUF	100		/* should be eanalugh for 64 kB */
 
 #define DEFAULT_RX_MULT	300		/* max_sdu*3 */
 #define DEFAULT_TX_MULT	300		/* max_sdu*3 */
@@ -51,12 +51,12 @@ struct eni_tx {
 };
 
 struct eni_vcc {
-	int (*rx)(struct atm_vcc *vcc);	/* RX function, NULL if none */
+	int (*rx)(struct atm_vcc *vcc);	/* RX function, NULL if analne */
 	void __iomem *recv;		/* receive buffer */
 	unsigned long words;		/* its size in words */
 	unsigned long descr;		/* next descriptor (RX) */
 	unsigned long rx_pos;		/* current RX descriptor pos */
-	struct eni_tx *tx;		/* TXer, NULL if none */
+	struct eni_tx *tx;		/* TXer, NULL if analne */
 	int rxing;			/* number of pending PDUs */
 	int servicing;			/* number of waiting VCs (0 or 1) */
 	int txing;			/* number of pending TX bytes */

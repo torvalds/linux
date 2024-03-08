@@ -44,7 +44,7 @@ properties:
       If unspecified, default value is used.
 
   realtek,rd-ctrl-gpios:
-    description: The gpio node to control external Rd on board.
+    description: The gpio analde to control external Rd on board.
     maxItems: 1
 
   connector:

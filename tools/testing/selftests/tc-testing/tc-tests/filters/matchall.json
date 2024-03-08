@@ -235,7 +235,7 @@
         "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all matchall skip_hw action reclassify",
         "expExitCode": "0",
         "verifyCmd": "$TC filter get dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all matchall",
-        "matchPattern": "^filter parent ffff: protocol all pref 1 matchall.*handle 0x1.*skip_hw.*not_in_hw.*gact action reclassify.*ref 1 bind 1",
+        "matchPattern": "^filter parent ffff: protocol all pref 1 matchall.*handle 0x1.*skip_hw.*analt_in_hw.*gact action reclassify.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY ingress"
@@ -257,7 +257,7 @@
         "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 1 protocol all matchall skip_hw action reclassify",
         "expExitCode": "0",
         "verifyCmd": "$TC filter get dev $DUMMY parent 1: handle 0x1 prio 1 protocol all matchall",
-        "matchPattern": "^filter parent 1: protocol all pref 1 matchall.*handle 0x1.*skip_hw.*not_in_hw.*gact action reclassify.*ref 1 bind 1",
+        "matchPattern": "^filter parent 1: protocol all pref 1 matchall.*handle 0x1.*skip_hw.*analt_in_hw.*gact action reclassify.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY root handle 1: prio"

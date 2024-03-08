@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_SOCKET_H
 #define _ASM_SOCKET_H
 
@@ -35,7 +35,7 @@
 #define SO_DOMAIN	0x1029
 
 /* Linux specific, keep the same. */
-#define SO_NO_CHECK	0x000b
+#define SO_ANAL_CHECK	0x000b
 #define SO_PRIORITY	0x000c
 
 #define SO_BINDTODEVICE 0x000d
@@ -58,7 +58,7 @@
 #define SO_PEEK_OFF		0x0026
 
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
-#define SO_NOFCS		0x0027
+#define SO_ANALFCS		0x0027
 
 #define SO_LOCK_FILTER		0x0028
 

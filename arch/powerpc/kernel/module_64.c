@@ -129,8 +129,8 @@ struct ppc64_got_entry {
  * ELFv2 global entry point calling convention.
  *
  * TOC handling:
- * - PCREL does not have a TOC.
- * - ELFv2 non-PCREL just has to save r2, the callee is responsible for
+ * - PCREL does analt have a TOC.
+ * - ELFv2 analn-PCREL just has to save r2, the callee is responsible for
  *   setting its own TOC pointer at the global entry address.
  * - ELFv1 must load the new TOC pointer from the function descriptor.
  */
@@ -236,7 +236,7 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 			relocs += count_relocs((void *)sechdrs[i].sh_addr,
 					       sechdrs[i].sh_size
 					       / sizeof(Elf64_Rela),
-					       R_PPC64_REL24_NOTOC);
+					       R_PPC64_REL24_ANALTOC);
 #endif
 		}
 	}
@@ -439,13 +439,13 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 
 	if (!me->arch.stubs_section) {
 		pr_err("%s: doesn't contain .stubs.\n", me->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 #ifdef CONFIG_PPC_KERNEL_PCREL
 	if (!me->arch.got_section) {
 		pr_err("%s: doesn't contain .mygot.\n", me->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/* Override the got size */
@@ -470,7 +470,7 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 static u32 stub_insns[] = {
 #ifdef CONFIG_PPC_KERNEL_PCREL
 	PPC_RAW_LD(_R12, _R13, offsetof(struct paca_struct, kernelbase)),
-	PPC_RAW_NOP(), /* align the prefix insn */
+	PPC_RAW_ANALP(), /* align the prefix insn */
 	/* paddi r12,r12,addr */
 	PPC_PREFIX_MLS | __PPC_PRFX_R(0),
 	PPC_INST_PADDI | ___PPC_RT(_R12) | ___PPC_RA(_R12),
@@ -491,7 +491,7 @@ static u32 stub_insns[] = {
  *
  * That can happen if the function calling us didn't need to use the toc. In
  * that case it won't have setup r2, and the r2 value will be either the
- * kernel's toc, or possibly another modules toc.
+ * kernel's toc, or possibly aanalther modules toc.
  *
  * To deal with that this stub uses the kernel toc, which is always accessible
  * via the paca (in r13). The target (ftrace_caller()) is responsible for
@@ -504,7 +504,7 @@ static inline int create_ftrace_stub(struct ppc64_stub_entry *entry,
 	long reladdr;
 
 	if ((unsigned long)entry->jump % 8 != 0) {
-		pr_err("%s: Address of stub entry is not 8-byte aligned\n", me->name);
+		pr_err("%s: Address of stub entry is analt 8-byte aligned\n", me->name);
 		return 0;
 	}
 
@@ -601,7 +601,7 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 		return create_ftrace_stub(entry, addr, me);
 
 	if ((unsigned long)entry->jump % 8 != 0) {
-		pr_err("%s: Address of stub entry is not 8-byte aligned\n", me->name);
+		pr_err("%s: Address of stub entry is analt 8-byte aligned\n", me->name);
 		return 0;
 	}
 
@@ -623,7 +623,7 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 		}
 		pr_debug("Stub %p get data from reladdr %li\n", entry, reladdr);
 
-		/* May not even need this if we're relative to 0 */
+		/* May analt even need this if we're relative to 0 */
 		if (patch_instruction(&entry->jump[0],
 		    ppc_inst_prefix(entry->jump[0] | IMM_H18(reladdr),
 				    entry->jump[1] | IMM_L(reladdr))))
@@ -721,7 +721,7 @@ static unsigned long got_for_addr(const Elf64_Shdr *sechdrs,
 }
 #endif
 
-/* We expect a noop next: if it is, replace it with instruction to
+/* We expect a analop next: if it is, replace it with instruction to
    restore r2. */
 static int restore_r2(const char *name, u32 *instruction, struct module *me)
 {
@@ -745,16 +745,16 @@ static int restore_r2(const char *name, u32 *instruction, struct module *me)
 	/*
 	 * For livepatch, the restore r2 instruction might have already been
 	 * written previously, if the referenced symbol is in a previously
-	 * unloaded module which is now being loaded again.  In that case, skip
+	 * unloaded module which is analw being loaded again.  In that case, skip
 	 * the warning and the instruction write.
 	 */
 	if (insn_val == PPC_INST_LD_TOC)
 		return 0;
 
-	if (insn_val != PPC_RAW_NOP()) {
-		pr_err("%s: Expected nop after call, got %08x at %pS\n",
+	if (insn_val != PPC_RAW_ANALP()) {
+		pr_err("%s: Expected analp after call, got %08x at %pS\n",
 			me->name, insn_val, instruction);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/* ld r2,R2_STACK_OFFSET(r1) */
@@ -825,7 +825,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			if (value + 0x8000 > 0xffff) {
 				pr_err("%s: bad TOC16 relocation (0x%lx)\n",
 				       me->name, value);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 			*((uint16_t *) location)
 				= (*((uint16_t *) location) & ~0xffff)
@@ -846,7 +846,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			if ((value & 3) != 0 || value + 0x8000 > 0xffff) {
 				pr_err("%s: bad TOC16_DS relocation (0x%lx)\n",
 				       me->name, value);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 			*((uint16_t *) location)
 				= (*((uint16_t *) location) & ~0xfffc)
@@ -859,7 +859,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			if ((value & 3) != 0) {
 				pr_err("%s: bad TOC16_LO_DS relocation (0x%lx)\n",
 				       me->name, value);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 			*((uint16_t *) location)
 				= (*((uint16_t *) location) & ~0xfffc)
@@ -879,7 +879,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		case R_PPC_REL24:
 #ifdef CONFIG_PPC_KERNEL_PCREL
 		/* PCREL still generates REL24 for mcount */
-		case R_PPC64_REL24_NOTOC:
+		case R_PPC64_REL24_ANALTOC:
 #endif
 			/* FIXME: Handle weak symbols here --RR */
 			if (sym->st_shndx == SHN_UNDEF ||
@@ -888,10 +888,10 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 				value = stub_for_addr(sechdrs, value, me,
 						strtab + sym->st_name);
 				if (!value)
-					return -ENOENT;
+					return -EANALENT;
 				if (restore_r2(strtab + sym->st_name,
 					       (u32 *)location + 1, me))
-					return -ENOEXEC;
+					return -EANALEXEC;
 			} else
 				value += local_entry_offset(sym);
 
@@ -900,7 +900,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			if (value + 0x2000000 > 0x3ffffff || (value & 3) != 0){
 				pr_err("%s: REL24 %li out of range!\n",
 				       me->name, (long int)value);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 
 			/* Only replace bits 2 through 26 */
@@ -923,7 +923,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			if (value + 0x80000000 > 0xffffffff) {
 				pr_err("%s: REL32 %li out of range!\n",
 				       me->name, (long int)value);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 			*(u32 *)location = value;
 			break;
@@ -939,7 +939,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 				if (sym->st_shndx != me->arch.pcpu_section) {
 					pr_err("%s: REL34 %li out of range!\n",
 					       me->name, (long)value);
-					return -ENOEXEC;
+					return -EANALEXEC;
 				}
 
 				/*
@@ -950,7 +950,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 				value = got_for_addr(sechdrs, absvalue, me,
 						     strtab + sym->st_name);
 				if (!value)
-					return -ENOENT;
+					return -EANALENT;
 				value -= (unsigned long)location;
 
 				/* Turn pla into pld */
@@ -972,7 +972,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		case R_PPC64_TOCSAVE:
 			/*
 			 * Marker reloc indicates we don't have to save r2.
-			 * That would only save us one instruction, so ignore
+			 * That would only save us one instruction, so iganalre
 			 * it.
 			 */
 			break;
@@ -1029,7 +1029,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			value = got_for_addr(sechdrs, value, me,
 					     strtab + sym->st_name);
 			if (!value)
-				return -ENOENT;
+				return -EANALENT;
 			value -= (unsigned long)location;
 			((uint32_t *)location)[0] = (((uint32_t *)location)[0] & ~0x3ffff) |
 						    ((value >> 16) & 0x3ffff);
@@ -1039,10 +1039,10 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 #endif
 
 		default:
-			pr_err("%s: Unknown ADD relocation: %lu\n",
+			pr_err("%s: Unkanalwn ADD relocation: %lu\n",
 			       me->name,
 			       (unsigned long)ELF64_R_TYPE(rela[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 
@@ -1058,13 +1058,13 @@ int module_trampoline_target(struct module *mod, unsigned long addr,
 	u32 magic;
 
 	if (!within_module_core(addr, mod)) {
-		pr_err("%s: stub %lx not in module %s\n", __func__, addr, mod->name);
+		pr_err("%s: stub %lx analt in module %s\n", __func__, addr, mod->name);
 		return -EFAULT;
 	}
 
 	stub = (struct ppc64_stub_entry *)addr;
 
-	if (copy_from_kernel_nofault(&magic, &stub->magic,
+	if (copy_from_kernel_analfault(&magic, &stub->magic,
 			sizeof(magic))) {
 		pr_err("%s: fault reading magic for stub %lx for %s\n", __func__, addr, mod->name);
 		return -EFAULT;
@@ -1075,7 +1075,7 @@ int module_trampoline_target(struct module *mod, unsigned long addr,
 		return -EFAULT;
 	}
 
-	if (copy_from_kernel_nofault(&funcdata, &stub->funcdata,
+	if (copy_from_kernel_analfault(&funcdata, &stub->funcdata,
 			sizeof(funcdata))) {
 		pr_err("%s: fault reading funcdata for stub %lx for %s\n", __func__, addr, mod->name);
                 return -EFAULT;
@@ -1098,11 +1098,11 @@ int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs)
 					mod,
 					"ftrace_regs_caller");
 	if (!mod->arch.tramp_regs)
-		return -ENOENT;
+		return -EANALENT;
 #endif
 
 	if (!mod->arch.tramp)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }

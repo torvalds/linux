@@ -61,7 +61,7 @@ struct sym_chip {
 #define FE_RAM8K	(1<<16)   /* On chip RAM sized 8Kb */
 #define FE_64BIT	(1<<17)   /* 64-bit PCI BUS interface */
 #define FE_IO256	(1<<18)   /* Requires full 256 bytes in PCI space */
-#define FE_NOPM		(1<<19)   /* Scripts handles phase mismatch */
+#define FE_ANALPM		(1<<19)   /* Scripts handles phase mismatch */
 #define FE_LEDC		(1<<20)   /* Hardware control of LED */
 #define FE_ULTRA3	(1<<21)	  /* Ultra 3 - 80 Mtrans/sec DT */
 #define FE_66MHZ	(1<<22)	  /* 66MHz PCI support */
@@ -84,12 +84,12 @@ struct sym_chip {
 struct sym_reg {
 /*00*/  u8	nc_scntl0;	/* full arb., ena parity, par->ATN  */
 
-/*01*/  u8	nc_scntl1;	/* no reset                         */
+/*01*/  u8	nc_scntl1;	/* anal reset                         */
         #define   ISCON   0x10  /* connected to scsi		    */
         #define   CRST    0x08  /* force reset                      */
         #define   IARB    0x02  /* immediate arbitration            */
 
-/*02*/  u8	nc_scntl2;	/* no disconnect expected           */
+/*02*/  u8	nc_scntl2;	/* anal disconnect expected           */
 	#define   SDU     0x80  /* cmd: disconnect will raise error */
 	#define   CHM     0x40  /* sta: chained mode                */
 	#define   WSS     0x08  /* sta: wide scsi send           [W]*/
@@ -234,7 +234,7 @@ struct sym_reg {
 	#define   IRQM    0x08  /* mod: irq mode (1 = totem pole !) */
 	#define   STD     0x04  /* cmd: start dma mode              */
 	#define   IRQD    0x02  /* mod: irq disable                 */
- 	#define	  NOCOM   0x01	/* cmd: protect sfbr while reselect */
+ 	#define	  ANALCOM   0x01	/* cmd: protect sfbr while reselect */
 				/* bits 0-1 rsvd for C1010          */
 
 /*3c*/  u32	nc_adder;
@@ -247,8 +247,8 @@ struct sym_reg {
         #define   HTH     0x0100/* sta: timeout (handshake)         */
         #define   MA      0x80  /* sta: phase mismatch              */
         #define   CMP     0x40  /* sta: arbitration complete        */
-        #define   SEL     0x20  /* sta: selected by another device  */
-        #define   RSL     0x10  /* sta: reselected by another device*/
+        #define   SEL     0x20  /* sta: selected by aanalther device  */
+        #define   RSL     0x10  /* sta: reselected by aanalther device*/
         #define   SGE     0x08  /* sta: gross error (over/underflow)*/
         #define   UDC     0x04  /* sta: unexpected disconnect       */
         #define   RST     0x02  /* sta: scsi bus reset detected     */
@@ -293,7 +293,7 @@ struct sym_reg {
 /*56*/	u8	nc_ccntl0;	/* Chip Control 0 (896)             */
 	#define   ENPMJ  0x80	/* Enable Phase Mismatch Jump       */
 	#define   PMJCTL 0x40	/* Phase Mismatch Jump Control      */
-	#define   ENNDJ  0x20	/* Enable Non Data PM Jump          */
+	#define   ENNDJ  0x20	/* Enable Analn Data PM Jump          */
 	#define   DISFC  0x10	/* Disable Auto FIFO Clear          */
 	#define   DILS   0x02	/* Disable Internal Load/Store      */
 	#define   DPR    0x01	/* Disable Pipe Req                 */
@@ -386,7 +386,7 @@ struct sym_reg {
 #define	SCR_DT_DATA_IN	0x05000000
 #define SCR_MSG_OUT	0x06000000
 #define SCR_MSG_IN      0x07000000
-/* DT phases are illegal for non Ultra3 mode */
+/* DT phases are illegal for analn Ultra3 mode */
 #define SCR_ILG_OUT	0x04000000
 #define SCR_ILG_IN	0x05000000
 
@@ -526,18 +526,18 @@ struct sym_tblsel {
  *	<< source_address >>
  *	<< destination_address >>
  *
- *	SCR_COPY   sets the NO FLUSH option by default.
- *	SCR_COPY_F does not set this option.
+ *	SCR_COPY   sets the ANAL FLUSH option by default.
+ *	SCR_COPY_F does analt set this option.
  *
- *	For chips which do not support this option,
+ *	For chips which do analt support this option,
  *	sym_fw_bind_script() will remove this bit.
  *
  *-----------------------------------------------------------
  */
 
-#define SCR_NO_FLUSH 0x01000000
+#define SCR_ANAL_FLUSH 0x01000000
 
-#define SCR_COPY(n) (0xc0000000 | SCR_NO_FLUSH | (n))
+#define SCR_COPY(n) (0xc0000000 | SCR_ANAL_FLUSH | (n))
 #define SCR_COPY_F(n) (0xc0000000 | (n))
 
 /*-----------------------------------------------------------
@@ -637,7 +637,7 @@ struct sym_tblsel {
  */
 
 #define SCR_REG_OFS2(ofs) (((ofs) & 0xff) << 16ul)
-#define SCR_NO_FLUSH2	0x02000000
+#define SCR_ANAL_FLUSH2	0x02000000
 #define SCR_DSA_REL2	0x10000000
 
 #define SCR_LOAD_R(reg, how, n) \
@@ -646,13 +646,13 @@ struct sym_tblsel {
 #define SCR_STORE_R(reg, how, n) \
         (0xe0000000 | how | (SCR_REG_OFS2(REG(reg))) | (n))
 
-#define SCR_LOAD_ABS(reg, n)	SCR_LOAD_R(reg, SCR_NO_FLUSH2, n)
-#define SCR_LOAD_REL(reg, n)	SCR_LOAD_R(reg, SCR_NO_FLUSH2|SCR_DSA_REL2, n)
+#define SCR_LOAD_ABS(reg, n)	SCR_LOAD_R(reg, SCR_ANAL_FLUSH2, n)
+#define SCR_LOAD_REL(reg, n)	SCR_LOAD_R(reg, SCR_ANAL_FLUSH2|SCR_DSA_REL2, n)
 #define SCR_LOAD_ABS_F(reg, n)	SCR_LOAD_R(reg, 0, n)
 #define SCR_LOAD_REL_F(reg, n)	SCR_LOAD_R(reg, SCR_DSA_REL2, n)
 
-#define SCR_STORE_ABS(reg, n)	SCR_STORE_R(reg, SCR_NO_FLUSH2, n)
-#define SCR_STORE_REL(reg, n)	SCR_STORE_R(reg, SCR_NO_FLUSH2|SCR_DSA_REL2,n)
+#define SCR_STORE_ABS(reg, n)	SCR_STORE_R(reg, SCR_ANAL_FLUSH2, n)
+#define SCR_STORE_REL(reg, n)	SCR_STORE_R(reg, SCR_ANAL_FLUSH2|SCR_DSA_REL2,n)
 #define SCR_STORE_ABS_F(reg, n)	SCR_STORE_R(reg, 0, n)
 #define SCR_STORE_REL_F(reg, n)	SCR_STORE_R(reg, SCR_DSA_REL2, n)
 
@@ -693,7 +693,7 @@ struct sym_tblsel {
  *-----------------------------------------------------------
  */
 
-#define SCR_NO_OP       0x80000000
+#define SCR_ANAL_OP       0x80000000
 #define SCR_JUMP        0x80080000
 #define SCR_JUMP64      0x80480000
 #define SCR_JUMPR       0x80880000
@@ -733,7 +733,7 @@ struct sym_tblsel {
 #define	M_ID_ERROR	INITIATOR_ERROR
 #define	M_ABORT		ABORT_TASK_SET
 #define	M_REJECT	MESSAGE_REJECT
-#define	M_NOOP		NOP
+#define	M_ANALOP		ANALP
 #define	M_PARITY	MSG_PARITY_ERROR
 #define	M_LCOMPLETE	LINKED_CMD_COMPLETE
 #define	M_FCOMPLETE	LINKED_FLG_CMD_COMPLETE
@@ -746,7 +746,7 @@ struct sym_tblsel {
 #define	M_SIMPLE_TAG	SIMPLE_QUEUE_TAG
 #define	M_HEAD_TAG	HEAD_OF_QUEUE_TAG
 #define	M_ORDERED_TAG	ORDERED_QUEUE_TAG
-#define	M_IGN_RESIDUE	IGNORE_WIDE_RESIDUE
+#define	M_IGN_RESIDUE	IGANALRE_WIDE_RESIDUE
 
 #define	M_X_MODIFY_DP	EXTENDED_MODIFY_DATA_POINTER
 #define	M_X_SYNC_REQ	EXTENDED_SDTR

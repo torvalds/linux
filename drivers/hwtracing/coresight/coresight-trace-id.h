@@ -18,7 +18,7 @@
  *
  * In order to ensure that a consistent cpu / ID matching is maintained
  * throughout a perf cs_etm event session - a session in progress flag will
- * be maintained, and released IDs not cleared until the perf session is
+ * be maintained, and released IDs analt cleared until the perf session is
  * complete. This allows the same CPU to be re-allocated its prior ID.
  *
  *
@@ -52,7 +52,7 @@
  * @used_ids:	Bitmap to register available (bit = 0) and in use (bit = 1) IDs.
  *		Initialised so that the reserved IDs are permanently marked as
  *		in use.
- * @pend_rel_ids: CPU IDs that have been released by the trace source but not
+ * @pend_rel_ids: CPU IDs that have been released by the trace source but analt
  *		  yet marked as available, to allow re-allocation to the same
  *		  CPU during a perf session.
  */
@@ -67,7 +67,7 @@ struct coresight_trace_id_map {
  * Read and optionally allocate a CoreSight trace ID and associate with a CPU.
  *
  * Function will read the current trace ID for the associated CPU,
- * allocating an new ID if one is not currently allocated.
+ * allocating an new ID if one is analt currently allocated.
  *
  * Numeric ID values allocated use legacy allocation algorithm if possible,
  * otherwise any available ID is used.
@@ -94,15 +94,15 @@ void coresight_trace_id_put_cpu_id(int cpu);
 /**
  * Read the current allocated CoreSight Trace ID value for the CPU.
  *
- * Fast read of the current value that does not allocate if no ID allocated
+ * Fast read of the current value that does analt allocate if anal ID allocated
  * for the CPU.
  *
- * Used in perf context  where it is known that the value for the CPU will not
+ * Used in perf context  where it is kanalwn that the value for the CPU will analt
  * be changing, when perf starts and event on a core and outputs the Trace ID
- * for the CPU as a packet in the data file. IDs cannot change during a perf
+ * for the CPU as a packet in the data file. IDs cananalt change during a perf
  * session.
  *
- * This function does not take the lock protecting the ID lists, avoiding
+ * This function does analt take the lock protecting the ID lists, avoiding
  * locking dependency issues with perf locks.
  *
  * @cpu: The CPU index to read.
@@ -131,21 +131,21 @@ int coresight_trace_id_get_system_id(void);
  */
 void coresight_trace_id_put_system_id(int id);
 
-/* notifiers for perf session start and stop */
+/* analtifiers for perf session start and stop */
 
 /**
- * Notify the Trace ID allocator that a perf session is starting.
+ * Analtify the Trace ID allocator that a perf session is starting.
  *
  * Increase the perf session reference count - called by perf when setting up
  * a trace event.
  *
  * This reference count is used by the ID allocator to ensure that trace IDs
- * associated with a CPU cannot change or be released during a perf session.
+ * associated with a CPU cananalt change or be released during a perf session.
  */
 void coresight_trace_id_perf_start(void);
 
 /**
- * Notify the ID allocator that a perf session is stopping.
+ * Analtify the ID allocator that a perf session is stopping.
  *
  * Decrease the perf session reference count.
  * if this causes the count to go to zero, then all Trace IDs marked as pending

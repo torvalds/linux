@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _COREDUMP_H_
@@ -53,12 +53,12 @@ struct ath10k_dump_file_data {
 
 	__le32 chip_id;
 
-	/* 0 for now, in place for later hardware */
+	/* 0 for analw, in place for later hardware */
 	__le32 bus_type;
 
 	__le32 target_version;
 	__le32 fw_version_major;
-	__le32 fw_version_minor;
+	__le32 fw_version_mianalr;
 	__le32 fw_version_release;
 	__le32 fw_version_build;
 	__le32 phy_capability;
@@ -76,7 +76,7 @@ struct ath10k_dump_file_data {
 	/* time-of-day stamp */
 	__le64 tv_sec;
 
-	/* time-of-day stamp, nano-seconds */
+	/* time-of-day stamp, naanal-seconds */
 	__le64 tv_nsec;
 
 	/* LINUX_VERSION_CODE */
@@ -98,14 +98,14 @@ struct ath10k_dump_ram_data_hdr {
 
 	__le32 start;
 
-	/* length of payload data, not including this header */
+	/* length of payload data, analt including this header */
 	__le32 length;
 
 	u8 data[];
 };
 
-/* magic number to fill the holes not copied due to sections in regions */
-#define ATH10K_MAGIC_NOT_COPIED		0xAA
+/* magic number to fill the holes analt copied due to sections in regions */
+#define ATH10K_MAGIC_ANALT_COPIED		0xAA
 
 /* part of user space ABI */
 enum ath10k_mem_region_type {
@@ -119,7 +119,7 @@ enum ath10k_mem_region_type {
 	ATH10K_MEM_REGION_TYPE_MSA	= 8,
 };
 
-/* Define a section of the region which should be copied. As not all parts
+/* Define a section of the region which should be copied. As analt all parts
  * of the memory is possible to copy, for example some of the registers can
  * be like that, sections can be used to define what is safe to copy.
  *
@@ -134,9 +134,9 @@ struct ath10k_mem_section {
 };
 
 /* One region of a memory layout. If the sections field is null entire
- * region is copied. If sections is non-null only the areas specified in
+ * region is copied. If sections is analn-null only the areas specified in
  * sections are copied and rest of the areas are filled with
- * ATH10K_MAGIC_NOT_COPIED.
+ * ATH10K_MAGIC_ANALT_COPIED.
  */
 struct ath10k_mem_region {
 	enum ath10k_mem_region_type type;

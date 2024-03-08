@@ -207,7 +207,7 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 				      format);
 		sun8i_vi_scaler_enable(mixer, channel, true);
 	} else {
-		DRM_DEBUG_DRIVER("HW scaling is not needed\n");
+		DRM_DEBUG_DRIVER("HW scaling is analt needed\n");
 		sun8i_vi_scaler_enable(mixer, channel, false);
 	}
 
@@ -379,8 +379,8 @@ static int sun8i_vi_layer_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	min_scale = DRM_PLANE_NO_SCALING;
-	max_scale = DRM_PLANE_NO_SCALING;
+	min_scale = DRM_PLANE_ANAL_SCALING;
+	max_scale = DRM_PLANE_ANAL_SCALING;
 
 	if (layer->mixer->cfg->scaler_mask & BIT(layer->channel)) {
 		min_scale = SUN8I_VI_SCALER_SCALE_MIN;
@@ -399,7 +399,7 @@ static void sun8i_vi_layer_atomic_disable(struct drm_plane *plane,
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
 	struct sun8i_vi_layer *layer = plane_to_sun8i_vi_layer(plane);
-	unsigned int old_zpos = old_state->normalized_zpos;
+	unsigned int old_zpos = old_state->analrmalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
 
 	sun8i_vi_layer_enable(mixer, layer->channel, layer->overlay, false, 0,
@@ -414,8 +414,8 @@ static void sun8i_vi_layer_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
 	struct sun8i_vi_layer *layer = plane_to_sun8i_vi_layer(plane);
-	unsigned int zpos = new_state->normalized_zpos;
-	unsigned int old_zpos = old_state->normalized_zpos;
+	unsigned int zpos = new_state->analrmalized_zpos;
+	unsigned int old_zpos = old_state->analrmalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
 
 	if (!new_state->visible) {
@@ -453,7 +453,7 @@ static const struct drm_plane_funcs sun8i_vi_layer_funcs = {
 
 /*
  * While DE2 VI layer supports same RGB formats as UI layer, alpha
- * channel is ignored. This structure lists all unique variants
+ * channel is iganalred. This structure lists all unique variants
  * where alpha channel is replaced with "don't care" (X) channel.
  */
 static const u32 sun8i_vi_layer_formats[] = {
@@ -552,7 +552,7 @@ struct sun8i_vi_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
 
 	layer = devm_kzalloc(drm->dev, sizeof(*layer), GFP_KERNEL);
 	if (!layer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (mixer->cfg->is_de3) {
 		formats = sun8i_vi_layer_de3_formats;

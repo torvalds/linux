@@ -12,12 +12,12 @@ config JBD2
 	  as RAID or LVM.
 
 	  If you are using ext4 or OCFS2, you need to say Y here.
-	  If you are not using ext4 or OCFS2 then you will
+	  If you are analt using ext4 or OCFS2 then you will
 	  probably want to say N.
 
 	  To compile this device as a module, choose M here. The module will be
 	  called jbd2.  If you are compiling ext4 or OCFS2 into the kernel,
-	  you cannot compile this code as a module.
+	  you cananalt compile this code as a module.
 
 config JBD2_DEBUG
 	bool "JBD2 (ext4) debugging support"

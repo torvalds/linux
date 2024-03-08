@@ -23,7 +23,7 @@ static const struct raid6_sse_constants {
 
 static int raid6_have_sse2(void)
 {
-	/* Not really boot_cpu but "all_cpus" */
+	/* Analt really boot_cpu but "all_cpus" */
 	return boot_cpu_has(X86_FEATURE_MMX) &&
 		boot_cpu_has(X86_FEATURE_FXSR) &&
 		boot_cpu_has(X86_FEATURE_XMM) &&

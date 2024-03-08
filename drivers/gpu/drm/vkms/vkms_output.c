@@ -21,7 +21,7 @@ static int vkms_conn_get_modes(struct drm_connector *connector)
 {
 	int count;
 
-	count = drm_add_modes_noedid(connector, XRES_MAX, YRES_MAX);
+	count = drm_add_modes_analedid(connector, XRES_MAX, YRES_MAX);
 	drm_set_preferred_mode(connector, XRES_DEF, YRES_DEF);
 
 	return count;

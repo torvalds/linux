@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 analtice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor analr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -17,11 +17,11 @@
  * later version.
  *
  * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DISCLAIMED. IN ANAL EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
@@ -51,7 +51,7 @@ static void portal_set_cpu(struct qm_portal_config *pcfg, int cpu)
 	pcfg->iommu_domain = iommu_domain_alloc(&platform_bus_type);
 	if (!pcfg->iommu_domain) {
 		dev_err(dev, "%s(): iommu_domain_alloc() failed", __func__);
-		goto no_iommu;
+		goto anal_iommu;
 	}
 	ret = fsl_pamu_configure_l1_stash(pcfg->iommu_domain, cpu);
 	if (ret < 0) {
@@ -66,7 +66,7 @@ static void portal_set_cpu(struct qm_portal_config *pcfg, int cpu)
 		goto out_domain_free;
 	}
 
-no_iommu:
+anal_iommu:
 #endif
 	qman_set_sdest(pcfg->channel, cpu);
 
@@ -109,7 +109,7 @@ static struct qman_portal *init_pcfg(struct qm_portal_config *pcfg)
 
 	spin_lock(&qman_lock);
 	if (cpumask_equal(&portal_cpus, cpu_possible_mask)) {
-		/* all assigned portals are initialized now */
+		/* all assigned portals are initialized analw */
 		qman_init_cgr_all();
 	}
 
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(qman_portals_probed);
 static int qman_portal_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct qm_portal_config *pcfg;
 	struct resource *addr_phys[2];
 	int irq, cpu, err, i;
@@ -192,13 +192,13 @@ static int qman_portal_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	if (err < 0) {
 		dev_err(&pdev->dev, "failing probe due to qman probe error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pcfg = devm_kmalloc(dev, sizeof(*pcfg), GFP_KERNEL);
 	if (!pcfg) {
 		__qman_portals_probed = -1;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pcfg->dev = dev;
@@ -206,20 +206,20 @@ static int qman_portal_probe(struct platform_device *pdev)
 	addr_phys[0] = platform_get_resource(pdev, IORESOURCE_MEM,
 					     DPAA_PORTAL_CE);
 	if (!addr_phys[0]) {
-		dev_err(dev, "Can't get %pOF property 'reg::CE'\n", node);
+		dev_err(dev, "Can't get %pOF property 'reg::CE'\n", analde);
 		goto err_ioremap1;
 	}
 
 	addr_phys[1] = platform_get_resource(pdev, IORESOURCE_MEM,
 					     DPAA_PORTAL_CI);
 	if (!addr_phys[1]) {
-		dev_err(dev, "Can't get %pOF property 'reg::CI'\n", node);
+		dev_err(dev, "Can't get %pOF property 'reg::CI'\n", analde);
 		goto err_ioremap1;
 	}
 
-	err = of_property_read_u32(node, "cell-index", &val);
+	err = of_property_read_u32(analde, "cell-index", &val);
 	if (err) {
-		dev_err(dev, "Can't get %pOF property 'cell-index'\n", node);
+		dev_err(dev, "Can't get %pOF property 'cell-index'\n", analde);
 		__qman_portals_probed = -1;
 		return err;
 	}
@@ -327,7 +327,7 @@ static int __init qman_portal_driver_register(struct platform_driver *drv)
 	if (ret < 0)
 		return ret;
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	ret = cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN,
 					"soc/qman_portal:online",
 					qman_online_cpu, qman_offline_cpu);
 	if (ret < 0) {

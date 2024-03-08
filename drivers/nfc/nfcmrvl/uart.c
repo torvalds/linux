@@ -56,30 +56,30 @@ static const struct nfcmrvl_if_ops uart_ops = {
 	.nci_update_config = nfcmrvl_uart_nci_update_config
 };
 
-static int nfcmrvl_uart_parse_dt(struct device_node *node,
+static int nfcmrvl_uart_parse_dt(struct device_analde *analde,
 				 struct nfcmrvl_platform_data *pdata)
 {
-	struct device_node *matched_node;
+	struct device_analde *matched_analde;
 	int ret;
 
-	matched_node = of_get_compatible_child(node, "marvell,nfc-uart");
-	if (!matched_node) {
-		matched_node = of_get_compatible_child(node, "mrvl,nfc-uart");
-		if (!matched_node)
-			return -ENODEV;
+	matched_analde = of_get_compatible_child(analde, "marvell,nfc-uart");
+	if (!matched_analde) {
+		matched_analde = of_get_compatible_child(analde, "mrvl,nfc-uart");
+		if (!matched_analde)
+			return -EANALDEV;
 	}
 
-	ret = nfcmrvl_parse_dt(matched_node, pdata);
+	ret = nfcmrvl_parse_dt(matched_analde, pdata);
 	if (ret < 0) {
 		pr_err("Failed to get generic entries\n");
-		of_node_put(matched_node);
+		of_analde_put(matched_analde);
 		return ret;
 	}
 
-	pdata->flow_control = of_property_read_bool(matched_node, "flow-control");
-	pdata->break_control = of_property_read_bool(matched_node, "break-control");
+	pdata->flow_control = of_property_read_bool(matched_analde, "flow-control");
+	pdata->break_control = of_property_read_bool(matched_analde, "break-control");
 
-	of_node_put(matched_node);
+	of_analde_put(matched_analde);
 
 	return 0;
 }
@@ -96,17 +96,17 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 	struct device *dev = nu->tty->dev;
 
 	/*
-	 * Platform data cannot be used here since usually it is already used
+	 * Platform data cananalt be used here since usually it is already used
 	 * by low level serial driver. We can try to retrieve serial device
 	 * and check if DT entries were added.
 	 */
 
-	if (dev && dev->parent && dev->parent->of_node)
-		if (nfcmrvl_uart_parse_dt(dev->parent->of_node, &config) == 0)
+	if (dev && dev->parent && dev->parent->of_analde)
+		if (nfcmrvl_uart_parse_dt(dev->parent->of_analde, &config) == 0)
 			pdata = &config;
 
 	if (!pdata) {
-		pr_info("No platform data / DT -> fallback to module params\n");
+		pr_info("Anal platform data / DT -> fallback to module params\n");
 		config.hci_muxed = hci_muxed;
 		config.reset_n_io = reset_n_io;
 		config.flow_control = flow_control;

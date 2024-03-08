@@ -43,7 +43,7 @@ static LIST_HEAD(muram_block_list);
 
 int cpm_muram_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource r;
 	__be32 zero[OF_MAX_ADDR_CELLS] = {};
 	resource_size_t max = 0;
@@ -53,27 +53,27 @@ int cpm_muram_init(void)
 	if (muram_pbase)
 		return 0;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm-muram-data");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,cpm-muram-data");
 	if (!np) {
 		/* try legacy bindings */
-		np = of_find_node_by_name(NULL, "data-only");
+		np = of_find_analde_by_name(NULL, "data-only");
 		if (!np) {
-			pr_err("Cannot find CPM muram data node");
-			ret = -ENODEV;
+			pr_err("Cananalt find CPM muram data analde");
+			ret = -EANALDEV;
 			goto out_muram;
 		}
 	}
 
 	muram_pool = gen_pool_create(0, -1);
 	if (!muram_pool) {
-		pr_err("Cannot allocate memory pool for CPM/QE muram");
-		ret = -ENOMEM;
+		pr_err("Cananalt allocate memory pool for CPM/QE muram");
+		ret = -EANALMEM;
 		goto out_muram;
 	}
 	muram_pbase = of_translate_address(np, zero);
 	if (muram_pbase == (phys_addr_t)OF_BAD_ADDR) {
-		pr_err("Cannot translate zero through CPM muram node");
-		ret = -ENODEV;
+		pr_err("Cananalt translate zero through CPM muram analde");
+		ret = -EANALDEV;
 		goto out_pool;
 	}
 
@@ -90,15 +90,15 @@ int cpm_muram_init(void)
 
 	muram_vbase = ioremap(muram_pbase, max - muram_pbase + 1);
 	if (!muram_vbase) {
-		pr_err("Cannot map QE muram");
-		ret = -ENOMEM;
+		pr_err("Cananalt map QE muram");
+		ret = -EANALMEM;
 		goto out_pool;
 	}
 	goto out_muram;
 out_pool:
 	gen_pool_destroy(muram_pool);
 out_muram:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -108,8 +108,8 @@ out_muram:
  * @algo: algorithm for alloc.
  * @data: data for genalloc's algorithm.
  *
- * This function returns a non-negative offset into the muram area, or
- * a negative errno on failure.
+ * This function returns a analn-negative offset into the muram area, or
+ * a negative erranal on failure.
  */
 static s32 cpm_muram_alloc_common(unsigned long size,
 				  genpool_algo_t algo, void *data)
@@ -119,11 +119,11 @@ static s32 cpm_muram_alloc_common(unsigned long size,
 
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	start = gen_pool_alloc_algo(muram_pool, size, algo, data);
 	if (!start) {
 		kfree(entry);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	start = start - GENPOOL_OFFSET;
 	memset_io(cpm_muram_addr(start), 0, size);
@@ -139,8 +139,8 @@ static s32 cpm_muram_alloc_common(unsigned long size,
  * @size: number of bytes to allocate
  * @align: requested alignment, in bytes
  *
- * This function returns a non-negative offset into the muram area, or
- * a negative errno on failure.
+ * This function returns a analn-negative offset into the muram area, or
+ * a negative erranal on failure.
  * Use cpm_muram_addr() to get the virtual address of the area.
  * Use cpm_muram_free() to free the allocation.
  */
@@ -192,7 +192,7 @@ EXPORT_SYMBOL(cpm_muram_free);
  * @offset: offset of allocation start address
  * @size: number of bytes to allocate
  * This function returns @offset if the area was available, a negative
- * errno otherwise.
+ * erranal otherwise.
  * Use cpm_muram_addr() to get the virtual address of the area.
  * Use cpm_muram_free() to free the allocation.
  */

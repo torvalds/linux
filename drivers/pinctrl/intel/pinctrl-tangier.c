@@ -12,7 +12,7 @@
 #include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -63,7 +63,7 @@
 #define BUFCFG_OUTDATAOV_MASK		GENMASK(19, 18)
 #define BUFCFG_OD_EN			BIT(21)
 
-#define pin_to_bufno(f, p)		((p) - (f)->pin_base)
+#define pin_to_bufanal(f, p)		((p) - (f)->pin_base)
 
 static const struct tng_family *tng_get_family(struct tng_pinctrl *tp,
 					       unsigned int pin)
@@ -96,14 +96,14 @@ static bool tng_buf_available(struct tng_pinctrl *tp, unsigned int pin)
 static void __iomem *tng_get_bufcfg(struct tng_pinctrl *tp, unsigned int pin)
 {
 	const struct tng_family *family;
-	unsigned int bufno;
+	unsigned int bufanal;
 
 	family = tng_get_family(tp, pin);
 	if (!family)
 		return NULL;
 
-	bufno = pin_to_bufno(family, pin);
-	return family->regs + BUFCFG_OFFSET + bufno * 4;
+	bufanal = pin_to_bufanal(family, pin);
+	return family->regs + BUFCFG_OFFSET + bufanal * 4;
 }
 
 static int tng_read_bufcfg(struct tng_pinctrl *tp, unsigned int pin, u32 *value)
@@ -166,7 +166,7 @@ static void tng_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 
 	ret = tng_read_bufcfg(tp, pin, &value);
 	if (ret) {
-		seq_puts(s, "not available");
+		seq_puts(s, "analt available");
 		return;
 	}
 
@@ -234,7 +234,7 @@ static int tng_pinmux_set_mux(struct pinctrl_dev *pctldev,
 
 	guard(raw_spinlock_irqsave)(&tp->lock);
 
-	/* Now enable the mux setting for each pin in the group */
+	/* Analw enable the mux setting for each pin in the group */
 	for (i = 0; i < grp->grp.npins; i++)
 		tng_update_bufcfg(tp, grp->grp.pins[i], bits, mask);
 
@@ -278,7 +278,7 @@ static int tng_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	ret = tng_read_bufcfg(tp, pin, &value);
 	if (ret)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	term = (value & BUFCFG_PUPD_VAL_MASK) >> BUFCFG_PUPD_VAL_SHIFT;
 
@@ -346,7 +346,7 @@ static int tng_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -370,7 +370,7 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 		case 50000:
 			term = BUFCFG_PUPD_VAL_50K;
 			break;
-		case 1: /* Set default strength value in case none is given */
+		case 1: /* Set default strength value in case analne is given */
 		case 20000:
 			term = BUFCFG_PUPD_VAL_20K;
 			break;
@@ -393,7 +393,7 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 		case 50000:
 			term = BUFCFG_PUPD_VAL_50K;
 			break;
-		case 1: /* Set default strength value in case none is given */
+		case 1: /* Set default strength value in case analne is given */
 		case 20000:
 			term = BUFCFG_PUPD_VAL_20K;
 			break;
@@ -445,7 +445,7 @@ static int tng_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	int ret;
 
 	if (!tng_buf_available(tp, pin))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	for (i = 0; i < nconfigs; i++) {
 		switch (pinconf_to_config_param(configs[i])) {
@@ -461,7 +461,7 @@ static int tng_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -530,7 +530,7 @@ static int tng_pinctrl_probe(struct platform_device *pdev,
 
 	tp = devm_kmemdup(dev, data, sizeof(*data), GFP_KERNEL);
 	if (!tp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tp->dev = dev;
 	raw_spin_lock_init(&tp->lock);
@@ -546,13 +546,13 @@ static int tng_pinctrl_probe(struct platform_device *pdev,
 	families_len = size_mul(sizeof(*families), tp->nfamilies);
 	families = devm_kmemdup(dev, tp->families, families_len, GFP_KERNEL);
 	if (!families)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Splice memory resource by chunk per family */
 	for (i = 0; i < tp->nfamilies; i++) {
 		struct tng_family *family = &families[i];
 
-		family->regs = regs + family->barno * TNG_FAMILY_LEN;
+		family->regs = regs + family->baranal * TNG_FAMILY_LEN;
 	}
 
 	tp->families = families;
@@ -575,7 +575,7 @@ int devm_tng_pinctrl_probe(struct platform_device *pdev)
 
 	data = device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return tng_pinctrl_probe(pdev, data);
 }

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -59,7 +59,7 @@
 /*
 * apply_front_porch_workaround
 *
-* This is a workaround for a bug that has existed since R5xx and has not been
+* This is a workaround for a bug that has existed since R5xx and has analt been
 * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
 */
 static void dce110_timing_generator_apply_front_porch_workaround(
@@ -181,7 +181,7 @@ void dce110_timing_generator_program_blank_color(
  *
  *  @brief
  *     Disables active stereo on controller
- *     Frame Packing need to be disabled in vBlank or when CRTC not running
+ *     Frame Packing need to be disabled in vBlank or when CRTC analt running
  *****************************************************************************
  */
 #if 0
@@ -548,17 +548,17 @@ void dce110_timing_generator_get_position(struct timing_generator *tg,
 			CRTC_STATUS_POSITION,
 			CRTC_VERT_COUNT);
 
-	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_NOM_VERT_POSITION));
+	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_ANALM_VERT_POSITION));
 
-	position->nominal_vcount = get_reg_field_value(
+	position->analminal_vcount = get_reg_field_value(
 			value,
-			CRTC_NOM_VERT_POSITION,
-			CRTC_VERT_COUNT_NOM);
+			CRTC_ANALM_VERT_POSITION,
+			CRTC_VERT_COUNT_ANALM);
 }
 
 /*
  *****************************************************************************
- *  Function: get_crtc_scanoutpos
+ *  Function: get_crtc_scaanalutpos
  *
  *  @brief
  *     Returns CRTC vertical/horizontal counters
@@ -566,7 +566,7 @@ void dce110_timing_generator_get_position(struct timing_generator *tg,
  *  @param [out] vpos, hpos
  *****************************************************************************
  */
-void dce110_timing_generator_get_crtc_scanoutpos(
+void dce110_timing_generator_get_crtc_scaanalutpos(
 	struct timing_generator *tg,
 	uint32_t *v_blank_start,
 	uint32_t *v_blank_end,
@@ -703,7 +703,7 @@ void dce110_timing_generator_program_blanking(
 void dce110_timing_generator_set_test_pattern(
 	struct timing_generator *tg,
 	/* TODO: replace 'controller_dp_test_pattern' by 'test_pattern_mode'
-	 * because this is not DP-specific (which is probably somewhere in DP
+	 * because this is analt DP-specific (which is probably somewhere in DP
 	 * encoder) */
 	enum controller_dp_test_pattern test_pattern,
 	enum dc_color_depth color_depth)
@@ -866,7 +866,7 @@ void dce110_timing_generator_set_test_pattern(
 		 * but each next iteration color prepared in
 		 * previous iteration will be written within new mask,
 		 * the last component will written separately,
-		 * mask is not changing between 6th and 7th write
+		 * mask is analt changing between 6th and 7th write
 		 * and color will be prepared by last iteration
 		 */
 
@@ -1129,7 +1129,7 @@ bool dce110_timing_generator_validate_timing(
 	h_sync_start = timing->h_addressable + hsync_offset;
 
 	/* Currently we don't support 3D, so block all 3D timings */
-	if (timing->timing_3d_format != TIMING_3D_FORMAT_NONE)
+	if (timing->timing_3d_format != TIMING_3D_FORMAT_ANALNE)
 		return false;
 
 	/* Temporarily blocking interlacing mode until it's supported */
@@ -1173,18 +1173,18 @@ void dce110_timing_generator_wait_for_vblank(struct timing_generator *tg)
 {
 	/* We want to catch beginning of VBlank here, so if the first try are
 	 * in VBlank, we might be very close to Active, in this case wait for
-	 * another frame
+	 * aanalther frame
 	 */
 	while (dce110_timing_generator_is_in_vertical_blank(tg)) {
 		if (!dce110_timing_generator_is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - anal point to wait if counter is analt moving */
 			break;
 		}
 	}
 
 	while (!dce110_timing_generator_is_in_vertical_blank(tg)) {
 		if (!dce110_timing_generator_is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - anal point to wait if counter is analt moving */
 			break;
 		}
 	}
@@ -1197,7 +1197,7 @@ void dce110_timing_generator_wait_for_vactive(struct timing_generator *tg)
 {
 	while (dce110_timing_generator_is_in_vertical_blank(tg)) {
 		if (!dce110_timing_generator_is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - anal point to wait if counter is analt moving */
 			break;
 		}
 	}
@@ -1542,7 +1542,7 @@ void dce110_timing_generator_enable_reset_trigger(
 			CRTC_TRIGB_FREQUENCY_SELECT);
 
 	set_reg_field_value(value,
-			0, /* no delay */
+			0, /* anal delay */
 			CRTC_TRIGB_CNTL,
 			CRTC_TRIGB_DELAY);
 
@@ -1555,24 +1555,24 @@ void dce110_timing_generator_enable_reset_trigger(
 
 	/**************************************************************/
 
-	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
+	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_ANALW_CNTL));
 
 	set_reg_field_value(value,
 			2, /* force H count to H_TOTAL and V count to V_TOTAL */
-			CRTC_FORCE_COUNT_NOW_CNTL,
-			CRTC_FORCE_COUNT_NOW_MODE);
+			CRTC_FORCE_COUNT_ANALW_CNTL,
+			CRTC_FORCE_COUNT_ANALW_MODE);
 
 	set_reg_field_value(value,
 			1, /* TriggerB - we never use TriggerA */
-			CRTC_FORCE_COUNT_NOW_CNTL,
-			CRTC_FORCE_COUNT_NOW_TRIG_SEL);
+			CRTC_FORCE_COUNT_ANALW_CNTL,
+			CRTC_FORCE_COUNT_ANALW_TRIG_SEL);
 
 	set_reg_field_value(value,
 			1, /* clear trigger status */
-			CRTC_FORCE_COUNT_NOW_CNTL,
-			CRTC_FORCE_COUNT_NOW_CLEAR);
+			CRTC_FORCE_COUNT_ANALW_CNTL,
+			CRTC_FORCE_COUNT_ANALW_CLEAR);
 
-	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL), value);
+	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_ANALW_CNTL), value);
 }
 
 void dce110_timing_generator_enable_crtc_reset(
@@ -1629,24 +1629,24 @@ void dce110_timing_generator_enable_crtc_reset(
 
 	switch (crtc_tp->delay) {
 	case TRIGGER_DELAY_NEXT_LINE:
-		value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
+		value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_ANALW_CNTL));
 
 		set_reg_field_value(value,
 				    0, /* force H count to H_TOTAL and V count to V_TOTAL */
-				    CRTC_FORCE_COUNT_NOW_CNTL,
-				    CRTC_FORCE_COUNT_NOW_MODE);
+				    CRTC_FORCE_COUNT_ANALW_CNTL,
+				    CRTC_FORCE_COUNT_ANALW_MODE);
 
 		set_reg_field_value(value,
 				    0, /* TriggerB - we never use TriggerA */
-				    CRTC_FORCE_COUNT_NOW_CNTL,
-				    CRTC_FORCE_COUNT_NOW_TRIG_SEL);
+				    CRTC_FORCE_COUNT_ANALW_CNTL,
+				    CRTC_FORCE_COUNT_ANALW_TRIG_SEL);
 
 		set_reg_field_value(value,
 				    1, /* clear trigger status */
-				    CRTC_FORCE_COUNT_NOW_CNTL,
-				    CRTC_FORCE_COUNT_NOW_CLEAR);
+				    CRTC_FORCE_COUNT_ANALW_CNTL,
+				    CRTC_FORCE_COUNT_ANALW_CLEAR);
 
-		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL), value);
+		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_ANALW_CNTL), value);
 
 		value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_VERT_SYNC_CONTROL));
 
@@ -1677,24 +1677,24 @@ void dce110_timing_generator_enable_crtc_reset(
 
 		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_VERT_SYNC_CONTROL), value);
 
-		value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
+		value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_ANALW_CNTL));
 
 		set_reg_field_value(value,
 				    2, /* force H count to H_TOTAL and V count to V_TOTAL */
-				    CRTC_FORCE_COUNT_NOW_CNTL,
-				    CRTC_FORCE_COUNT_NOW_MODE);
+				    CRTC_FORCE_COUNT_ANALW_CNTL,
+				    CRTC_FORCE_COUNT_ANALW_MODE);
 
 		set_reg_field_value(value,
 				    1, /* TriggerB - we never use TriggerA */
-				    CRTC_FORCE_COUNT_NOW_CNTL,
-				    CRTC_FORCE_COUNT_NOW_TRIG_SEL);
+				    CRTC_FORCE_COUNT_ANALW_CNTL,
+				    CRTC_FORCE_COUNT_ANALW_TRIG_SEL);
 
 		set_reg_field_value(value,
 				    1, /* clear trigger status */
-				    CRTC_FORCE_COUNT_NOW_CNTL,
-				    CRTC_FORCE_COUNT_NOW_CLEAR);
+				    CRTC_FORCE_COUNT_ANALW_CNTL,
+				    CRTC_FORCE_COUNT_ANALW_CLEAR);
 
-		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL), value);
+		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_ANALW_CNTL), value);
 		break;
 	}
 
@@ -1713,19 +1713,19 @@ void dce110_timing_generator_disable_reset_trigger(
 	uint32_t value;
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
-	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
+	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_ANALW_CNTL));
 
 	set_reg_field_value(value,
-			    0, /* force counter now mode is disabled */
-			    CRTC_FORCE_COUNT_NOW_CNTL,
-			    CRTC_FORCE_COUNT_NOW_MODE);
+			    0, /* force counter analw mode is disabled */
+			    CRTC_FORCE_COUNT_ANALW_CNTL,
+			    CRTC_FORCE_COUNT_ANALW_MODE);
 
 	set_reg_field_value(value,
 			    1, /* clear trigger status */
-			    CRTC_FORCE_COUNT_NOW_CNTL,
-			    CRTC_FORCE_COUNT_NOW_CLEAR);
+			    CRTC_FORCE_COUNT_ANALW_CNTL,
+			    CRTC_FORCE_COUNT_ANALW_CLEAR);
 
-	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL), value);
+	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_ANALW_CNTL), value);
 
 	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_VERT_SYNC_CONTROL));
 
@@ -1776,12 +1776,12 @@ bool dce110_timing_generator_did_triggered_reset_occur(
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t value = dm_read_reg(tg->ctx,
-			CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
+			CRTC_REG(mmCRTC_FORCE_COUNT_ANALW_CNTL));
 	uint32_t value1 = dm_read_reg(tg->ctx,
 			CRTC_REG(mmCRTC_VERT_SYNC_CONTROL));
 	bool force = get_reg_field_value(value,
-					 CRTC_FORCE_COUNT_NOW_CNTL,
-					 CRTC_FORCE_COUNT_NOW_OCCURRED) != 0;
+					 CRTC_FORCE_COUNT_ANALW_CNTL,
+					 CRTC_FORCE_COUNT_ANALW_OCCURRED) != 0;
 	bool vert_sync = get_reg_field_value(value1,
 					     CRTC_VERT_SYNC_CONTROL,
 					     CRTC_FORCE_VSYNC_NEXT_LINE_OCCURRED) != 0;
@@ -1840,7 +1840,7 @@ void dce110_timing_generator_disable_vga(
  *
  * @param :black_color is one of the color space
  *    :this routine will set overscan black color according to the color space.
- * @return none
+ * @return analne
  */
 void dce110_timing_generator_set_overscan_color_black(
 	struct timing_generator *tg,
@@ -1880,7 +1880,7 @@ void dce110_timing_generator_set_overscan_color_black(
 	addr = CRTC_REG(mmCRTC_BLANK_DATA_COLOR);
 	dm_write_reg(ctx, addr, value);
 
-	/* TO DO we have to program EXT registers and we need to know LB DATA
+	/* TO DO we have to program EXT registers and we need to kanalw LB DATA
 	 * format because it is used when more 10 , i.e. 12 bits per color
 	 *
 	 * m_mmDxCRTC_OVERSCAN_COLOR_EXT
@@ -2012,7 +2012,7 @@ void dce110_tg_set_blank(struct timing_generator *tg,
 bool dce110_tg_validate_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing)
 {
-	return dce110_timing_generator_validate_timing(tg, timing, SIGNAL_TYPE_NONE);
+	return dce110_timing_generator_validate_timing(tg, timing, SIGNAL_TYPE_ANALNE);
 }
 
 void dce110_tg_wait_for_state(struct timing_generator *tg,
@@ -2053,7 +2053,7 @@ bool dce110_arm_vert_intr(struct timing_generator *tg, uint8_t width)
 	uint32_t val = 0;
 	uint32_t h_position, v_position;
 
-	tg->funcs->get_scanoutpos(
+	tg->funcs->get_scaanalutpos(
 			tg,
 			&v_blank_start,
 			&v_blank_end,
@@ -2103,7 +2103,7 @@ bool dce110_configure_crc(struct timing_generator *tg,
 	uint32_t value;
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
-	/* Cannot configure crc on a CRTC that is disabled */
+	/* Cananalt configure crc on a CRTC that is disabled */
 	if (!dce110_is_tg_enabled(tg))
 		return false;
 
@@ -2184,7 +2184,7 @@ bool dce110_get_crc(struct timing_generator *tg,
 	value = dm_read_reg(tg->ctx, addr);
 	field = get_reg_field_value(value, CRTC_CRC_CNTL, CRTC_CRC_EN);
 
-	/* Early return if CRC is not enabled for this CRTC */
+	/* Early return if CRC is analt enabled for this CRTC */
 	if (!field)
 		return false;
 
@@ -2208,7 +2208,7 @@ static const struct timing_generator_funcs dce110_tg_funcs = {
 		.is_counter_moving = dce110_timing_generator_is_counter_moving,
 		.get_position = dce110_timing_generator_get_position,
 		.get_frame_count = dce110_timing_generator_get_vblank_counter,
-		.get_scanoutpos = dce110_timing_generator_get_crtc_scanoutpos,
+		.get_scaanalutpos = dce110_timing_generator_get_crtc_scaanalutpos,
 		.set_early_control = dce110_timing_generator_set_early_control,
 		.wait_for_state = dce110_tg_wait_for_state,
 		.set_blank = dce110_tg_set_blank,

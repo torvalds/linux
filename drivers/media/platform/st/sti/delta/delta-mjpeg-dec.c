@@ -103,16 +103,16 @@ static inline bool is_stream_error(enum jpeg_decoding_error_t err)
 static inline const char *err_str(enum jpeg_decoding_error_t err)
 {
 	switch (err) {
-	case JPEG_DECODER_NO_ERROR:
-		return "JPEG_DECODER_NO_ERROR";
+	case JPEG_DECODER_ANAL_ERROR:
+		return "JPEG_DECODER_ANAL_ERROR";
 	case JPEG_DECODER_UNDEFINED_HUFF_TABLE:
 		return "JPEG_DECODER_UNDEFINED_HUFF_TABLE";
 	case JPEG_DECODER_UNSUPPORTED_MARKER:
 		return "JPEG_DECODER_UNSUPPORTED_MARKER";
 	case JPEG_DECODER_UNABLE_ALLOCATE_MEMORY:
 		return "JPEG_DECODER_UNABLE_ALLOCATE_MEMORY";
-	case JPEG_DECODER_NON_SUPPORTED_SAMP_FACTORS:
-		return "JPEG_DECODER_NON_SUPPORTED_SAMP_FACTORS";
+	case JPEG_DECODER_ANALN_SUPPORTED_SAMP_FACTORS:
+		return "JPEG_DECODER_ANALN_SUPPORTED_SAMP_FACTORS";
 	case JPEG_DECODER_BAD_PARAMETER:
 		return "JPEG_DECODER_BAD_PARAMETER";
 	case JPEG_DECODER_DECODE_ERROR:
@@ -143,8 +143,8 @@ static inline const char *err_str(enum jpeg_decoding_error_t err)
 		return "JPEG_DECODER_BAD_COMPONENT_COUNT";
 	case JPEG_DECODER_DIVIDE_BY_ZERO_ERROR:
 		return "JPEG_DECODER_DIVIDE_BY_ZERO_ERROR";
-	case JPEG_DECODER_NOT_JPG_IMAGE:
-		return "JPEG_DECODER_NOT_JPG_IMAGE";
+	case JPEG_DECODER_ANALT_JPG_IMAGE:
+		return "JPEG_DECODER_ANALT_JPG_IMAGE";
 	case JPEG_DECODER_UNSUPPORTED_ROTATION_ANGLE:
 		return "JPEG_DECODER_UNSUPPORTED_ROTATION_ANGLE";
 	case JPEG_DECODER_UNSUPPORTED_SCALING:
@@ -157,14 +157,14 @@ static inline const char *err_str(enum jpeg_decoding_error_t err)
 		return "JPEG_DECODER_BAD_VALUE_FROM_RED";
 	case JPEG_DECODER_BAD_SUBREGION_PARAMETERS:
 		return "JPEG_DECODER_BAD_SUBREGION_PARAMETERS";
-	case JPEG_DECODER_PROGRESSIVE_DECODE_NOT_SUPPORTED:
-		return "JPEG_DECODER_PROGRESSIVE_DECODE_NOT_SUPPORTED";
+	case JPEG_DECODER_PROGRESSIVE_DECODE_ANALT_SUPPORTED:
+		return "JPEG_DECODER_PROGRESSIVE_DECODE_ANALT_SUPPORTED";
 	case JPEG_DECODER_ERROR_TASK_TIMEOUT:
 		return "JPEG_DECODER_ERROR_TASK_TIMEOUT";
-	case JPEG_DECODER_ERROR_FEATURE_NOT_SUPPORTED:
-		return "JPEG_DECODER_ERROR_FEATURE_NOT_SUPPORTED";
+	case JPEG_DECODER_ERROR_FEATURE_ANALT_SUPPORTED:
+		return "JPEG_DECODER_ERROR_FEATURE_ANALT_SUPPORTED";
 	default:
-		return "!unknown MJPEG error!";
+		return "!unkanalwn MJPEG error!";
 	}
 }
 
@@ -174,7 +174,7 @@ static bool delta_mjpeg_check_status(struct delta_ctx *pctx,
 	struct delta_dev *delta = pctx->dev;
 	bool dump = false;
 
-	if (status->error_code == JPEG_DECODER_NO_ERROR)
+	if (status->error_code == JPEG_DECODER_ANAL_ERROR)
 		goto out;
 
 	if (is_stream_error(status->error_code)) {
@@ -264,13 +264,13 @@ static int delta_mjpeg_ipc_decode(struct delta_ctx *pctx, struct delta_au *au)
 	 * the NV12 decoded frame is only available
 	 * on decimated output when enabling flag
 	 * "JPEG_ADDITIONAL_FLAG_420MB"...
-	 * the non decimated output gives YUV422SP
+	 * the analn decimated output gives YUV422SP
 	 */
 	params->main_aux_enable = JPEG_DISP_AUX_EN;
 	params->additional_flags = JPEG_ADDITIONAL_FLAG_420MB;
 	params->horizontal_decimation_factor = JPEG_HDEC_1;
 	params->vertical_decimation_factor = JPEG_VDEC_1;
-	params->decoding_mode = JPEG_NORMAL_DECODE;
+	params->decoding_mode = JPEG_ANALRMAL_DECODE;
 
 	params->display_buffer_addr.struct_size =
 	    sizeof(struct jpeg_display_buffer_address_t);
@@ -286,7 +286,7 @@ static int delta_mjpeg_ipc_decode(struct delta_ctx *pctx, struct delta_au *au)
 
 	/* status */
 	memset(status, 0, sizeof(*status));
-	status->error_code = JPEG_DECODER_NO_ERROR;
+	status->error_code = JPEG_DECODER_ANAL_ERROR;
 
 	ipc_param.size = sizeof(*params);
 	ipc_param.data = params;
@@ -311,7 +311,7 @@ static int delta_mjpeg_ipc_decode(struct delta_ctx *pctx, struct delta_au *au)
 					     sizeof(ctx->str)));
 	}
 
-	frame->field = V4L2_FIELD_NONE;
+	frame->field = V4L2_FIELD_ANALNE;
 	frame->flags = V4L2_BUF_FLAG_KEYFRAME;
 	frame->state |= DELTA_FRAME_DEC;
 
@@ -326,7 +326,7 @@ static int delta_mjpeg_open(struct delta_ctx *pctx)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	pctx->priv = ctx;
 
 	return 0;
@@ -352,21 +352,21 @@ static int delta_mjpeg_get_streaminfo(struct delta_ctx *pctx,
 	struct delta_mjpeg_ctx *ctx = to_ctx(pctx);
 
 	if (!ctx->header)
-		goto nodata;
+		goto analdata;
 
 	streaminfo->streamformat = V4L2_PIX_FMT_MJPEG;
 	streaminfo->width = ctx->header->frame_width;
 	streaminfo->height = ctx->header->frame_height;
 
 	/* progressive stream */
-	streaminfo->field = V4L2_FIELD_NONE;
+	streaminfo->field = V4L2_FIELD_ANALNE;
 
 	streaminfo->dpb = 1;
 
 	return 0;
 
-nodata:
-	return -ENODATA;
+analdata:
+	return -EANALDATA;
 }
 
 static int delta_mjpeg_decode(struct delta_ctx *pctx, struct delta_au *pau)
@@ -432,7 +432,7 @@ static int delta_mjpeg_get_frame(struct delta_ctx *pctx,
 	struct delta_mjpeg_ctx *ctx = to_ctx(pctx);
 
 	if (!ctx->out_frame)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*frame = ctx->out_frame;
 

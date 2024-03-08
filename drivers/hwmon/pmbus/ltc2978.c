@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2011 Ericsson AB.
  * Copyright (c) 2013, 2014, 2015 Guenter Roeck
- * Copyright (c) 2015 Linear Technology
+ * Copyright (c) 2015 Linear Techanallogy
  * Copyright (c) 2018 Analog Devices Inc.
  */
 
@@ -104,13 +104,13 @@ enum chips {
 
 #define LTC_POLL_TIMEOUT		100	/* in milli-seconds */
 
-#define LTC_NOT_BUSY			BIT(6)
-#define LTC_NOT_PENDING			BIT(5)
+#define LTC_ANALT_BUSY			BIT(6)
+#define LTC_ANALT_PENDING			BIT(5)
 
 /*
  * LTC2978 clears peak data whenever the CLEAR_FAULTS command is executed, which
  * happens pretty much each time chip data is updated. Raw peak data therefore
- * does not provide much value. To be able to provide useful peak data, keep an
+ * does analt provide much value. To be able to provide useful peak data, keep an
  * internal cache of measured peak data, which is only cleared if an explicit
  * "clear peak" command is executed for the sensor in question.
  */
@@ -147,12 +147,12 @@ static int ltc_wait_ready(struct i2c_client *client)
 		return 0;
 
 	/*
-	 * LTC3883 does not support LTC_NOT_PENDING, even though
+	 * LTC3883 does analt support LTC_ANALT_PENDING, even though
 	 * the datasheet claims that it does.
 	 */
-	mask = LTC_NOT_BUSY;
+	mask = LTC_ANALT_BUSY;
 	if (data->id != ltc3883)
-		mask |= LTC_NOT_PENDING;
+		mask |= LTC_ANALT_PENDING;
 
 	do {
 		status = pmbus_read_byte_data(client, 0, LTC2978_MFR_COMMON);
@@ -298,7 +298,7 @@ static int ltc2978_read_word_data_common(struct i2c_client *client, int page,
 		ret = ltc_wait_ready(client);
 		if (ret < 0)
 			return ret;
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -321,7 +321,7 @@ static int ltc2978_read_word_data(struct i2c_client *client, int page,
 					 LTC2978_MFR_VOUT_MIN);
 		if (ret >= 0) {
 			/*
-			 * VOUT_MIN is known to not be supported on some lots
+			 * VOUT_MIN is kanalwn to analt be supported on some lots
 			 * of LTC2978 revision 1, and will return the maximum
 			 * possible voltage if read. If VOUT_MAX is valid and
 			 * lower than the reading of VOUT_MIN, use it instead.
@@ -526,7 +526,7 @@ static int ltc2978_write_word_data(struct i2c_client *client, int page,
 		ret = ltc_wait_ready(client);
 		if (ret < 0)
 			return ret;
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -604,13 +604,13 @@ static int ltc2978_get_id(struct i2c_client *client)
 
 		if (!i2c_check_functionality(client->adapter,
 					     I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = i2c_smbus_read_block_data(client, PMBUS_MFR_ID, buf);
 		if (ret < 0)
 			return ret;
 		if (ret < 3 || strncmp(buf, "LTC", 3))
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, buf);
 		if (ret < 0)
@@ -619,7 +619,7 @@ static int ltc2978_get_id(struct i2c_client *client)
 			if (!strncasecmp(id->name, buf, strlen(id->name)))
 				return (int)id->driver_data;
 		}
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	chip_id &= LTC2978_ID_MASK;
@@ -677,7 +677,7 @@ static int ltc2978_get_id(struct i2c_client *client)
 		return ltm4700;
 
 	dev_err(&client->dev, "Unsupported chip ID 0x%x\n", chip_id);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int ltc2978_probe(struct i2c_client *client)
@@ -689,12 +689,12 @@ static int ltc2978_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(struct ltc2978_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip_id = ltc2978_get_id(client);
 	if (chip_id < 0)
@@ -855,7 +855,7 @@ static int ltc2978_probe(struct i2c_client *client)
 		  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 #if IS_ENABLED(CONFIG_SENSORS_LTC2978_REGULATOR)

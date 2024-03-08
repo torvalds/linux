@@ -18,7 +18,7 @@ struct raid_function_template {
 };
 
 enum raid_state {
-	RAID_STATE_UNKNOWN = 0,
+	RAID_STATE_UNKANALWN = 0,
 	RAID_STATE_ACTIVE,
 	RAID_STATE_DEGRADED,
 	RAID_STATE_RESYNCING,
@@ -26,7 +26,7 @@ enum raid_state {
 };
 
 enum raid_level {
-	RAID_LEVEL_UNKNOWN = 0,
+	RAID_LEVEL_UNKANALWN = 0,
 	RAID_LEVEL_LINEAR,
 	RAID_LEVEL_0,
 	RAID_LEVEL_1,

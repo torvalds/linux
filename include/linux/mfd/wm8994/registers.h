@@ -134,8 +134,8 @@
 #define WM8994_AIF1_DAC1_FILTERS_2              0x421
 #define WM8994_AIF1_DAC2_FILTERS_1              0x422
 #define WM8994_AIF1_DAC2_FILTERS_2              0x423
-#define WM8958_AIF1_DAC1_NOISE_GATE             0x430
-#define WM8958_AIF1_DAC2_NOISE_GATE             0x431
+#define WM8958_AIF1_DAC1_ANALISE_GATE             0x430
+#define WM8958_AIF1_DAC2_ANALISE_GATE             0x431
 #define WM8994_AIF1_DRC1_1                      0x440
 #define WM8994_AIF1_DRC1_2                      0x441
 #define WM8994_AIF1_DRC1_3                      0x442
@@ -195,7 +195,7 @@
 #define WM8994_AIF2_ADC_FILTERS                 0x510
 #define WM8994_AIF2_DAC_FILTERS_1               0x520
 #define WM8994_AIF2_DAC_FILTERS_2               0x521
-#define WM8958_AIF2_DAC_NOISE_GATE              0x530
+#define WM8958_AIF2_DAC_ANALISE_GATE              0x530
 #define WM8994_AIF2_DRC_1                       0x540
 #define WM8994_AIF2_DRC_2                       0x541
 #define WM8994_AIF2_DRC_3                       0x542
@@ -301,8 +301,8 @@
 #define WM8958_FW_ID_0                          0x2003
 #define WM8958_FW_MAJOR_1                       0x2004
 #define WM8958_FW_MAJOR_0                       0x2005
-#define WM8958_FW_MINOR_1                       0x2006
-#define WM8958_FW_MINOR_0                       0x2007
+#define WM8958_FW_MIANALR_1                       0x2006
+#define WM8958_FW_MIANALR_0                       0x2007
 #define WM8958_FW_PATCH_1                       0x2008
 #define WM8958_FW_PATCH_0                       0x2009
 #define WM8958_MBC_BAND_2_LOWER_CUTOFF_C1_1     0x2200
@@ -2102,9 +2102,9 @@
 /*
  * R85 (0x55) - DC Servo (2)
  */
-#define WM8994_DCS_SERIES_NO_01_MASK            0x0FE0  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8994_DCS_SERIES_NO_01_SHIFT                5  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8994_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 - [11:5] */
+#define WM8994_DCS_SERIES_ANAL_01_MASK            0x0FE0  /* DCS_SERIES_ANAL_01 - [11:5] */
+#define WM8994_DCS_SERIES_ANAL_01_SHIFT                5  /* DCS_SERIES_ANAL_01 - [11:5] */
+#define WM8994_DCS_SERIES_ANAL_01_WIDTH                7  /* DCS_SERIES_ANAL_01 - [11:5] */
 #define WM8994_DCS_TIMER_PERIOD_01_MASK         0x000F  /* DCS_TIMER_PERIOD_01 - [3:0] */
 #define WM8994_DCS_TIMER_PERIOD_01_SHIFT             0  /* DCS_TIMER_PERIOD_01 - [3:0] */
 #define WM8994_DCS_TIMER_PERIOD_01_WIDTH             4  /* DCS_TIMER_PERIOD_01 - [3:0] */
@@ -2608,10 +2608,10 @@
 #define WM8994_AIF1DAC_BOOST_MASK               0x0C00  /* AIF1DAC_BOOST - [11:10] */
 #define WM8994_AIF1DAC_BOOST_SHIFT                  10  /* AIF1DAC_BOOST - [11:10] */
 #define WM8994_AIF1DAC_BOOST_WIDTH                   2  /* AIF1DAC_BOOST - [11:10] */
-#define WM8994_AIF1_MONO                        0x0100  /* AIF1_MONO */
-#define WM8994_AIF1_MONO_MASK                   0x0100  /* AIF1_MONO */
-#define WM8994_AIF1_MONO_SHIFT                       8  /* AIF1_MONO */
-#define WM8994_AIF1_MONO_WIDTH                       1  /* AIF1_MONO */
+#define WM8994_AIF1_MOANAL                        0x0100  /* AIF1_MOANAL */
+#define WM8994_AIF1_MOANAL_MASK                   0x0100  /* AIF1_MOANAL */
+#define WM8994_AIF1_MOANAL_SHIFT                       8  /* AIF1_MOANAL */
+#define WM8994_AIF1_MOANAL_WIDTH                       1  /* AIF1_MOANAL */
 #define WM8994_AIF1DAC_COMP                     0x0010  /* AIF1DAC_COMP */
 #define WM8994_AIF1DAC_COMP_MASK                0x0010  /* AIF1DAC_COMP */
 #define WM8994_AIF1DAC_COMP_SHIFT                    4  /* AIF1DAC_COMP */
@@ -2770,10 +2770,10 @@
 #define WM8994_AIF2DAC_BOOST_MASK               0x0C00  /* AIF2DAC_BOOST - [11:10] */
 #define WM8994_AIF2DAC_BOOST_SHIFT                  10  /* AIF2DAC_BOOST - [11:10] */
 #define WM8994_AIF2DAC_BOOST_WIDTH                   2  /* AIF2DAC_BOOST - [11:10] */
-#define WM8994_AIF2_MONO                        0x0100  /* AIF2_MONO */
-#define WM8994_AIF2_MONO_MASK                   0x0100  /* AIF2_MONO */
-#define WM8994_AIF2_MONO_SHIFT                       8  /* AIF2_MONO */
-#define WM8994_AIF2_MONO_WIDTH                       1  /* AIF2_MONO */
+#define WM8994_AIF2_MOANAL                        0x0100  /* AIF2_MOANAL */
+#define WM8994_AIF2_MOANAL_MASK                   0x0100  /* AIF2_MOANAL */
+#define WM8994_AIF2_MOANAL_SHIFT                       8  /* AIF2_MOANAL */
+#define WM8994_AIF2_MOANAL_WIDTH                       1  /* AIF2_MOANAL */
 #define WM8994_AIF2DAC_COMP                     0x0010  /* AIF2DAC_COMP */
 #define WM8994_AIF2DAC_COMP_MASK                0x0010  /* AIF2DAC_COMP */
 #define WM8994_AIF2DAC_COMP_SHIFT                    4  /* AIF2DAC_COMP */
@@ -3054,10 +3054,10 @@
 #define WM8994_AIF1DAC1_MUTE_MASK               0x0200  /* AIF1DAC1_MUTE */
 #define WM8994_AIF1DAC1_MUTE_SHIFT                   9  /* AIF1DAC1_MUTE */
 #define WM8994_AIF1DAC1_MUTE_WIDTH                   1  /* AIF1DAC1_MUTE */
-#define WM8994_AIF1DAC1_MONO                    0x0080  /* AIF1DAC1_MONO */
-#define WM8994_AIF1DAC1_MONO_MASK               0x0080  /* AIF1DAC1_MONO */
-#define WM8994_AIF1DAC1_MONO_SHIFT                   7  /* AIF1DAC1_MONO */
-#define WM8994_AIF1DAC1_MONO_WIDTH                   1  /* AIF1DAC1_MONO */
+#define WM8994_AIF1DAC1_MOANAL                    0x0080  /* AIF1DAC1_MOANAL */
+#define WM8994_AIF1DAC1_MOANAL_MASK               0x0080  /* AIF1DAC1_MOANAL */
+#define WM8994_AIF1DAC1_MOANAL_SHIFT                   7  /* AIF1DAC1_MOANAL */
+#define WM8994_AIF1DAC1_MOANAL_WIDTH                   1  /* AIF1DAC1_MOANAL */
 #define WM8994_AIF1DAC1_MUTERATE                0x0020  /* AIF1DAC1_MUTERATE */
 #define WM8994_AIF1DAC1_MUTERATE_MASK           0x0020  /* AIF1DAC1_MUTERATE */
 #define WM8994_AIF1DAC1_MUTERATE_SHIFT               5  /* AIF1DAC1_MUTERATE */
@@ -3088,10 +3088,10 @@
 #define WM8994_AIF1DAC2_MUTE_MASK               0x0200  /* AIF1DAC2_MUTE */
 #define WM8994_AIF1DAC2_MUTE_SHIFT                   9  /* AIF1DAC2_MUTE */
 #define WM8994_AIF1DAC2_MUTE_WIDTH                   1  /* AIF1DAC2_MUTE */
-#define WM8994_AIF1DAC2_MONO                    0x0080  /* AIF1DAC2_MONO */
-#define WM8994_AIF1DAC2_MONO_MASK               0x0080  /* AIF1DAC2_MONO */
-#define WM8994_AIF1DAC2_MONO_SHIFT                   7  /* AIF1DAC2_MONO */
-#define WM8994_AIF1DAC2_MONO_WIDTH                   1  /* AIF1DAC2_MONO */
+#define WM8994_AIF1DAC2_MOANAL                    0x0080  /* AIF1DAC2_MOANAL */
+#define WM8994_AIF1DAC2_MOANAL_MASK               0x0080  /* AIF1DAC2_MOANAL */
+#define WM8994_AIF1DAC2_MOANAL_SHIFT                   7  /* AIF1DAC2_MOANAL */
+#define WM8994_AIF1DAC2_MOANAL_WIDTH                   1  /* AIF1DAC2_MOANAL */
 #define WM8994_AIF1DAC2_MUTERATE                0x0020  /* AIF1DAC2_MUTERATE */
 #define WM8994_AIF1DAC2_MUTERATE_MASK           0x0020  /* AIF1DAC2_MUTERATE */
 #define WM8994_AIF1DAC2_MUTERATE_SHIFT               5  /* AIF1DAC2_MUTERATE */
@@ -3116,7 +3116,7 @@
 #define WM8994_AIF1DAC2_3D_ENA_WIDTH                 1  /* AIF1DAC2_3D_ENA */
 
 /*
- * R1072 (0x430) - AIF1 DAC1 Noise Gate
+ * R1072 (0x430) - AIF1 DAC1 Analise Gate
  */
 #define WM8958_AIF1DAC1_NG_HLD_MASK             0x0060  /* AIF1DAC1_NG_HLD - [6:5] */
 #define WM8958_AIF1DAC1_NG_HLD_SHIFT                 5  /* AIF1DAC1_NG_HLD - [6:5] */
@@ -3130,7 +3130,7 @@
 #define WM8958_AIF1DAC1_NG_ENA_WIDTH                 1  /* AIF1DAC1_NG_ENA */
 
 /*
- * R1073 (0x431) - AIF1 DAC2 Noise Gate
+ * R1073 (0x431) - AIF1 DAC2 Analise Gate
  */
 #define WM8958_AIF1DAC2_NG_HLD_MASK             0x0060  /* AIF1DAC2_NG_HLD - [6:5] */
 #define WM8958_AIF1DAC2_NG_HLD_SHIFT                 5  /* AIF1DAC2_NG_HLD - [6:5] */
@@ -3727,10 +3727,10 @@
 #define WM8994_AIF2DAC_MUTE_MASK                0x0200  /* AIF2DAC_MUTE */
 #define WM8994_AIF2DAC_MUTE_SHIFT                    9  /* AIF2DAC_MUTE */
 #define WM8994_AIF2DAC_MUTE_WIDTH                    1  /* AIF2DAC_MUTE */
-#define WM8994_AIF2DAC_MONO                     0x0080  /* AIF2DAC_MONO */
-#define WM8994_AIF2DAC_MONO_MASK                0x0080  /* AIF2DAC_MONO */
-#define WM8994_AIF2DAC_MONO_SHIFT                    7  /* AIF2DAC_MONO */
-#define WM8994_AIF2DAC_MONO_WIDTH                    1  /* AIF2DAC_MONO */
+#define WM8994_AIF2DAC_MOANAL                     0x0080  /* AIF2DAC_MOANAL */
+#define WM8994_AIF2DAC_MOANAL_MASK                0x0080  /* AIF2DAC_MOANAL */
+#define WM8994_AIF2DAC_MOANAL_SHIFT                    7  /* AIF2DAC_MOANAL */
+#define WM8994_AIF2DAC_MOANAL_WIDTH                    1  /* AIF2DAC_MOANAL */
 #define WM8994_AIF2DAC_MUTERATE                 0x0020  /* AIF2DAC_MUTERATE */
 #define WM8994_AIF2DAC_MUTERATE_MASK            0x0020  /* AIF2DAC_MUTERATE */
 #define WM8994_AIF2DAC_MUTERATE_SHIFT                5  /* AIF2DAC_MUTERATE */
@@ -3755,7 +3755,7 @@
 #define WM8994_AIF2DAC_3D_ENA_WIDTH                  1  /* AIF2DAC_3D_ENA */
 
 /*
- * R1328 (0x530) - AIF2 DAC Noise Gate
+ * R1328 (0x530) - AIF2 DAC Analise Gate
  */
 #define WM8958_AIF2DAC_NG_HLD_MASK              0x0060  /* AIF2DAC_NG_HLD - [6:5] */
 #define WM8958_AIF2DAC_NG_HLD_SHIFT                  5  /* AIF2DAC_NG_HLD - [6:5] */
@@ -4775,9 +4775,9 @@
 #define WM8958_DSP2_MAJOR_VER_MASK              0xFF00  /* DSP2_MAJOR_VER - [15:8] */
 #define WM8958_DSP2_MAJOR_VER_SHIFT                  8  /* DSP2_MAJOR_VER - [15:8] */
 #define WM8958_DSP2_MAJOR_VER_WIDTH                  8  /* DSP2_MAJOR_VER - [15:8] */
-#define WM8958_DSP2_MINOR_VER_MASK              0x00FF  /* DSP2_MINOR_VER - [7:0] */
-#define WM8958_DSP2_MINOR_VER_SHIFT                  0  /* DSP2_MINOR_VER - [7:0] */
-#define WM8958_DSP2_MINOR_VER_WIDTH                  8  /* DSP2_MINOR_VER - [7:0] */
+#define WM8958_DSP2_MIANALR_VER_MASK              0x00FF  /* DSP2_MIANALR_VER - [7:0] */
+#define WM8958_DSP2_MIANALR_VER_SHIFT                  0  /* DSP2_MIANALR_VER - [7:0] */
+#define WM8958_DSP2_MIANALR_VER_WIDTH                  8  /* DSP2_MIANALR_VER - [7:0] */
 
 /*
  * R2565 (0xA05) - DSP2_VerBuild

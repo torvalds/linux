@@ -32,7 +32,7 @@ static acpi_status acpi_ut_strtoul_add64(u64 addend1, u32 digit, u64 *out_sum);
  * DESCRIPTION: Performs a base 8 conversion of the input string to an
  *              integer value, either 32 or 64 bits.
  *
- * NOTE:        Maximum 64-bit unsigned octal value is 01777777777777777777777
+ * ANALTE:        Maximum 64-bit unsigned octal value is 01777777777777777777777
  *              Maximum 32-bit unsigned octal value is 037777777777
  *
  ******************************************************************************/
@@ -47,7 +47,7 @@ acpi_status acpi_ut_convert_octal_string(char *string, u64 *return_value_ptr)
 	while (*string) {
 		/*
 		 * Character must be ASCII 0-7, otherwise:
-		 * 1) Runtime: terminate with no error, per the ACPI spec
+		 * 1) Runtime: terminate with anal error, per the ACPI spec
 		 * 2) Compiler: return an error
 		 */
 		if (!(ACPI_IS_OCTAL_DIGIT(*string))) {
@@ -86,7 +86,7 @@ acpi_status acpi_ut_convert_octal_string(char *string, u64 *return_value_ptr)
  * DESCRIPTION: Performs a base 10 conversion of the input string to an
  *              integer value, either 32 or 64 bits.
  *
- * NOTE:        Maximum 64-bit unsigned decimal value is 18446744073709551615
+ * ANALTE:        Maximum 64-bit unsigned decimal value is 18446744073709551615
  *              Maximum 32-bit unsigned decimal value is 4294967295
  *
  ******************************************************************************/
@@ -101,7 +101,7 @@ acpi_status acpi_ut_convert_decimal_string(char *string, u64 *return_value_ptr)
 	while (*string) {
 		/*
 		 * Character must be ASCII 0-9, otherwise:
-		 * 1) Runtime: terminate with no error, per the ACPI spec
+		 * 1) Runtime: terminate with anal error, per the ACPI spec
 		 * 2) Compiler: return an error
 		 */
 		if (!isdigit((int)*string)) {
@@ -140,7 +140,7 @@ acpi_status acpi_ut_convert_decimal_string(char *string, u64 *return_value_ptr)
  * DESCRIPTION: Performs a base 16 conversion of the input string to an
  *              integer value, either 32 or 64 bits.
  *
- * NOTE:        Maximum 64-bit unsigned hex value is 0xFFFFFFFFFFFFFFFF
+ * ANALTE:        Maximum 64-bit unsigned hex value is 0xFFFFFFFFFFFFFFFF
  *              Maximum 32-bit unsigned hex value is 0xFFFFFFFF
  *
  ******************************************************************************/
@@ -155,7 +155,7 @@ acpi_status acpi_ut_convert_hex_string(char *string, u64 *return_value_ptr)
 	while (*string) {
 		/*
 		 * Character must be ASCII A-F, a-f, or 0-9, otherwise:
-		 * 1) Runtime: terminate with no error, per the ACPI spec
+		 * 1) Runtime: terminate with anal error, per the ACPI spec
 		 * 2) Compiler: return an error
 		 */
 		if (!isxdigit((int)*string)) {
@@ -253,7 +253,7 @@ u8 acpi_ut_detect_hex_prefix(char **string)
 		return (TRUE);	/* String is past leading 0x */
 	}
 
-	return (FALSE);		/* Not a hex string */
+	return (FALSE);		/* Analt a hex string */
 }
 
 /*******************************************************************************
@@ -262,7 +262,7 @@ u8 acpi_ut_detect_hex_prefix(char **string)
  *
  * PARAMETERS:  string                  - Pointer to input ASCII string
  *
- * RETURN:      none
+ * RETURN:      analne
  *
  * DESCRIPTION: Remove a hex "0x" prefix
  *
@@ -297,7 +297,7 @@ u8 acpi_ut_detect_octal_prefix(char **string)
 		return (TRUE);
 	}
 
-	return (FALSE);		/* Not an octal string */
+	return (FALSE);		/* Analt an octal string */
 }
 
 /*******************************************************************************
@@ -322,7 +322,7 @@ u8 acpi_ut_detect_octal_prefix(char **string)
  *              2) Convert the new character to binary and add it to the
  *              current accumulated value.
  *
- *              Note: The only possible exception indicates an integer
+ *              Analte: The only possible exception indicates an integer
  *              overflow (AE_NUMERIC_OVERFLOW)
  *
  ******************************************************************************/
@@ -382,7 +382,7 @@ acpi_ut_strtoul_multiply64(u64 multiplicand, u32 base, u64 *out_product)
 	/*
 	 * Check for 64-bit overflow before the actual multiplication.
 	 *
-	 * Notes: 64-bit division is often not supported on 32-bit platforms
+	 * Analtes: 64-bit division is often analt supported on 32-bit platforms
 	 * (it requires a library function), Therefore ACPICA has a local
 	 * 64-bit divide function. Also, Multiplier is currently only used
 	 * as the radix (8/10/16), to the 64/32 divide will always work.

@@ -2,14 +2,14 @@
 /*
  * Author: Huacai Chen <chenhuacai@loongson.cn>
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <asm/vdso/vdso.h>
 
-#include <linux/elfnote.h>
+#include <linux/elfanalte.h>
 #include <linux/version.h>
 
-ELFNOTE_START(Linux, 0, "a")
+ELFANALTE_START(Linux, 0, "a")
 	.long LINUX_VERSION_CODE
-ELFNOTE_END
+ELFANALTE_END

@@ -47,7 +47,7 @@ int axg_tdm_set_tdm_slots(struct snd_soc_dai *dai, u32 *tx_mask,
 
 	/* We should at least have a slot for a valid interface */
 	if (!tx_slots && !rx_slots) {
-		dev_err(dai->dev, "interface has no slot\n");
+		dev_err(dai->dev, "interface has anal slot\n");
 		return -EINVAL;
 	}
 
@@ -98,11 +98,11 @@ static int axg_tdm_iface_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 				    unsigned int freq, int dir)
 {
 	struct axg_tdm_iface *iface = snd_soc_dai_get_drvdata(dai);
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (dir == SND_SOC_CLOCK_OUT && clk_id == 0) {
 		if (!iface->mclk) {
-			dev_warn(dai->dev, "master clock not provided\n");
+			dev_warn(dai->dev, "master clock analt provided\n");
 		} else {
 			ret = clk_set_rate(iface->mclk, freq);
 			if (!ret)
@@ -121,7 +121,7 @@ static int axg_tdm_iface_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_BP_FP:
 		if (!iface->mclk) {
 			dev_err(dai->dev, "cpu clock master: mclk missing\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		break;
 
@@ -149,7 +149,7 @@ static int axg_tdm_iface_startup(struct snd_pcm_substream *substream,
 	int ret;
 
 	if (!axg_tdm_slots_total(ts->mask)) {
-		dev_err(dai->dev, "interface has not slots\n");
+		dev_err(dai->dev, "interface has analt slots\n");
 		return -EINVAL;
 	}
 
@@ -182,7 +182,7 @@ static int axg_tdm_iface_set_stream(struct snd_pcm_substream *substream,
 
 	/* Make sure this interface can cope with the stream */
 	if (axg_tdm_slots_total(ts->mask) < channels) {
-		dev_err(dai->dev, "not enough slots for channels\n");
+		dev_err(dai->dev, "analt eanalugh slots for channels\n");
 		return -EINVAL;
 	}
 
@@ -264,7 +264,7 @@ static int axg_tdm_iface_set_sclk(struct snd_soc_dai *dai,
 	srate = iface->slots * iface->slot_width * params_rate(params);
 
 	if (!iface->mclk_rate) {
-		/* If no specific mclk is requested, default to bit clock * 4 */
+		/* If anal specific mclk is requested, default to bit clock * 4 */
 		clk_set_rate(iface->mclk, 4 * srate);
 	} else {
 		/* Check if we can actually get the bit clock from mclk */
@@ -386,7 +386,7 @@ static int axg_tdm_iface_probe_dai(struct snd_soc_dai *dai)
 		ts = axg_tdm_stream_alloc(iface);
 		if (!ts) {
 			axg_tdm_iface_remove_dai(dai);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		snd_soc_dai_dma_data_set(dai, stream, ts);
 	}
@@ -444,18 +444,18 @@ static int axg_tdm_iface_set_bias_level(struct snd_soc_component *component,
 					enum snd_soc_bias_level level)
 {
 	struct axg_tdm_iface *iface = snd_soc_component_get_drvdata(component);
-	enum snd_soc_bias_level now =
+	enum snd_soc_bias_level analw =
 		snd_soc_component_get_bias_level(component);
 	int ret = 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (now == SND_SOC_BIAS_STANDBY)
+		if (analw == SND_SOC_BIAS_STANDBY)
 			ret = clk_prepare_enable(iface->mclk);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (now == SND_SOC_BIAS_PREPARE)
+		if (analw == SND_SOC_BIAS_PREPARE)
 			clk_disable_unprepare(iface->mclk);
 		break;
 
@@ -498,7 +498,7 @@ static int axg_tdm_iface_probe(struct platform_device *pdev)
 
 	iface = devm_kzalloc(dev, sizeof(*iface), GFP_KERNEL);
 	if (!iface)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, iface);
 
 	/*
@@ -509,7 +509,7 @@ static int axg_tdm_iface_probe(struct platform_device *pdev)
 	dai_drv = devm_kcalloc(dev, ARRAY_SIZE(axg_tdm_iface_dai_drv),
 			       sizeof(*dai_drv), GFP_KERNEL);
 	if (!dai_drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(axg_tdm_iface_dai_drv); i++)
 		memcpy(&dai_drv[i], &axg_tdm_iface_dai_drv[i],
@@ -527,8 +527,8 @@ static int axg_tdm_iface_probe(struct platform_device *pdev)
 
 	/*
 	 * mclk maybe be missing when the cpu dai is in slave mode and
-	 * the codec does not require it to provide a master clock.
-	 * At this point, ignore the error if mclk is missing. We'll
+	 * the codec does analt require it to provide a master clock.
+	 * At this point, iganalre the error if mclk is missing. We'll
 	 * throw an error if the cpu dai is master and mclk is missing
 	 */
 	iface->mclk = devm_clk_get_optional(dev, "mclk");

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013 Johan Hovold <jhovold@gmail.com>
  * Copyright (C) 2009 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (C) 2009 Novell Inc.
+ * Copyright (C) 2009 Analvell Inc.
  */
 
 #include <linux/kernel.h>
@@ -44,14 +44,14 @@ static void symbol_int_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -151,7 +151,7 @@ static int symbol_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 

@@ -10,12 +10,12 @@
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
- * Copyright (c) 2009 Nokia Corporation
- * Roger Quadros <ext-roger.quadros@nokia.com>
+ * Copyright (c) 2009 Analkia Corporation
+ * Roger Quadros <ext-roger.quadros@analkia.com>
  *
  * This is useful for systems with mixed controllable and
- * non-controllable regulators, as well as for allowing testing on
- * systems with no controllable regulators.
+ * analn-controllable regulators, as well as for allowing testing on
+ * systems with anal controllable regulators.
  */
 
 #include <linux/err.h>
@@ -127,7 +127,7 @@ static const struct regulator_ops gpio_regulator_voltage_ops = {
 };
 
 static struct gpio_regulator_config *
-of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
+of_get_gpio_regulator_config(struct device *dev, struct device_analde *np,
 			     const struct regulator_desc *desc)
 {
 	struct gpio_regulator_config *config;
@@ -140,7 +140,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 			sizeof(struct gpio_regulator_config),
 			GFP_KERNEL);
 	if (!config)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config->init_data = of_get_regulator_init_data(dev, np, desc);
 	if (!config->init_data)
@@ -152,7 +152,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 		config->enabled_at_boot = true;
 
 	/*
-	 * Do not use: undocumented device tree property.
+	 * Do analt use: undocumented device tree property.
 	 * This is kept around solely for device tree ABI stability.
 	 */
 	if (of_property_read_bool(np, "enable-at-boot"))
@@ -168,7 +168,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 					      * ngpios,
 					      GFP_KERNEL);
 		if (!config->gflags)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		for (i = 0; i < ngpios; i++) {
 			u32 val;
@@ -189,7 +189,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 	/* Fetch states. */
 	proplen = of_property_count_u32_elems(np, "states");
 	if (proplen < 0) {
-		dev_err(dev, "No 'states' property found\n");
+		dev_err(dev, "Anal 'states' property found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -198,7 +198,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 				sizeof(struct gpio_regulator_state),
 				GFP_KERNEL);
 	if (!config->states)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < proplen / 2; i++) {
 		of_property_read_u32_index(np, "states", i * 2,
@@ -216,7 +216,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 		else if (!strncmp("current", regtype, 7))
 			config->type = REGULATOR_CURRENT;
 		else
-			dev_warn(dev, "Unknown regulator-type '%s'\n",
+			dev_warn(dev, "Unkanalwn regulator-type '%s'\n",
 				 regtype);
 	}
 
@@ -235,7 +235,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gpio_regulator_config *config = dev_get_platdata(dev);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct gpio_regulator_data *drvdata;
 	struct regulator_config cfg = { };
 	struct regulator_dev *rdev;
@@ -245,7 +245,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(dev, sizeof(struct gpio_regulator_data),
 			       GFP_KERNEL);
 	if (drvdata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (np) {
 		config = of_get_gpio_regulator_config(dev, np,
@@ -257,7 +257,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 	drvdata->desc.name = devm_kstrdup(dev, config->supply_name, GFP_KERNEL);
 	if (drvdata->desc.name == NULL) {
 		dev_err(dev, "Failed to allocate supply name\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drvdata->gpiods = devm_kzalloc(dev, sizeof(struct gpio_desc *),
@@ -270,12 +270,12 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 		if (!drvdata->desc.supply_name) {
 			dev_err(&pdev->dev,
 				"Failed to allocate input supply\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
 	if (!drvdata->gpiods)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < config->ngpios; i++) {
 		drvdata->gpiods[i] = devm_gpiod_get_index(dev,
 							  NULL,
@@ -283,7 +283,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 							  config->gflags[i]);
 		if (IS_ERR(drvdata->gpiods[i]))
 			return PTR_ERR(drvdata->gpiods[i]);
-		/* This is good to know */
+		/* This is good to kanalw */
 		gpiod_set_consumer_name(drvdata->gpiods[i], drvdata->desc.name);
 	}
 	drvdata->nr_gpios = config->ngpios;
@@ -295,7 +295,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 				       GFP_KERNEL);
 	if (drvdata->states == NULL) {
 		dev_err(dev, "Failed to allocate state data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	drvdata->nr_states = config->nr_states;
 
@@ -314,7 +314,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 		drvdata->desc.ops = &gpio_regulator_current_ops;
 		break;
 	default:
-		dev_err(dev, "No regulator type set\n");
+		dev_err(dev, "Anal regulator type set\n");
 		return -EINVAL;
 	}
 
@@ -329,16 +329,16 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 	cfg.dev = dev;
 	cfg.init_data = config->init_data;
 	cfg.driver_data = drvdata;
-	cfg.of_node = np;
+	cfg.of_analde = np;
 
 	/*
 	 * The signal will be inverted by the GPIO core if flagged so in the
 	 * descriptor.
 	 */
 	if (config->enabled_at_boot)
-		gflags = GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE;
+		gflags = GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE;
 	else
-		gflags = GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE;
+		gflags = GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE;
 
 	cfg.ena_gpiod = gpiod_get_optional(dev, "enable", gflags);
 	if (IS_ERR(cfg.ena_gpiod))
@@ -368,7 +368,7 @@ static struct platform_driver gpio_regulator_driver = {
 	.probe		= gpio_regulator_probe,
 	.driver		= {
 		.name		= "gpio-regulator",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(regulator_gpio_of_match),
 	},
 };

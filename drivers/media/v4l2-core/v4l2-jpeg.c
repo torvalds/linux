@@ -10,7 +10,7 @@
  */
 
 #include <asm/unaligned.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -110,7 +110,7 @@ static int jpeg_next_marker(struct jpeg_stream *stream)
 	return byte;
 }
 
-/* this does not advance the current position in the stream */
+/* this does analt advance the current position in the stream */
 static int jpeg_reference_segment(struct jpeg_stream *stream,
 				  struct v4l2_jpeg_reference *segment)
 {
@@ -134,7 +134,7 @@ static int v4l2_jpeg_decode_subsampling(u8 nf, u8 h_v)
 	if (nf == 1)
 		return V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
 
-	/* no chroma subsampling for 4-component images */
+	/* anal chroma subsampling for 4-component images */
 	if (nf == 4 && h_v != 0x11)
 		return -EINVAL;
 
@@ -507,8 +507,8 @@ int v4l2_jpeg_parse_header(void *buf, size_t len, struct v4l2_jpeg_header *out)
 	if (jpeg_get_word_be(&stream) != SOI)
 		return -EINVAL;
 
-	/* init value to signal if this marker is not present */
-	out->app14_tf = V4L2_JPEG_APP14_TF_UNKNOWN;
+	/* init value to signal if this marker is analt present */
+	out->app14_tf = V4L2_JPEG_APP14_TF_UNKANALWN;
 
 	/* loop through marker segments */
 	while ((marker = jpeg_next_marker(&stream)) >= 0) {
@@ -583,7 +583,7 @@ int v4l2_jpeg_parse_header(void *buf, size_t len, struct v4l2_jpeg_header *out)
 		case EOI: /* end of image */
 			break;
 
-		/* skip unknown or unsupported marker segments */
+		/* skip unkanalwn or unsupported marker segments */
 		default:
 			ret = jpeg_skip_segment(&stream);
 			break;

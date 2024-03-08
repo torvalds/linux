@@ -12,7 +12,7 @@
  *  GNU Lesser General Public License for more details.
  *
  *  You should have received a copy of the GNU Lesser General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if analt, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
@@ -38,7 +38,7 @@
 /* Fetch exception detail */
 #define GRU_USER_GET_EXCEPTION_DETAIL	_IOWR(GRU_IOCTL_NUM, 6, void *)
 
-/* For user call_os handling - normally a TLB fault */
+/* For user call_os handling - analrmally a TLB fault */
 #define GRU_USER_CALL_OS		_IOWR(GRU_IOCTL_NUM, 8, void *)
 
 /* For user unload context */
@@ -145,7 +145,7 @@ struct gru_dump_context_header {
 struct gru_config_info {
 	int		cpus;
 	int		blades;
-	int		nodes;
+	int		analdes;
 	int		chiplets;
 	int		fill[16];
 };

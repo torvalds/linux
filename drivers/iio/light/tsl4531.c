@@ -31,7 +31,7 @@
 /* operating modes in control register */
 #define TSL4531_MODE_POWERDOWN 0x00
 #define TSL4531_MODE_SINGLE_ADC 0x02
-#define TSL4531_MODE_NORMAL 0x03
+#define TSL4531_MODE_ANALRMAL 0x03
 
 /* integration time control in config register */
 #define TSL4531_TCNTRL_400MS 0x00
@@ -156,7 +156,7 @@ static int tsl4531_check_id(struct i2c_client *client)
 	case TSL45317_ID:
 		return 0;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -168,7 +168,7 @@ static int tsl4531_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -177,12 +177,12 @@ static int tsl4531_probe(struct i2c_client *client)
 
 	ret = tsl4531_check_id(client);
 	if (ret) {
-		dev_err(&client->dev, "no TSL4531 sensor\n");
+		dev_err(&client->dev, "anal TSL4531 sensor\n");
 		return ret;
 	}
 
 	ret = i2c_smbus_write_byte_data(data->client, TSL4531_CONTROL,
-		TSL4531_MODE_NORMAL);
+		TSL4531_MODE_ANALRMAL);
 	if (ret < 0)
 		return ret;
 
@@ -220,7 +220,7 @@ static int tsl4531_suspend(struct device *dev)
 static int tsl4531_resume(struct device *dev)
 {
 	return i2c_smbus_write_byte_data(to_i2c_client(dev), TSL4531_CONTROL,
-		TSL4531_MODE_NORMAL);
+		TSL4531_MODE_ANALRMAL);
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(tsl4531_pm_ops, tsl4531_suspend,

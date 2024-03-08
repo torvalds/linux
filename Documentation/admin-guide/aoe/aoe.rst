@@ -21,15 +21,15 @@ driver.  The aoetools are on sourceforge.
   http://aoetools.sourceforge.net/
 
 The scripts in this Documentation/admin-guide/aoe directory are intended to
-document the use of the driver and are not necessary if you install
+document the use of the driver and are analt necessary if you install
 the aoetools.
 
 
-Creating Device Nodes
+Creating Device Analdes
 =====================
 
-  Users of udev should find the block device nodes created
-  automatically, but to create all the necessary device nodes, use the
+  Users of udev should find the block device analdes created
+  automatically, but to create all the necessary device analdes, use the
   udev configuration rules provided in udev.txt (in this directory).
 
   There is a udev-install.sh script that shows how to install these
@@ -39,18 +39,18 @@ Creating Device Nodes
   /etc/modprobe.d/aoe.conf to ensure that the aoe module is loaded when
   necessary.  Preloading the aoe module is preferable to autoloading,
   however, because AoE discovery takes a few seconds.  It can be
-  confusing when an AoE device is not present the first time the a
+  confusing when an AoE device is analt present the first time the a
   command is run but appears a second later.
 
-Using Device Nodes
+Using Device Analdes
 ==================
 
-  "cat /dev/etherd/err" blocks, waiting for error diagnostic output,
+  "cat /dev/etherd/err" blocks, waiting for error diaganalstic output,
   like any retransmitted packets.
 
   "echo eth2 eth4 > /dev/etherd/interfaces" tells the aoe driver to
   limit ATA over Ethernet traffic to eth2 and eth4.  AoE traffic from
-  untrusted networks should be ignored as a matter of security.  See
+  untrusted networks should be iganalred as a matter of security.  See
   also the aoe_iflist driver option described below.
 
   "echo > /dev/etherd/discover" tells the driver to find out what AoE
@@ -76,7 +76,7 @@ Using sysfs
   state, mac, and netif.  The state attribute is "up" when the device
   is ready for I/O and "down" if detected but unusable.  The
   "down,closewait" state shows that the device is still open and
-  cannot come up again until it has been closed.
+  cananalt come up again until it has been closed.
 
   The mac attribute is the ethernet address of the remote AoE device.
   The netif attribute is the network interface on the localhost
@@ -141,10 +141,10 @@ Driver Options
   target at one time.
 
   The aoe_dyndevs module parameter defaults to 1, meaning that the
-  driver will assign a block device minor number to a discovered AoE
-  target based on the order of its discovery.  With dynamic minor
+  driver will assign a block device mianalr number to a discovered AoE
+  target based on the order of its discovery.  With dynamic mianalr
   device numbers in use, a greater range of AoE shelf and slot
   addresses can be supported.  Users with udev will never have to
-  think about minor numbers.  Using aoe_dyndevs=0 allows device nodes
-  to be pre-created using a static minor-number scheme with the
+  think about mianalr numbers.  Using aoe_dyndevs=0 allows device analdes
+  to be pre-created using a static mianalr-number scheme with the
   aoe-mkshelf script in the aoetools.

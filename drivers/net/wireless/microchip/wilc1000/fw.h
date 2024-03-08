@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -74,7 +74,7 @@ struct wilc_op_mode {
 	__le32 mode;
 } __packed;
 
-struct wilc_noa_opp_enable {
+struct wilc_anala_opp_enable {
 	u8 ct_window;
 	u8 cnt;
 	__le32 duration;
@@ -82,7 +82,7 @@ struct wilc_noa_opp_enable {
 	__le32 start_time;
 } __packed;
 
-struct wilc_noa_opp_disable {
+struct wilc_anala_opp_disable {
 	u8 cnt;
 	__le32 duration;
 	__le32 interval;
@@ -109,13 +109,13 @@ struct wilc_join_bss_param {
 	u8 p_suites[3];
 	u8 akm_suites[3];
 	u8 rsn_cap[2];
-	u8 noa_enabled;
+	u8 anala_enabled;
 	__le32 tsf_lo;
 	u8 idx;
 	u8 opp_enabled;
 	union {
-		struct wilc_noa_opp_disable opp_dis;
-		struct wilc_noa_opp_enable opp_en;
+		struct wilc_anala_opp_disable opp_dis;
+		struct wilc_anala_opp_enable opp_en;
 	};
 } __packed;
 

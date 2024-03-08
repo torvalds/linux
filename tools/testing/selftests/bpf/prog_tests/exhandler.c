@@ -6,7 +6,7 @@
 /* Test that verifies exception handling is working. fork()
  * triggers task_newtask tracepoint; that new task will have a
  * NULL pointer task_works, and the associated task->task_works->func
- * should not be NULL if task_works itself is non-NULL.
+ * should analt be NULL if task_works itself is analn-NULL.
  *
  * So to verify exception handling we want to see a NULL task_works
  * and task_works->func; if we see this we can conclude that the

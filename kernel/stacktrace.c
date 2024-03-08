@@ -94,7 +94,7 @@ static bool stack_trace_consume_entry(void *cookie, unsigned long addr)
 	return c->len < c->size;
 }
 
-static bool stack_trace_consume_entry_nosched(void *cookie, unsigned long addr)
+static bool stack_trace_consume_entry_analsched(void *cookie, unsigned long addr)
 {
 	if (in_sched_functions(addr))
 		return true;
@@ -136,7 +136,7 @@ EXPORT_SYMBOL_GPL(stack_trace_save);
 unsigned int stack_trace_save_tsk(struct task_struct *tsk, unsigned long *store,
 				  unsigned int size, unsigned int skipnr)
 {
-	stack_trace_consume_fn consume_entry = stack_trace_consume_entry_nosched;
+	stack_trace_consume_fn consume_entry = stack_trace_consume_entry_analsched;
 	struct stacktrace_cookie c = {
 		.store	= store,
 		.size	= size,
@@ -187,7 +187,7 @@ unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
  *		stack. Otherwise it guarantees that the stack trace is
  *		reliable and returns the number of entries stored.
  *
- * If the task is not 'current', the caller *must* ensure the task is inactive.
+ * If the task is analt 'current', the caller *must* ensure the task is inactive.
  */
 int stack_trace_save_tsk_reliable(struct task_struct *tsk, unsigned long *store,
 				  unsigned int size)
@@ -228,7 +228,7 @@ unsigned int stack_trace_save_user(unsigned long *store, unsigned int size)
 		.size	= size,
 	};
 
-	/* Trace user stack if not a kernel thread */
+	/* Trace user stack if analt a kernel thread */
 	if (current->flags & PF_KTHREAD)
 		return 0;
 
@@ -241,20 +241,20 @@ unsigned int stack_trace_save_user(unsigned long *store, unsigned int size)
 #else /* CONFIG_ARCH_STACKWALK */
 
 /*
- * Architectures that do not implement save_stack_trace_*()
+ * Architectures that do analt implement save_stack_trace_*()
  * get these weak aliases and once-per-bootup warnings
  * (whenever this facility is utilized - for example by procfs):
  */
 __weak void
 save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
-	WARN_ONCE(1, KERN_INFO "save_stack_trace_tsk() not implemented yet.\n");
+	WARN_ONCE(1, KERN_INFO "save_stack_trace_tsk() analt implemented yet.\n");
 }
 
 __weak void
 save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 {
-	WARN_ONCE(1, KERN_INFO "save_stack_trace_regs() not implemented yet.\n");
+	WARN_ONCE(1, KERN_INFO "save_stack_trace_regs() analt implemented yet.\n");
 }
 
 /**
@@ -337,7 +337,7 @@ unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
  *		stack. Otherwise it guarantees that the stack trace is
  *		reliable and returns the number of entries stored.
  *
- * If the task is not 'current', the caller *must* ensure the task is inactive.
+ * If the task is analt 'current', the caller *must* ensure the task is inactive.
  */
 int stack_trace_save_tsk_reliable(struct task_struct *tsk, unsigned long *store,
 				  unsigned int size)

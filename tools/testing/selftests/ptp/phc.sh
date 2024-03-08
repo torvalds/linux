@@ -17,7 +17,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 if [[ "$DEV" == "" ]]; then
-	echo "SKIP: PTP device not provided"
+	echo "SKIP: PTP device analt provided"
 	exit 0
 fi
 
@@ -26,7 +26,7 @@ require_command()
 	local cmd=$1; shift
 
 	if [[ ! -x "$(command -v "$cmd")" ]]; then
-		echo "SKIP: $cmd not installed"
+		echo "SKIP: $cmd analt installed"
 		exit 1
 	fi
 }
@@ -36,7 +36,7 @@ phc_sanity()
 	phc_ctl $DEV get &> /dev/null
 
 	if [ $? != 0 ]; then
-		echo "SKIP: unknown clock $DEV: No such device"
+		echo "SKIP: unkanalwn clock $DEV: Anal such device"
 		exit 1
 	fi
 }

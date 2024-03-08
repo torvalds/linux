@@ -250,7 +250,7 @@
 /*
  * IOT Module - GNSS UART
  *
- * Note: We expect usage of a SYSFW that does not reserve UART1 for debug traces
+ * Analte: We expect usage of a SYSFW that does analt reserve UART1 for debug traces
  */
 &main_uart1 {
 	pinctrl-names = "default";
@@ -272,7 +272,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart3_pins>;
 	/*
-	 * Left disabled for now, until a way to deal with drivers and firmware
+	 * Left disabled for analw, until a way to deal with drivers and firmware
 	 * for the combined WLAN/BT module has been figured out
 	 */
 };
@@ -377,7 +377,7 @@
 &mcu_i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_i2c0_pins>;
-	/* Left disabled: not functional without external pullup */
+	/* Left disabled: analt functional without external pullup */
 };
 
 &mcu_spi0 {
@@ -421,7 +421,7 @@
 	bus-width = <4>;
 	cd-gpios = <&main_gpio1 77 GPIO_ACTIVE_LOW>;
 	disable-wp;
-	no-mmc;
+	anal-mmc;
 	ti,driver-strength-ohm = <50>;
 	ti,fails-without-test-cd;
 	/* Enabled by overlay */
@@ -437,7 +437,7 @@
 &usb0 {
 	/*
 	 * The CDNS USB driver currently doesn't support overcurrent GPIOs,
-	 * so there is no overcurrent detection. The OC pin is configured
+	 * so there is anal overcurrent detection. The OC pin is configured
 	 * as a GPIO hog instead.
 	 */
 	pinctrl-names = "default";

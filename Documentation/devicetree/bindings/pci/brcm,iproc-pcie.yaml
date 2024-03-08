@@ -51,14 +51,14 @@ properties:
   brcm,pcie-ob:
     type: boolean
     description: >
-      Some iProc SoCs do not have the outbound address mapping done by the
+      Some iProc SoCs do analt have the outbound address mapping done by the
       ASIC after power on reset. In this case, SW needs to configure it
 
   brcm,pcie-ob-axi-offset:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: >
        The offset from the AXI address to the internal address used by the
-       iProc PCIe core (not the PCIe address)
+       iProc PCIe core (analt the PCIe address)
 
   msi:
     type: object
@@ -118,7 +118,7 @@ examples:
 
         #interrupt-cells = <1>;
         interrupt-map-mask = <0 0 0 0>;
-        interrupt-map = <0 0 0 0 &gic GIC_SPI 100 IRQ_TYPE_NONE>;
+        interrupt-map = <0 0 0 0 &gic GIC_SPI 100 IRQ_TYPE_ANALNE>;
 
         linux,pci-domain = <0>;
 
@@ -143,10 +143,10 @@ examples:
             compatible = "brcm,iproc-msi";
             msi-controller;
             interrupt-parent = <&gic>;
-            interrupts = <GIC_SPI 96 IRQ_TYPE_NONE>,
-                    <GIC_SPI 97 IRQ_TYPE_NONE>,
-                    <GIC_SPI 98 IRQ_TYPE_NONE>,
-                    <GIC_SPI 99 IRQ_TYPE_NONE>;
+            interrupts = <GIC_SPI 96 IRQ_TYPE_ANALNE>,
+                    <GIC_SPI 97 IRQ_TYPE_ANALNE>,
+                    <GIC_SPI 98 IRQ_TYPE_ANALNE>,
+                    <GIC_SPI 99 IRQ_TYPE_ANALNE>;
         };
     };
   - |
@@ -156,7 +156,7 @@ examples:
 
         #interrupt-cells = <1>;
         interrupt-map-mask = <0 0 0 0>;
-        interrupt-map = <0 0 0 0 &gic GIC_SPI 106 IRQ_TYPE_NONE>;
+        interrupt-map = <0 0 0 0 &gic GIC_SPI 106 IRQ_TYPE_ANALNE>;
 
         linux,pci-domain = <1>;
 

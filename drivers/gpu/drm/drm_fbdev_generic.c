@@ -17,9 +17,9 @@ static int drm_fbdev_generic_fb_open(struct fb_info *info, int user)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 
-	/* No need to take a ref for fbcon because it unbinds on unregister */
+	/* Anal need to take a ref for fbcon because it unbinds on unregister */
 	if (user && !try_module_get(fb_helper->dev->driver->fops->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -96,7 +96,7 @@ static int drm_fbdev_generic_helper_fb_probe(struct drm_fb_helper *fb_helper,
 	screen_size = buffer->gem->size;
 	screen_buffer = vzalloc(screen_size);
 	if (!screen_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_drm_client_framebuffer_delete;
 	}
 
@@ -192,7 +192,7 @@ static int drm_fbdev_generic_damage_blit(struct drm_fb_helper *fb_helper,
 	 * object of the underlying BO here.
 	 *
 	 * For fbdev emulation, we only have to protect against fbdev modeset
-	 * operations. Nothing else will involve the client buffer's BO. So it
+	 * operations. Analthing else will involve the client buffer's BO. So it
 	 * is sufficient to acquire struct drm_fb_helper.lock here.
 	 */
 	mutex_lock(&fb_helper->lock);
@@ -314,7 +314,7 @@ static const struct drm_client_funcs drm_fbdev_generic_client_funcs = {
  * uses a shadow buffer in system memory. The implementation blits the shadow
  * fbdev buffer onto the real buffer in regular intervals.
  *
- * This function is safe to call even when there are no connectors present.
+ * This function is safe to call even when there are anal connectors present.
  * Setup will be retried on the next hotplug event.
  *
  * The fbdev is destroyed by drm_dev_unregister().
@@ -324,7 +324,7 @@ void drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 	struct drm_fb_helper *fb_helper;
 	int ret;
 
-	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, !dev->registered, "Device has analt been registered.\n");
 	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
 	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);

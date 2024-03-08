@@ -121,7 +121,7 @@ bcm47xx_leds_asus_wl520gu[] __initconst = {
 
 static const struct gpio_led
 bcm47xx_leds_asus_wl700ge[] __initconst = {
-	BCM47XX_GPIO_LED(1, "unk", "power", 1, LEDS_GPIO_DEFSTATE_ON), /* Labeled "READY" (there is no "power" LED). Originally ON, flashing on USB activity. */
+	BCM47XX_GPIO_LED(1, "unk", "power", 1, LEDS_GPIO_DEFSTATE_ON), /* Labeled "READY" (there is anal "power" LED). Originally ON, flashing on USB activity. */
 };
 
 static const struct gpio_led
@@ -823,7 +823,7 @@ void __init bcm47xx_leds_register(void)
 		break;
 
 	default:
-		pr_debug("No LEDs configuration found for this device\n");
+		pr_debug("Anal LEDs configuration found for this device\n");
 		return;
 	}
 

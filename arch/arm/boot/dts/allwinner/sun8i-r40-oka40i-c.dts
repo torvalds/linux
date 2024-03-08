@@ -2,7 +2,7 @@
 // Copyright (C) 2021 Ivan Uvarov <i.uvarov@cognitivepilot.com>
 // Based on the sun8i-r40-bananapi-m2-ultra.dts, which is:
 //	Copyright (C) 2017 Chen-Yu Tsai <wens@csie.org>
-//	Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+//	Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
 
 /dts-v1/;
 #include "sun8i-r40-feta40i.dtsi"

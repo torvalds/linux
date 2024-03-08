@@ -70,7 +70,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 			break;
 
 		default:
-			btMsr |= MSR_NOLINK;
+			btMsr |= MSR_ANALLINK;
 			break;
 		}
 
@@ -289,7 +289,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 		for (i = 0; i < 6; i += 2) {
 			usValue = rtl92e_eeprom_read(dev,
-				 (EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1);
+				 (EEPROM_ANALDE_ADDRESS_BYTE_0 + i) >> 1);
 			*(u16 *)(&addr[i]) = usValue;
 		}
 		eth_hw_addr_set(dev, addr);
@@ -505,11 +505,11 @@ start:
 		return rtStatus;
 	}
 
-	priv->loopback_mode = RTL819X_NO_LOOPBACK;
+	priv->loopback_mode = RTL819X_ANAL_LOOPBACK;
 	ulRegRead = rtl92e_readl(dev, CPU_GEN);
-	if (priv->loopback_mode == RTL819X_NO_LOOPBACK)
-		ulRegRead = (ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
-			    CPU_GEN_NO_LOOPBACK_SET;
+	if (priv->loopback_mode == RTL819X_ANAL_LOOPBACK)
+		ulRegRead = (ulRegRead & CPU_GEN_ANAL_LOOPBACK_MSK) |
+			    CPU_GEN_ANAL_LOOPBACK_SET;
 	else if (priv->loopback_mode == RTL819X_MAC_LOOPBACK)
 		ulRegRead |= CPU_CCK_LOOPBACK;
 	else
@@ -523,8 +523,8 @@ start:
 	_rtl92e_hwconfig(dev);
 	rtl92e_writeb(dev, CMDR, CR_RE | CR_TE);
 
-	rtl92e_writeb(dev, PCIF, ((MXDMA2_NO_LIMIT << MXDMA2_RX_SHIFT) |
-				  (MXDMA2_NO_LIMIT << MXDMA2_TX_SHIFT)));
+	rtl92e_writeb(dev, PCIF, ((MXDMA2_ANAL_LIMIT << MXDMA2_RX_SHIFT) |
+				  (MXDMA2_ANAL_LIMIT << MXDMA2_TX_SHIFT)));
 	rtl92e_writel(dev, MAC0, ((u32 *)dev->dev_addr)[0]);
 	rtl92e_writew(dev, MAC4, ((u16 *)(dev->dev_addr + 4))[0]);
 	rtl92e_writel(dev, RCR, priv->receive_config);
@@ -561,7 +561,7 @@ start:
 
 		SECR_value |= SCR_TxEncEnable;
 		SECR_value |= SCR_RxDecEnable;
-		SECR_value |= SCR_NoSKMC;
+		SECR_value |= SCR_AnalSKMC;
 		rtl92e_writeb(dev, SECR, SECR_value);
 	}
 	rtl92e_writew(dev, ATIMWND, 2);
@@ -933,7 +933,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->SecCAMID = 0;
 	pdesc->RATid = cb_desc->ratr_index;
 
-	pdesc->NoEnc = 1;
+	pdesc->AnalEnc = 1;
 	pdesc->SecType = 0x0;
 	if (cb_desc->bHwSec) {
 		static u8 tmp;
@@ -944,19 +944,19 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 		case KEY_TYPE_WEP40:
 		case KEY_TYPE_WEP104:
 			pdesc->SecType = 0x1;
-			pdesc->NoEnc = 0;
+			pdesc->AnalEnc = 0;
 			break;
 		case KEY_TYPE_TKIP:
 			pdesc->SecType = 0x2;
-			pdesc->NoEnc = 0;
+			pdesc->AnalEnc = 0;
 			break;
 		case KEY_TYPE_CCMP:
 			pdesc->SecType = 0x3;
-			pdesc->NoEnc = 0;
+			pdesc->AnalEnc = 0;
 			break;
 		case KEY_TYPE_NA:
 			pdesc->SecType = 0x0;
-			pdesc->NoEnc = 1;
+			pdesc->AnalEnc = 1;
 			break;
 		}
 	}
@@ -996,7 +996,7 @@ void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
 	} else {
 		struct tx_desc *entry_tmp = (struct tx_desc *)entry;
 
-		entry_tmp->CmdInit = DESC_PACKET_TYPE_NORMAL;
+		entry_tmp->CmdInit = DESC_PACKET_TYPE_ANALRMAL;
 		entry_tmp->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
 		entry_tmp->PktSize = cb_desc->pkt_size + entry_tmp->Offset;
 		entry_tmp->QueueSelect = QSLT_CMD;
@@ -1697,7 +1697,7 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 	u8	u1bTmp;
 	u32	ulRegRead;
 
-	op_mode = RT_OP_MODE_NO_LINK;
+	op_mode = RT_OP_MODE_ANAL_LINK;
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_MEDIA_STATUS, &op_mode);
 
 	if (!priv->rtllib->bSupportRemoteWakeUp) {

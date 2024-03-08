@@ -3,7 +3,7 @@
  * PTP hardware clock driver for the IDT ClockMatrix(TM) family of timing and
  * synchronization devices.
  *
- * Copyright (C) 2019 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2019 Integrated Device Techanallogy, Inc., a Renesas Company.
  */
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
@@ -112,7 +112,7 @@ static int char_array_to_timespec(u8 *buf,
 	if (count < TOD_BYTE_COUNT)
 		return 1;
 
-	/* Sub-nanoseconds are in buf[0]. */
+	/* Sub-naanalseconds are in buf[0]. */
 	nsec = buf[4];
 	for (i = 0; i < 3; i++) {
 		nsec <<= 8;
@@ -145,7 +145,7 @@ static int timespec_to_char_array(struct timespec64 const *ts,
 	nsec = ts->tv_nsec;
 	sec = ts->tv_sec;
 
-	/* Sub-nanoseconds are in buf[0]. */
+	/* Sub-naanalseconds are in buf[0]. */
 	buf[0] = 0;
 	for (i = 1; i < 5; i++) {
 		buf[i] = nsec & 0xff;
@@ -288,12 +288,12 @@ static int idtcm_extts_enable(struct idtcm_channel *channel,
 				PTP_RISING_EDGE |
 				PTP_FALLING_EDGE |
 				PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Reject requests to enable time stamping on falling edge */
 	if ((rq->extts.flags & PTP_ENABLE_FEATURE) &&
 	    (rq->extts.flags & PTP_FALLING_EDGE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (index >= MAX_TOD)
 		return -EINVAL;
@@ -304,7 +304,7 @@ static int idtcm_extts_enable(struct idtcm_channel *channel,
 		ref = ptp_find_pin(channel->ptp_clock, PTP_PF_EXTTS, channel->tod);
 
 		if (ref < 0) {
-			dev_err(idtcm->dev, "%s: No valid pin found for TOD%d!\n",
+			dev_err(idtcm->dev, "%s: Anal valid pin found for TOD%d!\n",
 				__func__, channel->tod);
 			return -EBUSY;
 		}
@@ -371,7 +371,7 @@ static int wait_for_sys_apll_dpll_lock(struct idtcm *idtcm)
 			   dpll == DPLL_STATE_HOLDOVER ||
 			   dpll == DPLL_STATE_OPEN_LOOP) {
 			dev_warn(idtcm->dev,
-				"No wait state: DPLL_SYS_STATE %d", dpll);
+				"Anal wait state: DPLL_SYS_STATE %d", dpll);
 			return -EPERM;
 		}
 
@@ -392,7 +392,7 @@ static void wait_for_chip_ready(struct idtcm *idtcm)
 
 	if (wait_for_sys_apll_dpll_lock(idtcm))
 		dev_warn(idtcm->dev,
-			 "Continuing while SYS APLL/DPLL is not locked");
+			 "Continuing while SYS APLL/DPLL is analt locked");
 }
 
 static int _idtcm_gettime_triggered(struct idtcm_channel *channel,
@@ -642,8 +642,8 @@ static int idtcm_sync_pps_output(struct idtcm_channel *channel)
 	if (err)
 		return err;
 
-	if ((temp & Q9_TO_Q8_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK) ==
-	    Q9_TO_Q8_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK)
+	if ((temp & Q9_TO_Q8_FAANALUT_AND_CLOCK_SYNC_ENABLE_MASK) ==
+	    Q9_TO_Q8_FAANALUT_AND_CLOCK_SYNC_ENABLE_MASK)
 		out8_mux = 1;
 
 	err = idtcm_read(idtcm, 0, HW_Q11_CTRL_SPARE,
@@ -651,8 +651,8 @@ static int idtcm_sync_pps_output(struct idtcm_channel *channel)
 	if (err)
 		return err;
 
-	if ((temp & Q10_TO_Q11_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK) ==
-	    Q10_TO_Q11_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK)
+	if ((temp & Q10_TO_Q11_FAANALUT_AND_CLOCK_SYNC_ENABLE_MASK) ==
+	    Q10_TO_Q11_FAANALUT_AND_CLOCK_SYNC_ENABLE_MASK)
 		out11_mux = 1;
 
 	for (pll = 0; pll < 8; pll++) {
@@ -1034,7 +1034,7 @@ static int _idtcm_adjtime_deprecated(struct idtcm_channel *channel, s64 delta)
 	int err;
 	struct idtcm *idtcm = channel->idtcm;
 	struct timespec64 ts;
-	s64 now;
+	s64 analw;
 
 	if (abs(delta) < PHASE_PULL_IN_THRESHOLD_NS_DEPRECATED) {
 		err = channel->do_phase_pull_in(channel, delta, 0);
@@ -1049,10 +1049,10 @@ static int _idtcm_adjtime_deprecated(struct idtcm_channel *channel, s64 delta)
 		if (err)
 			return err;
 
-		now = timespec64_to_ns(&ts);
-		now += delta;
+		analw = timespec64_to_ns(&ts);
+		analw += delta;
 
-		ts = ns_to_timespec64(now);
+		ts = ns_to_timespec64(analw);
 
 		err = _idtcm_settime_deprecated(channel, &ts);
 	}
@@ -1122,9 +1122,9 @@ static int idtcm_read_major_release(struct idtcm *idtcm, u8 *major)
 	return err;
 }
 
-static int idtcm_read_minor_release(struct idtcm *idtcm, u8 *minor)
+static int idtcm_read_mianalr_release(struct idtcm *idtcm, u8 *mianalr)
 {
-	return idtcm_read(idtcm, GENERAL_STATUS, MIN_REL, minor, sizeof(u8));
+	return idtcm_read(idtcm, GENERAL_STATUS, MIN_REL, mianalr, sizeof(u8));
 }
 
 static int idtcm_read_hotfix_release(struct idtcm *idtcm, u8 *hotfix)
@@ -1183,12 +1183,12 @@ static int set_pll_output_mask(struct idtcm *idtcm, u16 addr, u8 val)
 static int set_tod_ptp_pll(struct idtcm *idtcm, u8 index, u8 pll)
 {
 	if (index >= MAX_TOD) {
-		dev_err(idtcm->dev, "ToD%d not supported", index);
+		dev_err(idtcm->dev, "ToD%d analt supported", index);
 		return -EINVAL;
 	}
 
 	if (pll >= MAX_PLL) {
-		dev_err(idtcm->dev, "Pll%d not supported", pll);
+		dev_err(idtcm->dev, "Pll%d analt supported", pll);
 		return -EINVAL;
 	}
 
@@ -1285,7 +1285,7 @@ static int idtcm_load_firmware(struct idtcm *idtcm,
 	for (len = fw->size; len > 0; len -= sizeof(*rec)) {
 		if (rec->reserved) {
 			dev_err(idtcm->dev,
-				"bad firmware, reserved field non-zero");
+				"bad firmware, reserved field analn-zero");
 			err = -EINVAL;
 		} else {
 			regaddr = rec->hiaddr << 8;
@@ -1540,7 +1540,7 @@ static long idtcm_work_handler(struct ptp_clock_info *ptp)
 
 	mutex_unlock(idtcm->lock);
 
-	/* Return a negative value here to not reschedule */
+	/* Return a negative value here to analt reschedule */
 	return -1;
 }
 
@@ -1692,7 +1692,7 @@ static int initialize_dco_operating_mode(struct idtcm_channel *channel)
 /* PTP Hardware Clock interface */
 
 /*
- * Maximum absolute value for write phase offset in nanoseconds
+ * Maximum absolute value for write phase offset in naanalseconds
  *
  * Destination signed register is 32-bit register in resolution of 50ps
  *
@@ -1701,14 +1701,14 @@ static int initialize_dco_operating_mode(struct idtcm_channel *channel)
  */
 static s32 idtcm_getmaxphase(struct ptp_clock_info *ptp __always_unused)
 {
-	return MAX_ABS_WRITE_PHASE_NANOSECONDS;
+	return MAX_ABS_WRITE_PHASE_NAANALSECONDS;
 }
 
 /*
  * Internal function for implementing support for write phase offset
  *
  * @channel:  channel
- * @delta_ns: delta in nanoseconds
+ * @delta_ns: delta in naanalseconds
  */
 static int _idtcm_adjphase(struct idtcm_channel *channel, s32 delta_ns)
 {
@@ -1933,7 +1933,7 @@ static int idtcm_enable(struct ptp_clock_info *ptp,
 {
 	struct idtcm_channel *channel = container_of(ptp, struct idtcm_channel, caps);
 	struct idtcm *idtcm = channel->idtcm;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	mutex_lock(idtcm->lock);
 
@@ -1995,14 +1995,14 @@ static int idtcm_enable_tod(struct idtcm_channel *channel)
 static void idtcm_set_version_info(struct idtcm *idtcm)
 {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 hotfix;
 	u16 product_id;
 	u8 hw_rev_id;
 	u8 config_select;
 
 	idtcm_read_major_release(idtcm, &major);
-	idtcm_read_minor_release(idtcm, &minor);
+	idtcm_read_mianalr_release(idtcm, &mianalr);
 	idtcm_read_hotfix_release(idtcm, &hotfix);
 
 	idtcm_read_product_id(idtcm, &product_id);
@@ -2011,13 +2011,13 @@ static void idtcm_set_version_info(struct idtcm *idtcm)
 	idtcm_read_otp_scsr_config_select(idtcm, &config_select);
 
 	snprintf(idtcm->version, sizeof(idtcm->version), "%u.%u.%u",
-		 major, minor, hotfix);
+		 major, mianalr, hotfix);
 
 	idtcm->fw_ver = idtcm_fw_version(idtcm->version);
 
 	dev_info(idtcm->dev,
 		 "%d.%d.%d, Id: 0x%04x  HW Rev: %d  OTP Config Select: %d",
-		 major, minor, hotfix,
+		 major, mianalr, hotfix,
 		 product_id, hw_rev_id, config_select);
 }
 
@@ -2025,7 +2025,7 @@ static int idtcm_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 			    enum ptp_pin_function func, unsigned int chan)
 {
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_EXTTS:
 		break;
 	case PTP_PF_PEROUT:
@@ -2266,7 +2266,7 @@ static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 
 		snprintf(ppd->name, sizeof(ppd->name), "input_ref%d", i);
 		ppd->index = i;
-		ppd->func = PTP_PF_NONE;
+		ppd->func = PTP_PF_ANALNE;
 		ppd->chan = index;
 	}
 
@@ -2292,7 +2292,7 @@ static int idtcm_enable_channel(struct idtcm *idtcm, u32 index)
 	}
 
 	if (!channel->ptp_clock)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	dev_info(idtcm->dev, "PLL%d registered as ptp%d",
 		 index, channel->ptp_clock->index);
@@ -2404,7 +2404,7 @@ static int idtcm_probe(struct platform_device *pdev)
 	idtcm = devm_kzalloc(&pdev->dev, sizeof(struct idtcm), GFP_KERNEL);
 
 	if (!idtcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idtcm->dev = &pdev->dev;
 	idtcm->mfd = pdev->dev.parent;
@@ -2441,8 +2441,8 @@ static int idtcm_probe(struct platform_device *pdev)
 		}
 	} else {
 		dev_err(idtcm->dev,
-			"no PLLs flagged as PHCs, nothing to do");
-		err = -ENODEV;
+			"anal PLLs flagged as PHCs, analthing to do");
+		err = -EANALDEV;
 	}
 
 	mutex_unlock(idtcm->lock);

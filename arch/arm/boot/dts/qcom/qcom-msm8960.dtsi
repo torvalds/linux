@@ -55,7 +55,7 @@
 	cpu-pmu {
 		compatible = "qcom,krait-pmu";
 		interrupts = <GIC_PPI 10 0x304>;
-		qcom,no-pc-write;
+		qcom,anal-pc-write;
 	};
 
 	clocks {
@@ -280,7 +280,7 @@
 			cap-sd-highspeed;
 			cap-mmc-highspeed;
 			max-frequency = <192000000>;
-			no-1-8-v;
+			anal-1-8-v;
 			vmmc-supply = <&vsdcc_fixed>;
 		};
 
@@ -294,7 +294,7 @@
 			clock-names = "mclk", "apb_pclk";
 			bus-width = <8>;
 			max-frequency = <96000000>;
-			non-removable;
+			analn-removable;
 			cap-sd-highspeed;
 			cap-mmc-highspeed;
 			vmmc-supply = <&vsdcc_fixed>;

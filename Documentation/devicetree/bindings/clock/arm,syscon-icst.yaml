@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The ICS525 and ICS307 oscillators are produced by Integrated
-  Devices Technology (IDT). ARM integrated these oscillators deeply into their
+  Devices Techanallogy (IDT). ARM integrated these oscillators deeply into their
   reference designs by adding special control registers that manage such
   oscillators to their system controllers.
 
@@ -19,18 +19,18 @@ description: |
   an ICST clock request after a write to the 32 bit register at an offset
   into the system controller. Furthermore, to even be able to alter one of
   these frequencies, the system controller must first be unlocked by
-  writing a special token to another offset in the system controller.
+  writing a special token to aanalther offset in the system controller.
 
   Some ARM hardware contain special versions of the serial interface that only
   connects the low 8 bits of the VDW (missing one bit), hard-wires RDW to
   different values and sometimes also hard-wires the output divider. They
   therefore have special compatible strings as per this table (the OD value is
-  the value on the pins, not the resulting output divider).
+  the value on the pins, analt the resulting output divider).
 
   In the core modules and logic tiles, the ICST is a configurable clock fed
   from a 24 MHz clock on the motherboard (usually the main crystal) used for
   generating e.g. video clocks. It is located on the core module and there is
-  only one of these. This clock node must be a subnode of the core module.
+  only one of these. This clock analde must be a subanalde of the core module.
 
   Hardware variant         RDW     OD          VDW
 
@@ -49,7 +49,7 @@ description: |
   Integrator/CP            22      variable    Bit 8 0, rest variable
   integratorcp-cm-mem
 
-  The ICST oscillator must be provided inside a system controller node.
+  The ICST oscillator must be provided inside a system controller analde.
 
 properties:
   "#clock-cells":

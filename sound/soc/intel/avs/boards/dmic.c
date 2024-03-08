@@ -23,17 +23,17 @@ static struct snd_soc_dai_link card_dai_links[] = {
 		.name = "DMIC",
 		.id = 0,
 		.dpcm_capture = 1,
-		.nonatomic = 1,
-		.no_pcm = 1,
+		.analnatomic = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic_pin, dmic_codec, platform),
 	},
 	{
 		.name = "DMIC WoV",
 		.id = 1,
 		.dpcm_capture = 1,
-		.nonatomic = 1,
-		.no_pcm = 1,
-		.ignore_suspend = 1,
+		.analnatomic = 1,
+		.anal_pcm = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(dmic_wov_pin, dmic_codec, platform),
 	},
 };
@@ -57,7 +57,7 @@ static int avs_dmic_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->name = "avs_dmic";
 	card->dev = dev;

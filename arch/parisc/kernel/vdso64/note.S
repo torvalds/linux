@@ -1,2 +1,2 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include "../vdso32/note.S"
+#include "../vdso32/analte.S"

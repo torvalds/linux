@@ -25,7 +25,7 @@
 
 static const char *tape_med_st_verbose[MS_SIZE] =
 {
-	[MS_UNKNOWN] = "UNKNOWN ",
+	[MS_UNKANALWN] = "UNKANALWN ",
 	[MS_LOADED] = "LOADED  ",
 	[MS_UNLOADED] = "UNLOADED"
 };
@@ -45,7 +45,7 @@ static int tape_proc_show(struct seq_file *m, void *v)
 
 	n = (unsigned long) v - 1;
 	if (!n) {
-		seq_printf(m, "TapeNo\tBusID      CuType/Model\t"
+		seq_printf(m, "TapeAnal\tBusID      CuType/Model\t"
 			"DevType/Model\tBlkSize\tState\tOp\tMedState\n");
 	}
 	device = tape_find_device(n);
@@ -66,7 +66,7 @@ static int tape_proc_show(struct seq_file *m, void *v)
 	    device->tape_state < TS_SIZE)
 		str = tape_state_verbose[device->tape_state];
 	else
-		str = "UNKNOWN";
+		str = "UNKANALWN";
 	seq_printf(m, "%s\t", str);
 	if (!list_empty(&device->req_queue)) {
 		request = list_entry(device->req_queue.next,
@@ -83,7 +83,7 @@ static int tape_proc_show(struct seq_file *m, void *v)
 
 static void *tape_proc_start(struct seq_file *m, loff_t *pos)
 {
-	if (*pos >= 256 / TAPE_MINORS_PER_DEV)
+	if (*pos >= 256 / TAPE_MIANALRS_PER_DEV)
 		return NULL;
 	return (void *)((unsigned long) *pos + 1);
 }

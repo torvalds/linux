@@ -12,7 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/dfl.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -126,7 +126,7 @@ static int dfl_uart_probe(struct dfl_device *dfl_dev)
 
 	dfluart = devm_kzalloc(dev, sizeof(*dfluart), GFP_KERNEL);
 	if (!dfluart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dfluart->line = serial8250_register_8250_port(&uart);
 	if (dfluart->line < 0)

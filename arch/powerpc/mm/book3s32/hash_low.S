@@ -11,7 +11,7 @@
  *
  *  This file contains low-level assembler routines for managing
  *  the PowerPC MMU hash table.  (PPC 8xx processors don't use a
- *  hash table, so this file is not used on them.)
+ *  hash table, so this file is analt used on them.)
  */
 
 #include <linux/export.h>
@@ -42,7 +42,7 @@
  * r9 contains the SRR1 value, from which we use the MSR_PR bit.
  * SPRG_THREAD contains the physical address of the current task's thread.
  *
- * Returns to the caller if the access is illegal or there is no
+ * Returns to the caller if the access is illegal or there is anal
  * mapping for the address.  Otherwise it places an appropriate PTE
  * in the hash table and returns from the exception.
  * Uses r0, r3 - r6, r8, r10, ctr, lr.
@@ -89,11 +89,11 @@ _GLOBAL(hash_page)
 	rlwinm.	r8,r8,0,0,20		/* extract pt base address */
 #endif
 #ifdef CONFIG_SMP
-	beq-	.Lhash_page_out		/* return if no mapping */
+	beq-	.Lhash_page_out		/* return if anal mapping */
 #else
 	/* XXX it seems like the 601 will give a machine fault on the
 	   rfi if its alignment is wrong (bottom 4 bits of address are
-	   8 or 0xc) and we have had a not-taken conditional branch
+	   8 or 0xc) and we have had a analt-taken conditional branch
 	   to the address following the rfi. */
 	beqlr-
 #endif
@@ -129,7 +129,7 @@ _GLOBAL(hash_page)
 	rlwinm	r0,r3,32-3,24,24	/* _PAGE_WRITE access -> _PAGE_DIRTY */
 	ori	r0,r0,_PAGE_ACCESSED|_PAGE_HASHPTE
 #ifdef CONFIG_SMP
-	bne-	.Lhash_page_out		/* return if access not permitted */
+	bne-	.Lhash_page_out		/* return if access analt permitted */
 #else
 	bnelr-
 #endif
@@ -165,7 +165,7 @@ _GLOBAL(hash_page)
 	stw	r0, (mmu_hash_lock - PAGE_OFFSET)@l(r8)
 	blr
 #endif /* CONFIG_SMP */
-_ASM_NOKPROBE_SYMBOL(hash_page)
+_ASM_ANALKPROBE_SYMBOL(hash_page)
 
 /*
  * Add an entry for a particular page to the hash table.
@@ -174,7 +174,7 @@ _ASM_NOKPROBE_SYMBOL(hash_page)
  *
  * We assume any necessary modifications to the pte (e.g. setting
  * the accessed bit) have already been done and that there is actually
- * a hash table in use (i.e. we're not on a 603).
+ * a hash table in use (i.e. we're analt on a 603).
  */
 _GLOBAL(add_hash_page)
 	mflr	r0
@@ -247,7 +247,7 @@ _GLOBAL(add_hash_page)
 	mulli	r3,r3,897*16		/* multiply context by context skew */
 	rlwinm	r0,r4,4,28,31		/* get ESID (top 4 bits of va) */
 	mulli	r0,r0,0x111		/* multiply by ESID skew */
-	add	r3,r3,r0		/* note create_hpte trims to 24 bits */
+	add	r3,r3,r0		/* analte create_hpte trims to 24 bits */
 
 	bl	create_hpte
 
@@ -267,7 +267,7 @@ _GLOBAL(add_hash_page)
 	lwz	r0,4(r1)
 	mtlr	r0
 	blr
-_ASM_NOKPROBE_SYMBOL(add_hash_page)
+_ASM_ANALKPROBE_SYMBOL(add_hash_page)
 
 /*
  * This routine adds a hardware PTE to the hash table.
@@ -285,7 +285,7 @@ _ASM_NOKPROBE_SYMBOL(add_hash_page)
  *  -- paulus.
  *
  * For speed, 4 of the instructions get patched once the size and
- * physical address of the hash table are known.  These definitions
+ * physical address of the hash table are kanalwn.  These definitions
  * of Hash_base and Hash_bits below are for the early hash table.
  */
 Hash_base = early_hash
@@ -323,7 +323,7 @@ _GLOBAL(create_hpte)
 1:	ori	r8,r8,0xe04		/* clear out reserved bits */
 	andc	r8,r5,r8		/* PP = user? (rw&dirty? 1: 3): 0 */
 BEGIN_FTR_SECTION
-	rlwinm	r8,r8,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+	rlwinm	r8,r8,0,~_PAGE_COHERENT	/* clear M (coherence analt required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 #ifdef CONFIG_PTE_64BIT
 	/* Put the XPN bits into the PTE */
@@ -351,7 +351,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	 * if it is clear, meaning that the HPTE isn't there already...
 	 */
 	andi.	r6,r6,_PAGE_HASHPTE
-	beq+	10f			/* no PTE: go look for an empty slot */
+	beq+	10f			/* anal PTE: go look for an empty slot */
 	tlbie	r4
 
 	/* Search the primary PTEG for a PTE whose 1st (d)word matches r5 */
@@ -399,9 +399,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	/*
 	 * Choose an arbitrary slot in the primary PTEG to overwrite.
 	 * Since both the primary and secondary PTEGs are full, and we
-	 * have no information that the PTEs in the primary PTEG are
+	 * have anal information that the PTEs in the primary PTEG are
 	 * more important or useful than those in the secondary PTEG,
-	 * and we know there is a definite (although small) speed
+	 * and we kanalw there is a definite (although small) speed
 	 * advantage to putting the PTE in the primary PTEG, we always
 	 * put the PTE in the primary PTEG.
 	 */
@@ -423,14 +423,14 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 #else /* CONFIG_SMP */
 /*
  * Between the tlbie above and updating the hash table entry below,
- * another CPU could read the hash table entry and put it in its TLB.
+ * aanalther CPU could read the hash table entry and put it in its TLB.
  * There are 3 cases:
  * 1. using an empty slot
  * 2. updating an earlier entry to change permissions (i.e. enable write)
  * 3. taking over the PTE for an unrelated address
  *
  * In each case it doesn't really matter if the other CPUs have the old
- * PTE in their TLB.  So we don't need to bother with another tlbie here,
+ * PTE in their TLB.  So we don't need to bother with aanalther tlbie here,
  * which is convenient as we've overwritten the register that had the
  * address. :-)  The tlbie above is mainly to make sure that this CPU comes
  * and gets the new PTE from the hash table.
@@ -453,7 +453,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	sync		/* make sure pte updates get to memory */
 	blr
 	.previous
-_ASM_NOKPROBE_SYMBOL(create_hpte)
+_ASM_ANALKPROBE_SYMBOL(create_hpte)
 
 	.section .bss
 	.align	2
@@ -506,7 +506,7 @@ _GLOBAL(flush_hash_pages)
 2:	mulli	r3,r3,897*16		/* multiply context by context skew */
 	rlwinm	r0,r4,4,28,31		/* get ESID (top 4 bits of va) */
 	mulli	r0,r0,0x111		/* multiply by ESID skew */
-	add	r3,r3,r0		/* note code below trims to 24 bits */
+	add	r3,r3,r0		/* analte code below trims to 24 bits */
 
 	/* Construct the high word of the PPC-style PTE (r11) */
 	rlwinm	r11,r3,7,1,24		/* put VSID in 0x7fffff80 bits */
@@ -533,7 +533,7 @@ _GLOBAL(flush_hash_pages)
 
 	/*
 	 * Check the _PAGE_HASHPTE bit in the linux PTE.  If it is
-	 * already clear, we're done (for this pte).  If not,
+	 * already clear, we're done (for this pte).  If analt,
 	 * clear it (atomically) and proceed.  -- paulus.
 	 */
 33:	lwarx	r8,0,r5			/* fetch the pte flags word */
@@ -603,4 +603,4 @@ _GLOBAL(flush_hash_pages)
 	blr
 	.previous
 EXPORT_SYMBOL(flush_hash_pages)
-_ASM_NOKPROBE_SYMBOL(flush_hash_pages)
+_ASM_ANALKPROBE_SYMBOL(flush_hash_pages)

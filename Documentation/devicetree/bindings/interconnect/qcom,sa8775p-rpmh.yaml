@@ -11,27 +11,27 @@ maintainers:
 
 description: |
   RPMh interconnect providers support system bandwidth requirements through
-  RPMh hardware accelerators known as Bus Clock Manager (BCM).
+  RPMh hardware accelerators kanalwn as Bus Clock Manager (BCM).
 
   See also:: include/dt-bindings/interconnect/qcom,sa8775p.h
 
 properties:
   compatible:
     enum:
-      - qcom,sa8775p-aggre1-noc
-      - qcom,sa8775p-aggre2-noc
+      - qcom,sa8775p-aggre1-analc
+      - qcom,sa8775p-aggre2-analc
       - qcom,sa8775p-clk-virt
-      - qcom,sa8775p-config-noc
-      - qcom,sa8775p-dc-noc
-      - qcom,sa8775p-gem-noc
-      - qcom,sa8775p-gpdsp-anoc
-      - qcom,sa8775p-lpass-ag-noc
+      - qcom,sa8775p-config-analc
+      - qcom,sa8775p-dc-analc
+      - qcom,sa8775p-gem-analc
+      - qcom,sa8775p-gpdsp-aanalc
+      - qcom,sa8775p-lpass-ag-analc
       - qcom,sa8775p-mc-virt
-      - qcom,sa8775p-mmss-noc
-      - qcom,sa8775p-nspa-noc
-      - qcom,sa8775p-nspb-noc
-      - qcom,sa8775p-pcie-anoc
-      - qcom,sa8775p-system-noc
+      - qcom,sa8775p-mmss-analc
+      - qcom,sa8775p-nspa-analc
+      - qcom,sa8775p-nspb-analc
+      - qcom,sa8775p-pcie-aanalc
+      - qcom,sa8775p-system-analc
 
 required:
   - compatible
@@ -43,8 +43,8 @@ unevaluatedProperties: false
 
 examples:
   - |
-    aggre1_noc: interconnect-aggre1-noc {
-        compatible = "qcom,sa8775p-aggre1-noc";
+    aggre1_analc: interconnect-aggre1-analc {
+        compatible = "qcom,sa8775p-aggre1-analc";
         #interconnect-cells = <2>;
         qcom,bcm-voters = <&apps_bcm_voter>;
     };

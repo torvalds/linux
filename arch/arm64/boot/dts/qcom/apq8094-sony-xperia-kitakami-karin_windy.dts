@@ -20,5 +20,5 @@
 	qcom,msm-id = <253 0x20000>, <253 0x20001>;
 };
 
-/delete-node/ &pm8994_l1;
-/delete-node/ &pm8994_l19;
+/delete-analde/ &pm8994_l1;
+/delete-analde/ &pm8994_l19;

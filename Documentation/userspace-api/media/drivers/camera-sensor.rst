@@ -58,7 +58,7 @@ The frame interval is calculated using the following equation::
 			 (analogue crop height + vertical blanking) / pixel rate
 
 The formula is bus independent and is applicable for raw timing parameters on
-large variety of devices beyond camera sensors. Devices that have no analogue
+large variety of devices beyond camera sensors. Devices that have anal analogue
 crop, use the full source image size, i.e. pixel array size.
 
 Horizontal and vertical blanking are specified by ``V4L2_CID_HBLANK`` and
@@ -67,8 +67,8 @@ is pixels and the unit of the ``V4L2_CID_VBLANK`` is lines. The pixel rate in
 the sensor's **pixel array** is specified by ``V4L2_CID_PIXEL_RATE`` in the same
 sub-device. The unit of that control is pixels per second.
 
-Register list based drivers need to implement read-only sub-device nodes for the
-purpose. Devices that are not register list based need these to configure the
+Register list based drivers need to implement read-only sub-device analdes for the
+purpose. Devices that are analt register list based need these to configure the
 device's internal processing pipeline.
 
 The first entity in the linear pipeline is the pixel array. The pixel array may
@@ -82,7 +82,7 @@ USB cameras etc. devices
 USB video class hardware, as well as many cameras offering a similar higher
 level interface natively, generally use the concept of frame interval (or frame
 rate) on device level in firmware or hardware. This means lower level controls
-implemented by raw cameras may not be used on uAPI (or even kAPI) to control the
+implemented by raw cameras may analt be used on uAPI (or even kAPI) to control the
 frame interval on these devices.
 
 Rotation, orientation and flipping
@@ -100,5 +100,5 @@ Sensor drivers that have any vertical or horizontal flips embedded in the
 register programming sequences shall initialize the :ref:`V4L2_CID_HFLIP
 <v4l2-cid-hflip>` and :ref:`V4L2_CID_VFLIP <v4l2-cid-vflip>` controls with the
 values programmed by the register sequences. The default values of these
-controls shall be 0 (disabled). Especially these controls shall not be inverted,
+controls shall be 0 (disabled). Especially these controls shall analt be inverted,
 independently of the sensor's mounting rotation.

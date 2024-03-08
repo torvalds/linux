@@ -13,18 +13,18 @@
 #include "user_sdma.h"
 #include "trace.h"
 
-struct sdma_mmu_node {
-	struct mmu_rb_node rb;
+struct sdma_mmu_analde {
+	struct mmu_rb_analde rb;
 	struct hfi1_user_sdma_pkt_q *pq;
 	struct page **pages;
 	unsigned int npages;
 };
 
-static bool sdma_rb_filter(struct mmu_rb_node *node, unsigned long addr,
+static bool sdma_rb_filter(struct mmu_rb_analde *analde, unsigned long addr,
 			   unsigned long len);
-static int sdma_rb_evict(void *arg, struct mmu_rb_node *mnode, void *arg2,
+static int sdma_rb_evict(void *arg, struct mmu_rb_analde *manalde, void *arg2,
 			 bool *stop);
-static void sdma_rb_remove(void *arg, struct mmu_rb_node *mnode);
+static void sdma_rb_remove(void *arg, struct mmu_rb_analde *manalde);
 
 static struct mmu_rb_ops sdma_rb_ops = {
 	.filter = sdma_rb_filter,
@@ -69,51 +69,51 @@ static void unpin_vector_pages(struct mm_struct *mm, struct page **pages,
 	kfree(pages);
 }
 
-static inline struct mm_struct *mm_from_sdma_node(struct sdma_mmu_node *node)
+static inline struct mm_struct *mm_from_sdma_analde(struct sdma_mmu_analde *analde)
 {
-	return node->rb.handler->mn.mm;
+	return analde->rb.handler->mn.mm;
 }
 
-static void free_system_node(struct sdma_mmu_node *node)
+static void free_system_analde(struct sdma_mmu_analde *analde)
 {
-	if (node->npages) {
-		unpin_vector_pages(mm_from_sdma_node(node), node->pages, 0,
-				   node->npages);
-		atomic_sub(node->npages, &node->pq->n_locked);
+	if (analde->npages) {
+		unpin_vector_pages(mm_from_sdma_analde(analde), analde->pages, 0,
+				   analde->npages);
+		atomic_sub(analde->npages, &analde->pq->n_locked);
 	}
-	kfree(node);
+	kfree(analde);
 }
 
 /*
- * kref_get()'s an additional kref on the returned rb_node to prevent rb_node
- * from being released until after rb_node is assigned to an SDMA descriptor
+ * kref_get()'s an additional kref on the returned rb_analde to prevent rb_analde
+ * from being released until after rb_analde is assigned to an SDMA descriptor
  * (struct sdma_desc) under add_system_iovec_to_sdma_packet(), even if the
- * virtual address range for rb_node is invalidated between now and then.
+ * virtual address range for rb_analde is invalidated between analw and then.
  */
-static struct sdma_mmu_node *find_system_node(struct mmu_rb_handler *handler,
+static struct sdma_mmu_analde *find_system_analde(struct mmu_rb_handler *handler,
 					      unsigned long start,
 					      unsigned long end)
 {
-	struct mmu_rb_node *rb_node;
+	struct mmu_rb_analde *rb_analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&handler->lock, flags);
-	rb_node = hfi1_mmu_rb_get_first(handler, start, (end - start));
-	if (!rb_node) {
+	rb_analde = hfi1_mmu_rb_get_first(handler, start, (end - start));
+	if (!rb_analde) {
 		spin_unlock_irqrestore(&handler->lock, flags);
 		return NULL;
 	}
 
 	/* "safety" kref to prevent release before add_system_iovec_to_sdma_packet() */
-	kref_get(&rb_node->refcount);
+	kref_get(&rb_analde->refcount);
 	spin_unlock_irqrestore(&handler->lock, flags);
 
-	return container_of(rb_node, struct sdma_mmu_node, rb);
+	return container_of(rb_analde, struct sdma_mmu_analde, rb);
 }
 
 static int pin_system_pages(struct user_sdma_request *req,
 			    uintptr_t start_address, size_t length,
-			    struct sdma_mmu_node *node, int npages)
+			    struct sdma_mmu_analde *analde, int npages)
 {
 	struct hfi1_user_sdma_pkt_q *pq = req->pq;
 	int pinned, cleared;
@@ -121,7 +121,7 @@ static int pin_system_pages(struct user_sdma_request *req,
 
 	pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 retry:
 	if (!hfi1_can_pin_pages(pq->dd, current->mm, atomic_read(&pq->n_locked),
@@ -133,8 +133,8 @@ retry:
 			goto retry;
 	}
 
-	SDMA_DBG(req, "Acquire user pages start_address %lx node->npages %u npages %u",
-		 start_address, node->npages, npages);
+	SDMA_DBG(req, "Acquire user pages start_address %lx analde->npages %u npages %u",
+		 start_address, analde->npages, npages);
 	pinned = hfi1_acquire_user_pages(current->mm, start_address, npages, 0,
 					 pages);
 
@@ -144,63 +144,63 @@ retry:
 		return pinned;
 	}
 	if (pinned != npages) {
-		unpin_vector_pages(current->mm, pages, node->npages, pinned);
+		unpin_vector_pages(current->mm, pages, analde->npages, pinned);
 		SDMA_DBG(req, "npages %u pinned %d", npages, pinned);
 		return -EFAULT;
 	}
-	node->rb.addr = start_address;
-	node->rb.len = length;
-	node->pages = pages;
-	node->npages = npages;
+	analde->rb.addr = start_address;
+	analde->rb.len = length;
+	analde->pages = pages;
+	analde->npages = npages;
 	atomic_add(pinned, &pq->n_locked);
 	SDMA_DBG(req, "done. pinned %d", pinned);
 	return 0;
 }
 
 /*
- * kref refcount on *node_p will be 2 on successful addition: one kref from
- * kref_init() for mmu_rb_handler and one kref to prevent *node_p from being
- * released until after *node_p is assigned to an SDMA descriptor (struct
+ * kref refcount on *analde_p will be 2 on successful addition: one kref from
+ * kref_init() for mmu_rb_handler and one kref to prevent *analde_p from being
+ * released until after *analde_p is assigned to an SDMA descriptor (struct
  * sdma_desc) under add_system_iovec_to_sdma_packet(), even if the virtual
- * address range for *node_p is invalidated between now and then.
+ * address range for *analde_p is invalidated between analw and then.
  */
 static int add_system_pinning(struct user_sdma_request *req,
-			      struct sdma_mmu_node **node_p,
+			      struct sdma_mmu_analde **analde_p,
 			      unsigned long start, unsigned long len)
 
 {
 	struct hfi1_user_sdma_pkt_q *pq = req->pq;
-	struct sdma_mmu_node *node;
+	struct sdma_mmu_analde *analde;
 	int ret;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 
 	/* First kref "moves" to mmu_rb_handler */
-	kref_init(&node->rb.refcount);
+	kref_init(&analde->rb.refcount);
 
 	/* "safety" kref to prevent release before add_system_iovec_to_sdma_packet() */
-	kref_get(&node->rb.refcount);
+	kref_get(&analde->rb.refcount);
 
-	node->pq = pq;
-	ret = pin_system_pages(req, start, len, node, PFN_DOWN(len));
+	analde->pq = pq;
+	ret = pin_system_pages(req, start, len, analde, PFN_DOWN(len));
 	if (ret == 0) {
-		ret = hfi1_mmu_rb_insert(pq->handler, &node->rb);
+		ret = hfi1_mmu_rb_insert(pq->handler, &analde->rb);
 		if (ret)
-			free_system_node(node);
+			free_system_analde(analde);
 		else
-			*node_p = node;
+			*analde_p = analde;
 
 		return ret;
 	}
 
-	kfree(node);
+	kfree(analde);
 	return ret;
 }
 
 static int get_system_cache_entry(struct user_sdma_request *req,
-				  struct sdma_mmu_node **node_p,
+				  struct sdma_mmu_analde **analde_p,
 				  size_t req_start, size_t req_len)
 {
 	struct hfi1_user_sdma_pkt_q *pq = req->pq;
@@ -218,17 +218,17 @@ static int get_system_cache_entry(struct user_sdma_request *req,
 	SDMA_DBG(req, "req_start %lx req_len %lu", req_start, req_len);
 
 	while (1) {
-		struct sdma_mmu_node *node =
-			find_system_node(pq->handler, start, end);
+		struct sdma_mmu_analde *analde =
+			find_system_analde(pq->handler, start, end);
 		u64 prepend_len = 0;
 
-		SDMA_DBG(req, "node %p start %llx end %llu", node, start, end);
-		if (!node) {
-			ret = add_system_pinning(req, node_p, start,
+		SDMA_DBG(req, "analde %p start %llx end %llu", analde, start, end);
+		if (!analde) {
+			ret = add_system_pinning(req, analde_p, start,
 						 end - start);
 			if (ret == -EEXIST) {
 				/*
-				 * Another execution context has inserted a
+				 * Aanalther execution context has inserted a
 				 * conficting entry first.
 				 */
 				continue;
@@ -236,52 +236,52 @@ static int get_system_cache_entry(struct user_sdma_request *req,
 			return ret;
 		}
 
-		if (node->rb.addr <= start) {
+		if (analde->rb.addr <= start) {
 			/*
 			 * This entry covers at least part of the region. If it doesn't extend
 			 * to the end, then this will be called again for the next segment.
 			 */
-			*node_p = node;
+			*analde_p = analde;
 			return 0;
 		}
 
-		SDMA_DBG(req, "prepend: node->rb.addr %lx, node->rb.refcount %d",
-			 node->rb.addr, kref_read(&node->rb.refcount));
-		prepend_len = node->rb.addr - start;
+		SDMA_DBG(req, "prepend: analde->rb.addr %lx, analde->rb.refcount %d",
+			 analde->rb.addr, kref_read(&analde->rb.refcount));
+		prepend_len = analde->rb.addr - start;
 
 		/*
-		 * This node will not be returned, instead a new node
+		 * This analde will analt be returned, instead a new analde
 		 * will be. So release the reference.
 		 */
-		kref_put(&node->rb.refcount, hfi1_mmu_rb_release);
+		kref_put(&analde->rb.refcount, hfi1_mmu_rb_release);
 
-		/* Prepend a node to cover the beginning of the allocation */
-		ret = add_system_pinning(req, node_p, start, prepend_len);
+		/* Prepend a analde to cover the beginning of the allocation */
+		ret = add_system_pinning(req, analde_p, start, prepend_len);
 		if (ret == -EEXIST) {
-			/* Another execution context has inserted a conficting entry first. */
+			/* Aanalther execution context has inserted a conficting entry first. */
 			continue;
 		}
 		return ret;
 	}
 }
 
-static void sdma_mmu_rb_node_get(void *ctx)
+static void sdma_mmu_rb_analde_get(void *ctx)
 {
-	struct mmu_rb_node *node = ctx;
+	struct mmu_rb_analde *analde = ctx;
 
-	kref_get(&node->refcount);
+	kref_get(&analde->refcount);
 }
 
-static void sdma_mmu_rb_node_put(void *ctx)
+static void sdma_mmu_rb_analde_put(void *ctx)
 {
-	struct sdma_mmu_node *node = ctx;
+	struct sdma_mmu_analde *analde = ctx;
 
-	kref_put(&node->rb.refcount, hfi1_mmu_rb_release);
+	kref_put(&analde->rb.refcount, hfi1_mmu_rb_release);
 }
 
 static int add_mapping_to_sdma_packet(struct user_sdma_request *req,
 				      struct user_sdma_txreq *tx,
-				      struct sdma_mmu_node *cache_entry,
+				      struct sdma_mmu_analde *cache_entry,
 				      size_t start,
 				      size_t from_this_cache_entry)
 {
@@ -294,7 +294,7 @@ static int add_mapping_to_sdma_packet(struct user_sdma_request *req,
 
 	/*
 	 * Because the cache may be more fragmented than the memory that is being accessed,
-	 * it's not strictly necessary to have a descriptor per cache entry.
+	 * it's analt strictly necessary to have a descriptor per cache entry.
 	 */
 
 	while (from_this_cache_entry) {
@@ -314,7 +314,7 @@ static int add_mapping_to_sdma_packet(struct user_sdma_request *req,
 			ctx = NULL;
 		} else {
 			/*
-			 * In the case they are equal the next line has no practical effect,
+			 * In the case they are equal the next line has anal practical effect,
 			 * but it's better to do a register to register copy than a conditional
 			 * branch.
 			 */
@@ -326,8 +326,8 @@ static int add_mapping_to_sdma_packet(struct user_sdma_request *req,
 				      cache_entry->pages[page_index],
 				      page_offset, from_this_page,
 				      ctx,
-				      sdma_mmu_rb_node_get,
-				      sdma_mmu_rb_node_put);
+				      sdma_mmu_rb_analde_get,
+				      sdma_mmu_rb_analde_put);
 		if (ret) {
 			/*
 			 * When there's a failure, the entire request is freed by
@@ -350,7 +350,7 @@ static int add_system_iovec_to_sdma_packet(struct user_sdma_request *req,
 					   size_t from_this_iovec)
 {
 	while (from_this_iovec > 0) {
-		struct sdma_mmu_node *cache_entry;
+		struct sdma_mmu_analde *cache_entry;
 		size_t from_this_cache_entry;
 		size_t start;
 		int ret;
@@ -406,7 +406,7 @@ int hfi1_add_pages_to_sdma_packet(struct user_sdma_request *req,
 	size_t remaining_to_add = *pkt_data_remaining;
 	/*
 	 * Walk through iovec entries, ensure the associated pages
-	 * are pinned and mapped, add data to the packet until no more
+	 * are pinned and mapped, add data to the packet until anal more
 	 * data remains to be added or the iovec entry type changes.
 	 */
 	while (remaining_to_add > 0) {
@@ -437,38 +437,38 @@ int hfi1_add_pages_to_sdma_packet(struct user_sdma_request *req,
 	return 0;
 }
 
-static bool sdma_rb_filter(struct mmu_rb_node *node, unsigned long addr,
+static bool sdma_rb_filter(struct mmu_rb_analde *analde, unsigned long addr,
 			   unsigned long len)
 {
-	return (bool)(node->addr == addr);
+	return (bool)(analde->addr == addr);
 }
 
 /*
- * Return 1 to remove the node from the rb tree and call the remove op.
+ * Return 1 to remove the analde from the rb tree and call the remove op.
  *
  * Called with the rb tree lock held.
  */
-static int sdma_rb_evict(void *arg, struct mmu_rb_node *mnode,
+static int sdma_rb_evict(void *arg, struct mmu_rb_analde *manalde,
 			 void *evict_arg, bool *stop)
 {
-	struct sdma_mmu_node *node =
-		container_of(mnode, struct sdma_mmu_node, rb);
+	struct sdma_mmu_analde *analde =
+		container_of(manalde, struct sdma_mmu_analde, rb);
 	struct evict_data *evict_data = evict_arg;
 
-	/* this node will be evicted, add its pages to our count */
-	evict_data->cleared += node->npages;
+	/* this analde will be evicted, add its pages to our count */
+	evict_data->cleared += analde->npages;
 
-	/* have enough pages been cleared? */
+	/* have eanalugh pages been cleared? */
 	if (evict_data->cleared >= evict_data->target)
 		*stop = true;
 
-	return 1; /* remove this node */
+	return 1; /* remove this analde */
 }
 
-static void sdma_rb_remove(void *arg, struct mmu_rb_node *mnode)
+static void sdma_rb_remove(void *arg, struct mmu_rb_analde *manalde)
 {
-	struct sdma_mmu_node *node =
-		container_of(mnode, struct sdma_mmu_node, rb);
+	struct sdma_mmu_analde *analde =
+		container_of(manalde, struct sdma_mmu_analde, rb);
 
-	free_system_node(node);
+	free_system_analde(analde);
 }

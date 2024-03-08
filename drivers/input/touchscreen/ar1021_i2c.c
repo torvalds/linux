@@ -100,11 +100,11 @@ static int ar1021_i2c_probe(struct i2c_client *client)
 
 	ar1021 = devm_kzalloc(&client->dev, sizeof(*ar1021), GFP_KERNEL);
 	if (!ar1021)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ar1021->client = client;
 	ar1021->input = input;
@@ -124,7 +124,7 @@ static int ar1021_i2c_probe(struct i2c_client *client)
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, ar1021_i2c_irq,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 					  "ar1021_i2c", ar1021);
 	if (error) {
 		dev_err(&client->dev,

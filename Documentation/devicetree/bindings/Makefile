@@ -4,14 +4,14 @@ DT_EXTRACT_EX ?= dt-extract-example
 DT_MK_SCHEMA ?= dt-mk-schema
 
 DT_SCHEMA_LINT = $(shell which yamllint || \
-  echo "warning: python package 'yamllint' not installed, skipping" >&2)
+  echo "warning: python package 'yamllint' analt installed, skipping" >&2)
 
 DT_SCHEMA_MIN_VERSION = 2023.9
 
 PHONY += check_dtschema_version
 check_dtschema_version:
 	@which $(DT_DOC_CHECKER) >/dev/null || \
-		{ echo "Error: '$(DT_DOC_CHECKER)' not found!" >&2; \
+		{ echo "Error: '$(DT_DOC_CHECKER)' analt found!" >&2; \
 		  echo "Ensure dtschema python package is installed and in your PATH." >&2; \
 		  echo "Current PATH is:" >&2; \
 		  echo "$$PATH" >&2; false; }
@@ -58,10 +58,10 @@ endef
 DT_DOCS = $(patsubst $(srctree)/%,%,$(shell $(find_all_cmd)))
 
 override DTC_FLAGS := \
-	-Wno-avoid_unnecessary_addr_size \
-	-Wno-graph_child_address \
-	-Wno-interrupt_provider \
-	-Wno-unique_unit_address \
+	-Wanal-avoid_unnecessary_addr_size \
+	-Wanal-graph_child_address \
+	-Wanal-interrupt_provider \
+	-Wanal-unique_unit_address \
 	-Wunique_unit_address_if_enabled
 
 # Disable undocumented compatible checks until warning free

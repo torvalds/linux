@@ -18,7 +18,7 @@ typedef struct {
 	int PyThreadState_thread;
 	int PyFrameObject_back;
 	int PyFrameObject_code;
-	int PyFrameObject_lineno;
+	int PyFrameObject_lineanal;
 	int PyCodeObject_filename;
 	int PyCodeObject_name;
 	int String_data;
@@ -69,7 +69,7 @@ typedef struct {
 } FrameData;
 
 #ifdef SUBPROGS
-__noinline
+__analinline
 #else
 __always_inline
 #endif
@@ -212,9 +212,9 @@ static int process_frame_callback(__u32 i, struct process_frame_ctx *ctx)
 #endif /* USE_BPF_LOOP */
 
 #ifdef GLOBAL_FUNC
-__noinline
+__analinline
 #elif defined(SUBPROGS)
-static __noinline
+static __analinline
 #else
 static __always_inline
 #endif
@@ -296,14 +296,14 @@ int __on_event(struct bpf_raw_tracepoint_args *ctx)
 		return 0;
 #else
 #if defined(USE_ITER)
-/* no for loop, no unrolling */
-#elif defined(NO_UNROLL)
+/* anal for loop, anal unrolling */
+#elif defined(ANAL_UNROLL)
 #pragma clang loop unroll(disable)
 #elif defined(UNROLL_COUNT)
 #pragma clang loop unroll_count(UNROLL_COUNT)
 #else
 #pragma clang loop unroll(full)
-#endif /* NO_UNROLL */
+#endif /* ANAL_UNROLL */
 		/* Unwind python stack */
 #ifdef USE_ITER
 		int i;

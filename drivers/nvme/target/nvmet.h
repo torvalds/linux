@@ -25,7 +25,7 @@
 
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
-#define NVMET_NO_ERROR_LOC		((u16)-1)
+#define NVMET_ANAL_ERROR_LOC		((u16)-1)
 #define NVMET_DEFAULT_CTRL_MODEL	"Linux"
 #define NVMET_MN_MAX_SIZE		40
 #define NVMET_SN_MAX_SIZE		20
@@ -554,7 +554,7 @@ void nvmet_add_async_event(struct nvmet_ctrl *ctrl, u8 event_type,
 #define NVMET_MAX_NAMESPACES	1024
 
 /*
- * 0 is not a valid ANA group ID, so we start numbering at 1.
+ * 0 is analt a valid ANA group ID, so we start numbering at 1.
  *
  * ANA Group 1 exists without manual intervention, has namespaces assigned to it
  * by default, and is available in an optimized state through all ports.
@@ -667,7 +667,7 @@ static inline bool nvmet_is_passthru_req(struct nvmet_req *req)
 
 void nvmet_passthrough_override_cap(struct nvmet_ctrl *ctrl);
 
-u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
+u16 erranal_to_nvme_status(struct nvmet_req *req, int erranal);
 u16 nvmet_report_invalid_opcode(struct nvmet_req *req);
 
 /* Convert a 32-bit number to a 16-bit 0's based number */

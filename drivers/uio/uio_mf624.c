@@ -101,7 +101,7 @@ static irqreturn_t mf624_irq_handler(int irq, struct uio_info *info)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int mf624_irqcontrol(struct uio_info *info, s32 irq_on)
@@ -123,12 +123,12 @@ static int mf624_setup_mem(struct pci_dev *dev, int bar, struct uio_mem *mem, co
 	mem->addr = start & PAGE_MASK;
 	mem->offs = start & ~PAGE_MASK;
 	if (!mem->addr)
-		return -ENODEV;
+		return -EANALDEV;
 	mem->size = ((start & ~PAGE_MASK) + len + PAGE_SIZE - 1) & PAGE_MASK;
 	mem->memtype = UIO_MEM_PHYS;
 	mem->internal_addr = pci_ioremap_bar(dev, bar);
 	if (!mem->internal_addr)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -138,10 +138,10 @@ static int mf624_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	info = devm_kzalloc(&dev->dev, sizeof(struct uio_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pci_enable_device(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_request_regions(dev, "mf624"))
 		goto out_disable;
@@ -149,7 +149,7 @@ static int mf624_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	info->name = "mf624";
 	info->version = "0.0.1";
 
-	/* Note: Datasheet says device uses BAR0, BAR1, BAR2 -- do not trust it */
+	/* Analte: Datasheet says device uses BAR0, BAR1, BAR2 -- do analt trust it */
 
 	/* BAR0 */
 	if (mf624_setup_mem(dev, 0, &info->mem[0], "PCI chipset, interrupts, status "
@@ -189,7 +189,7 @@ out_release:
 out_disable:
 	pci_disable_device(dev);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void mf624_pci_remove(struct pci_dev *dev)

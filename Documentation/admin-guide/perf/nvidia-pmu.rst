@@ -134,7 +134,7 @@ socket 1 to 3.
 /sys/bus/event_sources/devices/nvidia_cnvlink_pmu_<socket-id>/format/rem_socket
 shows the valid bits that can be set in the "rem_socket" parameter.
 
-The PMU can not distinguish the remote traffic initiator, therefore it does not
+The PMU can analt distinguish the remote traffic initiator, therefore it does analt
 provide filter to select the traffic source to monitor. It reports combined
 traffic from remote GPU and PCIE devices.
 
@@ -226,7 +226,7 @@ The PMU traffic coverage may vary dependent on the chip configuration:
    +--------------+-------+-----------+-----------+-----+----------+----------+
    |              |                        Source                             |
    +              +-------+-----------+-----------+-----+----------+----------+
-   | Destination  |       |GPU ATS    |GPU Not-ATS|     | Socket-B | Socket-B |
+   | Destination  |       |GPU ATS    |GPU Analt-ATS|     | Socket-B | Socket-B |
    |              |PCI R/W|Translated,|Translated | CPU | CPU/PCIE1| GPU/PCIE2|
    |              |       |EGM        |           |     |          |          |
    +==============+=======+===========+===========+=====+==========+==========+

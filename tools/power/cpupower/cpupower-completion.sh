@@ -6,7 +6,7 @@ _cpupower_commands="frequency-info frequency-set idle-info idle-set set info mon
 
 _frequency_info ()
 {
-	local flags="-f -w -l -d -p -g -a -s -y -o -m -n --freq --hwfreq --hwlimits --driver --policy --governors --related-cpus --affected-cpus --stats --latency --proc --human --no-rounding"
+	local flags="-f -w -l -d -p -g -a -s -y -o -m -n --freq --hwfreq --hwlimits --driver --policy --goveranalrs --related-cpus --affected-cpus --stats --latency --proc --human --anal-rounding"
 	local prev="${COMP_WORDS[COMP_CWORD-1]}"
 	local cur="${COMP_WORDS[COMP_CWORD]}"
 	case "$prev" in
@@ -16,7 +16,7 @@ _frequency_info ()
 
 _frequency_set ()
 {
-	local flags="-f -g --freq --governor -d --min -u --max -r --related"
+	local flags="-f -g --freq --goveranalr -d --min -u --max -r --related"
 	local prev="${COMP_WORDS[COMP_CWORD-1]}"
 	local cur="${COMP_WORDS[COMP_CWORD]}"
 	case "$prev" in
@@ -24,9 +24,9 @@ _frequency_set ()
 		if [ -d /sys/devices/system/cpu/cpufreq/ ] ; then
 			COMPREPLY=($(compgen -W '$(cat $(ls -d /sys/devices/system/cpu/cpufreq/policy* | head -1)/scaling_available_frequencies)' -- "$cur"))
 		fi ;;
-		-g| --governor)
+		-g| --goveranalr)
 		if [ -d /sys/devices/system/cpu/cpufreq/ ] ; then
-			COMPREPLY=($(compgen -W '$(cat $(ls -d /sys/devices/system/cpu/cpufreq/policy* | head -1)/scaling_available_governors)' -- "$cur"))
+			COMPREPLY=($(compgen -W '$(cat $(ls -d /sys/devices/system/cpu/cpufreq/policy* | head -1)/scaling_available_goveranalrs)' -- "$cur"))
 		fi;;
 		frequency-set) COMPREPLY=($(compgen -W "$flags" -- "$cur")) ;;
 	esac
@@ -104,7 +104,7 @@ _cpupower ()
 		c=$((++c))
 	done
 
-	# Complete name of subcommand if the user has not finished typing it yet.
+	# Complete name of subcommand if the user has analt finished typing it yet.
 	if test $c -eq $COMP_CWORD -a -z "$command"; then
 		COMPREPLY=($(compgen -W "help -v --version -c --cpu $_cpupower_commands" -- "${COMP_WORDS[COMP_CWORD]}"))
 		return

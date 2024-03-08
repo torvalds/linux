@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/tty.h>
 #include <linux/module.h>
 
@@ -13,13 +13,13 @@
 static ssize_t n_null_read(struct tty_struct *tty, struct file *file, u8 *buf,
 			   size_t nr, void **cookie, unsigned long offset)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static ssize_t n_null_write(struct tty_struct *tty, struct file *file,
 			    const u8 *buf, size_t nr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static struct tty_ldisc_ops null_ldisc = {

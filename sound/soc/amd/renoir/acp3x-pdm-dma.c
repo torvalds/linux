@@ -49,7 +49,7 @@ static irqreturn_t pdm_irq_handler(int irq, void *dev_id)
 
 	rn_pdm_data = dev_id;
 	if (!rn_pdm_data)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	cap_flag = 0;
 	val = rn_readl(rn_pdm_data->acp_base + ACP_EXTERNAL_INTR_STAT);
@@ -63,7 +63,7 @@ static irqreturn_t pdm_irq_handler(int irq, void *dev_id)
 	if (cap_flag)
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static void init_pdm_ring_buffer(u32 physical_addr,
@@ -328,7 +328,7 @@ static int acp_pdm_dai_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		rn_writel(ch_mask, rtd->acp_base + ACP_WOV_PDM_NO_OF_CHANNELS);
+		rn_writel(ch_mask, rtd->acp_base + ACP_WOV_PDM_ANAL_OF_CHANNELS);
 		rn_writel(PDM_DECIMATION_FACTOR, rtd->acp_base +
 			  ACP_WOV_PDM_DECIMATION_FACTOR);
 		rtd->bytescount = acp_pdm_get_byte_count(rtd,
@@ -386,25 +386,25 @@ static int acp_pdm_audio_probe(struct platform_device *pdev)
 	int status;
 
 	if (!pdev->dev.platform_data) {
-		dev_err(&pdev->dev, "platform_data not retrieved\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "platform_data analt retrieved\n");
+		return -EANALDEV;
 	}
 	irqflags = *((unsigned int *)(pdev->dev.platform_data));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata = devm_kzalloc(&pdev->dev, sizeof(*adata), GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adata->acp_base = devm_ioremap(&pdev->dev, res->start,
 				       resource_size(res));
 	if (!adata->acp_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = platform_get_irq(pdev, 0);
 	if (status < 0)
@@ -420,13 +420,13 @@ static int acp_pdm_audio_probe(struct platform_device *pdev)
 	if (status) {
 		dev_err(&pdev->dev, "Fail to register acp pdm dai\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	status = devm_request_irq(&pdev->dev, adata->pdm_irq, pdm_irq_handler,
 				  irqflags, "ACP_PDM_IRQ", adata);
 	if (status) {
 		dev_err(&pdev->dev, "ACP PDM IRQ request failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);

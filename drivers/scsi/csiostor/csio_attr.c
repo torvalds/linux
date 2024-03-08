@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,29 +45,29 @@
 #include "csio_init.h"
 
 static void
-csio_vport_set_state(struct csio_lnode *ln);
+csio_vport_set_state(struct csio_lanalde *ln);
 
 /*
- * csio_reg_rnode - Register a remote port with FC transport.
- * @rn: Rnode representing remote port.
+ * csio_reg_ranalde - Register a remote port with FC transport.
+ * @rn: Ranalde representing remote port.
  *
  * Call fc_remote_port_add() to register this remote port with FC transport.
  * If remote port is Initiator OR Target OR both, change the role appropriately.
  *
  */
 void
-csio_reg_rnode(struct csio_rnode *rn)
+csio_reg_ranalde(struct csio_ranalde *rn)
 {
-	struct csio_lnode *ln		= csio_rnode_to_lnode(rn);
+	struct csio_lanalde *ln		= csio_ranalde_to_lanalde(rn);
 	struct Scsi_Host *shost		= csio_ln_to_shost(ln);
 	struct fc_rport_identifiers ids;
 	struct fc_rport  *rport;
 	struct csio_service_parms *sp;
 
-	ids.node_name	= wwn_to_u64(csio_rn_wwnn(rn));
+	ids.analde_name	= wwn_to_u64(csio_rn_wwnn(rn));
 	ids.port_name	= wwn_to_u64(csio_rn_wwpn(rn));
 	ids.port_id	= rn->nport_id;
-	ids.roles	= FC_RPORT_ROLE_UNKNOWN;
+	ids.roles	= FC_RPORT_ROLE_UNKANALWN;
 
 	if (rn->role & CSIO_RNFR_INITIATOR || rn->role & CSIO_RNFR_TARGET) {
 		rport = rn->rport;
@@ -82,10 +82,10 @@ csio_reg_rnode(struct csio_rnode *rn)
 		return;
 	}
 
-	ln->num_reg_rnodes++;
+	ln->num_reg_ranaldes++;
 	rport = rn->rport;
 	spin_lock_irq(shost->host_lock);
-	*((struct csio_rnode **)rport->dd_data) = rn;
+	*((struct csio_ranalde **)rport->dd_data) = rn;
 	spin_unlock_irq(shost->host_lock);
 
 	sp = &rn->rn_sparm;
@@ -100,7 +100,7 @@ update_role:
 	if (rn->role & CSIO_RNFR_TARGET)
 		ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
 
-	if (ids.roles != FC_RPORT_ROLE_UNKNOWN)
+	if (ids.roles != FC_RPORT_ROLE_UNKANALWN)
 		fc_remote_port_rolechg(rport, ids.roles);
 
 	rn->scsi_id = rport->scsi_target_id;
@@ -110,35 +110,35 @@ update_role:
 }
 
 /*
- * csio_unreg_rnode - Unregister a remote port with FC transport.
- * @rn: Rnode representing remote port.
+ * csio_unreg_ranalde - Unregister a remote port with FC transport.
+ * @rn: Ranalde representing remote port.
  *
  * Call fc_remote_port_delete() to unregister this remote port with FC
  * transport.
  *
  */
 void
-csio_unreg_rnode(struct csio_rnode *rn)
+csio_unreg_ranalde(struct csio_ranalde *rn)
 {
-	struct csio_lnode *ln = csio_rnode_to_lnode(rn);
+	struct csio_lanalde *ln = csio_ranalde_to_lanalde(rn);
 	struct fc_rport *rport = rn->rport;
 
 	rn->role &= ~(CSIO_RNFR_INITIATOR | CSIO_RNFR_TARGET);
 	fc_remote_port_delete(rport);
-	ln->num_reg_rnodes--;
+	ln->num_reg_ranaldes--;
 
 	csio_ln_dbg(ln, "Remote port x%x un-registered\n", rn->nport_id);
 }
 
 /*
- * csio_lnode_async_event - Async events from local port.
- * @ln: lnode representing local port.
+ * csio_lanalde_async_event - Async events from local port.
+ * @ln: lanalde representing local port.
  *
- * Async events from local node that FC transport/SCSI ML
+ * Async events from local analde that FC transport/SCSI ML
  * should be made aware of (Eg: RSCN).
  */
 void
-csio_lnode_async_event(struct csio_lnode *ln, enum csio_ln_fc_evt fc_evt)
+csio_lanalde_async_event(struct csio_lanalde *ln, enum csio_ln_fc_evt fc_evt)
 {
 	switch (fc_evt) {
 	case CSIO_LN_FC_RSCN:
@@ -175,20 +175,20 @@ csio_lnode_async_event(struct csio_lnode *ln, enum csio_ln_fc_evt fc_evt)
 
 /*
  * csio_fchost_attr_init - Initialize FC transport attributes
- * @ln: Lnode.
+ * @ln: Lanalde.
  *
  */
 void
-csio_fchost_attr_init(struct csio_lnode *ln)
+csio_fchost_attr_init(struct csio_lanalde *ln)
 {
 	struct Scsi_Host  *shost = csio_ln_to_shost(ln);
 
-	fc_host_node_name(shost) = wwn_to_u64(csio_ln_wwnn(ln));
+	fc_host_analde_name(shost) = wwn_to_u64(csio_ln_wwnn(ln));
 	fc_host_port_name(shost) = wwn_to_u64(csio_ln_wwpn(ln));
 
 	fc_host_supported_classes(shost) = FC_COS_CLASS3;
 	fc_host_max_npiv_vports(shost) =
-			(csio_lnode_to_hw(ln))->fres_info.max_vnps;
+			(csio_lanalde_to_hw(ln))->fres_info.max_vnps;
 	fc_host_supported_speeds(shost) = FC_PORTSPEED_10GBIT |
 		FC_PORTSPEED_1GBIT;
 
@@ -209,8 +209,8 @@ csio_fchost_attr_init(struct csio_lnode *ln)
 static void
 csio_get_host_port_id(struct Scsi_Host *shost)
 {
-	struct csio_lnode *ln	= shost_priv(shost);
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_lanalde *ln	= shost_priv(shost);
+	struct csio_hw *hw = csio_lanalde_to_hw(ln);
 
 	spin_lock_irq(&hw->lock);
 	fc_host_port_id(shost) = ln->nport_id;
@@ -225,8 +225,8 @@ csio_get_host_port_id(struct Scsi_Host *shost)
 static void
 csio_get_host_port_type(struct Scsi_Host *shost)
 {
-	struct csio_lnode *ln = shost_priv(shost);
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_lanalde *ln = shost_priv(shost);
+	struct csio_hw *hw = csio_lanalde_to_hw(ln);
 
 	spin_lock_irq(&hw->lock);
 	if (csio_is_npiv_ln(ln))
@@ -244,19 +244,19 @@ csio_get_host_port_type(struct Scsi_Host *shost)
 static void
 csio_get_host_port_state(struct Scsi_Host *shost)
 {
-	struct csio_lnode *ln = shost_priv(shost);
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_lanalde *ln = shost_priv(shost);
+	struct csio_hw *hw = csio_lanalde_to_hw(ln);
 	char state[16];
 
 	spin_lock_irq(&hw->lock);
 
-	csio_lnode_state_to_str(ln, state);
+	csio_lanalde_state_to_str(ln, state);
 	if (!strcmp(state, "READY"))
 		fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
 	else if (!strcmp(state, "OFFLINE"))
 		fc_host_port_state(shost) = FC_PORTSTATE_LINKDOWN;
 	else
-		fc_host_port_state(shost) = FC_PORTSTATE_UNKNOWN;
+		fc_host_port_state(shost) = FC_PORTSTATE_UNKANALWN;
 
 	spin_unlock_irq(&hw->lock);
 }
@@ -269,8 +269,8 @@ csio_get_host_port_state(struct Scsi_Host *shost)
 static void
 csio_get_host_speed(struct Scsi_Host *shost)
 {
-	struct csio_lnode *ln = shost_priv(shost);
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_lanalde *ln = shost_priv(shost);
+	struct csio_hw *hw = csio_lanalde_to_hw(ln);
 
 	spin_lock_irq(&hw->lock);
 	switch (hw->pport[ln->portid].link_speed) {
@@ -293,7 +293,7 @@ csio_get_host_speed(struct Scsi_Host *shost)
 		fc_host_speed(shost) = FC_PORTSPEED_100GBIT;
 		break;
 	default:
-		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
+		fc_host_speed(shost) = FC_PORTSPEED_UNKANALWN;
 		break;
 	}
 	spin_unlock_irq(&hw->lock);
@@ -307,12 +307,12 @@ csio_get_host_speed(struct Scsi_Host *shost)
 static void
 csio_get_host_fabric_name(struct Scsi_Host *shost)
 {
-	struct csio_lnode *ln = shost_priv(shost);
-	struct csio_rnode *rn = NULL;
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_lanalde *ln = shost_priv(shost);
+	struct csio_ranalde *rn = NULL;
+	struct csio_hw *hw = csio_lanalde_to_hw(ln);
 
 	spin_lock_irq(&hw->lock);
-	rn = csio_rnode_lookup_portid(ln, FC_FID_FLOGI);
+	rn = csio_ranalde_lookup_portid(ln, FC_FID_FLOGI);
 	if (rn)
 		fc_host_fabric_name(shost) = wwn_to_u64(csio_rn_wwnn(rn));
 	else
@@ -322,14 +322,14 @@ csio_get_host_fabric_name(struct Scsi_Host *shost)
 
 /*
  * csio_get_host_speed - Return FC transport statistics.
- * @ln: Lnode.
+ * @ln: Lanalde.
  *
  */
 static struct fc_host_statistics *
 csio_get_stats(struct Scsi_Host *shost)
 {
-	struct csio_lnode *ln = shost_priv(shost);
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_lanalde *ln = shost_priv(shost);
+	struct csio_hw *hw = csio_lanalde_to_hw(ln);
 	struct fc_host_statistics *fhs = &ln->fch_stats;
 	struct fw_fcoe_port_stats fcoe_port_stats;
 	uint64_t seconds;
@@ -373,7 +373,7 @@ csio_get_stats(struct Scsi_Host *shost)
  * @rport: fc rport.
  * @timeout: new value for dev loss tmo.
  *
- * If timeout is non zero set the dev_loss_tmo to timeout, else set
+ * If timeout is analn zero set the dev_loss_tmo to timeout, else set
  * dev_loss_tmo to one.
  */
 static void
@@ -386,26 +386,26 @@ csio_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 }
 
 static void
-csio_vport_set_state(struct csio_lnode *ln)
+csio_vport_set_state(struct csio_lanalde *ln)
 {
 	struct fc_vport *fc_vport = ln->fc_vport;
-	struct csio_lnode  *pln = ln->pln;
+	struct csio_lanalde  *pln = ln->pln;
 	char state[16];
 
-	/* Set fc vport state based on phyiscal lnode */
-	csio_lnode_state_to_str(pln, state);
+	/* Set fc vport state based on phyiscal lanalde */
+	csio_lanalde_state_to_str(pln, state);
 	if (strcmp(state, "READY")) {
 		fc_vport_set_state(fc_vport, FC_VPORT_LINKDOWN);
 		return;
 	}
 
 	if (!(pln->flags & CSIO_LNF_NPIVSUPP)) {
-		fc_vport_set_state(fc_vport, FC_VPORT_NO_FABRIC_SUPP);
+		fc_vport_set_state(fc_vport, FC_VPORT_ANAL_FABRIC_SUPP);
 		return;
 	}
 
-	/* Set fc vport state based on virtual lnode */
-	csio_lnode_state_to_str(ln, state);
+	/* Set fc vport state based on virtual lanalde */
+	csio_lanalde_state_to_str(ln, state);
 	if (strcmp(state, "READY")) {
 		fc_vport_set_state(fc_vport, FC_VPORT_LINKDOWN);
 		return;
@@ -414,9 +414,9 @@ csio_vport_set_state(struct csio_lnode *ln)
 }
 
 static int
-csio_fcoe_alloc_vnp(struct csio_hw *hw, struct csio_lnode *ln)
+csio_fcoe_alloc_vnp(struct csio_hw *hw, struct csio_lanalde *ln)
 {
-	struct csio_lnode *pln;
+	struct csio_lanalde *pln;
 	struct csio_mb  *mbp;
 	struct fw_fcoe_vnp_cmd *rsp;
 	int ret = 0;
@@ -427,8 +427,8 @@ csio_fcoe_alloc_vnp(struct csio_hw *hw, struct csio_lnode *ln)
 	spin_lock_irq(&hw->lock);
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
-		ret = -ENOMEM;
+		CSIO_INC_STATS(hw, n_err_analmem);
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -495,7 +495,7 @@ out:
 }
 
 static int
-csio_fcoe_free_vnp(struct csio_hw *hw, struct csio_lnode *ln)
+csio_fcoe_free_vnp(struct csio_hw *hw, struct csio_lanalde *ln)
 {
 	struct csio_mb  *mbp;
 	struct fw_fcoe_vnp_cmd *rsp;
@@ -508,8 +508,8 @@ csio_fcoe_free_vnp(struct csio_hw *hw, struct csio_lnode *ln)
 	spin_lock_irq(&hw->lock);
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
-		ret = -ENOMEM;
+		CSIO_INC_STATS(hw, n_err_analmem);
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -552,9 +552,9 @@ static int
 csio_vport_create(struct fc_vport *fc_vport, bool disable)
 {
 	struct Scsi_Host *shost = fc_vport->shost;
-	struct csio_lnode *pln = shost_priv(shost);
-	struct csio_lnode *ln = NULL;
-	struct csio_hw *hw = csio_lnode_to_hw(pln);
+	struct csio_lanalde *pln = shost_priv(shost);
+	struct csio_lanalde *ln = NULL;
+	struct csio_hw *hw = csio_lanalde_to_hw(pln);
 	uint8_t wwn[8];
 	int ret = -1;
 
@@ -562,8 +562,8 @@ csio_vport_create(struct fc_vport *fc_vport, bool disable)
 	if (!ln)
 		goto error;
 
-	if (fc_vport->node_name != 0) {
-		u64_to_wwn(fc_vport->node_name, wwn);
+	if (fc_vport->analde_name != 0) {
+		u64_to_wwn(fc_vport->analde_name, wwn);
 
 		if (!CSIO_VALID_WWN(wwn)) {
 			csio_ln_err(ln,
@@ -582,7 +582,7 @@ csio_vport_create(struct fc_vport *fc_vport, bool disable)
 			goto error;
 		}
 
-		if (csio_lnode_lookup_by_wwpn(hw, wwn)) {
+		if (csio_lanalde_lookup_by_wwpn(hw, wwn)) {
 			csio_ln_err(ln,
 			    "vport create failed. wwpn already exists\n");
 			goto error;
@@ -596,9 +596,9 @@ csio_vport_create(struct fc_vport *fc_vport, bool disable)
 	if (csio_fcoe_alloc_vnp(hw, ln))
 		goto error;
 
-	*(struct csio_lnode **)fc_vport->dd_data = ln;
-	if (!fc_vport->node_name)
-		fc_vport->node_name = wwn_to_u64(csio_ln_wwnn(ln));
+	*(struct csio_lanalde **)fc_vport->dd_data = ln;
+	if (!fc_vport->analde_name)
+		fc_vport->analde_name = wwn_to_u64(csio_ln_wwnn(ln));
 	if (!fc_vport->port_name)
 		fc_vport->port_name = wwn_to_u64(csio_ln_wwpn(ln));
 	csio_fchost_attr_init(ln);
@@ -613,9 +613,9 @@ error:
 static int
 csio_vport_delete(struct fc_vport *fc_vport)
 {
-	struct csio_lnode *ln = *(struct csio_lnode **)fc_vport->dd_data;
+	struct csio_lanalde *ln = *(struct csio_lanalde **)fc_vport->dd_data;
 	struct Scsi_Host *shost = csio_ln_to_shost(ln);
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_hw *hw = csio_lanalde_to_hw(ln);
 	int rmv;
 
 	spin_lock_irq(&hw->lock);
@@ -627,11 +627,11 @@ csio_vport_delete(struct fc_vport *fc_vport)
 		return 0;
 	}
 
-	/* Quiesce ios and send remove event to lnode */
+	/* Quiesce ios and send remove event to lanalde */
 	scsi_block_requests(shost);
 	spin_lock_irq(&hw->lock);
-	csio_scsim_cleanup_io_lnode(csio_hw_to_scsim(hw), ln);
-	csio_lnode_close(ln);
+	csio_scsim_cleanup_io_lanalde(csio_hw_to_scsim(hw), ln);
+	csio_lanalde_close(ln);
 	spin_unlock_irq(&hw->lock);
 	scsi_unblock_requests(shost);
 
@@ -646,17 +646,17 @@ csio_vport_delete(struct fc_vport *fc_vport)
 static int
 csio_vport_disable(struct fc_vport *fc_vport, bool disable)
 {
-	struct csio_lnode *ln = *(struct csio_lnode **)fc_vport->dd_data;
+	struct csio_lanalde *ln = *(struct csio_lanalde **)fc_vport->dd_data;
 	struct Scsi_Host *shost = csio_ln_to_shost(ln);
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_hw *hw = csio_lanalde_to_hw(ln);
 
 	/* disable vport */
 	if (disable) {
-		/* Quiesce ios and send stop event to lnode */
+		/* Quiesce ios and send stop event to lanalde */
 		scsi_block_requests(shost);
 		spin_lock_irq(&hw->lock);
-		csio_scsim_cleanup_io_lnode(csio_hw_to_scsim(hw), ln);
-		csio_lnode_stop(ln);
+		csio_scsim_cleanup_io_lanalde(csio_hw_to_scsim(hw), ln);
+		csio_lanalde_stop(ln);
 		spin_unlock_irq(&hw->lock);
 		scsi_unblock_requests(shost);
 
@@ -680,28 +680,28 @@ csio_vport_disable(struct fc_vport *fc_vport, bool disable)
 static void
 csio_dev_loss_tmo_callbk(struct fc_rport *rport)
 {
-	struct csio_rnode *rn;
+	struct csio_ranalde *rn;
 	struct csio_hw *hw;
-	struct csio_lnode *ln;
+	struct csio_lanalde *ln;
 
-	rn = *((struct csio_rnode **)rport->dd_data);
-	ln = csio_rnode_to_lnode(rn);
-	hw = csio_lnode_to_hw(ln);
+	rn = *((struct csio_ranalde **)rport->dd_data);
+	ln = csio_ranalde_to_lanalde(rn);
+	hw = csio_lanalde_to_hw(ln);
 
 	spin_lock_irq(&hw->lock);
 
-	/* return if driver is being removed or same rnode comes back online */
-	if (csio_is_hw_removing(hw) || csio_is_rnode_ready(rn))
+	/* return if driver is being removed or same ranalde comes back online */
+	if (csio_is_hw_removing(hw) || csio_is_ranalde_ready(rn))
 		goto out;
 
-	csio_ln_dbg(ln, "devloss timeout on rnode:%p portid:x%x flowid:x%x\n",
+	csio_ln_dbg(ln, "devloss timeout on ranalde:%p portid:x%x flowid:x%x\n",
 		    rn, rn->nport_id, csio_rn_flowid(rn));
 
 	CSIO_INC_STATS(ln, n_dev_loss_tmo);
 
 	/*
 	 * enqueue devloss event to event worker thread to serialize all
-	 * rnode events.
+	 * ranalde events.
 	 */
 	if (csio_enqueue_evt(hw, CSIO_EVT_DEV_LOSS, &rn, sizeof(rn))) {
 		CSIO_INC_STATS(hw, n_evt_drop);
@@ -721,7 +721,7 @@ out:
 
 /* FC transport functions template - Physical port */
 struct fc_function_template csio_fc_transport_funcs = {
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -744,7 +744,7 @@ struct fc_function_template csio_fc_transport_funcs = {
 
 	.get_fc_host_stats = csio_get_stats,
 
-	.dd_fcrport_size = sizeof(struct csio_rnode *),
+	.dd_fcrport_size = sizeof(struct csio_ranalde *),
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
 
@@ -752,11 +752,11 @@ struct fc_function_template csio_fc_transport_funcs = {
 	.show_rport_dev_loss_tmo = 1,
 
 	.show_starget_port_id = 1,
-	.show_starget_node_name = 1,
+	.show_starget_analde_name = 1,
 	.show_starget_port_name = 1,
 
 	.dev_loss_tmo_callbk = csio_dev_loss_tmo_callbk,
-	.dd_fcvport_size = sizeof(struct csio_lnode *),
+	.dd_fcvport_size = sizeof(struct csio_lanalde *),
 
 	.vport_create = csio_vport_create,
 	.vport_disable = csio_vport_disable,
@@ -765,7 +765,7 @@ struct fc_function_template csio_fc_transport_funcs = {
 
 /* FC transport functions template - Virtual  port */
 struct fc_function_template csio_fc_transport_vport_funcs = {
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -789,7 +789,7 @@ struct fc_function_template csio_fc_transport_vport_funcs = {
 
 	.get_fc_host_stats = csio_get_stats,
 
-	.dd_fcrport_size = sizeof(struct csio_rnode *),
+	.dd_fcrport_size = sizeof(struct csio_ranalde *),
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
 
@@ -797,7 +797,7 @@ struct fc_function_template csio_fc_transport_vport_funcs = {
 	.show_rport_dev_loss_tmo = 1,
 
 	.show_starget_port_id = 1,
-	.show_starget_node_name = 1,
+	.show_starget_analde_name = 1,
 	.show_starget_port_name = 1,
 
 	.dev_loss_tmo_callbk = csio_dev_loss_tmo_callbk,

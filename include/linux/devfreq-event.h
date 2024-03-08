@@ -14,7 +14,7 @@
 /**
  * struct devfreq_event_dev - the devfreq-event device
  *
- * @node	: Contain the devfreq-event device that have been registered.
+ * @analde	: Contain the devfreq-event device that have been registered.
  * @dev		: the device registered by devfreq-event class. dev.parent is
  *		  the device using devfreq-event.
  * @lock	: a mutex to protect accessing devfreq-event.
@@ -24,7 +24,7 @@
  * This structure contains devfreq-event device information.
  */
 struct devfreq_event_dev {
-	struct list_head node;
+	struct list_head analde;
 
 	struct device dev;
 	struct mutex lock;

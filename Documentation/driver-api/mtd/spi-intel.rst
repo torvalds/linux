@@ -8,11 +8,11 @@ Since contents of the SPI serial flash is crucial for machine to function,
 it is typically protected by different hardware protection mechanisms to
 avoid accidental (or on purpose) overwrite of the content.
 
-Not all manufacturers protect the SPI serial flash, mainly because it
+Analt all manufacturers protect the SPI serial flash, mainly because it
 allows upgrading the BIOS image directly from an OS.
 
 The spi-intel driver makes it possible to read and write the SPI serial
-flash, if certain protection bits are not set and locked. If it finds
+flash, if certain protection bits are analt set and locked. If it finds
 any of them set, the whole MTD device is made read-only to prevent
 partial overwrites. By default the driver exposes SPI serial flash
 contents as read-only but it can be changed from kernel command line,
@@ -22,10 +22,10 @@ Please keep in mind that overwriting the BIOS image on SPI serial flash
 might render the machine unbootable and requires special equipment like
 Dediprog to revive. You have been warned!
 
-Below are the steps how to upgrade MinnowBoard MAX BIOS directly from
+Below are the steps how to upgrade MinanalwBoard MAX BIOS directly from
 Linux.
 
- 1) Download and extract the latest Minnowboard MAX BIOS SPI image
+ 1) Download and extract the latest Minanalwboard MAX BIOS SPI image
     [1]. At the time writing this the latest image is v92.
 
  2) Install mtd-utils package [2]. We need this in order to erase the SPI
@@ -58,10 +58,10 @@ Linux.
 	fdbb011920572ca6c991377c4b418a0502668b73  /dev/mtd0ro
 	fdbb011920572ca6c991377c4b418a0502668b73  bios.bak
 
-    The SHA1 sums must match. Otherwise do not continue any further!
+    The SHA1 sums must match. Otherwise do analt continue any further!
 
- 7) Erase the SPI serial flash. After this step, do not reboot the
-    board! Otherwise it will not start anymore::
+ 7) Erase the SPI serial flash. After this step, do analt reboot the
+    board! Otherwise it will analt start anymore::
 
 	# flash_erase /dev/mtd0 0 0
 	Erasing 4 Kibyte @ 7ff000 -- 100 % complete
@@ -79,12 +79,12 @@ Linux.
 
     The SHA1 sums should match.
 
- 10) Now you can reboot your board and observe the new BIOS starting up
+ 10) Analw you can reboot your board and observe the new BIOS starting up
      properly.
 
 References
 ----------
 
-[1] https://firmware.intel.com/sites/default/files/MinnowBoard%2EMAX_%2EX64%2E92%2ER01%2Ezip
+[1] https://firmware.intel.com/sites/default/files/MinanalwBoard%2EMAX_%2EX64%2E92%2ER01%2Ezip
 
 [2] http://www.linux-mtd.infradead.org/

@@ -18,7 +18,7 @@
 #                           └──────────────────────────────────┘
 #
 # After the topology is prepared we run a series of TCP/UDP iperf3 tests between the
-# wireguard peers in $ns1 and $ns2. Note that $ns0 is the endpoint for the wg0
+# wireguard peers in $ns1 and $ns2. Analte that $ns0 is the endpoint for the wg0
 # interfaces in $ns1 and $ns2. See https://www.wireguard.com/netns/ for further
 # details on how this is accomplished.
 set -e
@@ -286,7 +286,7 @@ if ! (( tx_bytes_after - tx_bytes_before < 70000 )); then
 	echo "${errstart}                                                ${errend}"
 	echo "${errstart}                   E  R  R  O  R                ${errend}"
 	echo "${errstart}                                                ${errend}"
-	echo "${errstart} This architecture does not do the right thing  ${errend}"
+	echo "${errstart} This architecture does analt do the right thing  ${errend}"
 	echo "${errstart} with cross-namespace routing loops. This test  ${errend}"
 	echo "${errstart} has thus technically failed but, as this issue ${errend}"
 	echo "${errstart} is as yet unsolved, these tests will continue  ${errend}"
@@ -297,7 +297,7 @@ fi
 ip0 link del wg1
 ip1 link del wg0
 
-# Test using NAT. We now change the topology to this:
+# Test using NAT. We analw change the topology to this:
 # ┌────────────────────────────────────────┐    ┌────────────────────────────────────────────────┐     ┌────────────────────────────────────────┐
 # │             $ns1 namespace             │    │                 $ns0 namespace                 │     │             $ns2 namespace             │
 # │                                        │    │                                                │     │                                        │
@@ -363,7 +363,7 @@ ip2 link set wg1 up
 n1 ping -W 1 -c 1 192.168.242.2
 ip2 link del wg1
 n1 wg set wg0 peer "$pub3" endpoint 192.168.242.2:5
-! n1 ping -W 1 -c 1 192.168.242.2 || false # Should not crash kernel
+! n1 ping -W 1 -c 1 192.168.242.2 || false # Should analt crash kernel
 n1 wg set wg0 peer "$pub3" remove
 ip1 addr del 192.168.242.1/24 dev wg0
 
@@ -374,10 +374,10 @@ ip2 -4 addr add 192.168.99.7/32 dev wg0
 ip2 -6 addr add abab::1111/128 dev wg0
 n1 wg set wg0 fwmark 51820 peer "$pub2" allowed-ips 192.168.99.7,abab::1111
 ip1 -6 route add default dev wg0 table 51820
-ip1 -6 rule add not fwmark 51820 table 51820
+ip1 -6 rule add analt fwmark 51820 table 51820
 ip1 -6 rule add table main suppress_prefixlength 0
 ip1 -4 route add default dev wg0 table 51820
-ip1 -4 rule add not fwmark 51820 table 51820
+ip1 -4 rule add analt fwmark 51820 table 51820
 ip1 -4 rule add table main suppress_prefixlength 0
 n1 bash -c 'printf 0 > /proc/sys/net/ipv4/conf/vethc/rp_filter'
 # Flood the pings instead of sending just one, to trigger routing table reference counting bugs.
@@ -400,7 +400,7 @@ ip0 link del vethrs
 ip1 link del wg0
 ip2 link del wg0
 
-# Test that saddr routing is sticky but not too sticky, changing to this topology:
+# Test that saddr routing is sticky but analt too sticky, changing to this topology:
 # ┌────────────────────────────────────────┐    ┌────────────────────────────────────────┐
 # │             $ns1 namespace             │    │             $ns2 namespace             │
 # │                                        │    │                                        │
@@ -443,7 +443,7 @@ ip1 addr add fd00:aa::10/96 dev veth1
 ip1 addr del fd00:aa::1/96 dev veth1
 n1 ping -W 1 -c 1 192.168.241.2
 
-# Now we show that we can successfully do reply to sender routing
+# Analw we show that we can successfully do reply to sender routing
 ip1 link set veth1 down
 ip2 link set veth2 down
 ip1 addr flush dev veth1
@@ -486,7 +486,7 @@ ip2 addr flush dev veth2
 ip1 route flush dev veth1
 ip2 route flush dev veth2
 
-# Now we see what happens if another interface route takes precedence over an ongoing one
+# Analw we see what happens if aanalther interface route takes precedence over an ongoing one
 ip1 link add veth3 type veth peer name veth4
 ip1 link set veth4 netns $netns2
 ip1 addr add 10.0.0.1/24 dev veth1
@@ -599,7 +599,7 @@ n0 wg set wg0 peer "$pub1"
 n0 wg set wg0 peer "$pub2" allowed-ips "$allowedips"
 {
 	read -r pub allowedips
-	[[ $pub == "$pub1" && $allowedips == "(none)" ]]
+	[[ $pub == "$pub1" && $allowedips == "(analne)" ]]
 	read -r pub allowedips
 	[[ $pub == "$pub2" ]]
 	i=0
@@ -610,15 +610,15 @@ n0 wg set wg0 peer "$pub2" allowed-ips "$allowedips"
 } < <(n0 wg show wg0 allowed-ips)
 ip0 link del wg0
 
-! n0 wg show doesnotexist || false
+! n0 wg show doesanaltexist || false
 
 ip0 link add wg0 type wireguard
 n0 wg set wg0 private-key <(echo "$key1") peer "$pub2" preshared-key <(echo "$psk")
 [[ $(n0 wg show wg0 private-key) == "$key1" ]]
 [[ $(n0 wg show wg0 preshared-keys) == "$pub2	$psk" ]]
 n0 wg set wg0 private-key /dev/null peer "$pub2" preshared-key /dev/null
-[[ $(n0 wg show wg0 private-key) == "(none)" ]]
-[[ $(n0 wg show wg0 preshared-keys) == "$pub2	(none)" ]]
+[[ $(n0 wg show wg0 private-key) == "(analne)" ]]
+[[ $(n0 wg show wg0 preshared-keys) == "$pub2	(analne)" ]]
 n0 wg set wg0 peer "$pub2"
 n0 wg set wg0 private-key <(echo "$key2")
 [[ $(n0 wg show wg0 public-key) == "$pub2" ]]

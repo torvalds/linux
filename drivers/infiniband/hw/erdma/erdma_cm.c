@@ -221,7 +221,7 @@ static int erdma_cm_alloc_work(struct erdma_cep *cep, int num)
 		if (!work) {
 			if (!(list_empty(&cep->work_freelist)))
 				erdma_cm_free_work(cep);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		work->cep = cep;
 		INIT_LIST_HEAD(&work->list);
@@ -497,7 +497,7 @@ static int erdma_recv_mpa_rr(struct erdma_cep *cep)
 	if (!cep->mpa.pdata) {
 		cep->mpa.pdata = kmalloc(pd_len + 4, GFP_KERNEL);
 		if (!cep->mpa.pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	rcvd = ksock_recv(s, cep->mpa.pdata + pd_rcvd, to_rcv + 4,
@@ -538,7 +538,7 @@ static int erdma_proc_mpareq(struct erdma_cep *cep)
 
 	memcpy(req->key, MPA_KEY_REP, MPA_KEY_SIZE);
 
-	/* Currently does not support marker and crc. */
+	/* Currently does analt support marker and crc. */
 	if (req->params.bits & MPA_RR_FLAG_MARKERS ||
 	    req->params.bits & MPA_RR_FLAG_CRC)
 		goto reject_conn;
@@ -562,7 +562,7 @@ reject_conn:
 	cep->mpa.pdata = NULL;
 	erdma_send_mpareqrep(cep, NULL, 0);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int erdma_proc_mpareply(struct erdma_cep *cep)
@@ -590,7 +590,7 @@ static int erdma_proc_mpareply(struct erdma_cep *cep)
 		return -ECONNRESET;
 	}
 
-	/* Currently does not support marker and crc. */
+	/* Currently does analt support marker and crc. */
 	if ((rep->params.bits & MPA_RR_FLAG_MARKERS) ||
 	    (rep->params.bits & MPA_RR_FLAG_CRC)) {
 		erdma_cm_upcall(cep, IW_CM_EVENT_CONNECT_REPLY, -ECONNREFUSED);
@@ -665,7 +665,7 @@ static void erdma_accept_newconn(struct erdma_cep *cep)
 	new_cep->sk_data_ready = cep->sk_data_ready;
 	new_cep->sk_error_report = cep->sk_error_report;
 
-	ret = kernel_accept(s, &new_s, O_NONBLOCK);
+	ret = kernel_accept(s, &new_s, O_ANALNBLOCK);
 	if (ret != 0)
 		goto error;
 
@@ -673,7 +673,7 @@ static void erdma_accept_newconn(struct erdma_cep *cep)
 	erdma_cep_get(new_cep);
 	new_s->sk->sk_user_data = new_cep;
 
-	tcp_sock_set_nodelay(new_s->sk);
+	tcp_sock_set_analdelay(new_s->sk);
 	new_cep->state = ERDMA_EPSTATE_AWAIT_MPAREQ;
 
 	ret = erdma_cm_queue_work(new_cep, ERDMA_CM_WORK_MPATIMEOUT);
@@ -806,13 +806,13 @@ static void erdma_cm_work_handler(struct work_struct *w)
 			if (cep->state == ERDMA_EPSTATE_CONNECTING ||
 			    cep->state == ERDMA_EPSTATE_AWAIT_MPAREP) {
 				/*
-				 * MPA reply not received, but connection drop
+				 * MPA reply analt received, but connection drop
 				 */
 				erdma_cm_upcall(cep, IW_CM_EVENT_CONNECT_REPLY,
 						-ECONNRESET);
 			} else if (cep->state == ERDMA_EPSTATE_RDMA_MODE) {
 				/*
-				 * NOTE: IW_CM_EVENT_DISCONNECT is given just
+				 * ANALTE: IW_CM_EVENT_DISCONNECT is given just
 				 *       to transition IWCM into CLOSING.
 				 */
 				erdma_cm_upcall(cep, IW_CM_EVENT_DISCONNECT, 0);
@@ -840,7 +840,7 @@ static void erdma_cm_work_handler(struct work_struct *w)
 						-ETIMEDOUT);
 			release_cep = 1;
 		} else if (cep->state == ERDMA_EPSTATE_AWAIT_MPAREQ) {
-			/* No MPA req received after peer TCP stream setup. */
+			/* Anal MPA req received after peer TCP stream setup. */
 			erdma_disassoc_listen_cep(cep);
 
 			erdma_cep_put(cep);
@@ -895,7 +895,7 @@ int erdma_cm_queue_work(struct erdma_cep *cep, enum erdma_work_type type)
 	unsigned long delay = 0;
 
 	if (!work)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	work->type = type;
 	work->cep = cep;
@@ -1016,11 +1016,11 @@ int erdma_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 		return -EINVAL;
 
 	if (laddr->sa_family != AF_INET || raddr->sa_family != AF_INET)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	qp = find_qp_by_qpn(dev, params->qpn);
 	if (!qp)
-		return -ENOENT;
+		return -EANALENT;
 	erdma_qp_get(qp);
 
 	ret = sock_create(AF_INET, SOCK_STREAM, IPPROTO_TCP, &s);
@@ -1029,7 +1029,7 @@ int erdma_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 
 	cep = erdma_cep_alloc(dev);
 	if (!cep) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_release_sock;
 	}
 
@@ -1052,7 +1052,7 @@ int erdma_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	 */
 	ret = erdma_cm_alloc_work(cep, 6);
 	if (ret != 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_release_cep;
 	}
 
@@ -1066,7 +1066,7 @@ int erdma_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 		cep->pd_len = pd_len;
 		cep->private_data = kmalloc(pd_len, GFP_KERNEL);
 		if (!cep->private_data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error_disassoc;
 		}
 
@@ -1075,7 +1075,7 @@ int erdma_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	}
 
 	ret = kernel_bindconnect(s, laddr, sizeof(*laddr), raddr,
-				 sizeof(*raddr), O_NONBLOCK);
+				 sizeof(*raddr), O_ANALNBLOCK);
 	if (ret != -EINPROGRESS && ret != 0) {
 		goto error_disassoc;
 	} else if (ret == 0) {
@@ -1152,7 +1152,7 @@ int erdma_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 
 	qp = find_qp_by_qpn(dev, params->qpn);
 	if (!qp)
-		return -ENOENT;
+		return -EANALENT;
 	erdma_qp_get(qp);
 
 	down_write(&qp->state_lock);
@@ -1297,7 +1297,7 @@ int erdma_create_listen(struct iw_cm_id *id, int backlog)
 	struct sockaddr_in *laddr = &to_sockaddr_in(id->local_addr);
 
 	if (addr_family != AF_INET)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	ret = sock_create(addr_family, SOCK_STREAM, IPPROTO_TCP, &s);
 	if (ret < 0)
@@ -1316,7 +1316,7 @@ int erdma_create_listen(struct iw_cm_id *id, int backlog)
 
 	cep = erdma_cep_alloc(dev);
 	if (!cep) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 	erdma_cep_socket_assoc(cep, s);
@@ -1336,7 +1336,7 @@ int erdma_create_listen(struct iw_cm_id *id, int backlog)
 		id->provider_data =
 			kmalloc(sizeof(struct list_head), GFP_KERNEL);
 		if (!id->provider_data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 		INIT_LIST_HEAD((struct list_head *)id->provider_data);
@@ -1413,7 +1413,7 @@ int erdma_cm_init(void)
 {
 	erdma_cm_wq = create_singlethread_workqueue("erdma_cm_wq");
 	if (!erdma_cm_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

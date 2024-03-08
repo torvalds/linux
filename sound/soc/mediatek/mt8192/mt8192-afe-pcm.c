@@ -311,10 +311,10 @@ static struct snd_soc_dai_driver mt8192_memif_dai_driver[] = {
 		.ops = &mtk_afe_fe_ops,
 	},
 	{
-		.name = "UL_MONO_1",
+		.name = "UL_MOANAL_1",
 		.id = MT8192_MEMIF_MOD_DAI,
 		.capture = {
-			.stream_name = "UL_MONO_1",
+			.stream_name = "UL_MOANAL_1",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = MTK_PCM_DAI_RATES,
@@ -323,10 +323,10 @@ static struct snd_soc_dai_driver mt8192_memif_dai_driver[] = {
 		.ops = &mtk_afe_fe_ops,
 	},
 	{
-		.name = "UL_MONO_2",
+		.name = "UL_MOANAL_2",
 		.id = MT8192_MEMIF_DAI,
 		.capture = {
-			.stream_name = "UL_MONO_2",
+			.stream_name = "UL_MOANAL_2",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = MTK_PCM_DAI_RATES,
@@ -335,10 +335,10 @@ static struct snd_soc_dai_driver mt8192_memif_dai_driver[] = {
 		.ops = &mtk_afe_fe_ops,
 	},
 	{
-		.name = "UL_MONO_3",
+		.name = "UL_MOANAL_3",
 		.id = MT8192_MEMIF_DAI2,
 		.capture = {
-			.stream_name = "UL_MONO_3",
+			.stream_name = "UL_MOANAL_3",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = MTK_PCM_DAI_RATES,
@@ -613,19 +613,19 @@ static const struct snd_kcontrol_new memif_ul8_ch2_mix[] = {
 				    I_ADDA_UL_CH2, 1, 0),
 };
 
-static const struct snd_kcontrol_new memif_ul_mono_1_mix[] = {
+static const struct snd_kcontrol_new memif_ul_moanal_1_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("PCM_1_CAP_CH1", AFE_CONN12,
 				    I_PCM_1_CAP_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("PCM_2_CAP_CH1", AFE_CONN12,
 				    I_PCM_2_CAP_CH1, 1, 0),
 };
 
-static const struct snd_kcontrol_new memif_ul_mono_2_mix[] = {
+static const struct snd_kcontrol_new memif_ul_moanal_2_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH1", AFE_CONN11,
 				    I_ADDA_UL_CH1, 1, 0),
 };
 
-static const struct snd_kcontrol_new memif_ul_mono_3_mix[] = {
+static const struct snd_kcontrol_new memif_ul_moanal_3_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH1", AFE_CONN35,
 				    I_ADDA_UL_CH1, 1, 0),
 };
@@ -638,11 +638,11 @@ enum {
 	TINYCONN_CH2_MUX_I2S6 = 0x1b,
 	TINYCONN_CH1_MUX_I2S8 = 0x1c,
 	TINYCONN_CH2_MUX_I2S8 = 0x1d,
-	TINYCONN_MUX_NONE = 0x1f,
+	TINYCONN_MUX_ANALNE = 0x1f,
 };
 
 static const char * const tinyconn_mux_map[] = {
-	"NONE",
+	"ANALNE",
 	"I2S0_CH1",
 	"I2S0_CH2",
 	"I2S6_CH1",
@@ -652,7 +652,7 @@ static const char * const tinyconn_mux_map[] = {
 };
 
 static int tinyconn_mux_map_value[] = {
-	TINYCONN_MUX_NONE,
+	TINYCONN_MUX_ANALNE,
 	TINYCONN_CH1_MUX_I2S0,
 	TINYCONN_CH2_MUX_I2S0,
 	TINYCONN_CH1_MUX_I2S6,
@@ -681,69 +681,69 @@ static const struct snd_kcontrol_new ul4_tinyconn_ch2_mux_control =
 
 static const struct snd_soc_dapm_widget mt8192_memif_widgets[] = {
 	/* inter-connections */
-	SND_SOC_DAPM_MIXER("UL1_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL1_CH1", SND_SOC_ANALPM, 0, 0,
 			   memif_ul1_ch1_mix, ARRAY_SIZE(memif_ul1_ch1_mix)),
-	SND_SOC_DAPM_MIXER("UL1_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL1_CH2", SND_SOC_ANALPM, 0, 0,
 			   memif_ul1_ch2_mix, ARRAY_SIZE(memif_ul1_ch2_mix)),
-	SND_SOC_DAPM_MIXER("UL1_CH3", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL1_CH3", SND_SOC_ANALPM, 0, 0,
 			   memif_ul1_ch3_mix, ARRAY_SIZE(memif_ul1_ch3_mix)),
-	SND_SOC_DAPM_MIXER("UL1_CH4", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL1_CH4", SND_SOC_ANALPM, 0, 0,
 			   memif_ul1_ch4_mix, ARRAY_SIZE(memif_ul1_ch4_mix)),
 
-	SND_SOC_DAPM_MIXER("UL2_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL2_CH1", SND_SOC_ANALPM, 0, 0,
 			   memif_ul2_ch1_mix, ARRAY_SIZE(memif_ul2_ch1_mix)),
-	SND_SOC_DAPM_MIXER("UL2_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL2_CH2", SND_SOC_ANALPM, 0, 0,
 			   memif_ul2_ch2_mix, ARRAY_SIZE(memif_ul2_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("UL3_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL3_CH1", SND_SOC_ANALPM, 0, 0,
 			   memif_ul3_ch1_mix, ARRAY_SIZE(memif_ul3_ch1_mix)),
-	SND_SOC_DAPM_MIXER("UL3_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL3_CH2", SND_SOC_ANALPM, 0, 0,
 			   memif_ul3_ch2_mix, ARRAY_SIZE(memif_ul3_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("UL4_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL4_CH1", SND_SOC_ANALPM, 0, 0,
 			   memif_ul4_ch1_mix, ARRAY_SIZE(memif_ul4_ch1_mix)),
-	SND_SOC_DAPM_MIXER("UL4_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL4_CH2", SND_SOC_ANALPM, 0, 0,
 			   memif_ul4_ch2_mix, ARRAY_SIZE(memif_ul4_ch2_mix)),
-	SND_SOC_DAPM_MUX_E("UL4_TINYCONN_CH1_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX_E("UL4_TINYCONN_CH1_MUX", SND_SOC_ANALPM, 0, 0,
 			   &ul4_tinyconn_ch1_mux_control,
 			   ul_tinyconn_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX_E("UL4_TINYCONN_CH2_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX_E("UL4_TINYCONN_CH2_MUX", SND_SOC_ANALPM, 0, 0,
 			   &ul4_tinyconn_ch2_mux_control,
 			   ul_tinyconn_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_MIXER("UL5_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL5_CH1", SND_SOC_ANALPM, 0, 0,
 			   memif_ul5_ch1_mix, ARRAY_SIZE(memif_ul5_ch1_mix)),
-	SND_SOC_DAPM_MIXER("UL5_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL5_CH2", SND_SOC_ANALPM, 0, 0,
 			   memif_ul5_ch2_mix, ARRAY_SIZE(memif_ul5_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("UL6_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL6_CH1", SND_SOC_ANALPM, 0, 0,
 			   memif_ul6_ch1_mix, ARRAY_SIZE(memif_ul6_ch1_mix)),
-	SND_SOC_DAPM_MIXER("UL6_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL6_CH2", SND_SOC_ANALPM, 0, 0,
 			   memif_ul6_ch2_mix, ARRAY_SIZE(memif_ul6_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("UL7_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL7_CH1", SND_SOC_ANALPM, 0, 0,
 			   memif_ul7_ch1_mix, ARRAY_SIZE(memif_ul7_ch1_mix)),
-	SND_SOC_DAPM_MIXER("UL7_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL7_CH2", SND_SOC_ANALPM, 0, 0,
 			   memif_ul7_ch2_mix, ARRAY_SIZE(memif_ul7_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("UL8_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL8_CH1", SND_SOC_ANALPM, 0, 0,
 			   memif_ul8_ch1_mix, ARRAY_SIZE(memif_ul8_ch1_mix)),
-	SND_SOC_DAPM_MIXER("UL8_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("UL8_CH2", SND_SOC_ANALPM, 0, 0,
 			   memif_ul8_ch2_mix, ARRAY_SIZE(memif_ul8_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("UL_MONO_1_CH1", SND_SOC_NOPM, 0, 0,
-			   memif_ul_mono_1_mix,
-			   ARRAY_SIZE(memif_ul_mono_1_mix)),
+	SND_SOC_DAPM_MIXER("UL_MOANAL_1_CH1", SND_SOC_ANALPM, 0, 0,
+			   memif_ul_moanal_1_mix,
+			   ARRAY_SIZE(memif_ul_moanal_1_mix)),
 
-	SND_SOC_DAPM_MIXER("UL_MONO_2_CH1", SND_SOC_NOPM, 0, 0,
-			   memif_ul_mono_2_mix,
-			   ARRAY_SIZE(memif_ul_mono_2_mix)),
+	SND_SOC_DAPM_MIXER("UL_MOANAL_2_CH1", SND_SOC_ANALPM, 0, 0,
+			   memif_ul_moanal_2_mix,
+			   ARRAY_SIZE(memif_ul_moanal_2_mix)),
 
-	SND_SOC_DAPM_MIXER("UL_MONO_3_CH1", SND_SOC_NOPM, 0, 0,
-			   memif_ul_mono_3_mix,
-			   ARRAY_SIZE(memif_ul_mono_3_mix)),
+	SND_SOC_DAPM_MIXER("UL_MOANAL_3_CH1", SND_SOC_ANALPM, 0, 0,
+			   memif_ul_moanal_3_mix,
+			   ARRAY_SIZE(memif_ul_moanal_3_mix)),
 
 	SND_SOC_DAPM_INPUT("UL1_VIRTUAL_INPUT"),
 	SND_SOC_DAPM_INPUT("UL2_VIRTUAL_INPUT"),
@@ -786,15 +786,15 @@ static const struct snd_soc_dapm_route mt8192_memif_routes[] = {
 	{"UL2_CH1", "PCM_2_CAP_CH1", "PCM 2 Capture"},
 	{"UL2_CH2", "PCM_2_CAP_CH1", "PCM 2 Capture"},
 
-	{"UL_MONO_1", NULL, "UL_MONO_1_CH1"},
-	{"UL_MONO_1_CH1", "PCM_1_CAP_CH1", "PCM 1 Capture"},
-	{"UL_MONO_1_CH1", "PCM_2_CAP_CH1", "PCM 2 Capture"},
+	{"UL_MOANAL_1", NULL, "UL_MOANAL_1_CH1"},
+	{"UL_MOANAL_1_CH1", "PCM_1_CAP_CH1", "PCM 1 Capture"},
+	{"UL_MOANAL_1_CH1", "PCM_2_CAP_CH1", "PCM 2 Capture"},
 
-	{"UL_MONO_2", NULL, "UL_MONO_2_CH1"},
-	{"UL_MONO_2_CH1", "ADDA_UL_CH1", "ADDA_UL_Mux"},
+	{"UL_MOANAL_2", NULL, "UL_MOANAL_2_CH1"},
+	{"UL_MOANAL_2_CH1", "ADDA_UL_CH1", "ADDA_UL_Mux"},
 
-	{"UL_MONO_3", NULL, "UL_MONO_3_CH1"},
-	{"UL_MONO_3_CH1", "ADDA_UL_CH1", "ADDA_UL_Mux"},
+	{"UL_MOANAL_3", NULL, "UL_MOANAL_3_CH1"},
+	{"UL_MOANAL_3_CH1", "ADDA_UL_CH1", "ADDA_UL_Mux"},
 
 	{"UL2_CH1", "CONNSYS_I2S_CH1", "Connsys I2S"},
 	{"UL2_CH2", "CONNSYS_I2S_CH2", "Connsys I2S"},
@@ -854,8 +854,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL1_CON0,
 		.fs_shift = DL1_MODE_SFT,
 		.fs_maskbit = DL1_MODE_MASK,
-		.mono_reg = AFE_DL1_CON0,
-		.mono_shift = DL1_MONO_SFT,
+		.moanal_reg = AFE_DL1_CON0,
+		.moanal_shift = DL1_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL1_ON_SFT,
 		.hd_reg = AFE_DL1_CON0,
@@ -879,8 +879,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL12_CON0,
 		.fs_shift = DL12_MODE_SFT,
 		.fs_maskbit = DL12_MODE_MASK,
-		.mono_reg = AFE_DL12_CON0,
-		.mono_shift = DL12_MONO_SFT,
+		.moanal_reg = AFE_DL12_CON0,
+		.moanal_shift = DL12_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL12_ON_SFT,
 		.hd_reg = AFE_DL12_CON0,
@@ -904,8 +904,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL2_CON0,
 		.fs_shift = DL2_MODE_SFT,
 		.fs_maskbit = DL2_MODE_MASK,
-		.mono_reg = AFE_DL2_CON0,
-		.mono_shift = DL2_MONO_SFT,
+		.moanal_reg = AFE_DL2_CON0,
+		.moanal_shift = DL2_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL2_ON_SFT,
 		.hd_reg = AFE_DL2_CON0,
@@ -929,8 +929,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL3_CON0,
 		.fs_shift = DL3_MODE_SFT,
 		.fs_maskbit = DL3_MODE_MASK,
-		.mono_reg = AFE_DL3_CON0,
-		.mono_shift = DL3_MONO_SFT,
+		.moanal_reg = AFE_DL3_CON0,
+		.moanal_shift = DL3_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL3_ON_SFT,
 		.hd_reg = AFE_DL3_CON0,
@@ -954,8 +954,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL4_CON0,
 		.fs_shift = DL4_MODE_SFT,
 		.fs_maskbit = DL4_MODE_MASK,
-		.mono_reg = AFE_DL4_CON0,
-		.mono_shift = DL4_MONO_SFT,
+		.moanal_reg = AFE_DL4_CON0,
+		.moanal_shift = DL4_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL4_ON_SFT,
 		.hd_reg = AFE_DL4_CON0,
@@ -979,8 +979,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL5_CON0,
 		.fs_shift = DL5_MODE_SFT,
 		.fs_maskbit = DL5_MODE_MASK,
-		.mono_reg = AFE_DL5_CON0,
-		.mono_shift = DL5_MONO_SFT,
+		.moanal_reg = AFE_DL5_CON0,
+		.moanal_shift = DL5_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL5_ON_SFT,
 		.hd_reg = AFE_DL5_CON0,
@@ -1004,8 +1004,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL6_CON0,
 		.fs_shift = DL6_MODE_SFT,
 		.fs_maskbit = DL6_MODE_MASK,
-		.mono_reg = AFE_DL6_CON0,
-		.mono_shift = DL6_MONO_SFT,
+		.moanal_reg = AFE_DL6_CON0,
+		.moanal_shift = DL6_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL6_ON_SFT,
 		.hd_reg = AFE_DL6_CON0,
@@ -1029,8 +1029,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL7_CON0,
 		.fs_shift = DL7_MODE_SFT,
 		.fs_maskbit = DL7_MODE_MASK,
-		.mono_reg = AFE_DL7_CON0,
-		.mono_shift = DL7_MONO_SFT,
+		.moanal_reg = AFE_DL7_CON0,
+		.moanal_shift = DL7_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL7_ON_SFT,
 		.hd_reg = AFE_DL7_CON0,
@@ -1054,8 +1054,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL8_CON0,
 		.fs_shift = DL8_MODE_SFT,
 		.fs_maskbit = DL8_MODE_MASK,
-		.mono_reg = AFE_DL8_CON0,
-		.mono_shift = DL8_MONO_SFT,
+		.moanal_reg = AFE_DL8_CON0,
+		.moanal_shift = DL8_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL8_ON_SFT,
 		.hd_reg = AFE_DL8_CON0,
@@ -1079,8 +1079,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DL9_CON0,
 		.fs_shift = DL9_MODE_SFT,
 		.fs_maskbit = DL9_MODE_MASK,
-		.mono_reg = AFE_DL9_CON0,
-		.mono_shift = DL9_MONO_SFT,
+		.moanal_reg = AFE_DL9_CON0,
+		.moanal_shift = DL9_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL9_ON_SFT,
 		.hd_reg = AFE_DL9_CON0,
@@ -1104,9 +1104,9 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DAI_CON0,
 		.fs_shift = DAI_MODE_SFT,
 		.fs_maskbit = DAI_MODE_MASK,
-		.mono_reg = AFE_DAI_CON0,
-		.mono_shift = DAI_DUPLICATE_WR_SFT,
-		.mono_invert = 1,
+		.moanal_reg = AFE_DAI_CON0,
+		.moanal_shift = DAI_DUPLICATE_WR_SFT,
+		.moanal_invert = 1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DAI_ON_SFT,
 		.hd_reg = AFE_DAI_CON0,
@@ -1126,9 +1126,9 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_MOD_DAI_CON0,
 		.fs_shift = MOD_DAI_MODE_SFT,
 		.fs_maskbit = MOD_DAI_MODE_MASK,
-		.mono_reg = AFE_MOD_DAI_CON0,
-		.mono_shift = MOD_DAI_DUPLICATE_WR_SFT,
-		.mono_invert = 1,
+		.moanal_reg = AFE_MOD_DAI_CON0,
+		.moanal_shift = MOD_DAI_DUPLICATE_WR_SFT,
+		.moanal_invert = 1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = MOD_DAI_ON_SFT,
 		.hd_reg = AFE_MOD_DAI_CON0,
@@ -1148,9 +1148,9 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_DAI2_CON0,
 		.fs_shift = DAI2_MODE_SFT,
 		.fs_maskbit = DAI2_MODE_MASK,
-		.mono_reg = AFE_DAI2_CON0,
-		.mono_shift = DAI2_DUPLICATE_WR_SFT,
-		.mono_invert = 1,
+		.moanal_reg = AFE_DAI2_CON0,
+		.moanal_shift = DAI2_DUPLICATE_WR_SFT,
+		.moanal_invert = 1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DAI2_ON_SFT,
 		.hd_reg = AFE_DAI2_CON0,
@@ -1170,8 +1170,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_VUL12_CON0,
 		.fs_shift = VUL12_MODE_SFT,
 		.fs_maskbit = VUL12_MODE_MASK,
-		.mono_reg = AFE_VUL12_CON0,
-		.mono_shift = VUL12_MONO_SFT,
+		.moanal_reg = AFE_VUL12_CON0,
+		.moanal_shift = VUL12_MOANAL_SFT,
 		.quad_ch_reg = AFE_VUL12_CON0,
 		.quad_ch_shift = VUL12_4CH_EN_SFT,
 		.quad_ch_mask = VUL12_4CH_EN_MASK,
@@ -1194,8 +1194,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_VUL2_CON0,
 		.fs_shift = VUL2_MODE_SFT,
 		.fs_maskbit = VUL2_MODE_MASK,
-		.mono_reg = AFE_VUL2_CON0,
-		.mono_shift = VUL2_MONO_SFT,
+		.moanal_reg = AFE_VUL2_CON0,
+		.moanal_shift = VUL2_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = VUL2_ON_SFT,
 		.hd_reg = AFE_VUL2_CON0,
@@ -1215,8 +1215,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_AWB_CON0,
 		.fs_shift = AWB_MODE_SFT,
 		.fs_maskbit = AWB_MODE_MASK,
-		.mono_reg = AFE_AWB_CON0,
-		.mono_shift = AWB_MONO_SFT,
+		.moanal_reg = AFE_AWB_CON0,
+		.moanal_shift = AWB_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = AWB_ON_SFT,
 		.hd_reg = AFE_AWB_CON0,
@@ -1236,8 +1236,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_AWB2_CON0,
 		.fs_shift = AWB2_MODE_SFT,
 		.fs_maskbit = AWB2_MODE_MASK,
-		.mono_reg = AFE_AWB2_CON0,
-		.mono_shift = AWB2_MONO_SFT,
+		.moanal_reg = AFE_AWB2_CON0,
+		.moanal_shift = AWB2_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = AWB2_ON_SFT,
 		.hd_reg = AFE_AWB2_CON0,
@@ -1257,8 +1257,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_VUL3_CON0,
 		.fs_shift = VUL3_MODE_SFT,
 		.fs_maskbit = VUL3_MODE_MASK,
-		.mono_reg = AFE_VUL3_CON0,
-		.mono_shift = VUL3_MONO_SFT,
+		.moanal_reg = AFE_VUL3_CON0,
+		.moanal_shift = VUL3_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = VUL3_ON_SFT,
 		.hd_reg = AFE_VUL3_CON0,
@@ -1278,8 +1278,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_VUL4_CON0,
 		.fs_shift = VUL4_MODE_SFT,
 		.fs_maskbit = VUL4_MODE_MASK,
-		.mono_reg = AFE_VUL4_CON0,
-		.mono_shift = VUL4_MONO_SFT,
+		.moanal_reg = AFE_VUL4_CON0,
+		.moanal_shift = VUL4_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = VUL4_ON_SFT,
 		.hd_reg = AFE_VUL4_CON0,
@@ -1299,8 +1299,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_VUL5_CON0,
 		.fs_shift = VUL5_MODE_SFT,
 		.fs_maskbit = VUL5_MODE_MASK,
-		.mono_reg = AFE_VUL5_CON0,
-		.mono_shift = VUL5_MONO_SFT,
+		.moanal_reg = AFE_VUL5_CON0,
+		.moanal_shift = VUL5_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = VUL5_ON_SFT,
 		.hd_reg = AFE_VUL5_CON0,
@@ -1320,8 +1320,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = AFE_VUL6_CON0,
 		.fs_shift = VUL6_MODE_SFT,
 		.fs_maskbit = VUL6_MODE_MASK,
-		.mono_reg = AFE_VUL6_CON0,
-		.mono_shift = VUL6_MONO_SFT,
+		.moanal_reg = AFE_VUL6_CON0,
+		.moanal_shift = VUL6_MOANAL_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = VUL6_ON_SFT,
 		.hd_reg = AFE_VUL6_CON0,
@@ -1341,8 +1341,8 @@ static const struct mtk_base_memif_data memif_data[MT8192_MEMIF_NUM] = {
 		.fs_reg = -1,
 		.fs_shift = -1,
 		.fs_maskbit = -1,
-		.mono_reg = -1,
-		.mono_shift = -1,
+		.moanal_reg = -1,
+		.moanal_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = HDMI_OUT_ON_SFT,
 		.hd_reg = AFE_HDMI_OUT_CON0,
@@ -1750,7 +1750,7 @@ static const int memif_irq_usage[MT8192_MEMIF_NUM] = {
 static bool mt8192_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/* these auto-gen reg has read-only bit, so put it as volatile */
-	/* volatile reg cannot be cached, so cannot be set when power off */
+	/* volatile reg cananalt be cached, so cananalt be set when power off */
 	switch (reg) {
 	case AUDIO_TOP_CON0:	/* reg bit controlled by CCF */
 	case AUDIO_TOP_CON1:	/* reg bit controlled by CCF */
@@ -2147,7 +2147,7 @@ static int mt8192_dai_memif_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 
@@ -2184,13 +2184,13 @@ static int mt8192_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	afe = devm_kzalloc(&pdev->dev, sizeof(*afe), GFP_KERNEL);
 	if (!afe)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, afe);
 
 	afe->platform_priv = devm_kzalloc(&pdev->dev, sizeof(*afe_priv),
 					  GFP_KERNEL);
 	if (!afe->platform_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	afe_priv = afe->platform_priv;
 
 	afe->dev = &pdev->dev;
@@ -2207,7 +2207,7 @@ static int mt8192_afe_pcm_dev_probe(struct platform_device *pdev)
 	rstc = devm_reset_control_get_exclusive(dev, "audiosys");
 	if (IS_ERR(rstc)) {
 		ret = PTR_ERR(rstc);
-		dev_err(dev, "could not get audiosys reset:%d\n", ret);
+		dev_err(dev, "could analt get audiosys reset:%d\n", ret);
 		return ret;
 	}
 
@@ -2222,9 +2222,9 @@ static int mt8192_afe_pcm_dev_probe(struct platform_device *pdev)
 		goto err_pm_disable;
 
 	/* regmap init */
-	afe->regmap = syscon_node_to_regmap(dev->parent->of_node);
+	afe->regmap = syscon_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(afe->regmap)) {
-		dev_err(dev, "could not get regmap from parent\n");
+		dev_err(dev, "could analt get regmap from parent\n");
 		ret = PTR_ERR(afe->regmap);
 		goto err_pm_disable;
 	}
@@ -2255,7 +2255,7 @@ static int mt8192_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->memif = devm_kcalloc(dev, afe->memif_size, sizeof(*afe->memif),
 				  GFP_KERNEL);
 	if (!afe->memif) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pm_disable;
 	}
 
@@ -2272,7 +2272,7 @@ static int mt8192_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->irqs = devm_kcalloc(dev, afe->irqs_size, sizeof(*afe->irqs),
 				 GFP_KERNEL);
 	if (!afe->irqs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pm_disable;
 	}
 
@@ -2287,9 +2287,9 @@ static int mt8192_afe_pcm_dev_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(dev, irq_id, mt8192_afe_irq_handler,
-			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);
+			       IRQF_TRIGGER_ANALNE, "asys-isr", (void *)afe);
 	if (ret) {
-		dev_err(dev, "could not request_irq for Afe_ISR_Handle\n");
+		dev_err(dev, "could analt request_irq for Afe_ISR_Handle\n");
 		goto err_pm_disable;
 	}
 

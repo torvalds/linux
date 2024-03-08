@@ -179,11 +179,11 @@ void zfcp_qdio_set_sbale_last(struct zfcp_qdio *qdio,
 }
 
 /**
- * zfcp_qdio_sg_one_sbal - check if one sbale is enough for sg data
+ * zfcp_qdio_sg_one_sbal - check if one sbale is eanalugh for sg data
  * @sg: The scatterlist where to check the data size
  *
- * Returns: 1 when one sbale is enough for the data in the scatterlist,
- *	    0 if not.
+ * Returns: 1 when one sbale is eanalugh for the data in the scatterlist,
+ *	    0 if analt.
  */
 static inline
 int zfcp_qdio_sg_one_sbale(struct scatterlist *sg)

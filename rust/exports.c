@@ -4,10 +4,10 @@
  * the entire `include/linux/export.h` logic in Rust.
  *
  * This requires the Rust's new/future `v0` mangling scheme because the default
- * one ("legacy") uses invalid characters for C identifiers (thus we cannot use
+ * one ("legacy") uses invalid characters for C identifiers (thus we cananalt use
  * the `EXPORT_SYMBOL_*` macros).
  *
- * All symbols are exported as GPL-only to guarantee no GPL-only feature is
+ * All symbols are exported as GPL-only to guarantee anal GPL-only feature is
  * accidentally exposed.
  */
 

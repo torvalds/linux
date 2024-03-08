@@ -35,7 +35,7 @@ struct sa1100fb_info {
 	struct device		*dev;
 	const struct sa1100fb_rgb *rgb[NR_RGB];
 	void __iomem		*base;
-	struct gpio_desc	*shannon_lcden;
+	struct gpio_desc	*shananaln_lcden;
 
 	/*
 	 * These are the addresses we mapped
@@ -66,7 +66,7 @@ struct sa1100fb_info {
 	struct work_struct	task;
 
 #ifdef CONFIG_CPU_FREQ
-	struct notifier_block	freq_transition;
+	struct analtifier_block	freq_transition;
 #endif
 
 	const struct sa1100fb_mach_info *inf;

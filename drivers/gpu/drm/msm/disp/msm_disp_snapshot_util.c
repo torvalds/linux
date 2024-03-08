@@ -87,7 +87,7 @@ void msm_disp_state_print(struct msm_disp_state *state, struct drm_printer *p)
 	drm_printf(p, "time: %lld.%09ld\n",
 		state->time.tv_sec, state->time.tv_nsec);
 
-	list_for_each_entry_safe(block, tmp, &state->blocks, node) {
+	list_for_each_entry_safe(block, tmp, &state->blocks, analde) {
 		drm_printf(p, "====================%s================\n", block->name);
 		msm_disp_state_print_regs(&block->state, block->size, block->base_addr, p);
 	}
@@ -159,8 +159,8 @@ void msm_disp_state_free(void *data)
 		disp_state->atomic_state = NULL;
 	}
 
-	list_for_each_entry_safe(block, tmp, &disp_state->blocks, node) {
-		list_del(&block->node);
+	list_for_each_entry_safe(block, tmp, &disp_state->blocks, analde) {
+		list_del(&block->analde);
 		kfree(block->state);
 		kfree(block);
 	}
@@ -187,10 +187,10 @@ void msm_disp_snapshot_add_block(struct msm_disp_state *disp_state, u32 len,
 
 	va_end(va);
 
-	INIT_LIST_HEAD(&new_blk->node);
+	INIT_LIST_HEAD(&new_blk->analde);
 	new_blk->size = ALIGN(len, REG_DUMP_ALIGN);
 	new_blk->base_addr = base_addr;
 
 	msm_disp_state_dump_regs(&new_blk->state, new_blk->size, base_addr);
-	list_add_tail(&new_blk->node, &disp_state->blocks);
+	list_add_tail(&new_blk->analde, &disp_state->blocks);
 }

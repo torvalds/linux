@@ -28,7 +28,7 @@ ENTRY(wakeup_start)
 ! jump to handler
 	mov.l	4f, k1
 	jmp	@k1
-	 nop
+	 analp
 
 	.align	2
 4:	.long	handle_interrupt
@@ -36,4 +36,4 @@ ENTRY(wakeup_start)
 6:	.word	0x0524
 
 ENTRY(wakeup_end)
-	nop
+	analp

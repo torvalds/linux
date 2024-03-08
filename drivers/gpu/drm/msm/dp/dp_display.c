@@ -52,18 +52,18 @@ enum {
 };
 
 enum {
-	EV_NO_EVENT,
+	EV_ANAL_EVENT,
 	/* hpd events */
 	EV_HPD_PLUG_INT,
 	EV_IRQ_HPD_INT,
 	EV_HPD_UNPLUG_INT,
-	EV_USER_NOTIFICATION,
+	EV_USER_ANALTIFICATION,
 };
 
 #define EVENT_TIMEOUT	(HZ/10)	/* 100ms */
 #define DP_EVENT_Q_MAX	8
 
-#define DP_TIMEOUT_NONE		0
+#define DP_TIMEOUT_ANALNE		0
 
 #define WAIT_FOR_RESUME_TIMEOUT_JIFFIES (HZ / 2)
 
@@ -230,14 +230,14 @@ static int dp_del_event(struct dp_display_private *dp_priv, u32 event)
 	spin_lock_irqsave(&dp_priv->event_lock, flag);
 	if (dp_priv->event_pndx == dp_priv->event_gndx) {
 		spin_unlock_irqrestore(&dp_priv->event_lock, flag);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	gndx = dp_priv->event_gndx;
 	while (dp_priv->event_pndx != gndx) {
 		todo = &dp_priv->event_list[gndx];
 		if (todo->event_id == event) {
-			todo->event_id = EV_NO_EVENT;	/* deleted */
+			todo->event_id = EV_ANAL_EVENT;	/* deleted */
 			todo->delay = 0;
 		}
 		gndx++;
@@ -340,7 +340,7 @@ static void dp_display_send_hpd_event(struct msm_dp *dp_display)
 	drm_helper_hpd_irq_event(connector->dev);
 }
 
-static int dp_display_send_hpd_notification(struct dp_display_private *dp,
+static int dp_display_send_hpd_analtification(struct dp_display_private *dp,
 					    bool hpd)
 {
 	if ((hpd && dp->dp_display.link_ready) ||
@@ -402,7 +402,7 @@ static int dp_display_process_hpd_high(struct dp_display_private *dp)
 	dp->dp_display.max_dp_lanes = dp->parser->max_dp_lanes;
 
 	/*
-	 * set sink to normal operation mode -- D0
+	 * set sink to analrmal operation mode -- D0
 	 * before dpcd read
 	 */
 	dp_link_psm_config(dp->link, &dp->panel->link_info, false);
@@ -414,7 +414,7 @@ static int dp_display_process_hpd_high(struct dp_display_private *dp)
 		goto end;
 	}
 
-	dp_add_event(dp, EV_USER_NOTIFICATION, true, 0);
+	dp_add_event(dp, EV_USER_ANALTIFICATION, true, 0);
 
 end:
 	return rc;
@@ -477,11 +477,11 @@ static int dp_display_usbpd_configure_cb(struct device *dev)
 	return dp_display_process_hpd_high(dp);
 }
 
-static int dp_display_notify_disconnect(struct device *dev)
+static int dp_display_analtify_disconnect(struct device *dev)
 {
 	struct dp_display_private *dp = dev_get_dp_display_private(dev);
 
-	dp_add_event(dp, EV_USER_NOTIFICATION, false, 0);
+	dp_add_event(dp, EV_USER_ANALTIFICATION, false, 0);
 
 	return 0;
 }
@@ -499,10 +499,10 @@ static int dp_display_handle_port_ststus_changed(struct dp_display_private *dp)
 	int rc = 0;
 
 	if (drm_dp_is_branch(dp->panel->dpcd) && dp->link->sink_count == 0) {
-		drm_dbg_dp(dp->drm_dev, "sink count is zero, nothing to do\n");
+		drm_dbg_dp(dp->drm_dev, "sink count is zero, analthing to do\n");
 		if (dp->hpd_state != ST_DISCONNECTED) {
 			dp->hpd_state = ST_DISCONNECT_PENDING;
-			dp_add_event(dp, EV_USER_NOTIFICATION, false, 0);
+			dp_add_event(dp, EV_USER_ANALTIFICATION, false, 0);
 		}
 	} else {
 		if (dp->hpd_state == ST_DISCONNECTED) {
@@ -525,7 +525,7 @@ static int dp_display_handle_irq_hpd(struct dp_display_private *dp)
 		if (sink_request & DP_LINK_STATUS_UPDATED) {
 			drm_dbg_dp(dp->drm_dev, "Disconnected sink_request: %d\n",
 							sink_request);
-			DRM_ERROR("Disconnected, no DP_LINK_STATUS_UPDATED\n");
+			DRM_ERROR("Disconnected, anal DP_LINK_STATUS_UPDATED\n");
 			return -EINVAL;
 		}
 	}
@@ -618,7 +618,7 @@ static void dp_display_handle_plugged_change(struct msm_dp *dp_display,
 	dp = container_of(dp_display,
 			struct dp_display_private, dp_display);
 
-	/* notify audio subsystem only if sink supports audio */
+	/* analtify audio subsystem only if sink supports audio */
 	if (dp_display->plugged_cb && dp_display->codec_dev &&
 			dp->audio_supported)
 		dp_display->plugged_cb(dp_display->codec_dev, plugged);
@@ -636,7 +636,7 @@ static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 	drm_dbg_dp(dp->drm_dev, "Before, type=%d hpd_state=%d\n",
 			dp->dp_display.connector_type, state);
 
-	/* unplugged, no more irq_hpd handle */
+	/* unplugged, anal more irq_hpd handle */
 	dp_del_event(dp, EV_IRQ_HPD_INT);
 
 	if (state == ST_DISCONNECTED) {
@@ -644,7 +644,7 @@ static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 		if (dp->link->sink_count == 0) {
 			dp_display_host_phy_exit(dp);
 		}
-		dp_display_notify_disconnect(&dp->dp_display.pdev->dev);
+		dp_display_analtify_disconnect(&dp->dp_display.pdev->dev);
 		mutex_unlock(&dp->event_mutex);
 		return 0;
 	} else if (state == ST_DISCONNECT_PENDING) {
@@ -654,7 +654,7 @@ static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 		dp_ctrl_off_link(dp->ctrl);
 		dp_display_host_phy_exit(dp);
 		dp->hpd_state = ST_DISCONNECTED;
-		dp_display_notify_disconnect(&dp->dp_display.pdev->dev);
+		dp_display_analtify_disconnect(&dp->dp_display.pdev->dev);
 		mutex_unlock(&dp->event_mutex);
 		return 0;
 	}
@@ -663,7 +663,7 @@ static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 	 * We don't need separate work for disconnect as
 	 * connect/attention interrupts are disabled
 	 */
-	dp_display_notify_disconnect(&dp->dp_display.pdev->dev);
+	dp_display_analtify_disconnect(&dp->dp_display.pdev->dev);
 
 	if (state == ST_DISPLAY_OFF) {
 		dp->hpd_state = ST_DISCONNECTED;
@@ -1015,8 +1015,8 @@ void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp)
 
 	/*
 	 * if we are reading registers we need the link clocks to be on
-	 * however till DP cable is connected this will not happen as we
-	 * do not know the resolution to power up with. Hence check the
+	 * however till DP cable is connected this will analt happen as we
+	 * do analt kanalw the resolution to power up with. Hence check the
 	 * power_on status before dumping DP registers to avoid crash due
 	 * to unclocked access
 	 */
@@ -1084,7 +1084,7 @@ static int hpd_event_thread(void *data)
 			todo_next->delay = todo->delay - 1;
 
 			/* clean up older event */
-			todo->event_id = EV_NO_EVENT;
+			todo->event_id = EV_ANAL_EVENT;
 			todo->delay = 0;
 
 			/* switch to timeout mode */
@@ -1093,7 +1093,7 @@ static int hpd_event_thread(void *data)
 			continue;
 		}
 
-		/* timeout with no events in q */
+		/* timeout with anal events in q */
 		if (dp_priv->event_pndx == dp_priv->event_gndx) {
 			spin_unlock_irqrestore(&dp_priv->event_lock, flag);
 			continue;
@@ -1114,8 +1114,8 @@ static int hpd_event_thread(void *data)
 		case EV_IRQ_HPD_INT:
 			dp_irq_hpd_handle(dp_priv, todo->data);
 			break;
-		case EV_USER_NOTIFICATION:
-			dp_display_send_hpd_notification(dp_priv,
+		case EV_USER_ANALTIFICATION:
+			dp_display_send_hpd_analtification(dp_priv,
 						todo->data);
 			break;
 		default:
@@ -1142,12 +1142,12 @@ static int dp_hpd_event_thread_start(struct dp_display_private *dp_priv)
 static irqreturn_t dp_display_irq_handler(int irq, void *dev_id)
 {
 	struct dp_display_private *dp = dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 hpd_isr_status;
 
 	if (!dp) {
 		DRM_ERROR("invalid data\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	hpd_isr_status = dp_catalog_hpd_get_intr_status(dp->catalog);
@@ -1195,7 +1195,7 @@ static int dp_display_request_irq(struct dp_display_private *dp)
 	}
 
 	rc = devm_request_irq(&pdev->dev, dp->irq, dp_display_irq_handler,
-			      IRQF_TRIGGER_HIGH|IRQF_NO_AUTOEN,
+			      IRQF_TRIGGER_HIGH|IRQF_ANAL_AUTOEN,
 			      "dp_display_isr", dp);
 
 	if (rc < 0) {
@@ -1222,7 +1222,7 @@ static const struct msm_dp_desc *dp_display_get_desc(struct platform_device *pde
 			return &descs[i];
 	}
 
-	dev_err(&pdev->dev, "unknown displayport instance\n");
+	dev_err(&pdev->dev, "unkanalwn displayport instance\n");
 	return NULL;
 }
 
@@ -1255,14 +1255,14 @@ static int dp_display_probe(struct platform_device *pdev)
 	struct dp_display_private *dp;
 	const struct msm_dp_desc *desc;
 
-	if (!pdev || !pdev->dev.of_node) {
-		DRM_ERROR("pdev not found\n");
-		return -ENODEV;
+	if (!pdev || !pdev->dev.of_analde) {
+		DRM_ERROR("pdev analt found\n");
+		return -EANALDEV;
 	}
 
 	dp = devm_kzalloc(&pdev->dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc = dp_display_get_desc(pdev);
 	if (!desc)
@@ -1452,10 +1452,10 @@ static int dp_display_get_next_bridge(struct msm_dp *dp)
 	 * provide at least an eDP panel (which gets wrapped into panel-bridge).
 	 *
 	 * For DisplayPort interfaces external bridges are optional, so
-	 * silently ignore an error if one is not present (-ENODEV).
+	 * silently iganalre an error if one is analt present (-EANALDEV).
 	 */
 	rc = devm_dp_parser_find_next_bridge(&dp->pdev->dev, dp_priv->parser);
-	if (!dp->is_edp && rc == -ENODEV)
+	if (!dp->is_edp && rc == -EANALDEV)
 		return 0;
 
 	if (!rc)
@@ -1643,7 +1643,7 @@ void dp_bridge_hpd_enable(struct drm_bridge *bridge)
 	 * this is for external DP with hpd irq enabled case,
 	 * step-1: dp_pm_runtime_resume() enable dp host only
 	 * step-2: enable hdp block and have hpd irq enabled here
-	 * step-3: waiting for plugin irq while phy is not initialized
+	 * step-3: waiting for plugin irq while phy is analt initialized
 	 * step-4: DP PHY is initialized at plugin handler before link training
 	 *
 	 */
@@ -1680,7 +1680,7 @@ void dp_bridge_hpd_disable(struct drm_bridge *bridge)
 	mutex_unlock(&dp->event_mutex);
 }
 
-void dp_bridge_hpd_notify(struct drm_bridge *bridge,
+void dp_bridge_hpd_analtify(struct drm_bridge *bridge,
 			  enum drm_connector_status status)
 {
 	struct msm_dp_bridge *dp_bridge = to_dp_bridge(bridge);

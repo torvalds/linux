@@ -3,8 +3,8 @@
  * RDMA Transport Layer
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME " L" __stringify(__LINE__) ": " fmt
@@ -215,7 +215,7 @@ static void qp_event_handler(struct ib_event *ev, void *ctx)
 	case IB_EVENT_COMM_EST:
 		rtrs_info(con->path, "QP event %s (%d) received\n",
 			   ib_event_msg(ev->event), ev->event);
-		rdma_notify(con->cm_id, IB_EVENT_COMM_EST);
+		rdma_analtify(con->cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
 		rtrs_info(con->path, "Unhandled QP event %s (%d) received\n",
@@ -242,7 +242,7 @@ static int create_cq(struct rtrs_con *con, int cq_vector, int nr_cqe,
 		cq = ib_cq_pool_get(cm_id->device, nr_cqe, cq_vector, poll_ctx);
 
 	if (IS_ERR(cq)) {
-		rtrs_err(con->path, "Creating completion queue failed, errno: %pe\n",
+		rtrs_err(con->path, "Creating completion queue failed, erranal: %pe\n",
 			  cq);
 		return PTR_ERR(cq);
 	}
@@ -341,7 +341,7 @@ void rtrs_send_hb_ack(struct rtrs_path *path)
 	err = rtrs_post_rdma_write_imm_empty(usr_con, path->hb_cqe, imm,
 					     NULL);
 	if (err) {
-		rtrs_err(path, "send HB ACK failed, errno: %d\n", err);
+		rtrs_err(path, "send HB ACK failed, erranal: %d\n", err);
 		path->hb_err_handler(usr_con);
 		return;
 	}
@@ -375,7 +375,7 @@ static void hb_work(struct work_struct *work)
 	err = rtrs_post_rdma_write_imm_empty(usr_con, path->hb_cqe, imm,
 					     NULL);
 	if (err) {
-		rtrs_err(path, "HB send failed, errno: %d\n", err);
+		rtrs_err(path, "HB send failed, erranal: %d\n", err);
 		path->hb_err_handler(usr_con);
 		return;
 	}
@@ -447,7 +447,7 @@ static int rtrs_str_gid_to_sockaddr(const char *addr, size_t len,
  * @port:	Destination port
  * @dst:	Destination sockaddr structure
  *
- * Returns 0 if conversion successful. Non-zero on error.
+ * Returns 0 if conversion successful. Analn-zero on error.
  */
 static int rtrs_str_to_sockaddr(const char *addr, size_t len,
 				u16 port, struct sockaddr_storage *dst)
@@ -462,12 +462,12 @@ static int rtrs_str_to_sockaddr(const char *addr, size_t len,
 		snprintf(port_str, sizeof(port_str), "%u", port);
 		cpy = kstrndup(addr + 3, len - 3, GFP_KERNEL);
 		err = cpy ? inet_pton_with_scope(&init_net, AF_UNSPEC,
-						 cpy, port_str, dst) : -ENOMEM;
+						 cpy, port_str, dst) : -EANALMEM;
 		kfree(cpy);
 
 		return err;
 	}
-	return -EPROTONOSUPPORT;
+	return -EPROTOANALSUPPORT;
 }
 
 /**
@@ -476,7 +476,7 @@ static int rtrs_str_to_sockaddr(const char *addr, size_t len,
  * @buf:	string containing socket addr.
  * @len:	string length.
  *
- * The return value is the number of characters written into buf not
+ * The return value is the number of characters written into buf analt
  * including the trailing '\0'. If len is == 0 the function returns 0..
  */
 int sockaddr_to_str(const struct sockaddr *addr, char *buf, size_t len)
@@ -504,7 +504,7 @@ EXPORT_SYMBOL(sockaddr_to_str);
  *		"ip:1.1.1.1@ip:1.1.1.2".
  * @len:	string length
  *
- * The return value is the number of characters written into buf not
+ * The return value is the number of characters written into buf analt
  * including the trailing '\0'.
  */
 int rtrs_addr_to_str(const struct rtrs_addr *addr, char *buf, size_t len)
@@ -532,7 +532,7 @@ EXPORT_SYMBOL(rtrs_addr_to_str);
  * @addr:	will be set to the source/destination address or to NULL
  *		if str doesn't contain any source address.
  *
- * Returns zero if conversion successful. Non-zero otherwise.
+ * Returns zero if conversion successful. Analn-zero otherwise.
  */
 int rtrs_addr_to_sockaddr(const char *str, size_t len, u16 port,
 			  struct rtrs_addr *addr)
@@ -607,7 +607,7 @@ rtrs_ib_dev_find_or_add(struct ib_device *ib_dev,
 
 	mutex_lock(&pool->mutex);
 	list_for_each_entry(dev, &pool->list, entry) {
-		if (dev->ib_dev->node_guid == ib_dev->node_guid &&
+		if (dev->ib_dev->analde_guid == ib_dev->analde_guid &&
 		    rtrs_ib_dev_get(dev))
 			goto out_unlock;
 	}

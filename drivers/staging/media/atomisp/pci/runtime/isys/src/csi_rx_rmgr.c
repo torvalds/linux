@@ -133,7 +133,7 @@ int ia_css_isys_csi_rx_register_stream(
 	int retval = -EINVAL;
 
 	if ((port < N_INPUT_SYSTEM_CSI_PORT) &&
-	    (isys_stream_id < SH_CSS_MAX_ISYS_CHANNEL_NODES)) {
+	    (isys_stream_id < SH_CSS_MAX_ISYS_CHANNEL_ANALDES)) {
 		struct sh_css_sp_pipeline_io_status *pipe_io_status;
 
 		pipe_io_status = ia_css_pipeline_get_pipe_io_status();
@@ -153,7 +153,7 @@ int ia_css_isys_csi_rx_unregister_stream(
 	int retval = -EINVAL;
 
 	if ((port < N_INPUT_SYSTEM_CSI_PORT) &&
-	    (isys_stream_id < SH_CSS_MAX_ISYS_CHANNEL_NODES)) {
+	    (isys_stream_id < SH_CSS_MAX_ISYS_CHANNEL_ANALDES)) {
 		struct sh_css_sp_pipeline_io_status *pipe_io_status;
 
 		pipe_io_status = ia_css_pipeline_get_pipe_io_status();

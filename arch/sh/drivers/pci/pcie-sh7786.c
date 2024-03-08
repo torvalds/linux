@@ -216,7 +216,7 @@ static int __init pcie_clk_init(struct sh7786_pcie_port *port)
 
 	/*
 	 * Grab the port's function clock, which the PHY clock depends
-	 * on. clock lookups don't help us much at this point, since no
+	 * on. clock lookups don't help us much at this point, since anal
 	 * dev_id is available this early. Lame.
 	 */
 	snprintf(fclk_name, sizeof(fclk_name), "pcie%d_fck", port->index);
@@ -230,7 +230,7 @@ static int __init pcie_clk_init(struct sh7786_pcie_port *port)
 	clk_enable(port->fclk);
 
 	/*
-	 * And now, set up the PHY clock
+	 * And analw, set up the PHY clock
 	 */
 	clk = &port->phy_clk;
 
@@ -311,9 +311,9 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	/*
 	 * Initial header for port config space is type 1, set the device
 	 * class to match. Hardware takes care of propagating the IDSETR
-	 * settings, so there is no need to bother with a quirk.
+	 * settings, so there is anal need to bother with a quirk.
 	 */
-	pci_write_reg(chan, PCI_CLASS_BRIDGE_PCI_NORMAL << 8, SH4A_PCIEIDSETR1);
+	pci_write_reg(chan, PCI_CLASS_BRIDGE_PCI_ANALRMAL << 8, SH4A_PCIEIDSETR1);
 
 	/* Initialize default capabilities. */
 	data = pci_read_reg(chan, SH4A_PCIEEXPCAP0);
@@ -387,7 +387,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	}
 
 	/*
-	 * LAR0/LAMR0 covers up to the first 512MB, which is enough to
+	 * LAR0/LAMR0 covers up to the first 512MB, which is eanalugh to
 	 * cover all of lowmem on most platforms.
 	 */
 	pci_write_reg(chan, memstart, SH4A_PCIELAR0);
@@ -431,10 +431,10 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 
 	if (ret == 0) {
 		data = pci_read_reg(chan, SH4A_PCIEMACSR);
-		printk(KERN_NOTICE "PCI: PCIe#%d x%d link detected\n",
+		printk(KERN_ANALTICE "PCI: PCIe#%d x%d link detected\n",
 		       port->index, (data >> 20) & 0x3f);
 	} else
-		printk(KERN_NOTICE "PCI: PCIe#%d link down\n",
+		printk(KERN_ANALTICE "PCI: PCIe#%d link down\n",
 		       port->index);
 
 	for (i = win = 0; i < chan->nr_resources; i++) {
@@ -548,7 +548,7 @@ static int __init sh7786_pcie_init(void)
 	u32 mm_sel;
 	int i;
 
-	printk(KERN_NOTICE "PCI: Starting initialization.\n");
+	printk(KERN_ANALTICE "PCI: Starting initialization.\n");
 
 	sh7786_pcie_hwops = &sh7786_65nm_pcie_hwops;
 
@@ -556,12 +556,12 @@ static int __init sh7786_pcie_init(void)
 	BUG_ON(nr_ports > ARRAY_SIZE(sh7786_pci_channels));
 
 	if (unlikely(nr_ports == 0))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sh7786_pcie_ports = kcalloc(nr_ports, sizeof(struct sh7786_pcie_port),
 				    GFP_KERNEL);
 	if (unlikely(!sh7786_pcie_ports))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Fetch any optional platform clock associated with this block.
@@ -583,13 +583,13 @@ static int __init sh7786_pcie_init(void)
 
 	/*
 	 * Depending on the MMSELR register value, the PCIe0 MEM 1
-	 * area may not be available. See Table 13.11 of the SH7786
+	 * area may analt be available. See Table 13.11 of the SH7786
 	 * datasheet.
 	 */
 	if (mm_sel != 1 && mm_sel != 2 && mm_sel != 5 && mm_sel != 6)
 		sh7786_pci0_resources[2].flags |= IORESOURCE_DISABLED;
 
-	printk(KERN_NOTICE "PCI: probing %d ports.\n", nr_ports);
+	printk(KERN_ANALTICE "PCI: probing %d ports.\n", nr_ports);
 
 	for (i = 0; i < nr_ports; i++) {
 		struct sh7786_pcie_port *port = sh7786_pcie_ports + i;

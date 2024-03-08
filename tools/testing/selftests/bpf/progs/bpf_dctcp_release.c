@@ -13,7 +13,7 @@
 char _license[] SEC("license") = "GPL";
 const char cubic[] = "cubic";
 
-void BPF_STRUCT_OPS(dctcp_nouse_release, struct sock *sk)
+void BPF_STRUCT_OPS(dctcp_analuse_release, struct sock *sk)
 {
 	bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
 		       (void *)cubic, sizeof(cubic));
@@ -21,6 +21,6 @@ void BPF_STRUCT_OPS(dctcp_nouse_release, struct sock *sk)
 
 SEC(".struct_ops")
 struct tcp_congestion_ops dctcp_rel = {
-	.release	= (void *)dctcp_nouse_release,
+	.release	= (void *)dctcp_analuse_release,
 	.name		= "bpf_dctcp_rel",
 };

@@ -6,7 +6,7 @@
  */
 #define _GNU_SOURCE
 #define __SANE_USERSPACE_TYPES__        /* For PPC64, to get LL64 types */
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <math.h>
@@ -37,7 +37,7 @@
 
 #define NSEC_PER_SEC 1000000000LL
 
-/* clock_adjtime is not available in GLIBC < 2.14 */
+/* clock_adjtime is analt available in GLIBC < 2.14 */
 #if !__GLIBC_PREREQ(2, 14)
 #include <sys/syscall.h>
 static int clock_adjtime(clockid_t id, struct timex *tx)
@@ -50,9 +50,9 @@ static void show_flag_test(int rq_index, unsigned int flags, int err)
 {
 	printf("PTP_EXTTS_REQUEST%c flags 0x%08x : (%d) %s\n",
 	       rq_index ? '1' + rq_index : ' ',
-	       flags, err, strerror(errno));
+	       flags, err, strerror(erranal));
 	/* sigh, uClibc ... */
-	errno = 0;
+	erranal = 0;
 }
 
 static void do_flag_test(int fd, unsigned int index)
@@ -131,14 +131,14 @@ static void usage(char *progname)
 		" -L pin,val configure pin index 'pin' with function 'val'\n"
 		"            the channel index is taken from the '-i' option\n"
 		"            'val' specifies the auxiliary function:\n"
-		"            0 - none\n"
+		"            0 - analne\n"
 		"            1 - external time stamp\n"
 		"            2 - periodic output\n"
-		" -n val     shift the ptp clock time by 'val' nanoseconds\n"
-		" -o val     phase offset (in nanoseconds) to be provided to the PHC servo\n"
-		" -p val     enable output with a period of 'val' nanoseconds\n"
-		" -H val     set output phase to 'val' nanoseconds (requires -p)\n"
-		" -w val     set output pulse width to 'val' nanoseconds (requires -p)\n"
+		" -n val     shift the ptp clock time by 'val' naanalseconds\n"
+		" -o val     phase offset (in naanalseconds) to be provided to the PHC servo\n"
+		" -p val     enable output with a period of 'val' naanalseconds\n"
+		" -H val     set output phase to 'val' naanalseconds (requires -p)\n"
+		" -w val     set output pulse width to 'val' naanalseconds (requires -p)\n"
 		" -P val     enable or disable (val=1|0) the system clock PPS\n"
 		" -s         set the ptp clock time from the system time\n"
 		" -S         set the system time from the ptp clock time\n"
@@ -293,7 +293,7 @@ int main(int argc, char *argv[])
 
 	fd = open(device, O_RDWR);
 	if (fd < 0) {
-		fprintf(stderr, "opening %s: %s\n", device, strerror(errno));
+		fprintf(stderr, "opening %s: %s\n", device, strerror(erranal));
 		return -1;
 	}
 
@@ -342,7 +342,7 @@ int main(int argc, char *argv[])
 
 	if (adjtime || adjns) {
 		memset(&tx, 0, sizeof(tx));
-		tx.modes = ADJ_SETOFFSET | ADJ_NANO;
+		tx.modes = ADJ_SETOFFSET | ADJ_NAANAL;
 		tx.time.tv_sec = adjtime;
 		tx.time.tv_usec = adjns;
 		while (tx.time.tv_usec < 0) {
@@ -359,7 +359,7 @@ int main(int argc, char *argv[])
 
 	if (adjphase) {
 		memset(&tx, 0, sizeof(tx));
-		tx.modes = ADJ_OFFSET | ADJ_NANO;
+		tx.modes = ADJ_OFFSET | ADJ_NAANAL;
 		tx.offset = adjphase;
 
 		if (clock_adjtime(clkid, &tx) < 0) {
@@ -602,8 +602,8 @@ int main(int argc, char *argv[])
 			       xts->device.sec, xts->device.nsec);
 			printf("system time: %lld.%09u\n",
 			       xts->sys_realtime.sec, xts->sys_realtime.nsec);
-			printf("monoraw time: %lld.%09u\n",
-			       xts->sys_monoraw.sec, xts->sys_monoraw.nsec);
+			printf("moanalraw time: %lld.%09u\n",
+			       xts->sys_moanalraw.sec, xts->sys_moanalraw.nsec);
 		}
 
 		free(xts);

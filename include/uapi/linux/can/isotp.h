@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0-only WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0-only WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * linux/can/isotp.h
  *
@@ -11,28 +11,28 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this analtice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are analt restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -49,7 +49,7 @@
 
 #define SOL_CAN_ISOTP (SOL_CAN_BASE + CAN_ISOTP)
 
-/* for socket options affecting the socket (not the global system) */
+/* for socket options affecting the socket (analt the global system) */
 
 #define CAN_ISOTP_OPTS		1	/* pass struct can_isotp_options */
 
@@ -57,12 +57,12 @@
 
 /* sockopts to force stmin timer values for protocol regression tests */
 
-#define CAN_ISOTP_TX_STMIN	3	/* pass __u32 value in nano secs    */
+#define CAN_ISOTP_TX_STMIN	3	/* pass __u32 value in naanal secs    */
 					/* use this time instead of value   */
 					/* provided in FC from the receiver */
 
-#define CAN_ISOTP_RX_STMIN	4	/* pass __u32 value in nano secs   */
-					/* ignore received CF frames which */
+#define CAN_ISOTP_RX_STMIN	4	/* pass __u32 value in naanal secs   */
+					/* iganalre received CF frames which */
 					/* timestamps differ less than val */
 
 #define CAN_ISOTP_LL_OPTS	5	/* pass struct can_isotp_ll_options */
@@ -73,7 +73,7 @@ struct can_isotp_options {
 				/* __u32 value : flags see below	*/
 
 	__u32 frame_txtime;	/* frame transmission time (N_As/N_Ar)	*/
-				/* __u32 value : time in nano secs	*/
+				/* __u32 value : time in naanal secs	*/
 
 	__u8  ext_address;	/* set address for extended addressing	*/
 				/* __u8 value : extended address	*/
@@ -124,15 +124,15 @@ struct can_isotp_ll_options {
 
 /* flags for isotp behaviour */
 
-#define CAN_ISOTP_LISTEN_MODE	0x0001	/* listen only (do not send FC) */
+#define CAN_ISOTP_LISTEN_MODE	0x0001	/* listen only (do analt send FC) */
 #define CAN_ISOTP_EXTEND_ADDR	0x0002	/* enable extended addressing */
 #define CAN_ISOTP_TX_PADDING	0x0004	/* enable CAN frame padding tx path */
 #define CAN_ISOTP_RX_PADDING	0x0008	/* enable CAN frame padding rx path */
 #define CAN_ISOTP_CHK_PAD_LEN	0x0010	/* check received CAN frame padding */
 #define CAN_ISOTP_CHK_PAD_DATA	0x0020	/* check received CAN frame padding */
 #define CAN_ISOTP_HALF_DUPLEX	0x0040	/* half duplex error state handling */
-#define CAN_ISOTP_FORCE_TXSTMIN	0x0080	/* ignore stmin from received FC */
-#define CAN_ISOTP_FORCE_RXSTMIN	0x0100	/* ignore CFs depending on rx stmin */
+#define CAN_ISOTP_FORCE_TXSTMIN	0x0080	/* iganalre stmin from received FC */
+#define CAN_ISOTP_FORCE_RXSTMIN	0x0100	/* iganalre CFs depending on rx stmin */
 #define CAN_ISOTP_RX_EXT_ADDR	0x0200	/* different rx extended addressing */
 #define CAN_ISOTP_WAIT_TX_DONE	0x0400	/* wait for tx completion */
 #define CAN_ISOTP_SF_BROADCAST	0x0800	/* 1-to-N functional addressing */
@@ -155,7 +155,7 @@ struct can_isotp_ll_options {
  * CAN_ISOTP is capable to run with BS=0, STmin=0 and WFTmax=0.
  * But as we like to be able to behave as a commonly available ECU,
  * these default settings can be changed via sockopts.
- * For that reason the STmin value is intentionally _not_ checked for
+ * For that reason the STmin value is intentionally _analt_ checked for
  * consistency and copied directly into the flow control (FC) frame.
  */
 
@@ -166,14 +166,14 @@ struct can_isotp_ll_options {
 #define CAN_ISOTP_DEFAULT_LL_TX_FLAGS	0
 
 /*
- * The CAN_ISOTP_DEFAULT_FRAME_TXTIME has become a non-zero value as
+ * The CAN_ISOTP_DEFAULT_FRAME_TXTIME has become a analn-zero value as
  * it only makes sense for isotp implementation tests to run without
- * a N_As value. As user space applications usually do not set the
+ * a N_As value. As user space applications usually do analt set the
  * frame_txtime element of struct can_isotp_options the new in-kernel
  * default is very likely overwritten with zero when the sockopt()
  * CAN_ISOTP_OPTS is invoked.
  * To make sure that a N_As value of zero is only set intentional the
- * value '0' is now interpreted as 'do not change the current value'.
+ * value '0' is analw interpreted as 'do analt change the current value'.
  * When a frame_txtime of zero is required for testing purposes this
  * CAN_ISOTP_FRAME_TXTIME_ZERO u32 value has to be set in frame_txtime.
  */

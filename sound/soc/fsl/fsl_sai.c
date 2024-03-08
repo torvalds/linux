@@ -43,7 +43,7 @@ static const struct snd_pcm_hw_constraint_list fsl_sai_rate_constraints = {
 /**
  * fsl_sai_dir_is_synced - Check if stream is synced by the opposite stream
  *
- * SAI supports synchronous mode using bit/frame clocks of either Transmitter's
+ * SAI supports synchroanalus mode using bit/frame clocks of either Transmitter's
  * or Receiver's for both streams. This function is used to check if clocks of
  * the stream's are synced by the opposite stream.
  *
@@ -55,7 +55,7 @@ static inline bool fsl_sai_dir_is_synced(struct fsl_sai *sai, int dir)
 	int adir = (dir == TX) ? RX : TX;
 
 	/* current dir in async mode while opposite dir in sync mode */
-	return !sai->synchronous[dir] && sai->synchronous[adir];
+	return !sai->synchroanalus[dir] && sai->synchroanalus[adir];
 }
 
 static struct pinctrl_state *fsl_sai_get_pins_state(struct fsl_sai *sai, u32 bclk)
@@ -89,7 +89,7 @@ static irqreturn_t fsl_sai_isr(int irq, void *devid)
 	unsigned int ofs = sai->soc_data->reg_offset;
 	struct device *dev = &sai->pdev->dev;
 	u32 flags, xcsr, mask;
-	irqreturn_t iret = IRQ_NONE;
+	irqreturn_t iret = IRQ_ANALNE;
 
 	/*
 	 * Both IRQ status bits and IRQ mask bits are in the xCSR but
@@ -240,7 +240,7 @@ static int fsl_sai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 
 	if (freq > 0 && clk_id != FSL_SAI_CLK_BUS) {
 		if (clk_id < 0 || clk_id >= FSL_SAI_MCLK_MAX) {
-			dev_err(cpu_dai->dev, "Unknown clock id: %d\n", clk_id);
+			dev_err(cpu_dai->dev, "Unkanalwn clock id: %d\n", clk_id);
 			return -EINVAL;
 		}
 
@@ -258,13 +258,13 @@ static int fsl_sai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 
 	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq, true);
 	if (ret) {
-		dev_err(cpu_dai->dev, "Cannot set tx sysclk: %d\n", ret);
+		dev_err(cpu_dai->dev, "Cananalt set tx sysclk: %d\n", ret);
 		return ret;
 	}
 
 	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq, false);
 	if (ret)
-		dev_err(cpu_dai->dev, "Cannot set rx sysclk: %d\n", ret);
+		dev_err(cpu_dai->dev, "Cananalt set rx sysclk: %d\n", ret);
 
 	return ret;
 }
@@ -346,7 +346,7 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 		val_cr4 ^= FSL_SAI_CR4_FSP;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
-		/* Nothing to do for both normal cases */
+		/* Analthing to do for both analrmal cases */
 		break;
 	default:
 		return -EINVAL;
@@ -389,13 +389,13 @@ static int fsl_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, true);
 	if (ret) {
-		dev_err(cpu_dai->dev, "Cannot set tx format: %d\n", ret);
+		dev_err(cpu_dai->dev, "Cananalt set tx format: %d\n", ret);
 		return ret;
 	}
 
 	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, false);
 	if (ret)
-		dev_err(cpu_dai->dev, "Cannot set rx format: %d\n", ret);
+		dev_err(cpu_dai->dev, "Cananalt set rx format: %d\n", ret);
 
 	return ret;
 }
@@ -416,7 +416,7 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		return 0;
 
 	/*
-	 * There is no point in polling MCLK0 if it is identical to MCLK1.
+	 * There is anal point in polling MCLK0 if it is identical to MCLK1.
 	 * And given that MQS use case has to use MCLK1 though two clocks
 	 * are the same, we simply skip MCLK0 and start to find from MCLK1.
 	 */
@@ -440,7 +440,7 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		diff = abs((long)clk_rate - ratio * freq);
 
 		/*
-		 * Drop the source that can not be
+		 * Drop the source that can analt be
 		 * divided into the required rate.
 		 */
 		if (diff != 0 && clk_rate / diff < 1000)
@@ -471,18 +471,18 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 			sai->mclk_id[tx], savediv, bestdiff);
 
 	/*
-	 * 1) For Asynchronous mode, we must set RCR2 register for capture, and
+	 * 1) For Asynchroanalus mode, we must set RCR2 register for capture, and
 	 *    set TCR2 register for playback.
 	 * 2) For Tx sync with Rx clock, we must set RCR2 register for playback
 	 *    and capture.
 	 * 3) For Rx sync with Tx clock, we must set TCR2 register for playback
 	 *    and capture.
-	 * 4) For Tx and Rx are both Synchronous with another SAI, we just
-	 *    ignore it.
+	 * 4) For Tx and Rx are both Synchroanalus with aanalther SAI, we just
+	 *    iganalre it.
 	 */
 	if (fsl_sai_dir_is_synced(sai, adir))
 		reg = FSL_SAI_xCR2(!tx, ofs);
-	else if (!sai->synchronous[dir])
+	else if (!sai->synchroanalus[dir])
 		reg = FSL_SAI_xCR2(tx, ofs);
 	else
 		return 0;
@@ -558,7 +558,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (hweight8(dl_cfg[dl_cfg_idx].mask[tx]) < pins) {
-		dev_err(cpu_dai->dev, "channel not supported\n");
+		dev_err(cpu_dai->dev, "channel analt supported\n");
 		return -EINVAL;
 	}
 
@@ -580,7 +580,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 		if (ret)
 			return ret;
 
-		/* Do not enable the clock if it is already enabled */
+		/* Do analt enable the clock if it is already enabled */
 		if (!(sai->mclk_streams & BIT(substream->stream))) {
 			ret = clk_prepare_enable(sai->mclk_clk[sai->mclk_id[tx]]);
 			if (ret)
@@ -675,7 +675,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 * When the TERE and FSD_MSTR enabled before configuring the word width
-	 * There will be no frame sync clock issue, because word width impact
+	 * There will be anal frame sync clock issue, because word width impact
 	 * the generation of frame sync clock.
 	 *
 	 * TERE enabled earlier only for i.MX8MP case for the hardware limitation,
@@ -754,7 +754,7 @@ static void fsl_sai_config_disable(struct fsl_sai *sai, int dir)
 
 	/*
 	 * For sai master mode, after several open/close sai,
-	 * there will be no frame clock, and can't recover
+	 * there will be anal frame clock, and can't recover
 	 * anymore. Add software reset to fix this issue.
 	 * This is a hardware bug, and will be fix in the
 	 * next sai version.
@@ -779,14 +779,14 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	u32 xcsr;
 
 	/*
-	 * Asynchronous mode: Clear SYNC for both Tx and Rx.
+	 * Asynchroanalus mode: Clear SYNC for both Tx and Rx.
 	 * Rx sync with Tx clocks: Clear SYNC for Tx, set it for Rx.
 	 * Tx sync with Rx clocks: Clear SYNC for Rx, set it for Tx.
 	 */
 	regmap_update_bits(sai->regmap, FSL_SAI_TCR2(ofs), FSL_SAI_CR2_SYNC,
-			   sai->synchronous[TX] ? FSL_SAI_CR2_SYNC : 0);
+			   sai->synchroanalus[TX] ? FSL_SAI_CR2_SYNC : 0);
 	regmap_update_bits(sai->regmap, FSL_SAI_RCR2(ofs), FSL_SAI_CR2_SYNC,
-			   sai->synchronous[RX] ? FSL_SAI_CR2_SYNC : 0);
+			   sai->synchroanalus[RX] ? FSL_SAI_CR2_SYNC : 0);
 
 	/*
 	 * It is recommended that the transmitter is the last enabled
@@ -802,12 +802,12 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		regmap_update_bits(sai->regmap, FSL_SAI_xCSR(tx, ofs),
 				   FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
 		/*
-		 * Enable the opposite direction for synchronous mode
+		 * Enable the opposite direction for synchroanalus mode
 		 * 1. Tx sync with Rx: only set RE for Rx; set TE & RE for Tx
 		 * 2. Rx sync with Tx: only set TE for Tx; set RE & TE for Rx
 		 *
 		 * RM recommends to enable RE after TE for case 1 and to enable
-		 * TE after RE for case 2, but we here may not always guarantee
+		 * TE after RE for case 2, but we here may analt always guarantee
 		 * that happens: "arecord 1.wav; aplay 2.wav" in case 1 enables
 		 * TE after RE, which is against what RM recommends but should
 		 * be safe to do, judging by years of testing results.
@@ -831,7 +831,7 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		regmap_read(sai->regmap, FSL_SAI_xCSR(!tx, ofs), &xcsr);
 
 		/*
-		 * If opposite stream provides clocks for synchronous mode and
+		 * If opposite stream provides clocks for synchroanalus mode and
 		 * it is inactive, disable it before disabling the current one
 		 */
 		if (fsl_sai_dir_is_synced(sai, adir) && !(xcsr & FSL_SAI_CSR_FRDE))
@@ -839,8 +839,8 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		/*
 		 * Disable current stream if either of:
-		 * 1. current stream doesn't provide clocks for synchronous mode
-		 * 2. current stream provides clocks for synchronous mode but no
+		 * 1. current stream doesn't provide clocks for synchroanalus mode
+		 * 2. current stream provides clocks for synchroanalus mode but anal
 		 *    more stream is active.
 		 */
 		if (!fsl_sai_dir_is_synced(sai, dir) || !(xcsr & FSL_SAI_CSR_FRDE))
@@ -938,7 +938,7 @@ static struct snd_soc_dai_driver fsl_sai_dai_template = {
 		.channels_max = 32,
 		.rate_min = 8000,
 		.rate_max = 2822400,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = FSL_SAI_FORMATS,
 	},
 	.capture = {
@@ -947,7 +947,7 @@ static struct snd_soc_dai_driver fsl_sai_dai_template = {
 		.channels_max = 32,
 		.rate_min = 8000,
 		.rate_max = 2822400,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = FSL_SAI_FORMATS,
 	},
 	.ops = &fsl_sai_pcm_dai_ops,
@@ -1170,8 +1170,8 @@ static int fsl_sai_check_version(struct device *dev)
 	dev_dbg(dev, "VERID: 0x%016X\n", val);
 
 	sai->verid.version = val &
-		(FSL_SAI_VERID_MAJOR_MASK | FSL_SAI_VERID_MINOR_MASK);
-	sai->verid.version >>= FSL_SAI_VERID_MINOR_SHIFT;
+		(FSL_SAI_VERID_MAJOR_MASK | FSL_SAI_VERID_MIANALR_MASK);
+	sai->verid.version >>= FSL_SAI_VERID_MIANALR_SHIFT;
 	sai->verid.feature = val & FSL_SAI_VERID_FEATURE_MASK;
 
 	ret = regmap_read(sai->regmap, FSL_SAI_PARAM, &val);
@@ -1224,7 +1224,7 @@ static unsigned int fsl_sai_calc_dl_off(unsigned long dl_mask)
 static int fsl_sai_read_dlcfg(struct fsl_sai *sai)
 {
 	struct platform_device *pdev = sai->pdev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	int ret, elems, i, index, num_cfg;
 	char *propname = "fsl,dataline";
@@ -1246,7 +1246,7 @@ static int fsl_sai_read_dlcfg(struct fsl_sai *sai)
 	/*  Add one more for default value */
 	cfg = devm_kzalloc(&pdev->dev, (num_cfg + 1) * sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Consider default value "0 0xFF 0xFF" if property is missing */
 	soc_dl = BIT(sai->soc_data->pins) - 1;
@@ -1311,7 +1311,7 @@ static int fsl_sai_runtime_resume(struct device *dev);
 
 static int fsl_sai_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct fsl_sai *sai;
 	struct regmap *gpr;
@@ -1323,7 +1323,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	sai = devm_kzalloc(dev, sizeof(*sai), GFP_KERNEL);
 	if (!sai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sai->pdev = pdev;
 	sai->soc_data = of_device_get_match_data(dev);
@@ -1403,27 +1403,27 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	       sizeof(fsl_sai_dai_template));
 
 	/* Sync Tx with Rx as default by following old DT binding */
-	sai->synchronous[RX] = true;
-	sai->synchronous[TX] = false;
+	sai->synchroanalus[RX] = true;
+	sai->synchroanalus[TX] = false;
 	sai->cpu_dai_drv.symmetric_rate = 1;
 	sai->cpu_dai_drv.symmetric_channels = 1;
 	sai->cpu_dai_drv.symmetric_sample_bits = 1;
 
-	if (of_property_read_bool(np, "fsl,sai-synchronous-rx") &&
-	    of_property_read_bool(np, "fsl,sai-asynchronous")) {
-		/* error out if both synchronous and asynchronous are present */
-		dev_err(dev, "invalid binding for synchronous mode\n");
+	if (of_property_read_bool(np, "fsl,sai-synchroanalus-rx") &&
+	    of_property_read_bool(np, "fsl,sai-asynchroanalus")) {
+		/* error out if both synchroanalus and asynchroanalus are present */
+		dev_err(dev, "invalid binding for synchroanalus mode\n");
 		return -EINVAL;
 	}
 
-	if (of_property_read_bool(np, "fsl,sai-synchronous-rx")) {
+	if (of_property_read_bool(np, "fsl,sai-synchroanalus-rx")) {
 		/* Sync Rx with Tx */
-		sai->synchronous[RX] = false;
-		sai->synchronous[TX] = true;
-	} else if (of_property_read_bool(np, "fsl,sai-asynchronous")) {
-		/* Discard all settings for asynchronous mode */
-		sai->synchronous[RX] = false;
-		sai->synchronous[TX] = false;
+		sai->synchroanalus[RX] = false;
+		sai->synchroanalus[TX] = true;
+	} else if (of_property_read_bool(np, "fsl,sai-asynchroanalus")) {
+		/* Discard all settings for asynchroanalus mode */
+		sai->synchroanalus[RX] = false;
+		sai->synchroanalus[TX] = false;
 		sai->cpu_dai_drv.symmetric_rate = 0;
 		sai->cpu_dai_drv.symmetric_channels = 0;
 		sai->cpu_dai_drv.symmetric_sample_bits = 0;
@@ -1435,7 +1435,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	    of_device_is_compatible(np, "fsl,imx6ul-sai")) {
 		gpr = syscon_regmap_lookup_by_compatible("fsl,imx6ul-iomuxc-gpr");
 		if (IS_ERR(gpr)) {
-			dev_err(dev, "cannot find iomuxc registers\n");
+			dev_err(dev, "cananalt find iomuxc registers\n");
 			return PTR_ERR(gpr);
 		}
 
@@ -1481,12 +1481,12 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	}
 
 	ret = pm_runtime_put_sync(dev);
-	if (ret < 0 && ret != -ENOSYS)
+	if (ret < 0 && ret != -EANALSYS)
 		goto err_pm_get_sync;
 
 	/*
 	 * Register platform component before registering cpu dai for there
-	 * is not defer probe for platform component in snd_soc_add_pcm_runtime().
+	 * is analt defer probe for platform component in snd_soc_add_pcm_runtime().
 	 */
 	if (sai->soc_data->use_imx_pcm) {
 		ret = imx_pcm_dma_init(pdev);

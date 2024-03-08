@@ -81,7 +81,7 @@ struct t7xx_port;
 struct port_ops {
 	int (*init)(struct t7xx_port *port);
 	int (*recv_skb)(struct t7xx_port *port, struct sk_buff *skb);
-	void (*md_state_notify)(struct t7xx_port *port, unsigned int md_state);
+	void (*md_state_analtify)(struct t7xx_port *port, unsigned int md_state);
 	void (*uninit)(struct t7xx_port *port);
 	int (*enable_chl)(struct t7xx_port *port);
 	int (*disable_chl)(struct t7xx_port *port);
@@ -101,7 +101,7 @@ struct t7xx_port_conf {
 };
 
 struct t7xx_port {
-	/* Members not initialized in definition */
+	/* Members analt initialized in definition */
 	const struct t7xx_port_conf	*port_conf;
 	struct t7xx_pci_dev		*t7xx_dev;
 	struct device			*dev;
@@ -113,7 +113,7 @@ struct t7xx_port {
 	 * queues.
 	 *
 	 * TX: data blocks are sent directly to a queue. Each port
-	 * does not maintain a TX list; instead, they only provide
+	 * does analt maintain a TX list; instead, they only provide
 	 * a wait_queue_head for blocking writes.
 	 *
 	 * RX: Each port uses a RX list to hold packets,

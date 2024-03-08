@@ -143,7 +143,7 @@ static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 	cobra = kzalloc(sizeof(struct cobra), GFP_KERNEL);
 	if (!cobra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cobra->gameport = gameport;
 
@@ -163,7 +163,7 @@ static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 		}
 
 	if (!cobra->exists) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 
@@ -176,7 +176,7 @@ static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 		cobra->dev[i] = input_dev = input_allocate_device();
 		if (!input_dev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail3;
 		}
 

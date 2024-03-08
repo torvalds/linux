@@ -4,7 +4,7 @@ C MP+poonceonces
  * Result: Sometimes
  *
  * Can the counter-intuitive message-passing outcome be prevented with
- * no ordering at all?
+ * anal ordering at all?
  *)
 
 {}

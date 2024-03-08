@@ -47,7 +47,7 @@
 
 /*
  * Verdin UART_4
- * Often used by the M7 and then should not be enabled here.
+ * Often used by the M7 and then should analt be enabled here.
  */
 &uart4 {
 	status = "disabled";

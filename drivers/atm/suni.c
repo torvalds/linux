@@ -14,7 +14,7 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
 #include <linux/delay.h>
@@ -166,7 +166,7 @@ static int set_loopback(struct atm_dev *dev,int mode)
 
 	control = dev->ops->phy_get(dev, reg) & ~(dle | lle);
 	switch (mode) {
-		case ATM_LM_NONE:
+		case ATM_LM_ANALNE:
 			break;
 		case ATM_LM_LOC_PHY:
 			control |= dle;
@@ -283,7 +283,7 @@ static int suni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 			return put_user(ATM_LM_LOC_PHY | ATM_LM_RMT_PHY,
 			    (int __user *) arg) ? -EFAULT : 0;
 		default:
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 	}
 }
 
@@ -299,7 +299,7 @@ static void poll_los(struct atm_dev *dev)
 static void suni_int(struct atm_dev *dev)
 {
 	poll_los(dev);
-	printk(KERN_NOTICE "%s(itf %d): signal %s\n",dev->type,dev->number,
+	printk(KERN_ANALTICE "%s(itf %d): signal %s\n",dev->type,dev->number,
 	    dev->signal == ATM_PHY_SIG_LOST ?  "lost" : "detected again");
 }
 
@@ -319,9 +319,9 @@ static int suni_start(struct atm_dev *dev)
 		/* interrupt on loss of signal */
 	poll_los(dev); /* ... and clear SUNI interrupts */
 	if (dev->signal == ATM_PHY_SIG_LOST)
-		printk(KERN_WARNING "%s(itf %d): no signal\n",dev->type,
+		printk(KERN_WARNING "%s(itf %d): anal signal\n",dev->type,
 		    dev->number);
-	PRIV(dev)->loop_mode = ATM_LM_NONE;
+	PRIV(dev)->loop_mode = ATM_LM_ANALNE;
 	suni_hz(NULL); /* clear SUNI counters */
 	(void) fetch_stats(dev,NULL,1); /* clear kernel counters */
 	if (first) {
@@ -368,7 +368,7 @@ int suni_init(struct atm_dev *dev)
 	unsigned char mri;
 
 	if (!(dev->phy_data = kmalloc(sizeof(struct suni_priv),GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	PRIV(dev)->dev = dev;
 
 	mri = GET(MRI); /* reset SUNI */

@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -61,18 +61,18 @@
 /*
  * bits definition for EDDEVID1:PSCROffset
  *
- * NOTE: armv8 and armv7 have different definition for the register,
+ * ANALTE: armv8 and armv7 have different definition for the register,
  * so consolidate the bits definition as below:
  *
  * 0b0000 - Sample offset applies based on the instruction state, we
- *          rely on EDDEVID to check if EDPCSR is implemented or not
- * 0b0001 - No offset applies.
- * 0b0010 - No offset applies, but do not use in AArch32 mode
+ *          rely on EDDEVID to check if EDPCSR is implemented or analt
+ * 0b0001 - Anal offset applies.
+ * 0b0010 - Anal offset applies, but do analt use in AArch32 mode
  *
  */
 #define EDDEVID1_PCSR_OFFSET_MASK	GENMASK(3, 0)
 #define EDDEVID1_PCSR_OFFSET_INS_SET	(0x0)
-#define EDDEVID1_PCSR_NO_OFFSET_DIS_AARCH32	(0x2)
+#define EDDEVID1_PCSR_ANAL_OFFSET_DIS_AARCH32	(0x2)
 
 /* bits definition for EDDEVID */
 #define EDDEVID_PCSAMPLE_MODE		GENMASK(3, 0)
@@ -121,13 +121,13 @@ static void debug_os_unlock(struct debug_drvdata *drvdata)
 /*
  * According to ARM DDI 0487A.k, before access external debug
  * registers should firstly check the access permission; if any
- * below condition has been met then cannot access debug
+ * below condition has been met then cananalt access debug
  * registers to avoid lockup issue:
  *
  * - CPU power domain is powered off;
  * - The OS Double Lock is locked;
  *
- * By checking EDPRSR can get to know if meet these conditions.
+ * By checking EDPRSR can get to kanalw if meet these conditions.
  */
 static bool debug_access_permitted(struct debug_drvdata *drvdata)
 {
@@ -163,8 +163,8 @@ try_again:
 			drvdata->edprsr, (drvdata->edprsr & EDPRSR_PU),
 			DEBUG_WAIT_SLEEP, DEBUG_WAIT_TIMEOUT)) {
 		/*
-		 * Unfortunately the CPU cannot be powered up, so return
-		 * back and later has no permission to access other
+		 * Unfortunately the CPU cananalt be powered up, so return
+		 * back and later has anal permission to access other
 		 * registers. For this case, should disable CPU low power
 		 * states to ensure CPU power domain is enabled!
 		 */
@@ -174,7 +174,7 @@ try_again:
 	}
 
 	/*
-	 * At this point the CPU is powered up, so set the no powerdown
+	 * At this point the CPU is powered up, so set the anal powerdown
 	 * request bit so we don't lose power and emulate power down.
 	 */
 	edprcr = readl_relaxed(drvdata->base + EDPRCR);
@@ -216,13 +216,13 @@ static void debug_read_regs(struct debug_drvdata *drvdata)
 	 * element (PE) is in debug state, or sample-based
 	 * profiling is prohibited, EDPCSR reads as 0xFFFFFFFF;
 	 * EDCIDSR, EDVIDSR and EDPCSR_HI registers also become
-	 * UNKNOWN state. So directly bail out for this case.
+	 * UNKANALWN state. So directly bail out for this case.
 	 */
 	if (drvdata->edpcsr == EDPCSR_PROHIBITED)
 		goto out;
 
 	/*
-	 * A read of the EDPCSR normally has the side-effect of
+	 * A read of the EDPCSR analrmally has the side-effect of
 	 * indirectly writing to EDCIDSR, EDVIDSR and EDPCSR_HI;
 	 * at this point it's safe to read value from them.
 	 */
@@ -269,9 +269,9 @@ static unsigned long debug_adjust_pc(struct debug_drvdata *drvdata)
 
 	/*
 	 * Handle arm instruction offset, if the arm instruction
-	 * is not 4 byte alignment then it's possible the case
+	 * is analt 4 byte alignment then it's possible the case
 	 * for implementation defined; keep original value for this
-	 * case and print info for notice.
+	 * case and print info for analtice.
 	 */
 	if (pc & BIT(1))
 		dev_emerg(drvdata->dev,
@@ -294,7 +294,7 @@ static void debug_dump_regs(struct debug_drvdata *drvdata)
 		  drvdata->edprsr & EDPRSR_DLK ? "Lock" : "Unlock");
 
 	if (!debug_access_permitted(drvdata)) {
-		dev_emerg(dev, "No permission to access debug registers!\n");
+		dev_emerg(dev, "Anal permission to access debug registers!\n");
 		return;
 	}
 
@@ -313,7 +313,7 @@ static void debug_dump_regs(struct debug_drvdata *drvdata)
 		dev_emerg(dev, " EDVIDSR: %08x (State:%s Mode:%s Width:%dbits VMID:%x)\n",
 			  drvdata->edvidsr,
 			  drvdata->edvidsr & EDVIDSR_NS ?
-			  "Non-secure" : "Secure",
+			  "Analn-secure" : "Secure",
 			  drvdata->edvidsr & EDVIDSR_E3 ? "EL3" :
 				(drvdata->edvidsr & EDVIDSR_E2 ?
 				 "EL2" : "EL1/0"),
@@ -356,12 +356,12 @@ static void debug_init_arch_data(void *info)
 		 * In ARM DDI 0487A.k, the EDDEVID1.PCSROffset is used to
 		 * define if has the offset for PC sampling value; if read
 		 * back EDDEVID1.PCSROffset == 0x2, then this means the debug
-		 * module does not sample the instruction set state when
+		 * module does analt sample the instruction set state when
 		 * armv8 CPU in AArch32 state.
 		 */
 		drvdata->edpcsr_present =
 			((IS_ENABLED(CONFIG_64BIT) && pcsr_offset != 0) ||
-			 (pcsr_offset != EDDEVID1_PCSR_NO_OFFSET_DIS_AARCH32));
+			 (pcsr_offset != EDDEVID1_PCSR_ANAL_OFFSET_DIS_AARCH32));
 
 		drvdata->pc_has_offset =
 			(pcsr_offset == EDDEVID1_PCSR_OFFSET_INS_SET);
@@ -374,7 +374,7 @@ static void debug_init_arch_data(void *info)
 /*
  * Dump out information on panic.
  */
-static int debug_notifier_call(struct notifier_block *self,
+static int debug_analtifier_call(struct analtifier_block *self,
 			       unsigned long v, void *p)
 {
 	int cpu;
@@ -382,7 +382,7 @@ static int debug_notifier_call(struct notifier_block *self,
 
 	/* Bail out if we can't acquire the mutex or the functionality is off */
 	if (!mutex_trylock(&debug_lock))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!debug_enable)
 		goto skip_dump;
@@ -402,11 +402,11 @@ static int debug_notifier_call(struct notifier_block *self,
 
 skip_dump:
 	mutex_unlock(&debug_lock);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block debug_notifier = {
-	.notifier_call = debug_notifier_call,
+static struct analtifier_block debug_analtifier = {
+	.analtifier_call = debug_analtifier_call,
 };
 
 static int debug_enable_func(void)
@@ -442,7 +442,7 @@ err:
 	 */
 	for_each_cpu(cpu, &mask) {
 		drvdata = per_cpu(debug_drvdata, cpu);
-		pm_runtime_put_noidle(drvdata->dev);
+		pm_runtime_put_analidle(drvdata->dev);
 	}
 
 	return ret;
@@ -471,7 +471,7 @@ static int debug_disable_func(void)
 	return err;
 }
 
-static ssize_t debug_func_knob_write(struct file *f,
+static ssize_t debug_func_kanalb_write(struct file *f,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	u8 val;
@@ -505,7 +505,7 @@ err:
 	return ret;
 }
 
-static ssize_t debug_func_knob_read(struct file *f,
+static ssize_t debug_func_kanalb_read(struct file *f,
 		char __user *ubuf, size_t count, loff_t *ppos)
 {
 	ssize_t ret;
@@ -519,26 +519,26 @@ static ssize_t debug_func_knob_read(struct file *f,
 	return ret;
 }
 
-static const struct file_operations debug_func_knob_fops = {
+static const struct file_operations debug_func_kanalb_fops = {
 	.open	= simple_open,
-	.read	= debug_func_knob_read,
-	.write	= debug_func_knob_write,
+	.read	= debug_func_kanalb_read,
+	.write	= debug_func_kanalb_write,
 };
 
 static int debug_func_init(void)
 {
 	int ret;
 
-	/* Create debugfs node */
+	/* Create debugfs analde */
 	debug_debugfs_dir = debugfs_create_dir("coresight_cpu_debug", NULL);
 	debugfs_create_file("enable", 0644, debug_debugfs_dir, NULL,
-			    &debug_func_knob_fops);
+			    &debug_func_kanalb_fops);
 
 	/* Register function to be called for panic */
-	ret = atomic_notifier_chain_register(&panic_notifier_list,
-					     &debug_notifier);
+	ret = atomic_analtifier_chain_register(&panic_analtifier_list,
+					     &debug_analtifier);
 	if (ret) {
-		pr_err("%s: unable to register notifier: %d\n",
+		pr_err("%s: unable to register analtifier: %d\n",
 		       __func__, ret);
 		goto err;
 	}
@@ -552,8 +552,8 @@ err:
 
 static void debug_func_exit(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &debug_notifier);
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
+					 &debug_analtifier);
 	debugfs_remove_recursive(debug_debugfs_dir);
 }
 
@@ -567,7 +567,7 @@ static int debug_probe(struct amba_device *adev, const struct amba_id *id)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->cpu = coresight_get_cpu(dev);
 	if (drvdata->cpu < 0)

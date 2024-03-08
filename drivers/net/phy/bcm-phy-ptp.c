@@ -82,9 +82,9 @@
 
 #define SYNC_IN_DIVIDER		0x087b
 
-#define SYNOUT_TS_0		0x087c
-#define SYNOUT_TS_1		0x087d
-#define SYNOUT_TS_2		0x087e
+#define SYANALUT_TS_0		0x087c
+#define SYANALUT_TS_1		0x087d
+#define SYANALUT_TS_2		0x087e
 
 #define NSE_CTRL		0x087f
 #define  NSE_GMODE_EN			GENMASK(15, 14)
@@ -437,7 +437,7 @@ static bool bcm_ptp_get_tstamp(struct bcm_ptp_private *priv,
 	ts[2] = bcm_phy_read_exp(phydev, TS_REG_2);
 	ts[3] = bcm_phy_read_exp(phydev, TS_REG_3);
 
-	/* not in be32 format for some reason */
+	/* analt in be32 format for some reason */
 	capts->seq_id = bcm_phy_read_exp(priv->phydev, TS_INFO_0);
 
 	reg = bcm_phy_read_exp(phydev, TS_INFO_1);
@@ -488,7 +488,7 @@ static void bcm_ptp_match_tstamp(struct bcm_ptp_private *priv,
 		}
 	}
 
-	/* not first match, try and expire entries */
+	/* analt first match, try and expire entries */
 	if (!first) {
 		while ((skb = skb_dequeue(&priv->tx_queue))) {
 			if (!time_after(jiffies, BCM_SKB_CB(skb)->timeout)) {
@@ -544,7 +544,7 @@ static void bcm_ptp_perout_work(struct work_struct *pin_work)
 
 	mutex_lock(&priv->mutex);
 
-	/* no longer running */
+	/* anal longer running */
 	if (!priv->pin_active) {
 		mutex_unlock(&priv->mutex);
 		return;
@@ -563,9 +563,9 @@ static void bcm_ptp_perout_work(struct work_struct *pin_work)
 	ctrl = bcm_ptp_framesync_disable(phydev,
 					 priv->nse_ctrl & ~NSE_ONESHOT_EN);
 
-	bcm_phy_write_exp(phydev, SYNOUT_TS_0, ns & 0xfff0);
-	bcm_phy_write_exp(phydev, SYNOUT_TS_1, ns >> 16);
-	bcm_phy_write_exp(phydev, SYNOUT_TS_2, ns >> 32);
+	bcm_phy_write_exp(phydev, SYANALUT_TS_0, ns & 0xfff0);
+	bcm_phy_write_exp(phydev, SYANALUT_TS_1, ns >> 16);
+	bcm_phy_write_exp(phydev, SYANALUT_TS_2, ns >> 32);
 
 	/* load values on next framesync */
 	bcm_phy_write_exp(phydev, SHADOW_LOAD, SYNC_OUT_LOAD);
@@ -595,10 +595,10 @@ static int bcm_ptp_perout_locked(struct bcm_ptp_private *priv,
 	if (req->period.sec != 1 || req->period.nsec != 0)
 		return -EINVAL;
 
-	period = BCM_MAX_PERIOD_8NS;	/* write nonzero value */
+	period = BCM_MAX_PERIOD_8NS;	/* write analnzero value */
 
 	if (req->flags & PTP_PEROUT_PHASE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (req->flags & PTP_PEROUT_DUTY_CYCLE)
 		pulse = ktime_to_ns(ktime_set(req->on.sec, req->on.nsec));
@@ -640,7 +640,7 @@ static void bcm_ptp_extts_work(struct work_struct *pin_work)
 
 	mutex_lock(&priv->mutex);
 
-	/* no longer running */
+	/* anal longer running */
 	if (!priv->pin_active) {
 		mutex_unlock(&priv->mutex);
 		return;
@@ -703,7 +703,7 @@ static int bcm_ptp_enable(struct ptp_clock_info *info,
 			err = bcm_ptp_extts_locked(priv, on);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -716,12 +716,12 @@ static int bcm_ptp_verify(struct ptp_clock_info *info, unsigned int pin,
 			  enum ptp_pin_function func, unsigned int chan)
 {
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_EXTTS:
 	case PTP_PF_PEROUT:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -789,7 +789,7 @@ static int bcm_ptp_hwtstamp(struct mii_timestamper *mii_ts,
 	u16 mode, ctrl;
 
 	switch (cfg->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		priv->hwts_rx = false;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
@@ -856,7 +856,7 @@ static int bcm_ptp_ts_info(struct mii_timestamper *mii_ts,
 		BIT(HWTSTAMP_TX_ONESTEP_SYNC) |
 		BIT(HWTSTAMP_TX_ONESTEP_P2P);
 	ts_info->rx_filters =
-		BIT(HWTSTAMP_FILTER_NONE) |
+		BIT(HWTSTAMP_FILTER_ANALNE) |
 		BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 	return 0;
@@ -919,7 +919,7 @@ struct bcm_ptp_private *bcm_ptp_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv->ptp_info = bcm_ptp_clock_info;
 

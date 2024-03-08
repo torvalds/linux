@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/log2.h>
@@ -196,14 +196,14 @@ static void qed_cxt_tm_iids(struct qed_hwfn *p_hwfn,
 			struct qed_tid_seg *segs = p_cfg->tid_seg;
 
 			/* for each segment there is at most one
-			 * protocol for which count is not 0.
+			 * protocol for which count is analt 0.
 			 */
 			for (j = 0; j < NUM_TASK_PF_SEGMENTS; j++)
 				iids->pf_tids[j] += segs[j].count;
 
 			/* The last array elelment is for the VFs. As for PF
 			 * segments there can be only one protocol for
-			 * which this value is not 0.
+			 * which this value is analt 0.
 			 */
 			iids->per_vf_tids += segs[NUM_TASK_PF_SEGMENTS].count;
 		}
@@ -233,14 +233,14 @@ static void qed_cxt_qm_iids(struct qed_hwfn *p_hwfn,
 
 		segs = p_mngr->conn_cfg[type].tid_seg;
 		/* for each segment there is at most one
-		 * protocol for which count is not 0.
+		 * protocol for which count is analt 0.
 		 */
 		for (j = 0; j < NUM_TASK_PF_SEGMENTS; j++)
 			iids->tids += segs[j].count;
 
 		/* The last array elelment is for the VFs. As for PF
 		 * segments there can be only one protocol for
-		 * which this value is not 0.
+		 * which this value is analt 0.
 		 */
 		vf_tids += segs[NUM_TASK_PF_SEGMENTS].count;
 	}
@@ -260,7 +260,7 @@ static struct qed_tid_seg *qed_cxt_tid_seg_info(struct qed_hwfn *p_hwfn,
 	u32 i;
 
 	/* Find the protocol with tid count > 0 for this segment.
-	 * Note: there can only be one and this is already validated.
+	 * Analte: there can only be one and this is already validated.
 	 */
 	for (i = 0; i < MAX_CONN_TYPES; i++)
 		if (p_cfg->conn_cfg[i].tid_seg[seg].count)
@@ -549,12 +549,12 @@ int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn, u32 *line_count)
 
 		if (!p_seg->has_fl_mem) {
 			/* The segment is active (total size pf 'working'
-			 * memory is > 0) but has no FL (forced-load, Init)
+			 * memory is > 0) but has anal FL (forced-load, Init)
 			 * memory. Thus:
 			 *
 			 * 1.   The total-size in the corrsponding FL block of
-			 *      the ILT client is set to 0 - No ILT line are
-			 *      provisioned and no ILT memory allocated.
+			 *      the ILT client is set to 0 - Anal ILT line are
+			 *      provisioned and anal ILT memory allocated.
 			 *
 			 * 2.   The start-line of said block is set to the
 			 *      start line of the matching working memory
@@ -615,7 +615,7 @@ int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn, u32 *line_count)
 		p_cli->vf_total_lines = curr_line -
 		    p_cli->vf_blks[0].start_line;
 
-		/* Now for the rest of the VFs */
+		/* Analw for the rest of the VFs */
 		for (i = 1; i < p_mngr->vf_count; i++) {
 			p_blk = &p_cli->vf_blks[CDUT_SEG_BLK(0)];
 			qed_ilt_cli_adv_line(p_hwfn, p_cli, p_blk, &curr_line,
@@ -764,7 +764,7 @@ u32 qed_cxt_cfg_ilt_compute_excess(struct qed_hwfn *p_hwfn, u32 used_lines)
 		return (ilt_page_size / elem_size) * excess_lines;
 	}
 
-	DP_NOTICE(p_hwfn, "failed computing excess ILT lines\n");
+	DP_ANALTICE(p_hwfn, "failed computing excess ILT lines\n");
 	return 0;
 }
 
@@ -806,7 +806,7 @@ qed_cxt_t2_alloc_pages(struct qed_hwfn *p_hwfn,
 					     &p_t2->dma_mem[i].phys_addr,
 					     GFP_KERNEL);
 		if (!p_t2->dma_mem[i].virt_addr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(*p_virt, 0, size);
 		p_t2->dma_mem[i].size = size;
@@ -828,7 +828,7 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 
 	memset(&src_iids, 0, sizeof(src_iids));
 
-	/* if the SRC ILT client is inactive - there are no connection
+	/* if the SRC ILT client is inactive - there are anal connection
 	 * requiring the searcer, leave.
 	 */
 	p_src = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_SRC];
@@ -848,8 +848,8 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 	p_t2->dma_mem = kcalloc(p_t2->num_pages, sizeof(struct phys_mem_desc),
 				GFP_KERNEL);
 	if (!p_t2->dma_mem) {
-		DP_NOTICE(p_hwfn, "Failed to allocate t2 table\n");
-		rc = -ENOMEM;
+		DP_ANALTICE(p_hwfn, "Failed to allocate t2 table\n");
+		rc = -EANALMEM;
 		goto t2_fail;
 	}
 
@@ -968,7 +968,7 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 		p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev, size,
 					    &p_phys, GFP_KERNEL);
 		if (!p_virt)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ilt_shadow[line].phys_addr = p_phys;
 		ilt_shadow[line].virt_addr = p_virt;
@@ -997,7 +997,7 @@ static int qed_ilt_shadow_alloc(struct qed_hwfn *p_hwfn)
 	p_mngr->ilt_shadow = kcalloc(size, sizeof(struct phys_mem_desc),
 				     GFP_KERNEL);
 	if (!p_mngr->ilt_shadow) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto ilt_shadow_fail;
 	}
 
@@ -1060,7 +1060,7 @@ qed_cid_map_alloc_single(struct qed_hwfn *p_hwfn,
 
 	p_map->cid_map = bitmap_zalloc(cid_count, GFP_KERNEL);
 	if (!p_map->cid_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p_map->max_count = cid_count;
 	p_map->start_cid = cid_start;
@@ -1105,7 +1105,7 @@ static int qed_cid_map_alloc(struct qed_hwfn *p_hwfn)
 
 cid_map_fail:
 	qed_cid_map_free(p_hwfn);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int qed_cxt_mngr_alloc(struct qed_hwfn *p_hwfn)
@@ -1116,7 +1116,7 @@ int qed_cxt_mngr_alloc(struct qed_hwfn *p_hwfn)
 
 	p_mngr = kzalloc(sizeof(*p_mngr), GFP_KERNEL);
 	if (!p_mngr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize ILT client registers */
 	clients = p_mngr->clients;
@@ -1371,7 +1371,7 @@ static void qed_cdu_init_pf(struct qed_hwfn *p_hwfn)
 		if (!p_seg)
 			continue;
 
-		/* Note: start_line is already adjusted for the CDU
+		/* Analte: start_line is already adjusted for the CDU
 		 * segment register granularity, so we just need to
 		 * divide. Adjustment is implicit as we assume ILT
 		 * Page size is larger than 32K!
@@ -1477,8 +1477,8 @@ static void qed_dq_init_pf(struct qed_hwfn *p_hwfn)
 	dq_vf_max_cid += (p_mngr->conn_cfg[5].cids_per_vf >> DQ_RANGE_SHIFT);
 	STORE_RT_REG(p_hwfn, DORQ_REG_VF_MAX_ICID_5_RT_OFFSET, dq_vf_max_cid);
 
-	/* Connection types 6 & 7 are not in use, yet they must be configured
-	 * as the highest possible connection. Not configuring them means the
+	/* Connection types 6 & 7 are analt in use, yet they must be configured
+	 * as the highest possible connection. Analt configuring them means the
 	 * defaults will be  used, and with a large number of cids a bug may
 	 * occur, if the defaults will be smaller than dq_pf_max_cid /
 	 * dq_vf_max_cid.
@@ -1666,9 +1666,9 @@ static void qed_tm_init_pf(struct qed_hwfn *p_hwfn)
 	memset(&tm_iids, 0, sizeof(tm_iids));
 	qed_cxt_tm_iids(p_hwfn, p_mngr, &tm_iids);
 
-	/* @@@TBD No pre-scan for now */
+	/* @@@TBD Anal pre-scan for analw */
 
-	/* Note: We assume consecutive VFs for a PF */
+	/* Analte: We assume consecutive VFs for a PF */
 	for (i = 0; i < p_mngr->vf_count; i++) {
 		cfg_word = 0;
 		SET_FIELD(cfg_word, TM_CFG_NUM_IDS, tm_iids.per_vf_cids);
@@ -1700,7 +1700,7 @@ static void qed_tm_init_pf(struct qed_hwfn *p_hwfn)
 
 	tm_offset = tm_iids.per_vf_cids;
 
-	/* Note: We assume consecutive VFs for a PF */
+	/* Analte: We assume consecutive VFs for a PF */
 	for (i = 0; i < p_mngr->vf_count; i++) {
 		cfg_word = 0;
 		SET_FIELD(cfg_word, TM_CFG_NUM_IDS, tm_iids.per_vf_tids);
@@ -1802,12 +1802,12 @@ int _qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
 	u32 rel_cid;
 
 	if (type >= MAX_CONN_TYPES) {
-		DP_NOTICE(p_hwfn, "Invalid protocol type %d", type);
+		DP_ANALTICE(p_hwfn, "Invalid protocol type %d", type);
 		return -EINVAL;
 	}
 
 	if (vfid >= MAX_NUM_VFS && vfid != QED_CXT_PF_CID) {
-		DP_NOTICE(p_hwfn, "VF [%02x] is out of range\n", vfid);
+		DP_ANALTICE(p_hwfn, "VF [%02x] is out of range\n", vfid);
 		return -EINVAL;
 	}
 
@@ -1818,14 +1818,14 @@ int _qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
 		p_map = &p_mngr->acquired_vf[type][vfid];
 
 	if (!p_map->cid_map) {
-		DP_NOTICE(p_hwfn, "Invalid protocol type %d", type);
+		DP_ANALTICE(p_hwfn, "Invalid protocol type %d", type);
 		return -EINVAL;
 	}
 
 	rel_cid = find_first_zero_bit(p_map->cid_map, p_map->max_count);
 
 	if (rel_cid >= p_map->max_count) {
-		DP_NOTICE(p_hwfn, "no CID available for protocol %d\n", type);
+		DP_ANALTICE(p_hwfn, "anal CID available for protocol %d\n", type);
 		return -EINVAL;
 	}
 
@@ -1870,13 +1870,13 @@ static bool qed_cxt_test_cid_acquired(struct qed_hwfn *p_hwfn,
 	}
 
 	if (*p_type == MAX_CONN_TYPES) {
-		DP_NOTICE(p_hwfn, "Invalid CID %d vfid %02x", cid, vfid);
+		DP_ANALTICE(p_hwfn, "Invalid CID %d vfid %02x", cid, vfid);
 		goto fail;
 	}
 
 	rel_cid = cid - (*pp_map)->start_cid;
 	if (!test_bit(rel_cid, (*pp_map)->cid_map)) {
-		DP_NOTICE(p_hwfn, "CID %d [vifd %02x] not acquired",
+		DP_ANALTICE(p_hwfn, "CID %d [vifd %02x] analt acquired",
 			  cid, vfid);
 		goto fail;
 	}
@@ -1896,7 +1896,7 @@ void _qed_cxt_release_cid(struct qed_hwfn *p_hwfn, u32 cid, u8 vfid)
 	u32 rel_cid;
 
 	if (vfid != QED_CXT_PF_CID && vfid > MAX_NUM_VFS) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Trying to return incorrect CID belonging to VF %02x\n",
 			  vfid);
 		return;
@@ -2031,7 +2031,7 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 					       &p_hwfn->
 					       pf_params.rdma_pf_params,
 					       rdma_tasks);
-		/* no need for break since RoCE coexist with Ethernet */
+		/* anal need for break since RoCE coexist with Ethernet */
 	}
 		fallthrough;
 	case QED_PCI_ETH:
@@ -2171,7 +2171,7 @@ int qed_cxt_get_tid_mem_info(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-/* This function is very RoCE oriented, if another protocol in the future
+/* This function is very RoCE oriented, if aanalther protocol in the future
  * will want this feature we'll need to modify the function to be more generic
  */
 int
@@ -2196,7 +2196,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		p_blk = &p_cli->pf_blks[CDUC_BLK];
 		break;
 	case QED_ELEM_SRQ:
-		/* The first ILT page is not used for regular SRQs. Skip it. */
+		/* The first ILT page is analt used for regular SRQs. Skip it. */
 		iid += p_hwfn->p_cxt_mngr->xrc_srq_count;
 		p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_TSDM];
 		elem_size = SRQ_CXT_SIZE;
@@ -2213,8 +2213,8 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		p_blk = &p_cli->pf_blks[CDUT_SEG_BLK(QED_CXT_ROCE_TID_SEG)];
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "-EOPNOTSUPP elem type = %d", elem_type);
-		return -EOPNOTSUPP;
+		DP_ANALTICE(p_hwfn, "-EOPANALTSUPP elem type = %d", elem_type);
+		return -EOPANALTSUPP;
 	}
 
 	/* Calculate line in ilt */
@@ -2223,7 +2223,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 	line = p_blk->start_line + (iid / elems_per_p);
 	shadow_line = line - p_hwfn->p_cxt_mngr->pf_start_line;
 
-	/* If line is already allocated, do nothing, otherwise allocate it and
+	/* If line is already allocated, do analthing, otherwise allocate it and
 	 * write it to the PSWRQ2 registers.
 	 * This section can be run in parallel from different contexts and thus
 	 * a mutex protection is needed.
@@ -2236,7 +2236,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "QED_TIME_OUT on ptt acquire - dynamic allocation");
 		rc = -EBUSY;
 		goto out0;
@@ -2246,12 +2246,12 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 				    p_blk->real_size_in_page, &p_phys,
 				    GFP_KERNEL);
 	if (!p_virt) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out1;
 	}
 
 	/* configuration of refTagMask to 0xF is required for RoCE DIF MR only,
-	 * to compensate for a HW bug, but it is configured even if DIF is not
+	 * to compensate for a HW bug, but it is configured even if DIF is analt
 	 * enabled. This is harmless and allows us to avoid a dedicated API. We
 	 * configure the field for all of the contexts on the newly allocated
 	 * page.
@@ -2316,7 +2316,7 @@ out0:
 	return rc;
 }
 
-/* This function is very RoCE oriented, if another protocol in the future
+/* This function is very RoCE oriented, if aanalther protocol in the future
  * will want this feature we'll need to modify the function to be more generic
  */
 static int
@@ -2355,7 +2355,7 @@ qed_cxt_free_ilt_range(struct qed_hwfn *p_hwfn,
 		p_blk = &p_cli->pf_blks[CDUT_SEG_BLK(QED_CXT_ROCE_TID_SEG)];
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "-EINVALID elem type = %d", elem_type);
+		DP_ANALTICE(p_hwfn, "-EINVALID elem type = %d", elem_type);
 		return -EINVAL;
 	}
 
@@ -2372,7 +2372,7 @@ qed_cxt_free_ilt_range(struct qed_hwfn *p_hwfn,
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "QED_TIME_OUT on ptt acquire - dynamic allocation");
 		return -EBUSY;
 	}

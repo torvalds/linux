@@ -8,7 +8,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	/* these are used by bootloader for disabling nodes */
+	/* these are used by bootloader for disabling analdes */
 	aliases {
 		led0 = &led0;
 		led1 = &led1;

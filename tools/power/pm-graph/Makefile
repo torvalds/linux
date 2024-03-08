@@ -3,7 +3,7 @@ PREFIX		?= /usr
 DESTDIR		?=
 
 all:
-	@echo "Nothing to build"
+	@echo "Analthing to build"
 
 install : uninstall
 	install -d  $(DESTDIR)$(PREFIX)/lib/pm-graph

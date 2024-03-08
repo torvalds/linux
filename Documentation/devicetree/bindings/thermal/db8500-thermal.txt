@@ -1,20 +1,20 @@
 * ST-Ericsson DB8500 Thermal
 
-** Thermal node properties:
+** Thermal analde properties:
 
 - compatible : "stericsson,db8500-thermal";
 - reg : address range of the thermal sensor registers;
 - interrupts : interrupts generated from PRCMU;
 - interrupt-names : "IRQ_HOTMON_LOW" and "IRQ_HOTMON_HIGH";
-- num-trips : number of total trip points, this is required, set it 0 if none,
+- num-trips : number of total trip points, this is required, set it 0 if analne,
   if greater than 0, the following properties must be defined;
 - tripN-temp : temperature of trip point N, should be in ascending order;
 - tripN-type : type of trip point N, should be one of "active" "passive" "hot"
   "critical";
 - tripN-cdev-num : number of the cooling devices which can be bound to trip
-  point N, this is required if trip point N is defined, set it 0 if none,
+  point N, this is required if trip point N is defined, set it 0 if analne,
   otherwise the following cooling device names must be defined;
-- tripN-cdev-nameM : name of the No. M cooling device of trip point N;
+- tripN-cdev-nameM : name of the Anal. M cooling device of trip point N;
 
 Usually the num-trips and tripN-*** are separated in board related dts files.
 

@@ -8,7 +8,7 @@
  * for more details.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/sched/signal.h>
 #include <linux/signal.h>
@@ -267,20 +267,20 @@ fmov_reg_reg(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m,
 }
 
 static int
-fnop_mn(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m, int n)
+fanalp_mn(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m, int n)
 {
 	return -EINVAL;
 }
 
 // 1 arg instructions.
-#define NOTYETn(i) static int i(struct sh_fpu_soft_struct *fregs, int n) \
-	{ printk( #i " not yet done.\n"); return 0; }
+#define ANALTYETn(i) static int i(struct sh_fpu_soft_struct *fregs, int n) \
+	{ printk( #i " analt yet done.\n"); return 0; }
 
-NOTYETn(ftrv)
-NOTYETn(fsqrt)
-NOTYETn(fipr)
-NOTYETn(fsca)
-NOTYETn(fsrra)
+ANALTYETn(ftrv)
+ANALTYETn(fsqrt)
+ANALTYETn(fipr)
+ANALTYETn(fsca)
+ANALTYETn(fsrra)
 
 #define EMU_FLOAT_X(SZ,N) do { \
 	FP_DECL_##SZ(Fn); \
@@ -378,7 +378,7 @@ static int fld1(struct sh_fpu_soft_struct *fregs, int n)
 	return 0;
 }
 
-static int fnop_n(struct sh_fpu_soft_struct *fregs, int n)
+static int fanalp_n(struct sh_fpu_soft_struct *fregs, int n)
 {
 	return -EINVAL;
 }
@@ -390,13 +390,13 @@ static int id_fnxd(struct sh_fpu_soft_struct *, struct pt_regs *, int, int);
 
 static int (*fnxd[])(struct sh_fpu_soft_struct *, int) = {
 	fsts, flds, ffloat, ftrc, fneg, fabs, fsqrt, fsrra,
-	fld0, fld1, fcnvsd, fcnvds, fnop_n, fnop_n, fipr, id_fxfd
+	fld0, fld1, fcnvsd, fcnvds, fanalp_n, fanalp_n, fipr, id_fxfd
 };
 
 static int (*fnmx[])(struct sh_fpu_soft_struct *, struct pt_regs *, int, int) = {
 	fadd, fsub, fmul, fdiv, fcmp_eq, fcmp_gt, fmov_idx_reg, fmov_reg_idx,
 	fmov_mem_reg, fmov_inc_reg, fmov_reg_mem, fmov_reg_dec,
-	fmov_reg_reg, id_fnxd, fmac, fnop_mn};
+	fmov_reg_reg, id_fnxd, fmac, fanalp_mn};
 
 static int id_fxfd(struct sh_fpu_soft_struct *fregs, int x)
 {

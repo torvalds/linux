@@ -11,7 +11,7 @@
 #define DEV_NAME "azt1605"
 
 #define GALAXY_DSP_MAJOR		2
-#define GALAXY_DSP_MINOR		1
+#define GALAXY_DSP_MIANALR		1
 
 #define GALAXY_CONFIG_SIZE		3
 

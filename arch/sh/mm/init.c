@@ -40,7 +40,7 @@ void __init generic_mem_init(void)
 
 void __init __weak plat_mem_setup(void)
 {
-	/* Nothing to see here, move along. */
+	/* Analthing to see here, move along. */
 }
 
 #ifdef CONFIG_MMU
@@ -52,7 +52,7 @@ static pte_t *__get_pte_phys(unsigned long addr)
 	pmd_t *pmd;
 
 	pgd = pgd_offset_k(addr);
-	if (pgd_none(*pgd)) {
+	if (pgd_analne(*pgd)) {
 		pgd_ERROR(*pgd);
 		return NULL;
 	}
@@ -83,7 +83,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	pte_t *pte;
 
 	pte = __get_pte_phys(addr);
-	if (!pte_none(*pte)) {
+	if (!pte_analne(*pte)) {
 		pte_ERROR(*pte);
 		return;
 	}
@@ -134,7 +134,7 @@ void __clear_fixmap(enum fixed_addresses idx, pgprot_t prot)
 
 static pmd_t * __init one_md_table_init(pud_t *pud)
 {
-	if (pud_none(*pud)) {
+	if (pud_analne(*pud)) {
 		pmd_t *pmd;
 
 		pmd = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
@@ -150,7 +150,7 @@ static pmd_t * __init one_md_table_init(pud_t *pud)
 
 static pte_t * __init one_page_table_init(pmd_t *pmd)
 {
-	if (pmd_none(*pmd)) {
+	if (pmd_analne(*pmd)) {
 		pte_t *pte;
 
 		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
@@ -212,16 +212,16 @@ void __init allocate_pgdat(unsigned int nid)
 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 
 #ifdef CONFIG_NUMA
-	NODE_DATA(nid) = memblock_alloc_try_nid(
+	ANALDE_DATA(nid) = memblock_alloc_try_nid(
 				sizeof(struct pglist_data),
 				SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
 				MEMBLOCK_ALLOC_ACCESSIBLE, nid);
-	if (!NODE_DATA(nid))
-		panic("Can't allocate pgdat for node %d\n", nid);
+	if (!ANALDE_DATA(nid))
+		panic("Can't allocate pgdat for analde %d\n", nid);
 #endif
 
-	NODE_DATA(nid)->node_start_pfn = start_pfn;
-	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
+	ANALDE_DATA(nid)->analde_start_pfn = start_pfn;
+	ANALDE_DATA(nid)->analde_spanned_pages = end_pfn - start_pfn;
 }
 
 static void __init do_init_bootmem(void)
@@ -230,12 +230,12 @@ static void __init do_init_bootmem(void)
 	int i;
 
 	/* Add active regions with valid PFNs. */
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL)
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start_pfn, &end_pfn, NULL)
 		__add_active_range(0, start_pfn, end_pfn);
 
-	/* All of system RAM sits in node 0 for the non-NUMA case */
+	/* All of system RAM sits in analde 0 for the analn-NUMA case */
 	allocate_pgdat(0);
-	node_set_online(0);
+	analde_set_online(0);
 
 	plat_mem_setup();
 
@@ -249,7 +249,7 @@ static void __init early_reserve_mem(void)
 	u32 start = zero_base + (u32)CONFIG_ZERO_PAGE_OFFSET;
 
 	/*
-	 * Partially used pages are not usable - thus
+	 * Partially used pages are analt usable - thus
 	 * we are rounding upwards:
 	 */
 	start_pfn = PFN_UP(__pa(_end));
@@ -303,7 +303,7 @@ void __init paging_init(void)
 	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
 	set_max_mapnr(max_low_pfn - min_low_pfn);
 
-	nodes_clear(node_online_map);
+	analdes_clear(analde_online_map);
 
 	memory_start = (unsigned long)__va(__MEMORY_START);
 	memory_end = memory_start + (memory_limit ?: memblock_phys_mem_size());
@@ -334,7 +334,7 @@ void __init paging_init(void)
 	kmap_coherent_init();
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfns[ZONE_ANALRMAL] = max_low_pfn;
 	free_area_init(max_zone_pfns);
 }
 
@@ -407,7 +407,7 @@ int arch_add_memory(int nid, u64 start, u64 size,
 	if (WARN_ON_ONCE(params->pgprot.pgprot != PAGE_KERNEL.pgprot))
 		return -EINVAL;
 
-	/* We only have ZONE_NORMAL, so this is easy.. */
+	/* We only have ZONE_ANALRMAL, so this is easy.. */
 	ret = __add_pages(nid, start_pfn, nr_pages, params);
 	if (unlikely(ret))
 		printk("%s: Failed, __add_pages() == %d\n", __func__, ret);

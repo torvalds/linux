@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'vt1211'
 
-    Addresses scanned: none, address read from Super-I/O config space
+    Addresses scanned: analne, address read from Super-I/O config space
 
     Datasheet: Provided by VIA upon request and under NDA
 
@@ -60,7 +60,7 @@ tested very well (due to the fact that my EPIA M10000 doesn't have the fans
 connected to the PWM outputs of the VT1211 :-().
 
 The following table shows the relationship between the vt1211 inputs and the
-sysfs nodes.
+sysfs analdes.
 
 =============== ============== =========== ================================
 Sensor          Voltage Mode   Temp Mode   Default Use (from the datasheet)
@@ -146,7 +146,7 @@ VIA C3 Ezra-T   73.869   0.9528
 =============== ======== ===========
 
 .. [3] This is the formula from the lm_sensors 2.10.0 sensors.conf file. I don't
-       know where it comes from or how it was derived, it's just listed here for
+       kanalw where it comes from or how it was derived, it's just listed here for
        completeness.
 
 Temp3-temp7 support NTC thermistors. For these channels, the driver returns
@@ -156,11 +156,11 @@ scaling resistor (Rs)::
 
   Vpin = 2200 * Rth / (Rs + Rth)   (2200 is the ADC max limit of 2200 mV)
 
-The equation for the thermistor is as follows (google it if you want to know
+The equation for the thermistor is as follows (google it if you want to kanalw
 more about it)::
 
   Rth = Ro * exp(B * (1 / T - 1 / To))   (To is 298.15K (25C) and Ro is the
-					  nominal resistance at 25C)
+					  analminal resistance at 25C)
 
 Mingling the above two equations and assuming Rs = Ro and B = 3435 yields the
 following formula for sensors.conf::
@@ -173,7 +173,7 @@ Fan Speed Control
 -----------------
 
 The VT1211 provides 2 programmable PWM outputs to control the speeds of 2
-fans. Writing a 2 to any of the two pwm[1-2]_enable sysfs nodes will put the
+fans. Writing a 2 to any of the two pwm[1-2]_enable sysfs analdes will put the
 PWM controller in automatic mode. There is only a single controller that
 controls both PWM outputs but each PWM output can be individually enabled and
 disabled.
@@ -184,7 +184,7 @@ respectively. High and low can be programmed via
 pwm[1-2]_auto_point[2-3]_pwm. Each PWM output can be associated with a
 different thermal input but - and here's the weird part - only one set of
 thermal thresholds exist that controls both PWMs output duty-cycles. The
-thermal thresholds are accessible via pwm[1-2]_auto_point[1-4]_temp. Note
+thermal thresholds are accessible via pwm[1-2]_auto_point[1-4]_temp. Analte
 that even though there are 2 sets of 4 auto points each, they map to the same
 registers in the VT1211 and programming one set is sufficient (actually only
 the first set pwm1_auto_point[1-4]_temp is writable, the second set is

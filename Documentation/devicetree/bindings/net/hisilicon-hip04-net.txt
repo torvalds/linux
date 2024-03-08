@@ -1,13 +1,13 @@
 Hisilicon hip04 Ethernet Controller
 
-* Ethernet controller node
+* Ethernet controller analde
 
 Required properties:
 - compatible: should be "hisilicon,hip04-mac".
 - reg: address and length of the register set for the device.
 - interrupts: interrupt for the device.
 - port-handle: <phandle port channel>
-	phandle, specifies a reference to the syscon ppe node
+	phandle, specifies a reference to the syscon ppe analde
 	port, port number connected to the controller
 	channel, recv channel start from channel * number (RX_DESC_NUM)
 	group, field in the pkg desc, in general, it is the same as the port.
@@ -19,9 +19,9 @@ Optional properties:
 [1] Documentation/devicetree/bindings/net/ethernet.txt
 
 
-* Ethernet ppe node:
+* Ethernet ppe analde:
 Control rx & tx fifos of all ethernet controllers.
-Have 2048 recv channels shared by all ethernet controllers, only if no overlap.
+Have 2048 recv channels shared by all ethernet controllers, only if anal overlap.
 Each controller's recv channel start from channel * number (RX_DESC_NUM).
 
 Required properties:
@@ -29,12 +29,12 @@ Required properties:
 - reg: address and length of the register set for the device.
 
 
-* MDIO bus node:
+* MDIO bus analde:
 
 Required properties:
 
 - compatible: should be "hisilicon,mdio".
-- Inherits from MDIO bus node binding [2]
+- Inherits from MDIO bus analde binding [2]
 [2] Documentation/devicetree/bindings/net/phy.txt
 
 Example:

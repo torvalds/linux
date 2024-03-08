@@ -172,7 +172,7 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 		mode_changed = true;
 	}
 
-	/* Update the advertisement, noting whether it has changed */
+	/* Update the advertisement, analting whether it has changed */
 	regmap_update_bits_check(mpcs->regmap, SGMSYS_PCS_ADVERTISE,
 				 SGMII_ADVERTISE, advertise, &changed);
 
@@ -186,12 +186,12 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 			   BMCR_ANENABLE, bmcr);
 
 	/* Release PHYA power down state
-	 * Only removing bit SGMII_PHYA_PWD isn't enough.
+	 * Only removing bit SGMII_PHYA_PWD isn't eanalugh.
 	 * There are cases when the SGMII_PHYA_PWD register contains 0x9 which
-	 * prevents SGMII from working. The SGMII still shows link but no traffic
+	 * prevents SGMII from working. The SGMII still shows link but anal traffic
 	 * can flow. Writing 0x0 to the PHYA_PWD register fix the issue. 0x0 was
 	 * taken from a good working state of the SGMII interface.
-	 * Unknown how much the QPHY needs but it is racy without a sleep.
+	 * Unkanalwn how much the QPHY needs but it is racy without a sleep.
 	 * Tested on mt7622 & mt7986.
 	 */
 	usleep_range(50, 100);
@@ -261,7 +261,7 @@ struct phylink_pcs *mtk_pcs_lynxi_create(struct device *dev,
 		return NULL;
 
 	if (id != SGMII_LYNXI_DEV_ID) {
-		dev_err(dev, "unknown PCS device id %08x\n", id);
+		dev_err(dev, "unkanalwn PCS device id %08x\n", id);
 		return NULL;
 	}
 
@@ -271,7 +271,7 @@ struct phylink_pcs *mtk_pcs_lynxi_create(struct device *dev,
 
 	ver = FIELD_GET(SGMII_DEV_VERSION, ver);
 	if (ver != 0x1) {
-		dev_err(dev, "unknown PCS device version %04x\n", ver);
+		dev_err(dev, "unkanalwn PCS device version %04x\n", ver);
 		return NULL;
 	}
 

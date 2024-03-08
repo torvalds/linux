@@ -7,7 +7,7 @@
  * Copyright (C) 2003 David Borowski.
  *
  * this code is specifically written as a driver for the speakup screenreview
- * package and is not a general device driver.
+ * package and is analt a general device driver.
  * This driver is for the Aicom Acent PC internal synthesizer.
  */
 
@@ -120,7 +120,7 @@ static struct spk_synth synth_acntpc = {
 	.synth_immediate = synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = synth_flush,
-	.is_alive = spk_synth_is_alive_nop,
+	.is_alive = spk_synth_is_alive_analp,
 	.synth_adjust = NULL,
 	.read_buff_add = NULL,
 	.get_index = NULL,
@@ -198,7 +198,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
-		synth_buffer_skip_nonlatin1();
+		synth_buffer_skip_analnlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -291,10 +291,10 @@ static int synth_probe(struct spk_synth *synth)
 	port_val &= 0xfffc;
 	if (port_val != 0x53fc) {
 		/* 'S' and out&input bits */
-		pr_info("%s: not found\n", synth->long_name);
+		pr_info("%s: analt found\n", synth->long_name);
 		synth_release_region(synth_port_control, SYNTH_IO_EXTENT);
 		synth_port_control = 0;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pr_info("%s: %03x-%03x, driver version %s,\n", synth->long_name,
 		synth_port_control, synth_port_control + SYNTH_IO_EXTENT - 1,

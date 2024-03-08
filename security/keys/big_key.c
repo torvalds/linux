@@ -29,11 +29,11 @@ struct big_key_payload {
 	(struct big_key_payload *)((payload).data)
 
 /*
- * If the data is under this limit, there's no point creating a shm file to
+ * If the data is under this limit, there's anal point creating a shm file to
  * hold it as the permanently resident metadata for the shmem fs will be at
  * least as large as the data.
  */
-#define BIG_KEY_FILE_THRESHOLD (sizeof(struct inode) + sizeof(struct dentry))
+#define BIG_KEY_FILE_THRESHOLD (sizeof(struct ianalde) + sizeof(struct dentry))
 
 /*
  * big_key defined keys take an arbitrary string as the description and an
@@ -79,19 +79,19 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 		 * to be swapped out if needed.
 		 *
 		 * File content is stored encrypted with randomly generated key.
-		 * Since the key is random for each file, we can set the nonce
+		 * Since the key is random for each file, we can set the analnce
 		 * to zero, provided we never define a ->update() call.
 		 */
 		loff_t pos = 0;
 
 		buf = kvmalloc(enclen, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* generate random key */
 		enckey = kmalloc(CHACHA20POLY1305_KEY_SIZE, GFP_KERNEL);
 		if (!enckey) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 		ret = get_random_bytes_wait(enckey, CHACHA20POLY1305_KEY_SIZE);
@@ -130,7 +130,7 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 		void *data = kmalloc(datalen, GFP_KERNEL);
 
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		payload->data = data;
 		memcpy(data, prep->data, prep->datalen);
@@ -241,7 +241,7 @@ long big_key_read(const struct key *key, char *buffer, size_t buflen)
 
 		buf = kvmalloc(enclen, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		file = dentry_open(&payload->path, O_RDONLY, current_cred());
 		if (IS_ERR(file)) {

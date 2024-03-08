@@ -7,7 +7,7 @@
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1994, 1995, 1996, by Andreas Busse
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) 2000 MIPS Technologies, Inc.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.
  *    written by Carsten Langgaard, carstenl@mips.com
  */
 #include <asm/asm.h>
@@ -25,7 +25,7 @@
 	.set arch=octeon
 	mfc0	t1, CP0_STATUS
 	LONG_S	t1, THREAD_STATUS(a0)
-	cpu_save_nonscratch a0
+	cpu_save_analnscratch a0
 	LONG_S	ra, THREAD_REG31(a0)
 
 #if CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
@@ -42,7 +42,7 @@
 	LONG_ADDI t2, a0, THREAD_CVMSEG /* Where to store CVMSEG to */
 	synciobdma
 2:
-	.set noreorder
+	.set analreorder
 	LONG_L	t8, 0(t1)	/* Load from CVMSEG */
 	subu	t0, 1		/* Decrement loop var */
 	LONG_L	t9, LONGSIZE(t1)/* Load from CVMSEG */
@@ -71,7 +71,7 @@
 	 * updating $28, $29 and kernelsp without disabling ints.
 	 */
 	move	$28, a2
-	cpu_restore_nonscratch a1
+	cpu_restore_analnscratch a1
 
 	PTR_ADDU	t0, $28, _THREAD_SIZE - 32
 	set_saved_sp	t0, t1, t2
@@ -80,7 +80,7 @@
 	li	a3, 0xff01
 	and	t1, a3
 	LONG_L	a2, THREAD_STATUS(a1)
-	nor	a3, $0, a3
+	analr	a3, $0, a3
 	and	a2, a3
 	or	a2, t1
 	mtc0	a2, CP0_STATUS
@@ -93,7 +93,7 @@
  */
 	.align	7
 	.set push
-	.set noreorder
+	.set analreorder
 	LEAF(octeon_cop2_save)
 
 	dmfc0	t9, $9,7	/* CvmCtl register. */
@@ -104,7 +104,7 @@
 	dmfc2	t2, 0x0200
 	sd	t0, OCTEON_CP2_CRC_IV(a0)
 	sd	t1, OCTEON_CP2_CRC_LENGTH(a0)
-	/* Skip next instructions if CvmCtl[NODFA_CP2] set */
+	/* Skip next instructions if CvmCtl[ANALDFA_CP2] set */
 	bbit1	t9, 28, 1f
 	 sd	t2, OCTEON_CP2_CRC_POLY(a0)
 
@@ -113,7 +113,7 @@
 	dmfc2	t1, 0x040A
 	sd	t0, OCTEON_CP2_LLM_DAT(a0)
 
-1:	bbit1	t9, 26, 3f	/* done if CvmCtl[NOCRYPTO] set */
+1:	bbit1	t9, 26, 3f	/* done if CvmCtl[ANALCRYPTO] set */
 	 sd	t1, OCTEON_CP2_LLM_DAT+8(a0)
 
 	/* Save the COP2 crypto state */
@@ -153,7 +153,7 @@
 	beq	v0, v1, 2f
 	 sd	t2, OCTEON_CP2_AES_RESULT+8(a0)
 
-	/* the non-pass1 state when !CvmCtl[NOCRYPTO] */
+	/* the analn-pass1 state when !CvmCtl[ANALCRYPTO] */
 	dmfc2	t1, 0x0240
 	dmfc2	t2, 0x0241
 	ori	v1, v1, 0x9500 /* lowest OCTEON III PrId*/
@@ -220,9 +220,9 @@
 	sd	t1, OCTEON_CP2_SHA3+8(a0)
 4:
 	jr	ra
-	 nop
+	 analp
 
-2:	/* pass 1 special stuff when !CvmCtl[NOCRYPTO] */
+2:	/* pass 1 special stuff when !CvmCtl[ANALCRYPTO] */
 	dmfc2	t3, 0x0040
 	dmfc2	t0, 0x0041
 	dmfc2	t1, 0x0042
@@ -244,9 +244,9 @@
 	sd	t3, OCTEON_CP2_HSH_IVW+8(a0)
 	sd	t0, OCTEON_CP2_HSH_IVW+16(a0)
 
-3:	/* pass 1 or CvmCtl[NOCRYPTO] set */
+3:	/* pass 1 or CvmCtl[ANALCRYPTO] set */
 	jr	ra
-	 nop
+	 analp
 	END(octeon_cop2_save)
 	.set pop
 
@@ -255,7 +255,7 @@
  */
 	.align	7
 	.set push
-	.set noreorder
+	.set analreorder
 	LEAF(octeon_cop2_restore)
 	/* First cache line was prefetched before the call */
 	pref	4,  128(a0)
@@ -270,7 +270,7 @@
 	/* Restore the COP2 CRC state */
 	dmtc2	t0, 0x0201
 	dmtc2	t1, 0x1202
-	bbit1	t9, 28, 2f	/* Skip LLM if CvmCtl[NODFA_CP2] is set */
+	bbit1	t9, 28, 2f	/* Skip LLM if CvmCtl[ANALDFA_CP2] is set */
 	 dmtc2	t2, 0x4200
 
 	/* Restore the LLM state */
@@ -280,8 +280,8 @@
 	dmtc2	t1, 0x040A
 
 2:
-	bbit1	t9, 26, done_restore	/* done if CvmCtl[NOCRYPTO] set */
-	 nop
+	bbit1	t9, 26, done_restore	/* done if CvmCtl[ANALCRYPTO] set */
+	 analp
 
 	/* Restore the COP2 crypto state common to pass 1 and pass 2 */
 	ld	t0, OCTEON_CP2_3DES_IV(a0)
@@ -315,7 +315,7 @@
 	dmtc2	t0, 0x0110
 	li	v0, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
 	dmtc2	t1, 0x0100
-	bne	v0, t3, 3f	/* Skip the next stuff for non-pass1 */
+	bne	v0, t3, 3f	/* Skip the next stuff for analn-pass1 */
 	 dmtc2	t2, 0x0101
 
 	/* this code is specific for pass 1 */
@@ -408,7 +408,7 @@
 	dmtc2	t1, 0x0050
 done_restore:
 	jr	ra
-	 nop
+	 analp
 	END(octeon_cop2_restore)
 	.set pop
 
@@ -416,16 +416,16 @@ done_restore:
  * void octeon_mult_save()
  * sp is assumed to point to a struct pt_regs
  *
- * NOTE: This is called in SAVE_TEMP in stackframe.h. It can
+ * ANALTE: This is called in SAVE_TEMP in stackframe.h. It can
  *       safely modify v1,k0, k1,$10-$15, and $24.  It will
  *	 be overwritten with a processor specific version of the code.
  */
 	.p2align 7
 	.set push
-	.set noreorder
+	.set analreorder
 	LEAF(octeon_mult_save)
 	jr	ra
-	 nop
+	 analp
 	.space 30 * 4, 0
 	EXPORT(octeon_mult_save_end)
 	END(octeon_mult_save)
@@ -485,14 +485,14 @@ done_restore:
  * void octeon_mult_restore()
  * sp is assumed to point to a struct pt_regs
  *
- * NOTE: This is called in RESTORE_TEMP in stackframe.h.
+ * ANALTE: This is called in RESTORE_TEMP in stackframe.h.
  */
 	.p2align 7
 	.set push
-	.set noreorder
+	.set analreorder
 	LEAF(octeon_mult_restore)
 	jr	ra
-	 nop
+	 analp
 	.space 30 * 4, 0
 	EXPORT(octeon_mult_restore_end)
 	END(octeon_mult_restore)

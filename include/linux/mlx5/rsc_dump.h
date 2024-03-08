@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020 Mellanox Technologies inc. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies inc. */
 
 #include <linux/mlx5/driver.h>
 

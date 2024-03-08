@@ -8,7 +8,7 @@
 #include <media/rc-map.h>
 #include <linux/module.h>
 
-/* for the Technotrend 1500 bundled remotes (grey and black): */
+/* for the Techanaltrend 1500 bundled remotes (grey and black): */
 
 static struct rc_map_table tt_1500[] = {
 	{ 0x1501, KEY_POWER },
@@ -76,4 +76,4 @@ module_exit(exit_rc_map_tt_1500)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
-MODULE_DESCRIPTION("Technotrend 1500 remote controller keytable");
+MODULE_DESCRIPTION("Techanaltrend 1500 remote controller keytable");

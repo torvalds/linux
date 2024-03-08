@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_HAL_H
@@ -475,7 +475,7 @@ enum hal_reo_cmd_type {
 /**
  * enum hal_reo_cmd_status: Enum for execution status of REO command
  * @HAL_REO_CMD_SUCCESS: Command has successfully executed
- * @HAL_REO_CMD_BLOCKED: Command could not be executed as the queue
+ * @HAL_REO_CMD_BLOCKED: Command could analt be executed as the queue
  *			 or cache was blocked
  * @HAL_REO_CMD_FAILED: Command execution failed, could be due to
  *			invalid queue desc
@@ -598,7 +598,7 @@ struct hal_srng {
 			u32 cached_hp;
 
 			/* Tail pointer location to be updated by SW - This
-			 * will be a register address and need not be
+			 * will be a register address and need analt be
 			 * accessed through SW structure
 			 */
 			u32 *tp_addr;
@@ -627,7 +627,7 @@ struct hal_srng {
 			u32 cached_tp;
 
 			/* Head pointer location to be updated by SW - This
-			 * will be a register address and need not be accessed
+			 * will be a register address and need analt be accessed
 			 * through SW structure
 			 */
 			u32 *hp_addr;
@@ -693,7 +693,7 @@ enum hal_rx_buf_return_buf_manager {
 #define HAL_REO_CMD_FLG_STATS_CLEAR		BIT(1)
 #define HAL_REO_CMD_FLG_FLUSH_BLOCK_LATER	BIT(2)
 #define HAL_REO_CMD_FLG_FLUSH_RELEASE_BLOCKING	BIT(3)
-#define HAL_REO_CMD_FLG_FLUSH_NO_INVAL		BIT(4)
+#define HAL_REO_CMD_FLG_FLUSH_ANAL_INVAL		BIT(4)
 #define HAL_REO_CMD_FLG_FLUSH_FWD_ALL_MPDUS	BIT(5)
 #define HAL_REO_CMD_FLG_FLUSH_ALL		BIT(6)
 #define HAL_REO_CMD_FLG_UNBLK_RESOURCE		BIT(7)
@@ -716,7 +716,7 @@ enum hal_rx_buf_return_buf_manager {
 #define HAL_REO_CMD_UPD0_UNEVEN_PN		BIT(21)
 #define HAL_REO_CMD_UPD0_PN_HANDLE_ENABLE	BIT(22)
 #define HAL_REO_CMD_UPD0_PN_SIZE		BIT(23)
-#define HAL_REO_CMD_UPD0_IGNORE_AMPDU_FLG	BIT(24)
+#define HAL_REO_CMD_UPD0_IGANALRE_AMPDU_FLG	BIT(24)
 #define HAL_REO_CMD_UPD0_SVLD			BIT(25)
 #define HAL_REO_CMD_UPD0_SSN			BIT(26)
 #define HAL_REO_CMD_UPD0_SEQ_2K_ERR		BIT(27)
@@ -738,7 +738,7 @@ enum hal_rx_buf_return_buf_manager {
 #define HAL_REO_CMD_UPD1_EVEN_PN		BIT(28)
 #define HAL_REO_CMD_UPD1_UNEVEN_PN		BIT(29)
 #define HAL_REO_CMD_UPD1_PN_HANDLE_ENABLE	BIT(30)
-#define HAL_REO_CMD_UPD1_IGNORE_AMPDU_FLG	BIT(31)
+#define HAL_REO_CMD_UPD1_IGANALRE_AMPDU_FLG	BIT(31)
 
 /* Should be matching with HAL_REO_UPD_RX_QUEUE_INFO2_* feilds */
 #define HAL_REO_CMD_UPD2_SVLD			BIT(10)
@@ -766,7 +766,7 @@ struct ath11k_hal_reo_cmd {
 };
 
 enum hal_pn_type {
-	HAL_PN_TYPE_NONE,
+	HAL_PN_TYPE_ANALNE,
 	HAL_PN_TYPE_WPA,
 	HAL_PN_TYPE_WAPI_EVEN,
 	HAL_PN_TYPE_WAPI_UNEVEN,
@@ -822,7 +822,7 @@ struct hal_reo_status_flush_queue {
 enum hal_reo_status_flush_cache_err_code {
 	HAL_REO_STATUS_FLUSH_CACHE_ERR_CODE_SUCCESS,
 	HAL_REO_STATUS_FLUSH_CACHE_ERR_CODE_IN_USE,
-	HAL_REO_STATUS_FLUSH_CACHE_ERR_CODE_NOT_FOUND,
+	HAL_REO_STATUS_FLUSH_CACHE_ERR_CODE_ANALT_FOUND,
 };
 
 struct hal_reo_status_flush_cache {

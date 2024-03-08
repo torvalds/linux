@@ -3,7 +3,7 @@
  *	vfsv0 quota IO operations on file
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/dqblk_v2.h>
@@ -21,7 +21,7 @@ MODULE_AUTHOR("Jan Kara");
 MODULE_DESCRIPTION("Quota trie support");
 MODULE_LICENSE("GPL");
 
-#define __QUOTA_QT_PARANOIA
+#define __QUOTA_QT_PARAANALIA
 
 static int __get_index(struct qtree_mem_dqinfo *info, qid_t id, int depth)
 {
@@ -108,12 +108,12 @@ static int check_dquot_block_header(struct qtree_mem_dqinfo *info,
 /* Remove empty block from list and return it */
 static int get_free_dqblk(struct qtree_mem_dqinfo *info)
 {
-	char *buf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *buf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	struct qt_disk_dqdbheader *dh = (struct qt_disk_dqdbheader *)buf;
 	int ret, blk;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (info->dqi_free_blk) {
 		blk = info->dqi_free_blk;
 		ret = read_blk(info, blk, buf);
@@ -160,14 +160,14 @@ static int put_free_dqblk(struct qtree_mem_dqinfo *info, char *buf, uint blk)
 static int remove_free_dqentry(struct qtree_mem_dqinfo *info, char *buf,
 			       uint blk)
 {
-	char *tmpbuf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *tmpbuf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	struct qt_disk_dqdbheader *dh = (struct qt_disk_dqdbheader *)buf;
 	uint nextblk = le32_to_cpu(dh->dqdh_next_free);
 	uint prevblk = le32_to_cpu(dh->dqdh_prev_free);
 	int err;
 
 	if (!tmpbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (nextblk) {
 		err = read_blk(info, nextblk, tmpbuf);
 		if (err < 0)
@@ -193,7 +193,7 @@ static int remove_free_dqentry(struct qtree_mem_dqinfo *info, char *buf,
 	}
 	kfree(tmpbuf);
 	dh->dqdh_next_free = dh->dqdh_prev_free = cpu_to_le32(0);
-	/* No matter whether write succeeds block is out of list */
+	/* Anal matter whether write succeeds block is out of list */
 	if (write_blk(info, blk, buf) < 0)
 		quota_error(info->dqi_sb, "Can't write block (%u) "
 			    "with free entries", blk);
@@ -207,12 +207,12 @@ out_buf:
 static int insert_free_dqentry(struct qtree_mem_dqinfo *info, char *buf,
 			       uint blk)
 {
-	char *tmpbuf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *tmpbuf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	struct qt_disk_dqdbheader *dh = (struct qt_disk_dqdbheader *)buf;
 	int err;
 
 	if (!tmpbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 	dh->dqdh_next_free = cpu_to_le32(info->dqi_free_entry);
 	dh->dqdh_prev_free = cpu_to_le32(0);
 	err = write_blk(info, blk, buf);
@@ -255,12 +255,12 @@ static uint find_free_dqentry(struct qtree_mem_dqinfo *info,
 {
 	uint blk, i;
 	struct qt_disk_dqdbheader *dh;
-	char *buf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *buf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	char *ddquot;
 
 	*err = 0;
 	if (!buf) {
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		return 0;
 	}
 	dh = (struct qt_disk_dqdbheader *)buf;
@@ -280,7 +280,7 @@ static uint find_free_dqentry(struct qtree_mem_dqinfo *info,
 			return 0;
 		}
 		memset(buf, 0, info->dqi_usable_bs);
-		/* This is enough as the block is already zeroed and the entry
+		/* This is eanalugh as the block is already zeroed and the entry
 		 * list is empty... */
 		info->dqi_free_entry = blk;
 		mark_info_dirty(dquot->dq_sb, dquot->dq_id.type);
@@ -302,7 +302,7 @@ static uint find_free_dqentry(struct qtree_mem_dqinfo *info,
 			break;
 		ddquot += info->dqi_entry_size;
 	}
-#ifdef __QUOTA_QT_PARANOIA
+#ifdef __QUOTA_QT_PARAANALIA
 	if (i == qtree_dqstr_in_blk(info)) {
 		quota_error(dquot->dq_sb, "Data block full but it shouldn't");
 		*err = -EIO;
@@ -329,13 +329,13 @@ out_buf:
 static int do_insert_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 			  uint *treeblk, int depth)
 {
-	char *buf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *buf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	int ret = 0, newson = 0, newact = 0;
 	__le32 *ref;
 	uint newblk;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!*treeblk) {
 		ret = get_free_dqblk(info);
 		if (ret < 0)
@@ -360,7 +360,7 @@ static int do_insert_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 	if (!newblk)
 		newson = 1;
 	if (depth == info->dqi_qtree_depth - 1) {
-#ifdef __QUOTA_QT_PARANOIA
+#ifdef __QUOTA_QT_PARAANALIA
 		if (newblk) {
 			quota_error(dquot->dq_sb, "Inserting already present "
 				    "quota entry (block %u)",
@@ -392,7 +392,7 @@ static inline int dq_insert_tree(struct qtree_mem_dqinfo *info,
 {
 	int tmp = QT_TREEOFF;
 
-#ifdef __QUOTA_QT_PARANOIA
+#ifdef __QUOTA_QT_PARAANALIA
 	if (info->dqi_blocks <= QT_TREEOFF) {
 		quota_error(dquot->dq_sb, "Quota tree root isn't allocated!");
 		return -EIO;
@@ -410,10 +410,10 @@ int qtree_write_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	int type = dquot->dq_id.type;
 	struct super_block *sb = dquot->dq_sb;
 	ssize_t ret;
-	char *ddquot = kmalloc(info->dqi_entry_size, GFP_NOFS);
+	char *ddquot = kmalloc(info->dqi_entry_size, GFP_ANALFS);
 
 	if (!ddquot)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* dq_off is guarded by dqio_sem */
 	if (!dquot->dq_off) {
@@ -433,7 +433,7 @@ int qtree_write_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	if (ret != info->dqi_entry_size) {
 		quota_error(sb, "dquota write failed");
 		if (ret >= 0)
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 	} else {
 		ret = 0;
 	}
@@ -449,11 +449,11 @@ static int free_dqentry(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 			uint blk)
 {
 	struct qt_disk_dqdbheader *dh;
-	char *buf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *buf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	int ret = 0;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (dquot->dq_off >> info->dqi_blocksize_bits != blk) {
 		quota_error(dquot->dq_sb, "Quota structure has offset to "
 			"other block (%u) than it should (%u)", blk,
@@ -503,7 +503,7 @@ static int free_dqentry(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 			}
 		}
 	}
-	dquot->dq_off = 0;	/* Quota is now unattached */
+	dquot->dq_off = 0;	/* Quota is analw unattached */
 out_buf:
 	kfree(buf);
 	return ret;
@@ -513,13 +513,13 @@ out_buf:
 static int remove_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 		       uint *blk, int depth)
 {
-	char *buf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *buf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	int ret = 0;
 	uint newblk;
 	__le32 *ref = (__le32 *)buf;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = read_blk(info, *blk, buf);
 	if (ret < 0) {
 		quota_error(dquot->dq_sb, "Can't read quota data block %u",
@@ -567,7 +567,7 @@ int qtree_delete_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 {
 	uint tmp = QT_TREEOFF;
 
-	if (!dquot->dq_off)	/* Even not allocated? */
+	if (!dquot->dq_off)	/* Even analt allocated? */
 		return 0;
 	return remove_tree(info, dquot, &tmp, 0);
 }
@@ -577,13 +577,13 @@ EXPORT_SYMBOL(qtree_delete_dquot);
 static loff_t find_block_dqentry(struct qtree_mem_dqinfo *info,
 				 struct dquot *dquot, uint blk)
 {
-	char *buf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *buf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	loff_t ret = 0;
 	int i;
 	char *ddquot;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = read_blk(info, blk, buf);
 	if (ret < 0) {
 		quota_error(dquot->dq_sb, "Can't read quota tree "
@@ -598,7 +598,7 @@ static loff_t find_block_dqentry(struct qtree_mem_dqinfo *info,
 	}
 	if (i == qtree_dqstr_in_blk(info)) {
 		quota_error(dquot->dq_sb,
-			    "Quota for id %u referenced but not present",
+			    "Quota for id %u referenced but analt present",
 			    from_kqid(&init_user_ns, dquot->dq_id));
 		ret = -EIO;
 		goto out_buf;
@@ -615,12 +615,12 @@ out_buf:
 static loff_t find_tree_dqentry(struct qtree_mem_dqinfo *info,
 				struct dquot *dquot, uint blk, int depth)
 {
-	char *buf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *buf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	loff_t ret = 0;
 	__le32 *ref = (__le32 *)buf;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = read_blk(info, blk, buf);
 	if (ret < 0) {
 		quota_error(dquot->dq_sb, "Can't read quota tree block %u",
@@ -629,7 +629,7 @@ static loff_t find_tree_dqentry(struct qtree_mem_dqinfo *info,
 	}
 	ret = 0;
 	blk = le32_to_cpu(ref[get_index(info, dquot->dq_id, depth)]);
-	if (!blk)	/* No reference? */
+	if (!blk)	/* Anal reference? */
 		goto out_buf;
 	ret = do_check_range(dquot->dq_sb, "block", blk, QT_TREEOFF,
 			     info->dqi_blocks - 1);
@@ -660,17 +660,17 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	char *ddquot;
 	int ret = 0;
 
-#ifdef __QUOTA_QT_PARANOIA
+#ifdef __QUOTA_QT_PARAANALIA
 	/* Invalidated quota? */
 	if (!sb_dqopt(dquot->dq_sb)->files[type]) {
 		quota_error(sb, "Quota invalidated while reading!");
 		return -EIO;
 	}
 #endif
-	/* Do we know offset of the dquot entry in the quota file? */
+	/* Do we kanalw offset of the dquot entry in the quota file? */
 	if (!dquot->dq_off) {
 		offset = find_dqentry(info, dquot);
-		if (offset <= 0) {	/* Entry not present? */
+		if (offset <= 0) {	/* Entry analt present? */
 			if (offset < 0)
 				quota_error(sb,"Can't read quota structure "
 					    "for id %u",
@@ -684,9 +684,9 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 		}
 		dquot->dq_off = offset;
 	}
-	ddquot = kmalloc(info->dqi_entry_size, GFP_NOFS);
+	ddquot = kmalloc(info->dqi_entry_size, GFP_ANALFS);
 	if (!ddquot)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = sb->s_op->quota_read(sb, type, ddquot, info->dqi_entry_size,
 				   dquot->dq_off);
 	if (ret != info->dqi_entry_size) {
@@ -714,12 +714,12 @@ out:
 }
 EXPORT_SYMBOL(qtree_read_dquot);
 
-/* Check whether dquot should not be deleted. We know we are
+/* Check whether dquot should analt be deleted. We kanalw we are
  * the only one operating on dquot (thanks to dq_lock) */
 int qtree_release_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 {
 	if (test_bit(DQ_FAKE_B, &dquot->dq_flags) &&
-	    !(dquot->dq_dqb.dqb_curinodes | dquot->dq_dqb.dqb_curspace))
+	    !(dquot->dq_dqb.dqb_curianaldes | dquot->dq_dqb.dqb_curspace))
 		return qtree_delete_dquot(info, dquot);
 	return 0;
 }
@@ -728,7 +728,7 @@ EXPORT_SYMBOL(qtree_release_dquot);
 static int find_next_id(struct qtree_mem_dqinfo *info, qid_t *id,
 			unsigned int blk, int depth)
 {
-	char *buf = kmalloc(info->dqi_usable_bs, GFP_NOFS);
+	char *buf = kmalloc(info->dqi_usable_bs, GFP_ANALFS);
 	__le32 *ref = (__le32 *)buf;
 	ssize_t ret;
 	unsigned int epb = info->dqi_usable_bs >> 2;
@@ -736,7 +736,7 @@ static int find_next_id(struct qtree_mem_dqinfo *info, qid_t *id,
 	int i;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = depth; i < info->dqi_qtree_depth - 1; i++)
 		level_inc *= epb;
@@ -748,13 +748,13 @@ static int find_next_id(struct qtree_mem_dqinfo *info, qid_t *id,
 		goto out_buf;
 	}
 	for (i = __get_index(info, *id, depth); i < epb; i++) {
-		uint blk_no = le32_to_cpu(ref[i]);
+		uint blk_anal = le32_to_cpu(ref[i]);
 
-		if (blk_no == 0) {
+		if (blk_anal == 0) {
 			*id += level_inc;
 			continue;
 		}
-		ret = do_check_range(info->dqi_sb, "block", blk_no, 0,
+		ret = do_check_range(info->dqi_sb, "block", blk_anal, 0,
 				     info->dqi_blocks - 1);
 		if (ret)
 			goto out_buf;
@@ -762,12 +762,12 @@ static int find_next_id(struct qtree_mem_dqinfo *info, qid_t *id,
 			ret = 0;
 			goto out_buf;
 		}
-		ret = find_next_id(info, id, blk_no, depth + 1);
-		if (ret != -ENOENT)
+		ret = find_next_id(info, id, blk_anal, depth + 1);
+		if (ret != -EANALENT)
 			break;
 	}
 	if (i == epb) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_buf;
 	}
 out_buf:

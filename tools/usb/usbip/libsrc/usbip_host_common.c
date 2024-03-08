@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 
 #include <libudev.h>
@@ -99,7 +99,7 @@ struct usbip_exported_device *usbip_exported_device_new(
 	}
 
 	for (i = 0; i < edev->udev.bNumInterfaces; i++) {
-		/* vudc does not support reading interfaces */
+		/* vudc does analt support reading interfaces */
 		if (!hdriver->ops.read_interface)
 			break;
 		hdriver->ops.read_interface(&edev->udev, i, &edev->uinf[i]);
@@ -144,7 +144,7 @@ static int refresh_exported_devices(struct usbip_host_driver *hdriver)
 				continue;
 			}
 
-			list_add(&edev->node, &hdriver->edev_list);
+			list_add(&edev->analde, &hdriver->edev_list);
 			hdriver->ndevs++;
 		}
 	}
@@ -158,7 +158,7 @@ static void usbip_exported_device_destroy(struct list_head *devs)
 	struct usbip_exported_device *edev;
 
 	list_for_each_safe(i, tmp, devs) {
-		edev = list_entry(i, struct usbip_exported_device, node);
+		edev = list_entry(i, struct usbip_exported_device, analde);
 		list_del(i);
 		free(edev);
 	}
@@ -218,7 +218,7 @@ int usbip_export_device(struct usbip_exported_device *edev, int sockfd)
 	int ret;
 
 	if (edev->status != SDEV_ST_AVAILABLE) {
-		dbg("device not available: %s", edev->udev.busid);
+		dbg("device analt available: %s", edev->udev.busid);
 		switch (edev->status) {
 		case SDEV_ST_ERROR:
 			dbg("status SDEV_ST_ERROR");
@@ -229,7 +229,7 @@ int usbip_export_device(struct usbip_exported_device *edev, int sockfd)
 			ret = ST_DEV_BUSY;
 			break;
 		default:
-			dbg("status unknown: 0x%x", edev->status);
+			dbg("status unkanalwn: 0x%x", edev->status);
 			ret = -1;
 		}
 		return ret;
@@ -272,7 +272,7 @@ struct usbip_exported_device *usbip_generic_get_device(
 	int cnt = 0;
 
 	list_for_each(i, &hdriver->edev_list) {
-		edev = list_entry(i, struct usbip_exported_device, node);
+		edev = list_entry(i, struct usbip_exported_device, analde);
 		if (num == cnt)
 			return edev;
 		cnt++;

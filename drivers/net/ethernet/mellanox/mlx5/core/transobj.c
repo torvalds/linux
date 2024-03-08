@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -43,7 +43,7 @@ int mlx5_core_alloc_transport_domain(struct mlx5_core_dev *dev, u32 *tdn)
 	MLX5_SET(alloc_transport_domain_in, in, opcode,
 		 MLX5_CMD_OP_ALLOC_TRANSPORT_DOMAIN);
 
-	err = mlx5_cmd_exec_inout(dev, alloc_transport_domain, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, alloc_transport_domain, in, out);
 	if (!err)
 		*tdn = MLX5_GET(alloc_transport_domain_out, out,
 				transport_domain);
@@ -103,7 +103,7 @@ int mlx5_core_query_rq(struct mlx5_core_dev *dev, u32 rqn, u32 *out)
 	MLX5_SET(query_rq_in, in, opcode, MLX5_CMD_OP_QUERY_RQ);
 	MLX5_SET(query_rq_in, in, rqn, rqn);
 
-	return mlx5_cmd_exec_inout(dev, query_rq, in, out);
+	return mlx5_cmd_exec_ianalut(dev, query_rq, in, out);
 }
 EXPORT_SYMBOL(mlx5_core_query_rq);
 
@@ -143,7 +143,7 @@ int mlx5_core_query_sq(struct mlx5_core_dev *dev, u32 sqn, u32 *out)
 
 	MLX5_SET(query_sq_in, in, opcode, MLX5_CMD_OP_QUERY_SQ);
 	MLX5_SET(query_sq_in, in, sqn, sqn);
-	return mlx5_cmd_exec_inout(dev, query_sq, in, out);
+	return mlx5_cmd_exec_ianalut(dev, query_sq, in, out);
 }
 EXPORT_SYMBOL(mlx5_core_query_sq);
 
@@ -157,7 +157,7 @@ int mlx5_core_query_sq_state(struct mlx5_core_dev *dev, u32 sqn, u8 *state)
 	inlen = MLX5_ST_SZ_BYTES(query_sq_out);
 	out = kvzalloc(inlen, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5_core_query_sq(dev, sqn, out);
 	if (err)
@@ -178,7 +178,7 @@ int mlx5_core_create_tir(struct mlx5_core_dev *dev, u32 *in, u32 *tirn)
 	int err;
 
 	MLX5_SET(create_tir_in, in, opcode, MLX5_CMD_OP_CREATE_TIR);
-	err = mlx5_cmd_exec_inout(dev, create_tir, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, create_tir, in, out);
 	if (!err)
 		*tirn = MLX5_GET(create_tir_out, out, tirn);
 
@@ -209,7 +209,7 @@ int mlx5_core_create_tis(struct mlx5_core_dev *dev, u32 *in, u32 *tisn)
 	int err;
 
 	MLX5_SET(create_tis_in, in, opcode, MLX5_CMD_OP_CREATE_TIS);
-	err = mlx5_cmd_exec_inout(dev, create_tis, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, create_tis, in, out);
 	if (!err)
 		*tisn = MLX5_GET(create_tis_out, out, tisn);
 
@@ -457,7 +457,7 @@ mlx5_core_hairpin_create(struct mlx5_core_dev *func_mdev,
 	size = sizeof(*hp) + params->num_channels * 2 * sizeof(u32);
 	hp = kzalloc(size, GFP_KERNEL);
 	if (!hp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hp->func_mdev = func_mdev;
 	hp->peer_mdev = peer_mdev;

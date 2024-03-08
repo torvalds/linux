@@ -24,13 +24,13 @@
  *
  * For each sublist encountered, the @get_handler_for_guid function is called
  * with the type specifier GUID and returns either a pointer to a function to
- * handle elements of that type or NULL if the type is not of interest.
+ * handle elements of that type or NULL if the type is analt of interest.
  *
  * If the sublist is of interest, each element is passed to the handler
  * function in turn.
  *
  * Error EBADMSG is returned if the list doesn't parse correctly and 0 is
- * returned if the list was parsed correctly.  No error can be returned from
+ * returned if the list was parsed correctly.  Anal error can be returned from
  * the @get_handler_for_guid function or the element handler function it
  * returns.
  */

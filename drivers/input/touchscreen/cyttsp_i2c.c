@@ -33,7 +33,7 @@ static int cyttsp_i2c_probe(struct i2c_client *client)
 	struct cyttsp *ts;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "I2C functionality not Supported\n");
+		dev_err(&client->dev, "I2C functionality analt Supported\n");
 		return -EIO;
 	}
 

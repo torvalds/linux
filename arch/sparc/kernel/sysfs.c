@@ -33,14 +33,14 @@ SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctx0_4mb_tte);
 SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctx0_4mb_tte);
 SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctx0_256mb_tte);
 SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctx0_256mb_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxnon0_8k_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxnon0_8k_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxnon0_64k_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxnon0_64k_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxnon0_4mb_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxnon0_4mb_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxnon0_256mb_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxnon0_256mb_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxanaln0_8k_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxanaln0_8k_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxanaln0_64k_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxanaln0_64k_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxanaln0_4mb_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxanaln0_4mb_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxanaln0_256mb_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxanaln0_256mb_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctx0_8k_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctx0_8k_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctx0_64k_tte);
@@ -49,14 +49,14 @@ SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctx0_4mb_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctx0_4mb_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctx0_256mb_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctx0_256mb_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxnon0_8k_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxnon0_8k_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxnon0_64k_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxnon0_64k_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxnon0_4mb_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxnon0_4mb_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxnon0_256mb_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxnon0_256mb_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxanaln0_8k_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxanaln0_8k_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxanaln0_64k_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxanaln0_64k_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxanaln0_4mb_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxanaln0_4mb_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxanaln0_256mb_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxanaln0_256mb_tte);
 
 static struct attribute *mmu_stat_attrs[] = {
 	&dev_attr_immu_tsb_hits_ctx0_8k_tte.attr,
@@ -67,14 +67,14 @@ static struct attribute *mmu_stat_attrs[] = {
 	&dev_attr_immu_tsb_ticks_ctx0_4mb_tte.attr,
 	&dev_attr_immu_tsb_hits_ctx0_256mb_tte.attr,
 	&dev_attr_immu_tsb_ticks_ctx0_256mb_tte.attr,
-	&dev_attr_immu_tsb_hits_ctxnon0_8k_tte.attr,
-	&dev_attr_immu_tsb_ticks_ctxnon0_8k_tte.attr,
-	&dev_attr_immu_tsb_hits_ctxnon0_64k_tte.attr,
-	&dev_attr_immu_tsb_ticks_ctxnon0_64k_tte.attr,
-	&dev_attr_immu_tsb_hits_ctxnon0_4mb_tte.attr,
-	&dev_attr_immu_tsb_ticks_ctxnon0_4mb_tte.attr,
-	&dev_attr_immu_tsb_hits_ctxnon0_256mb_tte.attr,
-	&dev_attr_immu_tsb_ticks_ctxnon0_256mb_tte.attr,
+	&dev_attr_immu_tsb_hits_ctxanaln0_8k_tte.attr,
+	&dev_attr_immu_tsb_ticks_ctxanaln0_8k_tte.attr,
+	&dev_attr_immu_tsb_hits_ctxanaln0_64k_tte.attr,
+	&dev_attr_immu_tsb_ticks_ctxanaln0_64k_tte.attr,
+	&dev_attr_immu_tsb_hits_ctxanaln0_4mb_tte.attr,
+	&dev_attr_immu_tsb_ticks_ctxanaln0_4mb_tte.attr,
+	&dev_attr_immu_tsb_hits_ctxanaln0_256mb_tte.attr,
+	&dev_attr_immu_tsb_ticks_ctxanaln0_256mb_tte.attr,
 	&dev_attr_dmmu_tsb_hits_ctx0_8k_tte.attr,
 	&dev_attr_dmmu_tsb_ticks_ctx0_8k_tte.attr,
 	&dev_attr_dmmu_tsb_hits_ctx0_64k_tte.attr,
@@ -83,14 +83,14 @@ static struct attribute *mmu_stat_attrs[] = {
 	&dev_attr_dmmu_tsb_ticks_ctx0_4mb_tte.attr,
 	&dev_attr_dmmu_tsb_hits_ctx0_256mb_tte.attr,
 	&dev_attr_dmmu_tsb_ticks_ctx0_256mb_tte.attr,
-	&dev_attr_dmmu_tsb_hits_ctxnon0_8k_tte.attr,
-	&dev_attr_dmmu_tsb_ticks_ctxnon0_8k_tte.attr,
-	&dev_attr_dmmu_tsb_hits_ctxnon0_64k_tte.attr,
-	&dev_attr_dmmu_tsb_ticks_ctxnon0_64k_tte.attr,
-	&dev_attr_dmmu_tsb_hits_ctxnon0_4mb_tte.attr,
-	&dev_attr_dmmu_tsb_ticks_ctxnon0_4mb_tte.attr,
-	&dev_attr_dmmu_tsb_hits_ctxnon0_256mb_tte.attr,
-	&dev_attr_dmmu_tsb_ticks_ctxnon0_256mb_tte.attr,
+	&dev_attr_dmmu_tsb_hits_ctxanaln0_8k_tte.attr,
+	&dev_attr_dmmu_tsb_ticks_ctxanaln0_8k_tte.attr,
+	&dev_attr_dmmu_tsb_hits_ctxanaln0_64k_tte.attr,
+	&dev_attr_dmmu_tsb_ticks_ctxanaln0_64k_tte.attr,
+	&dev_attr_dmmu_tsb_hits_ctxanaln0_4mb_tte.attr,
+	&dev_attr_dmmu_tsb_ticks_ctxanaln0_4mb_tte.attr,
+	&dev_attr_dmmu_tsb_hits_ctxanaln0_256mb_tte.attr,
+	&dev_attr_dmmu_tsb_ticks_ctxanaln0_256mb_tte.attr,
 	NULL,
 };
 

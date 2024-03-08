@@ -24,7 +24,7 @@ FUNCNAME:
 	{
 		p1 = cmp.gtu(bytes,#15)
 		p0 = bitsclr(r3,#7)
-		if (!p0.new) jump:nt .Loop_not_aligned_8
+		if (!p0.new) jump:nt .Loop_analt_aligned_8
 		src_dst_sav = combine(src,dst)
 	}
 
@@ -47,14 +47,14 @@ FUNCNAME:
 		jump .Lsmall
 	}
 
-.Loop_not_aligned_8:
+.Loop_analt_aligned_8:
 	{
 		p0 = bitsclr(r4,#7)
 		if (p0.new) jump:nt .Lalign
 	}
 	{
 		p0 = bitsclr(r3,#3)
-		if (!p0.new) jump:nt .Loop_not_aligned_4
+		if (!p0.new) jump:nt .Loop_analt_aligned_4
 		p1 = cmp.gtu(bytes,#7)
 	}
 
@@ -77,10 +77,10 @@ FUNCNAME:
 		jump .Lsmall
 	}
 
-.Loop_not_aligned_4:
+.Loop_analt_aligned_4:
 	{
 		p0 = bitsclr(r3,#1)
-		if (!p0.new) jump:nt .Loop_not_aligned
+		if (!p0.new) jump:nt .Loop_analt_aligned
 		p1 = cmp.gtu(bytes,#3)
 	}
 
@@ -103,7 +103,7 @@ FUNCNAME:
 		jump .Lsmall
 	}
 
-.Loop_not_aligned: /* Works for as small as one byte */
+.Loop_analt_aligned: /* Works for as small as one byte */
 	p3=sp1loop0(.Loop1,bytes)
 .Loop1:
 1080:
@@ -123,7 +123,7 @@ FUNCNAME:
 .Lsmall:
 	{
 		p0 = cmp.gtu(bytes,#0)
-		if (p0.new) jump:nt .Loop_not_aligned
+		if (p0.new) jump:nt .Loop_analt_aligned
 	}
 .Ldone:
 	{

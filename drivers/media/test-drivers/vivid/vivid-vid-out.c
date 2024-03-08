@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/videodev2.h>
@@ -37,8 +37,8 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
 
 	if (dev->field_out == V4L2_FIELD_ALTERNATE) {
 		/*
-		 * You cannot use write() with FIELD_ALTERNATE since the field
-		 * information (TOP/BOTTOM) cannot be passed to the kernel.
+		 * You cananalt use write() with FIELD_ALTERNATE since the field
+		 * information (TOP/BOTTOM) cananalt be passed to the kernel.
 		 */
 		if (vb2_fileio_is_active(vq))
 			return -EINVAL;
@@ -249,7 +249,7 @@ void vivid_update_format_out(struct vivid_dev *dev)
 		if (bt->interlaced)
 			dev->field_out = V4L2_FIELD_ALTERNATE;
 		else
-			dev->field_out = V4L2_FIELD_NONE;
+			dev->field_out = V4L2_FIELD_ANALNE;
 		if (!dev->dvi_d_out && (bt->flags & V4L2_DV_FL_IS_CE_VIDEO)) {
 			if (bt->width == 720 && bt->height <= 576)
 				dev->colorspace_out = V4L2_COLORSPACE_SMPTE170M;
@@ -293,8 +293,8 @@ static enum v4l2_field vivid_field_out(struct vivid_dev *dev, enum v4l2_field fi
 	}
 	if (vivid_is_hdmi_out(dev))
 		return dev->dv_timings_out.bt.interlaced ? V4L2_FIELD_ALTERNATE :
-						       V4L2_FIELD_NONE;
-	return V4L2_FIELD_NONE;
+						       V4L2_FIELD_ANALNE;
+	return V4L2_FIELD_ANALNE;
 }
 
 static enum tpg_pixel_aspect vivid_get_pixel_aspect(const struct vivid_dev *dev)
@@ -358,7 +358,7 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 
 	fmt = vivid_get_format(dev, mp->pixelformat);
 	if (!fmt) {
-		dprintk(dev, 1, "Fourcc format (0x%08x) unknown.\n",
+		dprintk(dev, 1, "Fourcc format (0x%08x) unkanalwn.\n",
 			mp->pixelformat);
 		mp->pixelformat = V4L2_PIX_FMT_YUYV;
 		fmt = vivid_get_format(dev, mp->pixelformat);
@@ -575,7 +575,7 @@ int vidioc_g_fmt_vid_out_mplane(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return vivid_g_fmt_vid_out(file, priv, f);
 }
 
@@ -585,7 +585,7 @@ int vidioc_try_fmt_vid_out_mplane(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return vivid_try_fmt_vid_out(file, priv, f);
 }
 
@@ -595,7 +595,7 @@ int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return vivid_s_fmt_vid_out(file, priv, f);
 }
 
@@ -605,7 +605,7 @@ int vidioc_g_fmt_vid_out(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return fmt_sp2mp_func(file, priv, f, vivid_g_fmt_vid_out);
 }
 
@@ -615,7 +615,7 @@ int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return fmt_sp2mp_func(file, priv, f, vivid_try_fmt_vid_out);
 }
 
@@ -625,7 +625,7 @@ int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return fmt_sp2mp_func(file, priv, f, vivid_s_fmt_vid_out);
 }
 
@@ -635,7 +635,7 @@ int vivid_vid_out_g_selection(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!dev->has_crop_out && !dev->has_compose_out)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
@@ -682,7 +682,7 @@ int vivid_vid_out_s_selection(struct file *file, void *fh, struct v4l2_selection
 	int ret;
 
 	if (!dev->has_crop_out && !dev->has_compose_out)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
@@ -810,11 +810,11 @@ int vivid_vid_out_g_pixelaspect(struct file *file, void *priv,
 	switch (vivid_get_pixel_aspect(dev)) {
 	case TPG_PIXEL_ASPECT_NTSC:
 		f->numerator = 11;
-		f->denominator = 10;
+		f->deanalminator = 10;
 		break;
 	case TPG_PIXEL_ASPECT_PAL:
 		f->numerator = 54;
-		f->denominator = 59;
+		f->deanalminator = 59;
 		break;
 	default:
 		break;
@@ -857,7 +857,7 @@ int vidioc_try_fmt_vid_out_overlay(struct file *file, void *priv,
 	win->w.width = compose->width;
 	win->w.height = compose->height;
 	/*
-	 * It makes no sense for an OSD to overlay only top or bottom fields,
+	 * It makes anal sense for an OSD to overlay only top or bottom fields,
 	 * so always set this to ANY.
 	 */
 	win->field = V4L2_FIELD_ANY;
@@ -899,7 +899,7 @@ int vivid_vid_out_g_fbuf(struct file *file, void *fh,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
-	a->capability = V4L2_FBUF_CAP_EXTERNOVERLAY |
+	a->capability = V4L2_FBUF_CAP_EXTERANALVERLAY |
 			V4L2_FBUF_CAP_CHROMAKEY |
 			V4L2_FBUF_CAP_SRC_CHROMAKEY |
 			V4L2_FBUF_CAP_GLOBAL_ALPHA |
@@ -915,7 +915,7 @@ int vivid_vid_out_g_fbuf(struct file *file, void *fh,
 		a->fmt.pixelformat = V4L2_PIX_FMT_RGB565;
 	a->fmt.bytesperline = dev->display_byte_stride;
 	a->fmt.sizeimage = a->fmt.height * a->fmt.bytesperline;
-	a->fmt.field = V4L2_FIELD_NONE;
+	a->fmt.field = V4L2_FIELD_ANALNE;
 	a->fmt.colorspace = V4L2_COLORSPACE_SRGB;
 	a->fmt.priv = 0;
 	return 0;
@@ -1006,12 +1006,12 @@ int vidioc_s_output(struct file *file, void *priv, unsigned o)
 	dev->output = o;
 	dev->tv_audio_output = 0;
 	if (dev->output_type[o] == SVID)
-		dev->vid_out_dev.tvnorms = V4L2_STD_ALL;
+		dev->vid_out_dev.tvanalrms = V4L2_STD_ALL;
 	else
-		dev->vid_out_dev.tvnorms = 0;
+		dev->vid_out_dev.tvanalrms = 0;
 
-	dev->vbi_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
-	dev->meta_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
+	dev->vbi_out_dev.tvanalrms = dev->vid_out_dev.tvanalrms;
+	dev->meta_out_dev.tvanalrms = dev->vid_out_dev.tvanalrms;
 	vivid_update_format_out(dev);
 
 	v4l2_ctrl_activate(dev->ctrl_display_present, vivid_is_hdmi_out(dev));
@@ -1057,7 +1057,7 @@ int vivid_vid_out_s_std(struct file *file, void *priv, v4l2_std_id id)
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!vivid_is_svid_out(dev))
-		return -ENODATA;
+		return -EANALDATA;
 	if (dev->std_out == id)
 		return 0;
 	if (vb2_is_busy(&dev->vb_vid_out_q) || vb2_is_busy(&dev->vb_vbi_out_q))
@@ -1083,7 +1083,7 @@ int vivid_vid_out_s_dv_timings(struct file *file, void *_fh,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	if (!vivid_is_hdmi_out(dev))
-		return -ENODATA;
+		return -EANALDATA;
 	if (!v4l2_find_dv_timings_cap(timings, &vivid_dv_timings_cap,
 				0, NULL, NULL) &&
 	    !valid_cvt_gtf_timings(timings))

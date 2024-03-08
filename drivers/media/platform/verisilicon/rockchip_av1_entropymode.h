@@ -171,7 +171,7 @@ enum mb_prediction_mode {
 };
 
 enum partitiontype {
-	PARTITION_NONE,
+	PARTITION_ANALNE,
 	PARTITION_HORZ,
 	PARTITION_VERT,
 	PARTITION_SPLIT,

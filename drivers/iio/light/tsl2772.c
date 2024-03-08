@@ -9,7 +9,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -38,8 +38,8 @@
 #define TSL2772_LUX_CALC_OVER_FLOW	65535
 
 /*
- * TAOS Register definitions - Note: depending on device, some of these register
- * are not used and the register address is benign.
+ * TAOS Register definitions - Analte: depending on device, some of these register
+ * are analt used and the register address is benign.
  */
 
 /* Register offsets */
@@ -62,7 +62,7 @@
 #define TSL2772_ALS_PRX_CONFIG		0x0D
 #define TSL2772_PRX_COUNT		0x0E
 #define TSL2772_GAIN			0x0F
-#define TSL2772_NOTUSED			0x10
+#define TSL2772_ANALTUSED			0x10
 #define TSL2772_REVID			0x11
 #define TSL2772_CHIPID			0x12
 #define TSL2772_STATUS			0x13
@@ -131,7 +131,7 @@ enum {
 };
 
 enum {
-	TSL2772_CHIP_UNKNOWN = 0,
+	TSL2772_CHIP_UNKANALWN = 0,
 	TSL2772_CHIP_WORKING = 1,
 	TSL2772_CHIP_SUSPENDED = 2
 };
@@ -418,7 +418,7 @@ static int tsl2772_get_lux(struct iio_dev *indio_dev)
 	mutex_lock(&chip->als_mutex);
 
 	if (chip->tsl2772_chip_status != TSL2772_CHIP_WORKING) {
-		dev_err(&chip->client->dev, "%s: device is not enabled\n",
+		dev_err(&chip->client->dev, "%s: device is analt enabled\n",
 			__func__);
 		ret = -EBUSY;
 		goto out_unlock;
@@ -430,7 +430,7 @@ static int tsl2772_get_lux(struct iio_dev *indio_dev)
 
 	if (!(ret & TSL2772_STA_ADC_VALID)) {
 		dev_err(&chip->client->dev,
-			"%s: data not valid yet\n", __func__);
+			"%s: data analt valid yet\n", __func__);
 		ret = chip->als_cur_info.lux; /* return LAST VALUE */
 		goto out_unlock;
 	}
@@ -453,7 +453,7 @@ static int tsl2772_get_lux(struct iio_dev *indio_dev)
 	}
 
 	if (!chip->als_cur_info.als_ch0) {
-		/* have no data, so return LAST VALUE */
+		/* have anal data, so return LAST VALUE */
 		ret = chip->als_cur_info.lux;
 		goto out_unlock;
 	}
@@ -470,7 +470,7 @@ static int tsl2772_get_lux(struct iio_dev *indio_dev)
 
 		/*
 		 * The als_gain_trim can have a value within the range 250..4000
-		 * and is a multiplier for the lux. A trim of 1000 makes no
+		 * and is a multiplier for the lux. A trim of 1000 makes anal
 		 * changes to the lux, less than 1000 scales it down, and
 		 * greater than 1000 scales it up.
 		 */
@@ -613,7 +613,7 @@ static void tsl2772_parse_dt(struct tsl2772_chip *chip)
 }
 
 /**
- * tsl2772_defaults() - Populates the device nominal operating parameters
+ * tsl2772_defaults() - Populates the device analminal operating parameters
  *                      with those provided by a 'platform' data struct or
  *                      with prefined defaults.
  *
@@ -665,14 +665,14 @@ static int tsl2772_als_calibrate(struct iio_dev *indio_dev)
 	if ((ret & (TSL2772_CNTL_ADC_ENBL | TSL2772_CNTL_PWR_ON))
 			!= (TSL2772_CNTL_ADC_ENBL | TSL2772_CNTL_PWR_ON)) {
 		dev_err(&chip->client->dev,
-			"%s: Device is not powered on and/or ADC is not enabled\n",
+			"%s: Device is analt powered on and/or ADC is analt enabled\n",
 			__func__);
 		return -EINVAL;
 	} else if ((ret & TSL2772_STA_ADC_VALID) != TSL2772_STA_ADC_VALID) {
 		dev_err(&chip->client->dev,
-			"%s: The two ADC channels have not completed an integration cycle\n",
+			"%s: The two ADC channels have analt completed an integration cycle\n",
 			__func__);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	lux_val = tsl2772_get_lux(indio_dev);
@@ -707,7 +707,7 @@ static int tsl2772_chip_on(struct iio_dev *indio_dev)
 	int ret, i, als_count, als_time_us;
 	u8 *dev_reg, reg_val;
 
-	/* Non calculated parameters */
+	/* Analn calculated parameters */
 	chip->tsl2772_config[TSL2772_ALS_TIME] = chip->settings.als_time;
 	chip->tsl2772_config[TSL2772_PRX_TIME] = chip->settings.prox_time;
 	chip->tsl2772_config[TSL2772_WAIT_TIME] = chip->settings.wait_time;
@@ -737,7 +737,7 @@ static int tsl2772_chip_on(struct iio_dev *indio_dev)
 	chip->tsl2772_config[TSL2772_PRX_MAXTHRESHHI] =
 			(chip->settings.prox_thres_high >> 8) & 0xFF;
 
-	/* and make sure we're not already on */
+	/* and make sure we're analt already on */
 	if (chip->tsl2772_chip_status == TSL2772_CHIP_WORKING) {
 		/* if forcing a register update - turn off, then on */
 		dev_info(&chip->client->dev, "device is already enabled\n");
@@ -988,7 +988,7 @@ static ssize_t in_illuminance0_lux_table_show(struct device *dev,
 		if (chip->tsl2772_device_lux[i].ch0 == 0) {
 			/*
 			 * We just printed the first "0" entry.
-			 * Now get rid of the extra "," and break.
+			 * Analw get rid of the extra "," and break.
 			 */
 			offset--;
 			break;
@@ -1012,7 +1012,7 @@ static ssize_t in_illuminance0_lux_table_store(struct device *dev,
 	get_options(buf, ARRAY_SIZE(value), value);
 
 	/*
-	 * We now have an array of ints starting at value[1], and
+	 * We analw have an array of ints starting at value[1], and
 	 * enumerated by value[0].
 	 * We expect each group of two ints to be one table entry,
 	 * and the last table entry is all 0.
@@ -1760,7 +1760,7 @@ static int tsl2772_probe(struct i2c_client *clientp)
 
 	indio_dev = devm_iio_device_alloc(&clientp->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 	chip->client = clientp;
@@ -1800,7 +1800,7 @@ static int tsl2772_probe(struct i2c_client *clientp)
 
 	if (tsl2772_device_id_verif(ret, id->driver_data) <= 0) {
 		dev_info(&chip->client->dev,
-			 "%s: i2c device found does not match expected id\n",
+			 "%s: i2c device found does analt match expected id\n",
 				__func__);
 		return -EINVAL;
 	}
@@ -1816,7 +1816,7 @@ static int tsl2772_probe(struct i2c_client *clientp)
 	mutex_init(&chip->als_mutex);
 	mutex_init(&chip->prox_mutex);
 
-	chip->tsl2772_chip_status = TSL2772_CHIP_UNKNOWN;
+	chip->tsl2772_chip_status = TSL2772_CHIP_UNKANALWN;
 	chip->pdata = dev_get_platdata(&clientp->dev);
 	chip->id = id->driver_data;
 	chip->chip_info =

@@ -103,7 +103,7 @@ enum {
 #define REG_CR_HP_SEL_MASK		(0x3 << REG_CR_HP_SEL_OFFSET)
 
 #define REG_CR_DAC_MUTE			BIT(7)
-#define REG_CR_DAC_MONO			BIT(6)
+#define REG_CR_DAC_MOANAL			BIT(6)
 #define REG_CR_DAC_LEFT_ONLY		BIT(5)
 #define REG_CR_DAC_SB_OFFSET		4
 #define REG_CR_DAC_LRSWAP		BIT(3)
@@ -119,7 +119,7 @@ enum {
 #define REG_CR_LI_SB_OFFSET		0
 
 #define REG_CR_ADC_DMIC_SEL		BIT(7)
-#define REG_CR_ADC_MONO			BIT(6)
+#define REG_CR_ADC_MOANAL			BIT(6)
 #define REG_CR_ADC_LEFT_ONLY		BIT(5)
 #define REG_CR_ADC_SB_OFFSET		4
 #define REG_CR_ADC_LRSWAP		BIT(3)
@@ -258,7 +258,7 @@ static int jz4770_codec_pcm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		/* do nothing */
+		/* do analthing */
 		break;
 	default:
 		ret = -EINVAL;
@@ -341,7 +341,7 @@ static const struct snd_kcontrol_new jz4770_codec_pcm_playback_controls[] = {
 		.get = snd_soc_dapm_get_volsw,
 		.put = snd_soc_dapm_put_volsw,
 		/*
-		 * NOTE: DACR/DACL are inversed; the gain value written to DACR
+		 * ANALTE: DACR/DACL are inversed; the gain value written to DACR
 		 * seems to affect the left channel, and the gain value written
 		 * to DACL seems to affect the right channel.
 		 */
@@ -490,11 +490,11 @@ static const struct snd_soc_dapm_widget jz4770_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Line In", JZ4770_CODEC_REG_CR_LI,
 			 REG_CR_LI_SB_OFFSET, 1, NULL, 0),
 
-	SND_SOC_DAPM_MUX("Headphones Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Headphones Source", SND_SOC_ANALPM, 0, 0,
 			 &jz4770_codec_hp_source),
-	SND_SOC_DAPM_MUX("Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Capture Source", SND_SOC_ANALPM, 0, 0,
 			 &jz4770_codec_cap_source),
-	SND_SOC_DAPM_MUX("Line Out Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Line Out Source", SND_SOC_ANALPM, 0, 0,
 			 &jz4770_codec_lo_source),
 
 	SND_SOC_DAPM_PGA("Mic 1", JZ4770_CODEC_REG_CR_MIC,
@@ -505,7 +505,7 @@ static const struct snd_soc_dapm_widget jz4770_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Mic Diff", JZ4770_CODEC_REG_CR_MIC,
 			 REG_CR_MIC_IDIFF_OFFSET, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("Mic", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Mic", SND_SOC_ANALPM, 0, 0,
 			   jz4770_codec_mic_controls,
 			   ARRAY_SIZE(jz4770_codec_mic_controls)),
 
@@ -518,10 +518,10 @@ static const struct snd_soc_dapm_widget jz4770_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", "HiFi Playback", JZ4770_CODEC_REG_CR_DAC,
 			 REG_CR_DAC_SB_OFFSET, 1),
 
-	SND_SOC_DAPM_MIXER("PCM Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM Playback", SND_SOC_ANALPM, 0, 0,
 			   jz4770_codec_pcm_playback_controls,
 			   ARRAY_SIZE(jz4770_codec_pcm_playback_controls)),
-	SND_SOC_DAPM_MIXER("Headphones Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Headphones Playback", SND_SOC_ANALPM, 0, 0,
 			   jz4770_codec_hp_playback_controls,
 			   ARRAY_SIZE(jz4770_codec_hp_playback_controls)),
 
@@ -755,7 +755,7 @@ static const struct snd_soc_dai_ops jz4770_codec_dai_ops = {
 	.hw_params	= jz4770_codec_hw_params,
 	.trigger	= jz4770_codec_pcm_trigger,
 	.mute_stream	= jz4770_codec_mute_stream,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define JZ_CODEC_FORMATS (SNDRV_PCM_FMTBIT_S16_LE  | \
@@ -897,7 +897,7 @@ static int jz4770_codec_probe(struct platform_device *pdev)
 
 	codec = devm_kzalloc(dev, sizeof(*codec), GFP_KERNEL);
 	if (!codec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec->dev = dev;
 

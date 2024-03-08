@@ -20,13 +20,13 @@
 	backlight-left {
 		compatible = "pwm-backlight";
 		pwms = <&twl_pwm 1 7812500>;
-		power-supply = <&unknown_supply>;
+		power-supply = <&unkanalwn_supply>;
 	};
 
 	backlight-right {
 		compatible = "pwm-backlight";
 		pwms = <&twl_pwm 0 7812500>;
-		power-supply = <&unknown_supply>;
+		power-supply = <&unkanalwn_supply>;
 	};
 
 	chosen {
@@ -46,9 +46,9 @@
 		};
 	};
 
-	unknown_supply: unknown-supply {
+	unkanalwn_supply: unkanalwn-supply {
 		compatible = "regulator-fixed";
-		regulator-name = "unknown";
+		regulator-name = "unkanalwn";
 	};
 
 	wl12xx_pwrseq: wl12xx-pwrseq {
@@ -273,7 +273,7 @@
 			MATRIX_KEY(1, 0, KEY_ESC)
 			MATRIX_KEY(1, 1, KEY_VOLUMEDOWN)
 			MATRIX_KEY(1, 2, KEY_VOLUMEUP)>;
-	linux,input-no-autorepeat;
+	linux,input-anal-autorepeat;
 };
 
 &mcbsp2 {
@@ -304,7 +304,7 @@
 	mmc-pwrseq = <&wl12xx_pwrseq>;
 	interrupts-extended = <&wakeupgen GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core 0x12e>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 

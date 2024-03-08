@@ -216,14 +216,14 @@ extern void downgrade_write(struct rw_semaphore *sem);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 /*
- * nested locking. NOTE: rwsems are not allowed to recurse
+ * nested locking. ANALTE: rwsems are analt allowed to recurse
  * (which occurs if the same task tries to acquire the same
  * lock instance multiple times), but multiple locks of the
  * same lock class might be taken, if the order of the locks
  * is always the same. This ordering rule can be expressed
  * to lockdep via the _nested() APIs, but enumerating the
  * subclasses that are used. (If the nesting relationship is
- * static then another method for expressing nested locking is
+ * static then aanalther method for expressing nested locking is
  * the explicit definition of lock class keys and the use of
  * lockdep_set_class() at lock initialization time.
  * See Documentation/locking/lockdep-design.rst for more details.)
@@ -241,21 +241,21 @@ do {								\
 } while (0)
 
 /*
- * Take/release a lock when not the owner will release it.
+ * Take/release a lock when analt the owner will release it.
  *
  * [ This API should be avoided as much as possible - the
  *   proper abstraction for this case is completions. ]
  */
-extern void down_read_non_owner(struct rw_semaphore *sem);
-extern void up_read_non_owner(struct rw_semaphore *sem);
+extern void down_read_analn_owner(struct rw_semaphore *sem);
+extern void up_read_analn_owner(struct rw_semaphore *sem);
 #else
 # define down_read_nested(sem, subclass)		down_read(sem)
 # define down_read_killable_nested(sem, subclass)	down_read_killable(sem)
 # define down_write_nest_lock(sem, nest_lock)	down_write(sem)
 # define down_write_nested(sem, subclass)	down_write(sem)
 # define down_write_killable_nested(sem, subclass)	down_write_killable(sem)
-# define down_read_non_owner(sem)		down_read(sem)
-# define up_read_non_owner(sem)			up_read(sem)
+# define down_read_analn_owner(sem)		down_read(sem)
+# define up_read_analn_owner(sem)			up_read(sem)
 #endif
 
 #endif /* _LINUX_RWSEM_H */

@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/message/fusion/mptfc.c
  *      For use with LSI PCI chip/adapter(s)
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techanallogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -18,19 +18,19 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    NO WARRANTY
+    ANAL WARRANTY
     THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
     CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but analt limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
     DISCLAIMER OF LIABILITY
-    NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+    NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
     DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -39,19 +39,19 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if analt, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>	/* for mdelay */
 #include <linux/interrupt.h>
-#include <linux/reboot.h>	/* notifier code */
+#include <linux/reboot.h>	/* analtifier code */
 #include <linux/workqueue.h>
 #include <linux/sort.h>
 #include <linux/slab.h>
@@ -163,12 +163,12 @@ static struct scsi_transport_template *mptfc_transport_template = NULL;
 
 static struct fc_function_template mptfc_transport_functions = {
 	.dd_fcrport_size = 8,
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_port_id = 1,
 	.show_rport_supported_classes = 1,
-	.show_starget_node_name = 1,
+	.show_starget_analde_name = 1,
 	.show_starget_port_name = 1,
 	.show_starget_port_id = 1,
 	.set_rport_dev_loss_tmo = mptfc_set_rport_loss_tmo,
@@ -201,7 +201,7 @@ mptfc_block_error_handler(struct fc_rport *rport)
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"mptfc_block_error_handler.%d: %s, port status is "
 			"%x, active flag %d, deferring recovery.\n",
-			ioc->name, ioc->sh->host_no,
+			ioc->name, ioc->sh->host_anal,
 			dev_name(&rport->dev), ready, ioc->active));
 		msleep(1000);
 		spin_lock_irqsave(shost->host_lock, flags);
@@ -209,11 +209,11 @@ mptfc_block_error_handler(struct fc_rport *rport)
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	if (ready == DID_NO_CONNECT || ioc->active == 0) {
+	if (ready == DID_ANAL_CONNECT || ioc->active == 0) {
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"mpt_block_error_handler.%d: %s, failing recovery, "
 			"port state %x, active %d.\n",
-			ioc->name, ioc->sh->host_no,
+			ioc->name, ioc->sh->host_anal,
 			dev_name(&rport->dev), ready, ioc->active));
 		return FAILED;
 	}
@@ -232,7 +232,7 @@ mptfc_abort(struct scsi_cmnd *SCpnt)
 	if (rtn == SUCCESS) {
 		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
 			"%s.%d: %d:%llu, executing recovery.\n", __func__,
-			hd->ioc->name, shost->host_no,
+			hd->ioc->name, shost->host_anal,
 			SCpnt->device->id, SCpnt->device->lun));
 		rtn = mptscsih_abort(SCpnt);
 	}
@@ -251,7 +251,7 @@ mptfc_dev_reset(struct scsi_cmnd *SCpnt)
 	if (rtn == SUCCESS) {
 		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
 			"%s.%d: %d:%llu, executing recovery.\n", __func__,
-			hd->ioc->name, shost->host_no,
+			hd->ioc->name, shost->host_anal,
 			SCpnt->device->id, SCpnt->device->lun));
 		rtn = mptscsih_dev_reset(SCpnt);
 	}
@@ -281,7 +281,7 @@ mptfc_bus_reset(struct scsi_cmnd *SCpnt)
 	if (rtn == 0) {
 		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
 			"%s.%d: %d:%llu, executing recovery.\n", __func__,
-			hd->ioc->name, shost->host_no,
+			hd->ioc->name, shost->host_anal,
 			SCpnt->device->id, SCpnt->device->lun));
 		rtn = mptscsih_bus_reset(SCpnt);
 	}
@@ -329,7 +329,7 @@ mptfc_GetFcDevPage0(MPT_ADAPTER *ioc, int ioc_port,
 	FCDevicePage0_t		*p0_array=NULL, *p_p0;
 	FCDevicePage0_t		**pp0_array=NULL, **p_pp0;
 
-	int			 rc = -ENOMEM;
+	int			 rc = -EANALMEM;
 	U32			 port_id = 0xffffff;
 	int			 num_targ = 0;
 	int			 max_bus = ioc->facts.MaxBuses;
@@ -369,7 +369,7 @@ mptfc_GetFcDevPage0(MPT_ADAPTER *ioc, int ioc_port,
 		data_sz = hdr.PageLength * 4;
 		ppage0_alloc = dma_alloc_coherent(&ioc->pcidev->dev, data_sz,
 						  &page0_dma, GFP_KERNEL);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		if (!ppage0_alloc)
 			break;
 
@@ -431,7 +431,7 @@ mptfc_GetFcDevPage0(MPT_ADAPTER *ioc, int ioc_port,
 static int
 mptfc_generate_rport_ids(FCDevicePage0_t *pg0, struct fc_rport_identifiers *rid)
 {
-	/* not currently usable */
+	/* analt currently usable */
 	if (pg0->Flags & (MPI_FC_DEVICE_PAGE0_FLAGS_PLOGI_INVALID |
 			  MPI_FC_DEVICE_PAGE0_FLAGS_PRLI_INVALID))
 		return -1;
@@ -443,13 +443,13 @@ mptfc_generate_rport_ids(FCDevicePage0_t *pg0, struct fc_rport_identifiers *rid)
 		return -1;
 
 	/*
-	 * board data structure already normalized to platform endianness
+	 * board data structure already analrmalized to platform endianness
 	 * shifted to avoid unaligned access on 64 bit architecture
 	 */
-	rid->node_name = ((u64)pg0->WWNN.High) << 32 | (u64)pg0->WWNN.Low;
+	rid->analde_name = ((u64)pg0->WWNN.High) << 32 | (u64)pg0->WWNN.Low;
 	rid->port_name = ((u64)pg0->WWPN.High) << 32 | (u64)pg0->WWPN.Low;
 	rid->port_id =   pg0->PortIdentifier;
-	rid->roles = FC_RPORT_ROLE_UNKNOWN;
+	rid->roles = FC_RPORT_ROLE_UNKANALWN;
 
 	return 0;
 }
@@ -463,7 +463,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 	int			new_ri = 1;
 	u64			pn, nn;
 	VirtTarget		*vtarget;
-	u32			roles = FC_RPORT_ROLE_UNKNOWN;
+	u32			roles = FC_RPORT_ROLE_UNKANALWN;
 
 	if (mptfc_generate_rport_ids(pg0, &rport_ids) < 0)
 		return;
@@ -491,7 +491,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 	ri->pg0 = *pg0;	/* add/update pg0 data */
 	ri->flags &= ~MPT_RPORT_INFO_FLAGS_MISSING;
 
-	/* MPT_RPORT_INFO_FLAGS_REGISTERED - rport not previously deleted */
+	/* MPT_RPORT_INFO_FLAGS_REGISTERED - rport analt previously deleted */
 	if (!(ri->flags & MPT_RPORT_INFO_FLAGS_REGISTERED)) {
 		ri->flags |= MPT_RPORT_INFO_FLAGS_REGISTERED;
 		rport = fc_remote_port_add(ioc->sh, channel, &rport_ids);
@@ -500,7 +500,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 			if (new_ri) /* may have been reset by user */
 				rport->dev_loss_tmo = mptfc_dev_loss_tmo;
 			/*
-			 * if already mapped, remap here.  If not mapped,
+			 * if already mapped, remap here.  If analt mapped,
 			 * target_alloc will allocate vtarget and map,
 			 * slave_alloc will fill in vdevice from vtarget.
 			 */
@@ -522,7 +522,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 				"mptfc_reg_dev.%d: %x, %llx / %llx, tid %d, "
 				"rport tid %d, tmo %d\n",
 					ioc->name,
-					ioc->sh->host_no,
+					ioc->sh->host_anal,
 					pg0->PortIdentifier,
 					(unsigned long long)nn,
 					(unsigned long long)pn,
@@ -539,7 +539,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 
 /*
  *	OS entry point to allow for host driver to free allocated memory
- *	Called if no device present or device being unloaded
+ *	Called if anal device present or device being unloaded
  */
 static void
 mptfc_target_destroy(struct scsi_target *starget)
@@ -560,7 +560,7 @@ mptfc_target_destroy(struct scsi_target *starget)
 /*
  *	OS entry point to allow host driver to alloc memory
  *	for each scsi target. Called once per device the bus scan.
- *	Return non-zero if allocation fails.
+ *	Return analn-zero if allocation fails.
  */
 static int
 mptfc_target_alloc(struct scsi_target *starget)
@@ -572,10 +572,10 @@ mptfc_target_alloc(struct scsi_target *starget)
 
 	vtarget = kzalloc(sizeof(VirtTarget), GFP_KERNEL);
 	if (!vtarget)
-		return -ENOMEM;
+		return -EANALMEM;
 	starget->hostdata = vtarget;
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 	rport = starget_to_rport(starget);
 	if (rport) {
 		ri = *((struct mptfc_rport_info **)rport->dd_data);
@@ -614,7 +614,7 @@ mptfc_dump_lun_info(MPT_ADAPTER *ioc, struct fc_rport *rport, struct scsi_device
 		"mptfc_slv_alloc.%d: num_luns %d, sdev.id %d, "
 		"CurrentTargetID %d, %x %llx %llx\n",
 		ioc->name,
-		sdev->host->host_no,
+		sdev->host->host_anal,
 		vtarget->num_luns,
 		sdev->id, ri->pg0.CurrentTargetID,
 		ri->pg0.PortIdentifier,
@@ -626,7 +626,7 @@ mptfc_dump_lun_info(MPT_ADAPTER *ioc, struct fc_rport *rport, struct scsi_device
 /*
  *	OS entry point to allow host driver to alloc memory
  *	for each scsi device. Called once per device the bus scan.
- *	Return non-zero if allocation fails.
+ *	Return analn-zero if allocation fails.
  *	Init memory once per LUN.
  */
 static int
@@ -652,7 +652,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kmalloc(%zd) FAILED!\n",
 				ioc->name, sizeof(VirtDevice));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 
@@ -661,7 +661,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 
 	if (vtarget->num_luns == 0) {
 		vtarget->ioc_id = ioc->id;
-		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
+		vtarget->tflags = MPT_TARGET_FLAGS_Q_ANAL;
 	}
 
 	vdevice->vtarget = vtarget;
@@ -684,7 +684,7 @@ mptfc_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 	VirtDevice	*vdevice = SCpnt->device->hostdata;
 
 	if (!vdevice || !vdevice->vtarget) {
-		SCpnt->result = DID_NO_CONNECT << 16;
+		SCpnt->result = DID_ANAL_CONNECT << 16;
 		scsi_done(SCpnt);
 		return 0;
 	}
@@ -728,18 +728,18 @@ mptfc_display_port_link_speed(MPT_ADAPTER *ioc, int portnum, FCPortPage0_t *pp0d
 	state = pp0dest->PortState;
 
 	if (state != MPI_FCPORTPAGE0_PORTSTATE_OFFLINE &&
-	    new_speed != MPI_FCPORTPAGE0_CURRENT_SPEED_UNKNOWN) {
+	    new_speed != MPI_FCPORTPAGE0_CURRENT_SPEED_UNKANALWN) {
 
 		old = old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_1GBIT ? "1 Gbps" :
 		       old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT ? "2 Gbps" :
 			old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_4GBIT ? "4 Gbps" :
-			 "Unknown";
+			 "Unkanalwn";
 		new = new_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_1GBIT ? "1 Gbps" :
 		       new_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT ? "2 Gbps" :
 			new_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_4GBIT ? "4 Gbps" :
-			 "Unknown";
+			 "Unkanalwn";
 		if (old_speed == 0)
-			printk(MYIOC_s_NOTE_FMT
+			printk(MYIOC_s_ANALTE_FMT
 				"FC Link Established, Speed = %s\n",
 				ioc->name, new);
 		else if (old_speed != new_speed)
@@ -757,10 +757,10 @@ mptfc_display_port_link_speed(MPT_ADAPTER *ioc, int portnum, FCPortPage0_t *pp0d
  *	@portnum: IOC Port number
  *
  *	Return: 0 for success
- *	-ENOMEM if no memory available
- *		-EPERM if not allowed due to ISR context
- *		-EAGAIN if no msg frames currently available
- *		-EFAULT for non-successful reply or no reply (timeout)
+ *	-EANALMEM if anal memory available
+ *		-EPERM if analt allowed due to ISR context
+ *		-EAGAIN if anal msg frames currently available
+ *		-EFAULT for analn-successful reply or anal reply (timeout)
  *		-EINVAL portnum arg out of range (hardwired to two elements)
  */
 static int
@@ -798,7 +798,7 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 		return 0;
 
 	data_sz = hdr.PageLength * 4;
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	ppage0_alloc = dma_alloc_coherent(&ioc->pcidev->dev, data_sz,
 					  &page0_dma, GFP_KERNEL);
 	if (ppage0_alloc) {
@@ -815,7 +815,7 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 			memcpy(pp0dest, ppage0_alloc, copy_sz);
 
 			/*
-			 *	Normalize endianness of structure data,
+			 *	Analrmalize endianness of structure data,
 			 *	by byte-swapping all > 1 byte fields!
 			 */
 			pp0dest->Flags = le32_to_cpu(pp0dest->Flags);
@@ -839,15 +839,15 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 			 * if still doing discovery,
 			 * hang loose a while until finished
 			 */
-			if ((pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN) ||
+			if ((pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKANALWN) ||
 			    (pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_ONLINE &&
 			     (pp0dest->Flags & MPI_FCPORTPAGE0_FLAGS_ATTACH_TYPE_MASK)
-			      == MPI_FCPORTPAGE0_FLAGS_ATTACH_NO_INIT)) {
+			      == MPI_FCPORTPAGE0_FLAGS_ATTACH_ANAL_INIT)) {
 				if (count-- > 0) {
 					msleep(100);
 					goto try_again;
 				}
-				printk(MYIOC_s_INFO_FMT "Firmware discovery not"
+				printk(MYIOC_s_INFO_FMT "Firmware discovery analt"
 							" complete.\n",
 						ioc->name);
 			}
@@ -890,7 +890,7 @@ mptfc_WriteFcPortPage1(MPT_ADAPTER *ioc, int portnum)
 		return rc;
 
 	if (hdr.PageLength == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hdr.PageLength*4 != ioc->fc_data.fc_port_page1[portnum].pg_sz)
 		return -EINVAL;
@@ -933,7 +933,7 @@ mptfc_GetFcPortPage1(MPT_ADAPTER *ioc, int portnum)
 		return rc;
 
 	if (hdr.PageLength == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 start_over:
 
@@ -945,7 +945,7 @@ start_over:
 		page1_alloc = dma_alloc_coherent(&ioc->pcidev->dev, data_sz,
 						 &page1_dma, GFP_KERNEL);
 		if (!page1_alloc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	else {
 		page1_alloc = ioc->fc_data.fc_port_page1[portnum].data;
@@ -1017,7 +1017,7 @@ mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 	struct Scsi_Host *sh;
 	char		*sn;
 
-	/* don't know what to do as only one scsi (fc) host was allocated */
+	/* don't kanalw what to do as only one scsi (fc) host was allocated */
 	if (portnum != 0)
 		return;
 
@@ -1034,7 +1034,7 @@ mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 
 	fc_host_maxframe_size(sh) = pp0->MaxFrameSize;
 
-	fc_host_node_name(sh) =
+	fc_host_analde_name(sh) =
 	    	(u64)pp0->WWNN.High << 32 | (u64)pp0->WWNN.Low;
 
 	fc_host_port_name(sh) =
@@ -1060,7 +1060,7 @@ mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 	else if (pp0->CurrentSpeed == MPI_FCPORTPAGE0_CURRENT_SPEED_10GBIT)
 		speed = FC_PORTSPEED_10GBIT;
 	else
-		speed = FC_PORTSPEED_UNKNOWN;
+		speed = FC_PORTSPEED_UNKANALWN;
 	fc_host_speed(sh) = speed;
 
 	speed = 0;
@@ -1074,14 +1074,14 @@ mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 		speed |= FC_PORTSPEED_10GBIT;
 	fc_host_supported_speeds(sh) = speed;
 
-	port_state = FC_PORTSTATE_UNKNOWN;
+	port_state = FC_PORTSTATE_UNKANALWN;
 	if (pp0->PortState == MPI_FCPORTPAGE0_PORTSTATE_ONLINE)
 		port_state = FC_PORTSTATE_ONLINE;
 	else if (pp0->PortState == MPI_FCPORTPAGE0_PORTSTATE_OFFLINE)
 		port_state = FC_PORTSTATE_LINKDOWN;
 	fc_host_port_state(sh) = port_state;
 
-	port_type = FC_PORTTYPE_UNKNOWN;
+	port_type = FC_PORTTYPE_UNKANALWN;
 	if (pp0->Flags & MPI_FCPORTPAGE0_FLAGS_ATTACH_POINT_TO_POINT)
 		port_type = FC_PORTTYPE_PTP;
 	else if (pp0->Flags & MPI_FCPORTPAGE0_FLAGS_ATTACH_PRIVATE_LOOP)
@@ -1139,7 +1139,7 @@ mptfc_setup_reset(struct work_struct *work)
 			dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 				"mptfc_setup_reset.%d: %llx deleted\n",
 				ioc->name,
-				ioc->sh->host_no,
+				ioc->sh->host_anal,
 				(unsigned long long)pn));
 		}
 	}
@@ -1164,7 +1164,7 @@ mptfc_rescan_devices(struct work_struct *work)
 	}
 
 	/*
-	 * now rescan devices known to adapter,
+	 * analw rescan devices kanalwn to adapter,
 	 * will reregister existing rports
 	 */
 	for (ii=0; ii < ioc->facts.NumberOfPorts; ii++) {
@@ -1194,7 +1194,7 @@ mptfc_rescan_devices(struct work_struct *work)
 			dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 				"mptfc_rescan.%d: %llx deleted\n",
 				ioc->name,
-				ioc->sh->host_no,
+				ioc->sh->host_anal,
 				(unsigned long long)pn));
 		}
 	}
@@ -1226,16 +1226,16 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	if (ioc->last_state != MPI_IOC_STATE_OPERATIONAL) {
 		printk(MYIOC_s_WARN_FMT
-		  "Skipping because it's not operational!\n",
+		  "Skipping because it's analt operational!\n",
 		  ioc->name);
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_mptfc_probe;
 	}
 
 	if (!ioc->active) {
 		printk(MYIOC_s_WARN_FMT "Skipping because it's disabled!\n",
 		  ioc->name);
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_mptfc_probe;
 	}
 
@@ -1250,7 +1250,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (!ioc_cap) {
 		printk(MYIOC_s_WARN_FMT
-			"Skipping ioc=%p because SCSI Initiator mode is NOT enabled!\n",
+			"Skipping ioc=%p because SCSI Initiator mode is ANALT enabled!\n",
 			ioc->name, ioc);
 		return 0;
 	}
@@ -1328,7 +1328,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	ioc->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_KERNEL);
 	if (!ioc->ScsiLookup) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out_mptfc_probe;
 	}
 	spin_lock_init(&ioc->scsi_lookup_lock);
@@ -1349,12 +1349,12 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* initialize workqueue */
 
 	snprintf(ioc->fc_rescan_work_q_name, sizeof(ioc->fc_rescan_work_q_name),
-		 "mptfc_wq_%d", sh->host_no);
+		 "mptfc_wq_%d", sh->host_anal);
 	ioc->fc_rescan_work_q =
 		alloc_ordered_workqueue(ioc->fc_rescan_work_q_name,
 					WQ_MEM_RECLAIM);
 	if (!ioc->fc_rescan_work_q) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out_mptfc_host;
 	}
 
@@ -1399,7 +1399,7 @@ static struct pci_driver mptfc_driver = {
 };
 
 static int
-mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
+mptfc_event_process(MPT_ADAPTER *ioc, EventAnaltificationReply_t *pEvReply)
 {
 	MPT_SCSI_HOST *hd;
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
@@ -1484,7 +1484,7 @@ mptfc_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 /**
  *	mptfc_init - Register MPT adapter(s) as SCSI host(s) with SCSI mid-layer.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, analn-zero for failure.
  */
 static int __init
 mptfc_init(void)
@@ -1501,7 +1501,7 @@ mptfc_init(void)
 		fc_attach_transport(&mptfc_transport_functions);
 
 	if (!mptfc_transport_template)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mptfcDoneCtx = mpt_register(mptscsih_io_done, MPTFC_DRIVER,
 	    "mptscsih_scandv_complete");

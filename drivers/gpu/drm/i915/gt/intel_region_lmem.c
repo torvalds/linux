@@ -20,16 +20,16 @@
 #ifdef CONFIG_64BIT
 static void _release_bars(struct pci_dev *pdev)
 {
-	int resno;
+	int resanal;
 
-	for (resno = PCI_STD_RESOURCES; resno < PCI_STD_RESOURCE_END; resno++) {
-		if (pci_resource_len(pdev, resno))
-			pci_release_resource(pdev, resno);
+	for (resanal = PCI_STD_RESOURCES; resanal < PCI_STD_RESOURCE_END; resanal++) {
+		if (pci_resource_len(pdev, resanal))
+			pci_release_resource(pdev, resanal);
 	}
 }
 
 static void
-_resize_bar(struct drm_i915_private *i915, int resno, resource_size_t size)
+_resize_bar(struct drm_i915_private *i915, int resanal, resource_size_t size)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	int bar_size = pci_rebar_bytes_to_size(size);
@@ -37,14 +37,14 @@ _resize_bar(struct drm_i915_private *i915, int resno, resource_size_t size)
 
 	_release_bars(pdev);
 
-	ret = pci_resize_resource(pdev, resno, bar_size);
+	ret = pci_resize_resource(pdev, resanal, bar_size);
 	if (ret) {
 		drm_info(&i915->drm, "Failed to resize BAR%d to %dM (%pe)\n",
-			 resno, 1 << bar_size, ERR_PTR(ret));
+			 resanal, 1 << bar_size, ERR_PTR(ret));
 		return;
 	}
 
-	drm_info(&i915->drm, "BAR%d resized to %dM\n", resno, 1 << bar_size);
+	drm_info(&i915->drm, "BAR%d resized to %dM\n", resanal, 1 << bar_size);
 }
 
 static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t lmem_size)
@@ -75,7 +75,7 @@ static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t 
 			rebar_size = lmem_size;
 
 			drm_info(&i915->drm,
-				 "Given bar size is not within supported size, setting it to default: %llu\n",
+				 "Given bar size is analt within supported size, setting it to default: %llu\n",
 				 (u64)lmem_size >> 20);
 		}
 	} else {
@@ -105,7 +105,7 @@ static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t 
 
 	/*
 	 * Releasing forcewake during BAR resizing results in later forcewake
-	 * ack timeouts and former can happen any time - it is asynchronous.
+	 * ack timeouts and former can happen any time - it is asynchroanalus.
 	 * Grabbing all forcewakes prevents it.
 	 */
 	with_intel_runtime_pm(i915->uncore.rpm, wakeref) {
@@ -150,11 +150,11 @@ region_lmem_init(struct intel_memory_region *mem)
 
 	ret = intel_region_ttm_init(mem);
 	if (ret)
-		goto out_no_buddy;
+		goto out_anal_buddy;
 
 	return 0;
 
-out_no_buddy:
+out_anal_buddy:
 	io_mapping_fini(&mem->iomap);
 
 	return ret;
@@ -211,7 +211,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	int err;
 
 	if (!IS_DGFX(i915))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (!i915_pci_resource_valid(pdev, GEN12_LMEM_BAR))
 		return ERR_PTR(-ENXIO);
@@ -232,10 +232,10 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 
 		tile_stolen = lmem_size - flat_ccs_base;
 
-		/* If the FLAT_CCS_BASE_ADDR register is not populated, flag an error */
+		/* If the FLAT_CCS_BASE_ADDR register is analt populated, flag an error */
 		if (tile_stolen == lmem_size)
 			drm_err(&i915->drm,
-				"CCS_BASE_ADDR register did not have expected value\n");
+				"CCS_BASE_ADDR register did analt have expected value\n");
 
 		lmem_size -= tile_stolen;
 	} else {

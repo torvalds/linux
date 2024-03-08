@@ -50,7 +50,7 @@ static struct dm_dirty_log_type *_get_dirty_log_type(const char *name)
  * get_type
  * @type_name
  *
- * Attempt to retrieve the dm_dirty_log_type by name.  If not already
+ * Attempt to retrieve the dm_dirty_log_type by name.  If analt already
  * available, attempt to load the appropriate module.
  *
  * Log modules are named "dm-log-" followed by the 'type_name'.
@@ -77,7 +77,7 @@ static struct dm_dirty_log_type *get_type(const char *type_name)
 
 	type_name_dup = kstrdup(type_name, GFP_KERNEL);
 	if (!type_name_dup) {
-		DMWARN("No memory left to attempt log module load for \"%s\"",
+		DMWARN("Anal memory left to attempt log module load for \"%s\"",
 		       type_name);
 		return NULL;
 	}
@@ -91,7 +91,7 @@ static struct dm_dirty_log_type *get_type(const char *type_name)
 	}
 
 	if (!log_type)
-		DMWARN("Module for logging type \"%s\" not found.", type_name);
+		DMWARN("Module for logging type \"%s\" analt found.", type_name);
 
 	kfree(type_name_dup);
 
@@ -204,7 +204,7 @@ struct log_header_disk {
 	__le32 magic;
 
 	/*
-	 * Simple, incrementing version. no backward
+	 * Simple, incrementing version. anal backward
 	 * compatibility.
 	 */
 	__le32 version;
@@ -236,7 +236,7 @@ struct log_c {
 	/* Resync flag */
 	enum sync {
 		DEFAULTSYNC,	/* Synchronize if necessary */
-		NOSYNC,		/* Devices known to be already in sync */
+		ANALSYNC,		/* Devices kanalwn to be already in sync */
 		FORCESYNC,	/* Force a sync to happen */
 	} sync;
 
@@ -361,7 +361,7 @@ static int _check_region_size(struct dm_target *ti, uint32_t region_size)
  *--------------------------------------------------------------
  * core log constructor/destructor
  *
- * argv contains region_size followed optionally by [no]sync
+ * argv contains region_size followed optionally by [anal]sync
  *--------------------------------------------------------------
  */
 #define BYTE_SHIFT 3
@@ -386,8 +386,8 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 	if (argc > 1) {
 		if (!strcmp(argv[1], "sync"))
 			sync = FORCESYNC;
-		else if (!strcmp(argv[1], "nosync"))
-			sync = NOSYNC;
+		else if (!strcmp(argv[1], "analsync"))
+			sync = ANALSYNC;
 		else {
 			DMWARN("unrecognised sync argument to dirty region log: %s", argv[1]);
 			return -EINVAL;
@@ -405,7 +405,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 	lc = kmalloc(sizeof(*lc), GFP_KERNEL);
 	if (!lc) {
 		DMWARN("couldn't allocate core log");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	lc->ti = ti;
@@ -432,7 +432,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		if (!lc->clean_bits) {
 			DMWARN("couldn't allocate clean bitset");
 			kfree(lc);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		lc->disk_header = NULL;
 	} else {
@@ -459,7 +459,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		lc->header_location.count = buf_size >> SECTOR_SHIFT;
 
 		lc->io_req.mem.type = DM_IO_VMA;
-		lc->io_req.notify.fn = NULL;
+		lc->io_req.analtify.fn = NULL;
 		lc->io_req.client = dm_io_client_create();
 		if (IS_ERR(lc->io_req.client)) {
 			r = PTR_ERR(lc->io_req.client);
@@ -473,7 +473,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 			DMWARN("couldn't allocate disk log buffer");
 			dm_io_client_destroy(lc->io_req.client);
 			kfree(lc);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		lc->io_req.mem.ptr.vma = lc->disk_header;
@@ -492,10 +492,10 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 			dm_io_client_destroy(lc->io_req.client);
 		vfree(lc->disk_header);
 		kfree(lc);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
-	memset(lc->sync_bits, (sync == NOSYNC) ? -1 : 0, bitset_size);
-	lc->sync_count = (sync == NOSYNC) ? region_count : 0;
+	memset(lc->sync_bits, (sync == ANALSYNC) ? -1 : 0, bitset_size);
+	lc->sync_count = (sync == ANALSYNC) ? region_count : 0;
 
 	lc->recovering_bits = vzalloc(bitset_size);
 	if (!lc->recovering_bits) {
@@ -507,7 +507,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 			dm_io_client_destroy(lc->io_req.client);
 		vfree(lc->disk_header);
 		kfree(lc);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	lc->sync_search = 0;
 	log->context = lc;
@@ -540,7 +540,7 @@ static void core_dtr(struct dm_dirty_log *log)
  *---------------------------------------------------------------------
  * disk log constructor/destructor
  *
- * argv contains log_device region_size followed optionally by [no]sync
+ * argv contains log_device region_size followed optionally by [anal]sync
  *---------------------------------------------------------------------
  */
 static int disk_ctr(struct dm_dirty_log *log, struct dm_target *ti,
@@ -600,7 +600,7 @@ static int disk_resume(struct dm_dirty_log *log)
 		       lc->log_dev->name);
 		fail_log_device(lc);
 		/*
-		 * If the log device cannot be read, we must assume
+		 * If the log device cananalt be read, we must assume
 		 * all regions are out-of-sync.  If we simply return
 		 * here, the state will be uninitialized and could
 		 * lead us to return 'in-sync' status for regions
@@ -610,7 +610,7 @@ static int disk_resume(struct dm_dirty_log *log)
 	}
 
 	/* set or clear any new bits -- device has grown */
-	if (lc->sync == NOSYNC)
+	if (lc->sync == ANALSYNC)
 		for (i = lc->header.nr_regions; i < lc->region_count; i++)
 			/* FIXME: amazingly inefficient */
 			log_set_bit(lc, lc->clean_bits, i);
@@ -681,7 +681,7 @@ static int core_in_sync(struct dm_dirty_log *log, region_t region, int block)
 
 static int core_flush(struct dm_dirty_log *log)
 {
-	/* no op */
+	/* anal op */
 	return 0;
 }
 
@@ -787,7 +787,7 @@ static region_t core_get_sync_count(struct dm_dirty_log *log)
 #define	DMEMIT_SYNC \
 	do { \
 		if (lc->sync != DEFAULTSYNC) \
-			DMEMIT("%ssync ", lc->sync == NOSYNC ? "no" : ""); \
+			DMEMIT("%ssync ", lc->sync == ANALSYNC ? "anal" : ""); \
 	} while (0)
 
 static int core_status(struct dm_dirty_log *log, status_type_t status,

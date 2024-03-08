@@ -38,7 +38,7 @@ enum {
 	ATA_ID_CYLS		= 1,
 	ATA_ID_HEADS		= 3,
 	ATA_ID_SECTORS		= 6,
-	ATA_ID_SERNO		= 10,
+	ATA_ID_SERANAL		= 10,
 	ATA_ID_BUF_SIZE		= 21,
 	ATA_ID_FW_REV		= 23,
 	ATA_ID_PROD		= 27,
@@ -93,7 +93,7 @@ enum {
 	ATA_ID_ROT_SPEED	= 217,
 	ATA_ID_PIO4		= (1 << 1),
 
-	ATA_ID_SERNO_LEN	= 20,
+	ATA_ID_SERANAL_LEN	= 20,
 	ATA_ID_FW_REV_LEN	= 8,
 	ATA_ID_PROD_LEN		= 40,
 	ATA_ID_WWN_LEN		= 8,
@@ -173,11 +173,11 @@ enum {
 	ATA_BBK			= ATA_ICRC,	/* pre-EIDE: block marked bad */
 	ATA_UNC			= (1 << 6),	/* uncorrectable media error */
 	ATA_MC			= (1 << 5),	/* media changed */
-	ATA_IDNF		= (1 << 4),	/* ID not found */
+	ATA_IDNF		= (1 << 4),	/* ID analt found */
 	ATA_MCR			= (1 << 3),	/* media change requested */
 	ATA_ABORTED		= (1 << 2),	/* command aborted */
-	ATA_TRK0NF		= (1 << 1),	/* track 0 not found */
-	ATA_AMNF		= (1 << 0),	/* address mark not found */
+	ATA_TRK0NF		= (1 << 1),	/* track 0 analt found */
+	ATA_AMNF		= (1 << 0),	/* address mark analt found */
 	ATAPI_LFS		= 0xF0,		/* last failed sense */
 	ATAPI_EOM		= ATA_TRK0NF,	/* end of media */
 	ATAPI_ILI		= ATA_AMNF,	/* illegal length indication */
@@ -206,10 +206,10 @@ enum {
 	ATA_CMD_CHK_POWER	= 0xE5, /* check power mode */
 	ATA_CMD_STANDBY		= 0xE2, /* place in standby power mode */
 	ATA_CMD_IDLE		= 0xE3, /* place in idle power mode */
-	ATA_CMD_EDD		= 0x90,	/* execute device diagnostic */
+	ATA_CMD_EDD		= 0x90,	/* execute device diaganalstic */
 	ATA_CMD_DOWNLOAD_MICRO  = 0x92,
 	ATA_CMD_DOWNLOAD_MICRO_DMA = 0x93,
-	ATA_CMD_NOP		= 0x00,
+	ATA_CMD_ANALP		= 0x00,
 	ATA_CMD_FLUSH		= 0xE7,
 	ATA_CMD_FLUSH_EXT	= 0xEA,
 	ATA_CMD_ID_ATA		= 0xEC,
@@ -229,7 +229,7 @@ enum {
 	ATA_CMD_WRITE_QUEUED_FUA_EXT = 0x3E,
 	ATA_CMD_FPDMA_READ	= 0x60,
 	ATA_CMD_FPDMA_WRITE	= 0x61,
-	ATA_CMD_NCQ_NON_DATA	= 0x63,
+	ATA_CMD_NCQ_ANALN_DATA	= 0x63,
 	ATA_CMD_FPDMA_SEND	= 0x64,
 	ATA_CMD_FPDMA_RECV	= 0x65,
 	ATA_CMD_PIO_READ	= 0x20,
@@ -247,7 +247,7 @@ enum {
 	ATA_CMD_VERIFY		= 0x40,
 	ATA_CMD_VERIFY_EXT	= 0x42,
 	ATA_CMD_WRITE_UNCORR_EXT = 0x45,
-	ATA_CMD_STANDBYNOW1	= 0xE0,
+	ATA_CMD_STANDBYANALW1	= 0xE0,
 	ATA_CMD_IDLEIMMEDIATE	= 0xE1,
 	ATA_CMD_SLEEP		= 0xE6,
 	ATA_CMD_INIT_DEV_PARAMS	= 0x91,
@@ -259,7 +259,7 @@ enum {
 	ATA_CMD_WRITE_LOG_EXT	= 0x3F,
 	ATA_CMD_READ_LOG_DMA_EXT = 0x47,
 	ATA_CMD_WRITE_LOG_DMA_EXT = 0x57,
-	ATA_CMD_TRUSTED_NONDATA	= 0x5B,
+	ATA_CMD_TRUSTED_ANALNDATA	= 0x5B,
 	ATA_CMD_TRUSTED_RCV	= 0x5C,
 	ATA_CMD_TRUSTED_RCV_DMA = 0x5D,
 	ATA_CMD_TRUSTED_SND	= 0x5E,
@@ -302,11 +302,11 @@ enum {
 	ATA_SUBCMD_FPDMA_SEND_DSM            = 0x00,
 	ATA_SUBCMD_FPDMA_SEND_WR_LOG_DMA_EXT = 0x02,
 
-	/* Subcmds for ATA_CMD_NCQ_NON_DATA */
-	ATA_SUBCMD_NCQ_NON_DATA_ABORT_QUEUE  = 0x00,
-	ATA_SUBCMD_NCQ_NON_DATA_SET_FEATURES = 0x05,
-	ATA_SUBCMD_NCQ_NON_DATA_ZERO_EXT     = 0x06,
-	ATA_SUBCMD_NCQ_NON_DATA_ZAC_MGMT_OUT = 0x07,
+	/* Subcmds for ATA_CMD_NCQ_ANALN_DATA */
+	ATA_SUBCMD_NCQ_ANALN_DATA_ABORT_QUEUE  = 0x00,
+	ATA_SUBCMD_NCQ_ANALN_DATA_SET_FEATURES = 0x05,
+	ATA_SUBCMD_NCQ_ANALN_DATA_ZERO_EXT     = 0x06,
+	ATA_SUBCMD_NCQ_ANALN_DATA_ZAC_MGMT_OUT = 0x07,
 
 	/* Subcmds for ATA_CMD_ZAC_MGMT_IN */
 	ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES = 0x00,
@@ -320,7 +320,7 @@ enum {
 	/* READ_LOG_EXT pages */
 	ATA_LOG_DIRECTORY	= 0x0,
 	ATA_LOG_SATA_NCQ	= 0x10,
-	ATA_LOG_NCQ_NON_DATA	= 0x12,
+	ATA_LOG_NCQ_ANALN_DATA	= 0x12,
 	ATA_LOG_NCQ_SEND_RECV	= 0x13,
 	ATA_LOG_CDL		= 0x18,
 	ATA_LOG_CDL_SIZE	= ATA_SECT_SIZE,
@@ -360,17 +360,17 @@ enum {
 	ATA_LOG_NCQ_SEND_RECV_ZAC_MGMT_IN_SUPPORTED = (1 << 1),
 	ATA_LOG_NCQ_SEND_RECV_SIZE		= 0x14,
 
-	/* NCQ Non-Data log */
-	ATA_LOG_NCQ_NON_DATA_SUBCMDS_OFFSET	= 0x00,
-	ATA_LOG_NCQ_NON_DATA_ABORT_OFFSET	= 0x00,
-	ATA_LOG_NCQ_NON_DATA_ABORT_NCQ		= (1 << 0),
-	ATA_LOG_NCQ_NON_DATA_ABORT_ALL		= (1 << 1),
-	ATA_LOG_NCQ_NON_DATA_ABORT_STREAMING	= (1 << 2),
-	ATA_LOG_NCQ_NON_DATA_ABORT_NON_STREAMING = (1 << 3),
-	ATA_LOG_NCQ_NON_DATA_ABORT_SELECTED	= (1 << 4),
-	ATA_LOG_NCQ_NON_DATA_ZAC_MGMT_OFFSET	= 0x1C,
-	ATA_LOG_NCQ_NON_DATA_ZAC_MGMT_OUT	= (1 << 0),
-	ATA_LOG_NCQ_NON_DATA_SIZE		= 0x40,
+	/* NCQ Analn-Data log */
+	ATA_LOG_NCQ_ANALN_DATA_SUBCMDS_OFFSET	= 0x00,
+	ATA_LOG_NCQ_ANALN_DATA_ABORT_OFFSET	= 0x00,
+	ATA_LOG_NCQ_ANALN_DATA_ABORT_NCQ		= (1 << 0),
+	ATA_LOG_NCQ_ANALN_DATA_ABORT_ALL		= (1 << 1),
+	ATA_LOG_NCQ_ANALN_DATA_ABORT_STREAMING	= (1 << 2),
+	ATA_LOG_NCQ_ANALN_DATA_ABORT_ANALN_STREAMING = (1 << 3),
+	ATA_LOG_NCQ_ANALN_DATA_ABORT_SELECTED	= (1 << 4),
+	ATA_LOG_NCQ_ANALN_DATA_ZAC_MGMT_OFFSET	= 0x1C,
+	ATA_LOG_NCQ_ANALN_DATA_ZAC_MGMT_OUT	= (1 << 0),
+	ATA_LOG_NCQ_ANALN_DATA_SIZE		= 0x40,
 
 	/* READ/WRITE LONG (obsolete) */
 	ATA_CMD_READ_LONG	= 0x22,
@@ -424,11 +424,11 @@ enum {
 	SETFEATURES_CDL		= 0x0d, /* Enable/disable cmd duration limits */
 
 	/* SETFEATURE Sector counts for SATA features */
-	SATA_FPDMA_OFFSET	= 0x01,	/* FPDMA non-zero buffer offsets */
+	SATA_FPDMA_OFFSET	= 0x01,	/* FPDMA analn-zero buffer offsets */
 	SATA_FPDMA_AA		= 0x02, /* FPDMA Setup FIS Auto-Activate */
 	SATA_DIPM		= 0x03,	/* Device Initiated Power Management */
 	SATA_FPDMA_IN_ORDER	= 0x04,	/* FPDMA in-order data delivery */
-	SATA_AN			= 0x05,	/* Asynchronous Notification */
+	SATA_AN			= 0x05,	/* Asynchroanalus Analtification */
 	SATA_SSP		= 0x06,	/* Software Settings Preservation */
 	SATA_DEVSLP		= 0x09,	/* Device Sleep */
 
@@ -488,15 +488,15 @@ enum {
 	SATA_PMP_FEAT_BIST	= (1 << 0),
 	SATA_PMP_FEAT_PMREQ	= (1 << 1),
 	SATA_PMP_FEAT_DYNSSC	= (1 << 2),
-	SATA_PMP_FEAT_NOTIFY	= (1 << 3),
+	SATA_PMP_FEAT_ANALTIFY	= (1 << 3),
 
 	/* cable types */
-	ATA_CBL_NONE		= 0,
+	ATA_CBL_ANALNE		= 0,
 	ATA_CBL_PATA40		= 1,
 	ATA_CBL_PATA80		= 2,
 	ATA_CBL_PATA40_SHORT	= 3,	/* 40 wire cable to high UDMA spec */
-	ATA_CBL_PATA_UNK	= 4,	/* don't know, maybe 80c? */
-	ATA_CBL_PATA_IGN	= 5,	/* don't know, ignore cable handling */
+	ATA_CBL_PATA_UNK	= 4,	/* don't kanalw, maybe 80c? */
+	ATA_CBL_PATA_IGN	= 5,	/* don't kanalw, iganalre cable handling */
 	ATA_CBL_SATA		= 6,
 
 	/* SATA Status and Control Registers */
@@ -504,7 +504,7 @@ enum {
 	SCR_ERROR		= 1,
 	SCR_CONTROL		= 2,
 	SCR_ACTIVE		= 3,
-	SCR_NOTIFICATION	= 4,
+	SCR_ANALTIFICATION	= 4,
 
 	/* SError bits */
 	SERR_DATA_RECOVERED	= (1 << 0), /* recovered data error */
@@ -534,13 +534,13 @@ enum ata_prot_flags {
 	ATA_PROT_FLAG_ATAPI	= (1 << 3), /* is ATAPI */
 
 	/* taskfile protocols */
-	ATA_PROT_UNKNOWN	= (u8)-1,
-	ATA_PROT_NODATA		= 0,
+	ATA_PROT_UNKANALWN	= (u8)-1,
+	ATA_PROT_ANALDATA		= 0,
 	ATA_PROT_PIO		= ATA_PROT_FLAG_PIO,
 	ATA_PROT_DMA		= ATA_PROT_FLAG_DMA,
-	ATA_PROT_NCQ_NODATA	= ATA_PROT_FLAG_NCQ,
+	ATA_PROT_NCQ_ANALDATA	= ATA_PROT_FLAG_NCQ,
 	ATA_PROT_NCQ		= ATA_PROT_FLAG_DMA | ATA_PROT_FLAG_NCQ,
-	ATAPI_PROT_NODATA	= ATA_PROT_FLAG_ATAPI,
+	ATAPI_PROT_ANALDATA	= ATA_PROT_FLAG_ATAPI,
 	ATAPI_PROT_PIO		= ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_PIO,
 	ATAPI_PROT_DMA		= ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_DMA,
 };
@@ -634,7 +634,7 @@ static inline u32 ata_id_logical_sector_size(const u16 *id)
 {
 	/* T13/1699-D Revision 6a, Sep 6, 2008. Page 128.
 	 * IDENTIFY DEVICE data, word 117-118.
-	 * 0xd000 ignores bit 13 (logical:physical > 1)
+	 * 0xd000 iganalres bit 13 (logical:physical > 1)
 	 */
 	if ((id[ATA_ID_SECTOR_SIZE] & 0xd000) == 0x5000)
 		return (((id[ATA_ID_LOGICAL_SECTOR_SIZE+1] << 16)
@@ -646,7 +646,7 @@ static inline u8 ata_id_log2_per_physical_sector(const u16 *id)
 {
 	/* T13/1699-D Revision 6a, Sep 6, 2008. Page 128.
 	 * IDENTIFY DEVICE data, word 106.
-	 * 0xe000 ignores bit 12 (logical sector > 512 bytes)
+	 * 0xe000 iganalres bit 12 (logical sector > 512 bytes)
 	 */
 	if ((id[ATA_ID_SECTOR_SIZE] & 0xe000) == 0x6000)
 		return (id[ATA_ID_SECTOR_SIZE] & 0xf);
@@ -686,7 +686,7 @@ static inline bool ata_id_has_lba48(const u16 *id)
 
 static inline bool ata_id_hpa_enabled(const u16 *id)
 {
-	/* Yes children, word 83 valid bits cover word 82 data */
+	/* Anal children, word 83 valid bits cover word 82 data */
 	if ((id[ATA_ID_COMMAND_SET_2] & 0xC000) != 0x4000)
 		return false;
 	/* And 87 covers 85-87 */
@@ -700,7 +700,7 @@ static inline bool ata_id_hpa_enabled(const u16 *id)
 
 static inline bool ata_id_has_wcache(const u16 *id)
 {
-	/* Yes children, word 83 valid bits cover word 82 data */
+	/* Anal children, word 83 valid bits cover word 82 data */
 	if ((id[ATA_ID_COMMAND_SET_2] & 0xC000) != 0x4000)
 		return false;
 	return id[ATA_ID_COMMAND_SET_1] & (1 << 5);
@@ -809,7 +809,7 @@ static inline bool ata_id_sct_supported(const u16 *id)
  *		ATA-2 introduces mandatory identify
  *		ATA-3 introduces word 80 and accurate reporting
  *
- *	The practical impact of this is that ata_id_major_version cannot
+ *	The practical impact of this is that ata_id_major_version cananalt
  *	reliably report on drives below ATA3.
  */
 
@@ -911,7 +911,7 @@ static inline bool ata_id_has_ncq_send_and_recv(const u16 *id)
 	return id[ATA_ID_SATA_CAPABILITY_2] & BIT(6);
 }
 
-static inline bool ata_id_has_ncq_non_data(const u16 *id)
+static inline bool ata_id_has_ncq_analn_data(const u16 *id)
 {
 	return id[ATA_ID_SATA_CAPABILITY_2] & BIT(5);
 }
@@ -942,7 +942,7 @@ static inline bool ata_id_has_zero_after_trim(const u16 *id)
 static inline bool ata_id_current_chs_valid(const u16 *id)
 {
 	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command
-	   has not been issued to the device then the values of
+	   has analt been issued to the device then the values of
 	   id[ATA_ID_CUR_CYLS] to id[ATA_ID_CUR_SECTORS] are vendor specific. */
 	return (id[ATA_ID_FIELD_VALID] & 1) && /* Current translation valid */
 		id[ATA_ID_CUR_CYLS] &&  /* cylinders in current translation */
@@ -979,7 +979,7 @@ static inline u8 ata_id_zoned_cap(const u16 *id)
 
 static inline bool ata_id_pio_need_iordy(const u16 *id, const u8 pio)
 {
-	/* CF spec. r4.1 Table 22 says no IORDY on PIO5 and PIO6. */
+	/* CF spec. r4.1 Table 22 says anal IORDY on PIO5 and PIO6. */
 	if (pio > 4 && ata_id_is_cfa(id))
 		return false;
 	/* For PIO3 and higher it is mandatory. */

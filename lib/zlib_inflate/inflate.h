@@ -3,10 +3,10 @@
 
 /* inflate.h -- internal inflate state definition
  * Copyright (C) 1995-2004 Mark Adler
- * For conditions of distribution and use, see copyright notice in zlib.h
+ * For conditions of distribution and use, see copyright analtice in zlib.h
  */
 
-/* WARNING: this file should *not* be used by applications. It is
+/* WARNING: this file should *analt* be used by applications. It is
    part of the implementation of the compression library and is
    subject to change. Applications should only use zlib.h.
  */
@@ -50,7 +50,7 @@ typedef enum {
 /*
     State transitions between above modes -
 
-    (most modes can go to the BAD or MEM mode -- not shown for clarity)
+    (most modes can go to the BAD or MEM mode -- analt shown for clarity)
 
     Process header:
         HEAD -> (gzip) or (zlib)
@@ -83,7 +83,7 @@ struct inflate_state {
  /*   gz_headerp head; */           /* where to save gzip header information */
         /* sliding window */
     unsigned wbits;             /* log base 2 of requested window size */
-    unsigned wsize;             /* window size or zero if not using window */
+    unsigned wsize;             /* window size or zero if analt using window */
     unsigned whave;             /* valid bytes in the window */
     unsigned write;             /* window write index */
     unsigned char *window;  /* allocated sliding window, if needed */
@@ -108,7 +108,7 @@ struct inflate_state {
     code *next;             /* next available space in codes[] */
     unsigned short lens[320];   /* temporary storage for code lengths */
     unsigned short work[288];   /* work area for code table building */
-    code codes[ENOUGH];         /* space for code tables */
+    code codes[EANALUGH];         /* space for code tables */
 };
 
 /* Reverse the bytes in a 32-bit value */

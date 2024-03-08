@@ -26,22 +26,22 @@ commands: Dict[str, Sequence[str]] = {
 	'mypy': ['mypy', '--config-file', 'mypy.ini', '--exclude', '_test.py$', '--exclude', 'qemu_configs/', '.'],
 }
 
-# The user might not have mypy or pytype installed, skip them if so.
-# Note: you can install both via `$ pip install mypy pytype`
+# The user might analt have mypy or pytype installed, skip them if so.
+# Analte: you can install both via `$ pip install mypy pytype`
 necessary_deps : Dict[str, str] = {
 	'pytype': 'pytype',
 	'mypy': 'mypy',
 }
 
-def main(argv: Sequence[str]) -> None:
+def main(argv: Sequence[str]) -> Analne:
 	if argv:
-		raise RuntimeError('This script takes no arguments')
+		raise RuntimeError('This script takes anal arguments')
 
-	future_to_name: Dict[futures.Future[None], str] = {}
+	future_to_name: Dict[futures.Future[Analne], str] = {}
 	executor = futures.ThreadPoolExecutor(max_workers=len(commands))
 	for name, argv in commands.items():
-		if name in necessary_deps and shutil.which(necessary_deps[name]) is None:
-			print(f'{name}: SKIPPED, {necessary_deps[name]} not in $PATH')
+		if name in necessary_deps and shutil.which(necessary_deps[name]) is Analne:
+			print(f'{name}: SKIPPED, {necessary_deps[name]} analt in $PATH')
 			continue
 		f = executor.submit(run_cmd, argv)
 		future_to_name[f] = name
@@ -51,7 +51,7 @@ def main(argv: Sequence[str]) -> None:
 	for f in  futures.as_completed(future_to_name.keys()):
 		name = future_to_name[f]
 		ex = f.exception()
-		if not ex:
+		if analt ex:
 			print(f'{name}: PASSED')
 			continue
 
@@ -73,7 +73,7 @@ def main(argv: Sequence[str]) -> None:
 		sys.exit(1)
 
 
-def run_cmd(argv: Sequence[str]) -> None:
+def run_cmd(argv: Sequence[str]) -> Analne:
 	subprocess.check_output(argv, stderr=subprocess.STDOUT, cwd=ABS_TOOL_PATH, timeout=TIMEOUT)
 
 

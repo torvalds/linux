@@ -40,8 +40,8 @@
 #define MIP4_R1_INFO_PRODUCT_NAME		0x00
 #define MIP4_R1_INFO_RESOLUTION_X		0x10
 #define MIP4_R1_INFO_RESOLUTION_Y		0x12
-#define MIP4_R1_INFO_NODE_NUM_X			0x14
-#define MIP4_R1_INFO_NODE_NUM_Y			0x15
+#define MIP4_R1_INFO_ANALDE_NUM_X			0x14
+#define MIP4_R1_INFO_ANALDE_NUM_Y			0x15
 #define MIP4_R1_INFO_KEY_NUM			0x16
 #define MIP4_R1_INFO_PRESSURE_NUM		0x17
 #define MIP4_R1_INFO_LENGTH_X			0x18
@@ -129,8 +129,8 @@
 
 #define MIP4_TOUCH_MAJOR_MIN			0
 #define MIP4_TOUCH_MAJOR_MAX			255
-#define MIP4_TOUCH_MINOR_MIN			0
-#define MIP4_TOUCH_MINOR_MAX			255
+#define MIP4_TOUCH_MIANALR_MIN			0
+#define MIP4_TOUCH_MIANALR_MAX			255
 #define MIP4_PRESSURE_MIN			0
 #define MIP4_PRESSURE_MAX			255
 
@@ -157,9 +157,9 @@ struct mip4_ts {
 
 	unsigned int max_x;
 	unsigned int max_y;
-	u8 node_x;
-	u8 node_y;
-	u8 node_key;
+	u8 analde_x;
+	u8 analde_y;
+	u8 analde_key;
 	unsigned int ppm_x;
 	unsigned int ppm_y;
 
@@ -250,12 +250,12 @@ static int mip4_query_device(struct mip4_ts *ts)
 	u8 buf[14];
 
 	/*
-	 * Make sure there is something at this address as we do not
+	 * Make sure there is something at this address as we do analt
 	 * consider subsequent failures as fatal.
 	 */
 	if (i2c_smbus_xfer(ts->client->adapter, ts->client->addr,
 			   0, I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0) {
-		dev_err(&ts->client->dev, "nothing at this address\n");
+		dev_err(&ts->client->dev, "analthing at this address\n");
 		return -ENXIO;
 	}
 
@@ -324,12 +324,12 @@ static int mip4_query_device(struct mip4_ts *ts)
 		dev_dbg(&ts->client->dev, "max_x: %d, max_y: %d\n",
 			ts->max_x, ts->max_y);
 
-		ts->node_x = buf[4];
-		ts->node_y = buf[5];
-		ts->node_key = buf[6];
+		ts->analde_x = buf[4];
+		ts->analde_y = buf[5];
+		ts->analde_key = buf[6];
 		dev_dbg(&ts->client->dev,
-			"node_x: %d, node_y: %d, node_key: %d\n",
-			ts->node_x, ts->node_y, ts->node_key);
+			"analde_x: %d, analde_y: %d, analde_key: %d\n",
+			ts->analde_x, ts->analde_y, ts->analde_key);
 
 		ts->ppm_x = buf[12];
 		ts->ppm_y = buf[13];
@@ -337,8 +337,8 @@ static int mip4_query_device(struct mip4_ts *ts)
 			ts->ppm_x, ts->ppm_y);
 
 		/* Key ts */
-		if (ts->node_key > 0)
-			ts->key_num = ts->node_key;
+		if (ts->analde_key > 0)
+			ts->key_num = ts->analde_key;
 	}
 
 	/* Protocol */
@@ -357,7 +357,7 @@ static int mip4_query_device(struct mip4_ts *ts)
 
 		if (ts->event_format == 2 || ts->event_format > 3)
 			dev_warn(&ts->client->dev,
-				 "Unknown event format %d\n", ts->event_format);
+				 "Unkanalwn event format %d\n", ts->event_format);
 	}
 
 	return 0;
@@ -458,7 +458,7 @@ static void mip4_report_keys(struct mip4_ts *ts, u8 *packet)
 		input_report_key(ts->input, keycode, down);
 
 	} else {
-		dev_err(&ts->client->dev, "Unknown key: %d\n", key);
+		dev_err(&ts->client->dev, "Unkanalwn key: %d\n", key);
 	}
 }
 
@@ -473,7 +473,7 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 	u8 pressure;
 	u8 __always_unused size;
 	u8 touch_major;
-	u8 touch_minor;
+	u8 touch_mianalr;
 
 	switch (ts->event_format) {
 	case 0:
@@ -490,10 +490,10 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 		size = packet[5];
 		if (ts->event_format == 0) {
 			touch_major = packet[5];
-			touch_minor = packet[5];
+			touch_mianalr = packet[5];
 		} else {
 			touch_major = packet[6];
-			touch_minor = packet[7];
+			touch_mianalr = packet[7];
 		}
 		break;
 
@@ -512,7 +512,7 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 		pressure = ((packet[7] & 0x0F) << 8) |
 			packet[8];
 		touch_major = packet[9];
-		touch_minor = packet[10];
+		touch_mianalr = packet[10];
 		break;
 	}
 
@@ -533,7 +533,7 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 		input_report_abs(ts->input, ABS_MT_POSITION_Y, y);
 		input_report_abs(ts->input, ABS_MT_PRESSURE, pressure);
 		input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, touch_major);
-		input_report_abs(ts->input, ABS_MT_TOUCH_MINOR, touch_minor);
+		input_report_abs(ts->input, ABS_MT_TOUCH_MIANALR, touch_mianalr);
 	}
 
 out:
@@ -555,7 +555,7 @@ static int mip4_handle_packet(struct mip4_ts *ts, u8 *packet)
 		break;
 
 	default:
-		/* Should not happen unless we have corrupted firmware */
+		/* Should analt happen unless we have corrupted firmware */
 		return -EINVAL;
 	}
 
@@ -572,7 +572,7 @@ static int mip4_handle_packet(struct mip4_ts *ts, u8 *packet)
 		break;
 
 	default:
-		dev_err(&ts->client->dev, "Unknown event type: %d\n", type);
+		dev_err(&ts->client->dev, "Unkanalwn event type: %d\n", type);
 		break;
 	}
 
@@ -897,7 +897,7 @@ static int mip4_bl_program_page(struct mip4_ts *ts, int offset,
 
 	data_buf = kmalloc(2 + MIP4_BL_PACKET_SIZE, GFP_KERNEL);
 	if (!data_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Addr */
 	cmd[0] = MIP4_R0_BOOT;
@@ -1031,7 +1031,7 @@ static int mip4_bl_verify_page(struct mip4_ts *ts, int offset,
 	/* Read */
 	msg[1].buf = read_buf = kmalloc(MIP4_BL_PACKET_SIZE, GFP_KERNEL);
 	if (!read_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (buf_offset = 0;
 	     buf_offset < length;
@@ -1201,7 +1201,7 @@ static int mip4_parse_firmware(struct mip4_ts *ts, const struct firmware *fw,
 
 	if (*fw_size % MIP4_BL_PAGE_SIZE) {
 		dev_err(&ts->client->dev,
-			"encoded fw length %d is not multiple of pages (%d)\n",
+			"encoded fw length %d is analt multiple of pages (%d)\n",
 			*fw_size, MIP4_BL_PAGE_SIZE);
 		return -EINVAL;
 	}
@@ -1428,17 +1428,17 @@ static int mip4_probe(struct i2c_client *client)
 	int error;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "Not supported I2C adapter\n");
+		dev_err(&client->dev, "Analt supported I2C adapter\n");
 		return -ENXIO;
 	}
 
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 	ts->input = input;
@@ -1482,8 +1482,8 @@ static int mip4_probe(struct i2c_client *client)
 			     MIP4_PRESSURE_MIN, MIP4_PRESSURE_MAX, 0, 0);
 	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR,
 			     MIP4_TOUCH_MAJOR_MIN, MIP4_TOUCH_MAJOR_MAX, 0, 0);
-	input_set_abs_params(input, ABS_MT_TOUCH_MINOR,
-			     MIP4_TOUCH_MINOR_MIN, MIP4_TOUCH_MINOR_MAX, 0, 0);
+	input_set_abs_params(input, ABS_MT_TOUCH_MIANALR,
+			     MIP4_TOUCH_MIANALR_MIN, MIP4_TOUCH_MIANALR_MAX, 0, 0);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_X, ts->ppm_x);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_Y, ts->ppm_y);
 
@@ -1495,7 +1495,7 @@ static int mip4_probe(struct i2c_client *client)
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, mip4_interrupt,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 					  MIP4_DEVICE_NAME, ts);
 	if (error) {
 		dev_err(&client->dev,

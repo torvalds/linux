@@ -21,10 +21,10 @@
 
 #include "internal.h"
 
-/* ACPI notifier chain */
-static BLOCKING_NOTIFIER_HEAD(acpi_chain_head);
+/* ACPI analtifier chain */
+static BLOCKING_ANALTIFIER_HEAD(acpi_chain_head);
 
-int acpi_notifier_call_chain(struct acpi_device *dev, u32 type, u32 data)
+int acpi_analtifier_call_chain(struct acpi_device *dev, u32 type, u32 data)
 {
 	struct acpi_bus_event event;
 
@@ -32,22 +32,22 @@ int acpi_notifier_call_chain(struct acpi_device *dev, u32 type, u32 data)
 	strcpy(event.bus_id, dev->pnp.bus_id);
 	event.type = type;
 	event.data = data;
-	return (blocking_notifier_call_chain(&acpi_chain_head, 0, (void *)&event)
-			== NOTIFY_BAD) ? -EINVAL : 0;
+	return (blocking_analtifier_call_chain(&acpi_chain_head, 0, (void *)&event)
+			== ANALTIFY_BAD) ? -EINVAL : 0;
 }
-EXPORT_SYMBOL(acpi_notifier_call_chain);
+EXPORT_SYMBOL(acpi_analtifier_call_chain);
 
-int register_acpi_notifier(struct notifier_block *nb)
+int register_acpi_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&acpi_chain_head, nb);
+	return blocking_analtifier_chain_register(&acpi_chain_head, nb);
 }
-EXPORT_SYMBOL(register_acpi_notifier);
+EXPORT_SYMBOL(register_acpi_analtifier);
 
-int unregister_acpi_notifier(struct notifier_block *nb)
+int unregister_acpi_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&acpi_chain_head, nb);
+	return blocking_analtifier_chain_unregister(&acpi_chain_head, nb);
 }
-EXPORT_SYMBOL(unregister_acpi_notifier);
+EXPORT_SYMBOL(unregister_acpi_analtifier);
 
 #ifdef CONFIG_NET
 static unsigned int acpi_event_seqnum;
@@ -69,7 +69,7 @@ enum {
 /* commands supported by the acpi_genl_family */
 enum {
 	ACPI_GENL_CMD_UNSPEC,
-	ACPI_GENL_CMD_EVENT,	/* kernel->user notifications for ACPI events */
+	ACPI_GENL_CMD_EVENT,	/* kernel->user analtifications for ACPI events */
 	__ACPI_GENL_CMD_MAX,
 };
 #define ACPI_GENL_CMD_MAX (__ACPI_GENL_CMD_MAX - 1)
@@ -107,7 +107,7 @@ int acpi_bus_generate_netlink_event(const char *device_class,
 
 	skb = genlmsg_new(size, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* add the genetlink message header */
 	msg_header = genlmsg_put(skb, 0, acpi_event_seqnum++,
@@ -115,7 +115,7 @@ int acpi_bus_generate_netlink_event(const char *device_class,
 				 ACPI_GENL_CMD_EVENT);
 	if (!msg_header) {
 		nlmsg_free(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* fill the data */
@@ -161,7 +161,7 @@ EXPORT_SYMBOL(acpi_bus_generate_netlink_event);
 
 static int acpi_event_genetlink_init(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

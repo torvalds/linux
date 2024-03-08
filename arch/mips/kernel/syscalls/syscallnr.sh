@@ -7,7 +7,7 @@ my_abis=`echo "($3)" | tr ',' '|'`
 prefix="$4"
 
 fileguard=_UAPI_ASM_MIPS_`basename "$out" | sed \
-	-e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' \
+	-e 'y/abcdefghijklmanalpqrstuvwxyz/ABCDEFGHIJKLMANALPQRSTUVWXYZ/' \
 	-e 's/[^A-Z0-9_]/_/g' -e 's/__/_/g'`
 grep -E "^[0-9A-Fa-fXx]+[[:space:]]+${my_abis}" "$in" | sort -n | (
 	printf "#ifndef %s\n" "${fileguard}"

@@ -16,10 +16,10 @@
  *
  * The registers & config EEPROM should be accessed via i2c-dev.
  *
- * The MAX6875 ignores the lowest address bit, so each chip responds to
+ * The MAX6875 iganalres the lowest address bit, so each chip responds to
  * two addresses - 0x50/0x51 and 0x52/0x53.
  *
- * Note that the MAX6875 uses i2c_smbus_write_byte_data() to set the read
+ * Analte that the MAX6875 uses i2c_smbus_write_byte_data() to set the read
  * address, so this driver is destructive if loaded for the wrong EEPROM chip.
  */
 
@@ -138,15 +138,15 @@ static int max6875_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WRITE_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_BYTE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Only bind to even addresses */
 	if (client->addr & 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = kzalloc(sizeof(struct max6875_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* A fake client is created on the odd address */
 	data->fake_client = i2c_new_dummy_device(client->adapter, client->addr + 1);

@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_PSOC_GLOBAL_CONF_REGS_H_
@@ -20,13 +20,13 @@
  *****************************************
  */
 
-#define mmPSOC_GLOBAL_CONF_NON_RST_FLOPS_0 0x4C4B000
+#define mmPSOC_GLOBAL_CONF_ANALN_RST_FLOPS_0 0x4C4B000
 
-#define mmPSOC_GLOBAL_CONF_NON_RST_FLOPS_1 0x4C4B004
+#define mmPSOC_GLOBAL_CONF_ANALN_RST_FLOPS_1 0x4C4B004
 
-#define mmPSOC_GLOBAL_CONF_NON_RST_FLOPS_2 0x4C4B008
+#define mmPSOC_GLOBAL_CONF_ANALN_RST_FLOPS_2 0x4C4B008
 
-#define mmPSOC_GLOBAL_CONF_NON_RST_FLOPS_3 0x4C4B00C
+#define mmPSOC_GLOBAL_CONF_ANALN_RST_FLOPS_3 0x4C4B00C
 
 #define mmPSOC_GLOBAL_CONF_PCI_FW_FSM 0x4C4B020
 

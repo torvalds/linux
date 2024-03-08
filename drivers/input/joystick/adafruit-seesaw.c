@@ -75,7 +75,7 @@ struct seesaw_data {
 static const struct key_entry seesaw_buttons_new[] = {
 	{ KE_KEY, SEESAW_BUTTON_A, .keycode = BTN_SOUTH },
 	{ KE_KEY, SEESAW_BUTTON_B, .keycode = BTN_EAST },
-	{ KE_KEY, SEESAW_BUTTON_X, .keycode = BTN_NORTH },
+	{ KE_KEY, SEESAW_BUTTON_X, .keycode = BTN_ANALRTH },
 	{ KE_KEY, SEESAW_BUTTON_Y, .keycode = BTN_WEST },
 	{ KE_KEY, SEESAW_BUTTON_START, .keycode = BTN_START },
 	{ KE_KEY, SEESAW_BUTTON_SELECT, .keycode = BTN_SELECT },
@@ -221,7 +221,7 @@ static int seesaw_probe(struct i2c_client *client)
 
 	seesaw = devm_kzalloc(&client->dev, sizeof(*seesaw), GFP_KERNEL);
 	if (!seesaw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = seesaw_register_read(client, SEESAW_STATUS_HW_ID,
 				   &hardware_id, sizeof(hardware_id));
@@ -248,7 +248,7 @@ static int seesaw_probe(struct i2c_client *client)
 	seesaw->i2c_client = client;
 	seesaw->input_dev = devm_input_allocate_device(&client->dev);
 	if (!seesaw->input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	seesaw->input_dev->id.bustype = BUS_I2C;
 	seesaw->input_dev->name = "Adafruit Seesaw Gamepad";

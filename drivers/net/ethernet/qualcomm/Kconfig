@@ -9,7 +9,7 @@ config NET_VENDOR_QUALCOMM
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about Qualcomm cards. If you say Y, you will be asked
 	  for your specific card in the following questions.
@@ -40,21 +40,21 @@ config QCA7000_UART
 
 	  Currently the driver assumes these device UART settings:
 	    Data bits: 8
-	    Parity: None
+	    Parity: Analne
 	    Stop bits: 1
-	    Flow control: None
+	    Flow control: Analne
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called qcauart.
 
 config QCOM_EMAC
-	tristate "Qualcomm Technologies, Inc. EMAC Gigabit Ethernet support"
+	tristate "Qualcomm Techanallogies, Inc. EMAC Gigabit Ethernet support"
 	depends on HAS_DMA && HAS_IOMEM
 	select CRC32
 	select PHYLIB
 	select MDIO_DEVRES
 	help
-	  This driver supports the Qualcomm Technologies, Inc. Gigabit
+	  This driver supports the Qualcomm Techanallogies, Inc. Gigabit
 	  Ethernet Media Access Controller (EMAC). The controller
 	  supports IEEE 802.3-2002, half-duplex mode at 10/100 Mb/s,
 	  full-duplex mode at 10/100/1000Mb/s, Wake On LAN (WOL) for

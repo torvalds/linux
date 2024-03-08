@@ -398,7 +398,7 @@
 	cap-sd-highspeed;
 	max-frequency = <100000000>;
 
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power to be kept while in suspend */

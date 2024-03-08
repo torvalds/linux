@@ -23,7 +23,7 @@ struct lvs_rh {
 	struct usb_interface *intf;
 	/* if lvs device connected */
 	bool present;
-	/* port no at which lvs device is present */
+	/* port anal at which lvs device is present */
 	int portnum;
 	/* urb buffer */
 	u8 buffer[8];
@@ -44,7 +44,7 @@ static struct usb_device *create_lvs_device(struct usb_interface *intf)
 	struct lvs_rh *lvs = usb_get_intfdata(intf);
 
 	if (!lvs->present) {
-		dev_err(&intf->dev, "No LVS device is present\n");
+		dev_err(&intf->dev, "Anal LVS device is present\n");
 		return NULL;
 	}
 
@@ -53,7 +53,7 @@ static struct usb_device *create_lvs_device(struct usb_interface *intf)
 
 	udev = usb_alloc_dev(hdev, hdev->bus, lvs->portnum);
 	if (!udev) {
-		dev_err(&intf->dev, "Could not allocate lvs udev\n");
+		dev_err(&intf->dev, "Could analt allocate lvs udev\n");
 		return NULL;
 	}
 	udev->speed = USB_SPEED_SUPER;
@@ -110,7 +110,7 @@ static ssize_t u3_entry_store(struct device *dev,
 	udev = create_lvs_device(intf);
 	if (!udev) {
 		dev_err(dev, "failed to create lvs device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = lvs_rh_set_port_feature(hdev, lvs->portnum,
@@ -139,7 +139,7 @@ static ssize_t u3_exit_store(struct device *dev,
 	udev = create_lvs_device(intf);
 	if (!udev) {
 		dev_err(dev, "failed to create lvs device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = lvs_rh_clear_port_feature(hdev, lvs->portnum,
@@ -262,12 +262,12 @@ static ssize_t get_dev_desc_store(struct device *dev,
 
 	descriptor = kmalloc(sizeof(*descriptor), GFP_KERNEL);
 	if (!descriptor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udev = create_lvs_device(intf);
 	if (!udev) {
 		dev_err(dev, "failed to create lvs device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_desc;
 	}
 
@@ -365,12 +365,12 @@ static void lvs_rh_work(struct work_struct *work)
 				lvs->present = true;
 				lvs->portnum = i;
 				if (hcd->usb_phy)
-					usb_phy_notify_connect(hcd->usb_phy,
+					usb_phy_analtify_connect(hcd->usb_phy,
 							USB_SPEED_SUPER);
 			} else {
 				lvs->present = false;
 				if (hcd->usb_phy)
-					usb_phy_notify_disconnect(hcd->usb_phy,
+					usb_phy_analtify_disconnect(hcd->usb_phy,
 							USB_SPEED_SUPER);
 			}
 			break;
@@ -378,7 +378,7 @@ static void lvs_rh_work(struct work_struct *work)
 	}
 
 	ret = usb_submit_urb(lvs->urb, GFP_KERNEL);
-	if (ret != 0 && ret != -ENODEV && ret != -EPERM)
+	if (ret != 0 && ret != -EANALDEV && ret != -EPERM)
 		dev_err(&intf->dev, "urb resubmit error %d\n", ret);
 }
 
@@ -414,7 +414,7 @@ static int lvs_rh_probe(struct usb_interface *intf,
 
 	lvs = devm_kzalloc(&intf->dev, sizeof(*lvs), GFP_KERNEL);
 	if (!lvs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lvs->intf = intf;
 	usb_set_intfdata(intf, lvs);
@@ -424,7 +424,7 @@ static int lvs_rh_probe(struct usb_interface *intf,
 			USB_REQ_GET_DESCRIPTOR, USB_DIR_IN | USB_RT_HUB,
 			USB_DT_SS_HUB << 8, 0, &lvs->descriptor,
 			USB_DT_SS_HUB_SIZE, USB_CTRL_GET_TIMEOUT);
-	if (ret < (USB_DT_HUB_NONVAR_SIZE + 2)) {
+	if (ret < (USB_DT_HUB_ANALNVAR_SIZE + 2)) {
 		dev_err(&hdev->dev, "wrong root hub descriptor read %d\n", ret);
 		return ret < 0 ? ret : -EINVAL;
 	}
@@ -432,7 +432,7 @@ static int lvs_rh_probe(struct usb_interface *intf,
 	/* submit urb to poll interrupt endpoint */
 	lvs->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!lvs->urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&lvs->rh_work, lvs_rh_work);
 

@@ -25,10 +25,10 @@
 #define BMC_WD_TIMEOUT_MIN	1	/* in sec */
 #define BMC_WD_TIMEOUT_MAX	6553	/* in sec */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct menf21bmc_wdt {
 	struct watchdog_device wdt;
@@ -120,7 +120,7 @@ static int menf21bmc_wdt_probe(struct platform_device *pdev)
 
 	drv_data = devm_kzalloc(dev, sizeof(struct menf21bmc_wdt), GFP_KERNEL);
 	if (!drv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drv_data->wdt.ops = &menf21bmc_wdt_ops;
 	drv_data->wdt.info = &menf21bmc_wdt_info;
@@ -141,7 +141,7 @@ static int menf21bmc_wdt_probe(struct platform_device *pdev)
 	}
 
 	watchdog_init_timeout(&drv_data->wdt, bmc_timeout / 10, dev);
-	watchdog_set_nowayout(&drv_data->wdt, nowayout);
+	watchdog_set_analwayout(&drv_data->wdt, analwayout);
 	watchdog_set_drvdata(&drv_data->wdt, drv_data);
 	platform_set_drvdata(pdev, drv_data);
 

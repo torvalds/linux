@@ -4,7 +4,7 @@ menuconfig TYPEC
 	tristate "USB Type-C Support"
 	help
 	  USB Type-C Specification defines a cable and connector for USB where
-	  only one type of plug is supported on both ends, i.e. there will not
+	  only one type of plug is supported on both ends, i.e. there will analt
 	  be Type-A plug on one end of the cable and Type-B plug on the other.
 	  Determination of the host-to-device relationship happens through a
 	  specific Configuration Channel (CC) which goes through the USB Type-C
@@ -15,10 +15,10 @@ menuconfig TYPEC
 
 	  USB Power Delivery Specification defines a protocol that can be used
 	  to negotiate the voltage and current levels with the connected
-	  partners. USB Power Delivery allows higher voltages then the normal
+	  partners. USB Power Delivery allows higher voltages then the analrmal
 	  5V, up to 20V, and current up to 5A over the cable. The USB Power
 	  Delivery protocol is also used to negotiate the optional Alternate
-	  Modes when they are supported. USB Power Delivery does not depend on
+	  Modes when they are supported. USB Power Delivery does analt depend on
 	  USB Type-C connector, however it is mostly used together with USB
 	  Type-C connectors.
 
@@ -29,10 +29,10 @@ menuconfig TYPEC
 	  machines to be handled in the OS, but stand-alone USB Type-C and Power
 	  Delivery controllers handle the state machines inside their firmware.
 	  The USB Type-C and Power Delivery controllers usually function
-	  autonomously, and do not necessarily require drivers.
+	  autoanalmously, and do analt necessarily require drivers.
 
 	  Enable this configurations option if you have USB Type-C connectors on
-	  your system and 1) you know your USB Type-C hardware requires OS
+	  your system and 1) you kanalw your USB Type-C hardware requires OS
 	  control (a driver) to function, or 2) if you need to be able to read
 	  the status of the USB Type-C ports in your system, or 3) if you need
 	  to be able to swap the power role (decide are you supplying or

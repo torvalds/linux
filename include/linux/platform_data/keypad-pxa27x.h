@@ -12,14 +12,14 @@
 
 /* pxa3xx keypad platform specific parameters
  *
- * NOTE:
+ * ANALTE:
  * 1. direct_key_num indicates the number of keys in the direct keypad
  *    _plus_ the number of rotary-encoder sensor inputs,  this can be
  *    left as 0 if only rotary encoders are enabled,  the driver will
  *    automatically calculate this
  *
  * 2. direct_key_map is the key code map for the direct keys, if rotary
- *    encoder(s) are enabled, direct key 0/1(2/3) will be ignored
+ *    encoder(s) are enabled, direct key 0/1(2/3) will be iganalred
  *
  * 3. rotary can be either interpreted as a relative input event (e.g.
  *    REL_WHEEL/REL_HWHEEL) or specific keys (e.g. UP/DOWN/LEFT/RIGHT)
@@ -29,7 +29,7 @@
  *
  * pxa168 keypad platform specific parameter
  *
- * NOTE:
+ * ANALTE:
  * clear_wakeup_event callback is a workaround required to clear the
  * keypad interrupt. The keypad wake must be cleared in addition to
  * reading the MI/DI bits in the KPC register.

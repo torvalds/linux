@@ -22,10 +22,10 @@ struct cs35l41_config {
 		EXTERNAL
 	} boost_type;
 	u8 channel[MAX_AMPS];
-	int reset_gpio_index; /* -1 if no reset gpio */
-	int spkid_gpio_index; /* -1 if no spkid gpio */
-	int cs_gpio_index; /* -1 if no cs gpio, or cs-gpios already exists, max num amps == 2 */
-	int boost_ind_nanohenry; /* Required if boost_type == Internal */
+	int reset_gpio_index; /* -1 if anal reset gpio */
+	int spkid_gpio_index; /* -1 if anal spkid gpio */
+	int cs_gpio_index; /* -1 if anal cs gpio, or cs-gpios already exists, max num amps == 2 */
+	int boost_ind_naanalhenry; /* Required if boost_type == Internal */
 	int boost_peak_milliamp; /* Required if boost_type == Internal */
 	int boost_cap_microfarad; /* Required if boost_type == Internal */
 };
@@ -38,7 +38,7 @@ static const struct cs35l41_config cs35l41_config_table[] = {
 /*
  * Device 103C89C6 does have _DSD, however it is setup to use the wrong boost type.
  * We can override the _DSD to correct the boost type here.
- * Since this laptop has valid ACPI, we do not need to handle cs-gpios, since that already exists
+ * Since this laptop has valid ACPI, we do analt need to handle cs-gpios, since that already exists
  * in the ACPI. The Reset GPIO is also valid, so we can use the Reset defined in _DSD.
  */
 	{ "103C89C6", 2, INTERNAL, { CS35L41_RIGHT, CS35L41_LEFT, 0, 0 }, -1, -1, -1, 1000, 4500, 24 },
@@ -195,7 +195,7 @@ err:
 	devm_kfree(physdev, reset_gpio_params);
 	devm_kfree(physdev, spkid_gpio_params);
 	devm_kfree(physdev, cs_gpio_params);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physdev, int id,
@@ -214,11 +214,11 @@ static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physde
 	}
 
 	if (!cfg->ssid)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!cs35l41->dacpi || cs35l41->dacpi != ACPI_COMPANION(physdev)) {
-		dev_err(cs35l41->dev, "ACPI Device does not match, cannot override _DSD.\n");
-		return -ENODEV;
+		dev_err(cs35l41->dev, "ACPI Device does analt match, cananalt override _DSD.\n");
+		return -EANALDEV;
 	}
 
 	dev_info(cs35l41->dev, "Adding DSD properties for %s\n", cs35l41->acpi_subsystem_id);
@@ -234,7 +234,7 @@ static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physde
 			return ret;
 		}
 	} else if (cfg->reset_gpio_index >= 0 || cfg->spkid_gpio_index >= 0) {
-		dev_warn(cs35l41->dev, "Cannot add Reset/Speaker ID/SPI CS GPIO Mapping, "
+		dev_warn(cs35l41->dev, "Cananalt add Reset/Speaker ID/SPI CS GPIO Mapping, "
 			 "_DSD already exists.\n");
 	}
 
@@ -242,11 +242,11 @@ static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physde
 		cs35l41->index = id;
 
 		/*
-		 * Manually set the Chip Select for the second amp <cs_gpio_index> in the node.
-		 * This is only supported for systems with 2 amps, since we cannot expand the
+		 * Manually set the Chip Select for the second amp <cs_gpio_index> in the analde.
+		 * This is only supported for systems with 2 amps, since we cananalt expand the
 		 * default number of chip selects without using cs-gpios
 		 * The CS GPIO must be set high prior to communicating with the first amp (which
-		 * uses a native chip select), to ensure the second amp does not clash with the
+		 * uses a native chip select), to ensure the second amp does analt clash with the
 		 * first.
 		 */
 		if (IS_ENABLED(CONFIG_SPI) && cfg->cs_gpio_index >= 0) {
@@ -254,11 +254,11 @@ static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physde
 
 			if (cfg->num_amps != 2) {
 				dev_warn(cs35l41->dev,
-					 "Cannot update SPI CS, Number of Amps (%d) != 2\n",
+					 "Cananalt update SPI CS, Number of Amps (%d) != 2\n",
 					 cfg->num_amps);
 			} else if (dsd_found) {
 				dev_warn(cs35l41->dev,
-					"Cannot update SPI CS, _DSD already exists.\n");
+					"Cananalt update SPI CS, _DSD already exists.\n");
 			} else {
 				/*
 				 * This is obtained using driver_gpios, since only one GPIO for CS
@@ -293,16 +293,16 @@ static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physde
 	}
 
 	if (cfg->num_amps == 3)
-		/* 3 amps means a center channel, so no duplicate channels */
+		/* 3 amps means a center channel, so anal duplicate channels */
 		cs35l41->channel_index = 0;
 	else
 		/*
 		 * if 4 amps, there are duplicate channels, so they need different indexes
-		 * if 2 amps, no duplicate channels, channel_index would be 0
+		 * if 2 amps, anal duplicate channels, channel_index would be 0
 		 */
 		cs35l41->channel_index = cs35l41->index / 2;
 
-	cs35l41->reset_gpio = fwnode_gpiod_get_index(acpi_fwnode_handle(cs35l41->dacpi), "reset",
+	cs35l41->reset_gpio = fwanalde_gpiod_get_index(acpi_fwanalde_handle(cs35l41->dacpi), "reset",
 						     cs35l41->index, GPIOD_OUT_LOW,
 						     "cs35l41-reset");
 	cs35l41->speaker_id = cs35l41_get_speaker_id(physdev, cs35l41->index, cfg->num_amps, -1);
@@ -311,10 +311,10 @@ static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physde
 
 	if (cfg->boost_type == INTERNAL) {
 		hw_cfg->bst_type = CS35L41_INT_BOOST;
-		hw_cfg->bst_ind = cfg->boost_ind_nanohenry;
+		hw_cfg->bst_ind = cfg->boost_ind_naanalhenry;
 		hw_cfg->bst_ipk = cfg->boost_peak_milliamp;
 		hw_cfg->bst_cap = cfg->boost_cap_microfarad;
-		hw_cfg->gpio1.func = CS35L41_NOT_USED;
+		hw_cfg->gpio1.func = CS35L41_ANALT_USED;
 		hw_cfg->gpio1.valid = true;
 	} else {
 		hw_cfg->bst_type = CS35L41_EXT_BOOST;
@@ -335,11 +335,11 @@ static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physde
 /*
  * Device CLSA010(0/1) doesn't have _DSD so a gpiod_get by the label reset won't work.
  * And devices created by serial-multi-instantiate don't have their device struct
- * pointing to the correct fwnode, so acpi_dev must be used here.
+ * pointing to the correct fwanalde, so acpi_dev must be used here.
  * And devm functions expect that the device requesting the resource has the correct
- * fwnode.
+ * fwanalde.
  */
-static int lenovo_legion_no_acpi(struct cs35l41_hda *cs35l41, struct device *physdev, int id,
+static int leanalvo_legion_anal_acpi(struct cs35l41_hda *cs35l41, struct device *physdev, int id,
 				 const char *hid)
 {
 	struct cs35l41_hw_cfg *hw_cfg = &cs35l41->hw_cfg;
@@ -355,7 +355,7 @@ static int lenovo_legion_no_acpi(struct cs35l41_hda *cs35l41, struct device *phy
 	hw_cfg->valid = true;
 
 	if (strcmp(hid, "CLSA0100") == 0) {
-		hw_cfg->bst_type = CS35L41_EXT_BOOST_NO_VSPK_SWITCH;
+		hw_cfg->bst_type = CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH;
 	} else if (strcmp(hid, "CLSA0101") == 0) {
 		hw_cfg->bst_type = CS35L41_EXT_BOOST;
 		hw_cfg->gpio1.func = CS35l41_VSPK_SWITCH;
@@ -373,8 +373,8 @@ struct cs35l41_prop_model {
 };
 
 static const struct cs35l41_prop_model cs35l41_prop_model_table[] = {
-	{ "CLSA0100", NULL, lenovo_legion_no_acpi },
-	{ "CLSA0101", NULL, lenovo_legion_no_acpi },
+	{ "CLSA0100", NULL, leanalvo_legion_anal_acpi },
+	{ "CLSA0101", NULL, leanalvo_legion_anal_acpi },
 	{ "CSC3551", "10280B27", generic_dsd_config },
 	{ "CSC3551", "10280B28", generic_dsd_config },
 	{ "CSC3551", "10280BEB", generic_dsd_config },
@@ -455,5 +455,5 @@ int cs35l41_add_dsd_properties(struct cs35l41_hda *cs35l41, struct device *physd
 			return model->add_prop(cs35l41, physdev, id, hid);
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }

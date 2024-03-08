@@ -4,18 +4,18 @@ STMicroelectronics STi MIPHY28LP PHY binding
 This binding describes a miphy device that is used to control PHY hardware
 for SATA, PCIe or USB3.
 
-Required properties (controller (parent) node):
+Required properties (controller (parent) analde):
 - compatible	: Should be "st,miphy28lp-phy".
 - st,syscfg	: Should be a phandle of the system configuration register group
 		  which contain the SATA, PCIe or USB3 mode setting bits.
 
-Required nodes	:  A sub-node is required for each channel the controller
+Required analdes	:  A sub-analde is required for each channel the controller
 		   provides. Address range information including the usual
 		   'reg' and 'reg-names' properties are used inside these
-		   nodes to describe the controller's topology. These nodes
+		   analdes to describe the controller's topology. These analdes
 		   are translated by the driver's .xlate() function.
 
-Required properties (port (child) node):
+Required properties (port (child) analde):
 - #phy-cells	: Should be 1 (See second example)
 		  Cell after port phandle is device type from:
 			- PHY_TYPE_SATA
@@ -30,9 +30,9 @@ Required properties (port (child) node):
 - resets	: phandle to the parent reset controller.
 - reset-names	: Associated name must be "miphy-sw-rst".
 
-Optional properties (port (child) node):
+Optional properties (port (child) analde):
 - st,osc-rdy		: to check the MIPHY0_OSC_RDY status in the glue-logic. This
-			  is not available in all the MiPHY. For example, for STiH407, only the
+			  is analt available in all the MiPHY. For example, for STiH407, only the
 			  MiPHY0 has this bit.
 - st,osc-force-ext	: to select the external oscillator. This can change from
 			  different MiPHY inside the same SoC.
@@ -101,8 +101,8 @@ example:
 Specifying phy control of devices
 =================================
 
-Device nodes should specify the configuration required in their "phys"
-property, containing a phandle to the miphy device node and an index
+Device analdes should specify the configuration required in their "phys"
+property, containing a phandle to the miphy device analde and an index
 specifying which configuration to use, as described in phy-bindings.txt.
 
 example:

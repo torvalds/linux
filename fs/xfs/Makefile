@@ -31,14 +31,14 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_dir2_block.o \
 				   xfs_dir2_data.o \
 				   xfs_dir2_leaf.o \
-				   xfs_dir2_node.o \
+				   xfs_dir2_analde.o \
 				   xfs_dir2_sf.o \
 				   xfs_dquot_buf.o \
 				   xfs_ialloc.o \
 				   xfs_ialloc_btree.o \
 				   xfs_iext_tree.o \
-				   xfs_inode_fork.o \
-				   xfs_inode_buf.o \
+				   xfs_ianalde_fork.o \
+				   xfs_ianalde_buf.o \
 				   xfs_log_rlimit.o \
 				   xfs_ag_resv.o \
 				   xfs_rmap.o \
@@ -47,7 +47,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_refcount_btree.o \
 				   xfs_sb.o \
 				   xfs_symlink_remote.o \
-				   xfs_trans_inode.o \
+				   xfs_trans_ianalde.o \
 				   xfs_trans_resv.o \
 				   xfs_types.o \
 				   )
@@ -79,7 +79,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_ioctl.o \
 				   xfs_iomap.o \
 				   xfs_iops.o \
-				   xfs_inode.o \
+				   xfs_ianalde.o \
 				   xfs_itable.o \
 				   xfs_iwalk.o \
 				   xfs_message.o \
@@ -105,8 +105,8 @@ xfs-y				+= xfs_log.o \
 				   xfs_extfree_item.o \
 				   xfs_attr_item.o \
 				   xfs_icreate_item.o \
-				   xfs_inode_item.o \
-				   xfs_inode_item_recover.o \
+				   xfs_ianalde_item.o \
+				   xfs_ianalde_item_recover.o \
 				   xfs_iunlink_item.o \
 				   xfs_refcount_item.o \
 				   xfs_rmap_item.o \
@@ -131,9 +131,9 @@ xfs-$(CONFIG_SYSCTL)		+= xfs_sysctl.o
 xfs-$(CONFIG_COMPAT)		+= xfs_ioctl32.o
 xfs-$(CONFIG_EXPORTFS_BLOCK_OPS)	+= xfs_pnfs.o
 
-# notify failure
+# analtify failure
 ifeq ($(CONFIG_MEMORY_FAILURE),y)
-xfs-$(CONFIG_FS_DAX)		+= xfs_notify_failure.o
+xfs-$(CONFIG_FS_DAX)		+= xfs_analtify_failure.o
 endif
 
 xfs-$(CONFIG_XFS_DRAIN_INTENTS)	+= xfs_drain.o
@@ -158,7 +158,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   fscounters.o \
 				   health.o \
 				   ialloc.o \
-				   inode.o \
+				   ianalde.o \
 				   parent.o \
 				   readdir.o \
 				   refcount.o \
@@ -189,7 +189,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   bmap_repair.o \
 				   cow_repair.o \
 				   ialloc_repair.o \
-				   inode_repair.o \
+				   ianalde_repair.o \
 				   newbt.o \
 				   reap.o \
 				   refcount_repair.o \

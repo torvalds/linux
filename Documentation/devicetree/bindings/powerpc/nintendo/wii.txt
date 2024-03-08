@@ -2,25 +2,25 @@
 Nintendo Wii device tree
 ========================
 
-0) The root node
+0) The root analde
 
-  This node represents the Nintendo Wii video game console.
+  This analde represents the Nintendo Wii video game console.
 
   Required properties:
 
    - model : Should be "nintendo,wii"
    - compatible : Should be "nintendo,wii"
 
-1) The "hollywood" node
+1) The "hollywood" analde
 
-  This node represents the multi-function "Hollywood" chip, which packages
+  This analde represents the multi-function "Hollywood" chip, which packages
   many of the devices found in the Nintendo Wii.
 
   Required properties:
 
    - compatible : Should be "nintendo,hollywood"
 
-1.a) The Video Interface (VI) node
+1.a) The Video Interface (VI) analde
 
   Represents the interface between the graphics processor and a external
   video encoder.
@@ -31,7 +31,7 @@ Nintendo Wii device tree
    - reg : should contain the VI registers location and length
    - interrupts : should contain the VI interrupt
 
-1.b) The Processor Interface (PI) node
+1.b) The Processor Interface (PI) analde
 
   Represents the data and control interface between the main processor
   and graphics and audio processor.
@@ -41,11 +41,11 @@ Nintendo Wii device tree
   - compatible : should be "nintendo,hollywood-pi","nintendo,flipper-pi"
   - reg : should contain the PI registers location and length
 
-1.b.i) The "Flipper" interrupt controller node
+1.b.i) The "Flipper" interrupt controller analde
 
   Represents the "Flipper" interrupt controller within the "Hollywood" chip.
-  The node for the "Flipper" interrupt controller must be placed under
-  the PI node.
+  The analde for the "Flipper" interrupt controller must be placed under
+  the PI analde.
 
   Required properties:
 
@@ -53,7 +53,7 @@ Nintendo Wii device tree
   - compatible : should be "nintendo,flipper-pic"
   - interrupt-controller
 
-1.c) The Digital Signal Processor (DSP) node
+1.c) The Digital Signal Processor (DSP) analde
 
   Represents the digital signal processor interface, designed to offload
   audio related tasks.
@@ -64,11 +64,11 @@ Nintendo Wii device tree
    - reg : should contain the DSP registers location and length
    - interrupts : should contain the DSP interrupt
 
-1.d) The Serial Interface (SI) node
+1.d) The Serial Interface (SI) analde
 
   Represents the interface to the four single bit serial interfaces.
-  The SI is a proprietary serial interface used normally to control gamepads.
-  It's NOT a RS232-type interface.
+  The SI is a proprietary serial interface used analrmally to control gamepads.
+  It's ANALT a RS232-type interface.
 
   Required properties:
 
@@ -76,7 +76,7 @@ Nintendo Wii device tree
    - reg : should contain the SI registers location and length
    - interrupts : should contain the SI interrupt
 
-1.e) The Audio Interface (AI) node
+1.e) The Audio Interface (AI) analde
 
   Represents the interface to the external 16-bit stereo digital-to-analog
   converter.
@@ -87,7 +87,7 @@ Nintendo Wii device tree
    - reg : should contain the AI registers location and length
    - interrupts : should contain the AI interrupt
 
-1.f) The External Interface (EXI) node
+1.f) The External Interface (EXI) analde
 
   Represents the multi-channel SPI-like interface.
 
@@ -97,7 +97,7 @@ Nintendo Wii device tree
    - reg : should contain the EXI registers location and length
    - interrupts : should contain the EXI interrupt
 
-1.h) The Enhanced Host Controller Interface (EHCI) node
+1.h) The Enhanced Host Controller Interface (EHCI) analde
 
   Represents the USB 2.0 Enhanced Host Controller Interface.
 
@@ -107,7 +107,7 @@ Nintendo Wii device tree
    - reg : should contain the EHCI registers location and length
    - interrupts : should contain the EHCI interrupt
 
-1.i) The Secure Digital Host Controller Interface (SDHCI) nodes
+1.i) The Secure Digital Host Controller Interface (SDHCI) analdes
 
   Represent the Secure Digital Host Controller Interfaces.
 
@@ -117,7 +117,7 @@ Nintendo Wii device tree
    - reg : should contain the SDHCI registers location and length
    - interrupts : should contain the SDHCI interrupt
 
-1.j) The Inter-Processor Communication (IPC) node
+1.j) The Inter-Processor Communication (IPC) analde
 
   Represent the Inter-Processor Communication interface. This interface
   enables communications between the Broadway and the Starlet processors.
@@ -126,7 +126,7 @@ Nintendo Wii device tree
    - reg : should contain the IPC registers location and length
    - interrupts : should contain the IPC interrupt
 
-1.k) The "Hollywood" interrupt controller node
+1.k) The "Hollywood" interrupt controller analde
 
   Represents the "Hollywood" interrupt controller within the
   "Hollywood" chip.
@@ -139,11 +139,11 @@ Nintendo Wii device tree
   - interrupt-controller
   - interrupts : should contain the cascade interrupt of the "flipper" pic
 
-1.l) The General Purpose I/O (GPIO) controller node
+1.l) The General Purpose I/O (GPIO) controller analde
 
   see Documentation/devicetree/bindings/gpio/nintendo,hollywood-gpio.txt
 
-1.m) The control node
+1.m) The control analde
 
   Represents the control interface used to setup several miscellaneous
   settings of the "Hollywood" chip like boot memory mappings, resets,
@@ -154,7 +154,7 @@ Nintendo Wii device tree
    - compatible : should be "nintendo,hollywood-control"
    - reg : should contain the control registers location and length
 
-1.n) The Disk Interface (DI) node
+1.n) The Disk Interface (DI) analde
 
   Represents the interface used to communicate with mass storage devices.
 

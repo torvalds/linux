@@ -10,7 +10,7 @@ maintainers:
   - Aswath Govindraju <a-govindraju@ti.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^can-phy"
 
   compatible:
@@ -24,12 +24,12 @@ properties:
 
   standby-gpios:
     description:
-      gpio node to toggle standby signal on transceiver
+      gpio analde to toggle standby signal on transceiver
     maxItems: 1
 
   enable-gpios:
     description:
-      gpio node to toggle enable signal on transceiver
+      gpio analde to toggle enable signal on transceiver
     maxItems: 1
 
   max-bitrate:
@@ -40,7 +40,7 @@ properties:
 
   mux-states:
     description:
-      mux controller node to route the signals from controller to
+      mux controller analde to route the signals from controller to
       transceiver.
     maxItems: 1
 

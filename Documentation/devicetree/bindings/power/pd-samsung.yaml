@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/power/pd-samsung.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC Power Domains
+title: Samsung Exyanals SoC Power Domains
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |+
-  Exynos processors include support for multiple power domains which are used
+  Exyanals processors include support for multiple power domains which are used
   to gate power to one or more peripherals on the processor.
 
 allOf:
@@ -19,8 +19,8 @@ allOf:
 properties:
   compatible:
     enum:
-      - samsung,exynos4210-pd
-      - samsung,exynos5433-pd
+      - samsung,exyanals4210-pd
+      - samsung,exyanals5433-pd
 
   reg:
     maxItems: 1
@@ -54,14 +54,14 @@ unevaluatedProperties: false
 examples:
   - |
     lcd0_pd: power-domain@10023c80 {
-        compatible = "samsung,exynos4210-pd";
+        compatible = "samsung,exyanals4210-pd";
         reg = <0x10023c80 0x20>;
         #power-domain-cells = <0>;
         label = "LCD0";
     };
 
     mfc_pd: power-domain@10044060 {
-        compatible = "samsung,exynos4210-pd";
+        compatible = "samsung,exyanals4210-pd";
         reg = <0x10044060 0x20>;
         #power-domain-cells = <0>;
         label = "MFC";

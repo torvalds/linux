@@ -26,7 +26,7 @@
 /*
  * Only found on the wireless SOM. For the SOM without wireless, the pins for
  * MMC3 can be routed with jumpers to the second MMC slot on the devkit and
- * gpio157 is not connected. So this should be OK to keep common for now,
+ * gpio157 is analt connected. So this should be OK to keep common for analw,
  * probably device tree overlays is the way to go with the various SOM and
  * jumpering combinations for the long run.
  */
@@ -35,7 +35,7 @@
 	pinctrl-0 = <&mmc3_pins &mmc3_core2_pins>;
 	pinctrl-names = "default";
 	vmmc-supply = <&wl12xx_vmmc>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	#address-cells = <1>;

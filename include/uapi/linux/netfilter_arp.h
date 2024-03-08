@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 #ifndef __LINUX_ARP_NETFILTER_H
 #define __LINUX_ARP_NETFILTER_H
 
@@ -8,7 +8,7 @@
 
 #include <linux/netfilter.h>
 
-/* There is no PF_ARP. */
+/* There is anal PF_ARP. */
 #define NF_ARP		0
 
 /* ARP Hooks */

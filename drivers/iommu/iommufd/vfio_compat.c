@@ -14,7 +14,7 @@
 
 static struct iommufd_ioas *get_compat_ioas(struct iommufd_ctx *ictx)
 {
-	struct iommufd_ioas *ioas = ERR_PTR(-ENODEV);
+	struct iommufd_ioas *ioas = ERR_PTR(-EANALDEV);
 
 	xa_lock(&ictx->objects);
 	if (!ictx->vfio_ioas || !iommufd_lock_obj(&ictx->vfio_ioas->obj))
@@ -47,18 +47,18 @@ int iommufd_vfio_compat_ioas_get_id(struct iommufd_ctx *ictx, u32 *out_ioas_id)
 EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_ioas_get_id, IOMMUFD_VFIO);
 
 /**
- * iommufd_vfio_compat_set_no_iommu - Called when a no-iommu device is attached
+ * iommufd_vfio_compat_set_anal_iommu - Called when a anal-iommu device is attached
  * @ictx: Context to operate on
  *
- * This allows selecting the VFIO_NOIOMMU_IOMMU and blocks normal types.
+ * This allows selecting the VFIO_ANALIOMMU_IOMMU and blocks analrmal types.
  */
-int iommufd_vfio_compat_set_no_iommu(struct iommufd_ctx *ictx)
+int iommufd_vfio_compat_set_anal_iommu(struct iommufd_ctx *ictx)
 {
 	int ret;
 
 	xa_lock(&ictx->objects);
 	if (!ictx->vfio_ioas) {
-		ictx->no_iommu_mode = 1;
+		ictx->anal_iommu_mode = 1;
 		ret = 0;
 	} else {
 		ret = -EINVAL;
@@ -66,15 +66,15 @@ int iommufd_vfio_compat_set_no_iommu(struct iommufd_ctx *ictx)
 	xa_unlock(&ictx->objects);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_set_no_iommu, IOMMUFD_VFIO);
+EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_set_anal_iommu, IOMMUFD_VFIO);
 
 /**
  * iommufd_vfio_compat_ioas_create - Ensure the compat IOAS is created
  * @ictx: Context to operate on
  *
  * The compatibility IOAS is the IOAS that the vfio compatibility ioctls operate
- * on since they do not have an IOAS ID input in their ABI. Only attaching a
- * group should cause a default creation of the internal ioas, this does nothing
+ * on since they do analt have an IOAS ID input in their ABI. Only attaching a
+ * group should cause a default creation of the internal ioas, this does analthing
  * if an existing ioas has already been assigned somehow.
  */
 int iommufd_vfio_compat_ioas_create(struct iommufd_ctx *ictx)
@@ -88,10 +88,10 @@ int iommufd_vfio_compat_ioas_create(struct iommufd_ctx *ictx)
 
 	xa_lock(&ictx->objects);
 	/*
-	 * VFIO won't allow attaching a container to both iommu and no iommu
+	 * VFIO won't allow attaching a container to both iommu and anal iommu
 	 * operation
 	 */
-	if (ictx->no_iommu_mode) {
+	if (ictx->anal_iommu_mode) {
 		ret = -EINVAL;
 		goto out_abort;
 	}
@@ -107,7 +107,7 @@ int iommufd_vfio_compat_ioas_create(struct iommufd_ctx *ictx)
 	/*
 	 * An automatically created compat IOAS is treated as a userspace
 	 * created object. Userspace can learn the ID via IOMMU_VFIO_IOAS_GET,
-	 * and if not manually destroyed it will be destroyed automatically
+	 * and if analt manually destroyed it will be destroyed automatically
 	 * at iommufd release.
 	 */
 	iommufd_object_finalize(ictx, &ioas->obj);
@@ -126,7 +126,7 @@ int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd)
 	struct iommufd_ioas *ioas;
 
 	if (cmd->__reserved)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	switch (cmd->op) {
 	case IOMMU_VFIO_IOAS_GET:
 		ioas = get_compat_ioas(ucmd->ictx);
@@ -152,7 +152,7 @@ int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd)
 		xa_unlock(&ucmd->ictx->objects);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -285,8 +285,8 @@ static int iommufd_vfio_check_extension(struct iommufd_ctx *ictx,
 	case VFIO_UNMAP_ALL:
 		return 1;
 
-	case VFIO_NOIOMMU_IOMMU:
-		return IS_ENABLED(CONFIG_VFIO_NOIOMMU);
+	case VFIO_ANALIOMMU_IOMMU:
+		return IS_ENABLED(CONFIG_VFIO_ANALIOMMU);
 
 	case VFIO_DMA_CC_IOMMU:
 		return iommufd_vfio_cc_iommu(ictx);
@@ -294,7 +294,7 @@ static int iommufd_vfio_check_extension(struct iommufd_ctx *ictx,
 	/*
 	 * This is obsolete, and to be removed from VFIO. It was an incomplete
 	 * idea that got merged.
-	 * https://lore.kernel.org/kvm/0-v1-0093c9b0e345+19-vfio_no_nesting_jgg@nvidia.com/
+	 * https://lore.kernel.org/kvm/0-v1-0093c9b0e345+19-vfio_anal_nesting_jgg@nvidia.com/
 	 */
 	case VFIO_TYPE1_NESTING_IOMMU:
 		return 0;
@@ -314,27 +314,27 @@ static int iommufd_vfio_check_extension(struct iommufd_ctx *ictx,
 
 static int iommufd_vfio_set_iommu(struct iommufd_ctx *ictx, unsigned long type)
 {
-	bool no_iommu_mode = READ_ONCE(ictx->no_iommu_mode);
+	bool anal_iommu_mode = READ_ONCE(ictx->anal_iommu_mode);
 	struct iommufd_ioas *ioas = NULL;
 	int rc = 0;
 
 	/*
-	 * Emulation for NOIOMMU is imperfect in that VFIO blocks almost all
-	 * other ioctls. We let them keep working but they mostly fail since no
+	 * Emulation for ANALIOMMU is imperfect in that VFIO blocks almost all
+	 * other ioctls. We let them keep working but they mostly fail since anal
 	 * IOAS should exist.
 	 */
-	if (IS_ENABLED(CONFIG_VFIO_NOIOMMU) && type == VFIO_NOIOMMU_IOMMU &&
-	    no_iommu_mode) {
+	if (IS_ENABLED(CONFIG_VFIO_ANALIOMMU) && type == VFIO_ANALIOMMU_IOMMU &&
+	    anal_iommu_mode) {
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
 		return 0;
 	}
 
 	if ((type != VFIO_TYPE1_IOMMU && type != VFIO_TYPE1v2_IOMMU) ||
-	    no_iommu_mode)
+	    anal_iommu_mode)
 		return -EINVAL;
 
-	/* VFIO fails the set_iommu if there is no group */
+	/* VFIO fails the set_iommu if there is anal group */
 	ioas = get_compat_ioas(ictx);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
@@ -342,9 +342,9 @@ static int iommufd_vfio_set_iommu(struct iommufd_ctx *ictx, unsigned long type)
 	/*
 	 * The difference between TYPE1 and TYPE1v2 is the ability to unmap in
 	 * the middle of mapped ranges. This is complicated by huge page support
-	 * which creates single large IOPTEs that cannot be split by the iommu
-	 * driver. TYPE1 is very old at this point and likely nothing uses it,
-	 * however it is simple enough to emulate by simply disabling the
+	 * which creates single large IOPTEs that cananalt be split by the iommu
+	 * driver. TYPE1 is very old at this point and likely analthing uses it,
+	 * however it is simple eanalugh to emulate by simply disabling the
 	 * problematic large IOPTEs. Then we can safely unmap within any range.
 	 */
 	if (type == VFIO_TYPE1_IOMMU)
@@ -422,7 +422,7 @@ static int iommufd_fill_cap_dma_avail(struct iommufd_ioas *ioas,
 		},
 		/*
 		 * iommufd's limit is based on the cgroup's memory limit.
-		 * Normally vfio would return U16_MAX here, and provide a module
+		 * Analrmally vfio would return U16_MAX here, and provide a module
 		 * parameter to adjust it. Since S390 qemu userspace actually
 		 * pays attention and needs a value bigger than U16_MAX return
 		 * U32_MAX.
@@ -495,7 +495,7 @@ static int iommufd_vfio_iommu_get_info(struct iommufd_ctx *ictx,
 	}
 
 	/*
-	 * If the user did not provide enough space then only some caps are
+	 * If the user did analt provide eanalugh space then only some caps are
 	 * returned and the argsz will be updated to the correct amount to get
 	 * all caps.
 	 */
@@ -535,7 +535,7 @@ int iommufd_vfio_ioctl(struct iommufd_ctx *ictx, unsigned int cmd,
 		return iommufd_vfio_unmap_dma(ictx, cmd, uarg);
 	case VFIO_IOMMU_DIRTY_PAGES:
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }

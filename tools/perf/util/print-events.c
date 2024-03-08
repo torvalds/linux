@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -141,13 +141,13 @@ next_sys:
 void print_sdt_events(const struct print_callbacks *print_cb, void *print_state)
 {
 	struct strlist *bidlist, *sdtlist;
-	struct str_node *bid_nd, *sdt_name, *next_sdt_name;
+	struct str_analde *bid_nd, *sdt_name, *next_sdt_name;
 	const char *last_sdt_name = NULL;
 
 	/*
 	 * The implicitly sorted sdtlist will hold the tracepoint name followed
 	 * by @<buildid>. If the tracepoint name is unique (determined by
-	 * looking at the adjacent nodes) the @<buildid> is dropped otherwise
+	 * looking at the adjacent analdes) the @<buildid> is dropped otherwise
 	 * the executable path and buildid are added to the name.
 	 */
 	sdtlist = strlist__new(NULL, NULL);
@@ -157,7 +157,7 @@ void print_sdt_events(const struct print_callbacks *print_cb, void *print_state)
 	}
 	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
-		pr_debug("Failed to get buildids: %d\n", errno);
+		pr_debug("Failed to get buildids: %d\n", erranal);
 		return;
 	}
 	strlist__for_each_entry(bid_nd, bidlist) {
@@ -167,7 +167,7 @@ void print_sdt_events(const struct print_callbacks *print_cb, void *print_state)
 		pcache = probe_cache__new(bid_nd->s, NULL);
 		if (!pcache)
 			continue;
-		list_for_each_entry(ent, &pcache->entries, node) {
+		list_for_each_entry(ent, &pcache->entries, analde) {
 			char buf[1024];
 
 			snprintf(buf, sizeof(buf), "%s:%s@%s",
@@ -251,10 +251,10 @@ bool is_event_supported(u8 type, u64 config)
 
 		if (open_return == -EACCES) {
 			/*
-			 * This happens if the paranoid value
-			 * /proc/sys/kernel/perf_event_paranoid is set to 2
+			 * This happens if the paraanalid value
+			 * /proc/sys/kernel/perf_event_paraanalid is set to 2
 			 * Re-run with exclude_kernel set; we don't do that
-			 * by default as some ARM machines do not support it.
+			 * by default as some ARM machines do analt support it.
 			 *
 			 */
 			evsel->core.attr.exclude_kernel = 1;
@@ -321,7 +321,7 @@ int print_hwcache_events(const struct print_callbacks *print_cb, void *print_sta
 
 void print_tool_events(const struct print_callbacks *print_cb, void *print_state)
 {
-	// Start at 1 because the first enum entry means no tool event.
+	// Start at 1 because the first enum entry means anal tool event.
 	for (int i = 1; i < PERF_TOOL_MAX; ++i) {
 		print_cb->print_event(print_state,
 				"tool",
@@ -342,7 +342,7 @@ void print_symbol_events(const struct print_callbacks *print_cb, void *print_sta
 			 unsigned int max)
 {
 	struct strlist *evt_name_list = strlist__new(NULL, NULL);
-	struct str_node *nd;
+	struct str_analde *nd;
 
 	if (!evt_name_list) {
 		pr_debug("Failed to allocate new strlist for symbol events\n");
@@ -350,7 +350,7 @@ void print_symbol_events(const struct print_callbacks *print_cb, void *print_sta
 	}
 	for (unsigned int i = 0; i < max; i++) {
 		/*
-		 * New attr.config still not supported here, the latest
+		 * New attr.config still analt supported here, the latest
 		 * example was PERF_COUNT_SW_CGROUP_SWITCHES
 		 */
 		if (syms[i].symbol == NULL)

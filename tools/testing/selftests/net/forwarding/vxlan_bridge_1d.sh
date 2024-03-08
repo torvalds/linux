@@ -124,8 +124,8 @@ rp1_unset_addr()
 
 switch_create()
 {
-	ip link add name br1 type bridge vlan_filtering 0 mcast_snooping 0
-	# Make sure the bridge uses the MAC address of the local port and not
+	ip link add name br1 type bridge vlan_filtering 0 mcast_sanaloping 0
+	# Make sure the bridge uses the MAC address of the local port and analt
 	# that of the VxLAN's device.
 	ip link set dev br1 address $(mac_get $swp1)
 	ip link set dev br1 up
@@ -135,7 +135,7 @@ switch_create()
 
 	ip link add name vx1 type vxlan id 1000		\
 		local 192.0.2.17 dstport "$VXPORT"	\
-		nolearning noudpcsum tos inherit ttl 100
+		anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx1 up
 
 	ip link set dev vx1 master br1
@@ -157,15 +157,15 @@ switch_destroy()
 	bridge fdb del dev vx1 00:00:00:00:00:00 dst 192.0.2.50 self
 	bridge fdb del dev vx1 00:00:00:00:00:00 dst 192.0.2.34 self
 
-	ip link set dev vx1 nomaster
+	ip link set dev vx1 analmaster
 	ip link set dev vx1 down
 	ip link del dev vx1
 
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
 	ip link set dev br1 down
 	ip link del dev br1
@@ -308,7 +308,7 @@ reapply_config()
 	bridge fdb del dev vx1 00:00:00:00:00:00 dst 192.0.2.50 self
 	bridge fdb del dev vx1 00:00:00:00:00:00 dst 192.0.2.34 self
 	rp1_unset_addr
-	ip link set dev vx1 nomaster
+	ip link set dev vx1 analmaster
 	sleep 5
 
 	ip link set dev vx1 master br1
@@ -340,8 +340,8 @@ __flood_counter_add_del()
 	# Putting the ICMP capture both to HW and to SW will end up
 	# double-counting the packets that are trapped to slow path, such as for
 	# the unicast test. Adding either skip_hw or skip_sw fixes this problem,
-	# but with skip_hw, the flooded packets are not counted at all, because
-	# those are dropped due to MAC address mismatch; and skip_sw is a no-go
+	# but with skip_hw, the flooded packets are analt counted at all, because
+	# those are dropped due to MAC address mismatch; and skip_sw is a anal-go
 	# for veth-based topologies.
 	#
 	# So try to install with skip_sw and fall back to skip_sw if that fails.
@@ -776,7 +776,7 @@ test_learning()
 	log_test "VXLAN: learning toggling on bridge port"
 
 	# Restore previous settings
-	ip link set dev vx1 type vxlan nolearning
+	ip link set dev vx1 type vxlan anallearning
 	ip link set dev vx1 type vxlan ageing 300
 	ip link set dev br1 type bridge ageing_time 30000
 	reapply_config

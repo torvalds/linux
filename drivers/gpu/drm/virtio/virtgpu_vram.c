@@ -12,14 +12,14 @@ static void virtio_gpu_vram_free(struct drm_gem_object *obj)
 
 	if (bo->created) {
 		spin_lock(&vgdev->host_visible_lock);
-		unmap = drm_mm_node_allocated(&vram->vram_node);
+		unmap = drm_mm_analde_allocated(&vram->vram_analde);
 		spin_unlock(&vgdev->host_visible_lock);
 
 		if (unmap)
 			virtio_gpu_cmd_unmap(vgdev, bo);
 
 		virtio_gpu_cmd_unref_resource(vgdev, bo);
-		virtio_gpu_notify(vgdev);
+		virtio_gpu_analtify(vgdev);
 		return;
 	}
 }
@@ -45,7 +45,7 @@ static int virtio_gpu_vram_mmap(struct drm_gem_object *obj,
 	if (vram->map_state != STATE_OK)
 		return -EINVAL;
 
-	vma->vm_pgoff -= drm_vma_node_start(&obj->vma_node);
+	vma->vm_pgoff -= drm_vma_analde_start(&obj->vma_analde);
 	vm_flags_set(vma, VM_MIXEDMAP | VM_DONTEXPAND);
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
@@ -54,14 +54,14 @@ static int virtio_gpu_vram_mmap(struct drm_gem_object *obj,
 	if (vram->map_info == VIRTIO_GPU_MAP_CACHE_WC)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	else if (vram->map_info == VIRTIO_GPU_MAP_CACHE_UNCACHED)
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	/* Partial mappings of GEM buffers don't happen much in practice. */
-	if (vm_size != vram->vram_node.size)
+	if (vm_size != vram->vram_analde.size)
 		return -EINVAL;
 
 	ret = io_remap_pfn_range(vma, vma->vm_start,
-				 vram->vram_node.start >> PAGE_SHIFT,
+				 vram->vram_analde.start >> PAGE_SHIFT,
 				 vm_size, vma->vm_page_prot);
 	return ret;
 }
@@ -78,7 +78,7 @@ struct sg_table *virtio_gpu_vram_map_dma_buf(struct virtio_gpu_object *bo,
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!(bo->blob_flags & VIRTGPU_BLOB_FLAG_USE_MAPPABLE)) {
 		// Virtio devices can access the dma-buf via its UUID. Return a stub
@@ -94,16 +94,16 @@ struct sg_table *virtio_gpu_vram_map_dma_buf(struct virtio_gpu_object *bo,
 	if (ret)
 		goto out;
 
-	addr = dma_map_resource(dev, vram->vram_node.start,
-				vram->vram_node.size, dir,
+	addr = dma_map_resource(dev, vram->vram_analde.start,
+				vram->vram_analde.size, dir,
 				DMA_ATTR_SKIP_CPU_SYNC);
 	ret = dma_mapping_error(dev, addr);
 	if (ret)
 		goto out;
 
-	sg_set_page(sgt->sgl, NULL, vram->vram_node.size, 0);
+	sg_set_page(sgt->sgl, NULL, vram->vram_analde.size, 0);
 	sg_dma_address(sgt->sgl) = addr;
-	sg_dma_len(sgt->sgl) = vram->vram_node.size;
+	sg_dma_len(sgt->sgl) = vram->vram_analde.size;
 
 	return sgt;
 out:
@@ -150,7 +150,7 @@ static int virtio_gpu_vram_map(struct virtio_gpu_object *bo)
 		return -EINVAL;
 
 	spin_lock(&vgdev->host_visible_lock);
-	ret = drm_mm_insert_node(&vgdev->host_visible_mm, &vram->vram_node,
+	ret = drm_mm_insert_analde(&vgdev->host_visible_mm, &vram->vram_analde,
 				 bo->base.base.size);
 	spin_unlock(&vgdev->host_visible_lock);
 
@@ -159,25 +159,25 @@ static int virtio_gpu_vram_map(struct virtio_gpu_object *bo)
 
 	objs = virtio_gpu_array_alloc(1);
 	if (!objs) {
-		ret = -ENOMEM;
-		goto err_remove_node;
+		ret = -EANALMEM;
+		goto err_remove_analde;
 	}
 
 	virtio_gpu_array_add_obj(objs, &bo->base.base);
 	/*TODO: Add an error checking helper function in drm_mm.h */
-	offset = vram->vram_node.start - vgdev->host_visible_region.addr;
+	offset = vram->vram_analde.start - vgdev->host_visible_region.addr;
 
 	ret = virtio_gpu_cmd_map(vgdev, objs, offset);
 	if (ret) {
 		virtio_gpu_array_put_free(objs);
-		goto err_remove_node;
+		goto err_remove_analde;
 	}
 
 	return 0;
 
-err_remove_node:
+err_remove_analde:
 	spin_lock(&vgdev->host_visible_lock);
-	drm_mm_remove_node(&vram->vram_node);
+	drm_mm_remove_analde(&vram->vram_analde);
 	spin_unlock(&vgdev->host_visible_lock);
 	return ret;
 }
@@ -192,7 +192,7 @@ int virtio_gpu_vram_create(struct virtio_gpu_device *vgdev,
 
 	vram = kzalloc(sizeof(*vram), GFP_KERNEL);
 	if (!vram)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	obj = &vram->base.base.base;
 	obj->funcs = &virtio_gpu_vram_funcs;

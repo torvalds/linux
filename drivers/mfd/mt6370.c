@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  *
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  */
@@ -40,11 +40,11 @@ static const struct regmap_irq mt6370_irqs[] = {
 	REGMAP_IRQ_REG_LINE(MT6370_IRQ_CHG_AICR, 8),
 	REGMAP_IRQ_REG_LINE(MT6370_IRQ_CHG_MIVR, 8),
 	REGMAP_IRQ_REG_LINE(MT6370_IRQ_PWR_RDY, 8),
-	REGMAP_IRQ_REG_LINE(MT6370_IRQ_FL_CHG_VINOVP, 8),
+	REGMAP_IRQ_REG_LINE(MT6370_IRQ_FL_CHG_VIANALVP, 8),
 	REGMAP_IRQ_REG_LINE(MT6370_IRQ_CHG_VSYSUV, 8),
 	REGMAP_IRQ_REG_LINE(MT6370_IRQ_CHG_VSYSOV, 8),
 	REGMAP_IRQ_REG_LINE(MT6370_IRQ_CHG_VBATOV, 8),
-	REGMAP_IRQ_REG_LINE(MT6370_IRQ_CHG_VINOVPCHG, 8),
+	REGMAP_IRQ_REG_LINE(MT6370_IRQ_CHG_VIANALVPCHG, 8),
 	REGMAP_IRQ_REG_LINE(MT6370_IRQ_TS_BAT_COLD, 8),
 	REGMAP_IRQ_REG_LINE(MT6370_IRQ_TS_BAT_COOL, 8),
 	REGMAP_IRQ_REG_LINE(MT6370_IRQ_TS_BAT_WARM, 8),
@@ -174,8 +174,8 @@ static int mt6370_check_vendor_info(struct device *dev, struct regmap *rmap,
 	case MT6370_VENID_MT6372CP:
 		return 0;
 	default:
-		dev_err(dev, "Unknown Vendor ID 0x%02x\n", devinfo);
-		return -ENODEV;
+		dev_err(dev, "Unkanalwn Vendor ID 0x%02x\n", devinfo);
+		return -EANALDEV;
 	}
 }
 
@@ -237,7 +237,7 @@ static int mt6370_probe(struct i2c_client *i2c)
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usbc_i2c = devm_i2c_new_dummy_device(dev, i2c->adapter,
 					     MT6370_USBC_I2CADDR);

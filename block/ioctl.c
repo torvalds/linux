@@ -27,11 +27,11 @@ static int blkpg_do_ioctl(struct block_device *bdev,
 	if (bdev_is_partition(bdev))
 		return -EINVAL;
 
-	if (p.pno <= 0)
+	if (p.panal <= 0)
 		return -EINVAL;
 
 	if (op == BLKPG_DEL_PARTITION)
-		return bdev_del_partition(disk, p.pno);
+		return bdev_del_partition(disk, p.panal);
 
 	if (p.start < 0 || p.length <= 0 || p.start + p.length < 0)
 		return -EINVAL;
@@ -44,9 +44,9 @@ static int blkpg_do_ioctl(struct block_device *bdev,
 
 	switch (op) {
 	case BLKPG_ADD_PARTITION:
-		return bdev_add_partition(disk, p.pno, start, length);
+		return bdev_add_partition(disk, p.panal, start, length);
 	case BLKPG_RESIZE_PARTITION:
-		return bdev_resize_partition(disk, p.pno, start, length);
+		return bdev_resize_partition(disk, p.panal, start, length);
 	default:
 		return -EINVAL;
 	}
@@ -90,14 +90,14 @@ static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 {
 	uint64_t range[2];
 	uint64_t start, len;
-	struct inode *inode = bdev->bd_inode;
+	struct ianalde *ianalde = bdev->bd_ianalde;
 	int err;
 
 	if (!(mode & BLK_OPEN_WRITE))
 		return -EBADF;
 
 	if (!bdev_max_discard_sectors(bdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(range, (void __user *)arg, sizeof(range)))
 		return -EFAULT;
@@ -113,13 +113,13 @@ static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 	if (start + len > bdev_nr_bytes(bdev))
 		return -EINVAL;
 
-	filemap_invalidate_lock(inode->i_mapping);
+	filemap_invalidate_lock(ianalde->i_mapping);
 	err = truncate_bdev_range(bdev, mode, start, start + len - 1);
 	if (err)
 		goto fail;
 	err = blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL);
 fail:
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
 	return err;
 }
 
@@ -133,7 +133,7 @@ static int blk_ioctl_secure_erase(struct block_device *bdev, blk_mode_t mode,
 	if (!(mode & BLK_OPEN_WRITE))
 		return -EBADF;
 	if (!bdev_max_secure_erase_sectors(bdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(range, argp, sizeof(range)))
 		return -EFAULT;
 
@@ -144,12 +144,12 @@ static int blk_ioctl_secure_erase(struct block_device *bdev, blk_mode_t mode,
 	if (start + len > bdev_nr_bytes(bdev))
 		return -EINVAL;
 
-	filemap_invalidate_lock(bdev->bd_inode->i_mapping);
+	filemap_invalidate_lock(bdev->bd_ianalde->i_mapping);
 	err = truncate_bdev_range(bdev, mode, start, start + len - 1);
 	if (!err)
 		err = blkdev_issue_secure_erase(bdev, start >> 9, len >> 9,
 						GFP_KERNEL);
-	filemap_invalidate_unlock(bdev->bd_inode->i_mapping);
+	filemap_invalidate_unlock(bdev->bd_ianalde->i_mapping);
 	return err;
 }
 
@@ -159,7 +159,7 @@ static int blk_ioctl_zeroout(struct block_device *bdev, blk_mode_t mode,
 {
 	uint64_t range[2];
 	uint64_t start, end, len;
-	struct inode *inode = bdev->bd_inode;
+	struct ianalde *ianalde = bdev->bd_ianalde;
 	int err;
 
 	if (!(mode & BLK_OPEN_WRITE))
@@ -182,16 +182,16 @@ static int blk_ioctl_zeroout(struct block_device *bdev, blk_mode_t mode,
 		return -EINVAL;
 
 	/* Invalidate the page cache, including dirty pages */
-	filemap_invalidate_lock(inode->i_mapping);
+	filemap_invalidate_lock(ianalde->i_mapping);
 	err = truncate_bdev_range(bdev, mode, start, end);
 	if (err)
 		goto fail;
 
 	err = blkdev_issue_zeroout(bdev, start >> 9, len >> 9, GFP_KERNEL,
-				   BLKDEV_ZERO_NOUNMAP);
+				   BLKDEV_ZERO_ANALUNMAP);
 
 fail:
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
 	return err;
 }
 
@@ -252,14 +252,14 @@ int blkdev_compat_ptr_ioctl(struct block_device *bdev, blk_mode_t mode,
 		return disk->fops->ioctl(bdev, mode, cmd,
 					 (unsigned long)compat_ptr(arg));
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 EXPORT_SYMBOL(blkdev_compat_ptr_ioctl);
 #endif
 
 static bool blkdev_pr_allowed(struct block_device *bdev, blk_mode_t mode)
 {
-	/* no sense to make reservations for partitions */
+	/* anal sense to make reservations for partitions */
 	if (bdev_is_partition(bdev))
 		return false;
 
@@ -281,12 +281,12 @@ static int blkdev_pr_register(struct block_device *bdev, blk_mode_t mode,
 	if (!blkdev_pr_allowed(bdev, mode))
 		return -EPERM;
 	if (!ops || !ops->pr_register)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(&reg, arg, sizeof(reg)))
 		return -EFAULT;
 
-	if (reg.flags & ~PR_FL_IGNORE_KEY)
-		return -EOPNOTSUPP;
+	if (reg.flags & ~PR_FL_IGANALRE_KEY)
+		return -EOPANALTSUPP;
 	return ops->pr_register(bdev, reg.old_key, reg.new_key, reg.flags);
 }
 
@@ -299,12 +299,12 @@ static int blkdev_pr_reserve(struct block_device *bdev, blk_mode_t mode,
 	if (!blkdev_pr_allowed(bdev, mode))
 		return -EPERM;
 	if (!ops || !ops->pr_reserve)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(&rsv, arg, sizeof(rsv)))
 		return -EFAULT;
 
-	if (rsv.flags & ~PR_FL_IGNORE_KEY)
-		return -EOPNOTSUPP;
+	if (rsv.flags & ~PR_FL_IGANALRE_KEY)
+		return -EOPANALTSUPP;
 	return ops->pr_reserve(bdev, rsv.key, rsv.type, rsv.flags);
 }
 
@@ -317,12 +317,12 @@ static int blkdev_pr_release(struct block_device *bdev, blk_mode_t mode,
 	if (!blkdev_pr_allowed(bdev, mode))
 		return -EPERM;
 	if (!ops || !ops->pr_release)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(&rsv, arg, sizeof(rsv)))
 		return -EFAULT;
 
 	if (rsv.flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return ops->pr_release(bdev, rsv.key, rsv.type);
 }
 
@@ -335,12 +335,12 @@ static int blkdev_pr_preempt(struct block_device *bdev, blk_mode_t mode,
 	if (!blkdev_pr_allowed(bdev, mode))
 		return -EPERM;
 	if (!ops || !ops->pr_preempt)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(&p, arg, sizeof(p)))
 		return -EFAULT;
 
 	if (p.flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return ops->pr_preempt(bdev, p.old_key, p.new_key, p.type, abort);
 }
 
@@ -353,12 +353,12 @@ static int blkdev_pr_clear(struct block_device *bdev, blk_mode_t mode,
 	if (!blkdev_pr_allowed(bdev, mode))
 		return -EPERM;
 	if (!ops || !ops->pr_clear)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(&c, arg, sizeof(c)))
 		return -EFAULT;
 
 	if (c.flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return ops->pr_clear(bdev, c.key);
 }
 
@@ -409,7 +409,7 @@ static int blkdev_getgeo(struct block_device *bdev,
 	if (!argp)
 		return -EINVAL;
 	if (!disk->fops->getgeo)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	/*
 	 * We need to set the startsect first, the driver may
@@ -443,7 +443,7 @@ static int compat_hdio_getgeo(struct block_device *bdev,
 	if (!ugeo)
 		return -EINVAL;
 	if (!disk->fops->getgeo)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	memset(&geo, 0, sizeof(geo));
 	/*
@@ -492,7 +492,7 @@ static int blkdev_bszset(struct block_device *bdev, blk_mode_t mode,
 
 /*
  * Common commands that are handled the same way on native and compat
- * user space. Note the separate arg/argp parameters that are needed
+ * user space. Analte the separate arg/argp parameters that are needed
  * to deal with the compat_ptr() conversion.
  */
 static int blkdev_common_ioctl(struct block_device *bdev, blk_mode_t mode,
@@ -535,7 +535,7 @@ static int blkdev_common_ioctl(struct block_device *bdev, blk_mode_t mode,
 		return put_uint(argp, bdev_io_min(bdev));
 	case BLKIOOPT:
 		return put_uint(argp, bdev_io_opt(bdev));
-	case BLKALIGNOFF:
+	case BLKALIGANALFF:
 		return put_int(argp, bdev_alignment_offset(bdev));
 	case BLKDISCARDZEROES:
 		return put_uint(argp, 0);
@@ -544,7 +544,7 @@ static int blkdev_common_ioctl(struct block_device *bdev, blk_mode_t mode,
 				    queue_max_sectors(bdev_get_queue(bdev)));
 		return put_ushort(argp, max_sectors);
 	case BLKROTATIONAL:
-		return put_ushort(argp, !bdev_nonrot(bdev));
+		return put_ushort(argp, !bdev_analnrot(bdev));
 	case BLKRASET:
 	case BLKFRASET:
 		if(!capable(CAP_SYS_ADMIN))
@@ -574,7 +574,7 @@ static int blkdev_common_ioctl(struct block_device *bdev, blk_mode_t mode,
 	case IOC_PR_CLEAR:
 		return blkdev_pr_clear(bdev, mode, argp);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -626,11 +626,11 @@ long blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	}
 
 	ret = blkdev_common_ioctl(bdev, mode, cmd, arg, argp);
-	if (ret != -ENOIOCTLCMD)
+	if (ret != -EANALIOCTLCMD)
 		return ret;
 
 	if (!bdev->bd_disk->fops->ioctl)
-		return -ENOTTY;
+		return -EANALTTY;
 	return bdev->bd_disk->fops->ioctl(bdev, mode, cmd, arg);
 }
 
@@ -640,9 +640,9 @@ long blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 #define BLKBSZSET_32		_IOW(0x12, 113, int)
 #define BLKGETSIZE64_32		_IOR(0x12, 114, int)
 
-/* Most of the generic ioctls are handled in the normal fallback path.
+/* Most of the generic ioctls are handled in the analrmal fallback path.
    This assumes the blkdev's low level compat_ioctl always returns
-   ENOIOCTLCMD for unknown ioctls. */
+   EANALIOCTLCMD for unkanalwn ioctls. */
 long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	int ret;
@@ -686,7 +686,7 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	}
 
 	ret = blkdev_common_ioctl(bdev, mode, cmd, arg, argp);
-	if (ret == -ENOIOCTLCMD && disk->fops->compat_ioctl)
+	if (ret == -EANALIOCTLCMD && disk->fops->compat_ioctl)
 		ret = disk->fops->compat_ioctl(bdev, mode, cmd, arg);
 
 	return ret;

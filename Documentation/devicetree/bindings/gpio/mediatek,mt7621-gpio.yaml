@@ -17,7 +17,7 @@ description: |
   using GIC INT12.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^gpio@[0-9a-f]+$"
 
   compatible:

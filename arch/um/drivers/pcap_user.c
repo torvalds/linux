@@ -3,7 +3,7 @@
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <pcap.h>
 #include <string.h>
 #include <asm/types.h>
@@ -39,7 +39,7 @@ static int pcap_user_open(void *data)
 	int err;
 
 	if (pri->pcap == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pri->filter != NULL) {
 		err = dev_netmask(pri->dev, &netmask);
@@ -52,7 +52,7 @@ static int pcap_user_open(void *data)
 					UM_GFP_KERNEL);
 		if (pri->compiled == NULL) {
 			printk(UM_KERN_ERR "pcap_user_open : kmalloc failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = pcap_compile(pri->pcap,

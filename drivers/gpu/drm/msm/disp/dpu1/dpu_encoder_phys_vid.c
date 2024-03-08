@@ -87,7 +87,7 @@ static void drm_mode_to_intf_timing_params(
 	timing->underflow_clr = 0xff;
 	timing->hsync_skew = mode->hskew;
 
-	/* DSI controller cannot handle active-low sync signals. */
+	/* DSI controller cananalt handle active-low sync signals. */
 	if (phys_enc->hw_intf->cap->type == INTF_DSI) {
 		timing->hsync_polarity = 0;
 		timing->vsync_polarity = 0;
@@ -142,7 +142,7 @@ static u32 get_vertical_total(const struct dpu_hw_intf_timing_params *timing)
  * Returns the number of fetch lines in vertical front porch at which mdp
  * can start fetching the next frame.
  *
- * Number of needed prefetch lines is anything that cannot be absorbed in the
+ * Number of needed prefetch lines is anything that cananalt be absorbed in the
  * start of frame time (back porch + vsync pulse width).
  *
  * Some panels have very large VFP, however we only need a total number of
@@ -162,10 +162,10 @@ static u32 programmable_fetch_get_num_lines(
 	/* Fetch must be outside active lines, otherwise undefined. */
 	if (start_of_frame_lines >= worst_case_needed_lines) {
 		DPU_DEBUG_VIDENC(phys_enc,
-				"prog fetch is not needed, large vbp+vsw\n");
+				"prog fetch is analt needed, large vbp+vsw\n");
 		actual_vfp_lines = 0;
 	} else if (timing->v_front_porch < needed_vfp_lines) {
-		/* Warn fetch needed, but not enough porch in panel config */
+		/* Warn fetch needed, but analt eanalugh porch in panel config */
 		pr_warn_once
 			("low vbp+vfp may lead to perf issues in some cases\n");
 		DPU_DEBUG_VIDENC(phys_enc,
@@ -247,7 +247,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	}
 
 	if (!phys_enc->hw_intf->ops.setup_timing_gen) {
-		DPU_ERROR("timing engine setup is not supported\n");
+		DPU_ERROR("timing engine setup is analt supported\n");
 		return;
 	}
 
@@ -555,12 +555,12 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 	spin_unlock_irqrestore(phys_enc->enc_spinlock, lock_flags);
 
 	/*
-	 * Wait for a vsync so we know the ENABLE=0 latched before
+	 * Wait for a vsync so we kanalw the ENABLE=0 latched before
 	 * the (connector) source of the vsync's gets disabled,
 	 * otherwise we end up in a funny state if we re-enable
 	 * before the disable latches, which results that some of
 	 * the settings changes for the new modeset (like new
-	 * scanout buffer) don't latch properly..
+	 * scaanalut buffer) don't latch properly..
 	 */
 	if (dpu_encoder_phys_vid_is_master(phys_enc)) {
 		ret = dpu_encoder_phys_vid_wait_for_tx_complete(phys_enc);
@@ -603,7 +603,7 @@ static void dpu_encoder_phys_vid_handle_post_kickoff(
 
 	/*
 	 * Video mode must flush CTL before enabling timing engine
-	 * Video encoders need to turn on their interfaces now
+	 * Video encoders need to turn on their interfaces analw
 	 */
 	if (phys_enc->enable_state == DPU_ENC_ENABLING) {
 		trace_dpu_enc_phys_vid_post_kickoff(DRMID(phys_enc->parent),
@@ -710,7 +710,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(struct drm_device *dev,
 	phys_enc = drmm_kzalloc(dev, sizeof(*phys_enc), GFP_KERNEL);
 	if (!phys_enc) {
 		DPU_ERROR("failed to create encoder due to memory allocation error\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	DPU_DEBUG_VIDENC(phys_enc, "\n");

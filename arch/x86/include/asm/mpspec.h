@@ -35,7 +35,7 @@ extern int pic_mode;
 extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 #endif
 
-extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
+extern DECLARE_BITMAP(mp_bus_analt_pci, MAX_MP_BUSSES);
 
 extern u32 boot_cpu_physical_apicid;
 extern u8 boot_cpu_apic_version;
@@ -69,8 +69,8 @@ extern void default_get_smp_config(unsigned int early);
 #else
 static inline void e820__memblock_alloc_reserved_mpc_new(void) { }
 #define enable_update_mptable 0
-#define default_find_smp_config x86_init_noop
-#define default_get_smp_config x86_init_uint_noop
+#define default_find_smp_config x86_init_analop
+#define default_get_smp_config x86_init_uint_analop
 #endif
 
 int generic_processor_info(int apicid);
@@ -108,7 +108,7 @@ static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
 }
 
 #define PHYSID_MASK_ALL		{ {[0 ... PHYSID_ARRAY_SIZE-1] = ~0UL} }
-#define PHYSID_MASK_NONE	{ {[0 ... PHYSID_ARRAY_SIZE-1] = 0UL} }
+#define PHYSID_MASK_ANALNE	{ {[0 ... PHYSID_ARRAY_SIZE-1] = 0UL} }
 
 extern physid_mask_t phys_cpu_present_map;
 

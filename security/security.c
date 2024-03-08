@@ -4,8 +4,8 @@
  *
  * Copyright (C) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (C) 2001-2002 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2001 Networks Associates Technology, Inc <ssmalley@nai.com>
- * Copyright (C) 2016 Mellanox Technologies
+ * Copyright (C) 2001 Networks Associates Techanallogy, Inc <ssmalley@nai.com>
+ * Copyright (C) 2016 Mellaanalx Techanallogies
  * Copyright (C) 2023 Microsoft Corporation <paul@paul-moore.com>
  */
 
@@ -22,7 +22,7 @@
 #include <linux/integrity.h>
 #include <linux/ima.h>
 #include <linux/evm.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/mman.h>
 #include <linux/mount.h>
 #include <linux/personality.h>
@@ -60,7 +60,7 @@
  * purposes.
  */
 const char *const lockdown_reasons[LOCKDOWN_CONFIDENTIALITY_MAX + 1] = {
-	[LOCKDOWN_NONE] = "none",
+	[LOCKDOWN_ANALNE] = "analne",
 	[LOCKDOWN_MODULE_SIGNATURE] = "unsigned module loading",
 	[LOCKDOWN_DEV_MEM] = "/dev/mem,kmem,port",
 	[LOCKDOWN_EFI_TEST] = "/dev/efi_test access",
@@ -93,10 +93,10 @@ const char *const lockdown_reasons[LOCKDOWN_CONFIDENTIALITY_MAX + 1] = {
 };
 
 struct security_hook_heads security_hook_heads __ro_after_init;
-static BLOCKING_NOTIFIER_HEAD(blocking_lsm_notifier_chain);
+static BLOCKING_ANALTIFIER_HEAD(blocking_lsm_analtifier_chain);
 
 static struct kmem_cache *lsm_file_cache;
-static struct kmem_cache *lsm_inode_cache;
+static struct kmem_cache *lsm_ianalde_cache;
 
 char *lsm_names;
 static struct lsm_blob_sizes blob_sizes __ro_after_init;
@@ -167,14 +167,14 @@ static bool __init exists_ordered_lsm(struct lsm_info *lsm)
 static int last_lsm __initdata;
 static void __init append_ordered_lsm(struct lsm_info *lsm, const char *from)
 {
-	/* Ignore duplicate selections. */
+	/* Iganalre duplicate selections. */
 	if (exists_ordered_lsm(lsm))
 		return;
 
 	if (WARN(last_lsm == LSM_COUNT, "%s: out of LSM slots!?\n", from))
 		return;
 
-	/* Enable this LSM, if it is not already set. */
+	/* Enable this LSM, if it is analt already set. */
 	if (!lsm->enabled)
 		lsm->enabled = &lsm_enabled_true;
 	ordered_lsms[last_lsm++] = lsm;
@@ -190,7 +190,7 @@ static bool __init lsm_allowed(struct lsm_info *lsm)
 	if (!is_enabled(lsm))
 		return false;
 
-	/* Not allowed if another exclusive LSM already initialized. */
+	/* Analt allowed if aanalther exclusive LSM already initialized. */
 	if ((lsm->flags & LSM_FLAG_EXCLUSIVE) && exclusive) {
 		init_debug("exclusive disabled: %s\n", lsm->name);
 		return false;
@@ -219,12 +219,12 @@ static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
 	lsm_set_blob_size(&needed->lbs_cred, &blob_sizes.lbs_cred);
 	lsm_set_blob_size(&needed->lbs_file, &blob_sizes.lbs_file);
 	/*
-	 * The inode blob gets an rcu_head in addition to
+	 * The ianalde blob gets an rcu_head in addition to
 	 * what the modules might need.
 	 */
-	if (needed->lbs_inode && blob_sizes.lbs_inode == 0)
-		blob_sizes.lbs_inode = sizeof(struct rcu_head);
-	lsm_set_blob_size(&needed->lbs_inode, &blob_sizes.lbs_inode);
+	if (needed->lbs_ianalde && blob_sizes.lbs_ianalde == 0)
+		blob_sizes.lbs_ianalde = sizeof(struct rcu_head);
+	lsm_set_blob_size(&needed->lbs_ianalde, &blob_sizes.lbs_ianalde);
 	lsm_set_blob_size(&needed->lbs_ipc, &blob_sizes.lbs_ipc);
 	lsm_set_blob_size(&needed->lbs_msg_msg, &blob_sizes.lbs_msg_msg);
 	lsm_set_blob_size(&needed->lbs_superblock, &blob_sizes.lbs_superblock);
@@ -288,9 +288,9 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 
 		/*
 		 * To match the original "security=" behavior, this
-		 * explicitly does NOT fallback to another Legacy Major
+		 * explicitly does ANALT fallback to aanalther Legacy Major
 		 * if the selected one was separately disabled: disable
-		 * all non-matching Legacy Major LSMs.
+		 * all analn-matching Legacy Major LSMs.
 		 */
 		for (major = __start_lsm_info; major < __end_lsm_info;
 		     major++) {
@@ -318,7 +318,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		}
 
 		if (!found)
-			init_debug("%s ignored: %s (not built into kernel)\n",
+			init_debug("%s iganalred: %s (analt built into kernel)\n",
 				   origin, name);
 	}
 
@@ -338,12 +338,12 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 			append_ordered_lsm(lsm, "   last");
 	}
 
-	/* Disable all LSMs not in the ordered list. */
+	/* Disable all LSMs analt in the ordered list. */
 	for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
 		if (exists_ordered_lsm(lsm))
 			continue;
 		set_enabled(lsm, false);
-		init_debug("%s skipped: %s (not in requested order)\n",
+		init_debug("%s skipped: %s (analt in requested order)\n",
 			   origin, lsm->name);
 	}
 
@@ -383,7 +383,7 @@ static void __init ordered_lsm_init(void)
 
 	if (chosen_lsm_order) {
 		if (chosen_major_lsm) {
-			pr_warn("security=%s is ignored because it is superseded by lsm=%s\n",
+			pr_warn("security=%s is iganalred because it is superseded by lsm=%s\n",
 				chosen_major_lsm, chosen_lsm_order);
 			chosen_major_lsm = NULL;
 		}
@@ -398,7 +398,7 @@ static void __init ordered_lsm_init(void)
 
 	init_debug("cred blob size       = %d\n", blob_sizes.lbs_cred);
 	init_debug("file blob size       = %d\n", blob_sizes.lbs_file);
-	init_debug("inode blob size      = %d\n", blob_sizes.lbs_inode);
+	init_debug("ianalde blob size      = %d\n", blob_sizes.lbs_ianalde);
 	init_debug("ipc blob size        = %d\n", blob_sizes.lbs_ipc);
 	init_debug("msg_msg blob size    = %d\n", blob_sizes.lbs_msg_msg);
 	init_debug("superblock blob size = %d\n", blob_sizes.lbs_superblock);
@@ -412,9 +412,9 @@ static void __init ordered_lsm_init(void)
 		lsm_file_cache = kmem_cache_create("lsm_file_cache",
 						   blob_sizes.lbs_file, 0,
 						   SLAB_PANIC, NULL);
-	if (blob_sizes.lbs_inode)
-		lsm_inode_cache = kmem_cache_create("lsm_inode_cache",
-						    blob_sizes.lbs_inode, 0,
+	if (blob_sizes.lbs_ianalde)
+		lsm_ianalde_cache = kmem_cache_create("lsm_ianalde_cache",
+						    blob_sizes.lbs_ianalde, 0,
 						    SLAB_PANIC, NULL);
 
 	lsm_early_cred((struct cred *) current->cred);
@@ -458,7 +458,7 @@ int __init security_init(void)
 	init_debug("boot arg lsm=%s\n", chosen_lsm_order ? : " *unspecified*");
 
 	/*
-	 * Append the names of the early LSM modules now that kmalloc() is
+	 * Append the names of the early LSM modules analw that kmalloc() is
 	 * available
 	 */
 	for (lsm = __start_early_lsm_info; lsm < __end_early_lsm_info; lsm++) {
@@ -520,14 +520,14 @@ static int lsm_append(const char *new, char **result)
 	if (*result == NULL) {
 		*result = kstrdup(new, GFP_KERNEL);
 		if (*result == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		/* Check if it is the last registered name */
 		if (match_last_lsm(*result, new))
 			return 0;
 		cp = kasprintf(GFP_KERNEL, "%s,%s", *result, new);
 		if (cp == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		kfree(*result);
 		*result = cp;
 	}
@@ -570,30 +570,30 @@ void __init security_add_hooks(struct security_hook_list *hooks, int count,
 	 */
 	if (slab_is_available()) {
 		if (lsm_append(lsmid->name, &lsm_names) < 0)
-			panic("%s - Cannot get early memory.\n", __func__);
+			panic("%s - Cananalt get early memory.\n", __func__);
 	}
 }
 
-int call_blocking_lsm_notifier(enum lsm_event event, void *data)
+int call_blocking_lsm_analtifier(enum lsm_event event, void *data)
 {
-	return blocking_notifier_call_chain(&blocking_lsm_notifier_chain,
+	return blocking_analtifier_call_chain(&blocking_lsm_analtifier_chain,
 					    event, data);
 }
-EXPORT_SYMBOL(call_blocking_lsm_notifier);
+EXPORT_SYMBOL(call_blocking_lsm_analtifier);
 
-int register_blocking_lsm_notifier(struct notifier_block *nb)
+int register_blocking_lsm_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&blocking_lsm_notifier_chain,
+	return blocking_analtifier_chain_register(&blocking_lsm_analtifier_chain,
 						nb);
 }
-EXPORT_SYMBOL(register_blocking_lsm_notifier);
+EXPORT_SYMBOL(register_blocking_lsm_analtifier);
 
-int unregister_blocking_lsm_notifier(struct notifier_block *nb)
+int unregister_blocking_lsm_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&blocking_lsm_notifier_chain,
+	return blocking_analtifier_chain_unregister(&blocking_lsm_analtifier_chain,
 						  nb);
 }
-EXPORT_SYMBOL(unregister_blocking_lsm_notifier);
+EXPORT_SYMBOL(unregister_blocking_lsm_analtifier);
 
 /**
  * lsm_cred_alloc - allocate a composite cred blob
@@ -602,7 +602,7 @@ EXPORT_SYMBOL(unregister_blocking_lsm_notifier);
  *
  * Allocate the cred blob for all the modules
  *
- * Returns 0, or -ENOMEM if memory can't be allocated.
+ * Returns 0, or -EANALMEM if memory can't be allocated.
  */
 static int lsm_cred_alloc(struct cred *cred, gfp_t gfp)
 {
@@ -613,7 +613,7 @@ static int lsm_cred_alloc(struct cred *cred, gfp_t gfp)
 
 	cred->security = kzalloc(blob_sizes.lbs_cred, gfp);
 	if (cred->security == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -637,7 +637,7 @@ static void __init lsm_early_cred(struct cred *cred)
  *
  * Allocate the file blob for all the modules
  *
- * Returns 0, or -ENOMEM if memory can't be allocated.
+ * Returns 0, or -EANALMEM if memory can't be allocated.
  */
 static int lsm_file_alloc(struct file *file)
 {
@@ -648,28 +648,28 @@ static int lsm_file_alloc(struct file *file)
 
 	file->f_security = kmem_cache_zalloc(lsm_file_cache, GFP_KERNEL);
 	if (file->f_security == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
 /**
- * lsm_inode_alloc - allocate a composite inode blob
- * @inode: the inode that needs a blob
+ * lsm_ianalde_alloc - allocate a composite ianalde blob
+ * @ianalde: the ianalde that needs a blob
  *
- * Allocate the inode blob for all the modules
+ * Allocate the ianalde blob for all the modules
  *
- * Returns 0, or -ENOMEM if memory can't be allocated.
+ * Returns 0, or -EANALMEM if memory can't be allocated.
  */
-int lsm_inode_alloc(struct inode *inode)
+int lsm_ianalde_alloc(struct ianalde *ianalde)
 {
-	if (!lsm_inode_cache) {
-		inode->i_security = NULL;
+	if (!lsm_ianalde_cache) {
+		ianalde->i_security = NULL;
 		return 0;
 	}
 
-	inode->i_security = kmem_cache_zalloc(lsm_inode_cache, GFP_NOFS);
-	if (inode->i_security == NULL)
-		return -ENOMEM;
+	ianalde->i_security = kmem_cache_zalloc(lsm_ianalde_cache, GFP_ANALFS);
+	if (ianalde->i_security == NULL)
+		return -EANALMEM;
 	return 0;
 }
 
@@ -679,7 +679,7 @@ int lsm_inode_alloc(struct inode *inode)
  *
  * Allocate the task blob for all the modules
  *
- * Returns 0, or -ENOMEM if memory can't be allocated.
+ * Returns 0, or -EANALMEM if memory can't be allocated.
  */
 static int lsm_task_alloc(struct task_struct *task)
 {
@@ -690,7 +690,7 @@ static int lsm_task_alloc(struct task_struct *task)
 
 	task->security = kzalloc(blob_sizes.lbs_task, GFP_KERNEL);
 	if (task->security == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -700,7 +700,7 @@ static int lsm_task_alloc(struct task_struct *task)
  *
  * Allocate the ipc blob for all the modules
  *
- * Returns 0, or -ENOMEM if memory can't be allocated.
+ * Returns 0, or -EANALMEM if memory can't be allocated.
  */
 static int lsm_ipc_alloc(struct kern_ipc_perm *kip)
 {
@@ -711,7 +711,7 @@ static int lsm_ipc_alloc(struct kern_ipc_perm *kip)
 
 	kip->security = kzalloc(blob_sizes.lbs_ipc, GFP_KERNEL);
 	if (kip->security == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -721,7 +721,7 @@ static int lsm_ipc_alloc(struct kern_ipc_perm *kip)
  *
  * Allocate the ipc blob for all the modules
  *
- * Returns 0, or -ENOMEM if memory can't be allocated.
+ * Returns 0, or -EANALMEM if memory can't be allocated.
  */
 static int lsm_msg_msg_alloc(struct msg_msg *mp)
 {
@@ -732,7 +732,7 @@ static int lsm_msg_msg_alloc(struct msg_msg *mp)
 
 	mp->security = kzalloc(blob_sizes.lbs_msg_msg, GFP_KERNEL);
 	if (mp->security == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -756,7 +756,7 @@ static void __init lsm_early_task(struct task_struct *task)
  *
  * Allocate the superblock blob for all the modules
  *
- * Returns 0, or -ENOMEM if memory can't be allocated.
+ * Returns 0, or -EANALMEM if memory can't be allocated.
  */
 static int lsm_superblock_alloc(struct super_block *sb)
 {
@@ -767,7 +767,7 @@ static int lsm_superblock_alloc(struct super_block *sb)
 
 	sb->s_security = kzalloc(blob_sizes.lbs_superblock, GFP_KERNEL);
 	if (sb->s_security == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -782,8 +782,8 @@ static int lsm_superblock_alloc(struct super_block *sb)
  *
  * Fill all of the fields in a userspace lsm_ctx structure.
  *
- * Returns 0 on success, -E2BIG if userspace buffer is not large enough,
- * -EFAULT on a copyout error, -ENOMEM if memory can't be allocated.
+ * Returns 0 on success, -E2BIG if userspace buffer is analt large eanalugh,
+ * -EFAULT on a copyout error, -EANALMEM if memory can't be allocated.
  */
 int lsm_fill_user_ctx(struct lsm_ctx __user *uctx, size_t *uctx_len,
 		      void *val, size_t val_len,
@@ -801,7 +801,7 @@ int lsm_fill_user_ctx(struct lsm_ctx __user *uctx, size_t *uctx_len,
 
 	nctx = kzalloc(nctx_len, GFP_KERNEL);
 	if (nctx == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	nctx->id = id;
@@ -842,7 +842,7 @@ out:
  * Hook list operation macros.
  *
  * call_void_hook:
- *	This is a hook that does not return a value.
+ *	This is a hook that does analt return a value.
  *
  * call_int_hook:
  *	This is a hook that returns a value.
@@ -1091,19 +1091,19 @@ int security_settime64(const struct timespec64 *ts, const struct timezone *tz)
 }
 
 /**
- * security_vm_enough_memory_mm() - Check if allocating a new mem map is allowed
+ * security_vm_eanalugh_memory_mm() - Check if allocating a new mem map is allowed
  * @mm: mm struct
  * @pages: number of pages
  *
  * Check permissions for allocating a new virtual mapping.  If all LSMs return
- * a positive value, __vm_enough_memory() will be called with cap_sys_admin
- * set. If at least one LSM returns 0 or negative, __vm_enough_memory() will be
+ * a positive value, __vm_eanalugh_memory() will be called with cap_sys_admin
+ * set. If at least one LSM returns 0 or negative, __vm_eanalugh_memory() will be
  * called with cap_sys_admin cleared.
  *
  * Return: Returns 0 if permission is granted by the LSM infrastructure to the
  *         caller.
  */
-int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
+int security_vm_eanalugh_memory_mm(struct mm_struct *mm, long pages)
 {
 	struct security_hook_list *hp;
 	int cap_sys_admin = 1;
@@ -1111,26 +1111,26 @@ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 
 	/*
 	 * The module will respond with a positive value if
-	 * it thinks the __vm_enough_memory() call should be
+	 * it thinks the __vm_eanalugh_memory() call should be
 	 * made with the cap_sys_admin set. If all of the modules
 	 * agree that it should be set it will. If any module
-	 * thinks it should not be set it won't.
+	 * thinks it should analt be set it won't.
 	 */
-	hlist_for_each_entry(hp, &security_hook_heads.vm_enough_memory, list) {
-		rc = hp->hook.vm_enough_memory(mm, pages);
+	hlist_for_each_entry(hp, &security_hook_heads.vm_eanalugh_memory, list) {
+		rc = hp->hook.vm_eanalugh_memory(mm, pages);
 		if (rc <= 0) {
 			cap_sys_admin = 0;
 			break;
 		}
 	}
-	return __vm_enough_memory(mm, pages, cap_sys_admin);
+	return __vm_eanalugh_memory(mm, pages, cap_sys_admin);
 }
 
 /**
  * security_bprm_creds_for_exec() - Prepare the credentials for exec()
  * @bprm: binary program information
  *
- * If the setup in prepare_exec_creds did not setup @bprm->cred->security
+ * If the setup in prepare_exec_creds did analt setup @bprm->cred->security
  * properly for executing @bprm->file, update the LSM's portion of
  * @bprm->cred->security to be what commit_creds needs to install for the new
  * program.  This hook may also optionally check permissions (e.g. for
@@ -1153,7 +1153,7 @@ int security_bprm_creds_for_exec(struct linux_binprm *bprm)
  * If @file is setpcap, suid, sgid or otherwise marked to change privilege upon
  * exec, update @bprm->cred to reflect that change. This is called after
  * finding the binary that will be executed without an interpreter.  This
- * ensures that the credentials will not be derived from a script that the
+ * ensures that the credentials will analt be derived from a script that the
  * binary will need to reopen, which when reopend may end up being a completely
  * different file.  This hook may also optionally check permissions (e.g. for
  * transitions between security domains).  The hook must set @bprm->secureexec
@@ -1200,7 +1200,7 @@ int security_bprm_check(struct linux_binprm *bprm)
  * by @current->cred and the information set in @bprm->cred by the
  * bprm_creds_for_exec hook.  @bprm points to the linux_binprm structure.  This
  * hook is a good place to perform state changes on the process such as closing
- * open file descriptors to which access will no longer be granted when the
+ * open file descriptors to which access will anal longer be granted when the
  * attributes are changed.  This is called immediately before commit_creds().
  */
 void security_bprm_committing_creds(const struct linux_binprm *bprm)
@@ -1216,7 +1216,7 @@ void security_bprm_committing_creds(const struct linux_binprm *bprm)
  * being transformed by an execve operation.  The new credentials have, by this
  * point, been set to @current->cred.  @bprm points to the linux_binprm
  * structure.  This hook is a good place to perform state changes on the
- * process such as clearing out non-inheritable signal state.  This is called
+ * process such as clearing out analn-inheritable signal state.  This is called
  * immediately after commit_creds().
  */
 void security_bprm_committed_creds(const struct linux_binprm *bprm)
@@ -1263,7 +1263,7 @@ int security_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
  * consume the parameter or return it to the caller for use elsewhere.
  *
  * Return: If the parameter is used by the LSM it should return 0, if it is
- *         returned to the caller -ENOPARAM is returned, otherwise a negative
+ *         returned to the caller -EANALPARAM is returned, otherwise a negative
  *         error code is returned.
  */
 int security_fs_context_parse_param(struct fs_context *fc,
@@ -1271,14 +1271,14 @@ int security_fs_context_parse_param(struct fs_context *fc,
 {
 	struct security_hook_list *hp;
 	int trc;
-	int rc = -ENOPARAM;
+	int rc = -EANALPARAM;
 
 	hlist_for_each_entry(hp, &security_hook_heads.fs_context_parse_param,
 			     list) {
 		trc = hp->hook.fs_context_parse_param(fc, param);
 		if (trc == 0)
 			rc = 0;
-		else if (trc != -ENOPARAM)
+		else if (trc != -EANALPARAM)
 			return trc;
 	}
 	return rc;
@@ -1310,7 +1310,7 @@ int security_sb_alloc(struct super_block *sb)
  * security_sb_delete() - Release super_block LSM associated objects
  * @sb: filesystem superblock
  *
- * Release objects tied to a superblock (e.g. inodes).  @sb contains the
+ * Release objects tied to a superblock (e.g. ianaldes).  @sb contains the
  * super_block structure being released.
  */
 void security_sb_delete(struct super_block *sb)
@@ -1380,11 +1380,11 @@ int security_sb_mnt_opts_compat(struct super_block *sb,
 EXPORT_SYMBOL(security_sb_mnt_opts_compat);
 
 /**
- * security_sb_remount() - Verify no incompatible mount changes during remount
+ * security_sb_remount() - Verify anal incompatible mount changes during remount
  * @sb: filesystem superblock
  * @mnt_opts: (re)mount options
  *
- * Extracts security system specific mount options and verifies no changes are
+ * Extracts security system specific mount options and verifies anal changes are
  * being made to those options.
  *
  * Return: Returns 0 if permission is granted.
@@ -1506,7 +1506,7 @@ int security_sb_set_mnt_opts(struct super_block *sb,
 			     unsigned long *set_kern_flags)
 {
 	return call_int_hook(sb_set_mnt_opts,
-			     mnt_opts ? -EOPNOTSUPP : 0, sb,
+			     mnt_opts ? -EOPANALTSUPP : 0, sb,
 			     mnt_opts, kern_flags, set_kern_flags);
 }
 EXPORT_SYMBOL(security_sb_set_mnt_opts);
@@ -1518,7 +1518,7 @@ EXPORT_SYMBOL(security_sb_set_mnt_opts);
  * @kern_flags: kernel flags (in)
  * @set_kern_flags: kernel flags (out)
  *
- * Copy all security options from a given superblock to another.
+ * Copy all security options from a given superblock to aanalther.
  *
  * Return: Returns 0 on success, error on failure.
  */
@@ -1548,7 +1548,7 @@ int security_move_mount(const struct path *from_path,
 }
 
 /**
- * security_path_notify() - Check if setting a watch is allowed
+ * security_path_analtify() - Check if setting a watch is allowed
  * @path: file path
  * @mask: event mask
  * @obj_type: file path type
@@ -1558,64 +1558,64 @@ int security_move_mount(const struct path *from_path,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_path_notify(const struct path *path, u64 mask,
+int security_path_analtify(const struct path *path, u64 mask,
 			 unsigned int obj_type)
 {
-	return call_int_hook(path_notify, 0, path, mask, obj_type);
+	return call_int_hook(path_analtify, 0, path, mask, obj_type);
 }
 
 /**
- * security_inode_alloc() - Allocate an inode LSM blob
- * @inode: the inode
+ * security_ianalde_alloc() - Allocate an ianalde LSM blob
+ * @ianalde: the ianalde
  *
- * Allocate and attach a security structure to @inode->i_security.  The
- * i_security field is initialized to NULL when the inode structure is
+ * Allocate and attach a security structure to @ianalde->i_security.  The
+ * i_security field is initialized to NULL when the ianalde structure is
  * allocated.
  *
  * Return: Return 0 if operation was successful.
  */
-int security_inode_alloc(struct inode *inode)
+int security_ianalde_alloc(struct ianalde *ianalde)
 {
-	int rc = lsm_inode_alloc(inode);
+	int rc = lsm_ianalde_alloc(ianalde);
 
 	if (unlikely(rc))
 		return rc;
-	rc = call_int_hook(inode_alloc_security, 0, inode);
+	rc = call_int_hook(ianalde_alloc_security, 0, ianalde);
 	if (unlikely(rc))
-		security_inode_free(inode);
+		security_ianalde_free(ianalde);
 	return rc;
 }
 
-static void inode_free_by_rcu(struct rcu_head *head)
+static void ianalde_free_by_rcu(struct rcu_head *head)
 {
 	/*
-	 * The rcu head is at the start of the inode blob
+	 * The rcu head is at the start of the ianalde blob
 	 */
-	kmem_cache_free(lsm_inode_cache, head);
+	kmem_cache_free(lsm_ianalde_cache, head);
 }
 
 /**
- * security_inode_free() - Free an inode's LSM blob
- * @inode: the inode
+ * security_ianalde_free() - Free an ianalde's LSM blob
+ * @ianalde: the ianalde
  *
- * Deallocate the inode security structure and set @inode->i_security to NULL.
+ * Deallocate the ianalde security structure and set @ianalde->i_security to NULL.
  */
-void security_inode_free(struct inode *inode)
+void security_ianalde_free(struct ianalde *ianalde)
 {
-	integrity_inode_free(inode);
-	call_void_hook(inode_free_security, inode);
+	integrity_ianalde_free(ianalde);
+	call_void_hook(ianalde_free_security, ianalde);
 	/*
-	 * The inode may still be referenced in a path walk and
-	 * a call to security_inode_permission() can be made
-	 * after inode_free_security() is called. Ideally, the VFS
+	 * The ianalde may still be referenced in a path walk and
+	 * a call to security_ianalde_permission() can be made
+	 * after ianalde_free_security() is called. Ideally, the VFS
 	 * wouldn't do this, but fixing that is a much harder
-	 * job. For now, simply free the i_security via RCU, and
-	 * leave the current inode->i_security pointer intact.
-	 * The inode will be freed after the RCU grace period too.
+	 * job. For analw, simply free the i_security via RCU, and
+	 * leave the current ianalde->i_security pointer intact.
+	 * The ianalde will be freed after the RCU grace period too.
 	 */
-	if (inode->i_security)
-		call_rcu((struct rcu_head *)inode->i_security,
-			 inode_free_by_rcu);
+	if (ianalde->i_security)
+		call_rcu((struct rcu_head *)ianalde->i_security,
+			 ianalde_free_by_rcu);
 }
 
 /**
@@ -1627,9 +1627,9 @@ void security_inode_free(struct inode *inode)
  * @ctx: pointer to the resulting LSM context
  * @ctxlen: length of @ctx
  *
- * Compute a context for a dentry as the inode is not yet available since NFSv4
- * has no label backed by an EA anyway.  It is important to note that
- * @xattr_name does not need to be free'd by the caller, it is a static string.
+ * Compute a context for a dentry as the ianalde is analt yet available since NFSv4
+ * has anal label backed by an EA anyway.  It is important to analte that
+ * @xattr_name does analt need to be free'd by the caller, it is a static string.
  *
  * Return: Returns 0 on success, negative values on failure.
  */
@@ -1663,9 +1663,9 @@ EXPORT_SYMBOL(security_dentry_init_security);
  * @old: creds to use for LSM context calculations
  * @new: creds to modify
  *
- * Compute a context for a dentry as the inode is not yet available and set
+ * Compute a context for a dentry as the ianalde is analt yet available and set
  * that context in passed in creds so that new files are created using that
- * context. Context is calculated using the passed in creds and not the creds
+ * context. Context is calculated using the passed in creds and analt the creds
  * of the caller.
  *
  * Return: Returns 0 on success, error on failure.
@@ -1680,17 +1680,17 @@ int security_dentry_create_files_as(struct dentry *dentry, int mode,
 EXPORT_SYMBOL(security_dentry_create_files_as);
 
 /**
- * security_inode_init_security() - Initialize an inode's LSM context
- * @inode: the inode
+ * security_ianalde_init_security() - Initialize an ianalde's LSM context
+ * @ianalde: the ianalde
  * @dir: parent directory
  * @qstr: last component of the pathname
  * @initxattrs: callback function to write xattrs
  * @fs_data: filesystem specific data
  *
  * Obtain the security attribute name suffix and value to set on a newly
- * created inode and set up the incore security field for the new inode.  This
- * hook is called by the fs code as part of the inode creation transaction and
- * provides for atomic labeling of the inode, unlike the post_create/mkdir/...
+ * created ianalde and set up the incore security field for the new ianalde.  This
+ * hook is called by the fs code as part of the ianalde creation transaction and
+ * provides for atomic labeling of the ianalde, unlike the post_create/mkdir/...
  * hooks called by the VFS.
  *
  * The hook function is expected to populate the xattrs array, by calling
@@ -1699,22 +1699,22 @@ EXPORT_SYMBOL(security_dentry_create_files_as);
  * slot, the hook function should set ->name to the attribute name suffix
  * (e.g. selinux), to allocate ->value (will be freed by the caller) and set it
  * to the attribute value, to set ->value_len to the length of the value.  If
- * the security module does not use security attributes or does not wish to put
- * a security attribute on this particular inode, then it should return
- * -EOPNOTSUPP to skip this processing.
+ * the security module does analt use security attributes or does analt wish to put
+ * a security attribute on this particular ianalde, then it should return
+ * -EOPANALTSUPP to skip this processing.
  *
- * Return: Returns 0 if the LSM successfully initialized all of the inode
+ * Return: Returns 0 if the LSM successfully initialized all of the ianalde
  *         security attributes that are required, negative values otherwise.
  */
-int security_inode_init_security(struct inode *inode, struct inode *dir,
+int security_ianalde_init_security(struct ianalde *ianalde, struct ianalde *dir,
 				 const struct qstr *qstr,
 				 const initxattrs initxattrs, void *fs_data)
 {
 	struct security_hook_list *hp;
 	struct xattr *new_xattrs = NULL;
-	int ret = -EOPNOTSUPP, xattr_count = 0;
+	int ret = -EOPANALTSUPP, xattr_count = 0;
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(ianalde)))
 		return 0;
 
 	if (!blob_sizes.lbs_xattr_count)
@@ -1723,20 +1723,20 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 	if (initxattrs) {
 		/* Allocate +1 for EVM and +1 as terminator. */
 		new_xattrs = kcalloc(blob_sizes.lbs_xattr_count + 2,
-				     sizeof(*new_xattrs), GFP_NOFS);
+				     sizeof(*new_xattrs), GFP_ANALFS);
 		if (!new_xattrs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
-	hlist_for_each_entry(hp, &security_hook_heads.inode_init_security,
+	hlist_for_each_entry(hp, &security_hook_heads.ianalde_init_security,
 			     list) {
-		ret = hp->hook.inode_init_security(inode, dir, qstr, new_xattrs,
+		ret = hp->hook.ianalde_init_security(ianalde, dir, qstr, new_xattrs,
 						  &xattr_count);
-		if (ret && ret != -EOPNOTSUPP)
+		if (ret && ret != -EOPANALTSUPP)
 			goto out;
 		/*
-		 * As documented in lsm_hooks.h, -EOPNOTSUPP in this context
-		 * means that the LSM is not willing to provide an xattr, not
+		 * As documented in lsm_hooks.h, -EOPANALTSUPP in this context
+		 * means that the LSM is analt willing to provide an xattr, analt
 		 * that it wants to signal an error. Thus, continue to invoke
 		 * the remaining LSMs.
 		 */
@@ -1746,60 +1746,60 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 	if (!xattr_count)
 		goto out;
 
-	ret = evm_inode_init_security(inode, dir, qstr, new_xattrs,
+	ret = evm_ianalde_init_security(ianalde, dir, qstr, new_xattrs,
 				      &xattr_count);
 	if (ret)
 		goto out;
-	ret = initxattrs(inode, new_xattrs, fs_data);
+	ret = initxattrs(ianalde, new_xattrs, fs_data);
 out:
 	for (; xattr_count > 0; xattr_count--)
 		kfree(new_xattrs[xattr_count - 1].value);
 	kfree(new_xattrs);
-	return (ret == -EOPNOTSUPP) ? 0 : ret;
+	return (ret == -EOPANALTSUPP) ? 0 : ret;
 }
-EXPORT_SYMBOL(security_inode_init_security);
+EXPORT_SYMBOL(security_ianalde_init_security);
 
 /**
- * security_inode_init_security_anon() - Initialize an anonymous inode
- * @inode: the inode
- * @name: the anonymous inode class
- * @context_inode: an optional related inode
+ * security_ianalde_init_security_aanaln() - Initialize an aanalnymous ianalde
+ * @ianalde: the ianalde
+ * @name: the aanalnymous ianalde class
+ * @context_ianalde: an optional related ianalde
  *
- * Set up the incore security field for the new anonymous inode and return
- * whether the inode creation is permitted by the security module or not.
+ * Set up the incore security field for the new aanalnymous ianalde and return
+ * whether the ianalde creation is permitted by the security module or analt.
  *
  * Return: Returns 0 on success, -EACCES if the security module denies the
- * creation of this inode, or another -errno upon other errors.
+ * creation of this ianalde, or aanalther -erranal upon other errors.
  */
-int security_inode_init_security_anon(struct inode *inode,
+int security_ianalde_init_security_aanaln(struct ianalde *ianalde,
 				      const struct qstr *name,
-				      const struct inode *context_inode)
+				      const struct ianalde *context_ianalde)
 {
-	return call_int_hook(inode_init_security_anon, 0, inode, name,
-			     context_inode);
+	return call_int_hook(ianalde_init_security_aanaln, 0, ianalde, name,
+			     context_ianalde);
 }
 
 #ifdef CONFIG_SECURITY_PATH
 /**
- * security_path_mknod() - Check if creating a special file is allowed
+ * security_path_mkanald() - Check if creating a special file is allowed
  * @dir: parent directory
  * @dentry: new file
  * @mode: new file mode
  * @dev: device number
  *
- * Check permissions when creating a file. Note that this hook is called even
- * if mknod operation is being done for a regular file.
+ * Check permissions when creating a file. Analte that this hook is called even
+ * if mkanald operation is being done for a regular file.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_path_mknod(const struct path *dir, struct dentry *dentry,
+int security_path_mkanald(const struct path *dir, struct dentry *dentry,
 			umode_t mode, unsigned int dev)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dir->dentry))))
 		return 0;
-	return call_int_hook(path_mknod, 0, dir, dentry, mode, dev);
+	return call_int_hook(path_mkanald, 0, dir, dentry, mode, dev);
 }
-EXPORT_SYMBOL(security_path_mknod);
+EXPORT_SYMBOL(security_path_mkanald);
 
 /**
  * security_path_mkdir() - Check if creating a new directory is allowed
@@ -1814,7 +1814,7 @@ EXPORT_SYMBOL(security_path_mknod);
 int security_path_mkdir(const struct path *dir, struct dentry *dentry,
 			umode_t mode)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dir->dentry))))
 		return 0;
 	return call_int_hook(path_mkdir, 0, dir, dentry, mode);
 }
@@ -1831,7 +1831,7 @@ EXPORT_SYMBOL(security_path_mkdir);
  */
 int security_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dir->dentry))))
 		return 0;
 	return call_int_hook(path_rmdir, 0, dir, dentry);
 }
@@ -1847,7 +1847,7 @@ int security_path_rmdir(const struct path *dir, struct dentry *dentry)
  */
 int security_path_unlink(const struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dir->dentry))))
 		return 0;
 	return call_int_hook(path_unlink, 0, dir, dentry);
 }
@@ -1866,7 +1866,7 @@ EXPORT_SYMBOL(security_path_unlink);
 int security_path_symlink(const struct path *dir, struct dentry *dentry,
 			  const char *old_name)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dir->dentry))))
 		return 0;
 	return call_int_hook(path_symlink, 0, dir, dentry, old_name);
 }
@@ -1884,7 +1884,7 @@ int security_path_symlink(const struct path *dir, struct dentry *dentry,
 int security_path_link(struct dentry *old_dentry, const struct path *new_dir,
 		       struct dentry *new_dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(old_dentry))))
 		return 0;
 	return call_int_hook(path_link, 0, old_dentry, new_dir, new_dentry);
 }
@@ -1905,9 +1905,9 @@ int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
 			 const struct path *new_dir, struct dentry *new_dentry,
 			 unsigned int flags)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry)) ||
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(old_dentry)) ||
 		     (d_is_positive(new_dentry) &&
-		      IS_PRIVATE(d_backing_inode(new_dentry)))))
+		      IS_PRIVATE(d_backing_ianalde(new_dentry)))))
 		return 0;
 
 	return call_int_hook(path_rename, 0, old_dir, old_dentry, new_dir,
@@ -1919,7 +1919,7 @@ EXPORT_SYMBOL(security_path_rename);
  * security_path_truncate() - Check if truncating a file is allowed
  * @path: file
  *
- * Check permission before truncating the file indicated by path.  Note that
+ * Check permission before truncating the file indicated by path.  Analte that
  * truncation permissions may also be checked based on already opened files,
  * using the security_file_truncate() hook.
  *
@@ -1927,7 +1927,7 @@ EXPORT_SYMBOL(security_path_rename);
  */
 int security_path_truncate(const struct path *path)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(path->dentry))))
 		return 0;
 	return call_int_hook(path_truncate, 0, path);
 }
@@ -1945,7 +1945,7 @@ int security_path_truncate(const struct path *path)
  */
 int security_path_chmod(const struct path *path, umode_t mode)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(path->dentry))))
 		return 0;
 	return call_int_hook(path_chmod, 0, path, mode);
 }
@@ -1962,7 +1962,7 @@ int security_path_chmod(const struct path *path, umode_t mode)
  */
 int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(path->dentry))))
 		return 0;
 	return call_int_hook(path_chown, 0, path, uid, gid);
 }
@@ -1982,7 +1982,7 @@ int security_path_chroot(const struct path *path)
 #endif /* CONFIG_SECURITY_PATH */
 
 /**
- * security_inode_create() - Check if creating a file is allowed
+ * security_ianalde_create() - Check if creating a file is allowed
  * @dir: the parent directory
  * @dentry: the file being created
  * @mode: requested file mode
@@ -1991,17 +1991,17 @@ int security_path_chroot(const struct path *path)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_create(struct inode *dir, struct dentry *dentry,
+int security_ianalde_create(struct ianalde *dir, struct dentry *dentry,
 			  umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_create, 0, dir, dentry, mode);
+	return call_int_hook(ianalde_create, 0, dir, dentry, mode);
 }
-EXPORT_SYMBOL_GPL(security_inode_create);
+EXPORT_SYMBOL_GPL(security_ianalde_create);
 
 /**
- * security_inode_link() - Check if creating a hard link is allowed
+ * security_ianalde_link() - Check if creating a hard link is allowed
  * @old_dentry: existing file
  * @dir: new parent directory
  * @new_dentry: new link
@@ -2010,16 +2010,16 @@ EXPORT_SYMBOL_GPL(security_inode_create);
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_link(struct dentry *old_dentry, struct inode *dir,
+int security_ianalde_link(struct dentry *old_dentry, struct ianalde *dir,
 			struct dentry *new_dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(old_dentry))))
 		return 0;
-	return call_int_hook(inode_link, 0, old_dentry, dir, new_dentry);
+	return call_int_hook(ianalde_link, 0, old_dentry, dir, new_dentry);
 }
 
 /**
- * security_inode_unlink() - Check if removing a hard link is allowed
+ * security_ianalde_unlink() - Check if removing a hard link is allowed
  * @dir: parent directory
  * @dentry: file
  *
@@ -2027,15 +2027,15 @@ int security_inode_link(struct dentry *old_dentry, struct inode *dir,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_unlink(struct inode *dir, struct dentry *dentry)
+int security_ianalde_unlink(struct ianalde *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
-	return call_int_hook(inode_unlink, 0, dir, dentry);
+	return call_int_hook(ianalde_unlink, 0, dir, dentry);
 }
 
 /**
- * security_inode_symlink() - Check if creating a symbolic link is allowed
+ * security_ianalde_symlink() - Check if creating a symbolic link is allowed
  * @dir: parent directory
  * @dentry: symbolic link
  * @old_name: existing filename
@@ -2044,35 +2044,35 @@ int security_inode_unlink(struct inode *dir, struct dentry *dentry)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_symlink(struct inode *dir, struct dentry *dentry,
+int security_ianalde_symlink(struct ianalde *dir, struct dentry *dentry,
 			   const char *old_name)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_symlink, 0, dir, dentry, old_name);
+	return call_int_hook(ianalde_symlink, 0, dir, dentry, old_name);
 }
 
 /**
- * security_inode_mkdir() - Check if creation a new director is allowed
+ * security_ianalde_mkdir() - Check if creation a new director is allowed
  * @dir: parent directory
  * @dentry: new directory
  * @mode: new directory mode
  *
  * Check permissions to create a new directory in the existing directory
- * associated with inode structure @dir.
+ * associated with ianalde structure @dir.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+int security_ianalde_mkdir(struct ianalde *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_mkdir, 0, dir, dentry, mode);
+	return call_int_hook(ianalde_mkdir, 0, dir, dentry, mode);
 }
-EXPORT_SYMBOL_GPL(security_inode_mkdir);
+EXPORT_SYMBOL_GPL(security_ianalde_mkdir);
 
 /**
- * security_inode_rmdir() - Check if removing a directory is allowed
+ * security_ianalde_rmdir() - Check if removing a directory is allowed
  * @dir: parent directory
  * @dentry: directory to be removed
  *
@@ -2080,37 +2080,37 @@ EXPORT_SYMBOL_GPL(security_inode_mkdir);
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
+int security_ianalde_rmdir(struct ianalde *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
-	return call_int_hook(inode_rmdir, 0, dir, dentry);
+	return call_int_hook(ianalde_rmdir, 0, dir, dentry);
 }
 
 /**
- * security_inode_mknod() - Check if creating a special file is allowed
+ * security_ianalde_mkanald() - Check if creating a special file is allowed
  * @dir: parent directory
  * @dentry: new file
  * @mode: new file mode
  * @dev: device number
  *
  * Check permissions when creating a special file (or a socket or a fifo file
- * created via the mknod system call).  Note that if mknod operation is being
- * done for a regular file, then the create hook will be called and not this
+ * created via the mkanald system call).  Analte that if mkanald operation is being
+ * done for a regular file, then the create hook will be called and analt this
  * hook.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_mknod(struct inode *dir, struct dentry *dentry,
+int security_ianalde_mkanald(struct ianalde *dir, struct dentry *dentry,
 			 umode_t mode, dev_t dev)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_mknod, 0, dir, dentry, mode, dev);
+	return call_int_hook(ianalde_mkanald, 0, dir, dentry, mode, dev);
 }
 
 /**
- * security_inode_rename() - Check if renaming a file is allowed
+ * security_ianalde_rename() - Check if renaming a file is allowed
  * @old_dir: parent directory of the old file
  * @old_dentry: the old file
  * @new_dir: parent directory of the new file
@@ -2121,125 +2121,125 @@ int security_inode_mknod(struct inode *dir, struct dentry *dentry,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
-			  struct inode *new_dir, struct dentry *new_dentry,
+int security_ianalde_rename(struct ianalde *old_dir, struct dentry *old_dentry,
+			  struct ianalde *new_dir, struct dentry *new_dentry,
 			  unsigned int flags)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry)) ||
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(old_dentry)) ||
 		     (d_is_positive(new_dentry) &&
-		      IS_PRIVATE(d_backing_inode(new_dentry)))))
+		      IS_PRIVATE(d_backing_ianalde(new_dentry)))))
 		return 0;
 
 	if (flags & RENAME_EXCHANGE) {
-		int err = call_int_hook(inode_rename, 0, new_dir, new_dentry,
+		int err = call_int_hook(ianalde_rename, 0, new_dir, new_dentry,
 					old_dir, old_dentry);
 		if (err)
 			return err;
 	}
 
-	return call_int_hook(inode_rename, 0, old_dir, old_dentry,
+	return call_int_hook(ianalde_rename, 0, old_dir, old_dentry,
 			     new_dir, new_dentry);
 }
 
 /**
- * security_inode_readlink() - Check if reading a symbolic link is allowed
+ * security_ianalde_readlink() - Check if reading a symbolic link is allowed
  * @dentry: link
  *
  * Check the permission to read the symbolic link.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_readlink(struct dentry *dentry)
+int security_ianalde_readlink(struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
-	return call_int_hook(inode_readlink, 0, dentry);
+	return call_int_hook(ianalde_readlink, 0, dentry);
 }
 
 /**
- * security_inode_follow_link() - Check if following a symbolic link is allowed
+ * security_ianalde_follow_link() - Check if following a symbolic link is allowed
  * @dentry: link dentry
- * @inode: link inode
+ * @ianalde: link ianalde
  * @rcu: true if in RCU-walk mode
  *
  * Check permission to follow a symbolic link when looking up a pathname.  If
- * @rcu is true, @inode is not stable.
+ * @rcu is true, @ianalde is analt stable.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
+int security_ianalde_follow_link(struct dentry *dentry, struct ianalde *ianalde,
 			       bool rcu)
 {
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(ianalde)))
 		return 0;
-	return call_int_hook(inode_follow_link, 0, dentry, inode, rcu);
+	return call_int_hook(ianalde_follow_link, 0, dentry, ianalde, rcu);
 }
 
 /**
- * security_inode_permission() - Check if accessing an inode is allowed
- * @inode: inode
+ * security_ianalde_permission() - Check if accessing an ianalde is allowed
+ * @ianalde: ianalde
  * @mask: access mask
  *
- * Check permission before accessing an inode.  This hook is called by the
+ * Check permission before accessing an ianalde.  This hook is called by the
  * existing Linux permission function, so a security module can use it to
- * provide additional checking for existing Linux permission checks.  Notice
+ * provide additional checking for existing Linux permission checks.  Analtice
  * that this hook is called when a file is opened (as well as many other
  * operations), whereas the file_security_ops permission hook is called when
  * the actual read/write operations are performed.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_permission(struct inode *inode, int mask)
+int security_ianalde_permission(struct ianalde *ianalde, int mask)
 {
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(ianalde)))
 		return 0;
-	return call_int_hook(inode_permission, 0, inode, mask);
+	return call_int_hook(ianalde_permission, 0, ianalde, mask);
 }
 
 /**
- * security_inode_setattr() - Check if setting file attributes is allowed
+ * security_ianalde_setattr() - Check if setting file attributes is allowed
  * @idmap: idmap of the mount
  * @dentry: file
  * @attr: new attributes
  *
- * Check permission before setting file attributes.  Note that the kernel call
- * to notify_change is performed from several locations, whenever file
+ * Check permission before setting file attributes.  Analte that the kernel call
+ * to analtify_change is performed from several locations, whenever file
  * attributes change (such as when a file is truncated, chown/chmod operations,
  * transferring disk quotas, etc).
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_setattr(struct mnt_idmap *idmap,
+int security_ianalde_setattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
-	ret = call_int_hook(inode_setattr, 0, dentry, attr);
+	ret = call_int_hook(ianalde_setattr, 0, dentry, attr);
 	if (ret)
 		return ret;
-	return evm_inode_setattr(idmap, dentry, attr);
+	return evm_ianalde_setattr(idmap, dentry, attr);
 }
-EXPORT_SYMBOL_GPL(security_inode_setattr);
+EXPORT_SYMBOL_GPL(security_ianalde_setattr);
 
 /**
- * security_inode_getattr() - Check if getting file attributes is allowed
+ * security_ianalde_getattr() - Check if getting file attributes is allowed
  * @path: file
  *
  * Check permission before obtaining file attributes.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_getattr(const struct path *path)
+int security_ianalde_getattr(const struct path *path)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(path->dentry))))
 		return 0;
-	return call_int_hook(inode_getattr, 0, path);
+	return call_int_hook(ianalde_getattr, 0, path);
 }
 
 /**
- * security_inode_setxattr() - Check if setting file xattrs is allowed
+ * security_ianalde_setxattr() - Check if setting file xattrs is allowed
  * @idmap: idmap of the mount
  * @dentry: file
  * @name: xattr name
@@ -2251,33 +2251,33 @@ int security_inode_getattr(const struct path *path)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_setxattr(struct mnt_idmap *idmap,
+int security_ianalde_setxattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
 	/*
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_setxattr, 1, idmap, dentry, name, value,
+	ret = call_int_hook(ianalde_setxattr, 1, idmap, dentry, name, value,
 			    size, flags);
 
 	if (ret == 1)
-		ret = cap_inode_setxattr(dentry, name, value, size, flags);
+		ret = cap_ianalde_setxattr(dentry, name, value, size, flags);
 	if (ret)
 		return ret;
-	ret = ima_inode_setxattr(dentry, name, value, size);
+	ret = ima_ianalde_setxattr(dentry, name, value, size);
 	if (ret)
 		return ret;
-	return evm_inode_setxattr(idmap, dentry, name, value, size);
+	return evm_ianalde_setxattr(idmap, dentry, name, value, size);
 }
 
 /**
- * security_inode_set_acl() - Check if setting posix acls is allowed
+ * security_ianalde_set_acl() - Check if setting posix acls is allowed
  * @idmap: idmap of the mount
  * @dentry: file
  * @acl_name: acl name
@@ -2288,26 +2288,26 @@ int security_inode_setxattr(struct mnt_idmap *idmap,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_set_acl(struct mnt_idmap *idmap,
+int security_ianalde_set_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name,
 			   struct posix_acl *kacl)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
-	ret = call_int_hook(inode_set_acl, 0, idmap, dentry, acl_name,
+	ret = call_int_hook(ianalde_set_acl, 0, idmap, dentry, acl_name,
 			    kacl);
 	if (ret)
 		return ret;
-	ret = ima_inode_set_acl(idmap, dentry, acl_name, kacl);
+	ret = ima_ianalde_set_acl(idmap, dentry, acl_name, kacl);
 	if (ret)
 		return ret;
-	return evm_inode_set_acl(idmap, dentry, acl_name, kacl);
+	return evm_ianalde_set_acl(idmap, dentry, acl_name, kacl);
 }
 
 /**
- * security_inode_get_acl() - Check if reading posix acls is allowed
+ * security_ianalde_get_acl() - Check if reading posix acls is allowed
  * @idmap: idmap of the mount
  * @dentry: file
  * @acl_name: acl name
@@ -2317,16 +2317,16 @@ int security_inode_set_acl(struct mnt_idmap *idmap,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_get_acl(struct mnt_idmap *idmap,
+int security_ianalde_get_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
-	return call_int_hook(inode_get_acl, 0, idmap, dentry, acl_name);
+	return call_int_hook(ianalde_get_acl, 0, idmap, dentry, acl_name);
 }
 
 /**
- * security_inode_remove_acl() - Check if removing a posix acl is allowed
+ * security_ianalde_remove_acl() - Check if removing a posix acl is allowed
  * @idmap: idmap of the mount
  * @dentry: file
  * @acl_name: acl name
@@ -2336,43 +2336,43 @@ int security_inode_get_acl(struct mnt_idmap *idmap,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_remove_acl(struct mnt_idmap *idmap,
+int security_ianalde_remove_acl(struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *acl_name)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
-	ret = call_int_hook(inode_remove_acl, 0, idmap, dentry, acl_name);
+	ret = call_int_hook(ianalde_remove_acl, 0, idmap, dentry, acl_name);
 	if (ret)
 		return ret;
-	ret = ima_inode_remove_acl(idmap, dentry, acl_name);
+	ret = ima_ianalde_remove_acl(idmap, dentry, acl_name);
 	if (ret)
 		return ret;
-	return evm_inode_remove_acl(idmap, dentry, acl_name);
+	return evm_ianalde_remove_acl(idmap, dentry, acl_name);
 }
 
 /**
- * security_inode_post_setxattr() - Update the inode after a setxattr operation
+ * security_ianalde_post_setxattr() - Update the ianalde after a setxattr operation
  * @dentry: file
  * @name: xattr name
  * @value: xattr value
  * @size: xattr value size
  * @flags: flags
  *
- * Update inode security field after successful setxattr operation.
+ * Update ianalde security field after successful setxattr operation.
  */
-void security_inode_post_setxattr(struct dentry *dentry, const char *name,
+void security_ianalde_post_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return;
-	call_void_hook(inode_post_setxattr, dentry, name, value, size, flags);
-	evm_inode_post_setxattr(dentry, name, value, size);
+	call_void_hook(ianalde_post_setxattr, dentry, name, value, size, flags);
+	evm_ianalde_post_setxattr(dentry, name, value, size);
 }
 
 /**
- * security_inode_getxattr() - Check if xattr access is allowed
+ * security_ianalde_getxattr() - Check if xattr access is allowed
  * @dentry: file
  * @name: xattr name
  *
@@ -2381,15 +2381,15 @@ void security_inode_post_setxattr(struct dentry *dentry, const char *name,
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_getxattr(struct dentry *dentry, const char *name)
+int security_ianalde_getxattr(struct dentry *dentry, const char *name)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
-	return call_int_hook(inode_getxattr, 0, dentry, name);
+	return call_int_hook(ianalde_getxattr, 0, dentry, name);
 }
 
 /**
- * security_inode_listxattr() - Check if listing xattrs is allowed
+ * security_ianalde_listxattr() - Check if listing xattrs is allowed
  * @dentry: file
  *
  * Check permission before obtaining the list of extended attribute names for
@@ -2397,15 +2397,15 @@ int security_inode_getxattr(struct dentry *dentry, const char *name)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_listxattr(struct dentry *dentry)
+int security_ianalde_listxattr(struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
-	return call_int_hook(inode_listxattr, 0, dentry);
+	return call_int_hook(ianalde_listxattr, 0, dentry);
 }
 
 /**
- * security_inode_removexattr() - Check if removing an xattr is allowed
+ * security_ianalde_removexattr() - Check if removing an xattr is allowed
  * @idmap: idmap of the mount
  * @dentry: file
  * @name: xattr name
@@ -2415,170 +2415,170 @@ int security_inode_listxattr(struct dentry *dentry)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_removexattr(struct mnt_idmap *idmap,
+int security_ianalde_removexattr(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *name)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_ianalde(dentry))))
 		return 0;
 	/*
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_removexattr, 1, idmap, dentry, name);
+	ret = call_int_hook(ianalde_removexattr, 1, idmap, dentry, name);
 	if (ret == 1)
-		ret = cap_inode_removexattr(idmap, dentry, name);
+		ret = cap_ianalde_removexattr(idmap, dentry, name);
 	if (ret)
 		return ret;
-	ret = ima_inode_removexattr(dentry, name);
+	ret = ima_ianalde_removexattr(dentry, name);
 	if (ret)
 		return ret;
-	return evm_inode_removexattr(idmap, dentry, name);
+	return evm_ianalde_removexattr(idmap, dentry, name);
 }
 
 /**
- * security_inode_need_killpriv() - Check if security_inode_killpriv() required
+ * security_ianalde_need_killpriv() - Check if security_ianalde_killpriv() required
  * @dentry: associated dentry
  *
- * Called when an inode has been changed to determine if
- * security_inode_killpriv() should be called.
+ * Called when an ianalde has been changed to determine if
+ * security_ianalde_killpriv() should be called.
  *
- * Return: Return <0 on error to abort the inode change operation, return 0 if
- *         security_inode_killpriv() does not need to be called, return >0 if
- *         security_inode_killpriv() does need to be called.
+ * Return: Return <0 on error to abort the ianalde change operation, return 0 if
+ *         security_ianalde_killpriv() does analt need to be called, return >0 if
+ *         security_ianalde_killpriv() does need to be called.
  */
-int security_inode_need_killpriv(struct dentry *dentry)
+int security_ianalde_need_killpriv(struct dentry *dentry)
 {
-	return call_int_hook(inode_need_killpriv, 0, dentry);
+	return call_int_hook(ianalde_need_killpriv, 0, dentry);
 }
 
 /**
- * security_inode_killpriv() - The setuid bit is removed, update LSM state
+ * security_ianalde_killpriv() - The setuid bit is removed, update LSM state
  * @idmap: idmap of the mount
  * @dentry: associated dentry
  *
  * The @dentry's setuid bit is being removed.  Remove similar security labels.
- * Called with the dentry->d_inode->i_mutex held.
+ * Called with the dentry->d_ianalde->i_mutex held.
  *
  * Return: Return 0 on success.  If error is returned, then the operation
  *         causing setuid bit removal is failed.
  */
-int security_inode_killpriv(struct mnt_idmap *idmap,
+int security_ianalde_killpriv(struct mnt_idmap *idmap,
 			    struct dentry *dentry)
 {
-	return call_int_hook(inode_killpriv, 0, idmap, dentry);
+	return call_int_hook(ianalde_killpriv, 0, idmap, dentry);
 }
 
 /**
- * security_inode_getsecurity() - Get the xattr security label of an inode
+ * security_ianalde_getsecurity() - Get the xattr security label of an ianalde
  * @idmap: idmap of the mount
- * @inode: inode
+ * @ianalde: ianalde
  * @name: xattr name
  * @buffer: security label buffer
  * @alloc: allocation flag
  *
  * Retrieve a copy of the extended attribute representation of the security
- * label associated with @name for @inode via @buffer.  Note that @name is the
+ * label associated with @name for @ianalde via @buffer.  Analte that @name is the
  * remainder of the attribute name after the security prefix has been removed.
  * @alloc is used to specify if the call should return a value via the buffer
  * or just the value length.
  *
  * Return: Returns size of buffer on success.
  */
-int security_inode_getsecurity(struct mnt_idmap *idmap,
-			       struct inode *inode, const char *name,
+int security_ianalde_getsecurity(struct mnt_idmap *idmap,
+			       struct ianalde *ianalde, const char *name,
 			       void **buffer, bool alloc)
 {
 	struct security_hook_list *hp;
 	int rc;
 
-	if (unlikely(IS_PRIVATE(inode)))
-		return LSM_RET_DEFAULT(inode_getsecurity);
+	if (unlikely(IS_PRIVATE(ianalde)))
+		return LSM_RET_DEFAULT(ianalde_getsecurity);
 	/*
 	 * Only one module will provide an attribute with a given name.
 	 */
-	hlist_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
-		rc = hp->hook.inode_getsecurity(idmap, inode, name, buffer,
+	hlist_for_each_entry(hp, &security_hook_heads.ianalde_getsecurity, list) {
+		rc = hp->hook.ianalde_getsecurity(idmap, ianalde, name, buffer,
 						alloc);
-		if (rc != LSM_RET_DEFAULT(inode_getsecurity))
+		if (rc != LSM_RET_DEFAULT(ianalde_getsecurity))
 			return rc;
 	}
-	return LSM_RET_DEFAULT(inode_getsecurity);
+	return LSM_RET_DEFAULT(ianalde_getsecurity);
 }
 
 /**
- * security_inode_setsecurity() - Set the xattr security label of an inode
- * @inode: inode
+ * security_ianalde_setsecurity() - Set the xattr security label of an ianalde
+ * @ianalde: ianalde
  * @name: xattr name
  * @value: security label
  * @size: length of security label
  * @flags: flags
  *
- * Set the security label associated with @name for @inode from the extended
+ * Set the security label associated with @name for @ianalde from the extended
  * attribute value @value.  @size indicates the size of the @value in bytes.
- * @flags may be XATTR_CREATE, XATTR_REPLACE, or 0. Note that @name is the
+ * @flags may be XATTR_CREATE, XATTR_REPLACE, or 0. Analte that @name is the
  * remainder of the attribute name after the security. prefix has been removed.
  *
  * Return: Returns 0 on success.
  */
-int security_inode_setsecurity(struct inode *inode, const char *name,
+int security_ianalde_setsecurity(struct ianalde *ianalde, const char *name,
 			       const void *value, size_t size, int flags)
 {
 	struct security_hook_list *hp;
 	int rc;
 
-	if (unlikely(IS_PRIVATE(inode)))
-		return LSM_RET_DEFAULT(inode_setsecurity);
+	if (unlikely(IS_PRIVATE(ianalde)))
+		return LSM_RET_DEFAULT(ianalde_setsecurity);
 	/*
 	 * Only one module will provide an attribute with a given name.
 	 */
-	hlist_for_each_entry(hp, &security_hook_heads.inode_setsecurity, list) {
-		rc = hp->hook.inode_setsecurity(inode, name, value, size,
+	hlist_for_each_entry(hp, &security_hook_heads.ianalde_setsecurity, list) {
+		rc = hp->hook.ianalde_setsecurity(ianalde, name, value, size,
 						flags);
-		if (rc != LSM_RET_DEFAULT(inode_setsecurity))
+		if (rc != LSM_RET_DEFAULT(ianalde_setsecurity))
 			return rc;
 	}
-	return LSM_RET_DEFAULT(inode_setsecurity);
+	return LSM_RET_DEFAULT(ianalde_setsecurity);
 }
 
 /**
- * security_inode_listsecurity() - List the xattr security label names
- * @inode: inode
+ * security_ianalde_listsecurity() - List the xattr security label names
+ * @ianalde: ianalde
  * @buffer: buffer
  * @buffer_size: size of buffer
  *
  * Copy the extended attribute names for the security labels associated with
- * @inode into @buffer.  The maximum size of @buffer is specified by
+ * @ianalde into @buffer.  The maximum size of @buffer is specified by
  * @buffer_size.  @buffer may be NULL to request the size of the buffer
  * required.
  *
  * Return: Returns number of bytes used/required on success.
  */
-int security_inode_listsecurity(struct inode *inode,
+int security_ianalde_listsecurity(struct ianalde *ianalde,
 				char *buffer, size_t buffer_size)
 {
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(ianalde)))
 		return 0;
-	return call_int_hook(inode_listsecurity, 0, inode, buffer, buffer_size);
+	return call_int_hook(ianalde_listsecurity, 0, ianalde, buffer, buffer_size);
 }
-EXPORT_SYMBOL(security_inode_listsecurity);
+EXPORT_SYMBOL(security_ianalde_listsecurity);
 
 /**
- * security_inode_getsecid() - Get an inode's secid
- * @inode: inode
+ * security_ianalde_getsecid() - Get an ianalde's secid
+ * @ianalde: ianalde
  * @secid: secid to return
  *
- * Get the secid associated with the node.  In case of failure, @secid will be
+ * Get the secid associated with the analde.  In case of failure, @secid will be
  * set to zero.
  */
-void security_inode_getsecid(struct inode *inode, u32 *secid)
+void security_ianalde_getsecid(struct ianalde *ianalde, u32 *secid)
 {
-	call_void_hook(inode_getsecid, inode, secid);
+	call_void_hook(ianalde_getsecid, ianalde, secid);
 }
 
 /**
- * security_inode_copy_up() - Create new creds for an overlayfs copy-up op
+ * security_ianalde_copy_up() - Create new creds for an overlayfs copy-up op
  * @src: union dentry of copy-up file
  * @new: newly created creds
  *
@@ -2589,57 +2589,57 @@ void security_inode_getsecid(struct inode *inode, u32 *secid)
  *
  * Return: Returns 0 on success or a negative error code on error.
  */
-int security_inode_copy_up(struct dentry *src, struct cred **new)
+int security_ianalde_copy_up(struct dentry *src, struct cred **new)
 {
-	return call_int_hook(inode_copy_up, 0, src, new);
+	return call_int_hook(ianalde_copy_up, 0, src, new);
 }
-EXPORT_SYMBOL(security_inode_copy_up);
+EXPORT_SYMBOL(security_ianalde_copy_up);
 
 /**
- * security_inode_copy_up_xattr() - Filter xattrs in an overlayfs copy-up op
+ * security_ianalde_copy_up_xattr() - Filter xattrs in an overlayfs copy-up op
  * @name: xattr name
  *
  * Filter the xattrs being copied up when a unioned file is copied up from a
  * lower layer to the union/overlay layer.   The caller is responsible for
  * reading and writing the xattrs, this hook is merely a filter.
  *
- * Return: Returns 0 to accept the xattr, 1 to discard the xattr, -EOPNOTSUPP
- *         if the security module does not know about attribute, or a negative
+ * Return: Returns 0 to accept the xattr, 1 to discard the xattr, -EOPANALTSUPP
+ *         if the security module does analt kanalw about attribute, or a negative
  *         error code to abort the copy up.
  */
-int security_inode_copy_up_xattr(const char *name)
+int security_ianalde_copy_up_xattr(const char *name)
 {
 	struct security_hook_list *hp;
 	int rc;
 
 	/*
 	 * The implementation can return 0 (accept the xattr), 1 (discard the
-	 * xattr), -EOPNOTSUPP if it does not know anything about the xattr or
+	 * xattr), -EOPANALTSUPP if it does analt kanalw anything about the xattr or
 	 * any other error code in case of an error.
 	 */
 	hlist_for_each_entry(hp,
-			     &security_hook_heads.inode_copy_up_xattr, list) {
-		rc = hp->hook.inode_copy_up_xattr(name);
-		if (rc != LSM_RET_DEFAULT(inode_copy_up_xattr))
+			     &security_hook_heads.ianalde_copy_up_xattr, list) {
+		rc = hp->hook.ianalde_copy_up_xattr(name);
+		if (rc != LSM_RET_DEFAULT(ianalde_copy_up_xattr))
 			return rc;
 	}
 
-	return evm_inode_copy_up_xattr(name);
+	return evm_ianalde_copy_up_xattr(name);
 }
-EXPORT_SYMBOL(security_inode_copy_up_xattr);
+EXPORT_SYMBOL(security_ianalde_copy_up_xattr);
 
 /**
- * security_kernfs_init_security() - Init LSM context for a kernfs node
- * @kn_dir: parent kernfs node
- * @kn: the kernfs node to initialize
+ * security_kernfs_init_security() - Init LSM context for a kernfs analde
+ * @kn_dir: parent kernfs analde
+ * @kn: the kernfs analde to initialize
  *
- * Initialize the security context of a newly created kernfs node based on its
+ * Initialize the security context of a newly created kernfs analde based on its
  * own and its parent's attributes.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_kernfs_init_security(struct kernfs_node *kn_dir,
-				  struct kernfs_node *kn)
+int security_kernfs_init_security(struct kernfs_analde *kn_dir,
+				  struct kernfs_analde *kn)
 {
 	return call_int_hook(kernfs_init_security, 0, kn_dir, kn);
 }
@@ -2653,11 +2653,11 @@ int security_kernfs_init_security(struct kernfs_node *kn_dir,
  * by various operations that read or write files.  A security module can use
  * this hook to perform additional checking on these operations, e.g. to
  * revalidate permissions on use to support privilege bracketing or policy
- * changes.  Notice that this hook is used when the actual read/write
- * operations are performed, whereas the inode_security_ops hook is called when
+ * changes.  Analtice that this hook is used when the actual read/write
+ * operations are performed, whereas the ianalde_security_ops hook is called when
  * a file is opened (as well as many other operations).  Although this hook can
  * be used to revalidate permissions for various system call operations that
- * read or write files, it does not address the revalidation of permissions for
+ * read or write files, it does analt address the revalidation of permissions for
  * memory-mapped files.  Security modules must handle this separately if they
  * need such revalidation.
  *
@@ -2714,7 +2714,7 @@ void security_file_free(struct file *file)
  * @cmd: ioctl cmd
  * @arg: ioctl arguments
  *
- * Check permission for an ioctl operation on @file.  Note that @arg sometimes
+ * Check permission for an ioctl operation on @file.  Analte that @arg sometimes
  * represents a user space pointer; in other cases, it may be a simple integer
  * value.  When @arg represents a user space pointer, it should never be used
  * by the security module.
@@ -2749,32 +2749,32 @@ static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
 {
 	/*
 	 * Does we have PROT_READ and does the application expect
-	 * it to imply PROT_EXEC?  If not, nothing to talk about...
+	 * it to imply PROT_EXEC?  If analt, analthing to talk about...
 	 */
 	if ((prot & (PROT_READ | PROT_EXEC)) != PROT_READ)
 		return prot;
 	if (!(current->personality & READ_IMPLIES_EXEC))
 		return prot;
 	/*
-	 * if that's an anonymous mapping, let it.
+	 * if that's an aanalnymous mapping, let it.
 	 */
 	if (!file)
 		return prot | PROT_EXEC;
 	/*
-	 * ditto if it's not on noexec mount, except that on !MMU we need
-	 * NOMMU_MAP_EXEC (== VM_MAYEXEC) in this case
+	 * ditto if it's analt on analexec mount, except that on !MMU we need
+	 * ANALMMU_MAP_EXEC (== VM_MAYEXEC) in this case
 	 */
-	if (!path_noexec(&file->f_path)) {
+	if (!path_analexec(&file->f_path)) {
 #ifndef CONFIG_MMU
 		if (file->f_op->mmap_capabilities) {
 			unsigned caps = file->f_op->mmap_capabilities(file);
-			if (!(caps & NOMMU_MAP_EXEC))
+			if (!(caps & ANALMMU_MAP_EXEC))
 				return prot;
 		}
 #endif
 		return prot | PROT_EXEC;
 	}
-	/* anything on noexec mount won't get PROT_EXEC */
+	/* anything on analexec mount won't get PROT_EXEC */
 	return prot;
 }
 
@@ -2785,7 +2785,7 @@ static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
  * @flags: flags
  *
  * Check permissions for a mmap operation.  The @file may be NULL, e.g. if
- * mapping anonymous memory.
+ * mapping aanalnymous memory.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -2840,7 +2840,7 @@ int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
  * @file: file
  * @cmd: lock operation (e.g. F_RDLCK, F_WRLCK)
  *
- * Check permission before performing file locking operations.  Note the hook
+ * Check permission before performing file locking operations.  Analte the hook
  * mediates both flock and fcntl style locks.
  *
  * Return: Returns 0 if permission is granted.
@@ -2857,7 +2857,7 @@ int security_file_lock(struct file *file, unsigned int cmd)
  * @arg: command argument
  *
  * Check permission before allowing the file operation specified by @cmd from
- * being performed on the file @file.  Note that @arg sometimes represents a
+ * being performed on the file @file.  Analte that @arg sometimes represents a
  * user space pointer; in other cases, it may be a simple integer value.  When
  * @arg represents a user space pointer, it should never be used by the
  * security module.
@@ -2890,7 +2890,7 @@ void security_file_set_fowner(struct file *file)
  * @sig: signal to be sent, SIGIO is sent if 0
  *
  * Check permission for the file owner @fown to send SIGIO or SIGURG to the
- * process @tsk.  Note that this hook is sometimes called from interrupt.  Note
+ * process @tsk.  Analte that this hook is sometimes called from interrupt.  Analte
  * that the fown_struct, @fown, is never outside the context of a struct file,
  * so the file structure (and associated security information) can always be
  * obtained: container_of(fown, struct file, f_owner).
@@ -2922,7 +2922,7 @@ int security_file_receive(struct file *file)
  * @file:
  *
  * Save open-time permission checking state for later use upon file_permission,
- * and recheck access if anything has changed since inode_permission.
+ * and recheck access if anything has changed since ianalde_permission.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -2934,14 +2934,14 @@ int security_file_open(struct file *file)
 	if (ret)
 		return ret;
 
-	return fsnotify_open_perm(file);
+	return fsanaltify_open_perm(file);
 }
 
 /**
  * security_file_truncate() - Check if truncating a file is allowed
  * @file: file
  *
- * Check permission before truncating a file, i.e. using ftruncate.  Note that
+ * Check permission before truncating a file, i.e. using ftruncate.  Analte that
  * truncation permission may also be checked based on the path, using the
  * @path_truncate hook.
  *
@@ -2977,7 +2977,7 @@ int security_task_alloc(struct task_struct *task, unsigned long clone_flags)
  * security_task_free() - Free a task's LSM blob and related resources
  * @task: task
  *
- * Handle release of task-related resources.  Note that this can be called from
+ * Handle release of task-related resources.  Analte that this can be called from
  * interrupt context.
  */
 void security_task_free(struct task_struct *task)
@@ -2994,7 +2994,7 @@ void security_task_free(struct task_struct *task)
  * @gfp: gfp flags
  *
  * Only allocate sufficient memory and attach to @cred such that
- * cred_transfer() will not get ENOMEM.
+ * cred_transfer() will analt get EANALMEM.
  *
  * Return: Returns 0 on success, negative values on failure.
  */
@@ -3088,7 +3088,7 @@ EXPORT_SYMBOL(security_cred_getsecid);
  * @secid: secid
  *
  * Set the credentials for a kernel service to act as (subjective context).
- * The current task must be the one that nominated @secid.
+ * The current task must be the one that analminated @secid.
  *
  * Return: Returns 0 if successful.
  */
@@ -3098,19 +3098,19 @@ int security_kernel_act_as(struct cred *new, u32 secid)
 }
 
 /**
- * security_kernel_create_files_as() - Set file creation context using an inode
+ * security_kernel_create_files_as() - Set file creation context using an ianalde
  * @new: target credentials
- * @inode: reference inode
+ * @ianalde: reference ianalde
  *
  * Set the file creation context in a set of credentials to be the same as the
- * objective context of the specified inode.  The current task must be the one
- * that nominated @inode.
+ * objective context of the specified ianalde.  The current task must be the one
+ * that analminated @ianalde.
  *
  * Return: Returns 0 if successful.
  */
-int security_kernel_create_files_as(struct cred *new, struct inode *inode)
+int security_kernel_create_files_as(struct cred *new, struct ianalde *ianalde)
 {
-	return call_int_hook(kernel_create_files_as, 0, new, inode);
+	return call_int_hook(kernel_create_files_as, 0, new, ianalde);
 }
 
 /**
@@ -3200,13 +3200,13 @@ int security_kernel_load_data(enum kernel_load_data_id id, bool contents)
 EXPORT_SYMBOL_GPL(security_kernel_load_data);
 
 /**
- * security_kernel_post_load_data() - Load userspace data from a non-file source
+ * security_kernel_post_load_data() - Load userspace data from a analn-file source
  * @buf: data
  * @size: size of data
  * @id: data identifier
  * @description: text description of data, specific to the id value
  *
- * Load data provided by a non-file source (usually userspace buffer).  This
+ * Load data provided by a analn-file source (usually userspace buffer).  This
  * must be paired with a prior security_kernel_load_data() call that indicated
  * this hook would also be called, see security_kernel_load_data() for more
  * information.
@@ -3403,7 +3403,7 @@ int security_task_getioprio(struct task_struct *p)
  * @flags: LSM_PRLIMIT_* flag bits indicating a get/set/both
  *
  * Check permission before getting and/or setting the resource limits of
- * another task.
+ * aanalther task.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -3503,7 +3503,7 @@ int security_task_kill(struct task_struct *p, struct kernel_siginfo *info,
  * Check permission before performing a process control operation on the
  * current process.
  *
- * Return: Return -ENOSYS if no-one wanted to handle this op, any other value
+ * Return: Return -EANALSYS if anal-one wanted to handle this op, any other value
  *         to cause prctl() to return immediately with that value.
  */
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
@@ -3525,16 +3525,16 @@ int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 }
 
 /**
- * security_task_to_inode() - Set the security attributes of a task's inode
+ * security_task_to_ianalde() - Set the security attributes of a task's ianalde
  * @p: task
- * @inode: inode
+ * @ianalde: ianalde
  *
- * Set the security attributes for an inode based on an associated task's
- * security attributes, e.g. for /proc/pid inodes.
+ * Set the security attributes for an ianalde based on an associated task's
+ * security attributes, e.g. for /proc/pid ianaldes.
  */
-void security_task_to_inode(struct task_struct *p, struct inode *inode)
+void security_task_to_ianalde(struct task_struct *p, struct ianalde *ianalde)
 {
-	call_void_hook(task_to_inode, p, inode);
+	call_void_hook(task_to_ianalde, p, ianalde);
 }
 
 /**
@@ -3653,7 +3653,7 @@ void security_msg_queue_free(struct kern_ipc_perm *msq)
  *
  * Check permission when a message queue is requested through the msgget system
  * call. This hook is only called when returning the message queue identifier
- * for an existing message queue, not when a new message queue is created.
+ * for an existing message queue, analt when a new message queue is created.
  *
  * Return: Return 0 if permission is granted.
  */
@@ -3704,7 +3704,7 @@ int security_msg_queue_msgsnd(struct kern_ipc_perm *msq,
  *
  * Check permission before a message, @msg, is removed from the message	queue.
  * The @target task structure contains a pointer to the process that will be
- * receiving the message (not equal to the current process when inline receives
+ * receiving the message (analt equal to the current process when inline receives
  * are being performed).
  *
  * Return: Returns 0 if permission is granted.
@@ -3756,7 +3756,7 @@ void security_shm_free(struct kern_ipc_perm *shp)
  *
  * Check permission when a shared memory region is requested through the shmget
  * system call. This hook is only called when returning the shared memory
- * region identifier for an existing region, not when a new shared memory
+ * region identifier for an existing region, analt when a new shared memory
  * region is created.
  *
  * Return: Returns 0 if permission is granted.
@@ -3840,7 +3840,7 @@ void security_sem_free(struct kern_ipc_perm *sma)
  *
  * Check permission when a semaphore is requested through the semget system
  * call. This hook is only called when returning the semaphore identifier for
- * an existing semaphore, not when a new one must be created.
+ * an existing semaphore, analt when a new one must be created.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -3872,7 +3872,7 @@ int security_sem_semctl(struct kern_ipc_perm *sma, int cmd)
  * @alter: flag indicating changes will be made
  *
  * Check permissions before performing operations on members of the semaphore
- * set. If the @alter flag is nonzero, the semaphore set may be modified.
+ * set. If the @alter flag is analnzero, the semaphore set may be modified.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -3883,17 +3883,17 @@ int security_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 }
 
 /**
- * security_d_instantiate() - Populate an inode's LSM state based on a dentry
+ * security_d_instantiate() - Populate an ianalde's LSM state based on a dentry
  * @dentry: dentry
- * @inode: inode
+ * @ianalde: ianalde
  *
- * Fill in @inode security information for a @dentry if allowed.
+ * Fill in @ianalde security information for a @dentry if allowed.
  */
-void security_d_instantiate(struct dentry *dentry, struct inode *inode)
+void security_d_instantiate(struct dentry *dentry, struct ianalde *ianalde)
 {
-	if (unlikely(inode && IS_PRIVATE(inode)))
+	if (unlikely(ianalde && IS_PRIVATE(ianalde)))
 		return;
-	call_void_hook(d_instantiate, dentry, inode);
+	call_void_hook(d_instantiate, dentry, ianalde);
 }
 EXPORT_SYMBOL(security_d_instantiate);
 
@@ -3965,7 +3965,7 @@ int security_getselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
 		if (base)
 			uctx = (struct lsm_ctx __user *)(base + total);
 		rc = hp->hook.getselfattr(attr, uctx, &entrysize, flags);
-		if (rc == -EOPNOTSUPP) {
+		if (rc == -EOPANALTSUPP) {
 			rc = 0;
 			continue;
 		}
@@ -4134,7 +4134,7 @@ EXPORT_SYMBOL(security_ismaclabel);
  * @seclen: secctx length
  *
  * Convert secid to security context.  If @secdata is NULL the length of the
- * result will be returned in @seclen, but no @secdata will be returned.  This
+ * result will be returned in @seclen, but anal @secdata will be returned.  This
  * does mean that the length could change between calls to check the length and
  * the next call which actually allocates and returns the @secdata.
  *
@@ -4147,7 +4147,7 @@ int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 
 	/*
 	 * Currently, only one LSM can implement secid_to_secctx (i.e this
-	 * LSM hook is not "stackable").
+	 * LSM hook is analt "stackable").
 	 */
 	hlist_for_each_entry(hp, &security_hook_heads.secid_to_secctx, list) {
 		rc = hp->hook.secid_to_secctx(secid, secdata, seclen);
@@ -4190,73 +4190,73 @@ void security_release_secctx(char *secdata, u32 seclen)
 EXPORT_SYMBOL(security_release_secctx);
 
 /**
- * security_inode_invalidate_secctx() - Invalidate an inode's security label
- * @inode: inode
+ * security_ianalde_invalidate_secctx() - Invalidate an ianalde's security label
+ * @ianalde: ianalde
  *
- * Notify the security module that it must revalidate the security context of
- * an inode.
+ * Analtify the security module that it must revalidate the security context of
+ * an ianalde.
  */
-void security_inode_invalidate_secctx(struct inode *inode)
+void security_ianalde_invalidate_secctx(struct ianalde *ianalde)
 {
-	call_void_hook(inode_invalidate_secctx, inode);
+	call_void_hook(ianalde_invalidate_secctx, ianalde);
 }
-EXPORT_SYMBOL(security_inode_invalidate_secctx);
+EXPORT_SYMBOL(security_ianalde_invalidate_secctx);
 
 /**
- * security_inode_notifysecctx() - Notify the LSM of an inode's security label
- * @inode: inode
+ * security_ianalde_analtifysecctx() - Analtify the LSM of an ianalde's security label
+ * @ianalde: ianalde
  * @ctx: secctx
  * @ctxlen: length of secctx
  *
- * Notify the security module of what the security context of an inode should
+ * Analtify the security module of what the security context of an ianalde should
  * be.  Initializes the incore security context managed by the security module
- * for this inode.  Example usage: NFS client invokes this hook to initialize
- * the security context in its incore inode to the value provided by the server
+ * for this ianalde.  Example usage: NFS client invokes this hook to initialize
+ * the security context in its incore ianalde to the value provided by the server
  * for the file when the server returned the file's attributes to the client.
- * Must be called with inode->i_mutex locked.
+ * Must be called with ianalde->i_mutex locked.
  *
  * Return: Returns 0 on success, error on failure.
  */
-int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+int security_ianalde_analtifysecctx(struct ianalde *ianalde, void *ctx, u32 ctxlen)
 {
-	return call_int_hook(inode_notifysecctx, 0, inode, ctx, ctxlen);
+	return call_int_hook(ianalde_analtifysecctx, 0, ianalde, ctx, ctxlen);
 }
-EXPORT_SYMBOL(security_inode_notifysecctx);
+EXPORT_SYMBOL(security_ianalde_analtifysecctx);
 
 /**
- * security_inode_setsecctx() - Change the security label of an inode
- * @dentry: inode
+ * security_ianalde_setsecctx() - Change the security label of an ianalde
+ * @dentry: ianalde
  * @ctx: secctx
  * @ctxlen: length of secctx
  *
- * Change the security context of an inode.  Updates the incore security
+ * Change the security context of an ianalde.  Updates the incore security
  * context managed by the security module and invokes the fs code as needed
- * (via __vfs_setxattr_noperm) to update any backing xattrs that represent the
+ * (via __vfs_setxattr_analperm) to update any backing xattrs that represent the
  * context.  Example usage: NFS server invokes this hook to change the security
- * context in its incore inode and on the backing filesystem to a value
+ * context in its incore ianalde and on the backing filesystem to a value
  * provided by the client on a SETATTR operation.  Must be called with
- * inode->i_mutex locked.
+ * ianalde->i_mutex locked.
  *
  * Return: Returns 0 on success, error on failure.
  */
-int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+int security_ianalde_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
-	return call_int_hook(inode_setsecctx, 0, dentry, ctx, ctxlen);
+	return call_int_hook(ianalde_setsecctx, 0, dentry, ctx, ctxlen);
 }
-EXPORT_SYMBOL(security_inode_setsecctx);
+EXPORT_SYMBOL(security_ianalde_setsecctx);
 
 /**
- * security_inode_getsecctx() - Get the security label of an inode
- * @inode: inode
+ * security_ianalde_getsecctx() - Get the security label of an ianalde
+ * @ianalde: ianalde
  * @ctx: secctx
  * @ctxlen: length of secctx
  *
  * On success, returns 0 and fills out @ctx and @ctxlen with the security
- * context for the given @inode.
+ * context for the given @ianalde.
  *
  * Return: Returns 0 on success, error on failure.
  */
-int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+int security_ianalde_getsecctx(struct ianalde *ianalde, void **ctx, u32 *ctxlen)
 {
 	struct security_hook_list *hp;
 	int rc;
@@ -4264,41 +4264,41 @@ int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 	/*
 	 * Only one module will provide a security context.
 	 */
-	hlist_for_each_entry(hp, &security_hook_heads.inode_getsecctx, list) {
-		rc = hp->hook.inode_getsecctx(inode, ctx, ctxlen);
-		if (rc != LSM_RET_DEFAULT(inode_getsecctx))
+	hlist_for_each_entry(hp, &security_hook_heads.ianalde_getsecctx, list) {
+		rc = hp->hook.ianalde_getsecctx(ianalde, ctx, ctxlen);
+		if (rc != LSM_RET_DEFAULT(ianalde_getsecctx))
 			return rc;
 	}
 
-	return LSM_RET_DEFAULT(inode_getsecctx);
+	return LSM_RET_DEFAULT(ianalde_getsecctx);
 }
-EXPORT_SYMBOL(security_inode_getsecctx);
+EXPORT_SYMBOL(security_ianalde_getsecctx);
 
 #ifdef CONFIG_WATCH_QUEUE
 /**
- * security_post_notification() - Check if a watch notification can be posted
+ * security_post_analtification() - Check if a watch analtification can be posted
  * @w_cred: credentials of the task that set the watch
  * @cred: credentials of the task which triggered the watch
- * @n: the notification
+ * @n: the analtification
  *
- * Check to see if a watch notification can be posted to a particular queue.
+ * Check to see if a watch analtification can be posted to a particular queue.
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_post_notification(const struct cred *w_cred,
+int security_post_analtification(const struct cred *w_cred,
 			       const struct cred *cred,
-			       struct watch_notification *n)
+			       struct watch_analtification *n)
 {
-	return call_int_hook(post_notification, 0, w_cred, cred, n);
+	return call_int_hook(post_analtification, 0, w_cred, cred, n);
 }
 #endif /* CONFIG_WATCH_QUEUE */
 
-#ifdef CONFIG_KEY_NOTIFICATIONS
+#ifdef CONFIG_KEY_ANALTIFICATIONS
 /**
  * security_watch_key() - Check if a task is allowed to watch for key events
  * @key: the key to watch
  *
- * Check to see if a process is allowed to watch for event notifications from
+ * Check to see if a process is allowed to watch for event analtifications from
  * a key or keyring.
  *
  * Return: Returns 0 if permission is granted.
@@ -4307,7 +4307,7 @@ int security_watch_key(struct key *key)
 {
 	return call_int_hook(watch_key, 0, key);
 }
-#endif /* CONFIG_KEY_NOTIFICATIONS */
+#endif /* CONFIG_KEY_ANALTIFICATIONS */
 
 #ifdef CONFIG_SECURITY_NETWORK
 /**
@@ -4322,12 +4322,12 @@ int security_watch_key(struct key *key)
  * The @unix_stream_connect and @unix_may_send hooks were necessary because
  * Linux provides an alternative to the conventional file name space for Unix
  * domain sockets.  Whereas binding and connecting to sockets in the file name
- * space is mediated by the typical file permissions (and caught by the mknod
- * and permission hooks in inode_security_ops), binding and connecting to
+ * space is mediated by the typical file permissions (and caught by the mkanald
+ * and permission hooks in ianalde_security_ops), binding and connecting to
  * sockets in the abstract name space is completely unmediated.  Sufficient
  * control of Unix domain sockets in the abstract name space isn't possible
- * using only the socket layer hooks, since we need to know the actual target
- * socket, which is not looked up until we are inside the af_unix code.
+ * using only the socket layer hooks, since we need to kanalw the actual target
+ * socket, which is analt looked up until we are inside the af_unix code.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -4349,12 +4349,12 @@ EXPORT_SYMBOL(security_unix_stream_connect);
  * The @unix_stream_connect and @unix_may_send hooks were necessary because
  * Linux provides an alternative to the conventional file name space for Unix
  * domain sockets.  Whereas binding and connecting to sockets in the file name
- * space is mediated by the typical file permissions (and caught by the mknod
- * and permission hooks in inode_security_ops), binding and connecting to
+ * space is mediated by the typical file permissions (and caught by the mkanald
+ * and permission hooks in ianalde_security_ops), binding and connecting to
  * sockets in the abstract name space is completely unmediated.  Sufficient
  * control of Unix domain sockets in the abstract name space isn't possible
- * using only the socket layer hooks, since we need to know the actual target
- * socket, which is not looked up until we are inside the af_unix code.
+ * using only the socket layer hooks, since we need to kanalw the actual target
+ * socket, which is analt looked up until we are inside the af_unix code.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -4389,12 +4389,12 @@ int security_socket_create(int family, int type, int protocol, int kern)
  * @kern: set to 1 if a kernel socket is requested
  *
  * This hook allows a module to update or allocate a per-socket security
- * structure. Note that the security field was not added directly to the socket
+ * structure. Analte that the security field was analt added directly to the socket
  * structure, but rather, the socket security information is stored in the
- * associated inode.  Typically, the inode alloc_security hook will allocate
- * and attach security information to SOCK_INODE(sock)->i_security.  This hook
- * may be used to update the SOCK_INODE(sock)->i_security field with additional
- * information that wasn't available when the inode was allocated.
+ * associated ianalde.  Typically, the ianalde alloc_security hook will allocate
+ * and attach security information to SOCK_IANALDE(sock)->i_security.  This hook
+ * may be used to update the SOCK_IANALDE(sock)->i_security field with additional
+ * information that wasn't available when the ianalde was allocated.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -4475,9 +4475,9 @@ int security_socket_listen(struct socket *sock, int backlog)
  * @sock: listening socket
  * @newsock: newly creation connection socket
  *
- * Check permission before accepting a new connection.  Note that the new
+ * Check permission before accepting a new connection.  Analte that the new
  * socket, @newsock, has been created and some information copied to it, but
- * the accept operation has not actually been performed.
+ * the accept operation has analt actually been performed.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -4492,7 +4492,7 @@ int security_socket_accept(struct socket *sock, struct socket *newsock)
  * @msg: message to send
  * @size: size of message
  *
- * Check permission before transmitting a message to another socket.
+ * Check permission before transmitting a message to aanalther socket.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -4598,7 +4598,7 @@ int security_socket_shutdown(struct socket *sock, int how)
  *
  * Check permissions on incoming network packets.  This hook is distinct from
  * Netfilter's IP input hooks since it is the first time that the incoming
- * sk_buff @skb has been associated with a particular socket, @sk.  Must not
+ * sk_buff @skb has been associated with a particular socket, @sk.  Must analt
  * sleep inside this hook because some callers hold spinlocks.
  *
  * Return: Returns 0 if permission is granted.
@@ -4748,7 +4748,7 @@ EXPORT_SYMBOL(security_req_classify_flow);
  * @sk: sock being grafted
  * @parent: target parent socket
  *
- * Sets @parent's inode secid to @sk's secid and update @sk with any necessary
+ * Sets @parent's ianalde secid to @sk's secid and update @sk with any necessary
  * LSM state from @parent.
  */
 void security_sock_graft(struct sock *sk, struct socket *parent)
@@ -5054,7 +5054,7 @@ EXPORT_SYMBOL(security_ib_endport_manage_subnet);
  *
  * Allocate a security structure for Infiniband objects.
  *
- * Return: Returns 0 on success, non-zero on failure.
+ * Return: Returns 0 on success, analn-zero on failure.
  */
 int security_ib_alloc_security(void **sec)
 {
@@ -5206,7 +5206,7 @@ void security_xfrm_state_free(struct xfrm_state *x)
  * packet.  The hook is called when selecting either a per-socket policy or a
  * generic xfrm policy.
  *
- * Return: Return 0 if permission is granted, -ESRCH otherwise, or -errno on
+ * Return: Return 0 if permission is granted, -ESRCH otherwise, or -erranal on
  *         other errors.
  */
 int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid)
@@ -5279,7 +5279,7 @@ EXPORT_SYMBOL(security_skb_classify_flow);
  * @cred: credentials
  * @flags: allocation flags
  *
- * Permit allocation of a key and assign security data. Note that key does not
+ * Permit allocation of a key and assign security data. Analte that key does analt
  * have a serial number assigned at this point.
  *
  * Return: Return 0 if permission is granted, -ve error otherwise.
@@ -5294,7 +5294,7 @@ int security_key_alloc(struct key *key, const struct cred *cred,
  * security_key_free() - Free a kernel key LSM blob
  * @key: key
  *
- * Notification of destruction; free security data.
+ * Analtification of destruction; free security data.
  */
 void security_key_free(struct key *key)
 {
@@ -5323,12 +5323,12 @@ int security_key_permission(key_ref_t key_ref, const struct cred *cred,
  * @buffer: security label buffer
  *
  * Get a textual representation of the security context attached to a key for
- * the purposes of honouring KEYCTL_GETSECURITY.  This function allocates the
+ * the purposes of hoanaluring KEYCTL_GETSECURITY.  This function allocates the
  * storage for the NUL-terminated string and the caller should free it.
  *
  * Return: Returns the length of @buffer (including terminating NUL) or -ve if
  *         an error occurs.  May also return 0 (and a NULL buffer pointer) if
- *         there is no security label assigned to the key.
+ *         there is anal security label assigned to the key.
  */
 int security_key_getsecurity(struct key *key, char **buffer)
 {
@@ -5356,7 +5356,7 @@ int security_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule)
 }
 
 /**
- * security_audit_rule_known() - Check if an audit rule contains LSM fields
+ * security_audit_rule_kanalwn() - Check if an audit rule contains LSM fields
  * @krule: audit rule
  *
  * Specifies whether given @krule contains any fields related to the current
@@ -5364,9 +5364,9 @@ int security_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule)
  *
  * Return: Returns 1 in case of relation found, 0 otherwise.
  */
-int security_audit_rule_known(struct audit_krule *krule)
+int security_audit_rule_kanalwn(struct audit_krule *krule)
 {
-	return call_int_hook(audit_rule_known, 0, krule);
+	return call_int_hook(audit_rule_kanalwn, 0, krule);
 }
 
 /**
@@ -5389,9 +5389,9 @@ void security_audit_rule_free(void *lsmrule)
  * @lsmrule: audit rule
  *
  * Determine if given @secid matches a rule previously approved by
- * security_audit_rule_known().
+ * security_audit_rule_kanalwn().
  *
- * Return: Returns 1 if secid matches the rule, 0 if it does not, -ERRNO on
+ * Return: Returns 1 if secid matches the rule, 0 if it does analt, -ERRANAL on
  *         failure.
  */
 int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule)

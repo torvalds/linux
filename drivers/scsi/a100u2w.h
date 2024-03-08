@@ -15,15 +15,15 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
+ * along with this program; see the file COPYING.  If analt, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -64,7 +64,7 @@ struct orc_sgent {
 };
 
 /* SCSI related definition                                              */
-#define DISC_NOT_ALLOW          0x80	/* Disconnect is not allowed    */
+#define DISC_ANALT_ALLOW          0x80	/* Disconnect is analt allowed    */
 #define DISC_ALLOW              0xC0	/* Disconnect is allowed        */
 
 
@@ -77,7 +77,7 @@ struct orc_sgent {
 /********************************************************/
 /*      Orchid Host Command Set                         */
 /********************************************************/
-#define ORC_CMD_NOP		0x00	/* Host command - NOP             */
+#define ORC_CMD_ANALP		0x00	/* Host command - ANALP             */
 #define ORC_CMD_VERSION		0x01	/* Host command - Get F/W version */
 #define ORC_CMD_ECHO		0x02	/* Host command - ECHO            */
 #define ORC_CMD_SET_NVM		0x03	/* Host command - Set NVRAM       */
@@ -184,10 +184,10 @@ struct orc_scb {	/* Scsi_Ctrl_Blk                */
 /* Bit Definition for ORCSCB_Flags */
 #define SCF_DISINT	0x01	/* Disable HOST interrupt */
 #define SCF_DIR		0x18	/* Direction bits         */
-#define SCF_NO_DCHK	0x00	/* Direction determined by SCSI   */
+#define SCF_ANAL_DCHK	0x00	/* Direction determined by SCSI   */
 #define SCF_DIN		0x08	/* From Target to Initiator       */
 #define SCF_DOUT	0x10	/* From Initiator to Target       */
-#define SCF_NO_XF	0x18	/* No data transfer               */
+#define SCF_ANAL_XF	0x18	/* Anal data transfer               */
 #define SCF_POLL   0x40
 
 /* Error Codes for ORCSCB_HaStat */
@@ -219,8 +219,8 @@ struct orc_target {
 };
 
 /* Bit Definition for TCF_DrvFlags */
-#define	TCS_DF_NODASD_SUPT	0x20	/* Suppress OS/2 DASD Mgr support */
-#define	TCS_DF_NOSCSI_SUPT	0x40	/* Suppress OS/2 SCSI Mgr support */
+#define	TCS_DF_ANALDASD_SUPT	0x20	/* Suppress OS/2 DASD Mgr support */
+#define	TCS_DF_ANALSCSI_SUPT	0x40	/* Suppress OS/2 SCSI Mgr support */
 
 
 /***********************************************************************
@@ -259,7 +259,7 @@ struct orc_host {
 #define TCF_SPIN_UP	  0x80
 
 /* Bit Definition for HCS_AFlags */
-#define	HCS_AF_IGNORE		0x01	/* Adapter ignore         */
+#define	HCS_AF_IGANALRE		0x01	/* Adapter iganalre         */
 #define	HCS_AF_DISABLE_RESET	0x10	/* Adapter disable reset  */
 #define	HCS_AF_DISABLE_ADPT	0x80	/* Adapter disable                */
 
@@ -357,8 +357,8 @@ struct orc_nvram {
 /* Bit definition for nvram->TargetxConfig                              */
 #define NTC_PERIOD      0x07    /* Maximum Sync. Speed            */
 #define NTC_1GIGA       0x08    /* 255 head / 63 sectors (64/32) */
-#define NTC_NO_SYNC     0x10    /* NO SYNC. NEGO          */
-#define NTC_NO_WIDESYNC 0x20    /* NO WIDE SYNC. NEGO             */
+#define NTC_ANAL_SYNC     0x10    /* ANAL SYNC. NEGO          */
+#define NTC_ANAL_WIDESYNC 0x20    /* ANAL WIDE SYNC. NEGO             */
 #define NTC_DISC_ENABLE 0x40    /* Enable SCSI disconnect */
 #define NTC_SPINUP      0x80    /* Start disk drive               */
 
@@ -367,5 +367,5 @@ struct orc_nvram {
 #define NCC_DEFAULT     (NCC_BUSRESET | NCC_AUTOTERM | NCC_PARITYCHK)
 #define NCC_MAX_TAGS    0x20    /* Maximum tags per target        */
 #define NCC_RESET_TIME  0x0A    /* SCSI RESET recovering time     */
-#define NTC_DEFAULT     (NTC_1GIGA | NTC_NO_WIDESYNC | NTC_DISC_ENABLE)
+#define NTC_DEFAULT     (NTC_1GIGA | NTC_ANAL_WIDESYNC | NTC_DISC_ENABLE)
 

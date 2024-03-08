@@ -3,7 +3,7 @@
 // soc-card.c
 //
 // Copyright (C) 2019 Renesas Electronics Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
 
 #include <linux/lockdep.h>
@@ -17,7 +17,7 @@ static inline int _soc_card_ret(struct snd_soc_card *card,
 {
 	switch (ret) {
 	case -EPROBE_DEFER:
-	case -ENOTSUPP:
+	case -EANALTSUPP:
 	case 0:
 		break;
 	default:
@@ -69,7 +69,7 @@ static int jack_new(struct snd_soc_card *card, const char *id, int type,
 	jack->card = card;
 	INIT_LIST_HEAD(&jack->pins);
 	INIT_LIST_HEAD(&jack->jack_zones);
-	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&jack->analtifier);
 
 	return snd_jack_new(card->snd_card, id, type, &jack->jack, initial_kctl, false);
 }
@@ -106,7 +106,7 @@ EXPORT_SYMBOL_GPL(snd_soc_card_jack_new);
  * @pins:  Array of jack pins to be added to the jack or NULL
  * @num_pins: Number of elements in the @pins array
  *
- * Creates a new jack object with pins. If not adding pins,
+ * Creates a new jack object with pins. If analt adding pins,
  * snd_soc_card_jack_new() should be used instead.
  *
  * Returns zero if successful, or a negative error code on failure.

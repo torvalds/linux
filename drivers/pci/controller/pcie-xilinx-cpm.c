@@ -45,7 +45,7 @@
 		IMR(CFG_PCIE_TIMEOUT)	|		\
 		IMR(CFG_TIMEOUT)	|		\
 		IMR(CORRECTABLE)	|		\
-		IMR(NONFATAL)		|		\
+		IMR(ANALNFATAL)		|		\
 		IMR(FATAL)		|		\
 		IMR(CFG_ERR_POISON)	|		\
 		IMR(PME_TO_ACK_RCVD)	|		\
@@ -309,7 +309,7 @@ static const struct {
 	_IC(HOT_RESET,		"Hot reset"),
 	_IC(CFG_TIMEOUT,	"ECAM access timeout"),
 	_IC(CORRECTABLE,	"Correctable error message"),
-	_IC(NONFATAL,		"Non fatal error message"),
+	_IC(ANALNFATAL,		"Analn fatal error message"),
 	_IC(FATAL,		"Fatal error message"),
 	_IC(SLV_UNSUPP,		"Slave unsupported request"),
 	_IC(SLV_UNEXP,		"Slave unexpected completion"),
@@ -336,7 +336,7 @@ static irqreturn_t xilinx_cpm_pcie_intr_handler(int irq, void *dev_id)
 
 	switch (d->hwirq) {
 	case XILINX_PCIE_INTR_CORRECTABLE:
-	case XILINX_PCIE_INTR_NONFATAL:
+	case XILINX_PCIE_INTR_ANALNFATAL:
 	case XILINX_PCIE_INTR_FATAL:
 		cpm_pcie_clear_err_interrupts(port);
 		fallthrough;
@@ -345,7 +345,7 @@ static irqreturn_t xilinx_cpm_pcie_intr_handler(int irq, void *dev_id)
 		if (intr_cause[d->hwirq].str)
 			dev_warn(dev, "%s\n", intr_cause[d->hwirq].str);
 		else
-			dev_warn(dev, "Unknown IRQ %ld\n", d->hwirq);
+			dev_warn(dev, "Unkanalwn IRQ %ld\n", d->hwirq);
 	}
 
 	return IRQ_HANDLED;
@@ -373,17 +373,17 @@ static void xilinx_cpm_free_irq_domains(struct xilinx_cpm_pcie *port)
 static int xilinx_cpm_pcie_init_irq_domain(struct xilinx_cpm_pcie *port)
 {
 	struct device *dev = port->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *pcie_intc_node;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *pcie_intc_analde;
 
 	/* Setup INTx */
-	pcie_intc_node = of_get_next_child(node, NULL);
-	if (!pcie_intc_node) {
-		dev_err(dev, "No PCIe Intc node found\n");
+	pcie_intc_analde = of_get_next_child(analde, NULL);
+	if (!pcie_intc_analde) {
+		dev_err(dev, "Anal PCIe Intc analde found\n");
 		return -EINVAL;
 	}
 
-	port->cpm_domain = irq_domain_add_linear(pcie_intc_node, 32,
+	port->cpm_domain = irq_domain_add_linear(pcie_intc_analde, 32,
 						 &event_domain_ops,
 						 port);
 	if (!port->cpm_domain)
@@ -391,7 +391,7 @@ static int xilinx_cpm_pcie_init_irq_domain(struct xilinx_cpm_pcie *port)
 
 	irq_domain_update_bus_token(port->cpm_domain, DOMAIN_BUS_NEXUS);
 
-	port->intx_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+	port->intx_domain = irq_domain_add_linear(pcie_intc_analde, PCI_NUM_INTX,
 						  &intx_domain_ops,
 						  port);
 	if (!port->intx_domain)
@@ -399,16 +399,16 @@ static int xilinx_cpm_pcie_init_irq_domain(struct xilinx_cpm_pcie *port)
 
 	irq_domain_update_bus_token(port->intx_domain, DOMAIN_BUS_WIRED);
 
-	of_node_put(pcie_intc_node);
+	of_analde_put(pcie_intc_analde);
 	raw_spin_lock_init(&port->lock);
 
 	return 0;
 out:
 	xilinx_cpm_free_irq_domains(port);
-	of_node_put(pcie_intc_node);
+	of_analde_put(pcie_intc_analde);
 	dev_err(dev, "Failed to allocate IRQ domains\n");
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int xilinx_cpm_setup_irq(struct xilinx_cpm_pcie *port)
@@ -559,7 +559,7 @@ static int xilinx_cpm_pcie_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*port));
 	if (!bridge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = pci_host_bridge_priv(bridge);
 
@@ -571,7 +571,7 @@ static int xilinx_cpm_pcie_probe(struct platform_device *pdev)
 
 	bus = resource_list_first_type(&bridge->windows, IORESOURCE_BUS);
 	if (!bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->variant = of_device_get_match_data(dev);
 

@@ -67,7 +67,7 @@ EXPORT_SYMBOL(amiga_chip_alloc);
 	 *  Warning:
 	 *  amiga_chip_alloc_res is meant only for drivers that need to
 	 *  allocate Chip RAM before kmalloc() is functional. As a consequence,
-	 *  those drivers must not free that Chip RAM afterwards.
+	 *  those drivers must analt free that Chip RAM afterwards.
 	 */
 
 void *amiga_chip_alloc_res(unsigned long size, struct resource *res)
@@ -99,7 +99,7 @@ void amiga_chip_free(void *ptr)
 
 	res = lookup_resource(&chipram_res, start);
 	if (!res) {
-		pr_err("amiga_chip_free: trying to free nonexistent region at "
+		pr_err("amiga_chip_free: trying to free analnexistent region at "
 		       "%p\n", ptr);
 		return;
 	}

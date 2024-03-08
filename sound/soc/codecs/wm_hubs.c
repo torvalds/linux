@@ -174,7 +174,7 @@ static void wm_hubs_dcs_cache_set(struct snd_soc_component *component, u16 dcs_c
 	struct wm_hubs_data *hubs = snd_soc_component_get_drvdata(component);
 	struct wm_hubs_dcs_cache *cache;
 
-	if (hubs->no_cache_dac_hp_direct)
+	if (hubs->anal_cache_dac_hp_direct)
 		return;
 
 	cache = devm_kzalloc(component->dev, sizeof(*cache), GFP_KERNEL);
@@ -229,7 +229,7 @@ static int wm_hubs_read_dc_servo(struct snd_soc_component *component,
 		*reg_l = reg & WM8993_DCS_DAC_WR_VAL_0_MASK;
 		break;
 	default:
-		WARN(1, "Unknown DCS readback method\n");
+		WARN(1, "Unkanalwn DCS readback method\n");
 		ret = -1;
 	}
 	return ret;
@@ -270,8 +270,8 @@ static void enable_dc_servo(struct snd_soc_component *component)
 	if (hubs->series_startup) {
 		/* Set for 32 series updates */
 		snd_soc_component_update_bits(component, WM8993_DC_SERVO_1,
-				    WM8993_DCS_SERIES_NO_01_MASK,
-				    32 << WM8993_DCS_SERIES_NO_01_SHIFT);
+				    WM8993_DCS_SERIES_ANAL_01_MASK,
+				    32 << WM8993_DCS_SERIES_ANAL_01_SHIFT);
 		wait_for_dc_servo(component,
 				  WM8993_DCS_TRIG_SERIES_0 |
 				  WM8993_DCS_TRIG_SERIES_1);
@@ -338,7 +338,7 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 
 	/* If we're applying an offset correction then updating the
 	 * callibration would be likely to introduce further offsets. */
-	if (hubs->dcs_codes_l || hubs->dcs_codes_r || hubs->no_series_update)
+	if (hubs->dcs_codes_l || hubs->dcs_codes_r || hubs->anal_series_update)
 		return ret;
 
 	/* Only need to do this if the outputs are active */
@@ -519,7 +519,7 @@ static int hp_supply_event(struct snd_soc_dapm_widget *w,
 					    WM8993_HPOUT1R_DLY);
 			break;
 		default:
-			dev_err(component->dev, "Unknown HP startup mode %d\n",
+			dev_err(component->dev, "Unkanalwn HP startup mode %d\n",
 				hubs->hp_startup_mode);
 			break;
 		}
@@ -632,7 +632,7 @@ static int lineout_event(struct snd_soc_dapm_widget *w,
 		flag = &hubs->lineout2p_ena;
 		break;
 	default:
-		WARN(1, "Unknown line output");
+		WARN(1, "Unkanalwn line output");
 		return -EINVAL;
 	}
 
@@ -880,20 +880,20 @@ SND_SOC_DAPM_MIXER("Right Output Mixer", WM8993_POWER_MANAGEMENT_3, 4, 0,
 SND_SOC_DAPM_PGA("Left Output PGA", WM8993_POWER_MANAGEMENT_3, 7, 0, NULL, 0),
 SND_SOC_DAPM_PGA("Right Output PGA", WM8993_POWER_MANAGEMENT_3, 6, 0, NULL, 0),
 
-SND_SOC_DAPM_SUPPLY("Headphone Supply", SND_SOC_NOPM, 0, 0, hp_supply_event, 
+SND_SOC_DAPM_SUPPLY("Headphone Supply", SND_SOC_ANALPM, 0, 0, hp_supply_event, 
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_OUT_DRV_E("Headphone PGA", SND_SOC_NOPM, 0, 0, NULL, 0,
+SND_SOC_DAPM_OUT_DRV_E("Headphone PGA", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		       hp_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-SND_SOC_DAPM_MIXER("Earpiece Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("Earpiece Mixer", SND_SOC_ANALPM, 0, 0,
 		   earpiece_mixer, ARRAY_SIZE(earpiece_mixer)),
 SND_SOC_DAPM_PGA_E("Earpiece Driver", WM8993_POWER_MANAGEMENT_1, 11, 0,
 		   NULL, 0, earpiece_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-SND_SOC_DAPM_MIXER("SPKL Boost", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("SPKL Boost", SND_SOC_ANALPM, 0, 0,
 		   left_speaker_boost, ARRAY_SIZE(left_speaker_boost)),
-SND_SOC_DAPM_MIXER("SPKR Boost", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("SPKR Boost", SND_SOC_ANALPM, 0, 0,
 		   right_speaker_boost, ARRAY_SIZE(right_speaker_boost)),
 
 SND_SOC_DAPM_SUPPLY("TSHUT", WM8993_POWER_MANAGEMENT_2, 14, 0, NULL, 0),
@@ -902,18 +902,18 @@ SND_SOC_DAPM_OUT_DRV("SPKL Driver", WM8993_POWER_MANAGEMENT_1, 12, 0,
 SND_SOC_DAPM_OUT_DRV("SPKR Driver", WM8993_POWER_MANAGEMENT_1, 13, 0,
 		     NULL, 0),
 
-SND_SOC_DAPM_MIXER("LINEOUT1 Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("LINEOUT1 Mixer", SND_SOC_ANALPM, 0, 0,
 		   line1_mix, ARRAY_SIZE(line1_mix)),
-SND_SOC_DAPM_MIXER("LINEOUT2 Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("LINEOUT2 Mixer", SND_SOC_ANALPM, 0, 0,
 		   line2_mix, ARRAY_SIZE(line2_mix)),
 
-SND_SOC_DAPM_MIXER("LINEOUT1N Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("LINEOUT1N Mixer", SND_SOC_ANALPM, 0, 0,
 		   line1n_mix, ARRAY_SIZE(line1n_mix)),
-SND_SOC_DAPM_MIXER("LINEOUT1P Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("LINEOUT1P Mixer", SND_SOC_ANALPM, 0, 0,
 		   line1p_mix, ARRAY_SIZE(line1p_mix)),
-SND_SOC_DAPM_MIXER("LINEOUT2N Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("LINEOUT2N Mixer", SND_SOC_ANALPM, 0, 0,
 		   line2n_mix, ARRAY_SIZE(line2n_mix)),
-SND_SOC_DAPM_MIXER("LINEOUT2P Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("LINEOUT2P Mixer", SND_SOC_ANALPM, 0, 0,
 		   line2p_mix, ARRAY_SIZE(line2p_mix)),
 
 SND_SOC_DAPM_OUT_DRV_E("LINEOUT1N Driver", WM8993_POWER_MANAGEMENT_3, 13, 0,

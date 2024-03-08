@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
+ * Copyright (C) 2015 Anton Ivaanalv (aivaanalv@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright 2003 PathScale, Inc.
@@ -37,7 +37,7 @@
 
 /*
  * This is a per-cpu array.  A processor only modifies its entry and it only
- * cares about its entry, so it's OK if another processor is modifying its
+ * cares about its entry, so it's OK if aanalther processor is modifying its
  * entry.
  */
 struct cpu_task cpu_tasks[NR_CPUS] = { [0 ... NR_CPUS - 1] = { -1, NULL } };
@@ -102,9 +102,9 @@ void interrupt_end(void)
 	if (need_resched())
 		schedule();
 	if (test_thread_flag(TIF_SIGPENDING) ||
-	    test_thread_flag(TIF_NOTIFY_SIGNAL))
+	    test_thread_flag(TIF_ANALTIFY_SIGNAL))
 		do_signal(regs);
-	if (test_thread_flag(TIF_NOTIFY_RESUME))
+	if (test_thread_flag(TIF_ANALTIFY_RESUME))
 		resume_user_mode_work(regs);
 }
 
@@ -286,7 +286,7 @@ static int sysemu_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int sysemu_proc_open(struct inode *inode, struct file *file)
+static int sysemu_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, sysemu_proc_show, NULL);
 }
@@ -347,7 +347,7 @@ int singlestepping(void)
 #ifndef arch_align_stack
 unsigned long arch_align_stack(unsigned long sp)
 {
-	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+	if (!(current->personality & ADDR_ANAL_RANDOMIZE) && randomize_va_space)
 		sp -= get_random_u32_below(8192);
 	return sp & ~0xf;
 }
@@ -359,7 +359,7 @@ unsigned long __get_wchan(struct task_struct *p)
 	bool seen_sched = 0;
 
 	stack_page = (unsigned long) task_stack_page(p);
-	/* Bail if the process has no kernel stack for some reason */
+	/* Bail if the process has anal kernel stack for some reason */
 	if (stack_page == 0)
 		return 0;
 
@@ -374,7 +374,7 @@ unsigned long __get_wchan(struct task_struct *p)
 	while (sp < stack_page + THREAD_SIZE) {
 		ip = *((unsigned long *) sp);
 		if (in_sched_functions(ip))
-			/* Ignore everything until we're above the scheduler */
+			/* Iganalre everything until we're above the scheduler */
 			seen_sched = 1;
 		else if (kernel_text_address(ip) && seen_sched)
 			return ip;

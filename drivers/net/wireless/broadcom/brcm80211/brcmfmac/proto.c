@@ -45,7 +45,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 	    (proto->configure_addr_mode == NULL) ||
 	    (proto->delete_peer == NULL) || (proto->add_tdls_peer == NULL) ||
 	    (proto->debugfs_create == NULL)) {
-		bphy_err(drvr, "Not all proto handlers have been installed\n");
+		bphy_err(drvr, "Analt all proto handlers have been installed\n");
 		goto fail;
 	}
 	return 0;
@@ -53,7 +53,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 fail:
 	kfree(proto);
 	drvr->proto = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void brcmf_proto_detach(struct brcmf_pub *drvr)

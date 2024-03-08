@@ -122,11 +122,11 @@ static unsigned int lmtt_ml_pte_index(u64 addr, unsigned int level)
 	switch (level) {
 	case 1:
 		/* SZ_32G increments */
-		BUILD_BUG_ON_NOT_POWER_OF_2(LMTT_ML_PDE_L2_MAX_NUM);
+		BUILD_BUG_ON_ANALT_POWER_OF_2(LMTT_ML_PDE_L2_MAX_NUM);
 		return addr & (LMTT_ML_PDE_L2_MAX_NUM - 1);
 	case 0:
 		/* SZ_2M increments */
-		BUILD_BUG_ON_NOT_POWER_OF_2(LMTT_ML_PTE_MAX_NUM);
+		BUILD_BUG_ON_ANALT_POWER_OF_2(LMTT_ML_PTE_MAX_NUM);
 		return addr & (LMTT_ML_PTE_MAX_NUM - 1);
 	default:
 		return 0;

@@ -7,11 +7,11 @@
 #include <linux/pe.h>
 #include <linux/sizes.h>
 
-	.macro	efi_signature_nop
+	.macro	efi_signature_analp
 #ifdef CONFIG_EFI
 .L_head:
 	/*
-	 * This ccmp instruction has no meaningful effect except that
+	 * This ccmp instruction has anal meaningful effect except that
 	 * its opcode forms the magic "MZ" signature required by UEFI.
 	 */
 	ccmp	x18, #0, #0xd, pl
@@ -19,9 +19,9 @@
 	/*
 	 * Bootloaders may inspect the opcode at the start of the kernel
 	 * image to decide if the kernel is capable of booting via UEFI.
-	 * So put an ordinary NOP here, not the "MZ.." pseudo-nop above.
+	 * So put an ordinary ANALP here, analt the "MZ.." pseudo-analp above.
 	 */
-	nop
+	analp
 #endif
 	.endm
 
@@ -42,7 +42,7 @@
 .Loptional_header:
 	.short	PE_OPT_MAGIC_PE32PLUS			// PE32+ format
 	.byte	0x02					// MajorLinkerVersion
-	.byte	0x14					// MinorLinkerVersion
+	.byte	0x14					// MianalrLinkerVersion
 	.long	__initdata_begin - .Lefi_header_end	// SizeOfCode
 	.long	__pecoff_data_size			// SizeOfInitializedData
 	.long	0					// SizeOfUninitializedData
@@ -53,11 +53,11 @@
 	.long	SEGMENT_ALIGN				// SectionAlignment
 	.long	PECOFF_FILE_ALIGNMENT			// FileAlignment
 	.short	0					// MajorOperatingSystemVersion
-	.short	0					// MinorOperatingSystemVersion
+	.short	0					// MianalrOperatingSystemVersion
 	.short	LINUX_EFISTUB_MAJOR_VERSION		// MajorImageVersion
-	.short	LINUX_EFISTUB_MINOR_VERSION		// MinorImageVersion
+	.short	LINUX_EFISTUB_MIANALR_VERSION		// MianalrImageVersion
 	.short	0					// MajorSubsystemVersion
-	.short	0					// MinorSubsystemVersion
+	.short	0					// MianalrSubsystemVersion
 	.long	0					// Win32VersionValue
 
 	.long	_end - .L_head				// SizeOfImage
@@ -88,11 +88,11 @@
 	/*
 	 * The debug table is referenced via its Relative Virtual Address (RVA),
 	 * which is only defined for those parts of the image that are covered
-	 * by a section declaration. Since this header is not covered by any
+	 * by a section declaration. Since this header is analt covered by any
 	 * section, the debug table must be emitted elsewhere. So stick it in
 	 * the .init.rodata section instead.
 	 *
-	 * Note that the payloads themselves are permitted to have zero RVAs,
+	 * Analte that the payloads themselves are permitted to have zero RVAs,
 	 * which means we can simply put those right after the section headers.
 	 */
 	__INITRODATA
@@ -104,7 +104,7 @@
 	.long	0					// Characteristics
 	.long	0					// TimeDateStamp
 	.short	0					// MajorVersion
-	.short	0					// MinorVersion
+	.short	0					// MianalrVersion
 	.long	IMAGE_DEBUG_TYPE_CODEVIEW		// Type
 	.long	.Lefi_debug_entry_size			// SizeOfData
 	.long	0					// RVA
@@ -114,7 +114,7 @@
 	.long	0					// Characteristics
 	.long	0					// TimeDateStamp
 	.short	0					// MajorVersion
-	.short	0					// MinorVersion
+	.short	0					// MianalrVersion
 	.long	IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS	// Type
 	.long	4					// SizeOfData
 	.long	0					// RVA
@@ -160,9 +160,9 @@
 .Lefi_debug_entry:
 	// EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY
 	.ascii	"NB10"					// Signature
-	.long	0					// Unknown
-	.long	0					// Unknown2
-	.long	0					// Unknown3
+	.long	0					// Unkanalwn
+	.long	0					// Unkanalwn2
+	.long	0					// Unkanalwn3
 
 	.asciz	VMLINUX_PATH
 

@@ -181,11 +181,11 @@ static void sof_pci_probe_complete(struct device *dev)
 	 */
 	pm_runtime_allow(dev);
 
-	/* mark last_busy for pm_runtime to make sure not suspend immediately */
+	/* mark last_busy for pm_runtime to make sure analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	/* follow recommendation in pci-driver.c to decrement usage counter */
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 }
 
 int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
@@ -200,18 +200,18 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	dev_dbg(&pci->dev, "PCI DSP detected");
 
 	if (!desc) {
-		dev_err(dev, "error: no matching PCI descriptor\n");
-		return -ENODEV;
+		dev_err(dev, "error: anal matching PCI descriptor\n");
+		return -EANALDEV;
 	}
 
 	if (!desc->ops) {
-		dev_err(dev, "error: no matching PCI descriptor ops\n");
-		return -ENODEV;
+		dev_err(dev, "error: anal matching PCI descriptor ops\n");
+		return -EANALDEV;
 	}
 
 	sof_pdata = devm_kzalloc(dev, sizeof(*sof_pdata), GFP_KERNEL);
 	if (!sof_pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pcim_enable_device(pci);
 	if (ret < 0)
@@ -290,7 +290,7 @@ void sof_pci_remove(struct pci_dev *pci)
 	/* follow recommendation in pci-driver.c to increment usage counter */
 	if (snd_sof_device_probe_completed(&pci->dev) &&
 	    !(sof_pci_debug & SOF_PCI_DISABLE_PM_RUNTIME))
-		pm_runtime_get_noresume(&pci->dev);
+		pm_runtime_get_analresume(&pci->dev);
 
 	/* release pci regions and disable device */
 	pci_release_regions(pci);

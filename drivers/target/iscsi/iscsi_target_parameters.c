@@ -70,9 +70,9 @@ int iscsi_login_tx_data(
 void iscsi_dump_conn_ops(struct iscsi_conn_ops *conn_ops)
 {
 	pr_debug("HeaderDigest: %s\n", (conn_ops->HeaderDigest) ?
-				"CRC32C" : "None");
+				"CRC32C" : "Analne");
 	pr_debug("DataDigest: %s\n", (conn_ops->DataDigest) ?
-				"CRC32C" : "None");
+				"CRC32C" : "Analne");
 	pr_debug("MaxRecvDataSegmentLength: %u\n",
 				conn_ops->MaxRecvDataSegmentLength);
 }
@@ -87,9 +87,9 @@ void iscsi_dump_sess_ops(struct iscsi_sess_ops *sess_ops)
 			sess_ops->TargetPortalGroupTag);
 	pr_debug("MaxConnections: %hu\n", sess_ops->MaxConnections);
 	pr_debug("InitialR2T: %s\n",
-			(sess_ops->InitialR2T) ? "Yes" : "No");
+			(sess_ops->InitialR2T) ? "Anal" : "Anal");
 	pr_debug("ImmediateData: %s\n", (sess_ops->ImmediateData) ?
-			"Yes" : "No");
+			"Anal" : "Anal");
 	pr_debug("MaxBurstLength: %u\n", sess_ops->MaxBurstLength);
 	pr_debug("FirstBurstLength: %u\n", sess_ops->FirstBurstLength);
 	pr_debug("DefaultTime2Wait: %hu\n", sess_ops->DefaultTime2Wait);
@@ -98,13 +98,13 @@ void iscsi_dump_sess_ops(struct iscsi_sess_ops *sess_ops)
 	pr_debug("MaxOutstandingR2T: %hu\n",
 			sess_ops->MaxOutstandingR2T);
 	pr_debug("DataPDUInOrder: %s\n",
-			(sess_ops->DataPDUInOrder) ? "Yes" : "No");
+			(sess_ops->DataPDUInOrder) ? "Anal" : "Anal");
 	pr_debug("DataSequenceInOrder: %s\n",
-			(sess_ops->DataSequenceInOrder) ? "Yes" : "No");
+			(sess_ops->DataSequenceInOrder) ? "Anal" : "Anal");
 	pr_debug("ErrorRecoveryLevel: %hu\n",
 			sess_ops->ErrorRecoveryLevel);
 	pr_debug("SessionType: %s\n", (sess_ops->SessionType) ?
-			"Discovery" : "Normal");
+			"Discovery" : "Analrmal");
 }
 
 void iscsi_print_params(struct iscsi_param_list *param_list)
@@ -173,7 +173,7 @@ static struct iscsi_param *iscsi_set_default_param(struct iscsi_param_list *para
 		param->type = TYPE_STRING;
 		break;
 	default:
-		pr_err("Unknown type_range 0x%02x\n",
+		pr_err("Unkanalwn type_range 0x%02x\n",
 				param->type_range);
 		goto out;
 	}
@@ -200,7 +200,7 @@ int iscsi_create_default_params(struct iscsi_param_list **param_list_ptr)
 	if (!pl) {
 		pr_err("Unable to allocate memory for"
 				" struct iscsi_param_list.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_LIST_HEAD(&pl->param_list);
 	INIT_LIST_HEAD(&pl->extra_response_list);
@@ -349,15 +349,15 @@ int iscsi_create_default_params(struct iscsi_param_list **param_list_ptr)
 	if (!param)
 		goto out;
 
-	param = iscsi_set_default_param(pl, DATAPDUINORDER,
-			INITIAL_DATAPDUINORDER, PHASE_OPERATIONAL,
+	param = iscsi_set_default_param(pl, DATAPDUIANALRDER,
+			INITIAL_DATAPDUIANALRDER, PHASE_OPERATIONAL,
 			SCOPE_SESSION_WIDE, SENDER_BOTH, TYPERANGE_BOOL_OR,
 			USE_LEADING_ONLY);
 	if (!param)
 		goto out;
 
-	param = iscsi_set_default_param(pl, DATASEQUENCEINORDER,
-			INITIAL_DATASEQUENCEINORDER,
+	param = iscsi_set_default_param(pl, DATASEQUENCEIANALRDER,
+			INITIAL_DATASEQUENCEIANALRDER,
 			PHASE_OPERATIONAL, SCOPE_SESSION_WIDE, SENDER_BOTH,
 			TYPERANGE_BOOL_OR, USE_LEADING_ONLY);
 	if (!param)
@@ -480,9 +480,9 @@ int iscsi_set_keys_to_negotiate(
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, MAXOUTSTANDINGR2T)) {
 			SET_PSTATE_NEGOTIATE(param);
-		} else if (!strcmp(param->name, DATAPDUINORDER)) {
+		} else if (!strcmp(param->name, DATAPDUIANALRDER)) {
 			SET_PSTATE_NEGOTIATE(param);
-		} else if (!strcmp(param->name, DATASEQUENCEINORDER)) {
+		} else if (!strcmp(param->name, DATASEQUENCEIANALRDER)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, ERRORRECOVERYLEVEL)) {
 			SET_PSTATE_NEGOTIATE(param);
@@ -529,9 +529,9 @@ int iscsi_set_keys_irrelevant_for_discovery(
 			param->state &= ~PSTATE_NEGOTIATE;
 		else if (!strcmp(param->name, MAXOUTSTANDINGR2T))
 			param->state &= ~PSTATE_NEGOTIATE;
-		else if (!strcmp(param->name, DATAPDUINORDER))
+		else if (!strcmp(param->name, DATAPDUIANALRDER))
 			param->state &= ~PSTATE_NEGOTIATE;
-		else if (!strcmp(param->name, DATASEQUENCEINORDER))
+		else if (!strcmp(param->name, DATASEQUENCEIANALRDER))
 			param->state &= ~PSTATE_NEGOTIATE;
 		else if (!strcmp(param->name, ERRORRECOVERYLEVEL))
 			param->state &= ~PSTATE_NEGOTIATE;
@@ -570,7 +570,7 @@ int iscsi_copy_param_list(
 	param_list = kzalloc(sizeof(struct iscsi_param_list), GFP_KERNEL);
 	if (!param_list) {
 		pr_err("Unable to allocate memory for struct iscsi_param_list.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_LIST_HEAD(&param_list->param_list);
 	INIT_LIST_HEAD(&param_list->extra_response_list);
@@ -613,7 +613,7 @@ int iscsi_copy_param_list(
 	if (!list_empty(&param_list->param_list)) {
 		*dst_param_list = param_list;
 	} else {
-		pr_err("No parameters allocated.\n");
+		pr_err("Anal parameters allocated.\n");
 		goto err_out;
 	}
 
@@ -621,7 +621,7 @@ int iscsi_copy_param_list(
 
 err_out:
 	iscsi_release_param_list(param_list);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void iscsi_release_extra_responses(struct iscsi_param_list *param_list)
@@ -679,7 +679,7 @@ int iscsi_extract_key_value(char *textbuf, char **key, char **value)
 	*value = strchr(textbuf, '=');
 	if (!*value) {
 		pr_err("Unable to locate \"=\" separator for key,"
-				" ignoring request.\n");
+				" iganalring request.\n");
 		return -1;
 	}
 
@@ -697,7 +697,7 @@ int iscsi_update_param_value(struct iscsi_param *param, char *value)
 	param->value = kstrdup(value, GFP_KERNEL);
 	if (!param->value) {
 		pr_err("Unable to allocate memory for value.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pr_debug("iSCSI Parameter updated to %s=%s\n",
@@ -705,7 +705,7 @@ int iscsi_update_param_value(struct iscsi_param *param, char *value)
 	return 0;
 }
 
-static int iscsi_add_notunderstood_response(
+static int iscsi_add_analtunderstood_response(
 	char *key,
 	char *value,
 	struct iscsi_param_list *param_list)
@@ -713,7 +713,7 @@ static int iscsi_add_notunderstood_response(
 	struct iscsi_extra_response *extra_response;
 
 	if (strlen(value) > VALUE_MAXLEN) {
-		pr_err("Value for notunderstood key \"%s\" exceeds %d,"
+		pr_err("Value for analtunderstood key \"%s\" exceeds %d,"
 			" protocol error.\n", key, VALUE_MAXLEN);
 		return -1;
 	}
@@ -722,12 +722,12 @@ static int iscsi_add_notunderstood_response(
 	if (!extra_response) {
 		pr_err("Unable to allocate memory for"
 			" struct iscsi_extra_response.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_LIST_HEAD(&extra_response->er_list);
 
 	strscpy(extra_response->key, key, sizeof(extra_response->key));
-	strscpy(extra_response->value, NOTUNDERSTOOD,
+	strscpy(extra_response->value, ANALTUNDERSTOOD,
 		sizeof(extra_response->value));
 
 	list_add_tail(&extra_response->er_list,
@@ -761,10 +761,10 @@ static void iscsi_check_proposer_for_optional_reply(struct iscsi_param *param,
 						    bool keys_workaround)
 {
 	if (IS_TYPE_BOOL_AND(param)) {
-		if (!strcmp(param->value, NO))
+		if (!strcmp(param->value, ANAL))
 			SET_PSTATE_REPLY_OPTIONAL(param);
 	} else if (IS_TYPE_BOOL_OR(param)) {
-		if (!strcmp(param->value, YES))
+		if (!strcmp(param->value, ANAL))
 			SET_PSTATE_REPLY_OPTIONAL(param);
 
 		if (keys_workaround) {
@@ -780,7 +780,7 @@ static void iscsi_check_proposer_for_optional_reply(struct iscsi_param *param,
 
 		if (keys_workaround) {
 			/*
-			 * Required for Mellanox Flexboot PXE boot ROM
+			 * Required for Mellaanalx Flexboot PXE boot ROM
 			 */
 			if (!strcmp(param->name, FIRSTBURSTLENGTH))
 				SET_PSTATE_REPLY_OPTIONAL(param);
@@ -797,9 +797,9 @@ static void iscsi_check_proposer_for_optional_reply(struct iscsi_param *param,
 
 static int iscsi_check_boolean_value(struct iscsi_param *param, char *value)
 {
-	if (strcmp(value, YES) && strcmp(value, NO)) {
+	if (strcmp(value, ANAL) && strcmp(value, ANAL)) {
 		pr_err("Illegal value for \"%s\", must be either"
-			" \"%s\" or \"%s\".\n", param->name, YES, NO);
+			" \"%s\" or \"%s\".\n", param->name, ANAL, ANAL);
 		return -1;
 	}
 
@@ -881,27 +881,27 @@ static int iscsi_check_string_or_list_value(struct iscsi_param *param, char *val
 	if (IS_TYPERANGE_AUTH_PARAM(param)) {
 		if (strcmp(value, KRB5) && strcmp(value, SPKM1) &&
 		    strcmp(value, SPKM2) && strcmp(value, SRP) &&
-		    strcmp(value, CHAP) && strcmp(value, NONE)) {
+		    strcmp(value, CHAP) && strcmp(value, ANALNE)) {
 			pr_err("Illegal value for \"%s\", must be"
 				" \"%s\", \"%s\", \"%s\", \"%s\", \"%s\""
 				" or \"%s\".\n", param->name, KRB5,
-					SPKM1, SPKM2, SRP, CHAP, NONE);
+					SPKM1, SPKM2, SRP, CHAP, ANALNE);
 			return -1;
 		}
 	}
 	if (IS_TYPERANGE_DIGEST_PARAM(param)) {
-		if (strcmp(value, CRC32C) && strcmp(value, NONE)) {
+		if (strcmp(value, CRC32C) && strcmp(value, ANALNE)) {
 			pr_err("Illegal value for \"%s\", must be"
 				" \"%s\" or \"%s\".\n", param->name,
-					CRC32C, NONE);
+					CRC32C, ANALNE);
 			return -1;
 		}
 	}
 	if (IS_TYPERANGE_SESSIONTYPE(param)) {
-		if (strcmp(value, DISCOVERY) && strcmp(value, NORMAL)) {
+		if (strcmp(value, DISCOVERY) && strcmp(value, ANALRMAL)) {
 			pr_err("Illegal value for \"%s\", must be"
 				" \"%s\" or \"%s\".\n", param->name,
-					DISCOVERY, NORMAL);
+					DISCOVERY, ANALRMAL);
 			return -1;
 		}
 	}
@@ -970,25 +970,25 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 		return 0;
 
 	if (IS_TYPE_BOOL_AND(param)) {
-		if (!strcmp(value, YES))
+		if (!strcmp(value, ANAL))
 			proposer_boolean_value = 1;
-		if (!strcmp(param->value, YES))
+		if (!strcmp(param->value, ANAL))
 			acceptor_boolean_value = 1;
 		if (acceptor_boolean_value && proposer_boolean_value)
 			do {} while (0);
 		else {
-			if (iscsi_update_param_value(param, NO) < 0)
+			if (iscsi_update_param_value(param, ANAL) < 0)
 				return -1;
 			if (!proposer_boolean_value)
 				SET_PSTATE_REPLY_OPTIONAL(param);
 		}
 	} else if (IS_TYPE_BOOL_OR(param)) {
-		if (!strcmp(value, YES))
+		if (!strcmp(value, ANAL))
 			proposer_boolean_value = 1;
-		if (!strcmp(param->value, YES))
+		if (!strcmp(param->value, ANAL))
 			acceptor_boolean_value = 1;
 		if (acceptor_boolean_value || proposer_boolean_value) {
-			if (iscsi_update_param_value(param, YES) < 0)
+			if (iscsi_update_param_value(param, ANAL) < 0)
 				return -1;
 			if (proposer_boolean_value)
 				SET_PSTATE_REPLY_OPTIONAL(param);
@@ -1063,7 +1063,7 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 					param, value);
 		if (!negotiated_value) {
 			pr_err("Proposer's value list \"%s\" contains"
-				" no valid values from Acceptor's value list"
+				" anal valid values from Acceptor's value list"
 				" \"%s\".\n", value, param->value);
 			return -1;
 		}
@@ -1115,8 +1115,8 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 		if (!strcmp(param->name, IFMARKINT) ||
 		    !strcmp(param->name, OFMARKINT)) {
 			/*
-			 * Reject is not fatal for [I,O]FMarkInt,  and causes
-			 * [I,O]FMarker to be reset to No. (See iSCSI v20 A.3.2)
+			 * Reject is analt fatal for [I,O]FMarkInt,  and causes
+			 * [I,O]FMarker to be reset to Anal. (See iSCSI v20 A.3.2)
 			 */
 			SET_PSTATE_REJECT(param);
 			return 0;
@@ -1129,7 +1129,7 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 		SET_PSTATE_IRRELEVANT(param);
 		return 0;
 	}
-	if (!strcmp(value, NOTUNDERSTOOD)) {
+	if (!strcmp(value, ANALTUNDERSTOOD)) {
 		if (!IS_PSTATE_PROPOSER(param)) {
 			pr_err("Received illegal offer %s=%s\n",
 				param->name, value);
@@ -1137,7 +1137,7 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 		}
 
 /* #warning FIXME: Add check for X-ExtensionKey here */
-		pr_err("Standard iSCSI key \"%s\" cannot be answered"
+		pr_err("Standard iSCSI key \"%s\" cananalt be answered"
 			" with \"%s\", protocol error.\n", param->name, value);
 		return -1;
 	}
@@ -1148,7 +1148,7 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 
 		if (comma_ptr && !IS_TYPE_VALUE_LIST(param)) {
 			pr_err("Detected value separator \",\", but"
-				" key \"%s\" does not allow a value list,"
+				" key \"%s\" does analt allow a value list,"
 				" protocol error.\n", param->name);
 			return -1;
 		}
@@ -1203,14 +1203,14 @@ static struct iscsi_param *__iscsi_check_key(
 		return NULL;
 
 	if ((sender & SENDER_INITIATOR) && !IS_SENDER_INITIATOR(param)) {
-		pr_err("Key \"%s\" may not be sent to %s,"
+		pr_err("Key \"%s\" may analt be sent to %s,"
 			" protocol error.\n", param->name,
 			(sender & SENDER_RECEIVER) ? "target" : "initiator");
 		return NULL;
 	}
 
 	if ((sender & SENDER_TARGET) && !IS_SENDER_TARGET(param)) {
-		pr_err("Key \"%s\" may not be sent to %s,"
+		pr_err("Key \"%s\" may analt be sent to %s,"
 			" protocol error.\n", param->name,
 			(sender & SENDER_RECEIVER) ? "initiator" : "target");
 		return NULL;
@@ -1227,7 +1227,7 @@ static struct iscsi_param *iscsi_check_key(
 {
 	struct iscsi_param *param;
 	/*
-	 * Key name length must not exceed 63 bytes. (See iSCSI v20 5.1)
+	 * Key name length must analt exceed 63 bytes. (See iSCSI v20 5.1)
 	 */
 	if (strlen(key) > KEY_MAXLEN) {
 		pr_err("Length of key name \"%s\" exceeds %d.\n",
@@ -1240,13 +1240,13 @@ static struct iscsi_param *iscsi_check_key(
 		return NULL;
 
 	if ((sender & SENDER_INITIATOR) && !IS_SENDER_INITIATOR(param)) {
-		pr_err("Key \"%s\" may not be sent to %s,"
+		pr_err("Key \"%s\" may analt be sent to %s,"
 			" protocol error.\n", param->name,
 			(sender & SENDER_RECEIVER) ? "target" : "initiator");
 		return NULL;
 	}
 	if ((sender & SENDER_TARGET) && !IS_SENDER_TARGET(param)) {
-		pr_err("Key \"%s\" may not be sent to %s,"
+		pr_err("Key \"%s\" may analt be sent to %s,"
 				" protocol error.\n", param->name,
 			(sender & SENDER_RECEIVER) ? "initiator" : "target");
 		return NULL;
@@ -1272,9 +1272,9 @@ static struct iscsi_param *iscsi_check_key(
 			phase_name = "Operational";
 			break;
 		default:
-			phase_name = "Unknown";
+			phase_name = "Unkanalwn";
 		}
-		pr_err("Key \"%s\" may not be negotiated during %s phase.\n",
+		pr_err("Key \"%s\" may analt be negotiated during %s phase.\n",
 				param->name, phase_name);
 		return NULL;
 	}
@@ -1296,13 +1296,13 @@ static int iscsi_enforce_integrity_rules(
 		if (!(param->phase & phase))
 			continue;
 		if (!strcmp(param->name, SESSIONTYPE))
-			if (!strcmp(param->value, NORMAL))
+			if (!strcmp(param->value, ANALRMAL))
 				SessionType = 1;
 		if (!strcmp(param->name, ERRORRECOVERYLEVEL))
 			ErrorRecoveryLevel = simple_strtoul(param->value,
 					&tmpptr, 0);
-		if (!strcmp(param->name, DATASEQUENCEINORDER))
-			if (!strcmp(param->value, YES))
+		if (!strcmp(param->name, DATASEQUENCEIANALRDER))
+			if (!strcmp(param->value, ANAL))
 				DataSequenceInOrder = 1;
 		if (!strcmp(param->name, MAXBURSTLENGTH))
 			MaxBurstLength = simple_strtoul(param->value,
@@ -1362,7 +1362,7 @@ int iscsi_decode_text_input(
 	tmpbuf = kmemdup_nul(textbuf, length, GFP_KERNEL);
 	if (!tmpbuf) {
 		pr_err("Unable to allocate %u + 1 bytes for tmpbuf.\n", length);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	start = tmpbuf;
@@ -1386,7 +1386,7 @@ int iscsi_decode_text_input(
 
 		param = iscsi_check_key(key, phase, sender, param_list);
 		if (!param) {
-			if (iscsi_add_notunderstood_response(key, value,
+			if (iscsi_add_analtunderstood_response(key, value,
 							     param_list) < 0)
 				goto free_buffer;
 
@@ -1490,7 +1490,7 @@ int iscsi_check_negotiated_keys(struct iscsi_param_list *param_list)
 		    !IS_PSTATE_RESPONSE_GOT(param) &&
 		    !IS_PSTATE_REPLY_OPTIONAL(param) &&
 		    !IS_PHASE_DECLARATIVE(param)) {
-			pr_err("No response for proposed key \"%s\".\n",
+			pr_err("Anal response for proposed key \"%s\".\n",
 					param->name);
 			ret = -1;
 		}
@@ -1547,7 +1547,7 @@ void iscsi_set_connection_parameters(
 		/*
 		 * Special case to set MAXXMITDATASEGMENTLENGTH from the
 		 * target requested MaxRecvDataSegmentLength, even though
-		 * this key is not sent over the wire.
+		 * this key is analt sent over the wire.
 		 */
 		if (!strcmp(param->name, MAXXMITDATASEGMENTLENGTH)) {
 			ops->MaxXmitDataSegmentLength =
@@ -1656,11 +1656,11 @@ void iscsi_set_session_parameters(
 			pr_debug("MaxConnections:               %s\n",
 				param->value);
 		} else if (!strcmp(param->name, INITIALR2T)) {
-			ops->InitialR2T = !strcmp(param->value, YES);
+			ops->InitialR2T = !strcmp(param->value, ANAL);
 			pr_debug("InitialR2T:                   %s\n",
 				param->value);
 		} else if (!strcmp(param->name, IMMEDIATEDATA)) {
-			ops->ImmediateData = !strcmp(param->value, YES);
+			ops->ImmediateData = !strcmp(param->value, ANAL);
 			pr_debug("ImmediateData:                %s\n",
 				param->value);
 		} else if (!strcmp(param->name, MAXBURSTLENGTH)) {
@@ -1688,12 +1688,12 @@ void iscsi_set_session_parameters(
 				simple_strtoul(param->value, &tmpptr, 0);
 			pr_debug("MaxOutstandingR2T:            %s\n",
 				param->value);
-		} else if (!strcmp(param->name, DATAPDUINORDER)) {
-			ops->DataPDUInOrder = !strcmp(param->value, YES);
+		} else if (!strcmp(param->name, DATAPDUIANALRDER)) {
+			ops->DataPDUInOrder = !strcmp(param->value, ANAL);
 			pr_debug("DataPDUInOrder:               %s\n",
 				param->value);
-		} else if (!strcmp(param->name, DATASEQUENCEINORDER)) {
-			ops->DataSequenceInOrder = !strcmp(param->value, YES);
+		} else if (!strcmp(param->name, DATASEQUENCEIANALRDER)) {
+			ops->DataSequenceInOrder = !strcmp(param->value, ANAL);
 			pr_debug("DataSequenceInOrder:          %s\n",
 				param->value);
 		} else if (!strcmp(param->name, ERRORRECOVERYLEVEL)) {
@@ -1706,7 +1706,7 @@ void iscsi_set_session_parameters(
 			pr_debug("SessionType:                  %s\n",
 				param->value);
 		} else if (!strcmp(param->name, RDMAEXTENSIONS)) {
-			ops->RDMAExtensions = !strcmp(param->value, YES);
+			ops->RDMAExtensions = !strcmp(param->value, ANAL);
 			pr_debug("RDMAExtensions:               %s\n",
 				param->value);
 		}

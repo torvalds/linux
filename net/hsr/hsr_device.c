@@ -71,7 +71,7 @@ static bool hsr_check_carrier(struct hsr_port *master)
 	return false;
 }
 
-static void hsr_check_announce(struct net_device *hsr_dev,
+static void hsr_check_ananalunce(struct net_device *hsr_dev,
 			       unsigned char old_operstate)
 {
 	struct hsr_priv *hsr;
@@ -80,14 +80,14 @@ static void hsr_check_announce(struct net_device *hsr_dev,
 
 	if (hsr_dev->operstate == IF_OPER_UP && old_operstate != IF_OPER_UP) {
 		/* Went up */
-		hsr->announce_count = 0;
-		mod_timer(&hsr->announce_timer,
-			  jiffies + msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL));
+		hsr->ananalunce_count = 0;
+		mod_timer(&hsr->ananalunce_timer,
+			  jiffies + msecs_to_jiffies(HSR_ANANALUNCE_INTERVAL));
 	}
 
 	if (hsr_dev->operstate != IF_OPER_UP && old_operstate == IF_OPER_UP)
 		/* Went down */
-		del_timer(&hsr->announce_timer);
+		del_timer(&hsr->ananalunce_timer);
 }
 
 void hsr_check_carrier_and_operstate(struct hsr_priv *hsr)
@@ -97,13 +97,13 @@ void hsr_check_carrier_and_operstate(struct hsr_priv *hsr)
 	bool has_carrier;
 
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-	/* netif_stacked_transfer_operstate() cannot be used here since
+	/* netif_stacked_transfer_operstate() cananalt be used here since
 	 * it doesn't set IF_OPER_LOWERLAYERDOWN (?)
 	 */
 	old_operstate = master->dev->operstate;
 	has_carrier = hsr_check_carrier(master);
 	hsr_set_operstate(master, has_carrier);
-	hsr_check_announce(master->dev, old_operstate);
+	hsr_check_ananalunce(master->dev, old_operstate);
 }
 
 int hsr_get_max_mtu(struct hsr_priv *hsr)
@@ -128,7 +128,7 @@ static int hsr_dev_change_mtu(struct net_device *dev, int new_mtu)
 	hsr = netdev_priv(dev);
 
 	if (new_mtu > hsr_get_max_mtu(hsr)) {
-		netdev_info(dev, "A HSR master's MTU cannot be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
+		netdev_info(dev, "A HSR master's MTU cananalt be greater than the smallest MTU of its slaves minus the HSR Tag length (%d octets).\n",
 			    HSR_HLEN);
 		return -EINVAL;
 	}
@@ -161,12 +161,12 @@ static int hsr_dev_open(struct net_device *dev)
 			designation = '?';
 		}
 		if (!is_slave_up(port->dev))
-			netdev_warn(dev, "Slave %c (%s) is not up; please bring it up to get a fully working HSR network\n",
+			netdev_warn(dev, "Slave %c (%s) is analt up; please bring it up to get a fully working HSR network\n",
 				    designation, port->dev->name);
 	}
 
 	if (designation == '\0')
-		netdev_warn(dev, "No slave devices configured\n");
+		netdev_warn(dev, "Anal slave devices configured\n");
 
 	return 0;
 }
@@ -205,7 +205,7 @@ static netdev_features_t hsr_features_recompute(struct hsr_priv *hsr,
 	/* Mask out all features that, if supported by one device, should be
 	 * enabled for all devices (see NETIF_F_ONE_FOR_ALL).
 	 *
-	 * Anything that's off in mask will not be enabled - so only things
+	 * Anything that's off in mask will analt be enabled - so only things
 	 * that were in features originally, and also is in NETIF_F_ONE_FOR_ALL,
 	 * may become enabled.
 	 */
@@ -300,15 +300,15 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	struct sk_buff *skb;
 
 	*interval = msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
-	if (hsr->announce_count < 3 && hsr->prot_version == 0) {
-		type = HSR_TLV_ANNOUNCE;
-		*interval = msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
-		hsr->announce_count++;
+	if (hsr->ananalunce_count < 3 && hsr->prot_version == 0) {
+		type = HSR_TLV_ANANALUNCE;
+		*interval = msecs_to_jiffies(HSR_ANANALUNCE_INTERVAL);
+		hsr->ananalunce_count++;
 	}
 
 	skb = hsr_init_skb(master);
 	if (!skb) {
-		netdev_warn_once(master->dev, "HSR: Could not send supervision frame\n");
+		netdev_warn_once(master->dev, "HSR: Could analt send supervision frame\n");
 		return;
 	}
 
@@ -355,7 +355,7 @@ static void send_prp_supervision_frame(struct hsr_port *master,
 
 	skb = hsr_init_skb(master);
 	if (!skb) {
-		netdev_warn_once(master->dev, "PRP: Could not send supervision frame\n");
+		netdev_warn_once(master->dev, "PRP: Could analt send supervision frame\n");
 		return;
 	}
 
@@ -384,22 +384,22 @@ static void send_prp_supervision_frame(struct hsr_port *master,
 	spin_unlock_bh(&hsr->seqnr_lock);
 }
 
-/* Announce (supervision frame) timer function
+/* Ananalunce (supervision frame) timer function
  */
-static void hsr_announce(struct timer_list *t)
+static void hsr_ananalunce(struct timer_list *t)
 {
 	struct hsr_priv *hsr;
 	struct hsr_port *master;
 	unsigned long interval;
 
-	hsr = from_timer(hsr, t, announce_timer);
+	hsr = from_timer(hsr, t, ananalunce_timer);
 
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 	hsr->proto_ops->send_sv_frame(master, &interval);
 
 	if (is_admin_up(master->dev))
-		mod_timer(&hsr->announce_timer, jiffies + interval);
+		mod_timer(&hsr->ananalunce_timer, jiffies + interval);
 
 	rcu_read_unlock();
 }
@@ -509,7 +509,7 @@ void hsr_dev_setup(struct net_device *dev)
 	dev->header_ops = &hsr_header_ops;
 	dev->netdev_ops = &hsr_device_ops;
 	SET_NETDEV_DEVTYPE(dev, &hsr_type);
-	dev->priv_flags |= IFF_NO_QUEUE | IFF_DISABLE_NETPOLL;
+	dev->priv_flags |= IFF_ANAL_QUEUE | IFF_DISABLE_NETPOLL;
 
 	dev->needs_free_netdev = true;
 
@@ -525,8 +525,8 @@ void hsr_dev_setup(struct net_device *dev)
 	 * hsr_header_create() etc.
 	 */
 	dev->features |= NETIF_F_VLAN_CHALLENGED;
-	/* Not sure about this. Taken from bridge code. netdev_features.h says
-	 * it means "Does not change network namespaces".
+	/* Analt sure about this. Taken from bridge code. netdev_features.h says
+	 * it means "Does analt change network namespaces".
 	 */
 	dev->features |= NETIF_F_NETNS_LOCAL;
 }
@@ -554,7 +554,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 
 	hsr = netdev_priv(hsr_dev);
 	INIT_LIST_HEAD(&hsr->ports);
-	INIT_LIST_HEAD(&hsr->node_db);
+	INIT_LIST_HEAD(&hsr->analde_db);
 	spin_lock_init(&hsr->list_lock);
 
 	eth_hw_addr_set(hsr_dev, slave[0]->dev_addr);
@@ -571,7 +571,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	}
 
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */
-	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,
+	res = hsr_create_self_analde(hsr, hsr_dev->dev_addr,
 				   slave[1]->dev_addr);
 	if (res < 0)
 		return res;
@@ -581,8 +581,8 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	hsr->sequence_nr = HSR_SEQNR_START;
 	hsr->sup_sequence_nr = HSR_SUP_SEQNR_START;
 
-	timer_setup(&hsr->announce_timer, hsr_announce, 0);
-	timer_setup(&hsr->prune_timer, hsr_prune_nodes, 0);
+	timer_setup(&hsr->ananalunce_timer, hsr_ananalunce, 0);
+	timer_setup(&hsr->prune_timer, hsr_prune_analdes, 0);
 
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;
@@ -623,7 +623,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 err_unregister:
 	hsr_del_ports(hsr);
 err_add_master:
-	hsr_del_self_node(hsr);
+	hsr_del_self_analde(hsr);
 
 	if (unregister)
 		unregister_netdevice(hsr_dev);

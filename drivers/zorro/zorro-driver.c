@@ -25,7 +25,7 @@
      *
      *  Used by a driver to check whether a Zorro device present in the
      *  system is in its list of supported devices. Returns the matching
-     *  zorro_device_id structure or %NULL if there is no match.
+     *  zorro_device_id structure or %NULL if there is anal match.
      */
 
 static const struct zorro_device_id *
@@ -115,7 +115,7 @@ EXPORT_SYMBOL(zorro_unregister_driver);
      *
      *  Used by the driver core to check whether a Zorro device present in the
      *  system is in a driver's list of supported devices.  Returns 1 if
-     *  supported, and 0 if there is no match.
+     *  supported, and 0 if there is anal match.
      */
 
 static int zorro_bus_match(struct device *dev, struct device_driver *drv)
@@ -135,17 +135,17 @@ static int zorro_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	const struct zorro_dev *z;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	z = to_zorro_dev(dev);
 	if (!z)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (add_uevent_var(env, "ZORRO_ID=%08X", z->id) ||
 	    add_uevent_var(env, "ZORRO_SLOT_NAME=%s", dev_name(dev)) ||
 	    add_uevent_var(env, "ZORRO_SLOT_ADDR=%04X", z->slotaddr) ||
 	    add_uevent_var(env, "MODALIAS=" ZORRO_DEVICE_MODALIAS_FMT, z->id))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

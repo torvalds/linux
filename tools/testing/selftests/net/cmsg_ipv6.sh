@@ -81,7 +81,7 @@ for ovr in setsock cmsg both diff; do
 	[ $ovr == "both" ]    && m="-C $((TOS2)) -c"
 	[ $ovr == "diff" ]    && m="-C $((TOS )) -c"
 
-	$NSEXE nohup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
+	$NSEXE analhup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
 	BG=$!
 	sleep 0.05
 
@@ -118,7 +118,7 @@ for ovr in setsock cmsg both diff; do
 	[ $ovr == "both" ]    && m="-L $LIM -l"
 	[ $ovr == "diff" ]    && m="-L $((LIM + 1)) -l"
 
-	$NSEXE nohup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
+	$NSEXE analhup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
 	BG=$!
 	sleep 0.05
 

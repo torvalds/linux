@@ -1,6 +1,6 @@
 /*
  *  linux/drivers/video/mfb.c -- Low level frame buffer operations for
- *				 monochrome
+ *				 moanalchrome
  *
  *	Created 5 Apr 1997 by Geert Uytterhoeven
  *
@@ -17,7 +17,7 @@
 
 
     /*
-     *  Monochrome
+     *  Moanalchrome
      */
 
 void atafb_mfb_copyarea(struct fb_info *info, u_long next_line,

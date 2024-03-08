@@ -171,7 +171,7 @@ static void logicvc_crtc_atomic_disable(struct drm_crtc *drm_crtc,
 	/* Generate internal state reset. */
 	regmap_write(logicvc->regmap, LOGICVC_DTYPE_REG, 0);
 
-	/* Consume any leftover event since vblank is now disabled. */
+	/* Consume any leftover event since vblank is analw disabled. */
 	if (drm_crtc->state->event && !drm_crtc->state->active) {
 		spin_lock_irq(&drm_dev->event_lock);
 
@@ -247,14 +247,14 @@ int logicvc_crtc_init(struct logicvc_drm *logicvc)
 {
 	struct drm_device *drm_dev = &logicvc->drm_dev;
 	struct device *dev = drm_dev->dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	struct logicvc_crtc *crtc;
 	struct logicvc_layer *layer_primary;
 	int ret;
 
 	crtc = devm_kzalloc(dev, sizeof(*crtc), GFP_KERNEL);
 	if (!crtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	layer_primary = logicvc_layer_get_primary(logicvc);
 	if (!layer_primary) {
@@ -272,7 +272,7 @@ int logicvc_crtc_init(struct logicvc_drm *logicvc)
 
 	drm_crtc_helper_add(&crtc->drm_crtc, &logicvc_crtc_helper_funcs);
 
-	crtc->drm_crtc.port = of_graph_get_port_by_id(of_node, 1);
+	crtc->drm_crtc.port = of_graph_get_port_by_id(of_analde, 1);
 
 	logicvc->crtc = crtc;
 

@@ -3,7 +3,7 @@ Mediatek MT6351 Audio Codec
 The communication between MT6351 and SoC is through Mediatek PMIC wrapper.
 For more detail, please visit Mediatek PMIC wrapper documentation.
 
-Must be a child node of PMIC wrapper.
+Must be a child analde of PMIC wrapper.
 
 Required properties:
 

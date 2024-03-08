@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -106,7 +106,7 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		return;
 	}
 
-	/* Object isn't an AMDGPU object so ignore */
+	/* Object isn't an AMDGPU object so iganalre */
 	if (!amdgpu_bo_is_amdgpu_bo(bo)) {
 		placement->placement = &placements;
 		placement->busy_placement = &placements;
@@ -348,7 +348,7 @@ error:
 }
 
 /*
- * amdgpu_move_blit - Copy an entire buffer to another buffer
+ * amdgpu_move_blit - Copy an entire buffer to aanalther buffer
  *
  * This is a helper called by amdgpu_bo_move() and amdgpu_move_vram_ram() to
  * help move buffers to and from VRAM.
@@ -501,7 +501,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 	    new_mem->mem_type == AMDGPU_PL_GWS ||
 	    new_mem->mem_type == AMDGPU_PL_OA ||
 	    new_mem->mem_type == AMDGPU_PL_DOORBELL) {
-		/* Nothing to save here */
+		/* Analthing to save here */
 		ttm_bo_move_null(bo, new_mem);
 		goto out;
 	}
@@ -509,7 +509,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 	if (bo->type == ttm_bo_type_device &&
 	    new_mem->mem_type == TTM_PL_VRAM &&
 	    old_mem->mem_type != TTM_PL_VRAM) {
-		/* amdgpu_bo_fault_reserve_notify will re-set this if the CPU
+		/* amdgpu_bo_fault_reserve_analtify will re-set this if the CPU
 		 * accesses the BO after it's moved.
 		 */
 		abo->flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
@@ -529,7 +529,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 		r = amdgpu_move_blit(bo, evict, new_mem, old_mem);
 	} else {
-		r = -ENODEV;
+		r = -EANALDEV;
 	}
 
 	if (r) {
@@ -549,7 +549,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 out:
 	/* update statistics */
 	atomic64_add(bo->base.size, &adev->num_bytes_moved);
-	amdgpu_bo_move_notify(bo, evict);
+	amdgpu_bo_move_analtify(bo, evict);
 	return 0;
 }
 
@@ -671,13 +671,13 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages,
 	/* Make sure get_user_pages_done() can cleanup gracefully */
 	*range = NULL;
 
-	mm = bo->notifier.mm;
+	mm = bo->analtifier.mm;
 	if (unlikely(!mm)) {
-		DRM_DEBUG_DRIVER("BO is not registered?\n");
+		DRM_DEBUG_DRIVER("BO is analt registered?\n");
 		return -EFAULT;
 	}
 
-	if (!mmget_not_zero(mm)) /* Happens during process shutdown */
+	if (!mmget_analt_zero(mm)) /* Happens during process shutdown */
 		return -ESRCH;
 
 	mmap_read_lock(mm);
@@ -686,14 +686,14 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages,
 		r = -EFAULT;
 		goto out_unlock;
 	}
-	if (unlikely((gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) &&
+	if (unlikely((gtt->userflags & AMDGPU_GEM_USERPTR_AANALANALNLY) &&
 		vma->vm_file)) {
 		r = -EPERM;
 		goto out_unlock;
 	}
 
 	readonly = amdgpu_ttm_tt_is_readonly(ttm);
-	r = amdgpu_hmm_range_get_pages(&bo->notifier, start, ttm->num_pages,
+	r = amdgpu_hmm_range_get_pages(&bo->analtifier, start, ttm->num_pages,
 				       readonly, NULL, pages, range);
 out_unlock:
 	mmap_read_unlock(mm);
@@ -733,7 +733,7 @@ bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
 	DRM_DEBUG_DRIVER("user_pages_done 0x%llx pages 0x%x\n",
 		gtt->userptr, ttm->num_pages);
 
-	WARN_ONCE(!range->hmm_pfns, "No user pages to check\n");
+	WARN_ONCE(!range->hmm_pfns, "Anal user pages to check\n");
 
 	return !amdgpu_hmm_range_get_pages_done(range);
 }
@@ -916,7 +916,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 	}
 
 	if (!ttm->num_pages) {
-		WARN(1, "nothing to bind %u pages for mreg %p back %p!\n",
+		WARN(1, "analthing to bind %u pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
 	}
 
@@ -1113,7 +1113,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_device *bdev,
 	if (gtt->userptr) {
 		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 		if (!ttm->sg)
-			return -ENOMEM;
+			return -EANALMEM;
 		return 0;
 	}
 
@@ -1214,7 +1214,7 @@ int amdgpu_ttm_tt_set_userptr(struct ttm_buffer_object *bo,
 		/* TODO: We want a separate TTM object type for userptrs */
 		bo->ttm = amdgpu_ttm_tt_create(bo, 0);
 		if (bo->ttm == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Set TTM_TT_FLAG_EXTERNAL before populate but after create. */
@@ -1262,7 +1262,7 @@ bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 	if (gtt == NULL || !gtt->userptr)
 		return false;
 
-	/* Return false if no part of the ttm_tt object lies within
+	/* Return false if anal part of the ttm_tt object lies within
 	 * the range
 	 */
 	size = (unsigned long)gtt->ttm.num_pages * PAGE_SIZE;
@@ -1321,12 +1321,12 @@ uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_resource *mem)
 		flags |= AMDGPU_PTE_SYSTEM;
 
 		if (ttm->caching == ttm_cached)
-			flags |= AMDGPU_PTE_SNOOPED;
+			flags |= AMDGPU_PTE_SANALOPED;
 	}
 
 	if (mem && mem->mem_type == TTM_PL_VRAM &&
 			mem->bus.caching == ttm_cached)
-		flags |= AMDGPU_PTE_SNOOPED;
+		flags |= AMDGPU_PTE_SANALOPED;
 
 	return flags;
 }
@@ -1394,8 +1394,8 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	 * driver (pages, VRAM, GART space). They point to resources
 	 * owned by someone else (e.g. pageable memory in user mode
 	 * or a DMABuf). They are used in a preemptible context so we
-	 * can guarantee no deadlocks and good QoS in case of MMU
-	 * notifiers or DMABuf move notifiers from the resource owner.
+	 * can guarantee anal deadlocks and good QoS in case of MMU
+	 * analtifiers or DMABuf move analtifiers from the resource owner.
 	 */
 	if (bo->resource->mem_type == AMDGPU_PL_PREEMPT)
 		return false;
@@ -1462,7 +1462,7 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 		return -EACCES;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (write)
 		memcpy(adev->mman.sdma_access_ptr, buf, len);
@@ -1552,9 +1552,9 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 }
 
 static void
-amdgpu_bo_delete_mem_notify(struct ttm_buffer_object *bo)
+amdgpu_bo_delete_mem_analtify(struct ttm_buffer_object *bo)
 {
-	amdgpu_bo_move_notify(bo, false);
+	amdgpu_bo_move_analtify(bo, false);
 }
 
 static struct ttm_device_funcs amdgpu_bo_driver = {
@@ -1565,8 +1565,8 @@ static struct ttm_device_funcs amdgpu_bo_driver = {
 	.eviction_valuable = amdgpu_ttm_bo_eviction_valuable,
 	.evict_flags = &amdgpu_evict_flags,
 	.move = &amdgpu_bo_move,
-	.delete_mem_notify = &amdgpu_bo_delete_mem_notify,
-	.release_notify = &amdgpu_bo_release_notify,
+	.delete_mem_analtify = &amdgpu_bo_delete_mem_analtify,
+	.release_analtify = &amdgpu_bo_release_analtify,
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_pfn = amdgpu_ttm_io_mem_pfn,
 	.access_memory = &amdgpu_ttm_access_memory,
@@ -1670,7 +1670,7 @@ static int amdgpu_ttm_training_reserve_vram_fini(struct amdgpu_device *adev)
 {
 	struct psp_memory_training_context *ctx = &adev->psp.mem_train_ctx;
 
-	ctx->init = PSP_MEM_TRAIN_NOT_SUPPORT;
+	ctx->init = PSP_MEM_TRAIN_ANALT_SUPPORT;
 	amdgpu_bo_free_kernel(&ctx->c2p_bo, NULL, NULL);
 	ctx->c2p_bo = NULL;
 
@@ -1712,12 +1712,12 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 		if (amdgpu_atomfirmware_mem_training_supported(adev))
 			mem_train_support = true;
 		else
-			DRM_DEBUG("memory training does not support!\n");
+			DRM_DEBUG("memory training does analt support!\n");
 	}
 
 	/*
 	 * Query reserved tmr size through atom firmwareinfo for Sienna_Cichlid and onwards for all
-	 * the use cases (IP discovery/G6 memory training/profiling/diagnostic data.etc)
+	 * the use cases (IP discovery/G6 memory training/profiling/diaganalstic data.etc)
 	 *
 	 * Otherwise, fallback to legacy approach to check and reserve tmr block for ip
 	 * discovery data and G6 memory training data respectively
@@ -1759,7 +1759,7 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 			return ret;
 		}
 	} else {
-		DRM_DEBUG_DRIVER("backdoor fw loading path for PSP TMR, no reservation needed\n");
+		DRM_DEBUG_DRIVER("backdoor fw loading path for PSP TMR, anal reservation needed\n");
 	}
 
 	return 0;
@@ -1776,11 +1776,11 @@ static int amdgpu_ttm_pools_init(struct amdgpu_device *adev)
 				       sizeof(*adev->mman.ttm_pools),
 				       GFP_KERNEL);
 	if (!adev->mman.ttm_pools)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < adev->gmc.num_mem_partitions; i++) {
 		ttm_pool_init(&adev->mman.ttm_pools[i], adev->dev,
-			      adev->gmc.mem_partitions[i].numa.node,
+			      adev->gmc.mem_partitions[i].numa.analde,
 			      false, false);
 	}
 	return 0;
@@ -1816,9 +1816,9 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 
 	mutex_init(&adev->mman.gtt_window_lock);
 
-	/* No others user of address space so set it to 0 */
+	/* Anal others user of address space so set it to 0 */
 	r = ttm_device_init(&adev->mman.bdev, &amdgpu_bo_driver, adev->dev,
-			       adev_to_drm(adev)->anon_inode->i_mapping,
+			       adev_to_drm(adev)->aanaln_ianalde->i_mapping,
 			       adev_to_drm(adev)->vma_offset_manager,
 			       adev->need_swiotlb,
 			       dma_addressing_limited(adev->dev));
@@ -1851,7 +1851,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 
 	else if (adev->gmc.is_app_apu)
 		DRM_DEBUG_DRIVER(
-			"No need to ioremap when real vram size is 0\n");
+			"Anal need to ioremap when real vram size is 0\n");
 	else
 #endif
 		adev->mman.aper_base_kaddr = ioremap_wc(adev->gmc.aper_base,
@@ -1886,7 +1886,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	}
 
 	/* allocate memory as required for VGA
-	 * This is used for VGA emulation and pre-OS scanout buffers to
+	 * This is used for VGA emulation and pre-OS scaanalut buffers to
 	 * avoid display artifacts while transitioning between pre-OS
 	 * and driver.
 	 */
@@ -2069,7 +2069,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 		}
 
 		r = drm_sched_entity_init(&adev->mman.low_pr,
-					  DRM_SCHED_PRIORITY_NORMAL, &sched,
+					  DRM_SCHED_PRIORITY_ANALRMAL, &sched,
 					  1, NULL);
 		if (r) {
 			DRM_ERROR("Failed setting up TTM BO move entity (%d)\n",
@@ -2320,7 +2320,7 @@ DEFINE_SHOW_ATTRIBUTE(amdgpu_ttm_page_pool);
 static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 
 	if (size & 0x3 || *pos & 0x3)
@@ -2355,7 +2355,7 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_ttm_vram_write(struct file *f, const char __user *buf,
 				    size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -2397,13 +2397,13 @@ static const struct file_operations amdgpu_ttm_vram_fops = {
  * amdgpu_iomem_read - Virtual read access to GPU mapped memory
  *
  * This function is used to read memory that has been mapped to the
- * GPU and the known addresses are not physical addresses but instead
+ * GPU and the kanalwn addresses are analt physical addresses but instead
  * bus addresses (e.g., what you'd put in an IB or ring buffer).
  */
 static ssize_t amdgpu_iomem_read(struct file *f, char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	struct iommu_domain *dom;
 	ssize_t result = 0;
 	int r;
@@ -2422,7 +2422,7 @@ static ssize_t amdgpu_iomem_read(struct file *f, char __user *buf,
 		bytes = min(bytes, size);
 
 		/* Translate the bus address to a physical address.  If
-		 * the domain is NULL it means there is no IOMMU active
+		 * the domain is NULL it means there is anal IOMMU active
 		 * and the address translation is the identity
 		 */
 		addr = dom ? iommu_iova_to_phys(dom, addr) : addr;
@@ -2453,13 +2453,13 @@ static ssize_t amdgpu_iomem_read(struct file *f, char __user *buf,
  * amdgpu_iomem_write - Virtual write access to GPU mapped memory
  *
  * This function is used to write memory that has been mapped to the
- * GPU and the known addresses are not physical addresses but instead
+ * GPU and the kanalwn addresses are analt physical addresses but instead
  * bus addresses (e.g., what you'd put in an IB or ring buffer).
  */
 static ssize_t amdgpu_iomem_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	struct iommu_domain *dom;
 	ssize_t result = 0;
 	int r;
@@ -2512,8 +2512,8 @@ static const struct file_operations amdgpu_ttm_iomem_fops = {
 void amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = adev_to_drm(adev)->primary;
+	struct dentry *root = mianalr->debugfs_root;
 
 	debugfs_create_file_size("amdgpu_vram", 0444, root, adev,
 				 &amdgpu_ttm_vram_fops, adev->gmc.mc_vram_size);

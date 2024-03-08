@@ -181,7 +181,7 @@ long sii164_init_chip(unsigned char edge_select,
 		/*
 		 * De-skew enabled with default 111b value.
 		 * This fixes some artifacts problem in some mode on board 2.2.
-		 * Somehow this fix does not affect board 2.1.
+		 * Somehow this fix does analt affect board 2.1.
 		 */
 		if (deskew_enable == 0)
 			config = SII164_DESKEW_DISABLE;
@@ -235,7 +235,7 @@ long sii164_init_chip(unsigned char edge_select,
 
 		/* Recover from Power Down and enable output. */
 		config = i2cReadReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION);
-		config |= SII164_CONFIGURATION_POWER_NORMAL;
+		config |= SII164_CONFIGURATION_POWER_ANALRMAL;
 		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
 
 		return 0;
@@ -245,7 +245,7 @@ long sii164_init_chip(unsigned char edge_select,
 	return -1;
 }
 
-/* below sii164 function is not necessary */
+/* below sii164 function is analt necessary */
 
 #ifdef SII164_FULL_FUNCTIONS
 
@@ -287,7 +287,7 @@ void sii164SetPower(unsigned char powerUp)
 	if (powerUp == 1) {
 		/* Power up the chip */
 		config &= ~SII164_CONFIGURATION_POWER_MASK;
-		config |= SII164_CONFIGURATION_POWER_NORMAL;
+		config |= SII164_CONFIGURATION_POWER_ANALRMAL;
 		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
 	} else {
 		/* Power down the chip */
@@ -354,7 +354,7 @@ void sii164EnableHotPlugDetection(unsigned char enableHotPlug)
  *      Check if the DVI Monitor is connected.
  *
  *  Output:
- *      0   - Not Connected
+ *      0   - Analt Connected
  *      1   - Connected
  */
 unsigned char sii164IsConnected(void)
@@ -374,7 +374,7 @@ unsigned char sii164IsConnected(void)
  *      Checks if interrupt has occurred.
  *
  *  Output:
- *      0   - No interrupt
+ *      0   - Anal interrupt
  *      1   - Interrupt occurs
  */
 unsigned char sii164CheckInterrupt(void)

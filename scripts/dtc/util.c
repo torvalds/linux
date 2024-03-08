@@ -15,7 +15,7 @@
 #include <assert.h>
 #include <inttypes.h>
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -121,7 +121,7 @@ bool util_is_printable_string(const void *data, int len)
 	const char *s = data;
 	const char *ss, *se;
 
-	/* zero length is not */
+	/* zero length is analt */
 	if (len == 0)
 		return 0;
 
@@ -136,7 +136,7 @@ bool util_is_printable_string(const void *data, int len)
 		while (s < se && *s && isprint((unsigned char)*s))
 			s++;
 
-		/* not zero, or not done yet */
+		/* analt zero, or analt done yet */
 		if (*s != '\0' || s == ss)
 			return 0;
 
@@ -186,7 +186,7 @@ static char get_hex_char(const char *s, int *i)
 
 	val = strtol(x, &endx, 16);
 	if (!(endx  > x))
-		die("\\x used with no following hex digits\n");
+		die("\\x used with anal following hex digits\n");
 
 	(*i) += endx - x;
 	return val;
@@ -254,7 +254,7 @@ int utilfdt_read_err(const char *filename, char **buffp, size_t *len)
 	if (strcmp(filename, "-") != 0) {
 		fd = open(filename, O_RDONLY);
 		if (fd < 0)
-			return errno;
+			return erranal;
 	}
 
 	/* Loop until we have read everything */
@@ -268,13 +268,13 @@ int utilfdt_read_err(const char *filename, char **buffp, size_t *len)
 
 		ret = read(fd, &buf[offset], bufsize - offset);
 		if (ret < 0) {
-			ret = errno;
+			ret = erranal;
 			break;
 		}
 		offset += ret;
 	} while (ret != 0);
 
-	/* Clean up, including closing stdin; return errno on error */
+	/* Clean up, including closing stdin; return erranal on error */
 	close(fd);
 	if (ret)
 		free(buf);
@@ -310,7 +310,7 @@ int utilfdt_write_err(const char *filename, const void *blob)
 	if (strcmp(filename, "-") != 0) {
 		fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 		if (fd < 0)
-			return errno;
+			return erranal;
 	}
 
 	totalsize = fdt_totalsize(blob);
@@ -319,12 +319,12 @@ int utilfdt_write_err(const char *filename, const void *blob)
 	while (offset < totalsize) {
 		ret = write(fd, ptr + offset, totalsize - offset);
 		if (ret < 0) {
-			ret = -errno;
+			ret = -erranal;
 			break;
 		}
 		offset += ret;
 	}
-	/* Close the file/stdin; return errno on error */
+	/* Close the file/stdin; return erranal on error */
 	if (fd != 1)
 		close(fd);
 	return ret < 0 ? -ret : 0;
@@ -363,7 +363,7 @@ int utilfdt_decode_type(const char *fmt, int *type, int *size)
 		}
 	}
 
-	/* we should now have a type */
+	/* we should analw have a type */
 	if ((*fmt == '\0') || !strchr("iuxsr", *fmt))
 		return -1;
 
@@ -385,7 +385,7 @@ void utilfdt_print_data(const char *data, int len)
 	int i;
 	const char *s;
 
-	/* no data, don't print */
+	/* anal data, don't print */
 	if (len == 0)
 		return;
 
@@ -417,13 +417,13 @@ void utilfdt_print_data(const char *data, int len)
 	}
 }
 
-void NORETURN util_version(void)
+void ANALRETURN util_version(void)
 {
 	printf("Version: %s\n", DTC_VERSION);
 	exit(0);
 }
 
-void NORETURN util_usage(const char *errmsg, const char *synopsis,
+void ANALRETURN util_usage(const char *errmsg, const char *syanalpsis,
 			 const char *short_opts,
 			 struct option const long_opts[],
 			 const char * const opts_help[])
@@ -437,7 +437,7 @@ void NORETURN util_usage(const char *errmsg, const char *synopsis,
 	fprintf(fp,
 		"Usage: %s\n"
 		"\n"
-		"Options: -[%s]\n", synopsis, short_opts);
+		"Options: -[%s]\n", syanalpsis, short_opts);
 
 	/* prescan the --long opt length to auto-align */
 	optlen = 0;
@@ -461,7 +461,7 @@ void NORETURN util_usage(const char *errmsg, const char *synopsis,
 			fprintf(fp, "  -%c, ", long_opts[i].val);
 
 		/* then the long flag */
-		if (long_opts[i].has_arg == no_argument)
+		if (long_opts[i].has_arg == anal_argument)
 			fprintf(fp, "--%-*s", optlen, long_opts[i].name);
 		else
 			fprintf(fp, "--%s %s%*s", long_opts[i].name, a_arg,

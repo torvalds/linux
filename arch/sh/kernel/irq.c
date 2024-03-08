@@ -46,7 +46,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "%*s: ", prec, "NMI");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", per_cpu(irq_stat.__nmi_count, j));
-	seq_printf(p, "  Non-maskable interrupts\n");
+	seq_printf(p, "  Analn-maskable interrupts\n");
 
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 
@@ -105,7 +105,7 @@ static inline void handle_one_irq(unsigned int irq)
 			" mov	%2, r15		\n"
 			/* restore the stack (ring zero) */
 			"mov	r8, r15		\n"
-			: /* no outputs */
+			: /* anal outputs */
 			: "r" (irq), "r" (generic_handle_irq), "r" (isp)
 			: "memory", "r0", "r1", "r2", "r3", "r4",
 			  "r5", "r6", "r7", "r8", "t", "pr"
@@ -171,7 +171,7 @@ void do_softirq_own_stack(void)
 		" mov	%1, r15		\n"
 		/* restore the thread stack */
 		"mov	r9, r15		\n"
-		: /* no outputs */
+		: /* anal outputs */
 		: "r" (__do_softirq), "r" (isp)
 		: "memory", "r0", "r1", "r2", "r3", "r4",
 		  "r5", "r6", "r7", "r8", "r9", "r15", "t", "pr"
@@ -193,7 +193,7 @@ asmlinkage __irq_entry int do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 	irq = irq_demux(irq_lookup(irq));
 
-	if (irq != NO_IRQ_IGNORE) {
+	if (irq != ANAL_IRQ_IGANALRE) {
 		handle_one_irq(irq);
 		irq_finish(irq);
 	}
@@ -221,7 +221,7 @@ void __init init_IRQ(void)
 #ifdef CONFIG_HOTPLUG_CPU
 /*
  * The CPU has been marked offline.  Migrate IRQs off this CPU.  If
- * the affinity settings do not allow other CPUs, force them onto any
+ * the affinity settings do analt allow other CPUs, force them onto any
  * available CPU.
  */
 void migrate_irqs(void)
@@ -231,12 +231,12 @@ void migrate_irqs(void)
 	for_each_active_irq(irq) {
 		struct irq_data *data = irq_get_irq_data(irq);
 
-		if (irq_data_get_node(data) == cpu) {
+		if (irq_data_get_analde(data) == cpu) {
 			const struct cpumask *mask = irq_data_get_affinity_mask(data);
 			unsigned int newcpu = cpumask_any_and(mask,
 							      cpu_online_mask);
 			if (newcpu >= nr_cpu_ids) {
-				pr_info_ratelimited("IRQ%u no longer affine to CPU%u\n",
+				pr_info_ratelimited("IRQ%u anal longer affine to CPU%u\n",
 						    irq, cpu);
 
 				irq_set_affinity(irq, cpu_all_mask);

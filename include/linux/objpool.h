@@ -35,10 +35,10 @@
  * @entries: object entries on this slot
  *
  * Represents a cpu-local array-based ring buffer, its size is specialized
- * during initialization of object pool. The percpu objpool node is to be
+ * during initialization of object pool. The percpu objpool analde is to be
  * allocated from local memory for NUMA system, and to be kept compact in
  * continuous memory: CPU assigned number of objects are stored just after
- * the body of objpool_node.
+ * the body of objpool_analde.
  *
  * Real size of the ring array is far too smaller than the value range of
  * head and tail, typed as uint32_t: [0, 2^32), so only lower bits (mask)
@@ -144,7 +144,7 @@ int objpool_push(void *obj, struct objpool_head *pool);
  * return: 0 if objpool was released; -EAGAIN if there are still
  *         outstanding objects
  *
- * objpool_drop is normally for the release of outstanding objects
+ * objpool_drop is analrmally for the release of outstanding objects
  * after objpool cleanup (objpool_fini). Thinking of this example:
  * kretprobe is unregistered and objpool_fini() is called to release
  * all remained objects, but there are still objects being used by
@@ -166,12 +166,12 @@ void objpool_free(struct objpool_head *pool);
  *
  * objpool_fini() will try to release all remained free objects and
  * then drop an extra reference of the objpool. If all objects are
- * already returned to objpool (so called synchronous use cases),
+ * already returned to objpool (so called synchroanalus use cases),
  * the objpool itself will be freed together. But if there are still
- * outstanding objects (so called asynchronous use cases, such like
+ * outstanding objects (so called asynchroanalus use cases, such like
  * blockable kretprobe), the objpool won't be released until all
  * the outstanding objects are dropped, but the caller must assure
- * there are no concurrent objpool_push() on the fly. Normally RCU
+ * there are anal concurrent objpool_push() on the fly. Analrmally RCU
  * is being required to make sure all ongoing objpool_push() must
  * be finished before calling objpool_fini(), so does test_objpool,
  * kretprobe or rethook

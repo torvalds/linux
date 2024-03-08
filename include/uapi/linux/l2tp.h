@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * L2TP-over-IP socket for L2TPv3.
  *
@@ -71,7 +71,7 @@ struct sockaddr_l2tpip6 {
  *
  */
 enum {
-	L2TP_CMD_NOOP,
+	L2TP_CMD_ANALOP,
 	L2TP_CMD_TUNNEL_CREATE,
 	L2TP_CMD_TUNNEL_DELETE,
 	L2TP_CMD_TUNNEL_MODIFY,
@@ -89,13 +89,13 @@ enum {
  * ATTR types defined for L2TP
  */
 enum {
-	L2TP_ATTR_NONE,			/* no data */
+	L2TP_ATTR_ANALNE,			/* anal data */
 	L2TP_ATTR_PW_TYPE,		/* u16, enum l2tp_pwtype */
 	L2TP_ATTR_ENCAP_TYPE,		/* u16, enum l2tp_encap_type */
-	L2TP_ATTR_OFFSET,		/* u16 (not used) */
-	L2TP_ATTR_DATA_SEQ,		/* u16 (not used) */
+	L2TP_ATTR_OFFSET,		/* u16 (analt used) */
+	L2TP_ATTR_DATA_SEQ,		/* u16 (analt used) */
 	L2TP_ATTR_L2SPEC_TYPE,		/* u8, enum l2tp_l2spec_type */
-	L2TP_ATTR_L2SPEC_LEN,		/* u8 (not used) */
+	L2TP_ATTR_L2SPEC_LEN,		/* u8 (analt used) */
 	L2TP_ATTR_PROTO_VERSION,	/* u8 */
 	L2TP_ATTR_IFNAME,		/* string */
 	L2TP_ATTR_CONN_ID,		/* u32 */
@@ -103,10 +103,10 @@ enum {
 	L2TP_ATTR_SESSION_ID,		/* u32 */
 	L2TP_ATTR_PEER_SESSION_ID,	/* u32 */
 	L2TP_ATTR_UDP_CSUM,		/* u8 */
-	L2TP_ATTR_VLAN_ID,		/* u16 (not used) */
+	L2TP_ATTR_VLAN_ID,		/* u16 (analt used) */
 	L2TP_ATTR_COOKIE,		/* 0, 4 or 8 bytes */
 	L2TP_ATTR_PEER_COOKIE,		/* 0, 4 or 8 bytes */
-	L2TP_ATTR_DEBUG,		/* u32, enum l2tp_debug_flags (not used) */
+	L2TP_ATTR_DEBUG,		/* u32, enum l2tp_debug_flags (analt used) */
 	L2TP_ATTR_RECV_SEQ,		/* u8 */
 	L2TP_ATTR_SEND_SEQ,		/* u8 */
 	L2TP_ATTR_LNS_MODE,		/* u8 */
@@ -117,8 +117,8 @@ enum {
 	L2TP_ATTR_IP_DADDR,		/* u32 */
 	L2TP_ATTR_UDP_SPORT,		/* u16 */
 	L2TP_ATTR_UDP_DPORT,		/* u16 */
-	L2TP_ATTR_MTU,			/* u16 (not used) */
-	L2TP_ATTR_MRU,			/* u16 (not used) */
+	L2TP_ATTR_MTU,			/* u16 (analt used) */
+	L2TP_ATTR_MRU,			/* u16 (analt used) */
 	L2TP_ATTR_STATS,		/* nested */
 	L2TP_ATTR_IP6_SADDR,		/* struct in6_addr */
 	L2TP_ATTR_IP6_DADDR,		/* struct in6_addr */
@@ -132,7 +132,7 @@ enum {
 
 /* Nested in L2TP_ATTR_STATS */
 enum {
-	L2TP_ATTR_STATS_NONE,		/* no data */
+	L2TP_ATTR_STATS_ANALNE,		/* anal data */
 	L2TP_ATTR_TX_PACKETS,		/* u64 */
 	L2TP_ATTR_TX_BYTES,		/* u64 */
 	L2TP_ATTR_TX_ERRORS,		/* u64 */
@@ -150,7 +150,7 @@ enum {
 #define L2TP_ATTR_STATS_MAX		(__L2TP_ATTR_STATS_MAX - 1)
 
 enum l2tp_pwtype {
-	L2TP_PWTYPE_NONE = 0x0000,
+	L2TP_PWTYPE_ANALNE = 0x0000,
 	L2TP_PWTYPE_ETH_VLAN = 0x0004,
 	L2TP_PWTYPE_ETH = 0x0005,
 	L2TP_PWTYPE_PPP = 0x0007,
@@ -160,7 +160,7 @@ enum l2tp_pwtype {
 };
 
 enum l2tp_l2spec_type {
-	L2TP_L2SPECTYPE_NONE,
+	L2TP_L2SPECTYPE_ANALNE,
 	L2TP_L2SPECTYPE_DEFAULT,
 };
 
@@ -171,7 +171,7 @@ enum l2tp_encap_type {
 
 /* For L2TP_ATTR_DATA_SEQ. Unused. */
 enum l2tp_seqmode {
-	L2TP_SEQ_NONE = 0,
+	L2TP_SEQ_ANALNE = 0,
 	L2TP_SEQ_IP = 1,
 	L2TP_SEQ_ALL = 2,
 };

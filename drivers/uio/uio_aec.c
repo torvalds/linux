@@ -51,7 +51,7 @@ static irqreturn_t aectc_irq(int irq, struct uio_info *dev_info)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void print_board_data(struct pci_dev *pdev, struct uio_info *i)
@@ -73,10 +73,10 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct uio_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pci_enable_device(pdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_request_regions(pdev, "aectc"))
 		goto out_disable;
@@ -105,7 +105,7 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	iowrite8(INT_MASK_ALL, info->priv + INT_MASK_ADDR);
 	if (!(ioread8(info->priv + INTA_DRVR_ADDR)
 			& INTA_ENABLED_FLAG))
-		dev_err(&pdev->dev, "aectc: interrupts not enabled\n");
+		dev_err(&pdev->dev, "aectc: interrupts analt enabled\n");
 
 	pci_set_drvdata(pdev, info);
 
@@ -117,7 +117,7 @@ out_release:
 	pci_release_regions(pdev);
 out_disable:
 	pci_disable_device(pdev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void remove(struct pci_dev *pdev)

@@ -18,9 +18,9 @@
 #define CS35L45_ASP_TX_HIZ_DISABLED	0x2
 
 /*
- * Optional GPIOX Sub-nodes:
- *  The cs35l45 node can have up to three "cirrus,gpio-ctrlX" ('X' = [1,2,3])
- *  sub-nodes for configuring the GPIO pins.
+ * Optional GPIOX Sub-analdes:
+ *  The cs35l45 analde can have up to three "cirrus,gpio-ctrlX" ('X' = [1,2,3])
+ *  sub-analdes for configuring the GPIO pins.
  *
  * - gpio-dir : GPIO pin direction. Valid only when 'gpio-ctrl'
  *   is 1.
@@ -41,13 +41,13 @@
  * - gpio-pol : GPIO output polarity select. Valid only when 'gpio-ctrl' is 1
  *   and 'gpio-dir' is 0.
  *
- *    0 = Non-inverted, Active High (Default)
+ *    0 = Analn-inverted, Active High (Default)
  *    1 = Inverted, Active Low
  *
  * - gpio-invert : Defines the polarity of the GPIO pin if configured
  *   as input.
  *
- *    0 = Not inverted (Default)
+ *    0 = Analt inverted (Default)
  *    1 = Inverted
  *
  * - gpio-ctrl : Defines the function of the GPIO pin.

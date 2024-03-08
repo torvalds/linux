@@ -4,8 +4,8 @@
  *
  * Framebuffer driver for TI OMAP boards
  *
- * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Copyright (C) 2004 Analkia Corporation
+ * Author: Imre Deak <imre.deak@analkia.com>
  */
 
 #ifndef __OMAPFB_H
@@ -128,13 +128,13 @@ struct lcd_ctrl_extif {
 	unsigned long		max_transmit_size;
 };
 
-struct omapfb_notifier_block {
-	struct notifier_block	nb;
+struct omapfb_analtifier_block {
+	struct analtifier_block	nb;
 	void			*data;
 	int			plane_idx;
 };
 
-typedef int (*omapfb_notifier_callback_t)(struct notifier_block *,
+typedef int (*omapfb_analtifier_callback_t)(struct analtifier_block *,
 					  unsigned long event,
 					  void *fbi);
 
@@ -146,7 +146,7 @@ struct lcd_ctrl {
 					   int ext_mode,
 					   struct omapfb_mem_desc *req_md);
 	void		(*cleanup)	  (void);
-	void		(*bind_client)	  (struct omapfb_notifier_block *nb);
+	void		(*bind_client)	  (struct omapfb_analtifier_block *nb);
 	void		(*get_caps)	  (int plane, struct omapfb_caps *caps);
 	int		(*set_update_mode)(enum omapfb_update_mode mode);
 	enum omapfb_update_mode (*get_update_mode)(void);
@@ -172,7 +172,7 @@ struct lcd_ctrl {
 	void		(*suspend)	  (void);
 	void		(*resume)	  (void);
 	int		(*run_test)	  (int test_num);
-	int		(*setcolreg)	  (u_int regno, u16 red, u16 green,
+	int		(*setcolreg)	  (u_int reganal, u16 red, u16 green,
 					   u16 blue, u16 transp,
 					   int update_hw_mem);
 	int		(*set_color_key)  (struct omapfb_color_key *ck);
@@ -221,10 +221,10 @@ extern struct lcd_ctrl omap1_lcd_ctrl;
 
 extern void omapfb_register_panel(struct lcd_panel *panel);
 extern void omapfb_write_first_pixel(struct omapfb_device *fbdev, u16 pixval);
-extern void omapfb_notify_clients(struct omapfb_device *fbdev,
+extern void omapfb_analtify_clients(struct omapfb_device *fbdev,
 				  unsigned long event);
-extern int  omapfb_register_client(struct omapfb_notifier_block *nb,
-				   omapfb_notifier_callback_t callback,
+extern int  omapfb_register_client(struct omapfb_analtifier_block *nb,
+				   omapfb_analtifier_callback_t callback,
 				   void *callback_data);
-extern int  omapfb_unregister_client(struct omapfb_notifier_block *nb);
+extern int  omapfb_unregister_client(struct omapfb_analtifier_block *nb);
 #endif /* __OMAPFB_H */

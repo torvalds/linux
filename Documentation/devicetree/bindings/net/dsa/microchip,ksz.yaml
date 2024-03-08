@@ -47,7 +47,7 @@ properties:
   microchip,synclko-disable:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Set if the output SYNCLKO clock should be disabled. Do not mix with
+      Set if the output SYNCLKO clock should be disabled. Do analt mix with
       microchip,synclko-125.
 
   microchip,io-drive-strength-microamp:
@@ -78,7 +78,7 @@ required:
   - reg
 
 if:
-  not:
+  analt:
     properties:
       compatible:
         enum:

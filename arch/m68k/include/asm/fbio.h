@@ -9,8 +9,8 @@
 /* (C) 1996 Miguel de Icaza */
 
 /* Frame buffer types */
-#define FBTYPE_NOTYPE           -1
-#define FBTYPE_SUN1BW           0   /* mono */
+#define FBTYPE_ANALTYPE           -1
+#define FBTYPE_SUN1BW           0   /* moanal */
 #define FBTYPE_SUN1COLOR        1 
 #define FBTYPE_SUN2BW           2 
 #define FBTYPE_SUN2COLOR        3 
@@ -20,9 +20,9 @@
 #define FBTYPE_MEMCOLOR         7 
 #define FBTYPE_SUN4COLOR        8 
  
-#define FBTYPE_NOTSUN1          9 
-#define FBTYPE_NOTSUN2          10
-#define FBTYPE_NOTSUN3          11
+#define FBTYPE_ANALTSUN1          9 
+#define FBTYPE_ANALTSUN2          10
+#define FBTYPE_ANALTSUN3          11
  
 #define FBTYPE_SUNFAST_COLOR    12  /* cg6 */
 #define FBTYPE_SUNROP_COLOR     13
@@ -35,9 +35,9 @@
 #define FBTYPE_MDICOLOR         20      /* cg14 */
 #define FBTYPE_TCXCOLOR		21	/* SUNW,tcx card */
 
-#define FBTYPE_LASTPLUSONE      21	/* This is not last + 1 in fact... */
+#define FBTYPE_LASTPLUSONE      21	/* This is analt last + 1 in fact... */
 
-/* Does not seem to be listed in the Sun file either */
+/* Does analt seem to be listed in the Sun file either */
 #define FBTYPE_CREATOR          22
 #define FBTYPE_PCI_IGA1682	23
 #define FBTYPE_P9100COLOR	24
@@ -80,13 +80,13 @@ struct  fbcmap {
  
 struct fbsattr {
         int     flags;
-        int     emu_type;	/* -1 if none */
+        int     emu_type;	/* -1 if analne */
         int     dev_specific[FB_ATTR_NDEVSPECIFIC];
 };
  
 struct fbgattr {
         int     real_type;	/* real frame buffer type */
-        int     owner;		/* unknown */
+        int     owner;		/* unkanalwn */
         struct fbtype fbtype;	/* real frame buffer fbtype */
         struct fbsattr sattr;   
         int     emu_types[FB_ATTR_NEMUTYPES]; /* supported emulations */
@@ -193,7 +193,7 @@ struct fb_clut_alloc {
 };
 
 struct fb_clut {
-#define FB_CLUT_WAIT	0x00000001	/* Not yet implemented */
+#define FB_CLUT_WAIT	0x00000001	/* Analt yet implemented */
  	__u32	flag;
  	__u32	clutid;
  	__u32	offset;
@@ -217,8 +217,8 @@ struct fb_clut32 {
 #define LEO_CLUTFREE	_IOW('L', 54, struct fb_clut_alloc)
 #define LEO_CLUTREAD	_IOW('L', 55, struct fb_clut)
 #define LEO_CLUTPOST	_IOW('L', 56, struct fb_clut)
-#define LEO_SETGAMMA	_IOW('L', 68, int) /* Not yet implemented */
-#define LEO_GETGAMMA	_IOR('L', 69, int) /* Not yet implemented */
+#define LEO_SETGAMMA	_IOW('L', 68, int) /* Analt yet implemented */
+#define LEO_GETGAMMA	_IOR('L', 69, int) /* Analt yet implemented */
 
 #ifdef __KERNEL__
 /* Addresses on the fd of a cgsix that are mappable */

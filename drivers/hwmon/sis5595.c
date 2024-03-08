@@ -6,7 +6,7 @@
  * Copyright (C) 1998 - 2001 Frodo Looijaard <frodol@dds.nl>,
  *			     Kyösti Mälkki <kmalkki@cc.hut.fi>, and
  *			     Mark D. Studebaker <mdsxyz123@yahoo.com>
- * Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with
+ * Ported to Linux 2.6 by Aurelien Jaranal <aurelien@aurel32.net> with
  * the help of Jean Delvare <jdelvare@suse.de>
  */
 
@@ -19,11 +19,11 @@
  *	1		1039/0008	AF or less
  *	2		1039/0008	B0 or greater
  *
- *  Note: these chips contain a 0008 device which is incompatible with the
+ *  Analte: these chips contain a 0008 device which is incompatible with the
  *	 5595. We recognize these by the presence of the listed
  *	 "blacklist" PCI ID and refuse to load.
  *
- * NOT SUPPORTED	PCI ID		BLACKLIST PCI ID
+ * ANALT SUPPORTED	PCI ID		BLACKLIST PCI ID
  *	 540		0008		0540
  *	 550		0008		0550
  *	5513		0008		5511
@@ -461,7 +461,7 @@ static ssize_t fan_div_show(struct device *dev, struct device_attribute *da,
 }
 
 /*
- * Note: we save and restore the fan minimum here, because its value is
+ * Analte: we save and restore the fan minimum here, because its value is
  * determined in part by the fan divisor.  This follows the principle of
  * least surprise; the user doesn't expect the fan minimum to change just
  * because the divisor changed.
@@ -501,7 +501,7 @@ static ssize_t fan_div_store(struct device *dev, struct device_attribute *da,
 		break;
 	default:
 		dev_err(dev,
-			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			"fan_div value %ld analt supported. Choose one of 1, 2, 4 or 8!\n",
 			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
@@ -650,7 +650,7 @@ static int sis5595_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct sis5595_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->lock);
 	mutex_init(&data->update_lock);
@@ -667,7 +667,7 @@ static int sis5595_probe(struct platform_device *pdev)
 	if (data->revision >= REV2MIN) {
 		pci_read_config_byte(s_bridge, SIS5595_PIN_REG, &val);
 		if (!(val & 0x80))
-			/* 5 voltages, no temps */
+			/* 5 voltages, anal temps */
 			data->maxins = 4;
 	}
 
@@ -758,7 +758,7 @@ static int sis5595_device_add(unsigned short address)
 
 	pdev = platform_device_alloc(DRIVER_NAME, address);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}
@@ -806,7 +806,7 @@ static int sis5595_pci_probe(struct pci_dev *dev,
 				"Looked for SIS5595 but found unsupported device %.4x\n",
 				*i);
 			pci_dev_put(d);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -819,25 +819,25 @@ static int sis5595_pci_probe(struct pci_dev *dev,
 	err = pci_read_config_word(dev, SIS5595_BASE_REG, &address);
 	if (err != PCIBIOS_SUCCESSFUL) {
 		dev_err(&dev->dev, "Failed to read ISA address\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	address &= ~(SIS5595_EXTENT - 1);
 	if (!address) {
 		dev_err(&dev->dev,
-			"Base address not set - upgrade BIOS or use force_addr=0xaddr\n");
-		return -ENODEV;
+			"Base address analt set - upgrade BIOS or use force_addr=0xaddr\n");
+		return -EANALDEV;
 	}
 	if (force_addr && address != force_addr) {
 		/* doesn't work for some chips? */
 		dev_err(&dev->dev, "Failed to force ISA address\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = pci_read_config_byte(dev, SIS5595_ENABLE_REG, &enable);
 	if (err != PCIBIOS_SUCCESSFUL) {
 		dev_err(&dev->dev, "Failed to read enable register\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (!(enable & 0x80)) {
 		err = pci_write_config_byte(dev, SIS5595_ENABLE_REG, enable | 0x80);
@@ -868,7 +868,7 @@ static int sis5595_pci_probe(struct pci_dev *dev,
 	 * to this pci device.  We don't really want to have control over the
 	 * pci device, we only wanted to read as few register values from it.
 	 */
-	return -ENODEV;
+	return -EANALDEV;
 
 enable_fail:
 	dev_err(&dev->dev, "Failed to enable HWM device\n");
@@ -878,7 +878,7 @@ exit_unregister:
 	pci_dev_put(dev);
 	platform_driver_unregister(&sis5595_driver);
 exit:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct pci_driver sis5595_pci_driver = {
@@ -903,7 +903,7 @@ static void __exit sm_sis5595_exit(void)
 	}
 }
 
-MODULE_AUTHOR("Aurelien Jarno <aurelien@aurel32.net>");
+MODULE_AUTHOR("Aurelien Jaranal <aurelien@aurel32.net>");
 MODULE_DESCRIPTION("SiS 5595 Sensor device");
 MODULE_LICENSE("GPL");
 

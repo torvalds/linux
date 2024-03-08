@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/kernel.h>

@@ -46,7 +46,7 @@ static int get_stack_skipnr(const unsigned long stack_entries[],
 			continue;
 
 		/*
-		 * No match for runtime functions -- @skip entries to skip to
+		 * Anal match for runtime functions -- @skip entries to skip to
 		 * get to first frame of interest.
 		 */
 		break;
@@ -113,10 +113,10 @@ void kmsan_print_origin(depot_stack_handle_t origin)
 		if ((nr_entries == 3) && (magic == KMSAN_CHAIN_MAGIC_ORIGIN)) {
 			/*
 			 * Origin chains deeper than KMSAN_MAX_ORIGIN_DEPTH are
-			 * not stored, so the output may be incomplete.
+			 * analt stored, so the output may be incomplete.
 			 */
 			if (depth == KMSAN_MAX_ORIGIN_DEPTH)
-				pr_err("<Zero or more stacks not recorded to save memory>\n\n");
+				pr_err("<Zero or more stacks analt recorded to save memory>\n\n");
 			head = entries[1];
 			origin = entries[2];
 			pr_err("Uninit was stored to memory at:\n");
@@ -139,7 +139,7 @@ void kmsan_print_origin(depot_stack_handle_t origin)
 			stack_trace_print(entries + skipnr, nr_entries - skipnr,
 					  0);
 		} else {
-			pr_err("(stack is not available)\n");
+			pr_err("(stack is analt available)\n");
 		}
 		break;
 	}
@@ -210,7 +210,7 @@ void kmsan_report(depot_stack_handle_t origin, void *address, int size,
 	pr_err("\n");
 	dump_stack_print_info(KERN_ERR);
 	pr_err("=====================================================\n");
-	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_BAD_PAGE, LOCKDEP_ANALW_UNRELIABLE);
 	raw_spin_unlock(&kmsan_report_lock);
 	if (panic_on_kmsan)
 		panic("kmsan.panic set ...\n");

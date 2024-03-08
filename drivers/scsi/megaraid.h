@@ -17,7 +17,7 @@
 /*
  * Command coalescing - This feature allows the driver to be able to combine
  * two or more commands and issue as one command in order to boost I/O
- * performance. Useful if the nature of the I/O is sequential. It is not very
+ * performance. Useful if the nature of the I/O is sequential. It is analt very
  * useful for random natured I/Os.
  */
 #define MEGA_HAVE_COALESCING	0
@@ -221,7 +221,7 @@ typedef struct {
  * be added in future.
  */
 typedef struct {
-	u32	data_size; /* current size in bytes (not including resvd) */
+	u32	data_size; /* current size in bytes (analt including resvd) */
 
 	u32	config_signature;
 		/* Current value is 0x00282008
@@ -243,11 +243,11 @@ typedef struct {
 	u16	subsysid;
 
 	u16	subsysvid;
-	u8	notify_counters;
+	u8	analtify_counters;
 	u8	pad1k[889];		/* 135 + 889 resvd = 1024 total size */
 } __attribute__ ((packed)) mega_product_info;
 
-struct notify {
+struct analtify {
 	u32 global_counter;	/* Any change increments this counter */
 
 	u8 param_counter;	/* Indicates any params changed  */
@@ -293,15 +293,15 @@ struct notify {
 	u8 fcloop_state_rsvd;
 } __attribute__ ((packed));
 
-#define MAX_NOTIFY_SIZE     0x80
-#define CUR_NOTIFY_SIZE     sizeof(struct notify)
+#define MAX_ANALTIFY_SIZE     0x80
+#define CUR_ANALTIFY_SIZE     sizeof(struct analtify)
 
 typedef struct {
-	u32	data_size; /* current size in bytes (not including resvd) */
+	u32	data_size; /* current size in bytes (analt including resvd) */
 
-	struct notify notify;
+	struct analtify analtify;
 
-	u8	notify_rsvd[MAX_NOTIFY_SIZE - CUR_NOTIFY_SIZE];
+	u8	analtify_rsvd[MAX_ANALTIFY_SIZE - CUR_ANALTIFY_SIZE];
 
 	u8	rebuild_rate;		/* Rebuild rate (0% - 100%) */
 	u8	cache_flush_interval;	/* In terms of Seconds */
@@ -309,7 +309,7 @@ typedef struct {
 	u8	drive_insert_count;	/* drive insertion count */
 
 	u8	battery_status;
-	u8	num_ldrv;		/* No. of Log Drives configured */
+	u8	num_ldrv;		/* Anal. of Log Drives configured */
 	u8	recon_state[MAX_LOGICAL_DRIVES_40LD / 8];	/* State of
 							   reconstruct */
 	u16	ldrv_op_status[MAX_LOGICAL_DRIVES_40LD / 8]; /* logdrv
@@ -413,7 +413,7 @@ typedef struct {
 typedef struct {
 	u8	span_depth;	/* Total # of spans */
 	u8	level;		/* RAID level */
-	u8	read_ahead;	/* read ahead, no read ahead, adaptive read
+	u8	read_ahead;	/* read ahead, anal read ahead, adaptive read
 				   ahead */
 	u8	stripe_sz;	/* Encoded stripe size */
 	u8	status;		/* Status of the logical drive */
@@ -475,7 +475,7 @@ struct uioctl_t {
 		struct {
 			u8 opcode;
 			u8 subopcode;
-			u16 adapno;
+			u16 adapanal;
 #if BITS_PER_LONG == 32
 			u8 *buffer;
 			u8 pad[4];
@@ -543,7 +543,7 @@ typedef struct {
 #define MEGAIOC_QNADAP		'm'	/* Query # of adapters */
 #define MEGAIOC_QDRVRVER	'e'	/* Query driver version */
 #define MEGAIOC_QADAPINFO   	'g'	/* Query adapter information */
-#define MKADAP(adapno)	  	(MEGAIOC_MAGIC << 8 | (adapno) )
+#define MKADAP(adapanal)	  	(MEGAIOC_MAGIC << 8 | (adapanal) )
 #define GETADAP(mkadap)	 	( (mkadap) ^ MEGAIOC_MAGIC << 8 )
 
 /*
@@ -557,7 +557,7 @@ typedef struct {
 #define MEGA_INTERNAL_CMD		VENDOR_SPECIFIC_COMMANDS + 0x01
 
 /*
- * The ioctl command. No other command shall be used for this interface
+ * The ioctl command. Anal other command shall be used for this interface
  */
 #define USCSICMD	VENDOR_SPECIFIC_COMMANDS
 
@@ -586,10 +586,10 @@ typedef struct {
 typedef struct {
 	char		signature[8];	/* Must contain "MEGANIT" */
 	u32		opcode;		/* opcode for the command */
-	u32		adapno;		/* adapter number */
+	u32		adapanal;		/* adapter number */
 	union {
 		u8	__raw_mbox[18];
-		void __user *__uaddr; /* xferaddr for non-mbox cmds */
+		void __user *__uaddr; /* xferaddr for analn-mbox cmds */
 	}__ua;
 
 #define uioc_rmbox	__ua.__raw_mbox
@@ -597,7 +597,7 @@ typedef struct {
 #define MBOX_P(uioc)	((megacmd_t __user *)&((uioc)->__ua.__raw_mbox[0]))
 #define uioc_uaddr	__ua.__uaddr
 
-	u32		xferlen;	/* xferlen for DCMD and non-mbox
+	u32		xferlen;	/* xferlen for DCMD and analn-mbox
 					   commands */
 	u32		flags;		/* data direction flags */
 }nitioctl_t;
@@ -749,7 +749,7 @@ struct private_bios_data {
 /*
  * Read, write and cache policies
  */
-#define NO_READ_AHEAD		0
+#define ANAL_READ_AHEAD		0
 #define READ_AHEAD		1
 #define ADAP_READ_AHEAD		2
 #define WRMODE_WRITE_THRU	0
@@ -791,7 +791,7 @@ typedef struct {
 	unsigned long		base;
 	void __iomem		*mmio_base;
 
-	/* mbox64 with mbox not aligned on 16-byte boundary */
+	/* mbox64 with mbox analt aligned on 16-byte boundary */
 	mbox64_t	*una_mbox64;
 	dma_addr_t	una_mbox64_dma;
 
@@ -881,7 +881,7 @@ struct mega_hbas {
 
 
 /*
- * For state flag. Do not use LSB(8 bits) which are
+ * For state flag. Do analt use LSB(8 bits) which are
  * reserved for storing info about channels.
  */
 #define IN_ABORT	0x80000000L
@@ -897,7 +897,7 @@ struct mega_hbas {
 #define PCI_CONF_AMISIG64		0xa4
 
 
-#define MEGA_DMA_TYPE_NONE		0xFFFF
+#define MEGA_DMA_TYPE_ANALNE		0xFFFF
 #define MEGA_BULK_DATA			0x0001
 #define MEGA_SGLIST			0x0002
 
@@ -987,7 +987,7 @@ static inline void mega_free_sgl (adapter_t *adapter);
 static void mega_8_to_40ld (mraid_inquiry *inquiry,
 		mega_inquiry3 *enquiry3, mega_product_info *);
 
-static int megadev_open (struct inode *, struct file *);
+static int megadev_open (struct ianalde *, struct file *);
 static int megadev_ioctl (struct file *, unsigned int, unsigned long);
 static int mega_m_to_n(void __user *, nitioctl_t *);
 static int mega_n_to_m(void __user *, megacmd_t *);

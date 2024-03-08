@@ -134,7 +134,7 @@ struct ucb1x00 {
 	u16			irq_mask;
 	u16			irq_wake;
 	struct device		dev;
-	struct list_head	node;
+	struct list_head	analde;
 	struct list_head	devs;
 	struct gpio_chip 	gpio;
 };
@@ -142,15 +142,15 @@ struct ucb1x00 {
 struct ucb1x00_driver;
 
 struct ucb1x00_dev {
-	struct list_head	dev_node;
-	struct list_head	drv_node;
+	struct list_head	dev_analde;
+	struct list_head	drv_analde;
 	struct ucb1x00		*ucb;
 	struct ucb1x00_driver	*drv;
 	void			*priv;
 };
 
 struct ucb1x00_driver {
-	struct list_head	node;
+	struct list_head	analde;
 	struct list_head	devs;
 	int	(*add)(struct ucb1x00_dev *dev);
 	void	(*remove)(struct ucb1x00_dev *dev);
@@ -248,7 +248,7 @@ void ucb1x00_io_set_dir(struct ucb1x00 *ucb, unsigned int, unsigned int);
 void ucb1x00_io_write(struct ucb1x00 *ucb, unsigned int, unsigned int);
 unsigned int ucb1x00_io_read(struct ucb1x00 *ucb);
 
-#define UCB_NOSYNC	(0)
+#define UCB_ANALSYNC	(0)
 #define UCB_SYNC	(1)
 
 unsigned int ucb1x00_adc_read(struct ucb1x00 *ucb, int adc_channel, int sync);

@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -54,7 +54,7 @@
 #define WMI_IMPLICIT_PSTREAM_INACTIVITY_INT 5000
 
 /*
- * There are no signed versions of __le16 and __le32, so for a temporary
+ * There are anal signed versions of __le16 and __le32, so for a temporary
  * solution come up with our own version. The idea is from fs/ntfs/types.h.
  *
  * Use a_ prefix so that it doesn't conflict if we get proper support to
@@ -175,8 +175,8 @@ enum wmi_data_hdr_flags {
 #define WMI_DATA_HDR_DATA_TYPE_SHIFT    6
 
 /* Macros for operating on WMI_DATA_HDR (info2) field */
-#define WMI_DATA_HDR_SEQNO_MASK     0xFFF
-#define WMI_DATA_HDR_SEQNO_SHIFT    0
+#define WMI_DATA_HDR_SEQANAL_MASK     0xFFF
+#define WMI_DATA_HDR_SEQANAL_SHIFT    0
 
 #define WMI_DATA_HDR_AMSDU_MASK     0x1
 #define WMI_DATA_HDR_AMSDU_SHIFT    12
@@ -212,7 +212,7 @@ struct wmi_data_hdr {
 	/*
 	 * usage of 'info2' field(16-bit):
 	 *
-	 * b11:b0       - seq_no
+	 * b11:b0       - seq_anal
 	 * b12          - A-MSDU?
 	 * b15:b13      - META_DATA_VERSION 0 - 7
 	 */
@@ -248,10 +248,10 @@ static inline u8 wmi_data_hdr_get_dot11(struct wmi_data_hdr *dhdr)
 	return (data_type == WMI_DATA_HDR_DATA_TYPE_802_11);
 }
 
-static inline u16 wmi_data_hdr_get_seqno(struct wmi_data_hdr *dhdr)
+static inline u16 wmi_data_hdr_get_seqanal(struct wmi_data_hdr *dhdr)
 {
-	return (le16_to_cpu(dhdr->info2) >> WMI_DATA_HDR_SEQNO_SHIFT) &
-				WMI_DATA_HDR_SEQNO_MASK;
+	return (le16_to_cpu(dhdr->info2) >> WMI_DATA_HDR_SEQANAL_SHIFT) &
+				WMI_DATA_HDR_SEQANAL_MASK;
 }
 
 static inline u8 wmi_data_hdr_is_amsdu(struct wmi_data_hdr *dhdr)
@@ -297,7 +297,7 @@ struct wmi_tx_meta_v2 {
 	/* offset from start of WMI header where final csum goes */
 	u8 csum_dest;
 
-	/* no of bytes over which csum is calculated */
+	/* anal of bytes over which csum is calculated */
 	u8 csum_flags;
 } __packed;
 
@@ -394,7 +394,7 @@ enum wmi_cmd_id {
 	WMI_GET_ROAM_DATA_CMDID,
 	WMI_ENABLE_RM_CMDID,
 	WMI_SET_MAX_OFFHOME_DURATION_CMDID,
-	WMI_EXTENSION_CMDID,	/* Non-wireless extensions */
+	WMI_EXTENSION_CMDID,	/* Analn-wireless extensions */
 	WMI_SNR_THRESHOLD_PARAMS_CMDID,
 	WMI_LQ_THRESHOLD_PARAMS_CMDID,
 	WMI_SET_LPREAMBLE_CMDID,
@@ -606,8 +606,8 @@ enum wmi_cmd_id {
 	WMI_GET_WPS_STATUS_CMDID,
 
 	/* More P2P commands */
-	WMI_SET_NOA_CMDID,
-	WMI_GET_NOA_CMDID,
+	WMI_SET_ANALA_CMDID,
+	WMI_GET_ANALA_CMDID,
 	WMI_SET_OPPPS_CMDID,
 	WMI_GET_OPPPS_CMDID,
 	WMI_ADD_PORT_CMDID,
@@ -637,7 +637,7 @@ enum wmi_cmd_id {
 
 	WMI_VOICE_DETECTION_ENABLE_CMDID,
 
-	WMI_SET_TXE_NOTIFY_CMDID,
+	WMI_SET_TXE_ANALTIFY_CMDID,
 
 	WMI_SET_RECOVERY_TEST_PARAMETER_CMDID, /*0xf094*/
 
@@ -667,7 +667,7 @@ enum network_type {
 };
 
 enum network_subtype {
-	SUBTYPE_NONE,
+	SUBTYPE_ANALNE,
 	SUBTYPE_BT,
 	SUBTYPE_P2PDEV,
 	SUBTYPE_P2PCLIENT,
@@ -683,7 +683,7 @@ enum dot11_auth_mode {
 };
 
 enum auth_mode {
-	NONE_AUTH = 0x01,
+	ANALNE_AUTH = 0x01,
 	WPA_AUTH = 0x02,
 	WPA2_AUTH = 0x04,
 	WPA_PSK_AUTH = 0x08,
@@ -699,7 +699,7 @@ enum auth_mode {
 /*
  * NB: these values are ordered carefully; there are lots of
  * implications in any reordering.  In particular beware
- * that 4 is not used to avoid conflicting with IEEE80211_F_PRIVACY.
+ * that 4 is analt used to avoid conflicting with IEEE80211_F_PRIVACY.
  */
 #define ATH6KL_CIPHER_WEP            0
 #define ATH6KL_CIPHER_TKIP           1
@@ -707,7 +707,7 @@ enum auth_mode {
 #define ATH6KL_CIPHER_AES_CCM        3
 #define ATH6KL_CIPHER_CKIP           5
 #define ATH6KL_CIPHER_CCKM_KRK       6
-#define ATH6KL_CIPHER_NONE           7 /* pseudo value */
+#define ATH6KL_CIPHER_ANALNE           7 /* pseudo value */
 
 /*
  * 802.11 rate set.
@@ -723,12 +723,12 @@ enum auth_mode {
 enum wmi_connect_ctrl_flags_bits {
 	CONNECT_ASSOC_POLICY_USER = 0x0001,
 	CONNECT_SEND_REASSOC = 0x0002,
-	CONNECT_IGNORE_WPAx_GROUP_CIPHER = 0x0004,
+	CONNECT_IGANALRE_WPAx_GROUP_CIPHER = 0x0004,
 	CONNECT_PROFILE_MATCH_DONE = 0x0008,
-	CONNECT_IGNORE_AAC_BEACON = 0x0010,
+	CONNECT_IGANALRE_AAC_BEACON = 0x0010,
 	CONNECT_CSA_FOLLOW_BSS = 0x0020,
 	CONNECT_DO_WPA_OFFLOAD = 0x0040,
-	CONNECT_DO_NOT_DEAUTH = 0x0080,
+	CONNECT_DO_ANALT_DEAUTH = 0x0080,
 	CONNECT_WPS_FLAG = 0x0100,
 };
 
@@ -850,8 +850,8 @@ struct wmi_begin_scan_cmd {
 	/* time interval between scans (msec) */
 	__le32 force_scan_intvl;
 
-	/* no CCK rates */
-	__le32 no_cck;
+	/* anal CCK rates */
+	__le32 anal_cck;
 
 	/* enum wmi_scan_type */
 	u8 scan_type;
@@ -894,7 +894,7 @@ struct wmi_start_scan_cmd {
 
 /*
  *  Warning: scan control flag value of 0xFF is used to disable
- *  all flags in WMI_SCAN_PARAMS_CMD. Do not add any more
+ *  all flags in WMI_SCAN_PARAMS_CMD. Do analt add any more
  *  flags here
  */
 enum wmi_scan_ctrl_flags_bits {
@@ -961,8 +961,8 @@ struct wmi_enable_sched_scan_cmd {
 
 /* WMI_SET_BSS_FILTER_CMDID */
 enum wmi_bss_filter {
-	/* no beacons forwarded */
-	NONE_BSS_FILTER = 0x0,
+	/* anal beacons forwarded */
+	ANALNE_BSS_FILTER = 0x0,
 
 	/* all beacons forwarded */
 	ALL_BSS_FILTER,
@@ -1072,7 +1072,7 @@ struct wmi_power_mode_cmd {
  */
 enum power_save_fail_event_policy {
 	SEND_POWER_SAVE_FAIL_EVENT_ALWAYS = 1,
-	IGNORE_PS_FAIL_DURING_SCAN = 2,
+	IGANALRE_PS_FAIL_DURING_SCAN = 2,
 };
 
 struct wmi_power_params_cmd {
@@ -1179,7 +1179,7 @@ struct wmi_create_pstream_cmd {
 	__le32 medium_time;
 
 	/* in octects */
-	__le16 nominal_msdu;
+	__le16 analminal_msdu;
 
 	/* in octects */
 	__le16 max_msdu;
@@ -1201,8 +1201,8 @@ struct wmi_create_pstream_cmd {
 	/* 802.1D user priority */
 	u8 user_pri;
 
-	/* nominal phy rate */
-	u8 nominal_phy;
+	/* analminal phy rate */
+	u8 analminal_phy;
 } __packed;
 
 /* WMI_DELETE_PSTREAM_CMDID */
@@ -1305,7 +1305,7 @@ struct wmi_set_rssi_filter_cmd {
 } __packed;
 
 enum wmi_preamble_policy {
-	WMI_IGNORE_BARKER_IN_ERP = 0,
+	WMI_IGANALRE_BARKER_IN_ERP = 0,
 	WMI_FOLLOW_BARKER_IN_ERP,
 };
 
@@ -1341,7 +1341,7 @@ enum target_event_report_config {
 	/* default */
 	DISCONN_EVT_IN_RECONN = 0,
 
-	NO_DISCONN_EVT_IN_RECONN
+	ANAL_DISCONN_EVT_IN_RECONN
 };
 
 struct wmi_mcast_filter_cmd {
@@ -1404,7 +1404,7 @@ enum wmi_event_id {
 	WMI_GET_WOW_LIST_EVENTID,
 	WMI_GET_PMKID_LIST_EVENTID,
 	WMI_CHANNEL_CHANGE_EVENTID,
-	WMI_PEER_NODE_EVENTID,
+	WMI_PEER_ANALDE_EVENTID,
 	WMI_PSPOLL_EVENTID,
 	WMI_DTIMEXPIRY_EVENTID,
 	WMI_WLAN_VERSION_EVENTID,
@@ -1489,14 +1489,14 @@ enum wmi_event_id {
 	WMI_WPS_PROFILE_EVENTID,
 
 	/* more P2P events */
-	WMI_NOA_INFO_EVENTID,
+	WMI_ANALA_INFO_EVENTID,
 	WMI_OPPPS_INFO_EVENTID,
 	WMI_PORT_STATUS_EVENTID,
 
 	/* 802.11w */
 	WMI_GET_RSN_CAP_EVENTID,
 
-	WMI_TXE_NOTIFY_EVENTID,
+	WMI_TXE_ANALTIFY_EVENTID,
 };
 
 struct wmi_ready_event_2 {
@@ -1550,7 +1550,7 @@ struct wmi_connect_event {
 
 /* Disconnect Event */
 enum wmi_disconnect_reason {
-	NO_NETWORK_AVAIL = 0x01,
+	ANAL_NETWORK_AVAIL = 0x01,
 
 	/* bmiss */
 	LOST_LINK = 0x02,
@@ -1559,7 +1559,7 @@ enum wmi_disconnect_reason {
 	BSS_DISCONNECTED = 0x04,
 	AUTH_FAILED = 0x05,
 	ASSOC_FAILED = 0x06,
-	NO_RESOURCES_AVAIL = 0x07,
+	ANAL_RESOURCES_AVAIL = 0x07,
 	CSERV_DISCONNECT = 0x08,
 	INVALID_PROFILE = 0x0a,
 	DOT11H_CHANNEL_SWITCH = 0x0b,
@@ -1589,7 +1589,7 @@ struct wmi_disconnect_event {
 	/* reason code, see 802.11 spec. */
 	__le16 proto_reason_status;
 
-	/* set if known */
+	/* set if kanalwn */
 	u8 bssid[ETH_ALEN];
 
 	/* see WMI_DISCONNECT_REASON */
@@ -1603,7 +1603,7 @@ struct wmi_disconnect_event {
  * BSS Info Event.
  * Mechanism used to inform host of the presence and characteristic of
  * wireless networks present.  Consists of bss info header followed by
- * the beacon or probe-response frame body.  The 802.11 header is no included.
+ * the beacon or probe-response frame body.  The 802.11 header is anal included.
  */
 enum wmi_bi_ftype {
 	BEACON_FTYPE = 0x1,
@@ -1674,7 +1674,7 @@ struct wmi_bss_info_hdr2 {
 	/* see, enum wmi_bi_ftype */
 	u8 frame_type;
 
-	u8 snr; /* note: rssi = snr - 95 dBm */
+	u8 snr; /* analte: rssi = snr - 95 dBm */
 	u8 bssid[ETH_ALEN];
 	__le16 ie_mask;
 } __packed;
@@ -1744,7 +1744,7 @@ struct wmi_scan_complete_event {
  * Special frame receive Event.
  * Mechanism used to inform host of the receiption of the special frames.
  * Consists of special frame info header followed by special frame body.
- * The 802.11 header is not included.
+ * The 802.11 header is analt included.
  */
 struct wmi_opt_rx_info_hdr {
 	__le16 ch;
@@ -1849,7 +1849,7 @@ struct wlan_wow_stats {
 
 struct wmi_target_stats {
 	__le32 lq_val;
-	a_sle32 noise_floor_calib;
+	a_sle32 analise_floor_calib;
 	struct pm_stats pm_stats;
 	struct wlan_net_stats stats;
 	struct wlan_wow_stats wow_stats;
@@ -1927,7 +1927,7 @@ enum cac_indication {
 	CAC_INDICATION_ADMISSION = 0x00,
 	CAC_INDICATION_ADMISSION_RESP = 0x01,
 	CAC_INDICATION_DELETE = 0x02,
-	CAC_INDICATION_NO_RESP = 0x03,
+	CAC_INDICATION_ANAL_RESP = 0x03,
 };
 
 #define WMM_TSPEC_IE_LEN   63
@@ -2021,7 +2021,7 @@ enum roam_data_type {
 
 struct wmi_target_roam_time {
 	__le32 disassoc_time;
-	__le32 no_txrx_time;
+	__le32 anal_txrx_time;
 	__le32 assoc_time;
 	__le32 allow_txrx_time;
 	u8 disassoc_bssid[ETH_ALEN];
@@ -2062,7 +2062,7 @@ struct wmi_set_ie_cmd {
 	u8 ie_info[];
 } __packed;
 
-/* Notify the WSC registration status to the target */
+/* Analtify the WSC registration status to the target */
 #define WSC_REG_ACTIVE     1
 #define WSC_REG_INACTIVE   0
 
@@ -2135,15 +2135,15 @@ struct wmi_del_wow_pattern_cmd {
 	__le16 filter_id;
 } __packed;
 
-/* WMI_SET_TXE_NOTIFY_CMDID */
-struct wmi_txe_notify_cmd {
+/* WMI_SET_TXE_ANALTIFY_CMDID */
+struct wmi_txe_analtify_cmd {
 	__le32 rate;
 	__le32 pkts;
 	__le32 intvl;
 } __packed;
 
-/* WMI_TXE_NOTIFY_EVENTID */
-struct wmi_txe_notify_event {
+/* WMI_TXE_ANALTIFY_EVENTID */
+struct wmi_txe_analtify_event {
 	__le32 rate;
 	__le32 pkts;
 } __packed;
@@ -2165,7 +2165,7 @@ struct wmi_pmkid_list_reply {
 struct wmi_addba_req_event {
 	u8 tid;
 	u8 win_sz;
-	__le16 st_seq_no;
+	__le16 st_seq_anal;
 
 	/* f/w response for ADDBA Req; OK (0) or failure (!=0) */
 	u8 status;
@@ -2178,13 +2178,13 @@ struct wmi_addba_resp_event {
 	/* OK (0), failure (!=0) */
 	u8 status;
 
-	/* three values: not supported(0), 3839, 8k */
+	/* three values: analt supported(0), 3839, 8k */
 	__le16 amsdu_sz;
 } __packed;
 
 /* WMI_DELBA_EVENTID
  * f/w received a DELBA for peer and processed it.
- * Host is notified of this
+ * Host is analtified of this
  */
 struct wmi_delba_event {
 	u8 tid;
@@ -2192,12 +2192,12 @@ struct wmi_delba_event {
 	__le16 reason_code;
 } __packed;
 
-#define PEER_NODE_JOIN_EVENT		0x00
-#define PEER_NODE_LEAVE_EVENT		0x01
-#define PEER_FIRST_NODE_JOIN_EVENT	0x10
-#define PEER_LAST_NODE_LEAVE_EVENT	0x11
+#define PEER_ANALDE_JOIN_EVENT		0x00
+#define PEER_ANALDE_LEAVE_EVENT		0x01
+#define PEER_FIRST_ANALDE_JOIN_EVENT	0x10
+#define PEER_LAST_ANALDE_LEAVE_EVENT	0x11
 
-struct wmi_peer_node_event {
+struct wmi_peer_analde_event {
 	u8 event_code;
 	u8 peer_mac_addr[ETH_ALEN];
 } __packed;
@@ -2208,7 +2208,7 @@ struct wmi_peer_node_event {
 struct tx_complete_msg_v1 {
 #define TX_COMPLETE_STATUS_SUCCESS 0
 #define TX_COMPLETE_STATUS_RETRIES 1
-#define TX_COMPLETE_STATUS_NOLINK  2
+#define TX_COMPLETE_STATUS_ANALLINK  2
 #define TX_COMPLETE_STATUS_TIMEOUT 3
 #define TX_COMPLETE_STATUS_OTHER   4
 
@@ -2225,7 +2225,7 @@ struct tx_complete_msg_v1 {
 } __packed;
 
 struct wmi_tx_complete_event {
-	/* no of tx comp msgs following this struct */
+	/* anal of tx comp msgs following this struct */
 	u8 num_msg;
 
 	/* length in bytes for each individual msg following this struct */
@@ -2313,7 +2313,7 @@ struct wmi_ap_set_apsd_cmd {
 } __packed;
 
 enum wmi_ap_apsd_buffered_traffic_flags {
-	WMI_AP_APSD_NO_DELIVERY_FRAMES =  0x1,
+	WMI_AP_APSD_ANAL_DELIVERY_FRAMES =  0x1,
 };
 
 struct wmi_ap_apsd_buffered_traffic_cmd {
@@ -2367,7 +2367,7 @@ struct wmi_send_mgmt_cmd {
 	__le32 id;
 	__le32 freq;
 	__le32 wait;
-	__le32 no_cck;
+	__le32 anal_cck;
 	__le16 len;
 	u8 data[];
 } __packed;
@@ -2459,7 +2459,7 @@ struct wmi_p2p_probe_response_cmd {
  * cmd=WMI_EXTENSION_CMD.
  *
  * Extended WMI commands are those that are needed during wireless
- * operation, but which are not really wireless commands.  This allows,
+ * operation, but which are analt really wireless commands.  This allows,
  * for instance, platform-specific commands.  Extended WMI commands are
  * embedded in a WMI command message with WMI_COMMAND_ID=WMI_EXTENSION_CMDID.
  * Extended WMI events are similarly embedded in a WMI event message with
@@ -2519,7 +2519,7 @@ struct ath6kl_wmix_dbglog_cfg_module_cmd {
 /* End of Extended WMI (WMIX) */
 
 enum wmi_sync_flag {
-	NO_SYNC_WMIFLAG = 0,
+	ANAL_SYNC_WMIFLAG = 0,
 
 	/* transmit all queued data before cmd */
 	SYNC_BEFORE_WMIFLAG,
@@ -2571,7 +2571,7 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 			     enum wmi_scan_type scan_type,
 			     u32 force_fgscan, u32 is_legacy,
 			     u32 home_dwell_time, u32 force_scan_interval,
-			     s8 num_chan, u16 *ch_list, u32 no_cck,
+			     s8 num_chan, u16 *ch_list, u32 anal_cck,
 			     u32 *rates);
 int ath6kl_wmi_enable_sched_scan_cmd(struct wmi *wmi, u8 if_idx, bool enable);
 
@@ -2660,7 +2660,7 @@ int ath6kl_wmi_mcast_filter_cmd(struct wmi *wmi, u8 if_idx, bool mc_all_on);
 int ath6kl_wmi_add_del_mcast_filter_cmd(struct wmi *wmi, u8 if_idx,
 					u8 *filter, bool add_filter);
 int ath6kl_wmi_sta_bmiss_enhance_cmd(struct wmi *wmi, u8 if_idx, bool enable);
-int ath6kl_wmi_set_txe_notify(struct wmi *wmi, u8 idx,
+int ath6kl_wmi_set_txe_analtify(struct wmi *wmi, u8 idx,
 			      u32 rate, u32 pkts, u32 intvl);
 int ath6kl_wmi_set_regdomain_cmd(struct wmi *wmi, const char *alpha2);
 
@@ -2702,7 +2702,7 @@ int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
 
 int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 			       u32 wait, const u8 *data, u16 data_len,
-			       u32 no_cck);
+			       u32 anal_cck);
 
 int ath6kl_wmi_send_probe_response_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
 				       const u8 *dst, const u8 *data,

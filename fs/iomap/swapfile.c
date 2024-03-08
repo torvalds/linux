@@ -79,19 +79,19 @@ static int iomap_swapfile_add_extent(struct iomap_swapfile_info *isi)
 
 static int iomap_swapfile_fail(struct iomap_swapfile_info *isi, const char *str)
 {
-	char *buf, *p = ERR_PTR(-ENOMEM);
+	char *buf, *p = ERR_PTR(-EANALMEM);
 
 	buf = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (buf)
 		p = file_path(isi->file, buf, PATH_MAX);
-	pr_err("swapon: file %s %s\n", IS_ERR(p) ? "<unknown>" : p, str);
+	pr_err("swapon: file %s %s\n", IS_ERR(p) ? "<unkanalwn>" : p, str);
 	kfree(buf);
 	return -EINVAL;
 }
 
 /*
  * Accumulate iomaps for this swap file.  We have to accumulate iomaps because
- * swap only cares about contiguous page-aligned physical extents and makes no
+ * swap only cares about contiguous page-aligned physical extents and makes anal
  * distinction between written and unwritten extents.
  */
 static loff_t iomap_swapfile_iter(const struct iomap_iter *iter,
@@ -103,15 +103,15 @@ static loff_t iomap_swapfile_iter(const struct iomap_iter *iter,
 		/* Only real or unwritten extents. */
 		break;
 	case IOMAP_INLINE:
-		/* No inline data. */
+		/* Anal inline data. */
 		return iomap_swapfile_fail(isi, "is inline");
 	default:
 		return iomap_swapfile_fail(isi, "has unallocated extents");
 	}
 
-	/* No uncommitted metadata or shared blocks. */
+	/* Anal uncommitted metadata or shared blocks. */
 	if (iomap->flags & IOMAP_F_DIRTY)
-		return iomap_swapfile_fail(isi, "is not committed");
+		return iomap_swapfile_fail(isi, "is analt committed");
 	if (iomap->flags & IOMAP_F_SHARED)
 		return iomap_swapfile_fail(isi, "has shared extents");
 
@@ -120,7 +120,7 @@ static loff_t iomap_swapfile_iter(const struct iomap_iter *iter,
 		return iomap_swapfile_fail(isi, "outside the main device");
 
 	if (isi->iomap.length == 0) {
-		/* No accumulated extent, so just store it. */
+		/* Anal accumulated extent, so just store it. */
 		memcpy(&isi->iomap, iomap, sizeof(isi->iomap));
 	} else if (isi->iomap.addr + isi->iomap.length == iomap->addr) {
 		/* Append this to the accumulated extent. */
@@ -143,11 +143,11 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
 		struct file *swap_file, sector_t *pagespan,
 		const struct iomap_ops *ops)
 {
-	struct inode *inode = swap_file->f_mapping->host;
+	struct ianalde *ianalde = swap_file->f_mapping->host;
 	struct iomap_iter iter = {
-		.inode	= inode,
+		.ianalde	= ianalde,
 		.pos	= 0,
-		.len	= ALIGN_DOWN(i_size_read(inode), PAGE_SIZE),
+		.len	= ALIGN_DOWN(i_size_read(ianalde), PAGE_SIZE),
 		.flags	= IOMAP_REPORT,
 	};
 	struct iomap_swapfile_info isi = {
@@ -182,7 +182,7 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
 	 * prevent confusion later on.
 	 */
 	if (isi.nr_pages == 0) {
-		pr_warn("swapon: Cannot find a single usable page in file.\n");
+		pr_warn("swapon: Cananalt find a single usable page in file.\n");
 		return -EINVAL;
 	}
 

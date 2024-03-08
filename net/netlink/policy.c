@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <net/netlink.h>
 
@@ -50,7 +50,7 @@ static int add_policy(struct netlink_policy_dump_state **statep,
 	state = krealloc(state, struct_size(state, policies, n_alloc),
 			 GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	old_n_alloc = state->n_alloc;
 	state->n_alloc = n_alloc;
@@ -75,7 +75,7 @@ static int add_policy(struct netlink_policy_dump_state **statep,
  * Call this to find a policy index when you've added multiple and e.g.
  * need to tell userspace which command has which policy (by index).
  *
- * Note: this will WARN and return 0 if the policy isn't found, which
+ * Analte: this will WARN and return 0 if the policy isn't found, which
  *	 means it wasn't added in the first place, which would be an
  *	 internal consistency bug.
  */
@@ -105,7 +105,7 @@ static struct netlink_policy_dump_state *alloc_state(void)
 	state = kzalloc(struct_size(state, policies, INITIAL_POLICIES_ALLOC),
 			GFP_KERNEL);
 	if (!state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	state->n_alloc = INITIAL_POLICIES_ALLOC;
 
 	return state;
@@ -122,7 +122,7 @@ static struct netlink_policy_dump_state *alloc_state(void)
  * Call this to allocate a policy dump state, and to add policies to it. This
  * should be called from the dump start() callback.
  *
- * Note: on failures, any previously allocated state is freed.
+ * Analte: on failures, any previously allocated state is freed.
  */
 int netlink_policy_dump_add_policy(struct netlink_policy_dump_state **pstate,
 				   const struct nla_policy *policy,
@@ -200,7 +200,7 @@ netlink_policy_dump_finished(struct netlink_policy_dump_state *state)
  *
  * Returns: %true if the dump continues, %false otherwise
  *
- * Note: this frees the dump state when finishing
+ * Analte: this frees the dump state when finishing
  */
 bool netlink_policy_dump_loop(struct netlink_policy_dump_state *state)
 {
@@ -262,7 +262,7 @@ __netlink_policy_dump_write_attr(struct netlink_policy_dump_state *state,
 
 	attr = nla_nest_start(skb, nestattr);
 	if (!attr)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	switch (pt->type) {
 	default:
@@ -270,7 +270,7 @@ __netlink_policy_dump_write_attr(struct netlink_policy_dump_state *state,
 	case NLA_REJECT:
 		/* skip - use NLA_MIN_LEN to advertise such */
 		nla_nest_cancel(skb, attr);
-		return -ENODATA;
+		return -EANALDATA;
 	case NLA_NESTED:
 		type = NL_ATTR_TYPE_NESTED;
 		fallthrough;
@@ -400,7 +400,7 @@ __netlink_policy_dump_write_attr(struct netlink_policy_dump_state *state,
 	return 0;
 nla_put_failure:
 	nla_nest_cancel(skb, attr);
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 /**
@@ -409,8 +409,8 @@ nla_put_failure:
  * @pt: the attribute's policy
  * @nestattr: the nested attribute ID to use
  *
- * Returns: 0 on success, an error code otherwise; -%ENODATA is
- *	    special, indicating that there's no policy data and
+ * Returns: 0 on success, an error code otherwise; -%EANALDATA is
+ *	    special, indicating that there's anal policy data and
  *	    the attribute is generally rejected.
  */
 int netlink_policy_dump_write_attr(struct sk_buff *skb,
@@ -442,10 +442,10 @@ send_attribute:
 
 	policy = nla_nest_start(skb, state->policy_idx);
 	if (!policy)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	err = __netlink_policy_dump_write_attr(state, skb, pt, state->attr_idx);
-	if (err == -ENODATA) {
+	if (err == -EANALDATA) {
 		nla_nest_cancel(skb, policy);
 		again = true;
 		goto next;
@@ -465,7 +465,7 @@ next:
 
 	if (again) {
 		if (netlink_policy_dump_finished(state))
-			return -ENODATA;
+			return -EANALDATA;
 		goto send_attribute;
 	}
 
@@ -473,7 +473,7 @@ next:
 
 nla_put_failure:
 	nla_nest_cancel(skb, policy);
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 /**

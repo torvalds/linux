@@ -89,7 +89,7 @@ static int razer_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (hdev->type == HID_TYPE_USBMOUSE) {
 		buf = kmemdup(blackwidow_init, RAZER_BLACKWIDOW_TRANSFER_BUF_SIZE, GFP_KERNEL);
 		if (buf == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = hid_hw_raw_request(hdev, 0, buf, RAZER_BLACKWIDOW_TRANSFER_BUF_SIZE,
 				HID_FEATURE_REPORT, HID_REQ_SET_REPORT);

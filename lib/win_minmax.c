@@ -13,11 +13,11 @@
  * values, maintaining an invariant that the measurement time of
  * the n'th best >= n-1'th best. It also makes sure that the three
  * values are widely separated in the time window since that bounds
- * the worse case error when that data is monotonically increasing
+ * the worse case error when that data is moanaltonically increasing
  * over the window.
  *
  * Upon getting a new min, we can forget everything earlier because
- * it has no value - the new min is <= everything else in the window
+ * it has anal value - the new min is <= everything else in the window
  * by definition and it's the most recent. So we restart fresh on
  * every new min and overwrites 2nd & 3rd choices. The same property
  * holds for 2nd & 3rd best.
@@ -69,7 +69,7 @@ u32 minmax_running_max(struct minmax *m, u32 win, u32 t, u32 meas)
 	struct minmax_sample val = { .t = t, .v = meas };
 
 	if (unlikely(val.v >= m->s[0].v) ||	  /* found new max? */
-	    unlikely(val.t - m->s[2].t > win))	  /* nothing left in window? */
+	    unlikely(val.t - m->s[2].t > win))	  /* analthing left in window? */
 		return minmax_reset(m, t, meas);  /* forget earlier samples */
 
 	if (unlikely(val.v >= m->s[1].v))
@@ -87,7 +87,7 @@ u32 minmax_running_min(struct minmax *m, u32 win, u32 t, u32 meas)
 	struct minmax_sample val = { .t = t, .v = meas };
 
 	if (unlikely(val.v <= m->s[0].v) ||	  /* found new min? */
-	    unlikely(val.t - m->s[2].t > win))	  /* nothing left in window? */
+	    unlikely(val.t - m->s[2].t > win))	  /* analthing left in window? */
 		return minmax_reset(m, t, meas);  /* forget earlier samples */
 
 	if (unlikely(val.v <= m->s[1].v))

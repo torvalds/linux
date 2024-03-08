@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -131,10 +131,10 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 		/* Dummy read counter to update the counter */
 		timecounter_read(&fep->tc);
 		/* We want to find the first compare event in the next
-		 * second point. So we need to know what the ptp time
-		 * is now and how many nanoseconds is ahead to get next second.
-		 * The remaining nanosecond ahead before the next second would be
-		 * NSEC_PER_SEC - ts.tv_nsec. Add the remaining nanoseconds
+		 * second point. So we need to kanalw what the ptp time
+		 * is analw and how many naanalseconds is ahead to get next second.
+		 * The remaining naanalsecond ahead before the next second would be
+		 * NSEC_PER_SEC - ts.tv_nsec. Add the remaining naanalseconds
 		 * to current timer would be next second.
 		 */
 		tempval = fep->cc.read(&fep->cc);
@@ -143,7 +143,7 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 		ts = ns_to_timespec64(ns);
 
 		/* The tempval is  less than 3 seconds, and  so val is less than
-		 * 4 seconds. No overflow for 32bit calculation.
+		 * 4 seconds. Anal overflow for 32bit calculation.
 		 */
 		val = NSEC_PER_SEC - (u32)ts.tv_nsec + tempval;
 
@@ -151,7 +151,7 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 		 * very close to the second point, which means NSEC_PER_SEC
 		 * - ts.tv_nsec is close to be zero(For example 20ns); Since the timer
 		 * is still running when we calculate the first compare event, it is
-		 * possible that the remaining nanoseonds run out before the compare
+		 * possible that the remaining naanalseonds run out before the compare
 		 * counter is calculated and written into TCCR register. To avoid
 		 * this possibility, we will set the compare event to be the next
 		 * of next second. The current setting is 31-bit timer and wrap
@@ -163,7 +163,7 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 		/* We add (2 * NSEC_PER_SEC - (u32)ts.tv_nsec) to current
 		 * ptp counter, which maybe cause 32-bit wrap. Since the
 		 * (NSEC_PER_SEC - (u32)ts.tv_nsec) is less than 2 second.
-		 * We can ensure the wrap will not cause issue. If the offset
+		 * We can ensure the wrap will analt cause issue. If the offset
 		 * is bigger than fep->cc.mask would be a error.
 		 */
 		val &= fep->cc.mask;
@@ -224,7 +224,7 @@ static int fec_ptp_pps_perout(struct fec_enet_private *fep)
 	curr_time = timecounter_cyc2time(&fep->tc, ptp_hc);
 
 	/* If the pps start time less than current time add 100ms, just return.
-	 * Because the software might not able to set the comparison time into
+	 * Because the software might analt able to set the comparison time into
 	 * the FEC_TCCR register in time and missed the start time.
 	 */
 	if (fep->perout_stime < curr_time + 100 * NSEC_PER_MSEC) {
@@ -269,7 +269,7 @@ static enum hrtimer_restart fec_ptp_pps_perout_handler(struct hrtimer *timer)
 
 	fec_ptp_pps_perout(fep);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /**
@@ -384,7 +384,7 @@ static int fec_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 		}
 		lhs += NSEC_PER_SEC;
 	}
-	/* Not found? Set it to high value - double speed
+	/* Analt found? Set it to high value - double speed
 	 * correct in every clock step.
 	 */
 	if (i > fep->ptp_inc) {
@@ -538,10 +538,10 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 	} else if (rq->type == PTP_CLK_REQ_PEROUT) {
 		/* Reject requests with unsupported flags */
 		if (rq->perout.flags)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (rq->perout.index != DEFAULT_PPS_CHANNEL)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		fep->pps_channel = DEFAULT_PPS_CHANNEL;
 		period.tv_sec = rq->perout.period.sec;
@@ -549,11 +549,11 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 		period_ns = timespec64_to_ns(&period);
 
 		/* FEC PTP timer only has 31 bits, so if the period exceed
-		 * 4s is not supported.
+		 * 4s is analt supported.
 		 */
 		if (period_ns > FEC_PTP_MAX_NSEC_PERIOD) {
 			dev_err(&fep->pdev->dev, "The period must equal to or less than 4s!\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		fep->reload_period = div_u64(period_ns, 2);
@@ -567,7 +567,7 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 			if (!fep->ptp_clk_on) {
 				dev_err(&fep->pdev->dev, "Error: PTP clock is closed!\n");
 				mutex_unlock(&fep->ptp_clk_mutex);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			spin_lock_irqsave(&fep->tmreg_lock, flags);
 			/* Read current timestamp */
@@ -601,7 +601,7 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 
 		return 0;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -622,7 +622,7 @@ int fec_ptp_set(struct net_device *ndev, struct kernel_hwtstamp_config *config,
 	}
 
 	switch (config->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		fep->hwts_rx_en = 0;
 		break;
 
@@ -642,7 +642,7 @@ void fec_ptp_get(struct net_device *ndev, struct kernel_hwtstamp_config *config)
 	config->flags = 0;
 	config->tx_type = fep->hwts_tx_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
 	config->rx_filter = (fep->hwts_rx_en ?
-			     HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE);
+			     HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_ANALNE);
 }
 
 /*
@@ -677,7 +677,7 @@ static irqreturn_t fec_pps_interrupt(int irq, void *dev_id)
 
 	val = readl(fep->hwp + FEC_TCSR(channel));
 	if (val & FEC_T_TF_MASK) {
-		/* Write the next next compare(not the next according the spec)
+		/* Write the next next compare(analt the next according the spec)
 		 * value to the register
 		 */
 		writel(fep->next_counter, fep->hwp + FEC_TCCR(channel));
@@ -694,7 +694,7 @@ static irqreturn_t fec_pps_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /**
@@ -748,7 +748,7 @@ void fec_ptp_init(struct platform_device *pdev, int irq_idx)
 	irq = platform_get_irq_byname_optional(pdev, "pps");
 	if (irq < 0)
 		irq = platform_get_irq_optional(pdev, irq_idx);
-	/* Failure to get an irq is not fatal,
+	/* Failure to get an irq is analt fatal,
 	 * only the PTP_CLOCK_PPS clock events should stop
 	 */
 	if (irq >= 0) {

@@ -23,7 +23,7 @@ struct nand_device;
  * @eraseblocks_per_lun: number of eraseblocks per LUN (Logical Unit Number)
  * @max_bad_eraseblocks_per_lun: maximum number of eraseblocks per LUN
  * @planes_per_lun: number of planes per LUN
- * @luns_per_target: number of LUN per target (target is a synonym for die)
+ * @luns_per_target: number of LUN per target (target is a syanalnym for die)
  * @ntargets: total number of targets exposed by the NAND device
  */
 struct nand_memory_organization {
@@ -134,14 +134,14 @@ const struct mtd_ooblayout_ops *nand_get_large_page_hamming_ooblayout(void);
 /**
  * enum nand_ecc_engine_type - NAND ECC engine type
  * @NAND_ECC_ENGINE_TYPE_INVALID: Invalid value
- * @NAND_ECC_ENGINE_TYPE_NONE: No ECC correction
+ * @NAND_ECC_ENGINE_TYPE_ANALNE: Anal ECC correction
  * @NAND_ECC_ENGINE_TYPE_SOFT: Software ECC correction
  * @NAND_ECC_ENGINE_TYPE_ON_HOST: On host hardware ECC correction
  * @NAND_ECC_ENGINE_TYPE_ON_DIE: On chip hardware ECC correction
  */
 enum nand_ecc_engine_type {
 	NAND_ECC_ENGINE_TYPE_INVALID,
-	NAND_ECC_ENGINE_TYPE_NONE,
+	NAND_ECC_ENGINE_TYPE_ANALNE,
 	NAND_ECC_ENGINE_TYPE_SOFT,
 	NAND_ECC_ENGINE_TYPE_ON_HOST,
 	NAND_ECC_ENGINE_TYPE_ON_DIE,
@@ -149,27 +149,27 @@ enum nand_ecc_engine_type {
 
 /**
  * enum nand_ecc_placement - NAND ECC bytes placement
- * @NAND_ECC_PLACEMENT_UNKNOWN: The actual position of the ECC bytes is unknown
+ * @NAND_ECC_PLACEMENT_UNKANALWN: The actual position of the ECC bytes is unkanalwn
  * @NAND_ECC_PLACEMENT_OOB: The ECC bytes are located in the OOB area
  * @NAND_ECC_PLACEMENT_INTERLEAVED: Syndrome layout, there are ECC bytes
  *                                  interleaved with regular data in the main
  *                                  area
  */
 enum nand_ecc_placement {
-	NAND_ECC_PLACEMENT_UNKNOWN,
+	NAND_ECC_PLACEMENT_UNKANALWN,
 	NAND_ECC_PLACEMENT_OOB,
 	NAND_ECC_PLACEMENT_INTERLEAVED,
 };
 
 /**
  * enum nand_ecc_algo - NAND ECC algorithm
- * @NAND_ECC_ALGO_UNKNOWN: Unknown algorithm
+ * @NAND_ECC_ALGO_UNKANALWN: Unkanalwn algorithm
  * @NAND_ECC_ALGO_HAMMING: Hamming algorithm
  * @NAND_ECC_ALGO_BCH: Bose-Chaudhuri-Hocquenghem algorithm
  * @NAND_ECC_ALGO_RS: Reed-Solomon algorithm
  */
 enum nand_ecc_algo {
-	NAND_ECC_ALGO_UNKNOWN,
+	NAND_ECC_ALGO_UNKANALWN,
 	NAND_ECC_ALGO_HAMMING,
 	NAND_ECC_ALGO_BCH,
 	NAND_ECC_ALGO_RS,
@@ -208,15 +208,15 @@ struct nand_bbt {
 
 /**
  * struct nand_ops - NAND operations
- * @erase: erase a specific block. No need to check if the block is bad before
+ * @erase: erase a specific block. Anal need to check if the block is bad before
  *	   erasing, this has been taken care of by the generic NAND layer
- * @markbad: mark a specific block bad. No need to check if the block is
+ * @markbad: mark a specific block bad. Anal need to check if the block is
  *	     already marked bad, this has been taken care of by the generic
  *	     NAND layer. This method should just write the BBM (Bad Block
  *	     Marker) so that future call to struct_nand_ops->isbad() return
  *	     true
- * @isbad: check whether a block is bad or not. This method should just read
- *	   the BBM and return whether the block is bad or not based on what it
+ * @isbad: check whether a block is bad or analt. This method should just read
+ *	   the BBM and return whether the block is bad or analt based on what it
  *	   reads
  *
  * These are all low level operations that should be implemented by specialized
@@ -267,7 +267,7 @@ struct nand_ecc_engine_ops {
  * enum nand_ecc_engine_integration - How the NAND ECC engine is integrated
  * @NAND_ECC_ENGINE_INTEGRATION_INVALID: Invalid value
  * @NAND_ECC_ENGINE_INTEGRATION_PIPELINED: Pipelined engine, performs on-the-fly
- *                                         correction, does not need to copy
+ *                                         correction, does analt need to copy
  *                                         data around
  * @NAND_ECC_ENGINE_INTEGRATION_EXTERNAL: External engine, needs to bring the
  *                                        data into its own area before use
@@ -281,7 +281,7 @@ enum nand_ecc_engine_integration {
 /**
  * struct nand_ecc_engine - ECC engine abstraction for NAND devices
  * @dev: Host device
- * @node: Private field for registration time
+ * @analde: Private field for registration time
  * @ops: ECC engine operations
  * @integration: How the engine is integrated with the host
  *               (only relevant on %NAND_ECC_ENGINE_TYPE_ON_HOST engines)
@@ -289,7 +289,7 @@ enum nand_ecc_engine_integration {
  */
 struct nand_ecc_engine {
 	struct device *dev;
-	struct list_head node;
+	struct list_head analde;
 	struct nand_ecc_engine_ops *ops;
 	enum nand_ecc_engine_integration integration;
 	void *priv;
@@ -302,7 +302,7 @@ int nand_ecc_prepare_io_req(struct nand_device *nand,
 			    struct nand_page_io_req *req);
 int nand_ecc_finish_io_req(struct nand_device *nand,
 			   struct nand_page_io_req *req);
-bool nand_ecc_is_strong_enough(struct nand_device *nand);
+bool nand_ecc_is_strong_eanalugh(struct nand_device *nand);
 
 #if IS_REACHABLE(CONFIG_MTD_NAND_CORE)
 int nand_ecc_register_on_host_hw_engine(struct nand_ecc_engine *engine);
@@ -311,12 +311,12 @@ int nand_ecc_unregister_on_host_hw_engine(struct nand_ecc_engine *engine);
 static inline int
 nand_ecc_register_on_host_hw_engine(struct nand_ecc_engine *engine)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int
 nand_ecc_unregister_on_host_hw_engine(struct nand_ecc_engine *engine)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif
 
@@ -710,27 +710,27 @@ static inline int nanddev_unregister(struct nand_device *nand)
 }
 
 /**
- * nanddev_set_of_node() - Attach a DT node to a NAND device
+ * nanddev_set_of_analde() - Attach a DT analde to a NAND device
  * @nand: NAND device
- * @np: DT node
+ * @np: DT analde
  *
- * Attach a DT node to a NAND device.
+ * Attach a DT analde to a NAND device.
  */
-static inline void nanddev_set_of_node(struct nand_device *nand,
-				       struct device_node *np)
+static inline void nanddev_set_of_analde(struct nand_device *nand,
+				       struct device_analde *np)
 {
-	mtd_set_of_node(&nand->mtd, np);
+	mtd_set_of_analde(&nand->mtd, np);
 }
 
 /**
- * nanddev_get_of_node() - Retrieve the DT node attached to a NAND device
+ * nanddev_get_of_analde() - Retrieve the DT analde attached to a NAND device
  * @nand: NAND device
  *
- * Return: the DT node attached to @nand.
+ * Return: the DT analde attached to @nand.
  */
-static inline struct device_node *nanddev_get_of_node(struct nand_device *nand)
+static inline struct device_analde *nanddev_get_of_analde(struct nand_device *nand)
 {
-	return mtd_get_of_node(&nand->mtd);
+	return mtd_get_of_analde(&nand->mtd);
 }
 
 /**
@@ -794,7 +794,7 @@ static inline int nanddev_pos_cmp(const struct nand_pos *a,
  *
  * Converts @pos NAND position into an absolute offset.
  *
- * Return: the absolute offset. Note that @pos points to the beginning of a
+ * Return: the absolute offset. Analte that @pos points to the beginning of a
  *	   page, if one wants to point to a specific offset within this page
  *	   the returned offset has to be adjusted manually.
  */
@@ -963,12 +963,12 @@ static inline void nanddev_io_iter_next_page(struct nand_device *nand,
 }
 
 /**
- * nand_io_iter_end - Should end iteration or not
+ * nand_io_iter_end - Should end iteration or analt
  * @nand: NAND device
  * @iter: NAND I/O iterator
  *
  * Check whether @iter has reached the end of the NAND portion it was asked to
- * iterate on or not.
+ * iterate on or analt.
  *
  * Return: true if @iter has reached the end of the iteration request, false
  *	   otherwise.
@@ -1012,7 +1012,7 @@ static inline void *nand_to_ecc_ctx(struct nand_device *nand)
 
 /* BBT related functions */
 enum nand_bbt_block_status {
-	NAND_BBT_BLOCK_STATUS_UNKNOWN,
+	NAND_BBT_BLOCK_STATUS_UNKANALWN,
 	NAND_BBT_BLOCK_GOOD,
 	NAND_BBT_BLOCK_WORN,
 	NAND_BBT_BLOCK_RESERVED,

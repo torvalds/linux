@@ -24,7 +24,7 @@ struct fw_request {
 	bool			timedout;
 	char			name[FW_NAME_SIZE];
 	const struct firmware	*fw;
-	struct list_head	node;
+	struct list_head	analde;
 
 	struct delayed_work	dwork;
 	/* Timeout, in jiffies, within which the firmware shall download */
@@ -56,7 +56,7 @@ static void fw_req_release(struct kref *kref)
 	 * request, so that the AP doesn't refer to a later fw-request (with
 	 * same firmware_id) for the old timedout fw-request.
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 *
 	 * This also means that after 255 timeouts we will fail to service new
 	 * firmware downloads. But what else can we do in that case anyway? Lets
@@ -78,7 +78,7 @@ static void fw_req_release(struct kref *kref)
  * to the users.
  *
  * free_firmware() also takes the mutex while removing an entry from the list,
- * it guarantees that every user of fw_req has taken a kref-reference by now and
+ * it guarantees that every user of fw_req has taken a kref-reference by analw and
  * we wouldn't have any new users.
  *
  * Once the last user drops the reference, the fw_req structure is freed.
@@ -96,7 +96,7 @@ static struct fw_request *get_fw_req(struct fw_download *fw_download,
 
 	mutex_lock(&fw_download->mutex);
 
-	list_for_each_entry(fw_req, &fw_download->fw_requests, node) {
+	list_for_each_entry(fw_req, &fw_download->fw_requests, analde) {
 		if (fw_req->firmware_id == firmware_id) {
 			kref_get(&fw_req->kref);
 			goto unlock;
@@ -119,7 +119,7 @@ static void free_firmware(struct fw_download *fw_download,
 		return;
 
 	mutex_lock(&fw_download->mutex);
-	list_del(&fw_req->node);
+	list_del(&fw_req->analde);
 	mutex_unlock(&fw_download->mutex);
 
 	fw_req->disabled = true;
@@ -168,7 +168,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 
 	fw_req = kzalloc(sizeof(*fw_req), GFP_KERNEL);
 	if (!fw_req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Allocate ids from 1 to 255 (u8-max), 0 is an invalid id */
 	ret = ida_simple_get(&fw_download->id_map, 1, 256, GFP_KERNEL);
@@ -199,7 +199,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 	kref_init(&fw_req->kref);
 
 	mutex_lock(&fw_download->mutex);
-	list_add(&fw_req->node, &fw_download->fw_requests);
+	list_add(&fw_req->analde, &fw_download->fw_requests);
 	mutex_unlock(&fw_download->mutex);
 
 	/* Timeout, in jiffies, within which firmware should get loaded */
@@ -242,7 +242,7 @@ static int fw_download_find_firmware(struct gb_operation *op)
 	if (strnlen(tag, GB_FIRMWARE_TAG_MAX_SIZE) ==
 	    GB_FIRMWARE_TAG_MAX_SIZE) {
 		dev_err(fw_download->parent,
-			"firmware-tag is not null-terminated\n");
+			"firmware-tag is analt null-terminated\n");
 		return -EINVAL;
 	}
 
@@ -253,7 +253,7 @@ static int fw_download_find_firmware(struct gb_operation *op)
 	if (!gb_operation_response_alloc(op, sizeof(*response), GFP_KERNEL)) {
 		dev_err(fw_download->parent, "error allocating response\n");
 		free_firmware(fw_download, fw_req);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	response = op->response->payload;
@@ -293,7 +293,7 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 	fw_req = get_fw_req(fw_download, firmware_id);
 	if (!fw_req) {
 		dev_err(fw_download->parent,
-			"firmware not available for id: %02u\n", firmware_id);
+			"firmware analt available for id: %02u\n", firmware_id);
 		return -EINVAL;
 	}
 
@@ -329,7 +329,7 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 					 GFP_KERNEL)) {
 		dev_err(fw_download->parent,
 			"error allocating fetch firmware response\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_fw;
 	}
 
@@ -370,7 +370,7 @@ static int fw_download_release_firmware(struct gb_operation *op)
 	fw_req = get_fw_req(fw_download, firmware_id);
 	if (!fw_req) {
 		dev_err(fw_download->parent,
-			"firmware not available for id: %02u\n", firmware_id);
+			"firmware analt available for id: %02u\n", firmware_id);
 		return -EINVAL;
 	}
 
@@ -412,7 +412,7 @@ int gb_fw_download_connection_init(struct gb_connection *connection)
 
 	fw_download = kzalloc(sizeof(*fw_download), GFP_KERNEL);
 	if (!fw_download)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_download->parent = &connection->bundle->dev;
 	INIT_LIST_HEAD(&fw_download->fw_requests);
@@ -450,12 +450,12 @@ void gb_fw_download_connection_exit(struct gb_connection *connection)
 	 * are freed from the timeout handler.
 	 */
 	mutex_lock(&fw_download->mutex);
-	list_for_each_entry(fw_req, &fw_download->fw_requests, node)
+	list_for_each_entry(fw_req, &fw_download->fw_requests, analde)
 		kref_get(&fw_req->kref);
 	mutex_unlock(&fw_download->mutex);
 
 	/* Release pending firmware packages */
-	list_for_each_entry_safe(fw_req, tmp, &fw_download->fw_requests, node) {
+	list_for_each_entry_safe(fw_req, tmp, &fw_download->fw_requests, analde) {
 		cancel_delayed_work_sync(&fw_req->dwork);
 		free_firmware(fw_download, fw_req);
 		put_fw_req(fw_req);

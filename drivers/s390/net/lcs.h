@@ -37,8 +37,8 @@ do { \
  * Enum for classifying detected devices.
  */
 enum lcs_channel_types {
-	/* Device is not a channel  */
-	lcs_channel_type_none,
+	/* Device is analt a channel  */
+	lcs_channel_type_analne,
 
 	/* Device is a 2216 channel */
 	lcs_channel_type_parallel,
@@ -77,7 +77,7 @@ enum lcs_channel_types {
 /**
  * LCS IPASSIST MASKS,only used when multicast is switched on
  */
-/* Not supported by LCS */
+/* Analt supported by LCS */
 #define LCS_IPASS_ARP_PROCESSING	0x0001
 #define LCS_IPASS_IN_CHECKSUM_SUPPORT	0x0002
 #define LCS_IPASS_OUT_CHECKSUM_SUPPORT	0x0004
@@ -118,7 +118,7 @@ enum lcs_channel_types {
 #define LCS_IOBUFFERSIZE		0x5000
 #define LCS_NUM_BUFFS			32	/* needs to be power of 2 */
 #define LCS_MAC_LENGTH			6
-#define LCS_INVALID_PORT_NO		-1
+#define LCS_INVALID_PORT_ANAL		-1
 #define LCS_LANCMD_TIMEOUT_DEFAULT      5
 
 /**
@@ -204,12 +204,12 @@ struct lcs_cmd {
 	__u8   slot;
 	__u8   cmd_code;
 	__u8   initiator;
-	__u16  sequence_no;
+	__u16  sequence_anal;
 	__u16  return_code;
 	union {
 		struct {
 			__u8   lan_type;
-			__u8   portno;
+			__u8   portanal;
 			__u16  parameter_count;
 			__u8   operator_flags[3];
 			__u8   reserved[3];
@@ -221,7 +221,7 @@ struct lcs_cmd {
 		} lcs_startup;
 		struct {
 			__u8   lan_type;
-			__u8   portno;
+			__u8   portanal;
 			__u8   unused[10];
 			__u8   mac_addr[LCS_MAC_LENGTH];
 			__u32  num_packets_deblocked;
@@ -231,13 +231,13 @@ struct lcs_cmd {
 			__u32  num_tx_packets_disgarded;
 			__u32  num_packets_rx_from_lan;
 			__u32  num_rx_errors_detected;
-			__u32  num_rx_discarded_nobuffs_avail;
+			__u32  num_rx_discarded_analbuffs_avail;
 			__u32  num_rx_packets_too_large;
 		} lcs_lanstat_cmd;
 #ifdef CONFIG_IP_MULTICAST
 		struct {
 			__u8   lan_type;
-			__u8   portno;
+			__u8   portanal;
 			__u16  num_ip_pairs;
 			__u16  ip_assists_supported;
 			__u16  ip_assists_enabled;
@@ -265,15 +265,15 @@ struct lcs_buffer {
 	enum lcs_buffer_states state;
 	void *data;
 	int count;
-	/* Callback for completion notification. */
+	/* Callback for completion analtification. */
 	void (*callback)(struct lcs_channel *, struct lcs_buffer *);
 };
 
 struct lcs_reply {
 	struct list_head list;
-	__u16 sequence_no;
+	__u16 sequence_anal;
 	refcount_t refcnt;
-	/* Callback for completion notification. */
+	/* Callback for completion analtification. */
 	void (*callback)(struct lcs_card *, struct lcs_cmd *);
 	wait_queue_head_t wait_q;
 	struct lcs_card *card;
@@ -331,12 +331,12 @@ struct lcs_card {
 	__u16 ip_assists_enabled;
 	__s8 lan_type;
 	__u32 pkt_seq;
-	__u16 sequence_no;
-	__s16 portno;
+	__u16 sequence_anal;
+	__s16 portanal;
 	/* Some info copied from probeinfo */
 	u8 device_forced;
-	u8 max_port_no;
-	u8 hint_port_no;
-	s16 port_protocol_no;
+	u8 max_port_anal;
+	u8 hint_port_anal;
+	s16 port_protocol_anal;
 }  __attribute__ ((aligned(8)));
 

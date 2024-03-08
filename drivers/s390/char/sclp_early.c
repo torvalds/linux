@@ -8,7 +8,7 @@
 #define KMSG_COMPONENT "sclp_early"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/memblock.h>
 #include <asm/ctlreg.h>
 #include <asm/sclp.h>
@@ -129,11 +129,11 @@ int __init sclp_early_get_core_info(struct sclp_core_info *info)
 	int rc = 0;
 
 	if (!SCLP_HAS_CPU_INFO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sccb = memblock_alloc_low(length, PAGE_SIZE);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(sccb, 0, length);
 	sccb->header.length = length;
@@ -164,7 +164,7 @@ static void __init sclp_early_console_detect(struct init_sccb *sccb)
 		sclp.has_linemode = 1;
 }
 
-void __init __no_sanitize_address sclp_early_adjust_va(void)
+void __init __anal_sanitize_address sclp_early_adjust_va(void)
 {
 	sclp_early_sccb = __va((unsigned long)sclp_early_sccb);
 }
@@ -176,7 +176,7 @@ void __init sclp_early_detect(void)
 	sclp_early_facilities_detect();
 
 	/*
-	 * Turn off SCLP event notifications.  Also save remote masks in the
+	 * Turn off SCLP event analtifications.  Also save remote masks in the
 	 * sccb.  These are sufficient to detect sclp console capabilities.
 	 */
 	sclp_early_set_event_mask(sccb, 0, 0);

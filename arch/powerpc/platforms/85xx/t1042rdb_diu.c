@@ -28,7 +28,7 @@
 #define CPLD_DIUCSR_DVIEN	0x80
 #define CPLD_DIUCSR_BACKLIGHT	0x0f
 
-struct device_node *cpld_node;
+struct device_analde *cpld_analde;
 
 /**
  * t1042rdb_set_monitor_port: switch the output to a different monitor port
@@ -37,9 +37,9 @@ static void t1042rdb_set_monitor_port(enum fsl_diu_monitor_port port)
 {
 	void __iomem *cpld_base;
 
-	cpld_base = of_iomap(cpld_node, 0);
+	cpld_base = of_iomap(cpld_analde, 0);
 	if (!cpld_base) {
-		pr_err("%s: Could not map cpld registers\n", __func__);
+		pr_err("%s: Could analt map cpld registers\n", __func__);
 		goto exit;
 	}
 
@@ -66,7 +66,7 @@ static void t1042rdb_set_monitor_port(enum fsl_diu_monitor_port port)
 
 	iounmap(cpld_base);
 exit:
-	of_node_put(cpld_node);
+	of_analde_put(cpld_analde);
 }
 
 /**
@@ -75,23 +75,23 @@ exit:
  */
 static void t1042rdb_set_pixel_clock(unsigned int pixclock)
 {
-	struct device_node *scfg_np;
+	struct device_analde *scfg_np;
 	void __iomem *scfg;
 	unsigned long freq;
 	u64 temp;
 	u32 pxclk;
 
-	scfg_np = of_find_compatible_node(NULL, NULL, "fsl,t1040-scfg");
+	scfg_np = of_find_compatible_analde(NULL, NULL, "fsl,t1040-scfg");
 	if (!scfg_np) {
-		pr_err("%s: Missing scfg node. Can not display video.\n",
+		pr_err("%s: Missing scfg analde. Can analt display video.\n",
 		       __func__);
 		return;
 	}
 
 	scfg = of_iomap(scfg_np, 0);
-	of_node_put(scfg_np);
+	of_analde_put(scfg_np);
 	if (!scfg) {
-		pr_err("%s: Could not map device. Can not display video.\n",
+		pr_err("%s: Could analt map device. Can analt display video.\n",
 		       __func__);
 		return;
 	}
@@ -109,7 +109,7 @@ static void t1042rdb_set_pixel_clock(unsigned int pixclock)
 	pxclk = DIV_ROUND_CLOSEST(fsl_get_sys_freq(), freq);
 	pxclk = clamp_t(u32, pxclk, 2, 255);
 
-	/* Disable the pixel clock, and set it to non-inverted and no delay */
+	/* Disable the pixel clock, and set it to analn-inverted and anal delay */
 	clrbits32(scfg + CCSR_SCFG_PIXCLKCR,
 		  PIXCLKCR_PXCKEN | PIXCLKCR_PXCKDLY | PIXCLKCR_PXCLK_MASK);
 
@@ -130,14 +130,14 @@ t1042rdb_valid_monitor_port(enum fsl_diu_monitor_port port)
 	case FSL_DIU_PORT_LVDS:
 		return port;
 	default:
-		return FSL_DIU_PORT_DVI; /* Dual-link LVDS is not supported */
+		return FSL_DIU_PORT_DVI; /* Dual-link LVDS is analt supported */
 	}
 }
 
 static int __init t1042rdb_diu_init(void)
 {
-	cpld_node = of_find_compatible_node(NULL, NULL, "fsl,t1042rdb-cpld");
-	if (!cpld_node)
+	cpld_analde = of_find_compatible_analde(NULL, NULL, "fsl,t1042rdb-cpld");
+	if (!cpld_analde)
 		return 0;
 
 	diu_ops.set_monitor_port	= t1042rdb_set_monitor_port;

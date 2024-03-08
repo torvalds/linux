@@ -30,11 +30,11 @@
  * Driver overview
  *
  * Unit record device support is implemented as a character device driver.
- * We can fit at least 16 bits into a device minor number and use the
- * simple method of mapping a character device number with minor abcd
- * to the unit record device with devno abcd.
+ * We can fit at least 16 bits into a device mianalr number and use the
+ * simple method of mapping a character device number with mianalr abcd
+ * to the unit record device with devanal abcd.
  * I/O to virtual unit record devices is handled as follows:
- * Reads: Diagnose code 0x14 (input spool file manipulation)
+ * Reads: Diaganalse code 0x14 (input spool file manipulation)
  * is used to read spool data page-wise.
  * Writes: The CCW used is WRITE_CCW_CMD (0x01). The device's record length
  * is available by reading sysfs attr reclen. Each write() to the device
@@ -146,13 +146,13 @@ static struct urdev *urdev_get_from_cdev(struct ccw_device *cdev)
 	return urd;
 }
 
-static struct urdev *urdev_get_from_devno(u16 devno)
+static struct urdev *urdev_get_from_devanal(u16 devanal)
 {
 	char bus_id[16];
 	struct ccw_device *cdev;
 	struct urdev *urd;
 
-	sprintf(bus_id, "0.0.%04x", devno);
+	sprintf(bus_id, "0.0.%04x", devanal);
 	cdev = get_ccwdev_by_busid(&ur_driver, bus_id);
 	if (!cdev)
 		return NULL;
@@ -180,7 +180,7 @@ static void urdev_put(struct urdev *urd)
  * do_ur_io issues the channel program to the device and blocks waiting
  * on a completion event it publishes at urd->io_done. The function
  * serialises itself on the device's mutex so that only one I/O
- * is issued at a time (and that I/O is synchronous).
+ * is issued at a time (and that I/O is synchroanalus).
  *
  * ur_int_handler catches the "I/O done" interrupt, writes the
  * subchannel status word into the scsw member of the urdev structure
@@ -204,7 +204,7 @@ static void free_chan_prog(struct ccw1 *cpa)
 /*
  * alloc_chan_prog
  * The channel program we use is write commands chained together
- * with a final NOP CCW command-chained on (which ensures that CE and DE
+ * with a final ANALP CCW command-chained on (which ensures that CE and DE
  * are presented together in a single interrupt instead of as separate
  * interrupts unless an incorrect length indication kicks in first). The
  * data length in each CCW is reclen.
@@ -219,14 +219,14 @@ static struct ccw1 *alloc_chan_prog(const char __user *ubuf, int rec_count,
 	TRACE("alloc_chan_prog(%p, %i, %i)\n", ubuf, rec_count, reclen);
 
 	/*
-	 * We chain a NOP onto the writes to force CE+DE together.
+	 * We chain a ANALP onto the writes to force CE+DE together.
 	 * That means we allocate room for CCWs to cover count/reclen
-	 * records plus a NOP.
+	 * records plus a ANALP.
 	 */
 	cpa = kcalloc(rec_count + 1, sizeof(struct ccw1),
 		      GFP_KERNEL | GFP_DMA);
 	if (!cpa)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < rec_count; i++) {
 		cpa[i].cmd_code = WRITE_CCW_CMD;
@@ -235,7 +235,7 @@ static struct ccw1 *alloc_chan_prog(const char __user *ubuf, int rec_count,
 		kbuf = kmalloc(reclen, GFP_KERNEL | GFP_DMA);
 		if (!kbuf) {
 			free_chan_prog(cpa);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		cpa[i].cda = (u32)(addr_t) kbuf;
 		if (copy_from_user(kbuf, ubuf, reclen)) {
@@ -244,8 +244,8 @@ static struct ccw1 *alloc_chan_prog(const char __user *ubuf, int rec_count,
 		}
 		ubuf += reclen;
 	}
-	/* The following NOP CCW forces CE+DE to be presented together */
-	cpa[i].cmd_code = CCW_CMD_NOOP;
+	/* The following ANALP CCW forces CE+DE to be presented together */
+	cpa[i].cmd_code = CCW_CMD_ANALOP;
 	return cpa;
 }
 
@@ -342,7 +342,7 @@ static ssize_t ur_attr_reclen_show(struct device *dev,
 
 	urd = urdev_get_from_cdev(to_ccwdev(dev));
 	if (!urd)
-		return -ENODEV;
+		return -EANALDEV;
 	rc = sprintf(buf, "%zu\n", urd->reclen);
 	urdev_put(urd);
 	return rc;
@@ -361,28 +361,28 @@ static void ur_remove_attributes(struct device *dev)
 }
 
 /*
- * diagnose code 0x210 - retrieve device information
- * cc=0  normal completion, we have a real device
+ * diaganalse code 0x210 - retrieve device information
+ * cc=0  analrmal completion, we have a real device
  * cc=1  CP paging error
- * cc=2  The virtual device exists, but is not associated with a real device
- * cc=3  Invalid device address, or the virtual device does not exist
+ * cc=2  The virtual device exists, but is analt associated with a real device
+ * cc=3  Invalid device address, or the virtual device does analt exist
  */
 static int get_urd_class(struct urdev *urd)
 {
 	static struct diag210 ur_diag210;
 	int cc;
 
-	ur_diag210.vrdcdvno = urd->dev_id.devno;
+	ur_diag210.vrdcdvanal = urd->dev_id.devanal;
 	ur_diag210.vrdclen = sizeof(struct diag210);
 
 	cc = diag210(&ur_diag210);
 	switch (cc) {
 	case 0:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case 2:
 		return ur_diag210.vrdcvcla; /* virtual device class */
 	case 3:
-		return -ENODEV;
+		return -EANALDEV;
 	default:
 		return -EIO;
 	}
@@ -461,49 +461,49 @@ static ssize_t ur_write(struct file *file, const char __user *udata,
 }
 
 /*
- * diagnose code 0x14 subcode 0x0028 - position spool file to designated
+ * diaganalse code 0x14 subcode 0x0028 - position spool file to designated
  *				       record
- * cc=0  normal completion
- * cc=2  no file active on the virtual reader or device not ready
+ * cc=0  analrmal completion
+ * cc=2  anal file active on the virtual reader or device analt ready
  * cc=3  record specified is beyond EOF
  */
-static int diag_position_to_record(int devno, int record)
+static int diag_position_to_record(int devanal, int record)
 {
 	int cc;
 
-	cc = diag14(record, devno, 0x28);
+	cc = diag14(record, devanal, 0x28);
 	switch (cc) {
 	case 0:
 		return 0;
 	case 2:
-		return -ENOMEDIUM;
+		return -EANALMEDIUM;
 	case 3:
-		return -ENODATA; /* position beyond end of file */
+		return -EANALDATA; /* position beyond end of file */
 	default:
 		return -EIO;
 	}
 }
 
 /*
- * diagnose code 0x14 subcode 0x0000 - read next spool file buffer
- * cc=0  normal completion
+ * diaganalse code 0x14 subcode 0x0000 - read next spool file buffer
+ * cc=0  analrmal completion
  * cc=1  EOF reached
- * cc=2  no file active on the virtual reader, and no file eligible
+ * cc=2  anal file active on the virtual reader, and anal file eligible
  * cc=3  file already active on the virtual reader or specified virtual
- *	 reader does not exist or is not a reader
+ *	 reader does analt exist or is analt a reader
  */
-static int diag_read_file(int devno, char *buf)
+static int diag_read_file(int devanal, char *buf)
 {
 	int cc;
 
-	cc = diag14((unsigned long) buf, devno, 0x00);
+	cc = diag14((unsigned long) buf, devanal, 0x00);
 	switch (cc) {
 	case 0:
 		return 0;
 	case 1:
-		return -ENODATA;
+		return -EANALDATA;
 	case 2:
-		return -ENOMEDIUM;
+		return -EANALMEDIUM;
 	default:
 		return -EIO;
 	}
@@ -521,8 +521,8 @@ static ssize_t diag14_read(struct file *file, char __user *ubuf, size_t count,
 	urd = ((struct urfile *) file->private_data)->urd;
 	reclen = ((struct urfile *) file->private_data)->file_reclen;
 
-	rc = diag_position_to_record(urd->dev_id.devno, *offs / PAGE_SIZE + 1);
-	if (rc == -ENODATA)
+	rc = diag_position_to_record(urd->dev_id.devanal, *offs / PAGE_SIZE + 1);
+	if (rc == -EANALDATA)
 		return 0;
 	if (rc)
 		return rc;
@@ -530,13 +530,13 @@ static ssize_t diag14_read(struct file *file, char __user *ubuf, size_t count,
 	len = min((size_t) PAGE_SIZE, count);
 	buf = (char *) __get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	copied = 0;
 	res = (size_t) (*offs % PAGE_SIZE);
 	do {
-		rc = diag_read_file(urd->dev_id.devno, buf);
-		if (rc == -ENODATA) {
+		rc = diag_read_file(urd->dev_id.devanal, buf);
+		if (rc == -EANALDATA) {
 			break;
 		}
 		if (rc)
@@ -580,9 +580,9 @@ static ssize_t ur_read(struct file *file, char __user *ubuf, size_t count,
 }
 
 /*
- * diagnose code 0x14 subcode 0x0fff - retrieve next file descriptor
- * cc=0  normal completion
- * cc=1  no files on reader queue or no subsequent file
+ * diaganalse code 0x14 subcode 0x0fff - retrieve next file descriptor
+ * cc=0  analrmal completion
+ * cc=1  anal files on reader queue or anal subsequent file
  * cc=2  spid specified is invalid
  */
 static int diag_read_next_file_info(struct file_control_block *buf, int spid)
@@ -594,7 +594,7 @@ static int diag_read_next_file_info(struct file_control_block *buf, int spid)
 	case 0:
 		return 0;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -606,14 +606,14 @@ static int verify_uri_device(struct urdev *urd)
 
 	fcb = kmalloc(sizeof(*fcb), GFP_KERNEL | GFP_DMA);
 	if (!fcb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* check for empty reader device (beginning of chain) */
 	rc = diag_read_next_file_info(fcb, 0);
 	if (rc)
 		goto fail_free_fcb;
 
-	/* if file is in hold status, we do not read it */
+	/* if file is in hold status, we do analt read it */
 	if (fcb->file_stat & (FLG_SYSTEM_HOLD | FLG_USER_HOLD)) {
 		rc = -EPERM;
 		goto fail_free_fcb;
@@ -622,14 +622,14 @@ static int verify_uri_device(struct urdev *urd)
 	/* open file on virtual reader	*/
 	buf = (char *) __get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!buf) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_free_fcb;
 	}
-	rc = diag_read_file(urd->dev_id.devno, buf);
-	if ((rc != 0) && (rc != -ENODATA)) /* EOF does not hurt */
+	rc = diag_read_file(urd->dev_id.devanal, buf);
+	if ((rc != 0) && (rc != -EANALDATA)) /* EOF does analt hurt */
 		goto fail_free_buf;
 
-	/* check if the file on top of the queue is open now */
+	/* check if the file on top of the queue is open analw */
 	rc = diag_read_next_file_info(fcb, 0);
 	if (rc)
 		goto fail_free_buf;
@@ -650,11 +650,11 @@ static int verify_device(struct urdev *urd)
 {
 	switch (urd->class) {
 	case DEV_CLASS_UR_O:
-		return 0; /* no check needed here */
+		return 0; /* anal check needed here */
 	case DEV_CLASS_UR_I:
 		return verify_uri_device(urd);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -665,7 +665,7 @@ static int get_uri_file_reclen(struct urdev *urd)
 
 	fcb = kmalloc(sizeof(*fcb), GFP_KERNEL | GFP_DMA);
 	if (!fcb)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = diag_read_next_file_info(fcb, 0);
 	if (rc)
 		goto fail_free;
@@ -687,13 +687,13 @@ static int get_file_reclen(struct urdev *urd)
 	case DEV_CLASS_UR_I:
 		return get_uri_file_reclen(urd);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
-static int ur_open(struct inode *inode, struct file *file)
+static int ur_open(struct ianalde *ianalde, struct file *file)
 {
-	u16 devno;
+	u16 devanal;
 	struct urdev *urd;
 	struct urfile *urf;
 	unsigned short accmode;
@@ -704,12 +704,12 @@ static int ur_open(struct inode *inode, struct file *file)
 	if (accmode == O_RDWR)
 		return -EACCES;
 	/*
-	 * We treat the minor number as the devno of the ur device
+	 * We treat the mianalr number as the devanal of the ur device
 	 * to find in the driver tree.
 	 */
-	devno = iminor(file_inode(file));
+	devanal = imianalr(file_ianalde(file));
 
-	urd = urdev_get_from_devno(devno);
+	urd = urdev_get_from_devanal(devanal);
 	if (!urd) {
 		rc = -ENXIO;
 		goto out;
@@ -718,7 +718,7 @@ static int ur_open(struct inode *inode, struct file *file)
 	spin_lock(&urd->open_lock);
 	while (urd->open_flag) {
 		spin_unlock(&urd->open_lock);
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			rc = -EBUSY;
 			goto fail_put;
 		}
@@ -746,7 +746,7 @@ static int ur_open(struct inode *inode, struct file *file)
 
 	urf = urfile_alloc(urd);
 	if (!urf) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_unlock;
 	}
 
@@ -770,7 +770,7 @@ out:
 	return rc;
 }
 
-static int ur_release(struct inode *inode, struct file *file)
+static int ur_release(struct ianalde *ianalde, struct file *file)
 {
 	struct urfile *urf = file->private_data;
 
@@ -790,7 +790,7 @@ static loff_t ur_llseek(struct file *file, loff_t offset, int whence)
 		return -ESPIPE; /* seek allowed only for reader */
 	if (offset % PAGE_SIZE)
 		return -ESPIPE; /* only multiples of 4K allowed */
-	return no_seek_end_llseek(file, offset, whence);
+	return anal_seek_end_llseek(file, offset, whence);
 }
 
 static const struct file_operations ur_fops = {
@@ -826,13 +826,13 @@ static int ur_probe(struct ccw_device *cdev)
 	mutex_lock(&vmur_mutex);
 	urd = urdev_alloc(cdev);
 	if (!urd) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_unlock;
 	}
 
 	rc = ur_create_attributes(&cdev->dev);
 	if (rc) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_urdev_put;
 	}
 
@@ -843,7 +843,7 @@ static int ur_probe(struct ccw_device *cdev)
 		goto fail_remove_attr;
 	}
 	if ((urd->class != DEV_CLASS_UR_I) && (urd->class != DEV_CLASS_UR_O)) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto fail_remove_attr;
 	}
 	spin_lock_irq(get_ccwdev_lock(cdev));
@@ -866,8 +866,8 @@ fail_unlock:
 static int ur_set_online(struct ccw_device *cdev)
 {
 	struct urdev *urd;
-	int minor, major, rc;
-	char node_id[16];
+	int mianalr, major, rc;
+	char analde_id[16];
 
 	TRACE("ur_set_online: cdev=%p\n", cdev);
 
@@ -875,45 +875,45 @@ static int ur_set_online(struct ccw_device *cdev)
 	urd = urdev_get_from_cdev(cdev);
 	if (!urd) {
 		/* ur_remove already deleted our urd */
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto fail_unlock;
 	}
 
 	if (urd->char_device) {
-		/* Another ur_set_online was faster */
+		/* Aanalther ur_set_online was faster */
 		rc = -EBUSY;
 		goto fail_urdev_put;
 	}
 
-	minor = urd->dev_id.devno;
+	mianalr = urd->dev_id.devanal;
 	major = MAJOR(ur_first_dev_maj_min);
 
 	urd->char_device = cdev_alloc();
 	if (!urd->char_device) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_urdev_put;
 	}
 
 	urd->char_device->ops = &ur_fops;
 	urd->char_device->owner = ur_fops.owner;
 
-	rc = cdev_add(urd->char_device, MKDEV(major, minor), 1);
+	rc = cdev_add(urd->char_device, MKDEV(major, mianalr), 1);
 	if (rc)
 		goto fail_free_cdev;
 	if (urd->cdev->id.cu_type == READER_PUNCH_DEVTYPE) {
 		if (urd->class == DEV_CLASS_UR_I)
-			sprintf(node_id, "vmrdr-%s", dev_name(&cdev->dev));
+			sprintf(analde_id, "vmrdr-%s", dev_name(&cdev->dev));
 		if (urd->class == DEV_CLASS_UR_O)
-			sprintf(node_id, "vmpun-%s", dev_name(&cdev->dev));
+			sprintf(analde_id, "vmpun-%s", dev_name(&cdev->dev));
 	} else if (urd->cdev->id.cu_type == PRINTER_DEVTYPE) {
-		sprintf(node_id, "vmprt-%s", dev_name(&cdev->dev));
+		sprintf(analde_id, "vmprt-%s", dev_name(&cdev->dev));
 	} else {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto fail_free_cdev;
 	}
 
 	urd->device = device_create(vmur_class, &cdev->dev,
-				    urd->char_device->dev, NULL, "%s", node_id);
+				    urd->char_device->dev, NULL, "%s", analde_id);
 	if (IS_ERR(urd->device)) {
 		rc = PTR_ERR(urd->device);
 		TRACE("ur_set_online: device_create rc=%d\n", rc);
@@ -942,9 +942,9 @@ static int ur_set_offline_force(struct ccw_device *cdev, int force)
 	urd = urdev_get_from_cdev(cdev);
 	if (!urd)
 		/* ur_remove already deleted our urd */
-		return -ENODEV;
+		return -EANALDEV;
 	if (!urd->char_device) {
-		/* Another ur_set_offline was faster */
+		/* Aanalther ur_set_offline was faster */
 		rc = -EBUSY;
 		goto fail_urdev_put;
 	}
@@ -955,7 +955,7 @@ static int ur_set_offline_force(struct ccw_device *cdev, int force)
 		goto fail_urdev_put;
 	}
 	if (cancel_work_sync(&urd->uevent_work)) {
-		/* Work not run yet - need to release reference here */
+		/* Work analt run yet - need to release reference here */
 		urdev_put(urd);
 	}
 	device_destroy(vmur_class, urd->char_device->dev);
@@ -1008,14 +1008,14 @@ static int __init ur_init(void)
 	dev_t dev;
 
 	if (!MACHINE_IS_VM) {
-		pr_err("The %s cannot be loaded without z/VM\n",
+		pr_err("The %s cananalt be loaded without z/VM\n",
 		       ur_banner);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	vmur_dbf = debug_register("vmur", 4, 1, 4 * sizeof(long));
 	if (!vmur_dbf)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = debug_register_view(vmur_dbf, &debug_sprintf_view);
 	if (rc)
 		goto fail_free_dbf;
@@ -1032,7 +1032,7 @@ static int __init ur_init(void)
 	if (rc)
 		goto fail_class_destroy;
 
-	rc = alloc_chrdev_region(&dev, 0, NUM_MINORS, "vmur");
+	rc = alloc_chrdev_region(&dev, 0, NUM_MIANALRS, "vmur");
 	if (rc) {
 		pr_err("Kernel function alloc_chrdev_region failed with "
 		       "error code %d\n", rc);
@@ -1054,7 +1054,7 @@ fail_free_dbf:
 
 static void __exit ur_exit(void)
 {
-	unregister_chrdev_region(ur_first_dev_maj_min, NUM_MINORS);
+	unregister_chrdev_region(ur_first_dev_maj_min, NUM_MIANALRS);
 	ccw_driver_unregister(&ur_driver);
 	class_destroy(vmur_class);
 	debug_unregister(vmur_dbf);

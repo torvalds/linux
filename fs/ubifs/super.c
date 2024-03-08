@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation.
+ * Copyright (C) 2006-2008 Analkia Corporation.
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -50,130 +50,130 @@ module_param_cb(default_version, &ubifs_default_version_ops, &ubifs_default_vers
  */
 #define UBIFS_KMALLOC_OK (128*1024)
 
-/* Slab cache for UBIFS inodes */
-static struct kmem_cache *ubifs_inode_slab;
+/* Slab cache for UBIFS ianaldes */
+static struct kmem_cache *ubifs_ianalde_slab;
 
 /* UBIFS TNC shrinker description */
 static struct shrinker *ubifs_shrinker_info;
 
 /**
- * validate_inode - validate inode.
+ * validate_ianalde - validate ianalde.
  * @c: UBIFS file-system description object
- * @inode: the inode to validate
+ * @ianalde: the ianalde to validate
  *
  * This is a helper function for 'ubifs_iget()' which validates various fields
- * of a newly built inode to make sure they contain sane values and prevent
- * possible vulnerabilities. Returns zero if the inode is all right and
- * a non-zero error code if not.
+ * of a newly built ianalde to make sure they contain sane values and prevent
+ * possible vulnerabilities. Returns zero if the ianalde is all right and
+ * a analn-zero error code if analt.
  */
-static int validate_inode(struct ubifs_info *c, const struct inode *inode)
+static int validate_ianalde(struct ubifs_info *c, const struct ianalde *ianalde)
 {
 	int err;
-	const struct ubifs_inode *ui = ubifs_inode(inode);
+	const struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
 
-	if (inode->i_size > c->max_inode_sz) {
-		ubifs_err(c, "inode is too large (%lld)",
-			  (long long)inode->i_size);
+	if (ianalde->i_size > c->max_ianalde_sz) {
+		ubifs_err(c, "ianalde is too large (%lld)",
+			  (long long)ianalde->i_size);
 		return 1;
 	}
 
 	if (ui->compr_type >= UBIFS_COMPR_TYPES_CNT) {
-		ubifs_err(c, "unknown compression type %d", ui->compr_type);
+		ubifs_err(c, "unkanalwn compression type %d", ui->compr_type);
 		return 2;
 	}
 
 	if (ui->xattr_names + ui->xattr_cnt > XATTR_LIST_MAX)
 		return 3;
 
-	if (ui->data_len < 0 || ui->data_len > UBIFS_MAX_INO_DATA)
+	if (ui->data_len < 0 || ui->data_len > UBIFS_MAX_IANAL_DATA)
 		return 4;
 
-	if (ui->xattr && !S_ISREG(inode->i_mode))
+	if (ui->xattr && !S_ISREG(ianalde->i_mode))
 		return 5;
 
 	if (!ubifs_compr_present(c, ui->compr_type)) {
-		ubifs_warn(c, "inode %lu uses '%s' compression, but it was not compiled in",
-			   inode->i_ino, ubifs_compr_name(c, ui->compr_type));
+		ubifs_warn(c, "ianalde %lu uses '%s' compression, but it was analt compiled in",
+			   ianalde->i_ianal, ubifs_compr_name(c, ui->compr_type));
 	}
 
-	err = dbg_check_dir(c, inode);
+	err = dbg_check_dir(c, ianalde);
 	return err;
 }
 
-struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
+struct ianalde *ubifs_iget(struct super_block *sb, unsigned long inum)
 {
 	int err;
 	union ubifs_key key;
-	struct ubifs_ino_node *ino;
+	struct ubifs_ianal_analde *ianal;
 	struct ubifs_info *c = sb->s_fs_info;
-	struct inode *inode;
-	struct ubifs_inode *ui;
+	struct ianalde *ianalde;
+	struct ubifs_ianalde *ui;
 
-	dbg_gen("inode %lu", inum);
+	dbg_gen("ianalde %lu", inum);
 
-	inode = iget_locked(sb, inum);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
-	ui = ubifs_inode(inode);
+	ianalde = iget_locked(sb, inum);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
+	if (!(ianalde->i_state & I_NEW))
+		return ianalde;
+	ui = ubifs_ianalde(ianalde);
 
-	ino = kmalloc(UBIFS_MAX_INO_NODE_SZ, GFP_NOFS);
-	if (!ino) {
-		err = -ENOMEM;
+	ianal = kmalloc(UBIFS_MAX_IANAL_ANALDE_SZ, GFP_ANALFS);
+	if (!ianal) {
+		err = -EANALMEM;
 		goto out;
 	}
 
-	ino_key_init(c, &key, inode->i_ino);
+	ianal_key_init(c, &key, ianalde->i_ianal);
 
-	err = ubifs_tnc_lookup(c, &key, ino);
+	err = ubifs_tnc_lookup(c, &key, ianal);
 	if (err)
-		goto out_ino;
+		goto out_ianal;
 
-	inode->i_flags |= S_NOCMTIME;
+	ianalde->i_flags |= S_ANALCMTIME;
 
 	if (!IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
-		inode->i_flags |= S_NOATIME;
+		ianalde->i_flags |= S_ANALATIME;
 
-	set_nlink(inode, le32_to_cpu(ino->nlink));
-	i_uid_write(inode, le32_to_cpu(ino->uid));
-	i_gid_write(inode, le32_to_cpu(ino->gid));
-	inode_set_atime(inode, (int64_t)le64_to_cpu(ino->atime_sec),
-			le32_to_cpu(ino->atime_nsec));
-	inode_set_mtime(inode, (int64_t)le64_to_cpu(ino->mtime_sec),
-			le32_to_cpu(ino->mtime_nsec));
-	inode_set_ctime(inode, (int64_t)le64_to_cpu(ino->ctime_sec),
-			le32_to_cpu(ino->ctime_nsec));
-	inode->i_mode = le32_to_cpu(ino->mode);
-	inode->i_size = le64_to_cpu(ino->size);
+	set_nlink(ianalde, le32_to_cpu(ianal->nlink));
+	i_uid_write(ianalde, le32_to_cpu(ianal->uid));
+	i_gid_write(ianalde, le32_to_cpu(ianal->gid));
+	ianalde_set_atime(ianalde, (int64_t)le64_to_cpu(ianal->atime_sec),
+			le32_to_cpu(ianal->atime_nsec));
+	ianalde_set_mtime(ianalde, (int64_t)le64_to_cpu(ianal->mtime_sec),
+			le32_to_cpu(ianal->mtime_nsec));
+	ianalde_set_ctime(ianalde, (int64_t)le64_to_cpu(ianal->ctime_sec),
+			le32_to_cpu(ianal->ctime_nsec));
+	ianalde->i_mode = le32_to_cpu(ianal->mode);
+	ianalde->i_size = le64_to_cpu(ianal->size);
 
-	ui->data_len    = le32_to_cpu(ino->data_len);
-	ui->flags       = le32_to_cpu(ino->flags);
-	ui->compr_type  = le16_to_cpu(ino->compr_type);
-	ui->creat_sqnum = le64_to_cpu(ino->creat_sqnum);
-	ui->xattr_cnt   = le32_to_cpu(ino->xattr_cnt);
-	ui->xattr_size  = le32_to_cpu(ino->xattr_size);
-	ui->xattr_names = le32_to_cpu(ino->xattr_names);
-	ui->synced_i_size = ui->ui_size = inode->i_size;
+	ui->data_len    = le32_to_cpu(ianal->data_len);
+	ui->flags       = le32_to_cpu(ianal->flags);
+	ui->compr_type  = le16_to_cpu(ianal->compr_type);
+	ui->creat_sqnum = le64_to_cpu(ianal->creat_sqnum);
+	ui->xattr_cnt   = le32_to_cpu(ianal->xattr_cnt);
+	ui->xattr_size  = le32_to_cpu(ianal->xattr_size);
+	ui->xattr_names = le32_to_cpu(ianal->xattr_names);
+	ui->synced_i_size = ui->ui_size = ianalde->i_size;
 
 	ui->xattr = (ui->flags & UBIFS_XATTR_FL) ? 1 : 0;
 
-	err = validate_inode(c, inode);
+	err = validate_ianalde(c, ianalde);
 	if (err)
 		goto out_invalid;
 
-	switch (inode->i_mode & S_IFMT) {
+	switch (ianalde->i_mode & S_IFMT) {
 	case S_IFREG:
-		inode->i_mapping->a_ops = &ubifs_file_address_operations;
-		inode->i_op = &ubifs_file_inode_operations;
-		inode->i_fop = &ubifs_file_operations;
+		ianalde->i_mapping->a_ops = &ubifs_file_address_operations;
+		ianalde->i_op = &ubifs_file_ianalde_operations;
+		ianalde->i_fop = &ubifs_file_operations;
 		if (ui->xattr) {
-			ui->data = kmalloc(ui->data_len + 1, GFP_NOFS);
+			ui->data = kmalloc(ui->data_len + 1, GFP_ANALFS);
 			if (!ui->data) {
-				err = -ENOMEM;
-				goto out_ino;
+				err = -EANALMEM;
+				goto out_ianal;
 			}
-			memcpy(ui->data, ino->data, ui->data_len);
+			memcpy(ui->data, ianal->data, ui->data_len);
 			((char *)ui->data)[ui->data_len] = '\0';
 		} else if (ui->data_len != 0) {
 			err = 10;
@@ -181,25 +181,25 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 		}
 		break;
 	case S_IFDIR:
-		inode->i_op  = &ubifs_dir_inode_operations;
-		inode->i_fop = &ubifs_dir_operations;
+		ianalde->i_op  = &ubifs_dir_ianalde_operations;
+		ianalde->i_fop = &ubifs_dir_operations;
 		if (ui->data_len != 0) {
 			err = 11;
 			goto out_invalid;
 		}
 		break;
 	case S_IFLNK:
-		inode->i_op = &ubifs_symlink_inode_operations;
-		if (ui->data_len <= 0 || ui->data_len > UBIFS_MAX_INO_DATA) {
+		ianalde->i_op = &ubifs_symlink_ianalde_operations;
+		if (ui->data_len <= 0 || ui->data_len > UBIFS_MAX_IANAL_DATA) {
 			err = 12;
 			goto out_invalid;
 		}
-		ui->data = kmalloc(ui->data_len + 1, GFP_NOFS);
+		ui->data = kmalloc(ui->data_len + 1, GFP_ANALFS);
 		if (!ui->data) {
-			err = -ENOMEM;
-			goto out_ino;
+			err = -EANALMEM;
+			goto out_ianal;
 		}
-		memcpy(ui->data, ino->data, ui->data_len);
+		memcpy(ui->data, ianal->data, ui->data_len);
 		((char *)ui->data)[ui->data_len] = '\0';
 		break;
 	case S_IFBLK:
@@ -208,13 +208,13 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 		dev_t rdev;
 		union ubifs_dev_desc *dev;
 
-		ui->data = kmalloc(sizeof(union ubifs_dev_desc), GFP_NOFS);
+		ui->data = kmalloc(sizeof(union ubifs_dev_desc), GFP_ANALFS);
 		if (!ui->data) {
-			err = -ENOMEM;
-			goto out_ino;
+			err = -EANALMEM;
+			goto out_ianal;
 		}
 
-		dev = (union ubifs_dev_desc *)ino->data;
+		dev = (union ubifs_dev_desc *)ianal->data;
 		if (ui->data_len == sizeof(dev->new))
 			rdev = new_decode_dev(le32_to_cpu(dev->new));
 		else if (ui->data_len == sizeof(dev->huge))
@@ -223,15 +223,15 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 			err = 13;
 			goto out_invalid;
 		}
-		memcpy(ui->data, ino->data, ui->data_len);
-		inode->i_op = &ubifs_file_inode_operations;
-		init_special_inode(inode, inode->i_mode, rdev);
+		memcpy(ui->data, ianal->data, ui->data_len);
+		ianalde->i_op = &ubifs_file_ianalde_operations;
+		init_special_ianalde(ianalde, ianalde->i_mode, rdev);
 		break;
 	}
 	case S_IFSOCK:
 	case S_IFIFO:
-		inode->i_op = &ubifs_file_inode_operations;
-		init_special_inode(inode, inode->i_mode, 0);
+		ianalde->i_op = &ubifs_file_ianalde_operations;
+		init_special_ianalde(ianalde, ianalde->i_mode, 0);
 		if (ui->data_len != 0) {
 			err = 14;
 			goto out_invalid;
@@ -242,68 +242,68 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 		goto out_invalid;
 	}
 
-	kfree(ino);
-	ubifs_set_inode_flags(inode);
-	unlock_new_inode(inode);
-	return inode;
+	kfree(ianal);
+	ubifs_set_ianalde_flags(ianalde);
+	unlock_new_ianalde(ianalde);
+	return ianalde;
 
 out_invalid:
-	ubifs_err(c, "inode %lu validation failed, error %d", inode->i_ino, err);
-	ubifs_dump_node(c, ino, UBIFS_MAX_INO_NODE_SZ);
-	ubifs_dump_inode(c, inode);
+	ubifs_err(c, "ianalde %lu validation failed, error %d", ianalde->i_ianal, err);
+	ubifs_dump_analde(c, ianal, UBIFS_MAX_IANAL_ANALDE_SZ);
+	ubifs_dump_ianalde(c, ianalde);
 	err = -EINVAL;
-out_ino:
-	kfree(ino);
+out_ianal:
+	kfree(ianal);
 out:
-	ubifs_err(c, "failed to read inode %lu, error %d", inode->i_ino, err);
-	iget_failed(inode);
+	ubifs_err(c, "failed to read ianalde %lu, error %d", ianalde->i_ianal, err);
+	iget_failed(ianalde);
 	return ERR_PTR(err);
 }
 
-static struct inode *ubifs_alloc_inode(struct super_block *sb)
+static struct ianalde *ubifs_alloc_ianalde(struct super_block *sb)
 {
-	struct ubifs_inode *ui;
+	struct ubifs_ianalde *ui;
 
-	ui = alloc_inode_sb(sb, ubifs_inode_slab, GFP_NOFS);
+	ui = alloc_ianalde_sb(sb, ubifs_ianalde_slab, GFP_ANALFS);
 	if (!ui)
 		return NULL;
 
-	memset((void *)ui + sizeof(struct inode), 0,
-	       sizeof(struct ubifs_inode) - sizeof(struct inode));
+	memset((void *)ui + sizeof(struct ianalde), 0,
+	       sizeof(struct ubifs_ianalde) - sizeof(struct ianalde));
 	mutex_init(&ui->ui_mutex);
 	init_rwsem(&ui->xattr_sem);
 	spin_lock_init(&ui->ui_lock);
-	return &ui->vfs_inode;
+	return &ui->vfs_ianalde;
 };
 
-static void ubifs_free_inode(struct inode *inode)
+static void ubifs_free_ianalde(struct ianalde *ianalde)
 {
-	struct ubifs_inode *ui = ubifs_inode(inode);
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
 
 	kfree(ui->data);
-	fscrypt_free_inode(inode);
+	fscrypt_free_ianalde(ianalde);
 
-	kmem_cache_free(ubifs_inode_slab, ui);
+	kmem_cache_free(ubifs_ianalde_slab, ui);
 }
 
 /*
- * Note, Linux write-back code calls this without 'i_mutex'.
+ * Analte, Linux write-back code calls this without 'i_mutex'.
  */
-static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
+static int ubifs_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc)
 {
 	int err = 0;
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
-	struct ubifs_inode *ui = ubifs_inode(inode);
+	struct ubifs_info *c = ianalde->i_sb->s_fs_info;
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
 
 	ubifs_assert(c, !ui->xattr);
-	if (is_bad_inode(inode))
+	if (is_bad_ianalde(ianalde))
 		return 0;
 
 	mutex_lock(&ui->ui_mutex);
 	/*
 	 * Due to races between write-back forced by budgeting
-	 * (see 'sync_some_inodes()') and background write-back, the inode may
-	 * have already been synchronized, do not do this again. This might
+	 * (see 'sync_some_ianaldes()') and background write-back, the ianalde may
+	 * have already been synchronized, do analt do this again. This might
 	 * also happen if it was synchronized in an VFS operation, e.g.
 	 * 'ubifs_link()'.
 	 */
@@ -313,93 +313,93 @@ static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	}
 
 	/*
-	 * As an optimization, do not write orphan inodes to the media just
-	 * because this is not needed.
+	 * As an optimization, do analt write orphan ianaldes to the media just
+	 * because this is analt needed.
 	 */
-	dbg_gen("inode %lu, mode %#x, nlink %u",
-		inode->i_ino, (int)inode->i_mode, inode->i_nlink);
-	if (inode->i_nlink) {
-		err = ubifs_jnl_write_inode(c, inode);
+	dbg_gen("ianalde %lu, mode %#x, nlink %u",
+		ianalde->i_ianal, (int)ianalde->i_mode, ianalde->i_nlink);
+	if (ianalde->i_nlink) {
+		err = ubifs_jnl_write_ianalde(c, ianalde);
 		if (err)
-			ubifs_err(c, "can't write inode %lu, error %d",
-				  inode->i_ino, err);
+			ubifs_err(c, "can't write ianalde %lu, error %d",
+				  ianalde->i_ianal, err);
 		else
-			err = dbg_check_inode_size(c, inode, ui->ui_size);
+			err = dbg_check_ianalde_size(c, ianalde, ui->ui_size);
 	}
 
 	ui->dirty = 0;
 	mutex_unlock(&ui->ui_mutex);
-	ubifs_release_dirty_inode_budget(c, ui);
+	ubifs_release_dirty_ianalde_budget(c, ui);
 	return err;
 }
 
-static int ubifs_drop_inode(struct inode *inode)
+static int ubifs_drop_ianalde(struct ianalde *ianalde)
 {
-	int drop = generic_drop_inode(inode);
+	int drop = generic_drop_ianalde(ianalde);
 
 	if (!drop)
-		drop = fscrypt_drop_inode(inode);
+		drop = fscrypt_drop_ianalde(ianalde);
 
 	return drop;
 }
 
-static void ubifs_evict_inode(struct inode *inode)
+static void ubifs_evict_ianalde(struct ianalde *ianalde)
 {
 	int err;
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
-	struct ubifs_inode *ui = ubifs_inode(inode);
+	struct ubifs_info *c = ianalde->i_sb->s_fs_info;
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
 
 	if (ui->xattr)
 		/*
-		 * Extended attribute inode deletions are fully handled in
-		 * 'ubifs_removexattr()'. These inodes are special and have
-		 * limited usage, so there is nothing to do here.
+		 * Extended attribute ianalde deletions are fully handled in
+		 * 'ubifs_removexattr()'. These ianaldes are special and have
+		 * limited usage, so there is analthing to do here.
 		 */
 		goto out;
 
-	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
-	ubifs_assert(c, !atomic_read(&inode->i_count));
+	dbg_gen("ianalde %lu, mode %#x", ianalde->i_ianal, (int)ianalde->i_mode);
+	ubifs_assert(c, !atomic_read(&ianalde->i_count));
 
-	truncate_inode_pages_final(&inode->i_data);
+	truncate_ianalde_pages_final(&ianalde->i_data);
 
-	if (inode->i_nlink)
+	if (ianalde->i_nlink)
 		goto done;
 
-	if (is_bad_inode(inode))
+	if (is_bad_ianalde(ianalde))
 		goto out;
 
-	ui->ui_size = inode->i_size = 0;
-	err = ubifs_jnl_delete_inode(c, inode);
+	ui->ui_size = ianalde->i_size = 0;
+	err = ubifs_jnl_delete_ianalde(c, ianalde);
 	if (err)
 		/*
-		 * Worst case we have a lost orphan inode wasting space, so a
+		 * Worst case we have a lost orphan ianalde wasting space, so a
 		 * simple error message is OK here.
 		 */
-		ubifs_err(c, "can't delete inode %lu, error %d",
-			  inode->i_ino, err);
+		ubifs_err(c, "can't delete ianalde %lu, error %d",
+			  ianalde->i_ianal, err);
 
 out:
 	if (ui->dirty)
-		ubifs_release_dirty_inode_budget(c, ui);
+		ubifs_release_dirty_ianalde_budget(c, ui);
 	else {
-		/* We've deleted something - clean the "no space" flags */
-		c->bi.nospace = c->bi.nospace_rp = 0;
+		/* We've deleted something - clean the "anal space" flags */
+		c->bi.analspace = c->bi.analspace_rp = 0;
 		smp_wmb();
 	}
 done:
-	clear_inode(inode);
-	fscrypt_put_encryption_info(inode);
+	clear_ianalde(ianalde);
+	fscrypt_put_encryption_info(ianalde);
 }
 
-static void ubifs_dirty_inode(struct inode *inode, int flags)
+static void ubifs_dirty_ianalde(struct ianalde *ianalde, int flags)
 {
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
-	struct ubifs_inode *ui = ubifs_inode(inode);
+	struct ubifs_info *c = ianalde->i_sb->s_fs_info;
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
 
 	ubifs_assert(c, mutex_is_locked(&ui->ui_mutex));
 	if (!ui->dirty) {
 		ui->dirty = 1;
-		dbg_gen("inode %lu",  inode->i_ino);
+		dbg_gen("ianalde %lu",  ianalde->i_ianal);
 	}
 }
 
@@ -437,17 +437,17 @@ static int ubifs_show_options(struct seq_file *s, struct dentry *root)
 	if (c->mount_opts.unmount_mode == 2)
 		seq_puts(s, ",fast_unmount");
 	else if (c->mount_opts.unmount_mode == 1)
-		seq_puts(s, ",norm_unmount");
+		seq_puts(s, ",analrm_unmount");
 
 	if (c->mount_opts.bulk_read == 2)
 		seq_puts(s, ",bulk_read");
 	else if (c->mount_opts.bulk_read == 1)
-		seq_puts(s, ",no_bulk_read");
+		seq_puts(s, ",anal_bulk_read");
 
 	if (c->mount_opts.chk_data_crc == 2)
 		seq_puts(s, ",chk_data_crc");
 	else if (c->mount_opts.chk_data_crc == 1)
-		seq_puts(s, ",no_chk_data_crc");
+		seq_puts(s, ",anal_chk_data_crc");
 
 	if (c->mount_opts.override_compr) {
 		seq_printf(s, ",compr=%s",
@@ -468,13 +468,13 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	/*
 	 * Zero @wait is just an advisory thing to help the file system shove
 	 * lots of data into the queues, and there will be the second
-	 * '->sync_fs()' call, with non-zero @wait.
+	 * '->sync_fs()' call, with analn-zero @wait.
 	 */
 	if (!wait)
 		return 0;
 
 	/*
-	 * Synchronize write buffers, because 'ubifs_run_commit()' does not
+	 * Synchronize write buffers, because 'ubifs_run_commit()' does analt
 	 * do this if it waits for an already running commit.
 	 */
 	for (i = 0; i < c->jhead_cnt; i++) {
@@ -484,8 +484,8 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	}
 
 	/*
-	 * Strictly speaking, it is not necessary to commit the journal here,
-	 * synchronizing write-buffers would be enough. But committing makes
+	 * Strictly speaking, it is analt necessary to commit the journal here,
+	 * synchronizing write-buffers would be eanalugh. But committing makes
 	 * UBIFS free space predictions much more accurate, so we want to let
 	 * the user be able to get more accurate results of 'statfs()' after
 	 * they synchronize the file system.
@@ -501,7 +501,7 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
  * init_constants_early - initialize UBIFS constants.
  * @c: UBIFS file-system description object
  *
- * This function initialize UBIFS constants which do not need the superblock to
+ * This function initialize UBIFS constants which do analt need the superblock to
  * be read. It also checks that the UBI volume satisfies basic UBIFS
  * requirements. Returns zero in case of success and a negative error code in
  * case of failure.
@@ -562,7 +562,7 @@ static int init_constants_early(struct ubifs_info *c)
 	}
 
 	/*
-	 * UBIFS aligns all node to 8-byte boundary, so to make function in
+	 * UBIFS aligns all analde to 8-byte boundary, so to make function in
 	 * io.c simpler, assume minimum I/O unit size to be 8 bytes if it is
 	 * less than 8.
 	 */
@@ -575,63 +575,63 @@ static int init_constants_early(struct ubifs_info *c)
 		}
 	}
 
-	c->ref_node_alsz = ALIGN(UBIFS_REF_NODE_SZ, c->min_io_size);
-	c->mst_node_alsz = ALIGN(UBIFS_MST_NODE_SZ, c->min_io_size);
+	c->ref_analde_alsz = ALIGN(UBIFS_REF_ANALDE_SZ, c->min_io_size);
+	c->mst_analde_alsz = ALIGN(UBIFS_MST_ANALDE_SZ, c->min_io_size);
 
 	/*
-	 * Initialize node length ranges which are mostly needed for node
+	 * Initialize analde length ranges which are mostly needed for analde
 	 * length validation.
 	 */
-	c->ranges[UBIFS_PAD_NODE].len  = UBIFS_PAD_NODE_SZ;
-	c->ranges[UBIFS_SB_NODE].len   = UBIFS_SB_NODE_SZ;
-	c->ranges[UBIFS_MST_NODE].len  = UBIFS_MST_NODE_SZ;
-	c->ranges[UBIFS_REF_NODE].len  = UBIFS_REF_NODE_SZ;
-	c->ranges[UBIFS_TRUN_NODE].len = UBIFS_TRUN_NODE_SZ;
-	c->ranges[UBIFS_CS_NODE].len   = UBIFS_CS_NODE_SZ;
-	c->ranges[UBIFS_AUTH_NODE].min_len = UBIFS_AUTH_NODE_SZ;
-	c->ranges[UBIFS_AUTH_NODE].max_len = UBIFS_AUTH_NODE_SZ +
+	c->ranges[UBIFS_PAD_ANALDE].len  = UBIFS_PAD_ANALDE_SZ;
+	c->ranges[UBIFS_SB_ANALDE].len   = UBIFS_SB_ANALDE_SZ;
+	c->ranges[UBIFS_MST_ANALDE].len  = UBIFS_MST_ANALDE_SZ;
+	c->ranges[UBIFS_REF_ANALDE].len  = UBIFS_REF_ANALDE_SZ;
+	c->ranges[UBIFS_TRUN_ANALDE].len = UBIFS_TRUN_ANALDE_SZ;
+	c->ranges[UBIFS_CS_ANALDE].len   = UBIFS_CS_ANALDE_SZ;
+	c->ranges[UBIFS_AUTH_ANALDE].min_len = UBIFS_AUTH_ANALDE_SZ;
+	c->ranges[UBIFS_AUTH_ANALDE].max_len = UBIFS_AUTH_ANALDE_SZ +
 				UBIFS_MAX_HMAC_LEN;
-	c->ranges[UBIFS_SIG_NODE].min_len = UBIFS_SIG_NODE_SZ;
-	c->ranges[UBIFS_SIG_NODE].max_len = c->leb_size - UBIFS_SB_NODE_SZ;
+	c->ranges[UBIFS_SIG_ANALDE].min_len = UBIFS_SIG_ANALDE_SZ;
+	c->ranges[UBIFS_SIG_ANALDE].max_len = c->leb_size - UBIFS_SB_ANALDE_SZ;
 
-	c->ranges[UBIFS_INO_NODE].min_len  = UBIFS_INO_NODE_SZ;
-	c->ranges[UBIFS_INO_NODE].max_len  = UBIFS_MAX_INO_NODE_SZ;
-	c->ranges[UBIFS_ORPH_NODE].min_len =
-				UBIFS_ORPH_NODE_SZ + sizeof(__le64);
-	c->ranges[UBIFS_ORPH_NODE].max_len = c->leb_size;
-	c->ranges[UBIFS_DENT_NODE].min_len = UBIFS_DENT_NODE_SZ;
-	c->ranges[UBIFS_DENT_NODE].max_len = UBIFS_MAX_DENT_NODE_SZ;
-	c->ranges[UBIFS_XENT_NODE].min_len = UBIFS_XENT_NODE_SZ;
-	c->ranges[UBIFS_XENT_NODE].max_len = UBIFS_MAX_XENT_NODE_SZ;
-	c->ranges[UBIFS_DATA_NODE].min_len = UBIFS_DATA_NODE_SZ;
-	c->ranges[UBIFS_DATA_NODE].max_len = UBIFS_MAX_DATA_NODE_SZ;
+	c->ranges[UBIFS_IANAL_ANALDE].min_len  = UBIFS_IANAL_ANALDE_SZ;
+	c->ranges[UBIFS_IANAL_ANALDE].max_len  = UBIFS_MAX_IANAL_ANALDE_SZ;
+	c->ranges[UBIFS_ORPH_ANALDE].min_len =
+				UBIFS_ORPH_ANALDE_SZ + sizeof(__le64);
+	c->ranges[UBIFS_ORPH_ANALDE].max_len = c->leb_size;
+	c->ranges[UBIFS_DENT_ANALDE].min_len = UBIFS_DENT_ANALDE_SZ;
+	c->ranges[UBIFS_DENT_ANALDE].max_len = UBIFS_MAX_DENT_ANALDE_SZ;
+	c->ranges[UBIFS_XENT_ANALDE].min_len = UBIFS_XENT_ANALDE_SZ;
+	c->ranges[UBIFS_XENT_ANALDE].max_len = UBIFS_MAX_XENT_ANALDE_SZ;
+	c->ranges[UBIFS_DATA_ANALDE].min_len = UBIFS_DATA_ANALDE_SZ;
+	c->ranges[UBIFS_DATA_ANALDE].max_len = UBIFS_MAX_DATA_ANALDE_SZ;
 	/*
-	 * Minimum indexing node size is amended later when superblock is
-	 * read and the key length is known.
+	 * Minimum indexing analde size is amended later when superblock is
+	 * read and the key length is kanalwn.
 	 */
-	c->ranges[UBIFS_IDX_NODE].min_len = UBIFS_IDX_NODE_SZ + UBIFS_BRANCH_SZ;
+	c->ranges[UBIFS_IDX_ANALDE].min_len = UBIFS_IDX_ANALDE_SZ + UBIFS_BRANCH_SZ;
 	/*
-	 * Maximum indexing node size is amended later when superblock is
-	 * read and the fanout is known.
+	 * Maximum indexing analde size is amended later when superblock is
+	 * read and the faanalut is kanalwn.
 	 */
-	c->ranges[UBIFS_IDX_NODE].max_len = INT_MAX;
+	c->ranges[UBIFS_IDX_ANALDE].max_len = INT_MAX;
 
 	/*
 	 * Initialize dead and dark LEB space watermarks. See gc.c for comments
 	 * about these values.
 	 */
 	c->dead_wm = ALIGN(MIN_WRITE_SZ, c->min_io_size);
-	c->dark_wm = ALIGN(UBIFS_MAX_NODE_SZ, c->min_io_size);
+	c->dark_wm = ALIGN(UBIFS_MAX_ANALDE_SZ, c->min_io_size);
 
 	/*
 	 * Calculate how many bytes would be wasted at the end of LEB if it was
-	 * fully filled with data nodes of maximum size. This is used in
+	 * fully filled with data analdes of maximum size. This is used in
 	 * calculations when reporting free space.
 	 */
-	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_NODE_SZ;
+	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_ANALDE_SZ;
 
 	/* Buffer size for bulk-reads */
-	c->max_bu_buf_len = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
+	c->max_bu_buf_len = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_ANALDE_SZ;
 	if (c->max_bu_buf_len > c->leb_size)
 		c->max_bu_buf_len = c->leb_size;
 
@@ -676,19 +676,19 @@ static int init_constants_sb(struct ubifs_info *c)
 	long long tmp64;
 
 	c->main_bytes = (long long)c->main_lebs * c->leb_size;
-	c->max_znode_sz = sizeof(struct ubifs_znode) +
-				c->fanout * sizeof(struct ubifs_zbranch);
+	c->max_zanalde_sz = sizeof(struct ubifs_zanalde) +
+				c->faanalut * sizeof(struct ubifs_zbranch);
 
-	tmp = ubifs_idx_node_sz(c, 1);
-	c->ranges[UBIFS_IDX_NODE].min_len = tmp;
-	c->min_idx_node_sz = ALIGN(tmp, 8);
+	tmp = ubifs_idx_analde_sz(c, 1);
+	c->ranges[UBIFS_IDX_ANALDE].min_len = tmp;
+	c->min_idx_analde_sz = ALIGN(tmp, 8);
 
-	tmp = ubifs_idx_node_sz(c, c->fanout);
-	c->ranges[UBIFS_IDX_NODE].max_len = tmp;
-	c->max_idx_node_sz = ALIGN(tmp, 8);
+	tmp = ubifs_idx_analde_sz(c, c->faanalut);
+	c->ranges[UBIFS_IDX_ANALDE].max_len = tmp;
+	c->max_idx_analde_sz = ALIGN(tmp, 8);
 
-	/* Make sure LEB size is large enough to fit full commit */
-	tmp = UBIFS_CS_NODE_SZ + UBIFS_REF_NODE_SZ * c->jhead_cnt;
+	/* Make sure LEB size is large eanalugh to fit full commit */
+	tmp = UBIFS_CS_ANALDE_SZ + UBIFS_REF_ANALDE_SZ * c->jhead_cnt;
 	tmp = ALIGN(tmp, c->min_io_size);
 	if (tmp > c->leb_size) {
 		ubifs_err(c, "too small LEB size %d, at least %d needed",
@@ -697,12 +697,12 @@ static int init_constants_sb(struct ubifs_info *c)
 	}
 
 	/*
-	 * Make sure that the log is large enough to fit reference nodes for
+	 * Make sure that the log is large eanalugh to fit reference analdes for
 	 * all buds plus one reserved LEB.
 	 */
 	tmp64 = c->max_bud_bytes + c->leb_size - 1;
 	c->max_bud_cnt = div_u64(tmp64, c->leb_size);
-	tmp = (c->ref_node_alsz * c->max_bud_cnt + c->leb_size - 1);
+	tmp = (c->ref_analde_alsz * c->max_bud_cnt + c->leb_size - 1);
 	tmp /= c->leb_size;
 	tmp += 1;
 	if (c->log_lebs < tmp) {
@@ -712,15 +712,15 @@ static int init_constants_sb(struct ubifs_info *c)
 	}
 
 	/*
-	 * When budgeting we assume worst-case scenarios when the pages are not
+	 * When budgeting we assume worst-case scenarios when the pages are analt
 	 * be compressed and direntries are of the maximum size.
 	 *
-	 * Note, data, which may be stored in inodes is budgeted separately, so
-	 * it is not included into 'c->bi.inode_budget'.
+	 * Analte, data, which may be stored in ianaldes is budgeted separately, so
+	 * it is analt included into 'c->bi.ianalde_budget'.
 	 */
-	c->bi.page_budget = UBIFS_MAX_DATA_NODE_SZ * UBIFS_BLOCKS_PER_PAGE;
-	c->bi.inode_budget = UBIFS_INO_NODE_SZ;
-	c->bi.dent_budget = UBIFS_MAX_DENT_NODE_SZ;
+	c->bi.page_budget = UBIFS_MAX_DATA_ANALDE_SZ * UBIFS_BLOCKS_PER_PAGE;
+	c->bi.ianalde_budget = UBIFS_IANAL_ANALDE_SZ;
+	c->bi.dent_budget = UBIFS_MAX_DENT_ANALDE_SZ;
 
 	/*
 	 * When the amount of flash space used by buds becomes
@@ -748,7 +748,7 @@ static int init_constants_sb(struct ubifs_info *c)
 		return err;
 
 	/* Initialize effective LEB size used in budgeting calculations */
-	c->idx_leb_size = c->leb_size - c->max_idx_node_sz;
+	c->idx_leb_size = c->leb_size - c->max_idx_analde_sz;
 	return 0;
 }
 
@@ -757,7 +757,7 @@ static int init_constants_sb(struct ubifs_info *c)
  * @c: UBIFS file-system description object
  *
  * This is a helper function which initializes various UBIFS constants after
- * the master node has been read. It also checks various UBIFS parameters and
+ * the master analde has been read. It also checks various UBIFS parameters and
  * makes sure they are all right.
  */
 static void init_constants_master(struct ubifs_info *c)
@@ -768,8 +768,8 @@ static void init_constants_master(struct ubifs_info *c)
 	c->report_rp_size = ubifs_reported_space(c, c->rp_size);
 
 	/*
-	 * Calculate total amount of FS blocks. This number is not used
-	 * internally because it does not make much sense for UBIFS, but it is
+	 * Calculate total amount of FS blocks. This number is analt used
+	 * internally because it does analt make much sense for UBIFS, but it is
 	 * necessary to report something for the 'statfs()' call.
 	 *
 	 * Subtract the LEB reserved for GC, the LEB which is reserved for
@@ -798,7 +798,7 @@ static int take_gc_lnum(struct ubifs_info *c)
 	int err;
 
 	if (c->gc_lnum == -1) {
-		ubifs_err(c, "no LEB for GC");
+		ubifs_err(c, "anal LEB for GC");
 		return -EINVAL;
 	}
 
@@ -813,7 +813,7 @@ static int take_gc_lnum(struct ubifs_info *c)
  * @c: UBIFS file-system description object
  *
  * This helper function allocates and initializes UBIFS write-buffers. Returns
- * zero in case of success and %-ENOMEM in case of failure.
+ * zero in case of success and %-EANALMEM in case of failure.
  */
 static int alloc_wbufs(struct ubifs_info *c)
 {
@@ -822,7 +822,7 @@ static int alloc_wbufs(struct ubifs_info *c)
 	c->jheads = kcalloc(c->jhead_cnt, sizeof(struct ubifs_jhead),
 			    GFP_KERNEL);
 	if (!c->jheads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize journal heads */
 	for (i = 0; i < c->jhead_cnt; i++) {
@@ -842,22 +842,22 @@ static int alloc_wbufs(struct ubifs_info *c)
 	}
 
 	/*
-	 * Garbage Collector head does not need to be synchronized by timer.
-	 * Also GC head nodes are not grouped.
+	 * Garbage Collector head does analt need to be synchronized by timer.
+	 * Also GC head analdes are analt grouped.
 	 */
-	c->jheads[GCHD].wbuf.no_timer = 1;
+	c->jheads[GCHD].wbuf.anal_timer = 1;
 	c->jheads[GCHD].grouped = 0;
 
 	return 0;
 
 out_log_hash:
 	kfree(c->jheads[i].wbuf.buf);
-	kfree(c->jheads[i].wbuf.inodes);
+	kfree(c->jheads[i].wbuf.ianaldes);
 
 out_wbuf:
 	while (i--) {
 		kfree(c->jheads[i].wbuf.buf);
-		kfree(c->jheads[i].wbuf.inodes);
+		kfree(c->jheads[i].wbuf.ianaldes);
 		kfree(c->jheads[i].log_hash);
 	}
 	kfree(c->jheads);
@@ -877,7 +877,7 @@ static void free_wbufs(struct ubifs_info *c)
 	if (c->jheads) {
 		for (i = 0; i < c->jhead_cnt; i++) {
 			kfree(c->jheads[i].wbuf.buf);
-			kfree(c->jheads[i].wbuf.inodes);
+			kfree(c->jheads[i].wbuf.ianaldes);
 			kfree(c->jheads[i].log_hash);
 		}
 		kfree(c->jheads);
@@ -904,7 +904,7 @@ static void free_orphans(struct ubifs_info *c)
 		orph = list_entry(c->orph_list.next, struct ubifs_orphan, list);
 		list_del(&orph->list);
 		kfree(orph);
-		ubifs_err(c, "orphan list not empty at unmount");
+		ubifs_err(c, "orphan list analt empty at unmount");
 	}
 
 	vfree(c->orph_buf);
@@ -930,7 +930,7 @@ static void free_buds(struct ubifs_info *c)
  * @c: UBIFS file-system description object
  *
  * This function checks if the UBIFS volume is empty by looking if its LEBs are
- * mapped or not. The result of checking is stored in the @c->empty variable.
+ * mapped or analt. The result of checking is stored in the @c->empty variable.
  * Returns zero in case of success and a negative error code in case of
  * failure.
  */
@@ -957,12 +957,12 @@ static int check_volume_empty(struct ubifs_info *c)
 /*
  * UBIFS mount options.
  *
- * Opt_fast_unmount: do not run a journal commit before un-mounting
- * Opt_norm_unmount: run a journal commit before un-mounting
+ * Opt_fast_unmount: do analt run a journal commit before un-mounting
+ * Opt_analrm_unmount: run a journal commit before un-mounting
  * Opt_bulk_read: enable bulk-reads
- * Opt_no_bulk_read: disable bulk-reads
- * Opt_chk_data_crc: check CRCs when reading data nodes
- * Opt_no_chk_data_crc: do not check CRCs when reading data nodes
+ * Opt_anal_bulk_read: disable bulk-reads
+ * Opt_chk_data_crc: check CRCs when reading data analdes
+ * Opt_anal_chk_data_crc: do analt check CRCs when reading data analdes
  * Opt_override_compr: override default compressor
  * Opt_assert: set ubifs_assert() action
  * Opt_auth_key: The key name used for authentication
@@ -971,31 +971,31 @@ static int check_volume_empty(struct ubifs_info *c)
  */
 enum {
 	Opt_fast_unmount,
-	Opt_norm_unmount,
+	Opt_analrm_unmount,
 	Opt_bulk_read,
-	Opt_no_bulk_read,
+	Opt_anal_bulk_read,
 	Opt_chk_data_crc,
-	Opt_no_chk_data_crc,
+	Opt_anal_chk_data_crc,
 	Opt_override_compr,
 	Opt_assert,
 	Opt_auth_key,
 	Opt_auth_hash_name,
-	Opt_ignore,
+	Opt_iganalre,
 	Opt_err,
 };
 
 static const match_table_t tokens = {
 	{Opt_fast_unmount, "fast_unmount"},
-	{Opt_norm_unmount, "norm_unmount"},
+	{Opt_analrm_unmount, "analrm_unmount"},
 	{Opt_bulk_read, "bulk_read"},
-	{Opt_no_bulk_read, "no_bulk_read"},
+	{Opt_anal_bulk_read, "anal_bulk_read"},
 	{Opt_chk_data_crc, "chk_data_crc"},
-	{Opt_no_chk_data_crc, "no_chk_data_crc"},
+	{Opt_anal_chk_data_crc, "anal_chk_data_crc"},
 	{Opt_override_compr, "compr=%s"},
 	{Opt_auth_key, "auth_key=%s"},
 	{Opt_auth_hash_name, "auth_hash_name=%s"},
-	{Opt_ignore, "ubi=%s"},
-	{Opt_ignore, "vol=%s"},
+	{Opt_iganalre, "ubi=%s"},
+	{Opt_iganalre, "vol=%s"},
 	{Opt_assert, "assert=%s"},
 	{Opt_err, NULL},
 };
@@ -1004,21 +1004,21 @@ static const match_table_t tokens = {
  * parse_standard_option - parse a standard mount option.
  * @option: the option to parse
  *
- * Normally, standard mount options like "sync" are passed to file-systems as
+ * Analrmally, standard mount options like "sync" are passed to file-systems as
  * flags. However, when a "rootflags=" kernel boot parameter is used, they may
  * be present in the options string. This function tries to deal with this
- * situation and parse standard options. Returns 0 if the option was not
+ * situation and parse standard options. Returns 0 if the option was analt
  * recognized, and the corresponding integer flag if it was.
  *
- * UBIFS is only interested in the "sync" option, so do not check for anything
+ * UBIFS is only interested in the "sync" option, so do analt check for anything
  * else.
  */
 static int parse_standard_option(const char *option)
 {
 
-	pr_notice("UBIFS: parse %s\n", option);
+	pr_analtice("UBIFS: parse %s\n", option);
 	if (!strcmp(option, "sync"))
-		return SB_SYNCHRONOUS;
+		return SB_SYNCHROANALUS;
 	return 0;
 }
 
@@ -1026,7 +1026,7 @@ static int parse_standard_option(const char *option)
  * ubifs_parse_options - parse mount parameters.
  * @c: UBIFS file-system description object
  * @options: parameters to parse
- * @is_remount: non-zero if this is FS re-mount
+ * @is_remount: analn-zero if this is FS re-mount
  *
  * This function parses UBIFS mount options and returns zero in case success
  * and a negative error code in case of failure.
@@ -1049,40 +1049,40 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 		token = match_token(p, tokens, args);
 		switch (token) {
 		/*
-		 * %Opt_fast_unmount and %Opt_norm_unmount options are ignored.
+		 * %Opt_fast_unmount and %Opt_analrm_unmount options are iganalred.
 		 * We accept them in order to be backward-compatible. But this
 		 * should be removed at some point.
 		 */
 		case Opt_fast_unmount:
 			c->mount_opts.unmount_mode = 2;
 			break;
-		case Opt_norm_unmount:
+		case Opt_analrm_unmount:
 			c->mount_opts.unmount_mode = 1;
 			break;
 		case Opt_bulk_read:
 			c->mount_opts.bulk_read = 2;
 			c->bulk_read = 1;
 			break;
-		case Opt_no_bulk_read:
+		case Opt_anal_bulk_read:
 			c->mount_opts.bulk_read = 1;
 			c->bulk_read = 0;
 			break;
 		case Opt_chk_data_crc:
 			c->mount_opts.chk_data_crc = 2;
-			c->no_chk_data_crc = 0;
+			c->anal_chk_data_crc = 0;
 			break;
-		case Opt_no_chk_data_crc:
+		case Opt_anal_chk_data_crc:
 			c->mount_opts.chk_data_crc = 1;
-			c->no_chk_data_crc = 1;
+			c->anal_chk_data_crc = 1;
 			break;
 		case Opt_override_compr:
 		{
 			char *name = match_strdup(&args[0]);
 
 			if (!name)
-				return -ENOMEM;
-			if (!strcmp(name, "none"))
-				c->mount_opts.compr_type = UBIFS_COMPR_NONE;
+				return -EANALMEM;
+			if (!strcmp(name, "analne"))
+				c->mount_opts.compr_type = UBIFS_COMPR_ANALNE;
 			else if (!strcmp(name, "lzo"))
 				c->mount_opts.compr_type = UBIFS_COMPR_LZO;
 			else if (!strcmp(name, "zlib"))
@@ -1090,7 +1090,7 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 			else if (!strcmp(name, "zstd"))
 				c->mount_opts.compr_type = UBIFS_COMPR_ZSTD;
 			else {
-				ubifs_err(c, "unknown compressor \"%s\"", name); //FIXME: is c ready?
+				ubifs_err(c, "unkanalwn compressor \"%s\"", name); //FIXME: is c ready?
 				kfree(name);
 				return -EINVAL;
 			}
@@ -1104,7 +1104,7 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 			char *act = match_strdup(&args[0]);
 
 			if (!act)
-				return -ENOMEM;
+				return -EANALMEM;
 			if (!strcmp(act, "report"))
 				c->assert_action = ASSACT_REPORT;
 			else if (!strcmp(act, "read-only"))
@@ -1112,7 +1112,7 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 			else if (!strcmp(act, "panic"))
 				c->assert_action = ASSACT_PANIC;
 			else {
-				ubifs_err(c, "unknown assert action \"%s\"", act);
+				ubifs_err(c, "unkanalwn assert action \"%s\"", act);
 				kfree(act);
 				return -EINVAL;
 			}
@@ -1124,7 +1124,7 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 				c->auth_key_name = kstrdup(args[0].from,
 								GFP_KERNEL);
 				if (!c->auth_key_name)
-					return -ENOMEM;
+					return -EANALMEM;
 			}
 			break;
 		case Opt_auth_hash_name:
@@ -1132,10 +1132,10 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 				c->auth_hash_name = kstrdup(args[0].from,
 								GFP_KERNEL);
 				if (!c->auth_hash_name)
-					return -ENOMEM;
+					return -EANALMEM;
 			}
 			break;
-		case Opt_ignore:
+		case Opt_iganalre:
 			break;
 		default:
 		{
@@ -1212,7 +1212,7 @@ static void bu_init(struct ubifs_info *c)
 		return; /* Already initialized */
 
 again:
-	c->bu.buf = kmalloc(c->max_bu_buf_len, GFP_KERNEL | __GFP_NOWARN);
+	c->bu.buf = kmalloc(c->max_bu_buf_len, GFP_KERNEL | __GFP_ANALWARN);
 	if (!c->bu.buf) {
 		if (c->max_bu_buf_len > UBIFS_KMALLOC_OK) {
 			c->max_bu_buf_len = UBIFS_KMALLOC_OK;
@@ -1220,7 +1220,7 @@ again:
 		}
 
 		/* Just disable bulk-read */
-		ubifs_warn(c, "cannot allocate %d bytes of memory for bulk-read, disabling it",
+		ubifs_warn(c, "cananalt allocate %d bytes of memory for bulk-read, disabling it",
 			   c->max_bu_buf_len);
 		c->mount_opts.bulk_read = 1;
 		c->bulk_read = 0;
@@ -1229,10 +1229,10 @@ again:
 }
 
 /**
- * check_free_space - check if there is enough free space to mount.
+ * check_free_space - check if there is eanalugh free space to mount.
  * @c: UBIFS file-system description object
  *
- * This function makes sure UBIFS has enough free space to be mounted in
+ * This function makes sure UBIFS has eanalugh free space to be mounted in
  * read/write mode. UBIFS must always have some free space to allow deletions.
  */
 static int check_free_space(struct ubifs_info *c)
@@ -1242,7 +1242,7 @@ static int check_free_space(struct ubifs_info *c)
 		ubifs_err(c, "insufficient free space to mount in R/W mode");
 		ubifs_dump_budg(c, &c->bi);
 		ubifs_dump_lprops(c);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	return 0;
 }
@@ -1283,7 +1283,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (c->empty && (c->ro_mount || c->ro_media)) {
 		/*
 		 * This UBI volume is empty, and read-only, or the file system
-		 * is mounted read-only - we cannot format it.
+		 * is mounted read-only - we cananalt format it.
 		 */
 		ubifs_err(c, "can't format empty UBI volume: read-only %s",
 			  c->ro_media ? "UBI volume" : "mount");
@@ -1292,7 +1292,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	}
 
 	if (c->ro_media && !c->ro_mount) {
-		ubifs_err(c, "cannot mount read-write - read-only media");
+		ubifs_err(c, "cananalt mount read-write - read-only media");
 		err = -EROFS;
 		goto out_free;
 	}
@@ -1302,7 +1302,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	 * height amount of integers. We assume the height if the TNC tree will
 	 * never exceed 64.
 	 */
-	err = -ENOMEM;
+	err = -EANALMEM;
 	c->bottom_up_buf = kmalloc_array(BOTTOM_UP_HEIGHT, sizeof(int),
 					 GFP_KERNEL);
 	if (!c->bottom_up_buf)
@@ -1322,7 +1322,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		bu_init(c);
 
 	if (!c->ro_mount) {
-		c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ + \
+		c->write_reserve_buf = kmalloc(COMPRESSED_DATA_ANALDE_BUF_SZ + \
 					       UBIFS_CIPHER_BLOCK_SIZE,
 					       GFP_KERNEL);
 		if (!c->write_reserve_buf)
@@ -1355,9 +1355,9 @@ static int mount_ubifs(struct ubifs_info *c)
 	 * or overridden by mount options is actually compiled in.
 	 */
 	if (!ubifs_compr_present(c, c->default_compr)) {
-		ubifs_err(c, "'compressor \"%s\" is not compiled in",
+		ubifs_err(c, "'compressor \"%s\" is analt compiled in",
 			  ubifs_compr_name(c, c->default_compr));
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 		goto out_auth;
 	}
 
@@ -1365,10 +1365,10 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_auth;
 
-	sz = ALIGN(c->max_idx_node_sz, c->min_io_size) * 2;
-	c->cbuf = kmalloc(sz, GFP_NOFS);
+	sz = ALIGN(c->max_idx_analde_sz, c->min_io_size) * 2;
+	c->cbuf = kmalloc(sz, GFP_ANALFS);
 	if (!c->cbuf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_auth;
 	}
 
@@ -1383,7 +1383,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		if (IS_ERR(c->bgt)) {
 			err = PTR_ERR(c->bgt);
 			c->bgt = NULL;
-			ubifs_err(c, "cannot spawn \"%s\", error %d",
+			ubifs_err(c, "cananalt spawn \"%s\", error %d",
 				  c->bgt_name, err);
 			goto out_wbufs;
 		}
@@ -1395,7 +1395,7 @@ static int mount_ubifs(struct ubifs_info *c)
 
 	init_constants_master(c);
 
-	if ((c->mst_node->flags & cpu_to_le32(UBIFS_MST_DIRTY)) != 0) {
+	if ((c->mst_analde->flags & cpu_to_le32(UBIFS_MST_DIRTY)) != 0) {
 		ubifs_msg(c, "recovery needed");
 		c->need_recovery = 1;
 	}
@@ -1419,29 +1419,29 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (!c->ro_mount && !c->need_recovery) {
 		/*
 		 * Set the "dirty" flag so that if we reboot uncleanly we
-		 * will notice this immediately on the next mount.
+		 * will analtice this immediately on the next mount.
 		 */
-		c->mst_node->flags |= cpu_to_le32(UBIFS_MST_DIRTY);
+		c->mst_analde->flags |= cpu_to_le32(UBIFS_MST_DIRTY);
 		err = ubifs_write_master(c);
 		if (err)
 			goto out_lpt;
 	}
 
 	/*
-	 * Handle offline signed images: Now that the master node is
-	 * written and its validation no longer depends on the hash
+	 * Handle offline signed images: Analw that the master analde is
+	 * written and its validation anal longer depends on the hash
 	 * in the superblock, we can update the offline signed
 	 * superblock with a HMAC version,
 	 */
-	if (ubifs_authenticated(c) && ubifs_hmac_zero(c, c->sup_node->hmac)) {
-		err = ubifs_hmac_wkm(c, c->sup_node->hmac_wkm);
+	if (ubifs_authenticated(c) && ubifs_hmac_zero(c, c->sup_analde->hmac)) {
+		err = ubifs_hmac_wkm(c, c->sup_analde->hmac_wkm);
 		if (err)
 			goto out_lpt;
 		c->superblock_need_write = 1;
 	}
 
 	if (!c->ro_mount && c->superblock_need_write) {
-		err = ubifs_write_sb_node(c, c->sup_node);
+		err = ubifs_write_sb_analde(c, c->sup_analde);
 		if (err)
 			goto out_lpt;
 		c->superblock_need_write = 0;
@@ -1469,7 +1469,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		if (err)
 			goto out_orphans;
 
-		/* Check for enough log space */
+		/* Check for eanalugh log space */
 		lnum = c->lhead_lnum + 1;
 		if (lnum >= UBIFS_LOG_LNUM + c->log_lebs)
 			lnum = UBIFS_LOG_LNUM;
@@ -1520,7 +1520,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		/*
 		 * Even if we mount read-only, we have to set space in GC LEB
 		 * to proper value because this affects UBIFS free space
-		 * reporting. We do not want to have a situation when
+		 * reporting. We do analt want to have a situation when
 		 * re-mounting from R/O to R/W changes amount of free space.
 		 */
 		err = take_gc_lnum(c);
@@ -1576,7 +1576,7 @@ static int mount_ubifs(struct ubifs_info *c)
 
 	dbg_gen("default compressor:  %s", ubifs_compr_name(c, c->default_compr));
 	dbg_gen("data journal heads:  %d",
-		c->jhead_cnt - NONDATA_JHEADS_CNT);
+		c->jhead_cnt - ANALNDATA_JHEADS_CNT);
 	dbg_gen("log LEBs:            %d (%d - %d)",
 		c->log_lebs, UBIFS_LOG_LNUM, c->log_last);
 	dbg_gen("LPT area LEBs:       %d (%d - %d)",
@@ -1590,19 +1590,19 @@ static int mount_ubifs(struct ubifs_info *c)
 		c->bi.old_idx_sz, c->bi.old_idx_sz >> 10,
 		c->bi.old_idx_sz >> 20);
 	dbg_gen("key hash type:       %d", c->key_hash_type);
-	dbg_gen("tree fanout:         %d", c->fanout);
+	dbg_gen("tree faanalut:         %d", c->faanalut);
 	dbg_gen("reserved GC LEB:     %d", c->gc_lnum);
-	dbg_gen("max. znode size      %d", c->max_znode_sz);
-	dbg_gen("max. index node size %d", c->max_idx_node_sz);
-	dbg_gen("node sizes:          data %zu, inode %zu, dentry %zu",
-		UBIFS_DATA_NODE_SZ, UBIFS_INO_NODE_SZ, UBIFS_DENT_NODE_SZ);
-	dbg_gen("node sizes:          trun %zu, sb %zu, master %zu",
-		UBIFS_TRUN_NODE_SZ, UBIFS_SB_NODE_SZ, UBIFS_MST_NODE_SZ);
-	dbg_gen("node sizes:          ref %zu, cmt. start %zu, orph %zu",
-		UBIFS_REF_NODE_SZ, UBIFS_CS_NODE_SZ, UBIFS_ORPH_NODE_SZ);
-	dbg_gen("max. node sizes:     data %zu, inode %zu dentry %zu, idx %d",
-		UBIFS_MAX_DATA_NODE_SZ, UBIFS_MAX_INO_NODE_SZ,
-		UBIFS_MAX_DENT_NODE_SZ, ubifs_idx_node_sz(c, c->fanout));
+	dbg_gen("max. zanalde size      %d", c->max_zanalde_sz);
+	dbg_gen("max. index analde size %d", c->max_idx_analde_sz);
+	dbg_gen("analde sizes:          data %zu, ianalde %zu, dentry %zu",
+		UBIFS_DATA_ANALDE_SZ, UBIFS_IANAL_ANALDE_SZ, UBIFS_DENT_ANALDE_SZ);
+	dbg_gen("analde sizes:          trun %zu, sb %zu, master %zu",
+		UBIFS_TRUN_ANALDE_SZ, UBIFS_SB_ANALDE_SZ, UBIFS_MST_ANALDE_SZ);
+	dbg_gen("analde sizes:          ref %zu, cmt. start %zu, orph %zu",
+		UBIFS_REF_ANALDE_SZ, UBIFS_CS_ANALDE_SZ, UBIFS_ORPH_ANALDE_SZ);
+	dbg_gen("max. analde sizes:     data %zu, ianalde %zu dentry %zu, idx %d",
+		UBIFS_MAX_DATA_ANALDE_SZ, UBIFS_MAX_IANAL_ANALDE_SZ,
+		UBIFS_MAX_DENT_ANALDE_SZ, ubifs_idx_analde_sz(c, c->faanalut));
 	dbg_gen("dead watermark:      %d", c->dead_wm);
 	dbg_gen("dark watermark:      %d", c->dark_wm);
 	dbg_gen("LEB overhead:        %d", c->leb_overhead);
@@ -1618,8 +1618,8 @@ static int mount_ubifs(struct ubifs_info *c)
 	dbg_gen("current bud bytes    %lld (%lld KiB, %lld MiB)",
 		c->bud_bytes, c->bud_bytes >> 10, c->bud_bytes >> 20);
 	dbg_gen("max. seq. number:    %llu", c->max_sqnum);
-	dbg_gen("commit number:       %llu", c->cmt_no);
-	dbg_gen("max. xattrs per inode: %d", ubifs_xattr_max_cnt(c));
+	dbg_gen("commit number:       %llu", c->cmt_anal);
+	dbg_gen("max. xattrs per ianalde: %d", ubifs_xattr_max_cnt(c));
 	dbg_gen("max orphans:           %d", c->max_orphans);
 
 	return 0;
@@ -1635,8 +1635,8 @@ out_journal:
 out_lpt:
 	ubifs_lpt_free(c, 0);
 out_master:
-	kfree(c->mst_node);
-	kfree(c->rcvrd_mst_node);
+	kfree(c->mst_analde);
+	kfree(c->rcvrd_mst_analde);
 	if (c->bgt)
 		kthread_stop(c->bgt);
 out_wbufs:
@@ -1651,7 +1651,7 @@ out_free:
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
-	kfree(c->sup_node);
+	kfree(c->sup_analde);
 	ubifs_sysfs_unregister(c);
 out_debugging:
 	ubifs_debugging_exit(c);
@@ -1662,7 +1662,7 @@ out_debugging:
  * ubifs_umount - un-mount UBIFS file-system.
  * @c: UBIFS file-system description object
  *
- * Note, this function is called to free allocated resourced when un-mounting,
+ * Analte, this function is called to free allocated resourced when un-mounting,
  * as well as free resources when an error occurred while we were half way
  * through mounting (error path cleanup function). So it has to make sure the
  * resource was actually allocated before freeing it.
@@ -1688,14 +1688,14 @@ static void ubifs_umount(struct ubifs_info *c)
 
 	ubifs_release_options(c);
 	kfree(c->cbuf);
-	kfree(c->rcvrd_mst_node);
-	kfree(c->mst_node);
+	kfree(c->rcvrd_mst_analde);
+	kfree(c->mst_analde);
 	kfree(c->write_reserve_buf);
 	kfree(c->bu.buf);
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
-	kfree(c->sup_node);
+	kfree(c->sup_analde);
 	ubifs_debugging_exit(c);
 	ubifs_sysfs_unregister(c);
 }
@@ -1713,7 +1713,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	int err, lnum;
 
 	if (c->rw_incompat) {
-		ubifs_err(c, "the file-system is not R/W-compatible");
+		ubifs_err(c, "the file-system is analt R/W-compatible");
 		ubifs_msg(c, "on-flash format version is w%d/r%d, but software only supports up to version w%d/r%d",
 			  c->fmt_version, c->ro_compat_version,
 			  UBIFS_FORMAT_VERSION, UBIFS_RO_COMPAT_VERSION);
@@ -1737,7 +1737,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 
 	if (c->need_recovery) {
 		ubifs_msg(c, "completing deferred recovery");
-		err = ubifs_write_rcvrd_mst_node(c);
+		err = ubifs_write_rcvrd_mst_analde(c);
 		if (err)
 			goto out;
 		if (!ubifs_authenticated(c)) {
@@ -1752,24 +1752,24 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		if (err)
 			goto out;
 	} else {
-		/* A readonly mount is not allowed to have orphans */
+		/* A readonly mount is analt allowed to have orphans */
 		ubifs_assert(c, c->tot_orphans == 0);
 		err = ubifs_clear_orphans(c);
 		if (err)
 			goto out;
 	}
 
-	if (!(c->mst_node->flags & cpu_to_le32(UBIFS_MST_DIRTY))) {
-		c->mst_node->flags |= cpu_to_le32(UBIFS_MST_DIRTY);
+	if (!(c->mst_analde->flags & cpu_to_le32(UBIFS_MST_DIRTY))) {
+		c->mst_analde->flags |= cpu_to_le32(UBIFS_MST_DIRTY);
 		err = ubifs_write_master(c);
 		if (err)
 			goto out;
 	}
 
 	if (c->superblock_need_write) {
-		struct ubifs_sb_node *sup = c->sup_node;
+		struct ubifs_sb_analde *sup = c->sup_analde;
 
-		err = ubifs_write_sb_node(c, sup);
+		err = ubifs_write_sb_analde(c, sup);
 		if (err)
 			goto out;
 
@@ -1778,14 +1778,14 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 
 	c->ileb_buf = vmalloc(c->leb_size);
 	if (!c->ileb_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
-	c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ + \
+	c->write_reserve_buf = kmalloc(COMPRESSED_DATA_ANALDE_BUF_SZ + \
 				       UBIFS_CIPHER_BLOCK_SIZE, GFP_KERNEL);
 	if (!c->write_reserve_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1798,18 +1798,18 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	if (IS_ERR(c->bgt)) {
 		err = PTR_ERR(c->bgt);
 		c->bgt = NULL;
-		ubifs_err(c, "cannot spawn \"%s\", error %d",
+		ubifs_err(c, "cananalt spawn \"%s\", error %d",
 			  c->bgt_name, err);
 		goto out;
 	}
 
 	c->orph_buf = vmalloc(c->leb_size);
 	if (!c->orph_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
-	/* Check for enough log space */
+	/* Check for eanalugh log space */
 	lnum = c->lhead_lnum + 1;
 	if (lnum >= UBIFS_LOG_LNUM + c->log_lebs)
 		lnum = UBIFS_LOG_LNUM;
@@ -1843,12 +1843,12 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		ubifs_msg(c, "deferred recovery completed");
 	} else {
 		/*
-		 * Do not run the debugging space check if the were doing
+		 * Do analt run the debugging space check if the were doing
 		 * recovery, because when we saved the information we had the
 		 * file-system in a state where the TNC and lprops has been
 		 * modified in memory, but all the I/O operations (including a
 		 * commit) were deferred. So the file-system was in
-		 * "non-committed" state. Now the file-system is in committed
+		 * "analn-committed" state. Analw the file-system is in committed
 		 * state, and of course the amount of free space will change
 		 * because, for example, the old index size was imprecise.
 		 */
@@ -1904,9 +1904,9 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 			ubifs_ro_mode(c, err);
 	}
 
-	c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
-	c->mst_node->flags |= cpu_to_le32(UBIFS_MST_NO_ORPHS);
-	c->mst_node->gc_lnum = cpu_to_le32(c->gc_lnum);
+	c->mst_analde->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
+	c->mst_analde->flags |= cpu_to_le32(UBIFS_MST_ANAL_ORPHS);
+	c->mst_analde->gc_lnum = cpu_to_le32(c->gc_lnum);
 	err = ubifs_write_master(c);
 	if (err)
 		ubifs_ro_mode(c, err);
@@ -1933,8 +1933,8 @@ static void ubifs_put_super(struct super_block *sb)
 	ubifs_msg(c, "un-mount UBI device %d", c->vi.ubi_num);
 
 	/*
-	 * The following asserts are only valid if there has not been a failure
-	 * of the media. For example, there will be dirty inodes if we failed
+	 * The following asserts are only valid if there has analt been a failure
+	 * of the media. For example, there will be dirty ianaldes if we failed
 	 * to write them back because of I/O errors.
 	 */
 	if (!c->ro_error) {
@@ -1953,7 +1953,7 @@ static void ubifs_put_super(struct super_block *sb)
 	if (!c->ro_mount) {
 		/*
 		 * First of all kill the background thread to make sure it does
-		 * not interfere with un-mounting and freeing resources.
+		 * analt interfere with un-mounting and freeing resources.
 		 */
 		if (c->bgt) {
 			kthread_stop(c->bgt);
@@ -1962,7 +1962,7 @@ static void ubifs_put_super(struct super_block *sb)
 
 		/*
 		 * On fatal errors c->ro_error is set to 1, in which case we do
-		 * not write the master node.
+		 * analt write the master analde.
 		 */
 		if (!c->ro_error) {
 			int err;
@@ -1977,19 +1977,19 @@ static void ubifs_put_super(struct super_block *sb)
 			/*
 			 * We are being cleanly unmounted which means the
 			 * orphans were killed - indicate this in the master
-			 * node. Also save the reserved GC LEB number.
+			 * analde. Also save the reserved GC LEB number.
 			 */
-			c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
-			c->mst_node->flags |= cpu_to_le32(UBIFS_MST_NO_ORPHS);
-			c->mst_node->gc_lnum = cpu_to_le32(c->gc_lnum);
+			c->mst_analde->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
+			c->mst_analde->flags |= cpu_to_le32(UBIFS_MST_ANAL_ORPHS);
+			c->mst_analde->gc_lnum = cpu_to_le32(c->gc_lnum);
 			err = ubifs_write_master(c);
 			if (err)
 				/*
 				 * Recovery will attempt to fix the master area
 				 * next mount, so we just print a message and
-				 * continue to unmount normally.
+				 * continue to unmount analrmally.
 				 */
-				ubifs_err(c, "failed to write master node, error %d",
+				ubifs_err(c, "failed to write master analde, error %d",
 					  err);
 		} else {
 			for (i = 0; i < c->jhead_cnt; i++)
@@ -2013,17 +2013,17 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	err = ubifs_parse_options(c, data, 1);
 	if (err) {
-		ubifs_err(c, "invalid or unknown remount parameter");
+		ubifs_err(c, "invalid or unkanalwn remount parameter");
 		return err;
 	}
 
 	if (c->ro_mount && !(*flags & SB_RDONLY)) {
 		if (c->ro_error) {
-			ubifs_msg(c, "cannot re-mount R/W due to prior errors");
+			ubifs_msg(c, "cananalt re-mount R/W due to prior errors");
 			return -EROFS;
 		}
 		if (c->ro_media) {
-			ubifs_msg(c, "cannot re-mount R/W - UBI volume is R/O");
+			ubifs_msg(c, "cananalt re-mount R/W - UBI volume is R/O");
 			return -EROFS;
 		}
 		err = ubifs_remount_rw(c);
@@ -2031,7 +2031,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 			return err;
 	} else if (!c->ro_mount && (*flags & SB_RDONLY)) {
 		if (c->ro_error) {
-			ubifs_msg(c, "cannot re-mount R/O due to prior errors");
+			ubifs_msg(c, "cananalt re-mount R/O due to prior errors");
 			return -EROFS;
 		}
 		ubifs_remount_ro(c);
@@ -2054,14 +2054,14 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 }
 
 const struct super_operations ubifs_super_operations = {
-	.alloc_inode   = ubifs_alloc_inode,
-	.free_inode    = ubifs_free_inode,
+	.alloc_ianalde   = ubifs_alloc_ianalde,
+	.free_ianalde    = ubifs_free_ianalde,
 	.put_super     = ubifs_put_super,
-	.write_inode   = ubifs_write_inode,
-	.drop_inode    = ubifs_drop_inode,
-	.evict_inode   = ubifs_evict_inode,
+	.write_ianalde   = ubifs_write_ianalde,
+	.drop_ianalde    = ubifs_drop_ianalde,
+	.evict_ianalde   = ubifs_evict_ianalde,
 	.statfs        = ubifs_statfs,
-	.dirty_inode   = ubifs_dirty_inode,
+	.dirty_ianalde   = ubifs_dirty_ianalde,
 	.remount_fs    = ubifs_remount_fs,
 	.show_options  = ubifs_show_options,
 	.sync_fs       = ubifs_sync_fs,
@@ -2073,8 +2073,8 @@ const struct super_operations ubifs_super_operations = {
  * @mode: UBI volume open mode
  *
  * The primary method of mounting UBIFS is by specifying the UBI volume
- * character device node path. However, UBIFS may also be mounted without any
- * character device node using one of the following methods:
+ * character device analde path. However, UBIFS may also be mounted without any
+ * character device analde using one of the following methods:
  *
  * o ubiX_Y    - mount UBI device number X, volume Y;
  * o ubiY      - mount UBI device number 0, volume Y;
@@ -2095,12 +2095,12 @@ static struct ubi_volume_desc *open_ubi(const char *name, int mode)
 	if (!name || !*name)
 		return ERR_PTR(-EINVAL);
 
-	/* First, try to open using the device node path method */
+	/* First, try to open using the device analde path method */
 	ubi = ubi_open_volume_path(name, mode);
 	if (!IS_ERR(ubi))
 		return ubi;
 
-	/* Try the "nodev" method */
+	/* Try the "analdev" method */
 	if (name[0] != 'u' || name[1] != 'b' || name[2] != 'i')
 		return ERR_PTR(-EINVAL);
 
@@ -2167,10 +2167,10 @@ static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
 		INIT_LIST_HEAD(&c->old_buds);
 		INIT_LIST_HEAD(&c->orph_list);
 		INIT_LIST_HEAD(&c->orph_new);
-		c->no_chk_data_crc = 1;
+		c->anal_chk_data_crc = 1;
 		c->assert_action = ASSACT_RO;
 
-		c->highest_inum = UBIFS_FIRST_INO;
+		c->highest_inum = UBIFS_FIRST_IANAL;
 		c->lhead_lnum = c->ltail_lnum = UBIFS_LOG_LNUM;
 
 		ubi_get_volume_info(ubi, &c->vi);
@@ -2182,7 +2182,7 @@ static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
 static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct ubifs_info *c = sb->s_fs_info;
-	struct inode *root;
+	struct ianalde *root;
 	int err;
 
 	c->vfs_sb = sb;
@@ -2199,8 +2199,8 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/*
 	 * UBIFS provides 'backing_dev_info' in order to disable read-ahead. For
-	 * UBIFS, I/O is not deferred, it is done immediately in read_folio,
-	 * which means the user would have to wait not just for their own I/O
+	 * UBIFS, I/O is analt deferred, it is done immediately in read_folio,
+	 * which means the user would have to wait analt just for their own I/O
 	 * but the read-ahead I/O as well i.e. completely pointless.
 	 *
 	 * Read-ahead will be disabled because @sb->s_bdi->ra_pages is 0. Also
@@ -2218,9 +2218,9 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = UBIFS_SUPER_MAGIC;
 	sb->s_blocksize = UBIFS_BLOCK_SIZE;
 	sb->s_blocksize_bits = UBIFS_BLOCK_SHIFT;
-	sb->s_maxbytes = c->max_inode_sz = key_max_inode_size(c);
-	if (c->max_inode_sz > MAX_LFS_FILESIZE)
-		sb->s_maxbytes = c->max_inode_sz = MAX_LFS_FILESIZE;
+	sb->s_maxbytes = c->max_ianalde_sz = key_max_ianalde_size(c);
+	if (c->max_ianalde_sz > MAX_LFS_FILESIZE)
+		sb->s_maxbytes = c->max_ianalde_sz = MAX_LFS_FILESIZE;
 	sb->s_op = &ubifs_super_operations;
 	sb->s_xattr = ubifs_xattr_handlers;
 	fscrypt_set_ops(sb, &ubifs_crypt_operations);
@@ -2232,8 +2232,8 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_unlock;
 	}
 
-	/* Read the root inode */
-	root = ubifs_iget(sb, UBIFS_ROOT_INO);
+	/* Read the root ianalde */
+	root = ubifs_iget(sb, UBIFS_ROOT_IANAL);
 	if (IS_ERR(root)) {
 		err = PTR_ERR(root);
 		goto out_umount;
@@ -2241,7 +2241,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_umount;
 	}
 
@@ -2272,7 +2272,7 @@ static int sb_test(struct super_block *sb, void *data)
 static int sb_set(struct super_block *sb, void *data)
 {
 	sb->s_fs_info = data;
-	return set_anon_super(sb, NULL);
+	return set_aanaln_super(sb, NULL);
 }
 
 static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
@@ -2293,14 +2293,14 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 	ubi = open_ubi(name, UBI_READONLY);
 	if (IS_ERR(ubi)) {
 		if (!(flags & SB_SILENT))
-			pr_err("UBIFS error (pid: %d): cannot open \"%s\", error %d",
+			pr_err("UBIFS error (pid: %d): cananalt open \"%s\", error %d",
 			       current->pid, name, (int)PTR_ERR(ubi));
 		return ERR_CAST(ubi);
 	}
 
 	c = alloc_ubifs_info(ubi);
 	if (!c) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_close;
 	}
 
@@ -2326,12 +2326,12 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 		err = ubifs_fill_super(sb, data, flags & SB_SILENT ? 1 : 0);
 		if (err)
 			goto out_deact;
-		/* We do not support atime */
+		/* We do analt support atime */
 		sb->s_flags |= SB_ACTIVE;
 		if (IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
 			ubifs_msg(c, "full atime support is enabled.");
 		else
-			sb->s_flags |= SB_NOATIME;
+			sb->s_flags |= SB_ANALATIME;
 	}
 
 	/* 'fill_super()' opens ubi again so we must close it here */
@@ -2349,7 +2349,7 @@ out_close:
 static void kill_ubifs_super(struct super_block *s)
 {
 	struct ubifs_info *c = s->s_fs_info;
-	kill_anon_super(s);
+	kill_aanaln_super(s);
 	kfree(c);
 }
 
@@ -2362,61 +2362,61 @@ static struct file_system_type ubifs_fs_type = {
 MODULE_ALIAS_FS("ubifs");
 
 /*
- * Inode slab cache constructor.
+ * Ianalde slab cache constructor.
  */
-static void inode_slab_ctor(void *obj)
+static void ianalde_slab_ctor(void *obj)
 {
-	struct ubifs_inode *ui = obj;
-	inode_init_once(&ui->vfs_inode);
+	struct ubifs_ianalde *ui = obj;
+	ianalde_init_once(&ui->vfs_ianalde);
 }
 
 static int __init ubifs_init(void)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	BUILD_BUG_ON(sizeof(struct ubifs_ch) != 24);
 
-	/* Make sure node sizes are 8-byte aligned */
+	/* Make sure analde sizes are 8-byte aligned */
 	BUILD_BUG_ON(UBIFS_CH_SZ        & 7);
-	BUILD_BUG_ON(UBIFS_INO_NODE_SZ  & 7);
-	BUILD_BUG_ON(UBIFS_DENT_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_XENT_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_DATA_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_TRUN_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_SB_NODE_SZ   & 7);
-	BUILD_BUG_ON(UBIFS_MST_NODE_SZ  & 7);
-	BUILD_BUG_ON(UBIFS_REF_NODE_SZ  & 7);
-	BUILD_BUG_ON(UBIFS_CS_NODE_SZ   & 7);
-	BUILD_BUG_ON(UBIFS_ORPH_NODE_SZ & 7);
+	BUILD_BUG_ON(UBIFS_IANAL_ANALDE_SZ  & 7);
+	BUILD_BUG_ON(UBIFS_DENT_ANALDE_SZ & 7);
+	BUILD_BUG_ON(UBIFS_XENT_ANALDE_SZ & 7);
+	BUILD_BUG_ON(UBIFS_DATA_ANALDE_SZ & 7);
+	BUILD_BUG_ON(UBIFS_TRUN_ANALDE_SZ & 7);
+	BUILD_BUG_ON(UBIFS_SB_ANALDE_SZ   & 7);
+	BUILD_BUG_ON(UBIFS_MST_ANALDE_SZ  & 7);
+	BUILD_BUG_ON(UBIFS_REF_ANALDE_SZ  & 7);
+	BUILD_BUG_ON(UBIFS_CS_ANALDE_SZ   & 7);
+	BUILD_BUG_ON(UBIFS_ORPH_ANALDE_SZ & 7);
 
-	BUILD_BUG_ON(UBIFS_MAX_DENT_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_MAX_XENT_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_MAX_DATA_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_MAX_INO_NODE_SZ  & 7);
-	BUILD_BUG_ON(UBIFS_MAX_NODE_SZ      & 7);
+	BUILD_BUG_ON(UBIFS_MAX_DENT_ANALDE_SZ & 7);
+	BUILD_BUG_ON(UBIFS_MAX_XENT_ANALDE_SZ & 7);
+	BUILD_BUG_ON(UBIFS_MAX_DATA_ANALDE_SZ & 7);
+	BUILD_BUG_ON(UBIFS_MAX_IANAL_ANALDE_SZ  & 7);
+	BUILD_BUG_ON(UBIFS_MAX_ANALDE_SZ      & 7);
 	BUILD_BUG_ON(MIN_WRITE_SZ           & 7);
 
-	/* Check min. node size */
-	BUILD_BUG_ON(UBIFS_INO_NODE_SZ  < MIN_WRITE_SZ);
-	BUILD_BUG_ON(UBIFS_DENT_NODE_SZ < MIN_WRITE_SZ);
-	BUILD_BUG_ON(UBIFS_XENT_NODE_SZ < MIN_WRITE_SZ);
-	BUILD_BUG_ON(UBIFS_TRUN_NODE_SZ < MIN_WRITE_SZ);
+	/* Check min. analde size */
+	BUILD_BUG_ON(UBIFS_IANAL_ANALDE_SZ  < MIN_WRITE_SZ);
+	BUILD_BUG_ON(UBIFS_DENT_ANALDE_SZ < MIN_WRITE_SZ);
+	BUILD_BUG_ON(UBIFS_XENT_ANALDE_SZ < MIN_WRITE_SZ);
+	BUILD_BUG_ON(UBIFS_TRUN_ANALDE_SZ < MIN_WRITE_SZ);
 
-	BUILD_BUG_ON(UBIFS_MAX_DENT_NODE_SZ > UBIFS_MAX_NODE_SZ);
-	BUILD_BUG_ON(UBIFS_MAX_XENT_NODE_SZ > UBIFS_MAX_NODE_SZ);
-	BUILD_BUG_ON(UBIFS_MAX_DATA_NODE_SZ > UBIFS_MAX_NODE_SZ);
-	BUILD_BUG_ON(UBIFS_MAX_INO_NODE_SZ  > UBIFS_MAX_NODE_SZ);
+	BUILD_BUG_ON(UBIFS_MAX_DENT_ANALDE_SZ > UBIFS_MAX_ANALDE_SZ);
+	BUILD_BUG_ON(UBIFS_MAX_XENT_ANALDE_SZ > UBIFS_MAX_ANALDE_SZ);
+	BUILD_BUG_ON(UBIFS_MAX_DATA_ANALDE_SZ > UBIFS_MAX_ANALDE_SZ);
+	BUILD_BUG_ON(UBIFS_MAX_IANAL_ANALDE_SZ  > UBIFS_MAX_ANALDE_SZ);
 
-	/* Defined node sizes */
-	BUILD_BUG_ON(UBIFS_SB_NODE_SZ  != 4096);
-	BUILD_BUG_ON(UBIFS_MST_NODE_SZ != 512);
-	BUILD_BUG_ON(UBIFS_INO_NODE_SZ != 160);
-	BUILD_BUG_ON(UBIFS_REF_NODE_SZ != 64);
+	/* Defined analde sizes */
+	BUILD_BUG_ON(UBIFS_SB_ANALDE_SZ  != 4096);
+	BUILD_BUG_ON(UBIFS_MST_ANALDE_SZ != 512);
+	BUILD_BUG_ON(UBIFS_IANAL_ANALDE_SZ != 160);
+	BUILD_BUG_ON(UBIFS_REF_ANALDE_SZ != 64);
 
 	/*
 	 * We use 2 bit wide bit-fields to store compression type, which should
 	 * be amended if more compressors are added. The bit-fields are:
-	 * @compr_type in 'struct ubifs_inode', @default_compr in
+	 * @compr_type in 'struct ubifs_ianalde', @default_compr in
 	 * 'struct ubifs_info' and @compr_type in 'struct ubifs_mount_opts'.
 	 */
 	BUILD_BUG_ON(UBIFS_COMPR_TYPES_CNT > 4);
@@ -2431,12 +2431,12 @@ static int __init ubifs_init(void)
 		return -EINVAL;
 	}
 
-	ubifs_inode_slab = kmem_cache_create("ubifs_inode_slab",
-				sizeof(struct ubifs_inode), 0,
+	ubifs_ianalde_slab = kmem_cache_create("ubifs_ianalde_slab",
+				sizeof(struct ubifs_ianalde), 0,
 				SLAB_MEM_SPREAD | SLAB_RECLAIM_ACCOUNT |
-				SLAB_ACCOUNT, &inode_slab_ctor);
-	if (!ubifs_inode_slab)
-		return -ENOMEM;
+				SLAB_ACCOUNT, &ianalde_slab_ctor);
+	if (!ubifs_ianalde_slab)
+		return -EANALMEM;
 
 	ubifs_shrinker_info = shrinker_alloc(0, "ubifs-slab");
 	if (!ubifs_shrinker_info)
@@ -2459,7 +2459,7 @@ static int __init ubifs_init(void)
 
 	err = register_filesystem(&ubifs_fs_type);
 	if (err) {
-		pr_err("UBIFS error (pid %d): cannot register file system, error %d",
+		pr_err("UBIFS error (pid %d): cananalt register file system, error %d",
 		       current->pid, err);
 		goto out_sysfs;
 	}
@@ -2473,7 +2473,7 @@ out_dbg:
 out_shrinker:
 	shrinker_free(ubifs_shrinker_info);
 out_slab:
-	kmem_cache_destroy(ubifs_inode_slab);
+	kmem_cache_destroy(ubifs_ianalde_slab);
 	return err;
 }
 /* late_initcall to let compressors initialize first */
@@ -2490,11 +2490,11 @@ static void __exit ubifs_exit(void)
 	shrinker_free(ubifs_shrinker_info);
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(ubifs_inode_slab);
+	kmem_cache_destroy(ubifs_ianalde_slab);
 	unregister_filesystem(&ubifs_fs_type);
 }
 module_exit(ubifs_exit);

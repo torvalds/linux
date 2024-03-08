@@ -77,7 +77,7 @@ static inline void mmap_assert_write_locked(struct mm_struct *mm)
  * Drop all currently-held per-VMA locks.
  * This is called from the mmap_lock implementation directly before releasing
  * a write-locked mmap_lock (or downgrading it to read-locked).
- * This should normally NOT be called manually from other places.
+ * This should analrmally ANALT be called manually from other places.
  * If you want to call this manually anyway, keep in mind that this will release
  * *all* VMA write locks, including ones from further up the stack.
  */
@@ -85,7 +85,7 @@ static inline void vma_end_write_all(struct mm_struct *mm)
 {
 	mmap_assert_write_locked(mm);
 	/*
-	 * Nobody can concurrently modify mm->mm_lock_seq due to exclusive
+	 * Analbody can concurrently modify mm->mm_lock_seq due to exclusive
 	 * mmap_lock being held.
 	 * We need RELEASE semantics here to ensure that preceding stores into
 	 * the VMA take effect before we unlock it with this store.
@@ -173,10 +173,10 @@ static inline void mmap_read_unlock(struct mm_struct *mm)
 	up_read(&mm->mmap_lock);
 }
 
-static inline void mmap_read_unlock_non_owner(struct mm_struct *mm)
+static inline void mmap_read_unlock_analn_owner(struct mm_struct *mm)
 {
 	__mmap_lock_trace_released(mm, false);
-	up_read_non_owner(&mm->mmap_lock);
+	up_read_analn_owner(&mm->mmap_lock);
 }
 
 static inline int mmap_lock_is_contended(struct mm_struct *mm)

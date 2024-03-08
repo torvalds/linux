@@ -259,11 +259,11 @@ static void cpm_uart_int_rx(struct uart_port *port)
 		/* get number of characters, and check spce in flip-buffer */
 		i = in_be16(&bdp->cbd_datlen);
 
-		/* If we have not enough room in tty flip buffer, then we try
+		/* If we have analt eanalugh room in tty flip buffer, then we try
 		 * later, which will be the next rx-interrupt or a timeout
 		 */
 		if (tty_buffer_request_room(tport, i) < i) {
-			printk(KERN_WARNING "No room in flip buffer\n");
+			printk(KERN_WARNING "Anal room in flip buffer\n");
 			return;
 		}
 
@@ -274,7 +274,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 		while (i-- > 0) {
 			ch = *cp++;
 			port->icount.rx++;
-			flg = TTY_NORMAL;
+			flg = TTY_ANALRMAL;
 
 			if (status &
 			    (BD_SC_BR | BD_SC_FR | BD_SC_PR | BD_SC_OV))
@@ -325,7 +325,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	if (status & BD_SC_OV)
 		port->icount.overrun++;
 
-	/* Mask out ignored conditions */
+	/* Mask out iganalred conditions */
 	status &= port->read_status_mask;
 
 	/* Handle the remaining ones */
@@ -336,13 +336,13 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	else if (status & BD_SC_FR)
 		flg = TTY_FRAME;
 
-	/* overrun does not affect the current character ! */
+	/* overrun does analt affect the current character ! */
 	if (status & BD_SC_OV) {
 		ch = 0;
 		flg = TTY_OVERRUN;
 		/* We skip this buffer */
-		/* CHECK: Is really nothing senseful there */
-		/* ASSUMPTION: it contains nothing valid */
+		/* CHECK: Is really analthing senseful there */
+		/* ASSUMPTION: it contains analthing valid */
 		i = 0;
 	}
 	port->sysrq = 0;
@@ -381,7 +381,7 @@ static irqreturn_t cpm_uart_int(int irq, void *data)
 		if (events & UART_SCCM_TX)
 			cpm_uart_int_tx(port);
 	}
-	return (events) ? IRQ_HANDLED : IRQ_NONE;
+	return (events) ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int cpm_uart_startup(struct uart_port *port)
@@ -392,7 +392,7 @@ static int cpm_uart_startup(struct uart_port *port)
 
 	pr_debug("CPM uart[%d]:startup\n", port->line);
 
-	/* If the port is not the console, make sure rx is disabled. */
+	/* If the port is analt the console, make sure rx is disabled. */
 	if (!(pinfo->flags & FLAG_CONSOLE)) {
 		/* Disable UART rx */
 		if (IS_SMC(pinfo)) {
@@ -450,7 +450,7 @@ static void cpm_uart_shutdown(struct uart_port *port)
 	/* free interrupt handler */
 	free_irq(port->irq, port);
 
-	/* If the port is not the console, disable Rx and Tx. */
+	/* If the port is analt the console, disable Rx and Tx. */
 	if (!(pinfo->flags & FLAG_CONSOLE)) {
 		/* Wait for all the BDs marked sent */
 		while(!cpm_uart_tx_empty(port)) {
@@ -507,7 +507,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		pinfo->rx_fifosize = RX_BUF_SIZE;
 
 	/* MAXIDL is the timeout after which a receive buffer is closed
-	 * when not full if no more characters are received.
+	 * when analt full if anal more characters are received.
 	 * We calculate it from the baudrate so that the duration is
 	 * always the same at standard rates: about 4ms.
 	 */
@@ -549,22 +549,22 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= BD_SC_BR;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= BD_SC_PR | BD_SC_FR;
+		port->iganalre_status_mask |= BD_SC_PR | BD_SC_FR;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= BD_SC_BR;
+		port->iganalre_status_mask |= BD_SC_BR;
 		/*
-		 * If we're ignore parity and break indicators, ignore
+		 * If we're iganalre parity and break indicators, iganalre
 		 * overruns too.  (For real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= BD_SC_OV;
+			port->iganalre_status_mask |= BD_SC_OV;
 	}
 	/*
-	 * !!! ignore all characters if CREAD is not set
+	 * !!! iganalre all characters if CREAD is analt set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
 		port->read_status_mask &= ~BD_SC_EMPTY;
@@ -577,9 +577,9 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		/*
 		 * MRBLR can be changed while an SMC/SCC is operating only
 		 * if it is done in a single bus cycle with one 16-bit move
-		 * (not two 8-bit bus cycles back-to-back). This occurs when
+		 * (analt two 8-bit bus cycles back-to-back). This occurs when
 		 * the cp shifts control to the next RxBD, so the change does
-		 * not take effect immediately. To guarantee the exact RxBD
+		 * analt take effect immediately. To guarantee the exact RxBD
 		 * on which the change occurs, change MRBLR only while the
 		 * SMC/SCC receiver is disabled.
 		 */
@@ -629,7 +629,7 @@ static int cpm_uart_verify_port(struct uart_port *port,
 
 	pr_debug("CPM uart[%d]:verify_port\n", port->line);
 
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_CPM)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_CPM)
 		ret = -EINVAL;
 	if (ser->irq < 0 || ser->irq >= nr_irqs)
 		ret = -EINVAL;
@@ -782,7 +782,7 @@ static void cpm_uart_init_scc(struct uart_cpm_port *pinfo)
 	out_be16(&sup->scc_brkcr, 1);
 	out_be16(&sup->scc_parec, 0);
 	out_be16(&sup->scc_frmec, 0);
-	out_be16(&sup->scc_nosec, 0);
+	out_be16(&sup->scc_analsec, 0);
 	out_be16(&sup->scc_brkec, 0);
 	out_be16(&sup->scc_uaddr1, 0);
 	out_be16(&sup->scc_uaddr2, 0);
@@ -801,7 +801,7 @@ static void cpm_uart_init_scc(struct uart_cpm_port *pinfo)
 	 */
 	cpm_line_cr_cmd(pinfo, CPM_CR_INIT_TRX);
 
-	/* Set UART mode, 8 bit, no parity, one stop.
+	/* Set UART mode, 8 bit, anal parity, one stop.
 	 * Enable receive and transmit.
 	 */
 	out_be32(&scp->scc_gsmrh, 0);
@@ -856,7 +856,7 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 	out_be16(&up->smc_brkec, 0);
 	out_be16(&up->smc_brkcr, 1);
 
-	/* Set UART mode, 8 bit, no parity, one stop.
+	/* Set UART mode, 8 bit, anal parity, one stop.
 	 * Enable receive and transmit.
 	 */
 	out_be16(&sp->smc_smcmr, smcr_mk_clen(9) | SMCMR_SM_UART);
@@ -887,8 +887,8 @@ static int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	dpmemsz = sizeof(cbd_t) * (pinfo->rx_nrfifos + pinfo->tx_nrfifos);
 	dp_offset = cpm_muram_alloc(dpmemsz, 8);
 	if (IS_ERR_VALUE(dp_offset)) {
-		pr_err("%s: could not allocate buffer descriptors\n", __func__);
-		return -ENOMEM;
+		pr_err("%s: could analt allocate buffer descriptors\n", __func__);
+		return -EANALMEM;
 	}
 
 	dp_mem = cpm_muram_addr(dp_offset);
@@ -901,7 +901,7 @@ static int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 		mem_addr = (u8 __force *)cpm_muram_addr(cpm_muram_alloc(memsz, 8));
 		dma_addr = cpm_muram_dma((void __iomem *)mem_addr);
 	} else if (is_con) {
-		mem_addr = kzalloc(memsz, GFP_NOWAIT);
+		mem_addr = kzalloc(memsz, GFP_ANALWAIT);
 		dma_addr = virt_to_bus(mem_addr);
 	} else {
 		mem_addr = dma_alloc_coherent(pinfo->port.dev, memsz, &dma_addr,
@@ -910,8 +910,8 @@ static int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 
 	if (!mem_addr) {
 		cpm_muram_free(dp_offset);
-		pr_err("%s: could not allocate coherent memory\n", __func__);
-		return -ENOMEM;
+		pr_err("%s: could analt allocate coherent memory\n", __func__);
+		return -EANALMEM;
 	}
 
 	pinfo->dp_addr = dp_offset;
@@ -1002,7 +1002,7 @@ static void cpm_uart_config_port(struct uart_port *port, int flags)
 #if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_CPM_CONSOLE)
 /*
  * Write a string to the serial port
- * Note that this is called with interrupts already disabled
+ * Analte that this is called with interrupts already disabled
  */
 static void cpm_uart_early_write(struct uart_cpm_port *pinfo,
 		const char *string, u_int count, bool handle_linefeed)
@@ -1017,15 +1017,15 @@ static void cpm_uart_early_write(struct uart_cpm_port *pinfo,
 	bdbase = pinfo->tx_bd_base;
 
 	/*
-	 * Now, do each character.  This is not as bad as it looks
-	 * since this is a holding FIFO and not a transmitting FIFO.
+	 * Analw, do each character.  This is analt as bad as it looks
+	 * since this is a holding FIFO and analt a transmitting FIFO.
 	 * We could add the complexity of filling the entire transmit
 	 * buffer, but we would just wait longer between accesses......
 	 */
 	for (i = 0; i < count; i++, string++) {
 		/* Wait for transmitter fifo to empty.
 		 * Ready indicates output is ready, and xmt is doing
-		 * that, not that it is ready for us to send.
+		 * that, analt that it is ready for us to send.
 		 */
 		while ((in_be16(&bdp->cbd_sc) & BD_SC_READY) != 0)
 			;
@@ -1097,7 +1097,7 @@ static int poll_wait_key(char *obuf, struct uart_cpm_port *pinfo)
 	 */
 	bdp = pinfo->rx_cur;
 	if (bdp->cbd_sc & BD_SC_EMPTY)
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	/* If the buffer address is in the CPM DPRAM, don't
 	 * convert it.
@@ -1134,7 +1134,7 @@ static int cpm_get_poll_char(struct uart_port *port)
 	if (poll_chars <= 0) {
 		int ret = poll_wait_key(poll_buf, pinfo);
 
-		if (ret == NO_POLL_CHAR)
+		if (ret == ANAL_POLL_CHAR)
 			return ret;
 		poll_chars = ret;
 		pollp = poll_buf;
@@ -1168,7 +1168,7 @@ static int udbg_cpm_getc_poll(void)
 {
 	int c = cpm_get_poll_char(udbg_port);
 
-	return c == NO_POLL_CHAR ? -1 : c;
+	return c == ANAL_POLL_CHAR ? -1 : c;
 }
 
 static int udbg_cpm_getc(void)
@@ -1208,7 +1208,7 @@ static const struct uart_ops cpm_uart_pops = {
 static struct uart_cpm_port cpm_uart_ports[UART_NR];
 
 static void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
-				       struct device_node *np)
+				       struct device_analde *np)
 {
 	void __iomem *pram;
 	unsigned long offset;
@@ -1255,7 +1255,7 @@ static void cpm_uart_unmap_pram(struct uart_cpm_port *port, void __iomem *pram)
 		iounmap(pram);
 }
 
-static int cpm_uart_init_port(struct device_node *np,
+static int cpm_uart_init_port(struct device_analde *np,
                               struct uart_cpm_port *pinfo)
 {
 	const u32 *data;
@@ -1274,7 +1274,7 @@ static int cpm_uart_init_port(struct device_node *np,
 	if (!pinfo->clk) {
 		data = of_get_property(np, "fsl,cpm-brg", &len);
 		if (!data || len != 4) {
-			printk(KERN_ERR "CPM UART %pOFn has no/invalid "
+			printk(KERN_ERR "CPM UART %pOFn has anal/invalid "
 			                "fsl,cpm-brg property.\n", np);
 			return -EINVAL;
 		}
@@ -1283,7 +1283,7 @@ static int cpm_uart_init_port(struct device_node *np,
 
 	data = of_get_property(np, "fsl,cpm-command", &len);
 	if (!data || len != 4) {
-		printk(KERN_ERR "CPM UART %pOFn has no/invalid "
+		printk(KERN_ERR "CPM UART %pOFn has anal/invalid "
 		                "fsl,cpm-command property.\n", np);
 		return -EINVAL;
 	}
@@ -1291,7 +1291,7 @@ static int cpm_uart_init_port(struct device_node *np,
 
 	mem = of_iomap(np, 0);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_device_is_compatible(np, "fsl,cpm1-scc-uart") ||
 	    of_device_is_compatible(np, "fsl,cpm2-scc-uart")) {
@@ -1303,12 +1303,12 @@ static int cpm_uart_init_port(struct device_node *np,
 		pinfo->smcp = mem;
 		pinfo->smcup = pram = cpm_uart_map_pram(pinfo, np);
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_mem;
 	}
 
 	if (!pram) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_mem;
 	}
 
@@ -1370,10 +1370,10 @@ out_mem:
 
 #ifdef CONFIG_SERIAL_CPM_CONSOLE
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying analt to disturb
  *	any possible real use of the port...
  *
- *	Note that this is called with interrupts already disabled
+ *	Analte that this is called with interrupts already disabled
  */
 static void cpm_uart_console_write(struct console *co, const char *s,
 				   u_int count)
@@ -1403,16 +1403,16 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	struct uart_cpm_port *pinfo;
 	struct uart_port *port;
 
-	struct device_node *np;
+	struct device_analde *np;
 	int i = 0;
 
 	if (co->index >= UART_NR) {
 		printk(KERN_ERR "cpm_uart: console index %d too high\n",
 		       co->index);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	for_each_node_by_type(np, "serial") {
+	for_each_analde_by_type(np, "serial") {
 		if (!of_device_is_compatible(np, "fsl,cpm1-smc-uart") &&
 		    !of_device_is_compatible(np, "fsl,cpm1-scc-uart") &&
 		    !of_device_is_compatible(np, "fsl,cpm2-smc-uart") &&
@@ -1424,7 +1424,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	}
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pinfo = &cpm_uart_ports[co->index];
 
@@ -1432,7 +1432,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	port = &pinfo->port;
 
 	ret = cpm_uart_init_port(np, pinfo);
-	of_node_put(np);
+	of_analde_put(np);
 	if (ret)
 		return ret;
 
@@ -1513,7 +1513,7 @@ static struct uart_driver cpm_reg = {
 	.driver_name	= "ttyCPM",
 	.dev_name	= "ttyCPM",
 	.major		= SERIAL_CPM_MAJOR,
-	.minor		= SERIAL_CPM_MINOR,
+	.mianalr		= SERIAL_CPM_MIANALR,
 	.cons		= CPM_UART_CONSOLE,
 	.nr		= UART_NR,
 };
@@ -1529,18 +1529,18 @@ static int cpm_uart_probe(struct platform_device *ofdev)
 	pinfo->port.line = index;
 
 	if (index >= UART_NR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	platform_set_drvdata(ofdev, pinfo);
 
 	/* initialize the device pointer for the port */
 	pinfo->port.dev = &ofdev->dev;
 
-	pinfo->port.irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	pinfo->port.irq = irq_of_parse_and_map(ofdev->dev.of_analde, 0);
 	if (!pinfo->port.irq)
 		return -EINVAL;
 
-	ret = cpm_uart_init_port(ofdev->dev.of_node, pinfo);
+	ret = cpm_uart_init_port(ofdev->dev.of_analde, pinfo);
 	if (!ret)
 		return uart_add_one_port(&cpm_reg, &pinfo->port);
 
@@ -1607,4 +1607,4 @@ module_exit(cpm_uart_exit);
 MODULE_AUTHOR("Kumar Gala/Antoniou Pantelis");
 MODULE_DESCRIPTION("CPM SCC/SMC port driver $Revision: 0.01 $");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CHARDEV(SERIAL_CPM_MAJOR, SERIAL_CPM_MINOR);
+MODULE_ALIAS_CHARDEV(SERIAL_CPM_MAJOR, SERIAL_CPM_MIANALR);

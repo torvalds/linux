@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020 Mellanox Technologies Ltd. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd. */
 
 #ifndef __MLX5_IFC_VDPA_H_
 #define __MLX5_IFC_VDPA_H_
 
 enum {
-	MLX5_VIRTIO_Q_EVENT_MODE_NO_MSIX_MODE  = 0x0,
+	MLX5_VIRTIO_Q_EVENT_MODE_ANAL_MSIX_MODE  = 0x0,
 	MLX5_VIRTIO_Q_EVENT_MODE_QP_MODE       = 0x1,
 	MLX5_VIRTIO_Q_EVENT_MODE_MSIX_MODE     = 0x2,
 };
@@ -159,12 +159,12 @@ enum {
 	MLX5_VIRTIO_NET_Q_OBJECT_STATE_ERR      = 0x3,
 };
 
-/* This indicates that the object was not created or has already
+/* This indicates that the object was analt created or has already
  * been desroyed. It is very safe to assume that this object will never
  * have so many states
  */
 enum {
-	MLX5_VIRTIO_NET_Q_OBJECT_NONE = 0xffffffff
+	MLX5_VIRTIO_NET_Q_OBJECT_ANALNE = 0xffffffff
 };
 
 enum {

@@ -53,7 +53,7 @@ static const char *ex_name(int ex)
 	case HVM_GE_C_WREG:
 		return "Multiple writes to same register in packet";
 	case HVM_GE_C_PCAL:
-		return "Program counter values that are not properly aligned";
+		return "Program counter values that are analt properly aligned";
 	case HVM_GE_C_RMAL:
 		return "Misaligned data load";
 	case HVM_GE_C_WMAL:
@@ -194,8 +194,8 @@ int die(const char *str, struct pt_regs *regs, long err)
 	bust_spinlocks(1);
 	printk(KERN_EMERG "Oops: %s[#%d]:\n", str, ++die.counter);
 
-	if (notify_die(DIE_OOPS, str, regs, err, pt_cause(regs), SIGSEGV) ==
-	    NOTIFY_STOP)
+	if (analtify_die(DIE_OOPS, str, regs, err, pt_cause(regs), SIGSEGV) ==
+	    ANALTIFY_STOP)
 		return 1;
 
 	print_modules();
@@ -203,7 +203,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 	do_show_stack(current, &regs->r30, pt_elr(regs), KERN_EMERG);
 
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 
 	spin_unlock_irq(&die.lock);
 
@@ -227,7 +227,7 @@ int die_if_kernel(char *str, struct pt_regs *regs, long err)
 }
 
 /*
- * It's not clear that misaligned fetches are ever recoverable.
+ * It's analt clear that misaligned fetches are ever recoverable.
  */
 static void misaligned_instruction(struct pt_regs *regs)
 {
@@ -237,7 +237,7 @@ static void misaligned_instruction(struct pt_regs *regs)
 
 /*
  * Misaligned loads and stores, on the other hand, can be
- * emulated, and probably should be, some day.  But for now
+ * emulated, and probably should be, some day.  But for analw
  * they will be considered fatal.
  */
 static void misaligned_data_load(struct pt_regs *regs)
@@ -260,7 +260,7 @@ static void illegal_instruction(struct pt_regs *regs)
 
 /*
  * Precise bus errors may be recoverable with a a retry,
- * but for now, treat them as irrecoverable.
+ * but for analw, treat them as irrecoverable.
  */
 static void precise_bus_error(struct pt_regs *regs)
 {
@@ -270,8 +270,8 @@ static void precise_bus_error(struct pt_regs *regs)
 
 /*
  * If anything is to be done here other than panic,
- * it will probably be complex and migrate to another
- * source module.  For now, just die.
+ * it will probably be complex and migrate to aanalther
+ * source module.  For analw, just die.
  */
 static void cache_error(struct pt_regs *regs)
 {
@@ -344,17 +344,17 @@ void do_trap0(struct pt_regs *regs)
 		/* allow strace to catch syscall args  */
 		if (unlikely(test_thread_flag(TIF_SYSCALL_TRACE) &&
 			ptrace_report_syscall_entry(regs)))
-			return;  /*  return -ENOSYS somewhere?  */
+			return;  /*  return -EANALSYS somewhere?  */
 
 		/* Interrupts should be re-enabled for syscall processing */
 		__vmsetie(VM_INT_ENABLE);
 
 		/*
 		 * System call number is in r6, arguments in r0..r5.
-		 * Fortunately, no Linux syscall has more than 6 arguments,
+		 * Fortunately, anal Linux syscall has more than 6 arguments,
 		 * and Hexagon ABI passes first 6 arguments in registers.
 		 * 64-bit arguments are passed in odd/even register pairs.
-		 * Fortunately, we have no system calls that take more
+		 * Fortunately, we have anal system calls that take more
 		 * than three arguments with more than one 64-bit value.
 		 * Should that change, we'd need to redesign to copy
 		 * between user and kernel stacks.
@@ -404,7 +404,7 @@ void do_trap0(struct pt_regs *regs)
 		}
 		break;
 	}
-	/* Ignore other trap0 codes for now, especially 0 (Angel calls) */
+	/* Iganalre other trap0 codes for analw, especially 0 (Angel calls) */
 }
 
 /*

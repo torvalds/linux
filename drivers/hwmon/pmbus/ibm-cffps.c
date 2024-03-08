@@ -58,7 +58,7 @@ enum {
 	CFFPS_DEBUGFS_NUM_ENTRIES
 };
 
-enum versions { cffps1, cffps2, cffps_unknown };
+enum versions { cffps1, cffps2, cffps_unkanalwn };
 
 struct ibm_cffps {
 	enum versions version;
@@ -122,7 +122,7 @@ static ssize_t ibm_cffps_debugfs_read_input_history(struct file *file, char __us
 }
 
 static const struct file_operations ibm_cffps_input_history_fops = {
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.read = ibm_cffps_debugfs_read_input_history,
 	.open = simple_open,
 };
@@ -183,7 +183,7 @@ static ssize_t ibm_cffps_debugfs_read(struct file *file, char __user *buf,
 			rc = i * 4;
 			break;
 		default:
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			break;
 		}
 		break;
@@ -249,7 +249,7 @@ static ssize_t ibm_cffps_debugfs_write(struct file *file,
 }
 
 static const struct file_operations ibm_cffps_fops = {
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.read = ibm_cffps_debugfs_read,
 	.write = ibm_cffps_debugfs_write,
 	.open = simple_open,
@@ -298,7 +298,7 @@ static int ibm_cffps_read_byte_data(struct i2c_client *client, int page,
 		}
 		break;
 	default:
-		rc = -ENODATA;
+		rc = -EANALDATA;
 		break;
 	}
 
@@ -333,7 +333,7 @@ static int ibm_cffps_read_word_data(struct i2c_client *client, int page,
 					  CFFPS_12VCS_VOUT_CMD);
 		break;
 	default:
-		rc = -ENODATA;
+		rc = -EANALDATA;
 		break;
 	}
 
@@ -468,13 +468,13 @@ static struct pmbus_driver_info ibm_cffps_info[] = {
 };
 
 static struct pmbus_platform_data ibm_cffps_pdata = {
-	.flags = PMBUS_SKIP_STATUS_CHECK | PMBUS_NO_CAPABILITY,
+	.flags = PMBUS_SKIP_STATUS_CHECK | PMBUS_ANAL_CAPABILITY,
 };
 
 static const struct i2c_device_id ibm_cffps_id[] = {
 	{ "ibm_cffps1", cffps1 },
 	{ "ibm_cffps2", cffps2 },
-	{ "ibm_cffps", cffps_unknown },
+	{ "ibm_cffps", cffps_unkanalwn },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ibm_cffps_id);
@@ -482,7 +482,7 @@ MODULE_DEVICE_TABLE(i2c, ibm_cffps_id);
 static int ibm_cffps_probe(struct i2c_client *client)
 {
 	int i, rc;
-	enum versions vs = cffps_unknown;
+	enum versions vs = cffps_unkanalwn;
 	struct dentry *debugfs;
 	struct ibm_cffps *psu;
 	const void *md = of_device_get_match_data(&client->dev);
@@ -496,7 +496,7 @@ static int ibm_cffps_probe(struct i2c_client *client)
 			vs = (enum versions)id->driver_data;
 	}
 
-	if (vs == cffps_unknown) {
+	if (vs == cffps_unkanalwn) {
 		u16 ccin_revision = 0;
 		u16 ccin_version = CFFPS_CCIN_VERSION_1;
 		int ccin = i2c_smbus_read_word_swapped(client, CFFPS_CCIN_CMD);
@@ -543,7 +543,7 @@ static int ibm_cffps_probe(struct i2c_client *client)
 		return rc;
 
 	/*
-	 * Don't fail the probe if there isn't enough memory for leds and
+	 * Don't fail the probe if there isn't eanalugh memory for leds and
 	 * debugfs.
 	 */
 	psu = devm_kzalloc(&client->dev, sizeof(*psu), GFP_KERNEL);
@@ -594,7 +594,7 @@ static const struct of_device_id ibm_cffps_of_match[] = {
 	},
 	{
 		.compatible = "ibm,cffps",
-		.data = (void *)cffps_unknown
+		.data = (void *)cffps_unkanalwn
 	},
 	{}
 };

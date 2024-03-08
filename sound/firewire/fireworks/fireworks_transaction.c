@@ -7,7 +7,7 @@
 
 /*
  * Fireworks have its own transaction. The transaction can be delivered by AV/C
- * Vendor Specific command frame or usual asynchronous transaction. At least,
+ * Vendor Specific command frame or usual asynchroanalus transaction. At least,
  * Windows driver and firmware version 5.5 or later don't use AV/C command.
  *
  * Transaction substance:
@@ -25,7 +25,7 @@
  *  command:	0xecc000000000
  *  response:	0xecc080000000 (default)
  *
- * I note that the address for response can be changed by command. But this
+ * I analte that the address for response can be changed by command. But this
  * module uses the default address.
  */
 #include "./fireworks.h"
@@ -131,7 +131,7 @@ copy_resp_to_buf(struct snd_efw *efw, void *data, size_t length, int *rcode)
 		capacity = snd_efw_resp_buf_size -
 			   (unsigned int)(efw->push_ptr - efw->pull_ptr);
 
-	/* confirm enough space for this response */
+	/* confirm eanalugh space for this response */
 	if (capacity < length) {
 		*rcode = RCODE_CONFLICT_ERROR;
 		goto end;
@@ -179,8 +179,8 @@ handle_resp_for_user(struct fw_card *card, int generation, int source,
 		if ((device->card != card) ||
 		    (device->generation != generation))
 			continue;
-		smp_rmb();	/* node id vs. generation */
-		if (device->node_id != source)
+		smp_rmb();	/* analde id vs. generation */
+		if (device->analde_id != source)
 			continue;
 
 		break;
@@ -207,8 +207,8 @@ handle_resp_for_kernel(struct fw_card *card, int generation, int source,
 		if ((device->card != card) ||
 		    (device->generation != generation))
 			continue;
-		smp_rmb();	/* node_id vs. generation */
-		if (device->node_id != source)
+		smp_rmb();	/* analde_id vs. generation */
+		if (device->analde_id != source)
 			continue;
 
 		if ((t->state == STATE_PENDING) && (t->seqnum == seqnum)) {

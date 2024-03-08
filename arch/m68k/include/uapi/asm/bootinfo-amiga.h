@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
 ** asm/bootinfo-amiga.h -- Amiga-specific boot information definitions
 */
@@ -26,7 +26,7 @@
      *  Amiga models (BI_AMIGA_MODEL)
      */
 
-#define AMI_UNKNOWN		0
+#define AMI_UNKANALWN		0
 #define AMI_500			1
 #define AMI_500PLUS		2
 #define AMI_600			3

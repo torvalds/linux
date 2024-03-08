@@ -9,7 +9,7 @@
  * Each bucket has associated an 8 bit gen; this gen corresponds to the gen in
  * btree pointers - they must match for the pointer to be considered valid.
  *
- * Thus (assuming a bucket has no dirty data or metadata in it) we can reuse a
+ * Thus (assuming a bucket has anal dirty data or metadata in it) we can reuse a
  * bucket simply by incrementing its gen.
  *
  * The gens (along with the priorities; it's really the gens are important but
@@ -33,10 +33,10 @@
  * If we've got discards enabled, that happens when a bucket moves from the
  * free_inc list to the free list.
  *
- * There is another freelist, because sometimes we have buckets that we know
- * have nothing pointing into them - these we can reuse without waiting for
- * priorities to be rewritten. These come from freed btree nodes and buckets
- * that garbage collection discovered no longer had valid keys pointing into
+ * There is aanalther freelist, because sometimes we have buckets that we kanalw
+ * have analthing pointing into them - these we can reuse without waiting for
+ * priorities to be rewritten. These come from freed btree analdes and buckets
+ * that garbage collection discovered anal longer had valid keys pointing into
  * them (because they were overwritten). That's the unused list - buckets on the
  * unused list move to the free list, optionally being discarded in the process.
  *
@@ -357,21 +357,21 @@ retry_invalidate:
 		invalidate_buckets(ca);
 
 		/*
-		 * Now, we write their new gens to disk so we can start writing
+		 * Analw, we write their new gens to disk so we can start writing
 		 * new stuff to them:
 		 */
 		allocator_wait(ca, !atomic_read(&ca->set->prio_blocked));
 		if (CACHE_SYNC(&ca->sb)) {
 			/*
 			 * This could deadlock if an allocation with a btree
-			 * node locked ever blocked - having the btree node
+			 * analde locked ever blocked - having the btree analde
 			 * locked would block garbage collection, but here we're
 			 * waiting on garbage collection before we invalidate
 			 * and free anything.
 			 *
 			 * But this should be safe since the btree code always
-			 * uses btree_check_reserve() before allocating now, and
-			 * if it fails it blocks without btree nodes locked.
+			 * uses btree_check_reserve() before allocating analw, and
+			 * if it fails it blocks without btree analdes locked.
 			 */
 			if (!fifo_full(&ca->free_inc))
 				goto retry_invalidate;
@@ -396,12 +396,12 @@ long bch_bucket_alloc(struct cache *ca, unsigned int reserve, bool wait)
 	long r;
 
 
-	/* No allocation if CACHE_SET_IO_DISABLE bit is set */
+	/* Anal allocation if CACHE_SET_IO_DISABLE bit is set */
 	if (unlikely(test_bit(CACHE_SET_IO_DISABLE, &ca->set->flags)))
 		return -1;
 
 	/* fastpath */
-	if (fifo_pop(&ca->free[RESERVE_NONE], r) ||
+	if (fifo_pop(&ca->free[RESERVE_ANALNE], r) ||
 	    fifo_pop(&ca->free[reserve], r))
 		goto out;
 
@@ -417,7 +417,7 @@ long bch_bucket_alloc(struct cache *ca, unsigned int reserve, bool wait)
 		mutex_unlock(&ca->set->bucket_lock);
 		schedule();
 		mutex_lock(&ca->set->bucket_lock);
-	} while (!fifo_pop(&ca->free[RESERVE_NONE], r) &&
+	} while (!fifo_pop(&ca->free[RESERVE_ANALNE], r) &&
 		 !fifo_pop(&ca->free[reserve], r));
 
 	finish_wait(&ca->set->bucket_wait, &w);
@@ -491,7 +491,7 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned int reserve,
 	struct cache *ca;
 	long b;
 
-	/* No allocation if CACHE_SET_IO_DISABLE bit is set */
+	/* Anal allocation if CACHE_SET_IO_DISABLE bit is set */
 	if (unlikely(test_bit(CACHE_SET_IO_DISABLE, &c->flags)))
 		return -1;
 
@@ -548,14 +548,14 @@ struct open_bucket {
  * same time, you'll get better cache utilization if you try to segregate their
  * data and preserve locality.
  *
- * For example, dirty sectors of flash only volume is not reclaimable, if their
+ * For example, dirty sectors of flash only volume is analt reclaimable, if their
  * dirty sectors mixed with dirty sectors of cached device, such buckets will
  * be marked as dirty and won't be reclaimed, though the dirty data of cached
  * device have been written back to backend device.
  *
  * And say you've starting Firefox at the same time you're copying a
  * bunch of files. Firefox will likely end up being fairly hot and stay in the
- * cache awhile, but the data you copied might not be; if you wrote all that
+ * cache awhile, but the data you copied might analt be; if you wrote all that
  * data to the same buckets it'd get invalidated at the same time.
  *
  * Both of those tasks will be doing fairly random IO so we can't rely on
@@ -570,8 +570,8 @@ static struct open_bucket *pick_data_bucket(struct cache_set *c,
 	struct open_bucket *ret, *ret_task = NULL;
 
 	list_for_each_entry_reverse(ret, &c->data_buckets, list)
-		if (UUID_FLASH_ONLY(&c->uuids[KEY_INODE(&ret->key)]) !=
-		    UUID_FLASH_ONLY(&c->uuids[KEY_INODE(search)]))
+		if (UUID_FLASH_ONLY(&c->uuids[KEY_IANALDE(&ret->key)]) !=
+		    UUID_FLASH_ONLY(&c->uuids[KEY_IANALDE(search)]))
 			continue;
 		else if (!bkey_cmp(&ret->key, search))
 			goto found;
@@ -601,7 +601,7 @@ found:
  * May allocate fewer sectors than @sectors, KEY_SIZE(k) indicates how many
  * sectors were actually allocated.
  *
- * If s->writeback is true, will not fail.
+ * If s->writeback is true, will analt fail.
  */
 bool bch_alloc_sectors(struct cache_set *c,
 		       struct bkey *k,
@@ -627,7 +627,7 @@ bool bch_alloc_sectors(struct cache_set *c,
 	while (!(b = pick_data_bucket(c, k, write_point, &alloc.key))) {
 		unsigned int watermark = write_prio
 			? RESERVE_MOVINGGC
-			: RESERVE_NONE;
+			: RESERVE_ANALNE;
 
 		spin_unlock(&c->data_bucket_lock);
 
@@ -638,7 +638,7 @@ bool bch_alloc_sectors(struct cache_set *c,
 	}
 
 	/*
-	 * If we had to allocate, we might race and not need to allocate the
+	 * If we had to allocate, we might race and analt need to allocate the
 	 * second time we call pick_data_bucket(). If we allocated a bucket but
 	 * didn't use it, drop the refcount bch_bucket_alloc_set() took:
 	 */
@@ -716,7 +716,7 @@ int bch_open_buckets_alloc(struct cache_set *c)
 		struct open_bucket *b = kzalloc(sizeof(*b), GFP_KERNEL);
 
 		if (!b)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		list_add(&b->list, &c->data_buckets);
 	}

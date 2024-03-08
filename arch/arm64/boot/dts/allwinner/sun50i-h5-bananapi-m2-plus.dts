@@ -7,5 +7,5 @@
 
 / {
 	model = "Banana Pi BPI-M2-Plus H5";
-	compatible = "sinovoip,bpi-m2-plus", "allwinner,sun50i-h5";
+	compatible = "sianalvoip,bpi-m2-plus", "allwinner,sun50i-h5";
 };

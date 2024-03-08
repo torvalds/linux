@@ -29,7 +29,7 @@
  #define DMADESC_ENDIAN_SHIFT				2 /* AHCI->DDR */
  #define DMADATA_ENDIAN_SHIFT				4 /* AHCI->DDR */
  #define PIODATA_ENDIAN_SHIFT				6
-  #define ENDIAN_SWAP_NONE				0
+  #define ENDIAN_SWAP_ANALNE				0
   #define ENDIAN_SWAP_FULL				2
 #define SATA_TOP_CTRL_TP_CTRL				0x8
 #define SATA_TOP_CTRL_PHY_CTRL				0xc
@@ -97,7 +97,7 @@ static inline u32 brcm_sata_readreg(void __iomem *addr)
 	 * bus endianness (i.e., big-endian CPU + big endian bus ==> native
 	 * endian I/O).
 	 *
-	 * Other architectures (e.g., ARM) either do not support big endian, or
+	 * Other architectures (e.g., ARM) either do analt support big endian, or
 	 * else leave I/O in little endian mode.
 	 */
 	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
@@ -124,7 +124,7 @@ static void brcm_sata_alpm_init(struct ahci_host_priv *hpriv)
 	/* Enable support for ALPM */
 	host_caps = readl(hpriv->mmio + HOST_CAP);
 	if (!(host_caps & HOST_CAP_ALPM))
-		hpriv->flags |= AHCI_HFLAG_YES_ALPM;
+		hpriv->flags |= AHCI_HFLAG_ANAL_ALPM;
 
 	/*
 	 * Adjust timeout to allow PLL sufficient time to lock while waking
@@ -225,7 +225,7 @@ static u32 brcm_ahci_get_portmask(struct ahci_host_priv *hpriv,
 		dev_warn(priv->dev, "warning: more ports than PHYs (%#x)\n",
 			 impl);
 	else if (!impl)
-		dev_info(priv->dev, "no ports found\n");
+		dev_info(priv->dev, "anal ports found\n");
 
 	return impl;
 }
@@ -274,7 +274,7 @@ static unsigned int brcm_ahci_read_id(struct ata_device *dev,
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	/* Perform the SATA PHY reset sequence */
-	brcm_sata_phy_disable(priv, ap->port_no);
+	brcm_sata_phy_disable(priv, ap->port_anal);
 
 	/* Reset the SATA clock */
 	ahci_platform_disable_clks(hpriv);
@@ -284,7 +284,7 @@ static unsigned int brcm_ahci_read_id(struct ata_device *dev,
 	msleep(10);
 
 	/* Bring the PHY back on */
-	brcm_sata_phy_enable(priv, ap->port_no);
+	brcm_sata_phy_enable(priv, ap->port_anal);
 
 	/* Re-initialize and calibrate the PHY */
 	for (i = 0; i < hpriv->nports; i++) {
@@ -332,8 +332,8 @@ static struct ata_port_operations ahci_brcm_platform_ops = {
 };
 
 static const struct ata_port_info ahci_brcm_port_info = {
-	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NO_DIPM,
-	.link_flags	= ATA_LFLAG_NO_DEBOUNCE_DELAY,
+	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_ANAL_DIPM,
+	.link_flags	= ATA_LFLAG_ANAL_DEBOUNCE_DELAY,
 	.pio_mask	= ATA_PIO4,
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &ahci_brcm_platform_ops,
@@ -386,7 +386,7 @@ static int __maybe_unused brcm_ahci_resume(struct device *dev)
 	brcm_sata_phys_enable(priv);
 	brcm_sata_alpm_init(hpriv);
 
-	/* Since we had to enable clocks earlier on, we cannot use
+	/* Since we had to enable clocks earlier on, we cananalt use
 	 * ahci_platform_resume() as-is since a second call to
 	 * ahci_platform_enable_resources() would bump up the resources
 	 * (regulators, clocks, PHYs) count artificially so we copy the part
@@ -442,11 +442,11 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	of_id = of_match_node(ahci_of_match, pdev->dev.of_node);
+	of_id = of_match_analde(ahci_of_match, pdev->dev.of_analde);
 	if (!of_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->version = (unsigned long)of_id->data;
 	priv->dev = dev;
@@ -471,14 +471,14 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 		return PTR_ERR(hpriv);
 
 	hpriv->plat_data = priv;
-	hpriv->flags = AHCI_HFLAG_WAKE_BEFORE_STOP | AHCI_HFLAG_NO_WRITE_TO_RO;
+	hpriv->flags = AHCI_HFLAG_WAKE_BEFORE_STOP | AHCI_HFLAG_ANAL_WRITE_TO_RO;
 
 	switch (priv->version) {
 	case BRCM_SATA_BCM7425:
 		hpriv->flags |= AHCI_HFLAG_DELAY_ENGINE;
 		fallthrough;
 	case BRCM_SATA_NSP:
-		hpriv->flags |= AHCI_HFLAG_NO_NCQ;
+		hpriv->flags |= AHCI_HFLAG_ANAL_NCQ;
 		priv->quirks |= BRCM_AHCI_QUIRK_SKIP_PHY_ENABLE;
 		break;
 	default:
@@ -508,7 +508,7 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	/* Initializes priv->port_mask which is used below */
 	priv->port_mask = brcm_ahci_get_portmask(hpriv, priv);
 	if (!priv->port_mask) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_disable_regulators;
 	}
 
@@ -560,7 +560,7 @@ static void brcm_ahci_shutdown(struct platform_device *pdev)
 	int ret;
 
 	/* All resources releasing happens via devres, but our device, unlike a
-	 * proper remove is not disappearing, therefore using
+	 * proper remove is analt disappearing, therefore using
 	 * brcm_ahci_suspend() here which does explicit power management is
 	 * appropriate.
 	 */
@@ -584,6 +584,6 @@ static struct platform_driver brcm_ahci_driver = {
 module_platform_driver(brcm_ahci_driver);
 
 MODULE_DESCRIPTION("Broadcom SATA3 AHCI Controller Driver");
-MODULE_AUTHOR("Brian Norris");
+MODULE_AUTHOR("Brian Analrris");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:sata-brcmstb");

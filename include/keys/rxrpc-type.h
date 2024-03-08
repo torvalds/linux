@@ -24,7 +24,7 @@ struct rxkad_key {
 	u32	vice_id;
 	u32	start;			/* time at which ticket starts */
 	u32	expiry;			/* time at which ticket expires */
-	u32	kvno;			/* key version number */
+	u32	kvanal;			/* key version number */
 	u8	primary_flag;		/* T if key for primary cell for this user */
 	u16	ticket_len;		/* length of ticket[] */
 	u8	session_key[8];		/* DES session key */
@@ -36,7 +36,7 @@ struct rxkad_key {
  */
 struct rxrpc_key_token {
 	u16	security_index;		/* RxRPC header security index */
-	bool	no_leak_key;		/* Don't copy the key to userspace */
+	bool	anal_leak_key;		/* Don't copy the key to userspace */
 	struct rxrpc_key_token *next;	/* the next token in the list */
 	union {
 		struct rxkad_key *kad;
@@ -50,7 +50,7 @@ struct rxrpc_key_data_v1 {
 	u16		security_index;
 	u16		ticket_length;
 	u32		expiry;			/* time_t */
-	u32		kvno;
+	u32		kvanal;
 	u8		session_key[8];
 	u8		ticket[];
 };

@@ -367,7 +367,7 @@ static void guc_mapping_table_init_invalid(struct xe_gt *gt,
 	struct xe_device *xe = gt_to_xe(gt);
 	unsigned int i, j;
 
-	/* Table must be set to invalid values for entries not used */
+	/* Table must be set to invalid values for entries analt used */
 	for (i = 0; i < GUC_MAX_ENGINE_CLASSES; ++i)
 		for (j = 0; j < GUC_MAX_INSTANCES_PER_CLASS; ++j)
 			info_map_write(xe, info_map, mapping_table[i][j],
@@ -485,7 +485,7 @@ static void guc_mmio_reg_state_init(struct xe_guc_ads *ads)
 		u8 gc;
 
 		/*
-		 * 1. Write all MMIO entries for this exec queue to the table. No
+		 * 1. Write all MMIO entries for this exec queue to the table. Anal
 		 * need to worry about fused-off engines and when there are
 		 * entries in the regset: the reg_state_list has been zero'ed
 		 * by xe_guc_ads_populate()
@@ -553,8 +553,8 @@ static void guc_doorbell_init(struct xe_guc_ads *ads)
  * xe_guc_ads_populate_minimal - populate minimal ADS
  * @ads: Additional data structures object
  *
- * This function populates a minimal ADS that does not support submissions but
- * enough so the GuC can load and the hwconfig table can be read.
+ * This function populates a minimal ADS that does analt support submissions but
+ * eanalugh so the GuC can load and the hwconfig table can be read.
  */
 void xe_guc_ads_populate_minimal(struct xe_guc_ads *ads)
 {

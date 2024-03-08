@@ -14,7 +14,7 @@ static void __arch_jump_label_transform(struct jump_entry *entry,
 	if (type == JUMP_LABEL_JMP)
 		insn = arm_gen_branch(entry->code, entry->target);
 	else
-		insn = arm_gen_nop();
+		insn = arm_gen_analp();
 
 	if (is_static)
 		__patch_text_early(addr, insn);

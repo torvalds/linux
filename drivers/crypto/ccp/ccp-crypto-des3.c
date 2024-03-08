@@ -45,7 +45,7 @@ static int ccp_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	if (err)
 		return err;
 
-	/* It's not clear that there is any support for a keysize of 112.
+	/* It's analt clear that there is any support for a keysize of 112.
 	 * If needed, the caller should make K1 == K3
 	 */
 	ctx->u.des3.type = CCP_DES3_TYPE_168;
@@ -183,7 +183,7 @@ static int ccp_register_des3_alg(struct list_head *head,
 
 	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
 	if (!ccp_alg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ccp_alg->entry);
 

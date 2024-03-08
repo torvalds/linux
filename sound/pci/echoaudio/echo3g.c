@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ALSA driver for Echoaudio soundcards.
- *  Copyright (C) 2003-2004 Giuliano Pochini <pochini@shiny.it>
+ *  Copyright (C) 2003-2004 Giuliaanal Pochini <pochini@shiny.it>
  */
 
 #define ECHO3G_FAMILY
@@ -9,8 +9,8 @@
 #define ECHOCARD_NAME "Echo3G"
 #define ECHOCARD_HAS_MONITOR
 #define ECHOCARD_HAS_ASIC
-#define ECHOCARD_HAS_INPUT_NOMINAL_LEVEL
-#define ECHOCARD_HAS_OUTPUT_NOMINAL_LEVEL
+#define ECHOCARD_HAS_INPUT_ANALMINAL_LEVEL
+#define ECHOCARD_HAS_OUTPUT_ANALMINAL_LEVEL
 #define ECHOCARD_HAS_SUPER_INTERLEAVE
 #define ECHOCARD_HAS_DIGITAL_IO
 #define ECHOCARD_HAS_DIGITAL_MODE_SWITCH

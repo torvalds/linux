@@ -27,7 +27,7 @@ struct intel_bw_state {
 
 	/*
 	 * Contains a bit mask, used to determine, whether correspondent
-	 * pipe allows SAGV or not.
+	 * pipe allows SAGV or analt.
 	 */
 	u8 pipe_sagv_reject;
 
@@ -42,7 +42,7 @@ struct intel_bw_state {
 
 	/*
 	 * Current QGV points mask, which restricts
-	 * some particular SAGV states, not to confuse
+	 * some particular SAGV states, analt to confuse
 	 * with pipe_sagv_mask.
 	 */
 	u16 qgv_points_mask;

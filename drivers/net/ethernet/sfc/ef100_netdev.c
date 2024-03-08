@@ -35,7 +35,7 @@ static void ef100_update_name(struct efx_nic *efx)
 static int ef100_alloc_vis(struct efx_nic *efx, unsigned int *allocated_vis)
 {
 	/* EF100 uses a single TXQ per channel, as all checksum offloading
-	 * is configured in the TX descriptor, and there is no TX Pacer for
+	 * is configured in the TX descriptor, and there is anal TX Pacer for
 	 * HIGHPRI queues.
 	 */
 	unsigned int tx_vis = efx->n_tx_channels + efx->n_extra_tx_channels;
@@ -43,7 +43,7 @@ static int ef100_alloc_vis(struct efx_nic *efx, unsigned int *allocated_vis)
 	unsigned int min_vis, max_vis;
 	int rc;
 
-	EFX_WARN_ON_PARANOID(efx->tx_queues_per_channel != 1);
+	EFX_WARN_ON_PARAANALID(efx->tx_queues_per_channel != 1);
 
 	tx_vis += efx->n_xdp_channels * efx->xdp_tx_per_channel;
 
@@ -54,7 +54,7 @@ static int ef100_alloc_vis(struct efx_nic *efx, unsigned int *allocated_vis)
 	rc = efx_mcdi_alloc_vis(efx, min_vis, max_vis,
 				NULL, allocated_vis);
 
-	/* We retry allocating VIs by reallocating channels when we have not
+	/* We retry allocating VIs by reallocating channels when we have analt
 	 * been able to allocate the maximum VIs.
 	 */
 	if (!rc && *allocated_vis < max_vis)
@@ -75,9 +75,9 @@ static int ef100_remap_bar(struct efx_nic *efx, int max_vis)
 	membase = ioremap(efx->membase_phys, uc_mem_map_size);
 	if (!membase) {
 		netif_err(efx, probe, efx->net_dev,
-			  "could not extend memory BAR to %x\n",
+			  "could analt extend memory BAR to %x\n",
 			  uc_mem_map_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	iounmap(efx->membase);
 	efx->membase = membase;
@@ -85,7 +85,7 @@ static int ef100_remap_bar(struct efx_nic *efx, int max_vis)
 }
 
 /* Context: process, rtnl_lock() held.
- * Note that the kernel will ignore our return code; this method
+ * Analte that the kernel will iganalre our return code; this method
  * should really be a void.
  */
 static int ef100_net_stop(struct net_device *net_dev)
@@ -168,10 +168,10 @@ static int ef100_net_open(struct net_device *net_dev)
 			goto fail;
 
 		/* It should be very unlikely that we failed here again, but in
-		 * such a case we return ENOSPC.
+		 * such a case we return EANALSPC.
 		 */
 		if (rc == -EAGAIN) {
-			rc = -ENOSPC;
+			rc = -EANALSPC;
 			goto fail;
 		}
 	}
@@ -210,8 +210,8 @@ static int ef100_net_open(struct net_device *net_dev)
 
 	efx_start_all(efx);
 
-	/* Link state detection is normally event-driven; we have
-	 * to poll now because we could have missed a change
+	/* Link state detection is analrmally event-driven; we have
+	 * to poll analw because we could have missed a change
 	 */
 	mutex_lock(&efx->mac_lock);
 	if (efx_mcdi_phy_poll(efx))
@@ -232,8 +232,8 @@ fail:
 /* Initiate a packet transmission.  We use one channel per CPU
  * (sharing when we have more CPUs than channels).
  *
- * Context: non-blocking.
- * Note that returning anything other than NETDEV_TX_OK will cause the
+ * Context: analn-blocking.
+ * Analte that returning anything other than NETDEV_TX_OK will cause the
  * OS to free the skb.
  */
 static netdev_tx_t ef100_hard_start_xmit(struct sk_buff *skb,
@@ -296,11 +296,11 @@ static const struct net_device_ops ef100_netdev_ops = {
 
 /*	Netdev registration
  */
-int ef100_netdev_event(struct notifier_block *this,
+int ef100_netdev_event(struct analtifier_block *this,
 		       unsigned long event, void *ptr)
 {
-	struct efx_nic *efx = container_of(this, struct efx_nic, netdev_notifier);
-	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
+	struct efx_nic *efx = container_of(this, struct efx_nic, netdev_analtifier);
+	struct net_device *net_dev = netdev_analtifier_info_to_dev(ptr);
 	struct ef100_nic_data *nic_data = efx->nic_data;
 	int err;
 
@@ -309,28 +309,28 @@ int ef100_netdev_event(struct notifier_block *this,
 		ef100_update_name(efx);
 
 	if (!nic_data->grp_mae)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	err = efx_tc_netdev_event(efx, event, net_dev);
-	if (err & NOTIFY_STOP_MASK)
+	if (err & ANALTIFY_STOP_MASK)
 		return err;
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int ef100_netevent_event(struct notifier_block *this,
+static int ef100_netevent_event(struct analtifier_block *this,
 				unsigned long event, void *ptr)
 {
-	struct efx_nic *efx = container_of(this, struct efx_nic, netevent_notifier);
+	struct efx_nic *efx = container_of(this, struct efx_nic, netevent_analtifier);
 	struct ef100_nic_data *nic_data = efx->nic_data;
 	int err;
 
 	if (!nic_data->grp_mae)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	err = efx_tc_netevent_event(efx, event, ptr);
-	if (err & NOTIFY_STOP_MASK)
+	if (err & ANALTIFY_STOP_MASK)
 		return err;
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 };
 
 static int ef100_register_netdev(struct efx_nic *efx)
@@ -367,7 +367,7 @@ static int ef100_register_netdev(struct efx_nic *efx)
 
 fail_locked:
 	rtnl_unlock();
-	netif_err(efx, drv, efx->net_dev, "could not register net dev\n");
+	netif_err(efx, drv, efx->net_dev, "could analt register net dev\n");
 	return rc;
 }
 
@@ -391,8 +391,8 @@ void ef100_remove_netdev(struct efx_probe_data *probe_data)
 	dev_close(efx->net_dev);
 	rtnl_unlock();
 
-	unregister_netdevice_notifier(&efx->netdev_notifier);
-	unregister_netevent_notifier(&efx->netevent_notifier);
+	unregister_netdevice_analtifier(&efx->netdev_analtifier);
+	unregister_netevent_analtifier(&efx->netevent_analtifier);
 #if defined(CONFIG_SFC_SRIOV)
 	if (!efx->type->is_vf)
 		efx_ef100_pci_sriov_disable(efx, true);
@@ -429,15 +429,15 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 	int rc;
 
 	if (efx->mcdi->fn_flags &
-			(1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_NO_ACTIVE_PORT)) {
-		pci_info(efx->pci_dev, "No network port on this PCI function");
+			(1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_ANAL_ACTIVE_PORT)) {
+		pci_info(efx->pci_dev, "Anal network port on this PCI function");
 		return 0;
 	}
 
 	/* Allocate and initialise a struct net_device */
 	net_dev = alloc_etherdev_mq(sizeof(probe_data), EFX_MAX_CORE_TX_QUEUES);
 	if (!net_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	probe_ptr = netdev_priv(net_dev);
 	*probe_ptr = probe_data;
 	efx->net_dev = net_dev;
@@ -505,19 +505,19 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 #endif
 	}
 
-	efx->netdev_notifier.notifier_call = ef100_netdev_event;
-	rc = register_netdevice_notifier(&efx->netdev_notifier);
+	efx->netdev_analtifier.analtifier_call = ef100_netdev_event;
+	rc = register_netdevice_analtifier(&efx->netdev_analtifier);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
-			  "Failed to register netdevice notifier, rc=%d\n", rc);
+			  "Failed to register netdevice analtifier, rc=%d\n", rc);
 		goto fail;
 	}
 
-	efx->netevent_notifier.notifier_call = ef100_netevent_event;
-	rc = register_netevent_notifier(&efx->netevent_notifier);
+	efx->netevent_analtifier.analtifier_call = ef100_netevent_event;
+	rc = register_netevent_analtifier(&efx->netevent_analtifier);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
-			  "Failed to register netevent notifier, rc=%d\n", rc);
+			  "Failed to register netevent analtifier, rc=%d\n", rc);
 		goto fail;
 	}
 

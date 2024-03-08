@@ -15,7 +15,7 @@
 
 enum pdc_packet_bits {
 	PDC_PKT_READ		= (1 << 2),
-	PDC_PKT_NODATA		= (1 << 3),
+	PDC_PKT_ANALDATA		= (1 << 3),
 
 	PDC_PKT_SIZEMASK	= (1 << 7) | (1 << 6) | (1 << 5),
 	PDC_PKT_CLEAR_BSY	= (1 << 4),
@@ -27,7 +27,7 @@ enum pdc_packet_bits {
 
 static inline unsigned int pdc_pkt_header(struct ata_taskfile *tf,
 					  dma_addr_t sg_table,
-					  unsigned int devno, u8 *buf)
+					  unsigned int devanal, u8 *buf)
 {
 	u8 dev_reg;
 	__le32 *buf32 = (__le32 *) buf;
@@ -43,8 +43,8 @@ static inline unsigned int pdc_pkt_header(struct ata_taskfile *tf,
 			buf32[0] = 0;
 		break;
 
-	case ATA_PROT_NODATA:
-		buf32[0] = cpu_to_le32(PDC_PKT_NODATA);
+	case ATA_PROT_ANALDATA:
+		buf32[0] = cpu_to_le32(PDC_PKT_ANALDATA);
 		break;
 
 	default:
@@ -53,9 +53,9 @@ static inline unsigned int pdc_pkt_header(struct ata_taskfile *tf,
 	}
 
 	buf32[1] = cpu_to_le32(sg_table);	/* S/G table addr */
-	buf32[2] = 0;				/* no next-packet */
+	buf32[2] = 0;				/* anal next-packet */
 
-	if (devno == 0)
+	if (devanal == 0)
 		dev_reg = ATA_DEVICE_OBS;
 	else
 		dev_reg = ATA_DEVICE_OBS | ATA_DEV1;

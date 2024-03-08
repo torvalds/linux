@@ -112,8 +112,8 @@ ethnl_set_module_validate(struct ethnl_req_info *req_info,
 	if (!ops->get_module_power_mode || !ops->set_module_power_mode) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[ETHTOOL_A_MODULE_POWER_MODE_POLICY],
-				    "Setting power mode policy is not supported by this device");
-		return -EOPNOTSUPP;
+				    "Setting power mode policy is analt supported by this device");
+		return -EOPANALTSUPP;
 	}
 
 	return 1;

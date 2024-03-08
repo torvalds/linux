@@ -18,7 +18,7 @@ static inline pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea,
 #if defined(CONFIG_DEBUG_VM) &&						\
 	!(defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE))
 	/*
-	 * We should not find huge page if these configs are not enabled.
+	 * We should analt find huge page if these configs are analt enabled.
 	 */
 	if (hshift)
 		WARN_ON(*hshift);
@@ -43,7 +43,7 @@ static inline phys_addr_t ppc_find_vmap_phys(unsigned long addr)
 	int hugepage_shift;
 
 	/*
-	 * init_mm does not free page tables, and does not do THP. It may
+	 * init_mm does analt free page tables, and does analt do THP. It may
 	 * have huge pages from huge vmalloc / ioremap etc.
 	 */
 	ptep = find_init_mm_pte(addr, &hugepage_shift);

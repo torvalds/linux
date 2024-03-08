@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* atmdev.h - ATM device driver declarations and various related items */
  
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -106,7 +106,7 @@ struct atm_dev_stats {
 
 /*
  * These are backend handkers that can be set via the ATM_SETBACKEND call
- * above.  In the future we may support dynamic loading of these - for now,
+ * above.  In the future we may support dynamic loading of these - for analw,
  * they're just being used to share the ATMIOC_BACKEND ioctls
  */
 #define ATM_BACKEND_RAW		0	
@@ -121,7 +121,7 @@ struct atm_dev_stats {
  */
 
 /* Point of loopback				CPU-->SAR-->PHY-->line--> ... */
-#define __ATM_LM_NONE	0	/* no loop back     ^     ^     ^      ^      */
+#define __ATM_LM_ANALNE	0	/* anal loop back     ^     ^     ^      ^      */
 #define __ATM_LM_AAL	1	/* loop back PDUs --'     |     |      |      */
 #define __ATM_LM_ATM	2	/* loop back ATM cells ---'     |      |      */
 /* RESERVED		4	loop back on PHY side  ---'		      */
@@ -135,7 +135,7 @@ struct atm_dev_stats {
 #define __ATM_LM_XTLOC(n)	((n) & 0xff)
 #define __ATM_LM_XTRMT(n)	(((n) >> 8) & 0xff)
 
-#define ATM_LM_NONE	0	/* no loopback */
+#define ATM_LM_ANALNE	0	/* anal loopback */
 
 #define ATM_LM_LOC_AAL	__ATM_LM_MKLOC(__ATM_LM_AAL)
 #define ATM_LM_LOC_ATM	__ATM_LM_MKLOC(__ATM_LM_ATM)
@@ -148,7 +148,7 @@ struct atm_dev_stats {
 #define ATM_LM_RMT_ANALOG __ATM_LM_MKRMT(__ATM_LM_ANALOG)
 
 /*
- * Note: ATM_LM_LOC_* and ATM_LM_RMT_* can be combined, provided that
+ * Analte: ATM_LM_LOC_* and ATM_LM_RMT_* can be combined, provided that
  * __ATM_LM_XTLOC(x) <= __ATM_LM_XTRMT(x)
  */
 
@@ -191,7 +191,7 @@ struct atm_cirange {
  * ATM_VS_* are used to express VC state in a human-friendly way.
  */
 
-#define ATM_VS_IDLE	0	/* VC is not used */
+#define ATM_VS_IDLE	0	/* VC is analt used */
 #define ATM_VS_CONNECTED 1	/* VC is connected */
 #define ATM_VS_CLOSING	2	/* VC is closing */
 #define ATM_VS_LISTEN	3	/* VC is listening for incoming setups */

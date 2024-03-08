@@ -8,7 +8,7 @@
 #define IRDMA_CQPTAIL_WQTAIL GENMASK(10, 0)
 #define IRDMA_CQPTAIL_CQP_OP_ERR BIT(31)
 
-#define IRDMA_CQPERRCODES_CQP_MINOR_CODE GENMASK(15, 0)
+#define IRDMA_CQPERRCODES_CQP_MIANALR_CODE GENMASK(15, 0)
 #define IRDMA_CQPERRCODES_CQP_MAJOR_CODE GENMASK(31, 16)
 #define IRDMA_GLPCI_LBARCTRL_PE_DB_SIZE GENMASK(5, 4)
 #define IRDMA_GLINT_RATE_INTERVAL GENMASK(5, 0)
@@ -96,7 +96,7 @@ struct irdma_mcast_grp_info {
 	bool ipv4_valid:1;
 	bool vlan_valid:1;
 	u16 mg_id;
-	u32 no_of_mgs;
+	u32 anal_of_mgs;
 	u32 dest_ip_addr[4];
 	u16 qs_handle;
 	struct irdma_dma_mem dma_mem_mc;

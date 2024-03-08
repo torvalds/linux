@@ -342,7 +342,7 @@ static void __exit crc32_mod_exit(void)
 	crypto_unregister_shash(&crc32c_alg);
 }
 
-MODULE_AUTHOR("Marcin Nowakowski <marcin.nowakowski@mips.com");
+MODULE_AUTHOR("Marcin Analwakowski <marcin.analwakowski@mips.com");
 MODULE_DESCRIPTION("CRC32 and CRC32C using optional MIPS instructions");
 MODULE_LICENSE("GPL v2");
 

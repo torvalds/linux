@@ -75,7 +75,7 @@ enum sys_t_message_string_subtype {
 #define CLOCK_SYNC_HEADER	(MIPI_SYST_TYPES(CLOCK, TRANSPORT_SYNC)	| \
 				 MIPI_SYST_SEVERITY(MAX))
 
-struct sys_t_policy_node {
+struct sys_t_policy_analde {
 	uuid_t		uuid;
 	bool		do_len;
 	unsigned long	ts_interval;
@@ -83,28 +83,28 @@ struct sys_t_policy_node {
 };
 
 struct sys_t_output {
-	struct sys_t_policy_node	node;
+	struct sys_t_policy_analde	analde;
 	unsigned long	ts_jiffies;
 	unsigned long	clocksync_jiffies;
 };
 
-static void sys_t_policy_node_init(void *priv)
+static void sys_t_policy_analde_init(void *priv)
 {
-	struct sys_t_policy_node *pn = priv;
+	struct sys_t_policy_analde *pn = priv;
 
 	uuid_gen(&pn->uuid);
 }
 
 static int sys_t_output_open(void *priv, struct stm_output *output)
 {
-	struct sys_t_policy_node *pn = priv;
+	struct sys_t_policy_analde *pn = priv;
 	struct sys_t_output *opriv;
 
 	opriv = kzalloc(sizeof(*opriv), GFP_ATOMIC);
 	if (!opriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	memcpy(&opriv->node, pn, sizeof(opriv->node));
+	memcpy(&opriv->analde, pn, sizeof(opriv->analde));
 	output->pdrv_private = opriv;
 
 	return 0;
@@ -118,7 +118,7 @@ static void sys_t_output_close(struct stm_output *output)
 static ssize_t sys_t_policy_uuid_show(struct config_item *item,
 				      char *page)
 {
-	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+	struct sys_t_policy_analde *pn = to_pdrv_policy_analde(item);
 
 	return sprintf(page, "%pU\n", &pn->uuid);
 }
@@ -128,7 +128,7 @@ sys_t_policy_uuid_store(struct config_item *item, const char *page,
 			size_t count)
 {
 	struct mutex *mutexp = &item->ci_group->cg_subsys->su_mutex;
-	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+	struct sys_t_policy_analde *pn = to_pdrv_policy_analde(item);
 	int ret;
 
 	mutex_lock(mutexp);
@@ -143,7 +143,7 @@ CONFIGFS_ATTR(sys_t_policy_, uuid);
 static ssize_t sys_t_policy_do_len_show(struct config_item *item,
 				      char *page)
 {
-	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+	struct sys_t_policy_analde *pn = to_pdrv_policy_analde(item);
 
 	return sprintf(page, "%d\n", pn->do_len);
 }
@@ -153,7 +153,7 @@ sys_t_policy_do_len_store(struct config_item *item, const char *page,
 			size_t count)
 {
 	struct mutex *mutexp = &item->ci_group->cg_subsys->su_mutex;
-	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+	struct sys_t_policy_analde *pn = to_pdrv_policy_analde(item);
 	int ret;
 
 	mutex_lock(mutexp);
@@ -168,7 +168,7 @@ CONFIGFS_ATTR(sys_t_policy_, do_len);
 static ssize_t sys_t_policy_ts_interval_show(struct config_item *item,
 					     char *page)
 {
-	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+	struct sys_t_policy_analde *pn = to_pdrv_policy_analde(item);
 
 	return sprintf(page, "%u\n", jiffies_to_msecs(pn->ts_interval));
 }
@@ -178,7 +178,7 @@ sys_t_policy_ts_interval_store(struct config_item *item, const char *page,
 			       size_t count)
 {
 	struct mutex *mutexp = &item->ci_group->cg_subsys->su_mutex;
-	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+	struct sys_t_policy_analde *pn = to_pdrv_policy_analde(item);
 	unsigned int ms;
 	int ret;
 
@@ -199,7 +199,7 @@ CONFIGFS_ATTR(sys_t_policy_, ts_interval);
 static ssize_t sys_t_policy_clocksync_interval_show(struct config_item *item,
 						    char *page)
 {
-	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+	struct sys_t_policy_analde *pn = to_pdrv_policy_analde(item);
 
 	return sprintf(page, "%u\n", jiffies_to_msecs(pn->clocksync_interval));
 }
@@ -209,7 +209,7 @@ sys_t_policy_clocksync_interval_store(struct config_item *item,
 				      const char *page, size_t count)
 {
 	struct mutex *mutexp = &item->ci_group->cg_subsys->su_mutex;
-	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+	struct sys_t_policy_analde *pn = to_pdrv_policy_analde(item);
 	unsigned int ms;
 	int ret;
 
@@ -237,8 +237,8 @@ static struct configfs_attribute *sys_t_policy_attrs[] = {
 
 static inline bool sys_t_need_ts(struct sys_t_output *op)
 {
-	if (op->node.ts_interval &&
-	    time_after(jiffies, op->ts_jiffies + op->node.ts_interval)) {
+	if (op->analde.ts_interval &&
+	    time_after(jiffies, op->ts_jiffies + op->analde.ts_interval)) {
 		op->ts_jiffies = jiffies;
 
 		return true;
@@ -249,9 +249,9 @@ static inline bool sys_t_need_ts(struct sys_t_output *op)
 
 static bool sys_t_need_clock_sync(struct sys_t_output *op)
 {
-	if (op->node.clocksync_interval &&
+	if (op->analde.clocksync_interval &&
 	    time_after(jiffies,
-		       op->clocksync_jiffies + op->node.clocksync_interval)) {
+		       op->clocksync_jiffies + op->analde.clocksync_interval)) {
 		op->clocksync_jiffies = jiffies;
 
 		return true;
@@ -295,7 +295,7 @@ static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
 	u8 uuid[UUID_SIZE];
 	ssize_t sz;
 
-	/* We require an existing policy node to proceed */
+	/* We require an existing policy analde to proceed */
 	if (!op)
 		return -EINVAL;
 
@@ -305,7 +305,7 @@ static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
 			return sz;
 	}
 
-	if (op->node.do_len)
+	if (op->analde.do_len)
 		header |= MIPI_SYST_OPT_LEN;
 	if (sys_t_need_ts(op))
 		header |= MIPI_SYST_OPT_TS;
@@ -323,13 +323,13 @@ static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
 		return sz;
 
 	/* GUID */
-	export_uuid(uuid, &op->node.uuid);
-	sz = stm_data_write(data, m, c, false, uuid, sizeof(op->node.uuid));
+	export_uuid(uuid, &op->analde.uuid);
+	sz = stm_data_write(data, m, c, false, uuid, sizeof(op->analde.uuid));
 	if (sz <= 0)
 		return sz;
 
 	/* [LENGTH] */
-	if (op->node.do_len) {
+	if (op->analde.do_len) {
 		u16 length = count;
 
 		sz = data->packet(data, m, c, STP_PACKET_DATA, 0, 2,
@@ -358,10 +358,10 @@ static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
 static const struct stm_protocol_driver sys_t_pdrv = {
 	.owner			= THIS_MODULE,
 	.name			= "p_sys-t",
-	.priv_sz		= sizeof(struct sys_t_policy_node),
+	.priv_sz		= sizeof(struct sys_t_policy_analde),
 	.write			= sys_t_write,
 	.policy_attr		= sys_t_policy_attrs,
-	.policy_node_init	= sys_t_policy_node_init,
+	.policy_analde_init	= sys_t_policy_analde_init,
 	.output_open		= sys_t_output_open,
 	.output_close		= sys_t_output_close,
 };

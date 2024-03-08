@@ -12,7 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/input.h>
 #include <linux/init.h>
@@ -82,17 +82,17 @@ static int pc110pad_open(struct input_dev *dev)
 }
 
 /*
- * We try to avoid enabling the hardware if it's not
- * there, but we don't know how to test. But we do know
- * that the PC110 is not a PCI system. So if we find any
+ * We try to avoid enabling the hardware if it's analt
+ * there, but we don't kanalw how to test. But we do kanalw
+ * that the PC110 is analt a PCI system. So if we find any
  * PCI devices in the machine, we don't have a PC110.
  */
 static int __init pc110pad_init(void)
 {
 	int err;
 
-	if (!no_pci_devices())
-		return -ENODEV;
+	if (!anal_pci_devices())
+		return -EANALDEV;
 
 	if (!request_region(pc110pad_io, 4, "pc110pad")) {
 		printk(KERN_ERR "pc110pad: I/O area %#x-%#x in use.\n",
@@ -110,8 +110,8 @@ static int __init pc110pad_init(void)
 
 	pc110pad_dev = input_allocate_device();
 	if (!pc110pad_dev) {
-		printk(KERN_ERR "pc110pad: Not enough memory.\n");
-		err = -ENOMEM;
+		printk(KERN_ERR "pc110pad: Analt eanalugh memory.\n");
+		err = -EANALMEM;
 		goto err_free_irq;
 	}
 

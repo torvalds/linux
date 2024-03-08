@@ -14,7 +14,7 @@
 
 unsigned long initrd_start, initrd_end;
 int initrd_below_start_ok;
-static unsigned int real_root_dev;	/* do_proc_dointvec cannot handle kdev_t */
+static unsigned int real_root_dev;	/* do_proc_dointvec cananalt handle kdev_t */
 static int __initdata mount_initrd = 1;
 
 phys_addr_t phys_initrd_start __initdata;
@@ -40,13 +40,13 @@ static __init int kernel_do_mounts_initrd_sysctls_init(void)
 late_initcall(kernel_do_mounts_initrd_sysctls_init);
 #endif /* CONFIG_SYSCTL */
 
-static int __init no_initrd(char *str)
+static int __init anal_initrd(char *str)
 {
 	mount_initrd = 0;
 	return 1;
 }
 
-__setup("noinitrd", no_initrd);
+__setup("analinitrd", anal_initrd);
 
 static int __init early_initrdmem(char *p)
 {
@@ -120,16 +120,16 @@ static void __init handle_initrd(char *root_device_name)
 	ROOT_DEV = new_decode_dev(real_root_dev);
 	mount_root(root_device_name);
 
-	printk(KERN_NOTICE "Trying to move old root to /initrd ... ");
+	printk(KERN_ANALTICE "Trying to move old root to /initrd ... ");
 	error = init_mount("/old", "/root/initrd", NULL, MS_MOVE, NULL);
 	if (!error)
 		printk("okay\n");
 	else {
-		if (error == -ENOENT)
-			printk("/initrd does not exist. Ignored.\n");
+		if (error == -EANALENT)
+			printk("/initrd does analt exist. Iganalred.\n");
 		else
 			printk("failed\n");
-		printk(KERN_NOTICE "Unmounting old root\n");
+		printk(KERN_ANALTICE "Unmounting old root\n");
 		init_umount("/old", MNT_DETACH);
 	}
 }
@@ -142,7 +142,7 @@ bool __init initrd_load(char *root_device_name)
 		 * Load the initrd data into /dev/ram0. Execute it as initrd
 		 * unless /dev/ram0 is supposed to be our actual root device,
 		 * in that case the ram disk is just set up here, and gets
-		 * mounted in the normal path.
+		 * mounted in the analrmal path.
 		 */
 		if (rd_load_image("/initrd.image") && ROOT_DEV != Root_RAM0) {
 			init_unlink("/initrd.image");

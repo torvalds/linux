@@ -695,10 +695,10 @@ static const struct af9013_reg_mask_val tuner_init_tab_mc44s803[] = {
 };
 
 /*
- * Unknown, probably for tin can tuner, tuner init
- * AF9013_TUNER_UNKNOWN       0x8c
+ * Unkanalwn, probably for tin can tuner, tuner init
+ * AF9013_TUNER_UNKANALWN       0x8c
  */
-static const struct af9013_reg_mask_val tuner_init_tab_unknown[] = {
+static const struct af9013_reg_mask_val tuner_init_tab_unkanalwn[] = {
 	{0x9bd5, 0xff, 0x01},
 	{0x9bd6, 0xff, 0x02},
 	{0xd1a0, 0x02, 0x02},

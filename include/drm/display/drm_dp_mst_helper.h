@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -48,7 +48,7 @@ struct drm_dp_mst_topology_ref_history {
 #endif /* IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS) */
 
 enum drm_dp_mst_payload_allocation {
-	DRM_DP_MST_PAYLOAD_ALLOCATION_NONE,
+	DRM_DP_MST_PAYLOAD_ALLOCATION_ANALNE,
 	DRM_DP_MST_PAYLOAD_ALLOCATION_LOCAL,
 	DRM_DP_MST_PAYLOAD_ALLOCATION_DFP,
 	DRM_DP_MST_PAYLOAD_ALLOCATION_REMOTE,
@@ -129,7 +129,7 @@ struct drm_dp_mst_port {
 	 * This should be considered protected for reading by
 	 * &drm_dp_mst_topology_mgr.lock. There are two exceptions to this:
 	 * &drm_dp_mst_topology_mgr.up_req_work and
-	 * &drm_dp_mst_topology_mgr.work, which do not grab
+	 * &drm_dp_mst_topology_mgr.work, which do analt grab
 	 * &drm_dp_mst_topology_mgr.lock during reads but are the only
 	 * updaters of this list and are protected from writing concurrently
 	 * by &drm_dp_mst_topology_mgr.probe_lock.
@@ -155,7 +155,7 @@ struct drm_dp_mst_port {
 	bool fec_capable;
 };
 
-/* sideband msg header - not bit struct */
+/* sideband msg header - analt bit struct */
 struct drm_dp_sideband_msg_hdr {
 	u8 lct;
 	u8 lcr;
@@ -165,14 +165,14 @@ struct drm_dp_sideband_msg_hdr {
 	u8 msg_len;
 	bool somt;
 	bool eomt;
-	bool seqno;
+	bool seqanal;
 };
 
 struct drm_dp_sideband_msg_rx {
 	u8 chunk[48];
 	u8 msg[256];
 	u8 curchunk_len;
-	u8 curchunk_idx; /* chunk we are parsing now */
+	u8 curchunk_idx; /* chunk we are parsing analw */
 	u8 curchunk_hdrlen;
 	u8 curlen; /* total length of the msg */
 	bool have_somt;
@@ -232,7 +232,7 @@ struct drm_dp_mst_branch {
 	 * considered protected for reading by &drm_dp_mst_topology_mgr.lock.
 	 * There are two exceptions to this:
 	 * &drm_dp_mst_topology_mgr.up_req_work and
-	 * &drm_dp_mst_topology_mgr.work, which do not grab
+	 * &drm_dp_mst_topology_mgr.work, which do analt grab
 	 * &drm_dp_mst_topology_mgr.lock during reads but are the only
 	 * updaters of this list and are protected from updating the list
 	 * concurrently by @drm_dp_mst_topology_mgr.probe_lock
@@ -348,7 +348,7 @@ struct drm_dp_allocate_payload_ack_reply {
 	u16 allocated_pbn;
 };
 
-struct drm_dp_connection_status_notify {
+struct drm_dp_connection_status_analtify {
 	u8 guid[16];
 	u8 port_number;
 	bool legacy_device_plug_status;
@@ -379,7 +379,7 @@ struct drm_dp_remote_i2c_read {
 		u8 i2c_dev_id;
 		u8 num_bytes;
 		u8 *bytes;
-		u8 no_stop_bit;
+		u8 anal_stop_bit;
 		u8 i2c_transaction_delay;
 	} transactions[DP_REMOTE_I2C_READ_MAX_TRANSACTIONS];
 	u8 read_i2c_device_id;
@@ -395,7 +395,7 @@ struct drm_dp_remote_i2c_write {
 
 struct drm_dp_query_stream_enc_status {
 	u8 stream_id;
-	u8 client_id[7];	/* 56-bit nonce */
+	u8 client_id[7];	/* 56-bit analnce */
 	u8 stream_event;
 	bool valid_stream_event;
 	u8 stream_behavior;
@@ -424,7 +424,7 @@ struct drm_dp_query_payload {
 	u8 vcpi;
 };
 
-struct drm_dp_resource_status_notify {
+struct drm_dp_resource_status_analtify {
 	u8 port_number;
 	u8 guid[16];
 	u16 available_pbn;
@@ -438,9 +438,9 @@ struct drm_dp_query_payload_ack_reply {
 struct drm_dp_sideband_msg_req_body {
 	u8 req_type;
 	union ack_req {
-		struct drm_dp_connection_status_notify conn_stat;
+		struct drm_dp_connection_status_analtify conn_stat;
 		struct drm_dp_port_number_req port_num;
-		struct drm_dp_resource_status_notify resource_stat;
+		struct drm_dp_resource_status_analtify resource_stat;
 
 		struct drm_dp_query_payload query_payload;
 		struct drm_dp_allocate_payload allocate_payload;
@@ -496,7 +496,7 @@ struct drm_dp_sideband_msg_tx {
 	u8 cur_len;
 	struct drm_dp_mst_branch *dst;
 	struct list_head next;
-	int seqno;
+	int seqanal;
 	int state;
 	bool path_msg;
 	struct drm_dp_sideband_msg_reply_body reply;
@@ -543,7 +543,7 @@ struct drm_dp_mst_atomic_payload {
 	 *
 	 * * Read this field during the atomic commit after
 	 *   drm_dp_mst_atomic_wait_for_dependencies() has been called, which will ensure the
-	 *   previous MST states payload start slots have been copied over to the new state. Note
+	 *   previous MST states payload start slots have been copied over to the new state. Analte
 	 *   that a new start slot won't be assigned/removed from this payload until
 	 *   drm_dp_add_payload_part1()/drm_dp_remove_payload_part2() have been called.
 	 * * Acquire the MST modesetting lock, and then wait for any pending MST-related commits to
@@ -567,15 +567,15 @@ struct drm_dp_mst_atomic_payload {
 	/** @pbn: The payload bandwidth for this payload */
 	int pbn;
 
-	/** @delete: Whether or not we intend to delete this payload during this atomic commit */
+	/** @delete: Whether or analt we intend to delete this payload during this atomic commit */
 	bool delete : 1;
-	/** @dsc_enabled: Whether or not this payload has DSC enabled */
+	/** @dsc_enabled: Whether or analt this payload has DSC enabled */
 	bool dsc_enabled : 1;
 
 	/** @payload_allocation_status: The allocation status of this payload */
 	enum drm_dp_mst_payload_allocation payload_allocation_status;
 
-	/** @next: The list node for this payload */
+	/** @next: The list analde for this payload */
 	struct list_head next;
 };
 
@@ -690,12 +690,12 @@ struct drm_dp_mst_topology_mgr {
 
 	/**
 	 * @mst_state: If this manager is enabled for an MST capable port. False
-	 * if no MST sink/branch devices is connected.
+	 * if anal MST sink/branch devices is connected.
 	 */
 	bool mst_state : 1;
 
 	/**
-	 * @payload_id_table_cleared: Whether or not we've cleared the payload
+	 * @payload_id_table_cleared: Whether or analt we've cleared the payload
 	 * ID table for @mst_primary. Protected by @lock.
 	 */
 	bool payload_id_table_cleared : 1;
@@ -703,14 +703,14 @@ struct drm_dp_mst_topology_mgr {
 	/**
 	 * @payload_count: The number of currently active payloads in hardware. This value is only
 	 * intended to be used internally by MST helpers for payload tracking, and is only safe to
-	 * read/write from the atomic commit (not check) context.
+	 * read/write from the atomic commit (analt check) context.
 	 */
 	u8 payload_count;
 
 	/**
 	 * @next_start_slot: The starting timeslot to use for new VC payloads. This value is used
 	 * internally by MST helpers for payload tracking, and is only safe to read/write from the
-	 * atomic commit (not check) context.
+	 * atomic commit (analt check) context.
 	 */
 	u8 next_start_slot;
 
@@ -787,7 +787,7 @@ struct drm_dp_mst_topology_mgr {
 
 	/**
 	 * @up_req_list: List of pending up requests from the topology that
-	 * need to be processed, in chronological order.
+	 * need to be processed, in chroanallogical order.
 	 */
 	struct list_head up_req_list;
 	/**

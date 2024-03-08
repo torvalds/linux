@@ -28,9 +28,9 @@ int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 int nl80211_parse_random_mac(struct nlattr **attrs,
 			     u8 *mac_addr, u8 *mac_addr_mask);
 
-void nl80211_notify_wiphy(struct cfg80211_registered_device *rdev,
+void nl80211_analtify_wiphy(struct cfg80211_registered_device *rdev,
 			  enum nl80211_commands cmd);
-void nl80211_notify_iface(struct cfg80211_registered_device *rdev,
+void nl80211_analtify_iface(struct cfg80211_registered_device *rdev,
 			  struct wireless_dev *wdev,
 			  enum nl80211_commands cmd);
 void nl80211_send_scan_start(struct cfg80211_registered_device *rdev,
@@ -112,7 +112,7 @@ int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 		      struct cfg80211_rx_info *info, gfp_t gfp);
 
 void
-nl80211_radar_notify(struct cfg80211_registered_device *rdev,
+nl80211_radar_analtify(struct cfg80211_registered_device *rdev,
 		     const struct cfg80211_chan_def *chandef,
 		     enum nl80211_radar_event event,
 		     struct net_device *netdev, gfp_t gfp);

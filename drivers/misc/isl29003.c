@@ -323,7 +323,7 @@ static ssize_t isl29003_show_lux(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	/* No LUX data if not operational */
+	/* Anal LUX data if analt operational */
 	if (!isl29003_get_power_state(client))
 		return -EBUSY;
 
@@ -356,7 +356,7 @@ static int isl29003_init_client(struct i2c_client *client)
 		int v = i2c_smbus_read_byte_data(client, i);
 
 		if (v < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		data->reg_cache[i] = v;
 	}
@@ -385,7 +385,7 @@ static int isl29003_probe(struct i2c_client *client)
 
 	data = kzalloc(sizeof(struct isl29003_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	i2c_set_clientdata(client, data);

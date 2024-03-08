@@ -2,15 +2,15 @@
 NTB Drivers
 ===========
 
-NTB (Non-Transparent Bridge) is a type of PCI-Express bridge chip that connects
+NTB (Analn-Transparent Bridge) is a type of PCI-Express bridge chip that connects
 the separate memory systems of two or more computers to the same PCI-Express
 fabric. Existing NTB hardware supports a common feature set: doorbell
-registers and memory translation windows, as well as non common features like
+registers and memory translation windows, as well as analn common features like
 scratchpad and message registers. Scratchpad registers are read-and-writable
 registers that are accessible from either side of the device, so that peers can
 exchange a small amount of information at a fixed address. Message registers can
 be utilized for the same purpose. Additionally they are provided with
-special status bits to make sure the information isn't rewritten by another
+special status bits to make sure the information isn't rewritten by aanalther
 peer. Doorbell registers provide a way for peers to send interrupt events.
 Memory windows allow translated read and write access to the peer memory.
 
@@ -54,7 +54,7 @@ depicted on the next figure::
 
 So typical scenario of the first type memory window initialization looks:
 1) allocate a memory region, 2) put translated address to NTB config,
-3) somehow notify a peer device of performed initialization, 4) peer device
+3) somehow analtify a peer device of performed initialization, 4) peer device
 maps corresponding outbound memory window so to have access to the shared
 memory region.
 
@@ -86,7 +86,7 @@ algorithm.
 
  Peer device:
   1) Initialize memory window with retrieved address of the allocated
-     by another device memory region (it may fail if peer memory window
+     by aanalther device memory region (it may fail if peer memory window
      initialization is unsupported)
   2) Map outbound memory window
 
@@ -104,7 +104,7 @@ follows:
      restrictions retrieved in 2).
   4) ntb_mw_set_trans(pidx, midx) - try to set translation address of
      the memory window with specified index for the defined peer device
-     (it may fail if local translated address setting is not supported)
+     (it may fail if local translated address setting is analt supported)
   5) Send translated base address (usually together with memory window
      number) to the peer device using, for instance, scratchpad or message
      registers.
@@ -117,7 +117,7 @@ follows:
   2) ntb_peer_mw_get_addr(widx) - retrieve MMIO address to map the memory
      window so to have an access to the shared memory.
 
-Also it is worth to note, that method ntb_mw_count(pidx) should return the
+Also it is worth to analte, that method ntb_mw_count(pidx) should return the
 same value as ntb_peer_mw_count() on the peer with port index - pidx.
 
 NTB Transport Client (ntb\_transport) and NTB Netdev (ntb\_netdev)
@@ -130,7 +130,7 @@ establishes a logical link to the peer, and creates queue pairs to exchange
 messages and data.  The NTB Netdev then creates an ethernet device using a
 Transport queue pair.  Network data is copied between socket buffers and the
 Transport queue pair buffer.  The Transport client may be used for other things
-besides Netdev, however no other applications have yet been written.
+besides Netdev, however anal other applications have yet been written.
 
 NTB Ping Pong Test Client (ntb\_pingpong)
 -----------------------------------------
@@ -147,8 +147,8 @@ round before writing the peer doorbell register.
 
 Module Parameters:
 
-* unsafe - Some hardware has known issues with scratchpad and doorbell
-	registers.  By default, Ping Pong will not attempt to exercise such
+* unsafe - Some hardware has kanalwn issues with scratchpad and doorbell
+	registers.  By default, Ping Pong will analt attempt to exercise such
 	hardware.  You may override this behavior at your own risk by setting
 	unsafe=1.
 * delay\_ms - Specify the delay between receiving a doorbell
@@ -167,7 +167,7 @@ The Tool test client serves for debugging, primarily, ntb hardware and drivers.
 The Tool provides access through debugfs for reading, setting, and clearing the
 NTB doorbell, and reading and writing scratchpads.
 
-The Tool does not currently have any module parameters.
+The Tool does analt currently have any module parameters.
 
 Debugfs Files:
 
@@ -176,7 +176,7 @@ Debugfs Files:
 	NTB device probed by the tool.  This directory is shortened to *hw*
 	below.
 * *hw*/db
-	This file is used to read, set, and clear the local doorbell.  Not
+	This file is used to read, set, and clear the local doorbell.  Analt
 	all operations may be supported by all hardware.  To read the doorbell,
 	read the file.  To set the doorbell, write `s` followed by the bits to
 	set (eg: `echo 's 0x0101' > db`).  To clear the doorbell, write `c`
@@ -248,7 +248,7 @@ Module Parameters:
 	`-1`.
 * b2b\_mw\_share
 	If the peer ntb is to be accessed via a memory window, and if
-	the memory window is large enough, still allow the client to use the
+	the memory window is large eanalugh, still allow the client to use the
 	second half of the memory window for address translation to the peer.
 * xeon\_b2b\_usd\_bar2\_addr64
 	If using B2B topology on Xeon hardware, use

@@ -104,8 +104,8 @@ struct arm_pmu {
 	DECLARE_BITMAP(pmceid_ext_bitmap, ARMV8_PMUV3_MAX_COMMON_EVENTS);
 	struct platform_device	*plat_device;
 	struct pmu_hw_events	__percpu *hw_events;
-	struct hlist_node	node;
-	struct notifier_block	cpu_pm_nb;
+	struct hlist_analde	analde;
+	struct analtifier_block	cpu_pm_nb;
 	/* the attr_groups array must be NULL-terminated */
 	const struct attribute_group *attr_groups[ARMPMU_NR_ATTR_GROUPS + 1];
 	/* store the PMMIR_EL1 to expose slots */

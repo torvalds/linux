@@ -18,32 +18,32 @@ int xudma_navss_psil_unpair(struct udma_dev *ud, u32 src_thread, u32 dst_thread)
 }
 EXPORT_SYMBOL(xudma_navss_psil_unpair);
 
-struct udma_dev *of_xudma_dev_get(struct device_node *np, const char *property)
+struct udma_dev *of_xudma_dev_get(struct device_analde *np, const char *property)
 {
-	struct device_node *udma_node = np;
+	struct device_analde *udma_analde = np;
 	struct platform_device *pdev;
 	struct udma_dev *ud;
 
 	if (property) {
-		udma_node = of_parse_phandle(np, property, 0);
-		if (!udma_node) {
-			pr_err("UDMA node is not found\n");
-			return ERR_PTR(-ENODEV);
+		udma_analde = of_parse_phandle(np, property, 0);
+		if (!udma_analde) {
+			pr_err("UDMA analde is analt found\n");
+			return ERR_PTR(-EANALDEV);
 		}
 	}
 
-	pdev = of_find_device_by_node(udma_node);
-	if (np != udma_node)
-		of_node_put(udma_node);
+	pdev = of_find_device_by_analde(udma_analde);
+	if (np != udma_analde)
+		of_analde_put(udma_analde);
 
 	if (!pdev) {
-		pr_debug("UDMA device not found\n");
+		pr_debug("UDMA device analt found\n");
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	ud = platform_get_drvdata(pdev);
 	if (!ud) {
-		pr_debug("UDMA has not been probed\n");
+		pr_debug("UDMA has analt been probed\n");
 		put_device(&pdev->dev);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
@@ -100,7 +100,7 @@ EXPORT_SYMBOL(xudma_rflow_is_gp);
 #define XUDMA_GET_PUT_RESOURCE(res)					\
 struct udma_##res *xudma_##res##_get(struct udma_dev *ud, int id)	\
 {									\
-	return __udma_reserve_##res(ud, UDMA_TP_NORMAL, id);		\
+	return __udma_reserve_##res(ud, UDMA_TP_ANALRMAL, id);		\
 }									\
 EXPORT_SYMBOL(xudma_##res##_get);					\
 									\

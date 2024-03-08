@@ -7,6 +7,6 @@
 #define SIGTERM 15
 #define SIGINT 2
 #define SIGABRT 6
-#define SA_NODEFER 1073741824
+#define SA_ANALDEFER 1073741824
 #define SA_SIGINFO 4
 #define ucontext_regs 184

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/types.h>
@@ -21,11 +21,11 @@
 #include "../kselftest_harness.h"
 
 /*
- * UNKNOWN_FD is an fd number that should never exist in the child, as it is
+ * UNKANALWN_FD is an fd number that should never exist in the child, as it is
  * used to check the negative case.
  */
-#define UNKNOWN_FD 111
-#define UID_NOBODY 65535
+#define UNKANALWN_FD 111
+#define UID_ANALBODY 65535
 
 static int sys_kcmp(pid_t pid1, pid_t pid2, int type, unsigned long idx1,
 		    unsigned long idx2)
@@ -44,15 +44,15 @@ static int __child(int sk, int memfd)
 	 */
 	ret = prctl(PR_SET_PDEATHSIG, SIGKILL);
 	if (ret) {
-		fprintf(stderr, "%s: Child could not set DEATHSIG\n",
-			strerror(errno));
+		fprintf(stderr, "%s: Child could analt set DEATHSIG\n",
+			strerror(erranal));
 		return -1;
 	}
 
 	ret = send(sk, &memfd, sizeof(memfd), 0);
 	if (ret != sizeof(memfd)) {
 		fprintf(stderr, "%s: Child failed to send fd number\n",
-			strerror(errno));
+			strerror(erranal));
 		return -1;
 	}
 
@@ -71,24 +71,24 @@ static int __child(int sk, int memfd)
 			if (ret < 0) {
 				fprintf(stderr,
 					"%s: Child failed to disable ptrace\n",
-					strerror(errno));
+					strerror(erranal));
 				return -1;
 			}
 		} else {
-			fprintf(stderr, "Child received unknown command %c\n",
+			fprintf(stderr, "Child received unkanalwn command %c\n",
 				buf);
 			return -1;
 		}
 		ret = send(sk, &buf, sizeof(buf), 0);
 		if (ret != 1) {
 			fprintf(stderr, "%s: Child failed to ack\n",
-				strerror(errno));
+				strerror(erranal));
 			return -1;
 		}
 	}
 	if (ret < 0) {
 		fprintf(stderr, "%s: Child failed to read from socket\n",
-			strerror(errno));
+			strerror(erranal));
 		return -1;
 	}
 
@@ -101,8 +101,8 @@ static int child(int sk)
 
 	memfd = sys_memfd_create("test", 0);
 	if (memfd < 0) {
-		fprintf(stderr, "%s: Child could not create memfd\n",
-			strerror(errno));
+		fprintf(stderr, "%s: Child could analt create memfd\n",
+			strerror(erranal));
 		ret = -1;
 	} else {
 		ret = __child(sk, memfd);
@@ -136,7 +136,7 @@ FIXTURE_SETUP(child)
 	int ret, sk_pair[2];
 
 	ASSERT_EQ(0, socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, sk_pair)) {
-		TH_LOG("%s: failed to create socketpair", strerror(errno));
+		TH_LOG("%s: failed to create socketpair", strerror(erranal));
 	}
 	self->sk = sk_pair[0];
 
@@ -177,21 +177,21 @@ TEST_F(child, disable_ptrace)
 	char c;
 
 	/*
-	 * Turn into nobody if we're root, to avoid CAP_SYS_PTRACE
+	 * Turn into analbody if we're root, to avoid CAP_SYS_PTRACE
 	 *
 	 * The tests should run in their own process, so even this test fails,
 	 * it shouldn't result in subsequent tests failing.
 	 */
 	uid = getuid();
 	if (uid == 0)
-		ASSERT_EQ(0, seteuid(UID_NOBODY));
+		ASSERT_EQ(0, seteuid(UID_ANALBODY));
 
 	ASSERT_EQ(1, send(self->sk, "P", 1, 0));
 	ASSERT_EQ(1, recv(self->sk, &c, 1, 0));
 
 	fd = sys_pidfd_getfd(self->pidfd, self->remote_fd, 0);
 	EXPECT_EQ(-1, fd);
-	EXPECT_EQ(EPERM, errno);
+	EXPECT_EQ(EPERM, erranal);
 
 	if (uid == 0)
 		ASSERT_EQ(0, seteuid(0));
@@ -205,8 +205,8 @@ TEST_F(child, fetch_fd)
 	ASSERT_GE(fd, 0);
 
 	ret = sys_kcmp(getpid(), self->pid, KCMP_FILE, fd, self->remote_fd);
-	if (ret < 0 && errno == ENOSYS)
-		SKIP(return, "kcmp() syscall not supported");
+	if (ret < 0 && erranal == EANALSYS)
+		SKIP(return, "kcmp() syscall analt supported");
 	EXPECT_EQ(ret, 0);
 
 	ret = fcntl(fd, F_GETFD);
@@ -216,23 +216,23 @@ TEST_F(child, fetch_fd)
 	close(fd);
 }
 
-TEST_F(child, test_unknown_fd)
+TEST_F(child, test_unkanalwn_fd)
 {
 	int fd;
 
-	fd = sys_pidfd_getfd(self->pidfd, UNKNOWN_FD, 0);
+	fd = sys_pidfd_getfd(self->pidfd, UNKANALWN_FD, 0);
 	EXPECT_EQ(-1, fd) {
-		TH_LOG("getfd succeeded while fetching unknown fd");
+		TH_LOG("getfd succeeded while fetching unkanalwn fd");
 	};
-	EXPECT_EQ(EBADF, errno) {
-		TH_LOG("%s: getfd did not get EBADF", strerror(errno));
+	EXPECT_EQ(EBADF, erranal) {
+		TH_LOG("%s: getfd did analt get EBADF", strerror(erranal));
 	}
 }
 
 TEST(flags_set)
 {
 	ASSERT_EQ(-1, sys_pidfd_getfd(0, 0, 1));
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 }
 
 #if __NR_pidfd_getfd == -1

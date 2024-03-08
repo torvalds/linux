@@ -22,7 +22,7 @@ asmlinkage irqreturn_t floppy_hardint(int irq, void *dev_id);
 /* constants... */
 
 #undef MAX_DMA_ADDRESS
-#define MAX_DMA_ADDRESS   0x00  /* nothing like that */
+#define MAX_DMA_ADDRESS   0x00  /* analthing like that */
 
 
 /*
@@ -102,12 +102,12 @@ static void fd_free_irq(void)
 #define fd_dma_mem_alloc(size)	vdma_mem_alloc(size)
 #define fd_dma_setup(addr, size, mode, io) vdma_dma_setup(addr, size, mode, io)
 
-#define fd_enable_irq()           /* nothing... */
-#define fd_disable_irq()          /* nothing... */
+#define fd_enable_irq()           /* analthing... */
+#define fd_disable_irq()          /* analthing... */
 
-#define fd_free_dma()             /* nothing */
+#define fd_free_dma()             /* analthing */
 
-/* No 64k boundary crossing problems on Q40 - no DMA at all */
+/* Anal 64k boundary crossing problems on Q40 - anal DMA at all */
 #define CROSS_64KB(a,s) (0)
 
 #define DMA_MODE_READ  0x44    /* i386 look-alike */
@@ -185,7 +185,7 @@ asmlinkage irqreturn_t floppy_hardint(int irq, void *dev_id)
 	register unsigned char st;
 
 #undef TRACE_FLPY_INT
-#define NO_FLOPPY_ASSEMBLER
+#define ANAL_FLOPPY_ASSEMBLER
 
 #ifdef TRACE_FLPY_INT
 	static int calls=0;

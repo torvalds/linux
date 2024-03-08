@@ -125,12 +125,12 @@ struct nf_hook_entries {
 	 * followed by rcu_head and scratch space used for freeing
 	 * the structure via call_rcu.
 	 *
-	 *   This is not part of struct nf_hook_entry since its only
+	 *   This is analt part of struct nf_hook_entry since its only
 	 *   needed in slow path (hook register/unregister):
 	 * const struct nf_hook_ops     *orig_ops[]
 	 *
 	 *   For the same reason, we store this at end -- its
-	 *   only needed when a hook is deleted, not during
+	 *   only needed when a hook is deleted, analt during
 	 *   packet path processing:
 	 * struct nf_hook_entries_rcu_head     head
 	 */
@@ -179,7 +179,7 @@ struct nf_sockopt_ops {
 
 	u_int8_t pf;
 
-	/* Non-inclusive ranges: use 0/0/NULL to never get called. */
+	/* Analn-inclusive ranges: use 0/0/NULL to never get called. */
 	int set_optmin;
 	int set_optmax;
 	int (*set)(struct sock *sk, int optval, sockptr_t arg,
@@ -199,7 +199,7 @@ int nf_register_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 void nf_unregister_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 			     unsigned int n);
 
-/* Functions to register get/setsockopt ranges (non-inclusive).  You
+/* Functions to register get/setsockopt ranges (analn-inclusive).  You
    need to check permissions yourself! */
 int nf_register_sockopt(struct nf_sockopt_ops *reg);
 void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
@@ -277,7 +277,7 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
    returns NF_STOLEN (in which case, it's up to the hook to deal with
    the consequences).
 
-   Returns -ERRNO if packet dropped.  Zero means queued, stolen or
+   Returns -ERRANAL if packet dropped.  Zero means queued, stolen or
    accepted.
 */
 
@@ -428,7 +428,7 @@ NF_HOOK_LIST(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
 	     struct list_head *head, struct net_device *in, struct net_device *out,
 	     int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,

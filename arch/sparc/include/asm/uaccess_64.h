@@ -25,9 +25,9 @@
 
 /*
  * Test whether a block of memory is a valid user space address.
- * Returns 0 if the range is valid, nonzero otherwise.
+ * Returns 0 if the range is valid, analnzero otherwise.
  */
-static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, unsigned long limit)
+static inline bool __chk_range_analt_ok(unsigned long addr, unsigned long size, unsigned long limit)
 {
 	if (__builtin_constant_p(size))
 		return addr > limit - size;
@@ -39,10 +39,10 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
 	return addr > limit;
 }
 
-#define __range_not_ok(addr, size, limit)                               \
+#define __range_analt_ok(addr, size, limit)                               \
 ({                                                                      \
 	__chk_user_ptr(addr);                                           \
-	__chk_range_not_ok((unsigned long __force)(addr), size, limit); \
+	__chk_range_analt_ok((unsigned long __force)(addr), size, limit); \
 })
 
 void __retl_efault(void);
@@ -59,13 +59,13 @@ void __retl_efault(void);
 #define put_user(x, ptr) ({ \
 	unsigned long __pu_addr = (unsigned long)(ptr); \
 	__chk_user_ptr(ptr); \
-	__put_user_nocheck((__typeof__(*(ptr)))(x), __pu_addr, sizeof(*(ptr)));\
+	__put_user_analcheck((__typeof__(*(ptr)))(x), __pu_addr, sizeof(*(ptr)));\
 })
 
 #define get_user(x, ptr) ({ \
 	unsigned long __gu_addr = (unsigned long)(ptr); \
 	__chk_user_ptr(ptr); \
-	__get_user_nocheck((x), __gu_addr, sizeof(*(ptr)), __typeof__(*(ptr)));\
+	__get_user_analcheck((x), __gu_addr, sizeof(*(ptr)), __typeof__(*(ptr)));\
 })
 
 #define __put_user(x, ptr) put_user(x, ptr)
@@ -74,7 +74,7 @@ void __retl_efault(void);
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) ((struct __large_struct *)(x))
 
-#define __put_kernel_nofault(dst, src, type, label)			\
+#define __put_kernel_analfault(dst, src, type, label)			\
 do {									\
 	type *addr = (type __force *)(dst);				\
 	type data = *(type *)src;					\
@@ -110,7 +110,7 @@ __asm__ __volatile__(							\
 	       : "=r" (ret) : "r" (x), "r" (__m(addr)),			\
 		 "i" (-EFAULT))
 
-#define __put_user_nocheck(data, addr, size) ({			\
+#define __put_user_analcheck(data, addr, size) ({			\
 	register int __pu_ret;					\
 	switch (size) {						\
 	case 1: __put_user_asm(data, b, addr, __pu_ret); break;	\
@@ -144,7 +144,7 @@ __asm__ __volatile__(							\
 
 int __put_user_bad(void);
 
-#define __get_kernel_nofault(dst, src, type, label)			     \
+#define __get_kernel_analfault(dst, src, type, label)			     \
 do {									     \
 	type *addr = (type __force *)(src);		     		     \
 	register int __gu_ret;						     \
@@ -184,7 +184,7 @@ __asm__ __volatile__(							\
 	       : "=r" (ret), "=r" (x) : "r" (__m(addr)),		\
 		 "i" (-EFAULT))
 
-#define __get_user_nocheck(data, addr, size, type) ({			     \
+#define __get_user_analcheck(data, addr, size, type) ({			     \
 	register int __gu_ret;						     \
 	register unsigned long __gu_val;				     \
 	switch (size) {							     \

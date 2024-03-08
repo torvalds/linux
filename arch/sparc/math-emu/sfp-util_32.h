@@ -97,14 +97,14 @@
 	   "bne	4b\n\t"							\
 	   "addcc	%0,%0,%0	! shift n1n0 and a 0-bit in lsb\n\t" \
 	   "sub	%1,%2,%1\n\t"						\
-	   "3:	xnor	%0,0,%0\n\t"					\
+	   "3:	xanalr	%0,0,%0\n\t"					\
 	   "! End of inline udiv_qrnnd\n"				\
 	   : "=&r" (q),							\
 	     "=&r" (r)							\
 	   : "r" ((USItype)(d)),					\
 	     "1" ((USItype)(n1)),					\
 	     "0" ((USItype)(n0)) : "%g1", "cc")
-#define UDIV_NEEDS_NORMALIZATION 0
+#define UDIV_NEEDS_ANALRMALIZATION 0
 
 #define abort()								\
 	return 0

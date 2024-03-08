@@ -87,8 +87,8 @@ struct venus_resources {
 	u32 vmem_addr;
 	u32 cp_start;
 	u32 cp_size;
-	u32 cp_nonpixel_start;
-	u32 cp_nonpixel_size;
+	u32 cp_analnpixel_start;
+	u32 cp_analnpixel_size;
 	const char *fwname;
 };
 
@@ -230,7 +230,7 @@ struct venus_core {
 	struct dentry *root;
 	struct venus_img_version {
 		u32 major;
-		u32 minor;
+		u32 mianalr;
 		u32 rev;
 	} venus_ver;
 };
@@ -380,7 +380,7 @@ enum venus_inst_modes {
  * @registeredbufs:	a list of registered capture bufferes
  * @delayed_process:	a list of delayed buffers
  * @delayed_process_work:	a work_struct for process delayed buffers
- * @nonblock:		nonblocking flag
+ * @analnblock:		analnblocking flag
  * @ctrl_handler:	v4l control handler
  * @controls:	a union of decoder and encoder control parameters
  * @fh:	 a holder of v4l file handle structure
@@ -449,7 +449,7 @@ struct venus_inst {
 	struct list_head registeredbufs;
 	struct list_head delayed_process;
 	struct work_struct delayed_process_work;
-	bool nonblock;
+	bool analnblock;
 
 	struct v4l2_ctrl_handler ctrl_handler;
 	union {
@@ -550,18 +550,18 @@ venus_caps_by_codec(struct venus_core *core, u32 codec, u32 domain)
 }
 
 static inline bool
-is_fw_rev_or_newer(struct venus_core *core, u32 vmajor, u32 vminor, u32 vrev)
+is_fw_rev_or_newer(struct venus_core *core, u32 vmajor, u32 vmianalr, u32 vrev)
 {
 	return ((core)->venus_ver.major == vmajor &&
-		(core)->venus_ver.minor == vminor &&
+		(core)->venus_ver.mianalr == vmianalr &&
 		(core)->venus_ver.rev >= vrev);
 }
 
 static inline bool
-is_fw_rev_or_older(struct venus_core *core, u32 vmajor, u32 vminor, u32 vrev)
+is_fw_rev_or_older(struct venus_core *core, u32 vmajor, u32 vmianalr, u32 vrev)
 {
 	return ((core)->venus_ver.major == vmajor &&
-		(core)->venus_ver.minor == vminor &&
+		(core)->venus_ver.mianalr == vmianalr &&
 		(core)->venus_ver.rev <= vrev);
 }
 #endif

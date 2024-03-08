@@ -41,7 +41,7 @@
 # For ID registers we adopt a few conventions for translating the
 # language in the ARM into defines:
 #
-# NI  - Not implemented
+# NI  - Analt implemented
 # IMP - Implemented
 #
 # In general it is recommended that new enumeration items be named for the
@@ -130,7 +130,7 @@ UnsignedEnum	15:12	State3
 EndEnum
 Enum	11:8	State2
 	0b0000	NI
-	0b0001	NO_CV
+	0b0001	ANAL_CV
 	0b0010	CV
 EndEnum
 UnsignedEnum	7:4	State1
@@ -247,7 +247,7 @@ Res0	63:32
 Enum	31:28	InnerShr
 	0b0000	NC
 	0b0001	HW
-	0b1111	IGNORED
+	0b1111	IGANALRED
 EndEnum
 UnsignedEnum	27:24	FCSE
 	0b0000	NI
@@ -271,7 +271,7 @@ EndEnum
 Enum	11:8	OuterShr
 	0b0000	NC
 	0b0001	HW
-	0b1111	IGNORED
+	0b1111	IGANALRED
 EndEnum
 Enum	7:4	PMSA
 	0b0000	NI
@@ -295,12 +295,12 @@ Enum	31:28	BPred
 	0b0000	NI
 	0b0001	BP_SW_MANGED
 	0b0010	BP_ASID_AWARE
-	0b0011	BP_NOSNOOP
+	0b0011	BP_ANALSANALOP
 	0b0100	BP_INVISIBLE
 EndEnum
 Enum	27:24	L1TstCln
 	0b0000	NI
-	0b0001	NOINVALIDATE
+	0b0001	ANALINVALIDATE
 	0b0010	INVALIDATE
 EndEnum
 Enum	23:20	L1Uni
@@ -401,7 +401,7 @@ Enum	19:16	PAN
 EndEnum
 Enum	15:12	MaintBcst
 	0b0000	NI
-	0b0001	NO_TLB
+	0b0001	ANAL_TLB
 	0b0010	ALL
 EndEnum
 Enum	11:8	BPMaint
@@ -546,7 +546,7 @@ Enum	31:28	T32EE
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	27:24	TrueNOP
+Enum	27:24	TrueANALP
 	0b0000	NI
 	0b0001	IMP
 EndEnum
@@ -687,7 +687,7 @@ Sysreg ID_MMFR4_EL1	3	0	0	2	6
 Res0	63:32
 UnsignedEnum	31:28	EVT
 	0b0000	NI
-	0b0001	NO_TLBIS
+	0b0001	ANAL_TLBIS
 	0b0010	TLBIS
 EndEnum
 UnsignedEnum	27:24	CCIDX
@@ -978,8 +978,8 @@ UnsignedEnum	27:24	SME
 EndEnum
 Res0	23:20
 UnsignedEnum	19:16	MPAM_frac
-	0b0000	MINOR_0
-	0b0001	MINOR_1
+	0b0000	MIANALR_0
+	0b0001	MIANALR_1
 EndEnum
 UnsignedEnum	15:12	RAS_frac
 	0b0000	NI
@@ -1812,13 +1812,13 @@ Field	44	DSSBS
 Field	43	ATA
 Field	42	ATA0
 Enum	41:40	TCF
-	0b00	NONE
+	0b00	ANALNE
 	0b01	SYNC
 	0b10	ASYNC
 	0b11	ASYMM
 EndEnum
 Enum	39:38	TCF0
-	0b00	NONE
+	0b00	ANALNE
 	0b01	SYNC
 	0b10	ASYNC
 	0b11	ASYMM
@@ -2067,8 +2067,8 @@ EndSysreg
 Sysreg	PMBIDR_EL1	3	0	9	10	7
 Res0	63:12
 Enum	11:8	EA
-	0b0000	NotDescribed
-	0b0001	Ignored
+	0b0000	AnaltDescribed
+	0b0001	Iganalred
 	0b0010	SError
 EndEnum
 Res0	7:6
@@ -2103,7 +2103,7 @@ Field	63:0	SoftwareContextNumber
 EndSysreg
 
 # The bit layout for CCSIDR_EL1 depends on whether FEAT_CCIDX is implemented.
-# The following is for case when FEAT_CCIDX is not implemented.
+# The following is for case when FEAT_CCIDX is analt implemented.
 Sysreg	CCSIDR_EL1	3	1	0	0	0
 Res0	63:32
 Unkn	31:28
@@ -2165,7 +2165,7 @@ Field	27:24	CWG
 Field	23:20	ERG
 Field	19:16	DminLine
 Enum	15:14	L1Ip
-	# This was named as VPIPT in the ARM but now documented as reserved
+	# This was named as VPIPT in the ARM but analw documented as reserved
 	0b00	RESERVED_VPIPT
 	# This is named as AIVIVT in the ARM but documented as reserved
 	0b01	RESERVED_AIVIVT
@@ -2904,12 +2904,12 @@ Sysreg	TRBMAR_EL1	3	0	9	11	4
 Res0	63:12
 Enum	11:10	PAS
 	0b00	SECURE
-	0b01	NON_SECURE
+	0b01	ANALN_SECURE
 	0b10	ROOT
 	0b11	REALM
 EndEnum
 Enum	9:8	SH
-	0b00	NON_SHAREABLE
+	0b00	ANALN_SHAREABLE
 	0b10	OUTER_SHAREABLE
 	0b11	INNER_SHAREABLE
 EndEnum
@@ -2924,8 +2924,8 @@ EndSysreg
 Sysreg	TRBIDR_EL1	3	0	9	11	7
 Res0	63:12
 Enum	11:8	EA
-	0b0000	NON_DESC
-	0b0001	IGNORE
+	0b0000	ANALN_DESC
+	0b0001	IGANALRE
 	0b0010	SERROR
 EndEnum
 Res0	7:6

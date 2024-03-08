@@ -163,7 +163,7 @@
 #define SRST_CORE3_DBG		11
 #define SRST_TOPDBG		12
 #define SRST_ACLK_CORE		13
-#define SRST_NOC		14
+#define SRST_ANALC		14
 #define SRST_L2C		15
 
 #define SRST_CPUSYS_H		18
@@ -185,13 +185,13 @@
 #define SRST_GPIO1		33
 #define SRST_GPIO2		34
 #define SRST_GPIO3		35
-#define SRST_PERIPH_NOC_A	36
-#define SRST_PERIPH_NOC_BUS_H	37
-#define SRST_PERIPH_NOC_P	38
+#define SRST_PERIPH_ANALC_A	36
+#define SRST_PERIPH_ANALC_BUS_H	37
+#define SRST_PERIPH_ANALC_P	38
 #define SRST_UART0		39
 #define SRST_UART1		40
 #define SRST_UART2		41
-#define SRST_PHYNOC		42
+#define SRST_PHYANALC		42
 #define SRST_I2C0		43
 #define SRST_I2C1		44
 #define SRST_I2C2		45
@@ -200,12 +200,12 @@
 #define SRST_PWM		48
 #define SRST_A53_GIC		49
 #define SRST_DAP		51
-#define SRST_DAP_NOC		52
+#define SRST_DAP_ANALC		52
 #define SRST_CRYPTO		53
 #define SRST_SGRF		54
 #define SRST_GRF		55
 #define SRST_GMAC		56
-#define SRST_PERIPH_NOC_H	58
+#define SRST_PERIPH_ANALC_H	58
 #define SRST_MACPHY		63
 
 #define SRST_DMA		64
@@ -237,12 +237,12 @@
 #define SRST_HOST0_ECHI		92
 #define SRST_HOST1_ECHI		93
 #define SRST_HOST2_ECHI		94
-#define SRST_VOP_NOC_A		95
+#define SRST_VOP_ANALC_A		95
 
 #define SRST_HDMI_P		96
 #define SRST_VIO_ARBI_H		97
-#define SRST_IEP_NOC_A		98
-#define SRST_VIO_NOC_H		99
+#define SRST_IEP_ANALC_A		98
+#define SRST_VIO_ANALC_H		99
 #define SRST_VOP_A		100
 #define SRST_VOP_H		101
 #define SRST_VOP_D		102
@@ -251,25 +251,25 @@
 #define SRST_UTMI2		105
 #define SRST_UTMI3		106
 #define SRST_RGA		107
-#define SRST_RGA_NOC_A		108
+#define SRST_RGA_ANALC_A		108
 #define SRST_RGA_A		109
 #define SRST_RGA_H		110
 #define SRST_HDCP_A		111
 
 #define SRST_VPU_A		112
 #define SRST_VPU_H		113
-#define SRST_VPU_NOC_A		116
-#define SRST_VPU_NOC_H		117
+#define SRST_VPU_ANALC_A		116
+#define SRST_VPU_ANALC_H		117
 #define SRST_RKVDEC_A		118
-#define SRST_RKVDEC_NOC_A	119
+#define SRST_RKVDEC_ANALC_A	119
 #define SRST_RKVDEC_H		120
-#define SRST_RKVDEC_NOC_H	121
+#define SRST_RKVDEC_ANALC_H	121
 #define SRST_RKVDEC_CORE	122
 #define SRST_RKVDEC_CABAC	123
 #define SRST_IEP_A		124
 #define SRST_IEP_H		125
 #define SRST_GPU_A		126
-#define SRST_GPU_NOC_A		127
+#define SRST_GPU_ANALC_A		127
 
 #define SRST_CORE_DBG		128
 #define SRST_DBG_P		129

@@ -14,7 +14,7 @@
 #include <drm/drm_edid.h>
 
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 #include "dw-hdmi-cec.h"
 
@@ -26,7 +26,7 @@ enum {
 	CEC_CTRL_START		= BIT(0),
 	CEC_CTRL_FRAME_TYP	= 3 << 1,
 	CEC_CTRL_RETRY		= 0 << 1,
-	CEC_CTRL_NORMAL		= 1 << 1,
+	CEC_CTRL_ANALRMAL		= 1 << 1,
 	CEC_CTRL_IMMED		= 2 << 1,
 
 	HDMI_CEC_STAT		= 0x7d01,
@@ -60,7 +60,7 @@ struct dw_hdmi_cec {
 	unsigned int tx_status;
 	bool tx_done;
 	bool rx_done;
-	struct cec_notifier *notify;
+	struct cec_analtifier *analtify;
 	int irq;
 
 	u8 regs_polarity;
@@ -105,7 +105,7 @@ static int dw_hdmi_cec_transmit(struct cec_adapter *adap, u8 attempts,
 		break;
 	case CEC_SIGNAL_FREE_TIME_NEW_INITIATOR:
 	default:
-		ctrl = CEC_CTRL_NORMAL;
+		ctrl = CEC_CTRL_ANALRMAL;
 		break;
 	case CEC_SIGNAL_FREE_TIME_NEXT_XFER:
 		ctrl = CEC_CTRL_IMMED;
@@ -129,7 +129,7 @@ static irqreturn_t dw_hdmi_cec_hardirq(int irq, void *data)
 	irqreturn_t ret = IRQ_HANDLED;
 
 	if (stat == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dw_hdmi_write(cec, stat, HDMI_IH_CEC_STAT0);
 
@@ -250,7 +250,7 @@ static int dw_hdmi_cec_probe(struct platform_device *pdev)
 	 */
 	cec = devm_kzalloc(&pdev->dev, sizeof(*cec), GFP_KERNEL);
 	if (!cec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cec->irq = data->irq;
 	cec->ops = data->ops;
@@ -284,19 +284,19 @@ static int dw_hdmi_cec_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	cec->notify = cec_notifier_cec_adap_register(pdev->dev.parent,
+	cec->analtify = cec_analtifier_cec_adap_register(pdev->dev.parent,
 						     NULL, cec->adap);
-	if (!cec->notify)
-		return -ENOMEM;
+	if (!cec->analtify)
+		return -EANALMEM;
 
 	ret = cec_register_adapter(cec->adap, pdev->dev.parent);
 	if (ret < 0) {
-		cec_notifier_cec_adap_unregister(cec->notify, cec->adap);
+		cec_analtifier_cec_adap_unregister(cec->analtify, cec->adap);
 		return ret;
 	}
 
 	/*
-	 * CEC documentation says we must not call cec_delete_adapter
+	 * CEC documentation says we must analt call cec_delete_adapter
 	 * after a successful call to cec_register_adapter().
 	 */
 	devm_remove_action(&pdev->dev, dw_hdmi_cec_del, cec);
@@ -308,7 +308,7 @@ static void dw_hdmi_cec_remove(struct platform_device *pdev)
 {
 	struct dw_hdmi_cec *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notify, cec->adap);
+	cec_analtifier_cec_adap_unregister(cec->analtify, cec->adap);
 	cec_unregister_adapter(cec->adap);
 }
 
@@ -355,6 +355,6 @@ static struct platform_driver dw_hdmi_cec_driver = {
 module_platform_driver(dw_hdmi_cec_driver);
 
 MODULE_AUTHOR("Russell King <rmk+kernel@armlinux.org.uk>");
-MODULE_DESCRIPTION("Synopsys Designware HDMI CEC driver for i.MX");
+MODULE_DESCRIPTION("Syanalpsys Designware HDMI CEC driver for i.MX");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS(PLATFORM_MODULE_PREFIX "dw-hdmi-cec");

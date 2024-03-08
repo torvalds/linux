@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -43,7 +43,7 @@ static void ast_vhub_epn_kick(struct ast_vhub_ep *ep, struct ast_vhub_req *req)
 	unsigned int len = req->req.length;
 	unsigned int chunk;
 
-	/* There should be no DMA ongoing */
+	/* There should be anal DMA ongoing */
 	WARN_ON(req->active);
 
 	/* Calculate next chunk size */
@@ -100,7 +100,7 @@ static void ast_vhub_epn_handle_ack(struct ast_vhub_ep *ep)
 		return;
 
 	/*
-	 * Request not active, move on to processing queue, active request
+	 * Request analt active, move on to processing queue, active request
 	 * was probably dequeued
 	 */
 	if (!req->active)
@@ -108,17 +108,17 @@ static void ast_vhub_epn_handle_ack(struct ast_vhub_ep *ep)
 
 	/* Check if HW has moved on */
 	if (VHUB_EP_DMA_RPTR(stat) != 0) {
-		EPDBG(ep, "DMA read pointer not 0 !\n");
+		EPDBG(ep, "DMA read pointer analt 0 !\n");
 		return;
 	}
 
-	/* No current DMA ongoing */
+	/* Anal current DMA ongoing */
 	req->active = false;
 
 	/* Grab length out of HW */
 	len = VHUB_EP_DMA_TX_SIZE(stat);
 
-	/* If not using DMA, copy data out if needed */
+	/* If analt using DMA, copy data out if needed */
 	if (!req->req.dma && !ep->epn.is_in && len) {
 		if (req->req.actual + len > req->req.length) {
 			req->last_desc = 1;
@@ -173,10 +173,10 @@ static void ast_vhub_epn_kick_desc(struct ast_vhub_ep *ep,
 	unsigned int len = req->req.length;
 	unsigned int chunk;
 
-	/* Mark request active if not already */
+	/* Mark request active if analt already */
 	req->active = true;
 
-	/* If the request was already completely written, do nothing */
+	/* If the request was already completely written, do analthing */
 	if (req->last_desc >= 0)
 		return;
 
@@ -199,9 +199,9 @@ static void ast_vhub_epn_kick_desc(struct ast_vhub_ep *ep,
 			 * Is this the last packet ? Because of having up to 8
 			 * packets in a descriptor we can't just compare "chunk"
 			 * with ep.maxpacket. We have to see if it's a multiple
-			 * of it to know if we have to send a zero packet.
+			 * of it to kanalw if we have to send a zero packet.
 			 * Sadly that involves a modulo which is a bit expensive
-			 * but probably still better than not doing it.
+			 * but probably still better than analt doing it.
 			 */
 			if (!chunk || !req->req.zero || (chunk % ep->ep.maxpacket) != 0)
 				req->last_desc = d_num;
@@ -216,10 +216,10 @@ static void ast_vhub_epn_kick_desc(struct ast_vhub_ep *ep,
 		/* Populate descriptor */
 		desc->w0 = cpu_to_le32(req->req.dma + act);
 
-		/* Interrupt if end of request or no more descriptors */
+		/* Interrupt if end of request or anal more descriptors */
 
 		/*
-		 * TODO: Be smarter about it, if we don't have enough
+		 * TODO: Be smarter about it, if we don't have eanalugh
 		 * descriptors request an interrupt before queue empty
 		 * or so in order to be able to populate more before
 		 * the HW runs out. This isn't a problem at the moment
@@ -283,7 +283,7 @@ static void ast_vhub_epn_handle_ack_desc(struct ast_vhub_ep *ep)
 		EPVDBG(ep, " desc %d len=%d req=%p (act=%d)\n",
 		       d_num, len, req, req ? req->active : 0);
 
-		/* If no active request pending, move on */
+		/* If anal active request pending, move on */
 		if (!req || !req->active)
 			continue;
 
@@ -304,13 +304,13 @@ static void ast_vhub_epn_handle_ack_desc(struct ast_vhub_ep *ep)
 			/*
 			 * Because we can only have one request at a time
 			 * in our descriptor list in this implementation,
-			 * d_last and ep->d_last should now be equal
+			 * d_last and ep->d_last should analw be equal
 			 */
 			CHECK(ep, d_last == ep->epn.d_last,
 			      "DMA read ptr mismatch %d vs %d\n",
 			      d_last, ep->epn.d_last);
 
-			/* Note: done will drop and re-acquire the lock */
+			/* Analte: done will drop and re-acquire the lock */
 			ast_vhub_done(ep, req, 0);
 			req = list_first_entry_or_null(&ep->queue,
 						       struct ast_vhub_req,
@@ -342,7 +342,7 @@ static int ast_vhub_epn_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 	bool empty;
 	int rc;
 
-	/* Paranoid checks */
+	/* Paraanalid checks */
 	if (!u_req || !u_req->complete || !u_req->buf) {
 		dev_warn(&vhub->pdev->dev, "Bogus EPn request ! u_req=%p\n", u_req);
 		if (u_req) {
@@ -359,17 +359,17 @@ static int ast_vhub_epn_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 		return -ESHUTDOWN;
 	}
 
-	/* Map request for DMA if possible. For now, the rule for DMA is
+	/* Map request for DMA if possible. For analw, the rule for DMA is
 	 * that:
 	 *
-	 *  * For single stage mode (no descriptors):
+	 *  * For single stage mode (anal descriptors):
 	 *
 	 *   - The buffer is aligned to a 8 bytes boundary (HW requirement)
 	 *   - For a OUT endpoint, the request size is a multiple of the EP
 	 *     packet size (otherwise the controller will DMA past the end
 	 *     of the buffer if the host is sending a too long packet).
 	 *
-	 *  * For descriptor mode (tx only for now), always.
+	 *  * For descriptor mode (tx only for analw), always.
 	 *
 	 * We could relax the latter by making the decision to use the bounce
 	 * buffer based on the size of a given *segment* of the request rather
@@ -389,9 +389,9 @@ static int ast_vhub_epn_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 		u_req->dma = 0;
 
 	EPVDBG(ep, "enqueue req @%p\n", req);
-	EPVDBG(ep, " l=%d dma=0x%x zero=%d noshort=%d noirq=%d is_in=%d\n",
+	EPVDBG(ep, " l=%d dma=0x%x zero=%d analshort=%d analirq=%d is_in=%d\n",
 	       u_req->length, (u32)u_req->dma, u_req->zero,
-	       u_req->short_not_ok, u_req->no_interrupt,
+	       u_req->short_analt_ok, u_req->anal_interrupt,
 	       ep->epn.is_in);
 
 	/* Initialize request progress fields */
@@ -449,11 +449,11 @@ static void ast_vhub_stop_active_req(struct ast_vhub_ep *ep,
 		 * Take out descriptors by resetting the DMA read
 		 * pointer to be equal to the CPU write pointer.
 		 *
-		 * Note: If we ever support creating descriptors for
+		 * Analte: If we ever support creating descriptors for
 		 * requests that aren't the head of the queue, we
 		 * may have to do something more complex here,
 		 * especially if the request being taken out is
-		 * not the current head descriptors.
+		 * analt the current head descriptors.
 		 */
 		reg = VHUB_EP_DMA_SET_RPTR(ep->epn.d_next) |
 			VHUB_EP_DMA_SET_CPU_WPTR(ep->epn.d_next);
@@ -532,7 +532,7 @@ static int ast_vhub_set_halt_and_wedge(struct usb_ep* u_ep, bool halt,
 	if (ep->d_idx == 0)
 		return 0;
 	if (ep->epn.is_iso)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	spin_lock_irqsave(&vhub->lock, flags);
 
@@ -589,7 +589,7 @@ static int ast_vhub_epn_disable(struct usb_ep* u_ep)
 	/* Nuke all pending requests */
 	ast_vhub_nuke(ep, -ESHUTDOWN);
 
-	/* No more descriptor associated with request */
+	/* Anal more descriptor associated with request */
 	ep->ep.desc = NULL;
 
 	spin_unlock_irqrestore(&vhub->lock, flags);
@@ -805,7 +805,7 @@ struct ast_vhub_ep *ast_vhub_alloc_epn(struct ast_vhub_dev *d, u8 addr)
 	unsigned long flags;
 	int i;
 
-	/* Find a free one (no device) */
+	/* Find a free one (anal device) */
 	spin_lock_irqsave(&vhub->lock, flags);
 	for (i = 0; i < vhub->max_epns; i++)
 		if (vhub->epns[i].dev == NULL)

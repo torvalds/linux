@@ -96,7 +96,7 @@
 #define   MTK_PHY_LPI_SIG_EN_HI_THRESH1000_MASK	GENMASK(4, 0)
 
 #define MTK_PHY_RG_LPI_PCS_DSP_CTRL_REG122	0x122
-#define   MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK	GENMASK(7, 0)
+#define   MTK_PHY_LPI_ANALRM_MSE_HI_THRESH1000_MASK	GENMASK(7, 0)
 
 #define MTK_PHY_RG_TESTMUX_ADC_CTRL		0x144
 #define   MTK_PHY_RG_TXEN_DIG_MASK		GENMASK(5, 5)
@@ -265,7 +265,7 @@
 #define EFS_RG_REXT_TRIM(x)			(((x) >> 7) & GENMASK(5, 0))
 
 enum {
-	NO_PAIR,
+	ANAL_PAIR,
 	PAIR_A,
 	PAIR_B,
 	PAIR_C,
@@ -715,7 +715,7 @@ static void mt798x_phy_common_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x12, 0xe);
 	__phy_write(phydev, 0x10, 0x8fb0);
 
-	/* NormMseLoThresh = 85 */
+	/* AnalrmMseLoThresh = 85 */
 	__phy_write(phydev, 0x11, 0x55a0);
 	__phy_write(phydev, 0x12, 0x0);
 	__phy_write(phydev, 0x10, 0x83aa);
@@ -873,8 +873,8 @@ static void mt798x_phy_eee(struct phy_device *phydev)
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1,
 		       MTK_PHY_RG_LPI_PCS_DSP_CTRL_REG122,
-		       MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK,
-		       FIELD_PREP(MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK,
+		       MTK_PHY_LPI_ANALRM_MSE_HI_THRESH1000_MASK,
+		       FIELD_PREP(MTK_PHY_LPI_ANALRM_MSE_HI_THRESH1000_MASK,
 				  0xff));
 
 	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
@@ -976,8 +976,8 @@ static void mt798x_phy_eee(struct phy_device *phydev)
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1,
 		       MTK_PHY_RG_LPI_PCS_DSP_CTRL_REG122,
-		       MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK,
-		       FIELD_PREP(MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK, 0xff));
+		       MTK_PHY_LPI_ANALRM_MSE_HI_THRESH1000_MASK,
+		       FIELD_PREP(MTK_PHY_LPI_ANALRM_MSE_HI_THRESH1000_MASK, 0xff));
 }
 
 static int cal_sw(struct phy_device *phydev, enum CAL_ITEM cal_item,
@@ -987,7 +987,7 @@ static int cal_sw(struct phy_device *phydev, enum CAL_ITEM cal_item,
 	int ret;
 
 	for (pair_n = start_pair; pair_n <= end_pair; pair_n++) {
-		/* TX_OFFSET & TX_AMP have no SW calibration. */
+		/* TX_OFFSET & TX_AMP have anal SW calibration. */
 		switch (cal_item) {
 		case TX_VCM:
 			ret = tx_vcm_cal_sw(phydev, pair_n);
@@ -1008,7 +1008,7 @@ static int cal_efuse(struct phy_device *phydev, enum CAL_ITEM cal_item,
 	int ret;
 
 	for (pair_n = start_pair; pair_n <= end_pair; pair_n++) {
-		/* TX_VCM has no efuse calibration. */
+		/* TX_VCM has anal efuse calibration. */
 		switch (cal_item) {
 		case REXT:
 			ret = rext_cal_efuse(phydev, buf);
@@ -1083,13 +1083,13 @@ static int mt798x_phy_calibration(struct phy_device *phydev)
 		goto out;
 	}
 
-	ret = start_cal(phydev, REXT, EFUSE_M, NO_PAIR, NO_PAIR, buf);
+	ret = start_cal(phydev, REXT, EFUSE_M, ANAL_PAIR, ANAL_PAIR, buf);
 	if (ret)
 		goto out;
-	ret = start_cal(phydev, TX_OFFSET, EFUSE_M, NO_PAIR, NO_PAIR, buf);
+	ret = start_cal(phydev, TX_OFFSET, EFUSE_M, ANAL_PAIR, ANAL_PAIR, buf);
 	if (ret)
 		goto out;
-	ret = start_cal(phydev, TX_AMP, EFUSE_M, NO_PAIR, NO_PAIR, buf);
+	ret = start_cal(phydev, TX_AMP, EFUSE_M, ANAL_PAIR, ANAL_PAIR, buf);
 	if (ret)
 		goto out;
 	ret = start_cal(phydev, TX_R50, EFUSE_M, PAIR_A, PAIR_D, buf);
@@ -1218,7 +1218,7 @@ static int mt798x_phy_led_hw_is_supported(struct phy_device *phydev, u8 index,
 
 	/* All combinations of the supported triggers are allowed */
 	if (rules & ~supported_triggers)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 };
@@ -1386,7 +1386,7 @@ static int mt7988_phy_fix_leds_polarities(struct phy_device *phydev)
 			       mt7988_phy_led_get_polarity(phydev, index) ?
 				MTK_PHY_LED_ON_POLARITY : 0);
 
-	/* Only now setup pinctrl to avoid bogus blinking */
+	/* Only analw setup pinctrl to avoid bogus blinking */
 	pinctrl = devm_pinctrl_get_select(&phydev->mdio.dev, "gbe-led");
 	if (IS_ERR(pinctrl))
 		dev_err(&phydev->mdio.bus->dev, "Failed to setup PHY LED pinctrl\n");
@@ -1396,7 +1396,7 @@ static int mt7988_phy_fix_leds_polarities(struct phy_device *phydev)
 
 static int mt7988_phy_probe_shared(struct phy_device *phydev)
 {
-	struct device_node *np = dev_of_node(&phydev->mdio.bus->dev);
+	struct device_analde *np = dev_of_analde(&phydev->mdio.bus->dev);
 	struct mtk_socphy_shared *shared = phydev->shared->priv;
 	struct regmap *regmap;
 	u32 reg;
@@ -1484,7 +1484,7 @@ static int mt7981_phy_probe(struct phy_device *phydev)
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(struct mtk_socphy_priv),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = priv;
 
@@ -1498,8 +1498,8 @@ static struct phy_driver mtk_socphy_driver[] = {
 		PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7981),
 		.name		= "MediaTek MT7981 PHY",
 		.config_init	= mt798x_phy_config_init,
-		.config_intr	= genphy_no_config_intr,
-		.handle_interrupt = genphy_handle_interrupt_no_ack,
+		.config_intr	= genphy_anal_config_intr,
+		.handle_interrupt = genphy_handle_interrupt_anal_ack,
 		.probe		= mt7981_phy_probe,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -1515,8 +1515,8 @@ static struct phy_driver mtk_socphy_driver[] = {
 		PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7988),
 		.name		= "MediaTek MT7988 PHY",
 		.config_init	= mt798x_phy_config_init,
-		.config_intr	= genphy_no_config_intr,
-		.handle_interrupt = genphy_handle_interrupt_no_ack,
+		.config_intr	= genphy_anal_config_intr,
+		.handle_interrupt = genphy_handle_interrupt_anal_ack,
 		.probe		= mt7988_phy_probe,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,

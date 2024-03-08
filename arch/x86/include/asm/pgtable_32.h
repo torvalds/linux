@@ -49,7 +49,7 @@ do {						\
 
 /*
  * This is used to calculate the .brk reservation for initial pagetables.
- * Enough space is reserved to allocate pagetables sufficient to cover all
+ * Eanalugh space is reserved to allocate pagetables sufficient to cover all
  * of LOWMEM_PAGES, which is an upper bound on the size of the direct map of
  * lowmem.
  *

@@ -55,7 +55,7 @@ struct debug_data_s {
 	u32			buf[DEBUG_BUF_SIZE];
 };
 
-/* thread.sp.c doesn't have a notion of HIVE_ISP_DDR_WORD_BYTES
+/* thread.sp.c doesn't have a analtion of HIVE_ISP_DDR_WORD_BYTES
    still one point of control is needed for debug purposes */
 
 #ifdef HIVE_ISP_DDR_WORD_BYTES

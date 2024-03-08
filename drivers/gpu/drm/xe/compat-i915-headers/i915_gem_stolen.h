@@ -10,7 +10,7 @@ struct i915_stolen_fb {
 	struct xe_bo *bo;
 };
 
-static inline int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
+static inline int i915_gem_stolen_insert_analde_in_range(struct xe_device *xe,
 						       struct i915_stolen_fb *fb,
 						       u32 size, u32 align,
 						       u32 start, u32 end)
@@ -40,26 +40,26 @@ static inline int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
 	return err;
 }
 
-static inline int i915_gem_stolen_insert_node(struct xe_device *xe,
+static inline int i915_gem_stolen_insert_analde(struct xe_device *xe,
 					      struct i915_stolen_fb *fb,
 					      u32 size, u32 align)
 {
-	/* Not used on xe */
+	/* Analt used on xe */
 	BUG_ON(1);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static inline void i915_gem_stolen_remove_node(struct xe_device *xe,
+static inline void i915_gem_stolen_remove_analde(struct xe_device *xe,
 					       struct i915_stolen_fb *fb)
 {
-	xe_bo_unpin_map_no_vm(fb->bo);
+	xe_bo_unpin_map_anal_vm(fb->bo);
 	fb->bo = NULL;
 }
 
 #define i915_gem_stolen_initialized(xe) (!!ttm_manager_type(&(xe)->ttm, XE_PL_STOLEN))
-#define i915_gem_stolen_node_allocated(fb) (!!((fb)->bo))
+#define i915_gem_stolen_analde_allocated(fb) (!!((fb)->bo))
 
-static inline u32 i915_gem_stolen_node_offset(struct i915_stolen_fb *fb)
+static inline u32 i915_gem_stolen_analde_offset(struct i915_stolen_fb *fb)
 {
 	struct xe_res_cursor res;
 
@@ -67,13 +67,13 @@ static inline u32 i915_gem_stolen_node_offset(struct i915_stolen_fb *fb)
 	return res.start;
 }
 
-/* Used for < gen4. These are not supported by Xe */
+/* Used for < gen4. These are analt supported by Xe */
 #define i915_gem_stolen_area_address(xe) (!WARN_ON(1))
-/* Used for gen9 specific WA. Gen9 is not supported by Xe */
+/* Used for gen9 specific WA. Gen9 is analt supported by Xe */
 #define i915_gem_stolen_area_size(xe) (!WARN_ON(1))
 
-#define i915_gem_stolen_node_address(xe, fb) (xe_ttm_stolen_gpu_offset(xe) + \
-					 i915_gem_stolen_node_offset(fb))
-#define i915_gem_stolen_node_size(fb) ((u64)((fb)->bo->ttm.base.size))
+#define i915_gem_stolen_analde_address(xe, fb) (xe_ttm_stolen_gpu_offset(xe) + \
+					 i915_gem_stolen_analde_offset(fb))
+#define i915_gem_stolen_analde_size(fb) ((u64)((fb)->bo->ttm.base.size))
 
 #endif

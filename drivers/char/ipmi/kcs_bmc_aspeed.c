@@ -6,7 +6,7 @@
 #define pr_fmt(fmt) "aspeed-kcs-bmc: " fmt
 
 #include <linux/atomic.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -106,7 +106,7 @@
 #define OBE_POLL_PERIOD	     (HZ / 2)
 
 enum aspeed_kcs_irq_mode {
-	aspeed_kcs_irq_none,
+	aspeed_kcs_irq_analne,
 	aspeed_kcs_irq_serirq,
 };
 
@@ -206,7 +206,7 @@ static void aspeed_kcs_updateb(struct kcs_bmc_device *kcs_bmc, u32 reg, u8 mask,
 }
 
 /*
- * We note D for Data, and C for Cmd/Status, default rules are
+ * We analte D for Data, and C for Cmd/Status, default rules are
  *
  * 1. Only the D address is given:
  *   A. KCS1/KCS2 (D/C: X/X+4)
@@ -346,7 +346,7 @@ static int aspeed_kcs_config_upstream_irq(struct aspeed_kcs_bmc *priv, u32 id, u
 		break;
 	default:
 		dev_warn(priv->kcs_bmc.dev,
-			 "SerIRQ configuration not supported on KCS channel %d\n",
+			 "SerIRQ configuration analt supported on KCS channel %d\n",
 			 priv->kcs_bmc.channel);
 		return -EINVAL;
 	}
@@ -413,9 +413,9 @@ static void aspeed_kcs_irq_mask_update(struct kcs_bmc_device *kcs_bmc, u8 mask, 
 		if (KCS_BMC_EVENT_TYPE_OBE & state) {
 			/*
 			 * Given we don't have an OBE IRQ, delay by polling briefly to see if we can
-			 * observe such an event before returning to the caller. This is not
+			 * observe such an event before returning to the caller. This is analt
 			 * incorrect because OBF may have already become clear before enabling the
-			 * IRQ if we had one, under which circumstance no event will be propagated
+			 * IRQ if we had one, under which circumstance anal event will be propagated
 			 * anyway.
 			 *
 			 * The onus is on the client to perform a race-free check that it hasn't
@@ -496,12 +496,12 @@ static const struct kcs_ioreg ast_kcs_bmc_ioregs[KCS_CHANNEL_MAX] = {
 
 static int aspeed_kcs_of_get_channel(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct kcs_ioreg ioreg;
 	const __be32 *reg;
 	int i;
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 
 	/* Don't translate addresses, we want offsets for the regmaps */
 	reg = of_get_address(np, 0, NULL, NULL);
@@ -531,11 +531,11 @@ aspeed_kcs_of_get_io_address(struct platform_device *pdev, u32 addrs[2])
 {
 	int rc;
 
-	rc = of_property_read_variable_u32_array(pdev->dev.of_node,
+	rc = of_property_read_variable_u32_array(pdev->dev.of_analde,
 						 "aspeed,lpc-io-reg",
 						 addrs, 1, 2);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "No valid 'aspeed,lpc-io-reg' configured\n");
+		dev_err(&pdev->dev, "Anal valid 'aspeed,lpc-io-reg' configured\n");
 		return rc;
 	}
 
@@ -556,19 +556,19 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 {
 	struct kcs_bmc_device *kcs_bmc;
 	struct aspeed_kcs_bmc *priv;
-	struct device_node *np;
+	struct device_analde *np;
 	bool have_upstream_irq;
 	u32 upstream_irq[2];
 	int rc, channel;
 	int nr_addrs;
 	u32 addrs[2];
 
-	np = pdev->dev.of_node->parent;
+	np = pdev->dev.of_analde->parent;
 	if (!of_device_is_compatible(np, "aspeed,ast2400-lpc-v2") &&
 	    !of_device_is_compatible(np, "aspeed,ast2500-lpc-v2") &&
 	    !of_device_is_compatible(np, "aspeed,ast2600-lpc-v2")) {
 		dev_err(&pdev->dev, "unsupported LPC device binding\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	channel = aspeed_kcs_of_get_channel(pdev);
@@ -579,7 +579,7 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 	if (nr_addrs < 0)
 		return nr_addrs;
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 	rc = of_property_read_u32_array(np, "aspeed,lpc-interrupts", upstream_irq, 2);
 	if (rc && rc != -EINVAL)
 		return -EINVAL;
@@ -588,7 +588,7 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kcs_bmc = &priv->kcs_bmc;
 	kcs_bmc->dev = &pdev->dev;
@@ -596,10 +596,10 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 	kcs_bmc->ioreg = ast_kcs_bmc_ioregs[channel - 1];
 	kcs_bmc->ops = &aspeed_kcs_ops;
 
-	priv->map = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	priv->map = syscon_analde_to_regmap(pdev->dev.parent->of_analde);
 	if (IS_ERR(priv->map)) {
 		dev_err(&pdev->dev, "Couldn't get regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_init(&priv->obe.lock);
@@ -621,7 +621,7 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 		if (rc < 0)
 			return rc;
 	} else {
-		priv->upstream_irq.mode = aspeed_kcs_irq_none;
+		priv->upstream_irq.mode = aspeed_kcs_irq_analne;
 	}
 
 	platform_set_drvdata(pdev, priv);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Implement functions for 802.11i Key management
@@ -30,7 +30,7 @@
 #define GROUP_KEY           0x00000000
 
 #define KEY_CTL_WEP         0x00
-#define KEY_CTL_NONE        0x01
+#define KEY_CTL_ANALNE        0x01
 #define KEY_CTL_TKIP        0x02
 #define KEY_CTL_CCMP        0x03
 #define KEY_CTL_INVALID     0xFF

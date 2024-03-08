@@ -44,7 +44,7 @@ static int cdns2_pci_probe(struct pci_dev *pdev,
 
 	priv_dev = devm_kzalloc(&pdev->dev, sizeof(*priv_dev), GFP_KERNEL);
 	if (!priv_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "Initialize resources\n");
 	rsrc_start = pci_resource_start(pdev, PCI_BAR_DEV);
@@ -80,7 +80,7 @@ static int cdns2_pci_probe(struct pci_dev *pdev,
 
 	device_wakeup_enable(&pdev->dev);
 	if (pci_dev_run_wake(pdev))
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 
 	return 0;
 }
@@ -90,7 +90,7 @@ static void cdns2_pci_remove(struct pci_dev *pdev)
 	struct cdns2_device *priv_dev = pci_get_drvdata(pdev);
 
 	if (pci_dev_run_wake(pdev))
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_analresume(&pdev->dev);
 
 	cdns2_gadget_remove(priv_dev);
 }

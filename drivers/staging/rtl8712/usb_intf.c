@@ -101,7 +101,7 @@ static const struct usb_device_id rtl871x_usb_id_tbl[] = {
 	{USB_DEVICE(0x13D3, 0x3323)},
 	{USB_DEVICE(0x13D3, 0x3311)}, /* 11n mode disable */
 	{USB_DEVICE(0x13D3, 0x3342)},
-	/* ASUS/EKBLenovo */
+	/* ASUS/EKBLeanalvo */
 	{USB_DEVICE(0x13D3, 0x3333)},
 	{USB_DEVICE(0x13D3, 0x3334)},
 	{USB_DEVICE(0x13D3, 0x3335)}, /* 11n mode disable */
@@ -336,7 +336,7 @@ static const struct device_type wlan_type = {
 /*
  * drv_init() - a device potentially for us
  *
- * notes: drv_init() is called when the bus driver has located a card for us
+ * analtes: drv_init() is called when the bus driver has located a card for us
  * to support. We accept the new device by returning 0.
  */
 static int r871xu_drv_init(struct usb_interface *pusb_intf,
@@ -400,7 +400,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			 (tmpU1b & _9356SEL) ? "EEPROM" : "EFUSE",
 			 (tmpU1b & _EEPROM_EN) ? "OK" : "Failed");
 
-		/* To check autoload success or not.*/
+		/* To check autoload success or analt.*/
 		if (tmpU1b & _EEPROM_EN) {
 			AutoloadFail = true;
 			/* The following operations prevent Efuse leakage by
@@ -551,7 +551,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			mac[5] = 0x00;
 		}
 		if (r8712_initmac) {
-			/* Make sure the user did not select a multicast
+			/* Make sure the user did analt select a multicast
 			 * address by setting bit 1 of first octet.
 			 */
 			mac[0] &= 0xFE;
@@ -563,7 +563,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 		}
 		eth_hw_addr_set(pnetdev, mac);
 	}
-	/* step 6. Load the firmware asynchronously */
+	/* step 6. Load the firmware asynchroanalusly */
 	if (rtl871x_load_fw(padapter))
 		goto deinit_drv_sw;
 	init_completion(&padapter->rx_filter_ready);
@@ -578,7 +578,7 @@ free_netdev:
 put_dev:
 	usb_put_dev(udev);
 	usb_set_intfdata(pusb_intf, NULL);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* rmmod module & unplug(SurpriseRemoved) will call r871xu_dev_remove()
@@ -618,7 +618,7 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 	 * fails on sitesurvey for the first time when device is up.
 	 * Reset usb port for sitesurvey fail issue.
 	 */
-	if (udev->state != USB_STATE_NOTATTACHED)
+	if (udev->state != USB_STATE_ANALTATTACHED)
 		usb_reset_device(udev);
 }
 

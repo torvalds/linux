@@ -121,8 +121,8 @@ static const struct prot_bits pte_bits[] = {
 #ifndef CONFIG_ARM_LPAE
 	}, {
 		.mask	= L_PTE_MT_MASK,
-		.val	= L_PTE_MT_DEV_NONSHARED,
-		.set	= "DEV/NONSHARED",
+		.val	= L_PTE_MT_DEV_ANALNSHARED,
+		.set	= "DEV/ANALNSHARED",
 #endif
 	}, {
 		.mask	= L_PTE_MT_MASK,
@@ -241,7 +241,7 @@ static void dump_prot(struct pg_state *st, const struct prot_bits *bits, size_t 
 	}
 }
 
-static void note_prot_wx(struct pg_state *st, unsigned long addr)
+static void analte_prot_wx(struct pg_state *st, unsigned long addr)
 {
 	if (!st->check_wx)
 		return;
@@ -258,7 +258,7 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_page(struct pg_state *st, unsigned long addr,
+static void analte_page(struct pg_state *st, unsigned long addr,
 		      unsigned int level, u64 val, const char *domain)
 {
 	static const char units[] = "KMGTPE";
@@ -276,7 +276,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 		unsigned long delta;
 
 		if (st->current_prot) {
-			note_prot_wx(st, addr);
+			analte_prot_wx(st, addr);
 			pt_dump_seq_printf(st->seq, "0x%08lx-0x%08lx   ",
 				   st->start_address, addr);
 
@@ -316,7 +316,7 @@ static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start,
 
 	for (i = 0; i < PTRS_PER_PTE; i++, pte++) {
 		addr = start + i * PAGE_SIZE;
-		note_page(st, addr, 5, pte_val(*pte), domain);
+		analte_page(st, addr, 5, pte_val(*pte), domain);
 	}
 }
 
@@ -333,7 +333,7 @@ static const char *get_domain_name(pmd_t *pmd)
 	case PMD_DOMAIN(DOMAIN_VECTORS):
 		return "VECTORS";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 #endif
 	return NULL;
@@ -349,8 +349,8 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
 		domain = get_domain_name(pmd);
-		if (pmd_none(*pmd) || pmd_large(*pmd) || !pmd_present(*pmd))
-			note_page(st, addr, 4, pmd_val(*pmd), domain);
+		if (pmd_analne(*pmd) || pmd_large(*pmd) || !pmd_present(*pmd))
+			analte_page(st, addr, 4, pmd_val(*pmd), domain);
 		else
 			walk_pte(st, pmd, addr, domain);
 
@@ -358,7 +358,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 			addr += SECTION_SIZE;
 			pmd++;
 			domain = get_domain_name(pmd);
-			note_page(st, addr, 4, pmd_val(*pmd), domain);
+			analte_page(st, addr, 4, pmd_val(*pmd), domain);
 		}
 	}
 }
@@ -371,10 +371,10 @@ static void walk_pud(struct pg_state *st, p4d_t *p4d, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		addr = start + i * PUD_SIZE;
-		if (!pud_none(*pud)) {
+		if (!pud_analne(*pud)) {
 			walk_pmd(st, pud, addr);
 		} else {
-			note_page(st, addr, 3, pud_val(*pud), NULL);
+			analte_page(st, addr, 3, pud_val(*pud), NULL);
 		}
 	}
 }
@@ -387,10 +387,10 @@ static void walk_p4d(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_P4D; i++, p4d++) {
 		addr = start + i * P4D_SIZE;
-		if (!p4d_none(*p4d)) {
+		if (!p4d_analne(*p4d)) {
 			walk_pud(st, p4d, addr);
 		} else {
-			note_page(st, addr, 2, p4d_val(*p4d), NULL);
+			analte_page(st, addr, 2, p4d_val(*p4d), NULL);
 		}
 	}
 }
@@ -404,10 +404,10 @@ static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
 
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++) {
 		addr = start + i * PGDIR_SIZE;
-		if (!pgd_none(*pgd)) {
+		if (!pgd_analne(*pgd)) {
 			walk_p4d(st, pgd, addr);
 		} else {
-			note_page(st, addr, 1, pgd_val(*pgd), NULL);
+			analte_page(st, addr, 1, pgd_val(*pgd), NULL);
 		}
 	}
 }
@@ -421,7 +421,7 @@ void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
 	};
 
 	walk_pgd(&st, info->mm, info->base_addr);
-	note_page(&st, 0, 0, 0, NULL);
+	analte_page(&st, 0, 0, 0, NULL);
 }
 
 static void __init ptdump_initialize(void)
@@ -462,12 +462,12 @@ void ptdump_check_wx(void)
 	};
 
 	walk_pgd(&st, &init_mm, 0);
-	note_page(&st, 0, 0, 0, NULL);
+	analte_page(&st, 0, 0, 0, NULL);
 	if (st.wx_pages)
 		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n",
 			st.wx_pages);
 	else
-		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+		pr_info("Checked W+X mappings: passed, anal W+X pages found\n");
 }
 
 static int __init ptdump_init(void)

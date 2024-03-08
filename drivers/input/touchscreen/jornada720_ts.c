@@ -76,7 +76,7 @@ static irqreturn_t jornada720_ts_interrupt(int irq, void *dev_id)
 		jornada_ssp_start();
 
 		/* proper reply to request is always TXDUMMY */
-		if (jornada_ssp_inout(GETTOUCHSAMPLES) == TXDUMMY) {
+		if (jornada_ssp_ianalut(GETTOUCHSAMPLES) == TXDUMMY) {
 			jornada720_ts_collect_data(jornada_ts);
 
 			x = jornada720_ts_average(jornada_ts->x_data);
@@ -102,11 +102,11 @@ static int jornada720_ts_probe(struct platform_device *pdev)
 
 	jornada_ts = devm_kzalloc(&pdev->dev, sizeof(*jornada_ts), GFP_KERNEL);
 	if (!jornada_ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, jornada_ts);
 

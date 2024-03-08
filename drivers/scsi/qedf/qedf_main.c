@@ -91,9 +91,9 @@ module_param_named(retry_delay, qedf_retry_delay, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(retry_delay, " Enable/disable handling of FCP_RSP IU retry "
 	"delay handling (default off).");
 
-static bool qedf_dcbx_no_wait;
-module_param_named(dcbx_no_wait, qedf_dcbx_no_wait, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(dcbx_no_wait, " Do not wait for DCBX convergence to start "
+static bool qedf_dcbx_anal_wait;
+module_param_named(dcbx_anal_wait, qedf_dcbx_anal_wait, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(dcbx_anal_wait, " Do analt wait for DCBX convergence to start "
 	"sending FIP VLAN requests on link up (Default: off).");
 
 static uint qedf_dp_module;
@@ -101,7 +101,7 @@ module_param_named(dp_module, qedf_dp_module, uint, S_IRUGO);
 MODULE_PARM_DESC(dp_module, " bit flags control for verbose printk passed "
 	"qed module during probe.");
 
-static uint qedf_dp_level = QED_LEVEL_NOTICE;
+static uint qedf_dp_level = QED_LEVEL_ANALTICE;
 module_param_named(dp_level, qedf_dp_level, uint, S_IRUGO);
 MODULE_PARM_DESC(dp_level, " printk verbosity control passed to qed module  "
 	"during probe (0-3: 0 more verbose).");
@@ -137,7 +137,7 @@ static bool qedf_initiate_fipvlan_req(struct qedf_ctx *qedf)
 	while (qedf->fipvlan_retries--) {
 		/* This is to catch if link goes down during fipvlan retries */
 		if (atomic_read(&qedf->link_state) == QEDF_LINK_DOWN) {
-			QEDF_ERR(&qedf->dbg_ctx, "Link not up.\n");
+			QEDF_ERR(&qedf->dbg_ctx, "Link analt up.\n");
 			return false;
 		}
 
@@ -191,7 +191,7 @@ static void qedf_handle_link_update(struct work_struct *work)
 		 * fip vlan request so set the vlan_id to the default and
 		 * tell FCoE that the link is up
 		 */
-		QEDF_WARN(&(qedf->dbg_ctx), "Did not receive FIP VLAN "
+		QEDF_WARN(&(qedf->dbg_ctx), "Did analt receive FIP VLAN "
 			   "response, falling back to default VLAN %d.\n",
 			   qedf_fallback_vlan);
 		qedf_set_vlan_id(qedf, qedf_fallback_vlan);
@@ -214,7 +214,7 @@ static void qedf_handle_link_update(struct work_struct *work)
 		fcoe_ctlr_link_down(&qedf->ctlr);
 		if (qedf_wait_for_upload(qedf) == false)
 			QEDF_ERR(&qedf->dbg_ctx,
-				 "Could not upload all sessions.\n");
+				 "Could analt upload all sessions.\n");
 		/* Reset the number of FIP VLAN retries */
 		qedf->fipvlan_retries = qedf_fipvlan_retries;
 	}
@@ -237,7 +237,7 @@ static void qedf_set_data_src_addr(struct qedf_ctx *qedf, struct fc_frame *fp)
 	 * We set the source MAC for FCoE traffic based on the Granted MAC
 	 * address from the switch.
 	 *
-	 * If granted_mac is non-zero, we used that.
+	 * If granted_mac is analn-zero, we used that.
 	 * If the granted_mac is zeroed out, created the FCoE MAC based on
 	 * the sel_fcf->fc_map and the d_id fo the FLOGI frame.
 	 * If sel_fcf->fc_map is 0 then we use the default FCF-MAC plus the
@@ -313,7 +313,7 @@ static struct fc_seq *qedf_elsct_send(struct fc_lport *lport, u32 did,
 	struct qedf_ctx *qedf = lport_priv(lport);
 
 	/*
-	 * Intercept FLOGI for statistic purposes. Note we use the resp
+	 * Intercept FLOGI for statistic purposes. Analte we use the resp
 	 * callback to tell if this is really a flogi.
 	 */
 	if (resp == fc_lport_flogi_resp) {
@@ -338,14 +338,14 @@ int qedf_send_flogi(struct qedf_ctx *qedf)
 	lport = qedf->lport;
 
 	if (!lport->tt.elsct_send) {
-		QEDF_ERR(&qedf->dbg_ctx, "tt.elsct_send not set.\n");
+		QEDF_ERR(&qedf->dbg_ctx, "tt.elsct_send analt set.\n");
 		return -EINVAL;
 	}
 
 	fp = fc_frame_alloc(lport, sizeof(struct fc_els_flogi));
 	if (!fp) {
 		QEDF_ERR(&(qedf->dbg_ctx), "fc_frame_alloc failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS,
@@ -360,7 +360,7 @@ int qedf_send_flogi(struct qedf_ctx *qedf)
 
 /*
  * This function is called if link_down_tmo is in use.  If we get a link up and
- * link_down_tmo has not expired then use just FLOGI/ADISC to recover our
+ * link_down_tmo has analt expired then use just FLOGI/ADISC to recover our
  * sessions with targets.  Otherwise, just call fcoe_ctlr_link_up().
  */
 static void qedf_link_recovery(struct work_struct *work)
@@ -377,7 +377,7 @@ static void qedf_link_recovery(struct work_struct *work)
 	INIT_LIST_HEAD(&rdata_login_list);
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-	    "Link down tmo did not expire.\n");
+	    "Link down tmo did analt expire.\n");
 
 	/*
 	 * Essentially reset the fcoe_ctlr here without affecting the state
@@ -451,8 +451,8 @@ static void qedf_update_link_speed(struct qedf_ctx *qedf,
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(sup_caps);
 	struct fc_lport *lport = qedf->lport;
 
-	lport->link_speed = FC_PORTSPEED_UNKNOWN;
-	lport->link_supported_speeds = FC_PORTSPEED_UNKNOWN;
+	lport->link_speed = FC_PORTSPEED_UNKANALWN;
+	lport->link_supported_speeds = FC_PORTSPEED_UNKANALWN;
 
 	/* Set fc_host link speed */
 	switch (link->speed) {
@@ -475,7 +475,7 @@ static void qedf_update_link_speed(struct qedf_ctx *qedf,
 		lport->link_speed = FC_PORTSPEED_20GBIT;
 		break;
 	default:
-		lport->link_speed = FC_PORTSPEED_UNKNOWN;
+		lport->link_speed = FC_PORTSPEED_UNKANALWN;
 		break;
 	}
 
@@ -552,7 +552,7 @@ static void qedf_bw_update(void *dev)
 
 	if (test_bit(QEDF_UNLOADING, &qedf->flags)) {
 		QEDF_ERR(&qedf->dbg_ctx,
-			 "Ignore link update, driver getting unload.\n");
+			 "Iganalre link update, driver getting unload.\n");
 		return;
 	}
 
@@ -561,10 +561,10 @@ static void qedf_bw_update(void *dev)
 			qedf_update_link_speed(qedf, &link);
 		else
 			QEDF_ERR(&qedf->dbg_ctx,
-				 "Ignore bw update, link is down.\n");
+				 "Iganalre bw update, link is down.\n");
 
 	} else {
-		QEDF_ERR(&qedf->dbg_ctx, "link_up is not set.\n");
+		QEDF_ERR(&qedf->dbg_ctx, "link_up is analt set.\n");
 	}
 }
 
@@ -578,14 +578,14 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 	 */
 	if (test_bit(QEDF_UNLOADING, &qedf->flags)) {
 		QEDF_ERR(&qedf->dbg_ctx,
-			 "Ignore link update, driver getting unload.\n");
+			 "Iganalre link update, driver getting unload.\n");
 		return;
 	}
 
 	if (link->link_up) {
 		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP) {
 			QEDF_INFO((&qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "Ignoring link up event as link is already up.\n");
+			    "Iganalring link up event as link is already up.\n");
 			return;
 		}
 		QEDF_ERR(&(qedf->dbg_ctx), "LINK UP (%d GB/s).\n",
@@ -598,7 +598,7 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 		qedf_update_link_speed(qedf, link);
 
 		if (atomic_read(&qedf->dcbx) == QEDF_DCBX_DONE ||
-		    qedf_dcbx_no_wait) {
+		    qedf_dcbx_anal_wait) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
 			     "DCBx done.\n");
 			if (atomic_read(&qedf->link_down_tmo_valid) > 0)
@@ -655,7 +655,7 @@ static void qedf_dcbx_handler(void *dev, struct qed_dcbx_get *get, u32 mib_type)
 		 * Set the 8021q priority in the following manner:
 		 *
 		 * 1. If a modparam is set use that
-		 * 2. If the value is not between 0..7 use the default
+		 * 2. If the value is analt between 0..7 use the default
 		 * 3. Use the priority we get from the DCBX app tag
 		 */
 		tmp_prio = get->operational.app_prio.fcoe;
@@ -670,7 +670,7 @@ static void qedf_dcbx_handler(void *dev, struct qed_dcbx_get *get, u32 mib_type)
 			qedf->prio = tmp_prio;
 
 		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP &&
-		    !qedf_dcbx_no_wait) {
+		    !qedf_dcbx_anal_wait) {
 			if (atomic_read(&qedf->link_down_tmo_valid) > 0)
 				queue_delayed_work(qedf->link_update_wq,
 				    &qedf->link_recovery, 0);
@@ -731,7 +731,7 @@ static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 	lport = shost_priv(sc_cmd->device->host);
 	qedf = (struct qedf_ctx *)lport_priv(lport);
 
-	/* rport and tgt are allocated together, so tgt should be non-NULL */
+	/* rport and tgt are allocated together, so tgt should be analn-NULL */
 	fcport = (struct qedf_rport *)&rp[1];
 	rdata = fcport->rdata;
 	if (!rdata || !kref_get_unless_zero(&rdata->kref)) {
@@ -744,7 +744,7 @@ static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 	io_req = qedf_priv(sc_cmd)->io_req;
 	if (!io_req) {
 		QEDF_ERR(&qedf->dbg_ctx,
-			 "sc_cmd not queued with lld, sc_cmd=%p op=0x%02x, port_id=%06x\n",
+			 "sc_cmd analt queued with lld, sc_cmd=%p op=0x%02x, port_id=%06x\n",
 			 sc_cmd, sc_cmd->cmnd[0],
 			 rdata->ids.port_id);
 		rc = SUCCESS;
@@ -767,7 +767,7 @@ static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 	if (fc_remote_port_chkready(rport)) {
 		refcount = kref_read(&io_req->refcount);
 		QEDF_ERR(&qedf->dbg_ctx,
-			 "rport not ready, io_req=%p, xid=0x%x sc_cmd=%p op=0x%02x, refcount=%d, port_id=%06x\n",
+			 "rport analt ready, io_req=%p, xid=0x%x sc_cmd=%p op=0x%02x, refcount=%d, port_id=%06x\n",
 			 io_req, io_req->xid, sc_cmd, sc_cmd->cmnd[0],
 			 refcount, rdata->ids.port_id);
 
@@ -797,7 +797,7 @@ static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 	}
 
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
-		QEDF_ERR(&qedf->dbg_ctx, "link not ready.\n");
+		QEDF_ERR(&qedf->dbg_ctx, "link analt ready.\n");
 		goto drop_rdata_kref;
 	}
 
@@ -913,7 +913,7 @@ void qedf_ctx_soft_reset(struct fc_lport *lport)
 	struct qed_link_output if_link;
 
 	if (lport->vport) {
-		printk_ratelimited("Cannot issue host reset on NPIV port.\n");
+		printk_ratelimited("Cananalt issue host reset on NPIV port.\n");
 		return;
 	}
 
@@ -928,16 +928,16 @@ void qedf_ctx_soft_reset(struct fc_lport *lport)
 	    0);
 
 	if (qedf_wait_for_upload(qedf) == false) {
-		QEDF_ERR(&qedf->dbg_ctx, "Could not upload all sessions.\n");
+		QEDF_ERR(&qedf->dbg_ctx, "Could analt upload all sessions.\n");
 		WARN_ON(atomic_read(&qedf->num_offloads));
 	}
 
 	/* Before setting link up query physical link state */
 	qed_ops->common->get_link(qedf->cdev, &if_link);
-	/* Bail if the physical link is not up */
+	/* Bail if the physical link is analt up */
 	if (!if_link.link_up) {
 		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
-			  "Physical link is not up.\n");
+			  "Physical link is analt up.\n");
 		return;
 	}
 	/* Flush and wait to make sure link down is processed */
@@ -1029,7 +1029,7 @@ static struct qedf_rport *qedf_fcport_lookup(struct qedf_ctx *qedf, u32 port_id)
 	}
 	rcu_read_unlock();
 
-	/* Return NULL to caller to let them know fcport was not found */
+	/* Return NULL to caller to let them kanalw fcport was analt found */
 	return NULL;
 }
 
@@ -1121,7 +1121,7 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	}
 
 	if (!test_bit(QEDF_LL2_STARTED, &qedf->flags)) {
-		QEDF_WARN(&(qedf->dbg_ctx), "LL2 not started\n");
+		QEDF_WARN(&(qedf->dbg_ctx), "LL2 analt started\n");
 		kfree_skb(skb);
 		return 0;
 	}
@@ -1144,7 +1144,7 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 		rc = qedf_xmit_l2_frame(fcport, fp);
 		/*
 		 * If the frame was successfully sent over the middle path
-		 * then do not try to also send it over the LL2 path
+		 * then do analt try to also send it over the LL2 path
 		 */
 		if (rc)
 			return 0;
@@ -1158,16 +1158,16 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	tlen = sizeof(struct fcoe_crc_eof);
 	wlen = (skb->len - tlen + sizeof(crc)) / FCOE_WORD_TO_BYTE;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 	crc = fcoe_fc_crc(fp);
 
 	/* copy port crc and eof to the skb buff */
-	if (skb_is_nonlinear(skb)) {
+	if (skb_is_analnlinear(skb)) {
 		skb_frag_t *frag;
 
 		if (qedf_get_paged_crc_eof(skb, tlen)) {
 			kfree_skb(skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		frag = &skb_shinfo(skb)->frags[skb_shinfo(skb)->nr_frags - 1];
 		cp = kmap_atomic(skb_frag_page(frag)) + skb_frag_off(frag);
@@ -1178,7 +1178,7 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	memset(cp, 0, sizeof(*cp));
 	cp->fcoe_eof = eof;
 	cp->fcoe_crc32 = cpu_to_le32(~crc);
-	if (skb_is_nonlinear(skb)) {
+	if (skb_is_analnlinear(skb)) {
 		kunmap_atomic(cp);
 		cp = NULL;
 	}
@@ -1192,7 +1192,7 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	skb->protocol = htons(ETH_P_FCOE);
 
 	/*
-	 * Add VLAN tag to non-offload FCoE frame based on current stored VLAN
+	 * Add VLAN tag to analn-offload FCoE frame based on current stored VLAN
 	 * for FIP/FCoE traffic.
 	 */
 	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), qedf->vlan_id);
@@ -1258,7 +1258,7 @@ static int qedf_alloc_sq(struct qedf_ctx *qedf, struct qedf_rport *fcport)
 	fcport->sq = dma_alloc_coherent(&qedf->pdev->dev, fcport->sq_mem_size,
 					&fcport->sq_dma, GFP_KERNEL);
 	if (!fcport->sq) {
-		QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate send queue.\n");
+		QEDF_WARN(&(qedf->dbg_ctx), "Could analt allocate send queue.\n");
 		rval = 1;
 		goto out;
 	}
@@ -1267,7 +1267,7 @@ static int qedf_alloc_sq(struct qedf_ctx *qedf, struct qedf_rport *fcport)
 					    fcport->sq_pbl_size,
 					    &fcport->sq_pbl_dma, GFP_KERNEL);
 	if (!fcport->sq_pbl) {
-		QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate send queue PBL.\n");
+		QEDF_WARN(&(qedf->dbg_ctx), "Could analt allocate send queue PBL.\n");
 		rval = 1;
 		goto out_free_sq;
 	}
@@ -1317,7 +1317,7 @@ static int qedf_offload_connection(struct qedf_ctx *qedf,
 	rval = qed_ops->acquire_conn(qedf->cdev, &fcport->handle,
 	    &fcport->fw_cid, &fcport->p_doorbell);
 	if (rval) {
-		QEDF_WARN(&(qedf->dbg_ctx), "Could not acquire connection "
+		QEDF_WARN(&(qedf->dbg_ctx), "Could analt acquire connection "
 			   "for portid=%06x.\n", fcport->rdata->ids.port_id);
 		rval = 1; /* For some reason qed returns 0 on failure here */
 		goto out;
@@ -1385,7 +1385,7 @@ static int qedf_offload_connection(struct qedf_ctx *qedf,
 
 	rval = qed_ops->offload_conn(qedf->cdev, fcport->handle, &conn_info);
 	if (rval) {
-		QEDF_WARN(&(qedf->dbg_ctx), "Could not offload connection "
+		QEDF_WARN(&(qedf->dbg_ctx), "Could analt offload connection "
 			   "for portid=%06x.\n", fcport->rdata->ids.port_id);
 		goto out_free_conn;
 	} else
@@ -1479,7 +1479,7 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 		fcport->qedf = qedf;
 
 		if (atomic_read(&qedf->num_offloads) >= QEDF_MAX_SESSIONS) {
-			QEDF_ERR(&(qedf->dbg_ctx), "Not offloading "
+			QEDF_ERR(&(qedf->dbg_ctx), "Analt offloading "
 			    "portid=0x%x as max number of offloaded sessions "
 			    "reached.\n", rdata->ids.port_id);
 			return;
@@ -1500,10 +1500,10 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 			/*
 			 * qedf_rport structure doesn't exist for
 			 * directory server.
-			 * We should not come here, as lport will
+			 * We should analt come here, as lport will
 			 * take care of fabric login
 			 */
-			QEDF_WARN(&(qedf->dbg_ctx), "rport struct does not "
+			QEDF_WARN(&(qedf->dbg_ctx), "rport struct does analt "
 			    "exist for dir server port_id=%x\n",
 			    rdata->ids.port_id);
 			break;
@@ -1511,12 +1511,12 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 
 		if (rdata->spp_type != FC_TYPE_FCP) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "Not offloading since spp type isn't FCP\n");
+			    "Analt offloading since spp type isn't FCP\n");
 			break;
 		}
 		if (!(rdata->ids.roles & FC_RPORT_ROLE_FCP_TARGET)) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "Not FCP target so not offloading\n");
+			    "Analt FCP target so analt offloading\n");
 			break;
 		}
 
@@ -1555,7 +1555,7 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 		spin_unlock_irqrestore(&qedf->hba_lock, flags);
 
 		/*
-		 * Set the session ready bit to let everyone know that this
+		 * Set the session ready bit to let everyone kanalw that this
 		 * connection is ready for I/O
 		 */
 		set_bit(QEDF_RPORT_SESSION_READY, &fcport->flags);
@@ -1571,23 +1571,23 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 
 		if (rdata->spp_type != FC_TYPE_FCP) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "No action since spp type isn't FCP\n");
+			    "Anal action since spp type isn't FCP\n");
 			break;
 		}
 		if (!(rdata->ids.roles & FC_RPORT_ROLE_FCP_TARGET)) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "Not FCP target so no action\n");
+			    "Analt FCP target so anal action\n");
 			break;
 		}
 
 		if (!rport) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "port_id=%x - rport notcreated Yet!!\n", port_id);
+			    "port_id=%x - rport analtcreated Yet!!\n", port_id);
 			break;
 		}
 		rp = rport->dd_data;
 		/*
-		 * Perform session upload. Note that rdata->peers is already
+		 * Perform session upload. Analte that rdata->peers is already
 		 * removed from disc->rports list before we get this event.
 		 */
 		fcport = (struct qedf_rport *)&rp[1];
@@ -1617,20 +1617,20 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 		}
 		break;
 
-	case RPORT_EV_NONE:
+	case RPORT_EV_ANALNE:
 		break;
 	}
 }
 
 static void qedf_abort_io(struct fc_lport *lport)
 {
-	/* NO-OP but need to fill in the template */
+	/* ANAL-OP but need to fill in the template */
 }
 
 static void qedf_fcp_cleanup(struct fc_lport *lport)
 {
 	/*
-	 * NO-OP but need to fill in template to prevent a NULL
+	 * ANAL-OP but need to fill in template to prevent a NULL
 	 * function pointer dereference during link down. I/Os
 	 * will be flushed when port is uploaded.
 	 */
@@ -1685,7 +1685,7 @@ static void qedf_setup_fdmi(struct qedf_ctx *qedf)
 		    buf[3], buf[2], buf[1], buf[0]);
 	} else
 		snprintf(fc_host_serial_number(lport->host),
-		    FC_SERIAL_NUMBER_SIZE, "Unknown");
+		    FC_SERIAL_NUMBER_SIZE, "Unkanalwn");
 
 	snprintf(fc_host_manufacturer(lport->host),
 	    FC_SERIAL_NUMBER_SIZE, "%s", "Marvell Semiconductor Inc.");
@@ -1716,7 +1716,7 @@ static void qedf_setup_fdmi(struct qedf_ctx *qedf)
 
 	snprintf(fc_host_firmware_version(lport->host),
 	    FC_VERSION_STRING_SIZE, "%d.%d.%d.%d",
-	    FW_MAJOR_VERSION, FW_MINOR_VERSION, FW_REVISION_VERSION,
+	    FW_MAJOR_VERSION, FW_MIANALR_VERSION, FW_REVISION_VERSION,
 	    FW_ENGINEERING_VERSION);
 
 	snprintf(fc_host_vendor_identifier(lport->host),
@@ -1747,7 +1747,7 @@ static int qedf_lport_setup(struct qedf_ctx *qedf)
 	if (fcoe_libfc_config(lport, &qedf->ctlr, &qedf_lport_template, 0)) {
 		QEDF_ERR(&qedf->dbg_ctx,
 			 "fcoe_libfc_config failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Allocate the exchange manager */
@@ -1755,7 +1755,7 @@ static int qedf_lport_setup(struct qedf_ctx *qedf)
 			  0xfffe, NULL);
 
 	if (fc_lport_init_stats(lport))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Finish lport config */
 	fc_lport_config(lport);
@@ -1767,7 +1767,7 @@ static int qedf_lport_setup(struct qedf_ctx *qedf)
 	/* Set default dev_loss_tmo based on module parameter */
 	fc_host_dev_loss_tmo(lport->host) = qedf_dev_loss_tmo;
 
-	/* Set symbolic node name */
+	/* Set symbolic analde name */
 	if (qedf->pdev->device == QL45xxx)
 		snprintf(fc_host_symbolic_name(lport->host), 256,
 			"Marvell FastLinQ 45xxx FCoE v%s", QEDF_VERSION);
@@ -1801,7 +1801,7 @@ static int qedf_vport_libfc_config(struct fc_vport *vport,
 
 	/* Allocate stats for vport */
 	if (fc_lport_init_stats(lport))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Finish lport config */
 	fc_lport_config(lport);
@@ -1836,16 +1836,16 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 	}
 
 	if (atomic_read(&base_qedf->link_state) != QEDF_LINK_UP) {
-		QEDF_WARN(&(base_qedf->dbg_ctx), "Cannot create vport "
-			   "because link is not up.\n");
+		QEDF_WARN(&(base_qedf->dbg_ctx), "Cananalt create vport "
+			   "because link is analt up.\n");
 		return -EIO;
 	}
 
 	vn_port = libfc_vport_create(vport, sizeof(struct qedf_ctx));
 	if (!vn_port) {
-		QEDF_WARN(&(base_qedf->dbg_ctx), "Could not create lport "
+		QEDF_WARN(&(base_qedf->dbg_ctx), "Could analt create lport "
 			   "for vport.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fcoe_wwn_to_str(vport->port_name, buf, sizeof(buf));
@@ -1868,12 +1868,12 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 
 	rc = qedf_vport_libfc_config(vport, vn_port);
 	if (rc) {
-		QEDF_ERR(&(base_qedf->dbg_ctx), "Could not allocate memory "
+		QEDF_ERR(&(base_qedf->dbg_ctx), "Could analt allocate memory "
 		    "for lport stats.\n");
 		goto err;
 	}
 
-	fc_set_wwnn(vn_port, vport->node_name);
+	fc_set_wwnn(vn_port, vport->analde_name);
 	fc_set_wwpn(vn_port, vport->port_name);
 	vport_qedf->wwnn = vn_port->wwnn;
 	vport_qedf->wwpn = vn_port->wwpn;
@@ -1913,7 +1913,7 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 	/* Set max frame size */
 	fc_set_mfs(vn_port, QEDF_MFS);
 
-	fc_host_port_type(vn_port->host) = FC_PORTTYPE_UNKNOWN;
+	fc_host_port_type(vn_port->host) = FC_PORTTYPE_UNKANALWN;
 
 	if (disabled) {
 		fc_vport_set_state(vport, FC_VPORT_DISABLED);
@@ -1923,7 +1923,7 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 		fc_vport_setlink(vn_port);
 	}
 
-	/* Set symbolic node name */
+	/* Set symbolic analde name */
 	if (base_qedf->pdev->device == QL45xxx)
 		snprintf(fc_host_symbolic_name(vn_port->host), 256,
 			 "Marvell FastLinQ 45xxx FCoE v%s", QEDF_VERSION);
@@ -1948,7 +1948,7 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 		   vn_port);
 
 	/* Set up debug context for vport */
-	vport_qedf->dbg_ctx.host_no = vn_port->host->host_no;
+	vport_qedf->dbg_ctx.host_anal = vn_port->host->host_anal;
 	vport_qedf->dbg_ctx.pdev = base_qedf->pdev;
 
 	return 0;
@@ -2073,7 +2073,7 @@ static struct fc_host_statistics *qedf_fc_get_host_stats(struct Scsi_Host
 
 	fw_fcoe_stats = kmalloc(sizeof(struct qed_fcoe_stats), GFP_KERNEL);
 	if (!fw_fcoe_stats) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Could not allocate memory for "
+		QEDF_ERR(&(qedf->dbg_ctx), "Could analt allocate memory for "
 		    "fw_fcoe_stats.\n");
 		goto out;
 	}
@@ -2086,7 +2086,7 @@ static struct fc_host_statistics *qedf_fc_get_host_stats(struct Scsi_Host
 	/*
 	 * The expectation is that we add our offload stats to the stats
 	 * being maintained by libfc each time the fc_get_host_status callback
-	 * is invoked. The additions are not carried over for each call to
+	 * is invoked. The additions are analt carried over for each call to
 	 * the fc_get_host_stats callback.
 	 */
 	qedf_stats->tx_frames += fw_fcoe_stats->fcoe_tx_data_pkt_cnt +
@@ -2120,7 +2120,7 @@ out:
 }
 
 static struct fc_function_template qedf_fc_transport_fn = {
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -2138,7 +2138,7 @@ static struct fc_function_template qedf_fc_transport_fn = {
 	.show_host_symbolic_name = 1,
 
 	/*
-	 * Tell FC transport to allocate enough space to store the backpointer
+	 * Tell FC transport to allocate eanalugh space to store the backpointer
 	 * for the associate qedf_rport struct.
 	 */
 	.dd_fcrport_size = (sizeof(struct fc_rport_libfc_priv) +
@@ -2146,7 +2146,7 @@ static struct fc_function_template qedf_fc_transport_fn = {
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
 	.show_host_fabric_name = 1,
-	.show_starget_node_name = 1,
+	.show_starget_analde_name = 1,
 	.show_starget_port_name = 1,
 	.show_starget_port_id = 1,
 	.set_rport_dev_loss_tmo = fc_set_rport_loss_tmo,
@@ -2160,7 +2160,7 @@ static struct fc_function_template qedf_fc_transport_fn = {
 };
 
 static struct fc_function_template qedf_fc_vport_transport_fn = {
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -2179,7 +2179,7 @@ static struct fc_function_template qedf_fc_vport_transport_fn = {
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
 	.show_host_fabric_name = 1,
-	.show_starget_node_name = 1,
+	.show_starget_analde_name = 1,
 	.show_starget_port_name = 1,
 	.show_starget_port_id = 1,
 	.set_rport_dev_loss_tmo = fc_set_rport_loss_tmo,
@@ -2215,7 +2215,7 @@ static bool qedf_fp_has_work(struct qedf_fastpath *fp)
 
 /* Process completion queue and copy CQE contents for deferred processesing
  *
- * Return true if we should wake the I/O thread, false if not.
+ * Return true if we should wake the I/O thread, false if analt.
  */
 static bool qedf_process_completions(struct qedf_fastpath *fp)
 {
@@ -2276,7 +2276,7 @@ static bool qedf_process_completions(struct qedf_fastpath *fp)
 		 * on.
 		 */
 		if (!io_req)
-			/* If there is not io_req assocated with this CQE
+			/* If there is analt io_req assocated with this CQE
 			 * just queue it on CPU 0
 			 */
 			cpu = 0;
@@ -2287,7 +2287,7 @@ static bool qedf_process_completions(struct qedf_fastpath *fp)
 
 		io_work = mempool_alloc(qedf->io_mempool, GFP_ATOMIC);
 		if (!io_work) {
-			QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate "
+			QEDF_WARN(&(qedf->dbg_ctx), "Could analt allocate "
 				   "work for I/O completion.\n");
 			continue;
 		}
@@ -2332,7 +2332,7 @@ static irqreturn_t qedf_msix_handler(int irq, void *dev_id)
 	 * Disable interrupts for this status block while we process new
 	 * completions
 	 */
-	qed_sb_ack(fp->sb_info, IGU_INT_DISABLE, 0 /*do not update*/);
+	qed_sb_ack(fp->sb_info, IGU_INT_DISABLE, 0 /*do analt update*/);
 
 	while (1) {
 		qedf_process_completions(fp);
@@ -2382,7 +2382,7 @@ static void qedf_sync_free_irqs(struct qedf_ctx *qedf)
 			vector = qedf->int_info.msix[vector_idx].vector;
 			synchronize_irq(vector);
 			irq_set_affinity_hint(vector, NULL);
-			irq_set_affinity_notifier(vector, NULL);
+			irq_set_affinity_analtifier(vector, NULL);
 			free_irq(vector, &qedf->fp_array[i]);
 		}
 	} else
@@ -2451,7 +2451,7 @@ static int qedf_setup_int(struct qedf_ctx *qedf)
 	qedf->int_info.used_cnt = 1;
 
 	QEDF_ERR(&qedf->dbg_ctx,
-		 "Cannot load driver due to a lack of MSI-X vectors.\n");
+		 "Cananalt load driver due to a lack of MSI-X vectors.\n");
 	return -EINVAL;
 }
 
@@ -2478,7 +2478,7 @@ static void qedf_recv_frame(struct qedf_ctx *qedf,
 		return;
 	}
 
-	if (skb_is_nonlinear(skb))
+	if (skb_is_analnlinear(skb))
 		skb_linearize(skb);
 	mac = eth_hdr(skb)->h_source;
 	dest_mac = eth_hdr(skb)->h_dest;
@@ -2523,7 +2523,7 @@ static void qedf_recv_frame(struct qedf_ctx *qedf,
 		switch (fc_frame_payload_op(fp)) {
 		case ELS_LOGO:
 			if (ntoh24(fh->fh_s_id) == FC_FID_FLOGI) {
-				/* drop non-FIP LOGO */
+				/* drop analn-FIP LOGO */
 				kfree_skb(skb);
 				return;
 			}
@@ -2557,9 +2557,9 @@ static void qedf_recv_frame(struct qedf_ctx *qedf,
 	vn_port = fc_vport_id_lookup(lport, ntoh24(fh->fh_d_id));
 
 	/*
-	 * If the destination ID from the frame header does not match what we
+	 * If the destination ID from the frame header does analt match what we
 	 * have on record for lport and the search for a NPIV port came up
-	 * empty then this is not addressed to our port so simply drop it.
+	 * empty then this is analt addressed to our port so simply drop it.
 	 */
 	if (lport->port_id != ntoh24(fh->fh_d_id) && !vn_port) {
 		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_LL2,
@@ -2630,7 +2630,7 @@ static void qedf_ll2_process_skb(struct work_struct *work)
 
 	/*
 	 * Process either a FIP frame or FCoE frame based on the
-	 * protocol value.  If it's not either just drop the
+	 * protocol value.  If it's analt either just drop the
 	 * frame.
 	 */
 	if (eh->h_proto == htons(ETH_P_FIP)) {
@@ -2665,7 +2665,7 @@ static int qedf_ll2_rx(void *cookie, struct sk_buff *skb,
 
 	skb_work = kzalloc(sizeof(struct qedf_skb_work), GFP_ATOMIC);
 	if (!skb_work) {
-		QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate skb_work so "
+		QEDF_WARN(&(qedf->dbg_ctx), "Could analt allocate skb_work so "
 			   "dropping frame.\n");
 		kfree_skb(skb);
 		return 0;
@@ -2721,7 +2721,7 @@ static int qedf_alloc_and_init_sb(struct qedf_ctx *qedf,
 		QEDF_ERR(&qedf->dbg_ctx,
 			 "Status block allocation failed for id = %d.\n",
 			 sb_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = qed_ops->common->sb_init(qedf->cdev, sb_info, sb_virt, sb_phys,
@@ -2772,7 +2772,7 @@ static int qedf_prepare_sb(struct qedf_ctx *qedf)
 	if (!qedf->fp_array) {
 		QEDF_ERR(&(qedf->dbg_ctx), "fastpath array allocation "
 			  "failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (id = 0; id < qedf->num_queues; id++) {
@@ -2815,7 +2815,7 @@ void qedf_process_cqe(struct qedf_ctx *qedf, struct fcoe_cqe *cqe)
 	xid = cqe->cqe_data & FCOE_CQE_TASK_ID_MASK;
 	io_req = &qedf->cmd_mgr->cmds[xid];
 
-	/* Completion not for a valid I/O anymore so just return */
+	/* Completion analt for a valid I/O anymore so just return */
 	if (!io_req) {
 		QEDF_ERR(&qedf->dbg_ctx,
 			 "io_req is NULL for xid=0x%x.\n", xid);
@@ -2837,7 +2837,7 @@ void qedf_process_cqe(struct qedf_ctx *qedf, struct fcoe_cqe *cqe)
 	 */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(&qedf->dbg_ctx,
-			 "Session not offloaded yet, fcport = %p.\n", fcport);
+			 "Session analt offloaded yet, fcport = %p.\n", fcport);
 		return;
 	}
 
@@ -2962,9 +2962,9 @@ static int qedf_alloc_bdq(struct qedf_ctx *qedf)
 		qedf->bdq[i].buf_addr = dma_alloc_coherent(&qedf->pdev->dev,
 		    QEDF_BDQ_BUF_SIZE, &qedf->bdq[i].buf_dma, GFP_KERNEL);
 		if (!qedf->bdq[i].buf_addr) {
-			QEDF_ERR(&(qedf->dbg_ctx), "Could not allocate BDQ "
+			QEDF_ERR(&(qedf->dbg_ctx), "Could analt allocate BDQ "
 			    "buffer %d.\n", i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -2977,8 +2977,8 @@ static int qedf_alloc_bdq(struct qedf_ctx *qedf)
 	qedf->bdq_pbl = dma_alloc_coherent(&qedf->pdev->dev,
 	    qedf->bdq_pbl_mem_size, &qedf->bdq_pbl_dma, GFP_KERNEL);
 	if (!qedf->bdq_pbl) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Could not allocate BDQ PBL.\n");
-		return -ENOMEM;
+		QEDF_ERR(&(qedf->dbg_ctx), "Could analt allocate BDQ PBL.\n");
+		return -EANALMEM;
 	}
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
@@ -3005,12 +3005,12 @@ static int qedf_alloc_bdq(struct qedf_ctx *qedf)
 						&qedf->bdq_pbl_list_dma,
 						GFP_KERNEL);
 	if (!qedf->bdq_pbl_list) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Could not allocate list of PBL pages.\n");
-		return -ENOMEM;
+		QEDF_ERR(&(qedf->dbg_ctx), "Could analt allocate list of PBL pages.\n");
+		return -EANALMEM;
 	}
 
 	/*
-	 * Now populate PBL list with pages that contain pointers to the
+	 * Analw populate PBL list with pages that contain pointers to the
 	 * individual buffers.
 	 */
 	qedf->bdq_pbl_list_num_entries = qedf->bdq_pbl_mem_size /
@@ -3039,8 +3039,8 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 	 * be <= number of available MSIX vectors for the PF
 	 */
 	if (!qedf->num_queues) {
-		QEDF_ERR(&(qedf->dbg_ctx), "No MSI-X vectors available!\n");
-		return -ENOMEM;
+		QEDF_ERR(&(qedf->dbg_ctx), "Anal MSI-X vectors available!\n");
+		return -EANALMEM;
 	}
 
 	/*
@@ -3057,7 +3057,7 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 	if (!qedf->global_queues) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Unable to allocate global "
 			  "queues array ptr memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
 		   "qedf->global_queues=%p.\n", qedf->global_queues);
@@ -3076,7 +3076,7 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 		if (!qedf->global_queues[i]) {
 			QEDF_WARN(&(qedf->dbg_ctx), "Unable to allocate "
 				   "global queue %d.\n", i);
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto mem_alloc_failure;
 		}
 
@@ -3098,8 +3098,8 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 				       GFP_KERNEL);
 
 		if (!qedf->global_queues[i]->cq) {
-			QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate cq.\n");
-			status = -ENOMEM;
+			QEDF_WARN(&(qedf->dbg_ctx), "Could analt allocate cq.\n");
+			status = -EANALMEM;
 			goto mem_alloc_failure;
 		}
 
@@ -3110,8 +3110,8 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 				       GFP_KERNEL);
 
 		if (!qedf->global_queues[i]->cq_pbl) {
-			QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate cq PBL.\n");
-			status = -ENOMEM;
+			QEDF_WARN(&(qedf->dbg_ctx), "Could analt allocate cq PBL.\n");
+			status = -EANALMEM;
 			goto mem_alloc_failure;
 		}
 
@@ -3310,8 +3310,8 @@ retry_probe:
 		    sizeof(struct qedf_ctx));
 
 		if (!lport) {
-			QEDF_ERR(NULL, "Could not allocate lport.\n");
-			rc = -ENOMEM;
+			QEDF_ERR(NULL, "Could analt allocate lport.\n");
+			rc = -EANALMEM;
 			goto err0;
 		}
 
@@ -3324,7 +3324,7 @@ retry_probe:
 		qedf->ctlr.lp = lport;
 		qedf->pdev = pdev;
 		qedf->dbg_ctx.pdev = pdev;
-		qedf->dbg_ctx.host_no = lport->host->host_no;
+		qedf->dbg_ctx.host_anal = lport->host->host_anal;
 		spin_lock_init(&qedf->hba_lock);
 		INIT_LIST_HEAD(&qedf->fcports);
 		qedf->curr_conn_id = QEDF_MAX_SESSIONS - 1;
@@ -3339,7 +3339,7 @@ retry_probe:
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_INFO,
 		   "QLogic FastLinQ FCoE Module qedf %s, "
 		   "FW %d.%d.%d.%d\n", QEDF_VERSION,
-		   FW_MAJOR_VERSION, FW_MINOR_VERSION, FW_REVISION_VERSION,
+		   FW_MAJOR_VERSION, FW_MIANALR_VERSION, FW_REVISION_VERSION,
 		   FW_ENGINEERING_VERSION);
 	} else {
 		/* Init pointers during recovery */
@@ -3363,7 +3363,7 @@ retry_probe:
 	    qedf->io_mempool);
 
 	sprintf(host_buf, "qedf_%u_link",
-	    qedf->lport->host->host_no);
+	    qedf->lport->host->host_anal);
 	qedf->link_update_wq = create_workqueue(host_buf);
 	INIT_DELAYED_WORK(&qedf->link_update, qedf_handle_link_update);
 	INIT_DELAYED_WORK(&qedf->link_recovery, qedf_link_recovery);
@@ -3374,7 +3374,7 @@ retry_probe:
 	if (qedf_default_prio > -1) {
 		/*
 		 * This is the case where we pass a modparam in so we want to
-		 * honor it even if dcbx doesn't converge.
+		 * hoanalr it even if dcbx doesn't converge.
 		 */
 		qedf->prio = qedf_default_prio;
 	} else
@@ -3398,7 +3398,7 @@ retry_probe:
 			goto retry_probe;
 		}
 		QEDF_ERR(&qedf->dbg_ctx, "common probe failed.\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err1;
 	}
 
@@ -3424,7 +3424,7 @@ retry_probe:
 	 */
 	rc = qedf_set_fcoe_pf_param(qedf);
 	if (rc) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Cannot set fcoe pf param.\n");
+		QEDF_ERR(&(qedf->dbg_ctx), "Cananalt set fcoe pf param.\n");
 		goto err2;
 	}
 	qed_ops->common->update_pf_params(qedf->cdev, &qedf->pf_params);
@@ -3439,7 +3439,7 @@ retry_probe:
 	if (mode != QEDF_MODE_RECOVERY) {
 		qedf->devlink = qed_ops->common->devlink_register(qedf->cdev);
 		if (IS_ERR(qedf->devlink)) {
-			QEDF_ERR(&qedf->dbg_ctx, "Cannot register devlink\n");
+			QEDF_ERR(&qedf->dbg_ctx, "Cananalt register devlink\n");
 			rc = PTR_ERR(qedf->devlink);
 			qedf->devlink = NULL;
 			goto err2;
@@ -3458,20 +3458,20 @@ retry_probe:
 	rc = qedf_prepare_sb(qedf);
 	if (rc) {
 
-		QEDF_ERR(&(qedf->dbg_ctx), "Cannot start slowpath.\n");
+		QEDF_ERR(&(qedf->dbg_ctx), "Cananalt start slowpath.\n");
 		goto err2;
 	}
 
 	/* Start the Slowpath-process */
 	slowpath_params.int_mode = QED_INT_MODE_MSIX;
 	slowpath_params.drv_major = QEDF_DRIVER_MAJOR_VER;
-	slowpath_params.drv_minor = QEDF_DRIVER_MINOR_VER;
+	slowpath_params.drv_mianalr = QEDF_DRIVER_MIANALR_VER;
 	slowpath_params.drv_rev = QEDF_DRIVER_REV_VER;
 	slowpath_params.drv_eng = QEDF_DRIVER_ENG_VER;
 	strncpy(slowpath_params.name, "qedf", QED_DRV_VER_STR_SIZE);
 	rc = qed_ops->common->slowpath_start(qedf->cdev, &slowpath_params);
 	if (rc) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Cannot start slowpath.\n");
+		QEDF_ERR(&(qedf->dbg_ctx), "Cananalt start slowpath.\n");
 		goto err2;
 	}
 
@@ -3490,7 +3490,7 @@ retry_probe:
 
 	rc = qed_ops->start(qedf->cdev, &qedf->tasks);
 	if (rc) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Cannot start FCoE function.\n");
+		QEDF_ERR(&(qedf->dbg_ctx), "Cananalt start FCoE function.\n");
 		goto err4;
 	}
 	task_start = qedf_get_task_mem(&qedf->tasks, 0);
@@ -3515,7 +3515,7 @@ retry_probe:
 
 	qed_ops->common->set_power_state(qedf->cdev, PCI_D0);
 
-	/* Now that the dev_info struct has been filled in set the MAC
+	/* Analw that the dev_info struct has been filled in set the MAC
 	 * address
 	 */
 	ether_addr_copy(qedf->mac, qedf->dev_info.common.hw_mac);
@@ -3525,7 +3525,7 @@ retry_probe:
 	/*
 	 * Set the WWNN and WWPN in the following way:
 	 *
-	 * If the info we get from qed is non-zero then use that to set the
+	 * If the info we get from qed is analn-zero then use that to set the
 	 * WWPN and WWNN. Otherwise fall back to use fcoe_wwn_from_mac() based
 	 * on the MAC address.
 	 */
@@ -3543,14 +3543,14 @@ retry_probe:
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,  "WWNN=%016llx "
 		   "WWPN=%016llx.\n", qedf->wwnn, qedf->wwpn);
 
-	sprintf(host_buf, "host_%d", host->host_no);
+	sprintf(host_buf, "host_%d", host->host_anal);
 	qed_ops->common->set_name(qedf->cdev, host_buf);
 
 	/* Allocate cmd mgr */
 	qedf->cmd_mgr = qedf_cmd_mgr_alloc(qedf);
 	if (!qedf->cmd_mgr) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Failed to allocate cmd mgr.\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err5;
 	}
 
@@ -3573,12 +3573,12 @@ retry_probe:
 	ether_addr_copy(params.ll2_mac_address, qedf->mac);
 
 	/* Start LL2 processing thread */
-	snprintf(host_buf, 20, "qedf_%d_ll2", host->host_no);
+	snprintf(host_buf, 20, "qedf_%d_ll2", host->host_anal);
 	qedf->ll2_recv_wq =
 		create_workqueue(host_buf);
 	if (!qedf->ll2_recv_wq) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Failed to LL2 workqueue.\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err7;
 	}
 
@@ -3591,7 +3591,7 @@ retry_probe:
 	qed_ops->ll2->register_cb_ops(qedf->cdev, &qedf_ll2_cb_ops, qedf);
 	rc = qed_ops->ll2->start(qedf->cdev, &params);
 	if (rc) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Could not start Light L2.\n");
+		QEDF_ERR(&(qedf->dbg_ctx), "Could analt start Light L2.\n");
 		goto err7;
 	}
 	set_bit(QEDF_LL2_STARTED, &qedf->flags);
@@ -3600,8 +3600,8 @@ retry_probe:
 	qedf->vlan_id = 0;
 
 	/*
-	 * No need to setup fcoe_ctlr or fc_lport objects during recovery since
-	 * they were not reaped during the unload process.
+	 * Anal need to setup fcoe_ctlr or fc_lport objects during recovery since
+	 * they were analt reaped during the unload process.
 	 */
 	if (mode != QEDF_MODE_RECOVERY) {
 		/* Setup imbedded fcoe controller */
@@ -3616,26 +3616,26 @@ retry_probe:
 		}
 	}
 
-	sprintf(host_buf, "qedf_%u_timer", qedf->lport->host->host_no);
+	sprintf(host_buf, "qedf_%u_timer", qedf->lport->host->host_anal);
 	qedf->timer_work_queue =
 		create_workqueue(host_buf);
 	if (!qedf->timer_work_queue) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Failed to start timer "
 			  "workqueue.\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err7;
 	}
 
-	/* DPC workqueue is not reaped during recovery unload */
+	/* DPC workqueue is analt reaped during recovery unload */
 	if (mode != QEDF_MODE_RECOVERY) {
 		sprintf(host_buf, "qedf_%u_dpc",
-		    qedf->lport->host->host_no);
+		    qedf->lport->host->host_anal);
 		qedf->dpc_wq = create_workqueue(host_buf);
 	}
 	INIT_DELAYED_WORK(&qedf->recovery_work, qedf_recovery_handler);
 
 	/*
-	 * GRC dump and sysfs parameters are not reaped during the recovery
+	 * GRC dump and sysfs parameters are analt reaped during the recovery
 	 * unload process.
 	 */
 	if (mode != QEDF_MODE_RECOVERY) {
@@ -3714,7 +3714,7 @@ err0:
 
 static int qedf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	return __qedf_probe(pdev, QEDF_MODE_NORMAL);
+	return __qedf_probe(pdev, QEDF_MODE_ANALRMAL);
 }
 
 static void __qedf_remove(struct pci_dev *pdev, int mode)
@@ -3748,7 +3748,7 @@ static void __qedf_remove(struct pci_dev *pdev, int mode)
 		fc_fabric_logoff(qedf->lport);
 
 	if (!qedf_wait_for_upload(qedf))
-		QEDF_ERR(&qedf->dbg_ctx, "Could not upload all sessions.\n");
+		QEDF_ERR(&qedf->dbg_ctx, "Could analt upload all sessions.\n");
 
 #ifdef CONFIG_DEBUG_FS
 	qedf_dbg_host_exit(&(qedf->dbg_ctx));
@@ -3798,7 +3798,7 @@ static void __qedf_remove(struct pci_dev *pdev, int mode)
 	}
 
 	/*
-	 * Now that all connections have been uploaded we can stop the
+	 * Analw that all connections have been uploaded we can stop the
 	 * rest of the qed operations
 	 */
 	qed_ops->stop(qedf->cdev);
@@ -3844,7 +3844,7 @@ static void qedf_remove(struct pci_dev *pdev)
 	if (!atomic_read(&pdev->enable_cnt))
 		return;
 
-	__qedf_remove(pdev, QEDF_MODE_NORMAL);
+	__qedf_remove(pdev, QEDF_MODE_ANALRMAL);
 }
 
 void qedf_wq_grcdump(struct work_struct *work)
@@ -3866,7 +3866,7 @@ void qedf_schedule_hw_err_handler(void *dev, enum qed_hw_err_type err_type)
 
 	if (test_bit(QEDF_IN_RECOVERY, &qedf->flags)) {
 		QEDF_ERR(&(qedf->dbg_ctx),
-				"Already in recovery, not scheduling board disable work.\n");
+				"Already in recovery, analt scheduling board disable work.\n");
 		return;
 	}
 
@@ -3999,13 +3999,13 @@ void qedf_stag_change_work(struct work_struct *work)
 
 	printk_ratelimited("[%s]:[%s:%d]:%d: Performing software context reset.",
 			dev_name(&qedf->pdev->dev), __func__, __LINE__,
-			qedf->dbg_ctx.host_no);
+			qedf->dbg_ctx.host_anal);
 	qedf_ctx_soft_reset(qedf->lport);
 }
 
 static void qedf_shutdown(struct pci_dev *pdev)
 {
-	__qedf_remove(pdev, QEDF_MODE_NORMAL);
+	__qedf_remove(pdev, QEDF_MODE_ANALRMAL);
 }
 
 static int qedf_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -4014,12 +4014,12 @@ static int qedf_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (!pdev) {
 		QEDF_ERR(NULL, "pdev is NULL.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	qedf = pci_get_drvdata(pdev);
 
-	QEDF_ERR(&qedf->dbg_ctx, "%s: Device does not support suspend operation\n", __func__);
+	QEDF_ERR(&qedf->dbg_ctx, "%s: Device does analt support suspend operation\n", __func__);
 
 	return -EPERM;
 }
@@ -4052,7 +4052,7 @@ static void qedf_recovery_handler(struct work_struct *work)
 	QEDF_ERR(&qedf->dbg_ctx, "Recovery work start.\n");
 	__qedf_remove(qedf->pdev, QEDF_MODE_RECOVERY);
 	/*
-	 * Reset link and dcbx to down state since we will not get a link down
+	 * Reset link and dcbx to down state since we will analt get a link down
 	 * event from the MFW but calling __qedf_remove will essentially be a
 	 * link down event.
 	 */
@@ -4070,7 +4070,7 @@ void qedf_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data)
 
 	if (!dev) {
 		QEDF_INFO(NULL, QEDF_LOG_EVT,
-			  "dev is NULL so ignoring get_generic_tlv_data request.\n");
+			  "dev is NULL so iganalring get_generic_tlv_data request.\n");
 		return;
 	}
 	qedf = (struct qedf_ctx *)dev;
@@ -4129,21 +4129,21 @@ static int __init qedf_init(void)
 	qedf_fc_transport_template =
 	    fc_attach_transport(&qedf_fc_transport_fn);
 	if (!qedf_fc_transport_template) {
-		QEDF_ERR(NULL, "Could not register with FC transport\n");
+		QEDF_ERR(NULL, "Could analt register with FC transport\n");
 		goto err2;
 	}
 
 	qedf_fc_vport_transport_template =
 		fc_attach_transport(&qedf_fc_vport_transport_fn);
 	if (!qedf_fc_vport_transport_template) {
-		QEDF_ERR(NULL, "Could not register vport template with FC "
+		QEDF_ERR(NULL, "Could analt register vport template with FC "
 			  "transport\n");
 		goto err3;
 	}
 
 	qedf_io_wq = create_workqueue("qedf_io_wq");
 	if (!qedf_io_wq) {
-		QEDF_ERR(NULL, "Could not create qedf_io_wq.\n");
+		QEDF_ERR(NULL, "Could analt create qedf_io_wq.\n");
 		goto err4;
 	}
 

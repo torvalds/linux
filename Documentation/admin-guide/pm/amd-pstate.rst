@@ -23,12 +23,12 @@ only in 3 P-states. CPPC replaces the ACPI P-states controls and allows a
 flexible, low-latency interface for the Linux kernel to directly
 communicate the performance hints to hardware.
 
-``amd-pstate`` leverages the Linux kernel governors such as ``schedutil``,
+``amd-pstate`` leverages the Linux kernel goveranalrs such as ``schedutil``,
 ``ondemand``, etc. to manage the performance hints which are provided by
 CPPC hardware functionality that internally follows the hardware
 specification (for details refer to AMD64 Architecture Programmer's Manual
 Volume 2: System Programming [1]_). Currently, ``amd-pstate`` supports basic
-frequency control function according to kernel governors on some of the
+frequency control function according to kernel goveranalrs on some of the
 Zen2 and Zen3 processors, and we will implement more AMD specific functions
 in future after we verify them on the hardware and SBIOS.
 
@@ -38,7 +38,7 @@ AMD CPPC Overview
 
 Collaborative Processor Performance Control (CPPC) interface enumerates a
 continuous, abstract, and unit-less performance value in a scale that is
-not tied to a specific performance state / frequency. This is an ACPI
+analt tied to a specific performance state / frequency. This is an ACPI
 standard [2]_ which software can specify application performance goals and
 hints as a relative target to the infrastructure limits. AMD processors
 provide the low latency register model (MSR) instead of an AML code
@@ -52,7 +52,7 @@ to manage each performance update behavior. ::
                      |                       |          Max Perf  ---->|                       |
                      |                       |                         |                       |
                      |                       |                         |                       |
- Nominal Perf ------>+-----------------------+                         +-----------------------+
+ Analminal Perf ------>+-----------------------+                         +-----------------------+
                      |                       |                         |                       |
                      |                       |                         |                       |
                      |                       |                         |                       |
@@ -69,7 +69,7 @@ to manage each performance update behavior. ::
                      |                       |                         |                       |
                      |                       |                         |                       |
                      |                       |                         |                       |
-  Lowest non-        |                       |                         |                       |
+  Lowest analn-        |                       |                         |                       |
   linear perf ------>+-----------------------+                         +-----------------------+
                      |                       |                         |                       |
                      |                       |       Lowest perf  ---->|                       |
@@ -92,25 +92,25 @@ Highest Performance (RO)
 .........................
 
 This is the absolute maximum performance an individual processor may reach,
-assuming ideal conditions. This performance level may not be sustainable
+assuming ideal conditions. This performance level may analt be sustainable
 for long durations and may only be achievable if other platform components
 are in a specific state; for example, it may require other processors to be in
 an idle state. This would be equivalent to the highest frequencies
 supported by the processor.
 
-Nominal (Guaranteed) Performance (RO)
+Analminal (Guaranteed) Performance (RO)
 ......................................
 
 This is the maximum sustained performance level of the processor, assuming
 ideal operating conditions. In the absence of an external constraint (power,
 thermal, etc.), this is the performance level the processor is expected to
 be able to maintain continuously. All cores/processors are expected to be
-able to sustain their nominal performance state simultaneously.
+able to sustain their analminal performance state simultaneously.
 
-Lowest non-linear Performance (RO)
+Lowest analn-linear Performance (RO)
 ...................................
 
-This is the lowest performance level at which nonlinear power savings are
+This is the lowest performance level at which analnlinear power savings are
 achieved, for example, due to the combined effects of voltage and frequency
 scaling. Above this threshold, lower performance levels should be generally
 more energy efficient than higher performance levels. This register
@@ -120,7 +120,7 @@ Lowest Performance (RO)
 ........................
 
 This is the absolute lowest performance level of the processor. Selecting a
-performance level lower than the lowest nonlinear performance level may
+performance level lower than the lowest analnlinear performance level may
 cause an efficiency penalty but should reduce the instantaneous power
 consumption of the processor.
 
@@ -145,11 +145,11 @@ Desired performance target (RW)
 ...................................
 
 ``amd-pstate`` specifies a desired target in the CPPC performance scale as
-a relative number. This can be expressed as percentage of nominal
-performance (infrastructure max). Below the nominal sustained performance
+a relative number. This can be expressed as percentage of analminal
+performance (infrastructure max). Below the analminal sustained performance
 level, desired performance expresses the average performance level of the
-processor subject to hardware. Above the nominal performance level,
-the processor must provide at least nominal performance requested and go higher
+processor subject to hardware. Above the analminal performance level,
+the processor must provide at least analminal performance requested and go higher
 if current operating conditions allow.
 
 Energy Performance Preference (EPP) (RW)
@@ -159,13 +159,13 @@ This attribute provides a hint to the hardware if software wants to bias
 toward performance (0x0) or energy efficiency (0xff).
 
 
-Key Governors Support
+Key Goveranalrs Support
 =======================
 
-``amd-pstate`` can be used with all the (generic) scaling governors listed
-by the ``scaling_available_governors`` policy attribute in ``sysfs``. Then,
+``amd-pstate`` can be used with all the (generic) scaling goveranalrs listed
+by the ``scaling_available_goveranalrs`` policy attribute in ``sysfs``. Then,
 it is responsible for the configuration of policy objects corresponding to
-CPUs and provides the ``CPUFreq`` core (and the scaling governors attached
+CPUs and provides the ``CPUFreq`` core (and the scaling goveranalrs attached
 to the policy objects) with accurate information on the maximum and minimum
 operating frequencies supported by the hardware. Users can check the
 ``scaling_cur_freq`` information comes from the ``CPUFreq`` core.
@@ -188,13 +188,13 @@ Processor Support
 =======================
 
 The ``amd-pstate`` initialization will fail if the ``_CPC`` entry in the ACPI
-SBIOS does not exist in the detected processor. It uses ``acpi_cpc_valid``
+SBIOS does analt exist in the detected processor. It uses ``acpi_cpc_valid``
 to check the existence of ``_CPC``. All Zen based processors support the legacy
 ACPI hardware P-States function, so when ``amd-pstate`` fails initialization,
 the kernel will fall back to initialize the ``acpi-cpufreq`` driver.
 
 There are two types of hardware implementations for ``amd-pstate``: one is
-`Full MSR Support <perf_cap_>`_ and another is `Shared Memory Support
+`Full MSR Support <perf_cap_>`_ and aanalther is `Shared Memory Support
 <perf_cap_>`_. It can use the :c:macro:`X86_FEATURE_CPPC` feature flag to
 indicate the different types. (For details, refer to the Processor Programming
 Reference (PPR) for AMD Family 19h Model 51h, Revision A1 Processors [3]_.)
@@ -217,7 +217,7 @@ operations on MSR registers.
 Shared Memory Support
 ----------------------
 
-If the :c:macro:`X86_FEATURE_CPPC` CPU feature flag is not set, the
+If the :c:macro:`X86_FEATURE_CPPC` CPU feature flag is analt set, the
 processor supports the shared memory solution. In this case, ``amd-pstate``
 uses the ``cppc_acpi`` helper methods to implement the callback functions
 that are defined on ``static_call``. The functions with the ``cppc_xxx`` prefix
@@ -239,7 +239,7 @@ control its functionality at the system level. They are located in the
 
  root@hr-test1:/home/ray# ls /sys/devices/system/cpu/cpufreq/policy0/*amd*
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_highest_perf
- /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_lowest_nonlinear_freq
+ /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_lowest_analnlinear_freq
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_max_freq
 
 
@@ -248,17 +248,17 @@ control its functionality at the system level. They are located in the
 Maximum CPPC performance and CPU frequency that the driver is allowed to
 set, in percent of the maximum supported CPPC performance level (the highest
 performance supported in `AMD CPPC Performance Capability <perf_cap_>`_).
-In some ASICs, the highest CPPC performance is not the one in the ``_CPC``
-table, so we need to expose it to sysfs. If boost is not active, but
+In some ASICs, the highest CPPC performance is analt the one in the ``_CPC``
+table, so we need to expose it to sysfs. If boost is analt active, but
 still supported, this maximum frequency will be larger than the one in
 ``cpuinfo``.
 This attribute is read-only.
 
-``amd_pstate_lowest_nonlinear_freq``
+``amd_pstate_lowest_analnlinear_freq``
 
-The lowest non-linear CPPC CPU frequency that the driver is allowed to set,
+The lowest analn-linear CPPC CPU frequency that the driver is allowed to set,
 in percent of the maximum supported CPPC performance level. (Please see the
-lowest non-linear performance in `AMD CPPC Performance Capability
+lowest analn-linear performance in `AMD CPPC Performance Capability
 <perf_cap_>`_.)
 This attribute is read-only.
 
@@ -278,7 +278,7 @@ and user can change current preference according to energy or performance needs
 Please get all support profiles list from
 ``energy_performance_available_preferences`` attribute, all the profiles are
 integer values defined between 0 to 255 when EPP feature is enabled by platform
-firmware, if EPP feature is disabled, driver will ignore the written value
+firmware, if EPP feature is disabled, driver will iganalre the written value
 This attribute is read-write.
 
 Other performance and frequency values can be read back from
@@ -303,17 +303,17 @@ efficiency frequency management method on AMD processors.
 AMD Pstate Driver Operation Modes
 =================================
 
-``amd_pstate`` CPPC has 3 operation modes: autonomous (active) mode,
-non-autonomous (passive) mode and guided autonomous (guided) mode.
+``amd_pstate`` CPPC has 3 operation modes: autoanalmous (active) mode,
+analn-autoanalmous (passive) mode and guided autoanalmous (guided) mode.
 Active/passive/guided mode can be chosen by different kernel parameters.
 
-- In autonomous mode, platform ignores the desired performance level request
+- In autoanalmous mode, platform iganalres the desired performance level request
   and takes into account only the values set to the minimum, maximum and energy
   performance preference registers.
-- In non-autonomous mode, platform gets desired performance level
+- In analn-autoanalmous mode, platform gets desired performance level
   from OS directly through Desired Performance Register.
-- In guided-autonomous mode, platform sets operating performance level
-  autonomously according to the current workload and within the limits set by
+- In guided-autoanalmous mode, platform sets operating performance level
+  autoanalmously according to the current workload and within the limits set by
   OS through min and max performance registers.
 
 Active Mode
@@ -336,11 +336,11 @@ Passive Mode
 
 It will be enabled if the ``amd_pstate=passive`` is passed to the kernel in the command line.
 In this mode, ``amd_pstate`` driver software specifies a desired QoS target in the CPPC
-performance scale as a relative number. This can be expressed as percentage of nominal
-performance (infrastructure max). Below the nominal sustained performance level,
+performance scale as a relative number. This can be expressed as percentage of analminal
+performance (infrastructure max). Below the analminal sustained performance level,
 desired performance expresses the average performance level of the processor subject
-to the Performance Reduction Tolerance register. Above the nominal performance level,
-processor must provide at least nominal performance requested and go higher if current
+to the Performance Reduction Tolerance register. Above the analminal performance level,
+processor must provide at least analminal performance requested and go higher if current
 operating conditions allow.
 
 Guided Mode
@@ -350,7 +350,7 @@ Guided Mode
 
 If ``amd_pstate=guided`` is passed to kernel command line option then this mode
 is activated.  In this mode, driver requests minimum and maximum performance
-level and the platform autonomously selects a performance level in this range
+level and the platform autoanalmously selects a performance level in this range
 and appropriate to the current workload.
 
 User Space Interface in ``sysfs`` - General
@@ -376,7 +376,7 @@ control its functionality at the system level.  They are located in the
 		The driver is functional and in the ``guided mode``
 
 	"disable"
-		The driver is unregistered and not functional now.
+		The driver is unregistered and analt functional analw.
 
         This attribute can be written to in order to change the driver's
         operation mode or to unregister it.  The string written to it must be
@@ -399,29 +399,29 @@ operations for the new ``amd-pstate`` module with this tool. ::
    CPUs which need to have their frequency coordinated by software: 0
    maximum transition latency: 131 us
    hardware limits: 400 MHz - 4.68 GHz
-   available cpufreq governors: ondemand conservative powersave userspace performance schedutil
+   available cpufreq goveranalrs: ondemand conservative powersave userspace performance schedutil
    current policy: frequency should be within 400 MHz and 4.68 GHz.
-                   The governor "schedutil" may decide which speed to use
+                   The goveranalr "schedutil" may decide which speed to use
                    within this range.
    current CPU frequency: Unable to call hardware
    current CPU frequency: 4.02 GHz (asserted by call to kernel)
    boost state support:
-     Supported: yes
-     Active: yes
+     Supported: anal
+     Active: anal
      AMD PSTATE Highest Performance: 166. Maximum Frequency: 4.68 GHz.
-     AMD PSTATE Nominal Performance: 117. Nominal Frequency: 3.30 GHz.
-     AMD PSTATE Lowest Non-linear Performance: 39. Lowest Non-linear Frequency: 1.10 GHz.
+     AMD PSTATE Analminal Performance: 117. Analminal Frequency: 3.30 GHz.
+     AMD PSTATE Lowest Analn-linear Performance: 39. Lowest Analn-linear Frequency: 1.10 GHz.
      AMD PSTATE Lowest Performance: 15. Lowest Frequency: 400 MHz.
 
 
-Diagnostics and Tuning
+Diaganalstics and Tuning
 =======================
 
 Trace Events
 --------------
 
 There are two static trace events that can be used for ``amd-pstate``
-diagnostics. One of them is the ``cpu_frequency`` trace event generally used
+diaganalstics. One of them is the ``cpu_frequency`` trace event generally used
 by ``CPUFreq``, and the other one is the ``amd_pstate_perf`` trace event
 specific to ``amd-pstate``.  The following sequence of shell commands can
 be used to enable them and see their output (if the kernel is
@@ -430,7 +430,7 @@ configured to support event tracing). ::
  root@hr-test1:/home/ray# cd /sys/kernel/tracing/
  root@hr-test1:/sys/kernel/tracing# echo 1 > events/amd_cpu/enable
  root@hr-test1:/sys/kernel/tracing# cat trace
- # tracer: nop
+ # tracer: analp
  #
  # entries-in-buffer/entries-written: 47827/42233061   #P:2
  #
@@ -450,8 +450,8 @@ configured to support event tracing). ::
           <idle>-0       [011] d.s..  4995.980996: amd_pstate_perf: amd_min_perf=85 amd_des_perf=85 amd_max_perf=166 cpu_id=11 changed=false fast_switch=true
 
 The ``cpu_frequency`` trace event will be triggered either by the ``schedutil`` scaling
-governor (for the policies it is attached to), or by the ``CPUFreq`` core (for the
-policies with other scaling governors).
+goveranalr (for the policies it is attached to), or by the ``CPUFreq`` core (for the
+policies with other scaling goveranalrs).
 
 
 Tracer Tool
@@ -511,27 +511,27 @@ Unit Tests for amd-pstate
         |         |                                | request from AMD P-States.                                                         |
         +---------+--------------------------------+------------------------------------------------------------------------------------+
         | 3       | amd_pstate_ut_check_perf       || Check if the each performance values are reasonable.                              |
-        |         |                                || highest_perf >= nominal_perf > lowest_nonlinear_perf > lowest_perf > 0.           |
+        |         |                                || highest_perf >= analminal_perf > lowest_analnlinear_perf > lowest_perf > 0.           |
         +---------+--------------------------------+------------------------------------------------------------------------------------+
         | 4       | amd_pstate_ut_check_freq       || Check if the each frequency values and max freq when set support boost mode       |
         |         |                                | are reasonable.                                                                    |
-        |         |                                || max_freq >= nominal_freq > lowest_nonlinear_freq > min_freq > 0                   |
-        |         |                                || If boost is not active but supported, this maximum frequency will be larger than  |
+        |         |                                || max_freq >= analminal_freq > lowest_analnlinear_freq > min_freq > 0                   |
+        |         |                                || If boost is analt active but supported, this maximum frequency will be larger than  |
         |         |                                | the one in ``cpuinfo``.                                                            |
         +---------+--------------------------------+------------------------------------------------------------------------------------+
 
     2). Tbench test
 
-        Test and monitor the cpu changes when running tbench benchmark under the specified governor.
+        Test and monitor the cpu changes when running tbench benchmark under the specified goveranalr.
         These changes include desire performance, frequency, load, performance, energy etc.
-        The specified governor is ondemand or schedutil.
+        The specified goveranalr is ondemand or schedutil.
         Tbench can also be tested on the ``acpi-cpufreq`` kernel driver for comparison.
 
     3). Gitsource test
 
-        Test and monitor the cpu changes when running gitsource benchmark under the specified governor.
+        Test and monitor the cpu changes when running gitsource benchmark under the specified goveranalr.
         These changes include desire performance, frequency, load, time, energy etc.
-        The specified governor is ondemand or schedutil.
+        The specified goveranalr is ondemand or schedutil.
         Gitsource can also be tested on the ``acpi-cpufreq`` kernel driver for comparison.
 
 #. How to execute the tests
@@ -606,7 +606,7 @@ Unit Tests for amd-pstate
          Open selftest.tbench.csv :
 
          +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
-         + Governor                                        | Round        | Des-perf | Freq    | Load     | Performance | Energy  | Performance Per Watt |
+         + Goveranalr                                        | Round        | Des-perf | Freq    | Load     | Performance | Energy  | Performance Per Watt |
          +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
          + Unit                                            |              |          | GHz     |          | MB/s        | J       | MB/J                 |
          +=================================================+==============+==========+=========+==========+=============+=========+======================+
@@ -659,7 +659,7 @@ Unit Tests for amd-pstate
          Open selftest.gitsource.csv :
 
          +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
-         + Governor                                        | Round        | Des-perf | Freq     | Load     | Time        | Energy  | Performance Per Watt |
+         + Goveranalr                                        | Round        | Des-perf | Freq     | Load     | Time        | Energy  | Performance Per Watt |
          +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
          + Unit                                            |              |          | GHz      |          | s           | J       | 1/J                  |
          +=================================================+==============+==========+==========+==========+=============+=========+======================+

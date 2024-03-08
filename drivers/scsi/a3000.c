@@ -39,15 +39,15 @@ static irqreturn_t a3000_intr(int irq, void *data)
 	unsigned long flags;
 
 	if (!(status & ISTR_INT_P))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	if (status & ISTR_INTS) {
 		spin_lock_irqsave(instance->host_lock, flags);
 		wd33c93_intr(instance);
 		spin_unlock_irqrestore(instance->host_lock, flags);
 		return IRQ_HANDLED;
 	}
-	pr_warn("Non-serviced A3000 SCSI-interrupt? ISTR = %02x\n", status);
-	return IRQ_NONE;
+	pr_warn("Analn-serviced A3000 SCSI-interrupt? ISTR = %02x\n", status);
+	return IRQ_ANALNE;
 }
 
 static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
@@ -64,7 +64,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	addr = dma_map_single(hdata->dev, scsi_pointer->ptr,
 			      len, DMA_DIR(dir_in));
 	if (dma_mapping_error(hdata->dev, addr)) {
-		dev_warn(hdata->dev, "cannot map SCSI data block %p\n",
+		dev_warn(hdata->dev, "cananalt map SCSI data block %p\n",
 			 scsi_pointer->ptr);
 		return 1;
 	}
@@ -106,7 +106,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 				      len, DMA_DIR(dir_in));
 		if (dma_mapping_error(hdata->dev, addr)) {
 			dev_warn(hdata->dev,
-				 "cannot map SCSI data block %p\n",
+				 "cananalt map SCSI data block %p\n",
 				 scsi_pointer->ptr);
 			return 1;
 		}
@@ -125,7 +125,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	/* setup DMA *physical* address */
 	regs->ACR = addr;
 
-	/* no more cache flush here - dma_map_single() takes care */
+	/* anal more cache flush here - dma_map_single() takes care */
 
 	/* start DMA */
 	mb();			/* make sure setup is completed */
@@ -159,7 +159,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		mb();		/* don't allow prefetch */
 		while (!(regs->ISTR & ISTR_FE_FLG))
 			barrier();
-		mb();		/* no IO until FLUSH is done */
+		mb();		/* anal IO until FLUSH is done */
 	}
 
 	/* clear a possible interrupt */
@@ -223,13 +223,13 @@ static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)
 	struct a3000_hostdata *hdata;
 
 	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
-		dev_warn(&pdev->dev, "cannot use 32 bit DMA\n");
-		return -ENODEV;
+		dev_warn(&pdev->dev, "cananalt use 32 bit DMA\n");
+		return -EANALDEV;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!request_mem_region(res->start, resource_size(res), "wd33c93"))
 		return -EBUSY;
@@ -237,7 +237,7 @@ static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)
 	instance = scsi_host_alloc(&amiga_a3000_scsi_template,
 				   sizeof(struct a3000_hostdata));
 	if (!instance) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_alloc;
 	}
 
@@ -251,7 +251,7 @@ static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)
 
 	hdata = shost_priv(instance);
 	hdata->dev = &pdev->dev;
-	hdata->wh.no_sync = 0xff;
+	hdata->wh.anal_sync = 0xff;
 	hdata->wh.fast = 0;
 	hdata->wh.dma_mode = CTRL_DMA;
 	hdata->regs = regs;

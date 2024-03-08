@@ -23,7 +23,7 @@ description: |
   The Coresight replicator splits a single trace stream into two trace streams
   for systems that have more than one trace sink component.
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of analdes
 select:
   properties:
     compatible:

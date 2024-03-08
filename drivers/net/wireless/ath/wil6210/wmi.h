@@ -85,10 +85,10 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_RSSI_REPORTING		= 12,
 	WMI_FW_CAPABILITY_SET_SILENT_RSSI_TABLE		= 13,
 	WMI_FW_CAPABILITY_LO_POWER_CALIB_FROM_OTP	= 14,
-	WMI_FW_CAPABILITY_PNO				= 15,
+	WMI_FW_CAPABILITY_PANAL				= 15,
 	WMI_FW_CAPABILITY_CHANNEL_BONDING		= 17,
 	WMI_FW_CAPABILITY_REF_CLOCK_CONTROL		= 18,
-	WMI_FW_CAPABILITY_AP_SME_OFFLOAD_NONE		= 19,
+	WMI_FW_CAPABILITY_AP_SME_OFFLOAD_ANALNE		= 19,
 	WMI_FW_CAPABILITY_MULTI_VIFS			= 20,
 	WMI_FW_CAPABILITY_FT_ROAMING			= 21,
 	WMI_FW_CAPABILITY_BACK_WIN_SIZE_64		= 22,
@@ -208,7 +208,7 @@ enum wmi_command_id {
 	WMI_FIXED_SCHEDULING_UL_CONFIG_CMDID		= 0x85F,
 	/* Performance monitoring commands */
 	WMI_BF_CTRL_CMDID				= 0x862,
-	WMI_NOTIFY_REQ_CMDID				= 0x863,
+	WMI_ANALTIFY_REQ_CMDID				= 0x863,
 	WMI_GET_STATUS_CMDID				= 0x864,
 	WMI_GET_RF_STATUS_CMDID				= 0x866,
 	WMI_GET_BASEBAND_TYPE_CMDID			= 0x867,
@@ -326,7 +326,7 @@ enum wmi_dot11_auth_mode {
 };
 
 enum wmi_auth_mode {
-	WMI_AUTH_NONE		= 0x01,
+	WMI_AUTH_ANALNE		= 0x01,
 	WMI_AUTH_WPA		= 0x02,
 	WMI_AUTH_WPA2		= 0x04,
 	WMI_AUTH_WPA_PSK	= 0x08,
@@ -336,19 +336,19 @@ enum wmi_auth_mode {
 };
 
 enum wmi_crypto_type {
-	WMI_CRYPT_NONE		= 0x01,
+	WMI_CRYPT_ANALNE		= 0x01,
 	WMI_CRYPT_AES_GCMP	= 0x20,
 };
 
 enum wmi_connect_ctrl_flag_bits {
 	WMI_CONNECT_ASSOC_POLICY_USER		= 0x01,
 	WMI_CONNECT_SEND_REASSOC		= 0x02,
-	WMI_CONNECT_IGNORE_WPA_GROUP_CIPHER	= 0x04,
+	WMI_CONNECT_IGANALRE_WPA_GROUP_CIPHER	= 0x04,
 	WMI_CONNECT_PROFILE_MATCH_DONE		= 0x08,
-	WMI_CONNECT_IGNORE_AAC_BEACON		= 0x10,
+	WMI_CONNECT_IGANALRE_AAC_BEACON		= 0x10,
 	WMI_CONNECT_CSA_FOLLOW_BSS		= 0x20,
 	WMI_CONNECT_DO_WPA_OFFLOAD		= 0x40,
-	WMI_CONNECT_DO_NOT_DEAUTH		= 0x80,
+	WMI_CONNECT_DO_ANALT_DEAUTH		= 0x80,
 };
 
 #define WMI_MAX_SSID_LEN	(32)
@@ -477,7 +477,7 @@ struct wmi_start_scan_cmd {
 	} channel_list[];
 } __packed;
 
-#define WMI_MAX_PNO_SSID_NUM	(16)
+#define WMI_MAX_PANAL_SSID_NUM	(16)
 #define WMI_MAX_CHANNEL_NUM	(6)
 #define WMI_MAX_PLANS_NUM	(2)
 
@@ -499,7 +499,7 @@ struct wmi_sched_scan_plan {
 
 /* WMI_START_SCHED_SCAN_CMDID */
 struct wmi_start_sched_scan_cmd {
-	struct wmi_sched_scan_ssid_match ssid_for_match[WMI_MAX_PNO_SSID_NUM];
+	struct wmi_sched_scan_ssid_match ssid_for_match[WMI_MAX_PANAL_SSID_NUM];
 	u8 num_of_ssids;
 	s8 min_rssi_threshold;
 	u8 channel_list[WMI_MAX_CHANNEL_NUM];
@@ -633,17 +633,17 @@ struct wmi_radar_config_select_cmd {
 struct wmi_radar_params_config_cmd {
 	/* The burst index selected to config */
 	u8 burst_index;
-	/* 0-not active, 1-active */
+	/* 0-analt active, 1-active */
 	u8 burst_en;
 	/* The pulse index selected to config */
 	u8 pulse_index;
-	/* 0-not active, 1-active */
+	/* 0-analt active, 1-active */
 	u8 pulse_en;
 	/* TX RF to use on current pulse */
 	u8 tx_rfc_idx;
 	u8 tx_sector;
 	/* Offset from calibrated value.(expected to be 0)(value is row in
-	 * Gain-LUT, not dB)
+	 * Gain-LUT, analt dB)
 	 */
 	s8 tx_rf_gain_comp;
 	/* expected to be 0 */
@@ -652,7 +652,7 @@ struct wmi_radar_params_config_cmd {
 	u8 rx_rfc_idx;
 	u8 rx_sector;
 	/* Offset from calibrated value.(expected to be 0)(value is row in
-	 * Gain-LUT, not dB)
+	 * Gain-LUT, analt dB)
 	 */
 	s8 rx_rf_gain_comp;
 	/* Value in dB.(expected to be 0) */
@@ -702,7 +702,7 @@ enum wmi_rf_mgmt_type {
 /* WMI_BF_CONTROL_CMDID */
 enum wmi_bf_triggers {
 	WMI_BF_TRIGGER_RS_MCS1_TH_FAILURE		= 0x01,
-	WMI_BF_TRIGGER_RS_MCS1_NO_BACK_FAILURE		= 0x02,
+	WMI_BF_TRIGGER_RS_MCS1_ANAL_BACK_FAILURE		= 0x02,
 	WMI_BF_TRIGGER_MAX_CTS_FAILURE_IN_TXOP		= 0x04,
 	WMI_BF_TRIGGER_MAX_BACK_FAILURE			= 0x08,
 	WMI_BF_TRIGGER_FW				= 0x10,
@@ -746,7 +746,7 @@ struct wmi_bcon_ctrl_cmd {
 	u8 disable_sec;
 	u8 hidden_ssid;
 	u8 is_go;
-	/* A-BFT length override if non-0 */
+	/* A-BFT length override if analn-0 */
 	u8 abft_len;
 	u8 reserved;
 } __packed;
@@ -788,7 +788,7 @@ struct wmi_traffic_suspend_cmd {
 
 /* WMI_P2P_CFG_CMDID */
 enum wmi_discovery_mode {
-	WMI_DISCOVERY_MODE_NON_OFFLOAD	= 0x00,
+	WMI_DISCOVERY_MODE_ANALN_OFFLOAD	= 0x00,
 	WMI_DISCOVERY_MODE_OFFLOAD	= 0x01,
 	WMI_DISCOVERY_MODE_PEER2PEER	= 0x02,
 };
@@ -820,7 +820,7 @@ enum wmi_ap_sme_offload_mode {
 	/* Probe AP SME in FW */
 	WMI_AP_SME_OFFLOAD_PARTIAL	= 0x01,
 	/* AP SME in host */
-	WMI_AP_SME_OFFLOAD_NONE		= 0x02,
+	WMI_AP_SME_OFFLOAD_ANALNE		= 0x02,
 };
 
 /* WMI_PCP_START_CMDID */
@@ -833,7 +833,7 @@ struct wmi_pcp_start_cmd {
 	u8 edmg_channel;
 	u8 raw_mode;
 	u8 reserved[3];
-	/* A-BFT length override if non-0 */
+	/* A-BFT length override if analn-0 */
 	u8 abft_len;
 	/* enum wmi_ap_sme_offload_mode_e */
 	u8 ap_sme_offload_mode;
@@ -890,7 +890,7 @@ struct wmi_vring_cfg_schd {
 enum wmi_vring_cfg_encap_trans_type {
 	WMI_VRING_ENC_TYPE_802_3	= 0x00,
 	WMI_VRING_ENC_TYPE_NATIVE_WIFI	= 0x01,
-	WMI_VRING_ENC_TYPE_NONE		= 0x02,
+	WMI_VRING_ENC_TYPE_ANALNE		= 0x02,
 };
 
 enum wmi_vring_cfg_ds_cfg {
@@ -901,7 +901,7 @@ enum wmi_vring_cfg_ds_cfg {
 };
 
 enum wmi_vring_cfg_nwifi_ds_trans_type {
-	WMI_NWIFI_TX_TRANS_MODE_NO		= 0x00,
+	WMI_NWIFI_TX_TRANS_MODE_ANAL		= 0x00,
 	WMI_NWIFI_TX_TRANS_MODE_AP2PBSS		= 0x01,
 	WMI_NWIFI_TX_TRANS_MODE_STA2PBSS	= 0x02,
 };
@@ -1100,8 +1100,8 @@ struct wmi_ring_ba_dis_cmd {
 	__le16 reason;
 } __packed;
 
-/* WMI_NOTIFY_REQ_CMDID */
-struct wmi_notify_req_cmd {
+/* WMI_ANALTIFY_REQ_CMDID */
+struct wmi_analtify_req_cmd {
 	u8 cid;
 	u8 year;
 	u8 month;
@@ -1168,11 +1168,11 @@ enum wmi_cfg_rx_chain_cmd_action {
 enum wmi_cfg_rx_chain_cmd_decap_trans_type {
 	WMI_DECAP_TYPE_802_3		= 0x00,
 	WMI_DECAP_TYPE_NATIVE_WIFI	= 0x01,
-	WMI_DECAP_TYPE_NONE		= 0x02,
+	WMI_DECAP_TYPE_ANALNE		= 0x02,
 };
 
 enum wmi_cfg_rx_chain_cmd_nwifi_ds_trans_type {
-	WMI_NWIFI_RX_TRANS_MODE_NO		= 0x00,
+	WMI_NWIFI_RX_TRANS_MODE_ANAL		= 0x00,
 	WMI_NWIFI_RX_TRANS_MODE_PBSS2AP		= 0x01,
 	WMI_NWIFI_RX_TRANS_MODE_PBSS2STA	= 0x02,
 };
@@ -1429,7 +1429,7 @@ struct wmi_rf_xpm_write_cmd {
 /* Possible modes for temperature measurement */
 enum wmi_temperature_measure_mode {
 	TEMPERATURE_USE_OLD_VALUE	= 0x01,
-	TEMPERATURE_MEASURE_NOW		= 0x02,
+	TEMPERATURE_MEASURE_ANALW		= 0x02,
 };
 
 /* WMI_TEMP_SENSE_CMDID */
@@ -1536,7 +1536,7 @@ enum wmi_tof_burst_duration {
 	WMI_TOF_BURST_DURATION_32_MSEC		= 9,
 	WMI_TOF_BURST_DURATION_64_MSEC		= 10,
 	WMI_TOF_BURST_DURATION_128_MSEC		= 11,
-	WMI_TOF_BURST_DURATION_NO_PREFERENCES	= 15,
+	WMI_TOF_BURST_DURATION_ANAL_PREFERENCES	= 15,
 };
 
 enum wmi_tof_session_start_flags {
@@ -1619,7 +1619,7 @@ struct wmi_map_mcs_to_schd_params {
 	u8 mcs;
 	/* time in usec from start slot to start tx flow - default 15 */
 	u8 time_in_usec_before_initiate_tx;
-	/* RD enable - if yes consider RD according to STA mcs */
+	/* RD enable - if anal consider RD according to STA mcs */
 	u8 rd_enabled;
 	u8 reserved;
 	/* time in usec from start slot to stop vring */
@@ -1638,7 +1638,7 @@ struct wmi_fixed_scheduling_config_complete_event {
 } __packed;
 
 /* This value exists for backwards compatibility only.
- * Do not use it in new commands.
+ * Do analt use it in new commands.
  * Use dynamic arrays where possible.
  */
 #define WMI_NUM_MCS	(13)
@@ -1754,7 +1754,7 @@ struct wmi_set_long_range_config_complete_event {
 #define WMI_MAX_INTERNAL_EVENT_PAYLOAD_SIZE	(1024)
 
 enum wmi_internal_fw_ioctl_code {
-	WMI_INTERNAL_FW_CODE_NONE	= 0x0,
+	WMI_INTERNAL_FW_CODE_ANALNE	= 0x0,
 	WMI_INTERNAL_FW_CODE_QCOM	= 0x1,
 };
 
@@ -1852,7 +1852,7 @@ struct wmi_bf_control_cmd {
 	/* BOOL to enable/disable long term trigger */
 	u8 long_term_enable;
 	/* 1 = Update long term thresholds from the long_term_mbps_th_tbl and
-	 * long_term_trig_timeout_per_mcs arrays, 0 = Ignore
+	 * long_term_trig_timeout_per_mcs arrays, 0 = Iganalre
 	 */
 	u8 long_term_update_thr;
 	/* Long term throughput threshold [Mbps] */
@@ -1904,7 +1904,7 @@ struct wmi_bf_control_ex_cmd {
 	/* BOOL to enable/disable long term trigger */
 	u8 long_term_enable;
 	/* 1 = Update long term thresholds from the long_term_mbps_th_tbl and
-	 * long_term_trig_timeout_per_mcs arrays, 0 = Ignore
+	 * long_term_trig_timeout_per_mcs arrays, 0 = Iganalre
 	 */
 	u8 long_term_update_thr;
 	u8 each_mcs_cfg_size;
@@ -2038,7 +2038,7 @@ enum wmi_event_id {
 	WMI_DATA_PORT_OPEN_EVENTID			= 0x1860,
 	WMI_WBE_LINK_DOWN_EVENTID			= 0x1861,
 	WMI_BF_CTRL_DONE_EVENTID			= 0x1862,
-	WMI_NOTIFY_REQ_DONE_EVENTID			= 0x1863,
+	WMI_ANALTIFY_REQ_DONE_EVENTID			= 0x1863,
 	WMI_GET_STATUS_DONE_EVENTID			= 0x1864,
 	WMI_RING_EN_EVENTID				= 0x1865,
 	WMI_GET_RF_STATUS_EVENTID			= 0x1866,
@@ -2129,7 +2129,7 @@ enum wmi_event_id {
 	WMI_FW_VER_EVENTID				= 0x9004,
 	WMI_ACS_PASSIVE_SCAN_COMPLETE_EVENTID		= 0x9005,
 	WMI_INTERNAL_FW_SET_CHANNEL			= 0x9006,
-	WMI_COMMAND_NOT_SUPPORTED_EVENTID		= 0xFFFF,
+	WMI_COMMAND_ANALT_SUPPORTED_EVENTID		= 0xFFFF,
 };
 
 /* Events data structures */
@@ -2171,8 +2171,8 @@ struct wmi_get_status_done_event {
 struct wmi_fw_ver_event {
 	/* FW image version */
 	__le32 fw_major;
-	__le32 fw_minor;
-	__le32 fw_subminor;
+	__le32 fw_mianalr;
+	__le32 fw_submianalr;
 	__le32 fw_build;
 	/* FW image build time stamp */
 	__le32 hour;
@@ -2183,8 +2183,8 @@ struct wmi_fw_ver_event {
 	__le32 year;
 	/* Boot Loader image version */
 	__le32 bl_major;
-	__le32 bl_minor;
-	__le32 bl_subminor;
+	__le32 bl_mianalr;
+	__le32 bl_submianalr;
 	__le32 bl_build;
 	/* The number of entries in the FW capabilities array */
 	u8 fw_capabilities_len;
@@ -2197,7 +2197,7 @@ struct wmi_fw_ver_event {
 
 /* WMI_GET_RF_STATUS_EVENTID */
 enum rf_type {
-	RF_UNKNOWN	= 0x00,
+	RF_UNKANALWN	= 0x00,
 	RF_MARLON	= 0x01,
 	RF_SPARROW	= 0x02,
 	RF_TALYNA1	= 0x03,
@@ -2215,7 +2215,7 @@ enum board_file_rf_type {
 /* WMI_GET_RF_STATUS_EVENTID */
 enum rf_status {
 	RF_OK			= 0x00,
-	RF_NO_COMM		= 0x01,
+	RF_ANAL_COMM		= 0x01,
 	RF_WRONG_BOARD_FILE	= 0x02,
 };
 
@@ -2242,7 +2242,7 @@ struct wmi_get_rf_status_event {
 
 /* WMI_GET_BASEBAND_TYPE_EVENTID */
 enum baseband_type {
-	BASEBAND_UNKNOWN	= 0x00,
+	BASEBAND_UNKANALWN	= 0x00,
 	BASEBAND_SPARROW_M_A0	= 0x03,
 	BASEBAND_SPARROW_M_A1	= 0x04,
 	BASEBAND_SPARROW_M_B0	= 0x05,
@@ -2301,8 +2301,8 @@ struct wmi_ready_event {
 	u8 reserved[2];
 } __packed;
 
-/* WMI_NOTIFY_REQ_DONE_EVENTID */
-struct wmi_notify_req_done_event {
+/* WMI_ANALTIFY_REQ_DONE_EVENTID */
+struct wmi_analtify_req_done_event {
 	/* beamforming status, 0: fail; 1: OK; 2: retrying */
 	__le32 status;
 	__le64 tsf;
@@ -2342,20 +2342,20 @@ struct wmi_connect_event {
 	u8 cid;
 	u8 aid;
 	u8 reserved2[2];
-	/* not in use */
+	/* analt in use */
 	u8 assoc_info[];
 } __packed;
 
 /* disconnect_reason */
 enum wmi_disconnect_reason {
-	WMI_DIS_REASON_NO_NETWORK_AVAIL		= 0x01,
+	WMI_DIS_REASON_ANAL_NETWORK_AVAIL		= 0x01,
 	/* bmiss */
 	WMI_DIS_REASON_LOST_LINK		= 0x02,
 	WMI_DIS_REASON_DISCONNECT_CMD		= 0x03,
 	WMI_DIS_REASON_BSS_DISCONNECTED		= 0x04,
 	WMI_DIS_REASON_AUTH_FAILED		= 0x05,
 	WMI_DIS_REASON_ASSOC_FAILED		= 0x06,
-	WMI_DIS_REASON_NO_RESOURCES_AVAIL	= 0x07,
+	WMI_DIS_REASON_ANAL_RESOURCES_AVAIL	= 0x07,
 	WMI_DIS_REASON_CSERV_DISCONNECT		= 0x08,
 	WMI_DIS_REASON_INVALID_PROFILE		= 0x0A,
 	WMI_DIS_REASON_DOT11H_CHANNEL_SWITCH	= 0x0B,
@@ -2369,13 +2369,13 @@ enum wmi_disconnect_reason {
 struct wmi_disconnect_event {
 	/* reason code, see 802.11 spec. */
 	__le16 protocol_reason_status;
-	/* set if known */
+	/* set if kanalwn */
 	u8 bssid[WMI_MAC_LEN];
 	/* see enum wmi_disconnect_reason */
 	u8 disconnect_reason;
-	/* last assoc req may passed to host - not in used */
+	/* last assoc req may passed to host - analt in used */
 	u8 assoc_resp_len;
-	/* last assoc req may passed to host - not in used */
+	/* last assoc req may passed to host - analt in used */
 	u8 assoc_info[];
 } __packed;
 
@@ -2430,9 +2430,9 @@ struct wmi_rx_mgmt_info {
 	__le16 stype;
 	__le16 status;
 	__le32 len;
-	/* Not resolved when == 0xFFFFFFFF == > Broadcast to all MIDS */
+	/* Analt resolved when == 0xFFFFFFFF == > Broadcast to all MIDS */
 	u8 qid;
-	/* Not resolved when == 0xFFFFFFFF == > Broadcast to all MIDS */
+	/* Analt resolved when == 0xFFFFFFFF == > Broadcast to all MIDS */
 	u8 mid;
 	u8 cid;
 	/* From Radio MNGR */
@@ -2440,21 +2440,21 @@ struct wmi_rx_mgmt_info {
 } __packed;
 
 /* WMI_START_SCHED_SCAN_EVENTID */
-enum wmi_pno_result {
-	WMI_PNO_SUCCESS			= 0x00,
-	WMI_PNO_REJECT			= 0x01,
-	WMI_PNO_INVALID_PARAMETERS	= 0x02,
-	WMI_PNO_NOT_ENABLED		= 0x03,
+enum wmi_panal_result {
+	WMI_PANAL_SUCCESS			= 0x00,
+	WMI_PANAL_REJECT			= 0x01,
+	WMI_PANAL_INVALID_PARAMETERS	= 0x02,
+	WMI_PANAL_ANALT_ENABLED		= 0x03,
 };
 
 struct wmi_start_sched_scan_event {
-	/* wmi_pno_result */
+	/* wmi_panal_result */
 	u8 result;
 	u8 reserved[3];
 } __packed;
 
 struct wmi_stop_sched_scan_event {
-	/* wmi_pno_result */
+	/* wmi_panal_result */
 	u8 result;
 	u8 reserved[3];
 } __packed;
@@ -2470,7 +2470,7 @@ enum wmi_acs_info_bitmask {
 	WMI_ACS_INFO_BITMASK_BUSY_TIME		= 0x02,
 	WMI_ACS_INFO_BITMASK_TX_TIME		= 0x04,
 	WMI_ACS_INFO_BITMASK_RX_TIME		= 0x08,
-	WMI_ACS_INFO_BITMASK_NOISE		= 0x10,
+	WMI_ACS_INFO_BITMASK_ANALISE		= 0x10,
 };
 
 struct scan_acs_info {
@@ -2480,7 +2480,7 @@ struct scan_acs_info {
 	__le16 busy_time;
 	__le16 tx_time;
 	__le16 rx_time;
-	u8 noise;
+	u8 analise;
 	u8 reserved[3];
 } __packed;
 
@@ -2498,15 +2498,15 @@ struct wmi_acs_passive_scan_complete_event {
 /* WMI_BA_STATUS_EVENTID */
 enum wmi_vring_ba_status {
 	WMI_BA_AGREED			= 0x00,
-	WMI_BA_NON_AGREED		= 0x01,
+	WMI_BA_ANALN_AGREED		= 0x01,
 	/* BA_EN in middle of teardown flow */
 	WMI_BA_TD_WIP			= 0x02,
 	/* BA_DIS or BA_EN in middle of BA SETUP flow */
 	WMI_BA_SETUP_WIP		= 0x03,
 	/* BA_EN when the BA session is already active */
 	WMI_BA_SESSION_ACTIVE		= 0x04,
-	/* BA_DIS when the BA session is not active */
-	WMI_BA_SESSION_NOT_ACTIVE	= 0x05,
+	/* BA_DIS when the BA session is analt active */
+	WMI_BA_SESSION_ANALT_ACTIVE	= 0x05,
 };
 
 struct wmi_ba_status_event {
@@ -2711,7 +2711,7 @@ struct wmi_pcp_factor_event {
 
 enum wmi_sw_tx_status {
 	WMI_TX_SW_STATUS_SUCCESS		= 0x00,
-	WMI_TX_SW_STATUS_FAILED_NO_RESOURCES	= 0x01,
+	WMI_TX_SW_STATUS_FAILED_ANAL_RESOURCES	= 0x01,
 	WMI_TX_SW_STATUS_FAILED_TX		= 0x02,
 };
 
@@ -2809,12 +2809,12 @@ struct wmi_fixed_scheduling_ul_config_event {
  */
 struct wmi_temp_sense_done_event {
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000). When temperature cannot be read from
+	 * dividing the value by 1000). When temperature cananalt be read from
 	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 baseband_t1000;
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000). When temperature cannot be read from
+	 * dividing the value by 1000). When temperature cananalt be read from
 	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 rf_t1000;
@@ -3002,7 +3002,7 @@ enum wmi_sched_scheme_slot_type {
 	WMI_SCHED_SLOT_SP		= 0x0,
 	WMI_SCHED_SLOT_CBAP		= 0x1,
 	WMI_SCHED_SLOT_IDLE		= 0x2,
-	WMI_SCHED_SLOT_ANNOUNCE_NO_ACK	= 0x3,
+	WMI_SCHED_SLOT_ANANALUNCE_ANAL_ACK	= 0x3,
 	WMI_SCHED_SLOT_DISCOVERY	= 0x4,
 };
 
@@ -3039,7 +3039,7 @@ struct wmi_sched_scheme_slot {
 } __packed;
 
 enum wmi_sched_scheme_flags {
-	/* should not be set when clearing scheduling scheme */
+	/* should analt be set when clearing scheduling scheme */
 	WMI_SCHED_SCHEME_ENABLE		= 0x01,
 	WMI_SCHED_PROTECTED_SP		= 0x02,
 	/* should be set only on first WMI fragment of scheme */
@@ -3050,12 +3050,12 @@ enum wmi_sched_scheme_flags {
 };
 
 enum wmi_sched_scheme_advertisment {
-	/* ESE is not advertised at all, STA has to be configured with WMI
+	/* ESE is analt advertised at all, STA has to be configured with WMI
 	 * also
 	 */
 	WMI_ADVERTISE_ESE_DISABLED		= 0x0,
 	WMI_ADVERTISE_ESE_IN_BEACON		= 0x1,
-	WMI_ADVERTISE_ESE_IN_ANNOUNCE_FRAME	= 0x2,
+	WMI_ADVERTISE_ESE_IN_ANANALUNCE_FRAME	= 0x2,
 };
 
 /* WMI_SCHEDULING_SCHEME_CMD */
@@ -3073,7 +3073,7 @@ struct wmi_scheduling_scheme_cmd {
 } __packed;
 
 enum wmi_sched_scheme_failure_type {
-	WMI_SCHED_SCHEME_FAILURE_NO_ERROR		= 0x00,
+	WMI_SCHED_SCHEME_FAILURE_ANAL_ERROR		= 0x00,
 	WMI_SCHED_SCHEME_FAILURE_OLD_START_TSF_ERR	= 0x01,
 };
 
@@ -3124,8 +3124,8 @@ enum wmi_rs_results_status {
 struct wmi_rs_results {
 	/* number of sent MPDUs */
 	u8 num_of_tx_pkt[WMI_NUM_MCS];
-	/* number of non-acked MPDUs */
-	u8 num_of_non_acked_pkt[WMI_NUM_MCS];
+	/* number of analn-acked MPDUs */
+	u8 num_of_analn_acked_pkt[WMI_NUM_MCS];
 	/* RS timestamp */
 	__le32 tsf;
 	/* RS selected MCS */
@@ -3163,8 +3163,8 @@ struct wmi_rs_results_ex_common {
 struct wmi_rs_results_ex_mcs {
 	/* number of sent MPDUs */
 	u8 num_of_tx_pkt;
-	/* number of non-acked MPDUs */
-	u8 num_of_non_acked_pkt;
+	/* number of analn-acked MPDUs */
+	u8 num_of_analn_acked_pkt;
 	u8 reserved[2];
 } __packed;
 
@@ -3202,7 +3202,7 @@ struct wmi_brp_set_ant_limit_cmd {
 	/* enum wmi_brp_ant_limit_mode */
 	u8 limit_mode;
 	/* antenna limit count, 1-27
-	 * disable_mode - ignored
+	 * disable_mode - iganalred
 	 * effective_mode - upper limit to number of antennas to be used
 	 * force_mode - exact number of antennas to be used
 	 */
@@ -3246,12 +3246,12 @@ struct wmi_bf_trig_event {
 
 /* Types wmi_link_maintain_cfg presets for WMI_LINK_MAINTAIN_CFG_WRITE_CMD */
 enum wmi_link_maintain_cfg_type {
-	/* AP/PCP default normal (non-FST) configuration settings */
-	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_NORMAL_AP	= 0x00,
+	/* AP/PCP default analrmal (analn-FST) configuration settings */
+	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_ANALRMAL_AP	= 0x00,
 	/* AP/PCP  default FST configuration settings */
 	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_FST_AP	= 0x01,
-	/* STA default normal (non-FST) configuration settings */
-	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_NORMAL_STA	= 0x02,
+	/* STA default analrmal (analn-FST) configuration settings */
+	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_ANALRMAL_STA	= 0x02,
 	/* STA default FST configuration settings */
 	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_FST_STA	= 0x03,
 	/* custom configuration settings */
@@ -3325,9 +3325,9 @@ struct wmi_set_link_monitor_cmd {
 
 /* wmi_link_monitor_event_type */
 enum wmi_link_monitor_event_type {
-	WMI_LINK_MONITOR_NOTIF_RSSI_THRESHOLD_EVT	= 0x00,
-	WMI_LINK_MONITOR_NOTIF_TX_ERR_EVT		= 0x01,
-	WMI_LINK_MONITOR_NOTIF_THERMAL_EVT		= 0x02,
+	WMI_LINK_MONITOR_ANALTIF_RSSI_THRESHOLD_EVT	= 0x00,
+	WMI_LINK_MONITOR_ANALTIF_TX_ERR_EVT		= 0x01,
+	WMI_LINK_MONITOR_ANALTIF_THERMAL_EVT		= 0x02,
 };
 
 /* WMI_SET_LINK_MONITOR_EVENTID */
@@ -3365,7 +3365,7 @@ struct wmi_link_maintain_cfg_read_done_event {
 
 enum wmi_traffic_suspend_status {
 	WMI_TRAFFIC_SUSPEND_APPROVED			= 0x0,
-	WMI_TRAFFIC_SUSPEND_REJECTED_LINK_NOT_IDLE	= 0x1,
+	WMI_TRAFFIC_SUSPEND_REJECTED_LINK_ANALT_IDLE	= 0x1,
 	WMI_TRAFFIC_SUSPEND_REJECTED_DISCONNECT		= 0x2,
 	WMI_TRAFFIC_SUSPEND_REJECTED_OTHER		= 0x3,
 };
@@ -3382,7 +3382,7 @@ enum wmi_traffic_resume_status {
 };
 
 enum wmi_resume_trigger {
-	WMI_RESUME_TRIGGER_UNKNOWN	= 0x0,
+	WMI_RESUME_TRIGGER_UNKANALWN	= 0x0,
 	WMI_RESUME_TRIGGER_HOST		= 0x1,
 	WMI_RESUME_TRIGGER_UCAST_RX	= 0x2,
 	WMI_RESUME_TRIGGER_BCAST_RX	= 0x4,
@@ -3463,7 +3463,7 @@ enum wmi_ps_deep_sleep_clk_level {
 	WMI_PS_DEEP_SLEEP_CLK_LEVEL_RTC_LT	= 0x02,
 	WMI_PS_DEEP_SLEEP_CLK_LEVEL_XTAL	= 0x03,
 	WMI_PS_DEEP_SLEEP_CLK_LEVEL_SYSCLK	= 0x04,
-	/* Not Applicable */
+	/* Analt Applicable */
 	WMI_PS_DEEP_SLEEP_CLK_LEVEL_N_A		= 0xFF,
 };
 
@@ -3551,7 +3551,7 @@ struct wmi_get_thermal_throttling_cfg_event {
 } __packed;
 
 enum wmi_tof_session_end_status {
-	WMI_TOF_SESSION_END_NO_ERROR		= 0x00,
+	WMI_TOF_SESSION_END_ANAL_ERROR		= 0x00,
 	WMI_TOF_SESSION_END_FAIL		= 0x01,
 	WMI_TOF_SESSION_END_PARAMS_ERROR	= 0x02,
 	WMI_TOF_SESSION_END_ABORTED		= 0x03,
@@ -3594,7 +3594,7 @@ struct wmi_responder_ftm_res {
 } __packed;
 
 enum wmi_tof_ftm_per_dest_res_status {
-	WMI_PER_DEST_RES_NO_ERROR		= 0x00,
+	WMI_PER_DEST_RES_ANAL_ERROR		= 0x00,
 	WMI_PER_DEST_RES_TX_RX_FAIL		= 0x01,
 	WMI_PER_DEST_RES_PARAM_DONT_MATCH	= 0x02,
 };
@@ -3699,7 +3699,7 @@ enum wmi_rf_sector_status {
 	WMI_RF_SECTOR_STATUS_SUCCESS			= 0x00,
 	WMI_RF_SECTOR_STATUS_BAD_PARAMETERS_ERROR	= 0x01,
 	WMI_RF_SECTOR_STATUS_BUSY_ERROR			= 0x02,
-	WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR	= 0x03,
+	WMI_RF_SECTOR_STATUS_ANALT_SUPPORTED_ERROR	= 0x03,
 };
 
 /* Types of the RF sector (TX,RX) */
@@ -3900,9 +3900,9 @@ struct wmi_prio_tx_sectors_order_event {
 } __packed;
 
 struct wmi_prio_tx_sectors_num_cmd {
-	/* [0-128], 0 = No changes */
+	/* [0-128], 0 = Anal changes */
 	u8 beacon_number_of_sectors;
-	/* [0-128], 0 = No changes */
+	/* [0-128], 0 = Anal changes */
 	u8 txss_number_of_sectors;
 	/* [0-8] needed only for TXSS configuration */
 	u8 cid;
@@ -4002,8 +4002,8 @@ struct wmi_bf_control_ex_event {
 	u8 reserved[3];
 } __packed;
 
-/* WMI_COMMAND_NOT_SUPPORTED_EVENTID */
-struct wmi_command_not_supported_event {
+/* WMI_COMMAND_ANALT_SUPPORTED_EVENTID */
+struct wmi_command_analt_supported_event {
 	/* device id */
 	u8 mid;
 	u8 reserved0;
@@ -4015,9 +4015,9 @@ struct wmi_command_not_supported_event {
 
 /* WMI_TSF_SYNC_CMDID */
 struct wmi_tsf_sync_cmd {
-	/* The time interval to send announce frame in one BI */
+	/* The time interval to send ananalunce frame in one BI */
 	u8 interval_ms;
-	/* The mcs to send announce frame */
+	/* The mcs to send ananalunce frame */
 	u8 mcs;
 	u8 reserved[6];
 } __packed;
@@ -4131,7 +4131,7 @@ struct wmi_link_stats_global {
 	__le32 tx_beacons;
 	__le32 rx_mic_errors;
 	__le32 rx_crc_errors;
-	__le32 tx_fail_no_ack;
+	__le32 tx_fail_anal_ack;
 	u8 reserved[8];
 } __packed;
 
@@ -4167,7 +4167,7 @@ struct wmi_set_vring_priority_event {
 struct wmi_radar_pci_ctrl_block {
 	/* last fw tail address index */
 	__le32 fw_tail_index;
-	/* last SW head address index known to FW */
+	/* last SW head address index kanalwn to FW */
 	__le32 sw_head_index;
 	__le32 last_wr_pulse_tsf_low;
 	__le32 last_wr_pulse_count;
@@ -4207,12 +4207,12 @@ struct wmi_temp_sense_all_done_event {
 	u8 rf_bitmap;
 	u8 reserved[2];
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000). When temperature cannot be read from
+	 * dividing the value by 1000). When temperature cananalt be read from
 	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 rf_t1000[WMI_MAX_XIF_PORTS_NUM];
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000). When temperature cannot be read from
+	 * dividing the value by 1000). When temperature cananalt be read from
 	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 baseband_t1000;

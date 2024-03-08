@@ -226,8 +226,8 @@
 #define EMC_MRW14						0x4c4
 #define EMC_MRW15						0x4d0
 #define EMC_CFG_SYNC						0x4d4
-#define EMC_FDPD_CTRL_CMD_NO_RAMP				0x4d8
-#define EMC_FDPD_CTRL_CMD_NO_RAMP_CMD_DPD_NO_RAMP_ENABLE	BIT(0)
+#define EMC_FDPD_CTRL_CMD_ANAL_RAMP				0x4d8
+#define EMC_FDPD_CTRL_CMD_ANAL_RAMP_CMD_DPD_ANAL_RAMP_ENABLE	BIT(0)
 #define EMC_WDV_CHK						0x4e0
 #define EMC_CFG_PIPE_2						0x554
 #define EMC_CFG_PIPE_CLK					0x558
@@ -865,14 +865,14 @@ struct tegra210_emc_timing {
 	u32 emc_auto_cal_config8;
 	u32 emc_cfg_2;
 	u32 emc_sel_dpd_ctrl;
-	u32 emc_fdpd_ctrl_cmd_no_ramp;
+	u32 emc_fdpd_ctrl_cmd_anal_ramp;
 	u32 dll_clk_src;
 	u32 clk_out_enb_x_0_clk_enb_emc_dll;
 	u32 latency;
 };
 
 enum tegra210_emc_refresh {
-	TEGRA210_EMC_REFRESH_NOMINAL = 0,
+	TEGRA210_EMC_REFRESH_ANALMINAL = 0,
 	TEGRA210_EMC_REFRESH_2X,
 	TEGRA210_EMC_REFRESH_4X,
 	TEGRA210_EMC_REFRESH_THROTTLE, /* 4x Refresh + derating. */
@@ -888,12 +888,12 @@ struct tegra210_emc {
 	struct device *dev;
 	struct clk *clk;
 
-	/* nominal EMC frequency table */
-	struct tegra210_emc_timing *nominal;
+	/* analminal EMC frequency table */
+	struct tegra210_emc_timing *analminal;
 	/* derated EMC frequency table */
 	struct tegra210_emc_timing *derated;
 
-	/* currently selected table (nominal or derated) */
+	/* currently selected table (analminal or derated) */
 	struct tegra210_emc_timing *timings;
 	unsigned int num_timings;
 

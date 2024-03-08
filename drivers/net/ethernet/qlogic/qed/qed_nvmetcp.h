@@ -34,7 +34,7 @@ struct qed_nvmetcp_info {
 };
 
 struct qed_hash_nvmetcp_con {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct qed_nvmetcp_conn *con;
 };
 

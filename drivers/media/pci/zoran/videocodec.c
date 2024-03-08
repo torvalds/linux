@@ -43,7 +43,7 @@ struct videocodec *videocodec_attach(struct videocodec_master *master)
 	int res;
 
 	if (!master) {
-		pr_err("%s: no data\n", __func__);
+		pr_err("%s: anal data\n", __func__);
 		return NULL;
 	}
 
@@ -53,7 +53,7 @@ struct videocodec *videocodec_attach(struct videocodec_master *master)
 		  master->name, master->flags, master->magic);
 
 	if (!h) {
-		zrdev_err(zr, "%s: no device available\n", __func__);
+		zrdev_err(zr, "%s: anal device available\n", __func__);
 		return NULL;
 	}
 
@@ -98,7 +98,7 @@ struct videocodec *videocodec_attach(struct videocodec_master *master)
 		h = h->next;
 	}
 
-	zrdev_err(zr, "%s: no codec found!\n", __func__);
+	zrdev_err(zr, "%s: anal codec found!\n", __func__);
 	return NULL;
 
  out_kfree:
@@ -114,7 +114,7 @@ int videocodec_detach(struct videocodec *codec)
 	int res;
 
 	if (!codec) {
-		pr_err("%s: no data\n", __func__);
+		pr_err("%s: anal data\n", __func__);
 		return -EINVAL;
 	}
 
@@ -124,7 +124,7 @@ int videocodec_detach(struct videocodec *codec)
 		  codec->name, codec->type, codec->flags, codec->magic);
 
 	if (!h) {
-		zrdev_err(zr, "%s: no device left...\n", __func__);
+		zrdev_err(zr, "%s: anal device left...\n", __func__);
 		return -ENXIO;
 	}
 
@@ -160,7 +160,7 @@ int videocodec_detach(struct videocodec *codec)
 		h = h->next;
 	}
 
-	zrdev_err(zr, "%s: given codec not found!\n", __func__);
+	zrdev_err(zr, "%s: given codec analt found!\n", __func__);
 	return -EINVAL;
 }
 
@@ -170,7 +170,7 @@ int videocodec_register(const struct videocodec *codec)
 	struct zoran *zr;
 
 	if (!codec) {
-		pr_err("%s: no data!\n", __func__);
+		pr_err("%s: anal data!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -182,7 +182,7 @@ int videocodec_register(const struct videocodec *codec)
 
 	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 	ptr->codec = codec;
 
 	if (!h) {
@@ -205,7 +205,7 @@ int videocodec_unregister(const struct videocodec *codec)
 	struct zoran *zr;
 
 	if (!codec) {
-		pr_err("%s: no data!\n", __func__);
+		pr_err("%s: anal data!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -216,7 +216,7 @@ int videocodec_unregister(const struct videocodec *codec)
 		  codec->name, codec->type, codec->flags, codec->magic);
 
 	if (!h) {
-		zrdev_err(zr, "%s: no device left...\n", __func__);
+		zrdev_err(zr, "%s: anal device left...\n", __func__);
 		return -ENXIO;
 	}
 
@@ -245,7 +245,7 @@ int videocodec_unregister(const struct videocodec *codec)
 		h = h->next;
 	}
 
-	zrdev_err(zr, "%s: given codec not found!\n", __func__);
+	zrdev_err(zr, "%s: given codec analt found!\n", __func__);
 	return -EINVAL;
 }
 

@@ -16,7 +16,7 @@
 #include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -59,27 +59,27 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long cause,
 	 * We fault-in kernel-space virtual memory on-demand. The
 	 * 'reference' page table is init_mm.pgd.
 	 *
-	 * NOTE! We MUST NOT take any locks for this case. We may
+	 * ANALTE! We MUST ANALT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * analthing more.
 	 */
 	if (unlikely(address >= VMALLOC_START && address <= VMALLOC_END)) {
 		if (user_mode(regs))
-			goto bad_area_nosemaphore;
+			goto bad_area_analsemaphore;
 		else
 			goto vmalloc_fault;
 	}
 
 	if (unlikely(address >= TASK_SIZE))
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have anal user
+	 * context, we must analt take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -89,7 +89,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long cause,
 retry:
 	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (!vma)
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 /*
  * Ok, we have a good vm_area for this memory access, so
  * we can handle it..
@@ -125,7 +125,7 @@ retry:
 
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			goto no_context;
+			goto anal_context;
 		return;
 	}
 
@@ -147,7 +147,7 @@ retry:
 		flags |= FAULT_FLAG_TRIED;
 
 		/*
-		 * No need to mmap_read_unlock(mm) as we would
+		 * Anal need to mmap_read_unlock(mm) as we would
 		 * have already released it in __lock_page_or_retry
 		 * in mm/filemap.c.
 		 */
@@ -165,7 +165,7 @@ retry:
 bad_area:
 	mmap_read_unlock(mm);
 
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs)) {
 		if (unhandled_signal(current, SIGSEGV) && printk_ratelimit()) {
@@ -177,7 +177,7 @@ bad_area_nosemaphore:
 		return;
 	}
 
-no_context:
+anal_context:
 	/* Are we prepared to handle this kernel fault? */
 	if (fixup_exception(regs))
 		return;
@@ -203,7 +203,7 @@ no_context:
 out_of_memory:
 	mmap_read_unlock(mm);
 	if (!user_mode(regs))
-		goto no_context;
+		goto anal_context;
 	pagefault_out_of_memory();
 	return;
 
@@ -212,7 +212,7 @@ do_sigbus:
 
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))
-		goto no_context;
+		goto anal_context;
 
 	_exception(SIGBUS, regs, BUS_ADRERR, address);
 	return;
@@ -223,7 +223,7 @@ vmalloc_fault:
 		 * Synchronize this task's top level page-table
 		 * with the 'reference' page table.
 		 *
-		 * Do _not_ use "tsk" here. We might be inside
+		 * Do _analt_ use "tsk" here. We might be inside
 		 * an interrupt in the middle of a task switch..
 		 */
 		int offset = pgd_index(address);
@@ -237,26 +237,26 @@ vmalloc_fault:
 		pgd_k = init_mm.pgd + offset;
 
 		if (!pgd_present(*pgd_k))
-			goto no_context;
+			goto anal_context;
 		set_pgd(pgd, *pgd_k);
 
 		p4d = p4d_offset(pgd, address);
 		p4d_k = p4d_offset(pgd_k, address);
 		if (!p4d_present(*p4d_k))
-			goto no_context;
+			goto anal_context;
 		pud = pud_offset(p4d, address);
 		pud_k = pud_offset(p4d_k, address);
 		if (!pud_present(*pud_k))
-			goto no_context;
+			goto anal_context;
 		pmd = pmd_offset(pud, address);
 		pmd_k = pmd_offset(pud_k, address);
 		if (!pmd_present(*pmd_k))
-			goto no_context;
+			goto anal_context;
 		set_pmd(pmd, *pmd_k);
 
 		pte_k = pte_offset_kernel(pmd_k, address);
 		if (!pte_present(*pte_k))
-			goto no_context;
+			goto anal_context;
 
 		flush_tlb_kernel_page(address);
 		return;

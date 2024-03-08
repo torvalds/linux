@@ -176,7 +176,7 @@ static int ip_vs_mh_populate(struct ip_vs_mh_state *s,
 
 	table = bitmap_zalloc(IP_VS_MH_TAB_SIZE, GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = &svc->destinations;
 	n = 0;
@@ -187,7 +187,7 @@ static int ip_vs_mh_populate(struct ip_vs_mh_state *s,
 
 		ds = &s->dest_setup[0];
 		while (p != &svc->destinations) {
-			/* Ignore added server with zero weight */
+			/* Iganalre added server with zero weight */
 			if (ds->turns < 1) {
 				p = p->next;
 				ds++;
@@ -298,7 +298,7 @@ static int ip_vs_mh_reassign(struct ip_vs_mh_state *s,
 					sizeof(struct ip_vs_mh_dest_setup),
 					GFP_KERNEL);
 		if (!s->dest_setup)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ip_vs_mh_permutate(s, svc);
@@ -386,13 +386,13 @@ static int ip_vs_mh_init_svc(struct ip_vs_service *svc)
 	/* Allocate the MH table for this service */
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s->lookup = kcalloc(IP_VS_MH_TAB_SIZE, sizeof(struct ip_vs_mh_lookup),
 			    GFP_KERNEL);
 	if (!s->lookup) {
 		kfree(s);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	generate_hash_secret(&s->hash1, &s->hash2);
@@ -411,7 +411,7 @@ static int ip_vs_mh_init_svc(struct ip_vs_service *svc)
 		return ret;
 	}
 
-	/* No more failures, attach state */
+	/* Anal more failures, attach state */
 	svc->sched_data = s;
 	return 0;
 }
@@ -446,7 +446,7 @@ ip_vs_mh_get_port(const struct sk_buff *skb, struct ip_vs_iphdr *iph)
 {
 	__be16 _ports[2], *ports;
 
-	/* At this point we know that we have a valid packet of some kind.
+	/* At this point we kanalw that we have a valid packet of some kind.
 	 * Because ICMP packets are only guaranteed to have the first 8
 	 * bytes, let's just grab the ports.  Fortunately they're in the
 	 * same position for all three of the protocols we care about.
@@ -494,7 +494,7 @@ ip_vs_mh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		dest = ip_vs_mh_get(svc, s, hash_addr, port);
 
 	if (!dest) {
-		ip_vs_scheduler_err(svc, "no destination available");
+		ip_vs_scheduler_err(svc, "anal destination available");
 		return NULL;
 	}
 

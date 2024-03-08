@@ -9,11 +9,11 @@
 #include "netdev-user.h"
 
 /* netdev genetlink family code sample
- * This sample shows off basics of the netdev family but also notification
- * handling, hence the somewhat odd UI. We subscribe to notifications first
+ * This sample shows off basics of the netdev family but also analtification
+ * handling, hence the somewhat odd UI. We subscribe to analtifications first
  * then wait for ifc selection, so the socket may already accumulate
- * notifications as we wait. This allows us to test that YNL can handle
- * requests and notifications getting interleaved.
+ * analtifications as we wait. This allows us to test that YNL can handle
+ * requests and analtifications getting interleaved.
  */
 
 static void netdev_print_device(struct netdev_dev_get_rsp *d, unsigned int op)

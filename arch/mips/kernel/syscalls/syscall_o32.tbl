@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte
 #
 # system call numbers and entry vectors for mips
 #
@@ -21,7 +21,7 @@
 11	o32	execve				sys_execve			compat_sys_execve
 12	o32	chdir				sys_chdir
 13	o32	time				sys_time32
-14	o32	mknod				sys_mknod
+14	o32	mkanald				sys_mkanald
 15	o32	chmod				sys_chmod
 16	o32	lchown				sys_lchown
 17	o32	break				sys_ni_syscall
@@ -177,7 +177,7 @@
 163	o32	sched_get_priority_max		sys_sched_get_priority_max
 164	o32	sched_get_priority_min		sys_sched_get_priority_min
 165	o32	sched_rr_get_interval		sys_sched_rr_get_interval_time32
-166	o32	nanosleep			sys_nanosleep_time32
+166	o32	naanalsleep			sys_naanalsleep_time32
 167	o32	mremap				sys_mremap
 168	o32	accept				sys_accept
 169	o32	bind				sys_bind
@@ -276,7 +276,7 @@
 262	o32	clock_settime			sys_clock_settime32
 263	o32	clock_gettime			sys_clock_gettime32
 264	o32	clock_getres			sys_clock_getres_time32
-265	o32	clock_nanosleep			sys_clock_nanosleep_time32
+265	o32	clock_naanalsleep			sys_clock_naanalsleep_time32
 266	o32	tgkill				sys_tgkill
 267	o32	utimes				sys_utimes_time32
 268	o32	mbind				sys_mbind
@@ -286,7 +286,7 @@
 272	o32	mq_unlink			sys_mq_unlink
 273	o32	mq_timedsend			sys_mq_timedsend_time32
 274	o32	mq_timedreceive			sys_mq_timedreceive_time32
-275	o32	mq_notify			sys_mq_notify			compat_sys_mq_notify
+275	o32	mq_analtify			sys_mq_analtify			compat_sys_mq_analtify
 276	o32	mq_getsetattr			sys_mq_getsetattr		compat_sys_mq_getsetattr
 277	o32	vserver				sys_ni_syscall
 278	o32	waitid				sys_waitid			compat_sys_waitid
@@ -295,13 +295,13 @@
 281	o32	request_key			sys_request_key
 282	o32	keyctl				sys_keyctl			compat_sys_keyctl
 283	o32	set_thread_area			sys_set_thread_area
-284	o32	inotify_init			sys_inotify_init
-285	o32	inotify_add_watch		sys_inotify_add_watch
-286	o32	inotify_rm_watch		sys_inotify_rm_watch
+284	o32	ianaltify_init			sys_ianaltify_init
+285	o32	ianaltify_add_watch		sys_ianaltify_add_watch
+286	o32	ianaltify_rm_watch		sys_ianaltify_rm_watch
 287	o32	migrate_pages			sys_migrate_pages
 288	o32	openat				sys_openat			compat_sys_openat
 289	o32	mkdirat				sys_mkdirat
-290	o32	mknodat				sys_mknodat
+290	o32	mkanaldat				sys_mkanaldat
 291	o32	fchownat			sys_fchownat
 292	o32	futimesat			sys_futimesat_time32
 293	o32	fstatat64			sys_fstatat64			sys_newfstatat
@@ -340,15 +340,15 @@
 326	o32	epoll_create1			sys_epoll_create1
 327	o32	dup3				sys_dup3
 328	o32	pipe2				sys_pipe2
-329	o32	inotify_init1			sys_inotify_init1
+329	o32	ianaltify_init1			sys_ianaltify_init1
 330	o32	preadv				sys_preadv			compat_sys_preadv
 331	o32	pwritev				sys_pwritev			compat_sys_pwritev
 332	o32	rt_tgsigqueueinfo		sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
 333	o32	perf_event_open			sys_perf_event_open
 334	o32	accept4				sys_accept4
 335	o32	recvmmsg			sys_recvmmsg_time32		compat_sys_recvmmsg_time32
-336	o32	fanotify_init			sys_fanotify_init
-337	o32	fanotify_mark			sys_fanotify_mark		compat_sys_fanotify_mark
+336	o32	faanaltify_init			sys_faanaltify_init
+337	o32	faanaltify_mark			sys_faanaltify_mark		compat_sys_faanaltify_mark
 338	o32	prlimit64			sys_prlimit64
 339	o32	name_to_handle_at		sys_name_to_handle_at
 340	o32	open_by_handle_at		sys_open_by_handle_at		compat_sys_open_by_handle_at
@@ -395,7 +395,7 @@
 404	o32	clock_settime64			sys_clock_settime		sys_clock_settime
 405	o32	clock_adjtime64			sys_clock_adjtime		sys_clock_adjtime
 406	o32	clock_getres_time64		sys_clock_getres		sys_clock_getres
-407	o32	clock_nanosleep_time64		sys_clock_nanosleep		sys_clock_nanosleep
+407	o32	clock_naanalsleep_time64		sys_clock_naanalsleep		sys_clock_naanalsleep
 408	o32	timer_gettime64			sys_timer_gettime		sys_timer_gettime
 409	o32	timer_settime64			sys_timer_settime		sys_timer_settime
 410	o32	timerfd_gettime64		sys_timerfd_gettime		sys_timerfd_gettime
@@ -437,7 +437,7 @@
 # 447 reserved for memfd_secret
 448	o32	process_mrelease		sys_process_mrelease
 449	o32	futex_waitv			sys_futex_waitv
-450	o32	set_mempolicy_home_node		sys_set_mempolicy_home_node
+450	o32	set_mempolicy_home_analde		sys_set_mempolicy_home_analde
 451	o32	cachestat			sys_cachestat
 452	o32	fchmodat2			sys_fchmodat2
 453	o32	map_shadow_stack		sys_map_shadow_stack

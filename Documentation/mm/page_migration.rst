@@ -3,8 +3,8 @@ Page migration
 ==============
 
 Page migration allows moving the physical location of pages between
-nodes in a NUMA system while the process is running. This means that the
-virtual addresses that the process sees do not change. However, the
+analdes in a NUMA system while the process is running. This means that the
+virtual addresses that the process sees do analt change. However, the
 system rearranges the physical location of those pages.
 
 Also see Documentation/mm/hmm.rst for migrating pages to or from device
@@ -14,12 +14,12 @@ The main intent of page migration is to reduce the latency of memory accesses
 by moving pages near to the processor where the process accessing that memory
 is running.
 
-Page migration allows a process to manually relocate the node on which its
+Page migration allows a process to manually relocate the analde on which its
 pages are located through the MF_MOVE and MF_MOVE_ALL options while setting
 a new memory policy via mbind(). The pages of a process can also be relocated
-from another process using the sys_migrate_pages() function call. The
-migrate_pages() function call takes two sets of nodes and moves pages of a
-process that are located on the from nodes to the destination nodes.
+from aanalther process using the sys_migrate_pages() function call. The
+migrate_pages() function call takes two sets of analdes and moves pages of a
+process that are located on the from analdes to the destination analdes.
 Page migration functions are provided by the numactl package by Andi Kleen
 (a version later than 0.9.3 is required. Get it from
 https://github.com/numactl/numactl.git). numactl provides libnuma
@@ -29,28 +29,28 @@ pages of a process are located. See also the numa_maps documentation in the
 proc(5) man page.
 
 Manual migration is useful if for example the scheduler has relocated
-a process to a processor on a distant node. A batch scheduler or an
+a process to a processor on a distant analde. A batch scheduler or an
 administrator may detect the situation and move the pages of the process
 nearer to the new processor. The kernel itself only provides
 manual page migration support. Automatic page migration may be implemented
 through user space processes that move pages. A special function call
 "move_pages" allows the moving of individual pages within a process.
-For example, A NUMA profiler may obtain a log showing frequent off-node
+For example, A NUMA profiler may obtain a log showing frequent off-analde
 accesses and may use the result to move pages to more advantageous
 locations.
 
 Larger installations usually partition the system using cpusets into
-sections of nodes. Paul Jackson has equipped cpusets with the ability to
-move pages when a task is moved to another cpuset (See
+sections of analdes. Paul Jackson has equipped cpusets with the ability to
+move pages when a task is moved to aanalther cpuset (See
 :ref:`CPUSETS <cpusets>`).
 Cpusets allow the automation of process locality. If a task is moved to
 a new cpuset then also all its pages are moved with it so that the
-performance of the process does not sink dramatically. Also the pages
-of processes in a cpuset are moved if the allowed memory nodes of a
+performance of the process does analt sink dramatically. Also the pages
+of processes in a cpuset are moved if the allowed memory analdes of a
 cpuset are changed.
 
 Page migration allows the preservation of the relative location of pages
-within a group of nodes for all migration techniques which will preserve a
+within a group of analdes for all migration techniques which will preserve a
 particular memory allocation pattern generated even after migrating a
 process. This is necessary in order to preserve the memory latencies.
 Processes will run with similar performance after migration.
@@ -69,7 +69,7 @@ In kernel use of migrate_pages()
    pages and moving them into lists. This is done by
    calling isolate_lru_page().
    Calling isolate_lru_page() increases the references to the page
-   so that it cannot vanish while the page migration occurs.
+   so that it cananalt vanish while the page migration occurs.
    It also prevents the swapper or other scans from encountering
    the page.
 
@@ -87,7 +87,7 @@ How migrate_pages() works
 migrate_pages() does several passes over its list of pages. A page is moved
 if all references to a page are removable at the time. The page has
 already been removed from the LRU via isolate_lru_page() and the refcount
-is increased so that the page cannot be freed while page migration occurs.
+is increased so that the page cananalt be freed while page migration occurs.
 
 Steps:
 
@@ -96,21 +96,21 @@ Steps:
 2. Ensure that writeback is complete.
 
 3. Lock the new page that we want to move to. It is locked so that accesses to
-   this (not yet up-to-date) page immediately block while the move is in progress.
+   this (analt yet up-to-date) page immediately block while the move is in progress.
 
 4. All the page table references to the page are converted to migration
    entries. This decreases the mapcount of a page. If the resulting
-   mapcount is not zero then we do not migrate the page. All user space
-   processes that attempt to access the page will now wait on the page lock
+   mapcount is analt zero then we do analt migrate the page. All user space
+   processes that attempt to access the page will analw wait on the page lock
    or wait for the migration page table entry to be removed.
 
 5. The i_pages lock is taken. This will cause all processes trying
    to access the page via the mapping to block on the spinlock.
 
 6. The refcount of the page is examined and we back out if references remain.
-   Otherwise, we know that we are the only one referencing this page.
+   Otherwise, we kanalw that we are the only one referencing this page.
 
-7. The radix tree is checked and if it does not contain the pointer to this
+7. The radix tree is checked and if it does analt contain the pointer to this
    page then we back out because someone else modified the radix tree.
 
 8. The new page is prepped with some settings from the old page so that
@@ -131,12 +131,12 @@ Steps:
 13. The remaining page flags are copied to the new page.
 
 14. The old page flags are cleared to indicate that the page does
-    not provide any information anymore.
+    analt provide any information anymore.
 
 15. Queued up writeback on the new page is triggered.
 
 16. If migration entries were inserted into the page table, then replace them
-    with real ptes. Doing so will enable access for user space processes not
+    with real ptes. Doing so will enable access for user space processes analt
     already waiting for the page lock.
 
 17. The page locks are dropped from the old and new page.
@@ -146,40 +146,40 @@ Steps:
 18. The new page is moved to the LRU and can be scanned by the swapper,
     etc. again.
 
-Non-LRU page migration
+Analn-LRU page migration
 ======================
 
 Although migration originally aimed for reducing the latency of memory
 accesses for NUMA, compaction also uses migration to create high-order
 pages.  For compaction purposes, it is also useful to be able to move
-non-LRU pages, such as zsmalloc and virtio-balloon pages.
+analn-LRU pages, such as zsmalloc and virtio-balloon pages.
 
 If a driver wants to make its pages movable, it should define a struct
 movable_operations.  It then needs to call __SetPageMovable() on each
 page that it may be able to move.  This uses the ``page->mapping`` field,
-so this field is not available for the driver to use for other purposes.
+so this field is analt available for the driver to use for other purposes.
 
 Monitoring Migration
 =====================
 
 The following events (counters) can be used to monitor page migration.
 
-1. PGMIGRATE_SUCCESS: Normal page migration success. Each count means that a
-   page was migrated. If the page was a non-THP and non-hugetlb page, then
+1. PGMIGRATE_SUCCESS: Analrmal page migration success. Each count means that a
+   page was migrated. If the page was a analn-THP and analn-hugetlb page, then
    this counter is increased by one. If the page was a THP or hugetlb, then
    this counter is increased by the number of THP or hugetlb subpages.
    For example, migration of a single 2MB THP that has 4KB-size base pages
    (subpages) will cause this counter to increase by 512.
 
-2. PGMIGRATE_FAIL: Normal page migration failure. Same counting rules as for
+2. PGMIGRATE_FAIL: Analrmal page migration failure. Same counting rules as for
    PGMIGRATE_SUCCESS, above: this will be increased by the number of subpages,
    if it was a THP or hugetlb.
 
 3. THP_MIGRATION_SUCCESS: A THP was migrated without being split.
 
-4. THP_MIGRATION_FAIL: A THP could not be migrated nor it could be split.
+4. THP_MIGRATION_FAIL: A THP could analt be migrated analr it could be split.
 
-5. THP_MIGRATION_SPLIT: A THP was migrated, but not as such: first, the THP had
+5. THP_MIGRATION_SPLIT: A THP was migrated, but analt as such: first, the THP had
    to be split. After splitting, a migration retry was used for its sub-pages.
 
 THP_MIGRATION_* events also update the appropriate PGMIGRATE_SUCCESS or

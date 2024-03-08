@@ -66,7 +66,7 @@ static int get_hclk(void)
 		hclk = 400000000;
 		break;
 	default:
-		panic("unknown HCLK PLL setting: %.8x\n",
+		panic("unkanalwn HCLK PLL setting: %.8x\n",
 			readl(SAMPLE_AT_RESET_LOW));
 	}
 
@@ -115,7 +115,7 @@ static int get_tclk(void)
 		tclk_freq = 200000000;
 		break;
 	default:
-		panic("unknown TCLK PLL setting: %.8x\n",
+		panic("unkanalwn TCLK PLL setting: %.8x\n",
 			readl(SAMPLE_AT_RESET_HIGH));
 	}
 
@@ -230,11 +230,11 @@ void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 
 	/*
 	 * On the Z0, ge10 and ge11 are internally connected back
-	 * to back, and not brought out.
+	 * to back, and analt brought out.
 	 */
 	mv78xx0_pcie_id(&dev, &rev);
 	if (dev == MV78X00_Z0_DEV_ID) {
-		eth_data->phy_addr = MV643XX_ETH_PHY_NONE;
+		eth_data->phy_addr = MV643XX_ETH_PHY_ANALNE;
 		eth_data->speed = SPEED_1000;
 		eth_data->duplex = DUPLEX_FULL;
 	}
@@ -252,11 +252,11 @@ void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 
 	/*
 	 * On the Z0, ge10 and ge11 are internally connected back
-	 * to back, and not brought out.
+	 * to back, and analt brought out.
 	 */
 	mv78xx0_pcie_id(&dev, &rev);
 	if (dev == MV78X00_Z0_DEV_ID) {
-		eth_data->phy_addr = MV643XX_ETH_PHY_NONE;
+		eth_data->phy_addr = MV643XX_ETH_PHY_ANALNE;
 		eth_data->speed = SPEED_1000;
 		eth_data->duplex = DUPLEX_FULL;
 	}
@@ -393,7 +393,7 @@ static char * __init mv78xx0_id(void)
 		else
 			return "MV78200-Rev-Unsupported";
 	} else {
-		return "Device-Unknown";
+		return "Device-Unkanalwn";
 	}
 }
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -321,7 +321,7 @@ static int get_cac_tdp_table(struct pp_hwmgr *hwmgr,
 
 	tdp_table = kzalloc(table_size, GFP_KERNEL);
 	if (NULL == tdp_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdp_table->usTDP = le16_to_cpu(table->usTDP);
 	tdp_table->usConfigurableTDP = le16_to_cpu(table->usConfigurableTDP);
@@ -385,7 +385,7 @@ static int get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 	dep_table = kzalloc(struct_size(dep_table, entries, table->ucNumEntries),
 			    GFP_KERNEL);
 	if (NULL == dep_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dep_table->count = (unsigned long)table->ucNumEntries;
 
@@ -411,7 +411,7 @@ static int get_valid_clk(struct pp_hwmgr *hwmgr,
 
 	clock_table = kzalloc(struct_size(clock_table, values, table->count), GFP_KERNEL);
 	if (!clock_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clock_table->count = (unsigned long)table->count;
 
@@ -512,7 +512,7 @@ static int set_platform_caps(struct pp_hwmgr *hwmgr,
 
 	set_hw_cap(
 		hwmgr,
-		0 != (powerplay_caps & ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1),
+		0 != (powerplay_caps & ATOM_PP_PLATFORM_CAP_TURANALFFPLL_ASPML1),
 		PHM_PlatformCaps_TurnOffPll_ASPML1
 	);
 
@@ -673,32 +673,32 @@ static PP_StateClassificationFlags make_classification_flags(
 	return result;
 }
 
-static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
+static int init_analn_clock_fields(struct pp_hwmgr *hwmgr,
 						struct pp_power_state *ps,
 							    uint8_t version,
-			 const ATOM_PPLIB_NONCLOCK_INFO *pnon_clock_info) {
+			 const ATOM_PPLIB_ANALNCLOCK_INFO *panaln_clock_info) {
 	unsigned long rrr_index;
 	unsigned long tmp;
 
-	ps->classification.ui_label = (le16_to_cpu(pnon_clock_info->usClassification) &
+	ps->classification.ui_label = (le16_to_cpu(panaln_clock_info->usClassification) &
 					ATOM_PPLIB_CLASSIFICATION_UI_MASK) >> ATOM_PPLIB_CLASSIFICATION_UI_SHIFT;
 	ps->classification.flags = make_classification_flags(hwmgr,
-				le16_to_cpu(pnon_clock_info->usClassification),
-				le16_to_cpu(pnon_clock_info->usClassification2));
+				le16_to_cpu(panaln_clock_info->usClassification),
+				le16_to_cpu(panaln_clock_info->usClassification2));
 
 	ps->classification.temporary_state = false;
 	ps->classification.to_be_deleted = false;
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(panaln_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_SINGLE_DISPLAY_ONLY;
 
 	ps->validation.singleDisplayOnly = (0 != tmp);
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(panaln_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_DISALLOW_ON_DC;
 
 	ps->validation.disallowOnDC = (0 != tmp);
 
-	ps->pcie.lanes = ((le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	ps->pcie.lanes = ((le32_to_cpu(panaln_clock_info->ulCapsAndSettings) &
 				ATOM_PPLIB_PCIE_LINK_WIDTH_MASK) >>
 				ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT) + 1;
 
@@ -706,7 +706,7 @@ static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
 
 	ps->display.disableFrameModulation = false;
 
-	rrr_index = (le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	rrr_index = (le32_to_cpu(panaln_clock_info->ulCapsAndSettings) &
 			ATOM_PPLIB_LIMITED_REFRESHRATE_VALUE_MASK) >>
 			ATOM_PPLIB_LIMITED_REFRESHRATE_VALUE_SHIFT;
 
@@ -723,40 +723,40 @@ static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
 	} else
 		ps->display.limitRefreshrate = false;
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(panaln_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_ENABLE_VARIBRIGHT;
 
 	ps->display.enableVariBright = (0 != tmp);
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(panaln_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_SWSTATE_MEMORY_DLL_OFF;
 
 	ps->memory.dllOff = (0 != tmp);
 
-	ps->memory.m3arb = (le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	ps->memory.m3arb = (le32_to_cpu(panaln_clock_info->ulCapsAndSettings) &
 			    ATOM_PPLIB_M3ARB_MASK) >> ATOM_PPLIB_M3ARB_SHIFT;
 
 	ps->temperatures.min = PP_TEMPERATURE_UNITS_PER_CENTIGRADES *
-				     pnon_clock_info->ucMinTemperature;
+				     panaln_clock_info->ucMinTemperature;
 
 	ps->temperatures.max = PP_TEMPERATURE_UNITS_PER_CENTIGRADES *
-				     pnon_clock_info->ucMaxTemperature;
+				     panaln_clock_info->ucMaxTemperature;
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(panaln_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_SOFTWARE_DISABLE_LOADBALANCING;
 
 	ps->software.disableLoadBalancing = tmp;
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(panaln_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_SOFTWARE_ENABLE_SLEEP_FOR_TIMESTAMPS;
 
 	ps->software.enableSleepForTimestamps = (0 != tmp);
 
-	ps->validation.supportedPowerLevels = pnon_clock_info->ucRequiredPower;
+	ps->validation.supportedPowerLevels = panaln_clock_info->ucRequiredPower;
 
-	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < version) {
-		ps->uvd_clocks.VCLK = le32_to_cpu(pnon_clock_info->ulVCLK);
-		ps->uvd_clocks.DCLK = le32_to_cpu(pnon_clock_info->ulDCLK);
+	if (ATOM_PPLIB_ANALNCLOCKINFO_VER1 < version) {
+		ps->uvd_clocks.VCLK = le32_to_cpu(panaln_clock_info->ulVCLK);
+		ps->uvd_clocks.DCLK = le32_to_cpu(panaln_clock_info->ulDCLK);
 	} else {
 		ps->uvd_clocks.VCLK = 0;
 		ps->uvd_clocks.DCLK = 0;
@@ -888,14 +888,14 @@ int pp_tables_get_entry(struct pp_hwmgr *hwmgr,
 	int i;
 	const StateArray *pstate_arrays;
 	const ATOM_PPLIB_STATE_V2 *pstate_entry_v2;
-	const ATOM_PPLIB_NONCLOCK_INFO *pnon_clock_info;
+	const ATOM_PPLIB_ANALNCLOCK_INFO *panaln_clock_info;
 	const ATOM_PPLIB_POWERPLAYTABLE *powerplay_table = get_powerplay_table(hwmgr);
 	int result = 0;
 	int res = 0;
 
 	const ClockInfoArray *pclock_arrays;
 
-	const NonClockInfoArray *pnon_clock_arrays;
+	const AnalnClockInfoArray *panaln_clock_arrays;
 
 	const ATOM_PPLIB_STATE *pstate_entry;
 
@@ -915,13 +915,13 @@ int pp_tables_get_entry(struct pp_hwmgr *hwmgr,
 		pclock_arrays = (ClockInfoArray *)(((unsigned long)powerplay_table) +
 					le16_to_cpu(powerplay_table->usClockInfoArrayOffset));
 
-		pnon_clock_arrays = (NonClockInfoArray *)(((unsigned long)powerplay_table) +
-						le16_to_cpu(powerplay_table->usNonClockInfoArrayOffset));
+		panaln_clock_arrays = (AnalnClockInfoArray *)(((unsigned long)powerplay_table) +
+						le16_to_cpu(powerplay_table->usAnalnClockInfoArrayOffset));
 
-		pnon_clock_info = (ATOM_PPLIB_NONCLOCK_INFO *)((unsigned long)(pnon_clock_arrays->nonClockInfo) +
-					(pstate_entry_v2->nonClockInfoIndex * pnon_clock_arrays->ucEntrySize));
+		panaln_clock_info = (ATOM_PPLIB_ANALNCLOCK_INFO *)((unsigned long)(panaln_clock_arrays->analnClockInfo) +
+					(pstate_entry_v2->analnClockInfoIndex * panaln_clock_arrays->ucEntrySize));
 
-		result = init_non_clock_fields(hwmgr, ps, pnon_clock_arrays->ucEntrySize, pnon_clock_info);
+		result = init_analn_clock_fields(hwmgr, ps, panaln_clock_arrays->ucEntrySize, panaln_clock_info);
 
 		for (i = 0; i < pstate_entry_v2->ucNumDPMLevels; i++) {
 			const void *pclock_info = (const void *)(
@@ -939,14 +939,14 @@ int pp_tables_get_entry(struct pp_hwmgr *hwmgr,
 						    le16_to_cpu(powerplay_table->usStateArrayOffset) +
 						    entry_index * powerplay_table->ucStateEntrySize);
 
-		pnon_clock_info = (ATOM_PPLIB_NONCLOCK_INFO *)((unsigned long)powerplay_table +
-						le16_to_cpu(powerplay_table->usNonClockInfoArrayOffset) +
-						pstate_entry->ucNonClockStateIndex *
-						powerplay_table->ucNonClockSize);
+		panaln_clock_info = (ATOM_PPLIB_ANALNCLOCK_INFO *)((unsigned long)powerplay_table +
+						le16_to_cpu(powerplay_table->usAnalnClockInfoArrayOffset) +
+						pstate_entry->ucAnalnClockStateIndex *
+						powerplay_table->ucAnalnClockSize);
 
-		result = init_non_clock_fields(hwmgr, ps,
-							powerplay_table->ucNonClockSize,
-							pnon_clock_info);
+		result = init_analn_clock_fields(hwmgr, ps,
+							powerplay_table->ucAnalnClockSize,
+							panaln_clock_info);
 
 		for (i = 0; i < powerplay_table->ucStateEntrySize-1; i++) {
 			const void *pclock_info = (const void *)((unsigned long)powerplay_table +
@@ -991,9 +991,9 @@ static int init_thermal_controller(
 	hwmgr->thermal_controller.ucI2cAddress =
 			powerplay_table->sThermalController.ucI2cAddress;
 
-	hwmgr->thermal_controller.fanInfo.bNoFan =
+	hwmgr->thermal_controller.fanInfo.bAnalFan =
 		(0 != (powerplay_table->sThermalController.ucFanParameters &
-			ATOM_PP_FANPARAMETERS_NOFAN));
+			ATOM_PP_FANPARAMETERS_ANALFAN));
 
 	hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution =
 		powerplay_table->sThermalController.ucFanParameters &
@@ -1005,7 +1005,7 @@ static int init_thermal_controller(
 		= powerplay_table->sThermalController.ucFanMaxRPM * 100UL;
 
 	set_hw_cap(hwmgr,
-		   ATOM_PP_THERMALCONTROLLER_NONE != hwmgr->thermal_controller.ucType,
+		   ATOM_PP_THERMALCONTROLLER_ANALNE != hwmgr->thermal_controller.ucType,
 		   PHM_PlatformCaps_ThermalController);
 
         if (powerplay_table->usTableSize >= sizeof(ATOM_PPLIB_POWERPLAYTABLE3)) {
@@ -1212,7 +1212,7 @@ static int get_uvd_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 	uvd_table = kzalloc(struct_size(uvd_table, entries, table->numEntries),
 			    GFP_KERNEL);
 	if (!uvd_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uvd_table->count = table->numEntries;
 
@@ -1242,7 +1242,7 @@ static int get_vce_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 	vce_table = kzalloc(struct_size(vce_table, entries, table->numEntries),
 			    GFP_KERNEL);
 	if (!vce_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vce_table->count = table->numEntries;
 	for (i = 0; i < table->numEntries; i++) {
@@ -1270,7 +1270,7 @@ static int get_samu_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 	samu_table = kzalloc(struct_size(samu_table, entries, table->numEntries),
 			     GFP_KERNEL);
 	if (!samu_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	samu_table->count = table->numEntries;
 
@@ -1295,7 +1295,7 @@ static int get_acp_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 	acp_table = kzalloc(struct_size(acp_table, entries, table->numEntries),
 			    GFP_KERNEL);
 	if (!acp_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acp_table->count = (unsigned long)table->numEntries;
 
@@ -1490,7 +1490,7 @@ static int get_cac_leakage_table(struct pp_hwmgr *hwmgr,
 	cac_leakage_table = kzalloc(struct_size(cac_leakage_table, entries, table->ucNumEntries),
 				    GFP_KERNEL);
 	if (!cac_leakage_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cac_leakage_table->count = (ULONG)table->ucNumEntries;
 
@@ -1517,7 +1517,7 @@ static int get_platform_power_management_table(struct pp_hwmgr *hwmgr,
 	struct phm_ppm_table *ptr = kzalloc(sizeof(struct phm_ppm_table), GFP_KERNEL);
 
 	if (NULL == ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr->ppm_design            = atom_ppm_table->ucPpmDesign;
 	ptr->cpu_core_number        = le16_to_cpu(atom_ppm_table->usCpuCoreNumber);
@@ -1628,7 +1628,7 @@ static int init_phase_shedding_table(struct pp_hwmgr *hwmgr,
 			table = kzalloc(struct_size(table, entries, ptable->ucNumEntries),
 					GFP_KERNEL);
 			if (!table)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			table->count = (unsigned long)ptable->ucNumEntries;
 

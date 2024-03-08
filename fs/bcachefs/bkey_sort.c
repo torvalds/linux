@@ -121,7 +121,7 @@ bch2_key_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 /* Sort + repack in a new format: */
 struct btree_nr_keys
 bch2_sort_repack(struct bset *dst, struct btree *src,
-		 struct btree_node_iter *src_iter,
+		 struct btree_analde_iter *src_iter,
 		 struct bkey_format *out_f,
 		 bool filter_whiteouts)
 {
@@ -132,7 +132,7 @@ bch2_sort_repack(struct bset *dst, struct btree *src,
 
 	memset(&nr, 0, sizeof(nr));
 
-	while ((in = bch2_btree_node_iter_next_all(src_iter, src))) {
+	while ((in = bch2_btree_analde_iter_next_all(src_iter, src))) {
 		if (filter_whiteouts && bkey_deleted(in))
 			continue;
 

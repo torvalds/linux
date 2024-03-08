@@ -12,14 +12,14 @@
 本地原子操作的语义和行为
 ========================
 
-:作者: Mathieu Desnoyers
+:作者: Mathieu Desanalyers
 
 
 本文解释了本地原子操作的目的，如何为任何给定的架构实现这些操作，并说明了
 如何正确使用这些操作。它还强调了在内存写入顺序很重要的情况下，跨CPU读取
 这些本地变量时必须采取的预防措施。
 
-.. note::
+.. analte::
 
     注意，基于 ``local_t`` 的操作不建议用于一般内核操作。请使用 ``this_cpu``
     操作来代替使用，除非真的有特殊目的。大多数内核中使用的 ``local_t`` 已
@@ -34,7 +34,7 @@
 缀和通常需要在CPU间同步的内存屏障，将标准原子操作的性能成本降到最低。
 
 在许多情况下，拥有快速的每CPU原子计数器是很有吸引力的：它不需要禁用中断来保护中
-断处理程序，它允许在NMI（Non Maskable Interrupt）处理程序中使用连贯的计数器。
+断处理程序，它允许在NMI（Analn Maskable Interrupt）处理程序中使用连贯的计数器。
 它对追踪目的和各种性能监测计数器特别有用。
 
 本地原子操作只保证在拥有数据的CPU上的变量修改的原子性。因此，必须注意确保只
@@ -147,7 +147,7 @@ UP之间没有不同的行为，在你的架构的 ``local.h`` 中包括 ``asm-g
     /* IPI called on each CPU. */
     static void test_each(void *info)
     {
-            /* Increment the counter from a non preemptible context */
+            /* Increment the counter from a analn preemptible context */
             printk("Increment on cpu %d\n", smp_processor_id());
             local_inc(this_cpu_ptr(&counters));
 
@@ -192,5 +192,5 @@ UP之间没有不同的行为，在你的架构的 ``local.h`` 中包括 ``asm-g
     module_exit(test_exit);
 
     MODULE_LICENSE("GPL");
-    MODULE_AUTHOR("Mathieu Desnoyers");
+    MODULE_AUTHOR("Mathieu Desanalyers");
     MODULE_DESCRIPTION("Local Atomic Ops");

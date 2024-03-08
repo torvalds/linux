@@ -2,7 +2,7 @@
 /*
  * Microchip External Interrupt Controller driver
  *
- * Copyright (C) 2021 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2021 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Claudiu Beznea <claudiu.beznea@microchip.com>
  */
@@ -184,7 +184,7 @@ static int mchp_eic_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	irq_domain_set_hwirq_and_chip(domain, virq, hwirq, &mchp_eic_chip, eic);
 
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0] = GIC_SPI;
 	parent_fwspec.param[1] = eic->irqs[hwirq];
@@ -199,28 +199,28 @@ static const struct irq_domain_ops mchp_eic_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int mchp_eic_init(struct device_node *node, struct device_node *parent)
+static int mchp_eic_init(struct device_analde *analde, struct device_analde *parent)
 {
 	struct irq_domain *parent_domain = NULL;
 	int ret, i;
 
 	eic = kzalloc(sizeof(*eic), GFP_KERNEL);
 	if (!eic)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	eic->base = of_iomap(node, 0);
+	eic->base = of_iomap(analde, 0);
 	if (!eic->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unmap;
 	}
 
-	eic->clk = of_clk_get_by_name(node, "pclk");
+	eic->clk = of_clk_get_by_name(analde, "pclk");
 	if (IS_ERR(eic->clk)) {
 		ret = PTR_ERR(eic->clk);
 		goto unmap;
@@ -236,7 +236,7 @@ static int mchp_eic_init(struct device_node *node, struct device_node *parent)
 		/* Disable it, if any. */
 		writel_relaxed(0UL, eic->base + MCHP_EIC_SCFG(i));
 
-		ret = of_irq_parse_one(node, i, &irq);
+		ret = of_irq_parse_one(analde, i, &irq);
 		if (ret)
 			goto clk_unprepare;
 
@@ -249,16 +249,16 @@ static int mchp_eic_init(struct device_node *node, struct device_node *parent)
 	}
 
 	eic->domain = irq_domain_add_hierarchy(parent_domain, 0, MCHP_EIC_NIRQ,
-					       node, &mchp_eic_domain_ops, eic);
+					       analde, &mchp_eic_domain_ops, eic);
 	if (!eic->domain) {
-		pr_err("%pOF: Failed to add domain\n", node);
-		ret = -ENODEV;
+		pr_err("%pOF: Failed to add domain\n", analde);
+		ret = -EANALDEV;
 		goto clk_unprepare;
 	}
 
 	register_syscore_ops(&mchp_eic_syscore_ops);
 
-	pr_info("%pOF: EIC registered, nr_irqs %u\n", node, MCHP_EIC_NIRQ);
+	pr_info("%pOF: EIC registered, nr_irqs %u\n", analde, MCHP_EIC_NIRQ);
 
 	return 0;
 

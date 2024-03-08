@@ -8,14 +8,14 @@
 __u64 user_pid = 0;
 __u64 user_tgid = 0;
 __u64 dev = 0;
-__u64 ino = 0;
+__u64 ianal = 0;
 
-SEC("tracepoint/syscalls/sys_enter_nanosleep")
+SEC("tracepoint/syscalls/sys_enter_naanalsleep")
 int handler(const void *ctx)
 {
 	struct bpf_pidns_info nsdata;
 
-	if (bpf_get_ns_current_pid_tgid(dev, ino, &nsdata, sizeof(struct bpf_pidns_info)))
+	if (bpf_get_ns_current_pid_tgid(dev, ianal, &nsdata, sizeof(struct bpf_pidns_info)))
 		return 0;
 
 	user_pid = nsdata.pid;

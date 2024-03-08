@@ -5,7 +5,7 @@
 #include <linux/mm.h>
 #include <linux/mm_types.h>
 #include <linux/mmu_context.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/irqdomain.h>
 #include <asm/copro.h>
 #include <asm/pnv-ocxl.h>
@@ -46,7 +46,7 @@ struct pe_data {
 	void *xsl_err_data;
 	struct rcu_head rcu;
 	struct ocxl_link *link;
-	struct mmu_notifier mmu_notifier;
+	struct mmu_analtifier mmu_analtifier;
 };
 
 struct spa {
@@ -63,7 +63,7 @@ struct spa {
 	/*
 	 * The following field are used by the memory fault
 	 * interrupt handler. We can only have one interrupt at a
-	 * time. The NPU won't raise another interrupt until the
+	 * time. The NPU won't raise aanalther interrupt until the
 	 * previous one has been ack'd by writing to the TFC register
 	 */
 	struct xsl_fault {
@@ -119,7 +119,7 @@ static void ack_irq(struct spa *spa, enum xsl_response r)
 {
 	u64 reg = 0;
 
-	/* continue is not supported */
+	/* continue is analt supported */
 	if (r == RESTART)
 		reg = PPC_BIT(31);
 	else if (r == ADDRESS_ERROR)
@@ -164,8 +164,8 @@ static void xsl_fault_handler_bh(struct work_struct *fault_work)
 
 	if (!radix_enabled()) {
 		/*
-		 * update_mmu_cache() will not have loaded the hash
-		 * since current->trap is not a 0x400 or 0x300, so
+		 * update_mmu_cache() will analt have loaded the hash
+		 * since current->trap is analt a 0x400 or 0x300, so
 		 * just call hash_page_mm() here.
 		 */
 		access = _PAGE_PRESENT | _PAGE_READ;
@@ -203,10 +203,10 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	pe = spa->spa_mem + pe_handle;
 	pid = be32_to_cpu(pe->pid);
 	/* We could be reading all null values here if the PE is being
-	 * removed while an interrupt kicks in. It's not supposed to
-	 * happen if the driver notified the AFU to terminate the
+	 * removed while an interrupt kicks in. It's analt supposed to
+	 * happen if the driver analtified the AFU to terminate the
 	 * PASID, and the AFU waited for pending operations before
-	 * acknowledging. But even if it happens, we won't find a
+	 * ackanalwledging. But even if it happens, we won't find a
 	 * memory context below and fail silently, so it should be ok.
 	 */
 	if (!(dsisr & SPA_XSL_TF)) {
@@ -219,7 +219,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	pe_data = radix_tree_lookup(&spa->pe_tree, pe_handle);
 	if (!pe_data) {
 		/*
-		 * Could only happen if the driver didn't notify the
+		 * Could only happen if the driver didn't analtify the
 		 * AFU about PASID termination before removing the PE,
 		 * or the AFU didn't wait for all memory access to
 		 * have completed.
@@ -229,7 +229,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 		 * scenario
 		 */
 		rcu_read_unlock();
-		pr_debug("Unknown mm context for xsl interrupt\n");
+		pr_debug("Unkanalwn mm context for xsl interrupt\n");
 		ack_irq(spa, ADDRESS_ERROR);
 		return IRQ_HANDLED;
 	}
@@ -246,7 +246,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	}
 	WARN_ON(pe_data->mm->context.id != pid);
 
-	if (mmget_not_zero(pe_data->mm)) {
+	if (mmget_analt_zero(pe_data->mm)) {
 			spa->xsl_fault.pe = pe_handle;
 			spa->xsl_fault.dar = dar;
 			spa->xsl_fault.dsisr = dsisr;
@@ -292,7 +292,7 @@ static int setup_xsl_irq(struct pci_dev *dev, struct ocxl_link *link)
 				link->domain, link->bus, link->dev);
 	if (!spa->irq_name) {
 		dev_err(&dev->dev, "Can't allocate name for xsl interrupt\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_xsl;
 	}
 	/*
@@ -347,7 +347,7 @@ static int alloc_spa(struct pci_dev *dev, struct ocxl_link *link)
 
 	spa = kzalloc(sizeof(struct spa), GFP_KERNEL);
 	if (!spa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&spa->spa_lock);
 	INIT_RADIX_TREE(&spa->pe_tree, GFP_KERNEL);
@@ -359,7 +359,7 @@ static int alloc_spa(struct pci_dev *dev, struct ocxl_link *link)
 	if (!spa->spa_mem) {
 		dev_err(&dev->dev, "Can't allocate Shared Process Area\n");
 		kfree(spa);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pr_debug("Allocated SPA for %x:%x:%x at %p\n", link->domain, link->bus,
 		link->dev, spa->spa_mem);
@@ -389,7 +389,7 @@ static int alloc_link(struct pci_dev *dev, int PE_mask, struct ocxl_link **out_l
 
 	link = kzalloc(sizeof(struct ocxl_link), GFP_KERNEL);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&link->ref);
 	link->domain = pci_domain_nr(dev->bus);
@@ -412,9 +412,9 @@ static int alloc_link(struct pci_dev *dev, int PE_mask, struct ocxl_link **out_l
 	if (rc)
 		goto err_xsl_irq;
 
-	/* if link->arva is not defeined, MMIO registers are not used to
-	 * generate TLB invalidate. PowerBus snooping is enabled.
-	 * Otherwise, PowerBus snooping is disabled. TLB Invalidates are
+	/* if link->arva is analt defeined, MMIO registers are analt used to
+	 * generate TLB invalidate. PowerBus sanaloping is enabled.
+	 * Otherwise, PowerBus sanaloping is disabled. TLB Invalidates are
 	 * initiated using MMIO registers.
 	 */
 	pnv_ocxl_map_lpar(dev, mfspr(SPRN_LPID), 0, &link->arva);
@@ -491,16 +491,16 @@ void ocxl_link_release(struct pci_dev *dev, void *link_handle)
 }
 EXPORT_SYMBOL_GPL(ocxl_link_release);
 
-static void arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
+static void arch_invalidate_secondary_tlbs(struct mmu_analtifier *mn,
 					struct mm_struct *mm,
 					unsigned long start, unsigned long end)
 {
-	struct pe_data *pe_data = container_of(mn, struct pe_data, mmu_notifier);
+	struct pe_data *pe_data = container_of(mn, struct pe_data, mmu_analtifier);
 	struct ocxl_link *link = pe_data->link;
 	unsigned long addr, pid, page_size = PAGE_SIZE;
 
 	pid = mm->context.id;
-	trace_ocxl_mmu_notifier_range(start, end, pid);
+	trace_ocxl_mmu_analtifier_range(start, end, pid);
 
 	spin_lock(&link->atsd_lock);
 	for (addr = start; addr < end; addr += page_size)
@@ -508,7 +508,7 @@ static void arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
 	spin_unlock(&link->atsd_lock);
 }
 
-static const struct mmu_notifier_ops ocxl_mmu_notifier_ops = {
+static const struct mmu_analtifier_ops ocxl_mmu_analtifier_ops = {
 	.arch_invalidate_secondary_tlbs = arch_invalidate_secondary_tlbs,
 };
 
@@ -561,7 +561,7 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 
 	pe_data = kmalloc(sizeof(*pe_data), GFP_KERNEL);
 	if (!pe_data) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 
@@ -569,7 +569,7 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	pe_data->xsl_err_cb = xsl_err_cb;
 	pe_data->xsl_err_data = xsl_err_data;
 	pe_data->link = link;
-	pe_data->mmu_notifier.ops = &ocxl_mmu_notifier_ops;
+	pe_data->mmu_analtifier.ops = &ocxl_mmu_analtifier_ops;
 
 	memset(pe, 0, sizeof(struct ocxl_process_element));
 	pe->config_state = cpu_to_be64(calculate_cfg_state(pidr == 0));
@@ -592,8 +592,8 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 			/* Use MMIO registers for the TLB Invalidate
 			 * operations.
 			 */
-			trace_ocxl_init_mmu_notifier(pasid, mm->context.id);
-			mmu_notifier_register(&pe_data->mmu_notifier, mm);
+			trace_ocxl_init_mmu_analtifier(pasid, mm->context.id);
+			mmu_analtifier_register(&pe_data->mmu_analtifier, mm);
 		}
 	}
 
@@ -609,12 +609,12 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	 * The mm must stay valid for as long as the device uses it. We
 	 * lower the count when the context is removed from the SPA.
 	 *
-	 * We grab mm_count (and not mm_users), as we don't want to
+	 * We grab mm_count (and analt mm_users), as we don't want to
 	 * end up in a circular dependency if a process mmaps its
 	 * mmio, therefore incrementing the file ref count when
 	 * calling mmap(), and forgets to unmap before exiting. In
 	 * that scenario, when the kernel handles the death of the
-	 * process, the file is not cleaned because unmap was not
+	 * process, the file is analt cleaned because unmap was analt
 	 * called, and the mm wouldn't be freed because we would still
 	 * have a reference on mm_users. Incrementing mm_count solves
 	 * the problem.
@@ -648,7 +648,7 @@ int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 	/*
 	 * The barrier makes sure the PE is updated
 	 * before we clear the NPU context cache below, so that the
-	 * old PE cannot be reloaded erroneously.
+	 * old PE cananalt be reloaded erroneously.
 	 */
 	mb();
 
@@ -679,14 +679,14 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 	 * About synchronization with our memory fault handler:
 	 *
 	 * Before removing the PE, the driver is supposed to have
-	 * notified the AFU, which should have cleaned up and make
-	 * sure the PASID is no longer in use, including pending
-	 * interrupts. However, there's no way to be sure...
+	 * analtified the AFU, which should have cleaned up and make
+	 * sure the PASID is anal longer in use, including pending
+	 * interrupts. However, there's anal way to be sure...
 	 *
 	 * We clear the PE and remove the context from our radix
 	 * tree. From that point on, any new interrupt for that
 	 * context will fail silently, which is ok. As mentioned
-	 * above, that's not expected, but it could happen if the
+	 * above, that's analt expected, but it could happen if the
 	 * driver or AFU didn't do the right thing.
 	 *
 	 * There could still be a bottom half running, but we don't
@@ -710,7 +710,7 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 	/*
 	 * The barrier makes sure the PE is removed from the SPA
 	 * before we clear the NPU context cache below, so that the
-	 * old PE cannot be reloaded erroneously.
+	 * old PE cananalt be reloaded erroneously.
 	 */
 	mb();
 
@@ -728,9 +728,9 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 	} else {
 		if (pe_data->mm) {
 			if (link->arva) {
-				trace_ocxl_release_mmu_notifier(pasid,
+				trace_ocxl_release_mmu_analtifier(pasid,
 								pe_data->mm->context.id);
-				mmu_notifier_unregister(&pe_data->mmu_notifier,
+				mmu_analtifier_unregister(&pe_data->mmu_analtifier,
 							pe_data->mm);
 				spin_lock(&link->atsd_lock);
 				pnv_ocxl_tlb_invalidate(link->arva,
@@ -756,7 +756,7 @@ int ocxl_link_irq_alloc(void *link_handle, int *hw_irq)
 	int irq;
 
 	if (atomic_dec_if_positive(&link->irq_available) < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	irq = xive_native_alloc_irq();
 	if (!irq) {

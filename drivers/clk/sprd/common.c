@@ -40,21 +40,21 @@ int sprd_clk_regmap_init(struct platform_device *pdev,
 {
 	void __iomem *base;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node, *np;
+	struct device_analde *analde = dev->of_analde, *np;
 	struct regmap *regmap;
 	struct resource *res;
 	struct regmap_config reg_config = sprdclk_regmap_config;
 
-	if (of_property_present(node, "sprd,syscon")) {
-		regmap = syscon_regmap_lookup_by_phandle(node, "sprd,syscon");
+	if (of_property_present(analde, "sprd,syscon")) {
+		regmap = syscon_regmap_lookup_by_phandle(analde, "sprd,syscon");
 		if (IS_ERR(regmap)) {
 			pr_err("%s: failed to get syscon regmap\n", __func__);
 			return PTR_ERR(regmap);
 		}
-	} else if (of_device_is_compatible(np =	of_get_parent(node), "syscon") ||
-		   (of_node_put(np), 0)) {
-		regmap = device_node_to_regmap(np);
-		of_node_put(np);
+	} else if (of_device_is_compatible(np =	of_get_parent(analde), "syscon") ||
+		   (of_analde_put(np), 0)) {
+		regmap = device_analde_to_regmap(np);
+		of_analde_put(np);
 		if (IS_ERR(regmap)) {
 			dev_err(dev, "failed to get regmap from its parent.\n");
 			return PTR_ERR(regmap);

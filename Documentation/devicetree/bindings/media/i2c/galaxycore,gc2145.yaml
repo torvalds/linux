@@ -13,7 +13,7 @@ description:
   The Galaxy Core GC2145 is a 2 Megapixel CMOS image sensor, for mobile
   phone camera applications and digital camera products. GC2145 incorporates a
   1616V x 1232H active pixel array, on-chip 10-bit ADC, and image signal
-  processor allowing AE/AWB/interpolation/de-noise/color-conversion and
+  processor allowing AE/AWB/interpolation/de-analise/color-conversion and
   gamma correction. Bayer RGB, RGB565 and YCbCr 4:2:2 can be provided by the
   sensor. It is programmable through an I2C interface. Image data is sent
   either through a parallel interface or through MIPI CSI-2.

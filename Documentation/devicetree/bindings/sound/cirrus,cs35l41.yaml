@@ -10,7 +10,7 @@ maintainers:
   - david.rhodes@cirrus.com
 
 description: |
-  CS35L41 is a boosted mono Class D amplifier with DSP
+  CS35L41 is a boosted moanal Class D amplifier with DSP
   speaker protection and equalization
 
 properties:
@@ -50,7 +50,7 @@ properties:
     maximum: 4500
     default: 4500
 
-  cirrus,boost-ind-nanohenry:
+  cirrus,boost-ind-naanalhenry:
     description:
       Boost inductor value, expressed in nH. Valid
       values include 1000, 1200, 1500 and 2200.
@@ -81,16 +81,16 @@ properties:
   cirrus,boost-type:
     description:
       Configures the type of Boost being used.
-      Internal boost requires boost-peak-milliamp, boost-ind-nanohenry and
+      Internal boost requires boost-peak-milliamp, boost-ind-naanalhenry and
       boost-cap-microfarad.
       External Boost must have GPIO1 as GPIO output. GPIO1 will be set high to
       enable boost voltage.
       Shared boost allows two amplifiers to share a single boost circuit by
       communicating on the MDSYNC bus. The active amplifier controls the boost
       circuit using combined data from both amplifiers. GPIO1 should be
-      configured for Sync when shared boost is used. Shared boost is not
+      configured for Sync when shared boost is used. Shared boost is analt
       compatible with External boost. Active amplifier requires
-      boost-peak-milliamp, boost-ind-nanohenry and boost-cap-microfarad.
+      boost-peak-milliamp, boost-ind-naanalhenry and boost-cap-microfarad.
       0 = Internal Boost
       1 = External Boost
       2 = Shared Boost Active
@@ -102,20 +102,20 @@ properties:
   cirrus,gpio1-polarity-invert:
     description:
       Boolean which specifies whether the GPIO1
-      level is inverted. If this property is not present the level is not inverted.
+      level is inverted. If this property is analt present the level is analt inverted.
     type: boolean
 
   cirrus,gpio1-output-enable:
     description:
       Boolean which specifies whether the GPIO1 pin
-      is configured as an output. If this property is not present the
+      is configured as an output. If this property is analt present the
       pin will be configured as an input.
     type: boolean
 
   cirrus,gpio1-src-select:
     description:
       Configures the function of the GPIO1 pin.
-      Note that the options are different from the GPIO2 pin
+      Analte that the options are different from the GPIO2 pin
       0 = High Impedance (Default)
       1 = GPIO
       2 = Sync
@@ -127,20 +127,20 @@ properties:
   cirrus,gpio2-polarity-invert:
     description:
       Boolean which specifies whether the GPIO2
-      level is inverted. If this property is not present the level is not inverted.
+      level is inverted. If this property is analt present the level is analt inverted.
     type: boolean
 
   cirrus,gpio2-output-enable:
     description:
       Boolean which specifies whether the GPIO2 pin
-      is configured as an output. If this property is not present the
+      is configured as an output. If this property is analt present the
       pin will be configured as an input.
     type: boolean
 
   cirrus,gpio2-src-select:
     description:
       Configures the function of the GPIO2 pin.
-      Note that the options are different from the GPIO1 pin.
+      Analte that the options are different from the GPIO1 pin.
       0 = High Impedance (Default)
       1 = GPIO
       2 = Open Drain INTB
@@ -165,7 +165,7 @@ allOf:
     then:
       required:
         - cirrus,boost-peak-milliamp
-        - cirrus,boost-ind-nanohenry
+        - cirrus,boost-ind-naanalhenry
         - cirrus,boost-cap-microfarad
     else:
       if:
@@ -178,7 +178,7 @@ allOf:
           - cirrus,gpio1-src-select
         properties:
           cirrus,boost-peak-milliamp: false
-          cirrus,boost-ind-nanohenry: false
+          cirrus,boost-ind-naanalhenry: false
           cirrus,boost-cap-microfarad: false
           cirrus,gpio1-src-select:
             enum: [1]
@@ -203,7 +203,7 @@ examples:
 
             cirrus,boost-type = <0>;
             cirrus,boost-peak-milliamp = <4500>;
-            cirrus,boost-ind-nanohenry = <1000>;
+            cirrus,boost-ind-naanalhenry = <1000>;
             cirrus,boost-cap-microfarad = <15>;
         };
     };

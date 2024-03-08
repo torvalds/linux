@@ -20,7 +20,7 @@ CMD_RELOCS = arch/mips/boot/tools/relocs
 quiet_cmd_relocs = RELOCS  $@
       cmd_relocs = $(CMD_RELOCS) $@
 
-# `@true` prevents complaint when there is nothing to be done
+# `@true` prevents complaint when there is analthing to be done
 
 vmlinux: FORCE
 	@true

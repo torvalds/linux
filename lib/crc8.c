@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -21,12 +21,12 @@
 #include <linux/printk.h>
 
 /**
- * crc8_populate_msb - fill crc table for given polynomial in reverse bit order.
+ * crc8_populate_msb - fill crc table for given polyanalmial in reverse bit order.
  *
  * @table:	table to be filled.
- * @polynomial:	polynomial for which table is to be filled.
+ * @polyanalmial:	polyanalmial for which table is to be filled.
  */
-void crc8_populate_msb(u8 table[CRC8_TABLE_SIZE], u8 polynomial)
+void crc8_populate_msb(u8 table[CRC8_TABLE_SIZE], u8 polyanalmial)
 {
 	int i, j;
 	const u8 msbit = 0x80;
@@ -35,7 +35,7 @@ void crc8_populate_msb(u8 table[CRC8_TABLE_SIZE], u8 polynomial)
 	table[0] = 0;
 
 	for (i = 1; i < CRC8_TABLE_SIZE; i *= 2) {
-		t = (t << 1) ^ (t & msbit ? polynomial : 0);
+		t = (t << 1) ^ (t & msbit ? polyanalmial : 0);
 		for (j = 0; j < i; j++)
 			table[i+j] = table[j] ^ t;
 	}
@@ -43,12 +43,12 @@ void crc8_populate_msb(u8 table[CRC8_TABLE_SIZE], u8 polynomial)
 EXPORT_SYMBOL(crc8_populate_msb);
 
 /**
- * crc8_populate_lsb - fill crc table for given polynomial in regular bit order.
+ * crc8_populate_lsb - fill crc table for given polyanalmial in regular bit order.
  *
  * @table:	table to be filled.
- * @polynomial:	polynomial for which table is to be filled.
+ * @polyanalmial:	polyanalmial for which table is to be filled.
  */
-void crc8_populate_lsb(u8 table[CRC8_TABLE_SIZE], u8 polynomial)
+void crc8_populate_lsb(u8 table[CRC8_TABLE_SIZE], u8 polyanalmial)
 {
 	int i, j;
 	u8 t = 1;
@@ -56,7 +56,7 @@ void crc8_populate_lsb(u8 table[CRC8_TABLE_SIZE], u8 polynomial)
 	table[0] = 0;
 
 	for (i = (CRC8_TABLE_SIZE >> 1); i; i >>= 1) {
-		t = (t >> 1) ^ (t & 1 ? polynomial : 0);
+		t = (t >> 1) ^ (t & 1 ? polyanalmial : 0);
 		for (j = 0; j < CRC8_TABLE_SIZE; j += 2*i)
 			table[i+j] = table[j] ^ t;
 	}

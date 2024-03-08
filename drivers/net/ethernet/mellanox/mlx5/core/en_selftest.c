@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -165,7 +165,7 @@ mlx5e_test_loopback_validate(struct sk_buff *skb,
 	struct udphdr *udph;
 	struct iphdr *iph;
 
-	/* We are only going to peek, no need to clone the SKB */
+	/* We are only going to peek, anal need to clone the SKB */
 	if (MLX5E_TEST_PKT_SIZE - ETH_HLEN > skb_headlen(skb))
 		goto out;
 
@@ -245,7 +245,7 @@ static void mlx5e_test_loopback_cleanup(struct mlx5e_priv *priv,
 static int mlx5e_cond_loopback(struct mlx5e_priv *priv)
 {
 	if (is_mdev_switchdev_mode(priv->mdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -260,12 +260,12 @@ static int mlx5e_test_loopback(struct mlx5e_priv *priv)
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		netdev_err(priv->netdev,
 			   "\tCan't perform loopback test while device is down\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	lbtp = kzalloc(sizeof(*lbtp), GFP_KERNEL);
 	if (!lbtp)
-		return -ENOMEM;
+		return -EANALMEM;
 	lbtp->loopback_ok = false;
 
 	err = mlx5e_test_loopback_setup(priv, lbtp);
@@ -274,7 +274,7 @@ static int mlx5e_test_loopback(struct mlx5e_priv *priv)
 
 	skb = mlx5e_test_get_udp_skb(priv);
 	if (!skb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto cleanup;
 	}
 

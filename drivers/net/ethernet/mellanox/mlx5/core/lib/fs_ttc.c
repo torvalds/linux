@@ -203,7 +203,7 @@ mlx5_generate_ttc_rule(struct mlx5_core_dev *dev, struct mlx5_flow_table *ft,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (proto) {
 		spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
@@ -247,7 +247,7 @@ static int mlx5_generate_ttc_table_rules(struct mlx5_core_dev *dev,
 	for (tt = 0; tt < MLX5_NUM_TT; tt++) {
 		struct mlx5_ttc_rule *rule = &rules[tt];
 
-		if (test_bit(tt, params->ignore_dests))
+		if (test_bit(tt, params->iganalre_dests))
 			continue;
 		rule->rule = mlx5_generate_ttc_rule(dev, ft, &params->dests[tt],
 						    ttc_rules[tt].etype,
@@ -268,7 +268,7 @@ static int mlx5_generate_ttc_table_rules(struct mlx5_core_dev *dev,
 		if (!mlx5_tunnel_proto_supported_rx(dev,
 						    ttc_tunnel_rules[tt].proto))
 			continue;
-		if (test_bit(tt, params->ignore_tunnel_dests))
+		if (test_bit(tt, params->iganalre_tunnel_dests))
 			continue;
 		trules[tt] = mlx5_generate_ttc_rule(dev, ft,
 						    &params->tunnel_dests[tt],
@@ -299,12 +299,12 @@ static int mlx5_create_ttc_table_groups(struct mlx5_ttc_table *ttc,
 
 	ttc->g = kcalloc(MLX5_TTC_NUM_GROUPS, sizeof(*ttc->g), GFP_KERNEL);
 	if (!ttc->g)
-		return -ENOMEM;
+		return -EANALMEM;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		kfree(ttc->g);
 		ttc->g = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* L4 Group */
@@ -368,7 +368,7 @@ mlx5_generate_inner_ttc_rule(struct mlx5_core_dev *dev,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ipv = mlx5_etype_to_ipv(etype);
 	if (etype && ipv) {
@@ -408,7 +408,7 @@ static int mlx5_generate_inner_ttc_table_rules(struct mlx5_core_dev *dev,
 	for (tt = 0; tt < MLX5_NUM_TT; tt++) {
 		struct mlx5_ttc_rule *rule = &rules[tt];
 
-		if (test_bit(tt, params->ignore_dests))
+		if (test_bit(tt, params->iganalre_dests))
 			continue;
 		rule->rule = mlx5_generate_inner_ttc_rule(dev, ft,
 							  &params->dests[tt],
@@ -441,12 +441,12 @@ static int mlx5_create_inner_ttc_table_groups(struct mlx5_ttc_table *ttc)
 	ttc->g = kcalloc(MLX5_INNER_TTC_NUM_GROUPS, sizeof(*ttc->g),
 			 GFP_KERNEL);
 	if (!ttc->g)
-		return -ENOMEM;
+		return -EANALMEM;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		kfree(ttc->g);
 		ttc->g = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* L4 Group */
@@ -501,7 +501,7 @@ struct mlx5_ttc_table *mlx5_create_inner_ttc_table(struct mlx5_core_dev *dev,
 
 	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
 	if (!ttc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	WARN_ON_ONCE(params->ft_attr.max_fte);
 	params->ft_attr.max_fte = MLX5_INNER_TTC_TABLE_SIZE;
@@ -554,7 +554,7 @@ struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,
 
 	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
 	if (!ttc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	WARN_ON_ONCE(params->ft_attr.max_fte);
 	params->ft_attr.max_fte = MLX5_TTC_TABLE_SIZE;
@@ -594,7 +594,7 @@ mlx5_ttc_get_default_dest(struct mlx5_ttc_table *ttc,
 	struct mlx5_flow_destination *dest = &ttc->rules[type].default_dest;
 
 	WARN_ONCE(dest->type != MLX5_FLOW_DESTINATION_TYPE_TIR,
-		  "TTC[%d] default dest is not setup yet", type);
+		  "TTC[%d] default dest is analt setup yet", type);
 
 	return *dest;
 }

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,14 +44,14 @@ enum DPM_ARRAY {
 
 /*
  * Return codes for driver to SMC communication.
- * Leave these #define-s, enums might not be exactly 8-bits on the microcontroller.
+ * Leave these #define-s, enums might analt be exactly 8-bits on the microcontroller.
  */
 #define PPSMC_Result_OK             ((uint16_t)0x01)
-#define PPSMC_Result_NoMore         ((uint16_t)0x02)
-#define PPSMC_Result_NotNow         ((uint16_t)0x03)
+#define PPSMC_Result_AnalMore         ((uint16_t)0x02)
+#define PPSMC_Result_AnaltAnalw         ((uint16_t)0x03)
 #define PPSMC_Result_Failed         ((uint16_t)0xFF)
-#define PPSMC_Result_UnknownCmd     ((uint16_t)0xFE)
-#define PPSMC_Result_UnknownVT      ((uint16_t)0xFD)
+#define PPSMC_Result_UnkanalwnCmd     ((uint16_t)0xFE)
+#define PPSMC_Result_UnkanalwnVT      ((uint16_t)0xFD)
 
 #define PPSMC_isERROR(x)            ((uint16_t)0x80 & (x))
 
@@ -114,7 +114,7 @@ enum DPM_ARRAY {
 #define PPSMC_MSG_CondExecDramAddrLo          ((uint16_t) 0x36)
 #define PPSMC_MSG_LoadUcodes                  ((uint16_t) 0x37)
 #define PPSMC_MSG_DriverResetMode             ((uint16_t) 0x38)
-#define PPSMC_MSG_PowerStateNotify            ((uint16_t) 0x39)
+#define PPSMC_MSG_PowerStateAnaltify            ((uint16_t) 0x39)
 #define PPSMC_MSG_SetDisplayPhyConfig         ((uint16_t) 0x3A)
 #define PPSMC_MSG_GetMaxSclkLevel             ((uint16_t) 0x3B)
 #define PPSMC_MSG_GetMaxLclkLevel             ((uint16_t) 0x3C)

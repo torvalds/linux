@@ -32,7 +32,7 @@
 #ifndef __ASSEMBLY__
 
 /*
- * NOTE: these routines are implementation dependent--
+ * ANALTE: these routines are implementation dependent--
  * understand the hardware you are querying!
  */
 void set_auxio(unsigned char bits_on, unsigned char bits_off);

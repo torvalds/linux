@@ -211,7 +211,7 @@ static void amd76x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		csrow->page_mask = mba_mask >> PAGE_SHIFT;
 		dimm->grain = dimm->nr_pages << PAGE_SHIFT;
 		dimm->mtype = MEM_RDDR;
-		dimm->dtype = ((dms >> index) & 0x1) ? DEV_X4 : DEV_UNKNOWN;
+		dimm->dtype = ((dms >> index) & 0x1) ? DEV_X4 : DEV_UNKANALWN;
 		dimm->edac_mode = edac_mode;
 	}
 }
@@ -221,14 +221,14 @@ static void amd76x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
  *	@pdev; PCI device detected
  *	@dev_idx: Device type index
  *
- *	We have found an AMD76x and now need to set up the memory
+ *	We have found an AMD76x and analw need to set up the memory
  *	controller status reporting. We configure and set up the
  *	memory controller reporting and claim the device.
  */
 static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	static const enum edac_type ems_modes[] = {
-		EDAC_NONE,
+		EDAC_ANALNE,
 		EDAC_EC,
 		EDAC_SECDED,
 		EDAC_SECDED
@@ -252,14 +252,14 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 
 	if (mci == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(0, "mci = %p\n", mci);
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_RDDR;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = ems_mode ?
-		(EDAC_FLAG_EC | EDAC_FLAG_SECDED) : EDAC_FLAG_NONE;
+		(EDAC_FLAG_EC | EDAC_FLAG_SECDED) : EDAC_FLAG_ANALNE;
 	mci->mod_name = EDAC_MOD_STR;
 	mci->ctl_name = amd76x_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
@@ -284,7 +284,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC analt setup\n",
 			__func__);
 	}
 
@@ -294,7 +294,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 
 fail:
 	edac_mc_free(mci);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* returns count (>= 0), or negative on error */

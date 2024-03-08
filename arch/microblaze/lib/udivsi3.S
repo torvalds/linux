@@ -27,7 +27,7 @@ __udivsi3:
 	addik	r30, r0, 0 /* clear mod */
 	addik	r29, r0, 32 /* initialize the loop count */
 
-/* check if r6 and r5 are equal - if yes, return 1 */
+/* check if r6 and r5 are equal - if anal, return 1 */
 	rsub	r18, r5, r6
 	beqid	r18, return_here
 	addik	r3, r0, 1

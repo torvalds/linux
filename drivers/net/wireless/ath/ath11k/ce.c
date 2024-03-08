@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "dp_rx.h"
@@ -62,7 +62,7 @@ const struct ce_attr ath11k_host_ce_config_ipq8074[] = {
 		.recv_cb = ath11k_dp_htt_htc_t2h_msg_handler,
 	},
 
-	/* CE6: target autonomous hif_memcpy */
+	/* CE6: target autoanalmous hif_memcpy */
 	{
 		.flags = CE_ATTR_FLAGS | CE_ATTR_DIS_INTR,
 		.src_nentries = 0,
@@ -79,7 +79,7 @@ const struct ce_attr ath11k_host_ce_config_ipq8074[] = {
 		.send_cb = ath11k_htc_tx_completion_handler,
 	},
 
-	/* CE8: target autonomous hif_memcpy */
+	/* CE8: target autoanalmous hif_memcpy */
 	{
 		.flags = CE_ATTR_FLAGS | CE_ATTR_DIS_INTR,
 		.src_nentries = 0,
@@ -105,7 +105,7 @@ const struct ce_attr ath11k_host_ce_config_ipq8074[] = {
 		.recv_cb = ath11k_htc_rx_completion_handler,
 	},
 
-	/* CE11: Not used */
+	/* CE11: Analt used */
 	{
 		.flags = CE_ATTR_FLAGS,
 		.src_nentries = 0,
@@ -167,7 +167,7 @@ const struct ce_attr ath11k_host_ce_config_qca6390[] = {
 		.recv_cb = ath11k_dp_htt_htc_t2h_msg_handler,
 	},
 
-	/* CE6: target autonomous hif_memcpy */
+	/* CE6: target autoanalmous hif_memcpy */
 	{
 		.flags = CE_ATTR_FLAGS | CE_ATTR_DIS_INTR,
 		.src_nentries = 0,
@@ -184,7 +184,7 @@ const struct ce_attr ath11k_host_ce_config_qca6390[] = {
 		.send_cb = ath11k_htc_tx_completion_handler,
 	},
 
-	/* CE8: target autonomous hif_memcpy */
+	/* CE8: target autoanalmous hif_memcpy */
 	{
 		.flags = CE_ATTR_FLAGS,
 		.src_nentries = 0,
@@ -290,13 +290,13 @@ static int ath11k_ce_rx_buf_enqueue_pipe(struct ath11k_ce_pipe *pipe,
 	ath11k_hal_srng_access_begin(ab, srng);
 
 	if (unlikely(ath11k_hal_srng_src_num_free(ab, srng, false) < 1)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto exit;
 	}
 
 	desc = ath11k_hal_srng_src_get_next_entry(ab, srng);
 	if (!desc) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto exit;
 	}
 
@@ -331,7 +331,7 @@ static int ath11k_ce_rx_post_pipe(struct ath11k_ce_pipe *pipe)
 	while (pipe->rx_buf_needed) {
 		skb = dev_alloc_skb(pipe->buf_sz);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit;
 		}
 
@@ -448,7 +448,7 @@ static void ath11k_ce_recv_process_cb(struct ath11k_ce_pipe *pipe)
 	}
 
 	ret = ath11k_ce_rx_post_pipe(pipe);
-	if (ret && ret != -ENOSPC) {
+	if (ret && ret != -EANALSPC) {
 		ath11k_warn(ab, "failed to post rx buf to pipe: %d err: %d\n",
 			    pipe->pipe_num, ret);
 		mod_timer(&ab->rx_replenish_retry,
@@ -618,12 +618,12 @@ ath11k_ce_alloc_ring(struct ath11k_base *ab, int nentries, int desc_sz)
 
 	ce_ring = kzalloc(struct_size(ce_ring, skb, nentries), GFP_KERNEL);
 	if (ce_ring == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ce_ring->nentries = nentries;
 	ce_ring->nentries_mask = nentries - 1;
 
-	/* Legacy platforms that do not support cache
+	/* Legacy platforms that do analt support cache
 	 * coherent DMA are unsupported
 	 */
 	ce_ring->base_addr_owner_space_unaligned =
@@ -632,7 +632,7 @@ ath11k_ce_alloc_ring(struct ath11k_base *ab, int nentries, int desc_sz)
 				   &base_addr, GFP_KERNEL);
 	if (!ce_ring->base_addr_owner_space_unaligned) {
 		kfree(ce_ring);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	ce_ring->base_addr_ce_space_unaligned = base_addr;
@@ -758,14 +758,14 @@ int ath11k_ce_send(struct ath11k_base *ab, struct sk_buff *skb, u8 pipe_id,
 
 	if (unlikely(ath11k_hal_srng_src_num_free(ab, srng, false) < 1)) {
 		ath11k_hal_srng_access_end(ab, srng);
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto err_unlock;
 	}
 
 	desc = ath11k_hal_srng_src_get_next_reaped(ab, srng);
 	if (!desc) {
 		ath11k_hal_srng_access_end(ab, srng);
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto err_unlock;
 	}
 
@@ -851,8 +851,8 @@ void ath11k_ce_get_shadow_config(struct ath11k_base *ab,
 	if (*shadow_cfg_len)
 		return;
 
-	/* shadow isn't configured yet, configure now.
-	 * non-CE srngs are configured firstly, then
+	/* shadow isn't configured yet, configure analw.
+	 * analn-CE srngs are configured firstly, then
 	 * all CE srngs.
 	 */
 	ath11k_hal_srng_shadow_config(ab);
@@ -877,7 +877,7 @@ void ath11k_ce_cleanup_pipes(struct ath11k_base *ab)
 		/* Cleanup any src CE's which have interrupts disabled */
 		ath11k_ce_poll_send_completed(ab, pipe_num);
 
-		/* NOTE: Should we also clean up tx buffer in all pipes? */
+		/* ANALTE: Should we also clean up tx buffer in all pipes? */
 	}
 }
 EXPORT_SYMBOL(ath11k_ce_cleanup_pipes);
@@ -892,7 +892,7 @@ void ath11k_ce_rx_post_buf(struct ath11k_base *ab)
 		pipe = &ab->ce.ce_pipe[i];
 		ret = ath11k_ce_rx_post_pipe(pipe);
 		if (ret) {
-			if (ret == -ENOSPC)
+			if (ret == -EANALSPC)
 				continue;
 
 			ath11k_warn(ab, "failed to post rx buf to pipe: %d err: %d\n",

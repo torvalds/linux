@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/// Find double locks.  False positives may occur when some paths cannot
+/// Find double locks.  False positives may occur when some paths cananalt
 /// occur at execution, due to the values of variables, and when there is
 /// an intervening function call that releases the lock.
 ///
@@ -9,7 +9,7 @@
 // Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual org
 virtual report

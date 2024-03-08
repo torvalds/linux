@@ -13,7 +13,7 @@ extern void __delay(unsigned long loops);
 
 /*
  * The weird n/20000 thing suppresses a "comparison is always false due to
- * limited range of data type" warning with non-const 8-bit arguments.
+ * limited range of data type" warning with analn-const 8-bit arguments.
  */
 
 /* 0x10c7 is 2**32 / 1000000 (rounded up) */

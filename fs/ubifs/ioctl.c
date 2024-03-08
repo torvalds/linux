@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation.
+ * Copyright (C) 2006-2008 Analkia Corporation.
  * Copyright (C) 2006, 2007 University of Szeged, Hungary
  *
  * Authors: Zoltan Sogor
@@ -27,34 +27,34 @@
 	(UBIFS_SETTABLE_IOCTL_FLAGS | FS_ENCRYPT_FL)
 
 /**
- * ubifs_set_inode_flags - set VFS inode flags.
- * @inode: VFS inode to set flags for
+ * ubifs_set_ianalde_flags - set VFS ianalde flags.
+ * @ianalde: VFS ianalde to set flags for
  *
- * This function propagates flags from UBIFS inode object to VFS inode object.
+ * This function propagates flags from UBIFS ianalde object to VFS ianalde object.
  */
-void ubifs_set_inode_flags(struct inode *inode)
+void ubifs_set_ianalde_flags(struct ianalde *ianalde)
 {
-	unsigned int flags = ubifs_inode(inode)->flags;
+	unsigned int flags = ubifs_ianalde(ianalde)->flags;
 
-	inode->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_DIRSYNC |
+	ianalde->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_DIRSYNC |
 			    S_ENCRYPTED);
 	if (flags & UBIFS_SYNC_FL)
-		inode->i_flags |= S_SYNC;
+		ianalde->i_flags |= S_SYNC;
 	if (flags & UBIFS_APPEND_FL)
-		inode->i_flags |= S_APPEND;
+		ianalde->i_flags |= S_APPEND;
 	if (flags & UBIFS_IMMUTABLE_FL)
-		inode->i_flags |= S_IMMUTABLE;
+		ianalde->i_flags |= S_IMMUTABLE;
 	if (flags & UBIFS_DIRSYNC_FL)
-		inode->i_flags |= S_DIRSYNC;
+		ianalde->i_flags |= S_DIRSYNC;
 	if (flags & UBIFS_CRYPT_FL)
-		inode->i_flags |= S_ENCRYPTED;
+		ianalde->i_flags |= S_ENCRYPTED;
 }
 
 /*
- * ioctl2ubifs - convert ioctl inode flags to UBIFS inode flags.
+ * ioctl2ubifs - convert ioctl ianalde flags to UBIFS ianalde flags.
  * @ioctl_flags: flags to convert
  *
- * This function converts ioctl flags (@FS_COMPR_FL, etc) to UBIFS inode flags
+ * This function converts ioctl flags (@FS_COMPR_FL, etc) to UBIFS ianalde flags
  * (@UBIFS_COMPR_FL, etc).
  */
 static int ioctl2ubifs(int ioctl_flags)
@@ -76,10 +76,10 @@ static int ioctl2ubifs(int ioctl_flags)
 }
 
 /*
- * ubifs2ioctl - convert UBIFS inode flags to ioctl inode flags.
+ * ubifs2ioctl - convert UBIFS ianalde flags to ioctl ianalde flags.
  * @ubifs_flags: flags to convert
  *
- * This function converts UBIFS inode flags (@UBIFS_COMPR_FL, etc) to ioctl
+ * This function converts UBIFS ianalde flags (@UBIFS_COMPR_FL, etc) to ioctl
  * flags (@FS_COMPR_FL, etc).
  */
 static int ubifs2ioctl(int ubifs_flags)
@@ -102,13 +102,13 @@ static int ubifs2ioctl(int ubifs_flags)
 	return ioctl_flags;
 }
 
-static int setflags(struct inode *inode, int flags)
+static int setflags(struct ianalde *ianalde, int flags)
 {
 	int err, release;
-	struct ubifs_inode *ui = ubifs_inode(inode);
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
-	struct ubifs_budget_req req = { .dirtied_ino = 1,
-			.dirtied_ino_d = ALIGN(ui->data_len, 8) };
+	struct ubifs_ianalde *ui = ubifs_ianalde(ianalde);
+	struct ubifs_info *c = ianalde->i_sb->s_fs_info;
+	struct ubifs_budget_req req = { .dirtied_ianal = 1,
+			.dirtied_ianal_d = ALIGN(ui->data_len, 8) };
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
@@ -117,28 +117,28 @@ static int setflags(struct inode *inode, int flags)
 	mutex_lock(&ui->ui_mutex);
 	ui->flags &= ~ioctl2ubifs(UBIFS_SETTABLE_IOCTL_FLAGS);
 	ui->flags |= ioctl2ubifs(flags);
-	ubifs_set_inode_flags(inode);
-	inode_set_ctime_current(inode);
+	ubifs_set_ianalde_flags(ianalde);
+	ianalde_set_ctime_current(ianalde);
 	release = ui->dirty;
-	mark_inode_dirty_sync(inode);
+	mark_ianalde_dirty_sync(ianalde);
 	mutex_unlock(&ui->ui_mutex);
 
 	if (release)
 		ubifs_release_budget(c, &req);
-	if (IS_SYNC(inode))
-		err = write_inode_now(inode, 1);
+	if (IS_SYNC(ianalde))
+		err = write_ianalde_analw(ianalde, 1);
 	return err;
 }
 
 int ubifs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
-	int flags = ubifs2ioctl(ubifs_inode(inode)->flags);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	int flags = ubifs2ioctl(ubifs_ianalde(ianalde)->flags);
 
 	if (d_is_special(dentry))
-		return -ENOTTY;
+		return -EANALTTY;
 
-	dbg_gen("get flags: %#x, i_flags %#x", flags, inode->i_flags);
+	dbg_gen("get flags: %#x, i_flags %#x", flags, ianalde->i_flags);
 	fileattr_fill_flags(fa, flags);
 
 	return 0;
@@ -147,35 +147,35 @@ int ubifs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 int ubifs_fileattr_set(struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int flags = fa->flags;
 
 	if (d_is_special(dentry))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (fileattr_has_fsx(fa))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (flags & ~UBIFS_GETTABLE_IOCTL_FLAGS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flags &= UBIFS_SETTABLE_IOCTL_FLAGS;
 
-	if (!S_ISDIR(inode->i_mode))
+	if (!S_ISDIR(ianalde->i_mode))
 		flags &= ~FS_DIRSYNC_FL;
 
-	dbg_gen("set flags: %#x, i_flags %#x", flags, inode->i_flags);
-	return setflags(inode, flags);
+	dbg_gen("set flags: %#x, i_flags %#x", flags, ianalde->i_flags);
+	return setflags(ianalde, flags);
 }
 
 long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
 	switch (cmd) {
 	case FS_IOC_SET_ENCRYPTION_POLICY: {
-		struct ubifs_info *c = inode->i_sb->s_fs_info;
+		struct ubifs_info *c = ianalde->i_sb->s_fs_info;
 
 		err = ubifs_enable_encryption(c);
 		if (err)
@@ -201,11 +201,11 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FS_IOC_GET_ENCRYPTION_KEY_STATUS:
 		return fscrypt_ioctl_get_key_status(file, (void __user *)arg);
 
-	case FS_IOC_GET_ENCRYPTION_NONCE:
-		return fscrypt_ioctl_get_nonce(file, (void __user *)arg);
+	case FS_IOC_GET_ENCRYPTION_ANALNCE:
+		return fscrypt_ioctl_get_analnce(file, (void __user *)arg);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -226,10 +226,10 @@ long ubifs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FS_IOC_REMOVE_ENCRYPTION_KEY:
 	case FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS:
 	case FS_IOC_GET_ENCRYPTION_KEY_STATUS:
-	case FS_IOC_GET_ENCRYPTION_NONCE:
+	case FS_IOC_GET_ENCRYPTION_ANALNCE:
 		break;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 	return ubifs_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }

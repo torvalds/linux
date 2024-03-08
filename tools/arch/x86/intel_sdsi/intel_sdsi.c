@@ -10,7 +10,7 @@
  */
 
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdbool.h>
@@ -192,7 +192,7 @@ static void sdsi_list_devices(void)
 
 	aux_dir = opendir(AUX_DEV_PATH);
 	if (!aux_dir) {
-		fprintf(stderr, "Cannot open directory %s\n", AUX_DEV_PATH);
+		fprintf(stderr, "Cananalt open directory %s\n", AUX_DEV_PATH);
 		return;
 	}
 
@@ -204,7 +204,7 @@ static void sdsi_list_devices(void)
 	}
 
 	if (!found)
-		fprintf(stderr, "No On Demand devices found.\n");
+		fprintf(stderr, "Anal On Demand devices found.\n");
 }
 
 static int sdsi_update_registers(struct sdsi_dev *s)
@@ -223,7 +223,7 @@ static int sdsi_update_registers(struct sdsi_dev *s)
 
 	regs_ptr = fopen("registers", "r");
 	if (!regs_ptr) {
-		perror("Could not open 'registers' file");
+		perror("Could analt open 'registers' file");
 		return -1;
 	}
 
@@ -237,7 +237,7 @@ static int sdsi_update_registers(struct sdsi_dev *s)
 	ret = fread(&s->regs, sizeof(uint8_t), sizeof(s->regs), regs_ptr);
 	if ((s->guid == GUID_V1 && ret != REGS_SIZE_GUID_V1) ||
 	    (s->guid == GUID_V2 && ret != REGS_SIZE_GUID_V2)) {
-		fprintf(stderr, "Could not read 'registers' file\n");
+		fprintf(stderr, "Could analt read 'registers' file\n");
 		fclose(regs_ptr);
 		return -1;
 	}
@@ -271,7 +271,7 @@ static int sdsi_read_reg(struct sdsi_dev *s)
 	printf("    Attestation:                %s\n", !!s->regs.en_features.attestation ? "Enabled" : "Disabled");
 	printf("    On Demand:                  %s\n", !!s->regs.en_features.sdsi ? "Enabled" : "Disabled");
 	printf("    Metering:                   %s\n", !!s->regs.en_features.metering ? "Enabled" : "Disabled");
-	printf("License Key (AKC) Provisioned:  %s\n", !!s->regs.key_prov_sts.license_key_provisioned ? "Yes" : "No");
+	printf("License Key (AKC) Provisioned:  %s\n", !!s->regs.key_prov_sts.license_key_provisioned ? "Anal" : "Anal");
 	printf("Authorization Failure Count\n");
 	printf("    AKC Failure Count:          %d\n", s->regs.auth_fail_count.key_failure_count);
 	printf("    AKC Failure Threshold:      %d\n", s->regs.auth_fail_count.key_failure_threshold);
@@ -281,9 +281,9 @@ static int sdsi_read_reg(struct sdsi_dev *s)
 	printf("    Updates Available:          %d\n", s->regs.prov_avail.available);
 	printf("    Updates Threshold:          %d\n", s->regs.prov_avail.threshold);
 	printf("NVRAM Udate Limit\n");
-	printf("    50%% Limit Reached:          %s\n", !!s->regs.limits.sdsi_50_pct ? "Yes" : "No");
-	printf("    75%% Limit Reached:          %s\n", !!s->regs.limits.sdsi_75_pct ? "Yes" : "No");
-	printf("    90%% Limit Reached:          %s\n", !!s->regs.limits.sdsi_90_pct ? "Yes" : "No");
+	printf("    50%% Limit Reached:          %s\n", !!s->regs.limits.sdsi_50_pct ? "Anal" : "Anal");
+	printf("    75%% Limit Reached:          %s\n", !!s->regs.limits.sdsi_75_pct ? "Anal" : "Anal");
+	printf("    90%% Limit Reached:          %s\n", !!s->regs.limits.sdsi_90_pct ? "Anal" : "Anal");
 	if (s->guid == GUID_V1)
 		printf("Socket ID:                      %ld\n", s->regs.extra.v1.socket_id & 0xF);
 	else
@@ -300,7 +300,7 @@ static char *license_blob_type(uint32_t type)
 	case LBT_METERED_UPGRADE:
 		return "Metered upgrade";
 	default:
-		return "Unknown license blob type";
+		return "Unkanalwn license blob type";
 	}
 }
 
@@ -312,7 +312,7 @@ static char *content_type(uint32_t type)
 	case CONTENT_TYPE_LK_BLOB_ENC:
 		return "License key + Blob encoding";
 	default:
-		return "Unknown content type";
+		return "Unkanalwn content type";
 	}
 }
 
@@ -340,13 +340,13 @@ static int sdsi_meter_cert_show(struct sdsi_dev *s)
 		return ret;
 
 	if (!s->regs.en_features.sdsi) {
-		fprintf(stderr, "SDSi feature is present but not enabled.\n");
+		fprintf(stderr, "SDSi feature is present but analt enabled.\n");
 		fprintf(stderr, " Unable to read meter certificate\n");
 		return -1;
 	}
 
 	if (!s->regs.en_features.metering) {
-		fprintf(stderr, "Metering not supporting on this socket.\n");
+		fprintf(stderr, "Metering analt supporting on this socket.\n");
 		return -1;
 	}
 
@@ -358,13 +358,13 @@ static int sdsi_meter_cert_show(struct sdsi_dev *s)
 
 	cert_ptr = fopen("meter_certificate", "r");
 	if (!cert_ptr) {
-		perror("Could not open 'meter_certificate' file");
+		perror("Could analt open 'meter_certificate' file");
 		return -1;
 	}
 
 	size = fread(buf, 1, sizeof(buf), cert_ptr);
 	if (!size) {
-		fprintf(stderr, "Could not read 'meter_certificate' file\n");
+		fprintf(stderr, "Could analt read 'meter_certificate' file\n");
 		fclose(cert_ptr);
 		return -1;
 	}
@@ -421,7 +421,7 @@ static int sdsi_state_cert_show(struct sdsi_dev *s)
 		return ret;
 
 	if (!s->regs.en_features.sdsi) {
-		fprintf(stderr, "On Demand feature is present but not enabled.");
+		fprintf(stderr, "On Demand feature is present but analt enabled.");
 		fprintf(stderr, " Unable to read state certificate");
 		return -1;
 	}
@@ -434,13 +434,13 @@ static int sdsi_state_cert_show(struct sdsi_dev *s)
 
 	cert_ptr = fopen("state_certificate", "r");
 	if (!cert_ptr) {
-		perror("Could not open 'state_certificate' file");
+		perror("Could analt open 'state_certificate' file");
 		return -1;
 	}
 
 	size = fread(buf, 1, sizeof(buf), cert_ptr);
 	if (!size) {
-		fprintf(stderr, "Could not read 'state_certificate' file\n");
+		fprintf(stderr, "Could analt read 'state_certificate' file\n");
 		fclose(cert_ptr);
 		return -1;
 	}
@@ -485,7 +485,7 @@ static int sdsi_state_cert_show(struct sdsi_dev *s)
 
 		printf("     Blob %d:\n", count - 1);
 		printf("        License blob size:          %u\n", blob_size);
-		printf("        License is valid:           %s\n", license_valid ? "Yes" : "No");
+		printf("        License is valid:           %s\n", license_valid ? "Anal" : "Anal");
 		printf("        License blob type:          %s\n", license_blob_type(lbc->type));
 		printf("        License blob ID:            0x%lx\n", lbc->id);
 		printf("        PPIN:                       0x%lx\n", lbc->ppin);
@@ -519,14 +519,14 @@ static int sdsi_provision(struct sdsi_dev *s, char *bin_file, enum command comma
 	char *prov_file;
 
 	if (!bin_file) {
-		fprintf(stderr, "No binary file provided\n");
+		fprintf(stderr, "Anal binary file provided\n");
 		return -1;
 	}
 
 	/* Open the binary */
 	bin_fd = open(bin_file, O_RDONLY);
 	if (bin_fd == -1) {
-		fprintf(stderr, "Could not open file %s: %s\n", bin_file, strerror(errno));
+		fprintf(stderr, "Could analt open file %s: %s\n", bin_file, strerror(erranal));
 		return bin_fd;
 	}
 
@@ -542,7 +542,7 @@ static int sdsi_provision(struct sdsi_dev *s, char *bin_file, enum command comma
 	/* Open the provision file */
 	prov_fd = open(prov_file, O_WRONLY);
 	if (prov_fd == -1) {
-		fprintf(stderr, "Could not open file %s: %s\n", prov_file, strerror(errno));
+		fprintf(stderr, "Could analt open file %s: %s\n", prov_file, strerror(erranal));
 		close(bin_fd);
 		return prov_fd;
 	}
@@ -580,7 +580,7 @@ static int sdsi_provision_akc(struct sdsi_dev *s, char *bin_file)
 		return ret;
 
 	if (!s->regs.en_features.sdsi) {
-		fprintf(stderr, "On Demand feature is present but not enabled. Unable to provision");
+		fprintf(stderr, "On Demand feature is present but analt enabled. Unable to provision");
 		return -1;
 	}
 
@@ -610,7 +610,7 @@ static int sdsi_provision_cap(struct sdsi_dev *s, char *bin_file)
 		return ret;
 
 	if (!s->regs.en_features.sdsi) {
-		fprintf(stderr, "On Demand feature is present but not enabled. Unable to provision");
+		fprintf(stderr, "On Demand feature is present but analt enabled. Unable to provision");
 		return -1;
 	}
 
@@ -654,9 +654,9 @@ static int read_sysfs_data(const char *file, int *value)
 	return 0;
 }
 
-static struct sdsi_dev *sdsi_create_dev(char *dev_no)
+static struct sdsi_dev *sdsi_create_dev(char *dev_anal)
 {
-	int dev_name_len = sizeof(SDSI_DEV) + strlen(dev_no) + 1;
+	int dev_name_len = sizeof(SDSI_DEV) + strlen(dev_anal) + 1;
 	struct sdsi_dev *s;
 	int guid;
 	DIR *dir;
@@ -667,14 +667,14 @@ static struct sdsi_dev *sdsi_create_dev(char *dev_no)
 		return NULL;
 	}
 
-	s->dev_name = (char *)malloc(sizeof(SDSI_DEV) + strlen(dev_no) + 1);
+	s->dev_name = (char *)malloc(sizeof(SDSI_DEV) + strlen(dev_anal) + 1);
 	if (!s->dev_name) {
 		perror("malloc");
 		free(s);
 		return NULL;
 	}
 
-	snprintf(s->dev_name, dev_name_len, "%s.%s", SDSI_DEV, dev_no);
+	snprintf(s->dev_name, dev_name_len, "%s.%s", SDSI_DEV, dev_anal);
 
 	s->dev_path = (char *)malloc(sizeof(AUX_DEV_PATH) + dev_name_len);
 	if (!s->dev_path) {
@@ -688,8 +688,8 @@ static struct sdsi_dev *sdsi_create_dev(char *dev_no)
 		 s->dev_name);
 	dir = opendir(s->dev_path);
 	if (!dir) {
-		fprintf(stderr, "Could not open directory '%s': %s\n", s->dev_path,
-			strerror(errno));
+		fprintf(stderr, "Could analt open directory '%s': %s\n", s->dev_path,
+			strerror(erranal));
 		free(s->dev_path);
 		free(s->dev_name);
 		free(s);
@@ -725,14 +725,14 @@ static void sdsi_free_dev(struct sdsi_dev *s)
 
 static void usage(char *prog)
 {
-	printf("Usage: %s [-l] [-d DEVNO [-i] [-s] [-m] [-a FILE] [-c FILE]]\n", prog);
+	printf("Usage: %s [-l] [-d DEVANAL [-i] [-s] [-m] [-a FILE] [-c FILE]]\n", prog);
 }
 
 static void show_help(void)
 {
 	printf("Commands:\n");
 	printf("  %-18s\t%s\n", "-l, --list",           "list available On Demand devices");
-	printf("  %-18s\t%s\n", "-d, --devno DEVNO",    "On Demand device number");
+	printf("  %-18s\t%s\n", "-d, --devanal DEVANAL",    "On Demand device number");
 	printf("  %-18s\t%s\n", "-i, --info",           "show socket information");
 	printf("  %-18s\t%s\n", "-s, --state",          "show state certificate");
 	printf("  %-18s\t%s\n", "-m, --meter",          "show meter certificate");
@@ -742,7 +742,7 @@ static void show_help(void)
 
 int main(int argc, char *argv[])
 {
-	char bin_file[PATH_MAX], *dev_no = NULL;
+	char bin_file[PATH_MAX], *dev_anal = NULL;
 	bool device_selected = false;
 	char *progname;
 	enum command command = -1;
@@ -753,12 +753,12 @@ int main(int argc, char *argv[])
 	static struct option long_options[] = {
 		{"akc",		required_argument,	0, 'a'},
 		{"cap",		required_argument,	0, 'c'},
-		{"devno",	required_argument,	0, 'd'},
-		{"help",	no_argument,		0, 'h'},
-		{"info",	no_argument,		0, 'i'},
-		{"list",	no_argument,		0, 'l'},
-		{"meter",	no_argument,		0, 'm'},
-		{"state",	no_argument,		0, 's'},
+		{"devanal",	required_argument,	0, 'd'},
+		{"help",	anal_argument,		0, 'h'},
+		{"info",	anal_argument,		0, 'i'},
+		{"list",	anal_argument,		0, 'l'},
+		{"meter",	anal_argument,		0, 'm'},
+		{"state",	anal_argument,		0, 's'},
 		{0,		0,			0, 0 }
 	};
 
@@ -769,7 +769,7 @@ int main(int argc, char *argv[])
 			&option_index)) != -1) {
 		switch (opt) {
 		case 'd':
-			dev_no = optarg;
+			dev_anal = optarg;
 			device_selected = true;
 			break;
 		case 'l':
@@ -787,8 +787,8 @@ int main(int argc, char *argv[])
 		case 'a':
 		case 'c':
 			if (!access(optarg, F_OK) == 0) {
-				fprintf(stderr, "Could not open file '%s': %s\n", optarg,
-					strerror(errno));
+				fprintf(stderr, "Could analt open file '%s': %s\n", optarg,
+					strerror(erranal));
 				return -1;
 			}
 
@@ -810,7 +810,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (device_selected) {
-		s = sdsi_create_dev(dev_no);
+		s = sdsi_create_dev(dev_anal);
 		if (!s)
 			return -1;
 
@@ -831,14 +831,14 @@ int main(int argc, char *argv[])
 			ret = sdsi_provision_cap(s, bin_file);
 			break;
 		default:
-			fprintf(stderr, "No command specified\n");
+			fprintf(stderr, "Anal command specified\n");
 			return -1;
 		}
 
 		sdsi_free_dev(s);
 
 	} else {
-		fprintf(stderr, "No device specified\n");
+		fprintf(stderr, "Anal device specified\n");
 		return -1;
 	}
 

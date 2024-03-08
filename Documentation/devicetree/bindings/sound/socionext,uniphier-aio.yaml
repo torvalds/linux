@@ -50,7 +50,7 @@ properties:
 patternProperties:
   "^port@[0-9]$":
     description: |
-      Port number of DT node is specified by the following DAI channels that
+      Port number of DT analde is specified by the following DAI channels that
       depends on SoC.
       ld11-aio,ld20-aio:
         0: hdmi

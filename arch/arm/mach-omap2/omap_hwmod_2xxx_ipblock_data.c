@@ -2,7 +2,7 @@
 /*
  * omap_hwmod_2xxx_ipblock_data.c - common IP block data for OMAP2xxx
  *
- * Copyright (C) 2011 Nokia Corporation
+ * Copyright (C) 2011 Analkia Corporation
  * Paul Walmsley
  */
 
@@ -25,8 +25,8 @@ static struct omap_hwmod_class_sysconfig omap2_dispc_sysc = {
 	.syss_offs	= 0x0014,
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART |
+			   MSTANDBY_FORCE | MSTANDBY_ANAL | MSTANDBY_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -43,7 +43,7 @@ static struct omap_hwmod_class_sysconfig omap2xxx_timer_sysc = {
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_CLOCKACTIVITY |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -85,7 +85,7 @@ static struct omap_hwmod_class_sysconfig omap2xxx_gpio_sysc = {
 	.sysc_flags	= (SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
 			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -106,7 +106,7 @@ static struct omap_hwmod_class_sysconfig omap2xxx_mailbox_sysc = {
 	.syss_offs	= 0x014,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -117,7 +117,7 @@ struct omap_hwmod_class omap2xxx_mailbox_hwmod_class = {
 
 /*
  * 'mcspi' class
- * multichannel serial port interface (mcspi) / master/slave synchronous serial
+ * multichannel serial port interface (mcspi) / master/slave synchroanalus serial
  * bus
  */
 
@@ -128,7 +128,7 @@ static struct omap_hwmod_class_sysconfig omap2xxx_mcspi_sysc = {
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 				SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -148,7 +148,7 @@ static struct omap_hwmod_class_sysconfig omap2xxx_gpmc_sysc = {
 	.syss_offs	= 0x0014,
 	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -165,21 +165,21 @@ static struct omap_hwmod_class omap2xxx_gpmc_hwmod_class = {
 struct omap_hwmod omap2xxx_l3_main_hwmod = {
 	.name		= "l3_main",
 	.class		= &l3_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* L4 CORE */
 struct omap_hwmod omap2xxx_l4_core_hwmod = {
 	.name		= "l4_core",
 	.class		= &l4_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* L4 WKUP */
 struct omap_hwmod omap2xxx_l4_wkup_hwmod = {
 	.name		= "l4_wkup",
 	.class		= &l4_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* MPU */
@@ -406,7 +406,7 @@ struct omap_hwmod omap2xxx_uart3_hwmod = {
 static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 	/*
 	 * The DSS HW needs all DSS clocks enabled during reset. The dss_core
-	 * driver does not use these clocks.
+	 * driver does analt use these clocks.
 	 */
 	{ .role = "tv_clk", .clk = "dss_54m_fck" },
 	{ .role = "sys_clk", .clk = "dss2_fck" },
@@ -424,7 +424,7 @@ struct omap_hwmod omap2xxx_dss_core_hwmod = {
 	},
 	.opt_clks	= dss_opt_clks,
 	.opt_clks_cnt = ARRAY_SIZE(dss_opt_clks),
-	.flags		= HWMOD_NO_IDLEST | HWMOD_CONTROL_OPT_CLKS_IN_RESET,
+	.flags		= HWMOD_ANAL_IDLEST | HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 };
 
 struct omap_hwmod omap2xxx_dss_dispc_hwmod = {
@@ -437,7 +437,7 @@ struct omap_hwmod omap2xxx_dss_dispc_hwmod = {
 			.idlest_reg_id = 1,
 		},
 	},
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 	.dev_attr	= &omap2_3_dss_dispc_dev_attr,
 };
 
@@ -456,7 +456,7 @@ struct omap_hwmod omap2xxx_dss_rfbi_hwmod = {
 	},
 	.opt_clks	= dss_rfbi_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_rfbi_opt_clks),
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 struct omap_hwmod omap2xxx_dss_venc_hwmod = {
@@ -468,7 +468,7 @@ struct omap_hwmod omap2xxx_dss_venc_hwmod = {
 			.module_offs = CORE_MOD,
 		},
 	},
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* gpio1 */
@@ -565,7 +565,7 @@ struct omap_hwmod omap2xxx_gpmc_hwmod = {
 	.class		= &omap2xxx_gpmc_hwmod_class,
 	.main_clk	= "gpmc_fck",
 	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
-	.flags		= HWMOD_NO_IDLEST | DEBUG_OMAP_GPMC_HWMOD_FLAGS,
+	.flags		= HWMOD_ANAL_IDLEST | DEBUG_OMAP_GPMC_HWMOD_FLAGS,
 	.prcm		= {
 		.omap2	= {
 			.module_offs = CORE_MOD,
@@ -605,7 +605,7 @@ struct omap_hwmod omap2xxx_rng_hwmod = {
 	 * imprecise external abort.  It's unclear why this happens.
 	 * Until this is analyzed, skip the IP block reset.
 	 */
-	.flags		= HWMOD_INIT_NO_RESET,
+	.flags		= HWMOD_INIT_ANAL_RESET,
 	.class		= &omap2_rng_hwmod_class,
 };
 

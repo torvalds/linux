@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_PAGE_H
 #define _ASM_PAGE_H
@@ -34,7 +34,7 @@
 #include <linux/pfn.h>
 
 /*
- * It's normally defined only for FLATMEM config but it's
+ * It's analrmally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.
  * So always define it.
  */

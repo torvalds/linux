@@ -21,7 +21,7 @@ ACPI_MODULE_NAME("evxfevnt")
  *
  * FUNCTION:    acpi_enable
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -38,7 +38,7 @@ acpi_status acpi_enable(void)
 	/* ACPI tables must be present */
 
 	if (acpi_gbl_fadt_index == ACPI_INVALID_TABLE_INDEX) {
-		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
+		return_ACPI_STATUS(AE_ANAL_ACPI_TABLES);
 	}
 
 	/* If the Hardware Reduced flag is set, machine is always in acpi mode */
@@ -60,7 +60,7 @@ acpi_status acpi_enable(void)
 	status = acpi_hw_set_mode(ACPI_SYS_MODE_ACPI);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not transition to ACPI mode"));
+			    "Could analt transition to ACPI mode"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -76,8 +76,8 @@ acpi_status acpi_enable(void)
 		acpi_os_stall(100);	/* 100 usec */
 	}
 
-	ACPI_ERROR((AE_INFO, "Hardware did not enter ACPI mode"));
-	return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
+	ACPI_ERROR((AE_INFO, "Hardware did analt enter ACPI mode"));
+	return_ACPI_STATUS(AE_ANAL_HARDWARE_RESPONSE);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_enable)
@@ -86,11 +86,11 @@ ACPI_EXPORT_SYMBOL(acpi_enable)
  *
  * FUNCTION:    acpi_disable
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Transfers the system into LEGACY (non-ACPI) mode.
+ * DESCRIPTION: Transfers the system into LEGACY (analn-ACPI) mode.
  *
  ******************************************************************************/
 acpi_status acpi_disable(void)
@@ -107,7 +107,7 @@ acpi_status acpi_disable(void)
 
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_LEGACY) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-				  "System is already in legacy (non-ACPI) mode\n"));
+				  "System is already in legacy (analn-ACPI) mode\n"));
 	} else {
 		/* Transition to LEGACY mode */
 
@@ -115,7 +115,7 @@ acpi_status acpi_disable(void)
 
 		if (ACPI_FAILURE(status)) {
 			ACPI_ERROR((AE_INFO,
-				    "Could not exit ACPI mode to legacy mode"));
+				    "Could analt exit ACPI mode to legacy mode"));
 			return_ACPI_STATUS(status);
 		}
 
@@ -146,7 +146,7 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_enable_event);
 
-	/* If Hardware Reduced flag is set, there are no fixed events */
+	/* If Hardware Reduced flag is set, there are anal fixed events */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);
@@ -180,9 +180,9 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 
 	if (value != 1) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not enable %s event",
+			    "Could analt enable %s event",
 			    acpi_ut_get_event_name(event)));
-		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
+		return_ACPI_STATUS(AE_ANAL_HARDWARE_RESPONSE);
 	}
 
 	return_ACPI_STATUS(status);
@@ -209,7 +209,7 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_disable_event);
 
-	/* If Hardware Reduced flag is set, there are no fixed events */
+	/* If Hardware Reduced flag is set, there are anal fixed events */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);
@@ -241,9 +241,9 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 
 	if (value != 0) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not disable %s events",
+			    "Could analt disable %s events",
 			    acpi_ut_get_event_name(event)));
-		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
+		return_ACPI_STATUS(AE_ANAL_HARDWARE_RESPONSE);
 	}
 
 	return_ACPI_STATUS(status);
@@ -268,7 +268,7 @@ acpi_status acpi_clear_event(u32 event)
 
 	ACPI_FUNCTION_TRACE(acpi_clear_event);
 
-	/* If Hardware Reduced flag is set, there are no fixed events */
+	/* If Hardware Reduced flag is set, there are anal fixed events */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);

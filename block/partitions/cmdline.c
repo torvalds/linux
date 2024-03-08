@@ -5,7 +5,7 @@
  *
  * Read block device partition table from the command line.
  * Typically used for fixed block (eMMC) embedded devices.
- * It has no MBR, so saves storage space. Bootloader can be easily accessed
+ * It has anal MBR, so saves storage space. Bootloader can be easily accessed
  * by absolute address of data on the block device.
  * Users can easily change the partition.
  *
@@ -48,7 +48,7 @@ static int parse_subpart(struct cmdline_subpart **subpart, char *partdef)
 
 	new_subpart = kzalloc(sizeof(struct cmdline_subpart), GFP_KERNEL);
 	if (!new_subpart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (*partdef == '-') {
 		new_subpart->size = (sector_t)(~0ULL);
@@ -130,11 +130,11 @@ static int parse_parts(struct cmdline_parts **parts, const char *bdevdef)
 
 	newparts = kzalloc(sizeof(struct cmdline_parts), GFP_KERNEL);
 	if (!newparts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	next = strchr(bdevdef, ':');
 	if (!next) {
-		pr_warn("cmdline partition has no block device.");
+		pr_warn("cmdline partition has anal block device.");
 		goto fail;
 	}
 
@@ -162,7 +162,7 @@ static int parse_parts(struct cmdline_parts **parts, const char *bdevdef)
 	}
 
 	if (!newparts->subpart) {
-		pr_warn("cmdline partition has no valid partition.");
+		pr_warn("cmdline partition has anal valid partition.");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -201,7 +201,7 @@ static int cmdline_parts_parse(struct cmdline_parts **parts,
 
 	next = pbuf = buf = kstrdup(cmdline, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	next_parts = parts;
 
@@ -221,7 +221,7 @@ static int cmdline_parts_parse(struct cmdline_parts **parts,
 	}
 
 	if (!*parts) {
-		pr_warn("cmdline partition has no valid partition.");
+		pr_warn("cmdline partition has anal valid partition.");
 		ret = -EINVAL;
 		goto fail;
 	}

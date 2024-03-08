@@ -107,7 +107,7 @@ static void stk1160_set_std(struct stk1160 *dev)
 		{0xffff, 0xffff}
 	};
 
-	if (dev->norm & V4L2_STD_525_60) {
+	if (dev->analrm & V4L2_STD_525_60) {
 		stk1160_dbg("registers to NTSC like standard\n");
 		for (i = 0; std525[i].reg != 0xffff; i++)
 			stk1160_write_reg(dev, std525[i].reg, std525[i].val);
@@ -171,7 +171,7 @@ static bool stk1160_set_alternate(struct stk1160 *dev)
 	min_pkt_size = STK1160_MIN_PKT_SIZE;
 
 	for (i = 0; i < dev->num_alt; i++) {
-		/* stop when the selected alt setting offers enough bandwidth */
+		/* stop when the selected alt setting offers eanalugh bandwidth */
 		if (dev->alt_max_pkt_size[i] >= min_pkt_size) {
 			dev->alt = i;
 			break;
@@ -208,7 +208,7 @@ static int stk1160_start_streaming(struct stk1160 *dev)
 
 	/* Check device presence */
 	if (!dev->udev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mutex_lock_interruptible(&dev->v4l_lock))
 		return -ERESTARTSYS;
@@ -221,7 +221,7 @@ static int stk1160_start_streaming(struct stk1160 *dev)
 
 	/*
 	 * We (re)allocate isoc urbs if:
-	 * there is no allocated isoc urbs, OR
+	 * there is anal allocated isoc urbs, OR
 	 * a new dev->max_pkt_size is detected
 	 */
 	if (!dev->isoc_ctl.num_bufs || new_pkt_size) {
@@ -238,7 +238,7 @@ static int stk1160_start_streaming(struct stk1160 *dev)
 					    DMA_FROM_DEVICE);
 		rc = usb_submit_urb(dev->isoc_ctl.urb_ctl[i].urb, GFP_KERNEL);
 		if (rc) {
-			stk1160_err("cannot submit urb[%d] (%d)\n", i, rc);
+			stk1160_err("cananalt submit urb[%d] (%d)\n", i, rc);
 			goto out_uninit;
 		}
 	}
@@ -272,7 +272,7 @@ out_stop_hw:
 /* Must be called with v4l_lock hold */
 static void stk1160_stop_hw(struct stk1160 *dev)
 {
-	/* If the device is not physically present, there is nothing to do */
+	/* If the device is analt physically present, there is analthing to do */
 	if (!dev->udev)
 		return;
 
@@ -379,7 +379,7 @@ static int stk1160_try_fmt(struct stk1160 *dev, struct v4l2_format *f,
 	bool col_en, row_en;
 
 	base_width = 720;
-	base_height = (dev->norm & V4L2_STD_525_60) ? 480 : 576;
+	base_height = (dev->analrm & V4L2_STD_525_60) ? 480 : 576;
 
 	/* Minimum width and height is 5% the frame size */
 	width = clamp_t(unsigned int, f->fmt.pix.width,
@@ -387,7 +387,7 @@ static int stk1160_try_fmt(struct stk1160 *dev, struct v4l2_format *f,
 	height = clamp_t(unsigned int, f->fmt.pix.height,
 			base_height / 20, base_height);
 
-	/* Let's set default no decimation values */
+	/* Let's set default anal decimation values */
 	col_n = 0;
 	row_n = 0;
 	col_en = false;
@@ -501,27 +501,27 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *analrm)
 {
 	struct stk1160 *dev = video_drvdata(file);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, querystd, norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, querystd, analrm);
 	return 0;
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *analrm)
 {
 	struct stk1160 *dev = video_drvdata(file);
 
-	*norm = dev->norm;
+	*analrm = dev->analrm;
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id analrm)
 {
 	struct stk1160 *dev = video_drvdata(file);
 	struct vb2_queue *q = &dev->vb_vidq;
 
-	if (dev->norm == norm)
+	if (dev->analrm == analrm)
 		return 0;
 
 	if (vb2_is_busy(q))
@@ -529,12 +529,12 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 
 	/* Check device presence */
 	if (!dev->udev)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* We need to set this now, before we call stk1160_set_std */
+	/* We need to set this analw, before we call stk1160_set_std */
 	dev->width = 720;
-	dev->height = (norm & V4L2_STD_525_60) ? 480 : 576;
-	dev->norm = norm;
+	dev->height = (analrm & V4L2_STD_525_60) ? 480 : 576;
+	dev->analrm = analrm;
 
 	stk1160_set_std(dev);
 
@@ -542,7 +542,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	stk1160_set_fmt(dev, NULL);
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std,
-			dev->norm);
+			dev->analrm);
 
 	return 0;
 }
@@ -563,7 +563,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		sprintf(i->name, "Composite%d", i->index);
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	i->std = dev->vdev.tvnorms;
+	i->std = dev->vdev.tvanalrms;
 	return 0;
 }
 
@@ -693,7 +693,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	if (!dev->udev) {
 		/*
 		 * If the device is disconnected return the buffer to userspace
-		 * directly. The next QBUF call will fail with -ENODEV.
+		 * directly. The next QBUF call will fail with -EANALDEV.
 		 */
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	} else {
@@ -740,7 +740,7 @@ static const struct vb2_ops stk1160_video_qops = {
 
 static const struct video_device v4l_template = {
 	.name = "stk1160",
-	.tvnorms = V4L2_STD_525_60 | V4L2_STD_625_50,
+	.tvanalrms = V4L2_STD_525_60 | V4L2_STD_625_50,
 	.fops = &stk1160_fops,
 	.ioctl_ops = &stk1160_ioctl_ops,
 	.release = video_device_release_empty,
@@ -790,7 +790,7 @@ int stk1160_vb2_setup(struct stk1160 *dev)
 	q->ops = &stk1160_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->lock = &dev->vb_queue_lock;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 
 	rc = vb2_queue_init(q);
 	if (rc < 0)
@@ -822,7 +822,7 @@ int stk1160_video_register(struct stk1160 *dev)
 				V4L2_CAP_READWRITE;
 
 	/* NTSC is default */
-	dev->norm = V4L2_STD_NTSC_M;
+	dev->analrm = V4L2_STD_NTSC_M;
 	dev->width = 720;
 	dev->height = 480;
 
@@ -831,7 +831,7 @@ int stk1160_video_register(struct stk1160 *dev)
 	stk1160_set_std(dev);
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std,
-			dev->norm);
+			dev->analrm);
 
 	video_set_drvdata(&dev->vdev, dev);
 	rc = video_register_device(&dev->vdev, VFL_TYPE_VIDEO, -1);
@@ -841,7 +841,7 @@ int stk1160_video_register(struct stk1160 *dev)
 	}
 
 	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
-		  video_device_node_name(&dev->vdev));
+		  video_device_analde_name(&dev->vdev));
 
 	return 0;
 }

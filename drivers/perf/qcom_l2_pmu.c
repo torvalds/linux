@@ -7,7 +7,7 @@
 #include <linux/cpuhotplug.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -107,7 +107,7 @@ struct cluster_pmu;
  * the hardware PMUs.
  */
 struct l2cache_pmu {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	u32 num_pmus;
 	struct pmu pmu;
 	int num_counters;
@@ -297,19 +297,19 @@ static inline bool cluster_pmu_counter_has_overflowed(u32 ovsr, u32 idx)
 static void l2_cache_event_update(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	u64 delta, prev, now;
+	u64 delta, prev, analw;
 	u32 idx = hwc->idx;
 
 	do {
 		prev = local64_read(&hwc->prev_count);
-		now = cluster_pmu_counter_get_value(idx);
-	} while (local64_cmpxchg(&hwc->prev_count, prev, now) != prev);
+		analw = cluster_pmu_counter_get_value(idx);
+	} while (local64_cmpxchg(&hwc->prev_count, prev, analw) != prev);
 
 	/*
 	 * The cycle counter is 64-bit, but all other counters are
 	 * 32-bit, and we must handle 32-bit overflow explicitly.
 	 */
-	delta = now - prev;
+	delta = analw - prev;
 	if (idx != l2_cycle_ctr_idx)
 		delta &= 0xffffffff;
 
@@ -325,7 +325,7 @@ static void l2_cache_cluster_set_period(struct cluster_pmu *cluster,
 	/*
 	 * We limit the max period to half the max counter value so
 	 * that even in the case of extreme interrupt latency the
-	 * counter will (hopefully) not wrap past its initial value.
+	 * counter will (hopefully) analt wrap past its initial value.
 	 */
 	if (idx == l2_cycle_ctr_idx)
 		new = L2_CYCLE_COUNTER_RELOAD;
@@ -357,8 +357,8 @@ static int l2_cache_get_event_idx(struct cluster_pmu *cluster,
 		return -EAGAIN;
 
 	/*
-	 * Check for column exclusion: event column already in use by another
-	 * event. This is for events which are not in the same group.
+	 * Check for column exclusion: event column already in use by aanalther
+	 * event. This is for events which are analt in the same group.
 	 * Conflicting events in the same group are detected in event_init.
 	 */
 	group = L2_EVT_GROUP(hwc->config_base);
@@ -391,7 +391,7 @@ static irqreturn_t l2_cache_handle_irq(int irq_num, void *data)
 
 	ovsr = cluster_pmu_getreset_ovsr();
 	if (!cluster_pmu_has_overflowed(ovsr))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for_each_set_bit(idx, cluster->used_counters, num_counters) {
 		struct perf_event *event = cluster->events[idx];
@@ -421,7 +421,7 @@ static void l2_cache_pmu_enable(struct pmu *pmu)
 {
 	/*
 	 * Although there is only one PMU (per socket) controlling multiple
-	 * physical PMUs (per cluster), because we do not support per-task mode
+	 * physical PMUs (per cluster), because we do analt support per-task mode
 	 * each event is associated with a CPU. Each event has pmu_enable
 	 * called on its CPU, so here it is only necessary to enable the
 	 * counters for the current CPU.
@@ -443,20 +443,20 @@ static int l2_cache_event_init(struct perf_event *event)
 	struct l2cache_pmu *l2cache_pmu;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	l2cache_pmu = to_l2cache_pmu(event->pmu);
 
 	if (hwc->sample_period) {
 		dev_dbg_ratelimited(&l2cache_pmu->pdev->dev,
-				    "Sampling not supported\n");
-		return -EOPNOTSUPP;
+				    "Sampling analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (event->cpu < 0) {
 		dev_dbg_ratelimited(&l2cache_pmu->pdev->dev,
-				    "Per-task mode not supported\n");
-		return -EOPNOTSUPP;
+				    "Per-task mode analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (((L2_EVT_GROUP(event->attr.config) > L2_EVT_GROUP_MAX) ||
@@ -487,9 +487,9 @@ static int l2_cache_event_init(struct perf_event *event)
 
 	cluster = get_cluster_pmu(l2cache_pmu, event->cpu);
 	if (!cluster) {
-		/* CPU has not been initialised */
+		/* CPU has analt been initialised */
 		dev_dbg_ratelimited(&l2cache_pmu->pdev->dev,
-			"CPU%d not associated with L2 cluster\n", event->cpu);
+			"CPU%d analt associated with L2 cluster\n", event->cpu);
 		return -EINVAL;
 	}
 
@@ -764,24 +764,24 @@ static struct cluster_pmu *l2_cache_associate_cpu_with_cluster(
 	return NULL;
 }
 
-static int l2cache_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
+static int l2cache_pmu_online_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct cluster_pmu *cluster;
 	struct l2cache_pmu *l2cache_pmu;
 
-	l2cache_pmu = hlist_entry_safe(node, struct l2cache_pmu, node);
+	l2cache_pmu = hlist_entry_safe(analde, struct l2cache_pmu, analde);
 	cluster = get_cluster_pmu(l2cache_pmu, cpu);
 	if (!cluster) {
 		/* First time this CPU has come online */
 		cluster = l2_cache_associate_cpu_with_cluster(l2cache_pmu, cpu);
 		if (!cluster) {
 			/* Only if broken firmware doesn't list every cluster */
-			WARN_ONCE(1, "No L2 cache cluster for CPU%d\n", cpu);
+			WARN_ONCE(1, "Anal L2 cache cluster for CPU%d\n", cpu);
 			return 0;
 		}
 	}
 
-	/* If another CPU is managing this cluster, we're done */
+	/* If aanalther CPU is managing this cluster, we're done */
 	if (cluster->on_cpu != -1)
 		return 0;
 
@@ -799,19 +799,19 @@ static int l2cache_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int l2cache_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int l2cache_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct cluster_pmu *cluster;
 	struct l2cache_pmu *l2cache_pmu;
 	cpumask_t cluster_online_cpus;
 	unsigned int target;
 
-	l2cache_pmu = hlist_entry_safe(node, struct l2cache_pmu, node);
+	l2cache_pmu = hlist_entry_safe(analde, struct l2cache_pmu, analde);
 	cluster = get_cluster_pmu(l2cache_pmu, cpu);
 	if (!cluster)
 		return 0;
 
-	/* If this CPU is not managing the cluster, we're done */
+	/* If this CPU is analt managing the cluster, we're done */
 	if (cluster->on_cpu != cpu)
 		return 0;
 
@@ -854,7 +854,7 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 
 	cluster = devm_kzalloc(&pdev->dev, sizeof(*cluster), GFP_KERNEL);
 	if (!cluster)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&cluster->next);
 	cluster->cluster_id = fw_cluster_id;
@@ -868,8 +868,8 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 	cluster->on_cpu = -1;
 
 	err = devm_request_irq(&pdev->dev, irq, l2_cache_handle_irq,
-			       IRQF_NOBALANCING | IRQF_NO_THREAD |
-			       IRQF_NO_AUTOEN,
+			       IRQF_ANALBALANCING | IRQF_ANAL_THREAD |
+			       IRQF_ANAL_AUTOEN,
 			       "l2-cache-pmu", cluster);
 	if (err) {
 		dev_err(&pdev->dev,
@@ -896,7 +896,7 @@ static int l2_cache_pmu_probe(struct platform_device *pdev)
 	l2cache_pmu =
 		devm_kzalloc(&pdev->dev, sizeof(*l2cache_pmu), GFP_KERNEL);
 	if (!l2cache_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&l2cache_pmu->clusters);
 
@@ -914,7 +914,7 @@ static int l2_cache_pmu_probe(struct platform_device *pdev)
 		.stop		= l2_cache_event_stop,
 		.read		= l2_cache_event_read,
 		.attr_groups	= l2_cache_pmu_attr_grps,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
 	l2cache_pmu->num_counters = get_num_counters();
@@ -922,7 +922,7 @@ static int l2_cache_pmu_probe(struct platform_device *pdev)
 	l2cache_pmu->pmu_cluster = devm_alloc_percpu(&pdev->dev,
 						     struct cluster_pmu *);
 	if (!l2cache_pmu->pmu_cluster)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	l2_cycle_ctr_idx = l2cache_pmu->num_counters - 1;
 	l2_counter_present_mask = GENMASK(l2cache_pmu->num_counters - 2, 0) |
@@ -937,12 +937,12 @@ static int l2_cache_pmu_probe(struct platform_device *pdev)
 		return err;
 
 	if (l2cache_pmu->num_pmus == 0) {
-		dev_err(&pdev->dev, "No hardware L2 cache PMUs found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal hardware L2 cache PMUs found\n");
+		return -EANALDEV;
 	}
 
 	err = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_QCOM_L2_ONLINE,
-				       &l2cache_pmu->node);
+				       &l2cache_pmu->analde);
 	if (err) {
 		dev_err(&pdev->dev, "Error %d registering hotplug", err);
 		return err;
@@ -961,7 +961,7 @@ static int l2_cache_pmu_probe(struct platform_device *pdev)
 
 out_unregister:
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_QCOM_L2_ONLINE,
-				    &l2cache_pmu->node);
+				    &l2cache_pmu->analde);
 	return err;
 }
 
@@ -972,7 +972,7 @@ static int l2_cache_pmu_remove(struct platform_device *pdev)
 
 	perf_pmu_unregister(&l2cache_pmu->pmu);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_QCOM_L2_ONLINE,
-				    &l2cache_pmu->node);
+				    &l2cache_pmu->analde);
 	return 0;
 }
 

@@ -29,7 +29,7 @@
 /* EBL response size */
 #define IOSM_EBL_RSP_SIZE 76
 /* MAX number of regions supported */
-#define IOSM_NOF_CD_REGION 6
+#define IOSM_ANALF_CD_REGION 6
 /* MAX number of SNAPSHOTS supported */
 #define MAX_SNAPSHOTS 1
 /* Default Coredump file size */
@@ -100,7 +100,7 @@ struct iosm_devlink_sio {
  * struct iosm_flash_params - List of flash params required for flashing
  * @erase_full_flash:   To set the flashing mode
  *                      erase_full_flash = 1; full erase
- *                      erase_full_flash = 0; no erase
+ *                      erase_full_flash = 0; anal erase
  * @erase_full_flash_done: Flag to check if it is a full erase
  */
 struct iosm_flash_params {
@@ -170,8 +170,8 @@ struct iosm_devlink {
 	struct iosm_flash_params param;
 	struct iosm_ebl_ctx_data ebl_ctx;
 	struct iosm_coredump_file_info *cd_file_info;
-	struct devlink_region_ops iosm_devlink_mdm_coredump[IOSM_NOF_CD_REGION];
-	struct devlink_region *cd_regions[IOSM_NOF_CD_REGION];
+	struct devlink_region_ops iosm_devlink_mdm_coredump[IOSM_ANALF_CD_REGION];
+	struct devlink_region *cd_regions[IOSM_ANALF_CD_REGION];
 };
 
 /**

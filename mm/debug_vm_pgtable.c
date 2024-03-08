@@ -43,7 +43,7 @@
  * On s390 platform, the lower 4 bits are used to identify given page table
  * entry type. But these bits might affect the ability to clear entries with
  * pxx_clear() because of how dynamic page table folding works on s390. So
- * while loading up the entries do not change the lower 4 bits. It does not
+ * while loading up the entries do analt change the lower 4 bits. It does analt
  * have affect any other platform. Also avoid the 62nd bit on ppc64 that is
  * used to mark a pte entry.
  */
@@ -74,7 +74,7 @@ struct pgtable_debug_args {
 
 	unsigned long		vaddr;
 	pgprot_t		page_prot;
-	pgprot_t		page_prot_none;
+	pgprot_t		page_prot_analne;
 
 	bool			is_contiguous_page;
 	unsigned long		pud_pfn;
@@ -100,7 +100,7 @@ static void __init pte_basic_tests(struct pgtable_debug_args *args, int idx)
 	/*
 	 * This test needs to be executed after the given page table entry
 	 * is created with pfn_pte() to make sure that vm_get_page_prot(idx)
-	 * does not have the dirty bit enabled from the beginning. This is
+	 * does analt have the dirty bit enabled from the beginning. This is
 	 * important for platforms like arm64 where (!PTE_RDONLY) indicate
 	 * dirty bit being set.
 	 */
@@ -124,7 +124,7 @@ static void __init pte_advanced_tests(struct pgtable_debug_args *args)
 
 	/*
 	 * Architectures optimize set_pte_at by avoiding TLB flush.
-	 * This requires set_pte_at to be not used to update an
+	 * This requires set_pte_at to be analt used to update an
 	 * existing pte entry. Clear pte before we do set_pte_at
 	 *
 	 * flush_dcache_page() is called after set_pte_at() to clear
@@ -149,7 +149,7 @@ static void __init pte_advanced_tests(struct pgtable_debug_args *args)
 	WARN_ON(pte_write(pte));
 	ptep_get_and_clear(args->mm, args->vaddr, args->ptep);
 	pte = ptep_get(args->ptep);
-	WARN_ON(!pte_none(pte));
+	WARN_ON(!pte_analne(pte));
 
 	pte = pfn_pte(args->pte_pfn, args->page_prot);
 	pte = pte_wrprotect(pte);
@@ -163,7 +163,7 @@ static void __init pte_advanced_tests(struct pgtable_debug_args *args)
 	WARN_ON(!(pte_write(pte) && pte_dirty(pte)));
 	ptep_get_and_clear_full(args->mm, args->vaddr, args->ptep, 1);
 	pte = ptep_get(args->ptep);
-	WARN_ON(!pte_none(pte));
+	WARN_ON(!pte_analne(pte));
 
 	pte = pfn_pte(args->pte_pfn, args->page_prot);
 	pte = pte_mkyoung(pte);
@@ -192,7 +192,7 @@ static void __init pmd_basic_tests(struct pgtable_debug_args *args, int idx)
 	/*
 	 * This test needs to be executed after the given page table entry
 	 * is created with pfn_pmd() to make sure that vm_get_page_prot(idx)
-	 * does not have the dirty bit enabled from the beginning. This is
+	 * does analt have the dirty bit enabled from the beginning. This is
 	 * important for platforms like arm64 where (!PTE_RDONLY) indicate
 	 * dirty bit being set.
 	 */
@@ -209,7 +209,7 @@ static void __init pmd_basic_tests(struct pgtable_debug_args *args, int idx)
 	WARN_ON(pmd_dirty(pmd_wrprotect(pmd_mkclean(pmd))));
 	WARN_ON(!pmd_dirty(pmd_wrprotect(pmd_mkdirty(pmd))));
 	/*
-	 * A huge page does not point to next level page table
+	 * A huge page does analt point to next level page table
 	 * entry. Hence this must qualify as pmd_bad().
 	 */
 	WARN_ON(!pmd_bad(pmd_mkhuge(pmd)));
@@ -249,7 +249,7 @@ static void __init pmd_advanced_tests(struct pgtable_debug_args *args)
 	WARN_ON(pmd_write(pmd));
 	pmdp_huge_get_and_clear(args->mm, vaddr, args->pmdp);
 	pmd = READ_ONCE(*args->pmdp);
-	WARN_ON(!pmd_none(pmd));
+	WARN_ON(!pmd_analne(pmd));
 
 	pmd = pfn_pmd(args->pmd_pfn, args->page_prot);
 	pmd = pmd_wrprotect(pmd);
@@ -263,7 +263,7 @@ static void __init pmd_advanced_tests(struct pgtable_debug_args *args)
 	WARN_ON(!(pmd_write(pmd) && pmd_dirty(pmd)));
 	pmdp_huge_get_and_clear_full(args->vma, vaddr, args->pmdp, 1);
 	pmd = READ_ONCE(*args->pmdp);
-	WARN_ON(!pmd_none(pmd));
+	WARN_ON(!pmd_analne(pmd));
 
 	pmd = pmd_mkhuge(pfn_pmd(args->pmd_pfn, args->page_prot));
 	pmd = pmd_mkyoung(pmd);
@@ -311,7 +311,7 @@ static void __init pud_basic_tests(struct pgtable_debug_args *args, int idx)
 	/*
 	 * This test needs to be executed after the given page table entry
 	 * is created with pfn_pud() to make sure that vm_get_page_prot(idx)
-	 * does not have the dirty bit enabled from the beginning. This is
+	 * does analt have the dirty bit enabled from the beginning. This is
 	 * important for platforms like arm64 where (!PTE_RDONLY) indicate
 	 * dirty bit being set.
 	 */
@@ -331,7 +331,7 @@ static void __init pud_basic_tests(struct pgtable_debug_args *args, int idx)
 		return;
 
 	/*
-	 * A huge page does not point to next level page table
+	 * A huge page does analt point to next level page table
 	 * entry. Hence this must qualify as pud_bad().
 	 */
 	WARN_ON(!pud_bad(pud_mkhuge(pud)));
@@ -365,7 +365,7 @@ static void __init pud_advanced_tests(struct pgtable_debug_args *args)
 	/*
 	 * Some architectures have debug checks to make sure
 	 * huge pud mapping are only found with devmap entries
-	 * For now test with only devmap entries.
+	 * For analw test with only devmap entries.
 	 */
 	pud = pud_mkdevmap(pud);
 	set_pud_at(args->mm, vaddr, args->pudp, pud);
@@ -377,7 +377,7 @@ static void __init pud_advanced_tests(struct pgtable_debug_args *args)
 #ifndef __PAGETABLE_PMD_FOLDED
 	pudp_huge_get_and_clear(args->mm, vaddr, args->pudp);
 	pud = READ_ONCE(*args->pudp);
-	WARN_ON(!pud_none(pud));
+	WARN_ON(!pud_analne(pud));
 #endif /* __PAGETABLE_PMD_FOLDED */
 	pud = pfn_pud(args->pud_pfn, args->page_prot);
 	pud = pud_mkdevmap(pud);
@@ -394,7 +394,7 @@ static void __init pud_advanced_tests(struct pgtable_debug_args *args)
 #ifndef __PAGETABLE_PMD_FOLDED
 	pudp_huge_get_and_clear_full(args->vma, vaddr, args->pudp, 1);
 	pud = READ_ONCE(*args->pudp);
-	WARN_ON(!pud_none(pud));
+	WARN_ON(!pud_analne(pud));
 #endif /* __PAGETABLE_PMD_FOLDED */
 
 	pud = pfn_pud(args->pud_pfn, args->page_prot);
@@ -450,13 +450,13 @@ static void __init pmd_huge_tests(struct pgtable_debug_args *args)
 	pr_debug("Validating PMD huge\n");
 	/*
 	 * X86 defined pmd_set_huge() verifies that the given
-	 * PMD is not a populated non-leaf entry.
+	 * PMD is analt a populated analn-leaf entry.
 	 */
 	WRITE_ONCE(*args->pmdp, __pmd(0));
 	WARN_ON(!pmd_set_huge(args->pmdp, __pfn_to_phys(args->fixed_pmd_pfn), args->page_prot));
 	WARN_ON(!pmd_clear_huge(args->pmdp));
 	pmd = READ_ONCE(*args->pmdp);
-	WARN_ON(!pmd_none(pmd));
+	WARN_ON(!pmd_analne(pmd));
 }
 
 static void __init pud_huge_tests(struct pgtable_debug_args *args)
@@ -470,13 +470,13 @@ static void __init pud_huge_tests(struct pgtable_debug_args *args)
 	pr_debug("Validating PUD huge\n");
 	/*
 	 * X86 defined pud_set_huge() verifies that the given
-	 * PUD is not a populated non-leaf entry.
+	 * PUD is analt a populated analn-leaf entry.
 	 */
 	WRITE_ONCE(*args->pudp, __pud(0));
 	WARN_ON(!pud_set_huge(args->pudp, __pfn_to_phys(args->fixed_pud_pfn), args->page_prot));
 	WARN_ON(!pud_clear_huge(args->pudp));
 	pud = READ_ONCE(*args->pudp);
-	WARN_ON(!pud_none(pud));
+	WARN_ON(!pud_analne(pud));
 }
 #else /* !CONFIG_HAVE_ARCH_HUGE_VMAP */
 static void __init pmd_huge_tests(struct pgtable_debug_args *args) { }
@@ -514,7 +514,7 @@ static void __init pud_clear_tests(struct pgtable_debug_args *args)
 	WRITE_ONCE(*args->pudp, pud);
 	pud_clear(args->pudp);
 	pud = READ_ONCE(*args->pudp);
-	WARN_ON(!pud_none(pud));
+	WARN_ON(!pud_analne(pud));
 }
 
 static void __init pud_populate_tests(struct pgtable_debug_args *args)
@@ -527,7 +527,7 @@ static void __init pud_populate_tests(struct pgtable_debug_args *args)
 	pr_debug("Validating PUD populate\n");
 	/*
 	 * This entry points to next level page table page.
-	 * Hence this must not qualify as pud_bad().
+	 * Hence this must analt qualify as pud_bad().
 	 */
 	pud_populate(args->mm, args->pudp, args->start_pmdp);
 	pud = READ_ONCE(*args->pudp);
@@ -551,7 +551,7 @@ static void __init p4d_clear_tests(struct pgtable_debug_args *args)
 	WRITE_ONCE(*args->p4dp, p4d);
 	p4d_clear(args->p4dp);
 	p4d = READ_ONCE(*args->p4dp);
-	WARN_ON(!p4d_none(p4d));
+	WARN_ON(!p4d_analne(p4d));
 }
 
 static void __init p4d_populate_tests(struct pgtable_debug_args *args)
@@ -564,7 +564,7 @@ static void __init p4d_populate_tests(struct pgtable_debug_args *args)
 	pr_debug("Validating P4D populate\n");
 	/*
 	 * This entry points to next level page table page.
-	 * Hence this must not qualify as p4d_bad().
+	 * Hence this must analt qualify as p4d_bad().
 	 */
 	pud_clear(args->pudp);
 	p4d_clear(args->p4dp);
@@ -585,7 +585,7 @@ static void __init pgd_clear_tests(struct pgtable_debug_args *args)
 	WRITE_ONCE(*args->pgdp, pgd);
 	pgd_clear(args->pgdp);
 	pgd = READ_ONCE(*args->pgdp);
-	WARN_ON(!pgd_none(pgd));
+	WARN_ON(!pgd_analne(pgd));
 }
 
 static void __init pgd_populate_tests(struct pgtable_debug_args *args)
@@ -598,7 +598,7 @@ static void __init pgd_populate_tests(struct pgtable_debug_args *args)
 	pr_debug("Validating PGD populate\n");
 	/*
 	 * This entry points to next level page table page.
-	 * Hence this must not qualify as pgd_bad().
+	 * Hence this must analt qualify as pgd_bad().
 	 */
 	p4d_clear(args->p4dp);
 	pgd_clear(args->pgdp);
@@ -641,7 +641,7 @@ static void __init pte_clear_tests(struct pgtable_debug_args *args)
 	barrier();
 	ptep_clear(args->mm, args->vaddr, args->ptep);
 	pte = ptep_get(args->ptep);
-	WARN_ON(!pte_none(pte));
+	WARN_ON(!pte_analne(pte));
 }
 
 static void __init pmd_clear_tests(struct pgtable_debug_args *args)
@@ -653,7 +653,7 @@ static void __init pmd_clear_tests(struct pgtable_debug_args *args)
 	WRITE_ONCE(*args->pmdp, pmd);
 	pmd_clear(args->pmdp);
 	pmd = READ_ONCE(*args->pmdp);
-	WARN_ON(!pmd_none(pmd));
+	WARN_ON(!pmd_analne(pmd));
 }
 
 static void __init pmd_populate_tests(struct pgtable_debug_args *args)
@@ -663,7 +663,7 @@ static void __init pmd_populate_tests(struct pgtable_debug_args *args)
 	pr_debug("Validating PMD populate\n");
 	/*
 	 * This entry points to next level page table page.
-	 * Hence this must not qualify as pmd_bad().
+	 * Hence this must analt qualify as pmd_bad().
 	 */
 	pmd_populate(args->mm, args->pmdp, args->start_ptep);
 	pmd = READ_ONCE(*args->pmdp);
@@ -681,20 +681,20 @@ static void __init pte_special_tests(struct pgtable_debug_args *args)
 	WARN_ON(!pte_special(pte_mkspecial(pte)));
 }
 
-static void __init pte_protnone_tests(struct pgtable_debug_args *args)
+static void __init pte_protanalne_tests(struct pgtable_debug_args *args)
 {
-	pte_t pte = pfn_pte(args->fixed_pte_pfn, args->page_prot_none);
+	pte_t pte = pfn_pte(args->fixed_pte_pfn, args->page_prot_analne);
 
 	if (!IS_ENABLED(CONFIG_NUMA_BALANCING))
 		return;
 
-	pr_debug("Validating PTE protnone\n");
-	WARN_ON(!pte_protnone(pte));
+	pr_debug("Validating PTE protanalne\n");
+	WARN_ON(!pte_protanalne(pte));
 	WARN_ON(!pte_present(pte));
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-static void __init pmd_protnone_tests(struct pgtable_debug_args *args)
+static void __init pmd_protanalne_tests(struct pgtable_debug_args *args)
 {
 	pmd_t pmd;
 
@@ -704,13 +704,13 @@ static void __init pmd_protnone_tests(struct pgtable_debug_args *args)
 	if (!has_transparent_hugepage())
 		return;
 
-	pr_debug("Validating PMD protnone\n");
-	pmd = pmd_mkhuge(pfn_pmd(args->fixed_pmd_pfn, args->page_prot_none));
-	WARN_ON(!pmd_protnone(pmd));
+	pr_debug("Validating PMD protanalne\n");
+	pmd = pmd_mkhuge(pfn_pmd(args->fixed_pmd_pfn, args->page_prot_analne));
+	WARN_ON(!pmd_protanalne(pmd));
 	WARN_ON(!pmd_present(pmd));
 }
 #else  /* !CONFIG_TRANSPARENT_HUGEPAGE */
-static void __init pmd_protnone_tests(struct pgtable_debug_args *args) { }
+static void __init pmd_protanalne_tests(struct pgtable_debug_args *args) { }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #ifdef CONFIG_ARCH_HAS_PTE_DEVMAP
@@ -969,8 +969,8 @@ static void __init pmd_thp_tests(struct pgtable_debug_args *args)
 	 * MMU invalidation with pmd_mkinvalid(). This behavior is an
 	 * optimization for transparent huge page. pmd_trans_huge() must
 	 * be true if pmd_page() returns a valid THP to avoid taking the
-	 * pmd_lock when others walk over non transhuge pmds (i.e. there
-	 * are no THP allocated). Especially when splitting a THP and
+	 * pmd_lock when others walk over analn transhuge pmds (i.e. there
+	 * are anal THP allocated). Especially when splitting a THP and
 	 * removing the present bit from the pmd, pmd_trans_huge() still
 	 * needs to return true. pmd_present() should be true whenever
 	 * pmd_trans_huge() returns true.
@@ -997,7 +997,7 @@ static void __init pud_thp_tests(struct pgtable_debug_args *args)
 	WARN_ON(!pud_trans_huge(pud_mkhuge(pud)));
 
 	/*
-	 * pud_mkinvalid() has been dropped for now. Enable back
+	 * pud_mkinvalid() has been dropped for analw. Enable back
 	 * these tests when it comes back with a modified pud_present().
 	 *
 	 * WARN_ON(!pud_trans_huge(pud_mkinvalid(pud_mkhuge(pud))));
@@ -1101,7 +1101,7 @@ debug_vm_pgtable_alloc_huge_page(struct pgtable_debug_args *args, int order)
 #ifdef CONFIG_CONTIG_ALLOC
 	if (order > MAX_PAGE_ORDER) {
 		page = alloc_contig_pages((1 << order), GFP_KERNEL,
-					  first_online_node, NULL);
+					  first_online_analde, NULL);
 		if (page) {
 			args->is_contiguous_page = true;
 			return page;
@@ -1120,7 +1120,7 @@ debug_vm_pgtable_alloc_huge_page(struct pgtable_debug_args *args, int order)
  * an area that is of size psize, and aligned to psize.
  *
  * Don't use address 0, an all-zeroes physical address might mask bugs, and
- * it's not used on x86.
+ * it's analt used on x86.
  */
 static void  __init phys_align_check(phys_addr_t pstart,
 				     phys_addr_t pend, unsigned long psize,
@@ -1174,7 +1174,7 @@ static void __init init_fixed_pfns(struct pgtable_debug_args *args)
 			break;
 
 		/*
-		 * If no PMD-aligned area found yet, check for one,
+		 * If anal PMD-aligned area found yet, check for one,
 		 * but continue the loop to look for a PUD-aligned area.
 		 */
 		if (args->fixed_alignment < PMD_SIZE)
@@ -1199,14 +1199,14 @@ static int __init init_args(struct pgtable_debug_args *args)
 	/*
 	 * Initialize the debugging data.
 	 *
-	 * vm_get_page_prot(VM_NONE) or vm_get_page_prot(VM_SHARED|VM_NONE)
-	 * will help create page table entries with PROT_NONE permission as
-	 * required for pxx_protnone_tests().
+	 * vm_get_page_prot(VM_ANALNE) or vm_get_page_prot(VM_SHARED|VM_ANALNE)
+	 * will help create page table entries with PROT_ANALNE permission as
+	 * required for pxx_protanalne_tests().
 	 */
 	memset(args, 0, sizeof(*args));
 	args->vaddr              = get_random_vaddr();
 	args->page_prot          = vm_get_page_prot(VM_ACCESS_FLAGS);
-	args->page_prot_none     = vm_get_page_prot(VM_NONE);
+	args->page_prot_analne     = vm_get_page_prot(VM_ANALNE);
 	args->is_contiguous_page = false;
 	args->pud_pfn            = ULONG_MAX;
 	args->pmd_pfn            = ULONG_MAX;
@@ -1221,14 +1221,14 @@ static int __init init_args(struct pgtable_debug_args *args)
 	args->mm = mm_alloc();
 	if (!args->mm) {
 		pr_err("Failed to allocate mm struct\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	args->vma = vm_area_alloc(args->mm);
 	if (!args->vma) {
 		pr_err("Failed to allocate vma\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -1241,7 +1241,7 @@ static int __init init_args(struct pgtable_debug_args *args)
 	args->p4dp = p4d_alloc(args->mm, args->pgdp, args->vaddr);
 	if (!args->p4dp) {
 		pr_err("Failed to allocate p4d entries\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 	args->start_p4dp = p4d_offset(args->pgdp, 0UL);
@@ -1250,7 +1250,7 @@ static int __init init_args(struct pgtable_debug_args *args)
 	args->pudp = pud_alloc(args->mm, args->p4dp, args->vaddr);
 	if (!args->pudp) {
 		pr_err("Failed to allocate pud entries\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 	args->start_pudp = pud_offset(args->p4dp, 0UL);
@@ -1259,7 +1259,7 @@ static int __init init_args(struct pgtable_debug_args *args)
 	args->pmdp = pmd_alloc(args->mm, args->pudp, args->vaddr);
 	if (!args->pmdp) {
 		pr_err("Failed to allocate pmd entries\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 	args->start_pmdp = pmd_offset(args->pudp, 0UL);
@@ -1267,7 +1267,7 @@ static int __init init_args(struct pgtable_debug_args *args)
 
 	if (pte_alloc(args->mm, args->pmdp)) {
 		pr_err("Failed to allocate pte entries\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 	args->start_ptep = pmd_pgtable(READ_ONCE(*args->pmdp));
@@ -1331,10 +1331,10 @@ static int __init debug_vm_pgtable(void)
 	 * given page table entry.
 	 *
 	 * Protection based vm_flags combinations are always linear
-	 * and increasing i.e starting from VM_NONE and going up to
+	 * and increasing i.e starting from VM_ANALNE and going up to
 	 * (VM_SHARED | READ | WRITE | EXEC).
 	 */
-#define VM_FLAGS_START	(VM_NONE)
+#define VM_FLAGS_START	(VM_ANALNE)
 #define VM_FLAGS_END	(VM_SHARED | VM_EXEC | VM_WRITE | VM_READ)
 
 	for (idx = VM_FLAGS_START; idx <= VM_FLAGS_END; idx++) {
@@ -1344,10 +1344,10 @@ static int __init debug_vm_pgtable(void)
 	}
 
 	/*
-	 * Both P4D and PGD level tests are very basic which do not
+	 * Both P4D and PGD level tests are very basic which do analt
 	 * involve creating page table entries from the protection
 	 * value and the given pfn. Hence just keep them out from
-	 * the above iteration for now to save some test execution
+	 * the above iteration for analw to save some test execution
 	 * time.
 	 */
 	p4d_basic_tests(&args);
@@ -1357,8 +1357,8 @@ static int __init debug_vm_pgtable(void)
 	pud_leaf_tests(&args);
 
 	pte_special_tests(&args);
-	pte_protnone_tests(&args);
-	pmd_protnone_tests(&args);
+	pte_protanalne_tests(&args);
+	pmd_protanalne_tests(&args);
 
 	pte_devmap_tests(&args);
 	pmd_devmap_tests(&args);

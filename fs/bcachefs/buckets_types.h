@@ -51,7 +51,7 @@ struct bch_fs_usage_base {
 	u64			data;
 	u64			cached;
 	u64			reserved;
-	u64			nr_inodes;
+	u64			nr_ianaldes;
 };
 
 struct bch_fs_usage {
@@ -70,7 +70,7 @@ struct bch_fs_usage_short {
 	u64			capacity;
 	u64			used;
 	u64			free;
-	u64			nr_inodes;
+	u64			nr_ianaldes;
 };
 
 /*

@@ -27,7 +27,7 @@
 #define  PERIOD_ACTIVE_LOW	(2 << 16)
 #define  PERIOD_INACTIVE_HIGH	(3 << 18)
 #define  PERIOD_INACTIVE_LOW	(2 << 18)
-#define  PERIOD_POLARITY_NORMAL	(PERIOD_ACTIVE_HIGH | PERIOD_INACTIVE_LOW)
+#define  PERIOD_POLARITY_ANALRMAL	(PERIOD_ACTIVE_HIGH | PERIOD_INACTIVE_LOW)
 #define  PERIOD_POLARITY_INVERSE	(PERIOD_ACTIVE_LOW | PERIOD_INACTIVE_HIGH)
 #define  PERIOD_CDIV(div)	(((div) & 0x7) << 20)
 #define  PERIOD_CDIV_MAX	8
@@ -92,8 +92,8 @@ static int mxs_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * glitches.
 	 */
 
-	pol_bits = state->polarity == PWM_POLARITY_NORMAL ?
-		PERIOD_POLARITY_NORMAL : PERIOD_POLARITY_INVERSE;
+	pol_bits = state->polarity == PWM_POLARITY_ANALRMAL ?
+		PERIOD_POLARITY_ANALRMAL : PERIOD_POLARITY_INVERSE;
 	writel(duty_cycles << 16,
 	       mxs->base + PWM_ACTIVE0 + pwm->hwpwm * 0x20);
 	writel(PERIOD_PERIOD(period_cycles) | pol_bits | PERIOD_CDIV(div),
@@ -119,13 +119,13 @@ static const struct pwm_ops mxs_pwm_ops = {
 
 static int mxs_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mxs_pwm_chip *mxs;
 	int ret;
 
 	mxs = devm_kzalloc(&pdev->dev, sizeof(*mxs), GFP_KERNEL);
 	if (!mxs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mxs->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mxs->base))

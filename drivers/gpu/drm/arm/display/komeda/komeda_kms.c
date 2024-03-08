@@ -48,7 +48,7 @@ static irqreturn_t komeda_kms_irq_handler(int irq, void *data)
 
 	komeda_print_events(&evts, drm);
 
-	/* Notify the crtc to handle the events */
+	/* Analtify the crtc to handle the events */
 	for (i = 0; i < kms->n_crtcs; i++)
 		komeda_crtc_handle_event(&kms->crtcs[i], &evts);
 
@@ -63,7 +63,7 @@ static const struct drm_driver komeda_kms_driver = {
 	.desc = "Arm Komeda Display Processor driver",
 	.date = "20181101",
 	.major = 0,
-	.minor = 1,
+	.mianalr = 1,
 };
 
 static void komeda_kms_atomic_commit_hw_done(struct drm_atomic_state *state)
@@ -114,34 +114,34 @@ static int komeda_plane_state_list_add(struct drm_plane_state *plane_st,
 				       struct list_head *zorder_list)
 {
 	struct komeda_plane_state *new = to_kplane_st(plane_st);
-	struct komeda_plane_state *node, *last;
+	struct komeda_plane_state *analde, *last;
 
 	last = list_empty(zorder_list) ?
-	       NULL : list_last_entry(zorder_list, typeof(*last), zlist_node);
+	       NULL : list_last_entry(zorder_list, typeof(*last), zlist_analde);
 
 	/* Considering the list sequence is zpos increasing, so if list is empty
-	 * or the zpos of new node bigger than the last node in list, no need
+	 * or the zpos of new analde bigger than the last analde in list, anal need
 	 * loop and just insert the new one to the tail of the list.
 	 */
 	if (!last || (new->base.zpos > last->base.zpos)) {
-		list_add_tail(&new->zlist_node, zorder_list);
+		list_add_tail(&new->zlist_analde, zorder_list);
 		return 0;
 	}
 
 	/* Build the list by zpos increasing */
-	list_for_each_entry(node, zorder_list, zlist_node) {
-		if (new->base.zpos < node->base.zpos) {
-			list_add_tail(&new->zlist_node, &node->zlist_node);
+	list_for_each_entry(analde, zorder_list, zlist_analde) {
+		if (new->base.zpos < analde->base.zpos) {
+			list_add_tail(&new->zlist_analde, &analde->zlist_analde);
 			break;
-		} else if (node->base.zpos == new->base.zpos) {
-			struct drm_plane *a = node->base.plane;
+		} else if (analde->base.zpos == new->base.zpos) {
+			struct drm_plane *a = analde->base.plane;
 			struct drm_plane *b = new->base.plane;
 
 			/* Komeda doesn't support setting a same zpos for
 			 * different planes.
 			 */
 			DRM_DEBUG_ATOMIC("PLANE: %s and PLANE: %s are configured same zpos: %d.\n",
-					 a->name, b->name, node->base.zpos);
+					 a->name, b->name, analde->base.zpos);
 			return -EINVAL;
 		}
 	}
@@ -149,7 +149,7 @@ static int komeda_plane_state_list_add(struct drm_plane_state *plane_st,
 	return 0;
 }
 
-static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
+static int komeda_crtc_analrmalize_zpos(struct drm_crtc *crtc,
 				      struct drm_crtc_state *crtc_st)
 {
 	struct drm_atomic_state *state = crtc_st->state;
@@ -161,7 +161,7 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 	struct list_head zorder_list;
 	int order = 0, err;
 
-	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating normalized zpos values\n",
+	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating analrmalized zpos values\n",
 			 crtc->base.id, crtc->name);
 
 	INIT_LIST_HEAD(&zorder_list);
@@ -180,11 +180,11 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 
 	kcrtc_st->max_slave_zorder = 0;
 
-	list_for_each_entry(kplane_st, &zorder_list, zlist_node) {
+	list_for_each_entry(kplane_st, &zorder_list, zlist_analde) {
 		plane_st = &kplane_st->base;
 		plane = plane_st->plane;
 
-		plane_st->normalized_zpos = order++;
+		plane_st->analrmalized_zpos = order++;
 		/* When layer_split has been enabled, one plane will be handled
 		 * by two separated komeda layers (left/right), which may needs
 		 * two zorders.
@@ -194,14 +194,14 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 		if (to_kplane_st(plane_st)->layer_split)
 			order++;
 
-		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] zpos:%d, normalized zpos: %d\n",
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] zpos:%d, analrmalized zpos: %d\n",
 				 plane->base.id, plane->name,
-				 plane_st->zpos, plane_st->normalized_zpos);
+				 plane_st->zpos, plane_st->analrmalized_zpos);
 
 		/* calculate max slave zorder */
 		if (has_bit(drm_plane_index(plane), kcrtc->slave_planes))
 			kcrtc_st->max_slave_zorder =
-				max(plane_st->normalized_zpos,
+				max(plane_st->analrmalized_zpos,
 				    kcrtc_st->max_slave_zorder);
 	}
 
@@ -230,7 +230,7 @@ static int komeda_kms_check(struct drm_device *dev,
 		if (err)
 			return err;
 
-		err = komeda_crtc_normalize_zpos(crtc, new_crtc_st);
+		err = komeda_crtc_analrmalize_zpos(crtc, new_crtc_st);
 		if (err)
 			return err;
 	}

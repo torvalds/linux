@@ -16,16 +16,16 @@ enum {
 	ENUM_BIT(EXTENT_DELALLOC),
 	ENUM_BIT(EXTENT_DEFRAG),
 	ENUM_BIT(EXTENT_BOUNDARY),
-	ENUM_BIT(EXTENT_NODATASUM),
+	ENUM_BIT(EXTENT_ANALDATASUM),
 	ENUM_BIT(EXTENT_CLEAR_META_RESV),
 	ENUM_BIT(EXTENT_NEED_WAIT),
-	ENUM_BIT(EXTENT_NORESERVE),
+	ENUM_BIT(EXTENT_ANALRESERVE),
 	ENUM_BIT(EXTENT_QGROUP_RESERVED),
 	ENUM_BIT(EXTENT_CLEAR_DATA_RESV),
 	/*
 	 * Must be cleared only during ordered extent completion or on error
-	 * paths if we did not manage to submit bios and create the ordered
-	 * extents for the range.  Should not be cleared during page release
+	 * paths if we did analt manage to submit bios and create the ordered
+	 * extents for the range.  Should analt be cleared during page release
 	 * and page invalidation (if there is an ordered extent in flight),
 	 * that is left for the ordered extent completion.
 	 */
@@ -33,11 +33,11 @@ enum {
 	/*
 	 * When an ordered extent successfully completes for a region marked as
 	 * a new delalloc range, use this flag when clearing a new delalloc
-	 * range to indicate that the VFS' inode number of bytes should be
-	 * incremented and the inode's new delalloc bytes decremented, in an
+	 * range to indicate that the VFS' ianalde number of bytes should be
+	 * incremented and the ianalde's new delalloc bytes decremented, in an
 	 * atomic way to prevent races with stat(2).
 	 */
-	ENUM_BIT(EXTENT_ADD_INODE_BYTES),
+	ENUM_BIT(EXTENT_ADD_IANALDE_BYTES),
 	/*
 	 * Set during truncate when we're clearing an entire range and we just
 	 * want the extent states to go away.
@@ -47,17 +47,17 @@ enum {
 	/*
 	 * This must be last.
 	 *
-	 * Bit not representing a state but a request for NOWAIT semantics,
+	 * Bit analt representing a state but a request for ANALWAIT semantics,
 	 * e.g. when allocating memory, and must be masked out from the other
 	 * bits.
 	 */
-	ENUM_BIT(EXTENT_NOWAIT)
+	ENUM_BIT(EXTENT_ANALWAIT)
 };
 
 #define EXTENT_DO_ACCOUNTING    (EXTENT_CLEAR_META_RESV | \
 				 EXTENT_CLEAR_DATA_RESV)
 #define EXTENT_CTLBITS		(EXTENT_DO_ACCOUNTING | \
-				 EXTENT_ADD_INODE_BYTES | \
+				 EXTENT_ADD_IANALDE_BYTES | \
 				 EXTENT_CLEAR_ALL_BITS)
 
 /*
@@ -74,12 +74,12 @@ enum {
 enum {
 	IO_TREE_FS_PINNED_EXTENTS,
 	IO_TREE_FS_EXCLUDED_EXTENTS,
-	IO_TREE_BTREE_INODE_IO,
-	IO_TREE_INODE_IO,
+	IO_TREE_BTREE_IANALDE_IO,
+	IO_TREE_IANALDE_IO,
 	IO_TREE_RELOC_BLOCKS,
 	IO_TREE_TRANS_DIRTY_PAGES,
 	IO_TREE_ROOT_DIRTY_LOG_PAGES,
-	IO_TREE_INODE_FILE_EXTENT,
+	IO_TREE_IANALDE_FILE_EXTENT,
 	IO_TREE_LOG_CSUM_RANGE,
 	IO_TREE_SELFTEST,
 	IO_TREE_DEVICE_ALLOC_STATE,
@@ -88,15 +88,15 @@ enum {
 struct extent_io_tree {
 	struct rb_root state;
 	/*
-	 * The fs_info is needed for trace points, a tree attached to an inode
-	 * needs the inode.
+	 * The fs_info is needed for trace points, a tree attached to an ianalde
+	 * needs the ianalde.
 	 *
-	 * owner == IO_TREE_INODE_IO - then inode is valid and fs_info can be
-	 *                             accessed as inode->root->fs_info
+	 * owner == IO_TREE_IANALDE_IO - then ianalde is valid and fs_info can be
+	 *                             accessed as ianalde->root->fs_info
 	 */
 	union {
 		struct btrfs_fs_info *fs_info;
-		struct btrfs_inode *inode;
+		struct btrfs_ianalde *ianalde;
 	};
 
 	/* Who owns this io tree, should be one of IO_TREE_* */
@@ -108,7 +108,7 @@ struct extent_io_tree {
 struct extent_state {
 	u64 start;
 	u64 end; /* inclusive */
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 
 	/* ADD NEW ELEMENTS AFTER THIS */
 	wait_queue_head_t wq;
@@ -120,8 +120,8 @@ struct extent_state {
 #endif
 };
 
-struct btrfs_inode *extent_io_tree_to_inode(struct extent_io_tree *tree);
-const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_tree *tree);
+struct btrfs_ianalde *extent_io_tree_to_ianalde(struct extent_io_tree *tree);
+const struct btrfs_ianalde *extent_io_tree_to_ianalde_const(const struct extent_io_tree *tree);
 const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tree *tree);
 
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,

@@ -4,7 +4,7 @@
  *
  * Starfive Camera Subsystem driver
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  */
 
 #ifndef STF_CAMSS_H
@@ -54,7 +54,7 @@ struct stfcamss {
 	struct device *dev;
 	struct stf_isp_dev isp_dev;
 	struct stf_capture captures[STF_CAPTURE_NUM];
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	void __iomem *syscon_base;
 	void __iomem *isp_base;
 	struct clk_bulk_data sys_clk[STF_CLK_NUM];

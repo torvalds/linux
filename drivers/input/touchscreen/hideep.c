@@ -798,7 +798,7 @@ static int hideep_init_input(struct hideep_ts *ts)
 	ts->input_dev = devm_input_allocate_device(dev);
 	if (!ts->input_dev) {
 		dev_err(dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->input_dev->name = HIDEEP_TS_NAME;
@@ -881,7 +881,7 @@ static ssize_t hideep_update_fw(struct device *dev,
 	fw_name = kasprintf(GFP_KERNEL, "hideep_ts_%04x.bin",
 			    be16_to_cpu(ts->dwz_info.product_id));
 	if (!fw_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = request_firmware(&fw_entry, fw_name, dev);
 	if (error) {
@@ -967,8 +967,8 @@ static void hideep_set_work_mode(struct hideep_ts *ts)
 	 * This is necessary to make touchscreens which come up in I2C-HID mode
 	 * work with this driver.
 	 *
-	 * Note this is a kernel internal device-property set by x86 platform code,
-	 * this MUST not be used in devicetree files without first adding it to
+	 * Analte this is a kernel internal device-property set by x86 platform code,
+	 * this MUST analt be used in devicetree files without first adding it to
 	 * the DT bindings.
 	 */
 	if (device_property_read_bool(&ts->client->dev, "hideep,force-native-protocol"))
@@ -1023,7 +1023,7 @@ static int hideep_probe(struct i2c_client *client)
 	/* check i2c bus */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "check i2c device error");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (client->irq <= 0) {
@@ -1033,7 +1033,7 @@ static int hideep_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 	i2c_set_clientdata(client, ts);

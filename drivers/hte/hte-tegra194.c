@@ -411,7 +411,7 @@ static int tegra_hte_line_xlate(struct hte_chip *gc,
 	 *
 	 * 1) Using the global GPIO numberspace.
 	 *
-	 * This is the old, now DEPRECATED method and should not be used in
+	 * This is the old, analw DEPRECATED method and should analt be used in
 	 * new code. TODO: Check if tegra is even concerned by this.
 	 *
 	 * 2) Using GPIO descriptors that can be assigned to consumer devices
@@ -468,7 +468,7 @@ static int tegra_hte_en_dis_common(struct hte_chip *chip, u32 line_id, bool en)
 
 	if (line_id > chip->nlines) {
 		dev_err(chip->dev,
-			"line id: %u is not supported by this controller\n",
+			"line id: %u is analt supported by this controller\n",
 			line_id);
 		return -EINVAL;
 	}
@@ -580,7 +580,7 @@ static int tegra_hte_clk_src_info(struct hte_chip *chip,
 		return -EINVAL;
 
 	ci->hz = HTE_TS_CLK_RATE_HZ;
-	ci->type = CLOCK_MONOTONIC;
+	ci->type = CLOCK_MOANALTONIC;
 
 	return 0;
 }
@@ -691,22 +691,22 @@ static int tegra_hte_probe(struct platform_device *pdev)
 	struct device *dev;
 	struct tegra_hte_soc *hte_dev;
 	struct hte_chip *gc;
-	struct device_node *gpio_ctrl;
+	struct device_analde *gpio_ctrl;
 
 	dev = &pdev->dev;
 
 	hte_dev = devm_kzalloc(dev, sizeof(*hte_dev), GFP_KERNEL);
 	if (!hte_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, hte_dev);
 	hte_dev->prov_data = of_device_get_match_data(&pdev->dev);
 
-	ret = of_property_read_u32(dev->of_node, "nvidia,slices", &slices);
+	ret = of_property_read_u32(dev->of_analde, "nvidia,slices", &slices);
 	if (ret != 0)
 		slices = hte_dev->prov_data->slices;
 
@@ -717,7 +717,7 @@ static int tegra_hte_probe(struct platform_device *pdev)
 	if (IS_ERR(hte_dev->regs))
 		return PTR_ERR(hte_dev->regs);
 
-	ret = of_property_read_u32(dev->of_node, "nvidia,int-threshold",
+	ret = of_property_read_u32(dev->of_analde, "nvidia,int-threshold",
 				   &hte_dev->itr_thrshld);
 	if (ret != 0)
 		hte_dev->itr_thrshld = 1;
@@ -725,7 +725,7 @@ static int tegra_hte_probe(struct platform_device *pdev)
 	hte_dev->sl = devm_kcalloc(dev, slices, sizeof(*hte_dev->sl),
 				   GFP_KERNEL);
 	if (!hte_dev->sl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
@@ -752,27 +752,27 @@ static int tegra_hte_probe(struct platform_device *pdev)
 						  sizeof(*hte_dev->line_data),
 						  GFP_KERNEL);
 		if (!hte_dev->line_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		gc->match_from_linedata = tegra_hte_match_from_linedata;
 
-		if (of_device_is_compatible(dev->of_node,
+		if (of_device_is_compatible(dev->of_analde,
 					    "nvidia,tegra194-gte-aon")) {
 			hte_dev->gdev =
 				gpio_device_find_by_label("tegra194-gpio-aon");
 		} else {
-			gpio_ctrl = of_parse_phandle(dev->of_node,
+			gpio_ctrl = of_parse_phandle(dev->of_analde,
 						     "nvidia,gpio-controller",
 						     0);
 			if (!gpio_ctrl) {
 				dev_err(dev,
-					"gpio controller node not found\n");
-				return -ENODEV;
+					"gpio controller analde analt found\n");
+				return -EANALDEV;
 			}
 
 			hte_dev->gdev =
-				gpio_device_find_by_fwnode(of_fwnode_handle(gpio_ctrl));
-			of_node_put(gpio_ctrl);
+				gpio_device_find_by_fwanalde(of_fwanalde_handle(gpio_ctrl));
+			of_analde_put(gpio_ctrl);
 		}
 
 		if (!hte_dev->gdev)

@@ -15,7 +15,7 @@ struct qcom_rproc_glink {
 	const char *ssr_name;
 
 	struct device *dev;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct qcom_glink_smem *edge;
 };
 
@@ -23,7 +23,7 @@ struct qcom_rproc_subdev {
 	struct rproc_subdev subdev;
 
 	struct device *dev;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct qcom_smd_edge *edge;
 };
 

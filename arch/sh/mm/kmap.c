@@ -42,7 +42,7 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 
 	vaddr = __fix_to_virt(idx);
 
-	BUG_ON(!pte_none(*(kmap_coherent_pte - idx)));
+	BUG_ON(!pte_analne(*(kmap_coherent_pte - idx)));
 	set_pte(kmap_coherent_pte - idx, mk_pte(page, PAGE_KERNEL));
 
 	return (void *)vaddr;

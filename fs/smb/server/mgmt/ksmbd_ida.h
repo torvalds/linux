@@ -11,9 +11,9 @@
 
 /*
  * 2.2.1.6.7 TID Generation
- *    The value 0xFFFF MUST NOT be used as a valid TID. All other
+ *    The value 0xFFFF MUST ANALT be used as a valid TID. All other
  *    possible values for TID, including zero (0x0000), are valid.
- *    The value 0xFFFF is used to specify all TIDs or no TID,
+ *    The value 0xFFFF is used to specify all TIDs or anal TID,
  *    depending upon the context in which it is used.
  */
 int ksmbd_acquire_smb2_tid(struct ida *ida);
@@ -21,7 +21,7 @@ int ksmbd_acquire_smb2_tid(struct ida *ida);
 /*
  * 2.2.1.6.8 UID Generation
  *    The value 0xFFFE was declared reserved in the LAN Manager 1.0
- *    documentation, so a value of 0xFFFE SHOULD NOT be used as a
+ *    documentation, so a value of 0xFFFE SHOULD ANALT be used as a
  *    valid UID.<21> All other possible values for a UID, excluding
  *    zero (0x0000), are valid.
  */

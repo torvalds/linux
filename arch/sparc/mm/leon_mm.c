@@ -257,12 +257,12 @@ int __init leon_flush_needed(void)
 	ssize = 1 << ((cregs.dccr & LEON3_XCCR_SSIZE_MASK) >> 20);
 
 	printk(KERN_INFO "CACHE: %s cache, set size %dk\n",
-	       sets > 3 ? "unknown" : setStr[sets], ssize);
+	       sets > 3 ? "unkanalwn" : setStr[sets], ssize);
 	if ((ssize <= (PAGE_SIZE / 1024)) && (sets == 0)) {
 		/* Set Size <= Page size  ==>
-		   flush on every context switch not needed. */
+		   flush on every context switch analt needed. */
 		flush_needed = 0;
-		printk(KERN_INFO "CACHE: not flushing on every context switch\n");
+		printk(KERN_INFO "CACHE: analt flushing on every context switch\n");
 	}
 	return flush_needed;
 }

@@ -45,9 +45,9 @@ static int s3c64xx_pd_off(struct generic_pm_domain *domain)
 
 	pd = container_of(domain, struct s3c64xx_pm_domain, pd);
 
-	val = __raw_readl(S3C64XX_NORMAL_CFG);
+	val = __raw_readl(S3C64XX_ANALRMAL_CFG);
 	val &= ~(pd->ena);
-	__raw_writel(val, S3C64XX_NORMAL_CFG);
+	__raw_writel(val, S3C64XX_ANALRMAL_CFG);
 
 	return 0;
 }
@@ -60,11 +60,11 @@ static int s3c64xx_pd_on(struct generic_pm_domain *domain)
 
 	pd = container_of(domain, struct s3c64xx_pm_domain, pd);
 
-	val = __raw_readl(S3C64XX_NORMAL_CFG);
+	val = __raw_readl(S3C64XX_ANALRMAL_CFG);
 	val |= pd->ena;
-	__raw_writel(val, S3C64XX_NORMAL_CFG);
+	__raw_writel(val, S3C64XX_ANALRMAL_CFG);
 
-	/* Not all domains provide power status readback */
+	/* Analt all domains provide power status readback */
 	if (pd->pwr_stat) {
 		do {
 			cpu_relax();
@@ -83,7 +83,7 @@ static int s3c64xx_pd_on(struct generic_pm_domain *domain)
 
 static struct s3c64xx_pm_domain s3c64xx_pm_irom = {
 	.name = "IROM",
-	.ena = S3C64XX_NORMALCFG_IROM_ON,
+	.ena = S3C64XX_ANALRMALCFG_IROM_ON,
 	.pd = {
 		.power_off = s3c64xx_pd_off,
 		.power_on = s3c64xx_pd_on,
@@ -92,7 +92,7 @@ static struct s3c64xx_pm_domain s3c64xx_pm_irom = {
 
 static struct s3c64xx_pm_domain s3c64xx_pm_etm = {
 	.name = "ETM",
-	.ena = S3C64XX_NORMALCFG_DOMAIN_ETM_ON,
+	.ena = S3C64XX_ANALRMALCFG_DOMAIN_ETM_ON,
 	.pwr_stat = S3C64XX_BLKPWRSTAT_ETM,
 	.pd = {
 		.power_off = s3c64xx_pd_off,
@@ -102,7 +102,7 @@ static struct s3c64xx_pm_domain s3c64xx_pm_etm = {
 
 static struct s3c64xx_pm_domain s3c64xx_pm_s = {
 	.name = "S",
-	.ena = S3C64XX_NORMALCFG_DOMAIN_S_ON,
+	.ena = S3C64XX_ANALRMALCFG_DOMAIN_S_ON,
 	.pwr_stat = S3C64XX_BLKPWRSTAT_S,
 	.pd = {
 		.power_off = s3c64xx_pd_off,
@@ -112,7 +112,7 @@ static struct s3c64xx_pm_domain s3c64xx_pm_s = {
 
 static struct s3c64xx_pm_domain s3c64xx_pm_f = {
 	.name = "F",
-	.ena = S3C64XX_NORMALCFG_DOMAIN_F_ON,
+	.ena = S3C64XX_ANALRMALCFG_DOMAIN_F_ON,
 	.pwr_stat = S3C64XX_BLKPWRSTAT_F,
 	.pd = {
 		.power_off = s3c64xx_pd_off,
@@ -122,7 +122,7 @@ static struct s3c64xx_pm_domain s3c64xx_pm_f = {
 
 static struct s3c64xx_pm_domain s3c64xx_pm_p = {
 	.name = "P",
-	.ena = S3C64XX_NORMALCFG_DOMAIN_P_ON,
+	.ena = S3C64XX_ANALRMALCFG_DOMAIN_P_ON,
 	.pwr_stat = S3C64XX_BLKPWRSTAT_P,
 	.pd = {
 		.power_off = s3c64xx_pd_off,
@@ -132,7 +132,7 @@ static struct s3c64xx_pm_domain s3c64xx_pm_p = {
 
 static struct s3c64xx_pm_domain s3c64xx_pm_i = {
 	.name = "I",
-	.ena = S3C64XX_NORMALCFG_DOMAIN_I_ON,
+	.ena = S3C64XX_ANALRMALCFG_DOMAIN_I_ON,
 	.pwr_stat = S3C64XX_BLKPWRSTAT_I,
 	.pd = {
 		.power_off = s3c64xx_pd_off,
@@ -142,7 +142,7 @@ static struct s3c64xx_pm_domain s3c64xx_pm_i = {
 
 static struct s3c64xx_pm_domain s3c64xx_pm_g = {
 	.name = "G",
-	.ena = S3C64XX_NORMALCFG_DOMAIN_G_ON,
+	.ena = S3C64XX_ANALRMALCFG_DOMAIN_G_ON,
 	.pd = {
 		.power_off = s3c64xx_pd_off,
 		.power_on = s3c64xx_pd_on,
@@ -151,7 +151,7 @@ static struct s3c64xx_pm_domain s3c64xx_pm_g = {
 
 static struct s3c64xx_pm_domain s3c64xx_pm_v = {
 	.name = "V",
-	.ena = S3C64XX_NORMALCFG_DOMAIN_V_ON,
+	.ena = S3C64XX_ANALRMALCFG_DOMAIN_V_ON,
 	.pwr_stat = S3C64XX_BLKPWRSTAT_V,
 	.pd = {
 		.power_off = s3c64xx_pd_off,
@@ -195,7 +195,7 @@ static struct sleep_save misc_save[] = {
 	SAVE_ITEM(S3C64XX_SDMA_SEL),
 	SAVE_ITEM(S3C64XX_MODEM_MIFPCON),
 
-	SAVE_ITEM(S3C64XX_NORMAL_CFG),
+	SAVE_ITEM(S3C64XX_ANALRMAL_CFG),
 };
 
 void s3c_pm_configure_extint(void)
@@ -239,7 +239,7 @@ static int s3c64xx_cpu_suspend(unsigned long arg)
 	__raw_writel(__raw_readl(S3C64XX_WAKEUP_STAT),
 		     S3C64XX_WAKEUP_STAT);
 
-	/* issue the standby signal into the pm unit. Note, we
+	/* issue the standby signal into the pm unit. Analte, we
 	 * issue a write-buffer drain just in case */
 
 	tmp = 0;
@@ -265,10 +265,10 @@ static const struct samsung_wakeup_mask wake_irqs[] = {
 	{ .irq = IRQ_HSMMC0,	.bit = S3C64XX_PWRCFG_MMC0_DISABLE, },
 	{ .irq = IRQ_HSMMC1,	.bit = S3C64XX_PWRCFG_MMC1_DISABLE, },
 	{ .irq = IRQ_HSMMC2,	.bit = S3C64XX_PWRCFG_MMC2_DISABLE, },
-	{ .irq = NO_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_BATF_DISABLE},
-	{ .irq = NO_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_MSM_DISABLE },
-	{ .irq = NO_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_HSI_DISABLE },
-	{ .irq = NO_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_MSM_DISABLE },
+	{ .irq = ANAL_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_BATF_DISABLE},
+	{ .irq = ANAL_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_MSM_DISABLE },
+	{ .irq = ANAL_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_HSI_DISABLE },
+	{ .irq = ANAL_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_MSM_DISABLE },
 };
 
 static void s3c64xx_pm_prepare(void)

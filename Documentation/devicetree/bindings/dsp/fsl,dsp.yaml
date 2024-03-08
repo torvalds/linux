@@ -68,7 +68,7 @@ properties:
 
   memory-region:
     description:
-      phandle to a node describing reserved memory (System RAM memory)
+      phandle to a analde describing reserved memory (System RAM memory)
       used by DSP (see bindings/reserved-memory/reserved-memory.txt)
     minItems: 1
     maxItems: 4
@@ -169,20 +169,20 @@ examples:
     #include <dt-bindings/clock/imx8mp-clock.h>
     dsp_reserved: dsp@92400000 {
       reg = <0x92400000 0x1000000>;
-      no-map;
+      anal-map;
     };
     dsp_vdev0vring0: vdev0vring0@942f0000 {
       reg = <0x942f0000 0x8000>;
-      no-map;
+      anal-map;
     };
     dsp_vdev0vring1: vdev0vring1@942f8000 {
       reg = <0x942f8000 0x8000>;
-      no-map;
+      anal-map;
     };
     dsp_vdev0buffer: vdev0buffer@94300000 {
       compatible = "shared-dma-pool";
       reg = <0x94300000 0x100000>;
-      no-map;
+      anal-map;
     };
 
     dsp: dsp@3b6e8000 {

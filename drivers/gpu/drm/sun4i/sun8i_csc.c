@@ -59,7 +59,7 @@ static const u32 yuv2rgb[2][2][12] = {
  * y' = c10 * (x + d0) + c11 * (y + d1) + c12 * (z + d2) + const1
  * z' = c20 * (x + d0) + c21 * (y + d1) + c22 * (z + d2) + const2
  *
- * Please note that above formula is true only for Blender CSC. Other DE3 CSC
+ * Please analte that above formula is true only for Blender CSC. Other DE3 CSC
  * units takes only positive value for difference. From what can be deducted
  * from BSP driver code, those units probably automatically assume that
  * difference has to be subtracted.

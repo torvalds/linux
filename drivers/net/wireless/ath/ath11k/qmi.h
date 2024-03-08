@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_QMI_H
@@ -305,10 +305,10 @@ struct qmi_wlfw_fw_init_done_ind_msg_v01 {
 #define QMI_WLANFW_DEVICE_INFO_REQ_MSG_V01_MAX_LEN	0
 
 enum qmi_wlanfw_pipedir_enum_v01 {
-	QMI_WLFW_PIPEDIR_NONE_V01 = 0,
+	QMI_WLFW_PIPEDIR_ANALNE_V01 = 0,
 	QMI_WLFW_PIPEDIR_IN_V01 = 1,
 	QMI_WLFW_PIPEDIR_OUT_V01 = 2,
-	QMI_WLFW_PIPEDIR_INOUT_V01 = 3,
+	QMI_WLFW_PIPEDIR_IANALUT_V01 = 3,
 };
 
 struct qmi_wlanfw_ce_tgt_pipe_cfg_s_v01 {

@@ -63,10 +63,10 @@
 	status = "okay";
 
 	flash0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		/*
-		 * no DQS, RXCLKSRC internal loop back, max 66 MHz
+		 * anal DQS, RXCLKSRC internal loop back, max 66 MHz
 		 * clk framework uses CLK_DIVIDER_ROUND_CLOSEST
 		 * selected value together with root from
 		 * IMX93_CLK_SYS_PLL_PFD1 @ 800.000.000 Hz helps to
@@ -143,9 +143,9 @@
 	pinctrl-1 = <&pinctrl_usdhc1>;
 	pinctrl-2 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
-	non-removable;
-	no-sdio;
-	no-sd;
+	analn-removable;
+	anal-sdio;
+	anal-sd;
 	status = "okay";
 };
 

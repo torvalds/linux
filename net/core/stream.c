@@ -33,13 +33,13 @@ void sk_stream_write_space(struct sock *sk)
 	struct socket_wq *wq;
 
 	if (__sk_stream_is_writeable(sk, 1) && sock) {
-		clear_bit(SOCK_NOSPACE, &sock->flags);
+		clear_bit(SOCK_ANALSPACE, &sock->flags);
 
 		rcu_read_lock();
 		wq = rcu_dereference(sk->sk_wq);
 		if (skwq_has_sleeper(wq))
 			wake_up_interruptible_poll(&wq->wait, EPOLLOUT |
-						EPOLLWRNORM | EPOLLWRBAND);
+						EPOLLWRANALRM | EPOLLWRBAND);
 		if (wq && wq->fasync_list && !(sk->sk_shutdown & SEND_SHUTDOWN))
 			sock_wake_async(wq, SOCK_WAKE_SPACE, POLL_OUT);
 		rcu_read_unlock();
@@ -68,7 +68,7 @@ int sk_stream_wait_connect(struct sock *sk, long *timeo_p)
 		if (!*timeo_p)
 			return -EAGAIN;
 		if (signal_pending(tsk))
-			return sock_intr_errno(*timeo_p);
+			return sock_intr_erranal(*timeo_p);
 
 		add_wait_queue(sk_sleep(sk), &wait);
 		sk->sk_write_pending++;
@@ -128,7 +128,7 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 	add_wait_queue(sk_sleep(sk), &wait);
 
 	while (1) {
-		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+		sk_set_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 
 		if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
 			goto do_error;
@@ -136,11 +136,11 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 			goto do_eagain;
 		if (signal_pending(current))
 			goto do_interrupted;
-		sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+		sk_clear_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 		if (sk_stream_memory_free(sk) && !vm_wait)
 			break;
 
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 		sk->sk_write_pending++;
 		ret = sk_wait_event(sk, &current_timeo, READ_ONCE(sk->sk_err) ||
 				    (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN) ||
@@ -172,13 +172,13 @@ do_eagain:
 	/* Make sure that whenever EAGAIN is returned, EPOLLOUT event can
 	 * be generated later.
 	 * When TCP receives ACK packets that make room, tcp_check_space()
-	 * only calls tcp_new_space() if SOCK_NOSPACE is set.
+	 * only calls tcp_new_space() if SOCK_ANALSPACE is set.
 	 */
-	set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+	set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 	err = -EAGAIN;
 	goto out;
 do_interrupted:
-	err = sock_intr_errno(*timeo_p);
+	err = sock_intr_erranal(*timeo_p);
 	goto out;
 }
 EXPORT_SYMBOL(sk_stream_wait_memory);
@@ -187,7 +187,7 @@ int sk_stream_error(struct sock *sk, int flags, int err)
 {
 	if (err == -EPIPE)
 		err = sock_error(sk) ? : -EPIPE;
-	if (err == -EPIPE && !(flags & MSG_NOSIGNAL))
+	if (err == -EPIPE && !(flags & MSG_ANALSIGNAL))
 		send_sig(SIGPIPE, current, 0);
 	return err;
 }
@@ -214,7 +214,7 @@ void sk_stream_kill_queues(struct sock *sk)
 
 	/* It is _impossible_ for the backlog to contain anything
 	 * when we get here.  All user references to this socket
-	 * have gone away, only the net layer knows can touch it.
+	 * have gone away, only the net layer kanalws can touch it.
 	 */
 }
 EXPORT_SYMBOL(sk_stream_kill_queues);

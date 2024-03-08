@@ -7,10 +7,10 @@ config VIDEO_IMX_MEDIA
 	depends on VIDEO_DEV
 	depends on IMX_IPUV3_CORE
 	select MEDIA_CONTROLLER
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select V4L2_MEM2MEM_DEV
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_V4L2_SUBDEV_API
 	help
-	  Say yes here to enable support for video4linux media controller
+	  Say anal here to enable support for video4linux media controller
 	  drivers for the i.MX5/6 SOC.

@@ -66,24 +66,24 @@ xfs_extlen_to_rtxlen(
 static inline xfs_rtxnum_t
 xfs_rtb_to_rtx(
 	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno)
+	xfs_rtblock_t		rtbanal)
 {
 	if (likely(mp->m_rtxblklog >= 0))
-		return rtbno >> mp->m_rtxblklog;
+		return rtbanal >> mp->m_rtxblklog;
 
-	return div_u64(rtbno, mp->m_sb.sb_rextsize);
+	return div_u64(rtbanal, mp->m_sb.sb_rextsize);
 }
 
 /* Return the offset of an rt block number within an rt extent. */
 static inline xfs_extlen_t
 xfs_rtb_to_rtxoff(
 	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno)
+	xfs_rtblock_t		rtbanal)
 {
 	if (likely(mp->m_rtxblklog >= 0))
-		return rtbno & mp->m_rtxblkmask;
+		return rtbanal & mp->m_rtxblkmask;
 
-	return do_div(rtbno, mp->m_sb.sb_rextsize);
+	return do_div(rtbanal, mp->m_sb.sb_rextsize);
 }
 
 /*
@@ -93,53 +93,53 @@ xfs_rtb_to_rtxoff(
 static inline xfs_rtxnum_t
 xfs_rtb_to_rtxrem(
 	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno,
+	xfs_rtblock_t		rtbanal,
 	xfs_extlen_t		*off)
 {
 	if (likely(mp->m_rtxblklog >= 0)) {
-		*off = rtbno & mp->m_rtxblkmask;
-		return rtbno >> mp->m_rtxblklog;
+		*off = rtbanal & mp->m_rtxblkmask;
+		return rtbanal >> mp->m_rtxblklog;
 	}
 
-	return div_u64_rem(rtbno, mp->m_sb.sb_rextsize, off);
+	return div_u64_rem(rtbanal, mp->m_sb.sb_rextsize, off);
 }
 
 /*
  * Convert an rt block number into an rt extent number, rounding up to the next
- * rt extent if the rt block is not aligned to an rt extent boundary.
+ * rt extent if the rt block is analt aligned to an rt extent boundary.
  */
 static inline xfs_rtxnum_t
 xfs_rtb_to_rtxup(
 	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno)
+	xfs_rtblock_t		rtbanal)
 {
 	if (likely(mp->m_rtxblklog >= 0)) {
-		if (rtbno & mp->m_rtxblkmask)
-			return (rtbno >> mp->m_rtxblklog) + 1;
-		return rtbno >> mp->m_rtxblklog;
+		if (rtbanal & mp->m_rtxblkmask)
+			return (rtbanal >> mp->m_rtxblklog) + 1;
+		return rtbanal >> mp->m_rtxblklog;
 	}
 
-	if (do_div(rtbno, mp->m_sb.sb_rextsize))
-		rtbno++;
-	return rtbno;
+	if (do_div(rtbanal, mp->m_sb.sb_rextsize))
+		rtbanal++;
+	return rtbanal;
 }
 
 /* Round this rtblock up to the nearest rt extent size. */
 static inline xfs_rtblock_t
 xfs_rtb_roundup_rtx(
 	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno)
+	xfs_rtblock_t		rtbanal)
 {
-	return roundup_64(rtbno, mp->m_sb.sb_rextsize);
+	return roundup_64(rtbanal, mp->m_sb.sb_rextsize);
 }
 
 /* Round this rtblock down to the nearest rt extent size. */
 static inline xfs_rtblock_t
 xfs_rtb_rounddown_rtx(
 	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno)
+	xfs_rtblock_t		rtbanal)
 {
-	return rounddown_64(rtbno, mp->m_sb.sb_rextsize);
+	return rounddown_64(rtbanal, mp->m_sb.sb_rextsize);
 }
 
 /* Convert an rt extent number to a file block offset in the rt bitmap file. */
@@ -322,9 +322,9 @@ int xfs_rtfind_forw(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
 int xfs_rtmodify_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
 		xfs_rtxlen_t len, int val);
 int xfs_rtget_summary(struct xfs_rtalloc_args *args, int log,
-		xfs_fileoff_t bbno, xfs_suminfo_t *sum);
+		xfs_fileoff_t bbanal, xfs_suminfo_t *sum);
 int xfs_rtmodify_summary(struct xfs_rtalloc_args *args, int log,
-		xfs_fileoff_t bbno, int delta);
+		xfs_fileoff_t bbanal, int delta);
 int xfs_rtfree_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
 		xfs_rtxlen_t len);
 int xfs_rtalloc_query_range(struct xfs_mount *mp, struct xfs_trans *tp,
@@ -348,7 +348,7 @@ xfs_rtfree_extent(
 	xfs_rtxlen_t		len);	/* length of extent freed */
 
 /* Same as above, but in units of rt blocks. */
-int xfs_rtfree_blocks(struct xfs_trans *tp, xfs_fsblock_t rtbno,
+int xfs_rtfree_blocks(struct xfs_trans *tp, xfs_fsblock_t rtbanal,
 		xfs_filblks_t rtlen);
 
 xfs_filblks_t xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t
@@ -361,14 +361,14 @@ xfs_filblks_t xfs_rtsummary_blockcount(struct xfs_mount *mp,
 unsigned long long xfs_rtsummary_wordcount(struct xfs_mount *mp,
 		unsigned int rsumlevels, xfs_extlen_t rbmblocks);
 #else /* CONFIG_XFS_RT */
-# define xfs_rtfree_extent(t,b,l)			(-ENOSYS)
-# define xfs_rtfree_blocks(t,rb,rl)			(-ENOSYS)
-# define xfs_rtalloc_query_range(m,t,l,h,f,p)		(-ENOSYS)
-# define xfs_rtalloc_query_all(m,t,f,p)			(-ENOSYS)
-# define xfs_rtbitmap_read_buf(a,b)			(-ENOSYS)
-# define xfs_rtsummary_read_buf(a,b)			(-ENOSYS)
+# define xfs_rtfree_extent(t,b,l)			(-EANALSYS)
+# define xfs_rtfree_blocks(t,rb,rl)			(-EANALSYS)
+# define xfs_rtalloc_query_range(m,t,l,h,f,p)		(-EANALSYS)
+# define xfs_rtalloc_query_all(m,t,f,p)			(-EANALSYS)
+# define xfs_rtbitmap_read_buf(a,b)			(-EANALSYS)
+# define xfs_rtsummary_read_buf(a,b)			(-EANALSYS)
 # define xfs_rtbuf_cache_relse(a)			(0)
-# define xfs_rtalloc_extent_is_free(m,t,s,l,i)		(-ENOSYS)
+# define xfs_rtalloc_extent_is_free(m,t,s,l,i)		(-EANALSYS)
 static inline xfs_filblks_t
 xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t rtextents)
 {

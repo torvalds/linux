@@ -142,9 +142,9 @@ struct clk *tegra_clk_register_divider(const char *name,
 
 	divider = kzalloc(sizeof(*divider), GFP_KERNEL);
 	if (!divider) {
-		pr_err("%s: could not allocate fractional divider clk\n",
+		pr_err("%s: could analt allocate fractional divider clk\n",
 		       __func__);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	init.name = name;

@@ -9,19 +9,19 @@ extern struct timeval bench__start, bench__end, bench__runtime;
 /*
  * The madvise transparent hugepage constants were added in glibc
  * 2.13. For compatibility with older versions of glibc, define these
- * tokens if they are not already defined.
+ * tokens if they are analt already defined.
  */
 # ifndef MADV_HUGEPAGE
 #  define MADV_HUGEPAGE		14
 # endif
-# ifndef MADV_NOHUGEPAGE
-#  define MADV_NOHUGEPAGE	15
+# ifndef MADV_ANALHUGEPAGE
+#  define MADV_ANALHUGEPAGE	15
 # endif
 
 int bench_numa(int argc, const char **argv);
 int bench_sched_messaging(int argc, const char **argv);
 int bench_sched_pipe(int argc, const char **argv);
-int bench_sched_seccomp_notify(int argc, const char **argv);
+int bench_sched_seccomp_analtify(int argc, const char **argv);
 int bench_syscall_basic(int argc, const char **argv);
 int bench_syscall_getpgid(int argc, const char **argv);
 int bench_syscall_fork(int argc, const char **argv);
@@ -53,7 +53,7 @@ int bench_pmu_scan(int argc, const char **argv);
 #define BENCH_FORMAT_SIMPLE_STR		"simple"
 #define BENCH_FORMAT_SIMPLE		1
 
-#define BENCH_FORMAT_UNKNOWN		-1
+#define BENCH_FORMAT_UNKANALWN		-1
 
 extern int bench_format;
 extern unsigned int bench_repeat;

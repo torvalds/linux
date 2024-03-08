@@ -11,7 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -55,7 +55,7 @@ struct mpic_msgr *mpic_msgr_get(unsigned int reg_num)
 	msgr = ERR_PTR(-EBUSY);
 
 	if (reg_num >= mpic_msgr_count)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	raw_spin_lock_irqsave(&msgrs_lock, flags);
 	msgr = mpic_msgrs[reg_num];
@@ -107,10 +107,10 @@ EXPORT_SYMBOL_GPL(mpic_msgr_disable);
 static unsigned int mpic_msgr_number_of_blocks(void)
 {
 	unsigned int count;
-	struct device_node *aliases;
+	struct device_analde *aliases;
 
 	count = 0;
-	aliases = of_find_node_by_name(NULL, "aliases");
+	aliases = of_find_analde_by_name(NULL, "aliases");
 
 	if (aliases) {
 		char buf[32];
@@ -122,7 +122,7 @@ static unsigned int mpic_msgr_number_of_blocks(void)
 
 			count += 1;
 		}
-		of_node_put(aliases);
+		of_analde_put(aliases);
 	}
 
 	return count;
@@ -133,31 +133,31 @@ static unsigned int mpic_msgr_number_of_registers(void)
 	return mpic_msgr_number_of_blocks() * MPIC_MSGR_REGISTERS_PER_BLOCK;
 }
 
-static int mpic_msgr_block_number(struct device_node *node)
+static int mpic_msgr_block_number(struct device_analde *analde)
 {
-	struct device_node *aliases;
+	struct device_analde *aliases;
 	unsigned int index, number_of_blocks;
 	char buf[64];
 
 	number_of_blocks = mpic_msgr_number_of_blocks();
-	aliases = of_find_node_by_name(NULL, "aliases");
+	aliases = of_find_analde_by_name(NULL, "aliases");
 	if (!aliases)
 		return -1;
 
 	for (index = 0; index < number_of_blocks; ++index) {
 		struct property *prop;
-		struct device_node *tn;
+		struct device_analde *tn;
 
 		snprintf(buf, sizeof(buf), "mpic-msgr-block%d", index);
 		prop = of_find_property(aliases, buf, NULL);
-		tn = of_find_node_by_path(prop->value);
-		if (node == tn) {
-			of_node_put(tn);
+		tn = of_find_analde_by_path(prop->value);
+		if (analde == tn) {
+			of_analde_put(tn);
 			break;
 		}
-		of_node_put(tn);
+		of_analde_put(tn);
 	}
-	of_node_put(aliases);
+	of_analde_put(aliases);
 
 	return index == number_of_blocks ? -1 : index;
 }
@@ -171,12 +171,12 @@ static int mpic_msgr_probe(struct platform_device *dev)
 	struct resource rsrc;
 	unsigned int i;
 	unsigned int irq_index;
-	struct device_node *np = dev->dev.of_node;
+	struct device_analde *np = dev->dev.of_analde;
 	unsigned int receive_mask;
 	const unsigned int *prop;
 
 	if (!np) {
-		dev_err(&dev->dev, "Device OF-Node is NULL");
+		dev_err(&dev->dev, "Device OF-Analde is NULL");
 		return -EFAULT;
 	}
 
@@ -192,8 +192,8 @@ static int mpic_msgr_probe(struct platform_device *dev)
 							 GFP_KERNEL);
 		if (!mpic_msgrs) {
 			dev_err(&dev->dev,
-				"No memory for message register blocks\n");
-			return -ENOMEM;
+				"Anal memory for message register blocks\n");
+			return -EANALMEM;
 		}
 	}
 	dev_info(&dev->dev, "Of-device full name %pOF\n", np);
@@ -211,7 +211,7 @@ static int mpic_msgr_probe(struct platform_device *dev)
 	if (block_number < 0) {
 		dev_err(&dev->dev,
 			"Failed to find message register block alias\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_info(&dev->dev, "Setting up message register block %d\n",
 			block_number);
@@ -229,8 +229,8 @@ static int mpic_msgr_probe(struct platform_device *dev)
 
 		msgr = kzalloc(sizeof(struct mpic_msgr), GFP_KERNEL);
 		if (!msgr) {
-			dev_err(&dev->dev, "No memory for message register\n");
-			return -ENOMEM;
+			dev_err(&dev->dev, "Anal memory for message register\n");
+			return -EANALMEM;
 		}
 
 		reg_number = block_number * MPIC_MSGR_REGISTERS_PER_BLOCK + i;

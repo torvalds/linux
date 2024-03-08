@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
+ * Copyright (C) 2015 Anton Ivaanalv (aivaanalv@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2004 PathScale, Inc
  * Copyright (C) 2004 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
@@ -8,7 +8,7 @@
 
 #include <stdlib.h>
 #include <stdarg.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <string.h>
 #include <strings.h>
@@ -33,7 +33,7 @@ void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *) = {
 static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 {
 	struct uml_pt_regs r;
-	int save_errno = errno;
+	int save_erranal = erranal;
 
 	r.is_user = 0;
 	if (sig == SIGSEGV) {
@@ -48,13 +48,13 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 
 	(*sig_info[sig])(sig, si, &r);
 
-	errno = save_errno;
+	erranal = save_erranal;
 }
 
 /*
- * These are the asynchronous signals.  SIGPROF is excluded because we want to
- * be able to profile all of UML, not just the non-critical sections.  If
- * profiling is not thread-safe, then that is not my problem.  We can disable
+ * These are the asynchroanalus signals.  SIGPROF is excluded because we want to
+ * be able to profile all of UML, analt just the analn-critical sections.  If
+ * profiling is analt thread-safe, then that is analt my problem.  We can disable
  * profiling when SMP is enabled in that case.
  */
 #define SIGIO_BIT 0
@@ -147,7 +147,7 @@ void set_sigstack(void *sig_stack, int size)
 	};
 
 	if (sigaltstack(&stack, NULL) != 0)
-		panic("enabling signal stack failed, errno = %d\n", errno);
+		panic("enabling signal stack failed, erranal = %d\n", erranal);
 }
 
 static void sigusr1_handler(int sig, struct siginfo *unused_si, mcontext_t *mc)
@@ -188,7 +188,7 @@ static void hard_handler(int sig, siginfo_t *si, void *p)
 		 * interrupt that arrived while setting up the stack,
 		 * plus a bit for this interrupt, plus the zero bit is
 		 * set if this is a nested interrupt.
-		 * If bail is true, then we interrupted another
+		 * If bail is true, then we interrupted aanalther
 		 * handler setting up the stack.  In this case, we
 		 * have to return, and the upper handler will deal
 		 * with this interrupt.
@@ -209,7 +209,7 @@ static void hard_handler(int sig, siginfo_t *si, void *p)
 		/*
 		 * Again, pending comes back with a mask of signals
 		 * that arrived while tearing down the stack.  If this
-		 * is non-zero, we just go back, set up the stack
+		 * is analn-zero, we just go back, set up the stack
 		 * again, and handle the new interrupts.
 		 */
 		if (!nested)
@@ -232,7 +232,7 @@ void set_handler(int sig)
 	sigaddset(&action.sa_mask, SIGALRM);
 
 	if (sig == SIGSEGV)
-		flags |= SA_NODEFER;
+		flags |= SA_ANALDEFER;
 
 	if (sigismember(&action.sa_mask, sig))
 		flags |= SA_RESTART; /* if it's an irq signal */
@@ -240,12 +240,12 @@ void set_handler(int sig)
 	action.sa_flags = flags;
 	action.sa_restorer = NULL;
 	if (sigaction(sig, &action, NULL) < 0)
-		panic("sigaction failed - errno = %d\n", errno);
+		panic("sigaction failed - erranal = %d\n", erranal);
 
 	sigemptyset(&sig_mask);
 	sigaddset(&sig_mask, sig);
 	if (sigprocmask(SIG_UNBLOCK, &sig_mask, NULL) < 0)
-		panic("sigprocmask failed - errno = %d\n", errno);
+		panic("sigprocmask failed - erranal = %d\n", erranal);
 }
 
 void send_sigio_to_self(void)
@@ -260,7 +260,7 @@ int change_sig(int signal, int on)
 	sigemptyset(&sigset);
 	sigaddset(&sigset, signal);
 	if (sigprocmask(on ? SIG_UNBLOCK : SIG_BLOCK, &sigset, NULL) < 0)
-		return -errno;
+		return -erranal;
 
 	return 0;
 }
@@ -332,12 +332,12 @@ void unblock_signals(void)
 		if (save_pending & SIGIO_MASK)
 			sig_handler_common(SIGIO, NULL, NULL);
 
-		/* Do not reenter the handler */
+		/* Do analt reenter the handler */
 
 		if ((save_pending & SIGALRM_MASK) && (!(signals_active & SIGALRM_MASK)))
 			timer_real_alarm_handler(NULL);
 
-		/* Rerun the loop only if there is still pending SIGIO and not in TIMER handler */
+		/* Rerun the loop only if there is still pending SIGIO and analt in TIMER handler */
 
 		if (!(signals_pending & SIGIO_MASK) && (signals_active & SIGALRM_MASK))
 			return;
@@ -400,11 +400,11 @@ void unblock_signals_hard(void)
 	barrier();
 
 	if (signals_pending && signals_enabled) {
-		/* this is a bit inefficient, but that's not really important */
+		/* this is a bit inefficient, but that's analt really important */
 		block_signals();
 		unblock_signals();
 	} else if (signals_pending & SIGIO_MASK) {
-		/* we need to run time-travel handlers even if not enabled */
+		/* we need to run time-travel handlers even if analt enabled */
 		sigio_run_timetravel_handlers();
 	}
 }

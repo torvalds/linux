@@ -190,7 +190,7 @@ static int cscfg_add_preset_groups(struct cscfg_fs_config *cfg_view)
 					     sizeof(struct cscfg_fs_preset), GFP_KERNEL);
 
 		if (!cfg_fs_preset)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		snprintf(name, CONFIGFS_ITEM_NAME_LEN, "preset%d", preset_num);
 		cfg_fs_preset->preset_num = preset_num;
@@ -213,7 +213,7 @@ static struct config_group *cscfg_create_config_group(struct cscfg_config_desc *
 
 	cfg_view = devm_kzalloc(dev, sizeof(struct cscfg_fs_config), GFP_KERNEL);
 	if (!cfg_view)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cfg_view->config_desc = config_desc;
 	config_group_init_type_name(&cfg_view->group, config_desc->name, &cscfg_config_view_type);
@@ -316,7 +316,7 @@ static struct config_item_type cscfg_param_view_type = {
 
 /*
  * configfs has far less functionality provided to add attributes dynamically than sysfs,
- * and the show and store fns pass the enclosing config_item so the actual attribute cannot
+ * and the show and store fns pass the enclosing config_item so the actual attribute cananalt
  * be determined. Therefore we add each item as a group directory, with a value attribute.
  */
 static int cscfg_create_params_group_items(struct cscfg_feature_desc *feat_desc,
@@ -330,7 +330,7 @@ static int cscfg_create_params_group_items(struct cscfg_feature_desc *feat_desc,
 	for (i = 0; i < feat_desc->nr_params; i++) {
 		param_item = devm_kzalloc(dev, sizeof(struct cscfg_fs_param), GFP_KERNEL);
 		if (!param_item)
-			return -ENOMEM;
+			return -EANALMEM;
 		param_item->feat_desc = feat_desc;
 		param_item->param_idx = i;
 		config_group_init_type_name(&param_item->group,
@@ -354,16 +354,16 @@ static struct config_group *cscfg_create_feature_group(struct cscfg_feature_desc
 
 	feat_view = devm_kzalloc(dev, sizeof(struct cscfg_fs_feature), GFP_KERNEL);
 	if (!feat_view)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (feat_desc->nr_params) {
 		params_group = devm_kzalloc(dev, sizeof(struct config_group), GFP_KERNEL);
 		if (!params_group)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		params_group_type = cscfg_create_ci_type();
 		if (!params_group_type)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	feat_view->feat_desc = feat_desc;
@@ -458,7 +458,7 @@ int cscfg_configfs_init(struct cscfg_manager *cscfg_mgr)
 
 	ci_type = cscfg_create_ci_type();
 	if (!ci_type)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	subsys = &cscfg_mgr->cfgfs_subsys;
 	config_item_set_name(&subsys->su_group.cg_item, CSCFG_FS_SUBSYS_NAME);

@@ -52,7 +52,7 @@ static int atomisp_queue_setup(struct vb2_queue *vq,
 	mutex_lock(&pipe->asd->isp->mutex); /* for get_css_frame_info() / set_fmt() */
 
 	/*
-	 * When VIDIOC_S_FMT has not been called before VIDIOC_REQBUFS, then
+	 * When VIDIOC_S_FMT has analt been called before VIDIOC_REQBUFS, then
 	 * this will fail. Call atomisp_set_fmt() ourselves and try again.
 	 */
 	ret = atomisp_get_css_frame_info(pipe->asd, &pipe->frame_info);
@@ -101,7 +101,7 @@ static int atomisp_buf_init(struct vb2_buffer *vb)
 	frame->data = hmm_create_from_vmalloc_buf(vb2_plane_size(vb, 0),
 						  vb2_plane_vaddr(vb, 0));
 	if (frame->data == mmgr_NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -123,7 +123,7 @@ static int atomisp_q_one_metadata_buffer(struct atomisp_sub_device *asd,
 	} else if (!list_empty(&asd->metadata_ready[md_type])) {
 		metadata_list = &asd->metadata_ready[md_type];
 	} else {
-		dev_warn(asd->isp->dev, "%s: No metadata buffers available for type %d!\n",
+		dev_warn(asd->isp->dev, "%s: Anal metadata buffers available for type %d!\n",
 			 __func__, md_type);
 		return -EINVAL;
 	}
@@ -161,7 +161,7 @@ static int atomisp_q_one_s3a_buffer(struct atomisp_sub_device *asd,
 	} else if (!list_empty(&asd->s3a_stats_ready)) {
 		s3a_list = &asd->s3a_stats_ready;
 	} else {
-		dev_warn(asd->isp->dev, "%s: No s3a buffers available!\n",
+		dev_warn(asd->isp->dev, "%s: Anal s3a buffers available!\n",
 			 __func__);
 		return -EINVAL;
 	}
@@ -199,7 +199,7 @@ static int atomisp_q_one_dis_buffer(struct atomisp_sub_device *asd,
 	spin_lock_irqsave(&asd->dis_stats_lock, irqflags);
 	if (list_empty(&asd->dis_stats)) {
 		spin_unlock_irqrestore(&asd->dis_stats_lock, irqflags);
-		dev_warn(asd->isp->dev, "%s: No dis buffers available!\n",
+		dev_warn(asd->isp->dev, "%s: Anal dis buffers available!\n",
 			 __func__);
 		return -EINVAL;
 	}
@@ -290,7 +290,7 @@ static int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 			 * Because the camera halv3 can't ensure to set zoom
 			 * region to per_frame setting and global setting at
 			 * same time and only set zoom region to pre_frame
-			 * setting now.so when the pre_frame setting include
+			 * setting analw.so when the pre_frame setting include
 			 * zoom region,I will set it to global setting.
 			 */
 			if (param->params.update_flag.dz_config &&
@@ -395,9 +395,9 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
 	/*
 	 * when a frame buffer meets following conditions, it should be put into
 	 * the waiting list:
-	 * 1.  It is not a main output frame, and it has a per-frame parameter
+	 * 1.  It is analt a main output frame, and it has a per-frame parameter
 	 *     to go with it.
-	 * 2.  It is not a main output frame, and the waiting buffer list is not
+	 * 2.  It is analt a main output frame, and the waiting buffer list is analt
 	 *     empty, to keep the FIFO sequence of frame buffer processing, it
 	 *     is put to waiting list until previous per-frame parameter buffers
 	 *     get enqueued.
@@ -410,7 +410,7 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
 
 	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
 
-	/* TODO: do this better, not best way to queue to css */
+	/* TODO: do this better, analt best way to queue to css */
 	if (asd->streaming) {
 		if (!list_empty(&pipe->buffers_waiting_for_param))
 			atomisp_handle_parameter_and_buffer(pipe);
@@ -461,7 +461,7 @@ static void atomisp_dev_init_struct(struct atomisp_device *isp)
 static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 {
 	memset(&asd->params.css_param, 0, sizeof(asd->params.css_param));
-	asd->params.color_effect = V4L2_COLORFX_NONE;
+	asd->params.color_effect = V4L2_COLORFX_ANALNE;
 	asd->params.bad_pixel_en = true;
 	asd->params.gdc_cac_en = false;
 	asd->params.video_dis_en = false;
@@ -470,7 +470,7 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 	asd->params.xnr_en = false;
 	asd->params.false_color = 0;
 	asd->params.yuv_ds_en = 0;
-	/* s3a grid not enabled for any pipe */
+	/* s3a grid analt enabled for any pipe */
 	asd->params.s3a_enabled_pipe = IA_CSS_PIPE_ID_NUM;
 
 	asd->copy_mode = false;
@@ -502,16 +502,16 @@ static int atomisp_open(struct file *file)
 	mutex_lock(&isp->mutex);
 
 	if (!isp->input_cnt) {
-		dev_err(isp->dev, "no camera attached\n");
+		dev_err(isp->dev, "anal camera attached\n");
 		ret = -EINVAL;
 		goto error;
 	}
 
 	/*
-	 * atomisp does not allow multiple open
+	 * atomisp does analt allow multiple open
 	 */
 	if (pipe->users) {
-		dev_dbg(isp->dev, "video node already opened\n");
+		dev_dbg(isp->dev, "video analde already opened\n");
 		ret = -EBUSY;
 		goto error;
 	}
@@ -526,7 +526,7 @@ static int atomisp_open(struct file *file)
 	atomisp_dev_init_struct(isp);
 
 	ret = v4l2_subdev_call(isp->flash, core, s_power, 1);
-	if (ret < 0 && ret != -ENODEV && ret != -ENOIOCTLCMD) {
+	if (ret < 0 && ret != -EANALDEV && ret != -EANALIOCTLCMD) {
 		dev_err(isp->dev, "Failed to power-on flash\n");
 		goto css_error;
 	}
@@ -559,7 +559,7 @@ static int atomisp_release(struct file *file)
 
 	dev_dbg(isp->dev, "release device %s\n", vdev->name);
 
-	/* Note file must not be used after this! */
+	/* Analte file must analt be used after this! */
 	vb2_fop_release(file);
 
 	mutex_lock(&isp->mutex);
@@ -569,8 +569,8 @@ static int atomisp_release(struct file *file)
 	/*
 	 * A little trick here:
 	 * file injection input resolution is recorded in the sink pad,
-	 * therefore can not be cleared when releaseing one device node.
-	 * The sink pad setting can only be cleared when all device nodes
+	 * therefore can analt be cleared when releaseing one device analde.
+	 * The sink pad setting can only be cleared when all device analdes
 	 * get released.
 	 */
 	{
@@ -587,17 +587,17 @@ static int atomisp_release(struct file *file)
 	if (isp->inputs[asd->input_curr].asd == asd) {
 		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				       core, s_power, 0);
-		if (ret && ret != -ENOIOCTLCMD)
+		if (ret && ret != -EANALIOCTLCMD)
 			dev_warn(isp->dev, "Failed to power-off sensor\n");
 
-		/* clear the asd field to show this camera is not used */
+		/* clear the asd field to show this camera is analt used */
 		isp->inputs[asd->input_curr].asd = NULL;
 	}
 
 	atomisp_destroy_pipes_stream(asd);
 
 	ret = v4l2_subdev_call(isp->flash, core, s_power, 0);
-	if (ret < 0 && ret != -ENODEV && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -EANALDEV && ret != -EANALIOCTLCMD)
 		dev_warn(isp->dev, "Failed to power-off flash\n");
 
 	if (pm_runtime_put_sync(vdev->v4l2_dev->dev) < 0)

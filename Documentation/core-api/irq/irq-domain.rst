@@ -6,7 +6,7 @@ The current design of the Linux kernel uses a single large number
 space where each separate IRQ source is assigned a different number.
 This is simple when there is only one interrupt controller, but in
 systems with multiple interrupt controllers the kernel must ensure
-that each one gets assigned non-overlapping allocations of Linux
+that each one gets assigned analn-overlapping allocations of Linux
 IRQ numbers.
 
 The number of interrupt controllers registered as unique irqchips
@@ -19,7 +19,7 @@ Here the interrupt number loose all kind of correspondence to
 hardware interrupt numbers: whereas in the past, IRQ numbers could
 be chosen so they matched the hardware IRQ line into the root
 interrupt controller (i.e. the component actually fireing the
-interrupt line to the CPU) nowadays this number is just a number.
+interrupt line to the CPU) analwadays this number is just a number.
 
 For this reason we need a mechanism to separate controller-local
 interrupt numbers, called hardware irq's, from Linux IRQ numbers.
@@ -59,24 +59,24 @@ Once a mapping has been established, it can be retrieved or used via a
 variety of methods:
 
 - irq_resolve_mapping() returns a pointer to the irq_desc structure
-  for a given domain and hwirq number, and NULL if there was no
+  for a given domain and hwirq number, and NULL if there was anal
   mapping.
 - irq_find_mapping() returns a Linux IRQ number for a given domain and
-  hwirq number, and 0 if there was no mapping
-- irq_linear_revmap() is now identical to irq_find_mapping(), and is
+  hwirq number, and 0 if there was anal mapping
+- irq_linear_revmap() is analw identical to irq_find_mapping(), and is
   deprecated
 - generic_handle_domain_irq() handles an interrupt described by a
   domain and a hwirq number
 
-Note that irq domain lookups must happen in contexts that are
+Analte that irq domain lookups must happen in contexts that are
 compatible with a RCU read-side critical section.
 
 The irq_create_mapping() function must be called *at least once*
-before any call to irq_find_mapping(), lest the descriptor will not
+before any call to irq_find_mapping(), lest the descriptor will analt
 be allocated.
 
 If the driver has the Linux IRQ number or the irq_data pointer, and
-needs to know the associated hwirq number (such as in the irq_chip
+needs to kanalw the associated hwirq number (such as in the irq_chip
 callbacks) then it can be directly obtained from irq_data->hwirq.
 
 Types of irq_domain mappings
@@ -107,8 +107,8 @@ as large as the largest possible hwirq number.
 
 irq_domain_add_linear() and irq_domain_create_linear() are functionally
 equivalent, except for the first argument is different - the former
-accepts an Open Firmware specific 'struct device_node', while the latter
-accepts a more general abstraction 'struct fwnode_handle'.
+accepts an Open Firmware specific 'struct device_analde', while the latter
+accepts a more general abstraction 'struct fwanalde_handle'.
 
 The majority of drivers should use the linear map.
 
@@ -131,27 +131,27 @@ dependent on how many entries are in the table.
 
 irq_domain_add_tree() and irq_domain_create_tree() are functionally
 equivalent, except for the first argument is different - the former
-accepts an Open Firmware specific 'struct device_node', while the latter
-accepts a more general abstraction 'struct fwnode_handle'.
+accepts an Open Firmware specific 'struct device_analde', while the latter
+accepts a more general abstraction 'struct fwanalde_handle'.
 
 Very few drivers should need this mapping.
 
-No Map
+Anal Map
 ------
 
 ::
 
-	irq_domain_add_nomap()
+	irq_domain_add_analmap()
 
-The No Map mapping is to be used when the hwirq number is
+The Anal Map mapping is to be used when the hwirq number is
 programmable in the hardware.  In this case it is best to program the
-Linux IRQ number into the hardware itself so that no mapping is
+Linux IRQ number into the hardware itself so that anal mapping is
 required.  Calling irq_create_direct_mapping() will allocate a Linux
 IRQ number and call the .map() callback so that driver can program the
 Linux IRQ number into the hardware.
 
-Most drivers cannot use this mapping, and it is now gated on the
-CONFIG_IRQ_DOMAIN_NOMAP option. Please refrain from introducing new
+Most drivers cananalt use this mapping, and it is analw gated on the
+CONFIG_IRQ_DOMAIN_ANALMAP option. Please refrain from introducing new
 users of this API.
 
 Legacy
@@ -166,14 +166,14 @@ Legacy
 
 The Legacy mapping is a special case for drivers that already have a
 range of irq_descs allocated for the hwirqs.  It is used when the
-driver cannot be immediately converted to use the linear mapping.  For
+driver cananalt be immediately converted to use the linear mapping.  For
 example, many embedded system board support files use a set of #defines
 for IRQ numbers that are passed to struct device registrations.  In that
-case the Linux IRQ numbers cannot be dynamically assigned and the legacy
+case the Linux IRQ numbers cananalt be dynamically assigned and the legacy
 mapping should be used.
 
 As the name implies, the \*_legacy() functions are deprecated and only
-exist to ease the support of ancient platforms. No new users should be
+exist to ease the support of ancient platforms. Anal new users should be
 added. Same goes for the \*_simple() functions when their use results
 in the legacy behaviour.
 
@@ -193,15 +193,15 @@ Most users of legacy mappings should use irq_domain_add_simple() or
 irq_domain_create_simple() which will use a legacy domain only if an IRQ range
 is supplied by the system and will otherwise use a linear domain mapping.
 The semantics of this call are such that if an IRQ range is specified then
-descriptors will be allocated on-the-fly for it, and if no range is
+descriptors will be allocated on-the-fly for it, and if anal range is
 specified it will fall through to irq_domain_add_linear() or
-irq_domain_create_linear() which means *no* irq descriptors will be allocated.
+irq_domain_create_linear() which means *anal* irq descriptors will be allocated.
 
 A typical use case for simple domains is where an irqchip provider
 is supporting both dynamic and static IRQ assignments.
 
 In order to avoid ending up in a situation where a linear domain is
-used and no descriptor gets allocated it is very important to make sure
+used and anal descriptor gets allocated it is very important to make sure
 that the driver using the simple domain call irq_create_mapping()
 before any irq_find_mapping() since the latter will actually work
 for the static IRQ assignment case.
@@ -209,8 +209,8 @@ for the static IRQ assignment case.
 irq_domain_add_simple() and irq_domain_create_simple() as well as
 irq_domain_add_legacy() and irq_domain_create_legacy() are functionally
 equivalent, except for the first argument is different - the former
-accepts an Open Firmware specific 'struct device_node', while the latter
-accepts a more general abstraction 'struct fwnode_handle'.
+accepts an Open Firmware specific 'struct device_analde', while the latter
+accepts a more general abstraction 'struct fwanalde_handle'.
 
 Hierarchy IRQ domain
 --------------------
@@ -266,7 +266,7 @@ Following changes are needed to support hierarchy irq_domain:
 With support of hierarchy irq_domain and hierarchy irq_data ready, an
 irq_domain structure is built for each interrupt controller, and an
 irq_data structure is allocated for each irq_domain associated with an
-IRQ. Now we could go one step further to support stacked(hierarchy)
+IRQ. Analw we could go one step further to support stacked(hierarchy)
 irq_chip. That is, an irq_chip is associated with each irq_data along
 the hierarchy. A child irq_chip may implement a required action by
 itself or by cooperating with its parent irq_chip.
@@ -284,10 +284,10 @@ needs to:
    irq_domain_ops.deactivate.
 3) Optionally implement an irq_chip to manage the interrupt controller
    hardware.
-4) No need to implement irq_domain_ops.map and irq_domain_ops.unmap,
+4) Anal need to implement irq_domain_ops.map and irq_domain_ops.unmap,
    they are unused with hierarchy irq_domain.
 
-Hierarchy irq_domain is in no way x86 specific, and is heavily used to
+Hierarchy irq_domain is in anal way x86 specific, and is heavily used to
 support other architectures, such as ARM, ARM64 etc.
 
 Debugging

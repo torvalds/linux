@@ -20,7 +20,7 @@ void s5p_jpeg_reset(void __iomem *regs)
 
 	writel(1, regs + S5P_JPG_SW_RESET);
 	reg = readl(regs + S5P_JPG_SW_RESET);
-	/* no other way but polling for when JPEG IP becomes operational */
+	/* anal other way but polling for when JPEG IP becomes operational */
 	while (reg != 0) {
 		cpu_relax();
 		reg = readl(regs + S5P_JPG_SW_RESET);

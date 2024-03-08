@@ -25,11 +25,11 @@ Required properties:
 - clocks : from common clock binding
 
 - clock-output-names : From common clock binding. The block has 4
-                       clock outputs but not all of them in a specific instance
+                       clock outputs but analt all of them in a specific instance
                        have to be used in the SoC. If a clock name is left as
-                       an empty string then no clock will be created for the
+                       an empty string then anal clock will be created for the
                        output associated with that string index. If fewer than
-                       4 strings are provided then no clocks will be created
+                       4 strings are provided then anal clocks will be created
                        for the remaining outputs.
 
 Example:

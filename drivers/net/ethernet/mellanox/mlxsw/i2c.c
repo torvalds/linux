@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2016-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -285,7 +285,7 @@ mlxsw_i2c_write_init_cmd(struct i2c_client *client,
 	/* Wait until go bit is cleared. */
 	err = mlxsw_i2c_wait_go_bit(client, mlxsw_i2c, &status);
 	if (err) {
-		dev_err(&client->dev, "HW semaphore is not released");
+		dev_err(&client->dev, "HW semaphore is analt released");
 		return err;
 	}
 
@@ -313,7 +313,7 @@ static int mlxsw_i2c_get_mbox(struct i2c_client *client,
 	mlxsw_i2c_set_slave_addr(addr_buf, MLXSW_I2C_CIR2_BASE);
 	err = i2c_transfer(client->adapter, mbox_cmd, 2);
 	if (err != 2) {
-		dev_err(&client->dev, "Could not obtain mail boxes\n");
+		dev_err(&client->dev, "Could analt obtain mail boxes\n");
 		if (!err)
 			return -EIO;
 		else
@@ -344,7 +344,7 @@ mlxsw_i2c_write(struct device *dev, size_t in_mbox_size, u8 *in_mbox, int num,
 	tran_buf = kmalloc(mlxsw_i2c->block_size + MLXSW_I2C_ADDR_BUF_SIZE,
 			   GFP_KERNEL);
 	if (!tran_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	write_tran.buf = tran_buf;
 	for (i = 0; i < num; i++) {
@@ -380,7 +380,7 @@ mlxsw_i2c_write(struct device *dev, size_t in_mbox_size, u8 *in_mbox, int num,
 	/* Prepare and write out Command Interface Register for transaction. */
 	err = mlxsw_i2c_write_cmd(client, mlxsw_i2c, 0);
 	if (err) {
-		dev_err(&client->dev, "Could not start transaction");
+		dev_err(&client->dev, "Could analt start transaction");
 		err = -EIO;
 		goto mlxsw_i2c_write_exit;
 	}
@@ -388,7 +388,7 @@ mlxsw_i2c_write(struct device *dev, size_t in_mbox_size, u8 *in_mbox, int num,
 	/* Wait until go bit is cleared. */
 	err = mlxsw_i2c_wait_go_bit(client, mlxsw_i2c, p_status);
 	if (err) {
-		dev_err(&client->dev, "HW semaphore is not released");
+		dev_err(&client->dev, "HW semaphore is analt released");
 		goto mlxsw_i2c_write_exit;
 	}
 
@@ -427,7 +427,7 @@ mlxsw_i2c_cmd(struct device *dev, u16 opcode, u32 in_mod, size_t in_mbox_size,
 		num = DIV_ROUND_UP(reg_size, mlxsw_i2c->block_size);
 
 		if (mutex_lock_interruptible(&mlxsw_i2c->cmd.lock) < 0) {
-			dev_err(&client->dev, "Could not acquire lock");
+			dev_err(&client->dev, "Could analt acquire lock");
 			return -EINVAL;
 		}
 
@@ -435,18 +435,18 @@ mlxsw_i2c_cmd(struct device *dev, u16 opcode, u32 in_mod, size_t in_mbox_size,
 		if (err)
 			goto cmd_fail;
 
-		/* No out mailbox is case of write transaction. */
+		/* Anal out mailbox is case of write transaction. */
 		if (!out_mbox) {
 			mutex_unlock(&mlxsw_i2c->cmd.lock);
 			return 0;
 		}
 	} else {
-		/* No input mailbox is case of initialization query command. */
+		/* Anal input mailbox is case of initialization query command. */
 		reg_size = MLXSW_I2C_MAX_DATA_SIZE;
 		num = DIV_ROUND_UP(reg_size, mlxsw_i2c->block_size);
 
 		if (mutex_lock_interruptible(&mlxsw_i2c->cmd.lock) < 0) {
-			dev_err(&client->dev, "Could not acquire lock");
+			dev_err(&client->dev, "Could analt acquire lock");
 			return -EINVAL;
 		}
 
@@ -534,7 +534,7 @@ mlxsw_i2c_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 
 	mbox = mlxsw_cmd_mbox_alloc();
 	if (!mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlxsw_cmd_query_fw(mlxsw_core, mbox);
 	if (err)
@@ -542,10 +542,10 @@ mlxsw_i2c_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 
 	mlxsw_i2c->bus_info.fw_rev.major =
 		mlxsw_cmd_mbox_query_fw_fw_rev_major_get(mbox);
-	mlxsw_i2c->bus_info.fw_rev.minor =
-		mlxsw_cmd_mbox_query_fw_fw_rev_minor_get(mbox);
-	mlxsw_i2c->bus_info.fw_rev.subminor =
-		mlxsw_cmd_mbox_query_fw_fw_rev_subminor_get(mbox);
+	mlxsw_i2c->bus_info.fw_rev.mianalr =
+		mlxsw_cmd_mbox_query_fw_fw_rev_mianalr_get(mbox);
+	mlxsw_i2c->bus_info.fw_rev.submianalr =
+		mlxsw_cmd_mbox_query_fw_fw_rev_submianalr_get(mbox);
 
 	err = mlxsw_core_resources_query(mlxsw_core, mbox, res);
 
@@ -576,9 +576,9 @@ static irqreturn_t mlxsw_i2c_irq_handler(int irq, void *dev)
 	mlxsw_core_schedule_work(&mlxsw_i2c->irq_work);
 
 	/* Interrupt handler shares IRQ line with 'main' interrupt handler.
-	 * Return here IRQ_NONE, while main handler will return IRQ_HANDLED.
+	 * Return here IRQ_ANALNE, while main handler will return IRQ_HANDLED.
 	 */
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int mlxsw_i2c_irq_init(struct mlxsw_i2c *mlxsw_i2c, u8 addr)
@@ -586,8 +586,8 @@ static int mlxsw_i2c_irq_init(struct mlxsw_i2c *mlxsw_i2c, u8 addr)
 	int err;
 
 	/* Initialize interrupt handler if system hotplug driver is reachable,
-	 * otherwise interrupt line is not enabled and interrupts will not be
-	 * raised to CPU. Also request_irq() call will be not valid.
+	 * otherwise interrupt line is analt enabled and interrupts will analt be
+	 * raised to CPU. Also request_irq() call will be analt valid.
 	 */
 	if (!IS_REACHABLE(CONFIG_MLXREG_HOTPLUG))
 		return 0;
@@ -641,7 +641,7 @@ static int mlxsw_i2c_probe(struct i2c_client *client)
 
 	mlxsw_i2c = devm_kzalloc(&client->dev, sizeof(*mlxsw_i2c), GFP_KERNEL);
 	if (!mlxsw_i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (quirks) {
 		if ((quirks->max_read_len &&
@@ -649,7 +649,7 @@ static int mlxsw_i2c_probe(struct i2c_client *client)
 		    (quirks->max_write_len &&
 		     quirks->max_write_len < MLXSW_I2C_BLK_DEF)) {
 			dev_err(&client->dev, "Insufficient transaction buffer length\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		mlxsw_i2c->block_size = min_t(u16, MLXSW_I2C_BLK_MAX,
@@ -677,14 +677,14 @@ static int mlxsw_i2c_probe(struct i2c_client *client)
 	/* Prepare and write out Command Interface Register for transaction */
 	err = mlxsw_i2c_write_cmd(client, mlxsw_i2c, 1);
 	if (err) {
-		dev_err(&client->dev, "Could not start transaction");
+		dev_err(&client->dev, "Could analt start transaction");
 		goto errout;
 	}
 
 	/* Wait until go bit is cleared. */
 	err = mlxsw_i2c_wait_go_bit(client, mlxsw_i2c, &status);
 	if (err) {
-		dev_err(&client->dev, "HW semaphore is not released");
+		dev_err(&client->dev, "HW semaphore is analt released");
 		goto errout;
 	}
 
@@ -762,6 +762,6 @@ void mlxsw_i2c_driver_unregister(struct i2c_driver *i2c_driver)
 }
 EXPORT_SYMBOL(mlxsw_i2c_driver_unregister);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox switch I2C interface driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx switch I2C interface driver");
 MODULE_LICENSE("Dual BSD/GPL");

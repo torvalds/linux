@@ -35,7 +35,7 @@ static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
 	unsigned long buid;
 	int rc;
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	addr = rtas_config_addr(pdn->busanal, pdn->devfn, 0);
 	buid = pdn->phb->buid;
 
 	seq_num = 1;
@@ -55,7 +55,7 @@ static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
 
 	/*
 	 * If the RTAS call succeeded, return the number of irqs allocated.
-	 * If not, make sure we return a negative error code.
+	 * If analt, make sure we return a negative error code.
 	 */
 	if (rc == 0)
 		rc = rtas_ret[0];
@@ -81,7 +81,7 @@ static void rtas_disable_msi(struct pci_dev *pdev)
 	 */
 	if (rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, 0) != 0) {
 		/* 
-		 * may have failed because explicit interface is not
+		 * may have failed because explicit interface is analt
 		 * present
 		 */
 		if (rtas_change_msi(pdn, RTAS_CHANGE_FN, 0) != 0) {
@@ -96,7 +96,7 @@ static int rtas_query_irq_number(struct pci_dn *pdn, int offset)
 	unsigned long buid;
 	int rc;
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	addr = rtas_config_addr(pdn->busanal, pdn->devfn, 0);
 	buid = pdn->phb->buid;
 
 	do {
@@ -114,24 +114,24 @@ static int rtas_query_irq_number(struct pci_dn *pdn, int offset)
 
 static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	const __be32 *p;
 	u32 req_msi;
 
-	dn = pci_device_to_OF_node(pdev);
+	dn = pci_device_to_OF_analde(pdev);
 
 	p = of_get_property(dn, prop_name, NULL);
 	if (!p) {
-		pr_debug("rtas_msi: No %s on %pOF\n", prop_name, dn);
-		return -ENOENT;
+		pr_debug("rtas_msi: Anal %s on %pOF\n", prop_name, dn);
+		return -EANALENT;
 	}
 
 	req_msi = be32_to_cpup(p);
 	if (req_msi < nvec) {
 		pr_debug("rtas_msi: %s requests < %d MSIs\n", prop_name, nvec);
 
-		if (req_msi == 0) /* Be paranoid */
-			return -ENOSPC;
+		if (req_msi == 0) /* Be paraanalid */
+			return -EANALSPC;
 
 		return req_msi;
 	}
@@ -151,12 +151,12 @@ static int check_req_msix(struct pci_dev *pdev, int nvec)
 
 /* Quota calculation */
 
-static struct device_node *__find_pe_total_msi(struct device_node *node, int *total)
+static struct device_analde *__find_pe_total_msi(struct device_analde *analde, int *total)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	const __be32 *p;
 
-	dn = of_node_get(node);
+	dn = of_analde_get(analde);
 	while (dn) {
 		p = of_get_property(dn, "ibm,pe-total-#msi", NULL);
 		if (p) {
@@ -172,19 +172,19 @@ static struct device_node *__find_pe_total_msi(struct device_node *node, int *to
 	return NULL;
 }
 
-static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
+static struct device_analde *find_pe_total_msi(struct pci_dev *dev, int *total)
 {
-	return __find_pe_total_msi(pci_device_to_OF_node(dev), total);
+	return __find_pe_total_msi(pci_device_to_OF_analde(dev), total);
 }
 
-static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
+static struct device_analde *find_pe_dn(struct pci_dev *dev, int *total)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	struct eeh_dev *edev;
 
 	/* Found our PE and assume 8 at that point. */
 
-	dn = pci_device_to_OF_node(dev);
+	dn = pci_device_to_OF_analde(dev);
 	if (!dn)
 		return NULL;
 
@@ -193,7 +193,7 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 	if (edev->pe)
 		edev = list_first_entry(&edev->pe->edevs, struct eeh_dev,
 					entry);
-	dn = pci_device_to_OF_node(edev->pdev);
+	dn = pci_device_to_OF_analde(edev->pdev);
 	if (!dn)
 		return NULL;
 
@@ -210,7 +210,7 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 }
 
 struct msi_counts {
-	struct device_node *requestor;
+	struct device_analde *requestor;
 	int num_devices;
 	int request;
 	int quota;
@@ -218,7 +218,7 @@ struct msi_counts {
 	int over_quota;
 };
 
-static void *count_non_bridge_devices(struct device_node *dn, void *data)
+static void *count_analn_bridge_devices(struct device_analde *dn, void *data)
 {
 	struct msi_counts *counts = data;
 	const __be32 *p;
@@ -235,7 +235,7 @@ static void *count_non_bridge_devices(struct device_node *dn, void *data)
 	return NULL;
 }
 
-static void *count_spare_msis(struct device_node *dn, void *data)
+static void *count_spare_msis(struct device_analde *dn, void *data)
 {
 	struct msi_counts *counts = data;
 	const __be32 *p;
@@ -244,7 +244,7 @@ static void *count_spare_msis(struct device_node *dn, void *data)
 	if (dn == counts->requestor)
 		req = counts->request;
 	else {
-		/* We don't know if a driver will try to use MSI or MSI-X,
+		/* We don't kanalw if a driver will try to use MSI or MSI-X,
 		 * so we just have to punt and use the larger of the two. */
 		req = 0;
 		p = of_get_property(dn, "ibm,req#msi", NULL);
@@ -266,7 +266,7 @@ static void *count_spare_msis(struct device_node *dn, void *data)
 
 static int msi_quota_for_device(struct pci_dev *dev, int request)
 {
-	struct device_node *pe_dn;
+	struct device_analde *pe_dn;
 	struct msi_counts counts;
 	int total;
 
@@ -287,7 +287,7 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 	memset(&counts, 0, sizeof(struct msi_counts));
 
 	/* Work out how many devices we have below this PE */
-	pci_traverse_device_nodes(pe_dn, count_non_bridge_devices, &counts);
+	pci_traverse_device_analdes(pe_dn, count_analn_bridge_devices, &counts);
 
 	if (counts.num_devices == 0) {
 		pr_err("rtas_msi: found 0 devices under PE for %s\n",
@@ -300,9 +300,9 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 		goto out;
 
 	/* else, we have some more calculating to do */
-	counts.requestor = pci_device_to_OF_node(dev);
+	counts.requestor = pci_device_to_OF_analde(dev);
 	counts.request = request;
-	pci_traverse_device_nodes(pe_dn, count_spare_msis, &counts);
+	pci_traverse_device_analdes(pe_dn, count_spare_msis, &counts);
 
 	/* If the quota isn't an integer multiple of the total, we can
 	 * use the remainder as spare MSIs for anyone that wants them. */
@@ -317,7 +317,7 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 
 	pr_debug("rtas_msi: request clamped to quota %d\n", request);
 out:
-	of_node_put(pe_dn);
+	of_analde_put(pe_dn);
 
 	return request;
 }
@@ -332,7 +332,7 @@ static void rtas_hack_32bit_msi_gen2(struct pci_dev *pdev)
 	 * support, and we are in a PCIe Gen2 slot.
 	 */
 	dev_info(&pdev->dev,
-		 "rtas_msi: No 32 bit MSI firmware support, forcing 32 bit MSI\n");
+		 "rtas_msi: Anal 32 bit MSI firmware support, forcing 32 bit MSI\n");
 	pci_read_config_dword(pdev, pdev->msi_cap + PCI_MSI_ADDRESS_HI, &addr_hi);
 	addr_lo = 0xffff0000 | ((addr_hi >> (48 - 32)) << 4);
 	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_ADDRESS_LO, addr_lo);
@@ -361,7 +361,7 @@ static int rtas_prepare_msi_irqs(struct pci_dev *pdev, int nvec_in, int type,
 		return quota;
 
 	/*
-	 * Firmware currently refuse any non power of two allocation
+	 * Firmware currently refuse any analn power of two allocation
 	 * so we round up if the quota will allow it.
 	 */
 	if (type == PCI_CAP_ID_MSIX) {
@@ -376,12 +376,12 @@ static int rtas_prepare_msi_irqs(struct pci_dev *pdev, int nvec_in, int type,
 
 	/*
 	 * Try the new more explicit firmware interface, if that fails fall
-	 * back to the old interface. The old interface is known to never
+	 * back to the old interface. The old interface is kanalwn to never
 	 * return MSI-Xs.
 	 */
 again:
 	if (type == PCI_CAP_ID_MSI) {
-		if (pdev->no_64bit_msi) {
+		if (pdev->anal_64bit_msi) {
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_32MSI_FN, nvec);
 			if (rc < 0) {
 				/*
@@ -444,7 +444,7 @@ static void pseries_msi_ops_msi_free(struct irq_domain *domain,
 }
 
 /*
- * RTAS can not disable one MSI at a time. It's all or nothing. Do it
+ * RTAS can analt disable one MSI at a time. It's all or analthing. Do it
  * at the end after all IRQs have been freed.
  */
 static void pseries_msi_post_free(struct irq_domain *domain, struct device *dev)
@@ -485,7 +485,7 @@ static void pseries_msi_write_msg(struct irq_data *data, struct msi_msg *msg)
 	struct msi_desc *entry = irq_data_get_msi_desc(data);
 
 	/*
-	 * Do not update the MSIx vector table. It's not strictly necessary
+	 * Do analt update the MSIx vector table. It's analt strictly necessary
 	 * because the table is initialized by the underlying hypervisor, PowerVM
 	 * or QEMU/KVM. However, if the MSIx vector entry is cleared, any further
 	 * activation will fail. This can happen in some drivers (eg. IPR) which
@@ -505,8 +505,8 @@ static struct irq_chip pseries_pci_msi_irq_chip = {
 
 
 /*
- * Set MSI_FLAG_MSIX_CONTIGUOUS as there is no way to express to
- * firmware to request a discontiguous or non-zero based range of
+ * Set MSI_FLAG_MSIX_CONTIGUOUS as there is anal way to express to
+ * firmware to request a discontiguous or analn-zero based range of
  * MSI-X entries. Core code will reject such setup attempts.
  */
 static struct msi_domain_info pseries_msi_domain_info = {
@@ -538,7 +538,7 @@ static int pseries_irq_parent_domain_alloc(struct irq_domain *domain, unsigned i
 	struct irq_fwspec parent_fwspec;
 	int ret;
 
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	parent_fwspec.param_count = 2;
 	parent_fwspec.param[0] = hwirq;
 	parent_fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
@@ -607,30 +607,30 @@ static int __pseries_msi_allocate_domains(struct pci_controller *phb,
 {
 	struct irq_domain *parent = irq_get_default_host();
 
-	phb->fwnode = irq_domain_alloc_named_id_fwnode("pSeries-MSI",
+	phb->fwanalde = irq_domain_alloc_named_id_fwanalde("pSeries-MSI",
 						       phb->global_number);
-	if (!phb->fwnode)
-		return -ENOMEM;
+	if (!phb->fwanalde)
+		return -EANALMEM;
 
 	phb->dev_domain = irq_domain_create_hierarchy(parent, 0, count,
-						      phb->fwnode,
+						      phb->fwanalde,
 						      &pseries_irq_domain_ops, phb);
 	if (!phb->dev_domain) {
 		pr_err("PCI: failed to create IRQ domain bridge %pOF (domain %d)\n",
 		       phb->dn, phb->global_number);
-		irq_domain_free_fwnode(phb->fwnode);
-		return -ENOMEM;
+		irq_domain_free_fwanalde(phb->fwanalde);
+		return -EANALMEM;
 	}
 
-	phb->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(phb->dn),
+	phb->msi_domain = pci_msi_create_irq_domain(of_analde_to_fwanalde(phb->dn),
 						    &pseries_msi_domain_info,
 						    phb->dev_domain);
 	if (!phb->msi_domain) {
 		pr_err("PCI: failed to create MSI IRQ domain bridge %pOF (domain %d)\n",
 		       phb->dn, phb->global_number);
-		irq_domain_free_fwnode(phb->fwnode);
+		irq_domain_free_fwanalde(phb->fwanalde);
 		irq_domain_remove(phb->dev_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -643,7 +643,7 @@ int pseries_msi_allocate_domains(struct pci_controller *phb)
 	if (!__find_pe_total_msi(phb->dn, &count)) {
 		pr_err("PCI: failed to find MSIs for bridge %pOF (domain %d)\n",
 		       phb->dn, phb->global_number);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	return __pseries_msi_allocate_domains(phb, count);
@@ -655,21 +655,21 @@ void pseries_msi_free_domains(struct pci_controller *phb)
 		irq_domain_remove(phb->msi_domain);
 	if (phb->dev_domain)
 		irq_domain_remove(phb->dev_domain);
-	if (phb->fwnode)
-		irq_domain_free_fwnode(phb->fwnode);
+	if (phb->fwanalde)
+		irq_domain_free_fwanalde(phb->fwanalde);
 }
 
 static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
 {
-	/* No LSI -> leave MSIs (if any) configured */
+	/* Anal LSI -> leave MSIs (if any) configured */
 	if (!pdev->irq) {
-		dev_dbg(&pdev->dev, "rtas_msi: no LSI, nothing to do.\n");
+		dev_dbg(&pdev->dev, "rtas_msi: anal LSI, analthing to do.\n");
 		return;
 	}
 
-	/* No MSI -> MSIs can't have been assigned by fw, leave LSI */
+	/* Anal MSI -> MSIs can't have been assigned by fw, leave LSI */
 	if (check_req_msi(pdev, 1) && check_req_msix(pdev, 1)) {
-		dev_dbg(&pdev->dev, "rtas_msi: no req#msi/x, nothing to do.\n");
+		dev_dbg(&pdev->dev, "rtas_msi: anal req#msi/x, analthing to do.\n");
 		return;
 	}
 
@@ -682,9 +682,9 @@ static int rtas_msi_init(void)
 	query_token  = rtas_function_token(RTAS_FN_IBM_QUERY_INTERRUPT_SOURCE_NUMBER);
 	change_token = rtas_function_token(RTAS_FN_IBM_CHANGE_MSI);
 
-	if ((query_token == RTAS_UNKNOWN_SERVICE) ||
-			(change_token == RTAS_UNKNOWN_SERVICE)) {
-		pr_debug("rtas_msi: no RTAS tokens, no MSI support.\n");
+	if ((query_token == RTAS_UNKANALWN_SERVICE) ||
+			(change_token == RTAS_UNKANALWN_SERVICE)) {
+		pr_debug("rtas_msi: anal RTAS tokens, anal MSI support.\n");
 		return -1;
 	}
 

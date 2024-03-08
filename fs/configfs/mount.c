@@ -27,17 +27,17 @@ struct kmem_cache *configfs_dir_cachep;
 static int configfs_mnt_count = 0;
 
 
-static void configfs_free_inode(struct inode *inode)
+static void configfs_free_ianalde(struct ianalde *ianalde)
 {
-	if (S_ISLNK(inode->i_mode))
-		kfree(inode->i_link);
-	free_inode_nonrcu(inode);
+	if (S_ISLNK(ianalde->i_mode))
+		kfree(ianalde->i_link);
+	free_ianalde_analnrcu(ianalde);
 }
 
 static const struct super_operations configfs_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
-	.free_inode	= configfs_free_inode,
+	.drop_ianalde	= generic_delete_ianalde,
+	.free_ianalde	= configfs_free_ianalde,
 };
 
 static struct config_group configfs_root_group = {
@@ -62,7 +62,7 @@ static struct configfs_dirent configfs_root = {
 
 static int configfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct dentry *root;
 
 	sb->s_blocksize = PAGE_SIZE;
@@ -71,22 +71,22 @@ static int configfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &configfs_ops;
 	sb->s_time_gran = 1;
 
-	inode = configfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
+	ianalde = configfs_new_ianalde(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
 				   &configfs_root, sb);
-	if (inode) {
-		inode->i_op = &configfs_root_inode_operations;
-		inode->i_fop = &configfs_dir_operations;
-		/* directory inodes start off with i_nlink == 2 (for "." entry) */
-		inc_nlink(inode);
+	if (ianalde) {
+		ianalde->i_op = &configfs_root_ianalde_operations;
+		ianalde->i_fop = &configfs_dir_operations;
+		/* directory ianaldes start off with i_nlink == 2 (for "." entry) */
+		inc_nlink(ianalde);
 	} else {
-		pr_debug("could not get root inode\n");
-		return -ENOMEM;
+		pr_debug("could analt get root ianalde\n");
+		return -EANALMEM;
 	}
 
-	root = d_make_root(inode);
+	root = d_make_root(ianalde);
 	if (!root) {
-		pr_debug("%s: could not get root dentry!\n",__func__);
-		return -ENOMEM;
+		pr_debug("%s: could analt get root dentry!\n",__func__);
+		return -EANALMEM;
 	}
 	config_group_init(&configfs_root_group);
 	configfs_root_group.cg_item.ci_dentry = root;
@@ -134,7 +134,7 @@ void configfs_release_fs(void)
 
 static int __init configfs_init(void)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	configfs_dir_cachep = kmem_cache_create("configfs_dir_cache",
 						sizeof(struct configfs_dirent),

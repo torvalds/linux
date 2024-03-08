@@ -60,7 +60,7 @@ static void bnx2fc_cmd_timeout(struct work_struct *work)
 		return;
 	}
 	if (test_and_clear_bit(BNX2FC_FLAG_RETIRE_OXID, &io_req->req_flags)) {
-		BNX2FC_IO_DBG(io_req, "IO ready for reuse now\n");
+		BNX2FC_IO_DBG(io_req, "IO ready for reuse analw\n");
 		goto done;
 	}
 
@@ -131,7 +131,7 @@ static void bnx2fc_cmd_timeout(struct work_struct *work)
 			 * Handle ELS timeout.
 			 * tgt_lock is used to sync compl path and timeout
 			 * path. If els compl path is processing this IO, we
-			 * have nothing to do here, just release the timer hold
+			 * have analthing to do here, just release the timer hold
 			 */
 			BNX2FC_IO_DBG(io_req, "ELS timed out\n");
 			if (test_and_set_bit(BNX2FC_FLAG_ELS_DONE,
@@ -174,7 +174,7 @@ static void bnx2fc_scsi_done(struct bnx2fc_cmd *io_req, int err_code)
 
 	BNX2FC_IO_DBG(io_req, "scsi_done. err_code = 0x%x\n", err_code);
 	if (test_bit(BNX2FC_FLAG_CMD_LOST, &io_req->req_flags)) {
-		/* Do not call scsi done for this IO */
+		/* Do analt call scsi done for this IO */
 		return;
 	}
 
@@ -223,7 +223,7 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba)
 	u16 min_xid = BNX2FC_MIN_XID;
 	u16 max_xid = hba->max_xid;
 
-	if (max_xid <= min_xid || max_xid == FC_XID_UNKNOWN) {
+	if (max_xid <= min_xid || max_xid == FC_XID_UNKANALWN) {
 		printk(KERN_ERR PFX "cmd_mgr_alloc: Invalid min_xid 0x%x \
 					and max_xid 0x%x\n", min_xid, max_xid);
 		return NULL;
@@ -417,7 +417,7 @@ struct bnx2fc_cmd *bnx2fc_elstm_alloc(struct bnx2fc_rport *tgt, int type)
 	}
 
 	/*
-	 * NOTE: Free list insertions and deletions are protected with
+	 * ANALTE: Free list insertions and deletions are protected with
 	 * cmgr lock
 	 */
 	spin_lock_bh(&cmd_mgr->free_list_lock[index]);
@@ -425,7 +425,7 @@ struct bnx2fc_cmd *bnx2fc_elstm_alloc(struct bnx2fc_rport *tgt, int type)
 	if ((list_empty(&(cmd_mgr->free_list[index]))) ||
 	    (tgt->num_active_ios.counter  >= max_sqes) ||
 	    (free_sqes + max_sqes <= BNX2FC_SQ_WQES_MAX)) {
-		BNX2FC_TGT_DBG(tgt, "No free els_tm cmds available "
+		BNX2FC_TGT_DBG(tgt, "Anal free els_tm cmds available "
 			"ios(%d):sqes(%d)\n",
 			tgt->num_active_ios.counter, tgt->max_sqes);
 		if (list_empty(&(cmd_mgr->free_list[index])))
@@ -476,7 +476,7 @@ struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt)
 
 	max_sqes = BNX2FC_SCSI_MAX_SQES;
 	/*
-	 * NOTE: Free list insertions and deletions are protected with
+	 * ANALTE: Free list insertions and deletions are protected with
 	 * cmgr lock
 	 */
 	spin_lock_bh(&cmd_mgr->free_list_lock[index]);
@@ -690,15 +690,15 @@ static int bnx2fc_initiate_tmf(struct fc_lport *lport, struct fc_rport *rport,
 		return rc;
 
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
-		printk(KERN_ERR PFX "device_reset: link is not ready\n");
+		printk(KERN_ERR PFX "device_reset: link is analt ready\n");
 		rc = FAILED;
 		goto tmf_err;
 	}
-	/* rport and tgt are allocated together, so tgt should be non-NULL */
+	/* rport and tgt are allocated together, so tgt should be analn-NULL */
 	tgt = (struct bnx2fc_rport *)&rp[1];
 
 	if (!(test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags))) {
-		printk(KERN_ERR PFX "device_reset: tgt not offloaded\n");
+		printk(KERN_ERR PFX "device_reset: tgt analt offloaded\n");
 		rc = FAILED;
 		goto tmf_err;
 	}
@@ -839,7 +839,7 @@ int bnx2fc_initiate_abts(struct bnx2fc_cmd *io_req)
 	lport = port->lport;
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
-		printk(KERN_ERR PFX "initiate_abts: tgt not offloaded\n");
+		printk(KERN_ERR PFX "initiate_abts: tgt analt offloaded\n");
 		rc = FAILED;
 		goto abts_err;
 	}
@@ -851,7 +851,7 @@ int bnx2fc_initiate_abts(struct bnx2fc_cmd *io_req)
 	}
 
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
-		printk(KERN_ERR PFX "initiate_abts: link is not ready\n");
+		printk(KERN_ERR PFX "initiate_abts: link is analt ready\n");
 		rc = FAILED;
 		goto abts_err;
 	}
@@ -867,7 +867,7 @@ int bnx2fc_initiate_abts(struct bnx2fc_cmd *io_req)
 	abts_io_req->sc_cmd = NULL;
 	abts_io_req->port = port;
 	abts_io_req->tgt = tgt;
-	abts_io_req->data_xfer_len = 0; /* No data transfer for ABTS */
+	abts_io_req->data_xfer_len = 0; /* Anal data transfer for ABTS */
 
 	abts_req = (struct bnx2fc_mp_req *)&(abts_io_req->mp_req);
 	memset(abts_req, 0, sizeof(struct bnx2fc_mp_req));
@@ -945,14 +945,14 @@ int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
 	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to alloc cb_arg for seq clnup\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto cleanup_err;
 	}
 
 	seq_clnp_req = bnx2fc_elstm_alloc(tgt, BNX2FC_SEQ_CLEANUP);
 	if (!seq_clnp_req) {
 		printk(KERN_ERR PFX "cleanup: couldn't allocate cmd\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		kfree(cb_arg);
 		goto cleanup_err;
 	}
@@ -960,7 +960,7 @@ int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
 	seq_clnp_req->sc_cmd = NULL;
 	seq_clnp_req->port = port;
 	seq_clnp_req->tgt = tgt;
-	seq_clnp_req->data_xfer_len = 0; /* No data transfer for cleanup */
+	seq_clnp_req->data_xfer_len = 0; /* Anal data transfer for cleanup */
 
 	xid = seq_clnp_req->xid;
 
@@ -1018,7 +1018,7 @@ int bnx2fc_initiate_cleanup(struct bnx2fc_cmd *io_req)
 	cleanup_io_req->sc_cmd = NULL;
 	cleanup_io_req->port = port;
 	cleanup_io_req->tgt = tgt;
-	cleanup_io_req->data_xfer_len = 0; /* No data transfer for cleanup */
+	cleanup_io_req->data_xfer_len = 0; /* Anal data transfer for cleanup */
 
 	xid = cleanup_io_req->xid;
 
@@ -1105,7 +1105,7 @@ static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 
 		/*
 		 * Put the extra reference to the SCSI command since it would
-		 * not have been returned in this case.
+		 * analt have been returned in this case.
 		 */
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 	}
@@ -1139,7 +1139,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 
 	lport = shost_priv(sc_cmd->device->host);
 	if ((lport->state != LPORT_ST_READY) || !(lport->link_up)) {
-		printk(KERN_ERR PFX "eh_abort: link not ready\n");
+		printk(KERN_ERR PFX "eh_abort: link analt ready\n");
 		return FAILED;
 	}
 
@@ -1165,9 +1165,9 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 
 	/* Remove the io_req from the active_q. */
 	/*
-	 * Task Mgmt functions (LUN RESET & TGT RESET) will not
+	 * Task Mgmt functions (LUN RESET & TGT RESET) will analt
 	 * issue an ABTS on this particular IO req, as the
-	 * io_req is no longer in the active_q.
+	 * io_req is anal longer in the active_q.
 	 */
 	if (tgt->flush_in_prog) {
 		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
@@ -1179,7 +1179,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 
 	if (io_req->on_active_queue == 0) {
 		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
-				"not on active_q\n", io_req->xid);
+				"analt on active_q\n", io_req->xid);
 		/*
 		 * The IO is still with the FW.
 		 * Return failure and let SCSI-ml retry eh_abort.
@@ -1299,8 +1299,8 @@ void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_cmd *seq_clnp_req,
 			      "cmd_type = %d\n",
 		   seq_clnp_req->xid, seq_clnp_req->cmd_type);
 
-	if (rx_state == FCOE_TASK_RX_STATE_IGNORED_SEQUENCE_CLEANUP) {
-		printk(KERN_ERR PFX "seq cleanup ignored - xid = 0x%x\n",
+	if (rx_state == FCOE_TASK_RX_STATE_IGANALRED_SEQUENCE_CLEANUP) {
+		printk(KERN_ERR PFX "seq cleanup iganalred - xid = 0x%x\n",
 			seq_clnp_req->xid);
 		goto free_cb_arg;
 	}
@@ -1327,7 +1327,7 @@ void bnx2fc_process_cleanup_compl(struct bnx2fc_cmd *io_req,
 			      "refcnt = %d, cmd_type = %d\n",
 		   kref_read(&io_req->refcount), io_req->cmd_type);
 	/*
-	 * Test whether there is a cleanup request pending. If not just
+	 * Test whether there is a cleanup request pending. If analt just
 	 * exit.
 	 */
 	if (!test_and_clear_bit(BNX2FC_FLAG_ISSUE_CLEANUP_REQ,
@@ -1335,7 +1335,7 @@ void bnx2fc_process_cleanup_compl(struct bnx2fc_cmd *io_req,
 		return;
 	/*
 	 * If we receive a cleanup completion for this request then the
-	 * firmware will not give us an abort completion for this request
+	 * firmware will analt give us an abort completion for this request
 	 * so clear any ABTS pending flags.
 	 */
 	if (test_bit(BNX2FC_FLAG_ISSUE_ABTS, &io_req->req_flags) &&
@@ -1373,7 +1373,7 @@ void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,
 	}
 
 	/*
-	 * If we receive an ABTS completion here then we will not receive
+	 * If we receive an ABTS completion here then we will analt receive
 	 * a cleanup completion so clear any cleanup pending flags.
 	 */
 	if (test_bit(BNX2FC_FLAG_ISSUE_CLEANUP_REQ, &io_req->req_flags)) {
@@ -1382,7 +1382,7 @@ void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,
 			complete(&io_req->cleanup_done);
 	}
 
-	/* Do not issue RRQ as this IO is already cleanedup */
+	/* Do analt issue RRQ as this IO is already cleanedup */
 	if (test_and_set_bit(BNX2FC_FLAG_IO_CLEANUP,
 				&io_req->req_flags))
 		goto io_compl;
@@ -1414,7 +1414,7 @@ void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,
 		BNX2FC_IO_DBG(io_req, "ABTS response - RJT\n");
 		break;
 	default:
-		printk(KERN_ERR PFX "Unknown ABTS response\n");
+		printk(KERN_ERR PFX "Unkanalwn ABTS response\n");
 		break;
 	}
 
@@ -1433,7 +1433,7 @@ io_compl:
 	} else {
 		/*
 		 * We end up here when ABTS is issued as
-		 * in asynchronous context, i.e., as part
+		 * in asynchroanalus context, i.e., as part
 		 * of task management completion, or
 		 * when FW error is received or when the
 		 * ABTS is issued when the IO is timed
@@ -1539,7 +1539,7 @@ void bnx2fc_process_tm_compl(struct bnx2fc_cmd *io_req,
 		set_bit(BNX2FC_FLAG_TM_COMPL, &io_req->req_flags);
 	else {
 		/* TM has already timed out and we got
-		 * delayed completion. Ignore completion
+		 * delayed completion. Iganalre completion
 		 * processing.
 		 */
 		return;
@@ -1585,7 +1585,7 @@ void bnx2fc_process_tm_compl(struct bnx2fc_cmd *io_req,
 				/* Good IO completion */
 				sc_cmd->result = DID_OK << 16;
 			} else {
-				/* Transport status is good, SCSI status not good */
+				/* Transport status is good, SCSI status analt good */
 				sc_cmd->result = (DID_OK << 16) | io_req->cdb_status;
 			}
 			if (io_req->fcp_resid)
@@ -1612,7 +1612,7 @@ void bnx2fc_process_tm_compl(struct bnx2fc_cmd *io_req,
 		io_req->on_tmf_queue = 0;
 	} else {
 
-		printk(KERN_ERR PFX "Command not on active_cmd_queue!\n");
+		printk(KERN_ERR PFX "Command analt on active_cmd_queue!\n");
 		return;
 	}
 
@@ -1703,7 +1703,7 @@ static int bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req)
 	if (scsi_sg_count(sc)) {
 		bd_count = bnx2fc_map_sg(io_req);
 		if (bd_count == 0)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		bd_count = 0;
 		bd[0].buf_addr_lo = bd[0].buf_addr_hi = 0;
@@ -1718,7 +1718,7 @@ static int bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req)
 	if (bd_count > BNX2FC_FW_MAX_BDS_PER_CMD) {
 		pr_err("bd_count = %d exceeded FW supported max BD(255), task_id = 0x%x\n",
 		       bd_count, io_req->xid);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1777,9 +1777,9 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
 	if (num_rq) {
 
 		/*
-		 * We do not anticipate num_rq >1, as the linux defined
+		 * We do analt anticipate num_rq >1, as the linux defined
 		 * SCSI_SENSE_BUFFERSIZE is 96 bytes + 8 bytes of FCP_RSP_INFO
-		 * 256 bytes of single rq buffer is good enough to hold this.
+		 * 256 bytes of single rq buffer is good eanalugh to hold this.
 		 */
 
 		if (rsp_flags &
@@ -1859,12 +1859,12 @@ int bnx2fc_queuecommand(struct Scsi_Host *host,
 		goto exit_qcmd;
 	}
 
-	/* rport and tgt are allocated together, so tgt should be non-NULL */
+	/* rport and tgt are allocated together, so tgt should be analn-NULL */
 	tgt = (struct bnx2fc_rport *)&rp[1];
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
 		/*
-		 * Session is not offloaded yet. Let SCSI-ml retry
+		 * Session is analt offloaded yet. Let SCSI-ml retry
 		 * the command.
 		 */
 		rc = SCSI_MLQUEUE_TARGET_BUSY;
@@ -1913,7 +1913,7 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 	/* scsi_cmd_cmpl is called with tgt lock held */
 
 	if (test_and_set_bit(BNX2FC_FLAG_IO_COMPL, &io_req->req_flags)) {
-		/* we will not receive ABTS response for this IO */
+		/* we will analt receive ABTS response for this IO */
 		BNX2FC_IO_DBG(io_req, "Timer context finished processing "
 			   "this scsi cmd\n");
 		if (test_and_clear_bit(BNX2FC_FLAG_IO_CLEANUP,
@@ -1954,11 +1954,11 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 		/* Move IO req to retire queue */
 		list_add_tail(&io_req->link, &tgt->io_retire_queue);
 	} else {
-		/* This should not happen, but could have been pulled
+		/* This should analt happen, but could have been pulled
 		 * by bnx2fc_flush_active_ios(), or during a race
 		 * between command abort and (late) completion.
 		 */
-		BNX2FC_IO_DBG(io_req, "xid not on active_cmd_queue\n");
+		BNX2FC_IO_DBG(io_req, "xid analt on active_cmd_queue\n");
 		if (io_req->wait_for_abts_comp)
 			if (test_and_clear_bit(BNX2FC_FLAG_EH_ABORT,
 					       &io_req->req_flags))
@@ -1974,7 +1974,7 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 			/* Good IO completion */
 			sc_cmd->result = DID_OK << 16;
 		} else {
-			/* Transport status is good, SCSI status not good */
+			/* Transport status is good, SCSI status analt good */
 			BNX2FC_IO_DBG(io_req, "scsi_cmpl: cdb_status = %d"
 				 " fcp_resid = 0x%x\n",
 				io_req->cdb_status, io_req->fcp_resid);
@@ -2079,7 +2079,7 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	}
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
-		printk(KERN_ERR PFX "Session not ready...post_io\n");
+		printk(KERN_ERR PFX "Session analt ready...post_io\n");
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		return -EAGAIN;
 	}

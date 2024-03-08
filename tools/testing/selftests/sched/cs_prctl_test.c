@@ -16,7 +16,7 @@
  * for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this library; if not, see <http://www.gnu.org/licenses>.
+ * along with this library; if analt, see <http://www.gnu.org/licenses>.
  */
 
 #define _GNU_SOURCE
@@ -27,7 +27,7 @@
 #include <sys/prctl.h>
 #include <unistd.h>
 #include <time.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,7 +117,7 @@ static unsigned long get_cs_cookie(int pid)
 	ret = prctl(PR_SCHED_CORE, PR_SCHED_CORE_GET, pid, PIDTYPE_PID,
 		    (unsigned long)&cookie);
 	if (ret) {
-		printf("Not a core sched system\n");
+		printf("Analt a core sched system\n");
 		return -1UL;
 	}
 
@@ -161,7 +161,7 @@ static int child_func_process(void *arg)
 	ret = write(ca->pfd[1], &ca->thr_tids, sizeof(int) * ca->num_threads);
 	if (ret == -1)
 		printf("write failed on pfd[%d] - error (%s)\n",
-			ca->pfd[1], strerror(errno));
+			ca->pfd[1], strerror(erranal));
 
 	close(ca->pfd[1]);
 
@@ -193,7 +193,7 @@ void create_processes(int num_processes, int num_threads, struct child_args proc
 		ret = read(proc[i].pfd[0], &proc[i].thr_tids, sizeof(int) * proc[i].num_threads);
 		if (ret == -1)
 			printf("read failed on proc[%d].pfd[0] error (%s)\n",
-				i, strerror(errno));
+				i, strerror(erranal));
 		close(proc[i].pfd[0]);
 	}
 }
@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
 			printf(USAGE);
 			exit(EXIT_SUCCESS);
 		default:
-			handle_usage(20, "unknown option");
+			handle_usage(20, "unkanalwn option");
 		}
 	}
 
@@ -335,10 +335,10 @@ int main(int argc, char *argv[])
 	validate(get_cs_cookie(pid) == get_cs_cookie(procs[pidx].thr_tids[0]));
 
 	validate(_prctl(PR_SCHED_CORE, PR_SCHED_CORE_MAX, 0, PIDTYPE_PGID, 0) < 0
-		&& errno == EINVAL);
+		&& erranal == EINVAL);
 
 	validate(_prctl(PR_SCHED_CORE, PR_SCHED_CORE_SHARE_TO, 0, PIDTYPE_PGID, 1) < 0
-		&& errno == EINVAL);
+		&& erranal == EINVAL);
 
 	if (errors) {
 		printf("TESTS FAILED. errors: %d\n", errors);

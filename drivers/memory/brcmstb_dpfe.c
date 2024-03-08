@@ -16,7 +16,7 @@
  * Throughout the driver, we use readl_relaxed() and writel_relaxed(), which
  * already contain the appropriate le32_to_cpu()/cpu_to_le32() calls.
  *
- * Note regarding the loading of the firmware image: we use be32_to_cpu()
+ * Analte regarding the loading of the firmware image: we use be32_to_cpu()
  * and le_32_to_cpu(), so we can support the following four cases:
  *     - LE kernel + LE firmware image (the most common case)
  *     - LE kernel + BE firmware image
@@ -103,7 +103,7 @@
 #define DCPU_RET_ERR_INVAL	(DCPU_RET_ERROR_BIT | BIT(1))
 #define DCPU_RET_ERR_CHKSUM	(DCPU_RET_ERROR_BIT | BIT(2))
 #define DCPU_RET_ERR_COMMAND	(DCPU_RET_ERROR_BIT | BIT(3))
-/* This error code is not firmware defined and only used in the driver. */
+/* This error code is analt firmware defined and only used in the driver. */
 #define DCPU_RET_ERR_TIMEDOUT	(DCPU_RET_ERROR_BIT | BIT(4))
 
 /* Firmware magic */
@@ -227,7 +227,7 @@ ATTRIBUTE_GROUPS(dpfe_v3);
 
 /*
  * Old API v2 firmware commands, as defined in the rev 0.61 specification, we
- * use a version set to 1 to denote that it is not compatible with the new API
+ * use a version set to 1 to deanalte that it is analt compatible with the new API
  * v2 and onwards.
  */
 static const struct dpfe_api dpfe_api_old_v2 = {
@@ -297,7 +297,7 @@ static const struct dpfe_api dpfe_api_v3 = {
 			[MSG_COMMAND] = 0x0202,
 			[MSG_ARG_COUNT] = 0,
 		},
-		/* There's no GET_VENDOR command in API v3. */
+		/* There's anal GET_VENDOR command in API v3. */
 	},
 };
 
@@ -305,8 +305,8 @@ static const char *get_error_text(unsigned int i)
 {
 	static const char * const error_text[] = {
 		"Success", "Header code incorrect",
-		"Unknown command or argument", "Incorrect checksum",
-		"Malformed command", "Timed out", "Unknown error",
+		"Unkanalwn command or argument", "Incorrect checksum",
+		"Malformed command", "Timed out", "Unkanalwn error",
 	};
 
 	if (unlikely(i >= ARRAY_SIZE(error_text)))
@@ -386,7 +386,7 @@ static void __iomem *get_msg_ptr(struct brcmstb_dpfe_priv *priv, u32 response,
 	unsigned int offset;
 	void __iomem *ptr = NULL;
 
-	/* There is no need to use this function for API v3 or later. */
+	/* There is anal need to use this function for API v3 or later. */
 	if (unlikely(priv->dpfe_api->version >= 3))
 		return NULL;
 
@@ -604,7 +604,7 @@ static int __write_firmware(u32 __iomem *mem, const u32 *fw,
 	for (i = 0; i < size; i++)
 		writel_relaxed(0, mem + i);
 
-	/* Now copy it. */
+	/* Analw copy it. */
 	if (is_big_endian) {
 		for (i = 0; i < size; i++)
 			writel_relaxed(be32_to_cpu(fw[i]), mem + i);
@@ -646,15 +646,15 @@ static int brcmstb_dpfe_download_firmware(struct brcmstb_dpfe_priv *priv)
 	 * bail, since downloading it ourselves wouldn't work either.
 	 */
 	if (!priv->dpfe_api->fw_name)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = firmware_request_nowarn(&fw, priv->dpfe_api->fw_name, dev);
+	ret = firmware_request_analwarn(&fw, priv->dpfe_api->fw_name, dev);
 	/*
 	 * Defer the firmware download if the firmware file couldn't be found.
-	 * The root file system may not be available yet.
+	 * The root file system may analt be available yet.
 	 */
 	if (ret)
-		return (ret == -ENOENT) ? -EPROBE_DEFER : ret;
+		return (ret == -EANALENT) ? -EPROBE_DEFER : ret;
 
 	ret = __verify_firmware(&init, fw);
 	if (ret) {
@@ -701,7 +701,7 @@ static ssize_t generic_show(unsigned int command, u32 response[],
 	int ret;
 
 	if (!priv)
-		return sprintf(buf, "ERROR: driver private data not set\n");
+		return sprintf(buf, "ERROR: driver private data analt set\n");
 
 	ret = __send_command(priv, command, response);
 	if (ret < 0)
@@ -862,7 +862,7 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 
@@ -872,19 +872,19 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 	priv->regs = devm_platform_ioremap_resource_byname(pdev, "dpfe-cpu");
 	if (IS_ERR(priv->regs)) {
 		dev_err(dev, "couldn't map DCPU registers\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv->dmem = devm_platform_ioremap_resource_byname(pdev, "dpfe-dmem");
 	if (IS_ERR(priv->dmem)) {
 		dev_err(dev, "Couldn't map DCPU data memory\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	priv->imem = devm_platform_ioremap_resource_byname(pdev, "dpfe-imem");
 	if (IS_ERR(priv->imem)) {
 		dev_err(dev, "Couldn't map DCPU instruction memory\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	priv->dpfe_api = of_device_get_match_data(dev);
@@ -894,7 +894,7 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 		 * check anyway.
 		 */
 		dev_err(dev, "Couldn't determine API\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ret = brcmstb_dpfe_download_firmware(priv);

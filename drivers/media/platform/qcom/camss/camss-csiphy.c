@@ -115,7 +115,7 @@ static u8 csiphy_get_bpp(const struct csiphy_format *formats,
 		if (code == formats[i].code)
 			return formats[i].bpp;
 
-	WARN(1, "Unknown format\n");
+	WARN(1, "Unkanalwn format\n");
 
 	return formats[0].bpp;
 }
@@ -158,7 +158,7 @@ static int csiphy_set_clock_rates(struct csiphy_device *csiphy)
 				return -EINVAL;
 			}
 
-			/* if sensor pixel clock is not available */
+			/* if sensor pixel clock is analt available */
 			/* set highest possible CSIPHY clock rate */
 			if (min_rate == 0)
 				j = clock->nfreqs - 1;
@@ -253,7 +253,7 @@ static int csiphy_stream_on(struct csiphy_device *csiphy)
 
 	if (link_freq < 0) {
 		dev_err(csiphy->camss->dev,
-			"Cannot get CSI2 transmitter's link frequency\n");
+			"Cananalt get CSI2 transmitter's link frequency\n");
 		return -EINVAL;
 	}
 
@@ -354,14 +354,14 @@ static void csiphy_try_format(struct csiphy_device *csiphy,
 			if (fmt->code == csiphy->formats[i].code)
 				break;
 
-		/* If not found, use UYVY as default */
+		/* If analt found, use UYVY as default */
 		if (i >= csiphy->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 		fmt->height = clamp_t(u32, fmt->height, 1, 8191);
 
-		fmt->field = V4L2_FIELD_NONE;
+		fmt->field = V4L2_FIELD_ANALNE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
 
 		break;
@@ -610,7 +610,7 @@ int msm_csiphy_subdev_init(struct camss *camss,
 		 dev_name(dev), MSM_CSIPHY_NAME, csiphy->id);
 
 	ret = devm_request_irq(dev, csiphy->irq, csiphy->ops->isr,
-			       IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN,
+			       IRQF_TRIGGER_RISING | IRQF_ANAL_AUTOEN,
 			       csiphy->irq_name, csiphy);
 	if (ret < 0) {
 		dev_err(dev, "request_irq failed: %d\n", ret);
@@ -627,14 +627,14 @@ int msm_csiphy_subdev_init(struct camss *camss,
 				     csiphy->nclocks, sizeof(*csiphy->clock),
 				     GFP_KERNEL);
 	if (!csiphy->clock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csiphy->rate_set = devm_kcalloc(dev,
 					csiphy->nclocks,
 					sizeof(*csiphy->rate_set),
 					GFP_KERNEL);
 	if (!csiphy->rate_set)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < csiphy->nclocks; i++) {
 		struct camss_clock *clock = &csiphy->clock[i];
@@ -659,7 +659,7 @@ int msm_csiphy_subdev_init(struct camss *camss,
 					   sizeof(*clock->freq),
 					   GFP_KERNEL);
 		if (!clock->freq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (j = 0; j < clock->nfreqs; j++)
 			clock->freq[j] = res->clock_rate[i][j];
@@ -751,7 +751,7 @@ static const struct media_entity_operations csiphy_media_ops = {
 };
 
 /*
- * msm_csiphy_register_entity - Register subdev node for CSIPHY module
+ * msm_csiphy_register_entity - Register subdev analde for CSIPHY module
  * @csiphy: CSIPHY device
  * @v4l2_dev: V4L2 device
  *
@@ -767,7 +767,7 @@ int msm_csiphy_register_entity(struct csiphy_device *csiphy,
 
 	v4l2_subdev_init(sd, &csiphy_v4l2_ops);
 	sd->internal_ops = &csiphy_v4l2_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d",
 		 MSM_CSIPHY_NAME, csiphy->id);
 	v4l2_set_subdevdata(sd, csiphy);
@@ -799,7 +799,7 @@ int msm_csiphy_register_entity(struct csiphy_device *csiphy,
 }
 
 /*
- * msm_csiphy_unregister_entity - Unregister CSIPHY module subdev node
+ * msm_csiphy_unregister_entity - Unregister CSIPHY module subdev analde
  * @csiphy: CSIPHY device
  */
 void msm_csiphy_unregister_entity(struct csiphy_device *csiphy)

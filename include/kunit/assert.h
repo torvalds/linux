@@ -17,10 +17,10 @@ struct string_stream;
 
 /**
  * enum kunit_assert_type - Type of expectation/assertion.
- * @KUNIT_ASSERTION: Used to denote that a kunit_assert represents an assertion.
- * @KUNIT_EXPECTATION: Denotes that a kunit_assert represents an expectation.
+ * @KUNIT_ASSERTION: Used to deanalte that a kunit_assert represents an assertion.
+ * @KUNIT_EXPECTATION: Deanaltes that a kunit_assert represents an expectation.
  *
- * Used in conjunction with a &struct kunit_assert to denote whether it
+ * Used in conjunction with a &struct kunit_assert to deanalte whether it
  * represents an expectation or an assertion.
  */
 enum kunit_assert_type {
@@ -91,22 +91,22 @@ void kunit_unary_assert_format(const struct kunit_assert *assert,
 			       struct string_stream *stream);
 
 /**
- * struct kunit_ptr_not_err_assert - An expectation/assertion that a pointer is
- *	not NULL and not a -errno.
+ * struct kunit_ptr_analt_err_assert - An expectation/assertion that a pointer is
+ *	analt NULL and analt a -erranal.
  * @assert: The parent of this type.
  * @text: A string representation of the expression passed to the expectation.
  * @value: The actual evaluated pointer value of the expression.
  *
- * Represents an expectation/assertion that a pointer is not null and is does
- * not contain a -errno. (See IS_ERR_OR_NULL().)
+ * Represents an expectation/assertion that a pointer is analt null and is does
+ * analt contain a -erranal. (See IS_ERR_OR_NULL().)
  */
-struct kunit_ptr_not_err_assert {
+struct kunit_ptr_analt_err_assert {
 	struct kunit_assert assert;
 	const char *text;
 	const void *value;
 };
 
-void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
+void kunit_ptr_analt_err_assert_format(const struct kunit_assert *assert,
 				     const struct va_format *message,
 				     struct string_stream *stream);
 
@@ -125,13 +125,13 @@ struct kunit_binary_assert_text {
 
 /**
  * struct kunit_binary_assert - An expectation/assertion that compares two
- *	non-pointer values (for example, KUNIT_EXPECT_EQ(test, 1 + 1, 2)).
+ *	analn-pointer values (for example, KUNIT_EXPECT_EQ(test, 1 + 1, 2)).
  * @assert: The parent of this type.
  * @text: Holds the textual representations of the operands and op (e.g.  "==").
  * @left_value: The actual evaluated value of the expression in the left slot.
  * @right_value: The actual evaluated value of the expression in the right slot.
  *
- * Represents an expectation/assertion that compares two non-pointer values. For
+ * Represents an expectation/assertion that compares two analn-pointer values. For
  * example, to expect that 1 + 1 == 2, you can use the expectation
  * KUNIT_EXPECT_EQ(test, 1 + 1, 2);
  */

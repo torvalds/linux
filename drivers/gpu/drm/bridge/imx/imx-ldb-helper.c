@@ -59,16 +59,16 @@ void ldb_bridge_mode_set_helper(struct drm_bridge *bridge,
 	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
-		if (ldb_ch->chno == 0 || is_split)
+		if (ldb_ch->chanal == 0 || is_split)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24;
-		if (ldb_ch->chno == 1 || is_split)
+		if (ldb_ch->chanal == 1 || is_split)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
-		if (ldb_ch->chno == 0 || is_split)
+		if (ldb_ch->chanal == 0 || is_split)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24 |
 					 LDB_BIT_MAP_CH0_JEIDA;
-		if (ldb_ch->chno == 1 || is_split)
+		if (ldb_ch->chanal == 1 || is_split)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24 |
 					 LDB_BIT_MAP_CH1_JEIDA;
 		break;
@@ -95,9 +95,9 @@ void ldb_bridge_disable_helper(struct drm_bridge *bridge)
 	struct ldb *ldb = ldb_ch->ldb;
 	bool is_split = ldb_channel_is_split_link(ldb_ch);
 
-	if (ldb_ch->chno == 0 || is_split)
+	if (ldb_ch->chanal == 0 || is_split)
 		ldb->ldb_ctrl &= ~LDB_CH0_MODE_EN_MASK;
-	if (ldb_ch->chno == 1 || is_split)
+	if (ldb_ch->chanal == 1 || is_split)
 		ldb->ldb_ctrl &= ~LDB_CH1_MODE_EN_MASK;
 
 	regmap_write(ldb->regmap, ldb->ctrl_reg, ldb->ldb_ctrl);
@@ -110,32 +110,32 @@ int ldb_bridge_attach_helper(struct drm_bridge *bridge,
 	struct ldb_channel *ldb_ch = bridge->driver_private;
 	struct ldb *ldb = ldb_ch->ldb;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)) {
 		DRM_DEV_ERROR(ldb->dev,
-			      "do not support creating a drm_connector\n");
+			      "do analt support creating a drm_connector\n");
 		return -EINVAL;
 	}
 
 	if (!bridge->encoder) {
 		DRM_DEV_ERROR(ldb->dev, "missing encoder\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return drm_bridge_attach(bridge->encoder,
 				ldb_ch->next_bridge, bridge,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 }
 EXPORT_SYMBOL_GPL(ldb_bridge_attach_helper);
 
 int ldb_init_helper(struct ldb *ldb)
 {
 	struct device *dev = ldb->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	int ret;
 	u32 i;
 
-	ldb->regmap = syscon_node_to_regmap(np->parent);
+	ldb->regmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(ldb->regmap)) {
 		ret = PTR_ERR(ldb->regmap);
 		if (ret != -EPROBE_DEFER)
@@ -143,21 +143,21 @@ int ldb_init_helper(struct ldb *ldb)
 		return ret;
 	}
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		struct ldb_channel *ldb_ch;
 
 		ret = of_property_read_u32(child, "reg", &i);
 		if (ret || i > MAX_LDB_CHAN_NUM - 1) {
 			ret = -EINVAL;
 			DRM_DEV_ERROR(dev,
-				      "invalid channel node address: %u\n", i);
-			of_node_put(child);
+				      "invalid channel analde address: %u\n", i);
+			of_analde_put(child);
 			return ret;
 		}
 
 		ldb_ch = ldb->channel[i];
 		ldb_ch->ldb = ldb;
-		ldb_ch->chno = i;
+		ldb_ch->chanal = i;
 		ldb_ch->is_available = true;
 		ldb_ch->np = child;
 
@@ -210,7 +210,7 @@ void ldb_add_bridge_helper(struct ldb *ldb,
 
 		ldb_ch->bridge.driver_private = ldb_ch;
 		ldb_ch->bridge.funcs = bridge_funcs;
-		ldb_ch->bridge.of_node = ldb_ch->np;
+		ldb_ch->bridge.of_analde = ldb_ch->np;
 
 		drm_bridge_add(&ldb_ch->bridge);
 	}

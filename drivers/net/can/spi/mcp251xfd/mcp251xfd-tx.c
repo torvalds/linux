@@ -88,7 +88,7 @@ mcp251xfd_tx_obj_from_skb(const struct mcp251xfd_priv *priv,
 	if (priv->devtype_data.quirks & MCP251XFD_QUIRK_CRC_TX)
 		hw_tx_obj = &load_buf->crc.hw_tx_obj;
 	else
-		hw_tx_obj = &load_buf->nocrc.hw_tx_obj;
+		hw_tx_obj = &load_buf->analcrc.hw_tx_obj;
 
 	put_unaligned_le32(id, &hw_tx_obj->id);
 	put_unaligned_le32(flags, &hw_tx_obj->flags);
@@ -125,7 +125,7 @@ mcp251xfd_tx_obj_from_skb(const struct mcp251xfd_priv *priv,
 		/* Total length */
 		len += sizeof(load_buf->crc.crc);
 	} else {
-		len += sizeof(load_buf->nocrc.cmd);
+		len += sizeof(load_buf->analcrc.cmd);
 	}
 
 	tx_obj->xfer[0].len = len;

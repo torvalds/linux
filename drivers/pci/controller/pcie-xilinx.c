@@ -6,7 +6,7 @@
  *
  * Based on the Tegra PCIe driver
  *
- * Bits taken from Synopsys DesignWare Host controller driver and
+ * Bits taken from Syanalpsys DesignWare Host controller driver and
  * ARM PCI Host generic driver.
  */
 
@@ -45,7 +45,7 @@
 #define XILINX_PCIE_INTR_HOT_RESET	BIT(3)
 #define XILINX_PCIE_INTR_CFG_TIMEOUT	BIT(8)
 #define XILINX_PCIE_INTR_CORRECTABLE	BIT(9)
-#define XILINX_PCIE_INTR_NONFATAL	BIT(10)
+#define XILINX_PCIE_INTR_ANALNFATAL	BIT(10)
 #define XILINX_PCIE_INTR_FATAL		BIT(11)
 #define XILINX_PCIE_INTR_INTX		BIT(16)
 #define XILINX_PCIE_INTR_MSI		BIT(17)
@@ -242,7 +242,7 @@ static int xilinx_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	mutex_unlock(&pcie->map_lock);
 
 	if (hwirq < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (i = 0; i < nr_irqs; i++)
 		irq_domain_set_info(domain, virq + i, hwirq + i,
@@ -277,22 +277,22 @@ static struct msi_domain_info xilinx_msi_info = {
 
 static int xilinx_allocate_msi_domains(struct xilinx_pcie *pcie)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(pcie->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(pcie->dev);
 	struct irq_domain *parent;
 
-	parent = irq_domain_create_linear(fwnode, XILINX_NUM_MSI_IRQS,
+	parent = irq_domain_create_linear(fwanalde, XILINX_NUM_MSI_IRQS,
 					  &xilinx_msi_domain_ops, pcie);
 	if (!parent) {
 		dev_err(pcie->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	irq_domain_update_bus_token(parent, DOMAIN_BUS_NEXUS);
 
-	pcie->msi_domain = pci_msi_create_irq_domain(fwnode, &xilinx_msi_info, parent);
+	pcie->msi_domain = pci_msi_create_irq_domain(fwanalde, &xilinx_msi_info, parent);
 	if (!pcie->msi_domain) {
 		dev_err(pcie->dev, "failed to create MSI domain\n");
 		irq_domain_remove(parent);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -338,7 +338,7 @@ static const struct irq_domain_ops intx_domain_ops = {
  * @irq: IRQ number
  * @data: PCIe port information
  *
- * Return: IRQ_HANDLED on success and IRQ_NONE on failure
+ * Return: IRQ_HANDLED on success and IRQ_ANALNE on failure
  */
 static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 {
@@ -352,7 +352,7 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 
 	status = val & mask;
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & XILINX_PCIE_INTR_LINK_DOWN)
 		dev_warn(dev, "Link Down\n");
@@ -374,8 +374,8 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 		xilinx_pcie_clear_err_interrupts(pcie);
 	}
 
-	if (status & XILINX_PCIE_INTR_NONFATAL) {
-		dev_warn(dev, "Non fatal error message\n");
+	if (status & XILINX_PCIE_INTR_ANALNFATAL) {
+		dev_warn(dev, "Analn fatal error message\n");
 		xilinx_pcie_clear_err_interrupts(pcie);
 	}
 
@@ -456,23 +456,23 @@ error:
 static int xilinx_pcie_init_irq_domain(struct xilinx_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *pcie_intc_node;
+	struct device_analde *pcie_intc_analde;
 	int ret;
 
 	/* Setup INTx */
-	pcie_intc_node = of_get_next_child(dev->of_node, NULL);
-	if (!pcie_intc_node) {
-		dev_err(dev, "No PCIe Intc node found\n");
-		return -ENODEV;
+	pcie_intc_analde = of_get_next_child(dev->of_analde, NULL);
+	if (!pcie_intc_analde) {
+		dev_err(dev, "Anal PCIe Intc analde found\n");
+		return -EANALDEV;
 	}
 
-	pcie->leg_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+	pcie->leg_domain = irq_domain_add_linear(pcie_intc_analde, PCI_NUM_INTX,
 						 &intx_domain_ops,
 						 pcie);
-	of_node_put(pcie_intc_node);
+	of_analde_put(pcie_intc_analde);
 	if (!pcie->leg_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Setup MSI */
@@ -530,12 +530,12 @@ static void xilinx_pcie_init_port(struct xilinx_pcie *pcie)
 static int xilinx_pcie_parse_dt(struct xilinx_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct resource regs;
 	unsigned int irq;
 	int err;
 
-	err = of_address_to_resource(node, 0, &regs);
+	err = of_address_to_resource(analde, 0, &regs);
 	if (err) {
 		dev_err(dev, "missing \"reg\" property\n");
 		return err;
@@ -545,9 +545,9 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie *pcie)
 	if (IS_ERR(pcie->reg_base))
 		return PTR_ERR(pcie->reg_base);
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	err = devm_request_irq(dev, irq, xilinx_pcie_intr_handler,
-			       IRQF_SHARED | IRQF_NO_THREAD,
+			       IRQF_SHARED | IRQF_ANAL_THREAD,
 			       "xilinx-pcie", pcie);
 	if (err) {
 		dev_err(dev, "unable to request irq %d\n", irq);
@@ -570,12 +570,12 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	struct pci_host_bridge *bridge;
 	int err;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!bridge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcie = pci_host_bridge_priv(bridge);
 	mutex_init(&pcie->map_lock);

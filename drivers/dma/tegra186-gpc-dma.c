@@ -28,7 +28,7 @@
 #define TEGRA_GPCDMA_CSR_ONCE			BIT(27)
 
 #define TEGRA_GPCDMA_CSR_FC_MODE		GENMASK(25, 24)
-#define TEGRA_GPCDMA_CSR_FC_MODE_NO_MMIO	\
+#define TEGRA_GPCDMA_CSR_FC_MODE_ANAL_MMIO	\
 		FIELD_PREP(TEGRA_GPCDMA_CSR_FC_MODE, 0)
 #define TEGRA_GPCDMA_CSR_FC_MODE_ONE_MMIO	\
 		FIELD_PREP(TEGRA_GPCDMA_CSR_FC_MODE, 1)
@@ -38,11 +38,11 @@
 		FIELD_PREP(TEGRA_GPCDMA_CSR_FC_MODE, 3)
 
 #define TEGRA_GPCDMA_CSR_DMA			GENMASK(23, 21)
-#define TEGRA_GPCDMA_CSR_DMA_IO2MEM_NO_FC	\
+#define TEGRA_GPCDMA_CSR_DMA_IO2MEM_ANAL_FC	\
 		FIELD_PREP(TEGRA_GPCDMA_CSR_DMA, 0)
 #define TEGRA_GPCDMA_CSR_DMA_IO2MEM_FC		\
 		FIELD_PREP(TEGRA_GPCDMA_CSR_DMA, 1)
-#define TEGRA_GPCDMA_CSR_DMA_MEM2IO_NO_FC	\
+#define TEGRA_GPCDMA_CSR_DMA_MEM2IO_ANAL_FC	\
 		FIELD_PREP(TEGRA_GPCDMA_CSR_DMA, 2)
 #define TEGRA_GPCDMA_CSR_DMA_MEM2IO_FC		\
 		FIELD_PREP(TEGRA_GPCDMA_CSR_DMA, 3)
@@ -95,7 +95,7 @@
 		FIELD_PREP(TEGRA_GPCDMA_MCSEQ_BURST, 3)
 #define TEGRA_GPCDMA_MCSEQ_WRAP1		GENMASK(22, 20)
 #define TEGRA_GPCDMA_MCSEQ_WRAP0		GENMASK(19, 17)
-#define TEGRA_GPCDMA_MCSEQ_WRAP_NONE		0
+#define TEGRA_GPCDMA_MCSEQ_WRAP_ANALNE		0
 
 #define TEGRA_GPCDMA_MCSEQ_STREAM_ID1_MASK	GENMASK(13, 7)
 #define TEGRA_GPCDMA_MCSEQ_STREAM_ID0_MASK	GENMASK(6, 0)
@@ -352,7 +352,7 @@ static void tegra_dma_sid_free(struct tegra_dma_channel *tdc)
 		break;
 	}
 
-	tdc->sid_dir = DMA_TRANS_NONE;
+	tdc->sid_dir = DMA_TRANS_ANALNE;
 }
 
 static void tegra_dma_desc_free(struct virt_dma_desc *vd)
@@ -403,7 +403,7 @@ static int tegra_dma_device_pause(struct dma_chan *dc)
 	int ret;
 
 	if (!tdc->tdma->chip_data->hw_support_pause)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	spin_lock_irqsave(&tdc->vc.lock, flags);
 	ret = tegra_dma_pause(tdc);
@@ -427,7 +427,7 @@ static int tegra_dma_device_resume(struct dma_chan *dc)
 	unsigned long flags;
 
 	if (!tdc->tdma->chip_data->hw_support_pause)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	spin_lock_irqsave(&tdc->vc.lock, flags);
 	tegra_dma_resume(tdc);
@@ -436,7 +436,7 @@ static int tegra_dma_device_resume(struct dma_chan *dc)
 	return 0;
 }
 
-static inline int tegra_dma_pause_noerr(struct tegra_dma_channel *tdc)
+static inline int tegra_dma_pause_analerr(struct tegra_dma_channel *tdc)
 {
 	/* Return 0 irrespective of PAUSE status.
 	 * This is useful to recover channels that can exit out of flush
@@ -514,7 +514,7 @@ static void tegra_dma_start(struct tegra_dma_channel *tdc)
 			return;
 
 		dma_desc = vd_to_tegra_dma_desc(vdesc);
-		list_del(&vdesc->node);
+		list_del(&vdesc->analde);
 		dma_desc->tdc = tdc;
 		tdc->dma_desc = dma_desc;
 
@@ -647,7 +647,7 @@ static void tegra_dma_issue_pending(struct dma_chan *dc)
 	/*
 	 * For cyclic DMA transfers, program the second
 	 * transfer parameters as soon as the first DMA
-	 * transfer is started inorder for the DMA
+	 * transfer is started ianalrder for the DMA
 	 * controller to trigger the second transfer
 	 * with the correct parameters.
 	 */
@@ -776,7 +776,7 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 		residual =  tegra_dma_get_residual(tdc);
 		dma_set_residue(txstate, residual);
 	} else {
-		dev_err(tdc2dev(tdc), "cookie %d is not found\n", cookie);
+		dev_err(tdc2dev(tdc), "cookie %d is analt found\n", cookie);
 	}
 	spin_unlock_irqrestore(&tdc->vc.lock, flags);
 
@@ -794,7 +794,7 @@ static inline int get_bus_width(struct tegra_dma_channel *tdc,
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 		return TEGRA_GPCDMA_MMIOSEQ_BUS_WIDTH_32;
 	default:
-		dev_err(tdc2dev(tdc), "given slave bus width is not supported\n");
+		dev_err(tdc2dev(tdc), "given slave bus width is analt supported\n");
 		return -EINVAL;
 	}
 }
@@ -808,7 +808,7 @@ static unsigned int get_burst_size(struct tegra_dma_channel *tdc,
 	/*
 	 * burst_size from client is in terms of the bus_width.
 	 * convert that into words.
-	 * If burst_size is not specified from client, then use
+	 * If burst_size is analt specified from client, then use
 	 * len to calculate the optimum burst size
 	 */
 	burst_byte = burst_size ? burst_size * slave_bw : len;
@@ -846,7 +846,7 @@ static int get_transfer_param(struct tegra_dma_channel *tdc,
 		*csr = TEGRA_GPCDMA_CSR_DMA_IO2MEM_FC;
 		return 0;
 	default:
-		dev_err(tdc2dev(tdc), "DMA direction is not supported\n");
+		dev_err(tdc2dev(tdc), "DMA direction is analt supported\n");
 	}
 
 	return -EINVAL;
@@ -864,7 +864,7 @@ tegra_dma_prep_dma_memset(struct dma_chan *dc, dma_addr_t dest, int value,
 
 	if ((len & 3) || (dest & 3) || len > max_dma_count) {
 		dev_err(tdc2dev(tdc),
-			"DMA length/memory address is not supported\n");
+			"DMA length/memory address is analt supported\n");
 		return NULL;
 	}
 
@@ -886,16 +886,16 @@ tegra_dma_prep_dma_memset(struct dma_chan *dc, dma_addr_t dest, int value,
 
 	/* Set the address wrapping */
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_WRAP0,
-						TEGRA_GPCDMA_MCSEQ_WRAP_NONE);
+						TEGRA_GPCDMA_MCSEQ_WRAP_ANALNE);
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_WRAP1,
-						TEGRA_GPCDMA_MCSEQ_WRAP_NONE);
+						TEGRA_GPCDMA_MCSEQ_WRAP_ANALNE);
 
 	/* Program outstanding MC requests */
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_REQ_COUNT, 1);
 	/* Set burst size */
 	mc_seq |= TEGRA_GPCDMA_MCSEQ_BURST_16;
 
-	dma_desc = kzalloc(struct_size(dma_desc, sg_req, 1), GFP_NOWAIT);
+	dma_desc = kzalloc(struct_size(dma_desc, sg_req, 1), GFP_ANALWAIT);
 	if (!dma_desc)
 		return NULL;
 
@@ -932,7 +932,7 @@ tegra_dma_prep_dma_memcpy(struct dma_chan *dc, dma_addr_t dest,
 	max_dma_count = tdc->tdma->chip_data->max_dma_count;
 	if ((len & 3) || (src & 3) || (dest & 3) || len > max_dma_count) {
 		dev_err(tdc2dev(tdc),
-			"DMA length/memory address is not supported\n");
+			"DMA length/memory address is analt supported\n");
 		return NULL;
 	}
 
@@ -955,16 +955,16 @@ tegra_dma_prep_dma_memcpy(struct dma_chan *dc, dma_addr_t dest,
 
 	/* Set the address wrapping */
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_WRAP0,
-			     TEGRA_GPCDMA_MCSEQ_WRAP_NONE);
+			     TEGRA_GPCDMA_MCSEQ_WRAP_ANALNE);
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_WRAP1,
-			     TEGRA_GPCDMA_MCSEQ_WRAP_NONE);
+			     TEGRA_GPCDMA_MCSEQ_WRAP_ANALNE);
 
 	/* Program outstanding MC requests */
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_REQ_COUNT, 1);
 	/* Set burst size */
 	mc_seq |= TEGRA_GPCDMA_MCSEQ_BURST_16;
 
-	dma_desc = kzalloc(struct_size(dma_desc, sg_req, 1), GFP_NOWAIT);
+	dma_desc = kzalloc(struct_size(dma_desc, sg_req, 1), GFP_ANALWAIT);
 	if (!dma_desc)
 		return NULL;
 
@@ -1006,7 +1006,7 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc, struct scatterlist *sgl,
 	int ret;
 
 	if (!tdc->config_init) {
-		dev_err(tdc2dev(tdc), "DMA channel is not configured\n");
+		dev_err(tdc2dev(tdc), "DMA channel is analt configured\n");
 		return NULL;
 	}
 	if (sg_len < 1) {
@@ -1043,9 +1043,9 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc, struct scatterlist *sgl,
 	/* Set the address wrapping on both MC and MMIO side */
 
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_WRAP0,
-			     TEGRA_GPCDMA_MCSEQ_WRAP_NONE);
+			     TEGRA_GPCDMA_MCSEQ_WRAP_ANALNE);
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_WRAP1,
-			     TEGRA_GPCDMA_MCSEQ_WRAP_NONE);
+			     TEGRA_GPCDMA_MCSEQ_WRAP_ANALNE);
 	mmio_seq |= FIELD_PREP(TEGRA_GPCDMA_MMIOSEQ_WRAP_WORD, 1);
 
 	/* Program 2 MC outstanding requests by default. */
@@ -1057,7 +1057,7 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc, struct scatterlist *sgl,
 	else
 		mc_seq |= TEGRA_GPCDMA_MCSEQ_BURST_2;
 
-	dma_desc = kzalloc(struct_size(dma_desc, sg_req, sg_len), GFP_NOWAIT);
+	dma_desc = kzalloc(struct_size(dma_desc, sg_req, sg_len), GFP_ANALWAIT);
 	if (!dma_desc)
 		return NULL;
 
@@ -1074,7 +1074,7 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc, struct scatterlist *sgl,
 
 		if ((len & 3) || (mem & 3) || len > max_dma_count) {
 			dev_err(tdc2dev(tdc),
-				"DMA length/memory address is not supported\n");
+				"DMA length/memory address is analt supported\n");
 			kfree(dma_desc);
 			return NULL;
 		}
@@ -1129,7 +1129,7 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr, size_t buf_l
 	}
 
 	if (!tdc->config_init) {
-		dev_err(tdc2dev(tdc), "DMA slave is not configured\n");
+		dev_err(tdc2dev(tdc), "DMA slave is analt configured\n");
 		return NULL;
 	}
 
@@ -1142,14 +1142,14 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr, size_t buf_l
 	 * period_len.
 	 */
 	if (buf_len % period_len) {
-		dev_err(tdc2dev(tdc), "buf_len is not multiple of period_len\n");
+		dev_err(tdc2dev(tdc), "buf_len is analt multiple of period_len\n");
 		return NULL;
 	}
 
 	len = period_len;
 	max_dma_count = tdc->tdma->chip_data->max_dma_count;
 	if ((len & 3) || (buf_addr & 3) || len > max_dma_count) {
-		dev_err(tdc2dev(tdc), "Req len/mem address is not correct\n");
+		dev_err(tdc2dev(tdc), "Req len/mem address is analt correct\n");
 		return NULL;
 	}
 
@@ -1179,9 +1179,9 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr, size_t buf_l
 
 	/* Set the address wrapping on both MC and MMIO side */
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_WRAP0,
-			     TEGRA_GPCDMA_MCSEQ_WRAP_NONE);
+			     TEGRA_GPCDMA_MCSEQ_WRAP_ANALNE);
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_WRAP1,
-			     TEGRA_GPCDMA_MCSEQ_WRAP_NONE);
+			     TEGRA_GPCDMA_MCSEQ_WRAP_ANALNE);
 
 	/* Program 2 MC outstanding requests by default. */
 	mc_seq |= FIELD_PREP(TEGRA_GPCDMA_MCSEQ_REQ_COUNT, 1);
@@ -1193,7 +1193,7 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr, size_t buf_l
 
 	period_count = buf_len / period_len;
 	dma_desc = kzalloc(struct_size(dma_desc, sg_req, period_count),
-			   GFP_NOWAIT);
+			   GFP_ANALWAIT);
 	if (!dma_desc)
 		return NULL;
 
@@ -1269,7 +1269,7 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 	tasklet_kill(&tdc->vc.task);
 	tdc->config_init = false;
 	tdc->slave_id = -1;
-	tdc->sid_dir = DMA_TRANS_NONE;
+	tdc->sid_dir = DMA_TRANS_ANALNE;
 	free_irq(tdc->irq, tdc);
 
 	vchan_free_chan_resources(&tdc->vc);
@@ -1313,7 +1313,7 @@ static const struct tegra_dma_chip_data tegra234_dma_chip_data = {
 	.channel_reg_size = SZ_64K,
 	.max_dma_count = SZ_1G,
 	.hw_support_pause = true,
-	.terminate = tegra_dma_pause_noerr,
+	.terminate = tegra_dma_pause_analerr,
 };
 
 static const struct of_device_id tegra_dma_of_match[] = {
@@ -1359,7 +1359,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 			    struct_size(tdma, channels, cdata->nr_channels),
 			    GFP_KERNEL);
 	if (!tdma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdma->dev = &pdev->dev;
 	tdma->chip_data = cdata;
@@ -1455,7 +1455,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 tegra_dma_of_xlate, tdma);
 	if (ret < 0) {
 		dev_err_probe(&pdev->dev, ret,
@@ -1475,7 +1475,7 @@ static void tegra_dma_remove(struct platform_device *pdev)
 {
 	struct tegra_dma *tdma = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&tdma->dma_dev);
 }
 

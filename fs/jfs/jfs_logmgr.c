@@ -10,14 +10,14 @@
  * for related information, see transaction manager (jfs_txnmgr.c), and
  * recovery manager (jfs_logredo.c).
  *
- * note: for detail, RTFS.
+ * analte: for detail, RTFS.
  *
  *	log buffer manager:
  * special purpose buffer manager supporting log i/o requirements.
  * per log serial pageout of logpage
  * queuing i/o requests and redrive i/o at iodone
  * maintain current logpage buffer
- * no caching since append only
+ * anal caching since append only
  * appropriate jfs buffer cache buffers as needed
  *
  *	group commit:
@@ -26,7 +26,7 @@
  * committed together by the pageout of the page.
  *
  *	TBD lazy commit:
- * transactions are committed asynchronously when the log page
+ * transactions are committed asynchroanalusly when the log page
  * containing it COMMIT is paged out when it becomes full;
  *
  *	serialization:
@@ -42,7 +42,7 @@
  * with its mirror data array at trailer).
  *
  *	alternatives:
- * lsn - 64-bit monotonically increasing integer vs
+ * lsn - 64-bit moanaltonically increasing integer vs
  * 32-bit lspn and page eor.
  */
 
@@ -133,10 +133,10 @@ do {						\
 				 */
 #define	lbmRELEASE	0x0004	/* remove from write queue
 				 * at completion of pageout;
-				 * do not free/recycle it yet:
+				 * do analt free/recycle it yet:
 				 * caller will free it;
 				 */
-#define	lbmSYNC		0x0008	/* do not return to freelist
+#define	lbmSYNC		0x0008	/* do analt return to freelist
 				 * when removed from write queue;
 				 */
 #define lbmFREE		0x0010	/* return to freelist
@@ -198,7 +198,7 @@ static struct lmStat {
 } lmStat;
 #endif
 
-static void write_special_inodes(struct jfs_log *log,
+static void write_special_ianaldes(struct jfs_log *log,
 				 int (*writer)(struct address_space *))
 {
 	struct jfs_sb_info *sbi;
@@ -206,7 +206,7 @@ static void write_special_inodes(struct jfs_log *log,
 	list_for_each_entry(sbi, &log->sb_list, log_list) {
 		writer(sbi->ipbmap->i_mapping);
 		writer(sbi->ipimap->i_mapping);
-		writer(sbi->direct_inode->i_mapping);
+		writer(sbi->direct_ianalde->i_mapping);
 	}
 }
 
@@ -220,7 +220,7 @@ static void write_special_inodes(struct jfs_log *log,
  * RETURN:	lsn - offset to the next log record to write (end-of-log);
  *		-1  - error;
  *
- * note: todo: log error handler
+ * analte: todo: log error handler
  */
 int lmLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	  struct tlock * tlck)
@@ -269,7 +269,7 @@ int lmLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	 * transaction inherits oldest lsn of pages associated
 	 * with allocation/deallocation of resources (their
 	 * log records are used to reconstruct allocation map
-	 * at recovery time: inode for inode allocation map,
+	 * at recovery time: ianalde for ianalde allocation map,
 	 * B+-tree index of extent descriptors for block
 	 * allocation map);
 	 * allocation map pages inherit transaction lsn at
@@ -380,8 +380,8 @@ lmWriteRecord(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		p = (caddr_t) (tlck->mp->data);
 		linelock = (struct linelock *) & tlck->lock;
 	}
-	/* retrieve source in-memory inode to log */
-	else if (tlck->flag & tlckINODELOCK) {
+	/* retrieve source in-memory ianalde to log */
+	else if (tlck->flag & tlckIANALDELOCK) {
 		if (tlck->type & tlckDTREE)
 			p = (caddr_t) &JFS_IP(tlck->ip)->i_dtroot;
 		else
@@ -425,7 +425,7 @@ lmWriteRecord(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 			memcpy(dst, src, nbytes);
 			dstoffset += nbytes;
 
-			/* is page not full ? */
+			/* is page analt full ? */
 			if (dstoffset < LOGPSIZE - LOGPTLRSIZE)
 				break;
 
@@ -498,9 +498,9 @@ lmWriteRecord(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 			/*
 			 * enqueue tblock for group commit:
 			 *
-			 * enqueue tblock of non-trivial/synchronous COMMIT
+			 * enqueue tblock of analn-trivial/synchroanalus COMMIT
 			 * at tail of group commit queue
-			 * (trivial/asynchronous COMMITs are ignored by
+			 * (trivial/asynchroanalus COMMITs are iganalred by
 			 * group commit.)
 			 */
 			LOGGC_LOCK(log);
@@ -520,7 +520,7 @@ lmWriteRecord(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		jfs_info("lmWriteRecord: lrd:0x%04x bp:0x%p pn:%d eor:0x%x",
 			le16_to_cpu(lrd->type), log->bp, log->page, dstoffset);
 
-		/* page not full ? */
+		/* page analt full ? */
 		if (dstoffset < LOGPSIZE - LOGPTLRSIZE)
 			return lsn;
 
@@ -576,7 +576,7 @@ static int lmNextPage(struct jfs_log * log)
 		tblk = list_entry(log->cqueue.prev, struct tblock, cqueue);
 
 	/* every tblk who has COMMIT record on the current page,
-	 * and has not been committed, must be on commit queue
+	 * and has analt been committed, must be on commit queue
 	 * since tblk is queued at commit queueu at the time
 	 * of writing its COMMIT record on the page before
 	 * page becomes full (even though the tblk thread
@@ -590,8 +590,8 @@ static int lmNextPage(struct jfs_log * log)
 		tblk->flag |= tblkGC_EOP;
 
 		if (log->cflag & logGC_PAGEOUT) {
-			/* if page is not already on write queue,
-			 * just enqueue (no lbmWRITE to prevent redrive)
+			/* if page is analt already on write queue,
+			 * just enqueue (anal lbmWRITE to prevent redrive)
 			 * buffer to wqueue to ensure correct serial order
 			 * of the pages since log pages will be added
 			 * continuously
@@ -600,13 +600,13 @@ static int lmNextPage(struct jfs_log * log)
 				lbmWrite(log, bp, 0, 0);
 		} else {
 			/*
-			 * No current GC leader, initiate group commit
+			 * Anal current GC leader, initiate group commit
 			 */
 			log->cflag |= logGC_PAGEOUT;
 			lmGCwrite(log, 0);
 		}
 	}
-	/* page is not bound with outstanding tblk:
+	/* page is analt bound with outstanding tblk:
 	 * init write or mark it to be redriven (lbmWRITE)
 	 */
 	else {
@@ -650,10 +650,10 @@ static int lmNextPage(struct jfs_log * log)
  *
  * RETURN:
  *
- * NOTE:
+ * ANALTE:
  *	LOGGC_LOCK serializes log group commit queue, and
  *	transaction blocks on the commit queue.
- *	N.B. LOG_LOCK is NOT held during lmGroupCommit().
+ *	N.B. LOG_LOCK is ANALT held during lmGroupCommit().
  */
 int lmGroupCommit(struct jfs_log * log, struct tblock * tblk)
 {
@@ -678,7 +678,7 @@ int lmGroupCommit(struct jfs_log * log, struct tblock * tblk)
 	    (!(tblk->xflag & COMMIT_LAZY) || test_bit(log_FLUSH, &log->flag)
 	     || jfs_tlocks_low)) {
 		/*
-		 * No pageout in progress
+		 * Anal pageout in progress
 		 *
 		 * start group commit as its group leader.
 		 */
@@ -689,7 +689,7 @@ int lmGroupCommit(struct jfs_log * log, struct tblock * tblk)
 
 	if (tblk->xflag & COMMIT_LAZY) {
 		/*
-		 * Lazy transactions can leave now
+		 * Lazy transactions can leave analw
 		 */
 		LOGGC_UNLOCK(log);
 		return 0;
@@ -728,11 +728,11 @@ int lmGroupCommit(struct jfs_log * log, struct tblock * tblk)
  *	initiate write of log page, building a group of all transactions
  *	with commit records on that page.
  *
- * RETURN:	None
+ * RETURN:	Analne
  *
- * NOTE:
+ * ANALTE:
  *	LOGGC_LOCK must be held by caller.
- *	N.B. LOG_LOCK is NOT held during lmGroupCommit().
+ *	N.B. LOG_LOCK is ANALT held during lmGroupCommit().
  */
 static void lmGCwrite(struct jfs_log * log, int cant_write)
 {
@@ -778,7 +778,7 @@ static void lmGCwrite(struct jfs_log * log, int cant_write)
 			 cant_write);
 		INCREMENT(lmStat.full_page);
 	}
-	/* page is not yet full */
+	/* page is analt yet full */
 	else {
 		bp->l_ceor = tblk->eor;	/* ? bp->l_ceor = bp->l_eor; */
 		lp->h.eor = lp->t.eor = cpu_to_le16(bp->l_ceor);
@@ -794,9 +794,9 @@ static void lmGCwrite(struct jfs_log * log, int cant_write)
  *	Processes transactions after their commit records have been written
  *	to disk, redriving log I/O if necessary.
  *
- * RETURN:	None
+ * RETURN:	Analne
  *
- * NOTE:
+ * ANALTE:
  *	This routine is called a interrupt time by lbmIODone
  */
 static void lmPostGC(struct lbuf * bp)
@@ -830,7 +830,7 @@ static void lmPostGC(struct lbuf * bp)
 		tblk->flag &= ~tblkGC_QUEUE;
 
 		if (tblk == log->flush_tblk) {
-			/* we can stop flushing the log now */
+			/* we can stop flushing the log analw */
 			clear_bit(log_FLUSH, &log->flag);
 			log->flush_tblk = NULL;
 		}
@@ -888,8 +888,8 @@ static void lmPostGC(struct lbuf * bp)
 		 */
 		lmGCwrite(log, 1);
 
-	/* no transaction are ready yet (transactions are only just
-	 * queued (GC_QUEUE) and not entered for group commit yet).
+	/* anal transaction are ready yet (transactions are only just
+	 * queued (GC_QUEUE) and analt entered for group commit yet).
 	 * the first transaction entering group commit
 	 * will elect herself as new group leader.
 	 */
@@ -906,7 +906,7 @@ static void lmPostGC(struct lbuf * bp)
  *
  * FUNCTION:	write log SYNCPT record for specified log
  *	if new sync address is available
- *	(normally the case if sync() is executed by back-ground
+ *	(analrmally the case if sync() is executed by back-ground
  *	process).
  *	calculate new value of i_nextsync which determines when
  *	this code is called again.
@@ -923,7 +923,7 @@ static int lmLogSync(struct jfs_log * log, int hard_sync)
 	int logsize;
 	int written;		/* written since last syncpt */
 	int free;		/* free space left available */
-	int delta;		/* additional delta to write normally */
+	int delta;		/* additional delta to write analrmally */
 	int more;		/* additional write granted */
 	struct lrd lrd;
 	int lsn;
@@ -932,9 +932,9 @@ static int lmLogSync(struct jfs_log * log, int hard_sync)
 
 	/* push dirty metapages out to disk */
 	if (hard_sync)
-		write_special_inodes(log, filemap_fdatawrite);
+		write_special_ianaldes(log, filemap_fdatawrite);
 	else
-		write_special_inodes(log, filemap_flush);
+		write_special_ianaldes(log, filemap_flush);
 
 	/*
 	 *	forward syncpt
@@ -986,7 +986,7 @@ static int lmLogSync(struct jfs_log * log, int hard_sync)
 		/*
 		 *	log wrapping
 		 *
-		 * option 1 - panic ? No.!
+		 * option 1 - panic ? Anal.!
 		 * option 2 - shutdown file systems
 		 *	      associated with log ?
 		 * option 3 - extend log ?
@@ -1048,8 +1048,8 @@ void jfs_syncpt(struct jfs_log *log, int hard_sync)
  * FUNCTION:	open the log on first open;
  *	insert filesystem in the active list of the log.
  *
- * PARAMETER:	ipmnt	- file system mount inode
- *		iplog	- log inode (out)
+ * PARAMETER:	ipmnt	- file system mount ianalde
+ *		iplog	- log ianalde (out)
  *
  * RETURN:
  *
@@ -1062,7 +1062,7 @@ int lmLogOpen(struct super_block *sb)
 	struct jfs_log *log;
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
 
-	if (sbi->flag & JFS_NOINTEGRITY)
+	if (sbi->flag & JFS_ANALINTEGRITY)
 		return open_dummy_log(sb);
 
 	if (sbi->mntflag & JFS_INLINELOG)
@@ -1089,7 +1089,7 @@ int lmLogOpen(struct super_block *sb)
 
 	if (!(log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL))) {
 		mutex_unlock(&jfs_log_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_LIST_HEAD(&log->sb_list);
 	init_waitqueue_head(&log->syncwait);
@@ -1157,7 +1157,7 @@ static int open_inline_log(struct super_block *sb)
 	int rc;
 
 	if (!(log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&log->sb_list);
 	init_waitqueue_head(&log->syncwait);
 
@@ -1193,11 +1193,11 @@ static int open_dummy_log(struct super_block *sb)
 		dummy_log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL);
 		if (!dummy_log) {
 			mutex_unlock(&jfs_log_mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		INIT_LIST_HEAD(&dummy_log->sb_list);
 		init_waitqueue_head(&dummy_log->syncwait);
-		dummy_log->no_integrity = 1;
+		dummy_log->anal_integrity = 1;
 		/* Make up some stuff */
 		dummy_log->base = 0;
 		dummy_log->size = 1024;
@@ -1274,10 +1274,10 @@ int lmLogInit(struct jfs_log * log)
 		log->l2bsize = L2LOGPSIZE;
 
 	/* check for disabled journaling to disk */
-	if (log->no_integrity) {
+	if (log->anal_integrity) {
 		/*
 		 * Journal pages will still be filled.  When the time comes
-		 * to actually do the I/O, the write is not done, and the
+		 * to actually do the I/O, the write is analt done, and the
 		 * endio routine is called directly.
 		 */
 		bp = lbmAllocate(log , 0);
@@ -1356,7 +1356,7 @@ int lmLogInit(struct jfs_log * log)
 		 * write the first SYNCPT record with syncpoint = 0
 		 * (i.e., log redo up to HERE !);
 		 * remove current page from lbm write queue at end of pageout
-		 * (to write log superblock update), but do not release to
+		 * (to write log superblock update), but do analt release to
 		 * freelist;
 		 */
 		lrd.logtid = 0;
@@ -1462,7 +1462,7 @@ int lmLogClose(struct super_block *sb)
 		goto out;
 	}
 
-	if (!log->no_integrity)
+	if (!log->anal_integrity)
 		lmLogFileSystem(log, sbi, 0);
 
 	if (!list_empty(&log->sb_list))
@@ -1471,11 +1471,11 @@ int lmLogClose(struct super_block *sb)
 	/*
 	 * TODO: ensure that the dummy_log is in a state to allow
 	 * lbmLogShutdown to deallocate all the buffers and call
-	 * kfree against dummy_log.  For now, leave dummy_log & its
-	 * buffers in memory, and resuse if another no-integrity mount
+	 * kfree against dummy_log.  For analw, leave dummy_log & its
+	 * buffers in memory, and resuse if aanalther anal-integrity mount
 	 * is requested.
 	 */
-	if (log->no_integrity)
+	if (log->anal_integrity)
 		goto out;
 
 	/*
@@ -1511,7 +1511,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 	int i;
 	struct tblock *target = NULL;
 
-	/* jfs_write_inode may call us during read-only mount */
+	/* jfs_write_ianalde may call us during read-only mount */
 	if (!log)
 		return;
 
@@ -1570,7 +1570,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 	if (wait < 2)
 		return;
 
-	write_special_inodes(log, filemap_fdatawrite);
+	write_special_ianaldes(log, filemap_fdatawrite);
 
 	/*
 	 * If there was recent activity, we may need to wait
@@ -1579,7 +1579,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 	if ((!list_empty(&log->cqueue)) || !list_empty(&log->synclist)) {
 		for (i = 0; i < 200; i++) {	/* Too much? */
 			msleep(250);
-			write_special_inodes(log, filemap_fdatawrite);
+			write_special_ianaldes(log, filemap_fdatawrite);
 			if (list_empty(&log->cqueue) &&
 			    list_empty(&log->synclist))
 				break;
@@ -1591,7 +1591,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 	if (!list_empty(&log->synclist)) {
 		struct logsyncblk *lp;
 
-		printk(KERN_ERR "jfs_flush_journal: synclist not empty\n");
+		printk(KERN_ERR "jfs_flush_journal: synclist analt empty\n");
 		list_for_each_entry(lp, &log->synclist, synclist) {
 			if (lp->xflag & COMMIT_PAGE) {
 				struct metapage *mp = (struct metapage *)lp;
@@ -1622,7 +1622,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
  *		write log syncpt record.
  *		update super block to set redone flag to 0.
  *
- * PARAMETER:	log	- log inode
+ * PARAMETER:	log	- log ianalde
  *
  * RETURN:	0	- success
  *
@@ -1661,9 +1661,9 @@ int lmLogShutdown(struct jfs_log * log)
 	log->bp = NULL;
 
 	/*
-	 * synchronous update log superblock
+	 * synchroanalus update log superblock
 	 * mark log state as shutdown cleanly
-	 * (i.e., Log does not need to be replayed).
+	 * (i.e., Log does analt need to be replayed).
 	 */
 	if ((rc = lbmRead(log, 1, &bpsuper)))
 		goto out;
@@ -1696,7 +1696,7 @@ int lmLogShutdown(struct jfs_log * log)
  * FUNCTION:	insert (<activate> = true)/remove (<activate> = false)
  *	file system into/from log active file system list.
  *
- * PARAMETE:	log	- pointer to logs inode.
+ * PARAMETE:	log	- pointer to logs ianalde.
  *		fsdev	- kdev_t of filesystem.
  *		serial	- pointer to returned log serial number
  *		activate - insert/remove device from active list.
@@ -1748,7 +1748,7 @@ static int lmLogFileSystem(struct jfs_log * log, struct jfs_sb_info *sbi,
 	}
 
 	/*
-	 * synchronous write log superblock:
+	 * synchroanalus write log superblock:
 	 *
 	 * write sidestream bypassing write queue:
 	 * at file system mount, log super block is updated for
@@ -1785,7 +1785,7 @@ static int lmLogFileSystem(struct jfs_log * log, struct jfs_sb_info *sbi,
  * initialize per log I/O setup at lmLogInit()
  */
 static int lbmLogInit(struct jfs_log * log)
-{				/* log inode */
+{				/* log ianalde */
 	int i;
 	struct lbuf *lbuf;
 
@@ -1799,10 +1799,10 @@ static int lbmLogInit(struct jfs_log * log)
 
 	/*
 	 * Each log has its own buffer pages allocated to it.  These are
-	 * not managed by the page cache.  This ensures that a transaction
-	 * writing to the log does not block trying to allocate a page from
+	 * analt managed by the page cache.  This ensures that a transaction
+	 * writing to the log does analt block trying to allocate a page from
 	 * the page cache (for the log).  This would be bad, since page
-	 * allocation waits on the kswapd thread that may be committing inodes
+	 * allocation waits on the kswapd thread that may be committing ianaldes
 	 * which would cause log activity.  Was that clear?  I'm trying to
 	 * avoid deadlock here.
 	 */
@@ -1843,7 +1843,7 @@ static int lbmLogInit(struct jfs_log * log)
 
       error:
 	lbmLogShutdown(log);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 
@@ -1892,7 +1892,7 @@ static struct lbuf *lbmAllocate(struct jfs_log * log, int pn)
 	bp->l_freelist = NULL;
 
 	bp->l_pn = pn;
-	bp->l_blkno = log->base + (pn << (L2LOGPSIZE - log->l2bsize));
+	bp->l_blkanal = log->base + (pn << (L2LOGPSIZE - log->l2bsize));
 	bp->l_ceor = 0;
 
 	return bp;
@@ -1940,7 +1940,7 @@ static void lbmfree(struct lbuf * bp)
  * PARAMETER:
  *	bp	- log buffer
  *
- * NOTES:
+ * ANALTES:
  *	Takes log_redrive_lock.
  */
 static inline void lbmRedrive(struct lbuf *bp)
@@ -1972,15 +1972,15 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
 
 	bp->l_flag |= lbmREAD;
 
-	bio = bio_alloc(log->bdev_handle->bdev, 1, REQ_OP_READ, GFP_NOFS);
-	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
+	bio = bio_alloc(log->bdev_handle->bdev, 1, REQ_OP_READ, GFP_ANALFS);
+	bio->bi_iter.bi_sector = bp->l_blkanal << (log->l2bsize - 9);
 	__bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;
 	/*check if journaling to disk has been disabled*/
-	if (log->no_integrity) {
+	if (log->anal_integrity) {
 		bio->bi_iter.bi_size = 0;
 		lbmIODone(bio);
 	} else {
@@ -2017,7 +2017,7 @@ static void lbmWrite(struct jfs_log * log, struct lbuf * bp, int flag,
 	jfs_info("lbmWrite: bp:0x%p flag:0x%x pn:0x%x", bp, flag, bp->l_pn);
 
 	/* map the logical block address to physical block address */
-	bp->l_blkno =
+	bp->l_blkanal =
 	    log->base + (bp->l_pn << (L2LOGPSIZE - log->l2bsize));
 
 	LCACHE_LOCK(flags);		/* disable+lock */
@@ -2035,7 +2035,7 @@ static void lbmWrite(struct jfs_log * log, struct lbuf * bp, int flag,
 	 */
 	tail = log->wqueue;
 
-	/* is buffer not already on write queue ? */
+	/* is buffer analt already on write queue ? */
 	if (bp->l_wqnext == NULL) {
 		/* insert at tail of wqueue */
 		if (tail == NULL) {
@@ -2087,7 +2087,7 @@ static void lbmDirectWrite(struct jfs_log * log, struct lbuf * bp, int flag)
 	bp->l_flag = flag | lbmDIRECT;
 
 	/* map the logical block address to physical block address */
-	bp->l_blkno =
+	bp->l_blkanal =
 	    log->base + (bp->l_pn << (L2LOGPSIZE - log->l2bsize));
 
 	/*
@@ -2102,9 +2102,9 @@ static void lbmDirectWrite(struct jfs_log * log, struct lbuf * bp, int flag)
  *
  * FUNCTION:	Interface to DD strategy routine
  *
- * RETURN:	none
+ * RETURN:	analne
  *
- * serialization: LCACHE_LOCK() is NOT held during log i/o;
+ * serialization: LCACHE_LOCK() is ANALT held during log i/o;
  */
 static void lbmStartIO(struct lbuf * bp)
 {
@@ -2114,12 +2114,12 @@ static void lbmStartIO(struct lbuf * bp)
 
 	jfs_info("lbmStartIO");
 
-	if (!log->no_integrity)
+	if (!log->anal_integrity)
 		bdev = log->bdev_handle->bdev;
 
 	bio = bio_alloc(bdev, 1, REQ_OP_WRITE | REQ_SYNC,
-			GFP_NOFS);
-	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
+			GFP_ANALFS);
+	bio->bi_iter.bi_sector = bp->l_blkanal << (log->l2bsize - 9);
 	__bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
 
@@ -2127,7 +2127,7 @@ static void lbmStartIO(struct lbuf * bp)
 	bio->bi_private = bp;
 
 	/* check if journaling to disk has been disabled */
-	if (log->no_integrity) {
+	if (log->anal_integrity) {
 		bio->bi_iter.bi_size = 0;
 		lbmIODone(bio);
 	} else {
@@ -2257,7 +2257,7 @@ static void lbmIODone(struct bio *bio)
 			 * (i.e., page w/o any COMMIT records), or
 			 * first page of new group commit which has been
 			 * queued after current page (subsequent pageout
-			 * is performed synchronously, except page without
+			 * is performed synchroanalusly, except page without
 			 * any COMMITs) by lmGroupCommit() as indicated
 			 * by lbmWRITE flag;
 			 */
@@ -2272,10 +2272,10 @@ static void lbmIODone(struct bio *bio)
 	}
 
 	/*
-	 *	synchronous pageout:
+	 *	synchroanalus pageout:
 	 *
-	 * buffer has not necessarily been removed from write queue
-	 * (e.g., synchronous write of partial-page with COMMIT):
+	 * buffer has analt necessarily been removed from write queue
+	 * (e.g., synchroanalus write of partial-page with COMMIT):
 	 * leave buffer for i/o initiator to dispose
 	 */
 	if (bp->l_flag & lbmSYNC) {
@@ -2294,7 +2294,7 @@ static void lbmIODone(struct bio *bio)
 	}
 
 	/*
-	 *	asynchronous pageout:
+	 *	asynchroanalus pageout:
 	 *
 	 * buffer must have been removed from write queue:
 	 * insert buffer at head of freelist where it can be recycled
@@ -2349,7 +2349,7 @@ int jfsIOWait(void *arg)
  * RETURN:	0	- success
  *		-EIO	- i/o error
  *
- * XXX: We're synchronously writing one page at a time.  This needs to
+ * XXX: We're synchroanalusly writing one page at a time.  This needs to
  *	be improved by writing multiple pages at once.
  */
 int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize)
@@ -2397,7 +2397,7 @@ int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize)
 	logsuper->end = cpu_to_le32(2 * LOGPSIZE + LOGPHDRSIZE + LOGRDSIZE);
 
 	bp->l_flag = lbmWRITE | lbmSYNC | lbmDIRECT;
-	bp->l_blkno = logAddress + sbi->nbperpage;
+	bp->l_blkanal = logAddress + sbi->nbperpage;
 	lbmStartIO(bp);
 	if ((rc = lbmIOWait(bp, 0)))
 		goto exit;
@@ -2414,9 +2414,9 @@ int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize)
 	 *
 	 * the N (= npages-2) data pages of the log is maintained as
 	 * a circular file for the log records;
-	 * lpsn grows by 1 monotonically as each log page is written
+	 * lpsn grows by 1 moanaltonically as each log page is written
 	 * to the circular file of the log;
-	 * and setLogpage() will not reset the page number even if
+	 * and setLogpage() will analt reset the page number even if
 	 * the eor is equal to LOGPHDRSIZE. In order for binary search
 	 * still work in find log end process, we have to simulate the
 	 * log wrap situation at the log format time.
@@ -2439,7 +2439,7 @@ int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize)
 	lrd_ptr->length = 0;
 	lrd_ptr->log.syncpt.sync = 0;
 
-	bp->l_blkno += sbi->nbperpage;
+	bp->l_blkanal += sbi->nbperpage;
 	bp->l_flag = lbmWRITE | lbmSYNC | lbmDIRECT;
 	lbmStartIO(bp);
 	if ((rc = lbmIOWait(bp, 0)))
@@ -2452,7 +2452,7 @@ int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize)
 		lp->h.page = lp->t.page = cpu_to_le32(lspn);
 		lp->h.eor = lp->t.eor = cpu_to_le16(LOGPHDRSIZE);
 
-		bp->l_blkno += sbi->nbperpage;
+		bp->l_blkanal += sbi->nbperpage;
 		bp->l_flag = lbmWRITE | lbmSYNC | lbmDIRECT;
 		lbmStartIO(bp);
 		if ((rc = lbmIOWait(bp, 0)))

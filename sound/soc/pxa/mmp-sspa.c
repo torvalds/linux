@@ -110,8 +110,8 @@ static int mmp_sspa_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	struct device *dev = cpu_dai->component->dev;
 	int ret = 0;
 
-	if (dev->of_node)
-		return -ENOTSUPP;
+	if (dev->of_analde)
+		return -EANALTSUPP;
 
 	switch (clk_id) {
 	case MMP_SSPA_CLK_AUDIO:
@@ -121,7 +121,7 @@ static int mmp_sspa_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		break;
 	case MMP_SSPA_CLK_PLL:
 	case MMP_SSPA_CLK_VCXO:
-		/* not support yet */
+		/* analt support yet */
 		return -EINVAL;
 	default:
 		return -EINVAL;
@@ -138,8 +138,8 @@ static int mmp_sspa_set_dai_pll(struct snd_soc_dai *cpu_dai, int pll_id,
 	struct device *dev = cpu_dai->component->dev;
 	int ret = 0;
 
-	if (dev->of_node)
-		return -ENOTSUPP;
+	if (dev->of_analde)
+		return -EANALTSUPP;
 
 	switch (pll_id) {
 	case MMP_SYSCLK:
@@ -153,7 +153,7 @@ static int mmp_sspa_set_dai_pll(struct snd_soc_dai *cpu_dai, int pll_id,
 			return ret;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -199,7 +199,7 @@ static int mmp_sspa_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 	/* Since we are configuring the timings for the format by hand
 	 * we have to defer some things until hw_params() where we
-	 * know parameters like the sample size.
+	 * kanalw parameters like the sample size.
 	 */
 	return 0;
 }
@@ -240,7 +240,7 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	sspa_ctrl &= ~SSPA_CTL_XPH;
-	if (dev->of_node || params_channels(params) == 2)
+	if (dev->of_analde || params_channels(params) == 2)
 		sspa_ctrl |= SSPA_CTL_XPH;
 
 	sspa_ctrl &= ~SSPA_CTL_XWDLEN1_MASK;
@@ -261,7 +261,7 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 	sspa->sp &= ~SSPA_TXSP_FPER_MASK;
 	sspa->sp |= SSPA_TXSP_FPER(bits * 2 - 1);
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		clk_set_rate(sspa->clk, params_rate(params) *
 					params_channels(params) * bits);
 	}
@@ -290,8 +290,8 @@ static int mmp_sspa_trigger(struct snd_pcm_substream *substream, int cmd,
 		/*
 		 * whatever playback or capture, must enable rx.
 		 * this is a hw issue, so need check if rx has been
-		 * enabled or not; if has been enabled by another
-		 * stream, do not enable again.
+		 * enabled or analt; if has been enabled by aanalther
+		 * stream, do analt enable again.
 		 */
 		if (!sspa->running_cnt)
 			mmp_sspa_rx_enable(sspa);
@@ -310,7 +310,7 @@ static int mmp_sspa_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			mmp_sspa_tx_disable(sspa);
 
-		/* have no capture stream, disable rx port */
+		/* have anal capture stream, disable rx port */
 		if (!sspa->running_cnt)
 			mmp_sspa_rx_disable(sspa);
 		break;
@@ -371,7 +371,7 @@ static struct snd_soc_dai_driver mmp_sspa_dai = {
 		SNDRV_PCM_INFO_INTERLEAVED |	\
 		SNDRV_PCM_INFO_PAUSE |		\
 		SNDRV_PCM_INFO_RESUME |		\
-		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP)
+		SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP)
 
 static const struct snd_pcm_hardware mmp_pcm_hardware[] = {
 	{
@@ -405,7 +405,7 @@ static int mmp_pcm_mmap(struct snd_soc_component *component,
 			struct vm_area_struct *vma)
 {
 	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	return remap_pfn_range(vma, vma->vm_start,
 		substream->dma_buffer.addr >> PAGE_SHIFT,
 		vma->vm_end - vma->vm_start, vma->vm_page_prot);
@@ -418,7 +418,7 @@ static int mmp_sspa_open(struct snd_soc_component *component,
 
 	pm_runtime_get_sync(component->dev);
 
-	/* we can only change the settings if the port is not in use */
+	/* we can only change the settings if the port is analt in use */
 	if ((__raw_readl(sspa->tx_base + SSPA_SP) & SSPA_SP_S_EN) ||
 	    (__raw_readl(sspa->rx_base + SSPA_SP) & SSPA_SP_S_EN)) {
 		dev_err(component->dev,
@@ -435,7 +435,7 @@ static int mmp_sspa_open(struct snd_soc_component *component,
 
 	/*
 	 * FIXME: hw issue, for the tx serial port,
-	 * can not config the master/slave mode;
+	 * can analt config the master/slave mode;
 	 * so must clean this bit.
 	 * The master/slave mode has been set in the
 	 * rx port.
@@ -471,9 +471,9 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	sspa = devm_kzalloc(&pdev->dev,
 				sizeof(struct sspa_priv), GFP_KERNEL);
 	if (!sspa)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		sspa->rx_base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(sspa->rx_base))
 			return PTR_ERR(sspa->rx_base);
@@ -494,16 +494,16 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 		if (res == NULL)
-			return -ENODEV;
+			return -EANALDEV;
 
 		sspa->rx_base = devm_ioremap(&pdev->dev, res->start, 0x30);
 		if (!sspa->rx_base)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sspa->tx_base = devm_ioremap(&pdev->dev,
 					     res->start + 0x80, 0x30);
 		if (!sspa->tx_base)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sspa->clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(sspa->clk))
@@ -523,11 +523,11 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 
 	sspa->playback_dma_data.maxburst = 4;
 	sspa->capture_dma_data.maxburst = 4;
-	/* You know, these addresses are actually ignored. */
+	/* You kanalw, these addresses are actually iganalred. */
 	sspa->capture_dma_data.addr = SSPA_D;
 	sspa->playback_dma_data.addr = 0x80 + SSPA_D;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		ret = devm_snd_dmaengine_pcm_register(&pdev->dev,
 						      &mmp_pcm_config, 0);
 		if (ret)
@@ -552,7 +552,7 @@ static void asoc_mmp_sspa_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sspa->audio_clk);
 	pm_runtime_disable(&pdev->dev);
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		return;
 
 	clk_put(sspa->audio_clk);

@@ -5,7 +5,7 @@
  * License as published by the Free Software Foundation.
  */
 #include "vmlinux.h"
-#include <errno.h>
+#include <erranal.h>
 #include <linux/version.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -33,16 +33,16 @@ struct {
 	__type(key, u32);
 	__type(value, long);
 	__uint(max_entries, 10000);
-	__uint(map_flags, BPF_F_NO_COMMON_LRU);
-} nocommon_lru_hash_map SEC(".maps");
+	__uint(map_flags, BPF_F_ANAL_COMMON_LRU);
+} analcommon_lru_hash_map SEC(".maps");
 
 struct inner_lru {
 	__uint(type, BPF_MAP_TYPE_LRU_HASH);
 	__type(key, u32);
 	__type(value, long);
 	__uint(max_entries, MAX_ENTRIES);
-	__uint(map_flags, BPF_F_NUMA_NODE);
-	__uint(numa_node, 0);
+	__uint(map_flags, BPF_F_NUMA_ANALDE);
+	__uint(numa_analde, 0);
 } inner_lru_hash_map SEC(".maps");
 
 struct {
@@ -67,7 +67,7 @@ struct {
 	__type(key, u32);
 	__type(value, long);
 	__uint(max_entries, MAX_ENTRIES);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 } hash_map_alloc SEC(".maps");
 
 struct {
@@ -75,7 +75,7 @@ struct {
 	__uint(key_size, sizeof(u32));
 	__uint(value_size, sizeof(long));
 	__uint(max_entries, MAX_ENTRIES);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 } percpu_hash_map_alloc SEC(".maps");
 
 struct {
@@ -83,7 +83,7 @@ struct {
 	__uint(key_size, 8);
 	__uint(value_size, sizeof(long));
 	__uint(max_entries, 10000);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 } lpm_trie_map_alloc SEC(".maps");
 
 struct {
@@ -209,20 +209,20 @@ int BPF_KSYSCALL(stress_lru_hmap_alloc, int fd, struct sockaddr_in *uservaddr,
 	if (test_case == 0) {
 		ret = bpf_map_update_elem(&lru_hash_map, &key, &val, BPF_ANY);
 	} else if (test_case == 1) {
-		ret = bpf_map_update_elem(&nocommon_lru_hash_map, &key, &val,
+		ret = bpf_map_update_elem(&analcommon_lru_hash_map, &key, &val,
 					  BPF_ANY);
 	} else if (test_case == 2) {
-		void *nolocal_lru_map;
+		void *anallocal_lru_map;
 		int cpu = bpf_get_smp_processor_id();
 
-		nolocal_lru_map = bpf_map_lookup_elem(&array_of_lru_hashs,
+		anallocal_lru_map = bpf_map_lookup_elem(&array_of_lru_hashs,
 						      &cpu);
-		if (!nolocal_lru_map) {
-			ret = -ENOENT;
+		if (!anallocal_lru_map) {
+			ret = -EANALENT;
 			goto done;
 		}
 
-		ret = bpf_map_update_elem(nolocal_lru_map, &key, &val,
+		ret = bpf_map_update_elem(anallocal_lru_map, &key, &val,
 					  BPF_ANY);
 	} else if (test_case == 3) {
 		u32 i;

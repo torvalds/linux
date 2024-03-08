@@ -38,7 +38,7 @@ struct hd44780 {
 	struct gpio_desc *pins[PIN_NUM];
 };
 
-static void hd44780_backlight(struct charlcd *lcd, enum charlcd_onoff on)
+static void hd44780_backlight(struct charlcd *lcd, enum charlcd_oanalff on)
 {
 	struct hd44780_common *hdc = lcd->drvdata;
 	struct hd44780 *hd = hdc->hd44780;
@@ -204,7 +204,7 @@ static int hd44780_probe(struct platform_device *pdev)
 	struct charlcd *lcd;
 	struct hd44780_common *hdc;
 	struct hd44780 *hd;
-	int ifwidth, ret = -ENOMEM;
+	int ifwidth, ret = -EANALMEM;
 
 	/* Required pins */
 	ifwidth = gpiod_count(dev, "data");
@@ -224,7 +224,7 @@ static int hd44780_probe(struct platform_device *pdev)
 
 	hdc = hd44780_common_alloc();
 	if (!hdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lcd = charlcd_alloc();
 	if (!lcd)

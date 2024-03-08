@@ -8,11 +8,11 @@
  *
  * TRACE_INCLUDE_FILE if the file name is something other than TRACE_SYSTEM.h
  *     This macro may be defined to tell define_trace.h what file to include.
- *     Note, leave off the ".h".
+ *     Analte, leave off the ".h".
  *
  * TRACE_INCLUDE_PATH if the path is something other than core kernel include/trace
- *     then this macro can define the path to use. Note, the path is relative to
- *     define_trace.h, not the file including it. Full path names for out of tree
+ *     then this macro can define the path to use. Analte, the path is relative to
+ *     define_trace.h, analt the file including it. Full path names for out of tree
  *     modules must be used.
  */
 

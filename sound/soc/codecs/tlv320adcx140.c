@@ -369,43 +369,43 @@ static const struct snd_soc_dapm_widget adcx140_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("CH7_OUT"),
 	SND_SOC_DAPM_OUTPUT("CH8_OUT"),
 
-	SND_SOC_DAPM_MIXER("Output Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Output Mixer", SND_SOC_ANALPM, 0, 0,
 		&adcx140_output_mixer_controls[0],
 		ARRAY_SIZE(adcx140_output_mixer_controls)),
 
 	/* Input Selection to MIC_PGA */
-	SND_SOC_DAPM_MUX("MIC1P Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC1P Input Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic1p_control),
-	SND_SOC_DAPM_MUX("MIC2P Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC2P Input Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic2p_control),
-	SND_SOC_DAPM_MUX("MIC3P Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC3P Input Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic3p_control),
-	SND_SOC_DAPM_MUX("MIC4P Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC4P Input Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic4p_control),
 
 	/* Input Selection to MIC_PGA */
-	SND_SOC_DAPM_MUX("MIC1 Analog Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC1 Analog Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic1_analog_control),
-	SND_SOC_DAPM_MUX("MIC2 Analog Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC2 Analog Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic2_analog_control),
-	SND_SOC_DAPM_MUX("MIC3 Analog Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC3 Analog Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic3_analog_control),
-	SND_SOC_DAPM_MUX("MIC4 Analog Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC4 Analog Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic4_analog_control),
 
-	SND_SOC_DAPM_MUX("MIC1M Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC1M Input Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic1m_control),
-	SND_SOC_DAPM_MUX("MIC2M Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC2M Input Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic2m_control),
-	SND_SOC_DAPM_MUX("MIC3M Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC3M Input Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic3m_control),
-	SND_SOC_DAPM_MUX("MIC4M Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC4M Input Mux", SND_SOC_ANALPM, 0, 0,
 			 &adcx140_dapm_mic4m_control),
 
-	SND_SOC_DAPM_PGA("MIC_GAIN_CTL_CH1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("MIC_GAIN_CTL_CH2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("MIC_GAIN_CTL_CH3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("MIC_GAIN_CTL_CH4", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("MIC_GAIN_CTL_CH1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("MIC_GAIN_CTL_CH2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("MIC_GAIN_CTL_CH3", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("MIC_GAIN_CTL_CH4", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_ADC("CH1_ADC", "CH1 Capture", ADCX140_IN_CH_EN, 7, 0),
 	SND_SOC_DAPM_ADC("CH2_ADC", "CH2 Capture", ADCX140_IN_CH_EN, 6, 0),
@@ -422,49 +422,49 @@ static const struct snd_soc_dapm_widget adcx140_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("CH8_DIG", "CH8 Capture", ADCX140_IN_CH_EN, 0, 0),
 
 
-	SND_SOC_DAPM_SWITCH("CH1_ASI_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH1_ASI_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch1_en_switch),
-	SND_SOC_DAPM_SWITCH("CH2_ASI_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH2_ASI_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch2_en_switch),
-	SND_SOC_DAPM_SWITCH("CH3_ASI_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH3_ASI_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch3_en_switch),
-	SND_SOC_DAPM_SWITCH("CH4_ASI_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH4_ASI_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch4_en_switch),
 
-	SND_SOC_DAPM_SWITCH("CH5_ASI_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH5_ASI_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch5_en_switch),
-	SND_SOC_DAPM_SWITCH("CH6_ASI_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH6_ASI_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch6_en_switch),
-	SND_SOC_DAPM_SWITCH("CH7_ASI_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH7_ASI_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch7_en_switch),
-	SND_SOC_DAPM_SWITCH("CH8_ASI_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH8_ASI_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch8_en_switch),
 
-	SND_SOC_DAPM_SWITCH("DRE_ENABLE", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("DRE_ENABLE", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_dre_en_switch),
 
-	SND_SOC_DAPM_SWITCH("CH1_DRE_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH1_DRE_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch1_dre_en_switch),
-	SND_SOC_DAPM_SWITCH("CH2_DRE_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH2_DRE_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch2_dre_en_switch),
-	SND_SOC_DAPM_SWITCH("CH3_DRE_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH3_DRE_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch3_dre_en_switch),
-	SND_SOC_DAPM_SWITCH("CH4_DRE_EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("CH4_DRE_EN", SND_SOC_ANALPM, 0, 0,
 			    &adcx140_dapm_ch4_dre_en_switch),
 
-	SND_SOC_DAPM_MUX("IN1 Analog Mic Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN1 Analog Mic Resistor", SND_SOC_ANALPM, 0, 0,
 			in1_resistor_controls),
-	SND_SOC_DAPM_MUX("IN2 Analog Mic Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN2 Analog Mic Resistor", SND_SOC_ANALPM, 0, 0,
 			in2_resistor_controls),
-	SND_SOC_DAPM_MUX("IN3 Analog Mic Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN3 Analog Mic Resistor", SND_SOC_ANALPM, 0, 0,
 			in3_resistor_controls),
-	SND_SOC_DAPM_MUX("IN4 Analog Mic Resistor", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("IN4 Analog Mic Resistor", SND_SOC_ANALPM, 0, 0,
 			in4_resistor_controls),
 
-	SND_SOC_DAPM_MUX("PDM Clk Div Select", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PDM Clk Div Select", SND_SOC_ANALPM, 0, 0,
 			pdmclk_div_controls),
 
-	SND_SOC_DAPM_MUX("Decimation Filter", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Decimation Filter", SND_SOC_ANALPM, 0, 0,
 			decimation_filter_controls),
 };
 
@@ -1151,7 +1151,7 @@ static int adcx140_i2c_probe(struct i2c_client *i2c)
 
 	adcx140 = devm_kzalloc(&i2c->dev, sizeof(*adcx140), GFP_KERNEL);
 	if (!adcx140)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adcx140->phase_calib_on = false;
 	adcx140->dev = &i2c->dev;
@@ -1159,7 +1159,7 @@ static int adcx140_i2c_probe(struct i2c_client *i2c)
 	adcx140->gpio_reset = devm_gpiod_get_optional(adcx140->dev,
 						      "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(adcx140->gpio_reset))
-		dev_info(&i2c->dev, "Reset GPIO not defined\n");
+		dev_info(&i2c->dev, "Reset GPIO analt defined\n");
 
 	adcx140->supply_areg = devm_regulator_get_optional(adcx140->dev,
 							   "areg");

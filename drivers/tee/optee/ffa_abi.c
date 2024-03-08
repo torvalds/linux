@@ -6,7 +6,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/arm_ffa.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -25,7 +25,7 @@
  * 2. Convert between struct tee_param and struct optee_msg_param
  * 3. Low level support functions to register shared memory in secure world
  * 4. Dynamic shared memory pool based on alloc_pages()
- * 5. Do a normal scheduled call into secure world
+ * 5. Do a analrmal scheduled call into secure world
  * 6. Driver initialization.
  */
 
@@ -79,7 +79,7 @@ static int optee_shm_add_ffa_handle(struct optee *optee, struct tee_shm *shm,
 
 	r = kmalloc(sizeof(*r), GFP_KERNEL);
 	if (!r)
-		return -ENOMEM;
+		return -EANALMEM;
 	r->shm = shm;
 	r->global_id = global_id;
 
@@ -97,7 +97,7 @@ static int optee_shm_add_ffa_handle(struct optee *optee, struct tee_shm *shm,
 static int optee_shm_rem_ffa_handle(struct optee *optee, u64 global_id)
 {
 	struct shm_rhash *r;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	mutex_lock(&optee->ffa.mutex);
 	r = rhashtable_lookup_fast(&optee->ffa.global_ids, &global_id,
@@ -164,18 +164,18 @@ static int optee_ffa_from_msg_param(struct optee *optee,
 		u32 attr = mp->attr & OPTEE_MSG_ATTR_TYPE_MASK;
 
 		switch (attr) {
-		case OPTEE_MSG_ATTR_TYPE_NONE:
-			p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_NONE;
+		case OPTEE_MSG_ATTR_TYPE_ANALNE:
+			p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE;
 			memset(&p->u, 0, sizeof(p->u));
 			break;
 		case OPTEE_MSG_ATTR_TYPE_VALUE_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_VALUE_INOUT:
+		case OPTEE_MSG_ATTR_TYPE_VALUE_IANALUT:
 			optee_from_msg_param_value(p, attr, mp);
 			break;
 		case OPTEE_MSG_ATTR_TYPE_FMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_FMEM_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_FMEM_INOUT:
+		case OPTEE_MSG_ATTR_TYPE_FMEM_IANALUT:
 			from_msg_param_ffa_mem(optee, p, attr, mp);
 			break;
 		default:
@@ -236,18 +236,18 @@ static int optee_ffa_to_msg_param(struct optee *optee,
 		struct optee_msg_param *mp = msg_params + n;
 
 		switch (p->attr) {
-		case TEE_IOCTL_PARAM_ATTR_TYPE_NONE:
-			mp->attr = TEE_IOCTL_PARAM_ATTR_TYPE_NONE;
+		case TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE:
+			mp->attr = TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE;
 			memset(&mp->u, 0, sizeof(mp->u));
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT:
 			optee_to_msg_param_value(mp, p);
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT:
 			if (to_msg_param_ffa_mem(mp, p))
 				return -EINVAL;
 			break;
@@ -262,7 +262,7 @@ static int optee_ffa_to_msg_param(struct optee *optee,
 /*
  * 3. Low level support functions to register shared memory in secure world
  *
- * Functions to register and unregister shared memory both for normal
+ * Functions to register and unregister shared memory both for analrmal
  * clients and for tee-supplicant.
  */
 
@@ -406,7 +406,7 @@ static struct tee_shm_pool *optee_ffa_shm_pool_alloc_pages(void)
 	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 
 	if (!pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pool->ops = &pool_ffa_ops;
 
@@ -414,12 +414,12 @@ static struct tee_shm_pool *optee_ffa_shm_pool_alloc_pages(void)
 }
 
 /*
- * 5. Do a normal scheduled call into secure world
+ * 5. Do a analrmal scheduled call into secure world
  *
- * The function optee_ffa_do_call_with_arg() performs a normal scheduled
- * call into secure world. During this call may normal world request help
- * from normal world using RPCs, Remote Procedure Calls. This includes
- * delivery of non-secure interrupts to for instance allow rescheduling of
+ * The function optee_ffa_do_call_with_arg() performs a analrmal scheduled
+ * call into secure world. During this call may analrmal world request help
+ * from analrmal world using RPCs, Remote Procedure Calls. This includes
+ * delivery of analn-secure interrupts to for instance allow rescheduling of
  * the current task.
  */
 
@@ -518,10 +518,10 @@ static void optee_handle_ffa_rpc(struct tee_context *ctx, struct optee *optee,
 		handle_ffa_rpc_func_cmd(ctx, optee, arg);
 		break;
 	case OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT:
-		/* Interrupt delivered by now */
+		/* Interrupt delivered by analw */
 		break;
 	default:
-		pr_warn("Unknown RPC func 0x%x\n", cmd);
+		pr_warn("Unkanalwn RPC func 0x%x\n", cmd);
 		break;
 	}
 }
@@ -578,7 +578,7 @@ static int optee_ffa_yielding_call(struct tee_context *ctx,
 		/*
 		 * OP-TEE has returned with a RPC request.
 		 *
-		 * Note that data->data4 (passed in register w7) is already
+		 * Analte that data->data4 (passed in register w7) is already
 		 * filled in by ffa_mem_ops->sync_send_receive() returning
 		 * above.
 		 */
@@ -671,7 +671,7 @@ static bool optee_ffa_api_is_compatbile(struct ffa_device *ffa_dev,
 		return false;
 	}
 	if (data.data0 != OPTEE_FFA_VERSION_MAJOR ||
-	    data.data1 < OPTEE_FFA_VERSION_MINOR) {
+	    data.data1 < OPTEE_FFA_VERSION_MIANALR) {
 		pr_err("Incompatible OP-TEE API version %lu.%lu",
 		       data.data0, data.data1);
 		return false;
@@ -696,7 +696,7 @@ static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
 				    const struct ffa_ops *ops,
 				    u32 *sec_caps,
 				    unsigned int *rpc_param_count,
-				    unsigned int *max_notif_value)
+				    unsigned int *max_analtif_value)
 {
 	struct ffa_send_direct_data data = { OPTEE_FFA_EXCHANGE_CAPABILITIES };
 	int rc;
@@ -714,28 +714,28 @@ static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
 	*rpc_param_count = (u8)data.data1;
 	*sec_caps = data.data2;
 	if (data.data3)
-		*max_notif_value = data.data3;
+		*max_analtif_value = data.data3;
 	else
-		*max_notif_value = OPTEE_DEFAULT_MAX_NOTIF_VALUE;
+		*max_analtif_value = OPTEE_DEFAULT_MAX_ANALTIF_VALUE;
 
 	return true;
 }
 
-static void notif_callback(int notify_id, void *cb_data)
+static void analtif_callback(int analtify_id, void *cb_data)
 {
 	struct optee *optee = cb_data;
 
-	if (notify_id == optee->ffa.bottom_half_value)
+	if (analtify_id == optee->ffa.bottom_half_value)
 		optee_do_bottom_half(optee->ctx);
 	else
-		optee_notif_send(optee, notify_id);
+		optee_analtif_send(optee, analtify_id);
 }
 
-static int enable_async_notif(struct optee *optee)
+static int enable_async_analtif(struct optee *optee)
 {
 	struct ffa_device *ffa_dev = optee->ffa.ffa_dev;
 	struct ffa_send_direct_data data = {
-		.data0 = OPTEE_FFA_ENABLE_ASYNC_NOTIF,
+		.data0 = OPTEE_FFA_ENABLE_ASYNC_ANALTIF,
 		.data1 = optee->ffa.bottom_half_value,
 	};
 	int rc;
@@ -811,7 +811,7 @@ static void optee_ffa_remove(struct ffa_device *ffa_dev)
 	u32 bottom_half_id = optee->ffa.bottom_half_value;
 
 	if (bottom_half_id != U32_MAX)
-		ffa_dev->ops->notifier_ops->notify_relinquish(ffa_dev,
+		ffa_dev->ops->analtifier_ops->analtify_relinquish(ffa_dev,
 							      bottom_half_id);
 	optee_remove_common(optee);
 
@@ -821,40 +821,40 @@ static void optee_ffa_remove(struct ffa_device *ffa_dev)
 	kfree(optee);
 }
 
-static int optee_ffa_async_notif_init(struct ffa_device *ffa_dev,
+static int optee_ffa_async_analtif_init(struct ffa_device *ffa_dev,
 				      struct optee *optee)
 {
 	bool is_per_vcpu = false;
-	u32 notif_id = 0;
+	u32 analtif_id = 0;
 	int rc;
 
 	while (true) {
-		rc = ffa_dev->ops->notifier_ops->notify_request(ffa_dev,
+		rc = ffa_dev->ops->analtifier_ops->analtify_request(ffa_dev,
 								is_per_vcpu,
-								notif_callback,
+								analtif_callback,
 								optee,
-								notif_id);
+								analtif_id);
 		if (!rc)
 			break;
 		/*
-		 * -EACCES means that the notification ID was
+		 * -EACCES means that the analtification ID was
 		 * already bound, try the next one as long as we
 		 * haven't reached the max. Any other error is a
-		 * permanent error, so skip asynchronous
-		 * notifications in that case.
+		 * permanent error, so skip asynchroanalus
+		 * analtifications in that case.
 		 */
 		if (rc != -EACCES)
 			return rc;
-		notif_id++;
-		if (notif_id >= OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE)
+		analtif_id++;
+		if (analtif_id >= OPTEE_FFA_MAX_ASYNC_ANALTIF_VALUE)
 			return rc;
 	}
-	optee->ffa.bottom_half_value = notif_id;
+	optee->ffa.bottom_half_value = analtif_id;
 
-	rc = enable_async_notif(optee);
+	rc = enable_async_analtif(optee);
 	if (rc < 0) {
-		ffa_dev->ops->notifier_ops->notify_relinquish(ffa_dev,
-							      notif_id);
+		ffa_dev->ops->analtifier_ops->analtify_relinquish(ffa_dev,
+							      analtif_id);
 		optee->ffa.bottom_half_value = U32_MAX;
 	}
 
@@ -863,9 +863,9 @@ static int optee_ffa_async_notif_init(struct ffa_device *ffa_dev,
 
 static int optee_ffa_probe(struct ffa_device *ffa_dev)
 {
-	const struct ffa_notifier_ops *notif_ops;
+	const struct ffa_analtifier_ops *analtif_ops;
 	const struct ffa_ops *ffa_ops;
-	unsigned int max_notif_value;
+	unsigned int max_analtif_value;
 	unsigned int rpc_param_count;
 	struct tee_shm_pool *pool;
 	struct tee_device *teedev;
@@ -876,20 +876,20 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	int rc;
 
 	ffa_ops = ffa_dev->ops;
-	notif_ops = ffa_ops->notifier_ops;
+	analtif_ops = ffa_ops->analtifier_ops;
 
 	if (!optee_ffa_api_is_compatbile(ffa_dev, ffa_ops))
 		return -EINVAL;
 
 	if (!optee_ffa_exchange_caps(ffa_dev, ffa_ops, &sec_caps,
-				     &rpc_param_count, &max_notif_value))
+				     &rpc_param_count, &max_analtif_value))
 		return -EINVAL;
 	if (sec_caps & OPTEE_FFA_SEC_CAP_ARG_OFFSET)
 		arg_cache_flags |= OPTEE_SHM_ARG_SHARED;
 
 	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
 	if (!optee)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pool = optee_ffa_shm_pool_alloc_pages();
 	if (IS_ERR(pool)) {
@@ -941,13 +941,13 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 		goto err_rhashtable_free;
 	}
 	optee->ctx = ctx;
-	rc = optee_notif_init(optee, OPTEE_DEFAULT_MAX_NOTIF_VALUE);
+	rc = optee_analtif_init(optee, OPTEE_DEFAULT_MAX_ANALTIF_VALUE);
 	if (rc)
 		goto err_close_ctx;
-	if (sec_caps & OPTEE_FFA_SEC_CAP_ASYNC_NOTIF) {
-		rc = optee_ffa_async_notif_init(ffa_dev, optee);
+	if (sec_caps & OPTEE_FFA_SEC_CAP_ASYNC_ANALTIF) {
+		rc = optee_ffa_async_analtif_init(ffa_dev, optee);
 		if (rc < 0)
-			pr_err("Failed to initialize async notifications: %d",
+			pr_err("Failed to initialize async analtifications: %d",
 			       rc);
 	}
 
@@ -961,9 +961,9 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 err_unregister_devices:
 	optee_unregister_devices();
 	if (optee->ffa.bottom_half_value != U32_MAX)
-		notif_ops->notify_relinquish(ffa_dev,
+		analtif_ops->analtify_relinquish(ffa_dev,
 					     optee->ffa.bottom_half_value);
-	optee_notif_uninit(optee);
+	optee_analtif_uninit(optee);
 err_close_ctx:
 	teedev_close_context(ctx);
 err_rhashtable_free:
@@ -1001,7 +1001,7 @@ int optee_ffa_abi_register(void)
 	if (IS_REACHABLE(CONFIG_ARM_FFA_TRANSPORT))
 		return ffa_register(&optee_ffa_driver);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 void optee_ffa_abi_unregister(void)

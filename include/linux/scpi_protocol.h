@@ -17,7 +17,7 @@ struct scpi_opp {
 
 struct scpi_dvfs_info {
 	unsigned int count;
-	unsigned int latency; /* in nanoseconds */
+	unsigned int latency; /* in naanalseconds */
 	struct scpi_opp *opps;
 };
 
@@ -39,7 +39,7 @@ struct scpi_sensor_info {
 /**
  * struct scpi_ops - represents the various operations provided
  *	by SCP through SCPI message protocol
- * @get_version: returns the major and minor revision on the SCPI
+ * @get_version: returns the major and mianalr revision on the SCPI
  *	message protocol
  * @clk_get_range: gets clock range limit(min - max in Hz)
  * @clk_get_val: gets clock value(in Hz)

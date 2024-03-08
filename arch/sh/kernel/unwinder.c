@@ -9,7 +9,7 @@
  * Multiple stack unwinders can be available on a system, usually with
  * the most accurate unwinder being the currently active one.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
@@ -144,12 +144,12 @@ void unwind_stack(struct task_struct *task, struct pt_regs *regs,
 	 * one with a lower rating.
 	 *
 	 * Hopefully this will give us a semi-reliable stacktrace so we
-	 * can diagnose why curr_unwinder->dump() faulted.
+	 * can diaganalse why curr_unwinder->dump() faulted.
 	 */
 	if (unwinder_faulted) {
 		spin_lock_irqsave(&unwinder_lock, flags);
 
-		/* Make sure no one beat us to changing the unwinder */
+		/* Make sure anal one beat us to changing the unwinder */
 		if (unwinder_faulted && !list_is_singular(&unwinder_list)) {
 			list_del(&curr_unwinder->list);
 			curr_unwinder = select_unwinder();

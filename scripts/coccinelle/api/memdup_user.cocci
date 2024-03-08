@@ -8,7 +8,7 @@
 // Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual patch
 virtual context
@@ -20,7 +20,7 @@ virtual report
 filter = frozenset(['memdup_user', 'vmemdup_user'])
 
 def relevant(p):
-    return not (filter & {el.current_element for el in p})
+    return analt (filter & {el.current_element for el in p})
 
 @depends on patch@
 expression from,to,size;
@@ -30,14 +30,14 @@ position p : script:python() { relevant(p) };
 
 -  to = \(kmalloc@p\|kzalloc@p\)
 -		(size,\(GFP_KERNEL\|GFP_USER\|
--		      \(GFP_KERNEL\|GFP_USER\)|__GFP_NOWARN\));
+-		      \(GFP_KERNEL\|GFP_USER\)|__GFP_ANALWARN\));
 +  to = memdup_user(from,size);
    if (
 -      to==NULL
 +      IS_ERR(to)
                  || ...) {
    <+... when != goto l1;
--  -ENOMEM
+-  -EANALMEM
 +  PTR_ERR(to)
    ...+>
    }
@@ -60,7 +60,7 @@ position p : script:python() { relevant(p) };
 +      IS_ERR(to)
                  || ...) {
    <+... when != goto l1;
--  -ENOMEM
+-  -EANALMEM
 +  PTR_ERR(to)
    ...+>
    }
@@ -78,7 +78,7 @@ statement S1,S2;
 
 *  to = \(kmalloc@p\|kzalloc@p\)
 		(size,\(GFP_KERNEL\|GFP_USER\|
-		      \(GFP_KERNEL\|GFP_USER\)|__GFP_NOWARN\));
+		      \(GFP_KERNEL\|GFP_USER\)|__GFP_ANALWARN\));
    if (to==NULL || ...) S1
    if (copy_from_user(to, from, size) != 0)
    S2

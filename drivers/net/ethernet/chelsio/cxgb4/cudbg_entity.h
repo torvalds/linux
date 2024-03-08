@@ -229,7 +229,7 @@ struct cudbg_vpd_data {
 	u8 na[MACADDR_LEN + 1];
 	u8 mn[ID_LEN + 1];
 	u16 fw_major;
-	u16 fw_minor;
+	u16 fw_mianalr;
 	u16 fw_micro;
 	u16 fw_build;
 	u32 scfg_vers;
@@ -242,7 +242,7 @@ struct cudbg_vpd_data {
 #define CUDBG_MAX_TID_COMP_DIS 3072
 
 enum cudbg_le_entry_types {
-	LE_ET_UNKNOWN = 0,
+	LE_ET_UNKANALWN = 0,
 	LE_ET_TCAM_CON = 1,
 	LE_ET_TCAM_SERVER = 2,
 	LE_ET_TCAM_FILTER = 3,
@@ -301,7 +301,7 @@ struct cudbg_pbt_tables {
 };
 
 enum cudbg_qdesc_qtype {
-	CUDBG_QTYPE_UNKNOWN = 0,
+	CUDBG_QTYPE_UNKANALWN = 0,
 	CUDBG_QTYPE_NIC_TXQ,
 	CUDBG_QTYPE_NIC_RXQ,
 	CUDBG_QTYPE_NIC_FLQ,

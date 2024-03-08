@@ -139,7 +139,7 @@ static irqreturn_t ls_g4_pcie_isr(int irq, void *dev_id)
 
 	val = mobiveil_csr_readl(mv_pci, PAB_INTP_AMBA_MISC_STAT);
 	if (!val)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (val & PAB_INTP_RESET) {
 		ls_g4_pcie_disable_interrupt(pcie);
@@ -165,7 +165,7 @@ static int ls_g4_pcie_interrupt_init(struct mobiveil_pcie *mv_pci)
 	ret = devm_request_irq(dev, pcie->irq, ls_g4_pcie_isr,
 			       IRQF_SHARED, pdev->name, pcie);
 	if (ret) {
-		dev_err(dev, "Can't register PCIe IRQ, errno = %d\n", ret);
+		dev_err(dev, "Can't register PCIe IRQ, erranal = %d\n", ret);
 		return  ret;
 	}
 
@@ -204,7 +204,7 @@ static int __init ls_g4_pcie_probe(struct platform_device *pdev)
 	struct pci_host_bridge *bridge;
 	struct mobiveil_pcie *mv_pci;
 	struct ls_g4_pcie *pcie;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	if (!of_parse_phandle(np, "msi-parent", 0)) {
@@ -214,7 +214,7 @@ static int __init ls_g4_pcie_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie = pci_host_bridge_priv(bridge);
 	mv_pci = &pcie->pci;

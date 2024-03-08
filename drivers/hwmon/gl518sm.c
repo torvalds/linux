@@ -10,13 +10,13 @@
  * Ported to Linux 2.6 by Hong-Gunn Chew with the help of Jean Delvare
  * and advice of Greg Kroah-Hartman.
  *
- * Notes about the port:
+ * Analtes about the port:
  * Release 0x00 of the GL518SM chipset doesn't support reading of in0,
- * in1 nor in2. The original driver had an ugly workaround to get them
+ * in1 analr in2. The original driver had an ugly workaround to get them
  * anyway (changing limits and watching alarms trigger and wear off).
- * We did not keep that part of the original driver in the Linux 2.6
+ * We did analt keep that part of the original driver in the Linux 2.6
  * version, since it was making the driver significantly more complex
- * with no real benefit.
+ * with anal real benefit.
  */
 
 #include <linux/module.h>
@@ -31,7 +31,7 @@
 #include <linux/sysfs.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
 enum chips { gl518sm_r00, gl518sm_r80 };
 
@@ -63,9 +63,9 @@ enum chips { gl518sm_r00, gl518sm_r80 };
 
 /*
  * Conversions. Rounding and limit checking is only done on the TO_REG
- * variants. Note that you should be a bit careful with which arguments
+ * variants. Analte that you should be a bit careful with which arguments
  * these macros are called: arguments may be evaluated more than once.
- * Fixing this is just not worth it.
+ * Fixing this is just analt worth it.
  */
 
 #define RAW_FROM_REG(val)	val
@@ -566,7 +566,7 @@ static const struct attribute_group gl518_group_r80 = {
  * Real code
  */
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int gl518_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -574,17 +574,17 @@ static int gl518_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Now, we do the remaining detection. */
+	/* Analw, we do the remaining detection. */
 	if ((gl518_read_value(client, GL518_REG_CHIP_ID) != 0x80)
 	 || (gl518_read_value(client, GL518_REG_CONF) & 0x80))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Determine the chip type. */
 	rev = gl518_read_value(client, GL518_REG_REVISION);
 	if (rev != 0x00 && rev != 0x80)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "gl518sm", I2C_NAME_SIZE);
 
@@ -593,7 +593,7 @@ static int gl518_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 /*
  * Called when we have found a new GL518SM.
- * Note that we preserve D4:NoFan2 and D2:beep_enable.
+ * Analte that we preserve D4:AnalFan2 and D2:beep_enable.
  */
 static void gl518_init_client(struct i2c_client *client)
 {
@@ -620,7 +620,7 @@ static int gl518_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct gl518_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	revision = gl518_read_value(client, GL518_REG_REVISION);
@@ -655,7 +655,7 @@ static struct i2c_driver gl518_driver = {
 	.probe		= gl518_probe,
 	.id_table	= gl518_id,
 	.detect		= gl518_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(gl518_driver);

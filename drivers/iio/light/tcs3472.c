@@ -132,7 +132,7 @@ static int tcs3472_req_data(struct tcs3472_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "data not ready\n");
+		dev_err(&data->client->dev, "data analt ready\n");
 		return -EIO;
 	}
 
@@ -397,7 +397,7 @@ static irqreturn_t tcs3472_trigger_handler(int irq, void *p)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -450,7 +450,7 @@ static int tcs3472_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -472,7 +472,7 @@ static int tcs3472_probe(struct i2c_client *client)
 	else if (ret == 0x4d)
 		dev_info(&client->dev, "TCS34723/34727 found\n");
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_byte_data(data->client, TCS3472_CONTROL);
 	if (ret < 0)

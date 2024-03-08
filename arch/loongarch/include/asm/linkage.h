@@ -9,24 +9,24 @@
 	SYM_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)	\
 	.cfi_startproc;
 
-#define SYM_FUNC_START_NOALIGN(name)			\
-	SYM_START(name, SYM_L_GLOBAL, SYM_A_NONE)	\
+#define SYM_FUNC_START_ANALALIGN(name)			\
+	SYM_START(name, SYM_L_GLOBAL, SYM_A_ANALNE)	\
 	.cfi_startproc;
 
 #define SYM_FUNC_START_LOCAL(name)			\
 	SYM_START(name, SYM_L_LOCAL, SYM_A_ALIGN)	\
 	.cfi_startproc;
 
-#define SYM_FUNC_START_LOCAL_NOALIGN(name)		\
-	SYM_START(name, SYM_L_LOCAL, SYM_A_NONE)	\
+#define SYM_FUNC_START_LOCAL_ANALALIGN(name)		\
+	SYM_START(name, SYM_L_LOCAL, SYM_A_ANALNE)	\
 	.cfi_startproc;
 
 #define SYM_FUNC_START_WEAK(name)			\
 	SYM_START(name, SYM_L_WEAK, SYM_A_ALIGN)	\
 	.cfi_startproc;
 
-#define SYM_FUNC_START_WEAK_NOALIGN(name)		\
-	SYM_START(name, SYM_L_WEAK, SYM_A_NONE)		\
+#define SYM_FUNC_START_WEAK_ANALALIGN(name)		\
+	SYM_START(name, SYM_L_WEAK, SYM_A_ANALNE)		\
 	.cfi_startproc;
 
 #define SYM_FUNC_END(name)				\
@@ -39,6 +39,6 @@
 
 #define SYM_CODE_END(name)				\
 	.cfi_endproc;					\
-	SYM_END(name, SYM_T_NONE)
+	SYM_END(name, SYM_T_ANALNE)
 
 #endif

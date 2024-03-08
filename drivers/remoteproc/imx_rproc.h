@@ -17,7 +17,7 @@ struct imx_rproc_att {
 
 /* Remote core start/stop method */
 enum imx_rproc_method {
-	IMX_RPROC_NONE,
+	IMX_RPROC_ANALNE,
 	/* Through syscon regmap */
 	IMX_RPROC_MMIO,
 	/* Through ARM SMCCC */

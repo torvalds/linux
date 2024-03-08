@@ -128,7 +128,7 @@ static ssize_t available_uuids_show(struct device *dev,
 	int length = 0;
 
 	if (!priv->uuid_bitmap)
-		return sprintf(buf, "UNKNOWN\n");
+		return sprintf(buf, "UNKANALWN\n");
 
 	for (i = 0; i < INT3400_THERMAL_MAXIMUM_UUID; i++) {
 		if (priv->uuid_bitmap & (1 << i))
@@ -274,7 +274,7 @@ static int int3400_thermal_get_uuids(struct int3400_thermal_priv *priv)
 
 	status = acpi_evaluate_object(priv->adev->handle, "IDSP", NULL, &buf);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	obja = (union acpi_object *)buf.pointer;
 	if (obja->type != ACPI_TYPE_PACKAGE) {
@@ -330,7 +330,7 @@ static int production_mode_init(struct int3400_thermal_priv *priv)
 	priv->production_mode = -1;
 
 	status = acpi_evaluate_integer(priv->adev->handle, "DCFG", NULL, &mode);
-	/* If the method is not present, this is not an error */
+	/* If the method is analt present, this is analt an error */
 	if (ACPI_FAILURE(status))
 		return 0;
 
@@ -399,7 +399,7 @@ static int evaluate_odvp(struct int3400_thermal_priv *priv)
 		priv->odvp = kmalloc_array(priv->odvp_count, sizeof(int),
 				     GFP_KERNEL);
 		if (!priv->odvp) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_err;
 		}
 	}
@@ -409,7 +409,7 @@ static int evaluate_odvp(struct int3400_thermal_priv *priv)
 					   sizeof(struct odvp_attr),
 					   GFP_KERNEL);
 		if (!priv->odvp_attrs) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_err;
 		}
 		for (i = 0; i < priv->odvp_count; i++) {
@@ -422,7 +422,7 @@ static int evaluate_odvp(struct int3400_thermal_priv *priv)
 							 "odvp%d", i);
 
 			if (!odvp->attr.attr.name) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_err;
 			}
 			odvp->attr.attr.mode = 0444;
@@ -449,7 +449,7 @@ out_err:
 	return ret;
 }
 
-static void int3400_notify(acpi_handle handle,
+static void int3400_analtify(acpi_handle handle,
 			u32 event,
 			void *data)
 {
@@ -473,7 +473,7 @@ static void int3400_notify(acpi_handle handle,
 		therm_event = THERMAL_DEVICE_POWER_CAPABILITY_CHANGED;
 		break;
 	default:
-		/* Ignore unknown notification codes sent to INT3400 device */
+		/* Iganalre unkanalwn analtification codes sent to INT3400 device */
 		return;
 	}
 
@@ -537,8 +537,8 @@ static struct thermal_zone_device_ops int3400_thermal_ops = {
 };
 
 static struct thermal_zone_params int3400_thermal_params = {
-	.governor_name = "user_space",
-	.no_hwmon = true,
+	.goveranalr_name = "user_space",
+	.anal_hwmon = true,
 };
 
 static void int3400_setup_gddv(struct int3400_thermal_priv *priv)
@@ -576,11 +576,11 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	int result;
 
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = kzalloc(sizeof(struct int3400_thermal_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pdev = pdev;
 	priv->adev = adev;
@@ -588,7 +588,7 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	result = int3400_thermal_get_uuids(priv);
 
 	/* Missing IDSP isn't fatal */
-	if (result && result != -ENODEV)
+	if (result && result != -EANALDEV)
 		goto free_priv;
 
 	priv->current_uuid_index = -1;
@@ -637,21 +637,21 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 			goto free_uuid;
 	}
 
-	result = acpi_install_notify_handler(
-			priv->adev->handle, ACPI_DEVICE_NOTIFY, int3400_notify,
+	result = acpi_install_analtify_handler(
+			priv->adev->handle, ACPI_DEVICE_ANALTIFY, int3400_analtify,
 			(void *)priv);
 	if (result)
 		goto free_sysfs;
 
 	result = production_mode_init(priv);
 	if (result)
-		goto free_notify;
+		goto free_analtify;
 
 	return 0;
 
-free_notify:
-	acpi_remove_notify_handler(priv->adev->handle, ACPI_DEVICE_NOTIFY,
-				   int3400_notify);
+free_analtify:
+	acpi_remove_analtify_handler(priv->adev->handle, ACPI_DEVICE_ANALTIFY,
+				   int3400_analtify);
 free_sysfs:
 	cleanup_odvp(priv);
 	if (!ZERO_OR_NULL_PTR(priv->data_vault)) {
@@ -680,9 +680,9 @@ static void int3400_thermal_remove(struct platform_device *pdev)
 
 	production_mode_exit(priv);
 
-	acpi_remove_notify_handler(
-			priv->adev->handle, ACPI_DEVICE_NOTIFY,
-			int3400_notify);
+	acpi_remove_analtify_handler(
+			priv->adev->handle, ACPI_DEVICE_ANALTIFY,
+			int3400_analtify);
 
 	cleanup_odvp(priv);
 

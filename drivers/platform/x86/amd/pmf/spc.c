@@ -26,7 +26,7 @@ static const char *ta_slider_as_str(unsigned int state)
 	case TA_BEST_BATTERY:
 		return "POWER_SAVER";
 	default:
-		return "Unknown TA Slider State";
+		return "Unkanalwn TA Slider State";
 	}
 }
 
@@ -113,7 +113,7 @@ static int amd_pmf_get_battery_info(struct amd_pmf_dev *dev, struct ta_pmf_enact
 	if (val < 0)
 		return val;
 	if (val != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	in->ev_info.bat_percentage = amd_pmf_get_battery_prop(POWER_SUPPLY_PROP_CAPACITY);
 	/* all values in mWh metrics */
@@ -121,7 +121,7 @@ static int amd_pmf_get_battery_info(struct amd_pmf_dev *dev, struct ta_pmf_enact
 		MILLIWATT_PER_WATT;
 	in->ev_info.full_charge_capacity = amd_pmf_get_battery_prop(POWER_SUPPLY_PROP_ENERGY_FULL) /
 		MILLIWATT_PER_WATT;
-	in->ev_info.drain_rate = amd_pmf_get_battery_prop(POWER_SUPPLY_PROP_POWER_NOW) /
+	in->ev_info.drain_rate = amd_pmf_get_battery_prop(POWER_SUPPLY_PROP_POWER_ANALW) /
 		MILLIWATT_PER_WATT;
 
 	return 0;
@@ -142,8 +142,8 @@ static int amd_pmf_get_slider_info(struct amd_pmf_dev *dev, struct ta_pmf_enact_
 		val = TA_BEST_BATTERY;
 		break;
 	default:
-		dev_err(dev->dev, "Unknown Platform Profile.\n");
-		return -EOPNOTSUPP;
+		dev_err(dev->dev, "Unkanalwn Platform Profile.\n");
+		return -EOPANALTSUPP;
 	}
 	in->ev_info.power_slider = val;
 
@@ -168,8 +168,8 @@ static int amd_pmf_get_sensor_info(struct amd_pmf_dev *dev, struct ta_pmf_enact_
 		return ret;
 
 	switch (sfh_info.user_present) {
-	case SFH_NOT_DETECTED:
-		in->ev_info.user_present = 0xff; /* assume no sensors connected */
+	case SFH_ANALT_DETECTED:
+		in->ev_info.user_present = 0xff; /* assume anal sensors connected */
 		break;
 	case SFH_USER_PRESENT:
 		in->ev_info.user_present = 1;

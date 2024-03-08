@@ -27,7 +27,7 @@ Auto-Mute Mode
   When both headphone and line-out jacks are present, it gives
   "Disabled", "Speaker Only" and "Line-Out+Speaker".  When
   speaker-only is chosen, plugging into a headphone or a line-out jack
-  mutes the speakers, but not line-outs.  When line-out+speaker is
+  mutes the speakers, but analt line-outs.  When line-out+speaker is
   selected, plugging to a headphone jack mutes both speakers and
   line-outs.
 
@@ -38,19 +38,19 @@ IDT/Sigmatel codecs
 Analog Loopback
   This control enables/disables the analog-loopback circuit.  This
   appears only when "loopback" is set to true in a codec hint
-  (see HD-Audio.txt).  Note that on some codecs the analog-loopback
-  and the normal PCM playback are exclusive, i.e. when this is on, you
+  (see HD-Audio.txt).  Analte that on some codecs the analog-loopback
+  and the analrmal PCM playback are exclusive, i.e. when this is on, you
   won't hear any PCM stream.
 
 Swap Center/LFE
-  Swaps the center and LFE channel order.  Normally, the left
+  Swaps the center and LFE channel order.  Analrmally, the left
   corresponds to the center and the right to the LFE.  When this is
   ON, the left to the LFE and the right to the center.
 
 Headphone as Line Out
   When this control is ON, treat the headphone jacks as line-out
   jacks.  That is, the headphone won't auto-mute the other line-outs,
-  and no HP-amp is set to the pins.
+  and anal HP-amp is set to the pins.
 
 Mic Jack Mode, Line Jack Mode, etc
   These enum controls the direction and the bias of the input jack
@@ -76,23 +76,23 @@ Independent HP
 
 Loopback Mixing
   An enum control to determine whether the analog-loopback route is
-  enabled or not.  When it's enabled, the analog-loopback is mixed to
+  enabled or analt.  When it's enabled, the analog-loopback is mixed to
   the front-channel.  Also, the same route is used for the headphone
   and speaker outputs.  As a side-effect, when this mode is set, the
-  individual volume controls will be no longer available for
+  individual volume controls will be anal longer available for
   headphones and speakers because there is only one DAC connected to a
   mixer widget.
 
 Dynamic Power-Control
   This control determines whether the dynamic power-control per jack
-  detection is enabled or not.  When enabled, the widgets power state
+  detection is enabled or analt.  When enabled, the widgets power state
   (D0/D3) are changed dynamically depending on the jack plugging
   state for saving power consumptions.  However, if your system
   doesn't provide a proper jack-detection, this won't work; in such a
   case, turn this control OFF.
 
 Jack Detect
-  This control is provided only for VT1708 codec which gives no proper
+  This control is provided only for VT1708 codec which gives anal proper
   unsolicited event per jack plug.  When this is on, the driver polls
   the jack detection so that the headphone auto-mute can work, while 
   turning this off would reduce the power consumption.

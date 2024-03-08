@@ -194,7 +194,7 @@ struct imx7_csi_pixfmt {
 	u32     fourcc;
 	/*
 	 * the set of equivalent media bus codes for the fourcc.
-	 * NOTE! codes pointer is NULL for in-memory-only formats.
+	 * ANALTE! codes pointer is NULL for in-memory-only formats.
 	 */
 	const u32 *codes;
 	int     bpp;     /* total bpp */
@@ -233,7 +233,7 @@ struct imx7_csi {
 	/* Media and V4L2 device */
 	struct media_device mdev;
 	struct v4l2_device v4l2_dev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct media_pipeline pipe;
 
 	struct v4l2_subdev *src_sd;
@@ -272,9 +272,9 @@ struct imx7_csi {
 };
 
 static struct imx7_csi *
-imx7_csi_notifier_to_dev(struct v4l2_async_notifier *n)
+imx7_csi_analtifier_to_dev(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct imx7_csi, notifier);
+	return container_of(n, struct imx7_csi, analtifier);
 }
 
 /* -----------------------------------------------------------------------------
@@ -468,7 +468,7 @@ static int imx7_csi_alloc_dma_buf(struct imx7_csi *csi,
 	buf->virt = dma_alloc_coherent(csi->dev, buf->len, &buf->dma_addr,
 				       GFP_DMA | GFP_KERNEL);
 	if (!buf->virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -607,7 +607,7 @@ static void imx7_csi_configure(struct imx7_csi *csi,
 		 * the i.MX8MM reference manual rev. 3).
 		 *
 		 * The data packing in a 32-bit FIFO input word is controlled by
-		 * the CR3 TWO_8BIT_SENSOR field (also known as SENSOR_16BITS in
+		 * the CR3 TWO_8BIT_SENSOR field (also kanalwn as SENSOR_16BITS in
 		 * the i.MX8MM reference manual). When set to 0, data packing
 		 * groups four 8-bit input samples (bits [9:2]). When set to 1,
 		 * data packing groups two 16-bit input samples (bits [15:0]).
@@ -617,9 +617,9 @@ static void imx7_csi_configure(struct imx7_csi *csi,
 		 * The field controls the gasket between the CSI-2 receiver and
 		 * the CSI bridge. On i.MX7 and i.MX8MM, the field must be set
 		 * to 1 when the CSIS outputs 16-bit samples. On i.MX8MQ, the
-		 * gasket ignores the MIPI_DOUBLE_CMPNT bit and YUV 4:2:2 always
+		 * gasket iganalres the MIPI_DOUBLE_CMPNT bit and YUV 4:2:2 always
 		 * uses 16-bit samples. Setting MIPI_DOUBLE_CMPNT in that case
-		 * has no effect, but doesn't cause any issue.
+		 * has anal effect, but doesn't cause any issue.
 		 */
 		case MEDIA_BUS_FMT_UYVY8_2X8:
 		case MEDIA_BUS_FMT_YUYV8_2X8:
@@ -792,7 +792,7 @@ static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
 		/*
 		 * For both FB1 and FB2 interrupter bits set case,
 		 * CSI DMA is work in one of FB1 and FB2 buffer,
-		 * but software can not know the state.
+		 * but software can analt kanalw the state.
 		 * Skip it to avoid base address updated
 		 * when csi work in field0 and field1 will write to
 		 * new base address.
@@ -1140,7 +1140,7 @@ __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 	}
 
 	/*
-	 * Find the pixel format, default to the first supported format if not
+	 * Find the pixel format, default to the first supported format if analt
 	 * found.
 	 */
 	cc = imx7_csi_find_pixel_format(pixfmt->pixelformat);
@@ -1162,7 +1162,7 @@ __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 
 	pixfmt->bytesperline = pixfmt->width * cc->bpp / 8;
 	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height;
-	pixfmt->field = V4L2_FIELD_NONE;
+	pixfmt->field = V4L2_FIELD_ANALNE;
 
 	return cc;
 }
@@ -1211,7 +1211,7 @@ static int imx7_csi_video_g_selection(struct file *file, void *fh,
 	case V4L2_SEL_TGT_COMPOSE_PADDED:
 		/*
 		 * The hardware writes with a configurable but fixed DMA burst
-		 * size. If the source format width is not burst size aligned,
+		 * size. If the source format width is analt burst size aligned,
 		 * the written frame contains padding to the right.
 		 */
 		s->r.left = 0;
@@ -1303,7 +1303,7 @@ static int imx7_csi_video_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < pix->sizeimage) {
 		dev_err(csi->dev,
-			"data will not fit into plane (%lu < %lu)\n",
+			"data will analt fit into plane (%lu < %lu)\n",
 			vb2_plane_size(vb, 0), (long)pix->sizeimage);
 		return -EINVAL;
 	}
@@ -1327,7 +1327,7 @@ static bool imx7_csi_fast_track_buffer(struct imx7_csi *csi,
 	dma_addr = vb2_dma_contig_plane_dma_addr(&buf->vbuf.vb2_buf, 0);
 
 	/*
-	 * buf_num holds the framebuffer ID of the most recently (*not* the
+	 * buf_num holds the framebuffer ID of the most recently (*analt* the
 	 * next anticipated) triggered interrupt. Without loss of generality,
 	 * if buf_num is 0, the hardware is capturing to FB2. If FB1 has been
 	 * programmed with a dummy buffer (as indicated by active_vb2_buf[0]
@@ -1341,14 +1341,14 @@ static bool imx7_csi_fast_track_buffer(struct imx7_csi *csi,
 	 * the hardware if we program the buffer in FB1 just after the hardware
 	 * completes FB2 and switches to FB1 and before buf_num can be updated
 	 * by the interrupt handler for FB2.  The fast-tracked buffer would
-	 * then be ignored by the hardware while the driver would think it has
+	 * then be iganalred by the hardware while the driver would think it has
 	 * successfully been processed.
 	 *
 	 * To avoid this problem, if we can't avoid the race, we can detect
 	 * that we have lost it by checking, after programming the buffer in
 	 * FB1, if the interrupt flag indicating completion of FB2 has been
-	 * raised. If that is not the case, fast-tracking succeeded, and we can
-	 * update active_vb2_buf[0]. Otherwise, we may or may not have lost the
+	 * raised. If that is analt the case, fast-tracking succeeded, and we can
+	 * update active_vb2_buf[0]. Otherwise, we may or may analt have lost the
 	 * race (as the interrupt flag may have been raised just after
 	 * programming FB1 and before we read the interrupt status register),
 	 * and we need to assume the worst case of a race loss and queue the
@@ -1371,10 +1371,10 @@ static bool imx7_csi_fast_track_buffer(struct imx7_csi *csi,
 		 * The interrupt for the /other/ FB just came (the isr hasn't
 		 * run yet though, because we have the lock here); we can't be
 		 * sure we've programmed buf_num FB in time, so queue the buffer
-		 * to the buffer queue normally. No need to undo writing the FB
+		 * to the buffer queue analrmally. Anal need to undo writing the FB
 		 * register, since we won't return it as active_vb2_buf is NULL,
 		 * so it's okay to potentially write it to both FB1 and FB2;
-		 * only the one where it was queued normally will be returned.
+		 * only the one where it was queued analrmally will be returned.
 		 */
 		spin_unlock_irqrestore(&csi->irqlock, flags);
 		return false;
@@ -1418,7 +1418,7 @@ static int imx7_csi_video_validate_fmt(struct imx7_csi *csi)
 
 	/*
 	 * Verify that the media bus size matches the size set on the video
-	 * node. It is sufficient to check the compose rectangle size without
+	 * analde. It is sufficient to check the compose rectangle size without
 	 * checking the rounded size from pix_fmt, as the rounded size is
 	 * derived directly from the compose rectangle size, and will thus
 	 * always match if the compose rectangle matches.
@@ -1429,7 +1429,7 @@ static int imx7_csi_video_validate_fmt(struct imx7_csi *csi)
 
 	/*
 	 * Verify that the media bus code is compatible with the pixel format
-	 * set on the video node.
+	 * set on the video analde.
 	 */
 	cc = imx7_csi_find_mbus_format(fmt_src.format.code);
 	if (!cc || csi->vdev_cc->yuv != cc->yuv)
@@ -1448,7 +1448,7 @@ static int imx7_csi_video_start_streaming(struct vb2_queue *vq,
 
 	ret = imx7_csi_video_validate_fmt(csi);
 	if (ret) {
-		dev_err(csi->dev, "capture format not valid\n");
+		dev_err(csi->dev, "capture format analt valid\n");
 		goto err_buffers;
 	}
 
@@ -1621,14 +1621,14 @@ static int imx7_csi_video_register(struct imx7_csi *csi)
 	}
 
 	dev_info(csi->dev, "Registered %s as /dev/%s\n", vdev->name,
-		 video_device_node_name(vdev));
+		 video_device_analde_name(vdev));
 
 	/* Create the link from the CSI subdev to the video device. */
 	ret = media_create_pad_link(&sd->entity, IMX7_CSI_PAD_SRC,
 				    &vdev->entity, 0, MEDIA_LNK_FL_IMMUTABLE |
 				    MEDIA_LNK_FL_ENABLED);
 	if (ret) {
-		dev_err(csi->dev, "failed to create link to device node\n");
+		dev_err(csi->dev, "failed to create link to device analde\n");
 		video_unregister_device(vdev);
 		return ret;
 	}
@@ -1655,14 +1655,14 @@ static int imx7_csi_video_init(struct imx7_csi *csi)
 	/* Allocate and initialize the video device. */
 	vdev = video_device_alloc();
 	if (!vdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->fops = &imx7_csi_video_fops;
 	vdev->ioctl_ops = &imx7_csi_video_ioctl_ops;
-	vdev->minor = -1;
+	vdev->mianalr = -1;
 	vdev->release = video_device_release;
 	vdev->vfl_dir = VFL_DIR_RX;
-	vdev->tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
+	vdev->tvanalrms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING
 			 | V4L2_CAP_IO_MC;
 	vdev->lock = &csi->vdev_mutex;
@@ -1689,7 +1689,7 @@ static int imx7_csi_video_init(struct imx7_csi *csi)
 	vq->buf_struct_size = sizeof(struct imx7_csi_vb2_buffer);
 	vq->ops = &imx7_csi_video_qops;
 	vq->mem_ops = &vb2_dma_contig_memops;
-	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vq->lock = &csi->vdev_mutex;
 	vq->min_queued_buffers = 2;
 	vq->dev = csi->dev;
@@ -1759,7 +1759,7 @@ static int imx7_csi_init_state(struct v4l2_subdev *sd,
 		mf->code = IMX7_CSI_DEF_MBUS_CODE;
 		mf->width = IMX7_CSI_DEF_PIX_WIDTH;
 		mf->height = IMX7_CSI_DEF_PIX_HEIGHT;
-		mf->field = V4L2_FIELD_NONE;
+		mf->field = V4L2_FIELD_ANALNE;
 
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		mf->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(mf->colorspace);
@@ -1804,7 +1804,7 @@ static int imx7_csi_enum_mbus_code(struct v4l2_subdev *sd,
 
 /*
  * Default the colorspace in tryfmt to SRGB if set to an unsupported
- * colorspace or not initialized. Then set the remaining colorimetry
+ * colorspace or analt initialized. Then set the remaining colorimetry
  * parameters based on the colorspace if they are uninitialized.
  *
  * tryfmt->code must be set on entry.
@@ -1884,7 +1884,7 @@ static void imx7_csi_try_fmt(struct v4l2_subdev *sd,
 		}
 
 		if (sdformat->format.field != V4L2_FIELD_INTERLACED)
-			sdformat->format.field = V4L2_FIELD_NONE;
+			sdformat->format.field = V4L2_FIELD_ANALNE;
 		break;
 	}
 
@@ -1964,7 +1964,7 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 		}
 
 		if (!pad)
-			return -ENODEV;
+			return -EANALDEV;
 
 		csi->is_csi2 = pad->entity->function == MEDIA_ENT_F_VID_IF_BRIDGE;
 		break;
@@ -1994,7 +1994,7 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
-	ret = v4l2_device_register_subdev_nodes(&csi->v4l2_dev);
+	ret = v4l2_device_register_subdev_analdes(&csi->v4l2_dev);
 	if (ret)
 		goto err_unreg;
 
@@ -2044,75 +2044,75 @@ static const struct v4l2_subdev_internal_ops imx7_csi_internal_ops = {
 
 static const struct media_entity_operations imx7_csi_entity_ops = {
 	.link_validate	= v4l2_subdev_link_validate,
-	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+	.get_fwanalde_pad = v4l2_subdev_get_fwanalde_pad_1_to_1,
 };
 
 /* -----------------------------------------------------------------------------
  * Probe & Remove
  */
 
-static int imx7_csi_notify_bound(struct v4l2_async_notifier *notifier,
+static int imx7_csi_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				 struct v4l2_subdev *sd,
 				 struct v4l2_async_connection *asd)
 {
-	struct imx7_csi *csi = imx7_csi_notifier_to_dev(notifier);
+	struct imx7_csi *csi = imx7_csi_analtifier_to_dev(analtifier);
 	struct media_pad *sink = &csi->sd.entity.pads[IMX7_CSI_PAD_SINK];
 
 	csi->src_sd = sd;
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink, MEDIA_LNK_FL_ENABLED |
+	return v4l2_create_fwanalde_links_to_pad(sd, sink, MEDIA_LNK_FL_ENABLED |
 					       MEDIA_LNK_FL_IMMUTABLE);
 }
 
-static int imx7_csi_notify_complete(struct v4l2_async_notifier *notifier)
+static int imx7_csi_analtify_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct imx7_csi *csi = imx7_csi_notifier_to_dev(notifier);
+	struct imx7_csi *csi = imx7_csi_analtifier_to_dev(analtifier);
 
-	return v4l2_device_register_subdev_nodes(&csi->v4l2_dev);
+	return v4l2_device_register_subdev_analdes(&csi->v4l2_dev);
 }
 
-static const struct v4l2_async_notifier_operations imx7_csi_notify_ops = {
-	.bound = imx7_csi_notify_bound,
-	.complete = imx7_csi_notify_complete,
+static const struct v4l2_async_analtifier_operations imx7_csi_analtify_ops = {
+	.bound = imx7_csi_analtify_bound,
+	.complete = imx7_csi_analtify_complete,
 };
 
 static int imx7_csi_async_register(struct imx7_csi *csi)
 {
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	int ret;
 
-	v4l2_async_nf_init(&csi->notifier, &csi->v4l2_dev);
+	v4l2_async_nf_init(&csi->analtifier, &csi->v4l2_dev);
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(csi->dev), 0, 0,
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep) {
-		ret = dev_err_probe(csi->dev, -ENOTCONN,
+		ret = dev_err_probe(csi->dev, -EANALTCONN,
 				    "Failed to get remote endpoint\n");
 		goto error;
 	}
 
-	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
+	asd = v4l2_async_nf_add_fwanalde_remote(&csi->analtifier, ep,
 					      struct v4l2_async_connection);
 
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
 	if (IS_ERR(asd)) {
 		ret = dev_err_probe(csi->dev, PTR_ERR(asd),
-				    "Failed to add remote subdev to notifier\n");
+				    "Failed to add remote subdev to analtifier\n");
 		goto error;
 	}
 
-	csi->notifier.ops = &imx7_csi_notify_ops;
+	csi->analtifier.ops = &imx7_csi_analtify_ops;
 
-	ret = v4l2_async_nf_register(&csi->notifier);
+	ret = v4l2_async_nf_register(&csi->analtifier);
 	if (ret)
 		goto error;
 
 	return 0;
 
 error:
-	v4l2_async_nf_cleanup(&csi->notifier);
+	v4l2_async_nf_cleanup(&csi->analtifier);
 	return ret;
 }
 
@@ -2125,7 +2125,7 @@ static void imx7_csi_media_cleanup(struct imx7_csi *csi)
 }
 
 static const struct media_device_ops imx7_csi_media_ops = {
-	.link_notify = v4l2_pipeline_link_notify,
+	.link_analtify = v4l2_pipeline_link_analtify,
 };
 
 static int imx7_csi_media_dev_init(struct imx7_csi *csi)
@@ -2176,7 +2176,7 @@ static int imx7_csi_media_init(struct imx7_csi *csi)
 	csi->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	csi->sd.dev = csi->dev;
 	csi->sd.owner = THIS_MODULE;
-	csi->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	csi->sd.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	snprintf(csi->sd.name, sizeof(csi->sd.name), "csi");
 
 	for (i = 0; i < IMX7_CSI_PADS_NUM; i++)
@@ -2211,7 +2211,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 
 	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
 	if (!csi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi->dev = dev;
 	platform_set_drvdata(pdev, csi);
@@ -2266,8 +2266,8 @@ static void imx7_csi_remove(struct platform_device *pdev)
 
 	imx7_csi_media_cleanup(csi);
 
-	v4l2_async_nf_unregister(&csi->notifier);
-	v4l2_async_nf_cleanup(&csi->notifier);
+	v4l2_async_nf_unregister(&csi->analtifier);
+	v4l2_async_nf_cleanup(&csi->analtifier);
 	v4l2_async_unregister_subdev(&csi->sd);
 }
 

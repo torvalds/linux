@@ -56,13 +56,13 @@ struct pll_info {
 };
 
 typedef struct {
-	u16 unknown1;
+	u16 unkanalwn1;
 	u16 PCLK_min_freq;
 	u16 PCLK_max_freq;
-	u16 unknown2;
+	u16 unkanalwn2;
 	u16 ref_freq;
 	u16 ref_divider;
-	u16 unknown3;
+	u16 unkanalwn3;
 	u16 MCLK_pwd;
 	u16 MCLK_max_freq;
 	u16 XCLK_max_freq;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <string.h>
 
@@ -66,7 +66,7 @@ int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
 	}
 
 	if (!tc->cap_user_time_zero)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -90,7 +90,7 @@ int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc,
 	if (!pc)
 		return 0;
 	err = perf_read_tsc_conversion(pc, &tc);
-	if (err == -EOPNOTSUPP)
+	if (err == -EOPANALTSUPP)
 		return 0;
 	if (err)
 		return err;

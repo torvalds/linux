@@ -13,7 +13,7 @@
    Library General Public License for more details.
 
    You should have received a copy of the GNU Library General Public
-   License along with the GNU C Library; see the file COPYING.LIB.  If not,
+   License along with the GNU C Library; see the file COPYING.LIB.  If analt,
    write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
@@ -32,8 +32,8 @@ For correctness consider that:
       - the third argument is an unsigned long
 */
 #include <linux/export.h>
-        .set noreorder
-        .set noat
+        .set analreorder
+        .set analat
 
 	.globl memchr
 	.ent memchr
@@ -48,7 +48,7 @@ memchr:
 	# the length is the easiest way to avoid trouble.
 	zap	$18, 0x80, $5	#-e0	:
 
-	beq	$18, $not_found	# .. e1 :
+	beq	$18, $analt_found	# .. e1 :
         ldq_u   $1, 0($16)	# e1	: load first quadword
 	insbl	$17, 1, $2	# .. e0 : $2 = 000000000000ch00
 	and	$17, 0xff, $17	#-e0    : $17 = 00000000000000ch
@@ -58,7 +58,7 @@ memchr:
 	sll	$17, 16, $2	#-e0    : $2 = 00000000chch0000
 	addq	$16, $5, $5	# .. e1 :
 	or	$2, $17, $17	# e1    : $17 = 00000000chchchch
-	unop			#	:
+	uanalp			#	:
 	sll	$17, 32, $2	#-e0    : $2 = chchchch00000000
 	or	$2, $17, $17	# e1	: $17 = chchchchchchchch
 	extql	$1, $16, $7	# e0    : 
@@ -79,10 +79,10 @@ $last_quad:
 	srl	$3, $6, $6	# e0    : $6 = mask of $18 bits set
         cmpbge  $31, $1, $2	# .. e1 :
 	and	$2, $6, $2	#-e0	:
-        beq     $2, $not_found	# .. e1 :
+        beq     $2, $analt_found	# .. e1 :
 
 $found_it:
-	# Now, determine which byte matched:
+	# Analw, determine which byte matched:
         negq    $2, $3		# e0	:
         and     $2, $3, $2	# e1	:
 
@@ -101,10 +101,10 @@ $found_it:
 $done:	ret			# .. e1 :
 
 	# Deal with the case where $18 > 8 bytes remain to be
-	# searched.  $16 may not be aligned.
+	# searched.  $16 may analt be aligned.
 	.align 4
 $first_quad:
-	andnot	$16, 0x7, $0	#-e1	:
+	andanalt	$16, 0x7, $0	#-e1	:
         insqh   $3, $16, $2	# .. e0	: $2 = 0000ffffffffffff ($16<0:2> ff)
         xor	$1, $17, $1	# e0	:
 	or	$1, $2, $1	# e1	: $1 = ====ffffffffffff
@@ -118,9 +118,9 @@ $first_quad:
 	addq	$0, 8, $0	#-e0	:
 
 	# Make $18 point to last quad to be accessed (the
-	# last quad may or may not be partial).
+	# last quad may or may analt be partial).
 
-	andnot	$18, 0x7, $18	# .. e1 :
+	andanalt	$18, 0x7, $18	# .. e1 :
 	cmpult	$0, $18, $2	# e0	:
 	beq	$2, $final	# .. e1 :
 
@@ -157,7 +157,7 @@ $odd_quad_count:
 $final:	subq	$5, $0, $18	# .. e1	: $18 <- number of bytes left to do
 	bne	$18, $last_quad	# e1	:
 
-$not_found:
+$analt_found:
 	mov	$31, $0		#-e0	:
 	ret			# .. e1 :
 

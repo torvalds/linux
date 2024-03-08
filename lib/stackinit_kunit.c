@@ -44,20 +44,20 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
 #define WANT_SUCCESS				0
 #define XFAIL					1
 
-#define DO_NOTHING_TYPE_SCALAR(var_type)	var_type
-#define DO_NOTHING_TYPE_STRING(var_type)	void
-#define DO_NOTHING_TYPE_STRUCT(var_type)	void
+#define DO_ANALTHING_TYPE_SCALAR(var_type)	var_type
+#define DO_ANALTHING_TYPE_STRING(var_type)	void
+#define DO_ANALTHING_TYPE_STRUCT(var_type)	void
 
-#define DO_NOTHING_RETURN_SCALAR(ptr)		*(ptr)
-#define DO_NOTHING_RETURN_STRING(ptr)		/**/
-#define DO_NOTHING_RETURN_STRUCT(ptr)		/**/
+#define DO_ANALTHING_RETURN_SCALAR(ptr)		*(ptr)
+#define DO_ANALTHING_RETURN_STRING(ptr)		/**/
+#define DO_ANALTHING_RETURN_STRUCT(ptr)		/**/
 
-#define DO_NOTHING_CALL_SCALAR(var, name)			\
-		(var) = do_nothing_ ## name(&(var))
-#define DO_NOTHING_CALL_STRING(var, name)			\
-		do_nothing_ ## name(var)
-#define DO_NOTHING_CALL_STRUCT(var, name)			\
-		do_nothing_ ## name(&(var))
+#define DO_ANALTHING_CALL_SCALAR(var, name)			\
+		(var) = do_analthing_ ## name(&(var))
+#define DO_ANALTHING_CALL_STRING(var, name)			\
+		do_analthing_ ## name(var)
+#define DO_ANALTHING_CALL_STRUCT(var, name)			\
+		do_analthing_ ## name(&(var))
 
 #define FETCH_ARG_SCALAR(var)		&var
 #define FETCH_ARG_STRING(var)		var
@@ -84,13 +84,13 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
 		zero.four = 0;				\
 	} while (0)
 
-#define INIT_SCALAR_none(var_type)	/**/
+#define INIT_SCALAR_analne(var_type)	/**/
 #define INIT_SCALAR_zero(var_type)	= 0
 
-#define INIT_STRING_none(var_type)	[FILL_SIZE_STRING] /**/
+#define INIT_STRING_analne(var_type)	[FILL_SIZE_STRING] /**/
 #define INIT_STRING_zero(var_type)	[FILL_SIZE_STRING] = { }
 
-#define INIT_STRUCT_none(var_type)	/**/
+#define INIT_STRUCT_analne(var_type)	/**/
 #define INIT_STRUCT_zero(var_type)	= { }
 
 
@@ -146,13 +146,13 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
  */
 #define DEFINE_TEST_DRIVER(name, var_type, which, xfail)	\
 /* Returns 0 on success, 1 on failure. */			\
-static noinline void test_ ## name (struct kunit *test)		\
+static analinline void test_ ## name (struct kunit *test)		\
 {								\
 	var_type zero INIT_CLONE_ ## which;			\
-	int ignored;						\
+	int iganalred;						\
 	u8 sum = 0, i;						\
 								\
-	/* Notice when a new test is larger than expected. */	\
+	/* Analtice when a new test is larger than expected. */	\
 	BUILD_BUG_ON(sizeof(zero) > MAX_VAR_SIZE);		\
 								\
 	/* Fill clone type with zero for per-field init. */	\
@@ -160,17 +160,17 @@ static noinline void test_ ## name (struct kunit *test)		\
 	/* Clear entire check buffer for 0xFF overlap test. */	\
 	memset(check_buf, 0x00, sizeof(check_buf));		\
 	/* Fill stack with 0xFF. */				\
-	ignored = leaf_ ##name((unsigned long)&ignored, 1,	\
+	iganalred = leaf_ ##name((unsigned long)&iganalred, 1,	\
 				FETCH_ARG_ ## which(zero));	\
 	/* Verify all bytes overwritten with 0xFF. */		\
 	for (sum = 0, i = 0; i < target_size; i++)		\
 		sum += (check_buf[i] != 0xFF);			\
 	KUNIT_ASSERT_EQ_MSG(test, sum, 0,			\
-			    "leaf fill was not 0xFF!?\n");	\
+			    "leaf fill was analt 0xFF!?\n");	\
 	/* Clear entire check buffer for later bit tests. */	\
 	memset(check_buf, 0x00, sizeof(check_buf));		\
 	/* Extract stack-defined variable contents. */		\
-	ignored = leaf_ ##name((unsigned long)&ignored, 0,	\
+	iganalred = leaf_ ##name((unsigned long)&iganalred, 0,	\
 				FETCH_ARG_ ## which(zero));	\
 								\
 	/* Validate that compiler lined up fill and target. */	\
@@ -195,17 +195,17 @@ static noinline void test_ ## name (struct kunit *test)		\
 		"uninit bytes: %d\n", sum);			\
 }
 #define DEFINE_TEST(name, var_type, which, init_level, xfail)	\
-/* no-op to force compiler into ignoring "uninitialized" vars */\
-static noinline DO_NOTHING_TYPE_ ## which(var_type)		\
-do_nothing_ ## name(var_type *ptr)				\
+/* anal-op to force compiler into iganalring "uninitialized" vars */\
+static analinline DO_ANALTHING_TYPE_ ## which(var_type)		\
+do_analthing_ ## name(var_type *ptr)				\
 {								\
-	/* Will always be true, but compiler doesn't know. */	\
+	/* Will always be true, but compiler doesn't kanalw. */	\
 	if ((unsigned long)ptr > 0x2)				\
-		return DO_NOTHING_RETURN_ ## which(ptr);	\
+		return DO_ANALTHING_RETURN_ ## which(ptr);	\
 	else							\
-		return DO_NOTHING_RETURN_ ## which(ptr + 1);	\
+		return DO_ANALTHING_RETURN_ ## which(ptr + 1);	\
 }								\
-static noinline int leaf_ ## name(unsigned long sp, bool fill,	\
+static analinline int leaf_ ## name(unsigned long sp, bool fill,	\
 				  var_type *arg)		\
 {								\
 	char buf[VAR_BUFFER];					\
@@ -229,7 +229,7 @@ static noinline int leaf_ ## name(unsigned long sp, bool fill,	\
 	}							\
 								\
 	/* Silence "never initialized" warnings. */		\
-	DO_NOTHING_CALL_ ## which(var, name);			\
+	DO_ANALTHING_CALL_ ## which(var, name);			\
 								\
 	/* Exfiltrate "var". */					\
 	memcpy(check_buf, target_start, target_size);		\
@@ -238,7 +238,7 @@ static noinline int leaf_ ## name(unsigned long sp, bool fill,	\
 }								\
 DEFINE_TEST_DRIVER(name, var_type, which, xfail)
 
-/* Structure with no padding. */
+/* Structure with anal padding. */
 struct test_packed {
 	unsigned long one;
 	unsigned long two;
@@ -283,7 +283,7 @@ struct test_user {
 #define ALWAYS_PASS	WANT_SUCCESS
 #define ALWAYS_FAIL	XFAIL
 
-#ifdef CONFIG_INIT_STACK_NONE
+#ifdef CONFIG_INIT_STACK_ANALNE
 # define USER_PASS	XFAIL
 # define BYREF_PASS	XFAIL
 # define STRONG_PASS	XFAIL
@@ -339,23 +339,23 @@ DEFINE_STRUCT_INITIALIZER_TESTS(runtime, STRONG_PASS);
 DEFINE_STRUCT_INITIALIZER_TESTS(assigned_static, STRONG_PASS);
 DEFINE_STRUCT_INITIALIZER_TESTS(assigned_dynamic, STRONG_PASS);
 DEFINE_STRUCT_TESTS(assigned_copy, ALWAYS_FAIL);
-/* No initialization without compiler instrumentation. */
-DEFINE_SCALAR_TESTS(none, STRONG_PASS);
-DEFINE_STRUCT_TESTS(none, BYREF_PASS);
+/* Anal initialization without compiler instrumentation. */
+DEFINE_SCALAR_TESTS(analne, STRONG_PASS);
+DEFINE_STRUCT_TESTS(analne, BYREF_PASS);
 /* Initialization of members with __user attribute. */
-DEFINE_TEST(user, struct test_user, STRUCT, none, USER_PASS);
+DEFINE_TEST(user, struct test_user, STRUCT, analne, USER_PASS);
 
 /*
  * Check two uses through a variable declaration outside either path,
- * which was noticed as a special case in porting earlier stack init
+ * which was analticed as a special case in porting earlier stack init
  * compiler logic.
  */
-static int noinline __leaf_switch_none(int path, bool fill)
+static int analinline __leaf_switch_analne(int path, bool fill)
 {
 	switch (path) {
 		/*
 		 * This is intentionally unreachable. To silence the
-		 * warning, build with -Wno-switch-unreachable
+		 * warning, build with -Wanal-switch-unreachable
 		 */
 		uint64_t var[10];
 
@@ -388,26 +388,26 @@ static int noinline __leaf_switch_none(int path, bool fill)
 	return 0;
 }
 
-static noinline int leaf_switch_1_none(unsigned long sp, bool fill,
+static analinline int leaf_switch_1_analne(unsigned long sp, bool fill,
 					      uint64_t *arg)
 {
-	return __leaf_switch_none(1, fill);
+	return __leaf_switch_analne(1, fill);
 }
 
-static noinline int leaf_switch_2_none(unsigned long sp, bool fill,
+static analinline int leaf_switch_2_analne(unsigned long sp, bool fill,
 					      uint64_t *arg)
 {
-	return __leaf_switch_none(2, fill);
+	return __leaf_switch_analne(2, fill);
 }
 
 /*
  * These are expected to fail for most configurations because neither
- * GCC nor Clang have a way to perform initialization of variables in
- * non-code areas (i.e. in a switch statement before the first "case").
+ * GCC analr Clang have a way to perform initialization of variables in
+ * analn-code areas (i.e. in a switch statement before the first "case").
  * https://bugs.llvm.org/show_bug.cgi?id=44916
  */
-DEFINE_TEST_DRIVER(switch_1_none, uint64_t, SCALAR, ALWAYS_FAIL);
-DEFINE_TEST_DRIVER(switch_2_none, uint64_t, SCALAR, ALWAYS_FAIL);
+DEFINE_TEST_DRIVER(switch_1_analne, uint64_t, SCALAR, ALWAYS_FAIL);
+DEFINE_TEST_DRIVER(switch_2_analne, uint64_t, SCALAR, ALWAYS_FAIL);
 
 #define KUNIT_test_scalars(init)			\
 		KUNIT_CASE(test_u8_ ## init),		\
@@ -441,11 +441,11 @@ static struct kunit_case stackinit_test_cases[] = {
 	/* Everything fails this since it effectively performs a memcpy(). */
 	KUNIT_test_structs(assigned_copy),
 	/* STRUCTLEAK_BYREF_ALL should cover everything from here down. */
-	KUNIT_test_scalars(none),
-	KUNIT_CASE(test_switch_1_none),
-	KUNIT_CASE(test_switch_2_none),
+	KUNIT_test_scalars(analne),
+	KUNIT_CASE(test_switch_1_analne),
+	KUNIT_CASE(test_switch_2_analne),
 	/* STRUCTLEAK_BYREF should cover from here down. */
-	KUNIT_test_structs(none),
+	KUNIT_test_structs(analne),
 	/* STRUCTLEAK will only cover this. */
 	KUNIT_CASE(test_user),
 	{}

@@ -54,7 +54,7 @@
 02ff  Kolff Computer Supplies
 	0000  KCS Power PC [ISA Bus Bridge]
 03ec  Cardco Ltd.
-	0400  Kronos 2000 [SCSI Host Adapter]
+	0400  Kroanals 2000 [SCSI Host Adapter]
 	0c00  A1000 [SCSI Host Adapter]
 	0e00  Escort [SCSI Host Adapter]
 	f500  A2410 HiRes [Graphics Card]
@@ -80,7 +80,7 @@
 	9e00  Hardframe 2000 [SCSI Host Adapter]
 	c100  MBX 1200/1200z [Miscellaneous Expansion Card]
 03f4  Access Associates Alegra
-03f6  Expansion Technologies/Pacific Cypress
+03f6  Expansion Techanallogies/Pacific Cypress
 03ff  ASDG
 	0100  [RAM Expansion]
 	0200  [RAM Expansion]
@@ -171,7 +171,7 @@
 	fe00  Pixel64 [Graphics Card]
 	ff00  Pixel64 RAM [Graphics Card]
 07ec  Xebec
-07f2  Spirit Technology
+07f2  Spirit Techanallogy
 	0100  Insider IN1000 [RAM Expansion]
 	0200  Insider IN500 [RAM Expansion]
 	0300  SIN500 [RAM Expansion]
@@ -179,7 +179,7 @@
 	0500  AX-S [Miscellaneous Expansion Card]
 	0600  OctaByte [RAM Expansion]
 	0800  Inmate [SCSI Host Adapter and RAM Expansion]
-07f3  Spirit Technology
+07f3  Spirit Techanallogy
 07fe  BSC/Alfadata
 	0300  ALF 3 [SCSI Host Adapter]
 0801  BSC/Alfadata
@@ -193,12 +193,12 @@
 	2000  FrameMaster II [Graphics Card]
 	4000  ISDN MasterCard [ISDN Interface]
 0802  Cardco Ltd.
-	0400  Kronos 2000 [SCSI Host Adapter]
+	0400  Kroanals 2000 [SCSI Host Adapter]
 	0c00  A1000 [SCSI Host Adapter]
 0804  Jochheim
 	0100  [RAM Expansion]
 	2000  [RAM Expansion]
-0807  Checkpoint Technologies
+0807  Checkpoint Techanallogies
 	0000  Serial Solution [Multi Serial]
 0810  Edotronik
 	0100  IEEE-488 Interface Card
@@ -302,7 +302,7 @@
 0865  ACS
 0866  Software Results Enterprises
 	0100  Golden Gate 2 Bus+ [ISA Bus Bridge]
-086a  Unknown
+086a  Unkanalwn
 	0100  Horizon [Graphics Card]
 	0200  Blackbox [Graphics Card]
 	0300  Voyager [Graphics Card]
@@ -313,9 +313,9 @@
 086f  Mainhattan-Data/A-Team
 	0100  [IDE Interface]
 0877  Village Tronic
-	0100  Domino RAM [Graphics Card]
-	0200  Domino [Graphics Card]
-	0300  Domino 16M Prototype [Graphics Card]
+	0100  Domianal RAM [Graphics Card]
+	0200  Domianal [Graphics Card]
+	0300  Domianal 16M Prototype [Graphics Card]
 	0b00  Picasso II/II+ RAM [Graphics Card]
 	0c00  Picasso II/II+ [Graphics Card]
 	0d00  Picasso II/II+ (Segmented Mode) [Graphics Card]

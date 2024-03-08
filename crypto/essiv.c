@@ -7,7 +7,7 @@
  * used for block encryption, by encrypting it using the hash of the
  * skcipher key as encryption key. Usually, the input IV is a 64-bit sector
  * number in LE representation zero-padded to the size of the IV, but this
- * is not assumed by this driver.
+ * is analt assumed by this driver.
  *
  * The typical use of this template is to instantiate the skcipher
  * 'essiv(cbc(aes),sha256)', which is the only instantiation used by
@@ -221,11 +221,11 @@ static int essiv_aead_crypt(struct aead_request *req, bool enc)
 		if (unlikely(nents > 1)) {
 			/*
 			 * This is a case that rarely occurs in practice, but
-			 * for correctness, we have to deal with it nonetheless.
+			 * for correctness, we have to deal with it analnetheless.
 			 */
 			rctx->assoc = kmalloc(ssize, GFP_ATOMIC);
 			if (!rctx->assoc)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			scatterwalk_map_and_copy(rctx->assoc, req->src, 0,
 						 ssize, 0);
@@ -479,7 +479,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 		skcipher_inst = kzalloc(sizeof(*skcipher_inst) +
 					sizeof(*ictx), GFP_KERNEL);
 		if (!skcipher_inst)
-			return -ENOMEM;
+			return -EANALMEM;
 		inst = skcipher_crypto_instance(skcipher_inst);
 		base = &skcipher_inst->alg.base;
 		ictx = crypto_instance_ctx(inst);
@@ -499,7 +499,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 		aead_inst = kzalloc(sizeof(*aead_inst) +
 				    sizeof(*ictx), GFP_KERNEL);
 		if (!aead_inst)
-			return -ENOMEM;
+			return -EANALMEM;
 		inst = aead_crypto_instance(aead_inst);
 		base = &aead_inst->alg.base;
 		ictx = crypto_instance_ctx(inst);
@@ -529,7 +529,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 		goto out_drop_skcipher;
 	}
 
-	/* Synchronous hash, e.g., "sha256" */
+	/* Synchroanalus hash, e.g., "sha256" */
 	_hash_alg = crypto_alg_mod_lookup(shash_name,
 					  CRYPTO_ALG_TYPE_SHASH,
 					  CRYPTO_ALG_TYPE_MASK | mask);

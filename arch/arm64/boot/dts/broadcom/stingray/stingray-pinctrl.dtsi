@@ -8,21 +8,21 @@
  *  are met:
  *
  *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      analtice, this list of conditions and the following disclaimer.
  *    * Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in
+ *      analtice, this list of conditions and the following disclaimer in
  *      the documentation and/or other materials provided with the
  *      distribution.
- *    * Neither the name of Broadcom nor the names of its
+ *    * Neither the name of Broadcom analr the names of its
  *      contributors may be used to endorse or promote products derived
  *      from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -63,59 +63,59 @@
 				>;
 			};
 
-			nor_pins: pnor-adv-n-pins {
+			analr_pins: panalr-adv-n-pins {
 				pinctrl-single,pins = <
-					0x0ac MODE_PNOR /* nand_ce1_n */
-					0x0b0 MODE_PNOR /* nand_ce0_n */
-					0x0b4 MODE_PNOR /* nand_we_n */
-					0x0b8 MODE_PNOR /* nand_wp_n */
-					0x0bc MODE_PNOR /* nand_re_n */
-					0x0c0 MODE_PNOR /* nand_rdy_bsy_n */
-					0x0c4 MODE_PNOR /* nand_io0_0 */
-					0x0c8 MODE_PNOR /* nand_io1_0 */
-					0x0cc MODE_PNOR /* nand_io2_0 */
-					0x0d0 MODE_PNOR /* nand_io3_0 */
-					0x0d4 MODE_PNOR /* nand_io4_0 */
-					0x0d8 MODE_PNOR /* nand_io5_0 */
-					0x0dc MODE_PNOR /* nand_io6_0 */
-					0x0e0 MODE_PNOR /* nand_io7_0 */
-					0x0e4 MODE_PNOR /* nand_io8_0 */
-					0x0e8 MODE_PNOR /* nand_io9_0 */
-					0x0ec MODE_PNOR /* nand_io10_0 */
-					0x0f0 MODE_PNOR /* nand_io11_0 */
-					0x0f4 MODE_PNOR /* nand_io12_0 */
-					0x0f8 MODE_PNOR /* nand_io13_0 */
-					0x0fc MODE_PNOR /* nand_io14_0 */
-					0x100 MODE_PNOR /* nand_io15_0 */
-					0x104 MODE_PNOR /* nand_ale_0 */
-					0x108 MODE_PNOR /* nand_cle_0 */
-					0x040 MODE_PNOR /* pnor_adv_n */
-					0x044 MODE_PNOR /* pnor_baa_n */
-					0x048 MODE_PNOR /* pnor_bls_0_n */
-					0x04c MODE_PNOR /* pnor_bls_1_n */
-					0x050 MODE_PNOR /* pnor_cre */
-					0x054 MODE_PNOR /* pnor_cs_2_n */
-					0x058 MODE_PNOR /* pnor_cs_1_n */
-					0x05c MODE_PNOR /* pnor_cs_0_n */
-					0x060 MODE_PNOR /* pnor_we_n */
-					0x064 MODE_PNOR /* pnor_oe_n */
-					0x068 MODE_PNOR /* pnor_intr */
-					0x06c MODE_PNOR /* pnor_dat_0 */
-					0x070 MODE_PNOR /* pnor_dat_1 */
-					0x074 MODE_PNOR /* pnor_dat_2 */
-					0x078 MODE_PNOR /* pnor_dat_3 */
-					0x07c MODE_PNOR /* pnor_dat_4 */
-					0x080 MODE_PNOR /* pnor_dat_5 */
-					0x084 MODE_PNOR /* pnor_dat_6 */
-					0x088 MODE_PNOR /* pnor_dat_7 */
-					0x08c MODE_PNOR /* pnor_dat_8 */
-					0x090 MODE_PNOR /* pnor_dat_9 */
-					0x094 MODE_PNOR /* pnor_dat_10 */
-					0x098 MODE_PNOR /* pnor_dat_11 */
-					0x09c MODE_PNOR /* pnor_dat_12 */
-					0x0a0 MODE_PNOR /* pnor_dat_13 */
-					0x0a4 MODE_PNOR /* pnor_dat_14 */
-					0x0a8 MODE_PNOR /* pnor_dat_15 */
+					0x0ac MODE_PANALR /* nand_ce1_n */
+					0x0b0 MODE_PANALR /* nand_ce0_n */
+					0x0b4 MODE_PANALR /* nand_we_n */
+					0x0b8 MODE_PANALR /* nand_wp_n */
+					0x0bc MODE_PANALR /* nand_re_n */
+					0x0c0 MODE_PANALR /* nand_rdy_bsy_n */
+					0x0c4 MODE_PANALR /* nand_io0_0 */
+					0x0c8 MODE_PANALR /* nand_io1_0 */
+					0x0cc MODE_PANALR /* nand_io2_0 */
+					0x0d0 MODE_PANALR /* nand_io3_0 */
+					0x0d4 MODE_PANALR /* nand_io4_0 */
+					0x0d8 MODE_PANALR /* nand_io5_0 */
+					0x0dc MODE_PANALR /* nand_io6_0 */
+					0x0e0 MODE_PANALR /* nand_io7_0 */
+					0x0e4 MODE_PANALR /* nand_io8_0 */
+					0x0e8 MODE_PANALR /* nand_io9_0 */
+					0x0ec MODE_PANALR /* nand_io10_0 */
+					0x0f0 MODE_PANALR /* nand_io11_0 */
+					0x0f4 MODE_PANALR /* nand_io12_0 */
+					0x0f8 MODE_PANALR /* nand_io13_0 */
+					0x0fc MODE_PANALR /* nand_io14_0 */
+					0x100 MODE_PANALR /* nand_io15_0 */
+					0x104 MODE_PANALR /* nand_ale_0 */
+					0x108 MODE_PANALR /* nand_cle_0 */
+					0x040 MODE_PANALR /* panalr_adv_n */
+					0x044 MODE_PANALR /* panalr_baa_n */
+					0x048 MODE_PANALR /* panalr_bls_0_n */
+					0x04c MODE_PANALR /* panalr_bls_1_n */
+					0x050 MODE_PANALR /* panalr_cre */
+					0x054 MODE_PANALR /* panalr_cs_2_n */
+					0x058 MODE_PANALR /* panalr_cs_1_n */
+					0x05c MODE_PANALR /* panalr_cs_0_n */
+					0x060 MODE_PANALR /* panalr_we_n */
+					0x064 MODE_PANALR /* panalr_oe_n */
+					0x068 MODE_PANALR /* panalr_intr */
+					0x06c MODE_PANALR /* panalr_dat_0 */
+					0x070 MODE_PANALR /* panalr_dat_1 */
+					0x074 MODE_PANALR /* panalr_dat_2 */
+					0x078 MODE_PANALR /* panalr_dat_3 */
+					0x07c MODE_PANALR /* panalr_dat_4 */
+					0x080 MODE_PANALR /* panalr_dat_5 */
+					0x084 MODE_PANALR /* panalr_dat_6 */
+					0x088 MODE_PANALR /* panalr_dat_7 */
+					0x08c MODE_PANALR /* panalr_dat_8 */
+					0x090 MODE_PANALR /* panalr_dat_9 */
+					0x094 MODE_PANALR /* panalr_dat_10 */
+					0x098 MODE_PANALR /* panalr_dat_11 */
+					0x09c MODE_PANALR /* panalr_dat_12 */
+					0x0a0 MODE_PANALR /* panalr_dat_13 */
+					0x0a4 MODE_PANALR /* panalr_dat_14 */
+					0x0a8 MODE_PANALR /* panalr_dat_15 */
 				>;
 			};
 

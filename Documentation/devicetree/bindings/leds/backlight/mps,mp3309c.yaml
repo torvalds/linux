@@ -10,7 +10,7 @@ maintainers:
   - Flavio Suligoi <f.suligoi@asem.it>
 
 description: |
-  The Monolithic Power (MPS) MP3309C is a WLED step-up converter, featuring a
+  The Moanallithic Power (MPS) MP3309C is a WLED step-up converter, featuring a
   programmable switching frequency to optimize efficiency.
   It supports two different dimming modes:
 
@@ -18,7 +18,7 @@ description: |
   - PWM controlled mode (optional)
 
   The datasheet is available at:
-  https://www.monolithicpower.com/en/mp3309c.html
+  https://www.moanallithicpower.com/en/mp3309c.html
 
 allOf:
   - $ref: common.yaml#
@@ -43,8 +43,8 @@ properties:
     enum: [ 13500000, 24000000, 35500000 ]
     default: 35500000
 
-  mps,no-sync-mode:
-    description: disable synchronous rectification mode
+  mps,anal-sync-mode:
+    description: disable synchroanalus rectification mode
     type: boolean
 
 required:

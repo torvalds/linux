@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 
-#ifndef VIDEO_NOMODESET_H
-#define VIDEO_NOMODESET_H
+#ifndef VIDEO_ANALMODESET_H
+#define VIDEO_ANALMODESET_H
 
 bool video_firmware_drivers_only(void);
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -317,10 +317,10 @@
 #define mmDAGB0_WRCLI_DBUS_ASK_PENDING_BASE_IDX                                                        1
 #define mmDAGB0_WRCLI_DBUS_GO_PENDING                                                                  0x0091
 #define mmDAGB0_WRCLI_DBUS_GO_PENDING_BASE_IDX                                                         1
-#define mmDAGB0_WRCLI_GPU_SNOOP_OVERRIDE                                                               0x0092
-#define mmDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_BASE_IDX                                                      1
-#define mmDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE                                                         0x0093
-#define mmDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE_BASE_IDX                                                1
+#define mmDAGB0_WRCLI_GPU_SANALOP_OVERRIDE                                                               0x0092
+#define mmDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_BASE_IDX                                                      1
+#define mmDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE                                                         0x0093
+#define mmDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE_BASE_IDX                                                1
 #define mmDAGB0_DAGB_DLY                                                                               0x0094
 #define mmDAGB0_DAGB_DLY_BASE_IDX                                                                      1
 #define mmDAGB0_CNTL_MISC                                                                              0x0095
@@ -421,20 +421,20 @@
 #define mmMMEA0_DRAM_WR_PRI_QUANT_PRI2_BASE_IDX                                                        1
 #define mmMMEA0_DRAM_WR_PRI_QUANT_PRI3                                                                 0x0118
 #define mmMMEA0_DRAM_WR_PRI_QUANT_PRI3_BASE_IDX                                                        1
-#define mmMMEA0_ADDRNORM_BASE_ADDR0                                                                    0x0134
-#define mmMMEA0_ADDRNORM_BASE_ADDR0_BASE_IDX                                                           1
-#define mmMMEA0_ADDRNORM_LIMIT_ADDR0                                                                   0x0135
-#define mmMMEA0_ADDRNORM_LIMIT_ADDR0_BASE_IDX                                                          1
-#define mmMMEA0_ADDRNORM_BASE_ADDR1                                                                    0x0136
-#define mmMMEA0_ADDRNORM_BASE_ADDR1_BASE_IDX                                                           1
-#define mmMMEA0_ADDRNORM_LIMIT_ADDR1                                                                   0x0137
-#define mmMMEA0_ADDRNORM_LIMIT_ADDR1_BASE_IDX                                                          1
-#define mmMMEA0_ADDRNORM_OFFSET_ADDR1                                                                  0x0138
-#define mmMMEA0_ADDRNORM_OFFSET_ADDR1_BASE_IDX                                                         1
-#define mmMMEA0_ADDRNORMDRAM_HOLE_CNTL                                                                 0x0143
-#define mmMMEA0_ADDRNORMDRAM_HOLE_CNTL_BASE_IDX                                                        1
-#define mmMMEA0_ADDRNORMDRAM_NP2_CHANNEL_CFG                                                           0x0145
-#define mmMMEA0_ADDRNORMDRAM_NP2_CHANNEL_CFG_BASE_IDX                                                  1
+#define mmMMEA0_ADDRANALRM_BASE_ADDR0                                                                    0x0134
+#define mmMMEA0_ADDRANALRM_BASE_ADDR0_BASE_IDX                                                           1
+#define mmMMEA0_ADDRANALRM_LIMIT_ADDR0                                                                   0x0135
+#define mmMMEA0_ADDRANALRM_LIMIT_ADDR0_BASE_IDX                                                          1
+#define mmMMEA0_ADDRANALRM_BASE_ADDR1                                                                    0x0136
+#define mmMMEA0_ADDRANALRM_BASE_ADDR1_BASE_IDX                                                           1
+#define mmMMEA0_ADDRANALRM_LIMIT_ADDR1                                                                   0x0137
+#define mmMMEA0_ADDRANALRM_LIMIT_ADDR1_BASE_IDX                                                          1
+#define mmMMEA0_ADDRANALRM_OFFSET_ADDR1                                                                  0x0138
+#define mmMMEA0_ADDRANALRM_OFFSET_ADDR1_BASE_IDX                                                         1
+#define mmMMEA0_ADDRANALRMDRAM_HOLE_CNTL                                                                 0x0143
+#define mmMMEA0_ADDRANALRMDRAM_HOLE_CNTL_BASE_IDX                                                        1
+#define mmMMEA0_ADDRANALRMDRAM_NP2_CHANNEL_CFG                                                           0x0145
+#define mmMMEA0_ADDRANALRMDRAM_NP2_CHANNEL_CFG_BASE_IDX                                                  1
 #define mmMMEA0_ADDRDEC_BANK_CFG                                                                       0x0147
 #define mmMMEA0_ADDRDEC_BANK_CFG_BASE_IDX                                                              1
 #define mmMMEA0_ADDRDEC_MISC_CFG                                                                       0x0148
@@ -573,8 +573,8 @@
 #define mmMMEA0_ADDRDEC1_RM_SEL_CS1_BASE_IDX                                                           1
 #define mmMMEA0_ADDRDEC1_RM_SEL_CS3                                                                    0x019a
 #define mmMMEA0_ADDRDEC1_RM_SEL_CS3_BASE_IDX                                                           1
-#define mmMMEA0_ADDRNORMDRAM_GLOBAL_CNTL                                                               0x01b5
-#define mmMMEA0_ADDRNORMDRAM_GLOBAL_CNTL_BASE_IDX                                                      1
+#define mmMMEA0_ADDRANALRMDRAM_GLOBAL_CNTL                                                               0x01b5
+#define mmMMEA0_ADDRANALRMDRAM_GLOBAL_CNTL_BASE_IDX                                                      1
 #define mmMMEA0_ADDRDECDRAM_GECC_HARV_ADJ0                                                             0x01b7
 #define mmMMEA0_ADDRDECDRAM_GECC_HARV_ADJ0_BASE_IDX                                                    1
 #define mmMMEA0_ADDRDECDRAM_GECC_HARV_ADJ1                                                             0x01b8
@@ -635,8 +635,8 @@
 #define mmMMEA0_ADDRDEC1_COL_SEL_HI_CS1_BASE_IDX                                                       1
 #define mmMMEA0_ADDRDEC1_COL_SEL_HI_CS3                                                                0x01da
 #define mmMMEA0_ADDRDEC1_COL_SEL_HI_CS3_BASE_IDX                                                       1
-#define mmMMEA0_ADDRNORMDRAM_MASKING                                                                   0x01db
-#define mmMMEA0_ADDRNORMDRAM_MASKING_BASE_IDX                                                          1
+#define mmMMEA0_ADDRANALRMDRAM_MASKING                                                                   0x01db
+#define mmMMEA0_ADDRANALRMDRAM_MASKING_BASE_IDX                                                          1
 #define mmMMEA0_IO_RD_CLI2GRP_MAP0                                                                     0x01dd
 #define mmMMEA0_IO_RD_CLI2GRP_MAP0_BASE_IDX                                                            1
 #define mmMMEA0_IO_RD_CLI2GRP_MAP1                                                                     0x01de
@@ -765,10 +765,10 @@
 #define mmPCTL_MMHUB_DEEPSLEEP_OVERRIDE_BASE_IDX                                                       1
 #define mmPCTL_MMHUB_DEEPSLEEP_OVERRIDE_IB                                                             0x0383
 #define mmPCTL_MMHUB_DEEPSLEEP_OVERRIDE_IB_BASE_IDX                                                    1
-#define mmPCTL_PG_IGNORE_DEEPSLEEP                                                                     0x0384
-#define mmPCTL_PG_IGNORE_DEEPSLEEP_BASE_IDX                                                            1
-#define mmPCTL_PG_IGNORE_DEEPSLEEP_IB                                                                  0x0385
-#define mmPCTL_PG_IGNORE_DEEPSLEEP_IB_BASE_IDX                                                         1
+#define mmPCTL_PG_IGANALRE_DEEPSLEEP                                                                     0x0384
+#define mmPCTL_PG_IGANALRE_DEEPSLEEP_BASE_IDX                                                            1
+#define mmPCTL_PG_IGANALRE_DEEPSLEEP_IB                                                                  0x0385
+#define mmPCTL_PG_IGANALRE_DEEPSLEEP_IB_BASE_IDX                                                         1
 #define mmPCTL_SLICE0_CFG_DAGB_WRBUSY                                                                  0x0386
 #define mmPCTL_SLICE0_CFG_DAGB_WRBUSY_BASE_IDX                                                         1
 #define mmPCTL_SLICE0_CFG_DAGB_RDBUSY                                                                  0x0387

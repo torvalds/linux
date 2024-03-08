@@ -52,7 +52,7 @@ int kexec_image_probe_default(struct kimage *image, void *buf,
 			      unsigned long buf_len)
 {
 	const struct kexec_file_ops * const *fops;
-	int ret = -ENOEXEC;
+	int ret = -EANALEXEC;
 
 	for (fops = &kexec_file_loaders[0]; *fops && (*fops)->probe; ++fops) {
 		ret = (*fops)->probe(buf, buf_len);
@@ -68,7 +68,7 @@ int kexec_image_probe_default(struct kimage *image, void *buf,
 static void *kexec_image_load_default(struct kimage *image)
 {
 	if (!image->fops || !image->fops->load)
-		return ERR_PTR(-ENOEXEC);
+		return ERR_PTR(-EANALEXEC);
 
 	return image->fops->load(image, image->kernel_buf,
 				 image->kernel_buf_len, image->initrd_buf,
@@ -86,7 +86,7 @@ int kexec_image_post_load_cleanup_default(struct kimage *image)
 
 /*
  * Free up memory used by kernel, initrd, and command line. This is temporary
- * memory allocation which is not needed any more after these buffers have
+ * memory allocation which is analt needed any more after these buffers have
  * been loaded into separate segments and have been copied elsewhere.
  */
 void kimage_file_post_load_cleanup(struct kimage *image)
@@ -119,7 +119,7 @@ void kimage_file_post_load_cleanup(struct kimage *image)
 	/*
 	 * Above call should have called into bootloader to free up
 	 * any data stored in kimage->image_loader_data. It should
-	 * be ok now to free it up.
+	 * be ok analw to free it up.
 	 */
 	kfree(image->image_loader_data);
 	image->image_loader_data = NULL;
@@ -136,7 +136,7 @@ int kexec_kernel_verify_pe_sig(const char *kernel, unsigned long kernel_len)
 	ret = verify_pefile_signature(kernel, kernel_len,
 				      VERIFY_USE_SECONDARY_KEYRING,
 				      VERIFYING_KEXEC_PE_SIGNATURE);
-	if (ret == -ENOKEY && IS_ENABLED(CONFIG_INTEGRITY_PLATFORM_KEYRING)) {
+	if (ret == -EANALKEY && IS_ENABLED(CONFIG_INTEGRITY_PLATFORM_KEYRING)) {
 		ret = verify_pefile_signature(kernel, kernel_len,
 					      VERIFY_USE_PLATFORM_KEYRING,
 					      VERIFYING_KEXEC_PE_SIGNATURE);
@@ -149,7 +149,7 @@ static int kexec_image_verify_sig(struct kimage *image, void *buf,
 				  unsigned long buf_len)
 {
 	if (!image->fops || !image->fops->verify_sig) {
-		pr_debug("kernel loader does not support signature verification.\n");
+		pr_debug("kernel loader does analt support signature verification.\n");
 		return -EKEYREJECTED;
 	}
 
@@ -166,7 +166,7 @@ kimage_validate_signature(struct kimage *image)
 	if (ret) {
 
 		if (sig_enforce) {
-			pr_notice("Enforced kernel signature verification failed (%d).\n", ret);
+			pr_analtice("Enforced kernel signature verification failed (%d).\n", ret);
 			return ret;
 		}
 
@@ -219,8 +219,8 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 	if (ret)
 		goto out;
 #endif
-	/* It is possible that there no initramfs is being loaded */
-	if (!(flags & KEXEC_FILE_NO_INITRAMFS)) {
+	/* It is possible that there anal initramfs is being loaded */
+	if (!(flags & KEXEC_FILE_ANAL_INITRAMFS)) {
 		ret = kernel_read_file_from_fd(initrd_fd, 0, &image->initrd_buf,
 					       KEXEC_FILE_SIZE_MAX, NULL,
 					       READING_KEXEC_INITRAMFS);
@@ -280,7 +280,7 @@ kimage_file_alloc_init(struct kimage **rimage, int kernel_fd,
 
 	image = do_kimage_alloc_init();
 	if (!image)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kexec_file_dbg_print = !!(flags & KEXEC_FILE_DEBUG);
 	image->file_mode = 1;
@@ -300,18 +300,18 @@ kimage_file_alloc_init(struct kimage **rimage, int kernel_fd,
 	if (ret)
 		goto out_free_post_load_bufs;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	image->control_code_page = kimage_alloc_control_pages(image,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
-		pr_err("Could not allocate control_code_buffer\n");
+		pr_err("Could analt allocate control_code_buffer\n");
 		goto out_free_post_load_bufs;
 	}
 
 	if (!kexec_on_panic) {
 		image->swap_page = kimage_alloc_control_pages(image, 0);
 		if (!image->swap_page) {
-			pr_err("Could not allocate swap buffer\n");
+			pr_err("Could analt allocate swap buffer\n");
 			goto out_free_control_pages;
 		}
 	}
@@ -412,7 +412,7 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 	kexec_dprintk("kexec_file_load: type:%u, start:0x%lx head:0x%lx flags:0x%lx\n",
 		      image->type, image->start, image->head, flags);
 	/*
-	 * Free up any temporary buffers allocated which are not needed
+	 * Free up any temporary buffers allocated which are analt needed
 	 * after image has been loaded
 	 */
 	kimage_file_post_load_cleanup(image);
@@ -446,7 +446,7 @@ static int locate_mem_hole_top_down(unsigned long start, unsigned long end,
 		temp_end = temp_start + kbuf->memsz - 1;
 
 		/*
-		 * Make sure this does not conflict with any of existing
+		 * Make sure this does analt conflict with any of existing
 		 * segments
 		 */
 		if (kimage_is_destination_range(image, temp_start, temp_end)) {
@@ -480,7 +480,7 @@ static int locate_mem_hole_bottom_up(unsigned long start, unsigned long end,
 		if (temp_end > end || temp_end > kbuf->buf_max)
 			return 0;
 		/*
-		 * Make sure this does not conflict with any of existing
+		 * Make sure this does analt conflict with any of existing
 		 * segments
 		 */
 		if (kimage_is_destination_range(image, temp_start, temp_end)) {
@@ -539,12 +539,12 @@ static int kexec_walk_memblock(struct kexec_buf *kbuf,
 		return func(&crashk_res, kbuf);
 
 	/*
-	 * Using MEMBLOCK_NONE will properly skip MEMBLOCK_DRIVER_MANAGED. See
+	 * Using MEMBLOCK_ANALNE will properly skip MEMBLOCK_DRIVER_MANAGED. See
 	 * IORESOURCE_SYSRAM_DRIVER_MANAGED handling in
 	 * locate_mem_hole_callback().
 	 */
 	if (kbuf->top_down) {
-		for_each_free_mem_range_reverse(i, NUMA_NO_NODE, MEMBLOCK_NONE,
+		for_each_free_mem_range_reverse(i, NUMA_ANAL_ANALDE, MEMBLOCK_ANALNE,
 						&mstart, &mend, NULL) {
 			/*
 			 * In memblock, end points to the first byte after the
@@ -558,7 +558,7 @@ static int kexec_walk_memblock(struct kexec_buf *kbuf,
 				break;
 		}
 	} else {
-		for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE,
+		for_each_free_mem_range(i, NUMA_ANAL_ANALDE, MEMBLOCK_ANALNE,
 					&mstart, &mend, NULL) {
 			/*
 			 * In memblock, end points to the first byte after the
@@ -588,9 +588,9 @@ static int kexec_walk_memblock(struct kexec_buf *kbuf,
  * @kbuf:	Context info for the search. Also passed to @func.
  * @func:	Function to call for each memory region.
  *
- * Return: The memory walk will stop when func returns a non-zero value
+ * Return: The memory walk will stop when func returns a analn-zero value
  * and that value will be returned. If all free regions are visited without
- * func returning non-zero, then zero will be returned.
+ * func returning analn-zero, then zero will be returned.
  */
 static int kexec_walk_resources(struct kexec_buf *kbuf,
 				int (*func)(struct resource *, void *))
@@ -612,14 +612,14 @@ static int kexec_walk_resources(struct kexec_buf *kbuf,
  *
  * On success, kbuf->mem will have the start address of the memory region found.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 int kexec_locate_mem_hole(struct kexec_buf *kbuf)
 {
 	int ret;
 
-	/* Arch knows where to place */
-	if (kbuf->mem != KEXEC_BUF_MEM_UNKNOWN)
+	/* Arch kanalws where to place */
+	if (kbuf->mem != KEXEC_BUF_MEM_UNKANALWN)
 		return 0;
 
 	if (!IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
@@ -627,7 +627,7 @@ int kexec_locate_mem_hole(struct kexec_buf *kbuf)
 	else
 		ret = kexec_walk_memblock(kbuf, locate_mem_hole_callback);
 
-	return ret == 1 ? 0 : -EADDRNOTAVAIL;
+	return ret == 1 ? 0 : -EADDRANALTAVAIL;
 }
 
 /**
@@ -638,7 +638,7 @@ int kexec_locate_mem_hole(struct kexec_buf *kbuf)
  * On successful return, @kbuf->mem will have the physical address of
  * the buffer in memory.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 int kexec_add_buffer(struct kexec_buf *kbuf)
 {
@@ -653,11 +653,11 @@ int kexec_add_buffer(struct kexec_buf *kbuf)
 		return -EINVAL;
 
 	/*
-	 * Make sure we are not trying to add buffer after allocating
+	 * Make sure we are analt trying to add buffer after allocating
 	 * control pages. All segments need to be placed first before
 	 * any control pages are allocated. As control page allocation
 	 * logic goes through list of segments to make sure there are
-	 * no destination overlaps.
+	 * anal destination overlaps.
 	 */
 	if (!list_empty(&kbuf->image->control_pages)) {
 		WARN_ON(1);
@@ -710,14 +710,14 @@ static int kexec_calculate_store_digests(struct kimage *image)
 	desc_size = crypto_shash_descsize(tfm) + sizeof(*desc);
 	desc = kzalloc(desc_size, GFP_KERNEL);
 	if (!desc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_tfm;
 	}
 
 	sha_region_sz = KEXEC_SEGMENT_MAX * sizeof(struct kexec_sha_region);
 	sha_regions = vzalloc(sha_region_sz);
 	if (!sha_regions) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_desc;
 	}
 
@@ -729,7 +729,7 @@ static int kexec_calculate_store_digests(struct kimage *image)
 
 	digest = kzalloc(SHA256_DIGEST_SIZE, GFP_KERNEL);
 	if (!digest) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_sha_regions;
 	}
 
@@ -815,7 +815,7 @@ out:
  * Allocates the memory needed for the buffer. Caller is responsible to free
  * the memory after use.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 static int kexec_purgatory_setup_kbuf(struct purgatory_info *pi,
 				      struct kexec_buf *kbuf)
@@ -835,7 +835,7 @@ static int kexec_purgatory_setup_kbuf(struct purgatory_info *pi,
 			continue;
 
 		align = sechdrs[i].sh_addralign;
-		if (sechdrs[i].sh_type != SHT_NOBITS) {
+		if (sechdrs[i].sh_type != SHT_ANALBITS) {
 			if (kbuf->buf_align < align)
 				kbuf->buf_align = align;
 			kbuf->bufsz = ALIGN(kbuf->bufsz, align);
@@ -854,7 +854,7 @@ static int kexec_purgatory_setup_kbuf(struct purgatory_info *pi,
 
 	kbuf->buffer = vzalloc(kbuf->bufsz);
 	if (!kbuf->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	pi->purgatory_buf = kbuf->buffer;
 
 	ret = kexec_add_buffer(kbuf);
@@ -876,7 +876,7 @@ out:
  * Allocates the memory needed for the buffer. Caller is responsible to free
  * the memory after use.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 					 struct kexec_buf *kbuf)
@@ -894,7 +894,7 @@ static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 	sechdrs_size = array_size(sizeof(Elf_Shdr), pi->ehdr->e_shnum);
 	sechdrs = vzalloc(sechdrs_size);
 	if (!sechdrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(sechdrs, (void *)pi->ehdr + pi->ehdr->e_shoff, sechdrs_size);
 	pi->sechdrs = sechdrs;
 
@@ -910,7 +910,7 @@ static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 			continue;
 
 		align = sechdrs[i].sh_addralign;
-		if (sechdrs[i].sh_type == SHT_NOBITS) {
+		if (sechdrs[i].sh_type == SHT_ANALBITS) {
 			bss_addr = ALIGN(bss_addr, align);
 			sechdrs[i].sh_addr = bss_addr;
 			bss_addr += sechdrs[i].sh_size;
@@ -924,9 +924,9 @@ static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 		 * calculate the value of image->start based on it.
 		 * If the compiler has produced more than one .text section
 		 * (Eg: .text.hot), they are generally after the main .text
-		 * section, and they shall not be used to calculate
-		 * image->start. So do not re-calculate image->start if it
-		 * is not set to the initial value, and warn the user so they
+		 * section, and they shall analt be used to calculate
+		 * image->start. So do analt re-calculate image->start if it
+		 * is analt set to the initial value, and warn the user so they
 		 * have a chance to fix their purgatory's linker script.
 		 */
 		if (sechdrs[i].sh_flags & SHF_EXECINSTR &&
@@ -977,7 +977,7 @@ static int kexec_apply_relocations(struct kimage *image)
 		 */
 		if (relsec->sh_info >= pi->ehdr->e_shnum ||
 		    relsec->sh_link >= pi->ehdr->e_shnum)
-			return -ENOEXEC;
+			return -EANALEXEC;
 
 		section = pi->sechdrs + relsec->sh_info;
 		symtab = sechdrs + relsec->sh_link;
@@ -1019,7 +1019,7 @@ static int kexec_apply_relocations(struct kimage *image)
  * image->purgatory_info.purgatory_buf/kbuf->buffer. Caller is responsible
  * to free the memory after use.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 int kexec_load_purgatory(struct kimage *image, struct kexec_buf *kbuf)
 {
@@ -1151,8 +1151,8 @@ int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
 
 	sec = pi->sechdrs + sym->st_shndx;
 
-	if (sec->sh_type == SHT_NOBITS) {
-		pr_err("symbol %s is in a bss section. Cannot %s\n", name,
+	if (sec->sh_type == SHT_ANALBITS) {
+		pr_err("symbol %s is in a bss section. Cananalt %s\n", name,
 		       get_value ? "get" : "set");
 		return -EINVAL;
 	}

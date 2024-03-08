@@ -12,7 +12,7 @@
 #include <linux/iio/iio.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -96,7 +96,7 @@ struct admv1013_state {
 	/* Protect against concurrent accesses to the device and to data */
 	struct mutex		lock;
 	struct regulator	*reg;
-	struct notifier_block	nb;
+	struct analtifier_block	nb;
 	unsigned int		input_mode;
 	unsigned int		quad_se_mode;
 	bool			det_en;
@@ -387,19 +387,19 @@ static const char * const admv1013_vcc_regs[] = {
 	 "vcc-env", "vcc-bg", "vcc-bg2", "vcc-mixer", "vcc-quad"
 };
 
-static int admv1013_freq_change(struct notifier_block *nb, unsigned long action, void *data)
+static int admv1013_freq_change(struct analtifier_block *nb, unsigned long action, void *data)
 {
 	struct admv1013_state *st = container_of(nb, struct admv1013_state, nb);
 	int ret;
 
 	if (action == POST_RATE_CHANGE) {
 		mutex_lock(&st->lock);
-		ret = notifier_from_errno(admv1013_update_quad_filters(st));
+		ret = analtifier_from_erranal(admv1013_update_quad_filters(st));
 		mutex_unlock(&st->lock);
 		return ret;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 #define _ADMV1013_EXT_INFO(_name, _shared, _ident) { \
@@ -582,7 +582,7 @@ static int admv1013_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -613,8 +613,8 @@ static int admv1013_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, PTR_ERR(st->clkin),
 				     "failed to get the LO input clock\n");
 
-	st->nb.notifier_call = admv1013_freq_change;
-	ret = devm_clk_notifier_register(&spi->dev, st->clkin, &st->nb);
+	st->nb.analtifier_call = admv1013_freq_change;
+	ret = devm_clk_analtifier_register(&spi->dev, st->clkin, &st->nb);
 	if (ret)
 		return ret;
 

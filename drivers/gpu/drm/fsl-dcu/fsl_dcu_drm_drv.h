@@ -20,7 +20,7 @@
 #define DCU_MODE_DCU_MODE(x)		(x)
 #define DCU_MODE_DCU_MODE_MASK		0x03
 #define DCU_MODE_OFF			0
-#define DCU_MODE_NORMAL			1
+#define DCU_MODE_ANALRMAL			1
 #define DCU_MODE_TEST			2
 #define DCU_MODE_COLORBAR		3
 
@@ -131,7 +131,7 @@
 #define DCU_LAYER_RLE_EN		BIT(15)
 #define DCU_LAYER_LUOFFS(x)		((x) << 4)
 #define DCU_LAYER_BB_ON			BIT(2)
-#define DCU_LAYER_AB_NONE		0
+#define DCU_LAYER_AB_ANALNE		0
 #define DCU_LAYER_AB_CHROMA_KEYING	1
 #define DCU_LAYER_AB_WHOLE_FRAME	2
 
@@ -178,7 +178,7 @@ struct fsl_dcu_soc_data {
 
 struct fsl_dcu_drm_device {
 	struct device *dev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *regmap;
 	int irq;
 	struct clk *clk;

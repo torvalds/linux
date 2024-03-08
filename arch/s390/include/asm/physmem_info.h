@@ -6,7 +6,7 @@
 #include <asm/page.h>
 
 enum physmem_info_source {
-	MEM_DETECT_NONE = 0,
+	MEM_DETECT_ANALNE = 0,
 	MEM_DETECT_SCLP_STOR_INFO,
 	MEM_DETECT_DIAG260,
 	MEM_DETECT_SCLP_READ_INFO,
@@ -42,7 +42,7 @@ struct reserved_range {
  * According to architecture one storage element could have as much as
  * 1020 subincrements. 255 physmem_ranges are embedded in physmem_info.
  * If more physmem_ranges are required, a block of memory from already
- * known physmem_range is taken (online_extended points to it).
+ * kanalwn physmem_range is taken (online_extended points to it).
  */
 #define MEM_INLINED_ENTRIES 255 /* (PAGE_SIZE - 16) / 16 */
 
@@ -112,7 +112,7 @@ static inline const char *get_physmem_info_source(void)
 	case MEM_DETECT_BIN_SEARCH:
 		return "binary search";
 	}
-	return "none";
+	return "analne";
 }
 
 #define RR_TYPE_NAME(t) case RR_ ## t: return #t
@@ -128,7 +128,7 @@ static inline const char *get_rr_type_name(enum reserved_range_type t)
 	RR_TYPE_NAME(MEM_DETECT_EXTENDED);
 	RR_TYPE_NAME(VMEM);
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 

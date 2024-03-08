@@ -2,7 +2,7 @@
 /*
  * StarFive Public Key Algo acceleration driver
  *
- * Copyright (c) 2022 StarFive Technology
+ * Copyright (c) 2022 StarFive Techanallogy
  */
 
 #include <linux/crypto.h>
@@ -91,7 +91,7 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 		rctx->csr.pka.exposize = opsize;
 		rctx->csr.pka.cmd = CRYPTO_CMD_PRE;
 		rctx->csr.pka.start = 1;
-		rctx->csr.pka.not_r2 = 1;
+		rctx->csr.pka.analt_r2 = 1;
 		rctx->csr.pka.ie = 1;
 
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
@@ -178,7 +178,7 @@ static int starfive_rsa_cpu_start(struct starfive_cryp_ctx *ctx, u32 *result,
 
 	mta = kmalloc(key_sz, GFP_KERNEL);
 	if (!mta)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = starfive_rsa_montgomery_form(ctx, mta, (u32 *)rctx->rsa_data,
 					   0, n, key_sz << 3);
@@ -358,7 +358,7 @@ static int starfive_rsa_set_n(struct starfive_rsa_key *rsa_key,
 	if (bitslen & 0x1f)
 		return -EINVAL;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	rsa_key->n = kmemdup(ptr, rsa_key->key_sz, GFP_KERNEL);
 	if (!rsa_key->n)
 		goto err;
@@ -391,7 +391,7 @@ static int starfive_rsa_set_e(struct starfive_rsa_key *rsa_key,
 
 	rsa_key->e = kzalloc(rsa_key->key_sz, GFP_KERNEL);
 	if (!rsa_key->e)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (loop = 8; loop > 0; loop--) {
 		if (pt >> (loop - 1))
@@ -423,7 +423,7 @@ static int starfive_rsa_set_d(struct starfive_rsa_key *rsa_key,
 	if (!rsa_key->key_sz || !vlen || vlen > rsa_key->key_sz)
 		goto err;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	rsa_key->d = kzalloc(rsa_key->key_sz, GFP_KERNEL);
 	if (!rsa_key->d)
 		goto err;
@@ -541,7 +541,7 @@ static int starfive_rsa_init_tfm(struct crypto_akcipher *tfm)
 	ctx->cryp = starfive_cryp_find_dev(ctx);
 	if (!ctx->cryp) {
 		crypto_free_akcipher(ctx->akcipher_fbk);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	akcipher_set_reqsize(tfm, sizeof(struct starfive_cryp_request_ctx) +

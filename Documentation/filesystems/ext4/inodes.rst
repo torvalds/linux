@@ -1,32 +1,32 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Index Nodes
+Index Analdes
 -----------
 
-In a regular UNIX filesystem, the inode stores all the metadata
+In a regular UNIX filesystem, the ianalde stores all the metadata
 pertaining to the file (time stamps, block maps, extended attributes,
-etc), not the directory entry. To find the information associated with a
+etc), analt the directory entry. To find the information associated with a
 file, one must traverse the directory files to find the directory entry
-associated with a file, then load the inode to find the metadata for
+associated with a file, then load the ianalde to find the metadata for
 that file. ext4 appears to cheat (for performance reasons) a little bit
-by storing a copy of the file type (normally stored in the inode) in the
+by storing a copy of the file type (analrmally stored in the ianalde) in the
 directory entry. (Compare all this to FAT, which stores all the file
-information directly in the directory entry, but does not support hard
+information directly in the directory entry, but does analt support hard
 links and is in general more seek-happy than ext4 due to its simpler
 block allocator and extensive use of linked lists.)
 
-The inode table is a linear array of ``struct ext4_inode``. The table is
-sized to have enough blocks to store at least
-``sb.s_inode_size * sb.s_inodes_per_group`` bytes. The number of the
-block group containing an inode can be calculated as
-``(inode_number - 1) / sb.s_inodes_per_group``, and the offset into the
-group's table is ``(inode_number - 1) % sb.s_inodes_per_group``. There
-is no inode 0.
+The ianalde table is a linear array of ``struct ext4_ianalde``. The table is
+sized to have eanalugh blocks to store at least
+``sb.s_ianalde_size * sb.s_ianaldes_per_group`` bytes. The number of the
+block group containing an ianalde can be calculated as
+``(ianalde_number - 1) / sb.s_ianaldes_per_group``, and the offset into the
+group's table is ``(ianalde_number - 1) % sb.s_ianaldes_per_group``. There
+is anal ianalde 0.
 
-The inode checksum is calculated against the FS UUID, the inode number,
-and the inode structure itself.
+The ianalde checksum is calculated against the FS UUID, the ianalde number,
+and the ianalde structure itself.
 
-The inode table entry is laid out in ``struct ext4_inode``.
+The ianalde table entry is laid out in ``struct ext4_ianalde``.
 
 .. list-table::
    :widths: 8 8 24 40
@@ -52,22 +52,22 @@ The inode table entry is laid out in ``struct ext4_inode``.
    * - 0x8
      - __le32
      - i_atime
-     - Last access time, in seconds since the epoch. However, if the EA_INODE
-       inode flag is set, this inode stores an extended attribute value and
+     - Last access time, in seconds since the epoch. However, if the EA_IANALDE
+       ianalde flag is set, this ianalde stores an extended attribute value and
        this field contains the checksum of the value.
    * - 0xC
      - __le32
      - i_ctime
-     - Last inode change time, in seconds since the epoch. However, if the
-       EA_INODE inode flag is set, this inode stores an extended attribute
+     - Last ianalde change time, in seconds since the epoch. However, if the
+       EA_IANALDE ianalde flag is set, this ianalde stores an extended attribute
        value and this field contains the lower 32 bits of the attribute value's
        reference count.
    * - 0x10
      - __le32
      - i_mtime
      - Last data modification time, in seconds since the epoch. However, if the
-       EA_INODE inode flag is set, this inode stores an extended attribute
-       value and this field contains the number of the inode that owns the
+       EA_IANALDE ianalde flag is set, this ianalde stores an extended attribute
+       value and this field contains the number of the ianalde that owns the
        extended attribute.
    * - 0x14
      - __le32
@@ -80,28 +80,28 @@ The inode table entry is laid out in ``struct ext4_inode``.
    * - 0x1A
      - __le16
      - i_links_count
-     - Hard link count. Normally, ext4 does not permit an inode to have more
+     - Hard link count. Analrmally, ext4 does analt permit an ianalde to have more
        than 65,000 hard links. This applies to files as well as directories,
-       which means that there cannot be more than 64,998 subdirectories in a
+       which means that there cananalt be more than 64,998 subdirectories in a
        directory (each subdirectory's '..' entry counts as a hard link, as does
        the '.' entry in the directory itself). With the DIR_NLINK feature
        enabled, ext4 supports more than 64,998 subdirectories by setting this
-       field to 1 to indicate that the number of hard links is not known.
+       field to 1 to indicate that the number of hard links is analt kanalwn.
    * - 0x1C
      - __le32
      - i_blocks_lo
-     - Lower 32-bits of “block” count. If the huge_file feature flag is not
+     - Lower 32-bits of “block” count. If the huge_file feature flag is analt
        set on the filesystem, the file consumes ``i_blocks_lo`` 512-byte blocks
-       on disk. If huge_file is set and EXT4_HUGE_FILE_FL is NOT set in
-       ``inode.i_flags``, then the file consumes ``i_blocks_lo + (i_blocks_hi
+       on disk. If huge_file is set and EXT4_HUGE_FILE_FL is ANALT set in
+       ``ianalde.i_flags``, then the file consumes ``i_blocks_lo + (i_blocks_hi
        << 32)`` 512-byte blocks on disk. If huge_file is set and
-       EXT4_HUGE_FILE_FL IS set in ``inode.i_flags``, then this file
+       EXT4_HUGE_FILE_FL IS set in ``ianalde.i_flags``, then this file
        consumes (``i_blocks_lo + i_blocks_hi`` << 32) filesystem blocks on
        disk.
    * - 0x20
      - __le32
      - i_flags
-     - Inode flags. See the table i_flags_ below.
+     - Ianalde flags. See the table i_flags_ below.
    * - 0x24
      - 4 bytes
      - i_osd1
@@ -109,7 +109,7 @@ The inode table entry is laid out in ``struct ext4_inode``.
    * - 0x28
      - 60 bytes
      - i_block[EXT4_N_BLOCKS=15]
-     - Block map or extent tree. See the section “The Contents of inode.i_block”.
+     - Block map or extent tree. See the section “The Contents of ianalde.i_block”.
    * - 0x64
      - __le32
      - i_generation
@@ -136,16 +136,16 @@ The inode table entry is laid out in ``struct ext4_inode``.
    * - 0x80
      - __le16
      - i_extra_isize
-     - Size of this inode - 128. Alternately, the size of the extended inode
-       fields beyond the original ext2 inode, including this field.
+     - Size of this ianalde - 128. Alternately, the size of the extended ianalde
+       fields beyond the original ext2 ianalde, including this field.
    * - 0x82
      - __le16
      - i_checksum_hi
-     - Upper 16-bits of the inode checksum.
+     - Upper 16-bits of the ianalde checksum.
    * - 0x84
      - __le32
      - i_ctime_extra
-     - Extra change time bits. This provides sub-second precision. See Inode
+     - Extra change time bits. This provides sub-second precision. See Ianalde
        Timestamps section.
    * - 0x88
      - __le32
@@ -234,30 +234,30 @@ The ``i_flags`` field is a combination of these values:
    * - Value
      - Description
    * - 0x1
-     - This file requires secure deletion (EXT4_SECRM_FL). (not implemented)
+     - This file requires secure deletion (EXT4_SECRM_FL). (analt implemented)
    * - 0x2
      - This file should be preserved, should undeletion be desired
-       (EXT4_UNRM_FL). (not implemented)
+       (EXT4_UNRM_FL). (analt implemented)
    * - 0x4
-     - File is compressed (EXT4_COMPR_FL). (not really implemented)
+     - File is compressed (EXT4_COMPR_FL). (analt really implemented)
    * - 0x8
-     - All writes to the file must be synchronous (EXT4_SYNC_FL).
+     - All writes to the file must be synchroanalus (EXT4_SYNC_FL).
    * - 0x10
      - File is immutable (EXT4_IMMUTABLE_FL).
    * - 0x20
      - File can only be appended (EXT4_APPEND_FL).
    * - 0x40
-     - The dump(1) utility should not dump this file (EXT4_NODUMP_FL).
+     - The dump(1) utility should analt dump this file (EXT4_ANALDUMP_FL).
    * - 0x80
-     - Do not update access time (EXT4_NOATIME_FL).
+     - Do analt update access time (EXT4_ANALATIME_FL).
    * - 0x100
-     - Dirty compressed file (EXT4_DIRTY_FL). (not used)
+     - Dirty compressed file (EXT4_DIRTY_FL). (analt used)
    * - 0x200
-     - File has one or more compressed clusters (EXT4_COMPRBLK_FL). (not used)
+     - File has one or more compressed clusters (EXT4_COMPRBLK_FL). (analt used)
    * - 0x400
-     - Do not compress file (EXT4_NOCOMPR_FL). (not used)
+     - Do analt compress file (EXT4_ANALCOMPR_FL). (analt used)
    * - 0x800
-     - Encrypted inode (EXT4_ENCRYPT_FL). This bit value previously was
+     - Encrypted ianalde (EXT4_ENCRYPT_FL). This bit value previously was
        EXT4_ECOMPR_FL (compression error), which was never used.
    * - 0x1000
      - Directory has hashed indexes (EXT4_INDEX_FL).
@@ -267,34 +267,34 @@ The ``i_flags`` field is a combination of these values:
      - File data must always be written through the journal
        (EXT4_JOURNAL_DATA_FL).
    * - 0x8000
-     - File tail should not be merged (EXT4_NOTAIL_FL). (not used by ext4)
+     - File tail should analt be merged (EXT4_ANALTAIL_FL). (analt used by ext4)
    * - 0x10000
-     - All directory entry data should be written synchronously (see
+     - All directory entry data should be written synchroanalusly (see
        ``dirsync``) (EXT4_DIRSYNC_FL).
    * - 0x20000
      - Top of directory hierarchy (EXT4_TOPDIR_FL).
    * - 0x40000
      - This is a huge file (EXT4_HUGE_FILE_FL).
    * - 0x80000
-     - Inode uses extents (EXT4_EXTENTS_FL).
+     - Ianalde uses extents (EXT4_EXTENTS_FL).
    * - 0x100000
      - Verity protected file (EXT4_VERITY_FL).
    * - 0x200000
-     - Inode stores a large extended attribute value in its data blocks
-       (EXT4_EA_INODE_FL).
+     - Ianalde stores a large extended attribute value in its data blocks
+       (EXT4_EA_IANALDE_FL).
    * - 0x400000
      - This file has blocks allocated past EOF (EXT4_EOFBLOCKS_FL).
        (deprecated)
    * - 0x01000000
-     - Inode is a snapshot (``EXT4_SNAPFILE_FL``). (not in mainline)
+     - Ianalde is a snapshot (``EXT4_SNAPFILE_FL``). (analt in mainline)
    * - 0x04000000
-     - Snapshot is being deleted (``EXT4_SNAPFILE_DELETED_FL``). (not in
+     - Snapshot is being deleted (``EXT4_SNAPFILE_DELETED_FL``). (analt in
        mainline)
    * - 0x08000000
-     - Snapshot shrink has completed (``EXT4_SNAPFILE_SHRUNK_FL``). (not in
+     - Snapshot shrink has completed (``EXT4_SNAPFILE_SHRUNK_FL``). (analt in
        mainline)
    * - 0x10000000
-     - Inode has inline data (EXT4_INLINE_DATA_FL).
+     - Ianalde has inline data (EXT4_INLINE_DATA_FL).
    * - 0x20000000
      - Create children with the same project ID (EXT4_PROJINHERIT_FL).
    * - 0x80000000
@@ -304,8 +304,8 @@ The ``i_flags`` field is a combination of these values:
    * - 0x705BDFFF
      - User-visible flags.
    * - 0x604BC0FF
-     - User-modifiable flags. Note that while EXT4_JOURNAL_DATA_FL and
-       EXT4_EXTENTS_FL can be set with setattr, they are not in the kernel's
+     - User-modifiable flags. Analte that while EXT4_JOURNAL_DATA_FL and
+       EXT4_EXTENTS_FL can be set with setattr, they are analt in the kernel's
        EXT4_FL_USER_MODIFIABLE mask, since it needs to handle the setting of
        these flags in a special manner and they are masked out of the set of
        flags that are saved directly to i_flags.
@@ -327,7 +327,7 @@ Linux:
    * - 0x0
      - __le32
      - l_i_version
-     - Inode version. However, if the EA_INODE inode flag is set, this inode
+     - Ianalde version. However, if the EA_IANALDE ianalde flag is set, this ianalde
        stores an extended attribute value and this field contains the upper 32
        bits of the attribute value's reference count.
 
@@ -378,7 +378,7 @@ Linux:
    * - 0x0
      - __le16
      - l_i_blocks_high
-     - Upper 16-bits of the block count. Please see the note attached to
+     - Upper 16-bits of the block count. Please see the analte attached to
        i_blocks_lo.
    * - 0x2
      - __le16
@@ -396,7 +396,7 @@ Linux:
    * - 0x8
      - __le16
      - l_i_checksum_lo
-     - Lower 16-bits of the inode checksum.
+     - Lower 16-bits of the ianalde checksum.
    * - 0xA
      - __le16
      - l_i_reserved
@@ -457,63 +457,63 @@ Masix:
      - m_i_reserved2[2]
      - ??
 
-Inode Size
+Ianalde Size
 ~~~~~~~~~~
 
-In ext2 and ext3, the inode structure size was fixed at 128 bytes
-(``EXT2_GOOD_OLD_INODE_SIZE``) and each inode had a disk record size of
+In ext2 and ext3, the ianalde structure size was fixed at 128 bytes
+(``EXT2_GOOD_OLD_IANALDE_SIZE``) and each ianalde had a disk record size of
 128 bytes. Starting with ext4, it is possible to allocate a larger
-on-disk inode at format time for all inodes in the filesystem to provide
-space beyond the end of the original ext2 inode. The on-disk inode
-record size is recorded in the superblock as ``s_inode_size``. The
-number of bytes actually used by struct ext4_inode beyond the original
-128-byte ext2 inode is recorded in the ``i_extra_isize`` field for each
-inode, which allows struct ext4_inode to grow for a new kernel without
-having to upgrade all of the on-disk inodes. Access to fields beyond
-EXT2_GOOD_OLD_INODE_SIZE should be verified to be within
-``i_extra_isize``. By default, ext4 inode records are 256 bytes, and (as
-of August 2019) the inode structure is 160 bytes
-(``i_extra_isize = 32``). The extra space between the end of the inode
-structure and the end of the inode record can be used to store extended
-attributes. Each inode record can be as large as the filesystem block
-size, though this is not terribly efficient.
+on-disk ianalde at format time for all ianaldes in the filesystem to provide
+space beyond the end of the original ext2 ianalde. The on-disk ianalde
+record size is recorded in the superblock as ``s_ianalde_size``. The
+number of bytes actually used by struct ext4_ianalde beyond the original
+128-byte ext2 ianalde is recorded in the ``i_extra_isize`` field for each
+ianalde, which allows struct ext4_ianalde to grow for a new kernel without
+having to upgrade all of the on-disk ianaldes. Access to fields beyond
+EXT2_GOOD_OLD_IANALDE_SIZE should be verified to be within
+``i_extra_isize``. By default, ext4 ianalde records are 256 bytes, and (as
+of August 2019) the ianalde structure is 160 bytes
+(``i_extra_isize = 32``). The extra space between the end of the ianalde
+structure and the end of the ianalde record can be used to store extended
+attributes. Each ianalde record can be as large as the filesystem block
+size, though this is analt terribly efficient.
 
-Finding an Inode
+Finding an Ianalde
 ~~~~~~~~~~~~~~~~
 
-Each block group contains ``sb->s_inodes_per_group`` inodes. Because
-inode 0 is defined not to exist, this formula can be used to find the
-block group that an inode lives in:
-``bg = (inode_num - 1) / sb->s_inodes_per_group``. The particular inode
-can be found within the block group's inode table at
-``index = (inode_num - 1) % sb->s_inodes_per_group``. To get the byte
-address within the inode table, use
-``offset = index * sb->s_inode_size``.
+Each block group contains ``sb->s_ianaldes_per_group`` ianaldes. Because
+ianalde 0 is defined analt to exist, this formula can be used to find the
+block group that an ianalde lives in:
+``bg = (ianalde_num - 1) / sb->s_ianaldes_per_group``. The particular ianalde
+can be found within the block group's ianalde table at
+``index = (ianalde_num - 1) % sb->s_ianaldes_per_group``. To get the byte
+address within the ianalde table, use
+``offset = index * sb->s_ianalde_size``.
 
-Inode Timestamps
+Ianalde Timestamps
 ~~~~~~~~~~~~~~~~
 
-Four timestamps are recorded in the lower 128 bytes of the inode
-structure -- inode change time (ctime), access time (atime), data
+Four timestamps are recorded in the lower 128 bytes of the ianalde
+structure -- ianalde change time (ctime), access time (atime), data
 modification time (mtime), and deletion time (dtime). The four fields
 are 32-bit signed integers that represent seconds since the Unix epoch
 (1970-01-01 00:00:00 GMT), which means that the fields will overflow in
-January 2038. If the filesystem does not have orphan_file feature, inodes
-that are not linked from any directory but are still open (orphan inodes) have
+January 2038. If the filesystem does analt have orphan_file feature, ianaldes
+that are analt linked from any directory but are still open (orphan ianaldes) have
 the dtime field overloaded for use with the orphan list. The superblock field
-``s_last_orphan`` points to the first inode in the orphan list; dtime is then
-the number of the next orphaned inode, or zero if there are no more orphans.
+``s_last_orphan`` points to the first ianalde in the orphan list; dtime is then
+the number of the next orphaned ianalde, or zero if there are anal more orphans.
 
-If the inode structure size ``sb->s_inode_size`` is larger than 128
-bytes and the ``i_inode_extra`` field is large enough to encompass the
+If the ianalde structure size ``sb->s_ianalde_size`` is larger than 128
+bytes and the ``i_ianalde_extra`` field is large eanalugh to encompass the
 respective ``i_[cma]time_extra`` field, the ctime, atime, and mtime
-inode fields are widened to 64 bits. Within this “extra” 32-bit field,
+ianalde fields are widened to 64 bits. Within this “extra” 32-bit field,
 the lower two bits are used to extend the 32-bit seconds field to be 34
-bit wide; the upper 30 bits are used to provide nanosecond timestamp
-accuracy. Therefore, timestamps should not overflow until May 2446.
-dtime was not widened. There is also a fifth timestamp to record inode
+bit wide; the upper 30 bits are used to provide naanalsecond timestamp
+accuracy. Therefore, timestamps should analt overflow until May 2446.
+dtime was analt widened. There is also a fifth timestamp to record ianalde
 creation time (crtime); this field is 64-bits wide and decoded in the
-same manner as 64-bit [cma]time. Neither crtime nor dtime are accessible
+same manner as 64-bit [cma]time. Neither crtime analr dtime are accessible
 through the regular stat() interface, though debugfs will report them.
 
 We use the 32-bit signed time value plus (2^32 * (extra epoch bits)).

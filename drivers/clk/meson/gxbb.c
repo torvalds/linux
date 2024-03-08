@@ -144,7 +144,7 @@ static struct clk_regmap gxbb_fixed_pll = {
 		.num_parents = 1,
 		/*
 		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
+		 * CLK_SET_RATE_PARENT is analt required
 		 */
 	},
 };
@@ -204,9 +204,9 @@ static struct clk_regmap gxbb_hdmi_pll_dco = {
 		.num_parents = 1,
 		/*
 		 * Display directly handle hdmi pll registers ATM, we need
-		 * NOCACHE to keep our view of the clock as accurate as possible
+		 * ANALCACHE to keep our view of the clock as accurate as possible
 		 */
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -229,7 +229,7 @@ static struct clk_regmap gxl_hdmi_pll_dco = {
 		},
 		/*
 		 * On gxl, there is a register shift due to
-		 * HHI_HDMI_PLL_CNTL1 which does not exist on gxbb,
+		 * HHI_HDMI_PLL_CNTL1 which does analt exist on gxbb,
 		 * so we use the HHI_HDMI_PLL_CNTL2 define from GXBB
 		 * instead which is defined at the same offset.
 		 */
@@ -258,9 +258,9 @@ static struct clk_regmap gxl_hdmi_pll_dco = {
 		.num_parents = 1,
 		/*
 		 * Display directly handle hdmi pll registers ATM, we need
-		 * NOCACHE to keep our view of the clock as accurate as possible
+		 * ANALCACHE to keep our view of the clock as accurate as possible
 		 */
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -278,7 +278,7 @@ static struct clk_regmap gxbb_hdmi_pll_od = {
 			&gxbb_hdmi_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -296,7 +296,7 @@ static struct clk_regmap gxbb_hdmi_pll_od2 = {
 			&gxbb_hdmi_pll_od.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -314,7 +314,7 @@ static struct clk_regmap gxbb_hdmi_pll = {
 			&gxbb_hdmi_pll_od2.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -332,7 +332,7 @@ static struct clk_regmap gxl_hdmi_pll_od = {
 			&gxl_hdmi_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -350,7 +350,7 @@ static struct clk_regmap gxl_hdmi_pll_od2 = {
 			&gxl_hdmi_pll_od.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -368,7 +368,7 @@ static struct clk_regmap gxl_hdmi_pll = {
 			&gxl_hdmi_pll_od2.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -541,7 +541,7 @@ static struct clk_regmap gxbb_gp0_pll = {
 		.ops = &clk_regmap_divider_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			/*
-			 * Note:
+			 * Analte:
 			 * GXL and GXBB have different gp0_pll_dco (with
 			 * different struct clk_hw). We fallback to the global
 			 * naming string mechanism so gp0_pll picks up the
@@ -782,7 +782,7 @@ static struct clk_regmap gxbb_mpll0 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			/*
-			 * Note:
+			 * Analte:
 			 * GXL and GXBB have different SDM_EN registers. We
 			 * fallback to the global naming string mechanism so
 			 * mpll0_div picks up the appropriate one.
@@ -954,7 +954,7 @@ static struct clk_regmap gxbb_sar_adc_clk_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "sar_adc_clk_sel",
 		.ops = &clk_regmap_mux_ops,
-		/* NOTE: The datasheet doesn't list the parents for bit 10 */
+		/* ANALTE: The datasheet doesn't list the parents for bit 10 */
 		.parent_data = (const struct clk_parent_data []) {
 			{ .fw_name = "xtal", },
 			{ .hw = &gxbb_clk81.hw },
@@ -1268,7 +1268,7 @@ static struct clk_regmap gxbb_cts_i958 = {
 		 *The parent is specific to origin of the audio data. Let the
 		 * consumer choose the appropriate parent
 		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1276,7 +1276,7 @@ static const struct clk_parent_data gxbb_32k_clk_parent_data[] = {
 	{ .fw_name = "xtal", },
 	/*
 	 * FIXME: This clock is provided by the ao clock controller but the
-	 * clock is not yet part of the binding of this controller, so string
+	 * clock is analt yet part of the binding of this controller, so string
 	 * name must be use to set this parent.
 	 */
 	{ .name = "cts_slow_oscin", .index = -1 },
@@ -1520,7 +1520,7 @@ static struct clk_regmap gxbb_vpu_0_sel = {
 		 */
 		.parent_hws = gxbb_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_vpu_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1549,7 +1549,7 @@ static struct clk_regmap gxbb_vpu_0 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vpu_0_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1568,7 +1568,7 @@ static struct clk_regmap gxbb_vpu_1_sel = {
 		 */
 		.parent_hws = gxbb_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_vpu_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1597,7 +1597,7 @@ static struct clk_regmap gxbb_vpu_1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vpu_1_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1619,7 +1619,7 @@ static struct clk_regmap gxbb_vpu = {
 			&gxbb_vpu_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1647,7 +1647,7 @@ static struct clk_regmap gxbb_vapb_0_sel = {
 		 */
 		.parent_hws = gxbb_vapb_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_vapb_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1680,7 +1680,7 @@ static struct clk_regmap gxbb_vapb_0 = {
 			&gxbb_vapb_0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1699,7 +1699,7 @@ static struct clk_regmap gxbb_vapb_1_sel = {
 		 */
 		.parent_hws = gxbb_vapb_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_vapb_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1732,7 +1732,7 @@ static struct clk_regmap gxbb_vapb_1 = {
 			&gxbb_vapb_1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1754,7 +1754,7 @@ static struct clk_regmap gxbb_vapb_sel = {
 			&gxbb_vapb_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1768,7 +1768,7 @@ static struct clk_regmap gxbb_vapb = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vapb_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1792,7 +1792,7 @@ static struct clk_regmap gxbb_vid_pll_div = {
 		.ops = &meson_vid_pll_div_ro_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			/*
-			 * Note:
+			 * Analte:
 			 * GXL and GXBB have different hdmi_plls (with
 			 * different struct clk_hw). We fallback to the global
 			 * naming string mechanism so vid_pll_div picks up the
@@ -1802,14 +1802,14 @@ static struct clk_regmap gxbb_vid_pll_div = {
 			.index = -1,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
 static const struct clk_parent_data gxbb_vid_pll_parent_data[] = {
 	{ .hw = &gxbb_vid_pll_div.hw },
 	/*
-	 * Note:
+	 * Analte:
 	 * GXL and GXBB have different hdmi_plls (with
 	 * different struct clk_hw). We fallback to the global
 	 * naming string mechanism so vid_pll_div picks up the
@@ -1833,7 +1833,7 @@ static struct clk_regmap gxbb_vid_pll_sel = {
 		 */
 		.parent_data = gxbb_vid_pll_parent_data,
 		.num_parents = ARRAY_SIZE(gxbb_vid_pll_parent_data),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1849,7 +1849,7 @@ static struct clk_regmap gxbb_vid_pll = {
 			&gxbb_vid_pll_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1879,7 +1879,7 @@ static struct clk_regmap gxbb_vclk_sel = {
 		 */
 		.parent_hws = gxbb_vclk_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_vclk_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1899,7 +1899,7 @@ static struct clk_regmap gxbb_vclk2_sel = {
 		 */
 		.parent_hws = gxbb_vclk_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_vclk_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1913,7 +1913,7 @@ static struct clk_regmap gxbb_vclk_input = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1927,7 +1927,7 @@ static struct clk_regmap gxbb_vclk2_input = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk2_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1944,7 +1944,7 @@ static struct clk_regmap gxbb_vclk_div = {
 			&gxbb_vclk_input.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1961,7 +1961,7 @@ static struct clk_regmap gxbb_vclk2_div = {
 			&gxbb_vclk2_input.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1975,7 +1975,7 @@ static struct clk_regmap gxbb_vclk = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1989,7 +1989,7 @@ static struct clk_regmap gxbb_vclk2 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk2_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2003,7 +2003,7 @@ static struct clk_regmap gxbb_vclk_div1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2017,7 +2017,7 @@ static struct clk_regmap gxbb_vclk_div2_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2031,7 +2031,7 @@ static struct clk_regmap gxbb_vclk_div4_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2045,7 +2045,7 @@ static struct clk_regmap gxbb_vclk_div6_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2059,7 +2059,7 @@ static struct clk_regmap gxbb_vclk_div12_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2073,7 +2073,7 @@ static struct clk_regmap gxbb_vclk2_div1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2087,7 +2087,7 @@ static struct clk_regmap gxbb_vclk2_div2_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2101,7 +2101,7 @@ static struct clk_regmap gxbb_vclk2_div4_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2115,7 +2115,7 @@ static struct clk_regmap gxbb_vclk2_div6_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2129,7 +2129,7 @@ static struct clk_regmap gxbb_vclk2_div12_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2263,7 +2263,7 @@ static struct clk_regmap gxbb_cts_enci_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = gxbb_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2279,7 +2279,7 @@ static struct clk_regmap gxbb_cts_encp_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = gxbb_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2295,7 +2295,7 @@ static struct clk_regmap gxbb_cts_vdac_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = gxbb_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2332,7 +2332,7 @@ static struct clk_regmap gxbb_hdmi_tx_sel = {
 		 */
 		.parent_hws = gxbb_cts_hdmi_tx_parent_hws,
 		.num_parents = ARRAY_SIZE(gxbb_cts_hdmi_tx_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2348,7 +2348,7 @@ static struct clk_regmap gxbb_cts_enci = {
 			&gxbb_cts_enci_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2364,7 +2364,7 @@ static struct clk_regmap gxbb_cts_encp = {
 			&gxbb_cts_encp_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2380,7 +2380,7 @@ static struct clk_regmap gxbb_cts_vdac = {
 			&gxbb_cts_vdac_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2396,7 +2396,7 @@ static struct clk_regmap gxbb_hdmi_tx = {
 			&gxbb_hdmi_tx_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2421,7 +2421,7 @@ static struct clk_regmap gxbb_hdmi_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = gxbb_hdmi_parent_data,
 		.num_parents = ARRAY_SIZE(gxbb_hdmi_parent_data),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2436,7 +2436,7 @@ static struct clk_regmap gxbb_hdmi_div = {
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_hdmi_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2450,7 +2450,7 @@ static struct clk_regmap gxbb_hdmi = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &gxbb_hdmi_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -196,7 +196,7 @@ gv100_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 	case 8: state->proto =   DP; state->link = 1; break;
 	case 9: state->proto =   DP; state->link = 2; break;
 	default:
-		state->proto = UNKNOWN;
+		state->proto = UNKANALWN;
 		break;
 	}
 
@@ -823,7 +823,7 @@ gv100_disp_caps_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	struct gv100_disp_caps *caps;
 
 	if (!(caps = kzalloc(sizeof(*caps), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pobject = &caps->object;
 
 	nvkm_object_ctor(&gv100_disp_caps, oclass, &caps->object);
@@ -947,7 +947,7 @@ gv100_disp_intr_ctrl_disp(struct nvkm_disp *disp)
 	}
 
 	/*TODO: I would guess this is VBIOS_RELEASE, however, NFI how to
-	 *      ACK it, nor does RM appear to bother.
+	 *      ACK it, analr does RM appear to bother.
 	 */
 	if (stat & 0x00000008)
 		stat &= ~0x00000008;

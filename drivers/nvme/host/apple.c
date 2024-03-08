@@ -16,7 +16,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/interrupt.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/jiffies.h>
@@ -48,7 +48,7 @@
 #define APPLE_ANS_BOOT_STATUS	 0x1300
 #define APPLE_ANS_BOOT_STATUS_OK 0xde71ce55
 
-#define APPLE_ANS_UNKNOWN_CTRL	 0x24008
+#define APPLE_ANS_UNKANALWN_CTRL	 0x24008
 #define APPLE_ANS_PRP_NULL_CHECK BIT(11)
 
 #define APPLE_ANS_LINEAR_SQ_CTRL 0x24908
@@ -66,10 +66,10 @@
 /*
  * This controller is a bit weird in the way command tags works: Both the
  * admin and the IO queue share the same tag space. Additionally, tags
- * cannot be higher than 0x40 which effectively limits the combined
+ * cananalt be higher than 0x40 which effectively limits the combined
  * queue depth to 0x40. Instead of wasting half of that on the admin queue
  * which gets much less traffic we instead reduce its size here.
- * The controller also doesn't support async event such that no space must
+ * The controller also doesn't support async event such that anal space must
  * be reserved for NVME_NR_AEN_COMMANDS.
  */
 #define APPLE_NVME_AQ_DEPTH	   2
@@ -83,14 +83,14 @@
 #define NVME_MAX_SEGS  127
 
 /*
- * This controller comes with an embedded IOMMU known as NVMMU.
+ * This controller comes with an embedded IOMMU kanalwn as NVMMU.
  * The NVMMU is pointed to an array of TCBs indexed by the command tag.
  * Each command must be configured inside this structure before it's allowed
  * to execute, including commands that don't require DMA transfers.
  *
  * An exception to this are Apple's vendor-specific commands (opcode 0xD8 on the
  * admin queue): Those commands must still be added to the NVMMU but the DMA
- * buffers cannot be represented as PRPs and must instead be allowed using SART.
+ * buffers cananalt be represented as PRPs and must instead be allowed using SART.
  *
  * Programming the PRPs to the same values as those in the submission queue
  * looks rather silly at first. This hardware is however designed for a kernel
@@ -243,13 +243,13 @@ static int apple_nvme_sart_dma_setup(void *cookie,
 	bfr->buffer =
 		dma_alloc_coherent(anv->dev, bfr->size, &bfr->iova, GFP_KERNEL);
 	if (!bfr->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = apple_sart_add_allowed_region(anv->sart, bfr->iova, bfr->size);
 	if (ret) {
 		dma_free_coherent(anv->dev, bfr->size, bfr->buffer, bfr->iova);
 		bfr->buffer = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -530,7 +530,7 @@ static blk_status_t apple_nvme_map_data(struct apple_nvme *anv,
 		goto out_free_sg;
 
 	nr_mapped = dma_map_sg_attrs(anv->dev, iod->sg, iod->nents,
-				     rq_dma_dir(req), DMA_ATTR_NO_WARN);
+				     rq_dma_dir(req), DMA_ATTR_ANAL_WARN);
 	if (!nr_mapped)
 		goto out_free_sg;
 
@@ -670,7 +670,7 @@ static irqreturn_t apple_nvme_irq(int irq, void *data)
 
 	if (handled)
 		return IRQ_HANDLED;
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int apple_nvme_create_cq(struct apple_nvme *anv)
@@ -678,7 +678,7 @@ static int apple_nvme_create_cq(struct apple_nvme *anv)
 	struct nvme_command c = {};
 
 	/*
-	 * Note: we (ab)use the fact that the prp fields survive if no data
+	 * Analte: we (ab)use the fact that the prp fields survive if anal data
 	 * is attached to the request.
 	 */
 	c.create_cq.opcode = nvme_admin_create_cq;
@@ -706,7 +706,7 @@ static int apple_nvme_create_sq(struct apple_nvme *anv)
 	struct nvme_command c = {};
 
 	/*
-	 * Note: we (ab)use the fact that the prp fields survive if no data
+	 * Analte: we (ab)use the fact that the prp fields survive if anal data
 	 * is attached to the request.
 	 */
 	c.create_sq.opcode = nvme_admin_create_sq;
@@ -744,14 +744,14 @@ static blk_status_t apple_nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	iod->nents = 0;
 
 	/*
-	 * We should not need to do this, but we're still using this to
+	 * We should analt need to do this, but we're still using this to
 	 * ensure we can drain requests on a dying queue.
 	 */
 	if (unlikely(!READ_ONCE(q->enabled)))
 		return BLK_STS_IOERR;
 
 	if (!nvme_check_ready(&anv->ctrl, req, true))
-		return nvme_fail_nonready_command(&anv->ctrl, req);
+		return nvme_fail_analnready_command(&anv->ctrl, req);
 
 	ret = nvme_setup_cmd(ns, req);
 	if (ret)
@@ -781,7 +781,7 @@ static int apple_nvme_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 
 static int apple_nvme_init_request(struct blk_mq_tag_set *set,
 				   struct request *req, unsigned int hctx_idx,
-				   unsigned int numa_node)
+				   unsigned int numa_analde)
 {
 	struct apple_nvme_queue *q = set->driver_data;
 	struct apple_nvme *anv = queue_to_apple_nvme(q);
@@ -833,7 +833,7 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 		/*
 		 * Always disable the NVMe controller after shutdown.
 		 * We need to do this to bring it back up later anyway, and we
-		 * can't do it while the firmware is not running (e.g. in the
+		 * can't do it while the firmware is analt running (e.g. in the
 		 * resume reset path before RTKit is initialized), so for Apple
 		 * controllers it makes sense to unconditionally do it here.
 		 * Additionally, this sequence of events is reliable, while
@@ -864,9 +864,9 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 	nvme_cancel_admin_tagset(&anv->ctrl);
 
 	/*
-	 * The driver will not be starting up queues again if shutting down so
+	 * The driver will analt be starting up queues again if shutting down so
 	 * must flush all entered requests to their failed completion to avoid
-	 * deadlocking blk-mq hot-cpu notifier.
+	 * deadlocking blk-mq hot-cpu analtifier.
 	 */
 	if (shutdown) {
 		nvme_unquiesce_io_queues(&anv->ctrl);
@@ -898,7 +898,7 @@ static enum blk_eh_timer_return apple_nvme_timeout(struct request *req)
 		 * recovery work, so it's fine that we fail it here.
 		 */
 		dev_warn(anv->dev,
-			 "I/O %d(aq:%d) timeout while not in live state\n",
+			 "I/O %d(aq:%d) timeout while analt in live state\n",
 			 req->tag, q->is_adminq);
 		if (blk_mq_request_started(req) &&
 		    !blk_mq_request_completed(req)) {
@@ -989,12 +989,12 @@ static void apple_nvme_reset_work(struct work_struct *work)
 	enum nvme_ctrl_state state = nvme_ctrl_state(&anv->ctrl);
 
 	if (state != NVME_CTRL_RESETTING) {
-		dev_warn(anv->dev, "ctrl state %d is not RESETTING\n", state);
-		ret = -ENODEV;
+		dev_warn(anv->dev, "ctrl state %d is analt RESETTING\n", state);
+		ret = -EANALDEV;
 		goto out;
 	}
 
-	/* there's unfortunately no known way to recover if RTKit crashed :( */
+	/* there's unfortunately anal kanalwn way to recover if RTKit crashed :( */
 	if (apple_rtkit_is_crashed(anv->rtk)) {
 		dev_err(anv->dev,
 			"RTKit has crashed without any way to recover.");
@@ -1031,7 +1031,7 @@ static void apple_nvme_reset_work(struct work_struct *work)
 	       anv->mmio_coproc + APPLE_ANS_COPROC_CPU_CONTROL);
 	ret = apple_rtkit_boot(anv->rtk);
 	if (ret) {
-		dev_err(anv->dev, "ANS did not boot");
+		dev_err(anv->dev, "ANS did analt boot");
 		goto out;
 	}
 
@@ -1040,7 +1040,7 @@ static void apple_nvme_reset_work(struct work_struct *work)
 				 boot_status == APPLE_ANS_BOOT_STATUS_OK,
 				 USEC_PER_MSEC, APPLE_ANS_BOOT_TIMEOUT);
 	if (ret) {
-		dev_err(anv->dev, "ANS did not initialize");
+		dev_err(anv->dev, "ANS did analt initialize");
 		goto out;
 	}
 
@@ -1080,9 +1080,9 @@ static void apple_nvme_reset_work(struct work_struct *work)
 	 * the co-processor complains about "completed with err BAD_CMD-" or
 	 * a "NULL_PRP_PTR_ERR" in the syslog
 	 */
-	writel(readl(anv->mmio_nvme + APPLE_ANS_UNKNOWN_CTRL) &
+	writel(readl(anv->mmio_nvme + APPLE_ANS_UNKANALWN_CTRL) &
 		       ~APPLE_ANS_PRP_NULL_CHECK,
-	       anv->mmio_nvme + APPLE_ANS_UNKNOWN_CTRL);
+	       anv->mmio_nvme + APPLE_ANS_UNKANALWN_CTRL);
 
 	/* Setup the admin queue */
 	aqa = APPLE_NVME_AQ_DEPTH - 1;
@@ -1101,7 +1101,7 @@ static void apple_nvme_reset_work(struct work_struct *work)
 		APPLE_ANS_MAX_QUEUE_DEPTH - 1; /* 0's based queue depth */
 	anv->ctrl.cap = readq(anv->mmio_nvme + NVME_REG_CAP);
 
-	dev_dbg(anv->dev, "Enabling controller now");
+	dev_dbg(anv->dev, "Enabling controller analw");
 	ret = nvme_enable_ctrl(&anv->ctrl);
 	if (ret)
 		goto out;
@@ -1113,7 +1113,7 @@ static void apple_nvme_reset_work(struct work_struct *work)
 	if (!nvme_change_ctrl_state(&anv->ctrl, NVME_CTRL_CONNECTING)) {
 		dev_warn(anv->ctrl.device,
 			 "failed to mark controller CONNECTING\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1150,7 +1150,7 @@ static void apple_nvme_reset_work(struct work_struct *work)
 	if (!nvme_change_ctrl_state(&anv->ctrl, NVME_CTRL_LIVE)) {
 		dev_warn(anv->ctrl.device,
 			 "failed to mark controller live state\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_remove_sq;
 	}
 
@@ -1249,9 +1249,9 @@ static int apple_nvme_alloc_tagsets(struct apple_nvme *anv)
 	anv->admin_tagset.nr_hw_queues = 1;
 	anv->admin_tagset.queue_depth = APPLE_NVME_AQ_MQ_TAG_DEPTH;
 	anv->admin_tagset.timeout = NVME_ADMIN_TIMEOUT;
-	anv->admin_tagset.numa_node = NUMA_NO_NODE;
+	anv->admin_tagset.numa_analde = NUMA_ANAL_ANALDE;
 	anv->admin_tagset.cmd_size = sizeof(struct apple_nvme_iod);
-	anv->admin_tagset.flags = BLK_MQ_F_NO_SCHED;
+	anv->admin_tagset.flags = BLK_MQ_F_ANAL_SCHED;
 	anv->admin_tagset.driver_data = &anv->adminq;
 
 	ret = blk_mq_alloc_tag_set(&anv->admin_tagset);
@@ -1273,7 +1273,7 @@ static int apple_nvme_alloc_tagsets(struct apple_nvme *anv)
 	anv->tagset.reserved_tags = APPLE_NVME_AQ_DEPTH;
 	anv->tagset.queue_depth = APPLE_ANS_MAX_QUEUE_DEPTH - 1;
 	anv->tagset.timeout = NVME_IO_TIMEOUT;
-	anv->tagset.numa_node = NUMA_NO_NODE;
+	anv->tagset.numa_analde = NUMA_ANAL_ANALDE;
 	anv->tagset.cmd_size = sizeof(struct apple_nvme_iod);
 	anv->tagset.flags = BLK_MQ_F_SHOULD_MERGE;
 	anv->tagset.driver_data = &anv->ioq;
@@ -1301,13 +1301,13 @@ static int apple_nvme_queue_alloc(struct apple_nvme *anv,
 				      depth * sizeof(struct nvme_completion),
 				      &q->cq_dma_addr, GFP_KERNEL);
 	if (!q->cqes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->sqes = dmam_alloc_coherent(anv->dev,
 				      depth * sizeof(struct nvme_command),
 				      &q->sq_dma_addr, GFP_KERNEL);
 	if (!q->sqes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We need the maximum queue depth here because the NVMMU only has a
@@ -1318,7 +1318,7 @@ static int apple_nvme_queue_alloc(struct apple_nvme *anv,
 					      sizeof(struct apple_nvmmu_tcb),
 				      &q->tcb_dma_addr, GFP_KERNEL);
 	if (!q->tcbs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * initialize phase to make sure the allocated and empty memory
@@ -1349,19 +1349,19 @@ static int apple_nvme_attach_genpd(struct apple_nvme *anv)
 	int i;
 
 	anv->pd_count = of_count_phandle_with_args(
-		dev->of_node, "power-domains", "#power-domain-cells");
+		dev->of_analde, "power-domains", "#power-domain-cells");
 	if (anv->pd_count <= 1)
 		return 0;
 
 	anv->pd_dev = devm_kcalloc(dev, anv->pd_count, sizeof(*anv->pd_dev),
 				   GFP_KERNEL);
 	if (!anv->pd_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	anv->pd_link = devm_kcalloc(dev, anv->pd_count, sizeof(*anv->pd_link),
 				    GFP_KERNEL);
 	if (!anv->pd_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < anv->pd_count; i++) {
 		anv->pd_dev[i] = dev_pm_domain_attach_by_id(dev, i);
@@ -1396,7 +1396,7 @@ static int apple_nvme_probe(struct platform_device *pdev)
 
 	anv = devm_kzalloc(dev, sizeof(*anv), GFP_KERNEL);
 	if (!anv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	anv->dev = get_device(dev);
 	anv->adminq.is_adminq = true;
@@ -1467,14 +1467,14 @@ static int apple_nvme_probe(struct platform_device *pdev)
 					      NVME_CTRL_PAGE_SIZE,
 					      NVME_CTRL_PAGE_SIZE, 0);
 	if (!anv->prp_page_pool) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_dev;
 	}
 
 	anv->prp_small_pool =
 		dmam_pool_create("prp list 256", anv->dev, 256, 256, 0);
 	if (!anv->prp_small_pool) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_dev;
 	}
 
@@ -1482,7 +1482,7 @@ static int apple_nvme_probe(struct platform_device *pdev)
 	anv->iod_mempool =
 		mempool_create_kmalloc_pool(1, apple_nvme_iod_alloc_size());
 	if (!anv->iod_mempool) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_dev;
 	}
 	ret = devm_add_action_or_reset(anv->dev,
@@ -1518,7 +1518,7 @@ static int apple_nvme_probe(struct platform_device *pdev)
 
 	anv->ctrl.admin_q = blk_mq_init_queue(&anv->admin_tagset);
 	if (IS_ERR(anv->ctrl.admin_q)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_dev;
 	}
 

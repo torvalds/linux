@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -14,7 +14,7 @@
 #define BREAK_MATH(micromips)	(((micromips) ? 0x7 : 0xd) | (BRK_MEMU << 16))
 
 /* When used as a frame index, indicates the lack of a frame */
-#define BD_EMUFRAME_NONE	((int)BIT(31))
+#define BD_EMUFRAME_ANALNE	((int)BIT(31))
 
 struct mm_struct;
 struct pt_regs;
@@ -32,7 +32,7 @@ struct task_struct;
  * in the delay slots of emulated branch instructions, for example FP
  * branch instructions on systems without an FPU.
  *
- * Return: Zero on success, negative if ir is a NOP, signal number on failure.
+ * Return: Zero on success, negative if ir is a ANALP, signal number on failure.
  */
 extern int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 		       unsigned long branch_pc, unsigned long cont_pc);
@@ -81,7 +81,7 @@ static inline bool dsemul_thread_cleanup(struct task_struct *tsk)
  * If the current thread, whose register context is represented by @regs,
  * is executing within a delay slot 'emulation' frame then exit that
  * frame. The PC will be rolled back to the branch if the instruction
- * that was being 'emulated' has not yet executed, or advanced to the
+ * that was being 'emulated' has analt yet executed, or advanced to the
  * continuation PC if it has.
  *
  * Return: True if a frame was exited, else false.
@@ -108,7 +108,7 @@ extern void dsemul_mm_cleanup(struct mm_struct *mm);
 #else
 static inline void dsemul_mm_cleanup(struct mm_struct *mm)
 {
-	/* no-op */
+	/* anal-op */
 }
 #endif
 

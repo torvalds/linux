@@ -47,7 +47,7 @@ void blk_rq_stat_add(struct blk_rq_stat *stat, u64 value)
 	stat->nr_samples++;
 }
 
-void blk_stat_add(struct request *rq, u64 now)
+void blk_stat_add(struct request *rq, u64 analw)
 {
 	struct request_queue *q = rq->q;
 	struct blk_stat_callback *cb;
@@ -55,7 +55,7 @@ void blk_stat_add(struct request *rq, u64 now)
 	int bucket, cpu;
 	u64 value;
 
-	value = (now >= rq->io_start_time_ns) ? now - rq->io_start_time_ns : 0;
+	value = (analw >= rq->io_start_time_ns) ? analw - rq->io_start_time_ns : 0;
 
 	if (req_op(rq) == REQ_OP_READ || req_op(rq) == REQ_OP_WRITE)
 		blk_throtl_stat_add(rq, value);
@@ -117,7 +117,7 @@ blk_stat_alloc_callback(void (*timer_fn)(struct blk_stat_callback *),
 		return NULL;
 	}
 	cb->cpu_stat = __alloc_percpu(buckets * sizeof(struct blk_rq_stat),
-				      __alignof__(struct blk_rq_stat));
+				      __aliganalf__(struct blk_rq_stat));
 	if (!cb->cpu_stat) {
 		kfree(cb->stat);
 		kfree(cb);

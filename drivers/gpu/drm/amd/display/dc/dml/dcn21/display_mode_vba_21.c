@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@
 
 
 /*
- * NOTE:
+ * ANALTE:
  *   This file is gcc-parsable HW gospel, coming straight from HW engineers.
  *
  * It doesn't adhere to Linux kernel style and sometimes will do things in odd
@@ -133,8 +133,8 @@ static bool CalculatePrefetchSchedule(
 		double *VRatioPrefetchC,
 		double *RequiredPrefetchPixDataBWLuma,
 		double *RequiredPrefetchPixDataBWChroma,
-		unsigned int *VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-		double *Tno_bw,
+		unsigned int *VStartupRequiredWhenAnaltEanalughTimeForDynamicMetadata,
+		double *Tanal_bw,
 		double *prefetch_vmrow_bw,
 		unsigned int *swath_width_luma_ub,
 		unsigned int *swath_width_chroma_ub,
@@ -145,7 +145,7 @@ static double RoundToDFSGranularityUp(double Clock, double VCOSpeed);
 static double RoundToDFSGranularityDown(double Clock, double VCOSpeed);
 static double CalculateDCCConfiguration(
 		bool                 DCCEnabled,
-		bool                 DCCProgrammingAssumesScanDirectionUnknown,
+		bool                 DCCProgrammingAssumesScanDirectionUnkanalwn,
 		unsigned int         ViewportWidth,
 		unsigned int         ViewportHeight,
 		unsigned int         DETBufferSize,
@@ -190,7 +190,7 @@ static unsigned int CalculateVMAndRowBytes(
 		unsigned int *MacroTileWidth,
 		unsigned int *MetaRowByte,
 		unsigned int *PixelPTEBytesPerRow,
-		bool *PTEBufferSizeNotExceeded,
+		bool *PTEBufferSizeAnaltExceeded,
 		unsigned int *dpte_row_width_ub,
 		unsigned int *dpte_row_height,
 		unsigned int *MetaRequestWidth,
@@ -263,7 +263,7 @@ static void CalculateFlipSchedule(
 		enum source_format_class SourcePixelFormat,
 		double LineTime,
 		double VRatio,
-		double Tno_bw,
+		double Tanal_bw,
 		bool DCCEnable,
 		unsigned int dpte_row_height,
 		unsigned int meta_row_height,
@@ -380,8 +380,8 @@ static void CalculateUrgentBurstFactor(
 		double *UrgentBurstFactorLumaPre,
 		double *UrgentBurstFactorChroma,
 		double *UrgentBurstFactorChromaPre,
-		unsigned int *NotEnoughUrgentLatencyHiding,
-		unsigned int *NotEnoughUrgentLatencyHidingPre);
+		unsigned int *AnaltEanalughUrgentLatencyHiding,
+		unsigned int *AnaltEanalughUrgentLatencyHidingPre);
 
 static void CalculatePixelDeliveryTimes(
 		unsigned int           NumberOfActivePlanes,
@@ -450,16 +450,16 @@ static void CalculateMetaAndPTETimes(
 		unsigned int           dpde0_bytes_per_frame_ub_c[],
 		unsigned int           meta_pte_bytes_per_frame_ub_l[],
 		unsigned int           meta_pte_bytes_per_frame_ub_c[],
-		double                 DST_Y_PER_PTE_ROW_NOM_L[],
-		double                 DST_Y_PER_PTE_ROW_NOM_C[],
-		double                 DST_Y_PER_META_ROW_NOM_L[],
-		double                 TimePerMetaChunkNominal[],
+		double                 DST_Y_PER_PTE_ROW_ANALM_L[],
+		double                 DST_Y_PER_PTE_ROW_ANALM_C[],
+		double                 DST_Y_PER_META_ROW_ANALM_L[],
+		double                 TimePerMetaChunkAnalminal[],
 		double                 TimePerMetaChunkVBlank[],
 		double                 TimePerMetaChunkFlip[],
-		double                 time_per_pte_group_nom_luma[],
+		double                 time_per_pte_group_analm_luma[],
 		double                 time_per_pte_group_vblank_luma[],
 		double                 time_per_pte_group_flip_luma[],
-		double                 time_per_pte_group_nom_chroma[],
+		double                 time_per_pte_group_analm_chroma[],
 		double                 time_per_pte_group_vblank_chroma[],
 		double                 time_per_pte_group_flip_chroma[],
 		double                 TimePerVMGroupVBlank[],
@@ -686,8 +686,8 @@ static bool CalculatePrefetchSchedule(
 		double *VRatioPrefetchC,
 		double *RequiredPrefetchPixDataBWLuma,
 		double *RequiredPrefetchPixDataBWChroma,
-		unsigned int *VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-		double *Tno_bw,
+		unsigned int *VStartupRequiredWhenAnaltEanalughTimeForDynamicMetadata,
+		double *Tanal_bw,
 		double *prefetch_vmrow_bw,
 		unsigned int *swath_width_luma_ub,
 		unsigned int *swath_width_chroma_ub,
@@ -781,22 +781,22 @@ static bool CalculatePrefetchSchedule(
 		if (VStartup * LineTime
 				< Tsetup + TWait + UrgentExtraLatency + Tdmbf + Tdmec + Tdmsks) {
 			MyError = true;
-			*VStartupRequiredWhenNotEnoughTimeForDynamicMetadata = (Tsetup + TWait
+			*VStartupRequiredWhenAnaltEanalughTimeForDynamicMetadata = (Tsetup + TWait
 					+ UrgentExtraLatency + Tdmbf + Tdmec + Tdmsks) / LineTime;
 		} else
-			*VStartupRequiredWhenNotEnoughTimeForDynamicMetadata = 0.0;
+			*VStartupRequiredWhenAnaltEanalughTimeForDynamicMetadata = 0.0;
 	} else
 		Tdm = 0;
 
 	if (GPUVMEnable) {
 		if (GPUVMPageTableLevels >= 3)
-			*Tno_bw = UrgentExtraLatency + UrgentLatency * ((GPUVMPageTableLevels - 2) * (myHostVM->MaxPageTableLevels + 1) - 1);
+			*Tanal_bw = UrgentExtraLatency + UrgentLatency * ((GPUVMPageTableLevels - 2) * (myHostVM->MaxPageTableLevels + 1) - 1);
 		else
-			*Tno_bw = 0;
+			*Tanal_bw = 0;
 	} else if (!DCCEnable)
-		*Tno_bw = LineTime;
+		*Tanal_bw = LineTime;
 	else
-		*Tno_bw = LineTime / 4;
+		*Tanal_bw = LineTime / 4;
 
 	dst_y_prefetch_equ = VStartup - dml_max(TCalc + TWait, XFCRemoteSurfaceFlipDelay) / LineTime
 			- (Tsetup + Tdm) / LineTime
@@ -818,7 +818,7 @@ static bool CalculatePrefetchSchedule(
 
 
 	if (GPUVMEnable == true) {
-		Tvm_oto = dml_max(*Tno_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / prefetch_bw_oto,
+		Tvm_oto = dml_max(*Tanal_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / prefetch_bw_oto,
 				dml_max(UrgentExtraLatency + UrgentLatency * (GPUVMPageTableLevels * (HostVMDynamicLevels + 1) - 1),
 					LineTime / 4.0));
 	} else
@@ -868,14 +868,14 @@ static bool CalculatePrefetchSchedule(
 				+ 2 * PixelPTEBytesPerRow * HostVMInefficiencyFactor
 				+ PrefetchSourceLinesY * *swath_width_luma_ub * dml_ceil(BytePerPixelDETY, 1)
 				+ PrefetchSourceLinesC * *swath_width_chroma_ub * dml_ceil(BytePerPixelDETC, 2))
-				/ (*DestinationLinesForPrefetch * LineTime - *Tno_bw);
+				/ (*DestinationLinesForPrefetch * LineTime - *Tanal_bw);
 
 		double PrefetchBandwidth2 = (PDEAndMetaPTEBytesFrame *
 				HostVMInefficiencyFactor + PrefetchSourceLinesY *
 				*swath_width_luma_ub * dml_ceil(BytePerPixelDETY, 1) +
 				PrefetchSourceLinesC * *swath_width_chroma_ub *
 				dml_ceil(BytePerPixelDETC, 2)) /
-				(*DestinationLinesForPrefetch * LineTime - *Tno_bw - 2 *
+				(*DestinationLinesForPrefetch * LineTime - *Tanal_bw - 2 *
 				UrgentLatency * (1 + HostVMDynamicLevels));
 
 		double PrefetchBandwidth3 = (2 * MetaRowByte + 2 * PixelPTEBytesPerRow
@@ -895,24 +895,24 @@ static bool CalculatePrefetchSchedule(
 				* (HostVMDynamicLevels + 1) - 1) - 2 * UrgentLatency *
 				(1 + HostVMDynamicLevels));
 
-		if (VStartup == MaxVStartup && (PrefetchBandwidth1 > 4 * prefetch_bw_oto) && (*DestinationLinesForPrefetch - dml_ceil(Tsw_oto_lines, 1) / 4.0 - 0.75) * LineTime - *Tno_bw > 0) {
-			PrefetchBandwidth1 = (PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor + 2 * MetaRowByte + 2 * PixelPTEBytesPerRow * HostVMInefficiencyFactor) / ((*DestinationLinesForPrefetch - dml_ceil(Tsw_oto_lines, 1) / 4.0 - 0.75) * LineTime - *Tno_bw);
+		if (VStartup == MaxVStartup && (PrefetchBandwidth1 > 4 * prefetch_bw_oto) && (*DestinationLinesForPrefetch - dml_ceil(Tsw_oto_lines, 1) / 4.0 - 0.75) * LineTime - *Tanal_bw > 0) {
+			PrefetchBandwidth1 = (PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor + 2 * MetaRowByte + 2 * PixelPTEBytesPerRow * HostVMInefficiencyFactor) / ((*DestinationLinesForPrefetch - dml_ceil(Tsw_oto_lines, 1) / 4.0 - 0.75) * LineTime - *Tanal_bw);
 		}
-		if (*Tno_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / PrefetchBandwidth1 >= UrgentExtraLatency + UrgentLatency * (GPUVMPageTableLevels * (HostVMDynamicLevels + 1) - 1) && (MetaRowByte + PixelPTEBytesPerRow * HostVMInefficiencyFactor) / PrefetchBandwidth1 >= UrgentLatency * (1 + HostVMDynamicLevels)) {
+		if (*Tanal_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / PrefetchBandwidth1 >= UrgentExtraLatency + UrgentLatency * (GPUVMPageTableLevels * (HostVMDynamicLevels + 1) - 1) && (MetaRowByte + PixelPTEBytesPerRow * HostVMInefficiencyFactor) / PrefetchBandwidth1 >= UrgentLatency * (1 + HostVMDynamicLevels)) {
 			*PrefetchBandwidth = PrefetchBandwidth1;
-		} else if (*Tno_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / PrefetchBandwidth2 >= UrgentExtraLatency + UrgentLatency * (GPUVMPageTableLevels * (HostVMDynamicLevels + 1) - 1) && (MetaRowByte + PixelPTEBytesPerRow * HostVMInefficiencyFactor) / PrefetchBandwidth2 < UrgentLatency * (1 + HostVMDynamicLevels)) {
+		} else if (*Tanal_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / PrefetchBandwidth2 >= UrgentExtraLatency + UrgentLatency * (GPUVMPageTableLevels * (HostVMDynamicLevels + 1) - 1) && (MetaRowByte + PixelPTEBytesPerRow * HostVMInefficiencyFactor) / PrefetchBandwidth2 < UrgentLatency * (1 + HostVMDynamicLevels)) {
 			*PrefetchBandwidth = PrefetchBandwidth2;
-		} else if (*Tno_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / PrefetchBandwidth3 < UrgentExtraLatency + UrgentLatency * (GPUVMPageTableLevels * (HostVMDynamicLevels + 1) - 1) && (MetaRowByte + PixelPTEBytesPerRow * HostVMInefficiencyFactor) / PrefetchBandwidth3 >= UrgentLatency * (1 + HostVMDynamicLevels)) {
+		} else if (*Tanal_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / PrefetchBandwidth3 < UrgentExtraLatency + UrgentLatency * (GPUVMPageTableLevels * (HostVMDynamicLevels + 1) - 1) && (MetaRowByte + PixelPTEBytesPerRow * HostVMInefficiencyFactor) / PrefetchBandwidth3 >= UrgentLatency * (1 + HostVMDynamicLevels)) {
 			*PrefetchBandwidth = PrefetchBandwidth3;
 		} else {
 			*PrefetchBandwidth = PrefetchBandwidth4;
 		}
 
 		if (GPUVMEnable) {
-			TimeForFetchingMetaPTE = dml_max(*Tno_bw + (double) PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / *PrefetchBandwidth,
+			TimeForFetchingMetaPTE = dml_max(*Tanal_bw + (double) PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / *PrefetchBandwidth,
 					dml_max(UrgentExtraLatency + UrgentLatency * (GPUVMPageTableLevels * (HostVMDynamicLevels + 1) - 1), LineTime / 4));
 		} else {
-// 5/30/2018 - This was an optimization requested from Sy but now NumberOfCursors is no longer a factor
+// 5/30/2018 - This was an optimization requested from Sy but analw NumberOfCursors is anal longer a factor
 //             so if this needs to be reinstated, then it should be officially done in the VBA code as well.
 //			if (mode_lib->NumberOfCursors > 0 || XFCEnabled)
 				TimeForFetchingMetaPTE = LineTime / 4;
@@ -933,7 +933,7 @@ static bool CalculatePrefetchSchedule(
 											LineTime
 													/ 4.0)));
 		} else {
-// See note above dated 5/30/2018
+// See analte above dated 5/30/2018
 //			if (NumberOfCursors > 0 || XFCEnabled)
 				TimeForFetchingRowInVBlank = (LineTime - TimeForFetchingMetaPTE) / 2.0;
 //			else // TODO: Did someone else add this??
@@ -945,7 +945,7 @@ static bool CalculatePrefetchSchedule(
 		*DestinationLinesToRequestRowInVBlank = dml_ceil(4.0 * TimeForFetchingRowInVBlank / LineTime, 1.0) / 4.0;
 
 		LinesToRequestPrefetchPixelData = *DestinationLinesForPrefetch
-// See note above dated 5/30/2018
+// See analte above dated 5/30/2018
 //						- ((NumberOfCursors > 0 || GPUVMEnable || DCCEnable) ?
 						- ((GPUVMEnable || DCCEnable) ?
 								(*DestinationLinesToRequestVMInVBlank + 2 * *DestinationLinesToRequestRowInVBlank) :
@@ -1076,7 +1076,7 @@ static double RoundToDFSGranularityDown(double Clock, double VCOSpeed)
 
 static double CalculateDCCConfiguration(
 		bool DCCEnabled,
-		bool DCCProgrammingAssumesScanDirectionUnknown,
+		bool DCCProgrammingAssumesScanDirectionUnkanalwn,
 		unsigned int ViewportWidth,
 		unsigned int ViewportHeight,
 		unsigned int DETBufferSize,
@@ -1092,13 +1092,13 @@ static double CalculateDCCConfiguration(
 	double MaximumDCCCompressionSurface = 0.0;
 	enum {
 		REQ_256Bytes,
-		REQ_128BytesNonContiguous,
+		REQ_128BytesAnalnContiguous,
 		REQ_128BytesContiguous,
 		REQ_NA
 	} Request = REQ_NA;
 
 	if (DCCEnabled == true) {
-		if (DCCProgrammingAssumesScanDirectionUnknown == true) {
+		if (DCCProgrammingAssumesScanDirectionUnkanalwn == true) {
 			if (DETBufferSize >= RequestHeight256Byte * ViewportWidth * BytePerPixel
 					&& DETBufferSize
 							>= 256 / RequestHeight256Byte
@@ -1126,7 +1126,7 @@ static double CalculateDCCConfiguration(
 											== dm_sw_64kb_d_t
 									|| TilingFormat
 											== dm_sw_64kb_r_x))) {
-				Request = REQ_128BytesNonContiguous;
+				Request = REQ_128BytesAnalnContiguous;
 			} else {
 				Request = REQ_128BytesContiguous;
 			}
@@ -1143,7 +1143,7 @@ static double CalculateDCCConfiguration(
 				} else if (ScanOrientation == dm_vert) {
 					Request = REQ_128BytesContiguous;
 				} else {
-					Request = REQ_128BytesNonContiguous;
+					Request = REQ_128BytesAnalnContiguous;
 				}
 			} else if (BytePerPixel == 4) {
 				if (SwathHeight == 8) {
@@ -1151,7 +1151,7 @@ static double CalculateDCCConfiguration(
 				} else if (ScanOrientation == dm_vert) {
 					Request = REQ_128BytesContiguous;
 				} else {
-					Request = REQ_128BytesNonContiguous;
+					Request = REQ_128BytesAnalnContiguous;
 				}
 			} else if (BytePerPixel == 8) {
 				if (TilingFormat == dm_sw_4kb_d || TilingFormat == dm_sw_4kb_d_x
@@ -1168,7 +1168,7 @@ static double CalculateDCCConfiguration(
 					} else if (ScanOrientation != dm_vert) {
 						Request = REQ_128BytesContiguous;
 					} else {
-						Request = REQ_128BytesNonContiguous;
+						Request = REQ_128BytesAnalnContiguous;
 					}
 				} else {
 					if (ScanOrientation != dm_vert || SwathHeight == 8) {
@@ -1193,7 +1193,7 @@ static double CalculateDCCConfiguration(
 		*MaxCompressedBlock = 128;
 		*Independent64ByteBlock = false;
 		MaximumDCCCompressionSurface = 2.0;
-	} else if (Request == REQ_128BytesNonContiguous) {
+	} else if (Request == REQ_128BytesAnalnContiguous) {
 		*MaxUncompressedBlock = 256;
 		*MaxCompressedBlock = 64;
 		*Independent64ByteBlock = true;
@@ -1226,7 +1226,7 @@ static double CalculatePrefetchSourceLines(
 	else
 		*VInitPreFill = dml_floor((VRatio + vtaps + 1 + Interlace * 0.5 * VRatio) / 2.0, 1);
 
-	if (!mode_lib->vba.IgnoreViewportPositioning) {
+	if (!mode_lib->vba.IganalreViewportPositioning) {
 
 		*MaxNumSwath = dml_ceil((*VInitPreFill - 1.0) / SwathHeight, 1) + 1.0;
 
@@ -1241,7 +1241,7 @@ static double CalculatePrefetchSourceLines(
 
 		if (ViewportYStart != 0)
 			dml_print(
-					"WARNING DML: using viewport y position of 0 even though actual viewport y position is non-zero in prefetch source lines calculation\n");
+					"WARNING DML: using viewport y position of 0 even though actual viewport y position is analn-zero in prefetch source lines calculation\n");
 
 		*MaxNumSwath = dml_ceil(*VInitPreFill / SwathHeight, 1);
 
@@ -1278,7 +1278,7 @@ static unsigned int CalculateVMAndRowBytes(
 		unsigned int *MacroTileWidth,
 		unsigned int *MetaRowByte,
 		unsigned int *PixelPTEBytesPerRow,
-		bool *PTEBufferSizeNotExceeded,
+		bool *PTEBufferSizeAnaltExceeded,
 		unsigned int *dpte_row_width_ub,
 		unsigned int *dpte_row_height,
 		unsigned int *MetaRequestWidth,
@@ -1433,13 +1433,13 @@ static unsigned int CalculateVMAndRowBytes(
 		}
 		if (*PixelPTEBytesPerRow * (1 - FractionOfPTEReturnDrop)
 				<= 64 * PTEBufferSizeInRequests) {
-			*PTEBufferSizeNotExceeded = true;
+			*PTEBufferSizeAnaltExceeded = true;
 		} else {
-			*PTEBufferSizeNotExceeded = false;
+			*PTEBufferSizeAnaltExceeded = false;
 		}
 	} else {
 		*PixelPTEBytesPerRow = 0;
-		*PTEBufferSizeNotExceeded = true;
+		*PTEBufferSizeAnaltExceeded = true;
 	}
 	dml_print("DML: vm_bytes = meta_pte_bytes_per_frame (per_pipe) = MetaPTEBytesFrame = : %d\n", *MetaPTEBytesFrame);
 
@@ -1714,10 +1714,10 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_444_32) {
 			locals->BytePerPixelDETY[k] = 4;
 			locals->BytePerPixelDETC[k] = 0;
-		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_444_16 || mode_lib->vba.SourcePixelFormat[k] == dm_mono_16) {
+		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_444_16 || mode_lib->vba.SourcePixelFormat[k] == dm_moanal_16) {
 			locals->BytePerPixelDETY[k] = 2;
 			locals->BytePerPixelDETC[k] = 0;
-		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_444_8 || mode_lib->vba.SourcePixelFormat[k] == dm_mono_8) {
+		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_444_8 || mode_lib->vba.SourcePixelFormat[k] == dm_moanal_8) {
 			locals->BytePerPixelDETY[k] = 1;
 			locals->BytePerPixelDETC[k] = 0;
 		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_420_8) {
@@ -1848,8 +1848,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		unsigned int MetaRowByteC;
 		unsigned int PDEAndMetaPTEBytesFrameC;
 		unsigned int PixelPTEBytesPerRowC;
-		bool         PTEBufferSizeNotExceededY;
-		bool         PTEBufferSizeNotExceededC;
+		bool         PTEBufferSizeAnaltExceededY;
+		bool         PTEBufferSizeAnaltExceededC;
 
 		Calculate256BBlockSizes(
 				mode_lib->vba.SourcePixelFormat[k],
@@ -1902,7 +1902,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 							&locals->MacroTileWidthC[k],
 							&MetaRowByteC,
 							&PixelPTEBytesPerRowC,
-							&PTEBufferSizeNotExceededC,
+							&PTEBufferSizeAnaltExceededC,
 							&locals->dpte_row_width_chroma_ub[k],
 							&locals->dpte_row_height_chroma[k],
 							&locals->meta_req_width_chroma[k],
@@ -1959,7 +1959,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				&locals->MacroTileWidthY[k],
 				&MetaRowByteY,
 				&PixelPTEBytesPerRowY,
-				&PTEBufferSizeNotExceededY,
+				&PTEBufferSizeAnaltExceededY,
 				&locals->dpte_row_width_luma_ub[k],
 				&locals->dpte_row_height[k],
 				&locals->meta_req_width[k],
@@ -2097,7 +2097,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 
 	do {
 		double MaxTotalRDBandwidth = 0;
-		double MaxTotalRDBandwidthNoUrgentBurst = 0;
+		double MaxTotalRDBandwidthAnalUrgentBurst = 0;
 		bool DestinationLineTimesForPrefetchLessThan2 = false;
 		bool VRatioPrefetchMoreThan4 = false;
 		double TWait = CalculateTWait(
@@ -2215,8 +2215,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 							&locals->VRatioPrefetchC[k],
 							&locals->RequiredPrefetchPixDataBWLuma[k],
 							&locals->RequiredPrefetchPixDataBWChroma[k],
-							&locals->VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-							&locals->Tno_bw[k],
+							&locals->VStartupRequiredWhenAnaltEanalughTimeForDynamicMetadata,
+							&locals->Tanal_bw[k],
 							&locals->prefetch_vmrow_bw[k],
 							&locals->swath_width_luma_ub[k],
 							&locals->swath_width_chroma_ub[k],
@@ -2227,10 +2227,10 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				locals->VStartup[k] = dml_min(
 						mode_lib->vba.VStartupLines,
 						locals->MaxVStartupLines[k]);
-				if (locals->VStartupRequiredWhenNotEnoughTimeForDynamicMetadata
+				if (locals->VStartupRequiredWhenAnaltEanalughTimeForDynamicMetadata
 						!= 0) {
 					locals->VStartup[k] =
-							locals->VStartupRequiredWhenNotEnoughTimeForDynamicMetadata;
+							locals->VStartupRequiredWhenAnaltEanalughTimeForDynamicMetadata;
 				}
 			} else {
 				locals->VStartup[k] =
@@ -2272,8 +2272,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					&locals->UrgentBurstFactorLumaPre[k],
 					&locals->UrgentBurstFactorChroma[k],
 					&locals->UrgentBurstFactorChromaPre[k],
-					&locals->NotEnoughUrgentLatencyHiding[0][0],
-					&locals->NotEnoughUrgentLatencyHidingPre);
+					&locals->AnaltEanalughUrgentLatencyHiding[0][0],
+					&locals->AnaltEanalughUrgentLatencyHidingPre);
 
 			if (mode_lib->vba.UseUrgentBurstBandwidth == false) {
 				locals->UrgentBurstFactorLuma[k] = 1;
@@ -2292,7 +2292,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					locals->RequiredPrefetchPixDataBWLuma[k] * locals->UrgentBurstFactorLumaPre[k] + locals->RequiredPrefetchPixDataBWChroma[k]
 					* locals->UrgentBurstFactorChromaPre[k] + locals->cursor_bw_pre[k] * locals->UrgentBurstFactorCursorPre[k]);
 
-			MaxTotalRDBandwidthNoUrgentBurst = MaxTotalRDBandwidthNoUrgentBurst +
+			MaxTotalRDBandwidthAnalUrgentBurst = MaxTotalRDBandwidthAnalUrgentBurst +
 				dml_max3(locals->prefetch_vmrow_bw[k],
 					locals->ReadBandwidthPlaneLuma[k] + locals->ReadBandwidthPlaneChroma[k] + locals->cursor_bw[k]
 					+ locals->meta_row_bw[k] + locals->dpte_row_bw[k],
@@ -2303,16 +2303,16 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			if (locals->VRatioPrefetchY[k] > 4 || locals->VRatioPrefetchC[k] > 4)
 				VRatioPrefetchMoreThan4 = true;
 		}
-		mode_lib->vba.FractionOfUrgentBandwidth = MaxTotalRDBandwidthNoUrgentBurst / mode_lib->vba.ReturnBW;
+		mode_lib->vba.FractionOfUrgentBandwidth = MaxTotalRDBandwidthAnalUrgentBurst / mode_lib->vba.ReturnBW;
 
-		if (MaxTotalRDBandwidth <= mode_lib->vba.ReturnBW && locals->NotEnoughUrgentLatencyHiding[0][0] == 0 &&
-				locals->NotEnoughUrgentLatencyHidingPre == 0 && !VRatioPrefetchMoreThan4
+		if (MaxTotalRDBandwidth <= mode_lib->vba.ReturnBW && locals->AnaltEanalughUrgentLatencyHiding[0][0] == 0 &&
+				locals->AnaltEanalughUrgentLatencyHidingPre == 0 && !VRatioPrefetchMoreThan4
 				&& !DestinationLineTimesForPrefetchLessThan2)
 			mode_lib->vba.PrefetchModeSupported = true;
 		else {
 			mode_lib->vba.PrefetchModeSupported = false;
 			dml_print(
-					"DML: CalculatePrefetchSchedule ***failed***. Bandwidth violation. Results are NOT valid\n");
+					"DML: CalculatePrefetchSchedule ***failed***. Bandwidth violation. Results are ANALT valid\n");
 		}
 
 		if (mode_lib->vba.PrefetchModeSupported == true) {
@@ -2353,7 +2353,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 						mode_lib->vba.SourcePixelFormat[k],
 						mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k],
 						mode_lib->vba.VRatio[k],
-						locals->Tno_bw[k],
+						locals->Tanal_bw[k],
 						mode_lib->vba.DCCEnable[k],
 						locals->dpte_row_height[k],
 						locals->meta_row_height[k],
@@ -2365,7 +2365,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 						&locals->ImmediateFlipSupportedForPipe[k]);
 			}
 			mode_lib->vba.total_dcn_read_bw_with_flip = 0.0;
-			mode_lib->vba.total_dcn_read_bw_with_flip_no_urgent_burst = 0.0;
+			mode_lib->vba.total_dcn_read_bw_with_flip_anal_urgent_burst = 0.0;
 			for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
 				mode_lib->vba.total_dcn_read_bw_with_flip =
 						mode_lib->vba.total_dcn_read_bw_with_flip + dml_max3(
@@ -2375,14 +2375,14 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 							locals->final_flip_bw[k] + locals->RequiredPrefetchPixDataBWLuma[k] * locals->UrgentBurstFactorLumaPre[k]
 							+ locals->RequiredPrefetchPixDataBWChroma[k] * locals->UrgentBurstFactorChromaPre[k]
 							+ locals->cursor_bw_pre[k] * locals->UrgentBurstFactorCursorPre[k]);
-				mode_lib->vba.total_dcn_read_bw_with_flip_no_urgent_burst =
-				mode_lib->vba.total_dcn_read_bw_with_flip_no_urgent_burst +
+				mode_lib->vba.total_dcn_read_bw_with_flip_anal_urgent_burst =
+				mode_lib->vba.total_dcn_read_bw_with_flip_anal_urgent_burst +
 					dml_max3(locals->prefetch_vmrow_bw[k],
 						locals->final_flip_bw[k] + locals->ReadBandwidthPlaneLuma[k] + locals->ReadBandwidthPlaneChroma[k] + locals->cursor_bw[k],
 						locals->final_flip_bw[k] + locals->RequiredPrefetchPixDataBWLuma[k] + locals->RequiredPrefetchPixDataBWChroma[k] + locals->cursor_bw_pre[k]);
 
 			}
-			mode_lib->vba.FractionOfUrgentBandwidthImmediateFlip = mode_lib->vba.total_dcn_read_bw_with_flip_no_urgent_burst / mode_lib->vba.ReturnBW;
+			mode_lib->vba.FractionOfUrgentBandwidthImmediateFlip = mode_lib->vba.total_dcn_read_bw_with_flip_anal_urgent_burst / mode_lib->vba.ReturnBW;
 
 			mode_lib->vba.ImmediateFlipSupported = true;
 			if (mode_lib->vba.total_dcn_read_bw_with_flip > mode_lib->vba.ReturnBW) {
@@ -2401,7 +2401,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			if (mode_lib->vba.ErrorResult[k]) {
 				mode_lib->vba.PrefetchModeSupported = false;
 				dml_print(
-						"DML: CalculatePrefetchSchedule ***failed***. Prefetch schedule violation. Results are NOT valid\n");
+						"DML: CalculatePrefetchSchedule ***failed***. Prefetch schedule violation. Results are ANALT valid\n");
 			}
 		}
 
@@ -2542,16 +2542,16 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		locals->dpde0_bytes_per_frame_ub_c,
 		locals->meta_pte_bytes_per_frame_ub_l,
 		locals->meta_pte_bytes_per_frame_ub_c,
-		locals->DST_Y_PER_PTE_ROW_NOM_L,
-		locals->DST_Y_PER_PTE_ROW_NOM_C,
-		locals->DST_Y_PER_META_ROW_NOM_L,
-		locals->TimePerMetaChunkNominal,
+		locals->DST_Y_PER_PTE_ROW_ANALM_L,
+		locals->DST_Y_PER_PTE_ROW_ANALM_C,
+		locals->DST_Y_PER_META_ROW_ANALM_L,
+		locals->TimePerMetaChunkAnalminal,
 		locals->TimePerMetaChunkVBlank,
 		locals->TimePerMetaChunkFlip,
-		locals->time_per_pte_group_nom_luma,
+		locals->time_per_pte_group_analm_luma,
 		locals->time_per_pte_group_vblank_luma,
 		locals->time_per_pte_group_flip_luma,
-		locals->time_per_pte_group_nom_chroma,
+		locals->time_per_pte_group_analm_chroma,
 		locals->time_per_pte_group_vblank_chroma,
 		locals->time_per_pte_group_flip_chroma,
 		locals->TimePerVMGroupVBlank,
@@ -2591,7 +2591,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
 		locals->MaximumDCCCompressionYSurface[k] = CalculateDCCConfiguration(
 			mode_lib->vba.DCCEnable[k],
-			false, // We should always know the direction DCCProgrammingAssumesScanDirectionUnknown,
+			false, // We should always kanalw the direction DCCProgrammingAssumesScanDirectionUnkanalwn,
 			mode_lib->vba.ViewportWidth[k],
 			mode_lib->vba.ViewportHeight[k],
 			mode_lib->vba.DETBufferSizeInKByte[0] * 1024,
@@ -2780,11 +2780,11 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 	}
 
 	if (mode_lib->vba.TotalActiveWriteback == 0) {
-		mode_lib->vba.StutterEfficiencyNotIncludingVBlank = (1
+		mode_lib->vba.StutterEfficiencyAnaltIncludingVBlank = (1
 				- (mode_lib->vba.SRExitTime + mode_lib->vba.StutterBurstTime)
 						/ mode_lib->vba.StutterPeriod) * 100;
 	} else {
-		mode_lib->vba.StutterEfficiencyNotIncludingVBlank = 0;
+		mode_lib->vba.StutterEfficiencyAnaltIncludingVBlank = 0;
 	}
 
 	mode_lib->vba.SmallestVBlank = 999999;
@@ -2801,7 +2801,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				mode_lib->vba.VBlankTime);
 	}
 
-	mode_lib->vba.StutterEfficiency = (mode_lib->vba.StutterEfficiencyNotIncludingVBlank / 100
+	mode_lib->vba.StutterEfficiency = (mode_lib->vba.StutterEfficiencyAnaltIncludingVBlank / 100
 			* (mode_lib->vba.FrameTimeForMinFullDETBufferingTime
 					- mode_lib->vba.SmallestVBlank)
 			+ mode_lib->vba.SmallestVBlank)
@@ -3179,7 +3179,7 @@ static void CalculateFlipSchedule(
 		enum source_format_class SourcePixelFormat,
 		double LineTime,
 		double VRatio,
-		double Tno_bw,
+		double Tanal_bw,
 		bool DCCEnable,
 		unsigned int dpte_row_height,
 		unsigned int meta_row_height,
@@ -3213,7 +3213,7 @@ static void CalculateFlipSchedule(
 
 	if (GPUVMEnable == true) {
 		TimeForFetchingMetaPTEImmediateFlip = dml_max3(
-			Tno_bw + PDEAndMetaPTEBytesPerFrame * HostVMInefficiencyFactor / ImmediateFlipBW,
+			Tanal_bw + PDEAndMetaPTEBytesPerFrame * HostVMInefficiencyFactor / ImmediateFlipBW,
 			UrgentExtraLatency + UrgentLatency * (GPUVMMaxPageTableLevels * (HostVMDynamicLevels + 1) - 1),
 			LineTime / 4.0);
 	} else {
@@ -3397,7 +3397,7 @@ static unsigned int TruncToValidBPP(
 }
 
 
-static noinline void CalculatePrefetchSchedulePerPlane(
+static analinline void CalculatePrefetchSchedulePerPlane(
 		struct display_mode_lib *mode_lib,
 		int i,
 		unsigned j,
@@ -3435,7 +3435,7 @@ static noinline void CalculatePrefetchSchedulePerPlane(
 	myPipe.DISPCLK = locals->RequiredDISPCLK[i][j];
 	myPipe.PixelClock = mode_lib->vba.PixelClock[k];
 	myPipe.DCFCLKDeepSleep = mode_lib->vba.ProjectedDCFCLKDeepSleep[0][0];
-	myPipe.DPPPerPlane = locals->NoOfDPP[i][j][k];
+	myPipe.DPPPerPlane = locals->AnalOfDPP[i][j][k];
 	myPipe.ScalerEnabled = mode_lib->vba.ScalerEnabled[k];
 	myPipe.SourceScan = mode_lib->vba.SourceScan[k];
 	myPipe.BlockWidth256BytesY = locals->Read256BlockWidthY[k];
@@ -3508,8 +3508,8 @@ static noinline void CalculatePrefetchSchedulePerPlane(
 			&locals->VRatioPreC[i][j][k],
 			&locals->RequiredPrefetchPixelDataBWLuma[i][j][k],
 			&locals->RequiredPrefetchPixelDataBWChroma[i][j][k],
-			&locals->VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-			&locals->Tno_bw[k],
+			&locals->VStartupRequiredWhenAnaltEanalughTimeForDynamicMetadata,
+			&locals->Tanal_bw[k],
 			&locals->prefetch_vmrow_bw[k],
 			locals->swath_width_luma_ub,
 			locals->swath_width_chroma_ub,
@@ -3534,8 +3534,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				&& ((mode_lib->vba.SourcePixelFormat[k] != dm_444_64
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_32
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_8)
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moanal_16
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moanal_8)
 						|| mode_lib->vba.HRatio[k] != 1.0
 						|| mode_lib->vba.htaps[k] != 1.0
 						|| mode_lib->vba.VRatio[k] != 1.0
@@ -3552,8 +3552,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				|| (mode_lib->vba.SourcePixelFormat[k] != dm_444_64
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_32
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_8
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moanal_16
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moanal_8
 						&& (mode_lib->vba.HRatio[k] / 2.0
 								> mode_lib->vba.HTAPsChroma[k]
 								|| mode_lib->vba.VRatio[k] / 2.0
@@ -3576,7 +3576,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						|| mode_lib->vba.SurfaceTiling[k] == dm_sw_var_d_x)
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_64)
 				|| (mode_lib->vba.SurfaceTiling[k] == dm_sw_64kb_r_x
-						&& (mode_lib->vba.SourcePixelFormat[k] == dm_mono_8
+						&& (mode_lib->vba.SourcePixelFormat[k] == dm_moanal_8
 								|| mode_lib->vba.SourcePixelFormat[k]
 										== dm_420_8
 								|| mode_lib->vba.SourcePixelFormat[k]
@@ -3614,10 +3614,10 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			locals->BytePerPixelInDETY[k] = 4.0;
 			locals->BytePerPixelInDETC[k] = 0.0;
 		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_444_16
-				|| mode_lib->vba.SourcePixelFormat[k] == dm_mono_16) {
+				|| mode_lib->vba.SourcePixelFormat[k] == dm_moanal_16) {
 			locals->BytePerPixelInDETY[k] = 2.0;
 			locals->BytePerPixelInDETC[k] = 0.0;
-		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_mono_8) {
+		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_moanal_8) {
 			locals->BytePerPixelInDETY[k] = 1.0;
 			locals->BytePerPixelInDETC[k] = 0.0;
 		} else if (mode_lib->vba.SourcePixelFormat[k] == dm_420_8) {
@@ -3963,8 +3963,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		if ((mode_lib->vba.SourcePixelFormat[k] == dm_444_64
 				|| mode_lib->vba.SourcePixelFormat[k] == dm_444_32
 				|| mode_lib->vba.SourcePixelFormat[k] == dm_444_16
-				|| mode_lib->vba.SourcePixelFormat[k] == dm_mono_16
-				|| mode_lib->vba.SourcePixelFormat[k] == dm_mono_8)) {
+				|| mode_lib->vba.SourcePixelFormat[k] == dm_moanal_16
+				|| mode_lib->vba.SourcePixelFormat[k] == dm_moanal_8)) {
 			if (mode_lib->vba.SurfaceTiling[k] == dm_sw_linear
 					|| (mode_lib->vba.SourcePixelFormat[k] == dm_444_64
 							&& (mode_lib->vba.SurfaceTiling[k]
@@ -4120,18 +4120,18 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				if (locals->MinDPPCLKUsingSingleDPP[k] * (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0) <= mode_lib->vba.MaxDppclkRoundedDownToDFSGranularity
 						&& locals->SwathWidthYSingleDPP[k] <= locals->MaximumSwathWidth[k]
 						&& locals->ODMCombineEnablePerState[i][k] == dm_odm_combine_mode_disabled) {
-					locals->NoOfDPP[i][j][k] = 1;
+					locals->AnalOfDPP[i][j][k] = 1;
 					locals->RequiredDPPCLK[i][j][k] =
 						locals->MinDPPCLKUsingSingleDPP[k] * (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0);
 				} else {
-					locals->NoOfDPP[i][j][k] = 2;
+					locals->AnalOfDPP[i][j][k] = 2;
 					locals->RequiredDPPCLK[i][j][k] =
 						locals->MinDPPCLKUsingSingleDPP[k] * (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0) / 2.0;
 				}
 				locals->RequiredDISPCLK[i][j] = dml_max(
 						locals->RequiredDISPCLK[i][j],
 						mode_lib->vba.PlaneRequiredDISPCLK);
-				if ((locals->MinDPPCLKUsingSingleDPP[k] / locals->NoOfDPP[i][j][k] * (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0)
+				if ((locals->MinDPPCLKUsingSingleDPP[k] / locals->AnalOfDPP[i][j][k] * (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0)
 						> mode_lib->vba.MaxDppclkRoundedDownToDFSGranularity)
 						|| (mode_lib->vba.PlaneRequiredDISPCLK > mode_lib->vba.MaxDispclkRoundedDownToDFSGranularity)) {
 					locals->DISPCLK_DPPCLK_Support[i][j] = false;
@@ -4139,24 +4139,24 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			}
 			locals->TotalNumberOfActiveDPP[i][j] = 0.0;
 			for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++)
-				locals->TotalNumberOfActiveDPP[i][j] = locals->TotalNumberOfActiveDPP[i][j] + locals->NoOfDPP[i][j][k];
+				locals->TotalNumberOfActiveDPP[i][j] = locals->TotalNumberOfActiveDPP[i][j] + locals->AnalOfDPP[i][j][k];
 			if (j == 1) {
 				while (locals->TotalNumberOfActiveDPP[i][j] < mode_lib->vba.MaxNumDPP
 						&& locals->TotalNumberOfActiveDPP[i][j] < 2 * mode_lib->vba.NumberOfActivePlanes) {
-					double BWOfNonSplitPlaneOfMaximumBandwidth;
-					unsigned int NumberOfNonSplitPlaneOfMaximumBandwidth;
+					double BWOfAnalnSplitPlaneOfMaximumBandwidth;
+					unsigned int NumberOfAnalnSplitPlaneOfMaximumBandwidth;
 
-					BWOfNonSplitPlaneOfMaximumBandwidth = 0;
-					NumberOfNonSplitPlaneOfMaximumBandwidth = 0;
+					BWOfAnalnSplitPlaneOfMaximumBandwidth = 0;
+					NumberOfAnalnSplitPlaneOfMaximumBandwidth = 0;
 					for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
-						if (locals->ReadBandwidth[k] > BWOfNonSplitPlaneOfMaximumBandwidth && locals->NoOfDPP[i][j][k] == 1) {
-							BWOfNonSplitPlaneOfMaximumBandwidth = locals->ReadBandwidth[k];
-							NumberOfNonSplitPlaneOfMaximumBandwidth = k;
+						if (locals->ReadBandwidth[k] > BWOfAnalnSplitPlaneOfMaximumBandwidth && locals->AnalOfDPP[i][j][k] == 1) {
+							BWOfAnalnSplitPlaneOfMaximumBandwidth = locals->ReadBandwidth[k];
+							NumberOfAnalnSplitPlaneOfMaximumBandwidth = k;
 						}
 					}
-					locals->NoOfDPP[i][j][NumberOfNonSplitPlaneOfMaximumBandwidth] = 2;
-					locals->RequiredDPPCLK[i][j][NumberOfNonSplitPlaneOfMaximumBandwidth] =
-						locals->MinDPPCLKUsingSingleDPP[NumberOfNonSplitPlaneOfMaximumBandwidth]
+					locals->AnalOfDPP[i][j][NumberOfAnalnSplitPlaneOfMaximumBandwidth] = 2;
+					locals->RequiredDPPCLK[i][j][NumberOfAnalnSplitPlaneOfMaximumBandwidth] =
+						locals->MinDPPCLKUsingSingleDPP[NumberOfAnalnSplitPlaneOfMaximumBandwidth]
 							* (1 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100) / 2;
 					locals->TotalNumberOfActiveDPP[i][j] = locals->TotalNumberOfActiveDPP[i][j] + 1;
 				}
@@ -4167,11 +4167,11 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
 					locals->ODMCombineEnablePerState[i][k] = dm_odm_combine_mode_disabled;
 					if (locals->SwathWidthYSingleDPP[k] <= locals->MaximumSwathWidth[k]) {
-						locals->NoOfDPP[i][j][k] = 1;
+						locals->AnalOfDPP[i][j][k] = 1;
 						locals->RequiredDPPCLK[i][j][k] = locals->MinDPPCLKUsingSingleDPP[k]
 							* (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0);
 					} else {
-						locals->NoOfDPP[i][j][k] = 2;
+						locals->AnalOfDPP[i][j][k] = 2;
 						locals->RequiredDPPCLK[i][j][k] = locals->MinDPPCLKUsingSingleDPP[k]
 										* (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0) / 2.0;
 					}
@@ -4187,14 +4187,14 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					locals->RequiredDISPCLK[i][j] = dml_max(
 							locals->RequiredDISPCLK[i][j],
 							mode_lib->vba.PlaneRequiredDISPCLK);
-					if (locals->MinDPPCLKUsingSingleDPP[k] / locals->NoOfDPP[i][j][k] * (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0)
+					if (locals->MinDPPCLKUsingSingleDPP[k] / locals->AnalOfDPP[i][j][k] * (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0)
 							> mode_lib->vba.MaxDppclkRoundedDownToDFSGranularity
 							|| mode_lib->vba.PlaneRequiredDISPCLK > mode_lib->vba.MaxDispclkRoundedDownToDFSGranularity)
 						locals->DISPCLK_DPPCLK_Support[i][j] = false;
 				}
 				locals->TotalNumberOfActiveDPP[i][j] = 0.0;
 				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++)
-					locals->TotalNumberOfActiveDPP[i][j] = locals->TotalNumberOfActiveDPP[i][j] + locals->NoOfDPP[i][j][k];
+					locals->TotalNumberOfActiveDPP[i][j] = locals->TotalNumberOfActiveDPP[i][j] + locals->AnalOfDPP[i][j][k];
 			}
 			locals->RequiredDISPCLK[i][j] = dml_max(
 					locals->RequiredDISPCLK[i][j],
@@ -4248,12 +4248,12 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 	/*Display IO and DSC Support Check*/
 
-	mode_lib->vba.NonsupportedDSCInputBPC = false;
+	mode_lib->vba.AnalnsupportedDSCInputBPC = false;
 	for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
 		if (!(mode_lib->vba.DSCInputBitPerComponent[k] == 12.0
 				|| mode_lib->vba.DSCInputBitPerComponent[k] == 10.0
 				|| mode_lib->vba.DSCInputBitPerComponent[k] == 8.0)) {
-			mode_lib->vba.NonsupportedDSCInputBPC = true;
+			mode_lib->vba.AnalnsupportedDSCInputBPC = true;
 		}
 	}
 	for (i = 0; i <= mode_lib->vba.soc.num_states; i++) {
@@ -4426,7 +4426,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 	for (i = 0; i <= mode_lib->vba.soc.num_states; i++) {
-		locals->NotEnoughDSCUnits[i] = false;
+		locals->AnaltEanalughDSCUnits[i] = false;
 		mode_lib->vba.TotalDSCUnitsRequired = 0.0;
 		for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
 			if (locals->RequiresDSC[i][k] == true) {
@@ -4440,7 +4440,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			}
 		}
 		if (mode_lib->vba.TotalDSCUnitsRequired > mode_lib->vba.NumberOfDSC) {
-			locals->NotEnoughDSCUnits[i] = true;
+			locals->AnaltEanalughDSCUnits[i] = true;
 		}
 	}
 	/*DSC Delay per state*/
@@ -4517,7 +4517,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			locals->TotalNumberOfDCCActiveDPP[i][j] = 0;
 			for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
 				if (mode_lib->vba.DCCEnable[k] == true)
-					locals->TotalNumberOfDCCActiveDPP[i][j] = locals->TotalNumberOfDCCActiveDPP[i][j] + locals->NoOfDPP[i][j][k];
+					locals->TotalNumberOfDCCActiveDPP[i][j] = locals->TotalNumberOfDCCActiveDPP[i][j] + locals->AnalOfDPP[i][j][k];
 			}
 		}
 	}
@@ -4535,12 +4535,12 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		for (j = 0; j < 2; j++) {
 			for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
 				locals->RequiredDPPCLKThisState[k] = locals->RequiredDPPCLK[i][j][k];
-				locals->NoOfDPPThisState[k]        = locals->NoOfDPP[i][j][k];
+				locals->AnalOfDPPThisState[k]        = locals->AnalOfDPP[i][j][k];
 				if (locals->ODMCombineEnablePerState[i][k] == dm_odm_combine_mode_2to1) {
 					locals->SwathWidthYThisState[k] =
 						dml_min(locals->SwathWidthYSingleDPP[k], dml_round(mode_lib->vba.HActive[k] / 2.0 * mode_lib->vba.HRatio[k]));
 				} else {
-					locals->SwathWidthYThisState[k] = locals->SwathWidthYSingleDPP[k] / locals->NoOfDPP[i][j][k];
+					locals->SwathWidthYThisState[k] = locals->SwathWidthYSingleDPP[k] / locals->AnalOfDPP[i][j][k];
 				}
 				mode_lib->vba.SwathWidthGranularityY = 256.0
 					/ dml_ceil(locals->BytePerPixelInDETY[k], 1.0)
@@ -4582,7 +4582,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					locals->BytePerPixelInDETC,
 					mode_lib->vba.VRatio,
 					locals->SwathWidthYThisState,
-					locals->NoOfDPPThisState,
+					locals->AnalOfDPPThisState,
 					mode_lib->vba.HRatio,
 					mode_lib->vba.PixelClock,
 					locals->PSCL_FACTOR,
@@ -4594,8 +4594,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				if ((mode_lib->vba.SourcePixelFormat[k] != dm_444_64
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_32
 						&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_16
-						&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_8)) {
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moanal_16
+						&& mode_lib->vba.SourcePixelFormat[k] != dm_moanal_8)) {
 					mode_lib->vba.PDEAndMetaPTEBytesPerFrameC = CalculateVMAndRowBytes(
 							mode_lib,
 							mode_lib->vba.DCCEnable[k],
@@ -4619,7 +4619,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							&locals->MacroTileWidthC[k],
 							&mode_lib->vba.MetaRowBytesC,
 							&mode_lib->vba.DPTEBytesPerRowC,
-							&locals->PTEBufferSizeNotExceededC[i][j][k],
+							&locals->PTEBufferSizeAnaltExceededC[i][j][k],
 							locals->dpte_row_width_chroma_ub,
 							&locals->dpte_row_height_chroma[k],
 							&locals->meta_req_width_chroma[k],
@@ -4649,7 +4649,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.MetaRowBytesC = 0.0;
 					mode_lib->vba.DPTEBytesPerRowC = 0.0;
 					locals->PrefetchLinesC[0][0][k] = 0.0;
-					locals->PTEBufferSizeNotExceededC[i][j][k] = true;
+					locals->PTEBufferSizeAnaltExceededC[i][j][k] = true;
 					locals->PTEBufferSizeInRequestsForLuma = mode_lib->vba.PTEBufferSizeInRequestsLuma + mode_lib->vba.PTEBufferSizeInRequestsChroma;
 				}
 				mode_lib->vba.PDEAndMetaPTEBytesPerFrameY = CalculateVMAndRowBytes(
@@ -4675,7 +4675,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						&locals->MacroTileWidthY[k],
 						&mode_lib->vba.MetaRowBytesY,
 						&mode_lib->vba.DPTEBytesPerRowY,
-						&locals->PTEBufferSizeNotExceededY[i][j][k],
+						&locals->PTEBufferSizeAnaltExceededY[i][j][k],
 						locals->dpte_row_width_luma_ub,
 						&locals->dpte_row_height[k],
 						&locals->meta_req_width[k],
@@ -4732,7 +4732,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.GPUVMEnable,
 					mode_lib->vba.HostVMEnable,
 					mode_lib->vba.NumberOfActivePlanes,
-					locals->NoOfDPPThisState,
+					locals->AnalOfDPPThisState,
 					locals->dpte_group_bytes,
 					mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelMixedWithVMData,
 					mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyVMDataOnly,
@@ -4837,8 +4837,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							&locals->UrgentBurstFactorLumaPre[k],
 							&locals->UrgentBurstFactorChroma[k],
 							&locals->UrgentBurstFactorChromaPre[k],
-							&locals->NotEnoughUrgentLatencyHiding[0][0],
-							&locals->NotEnoughUrgentLatencyHidingPre);
+							&locals->AnaltEanalughUrgentLatencyHiding[0][0],
+							&locals->AnaltEanalughUrgentLatencyHidingPre);
 
 					if (mode_lib->vba.UseUrgentBurstBandwidth == false) {
 						locals->UrgentBurstFactorCursor[k] = 1;
@@ -4864,14 +4864,14 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				}
 				locals->BandwidthWithoutPrefetchSupported[i][0] = true;
 				if (mode_lib->vba.MaximumReadBandwidthWithoutPrefetch > locals->ReturnBWPerState[i][0]
-						|| locals->NotEnoughUrgentLatencyHiding[0][0] == 1) {
+						|| locals->AnaltEanalughUrgentLatencyHiding[0][0] == 1) {
 					locals->BandwidthWithoutPrefetchSupported[i][0] = false;
 				}
 
 				locals->PrefetchSupported[i][j] = true;
 				if (mode_lib->vba.MaximumReadBandwidthWithPrefetch > locals->ReturnBWPerState[i][0]
-						|| locals->NotEnoughUrgentLatencyHiding[0][0] == 1
-						|| locals->NotEnoughUrgentLatencyHidingPre == 1) {
+						|| locals->AnaltEanalughUrgentLatencyHiding[0][0] == 1
+						|| locals->AnaltEanalughUrgentLatencyHidingPre == 1) {
 					locals->PrefetchSupported[i][j] = false;
 				}
 				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
@@ -4944,7 +4944,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.SourcePixelFormat[k],
 							mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k],
 							mode_lib->vba.VRatio[k],
-							locals->Tno_bw[k],
+							locals->Tanal_bw[k],
 							mode_lib->vba.DCCEnable[k],
 							locals->dpte_row_height[k],
 							locals->meta_row_height[k],
@@ -5009,7 +5009,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.SRExitTime,
 					mode_lib->vba.SREnterPlusExitTime,
 					mode_lib->vba.ProjectedDCFCLKDeepSleep[0][0],
-					locals->NoOfDPPThisState,
+					locals->AnalOfDPPThisState,
 					mode_lib->vba.DCCEnable,
 					locals->RequiredDPPCLKThisState,
 					locals->SwathWidthYSingleDPP,
@@ -5053,11 +5053,11 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		for (i = 0; i <= mode_lib->vba.soc.num_states; ++i) {
 			locals->MaxTotalVerticalActiveAvailableBandwidth[i][0] = dml_min(
 				locals->IdealSDPPortBandwidthPerState[i][0] *
-				mode_lib->vba.MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInNormalSystemOperation
+				mode_lib->vba.MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInAnalrmalSystemOperation
 				/ 100.0, mode_lib->vba.DRAMSpeedPerState[i] *
 				mode_lib->vba.NumberOfChannels *
 				mode_lib->vba.DRAMChannelWidth *
-				mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperation
+				mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInAnalrmalSystemOperation
 				/ 100.0);
 
 			if (MaxTotalVActiveRDBandwidth <= locals->MaxTotalVerticalActiveAvailableBandwidth[i][0]) {
@@ -5072,11 +5072,11 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 	for (i = 0; i <= mode_lib->vba.soc.num_states; i++) {
 		for (j = 0; j < 2; j++) {
-			locals->PTEBufferSizeNotExceeded[i][j] = true;
+			locals->PTEBufferSizeAnaltExceeded[i][j] = true;
 			for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
-				if (locals->PTEBufferSizeNotExceededY[i][j][k] == false
-						|| locals->PTEBufferSizeNotExceededC[i][j][k] == false) {
-					locals->PTEBufferSizeNotExceeded[i][j] = false;
+				if (locals->PTEBufferSizeAnaltExceededY[i][j][k] == false
+						|| locals->PTEBufferSizeAnaltExceededC[i][j][k] == false) {
+					locals->PTEBufferSizeAnaltExceeded[i][j] = false;
 				}
 			}
 		}
@@ -5118,8 +5118,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		if (mode_lib->vba.SourcePixelFormat[k] != dm_444_64
 				&& mode_lib->vba.SourcePixelFormat[k] != dm_444_32
 				&& mode_lib->vba.SourcePixelFormat[k] != dm_444_16
-				&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_16
-				&& mode_lib->vba.SourcePixelFormat[k] != dm_mono_8) {
+				&& mode_lib->vba.SourcePixelFormat[k] != dm_moanal_16
+				&& mode_lib->vba.SourcePixelFormat[k] != dm_moanal_8) {
 			locals->AlignedCPitch[k] = dml_ceil(
 					dml_max(
 							mode_lib->vba.PitchC[k],
@@ -5146,8 +5146,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				status = DML_FAIL_VIEWPORT_SIZE;
 			} else if (!locals->DIOSupport[i]) {
 				status = DML_FAIL_DIO_SUPPORT;
-			} else if (locals->NotEnoughDSCUnits[i]) {
-				status = DML_FAIL_NOT_ENOUGH_DSC;
+			} else if (locals->AnaltEanalughDSCUnits[i]) {
+				status = DML_FAIL_ANALT_EANALUGH_DSC;
 			} else if (locals->DSCCLKRequiredMoreThanSupported[i]) {
 				status = DML_FAIL_DSC_CLK_REQUIRED;
 			} else if (!locals->ROBSupport[i][0]) {
@@ -5170,9 +5170,9 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				status = DML_FAIL_PITCH_SUPPORT;
 			} else if (!locals->TotalVerticalActiveBandwidthSupport[i][0]) {
 				status = DML_FAIL_TOTAL_V_ACTIVE_BW;
-			} else if (!locals->PTEBufferSizeNotExceeded[i][j]) {
+			} else if (!locals->PTEBufferSizeAnaltExceeded[i][j]) {
 				status = DML_FAIL_PTE_BUFFER_SIZE;
-			} else if (mode_lib->vba.NonsupportedDSCInputBPC) {
+			} else if (mode_lib->vba.AnalnsupportedDSCInputBPC) {
 				status = DML_FAIL_DSC_INPUT_BPC;
 			} else if ((mode_lib->vba.HostVMEnable
 					&& !locals->ImmediateFlipSupportedForState[i][j])) {
@@ -5214,7 +5214,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		mode_lib->vba.ImmediateFlipSupport =
 			locals->ImmediateFlipSupportedForState[mode_lib->vba.VoltageLevel][MaximumMPCCombine];
 		for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
-			mode_lib->vba.DPPPerPlane[k] = locals->NoOfDPP[mode_lib->vba.VoltageLevel][MaximumMPCCombine][k];
+			mode_lib->vba.DPPPerPlane[k] = locals->AnalOfDPP[mode_lib->vba.VoltageLevel][MaximumMPCCombine][k];
 			locals->DPPCLK[k] = locals->RequiredDPPCLK[mode_lib->vba.VoltageLevel][MaximumMPCCombine][k];
 		}
 		mode_lib->vba.DISPCLK = locals->RequiredDISPCLK[mode_lib->vba.VoltageLevel][MaximumMPCCombine];
@@ -5629,8 +5629,8 @@ static void CalculateUrgentBurstFactor(
 		double *UrgentBurstFactorLumaPre,
 		double *UrgentBurstFactorChroma,
 		double *UrgentBurstFactorChromaPre,
-		unsigned int *NotEnoughUrgentLatencyHiding,
-		unsigned int *NotEnoughUrgentLatencyHidingPre)
+		unsigned int *AnaltEanalughUrgentLatencyHiding,
+		unsigned int *AnaltEanalughUrgentLatencyHidingPre)
 {
 	double LinesInDETLuma;
 	double LinesInDETChroma;
@@ -5644,15 +5644,15 @@ static void CalculateUrgentBurstFactor(
 	unsigned int DETBufferSizeY;
 	unsigned int DETBufferSizeC;
 
-	*NotEnoughUrgentLatencyHiding = 0;
-	*NotEnoughUrgentLatencyHidingPre = 0;
+	*AnaltEanalughUrgentLatencyHiding = 0;
+	*AnaltEanalughUrgentLatencyHidingPre = 0;
 
 	if (CursorWidth > 0) {
 		LinesInCursorBuffer = 1 << (unsigned int) dml_floor(
 			dml_log2(CursorBufferSize * 1024.0 / (CursorWidth * CursorBPP / 8.0)), 1.0);
 		CursorBufferSizeInTime = LinesInCursorBuffer * LineTime / VRatio;
 		if (CursorBufferSizeInTime - UrgentLatency <= 0) {
-			*NotEnoughUrgentLatencyHiding = 1;
+			*AnaltEanalughUrgentLatencyHiding = 1;
 			*UrgentBurstFactorCursor = 0;
 		} else {
 			*UrgentBurstFactorCursor = CursorBufferSizeInTime
@@ -5661,7 +5661,7 @@ static void CalculateUrgentBurstFactor(
 		if (VRatioPreY > 0) {
 			CursorBufferSizeInTimePre = LinesInCursorBuffer * LineTime / VRatioPreY;
 			if (CursorBufferSizeInTimePre - UrgentLatency <= 0) {
-				*NotEnoughUrgentLatencyHidingPre = 1;
+				*AnaltEanalughUrgentLatencyHidingPre = 1;
 				*UrgentBurstFactorCursorPre = 0;
 			} else {
 				*UrgentBurstFactorCursorPre = CursorBufferSizeInTimePre
@@ -5682,7 +5682,7 @@ static void CalculateUrgentBurstFactor(
 	LinesInDETLuma = (double)DETBufferSizeY / BytePerPixelInDETY / SwathWidthY;
 	DETBufferSizeInTimeLuma = dml_floor(LinesInDETLuma, SwathHeightY) * LineTime / VRatio;
 	if (DETBufferSizeInTimeLuma - UrgentLatency <= 0) {
-		*NotEnoughUrgentLatencyHiding = 1;
+		*AnaltEanalughUrgentLatencyHiding = 1;
 		*UrgentBurstFactorLuma = 0;
 	} else {
 		*UrgentBurstFactorLuma = DETBufferSizeInTimeLuma
@@ -5692,7 +5692,7 @@ static void CalculateUrgentBurstFactor(
 		DETBufferSizeInTimeLumaPre = dml_floor(LinesInDETLuma, SwathHeightY) * LineTime
 				/ VRatioPreY;
 		if (DETBufferSizeInTimeLumaPre - UrgentLatency <= 0) {
-			*NotEnoughUrgentLatencyHidingPre = 1;
+			*AnaltEanalughUrgentLatencyHidingPre = 1;
 			*UrgentBurstFactorLumaPre = 0;
 		} else {
 			*UrgentBurstFactorLumaPre = DETBufferSizeInTimeLumaPre
@@ -5707,7 +5707,7 @@ static void CalculateUrgentBurstFactor(
 		DETBufferSizeInTimeChroma = dml_floor(LinesInDETChroma, SwathHeightC) * LineTime
 				/ (VRatio / 2);
 		if (DETBufferSizeInTimeChroma - UrgentLatency <= 0) {
-			*NotEnoughUrgentLatencyHiding = 1;
+			*AnaltEanalughUrgentLatencyHiding = 1;
 			*UrgentBurstFactorChroma = 0;
 		} else {
 			*UrgentBurstFactorChroma = DETBufferSizeInTimeChroma
@@ -5717,7 +5717,7 @@ static void CalculateUrgentBurstFactor(
 			DETBufferSizeInTimeChromaPre = dml_floor(LinesInDETChroma, SwathHeightC)
 					* LineTime / VRatioPreC;
 			if (DETBufferSizeInTimeChromaPre - UrgentLatency <= 0) {
-				*NotEnoughUrgentLatencyHidingPre = 1;
+				*AnaltEanalughUrgentLatencyHidingPre = 1;
 				*UrgentBurstFactorChromaPre = 0;
 			} else {
 				*UrgentBurstFactorChromaPre = DETBufferSizeInTimeChromaPre
@@ -5871,16 +5871,16 @@ static void CalculateMetaAndPTETimes(
 		unsigned int dpde0_bytes_per_frame_ub_c[],
 		unsigned int meta_pte_bytes_per_frame_ub_l[],
 		unsigned int meta_pte_bytes_per_frame_ub_c[],
-		double DST_Y_PER_PTE_ROW_NOM_L[],
-		double DST_Y_PER_PTE_ROW_NOM_C[],
-		double DST_Y_PER_META_ROW_NOM_L[],
-		double TimePerMetaChunkNominal[],
+		double DST_Y_PER_PTE_ROW_ANALM_L[],
+		double DST_Y_PER_PTE_ROW_ANALM_C[],
+		double DST_Y_PER_META_ROW_ANALM_L[],
+		double TimePerMetaChunkAnalminal[],
 		double TimePerMetaChunkVBlank[],
 		double TimePerMetaChunkFlip[],
-		double time_per_pte_group_nom_luma[],
+		double time_per_pte_group_analm_luma[],
 		double time_per_pte_group_vblank_luma[],
 		double time_per_pte_group_flip_luma[],
-		double time_per_pte_group_nom_chroma[],
+		double time_per_pte_group_analm_chroma[],
 		double time_per_pte_group_vblank_chroma[],
 		double time_per_pte_group_flip_chroma[],
 		double TimePerVMGroupVBlank[],
@@ -5904,20 +5904,20 @@ static void CalculateMetaAndPTETimes(
 
 	for (k = 0; k < NumberOfActivePlanes; ++k) {
 		if (GPUVMEnable == true) {
-			DST_Y_PER_PTE_ROW_NOM_L[k] = dpte_row_height[k] / VRatio[k];
+			DST_Y_PER_PTE_ROW_ANALM_L[k] = dpte_row_height[k] / VRatio[k];
 			if (BytePerPixelDETC[k] == 0) {
-				DST_Y_PER_PTE_ROW_NOM_C[k] = 0;
+				DST_Y_PER_PTE_ROW_ANALM_C[k] = 0;
 			} else {
-				DST_Y_PER_PTE_ROW_NOM_C[k] = dpte_row_height_chroma[k] / (VRatio[k] / 2);
+				DST_Y_PER_PTE_ROW_ANALM_C[k] = dpte_row_height_chroma[k] / (VRatio[k] / 2);
 			}
 		} else {
-			DST_Y_PER_PTE_ROW_NOM_L[k] = 0;
-			DST_Y_PER_PTE_ROW_NOM_C[k] = 0;
+			DST_Y_PER_PTE_ROW_ANALM_L[k] = 0;
+			DST_Y_PER_PTE_ROW_ANALM_C[k] = 0;
 		}
 		if (DCCEnable[k] == true) {
-			DST_Y_PER_META_ROW_NOM_L[k] = meta_row_height[k] / VRatio[k];
+			DST_Y_PER_META_ROW_ANALM_L[k] = meta_row_height[k] / VRatio[k];
 		} else {
-			DST_Y_PER_META_ROW_NOM_L[k] = 0;
+			DST_Y_PER_META_ROW_ANALM_L[k] = 0;
 		}
 	}
 
@@ -5940,14 +5940,14 @@ static void CalculateMetaAndPTETimes(
 			} else {
 				meta_chunks_per_row_ub = meta_chunk_per_row_int + 2;
 			}
-			TimePerMetaChunkNominal[k] = meta_row_height[k] / VRatio[k] * HTotal[k]
+			TimePerMetaChunkAnalminal[k] = meta_row_height[k] / VRatio[k] * HTotal[k]
 					/ PixelClock[k] / meta_chunks_per_row_ub;
 			TimePerMetaChunkVBlank[k] = DestinationLinesToRequestRowInVBlank[k]
 					* HTotal[k] / PixelClock[k] / meta_chunks_per_row_ub;
 			TimePerMetaChunkFlip[k] = DestinationLinesToRequestRowInImmediateFlip[k]
 					* HTotal[k] / PixelClock[k] / meta_chunks_per_row_ub;
 		} else {
-			TimePerMetaChunkNominal[k] = 0;
+			TimePerMetaChunkAnalminal[k] = 0;
 			TimePerMetaChunkVBlank[k] = 0;
 			TimePerMetaChunkFlip[k] = 0;
 		}
@@ -5965,7 +5965,7 @@ static void CalculateMetaAndPTETimes(
 			dpte_groups_per_row_luma_ub = dml_ceil(
 					(float) dpte_row_width_luma_ub[k] / dpte_group_width_luma,
 					1);
-			time_per_pte_group_nom_luma[k] = DST_Y_PER_PTE_ROW_NOM_L[k] * HTotal[k]
+			time_per_pte_group_analm_luma[k] = DST_Y_PER_PTE_ROW_ANALM_L[k] * HTotal[k]
 					/ PixelClock[k] / dpte_groups_per_row_luma_ub;
 			time_per_pte_group_vblank_luma[k] = DestinationLinesToRequestRowInVBlank[k]
 					* HTotal[k] / PixelClock[k] / dpte_groups_per_row_luma_ub;
@@ -5974,7 +5974,7 @@ static void CalculateMetaAndPTETimes(
 							/ PixelClock[k]
 							/ dpte_groups_per_row_luma_ub;
 			if (BytePerPixelDETC[k] == 0) {
-				time_per_pte_group_nom_chroma[k] = 0;
+				time_per_pte_group_analm_chroma[k] = 0;
 				time_per_pte_group_vblank_chroma[k] = 0;
 				time_per_pte_group_flip_chroma[k] = 0;
 			} else {
@@ -5990,7 +5990,7 @@ static void CalculateMetaAndPTETimes(
 						(float) dpte_row_width_chroma_ub[k]
 								/ dpte_group_width_chroma,
 						1);
-				time_per_pte_group_nom_chroma[k] = DST_Y_PER_PTE_ROW_NOM_C[k]
+				time_per_pte_group_analm_chroma[k] = DST_Y_PER_PTE_ROW_ANALM_C[k]
 						* HTotal[k] / PixelClock[k]
 						/ dpte_groups_per_row_chroma_ub;
 				time_per_pte_group_vblank_chroma[k] =
@@ -6003,10 +6003,10 @@ static void CalculateMetaAndPTETimes(
 								/ dpte_groups_per_row_chroma_ub;
 			}
 		} else {
-			time_per_pte_group_nom_luma[k] = 0;
+			time_per_pte_group_analm_luma[k] = 0;
 			time_per_pte_group_vblank_luma[k] = 0;
 			time_per_pte_group_flip_luma[k] = 0;
-			time_per_pte_group_nom_chroma[k] = 0;
+			time_per_pte_group_analm_chroma[k] = 0;
 			time_per_pte_group_vblank_chroma[k] = 0;
 			time_per_pte_group_flip_chroma[k] = 0;
 		}

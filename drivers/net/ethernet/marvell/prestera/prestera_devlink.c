@@ -42,7 +42,7 @@ enum {
 	DEVLINK_PRESTERA_TRAP_ID_ILLEGAL_IP_ADDR,
 	DEVLINK_PRESTERA_TRAP_ID_INVALID_SA,
 	DEVLINK_PRESTERA_TRAP_ID_LOCAL_PORT,
-	DEVLINK_PRESTERA_TRAP_ID_PORT_NO_VLAN,
+	DEVLINK_PRESTERA_TRAP_ID_PORT_ANAL_VLAN,
 	DEVLINK_PRESTERA_TRAP_ID_RXDMA_DROP,
 };
 
@@ -96,8 +96,8 @@ enum {
 	"icmp"
 #define DEVLINK_PRESTERA_TRAP_NAME_RXDMA_DROP \
 	"rxdma_drop"
-#define DEVLINK_PRESTERA_TRAP_NAME_PORT_NO_VLAN \
-	"port_no_vlan"
+#define DEVLINK_PRESTERA_TRAP_NAME_PORT_ANAL_VLAN \
+	"port_anal_vlan"
 #define DEVLINK_PRESTERA_TRAP_NAME_LOCAL_PORT \
 	"local_port"
 #define DEVLINK_PRESTERA_TRAP_NAME_INVALID_SA \
@@ -160,7 +160,7 @@ struct prestera_trap_data {
 			    PRESTERA_TRAP_METADATA)
 
 static const struct devlink_trap_group prestera_trap_groups_arr[] = {
-	/* No policer is associated with following groups (policerid == 0)*/
+	/* Anal policer is associated with following groups (policerid == 0)*/
 	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 0),
 	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 0),
 	DEVLINK_TRAP_GROUP_GENERIC(L3_EXCEPTIONS, 0),
@@ -311,7 +311,7 @@ static struct prestera_trap prestera_trap_items_arr[] = {
 		.cpu_code = 37,
 	},
 	{
-		.trap = PRESTERA_TRAP_DRIVER_DROP(PORT_NO_VLAN, L2_DROPS),
+		.trap = PRESTERA_TRAP_DRIVER_DROP(PORT_ANAL_VLAN, L2_DROPS),
 		.cpu_code = 39,
 	},
 	{
@@ -451,13 +451,13 @@ int prestera_devlink_traps_register(struct prestera_switch *sw)
 
 	trap_data = kzalloc(sizeof(*trap_data), GFP_KERNEL);
 	if (!trap_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trap_data->trap_items_arr = kcalloc(traps_count,
 					    sizeof(struct prestera_trap_item),
 					    GFP_KERNEL);
 	if (!trap_data->trap_items_arr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_trap_items_alloc;
 	}
 
@@ -561,8 +561,8 @@ static int prestera_trap_action_set(struct devlink *devlink,
 				    enum devlink_trap_action action,
 				    struct netlink_ext_ack *extack)
 {
-	/* Currently, driver does not support trap action altering */
-	return -EOPNOTSUPP;
+	/* Currently, driver does analt support trap action altering */
+	return -EOPANALTSUPP;
 }
 
 static int prestera_drop_counter_get(struct devlink *devlink,

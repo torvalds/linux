@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Simple synchronous userspace interface to SPI devices
+ * Simple synchroanalus userspace interface to SPI devices
  *
  * Copyright (C) 2006 SWAPP
  *	Andrea Paterniani <a.paterniani@swapp-eng.it>
@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -28,32 +28,32 @@
 
 
 /*
- * This supports access to SPI devices using normal userspace I/O calls.
- * Note that while traditional UNIX/POSIX I/O semantics are half duplex,
+ * This supports access to SPI devices using analrmal userspace I/O calls.
+ * Analte that while traditional UNIX/POSIX I/O semantics are half duplex,
  * and often mask message boundaries, full SPI support requires full duplex
  * transfers.  There are several kinds of internal message boundaries to
  * handle chipselect management and other protocol options.
  *
- * SPI has a character major number assigned.  We allocate minor numbers
+ * SPI has a character major number assigned.  We allocate mianalr numbers
  * dynamically using a bitmask.  You must use hotplug tools, such as udev
  * (or mdev with busybox) to create and destroy the /dev/spidevB.C device
- * nodes, since there is no fixed association of minor numbers with any
+ * analdes, since there is anal fixed association of mianalr numbers with any
  * particular SPI bus or device.
  */
 #define SPIDEV_MAJOR			153	/* assigned */
-#define N_SPI_MINORS			32	/* ... up to 256 */
+#define N_SPI_MIANALRS			32	/* ... up to 256 */
 
-static DECLARE_BITMAP(minors, N_SPI_MINORS);
+static DECLARE_BITMAP(mianalrs, N_SPI_MIANALRS);
 
-static_assert(N_SPI_MINORS > 0 && N_SPI_MINORS <= 256);
+static_assert(N_SPI_MIANALRS > 0 && N_SPI_MIANALRS <= 256);
 
-/* Bit masks for spi_device.mode management.  Note that incorrect
+/* Bit masks for spi_device.mode management.  Analte that incorrect
  * settings for some settings can cause *lots* of trouble for other
  * devices on a shared bus:
  *
  *  - CS_HIGH ... this device will be active when it shouldn't be
  *  - 3WIRE ... when active, it won't behave as it should
- *  - NO_CS ... there will be no explicit message boundaries; this
+ *  - ANAL_CS ... there will be anal explicit message boundaries; this
  *	is completely incompatible with the shared bus model
  *  - READY ... transfers may proceed when they shouldn't.
  *
@@ -61,7 +61,7 @@ static_assert(N_SPI_MINORS > 0 && N_SPI_MINORS <= 256);
  */
 #define SPI_MODE_MASK		(SPI_MODE_X_MASK | SPI_CS_HIGH \
 				| SPI_LSB_FIRST | SPI_3WIRE | SPI_LOOP \
-				| SPI_NO_CS | SPI_READY | SPI_TX_DUAL \
+				| SPI_ANAL_CS | SPI_READY | SPI_TX_DUAL \
 				| SPI_TX_QUAD | SPI_TX_OCTAL | SPI_RX_DUAL \
 				| SPI_RX_QUAD | SPI_RX_OCTAL \
 				| SPI_RX_CPHA_FLIP | SPI_3WIRE_HIZ \
@@ -221,7 +221,7 @@ static int spidev_message(struct spidev_data *spidev,
 	spi_message_init(&msg);
 	k_xfers = kcalloc(n_xfers, sizeof(*k_tmp), GFP_KERNEL);
 	if (k_xfers == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Construct spi_message, copying any tx data to bounce buffer.
 	 * We walk the array of user-provided transfers, using each one
@@ -338,7 +338,7 @@ spidev_get_ioc_message(unsigned int cmd, struct spi_ioc_transfer __user *u_ioc,
 	if (_IOC_TYPE(cmd) != SPI_IOC_MAGIC
 			|| _IOC_NR(cmd) != _IOC_NR(SPI_IOC_MESSAGE(0))
 			|| _IOC_DIR(cmd) != _IOC_WRITE)
-		return ERR_PTR(-ENOTTY);
+		return ERR_PTR(-EANALTTY);
 
 	tmp = _IOC_SIZE(cmd);
 	if ((tmp % sizeof(struct spi_ioc_transfer)) != 0)
@@ -364,7 +364,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	/* Check type and command number */
 	if (_IOC_TYPE(cmd) != SPI_IOC_MAGIC)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	/* guard against device removal before, or while,
 	 * we issue this ioctl.
@@ -383,7 +383,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	 *  - prevent I/O (from us) so calling spi_setup() is safe;
 	 *  - prevent concurrent SPI_IOC_WR_* from morphing
 	 *    data fields while SPI_IOC_RD_* reads them;
-	 *  - SPI_IOC_MESSAGE needs the buffer locked "normally".
+	 *  - SPI_IOC_MESSAGE needs the buffer locked "analrmally".
 	 */
 	mutex_lock(&spidev->buf_lock);
 
@@ -541,7 +541,7 @@ spidev_compat_ioc_message(struct file *filp, unsigned int cmd,
 		return -ESHUTDOWN;
 	}
 
-	/* SPI_IOC_MESSAGE needs the buffer locked "normally" */
+	/* SPI_IOC_MESSAGE needs the buffer locked "analrmally" */
 	mutex_lock(&spidev->buf_lock);
 
 	/* Check message and copy into scratch area */
@@ -584,7 +584,7 @@ spidev_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #define spidev_compat_ioctl NULL
 #endif /* CONFIG_COMPAT */
 
-static int spidev_open(struct inode *inode, struct file *filp)
+static int spidev_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct spidev_data	*spidev = NULL, *iter;
 	int			status = -ENXIO;
@@ -592,7 +592,7 @@ static int spidev_open(struct inode *inode, struct file *filp)
 	mutex_lock(&device_list_lock);
 
 	list_for_each_entry(iter, &device_list, device_entry) {
-		if (iter->devt == inode->i_rdev) {
+		if (iter->devt == ianalde->i_rdev) {
 			status = 0;
 			spidev = iter;
 			break;
@@ -600,14 +600,14 @@ static int spidev_open(struct inode *inode, struct file *filp)
 	}
 
 	if (!spidev) {
-		pr_debug("spidev: nothing for minor %d\n", iminor(inode));
+		pr_debug("spidev: analthing for mianalr %d\n", imianalr(ianalde));
 		goto err_find_dev;
 	}
 
 	if (!spidev->tx_buffer) {
 		spidev->tx_buffer = kmalloc(bufsiz, GFP_KERNEL);
 		if (!spidev->tx_buffer) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto err_find_dev;
 		}
 	}
@@ -615,14 +615,14 @@ static int spidev_open(struct inode *inode, struct file *filp)
 	if (!spidev->rx_buffer) {
 		spidev->rx_buffer = kmalloc(bufsiz, GFP_KERNEL);
 		if (!spidev->rx_buffer) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto err_alloc_rx_buf;
 		}
 	}
 
 	spidev->users++;
 	filp->private_data = spidev;
-	stream_open(inode, filp);
+	stream_open(ianalde, filp);
 
 	mutex_unlock(&device_list_lock);
 	return 0;
@@ -635,7 +635,7 @@ err_find_dev:
 	return status;
 }
 
-static int spidev_release(struct inode *inode, struct file *filp)
+static int spidev_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct spidev_data	*spidev;
 	int			dofree;
@@ -685,13 +685,13 @@ static const struct file_operations spidev_fops = {
 	.compat_ioctl = spidev_compat_ioctl,
 	.open =		spidev_open,
 	.release =	spidev_release,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 };
 
 /*-------------------------------------------------------------------------*/
 
 /* The main reason to have this class is to make mdev/udev create the
- * /dev/spidevB.C character device nodes exposing our userspace API.
+ * /dev/spidevB.C character device analdes exposing our userspace API.
  * It also simplifies memory management.
  */
 
@@ -723,14 +723,14 @@ static int spidev_of_check(struct device *dev)
 	if (device_property_match_string(dev, "compatible", "spidev") < 0)
 		return 0;
 
-	dev_err(dev, "spidev listed directly in DT is not supported\n");
+	dev_err(dev, "spidev listed directly in DT is analt supported\n");
 	return -EINVAL;
 }
 
 static const struct of_device_id spidev_dt_ids[] = {
 	{ .compatible = "cisco,spi-petra", .data = &spidev_of_check },
 	{ .compatible = "dh,dhcom-board", .data = &spidev_of_check },
-	{ .compatible = "lineartechnology,ltc2488", .data = &spidev_of_check },
+	{ .compatible = "lineartechanallogy,ltc2488", .data = &spidev_of_check },
 	{ .compatible = "lwn,bk4", .data = &spidev_of_check },
 	{ .compatible = "menlo,m53cpld", .data = &spidev_of_check },
 	{ .compatible = "micron,spi-authenta", .data = &spidev_of_check },
@@ -742,10 +742,10 @@ static const struct of_device_id spidev_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, spidev_dt_ids);
 
-/* Dummy SPI devices not to be used in production systems */
+/* Dummy SPI devices analt to be used in production systems */
 static int spidev_acpi_check(struct device *dev)
 {
-	dev_warn(dev, "do not use this driver in production systems!\n");
+	dev_warn(dev, "do analt use this driver in production systems!\n");
 	return 0;
 }
 
@@ -770,7 +770,7 @@ static int spidev_probe(struct spi_device *spi)
 	int (*match)(struct device *dev);
 	struct spidev_data	*spidev;
 	int			status;
-	unsigned long		minor;
+	unsigned long		mianalr;
 
 	match = device_get_match_data(&spi->dev);
 	if (match) {
@@ -782,7 +782,7 @@ static int spidev_probe(struct spi_device *spi)
 	/* Allocate driver data */
 	spidev = kzalloc(sizeof(*spidev), GFP_KERNEL);
 	if (!spidev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize the driver data */
 	spidev->spi = spi;
@@ -791,25 +791,25 @@ static int spidev_probe(struct spi_device *spi)
 
 	INIT_LIST_HEAD(&spidev->device_entry);
 
-	/* If we can allocate a minor number, hook up this device.
-	 * Reusing minors is fine so long as udev or mdev is working.
+	/* If we can allocate a mianalr number, hook up this device.
+	 * Reusing mianalrs is fine so long as udev or mdev is working.
 	 */
 	mutex_lock(&device_list_lock);
-	minor = find_first_zero_bit(minors, N_SPI_MINORS);
-	if (minor < N_SPI_MINORS) {
+	mianalr = find_first_zero_bit(mianalrs, N_SPI_MIANALRS);
+	if (mianalr < N_SPI_MIANALRS) {
 		struct device *dev;
 
-		spidev->devt = MKDEV(SPIDEV_MAJOR, minor);
+		spidev->devt = MKDEV(SPIDEV_MAJOR, mianalr);
 		dev = device_create(&spidev_class, &spi->dev, spidev->devt,
 				    spidev, "spidev%d.%d",
 				    spi->master->bus_num, spi_get_chipselect(spi, 0));
 		status = PTR_ERR_OR_ZERO(dev);
 	} else {
-		dev_dbg(&spi->dev, "no minor number available!\n");
-		status = -ENODEV;
+		dev_dbg(&spi->dev, "anal mianalr number available!\n");
+		status = -EANALDEV;
 	}
 	if (status == 0) {
-		set_bit(minor, minors);
+		set_bit(mianalr, mianalrs);
 		list_add(&spidev->device_entry, &device_list);
 	}
 	mutex_unlock(&device_list_lock);
@@ -837,7 +837,7 @@ static void spidev_remove(struct spi_device *spi)
 
 	list_del(&spidev->device_entry);
 	device_destroy(&spidev_class, spidev->devt);
-	clear_bit(MINOR(spidev->devt), minors);
+	clear_bit(MIANALR(spidev->devt), mianalrs);
 	if (spidev->users == 0)
 		kfree(spidev);
 	mutex_unlock(&device_list_lock);
@@ -853,7 +853,7 @@ static struct spi_driver spidev_spi_driver = {
 	.remove =	spidev_remove,
 	.id_table =	spidev_spi_ids,
 
-	/* NOTE:  suspend/resume methods are not necessary here.
+	/* ANALTE:  suspend/resume methods are analt necessary here.
 	 * We don't do anything except pass the requests to/from
 	 * the underlying controller.  The refrigerator handles
 	 * most issues; the controller driver handles the rest.
@@ -867,7 +867,7 @@ static int __init spidev_init(void)
 	int status;
 
 	/* Claim our 256 reserved device numbers.  Then register a class
-	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
+	 * that will key udev/mdev to add/remove /dev analdes.  Last, register
 	 * the driver which manages those device numbers.
 	 */
 	status = register_chrdev(SPIDEV_MAJOR, "spi", &spidev_fops);

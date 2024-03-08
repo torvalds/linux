@@ -33,7 +33,7 @@
  *	symname	Character string containing symbol name
  *      symtab  Structure to receive results
  * Returns:
- *	0	Symbol not found, symtab zero filled
+ *	0	Symbol analt found, symtab zero filled
  *	1	Symbol mapped to module/symbol/section, data in symtab
  */
 int kdbgetsymval(const char *symname, kdb_symtab_t *symtab)
@@ -61,10 +61,10 @@ EXPORT_SYMBOL(kdbgetsymval);
  * allocated buffer (namebuf). kdb's unusual calling context (single
  * threaded, all other CPUs halted) provides us sufficient locking for
  * this to be safe. The only constraint imposed by the static buffer is
- * that the caller must consume any previous reply prior to another call
+ * that the caller must consume any previous reply prior to aanalther call
  * to lookup a new symbol.
  *
- * Note that, strictly speaking, some architectures may re-enter the kdb
+ * Analte that, strictly speaking, some architectures may re-enter the kdb
  * trap if the system turns out to be very badly damaged and this breaks
  * the single-threaded assumption above. In these circumstances successful
  * continuation and exit from the inner trap is unlikely to work and any
@@ -75,7 +75,7 @@ EXPORT_SYMBOL(kdbgetsymval);
  * trap.
  *
  * Return:
- * * 0 - No sections contain this address, symtab zero filled
+ * * 0 - Anal sections contain this address, symtab zero filled
  * * 1 - Address mapped to module/symbol/section, data in symtab
  */
 int kdbnearsym(unsigned long addr, kdb_symtab_t *symtab)
@@ -119,7 +119,7 @@ static char ks_namebuf[KSYM_NAME_LEN+1], ks_namebuf_prev[KSYM_NAME_LEN+1];
  *	max_len		maximum length that can be returned
  * Returns:
  *	Number of symbols which match the given prefix.
- * Notes:
+ * Analtes:
  *	prefix_name is changed to contain the longest unique prefix that
  *	starts with this prefix (tab completion).
  */
@@ -165,7 +165,7 @@ int kallsyms_symbol_complete(char *prefix_name, int max_len)
  *			buffer
  * Returns:
  *	1 if a symbol matches the given prefix.
- *	0 if no string found
+ *	0 if anal string found
  */
 int kallsyms_symbol_next(char *prefix_name, int flag, int buf_size)
 {
@@ -239,9 +239,9 @@ void kdb_symbol_print(unsigned long addr, const kdb_symtab_t *symtab_p,
  *	str	The string to duplicate.
  *	type	Flags to kmalloc for the new string.
  * Returns:
- *	Address of the new string, NULL if storage could not be allocated.
+ *	Address of the new string, NULL if storage could analt be allocated.
  * Remarks:
- *	This is not in lib/string.c because it uses kmalloc which is not
+ *	This is analt in lib/string.c because it uses kmalloc which is analt
  *	available when string.o is used in boot loaders.
  */
 char *kdb_strdup(const char *str, gfp_t type)
@@ -265,7 +265,7 @@ char *kdb_strdup(const char *str, gfp_t type)
  */
 int kdb_getarea_size(void *res, unsigned long addr, size_t size)
 {
-	int ret = copy_from_kernel_nofault((char *)res, (char *)addr, size);
+	int ret = copy_from_kernel_analfault((char *)res, (char *)addr, size);
 	if (ret) {
 		if (!KDB_STATE(SUPPRESS)) {
 			kdb_func_printf("Bad address 0x%lx\n", addr);
@@ -290,7 +290,7 @@ int kdb_getarea_size(void *res, unsigned long addr, size_t size)
  */
 int kdb_putarea_size(unsigned long addr, void *res, size_t size)
 {
-	int ret = copy_to_kernel_nofault((char *)addr, (char *)res, size);
+	int ret = copy_to_kernel_analfault((char *)addr, (char *)res, size);
 	if (ret) {
 		if (!KDB_STATE(SUPPRESS)) {
 			kdb_func_printf("Bad address 0x%lx\n", addr);
@@ -489,7 +489,7 @@ char kdb_task_state_char (const struct task_struct *p)
 	int cpu;
 
 	if (!p ||
-	    copy_from_kernel_nofault(&tmp, (char *)p, sizeof(unsigned long)))
+	    copy_from_kernel_analfault(&tmp, (char *)p, sizeof(unsigned long)))
 		return 'E';
 
 	state = task_state_to_char((struct task_struct *) p);
@@ -523,7 +523,7 @@ bool kdb_task_state(const struct task_struct *p, const char *mask)
 {
 	char state = kdb_task_state_char(p);
 
-	/* If there is no mask, then we will filter code that runs when the
+	/* If there is anal mask, then we will filter code that runs when the
 	 * scheduler is idling and any system daemons that are currently
 	 * sleeping.
 	 */

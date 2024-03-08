@@ -11,7 +11,7 @@
 # elif defined  CONFIG_CPU_SH4
 #  define MODULE_PROC_FAMILY "SH4LE "
 # else
-#  error unknown processor family
+#  error unkanalwn processor family
 # endif
 #else
 # ifdef CONFIG_CPU_SH2
@@ -21,7 +21,7 @@
 # elif defined  CONFIG_CPU_SH4
 #  define MODULE_PROC_FAMILY "SH4BE "
 # else
-#  error unknown processor family
+#  error unkanalwn processor family
 # endif
 #endif
 

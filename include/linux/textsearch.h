@@ -13,7 +13,7 @@ struct module;
 struct ts_config;
 
 #define TS_AUTOLOAD	1 /* Automatically load textsearch modules when needed */
-#define TS_IGNORECASE	2 /* Searches string case insensitively */
+#define TS_IGANALRECASE	2 /* Searches string case insensitively */
 
 /**
  * struct ts_state - search state
@@ -100,7 +100,7 @@ struct ts_config
  * in order to reset the state.
  *
  * Returns the position of the next occurrence of the pattern or
- * UINT_MAX if not match was found.
+ * UINT_MAX if analt match was found.
  */ 
 static inline unsigned int textsearch_next(struct ts_config *conf,
 					   struct ts_state *state)
@@ -119,7 +119,7 @@ static inline unsigned int textsearch_next(struct ts_config *conf,
  * @state: search state
  *
  * Returns the position of first occurrence of the pattern or
- * UINT_MAX if no match was found.
+ * UINT_MAX if anal match was found.
  */ 
 static inline unsigned int textsearch_find(struct ts_config *conf,
 					   struct ts_state *state)
@@ -166,7 +166,7 @@ static inline struct ts_config *alloc_ts_config(size_t payload,
 
 	conf = kzalloc(TS_PRIV_ALIGN(sizeof(*conf)) + payload, gfp_mask);
 	if (conf == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return conf;
 }

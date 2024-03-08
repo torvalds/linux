@@ -10,7 +10,7 @@
 #include "ieee802154_i.h"
 #include "driver-ops.h"
 
-/* privid for wpan_phys to determine whether they belong to us or not */
+/* privid for wpan_phys to determine whether they belong to us or analt */
 const void *const mac802154_wpan_phy_privid = &mac802154_wpan_phy_privid;
 
 /**
@@ -105,7 +105,7 @@ enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer)
 
 	ieee802154_release_queue(local);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
@@ -119,7 +119,7 @@ void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 		u8 max_sifs_size;
 
 		/* If transceiver sets CRC on his own we need to use lifs
-		 * threshold len above 16 otherwise 18, because it's not
+		 * threshold len above 16 otherwise 18, because it's analt
 		 * part of skb->len.
 		 */
 		if (hw->flags & IEEE802154_HW_TX_OMIT_CKSUM)

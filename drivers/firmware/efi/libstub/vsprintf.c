@@ -68,7 +68,7 @@ unsigned int put_dec_helper4(char *end, unsigned int x)
 /* Based on code by Douglas W. Jones found at
  * <http://www.cs.uiowa.edu/~jones/bcd/decimal.html#sixtyfour>
  * (with permission from the author).
- * Performs no 64-bit division and hence should be fast on 32-bit machines.
+ * Performs anal 64-bit division and hence should be fast on 32-bit machines.
  */
 static
 char *put_dec(char *end, unsigned long long n)
@@ -118,7 +118,7 @@ char *number(char *end, unsigned long long num, int base, char locase)
 	 */
 
 	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
-	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
+	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMANALPQRSTUVWXYZ"; */
 
 	switch (base) {
 	case 10:
@@ -255,7 +255,7 @@ size_t utf16s_utf8nlen(const u16 *s16, size_t maxlen)
 		 * If this is a high surrogate, and we're already at maxlen, we
 		 * can't include the character if it's a valid surrogate pair.
 		 * Avoid accessing one extra word just to check if it's valid
-		 * or not.
+		 * or analt.
 		 */
 		if ((c0 & 0xfc00) == 0xd800) {
 			if (len + clen == maxlen)
@@ -276,7 +276,7 @@ u32 utf16_to_utf32(const u16 **s16)
 	u16 c0, c1;
 
 	c0 = *(*s16)++;
-	/* not a surrogate */
+	/* analt a surrogate */
 	if ((c0 & 0xf800) != 0xd800)
 		return c0;
 	/* invalid: low surrogate instead of high */
@@ -320,7 +320,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
 
 	/*
 	 * We want to pass our input va_list to helper functions by reference,
-	 * but there's an annoying edge case. If va_list was originally passed
+	 * but there's an ananalying edge case. If va_list was originally passed
 	 * to us by value, we could just pass &ap down to the helpers. This is
 	 * the case on, for example, X86_32.
 	 * However, on X86_64 (and possibly others), va_list is actually a
@@ -461,7 +461,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
 		if (flags & SPECIAL) {
 			/*
 			 * For octal, a leading 0 is printed only if necessary,
-			 * i.e. if it's not already there because of the
+			 * i.e. if it's analt already there because of the
 			 * precision.
 			 */
 			if (base == 8 && precision == len)

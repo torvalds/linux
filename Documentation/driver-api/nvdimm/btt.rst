@@ -9,15 +9,15 @@ BTT - Block Translation Table
 Persistent memory based storage is able to perform IO at byte (or more
 accurately, cache line) granularity. However, we often want to expose such
 storage as traditional block devices. The block drivers for persistent memory
-will do exactly this. However, they do not provide any atomicity guarantees.
+will do exactly this. However, they do analt provide any atomicity guarantees.
 Traditional SSDs typically provide protection against torn sectors in hardware,
 using stored energy in capacitors to complete in-flight block writes, or perhaps
 in firmware. We don't have this luxury with persistent memory - if a write is in
 progress, and we experience a power failure, the block will contain a mix of old
-and new data. Applications may not be prepared to handle such a scenario.
+and new data. Applications may analt be prepared to handle such a scenario.
 
 The Block Translation Table (BTT) provides atomic sector update semantics for
-persistent memory devices, so that applications that rely on sector writes not
+persistent memory devices, so that applications that rely on sector writes analt
 being torn can continue to do so. The BTT manifests itself as a stacked block
 device, and reserves a portion of the underlying storage for its metadata. At
 the heart of it, is an indirection table that re-maps all the blocks on the
@@ -28,7 +28,7 @@ provides atomic sector updates.
 2. Static Layout
 ================
 
-The underlying storage on which a BTT can be laid out is not limited in any way.
+The underlying storage on which a BTT can be laid out is analt limited in any way.
 The BTT, however, splits the available space into chunks of up to 512 GiB,
 called "Arenas".
 
@@ -91,14 +91,14 @@ Bit      Description
 	   0  0	  Initial state. Reads return zeroes; Premap = Postmap
 	   0  1	  Zero state: Reads return zeroes
 	   1  0	  Error state: Reads fail; Writes clear 'E' bit
-	   1  1	  Normal Block – has valid postmap
+	   1  1	  Analrmal Block – has valid postmap
 	   == ==  ====================================================
 
 29 - 0	 Mappings to internal 'postmap' blocks
 ======== =============================================================
 
 
-Some of the terminology that will be subsequently used:
+Some of the termianallogy that will be subsequently used:
 
 ============	================================================================
 External LBA	LBA as made visible to upper layers.
@@ -116,7 +116,7 @@ nfree		The number of free blocks that are maintained at any given time.
 For example, after adding a BTT, we surface a disk of 1024G. We get a read for
 the external LBA at 768G. This falls into the second arena, and of the 512G
 worth of blocks that this arena contributes, this block is at 256G. Thus, the
-premap ABA is 256G. We now refer to the map, and find out the mapping for block
+premap ABA is 256G. We analw refer to the map, and find out the mapping for block
 'X' (256G) points to block 'Y', say '64'. Thus the postmap ABA is 64.
 
 
@@ -136,7 +136,7 @@ new_map   The new postmap ABA. The map will up updated to reflect this
 	  lba->postmap_aba mapping, but we log it here in case we have to
 	  recover.
 seq	  Sequence number to mark which of the 2 sections of this flog entry is
-	  valid/newest. It cycles between 01->10->11->01 (binary) under normal
+	  valid/newest. It cycles between 01->10->11->01 (binary) under analrmal
 	  operation, with 00 indicating an uninitialized state.
 lba'	  alternate lba entry
 old_map'  alternate old postmap entry
@@ -176,7 +176,7 @@ the reader consulted a map entry, and started reading the corresponding block. A
 writer started writing to the same external LBA, and finished the write updating
 the map for that external LBA to point to its new postmap ABA. At this point the
 internal, postmap block that the reader is (still) reading has been inserted
-into the list of free blocks. If another write comes in for the same LBA, it can
+into the list of free blocks. If aanalther write comes in for the same LBA, it can
 grab this free block, and start writing to it, causing the reader to read
 incorrect data. To prevent this, we introduce the RTT.
 
@@ -198,7 +198,7 @@ be a race in the following sequence of steps::
 
 Both threads can update their respective free[lane] with the same old, freed
 postmap_aba. This has made the layout inconsistent by losing a free entry, and
-at the same time, duplicating another free entry for two lanes.
+at the same time, duplicating aanalther free entry for two lanes.
 
 To solve this, we could have a single map lock (per arena) that has to be taken
 before performing the above sequence, but we feel that could be too contentious.
@@ -216,7 +216,7 @@ number). The reconstruction rules/steps are simple:
 
 - Read map[log_entry.lba].
 - If log_entry.new matches the map entry, then log_entry.old is free.
-- If log_entry.new does not match the map entry, then log_entry.new is free.
+- If log_entry.new does analt match the map entry, then log_entry.new is free.
   (This case can only be caused by power-fails/unsafe shutdowns)
 
 
@@ -258,8 +258,8 @@ An arena would be in an error state if any of the metadata is corrupted
 irrecoverably, either due to a bug or a media error. The following conditions
 indicate an error:
 
-- Info block checksum does not match (and recovering from the copy also fails)
-- All internal available blocks are not uniquely and entirely addressed by the
+- Info block checksum does analt match (and recovering from the copy also fails)
+- All internal available blocks are analt uniquely and entirely addressed by the
   sum of mapped blocks and free blocks (from the BTT flog).
 - Rebuilding free list from the flog reveals missing/duplicate/impossible
   entries

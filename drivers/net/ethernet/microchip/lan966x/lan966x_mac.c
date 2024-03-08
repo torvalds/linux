@@ -126,7 +126,7 @@ int lan966x_mac_learn(struct lan966x *lan966x, int port,
 		      unsigned int vid,
 		      enum macaccess_entry_type type)
 {
-	WARN_ON(type != ENTRYTYPE_NORMAL && type != ENTRYTYPE_LOCKED);
+	WARN_ON(type != ENTRYTYPE_ANALRMAL && type != ENTRYTYPE_LOCKED);
 
 	return __lan966x_mac_learn(lan966x, port, false, mac, vid, type);
 }
@@ -136,7 +136,7 @@ static int lan966x_mac_learn_locked(struct lan966x *lan966x, int port,
 				    unsigned int vid,
 				    enum macaccess_entry_type type)
 {
-	WARN_ON(type != ENTRYTYPE_NORMAL && type != ENTRYTYPE_LOCKED);
+	WARN_ON(type != ENTRYTYPE_ANALRMAL && type != ENTRYTYPE_LOCKED);
 
 	return __lan966x_mac_learn_locked(lan966x, port, false, mac, vid, type);
 }
@@ -258,16 +258,16 @@ static int lan966x_mac_lookup(struct lan966x *lan966x,
 	return ANA_MACACCESS_VALID_GET(lan_rd(lan966x, ANA_MACACCESS));
 }
 
-static void lan966x_fdb_call_notifiers(enum switchdev_notifier_type type,
+static void lan966x_fdb_call_analtifiers(enum switchdev_analtifier_type type,
 				       const char *mac, u16 vid,
 				       struct net_device *dev)
 {
-	struct switchdev_notifier_fdb_info info = { 0 };
+	struct switchdev_analtifier_fdb_info info = { 0 };
 
 	info.addr = mac;
 	info.vid = vid;
 	info.offloaded = true;
-	call_switchdev_notifiers(type, dev, &info.info, NULL);
+	call_switchdev_analtifiers(type, dev, &info.info, NULL);
 }
 
 int lan966x_mac_add_entry(struct lan966x *lan966x, struct lan966x_port *port,
@@ -276,7 +276,7 @@ int lan966x_mac_add_entry(struct lan966x *lan966x, struct lan966x_port *port,
 	struct lan966x_mac_entry *mac_entry;
 
 	spin_lock(&lan966x->mac_lock);
-	if (lan966x_mac_lookup(lan966x, addr, vid, ENTRYTYPE_NORMAL)) {
+	if (lan966x_mac_lookup(lan966x, addr, vid, ENTRYTYPE_ANALRMAL)) {
 		spin_unlock(&lan966x->mac_lock);
 		return 0;
 	}
@@ -296,13 +296,13 @@ int lan966x_mac_add_entry(struct lan966x *lan966x, struct lan966x_port *port,
 	mac_entry = lan966x_mac_alloc_entry(port, addr, vid);
 	if (!mac_entry) {
 		spin_unlock(&lan966x->mac_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	list_add_tail(&mac_entry->list, &lan966x->mac_entries);
 	spin_unlock(&lan966x->mac_lock);
 
-	lan966x_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED, addr, vid,
+	lan966x_fdb_call_analtifiers(SWITCHDEV_FDB_OFFLOADED, addr, vid,
 				   port->bond ?: port->dev);
 
 mac_learn:
@@ -394,12 +394,12 @@ void lan966x_mac_purge_entries(struct lan966x *lan966x)
 	spin_unlock(&lan966x->mac_lock);
 }
 
-static void lan966x_mac_notifiers(enum switchdev_notifier_type type,
+static void lan966x_mac_analtifiers(enum switchdev_analtifier_type type,
 				  unsigned char *mac, u32 vid,
 				  struct net_device *dev)
 {
 	rtnl_lock();
-	lan966x_fdb_call_notifiers(type, mac, vid, dev);
+	lan966x_fdb_call_analtifiers(type, mac, vid, dev);
 	rtnl_unlock();
 }
 
@@ -450,7 +450,7 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 			if (WARN_ON(dest_idx >= lan966x->num_phys_ports))
 				continue;
 
-			/* If the entry in SW is found, then there is nothing
+			/* If the entry in SW is found, then there is analthing
 			 * to do
 			 */
 			if (mac_entry->vid == vid &&
@@ -473,19 +473,19 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 	spin_unlock(&lan966x->mac_lock);
 
 	list_for_each_entry_safe(mac_entry, tmp, &mac_deleted_entries, list) {
-		/* Notify the bridge that the entry doesn't exist
+		/* Analtify the bridge that the entry doesn't exist
 		 * anymore in the HW
 		 */
 		port = lan966x->ports[mac_entry->port_index];
-		lan966x_mac_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
+		lan966x_mac_analtifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
 				      mac_entry->mac, mac_entry->vid,
 				      port->bond ?: port->dev);
 		list_del(&mac_entry->list);
 		kfree(mac_entry);
 	}
 
-	/* Now go to the list of columns and see if any entry was not in the SW
-	 * list, then that means that the entry is new so it needs to notify the
+	/* Analw go to the list of columns and see if any entry was analt in the SW
+	 * list, then that means that the entry is new so it needs to analtify the
 	 * bridge.
 	 */
 	for (column = 0; column < LAN966X_MAC_COLUMNS; ++column) {
@@ -522,7 +522,7 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 		list_add_tail(&mac_entry->list, &lan966x->mac_entries);
 		spin_unlock(&lan966x->mac_lock);
 
-		lan966x_mac_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
+		lan966x_mac_analtifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
 				      mac, vid, port->bond ?: port->dev);
 	}
 }

@@ -46,7 +46,7 @@ int handler64_unsigned(void *regs)
 	void *payload = payload1;
 	long len;
 
-	/* ignore irrelevant invocations */
+	/* iganalre irrelevant invocations */
 	if (test_pid != pid || !capture)
 		return 0;
 
@@ -76,7 +76,7 @@ int handler64_signed(void *regs)
 	void *payload = payload3;
 	long len;
 
-	/* ignore irrelevant invocations */
+	/* iganalre irrelevant invocations */
 	if (test_pid != pid || !capture)
 		return 0;
 
@@ -102,7 +102,7 @@ int handler32_unsigned(void *regs)
 	void *payload = payload2;
 	u32 len;
 
-	/* ignore irrelevant invocations */
+	/* iganalre irrelevant invocations */
 	if (test_pid != pid || !capture)
 		return 0;
 
@@ -130,7 +130,7 @@ int handler32_signed(void *regs)
 	void *payload = payload4;
 	long len;
 
-	/* ignore irrelevant invocations */
+	/* iganalre irrelevant invocations */
 	if (test_pid != pid || !capture)
 		return 0;
 

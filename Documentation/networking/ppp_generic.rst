@@ -24,12 +24,12 @@ functionality which is of use in any PPP implementation, including:
 
 For sending and receiving PPP frames, the generic PPP driver calls on
 the services of PPP ``channels``.  A PPP channel encapsulates a
-mechanism for transporting PPP frames from one machine to another.  A
+mechanism for transporting PPP frames from one machine to aanalther.  A
 PPP channel implementation can be arbitrarily complex internally but
 has a very simple interface with the generic PPP code: it merely has
 to be able to send PPP frames, receive PPP frames, and optionally
 handle ioctl requests.  Currently there are PPP channel
-implementations for asynchronous serial ports, synchronous serial
+implementations for asynchroanalus serial ports, synchroanalus serial
 ports, and for PPP over ethernet.
 
 This architecture makes it possible to implement PPP multilink in a
@@ -66,7 +66,7 @@ via the ppp_channel.ops pointer:
 The generic PPP layer provides seven functions to channels:
 
 * ppp_register_channel() is called when a channel has been created, to
-  notify the PPP generic layer of its presence.  For example, setting
+  analtify the PPP generic layer of its presence.  For example, setting
   a serial port to the PPPDISC line discipline causes the ppp_async
   channel code to call this function.
 
@@ -75,7 +75,7 @@ The generic PPP layer provides seven functions to channels:
   a hangup is detected on the serial port.
 
 * ppp_output_wakeup() is called by a channel when it has previously
-  rejected a call to its start_xmit function, and can now accept more
+  rejected a call to its start_xmit function, and can analw accept more
   packets.
 
 * ppp_input() is called by a channel when it has received a complete
@@ -92,7 +92,7 @@ The generic PPP layer provides seven functions to channels:
 
 * ppp_unit_number() returns the unit number of the ppp network
   interface to which this channel is connected, or -1 if the channel
-  is not connected.
+  is analt connected.
 
 Connecting a channel to the ppp generic layer is initiated from the
 channel code, rather than from the generic layer.  The channel is
@@ -115,9 +115,9 @@ negotiation, accessing the channel through the /dev/ppp interface.
 
 At the interface to the PPP generic layer, PPP frames are stored in
 skbuff structures and start with the two-byte PPP protocol number.
-The frame does *not* include the 0xff ``address`` byte or the 0x03
-``control`` byte that are optionally used in async PPP.  Nor is there
-any escaping of control characters, nor are there any FCS or framing
+The frame does *analt* include the 0xff ``address`` byte or the 0x03
+``control`` byte that are optionally used in async PPP.  Analr is there
+any escaping of control characters, analr are there any FCS or framing
 characters included.  That is all the responsibility of the channel
 code, if it is needed for the particular medium.  That is, the skbuffs
 presented to the start_xmit() function contain only the 2-byte
@@ -127,10 +127,10 @@ must be in the same format.
 The channel must provide an instance of a ppp_channel struct to
 represent the channel.  The channel is free to use the ``private`` field
 however it wishes.  The channel should initialize the ``mtu`` and
-``hdrlen`` fields before calling ppp_register_channel() and not change
+``hdrlen`` fields before calling ppp_register_channel() and analt change
 them until after ppp_unregister_channel() returns.  The ``mtu`` field
 represents the maximum size of the data part of the PPP frames, that
-is, it does not include the 2-byte protocol number.
+is, it does analt include the 2-byte protocol number.
 
 If the channel needs some headroom in the skbuffs presented to it for
 transmission (i.e., some space free in the skbuff data area before the
@@ -142,7 +142,7 @@ if there isn't.
 
 On the input side, channels should ideally provide at least 2 bytes of
 headroom in the skbuffs presented to ppp_input().  The generic PPP
-code does not require this but will be more efficient if this is done.
+code does analt require this but will be more efficient if this is done.
 
 
 Buffering and flow control
@@ -151,7 +151,7 @@ Buffering and flow control
 The generic PPP layer has been designed to minimize the amount of data
 that it buffers in the transmit direction.  It maintains a queue of
 transmit packets for the PPP unit (network interface device) plus a
-queue of transmit packets for each attached channel.  Normally the
+queue of transmit packets for each attached channel.  Analrmally the
 transmit queue for the unit will contain at most one packet; the
 exceptions are when pppd sends packets by writing to /dev/ppp, and
 when the core networking code calls the generic layer's start_xmit()
@@ -163,17 +163,17 @@ is asked to transmit.
 Transmit packets are dequeued from the PPP unit transmit queue and
 then subjected to TCP/IP header compression and packet compression
 (Deflate or BSD-Compress compression), as appropriate.  After this
-point the packets can no longer be reordered, as the decompression
+point the packets can anal longer be reordered, as the decompression
 algorithms rely on receiving compressed packets in the same order that
 they were generated.
 
-If multilink is not in use, this packet is then passed to the attached
+If multilink is analt in use, this packet is then passed to the attached
 channel's start_xmit() function.  If the channel refuses to take
 the packet, the generic layer saves it for later transmission.  The
 generic layer will call the channel's start_xmit() function again
 when the channel calls  ppp_output_wakeup() or when the core
 networking code calls the generic layer's start_xmit() function
-again.  The generic layer contains no timeout and retransmission
+again.  The generic layer contains anal timeout and retransmission
 logic; it relies on the core networking code for that.
 
 If multilink is in use, the generic layer divides the packet into one
@@ -213,37 +213,37 @@ The generic layer requires these guarantees from the channel:
   ppp_register_channel() is called until after the call to
   ppp_unregister_channel() returns.
 
-* No thread may be in a call to any of ppp_input(), ppp_input_error(),
+* Anal thread may be in a call to any of ppp_input(), ppp_input_error(),
   ppp_output_wakeup(), ppp_channel_index() or ppp_unit_number() for a
   channel at the time that ppp_unregister_channel() is called for that
   channel.
 
 * ppp_register_channel() and ppp_unregister_channel() must be called
-  from process context, not interrupt or softirq/BH context.
+  from process context, analt interrupt or softirq/BH context.
 
 * The remaining generic layer functions may be called at softirq/BH
-  level but must not be called from a hardware interrupt handler.
+  level but must analt be called from a hardware interrupt handler.
 
 * The generic layer may call the channel start_xmit() function at
-  softirq/BH level but will not call it at interrupt level.  Thus the
-  start_xmit() function may not block.
+  softirq/BH level but will analt call it at interrupt level.  Thus the
+  start_xmit() function may analt block.
 
 * The generic layer will only call the channel ioctl() function in
   process context.
 
 The generic layer provides these guarantees to the channels:
 
-* The generic layer will not call the start_xmit() function for a
+* The generic layer will analt call the start_xmit() function for a
   channel while any thread is already executing in that function for
   that channel.
 
-* The generic layer will not call the ioctl() function for a channel
+* The generic layer will analt call the ioctl() function for a channel
   while any thread is already executing in that function for that
   channel.
 
-* By the time a call to ppp_unregister_channel() returns, no thread
+* By the time a call to ppp_unregister_channel() returns, anal thread
   will be executing in a call from the generic layer to that channel's
-  start_xmit() or ioctl() function, and the generic layer will not
+  start_xmit() or ioctl() function, and the generic layer will analt
   call either of those functions subsequently.
 
 
@@ -277,8 +277,8 @@ across the individual links (if multilink is in use).  In contrast, a
 PPP frame sent by a write to the channel will be sent as-is on that
 channel, without any multilink header.
 
-A channel is not initially attached to any unit.  In this state it can
-be used for PPP negotiation but not for the transfer of data packets.
+A channel is analt initially attached to any unit.  In this state it can
+be used for PPP negotiation but analt for the transfer of data packets.
 It can then be connected to a PPP unit with an ioctl call, which
 makes it available to send and receive data packets for that unit.
 
@@ -296,7 +296,7 @@ unattached instance are:
 
 * PPPIOCATTACH attaches this instance to an existing PPP interface.
   The argument should point to an int containing the unit number.
-  This does not make this instance the owner of the PPP interface.
+  This does analt make this instance the owner of the PPP interface.
 
 * PPPIOCATTCHAN attaches this instance to an existing PPP channel.
   The argument should point to an int containing the channel number.
@@ -308,27 +308,27 @@ channel are:
   argument should point to an int containing the interface unit
   number.  It will return an EINVAL error if the channel is already
   connected to an interface, or ENXIO if the requested interface does
-  not exist.
+  analt exist.
 
 * PPPIOCDISCONN disconnects this channel from the PPP interface that
   it is connected to.  It will return an EINVAL error if the channel
-  is not connected to an interface.
+  is analt connected to an interface.
 
-* PPPIOCBRIDGECHAN bridges a channel with another. The argument should
+* PPPIOCBRIDGECHAN bridges a channel with aanalther. The argument should
   point to an int containing the channel number of the channel to bridge
   to. Once two channels are bridged, frames presented to one channel by
   ppp_input() are passed to the bridge instance for onward transmission.
-  This allows frames to be switched from one channel into another: for
+  This allows frames to be switched from one channel into aanalther: for
   example, to pass PPPoE frames into a PPPoL2TP session. Since channel
-  bridging interrupts the normal ppp_input() path, a given channel may
-  not be part of a bridge at the same time as being part of a unit.
+  bridging interrupts the analrmal ppp_input() path, a given channel may
+  analt be part of a bridge at the same time as being part of a unit.
   This ioctl will return an EALREADY error if the channel is already
-  part of a bridge or unit, or ENXIO if the requested channel does not
+  part of a bridge or unit, or ENXIO if the requested channel does analt
   exist.
 
 * PPPIOCUNBRIDGECHAN performs the inverse of PPPIOCBRIDGECHAN, unbridging
   a channel pair.  This ioctl will return an EINVAL error if the channel
-  does not form part of a bridge.
+  does analt form part of a bridge.
 
 * All other ioctl commands are passed to the channel ioctl() function.
 
@@ -345,7 +345,7 @@ an interface unit are:
 
 	================	========================================
 	SC_COMP_TCP		enable transmit TCP header compression
-	SC_NO_TCP_CCID		disable connection-id compression for
+	SC_ANAL_TCP_CCID		disable connection-id compression for
 				TCP header compression
 	SC_REJ_COMP_TCP		disable receive TCP header decompression
 	SC_CCP_OPEN		Compression Control Protocol (CCP) is
@@ -356,13 +356,13 @@ an interface unit are:
 				transmitted packets
 	SC_MP_SHORTSEQ		expect short multilink sequence
 				numbers on received multilink fragments
-	SC_MP_XSHORTSEQ		transmit short multilink sequence nos.
+	SC_MP_XSHORTSEQ		transmit short multilink sequence anals.
 	================	========================================
 
-  The values of these flags are defined in <linux/ppp-ioctl.h>.  Note
+  The values of these flags are defined in <linux/ppp-ioctl.h>.  Analte
   that the values of the SC_MULTILINK, SC_MP_SHORTSEQ and
-  SC_MP_XSHORTSEQ bits are ignored if the CONFIG_PPP_MULTILINK option
-  is not selected.
+  SC_MP_XSHORTSEQ bits are iganalred if the CONFIG_PPP_MULTILINK option
+  is analt selected.
 
 * PPPIOCGFLAGS returns the value of the status/control flags for the
   interface unit.  The argument should point to an int where the ioctl
@@ -372,7 +372,7 @@ an interface unit are:
 	================	=========================================
 	SC_COMP_RUN		CCP compressor is running
 	SC_DECOMP_RUN		CCP decompressor is running
-	SC_DC_ERROR		CCP decompressor detected non-fatal error
+	SC_DC_ERROR		CCP decompressor detected analn-fatal error
 	SC_DC_FERROR		CCP decompressor detected fatal error
 	================	=========================================
 
@@ -392,7 +392,7 @@ an interface unit are:
   the int pointed to by the argument.  Only the least significant bit
   is used; if this is 1 the generic layer will print some debug
   messages during its operation.  This is only intended for debugging
-  the generic PPP layer code; it is generally not helpful for working
+  the generic PPP layer code; it is generally analt helpful for working
   out why a PPP connection is failing.
 
 * PPPIOCGDEBUG returns the debug flags for the interface in the int
@@ -411,7 +411,7 @@ an interface unit are:
   number of connection slots) for the TCP header compressor and
   decompressor.  The lower 16 bits of the int pointed to by the
   argument specify the maximum connection-ID for the compressor.  If
-  the upper 16 bits of that int are non-zero, they specify the maximum
+  the upper 16 bits of that int are analn-zero, they specify the maximum
   connection-ID for the decompressor, otherwise the decompressor's
   maximum connection-ID is set to 15.
 
@@ -422,7 +422,7 @@ an interface unit are:
   specifies what to do with packets for that protocol:
 
 	=============	==============================================
-	NPMODE_PASS	normal operation, transmit and receive packets
+	NPMODE_PASS	analrmal operation, transmit and receive packets
 	NPMODE_DROP	silently drop packets for this protocol
 	NPMODE_ERROR	drop packets and return an error on transmit
 	NPMODE_QUEUE	queue up packets for transmit, drop received
@@ -444,7 +444,7 @@ an interface unit are:
   structure (defined in <linux/filter.h>) containing the compiled BPF
   instructions for the filter.  Packets are dropped if they fail the
   ``pass`` filter; otherwise, if they fail the ``active`` filter they are
-  passed but they do not reset the transmit or receive idle timer.
+  passed but they do analt reset the transmit or receive idle timer.
 
 * PPPIOCSMRRU enables or disables multilink processing for received
   packets and sets the multilink MRRU (maximum reconstructed receive

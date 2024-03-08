@@ -10,13 +10,13 @@ static int execute_one_variant(bool legacy)
 
 	skel = test_legacy_printk__open();
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
-		return -errno;
+		return -erranal;
 
 	bpf_program__set_autoload(skel->progs.handle_legacy, legacy);
 	bpf_program__set_autoload(skel->progs.handle_modern, !legacy);
 
 	err = test_legacy_printk__load(skel);
-	/* no ASSERT_OK, we expect one of two variants can fail here */
+	/* anal ASSERT_OK, we expect one of two variants can fail here */
 	if (err)
 		goto err_out;
 

@@ -29,7 +29,7 @@
  *		      It can be 0 though, which is functionally the same.
  * @CCU_DIV_SKIP_ONE_TO_THREE: For some reason divider can't be within [1,3].
  *			       It can be either 0 or greater than 3.
- * @CCU_DIV_LOCK_SHIFTED: Find lock-bit at non-standard position.
+ * @CCU_DIV_LOCK_SHIFTED: Find lock-bit at analn-standard position.
  * @CCU_DIV_RESET_DOMAIN: There is a clock domain reset handle.
  */
 #define CCU_DIV_BASIC			BIT(0)
@@ -42,7 +42,7 @@
  * enum ccu_div_type - CCU Divider types
  * @CCU_DIV_VAR: Clocks gate with variable divider.
  * @CCU_DIV_GATE: Clocks gate with fixed divider.
- * @CCU_DIV_BUF: Clock gate with no divider.
+ * @CCU_DIV_BUF: Clock gate with anal divider.
  * @CCU_DIV_FIXED: Ungateable clock with fixed divider.
  */
 enum ccu_div_type {
@@ -56,10 +56,10 @@ enum ccu_div_type {
  * struct ccu_div_init_data - CCU Divider initialization data
  * @id: Clocks private identifier.
  * @name: Clocks name.
- * @parent_name: Parent clocks name in a fw node.
+ * @parent_name: Parent clocks name in a fw analde.
  * @base: Divider register base address with respect to the sys_regs base.
  * @sys_regs: Baikal-T1 System Controller registers map.
- * @np: Pointer to the node describing the CCU Dividers.
+ * @np: Pointer to the analde describing the CCU Dividers.
  * @type: CCU divider type (variable, fixed with and without gate).
  * @width: Divider width if it's variable.
  * @divider: Divider fixed value.
@@ -72,7 +72,7 @@ struct ccu_div_init_data {
 	const char *parent_name;
 	unsigned int base;
 	struct regmap *sys_regs;
-	struct device_node *np;
+	struct device_analde *np;
 	enum ccu_div_type type;
 	union {
 		unsigned int width;

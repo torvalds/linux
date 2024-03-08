@@ -389,7 +389,7 @@ static int ltc2947_read_temp(struct device *dev, const u32 attr, long *val,
 					       LTC2947_PAGE1, 2, &__val);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (ret)
@@ -437,7 +437,7 @@ static int ltc2947_read_power(struct device *dev, const u32 attr, long *val)
 				       LTC2947_PAGE1, 2, &__val);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (ret)
@@ -484,7 +484,7 @@ static int ltc2947_read_curr(struct device *dev, const u32 attr, long *val)
 				       LTC2947_PAGE1, 2, &__val);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (ret)
@@ -576,7 +576,7 @@ static int ltc2947_read_in(struct device *dev, const u32 attr, long *val,
 		}
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (ret)
@@ -600,7 +600,7 @@ static int ltc2947_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return ltc2947_read_temp(dev, attr, val, channel);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -624,7 +624,7 @@ static int ltc2947_write_temp(struct device *dev, const u32 attr,
 		val = clamp_val(val, TEMP_MIN, TEMP_MAX);
 		if (channel == LTC2947_TEMP_FAN_CHAN) {
 			if (!st->gpio_out)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			return ltc2947_val_write(st,
 					LTC2947_REG_TEMP_FAN_THRE_H,
@@ -639,7 +639,7 @@ static int ltc2947_write_temp(struct device *dev, const u32 attr,
 		val = clamp_val(val, TEMP_MIN, TEMP_MAX);
 		if (channel == LTC2947_TEMP_FAN_CHAN) {
 			if (!st->gpio_out)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			return ltc2947_val_write(st,
 					LTC2947_REG_TEMP_FAN_THRE_L,
@@ -651,7 +651,7 @@ static int ltc2947_write_temp(struct device *dev, const u32 attr,
 					 LTC2947_PAGE1, 2,
 					 DIV_ROUND_CLOSEST(val - 550, 204));
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -677,7 +677,7 @@ static int ltc2947_write_power(struct device *dev, const u32 attr,
 					 LTC2947_PAGE1, 2,
 					 DIV_ROUND_CLOSEST(val, 200000));
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -703,7 +703,7 @@ static int ltc2947_write_curr(struct device *dev, const u32 attr,
 					 LTC2947_PAGE1, 2,
 					 DIV_ROUND_CLOSEST(val, 12));
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -753,7 +753,7 @@ static int ltc2947_write_in(struct device *dev, const u32 attr, long val,
 					 LTC2947_PAGE1, 2,
 					 DIV_ROUND_CLOSEST(val, 2));
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -771,7 +771,7 @@ static int ltc2947_write(struct device *dev,
 	case hwmon_temp:
 		return ltc2947_write_temp(dev, attr, val, channel);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -799,7 +799,7 @@ static int ltc2947_read_labels(struct device *dev,
 		*str = "Power";
 		return 0;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -1034,7 +1034,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 		/* 19.89E-6 * 10E9 */
 		st->lsb_energy = 19890;
 	}
-	ret = of_property_read_u32_array(st->dev->of_node,
+	ret = of_property_read_u32_array(st->dev->of_analde,
 					 "adi,accumulator-ctl-pol", accum,
 					  ARRAY_SIZE(accum));
 	if (!ret) {
@@ -1045,7 +1045,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 		if (ret)
 			return ret;
 	}
-	ret = of_property_read_u32(st->dev->of_node,
+	ret = of_property_read_u32(st->dev->of_analde,
 				   "adi,accumulation-deadband-microamp",
 				   &deadband);
 	if (!ret) {
@@ -1056,7 +1056,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 			return ret;
 	}
 	/* check gpio cfg */
-	ret = of_property_read_u32(st->dev->of_node, "adi,gpio-out-pol", &pol);
+	ret = of_property_read_u32(st->dev->of_analde, "adi,gpio-out-pol", &pol);
 	if (!ret) {
 		/* setup GPIO as output */
 		u32 gpio_ctl = LTC2947_GPIO_EN(1) | LTC2947_GPIO_FAN_EN(1) |
@@ -1067,7 +1067,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 		if (ret)
 			return ret;
 	}
-	ret = of_property_read_u32_array(st->dev->of_node, "adi,gpio-in-accum",
+	ret = of_property_read_u32_array(st->dev->of_analde, "adi,gpio-in-accum",
 					 accum, ARRAY_SIZE(accum));
 	if (!ret) {
 		/*
@@ -1079,7 +1079,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 
 		if (st->gpio_out) {
 			dev_err(st->dev,
-				"Cannot have input gpio config if already configured as output");
+				"Cananalt have input gpio config if already configured as output");
 			return -EINVAL;
 		}
 
@@ -1102,7 +1102,7 @@ int ltc2947_core_probe(struct regmap *map, const char *name)
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->map = map;
 	st->dev = dev;
@@ -1132,7 +1132,7 @@ static int ltc2947_resume(struct device *dev)
 		return ret;
 	/*
 	 * Wait for the device. It takes 100ms to wake up so, 10ms extra
-	 * should be enough.
+	 * should be eanalugh.
 	 */
 	msleep(110);
 	ret = regmap_read(st->map, LTC2947_REG_CTRL, &ctrl);
@@ -1166,6 +1166,6 @@ const struct of_device_id ltc2947_of_match[] = {
 EXPORT_SYMBOL_GPL(ltc2947_of_match);
 MODULE_DEVICE_TABLE(of, ltc2947_of_match);
 
-MODULE_AUTHOR("Nuno Sa <nuno.sa@analog.com>");
+MODULE_AUTHOR("Nuanal Sa <nuanal.sa@analog.com>");
 MODULE_DESCRIPTION("LTC2947 power and energy monitor core driver");
 MODULE_LICENSE("GPL");

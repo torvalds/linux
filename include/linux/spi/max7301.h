@@ -25,8 +25,8 @@ struct max7301_platform_data {
 	/*
 	 * bitmask controlling the pullup configuration,
 	 *
-	 * _note_ the 4 lowest bits are unused, because the first 4
-	 * ports of the controller are not used, too.
+	 * _analte_ the 4 lowest bits are unused, because the first 4
+	 * ports of the controller are analt used, too.
 	 */
 	u32		input_pullup_active;
 };

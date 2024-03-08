@@ -32,7 +32,7 @@ struct cn10k_rng {
 	struct hwrng ops;
 	struct pci_dev *pdev;
 	/* Octeon CN10K-A A0/A1, CNF10K-A A0/A1 and CNF10K-B A0/B0
-	 * does not support extended TRNG registers
+	 * does analt support extended TRNG registers
 	 */
 	bool extended_trng_regs;
 };
@@ -82,7 +82,7 @@ static int check_rng_health(struct cn10k_rng *rng)
 
 	/* Skip checking health */
 	if (!rng->reg_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = readq(rng->reg_base + RNM_PF_EBG_HEALTH);
 	if (status & BIT_ULL(20)) {
@@ -119,7 +119,7 @@ static bool cn10k_read_trng(struct cn10k_rng *rng, u64 *value)
 	*value = readq(rng->reg_base + RNM_PF_RANDOM);
 
 	/* HW can run out of entropy if large amount random data is read in
-	 * quick succession. Zeros may not be real random data from HW.
+	 * quick succession. Zeros may analt be real random data from HW.
 	 */
 	if (!*value) {
 		upper = readq(rng->reg_base + RNM_PF_RANDOM);
@@ -181,19 +181,19 @@ static int cn10k_rng_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
 	if (!rng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rng->pdev = pdev;
 	pci_set_drvdata(pdev, rng);
 
 	rng->reg_base = pcim_iomap(pdev, 0, 0);
 	if (!rng->reg_base)
-		return dev_err_probe(&pdev->dev, -ENOMEM, "Error while mapping CSRs, exiting\n");
+		return dev_err_probe(&pdev->dev, -EANALMEM, "Error while mapping CSRs, exiting\n");
 
 	rng->ops.name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 				       "cn10k-rng-%s", dev_name(&pdev->dev));
 	if (!rng->ops.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rng->ops.read = cn10k_rng_read;
 	rng->ops.priv = (unsigned long)rng;
@@ -204,7 +204,7 @@ static int cn10k_rng_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	err = devm_hwrng_register(&pdev->dev, &rng->ops);
 	if (err)
-		return dev_err_probe(&pdev->dev, err, "Could not register hwrng device.\n");
+		return dev_err_probe(&pdev->dev, err, "Could analt register hwrng device.\n");
 
 	return 0;
 }

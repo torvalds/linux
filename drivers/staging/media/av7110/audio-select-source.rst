@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.audio
 
 .. _AUDIO_SELECT_SOURCE:
@@ -14,7 +14,7 @@ AUDIO_SELECT_SOURCE
 
 .. attention:: This ioctl is deprecated
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: AUDIO_SELECT_SOURCE
@@ -51,6 +51,6 @@ through the write command.
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

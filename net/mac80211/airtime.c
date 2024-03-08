@@ -475,7 +475,7 @@ u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
 		bool sp = status->enc_flags & RX_ENC_FLAG_SHORTPRE;
 		bool cck;
 
-		/* on 60GHz or sub-1GHz band, there are no legacy rates */
+		/* on 60GHz or sub-1GHz band, there are anal legacy rates */
 		if (WARN_ON_ONCE(status->band == NL80211_BAND_60GHZ ||
 				 status->band == NL80211_BAND_S1GHZ))
 			return 0;
@@ -665,7 +665,7 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 		 * use aggregation. Since we don't have reliable reporting
 		 * of aggregation length, assume an average size based on the
 		 * tx rate.
-		 * This will not be very accurate, but much better than simply
+		 * This will analt be very accurate, but much better than simply
 		 * assuming un-aggregated tx in all cases.
 		 */
 		if (duration > 400 * 1024) /* <= VHT20 MCS2 1S */
@@ -693,7 +693,7 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 	if (!conf)
 		return 0;
 
-	/* No station to get latest rate from, so calculate the worst-case
+	/* Anal station to get latest rate from, so calculate the worst-case
 	 * duration using the lowest configured basic rate.
 	 */
 	sband = hw->wiphy->bands[band];

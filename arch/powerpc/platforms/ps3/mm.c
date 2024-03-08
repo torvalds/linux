@@ -198,7 +198,7 @@ fail:
  * called during kexec sequence with MMU off.
  */
 
-notrace void ps3_mm_vas_destroy(void)
+analtrace void ps3_mm_vas_destroy(void)
 {
 	int result;
 
@@ -238,7 +238,7 @@ static int __init ps3_mm_get_repository_highmem(struct mem_region *r)
 	return 0;
 
 zero_region:
-	DBG("%s:%d: No high region in repository.\n", __func__, __LINE__);
+	DBG("%s:%d: Anal high region in repository.\n", __func__, __LINE__);
 
 	r->size = r->base = r->offset = 0;
 	return result;
@@ -416,7 +416,7 @@ static struct dma_chunk * dma_find_chunk(struct ps3_dma_region *r,
 		if (aligned_bus >= c->bus_addr + c->len)
 			continue;
 
-		/* we don't handle the multi-chunk case for now */
+		/* we don't handle the multi-chunk case for analw */
 		dma_dump_chunk(c);
 		BUG();
 	}
@@ -518,7 +518,7 @@ static int dma_sb_map_pages(struct ps3_dma_region *r, unsigned long phys_addr,
 
 	c = kzalloc(sizeof(*c), GFP_ATOMIC);
 	if (!c) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto fail_alloc;
 	}
 
@@ -563,7 +563,7 @@ static int dma_ioc0_map_pages(struct ps3_dma_region *r, unsigned long phys_addr,
 	    phys_addr, ps3_mm_phys_to_lpar(phys_addr), len);
 	c = kzalloc(sizeof(*c), GFP_ATOMIC);
 	if (!c) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto fail_alloc;
 	}
 
@@ -645,7 +645,7 @@ static int dma_sb_region_create(struct ps3_dma_region *r)
 	BUG_ON(!r);
 
 	if (!r->dev->bus_id) {
-		pr_info("%s:%d: %llu:%llu no dma\n", __func__, __LINE__,
+		pr_info("%s:%d: %llu:%llu anal dma\n", __func__, __LINE__,
 			r->dev->bus_id, r->dev->dev_id);
 		return 0;
 	}
@@ -714,7 +714,7 @@ static int dma_sb_region_free(struct ps3_dma_region *r)
 	BUG_ON(!r);
 
 	if (!r->dev->bus_id) {
-		pr_info("%s:%d: %llu:%llu no dma\n", __func__, __LINE__,
+		pr_info("%s:%d: %llu:%llu anal dma\n", __func__, __LINE__,
 			r->dev->bus_id, r->dev->dev_id);
 		return 0;
 	}
@@ -897,13 +897,13 @@ static int dma_sb_unmap_area(struct ps3_dma_region *r, dma_addr_t bus_addr,
 			1 << r->page_size);
 		unsigned long aligned_len = ALIGN(len + bus_addr
 			- aligned_bus, 1 << r->page_size);
-		DBG("%s:%d: not found: bus_addr %llxh\n",
+		DBG("%s:%d: analt found: bus_addr %llxh\n",
 			__func__, __LINE__, bus_addr);
-		DBG("%s:%d: not found: len %lxh\n",
+		DBG("%s:%d: analt found: len %lxh\n",
 			__func__, __LINE__, len);
-		DBG("%s:%d: not found: aligned_bus %lxh\n",
+		DBG("%s:%d: analt found: aligned_bus %lxh\n",
 			__func__, __LINE__, aligned_bus);
-		DBG("%s:%d: not found: aligned_len %lxh\n",
+		DBG("%s:%d: analt found: aligned_len %lxh\n",
 			__func__, __LINE__, aligned_len);
 		BUG();
 	}
@@ -935,13 +935,13 @@ static int dma_ioc0_unmap_area(struct ps3_dma_region *r,
 		unsigned long aligned_len = ALIGN(len + bus_addr
 						      - aligned_bus,
 						      1 << r->page_size);
-		DBG("%s:%d: not found: bus_addr %llxh\n",
+		DBG("%s:%d: analt found: bus_addr %llxh\n",
 		    __func__, __LINE__, bus_addr);
-		DBG("%s:%d: not found: len %lxh\n",
+		DBG("%s:%d: analt found: len %lxh\n",
 		    __func__, __LINE__, len);
-		DBG("%s:%d: not found: aligned_bus %lxh\n",
+		DBG("%s:%d: analt found: aligned_bus %lxh\n",
 		    __func__, __LINE__, aligned_bus);
-		DBG("%s:%d: not found: aligned_len %lxh\n",
+		DBG("%s:%d: analt found: aligned_len %lxh\n",
 		    __func__, __LINE__, aligned_len);
 		BUG();
 	}
@@ -1085,7 +1085,7 @@ static int dma_sb_map_area_linear(struct ps3_dma_region *r,
  * @bus_addr: The starting ioc bus address of the area to unmap.
  * @len: Length in bytes of the area to unmap.
  *
- * This routine does nothing.  Unmapping occurs in dma_sb_region_free_linear().
+ * This routine does analthing.  Unmapping occurs in dma_sb_region_free_linear().
  */
 
 static int dma_sb_unmap_area_linear(struct ps3_dma_region *r,
@@ -1231,7 +1231,7 @@ void __init ps3_mm_init(void)
 	map.total = map.rm.size + map.r1.size;
 
 	if (!map.r1.size) {
-		DBG("%s:%d: No highmem region found\n", __func__, __LINE__);
+		DBG("%s:%d: Anal highmem region found\n", __func__, __LINE__);
 	} else {
 		DBG("%s:%d: Adding highmem region: %llxh %llxh\n",
 			__func__, __LINE__, map.rm.size,
@@ -1248,7 +1248,7 @@ void __init ps3_mm_init(void)
  * called during kexec sequence with MMU off.
  */
 
-notrace void ps3_mm_shutdown(void)
+analtrace void ps3_mm_shutdown(void)
 {
 	ps3_mm_region_destroy(&map.r1);
 }

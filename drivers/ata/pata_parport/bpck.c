@@ -256,7 +256,7 @@ static void bpck_connect(struct pi_adapter *pi)
 	WR(5,8);
 
 	/*
-	 * Possibly wrong, purpose unknown (fiddle with ESS logic ???)
+	 * Possibly wrong, purpose unkanalwn (fiddle with ESS logic ???)
 	 * if (pi->devtype == PI_PCD) {
 	 */
 	WR(0x46, 0x10);
@@ -367,7 +367,7 @@ static int bpck_test_proto(struct pi_adapter *pi)
 
 	dev_dbg(&pi->dev, "bpck: 0x%x unit %d mode %d: ",
 		pi->port, pi->unit, pi->mode);
-	print_hex_dump_debug("bpck: ", DUMP_PREFIX_NONE, TEST_LEN, 1, buf,
+	print_hex_dump_debug("bpck: ", DUMP_PREFIX_ANALNE, TEST_LEN, 1, buf,
 			     TEST_LEN, false);
 
 	e = 0;
@@ -475,7 +475,7 @@ static void bpck_log_adapter(struct pi_adapter *pi)
 	char scratch[128];
 
 	bpck_read_eeprom(pi,scratch);
-	print_hex_dump_bytes("bpck EEPROM: ", DUMP_PREFIX_NONE, scratch, 128);
+	print_hex_dump_bytes("bpck EEPROM: ", DUMP_PREFIX_ANALNE, scratch, 128);
 	dev_info(&pi->dev,
 		 "backpack %8.8s unit %d at 0x%x, mode %d (%s), delay %d\n",
 		 &scratch[110], pi->unit, pi->port, pi->mode,

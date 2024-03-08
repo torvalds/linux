@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Novatek NT35510 panel driver
+ * Analvatek NT35510 panel driver
  * Copyright (C) 2020 Linus Walleij <linus.walleij@linaro.org>
  * Based on code by Robert Teather (C) 2012 Samsung
  *
  * This display driver (and I refer to the physical component NT35510,
- * not this Linux kernel software driver) can handle:
+ * analt this Linux kernel software driver) can handle:
  * 480x864, 480x854, 480x800, 480x720 and 480x640 pixel displays.
  * It has 480x840x24bit SRAM embedded for storing a frame.
  * When powered on the display is by default in 480x800 mode.
@@ -76,7 +76,7 @@
 #define NT35510_DOPCTR_1_CRGB BIT(3) /* RGB or BGR byte order */
 #define NT35510_DOPCTR_1_CTB BIT(2) /* Vertical scanning direction */
 #define NT35510_DOPCTR_1_CRL BIT(1) /* Source driver data shift */
-#define NT35510_P0_SDVPCTR_PRG BIT(2) /* 0 = normal operation, 1 = VGLO */
+#define NT35510_P0_SDVPCTR_PRG BIT(2) /* 0 = analrmal operation, 1 = VGLO */
 #define NT35510_P0_SDVPCTR_AVDD 0 /* source driver output = AVDD */
 #define NT35510_P0_SDVPCTR_OFFCOL 1 /* source driver output = off color */
 #define NT35510_P0_SDVPCTR_AVSS 2 /* source driver output = AVSS */
@@ -128,13 +128,13 @@
  * struct nt35510_config - the display-specific NT35510 configuration
  *
  * Some of the settings provide an array of bytes, A, B C which mean:
- * A = normal / idle off mode
+ * A = analrmal / idle off mode
  * B = idle on mode
  * C = partial / idle off mode
  *
  * Gamma correction arrays are 10bit numbers, two consecutive bytes
  * makes out one point on the gamma correction curve. The points are
- * not linearly placed along the X axis, we get points 0, 1, 3, 5
+ * analt linearly placed along the X axis, we get points 0, 1, 3, 5
  * 7, 11, 15, 23, 31, 47, 63, 95, 127, 128, 160, 192, 208, 224, 232,
  * 240, 244, 248, 250, 252, 254, 255. The voltages tuples form
  * V0, V1, V3 ... V255, with 0x0000 being the lowest voltage and
@@ -154,7 +154,7 @@
  * +------------------------------------------->
  *
  * The details about all settings can be found in the NT35510 Application
- * Note.
+ * Analte.
  */
 struct nt35510_config {
 	/**
@@ -276,7 +276,7 @@ struct nt35510_config {
 	/**
 	 * @sdeqctr: Source driver control settings, first byte is
 	 * 0 for mode 1 and 1 for mode 2. Mode 1 uses two steps and
-	 * mode 2 uses three steps meaning EQS3 is not used in mode
+	 * mode 2 uses three steps meaning EQS3 is analt used in mode
 	 * 1. Mode 2 is default. The last three parameters are EQS1, EQS2
 	 * and EQS3, setting the rise time for each equalizer step:
 	 * 0x00 = 0.0 us to 0x0f = 7.5 us in steps of 0.5us. The default
@@ -294,7 +294,7 @@ struct nt35510_config {
 	 */
 	u16 t1;
 	/**
-	 * @vbp: vertical back porch toward the PANEL note: not toward
+	 * @vbp: vertical back porch toward the PANEL analte: analt toward
 	 * the DSI host; these are separate interfaces, in from DSI host
 	 * and out to the panel.
 	 */
@@ -310,8 +310,8 @@ struct nt35510_config {
 	/**
 	 * @dpmctr12: Display timing control 12
 	 * Byte 1 bit 4 selects LVGL voltage level: 0 = VGLX, 1 = VGL_REG
-	 * Byte 1 bit 1 selects gate signal mode: 0 = non-overlap, 1 = overlap
-	 * Byte 1 bit 0 selects output signal control R/L swap, 0 = normal
+	 * Byte 1 bit 1 selects gate signal mode: 0 = analn-overlap, 1 = overlap
+	 * Byte 1 bit 0 selects output signal control R/L swap, 0 = analrmal
 	 * 1 = swap all O->E, L->R
 	 * Byte 2 is CLW delay clock for CK O/E and CKB O/E signals:
 	 * 0x00 = 0us .. 0xFF = 12.75us in 0.05us steps
@@ -433,17 +433,17 @@ static int nt35510_read_id(struct nt35510 *nt)
 
 	ret = mipi_dsi_dcs_read(dsi, MCS_CMD_READ_ID1, &id1, 1);
 	if (ret < 0) {
-		dev_err(nt->dev, "could not read MTP ID1\n");
+		dev_err(nt->dev, "could analt read MTP ID1\n");
 		return ret;
 	}
 	ret = mipi_dsi_dcs_read(dsi, MCS_CMD_READ_ID2, &id2, 1);
 	if (ret < 0) {
-		dev_err(nt->dev, "could not read MTP ID2\n");
+		dev_err(nt->dev, "could analt read MTP ID2\n");
 		return ret;
 	}
 	ret = mipi_dsi_dcs_read(dsi, MCS_CMD_READ_ID3, &id3, 1);
 	if (ret < 0) {
-		dev_err(nt->dev, "could not read MTP ID3\n");
+		dev_err(nt->dev, "could analt read MTP ID3\n");
 		return ret;
 	}
 
@@ -539,7 +539,7 @@ static int nt35510_setup_display(struct nt35510 *nt)
 	u8 dopctr[NT35510_P0_DOPCTR_LEN];
 	u8 gseqctr[NT35510_P0_GSEQCTR_LEN];
 	u8 dpfrctr[NT35510_P0_DPFRCTR1_LEN];
-	/* FIXME: set up any rotation (assume none for now) */
+	/* FIXME: set up any rotation (assume analne for analw) */
 	u8 addr_mode = NT35510_ROTATE_0_SETTING;
 	u8 val;
 	int ret;
@@ -877,7 +877,7 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 
 	nt = devm_kzalloc(dev, sizeof(struct nt35510), GFP_KERNEL);
 	if (!nt)
-		return -ENOMEM;
+		return -EANALMEM;
 	mipi_dsi_set_drvdata(dsi, nt);
 	nt->dev = dev;
 
@@ -889,14 +889,14 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 	 * 20 MHz (period time 50ns, see figure 7.6.6. page 366).
 	 * However these frequencies appear in source code for the Hydis
 	 * HVA40WV1 panel and setting up the LP frequency makes the panel
-	 * not work.
+	 * analt work.
 	 *
 	 * TODO: if other panels prove to be closer to the datasheet,
 	 * maybe make this a per-panel config in struct nt35510_config?
 	 */
 	dsi->hs_rate = 349440000;
 	dsi->lp_rate = 9600000;
-	dsi->mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	dsi->mode_flags = MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	/*
 	 * Every new incarnation of this display must have a unique
@@ -905,7 +905,7 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 	nt->conf = of_device_get_match_data(dev);
 	if (!nt->conf) {
 		dev_err(dev, "missing device configuration\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	nt->supplies[0].supply = "vdd"; /* 2.3-4.8 V */
@@ -1010,8 +1010,8 @@ static const struct nt35510_config nt35510_hydis_hva40wv1 = {
 	/**
 	 * As the Hydis panel is used in command mode, the porches etc
 	 * are settings programmed internally into the NT35510 controller
-	 * and generated toward the physical display. As the panel is not
-	 * used in video mode, these are not really exposed to the DSI
+	 * and generated toward the physical display. As the panel is analt
+	 * used in video mode, these are analt really exposed to the DSI
 	 * host.
 	 *
 	 * Display frame rate control:
@@ -1052,7 +1052,7 @@ static const struct nt35510_config nt35510_hydis_hva40wv1 = {
 	.vgn = { 0x00, 0xA3, 0x00 },
 	/* SDEQCTR: source driver EQ mode 2, 2.5 us rise time on each step */
 	.sdeqctr = { 0x01, 0x05, 0x05, 0x05 },
-	/* SDVPCTR: Normal operation off color during v porch */
+	/* SDVPCTR: Analrmal operation off color during v porch */
 	.sdvpctr = 0x01,
 	/* T1: number of pixel clocks on one scanline: 0x184 = 389 clocks */
 	.t1 = 0x0184,
@@ -1060,7 +1060,7 @@ static const struct nt35510_config nt35510_hydis_hva40wv1 = {
 	.vbp = 7,
 	/* VFP: vertical front porch toward the panel */
 	.vfp = 50,
-	/* PSEL: divide pixel clock 20MHz with 1 (no clock downscaling) */
+	/* PSEL: divide pixel clock 20MHz with 1 (anal clock downscaling) */
 	.psel = 0,
 	/* DPTMCTR12: 0x03: LVGL = VGLX, overlap mode, swap R->L O->E */
 	.dpmctr12 = { 0x03, 0x00, 0x00, },
@@ -1086,7 +1086,7 @@ static struct mipi_dsi_driver nt35510_driver = {
 	.probe = nt35510_probe,
 	.remove = nt35510_remove,
 	.driver = {
-		.name = "panel-novatek-nt35510",
+		.name = "panel-analvatek-nt35510",
 		.of_match_table = nt35510_of_match,
 	},
 };

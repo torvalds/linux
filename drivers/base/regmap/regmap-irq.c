@@ -61,7 +61,7 @@ static bool regmap_irq_can_bulk_read_status(struct regmap_irq_chip_data *data)
 
 	/*
 	 * While possible that a user-defined ->get_irq_reg() callback might
-	 * be linear enough to support bulk reads, most of the time it won't.
+	 * be linear eanalugh to support bulk reads, most of the time it won't.
 	 * Therefore only allow them if the default callback is being used.
 	 */
 	return data->irq_reg_stride == 1 && map->reg_stride == 1 &&
@@ -154,7 +154,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		/*
 		 * Ack all the masked interrupts unconditionally,
 		 * OR if there is masked interrupt which hasn't been Acked,
-		 * it'll be ignored in irq handler, then may introduce irq storm
+		 * it'll be iganalred in irq handler, then may introduce irq storm
 		 */
 		if (d->mask_buf[i] && (d->chip->ack_base || d->chip->use_ack)) {
 			reg = d->get_irq_reg(d, d->chip->ack_base, i);
@@ -315,8 +315,8 @@ static inline int read_sub_irq_data(struct regmap_irq_chip_data *data,
 		ret = regmap_read(map, reg, &data->status_buf[b]);
 	} else {
 		/*
-		 * Note we can't use ->get_irq_reg() here because the offsets
-		 * in 'subreg' are *not* interchangeable with indices.
+		 * Analte we can't use ->get_irq_reg() here because the offsets
+		 * in 'subreg' are *analt* interchangeable with indices.
 		 */
 		subreg = &chip->sub_reg_offsets[b];
 		for (i = 0; i < subreg->num_regs; i++) {
@@ -359,8 +359,8 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	 * possible in order to reduce the I/O overheads.
 	 */
 
-	if (chip->no_status) {
-		/* no status register so default to all active */
+	if (chip->anal_status) {
+		/* anal status register so default to all active */
 		memset32(data->status_buf, GENMASK(31, 0), chip->num_regs);
 	} else if (chip->num_main_regs) {
 		unsigned int max_main_bits;
@@ -463,8 +463,8 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 			data->status_buf[i] = ~data->status_buf[i];
 
 	/*
-	 * Ignore masked IRQs and ack if we need to; we ack early so
-	 * there is no race between handling and acknowledging the
+	 * Iganalre masked IRQs and ack if we need to; we ack early so
+	 * there is anal race between handling and ackanalwledging the
 	 * interrupt.  We assume that typically few of the interrupts
 	 * will fire simultaneously so don't worry about overhead from
 	 * doing a write per register.
@@ -511,7 +511,7 @@ exit:
 	if (handled)
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static int regmap_irq_map(struct irq_domain *h, unsigned int virq,
@@ -523,7 +523,7 @@ static int regmap_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip(virq, &data->irq_chip);
 	irq_set_nested_thread(virq, 1);
 	irq_set_parent(virq, data->irq);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -609,9 +609,9 @@ int regmap_irq_set_type_config_simple(unsigned int **buf, unsigned int type,
 EXPORT_SYMBOL_GPL(regmap_irq_set_type_config_simple);
 
 /**
- * regmap_add_irq_chip_fwnode() - Use standard regmap IRQ controller handling
+ * regmap_add_irq_chip_fwanalde() - Use standard regmap IRQ controller handling
  *
- * @fwnode: The firmware node where the IRQ domain should be added to.
+ * @fwanalde: The firmware analde where the IRQ domain should be added to.
  * @map: The regmap for the device.
  * @irq: The IRQ the device uses to signal interrupts.
  * @irq_flags: The IRQF_ flags to use for the primary interrupt.
@@ -619,13 +619,13 @@ EXPORT_SYMBOL_GPL(regmap_irq_set_type_config_simple);
  * @chip: Configuration for the interrupt controller.
  * @data: Runtime data structure for the controller, allocated on success.
  *
- * Returns 0 on success or an errno on failure.
+ * Returns 0 on success or an erranal on failure.
  *
  * In order for this to be efficient the chip really should use a
  * register cache.  The chip driver is responsible for restoring the
  * register values used by the IRQ controller over suspend and resume.
  */
-int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
+int regmap_add_irq_chip_fwanalde(struct fwanalde_handle *fwanalde,
 			       struct regmap *map, int irq,
 			       int irq_flags, int irq_base,
 			       const struct regmap_irq_chip *chip,
@@ -633,7 +633,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 {
 	struct regmap_irq_chip_data *d;
 	int i;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	u32 reg;
 
 	if (chip->num_regs <= 0)
@@ -642,7 +642,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	if (chip->clear_on_unmask && (chip->ack_base || chip->use_ack))
 		return -EINVAL;
 
-	if (chip->mask_base && chip->unmask_base && !chip->mask_unmask_non_inverted)
+	if (chip->mask_base && chip->unmask_base && !chip->mask_unmask_analn_inverted)
 		return -EINVAL;
 
 	for (i = 0; i < chip->num_irqs; i++) {
@@ -664,7 +664,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (chip->num_main_regs) {
 		d->main_status_buf = kcalloc(chip->num_main_regs,
@@ -796,8 +796,8 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			continue;
 
 		/* Ack masked but set interrupts */
-		if (d->chip->no_status) {
-			/* no status register so default to all active */
+		if (d->chip->anal_status) {
+			/* anal status register so default to all active */
 			d->status_buf[i] = GENMASK(31, 0);
 		} else {
 			reg = d->get_irq_reg(d, d->chip->status_base, i);
@@ -857,15 +857,15 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	}
 
 	if (irq_base)
-		d->domain = irq_domain_create_legacy(fwnode, chip->num_irqs,
+		d->domain = irq_domain_create_legacy(fwanalde, chip->num_irqs,
 						     irq_base, 0,
 						     &regmap_domain_ops, d);
 	else
-		d->domain = irq_domain_create_linear(fwnode, chip->num_irqs,
+		d->domain = irq_domain_create_linear(fwanalde, chip->num_irqs,
 						     &regmap_domain_ops, d);
 	if (!d->domain) {
 		dev_err(map->dev, "Failed to create IRQ domain\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -900,7 +900,7 @@ err_alloc:
 	kfree(d);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(regmap_add_irq_chip_fwnode);
+EXPORT_SYMBOL_GPL(regmap_add_irq_chip_fwanalde);
 
 /**
  * regmap_add_irq_chip() - Use standard regmap IRQ controller handling
@@ -912,16 +912,16 @@ EXPORT_SYMBOL_GPL(regmap_add_irq_chip_fwnode);
  * @chip: Configuration for the interrupt controller.
  * @data: Runtime data structure for the controller, allocated on success.
  *
- * Returns 0 on success or an errno on failure.
+ * Returns 0 on success or an erranal on failure.
  *
- * This is the same as regmap_add_irq_chip_fwnode, except that the firmware
- * node of the regmap is used.
+ * This is the same as regmap_add_irq_chip_fwanalde, except that the firmware
+ * analde of the regmap is used.
  */
 int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			int irq_base, const struct regmap_irq_chip *chip,
 			struct regmap_irq_chip_data **data)
 {
-	return regmap_add_irq_chip_fwnode(dev_fwnode(map->dev), map, irq,
+	return regmap_add_irq_chip_fwanalde(dev_fwanalde(map->dev), map, irq,
 					  irq_flags, irq_base, chip, data);
 }
 EXPORT_SYMBOL_GPL(regmap_add_irq_chip);
@@ -946,7 +946,7 @@ void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *d)
 
 	/* Dispose all virtual irq from irq domain before removing it */
 	for (hwirq = 0; hwirq < d->chip->num_irqs; hwirq++) {
-		/* Ignore hwirq if holes in the IRQ list */
+		/* Iganalre hwirq if holes in the IRQ list */
 		if (!d->chip->irqs[hwirq].mask)
 			continue;
 
@@ -996,10 +996,10 @@ static int devm_regmap_irq_chip_match(struct device *dev, void *res, void *data)
 }
 
 /**
- * devm_regmap_add_irq_chip_fwnode() - Resource managed regmap_add_irq_chip_fwnode()
+ * devm_regmap_add_irq_chip_fwanalde() - Resource managed regmap_add_irq_chip_fwanalde()
  *
  * @dev: The device pointer on which irq_chip belongs to.
- * @fwnode: The firmware node where the IRQ domain should be added to.
+ * @fwanalde: The firmware analde where the IRQ domain should be added to.
  * @map: The regmap for the device.
  * @irq: The IRQ the device uses to signal interrupts
  * @irq_flags: The IRQF_ flags to use for the primary interrupt.
@@ -1007,13 +1007,13 @@ static int devm_regmap_irq_chip_match(struct device *dev, void *res, void *data)
  * @chip: Configuration for the interrupt controller.
  * @data: Runtime data structure for the controller, allocated on success
  *
- * Returns 0 on success or an errno on failure.
+ * Returns 0 on success or an erranal on failure.
  *
  * The &regmap_irq_chip_data will be automatically released when the device is
  * unbound.
  */
-int devm_regmap_add_irq_chip_fwnode(struct device *dev,
-				    struct fwnode_handle *fwnode,
+int devm_regmap_add_irq_chip_fwanalde(struct device *dev,
+				    struct fwanalde_handle *fwanalde,
 				    struct regmap *map, int irq,
 				    int irq_flags, int irq_base,
 				    const struct regmap_irq_chip *chip,
@@ -1025,9 +1025,9 @@ int devm_regmap_add_irq_chip_fwnode(struct device *dev,
 	ptr = devres_alloc(devm_regmap_irq_chip_release, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = regmap_add_irq_chip_fwnode(fwnode, map, irq, irq_flags, irq_base,
+	ret = regmap_add_irq_chip_fwanalde(fwanalde, map, irq, irq_flags, irq_base,
 					 chip, &d);
 	if (ret < 0) {
 		devres_free(ptr);
@@ -1039,7 +1039,7 @@ int devm_regmap_add_irq_chip_fwnode(struct device *dev,
 	*data = d;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(devm_regmap_add_irq_chip_fwnode);
+EXPORT_SYMBOL_GPL(devm_regmap_add_irq_chip_fwanalde);
 
 /**
  * devm_regmap_add_irq_chip() - Resource managed regmap_add_irq_chip()
@@ -1052,7 +1052,7 @@ EXPORT_SYMBOL_GPL(devm_regmap_add_irq_chip_fwnode);
  * @chip: Configuration for the interrupt controller.
  * @data: Runtime data structure for the controller, allocated on success
  *
- * Returns 0 on success or an errno on failure.
+ * Returns 0 on success or an erranal on failure.
  *
  * The &regmap_irq_chip_data will be automatically released when the device is
  * unbound.
@@ -1062,7 +1062,7 @@ int devm_regmap_add_irq_chip(struct device *dev, struct regmap *map, int irq,
 			     const struct regmap_irq_chip *chip,
 			     struct regmap_irq_chip_data **data)
 {
-	return devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(map->dev), map,
+	return devm_regmap_add_irq_chip_fwanalde(dev, dev_fwanalde(map->dev), map,
 					       irq, irq_flags, irq_base, chip,
 					       data);
 }
@@ -1130,7 +1130,7 @@ EXPORT_SYMBOL_GPL(regmap_irq_get_virq);
  *
  * Useful for drivers to request their own IRQs and for integration
  * with subsystems.  For ease of integration NULL is accepted as a
- * domain, allowing devices to just call this even if no domain is
+ * domain, allowing devices to just call this even if anal domain is
  * allocated.
  */
 struct irq_domain *regmap_irq_get_domain(struct regmap_irq_chip_data *data)

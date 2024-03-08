@@ -12,7 +12,7 @@ struct i2c_adapter;
 struct mii_bus;
 
 enum mdio_i2c_proto {
-	MDIO_I2C_NONE,
+	MDIO_I2C_ANALNE,
 	MDIO_I2C_MARVELL_C22,
 	MDIO_I2C_C45,
 	MDIO_I2C_ROLLBALL,

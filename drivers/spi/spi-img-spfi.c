@@ -2,7 +2,7 @@
 /*
  * IMG SPFI controller driver
  *
- * Copyright (C) 2007,2008,2013 Imagination Technologies Ltd.
+ * Copyright (C) 2007,2008,2013 Imagination Techanallogies Ltd.
  * Copyright (C) 2014 Google, Inc.
  */
 
@@ -519,7 +519,7 @@ static irqreturn_t img_spfi_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int img_spfi_probe(struct platform_device *pdev)
@@ -532,7 +532,7 @@ static int img_spfi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*spfi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, host);
 
 	spfi = spi_controller_get_devdata(host);
@@ -585,9 +585,9 @@ static int img_spfi_probe(struct platform_device *pdev)
 	host->auto_runtime_pm = true;
 	host->bus_num = pdev->id;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_TX_DUAL | SPI_RX_DUAL;
-	if (of_property_read_bool(spfi->dev->of_node, "img,supports-quad-mode"))
+	if (of_property_read_bool(spfi->dev->of_analde, "img,supports-quad-mode"))
 		host->mode_bits |= SPI_TX_QUAD | SPI_RX_QUAD;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(8);
 	host->max_speed_hz = clk_get_rate(spfi->spfi_clk) / 4;
 	host->min_speed_hz = clk_get_rate(spfi->spfi_clk) / 512;
@@ -596,10 +596,10 @@ static int img_spfi_probe(struct platform_device *pdev)
 	 * Maximum speed supported by spfi is limited to the lower value
 	 * between 1/4 of the SPFI clock or to "spfi-max-frequency"
 	 * defined in the device tree.
-	 * If no value is defined in the device tree assume the maximum
+	 * If anal value is defined in the device tree assume the maximum
 	 * speed supported to be 1/4 of the SPFI clock.
 	 */
-	if (!of_property_read_u32(spfi->dev->of_node, "spfi-max-frequency",
+	if (!of_property_read_u32(spfi->dev->of_analde, "spfi-max-frequency",
 				  &max_speed_hz)) {
 		if (host->max_speed_hz > max_speed_hz)
 			host->max_speed_hz = max_speed_hz;

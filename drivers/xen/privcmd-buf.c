@@ -34,13 +34,13 @@ struct privcmd_buf_vma_private {
 	struct page *pages[];
 };
 
-static int privcmd_buf_open(struct inode *ino, struct file *file)
+static int privcmd_buf_open(struct ianalde *ianal, struct file *file)
 {
 	struct privcmd_buf_private *file_priv;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&file_priv->lock);
 	INIT_LIST_HEAD(&file_priv->list);
@@ -62,7 +62,7 @@ static void privcmd_buf_vmapriv_free(struct privcmd_buf_vma_private *vma_priv)
 	kfree(vma_priv);
 }
 
-static int privcmd_buf_release(struct inode *ino, struct file *file)
+static int privcmd_buf_release(struct ianalde *ianal, struct file *file)
 {
 	struct privcmd_buf_private *file_priv = file->private_data;
 	struct privcmd_buf_vma_private *vma_priv;
@@ -142,7 +142,7 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma_priv = kzalloc(struct_size(vma_priv, pages, count), GFP_KERNEL);
 	if (!vma_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		vma_priv->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO);
@@ -163,7 +163,7 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
 	list_add(&vma_priv->list, &file_priv->list);
 
 	if (vma_priv->n_pages != count)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	else
 		ret = vm_map_pages_zero(vma, vma_priv->pages,
 						vma_priv->n_pages);
@@ -185,7 +185,7 @@ const struct file_operations xen_privcmdbuf_fops = {
 EXPORT_SYMBOL_GPL(xen_privcmdbuf_fops);
 
 struct miscdevice xen_privcmdbuf_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "xen/hypercall",
 	.fops = &xen_privcmdbuf_fops,
 };

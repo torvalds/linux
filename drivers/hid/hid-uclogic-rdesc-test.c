@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices analt fully compliant with HID standard
  *
  *  Copyright (c) 2022 José Expósito <jose.exposito89@gmail.com>
  */
@@ -37,7 +37,7 @@ static const s32 params_frame_all[UCLOGIC_RDESC_PH_ID_NUM] = {
 
 static const __u8 template_empty[] = { };
 static const __u8 template_small[] = { 0x00 };
-static const __u8 template_no_ph[] = { 0xAA, 0xFE, 0xAA, 0xED, 0x1D };
+static const __u8 template_anal_ph[] = { 0xAA, 0xFE, 0xAA, 0xED, 0x1D };
 
 static const __u8 template_pen_ph_end[] = {
 	0xAA, 0xBB, UCLOGIC_RDESC_PEN_PH_HEAD
@@ -89,7 +89,7 @@ static const __u8 expected_pen_some_params[] = {
 	0x04, 0x05,
 };
 
-static const __u8 template_params_none[] = {
+static const __u8 template_params_analne[] = {
 	0x27, UCLOGIC_RDESC_PEN_PH(Y_LM),
 	UCLOGIC_RDESC_PEN_PH(Y_PM),
 	0x00, UCLOGIC_RDESC_PEN_PH(PRESSURE_LM),
@@ -113,12 +113,12 @@ static struct uclogic_template_case uclogic_template_cases[] = {
 		.expected = template_small,
 	},
 	{
-		.name = "no_placeholder",
-		.template = template_no_ph,
-		.template_size = sizeof(template_no_ph),
+		.name = "anal_placeholder",
+		.template = template_anal_ph,
+		.template_size = sizeof(template_anal_ph),
 		.param_list = params_pen_all,
 		.param_num = ARRAY_SIZE(params_pen_all),
-		.expected = template_no_ph,
+		.expected = template_anal_ph,
 	},
 	{
 		.name = "pen_placeholder_at_the_end_without_id",
@@ -169,12 +169,12 @@ static struct uclogic_template_case uclogic_template_cases[] = {
 		.expected = expected_pen_some_params,
 	},
 	{
-		.name = "no_params_present_in_the_template",
-		.template = template_params_none,
-		.template_size = sizeof(template_params_none),
+		.name = "anal_params_present_in_the_template",
+		.template = template_params_analne,
+		.template_size = sizeof(template_params_analne),
 		.param_list = params_pen_some,
 		.param_num = ARRAY_SIZE(params_pen_some),
-		.expected = template_params_none,
+		.expected = template_params_analne,
 	},
 };
 
@@ -196,7 +196,7 @@ static void hid_test_uclogic_template(struct kunit *test)
 					   params->template_size,
 					   params->param_list,
 					   params->param_num);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, res);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, res);
 	KUNIT_EXPECT_MEMEQ(test, res, params->expected, params->template_size);
 	kfree(res);
 }

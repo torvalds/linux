@@ -68,7 +68,7 @@ static inline int i8042_platform_init(void)
  */
 #if defined(CONFIG_PPC)
 	if (check_legacy_ioport(I8042_DATA_REG))
-		return -ENODEV;
+		return -EANALDEV;
 #endif
 #if !defined(__sh__) && !defined(__alpha__)
 	if (!request_region(I8042_DATA_REG, 16, "i8042"))

@@ -10,7 +10,7 @@
 // stack rather than thread_struct").
 //
 // To hit the bug requires the task struct and kernel stack to be in different segments.
-// Usually that requires more than 1TB of RAM, or if that's not practical, boot the kernel
+// Usually that requires more than 1TB of RAM, or if that's analt practical, boot the kernel
 // with "disable_1tb_segments".
 //
 // The test works by creating mappings above 512TB, to trigger the large address space
@@ -18,10 +18,10 @@
 // each access (assuming naive replacement). It then loops over those mappings touching
 // each, and checks that r9-r13 aren't corrupted.
 //
-// It then forks another child and tries again, because a new child process will get a new
+// It then forks aanalther child and tries again, because a new child process will get a new
 // kernel stack and thread struct allocated, which may be more optimally placed to trigger
 // the bug. It would probably be better to leave the previous child processes hanging
-// around, so that kernel stack & thread struct allocations are not reused, but that would
+// around, so that kernel stack & thread struct allocations are analt reused, but that would
 // amount to a 30 second fork bomb. The current design reliably triggers the bug on
 // unpatched kernels.
 
@@ -35,8 +35,8 @@
 
 #include "utils.h"
 
-#ifndef MAP_FIXED_NOREPLACE
-#define MAP_FIXED_NOREPLACE MAP_FIXED // "Should be safe" above 512TB
+#ifndef MAP_FIXED_ANALREPLACE
+#define MAP_FIXED_ANALREPLACE MAP_FIXED // "Should be safe" above 512TB
 #endif
 
 #define BASE_ADDRESS (1ul << 50) // 1PB
@@ -121,7 +121,7 @@ static int test(void)
 		addr = BASE_ADDRESS + (i * STRIDE);
 
 		p = mmap((void *)addr, page_size, PROT_READ | PROT_WRITE,
-			 MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+			 MAP_PRIVATE | MAP_AANALNYMOUS | MAP_FIXED_ANALREPLACE, -1, 0);
 		if (p == MAP_FAILED) {
 			perror("mmap");
 			printf("Error: couldn't mmap(), confirm kernel has 4PB support?\n");

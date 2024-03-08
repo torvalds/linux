@@ -28,7 +28,7 @@ nvkm_acr_lsf_id(enum nvkm_acr_lsf_id id)
 	case NVKM_ACR_LSF_SEC2   : return "sec2";
 	case NVKM_ACR_LSF_MINION : return "minion";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 

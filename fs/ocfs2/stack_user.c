@@ -31,22 +31,22 @@
  * only things supported is T01, for "Text-base version 0x01".  Next, the
  * client writes the version they would like to use, including the newline.
  * Thus, the protocol tag is 'T01\n'.  If the version tag written is
- * unknown, -EINVAL is returned.  Once the negotiation is complete, the
+ * unkanalwn, -EINVAL is returned.  Once the negotiation is complete, the
  * client can start sending messages.
  *
  * The T01 protocol has three messages.  First is the "SETN" message.
  * It has the following syntax:
  *
- *  SETN<space><8-char-hex-nodenum><newline>
+ *  SETN<space><8-char-hex-analdenum><newline>
  *
  * This is 14 characters.
  *
  * The "SETN" message must be the first message following the protocol.
- * It tells ocfs2_control the local node number.
+ * It tells ocfs2_control the local analde number.
  *
  * Next comes the "SETV" message.  It has the following syntax:
  *
- *  SETV<space><2-char-hex-major><space><2-char-hex-minor><newline>
+ *  SETV<space><2-char-hex-major><space><2-char-hex-mianalr><newline>
  *
  * This is 11 characters.
  *
@@ -54,14 +54,14 @@
  * negotiated by the client.  The client negotiates based on the maximum
  * version advertised in /sys/fs/ocfs2/max_locking_protocol.  The major
  * number from the "SETV" message must match
- * ocfs2_user_plugin.sp_max_proto.pv_major, and the minor number
- * must be less than or equal to ...sp_max_version.pv_minor.
+ * ocfs2_user_plugin.sp_max_proto.pv_major, and the mianalr number
+ * must be less than or equal to ...sp_max_version.pv_mianalr.
  *
  * Once this information has been set, mounts will be allowed.  From this
- * point on, the "DOWN" message can be sent for node down notification.
+ * point on, the "DOWN" message can be sent for analde down analtification.
  * It has the following syntax:
  *
- *  DOWN<space><32-char-cap-hex-uuid><space><8-char-hex-nodenum><newline>
+ *  DOWN<space><32-char-cap-hex-uuid><space><8-char-hex-analdenum><newline>
  *
  * eg:
  *
@@ -71,8 +71,8 @@
  */
 
 /*
- * Whether or not the client has done the handshake.
- * For now, we have just one protocol version.
+ * Whether or analt the client has done the handshake.
+ * For analw, we have just one protocol version.
  */
 #define OCFS2_CONTROL_PROTO			"T01\n"
 #define OCFS2_CONTROL_PROTO_LEN			4
@@ -85,20 +85,20 @@
 
 /* Messages */
 #define OCFS2_CONTROL_MESSAGE_OP_LEN		4
-#define OCFS2_CONTROL_MESSAGE_SETNODE_OP	"SETN"
-#define OCFS2_CONTROL_MESSAGE_SETNODE_TOTAL_LEN	14
+#define OCFS2_CONTROL_MESSAGE_SETANALDE_OP	"SETN"
+#define OCFS2_CONTROL_MESSAGE_SETANALDE_TOTAL_LEN	14
 #define OCFS2_CONTROL_MESSAGE_SETVERSION_OP	"SETV"
 #define OCFS2_CONTROL_MESSAGE_SETVERSION_TOTAL_LEN	11
 #define OCFS2_CONTROL_MESSAGE_DOWN_OP		"DOWN"
 #define OCFS2_CONTROL_MESSAGE_DOWN_TOTAL_LEN	47
 #define OCFS2_TEXT_UUID_LEN			32
 #define OCFS2_CONTROL_MESSAGE_VERNUM_LEN	2
-#define OCFS2_CONTROL_MESSAGE_NODENUM_LEN	8
+#define OCFS2_CONTROL_MESSAGE_ANALDENUM_LEN	8
 #define VERSION_LOCK				"version_lock"
 
 enum ocfs2_connection_type {
 	WITH_CONTROLD,
-	NO_CONTROLD
+	ANAL_CONTROLD
 };
 
 /*
@@ -109,7 +109,7 @@ struct ocfs2_live_connection {
 	struct list_head		oc_list;
 	struct ocfs2_cluster_connection	*oc_conn;
 	enum ocfs2_connection_type	oc_type;
-	atomic_t                        oc_this_node;
+	atomic_t                        oc_this_analde;
 	int                             oc_our_slot;
 	struct dlm_lksb                 oc_version_lksb;
 	char                            oc_lvb[DLM_LVB_LEN];
@@ -120,35 +120,35 @@ struct ocfs2_live_connection {
 struct ocfs2_control_private {
 	struct list_head op_list;
 	int op_state;
-	int op_this_node;
+	int op_this_analde;
 	struct ocfs2_protocol_version op_proto;
 };
 
-/* SETN<space><8-char-hex-nodenum><newline> */
+/* SETN<space><8-char-hex-analdenum><newline> */
 struct ocfs2_control_message_setn {
 	char	tag[OCFS2_CONTROL_MESSAGE_OP_LEN];
 	char	space;
-	char	nodestr[OCFS2_CONTROL_MESSAGE_NODENUM_LEN];
+	char	analdestr[OCFS2_CONTROL_MESSAGE_ANALDENUM_LEN];
 	char	newline;
 };
 
-/* SETV<space><2-char-hex-major><space><2-char-hex-minor><newline> */
+/* SETV<space><2-char-hex-major><space><2-char-hex-mianalr><newline> */
 struct ocfs2_control_message_setv {
 	char	tag[OCFS2_CONTROL_MESSAGE_OP_LEN];
 	char	space1;
 	char	major[OCFS2_CONTROL_MESSAGE_VERNUM_LEN];
 	char	space2;
-	char	minor[OCFS2_CONTROL_MESSAGE_VERNUM_LEN];
+	char	mianalr[OCFS2_CONTROL_MESSAGE_VERNUM_LEN];
 	char	newline;
 };
 
-/* DOWN<space><32-char-cap-hex-uuid><space><8-char-hex-nodenum><newline> */
+/* DOWN<space><32-char-cap-hex-uuid><space><8-char-hex-analdenum><newline> */
 struct ocfs2_control_message_down {
 	char	tag[OCFS2_CONTROL_MESSAGE_OP_LEN];
 	char	space1;
 	char	uuid[OCFS2_TEXT_UUID_LEN];
 	char	space2;
-	char	nodestr[OCFS2_CONTROL_MESSAGE_NODENUM_LEN];
+	char	analdestr[OCFS2_CONTROL_MESSAGE_ANALDENUM_LEN];
 	char	newline;
 };
 
@@ -162,7 +162,7 @@ union ocfs2_control_message {
 static struct ocfs2_stack_plugin ocfs2_user_plugin;
 
 static atomic_t ocfs2_control_opened;
-static int ocfs2_control_this_node = -1;
+static int ocfs2_control_this_analde = -1;
 static struct ocfs2_protocol_version running_proto;
 
 static LIST_HEAD(ocfs2_live_connection_list);
@@ -211,11 +211,11 @@ static int ocfs2_live_connection_attach(struct ocfs2_cluster_connection *conn,
 	mutex_lock(&ocfs2_control_lock);
 	c->oc_conn = conn;
 
-	if ((c->oc_type == NO_CONTROLD) || atomic_read(&ocfs2_control_opened))
+	if ((c->oc_type == ANAL_CONTROLD) || atomic_read(&ocfs2_control_opened))
 		list_add(&c->oc_list, &ocfs2_live_connection_list);
 	else {
 		printk(KERN_ERR
-		       "ocfs2: Userspace control daemon is not present\n");
+		       "ocfs2: Userspace control daemon is analt present\n");
 		rc = -ESRCH;
 	}
 
@@ -273,7 +273,7 @@ static ssize_t ocfs2_control_validate_protocol(struct file *file,
 }
 
 static void ocfs2_control_send_down(const char *uuid,
-				    int nodenum)
+				    int analdenum)
 {
 	struct ocfs2_live_connection *c;
 
@@ -282,7 +282,7 @@ static void ocfs2_control_send_down(const char *uuid,
 	c = ocfs2_connection_find(uuid);
 	if (c) {
 		BUG_ON(c->oc_conn == NULL);
-		c->oc_conn->cc_recovery_handler(nodenum,
+		c->oc_conn->cc_recovery_handler(analdenum,
 						c->oc_conn->cc_recovery_data);
 	}
 
@@ -306,10 +306,10 @@ static int ocfs2_control_install_private(struct file *file)
 
 	mutex_lock(&ocfs2_control_lock);
 
-	if (p->op_this_node < 0) {
+	if (p->op_this_analde < 0) {
 		set_p = 0;
-	} else if ((ocfs2_control_this_node >= 0) &&
-		   (ocfs2_control_this_node != p->op_this_node)) {
+	} else if ((ocfs2_control_this_analde >= 0) &&
+		   (ocfs2_control_this_analde != p->op_this_analde)) {
 		rc = -EINVAL;
 		goto out_unlock;
 	}
@@ -318,15 +318,15 @@ static int ocfs2_control_install_private(struct file *file)
 		set_p = 0;
 	} else if (!list_empty(&ocfs2_live_connection_list) &&
 		   ((running_proto.pv_major != p->op_proto.pv_major) ||
-		    (running_proto.pv_minor != p->op_proto.pv_minor))) {
+		    (running_proto.pv_mianalr != p->op_proto.pv_mianalr))) {
 		rc = -EINVAL;
 		goto out_unlock;
 	}
 
 	if (set_p) {
-		ocfs2_control_this_node = p->op_this_node;
+		ocfs2_control_this_analde = p->op_this_analde;
 		running_proto.pv_major = p->op_proto.pv_major;
-		running_proto.pv_minor = p->op_proto.pv_minor;
+		running_proto.pv_mianalr = p->op_proto.pv_mianalr;
 	}
 
 out_unlock:
@@ -342,24 +342,24 @@ out_unlock:
 	return rc;
 }
 
-static int ocfs2_control_get_this_node(void)
+static int ocfs2_control_get_this_analde(void)
 {
 	int rc;
 
 	mutex_lock(&ocfs2_control_lock);
-	if (ocfs2_control_this_node < 0)
+	if (ocfs2_control_this_analde < 0)
 		rc = -EINVAL;
 	else
-		rc = ocfs2_control_this_node;
+		rc = ocfs2_control_this_analde;
 	mutex_unlock(&ocfs2_control_lock);
 
 	return rc;
 }
 
-static int ocfs2_control_do_setnode_msg(struct file *file,
+static int ocfs2_control_do_setanalde_msg(struct file *file,
 					struct ocfs2_control_message_setn *msg)
 {
-	long nodenum;
+	long analdenum;
 	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;
 
@@ -367,7 +367,7 @@ static int ocfs2_control_do_setnode_msg(struct file *file,
 	    OCFS2_CONTROL_HANDSHAKE_PROTOCOL)
 		return -EINVAL;
 
-	if (strncmp(msg->tag, OCFS2_CONTROL_MESSAGE_SETNODE_OP,
+	if (strncmp(msg->tag, OCFS2_CONTROL_MESSAGE_SETANALDE_OP,
 		    OCFS2_CONTROL_MESSAGE_OP_LEN))
 		return -EINVAL;
 
@@ -375,14 +375,14 @@ static int ocfs2_control_do_setnode_msg(struct file *file,
 		return -EINVAL;
 	msg->space = msg->newline = '\0';
 
-	nodenum = simple_strtol(msg->nodestr, &ptr, 16);
+	analdenum = simple_strtol(msg->analdestr, &ptr, 16);
 	if (!ptr || *ptr)
 		return -EINVAL;
 
-	if ((nodenum == LONG_MIN) || (nodenum == LONG_MAX) ||
-	    (nodenum > INT_MAX) || (nodenum < 0))
+	if ((analdenum == LONG_MIN) || (analdenum == LONG_MAX) ||
+	    (analdenum > INT_MAX) || (analdenum < 0))
 		return -ERANGE;
-	p->op_this_node = nodenum;
+	p->op_this_analde = analdenum;
 
 	return ocfs2_control_install_private(file);
 }
@@ -390,7 +390,7 @@ static int ocfs2_control_do_setnode_msg(struct file *file,
 static int ocfs2_control_do_setversion_msg(struct file *file,
 					   struct ocfs2_control_message_setv *msg)
 {
-	long major, minor;
+	long major, mianalr;
 	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;
 	struct ocfs2_protocol_version *max =
@@ -412,27 +412,27 @@ static int ocfs2_control_do_setversion_msg(struct file *file,
 	major = simple_strtol(msg->major, &ptr, 16);
 	if (!ptr || *ptr)
 		return -EINVAL;
-	minor = simple_strtol(msg->minor, &ptr, 16);
+	mianalr = simple_strtol(msg->mianalr, &ptr, 16);
 	if (!ptr || *ptr)
 		return -EINVAL;
 
 	/*
-	 * The major must be between 1 and 255, inclusive.  The minor
+	 * The major must be between 1 and 255, inclusive.  The mianalr
 	 * must be between 0 and 255, inclusive.  The version passed in
 	 * must be within the maximum version supported by the filesystem.
 	 */
 	if ((major == LONG_MIN) || (major == LONG_MAX) ||
 	    (major > (u8)-1) || (major < 1))
 		return -ERANGE;
-	if ((minor == LONG_MIN) || (minor == LONG_MAX) ||
-	    (minor > (u8)-1) || (minor < 0))
+	if ((mianalr == LONG_MIN) || (mianalr == LONG_MAX) ||
+	    (mianalr > (u8)-1) || (mianalr < 0))
 		return -ERANGE;
 	if ((major != max->pv_major) ||
-	    (minor > max->pv_minor))
+	    (mianalr > max->pv_mianalr))
 		return -EINVAL;
 
 	p->op_proto.pv_major = major;
-	p->op_proto.pv_minor = minor;
+	p->op_proto.pv_mianalr = mianalr;
 
 	return ocfs2_control_install_private(file);
 }
@@ -440,7 +440,7 @@ static int ocfs2_control_do_setversion_msg(struct file *file,
 static int ocfs2_control_do_down_msg(struct file *file,
 				     struct ocfs2_control_message_down *msg)
 {
-	long nodenum;
+	long analdenum;
 	char *p = NULL;
 
 	if (ocfs2_control_get_handshake_state(file) !=
@@ -456,15 +456,15 @@ static int ocfs2_control_do_down_msg(struct file *file,
 		return -EINVAL;
 	msg->space1 = msg->space2 = msg->newline = '\0';
 
-	nodenum = simple_strtol(msg->nodestr, &p, 16);
+	analdenum = simple_strtol(msg->analdestr, &p, 16);
 	if (!p || *p)
 		return -EINVAL;
 
-	if ((nodenum == LONG_MIN) || (nodenum == LONG_MAX) ||
-	    (nodenum > INT_MAX) || (nodenum < 0))
+	if ((analdenum == LONG_MIN) || (analdenum == LONG_MAX) ||
+	    (analdenum > INT_MAX) || (analdenum < 0))
 		return -ERANGE;
 
-	ocfs2_control_send_down(msg->uuid, nodenum);
+	ocfs2_control_send_down(msg->uuid, analdenum);
 
 	return 0;
 }
@@ -485,10 +485,10 @@ static ssize_t ocfs2_control_message(struct file *file,
 	if (ret)
 		goto out;
 
-	if ((count == OCFS2_CONTROL_MESSAGE_SETNODE_TOTAL_LEN) &&
-	    !strncmp(msg.tag, OCFS2_CONTROL_MESSAGE_SETNODE_OP,
+	if ((count == OCFS2_CONTROL_MESSAGE_SETANALDE_TOTAL_LEN) &&
+	    !strncmp(msg.tag, OCFS2_CONTROL_MESSAGE_SETANALDE_OP,
 		     OCFS2_CONTROL_MESSAGE_OP_LEN))
-		ret = ocfs2_control_do_setnode_msg(file, &msg.u_setn);
+		ret = ocfs2_control_do_setanalde_msg(file, &msg.u_setn);
 	else if ((count == OCFS2_CONTROL_MESSAGE_SETVERSION_TOTAL_LEN) &&
 		 !strncmp(msg.tag, OCFS2_CONTROL_MESSAGE_SETVERSION_OP,
 			  OCFS2_CONTROL_MESSAGE_OP_LEN))
@@ -557,7 +557,7 @@ static ssize_t ocfs2_control_read(struct file *file,
 	return ret;
 }
 
-static int ocfs2_control_release(struct inode *inode, struct file *file)
+static int ocfs2_control_release(struct ianalde *ianalde, struct file *file)
 {
 	struct ocfs2_control_private *p = file->private_data;
 
@@ -577,12 +577,12 @@ static int ocfs2_control_release(struct inode *inode, struct file *file)
 			emergency_restart();
 		}
 		/*
-		 * Last valid close clears the node number and resets
+		 * Last valid close clears the analde number and resets
 		 * the locking protocol version
 		 */
-		ocfs2_control_this_node = -1;
+		ocfs2_control_this_analde = -1;
 		running_proto.pv_major = 0;
-		running_proto.pv_minor = 0;
+		running_proto.pv_mianalr = 0;
 	}
 
 out:
@@ -596,14 +596,14 @@ out:
 	return 0;
 }
 
-static int ocfs2_control_open(struct inode *inode, struct file *file)
+static int ocfs2_control_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ocfs2_control_private *p;
 
 	p = kzalloc(sizeof(struct ocfs2_control_private), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
-	p->op_this_node = -1;
+		return -EANALMEM;
+	p->op_this_analde = -1;
 
 	mutex_lock(&ocfs2_control_lock);
 	file->private_data = p;
@@ -623,7 +623,7 @@ static const struct file_operations ocfs2_control_fops = {
 };
 
 static struct miscdevice ocfs2_control_device = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= "ocfs2_control",
 	.fops		= &ocfs2_control_fops,
 };
@@ -638,7 +638,7 @@ static int ocfs2_control_init(void)
 	if (rc)
 		printk(KERN_ERR
 		       "ocfs2: Unable to register ocfs2_control device "
-		       "(errno %d)\n",
+		       "(erranal %d)\n",
 		       -rc);
 
 	return rc;
@@ -655,11 +655,11 @@ static void fsdlm_lock_ast_wrapper(void *astarg)
 	int status = lksb->lksb_fsdlm.sb_status;
 
 	/*
-	 * For now we're punting on the issue of other non-standard errors
+	 * For analw we're punting on the issue of other analn-standard errors
 	 * where we can't tell if the unlock_ast or lock_ast should be called.
 	 * The main "other error" that's possible is EINVAL which means the
 	 * function was called with invalid args, which shouldn't be possible
-	 * since the caller here is under our control.  Other non-standard
+	 * since the caller here is under our control.  Other analn-standard
 	 * errors probably fall into the same category, or otherwise are fatal
 	 * which means we can't carry on anyway.
 	 */
@@ -689,7 +689,7 @@ static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
 					     sizeof(struct dlm_lksb);
 
 	return dlm_lock(conn->cc_lockspace, mode, &lksb->lksb_fsdlm,
-			flags|DLM_LKF_NODLCKWT, name, namelen, 0,
+			flags|DLM_LKF_ANALDLCKWT, name, namelen, 0,
 			fsdlm_lock_ast_wrapper, lksb,
 			fsdlm_blocking_ast_wrapper);
 }
@@ -709,7 +709,7 @@ static int user_dlm_lock_status(struct ocfs2_dlm_lksb *lksb)
 
 static int user_dlm_lvb_valid(struct ocfs2_dlm_lksb *lksb)
 {
-	int invalid = lksb->lksb_fsdlm.sb_flags & DLM_SBF_VALNOTVALID;
+	int invalid = lksb->lksb_fsdlm.sb_flags & DLM_SBF_VALANALTVALID;
 
 	return !invalid;
 }
@@ -727,7 +727,7 @@ static void user_dlm_dump_lksb(struct ocfs2_dlm_lksb *lksb)
 }
 
 static int user_plock(struct ocfs2_cluster_connection *conn,
-		      u64 ino,
+		      u64 ianal,
 		      struct file *file,
 		      int cmd,
 		      struct file_lock *fl)
@@ -741,22 +741,22 @@ static int user_plock(struct ocfs2_cluster_connection *conn,
 	 */
 
 	if (cmd == F_CANCELLK)
-		return dlm_posix_cancel(conn->cc_lockspace, ino, file, fl);
+		return dlm_posix_cancel(conn->cc_lockspace, ianal, file, fl);
 	else if (IS_GETLK(cmd))
-		return dlm_posix_get(conn->cc_lockspace, ino, file, fl);
+		return dlm_posix_get(conn->cc_lockspace, ianal, file, fl);
 	else if (fl->fl_type == F_UNLCK)
-		return dlm_posix_unlock(conn->cc_lockspace, ino, file, fl);
+		return dlm_posix_unlock(conn->cc_lockspace, ianal, file, fl);
 	else
-		return dlm_posix_lock(conn->cc_lockspace, ino, file, cmd, fl);
+		return dlm_posix_lock(conn->cc_lockspace, ianal, file, cmd, fl);
 }
 
 /*
  * Compare a requested locking protocol version against the current one.
  *
  * If the major numbers are different, they are incompatible.
- * If the current minor is greater than the request, they are incompatible.
- * If the current minor is less than or equal to the request, they are
- * compatible, and the requester should run at the current minor version.
+ * If the current mianalr is greater than the request, they are incompatible.
+ * If the current mianalr is less than or equal to the request, they are
+ * compatible, and the requester should run at the current mianalr version.
  */
 static int fs_protocol_compare(struct ocfs2_protocol_version *existing,
 			       struct ocfs2_protocol_version *request)
@@ -764,11 +764,11 @@ static int fs_protocol_compare(struct ocfs2_protocol_version *existing,
 	if (existing->pv_major != request->pv_major)
 		return 1;
 
-	if (existing->pv_minor > request->pv_minor)
+	if (existing->pv_mianalr > request->pv_mianalr)
 		return 1;
 
-	if (existing->pv_minor < request->pv_minor)
-		request->pv_minor = existing->pv_minor;
+	if (existing->pv_mianalr < request->pv_mianalr)
+		request->pv_mianalr = existing->pv_mianalr;
 
 	return 0;
 }
@@ -782,7 +782,7 @@ static void lvb_to_version(char *lvb, struct ocfs2_protocol_version *ver)
 	 * need any endian conversion.
 	 */
 	ver->pv_major = pv->pv_major;
-	ver->pv_minor = pv->pv_minor;
+	ver->pv_mianalr = pv->pv_mianalr;
 }
 
 static void version_to_lvb(struct ocfs2_protocol_version *ver, char *lvb)
@@ -794,7 +794,7 @@ static void version_to_lvb(struct ocfs2_protocol_version *ver, char *lvb)
 	 * need any endian conversion.
 	 */
 	pv->pv_major = ver->pv_major;
-	pv->pv_minor = ver->pv_minor;
+	pv->pv_mianalr = ver->pv_mianalr;
 }
 
 static void sync_wait_cb(void *arg)
@@ -874,7 +874,7 @@ static int version_unlock(struct ocfs2_cluster_connection *conn)
  *
  * To exchange ocfs2 versioning, we use the LVB of the version dlm lock.
  * The algorithm is:
- * 1. Attempt to take the lock in EX mode (non-blocking).
+ * 1. Attempt to take the lock in EX mode (analn-blocking).
  * 2. If successful (which means it is the first mount), write the
  *    version number and downconvert to PR lock.
  * 3. If unsuccessful (returns -EAGAIN), read the version from the LVB after
@@ -889,15 +889,15 @@ static int get_protocol_version(struct ocfs2_cluster_connection *conn)
 
 	running_proto.pv_major =
 		ocfs2_user_plugin.sp_max_proto.pv_major;
-	running_proto.pv_minor =
-		ocfs2_user_plugin.sp_max_proto.pv_minor;
+	running_proto.pv_mianalr =
+		ocfs2_user_plugin.sp_max_proto.pv_mianalr;
 
 	lc->oc_version_lksb.sb_lvbptr = lc->oc_lvb;
 	ret = version_lock(conn, DLM_LOCK_EX,
-			DLM_LKF_VALBLK|DLM_LKF_NOQUEUE);
+			DLM_LKF_VALBLK|DLM_LKF_ANALQUEUE);
 	if (!ret) {
 		conn->cc_version.pv_major = running_proto.pv_major;
-		conn->cc_version.pv_minor = running_proto.pv_minor;
+		conn->cc_version.pv_mianalr = running_proto.pv_mianalr;
 		version_to_lvb(&running_proto, lc->oc_lvb);
 		version_lock(conn, DLM_LOCK_PR, DLM_LKF_CONVERT|DLM_LKF_VALBLK);
 	} else if (ret == -EAGAIN) {
@@ -907,13 +907,13 @@ static int get_protocol_version(struct ocfs2_cluster_connection *conn)
 		lvb_to_version(lc->oc_lvb, &pv);
 
 		if ((pv.pv_major != running_proto.pv_major) ||
-				(pv.pv_minor > running_proto.pv_minor)) {
+				(pv.pv_mianalr > running_proto.pv_mianalr)) {
 			ret = -EINVAL;
 			goto out;
 		}
 
 		conn->cc_version.pv_major = pv.pv_major;
-		conn->cc_version.pv_minor = pv.pv_minor;
+		conn->cc_version.pv_mianalr = pv.pv_mianalr;
 	}
 out:
 	return ret;
@@ -926,9 +926,9 @@ static void user_recover_prep(void *arg)
 static void user_recover_slot(void *arg, struct dlm_slot *slot)
 {
 	struct ocfs2_cluster_connection *conn = arg;
-	printk(KERN_INFO "ocfs2: Node %d/%d down. Initiating recovery.\n",
-			slot->nodeid, slot->slot);
-	conn->cc_recovery_handler(slot->nodeid, conn->cc_recovery_data);
+	printk(KERN_INFO "ocfs2: Analde %d/%d down. Initiating recovery.\n",
+			slot->analdeid, slot->slot);
+	conn->cc_recovery_handler(slot->analdeid, conn->cc_recovery_data);
 
 }
 
@@ -942,7 +942,7 @@ static void user_recover_done(void *arg, struct dlm_slot *slots,
 
 	for (i = 0; i < num_slots; i++)
 		if (slots[i].slot == our_slot) {
-			atomic_set(&lc->oc_this_node, slots[i].nodeid);
+			atomic_set(&lc->oc_this_analde, slots[i].analdeid);
 			break;
 		}
 
@@ -976,13 +976,13 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 
 	lc = kzalloc(sizeof(struct ocfs2_live_connection), GFP_KERNEL);
 	if (!lc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&lc->oc_wait);
 	init_completion(&lc->oc_sync_wait);
-	atomic_set(&lc->oc_this_node, 0);
+	atomic_set(&lc->oc_this_analde, 0);
 	conn->cc_private = lc;
-	lc->oc_type = NO_CONTROLD;
+	lc->oc_type = ANAL_CONTROLD;
 
 	rc = dlm_new_lockspace(conn->cc_name, conn->cc_cluster_name,
 			       DLM_LSFL_NEWEXCL, DLM_LVB_LEN,
@@ -997,9 +997,9 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 		goto out;
 	}
 
-	if (ops_rv == -EOPNOTSUPP) {
+	if (ops_rv == -EOPANALTSUPP) {
 		lc->oc_type = WITH_CONTROLD;
-		printk(KERN_NOTICE "ocfs2: You seem to be using an older "
+		printk(KERN_ANALTICE "ocfs2: You seem to be using an older "
 				"version of dlm_controld and/or ocfs2-tools."
 				" Please consider upgrading.\n");
 	} else if (ops_rv) {
@@ -1012,15 +1012,15 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 	if (rc)
 		goto out;
 
-	if (lc->oc_type == NO_CONTROLD) {
+	if (lc->oc_type == ANAL_CONTROLD) {
 		rc = get_protocol_version(conn);
 		if (rc) {
-			printk(KERN_ERR "ocfs2: Could not determine"
+			printk(KERN_ERR "ocfs2: Could analt determine"
 					" locking version\n");
 			user_cluster_disconnect(conn);
 			goto out;
 		}
-		wait_event(lc->oc_wait, (atomic_read(&lc->oc_this_node) > 0));
+		wait_event(lc->oc_wait, (atomic_read(&lc->oc_this_analde) > 0));
 	}
 
 	/*
@@ -1031,8 +1031,8 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 		printk(KERN_ERR
 		       "Unable to mount with fs locking protocol version "
 		       "%u.%u because negotiated protocol is %u.%u\n",
-		       conn->cc_version.pv_major, conn->cc_version.pv_minor,
-		       running_proto.pv_major, running_proto.pv_minor);
+		       conn->cc_version.pv_major, conn->cc_version.pv_mianalr,
+		       running_proto.pv_major, running_proto.pv_mianalr);
 		rc = -EPROTO;
 		ocfs2_live_connection_drop(lc);
 		lc = NULL;
@@ -1045,30 +1045,30 @@ out:
 }
 
 
-static int user_cluster_this_node(struct ocfs2_cluster_connection *conn,
-				  unsigned int *this_node)
+static int user_cluster_this_analde(struct ocfs2_cluster_connection *conn,
+				  unsigned int *this_analde)
 {
 	int rc;
 	struct ocfs2_live_connection *lc = conn->cc_private;
 
 	if (lc->oc_type == WITH_CONTROLD)
-		rc = ocfs2_control_get_this_node();
-	else if (lc->oc_type == NO_CONTROLD)
-		rc = atomic_read(&lc->oc_this_node);
+		rc = ocfs2_control_get_this_analde();
+	else if (lc->oc_type == ANAL_CONTROLD)
+		rc = atomic_read(&lc->oc_this_analde);
 	else
 		rc = -EINVAL;
 
 	if (rc < 0)
 		return rc;
 
-	*this_node = rc;
+	*this_analde = rc;
 	return 0;
 }
 
 static struct ocfs2_stack_operations ocfs2_user_plugin_ops = {
 	.connect	= user_cluster_connect,
 	.disconnect	= user_cluster_disconnect,
-	.this_node	= user_cluster_this_node,
+	.this_analde	= user_cluster_this_analde,
 	.dlm_lock	= user_dlm_lock,
 	.dlm_unlock	= user_dlm_unlock,
 	.lock_status	= user_dlm_lock_status,

@@ -20,7 +20,7 @@ ACPI_MODULE_NAME("psutils")
  *
  * FUNCTION:    acpi_ps_create_scope_op
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      A new Scope object, null on failure
  *
@@ -47,7 +47,7 @@ union acpi_parse_object *acpi_ps_create_scope_op(u8 *aml)
  * PARAMETERS:  op              - A newly allocated Op object
  *              opcode          - Opcode to store in the Op
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Initialize a parse (Op) object
  *
@@ -108,11 +108,11 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode, u8 *aml)
 
 		/* The generic op (default) is by far the most common (16 to 1) */
 
-		op = acpi_os_acquire_object(acpi_gbl_ps_node_cache);
+		op = acpi_os_acquire_object(acpi_gbl_ps_analde_cache);
 	} else {
 		/* Extended parseop */
 
-		op = acpi_os_acquire_object(acpi_gbl_ps_node_ext_cache);
+		op = acpi_os_acquire_object(acpi_gbl_ps_analde_ext_cache);
 	}
 
 	/* Initialize the Op */
@@ -141,7 +141,7 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode, u8 *aml)
  *
  * PARAMETERS:  op              - Op to be freed
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Free an Op object. Either put it on the GENERIC_OP cache list
  *              or actually free it.
@@ -159,9 +159,9 @@ void acpi_ps_free_op(union acpi_parse_object *op)
 	}
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {
-		(void)acpi_os_release_object(acpi_gbl_ps_node_cache, op);
+		(void)acpi_os_release_object(acpi_gbl_ps_analde_cache, op);
 	} else {
-		(void)acpi_os_release_object(acpi_gbl_ps_node_ext_cache, op);
+		(void)acpi_os_release_object(acpi_gbl_ps_analde_ext_cache, op);
 	}
 }
 
@@ -187,7 +187,7 @@ u8 acpi_ps_is_leading_char(u32 c)
 u32 acpi_ps_get_name(union acpi_parse_object * op)
 {
 
-	/* The "generic" object has no name associated with it */
+	/* The "generic" object has anal name associated with it */
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {
 		return (0);
@@ -204,7 +204,7 @@ u32 acpi_ps_get_name(union acpi_parse_object * op)
 void acpi_ps_set_name(union acpi_parse_object *op, u32 name)
 {
 
-	/* The "generic" object has no name associated with it */
+	/* The "generic" object has anal name associated with it */
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {
 		return;

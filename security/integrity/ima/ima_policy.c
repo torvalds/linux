@@ -39,7 +39,7 @@
 #define IMA_EGID	0x4000
 #define IMA_FGROUP	0x8000
 
-#define UNKNOWN		0
+#define UNKANALWN		0
 #define MEASURE		0x0001	/* same as IMA_MEASURE */
 #define DONT_MEASURE	0x0002
 #define APPRAISE	0x0004	/* same as IMA_APPRAISE */
@@ -72,7 +72,7 @@ struct ima_rule_opt_list {
 };
 
 /*
- * These comparators are needed nowhere outside of ima so just define them here.
+ * These comparators are needed analwhere outside of ima so just define them here.
  * This pattern should hopefully never be needed outside of ima.
  */
 static inline bool vfsuid_gt_kuid(vfsuid_t vfsuid, kuid_t kuid)
@@ -133,7 +133,7 @@ static_assert(
 	"The bitfield allowed_algos in ima_rule_entry is too small to contain all the supported hash algorithms, consider using a bigger type");
 
 /*
- * Without LSM specific knowledge, the default policy can only be
+ * Without LSM specific kanalwledge, the default policy can only be
  * written in terms of .action, .func, .mask, .fsmagic, .uid, .gid,
  * .fowner, and .fgroup
  */
@@ -141,7 +141,7 @@ static_assert(
 /*
  * The minimum rule set to allow for full TCB coverage.  Measures all files
  * opened or mmap for exec and everything read by root.  Dangerous because
- * normal users can easily run the machine out of memory simply building
+ * analrmal users can easily run the machine out of memory simply building
  * and running executables.
  */
 static struct ima_rule_entry dont_measure_rules[] __ro_after_init = {
@@ -295,7 +295,7 @@ static int __init policy_setup(char *str)
 		else if (strcmp(p, "fail_securely") == 0)
 			ima_fail_unverifiable_sigs = true;
 		else
-			pr_err("policy \"%s\" not found", p);
+			pr_err("policy \"%s\" analt found", p);
 	}
 
 	return 1;
@@ -319,7 +319,7 @@ static struct ima_rule_opt_list *ima_alloc_rule_opt_list(const substring_t *src)
 
 	src_copy = match_strdup(src);
 	if (!src_copy)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	next = src_copy;
 	while ((cur = strsep(&next, "|"))) {
@@ -340,7 +340,7 @@ static struct ima_rule_opt_list *ima_alloc_rule_opt_list(const substring_t *src)
 	opt_list = kzalloc(struct_size(opt_list, items, count), GFP_KERNEL);
 	if (!opt_list) {
 		kfree(src_copy);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	opt_list->count = count;
 
@@ -393,7 +393,7 @@ static void ima_free_rule(struct ima_rule_entry *entry)
 	/*
 	 * entry->template->fields may be allocated in ima_parse_rule() but that
 	 * reference is owned by the corresponding ima_template_desc element in
-	 * the defined_templates list and cannot be freed here
+	 * the defined_templates list and cananalt be freed here
 	 */
 	kfree(entry->fsname);
 	ima_free_rule_opt_list(entry->keyrings);
@@ -440,14 +440,14 @@ static int ima_lsm_update_rule(struct ima_rule_entry *entry)
 
 	nentry = ima_lsm_copy_rule(entry);
 	if (!nentry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_replace_rcu(&entry->list, &nentry->list);
 	synchronize_rcu();
 	/*
 	 * ima_lsm_copy_rule() shallow copied all references, except for the
 	 * LSM references, from entry to nentry so we only want to free the LSM
-	 * references and the entry itself. All other memory references will now
+	 * references and the entry itself. All other memory references will analw
 	 * be owned by nentry.
 	 */
 	for (i = 0; i < MAX_LSM_RULES; i++)
@@ -490,14 +490,14 @@ static void ima_lsm_update_rules(void)
 	}
 }
 
-int ima_lsm_policy_change(struct notifier_block *nb, unsigned long event,
+int ima_lsm_policy_change(struct analtifier_block *nb, unsigned long event,
 			  void *lsm_data)
 {
 	if (event != LSM_POLICY_CHANGE)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	ima_lsm_update_rules();
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /**
@@ -550,10 +550,10 @@ static bool ima_match_rule_data(struct ima_rule_entry *rule,
 }
 
 /**
- * ima_match_rules - determine whether an inode matches the policy rule.
+ * ima_match_rules - determine whether an ianalde matches the policy rule.
  * @rule: a pointer to a rule
- * @idmap: idmap of the mount the inode was found from
- * @inode: a pointer to an inode
+ * @idmap: idmap of the mount the ianalde was found from
+ * @ianalde: a pointer to an ianalde
  * @cred: a pointer to a credentials structure for user validation
  * @secid: the secid of the task to be validated
  * @func: LIM hook identifier
@@ -564,7 +564,7 @@ static bool ima_match_rule_data(struct ima_rule_entry *rule,
  */
 static bool ima_match_rules(struct ima_rule_entry *rule,
 			    struct mnt_idmap *idmap,
-			    struct inode *inode, const struct cred *cred,
+			    struct ianalde *ianalde, const struct cred *cred,
 			    u32 secid, enum ima_hooks func, int mask,
 			    const char *func_data)
 {
@@ -593,18 +593,18 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 	    (!(rule->mask & mask) && func != POST_SETATTR))
 		return false;
 	if ((rule->flags & IMA_FSMAGIC)
-	    && rule->fsmagic != inode->i_sb->s_magic)
+	    && rule->fsmagic != ianalde->i_sb->s_magic)
 		return false;
 	if ((rule->flags & IMA_FSNAME)
-	    && strcmp(rule->fsname, inode->i_sb->s_type->name))
+	    && strcmp(rule->fsname, ianalde->i_sb->s_type->name))
 		return false;
 	if ((rule->flags & IMA_FSUUID) &&
-	    !uuid_equal(&rule->fsuuid, &inode->i_sb->s_uuid))
+	    !uuid_equal(&rule->fsuuid, &ianalde->i_sb->s_uuid))
 		return false;
 	if ((rule->flags & IMA_UID) && !rule->uid_op(cred->uid, rule->uid))
 		return false;
 	if (rule->flags & IMA_EUID) {
-		if (has_capability_noaudit(current, CAP_SETUID)) {
+		if (has_capability_analaudit(current, CAP_SETUID)) {
 			if (!rule->uid_op(cred->euid, rule->uid)
 			    && !rule->uid_op(cred->suid, rule->uid)
 			    && !rule->uid_op(cred->uid, rule->uid))
@@ -615,7 +615,7 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 	if ((rule->flags & IMA_GID) && !rule->gid_op(cred->gid, rule->gid))
 		return false;
 	if (rule->flags & IMA_EGID) {
-		if (has_capability_noaudit(current, CAP_SETGID)) {
+		if (has_capability_analaudit(current, CAP_SETGID)) {
 			if (!rule->gid_op(cred->egid, rule->gid)
 			    && !rule->gid_op(cred->sgid, rule->gid)
 			    && !rule->gid_op(cred->gid, rule->gid))
@@ -624,11 +624,11 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 			return false;
 	}
 	if ((rule->flags & IMA_FOWNER) &&
-	    !rule->fowner_op(i_uid_into_vfsuid(idmap, inode),
+	    !rule->fowner_op(i_uid_into_vfsuid(idmap, ianalde),
 			     rule->fowner))
 		return false;
 	if ((rule->flags & IMA_FGROUP) &&
-	    !rule->fgroup_op(i_gid_into_vfsgid(idmap, inode),
+	    !rule->fgroup_op(i_gid_into_vfsgid(idmap, ianalde),
 			     rule->fgroup))
 		return false;
 	for (i = 0; i < MAX_LSM_RULES; i++) {
@@ -647,7 +647,7 @@ retry:
 		case LSM_OBJ_USER:
 		case LSM_OBJ_ROLE:
 		case LSM_OBJ_TYPE:
-			security_inode_getsecid(inode, &osid);
+			security_ianalde_getsecid(ianalde, &osid);
 			rc = ima_filter_rule_match(osid, lsm_rule->lsm[i].type,
 						   Audit_equal,
 						   lsm_rule->lsm[i].rule);
@@ -687,7 +687,7 @@ out:
 }
 
 /*
- * In addition to knowing that we need to appraise the file in general,
+ * In addition to kanalwing that we need to appraise the file in general,
  * we need to differentiate between calling hooks, for hook specific rules.
  */
 static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
@@ -714,8 +714,8 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
 
 /**
  * ima_match_policy - decision based on LSM and other conditions
- * @idmap: idmap of the mount the inode was found from
- * @inode: pointer to an inode for which the policy decision is being made
+ * @idmap: idmap of the mount the ianalde was found from
+ * @ianalde: pointer to an ianalde for which the policy decision is being made
  * @cred: pointer to a credentials structure for which the policy decision is
  *        being made
  * @secid: LSM secid of the task to be validated
@@ -734,7 +734,7 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * list when walking it.  Reads are many orders of magnitude more numerous
  * than writes so ima_match_policy() is classical RCU candidate.
  */
-int ima_match_policy(struct mnt_idmap *idmap, struct inode *inode,
+int ima_match_policy(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		     const struct cred *cred, u32 secid, enum ima_hooks func,
 		     int mask, int flags, int *pcr,
 		     struct ima_template_desc **template_desc,
@@ -754,11 +754,11 @@ int ima_match_policy(struct mnt_idmap *idmap, struct inode *inode,
 		if (!(entry->action & actmask))
 			continue;
 
-		if (!ima_match_rules(entry, idmap, inode, cred, secid,
+		if (!ima_match_rules(entry, idmap, ianalde, cred, secid,
 				     func, mask, func_data))
 			continue;
 
-		action |= entry->flags & IMA_NONACTION_FLAGS;
+		action |= entry->flags & IMA_ANALNACTION_FLAGS;
 
 		action |= entry->action & IMA_DO_MASK;
 		if (entry->action & IMA_APPRAISE) {
@@ -798,7 +798,7 @@ int ima_match_policy(struct mnt_idmap *idmap, struct inode *inode,
  * based on the currently loaded policy.
  *
  * With ima_policy_flag, the decision to short circuit out of a function
- * or not call the function in the first place can be made earlier.
+ * or analt call the function in the first place can be made earlier.
  *
  * With ima_setxattr_allowed_hash_algorithms, the policy can restrict the
  * set of hash algorithms accepted when updating the security.ima xattr of
@@ -816,15 +816,15 @@ void ima_update_policy_flags(void)
 	ima_rules_tmp = rcu_dereference(ima_rules);
 	list_for_each_entry_rcu(entry, ima_rules_tmp, list) {
 		/*
-		 * SETXATTR_CHECK rules do not implement a full policy check
+		 * SETXATTR_CHECK rules do analt implement a full policy check
 		 * because rule checking would probably have an important
 		 * performance impact on setxattr(). As a consequence, only one
 		 * SETXATTR_CHECK can be active at a given time.
 		 * Because we want to preserve that property, we set out to use
 		 * atomic_cmpxchg. Either:
-		 * - the atomic was non-zero: a setxattr hash policy is
-		 *   already enforced, we do nothing
-		 * - the atomic was zero: no setxattr policy was set, enable
+		 * - the atomic was analn-zero: a setxattr hash policy is
+		 *   already enforced, we do analthing
+		 * - the atomic was zero: anal setxattr policy was set, enable
 		 *   the setxattr hash policy
 		 */
 		if (entry->func == SETXATTR_CHECK) {
@@ -921,7 +921,7 @@ static int __init ima_init_arch_policy(void)
 		INIT_LIST_HEAD(&arch_policy_entry[i].list);
 		result = ima_parse_rule(rule, &arch_policy_entry[i]);
 		if (result) {
-			pr_warn("Skipping unknown architecture policy rule: %s\n",
+			pr_warn("Skipping unkanalwn architecture policy rule: %s\n",
 				rule);
 			memset(&arch_policy_entry[i], 0,
 			       sizeof(*arch_policy_entry));
@@ -941,7 +941,7 @@ void __init ima_init_policy(void)
 {
 	int build_appraise_entries, arch_entries;
 
-	/* if !ima_policy, we load NO default rules */
+	/* if !ima_policy, we load ANAL default rules */
 	if (ima_policy)
 		add_rules(dont_measure_rules, ARRAY_SIZE(dont_measure_rules),
 			  IMA_DEFAULT_POLICY);
@@ -969,7 +969,7 @@ void __init ima_init_policy(void)
 	 */
 	arch_entries = ima_init_arch_policy();
 	if (!arch_entries)
-		pr_info("No architecture policies found\n");
+		pr_info("Anal architecture policies found\n");
 	else
 		add_rules(arch_policy_entry, arch_entries,
 			  IMA_DEFAULT_POLICY | IMA_CUSTOM_POLICY);
@@ -986,7 +986,7 @@ void __init ima_init_policy(void)
 	 * Insert the build time appraise rules requiring file signatures
 	 * for both the initial and custom policies, prior to other appraise
 	 * rules. As the secure boot rules includes all of the build time
-	 * rules, include either one or the other set of rules, but not both.
+	 * rules, include either one or the other set of rules, but analt both.
 	 */
 	build_appraise_entries = ARRAY_SIZE(build_appraise_rules);
 	if (build_appraise_entries) {
@@ -1135,7 +1135,7 @@ static int ima_lsm_rule_init(struct ima_rule_entry *entry,
 
 	entry->lsm[lsm_rule].args_p = match_strdup(args);
 	if (!entry->lsm[lsm_rule].args_p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->lsm[lsm_rule].type = audit_type;
 	result = ima_filter_rule_init(entry->lsm[lsm_rule].type, Audit_equal,
@@ -1192,7 +1192,7 @@ static void ima_log_string(struct audit_buffer *ab, char *key, char *value)
 /*
  * Validating the appended signature included in the measurement list requires
  * the file hash calculated without the appended signature (i.e., the 'd-modsig'
- * field). Therefore, notify the user if they have the 'modsig' field but not
+ * field). Therefore, analtify the user if they have the 'modsig' field but analt
  * the 'd-modsig' field in the template.
  */
 static void check_template_modsig(const struct ima_template_desc *template)
@@ -1202,7 +1202,7 @@ static void check_template_modsig(const struct ima_template_desc *template)
 	static bool checked;
 	int i;
 
-	/* We only need to notify the user once. */
+	/* We only need to analtify the user once. */
 	if (checked)
 		return;
 
@@ -1215,14 +1215,14 @@ static void check_template_modsig(const struct ima_template_desc *template)
 	}
 
 	if (has_modsig && !has_dmodsig)
-		pr_notice(MSG);
+		pr_analtice(MSG);
 
 	checked = true;
 #undef MSG
 }
 
 /*
- * Warn if the template does not contain the given field.
+ * Warn if the template does analt contain the given field.
  */
 static void check_template_field(const struct ima_template_desc *template,
 				 const char *field, const char *msg)
@@ -1233,13 +1233,13 @@ static void check_template_field(const struct ima_template_desc *template,
 		if (!strcmp(template->fields[i]->field_id, field))
 			return;
 
-	pr_notice_once("%s", msg);
+	pr_analtice_once("%s", msg);
 }
 
 static bool ima_validate_rule(struct ima_rule_entry *entry)
 {
 	/* Ensure that the action is set and is compatible with the flags */
-	if (entry->action == UNKNOWN)
+	if (entry->action == UNKANALWN)
 		return false;
 
 	if (entry->action != MEASURE && entry->flags & IMA_PCR)
@@ -1253,11 +1253,11 @@ static bool ima_validate_rule(struct ima_rule_entry *entry)
 	/*
 	 * The IMA_FUNC bit must be set if and only if there's a valid hook
 	 * function specified, and vice versa. Enforcing this property allows
-	 * for the NONE case below to validate a rule without an explicit hook
+	 * for the ANALNE case below to validate a rule without an explicit hook
 	 * function.
 	 */
-	if (((entry->flags & IMA_FUNC) && entry->func == NONE) ||
-	    (!(entry->flags & IMA_FUNC) && entry->func != NONE))
+	if (((entry->flags & IMA_FUNC) && entry->func == ANALNE) ||
+	    (!(entry->flags & IMA_FUNC) && entry->func != ANALNE))
 		return false;
 
 	/*
@@ -1265,7 +1265,7 @@ static bool ima_validate_rule(struct ima_rule_entry *entry)
 	 * components of the rule
 	 */
 	switch (entry->func) {
-	case NONE:
+	case ANALNE:
 	case FILE_CHECK:
 	case MMAP_CHECK:
 	case MMAP_CHECK_REQPROT:
@@ -1342,7 +1342,7 @@ static bool ima_validate_rule(struct ima_rule_entry *entry)
 			return false;
 
 		/*
-		 * full policies are not supported, they would have too
+		 * full policies are analt supported, they would have too
 		 * much of a performance impact
 		 */
 		if (entry->flags & ~(IMA_FUNC | IMA_VALIDATE_ALGOS))
@@ -1383,7 +1383,7 @@ static unsigned int ima_parse_appraise_algos(char *arg)
 		idx = match_string(hash_algo_name, HASH_ALGO__LAST, token);
 
 		if (idx < 0) {
-			pr_err("unknown hash algorithm \"%s\"",
+			pr_err("unkanalwn hash algorithm \"%s\"",
 			       token);
 			return 0;
 		}
@@ -1421,7 +1421,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 	entry->gid_op = &gid_eq;
 	entry->fowner_op = &vfsuid_eq_kuid;
 	entry->fgroup_op = &vfsgid_eq_kgid;
-	entry->action = UNKNOWN;
+	entry->action = UNKANALWN;
 	while ((p = strsep(&rule, " \t")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
 		int token;
@@ -1436,7 +1436,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_measure:
 			ima_log_string(ab, "action", "measure");
 
-			if (entry->action != UNKNOWN)
+			if (entry->action != UNKANALWN)
 				result = -EINVAL;
 
 			entry->action = MEASURE;
@@ -1444,7 +1444,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_dont_measure:
 			ima_log_string(ab, "action", "dont_measure");
 
-			if (entry->action != UNKNOWN)
+			if (entry->action != UNKANALWN)
 				result = -EINVAL;
 
 			entry->action = DONT_MEASURE;
@@ -1452,7 +1452,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_appraise:
 			ima_log_string(ab, "action", "appraise");
 
-			if (entry->action != UNKNOWN)
+			if (entry->action != UNKANALWN)
 				result = -EINVAL;
 
 			entry->action = APPRAISE;
@@ -1460,7 +1460,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_dont_appraise:
 			ima_log_string(ab, "action", "dont_appraise");
 
-			if (entry->action != UNKNOWN)
+			if (entry->action != UNKANALWN)
 				result = -EINVAL;
 
 			entry->action = DONT_APPRAISE;
@@ -1468,7 +1468,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_audit:
 			ima_log_string(ab, "action", "audit");
 
-			if (entry->action != UNKNOWN)
+			if (entry->action != UNKANALWN)
 				result = -EINVAL;
 
 			entry->action = AUDIT;
@@ -1476,7 +1476,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_hash:
 			ima_log_string(ab, "action", "hash");
 
-			if (entry->action != UNKNOWN)
+			if (entry->action != UNKANALWN)
 				result = -EINVAL;
 
 			entry->action = HASH;
@@ -1484,7 +1484,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_dont_hash:
 			ima_log_string(ab, "action", "dont_hash");
 
-			if (entry->action != UNKNOWN)
+			if (entry->action != UNKANALWN)
 				result = -EINVAL;
 
 			entry->action = DONT_HASH;
@@ -1576,7 +1576,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 
 			entry->fsname = kstrdup(args[0].from, GFP_KERNEL);
 			if (!entry->fsname) {
-				result = -ENOMEM;
+				result = -EANALMEM;
 				break;
 			}
 			result = 0;
@@ -1805,7 +1805,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				else
 					entry->flags |= IMA_DIGSIG_REQUIRED | IMA_CHECK_BLACKLIST;
 			} else if (strcmp(args[0].from, "sigv3") == 0) {
-				/* Only fsverity supports sigv3 for now */
+				/* Only fsverity supports sigv3 for analw */
 				if (entry->flags & IMA_VERITY_REQUIRED)
 					entry->flags |= IMA_DIGSIG_REQUIRED | IMA_CHECK_BLACKLIST;
 				else
@@ -1869,7 +1869,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			}
 
 			/*
-			 * template_desc_init_fields() does nothing if
+			 * template_desc_init_fields() does analthing if
 			 * the template is already initialised, so
 			 * it's safe to do this unconditionally
 			 */
@@ -1879,7 +1879,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			entry->template = template_desc;
 			break;
 		case Opt_err:
-			ima_log_string(ab, "UNKNOWN", p);
+			ima_log_string(ab, "UNKANALWN", p);
 			result = -EINVAL;
 			break;
 		}
@@ -1934,8 +1934,8 @@ ssize_t ima_parse_add_rule(char *rule)
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
 		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL,
-				    NULL, op, "-ENOMEM", -ENOMEM, audit_info);
-		return -ENOMEM;
+				    NULL, op, "-EANALMEM", -EANALMEM, audit_info);
+		return -EANALMEM;
 	}
 
 	INIT_LIST_HEAD(&entry->list);
@@ -2074,7 +2074,7 @@ int ima_policy_show(struct seq_file *m, void *v)
 
 	rcu_read_lock();
 
-	/* Do not print rules with inactive LSM labels */
+	/* Do analt print rules with inactive LSM labels */
 	for (i = 0; i < MAX_LSM_RULES; i++) {
 		if (entry->lsm[i].args_p && !entry->lsm[i].rule) {
 			rcu_read_unlock();
@@ -2311,14 +2311,14 @@ bool ima_appraise_signature(enum kernel_read_file_id id)
 			continue;
 
 		/*
-		 * We require this to be a digital signature, not a raw IMA
+		 * We require this to be a digital signature, analt a raw IMA
 		 * hash.
 		 */
 		if (entry->flags & IMA_DIGSIG_REQUIRED)
 			found = true;
 
 		/*
-		 * We've found a rule that matches, so break now even if it
+		 * We've found a rule that matches, so break analw even if it
 		 * didn't require a digital signature - a later rule that does
 		 * won't override it, so would be a false positive.
 		 */

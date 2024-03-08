@@ -19,7 +19,7 @@ struct error_map {
 #define DBC_ERROR_EXCESS_DATA		0x0004
 #define DBC_ERROR_BAD_PARAMETERS	0x0006
 #define DBC_ERROR_BAD_STATE		0x0007
-#define DBC_ERROR_NOT_IMPLEMENTED	0x0009
+#define DBC_ERROR_ANALT_IMPLEMENTED	0x0009
 #define DBC_ERROR_BUSY			0x000D
 #define DBC_ERROR_MESSAGE_FAILURE	0x0307
 #define DBC_ERROR_OVERFLOW		0x300F
@@ -30,8 +30,8 @@ static struct error_map error_codes[] = {
 	{DBC_ERROR_EXCESS_DATA,		-E2BIG},
 	{DBC_ERROR_BAD_PARAMETERS,	-EINVAL},
 	{DBC_ERROR_BAD_STATE,		-EAGAIN},
-	{DBC_ERROR_MESSAGE_FAILURE,	-ENOENT},
-	{DBC_ERROR_NOT_IMPLEMENTED,	-ENOENT},
+	{DBC_ERROR_MESSAGE_FAILURE,	-EANALENT},
+	{DBC_ERROR_ANALT_IMPLEMENTED,	-EANALENT},
 	{DBC_ERROR_BUSY,		-EBUSY},
 	{DBC_ERROR_OVERFLOW,		-ENFILE},
 	{DBC_ERROR_SIGNATURE_INVALID,	-EPERM},
@@ -76,15 +76,15 @@ static int send_dbc_cmd(struct psp_dbc_device *dbc_dev, int msg)
 	return ret;
 }
 
-static int send_dbc_nonce(struct psp_dbc_device *dbc_dev)
+static int send_dbc_analnce(struct psp_dbc_device *dbc_dev)
 {
 	int ret;
 
-	*dbc_dev->payload_size = dbc_dev->header_size + sizeof(struct dbc_user_nonce);
-	ret = send_dbc_cmd(dbc_dev, PSP_DYNAMIC_BOOST_GET_NONCE);
+	*dbc_dev->payload_size = dbc_dev->header_size + sizeof(struct dbc_user_analnce);
+	ret = send_dbc_cmd(dbc_dev, PSP_DYNAMIC_BOOST_GET_ANALNCE);
 	if (ret == -EAGAIN) {
-		dev_dbg(dbc_dev->dev, "retrying get nonce\n");
-		ret = send_dbc_cmd(dbc_dev, PSP_DYNAMIC_BOOST_GET_NONCE);
+		dev_dbg(dbc_dev->dev, "retrying get analnce\n");
+		ret = send_dbc_cmd(dbc_dev, PSP_DYNAMIC_BOOST_GET_ANALNCE);
 	}
 
 	return ret;
@@ -134,23 +134,23 @@ static long dbc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int ret;
 
 	if (!psp_master || !psp_master->dbc_data)
-		return -ENODEV;
+		return -EANALDEV;
 	dbc_dev = psp_master->dbc_data;
 
 	mutex_lock(&dbc_dev->ioctl_mutex);
 
 	switch (cmd) {
-	case DBCIOCNONCE:
-		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_nonce))) {
+	case DBCIOCANALNCE:
+		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_analnce))) {
 			ret = -EFAULT;
 			goto unlock;
 		}
 
-		ret = send_dbc_nonce(dbc_dev);
+		ret = send_dbc_analnce(dbc_dev);
 		if (ret)
 			goto unlock;
 
-		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_nonce))) {
+		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_analnce))) {
 			ret = -EFAULT;
 			goto unlock;
 		}
@@ -210,12 +210,12 @@ int dbc_dev_init(struct psp_device *psp)
 
 	dbc_dev = devm_kzalloc(dev, sizeof(*dbc_dev), GFP_KERNEL);
 	if (!dbc_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	BUILD_BUG_ON(sizeof(union dbc_buffer) > PAGE_SIZE);
 	dbc_dev->mbox = (void *)devm_get_free_pages(dev, GFP_KERNEL | __GFP_ZERO, 0);
 	if (!dbc_dev->mbox) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_dev;
 	}
 
@@ -236,7 +236,7 @@ int dbc_dev_init(struct psp_device *psp)
 		dbc_dev->header_size = sizeof(struct psp_req_buffer_hdr);
 	}
 
-	ret = send_dbc_nonce(dbc_dev);
+	ret = send_dbc_analnce(dbc_dev);
 	if (ret == -EACCES) {
 		dev_dbg(dbc_dev->dev,
 			"dynamic boost control was previously authenticated\n");
@@ -249,7 +249,7 @@ int dbc_dev_init(struct psp_device *psp)
 		goto cleanup_mbox;
 	}
 
-	dbc_dev->char_dev.minor = MISC_DYNAMIC_MINOR;
+	dbc_dev->char_dev.mianalr = MISC_DYNAMIC_MIANALR;
 	dbc_dev->char_dev.name = "dbc";
 	dbc_dev->char_dev.fops = &dbc_fops;
 	dbc_dev->char_dev.mode = 0600;

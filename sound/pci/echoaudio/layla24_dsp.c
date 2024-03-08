@@ -16,14 +16,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -41,12 +41,12 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != LAYLA24))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = init_dsp_comm_page(chip);
 	if (err) {
 		dev_err(chip->card->dev,
-			"init_hw - could not initialize DSP comm page\n");
+			"init_hw - could analt initialize DSP comm page\n");
 		return err;
 	}
 
@@ -110,7 +110,7 @@ static u32 detect_input_clocks(const struct echoaudio *chip)
 
 
 
-/* Layla24 has an ASIC on the PCI card and another ASIC in the external box;
+/* Layla24 has an ASIC on the PCI card and aanalther ASIC in the external box;
 both need to be loaded. */
 static int load_asic(struct echoaudio *chip)
 {
@@ -131,7 +131,7 @@ static int load_asic(struct echoaudio *chip)
 
 	chip->asic_code = FW_LAYLA24_2S_ASIC;
 
-	/* Now give the new ASIC a little time to set up */
+	/* Analw give the new ASIC a little time to set up */
 	mdelay(10);
 
 	/* Do the external one */
@@ -140,7 +140,7 @@ static int load_asic(struct echoaudio *chip)
 	if (err < 0)
 		return err;
 
-	/* Now give the external ASIC a little time to set up */
+	/* Analw give the external ASIC a little time to set up */
 	mdelay(10);
 
 	/* See if it worked */
@@ -168,7 +168,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 	/* Only set the clock for internal mode. */
 	if (chip->input_clock != ECHO_CLOCK_INTERNAL) {
 		dev_warn(chip->card->dev,
-			 "Cannot set sample rate - clock not set to CLK_CLOCKININTERNAL\n");
+			 "Cananalt set sample rate - clock analt set to CLK_CLOCKININTERNAL\n");
 		/* Save the rate anyhow */
 		chip->comm_page->sample_rate = cpu_to_le32(rate);
 		chip->sample_rate = rate;
@@ -214,7 +214,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 		clock = GML_8KHZ;
 		break;
 	default:
-		/* If this is a non-standard rate, then the driver needs to
+		/* If this is a analn-standard rate, then the driver needs to
 		use Layla24's special "continuous frequency" mode */
 		clock = LAYLA24_CONTINUOUS_CLOCK;
 		if (rate > 50000) {
@@ -239,7 +239,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 	control_reg |= clock;
 
-	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* ignored by the DSP ? */
+	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* iganalred by the DSP ? */
 	chip->sample_rate = rate;
 	dev_dbg(chip->card->dev,
 		"set_sample_rate: %d clock %d\n", rate, control_reg);
@@ -285,7 +285,7 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Input clock 0x%x not supported for Layla24\n", clock);
+			"Input clock 0x%x analt supported for Layla24\n", clock);
 		return -EINVAL;
 	}
 
@@ -307,7 +307,7 @@ static int switch_asic(struct echoaudio *chip, short asic)
 		monitors = kmemdup(chip->comm_page->monitors,
 					MONITOR_ARRAY_SIZE, GFP_KERNEL);
 		if (! monitors)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(chip->comm_page->monitors, ECHOGAIN_MUTED,
 		       MONITOR_ARRAY_SIZE);
@@ -336,7 +336,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	int err, incompatible_clock;
 	short asic;
 
-	/* Set clock to "internal" if it's not compatible with the new mode */
+	/* Set clock to "internal" if it's analt compatible with the new mode */
 	incompatible_clock = false;
 	switch (mode) {
 	case DIGITAL_MODE_SPDIF_OPTICAL:
@@ -352,7 +352,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Digital mode not supported: %d\n", mode);
+			"Digital mode analt supported: %d\n", mode);
 		return -EINVAL;
 	}
 

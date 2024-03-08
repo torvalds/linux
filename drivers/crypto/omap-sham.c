@@ -4,8 +4,8 @@
  *
  * Support for OMAP SHA1/MD5 HW acceleration.
  *
- * Copyright (c) 2010 Nokia Corporation
- * Author: Dmitry Kasatkin <dmitry.kasatkin@nokia.com>
+ * Copyright (c) 2010 Analkia Corporation
+ * Author: Dmitry Kasatkin <dmitry.kasatkin@analkia.com>
  * Copyright (c) 2011 Texas Instruments Incorporated
  *
  * Some ideas are from old omap-sha1-md5.c driver.
@@ -205,8 +205,8 @@ struct omap_sham_pdata {
 
 	u32		major_mask;
 	u32		major_shift;
-	u32		minor_mask;
-	u32		minor_shift;
+	u32		mianalr_mask;
+	u32		mianalr_shift;
 };
 
 struct omap_sham_dev {
@@ -442,7 +442,7 @@ static void omap_sham_write_ctrl_omap4(struct omap_sham_dev *dd, size_t length,
 
 	/*
 	 * Setting ALGO_CONST only for the first iteration and
-	 * CLOSE_HASH only for the last one. Note that flags mode bits
+	 * CLOSE_HASH only for the last one. Analte that flags mode bits
 	 * correspond to algorithm encoding in mode register.
 	 */
 	val = (ctx->flags & FLAGS_MODE_MASK) >> (FLAGS_MODE_SHIFT);
@@ -512,7 +512,7 @@ static int omap_sham_xmit_cpu(struct omap_sham_dev *dd, size_t length,
 	dd->pdata->write_ctrl(dd, length, final, 0);
 	dd->pdata->trigger(dd, length);
 
-	/* should be non-zero before next lines to disable clocks later */
+	/* should be analn-zero before next lines to disable clocks later */
 	ctx->digcnt += length;
 	ctx->total -= length;
 
@@ -636,7 +636,7 @@ static int omap_sham_copy_sg_lists(struct omap_sham_reqctx *ctx,
 
 	ctx->sg = kmalloc_array(n, sizeof(*sg), GFP_KERNEL);
 	if (!ctx->sg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_init_table(ctx->sg, n);
 
@@ -700,7 +700,7 @@ static int omap_sham_copy_sgs(struct omap_sham_reqctx *ctx,
 	buf = (void *)__get_free_pages(GFP_ATOMIC, pages);
 	if (!buf) {
 		pr_err("Couldn't allocate pages for unaligned cases.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (ctx->bufcnt)
@@ -947,7 +947,7 @@ static int omap_sham_init(struct ahash_request *req)
 
 	dd = omap_sham_find_dev(ctx);
 	if (!dd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctx->flags = 0;
 
@@ -1040,7 +1040,7 @@ static int omap_sham_final_req(struct omap_sham_dev *dd)
 	if ((ctx->total <= get_block_size(ctx)) || dd->polling_mode)
 		/*
 		 * faster to handle last block with cpu or
-		 * use cpu when dma is not present.
+		 * use cpu when dma is analt present.
 		 */
 		use_dma = 0;
 
@@ -1163,7 +1163,7 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 		ctx->flags |= BIT(FLAGS_ERROR);
 	}
 
-	/* atomic operation is not needed here */
+	/* atomic operation is analt needed here */
 	dd->flags &= ~(BIT(FLAGS_FINAL) | BIT(FLAGS_CPU) |
 			BIT(FLAGS_DMA_READY) | BIT(FLAGS_OUTPUT_READY));
 
@@ -1238,7 +1238,7 @@ static int omap_sham_final(struct ahash_request *req)
 	ctx->flags |= BIT(FLAGS_FINUP);
 
 	if (ctx->flags & BIT(FLAGS_ERROR))
-		return 0; /* uncompleted hash is not needed */
+		return 0; /* uncompleted hash is analt needed */
 
 	/*
 	 * OMAP HW accel works only with buffers >= 9.
@@ -1327,7 +1327,7 @@ static int omap_sham_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 					    CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(tctx->fallback)) {
 		pr_err("omap-sham: fallback driver '%s' "
-				"could not be loaded.\n", alg_name);
+				"could analt be loaded.\n", alg_name);
 		return PTR_ERR(tctx->fallback);
 	}
 
@@ -1341,7 +1341,7 @@ static int omap_sham_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 						CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(bctx->shash)) {
 			pr_err("omap-sham: base driver '%s' "
-					"could not be loaded.\n", alg_base);
+					"could analt be loaded.\n", alg_base);
 			crypto_free_shash(tctx->fallback);
 			return PTR_ERR(bctx->shash);
 		}
@@ -1794,8 +1794,8 @@ static const struct omap_sham_pdata omap_sham_pdata_omap2 = {
 	.sysstatus_ofs	= 0x64,
 	.major_mask	= 0xf0,
 	.major_shift	= 4,
-	.minor_mask	= 0x0f,
-	.minor_shift	= 0,
+	.mianalr_mask	= 0x0f,
+	.mianalr_shift	= 0,
 };
 
 #ifdef CONFIG_OF
@@ -1831,8 +1831,8 @@ static const struct omap_sham_pdata omap_sham_pdata_omap4 = {
 	.length_ofs	= 0x48,
 	.major_mask	= 0x0700,
 	.major_shift	= 8,
-	.minor_mask	= 0x003f,
-	.minor_shift	= 0,
+	.mianalr_mask	= 0x003f,
+	.mianalr_shift	= 0,
 };
 
 static struct omap_sham_algs_info omap_sham_algs_info_omap5[] = {
@@ -1871,8 +1871,8 @@ static const struct omap_sham_pdata omap_sham_pdata_omap5 = {
 	.length_ofs	= 0x288,
 	.major_mask	= 0x0700,
 	.major_shift	= 8,
-	.minor_mask	= 0x003f,
-	.minor_shift	= 0,
+	.mianalr_mask	= 0x003f,
+	.mianalr_shift	= 0,
 };
 
 static const struct of_device_id omap_sham_of_match[] = {
@@ -1899,24 +1899,24 @@ MODULE_DEVICE_TABLE(of, omap_sham_of_match);
 static int omap_sham_get_res_of(struct omap_sham_dev *dd,
 		struct device *dev, struct resource *res)
 {
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	int err = 0;
 
 	dd->pdata = of_device_get_match_data(dev);
 	if (!dd->pdata) {
-		dev_err(dev, "no compatible OF match\n");
+		dev_err(dev, "anal compatible OF match\n");
 		err = -EINVAL;
 		goto err;
 	}
 
-	err = of_address_to_resource(node, 0, res);
+	err = of_address_to_resource(analde, 0, res);
 	if (err < 0) {
-		dev_err(dev, "can't translate OF node address\n");
+		dev_err(dev, "can't translate OF analde address\n");
 		err = -EINVAL;
 		goto err;
 	}
 
-	dd->irq = irq_of_parse_and_map(node, 0);
+	dd->irq = irq_of_parse_and_map(analde, 0);
 	if (!dd->irq) {
 		dev_err(dev, "can't translate OF irq value\n");
 		err = -EINVAL;
@@ -1948,8 +1948,8 @@ static int omap_sham_get_res_pdev(struct omap_sham_dev *dd,
 	/* Get the base address */
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(dev, "no MEM resource info\n");
-		err = -ENODEV;
+		dev_err(dev, "anal MEM resource info\n");
+		err = -EANALDEV;
 		goto err;
 	}
 	memcpy(res, r, sizeof(*res));
@@ -1961,7 +1961,7 @@ static int omap_sham_get_res_pdev(struct omap_sham_dev *dd,
 		goto err;
 	}
 
-	/* Only OMAP2/3 can be non-DT */
+	/* Only OMAP2/3 can be analn-DT */
 	dd->pdata = &omap_sham_pdata_omap2;
 
 err:
@@ -2023,8 +2023,8 @@ static ssize_t queue_len_store(struct device *dev,
 
 	/*
 	 * Changing the queue size in fly is safe, if size becomes smaller
-	 * than current size, it will just not accept new entries until
-	 * it has shrank enough.
+	 * than current size, it will just analt accept new entries until
+	 * it has shrank eanalugh.
 	 */
 	dd->queue.max_qlen = value;
 
@@ -2056,7 +2056,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 	dd = devm_kzalloc(dev, sizeof(struct omap_sham_dev), GFP_KERNEL);
 	if (dd == NULL) {
 		dev_err(dev, "unable to alloc data struct.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto data_err;
 	}
 	dd->dev = dev;
@@ -2066,7 +2066,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 	tasklet_init(&dd->done_task, omap_sham_done_task, (unsigned long)dd);
 	crypto_init_queue(&dd->queue, OMAP_SHAM_QUEUE_LENGTH);
 
-	err = (dev->of_node) ? omap_sham_get_res_of(dd, dev, &res) :
+	err = (dev->of_analde) ? omap_sham_get_res_of(dd, dev, &res) :
 			       omap_sham_get_res_pdev(dd, pdev, &res);
 	if (err)
 		goto data_err;
@@ -2079,7 +2079,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 	dd->phys_base = res.start;
 
 	err = devm_request_irq(dev, dd->irq, dd->pdata->intr_hdlr,
-			       IRQF_TRIGGER_NONE, dev_name(dev), dd);
+			       IRQF_TRIGGER_ANALNE, dev_name(dev), dd);
 	if (err) {
 		dev_err(dev, "unable to request irq %d, err = %d\n",
 			dd->irq, err);
@@ -2120,7 +2120,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 
 	dev_info(dev, "hw accel on OMAP rev %u.%u\n",
 		(rev & dd->pdata->major_mask) >> dd->pdata->major_shift,
-		(rev & dd->pdata->minor_mask) >> dd->pdata->minor_shift);
+		(rev & dd->pdata->mianalr_mask) >> dd->pdata->mianalr_shift);
 
 	spin_lock_bh(&sham.lock);
 	list_add_tail(&dd->list, &sham.dev_list);
@@ -2128,7 +2128,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 
 	dd->engine = crypto_engine_alloc_init(dev, 1);
 	if (!dd->engine) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_engine;
 	}
 
@@ -2160,7 +2160,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 
 	err = sysfs_create_group(&dev->kobj, &omap_sham_attr_group);
 	if (err) {
-		dev_err(dev, "could not create sysfs device attrs\n");
+		dev_err(dev, "could analt create sysfs device attrs\n");
 		goto err_algs;
 	}
 

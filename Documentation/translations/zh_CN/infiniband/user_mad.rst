@@ -53,7 +53,7 @@
   使用read()接收MAD。现在接收端支持RMPP。传给read()的缓冲区必须至少是
   一个struct ib_user_mad + 256字节。比如说:
 
-  如果传递的缓冲区不足以容纳收到的MAD（RMPP），errno被设置为ENOSPC，需
+  如果传递的缓冲区不足以容纳收到的MAD（RMPP），erranal被设置为EANALSPC，需
   要的缓冲区长度被设置在mad.length中。
 
   正常MAD(非RMPP)的读取示例::
@@ -71,7 +71,7 @@
 	struct ib_user_mad *mad;
 	mad = malloc(sizeof *mad + 256);
 	ret = read(fd, mad, sizeof *mad + 256);
-	if (ret == -ENOSPC)) {
+	if (ret == -EANALSPC)) {
 		length = mad.length;
 		free(mad);
 		mad = malloc(sizeof *mad + length);
@@ -136,8 +136,8 @@ P_Key索引处理
 ==============
 
   要为一个端口设置IsSM功能位，只需打开相应的issm设备文件。如果IsSM位已经被设置，那
-  么打开调用将阻塞，直到该位被清除（或者如果O_NONBLOCK标志被传递给open()，则立即返
-  回，errno设置为EAGAIN）。当issm文件被关闭时，IsSM位将被清除。在issm文件上不能进
+  么打开调用将阻塞，直到该位被清除（或者如果O_ANALNBLOCK标志被传递给open()，则立即返
+  回，erranal设置为EAGAIN）。当issm文件被关闭时，IsSM位将被清除。在issm文件上不能进
   行任何读、写或其他操作。
 
 /dev文件

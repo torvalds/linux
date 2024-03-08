@@ -7,7 +7,7 @@
 struct device;
 
 enum qcom_scm_convention {
-	SMC_CONVENTION_UNKNOWN,
+	SMC_CONVENTION_UNKANALWN,
 	SMC_CONVENTION_LEGACY,
 	SMC_CONVENTION_ARM_32,
 	SMC_CONVENTION_ARM_64,
@@ -140,8 +140,8 @@ int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12
-#define QCOM_SCM_ENOMEM		-5
-#define QCOM_SCM_EOPNOTSUPP	-4
+#define QCOM_SCM_EANALMEM		-5
+#define QCOM_SCM_EOPANALTSUPP	-4
 #define QCOM_SCM_EINVAL_ADDR	-3
 #define QCOM_SCM_EINVAL_ARG	-2
 #define QCOM_SCM_ERROR		-1
@@ -156,10 +156,10 @@ static inline int qcom_scm_remap_error(int err)
 	case QCOM_SCM_EINVAL_ADDR:
 	case QCOM_SCM_EINVAL_ARG:
 		return -EINVAL;
-	case QCOM_SCM_EOPNOTSUPP:
-		return -EOPNOTSUPP;
-	case QCOM_SCM_ENOMEM:
-		return -ENOMEM;
+	case QCOM_SCM_EOPANALTSUPP:
+		return -EOPANALTSUPP;
+	case QCOM_SCM_EANALMEM:
+		return -EANALMEM;
 	case QCOM_SCM_V2_EBUSY:
 		return -EBUSY;
 	}

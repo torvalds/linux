@@ -10,7 +10,7 @@
 #define _GNU_SOURCE
 #include <stdint.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/types.h>
 #include "../kselftest.h"
 
@@ -28,8 +28,8 @@
  * Arguments for how openat2(2) should open the target path. If @resolve is
  * zero, then openat2(2) operates very similarly to openat(2).
  *
- * However, unlike openat(2), unknown bits in @flags result in -EINVAL rather
- * than being silently ignored. @mode must be zero unless one of {O_CREAT,
+ * However, unlike openat(2), unkanalwn bits in @flags result in -EINVAL rather
+ * than being silently iganalred. @mode must be zero unless one of {O_CREAT,
  * O_TMPFILE} are set.
  *
  * @flags: O_* flags.
@@ -49,12 +49,12 @@ bool needs_openat2(const struct open_how *how);
 
 #ifndef RESOLVE_IN_ROOT
 /* how->resolve flags for openat2(2). */
-#define RESOLVE_NO_XDEV		0x01 /* Block mount-point crossings
+#define RESOLVE_ANAL_XDEV		0x01 /* Block mount-point crossings
 					(includes bind-mounts). */
-#define RESOLVE_NO_MAGICLINKS	0x02 /* Block traversal through procfs-style
+#define RESOLVE_ANAL_MAGICLINKS	0x02 /* Block traversal through procfs-style
 					"magic-links". */
-#define RESOLVE_NO_SYMLINKS	0x04 /* Block traversal through all symlinks
-					(implies OEXT_NO_MAGICLINKS) */
+#define RESOLVE_ANAL_SYMLINKS	0x04 /* Block traversal through all symlinks
+					(implies OEXT_ANAL_MAGICLINKS) */
 #define RESOLVE_BENEATH		0x08 /* Block "lexical" trickery like
 					"..", symlinks, and absolute
 					paths which escape the dirfd. */
@@ -65,10 +65,10 @@ bool needs_openat2(const struct open_how *how);
 
 #define E_func(func, ...)						      \
 	do {								      \
-		errno = 0;						      \
+		erranal = 0;						      \
 		if (func(__VA_ARGS__) < 0)				      \
-			ksft_exit_fail_msg("%s:%d %s failed - errno:%d\n",    \
-					   __FILE__, __LINE__, #func, errno); \
+			ksft_exit_fail_msg("%s:%d %s failed - erranal:%d\n",    \
+					   __FILE__, __LINE__, #func, erranal); \
 	} while (0)
 
 #define E_asprintf(...)		E_func(asprintf,	__VA_ARGS__)

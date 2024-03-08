@@ -53,8 +53,8 @@ static int fch_clk_probe(struct platform_device *pdev)
 
 	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (!rdev) {
-		dev_err(&pdev->dev, "FCH device not found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "FCH device analt found\n");
+		return -EANALDEV;
 	}
 
 	if (pci_match_id(fch_pci_ids, rdev)) {

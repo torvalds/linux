@@ -47,19 +47,19 @@ static const struct mtk_gate_regs ipu_conn_axi2_cg_regs = {
 
 #define GATE_IPU_CONN_APB(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &ipu_conn_apb_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr)
+		&mtk_clk_gate_ops_anal_setclr)
 
 #define GATE_IPU_CONN_AXI_I(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &ipu_conn_axi_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_anal_setclr_inv)
 
 #define GATE_IPU_CONN_AXI1_I(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &ipu_conn_axi1_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_anal_setclr_inv)
 
 #define GATE_IPU_CONN_AXI2_I(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &ipu_conn_axi2_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate ipu_conn_clks[] = {
 	GATE_IPU_CONN(CLK_IPU_CONN_IPU,

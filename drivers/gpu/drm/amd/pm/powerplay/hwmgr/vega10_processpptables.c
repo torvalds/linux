@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -76,7 +76,7 @@ static int check_powerplay_tables(
 			ATOM_Vega10_TABLE_REVISION_VEGA10),
 		"Unsupported PPTable format!", return -1);
 	PP_ASSERT_WITH_CODE(powerplay_table->usStateArrayOffset,
-		"State table is not set!", return -1);
+		"State table is analt set!", return -1);
 	PP_ASSERT_WITH_CODE(powerplay_table->sHeader.structuresize > 0,
 		"Invalid PowerPlay Table!", return -1);
 	PP_ASSERT_WITH_CODE(state_arrays->ucNumEntries > 0,
@@ -130,15 +130,15 @@ static int init_thermal_controller(
 			le16_to_cpu(powerplay_table->usThermalControllerOffset));
 
 	PP_ASSERT_WITH_CODE((powerplay_table->usThermalControllerOffset != 0),
-			"Thermal controller table not set!", return -EINVAL);
+			"Thermal controller table analt set!", return -EINVAL);
 
 	hwmgr->thermal_controller.ucType = thermal_controller->ucType;
 	hwmgr->thermal_controller.ucI2cLine = thermal_controller->ucI2cLine;
 	hwmgr->thermal_controller.ucI2cAddress = thermal_controller->ucI2cAddress;
 
-	hwmgr->thermal_controller.fanInfo.bNoFan =
+	hwmgr->thermal_controller.fanInfo.bAnalFan =
 			(0 != (thermal_controller->ucFanParameters &
-			ATOM_VEGA10_PP_FANPARAMETERS_NOFAN));
+			ATOM_VEGA10_PP_FANPARAMETERS_ANALFAN));
 
 	hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution =
 			thermal_controller->ucFanParameters &
@@ -154,7 +154,7 @@ static int init_thermal_controller(
 
 	set_hw_cap(
 			hwmgr,
-			ATOM_VEGA10_PP_THERMALCONTROLLER_NONE != hwmgr->thermal_controller.ucType,
+			ATOM_VEGA10_PP_THERMALCONTROLLER_ANALNE != hwmgr->thermal_controller.ucType,
 			PHM_PlatformCaps_ThermalController);
 
 	if (!powerplay_table->usFanTableOffset)
@@ -353,7 +353,7 @@ static int get_mm_clock_voltage_table(
 	mm_table = kzalloc(struct_size(mm_table, entries, mm_dependency_table->ucNumEntries),
 			   GFP_KERNEL);
 	if (!mm_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mm_table->count = mm_dependency_table->ucNumEntries;
 
@@ -432,7 +432,7 @@ static int get_tdp_table(
 	tdp_table = kzalloc(table_size, GFP_KERNEL);
 
 	if (!tdp_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (table->ucRevId == 5) {
 		power_tune_table = (ATOM_Vega10_PowerTune_Table *)table;
@@ -576,7 +576,7 @@ static int get_socclk_voltage_dependency_table(
 	clk_table = kzalloc(struct_size(clk_table, entries, clk_dep_table->ucNumEntries),
 			    GFP_KERNEL);
 	if (!clk_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_table->count = (uint32_t)clk_dep_table->ucNumEntries;
 
@@ -606,7 +606,7 @@ static int get_mclk_voltage_dependency_table(
 	mclk_table = kzalloc(struct_size(mclk_table, entries, mclk_dep_table->ucNumEntries),
 			    GFP_KERNEL);
 	if (!mclk_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mclk_table->count = (uint32_t)mclk_dep_table->ucNumEntries;
 
@@ -643,7 +643,7 @@ static int get_gfxclk_voltage_dependency_table(
 	clk_table = kzalloc(struct_size(clk_table, entries, clk_dep_table->ucNumEntries),
 			    GFP_KERNEL);
 	if (!clk_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_table->count = clk_dep_table->ucNumEntries;
 
@@ -705,7 +705,7 @@ static int get_pix_clk_voltage_dependency_table(
 	clk_table = kzalloc(struct_size(clk_table, entries, clk_dep_table->ucNumEntries),
 			    GFP_KERNEL);
 	if (!clk_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_table->count = clk_dep_table->ucNumEntries;
 
@@ -739,7 +739,7 @@ static int get_dcefclk_voltage_dependency_table(
 			"Invalid PowerPlay Table!", return -1);
 
 /*
- * workaround needed to add another DPM level for pioneer cards
+ * workaround needed to add aanalther DPM level for pioneer cards
  * as VBIOS is locked down.
  * This DPM level was added to support 3DPM monitors @ 4K120Hz
  *
@@ -758,7 +758,7 @@ static int get_dcefclk_voltage_dependency_table(
 	clk_table = kzalloc(struct_size(clk_table, entries, num_entries),
 			    GFP_KERNEL);
 	if (!clk_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_table->count = (uint32_t)num_entries;
 
@@ -797,7 +797,7 @@ static int get_pcie_table(struct pp_hwmgr *hwmgr,
 	pcie_table = kzalloc(struct_size(pcie_table, entries, atom_pcie_table->ucNumEntries),
 			     GFP_KERNEL);
 	if (!pcie_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie_count = table_info->vdd_dep_on_sclk->count;
 	if (atom_pcie_table->ucNumEntries <= pcie_count)
@@ -856,7 +856,7 @@ static int get_valid_clk(
 	table = kzalloc(struct_size(table, values, clk_volt_pp_table->count),
 			GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	table->count = (uint32_t)clk_volt_pp_table->count;
 
@@ -1043,7 +1043,7 @@ static int get_vddc_lookup_table(
 
 	table = kzalloc(struct_size(table, entries, max_levels), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	table->count = vddc_lookup_pp_tables->ucNumEntries;
 
@@ -1152,7 +1152,7 @@ static int vega10_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 	hwmgr->pptable = kzalloc(sizeof(struct phm_ppt_v2_information), GFP_KERNEL);
 
 	PP_ASSERT_WITH_CODE((hwmgr->pptable != NULL),
-			    "Failed to allocate hwmgr->pptable!", return -ENOMEM);
+			    "Failed to allocate hwmgr->pptable!", return -EANALMEM);
 
 	powerplay_table = get_powerplay_table(hwmgr);
 

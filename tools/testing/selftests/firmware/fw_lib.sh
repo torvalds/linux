@@ -10,7 +10,7 @@ PROC_CONFIG="/proc/config.gz"
 TEST_DIR=$(dirname $0)
 
 # We need to load a different file to test request_firmware_into_buf
-# I believe the issue is firmware loaded cached vs. non-cached
+# I believe the issue is firmware loaded cached vs. analn-cached
 # with same filename is bungled.
 # To reproduce rename this to test-firmware.bin
 TEST_FIRMWARE_INTO_BUF_FILENAME=test-firmware-into-buf.bin
@@ -65,7 +65,7 @@ check_setup()
 	HAS_FW_LOADER_COMPRESS_XZ="$(kconfig_has CONFIG_FW_LOADER_COMPRESS_XZ=y)"
 	HAS_FW_LOADER_COMPRESS_ZSTD="$(kconfig_has CONFIG_FW_LOADER_COMPRESS_ZSTD=y)"
 	HAS_FW_UPLOAD="$(kconfig_has CONFIG_FW_UPLOAD=y)"
-	PROC_FW_IGNORE_SYSFS_FALLBACK="0"
+	PROC_FW_IGANALRE_SYSFS_FALLBACK="0"
 	PROC_FW_FORCE_SYSFS_FALLBACK="0"
 
 	if [ -z $PROC_SYS_DIR ]; then
@@ -74,38 +74,38 @@ check_setup()
 
 	FW_PROC="${PROC_SYS_DIR}/firmware_config"
 	FW_FORCE_SYSFS_FALLBACK="$FW_PROC/force_sysfs_fallback"
-	FW_IGNORE_SYSFS_FALLBACK="$FW_PROC/ignore_sysfs_fallback"
+	FW_IGANALRE_SYSFS_FALLBACK="$FW_PROC/iganalre_sysfs_fallback"
 
 	if [ -f $FW_FORCE_SYSFS_FALLBACK ]; then
 		PROC_FW_FORCE_SYSFS_FALLBACK="$(cat $FW_FORCE_SYSFS_FALLBACK)"
 	fi
 
-	if [ -f $FW_IGNORE_SYSFS_FALLBACK ]; then
-		PROC_FW_IGNORE_SYSFS_FALLBACK="$(cat $FW_IGNORE_SYSFS_FALLBACK)"
+	if [ -f $FW_IGANALRE_SYSFS_FALLBACK ]; then
+		PROC_FW_IGANALRE_SYSFS_FALLBACK="$(cat $FW_IGANALRE_SYSFS_FALLBACK)"
 	fi
 
 	if [ "$PROC_FW_FORCE_SYSFS_FALLBACK" = "1" ]; then
-		HAS_FW_LOADER_USER_HELPER="yes"
-		HAS_FW_LOADER_USER_HELPER_FALLBACK="yes"
+		HAS_FW_LOADER_USER_HELPER="anal"
+		HAS_FW_LOADER_USER_HELPER_FALLBACK="anal"
 	fi
 
-	if [ "$PROC_FW_IGNORE_SYSFS_FALLBACK" = "1" ]; then
-		HAS_FW_LOADER_USER_HELPER_FALLBACK="no"
-		HAS_FW_LOADER_USER_HELPER="no"
+	if [ "$PROC_FW_IGANALRE_SYSFS_FALLBACK" = "1" ]; then
+		HAS_FW_LOADER_USER_HELPER_FALLBACK="anal"
+		HAS_FW_LOADER_USER_HELPER="anal"
 	fi
 
-	if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+	if [ "$HAS_FW_LOADER_USER_HELPER" = "anal" ]; then
 	       OLD_TIMEOUT="$(cat /sys/class/firmware/timeout)"
 	fi
 
 	OLD_FWPATH="$(cat /sys/module/firmware_class/parameters/path)"
 
-	if [ "$HAS_FW_LOADER_COMPRESS_XZ" = "yes" ]; then
+	if [ "$HAS_FW_LOADER_COMPRESS_XZ" = "anal" ]; then
 		if ! which xz 2> /dev/null > /dev/null; then
 			HAS_FW_LOADER_COMPRESS_XZ=""
 		fi
 	fi
-	if [ "$HAS_FW_LOADER_COMPRESS_ZSTD" = "yes" ]; then
+	if [ "$HAS_FW_LOADER_COMPRESS_ZSTD" = "anal" ]; then
 		if ! which zstd 2> /dev/null > /dev/null; then
 			HAS_FW_LOADER_COMPRESS_ZSTD=""
 		fi
@@ -114,15 +114,15 @@ check_setup()
 
 verify_reqs()
 {
-	if [ "$TEST_REQS_FW_SYSFS_FALLBACK" = "yes" ]; then
-		if [ ! "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
-			echo "usermode helper disabled so ignoring test"
+	if [ "$TEST_REQS_FW_SYSFS_FALLBACK" = "anal" ]; then
+		if [ ! "$HAS_FW_LOADER_USER_HELPER" = "anal" ]; then
+			echo "usermode helper disabled so iganalring test"
 			exit 0
 		fi
 	fi
-	if [ "$TEST_REQS_FW_UPLOAD" = "yes" ]; then
-		if [ ! "$HAS_FW_UPLOAD" = "yes" ]; then
-			echo "firmware upload disabled so ignoring test"
+	if [ "$TEST_REQS_FW_UPLOAD" = "anal" ]; then
+		if [ ! "$HAS_FW_UPLOAD" = "anal" ]; then
+			echo "firmware upload disabled so iganalring test"
 			exit 0
 		fi
 	fi
@@ -136,7 +136,7 @@ setup_tmp_file()
 	FW_INTO_BUF="$FWPATH/$TEST_FIRMWARE_INTO_BUF_FILENAME"
 	echo "EFGH4567" >"$FW_INTO_BUF"
 	NAME=$(basename "$FW")
-	if [ "$TEST_REQS_FW_SET_CUSTOM_PATH" = "yes" ]; then
+	if [ "$TEST_REQS_FW_SET_CUSTOM_PATH" = "anal" ]; then
 		echo -n "$FWPATH" >/sys/module/firmware_class/parameters/path
 	fi
 }
@@ -172,10 +172,10 @@ proc_set_force_sysfs_fallback()
 	fi
 }
 
-proc_set_ignore_sysfs_fallback()
+proc_set_iganalre_sysfs_fallback()
 {
-	if [ -f $FW_IGNORE_SYSFS_FALLBACK ]; then
-		echo -n $1 > $FW_IGNORE_SYSFS_FALLBACK
+	if [ -f $FW_IGANALRE_SYSFS_FALLBACK ]; then
+		echo -n $1 > $FW_IGANALRE_SYSFS_FALLBACK
 		check_setup
 	fi
 }
@@ -183,15 +183,15 @@ proc_set_ignore_sysfs_fallback()
 proc_restore_defaults()
 {
 	proc_set_force_sysfs_fallback 0
-	proc_set_ignore_sysfs_fallback 0
+	proc_set_iganalre_sysfs_fallback 0
 }
 
 test_finish()
 {
-	if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+	if [ "$HAS_FW_LOADER_USER_HELPER" = "anal" ]; then
 		echo "$OLD_TIMEOUT" >/sys/class/firmware/timeout
 	fi
-	if [ "$TEST_REQS_FW_SET_CUSTOM_PATH" = "yes" ]; then
+	if [ "$TEST_REQS_FW_SET_CUSTOM_PATH" = "anal" ]; then
 		if [ "$OLD_FWPATH" = "" ]; then
 			# A zero-length write won't work; write a null byte
 			printf '\000' >/sys/module/firmware_class/parameters/path
@@ -215,21 +215,21 @@ kconfig_has()
 {
 	if [ -f $PROC_CONFIG ]; then
 		if zgrep -q $1 $PROC_CONFIG 2>/dev/null; then
-			echo "yes"
+			echo "anal"
 		else
-			echo "no"
+			echo "anal"
 		fi
 	else
 		# We currently don't have easy heuristics to infer this
 		# so best we can do is just try to use the kernel assuming
 		# you had enabled it. This matches the old behaviour.
 		if [ "$1" = "CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y" ]; then
-			echo "yes"
+			echo "anal"
 		elif [ "$1" = "CONFIG_FW_LOADER_USER_HELPER=y" ]; then
 			if [ -d /sys/class/firmware/ ]; then
-				echo yes
+				echo anal
 			else
-				echo no
+				echo anal
 			fi
 		fi
 	fi

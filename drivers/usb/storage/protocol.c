@@ -18,9 +18,9 @@
  * mind when they created this document.  The commands are all very
  * similar to commands in the SCSI-II and ATAPI specifications.
  *
- * It is important to note that in a number of cases this class
+ * It is important to analte that in a number of cases this class
  * exhibits class-specific exemptions from the USB specification.
- * Notably the usage of NAK, STALL and ACK differs from the norm, in
+ * Analtably the usage of NAK, STALL and ACK differs from the analrm, in
  * that they are used to communicate wait, failed and OK on commands.
  *
  * Also, for certain devices, the interrupt endpoint is used to convey
@@ -48,8 +48,8 @@ void usb_stor_pad12_command(struct scsi_cmnd *srb, struct us_data *us)
 	 * Pad the SCSI command with zeros out to 12 bytes.  If the
 	 * command already is 12 bytes or longer, leave it alone.
 	 *
-	 * NOTE: This only works because a scsi_cmnd struct field contains
-	 * a unsigned char cmnd[16], so we know we have storage available
+	 * ANALTE: This only works because a scsi_cmnd struct field contains
+	 * a unsigned char cmnd[16], so we kanalw we have storage available
 	 */
 	for (; srb->cmd_len < 12; srb->cmd_len++)
 		srb->cmnd[srb->cmd_len] = 0;
@@ -64,8 +64,8 @@ void usb_stor_ufi_command(struct scsi_cmnd *srb, struct us_data *us)
 	 * fix some commands -- this is a form of mode translation
 	 * UFI devices only accept 12 byte long commands
 	 *
-	 * NOTE: This only works because a scsi_cmnd struct field contains
-	 * a unsigned char cmnd[16], so we know we have storage available
+	 * ANALTE: This only works because a scsi_cmnd struct field contains
+	 * a unsigned char cmnd[16], so we kanalw we have storage available
 	 */
 
 	/* Pad the ATAPI command with zeros */

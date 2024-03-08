@@ -55,7 +55,7 @@ do {									\
 #  ifdef VERBOSE_DEBUG
 
 #    define dump_cdb(fsg)						\
-	print_hex_dump(KERN_DEBUG, "SCSI CDB: ", DUMP_PREFIX_NONE,	\
+	print_hex_dump(KERN_DEBUG, "SCSI CDB: ", DUMP_PREFIX_ANALNE,	\
 		       16, 1, (fsg)->cmnd, (fsg)->cmnd_size, 0)		\
 
 #  else
@@ -70,17 +70,17 @@ do {									\
 #define MAX_COMMAND_SIZE	16
 
 /* SCSI Sense Key/Additional Sense Code/ASC Qualifier values */
-#define SS_NO_SENSE				0
+#define SS_ANAL_SENSE				0
 #define SS_COMMUNICATION_FAILURE		0x040800
 #define SS_INVALID_COMMAND			0x052000
 #define SS_INVALID_FIELD_IN_CDB			0x052400
 #define SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE	0x052100
-#define SS_LOGICAL_UNIT_NOT_SUPPORTED		0x052500
-#define SS_MEDIUM_NOT_PRESENT			0x023a00
+#define SS_LOGICAL_UNIT_ANALT_SUPPORTED		0x052500
+#define SS_MEDIUM_ANALT_PRESENT			0x023a00
 #define SS_MEDIUM_REMOVAL_PREVENTED		0x055302
-#define SS_NOT_READY_TO_READY_TRANSITION	0x062800
+#define SS_ANALT_READY_TO_READY_TRANSITION	0x062800
 #define SS_RESET_OCCURRED			0x062900
-#define SS_SAVING_PARAMETERS_NOT_SUPPORTED	0x053900
+#define SS_SAVING_PARAMETERS_ANALT_SUPPORTED	0x053900
 #define SS_UNRECOVERED_READ_ERROR		0x031100
 #define SS_WRITE_ERROR				0x030c02
 #define SS_WRITE_PROTECTED			0x072700
@@ -107,7 +107,7 @@ struct fsg_lun {
 	unsigned int	prevent_medium_removal:1;
 	unsigned int	registered:1;
 	unsigned int	info_valid:1;
-	unsigned int	nofua:1;
+	unsigned int	analfua:1;
 
 	u32		sense_data;
 	u32		sense_data_info;
@@ -157,7 +157,7 @@ struct fsg_buffhd {
 };
 
 enum fsg_state {
-	FSG_STATE_NORMAL,
+	FSG_STATE_ANALRMAL,
 	FSG_STATE_ABORT_BULK_OUT,
 	FSG_STATE_PROTOCOL_RESET,
 	FSG_STATE_CONFIG_CHANGE,
@@ -166,10 +166,10 @@ enum fsg_state {
 };
 
 enum data_direction {
-	DATA_DIR_UNKNOWN = 0,
+	DATA_DIR_UNKANALWN = 0,
 	DATA_DIR_FROM_HOST,
 	DATA_DIR_TO_HOST,
-	DATA_DIR_NONE
+	DATA_DIR_ANALNE
 };
 
 static inline struct fsg_lun *fsg_lun_from_dev(struct device *dev)
@@ -202,7 +202,7 @@ int fsg_lun_open(struct fsg_lun *curlun, const char *filename);
 int fsg_lun_fsync_sub(struct fsg_lun *curlun);
 void store_cdrom_address(u8 *dest, int msf, u32 addr);
 ssize_t fsg_show_ro(struct fsg_lun *curlun, char *buf);
-ssize_t fsg_show_nofua(struct fsg_lun *curlun, char *buf);
+ssize_t fsg_show_analfua(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		      char *buf);
 ssize_t fsg_show_inquiry_string(struct fsg_lun *curlun, char *buf);
@@ -210,7 +210,7 @@ ssize_t fsg_show_cdrom(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_removable(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_store_ro(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		     const char *buf, size_t count);
-ssize_t fsg_store_nofua(struct fsg_lun *curlun, const char *buf, size_t count);
+ssize_t fsg_store_analfua(struct fsg_lun *curlun, const char *buf, size_t count);
 ssize_t fsg_store_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		       const char *buf, size_t count);
 ssize_t fsg_store_cdrom(struct fsg_lun *curlun, struct rw_semaphore *filesem,

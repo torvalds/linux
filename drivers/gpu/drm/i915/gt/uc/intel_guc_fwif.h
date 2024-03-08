@@ -29,8 +29,8 @@
 
 #define GUC_CLIENT_PRIORITY_KMD_HIGH	0
 #define GUC_CLIENT_PRIORITY_HIGH	1
-#define GUC_CLIENT_PRIORITY_KMD_NORMAL	2
-#define GUC_CLIENT_PRIORITY_NORMAL	3
+#define GUC_CLIENT_PRIORITY_KMD_ANALRMAL	2
+#define GUC_CLIENT_PRIORITY_ANALRMAL	3
 #define GUC_CLIENT_PRIORITY_NUM		4
 
 #define GUC_MAX_CONTEXT_ID		65535
@@ -57,12 +57,12 @@
 #define WQ_STATUS_ACTIVE		1
 #define WQ_STATUS_SUSPENDED		2
 #define WQ_STATUS_CMD_ERROR		3
-#define WQ_STATUS_ENGINE_ID_NOT_USED	4
+#define WQ_STATUS_ENGINE_ID_ANALT_USED	4
 #define WQ_STATUS_SUSPENDED_FROM_RESET	5
 #define WQ_TYPE_BATCH_BUF		0x1
 #define WQ_TYPE_PSEUDO			0x2
-#define WQ_TYPE_INORDER			0x3
-#define WQ_TYPE_NOOP			0x4
+#define WQ_TYPE_IANALRDER			0x3
+#define WQ_TYPE_ANALOP			0x4
 #define WQ_TYPE_MULTI_LRC		0x5
 #define WQ_TYPE_MASK			GENMASK(7, 0)
 #define WQ_LEN_MASK			GENMASK(26, 16)
@@ -81,7 +81,7 @@
 
 #define GUC_CTL_LOG_PARAMS		0
 #define   GUC_LOG_VALID			BIT(0)
-#define   GUC_LOG_NOTIFY_ON_HALF_FULL	BIT(1)
+#define   GUC_LOG_ANALTIFY_ON_HALF_FULL	BIT(1)
 #define   GUC_LOG_CAPTURE_ALLOC_UNITS	BIT(2)
 #define   GUC_LOG_LOG_ALLOC_UNITS	BIT(3)
 #define   GUC_LOG_CRASH_SHIFT		4
@@ -247,7 +247,7 @@ struct guc_ctxt_registration_info {
  * GuC Context registration descriptor.
  * FIXME: This is only required to exist during context registration.
  * The current 1:1 between guc_lrc_desc and LRCs for the lifetime of the LRC
- * is not required.
+ * is analt required.
  */
 struct guc_lrc_desc_v69 {
 	u32 hw_context_desc;
@@ -350,7 +350,7 @@ struct guc_policies {
 	u32 submission_queue_depth[GUC_MAX_ENGINE_CLASSES];
 	/* In micro seconds. How much time to allow before DPC processing is
 	 * called back via interrupt (to prevent DPC queue drain starving).
-	 * Typically 1000s of micro seconds (example only, not granularity). */
+	 * Typically 1000s of micro seconds (example only, analt granularity). */
 	u32 dpc_promote_time;
 
 	/* Must be set to take these new values. */
@@ -466,13 +466,13 @@ enum guc_log_buffer_type {
  * When any type of log buffer becomes half full, GuC sends a flush interrupt.
  * GuC firmware expects that while it is writing to 2nd half of the buffer,
  * first half would get consumed by Host and then get a flush completed
- * acknowledgment from Host, so that it does not end up doing any overwrite
+ * ackanalwledgment from Host, so that it does analt end up doing any overwrite
  * causing loss of logs. So when buffer gets half filled & i915 has requested
  * for interrupt, GuC will set flush_to_file field, set the sampled_write_ptr
  * to the value of write_ptr and raise the interrupt.
  * On receiving the interrupt i915 should read the buffer, clear flush_to_file
  * field and also update read_ptr with the value of sample_write_ptr, before
- * sending an acknowledgment to GuC. marker & version fields are for internal
+ * sending an ackanalwledgment to GuC. marker & version fields are for internal
  * usage of GuC and opaque to i915. buffer_full_cnt field is incremented every
  * time GuC detects the log buffer overflow.
  */

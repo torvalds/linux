@@ -8,7 +8,7 @@
 #include <linux/bug.h>
 #include <linux/mutex.h>
 #include <linux/cpumask.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/fs.h>
 #include <linux/cred.h>
 
@@ -59,7 +59,7 @@ static inline bool seq_has_overflowed(struct seq_file *m)
  * @bufp: the beginning of the buffer is stored here
  *
  * Return the number of bytes available in the buffer, or zero if
- * there's no space.
+ * there's anal space.
  */
 static inline size_t seq_get_buf(struct seq_file *m, char **bufp)
 {
@@ -110,7 +110,7 @@ int seq_open(struct file *, const struct seq_operations *);
 ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
 ssize_t seq_read_iter(struct kiocb *iocb, struct iov_iter *iter);
 loff_t seq_lseek(struct file *, loff_t, int);
-int seq_release(struct inode *, struct file *);
+int seq_release(struct ianalde *, struct file *);
 int seq_write(struct seq_file *seq, const void *data, size_t len);
 
 __printf(2, 0)
@@ -165,22 +165,22 @@ int seq_path_root(struct seq_file *m, const struct path *path,
 void *single_start(struct seq_file *, loff_t *);
 int single_open(struct file *, int (*)(struct seq_file *, void *), void *);
 int single_open_size(struct file *, int (*)(struct seq_file *, void *), void *, size_t);
-int single_release(struct inode *, struct file *);
+int single_release(struct ianalde *, struct file *);
 void *__seq_open_private(struct file *, const struct seq_operations *, int);
 int seq_open_private(struct file *, const struct seq_operations *, int);
-int seq_release_private(struct inode *, struct file *);
+int seq_release_private(struct ianalde *, struct file *);
 
 #ifdef CONFIG_BINARY_PRINTF
 void seq_bprintf(struct seq_file *m, const char *f, const u32 *binary);
 #endif
 
 #define DEFINE_SEQ_ATTRIBUTE(__name)					\
-static int __name ## _open(struct inode *inode, struct file *file)	\
+static int __name ## _open(struct ianalde *ianalde, struct file *file)	\
 {									\
 	int ret = seq_open(file, &__name ## _sops);			\
-	if (!ret && inode->i_private) {					\
+	if (!ret && ianalde->i_private) {					\
 		struct seq_file *seq_f = file->private_data;		\
-		seq_f->private = inode->i_private;			\
+		seq_f->private = ianalde->i_private;			\
 	}								\
 	return ret;							\
 }									\
@@ -194,9 +194,9 @@ static const struct file_operations __name ## _fops = {			\
 }
 
 #define DEFINE_SHOW_ATTRIBUTE(__name)					\
-static int __name ## _open(struct inode *inode, struct file *file)	\
+static int __name ## _open(struct ianalde *ianalde, struct file *file)	\
 {									\
-	return single_open(file, __name ## _show, inode->i_private);	\
+	return single_open(file, __name ## _show, ianalde->i_private);	\
 }									\
 									\
 static const struct file_operations __name ## _fops = {			\
@@ -208,9 +208,9 @@ static const struct file_operations __name ## _fops = {			\
 }
 
 #define DEFINE_SHOW_STORE_ATTRIBUTE(__name)				\
-static int __name ## _open(struct inode *inode, struct file *file)	\
+static int __name ## _open(struct ianalde *ianalde, struct file *file)	\
 {									\
-	return single_open(file, __name ## _show, inode->i_private);	\
+	return single_open(file, __name ## _show, ianalde->i_private);	\
 }									\
 									\
 static const struct file_operations __name ## _fops = {			\
@@ -223,9 +223,9 @@ static const struct file_operations __name ## _fops = {			\
 }
 
 #define DEFINE_PROC_SHOW_ATTRIBUTE(__name)				\
-static int __name ## _open(struct inode *inode, struct file *file)	\
+static int __name ## _open(struct ianalde *ianalde, struct file *file)	\
 {									\
-	return single_open(file, __name ## _show, pde_data(inode));	\
+	return single_open(file, __name ## _show, pde_data(ianalde));	\
 }									\
 									\
 static const struct proc_ops __name ## _proc_ops = {			\
@@ -265,10 +265,10 @@ static inline void seq_show_option(struct seq_file *m, const char *name,
 /**
  * seq_show_option_n - display mount options with appropriate escapes
  *		       where @value must be a specific length (i.e.
- *		       not NUL-terminated).
+ *		       analt NUL-terminated).
  * @m: the seq_file handle
  * @name: the mount option name
- * @value: the mount option name's value, cannot be NULL
+ * @value: the mount option name's value, cananalt be NULL
  * @length: the exact length of @value to display, must be constant expression
  *
  * This is a macro since this uses "length" to define the size of the
@@ -301,25 +301,25 @@ extern struct list_head *seq_list_next_rcu(void *v, struct list_head *head, loff
  * Helpers for iteration over hlist_head-s in seq_files
  */
 
-extern struct hlist_node *seq_hlist_start(struct hlist_head *head,
+extern struct hlist_analde *seq_hlist_start(struct hlist_head *head,
 					  loff_t pos);
-extern struct hlist_node *seq_hlist_start_head(struct hlist_head *head,
+extern struct hlist_analde *seq_hlist_start_head(struct hlist_head *head,
 					       loff_t pos);
-extern struct hlist_node *seq_hlist_next(void *v, struct hlist_head *head,
+extern struct hlist_analde *seq_hlist_next(void *v, struct hlist_head *head,
 					 loff_t *ppos);
 
-extern struct hlist_node *seq_hlist_start_rcu(struct hlist_head *head,
+extern struct hlist_analde *seq_hlist_start_rcu(struct hlist_head *head,
 					      loff_t pos);
-extern struct hlist_node *seq_hlist_start_head_rcu(struct hlist_head *head,
+extern struct hlist_analde *seq_hlist_start_head_rcu(struct hlist_head *head,
 						   loff_t pos);
-extern struct hlist_node *seq_hlist_next_rcu(void *v,
+extern struct hlist_analde *seq_hlist_next_rcu(void *v,
 						   struct hlist_head *head,
 						   loff_t *ppos);
 
 /* Helpers for iterating over per-cpu hlist_head-s in seq_files */
-extern struct hlist_node *seq_hlist_start_percpu(struct hlist_head __percpu *head, int *cpu, loff_t pos);
+extern struct hlist_analde *seq_hlist_start_percpu(struct hlist_head __percpu *head, int *cpu, loff_t pos);
 
-extern struct hlist_node *seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head, int *cpu, loff_t *pos);
+extern struct hlist_analde *seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head, int *cpu, loff_t *pos);
 
 void seq_file_init(void);
 #endif

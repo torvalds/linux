@@ -19,8 +19,8 @@ description: |
   remaining 8 (2 through 9) connected to external interrupt controllers
   including the MPU and/or other PRUSS instances, DSPs or devices.
 
-  The property "ti,irqs-reserved" is used for denoting the connection
-  differences on the output interrupts 2 through 9. If this property is not
+  The property "ti,irqs-reserved" is used for deanalting the connection
+  differences on the output interrupts 2 through 9. If this property is analt
   defined, it implies that all the PRUSS INTC output interrupts 2 through 9
   (host_intr0 through host_intr7) are connected exclusively to the Arm interrupt
   controller.
@@ -29,11 +29,11 @@ description: |
   different possible output interrupts. The additional output interrupts (10
   through 19) are connected to new sub-modules within the ICSSG instances.
 
-  This interrupt-controller node should be defined as a child node of the
-  corresponding PRUSS node. The node should be named "interrupt-controller".
+  This interrupt-controller analde should be defined as a child analde of the
+  corresponding PRUSS analde. The analde should be named "interrupt-controller".
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^interrupt-controller@[0-9a-f]+$"
 
   compatible:
@@ -77,7 +77,7 @@ properties:
       Client users shall use the PRU System event number (the interrupt source
       that the client is interested in) [cell 1], PRU channel [cell 2] and PRU
       host_event (target) [cell 3] as the value of the interrupts property in
-      their node.  The system events can be mapped to some output host
+      their analde.  The system events can be mapped to some output host
       interrupts through 2 levels of many-to-one mapping i.e. events to channel
       mapping and channels to host interrupts so through this property entire
       mapping is provided.
@@ -86,11 +86,11 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint8
     description: |
       Bitmask of host interrupts between 0 and 7 (corresponding to PRUSS INTC
-      output interrupts 2 through 9) that are not connected to the Arm interrupt
+      output interrupts 2 through 9) that are analt connected to the Arm interrupt
       controller or are shared and used by other devices or processors in the
-      SoC. Define this property when any of 8 interrupts should not be handled
+      SoC. Define this property when any of 8 interrupts should analt be handled
       by Arm interrupt controller.
-        Eg: - AM437x and 66AK2G SoCs do not have "host_intr5" interrupt
+        Eg: - AM437x and 66AK2G SoCs do analt have "host_intr5" interrupt
               connected to MPU
             - AM65x and J721E SoCs have "host_intr5", "host_intr6" and
               "host_intr7" interrupts connected to MPU, and other ICSSG

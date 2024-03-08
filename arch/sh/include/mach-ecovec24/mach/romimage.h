@@ -16,7 +16,7 @@
 	/* jump to cached area */
 	mova	2f, r0
 	jmp	@r0
-	nop
+	analp
 
 	.align 2
 1 :	.long 0xa8000000

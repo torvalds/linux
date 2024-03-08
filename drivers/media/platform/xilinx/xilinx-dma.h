@@ -62,7 +62,7 @@ static inline struct xvip_pipeline *to_xvip_pipeline(struct video_device *vdev)
  * @pad: media pad for the video device entity
  * @xdev: composite device the DMA channel belongs to
  * @pipe: pipeline belonging to the DMA channel
- * @port: composite device DT node port number for the DMA channel
+ * @port: composite device DT analde port number for the DMA channel
  * @lock: protects the @format, @fmtinfo and @queue fields
  * @format: active V4L2 pixel format
  * @fmtinfo: format information corresponding to the active @format

@@ -38,7 +38,7 @@ MODULE_FIRMWARE("libertas/usb8682.bin");
 MODULE_FIRMWARE("usb8388.bin");
 
 enum {
-	MODEL_UNKNOWN = 0x0,
+	MODEL_UNKANALWN = 0x0,
 	MODEL_8388 = 0x1,
 	MODEL_8682 = 0x2
 };
@@ -95,7 +95,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		lbs_deb_usb2(&urb->dev->dev, "Actual length transmitted %d\n",
 			     urb->actual_length);
 
-		/* Boot commands such as UPDATE_FW and UPDATE_BOOT2 are not
+		/* Boot commands such as UPDATE_FW and UPDATE_BOOT2 are analt
 		 * passed up to the lbs level.
 		 */
 		if (priv && priv->dnld_sent != DNLD_BOOTCMD_SENT)
@@ -148,7 +148,7 @@ static void if_usb_setup_firmware(struct lbs_private *priv)
 	wake_method.hdr.size = cpu_to_le16(sizeof(wake_method));
 	wake_method.action = cpu_to_le16(CMD_ACT_GET);
 	if (lbs_cmd_with_response(priv, CMD_802_11_FW_WAKE_METHOD, &wake_method)) {
-		netdev_info(priv->dev, "Firmware does not seem to support PS mode\n");
+		netdev_info(priv->dev, "Firmware does analt seem to support PS mode\n");
 		priv->fwcapinfo &= ~FW_CAPINFO_PS;
 	} else {
 		if (le16_to_cpu(wake_method.method) == CMD_WAKE_METHOD_COMMAND_INT) {
@@ -168,7 +168,7 @@ static void if_usb_fw_timeo(struct timer_list *t)
 	struct if_usb_card *cardp = from_timer(cardp, t, fw_timeout);
 
 	if (cardp->fwdnldover) {
-		lbs_deb_usb("Download complete, no event. Assuming success\n");
+		lbs_deb_usb("Download complete, anal event. Assuming success\n");
 	} else {
 		pr_err("Download timed out\n");
 		cardp->surprise_removed = 1;
@@ -198,7 +198,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *endpoint;
 	struct lbs_private *priv;
 	struct if_usb_card *cardp;
-	int r = -ENOMEM;
+	int r = -EANALMEM;
 	int i;
 
 	udev = interface_to_usbdev(intf);
@@ -239,7 +239,7 @@ static int if_usb_probe(struct usb_interface *intf,
 		}
 	}
 	if (!cardp->ep_out_size || !cardp->ep_in_size) {
-		lbs_deb_usbd(&udev->dev, "Endpoints not found\n");
+		lbs_deb_usbd(&udev->dev, "Endpoints analt found\n");
 		goto dealloc;
 	}
 	if (!(cardp->rx_urb = usb_alloc_urb(0, GFP_KERNEL))) {
@@ -252,7 +252,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	}
 	cardp->ep_out_buf = kmalloc(MRVDRV_ETH_TX_PACKET_BUFFER_SIZE, GFP_KERNEL);
 	if (!cardp->ep_out_buf) {
-		lbs_deb_usbd(&udev->dev, "Could not allocate buffer\n");
+		lbs_deb_usbd(&udev->dev, "Could analt allocate buffer\n");
 		goto dealloc;
 	}
 
@@ -346,7 +346,7 @@ static int if_usb_send_fw_pkt(struct if_usb_card *cardp)
 
 	/* struct fwdata (which we sent to the card) has an
 	   extra __le32 field in between the header and the data,
-	   which is not in the struct fwheader in the actual
+	   which is analt in the struct fwheader in the actual
 	   firmware binary. Insert the seqnum in the middle... */
 	memcpy(&fwdata->hdr, &firmware[cardp->totalbytes],
 	       sizeof(struct fwheader));
@@ -422,7 +422,7 @@ static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb
 	/* check if device is removed */
 	if (cardp->surprise_removed) {
 		lbs_deb_usbd(&cardp->udev->dev, "Device removed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto tx_ret;
 	}
 
@@ -451,7 +451,7 @@ static int __if_usb_submit_rx_urb(struct if_usb_card *cardp,
 	int ret = -1;
 
 	if (!(skb = dev_alloc_skb(MRVDRV_ETH_RX_PACKET_BUFFER_SIZE))) {
-		pr_err("No free skb\n");
+		pr_err("Anal free skb\n");
 		goto rx_ret;
 	}
 
@@ -638,7 +638,7 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 	memcpy(priv->resp_buf[i], recvbuff + MESSAGE_HEADER_LEN,
 		priv->resp_len[i]);
 	dev_kfree_skb_irq(skb);
-	lbs_notify_command_response(priv, i);
+	lbs_analtify_command_response(priv, i);
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
@@ -707,7 +707,7 @@ static void if_usb_receive(struct urb *urb)
 		break;
 
 	default:
-		lbs_deb_usbd(&cardp->udev->dev, "Unknown command type 0x%X\n",
+		lbs_deb_usbd(&cardp->udev->dev, "Unkanalwn command type 0x%X\n",
 			     recvtype);
 		kfree_skb(skb);
 		break;
@@ -864,9 +864,9 @@ restart:
 		} while (cardp->bootcmdresp == 0 && j < 10);
 	} while (cardp->bootcmdresp == 0 && i < 5);
 
-	if (cardp->bootcmdresp == BOOT_CMD_RESP_NOT_SUPPORTED) {
-		/* Return to normal operation */
-		ret = -EOPNOTSUPP;
+	if (cardp->bootcmdresp == BOOT_CMD_RESP_ANALT_SUPPORTED) {
+		/* Return to analrmal operation */
+		ret = -EOPANALTSUPP;
 		usb_kill_urb(cardp->rx_urb);
 		usb_kill_urb(cardp->tx_urb);
 		if (if_usb_submit_rx_urb(cardp) < 0)
@@ -921,7 +921,7 @@ restart:
 	if_usb_setup_firmware(priv);
 
 	/*
-	 * EHS_REMOVE_WAKEUP is not supported on all versions of the firmware.
+	 * EHS_REMOVE_WAKEUP is analt supported on all versions of the firmware.
 	 */
 	priv->wol_criteria = EHS_REMOVE_WAKEUP;
 	if (lbs_host_sleep_cfg(priv, priv->wol_criteria, NULL))

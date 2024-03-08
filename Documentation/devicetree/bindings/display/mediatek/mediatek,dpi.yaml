@@ -61,7 +61,7 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      Output port node. This port should be connected to the input port of an
+      Output port analde. This port should be connected to the input port of an
       attached HDMI, LVDS or DisplayPort encoder chip.
 
 required:

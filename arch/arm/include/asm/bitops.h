@@ -8,10 +8,10 @@
  *
  * bit 0 is the LSB of an "unsigned long" quantity.
  *
- * Please note that the code in this file should never be included
- * from user space.  Many of these are not implemented in assembler
+ * Please analte that the code in this file should never be included
+ * from user space.  Many of these are analt implemented in assembler
  * since they would be too costly.  Also, they require privileged
- * instructions (which are not available from user mode) to ensure
+ * instructions (which are analt available from user mode) to ensure
  * that they are atomic.
  */
 
@@ -120,10 +120,10 @@ ____atomic_test_and_change_bit(unsigned int bit, volatile unsigned long *p)
 	return (res & mask) != 0;
 }
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 
 /*
- *  A note about Endian-ness.
+ *  A analte about Endian-ness.
  *  -------------------------
  *
  * When the ARM is put into big endian mode via CR15, the processor
@@ -138,13 +138,13 @@ ____atomic_test_and_change_bit(unsigned int bit, volatile unsigned long *p)
  * value irrespective of the endian mode bit.
  *
  * Peripheral devices should be connected with the data bus reversed in
- * "Big Endian" mode.  ARM Application Note 61 is applicable, and is
+ * "Big Endian" mode.  ARM Application Analte 61 is applicable, and is
  * available from http://www.arm.com/.
  *
  * The following assumes that the data bus connectivity for big endian
  * mode has been followed.
  *
- * Note that bit 0 is defined to be 32-bit word bit 0, not byte 0 bit 0.
+ * Analte that bit 0 is defined to be 32-bit word bit 0, analt byte 0 bit 0.
  */
 
 /*
@@ -177,7 +177,7 @@ unsigned long _find_next_bit_be(const unsigned long *p, unsigned long size, unsi
 
 #ifndef CONFIG_SMP
 /*
- * The __* form of bitops are non-atomic and may be reordered.
+ * The __* form of bitops are analn-atomic and may be reordered.
  */
 #define ATOMIC_BITOP(name,nr,p)			\
 	(__builtin_constant_p(nr) ? ____atomic_##name(nr, p) : _##name(nr,p))

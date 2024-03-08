@@ -36,5 +36,5 @@ do
 	exec "${file}" "${KERNELRELEASE}" "${KBUILD_IMAGE}" System.map "${INSTALL_PATH}"
 done
 
-echo "No install script found" >&2
+echo "Anal install script found" >&2
 exit 1

@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -35,7 +35,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
@@ -89,12 +89,12 @@ static int c4iw_alloc_ucontext(struct ib_ucontext *ucontext,
 	spin_lock_init(&context->mmap_lock);
 
 	if (udata->outlen < sizeof(uresp) - sizeof(uresp.reserved)) {
-		pr_err_once("Warning - downlevel libcxgb4 (non-fatal), device status page disabled\n");
+		pr_err_once("Warning - downlevel libcxgb4 (analn-fatal), device status page disabled\n");
 		rhp->rdev.flags |= T4_STATUS_PAGE_DISABLED;
 	} else {
 		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
 		if (!mm) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -154,7 +154,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		/*
 		 * MA_SYNC register...
 		 */
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 addr >> PAGE_SHIFT,
 					 len, vma->vm_page_prot);
@@ -173,7 +173,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 					t4_pgprot_wc(vma->vm_page_prot);
 			else
 				vma->vm_page_prot =
-					pgprot_noncached(vma->vm_page_prot);
+					pgprot_analncached(vma->vm_page_prot);
 		}
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 addr >> PAGE_SHIFT,
@@ -447,7 +447,7 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 
 	snprintf(str, IB_FW_VERSION_NAME_MAX, "%u.%u.%u.%u",
 		 FW_HDR_FW_VER_MAJOR_G(c4iw_dev->rdev.lldi.fw_vers),
-		 FW_HDR_FW_VER_MINOR_G(c4iw_dev->rdev.lldi.fw_vers),
+		 FW_HDR_FW_VER_MIANALR_G(c4iw_dev->rdev.lldi.fw_vers),
 		 FW_HDR_FW_VER_MICRO_G(c4iw_dev->rdev.lldi.fw_vers),
 		 FW_HDR_FW_VER_BUILD_G(c4iw_dev->rdev.lldi.fw_vers));
 }
@@ -499,7 +499,7 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.query_port = c4iw_query_port,
 	.query_qp = c4iw_ib_query_qp,
 	.reg_user_mr = c4iw_reg_user_mr,
-	.req_notify_cq = c4iw_arm_cq,
+	.req_analtify_cq = c4iw_arm_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_cq, c4iw_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_mw, c4iw_mw, ibmw),
@@ -530,12 +530,12 @@ void c4iw_register_device(struct work_struct *work)
 	struct c4iw_dev *dev = ctx->dev;
 
 	pr_debug("c4iw_dev %p\n", dev);
-	addrconf_addr_eui48((u8 *)&dev->ibdev.node_guid,
+	addrconf_addr_eui48((u8 *)&dev->ibdev.analde_guid,
 			    dev->rdev.lldi.ports[0]->dev_addr);
 	dev->ibdev.local_dma_lkey = 0;
-	dev->ibdev.node_type = RDMA_NODE_RNIC;
-	BUILD_BUG_ON(sizeof(C4IW_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
-	memcpy(dev->ibdev.node_desc, C4IW_NODE_DESC, sizeof(C4IW_NODE_DESC));
+	dev->ibdev.analde_type = RDMA_ANALDE_RNIC;
+	BUILD_BUG_ON(sizeof(C4IW_ANALDE_DESC) > IB_DEVICE_ANALDE_DESC_MAX);
+	memcpy(dev->ibdev.analde_desc, C4IW_ANALDE_DESC, sizeof(C4IW_ANALDE_DESC));
 	dev->ibdev.phys_port_cnt = dev->rdev.lldi.nports;
 	dev->ibdev.num_comp_vectors =  dev->rdev.lldi.nciq;
 	dev->ibdev.dev.parent = &dev->rdev.lldi.pdev->dev;

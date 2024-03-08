@@ -27,7 +27,7 @@
  *
  * History:
  *
- *   - 24 Jul 96: Copper generates now vblank interrupt and
+ *   - 24 Jul 96: Copper generates analw vblank interrupt and
  *                VESA Power Saving Protocol is fully implemented
  *   - 14 Jul 96: Rework and hopefully last ECS bugs fixed
  *   -  7 Mar 96: Hardware sprite support by Roman Zippel
@@ -42,7 +42,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -147,7 +147,7 @@
    Amiga video timings
    -------------------
 
-   The Amiga native chipsets uses another timing scheme:
+   The Amiga native chipsets uses aanalther timing scheme:
 
       - hsstrt:   Start of horizontal synchronization pulse
       - hsstop:   End of horizontal synchronization pulse
@@ -179,7 +179,7 @@
 
    Within the above synchronization specifications, the visible window is
    defined by the following parameters (actual register resolutions may be
-   different; all horizontal values are normalized with respect to the pixel
+   different; all horizontal values are analrmalized with respect to the pixel
    clock):
 
       - diwstrt_h:   Horizontal start of the visible window
@@ -195,7 +195,7 @@
       - sprstrt_h:   Horizontal start - 4 of sprite
       - sprstrt_v:   Vertical start of sprite
 
-   (*) Even Commodore did it wrong in the AGA monitor drivers by not adding 1.
+   (*) Even Commodore did it wrong in the AGA monitor drivers by analt adding 1.
 
    Horizontal values are in dotclock cycles (35 ns), vertical values are in
    scanlines.
@@ -342,13 +342,13 @@
       - set the FB_SYNC_BROADCAST flag to indicate that standard broadcast
 	timings are to be used.
       - make sure upper_margin + yres + lower_margin + vsync_len = 625 for an
-	interlaced, 312 for a non-interlaced and 156 for a doublescanned
+	interlaced, 312 for a analn-interlaced and 156 for a doublescanned
 	display.
       - make sure left_margin + xres + right_margin + hsync_len = 1816 for a
 	SHRES, 908 for a HIRES and 454 for a LORES display.
       - the left visible part begins at 360 (SHRES; HIRES:180, LORES:90),
 	left_margin + 2 * hsync_len must be greater or equal.
-      - the upper visible part begins at 48 (interlaced; non-interlaced:24,
+      - the upper visible part begins at 48 (interlaced; analn-interlaced:24,
 	doublescanned:12), upper_margin + 2 * vsync_len must be greater or
 	equal.
       - ami_encode_var() calculates margins with a hsync of 5320 ns and a vsync
@@ -356,9 +356,9 @@
 
    The settings for a NTSC compatible display are straightforward.
 
-   Note that in a strict sense the PAL and NTSC standards only define the
+   Analte that in a strict sense the PAL and NTSC standards only define the
    encoding of the color part (chrominance) of the video signal and don't say
-   anything about horizontal/vertical synchronization nor refresh rates.
+   anything about horizontal/vertical synchronization analr refresh rates.
 
 
 							    -- Geert --
@@ -403,7 +403,7 @@
 #define BPC2_ZDBPEN	(0x0800) /* Enable ZD with ZDBPSELx - AGA */
 #define BPC2_ZDCTEN	(0x0400) /* Enable ZD with palette bit #31 - AGA */
 #define BPC2_KILLEHB	(0x0200) /* Kill EHB mode - AGA */
-#define BPC2_RDRAM	(0x0100) /* Color table accesses read, not write - AGA */
+#define BPC2_RDRAM	(0x0100) /* Color table accesses read, analt write - AGA */
 #define BPC2_SOGEN	(0x0080) /* SOG output pin high - AGA */
 #define BPC2_PF2PRI	(0x0040) /* PF2 priority over PF1 */
 #define BPC2_PF2P2	(0x0020) /* PF2 priority wrt sprites */
@@ -468,7 +468,7 @@
 #define BMC0_DUAL	(0x0040) /* Enable alternate horizontal beam counter */
 #define BMC0_PAL	(0x0020) /* Set decodes for PAL */
 #define BMC0_VARCSYEN	(0x0010) /* Enable variable composite sync */
-#define BMC0_BLANKEN	(0x0008) /* Blank enable (no longer used on AGA) */
+#define BMC0_BLANKEN	(0x0008) /* Blank enable (anal longer used on AGA) */
 #define BMC0_CSYTRUE	(0x0004) /* CSY polarity */
 #define BMC0_VSYTRUE	(0x0002) /* VSY polarity */
 #define BMC0_HSYTRUE	(0x0001) /* HSY polarity */
@@ -581,12 +581,12 @@ static u_short maxfmode, chipset;
  * is required for APUS support (once it is re-added to the kernel).
  * Needs to be tested on the hardware though..
  */
-/* if x1 is not a constant, this macro won't make real sense :-) */
+/* if x1 is analt a constant, this macro won't make real sense :-) */
 #ifdef __mc68000__
 #define DIVUL(x1, x2) ({int res; asm("divul %1,%2,%3": "=d" (res): \
 	"d" (x2), "d" ((long)((x1) / 0x100000000ULL)), "0" ((long)(x1))); res;})
 #else
-/* We know a bit about the numbers, so we can do it this way */
+/* We kanalw a bit about the numbers, so we can do it this way */
 #define DIVUL(x1, x2) ((((long)((unsigned long long)x1 >> 8) / x2) << 8) + \
 	((((long)((unsigned long long)x1 >> 8) % x2) << 8) / x2))
 #endif
@@ -623,7 +623,7 @@ static u_long videomemory;
 
 	/*
 	 * This is the earliest allowed start of fetching display data.
-	 * Only if you really want no hardware cursor and audio,
+	 * Only if you really want anal hardware cursor and audio,
 	 * set this to 128, but let it better at 192
 	 */
 
@@ -675,7 +675,7 @@ static u_short currentcop = 0;
 
 struct fb_fix_cursorinfo {
 	__u16 crsr_width;		/* width and height of the cursor in */
-	__u16 crsr_height;		/* pixels (zero if no cursor)	*/
+	__u16 crsr_height;		/* pixels (zero if anal cursor)	*/
 	__u16 crsr_xsize;		/* cursor size in display pixels */
 	__u16 crsr_ysize;
 	__u16 crsr_color1;		/* colormap entry for cursor color1 */
@@ -750,8 +750,8 @@ struct amifb_par {
 
 	/* OCS Hardware Registers */
 
-	u_long bplpt0;		/* vmode, pan (Note: physical address) */
-	u_long bplpt0wrap;	/* vmode, pan (Note: physical address) */
+	u_long bplpt0;		/* vmode, pan (Analte: physical address) */
+	u_long bplpt0wrap;	/* vmode, pan (Analte: physical address) */
 	u_short ddfstrt;
 	u_short ddfstop;
 	u_short bpl1mod;
@@ -826,7 +826,7 @@ static struct fb_videomode ami_modedb[] __initdata = {
 	{
 		/* 640x200, 15 kHz, 60 Hz (NTSC) */
 		"ntsc", 60, 640, 200, TAG_HIRES, 106, 86, 44, 16, 76, 2,
-		FB_SYNC_BROADCAST, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		FB_SYNC_BROADCAST, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 640x400, 15 kHz, 60 Hz interlaced (NTSC) */
 		"ntsc-lace", 60, 640, 400, TAG_HIRES, 106, 86, 88, 33, 76, 4,
@@ -834,7 +834,7 @@ static struct fb_videomode ami_modedb[] __initdata = {
 	}, {
 		/* 640x256, 15 kHz, 50 Hz (PAL) */
 		"pal", 50, 640, 256, TAG_HIRES, 106, 86, 40, 14, 76, 2,
-		FB_SYNC_BROADCAST, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		FB_SYNC_BROADCAST, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 640x512, 15 kHz, 50 Hz interlaced (PAL) */
 		"pal-lace", 50, 640, 512, TAG_HIRES, 106, 86, 80, 29, 76, 4,
@@ -842,7 +842,7 @@ static struct fb_videomode ami_modedb[] __initdata = {
 	}, {
 		/* 640x480, 29 kHz, 57 Hz */
 		"multiscan", 57, 640, 480, TAG_SHRES, 96, 112, 29, 8, 72, 8,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 640x960, 29 kHz, 57 Hz interlaced */
 		"multiscan-lace", 57, 640, 960, TAG_SHRES, 96, 112, 58, 16, 72,
@@ -851,7 +851,7 @@ static struct fb_videomode ami_modedb[] __initdata = {
 	}, {
 		/* 640x200, 15 kHz, 72 Hz */
 		"euro36", 72, 640, 200, TAG_HIRES, 92, 124, 6, 6, 52, 5,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 640x400, 15 kHz, 72 Hz interlaced */
 		"euro36-lace", 72, 640, 400, TAG_HIRES, 92, 124, 12, 12, 52,
@@ -860,7 +860,7 @@ static struct fb_videomode ami_modedb[] __initdata = {
 	}, {
 		/* 640x400, 29 kHz, 68 Hz */
 		"euro72", 68, 640, 400, TAG_SHRES, 164, 92, 9, 9, 80, 8,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 640x800, 29 kHz, 68 Hz interlaced */
 		"euro72-lace", 68, 640, 800, TAG_SHRES, 164, 92, 18, 18, 80,
@@ -869,7 +869,7 @@ static struct fb_videomode ami_modedb[] __initdata = {
 	}, {
 		/* 800x300, 23 kHz, 70 Hz */
 		"super72", 70, 800, 300, TAG_SHRES, 212, 140, 10, 11, 80, 7,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 800x600, 23 kHz, 70 Hz interlaced */
 		"super72-lace", 70, 800, 600, TAG_SHRES, 212, 140, 20, 22, 80,
@@ -882,7 +882,7 @@ static struct fb_videomode ami_modedb[] __initdata = {
 	}, {
 		/* 640x400, 27 kHz, 57 Hz */
 		"dblntsc-ff", 57, 640, 400, TAG_SHRES, 196, 124, 36, 35, 80, 7,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 640x800, 27 kHz, 57 Hz interlaced */
 		"dblntsc-lace", 57, 640, 800, TAG_SHRES, 196, 124, 72, 70, 80,
@@ -895,7 +895,7 @@ static struct fb_videomode ami_modedb[] __initdata = {
 	}, {
 		/* 640x512, 27 kHz, 47 Hz */
 		"dblpal-ff", 47, 640, 512, TAG_SHRES, 196, 124, 28, 27, 80, 7,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 640x1024, 27 kHz, 47 Hz interlaced */
 		"dblpal-lace", 47, 640, 1024, TAG_SHRES, 196, 124, 56, 54, 80,
@@ -910,29 +910,29 @@ static struct fb_videomode ami_modedb[] __initdata = {
 	{
 		/* 640x480, 31 kHz, 60 Hz (VGA) */
 		"vga", 60, 640, 480, TAG_SHRES, 64, 96, 30, 9, 112, 2,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 640x400, 31 kHz, 70 Hz (VGA) */
 		"vga70", 70, 640, 400, TAG_SHRES, 64, 96, 35, 12, 112, 2,
 		FB_SYNC_VERT_HIGH_ACT | FB_SYNC_COMP_HIGH_ACT,
-		FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	},
 
 #if 0
 
 	/*
 	 *  A2024 video modes
-	 *  These modes don't work yet because there's no A2024 driver.
+	 *  These modes don't work yet because there's anal A2024 driver.
 	 */
 
 	{
 		/* 1024x800, 10 Hz */
 		"a2024-10", 10, 1024, 800, TAG_HIRES, 0, 0, 0, 0, 0, 0,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}, {
 		/* 1024x800, 15 Hz */
 		"a2024-15", 15, 1024, 800, TAG_HIRES, 0, 0, 0, 0, 0, 0,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_ANALNINTERLACED | FB_VMODE_YWRAP
 	}
 #endif
 };
@@ -954,7 +954,7 @@ static int round_down_bpp = 1;	/* for mode probing */
 #define DEFMODE_AGA	    19	/* "vga70" for AGA */
 
 
-static int amifb_ilbm = 0;	/* interleaved or normal bitplanes */
+static int amifb_ilbm = 0;	/* interleaved or analrmal bitplanes */
 
 static u32 amifb_hfmin __initdata;	/* monitor hfreq lower limit (Hz) */
 static u32 amifb_hfmax __initdata;	/* monitor hfreq upper limit (Hz) */
@@ -1159,7 +1159,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 		par->vyres = par->yres;
 
 	par->bpp = var->bits_per_pixel;
-	if (!var->nonstd) {
+	if (!var->analnstd) {
 		if (par->bpp < 1)
 			par->bpp = 1;
 		if (par->bpp > maxdepth[clk_shift]) {
@@ -1170,7 +1170,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 				return -EINVAL;
 			}
 		}
-	} else if (var->nonstd == FB_NONSTD_HAM) {
+	} else if (var->analnstd == FB_ANALNSTD_HAM) {
 		if (par->bpp < 6)
 			par->bpp = 6;
 		if (par->bpp != 6) {
@@ -1182,13 +1182,13 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 			}
 		}
 	} else {
-		DPRINTK("unknown nonstd mode\n");
+		DPRINTK("unkanalwn analnstd mode\n");
 		return -EINVAL;
 	}
 
 	/*
 	 * FB_VMODE_SMOOTH_XPAN will be cleared, if one of the following
-	 * checks failed and smooth scrolling is not possible
+	 * checks failed and smooth scrolling is analt possible
 	 */
 
 	par->vmode = var->vmode | FB_VMODE_SMOOTH_XPAN;
@@ -1196,7 +1196,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 	case FB_VMODE_INTERLACED:
 		line_shift = 0;
 		break;
-	case FB_VMODE_NONINTERLACED:
+	case FB_VMODE_ANALNINTERLACED:
 		line_shift = 1;
 		break;
 	case FB_VMODE_DOUBLE:
@@ -1207,7 +1207,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 		line_shift = 2;
 		break;
 	default:
-		DPRINTK("unknown video mode\n");
+		DPRINTK("unkanalwn video mode\n");
 		return -EINVAL;
 		break;
 	}
@@ -1286,7 +1286,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 				par->beamcon0 = BMC0_PAL;
 				par->hsstop = 1;
 			} else if (amiga_vblank != 50) {
-				DPRINTK("pal not supported by this chipset\n");
+				DPRINTK("pal analt supported by this chipset\n");
 				return -EINVAL;
 			}
 		} else {
@@ -1316,7 +1316,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 				par->beamcon0 = 0;
 				par->hsstop = 1;
 			} else if (amiga_vblank != 60) {
-				DPRINTK("ntsc not supported by this chipset\n");
+				DPRINTK("ntsc analt supported by this chipset\n");
 				return -EINVAL;
 			}
 		}
@@ -1431,7 +1431,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 		fsize -= fconst;
 
 	/*
-	 * Check if there is enough time to update the bitplane pointers for ywrap
+	 * Check if there is eanalugh time to update the bitplane pointers for ywrap
 	 */
 
 	if (par->htotal - fsize - 64 < par->bpp * 64)
@@ -1468,7 +1468,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 		par->bplcon0 |= BPC0_BPU3;
 	else
 		par->bplcon0 |= par->bpp << 12;
-	if (var->nonstd == FB_NONSTD_HAM)
+	if (var->analnstd == FB_ANALNSTD_HAM)
 		par->bplcon0 |= BPC0_HAM;
 	if (var->sync & FB_SYNC_EXT)
 		par->bplcon0 |= BPC0_ERSY;
@@ -1543,9 +1543,9 @@ static void ami_encode_var(struct fb_var_screeninfo *var,
 	var->transp.msb_right = 0;
 
 	if (par->bplcon0 & BPC0_HAM)
-		var->nonstd = FB_NONSTD_HAM;
+		var->analnstd = FB_ANALNSTD_HAM;
 	else
-		var->nonstd = 0;
+		var->analnstd = 0;
 	var->activate = 0;
 
 	var->height = -1;
@@ -1558,7 +1558,7 @@ static void ami_encode_var(struct fb_var_screeninfo *var,
 	else if (par->bplcon0 & BPC0_LACE)
 		var->vmode = FB_VMODE_INTERLACED;
 	else
-		var->vmode = FB_VMODE_NONINTERLACED;
+		var->vmode = FB_VMODE_ANALNINTERLACED;
 
 	if (!IS_OCS && par->beamcon0 & BMC0_VARBEAMEN) {
 		var->hsync_len = (par->hsstop - par->hsstrt)>>clk_shift;
@@ -2143,7 +2143,7 @@ static void ami_reinit_copper(const struct amifb_par *par)
 	/*
 	 * Rebuild the Copper List
 	 *
-	 * We only change the things that are not static
+	 * We only change the things that are analt static
 	 */
 
 static void ami_rebuild_copper(const struct amifb_par *par)
@@ -2445,28 +2445,28 @@ static int amifb_set_par(struct fb_info *info)
 	/*
 	 * Set a single color register. The values supplied are already
 	 * rounded down to the hardware's capabilities (according to the
-	 * entries in the var structure). Return != 0 for invalid regno.
+	 * entries in the var structure). Return != 0 for invalid reganal.
 	 */
 
-static int amifb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int amifb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			   u_int transp, struct fb_info *info)
 {
 	const struct amifb_par *par = info->par;
 
 	if (IS_AGA) {
-		if (regno > 255)
+		if (reganal > 255)
 			return 1;
 	} else if (par->bplcon0 & BPC0_SHRES) {
-		if (regno > 3)
+		if (reganal > 3)
 			return 1;
 	} else {
-		if (regno > 31)
+		if (reganal > 31)
 			return 1;
 	}
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
-	if (!regno) {
+	if (!reganal) {
 		red0 = red;
 		green0 = green;
 		blue0 = blue;
@@ -2480,17 +2480,17 @@ static int amifb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	 * being changed by ami_do_blank() during the VBlank.
 	 */
 
-	if (regno || !is_blanked) {
+	if (reganal || !is_blanked) {
 #if defined(CONFIG_FB_AMIGA_AGA)
 		if (IS_AGA) {
 			u_short bplcon3 = par->bplcon3;
 			VBlankOff();
-			custom.bplcon3 = bplcon3 | (regno << 8 & 0xe000);
-			custom.color[regno & 31] = rgb2hw8_high(red, green,
+			custom.bplcon3 = bplcon3 | (reganal << 8 & 0xe000);
+			custom.color[reganal & 31] = rgb2hw8_high(red, green,
 								blue);
-			custom.bplcon3 = bplcon3 | (regno << 8 & 0xe000) |
+			custom.bplcon3 = bplcon3 | (reganal << 8 & 0xe000) |
 					 BPC3_LOCT;
-			custom.color[regno & 31] = rgb2hw8_low(red, green,
+			custom.color[reganal & 31] = rgb2hw8_low(red, green,
 							       blue);
 			custom.bplcon3 = bplcon3;
 			VBlankOn();
@@ -2504,16 +2504,16 @@ static int amifb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			mask = 0x3333;
 			color = rgb2hw2(red, green, blue);
 			VBlankOff();
-			for (i = regno + 12; i >= (int)regno; i -= 4)
+			for (i = reganal + 12; i >= (int)reganal; i -= 4)
 				custom.color[i] = ecs_palette[i] = (ecs_palette[i] & mask) | color;
 			mask <<= 2; color >>= 2;
-			regno = down16(regno) + mul4(mod4(regno));
-			for (i = regno + 3; i >= (int)regno; i--)
+			reganal = down16(reganal) + mul4(mod4(reganal));
+			for (i = reganal + 3; i >= (int)reganal; i--)
 				custom.color[i] = ecs_palette[i] = (ecs_palette[i] & mask) | color;
 			VBlankOn();
 		} else
 #endif
-			custom.color[regno] = rgb2hw4(red, green, blue);
+			custom.color[reganal] = rgb2hw4(red, green, blue);
 	}
 	return 0;
 }
@@ -2880,7 +2880,7 @@ static void bitcpy_rev(unsigned long *dst, int dst_idx,
 	 *  accesses
 	 */
 
-static void bitcpy_not(unsigned long *dst, int dst_idx,
+static void bitcpy_analt(unsigned long *dst, int dst_idx,
 		       const unsigned long *src, int src_idx, u32 n)
 {
 	unsigned long first, last;
@@ -3313,7 +3313,7 @@ static inline void expand_one_line(int bpp, unsigned long next_plane,
 			if (fgcolor & 1)
 				bitcpy(dst, dst_idx, src, src_idx, n);
 			else
-				bitcpy_not(dst, dst_idx, src, src_idx, n);
+				bitcpy_analt(dst, dst_idx, src, src_idx, n);
 			/* set or clear */
 		} else
 			bitfill32(dst, dst_idx, fgcolor & 1 ? ~0 : 0, n);
@@ -3512,7 +3512,7 @@ static inline u_long __init chipalloc(u_long size)
 {
 	aligned_chipptr = amiga_chip_alloc(size, "amifb [RAM]");
 	if (!aligned_chipptr) {
-		pr_err("amifb: No Chip RAM for frame buffer");
+		pr_err("amifb: Anal Chip RAM for frame buffer");
 		return 0;
 	}
 	memset(aligned_chipptr, 0, size);
@@ -3542,7 +3542,7 @@ static int __init amifb_probe(struct platform_device *pdev)
 
 	if (fb_get_options("amifb", &option)) {
 		amifb_video_off();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	amifb_setup(option);
 #endif
@@ -3550,7 +3550,7 @@ static int __init amifb_probe(struct platform_device *pdev)
 
 	info = framebuffer_alloc(sizeof(struct amifb_par), &pdev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(info->fix.id, "Amiga ");
 	info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
@@ -3562,7 +3562,7 @@ static int __init amifb_probe(struct platform_device *pdev)
 		strcat(info->fix.id, "OCS");
 default_chipset:
 		chipset = TAG_OCS;
-		maxdepth[TAG_SHRES] = 0;	/* OCS means no SHRES */
+		maxdepth[TAG_SHRES] = 0;	/* OCS means anal SHRES */
 		maxdepth[TAG_HIRES] = 4;
 		maxdepth[TAG_LORES] = 6;
 		maxfmode = TAG_FMODE_1;
@@ -3612,11 +3612,11 @@ default_chipset:
 
 	default:
 #ifdef CONFIG_FB_AMIGA_OCS
-		printk("Unknown graphics chipset, defaulting to OCS\n");
-		strcat(info->fix.id, "Unknown");
+		printk("Unkanalwn graphics chipset, defaulting to OCS\n");
+		strcat(info->fix.id, "Unkanalwn");
 		goto default_chipset;
 #else /* CONFIG_FB_AMIGA_OCS */
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto release;
 #endif /* CONFIG_FB_AMIGA_OCS */
 		break;
@@ -3678,7 +3678,7 @@ default_chipset:
 			    DUMMYSPRITEMEMSIZE + COPINITSIZE +
 			    4 * COPLISTSIZE);
 	if (!chipptr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release;
 	}
 
@@ -3769,7 +3769,7 @@ static void __exit amifb_remove(struct platform_device *pdev)
 
 /*
  * amifb_remove() lives in .exit.text. For drivers registered via
- * module_platform_driver_probe() this ok because they cannot get unboud at
+ * module_platform_driver_probe() this ok because they cananalt get unboud at
  * runtime. The driver needs to be marked with __refdata, otherwise modpost
  * triggers a section mismatch warning.
  */

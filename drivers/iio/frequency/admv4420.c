@@ -351,7 +351,7 @@ static int admv4420_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_spi(spi, &admv4420_regmap_config);
 	if (IS_ERR(regmap))

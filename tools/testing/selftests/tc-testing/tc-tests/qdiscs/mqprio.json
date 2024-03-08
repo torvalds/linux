@@ -23,7 +23,7 @@
     },
     {
         "id": "453a",
-        "name": "Delete nonexistent mqprio Qdisc",
+        "name": "Delete analnexistent mqprio Qdisc",
         "category": [
             "qdisc",
             "mqprio"

@@ -16,7 +16,7 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/sw_trigger.h>
 
-/* Defined locally, not in time64.h yet. */
+/* Defined locally, analt in time64.h yet. */
 #define PSEC_PER_SEC   1000000000000LL
 
 /* default sampling frequency - 100Hz */
@@ -101,7 +101,7 @@ static enum hrtimer_restart iio_hrtimer_trig_handler(struct hrtimer *timer)
 
 	info = container_of(timer, struct iio_hrtimer_info, timer);
 
-	hrtimer_forward_now(timer, info->period);
+	hrtimer_forward_analw(timer, info->period);
 	iio_trigger_poll(info->swt.trigger);
 
 	return HRTIMER_RESTART;
@@ -133,11 +133,11 @@ static struct iio_sw_trigger *iio_trig_hrtimer_probe(const char *name)
 
 	trig_info = kzalloc(sizeof(*trig_info), GFP_KERNEL);
 	if (!trig_info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	trig_info->swt.trigger = iio_trigger_alloc(NULL, "%s", name);
 	if (!trig_info->swt.trigger) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_trig_info;
 	}
 
@@ -145,7 +145,7 @@ static struct iio_sw_trigger *iio_trig_hrtimer_probe(const char *name)
 	trig_info->swt.trigger->ops = &iio_hrtimer_trigger_ops;
 	trig_info->swt.trigger->dev.groups = iio_hrtimer_attr_groups;
 
-	hrtimer_init(&trig_info->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_init(&trig_info->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_HARD);
 	trig_info->timer.function = iio_hrtimer_trig_handler;
 
 	trig_info->sampling_frequency[0] = HRTIMER_DEFAULT_SAMPLING_FREQUENCY;
@@ -173,7 +173,7 @@ static int iio_trig_hrtimer_remove(struct iio_sw_trigger *swt)
 
 	iio_trigger_unregister(swt->trigger);
 
-	/* cancel the timer after unreg to make sure no one rearms it */
+	/* cancel the timer after unreg to make sure anal one rearms it */
 	hrtimer_cancel(&trig_info->timer);
 	iio_trigger_free(swt->trigger);
 	kfree(trig_info);

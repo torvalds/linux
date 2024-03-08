@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -147,7 +147,7 @@ struct radeon_agp_head *radeon_agp_head_init(struct drm_device *dev)
 	} else {
 		agp_copy_info(head->bridge, &head->agp_info);
 	}
-	if (head->agp_info.chipset == NOT_SUPPORTED) {
+	if (head->agp_info.chipset == ANALT_SUPPORTED) {
 		kfree(head);
 		return NULL;
 	}
@@ -165,12 +165,12 @@ static int radeon_agp_head_acquire(struct radeon_device *rdev)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	if (!rdev->agp)
-		return -ENODEV;
+		return -EANALDEV;
 	if (rdev->agp->acquired)
 		return -EBUSY;
 	rdev->agp->bridge = agp_backend_acquire(pdev);
 	if (!rdev->agp->bridge)
-		return -ENODEV;
+		return -EANALDEV;
 	rdev->agp->acquired = 1;
 	return 0;
 }
@@ -204,7 +204,7 @@ static int radeon_agp_head_info(struct radeon_device *rdev, struct radeon_agp_in
 
 	kern = &rdev->agp->agp_info;
 	info->agp_version_major = kern->version.major;
-	info->agp_version_minor = kern->version.minor;
+	info->agp_version_mianalr = kern->version.mianalr;
 	info->mode = kern->mode;
 	info->aperture_base = kern->aper_base;
 	info->aperture_size = kern->aper_size * 1024 * 1024;

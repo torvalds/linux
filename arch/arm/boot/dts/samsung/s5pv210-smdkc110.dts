@@ -9,9 +9,9 @@
  *
  * Board device tree source for YIC System SMDC110 board.
  *
- * NOTE: This file is completely based on original board file for mach-smdkc110
+ * ANALTE: This file is completely based on original board file for mach-smdkc110
  * available in Linux 3.15 and intends to provide equivalent level of hardware
- * support. Due to lack of hardware, _no_ testing has been performed.
+ * support. Due to lack of hardware, _anal_ testing has been performed.
  */
 
 /dts-v1/;
@@ -23,7 +23,7 @@
 	compatible = "yic,smdkc110", "samsung,s5pv210";
 
 	chosen {
-		bootargs = "console=ttySAC0,115200n8 root=/dev/mmcblk0p1 rw rootwait ignore_loglevel earlyprintk";
+		bootargs = "console=ttySAC0,115200n8 root=/dev/mmcblk0p1 rw rootwait iganalre_loglevel earlyprintk";
 	};
 
 	memory@20000000 {

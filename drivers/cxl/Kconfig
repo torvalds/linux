@@ -92,7 +92,7 @@ config CXL_MEM
 	  The CXL.mem protocol allows a device to act as a provider of "System
 	  RAM" and/or "Persistent Memory" that is fully coherent as if the
 	  memory were attached to the typical CPU memory controller. This is
-	  known as HDM "Host-managed Device Memory".
+	  kanalwn as HDM "Host-managed Device Memory".
 
 	  Say 'y/m' to enable a driver that will attach to CXL.mem devices for
 	  memory expansion and control of HDM. See Chapter 9.13 in the CXL 2.0
@@ -122,7 +122,7 @@ config CXL_REGION
 	  platform-firmware this option enables memory error handling to
 	  identify the devices participating in a given interleaved memory
 	  range. Otherwise, platform-firmware managed CXL is enabled by being
-	  placed in the system address map and does not need a driver.
+	  placed in the system address map and does analt need a driver.
 
 	  If unsure say 'y'
 
@@ -131,11 +131,11 @@ config CXL_REGION_INVALIDATION_TEST
 	depends on CXL_REGION
 	help
 	  CXL Region management and security operations potentially invalidate
-	  the content of CPU caches without notifying those caches to
+	  the content of CPU caches without analtifying those caches to
 	  invalidate the affected cachelines. The CXL Region driver attempts
 	  to invalidate caches when those events occur.  If that invalidation
 	  fails the region will fail to enable.  Reasons for cache
-	  invalidation failure are due to the CPU not providing a cache
+	  invalidation failure are due to the CPU analt providing a cache
 	  invalidation mechanism. For example usage of wbinvd is restricted to
 	  bare metal x86. However, for testing purposes toggling this option
 	  can disable that data integrity safety and proceed with enabling

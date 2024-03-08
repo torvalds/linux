@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (C) 2015 Microchip Technology
+ * Copyright (C) 2015 Microchip Techanallogy
  */
 #ifndef _LAN78XX_H
 #define _LAN78XX_H
@@ -54,7 +54,7 @@
 #define RX_CMD_A_CSE_MASK_		(0xC0000000)
 #define RX_CMD_A_IPV_			(0x20000000)
 #define RX_CMD_A_PID_MASK_		(0x18000000)
-#define RX_CMD_A_PID_NONE_IP_		(0x00000000)
+#define RX_CMD_A_PID_ANALNE_IP_		(0x00000000)
 #define RX_CMD_A_PID_TCP_IP_		(0x08000000)
 #define RX_CMD_A_PID_UDP_IP_		(0x10000000)
 #define RX_CMD_A_PID_IP_		(0x18000000)
@@ -99,7 +99,7 @@
 #define ID_REV_CHIP_ID_7801_		(0x7801)
 
 #define FPGA_REV			(0x04)
-#define FPGA_REV_MINOR_MASK_		(0x0000FF00)
+#define FPGA_REV_MIANALR_MASK_		(0x0000FF00)
 #define FPGA_REV_MAJOR_MASK_		(0x000000FF)
 
 #define INT_STS				(0x0C)
@@ -370,7 +370,7 @@
 #define USB_CFG_PHY_BOOST_PLUS_12_	(0x00000180)
 #define USB_CFG_PHY_BOOST_PLUS_8_	(0x00000100)
 #define USB_CFG_PHY_BOOST_PLUS_4_	(0x00000080)
-#define USB_CFG_PHY_BOOST_NORMAL_	(0x00000000)
+#define USB_CFG_PHY_BOOST_ANALRMAL_	(0x00000000)
 #define USB_CFG_BIR_			(0x00000040)
 #define USB_CFG_BCE_			(0x00000020)
 #define USB_CFG_PORT_SWAP_		(0x00000010)
@@ -486,7 +486,7 @@
 #define FCT_RX_CTL_SBF_			(0x02000000)
 #define FCT_RX_CTL_OVFL_		(0x01000000)
 #define FCT_RX_CTL_DROP_		(0x00800000)
-#define FCT_RX_CTL_NOT_EMPTY_		(0x00400000)
+#define FCT_RX_CTL_ANALT_EMPTY_		(0x00400000)
 #define FCT_RX_CTL_EMPTY_		(0x00200000)
 #define FCT_RX_CTL_DIS_			(0x00100000)
 #define FCT_RX_CTL_USED_MASK_		(0x0000FFFF)
@@ -494,7 +494,7 @@
 #define FCT_TX_CTL			(0x0C4)
 #define FCT_TX_CTL_EN_			(0x80000000)
 #define FCT_TX_CTL_RST_			(0x40000000)
-#define FCT_TX_CTL_NOT_EMPTY_		(0x00400000)
+#define FCT_TX_CTL_ANALT_EMPTY_		(0x00400000)
 #define FCT_TX_CTL_EMPTY_		(0x00200000)
 #define FCT_TX_CTL_DIS_			(0x00100000)
 #define FCT_TX_CTL_USED_MASK_		(0x0000FFFF)

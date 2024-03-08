@@ -64,17 +64,17 @@ static int lt3593_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct lt3593_led_data *led_data;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int ret, state = LEDS_GPIO_DEFSTATE_OFF;
 	struct led_init_data init_data = {};
 	const char *tmp;
 
 	led_data = devm_kzalloc(dev, sizeof(*led_data), GFP_KERNEL);
 	if (!led_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (device_get_child_node_count(dev) != 1) {
-		dev_err(dev, "Device must have exactly one LED sub-node.");
+	if (device_get_child_analde_count(dev) != 1) {
+		dev_err(dev, "Device must have exactly one LED sub-analde.");
 		return -EINVAL;
 	}
 
@@ -82,9 +82,9 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	if (IS_ERR(led_data->gpiod))
 		return PTR_ERR(led_data->gpiod);
 
-	child = device_get_next_child_node(dev, NULL);
+	child = device_get_next_child_analde(dev, NULL);
 
-	if (!fwnode_property_read_string(child, "default-state", &tmp)) {
+	if (!fwanalde_property_read_string(child, "default-state", &tmp)) {
 		if (!strcmp(tmp, "on"))
 			state = LEDS_GPIO_DEFSTATE_ON;
 	}
@@ -92,12 +92,12 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	led_data->cdev.brightness_set_blocking = lt3593_led_set;
 	led_data->cdev.brightness = state ? LED_FULL : LED_OFF;
 
-	init_data.fwnode = child;
+	init_data.fwanalde = child;
 	init_data.devicename = LED_LT3593_NAME;
 	init_data.default_label = ":";
 
 	ret = devm_led_classdev_register_ext(dev, &led_data->cdev, &init_data);
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	if (ret < 0)
 		return ret;
 

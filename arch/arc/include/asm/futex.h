@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Vineetg: August 2010: From Android kernel work
  */
@@ -11,7 +11,7 @@
 #include <linux/futex.h>
 #include <linux/preempt.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #ifdef CONFIG_ARC_HAS_LLSC
 
@@ -100,7 +100,7 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 		__futex_atomic_op("xor %0, %1, %3", ret, oldval, uaddr, oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 #ifndef CONFIG_ARC_HAS_LLSC

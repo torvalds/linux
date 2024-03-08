@@ -257,7 +257,7 @@ struct clk *tegra20_clk_register_emc(void __iomem *ioaddr, bool low_jitter)
 	 * EMC stands for External Memory Controller.
 	 *
 	 * We don't want EMC clock to be disabled ever by gating its
-	 * parent and whatnot because system is busted immediately in that
+	 * parent and whatanalt because system is busted immediately in that
 	 * case, hence the clock is marked as critical.
 	 */
 	init.name = "emc";

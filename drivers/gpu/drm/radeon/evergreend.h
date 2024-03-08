@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -172,8 +172,8 @@
 #       define MRDCKD1_RESET                            (1 << 23)
 #       define DLL_READY_READ                           (1 << 24)
 #       define USE_DISPLAY_GAP                          (1 << 25)
-#       define USE_DISPLAY_URGENT_NORMAL                (1 << 26)
-#       define MPLL_TURNOFF_D2                          (1 << 28)
+#       define USE_DISPLAY_URGENT_ANALRMAL                (1 << 26)
+#       define MPLL_TURANALFF_D2                          (1 << 28)
 #define	DLL_CNTL					0x64c
 #       define MRDCKA0_BYPASS                           (1 << 24)
 #       define MRDCKA1_BYPASS                           (1 << 25)
@@ -476,7 +476,7 @@
 #define	CP_RB_CNTL					0xC104
 #define		RB_BUFSZ(x)					((x) << 0)
 #define		RB_BLKSZ(x)					((x) << 8)
-#define		RB_NO_UPDATE					(1 << 27)
+#define		RB_ANAL_UPDATE					(1 << 27)
 #define		RB_RPTR_WR_ENA					(1 << 31)
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
@@ -774,14 +774,14 @@
 /* VIDEO_LIPSYNC, AUDIO_LIPSYNC
  * 0   = invalid
  * x   = legal delay value
- * 255 = sync not supported
+ * 255 = sync analt supported
  */
 #define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_HBR             0x5fec
 #       define HBR_CAPABLE                                (1 << 0) /* enabled by default */
 
 #define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_AV_ASSOCIATION0 0x5ff4
 #       define DISPLAY0_TYPE(x)                           (((x) & 0x3) << 0)
-#       define DISPLAY_TYPE_NONE                   0
+#       define DISPLAY_TYPE_ANALNE                   0
 #       define DISPLAY_TYPE_HDMI                   1
 #       define DISPLAY_TYPE_DP                     2
 #       define DISPLAY0_ID(x)                             (((x) & 0x3f) << 2)
@@ -849,7 +849,7 @@
 #define		DB_CLEAN					(1 << 12)
 #define		CB_CLEAN					(1 << 13)
 #define		TA_BUSY 					(1 << 14)
-#define		VGT_BUSY_NO_DMA					(1 << 16)
+#define		VGT_BUSY_ANAL_DMA					(1 << 16)
 #define		VGT_BUSY					(1 << 17)
 #define		SX_BUSY 					(1 << 20)
 #define		SH_BUSY 					(1 << 21)
@@ -913,30 +913,30 @@
 #define	CG_THERMAL_STATUS			        0x678
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
-#define	HDP_NONSURFACE_BASE				0x2C04
-#define	HDP_NONSURFACE_INFO				0x2C08
-#define	HDP_NONSURFACE_SIZE				0x2C0C
+#define	HDP_ANALNSURFACE_BASE				0x2C04
+#define	HDP_ANALNSURFACE_INFO				0x2C08
+#define	HDP_ANALNSURFACE_SIZE				0x2C0C
 #define HDP_MEM_COHERENCY_FLUSH_CNTL			0x5480
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 #define	HDP_TILING_CONFIG				0x2F3C
 
 #define MC_SHARED_CHMAP						0x2004
-#define		NOOFCHAN_SHIFT					12
-#define		NOOFCHAN_MASK					0x00003000
+#define		ANALOFCHAN_SHIFT					12
+#define		ANALOFCHAN_MASK					0x00003000
 #define MC_SHARED_CHREMAP					0x2008
 
 #define MC_SHARED_BLACKOUT_CNTL           		0x20ac
 #define		BLACKOUT_MODE_MASK			0x00000007
 
 #define	MC_ARB_RAMCFG					0x2760
-#define		NOOFBANK_SHIFT					0
-#define		NOOFBANK_MASK					0x00000003
-#define		NOOFRANK_SHIFT					2
-#define		NOOFRANK_MASK					0x00000004
-#define		NOOFROWS_SHIFT					3
-#define		NOOFROWS_MASK					0x00000038
-#define		NOOFCOLS_SHIFT					6
-#define		NOOFCOLS_MASK					0x000000C0
+#define		ANALOFBANK_SHIFT					0
+#define		ANALOFBANK_MASK					0x00000003
+#define		ANALOFRANK_SHIFT					2
+#define		ANALOFRANK_MASK					0x00000004
+#define		ANALOFROWS_SHIFT					3
+#define		ANALOFROWS_MASK					0x00000038
+#define		ANALOFCOLS_SHIFT					6
+#define		ANALOFCOLS_MASK					0x000000C0
 #define		CHANSIZE_SHIFT					8
 #define		CHANSIZE_MASK					0x00000100
 #define		BURSTLENGTH_SHIFT				9
@@ -957,7 +957,7 @@
 #define		SYSTEM_ACCESS_MODE_PA_ONLY			(0 << 3)
 #define		SYSTEM_ACCESS_MODE_USE_SYS_MAP			(1 << 3)
 #define		SYSTEM_ACCESS_MODE_IN_SYS			(2 << 3)
-#define		SYSTEM_ACCESS_MODE_NOT_IN_SYS			(3 << 3)
+#define		SYSTEM_ACCESS_MODE_ANALT_IN_SYS			(3 << 3)
 #define		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU	(0 << 5)
 #define		EFFECTIVE_L1_TLB_SIZE(x)			((x)<<15)
 #define		EFFECTIVE_L1_QUEUE_SIZE(x)			((x)<<18)
@@ -1122,7 +1122,7 @@
 #define			TC_ONLY						1
 #define			VC_AND_TC					2
 #define		AUTO_INVLD_EN(x)				((x) << 6)
-#define			NO_AUTO						0
+#define			ANAL_AUTO						0
 #define			ES_AUTO						1
 #define			GS_AUTO						2
 #define			ES_AND_GS_AUTO					3
@@ -1170,7 +1170,7 @@
 #define		GRBM_RQ_PENDING 			(1 << 5)
 #define		VMC_BUSY 				(1 << 8)
 #define		MCB_BUSY 				(1 << 9)
-#define		MCB_NON_DISPLAY_BUSY 			(1 << 10)
+#define		MCB_ANALN_DISPLAY_BUSY 			(1 << 10)
 #define		MCC_BUSY 				(1 << 11)
 #define		MCD_BUSY 				(1 << 12)
 #define		SEM_BUSY 				(1 << 14)
@@ -1235,7 +1235,7 @@
 #define IH_CNTL                                           0x3e18
 #       define ENABLE_INTR                                (1 << 0)
 #       define IH_MC_SWAP(x)                              ((x) << 1)
-#       define IH_MC_SWAP_NONE                            0
+#       define IH_MC_SWAP_ANALNE                            0
 #       define IH_MC_SWAP_16BIT                           1
 #       define IH_MC_SWAP_32BIT                           2
 #       define IH_MC_SWAP_64BIT                           3
@@ -1429,7 +1429,7 @@
 #define	DMA_PACKET_TRAP                         0x7
 #define	DMA_PACKET_SRBM_WRITE                   0x9
 #define	DMA_PACKET_CONSTANT_FILL                0xd
-#define	DMA_PACKET_NOP                          0xf
+#define	DMA_PACKET_ANALP                          0xf
 
 /* PIF PHY0 indirect regs */
 #define PB0_PIF_CNTL                                      0x10
@@ -1486,7 +1486,7 @@
 #       define LC_LINK_WIDTH_RD_SHIFT                     4
 #       define LC_LINK_WIDTH_RD_MASK                      0x70
 #       define LC_RECONFIG_ARC_MISSING_ESCAPE             (1 << 7)
-#       define LC_RECONFIG_NOW                            (1 << 8)
+#       define LC_RECONFIG_ANALW                            (1 << 8)
 #       define LC_RENEGOTIATION_SUPPORT                   (1 << 9)
 #       define LC_RENEGOTIATE_EN                          (1 << 10)
 #       define LC_SHORT_RECONFIG_EN                       (1 << 11)
@@ -1523,7 +1523,7 @@
 #define UVD_UDEC_ADDR_CONFIG				0xef4c
 #define UVD_UDEC_DB_ADDR_CONFIG				0xef50
 #define UVD_UDEC_DBW_ADDR_CONFIG			0xef54
-#define UVD_NO_OP					0xeffc
+#define UVD_ANAL_OP					0xeffc
 #define UVD_RBC_RB_RPTR					0xf690
 #define UVD_RBC_RB_WPTR					0xf694
 #define UVD_STATUS					0xf6bc
@@ -1545,7 +1545,7 @@
 			 ((n) & 0x3FFF) << 16)
 
 /* Packet 3 types */
-#define	PACKET3_NOP					0x10
+#define	PACKET3_ANALP					0x10
 #define	PACKET3_SET_BASE				0x11
 #define	PACKET3_CLEAR_STATE				0x12
 #define	PACKET3_INDEX_BUFFER_SIZE			0x13
@@ -1604,13 +1604,13 @@
 /* COMMAND */
 #              define PACKET3_CP_DMA_DIS_WC        (1 << 21)
 #              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
-                /* 0 - none
+                /* 0 - analne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
 		 */
 #              define PACKET3_CP_DMA_CMD_DST_SWAP(x) ((x) << 24)
-                /* 0 - none
+                /* 0 - analne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
@@ -1669,7 +1669,7 @@
 #define		PACKET3_SET_CONTEXT_REG_START			0x00028000
 #define		PACKET3_SET_CONTEXT_REG_END			0x00029000
 #define	PACKET3_SET_ALU_CONST				0x6A
-/* alu const buffers only; no reg file */
+/* alu const buffers only; anal reg file */
 #define	PACKET3_SET_BOOL_CONST				0x6B
 #define		PACKET3_SET_BOOL_CONST_START			0x0003a500
 #define		PACKET3_SET_BOOL_CONST_END			0x0003a518
@@ -1902,7 +1902,7 @@
 #define     V_028800_STENCILFUNC_EQUAL                 0x00000002
 #define     V_028800_STENCILFUNC_LEQUAL                0x00000003
 #define     V_028800_STENCILFUNC_GREATER               0x00000004
-#define     V_028800_STENCILFUNC_NOTEQUAL              0x00000005
+#define     V_028800_STENCILFUNC_ANALTEQUAL              0x00000005
 #define     V_028800_STENCILFUNC_GEQUAL                0x00000006
 #define     V_028800_STENCILFUNC_ALWAYS                0x00000007
 #define   S_028800_STENCILFAIL(x)                      (((x) & 0x7) << 11)
@@ -2127,8 +2127,8 @@
 #define   S_028C70_NUMBER_TYPE(x)                      (((x) & 0x7) << 12)
 #define   G_028C70_NUMBER_TYPE(x)                      (((x) >> 12) & 0x7)
 #define   C_028C70_NUMBER_TYPE                         0xFFFF8FFF
-#define     V_028C70_NUMBER_UNORM                      0x00000000
-#define     V_028C70_NUMBER_SNORM                      0x00000001
+#define     V_028C70_NUMBER_UANALRM                      0x00000000
+#define     V_028C70_NUMBER_SANALRM                      0x00000001
 #define     V_028C70_NUMBER_USCALED                    0x00000002
 #define     V_028C70_NUMBER_SSCALED                    0x00000003
 #define     V_028C70_NUMBER_UINT                       0x00000004
@@ -2168,7 +2168,7 @@
 #define   C_028C70_SOURCE_FORMAT                       0xFCFFFFFF
 #define     V_028C70_EXPORT_4C_32BPC                   0x0
 #define     V_028C70_EXPORT_4C_16BPC                   0x1
-#define     V_028C70_EXPORT_2C_32BPC                   0x2 /* Do not use */
+#define     V_028C70_EXPORT_2C_32BPC                   0x2 /* Do analt use */
 #define   S_028C70_RAT(x)                              (((x) & 0x1) << 26)
 #define   G_028C70_RAT(x)                              (((x) >> 26) & 0x1)
 #define   C_028C70_RAT                                 0xFBFFFFFF
@@ -2185,11 +2185,11 @@
 #       define ARRAY_2D_TILED_THIN1                     4
 #	define CB_SOURCE_FORMAT(x)			((x) << 24)
 #	define CB_SF_EXPORT_FULL			0
-#	define CB_SF_EXPORT_NORM			1
+#	define CB_SF_EXPORT_ANALRM			1
 #define R_028C74_CB_COLOR0_ATTRIB                      0x028C74
-#define   S_028C74_NON_DISP_TILING_ORDER(x)            (((x) & 0x1) << 4)
-#define   G_028C74_NON_DISP_TILING_ORDER(x)            (((x) >> 4) & 0x1)
-#define   C_028C74_NON_DISP_TILING_ORDER               0xFFFFFFEF
+#define   S_028C74_ANALN_DISP_TILING_ORDER(x)            (((x) & 0x1) << 4)
+#define   G_028C74_ANALN_DISP_TILING_ORDER(x)            (((x) >> 4) & 0x1)
+#define   C_028C74_ANALN_DISP_TILING_ORDER               0xFFFFFFEF
 #define   S_028C74_TILE_SPLIT(x)                       (((x) & 0xf) << 5)
 #define   G_028C74_TILE_SPLIT(x)                       (((x) >> 5) & 0xf)
 #define   S_028C74_NUM_BANKS(x)                        (((x) & 0x3) << 10)
@@ -2429,9 +2429,9 @@
 #define     V_030000_SQ_TEX_DIM_2D_ARRAY               0x00000005
 #define     V_030000_SQ_TEX_DIM_2D_MSAA                0x00000006
 #define     V_030000_SQ_TEX_DIM_2D_ARRAY_MSAA          0x00000007
-#define   S_030000_NON_DISP_TILING_ORDER(x)            (((x) & 0x1) << 5)
-#define   G_030000_NON_DISP_TILING_ORDER(x)            (((x) >> 5) & 0x1)
-#define   C_030000_NON_DISP_TILING_ORDER               0xFFFFFFDF
+#define   S_030000_ANALN_DISP_TILING_ORDER(x)            (((x) & 0x1) << 5)
+#define   G_030000_ANALN_DISP_TILING_ORDER(x)            (((x) >> 5) & 0x1)
+#define   C_030000_ANALN_DISP_TILING_ORDER               0xFFFFFFDF
 #define   S_030000_PITCH(x)                            (((x) & 0xFFF) << 6)
 #define   G_030000_PITCH(x)                            (((x) >> 6) & 0xFFF)
 #define   C_030000_PITCH                               0xFFFC003F
@@ -2475,14 +2475,14 @@
 #define   S_030010_NUM_FORMAT_ALL(x)                   (((x) & 0x3) << 8)
 #define   G_030010_NUM_FORMAT_ALL(x)                   (((x) >> 8) & 0x3)
 #define   C_030010_NUM_FORMAT_ALL                      0xFFFFFCFF
-#define     V_030010_SQ_NUM_FORMAT_NORM                0x00000000
+#define     V_030010_SQ_NUM_FORMAT_ANALRM                0x00000000
 #define     V_030010_SQ_NUM_FORMAT_INT                 0x00000001
 #define     V_030010_SQ_NUM_FORMAT_SCALED              0x00000002
 #define   S_030010_SRF_MODE_ALL(x)                     (((x) & 0x1) << 10)
 #define   G_030010_SRF_MODE_ALL(x)                     (((x) >> 10) & 0x1)
 #define   C_030010_SRF_MODE_ALL                        0xFFFFFBFF
 #define     V_030010_SRF_MODE_ZERO_CLAMP_MINUS_ONE     0x00000000
-#define     V_030010_SRF_MODE_NO_ZERO                  0x00000001
+#define     V_030010_SRF_MODE_ANAL_ZERO                  0x00000001
 #define   S_030010_FORCE_DEGAMMA(x)                    (((x) & 0x1) << 11)
 #define   G_030010_FORCE_DEGAMMA(x)                    (((x) >> 11) & 0x1)
 #define   C_030010_FORCE_DEGAMMA                       0xFFFFF7FF
@@ -2558,7 +2558,7 @@
 #	define SQ_VTXC_BASE_ADDR_HI(x)			((x) << 0)
 #	define SQ_VTXC_STRIDE(x)			((x) << 8)
 #	define SQ_VTXC_ENDIAN_SWAP(x)			((x) << 30)
-#	define SQ_ENDIAN_NONE				0
+#	define SQ_ENDIAN_ANALNE				0
 #	define SQ_ENDIAN_8IN16				1
 #	define SQ_ENDIAN_8IN32				2
 #define SQ_VTX_CONSTANT_WORD3_0				0x3000C

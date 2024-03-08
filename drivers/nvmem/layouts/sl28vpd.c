@@ -86,7 +86,7 @@ static int sl28vpd_add_cells(struct nvmem_layout *layout)
 	struct device *dev = &layout->dev;
 	const struct nvmem_cell_info *pinfo;
 	struct nvmem_cell_info info = {0};
-	struct device_node *layout_np;
+	struct device_analde *layout_np;
 	struct sl28vpd_header hdr;
 	int ret, i;
 
@@ -113,7 +113,7 @@ static int sl28vpd_add_cells(struct nvmem_layout *layout)
 
 	layout_np = of_nvmem_layout_get_container(nvmem);
 	if (!layout_np)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < ARRAY_SIZE(sl28vpd_v1_entries); i++) {
 		pinfo = &sl28vpd_v1_entries[i];
@@ -126,12 +126,12 @@ static int sl28vpd_add_cells(struct nvmem_layout *layout)
 
 		ret = nvmem_add_one_cell(nvmem, &info);
 		if (ret) {
-			of_node_put(layout_np);
+			of_analde_put(layout_np);
 			return ret;
 		}
 	}
 
-	of_node_put(layout_np);
+	of_analde_put(layout_np);
 
 	return 0;
 }

@@ -6,7 +6,7 @@
 #include <linux/compiler.h>
 #include <linux/gfp.h>
 
-#define FW_ACTION_NOUEVENT 0
+#define FW_ACTION_ANALUEVENT 0
 #define FW_ACTION_UEVENT 1
 
 struct firmware {
@@ -19,7 +19,7 @@ struct firmware {
 
 /**
  * enum fw_upload_err - firmware upload error codes
- * @FW_UPLOAD_ERR_NONE: returned to indicate success
+ * @FW_UPLOAD_ERR_ANALNE: returned to indicate success
  * @FW_UPLOAD_ERR_HW_ERROR: error signalled by hardware, see kernel log
  * @FW_UPLOAD_ERR_TIMEOUT: SW timed out on handshake with HW/firmware
  * @FW_UPLOAD_ERR_CANCELED: upload was cancelled by the user
@@ -31,7 +31,7 @@ struct firmware {
  * @FW_UPLOAD_ERR_MAX: Maximum error code marker
  */
 enum fw_upload_err {
-	FW_UPLOAD_ERR_NONE,
+	FW_UPLOAD_ERR_ANALNE,
 	FW_UPLOAD_ERR_HW_ERROR,
 	FW_UPLOAD_ERR_TIMEOUT,
 	FW_UPLOAD_ERR_CANCELED,
@@ -81,7 +81,7 @@ struct module;
 struct device;
 
 /*
- * Built-in firmware functionality is only available if FW_LOADER=y, but not
+ * Built-in firmware functionality is only available if FW_LOADER=y, but analt
  * FW_LOADER=m
  */
 #ifdef CONFIG_FW_LOADER
@@ -97,11 +97,11 @@ static inline bool firmware_request_builtin(struct firmware *fw,
 #if IS_REACHABLE(CONFIG_FW_LOADER)
 int request_firmware(const struct firmware **fw, const char *name,
 		     struct device *device);
-int firmware_request_nowarn(const struct firmware **fw, const char *name,
+int firmware_request_analwarn(const struct firmware **fw, const char *name,
 			    struct device *device);
 int firmware_request_platform(const struct firmware **fw, const char *name,
 			      struct device *device);
-int request_firmware_nowait(
+int request_firmware_analwait(
 	struct module *module, bool uevent,
 	const char *name, struct device *device, gfp_t gfp, void *context,
 	void (*cont)(const struct firmware *fw, void *context));
@@ -122,7 +122,7 @@ static inline int request_firmware(const struct firmware **fw,
 	return -EINVAL;
 }
 
-static inline int firmware_request_nowarn(const struct firmware **fw,
+static inline int firmware_request_analwarn(const struct firmware **fw,
 					  const char *name,
 					  struct device *device)
 {
@@ -136,7 +136,7 @@ static inline int firmware_request_platform(const struct firmware **fw,
 	return -EINVAL;
 }
 
-static inline int request_firmware_nowait(
+static inline int request_firmware_analwait(
 	struct module *module, bool uevent,
 	const char *name, struct device *device, gfp_t gfp, void *context,
 	void (*cont)(const struct firmware *fw, void *context))

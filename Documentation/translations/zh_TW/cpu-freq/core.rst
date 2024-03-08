@@ -44,7 +44,7 @@ cpufreq策略的引用計數由 cpufreq_cpu_get 和 cpufreq_cpu_put 來完成，
 ====================
 
 CPUFreq通知器遵循標準的內核通知器接口。
-關於通知器的細節請參閱 linux/include/linux/notifier.h。
+關於通知器的細節請參閱 linux/include/linux/analtifier.h。
 
 這裏有兩個不同的CPUfreq通知器 - 策略通知器和轉換通知器。
 
@@ -101,7 +101,7 @@ dev_pm_opp_init_cpufreq_table -
 		/* Do other things */
 	 }
 
-	.. note::
+	.. analte::
 
 		該函數只有在CONFIG_PM_OPP之外還啓用了CONFIG_CPU_FREQ時纔可用。
 

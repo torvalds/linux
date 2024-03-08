@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_VMCORE_H
 #define _UAPI_VMCORE_H
 
 #include <linux/types.h>
 
-#define VMCOREDD_NOTE_NAME "LINUX"
+#define VMCOREDD_ANALTE_NAME "LINUX"
 #define VMCOREDD_MAX_NAME_BYTES 44
 
 struct vmcoredd_header {

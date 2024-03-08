@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2021 Mellanox Technologies Ltd */
+/* Copyright (c) 2021 Mellaanalx Techanallogies Ltd */
 
 #include <linux/etherdevice.h>
 #include <linux/mlx5/driver.h>
@@ -30,7 +30,7 @@ static int esw_create_legacy_vepa_table(struct mlx5_eswitch *esw)
 	root_ns = mlx5_get_fdb_sub_ns(dev, 0);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get FDB flow namespace\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* num FTE 2, num FG 2 */
@@ -89,12 +89,12 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw)
 	root_ns = mlx5_get_fdb_sub_ns(dev, 0);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get FDB flow namespace\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ft_attr.max_fte = POOL_NEXT_SIZE;
 	ft_attr.prio = LEGACY_FDB_PRIO;
@@ -267,7 +267,7 @@ static int _mlx5_eswitch_set_vepa_locked(struct mlx5_eswitch *esw,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Uplink rule forward uplink traffic to FDB */
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
@@ -313,14 +313,14 @@ int mlx5_eswitch_set_vepa(struct mlx5_eswitch *esw, u8 setting)
 	int err = 0;
 
 	if (!esw)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!mlx5_esw_allowed(esw))
 		return -EPERM;
 
 	mutex_lock(&esw->state_lock);
 	if (esw->mode != MLX5_ESWITCH_LEGACY) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -334,13 +334,13 @@ out:
 int mlx5_eswitch_get_vepa(struct mlx5_eswitch *esw, u8 *setting)
 {
 	if (!esw)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!mlx5_esw_allowed(esw))
 		return -EPERM;
 
 	if (esw->mode != MLX5_ESWITCH_LEGACY)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*setting = esw->fdb_table.legacy.vepa_uplink_rule ? 1 : 0;
 	return 0;
@@ -350,7 +350,7 @@ int esw_legacy_vport_acl_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vpor
 {
 	int ret;
 
-	/* Only non manager vports need ACL in legacy mode */
+	/* Only analn manager vports need ACL in legacy mode */
 	if (mlx5_esw_is_manager_vport(esw, vport->vport))
 		return 0;
 
@@ -440,7 +440,7 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 		if (!vlan)
 			goto unlock; /* compatibility with libvirt */
 
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto unlock;
 	}
 
@@ -465,7 +465,7 @@ int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
 
 	mutex_lock(&esw->state_lock);
 	if (esw->mode != MLX5_ESWITCH_LEGACY) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto unlock;
 	}
 	pschk = evport->info.spoofchk;
@@ -497,7 +497,7 @@ int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
 
 	mutex_lock(&esw->state_lock);
 	if (esw->mode != MLX5_ESWITCH_LEGACY) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto unlock;
 	}
 	evport->info.trusted = setting;

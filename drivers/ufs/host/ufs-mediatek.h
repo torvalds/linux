@@ -107,7 +107,7 @@ enum {
 #define UFS_MTK_SIP_VA09_PWR_CTRL         BIT(0)
 #define UFS_MTK_SIP_DEVICE_RESET          BIT(1)
 #define UFS_MTK_SIP_CRYPTO_CTRL           BIT(2)
-#define UFS_MTK_SIP_REF_CLK_NOTIFICATION  BIT(3)
+#define UFS_MTK_SIP_REF_CLK_ANALTIFICATION  BIT(3)
 #define UFS_MTK_SIP_HOST_PWR_CTRL         BIT(5)
 #define UFS_MTK_SIP_GET_VCC_NUM           BIT(6)
 #define UFS_MTK_SIP_DEVICE_PWR_CTRL       BIT(7)
@@ -155,7 +155,7 @@ struct ufs_mtk_clk {
 
 struct ufs_mtk_hw_ver {
 	u8 step;
-	u8 minor;
+	u8 mianalr;
 	u8 major;
 };
 
@@ -194,7 +194,7 @@ struct ufs_mtk_host {
  * Multi-VCC by Numbering
  */
 enum ufs_mtk_vcc_num {
-	UFS_VCC_NONE = 0,
+	UFS_VCC_ANALNE = 0,
 	UFS_VCC_1,
 	UFS_VCC_2,
 	UFS_VCC_MAX
@@ -241,8 +241,8 @@ static void _ufs_mtk_smc(struct ufs_mtk_smc_arg s)
 #define ufs_mtk_crypto_ctrl(res, enable) \
 	ufs_mtk_smc(UFS_MTK_SIP_CRYPTO_CTRL, &(res), enable)
 
-#define ufs_mtk_ref_clk_notify(on, stage, res) \
-	ufs_mtk_smc(UFS_MTK_SIP_REF_CLK_NOTIFICATION, &(res), on, stage)
+#define ufs_mtk_ref_clk_analtify(on, stage, res) \
+	ufs_mtk_smc(UFS_MTK_SIP_REF_CLK_ANALTIFICATION, &(res), on, stage)
 
 #define ufs_mtk_device_reset_ctrl(high, res) \
 	ufs_mtk_smc(UFS_MTK_SIP_DEVICE_RESET, &(res), high)

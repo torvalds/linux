@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /* If dst and src are 4 byte aligned, copy 8 bytes at a time.
-   If the src is 4, but not 8 byte aligned, we first read 4 bytes to get
+   If the src is 4, but analt 8 byte aligned, we first read 4 bytes to get
    it 8 byte aligned.  Thus, we can do a little read-ahead, without
-   dereferencing a cache line that we should not touch.
-   Note that short and long instructions have been scheduled to avoid
+   dereferencing a cache line that we should analt touch.
+   Analte that short and long instructions have been scheduled to avoid
    branch stalls.
    The beq_s to r3z could be made unaligned & long to avoid a stall
-   there, but the it is not likely to be taken often, and it
+   there, but the it is analt likely to be taken often, and it
    would also be likey to cost an unaligned mispredict at the next call.  */
 
 #include <linux/linkage.h>

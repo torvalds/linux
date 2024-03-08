@@ -758,7 +758,7 @@ struct mtk_wdma_desc {
 #define MTK_WED_MON_AMSDU_ENG_DMAD(_n)			(0x1a80 + (_n) * 0x50)
 #define MTK_WED_MON_AMSDU_ENG_QFPL(_n)			(0x1a84 + (_n) * 0x50)
 #define MTK_WED_MON_AMSDU_ENG_QENI(_n)			(0x1a88 + (_n) * 0x50)
-#define MTK_WED_MON_AMSDU_ENG_QENO(_n)			(0x1a8c + (_n) * 0x50)
+#define MTK_WED_MON_AMSDU_ENG_QEANAL(_n)			(0x1a8c + (_n) * 0x50)
 #define MTK_WED_MON_AMSDU_ENG_MERG(_n)			(0x1a90 + (_n) * 0x50)
 
 #define MTK_WED_MON_AMSDU_ENG_CNT8(_n)			(0x1a94 + (_n) * 0x50)

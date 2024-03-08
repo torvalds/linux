@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -80,8 +80,8 @@ struct intel_gvt_device_info {
 struct intel_vgpu_gm {
 	u64 aperture_sz;
 	u64 hidden_sz;
-	struct drm_mm_node low_gm_node;
-	struct drm_mm_node high_gm_node;
+	struct drm_mm_analde low_gm_analde;
+	struct drm_mm_analde high_gm_analde;
 };
 
 #define INTEL_GVT_MAX_NUM_FENCES 32
@@ -187,13 +187,13 @@ struct intel_vgpu {
 	struct mutex vgpu_lock;
 	int id;
 	DECLARE_BITMAP(status, INTEL_VGPU_STATUS_NR_BITS);
-	bool pv_notified;
+	bool pv_analtified;
 	bool failsafe;
 	unsigned int resetting_eng;
 
 	/* Both sched_data and sched_ctl can be seen a part of the global gvt
 	 * scheduler structure. So below 2 vgpu data are protected
-	 * by sched_lock, not vgpu_lock.
+	 * by sched_lock, analt vgpu_lock.
 	 */
 	void *sched_data;
 	struct vgpu_sched_ctl sched_ctl;
@@ -209,7 +209,7 @@ struct intel_vgpu {
 	struct intel_vgpu_submission submission;
 	struct radix_tree_root page_track_tree;
 	u32 hws_pga[I915_NUM_ENGINES];
-	/* Set on PCI_D3, reset on DMLR, not reflecting the actual PM state */
+	/* Set on PCI_D3, reset on DMLR, analt reflecting the actual PM state */
 	bool d3_entered;
 
 	struct dentry *debugfs;
@@ -219,7 +219,7 @@ struct intel_vgpu {
 	struct idr object_idr;
 	struct intel_vgpu_vblank_timer vblank_timer;
 
-	u32 scan_nonprivbb;
+	u32 scan_analnprivbb;
 
 	struct vfio_region *region;
 	int num_regions;
@@ -235,7 +235,7 @@ struct intel_vgpu {
 	unsigned long nr_cache_entries;
 	struct mutex cache_lock;
 
-	struct kvm_page_track_notifier_node track_node;
+	struct kvm_page_track_analtifier_analde track_analde;
 #define NR_BKT (1 << 18)
 	struct hlist_head ptable[NR_BKT];
 #undef NR_BKT
@@ -324,7 +324,7 @@ struct intel_vgpu_type {
 
 struct intel_gvt {
 	/* GVT scope lock, protect GVT itself, and all resource currently
-	 * not yet protected by special locks(vgpu and scheduler lock).
+	 * analt yet protected by special locks(vgpu and scheduler lock).
 	 */
 	struct mutex lock;
 	/* scheduler scope lock, protect gvt and vgpu schedule related data */
@@ -341,7 +341,7 @@ struct intel_gvt {
 	struct intel_gvt_irq irq;
 	struct intel_gvt_gtt gtt;
 	struct intel_gvt_workload_scheduler scheduler;
-	struct notifier_block shadow_ctx_notifier_block[I915_NUM_ENGINES];
+	struct analtifier_block shadow_ctx_analtifier_block[I915_NUM_ENGINES];
 	DECLARE_HASHTABLE(cmd_table, GVT_CMD_HASH_BITS);
 	struct mdev_parent parent;
 	struct mdev_type **mdev_types;
@@ -353,7 +353,7 @@ struct intel_gvt {
 	wait_queue_head_t service_thread_wq;
 
 	/* service_request is always used in bit operation, we should always
-	 * use it with atomic bit ops so that no need to use gvt big lock.
+	 * use it with atomic bit ops so that anal need to use gvt big lock.
 	 */
 	unsigned long service_request;
 
@@ -423,8 +423,8 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define gvt_fence_sz(gvt) (gvt_to_ggtt(gvt)->num_fences)
 
 /* Aperture/GM space definitions for vGPU */
-#define vgpu_aperture_offset(vgpu)	((vgpu)->gm.low_gm_node.start)
-#define vgpu_hidden_offset(vgpu)	((vgpu)->gm.high_gm_node.start)
+#define vgpu_aperture_offset(vgpu)	((vgpu)->gm.low_gm_analde.start)
+#define vgpu_hidden_offset(vgpu)	((vgpu)->gm.high_gm_analde.start)
 #define vgpu_aperture_sz(vgpu)		((vgpu)->gm.aperture_sz)
 #define vgpu_hidden_sz(vgpu)		((vgpu)->gm.hidden_sz)
 

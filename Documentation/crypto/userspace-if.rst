@@ -18,12 +18,12 @@ crypto API. A working example of this description is libkcapi that can
 be obtained from [1]. That library can be used by user space
 applications that require cryptographic services from the kernel.
 
-Some details of the in-kernel kernel crypto API aspects do not apply to
-user space, however. This includes the difference between synchronous
-and asynchronous invocations. The user space API call is fully
-synchronous.
+Some details of the in-kernel kernel crypto API aspects do analt apply to
+user space, however. This includes the difference between synchroanalus
+and asynchroanalus invocations. The user space API call is fully
+synchroanalus.
 
-[1] https://www.chronox.de/libkcapi.html
+[1] https://www.chroanalx.de/libkcapi.html
 
 User Space API General Remarks
 ------------------------------
@@ -41,7 +41,7 @@ following ciphers are accessible:
 
 The interface is provided via socket type using the type AF_ALG. In
 addition, the setsockopt option type is SOL_ALG. In case the user space
-header files do not export these flags yet, use the following macros:
+header files do analt export these flags yet, use the following macros:
 
 ::
 
@@ -122,8 +122,8 @@ should be processed with the message digest. The send system call allows
 the following flags to be specified:
 
 -  MSG_MORE: If this flag is set, the send system call acts like a
-   message digest update function where the final hash is not yet
-   calculated. If the flag is not set, the send system call calculates
+   message digest update function where the final hash is analt yet
+   calculated. If the flag is analt set, the send system call calculates
    the final message digest immediately.
 
 With the recv() system call, the application can read the message digest
@@ -132,7 +132,7 @@ digest, the flag MSG_TRUNC is set by the kernel.
 
 In order to set a message digest key, the calling application must use
 the setsockopt() option of ALG_SET_KEY or ALG_SET_KEY_BY_KEY_SERIAL. If the
-key is not set the HMAC operation is performed without the initial HMAC state
+key is analt set the HMAC operation is performed without the initial HMAC state
 change caused by the key.
 
 Symmetric Cipher API
@@ -179,7 +179,7 @@ The send system call family allows the following flag to be specified:
    cipher update function where more input data is expected with a
    subsequent invocation of the send system call.
 
-Note: The kernel reports -EINVAL for any unexpected data. The caller
+Analte: The kernel reports -EINVAL for any unexpected data. The caller
 must make sure that all data matches the constraints given in
 /proc/crypto for the selected cipher.
 
@@ -242,14 +242,14 @@ The send system call family allows the following flag to be specified:
    cipher update function where more input data is expected with a
    subsequent invocation of the send system call.
 
-Note: The kernel reports -EINVAL for any unexpected data. The caller
+Analte: The kernel reports -EINVAL for any unexpected data. The caller
 must make sure that all data matches the constraints given in
 /proc/crypto for the selected cipher.
 
 With the recv() system call, the application can read the result of the
 cipher operation from the kernel crypto API. The output buffer must be
 at least as large as defined with the memory structure below. If the
-output data size is smaller, the cipher operation is not performed.
+output data size is smaller, the cipher operation is analt performed.
 
 The authenticated decryption operation may indicate an integrity error.
 Such breach in integrity is marked with the -EBADMSG error code.
@@ -267,8 +267,8 @@ communicated between user and kernel space as one data stream:
 -  authentication tag
 
 The sizes of the AAD and the authentication tag are provided with the
-sendmsg and setsockopt calls (see there). As the kernel knows the size
-of the entire data stream, the kernel is now able to calculate the right
+sendmsg and setsockopt calls (see there). As the kernel kanalws the size
+of the entire data stream, the kernel is analw able to calculate the right
 offsets of the data components in the data stream.
 
 The user space caller must arrange the aforementioned information in the
@@ -297,14 +297,14 @@ follows:
     struct sockaddr_alg sa = {
         .salg_family = AF_ALG,
         .salg_type = "rng", /* this selects the random number generator */
-        .salg_name = "drbg_nopr_sha256" /* this is the RNG name */
+        .salg_name = "drbg_analpr_sha256" /* this is the RNG name */
     };
 
 
 Depending on the RNG type, the RNG must be seeded. The seed is provided
 using the setsockopt interface to set the key. For example, the
-ansi_cprng requires a seed. The DRBGs do not require a seed, but may be
-seeded. The seed is also known as a *Personalization String* in NIST SP 800-90A
+ansi_cprng requires a seed. The DRBGs do analt require a seed, but may be
+seeded. The seed is also kanalwn as a *Personalization String* in NIST SP 800-90A
 standard.
 
 Using the read()/recvmsg() system calls, random numbers can be obtained.
@@ -318,7 +318,7 @@ have the same state.
 Following CAVP testing interfaces are enabled when kernel is built with
 CRYPTO_USER_API_RNG_CAVP option:
 
--  the concatenation of *Entropy* and *Nonce* can be provided to the RNG via
+-  the concatenation of *Entropy* and *Analnce* can be provided to the RNG via
    ALG_SET_DRBG_ENTROPY setsockopt interface. Setting the entropy requires
    CAP_SYS_ADMIN permission.
 
@@ -334,7 +334,7 @@ splice/vmsplice. As the name indicates, the kernel tries to avoid a copy
 operation into kernel space.
 
 The zero-copy operation requires data to be aligned at the page
-boundary. Non-aligned data can be used as well, but may require more
+boundary. Analn-aligned data can be used as well, but may require more
 operations of the kernel which would defeat the speed gains obtained
 from the zero-copy interface.
 
@@ -407,4 +407,4 @@ Please see [1] for libkcapi which provides an easy-to-use wrapper around
 the aforementioned Netlink kernel interface. [1] also contains a test
 application that invokes all libkcapi API calls.
 
-[1] https://www.chronox.de/libkcapi.html
+[1] https://www.chroanalx.de/libkcapi.html

@@ -5,10 +5,10 @@
 #include "mbx.h"
 
 /**
- *  e1000_poll_for_msg - Wait for message notification
+ *  e1000_poll_for_msg - Wait for message analtification
  *  @hw: pointer to the HW structure
  *
- *  returns SUCCESS if it successfully received a message notification
+ *  returns SUCCESS if it successfully received a message analtification
  **/
 static s32 e1000_poll_for_msg(struct e1000_hw *hw)
 {
@@ -31,10 +31,10 @@ out:
 }
 
 /**
- *  e1000_poll_for_ack - Wait for message acknowledgment
+ *  e1000_poll_for_ack - Wait for message ackanalwledgment
  *  @hw: pointer to the HW structure
  *
- *  returns SUCCESS if it successfully received a message acknowledgment
+ *  returns SUCCESS if it successfully received a message ackanalwledgment
  **/
 static s32 e1000_poll_for_ack(struct e1000_hw *hw)
 {
@@ -57,12 +57,12 @@ out:
 }
 
 /**
- *  e1000_read_posted_mbx - Wait for message notification and receive message
+ *  e1000_read_posted_mbx - Wait for message analtification and receive message
  *  @hw: pointer to the HW structure
  *  @msg: The message buffer
  *  @size: Length of buffer
  *
- *  returns SUCCESS if it successfully received a message notification and
+ *  returns SUCCESS if it successfully received a message analtification and
  *  copied it into the receive buffer.
  **/
 static s32 e1000_read_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size)
@@ -247,7 +247,7 @@ static s32 e1000_write_mbx_vf(struct e1000_hw *hw, u32 *msg, u16 size)
 	/* lock the mailbox to prevent pf/vf race condition */
 	err = e1000_obtain_mbx_lock_vf(hw);
 	if (err)
-		goto out_no_write;
+		goto out_anal_write;
 
 	/* flush any ack or msg as we are going to overwrite mailbox */
 	e1000_check_for_ack_vf(hw);
@@ -263,7 +263,7 @@ static s32 e1000_write_mbx_vf(struct e1000_hw *hw, u32 *msg, u16 size)
 	/* Drop VFU and interrupt the PF to tell it a message has been sent */
 	ew32(V2PMAILBOX(0), E1000_V2PMAILBOX_REQ);
 
-out_no_write:
+out_anal_write:
 	return err;
 }
 
@@ -285,19 +285,19 @@ static s32 e1000_read_mbx_vf(struct e1000_hw *hw, u32 *msg, u16 size)
 	/* lock the mailbox to prevent pf/vf race condition */
 	err = e1000_obtain_mbx_lock_vf(hw);
 	if (err)
-		goto out_no_read;
+		goto out_anal_read;
 
 	/* copy the message from the mailbox memory buffer */
 	for (i = 0; i < size; i++)
 		msg[i] = array_er32(VMBMEM(0), i);
 
-	/* Acknowledge receipt and release mailbox, then we're done */
+	/* Ackanalwledge receipt and release mailbox, then we're done */
 	ew32(V2PMAILBOX(0), E1000_V2PMAILBOX_ACK);
 
 	/* update stats */
 	hw->mbx.stats.msgs_rx++;
 
-out_no_read:
+out_anal_read:
 	return err;
 }
 

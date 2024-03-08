@@ -107,7 +107,7 @@ properties:
     description: |
       Specify the number of delay cells for override mode.
       This is used to set the clock delay for DLL(Delay Line) on override mode
-      to select a proper data sampling window in case the clock quality is not good
+      to select a proper data sampling window in case the clock quality is analt good
       because the signal path is too long on the board. Please refer to eSDHC/uSDHC
       chapter, DLL (Delay Line) section in RM for details.
     default: 0
@@ -147,7 +147,7 @@ properties:
       Specify the strobe dll control slave delay target.
       This delay target programming host controller loopback read clock, and this
       property allows user to change the delay target for the strobe input read clock.
-      If not use this property, driver default set the delay target to value 7.
+      If analt use this property, driver default set the delay target to value 7.
       Only eMMC HS400 mode need to take care of this property.
     default: 0
 

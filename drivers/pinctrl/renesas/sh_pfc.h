@@ -14,14 +14,14 @@
 #include <linux/stringify.h>
 
 enum {
-	PINMUX_TYPE_NONE,
+	PINMUX_TYPE_ANALNE,
 	PINMUX_TYPE_FUNCTION,
 	PINMUX_TYPE_GPIO,
 	PINMUX_TYPE_OUTPUT,
 	PINMUX_TYPE_INPUT,
 };
 
-#define SH_PFC_PIN_NONE			U16_MAX
+#define SH_PFC_PIN_ANALNE			U16_MAX
 
 #define SH_PFC_PIN_CFG_INPUT		(1 << 0)
 #define SH_PFC_PIN_CFG_OUTPUT		(1 << 1)
@@ -37,7 +37,7 @@ enum {
 
 #define SH_PFC_PIN_CFG_DRIVE_STRENGTH	(1 << 6)
 
-#define SH_PFC_PIN_CFG_NO_GPIO		(1 << 31)
+#define SH_PFC_PIN_CFG_ANAL_GPIO		(1 << 31)
 
 struct sh_pfc_pin {
 	const char *name;
@@ -140,7 +140,7 @@ struct pinmux_cfg_reg {
  *   - f_widths: List of widths of the register fields (in bits), from left
  *               to right (i.e. MSB to LSB), wrapped using the GROUP() macro.
  *               Reserved fields are indicated by negating the field width.
- *   - ids: For each non-reserved register field (from left to right, i.e. MSB
+ *   - ids: For each analn-reserved register field (from left to right, i.e. MSB
  *          to LSB), 2^f_widths[i] enum IDs must be specified, one for each
  *          possible combination of the register field bit values, all wrapped
  *          using the GROUP() macro.
@@ -357,7 +357,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
  *   - ipsr: IPSR field (unused, for documentation purposes only)
  *   - fn: Function name, referring to a field in the IPSR
  */
-#define PINMUX_IPSR_NOGP(ipsr, fn)					\
+#define PINMUX_IPSR_ANALGP(ipsr, fn)					\
 	PINMUX_DATA(fn##_MARK, FN_##fn)
 
 /*
@@ -378,18 +378,18 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
  *   - fn: Function name, also referring to the IPSR field
  *   - msel: Module selector
  */
-#define PINMUX_IPSR_NOGM(ipsr, fn, msel)				\
+#define PINMUX_IPSR_ANALGM(ipsr, fn, msel)				\
 	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##msel)
 
 /*
  * Describe a pinmux configuration with GPIO function where the pinmux function
- * has no representation in a Peripheral Function Select Register (IPSR), but
+ * has anal representation in a Peripheral Function Select Register (IPSR), but
  * instead solely depends on a group selection.
  *   - gpsr: GPSR field
  *   - fn: Function name, also referring to the GPSR field
  *   - gsel: Group selector
  */
-#define PINMUX_IPSR_NOFN(gpsr, fn, gsel)				\
+#define PINMUX_IPSR_ANALFN(gpsr, fn, gsel)				\
 	PINMUX_DATA(fn##_MARK, FN_##gpsr, FN_##gsel)
 
 /*
@@ -407,7 +407,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 /*
  * Describe a pinmux configuration similar to PINMUX_IPSR_MSEL, but with
  * an additional select register that controls physical multiplexing
- * with another pin.
+ * with aanalther pin.
  *   - ipsr: IPSR field
  *   - fn: Function name, also referring to the IPSR field
  *   - psel: Physical multiplexing selector
@@ -718,23 +718,23 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PINMUX_GPIO_FN(GPIO_FN_##str, PINMUX_FN_BASE, str##_MARK)
 
 /*
- * Pins not associated with a GPIO port
+ * Pins analt associated with a GPIO port
  */
 
-#define PIN_NOGP_CFG(pin, name, fn, cfg)	fn(pin, name, cfg)
-#define PIN_NOGP(pin, name, fn)			fn(pin, name, 0)
+#define PIN_ANALGP_CFG(pin, name, fn, cfg)	fn(pin, name, cfg)
+#define PIN_ANALGP(pin, name, fn)			fn(pin, name, 0)
 
-/* NOGP_ALL - Expand to a list of PIN_id */
-#define _NOGP_ALL(pin, name, cfg)		PIN_##pin
-#define NOGP_ALL()				CPU_ALL_NOGP(_NOGP_ALL)
+/* ANALGP_ALL - Expand to a list of PIN_id */
+#define _ANALGP_ALL(pin, name, cfg)		PIN_##pin
+#define ANALGP_ALL()				CPU_ALL_ANALGP(_ANALGP_ALL)
 
-/* PINMUX_NOGP_ALL - Expand to a list of sh_pfc_pin entries */
-#define _NOGP_PINMUX(_pin, _name, cfg) {				\
+/* PINMUX_ANALGP_ALL - Expand to a list of sh_pfc_pin entries */
+#define _ANALGP_PINMUX(_pin, _name, cfg) {				\
 	.pin = PIN_##_pin,						\
 	.name = "PIN_" _name,						\
-	.configs = SH_PFC_PIN_CFG_NO_GPIO | cfg,			\
+	.configs = SH_PFC_PIN_CFG_ANAL_GPIO | cfg,			\
 }
-#define PINMUX_NOGP_ALL()		CPU_ALL_NOGP(_NOGP_PINMUX)
+#define PINMUX_ANALGP_ALL()		CPU_ALL_ANALGP(_ANALGP_PINMUX)
 
 /*
  * PORTnCR helper macro for SH-Mobile/R-Mobile
@@ -745,7 +745,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 		/* PULMD[1:0], handled by .set_bias() */		\
 		/* IE and OE */						\
 		0, PORT##nr##_OUT, PORT##nr##_IN, 0,			\
-		/* SEC, not supported */				\
+		/* SEC, analt supported */				\
 		/* PTMD[2:0] */						\
 		PORT##nr##_FN0, PORT##nr##_FN1,				\
 		PORT##nr##_FN2, PORT##nr##_FN3,				\

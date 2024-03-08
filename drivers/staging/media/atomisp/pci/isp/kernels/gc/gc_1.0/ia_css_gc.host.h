@@ -40,7 +40,7 @@ ia_css_ce_encode(
     const struct ia_css_ce_config *from,
     unsigned int size);
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_gc_dump(
     const struct sh_css_isp_gc_params *gc,

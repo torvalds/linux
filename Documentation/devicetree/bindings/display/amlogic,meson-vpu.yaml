@@ -29,7 +29,7 @@ description: |
   VIU: Video Input Unit
   ---------------------
 
-  The Video Input Unit is in charge of the pixel scanout from the DDR memory.
+  The Video Input Unit is in charge of the pixel scaanalut from the DDR memory.
   It fetches the frames addresses, stride and parameters from the "Canvas" memory.
   This part is also in charge of the CSC (Colorspace Conversion).
   It can handle 2 OSD Planes and 2 Video Planes.
@@ -51,7 +51,7 @@ description: |
    - ENCP : Progressive Video Encoder for HDMI
    - ENCL : LCD LVDS Encoder
   The VENC Unit gets a Pixel Clocks (VCLK) from a dedicated HDMI PLL and clock
-  tree and provides the scanout clock to the VPP and VIU.
+  tree and provides the scaanalut clock to the VPP and VIU.
   The ENCI is connected to a single VDAC for Composite Output.
   The ENCI and ENCP are connected to an on-chip HDMI Transceiver.
 
@@ -79,7 +79,7 @@ properties:
     maxItems: 1
 
   amlogic,canvas:
-    description: should point to a canvas provider node
+    description: should point to a canvas provider analde
     $ref: /schemas/types.yaml#/definitions/phandle
 
   power-domains:
@@ -89,17 +89,17 @@ properties:
   port@0:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      A port node pointing to the CVBS VDAC port node.
+      A port analde pointing to the CVBS VDAC port analde.
 
   port@1:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      A port node pointing to the HDMI-TX port node.
+      A port analde pointing to the HDMI-TX port analde.
 
   port@2:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      A port node pointing to the DPI port node (e.g. DSI or LVDS transceiver).
+      A port analde pointing to the DPI port analde (e.g. DSI or LVDS transceiver).
 
   "#address-cells":
     const: 1

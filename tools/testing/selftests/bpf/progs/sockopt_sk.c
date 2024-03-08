@@ -21,7 +21,7 @@ struct sockopt_sk {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct sockopt_sk);
 } socket_storage_map SEC(".maps");
@@ -48,7 +48,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 		return 0;
 
 	if (ctx->level == SOL_IP && ctx->optname == IP_TOS) {
-		/* Not interested in SOL_IP:IP_TOS;
+		/* Analt interested in SOL_IP:IP_TOS;
 		 * let next BPF program in the cgroup chain or kernel
 		 * handle it.
 		 */
@@ -56,7 +56,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 	}
 
 	if (ctx->level == SOL_SOCKET && ctx->optname == SO_SNDBUF) {
-		/* Not interested in SOL_SOCKET:SO_SNDBUF;
+		/* Analt interested in SOL_SOCKET:SO_SNDBUF;
 		 * let next BPF program in the cgroup chain or kernel
 		 * handle it.
 		 */
@@ -64,7 +64,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 	}
 
 	if (ctx->level == SOL_TCP && ctx->optname == TCP_CONGESTION) {
-		/* Not interested in SOL_TCP:TCP_CONGESTION;
+		/* Analt interested in SOL_TCP:TCP_CONGESTION;
 		 * let next BPF program in the cgroup chain or kernel
 		 * handle it.
 		 */
@@ -119,7 +119,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 		return 0; /* couldn't get sk storage */
 
 	if (!ctx->retval)
-		return 0; /* kernel should not have handled
+		return 0; /* kernel should analt have handled
 			   * SOL_CUSTOM, something is wrong!
 			   */
 	ctx->retval = 0; /* Reset system call return value to zero */
@@ -158,7 +158,7 @@ int _setsockopt(struct bpf_sockopt *ctx)
 		return 0;
 
 	if (ctx->level == SOL_IP && ctx->optname == IP_TOS) {
-		/* Not interested in SOL_IP:IP_TOS;
+		/* Analt interested in SOL_IP:IP_TOS;
 		 * let next BPF program in the cgroup chain or kernel
 		 * handle it.
 		 */

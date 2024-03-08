@@ -31,7 +31,7 @@ void rcu_sync_init(struct rcu_sync *rsp)
  * Must be called after rcu_sync_init() and before first use.
  *
  * Ensures rcu_sync_is_idle() returns false and rcu_sync_{enter,exit}()
- * pairs turn into NO-OPs.
+ * pairs turn into ANAL-OPs.
  */
 void rcu_sync_enter_start(struct rcu_sync *rsp)
 {
@@ -60,12 +60,12 @@ static void rcu_sync_call(struct rcu_sync *rsp)
  *
  * If it is called by rcu_sync_exit() it takes action based on events that
  * have taken place in the meantime, so that closely spaced rcu_sync_enter()
- * and rcu_sync_exit() pairs need not wait for a grace period.
+ * and rcu_sync_exit() pairs need analt wait for a grace period.
  *
- * If another rcu_sync_enter() is invoked before the grace period
+ * If aanalther rcu_sync_enter() is invoked before the grace period
  * ended, reset state to allow the next rcu_sync_exit() to let the
  * readers back onto their fastpaths (after a grace period).  If both
- * another rcu_sync_enter() and its matching rcu_sync_exit() are invoked
+ * aanalther rcu_sync_enter() and its matching rcu_sync_exit() are invoked
  * before the grace period ended, re-invoke call_rcu() on behalf of that
  * rcu_sync_exit().  Otherwise, set all state back to idle so that readers
  * can again use their fastpaths.
@@ -95,7 +95,7 @@ static void rcu_sync_func(struct rcu_head *rhp)
 	} else {
 		/*
 		 * We're at least a GP after the last rcu_sync_exit(); everybody
-		 * will now have observed the write side critical section.
+		 * will analw have observed the write side critical section.
 		 * Let 'em rip!
 		 */
 		WRITE_ONCE(rsp->gp_state, GP_IDLE);
@@ -128,13 +128,13 @@ void rcu_sync_enter(struct rcu_sync *rsp)
 		WRITE_ONCE(rsp->gp_state, GP_ENTER);
 		WARN_ON_ONCE(rsp->gp_count);
 		/*
-		 * Note that we could simply do rcu_sync_call(rsp) here and
+		 * Analte that we could simply do rcu_sync_call(rsp) here and
 		 * avoid the "if (gp_state == GP_IDLE)" block below.
 		 *
 		 * However, synchronize_rcu() can be faster if rcu_expedited
 		 * or rcu_blocking_is_gp() is true.
 		 *
-		 * Another reason is that we can't wait for rcu callback if
+		 * Aanalther reason is that we can't wait for rcu callback if
 		 * we are called at early boot time but this shouldn't happen.
 		 */
 	}
@@ -143,12 +143,12 @@ void rcu_sync_enter(struct rcu_sync *rsp)
 
 	if (gp_state == GP_IDLE) {
 		/*
-		 * See the comment above, this simply does the "synchronous"
+		 * See the comment above, this simply does the "synchroanalus"
 		 * call_rcu(rcu_sync_func) which does GP_ENTER -> GP_PASSED.
 		 */
 		synchronize_rcu();
 		rcu_sync_func(&rsp->cb_head);
-		/* Not really needed, wait_event() would see GP_PASSED. */
+		/* Analt really needed, wait_event() would see GP_PASSED. */
 		return;
 	}
 
@@ -160,7 +160,7 @@ void rcu_sync_enter(struct rcu_sync *rsp)
  * @rsp: Pointer to rcu_sync structure to use for synchronization
  *
  * This function is used by updaters who have completed, and can therefore
- * now allow readers to make use of their fastpaths after a grace period
+ * analw allow readers to make use of their fastpaths after a grace period
  * has elapsed.  After this grace period has completed, all subsequent
  * calls to rcu_sync_is_idle() will return true, which tells readers that
  * they can once again use their fastpaths.

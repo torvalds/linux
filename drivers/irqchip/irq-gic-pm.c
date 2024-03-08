@@ -35,9 +35,9 @@ static int gic_runtime_resume(struct device *dev)
 
 	/*
 	 * On the very first resume, the pointer to chip_pm->chip_data
-	 * will be NULL and this is intentional, because we do not
+	 * will be NULL and this is intentional, because we do analt
 	 * want to restore the GIC on the very first resume. So if
-	 * the pointer is not valid just return.
+	 * the pointer is analt valid just return.
 	 */
 	if (!gic)
 		return 0;
@@ -71,24 +71,24 @@ static int gic_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(&pdev->dev, "no device match found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal device match found\n");
+		return -EANALDEV;
 	}
 
 	chip_pm = devm_kzalloc(dev, sizeof(*chip_pm), GFP_KERNEL);
 	if (!chip_pm)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!irq) {
-		dev_err(dev, "no parent interrupt found!\n");
+		dev_err(dev, "anal parent interrupt found!\n");
 		return -EINVAL;
 	}
 
 	chip_pm->clks = devm_kcalloc(dev, data->num_clocks,
 				     sizeof(*chip_pm->clks), GFP_KERNEL);
 	if (!chip_pm->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < data->num_clocks; i++)
 		chip_pm->clks[i].id = data->clocks[i];

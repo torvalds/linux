@@ -47,7 +47,7 @@ void il4965_nic_config(struct il_priv *il);
 /* rx */
 void il4965_rx_queue_restock(struct il_priv *il);
 void il4965_rx_replenish(struct il_priv *il);
-void il4965_rx_replenish_now(struct il_priv *il);
+void il4965_rx_replenish_analw(struct il_priv *il);
 void il4965_rx_queue_free(struct il_priv *il, struct il_rx_queue *rxq);
 int il4965_rxq_stop(struct il_priv *il);
 int il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum nl80211_band band);
@@ -84,7 +84,7 @@ void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 idx);
  * @tx_fifo_id: Tx DMA/FIFO channel (range 0-7) that the queue will feed
  * @scd_retry: (1) Indicates queue will be used in aggregation mode
  *
- * NOTE:  Acquire il->lock before calling this function !
+ * ANALTE:  Acquire il->lock before calling this function !
  */
 void il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 				int tx_fifo_id, int scd_retry);
@@ -221,19 +221,19 @@ il4965_hw_valid_rtc_data_addr(u32 addr)
  * real-time temperature indicator.
  *
  * uCode provides all 4 values to the driver via the "initialize alive"
- * notification (see struct il4965_init_alive_resp).  After the runtime uCode
- * image loads, uCode updates the R4 value via stats notifications
+ * analtification (see struct il4965_init_alive_resp).  After the runtime uCode
+ * image loads, uCode updates the R4 value via stats analtifications
  * (see N_STATS), which occur after each received beacon
  * when associated, or can be requested via C_STATS.
  *
- * NOTE:  uCode provides the R4 value as a 23-bit signed value.  Driver
+ * ANALTE:  uCode provides the R4 value as a 23-bit signed value.  Driver
  *        must sign-extend to 32 bits before applying formula below.
  *
  * Formula:
  *
  * degrees Kelvin = ((97 * 259 * (R4 - R2) / (R3 - R1)) / 100) + 8
  *
- * NOTE:  The basic formula is 259 * (R4-R2) / (R3-R1).  The 97/100 is
+ * ANALTE:  The basic formula is 259 * (R4-R2) / (R3-R1).  The 97/100 is
  * an additional correction, which should be centered around 0 degrees
  * Celsius (273 degrees Kelvin).  The 8 (3 percent of 273) compensates for
  * centering the 97/100 correction around 0 degrees K.
@@ -262,8 +262,8 @@ void il4965_temperature_calib(struct il_priv *il);
  * 4965 txpower calculations rely on information from three sources:
  *
  *     1) EEPROM
- *     2) "initialize" alive notification
- *     3) stats notifications
+ *     2) "initialize" alive analtification
+ *     3) stats analtifications
  *
  * EEPROM data consists of:
  *
@@ -285,7 +285,7 @@ void il4965_temperature_calib(struct il_priv *il);
  *     contained within it) for format, and struct il4965_eeprom for
  *     locations in EEPROM.
  *
- * "Initialization alive" notification (see struct il4965_init_alive_resp)
+ * "Initialization alive" analtification (see struct il4965_init_alive_resp)
  * consists of:
  *
  * 1)  Temperature calculation parameters.
@@ -294,7 +294,7 @@ void il4965_temperature_calib(struct il_priv *il);
  *
  * 3)  Tx gain compensation to balance 2 transmitters for MIMO use.
  *
- * Statistics notifications deliver:
+ * Statistics analtifications deliver:
  *
  * 1)  Current values for temperature param R4.
  */
@@ -305,7 +305,7 @@ void il4965_temperature_calib(struct il_priv *il);
  * support MIMO and transmit diversity), driver must do the following:
  *
  * 1)  Compare desired txpower vs. (EEPROM) regulatory limit for this channel.
- *     Do not exceed regulatory limit; reduce target txpower if necessary.
+ *     Do analt exceed regulatory limit; reduce target txpower if necessary.
  *
  *     If setting up txpowers for MIMO rates (rate idxes 8-15, 24-31),
  *     2 transmitters will be used simultaneously; driver must reduce the
@@ -314,7 +314,7 @@ void il4965_temperature_calib(struct il_priv *il);
  *
  *
  * 2)  Compare target txpower vs. (EEPROM) saturation txpower *reduced by
- *     backoff for this bit rate*.  Do not exceed (saturation - backoff[rate]);
+ *     backoff for this bit rate*.  Do analt exceed (saturation - backoff[rate]);
  *     reduce target txpower if necessary.
  *
  *     Backoff values below are in 1/2 dB units (equivalent to steps in
@@ -329,10 +329,10 @@ void il4965_temperature_calib(struct il_priv *il);
  *     Backoff values apply to saturation txpower on a per-transmitter basis;
  *     when using MIMO (2 transmitters), each transmitter uses the same
  *     saturation level provided in EEPROM, and the same backoff values;
- *     no reduction (such as with regulatory txpower limits) is required.
+ *     anal reduction (such as with regulatory txpower limits) is required.
  *
  *     Saturation and Backoff values apply equally to 20 Mhz (legacy) channel
- *     widths and 40 Mhz (.11n HT40) channel widths; there is no separate
+ *     widths and 40 Mhz (.11n HT40) channel widths; there is anal separate
  *     factory measurement for ht40 channels.
  *
  *     The result of this step is the final target txpower.  The rest of
@@ -353,7 +353,7 @@ void il4965_temperature_calib(struct il_priv *il);
  *     on frequency (5 MHz between each channel number), this is equivalent
  *     to interpolating based on channel number differences.
  *
- *     Note that the sample channels may or may not be the channels at the
+ *     Analte that the sample channels may or may analt be the channels at the
  *     edges of the sub band.  The target channel may be "outside" of the
  *     span of the sampled channels.
  *
@@ -363,18 +363,18 @@ void il4965_temperature_calib(struct il_priv *il);
  *     the middle set of measurements is closest to the regulatory limits,
  *     and is therefore a good choice for all txpower calculations (this
  *     assumes that high accuracy is needed for maximizing legal txpower,
- *     while lower txpower configurations do not need as much accuracy).
+ *     while lower txpower configurations do analt need as much accuracy).
  *
  *     Driver should interpolate both members of the chosen measurement pair,
- *     i.e. for both Tx chains (radio transmitters), unless the driver knows
+ *     i.e. for both Tx chains (radio transmitters), unless the driver kanalws
  *     that only one of the chains will be used (e.g. only one tx antenna
  *     connected, but this should be unusual).  The rate scaling algorithm
  *     switches antennas to find best performance, so both Tx chains will
- *     be used (although only one at a time) even for non-MIMO transmissions.
+ *     be used (although only one at a time) even for analn-MIMO transmissions.
  *
  *     Driver should interpolate factory values for temperature, gain table
  *     idx, and actual power.  The power amplifier detector values are
- *     not used by the driver.
+ *     analt used by the driver.
  *
  *     Sanity check:  If the target channel happens to be one of the sample
  *     channels, the results should agree with the sample channel's
@@ -406,7 +406,7 @@ void il4965_temperature_calib(struct il_priv *il);
  *     5 GHz channels 34-43:  4.5 degrees per half-dB step
  *     5 GHz channels >= 44:  4.0 degrees per half-dB step
  *
- *     NOTE:  Temperature can increase rapidly when transmitting, especially
+ *     ANALTE:  Temperature can increase rapidly when transmitting, especially
  *            with heavy traffic at high txpowers.  Driver should update
  *            temperature calculations often under these conditions to
  *            maintain strong txpower in the face of rising temperature.
@@ -429,9 +429,9 @@ void il4965_temperature_calib(struct il_priv *il);
  *     If number of idx steps in either direction turns out to be > 2,
  *     something is wrong ... just use 0.
  *
- *     NOTE:  Voltage compensation is independent of band/channel.
+ *     ANALTE:  Voltage compensation is independent of band/channel.
  *
- *     NOTE:  "Initialize" uCode measures current voltage, which is assumed
+ *     ANALTE:  "Initialize" uCode measures current voltage, which is assumed
  *            to be constant after this initial measurement.  Voltage
  *            compensation for txpower (number of steps in gain table)
  *            may be calculated once and used until the next uCode bootload.
@@ -449,7 +449,7 @@ void il4965_temperature_calib(struct il_priv *il);
  *     Group 4:  2.4 GHz all channels
  *
  *     Add the tx_atten[group][chain] value to the idx for the target chain.
- *     The values are signed, but are in pairs of 0 and a non-negative number,
+ *     The values are signed, but are in pairs of 0 and a analn-negative number,
  *     so as to reduce gain (if necessary) of the "hotter" channel.  This
  *     avoids any need to double-check for regulatory compliance after
  *     this step.
@@ -464,7 +464,7 @@ void il4965_temperature_calib(struct il_priv *il);
  *     Hardware rev for 4965 can be determined by reading CSR_HW_REV_WA_REG,
  *     bits [3:2], 1 = B, 2 = C.
  *
- *     NOTE:  This compensation is in addition to any saturation backoff that
+ *     ANALTE:  This compensation is in addition to any saturation backoff that
  *            might have been applied in an earlier step.
  *
  *
@@ -513,8 +513,8 @@ void il4965_temperature_calib(struct il_priv *il);
  * gain settings for the output of the device's digital signal processor (DSP),
  * and for the analog gain structure of the transmitter.
  *
- * Each entry in the gain tables represents a step of 1/2 dB.  Note that these
- * are *relative* steps, not indications of absolute output power.  Output
+ * Each entry in the gain tables represents a step of 1/2 dB.  Analte that these
+ * are *relative* steps, analt indications of absolute output power.  Output
  * power varies with temperature, voltage, and channel frequency, and also
  * requires consideration of average power (to satisfy regulatory constraints),
  * and peak power (to avoid distortion of the output signal).
@@ -527,8 +527,8 @@ void il4965_temperature_calib(struct il_priv *il);
  *     It is a coarser setting, and behaves in a logarithmic (dB) fashion.
  *
  * EEPROM contains factory calibration data for txpower.  This maps actual
- * measured txpower levels to gain settings in the "well known" tables
- * below ("well-known" means here that both factory calibration *and* the
+ * measured txpower levels to gain settings in the "well kanalwn" tables
+ * below ("well-kanalwn" means here that both factory calibration *and* the
  * driver work with the same table).
  *
  * There are separate tables for 2.4 GHz and 5 GHz bands.  The 5 GHz table
@@ -787,7 +787,7 @@ void il4965_temperature_calib(struct il_priv *il);
  * in order to avoid clipping distortion.
  *
  * Driver must make sure that it is violating neither the saturation limit,
- * nor the regulatory limit, when calculating Tx power settings for various
+ * analr the regulatory limit, when calculating Tx power settings for various
  * rates.
  *
  * Units are in half-dBm (i.e. "38" means 19 dBm).
@@ -848,13 +848,13 @@ enum {
  * Most communication between driver and 4965 is via queues of data buffers.
  * For example, all commands that the driver issues to device's embedded
  * controller (uCode) are via the command queue (one of the Tx queues).  All
- * uCode command responses/replies/notifications, including Rx frames, are
+ * uCode command responses/replies/analtifications, including Rx frames, are
  * conveyed from uCode to driver via the Rx queue.
  *
  * Most support for these queues, including handshake support, resides in
  * structures in host DRAM, shared between the driver and the device.  When
  * allocating this memory, the driver must make sure that data written by
- * the host CPU updates DRAM immediately (and does not get "stuck" in CPU's
+ * the host CPU updates DRAM immediately (and does analt get "stuck" in CPU's
  * cache memory), so DRAM and cache are consistent, and the device can
  * immediately see changes made by the driver.
  *
@@ -904,7 +904,7 @@ struct il4965_scd_bc_tbl {
 #define IL4965_FIRST_AMPDU_QUEUE	10
 
 /* Calibration */
-void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp);
+void il4965_chain_analise_calibration(struct il_priv *il, void *stat_resp);
 void il4965_sensitivity_calibration(struct il_priv *il, void *resp);
 void il4965_init_sensitivity(struct il_priv *il);
 void il4965_reset_run_time_calib(struct il_priv *il);
@@ -936,7 +936,7 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  *
  * Driver loads FH49_KW_MEM_ADDR_REG with the physical address (bits 35:4)
  * of the buffer, which must be 4K aligned.  Once this is set up, the 4965
- * automatically invokes keep-warm accesses when normal accesses might not
+ * automatically invokes keep-warm accesses when analrmal accesses might analt
  * be sufficient to maintain fast DRAM response.
  *
  * Bit fields:
@@ -950,7 +950,7 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  * 4965 has 16 base pointer registers, one for each of 16 host-DRAM-resident
  * circular buffers (CBs/queues) containing Transmit Frame Descriptors (TFDs)
  * (see struct il_tfd_frame).  These 16 pointer registers are offset by 0x04
- * bytes from one another.  Each TFD circular buffer in DRAM must be 256-byte
+ * bytes from one aanalther.  Each TFD circular buffer in DRAM must be 256-byte
  * aligned (address bits 0-7 must be 0).
  *
  * Bit fields in each pointer register:
@@ -966,7 +966,7 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  * Rx SRAM Control and Status Registers (RSCSR)
  *
  * These registers provide handshake between driver and 4965 for the Rx queue
- * (this queue handles *all* command responses, notifications, Rx data, etc.
+ * (this queue handles *all* command responses, analtifications, Rx data, etc.
  * sent from 4965 uCode to host driver).  Unlike Tx, there is only one Rx
  * queue, and only one Rx DMA/FIFO channel.  Also unlike Tx, which can
  * concatenate up to 20 DRAM buffers to form a Tx frame, each Receive Buffer
@@ -994,9 +994,9 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  *     the RB's corresponding RBD within the circular buffer.  Driver sets
  *     physical address [35:4] into FH49_RSCSR_CHNL0_STTS_WPTR_REG [31:0].
  *
- *     Bit fields in lower dword of Rx status buffer (upper dword not used
+ *     Bit fields in lower dword of Rx status buffer (upper dword analt used
  *     by driver; see struct il4965_shared, val0):
- *     31-12:  Not used by driver
+ *     31-12:  Analt used by driver
  *     11- 0:  Index of last filled Rx buffer descriptor
  *             (4965 writes, driver reads this value)
  *
@@ -1011,7 +1011,7 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  * RBs), should be 8 after preparing the first 8 RBs (for example), and must
  * wrap back to 0 at the end of the circular buffer (but don't wrap before
  * "read" idx has advanced past 1!  See below).
- * NOTE:  4965 EXPECTS THE WRITE IDX TO BE INCREMENTED IN MULTIPLES OF 8.
+ * ANALTE:  4965 EXPECTS THE WRITE IDX TO BE INCREMENTED IN MULTIPLES OF 8.
  *
  * As the 4965 fills RBs (referenced from contiguous RBDs within the circular
  * buffer), it updates the Rx status buffer in host DRAM, 2) described above,
@@ -1020,15 +1020,15 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  *
  * The driver must also internally keep track of a third idx, which is the
  * next RBD to process.  When receiving an Rx interrupt, driver should process
- * all filled but unprocessed RBs up to, but not including, the RB
+ * all filled but unprocessed RBs up to, but analt including, the RB
  * corresponding to the "read" idx.  For example, if "read" idx becomes "1",
  * driver may process the RB pointed to by RBD 0.  Depending on volume of
  * traffic, there may be many RBs to process.
  *
- * If read idx == write idx, 4965 thinks there is no room to put new data.
+ * If read idx == write idx, 4965 thinks there is anal room to put new data.
  * Due to this, the maximum number of filled RBs is 255, instead of 256.  To
  * be safe, make sure that there is a gap of at least 2 RBDs between "write"
- * and "read" idxes; that is, make sure that there are no more than 254
+ * and "read" idxes; that is, make sure that there are anal more than 254
  * buffers waiting to be filled.
  */
 #define FH49_MEM_RSCSR_LOWER_BOUND	(FH49_MEM_LOWER_BOUND + 0xBC0)
@@ -1053,7 +1053,7 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  * Rx write pointer (idx, really!).
  * Bit fields:
  *  11-0:  Index of driver's most recent prepared-to-be-filled RBD, + 1.
- *         NOTE:  For 256-entry circular buffer, use only bits [7:0].
+ *         ANALTE:  For 256-entry circular buffer, use only bits [7:0].
  */
 #define FH49_RSCSR_CHNL0_RBDCB_WPTR_REG	(FH49_MEM_RSCSR_CHNL0 + 0x008)
 #define FH49_RSCSR_CHNL0_WPTR        (FH49_RSCSR_CHNL0_RBDCB_WPTR_REG)
@@ -1063,7 +1063,7 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  * Rx Config Reg for channel 0 (only channel used)
  *
  * Driver must initialize FH49_MEM_RCSR_CHNL0_CONFIG_REG as follows for
- * normal operation (see bit fields).
+ * analrmal operation (see bit fields).
  *
  * Clearing FH49_MEM_RCSR_CHNL0_CONFIG_REG to 0 turns off Rx DMA.
  * Driver should poll FH49_MEM_RSSR_RX_STATUS_REG	for
@@ -1071,15 +1071,15 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  *
  * Bit fields:
  * 31-30: Rx DMA channel enable: '00' off/pause, '01' pause at end of frame,
- *        '10' operate normally
+ *        '10' operate analrmally
  * 29-24: reserved
- * 23-20: # RBDs in circular buffer = 2^value; use "8" for 256 RBDs (normal),
+ * 23-20: # RBDs in circular buffer = 2^value; use "8" for 256 RBDs (analrmal),
  *        min "5" for 32 RBDs, max "12" for 4096 RBDs.
  * 19-18: reserved
- * 17-16: size of each receive buffer; '00' 4K (normal), '01' 8K,
+ * 17-16: size of each receive buffer; '00' 4K (analrmal), '01' 8K,
  *        '10' 12K, '11' 16K.
  * 15-14: reserved
- * 13-12: IRQ destination; '00' none, '01' host driver (normal operation)
+ * 13-12: IRQ destination; '00' analne, '01' host driver (analrmal operation)
  * 11- 4: timeout for closing Rx buffer and interrupting host (units 32 usec)
  *        typical value 0x10 (about 1/2 msec)
  *  3- 0: reserved
@@ -1110,8 +1110,8 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
 #define FH49_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_12K   (0x00020000)
 #define FH49_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_16K   (0x00030000)
 
-#define FH49_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY              (0x00000004)
-#define FH49_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_NO_INT_VAL    (0x00000000)
+#define FH49_RCSR_CHNL0_RX_IGANALRE_RXF_EMPTY              (0x00000004)
+#define FH49_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_ANAL_INT_VAL    (0x00000000)
 #define FH49_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL  (0x00001000)
 
 /**
@@ -1125,7 +1125,7 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  *  24:  1 = Channel 0 is idle
  *
  * FH49_MEM_RSSR_SHARED_CTRL_REG and FH49_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV
- * contain default values that should not be altered by the driver.
+ * contain default values that should analt be altered by the driver.
  */
 #define FH49_MEM_RSSR_LOWER_BOUND           (FH49_MEM_LOWER_BOUND + 0xC40)
 #define FH49_MEM_RSSR_UPPER_BOUND           (FH49_MEM_LOWER_BOUND + 0xD00)
@@ -1163,9 +1163,9 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  *
  * Bit fields:
  * 31-30: Tx DMA channel enable: '00' off/pause, '01' pause at end of frame,
- *        '10' operate normally
+ *        '10' operate analrmally
  * 29- 4: Reserved, set to "0"
- *     3: Enable internal DMA requests (1, normal operation), disable (0)
+ *     3: Enable internal DMA requests (1, analrmal operation), disable (0)
  *  2- 0: Reserved, set to "0"
  */
 #define FH49_TCSR_LOWER_BOUND  (FH49_MEM_LOWER_BOUND + 0xD00)
@@ -1189,11 +1189,11 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
 #define FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	(0x00000000)
 #define FH49_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE	(0x00000008)
 
-#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_NOINT	(0x00000000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ANALINT	(0x00000000)
 #define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD	(0x00100000)
 #define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD	(0x00200000)
 
-#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_NOINT	(0x00000000)
+#define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_ANALINT	(0x00000000)
 #define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_ENDTFD	(0x00400000)
 #define FH49_TCSR_TX_CONFIG_REG_VAL_CIRQ_RTC_IFTFD	(0x00800000)
 
@@ -1214,11 +1214,11 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  * After stopping Tx DMA channel (writing 0 to
  * FH49_TCSR_CHNL_TX_CONFIG_REG(chnl)), driver must poll
  * FH49_TSSR_TX_STATUS_REG until selected Tx channel is idle
- * (channel's buffers empty | no pending requests).
+ * (channel's buffers empty | anal pending requests).
  *
  * Bit fields:
  * 31-24:  1 = Channel buffers empty (channel 7:0)
- * 23-16:  1 = No pending requests (channel 7:0)
+ * 23-16:  1 = Anal pending requests (channel 7:0)
  */
 #define FH49_TSSR_LOWER_BOUND		(FH49_MEM_LOWER_BOUND + 0xEA0)
 #define FH49_TSSR_UPPER_BOUND		(FH49_MEM_LOWER_BOUND + 0xEC0)
@@ -1229,7 +1229,7 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  * Bit fields for TSSR(Tx Shared Status & Control) error status register:
  * 31:  Indicates an address error when accessed to internal memory
  *	uCode/driver must write "1" in order to clear this flag
- * 30:  Indicates that Host did not send the expected number of dwords to FH
+ * 30:  Indicates that Host did analt send the expected number of dwords to FH
  *	uCode/driver must write "1" in order to clear this flag
  * 16-9:Each status bit is for one channel. Indicates that an (Error) ActDMA
  *	command was received from the scheduler while the TRB was already full
@@ -1238,7 +1238,7 @@ extern const struct il_debugfs_ops il4965_debugfs_ops;
  * 7-0: Each status bit indicates a channel's TxCredit error. When an error
  *	bit is set, it indicates that the FH has received a full indication
  *	from the RTC TxFIFO and the current value of the TxCredit counter was
- *	not equal to zero. This mean that the credit mechanism was not
+ *	analt equal to zero. This mean that the credit mechanism was analt
  *	synchronized to the TxFIFO status
  *	uCode/driver must write "1" in order to clear this flag
  */

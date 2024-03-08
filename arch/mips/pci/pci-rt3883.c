@@ -47,7 +47,7 @@
 #define RT3883_PCI_REG_SUBID(_x)	(RT3883_PCI_REG_BASE((_x)) + 0x38)
 #define RT3883_PCI_REG_STATUS(_x)	(RT3883_PCI_REG_BASE((_x)) + 0x50)
 
-#define RT3883_PCI_MODE_NONE	0
+#define RT3883_PCI_MODE_ANALNE	0
 #define RT3883_PCI_MODE_PCI	BIT(0)
 #define RT3883_PCI_MODE_PCIE	BIT(1)
 #define RT3883_PCI_MODE_BOTH	(RT3883_PCI_MODE_PCI | RT3883_PCI_MODE_PCIE)
@@ -59,7 +59,7 @@
 struct rt3883_pci_controller {
 	void __iomem *base;
 
-	struct device_node *intc_of_node;
+	struct device_analde *intc_of_analde;
 	struct irq_domain *irq_domain;
 
 	struct pci_controller pci_controller;
@@ -198,9 +198,9 @@ static int rt3883_pci_irq_init(struct device *dev,
 {
 	int irq;
 
-	irq = irq_of_parse_and_map(rpc->intc_of_node, 0);
+	irq = irq_of_parse_and_map(rpc->intc_of_analde, 0);
 	if (irq == 0) {
-		dev_err(dev, "%pOF has no IRQ", rpc->intc_of_node);
+		dev_err(dev, "%pOF has anal IRQ", rpc->intc_of_analde);
 		return -EINVAL;
 	}
 
@@ -208,12 +208,12 @@ static int rt3883_pci_irq_init(struct device *dev,
 	rt3883_pci_w32(rpc, 0, RT3883_PCI_REG_PCIENA);
 
 	rpc->irq_domain =
-		irq_domain_add_linear(rpc->intc_of_node, RT3883_PCI_IRQ_COUNT,
+		irq_domain_add_linear(rpc->intc_of_analde, RT3883_PCI_IRQ_COUNT,
 				      &rt3883_pci_irq_domain_ops,
 				      rpc);
 	if (!rpc->irq_domain) {
 		dev_err(dev, "unable to add IRQ domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	irq_set_chained_handler_and_data(irq, rt3883_pci_irq_handler, rpc);
@@ -231,7 +231,7 @@ static int rt3883_pci_config_read(struct pci_bus *bus, unsigned int devfn,
 	rpc = pci_bus_to_rt3883_controller(bus);
 
 	if (!rpc->pcie_ready && bus->number == 1)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	address = rt3883_pci_get_cfgaddr(bus->number, PCI_SLOT(devfn),
 					 PCI_FUNC(devfn), where);
@@ -264,7 +264,7 @@ static int rt3883_pci_config_write(struct pci_bus *bus, unsigned int devfn,
 	rpc = pci_bus_to_rt3883_controller(bus);
 
 	if (!rpc->pcie_ready && bus->number == 1)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	address = rt3883_pci_get_cfgaddr(bus->number, PCI_SLOT(devfn),
 					 PCI_FUNC(devfn), where);
@@ -403,54 +403,54 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 {
 	struct rt3883_pci_controller *rpc;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	u32 val;
 	int err;
 	int mode;
 
 	rpc = devm_kzalloc(dev, sizeof(*rpc), GFP_KERNEL);
 	if (!rpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rpc->base))
 		return PTR_ERR(rpc->base);
 
-	/* find the interrupt controller child node */
-	for_each_child_of_node(np, child) {
+	/* find the interrupt controller child analde */
+	for_each_child_of_analde(np, child) {
 		if (of_property_read_bool(child, "interrupt-controller")) {
-			rpc->intc_of_node = child;
+			rpc->intc_of_analde = child;
 			break;
 		}
 	}
 
-	if (!rpc->intc_of_node) {
-		dev_err(dev, "%pOF has no %s child node",
+	if (!rpc->intc_of_analde) {
+		dev_err(dev, "%pOF has anal %s child analde",
 			np, "interrupt controller");
 		return -EINVAL;
 	}
 
-	/* find the PCI host bridge child node */
-	for_each_child_of_node(np, child) {
-		if (of_node_is_type(child, "pci")) {
-			rpc->pci_controller.of_node = child;
+	/* find the PCI host bridge child analde */
+	for_each_child_of_analde(np, child) {
+		if (of_analde_is_type(child, "pci")) {
+			rpc->pci_controller.of_analde = child;
 			break;
 		}
 	}
 
-	if (!rpc->pci_controller.of_node) {
-		dev_err(dev, "%pOF has no %s child node",
+	if (!rpc->pci_controller.of_analde) {
+		dev_err(dev, "%pOF has anal %s child analde",
 			np, "PCI host bridge");
 		err = -EINVAL;
-		goto err_put_intc_node;
+		goto err_put_intc_analde;
 	}
 
-	mode = RT3883_PCI_MODE_NONE;
-	for_each_available_child_of_node(rpc->pci_controller.of_node, child) {
+	mode = RT3883_PCI_MODE_ANALNE;
+	for_each_available_child_of_analde(rpc->pci_controller.of_analde, child) {
 		int devfn;
 
-		if (!of_node_is_type(child, "pci"))
+		if (!of_analde_is_type(child, "pci"))
 			continue;
 
 		devfn = of_pci_get_devfn(child);
@@ -469,10 +469,10 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (mode == RT3883_PCI_MODE_NONE) {
+	if (mode == RT3883_PCI_MODE_ANALNE) {
 		dev_err(dev, "unable to determine PCI mode\n");
 		err = -EINVAL;
-		goto err_put_hb_node;
+		goto err_put_hb_analde;
 	}
 
 	dev_info(dev, "mode:%s%s\n",
@@ -487,7 +487,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	/* Load PCI I/O and memory resources from DT */
 	pci_load_of_ranges(&rpc->pci_controller,
-			   rpc->pci_controller.of_node);
+			   rpc->pci_controller.of_analde);
 
 	rt3883_pci_w32(rpc, rpc->mem_res.start, RT3883_PCI_REG_MEMBASE);
 	rt3883_pci_w32(rpc, rpc->io_res.start, RT3883_PCI_REG_IOBASE);
@@ -511,7 +511,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	err = rt3883_pci_irq_init(dev, rpc);
 	if (err)
-		goto err_put_hb_node;
+		goto err_put_hb_analde;
 
 	/* PCIe */
 	val = rt3883_pci_read_cfg32(rpc, 0, 0x01, 0, PCI_COMMAND);
@@ -542,10 +542,10 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_put_hb_node:
-	of_node_put(rpc->pci_controller.of_node);
-err_put_intc_node:
-	of_node_put(rpc->intc_of_node);
+err_put_hb_analde:
+	of_analde_put(rpc->pci_controller.of_analde);
+err_put_intc_analde:
+	of_analde_put(rpc->intc_of_analde);
 	return err;
 }
 

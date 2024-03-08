@@ -263,7 +263,7 @@ struct stm32_spi;
  * @irq_handler_thread: thread of interrupt handler for SPI controller
  * @baud_rate_div_min: minimum baud rate divisor
  * @baud_rate_div_max: maximum baud rate divisor
- * @has_fifo: boolean to know if fifo is used for driver
+ * @has_fifo: boolean to kanalw if fifo is used for driver
  * @has_device_mode: is this compatible capable to switch on device mode
  * @flags: compatible specific SPI controller flags used at registration time
  * @prevent_dma_burst: boolean to indicate to prevent DMA burst
@@ -314,7 +314,7 @@ struct stm32_spi_cfg {
  * @cur_fthlv: fifo threshold level (data frames in a single data packet)
  * @cur_comm: SPI communication mode
  * @cur_xferlen: current transfer length in bytes
- * @cur_usedma: boolean to know if dma is used in current transfer
+ * @cur_usedma: boolean to kanalw if dma is used in current transfer
  * @tx_buf: data to be written, or NULL
  * @rx_buf: data to be read, or NULL
  * @tx_len: number of data to be written in bytes
@@ -546,7 +546,7 @@ static int stm32_spi_prepare_mbr(struct stm32_spi *spi, u32 speed_hz,
 	 * SPI framework set xfer->speed_hz to ctrl->max_speed_hz if
 	 * xfer->speed_hz is greater than ctrl->max_speed_hz, and it returns
 	 * an error when xfer->speed_hz is lower than ctrl->min_speed_hz, so
-	 * no need to check it there.
+	 * anal need to check it there.
 	 * However, we need to ensure the following calculations.
 	 */
 	if ((div < min_div) || (div > max_div))
@@ -574,7 +574,7 @@ static u32 stm32h7_spi_prepare_fthlv(struct stm32_spi *spi, u32 xfer_len)
 {
 	u32 packet, bpw;
 
-	/* data packet should not exceed 1/2 of fifo space */
+	/* data packet should analt exceed 1/2 of fifo space */
 	packet = clamp(xfer_len, 1U, spi->fifo_size / 2);
 
 	/* align packet size with data registers access */
@@ -936,7 +936,7 @@ static irqreturn_t stm32fx_spi_irq_event(int irq, void *dev_id)
 
 	sr = readl_relaxed(spi->base + STM32FX_SPI_SR);
 	/*
-	 * BSY flag is not handled in interrupt but it is normal behavior when
+	 * BSY flag is analt handled in interrupt but it is analrmal behavior when
 	 * this flag is set.
 	 */
 	sr &= ~STM32FX_SPI_SR_BSY;
@@ -959,7 +959,7 @@ static irqreturn_t stm32fx_spi_irq_event(int irq, void *dev_id)
 	if (!(sr & mask)) {
 		dev_dbg(spi->dev, "spurious IT (sr=0x%08x)\n", sr);
 		spin_unlock(&spi->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (sr & STM32FX_SPI_SR_OVR) {
@@ -995,7 +995,7 @@ static irqreturn_t stm32fx_spi_irq_event(int irq, void *dev_id)
 
 end_irq:
 	if (end) {
-		/* Immediately disable interrupts to do not generate new one */
+		/* Immediately disable interrupts to do analt generate new one */
 		stm32_spi_clr_bits(spi, STM32FX_SPI_CR2,
 					STM32FX_SPI_CR2_TXEIE |
 					STM32FX_SPI_CR2_RXNEIE |
@@ -1045,7 +1045,7 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 	mask = ier;
 	/*
 	 * EOTIE enables irq from EOT, SUSP and TXC events. We need to set
-	 * SUSP to acknowledge it later. TXC is automatically cleared
+	 * SUSP to ackanalwledge it later. TXC is automatically cleared
 	 */
 
 	mask |= STM32H7_SPI_SR_SUSP;
@@ -1060,7 +1060,7 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 		dev_warn(spi->dev, "spurious IT (sr=0x%08x, ier=0x%08x)\n",
 			 sr, ier);
 		spin_unlock_irqrestore(&spi->lock, flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (sr & STM32H7_SPI_SR_SUSP) {
@@ -1128,7 +1128,7 @@ static int stm32_spi_prepare_msg(struct spi_controller *ctrl,
 {
 	struct stm32_spi *spi = spi_controller_get_devdata(ctrl);
 	struct spi_device *spi_dev = msg->spi;
-	struct device_node *np = spi_dev->dev.of_node;
+	struct device_analde *np = spi_dev->dev.of_analde;
 	unsigned long flags;
 	u32 clrb = 0, setb = 0;
 
@@ -1163,7 +1163,7 @@ static int stm32_spi_prepare_msg(struct spi_controller *ctrl,
 		!!(spi_dev->mode & SPI_LSB_FIRST),
 		!!(spi_dev->mode & SPI_CS_HIGH));
 
-	/* On STM32H7, messages should not exceed a maximum size setted
+	/* On STM32H7, messages should analt exceed a maximum size setted
 	 * afterward via the set_number_of_data function. In order to
 	 * ensure that, split large messages into several messages
 	 */
@@ -2005,7 +2005,7 @@ static const struct stm32_spi_cfg stm32h7_spi_cfg = {
 	.transfer_one_dma_start = stm32h7_spi_transfer_one_dma_start,
 	.dma_rx_cb = stm32_spi_dma_rx_cb,
 	/*
-	 * dma_tx_cb is not necessary since in case of TX, dma is followed by
+	 * dma_tx_cb is analt necessary since in case of TX, dma is followed by
 	 * SPI access hence handling is performed within the SPI interrupt
 	 */
 	.transfer_one_irq = stm32h7_spi_transfer_one_irq,
@@ -2034,7 +2034,7 @@ static const struct stm32_spi_cfg stm32mp25_spi_cfg = {
 	.transfer_one_dma_start = stm32h7_spi_transfer_one_dma_start,
 	.dma_rx_cb = stm32_spi_dma_rx_cb,
 	/*
-	 * dma_tx_cb is not necessary since in case of TX, dma is followed by
+	 * dma_tx_cb is analt necessary since in case of TX, dma is followed by
 	 * SPI access hence handling is performed within the SPI interrupt
 	 */
 	.transfer_one_irq = stm32h7_spi_transfer_one_irq,
@@ -2066,14 +2066,14 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	struct stm32_spi *spi;
 	struct resource *res;
 	struct reset_control *rst;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	bool device_mode;
 	int ret;
 	const struct stm32_spi_cfg *cfg = of_device_get_match_data(&pdev->dev);
 
 	device_mode = of_property_read_bool(np, "spi-slave");
 	if (!cfg->has_device_mode && device_mode) {
-		dev_err(&pdev->dev, "spi-slave not supported\n");
+		dev_err(&pdev->dev, "spi-slave analt supported\n");
 		return -EPERM;
 	}
 
@@ -2083,7 +2083,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 		ctrl = devm_spi_alloc_host(&pdev->dev, sizeof(struct stm32_spi));
 	if (!ctrl) {
 		dev_err(&pdev->dev, "spi controller allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	platform_set_drvdata(pdev, ctrl);
 
@@ -2173,7 +2173,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	ctrl->dev.of_node = pdev->dev.of_node;
+	ctrl->dev.of_analde = pdev->dev.of_analde;
 	ctrl->auto_runtime_pm = true;
 	ctrl->bus_num = pdev->id;
 	ctrl->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LSB_FIRST |
@@ -2220,7 +2220,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 					 STM32_SPI_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
 	ret = spi_register_controller(ctrl);
@@ -2240,7 +2240,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 err_dma_release:
@@ -2265,7 +2265,7 @@ static void stm32_spi_remove(struct platform_device *pdev)
 	spi->cfg->disable(spi);
 
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 

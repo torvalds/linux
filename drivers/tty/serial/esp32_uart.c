@@ -165,7 +165,7 @@ static u32 esp32_uart_rx_fifo_cnt(struct uart_port *port)
 	return (status & port_variant(port)->rxfifo_cnt_mask) >> UART_RXFIFO_CNT_SHIFT;
 }
 
-/* return TIOCSER_TEMT when transmitter is not busy */
+/* return TIOCSER_TEMT when transmitter is analt busy */
 static unsigned int esp32_uart_tx_empty(struct uart_port *port)
 {
 	return esp32_uart_tx_fifo_cnt(port) ? 0 : TIOCSER_TEMT;
@@ -234,7 +234,7 @@ static void esp32_uart_rxint(struct uart_port *port)
 		} else {
 			if (uart_handle_sysrq_char(port, (unsigned char)rx))
 				continue;
-			tty_insert_flip_char(tty_port, rx, TTY_NORMAL);
+			tty_insert_flip_char(tty_port, rx, TTY_ANALRMAL);
 			++port->icount.rx;
 		}
 	}
@@ -493,7 +493,7 @@ static int esp32_uart_poll_get_char(struct uart_port *port)
 	if (esp32_uart_rx_fifo_cnt(port))
 		return esp32_uart_read(port, UART_FIFO_REG);
 	else
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 }
 #endif
@@ -568,7 +568,7 @@ static int __init esp32_uart_console_setup(struct console *co, char *options)
 
 	sport = esp32_uart_ports[co->index];
 	if (!sport)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = clk_prepare_enable(sport->clk);
 	if (ret)
@@ -622,7 +622,7 @@ static int esp32_uart_earlycon_read(struct console *con, char *s, unsigned int n
 	while (num_read < n) {
 		int c = esp32_uart_poll_get_char(&dev->port);
 
-		if (c == NO_POLL_CHAR)
+		if (c == ANAL_POLL_CHAR)
 			break;
 		s[num_read++] = c;
 	}
@@ -634,7 +634,7 @@ static int __init esp32xx_uart_early_console_setup(struct earlycon_device *devic
 						   const char *options)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = esp32_uart_earlycon_write;
 #ifdef CONFIG_CONSOLE_POLL
@@ -678,7 +678,7 @@ static struct uart_driver esp32_uart_reg = {
 
 static int esp32_uart_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct uart_port *port;
 	struct esp32_port *sport;
 	struct resource *res;
@@ -686,25 +686,25 @@ static int esp32_uart_probe(struct platform_device *pdev)
 
 	sport = devm_kzalloc(&pdev->dev, sizeof(*sport), GFP_KERNEL);
 	if (!sport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port = &sport->port;
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+		dev_err(&pdev->dev, "failed to get alias id, erranal %d\n", ret);
 		return ret;
 	}
 	if (ret >= UART_NR) {
 		dev_err(&pdev->dev, "driver limited to %d serial ports\n", UART_NR);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	port->line = ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->mapbase = res->start;
 	port->membase = devm_ioremap_resource(&pdev->dev, res);

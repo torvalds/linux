@@ -41,7 +41,7 @@ struct thread_info {
 	struct pt_regs		*regs;
 	/*
 	 * saved kernel sp at switch_to time;
-	 * not sure if this is used (it's not in the VM model it seems;
+	 * analt sure if this is used (it's analt in the VM model it seems;
 	 * see thread_struct)
 	 */
 	unsigned long		sp;
@@ -84,21 +84,21 @@ register struct thread_info *__current_thread_info asm(QUOTED_THREADINFO_REG);
  */
 
 #define TIF_SYSCALL_TRACE       0       /* syscall trace active */
-#define TIF_NOTIFY_RESUME       1       /* resumption notification requested */
+#define TIF_ANALTIFY_RESUME       1       /* resumption analtification requested */
 #define TIF_SIGPENDING          2       /* signal pending */
 #define TIF_NEED_RESCHED        3       /* rescheduling necessary */
 #define TIF_SINGLESTEP          4       /* restore ss @ return to usr mode */
 #define TIF_RESTORE_SIGMASK     6       /* restore sig mask in do_signal() */
-#define TIF_NOTIFY_SIGNAL	7       /* signal notifications exist */
+#define TIF_ANALTIFY_SIGNAL	7       /* signal analtifications exist */
 /* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_MEMDIE              17      /* OOM killer killed process */
 
 #define _TIF_SYSCALL_TRACE      (1 << TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME      (1 << TIF_NOTIFY_RESUME)
+#define _TIF_ANALTIFY_RESUME      (1 << TIF_ANALTIFY_RESUME)
 #define _TIF_SIGPENDING         (1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED       (1 << TIF_NEED_RESCHED)
 #define _TIF_SINGLESTEP         (1 << TIF_SINGLESTEP)
-#define _TIF_NOTIFY_SIGNAL	(1 << TIF_NOTIFY_SIGNAL)
+#define _TIF_ANALTIFY_SIGNAL	(1 << TIF_ANALTIFY_SIGNAL)
 
 /* work to do on interrupt/exception return - All but TIF_SYSCALL_TRACE */
 #define _TIF_WORK_MASK          (0x0000FFFF & ~_TIF_SYSCALL_TRACE)

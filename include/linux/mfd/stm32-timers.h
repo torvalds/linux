@@ -149,7 +149,7 @@ static inline int stm32_timers_dma_burst_read(struct device *dev, u32 *buf,
 					      unsigned int bursts,
 					      unsigned long tmo_ms)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 #endif

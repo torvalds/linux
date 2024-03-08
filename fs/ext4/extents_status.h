@@ -18,7 +18,7 @@
 #ifdef ES_DEBUG__
 #define es_debug(fmt, ...)	printk(fmt, ##__VA_ARGS__)
 #else
-#define es_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define es_debug(fmt, ...)	anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /*
@@ -57,7 +57,7 @@ struct ext4_sb_info;
 struct ext4_extent;
 
 struct extent_status {
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 	ext4_lblk_t es_lblk;	/* first logical block extent covers */
 	ext4_lblk_t es_len;	/* length of extent in block */
 	ext4_fsblk_t es_pblk;	/* first physical block */
@@ -98,8 +98,8 @@ struct ext4_es_stats {
  * disk when invalidating pages as a result of a truncate, punch hole, or
  * collapse range operation.  Page invalidation requires a decrease in the
  * reserved cluster count if it results in the removal of all delayed
- * and unwritten extents (blocks) from a cluster that is not shared with a
- * written or unwritten extent, and no decrease otherwise.  Determining
+ * and unwritten extents (blocks) from a cluster that is analt shared with a
+ * written or unwritten extent, and anal decrease otherwise.  Determining
  * whether the cluster is shared can be done by searching for a pending
  * reservation on it.
  *
@@ -115,7 +115,7 @@ struct ext4_es_stats {
  */
 
 struct pending_reservation {
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 	ext4_lblk_t lclu;
 };
 
@@ -127,25 +127,25 @@ extern int __init ext4_init_es(void);
 extern void ext4_exit_es(void);
 extern void ext4_es_init_tree(struct ext4_es_tree *tree);
 
-extern void ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
+extern void ext4_es_insert_extent(struct ianalde *ianalde, ext4_lblk_t lblk,
 				  ext4_lblk_t len, ext4_fsblk_t pblk,
 				  unsigned int status);
-extern void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
+extern void ext4_es_cache_extent(struct ianalde *ianalde, ext4_lblk_t lblk,
 				 ext4_lblk_t len, ext4_fsblk_t pblk,
 				 unsigned int status);
-extern void ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
+extern void ext4_es_remove_extent(struct ianalde *ianalde, ext4_lblk_t lblk,
 				  ext4_lblk_t len);
-extern void ext4_es_find_extent_range(struct inode *inode,
+extern void ext4_es_find_extent_range(struct ianalde *ianalde,
 				      int (*match_fn)(struct extent_status *es),
 				      ext4_lblk_t lblk, ext4_lblk_t end,
 				      struct extent_status *es);
-extern int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
+extern int ext4_es_lookup_extent(struct ianalde *ianalde, ext4_lblk_t lblk,
 				 ext4_lblk_t *next_lblk,
 				 struct extent_status *es);
-extern bool ext4_es_scan_range(struct inode *inode,
+extern bool ext4_es_scan_range(struct ianalde *ianalde,
 			       int (*matching_fn)(struct extent_status *es),
 			       ext4_lblk_t lblk, ext4_lblk_t end);
-extern bool ext4_es_scan_clu(struct inode *inode,
+extern bool ext4_es_scan_clu(struct ianalde *ianalde,
 			     int (*matching_fn)(struct extent_status *es),
 			     ext4_lblk_t lblk);
 
@@ -247,12 +247,12 @@ extern int ext4_seq_es_shrinker_info_show(struct seq_file *seq, void *v);
 extern int __init ext4_init_pending(void);
 extern void ext4_exit_pending(void);
 extern void ext4_init_pending_tree(struct ext4_pending_tree *tree);
-extern void ext4_remove_pending(struct inode *inode, ext4_lblk_t lblk);
-extern bool ext4_is_pending(struct inode *inode, ext4_lblk_t lblk);
-extern void ext4_es_insert_delayed_block(struct inode *inode, ext4_lblk_t lblk,
+extern void ext4_remove_pending(struct ianalde *ianalde, ext4_lblk_t lblk);
+extern bool ext4_is_pending(struct ianalde *ianalde, ext4_lblk_t lblk);
+extern void ext4_es_insert_delayed_block(struct ianalde *ianalde, ext4_lblk_t lblk,
 					 bool allocated);
-extern unsigned int ext4_es_delayed_clu(struct inode *inode, ext4_lblk_t lblk,
+extern unsigned int ext4_es_delayed_clu(struct ianalde *ianalde, ext4_lblk_t lblk,
 					ext4_lblk_t len);
-extern void ext4_clear_inode_es(struct inode *inode);
+extern void ext4_clear_ianalde_es(struct ianalde *ianalde);
 
 #endif /* _EXT4_EXTENTS_STATUS_H */

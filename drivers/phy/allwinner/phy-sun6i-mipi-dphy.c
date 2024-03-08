@@ -418,7 +418,7 @@ static int sun6i_dphy_rx_power_on(struct sun6i_dphy *dphy)
 	/*
 	 * The Allwinner BSP has an alternative formula for LP_RX_ULPS_WP:
 	 * lp_ulps_wp_cnt = lp_ulps_wp_ms * lp_clk / 1000
-	 * but does not use it and hardcodes 255 instead.
+	 * but does analt use it and hardcodes 255 instead.
 	 */
 	regmap_write(dphy->regs, SUN6I_DPHY_RX_TIME1_REG,
 		     SUN6I_DPHY_RX_TIME1_RX_DLY(rx_dly) |
@@ -555,7 +555,7 @@ static int sun6i_dphy_probe(struct platform_device *pdev)
 
 	dphy = devm_kzalloc(&pdev->dev, sizeof(*dphy), GFP_KERNEL);
 	if (!dphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dphy->variant = device_get_match_data(&pdev->dev);
 	if (!dphy->variant)
@@ -594,13 +594,13 @@ static int sun6i_dphy_probe(struct platform_device *pdev)
 
 	dphy->direction = SUN6I_DPHY_DIRECTION_TX;
 
-	ret = of_property_read_string(pdev->dev.of_node, "allwinner,direction",
+	ret = of_property_read_string(pdev->dev.of_analde, "allwinner,direction",
 				      &direction);
 
 	if (!ret && !strncmp(direction, "rx", 2)) {
 		if (!dphy->variant->rx_supported) {
-			dev_err(&pdev->dev, "RX not supported on this variant\n");
-			return -EOPNOTSUPP;
+			dev_err(&pdev->dev, "RX analt supported on this variant\n");
+			return -EOPANALTSUPP;
 		}
 
 		dphy->direction = SUN6I_DPHY_DIRECTION_RX;

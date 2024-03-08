@@ -3,7 +3,7 @@
  * SPEAr thermal driver.
  *
  * Copyright (C) 2011-2012 ST Microelectronics
- * Author: Vincenzo Frascino <vincenzo.frascino@st.com>
+ * Author: Vincenzo Frascianal <vincenzo.frascianal@st.com>
  */
 
 #include <linux/clk.h>
@@ -90,17 +90,17 @@ static int spear_thermal_probe(struct platform_device *pdev)
 {
 	struct thermal_zone_device *spear_thermal = NULL;
 	struct spear_thermal_dev *stdev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret = 0, val;
 
 	if (!np || !of_property_read_u32(np, "st,thermal-flags", &val)) {
-		dev_err(&pdev->dev, "Failed: DT Pdata not passed\n");
+		dev_err(&pdev->dev, "Failed: DT Pdata analt passed\n");
 		return -EINVAL;
 	}
 
 	stdev = devm_kzalloc(&pdev->dev, sizeof(*stdev), GFP_KERNEL);
 	if (!stdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Enable thermal sensor */
 	stdev->thermal_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
@@ -131,7 +131,7 @@ static int spear_thermal_probe(struct platform_device *pdev)
 	}
 	ret = thermal_zone_device_enable(spear_thermal);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable thermal zone\n");
+		dev_err(&pdev->dev, "Cananalt enable thermal zone\n");
 		goto unregister_tzd;
 	}
 
@@ -183,6 +183,6 @@ static struct platform_driver spear_thermal_driver = {
 
 module_platform_driver(spear_thermal_driver);
 
-MODULE_AUTHOR("Vincenzo Frascino <vincenzo.frascino@st.com>");
+MODULE_AUTHOR("Vincenzo Frascianal <vincenzo.frascianal@st.com>");
 MODULE_DESCRIPTION("SPEAr thermal driver");
 MODULE_LICENSE("GPL");

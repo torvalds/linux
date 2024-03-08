@@ -24,7 +24,7 @@ struct mei_aux_device;
  * @intf: gsc interface
  * @intf.adev: MEI aux. device for this @intf
  * @intf.gem_obj: scratch memory GSC operations
- * @intf.irq: IRQ for this device (%-1 for no IRQ)
+ * @intf.irq: IRQ for this device (%-1 for anal IRQ)
  * @intf.id: this interface's id number/index
  */
 struct intel_gsc {

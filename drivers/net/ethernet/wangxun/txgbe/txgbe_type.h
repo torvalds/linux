@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2015 - 2022 Beijing WangXun Techanallogy Co., Ltd. */
 
 #ifndef _TXGBE_TYPE_H_
 #define _TXGBE_TYPE_H_
@@ -134,21 +134,21 @@ void txgbe_down(struct wx *wx);
 void txgbe_up(struct wx *wx);
 int txgbe_setup_tc(struct net_device *dev, u8 tc);
 
-#define NODE_PROP(_NAME, _PROP)			\
-	(const struct software_node) {		\
+#define ANALDE_PROP(_NAME, _PROP)			\
+	(const struct software_analde) {		\
 		.name = _NAME,			\
 		.properties = _PROP,		\
 	}
 
-enum txgbe_swnodes {
-	SWNODE_GPIO = 0,
-	SWNODE_I2C,
-	SWNODE_SFP,
-	SWNODE_PHYLINK,
-	SWNODE_MAX
+enum txgbe_swanaldes {
+	SWANALDE_GPIO = 0,
+	SWANALDE_I2C,
+	SWANALDE_SFP,
+	SWANALDE_PHYLINK,
+	SWANALDE_MAX
 };
 
-struct txgbe_nodes {
+struct txgbe_analdes {
 	char gpio_name[32];
 	char i2c_name[32];
 	char sfp_name[32];
@@ -157,21 +157,21 @@ struct txgbe_nodes {
 	struct property_entry i2c_props[3];
 	struct property_entry sfp_props[8];
 	struct property_entry phylink_props[2];
-	struct software_node_ref_args i2c_ref[1];
-	struct software_node_ref_args gpio0_ref[1];
-	struct software_node_ref_args gpio1_ref[1];
-	struct software_node_ref_args gpio2_ref[1];
-	struct software_node_ref_args gpio3_ref[1];
-	struct software_node_ref_args gpio4_ref[1];
-	struct software_node_ref_args gpio5_ref[1];
-	struct software_node_ref_args sfp_ref[1];
-	struct software_node swnodes[SWNODE_MAX];
-	const struct software_node *group[SWNODE_MAX + 1];
+	struct software_analde_ref_args i2c_ref[1];
+	struct software_analde_ref_args gpio0_ref[1];
+	struct software_analde_ref_args gpio1_ref[1];
+	struct software_analde_ref_args gpio2_ref[1];
+	struct software_analde_ref_args gpio3_ref[1];
+	struct software_analde_ref_args gpio4_ref[1];
+	struct software_analde_ref_args gpio5_ref[1];
+	struct software_analde_ref_args sfp_ref[1];
+	struct software_analde swanaldes[SWANALDE_MAX];
+	const struct software_analde *group[SWANALDE_MAX + 1];
 };
 
 struct txgbe {
 	struct wx *wx;
-	struct txgbe_nodes nodes;
+	struct txgbe_analdes analdes;
 	struct dw_xpcs *xpcs;
 	struct platform_device *sfp_dev;
 	struct platform_device *i2c_dev;

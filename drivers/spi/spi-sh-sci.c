@@ -39,7 +39,7 @@ struct sh_sci_spi {
 static inline void setbits(struct sh_sci_spi *sp, int bits, int on)
 {
 	/*
-	 * We are the only user of SCSPTR so no locking is required.
+	 * We are the only user of SCSPTR so anal locking is required.
 	 * Reading bit 2 and 0 in SCSPTR gives pin state as input.
 	 * Writing the same bits sets the output value.
 	 * This makes regular read-modify-write difficult so we
@@ -121,7 +121,7 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 	host = spi_alloc_host(&dev->dev, sizeof(struct sh_sci_spi));
 	if (host == NULL) {
 		dev_err(&dev->dev, "failed to allocate spi host\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err0;
 	}
 
@@ -131,7 +131,7 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 	sp->info = dev_get_platdata(&dev->dev);
 	if (!sp->info) {
 		dev_err(&dev->dev, "platform data is missing\n");
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err1;
 	}
 
@@ -148,7 +148,7 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 
 	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err1;
 	}
 	sp->membase = ioremap(r->start, resource_size(r));

@@ -20,7 +20,7 @@
 #include "br_private.h"
 
 /* IMPORTANT: new bridge options must be added with netlink support only
- *            please do not add new sysfs entries
+ *            please do analt add new sysfs entries
  */
 
 #define to_bridge(cd)	((struct net_bridge *)netdev_priv(to_net_dev(cd)))
@@ -360,29 +360,29 @@ static ssize_t flush_store(struct device *d,
 }
 static DEVICE_ATTR_WO(flush);
 
-static ssize_t no_linklocal_learn_show(struct device *d,
+static ssize_t anal_linklocal_learn_show(struct device *d,
 				       struct device_attribute *attr,
 				       char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", br_boolopt_get(br, BR_BOOLOPT_NO_LL_LEARN));
+	return sprintf(buf, "%d\n", br_boolopt_get(br, BR_BOOLOPT_ANAL_LL_LEARN));
 }
 
-static int set_no_linklocal_learn(struct net_bridge *br, unsigned long val,
+static int set_anal_linklocal_learn(struct net_bridge *br, unsigned long val,
 				  struct netlink_ext_ack *extack)
 {
-	return br_boolopt_toggle(br, BR_BOOLOPT_NO_LL_LEARN, !!val, extack);
+	return br_boolopt_toggle(br, BR_BOOLOPT_ANAL_LL_LEARN, !!val, extack);
 }
 
-static ssize_t no_linklocal_learn_store(struct device *d,
+static ssize_t anal_linklocal_learn_store(struct device *d,
 					struct device_attribute *attr,
 					const char *buf, size_t len)
 {
-	return store_bridge_parm(d, buf, len, set_no_linklocal_learn);
+	return store_bridge_parm(d, buf, len, set_anal_linklocal_learn);
 }
-static DEVICE_ATTR_RW(no_linklocal_learn);
+static DEVICE_ATTR_RW(anal_linklocal_learn);
 
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
 static ssize_t multicast_router_show(struct device *d,
 				     struct device_attribute *attr, char *buf)
 {
@@ -404,7 +404,7 @@ static ssize_t multicast_router_store(struct device *d,
 }
 static DEVICE_ATTR_RW(multicast_router);
 
-static ssize_t multicast_snooping_show(struct device *d,
+static ssize_t multicast_sanaloping_show(struct device *d,
 				       struct device_attribute *attr,
 				       char *buf)
 {
@@ -412,13 +412,13 @@ static ssize_t multicast_snooping_show(struct device *d,
 	return sprintf(buf, "%d\n", br_opt_get(br, BROPT_MULTICAST_ENABLED));
 }
 
-static ssize_t multicast_snooping_store(struct device *d,
+static ssize_t multicast_sanaloping_store(struct device *d,
 					struct device_attribute *attr,
 					const char *buf, size_t len)
 {
 	return store_bridge_parm(d, buf, len, br_multicast_toggle);
 }
-static DEVICE_ATTR_RW(multicast_snooping);
+static DEVICE_ATTR_RW(multicast_sanaloping);
 
 static ssize_t multicast_query_use_ifaddr_show(struct device *d,
 					       struct device_attribute *attr,
@@ -953,10 +953,10 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_gc_timer.attr,
 	&dev_attr_group_addr.attr,
 	&dev_attr_flush.attr,
-	&dev_attr_no_linklocal_learn.attr,
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	&dev_attr_anal_linklocal_learn.attr,
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
 	&dev_attr_multicast_router.attr,
-	&dev_attr_multicast_snooping.attr,
+	&dev_attr_multicast_sanaloping.attr,
 	&dev_attr_multicast_querier.attr,
 	&dev_attr_multicast_query_use_ifaddr.attr,
 	&dev_attr_hash_elasticity.attr,
@@ -1036,7 +1036,7 @@ static struct bin_attribute bridge_forward = {
  *   Binary attribute containing the forward table
  *   Sub directory to hold links to interfaces.
  *
- * Note: the ifobj exists only to be a subdirectory
+ * Analte: the ifobj exists only to be a subdirectory
  *   to hold links.  The ifobj exists in same data structure
  *   as it's parent the bridge so reference counting works.
  */
@@ -1064,7 +1064,7 @@ int br_sysfs_addbr(struct net_device *dev)
 	if (!br->ifobj) {
 		pr_info("%s: can't add kobject (directory) %s/%s\n",
 			__func__, dev->name, SYSFS_BRIDGE_PORT_SUBDIR);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out3;
 	}
 	return 0;

@@ -29,8 +29,8 @@ ifeq ($(mte_cc_support),1)
 TEST_GEN_PROGS := $(PROGS)
 
 else
-    $(warning compiler "$(CC)" does not support the ARMv8.5 MTE extension.)
-    $(warning test program "mte" will not be created.)
+    $(warning compiler "$(CC)" does analt support the ARMv8.5 MTE extension.)
+    $(warning test program "mte" will analt be created.)
 endif
 
 # Include KSFT lib.mk.

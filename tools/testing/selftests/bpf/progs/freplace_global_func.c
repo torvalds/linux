@@ -2,7 +2,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
-__noinline
+__analinline
 int test_ctx_global_func(struct __sk_buff *skb)
 {
 	volatile int retval = 1;

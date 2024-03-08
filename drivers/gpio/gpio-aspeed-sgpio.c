@@ -46,7 +46,7 @@ struct aspeed_sgpio_bank {
 };
 
 /*
- * Note: The "value" register returns the input value when the GPIO is
+ * Analte: The "value" register returns the input value when the GPIO is
  *	 configured as an input.
  *
  *	 The "rdata" register returns the output value when the GPIO is
@@ -234,7 +234,7 @@ static int aspeed_sgpio_dir_out(struct gpio_chip *gc, unsigned int offset, int v
 	unsigned long flags;
 	int rc;
 
-	/* No special action is required for setting the direction; we'll
+	/* Anal special action is required for setting the direction; we'll
 	 * error-out in sgpio_set_value if this isn't an output GPIO */
 
 	raw_spin_lock_irqsave(&gpio->lock, flags);
@@ -459,7 +459,7 @@ static int aspeed_sgpio_setup_irqs(struct aspeed_sgpio *gpio,
 	gpio_irq_chip_set_chip(irq, &aspeed_sgpio_irq_chip);
 	irq->init_valid_mask = aspeed_sgpio_irq_init_valid_mask;
 	irq->handler = handle_bad_irq;
-	irq->default_type = IRQ_TYPE_NONE;
+	irq->default_type = IRQ_TYPE_ANALNE;
 	irq->parent_handler = aspeed_sgpio_irq_handler;
 	irq->parent_handler_data = gpio;
 	irq->parents = &gpio->irq;
@@ -518,7 +518,7 @@ static int aspeed_sgpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	if (param == PIN_CONFIG_PERSIST_STATE)
 		return aspeed_sgpio_reset_tolerance(chip, offset, arg);
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct aspeed_sgpio_pdata ast2600_sgpiom_pdata = {
@@ -544,7 +544,7 @@ static int __init aspeed_sgpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio->base))
@@ -560,17 +560,17 @@ static int __init aspeed_sgpio_probe(struct platform_device *pdev)
 
 	rc = device_property_read_u32(&pdev->dev, "ngpios", &nr_gpios);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "Could not read ngpios property\n");
+		dev_err(&pdev->dev, "Could analt read ngpios property\n");
 		return -EINVAL;
 	} else if (nr_gpios % 8) {
-		dev_err(&pdev->dev, "Number of GPIOs not multiple of 8: %d\n",
+		dev_err(&pdev->dev, "Number of GPIOs analt multiple of 8: %d\n",
 			nr_gpios);
 		return -EINVAL;
 	}
 
 	rc = device_property_read_u32(&pdev->dev, "bus-frequency", &sgpio_freq);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "Could not read bus-frequency property\n");
+		dev_err(&pdev->dev, "Could analt read bus-frequency property\n");
 		return -EINVAL;
 	}
 

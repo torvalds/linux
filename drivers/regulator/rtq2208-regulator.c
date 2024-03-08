@@ -88,7 +88,7 @@ struct rtq2208_rdev_map {
 	struct device *dev;
 };
 
-/* set Normal Auto/FCCM mode */
+/* set Analrmal Auto/FCCM mode */
 static int rtq2208_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
 	const struct rtq2208_regulator_desc *rdesc =
@@ -96,7 +96,7 @@ static int rtq2208_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	unsigned int val, shift;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = RTQ2208_AUTO_MODE;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -122,7 +122,7 @@ static unsigned int rtq2208_get_mode(struct regulator_dev *rdev)
 	if (ret)
 		return REGULATOR_MODE_INVALID;
 
-	return (mode_val & rdesc->mode_mask) ? REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
+	return (mode_val & rdesc->mode_mask) ? REGULATOR_MODE_FAST : REGULATOR_MODE_ANALRMAL;
 }
 
 static int rtq2208_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
@@ -183,7 +183,7 @@ static int rtq2208_set_suspend_mode(struct regulator_dev *rdev, unsigned int mod
 	unsigned int val, shift;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = RTQ2208_AUTO_MODE;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -228,7 +228,7 @@ static unsigned int rtq2208_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case RTQ2208_AUTO_MODE:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case RTQ2208_FCCM:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -261,7 +261,7 @@ static int rtq2208_init_irq_mask(struct rtq2208_rdev_map *rdev_map, unsigned int
 	return regmap_bulk_write(rdev_map->regmap, RTQ2208_REG_GLOBAL_INT1_MASK, sts_masks, 2);
 }
 
-static irqreturn_t rtq2208_irq_handler(int irqno, void *devid)
+static irqreturn_t rtq2208_irq_handler(int irqanal, void *devid)
 {
 	unsigned char buck_flags[RTQ2208_BUCK_NUM_IRQ_REGS], sts_flags[RTQ2208_STS_NUM_IRQ_REGS];
 	int ret = 0, i, uv_bit, ov_bit;
@@ -269,29 +269,29 @@ static irqreturn_t rtq2208_irq_handler(int irqno, void *devid)
 	struct regulator_dev *rdev;
 
 	if (!rdev_map)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* read irq event */
 	ret = regmap_bulk_read(rdev_map->regmap, RTQ2208_REG_FLT_RECORDBUCK_CB,
 				buck_flags, ARRAY_SIZE(buck_flags));
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ret = regmap_bulk_read(rdev_map->regmap, RTQ2208_REG_GLOBAL_INT1,
 				sts_flags, ARRAY_SIZE(sts_flags));
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* clear irq event */
 	ret = regmap_bulk_write(rdev_map->regmap, RTQ2208_REG_FLT_RECORDBUCK_CB,
 				buck_flags, ARRAY_SIZE(buck_flags));
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ret = regmap_bulk_write(rdev_map->regmap, RTQ2208_REG_GLOBAL_INT1,
 				sts_flags, ARRAY_SIZE(sts_flags));
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < RTQ2208_LDO_MAX; i++) {
 		if (!rdev_map->rdev[i])
@@ -301,17 +301,17 @@ static irqreturn_t rtq2208_irq_handler(int irqno, void *devid)
 		/* uv irq */
 		uv_bit = (i & 1) ? 4 : 0;
 		if (buck_flags[i >> 1] & (1 << uv_bit))
-			regulator_notifier_call_chain(rdev,
+			regulator_analtifier_call_chain(rdev,
 					REGULATOR_EVENT_UNDER_VOLTAGE, NULL);
 		/* ov irq */
 		ov_bit = uv_bit + 1;
 		if (buck_flags[i >> 1] & (1 << ov_bit))
-			regulator_notifier_call_chain(rdev,
+			regulator_analtifier_call_chain(rdev,
 					REGULATOR_EVENT_REGULATION_OUT, NULL);
 
 		/* hd irq */
 		if (sts_flags[1] & RTQ2208_HD_INT_MASK)
-			regulator_notifier_call_chain(rdev,
+			regulator_analtifier_call_chain(rdev,
 					REGULATOR_EVENT_OVER_TEMP, NULL);
 	}
 
@@ -338,22 +338,22 @@ static const struct linear_range rtq2208_vout_range[] = {
 static int rtq2208_of_get_fixed_voltage(struct device *dev,
 					struct of_regulator_match *rtq2208_ldo_match, int n_fixed)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct of_regulator_match *match;
 	struct rtq2208_regulator_desc *rdesc;
 	struct regulator_init_data *init_data;
 	int ret, i;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
-	np = of_get_child_by_name(dev->of_node, "regulators");
+	np = of_get_child_by_name(dev->of_analde, "regulators");
 	if (!np)
-		np = dev->of_node;
+		np = dev->of_analde;
 
 	ret = of_regulator_match(dev, np, rtq2208_ldo_match, n_fixed);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (ret < 0)
 		return ret;
@@ -397,7 +397,7 @@ static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, in
 	desc = &rdesc->desc;
 	desc->name = curr_info->name;
 	desc->of_match = of_match_ptr(curr_info->name);
-	desc->regulators_node = of_match_ptr("regulators");
+	desc->regulators_analde = of_match_ptr("regulators");
 	desc->id = idx;
 	desc->owner = THIS_MODULE;
 	desc->type = REGULATOR_VOLTAGE;
@@ -455,7 +455,7 @@ static int rtq2208_parse_regulator_dt_data(int n_regulator, const unsigned int *
 
 		rdesc[i] = devm_kcalloc(dev, 1, sizeof(*rdesc[0]), GFP_KERNEL);
 		if (!rdesc[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rtq2208_init_regulator_desc(rdesc[i], mtp_sel, idx, rtq2208_ldo_match, &ldo_idx);
 	}
@@ -521,7 +521,7 @@ static int rtq2208_probe(struct i2c_client *i2c)
 
 	rdev_map = devm_kzalloc(dev, sizeof(struct rtq2208_rdev_map), GFP_KERNEL);
 	if (!rdev_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(i2c, &rtq2208_regmap_config);
 	if (IS_ERR(regmap))

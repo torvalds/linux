@@ -18,10 +18,10 @@
 
 static struct kobject *ultravisor_kobj;
 
-int __init early_init_dt_scan_ultravisor(unsigned long node, const char *uname,
+int __init early_init_dt_scan_ultravisor(unsigned long analde, const char *uname,
 					 int depth, void *data)
 {
-	if (!of_flat_dt_is_compatible(node, "ibm,ultravisor"))
+	if (!of_flat_dt_is_compatible(analde, "ibm,ultravisor"))
 		return 0;
 
 	powerpc_firmware_features |= FW_FEATURE_ULTRAVISOR;
@@ -45,25 +45,25 @@ static struct bin_attribute uv_msglog_attr = {
 
 static int __init uv_init(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
 	if (!firmware_has_feature(FW_FEATURE_ULTRAVISOR))
 		return 0;
 
-	node = of_find_compatible_node(NULL, NULL, "ibm,uv-firmware");
-	if (!node)
-		return -ENODEV;
+	analde = of_find_compatible_analde(NULL, NULL, "ibm,uv-firmware");
+	if (!analde)
+		return -EANALDEV;
 
-	uv_memcons = memcons_init(node, "memcons");
-	of_node_put(node);
+	uv_memcons = memcons_init(analde, "memcons");
+	of_analde_put(analde);
 	if (!uv_memcons)
-		return -ENOENT;
+		return -EANALENT;
 
 	uv_msglog_attr.size = memcons_get_size(uv_memcons);
 
 	ultravisor_kobj = kobject_create_and_add("ultravisor", firmware_kobj);
 	if (!ultravisor_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return sysfs_create_bin_file(ultravisor_kobj, &uv_msglog_attr);
 }

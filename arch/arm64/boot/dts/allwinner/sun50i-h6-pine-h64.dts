@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.io>
+// Copyright (c) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
 
 /dts-v1/;
 
@@ -140,7 +140,7 @@
 &mmc2 {
 	vmmc-supply = <&reg_cldo1>;
 	vqmmc-supply = <&reg_bldo2>;
-	non-removable;
+	analn-removable;
 	cap-mmc-hw-reset;
 	mmc-hs200-1_8v;
 	bus-width = <8>;
@@ -299,10 +299,10 @@
 };
 
 /*
- * The CS pin is shared with the MMC2 CMD pin, so we cannot have the SPI
+ * The CS pin is shared with the MMC2 CMD pin, so we cananalt have the SPI
  * flash and eMMC at the same time, as one of them would fail probing.
  * Disable SPI0 in here, to prefer the more useful eMMC. U-Boot can
- * fix this up in no eMMC is connected.
+ * fix this up in anal eMMC is connected.
  */
 &spi0 {
 	pinctrl-0 = <&spi0_pins>, <&spi0_cs_pin>;
@@ -310,7 +310,7 @@
 	status = "disabled";
 
 	flash@0 {
-		compatible = "winbond,w25q128", "jedec,spi-nor";
+		compatible = "winbond,w25q128", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <4000000>;
 	};

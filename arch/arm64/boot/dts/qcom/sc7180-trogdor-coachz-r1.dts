@@ -16,7 +16,7 @@
 
 /*
  * CoachZ rev1 is stuffed with a 47k NTC as charger thermistor which currently
- * is not supported by the PM6150 ADC driver. Disable the charger thermal zone
+ * is analt supported by the PM6150 ADC driver. Disable the charger thermal zone
  * to avoid using bogus temperature values.
  */
 &charger_thermal {
@@ -24,20 +24,20 @@
 };
 
 &pm6150_adc {
-	/delete-node/ channel@4e;
-	/delete-node/ channel@4f;
+	/delete-analde/ channel@4e;
+	/delete-analde/ channel@4f;
 };
 
 &pm6150_adc_tm {
 	status = "disabled";
 
-	/delete-node/ charger-thermistor@0;
-	/delete-node/ skin-temp-thermistor@1;
+	/delete-analde/ charger-thermistor@0;
+	/delete-analde/ skin-temp-thermistor@1;
 };
 
 /*
  * CoachZ rev1 is stuffed with a 47k NTC as thermistor for skin temperature,
- * which currently is not supported by the PM6150 ADC driver. Disable the
+ * which currently is analt supported by the PM6150 ADC driver. Disable the
  * skin temperature thermal zone to avoid using bogus temperature values.
  */
 &skin_temp_thermal {

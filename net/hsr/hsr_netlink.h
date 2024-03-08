@@ -22,6 +22,6 @@ void __exit hsr_netlink_exit(void);
 
 void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
 		      struct hsr_port *port);
-void hsr_nl_nodedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN]);
+void hsr_nl_analdedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN]);
 
 #endif /* __HSR_NETLINK_H */

@@ -15,7 +15,7 @@
 #include "msi.h"
 
 int pci_msi_enable = 1;
-int pci_msi_ignore_mask;
+int pci_msi_iganalre_mask;
 
 /**
  * pci_msi_supported - check whether MSI may be enabled on a device
@@ -34,7 +34,7 @@ static int pci_msi_supported(struct pci_dev *dev, int nvec)
 	if (!pci_msi_enable)
 		return 0;
 
-	if (!dev || dev->no_msi)
+	if (!dev || dev->anal_msi)
 		return 0;
 
 	/*
@@ -46,21 +46,21 @@ static int pci_msi_supported(struct pci_dev *dev, int nvec)
 		return 0;
 
 	/*
-	 * Any bridge which does NOT route MSI transactions from its
-	 * secondary bus to its primary bus must set NO_MSI flag on
+	 * Any bridge which does ANALT route MSI transactions from its
+	 * secondary bus to its primary bus must set ANAL_MSI flag on
 	 * the secondary pci_bus.
 	 *
-	 * The NO_MSI flag can either be set directly by:
+	 * The ANAL_MSI flag can either be set directly by:
 	 * - arch-specific PCI host bus controller drivers (deprecated)
 	 * - quirks for specific PCI bridges
 	 *
 	 * or indirectly by platform-specific PCI host bridge drivers by
 	 * advertising the 'msi_domain' property, which results in
-	 * the NO_MSI flag when no MSI domain is found for this bridge
+	 * the ANAL_MSI flag when anal MSI domain is found for this bridge
 	 * at probe time.
 	 */
 	for (bus = dev->bus; bus; bus = bus->parent)
-		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
+		if (bus->bus_flags & PCI_BUS_FLAGS_ANAL_MSI)
 			return 0;
 
 	return 1;
@@ -238,7 +238,7 @@ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 	struct pci_dev *dev = msi_desc_to_pci_dev(entry);
 
 	if (dev->current_state != PCI_D0 || pci_dev_is_disconnected(dev)) {
-		/* Don't touch the hardware now */
+		/* Don't touch the hardware analw */
 	} else if (entry->pci.msi_attrib.is_msix) {
 		pci_write_msg_msix(entry, msg);
 	} else {
@@ -293,7 +293,7 @@ static int msi_setup_msi_desc(struct pci_dev *dev, int nvec,
 	if (dev->dev_flags & PCI_DEV_FLAGS_HAS_MSI_MASKING)
 		control |= PCI_MSI_FLAGS_MASKBIT;
 	/* Respect XEN's mask disabling */
-	if (pci_msi_ignore_mask)
+	if (pci_msi_iganalre_mask)
 		control &= ~PCI_MSI_FLAGS_MASKBIT;
 
 	desc.nvec_used			= nvec;
@@ -320,7 +320,7 @@ static int msi_verify_entries(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 
-	if (!dev->no_64bit_msi)
+	if (!dev->anal_64bit_msi)
 		return 0;
 
 	msi_for_each_desc(entry, &dev->dev, MSI_DESC_ALL) {
@@ -428,7 +428,7 @@ int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 	if (nvec < 0)
 		return nvec;
 	if (nvec < minvec)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (nvec > maxvec)
 		nvec = maxvec;
@@ -438,13 +438,13 @@ int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 		return rc;
 
 	if (!pci_setup_msi_device_domain(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (;;) {
 		if (affd) {
 			nvec = irq_calc_affinity_vectors(minvec, nvec, affd);
 			if (nvec < minvec)
-				return -ENOSPC;
+				return -EANALSPC;
 		}
 
 		rc = msi_capability_init(dev, nvec, affd);
@@ -454,7 +454,7 @@ int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 		if (rc < 0)
 			return rc;
 		if (rc < minvec)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		nvec = rc;
 	}
@@ -465,8 +465,8 @@ int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
  * @dev: device to report about
  *
  * This function returns the number of MSI vectors a device requested via
- * Multiple Message Capable register. It returns a negative errno if the
- * device is not capable sending MSI interrupts. Otherwise, the call succeeds
+ * Multiple Message Capable register. It returns a negative erranal if the
+ * device is analt capable sending MSI interrupts. Otherwise, the call succeeds
  * and returns a power of two, up to a maximum of 2^5 (32), according to the
  * MSI specification.
  **/
@@ -579,7 +579,7 @@ static void __iomem *msix_map_region(struct pci_dev *dev,
  * This is separate from msix_setup_msi_descs() below to handle dynamic
  * allocations for MSI-X after initial enablement.
  *
- * Ideally the whole MSI-X setup would work that way, but there is no way to
+ * Ideally the whole MSI-X setup would work that way, but there is anal way to
  * support this for the legacy arch_setup_msi_irqs() mechanism and for the
  * fake irq domains like the x86 XEN one. Sigh...
  *
@@ -596,7 +596,7 @@ void msix_prepare_msi_desc(struct pci_dev *dev, struct msi_desc *desc)
 	desc->pci.msi_attrib.is_64		= 1;
 	desc->pci.msi_attrib.default_irq	= dev->irq;
 	desc->pci.mask_base			= dev->msix_base;
-	desc->pci.msi_attrib.can_mask		= !pci_msi_ignore_mask &&
+	desc->pci.msi_attrib.can_mask		= !pci_msi_iganalre_mask &&
 						  !desc->pci.msi_attrib.is_virtual;
 
 	if (desc->pci.msi_attrib.can_mask) {
@@ -646,7 +646,7 @@ static void msix_mask_all(void __iomem *base, int tsize)
 	u32 ctrl = PCI_MSIX_ENTRY_CTRL_MASKBIT;
 	int i;
 
-	if (pci_msi_ignore_mask)
+	if (pci_msi_iganalre_mask)
 		return;
 
 	for (i = 0; i < tsize; i++, base += PCI_MSIX_ENTRY_SIZE)
@@ -671,7 +671,7 @@ static int msix_setup_interrupts(struct pci_dev *dev, struct msix_entry *entries
 	if (ret)
 		goto out_free;
 
-	/* Check if all MSI entries honor device restrictions */
+	/* Check if all MSI entries hoanalr device restrictions */
 	ret = msi_verify_entries(dev);
 	if (ret)
 		goto out_free;
@@ -696,7 +696,7 @@ out_unlock:
  *
  * Setup the MSI-X capability structure of device function with a
  * single MSI-X IRQ. A return of zero indicates the successful setup of
- * requested MSI-X entries with allocated IRQs or non-zero for otherwise.
+ * requested MSI-X entries with allocated IRQs or analn-zero for otherwise.
  **/
 static int msix_capability_init(struct pci_dev *dev, struct msix_entry *entries,
 				int nvec, struct irq_affinity *affd)
@@ -720,7 +720,7 @@ static int msix_capability_init(struct pci_dev *dev, struct msix_entry *entries,
 	tsize = msix_table_size(control);
 	dev->msix_base = msix_map_region(dev, tsize);
 	if (!dev->msix_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_disable;
 	}
 
@@ -754,13 +754,13 @@ out_disable:
 
 static bool pci_msix_validate_entries(struct pci_dev *dev, struct msix_entry *entries, int nvec)
 {
-	bool nogap;
+	bool analgap;
 	int i, j;
 
 	if (!entries)
 		return true;
 
-	nogap = pci_msi_domain_supports(dev, MSI_FLAG_MSIX_CONTIGUOUS, DENY_LEGACY);
+	analgap = pci_msi_domain_supports(dev, MSI_FLAG_MSIX_CONTIGUOUS, DENY_LEGACY);
 
 	for (i = 0; i < nvec; i++) {
 		/* Check for duplicate entries */
@@ -769,7 +769,7 @@ static bool pci_msix_validate_entries(struct pci_dev *dev, struct msix_entry *en
 				return false;
 		}
 		/* Check for unsupported gaps */
-		if (nogap && entries[i].entry != i)
+		if (analgap && entries[i].entry != i)
 			return false;
 	}
 	return true;
@@ -793,7 +793,7 @@ int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int
 
 	/* Check MSI-X early on irq domain enabled architectures */
 	if (!pci_msi_domain_supports(dev, MSI_FLAG_PCI_MSIX, ALLOW_LEGACY))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!pci_msi_supported(dev, nvec) || dev->current_state != PCI_D0)
 		return -EINVAL;
@@ -814,20 +814,20 @@ int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int
 	}
 
 	if (nvec < minvec)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	rc = pci_setup_msi_context(dev);
 	if (rc)
 		return rc;
 
 	if (!pci_setup_msix_device_domain(dev, hwsize))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (;;) {
 		if (affd) {
 			nvec = irq_calc_affinity_vectors(minvec, nvec, affd);
 			if (nvec < minvec)
-				return -ENOSPC;
+				return -EANALSPC;
 		}
 
 		rc = msix_capability_init(dev, entries, nvec, affd);
@@ -837,7 +837,7 @@ int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int
 		if (rc < 0)
 			return rc;
 		if (rc < minvec)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		nvec = rc;
 	}
@@ -911,7 +911,7 @@ struct pci_dev *msi_desc_to_pci_dev(struct msi_desc *desc)
 }
 EXPORT_SYMBOL(msi_desc_to_pci_dev);
 
-void pci_no_msi(void)
+void pci_anal_msi(void)
 {
 	pci_msi_enable = 0;
 }

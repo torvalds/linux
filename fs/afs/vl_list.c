@@ -97,7 +97,7 @@ static struct afs_addr_list *afs_extract_vl_addrs(struct afs_net *net,
 
 	alist = afs_alloc_addrlist(nr_addrs);
 	if (!alist)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (nr_addrs == 0)
 		return alist;
 
@@ -133,9 +133,9 @@ static struct afs_addr_list *afs_extract_vl_addrs(struct afs_net *net,
 			break;
 
 		default:
-			_leave(" = -EADDRNOTAVAIL [unknown af %u]",
+			_leave(" = -EADDRANALTAVAIL [unkanalwn af %u]",
 			       hdr.address_type);
-			ret = -EADDRNOTAVAIL;
+			ret = -EADDRANALTAVAIL;
 			goto error;
 		}
 	}
@@ -166,7 +166,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 	struct afs_addr_list *addrs;
 	struct afs_vlserver *server;
 	const u8 *b = buffer, *end = buffer + buffer_size;
-	int ret = -ENOMEM, nr_servers, i, j;
+	int ret = -EANALMEM, nr_servers, i, j;
 
 	_enter("");
 
@@ -174,7 +174,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 	if (end - b < sizeof(*hdr) ||
 	    hdr->hdr.content != DNS_PAYLOAD_IS_SERVER_LIST ||
 	    hdr->hdr.version != 1) {
-		pr_notice("kAFS: Got DNS record [%u,%u] len %zu\n",
+		pr_analtice("kAFS: Got DNS record [%u,%u] len %zu\n",
 			  hdr->hdr.content, hdr->hdr.version, end - b);
 		ret = -EDESTADDRREQ;
 		goto dump;
@@ -184,7 +184,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 
 	vllist = afs_alloc_vlserver_list(nr_servers);
 	if (!vllist)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vllist->source = (hdr->source < NR__dns_record_source) ?
 		hdr->source : NR__dns_record_source;
@@ -216,7 +216,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 		if (end - b < bs.name_len)
 			break;
 
-		ret = -EPROTONOSUPPORT;
+		ret = -EPROTOANALSUPPORT;
 		if (bs.protocol == DNS_SERVER_PROTOCOL_UNSPECIFIED) {
 			bs.protocol = DNS_SERVER_PROTOCOL_UDP;
 		} else if (bs.protocol != DNS_SERVER_PROTOCOL_UDP) {
@@ -245,7 +245,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 		}
 
 		if (!server) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			server = afs_alloc_vlserver(b, bs.name_len, bs.port);
 			if (!server)
 				goto error;
@@ -253,7 +253,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 
 		b += bs.name_len;
 
-		/* Extract the addresses - note that we can't skip this as we
+		/* Extract the addresses - analte that we can't skip this as we
 		 * have to advance the payload pointer.
 		 */
 		addrs = afs_extract_vl_addrs(cell->net, &b, end, bs.nr_addrs, bs.port);
@@ -329,9 +329,9 @@ error:
 	afs_put_vlserverlist(cell->net, vllist);
 	afs_put_vlserverlist(cell->net, previous);
 dump:
-	if (ret != -ENOMEM) {
+	if (ret != -EANALMEM) {
 		printk(KERN_DEBUG "DNS: at %zu\n", (const void *)b - buffer);
-		print_hex_dump_bytes("DNS: ", DUMP_PREFIX_NONE, buffer, buffer_size);
+		print_hex_dump_bytes("DNS: ", DUMP_PREFIX_ANALNE, buffer, buffer_size);
 	}
 	return ERR_PTR(ret);
 }

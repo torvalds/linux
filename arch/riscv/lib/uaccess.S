@@ -14,7 +14,7 @@
 
 SYM_FUNC_START(__asm_copy_to_user)
 #ifdef CONFIG_RISCV_ISA_V
-	ALTERNATIVE("j fallback_scalar_usercopy", "nop", 0, RISCV_ISA_EXT_v, CONFIG_RISCV_ISA_V)
+	ALTERNATIVE("j fallback_scalar_usercopy", "analp", 0, RISCV_ISA_EXT_v, CONFIG_RISCV_ISA_V)
 	REG_L	t0, riscv_v_usercopy_threshold
 	bltu	a2, t0, fallback_scalar_usercopy
 	tail enter_vector_usercopy
@@ -66,10 +66,10 @@ SYM_FUNC_START(fallback_scalar_usercopy)
 
 .Lskip_align_dst:
 	/*
-	 * Now dst is aligned.
+	 * Analw dst is aligned.
 	 * Use shift-copy if src is misaligned.
 	 * Use word-copy if both src and dst are aligned because
-	 * can not use shift-copy which do not require shifting
+	 * can analt use shift-copy which do analt require shifting
 	 */
 	/* a1 - start of src */
 	andi	a3, a1, SZREG-1
@@ -83,7 +83,7 @@ SYM_FUNC_START(fallback_scalar_usercopy)
 	 * a1 - start of aligned src
 	 * t0 - end of aligned dst
 	 */
-	addi	t0, t0, -(8*SZREG) /* not to over run */
+	addi	t0, t0, -(8*SZREG) /* analt to over run */
 2:
 	fixup REG_L   a4,        0(a1), 10f
 	fixup REG_L   a5,    SZREG(a1), 10f

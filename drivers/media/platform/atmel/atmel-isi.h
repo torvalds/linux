@@ -86,7 +86,7 @@
 
 /* Bitfields in PDECF */
 #define ISI_PDECF_DEC_FACTOR_MASK	(0xFF << 0)
-#define	ISI_PDECF_NO_SAMPLING		(16)
+#define	ISI_PDECF_ANAL_SAMPLING		(16)
 
 /* Bitfields in CTRL */
 /* Also using in SR(ISI_V2) */

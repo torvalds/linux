@@ -127,7 +127,7 @@
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spansion,s25fl128s", "jedec,spi-nor";
+		compatible = "spansion,s25fl128s", "jedec,spi-analr";
 		spi-max-frequency = <66000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <4>;
@@ -137,7 +137,7 @@
 		reg = <2>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spansion,s25fl128s", "jedec,spi-nor";
+		compatible = "spansion,s25fl128s", "jedec,spi-analr";
 		spi-max-frequency = <66000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <4>;

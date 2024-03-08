@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023 Nuvoton Technology Corp.
+ * Copyright (C) 2023 Nuvoton Techanallogy Corp.
  * Author: Chi-Fang Li <cfli0@nuvoton.com>
  */
 
@@ -380,7 +380,7 @@ static struct clk_hw *ma35d1_clk_mux_parent(struct device *dev, const char *name
 					    int num_pdata)
 {
 	return clk_hw_register_mux_parent_data(dev, name, pdata, num_pdata,
-					       CLK_SET_RATE_NO_REPARENT, reg, shift,
+					       CLK_SET_RATE_ANAL_REPARENT, reg, shift,
 					       width, 0, &ma35d1_lock);
 }
 
@@ -390,7 +390,7 @@ static struct clk_hw *ma35d1_clk_mux(struct device *dev, const char *name,
 				     int num_pdata)
 {
 	return clk_hw_register_mux_parent_data(dev, name, pdata, num_pdata,
-					       CLK_SET_RATE_NO_REPARENT, reg, shift,
+					       CLK_SET_RATE_ANAL_REPARENT, reg, shift,
 					       width, 0, &ma35d1_lock);
 }
 
@@ -436,13 +436,13 @@ static struct clk_hw *ma35d1_clk_gate(struct device *dev, const char *name, cons
 				    reg, shift, 0, &ma35d1_lock);
 }
 
-static int ma35d1_get_pll_setting(struct device_node *clk_node, u32 *pllmode)
+static int ma35d1_get_pll_setting(struct device_analde *clk_analde, u32 *pllmode)
 {
 	const char *of_str;
 	int i;
 
 	for (i = 0; i < PLL_MAX_NUM; i++) {
-		if (of_property_read_string_index(clk_node, "nuvoton,pll-mode", i, &of_str))
+		if (of_property_read_string_index(clk_analde, "nuvoton,pll-mode", i, &of_str))
 			return -EINVAL;
 		if (!strcmp(of_str, "integer"))
 			pllmode[i] = PLL_MODE_INT;
@@ -459,7 +459,7 @@ static int ma35d1_get_pll_setting(struct device_node *clk_node, u32 *pllmode)
 static int ma35d1_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *clk_node = pdev->dev.of_node;
+	struct device_analde *clk_analde = pdev->dev.of_analde;
 	void __iomem *clk_base;
 	static struct clk_hw **hws;
 	static struct clk_hw_onecell_data *ma35d1_hw_data;
@@ -470,7 +470,7 @@ static int ma35d1_clocks_probe(struct platform_device *pdev)
 				      struct_size(ma35d1_hw_data, hws, CLK_MAX_IDX),
 				      GFP_KERNEL);
 	if (!ma35d1_hw_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ma35d1_hw_data->num = CLK_MAX_IDX;
 	hws = ma35d1_hw_data->hws;
@@ -479,7 +479,7 @@ static int ma35d1_clocks_probe(struct platform_device *pdev)
 	if (IS_ERR(clk_base))
 		return PTR_ERR(clk_base);
 
-	ret = ma35d1_get_pll_setting(clk_node, pllmode);
+	ret = ma35d1_get_pll_setting(clk_analde, pllmode);
 	if (ret < 0) {
 		dev_err(dev, "Invalid PLL setting!\n");
 		return -EINVAL;

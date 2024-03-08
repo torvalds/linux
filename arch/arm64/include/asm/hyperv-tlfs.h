@@ -18,7 +18,7 @@
 /*
  * All data structures defined in the TLFS that are shared between Hyper-V
  * and a guest VM use Little Endian byte ordering.  This matches the default
- * byte ordering of Linux running on ARM64, so no special handling is required.
+ * byte ordering of Linux running on ARM64, so anal special handling is required.
  */
 
 /*

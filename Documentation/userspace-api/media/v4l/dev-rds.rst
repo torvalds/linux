@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _rds:
@@ -15,16 +15,16 @@ at devices capable of receiving and/or transmitting RDS information.
 For more information see the core RDS standard :ref:`iec62106` and the
 RBDS standard :ref:`nrsc4`.
 
-.. note::
+.. analte::
 
-   Note that the RBDS standard as is used in the USA is almost
+   Analte that the RBDS standard as is used in the USA is almost
    identical to the RDS standard. Any RDS decoder/encoder can also handle
    RBDS. Only some of the fields have slightly different meanings. See the
    RBDS standard for more information.
 
 The RBDS standard also specifies support for MMBS (Modified Mobile
 Search). This is a proprietary format which seems to be discontinued.
-The RDS interface does not support this format. Should support for MMBS
+The RDS interface does analt support this format. Should support for MMBS
 (or the so-called 'E blocks' in general) be needed, then please contact
 the linux-media mailing list:
 `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__.
@@ -42,7 +42,7 @@ driver only passes RDS blocks without interpreting the data the
 ``V4L2_TUNER_CAP_RDS_BLOCK_IO`` flag has to be set, see
 :ref:`Reading RDS data <reading-rds-data>`. For future use the flag
 ``V4L2_TUNER_CAP_RDS_CONTROLS`` has also been defined. However, a driver
-for a radio tuner with this capability does not yet exist, so if you are
+for a radio tuner with this capability does analt yet exist, so if you are
 planning to write such a driver you should discuss this on the
 linux-media mailing list:
 `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__.
@@ -119,7 +119,7 @@ RDS datastructures
     * - Bits 0-2
       - Block (aka offset) of the received data.
     * - Bits 3-5
-      - Deprecated. Currently identical to bits 0-2. Do not use these
+      - Deprecated. Currently identical to bits 0-2. Do analt use these
 	bits.
     * - Bit 6
       - Corrected bit. Indicates that an error was corrected for this data

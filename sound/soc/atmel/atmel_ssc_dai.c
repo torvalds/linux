@@ -9,7 +9,7 @@
  *         ATMEL CORP.
  *
  * Based on at91-ssc.c by
- * Frank Mandarino <fmandarino@endrelia.com>
+ * Frank Mandarianal <fmandarianal@endrelia.com>
  * Based on pxa2xx Platform drivers by
  * Liam Girdwood <lrg@slimlogic.co.uk>
  */
@@ -225,7 +225,7 @@ static int atmel_ssc_hw_rule_rate(struct snd_pcm_hw_params *params,
 		    && !ssc->clk_from_rk_pin)
 			/* Transmit Frame Synchro (i.e. playback)
 			 * is input (format is _CFM) and the TK pin
-			 * is used for input (format _CBM_ but not
+			 * is used for input (format _CBM_ but analt
 			 * using the RK pin).
 			 */
 			mck_div = 6;
@@ -327,7 +327,7 @@ static int atmel_ssc_startup(struct snd_pcm_substream *substream,
 
 /*
  * Shutdown.  Clear DMA parameters and shutdown the SSC if there
- * are no other substreams open.
+ * are anal other substreams open.
  */
 static void atmel_ssc_shutdown(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
@@ -482,7 +482,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		dir = 1;
 
 	/*
-	 * If the cpu dai should provide BCLK, but noone has provided the
+	 * If the cpu dai should provide BCLK, but analone has provided the
 	 * divider needed for that to work, fall back to something sensible.
 	 */
 	cmr_div = ssc_p->cmr_div;
@@ -500,7 +500,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/*
-	 * If the cpu dai should provide LRCLK, but noone has provided the
+	 * If the cpu dai should provide LRCLK, but analone has provided the
 	 * dividers needed for that to work, fall back to something sensible.
 	 */
 	tcmr_period = ssc_p->tcmr_period;
@@ -603,7 +603,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 	if (!atmel_ssc_cfs(ssc_p)) {
 		fslen = fslen_ext = 0;
 		rcmr_period = tcmr_period = 0;
-		fs_osync = SSC_FSOS_NONE;
+		fs_osync = SSC_FSOS_ANALNE;
 	}
 
 	rcmr |=	  SSC_BF(RCMR_START, fs_edge);
@@ -618,18 +618,18 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		 * on the SSC TK line.
 		 */
 		rcmr |=	  SSC_BF(RCMR_CKS, SSC_CKS_DIV)
-			| SSC_BF(RCMR_CKO, SSC_CKO_NONE);
+			| SSC_BF(RCMR_CKO, SSC_CKO_ANALNE);
 
 		tcmr |=	  SSC_BF(TCMR_CKS, SSC_CKS_DIV)
 			| SSC_BF(TCMR_CKO, SSC_CKO_CONTINUOUS);
 	} else {
 		rcmr |=	  SSC_BF(RCMR_CKS, ssc->clk_from_rk_pin ?
 					SSC_CKS_PIN : SSC_CKS_CLOCK)
-			| SSC_BF(RCMR_CKO, SSC_CKO_NONE);
+			| SSC_BF(RCMR_CKO, SSC_CKO_ANALNE);
 
 		tcmr |=	  SSC_BF(TCMR_CKS, ssc->clk_from_rk_pin ?
 					SSC_CKS_CLOCK : SSC_CKS_PIN)
-			| SSC_BF(TCMR_CKO, SSC_CKO_NONE);
+			| SSC_BF(TCMR_CKO, SSC_CKO_ANALNE);
 	}
 
 	rcmr |=	  SSC_BF(RCMR_PERIOD, rcmr_period)
@@ -867,7 +867,7 @@ static int asoc_ssc_init(struct device *dev)
 	ret = devm_snd_soc_register_component(dev, &atmel_ssc_component,
 					 &atmel_ssc_dai, 1);
 	if (ret) {
-		dev_err(dev, "Could not register DAI: %d\n", ret);
+		dev_err(dev, "Could analt register DAI: %d\n", ret);
 		return ret;
 	}
 
@@ -877,7 +877,7 @@ static int asoc_ssc_init(struct device *dev)
 		ret = atmel_pcm_pdc_platform_register(dev);
 
 	if (ret) {
-		dev_err(dev, "Could not register PCM: %d\n", ret);
+		dev_err(dev, "Could analt register PCM: %d\n", ret);
 		return ret;
 	}
 

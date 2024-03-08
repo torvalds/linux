@@ -134,7 +134,7 @@ struct hw_pairwise_ta_entry {
 
 /*
  * MAC_CSR1: System control register.
- * SOFT_RESET: Software reset bit, 1: reset, 0: normal.
+ * SOFT_RESET: Software reset bit, 1: reset, 0: analrmal.
  * BBP_RESET: Hardware reset BBP.
  * HOST_READY: Host is ready after initialization, 1: ready.
  */
@@ -178,7 +178,7 @@ struct hw_pairwise_ta_entry {
  * MAC_CSR5: BSSID register 1.
  * BSS_ID_MASK:
  *	This mask is used to mask off bits 0 and 1 of byte 5 of the
- *	BSSID. This will make sure that those bits will be ignored
+ *	BSSID. This will make sure that those bits will be iganalred
  *	when determining the MY_BSS of RX frames.
  *		0: 1-BSSID mode (BSS index = 0)
  *		1: 2-BSSID mode (BSS index: Byte5, bit 0)
@@ -279,7 +279,7 @@ struct hw_pairwise_ta_entry {
  * MAC_CSR14: LED control register.
  * ON_PERIOD: On period, default 70ms.
  * OFF_PERIOD: Off period, default 30ms.
- * HW_LED: HW TX activity, 1: normal OFF, 0: normal ON.
+ * HW_LED: HW TX activity, 1: analrmal OFF, 0: analrmal ON.
  * SW_LED: s/w LED, 1: ON, 0: OFF.
  * HW_LED_POLARITY: 0: active low, 1: active high.
  */
@@ -309,7 +309,7 @@ struct hw_pairwise_ta_entry {
  * DROP_CRC: Drop CRC error.
  * DROP_PHYSICAL: Drop physical error.
  * DROP_CONTROL: Drop control frame.
- * DROP_NOT_TO_ME: Drop not to me unicast frame.
+ * DROP_ANALT_TO_ME: Drop analt to me unicast frame.
  * DROP_TO_DS: Drop fram ToDs bit is true.
  * DROP_VERSION_ERROR: Drop version error frame.
  * DROP_MULTICAST: Drop multicast frames.
@@ -324,7 +324,7 @@ struct hw_pairwise_ta_entry {
 #define TXRX_CSR0_DROP_CRC		FIELD32(0x00020000)
 #define TXRX_CSR0_DROP_PHYSICAL		FIELD32(0x00040000)
 #define TXRX_CSR0_DROP_CONTROL		FIELD32(0x00080000)
-#define TXRX_CSR0_DROP_NOT_TO_ME	FIELD32(0x00100000)
+#define TXRX_CSR0_DROP_ANALT_TO_ME	FIELD32(0x00100000)
 #define TXRX_CSR0_DROP_TO_DS		FIELD32(0x00200000)
 #define TXRX_CSR0_DROP_VERSION_ERROR	FIELD32(0x00400000)
 #define TXRX_CSR0_DROP_MULTICAST	FIELD32(0x00800000)
@@ -636,7 +636,7 @@ struct hw_pairwise_ta_entry {
  * STA_CSR4: TX Retry count.
  */
 #define STA_CSR4			0x30d0
-#define STA_CSR4_TX_NO_RETRY_COUNT	FIELD32(0x0000ffff)
+#define STA_CSR4_TX_ANAL_RETRY_COUNT	FIELD32(0x0000ffff)
 #define STA_CSR4_TX_ONE_RETRY_COUNT	FIELD32(0xffff0000)
 
 /*
@@ -806,7 +806,7 @@ struct hw_pairwise_ta_entry {
  * ANTENNA_NUM: Number of antennas.
  * TX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
  * RX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
- * FRAME_TYPE: 0: DPDT , 1: SPDT , noted this bit is valid for g only.
+ * FRAME_TYPE: 0: DPDT , 1: SPDT , analted this bit is valid for g only.
  * DYN_TXAGC: Dynamic TX AGC control.
  * HARDWARE_RADIO: 1: Hardware controlled radio. Read GPIO0.
  * RF_TYPE: Rf_type of this adapter.
@@ -1035,7 +1035,7 @@ struct hw_pairwise_ta_entry {
 /*
  * Word4
  * ICV: Received ICV of originally encrypted.
- * NOTE: This is a guess, the official definition is "reserved"
+ * ANALTE: This is a guess, the official definition is "reserved"
  */
 #define RXD_W4_ICV			FIELD32(0xffffffff)
 

@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -88,7 +88,7 @@ struct ttm_placement vmw_sys_placement = {
 const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
 
 /**
- * __vmw_piter_non_sg_next: Helper functions to advance
+ * __vmw_piter_analn_sg_next: Helper functions to advance
  * a struct vmw_piter iterator.
  *
  * @viter: Pointer to the iterator.
@@ -97,14 +97,14 @@ const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
  * true otherwise. Functions are selected depending on the current
  * DMA mapping mode.
  */
-static bool __vmw_piter_non_sg_next(struct vmw_piter *viter)
+static bool __vmw_piter_analn_sg_next(struct vmw_piter *viter)
 {
 	return ++(viter->i) < viter->num_pages;
 }
 
 static bool __vmw_piter_sg_next(struct vmw_piter *viter)
 {
-	bool ret = __vmw_piter_non_sg_next(viter);
+	bool ret = __vmw_piter_analn_sg_next(viter);
 
 	return __sg_page_iter_dma_next(&viter->iter) && ret;
 }
@@ -128,7 +128,7 @@ static dma_addr_t __vmw_piter_sg_addr(struct vmw_piter *viter)
  * @vsgt: Pointer to a struct vmw_sg_table to initialize from
  * @p_offset: Pointer offset used to update current array position
  *
- * Note that we're following the convention of __sg_page_iter_start, so that
+ * Analte that we're following the convention of __sg_page_iter_start, so that
  * the iterator doesn't point to a valid page after initialization; it has
  * to be advanced one step first.
  */
@@ -140,7 +140,7 @@ void vmw_piter_start(struct vmw_piter *viter, const struct vmw_sg_table *vsgt,
 	viter->pages = vsgt->pages;
 	switch (vsgt->mode) {
 	case vmw_dma_alloc_coherent:
-		viter->next = &__vmw_piter_non_sg_next;
+		viter->next = &__vmw_piter_analn_sg_next;
 		viter->dma_address = &__vmw_piter_dma_addr;
 		viter->addrs = vsgt->addrs;
 		break;
@@ -181,8 +181,8 @@ static void vmw_ttm_unmap_from_dma(struct vmw_ttm_tt *vmw_tt)
  * However, it's violating the DMA API in that when this operation has been
  * performed, it's illegal for the CPU to write to the pages without first
  * unmapping the DMA mappings, or calling dma_sync_sg_for_cpu(). It is
- * therefore only legal to call this function if we know that the function
- * dma_sync_sg_for_cpu() is a NOP, and dma_sync_sg_for_device() is at most
+ * therefore only legal to call this function if we kanalw that the function
+ * dma_sync_sg_for_cpu() is a ANALP, and dma_sync_sg_for_device() is at most
  * a CPU write buffer flush.
  */
 static int vmw_ttm_map_for_dma(struct vmw_ttm_tt *vmw_tt)
@@ -200,7 +200,7 @@ static int vmw_ttm_map_for_dma(struct vmw_ttm_tt *vmw_tt)
  * Select the correct function for and make sure the TTM pages are
  * visible to the device. Allocate storage for the device mappings.
  * If a mapping has already been performed, indicated by the storage
- * pointer being non NULL, the function returns success.
+ * pointer being analn NULL, the function returns success.
  */
 static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 {
@@ -253,8 +253,8 @@ out_sg_alloc_fail:
  * @vmw_tt: Pointer to a struct vmw_ttm_tt
  *
  * Tear down any previously set up device DMA mappings and free
- * any storage space allocated for them. If there are no mappings set up,
- * this function is a NOP.
+ * any storage space allocated for them. If there are anal mappings set up,
+ * this function is a ANALP.
  */
 static void vmw_ttm_unmap_dma(struct vmw_ttm_tt *vmw_tt)
 {
@@ -283,8 +283,8 @@ static void vmw_ttm_unmap_dma(struct vmw_ttm_tt *vmw_tt)
  * @bo: Pointer to a struct ttm_buffer_object
  *
  * Returns a pointer to a struct vmw_sg_table object. The object should
- * not be freed after use.
- * Note that for the device addresses to be valid, the buffer object must
+ * analt be freed after use.
+ * Analte that for the device addresses to be valid, the buffer object must
  * either be reserved or pinned.
  */
 const struct vmw_sg_table *vmw_bo_sg_table(struct ttm_buffer_object *bo)
@@ -326,7 +326,7 @@ static int vmw_ttm_bind(struct ttm_device *bdev,
 			vmw_be->mob =
 				vmw_mob_create(ttm->num_pages);
 			if (unlikely(vmw_be->mob == NULL))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		ret = vmw_mob_bind(vmw_be->dev_priv, vmw_be->mob,
@@ -334,7 +334,7 @@ static int vmw_ttm_bind(struct ttm_device *bdev,
 				    vmw_be->gmr_id);
 		break;
 	case VMW_PL_SYSTEM:
-		/* Nothing to be done for a system bind */
+		/* Analthing to be done for a system bind */
 		break;
 	default:
 		BUG();
@@ -437,10 +437,10 @@ static struct ttm_tt *vmw_ttm_tt_create(struct ttm_buffer_object *bo,
 		ret = ttm_tt_init(&vmw_be->dma_ttm, bo, page_flags,
 				  ttm_cached, 0);
 	if (unlikely(ret != 0))
-		goto out_no_init;
+		goto out_anal_init;
 
 	return &vmw_be->dma_ttm;
-out_no_init:
+out_anal_init:
 	kfree(vmw_be);
 	return NULL;
 }
@@ -474,33 +474,33 @@ static int vmw_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *
 }
 
 /**
- * vmw_move_notify - TTM move_notify_callback
+ * vmw_move_analtify - TTM move_analtify_callback
  *
  * @bo: The TTM buffer object about to move.
  * @old_mem: The old memory where we move from
  * @new_mem: The struct ttm_resource indicating to what memory
  *       region the move is taking place.
  *
- * Calls move_notify for all subsystems needing it.
+ * Calls move_analtify for all subsystems needing it.
  * (currently only resources).
  */
-static void vmw_move_notify(struct ttm_buffer_object *bo,
+static void vmw_move_analtify(struct ttm_buffer_object *bo,
 			    struct ttm_resource *old_mem,
 			    struct ttm_resource *new_mem)
 {
-	vmw_bo_move_notify(bo, new_mem);
-	vmw_query_move_notify(bo, old_mem, new_mem);
+	vmw_bo_move_analtify(bo, new_mem);
+	vmw_query_move_analtify(bo, old_mem, new_mem);
 }
 
 
 /**
- * vmw_swap_notify - TTM move_notify_callback
+ * vmw_swap_analtify - TTM move_analtify_callback
  *
  * @bo: The TTM buffer object about to be swapped out.
  */
-static void vmw_swap_notify(struct ttm_buffer_object *bo)
+static void vmw_swap_analtify(struct ttm_buffer_object *bo)
 {
-	vmw_bo_swap_notify(bo);
+	vmw_bo_swap_analtify(bo);
 	(void) ttm_bo_wait(bo, false, false);
 }
 
@@ -535,7 +535,7 @@ static int vmw_move(struct ttm_buffer_object *bo,
 		return 0;
 	}
 
-	vmw_move_notify(bo, bo->resource, new_mem);
+	vmw_move_analtify(bo, bo->resource, new_mem);
 
 	if (old_man && old_man->use_tt && new_man->use_tt) {
 		if (vmw_memtype_is_system(bo->resource->mem_type)) {
@@ -557,7 +557,7 @@ static int vmw_move(struct ttm_buffer_object *bo,
 	}
 	return 0;
 fail:
-	vmw_move_notify(bo, new_mem, bo->resource);
+	vmw_move_analtify(bo, new_mem, bo->resource);
 	return ret;
 }
 
@@ -569,7 +569,7 @@ struct ttm_device_funcs vmw_bo_driver = {
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vmw_evict_flags,
 	.move = vmw_move,
-	.swap_notify = vmw_swap_notify,
+	.swap_analtify = vmw_swap_analtify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
 };
 
@@ -579,7 +579,7 @@ int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.anal_wait_gpu = false
 	};
 	struct vmw_bo *vbo;
 	int ret;

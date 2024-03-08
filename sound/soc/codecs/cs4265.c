@@ -101,19 +101,19 @@ static const char * const cam_mode_text[] = {
 static SOC_ENUM_SINGLE_DECL(cam_mode_enum, CS4265_SPDIF_CTL1, 5,
 		cam_mode_text);
 
-static const char * const cam_mono_stereo_text[] = {
-	"Stereo", "Mono"
+static const char * const cam_moanal_stereo_text[] = {
+	"Stereo", "Moanal"
 };
 
-static SOC_ENUM_SINGLE_DECL(spdif_mono_stereo_enum, CS4265_SPDIF_CTL2, 2,
-		cam_mono_stereo_text);
+static SOC_ENUM_SINGLE_DECL(spdif_moanal_stereo_enum, CS4265_SPDIF_CTL2, 2,
+		cam_moanal_stereo_text);
 
-static const char * const mono_select_text[] = {
+static const char * const moanal_select_text[] = {
 	"Channel A", "Channel B"
 };
 
-static SOC_ENUM_SINGLE_DECL(spdif_mono_select_enum, CS4265_SPDIF_CTL2, 0,
-		mono_select_text);
+static SOC_ENUM_SINGLE_DECL(spdif_moanal_select_enum, CS4265_SPDIF_CTL2, 0,
+		moanal_select_text);
 
 static const struct snd_kcontrol_new mic_linein_mux =
 	SOC_DAPM_ENUM("ADC Input Capture Mux", mic_linein_enum);
@@ -122,7 +122,7 @@ static const struct snd_kcontrol_new loopback_ctl =
 	SOC_DAPM_SINGLE("Switch", CS4265_SIG_SEL, 1, 1, 0);
 
 static const struct snd_kcontrol_new spdif_switch =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 0, 0);
+	SOC_DAPM_SINGLE("Switch", SND_SOC_ANALPM, 0, 0, 0);
 
 static const struct snd_kcontrol_new dac_switch =
 	SOC_DAPM_SINGLE("Switch", CS4265_PWRCTL, 1, 1, 0);
@@ -152,9 +152,9 @@ static const struct snd_kcontrol_new cs4265_snd_controls[] = {
 	SOC_ENUM("C Data Access", cam_mode_enum),
 	SOC_SINGLE("Validity Bit Control Switch", CS4265_SPDIF_CTL2,
 				3, 1, 0),
-	SOC_ENUM("SPDIF Mono/Stereo", spdif_mono_stereo_enum),
+	SOC_ENUM("SPDIF Moanal/Stereo", spdif_moanal_stereo_enum),
 	SOC_SINGLE("MMTLR Data Switch", CS4265_SPDIF_CTL2, 0, 1, 0),
-	SOC_ENUM("Mono Channel Select", spdif_mono_select_enum),
+	SOC_ENUM("Moanal Channel Select", spdif_moanal_select_enum),
 	SND_SOC_BYTES("C Data Buffer", CS4265_C_DATA_BUFF, 24),
 };
 
@@ -166,24 +166,24 @@ static const struct snd_soc_dapm_widget cs4265_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MICR"),
 
 	SND_SOC_DAPM_AIF_OUT("DOUT", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("SPDIFOUT", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_MUX("ADC Mux", SND_SOC_NOPM, 0, 0, &mic_linein_mux),
+	SND_SOC_DAPM_MUX("ADC Mux", SND_SOC_ANALPM, 0, 0, &mic_linein_mux),
 
 	SND_SOC_DAPM_ADC("ADC", NULL, CS4265_PWRCTL, 2, 1),
 	SND_SOC_DAPM_PGA("Pre-amp MIC", CS4265_PWRCTL, 3,
 			1, NULL, 0),
 
-	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_ANALPM,
 			 0, 0, &digital_input_mux),
 
-	SND_SOC_DAPM_MIXER("SDIN1 Input Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SDIN2 Input Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SPDIF Transmitter", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SDIN1 Input Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SDIN2 Input Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SPDIF Transmitter", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_SWITCH("Loopback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Loopback", SND_SOC_ANALPM, 0, 0,
 			&loopback_ctl),
 	SND_SOC_DAPM_SWITCH("SPDIF", CS4265_SPDIF_CTL2, 5, 1,
 			&spdif_switch),
@@ -191,9 +191,9 @@ static const struct snd_soc_dapm_widget cs4265_dapm_widgets[] = {
 			&dac_switch),
 
 	SND_SOC_DAPM_AIF_IN("DIN1", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("DIN2", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("TXIN", NULL,  0,
 			CS4265_SPDIF_CTL2, 5, 1),
 
@@ -500,7 +500,7 @@ static const struct snd_soc_dai_ops cs4265_ops = {
 	.mute_stream	= cs4265_mute,
 	.set_fmt	= cs4265_set_fmt,
 	.set_sysclk	= cs4265_set_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4265_dai[] = {
@@ -577,7 +577,7 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client)
 	cs4265 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs4265_private),
 			       GFP_KERNEL);
 	if (cs4265 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs4265->regmap = devm_regmap_init_i2c(i2c_client, &cs4265_regmap);
 	if (IS_ERR(cs4265->regmap)) {
@@ -606,7 +606,7 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client)
 
 	devid = reg & CS4265_CHIP_ID_MASK;
 	if (devid != CS4265_CHIP_ID_VAL) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&i2c_client->dev,
 			"CS4265 Part Number ID: 0x%x Expected: 0x%x\n",
 			devid >> 4, CS4265_CHIP_ID_VAL >> 4);

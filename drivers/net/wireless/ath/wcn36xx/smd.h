@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -27,8 +27,8 @@
 #define HAL_MSG_TIMEOUT 10000
 #define WCN36XX_SMSM_WLAN_TX_ENABLE			0x00000400
 #define WCN36XX_SMSM_WLAN_TX_RINGS_EMPTY		0x00000200
-/* The PNO version info be contained in the rsp msg */
-#define WCN36XX_FW_MSG_PNO_VERSION_MASK			0x8000
+/* The PANAL version info be contained in the rsp msg */
+#define WCN36XX_FW_MSG_PANAL_VERSION_MASK			0x8000
 
 enum wcn36xx_fw_msg_result {
 	WCN36XX_FW_MSG_RESULT_SUCCESS			= 0,
@@ -118,7 +118,7 @@ int wcn36xx_smd_remove_bsskey(struct wcn36xx *wcn,
 			      u8 keyidx);
 int wcn36xx_smd_enter_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif);
 int wcn36xx_smd_exit_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif);
-int wcn36xx_smd_set_power_params(struct wcn36xx *wcn, bool ignore_dtim);
+int wcn36xx_smd_set_power_params(struct wcn36xx *wcn, bool iganalre_dtim);
 int wcn36xx_smd_keep_alive_req(struct wcn36xx *wcn,
 			       struct ieee80211_vif *vif,
 			       int packet_type);

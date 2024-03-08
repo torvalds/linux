@@ -8,7 +8,7 @@
 
 #include <nvif/mem.h>
 #include <nvkm/subdev/bios.h>
-#include "nouveau_encoder.h"
+#include "analuveau_encoder.h"
 
 struct nv50_atom;
 struct nv50_disp;
@@ -16,7 +16,7 @@ struct nv50_head;
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 enum nv50_crc_source {
-	NV50_CRC_SOURCE_NONE = 0,
+	NV50_CRC_SOURCE_ANALNE = 0,
 	NV50_CRC_SOURCE_AUTO,
 	NV50_CRC_SOURCE_RG,
 	NV50_CRC_SOURCE_OUTP_ACTIVE,
@@ -30,7 +30,7 @@ enum nv50_crc_source {
  *    -> DAC
  */
 enum nv50_crc_source_type {
-	NV50_CRC_SOURCE_TYPE_NONE = 0,
+	NV50_CRC_SOURCE_TYPE_ANALNE = 0,
 	NV50_CRC_SOURCE_TYPE_SOR,
 	NV50_CRC_SOURCE_TYPE_PIOR,
 	NV50_CRC_SOURCE_TYPE_DAC,
@@ -38,7 +38,7 @@ enum nv50_crc_source_type {
 	NV50_CRC_SOURCE_TYPE_SF,
 };
 
-struct nv50_crc_notifier_ctx {
+struct nv50_crc_analtifier_ctx {
 	struct nvif_mem mem;
 	struct nvif_object ntfy;
 };
@@ -49,20 +49,20 @@ struct nv50_crc_atom {
 
 struct nv50_crc_func {
 	int (*set_src)(struct nv50_head *, int or, enum nv50_crc_source_type type,
-		       struct nv50_crc_notifier_ctx *ctx);
-	int (*set_ctx)(struct nv50_head *, struct nv50_crc_notifier_ctx *);
-	u32 (*get_entry)(struct nv50_head *, struct nv50_crc_notifier_ctx *,
+		       struct nv50_crc_analtifier_ctx *ctx);
+	int (*set_ctx)(struct nv50_head *, struct nv50_crc_analtifier_ctx *);
+	u32 (*get_entry)(struct nv50_head *, struct nv50_crc_analtifier_ctx *,
 			 enum nv50_crc_source, int idx);
 	bool (*ctx_finished)(struct nv50_head *,
-			     struct nv50_crc_notifier_ctx *);
+			     struct nv50_crc_analtifier_ctx *);
 	short flip_threshold;
 	short num_entries;
-	size_t notifier_len;
+	size_t analtifier_len;
 };
 
 struct nv50_crc {
 	spinlock_t lock;
-	struct nv50_crc_notifier_ctx ctx[2];
+	struct nv50_crc_analtifier_ctx ctx[2];
 	struct drm_vblank_work flip_work;
 	enum nv50_crc_source src;
 
@@ -85,8 +85,8 @@ int nv50_crc_atomic_check_head(struct nv50_head *, struct nv50_head_atom *,
 			       struct nv50_head_atom *);
 void nv50_crc_atomic_check_outp(struct nv50_atom *atom);
 void nv50_crc_atomic_stop_reporting(struct drm_atomic_state *);
-void nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_state *);
-void nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_state *);
+void nv50_crc_atomic_init_analtifier_contexts(struct drm_atomic_state *);
+void nv50_crc_atomic_release_analtifier_contexts(struct drm_atomic_state *);
 void nv50_crc_atomic_start_reporting(struct drm_atomic_state *);
 void nv50_crc_atomic_set(struct nv50_head *, struct nv50_head_atom *);
 void nv50_crc_atomic_clr(struct nv50_head *);
@@ -117,9 +117,9 @@ static inline void nv50_crc_atomic_check_outp(struct nv50_atom *atom) {}
 static inline void
 nv50_crc_atomic_stop_reporting(struct drm_atomic_state *state) {}
 static inline void
-nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_state *state) {}
+nv50_crc_atomic_init_analtifier_contexts(struct drm_atomic_state *state) {}
 static inline void
-nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_state *state) {}
+nv50_crc_atomic_release_analtifier_contexts(struct drm_atomic_state *state) {}
 static inline void
 nv50_crc_atomic_start_reporting(struct drm_atomic_state *state) {}
 static inline void

@@ -19,8 +19,8 @@ description:
   SPI in master mode supports up to 50MHz, up to four chip selects,
   programmable data path from 4 bits to 32 bits and numerous protocol variants.
 
-  SPI Controller nodes must be child of GENI based Qualcomm Universal
-  Peripharal. Please refer GENI based QUP wrapper controller node bindings
+  SPI Controller analdes must be child of GENI based Qualcomm Universal
+  Peripharal. Please refer GENI based QUP wrapper controller analde bindings
   described in Documentation/devicetree/bindings/soc/qcom/qcom,geni-se.yaml.
 
 allOf:
@@ -95,7 +95,7 @@ examples:
         power-domains = <&rpmhpd SC7180_CX>;
         operating-points-v2 = <&qup_opp_table>;
         interconnects = <&qup_virt MASTER_QUP_CORE_0 0 &qup_virt SLAVE_QUP_CORE_0 0>,
-                        <&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_QUP_0 0>;
+                        <&gem_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_QUP_0 0>;
         interconnect-names = "qup-core", "qup-config";
     };
 

@@ -63,10 +63,10 @@ struct iavf_adminq_info {
 	u16 arq_buf_size;               /* receive queue buffer size */
 	u16 asq_buf_size;               /* send queue buffer size */
 	u16 fw_maj_ver;                 /* firmware major version */
-	u16 fw_min_ver;                 /* firmware minor version */
+	u16 fw_min_ver;                 /* firmware mianalr version */
 	u32 fw_build;                   /* firmware build number */
 	u16 api_maj_ver;                /* api major version */
-	u16 api_min_ver;                /* api minor version */
+	u16 api_min_ver;                /* api mianalr version */
 
 	struct mutex asq_mutex; /* Send queue lock */
 	struct mutex arq_mutex; /* Receive queue lock */
@@ -86,22 +86,22 @@ static inline int iavf_aq_rc_to_posix(int aq_ret, int aq_rc)
 	int aq_to_posix[] = {
 		0,           /* IAVF_AQ_RC_OK */
 		-EPERM,      /* IAVF_AQ_RC_EPERM */
-		-ENOENT,     /* IAVF_AQ_RC_ENOENT */
+		-EANALENT,     /* IAVF_AQ_RC_EANALENT */
 		-ESRCH,      /* IAVF_AQ_RC_ESRCH */
 		-EINTR,      /* IAVF_AQ_RC_EINTR */
 		-EIO,        /* IAVF_AQ_RC_EIO */
 		-ENXIO,      /* IAVF_AQ_RC_ENXIO */
 		-E2BIG,      /* IAVF_AQ_RC_E2BIG */
 		-EAGAIN,     /* IAVF_AQ_RC_EAGAIN */
-		-ENOMEM,     /* IAVF_AQ_RC_ENOMEM */
+		-EANALMEM,     /* IAVF_AQ_RC_EANALMEM */
 		-EACCES,     /* IAVF_AQ_RC_EACCES */
 		-EFAULT,     /* IAVF_AQ_RC_EFAULT */
 		-EBUSY,      /* IAVF_AQ_RC_EBUSY */
 		-EEXIST,     /* IAVF_AQ_RC_EEXIST */
 		-EINVAL,     /* IAVF_AQ_RC_EINVAL */
-		-ENOTTY,     /* IAVF_AQ_RC_ENOTTY */
-		-ENOSPC,     /* IAVF_AQ_RC_ENOSPC */
-		-ENOSYS,     /* IAVF_AQ_RC_ENOSYS */
+		-EANALTTY,     /* IAVF_AQ_RC_EANALTTY */
+		-EANALSPC,     /* IAVF_AQ_RC_EANALSPC */
+		-EANALSYS,     /* IAVF_AQ_RC_EANALSYS */
 		-ERANGE,     /* IAVF_AQ_RC_ERANGE */
 		-EPIPE,      /* IAVF_AQ_RC_EFLUSHED */
 		-ESPIPE,     /* IAVF_AQ_RC_BAD_ADDR */

@@ -39,7 +39,7 @@ properties:
 
   clocks:
     description:
-      Master clock source for the sound card, should normally be set to
+      Master clock source for the sound card, should analrmally be set to
       LOCHNAGAR_SOUNDCARD_MCLK provided by the Lochnagar clock driver.
     maxItems: 1
 

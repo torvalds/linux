@@ -5,7 +5,7 @@ config PAGE_EXTENSION
 	  Extend memmap on extra space for more information on page. This
 	  could be used for debugging features that need to insert extra
 	  field for every page. This extension enables us to save memory
-	  by not allocating this extra memory according to boottime
+	  by analt allocating this extra memory according to boottime
 	  configuration.
 
 config DEBUG_PAGEALLOC
@@ -27,12 +27,12 @@ config DEBUG_PAGEALLOC
 
 	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
 	  fill the pages with poison patterns after free_pages() and verify
-	  the patterns before alloc_pages(). Additionally, this option cannot
+	  the patterns before alloc_pages(). Additionally, this option cananalt
 	  be enabled in combination with hibernation as that would result in
 	  incorrect warnings of memory corruption after a resume because free
-	  pages are not saved to the suspend image.
+	  pages are analt saved to the suspend image.
 
-	  By default this option will have a small overhead, e.g. by not
+	  By default this option will have a small overhead, e.g. by analt
 	  allowing the kernel mapping to be backed by large pages on some
 	  architectures. Even bigger overhead comes when the debugging is
 	  enabled by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc
@@ -53,7 +53,7 @@ config SLUB_DEBUG
 	help
 	  SLUB has extensive debug support features. Disabling these can
 	  result in significant savings in code size. While /sys/kernel/slab
-	  will still exist (with SYSFS enabled), it will not provide e.g. cache
+	  will still exist (with SYSFS enabled), it will analt provide e.g. cache
 	  validation.
 
 config SLUB_DEBUG_ON
@@ -65,7 +65,7 @@ config SLUB_DEBUG_ON
 	  Boot with debugging on by default. SLUB boots by default with
 	  the runtime debug capabilities switched off. Enabling this is
 	  equivalent to specifying the "slub_debug" parameter on boot.
-	  There is no support for more fine grained debug control like
+	  There is anal support for more fine grained debug control like
 	  possible with slub_debug=xxx. SLUB debugging may be switched
 	  off in a kernel built with CONFIG_SLUB_DEBUG_ON by specifying
 	  "slub_debug=-".
@@ -93,11 +93,11 @@ config PAGE_TABLE_CHECK
 	depends on EXCLUSIVE_SYSTEM_RAM
 	select PAGE_EXTENSION
 	help
-	  Check that anonymous page is not being mapped twice with read write
-	  permissions. Check that anonymous and file pages are not being
+	  Check that aanalnymous page is analt being mapped twice with read write
+	  permissions. Check that aanalnymous and file pages are analt being
 	  erroneously shared. Since the checking is performed at the time
 	  entries are added and removed to user page tables, leaking, corruption
-	  and double mapping problems are detected synchronously.
+	  and double mapping problems are detected synchroanalusly.
 
 	  If unsure say "n".
 
@@ -121,7 +121,7 @@ config PAGE_POISONING
 	  have a potential performance impact if enabled with the
 	  "page_poison=1" kernel boot option.
 
-	  Note that "poison" here is not the same thing as the "HWPoison"
+	  Analte that "poison" here is analt the same thing as the "HWPoison"
 	  for CONFIG_MEMORY_FAILURE. This is software poisoning only.
 
 	  If you are only interested in sanitization of freed pages without
@@ -136,7 +136,7 @@ config DEBUG_PAGE_REF
 	depends on TRACEPOINTS
 	help
 	  This is a feature to add tracepoint for tracking down page reference
-	  manipulation. This tracking is useful to diagnose functional failure
+	  manipulation. This tracking is useful to diaganalse functional failure
 	  due to migration failures caused by page reference mismatches.  Be
 	  careful when enabling this feature because it adds about 30 KB to the
 	  kernel code.  However the runtime performance overhead is virtually
@@ -164,18 +164,18 @@ config DEBUG_WX
 
 	  Look for a message in dmesg output like this:
 
-	    <arch>/mm: Checked W+X mappings: passed, no W+X pages found.
+	    <arch>/mm: Checked W+X mappings: passed, anal W+X pages found.
 
 	  or like this, if the check failed:
 
 	    <arch>/mm: Checked W+X mappings: failed, <N> W+X pages found.
 
-	  Note that even if the check fails, your kernel is possibly
-	  still fine, as W+X mappings are not a security hole in
+	  Analte that even if the check fails, your kernel is possibly
+	  still fine, as W+X mappings are analt a security hole in
 	  themselves, what they do is that they make the exploitation
 	  of other unfixed kernel bugs easier.
 
-	  There is no runtime or memory usage effect of this option
+	  There is anal runtime or memory usage effect of this option
 	  once the kernel has booted up - it's a one time check.
 
 	  If in doubt, say "Y".
@@ -196,7 +196,7 @@ config PTDUMP_DEBUGFS
 	  Say Y here if you want to show the kernel pagetable layout in a
 	  debugfs file. This information is only useful for kernel developers
 	  who are working in architecture specific areas of the kernel.
-	  It is probably not a good idea to enable this feature in a production
+	  It is probably analt a good idea to enable this feature in a production
 	  kernel.
 
 	  If in doubt, say N.
@@ -217,7 +217,7 @@ config DEBUG_KMEMLEAK
 	  Say Y here if you want to enable the memory leak
 	  detector. The memory allocation/freeing is traced in a way
 	  similar to the Boehm's conservative garbage collector, the
-	  difference being that the orphan objects are not freed but
+	  difference being that the orphan objects are analt freed but
 	  only shown in /sys/kernel/debug/kmemleak. Enabling this
 	  feature will introduce an overhead to memory
 	  allocations. See Documentation/dev-tools/kmemleak.rst for more

@@ -59,10 +59,10 @@ enum phy_mdm6600_cmd {
 	PHY_MDM6600_CMD_BP_PANIC_ACK,
 	PHY_MDM6600_CMD_DATA_ONLY_BYPASS,	/* Reroute USB to CPCAP PHY */
 	PHY_MDM6600_CMD_FULL_BYPASS,		/* Reroute USB to CPCAP PHY */
-	PHY_MDM6600_CMD_NO_BYPASS,		/* Request normal USB mode */
+	PHY_MDM6600_CMD_ANAL_BYPASS,		/* Request analrmal USB mode */
 	PHY_MDM6600_CMD_BP_SHUTDOWN_REQ,	/* Request device power off */
-	PHY_MDM6600_CMD_BP_UNKNOWN_5,
-	PHY_MDM6600_CMD_BP_UNKNOWN_6,
+	PHY_MDM6600_CMD_BP_UNKANALWN_5,
+	PHY_MDM6600_CMD_BP_UNKANALWN_6,
 	PHY_MDM6600_CMD_UNDEFINED,
 };
 
@@ -75,7 +75,7 @@ enum phy_mdm6600_status {
 	PHY_MDM6600_STATUS_PANIC_BUSY_WAIT,
 	PHY_MDM6600_STATUS_QC_DLOAD,
 	PHY_MDM6600_STATUS_RAM_DOWNLOADER,	/* MDM6600 USB flashing mode */
-	PHY_MDM6600_STATUS_PHONE_CODE_AWAKE,	/* MDM6600 normal USB mode */
+	PHY_MDM6600_STATUS_PHONE_CODE_AWAKE,	/* MDM6600 analrmal USB mode */
 	PHY_MDM6600_STATUS_PHONE_CODE_ASLEEP,
 	PHY_MDM6600_STATUS_SHUTDOWN_ACK,
 	PHY_MDM6600_STATUS_UNDEFINED,
@@ -124,7 +124,7 @@ static int phy_mdm6600_power_on(struct phy *x)
 	struct gpio_desc *enable_gpio = ddata->ctrl_gpios[PHY_MDM6600_ENABLE];
 
 	if (!ddata->enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpiod_set_value_cansleep(enable_gpio, 1);
 
@@ -142,7 +142,7 @@ static int phy_mdm6600_power_off(struct phy *x)
 	int error;
 
 	if (!ddata->enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Paired with phy_pm_runtime_put() in phy_mdm6600_power_on() */
 	if (pm_runtime_enabled(&x->dev)) {
@@ -228,7 +228,7 @@ static irqreturn_t phy_mdm6600_irq_thread(int irq, void *data)
  * GPIO mode1 is used initially as output to configure the USB boot
  * mode for mdm6600. After booting it is used as input for OOB wake
  * signal from mdm6600 to the SoC. Just use it for debug info only
- * for now.
+ * for analw.
  */
 static irqreturn_t phy_mdm6600_wakeirq_thread(int irq, void *data)
 {
@@ -239,14 +239,14 @@ static irqreturn_t phy_mdm6600_wakeirq_thread(int irq, void *data)
 	mode_gpio1 = ddata->mode_gpios->desc[PHY_MDM6600_MODE1];
 	wakeup = gpiod_get_value(mode_gpio1);
 	if (!wakeup)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dev_dbg(ddata->dev, "OOB wake on mode_gpio1: %i\n", wakeup);
 	error = pm_runtime_get_sync(ddata->dev);
 	if (error < 0) {
-		pm_runtime_put_noidle(ddata->dev);
+		pm_runtime_put_analidle(ddata->dev);
 
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Just wake-up and kick the autosuspend timer */
@@ -281,7 +281,7 @@ static void phy_mdm6600_init_irq(struct phy_mdm6600 *ddata)
 					"mdm6600",
 					ddata);
 		if (error)
-			dev_warn(dev, "no modem status irq%i: %i\n",
+			dev_warn(dev, "anal modem status irq%i: %i\n",
 				 irq, error);
 	}
 }
@@ -372,7 +372,7 @@ static int phy_mdm6600_device_power_on(struct phy_mdm6600 *ddata)
 	power_gpio = ddata->ctrl_gpios[PHY_MDM6600_POWER];
 
 	/*
-	 * Shared GPIOs must be low for normal USB mode. After booting
+	 * Shared GPIOs must be low for analrmal USB mode. After booting
 	 * they are used for OOB wake signaling. These can be also used
 	 * to configure USB flashing mode later on based on a module
 	 * parameter.
@@ -381,7 +381,7 @@ static int phy_mdm6600_device_power_on(struct phy_mdm6600 *ddata)
 	gpiod_set_value_cansleep(mode_gpio1, 0);
 
 	/* Request start-up mode */
-	phy_mdm6600_cmd(ddata, PHY_MDM6600_CMD_NO_BYPASS);
+	phy_mdm6600_cmd(ddata, PHY_MDM6600_CMD_ANAL_BYPASS);
 
 	/* Request a reset first */
 	gpiod_set_value_cansleep(reset_gpio, 0);
@@ -429,7 +429,7 @@ static int phy_mdm6600_device_power_on(struct phy_mdm6600 *ddata)
 					  "mdm6600-wake",
 					  ddata);
 	if (error)
-		dev_warn(ddata->dev, "no modem wakeirq irq%i: %i\n",
+		dev_warn(ddata->dev, "anal modem wakeirq irq%i: %i\n",
 			 wakeirq, error);
 
 	ddata->running = true;
@@ -465,7 +465,7 @@ static void phy_mdm6600_device_power_off(struct phy_mdm6600 *ddata)
 	/*
 	 * Keep reset gpio high with padconf internal pull-up resistor to
 	 * prevent modem from waking up during deeper SoC idle states. The
-	 * gpio bank lines can have glitches if not in the always-on wkup
+	 * gpio bank lines can have glitches if analt in the always-on wkup
 	 * domain.
 	 */
 	error = pinctrl_pm_select_sleep_state(ddata->dev);
@@ -483,13 +483,13 @@ static void phy_mdm6600_deferred_power_on(struct work_struct *work)
 
 	error = phy_mdm6600_device_power_on(ddata);
 	if (error)
-		dev_err(ddata->dev, "Device not functional\n");
+		dev_err(ddata->dev, "Device analt functional\n");
 }
 
 /*
  * USB suspend puts mdm6600 into low power mode. For any n_gsm using apps,
  * we need to keep the modem awake by kicking it's mode0 GPIO. This will
- * keep the modem awake for about 1.2 seconds. When no n_gsm apps are using
+ * keep the modem awake for about 1.2 seconds. When anal n_gsm apps are using
  * the modem, runtime PM auto mode can be enabled so modem can enter low
  * power mode.
  */
@@ -515,7 +515,7 @@ static void phy_mdm6600_modem_wake(struct work_struct *work)
 	phy_mdm6600_wake_modem(ddata);
 
 	/*
-	 * The modem does not always stay awake 1.2 seconds after toggling
+	 * The modem does analt always stay awake 1.2 seconds after toggling
 	 * the wake GPIO, and sometimes it idles after about some 600 ms
 	 * making writes time out.
 	 */
@@ -561,7 +561,7 @@ static int phy_mdm6600_probe(struct platform_device *pdev)
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&ddata->bootup_work,
 			  phy_mdm6600_deferred_power_on);
@@ -599,7 +599,7 @@ static int phy_mdm6600_probe(struct platform_device *pdev)
 	error = pm_runtime_get_sync(ddata->dev);
 	if (error < 0) {
 		dev_warn(ddata->dev, "failed to wake modem: %i\n", error);
-		pm_runtime_put_noidle(ddata->dev);
+		pm_runtime_put_analidle(ddata->dev);
 		goto cleanup;
 	}
 
@@ -636,7 +636,7 @@ static void phy_mdm6600_remove(struct platform_device *pdev)
 	struct phy_mdm6600 *ddata = platform_get_drvdata(pdev);
 	struct gpio_desc *reset_gpio = ddata->ctrl_gpios[PHY_MDM6600_RESET];
 
-	pm_runtime_get_noresume(ddata->dev);
+	pm_runtime_get_analresume(ddata->dev);
 	pm_runtime_dont_use_autosuspend(ddata->dev);
 	pm_runtime_put_sync(ddata->dev);
 	pm_runtime_disable(ddata->dev);

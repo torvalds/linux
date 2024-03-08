@@ -78,7 +78,7 @@ static int dmz_reclaim_align_wp(struct dmz_reclaim *zrc, struct dm_zone *zone,
 	nr_blocks = block - wp_block;
 	ret = blkdev_issue_zeroout(dev->bdev,
 				   dmz_start_sect(zmd, zone) + dmz_blk2sect(wp_block),
-				   dmz_blk2sect(nr_blocks), GFP_NOIO, 0);
+				   dmz_blk2sect(nr_blocks), GFP_ANALIO, 0);
 	if (ret) {
 		dmz_dev_err(dev,
 			    "Align zone %u wp %llu to %llu (wp+%u) blocks failed %d",
@@ -94,7 +94,7 @@ static int dmz_reclaim_align_wp(struct dmz_reclaim *zrc, struct dm_zone *zone,
 }
 
 /*
- * dm_kcopyd_copy end notification.
+ * dm_kcopyd_copy end analtification.
  */
 static void dmz_reclaim_kcopy_end(int read_err, unsigned long write_err,
 				  void *context)
@@ -296,7 +296,7 @@ again:
 	}
 	dmz_unlock_map(zmd);
 	if (!szone)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	DMDEBUG("(%s/%u): Chunk %u, move %s zone %u (weight %u) to %s zone %u",
 		dmz_metadata_label(zmd), zrc->dev_idx, chunk,
@@ -373,7 +373,7 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 	dzone = dmz_get_zone_for_reclaim(zmd, zrc->dev_idx,
 					 dmz_target_idle(zrc));
 	if (!dzone) {
-		DMDEBUG("(%s/%u): No zone found to reclaim",
+		DMDEBUG("(%s/%u): Anal zone found to reclaim",
 			dmz_metadata_label(zmd), zrc->dev_idx);
 		return -EBUSY;
 	}
@@ -485,7 +485,7 @@ static bool dmz_should_reclaim(struct dmz_reclaim *zrc, unsigned int p_unmap)
 	if (dmz_target_idle(zrc) && nr_reclaim)
 		return true;
 
-	/* If there are still plenty of cache zones, do not reclaim */
+	/* If there are still plenty of cache zones, do analt reclaim */
 	if (p_unmap >= DMZ_RECLAIM_HIGH_UNMAP_ZONES)
 		return false;
 
@@ -558,7 +558,7 @@ int dmz_ctr_reclaim(struct dmz_metadata *zmd,
 
 	zrc = kzalloc(sizeof(struct dmz_reclaim), GFP_KERNEL);
 	if (!zrc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zrc->metadata = zmd;
 	zrc->atime = jiffies;
@@ -577,7 +577,7 @@ int dmz_ctr_reclaim(struct dmz_metadata *zmd,
 	zrc->wq = alloc_ordered_workqueue("dmz_rwq_%s_%d", WQ_MEM_RECLAIM,
 					  dmz_metadata_label(zmd), idx);
 	if (!zrc->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

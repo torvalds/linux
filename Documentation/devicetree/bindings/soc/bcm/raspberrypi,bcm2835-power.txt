@@ -3,7 +3,7 @@ Raspberry Pi power domain driver
 Required properties:
 
 - compatible:		Should be "raspberrypi,bcm2835-power".
-- firmware:		Reference to the RPi firmware device node.
+- firmware:		Reference to the RPi firmware device analde.
 - #power-domain-cells:	Should be <1>, we providing multiple power domains.
 
 The valid defines for power domain are:

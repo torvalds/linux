@@ -13,7 +13,7 @@ config VIDEO_STI_DELTA
 		Use this option to see the decoders available for such
 		hardware.
 
-		Please notice that the driver will only be built if
+		Please analtice that the driver will only be built if
 		at least one of the DELTA decoder below is selected.
 
 config VIDEO_STI_DELTA_MJPEG

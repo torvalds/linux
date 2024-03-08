@@ -14,7 +14,7 @@
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_bmap.h"
@@ -297,7 +297,7 @@ xfs_attr3_leaf_verify_entry(
  * 1. setxattr adds a new extended attribute to a file;
  * 2. The file has zero existing attributes;
  * 3. The attribute is too large to fit in the attribute fork;
- * 4. The attribute is small enough to fit in a leaf block;
+ * 4. The attribute is small eanalugh to fit in a leaf block;
  * 5. A log flush occurs after committing the transaction that creates
  *    the (empty) leaf block; and
  * 6. The filesystem goes down after the log flush but before the new
@@ -343,11 +343,11 @@ xfs_attr3_leaf_verify(
 		return __this_address;
 
 	/*
-	 * NOTE: This verifier historically failed empty leaf buffers because
-	 * we expect the fork to be in another format. Empty attr fork format
+	 * ANALTE: This verifier historically failed empty leaf buffers because
+	 * we expect the fork to be in aanalther format. Empty attr fork format
 	 * conversions are possible during xattr set, however, and format
-	 * conversion is not atomic with the xattr set that triggers it. We
-	 * cannot assume leaf blocks are non-empty until that is addressed.
+	 * conversion is analt atomic with the xattr set that triggers it. We
+	 * cananalt assume leaf blocks are analn-empty until that is addressed.
 	*/
 	buf_end = (char *)bp->b_addr + mp->m_attr_geo->blksize;
 	for (i = 0, ent = entries; i < ichdr.count; ent++, i++) {
@@ -361,7 +361,7 @@ xfs_attr3_leaf_verify(
 	 * Quickly check the freemap information.  Attribute data has to be
 	 * aligned to 4-byte boundaries, and likewise for the free space.
 	 *
-	 * Note that for 64k block size filesystems, the freemap entries cannot
+	 * Analte that for 64k block size filesystems, the freemap entries cananalt
 	 * overflow as they are only be16 fields. However, when checking end
 	 * pointer of the freemap, we have to be careful to detect overflows and
 	 * so use uint32_t for those checks.
@@ -412,8 +412,8 @@ xfs_attr3_leaf_write_verify(
 }
 
 /*
- * leaf/node format detection on trees is sketchy, so a node read can be done on
- * leaf level blocks when detection identifies the tree as a node format tree
+ * leaf/analde format detection on trees is sketchy, so a analde read can be done on
+ * leaf level blocks when detection identifies the tree as a analde format tree
  * incorrectly. In this case, we need to swap the verifier to match the correct
  * format of the block being read.
  */
@@ -446,13 +446,13 @@ const struct xfs_buf_ops xfs_attr3_leaf_buf_ops = {
 int
 xfs_attr3_leaf_read(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_dablk_t		bno,
+	struct xfs_ianalde	*dp,
+	xfs_dablk_t		banal,
 	struct xfs_buf		**bpp)
 {
 	int			err;
 
-	err = xfs_da_read_buf(tp, dp, bno, 0, bpp, XFS_ATTR_FORK,
+	err = xfs_da_read_buf(tp, dp, banal, 0, bpp, XFS_ATTR_FORK,
 			&xfs_attr3_leaf_buf_ops);
 	if (!err && tp && *bpp)
 		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_ATTR_LEAF_BUF);
@@ -464,11 +464,11 @@ xfs_attr3_leaf_read(
  *========================================================================*/
 
 /*
- * If we are in log recovery, then we want the lookup to ignore the INCOMPLETE
+ * If we are in log recovery, then we want the lookup to iganalre the INCOMPLETE
  * flag on disk - if there's an incomplete attr then recovery needs to tear it
- * down. If there's no incomplete attr, then recovery needs to tear that attr
+ * down. If there's anal incomplete attr, then recovery needs to tear that attr
  * down to replace it with the attr that has been logged. In this case, the
- * INCOMPLETE flag will not be set in attr->attr_filter, but rather
+ * INCOMPLETE flag will analt be set in attr->attr_filter, but rather
  * XFS_DA_OP_RECOVERY will be set in args->op_flags.
  */
 static bool
@@ -484,7 +484,7 @@ xfs_attr_match(
 	if (memcmp(args->name, name, namelen) != 0)
 		return false;
 
-	/* Recovery ignores the INCOMPLETE flag. */
+	/* Recovery iganalres the INCOMPLETE flag. */
 	if ((args->op_flags & XFS_DA_OP_RECOVERY) &&
 	    args->attr_filter == (flags & XFS_ATTR_NSP_ONDISK_MASK))
 		return true;
@@ -503,7 +503,7 @@ xfs_attr_copy_value(
 	int			valuelen)
 {
 	/*
-	 * No copy if all we have to do is get the length
+	 * Anal copy if all we have to do is get the length
 	 */
 	if (!args->valuelen) {
 		args->valuelen = valuelen;
@@ -511,7 +511,7 @@ xfs_attr_copy_value(
 	}
 
 	/*
-	 * No copy if the length of the existing buffer is too small
+	 * Anal copy if the length of the existing buffer is too small
 	 */
 	if (args->valuelen < valuelen) {
 		args->valuelen = valuelen;
@@ -519,14 +519,14 @@ xfs_attr_copy_value(
 	}
 
 	if (!args->value) {
-		args->value = kvmalloc(valuelen, GFP_KERNEL | __GFP_NOLOCKDEP);
+		args->value = kvmalloc(valuelen, GFP_KERNEL | __GFP_ANALLOCKDEP);
 		if (!args->value)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	args->valuelen = valuelen;
 
 	/* remote block xattr requires IO for copy-in */
-	if (args->rmtblkno)
+	if (args->rmtblkanal)
 		return xfs_attr_rmtval_get(args);
 
 	/*
@@ -542,22 +542,22 @@ xfs_attr_copy_value(
 }
 
 /*========================================================================
- * External routines when attribute fork size < XFS_LITINO(mp).
+ * External routines when attribute fork size < XFS_LITIANAL(mp).
  *========================================================================*/
 
 /*
  * Query whether the total requested number of attr fork bytes of extended
  * attribute space will be able to fit inline.
  *
- * Returns zero if not, else the i_forkoff fork offset to be used in the
+ * Returns zero if analt, else the i_forkoff fork offset to be used in the
  * literal area for attribute data once the new bytes have been added.
  *
  * i_forkoff must be 8 byte aligned, hence is stored as a >>3 value;
- * special case for dev/uuid inodes, they have fixed size data forks.
+ * special case for dev/uuid ianaldes, they have fixed size data forks.
  */
 int
 xfs_attr_shortform_bytesfit(
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	int			bytes)
 {
 	struct xfs_mount	*mp = dp->i_mount;
@@ -569,13 +569,13 @@ xfs_attr_shortform_bytesfit(
 	/*
 	 * Check if the new size could fit at all first:
 	 */
-	if (bytes > XFS_LITINO(mp))
+	if (bytes > XFS_LITIANAL(mp))
 		return 0;
 
 	/* rounded down */
-	offset = (XFS_LITINO(mp) - bytes) >> 3;
+	offset = (XFS_LITIANAL(mp) - bytes) >> 3;
 
-	if (dp->i_df.if_format == XFS_DINODE_FMT_DEV) {
+	if (dp->i_df.if_format == XFS_DIANALDE_FMT_DEV) {
 		minforkoff = roundup(sizeof(xfs_dev_t), 8) >> 3;
 		return (offset >= minforkoff) ? minforkoff : 0;
 	}
@@ -584,18 +584,18 @@ xfs_attr_shortform_bytesfit(
 	 * If the requested numbers of bytes is smaller or equal to the
 	 * current attribute fork size we can always proceed.
 	 *
-	 * Note that if_bytes in the data fork might actually be larger than
+	 * Analte that if_bytes in the data fork might actually be larger than
 	 * the current data fork size is due to delalloc extents. In that
 	 * case either the extent count will go down when they are converted
 	 * to real extents, or the delalloc conversion will take care of the
 	 * literal area rebalancing.
 	 */
-	if (bytes <= xfs_inode_attr_fork_size(dp))
+	if (bytes <= xfs_ianalde_attr_fork_size(dp))
 		return dp->i_forkoff;
 
 	/*
 	 * For attr2 we can try to move the forkoff if there is space in the
-	 * literal area, but for the old format we are done if there is no
+	 * literal area, but for the old format we are done if there is anal
 	 * space in the fixed attribute fork.
 	 */
 	if (!xfs_has_attr2(mp))
@@ -604,9 +604,9 @@ xfs_attr_shortform_bytesfit(
 	dsize = dp->i_df.if_bytes;
 
 	switch (dp->i_df.if_format) {
-	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_EXTENTS:
 		/*
-		 * If there is no attr fork and the data fork is extents,
+		 * If there is anal attr fork and the data fork is extents,
 		 * determine if creating the default attr fork will result
 		 * in the extents form migrating to btree. If so, the
 		 * minimum offset only needs to be the space required for
@@ -616,7 +616,7 @@ xfs_attr_shortform_bytesfit(
 		    xfs_default_attroffset(dp))
 			dsize = XFS_BMDR_SPACE_CALC(MINDBTPTRS);
 		break;
-	case XFS_DINODE_FMT_BTREE:
+	case XFS_DIANALDE_FMT_BTREE:
 		/*
 		 * If we have a data btree then keep forkoff if we have one,
 		 * otherwise we are adding a new attr, so then we set
@@ -640,7 +640,7 @@ xfs_attr_shortform_bytesfit(
 	minforkoff = roundup(minforkoff, 8) >> 3;
 
 	/* attr fork btree root can have at least this many key/ptr pairs */
-	maxforkoff = XFS_LITINO(mp) - XFS_BMDR_SPACE_CALC(MINABTPTRS);
+	maxforkoff = XFS_LITIANAL(mp) - XFS_BMDR_SPACE_CALC(MINABTPTRS);
 	maxforkoff = maxforkoff >> 3;	/* rounded down */
 
 	if (offset >= maxforkoff)
@@ -652,16 +652,16 @@ xfs_attr_shortform_bytesfit(
 
 /*
  * Switch on the ATTR2 superblock bit (implies also FEATURES2) unless:
- * - noattr2 mount option is set,
+ * - analattr2 mount option is set,
  * - on-disk version bit says it is already set, or
- * - the attr2 mount option is not set to enable automatic upgrade from attr1.
+ * - the attr2 mount option is analt set to enable automatic upgrade from attr1.
  */
 STATIC void
 xfs_sbversion_add_attr2(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp)
 {
-	if (xfs_has_noattr2(mp))
+	if (xfs_has_analattr2(mp))
 		return;
 	if (mp->m_sb.sb_features2 & XFS_SB_VERSION2_ATTR2BIT)
 		return;
@@ -681,24 +681,24 @@ void
 xfs_attr_shortform_create(
 	struct xfs_da_args	*args)
 {
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_ianalde	*dp = args->dp;
 	struct xfs_ifork	*ifp = &dp->i_af;
 	struct xfs_attr_sf_hdr	*hdr;
 
 	trace_xfs_attr_sf_create(args);
 
 	ASSERT(ifp->if_bytes == 0);
-	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS)
-		ifp->if_format = XFS_DINODE_FMT_LOCAL;
+	if (ifp->if_format == XFS_DIANALDE_FMT_EXTENTS)
+		ifp->if_format = XFS_DIANALDE_FMT_LOCAL;
 
 	hdr = xfs_idata_realloc(dp, sizeof(*hdr), XFS_ATTR_FORK);
 	memset(hdr, 0, sizeof(*hdr));
 	hdr->totsize = cpu_to_be16(sizeof(*hdr));
-	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
+	xfs_trans_log_ianalde(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
 }
 
 /*
- * Return the entry if the attr in args is found, or NULL if not.
+ * Return the entry if the attr in args is found, or NULL if analt.
  */
 struct xfs_attr_sf_entry *
 xfs_attr_sf_findname(
@@ -720,14 +720,14 @@ xfs_attr_sf_findname(
 
 /*
  * Add a name/value pair to the shortform attribute list.
- * Overflow from the inode has already been checked for.
+ * Overflow from the ianalde has already been checked for.
  */
 void
 xfs_attr_shortform_add(
 	struct xfs_da_args		*args,
 	int				forkoff)
 {
-	struct xfs_inode		*dp = args->dp;
+	struct xfs_ianalde		*dp = args->dp;
 	struct xfs_mount		*mp = dp->i_mount;
 	struct xfs_ifork		*ifp = &dp->i_af;
 	struct xfs_attr_sf_hdr		*sf = ifp->if_data;
@@ -738,7 +738,7 @@ xfs_attr_shortform_add(
 
 	dp->i_forkoff = forkoff;
 
-	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
+	ASSERT(ifp->if_format == XFS_DIANALDE_FMT_LOCAL);
 	ASSERT(!xfs_attr_sf_findname(args));
 
 	size = xfs_attr_sf_entsize_byname(args->namelen, args->valuelen);
@@ -752,25 +752,25 @@ xfs_attr_shortform_add(
 	memcpy(&sfe->nameval[args->namelen], args->value, args->valuelen);
 	sf->count++;
 	be16_add_cpu(&sf->totsize, size);
-	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
+	xfs_trans_log_ianalde(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
 
 	xfs_sbversion_add_attr2(mp, args->trans);
 }
 
 /*
- * After the last attribute is removed revert to original inode format,
+ * After the last attribute is removed revert to original ianalde format,
  * making all literal area available to the data fork once more.
  */
 void
 xfs_attr_fork_remove(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct xfs_trans	*tp)
 {
 	ASSERT(ip->i_af.if_nextents == 0);
 
 	xfs_ifork_zap_attr(ip);
 	ip->i_forkoff = 0;
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_ianalde(tp, ip, XFS_ILOG_CORE);
 }
 
 /*
@@ -780,7 +780,7 @@ int
 xfs_attr_sf_removename(
 	struct xfs_da_args		*args)
 {
-	struct xfs_inode		*dp = args->dp;
+	struct xfs_ianalde		*dp = args->dp;
 	struct xfs_mount		*mp = dp->i_mount;
 	struct xfs_attr_sf_hdr		*sf = dp->i_af.if_data;
 	struct xfs_attr_sf_entry	*sfe;
@@ -793,12 +793,12 @@ xfs_attr_sf_removename(
 	sfe = xfs_attr_sf_findname(args);
 	if (!sfe) {
 		/*
-		 * If we are recovering an operation, finding nothing to remove
-		 * is not an error, it just means there was nothing to clean up.
+		 * If we are recovering an operation, finding analthing to remove
+		 * is analt an error, it just means there was analthing to clean up.
 		 */
 		if (args->op_flags & XFS_DA_OP_RECOVERY)
 			return 0;
-		return -ENOATTR;
+		return -EANALATTR;
 	}
 
 	/*
@@ -817,7 +817,7 @@ xfs_attr_sf_removename(
 	 * Fix up the start offset of the attribute fork
 	 */
 	if (totsize == sizeof(struct xfs_attr_sf_hdr) && xfs_has_attr2(mp) &&
-	    (dp->i_df.if_format != XFS_DINODE_FMT_BTREE) &&
+	    (dp->i_df.if_format != XFS_DIANALDE_FMT_BTREE) &&
 	    !(args->op_flags & (XFS_DA_OP_ADDNAME | XFS_DA_OP_REPLACE))) {
 		xfs_attr_fork_remove(dp, args->trans);
 	} else {
@@ -827,8 +827,8 @@ xfs_attr_sf_removename(
 		ASSERT(totsize > sizeof(struct xfs_attr_sf_hdr) ||
 				(args->op_flags & XFS_DA_OP_ADDNAME) ||
 				!xfs_has_attr2(mp) ||
-				dp->i_df.if_format == XFS_DINODE_FMT_BTREE);
-		xfs_trans_log_inode(args->trans, dp,
+				dp->i_df.if_format == XFS_DIANALDE_FMT_BTREE);
+		xfs_trans_log_ianalde(args->trans, dp,
 					XFS_ILOG_CORE | XFS_ILOG_ADATA);
 	}
 
@@ -841,7 +841,7 @@ xfs_attr_sf_removename(
  * Retrieve the attribute value and length.
  *
  * If args->valuelen is zero, only the length needs to be returned.  Unlike a
- * lookup, we only return an error if the attribute does not exist or we can't
+ * lookup, we only return an error if the attribute does analt exist or we can't
  * retrieve the value.
  */
 int
@@ -850,13 +850,13 @@ xfs_attr_shortform_getvalue(
 {
 	struct xfs_attr_sf_entry	*sfe;
 
-	ASSERT(args->dp->i_af.if_format == XFS_DINODE_FMT_LOCAL);
+	ASSERT(args->dp->i_af.if_format == XFS_DIANALDE_FMT_LOCAL);
 
 	trace_xfs_attr_sf_lookup(args);
 
 	sfe = xfs_attr_sf_findname(args);
 	if (!sfe)
-		return -ENOATTR;
+		return -EANALATTR;
 	return xfs_attr_copy_value(args, &sfe->nameval[args->namelen],
 			sfe->valuelen);
 }
@@ -866,7 +866,7 @@ int
 xfs_attr_shortform_to_leaf(
 	struct xfs_da_args		*args)
 {
-	struct xfs_inode		*dp = args->dp;
+	struct xfs_ianalde		*dp = args->dp;
 	struct xfs_ifork		*ifp = &dp->i_af;
 	struct xfs_attr_sf_hdr		*sf = ifp->if_data;
 	struct xfs_attr_sf_entry	*sfe;
@@ -874,7 +874,7 @@ xfs_attr_shortform_to_leaf(
 	struct xfs_da_args		nargs;
 	char				*tmpbuffer;
 	int				error, i;
-	xfs_dablk_t			blkno;
+	xfs_dablk_t			blkanal;
 	struct xfs_buf			*bp;
 
 	trace_xfs_attr_sf_to_leaf(args);
@@ -888,12 +888,12 @@ xfs_attr_shortform_to_leaf(
 	xfs_bmap_local_to_extents_empty(args->trans, dp, XFS_ATTR_FORK);
 
 	bp = NULL;
-	error = xfs_da_grow_inode(args, &blkno);
+	error = xfs_da_grow_ianalde(args, &blkanal);
 	if (error)
 		goto out;
 
-	ASSERT(blkno == 0);
-	error = xfs_attr3_leaf_create(args, blkno, &bp);
+	ASSERT(blkanal == 0);
+	error = xfs_attr3_leaf_create(args, blkanal, &bp);
 	if (error)
 		goto out;
 
@@ -903,7 +903,7 @@ xfs_attr_shortform_to_leaf(
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
-	nargs.op_flags = XFS_DA_OP_OKNOENT;
+	nargs.op_flags = XFS_DA_OP_OKANALENT;
 
 	sfe = xfs_attr_sf_firstentry(sf);
 	for (i = 0; i < sf->count; i++) {
@@ -915,9 +915,9 @@ xfs_attr_shortform_to_leaf(
 						sfe->namelen);
 		nargs.attr_filter = sfe->flags & XFS_ATTR_NSP_ONDISK_MASK;
 		error = xfs_attr3_leaf_lookup_int(bp, &nargs); /* set a->index */
-		ASSERT(error == -ENOATTR);
+		ASSERT(error == -EANALATTR);
 		error = xfs_attr3_leaf_add(bp, &nargs);
-		ASSERT(error != -ENOSPC);
+		ASSERT(error != -EANALSPC);
 		if (error)
 			goto out;
 		sfe = xfs_attr_sf_nextentry(sfe);
@@ -935,7 +935,7 @@ out:
 int
 xfs_attr_shortform_allfit(
 	struct xfs_buf		*bp,
-	struct xfs_inode	*dp)
+	struct xfs_ianalde	*dp)
 {
 	struct xfs_attr_leafblock *leaf;
 	struct xfs_attr_leaf_entry *entry;
@@ -964,7 +964,7 @@ xfs_attr_shortform_allfit(
 					be16_to_cpu(name_loc->valuelen));
 	}
 	if (xfs_has_attr2(dp->i_mount) &&
-	    (dp->i_df.if_format != XFS_DINODE_FMT_BTREE) &&
+	    (dp->i_df.if_format != XFS_DIANALDE_FMT_BTREE) &&
 	    (bytes == sizeof(struct xfs_attr_sf_hdr)))
 		return -1;
 	return xfs_attr_shortform_bytesfit(dp, bytes);
@@ -1001,7 +1001,7 @@ xfs_attr_shortform_verify(
 		if (((char *)sfep + sizeof(*sfep)) >= endp)
 			return __this_address;
 
-		/* Don't allow names with known bad length. */
+		/* Don't allow names with kanalwn bad length. */
 		if (sfep->namelen == 0)
 			return __this_address;
 
@@ -1015,7 +1015,7 @@ xfs_attr_shortform_verify(
 			return __this_address;
 
 		/*
-		 * Check for unknown flags.  Short form doesn't support
+		 * Check for unkanalwn flags.  Short form doesn't support
 		 * the incomplete or local bits, so we can use the namespace
 		 * mask here.
 		 */
@@ -1052,7 +1052,7 @@ xfs_attr3_leaf_to_shortform(
 	struct xfs_attr_leaf_entry *entry;
 	struct xfs_attr_leaf_name_local *name_loc;
 	struct xfs_da_args	nargs;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_ianalde	*dp = args->dp;
 	char			*tmpbuffer;
 	int			error;
 	int			i;
@@ -1061,7 +1061,7 @@ xfs_attr3_leaf_to_shortform(
 
 	tmpbuffer = kmem_alloc(args->geo->blksize, 0);
 	if (!tmpbuffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(tmpbuffer, bp->b_addr, args->geo->blksize);
 
@@ -1075,7 +1075,7 @@ xfs_attr3_leaf_to_shortform(
 	/*
 	 * Clean out the prior contents of the attribute list.
 	 */
-	error = xfs_da_shrink_inode(args, 0, bp);
+	error = xfs_da_shrink_ianalde(args, 0, bp);
 	if (error)
 		goto out;
 
@@ -1088,7 +1088,7 @@ xfs_attr3_leaf_to_shortform(
 		 */
 		if (!(args->op_flags & XFS_DA_OP_REPLACE)) {
 			ASSERT(xfs_has_attr2(dp->i_mount));
-			ASSERT(dp->i_df.if_format != XFS_DINODE_FMT_BTREE);
+			ASSERT(dp->i_df.if_format != XFS_DIANALDE_FMT_BTREE);
 			xfs_attr_fork_remove(dp, args->trans);
 		}
 		goto out;
@@ -1105,7 +1105,7 @@ xfs_attr3_leaf_to_shortform(
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
-	nargs.op_flags = XFS_DA_OP_OKNOENT;
+	nargs.op_flags = XFS_DA_OP_OKANALENT;
 
 	for (i = 0; i < ichdr.count; entry++, i++) {
 		if (entry->flags & XFS_ATTR_INCOMPLETE)
@@ -1130,39 +1130,39 @@ out:
 }
 
 /*
- * Convert from using a single leaf to a root node and a leaf.
+ * Convert from using a single leaf to a root analde and a leaf.
  */
 int
-xfs_attr3_leaf_to_node(
+xfs_attr3_leaf_to_analde(
 	struct xfs_da_args	*args)
 {
 	struct xfs_attr_leafblock *leaf;
 	struct xfs_attr3_icleaf_hdr icleafhdr;
 	struct xfs_attr_leaf_entry *entries;
-	struct xfs_da3_icnode_hdr icnodehdr;
-	struct xfs_da_intnode	*node;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_da3_icanalde_hdr icanaldehdr;
+	struct xfs_da_intanalde	*analde;
+	struct xfs_ianalde	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp1 = NULL;
 	struct xfs_buf		*bp2 = NULL;
-	xfs_dablk_t		blkno;
+	xfs_dablk_t		blkanal;
 	int			error;
 
-	trace_xfs_attr_leaf_to_node(args);
+	trace_xfs_attr_leaf_to_analde(args);
 
-	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_ATTR_LEAF_TO_NODE)) {
+	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_ATTR_LEAF_TO_ANALDE)) {
 		error = -EIO;
 		goto out;
 	}
 
-	error = xfs_da_grow_inode(args, &blkno);
+	error = xfs_da_grow_ianalde(args, &blkanal);
 	if (error)
 		goto out;
 	error = xfs_attr3_leaf_read(args->trans, dp, 0, &bp1);
 	if (error)
 		goto out;
 
-	error = xfs_da_get_buf(args->trans, dp, blkno, &bp2, XFS_ATTR_FORK);
+	error = xfs_da_get_buf(args->trans, dp, blkanal, &bp2, XFS_ATTR_FORK);
 	if (error)
 		goto out;
 
@@ -1173,23 +1173,23 @@ xfs_attr3_leaf_to_node(
 	xfs_trans_log_buf(args->trans, bp2, 0, args->geo->blksize - 1);
 
 	/*
-	 * Set up the new root node.
+	 * Set up the new root analde.
 	 */
-	error = xfs_da3_node_create(args, 0, 1, &bp1, XFS_ATTR_FORK);
+	error = xfs_da3_analde_create(args, 0, 1, &bp1, XFS_ATTR_FORK);
 	if (error)
 		goto out;
-	node = bp1->b_addr;
-	xfs_da3_node_hdr_from_disk(mp, &icnodehdr, node);
+	analde = bp1->b_addr;
+	xfs_da3_analde_hdr_from_disk(mp, &icanaldehdr, analde);
 
 	leaf = bp2->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(args->geo, &icleafhdr, leaf);
 	entries = xfs_attr3_leaf_entryp(leaf);
 
 	/* both on-disk, don't endian-flip twice */
-	icnodehdr.btree[0].hashval = entries[icleafhdr.count - 1].hashval;
-	icnodehdr.btree[0].before = cpu_to_be32(blkno);
-	icnodehdr.count = 1;
-	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &icnodehdr);
+	icanaldehdr.btree[0].hashval = entries[icleafhdr.count - 1].hashval;
+	icanaldehdr.btree[0].before = cpu_to_be32(blkanal);
+	icanaldehdr.count = 1;
+	xfs_da3_analde_hdr_to_disk(dp->i_mount, analde, &icanaldehdr);
 	xfs_trans_log_buf(args->trans, bp1, 0, args->geo->blksize - 1);
 	error = 0;
 out:
@@ -1202,24 +1202,24 @@ out:
 
 /*
  * Create the initial contents of a leaf attribute list
- * or a leaf in a node attribute list.
+ * or a leaf in a analde attribute list.
  */
 STATIC int
 xfs_attr3_leaf_create(
 	struct xfs_da_args	*args,
-	xfs_dablk_t		blkno,
+	xfs_dablk_t		blkanal,
 	struct xfs_buf		**bpp)
 {
 	struct xfs_attr_leafblock *leaf;
 	struct xfs_attr3_icleaf_hdr ichdr;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_ianalde	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp;
 	int			error;
 
 	trace_xfs_attr_leaf_create(args);
 
-	error = xfs_da_get_buf(args->trans, args->dp, blkno, &bp,
+	error = xfs_da_get_buf(args->trans, args->dp, blkanal, &bp,
 					    XFS_ATTR_FORK);
 	if (error)
 		return error;
@@ -1236,8 +1236,8 @@ xfs_attr3_leaf_create(
 
 		ichdr.magic = XFS_ATTR3_LEAF_MAGIC;
 
-		hdr3->blkno = cpu_to_be64(xfs_buf_daddr(bp));
-		hdr3->owner = cpu_to_be64(dp->i_ino);
+		hdr3->blkanal = cpu_to_be64(xfs_buf_daddr(bp));
+		hdr3->owner = cpu_to_be64(dp->i_ianal);
 		uuid_copy(&hdr3->uuid, &mp->m_sb.sb_meta_uuid);
 
 		ichdr.freemap[0].base = sizeof(struct xfs_attr3_leaf_hdr);
@@ -1255,7 +1255,7 @@ xfs_attr3_leaf_create(
 }
 
 /*
- * Split the leaf node, rebalance, then add the new entry.
+ * Split the leaf analde, rebalance, then add the new entry.
  */
 int
 xfs_attr3_leaf_split(
@@ -1263,27 +1263,27 @@ xfs_attr3_leaf_split(
 	struct xfs_da_state_blk	*oldblk,
 	struct xfs_da_state_blk	*newblk)
 {
-	xfs_dablk_t blkno;
+	xfs_dablk_t blkanal;
 	int error;
 
 	trace_xfs_attr_leaf_split(state->args);
 
 	/*
-	 * Allocate space for a new leaf node.
+	 * Allocate space for a new leaf analde.
 	 */
 	ASSERT(oldblk->magic == XFS_ATTR_LEAF_MAGIC);
-	error = xfs_da_grow_inode(state->args, &blkno);
+	error = xfs_da_grow_ianalde(state->args, &blkanal);
 	if (error)
 		return error;
-	error = xfs_attr3_leaf_create(state->args, blkno, &newblk->bp);
+	error = xfs_attr3_leaf_create(state->args, blkanal, &newblk->bp);
 	if (error)
 		return error;
-	newblk->blkno = blkno;
+	newblk->blkanal = blkanal;
 	newblk->magic = XFS_ATTR_LEAF_MAGIC;
 
 	/*
 	 * Rebalance the entries across the two leaves.
-	 * NOTE: rebalance() currently depends on the 2nd block being empty.
+	 * ANALTE: rebalance() currently depends on the 2nd block being empty.
 	 */
 	xfs_attr3_leaf_rebalance(state, oldblk, newblk);
 	error = xfs_da3_blk_link(state, oldblk, newblk);
@@ -1292,7 +1292,7 @@ xfs_attr3_leaf_split(
 
 	/*
 	 * Save info on "old" attribute for "atomic rename" ops, leaf_add()
-	 * modifies the index/blkno/rmtblk/rmtblkcnt fields to show the
+	 * modifies the index/blkanal/rmtblk/rmtblkcnt fields to show the
 	 * "new" attrs info.  Will need the "old" info to remove it later.
 	 *
 	 * Insert the "new" entry in the correct block.
@@ -1348,7 +1348,7 @@ xfs_attr3_leaf_add(
 			continue;
 		}
 		if (!ichdr.freemap[i].size)
-			continue;	/* no space in this map */
+			continue;	/* anal space in this map */
 		tmp = entsize;
 		if (ichdr.freemap[i].base < ichdr.firstused)
 			tmp += sizeof(xfs_attr_leaf_entry_t);
@@ -1360,12 +1360,12 @@ xfs_attr3_leaf_add(
 	}
 
 	/*
-	 * If there are no holes in the address space of the block,
-	 * and we don't have enough freespace, then compaction will do us
-	 * no good and we should just give up.
+	 * If there are anal holes in the address space of the block,
+	 * and we don't have eanalugh freespace, then compaction will do us
+	 * anal good and we should just give up.
 	 */
 	if (!ichdr.holes && sum < entsize)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/*
 	 * Compact the entries to coalesce free space.
@@ -1375,10 +1375,10 @@ xfs_attr3_leaf_add(
 
 	/*
 	 * After compaction, the block is guaranteed to have only one
-	 * free region, in freemap[0].  If it is not big enough, give up.
+	 * free region, in freemap[0].  If it is analt big eanalugh, give up.
 	 */
 	if (ichdr.freemap[0].size < (entsize + sizeof(xfs_attr_leaf_entry_t))) {
-		tmp = -ENOSPC;
+		tmp = -EANALSPC;
 		goto out_log_hdr;
 	}
 
@@ -1451,7 +1451,7 @@ xfs_attr3_leaf_add_work(
 	if (args->op_flags & XFS_DA_OP_REPLACE) {
 		if (!(args->op_flags & XFS_DA_OP_LOGGED))
 			entry->flags |= XFS_ATTR_INCOMPLETE;
-		if ((args->blkno2 == args->blkno) &&
+		if ((args->blkanal2 == args->blkanal) &&
 		    (args->index2 <= args->index)) {
 			args->index2++;
 		}
@@ -1464,7 +1464,7 @@ xfs_attr3_leaf_add_work(
 	       (be32_to_cpu(entry->hashval) <= be32_to_cpu((entry+1)->hashval)));
 
 	/*
-	 * For "remote" attribute values, simply note that we need to
+	 * For "remote" attribute values, simply analte that we need to
 	 * allocate space for the "remote" value.  We can't actually
 	 * allocate the extents in this transaction, and we can't decide
 	 * which blocks they should be as we might allocate more blocks
@@ -1485,7 +1485,7 @@ xfs_attr3_leaf_add_work(
 		/* just in case */
 		name_rmt->valuelen = 0;
 		name_rmt->valueblk = 0;
-		args->rmtblkno = 1;
+		args->rmtblkanal = 1;
 		args->rmtblkcnt = xfs_attr3_rmt_blocks(mp, args->valuelen);
 		args->rmtvaluelen = args->valuelen;
 	}
@@ -1494,7 +1494,7 @@ xfs_attr3_leaf_add_work(
 				   xfs_attr_leaf_entsize(leaf, args->index)));
 
 	/*
-	 * Update the control info for this leaf node
+	 * Update the control info for this leaf analde
 	 */
 	if (be16_to_cpu(entry->nameidx) < ichdr->firstused)
 		ichdr->firstused = be16_to_cpu(entry->nameidx);
@@ -1541,7 +1541,7 @@ xfs_attr3_leaf_compact(
 
 	/*
 	 * Copy the on-disk header back into the destination buffer to ensure
-	 * all the information in the header that is not part of the incore
+	 * all the information in the header that is analt part of the incore
 	 * header structure is preserved.
 	 */
 	memcpy(bp->b_addr, tmpbuffer, xfs_attr3_leaf_hdr_size(leaf_src));
@@ -1615,15 +1615,15 @@ xfs_attr_leaf_order(
 }
 
 /*
- * Redistribute the attribute list entries between two leaf nodes,
+ * Redistribute the attribute list entries between two leaf analdes,
  * taking into account the size of the new entry.
  *
- * NOTE: if new block is empty, then it will get the upper half of the
+ * ANALTE: if new block is empty, then it will get the upper half of the
  * old block.  At present, all (one) callers pass in an empty second block.
  *
- * This code adjusts the args->index/blkno and args->index2/blkno2 fields
+ * This code adjusts the args->index/blkanal and args->index2/blkanal2 fields
  * to match what it is doing in splitting the attribute leaf block.  Those
- * values are used in "atomic rename" operations on attributes.  Note that
+ * values are used in "atomic rename" operations on attributes.  Analte that
  * the "new" and "old" values can end up in different blocks.
  */
 STATIC void
@@ -1662,7 +1662,7 @@ xfs_attr3_leaf_rebalance(
 	/*
 	 * Check ordering of blocks, reverse if it makes things simpler.
 	 *
-	 * NOTE: Given that all (current) callers pass in an empty
+	 * ANALTE: Given that all (current) callers pass in an empty
 	 * second block, this code should never set "swap".
 	 */
 	swap = 0;
@@ -1762,36 +1762,36 @@ xfs_attr3_leaf_rebalance(
 
 	/*
 	 * Adjust the expected index for insertion.
-	 * NOTE: this code depends on the (current) situation that the
+	 * ANALTE: this code depends on the (current) situation that the
 	 * second block was originally empty.
 	 *
 	 * If the insertion point moved to the 2nd block, we must adjust
 	 * the index.  We must also track the entry just following the
 	 * new entry for use in an "atomic rename" operation, that entry
 	 * is always the "old" entry and the "new" entry is what we are
-	 * inserting.  The index/blkno fields refer to the "old" entry,
-	 * while the index2/blkno2 fields refer to the "new" entry.
+	 * inserting.  The index/blkanal fields refer to the "old" entry,
+	 * while the index2/blkanal2 fields refer to the "new" entry.
 	 */
 	if (blk1->index > ichdr1.count) {
 		ASSERT(state->inleaf == 0);
 		blk2->index = blk1->index - ichdr1.count;
 		args->index = args->index2 = blk2->index;
-		args->blkno = args->blkno2 = blk2->blkno;
+		args->blkanal = args->blkanal2 = blk2->blkanal;
 	} else if (blk1->index == ichdr1.count) {
 		if (state->inleaf) {
 			args->index = blk1->index;
-			args->blkno = blk1->blkno;
+			args->blkanal = blk1->blkanal;
 			args->index2 = 0;
-			args->blkno2 = blk2->blkno;
+			args->blkanal2 = blk2->blkanal;
 		} else {
 			/*
 			 * On a double leaf split, the original attr location
-			 * is already stored in blkno2/index2, so don't
+			 * is already stored in blkanal2/index2, so don't
 			 * overwrite it overwise we corrupt the tree.
 			 */
 			blk2->index = blk1->index - ichdr1.count;
 			args->index = blk2->index;
-			args->blkno = blk2->blkno;
+			args->blkanal = blk2->blkanal;
 			if (!state->extravalid) {
 				/*
 				 * set the new attr location to match the old
@@ -1799,13 +1799,13 @@ xfs_attr3_leaf_rebalance(
 				 * decide where in the leaf to place it.
 				 */
 				args->index2 = blk2->index;
-				args->blkno2 = blk2->blkno;
+				args->blkanal2 = blk2->blkanal;
 			}
 		}
 	} else {
 		ASSERT(state->inleaf == 1);
 		args->index = args->index2 = blk1->index;
-		args->blkno = args->blkno2 = blk1->blkno;
+		args->blkanal = args->blkanal2 = blk1->blkanal;
 	}
 }
 
@@ -1813,7 +1813,7 @@ xfs_attr3_leaf_rebalance(
  * Examine entries until we reduce the absolute difference in
  * byte usage between the two blocks to a minimum.
  * GROT: Is this really necessary?  With other than a 512 byte blocksize,
- * GROT: there will always be enough room in either block for a new entry.
+ * GROT: there will always be eanalugh room in either block for a new entry.
  * GROT: Do a double-split for this case?
  */
 STATIC int
@@ -1888,7 +1888,7 @@ xfs_attr3_leaf_figure_balance(
 
 	/*
 	 * Calculate the number of usedbytes that will end up in lower block.
-	 * If new entry not in lower block, fix up the count.
+	 * If new entry analt in lower block, fix up the count.
 	 */
 	totallen -= count * sizeof(*entry);
 	if (foundit) {
@@ -1912,7 +1912,7 @@ xfs_attr3_leaf_figure_balance(
  * If the current block is over 50% full, don't try to join it, return 0.
  * If the block is empty, fill in the state structure and return 2.
  * If it can be collapsed, fill in the state structure and return 1.
- * If nothing can be done, return 0.
+ * If analthing can be done, return 0.
  *
  * GROT: allow for INCOMPLETE entries in calculation.
  */
@@ -1925,7 +1925,7 @@ xfs_attr3_leaf_toosmall(
 	struct xfs_da_state_blk	*blk;
 	struct xfs_attr3_icleaf_hdr ichdr;
 	struct xfs_buf		*bp;
-	xfs_dablk_t		blkno;
+	xfs_dablk_t		blkanal;
 	int			bytes;
 	int			forward;
 	int			error;
@@ -1936,7 +1936,7 @@ xfs_attr3_leaf_toosmall(
 
 	/*
 	 * Check for the degenerate case of the block being over 50% full.
-	 * If so, it's not worth even looking to see if we might be able
+	 * If so, it's analt worth even looking to see if we might be able
 	 * to coalesce with a sibling.
 	 */
 	blk = &state->path.blk[ state->path.active-1 ];
@@ -1952,7 +1952,7 @@ xfs_attr3_leaf_toosmall(
 
 	/*
 	 * Check for the degenerate case of the block being empty.
-	 * If the block is empty, we'll simply delete it, no need to
+	 * If the block is empty, we'll simply delete it, anal need to
 	 * coalesce it with a sibling block.  We choose (arbitrarily)
 	 * to merge with the forward block unless it is NULL.
 	 */
@@ -1987,13 +1987,13 @@ xfs_attr3_leaf_toosmall(
 	for (i = 0; i < 2; forward = !forward, i++) {
 		struct xfs_attr3_icleaf_hdr ichdr2;
 		if (forward)
-			blkno = ichdr.forw;
+			blkanal = ichdr.forw;
 		else
-			blkno = ichdr.back;
-		if (blkno == 0)
+			blkanal = ichdr.back;
+		if (blkanal == 0)
 			continue;
 		error = xfs_attr3_leaf_read(state->args->trans, state->args->dp,
-					blkno, &bp);
+					blkanal, &bp);
 		if (error)
 			return error;
 
@@ -2020,7 +2020,7 @@ xfs_attr3_leaf_toosmall(
 	 * numbered block) and path point to the block we want to drop.
 	 */
 	memcpy(&state->altpath, &state->path, sizeof(state->path));
-	if (blkno < blk->blkno) {
+	if (blkanal < blk->blkanal) {
 		error = xfs_da3_path_shift(state, &state->altpath, forward,
 						 0, &retval);
 	} else {
@@ -2160,7 +2160,7 @@ xfs_attr3_leaf_remove(
 
 	/*
 	 * If we removed the first entry, re-find the first used byte
-	 * in the name area.  Note that if the entry was the "firstused",
+	 * in the name area.  Analte that if the entry was the "firstused",
 	 * then we don't have a "hole" in our block resulting from
 	 * removing the name.
 	 */
@@ -2222,12 +2222,12 @@ xfs_attr3_leaf_unbalance(
 
 	/*
 	 * Check if we need a temp buffer, or can we do it in place.
-	 * Note that we don't check "leaf" for holes because we will
+	 * Analte that we don't check "leaf" for holes because we will
 	 * always be dropping it, toosmall() decided that for us already.
 	 */
 	if (savehdr.holes == 0) {
 		/*
-		 * dest leaf has no holes, so we add there.  May need
+		 * dest leaf has anal holes, so we add there.  May need
 		 * to make some room in the entry array.
 		 */
 		if (xfs_attr3_leaf_order(save_blk->bp, &savehdr,
@@ -2254,7 +2254,7 @@ xfs_attr3_leaf_unbalance(
 
 		/*
 		 * Copy the header into the temp leaf so that all the stuff
-		 * not in the incore header is present and gets copied back in
+		 * analt in the incore header is present and gets copied back in
 		 * once we've moved all the entries.
 		 */
 		memcpy(tmp_leaf, save_leaf, xfs_attr3_leaf_hdr_size(save_leaf));
@@ -2312,8 +2312,8 @@ xfs_attr3_leaf_unbalance(
  * Look up a name in a leaf attribute list structure.
  * This is the internal routine, it uses the caller's buffer.
  *
- * Note that duplicate keys are allowed, but only check within the
- * current leaf node.  The Btree code must check in adjacent leaf nodes.
+ * Analte that duplicate keys are allowed, but only check within the
+ * current leaf analde.  The Btree code must check in adjacent leaf analdes.
  *
  * Return in args->index the index into the entry[] array of either
  * the found entry, or where the entry should have been (insert before
@@ -2347,7 +2347,7 @@ xfs_attr3_leaf_lookup_int(
 	}
 
 	/*
-	 * Binary search.  (note: small blocks will skip this loop)
+	 * Binary search.  (analte: small blocks will skip this loop)
 	 */
 	hashval = args->hashval;
 	probe = span = ichdr.count / 2;
@@ -2384,7 +2384,7 @@ xfs_attr3_leaf_lookup_int(
 	}
 	if (probe == ichdr.count || be32_to_cpu(entry->hashval) != hashval) {
 		args->index = probe;
-		return -ENOATTR;
+		return -EANALATTR;
 	}
 
 	/*
@@ -2409,7 +2409,7 @@ xfs_attr3_leaf_lookup_int(
 				continue;
 			args->index = probe;
 			args->rmtvaluelen = be32_to_cpu(name_rmt->valuelen);
-			args->rmtblkno = be32_to_cpu(name_rmt->valueblk);
+			args->rmtblkanal = be32_to_cpu(name_rmt->valueblk);
 			args->rmtblkcnt = xfs_attr3_rmt_blocks(
 							args->dp->i_mount,
 							args->rmtvaluelen);
@@ -2417,7 +2417,7 @@ xfs_attr3_leaf_lookup_int(
 		}
 	}
 	args->index = probe;
-	return -ENOATTR;
+	return -EANALATTR;
 }
 
 /*
@@ -2425,7 +2425,7 @@ xfs_attr3_leaf_lookup_int(
  * list structure.
  *
  * If args->valuelen is zero, only the length needs to be returned.  Unlike a
- * lookup, we only return an error if the attribute does not exist or we can't
+ * lookup, we only return an error if the attribute does analt exist or we can't
  * retrieve the value.
  */
 int
@@ -2458,7 +2458,7 @@ xfs_attr3_leaf_getvalue(
 	ASSERT(name_rmt->namelen == args->namelen);
 	ASSERT(memcmp(args->name, name_rmt->name, args->namelen) == 0);
 	args->rmtvaluelen = be32_to_cpu(name_rmt->valuelen);
-	args->rmtblkno = be32_to_cpu(name_rmt->valueblk);
+	args->rmtblkanal = be32_to_cpu(name_rmt->valueblk);
 	args->rmtblkcnt = xfs_attr3_rmt_blocks(args->dp->i_mount,
 					       args->rmtvaluelen);
 	return xfs_attr_copy_value(args, NULL, args->rmtvaluelen);
@@ -2469,8 +2469,8 @@ xfs_attr3_leaf_getvalue(
  *========================================================================*/
 
 /*
- * Move the indicated entries from one leaf to another.
- * NOTE: this routine modifies both source and destination leaves.
+ * Move the indicated entries from one leaf to aanalther.
+ * ANALTE: this routine modifies both source and destination leaves.
  */
 /*ARGSUSED*/
 STATIC void
@@ -2491,7 +2491,7 @@ xfs_attr3_leaf_moveents(
 	int				i;
 
 	/*
-	 * Check for nothing to do.
+	 * Check for analthing to do.
 	 */
 	if (count == 0)
 		return;
@@ -2611,7 +2611,7 @@ xfs_attr3_leaf_moveents(
 	ichdr_d->freemap[2].base = 0;
 	ichdr_d->freemap[1].size = 0;
 	ichdr_d->freemap[2].size = 0;
-	ichdr_s->holes = 1;	/* leaf may not be compact */
+	ichdr_s->holes = 1;	/* leaf may analt be compact */
 }
 
 /*
@@ -2711,7 +2711,7 @@ xfs_attr3_leaf_clearflag(
 	/*
 	 * Set up the operation.
 	 */
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp);
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkanal, &bp);
 	if (error)
 		return error;
 
@@ -2742,10 +2742,10 @@ xfs_attr3_leaf_clearflag(
 	xfs_trans_log_buf(args->trans, bp,
 			 XFS_DA_LOGRANGE(leaf, entry, sizeof(*entry)));
 
-	if (args->rmtblkno) {
+	if (args->rmtblkanal) {
 		ASSERT((entry->flags & XFS_ATTR_LOCAL) == 0);
 		name_rmt = xfs_attr3_leaf_name_remote(leaf, args->index);
-		name_rmt->valueblk = cpu_to_be32(args->rmtblkno);
+		name_rmt->valueblk = cpu_to_be32(args->rmtblkanal);
 		name_rmt->valuelen = cpu_to_be32(args->rmtvaluelen);
 		xfs_trans_log_buf(args->trans, bp,
 			 XFS_DA_LOGRANGE(leaf, name_rmt, sizeof(*name_rmt)));
@@ -2775,7 +2775,7 @@ xfs_attr3_leaf_setflag(
 	/*
 	 * Set up the operation.
 	 */
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp);
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkanal, &bp);
 	if (error)
 		return error;
 
@@ -2804,10 +2804,10 @@ xfs_attr3_leaf_setflag(
 
 /*
  * In a single transaction, clear the INCOMPLETE flag on the leaf entry
- * given by args->blkno/index and set the INCOMPLETE flag on the leaf
- * entry given by args->blkno2/index2.
+ * given by args->blkanal/index and set the INCOMPLETE flag on the leaf
+ * entry given by args->blkanal2/index2.
  *
- * Note that they could be in different blocks, or in the same block.
+ * Analte that they could be in different blocks, or in the same block.
  */
 int
 xfs_attr3_leaf_flipflags(
@@ -2834,15 +2834,15 @@ xfs_attr3_leaf_flipflags(
 	/*
 	 * Read the block containing the "old" attr
 	 */
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp1);
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkanal, &bp1);
 	if (error)
 		return error;
 
 	/*
 	 * Read the block containing the "new" attr, if it is different
 	 */
-	if (args->blkno2 != args->blkno) {
-		error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno2,
+	if (args->blkanal2 != args->blkanal) {
+		error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkanal2,
 					   &bp2);
 		if (error)
 			return error;
@@ -2894,10 +2894,10 @@ xfs_attr3_leaf_flipflags(
 	entry1->flags &= ~XFS_ATTR_INCOMPLETE;
 	xfs_trans_log_buf(args->trans, bp1,
 			  XFS_DA_LOGRANGE(leaf1, entry1, sizeof(*entry1)));
-	if (args->rmtblkno) {
+	if (args->rmtblkanal) {
 		ASSERT((entry1->flags & XFS_ATTR_LOCAL) == 0);
 		name_rmt = xfs_attr3_leaf_name_remote(leaf1, args->index);
-		name_rmt->valueblk = cpu_to_be32(args->rmtblkno);
+		name_rmt->valueblk = cpu_to_be32(args->rmtblkanal);
 		name_rmt->valuelen = cpu_to_be32(args->rmtvaluelen);
 		xfs_trans_log_buf(args->trans, bp1,
 			 XFS_DA_LOGRANGE(leaf1, name_rmt, sizeof(*name_rmt)));

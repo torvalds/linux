@@ -28,7 +28,7 @@ properties:
     maxItems: 1
     description: GPIO specifier for GPIO1 pin on bridge (active low).
 
-  no-hpd:
+  anal-hpd:
     type: boolean
     description:
       Set if the HPD line on the bridge isn't hooked up to anything or is
@@ -184,7 +184,7 @@ examples:
         clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
         clock-names = "refclk";
 
-        no-hpd;
+        anal-hpd;
 
         ports {
           #address-cells = <1>;

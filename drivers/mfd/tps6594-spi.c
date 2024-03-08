@@ -93,7 +93,7 @@ static int tps6594_spi_probe(struct spi_device *spi)
 
 	tps = devm_kzalloc(dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, tps);
 
@@ -110,7 +110,7 @@ static int tps6594_spi_probe(struct spi_device *spi)
 		return dev_err_probe(dev, -EINVAL, "Failed to find matching chip ID\n");
 	tps->chip_id = (unsigned long)match->data;
 
-	crc8_populate_msb(tps6594_spi_crc_table, TPS6594_CRC8_POLYNOMIAL);
+	crc8_populate_msb(tps6594_spi_crc_table, TPS6594_CRC8_POLYANALMIAL);
 
 	return tps6594_device_init(tps, enable_crc);
 }

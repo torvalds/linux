@@ -7,14 +7,14 @@
  * Portions copied from existing rtl8xxxu code:
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, analtably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  */
 
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -420,7 +420,7 @@ static int rtl8192fu_identify_chip(struct rtl8xxxu_priv *priv)
 	priv->chip_cut = u32_get_bits(sys_cfg, SYS_CFG_CHIP_VERSION_MASK);
 	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
 		dev_info(dev, "Unsupported test chip\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	val32 = rtl8xxxu_read32(priv, REG_MULTI_FUNC_CTRL);
@@ -435,7 +435,7 @@ static int rtl8192fu_identify_chip(struct rtl8xxxu_priv *priv)
 	val32 = rtl8xxxu_read32(priv, REG_GPIO_OUTSTS);
 	priv->rom_rev = u32_get_bits(val32, GPIO_RF_RL_ID);
 
-	return rtl8xxxu_config_endpoints_no_sie(priv);
+	return rtl8xxxu_config_endpoints_anal_sie(priv);
 }
 
 static void
@@ -511,19 +511,19 @@ static void rtl8192f_revise_cck_tx_psf(struct rtl8xxxu_priv *priv, u8 channel)
 	if (channel == 13) {
 		/* Special value for channel 13 */
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER1, 0xf8fe0001);
-		/* Normal values */
+		/* Analrmal values */
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER2, 0x64B80C1C);
 		rtl8xxxu_write16(priv, REG_CCK0_DEBUG_PORT, 0x8810);
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER3, 0x01235667);
 	} else if (channel == 14) {
-		/* Normal value */
+		/* Analrmal value */
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER1, 0xE82C0001);
 		/* Special values for channel 14 */
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER2, 0x0000B81C);
 		rtl8xxxu_write16(priv, REG_CCK0_DEBUG_PORT, 0x0000);
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER3, 0x00003667);
 	} else {
-		/* Restore normal values from the phy init table */
+		/* Restore analrmal values from the phy init table */
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER1, 0xE82C0001);
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER2, 0x64B80C1C);
 		rtl8xxxu_write16(priv, REG_CCK0_DEBUG_PORT, 0x8810);
@@ -561,7 +561,7 @@ static void rtl8192fu_config_kfree(struct rtl8xxxu_priv *priv, u8 channel)
 
 	for (rfpath = RF_A; rfpath < priv->rf_paths; rfpath++) {
 		/* power_trim based on 55[19:14] */
-		rtl8xxxu_write_rfreg_mask(priv, rfpath, RF6052_REG_UNKNOWN_55,
+		rtl8xxxu_write_rfreg_mask(priv, rfpath, RF6052_REG_UNKANALWN_55,
 					  BIT(5), 1);
 
 		/* enable 55[14] for 0.5db step */
@@ -633,7 +633,7 @@ static void rtl8192fu_config_channel(struct ieee80211_hw *hw)
 	rtl8xxxu_write8(priv, REG_DATA_SUBCHANNEL, subchannel);
 
 	/* small BW */
-	rtl8xxxu_write32_clear(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT, GENMASK(31, 30));
+	rtl8xxxu_write32_clear(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT, GENMASK(31, 30));
 
 	rtl8xxxu_write32_mask(priv, REG_FPGA0_RF_MODE, FPGA_RF_MODE, ht40);
 	rtl8xxxu_write32_mask(priv, REG_FPGA1_RF_MODE, FPGA_RF_MODE, ht40);
@@ -748,7 +748,7 @@ static int rtl8192fu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 	if (priv->rfe_type != 5 && priv->rfe_type != 1)
 		dev_warn(&priv->udev->dev,
-			 "%s: RFE type %d was not tested. Please send an email to linux-wireless@vger.kernel.org about this.\n",
+			 "%s: RFE type %d was analt tested. Please send an email to linux-wireless@vger.kernel.org about this.\n",
 			 __func__, priv->rfe_type);
 
 	return 0;
@@ -794,18 +794,18 @@ static void rtl8192f_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
 	u32 val32;
 
 	/* Aries's NarrowBand */
-	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT);
+	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT);
 	backup = u32_get_bits(val32, backup_mask);
 
 	u32p_replace_bits(&val32, 0, backup_mask);
-	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT, val32);
+	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT, val32);
 
 	rtl8188f_phy_lc_calibrate(priv);
 
 	/* Aries's NarrowBand */
-	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT);
+	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT);
 	u32p_replace_bits(&val32, backup, backup_mask);
-	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT, val32);
+	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT, val32);
 
 	/* reset OFDM state */
 	rtl8xxxu_write32_clear(priv, REG_FPGA0_RF_MODE, FPGA_RF_MODE_OFDM);
@@ -958,7 +958,7 @@ static int rtl8192fu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 	    ((reg_e94 & 0x03ff0000) != 0x01420000) &&
 	    ((reg_e9c & 0x03ff0000) != 0x00420000)) {
 		result |= 0x01;
-	} else { /* If TX not OK, ignore RX */
+	} else { /* If TX analt OK, iganalre RX */
 		/* PA/PAD controlled by 0x0 */
 		rtl8xxxu_write32_mask(priv, REG_FPGA0_IQK, 0xffffff00, 0);
 
@@ -1292,7 +1292,7 @@ static void rtl8192fu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	u32 i, val32;
 
 	/*
-	 * Note: IQ calibration must be performed after loading
+	 * Analte: IQ calibration must be performed after loading
 	 *       PHY_REG.txt , and radio_a, radio_b.txt
 	 */
 
@@ -1567,7 +1567,7 @@ static void rtl8192fu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 		 * odm_set_bb_reg(dm, R_0x944, BIT(11) | 0x1F, 0x3F);
 		 *
 		 * It clears bit 11 and sets bits 0..4. The mask doesn't cover
-		 * bit 5 so it's not modified. Is that what it's supposed to
+		 * bit 5 so it's analt modified. Is that what it's supposed to
 		 * accomplish?
 		 */
 		val32 = rtl8xxxu_read32(priv, REG_RFE_BUFFER);
@@ -1809,7 +1809,7 @@ static int rtl8192fu_active_to_lps(struct rtl8xxxu_priv *priv)
 
 	retry = 100;
 
-	/* Poll 32 bit wide REG_SCH_TX_CMD for 0 to ensure no TX is pending. */
+	/* Poll 32 bit wide REG_SCH_TX_CMD for 0 to ensure anal TX is pending. */
 	do {
 		val32 = rtl8xxxu_read32(priv, REG_SCH_TX_CMD);
 		if (!val32)
@@ -2088,5 +2088,5 @@ struct rtl8xxxu_fileops rtl8192fu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM_8192F,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8192F,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ_8192F,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8192F,
+	.page_num_analrm = TX_PAGE_NUM_ANALRM_PQ_8192F,
 };

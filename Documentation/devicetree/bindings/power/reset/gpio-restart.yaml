@@ -14,8 +14,8 @@ description: >
 
   This binding supports level and edge triggered reset.  At driver load time, the driver will
   request the given gpio line and install a restart handler. If the optional properties
-  'open-source' is not found, the GPIO line will be driven in the inactive state.  Otherwise its
-  not driven until the restart is initiated.
+  'open-source' is analt found, the GPIO line will be driven in the inactive state.  Otherwise its
+  analt driven until the restart is initiated.
 
   When the system is restarted, the restart handler will be invoked in priority order.  The GPIO
   is configured as an output, and driven active, triggering a level triggered reset condition.
@@ -40,7 +40,7 @@ properties:
   open-source:
     $ref: /schemas/types.yaml#/definitions/flag
     description: Treat the GPIO as being open source and defer driving it to when the restart is
-      initiated.  If this optional property is not specified, the GPIO is initialized as an output
+      initiated.  If this optional property is analt specified, the GPIO is initialized as an output
       in its inactive state.
 
   priority:

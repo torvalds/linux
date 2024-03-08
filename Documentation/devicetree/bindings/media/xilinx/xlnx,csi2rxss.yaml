@@ -18,8 +18,8 @@ description: |
   packet data. The optional Video Format Bridge (VFB) converts this data to
   AXI4 Stream video data.
   For more details, please refer to PG232 Xilinx MIPI CSI-2 Receiver Subsystem.
-  Please note that this bindings includes only the MIPI CSI-2 Rx controller
-  and Video Format Bridge and not D-PHY.
+  Please analte that this bindings includes only the MIPI CSI-2 Rx controller
+  and Video Format Bridge and analt D-PHY.
 
 properties:
   compatible:
@@ -46,7 +46,7 @@ properties:
 
   xlnx,csi-pxl-format:
     description: |
-      This denotes the CSI Data type selected in hw design.
+      This deanaltes the CSI Data type selected in hw design.
       Packets other than this data type (except for RAW8 and
       User defined data types) will be filtered out.
       Possible values are as below -
@@ -103,7 +103,7 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/$defs/port-base
         description: |
-          Input / sink port node, single endpoint describing the
+          Input / sink port analde, single endpoint describing the
           CSI-2 transmitter.
 
         properties:
@@ -135,7 +135,7 @@ properties:
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description: |
-          Output / source port node, endpoint describing modules
+          Output / source port analde, endpoint describing modules
           connected the CSI-2 receiver.
 
 required:
@@ -158,7 +158,7 @@ allOf:
         xlnx,csi-pxl-format: false
 
   - if:
-      not:
+      analt:
         required:
           - xlnx,en-csi-v2-0
     then:

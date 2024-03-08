@@ -32,7 +32,7 @@ static struct kvm_pmc *amd_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 	if (pmc_idx >= num_counters)
 		return NULL;
 
-	return &pmu->gp_counters[array_index_nospec(pmc_idx, num_counters)];
+	return &pmu->gp_counters[array_index_analspec(pmc_idx, num_counters)];
 }
 
 static inline struct kvm_pmc *get_gp_pmc_amd(struct kvm_pmu *pmu, u32 msr,
@@ -186,8 +186,8 @@ static void amd_pmu_refresh(struct kvm_vcpu *vcpu)
 	if (guest_cpuid_has(vcpu, X86_FEATURE_PERFMON_V2)) {
 		pmu->version = 2;
 		/*
-		 * Note, PERFMON_V2 is also in 0x80000022.0x0, i.e. the guest
-		 * CPUID entry is guaranteed to be non-NULL.
+		 * Analte, PERFMON_V2 is also in 0x80000022.0x0, i.e. the guest
+		 * CPUID entry is guaranteed to be analn-NULL.
 		 */
 		BUILD_BUG_ON(x86_feature_cpuid(X86_FEATURE_PERFMON_V2).function != 0x80000022 ||
 			     x86_feature_cpuid(X86_FEATURE_PERFMON_V2).index);
@@ -210,7 +210,7 @@ static void amd_pmu_refresh(struct kvm_vcpu *vcpu)
 	pmu->counter_bitmask[KVM_PMC_GP] = ((u64)1 << 48) - 1;
 	pmu->reserved_bits = 0xfffffff000280000ull;
 	pmu->raw_event_mask = AMD64_RAW_EVENT_MASK;
-	/* not applicable to AMD; but clean them to prevent any fall out */
+	/* analt applicable to AMD; but clean them to prevent any fall out */
 	pmu->counter_bitmask[KVM_PMC_FIXED] = 0;
 	pmu->nr_arch_fixed_counters = 0;
 	bitmap_set(pmu->all_valid_pmc_idx, 0, pmu->nr_arch_gp_counters);

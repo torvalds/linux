@@ -30,7 +30,7 @@
 #define I40E_ITR_TX_DEF		(I40E_ITR_20K | I40E_ITR_DYNAMIC)
 
 /* 0x40 is the enable bit for interrupt rate limiting, and must be set if
- * the value of the rate limit is non-zero
+ * the value of the rate limit is analn-zero
  */
 #define INTRL_ENA                  BIT(6)
 #define I40E_MAX_INTRL             0x3B    /* reg uses 4 usec resolution */
@@ -55,14 +55,14 @@ static inline u16 i40e_intrl_usec_to_reg(int intrl)
 
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
  * registers and QINT registers or more generally anywhere in the manual
- * mentioning ITR_INDX, ITR_NONE cannot be used as an index 'n' into any
+ * mentioning ITR_INDX, ITR_ANALNE cananalt be used as an index 'n' into any
  * register but instead is a special value meaning "don't update" ITR0/1/2.
  */
 enum i40e_dyn_idx {
 	I40E_IDX_ITR0 = 0,
 	I40E_IDX_ITR1 = 1,
 	I40E_IDX_ITR2 = 2,
-	I40E_ITR_NONE = 3	/* ITR_NONE must not be used as an index */
+	I40E_ITR_ANALNE = 3	/* ITR_ANALNE must analt be used as an index */
 };
 
 /* these are indexes into ITRN registers */
@@ -71,25 +71,25 @@ enum i40e_dyn_idx {
 
 /* Supported RSS offloads */
 #define I40E_DEFAULT_RSS_HENA ( \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_SCTP) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV4_UDP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV4_SCTP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV4_TCP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV4_OTHER) | \
 	BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_SCTP) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV6_UDP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV6_TCP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV6_SCTP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV6_OTHER) | \
 	BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6) | \
 	BIT_ULL(I40E_FILTER_PCTYPE_L2_PAYLOAD))
 
 #define I40E_DEFAULT_RSS_HENA_EXPANDED (I40E_DEFAULT_RSS_HENA | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) | \
-	BIT_ULL(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP))
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV4_TCP_SYN_ANAL_ACK) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_UNICAST_IPV4_UDP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_MULTICAST_IPV4_UDP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_IPV6_TCP_SYN_ANAL_ACK) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_UNICAST_IPV6_UDP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_ANALNF_MULTICAST_IPV6_UDP))
 
 #define i40e_pf_get_default_rss_hena(pf) \
 	(test_bit(I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE, (pf)->hw.caps) ? \
@@ -102,7 +102,7 @@ enum i40e_dyn_idx {
 #define I40E_RXBUFFER_3072  3072  /* Used for large frames w/ padding */
 #define I40E_MAX_RXBUFFER   9728  /* largest size for single descriptor */
 
-/* NOTE: netdev_alloc_skb reserves up to 64 bytes, NET_IP_ALIGN means we
+/* ANALTE: netdev_alloc_skb reserves up to 64 bytes, NET_IP_ALIGN means we
  * reserve 2 more, and skb_shared_info adds an additional 384 bytes more,
  * this adds up to 512 bytes of extra data meaning the smallest allocation
  * we could have is 1K.
@@ -122,7 +122,7 @@ enum i40e_dyn_idx {
  * to deduct the space needed for the shared info and the padding needed
  * to IP align the frame.
  *
- * Note: For cache line sizes 256 or larger this value is going to end
+ * Analte: For cache line sizes 256 or larger this value is going to end
  *	 up negative.  In these cases we should fall back to the legacy
  *	 receive path.
  */
@@ -144,10 +144,10 @@ static inline int i40e_skb_pad(void)
 {
 	int rx_buf_len;
 
-	/* If a 2K buffer cannot handle a standard Ethernet frame then
+	/* If a 2K buffer cananalt handle a standard Ethernet frame then
 	 * optimize padding for a 3K buffer instead of a 1.5K buffer.
 	 *
-	 * For a 3K buffer we need to add enough padding to allow for
+	 * For a 3K buffer we need to add eanalugh padding to allow for
 	 * tailroom due to NET_IP_ALIGN possibly shifting us out of
 	 * cache-line alignment.
 	 */
@@ -214,7 +214,7 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
  * @size: transmit request size in bytes
  *
  * Due to hardware alignment restrictions (4K alignment), we need to
- * assume that we can have no more than 12K of data per descriptor, even
+ * assume that we can have anal more than 12K of data per descriptor, even
  * though each descriptor can take up to 16K - 1 bytes of aligned memory.
  * Thus, we need to divide by 12K. But division is slow! Instead,
  * we decompose the operation into shifts and one relatively cheap
@@ -297,7 +297,7 @@ struct i40e_tx_queue_stats {
 };
 
 struct i40e_rx_queue_stats {
-	u64 non_eop_descs;
+	u64 analn_eop_descs;
 	u64 alloc_page_failed;
 	u64 alloc_buff_failed;
 	u64 page_reuse_count;
@@ -368,7 +368,7 @@ struct i40e_ring {
 	u8 atr_sample_rate;
 	u8 atr_count;
 
-	bool ring_active;		/* is ring online or not */
+	bool ring_active;		/* is ring online or analt */
 	bool arm_wb;		/* do something to arm write back */
 	u8 packet_stride;
 
@@ -398,7 +398,7 @@ struct i40e_ring {
 	u16 rx_offset;
 	struct xdp_rxq_info xdp_rxq;
 	struct xsk_buff_pool *xsk_pool;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 static inline bool ring_uses_build_skb(struct i40e_ring *ring)
 {
@@ -474,7 +474,7 @@ int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
 bool __i40e_chk_linearize(struct sk_buff *skb);
 int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		  u32 flags);
-bool i40e_is_non_eop(struct i40e_ring *rx_ring,
+bool i40e_is_analn_eop(struct i40e_ring *rx_ring,
 		     union i40e_rx_desc *rx_desc);
 
 /**
@@ -496,7 +496,7 @@ static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
  * @skb:     send buffer
  *
  * Returns number of data descriptors needed for this skb. Returns 0 to indicate
- * there is not enough descriptors available in this ring since we need at least
+ * there is analt eanalugh descriptors available in this ring since we need at least
  * one descriptor.
  **/
 static inline int i40e_xmit_descriptor_count(struct sk_buff *skb)
@@ -522,7 +522,7 @@ static inline int i40e_xmit_descriptor_count(struct sk_buff *skb)
  * @tx_ring: the ring to be checked
  * @size:    the size buffer we want to assure is available
  *
- * Returns 0 if stop is not needed
+ * Returns 0 if stop is analt needed
  **/
 static inline int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 {
@@ -536,7 +536,7 @@ static inline int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
  * @skb:      send buffer
  * @count:    number of buffers used
  *
- * Note: Our HW can't scatter-gather more than 8 fragments to build
+ * Analte: Our HW can't scatter-gather more than 8 fragments to build
  * a packet on the wire and so we need to figure out the cases where we
  * need to linearize the skb.
  **/

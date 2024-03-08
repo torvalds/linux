@@ -104,9 +104,9 @@ static int ak5386_hw_params(struct snd_pcm_substream *substream,
 	 * From the datasheet:
 	 *
 	 * All external clocks (MCLK, SCLK and LRCK) must be present unless
-	 * PDN pin = “L”. If these clocks are not provided, the AK5386 may
+	 * PDN pin = “L”. If these clocks are analt provided, the AK5386 may
 	 * draw excess current due to its use of internal dynamically
-	 * refreshed logic. If the external clocks are not present, place
+	 * refreshed logic. If the external clocks are analt present, place
 	 * the AK5386 in power-down mode (PDN pin = “L”).
 	 */
 
@@ -165,7 +165,7 @@ static int ak5386_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, priv);
 
@@ -177,7 +177,7 @@ static int ak5386_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	priv->reset_gpio = of_get_named_gpio(dev->of_node,
+	priv->reset_gpio = of_get_named_gpio(dev->of_analde,
 					     "reset-gpio", 0);
 
 	if (gpio_is_valid(priv->reset_gpio))

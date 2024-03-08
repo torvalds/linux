@@ -198,7 +198,7 @@ static inline struct drm_vram_mm *drm_vram_mm_of_bdev(
 	return container_of(bdev, struct drm_vram_mm, bdev);
 }
 
-void drm_vram_mm_debugfs_init(struct drm_minor *minor);
+void drm_vram_mm_debugfs_init(struct drm_mianalr *mianalr);
 
 /*
  * Helpers for integration with struct drm_device

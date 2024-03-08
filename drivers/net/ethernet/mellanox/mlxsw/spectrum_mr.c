@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/mutex.h>
 #include <linux/rhashtable.h>
@@ -44,8 +44,8 @@ struct mlxsw_sp_mr_vif {
 };
 
 struct mlxsw_sp_mr_route_vif_entry {
-	struct list_head vif_node;
-	struct list_head route_node;
+	struct list_head vif_analde;
+	struct list_head route_analde;
 	struct mlxsw_sp_mr_vif *mr_vif;
 	struct mlxsw_sp_mr_route *mr_route;
 };
@@ -62,7 +62,7 @@ struct mlxsw_sp_mr_table_ops {
 };
 
 struct mlxsw_sp_mr_table {
-	struct list_head node;
+	struct list_head analde;
 	enum mlxsw_sp_l3proto proto;
 	struct mlxsw_sp *mlxsw_sp;
 	u32 vr_id;
@@ -76,8 +76,8 @@ struct mlxsw_sp_mr_table {
 };
 
 struct mlxsw_sp_mr_route {
-	struct list_head node;
-	struct rhash_head ht_node;
+	struct list_head analde;
+	struct rhash_head ht_analde;
 	struct mlxsw_sp_mr_route_key key;
 	enum mlxsw_sp_mr_route_action route_action;
 	u16 min_mtu;
@@ -93,7 +93,7 @@ struct mlxsw_sp_mr_route {
 static const struct rhashtable_params mlxsw_sp_mr_route_ht_params = {
 	.key_len = sizeof(struct mlxsw_sp_mr_route_key),
 	.key_offset = offsetof(struct mlxsw_sp_mr_route, key),
-	.head_offset = offsetof(struct mlxsw_sp_mr_route, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_mr_route, ht_analde),
 	.automatic_shrinking = true,
 };
 
@@ -122,7 +122,7 @@ mlxsw_sp_mr_route_valid_evifs_num(const struct mlxsw_sp_mr_route *mr_route)
 	int valid_evifs;
 
 	valid_evifs = 0;
-	list_for_each_entry(rve, &mr_route->evif_list, route_node)
+	list_for_each_entry(rve, &mr_route->evif_list, route_analde)
 		if (mlxsw_sp_mr_vif_valid(rve->mr_vif))
 			valid_evifs++;
 	return valid_evifs;
@@ -133,26 +133,26 @@ mlxsw_sp_mr_route_action(const struct mlxsw_sp_mr_route *mr_route)
 {
 	struct mlxsw_sp_mr_route_vif_entry *rve;
 
-	/* If the ingress port is not regular and resolved, trap the route */
+	/* If the ingress port is analt regular and resolved, trap the route */
 	if (!mlxsw_sp_mr_vif_valid(mr_route->ivif.mr_vif))
 		return MLXSW_SP_MR_ROUTE_ACTION_TRAP;
 
-	/* The kernel does not match a (*,G) route that the ingress interface is
-	 * not one of the egress interfaces, so trap these kind of routes.
+	/* The kernel does analt match a (*,G) route that the ingress interface is
+	 * analt one of the egress interfaces, so trap these kind of routes.
 	 */
 	if (mr_route->mr_table->ops->is_route_starg(mr_route->mr_table,
 						    mr_route) &&
 	    !mlxsw_sp_mr_route_ivif_in_evifs(mr_route))
 		return MLXSW_SP_MR_ROUTE_ACTION_TRAP;
 
-	/* If the route has no valid eVIFs, trap it. */
+	/* If the route has anal valid eVIFs, trap it. */
 	if (!mlxsw_sp_mr_route_valid_evifs_num(mr_route))
 		return MLXSW_SP_MR_ROUTE_ACTION_TRAP;
 
-	/* If one of the eVIFs has no RIF, trap-and-forward the route as there
+	/* If one of the eVIFs has anal RIF, trap-and-forward the route as there
 	 * is some more routing to do in software too.
 	 */
-	list_for_each_entry(rve, &mr_route->evif_list, route_node)
+	list_for_each_entry(rve, &mr_route->evif_list, route_analde)
 		if (mlxsw_sp_mr_vif_exists(rve->mr_vif) && !rve->mr_vif->rif)
 			return MLXSW_SP_MR_ROUTE_ACTION_TRAP_AND_FORWARD;
 
@@ -174,19 +174,19 @@ static int mlxsw_sp_mr_route_evif_link(struct mlxsw_sp_mr_route *mr_route,
 
 	rve = kzalloc(sizeof(*rve), GFP_KERNEL);
 	if (!rve)
-		return -ENOMEM;
+		return -EANALMEM;
 	rve->mr_route = mr_route;
 	rve->mr_vif = mr_vif;
-	list_add_tail(&rve->route_node, &mr_route->evif_list);
-	list_add_tail(&rve->vif_node, &mr_vif->route_evif_list);
+	list_add_tail(&rve->route_analde, &mr_route->evif_list);
+	list_add_tail(&rve->vif_analde, &mr_vif->route_evif_list);
 	return 0;
 }
 
 static void
 mlxsw_sp_mr_route_evif_unlink(struct mlxsw_sp_mr_route_vif_entry *rve)
 {
-	list_del(&rve->route_node);
-	list_del(&rve->vif_node);
+	list_del(&rve->route_analde);
+	list_del(&rve->vif_analde);
 	kfree(rve);
 }
 
@@ -195,12 +195,12 @@ static void mlxsw_sp_mr_route_ivif_link(struct mlxsw_sp_mr_route *mr_route,
 {
 	mr_route->ivif.mr_route = mr_route;
 	mr_route->ivif.mr_vif = mr_vif;
-	list_add_tail(&mr_route->ivif.vif_node, &mr_vif->route_ivif_list);
+	list_add_tail(&mr_route->ivif.vif_analde, &mr_vif->route_ivif_list);
 }
 
 static void mlxsw_sp_mr_route_ivif_unlink(struct mlxsw_sp_mr_route *mr_route)
 {
-	list_del(&mr_route->ivif.vif_node);
+	list_del(&mr_route->ivif.vif_analde);
 }
 
 static int
@@ -216,9 +216,9 @@ mlxsw_sp_mr_route_info_create(struct mlxsw_sp_mr_table *mr_table,
 	erif_indices = kmalloc_array(MAXVIFS, sizeof(*erif_indices),
 				     GFP_KERNEL);
 	if (!erif_indices)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	list_for_each_entry(rve, &mr_route->evif_list, route_node) {
+	list_for_each_entry(rve, &mr_route->evif_list, route_analde) {
 		if (mlxsw_sp_mr_vif_valid(rve->mr_vif)) {
 			u16 rifi = mlxsw_sp_rif_index(rve->mr_vif->rif);
 
@@ -264,7 +264,7 @@ static int mlxsw_sp_mr_route_write(struct mlxsw_sp_mr_table *mr_table,
 		mr_route->route_priv = kzalloc(mr->mr_ops->route_priv_size,
 					       GFP_KERNEL);
 		if (!mr_route->route_priv) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -307,7 +307,7 @@ mlxsw_sp_mr_route_create(struct mlxsw_sp_mr_table *mr_table,
 	/* Allocate and init a new route and fill it with parameters */
 	mr_route = kzalloc(sizeof(*mr_route), GFP_KERNEL);
 	if (!mr_route)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	INIT_LIST_HEAD(&mr_route->evif_list);
 
 	/* Find min_mtu and link iVIF and eVIFs */
@@ -335,7 +335,7 @@ mlxsw_sp_mr_route_create(struct mlxsw_sp_mr_table *mr_table,
 	return mr_route;
 err:
 	mr_cache_put(mfc);
-	list_for_each_entry_safe(rve, tmp, &mr_route->evif_list, route_node)
+	list_for_each_entry_safe(rve, tmp, &mr_route->evif_list, route_analde)
 		mlxsw_sp_mr_route_evif_unlink(rve);
 	kfree(mr_route);
 	return ERR_PTR(err);
@@ -348,7 +348,7 @@ static void mlxsw_sp_mr_route_destroy(struct mlxsw_sp_mr_table *mr_table,
 
 	mlxsw_sp_mr_route_ivif_unlink(mr_route);
 	mr_cache_put(mr_route->mfc);
-	list_for_each_entry_safe(rve, tmp, &mr_route->evif_list, route_node)
+	list_for_each_entry_safe(rve, tmp, &mr_route->evif_list, route_analde)
 		mlxsw_sp_mr_route_evif_unlink(rve);
 	kfree(mr_route);
 }
@@ -376,9 +376,9 @@ static void __mlxsw_sp_mr_route_del(struct mlxsw_sp_mr_table *mr_table,
 	WARN_ON_ONCE(!mutex_is_locked(&mr_table->route_list_lock));
 
 	mlxsw_sp_mr_mfc_offload_set(mr_route, false);
-	rhashtable_remove_fast(&mr_table->route_ht, &mr_route->ht_node,
+	rhashtable_remove_fast(&mr_table->route_ht, &mr_route->ht_analde,
 			       mlxsw_sp_mr_route_ht_params);
-	list_del(&mr_route->node);
+	list_del(&mr_route->analde);
 	mlxsw_sp_mr_route_erase(mr_table, mr_route);
 	mlxsw_sp_mr_route_destroy(mr_table, mr_route);
 }
@@ -406,16 +406,16 @@ int mlxsw_sp_mr_route_add(struct mlxsw_sp_mr_table *mr_table,
 		/* On replace case, make the route point to the new route_priv.
 		 */
 		if (WARN_ON(!mr_orig_route)) {
-			err = -ENOENT;
-			goto err_no_orig_route;
+			err = -EANALENT;
+			goto err_anal_orig_route;
 		}
 		mr_route->route_priv = mr_orig_route->route_priv;
 	} else if (mr_orig_route) {
-		/* On non replace case, if another route with the same key was
+		/* On analn replace case, if aanalther route with the same key was
 		 * found, abort, as duplicate routes are used for proxy routes.
 		 */
 		dev_warn(mr_table->mlxsw_sp->bus_info->dev,
-			 "Offloading proxy routes is not supported.\n");
+			 "Offloading proxy routes is analt supported.\n");
 		err = -EINVAL;
 		goto err_duplicate_route;
 	}
@@ -427,10 +427,10 @@ int mlxsw_sp_mr_route_add(struct mlxsw_sp_mr_table *mr_table,
 
 	/* Put it in the table data-structures */
 	mutex_lock(&mr_table->route_list_lock);
-	list_add_tail(&mr_route->node, &mr_table->route_list);
+	list_add_tail(&mr_route->analde, &mr_table->route_list);
 	mutex_unlock(&mr_table->route_list_lock);
 	err = rhashtable_insert_fast(&mr_table->route_ht,
-				     &mr_route->ht_node,
+				     &mr_route->ht_analde,
 				     mlxsw_sp_mr_route_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -438,9 +438,9 @@ int mlxsw_sp_mr_route_add(struct mlxsw_sp_mr_table *mr_table,
 	/* Destroy the original route */
 	if (replace) {
 		rhashtable_remove_fast(&mr_table->route_ht,
-				       &mr_orig_route->ht_node,
+				       &mr_orig_route->ht_analde,
 				       mlxsw_sp_mr_route_ht_params);
-		list_del(&mr_orig_route->node);
+		list_del(&mr_orig_route->analde);
 		mlxsw_sp_mr_route_destroy(mr_table, mr_orig_route);
 	}
 
@@ -449,11 +449,11 @@ int mlxsw_sp_mr_route_add(struct mlxsw_sp_mr_table *mr_table,
 
 err_rhashtable_insert:
 	mutex_lock(&mr_table->route_list_lock);
-	list_del(&mr_route->node);
+	list_del(&mr_route->analde);
 	mutex_unlock(&mr_table->route_list_lock);
 	mlxsw_sp_mr_route_erase(mr_table, mr_route);
 err_mr_route_write:
-err_no_orig_route:
+err_anal_orig_route:
 err_duplicate_route:
 	mlxsw_sp_mr_route_destroy(mr_table, mr_route);
 	return err;
@@ -501,7 +501,7 @@ mlxsw_sp_mr_route_ivif_resolve(struct mlxsw_sp_mr_table *mr_table,
 					      rve->mr_route->route_priv,
 					      route_action);
 	if (err)
-		/* No need to rollback here because the iRIF change only takes
+		/* Anal need to rollback here because the iRIF change only takes
 		 * place after the action has been updated.
 		 */
 		return err;
@@ -593,7 +593,7 @@ mlxsw_sp_mr_route_evif_unresolve(struct mlxsw_sp_mr_table *mr_table,
 	struct mlxsw_sp_mr *mr = mlxsw_sp->mr;
 	u16 rifi;
 
-	/* If the unresolved RIF was not valid, no need to delete it */
+	/* If the unresolved RIF was analt valid, anal need to delete it */
 	if (!mlxsw_sp_mr_vif_valid(rve->mr_vif))
 		return;
 
@@ -633,14 +633,14 @@ static int mlxsw_sp_mr_vif_resolve(struct mlxsw_sp_mr_table *mr_table,
 	mr_vif->vif_flags = vif_flags;
 
 	/* Update all routes where this VIF is used as an unresolved iRIF */
-	list_for_each_entry(irve, &mr_vif->route_ivif_list, vif_node) {
+	list_for_each_entry(irve, &mr_vif->route_ivif_list, vif_analde) {
 		err = mlxsw_sp_mr_route_ivif_resolve(mr_table, irve);
 		if (err)
 			goto err_irif_unresolve;
 	}
 
 	/* Update all routes where this VIF is used as an unresolved eRIF */
-	list_for_each_entry(erve, &mr_vif->route_evif_list, vif_node) {
+	list_for_each_entry(erve, &mr_vif->route_evif_list, vif_analde) {
 		err = mlxsw_sp_mr_route_evif_resolve(mr_table, erve);
 		if (err)
 			goto err_erif_unresolve;
@@ -649,11 +649,11 @@ static int mlxsw_sp_mr_vif_resolve(struct mlxsw_sp_mr_table *mr_table,
 
 err_erif_unresolve:
 	list_for_each_entry_continue_reverse(erve, &mr_vif->route_evif_list,
-					     vif_node)
+					     vif_analde)
 		mlxsw_sp_mr_route_evif_unresolve(mr_table, erve);
 err_irif_unresolve:
 	list_for_each_entry_continue_reverse(irve, &mr_vif->route_ivif_list,
-					     vif_node)
+					     vif_analde)
 		mlxsw_sp_mr_route_ivif_unresolve(mr_table, irve);
 	mr_vif->rif = NULL;
 	return err;
@@ -666,11 +666,11 @@ static void mlxsw_sp_mr_vif_unresolve(struct mlxsw_sp_mr_table *mr_table,
 	struct mlxsw_sp_mr_route_vif_entry *rve;
 
 	/* Update all routes where this VIF is used as an unresolved eRIF */
-	list_for_each_entry(rve, &mr_vif->route_evif_list, vif_node)
+	list_for_each_entry(rve, &mr_vif->route_evif_list, vif_analde)
 		mlxsw_sp_mr_route_evif_unresolve(mr_table, rve);
 
 	/* Update all routes where this VIF is used as an unresolved iRIF */
-	list_for_each_entry(rve, &mr_vif->route_ivif_list, vif_node)
+	list_for_each_entry(rve, &mr_vif->route_ivif_list, vif_analde)
 		mlxsw_sp_mr_route_ivif_unresolve(mr_table, rve);
 
 	/* Update the VIF */
@@ -760,7 +760,7 @@ void mlxsw_sp_mr_rif_mtu_update(struct mlxsw_sp_mr_table *mr_table,
 		return;
 
 	/* Update all the routes that uses that VIF as eVIF */
-	list_for_each_entry(rve, &mr_vif->route_evif_list, vif_node) {
+	list_for_each_entry(rve, &mr_vif->route_evif_list, vif_analde) {
 		if (mtu < rve->mr_route->min_mtu) {
 			rve->mr_route->min_mtu = mtu;
 			mr->mr_ops->route_min_mtu_update(mlxsw_sp,
@@ -783,7 +783,7 @@ mlxsw_sp_mr_route4_validate(const struct mlxsw_sp_mr_table *mr_table,
 	if (mfc->mfc_origin == htonl(INADDR_ANY) &&
 	    mfc->mfc_mcastgrp == htonl(INADDR_ANY)) {
 		dev_warn(mr_table->mlxsw_sp->bus_info->dev,
-			 "Offloading proxy routes is not supported.\n");
+			 "Offloading proxy routes is analt supported.\n");
 		return false;
 	}
 	return true;
@@ -830,7 +830,7 @@ mlxsw_sp_mr_route6_validate(const struct mlxsw_sp_mr_table *mr_table,
 	if (ipv6_addr_any(&mfc->mf6c_origin) &&
 	    ipv6_addr_any(&mfc->mf6c_mcastgrp)) {
 		dev_warn(mr_table->mlxsw_sp->bus_info->dev,
-			 "Offloading proxy routes is not supported.\n");
+			 "Offloading proxy routes is analt supported.\n");
 		return false;
 	}
 	return true;
@@ -911,7 +911,7 @@ struct mlxsw_sp_mr_table *mlxsw_sp_mr_table_create(struct mlxsw_sp *mlxsw_sp,
 	mr_table = kzalloc(sizeof(*mr_table) + mr->mr_ops->route_priv_size,
 			   GFP_KERNEL);
 	if (!mr_table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr_table->vr_id = vr_id;
 	mr_table->mlxsw_sp = mlxsw_sp;
@@ -937,7 +937,7 @@ struct mlxsw_sp_mr_table *mlxsw_sp_mr_table_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_ops_route_create;
 	mutex_lock(&mr->table_list_lock);
-	list_add_tail(&mr_table->node, &mr->table_list);
+	list_add_tail(&mr_table->analde, &mr->table_list);
 	mutex_unlock(&mr->table_list_lock);
 	return mr_table;
 
@@ -956,7 +956,7 @@ void mlxsw_sp_mr_table_destroy(struct mlxsw_sp_mr_table *mr_table)
 
 	WARN_ON(!mlxsw_sp_mr_table_empty(mr_table));
 	mutex_lock(&mr->table_list_lock);
-	list_del(&mr_table->node);
+	list_del(&mr_table->analde);
 	mutex_unlock(&mr->table_list_lock);
 	mr->mr_ops->route_destroy(mlxsw_sp, mr->priv,
 				  &mr_table->catchall_route_priv);
@@ -971,7 +971,7 @@ void mlxsw_sp_mr_table_flush(struct mlxsw_sp_mr_table *mr_table)
 	int i;
 
 	mutex_lock(&mr_table->route_list_lock);
-	list_for_each_entry_safe(mr_route, tmp, &mr_table->route_list, node)
+	list_for_each_entry_safe(mr_route, tmp, &mr_table->route_list, analde)
 		__mlxsw_sp_mr_route_del(mr_table, mr_route);
 	mutex_unlock(&mr_table->route_list_lock);
 
@@ -1018,9 +1018,9 @@ static void mlxsw_sp_mr_stats_update(struct work_struct *work)
 	unsigned long interval;
 
 	mutex_lock(&mr->table_list_lock);
-	list_for_each_entry(mr_table, &mr->table_list, node) {
+	list_for_each_entry(mr_table, &mr->table_list, analde) {
 		mutex_lock(&mr_table->route_list_lock);
-		list_for_each_entry(mr_route, &mr_table->route_list, node)
+		list_for_each_entry(mr_route, &mr_table->route_list, analde)
 			mlxsw_sp_mr_route_stats_update(mr_table->mlxsw_sp,
 						       mr_route);
 		mutex_unlock(&mr_table->route_list_lock);
@@ -1040,7 +1040,7 @@ int mlxsw_sp_mr_init(struct mlxsw_sp *mlxsw_sp,
 
 	mr = kzalloc(sizeof(*mr) + mr_ops->priv_size, GFP_KERNEL);
 	if (!mr)
-		return -ENOMEM;
+		return -EANALMEM;
 	mr->mr_ops = mr_ops;
 	mlxsw_sp->mr = mr;
 	INIT_LIST_HEAD(&mr->table_list);

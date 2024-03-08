@@ -10,7 +10,7 @@
 
 / {
 	model = "DimOnOff Gateway EVK board";
-	compatible = "dimonoff,gateway-evk", "variscite,var-som-mx8mn",
+	compatible = "dimoanalff,gateway-evk", "variscite,var-som-mx8mn",
 		     "fsl,imx8mn";
 
 	/*
@@ -52,14 +52,14 @@
 	};
 };
 
-/* Disable Asynchronous Sample Rate Converter (audio) */
+/* Disable Asynchroanalus Sample Rate Converter (audio) */
 &easrc {
 	status = "disabled";
 };
 
 &ecspi1 {
 	/* Resistive touch controller */
-	/delete-node/ touchscreen@0;
+	/delete-analde/ touchscreen@0;
 };
 
 &gpu {

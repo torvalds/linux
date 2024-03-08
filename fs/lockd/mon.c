@@ -33,7 +33,7 @@ enum {
 	NSMPROC_UNMON,
 	NSMPROC_UNMON_ALL,
 	NSMPROC_SIMU_CRASH,
-	NSMPROC_NOTIFY,
+	NSMPROC_ANALTIFY,
 };
 
 struct nsm_args {
@@ -43,7 +43,7 @@ struct nsm_args {
 	u32			proc;
 
 	char			*mon_name;
-	const char		*nodename;
+	const char		*analdename;
 };
 
 struct nsm_res {
@@ -65,7 +65,7 @@ static inline struct sockaddr *nsm_addr(const struct nsm_handle *nsm)
 	return (struct sockaddr *)&nsm->sm_addr;
 }
 
-static struct rpc_clnt *nsm_create(struct net *net, const char *nodename)
+static struct rpc_clnt *nsm_create(struct net *net, const char *analdename)
 {
 	struct sockaddr_in sin = {
 		.sin_family		= AF_INET,
@@ -77,11 +77,11 @@ static struct rpc_clnt *nsm_create(struct net *net, const char *nodename)
 		.address		= (struct sockaddr *)&sin,
 		.addrsize		= sizeof(sin),
 		.servername		= "rpc.statd",
-		.nodename		= nodename,
+		.analdename		= analdename,
 		.program		= &nsm_program,
 		.version		= NSM_VERSION,
 		.authflavor		= RPC_AUTH_NULL,
-		.flags			= RPC_CLNT_CREATE_NOPING,
+		.flags			= RPC_CLNT_CREATE_ANALPING,
 		.cred			= current_cred(),
 	};
 
@@ -97,9 +97,9 @@ static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
 		.priv		= &nsm->sm_priv,
 		.prog		= NLM_PROGRAM,
 		.vers		= 3,
-		.proc		= NLMPROC_NSM_NOTIFY,
+		.proc		= NLMPROC_NSM_ANALTIFY,
 		.mon_name	= nsm->sm_mon_name,
-		.nodename	= host->nodename,
+		.analdename	= host->analdename,
 	};
 	struct rpc_message msg = {
 		.rpc_argp	= &args,
@@ -108,7 +108,7 @@ static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
 
 	memset(res, 0, sizeof(*res));
 
-	clnt = nsm_create(host->net, host->nodename);
+	clnt = nsm_create(host->net, host->analdename);
 	if (IS_ERR(clnt)) {
 		dprintk("lockd: failed to create NSM upcall transport, "
 			"status=%ld, net=%x\n", PTR_ERR(clnt),
@@ -135,15 +135,15 @@ static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
 }
 
 /**
- * nsm_monitor - Notify a peer in case we reboot
- * @host: pointer to nlm_host of peer to notify
+ * nsm_monitor - Analtify a peer in case we reboot
+ * @host: pointer to nlm_host of peer to analtify
  *
- * If this peer is not already monitored, this function sends an
+ * If this peer is analt already monitored, this function sends an
  * upcall to the local rpc.statd to record the name/address of
- * the peer to notify in case we reboot.
+ * the peer to analtify in case we reboot.
  *
  * Returns zero if the peer is monitored by the local rpc.statd;
- * otherwise a negative errno value is returned.
+ * otherwise a negative erranal value is returned.
  */
 int nsm_monitor(const struct nlm_host *host)
 {
@@ -166,7 +166,7 @@ int nsm_monitor(const struct nlm_host *host)
 	if (unlikely(res.status != 0))
 		status = -EIO;
 	if (unlikely(status < 0)) {
-		pr_notice_ratelimited("lockd: cannot monitor %s\n", nsm->sm_name);
+		pr_analtice_ratelimited("lockd: cananalt monitor %s\n", nsm->sm_name);
 		return status;
 	}
 
@@ -179,11 +179,11 @@ int nsm_monitor(const struct nlm_host *host)
 }
 
 /**
- * nsm_unmonitor - Unregister peer notification
+ * nsm_unmonitor - Unregister peer analtification
  * @host: pointer to nlm_host of peer to stop monitoring
  *
  * If this peer is monitored, this function sends an upcall to
- * tell the local rpc.statd not to send this peer a notification
+ * tell the local rpc.statd analt to send this peer a analtification
  * when we reboot.
  */
 void nsm_unmonitor(const struct nlm_host *host)
@@ -200,7 +200,7 @@ void nsm_unmonitor(const struct nlm_host *host)
 		if (res.status != 0)
 			status = -EIO;
 		if (status < 0)
-			printk(KERN_NOTICE "lockd: cannot unmonitor %s\n",
+			printk(KERN_ANALTICE "lockd: cananalt unmonitor %s\n",
 					nsm->sm_name);
 		else
 			nsm->sm_monitored = 0;
@@ -245,17 +245,17 @@ static struct nsm_handle *nsm_lookup_priv(const struct list_head *nsm_handles,
 /*
  * Construct a unique cookie to match this nsm_handle to this monitored
  * host.  It is passed to the local rpc.statd via NSMPROC_MON, and
- * returned via NLMPROC_SM_NOTIFY, in the "priv" field of these
+ * returned via NLMPROC_SM_ANALTIFY, in the "priv" field of these
  * requests.
  *
  * The NSM protocol requires that these cookies be unique while the
  * system is running.  We prefer a stronger requirement of making them
  * unique across reboots.  If user space bugs cause a stale cookie to
  * be sent to the kernel, it could cause the wrong host to lose its
- * lock state if cookies were not unique across reboots.
+ * lock state if cookies were analt unique across reboots.
  *
  * The cookies are exposed only to local user space via loopback.  They
- * do not appear on the physical network.  If we want greater security
+ * do analt appear on the physical network.  If we want greater security
  * for some reason, nsm_init_private() could perform a one-way hash to
  * obscure the contents of the cookie.
  */
@@ -311,7 +311,7 @@ static struct nsm_handle *nsm_create_handle(const struct sockaddr *sap,
  *
  * Returns a cached nsm_handle after bumping its ref count, or
  * returns a fresh nsm_handle if a handle that matches @sap and/or
- * @hostname cannot be found in the handle cache.  Returns NULL if
+ * @hostname cananalt be found in the handle cache.  Returns NULL if
  * an error occurs.
  */
 struct nsm_handle *nsm_get_handle(const struct net *net,
@@ -368,9 +368,9 @@ retry:
 }
 
 /**
- * nsm_reboot_lookup - match NLMPROC_SM_NOTIFY arguments to an nsm_handle
+ * nsm_reboot_lookup - match NLMPROC_SM_ANALTIFY arguments to an nsm_handle
  * @net:  network namespace
- * @info: pointer to NLMPROC_SM_NOTIFY arguments
+ * @info: pointer to NLMPROC_SM_ANALTIFY arguments
  *
  * Returns a matching nsm_handle if found in the nsm cache. The returned
  * nsm_handle's reference count is bumped. Otherwise returns NULL if some
@@ -443,15 +443,15 @@ static void encode_mon_name(struct xdr_stream *xdr, const struct nsm_args *argp)
 
 /*
  * The "my_id" argument specifies the hostname and RPC procedure
- * to be called when the status manager receives notification
- * (via the NLMPROC_SM_NOTIFY call) that the state of host "mon_name"
+ * to be called when the status manager receives analtification
+ * (via the NLMPROC_SM_ANALTIFY call) that the state of host "mon_name"
  * has changed.
  */
 static void encode_my_id(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
 	__be32 *p;
 
-	encode_nsm_string(xdr, argp->nodename);
+	encode_nsm_string(xdr, argp->analdename);
 	p = xdr_reserve_space(xdr, 4 + 4 + 4);
 	*p++ = cpu_to_be32(argp->prog);
 	*p++ = cpu_to_be32(argp->vers);
@@ -459,7 +459,7 @@ static void encode_my_id(struct xdr_stream *xdr, const struct nsm_args *argp)
 }
 
 /*
- * The "mon_id" argument specifies the non-private arguments
+ * The "mon_id" argument specifies the analn-private arguments
  * of an NSMPROC_MON or NSMPROC_UNMON call.
  */
 static void encode_mon_id(struct xdr_stream *xdr, const struct nsm_args *argp)
@@ -471,7 +471,7 @@ static void encode_mon_id(struct xdr_stream *xdr, const struct nsm_args *argp)
 /*
  * The "priv" argument may contain private information required
  * by the NSMPROC_MON call. This information will be supplied in the
- * NLMPROC_SM_NOTIFY call.
+ * NLMPROC_SM_ANALTIFY call.
  */
 static void encode_priv(struct xdr_stream *xdr, const struct nsm_args *argp)
 {

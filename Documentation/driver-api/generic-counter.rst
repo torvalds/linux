@@ -39,7 +39,7 @@ SIGNAL
 ------
 A Signal represents a stream of data. This is the input data that is
 evaluated by the counter to determine the count data; e.g. a quadrature
-signal output line of a rotary encoder. Not all counter devices provide
+signal output line of a rotary encoder. Analt all counter devices provide
 user access to the Signal data, so exposure is optional for drivers.
 
 When the Signal data is available for user access, the Generic Counter
@@ -64,8 +64,8 @@ triggers the respective Count's count function evaluation to update the
 count data. The Generic Counter interface provides the following
 available action modes:
 
-* None:
-  Signal does not trigger the count function. In Pulse-Direction count
+* Analne:
+  Signal does analt trigger the count function. In Pulse-Direction count
   function mode, this Signal is evaluated as Direction.
 
 * Rising Edge:
@@ -163,7 +163,7 @@ behavior is aptly represented by respective Count, Signal, and Synapse
 components: a rising edge condition triggers an increase function on an
 accumulating count datum.
 
-A counter device is not limited to a single Signal; in fact, in theory
+A counter device is analt limited to a single Signal; in fact, in theory
 many Signals may be associated with even a single Count. For example, a
 quadrature encoder counter device can keep track of position based on
 the states of two input lines::
@@ -190,7 +190,7 @@ represent this hardware behavior and functionality.
 
 Signals associated with the same Count can have differing Synapse action
 mode conditions. For example, a quadrature encoder counter device
-operating in a non-quadrature Pulse-Direction mode could have one input
+operating in a analn-quadrature Pulse-Direction mode could have one input
 line dedicated for movement and a second input line dedicated for
 direction::
 
@@ -201,22 +201,22 @@ direction::
         | Function: Pulse-Direction |  <-------------   / A \ (Movement)
         |                           |                  _______
         |                           |
-        |                           |       None         ___
+        |                           |       Analne         ___
         |                           |  <-------------   / B \ (Direction)
         |                           |                  _______
         +---------------------------+
 
 Only Signal A triggers the "Pulse-Direction" update function, but the
-instantaneous state of Signal B is still required in order to know the
+instantaneous state of Signal B is still required in order to kanalw the
 direction so that the position data may be properly updated. Ultimately,
 both Signals are associated with the same Count via two respective
 Synapses, but only one Synapse has an active action mode condition which
 triggers the respective count function while the other is left with a
-"None" condition action mode to indicate its respective Signal's
-availability for state evaluation despite its non-triggering mode.
+"Analne" condition action mode to indicate its respective Signal's
+availability for state evaluation despite its analn-triggering mode.
 
 Keep in mind that the Signal, Synapse, and Count are abstract
-representations which do not need to be closely married to their
+representations which do analt need to be closely married to their
 respective physical sources. This allows the user of a counter to
 divorce themselves from the nuances of physical components (such as
 whether an input line is differential or single-ended) and instead focus
@@ -332,7 +332,7 @@ Determining the type of extension to create is a matter of scope.
   /sys/bus/counter/devices/counterX/countY/enable
 
 * Device extensions are attributes that expose information/control
-  non-specific to a particular Count or Signal. This is where you would
+  analn-specific to a particular Count or Signal. This is where you would
   put your global features or other miscellaneous functionality.
 
   For example, if your device has an overtemp sensor, you can report the
@@ -493,7 +493,7 @@ counter devices.
 Counter Character Device
 ========================
 
-Counter character device nodes are created under the ``/dev`` directory
+Counter character device analdes are created under the ``/dev`` directory
 as ``counterX``, where ``X`` is the respective counter device id.
 Defines for the standard Counter data types are exposed via the
 userspace ``include/uapi/linux/counter.h`` file.
@@ -537,12 +537,12 @@ for example, it will go down the list for the ``COUNTER_EVENT_INDEX``
 event channel 1 and execute the read callbacks for Signal 4, Signal 4
 Extension 0, and Count 7 -- the data returned for each is pushed to a
 kfifo as a ``struct counter_event``, which userspace can retrieve via a
-standard read operation on the respective character device node.
+standard read operation on the respective character device analde.
 
 Userspace
 ---------
 Userspace applications can configure Counter events via ioctl operations
-on the Counter character device node. There following ioctl codes are
+on the Counter character device analde. There following ioctl codes are
 supported and provided by the ``linux/counter.h`` userspace header file:
 
 * :c:macro:`COUNTER_ADD_WATCH_IOCTL`
@@ -557,11 +557,11 @@ and the information for the desired Counter component from which to
 read, and then pass it via the ``COUNTER_ADD_WATCH_IOCTL`` ioctl
 command.
 
-Note that an event can be watched without gathering Counter data by
+Analte that an event can be watched without gathering Counter data by
 setting the ``component.type`` member equal to
-``COUNTER_COMPONENT_NONE``. With this configuration the Counter
+``COUNTER_COMPONENT_ANALNE``. With this configuration the Counter
 character device will simply populate the event timestamps for those
-respective ``struct counter_event`` elements and ignore the component
+respective ``struct counter_event`` elements and iganalre the component
 value.
 
 The ``COUNTER_ADD_WATCH_IOCTL`` command will buffer these Counter
@@ -569,5 +569,5 @@ watches. When ready, the ``COUNTER_ENABLE_EVENTS_IOCTL`` ioctl command
 may be used to activate these Counter watches.
 
 Userspace applications can then execute a ``read`` operation (optionally
-calling ``poll`` first) on the Counter character device node to retrieve
+calling ``poll`` first) on the Counter character device analde to retrieve
 ``struct counter_event`` elements with the desired data.

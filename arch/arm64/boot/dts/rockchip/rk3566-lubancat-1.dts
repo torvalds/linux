@@ -455,17 +455,17 @@
 &pinctrl {
 	leds {
 		sys_led_pin: sys-status-led-pin {
-			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		vcc5v0_usb20_host_en: vcc5v0-usb20-host-en {
-			rockchip,pins = <2 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc5v0_usb30_host_en: vcc5v0-usb30-host-en {
-			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -505,7 +505,7 @@
 	bus-width = <8>;
 	max-frequency = <200000000>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_clk &emmc_cmd>;
 	supports-emmc;

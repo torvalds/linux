@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -120,7 +120,7 @@ struct mlxsw_pci {
 		struct mlxsw_pci_mem_item out_mbox;
 		struct mlxsw_pci_mem_item in_mbox;
 		struct mutex lock; /* Lock access to command registers */
-		bool nopoll;
+		bool analpoll;
 		wait_queue_head_t wait;
 		bool wait_done;
 		struct {
@@ -300,7 +300,7 @@ static int mlxsw_pci_sdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	q->consumer_counter = 0;
 	tclass = q->num == MLXSW_PCI_SDQ_EMAD_INDEX ? MLXSW_PCI_SDQ_EMAD_TC :
 						      MLXSW_PCI_SDQ_CTL_TC;
-	lp = q->num == MLXSW_PCI_SDQ_EMAD_INDEX ? MLXSW_CMD_MBOX_SW2HW_DQ_SDQ_LP_IGNORE_WQE :
+	lp = q->num == MLXSW_PCI_SDQ_EMAD_INDEX ? MLXSW_CMD_MBOX_SW2HW_DQ_SDQ_LP_IGANALRE_WQE :
 						  MLXSW_CMD_MBOX_SW2HW_DQ_SDQ_LP_WQE;
 
 	/* Set CQ of same number of this SDQ. */
@@ -367,7 +367,7 @@ static int mlxsw_pci_rdq_skb_alloc(struct mlxsw_pci *mlxsw_pci,
 
 	skb = __netdev_alloc_skb_ip_align(NULL, buf_len, gfp);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlxsw_pci_wqe_frag_map(mlxsw_pci, wqe, 0, skb->data,
 				     buf_len, DMA_FROM_DEVICE);
@@ -573,7 +573,7 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 	elem_info->u.sdq.skb = NULL;
 
 	if (q->consumer_counter++ != consumer_counter_limit)
-		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in SDQ\n");
+		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does analt match limit in SDQ\n");
 	spin_unlock(&q->lock);
 }
 
@@ -644,7 +644,7 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	memcpy(wqe, elem_info->elem, MLXSW_PCI_WQE_SIZE);
 
 	if (q->consumer_counter++ != consumer_counter_limit)
-		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in RDQ\n");
+		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does analt match limit in RDQ\n");
 
 	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info, GFP_ATOMIC);
 	if (err) {
@@ -956,11 +956,11 @@ static int mlxsw_pci_queue_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 					   mem_item->size, &mem_item->mapaddr,
 					   GFP_KERNEL);
 	if (!mem_item->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->elem_info = kcalloc(q->count, sizeof(*q->elem_info), GFP_KERNEL);
 	if (!q->elem_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_elem_info_alloc;
 	}
 
@@ -1012,7 +1012,7 @@ static int mlxsw_pci_queue_group_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	queue_group = mlxsw_pci_queue_type_group_get(mlxsw_pci, q_ops->type);
 	queue_group->q = kcalloc(num_qs, sizeof(*queue_group->q), GFP_KERNEL);
 	if (!queue_group->q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_qs; i++) {
 		err = mlxsw_pci_queue_init(mlxsw_pci, mbox, q_ops,
@@ -1120,7 +1120,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 	}
 
 	/* We have to poll in command interface until queues are initialized */
-	mlxsw_pci->cmd.nopoll = true;
+	mlxsw_pci->cmd.analpoll = true;
 	return 0;
 
 err_rdqs_init:
@@ -1134,7 +1134,7 @@ err_cqs_init:
 
 static void mlxsw_pci_aqs_fini(struct mlxsw_pci *mlxsw_pci)
 {
-	mlxsw_pci->cmd.nopoll = false;
+	mlxsw_pci->cmd.analpoll = false;
 	mlxsw_pci_queue_group_fini(mlxsw_pci, &mlxsw_pci_rdq_ops);
 	mlxsw_pci_queue_group_fini(mlxsw_pci, &mlxsw_pci_sdq_ops);
 	mlxsw_pci_queue_group_fini(mlxsw_pci, &mlxsw_pci_cq_ops);
@@ -1366,7 +1366,7 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	mlxsw_pci->fw_area.items = kcalloc(num_pages, sizeof(*mem_item),
 					   GFP_KERNEL);
 	if (!mlxsw_pci->fw_area.items)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxsw_pci->fw_area.count = num_pages;
 
 	mlxsw_cmd_mbox_zero(mbox);
@@ -1378,7 +1378,7 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 						   mem_item->size,
 						   &mem_item->mapaddr, GFP_KERNEL);
 		if (!mem_item->buf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_alloc;
 		}
 		mlxsw_cmd_mbox_map_fa_pa_set(mbox, nent, mem_item->mapaddr);
@@ -1452,7 +1452,7 @@ static int mlxsw_pci_mbox_alloc(struct mlxsw_pci *mlxsw_pci,
 				       &mbox->mapaddr, GFP_KERNEL);
 	if (!mbox->buf) {
 		dev_err(&pdev->dev, "Failed allocating memory for mailbox\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 	}
 
 	return err;
@@ -1541,7 +1541,7 @@ mlxsw_pci_reset(struct mlxsw_pci *mlxsw_pci, const struct pci_device_id *id)
 		return err;
 	}
 
-	/* PCI core already issued a PCI reset, do not issue another reset. */
+	/* PCI core already issued a PCI reset, do analt issue aanalther reset. */
 	if (mlxsw_pci->skip_reset)
 		return 0;
 
@@ -1603,7 +1603,7 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 
 	mbox = mlxsw_cmd_mbox_alloc();
 	if (!mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlxsw_pci_reset(mlxsw_pci, mlxsw_pci->id);
 	if (err)
@@ -1621,10 +1621,10 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 
 	mlxsw_pci->bus_info.fw_rev.major =
 		mlxsw_cmd_mbox_query_fw_fw_rev_major_get(mbox);
-	mlxsw_pci->bus_info.fw_rev.minor =
-		mlxsw_cmd_mbox_query_fw_fw_rev_minor_get(mbox);
-	mlxsw_pci->bus_info.fw_rev.subminor =
-		mlxsw_cmd_mbox_query_fw_fw_rev_subminor_get(mbox);
+	mlxsw_pci->bus_info.fw_rev.mianalr =
+		mlxsw_cmd_mbox_query_fw_fw_rev_mianalr_get(mbox);
+	mlxsw_pci->bus_info.fw_rev.submianalr =
+		mlxsw_cmd_mbox_query_fw_fw_rev_submianalr_get(mbox);
 
 	if (mlxsw_cmd_mbox_query_fw_cmd_interface_rev_get(mbox) != 1) {
 		dev_err(&pdev->dev, "Unsupported cmd interface revision ID queried from hw\n");
@@ -1862,7 +1862,7 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 {
 	struct mlxsw_pci *mlxsw_pci = bus_priv;
 	dma_addr_t in_mapaddr = 0, out_mapaddr = 0;
-	bool evreq = mlxsw_pci->cmd.nopoll;
+	bool evreq = mlxsw_pci->cmd.analpoll;
 	unsigned long timeout = msecs_to_jiffies(MLXSW_PCI_CIR_TIMEOUT_MSECS);
 	bool *p_wait_done = &mlxsw_pci->cmd.wait_done;
 	int err;
@@ -2051,7 +2051,7 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mlxsw_pci = kzalloc(sizeof(*mlxsw_pci), GFP_KERNEL);
 	if (!mlxsw_pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -2106,7 +2106,7 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					     &mlxsw_pci_bus, mlxsw_pci, false,
 					     NULL, NULL);
 	if (err) {
-		dev_err(&pdev->dev, "cannot register bus device\n");
+		dev_err(&pdev->dev, "cananalt register bus device\n");
 		goto err_bus_device_register;
 	}
 
@@ -2190,5 +2190,5 @@ module_init(mlxsw_pci_module_init);
 module_exit(mlxsw_pci_module_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox switch PCI interface driver");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx switch PCI interface driver");

@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright analtice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. analr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -31,12 +31,12 @@
  * regulations in other countries.
  *
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES ANAL PROMISES, REPRESENTATIONS
  * OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
  * RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
  * REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
  * DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY)
- * WARRANTIES OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A
+ * WARRANTIES OF TITLE, MERCHANTABILITY, ANALNINFRINGEMENT, FITNESS FOR A
  * PARTICULAR PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET
  * ENJOYMENT, QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE
  * ENTIRE  RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES
@@ -79,7 +79,7 @@ static int zip_ctx_init(struct zip_kernel_ctx *zip_ctx, int lzs_flag)
 
 	comp_ctx->input  = zip_data_buf_alloc(MAX_INPUT_BUFFER_SIZE);
 	if (!comp_ctx->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	comp_ctx->output = zip_data_buf_alloc(MAX_OUTPUT_BUFFER_SIZE);
 	if (!comp_ctx->output)
@@ -104,7 +104,7 @@ err_comp_output:
 err_comp_input:
 	zip_data_buf_free(comp_ctx->input, MAX_INPUT_BUFFER_SIZE);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void zip_ctx_exit(struct zip_kernel_ctx *zip_ctx)
@@ -129,15 +129,15 @@ static int zip_compress(const u8 *src, unsigned int slen,
 	int ret;
 
 	if (!zip_ctx || !src || !dst || !dlen)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	zip = zip_get_device(zip_get_node_id());
+	zip = zip_get_device(zip_get_analde_id());
 	if (!zip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	zip_state = kzalloc(sizeof(*zip_state), GFP_ATOMIC);
 	if (!zip_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zip_ops = &zip_ctx->zip_comp;
 
@@ -165,21 +165,21 @@ static int zip_decompress(const u8 *src, unsigned int slen,
 	int ret;
 
 	if (!zip_ctx || !src || !dst || !dlen)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	zip = zip_get_device(zip_get_node_id());
+	zip = zip_get_device(zip_get_analde_id());
 	if (!zip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	zip_state = kzalloc(sizeof(*zip_state), GFP_ATOMIC);
 	if (!zip_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zip_ops = &zip_ctx->zip_decomp;
 	memcpy(zip_ops->input, src, slen);
 
 	/* Work around for a bug in zlib which needs an extra bytes sometimes */
-	if (zip_ops->ccode != 3) /* Not LZS Encoding */
+	if (zip_ops->ccode != 3) /* Analt LZS Encoding */
 		zip_ops->input[slen++] = 0;
 
 	zip_ops->input_len  = slen;
@@ -243,7 +243,7 @@ void *zip_alloc_scomp_ctx_deflate(struct crypto_scomp *tfm)
 
 	zip_ctx = kzalloc(sizeof(*zip_ctx), GFP_KERNEL);
 	if (!zip_ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = zip_ctx_init(zip_ctx, 0);
 
@@ -262,7 +262,7 @@ void *zip_alloc_scomp_ctx_lzs(struct crypto_scomp *tfm)
 
 	zip_ctx = kzalloc(sizeof(*zip_ctx), GFP_KERNEL);
 	if (!zip_ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = zip_ctx_init(zip_ctx, 1);
 

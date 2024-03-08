@@ -12,7 +12,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_da_btree.h"
@@ -35,17 +35,17 @@ xfs_attr_shortform_compare(const void *a, const void *b)
 	} else if (sa->hash > sb->hash) {
 		return 1;
 	} else {
-		return sa->entno - sb->entno;
+		return sa->entanal - sb->entanal;
 	}
 }
 
 #define XFS_ISRESET_CURSOR(cursor) \
 	(!((cursor)->initted) && !((cursor)->hashval) && \
-	 !((cursor)->blkno) && !((cursor)->offset))
+	 !((cursor)->blkanal) && !((cursor)->offset))
 /*
  * Copy out entries of shortform attribute lists for attr_list().
- * Shortform attribute lists are not stored in hashval sorted order.
- * If the output buffer is not large enough to hold them all, then
+ * Shortform attribute lists are analt stored in hashval sorted order.
+ * If the output buffer is analt large eanalugh to hold them all, then
  * we have to calculate each entries' hashvalue and sort them before
  * we can begin returning them to the user.
  */
@@ -54,7 +54,7 @@ xfs_attr_shortform_list(
 	struct xfs_attr_list_context	*context)
 {
 	struct xfs_attrlist_cursor_kern	*cursor = &context->cursor;
-	struct xfs_inode		*dp = context->dp;
+	struct xfs_ianalde		*dp = context->dp;
 	struct xfs_attr_sf_sort		*sbuf, *sbp;
 	struct xfs_attr_sf_hdr		*sf = dp->i_af.if_data;
 	struct xfs_attr_sf_entry	*sfe;
@@ -68,11 +68,11 @@ xfs_attr_shortform_list(
 	trace_xfs_attr_list_sf(context);
 
 	/*
-	 * If the buffer is large enough and the cursor is at the start,
-	 * do not bother with sorting since we will return everything in
-	 * one buffer and another call using the cursor won't need to be
+	 * If the buffer is large eanalugh and the cursor is at the start,
+	 * do analt bother with sorting since we will return everything in
+	 * one buffer and aanalther call using the cursor won't need to be
 	 * made.
-	 * Note the generous fudge factor of 16 overhead bytes per entry.
+	 * Analte the generous fudge factor of 16 overhead bytes per entry.
 	 * If bufsize is zero then put_listent must be a search function
 	 * and can just scan through what we have.
 	 */
@@ -93,7 +93,7 @@ xfs_attr_shortform_list(
 			 * Either search callback finished early or
 			 * didn't fit it all in the buffer after all.
 			 */
-			if (context->seen_enough)
+			if (context->seen_eanalugh)
 				break;
 			sfe = xfs_attr_sf_nextentry(sfe);
 		}
@@ -101,7 +101,7 @@ xfs_attr_shortform_list(
 		return 0;
 	}
 
-	/* do no more for a search callback */
+	/* do anal more for a search callback */
 	if (context->bufsize == 0)
 		return 0;
 
@@ -109,7 +109,7 @@ xfs_attr_shortform_list(
 	 * It didn't all fit, so we have to sort everything on hashval.
 	 */
 	sbsize = sf->count * sizeof(*sbuf);
-	sbp = sbuf = kmem_alloc(sbsize, KM_NOFS);
+	sbp = sbuf = kmem_alloc(sbsize, KM_ANALFS);
 
 	/*
 	 * Scan the attribute list for the rest of the entries, storing
@@ -128,7 +128,7 @@ xfs_attr_shortform_list(
 			return -EFSCORRUPTED;
 		}
 
-		sbp->entno = i;
+		sbp->entanal = i;
 		sbp->hash = xfs_da_hashname(sfe->nameval, sfe->namelen);
 		sbp->name = sfe->nameval;
 		sbp->namelen = sfe->namelen;
@@ -141,7 +141,7 @@ xfs_attr_shortform_list(
 	}
 
 	/*
-	 * Sort the entries on hash then entno.
+	 * Sort the entries on hash then entanal.
 	 */
 	xfs_sort(sbuf, nsbuf, sizeof(*sbuf), xfs_attr_shortform_compare);
 
@@ -150,7 +150,7 @@ xfs_attr_shortform_list(
 	 */
 	count = 0;
 	cursor->initted = 1;
-	cursor->blkno = 0;
+	cursor->blkanal = 0;
 	for (sbp = sbuf, i = 0; i < nsbuf; i++, sbp++) {
 		if (sbp->hash == cursor->hashval) {
 			if (cursor->offset == count) {
@@ -183,7 +183,7 @@ xfs_attr_shortform_list(
 				     sbp->name,
 				     sbp->namelen,
 				     sbp->valuelen);
-		if (context->seen_enough)
+		if (context->seen_eanalugh)
 			break;
 		cursor->offset++;
 	}
@@ -197,15 +197,15 @@ out:
  * walk down the attr btree looking for the hash.
  */
 STATIC int
-xfs_attr_node_list_lookup(
+xfs_attr_analde_list_lookup(
 	struct xfs_attr_list_context	*context,
 	struct xfs_attrlist_cursor_kern	*cursor,
 	struct xfs_buf			**pbp)
 {
-	struct xfs_da3_icnode_hdr	nodehdr;
-	struct xfs_da_intnode		*node;
-	struct xfs_da_node_entry	*btree;
-	struct xfs_inode		*dp = context->dp;
+	struct xfs_da3_icanalde_hdr	analdehdr;
+	struct xfs_da_intanalde		*analde;
+	struct xfs_da_analde_entry	*btree;
+	struct xfs_ianalde		*dp = context->dp;
 	struct xfs_mount		*mp = dp->i_mount;
 	struct xfs_trans		*tp = context->tp;
 	struct xfs_buf			*bp;
@@ -215,54 +215,54 @@ xfs_attr_node_list_lookup(
 	uint16_t			magic;
 
 	ASSERT(*pbp == NULL);
-	cursor->blkno = 0;
+	cursor->blkanal = 0;
 	for (;;) {
-		error = xfs_da3_node_read(tp, dp, cursor->blkno, &bp,
+		error = xfs_da3_analde_read(tp, dp, cursor->blkanal, &bp,
 				XFS_ATTR_FORK);
 		if (error)
 			return error;
-		node = bp->b_addr;
-		magic = be16_to_cpu(node->hdr.info.magic);
+		analde = bp->b_addr;
+		magic = be16_to_cpu(analde->hdr.info.magic);
 		if (magic == XFS_ATTR_LEAF_MAGIC ||
 		    magic == XFS_ATTR3_LEAF_MAGIC)
 			break;
-		if (magic != XFS_DA_NODE_MAGIC &&
-		    magic != XFS_DA3_NODE_MAGIC) {
+		if (magic != XFS_DA_ANALDE_MAGIC &&
+		    magic != XFS_DA3_ANALDE_MAGIC) {
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					node, sizeof(*node));
+					analde, sizeof(*analde));
 			goto out_corruptbuf;
 		}
 
-		xfs_da3_node_hdr_from_disk(mp, &nodehdr, node);
+		xfs_da3_analde_hdr_from_disk(mp, &analdehdr, analde);
 
 		/* Tree taller than we can handle; bail out! */
-		if (nodehdr.level >= XFS_DA_NODE_MAXDEPTH)
+		if (analdehdr.level >= XFS_DA_ANALDE_MAXDEPTH)
 			goto out_corruptbuf;
 
-		/* Check the level from the root node. */
-		if (cursor->blkno == 0)
-			expected_level = nodehdr.level - 1;
-		else if (expected_level != nodehdr.level)
+		/* Check the level from the root analde. */
+		if (cursor->blkanal == 0)
+			expected_level = analdehdr.level - 1;
+		else if (expected_level != analdehdr.level)
 			goto out_corruptbuf;
 		else
 			expected_level--;
 
-		btree = nodehdr.btree;
-		for (i = 0; i < nodehdr.count; btree++, i++) {
+		btree = analdehdr.btree;
+		for (i = 0; i < analdehdr.count; btree++, i++) {
 			if (cursor->hashval <= be32_to_cpu(btree->hashval)) {
-				cursor->blkno = be32_to_cpu(btree->before);
-				trace_xfs_attr_list_node_descend(context,
+				cursor->blkanal = be32_to_cpu(btree->before);
+				trace_xfs_attr_list_analde_descend(context,
 						btree);
 				break;
 			}
 		}
 		xfs_trans_brelse(tp, bp);
 
-		if (i == nodehdr.count)
+		if (i == analdehdr.count)
 			return 0;
 
 		/* We can't point back to the root. */
-		if (XFS_IS_CORRUPT(mp, cursor->blkno == 0))
+		if (XFS_IS_CORRUPT(mp, cursor->blkanal == 0))
 			return -EFSCORRUPTED;
 	}
 
@@ -279,40 +279,40 @@ out_corruptbuf:
 }
 
 STATIC int
-xfs_attr_node_list(
+xfs_attr_analde_list(
 	struct xfs_attr_list_context	*context)
 {
 	struct xfs_attrlist_cursor_kern	*cursor = &context->cursor;
 	struct xfs_attr3_icleaf_hdr	leafhdr;
 	struct xfs_attr_leafblock	*leaf;
-	struct xfs_da_intnode		*node;
+	struct xfs_da_intanalde		*analde;
 	struct xfs_buf			*bp;
-	struct xfs_inode		*dp = context->dp;
+	struct xfs_ianalde		*dp = context->dp;
 	struct xfs_mount		*mp = dp->i_mount;
 	int				error = 0;
 
-	trace_xfs_attr_node_list(context);
+	trace_xfs_attr_analde_list(context);
 
 	cursor->initted = 1;
 
 	/*
 	 * Do all sorts of validation on the passed-in cursor structure.
-	 * If anything is amiss, ignore the cursor and look up the hashval
+	 * If anything is amiss, iganalre the cursor and look up the hashval
 	 * starting from the btree root.
 	 */
 	bp = NULL;
-	if (cursor->blkno > 0) {
-		error = xfs_da3_node_read(context->tp, dp, cursor->blkno, &bp,
+	if (cursor->blkanal > 0) {
+		error = xfs_da3_analde_read(context->tp, dp, cursor->blkanal, &bp,
 				XFS_ATTR_FORK);
 		if ((error != 0) && (error != -EFSCORRUPTED))
 			return error;
 		if (bp) {
 			struct xfs_attr_leaf_entry *entries;
 
-			node = bp->b_addr;
-			switch (be16_to_cpu(node->hdr.info.magic)) {
-			case XFS_DA_NODE_MAGIC:
-			case XFS_DA3_NODE_MAGIC:
+			analde = bp->b_addr;
+			switch (be16_to_cpu(analde->hdr.info.magic)) {
+			case XFS_DA_ANALDE_MAGIC:
+			case XFS_DA3_ANALDE_MAGIC:
 				trace_xfs_attr_list_wrong_blk(context);
 				xfs_trans_brelse(context->tp, bp);
 				bp = NULL;
@@ -344,12 +344,12 @@ xfs_attr_node_list(
 	}
 
 	/*
-	 * We did not find what we expected given the cursor's contents,
+	 * We did analt find what we expected given the cursor's contents,
 	 * so we start from the top and work down based on the hash value.
-	 * Note that start of node block is same as start of leaf block.
+	 * Analte that start of analde block is same as start of leaf block.
 	 */
 	if (bp == NULL) {
-		error = xfs_attr_node_list_lookup(context, cursor, &bp);
+		error = xfs_attr_analde_list_lookup(context, cursor, &bp);
 		if (error || !bp)
 			return error;
 	}
@@ -366,11 +366,11 @@ xfs_attr_node_list(
 		if (error)
 			break;
 		xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &leafhdr, leaf);
-		if (context->seen_enough || leafhdr.forw == 0)
+		if (context->seen_eanalugh || leafhdr.forw == 0)
 			break;
-		cursor->blkno = leafhdr.forw;
+		cursor->blkanal = leafhdr.forw;
 		xfs_trans_brelse(context->tp, bp);
-		error = xfs_attr3_leaf_read(context->tp, dp, cursor->blkno,
+		error = xfs_attr3_leaf_read(context->tp, dp, cursor->blkanal,
 					    &bp);
 		if (error)
 			return error;
@@ -422,7 +422,7 @@ xfs_attr3_leaf_list_int(
 			}
 		}
 		if (i == ichdr.count) {
-			trace_xfs_attr_list_notfound(context);
+			trace_xfs_attr_list_analtfound(context);
 			return 0;
 		}
 	} else {
@@ -468,7 +468,7 @@ xfs_attr3_leaf_list_int(
 			return -EFSCORRUPTED;
 		context->put_listent(context, entry->flags,
 					      name, namelen, valuelen);
-		if (context->seen_enough)
+		if (context->seen_eanalugh)
 			break;
 		cursor->offset++;
 	}
@@ -488,7 +488,7 @@ xfs_attr_leaf_list(
 
 	trace_xfs_attr_leaf_list(context);
 
-	context->cursor.blkno = 0;
+	context->cursor.blkanal = 0;
 	error = xfs_attr3_leaf_read(context->tp, context->dp, 0, &bp);
 	if (error)
 		return error;
@@ -502,27 +502,27 @@ int
 xfs_attr_list_ilocked(
 	struct xfs_attr_list_context	*context)
 {
-	struct xfs_inode		*dp = context->dp;
+	struct xfs_ianalde		*dp = context->dp;
 
 	ASSERT(xfs_isilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
 
 	/*
-	 * Decide on what work routines to call based on the inode size.
+	 * Decide on what work routines to call based on the ianalde size.
 	 */
-	if (!xfs_inode_hasattr(dp))
+	if (!xfs_ianalde_hasattr(dp))
 		return 0;
-	if (dp->i_af.if_format == XFS_DINODE_FMT_LOCAL)
+	if (dp->i_af.if_format == XFS_DIANALDE_FMT_LOCAL)
 		return xfs_attr_shortform_list(context);
 	if (xfs_attr_is_leaf(dp))
 		return xfs_attr_leaf_list(context);
-	return xfs_attr_node_list(context);
+	return xfs_attr_analde_list(context);
 }
 
 int
 xfs_attr_list(
 	struct xfs_attr_list_context	*context)
 {
-	struct xfs_inode		*dp = context->dp;
+	struct xfs_ianalde		*dp = context->dp;
 	uint				lock_mode;
 	int				error;
 

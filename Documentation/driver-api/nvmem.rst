@@ -11,8 +11,8 @@ and how to use it.
 
 1. Introduction
 ===============
-*NVMEM* is the abbreviation for Non Volatile Memory layer. It is used to
-retrieve configuration of SOC or Device specific data from non volatile
+*NVMEM* is the abbreviation for Analn Volatile Memory layer. It is used to
+retrieve configuration of SOC or Device specific data from analn volatile
 memories like eeprom, efuses and so on.
 
 Before this framework existed, NVMEM drivers like eeprom were stored in
@@ -21,7 +21,7 @@ register a sysfs file, allow in-kernel users to access the content of the
 devices they were driving, etc.
 
 This was also a problem as far as other in-kernel users were involved, since
-the solutions used were pretty much different from one driver to another, there
+the solutions used were pretty much different from one driver to aanalther, there
 was a rather big abstraction leak.
 
 This framework aims at solve these problems. It also introduces DT
@@ -32,7 +32,7 @@ NVMEM Providers
 +++++++++++++++
 
 NVMEM provider refers to an entity that implements methods to initialize, read
-and write the non-volatile memory.
+and write the analn-volatile memory.
 
 2. Registering/Unregistering the NVMEM provider
 ===============================================
@@ -146,7 +146,7 @@ take nvmem_device as parameter.
 5. Releasing a reference to the NVMEM
 =====================================
 
-When a consumer no longer needs the NVMEM, it has to release the reference
+When a consumer anal longer needs the NVMEM, it has to release the reference
 to the NVMEM it has obtained using the APIs mentioned in the above section.
 The NVMEM framework provides 2 APIs to release a reference to the NVMEM::
 
@@ -189,7 +189,7 @@ See Documentation/devicetree/bindings/nvmem/nvmem.txt
 8. NVMEM layouts
 ================
 
-NVMEM layouts are yet another mechanism to create cells. With the device
+NVMEM layouts are yet aanalther mechanism to create cells. With the device
 tree binding it is possible to specify simple cells by using an offset
 and a length. Sometimes, the cells doesn't have a static offset, but
 the content is still well defined, e.g. tag-length-values. In this case,
@@ -197,9 +197,9 @@ the NVMEM device content has to be first parsed and the cells need to
 be added accordingly. Layouts let you read the content of the NVMEM device
 and let you add cells dynamically.
 
-Another use case for layouts is the post processing of cells. With layouts,
+Aanalther use case for layouts is the post processing of cells. With layouts,
 it is possible to associate a custom post processing hook to a cell. It
-even possible to add this hook to cells not created by the layout itself.
+even possible to add this hook to cells analt created by the layout itself.
 
 9. Internal kernel API
 ======================

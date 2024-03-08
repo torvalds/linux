@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc */
+/* Copyright (C) 2018 Netroanalme Systems, Inc */
 /* Copyright (C) 2021 Corigine, Inc */
 
 #include <linux/dma-direction.h>
@@ -118,13 +118,13 @@ int nfp_net_xsk_setup_pool(struct net_device *netdev,
 
 	/* NFDK doesn't implement xsk yet. */
 	if (nn->dp.ops->version == NFP_NFD_VER_NFDK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Reject on old FWs so we can drop some checks on datapath. */
 	if (nn->dp.rx_offset != NFP_NET_CFG_RX_OFFSET_DYNAMIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!nn->dp.chained_metadata_format)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Install */
 	if (pool) {
@@ -136,7 +136,7 @@ int nfp_net_xsk_setup_pool(struct net_device *netdev,
 	/* Reconfig/swap */
 	dp = nfp_net_clone_dp(nn);
 	if (!dp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap;
 	}
 

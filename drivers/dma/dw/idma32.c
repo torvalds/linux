@@ -3,7 +3,7 @@
 
 #include <linux/bitops.h>
 #include <linux/dmaengine.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -24,8 +24,8 @@
 #define CTL_CH_TRANSFER_MODE_D2D	3
 #define CTL_CH_RD_RS_MASK		GENMASK(4, 3)
 #define CTL_CH_WR_RS_MASK		GENMASK(6, 5)
-#define CTL_CH_RD_NON_SNOOP_BIT		BIT(8)
-#define CTL_CH_WR_NON_SNOOP_BIT		BIT(9)
+#define CTL_CH_RD_ANALN_SANALOP_BIT		BIT(8)
+#define CTL_CH_WR_ANALN_SANALOP_BIT		BIT(9)
 
 #define XBAR_SEL_DEVID_MASK		GENMASK(15, 0)
 #define XBAR_SEL_RX_TX_BIT		BIT(16)
@@ -62,25 +62,25 @@ static void idma32_initialize_chan_xbar(struct dw_dma_chan *dwc)
 	/* Configure channel attributes */
 	value = readl(misc + DMA_CTL_CH(dwc->chan.chan_id));
 
-	value &= ~(CTL_CH_RD_NON_SNOOP_BIT | CTL_CH_WR_NON_SNOOP_BIT);
+	value &= ~(CTL_CH_RD_ANALN_SANALOP_BIT | CTL_CH_WR_ANALN_SANALOP_BIT);
 	value &= ~(CTL_CH_RD_RS_MASK | CTL_CH_WR_RS_MASK);
 	value &= ~CTL_CH_TRANSFER_MODE_MASK;
 
 	switch (dwc->direction) {
 	case DMA_MEM_TO_DEV:
 		value |= CTL_CH_TRANSFER_MODE_D2S;
-		value |= CTL_CH_WR_NON_SNOOP_BIT;
+		value |= CTL_CH_WR_ANALN_SANALOP_BIT;
 		break;
 	case DMA_DEV_TO_MEM:
 		value |= CTL_CH_TRANSFER_MODE_S2D;
-		value |= CTL_CH_RD_NON_SNOOP_BIT;
+		value |= CTL_CH_RD_ANALN_SANALOP_BIT;
 		break;
 	default:
 		/*
-		 * Memory-to-Memory and Device-to-Device are ignored for now.
+		 * Memory-to-Memory and Device-to-Device are iganalred for analw.
 		 *
 		 * For Memory-to-Memory transfers we would need to set mode
-		 * and disable snooping on both sides.
+		 * and disable sanaloping on both sides.
 		 */
 		return;
 	}
@@ -102,7 +102,7 @@ static void idma32_initialize_chan_xbar(struct dw_dma_chan *dwc)
 		value &= ~XBAR_SEL_RX_TX_BIT;
 		break;
 	default:
-		/* Memory-to-Memory and Device-to-Device are ignored for now */
+		/* Memory-to-Memory and Device-to-Device are iganalred for analw */
 		return;
 	}
 
@@ -119,7 +119,7 @@ static void idma32_initialize_chan_xbar(struct dw_dma_chan *dwc)
 		src_id = dwc->chan.chan_id;
 		break;
 	default:
-		/* Memory-to-Memory and Device-to-Device are ignored for now */
+		/* Memory-to-Memory and Device-to-Device are iganalred for analw */
 		return;
 	}
 
@@ -260,7 +260,7 @@ int idma32_dma_probe(struct dw_dma_chip *chip)
 
 	dw = devm_kzalloc(chip->dev, sizeof(*dw), GFP_KERNEL);
 	if (!dw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Channel operations */
 	if (chip->pdata->quirks & DW_DMA_QUIRK_XBAR_PRESENT)

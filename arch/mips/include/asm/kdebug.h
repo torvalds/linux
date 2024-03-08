@@ -2,7 +2,7 @@
 #ifndef _ASM_MIPS_KDEBUG_H
 #define _ASM_MIPS_KDEBUG_H
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 enum die_val {
 	DIE_OOPS = 1,

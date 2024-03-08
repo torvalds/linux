@@ -27,7 +27,7 @@ Optional properties:
     up sequence begins to the time the audio reaches a full-scale output.
     On power down, it affects the time from when the power-down sequence
     begins to when the amplifier disables the PWM outputs. If this property
-    is not set then soft ramping will be disabled and ramp time would be
+    is analt set then soft ramping will be disabled and ramp time would be
     20ms. If this property is set to 0,1,2,3 then ramp times would be 40ms,
     60ms,100ms,175ms respectively for 48KHz sample rate.
 
@@ -40,15 +40,15 @@ Optional properties:
     to 0, 6 for 21 down to 6, 7, for 22 down to 7, 8 for 23 down to 8.
 
 
-Optional H/G Algorithm sub-node:
+Optional H/G Algorithm sub-analde:
 
-The cs35l33 node can have a single "cirrus,hg-algo" sub-node that will enable
+The cs35l33 analde can have a single "cirrus,hg-algo" sub-analde that will enable
 the internal H/G Algorithm.
 
-  - cirrus,hg-algo : Sub-node for internal Class H/G algorithm that
+  - cirrus,hg-algo : Sub-analde for internal Class H/G algorithm that
     controls the amplifier supplies.
 
-Optional properties for the "cirrus,hg-algo" sub-node:
+Optional properties for the "cirrus,hg-algo" sub-analde:
 
   - cirrus,mem-depth : Memory depth for the Class H/G algorithm measured in
     LRCLK cycles. If this property is set to 0, 1, 2, or 3 then the memory
@@ -64,7 +64,7 @@ Optional properties for the "cirrus,hg-algo" sub-node:
     0xF).
 
   - cirrus,ldo-path-disable : This is a boolean property. If present, the H/G
-    algorithm uses the max detection path.  If not present, the LDO
+    algorithm uses the max detection path.  If analt present, the LDO
     detection path is used.
 
   - cirrus,ldo-entry-delay : The LDO entry delay in milliseconds before the H/G

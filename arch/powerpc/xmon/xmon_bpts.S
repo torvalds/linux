@@ -4,7 +4,7 @@
 #include <asm/asm-offsets.h>
 #include "xmon_bpts.h"
 
-/* Prefixed instructions can not cross 64 byte boundaries */
+/* Prefixed instructions can analt cross 64 byte boundaries */
 .align 6
 .global bpt_table
 bpt_table:

@@ -1,14 +1,14 @@
 --------------------------------------------------------------------------
 =  Zynq UltraScale+ MPSoC nvmem firmware driver binding =
 --------------------------------------------------------------------------
-The nvmem_firmware node provides access to the hardware related data
+The nvmem_firmware analde provides access to the hardware related data
 like soc revision, IDCODE... etc, By using the firmware interface.
 
 Required properties:
 - compatible: should be "xlnx,zynqmp-nvmem-fw"
 
 = Data cells =
-Are child nodes of silicon id, bindings of which as described in
+Are child analdes of silicon id, bindings of which as described in
 bindings/nvmem/nvmem.txt
 
 -------
@@ -33,7 +33,7 @@ firmware {
 };
 
 = Data consumers =
-Are device nodes which consume nvmem data cells.
+Are device analdes which consume nvmem data cells.
 
 For example:
 	pcap {

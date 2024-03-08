@@ -339,7 +339,7 @@
 	status = "okay";
 };
 
-&usbphynop2 {
+&usbphyanalp2 {
 	reset-gpios = <&pca6416_1 7 GPIO_ACTIVE_HIGH>;
 };
 

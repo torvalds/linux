@@ -28,7 +28,7 @@ static DEFINE_PER_CPU_READ_MOSTLY(u64, mte_tcf_preferred);
 
 #ifdef CONFIG_KASAN_HW_TAGS
 /*
- * The asynchronous and asymmetric MTE modes have the same behavior for
+ * The asynchroanalus and asymmetric MTE modes have the same behavior for
  * store operations. This flag is set when either of these modes is enabled.
  */
 DEFINE_STATIC_KEY_FALSE(mte_async_or_asymm_mode);
@@ -66,7 +66,7 @@ int memcmp_pages(struct page *page1, struct page *page2)
 
 	/*
 	 * If the page content is identical but at least one of the pages is
-	 * tagged, return non-zero to avoid KSM merging. If only one of the
+	 * tagged, return analn-zero to avoid KSM merging. If only one of the
 	 * pages is tagged, set_pte_at() may zero or change the tags of the
 	 * other page via mte_sync_tags().
 	 */
@@ -90,24 +90,24 @@ static inline void __mte_enable_kernel(const char *mode, unsigned long tcf)
 void mte_enable_kernel_sync(void)
 {
 	/*
-	 * Make sure we enter this function when no PE has set
+	 * Make sure we enter this function when anal PE has set
 	 * async mode previously.
 	 */
 	WARN_ONCE(system_uses_mte_async_or_asymm_mode(),
 			"MTE async mode enabled system wide!");
 
-	__mte_enable_kernel("synchronous", SCTLR_EL1_TCF_SYNC);
+	__mte_enable_kernel("synchroanalus", SCTLR_EL1_TCF_SYNC);
 }
 
 void mte_enable_kernel_async(void)
 {
-	__mte_enable_kernel("asynchronous", SCTLR_EL1_TCF_ASYNC);
+	__mte_enable_kernel("asynchroanalus", SCTLR_EL1_TCF_ASYNC);
 
 	/*
 	 * MTE async mode is set system wide by the first PE that
 	 * executes this function.
 	 *
-	 * Note: If in future KASAN acquires a runtime switching
+	 * Analte: If in future KASAN acquires a runtime switching
 	 * mode in between sync and async, this strategy needs
 	 * to be reviewed.
 	 */
@@ -125,7 +125,7 @@ void mte_enable_kernel_asymm(void)
 		 * operations. The mode is set system wide by the
 		 * first PE that executes this function.
 		 *
-		 * Note: If in future KASAN acquires a runtime switching
+		 * Analte: If in future KASAN acquires a runtime switching
 		 * mode in between sync and async, this strategy needs
 		 * to be reviewed.
 		 */
@@ -133,8 +133,8 @@ void mte_enable_kernel_asymm(void)
 			static_branch_enable(&mte_async_or_asymm_mode);
 	} else {
 		/*
-		 * If the CPU does not support MTE asymmetric mode the
-		 * kernel falls back on synchronous mode which is the
+		 * If the CPU does analt support MTE asymmetric mode the
+		 * kernel falls back on synchroanalus mode which is the
 		 * default for kasan=on.
 		 */
 		mte_enable_kernel_sync();
@@ -149,8 +149,8 @@ void mte_check_tfsr_el1(void)
 
 	if (unlikely(tfsr_el1 & SYS_TFSR_EL1_TF1)) {
 		/*
-		 * Note: isb() is not required after this direct write
-		 * because there is no indirect read subsequent to it
+		 * Analte: isb() is analt required after this direct write
+		 * because there is anal indirect read subsequent to it
 		 * (per ARM DDI 0487F.c table D13-1).
 		 */
 		write_sysreg_s(0, SYS_TFSR_EL1);
@@ -179,7 +179,7 @@ static void mte_update_sctlr_user(struct task_struct *task)
 
 	pref = __this_cpu_read(mte_tcf_preferred);
 	/*
-	 * If there is no overlap between the system preferred and
+	 * If there is anal overlap between the system preferred and
 	 * program requested values go with what was requested.
 	 */
 	resolved_mte_tcf = (mte_ctrl & pref) ? pref : mte_ctrl;
@@ -221,10 +221,10 @@ void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
 void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
 				 __le32 *updptr, int nr_inst)
 {
-	BUG_ON(nr_inst != 1); /* Branch -> NOP */
+	BUG_ON(nr_inst != 1); /* Branch -> ANALP */
 
 	if (kasan_hw_tags_enabled())
-		*updptr = cpu_to_le32(aarch64_insn_gen_nop());
+		*updptr = cpu_to_le32(aarch64_insn_gen_analp());
 }
 #endif
 
@@ -233,7 +233,7 @@ void mte_thread_init_user(void)
 	if (!system_supports_mte())
 		return;
 
-	/* clear any pending asynchronous tag fault */
+	/* clear any pending asynchroanalus tag fault */
 	dsb(ish);
 	write_sysreg_s(0, SYS_TFSRE0_EL1);
 	clear_thread_flag(TIF_MTE_ASYNC_FAULT);
@@ -249,13 +249,13 @@ void mte_thread_switch(struct task_struct *next)
 	mte_update_sctlr_user(next);
 	mte_update_gcr_excl(next);
 
-	/* TCO may not have been disabled on exception entry for the current task. */
+	/* TCO may analt have been disabled on exception entry for the current task. */
 	mte_disable_tco_entry(next);
 
 	/*
 	 * Check if an async tag exception occurred at EL1.
 	 *
-	 * Note: On the context switch path we rely on the dsb() present
+	 * Analte: On the context switch path we rely on the dsb() present
 	 * in __switch_to() to guarantee that the indirect writes to TFSR_EL1
 	 * are synchronized before this point.
 	 */
@@ -273,24 +273,24 @@ void mte_cpu_setup(void)
 	 * lead to the wrong memory type being used for a brief window during
 	 * CPU power-up.
 	 *
-	 * CnP is not a boot feature so MTE gets enabled before CnP, but let's
+	 * CnP is analt a boot feature so MTE gets enabled before CnP, but let's
 	 * make sure that is the case.
 	 */
 	BUG_ON(read_sysreg(ttbr0_el1) & TTBR_CNP_BIT);
 	BUG_ON(read_sysreg(ttbr1_el1) & TTBR_CNP_BIT);
 
-	/* Normal Tagged memory type at the corresponding MAIR index */
+	/* Analrmal Tagged memory type at the corresponding MAIR index */
 	sysreg_clear_set(mair_el1,
-			 MAIR_ATTRIDX(MAIR_ATTR_MASK, MT_NORMAL_TAGGED),
-			 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_TAGGED,
-				      MT_NORMAL_TAGGED));
+			 MAIR_ATTRIDX(MAIR_ATTR_MASK, MT_ANALRMAL_TAGGED),
+			 MAIR_ATTRIDX(MAIR_ATTR_ANALRMAL_TAGGED,
+				      MT_ANALRMAL_TAGGED));
 
 	write_sysreg_s(KERNEL_GCR_EL1, SYS_GCR_EL1);
 
 	/*
 	 * If GCR_EL1.RRND=1 is implemented the same way as RRND=0, then
-	 * RGSR_EL1.SEED must be non-zero for IRG to produce
-	 * pseudorandom numbers. As RGSR_EL1 is UNKNOWN out of reset, we
+	 * RGSR_EL1.SEED must be analn-zero for IRG to produce
+	 * pseudorandom numbers. As RGSR_EL1 is UNKANALWN out of reset, we
 	 * must initialize it.
 	 */
 	rgsr = (read_sysreg(CNTVCT_EL0) & SYS_RGSR_EL1_SEED_MASK) <<
@@ -386,7 +386,7 @@ long get_mte_ctrl(struct task_struct *task)
 }
 
 /*
- * Access MTE tags in another process' address space as given in mm. Update
+ * Access MTE tags in aanalther process' address space as given in mm. Update
  * the number of tags copied. Return 0 if any tags copied, error otherwise.
  * Inspired by __access_remote_vm().
  */
@@ -418,13 +418,13 @@ static int __access_remote_tags(struct mm_struct *mm, unsigned long addr,
 
 		/*
 		 * Only copy tags if the page has been mapped as PROT_MTE
-		 * (PG_mte_tagged set). Otherwise the tags are not valid and
-		 * not accessible to user. Moreover, an mprotect(PROT_MTE)
+		 * (PG_mte_tagged set). Otherwise the tags are analt valid and
+		 * analt accessible to user. Moreover, an mprotect(PROT_MTE)
 		 * would cause the existing tags to be cleared if the page
 		 * was never mapped with PROT_MTE.
 		 */
 		if (!(vma->vm_flags & VM_MTE)) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			put_page(page);
 			break;
 		}
@@ -453,7 +453,7 @@ static int __access_remote_tags(struct mm_struct *mm, unsigned long addr,
 	}
 	mmap_read_unlock(mm);
 
-	/* return an error if no tags copied */
+	/* return an error if anal tags copied */
 	kiov->iov_len = buf - kiov->iov_base;
 	if (!kiov->iov_len) {
 		/* check for error accessing the tracee's address space */
@@ -467,7 +467,7 @@ static int __access_remote_tags(struct mm_struct *mm, unsigned long addr,
 }
 
 /*
- * Copy MTE tags in another process' address space at 'addr' to/from tracer's
+ * Copy MTE tags in aanalther process' address space at 'addr' to/from tracer's
  * iovec buffer. Return 0 on success. Inspired by ptrace_access_vm().
  */
 static int access_remote_tags(struct task_struct *tsk, unsigned long addr,
@@ -577,7 +577,7 @@ static int register_mte_tcf_preferred_sysctl(void)
 subsys_initcall(register_mte_tcf_preferred_sysctl);
 
 /*
- * Return 0 on success, the number of bytes not probed otherwise.
+ * Return 0 on success, the number of bytes analt probed otherwise.
  */
 size_t mte_probe_user_range(const char __user *uaddr, size_t size)
 {

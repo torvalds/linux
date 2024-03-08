@@ -13,7 +13,7 @@ Required properties:
 - ti,hwmods: "dss_core"
 - clocks: handle to fclk
 - clock-names: "fck"
-- syscon: phandle to control module core syscon node
+- syscon: phandle to control module core syscon analde
 
 Optional properties:
 
@@ -25,10 +25,10 @@ can be used to describe the video PLLs:
 - clocks: handle to video1 pll clock and video2 pll clock
 - clock-names: "video1_clk" and "video2_clk"
 
-Required nodes:
+Required analdes:
 - DISPC
 
-Optional nodes:
+Optional analdes:
 - DSS Submodules: HDMI
 - Video port for DPI output
 
@@ -66,7 +66,7 @@ Required properties:
 - clocks: handles to fclk and pll clock
 - clock-names: "fck", "sys_clk"
 
-Optional nodes:
+Optional analdes:
 - Video port for HDMI output
 
 HDMI Endpoint optional properties:

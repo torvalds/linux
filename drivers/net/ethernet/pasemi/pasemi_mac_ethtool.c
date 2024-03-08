@@ -87,7 +87,7 @@ static int pasemi_mac_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(ethtool_stats_keys);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

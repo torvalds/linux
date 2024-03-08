@@ -51,7 +51,7 @@ static irqreturn_t mt6360_pgb_event_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = data;
 
-	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_FAIL, NULL);
+	regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_FAIL, NULL);
 	return IRQ_HANDLED;
 }
 
@@ -59,7 +59,7 @@ static irqreturn_t mt6360_oc_event_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = data;
 
-	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_OVER_CURRENT, NULL);
+	regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_OVER_CURRENT, NULL);
 	return IRQ_HANDLED;
 }
 
@@ -67,7 +67,7 @@ static irqreturn_t mt6360_ov_event_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = data;
 
-	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_REGULATION_OUT, NULL);
+	regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_REGULATION_OUT, NULL);
 	return IRQ_HANDLED;
 }
 
@@ -75,7 +75,7 @@ static irqreturn_t mt6360_uv_event_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = data;
 
-	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE, NULL);
+	regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE, NULL);
 	return IRQ_HANDLED;
 }
 
@@ -227,8 +227,8 @@ static int mt6360_regulator_set_mode(struct regulator_dev *rdev,
 	int ret;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
-		val = MT6360_OPMODE_NORMAL;
+	case REGULATOR_MODE_ANALRMAL:
+		val = MT6360_OPMODE_ANALRMAL;
 		break;
 	case REGULATOR_MODE_STANDBY:
 		val = MT6360_OPMODE_ULP;
@@ -269,8 +269,8 @@ static unsigned int mt6360_regulator_get_mode(struct regulator_dev *rdev)
 		return REGULATOR_MODE_IDLE;
 	case MT6360_OPMODE_ULP:
 		return REGULATOR_MODE_STANDBY;
-	case MT6360_OPMODE_NORMAL:
-		return REGULATOR_MODE_NORMAL;
+	case MT6360_OPMODE_ANALRMAL:
+		return REGULATOR_MODE_ANALRMAL;
 	default:
 		return -EINVAL;
 	}
@@ -308,8 +308,8 @@ static const struct regulator_ops mt6360_regulator_ops = {
 static unsigned int mt6360_regulator_of_map_mode(unsigned int hw_mode)
 {
 	switch (hw_mode) {
-	case MT6360_OPMODE_NORMAL:
-		return REGULATOR_MODE_NORMAL;
+	case MT6360_OPMODE_ANALRMAL:
+		return REGULATOR_MODE_ANALRMAL;
 	case MT6360_OPMODE_LP:
 		return REGULATOR_MODE_IDLE;
 	case MT6360_OPMODE_ULP:
@@ -328,7 +328,7 @@ static unsigned int mt6360_regulator_of_map_mode(unsigned int hw_mode)
 		.supply_name = #_sname,					\
 		.id =  MT6360_REGULATOR_##_name,			\
 		.of_match = of_match_ptr(#_name),			\
-		.regulators_node = of_match_ptr("regulator"),		\
+		.regulators_analde = of_match_ptr("regulator"),		\
 		.of_map_mode = mt6360_regulator_of_map_mode,		\
 		.owner = THIS_MODULE,					\
 		.ops = &mt6360_regulator_ops,				\
@@ -402,14 +402,14 @@ static int mt6360_regulator_probe(struct platform_device *pdev)
 
 	mrd = devm_kzalloc(&pdev->dev, sizeof(*mrd), GFP_KERNEL);
 	if (!mrd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mrd->dev = &pdev->dev;
 
 	mrd->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!mrd->regmap) {
 		dev_err(&pdev->dev, "Failed to get parent regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	config.dev = pdev->dev.parent;
@@ -446,7 +446,7 @@ MODULE_DEVICE_TABLE(platform, mt6360_regulator_id_table);
 static struct platform_driver mt6360_regulator_driver = {
 	.driver = {
 		.name = "mt6360-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = mt6360_regulator_probe,
 	.id_table = mt6360_regulator_id_table,

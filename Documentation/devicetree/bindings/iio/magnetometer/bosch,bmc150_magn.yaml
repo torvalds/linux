@@ -19,7 +19,7 @@ description: |
 properties:
   compatible:
     description:
-      Note the bmm150_magn is a deprecated compatible as this part contains only
+      Analte the bmm150_magn is a deprecated compatible as this part contains only
       a magnetometer.
     enum:
       - bosch,bmc150_magn

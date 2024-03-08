@@ -79,7 +79,7 @@
 
 #ifdef CONFIG_64BIT
 /* the 64-bit pa gnu assembler unfortunately defaults to .level 1.1 or 2.0 so
- * work around that for now... */
+ * work around that for analw... */
 	.level 2.0w
 #endif
 
@@ -95,7 +95,7 @@
 	 * to virtual and vice versa. The "_r1" versions take one argument
 	 * register, but trashes r1 to do the conversion. The other
 	 * version takes two arguments: a src and destination register.
-	 * However, the source and destination registers can not be
+	 * However, the source and destination registers can analt be
 	 * the same register.
 	 */
 
@@ -124,7 +124,7 @@
 	ldo	R%\value(1), 1
 	addib,UV,n -1,1,.
 	addib,NUV,n -1,1,.+8
-	nop
+	analp
 	.endm
 
 	.macro	debug value
@@ -182,7 +182,7 @@
 
 	/* load 32-bit 'value' into 'reg' compensating for the ldil
 	 * sign-extension when running in wide mode.
-	 * WARNING!! neither 'value' nor 'reg' can be expressions
+	 * WARNING!! neither 'value' analr 'reg' can be expressions
 	 * containing '.'!!!! */
 	.macro	load32 value, reg
 	ldil	L%\value, \reg
@@ -526,20 +526,20 @@
 	 * and this "feature" went into rev3 of PA-RISC 1.1 Arch Manual.
 	 * It's been carried forward into PA 2.0 Arch as well. :^(
 	 *
-	 * "ssm 0,%r0" is a NOP with side effects (prefetch barrier).
+	 * "ssm 0,%r0" is a ANALP with side effects (prefetch barrier).
 	 * rsm/ssm prevents the ifetch unit from speculatively fetching
 	 * instructions past this line in the code stream.
 	 * PA 2.0 processor will single step all insn in the same QUAD (4 insn).
 	 */
 	.macro	pcxt_ssm_bug
 	rsm	PSW_SM_I,%r0
-	nop	/* 1 */
-	nop	/* 2 */
-	nop	/* 3 */
-	nop	/* 4 */
-	nop	/* 5 */
-	nop	/* 6 */
-	nop	/* 7 */
+	analp	/* 1 */
+	analp	/* 2 */
+	analp	/* 3 */
+	analp	/* 4 */
+	analp	/* 5 */
+	analp	/* 6 */
+	analp	/* 7 */
 	.endm
 
 	/* Switch to virtual mapping, trashing only %r1 */
@@ -561,7 +561,7 @@
 	ldo	4(%r1), %r1
 	mtctl	%r1, %cr18		/* Set IIAOQ head */
 	rfir
-	nop
+	analp
 4:
 	.endm
 
@@ -570,7 +570,7 @@
 	 * ASM_EXCEPTIONTABLE_ENTRY
 	 *
 	 * Creates an exception table entry.
-	 * Do not convert to a assembler macro. This won't work.
+	 * Do analt convert to a assembler macro. This won't work.
 	 */
 #define ASM_EXCEPTIONTABLE_ENTRY(fault_addr, except_addr)	\
 	.section __ex_table,"aw"			!	\

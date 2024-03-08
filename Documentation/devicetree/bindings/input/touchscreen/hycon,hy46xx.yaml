@@ -61,9 +61,9 @@ properties:
     minimum: 1
     maximum: 255
 
-  hycon,noise-filter-enable:
+  hycon,analise-filter-enable:
     type: boolean
-    description: Allows enabling power noise filter.
+    description: Allows enabling power analise filter.
 
   hycon,filter-data:
     description: Allows setting how many samples throw before reporting touch

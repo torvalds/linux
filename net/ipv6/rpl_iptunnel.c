@@ -98,7 +98,7 @@ static int rpl_build_state(struct net *net, struct nlattr *nla,
 
 	newts = lwtunnel_state_alloc(srh_len + sizeof(*rlwt));
 	if (!newts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rlwt = rpl_lwt_lwtunnel(newts);
 
@@ -138,7 +138,7 @@ static int rpl_do_srh_inline(struct sk_buff *skb, const struct rpl_lwt *rlwt,
 
 	buf = kcalloc(struct_size(srh, segments.addr, srh->segments_left), 2, GFP_ATOMIC);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isrh = (struct ipv6_rpl_sr_hdr *)buf;
 	csrh = (struct ipv6_rpl_sr_hdr *)(buf + ((srh->hdrlen + 1) << 3));

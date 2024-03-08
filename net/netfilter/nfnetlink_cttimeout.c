@@ -12,7 +12,7 @@
 #include <linux/timer.h>
 #include <linux/security.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netlink.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -78,7 +78,7 @@ ctnl_timeout_parse_policy(void *timeout,
 		     GFP_KERNEL);
 
 	if (!tb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nla_parse_nested_deprecated(tb,
 					  l4proto->ctnl_timeout.nlattr_max,
@@ -130,7 +130,7 @@ static int cttimeout_new_timeout(struct sk_buff *skb,
 
 	if (matching) {
 		if (info->nlh->nlmsg_flags & NLM_F_REPLACE) {
-			/* You cannot replace one timeout policy by another of
+			/* You cananalt replace one timeout policy by aanalther of
 			 * different kind, sorry.
 			 */
 			if (matching->timeout.l3num != l3num ||
@@ -148,16 +148,16 @@ static int cttimeout_new_timeout(struct sk_buff *skb,
 
 	l4proto = nf_ct_l4proto_find(l4num);
 
-	/* This protocol is not supportted, skip. */
+	/* This protocol is analt supportted, skip. */
 	if (l4proto->l4proto != l4num) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_proto_put;
 	}
 
 	timeout = kzalloc(sizeof(struct ctnl_timeout) +
 			  l4proto->ctnl_timeout.obj_size, GFP_KERNEL);
 	if (timeout == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_proto_put;
 	}
 
@@ -265,7 +265,7 @@ static int cttimeout_get_timeout(struct sk_buff *skb,
 				 const struct nlattr * const cda[])
 {
 	struct nfct_timeout_pernet *pernet = nfct_timeout_pernet(info->net);
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	char *name;
 	struct ctnl_timeout *cur;
 
@@ -288,7 +288,7 @@ static int cttimeout_get_timeout(struct sk_buff *skb,
 
 		skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 		if (skb2 == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -333,7 +333,7 @@ static int cttimeout_del_timeout(struct sk_buff *skb,
 {
 	struct nfct_timeout_pernet *pernet = nfct_timeout_pernet(info->net);
 	struct ctnl_timeout *cur, *tmp;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	char *name;
 
 	if (!cda[CTA_TIMEOUT_NAME]) {
@@ -374,9 +374,9 @@ static int cttimeout_default_set(struct sk_buff *skb,
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
 	l4proto = nf_ct_l4proto_find(l4num);
 
-	/* This protocol is not supported, skip. */
+	/* This protocol is analt supported, skip. */
 	if (l4proto->l4proto != l4num) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err;
 	}
 
@@ -449,7 +449,7 @@ static int cttimeout_default_get(struct sk_buff *skb,
 	l4proto = nf_ct_l4proto_find(l4num);
 
 	if (l4proto->l4proto != l4num)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (l4proto->l4proto) {
 	case IPPROTO_ICMP:
@@ -489,11 +489,11 @@ static int cttimeout_default_get(struct sk_buff *skb,
 	}
 
 	if (!timeouts)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!skb2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cttimeout_default_fill_info(info->net, skb2,
 					  NETLINK_CB(skb).portid,
@@ -503,7 +503,7 @@ static int cttimeout_default_get(struct sk_buff *skb,
 					  l3num, l4proto, timeouts);
 	if (ret <= 0) {
 		kfree_skb(skb2);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
@@ -519,7 +519,7 @@ static struct nf_ct_timeout *ctnl_timeout_find_get(struct net *net,
 		if (strncmp(timeout->name, name, CTNL_TIMEOUT_NAME_MAX) != 0)
 			continue;
 
-		if (!refcount_inc_not_zero(&timeout->refcnt))
+		if (!refcount_inc_analt_zero(&timeout->refcnt))
 			goto err;
 		matching = timeout;
 		break;
@@ -645,7 +645,7 @@ static int __init cttimeout_init(void)
 
 	ret = nfnetlink_subsys_register(&cttimeout_subsys);
 	if (ret < 0) {
-		pr_err("cttimeout_init: cannot register cttimeout with "
+		pr_err("cttimeout_init: cananalt register cttimeout with "
 			"nfnetlink.\n");
 		goto err_out;
 	}

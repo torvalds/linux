@@ -70,14 +70,14 @@ SOC_DOUBLE_R_TLV("Playback Volume", WM8741_DACLMSB_ATTENUATION,
 		 WM8741_DACRMSB_ATTENUATION, 0, 511, 1, dac_tlv),
 };
 
-static const struct snd_kcontrol_new wm8741_snd_controls_mono_left[] = {
+static const struct snd_kcontrol_new wm8741_snd_controls_moanal_left[] = {
 SOC_SINGLE_TLV("Fine Playback Volume", WM8741_DACLLSB_ATTENUATION,
 		 1, 255, 1, dac_tlv_fine),
 SOC_SINGLE_TLV("Playback Volume", WM8741_DACLMSB_ATTENUATION,
 		 0, 511, 1, dac_tlv),
 };
 
-static const struct snd_kcontrol_new wm8741_snd_controls_mono_right[] = {
+static const struct snd_kcontrol_new wm8741_snd_controls_moanal_right[] = {
 SOC_SINGLE_TLV("Fine Playback Volume", WM8741_DACRLSB_ATTENUATION,
 		1, 255, 1, dac_tlv_fine),
 SOC_SINGLE_TLV("Playback Volume", WM8741_DACRMSB_ATTENUATION,
@@ -85,8 +85,8 @@ SOC_SINGLE_TLV("Playback Volume", WM8741_DACRMSB_ATTENUATION,
 };
 
 static const struct snd_soc_dapm_widget wm8741_dapm_widgets[] = {
-SND_SOC_DAPM_DAC("DACL", "Playback", SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_DAC("DACR", "Playback", SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_DAC("DACL", "Playback", SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_DAC("DACR", "Playback", SND_SOC_ANALPM, 0, 0),
 SND_SOC_DAPM_OUTPUT("VOUTLP"),
 SND_SOC_DAPM_OUTPUT("VOUTLN"),
 SND_SOC_DAPM_OUTPUT("VOUTRP"),
@@ -200,7 +200,7 @@ static int wm8741_hw_params(struct snd_pcm_substream *substream,
 	 */
 	if (!wm8741->sysclk) {
 		dev_err(component->dev,
-			"No MCLK configured, call set_sysclk() on init or in hw_params\n");
+			"Anal MCLK configured, call set_sysclk() on init or in hw_params\n");
 		return -EINVAL;
 	}
 
@@ -387,7 +387,7 @@ static const struct snd_soc_dai_ops wm8741_dai_ops = {
 	.set_sysclk	= wm8741_set_dai_sysclk,
 	.set_fmt	= wm8741_set_dai_fmt,
 	.mute_stream	= wm8741_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8741_dai = {
@@ -420,8 +420,8 @@ static int wm8741_configure(struct snd_soc_component *component)
 	switch (wm8741->pdata.diff_mode) {
 	case WM8741_DIFF_MODE_STEREO:
 	case WM8741_DIFF_MODE_STEREO_REVERSED:
-	case WM8741_DIFF_MODE_MONO_LEFT:
-	case WM8741_DIFF_MODE_MONO_RIGHT:
+	case WM8741_DIFF_MODE_MOANAL_LEFT:
+	case WM8741_DIFF_MODE_MOANAL_RIGHT:
 		snd_soc_component_update_bits(component, WM8741_MODE_CONTROL_2,
 				WM8741_DIFF_MASK,
 				wm8741->pdata.diff_mode << WM8741_DIFF_SHIFT);
@@ -454,15 +454,15 @@ static int wm8741_add_controls(struct snd_soc_component *component)
 				wm8741_snd_controls_stereo,
 				ARRAY_SIZE(wm8741_snd_controls_stereo));
 		break;
-	case WM8741_DIFF_MODE_MONO_LEFT:
+	case WM8741_DIFF_MODE_MOANAL_LEFT:
 		snd_soc_add_component_controls(component,
-				wm8741_snd_controls_mono_left,
-				ARRAY_SIZE(wm8741_snd_controls_mono_left));
+				wm8741_snd_controls_moanal_left,
+				ARRAY_SIZE(wm8741_snd_controls_moanal_left));
 		break;
-	case WM8741_DIFF_MODE_MONO_RIGHT:
+	case WM8741_DIFF_MODE_MOANAL_RIGHT:
 		snd_soc_add_component_controls(component,
-				wm8741_snd_controls_mono_right,
-				ARRAY_SIZE(wm8741_snd_controls_mono_right));
+				wm8741_snd_controls_moanal_right,
+				ARRAY_SIZE(wm8741_snd_controls_moanal_right));
 		break;
 	default:
 		return -EINVAL;
@@ -551,8 +551,8 @@ static int wm8741_set_pdata(struct device *dev, struct wm8741_priv *wm8741)
 	const struct wm8741_platform_data *pdata = dev_get_platdata(dev);
 	u32 diff_mode;
 
-	if (dev->of_node) {
-		if (of_property_read_u32(dev->of_node, "diff-mode", &diff_mode)
+	if (dev->of_analde) {
+		if (of_property_read_u32(dev->of_analde, "diff-mode", &diff_mode)
 				>= 0)
 			wm8741->pdata.diff_mode = diff_mode;
 	} else {
@@ -572,7 +572,7 @@ static int wm8741_i2c_probe(struct i2c_client *i2c)
 	wm8741 = devm_kzalloc(&i2c->dev, sizeof(struct wm8741_priv),
 			      GFP_KERNEL);
 	if (wm8741 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
 		wm8741->supplies[i].supply = wm8741_supply_names[i];
@@ -630,7 +630,7 @@ static int wm8741_spi_probe(struct spi_device *spi)
 	wm8741 = devm_kzalloc(&spi->dev, sizeof(struct wm8741_priv),
 			     GFP_KERNEL);
 	if (wm8741 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
 		wm8741->supplies[i].supply = wm8741_supply_names[i];

@@ -190,7 +190,7 @@
 	hdmi-i2c-disable-hog {
 		/*
 		 * PM_OEn to High: Disable routing I2C3 to PM_I2C
-		 * With this PM_SEL(p3) should not matter
+		 * With this PM_SEL(p3) should analt matter
 		 */
 		gpio-hog;
 		gpios = <0 GPIO_ACTIVE_LOW>;
@@ -201,7 +201,7 @@
 
 &mmc1 {
 	pinctrl-names = "default", "hs", "sdr12", "sdr25", "sdr50", "ddr50", "sdr104";
-	pinctrl-0 = <&mmc1_pins_default_no_clk_pu>;
+	pinctrl-0 = <&mmc1_pins_default_anal_clk_pu>;
 	pinctrl-1 = <&mmc1_pins_hs>;
 	pinctrl-2 = <&mmc1_pins_sdr12>;
 	pinctrl-3 = <&mmc1_pins_sdr25>;
@@ -260,7 +260,7 @@
 	};
 };
 
-/* No Sata on this device */
+/* Anal Sata on this device */
 &sata_phy {
 	status = "disabled";
 };
@@ -269,7 +269,7 @@
 	status = "disabled";
 };
 
-/* No RTC on this device */
+/* Anal RTC on this device */
 &rtc {
 	status = "disabled";
 };

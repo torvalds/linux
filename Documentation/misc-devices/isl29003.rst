@@ -8,7 +8,7 @@ Supported chips:
 
 Prefix: 'isl29003'
 
-Addresses scanned: none
+Addresses scanned: analne
 
 Datasheet:
 http://www.intersil.com/data/fn/fn7464.pdf
@@ -32,7 +32,7 @@ value, of course.
 Detection
 ---------
 
-The ISL29003 does not have an ID register which could be used to identify
+The ISL29003 does analt have an ID register which could be used to identify
 it, so the detection routine will just try to read from the configured I2C
 address and consider the device to be present as soon as it ACKs the
 transfer.

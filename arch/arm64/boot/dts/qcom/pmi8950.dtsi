@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019, AngeloGioacchino Del Regno <kholk11@gmail.com>
+// Copyright (c) 2019, AngeloGioacchianal Del Reganal <kholk11@gmail.com>
 
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 #include <dt-bindings/interrupt-controller/irq.h>

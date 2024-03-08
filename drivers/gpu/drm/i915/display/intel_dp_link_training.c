@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -109,7 +109,7 @@ static bool
 intel_dp_set_lttpr_transparent_mode(struct intel_dp *intel_dp, bool enable)
 {
 	u8 val = enable ? DP_PHY_REPEATER_MODE_TRANSPARENT :
-			  DP_PHY_REPEATER_MODE_NON_TRANSPARENT;
+			  DP_PHY_REPEATER_MODE_ANALN_TRANSPARENT;
 
 	return drm_dp_dpcd_write(&intel_dp->aux, DP_PHY_REPEATER_MODE, &val, 1) == 1;
 }
@@ -124,7 +124,7 @@ static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEI
 
 	lttpr_count = drm_dp_lttpr_count(intel_dp->lttpr_common_caps);
 	/*
-	 * Prevent setting LTTPR transparent mode explicitly if no LTTPRs are
+	 * Prevent setting LTTPR transparent mode explicitly if anal LTTPRs are
 	 * detected as this breaks link training at least on the Dell WD19TB
 	 * dock.
 	 */
@@ -133,14 +133,14 @@ static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEI
 
 	/*
 	 * See DP Standard v2.0 3.6.6.1. about the explicit disabling of
-	 * non-transparent mode and the disable->enable non-transparent mode
+	 * analn-transparent mode and the disable->enable analn-transparent mode
 	 * sequence.
 	 */
 	intel_dp_set_lttpr_transparent_mode(intel_dp, true);
 
 	/*
 	 * In case of unsupported number of LTTPRs or failing to switch to
-	 * non-transparent mode fall-back to transparent link training mode,
+	 * analn-transparent mode fall-back to transparent link training mode,
 	 * still taking into account any LTTPR common lane- rate/count limits.
 	 */
 	if (lttpr_count < 0)
@@ -148,7 +148,7 @@ static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEI
 
 	if (!intel_dp_set_lttpr_transparent_mode(intel_dp, false)) {
 		lt_dbg(intel_dp, DP_PHY_DPRX,
-		       "Switching to LTTPR non-transparent LT mode failed, fall-back to transparent mode\n");
+		       "Switching to LTTPR analn-transparent LT mode failed, fall-back to transparent mode\n");
 
 		intel_dp_set_lttpr_transparent_mode(intel_dp, true);
 		intel_dp_reset_lttpr_count(intel_dp);
@@ -166,16 +166,16 @@ static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEI
  * intel_dp_init_lttpr_and_dprx_caps - detect LTTPR and DPRX caps, init the LTTPR link training mode
  * @intel_dp: Intel DP struct
  *
- * Read the LTTPR common and DPRX capabilities and switch to non-transparent
+ * Read the LTTPR common and DPRX capabilities and switch to analn-transparent
  * link training mode if any is detected and read the PHY capabilities for all
  * detected LTTPRs. In case of an LTTPR detection error or if the number of
- * LTTPRs is more than is supported (8), fall back to the no-LTTPR,
+ * LTTPRs is more than is supported (8), fall back to the anal-LTTPR,
  * transparent mode link training mode.
  *
  * Returns:
- *   >0  if LTTPRs were detected and the non-transparent LT mode was set. The
+ *   >0  if LTTPRs were detected and the analn-transparent LT mode was set. The
  *       DPRX capabilities are read out.
- *    0  if no LTTPRs or more than 8 LTTPRs were detected or in case of a
+ *    0  if anal LTTPRs or more than 8 LTTPRs were detected or in case of a
  *       detection failure and the transparent LT mode was set. The DPRX
  *       capabilities are read out.
  *   <0  Reading out the DPRX capabilities failed.
@@ -595,7 +595,7 @@ static bool intel_dp_lane_max_tx_ffe_reached(u8 train_set_lane)
  *
  * In lieu of better ideas let's just stop when we've reached the max supported
  * vswing with its max pre-emphasis, which is either 2+1 or 3+0 depending on
- * whether vswing level 3 is supported or not.
+ * whether vswing level 3 is supported or analt.
  */
 static bool intel_dp_lane_max_vswing_reached(u8 train_set_lane)
 {
@@ -639,7 +639,7 @@ intel_dp_update_downspread_ctrl(struct intel_dp *intel_dp,
 {
 	u8 link_config[2];
 
-	link_config[0] = crtc_state->vrr.flipline ? DP_MSA_TIMING_PAR_IGNORE_EN : 0;
+	link_config[0] = crtc_state->vrr.flipline ? DP_MSA_TIMING_PAR_IGANALRE_EN : 0;
 	link_config[1] = intel_dp_is_uhbr(crtc_state) ?
 			 DP_SET_ANSI_128B132B : DP_SET_ANSI_8B10B;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_DOWNSPREAD_CTRL, link_config, 2);
@@ -665,7 +665,7 @@ intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
 		/*
 		 * eDP v1.4 and later link rate set method.
 		 *
-		 * eDP v1.4x sinks shall ignore DP_LINK_RATE_SET if
+		 * eDP v1.4x sinks shall iganalre DP_LINK_RATE_SET if
 		 * DP_LINK_BW_SET is set. Avoid writing DP_LINK_BW_SET.
 		 *
 		 * eDP v1.5 sinks allow choosing either, and the last choice
@@ -696,12 +696,12 @@ intel_dp_prepare_link_train(struct intel_dp *intel_dp,
 	 * WaEdpLinkRateDataReload
 	 *
 	 * Parade PS8461E MUX (used on varius TGL+ laptops) needs
-	 * to snoop the link rates reported by the sink when we
+	 * to sanalop the link rates reported by the sink when we
 	 * use LINK_RATE_SET in order to operate in jitter cleaning
 	 * mode (as opposed to redriver mode). Unfortunately it
-	 * loses track of the snooped link rates when powered down,
-	 * so we need to make it re-snoop often. Without this high
-	 * link rates are not stable.
+	 * loses track of the sanaloped link rates when powered down,
+	 * so we need to make it re-sanalop often. Without this high
+	 * link rates are analt stable.
 	 */
 	if (!link_bw) {
 		__le16 sink_rates[DP_MAX_SUPPORTED_RATES];
@@ -877,7 +877,7 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
 
 	/*
 	 * TPS4 support is mandatory for all downstream devices that
-	 * support HBR3. There are no known eDP panels that support
+	 * support HBR3. There are anal kanalwn eDP panels that support
 	 * TPS4 as of Feb 2018 as per VESA eDP_v1.4b_E1 specification.
 	 * LTTPRs must support TPS4.
 	 */
@@ -897,7 +897,7 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
 
 	/*
 	 * TPS3 support is mandatory for downstream devices that
-	 * support HBR2. However, not all sinks follow the spec.
+	 * support HBR2. However, analt all sinks follow the spec.
 	 */
 	source_tps3 = intel_dp_source_supports_tps3(i915);
 	sink_tps3 = dp_phy != DP_PHY_DPRX ||
@@ -962,7 +962,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,
 					      crtc_state->lane_count)) {
 			intel_dp_dump_link_status(intel_dp, dp_phy, link_status);
 			lt_dbg(intel_dp, dp_phy,
-			       "Clock recovery check failed, cannot continue channel equalization\n");
+			       "Clock recovery check failed, cananalt continue channel equalization\n");
 			break;
 		}
 
@@ -1043,7 +1043,7 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp,
 
 	if (intel_dp_is_uhbr(crtc_state) &&
 	    wait_for(intel_dp_128b132b_intra_hop(intel_dp, crtc_state) == 0, 500)) {
-		lt_dbg(intel_dp, DP_PHY_DPRX, "128b/132b intra-hop not clearing\n");
+		lt_dbg(intel_dp, DP_PHY_DPRX, "128b/132b intra-hop analt clearing\n");
 	}
 }
 
@@ -1084,7 +1084,7 @@ static void intel_dp_schedule_fallback_link_training(struct intel_dp *intel_dp,
 
 	if (intel_dp->hobl_active) {
 		lt_dbg(intel_dp, DP_PHY_DPRX,
-		       "Link Training failed with HOBL active, not enabling it from now on\n");
+		       "Link Training failed with HOBL active, analt enabling it from analw on\n");
 		intel_dp->hobl_failed = true;
 	} else if (intel_dp_get_link_train_fallback_values(intel_dp,
 							   crtc_state->port_clock,
@@ -1093,7 +1093,7 @@ static void intel_dp_schedule_fallback_link_training(struct intel_dp *intel_dp,
 	}
 
 	/* Schedule a Hotplug Uevent to userspace to start modeset */
-	queue_work(i915->unordered_wq, &intel_connector->modeset_retry_work);
+	queue_work(i915->uanalrdered_wq, &intel_connector->modeset_retry_work);
 }
 
 /* Perform the link training on all LTTPRs and the DPRX on a link. */
@@ -1322,7 +1322,7 @@ intel_dp_128b132b_link_train(struct intel_dp *intel_dp,
 	bool passed = false;
 
 	if (wait_for(intel_dp_128b132b_intra_hop(intel_dp, crtc_state) == 0, 500)) {
-		lt_err(intel_dp, DP_PHY_DPRX, "128b/132b intra-hop not clear\n");
+		lt_err(intel_dp, DP_PHY_DPRX, "128b/132b intra-hop analt clear\n");
 		return false;
 	}
 
@@ -1372,19 +1372,19 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 		passed = intel_dp_link_train_all_phys(intel_dp, crtc_state, lttpr_count);
 
 	/*
-	 * Ignore the link failure in CI
+	 * Iganalre the link failure in CI
 	 *
 	 * In fixed enviroments like CI, sometimes unexpected long HPDs are
-	 * generated by the displays. If ignore_long_hpd flag is set, such long
-	 * HPDs are ignored. And probably as a consequence of these ignored
+	 * generated by the displays. If iganalre_long_hpd flag is set, such long
+	 * HPDs are iganalred. And probably as a consequence of these iganalred
 	 * long HPDs, subsequent link trainings are failed resulting into CI
 	 * execution failures.
 	 *
 	 * For test cases which rely on the link training or processing of HPDs
-	 * ignore_long_hpd flag can unset from the testcase.
+	 * iganalre_long_hpd flag can unset from the testcase.
 	 */
-	if (!passed && i915->display.hotplug.ignore_long_hpd) {
-		lt_dbg(intel_dp, DP_PHY_DPRX, "Ignore the link failure\n");
+	if (!passed && i915->display.hotplug.iganalre_long_hpd) {
+		lt_dbg(intel_dp, DP_PHY_DPRX, "Iganalre the link failure\n");
 		return;
 	}
 
@@ -1396,7 +1396,7 @@ void intel_dp_128b132b_sdp_crc16(struct intel_dp *intel_dp,
 				 const struct intel_crtc_state *crtc_state)
 {
 	/*
-	 * VIDEO_DIP_CTL register bit 31 should be set to '0' to not
+	 * VIDEO_DIP_CTL register bit 31 should be set to '0' to analt
 	 * disable SDP CRC. This is applicable for Display version 13.
 	 * Default value of bit 31 is '0' hence discarding the write
 	 * TODO: Corrective actions on SDP corruption yet to be defined

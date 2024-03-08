@@ -20,7 +20,7 @@ struct rproc;
 struct rproc_debug_trace {
 	struct rproc *rproc;
 	struct dentry *tfile;
-	struct list_head node;
+	struct list_head analde;
 	struct rproc_mem_entry trace_mem;
 };
 
@@ -91,8 +91,8 @@ static inline void rproc_exit_cdev(void)
 }
 
 /*
- * The character device interface is an optional feature, if it is not enabled
- * the function should not return an error.
+ * The character device interface is an optional feature, if it is analt enabled
+ * the function should analt return an error.
  */
 static inline int rproc_char_device_add(struct rproc *rproc)
 {
@@ -189,7 +189,7 @@ int rproc_handle_rsc(struct rproc *rproc, u32 rsc_type, void *rsc, int offset,
 		return rproc->ops->handle_rsc(rproc, rsc_type, rsc, offset,
 					      avail);
 
-	return RSC_IGNORED;
+	return RSC_IGANALRED;
 }
 
 static inline

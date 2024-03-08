@@ -6,11 +6,11 @@
 #include <test_progs.h>
 #include "perf_event_stackmap.skel.h"
 
-#ifndef noinline
-#define noinline __attribute__((noinline))
+#ifndef analinline
+#define analinline __attribute__((analinline))
 #endif
 
-noinline int func_1(void)
+analinline int func_1(void)
 {
 	static int val = 1;
 
@@ -20,27 +20,27 @@ noinline int func_1(void)
 	return val;
 }
 
-noinline int func_2(void)
+analinline int func_2(void)
 {
 	return func_1();
 }
 
-noinline int func_3(void)
+analinline int func_3(void)
 {
 	return func_2();
 }
 
-noinline int func_4(void)
+analinline int func_4(void)
 {
 	return func_3();
 }
 
-noinline int func_5(void)
+analinline int func_5(void)
 {
 	return func_4();
 }
 
-noinline int func_6(void)
+analinline int func_6(void)
 {
 	int i, val = 1;
 
@@ -60,8 +60,8 @@ void test_perf_event_stackmap(void)
 		.sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_BRANCH_STACK |
 			PERF_SAMPLE_CALLCHAIN,
 		.branch_sample_type = PERF_SAMPLE_BRANCH_USER |
-			PERF_SAMPLE_BRANCH_NO_FLAGS |
-			PERF_SAMPLE_BRANCH_NO_CYCLES |
+			PERF_SAMPLE_BRANCH_ANAL_FLAGS |
+			PERF_SAMPLE_BRANCH_ANAL_CYCLES |
 			PERF_SAMPLE_BRANCH_CALL_STACK,
 		.freq = 1,
 		.sample_freq = read_perf_max_sample_freq(),
@@ -84,7 +84,7 @@ void test_perf_event_stackmap(void)
 	CPU_ZERO(&cpu_set);
 	CPU_SET(0, &cpu_set);
 	err = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set);
-	if (CHECK(err, "set_affinity", "err %d, errno %d\n", err, errno))
+	if (CHECK(err, "set_affinity", "err %d, erranal %d\n", err, erranal))
 		goto cleanup;
 
 	pmu_fd = syscall(__NR_perf_event_open, &attr, -1 /* pid */,

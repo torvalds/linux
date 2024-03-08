@@ -89,15 +89,15 @@ static int cpm_pic_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->reg = devm_ioremap(dev, res->start, resource_size(res));
 	if (!data->reg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -110,9 +110,9 @@ static int cpm_pic_probe(struct platform_device *pdev)
 
 	out_be32(&data->reg->cpic_cimr, 0);
 
-	data->host = irq_domain_add_linear(dev->of_node, 64, &cpm_pic_host_ops, data);
+	data->host = irq_domain_add_linear(dev->of_analde, 64, &cpm_pic_host_ops, data);
 	if (!data->host)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq_set_handler_data(irq, data);
 	irq_set_chained_handler(irq, cpm_cascade);
@@ -148,7 +148,7 @@ arch_initcall(cpm_pic_init);
 /*
  * The CPM can generate the error interrupt when there is a race condition
  * between generating and masking interrupts.  All we have to do is ACK it
- * and return.  This is a no-op function so we don't need any special
+ * and return.  This is a anal-op function so we don't need any special
  * tests in the interrupt handler.
  */
 static irqreturn_t cpm_error_interrupt(int irq, void *dev)
@@ -164,7 +164,7 @@ static int cpm_error_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	return request_irq(irq, cpm_error_interrupt, IRQF_NO_THREAD, "error", NULL);
+	return request_irq(irq, cpm_error_interrupt, IRQF_ANAL_THREAD, "error", NULL);
 }
 
 static const struct of_device_id cpm_error_ids[] = {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2016-2022, AngeloGioacchino Del Regno
- *                          <angelogioacchino.delregno@collabora.com>
+ * Copyright (c) 2016-2022, AngeloGioacchianal Del Reganal
+ *                          <angelogioacchianal.delreganal@collabora.com>
  * Copyright (c) 2022, Konrad Dybcio <konrad.dybcio@somainline.org>
  * Copyright (c) 2022, Marijn Suijten <marijn.suijten@somainline.org>
  */
@@ -283,20 +283,20 @@
 							opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 						};
 
-						rpmpd_opp_nom: opp7 {
-							opp-level = <RPM_SMD_LEVEL_NOM>;
+						rpmpd_opp_analm: opp7 {
+							opp-level = <RPM_SMD_LEVEL_ANALM>;
 						};
 
-						rpmpd_opp_nom_plus: opp8 {
-							opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+						rpmpd_opp_analm_plus: opp8 {
+							opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 						};
 
 						rpmpd_opp_turbo: opp9 {
 							opp-level = <RPM_SMD_LEVEL_TURBO>;
 						};
 
-						rpmpd_opp_turbo_no_cpr: opp10 {
-							opp-level = <RPM_SMD_LEVEL_TURBO_NO_CPR>;
+						rpmpd_opp_turbo_anal_cpr: opp10 {
+							opp-level = <RPM_SMD_LEVEL_TURBO_ANAL_CPR>;
 						};
 
 						rpmpd_opp_turbo_high: opp111 {
@@ -315,13 +315,13 @@
 
 		ext-region@85b00000 {
 			reg = <0x0 0x85b00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		smem@86300000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x86300000 0x0 0x100000>;
-			no-map;
+			anal-map;
 
 			hwlocks = <&tcsr_mutex 3>;
 			qcom,rpm-msg-ram = <&rpm_msg_ram>;
@@ -329,32 +329,32 @@
 
 		reserved@86400000 {
 			reg = <0x0 0x86400000 0x0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: mpss@86c00000 {
 			reg = <0x0 0x86c00000 0x0 0x5600000>;
-			no-map;
+			anal-map;
 		};
 
 		lpass_mem: lpass@8c200000 {
 			reg = <0x0 0x8c200000 0x0 0x1000000>;
-			no-map;
+			anal-map;
 		};
 
 		wcnss_fw_mem: wcnss@8d200000 {
 			reg = <0x0 0x8d200000 0x0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@8da00000 {
 			reg = <0x0 0x8da00000 0x0 0x2600000>;
-			no-map;
+			anal-map;
 		};
 
 		tz-apps@8dd00000 {
 			reg = <0x0 0x8dd00000 0x0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -743,7 +743,7 @@
 				bias-disable;
 			};
 
-			/* 4 (not 6!) interfaces per QUP, BLSP2 indexes are numbered (n)+4 */
+			/* 4 (analt 6!) interfaces per QUP, BLSP2 indexes are numbered (n)+4 */
 			blsp2_i2c2_default: blsp2-i2c2-default-state {
 				pins = "gpio22", "gpio23";
 				function = "blsp_i2c6";

@@ -1,9 +1,9 @@
 * Parallel I/O Ports
 
-This node configures Parallel I/O ports for CPUs with QE support.
-The node should reside in the "soc" node of the tree.  For each
-device that using parallel I/O ports, a child node should be created.
-See the definition of the Pin configuration nodes below for more
+This analde configures Parallel I/O ports for CPUs with QE support.
+The analde should reside in the "soc" analde of the tree.  For each
+device that using parallel I/O ports, a child analde should be created.
+See the definition of the Pin configuration analdes below for more
 information.
 
 Required properties:
@@ -22,16 +22,16 @@ par_io@1400 {
 		......
 	};
 
-Note that "par_io" nodes are obsolete, and should not be used for
+Analte that "par_io" analdes are obsolete, and should analt be used for
 the new device trees. Instead, each Par I/O bank should be represented
-via its own gpio-controller node:
+via its own gpio-controller analde:
 
 Required properties:
 - #gpio-cells : should be "2".
 - compatible : should be "fsl,<chip>-qe-pario-bank",
   "fsl,mpc8323-qe-pario-bank".
 - reg : offset to the register set and its length.
-- gpio-controller : node to identify gpio controllers.
+- gpio-controller : analde to identify gpio controllers.
 
 Example:
 	qe_pio_a: gpio-controller@1400 {

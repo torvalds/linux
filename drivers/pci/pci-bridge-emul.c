@@ -30,7 +30,7 @@
  * @rw:		Read-Write bits
  * @w1c:	Write-1-to-Clear bits
  *
- * Reads and Writes will be filtered by specified behavior. All other bits not
+ * Reads and Writes will be filtered by specified behavior. All other bits analt
  * declared are assumed 'Reserved' and will return 0 on reads, per PCIe 5.0:
  * "Reserved register fields must be read only and must return 0 (all 0's for
  * multi-bit fields) when read".
@@ -63,25 +63,25 @@ struct pci_bridge_reg_behavior pci_regs_behavior[PCI_STD_HEADER_SIZEOF / 4] = {
 	[PCI_CLASS_REVISION / 4] = { .ro = ~0 },
 
 	/*
-	 * Cache Line Size register: implement as read-only, we do not
+	 * Cache Line Size register: implement as read-only, we do analt
 	 * pretend implementing "Memory Write and Invalidate"
 	 * transactions"
 	 *
 	 * Latency Timer Register: implemented as read-only, as "A
-	 * bridge that is not capable of a burst transfer of more than
+	 * bridge that is analt capable of a burst transfer of more than
 	 * two data phases on its primary interface is permitted to
 	 * hardwire the Latency Timer to a value of 16 or less"
 	 *
 	 * Header Type: always read-only
 	 *
 	 * BIST register: implemented as read-only, as "A bridge that
-	 * does not support BIST must implement this register as a
+	 * does analt support BIST must implement this register as a
 	 * read-only register that returns 0 when read"
 	 */
 	[PCI_CACHE_LINE_SIZE / 4] = { .ro = ~0 },
 
 	/*
-	 * Base Address registers not used must be implemented as
+	 * Base Address registers analt used must be implemented as
 	 * read-only registers that return 0 when read.
 	 */
 	[PCI_BASE_ADDRESS_0 / 4] = { .ro = ~0 },
@@ -184,8 +184,8 @@ struct pci_bridge_reg_behavior pcie_cap_regs_behavior[PCI_CAP_PCIE_SIZEOF / 4] =
 	[PCI_EXP_DEVCAP / 4] = {
 		/*
 		 * Bits [31:29] and [17:16] are reserved.
-		 * Bits [27:18] are reserved for non-upstream ports.
-		 * Bits 28 and [14:6] are reserved for non-endpoint devices.
+		 * Bits [27:18] are reserved for analn-upstream ports.
+		 * Bits 28 and [14:6] are reserved for analn-endpoint devices.
 		 * Other bits are read-only.
 		 */
 		.ro = BIT(15) | GENMASK(5, 0),
@@ -194,13 +194,13 @@ struct pci_bridge_reg_behavior pcie_cap_regs_behavior[PCI_CAP_PCIE_SIZEOF / 4] =
 	[PCI_EXP_DEVCTL / 4] = {
 		/*
 		 * Device control register is RW, except bit 15 which is
-		 * reserved for non-endpoints or non-PCIe-to-PCI/X bridges.
+		 * reserved for analn-endpoints or analn-PCIe-to-PCI/X bridges.
 		 */
 		.rw = GENMASK(14, 0),
 
 		/*
 		 * Device status register has bits 6 and [3:0] W1C, [5:4] RO,
-		 * the rest is reserved. Also bit 6 is reserved for non-upstream
+		 * the rest is reserved. Also bit 6 is reserved for analn-upstream
 		 * ports.
 		 */
 		.w1c = GENMASK(3, 0) << 16,
@@ -210,7 +210,7 @@ struct pci_bridge_reg_behavior pcie_cap_regs_behavior[PCI_CAP_PCIE_SIZEOF / 4] =
 	[PCI_EXP_LNKCAP / 4] = {
 		/*
 		 * All bits are RO, except bit 23 which is reserved and
-		 * bit 18 which is reserved for non-upstream ports.
+		 * bit 18 which is reserved for analn-upstream ports.
 		 */
 		.ro = lower_32_bits(~(BIT(23) | PCI_EXP_LNKCAP_CLKPM)),
 	},
@@ -218,7 +218,7 @@ struct pci_bridge_reg_behavior pcie_cap_regs_behavior[PCI_CAP_PCIE_SIZEOF / 4] =
 	[PCI_EXP_LNKCTL / 4] = {
 		/*
 		 * Link control has bits [15:14], [11:3] and [1:0] RW, the
-		 * rest is reserved. Bit 8 is reserved for non-upstream ports.
+		 * rest is reserved. Bit 8 is reserved for analn-upstream ports.
 		 *
 		 * Link status has bits [13:0] RO, and bits [15:14]
 		 * W1C.
@@ -273,7 +273,7 @@ struct pci_bridge_reg_behavior pcie_cap_regs_behavior[PCI_CAP_PCIE_SIZEOF / 4] =
 	[PCI_EXP_DEVCAP2 / 4] = {
 		/*
 		 * Device capabilities 2 register has reserved bits [30:27].
-		 * Also bits [26:24] are reserved for non-upstream ports.
+		 * Also bits [26:24] are reserved for analn-upstream ports.
 		 */
 		.ro = BIT(31) | GENMASK(23, 0),
 	},
@@ -281,7 +281,7 @@ struct pci_bridge_reg_behavior pcie_cap_regs_behavior[PCI_CAP_PCIE_SIZEOF / 4] =
 	[PCI_EXP_DEVCTL2 / 4] = {
 		/*
 		 * Device control 2 register is RW. Bit 11 is reserved for
-		 * non-upstream ports.
+		 * analn-upstream ports.
 		 *
 		 * Device status 2 register is reserved.
 		 */
@@ -329,7 +329,7 @@ pci_bridge_emul_read_ssid(struct pci_bridge_emul *bridge, int reg, u32 *value)
 		return PCI_BRIDGE_EMUL_HANDLED;
 
 	default:
-		return PCI_BRIDGE_EMUL_NOT_HANDLED;
+		return PCI_BRIDGE_EMUL_ANALT_HANDLED;
 	}
 }
 
@@ -347,11 +347,11 @@ int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
 
 	/*
 	 * class_revision: Class is high 24 bits and revision is low 8 bit
-	 * of this member, while class for PCI Bridge Normal Decode has the
-	 * 24-bit value: PCI_CLASS_BRIDGE_PCI_NORMAL
+	 * of this member, while class for PCI Bridge Analrmal Decode has the
+	 * 24-bit value: PCI_CLASS_BRIDGE_PCI_ANALRMAL
 	 */
 	bridge->conf.class_revision |=
-		cpu_to_le32(PCI_CLASS_BRIDGE_PCI_NORMAL << 8);
+		cpu_to_le32(PCI_CLASS_BRIDGE_PCI_ANALRMAL << 8);
 	bridge->conf.header_type = PCI_HEADER_TYPE_BRIDGE;
 	bridge->conf.cache_line_size = 0x10;
 	bridge->conf.status = cpu_to_le16(PCI_STATUS_CAP_LIST);
@@ -359,9 +359,9 @@ int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
 					    sizeof(pci_regs_behavior),
 					    GFP_KERNEL);
 	if (!bridge->pci_regs_behavior)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* If ssid_start and pcie_start were not specified then choose the lowest possible value. */
+	/* If ssid_start and pcie_start were analt specified then choose the lowest possible value. */
 	if (!bridge->ssid_start && !bridge->pcie_start) {
 		if (bridge->subsystem_vendor_id)
 			bridge->ssid_start = PCI_BRIDGE_CONF_END;
@@ -395,7 +395,7 @@ int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
 				GFP_KERNEL);
 		if (!bridge->pcie_cap_regs_behavior) {
 			kfree(bridge->pci_regs_behavior);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		/* These bits are applicable only for PCI and reserved on PCIe */
 		bridge->pci_regs_behavior[PCI_CACHE_LINE_SIZE / 4].ro &=
@@ -420,12 +420,12 @@ int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
 			~(BIT(10) << 16);
 	}
 
-	if (flags & PCI_BRIDGE_EMUL_NO_PREFMEM_FORWARD) {
+	if (flags & PCI_BRIDGE_EMUL_ANAL_PREFMEM_FORWARD) {
 		bridge->pci_regs_behavior[PCI_PREF_MEMORY_BASE / 4].ro = ~0;
 		bridge->pci_regs_behavior[PCI_PREF_MEMORY_BASE / 4].rw = 0;
 	}
 
-	if (flags & PCI_BRIDGE_EMUL_NO_IO_FORWARD) {
+	if (flags & PCI_BRIDGE_EMUL_ANAL_IO_FORWARD) {
 		bridge->pci_regs_behavior[PCI_COMMAND / 4].ro |= PCI_COMMAND_IO;
 		bridge->pci_regs_behavior[PCI_COMMAND / 4].rw &= ~PCI_COMMAND_IO;
 		bridge->pci_regs_behavior[PCI_IO_BASE / 4].ro |= GENMASK(15, 0);
@@ -491,7 +491,7 @@ int pci_bridge_emul_conf_read(struct pci_bridge_emul *bridge, int where,
 		cfgspace = NULL;
 		behavior = NULL;
 	} else {
-		/* Not implemented */
+		/* Analt implemented */
 		*value = 0;
 		return PCIBIOS_SUCCESSFUL;
 	}
@@ -499,9 +499,9 @@ int pci_bridge_emul_conf_read(struct pci_bridge_emul *bridge, int where,
 	if (read_op)
 		ret = read_op(bridge, reg, value);
 	else
-		ret = PCI_BRIDGE_EMUL_NOT_HANDLED;
+		ret = PCI_BRIDGE_EMUL_ANALT_HANDLED;
 
-	if (ret == PCI_BRIDGE_EMUL_NOT_HANDLED) {
+	if (ret == PCI_BRIDGE_EMUL_ANALT_HANDLED) {
 		if (cfgspace)
 			*value = le32_to_cpu(cfgspace[reg / 4]);
 		else
@@ -565,7 +565,7 @@ int pci_bridge_emul_conf_write(struct pci_bridge_emul *bridge, int where,
 		cfgspace = NULL;
 		behavior = NULL;
 	} else {
-		/* Not implemented */
+		/* Analt implemented */
 		return PCIBIOS_SUCCESSFUL;
 	}
 
@@ -601,14 +601,14 @@ int pci_bridge_emul_conf_write(struct pci_bridge_emul *bridge, int where,
 
 	if (behavior) {
 		/*
-		 * Clear the W1C bits not specified by the write mask, so that the
-		 * write_op() does not clear them.
+		 * Clear the W1C bits analt specified by the write mask, so that the
+		 * write_op() does analt clear them.
 		 */
 		new &= ~(behavior[reg / 4].w1c & ~mask);
 
 		/*
 		 * Set the W1C bits specified by the write mask, so that write_op()
-		 * knows about that they are to be cleared.
+		 * kanalws about that they are to be cleared.
 		 */
 		new |= (value << shift) & (behavior[reg / 4].w1c & mask);
 	}

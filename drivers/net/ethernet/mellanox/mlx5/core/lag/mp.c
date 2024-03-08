@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include <linux/netdevice.h>
 #include <net/nexthop.h>
@@ -42,7 +42,7 @@ bool mlx5_lag_is_multipath(struct mlx5_core_dev *dev)
  *
  * @ldev: lag device
  * @port:
- *     0 - set normal affinity.
+ *     0 - set analrmal affinity.
  *     1 - set affinity to port 1.
  *     2 - set affinity to port 2.
  *
@@ -56,7 +56,7 @@ static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev,
 		return;
 
 	switch (port) {
-	case MLX5_LAG_NORMAL_AFFINITY:
+	case MLX5_LAG_ANALRMAL_AFFINITY:
 		tracker.netdev_state[MLX5_LAG_P1].tx_enabled = true;
 		tracker.netdev_state[MLX5_LAG_P2].tx_enabled = true;
 		tracker.netdev_state[MLX5_LAG_P1].link_up = true;
@@ -81,19 +81,19 @@ static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev,
 	}
 
 	if (tracker.netdev_state[MLX5_LAG_P1].tx_enabled)
-		mlx5_notifier_call_chain(ldev->pf[MLX5_LAG_P1].dev->priv.events,
+		mlx5_analtifier_call_chain(ldev->pf[MLX5_LAG_P1].dev->priv.events,
 					 MLX5_DEV_EVENT_PORT_AFFINITY,
 					 (void *)0);
 
 	if (tracker.netdev_state[MLX5_LAG_P2].tx_enabled)
-		mlx5_notifier_call_chain(ldev->pf[MLX5_LAG_P2].dev->priv.events,
+		mlx5_analtifier_call_chain(ldev->pf[MLX5_LAG_P2].dev->priv.events,
 					 MLX5_DEV_EVENT_PORT_AFFINITY,
 					 (void *)0);
 
 	mlx5_modify_lag(ldev, &tracker);
 }
 
-static void mlx5_lag_fib_event_flush(struct notifier_block *nb)
+static void mlx5_lag_fib_event_flush(struct analtifier_block *nb)
 {
 	struct lag_mp *mp = container_of(nb, struct lag_mp, fib_nb);
 
@@ -113,8 +113,8 @@ struct mlx5_fib_event_work {
 	struct mlx5_lag *ldev;
 	unsigned long event;
 	union {
-		struct fib_entry_notifier_info fen_info;
-		struct fib_nh_notifier_info fnh_info;
+		struct fib_entry_analtifier_info fen_info;
+		struct fib_nh_analtifier_info fnh_info;
 	};
 };
 
@@ -148,7 +148,7 @@ mlx5_lag_get_next_fib_dev(struct mlx5_lag *ldev,
 }
 
 static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev, unsigned long event,
-				     struct fib_entry_notifier_info *fen_info)
+				     struct fib_entry_analtifier_info *fen_info)
 {
 	struct net_device *nh_dev0, *nh_dev1;
 	struct fib_info *fi = fen_info->fi;
@@ -204,7 +204,7 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev, unsigned long event,
 		mlx5_activate_lag(ldev, &tracker, MLX5_LAG_MODE_MULTIPATH, false);
 	}
 
-	mlx5_lag_set_port_affinity(ldev, MLX5_LAG_NORMAL_AFFINITY);
+	mlx5_lag_set_port_affinity(ldev, MLX5_LAG_ANALRMAL_AFFINITY);
 	mlx5_lag_fib_set(mp, fi, fen_info->dst, fen_info->dst_len);
 }
 
@@ -229,7 +229,7 @@ static void mlx5_lag_fib_nexthop_event(struct mlx5_lag *ldev,
 		}
 	} else if (event == FIB_EVENT_NH_ADD &&
 		   fib_info_num_path(fi) == 2) {
-		mlx5_lag_set_port_affinity(ldev, MLX5_LAG_NORMAL_AFFINITY);
+		mlx5_lag_set_port_affinity(ldev, MLX5_LAG_ANALRMAL_AFFINITY);
 	}
 }
 
@@ -280,36 +280,36 @@ mlx5_lag_init_fib_work(struct mlx5_lag *ldev, unsigned long event)
 	return fib_work;
 }
 
-static int mlx5_lag_fib_event(struct notifier_block *nb,
+static int mlx5_lag_fib_event(struct analtifier_block *nb,
 			      unsigned long event,
 			      void *ptr)
 {
 	struct lag_mp *mp = container_of(nb, struct lag_mp, fib_nb);
 	struct mlx5_lag *ldev = container_of(mp, struct mlx5_lag, lag_mp);
-	struct fib_notifier_info *info = ptr;
+	struct fib_analtifier_info *info = ptr;
 	struct mlx5_fib_event_work *fib_work;
-	struct fib_entry_notifier_info *fen_info;
-	struct fib_nh_notifier_info *fnh_info;
+	struct fib_entry_analtifier_info *fen_info;
+	struct fib_nh_analtifier_info *fnh_info;
 	struct fib_info *fi;
 
 	if (info->family != AF_INET)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!mlx5_lag_multipath_check_prereq(ldev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case FIB_EVENT_ENTRY_REPLACE:
 	case FIB_EVENT_ENTRY_DEL:
-		fen_info = container_of(info, struct fib_entry_notifier_info,
+		fen_info = container_of(info, struct fib_entry_analtifier_info,
 					info);
 		fi = fen_info->fi;
 		if (fi->nh)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 
 		fib_work = mlx5_lag_init_fib_work(ldev, event);
 		if (!fib_work)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		fib_work->fen_info = *fen_info;
 		/* Take reference on fib_info to prevent it from being
 		 * freed while work is queued. Release it afterwards.
@@ -318,21 +318,21 @@ static int mlx5_lag_fib_event(struct notifier_block *nb,
 		break;
 	case FIB_EVENT_NH_ADD:
 	case FIB_EVENT_NH_DEL:
-		fnh_info = container_of(info, struct fib_nh_notifier_info,
+		fnh_info = container_of(info, struct fib_nh_analtifier_info,
 					info);
 		fib_work = mlx5_lag_init_fib_work(ldev, event);
 		if (!fib_work)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		fib_work->fnh_info = *fnh_info;
 		fib_info_hold(fib_work->fnh_info.fib_nh->nh_parent);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	queue_work(mp->wq, &fib_work->work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void mlx5_lag_mp_reset(struct mlx5_lag *ldev)
@@ -353,19 +353,19 @@ int mlx5_lag_mp_init(struct mlx5_lag *ldev)
 	 */
 	mp->fib.mfi = NULL;
 
-	if (mp->fib_nb.notifier_call)
+	if (mp->fib_nb.analtifier_call)
 		return 0;
 
 	mp->wq = create_singlethread_workqueue("mlx5_lag_mp");
 	if (!mp->wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mp->fib_nb.notifier_call = mlx5_lag_fib_event;
-	err = register_fib_notifier(&init_net, &mp->fib_nb,
+	mp->fib_nb.analtifier_call = mlx5_lag_fib_event;
+	err = register_fib_analtifier(&init_net, &mp->fib_nb,
 				    mlx5_lag_fib_event_flush, NULL);
 	if (err) {
 		destroy_workqueue(mp->wq);
-		mp->fib_nb.notifier_call = NULL;
+		mp->fib_nb.analtifier_call = NULL;
 	}
 
 	return err;
@@ -375,11 +375,11 @@ void mlx5_lag_mp_cleanup(struct mlx5_lag *ldev)
 {
 	struct lag_mp *mp = &ldev->lag_mp;
 
-	if (!mp->fib_nb.notifier_call)
+	if (!mp->fib_nb.analtifier_call)
 		return;
 
-	unregister_fib_notifier(&init_net, &mp->fib_nb);
+	unregister_fib_analtifier(&init_net, &mp->fib_nb);
 	destroy_workqueue(mp->wq);
-	mp->fib_nb.notifier_call = NULL;
+	mp->fib_nb.analtifier_call = NULL;
 	mp->fib.mfi = NULL;
 }

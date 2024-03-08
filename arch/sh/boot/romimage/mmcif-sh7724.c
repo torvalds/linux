@@ -34,7 +34,7 @@ enum {
  * use the following line to write the romImage to an MMC card
  * # dd if=arch/sh/boot/romImage of=/dev/sdx bs=512 seek=512
  */
-asmlinkage void mmcif_loader(unsigned char *buf, unsigned long no_bytes)
+asmlinkage void mmcif_loader(unsigned char *buf, unsigned long anal_bytes)
 {
 	mmcif_update_progress(MMCIF_PROGRESS_ENTER);
 
@@ -68,7 +68,7 @@ asmlinkage void mmcif_loader(unsigned char *buf, unsigned long no_bytes)
 
 	/* load kernel via MMCIF interface */
 	sh_mmcif_boot_do_read(MMCIF_BASE, 512,
-	                      (no_bytes + SH_MMCIF_BBS - 1) / SH_MMCIF_BBS,
+	                      (anal_bytes + SH_MMCIF_BBS - 1) / SH_MMCIF_BBS,
 			      buf);
 
 	/* disable clock to the MMCIF hardware block */

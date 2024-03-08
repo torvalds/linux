@@ -34,7 +34,7 @@ extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src
 #ifdef CONFIG_32BIT
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
- * so don't change it unless you know what you are doing.
+ * so don't change it unless you kanalw what you are doing.
  */
 #define TASK_SIZE	0x80000000UL
 
@@ -47,7 +47,7 @@ extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src
 #ifdef CONFIG_64BIT
 /*
  * User space process size: 1TB. This is hardcoded into a few places,
- * so don't change it unless you know what you are doing.  TASK_SIZE
+ * so don't change it unless you kanalw what you are doing.  TASK_SIZE
  * is limited to 1TB by the R4000 architecture; R10000 and better can
  * support 16TB; the architectural reserve for future expansion is
  * 8192EB ...
@@ -116,7 +116,7 @@ BUILD_FPR_ACCESS(64)
 
 /*
  * It would be nice to add some more fields for emulator statistics,
- * the additional information is private to the FPU emulator for now.
+ * the additional information is private to the FPU emulator for analw.
  * See arch/mips/include/asm/fpu_emulator.h.
  */
 
@@ -289,7 +289,7 @@ struct thread_struct {
 		.msacsr		= 0,				\
 	},							\
 	/* Delay slot emulation */				\
-	.bd_emu_frame = ATOMIC_INIT(BD_EMUFRAME_NONE),		\
+	.bd_emu_frame = ATOMIC_INIT(BD_EMUFRAME_ANALNE),		\
 	.bd_emu_branch_pc = 0,					\
 	.bd_emu_cont_pc = 0,
 #else
@@ -320,7 +320,7 @@ struct thread_struct {
 	 */							\
 	FPU_INIT						\
 	/*							\
-	 * FPU affinity state (null if not FPAFF)		\
+	 * FPU affinity state (null if analt FPAFF)		\
 	 */							\
 	FPAFF_INIT						\
 	/*							\
@@ -342,7 +342,7 @@ struct thread_struct {
 	.error_code		= 0,				\
 	.trap_nr		= 0,				\
 	/*							\
-	 * Platform specific cop2 registers(null if no COP2)	\
+	 * Platform specific cop2 registers(null if anal COP2)	\
 	 */							\
 	COP2_INIT						\
 }
@@ -369,13 +369,13 @@ unsigned long __get_wchan(struct task_struct *p);
 
 /*
  * Return_address is a replacement for __builtin_return_address(count)
- * which on certain architectures cannot reasonably be implemented in GCC
+ * which on certain architectures cananalt reasonably be implemented in GCC
  * (MIPS, Alpha) or is unusable with -fomit-frame-pointer (i386).
- * Note that __builtin_return_address(x>=1) is forbidden because GCC
- * aborts compilation on some CPUs.  It's simply not possible to unwind
+ * Analte that __builtin_return_address(x>=1) is forbidden because GCC
+ * aborts compilation on some CPUs.  It's simply analt possible to unwind
  * some CPU's stackframes.
  *
- * __builtin_return_address works only for non-leaf functions.	We avoid the
+ * __builtin_return_address works only for analn-leaf functions.	We avoid the
  * overhead of a function call by forcing the compiler to save the return
  * address register on the stack.
  */

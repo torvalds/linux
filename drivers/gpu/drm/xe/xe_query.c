@@ -5,7 +5,7 @@
 
 #include "xe_query.h"
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/sched/clock.h>
 
 #include <drm/ttm/ttm_placement.h>
@@ -65,9 +65,9 @@ static __ktime_func_t __clock_id_to_func(clockid_t clk_id)
 	 * reference clock id to be used for timestamps.
 	 */
 	switch (clk_id) {
-	case CLOCK_MONOTONIC:
+	case CLOCK_MOANALTONIC:
 		return &ktime_get_ns;
-	case CLOCK_MONOTONIC_RAW:
+	case CLOCK_MOANALTONIC_RAW:
 		return &ktime_get_raw_ns;
 	case CLOCK_REALTIME:
 		return &ktime_get_real_ns;
@@ -200,7 +200,7 @@ static int query_engines(struct xe_device *xe,
 
 	engines = kmalloc(size, GFP_KERNEL);
 	if (!engines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_gt(gt, xe, gt_id)
 		for_each_hw_engine(hwe, gt, id) {
@@ -262,7 +262,7 @@ static int query_mem_regions(struct xe_device *xe,
 
 	mem_regions = kzalloc(size, GFP_KERNEL);
 	if (XE_IOCTL_DBG(xe, !mem_regions))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	man = ttm_manager_type(&xe->ttm, XE_PL_TT);
 	mem_regions->mem_regions[0].mem_class = DRM_XE_MEM_REGION_CLASS_SYSMEM;
@@ -308,7 +308,7 @@ static int query_mem_regions(struct xe_device *xe,
 	if (!copy_to_user(query_ptr, mem_regions, size))
 		ret = 0;
 	else
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 
 	kfree(mem_regions);
 	return ret;
@@ -332,7 +332,7 @@ static int query_config(struct xe_device *xe, struct drm_xe_device_query *query)
 
 	config = kzalloc(size, GFP_KERNEL);
 	if (!config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config->num_params = num_params;
 	config->info[DRM_XE_QUERY_CONFIG_REV_AND_DEVICE_ID] =
@@ -374,7 +374,7 @@ static int query_gt_list(struct xe_device *xe, struct drm_xe_device_query *query
 
 	gt_list = kzalloc(size, GFP_KERNEL);
 	if (!gt_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gt_list->num_gt = xe->info.gt_count;
 
@@ -435,7 +435,7 @@ static int query_hwconfig(struct xe_device *xe,
 
 	hwconfig = kzalloc(size, GFP_KERNEL);
 	if (!hwconfig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xe_device_mem_access_get(xe);
 	xe_guc_hwconfig_copy(&gt->uc.guc, hwconfig);
@@ -544,7 +544,7 @@ int xe_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (XE_IOCTL_DBG(xe, query->query >= ARRAY_SIZE(xe_query_funcs)))
 		return -EINVAL;
 
-	idx = array_index_nospec(query->query, ARRAY_SIZE(xe_query_funcs));
+	idx = array_index_analspec(query->query, ARRAY_SIZE(xe_query_funcs));
 	if (XE_IOCTL_DBG(xe, !xe_query_funcs[idx]))
 		return -EINVAL;
 

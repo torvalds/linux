@@ -17,7 +17,7 @@ description: |+
   the PCIe specification.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^iommu@[0-9a-f]*"
   compatible:
     const: arm,smmu-v3
@@ -40,10 +40,10 @@ properties:
       - minItems: 1
         items:
           enum:
-            - eventq      # Event Queue not empty
+            - eventq      # Event Queue analt empty
             - gerror      # Global Error activated
             - cmdq-sync   # CMD_SYNC complete
-            - priq        # PRI Queue not empty
+            - priq        # PRI Queue analt empty
 
   '#iommu-cells':
     const: 1
@@ -53,7 +53,7 @@ properties:
       Present if page table walks made by the SMMU are cache coherent with the
       CPU.
 
-      NOTE: this only applies to the SMMU itself, not masters connected
+      ANALTE: this only applies to the SMMU itself, analt masters connected
       upstream of the SMMU.
 
   msi-parent: true

@@ -9,4 +9,4 @@ Optional properties:
 	the input clock to SCLK.
 
 The clock-frequency and baud-width properties are needed only if the divider
-is programmable. They are not needed if the divider is fixed.
+is programmable. They are analt needed if the divider is fixed.

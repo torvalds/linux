@@ -60,7 +60,7 @@ union global_cpu_snapshot {
 
 extern union global_cpu_snapshot global_cpu_snapshot[NR_CPUS];
 
-#define force_successful_syscall_return() set_thread_noerror(1)
+#define force_successful_syscall_return() set_thread_analerror(1)
 #define user_mode(regs) (!((regs)->tstate & TSTATE_PRIV))
 #define instruction_pointer(regs) ((regs)->tpc)
 #define instruction_pointer_set(regs, val) do { \

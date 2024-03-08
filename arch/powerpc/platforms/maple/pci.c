@@ -32,24 +32,24 @@
 
 static struct pci_controller *u3_agp, *u3_ht, *u4_pcie;
 
-static int __init fixup_one_level_bus_range(struct device_node *node, int higher)
+static int __init fixup_one_level_bus_range(struct device_analde *analde, int higher)
 {
-	for (; node; node = node->sibling) {
+	for (; analde; analde = analde->sibling) {
 		const int *bus_range;
 		const unsigned int *class_code;
 		int len;
 
 		/* For PCI<->PCI bridges or CardBus bridges, we go down */
-		class_code = of_get_property(node, "class-code", NULL);
+		class_code = of_get_property(analde, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		bus_range = of_get_property(node, "bus-range", &len);
+		bus_range = of_get_property(analde, "bus-range", &len);
 		if (bus_range != NULL && len > 2 * sizeof(int)) {
 			if (bus_range[1] > higher)
 				higher = bus_range[1];
 		}
-		higher = fixup_one_level_bus_range(node->child, higher);
+		higher = fixup_one_level_bus_range(analde->child, higher);
 	}
 	return higher;
 }
@@ -57,10 +57,10 @@ static int __init fixup_one_level_bus_range(struct device_node *node, int higher
 /* This routine fixes the "bus-range" property of all bridges in the
  * system since they tend to have their "last" member wrong on macs
  *
- * Note that the bus numbers manipulated here are OF bus numbers, they
- * are not Linux bus numbers.
+ * Analte that the bus numbers manipulated here are OF bus numbers, they
+ * are analt Linux bus numbers.
  */
-static void __init fixup_bus_range(struct device_node *bridge)
+static void __init fixup_bus_range(struct device_analde *bridge)
 {
 	int *bus_range;
 	struct property *prop;
@@ -98,14 +98,14 @@ static volatile void __iomem *u3_agp_cfg_access(struct pci_controller* hose,
 {
 	unsigned int caddr;
 
-	if (bus == hose->first_busno) {
+	if (bus == hose->first_busanal) {
 		if (dev_fn < (11 << 3))
 			return NULL;
 		caddr = u3_agp_cfa0(dev_fn, offset);
 	} else
 		caddr = u3_agp_cfa1(bus, dev_fn, offset);
 
-	/* Uninorth will return garbage if we don't read back the value ! */
+	/* Unianalrth will return garbage if we don't read back the value ! */
 	do {
 		out_le32(hose->cfg_addr, caddr);
 	} while (in_le32(hose->cfg_addr) != caddr);
@@ -122,13 +122,13 @@ static int u3_agp_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	addr = u3_agp_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	/*
-	 * Note: the caller has already checked that offset is
+	 * Analte: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	switch (len) {
@@ -153,13 +153,13 @@ static int u3_agp_write_config(struct pci_bus *bus, unsigned int devfn,
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	addr = u3_agp_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	/*
-	 * Note: the caller has already checked that offset is
+	 * Analte: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	switch (len) {
@@ -195,7 +195,7 @@ static unsigned long u3_ht_cfa1(u8 bus, u8 devfn, u8 off)
 static volatile void __iomem *u3_ht_cfg_access(struct pci_controller* hose,
 				      u8 bus, u8 devfn, u8 offset)
 {
-	if (bus == hose->first_busno) {
+	if (bus == hose->first_busanal) {
 		if (PCI_SLOT(devfn) == 0)
 			return NULL;
 		return hose->cfg_data + u3_ht_cfa0(devfn, offset);
@@ -259,9 +259,9 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
-	if (bus->number == hose->first_busno && devfn == PCI_DEVFN(0, 0))
+	if (bus->number == hose->first_busanal && devfn == PCI_DEVFN(0, 0))
 		return u3_ht_root_read_config(hose, offset, len, val);
 
 	if (offset > 0xff)
@@ -269,10 +269,10 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/*
-	 * Note: the caller has already checked that offset is
+	 * Analte: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	switch (len) {
@@ -297,9 +297,9 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
-	if (bus->number == hose->first_busno && devfn == PCI_DEVFN(0, 0))
+	if (bus->number == hose->first_busanal && devfn == PCI_DEVFN(0, 0))
 		return u3_ht_root_write_config(hose, offset, len, val);
 
 	if (offset > 0xff)
@@ -307,9 +307,9 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 
 	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	/*
-	 * Note: the caller has already checked that offset is
+	 * Analte: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	switch (len) {
@@ -354,12 +354,12 @@ static volatile void __iomem *u4_pcie_cfg_access(struct pci_controller* hose,
 {
         unsigned int caddr;
 
-        if (bus == hose->first_busno)
+        if (bus == hose->first_busanal)
                 caddr = u4_pcie_cfa0(dev_fn, offset);
         else
                 caddr = u4_pcie_cfa1(bus, dev_fn, offset);
 
-        /* Uninorth will return garbage if we don't read back the value ! */
+        /* Unianalrth will return garbage if we don't read back the value ! */
         do {
                 out_le32(hose->cfg_addr, caddr);
         } while (in_le32(hose->cfg_addr) != caddr);
@@ -376,14 +376,14 @@ static int u4_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 
         hose = pci_bus_to_host(bus);
         if (hose == NULL)
-                return PCIBIOS_DEVICE_NOT_FOUND;
+                return PCIBIOS_DEVICE_ANALT_FOUND;
         if (offset >= 0x1000)
                 return  PCIBIOS_BAD_REGISTER_NUMBER;
         addr = u4_pcie_cfg_access(hose, bus->number, devfn, offset);
         if (!addr)
-                return PCIBIOS_DEVICE_NOT_FOUND;
+                return PCIBIOS_DEVICE_ANALT_FOUND;
         /*
-         * Note: the caller has already checked that offset is
+         * Analte: the caller has already checked that offset is
          * suitably aligned and that len is 1, 2 or 4.
          */
         switch (len) {
@@ -407,14 +407,14 @@ static int u4_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 
         hose = pci_bus_to_host(bus);
         if (hose == NULL)
-                return PCIBIOS_DEVICE_NOT_FOUND;
+                return PCIBIOS_DEVICE_ANALT_FOUND;
         if (offset >= 0x1000)
                 return  PCIBIOS_BAD_REGISTER_NUMBER;
         addr = u4_pcie_cfg_access(hose, bus->number, devfn, offset);
         if (!addr)
-                return PCIBIOS_DEVICE_NOT_FOUND;
+                return PCIBIOS_DEVICE_ANALT_FOUND;
         /*
-         * Note: the caller has already checked that offset is
+         * Analte: the caller has already checked that offset is
          * suitably aligned and that len is 1, 2 or 4.
          */
         switch (len) {
@@ -442,14 +442,14 @@ static void __init setup_u3_agp(struct pci_controller* hose)
 	/* On G5, we move AGP up to high bus number so we don't need
 	 * to reassign bus numbers for HT. If we ever have P2P bridges
 	 * on AGP, we'll have to move pci_assign_all_buses to the
-	 * pci_controller structure so we enable it for AGP and not for
+	 * pci_controller structure so we enable it for AGP and analt for
 	 * HT childs.
 	 * We hard code the address because of the different size of
 	 * the reg address cell, we shall fix that by killing struct
 	 * reg_property and using some accessor functions instead
 	 */
-	hose->first_busno = 0xf0;
-	hose->last_busno = 0xff;
+	hose->first_busanal = 0xf0;
+	hose->last_busanal = 0xff;
 	hose->ops = &u3_agp_pci_ops;
 	hose->cfg_addr = ioremap(0xf0000000 + 0x800000, 0x1000);
 	hose->cfg_data = ioremap(0xf0000000 + 0xc00000, 0x1000);
@@ -459,7 +459,7 @@ static void __init setup_u3_agp(struct pci_controller* hose)
 
 static void __init setup_u4_pcie(struct pci_controller* hose)
 {
-        /* We currently only implement the "non-atomic" config space, to
+        /* We currently only implement the "analn-atomic" config space, to
          * be optimised later.
          */
         hose->ops = &u4_pcie_pci_ops;
@@ -480,13 +480,13 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	hose->cfg_data = ioremap(0xf2000000, 0x02000000);
 	hose->cfg_addr = ioremap(0xf8070000, 0x1000);
 
-	hose->first_busno = 0;
-	hose->last_busno = 0xef;
+	hose->first_busanal = 0;
+	hose->last_busanal = 0xef;
 
 	u3_ht = hose;
 }
 
-static int __init maple_add_bridge(struct device_node *dev)
+static int __init maple_add_bridge(struct device_analde *dev)
 {
 	int len;
 	struct pci_controller *hose;
@@ -504,9 +504,9 @@ static int __init maple_add_bridge(struct device_node *dev)
 
 	hose = pcibios_alloc_controller(dev);
 	if (hose == NULL)
-		return -ENOMEM;
-	hose->first_busno = bus_range ? bus_range[0] : 0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+		return -EANALMEM;
+	hose->first_busanal = bus_range ? bus_range[0] : 0;
+	hose->last_busanal = bus_range ? bus_range[1] : 0xff;
 	hose->controller_ops = maple_pci_controller_ops;
 
 	disp_name = NULL;
@@ -524,7 +524,7 @@ static int __init maple_add_bridge(struct device_node *dev)
                 primary = 0;
 	}
 	printk(KERN_INFO "Found %s PCI host bridge. Firmware bus number: %d->%d\n",
-		disp_name, hose->first_busno, hose->last_busno);
+		disp_name, hose->first_busanal, hose->last_busanal);
 
 	/* Interpret the "ranges" property */
 	/* This also maps the I/O region and sets isa_io/mem_base */
@@ -536,7 +536,7 @@ static int __init maple_add_bridge(struct device_node *dev)
 	/* Check for legacy IOs */
 	isa_bridge_find_early(hose);
 
-	/* create pci_dn's for DT nodes under this PHB */
+	/* create pci_dn's for DT analdes under this PHB */
 	pci_devs_phb_init_dynamic(hose);
 
 	return 0;
@@ -571,67 +571,67 @@ void maple_pci_irq_fixup(struct pci_dev *dev)
 static int maple_pci_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
 	struct pci_controller *hose = pci_bus_to_host(bridge->bus);
-	struct device_node *np, *child;
+	struct device_analde *np, *child;
 
 	if (hose != u3_agp)
 		return 0;
 
 	/* Fixup the PCI<->OF mapping for U3 AGP due to bus renumbering. We
-	 * assume there is no P2P bridge on the AGP bus, which should be a
+	 * assume there is anal P2P bridge on the AGP bus, which should be a
 	 * safe assumptions hopefully.
 	 */
 	np = hose->dn;
-	PCI_DN(np)->busno = 0xf0;
-	for_each_child_of_node(np, child)
-		PCI_DN(child)->busno = 0xf0;
+	PCI_DN(np)->busanal = 0xf0;
+	for_each_child_of_analde(np, child)
+		PCI_DN(child)->busanal = 0xf0;
 
 	return 0;
 }
 
 void __init maple_pci_init(void)
 {
-	struct device_node *np, *root;
-	struct device_node *ht = NULL;
+	struct device_analde *np, *root;
+	struct device_analde *ht = NULL;
 
 	/* Probe root PCI hosts, that is on U3 the AGP host and the
 	 * HyperTransport host. That one is actually "kept" around
 	 * and actually added last as it's resource management relies
 	 * on the AGP resources to have been setup first
 	 */
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (root == NULL) {
 		printk(KERN_CRIT "maple_find_bridges: can't find root of device tree\n");
 		return;
 	}
-	for_each_child_of_node(root, np) {
-		if (!of_node_is_type(np, "pci") && !of_node_is_type(np, "ht"))
+	for_each_child_of_analde(root, np) {
+		if (!of_analde_is_type(np, "pci") && !of_analde_is_type(np, "ht"))
 			continue;
 		if ((of_device_is_compatible(np, "u4-pcie") ||
 		     of_device_is_compatible(np, "u3-agp")) &&
 		    maple_add_bridge(np) == 0)
-			of_node_get(np);
+			of_analde_get(np);
 
 		if (of_device_is_compatible(np, "u3-ht")) {
-			of_node_get(np);
+			of_analde_get(np);
 			ht = np;
 		}
 	}
-	of_node_put(root);
+	of_analde_put(root);
 
-	/* Now setup the HyperTransport host if we found any
+	/* Analw setup the HyperTransport host if we found any
 	 */
 	if (ht && maple_add_bridge(ht) != 0)
-		of_node_put(ht);
+		of_analde_put(ht);
 
 	ppc_md.pcibios_root_bridge_prepare = maple_pci_root_bridge_prepare;
 
-	/* Tell pci.c to not change any resource allocations.  */
+	/* Tell pci.c to analt change any resource allocations.  */
 	pci_add_flags(PCI_PROBE_ONLY);
 }
 
 int maple_pci_get_legacy_ide_irq(struct pci_dev *pdev, int channel)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int defirq = channel ? 15 : 14;
 	unsigned int irq;
 
@@ -639,9 +639,9 @@ int maple_pci_get_legacy_ide_irq(struct pci_dev *pdev, int channel)
 	    pdev->device != PCI_DEVICE_ID_AMD_8111_IDE)
 		return defirq;
 
-	np = pci_device_to_OF_node(pdev);
+	np = pci_device_to_OF_analde(pdev);
 	if (np == NULL) {
-		printk("Failed to locate OF node for IDE %s\n",
+		printk("Failed to locate OF analde for IDE %s\n",
 		       pci_name(pdev));
 		return defirq;
 	}
@@ -657,11 +657,11 @@ int maple_pci_get_legacy_ide_irq(struct pci_dev *pdev, int channel)
 static void quirk_ipr_msi(struct pci_dev *dev)
 {
 	/* Something prevents MSIs from the IPR from working on Bimini,
-	 * and the driver has no smarts to recover. So disable MSI
-	 * on it for now. */
+	 * and the driver has anal smarts to recover. So disable MSI
+	 * on it for analw. */
 
 	if (machine_is(maple)) {
-		dev->no_msi = 1;
+		dev->anal_msi = 1;
 		dev_info(&dev->dev, "Quirk disabled MSI\n");
 	}
 }

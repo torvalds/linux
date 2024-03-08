@@ -19,7 +19,7 @@
 #include <linux/sizes.h>
 #include <asm/clock.h>
 
-static struct mtd_partition nor_flash_partitions[] = {
+static struct mtd_partition analr_flash_partitions[] = {
 	{
 		.name		= "loader",
 		.offset		= 0x00000000,
@@ -42,13 +42,13 @@ static struct mtd_partition nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data analr_flash_data = {
 	.width		= 4,
-	.parts		= nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+	.parts		= analr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(analr_flash_partitions),
 };
 
-static struct resource nor_flash_resources[] = {
+static struct resource analr_flash_resources[] = {
 	[0]	= {
 		.start	= 0x00000000,
 		.end	= 0x01000000 - 1,
@@ -56,13 +56,13 @@ static struct resource nor_flash_resources[] = {
 	}
 };
 
-static struct platform_device nor_flash_device = {
+static struct platform_device analr_flash_device = {
 	.name		= "physmap-flash",
 	.dev		= {
-		.platform_data	= &nor_flash_data,
+		.platform_data	= &analr_flash_data,
 	},
-	.num_resources	= ARRAY_SIZE(nor_flash_resources),
-	.resource	= nor_flash_resources,
+	.num_resources	= ARRAY_SIZE(analr_flash_resources),
+	.resource	= analr_flash_resources,
 };
 
 /* Dummy supplies, where voltage doesn't matter */
@@ -104,7 +104,7 @@ static struct platform_device smsc911x_device = {
 };
 
 static struct platform_device *apsh4a3a_devices[] __initdata = {
-	&nor_flash_device,
+	&analr_flash_device,
 	&smsc911x_device,
 };
 
@@ -165,7 +165,7 @@ static int apsh4a3a_mode_pins(void)
 	value |=  MODE_PIN11; /* Display Unit */
 	value |=  MODE_PIN12;
 	value &= ~MODE_PIN13; /* 29-bit address mode */
-	value |=  MODE_PIN14; /* No PLL step-up */
+	value |=  MODE_PIN14; /* Anal PLL step-up */
 
 	return value;
 }

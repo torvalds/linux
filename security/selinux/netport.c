@@ -3,7 +3,7 @@
  * Network port table
  *
  * SELinux must keep a mapping of network ports to labels/SIDs.  This
- * mapping is maintained as part of the normal policy but a fast cache is
+ * mapping is maintained as part of the analrmal policy but a fast cache is
  * needed to reduce the lookup overhead.
  *
  * Author: Paul Moore <paul@paul-moore.com>
@@ -47,8 +47,8 @@ struct sel_netport {
 	struct rcu_head rcu;
 };
 
-/* NOTE: we are using a combined hash table for both IPv4 and IPv6, the reason
- * for this is that I suspect most users will not make heavy use of both
+/* ANALTE: we are using a combined hash table for both IPv4 and IPv6, the reason
+ * for this is that I suspect most users will analt make heavy use of both
  * address families at the same time so one table will usually end up wasted,
  * if this becomes a problem we can always add a hash table for each address
  * family later */
@@ -77,7 +77,7 @@ static unsigned int sel_netport_hashfn(u16 pnum)
  *
  * Description:
  * Search the network port table and return the matching record.  If an entry
- * can not be found in the table return NULL.
+ * can analt be found in the table return NULL.
  *
  */
 static struct sel_netport *sel_netport_find(u8 protocol, u16 pnum)

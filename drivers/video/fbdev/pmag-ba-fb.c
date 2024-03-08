@@ -24,7 +24,7 @@
  */
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -52,10 +52,10 @@ static const struct fb_var_screeninfo pmagbafb_defined = {
 	.red.length	= 8,
 	.green.length	= 8,
 	.blue.length	= 8,
-	.activate	= FB_ACTIVATE_NOW,
+	.activate	= FB_ACTIVATE_ANALW,
 	.height		= -1,
 	.width		= -1,
-	.accel_flags	= FB_ACCEL_NONE,
+	.accel_flags	= FB_ACCEL_ANALNE,
 	.pixclock	= 14452,
 	.left_margin	= 116,
 	.right_margin	= 12,
@@ -64,7 +64,7 @@ static const struct fb_var_screeninfo pmagbafb_defined = {
 	.hsync_len	= 128,
 	.vsync_len	= 3,
 	.sync		= FB_SYNC_ON_GREEN,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
 static const struct fb_fix_screeninfo pmagbafb_fix = {
@@ -91,13 +91,13 @@ static inline u8 dac_read(struct pmagbafb_par *par, unsigned int reg)
 /*
  * Set the palette.
  */
-static int pmagbafb_setcolreg(unsigned int regno, unsigned int red,
+static int pmagbafb_setcolreg(unsigned int reganal, unsigned int red,
 			      unsigned int green, unsigned int blue,
 			      unsigned int transp, struct fb_info *info)
 {
 	struct pmagbafb_par *par = info->par;
 
-	if (regno >= info->cmap.len)
+	if (reganal >= info->cmap.len)
 		return 1;
 
 	red   >>= 8;	/* The cmap fields are 16 bits    */
@@ -105,7 +105,7 @@ static int pmagbafb_setcolreg(unsigned int regno, unsigned int red,
 	blue  >>= 8;	/* registers are only 8 bits wide */
 
 	mb();
-	dac_write(par, BT459_ADDR_LO, regno);
+	dac_write(par, BT459_ADDR_LO, reganal);
 	dac_write(par, BT459_ADDR_HI, 0x00);
 	wmb();
 	dac_write(par, BT459_CMAP, red);
@@ -149,15 +149,15 @@ static int pmagbafb_probe(struct device *dev)
 
 	info = framebuffer_alloc(sizeof(struct pmagbafb_par), dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	dev_set_drvdata(dev, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
-		printk(KERN_ERR "%s: Cannot allocate color map\n",
+		printk(KERN_ERR "%s: Cananalt allocate color map\n",
 		       dev_name(dev));
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -169,7 +169,7 @@ static int pmagbafb_probe(struct device *dev)
 	start = tdev->resource.start;
 	len = tdev->resource.end - start + 1;
 	if (!request_mem_region(start, len, dev_name(dev))) {
-		printk(KERN_ERR "%s: Cannot reserve FB region\n",
+		printk(KERN_ERR "%s: Cananalt reserve FB region\n",
 		       dev_name(dev));
 		err = -EBUSY;
 		goto err_cmap;
@@ -179,8 +179,8 @@ static int pmagbafb_probe(struct device *dev)
 	info->fix.mmio_start = start;
 	par->mmio = ioremap(info->fix.mmio_start, info->fix.mmio_len);
 	if (!par->mmio) {
-		printk(KERN_ERR "%s: Cannot map MMIO\n", dev_name(dev));
-		err = -ENOMEM;
+		printk(KERN_ERR "%s: Cananalt map MMIO\n", dev_name(dev));
+		err = -EANALMEM;
 		goto err_resource;
 	}
 	par->dac = par->mmio + PMAG_BA_BT459;
@@ -190,8 +190,8 @@ static int pmagbafb_probe(struct device *dev)
 	info->screen_base = ioremap(info->fix.smem_start,
 					    info->fix.smem_len);
 	if (!info->screen_base) {
-		printk(KERN_ERR "%s: Cannot map FB\n", dev_name(dev));
-		err = -ENOMEM;
+		printk(KERN_ERR "%s: Cananalt map FB\n", dev_name(dev));
+		err = -EANALMEM;
 		goto err_mmio_map;
 	}
 	info->screen_size = info->fix.smem_len;
@@ -200,7 +200,7 @@ static int pmagbafb_probe(struct device *dev)
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "%s: Cannot register framebuffer\n",
+		printk(KERN_ERR "%s: Cananalt register framebuffer\n",
 		       dev_name(dev));
 		goto err_smem_map;
 	}

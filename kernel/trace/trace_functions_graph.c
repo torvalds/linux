@@ -16,14 +16,14 @@
 #include "trace.h"
 #include "trace_output.h"
 
-/* When set, irq functions will be ignored */
+/* When set, irq functions will be iganalred */
 static int ftrace_graph_skip_irqs;
 
 struct fgraph_cpu_data {
 	pid_t		last_pid;
 	int		depth;
 	int		depth_irq;
-	int		ignore;
+	int		iganalre;
 	unsigned long	enter_funcs[FTRACE_RETFUNC_DEPTH];
 };
 
@@ -116,12 +116,12 @@ int __trace_graph_entry(struct trace_array *tr,
 	entry	= ring_buffer_event_data(event);
 	entry->graph_ent			= *trace;
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+		trace_buffer_unlock_commit_analstack(buffer, event);
 
 	return 1;
 }
 
-static inline int ftrace_graph_ignore_irqs(void)
+static inline int ftrace_graph_iganalre_irqs(void)
 {
 	if (!ftrace_graph_skip_irqs || trace_recursion_test(TRACE_IRQ_BIT))
 		return 0;
@@ -139,21 +139,21 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	int ret;
 	int cpu;
 
-	if (trace_recursion_test(TRACE_GRAPH_NOTRACE_BIT))
+	if (trace_recursion_test(TRACE_GRAPH_ANALTRACE_BIT))
 		return 0;
 
 	/*
-	 * Do not trace a function if it's filtered by set_graph_notrace.
+	 * Do analt trace a function if it's filtered by set_graph_analtrace.
 	 * Make the index of ret stack negative to indicate that it should
-	 * ignore further functions.  But it needs its own ret stack entry
+	 * iganalre further functions.  But it needs its own ret stack entry
 	 * to recover the original index in order to continue tracing after
 	 * returning from the function.
 	 */
-	if (ftrace_graph_notrace_addr(trace->func)) {
-		trace_recursion_set(TRACE_GRAPH_NOTRACE_BIT);
+	if (ftrace_graph_analtrace_addr(trace->func)) {
+		trace_recursion_set(TRACE_GRAPH_ANALTRACE_BIT);
 		/*
 		 * Need to return 1 to have the return called
-		 * that will clear the NOTRACE bit.
+		 * that will clear the ANALTRACE bit.
 		 */
 		return 1;
 	}
@@ -161,10 +161,10 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	if (!ftrace_trace_task(tr))
 		return 0;
 
-	if (ftrace_graph_ignore_func(trace))
+	if (ftrace_graph_iganalre_func(trace))
 		return 0;
 
-	if (ftrace_graph_ignore_irqs())
+	if (ftrace_graph_iganalre_irqs())
 		return 0;
 
 	/*
@@ -235,7 +235,7 @@ void __trace_graph_return(struct trace_array *tr,
 	entry	= ring_buffer_event_data(event);
 	entry->ret				= *trace;
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+		trace_buffer_unlock_commit_analstack(buffer, event);
 }
 
 void trace_graph_return(struct ftrace_graph_ret *trace)
@@ -249,8 +249,8 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 
 	ftrace_graph_addr_finish(trace);
 
-	if (trace_recursion_test(TRACE_GRAPH_NOTRACE_BIT)) {
-		trace_recursion_clear(TRACE_GRAPH_NOTRACE_BIT);
+	if (trace_recursion_test(TRACE_GRAPH_ANALTRACE_BIT)) {
+		trace_recursion_clear(TRACE_GRAPH_ANALTRACE_BIT);
 		return;
 	}
 
@@ -279,8 +279,8 @@ static void trace_graph_thresh_return(struct ftrace_graph_ret *trace)
 {
 	ftrace_graph_addr_finish(trace);
 
-	if (trace_recursion_test(TRACE_GRAPH_NOTRACE_BIT)) {
-		trace_recursion_clear(TRACE_GRAPH_NOTRACE_BIT);
+	if (trace_recursion_test(TRACE_GRAPH_ANALTRACE_BIT)) {
+		trace_recursion_clear(TRACE_GRAPH_ANALTRACE_BIT);
 		return;
 	}
 
@@ -466,7 +466,7 @@ get_return_for_leaf(struct trace_iterator *iter,
 			 */
 			data->ent = *curr;
 			/*
-			 * If the next event is not a return type, then
+			 * If the next event is analt a return type, then
 			 * we only care about what type it is. Otherwise we can
 			 * safely copy the entire event.
 			 */
@@ -484,7 +484,7 @@ get_return_for_leaf(struct trace_iterator *iter,
 			curr->graph_ent.func != next->ret.func)
 		return NULL;
 
-	/* this is a leaf, now advance the iterator */
+	/* this is a leaf, analw advance the iterator */
 	if (ring_iter)
 		ring_buffer_iter_advance(ring_iter);
 
@@ -549,7 +549,7 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 			print_graph_lat_fmt(s, ent);
 	}
 
-	/* No overhead */
+	/* Anal overhead */
 	print_graph_duration(tr, 0, s, flags | FLAGS_FILL_START);
 
 	if (type == TRACE_GRAPH_ENT)
@@ -602,7 +602,7 @@ print_graph_duration(struct trace_array *tr, unsigned long long duration,
 	    !(tr->trace_flags & TRACE_ITER_CONTEXT_INFO))
 		return;
 
-	/* No real adata, just filling the column with spaces */
+	/* Anal real adata, just filling the column with spaces */
 	switch (flags & TRACE_GRAPH_PRINT_FILL_MASK) {
 	case FLAGS_FILL_FULL:
 		trace_seq_puts(s, "              |  ");
@@ -706,7 +706,7 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 		 */
 		cpu_data->depth = call->depth - 1;
 
-		/* No need to keep this function around for this depth */
+		/* Anal need to keep this function around for this depth */
 		if (call->depth < FTRACE_RETFUNC_DEPTH &&
 		    !WARN_ON_ONCE(call->depth < 0))
 			cpu_data->enter_funcs[call->depth] = 0;
@@ -758,7 +758,7 @@ print_graph_entry_nested(struct trace_iterator *iter,
 			cpu_data->enter_funcs[call->depth] = call->func;
 	}
 
-	/* No time */
+	/* Anal time */
 	print_graph_duration(tr, 0, s, flags | FLAGS_FILL_FULL);
 
 	/* Function */
@@ -774,7 +774,7 @@ print_graph_entry_nested(struct trace_iterator *iter,
 	 * we already consumed the current entry to check the next one
 	 * and see if this is a leaf.
 	 */
-	return TRACE_TYPE_NO_CONSUME;
+	return TRACE_TYPE_ANAL_CONSUME;
 }
 
 static void
@@ -830,7 +830,7 @@ print_graph_prologue(struct trace_iterator *iter, struct trace_seq *s,
  *
  * returns 0 if
  *  - funcgraph-interrupts option is set
- *  - we are not inside irq code
+ *  - we are analt inside irq code
  */
 static int
 check_irq_entry(struct trace_iterator *iter, u32 flags,
@@ -842,7 +842,7 @@ check_irq_entry(struct trace_iterator *iter, u32 flags,
 
 	/*
 	 * If we are either displaying irqs, or we got called as
-	 * a graph event and private data does not exist,
+	 * a graph event and private data does analt exist,
 	 * then we bypass the irq check.
 	 */
 	if ((flags & TRACE_GRAPH_PRINT_IRQS) ||
@@ -877,7 +877,7 @@ check_irq_entry(struct trace_iterator *iter, u32 flags,
  *
  * returns 0 if
  *  - funcgraph-interrupts option is set
- *  - we are not inside irq code
+ *  - we are analt inside irq code
  */
 static int
 check_irq_return(struct trace_iterator *iter, u32 flags, int depth)
@@ -888,7 +888,7 @@ check_irq_return(struct trace_iterator *iter, u32 flags, int depth)
 
 	/*
 	 * If we are either displaying irqs, or we got called as
-	 * a graph event and private data does not exist,
+	 * a graph event and private data does analt exist,
 	 * then we bypass the irq check.
 	 */
 	if ((flags & TRACE_GRAPH_PRINT_IRQS) ||
@@ -898,14 +898,14 @@ check_irq_return(struct trace_iterator *iter, u32 flags, int depth)
 	depth_irq = &(per_cpu_ptr(data->cpu_data, cpu)->depth_irq);
 
 	/*
-	 * We are not inside the irq code.
+	 * We are analt inside the irq code.
 	 */
 	if (*depth_irq == -1)
 		return 0;
 
 	/*
 	 * We are inside the irq code, and this is returning entry.
-	 * Let's not trace it and clear the entry depth, since
+	 * Let's analt trace it and clear the entry depth, since
 	 * we are out of irq code.
 	 *
 	 * This condition ensures that we 'leave the irq code' once
@@ -918,7 +918,7 @@ check_irq_return(struct trace_iterator *iter, u32 flags, int depth)
 	}
 
 	/*
-	 * We are inside the irq code, and this is not the entry.
+	 * We are inside the irq code, and this is analt the entry.
 	 */
 	return 1;
 }
@@ -947,7 +947,7 @@ print_graph_entry(struct ftrace_graph_ent_entry *field, struct trace_seq *s,
 	if (data) {
 		/*
 		 * If we failed to write our output, then we need to make
-		 * note of it. Because we already consumed our entry.
+		 * analte of it. Because we already consumed our entry.
 		 */
 		if (s->full) {
 			data->failed = 1;
@@ -983,7 +983,7 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 
 		/*
 		 * Comments display at + 1 to depth. This is the
-		 * return from a function, we now want the comments
+		 * return from a function, we analw want the comments
 		 * to display at the same level of the bracket.
 		 */
 		cpu_data->depth = trace->depth - 1;
@@ -1014,7 +1014,7 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 			!!(flags & TRACE_GRAPH_PRINT_RETVAL_HEX));
 	} else {
 		/*
-		 * If the return function does not have a matching entry,
+		 * If the return function does analt have a matching entry,
 		 * then the entry was lost. Instead of just printing
 		 * the '}' and letting the user guess what function this
 		 * belongs to, write out the function name. Always do
@@ -1054,7 +1054,7 @@ print_graph_comment(struct trace_seq *s, struct trace_entry *ent,
 
 	print_graph_prologue(iter, s, 0, 0, flags);
 
-	/* No time */
+	/* Anal time */
 	print_graph_duration(tr, 0, s, flags | FLAGS_FILL_FULL);
 
 	/* Indentation */
@@ -1116,8 +1116,8 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 	int cpu = iter->cpu;
 	int ret;
 
-	if (data && per_cpu_ptr(data->cpu_data, cpu)->ignore) {
-		per_cpu_ptr(data->cpu_data, cpu)->ignore = 0;
+	if (data && per_cpu_ptr(data->cpu_data, cpu)->iganalre) {
+		per_cpu_ptr(data->cpu_data, cpu)->iganalre = 0;
 		return TRACE_TYPE_HANDLED;
 	}
 
@@ -1130,8 +1130,8 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 		iter->cpu = data->cpu;
 		ret = print_graph_entry(field, s, iter, flags);
 		if (ret == TRACE_TYPE_HANDLED && iter->cpu != cpu) {
-			per_cpu_ptr(data->cpu_data, iter->cpu)->ignore = 1;
-			ret = TRACE_TYPE_NO_CONSUME;
+			per_cpu_ptr(data->cpu_data, iter->cpu)->iganalre = 1;
+			ret = TRACE_TYPE_ANAL_CONSUME;
 		}
 		iter->cpu = cpu;
 		return ret;
@@ -1258,7 +1258,7 @@ void print_graph_headers_flags(struct seq_file *s, u32 flags)
 		return;
 
 	if (tr->trace_flags & TRACE_ITER_LATENCY_FMT) {
-		/* print nothing if the buffers are empty */
+		/* print analthing if the buffers are empty */
 		if (trace_empty(iter))
 			return;
 
@@ -1291,12 +1291,12 @@ void graph_trace_open(struct trace_iterator *iter)
 	for_each_possible_cpu(cpu) {
 		pid_t *pid = &(per_cpu_ptr(data->cpu_data, cpu)->last_pid);
 		int *depth = &(per_cpu_ptr(data->cpu_data, cpu)->depth);
-		int *ignore = &(per_cpu_ptr(data->cpu_data, cpu)->ignore);
+		int *iganalre = &(per_cpu_ptr(data->cpu_data, cpu)->iganalre);
 		int *depth_irq = &(per_cpu_ptr(data->cpu_data, cpu)->depth_irq);
 
 		*pid = -1;
 		*depth = 0;
-		*ignore = 0;
+		*iganalre = 0;
 		*depth_irq = -1;
 	}
 
@@ -1307,7 +1307,7 @@ void graph_trace_open(struct trace_iterator *iter)
  out_err_free:
 	kfree(data);
  out_err:
-	pr_warn("function graph tracer: not enough memory\n");
+	pr_warn("function graph tracer: analt eanalugh memory\n");
 }
 
 void graph_trace_close(struct trace_iterator *iter)
@@ -1390,7 +1390,7 @@ static ssize_t
 graph_depth_read(struct file *filp, char __user *ubuf, size_t cnt,
 		 loff_t *ppos)
 {
-	char buf[15]; /* More than enough to hold UINT_MAX + "\n"*/
+	char buf[15]; /* More than eanalugh to hold UINT_MAX + "\n"*/
 	int n;
 
 	n = sprintf(buf, "%d\n", fgraph_max_depth);
@@ -1425,12 +1425,12 @@ static __init int init_graph_trace(void)
 	max_bytes_for_cpu = snprintf(NULL, 0, "%u", nr_cpu_ids - 1);
 
 	if (!register_trace_event(&graph_trace_entry_event)) {
-		pr_warn("Warning: could not register graph trace events\n");
+		pr_warn("Warning: could analt register graph trace events\n");
 		return 1;
 	}
 
 	if (!register_trace_event(&graph_trace_ret_event)) {
-		pr_warn("Warning: could not register graph trace events\n");
+		pr_warn("Warning: could analt register graph trace events\n");
 		return 1;
 	}
 

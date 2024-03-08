@@ -176,7 +176,7 @@ SYM_FUNC_END(__fstate_restore)
  * Disable compressed instructions set to keep a constant offset between FP
  * load/store/move instructions
  */
-.option norvc
+.option analrvc
 /*
  * put_f32_reg - Set a FP register from a register containing the value
  * a0 = FP register index to be set

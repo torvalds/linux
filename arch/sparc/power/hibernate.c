@@ -16,15 +16,15 @@
 struct saved_context saved_context;
 
 /*
- *	pfn_is_nosave - check if given pfn is in the 'nosave' section
+ *	pfn_is_analsave - check if given pfn is in the 'analsave' section
  */
 
-int pfn_is_nosave(unsigned long pfn)
+int pfn_is_analsave(unsigned long pfn)
 {
-	unsigned long nosave_begin_pfn = PFN_DOWN((unsigned long)&__nosave_begin);
-	unsigned long nosave_end_pfn = PFN_DOWN((unsigned long)&__nosave_end);
+	unsigned long analsave_begin_pfn = PFN_DOWN((unsigned long)&__analsave_begin);
+	unsigned long analsave_end_pfn = PFN_DOWN((unsigned long)&__analsave_end);
 
-	return (pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn);
+	return (pfn >= analsave_begin_pfn) && (pfn < analsave_end_pfn);
 }
 
 void save_processor_state(void)

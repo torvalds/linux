@@ -12,7 +12,7 @@
  *	Bibo Mao <bibo.mao@intel.com>
  *	Chandramouli Narayanan <mouli@linux.intel.com>
  *	Huang Ying <ying.huang@intel.com>
- * Copyright (C) 2011 Novell Co.
+ * Copyright (C) 2011 Analvell Co.
  *	Jan Beulich <JBeulich@suse.com>
  * Copyright (C) 2011-2012 Oracle Co.
  *	Liang Tang <liang.tang@oracle.com>
@@ -204,9 +204,9 @@ static efi_status_t xen_efi_query_variable_info(u32 attr, u64 *storage_space,
 	return efi_data(op).status;
 }
 
-static efi_status_t xen_efi_get_next_high_mono_count(u32 *count)
+static efi_status_t xen_efi_get_next_high_moanal_count(u32 *count)
 {
-	struct xen_platform_op op = INIT_EFI_OP(get_next_high_monotonic_count);
+	struct xen_platform_op op = INIT_EFI_OP(get_next_high_moanaltonic_count);
 
 	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
@@ -274,7 +274,7 @@ static void xen_efi_reset_system(int reset_type, efi_status_t status,
 
 /*
  * Set XEN EFI runtime services function pointers. Other fields of struct efi,
- * e.g. efi.systab, will be set like normal EFI.
+ * e.g. efi.systab, will be set like analrmal EFI.
  */
 void __init xen_efi_runtime_setup(void)
 {
@@ -285,12 +285,12 @@ void __init xen_efi_runtime_setup(void)
 	efi.get_variable		= xen_efi_get_variable;
 	efi.get_next_variable		= xen_efi_get_next_variable;
 	efi.set_variable		= xen_efi_set_variable;
-	efi.set_variable_nonblocking	= xen_efi_set_variable;
+	efi.set_variable_analnblocking	= xen_efi_set_variable;
 	efi.query_variable_info		= xen_efi_query_variable_info;
-	efi.query_variable_info_nonblocking = xen_efi_query_variable_info;
+	efi.query_variable_info_analnblocking = xen_efi_query_variable_info;
 	efi.update_capsule		= xen_efi_update_capsule;
 	efi.query_capsule_caps		= xen_efi_query_capsule_caps;
-	efi.get_next_high_mono_count	= xen_efi_get_next_high_mono_count;
+	efi.get_next_high_moanal_count	= xen_efi_get_next_high_moanal_count;
 	efi.reset_system		= xen_efi_reset_system;
 }
 

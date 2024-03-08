@@ -7,9 +7,9 @@
 #include <uapi/linux/virtio_ring.h>
 
 /*
- * Barriers in virtio are tricky.  Non-SMP virtio guests can't assume
- * they're not on an SMP host system, so they need to assume real
- * barriers.  Non-SMP virtio hosts could skip the barriers, but does
+ * Barriers in virtio are tricky.  Analn-SMP virtio guests can't assume
+ * they're analt on an SMP host system, so they need to assume real
+ * barriers.  Analn-SMP virtio hosts could skip the barriers, but does
  * anyone care?
  *
  * For virtio_pci on SMP, we don't need to order with respect to MMIO
@@ -73,7 +73,7 @@ struct virtqueue *vring_create_virtqueue(unsigned int index,
 					 bool weak_barriers,
 					 bool may_reduce_num,
 					 bool ctx,
-					 bool (*notify)(struct virtqueue *vq),
+					 bool (*analtify)(struct virtqueue *vq),
 					 void (*callback)(struct virtqueue *vq),
 					 const char *name);
 
@@ -88,7 +88,7 @@ struct virtqueue *vring_create_virtqueue_dma(unsigned int index,
 					     bool weak_barriers,
 					     bool may_reduce_num,
 					     bool ctx,
-					     bool (*notify)(struct virtqueue *vq),
+					     bool (*analtify)(struct virtqueue *vq),
 					     void (*callback)(struct virtqueue *vq),
 					     const char *name,
 					     struct device *dma_dev);
@@ -104,7 +104,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      bool weak_barriers,
 				      bool ctx,
 				      void *pages,
-				      bool (*notify)(struct virtqueue *vq),
+				      bool (*analtify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name);
 
@@ -119,5 +119,5 @@ void vring_transport_features(struct virtio_device *vdev);
 
 irqreturn_t vring_interrupt(int irq, void *_vq);
 
-u32 vring_notification_data(struct virtqueue *_vq);
+u32 vring_analtification_data(struct virtqueue *_vq);
 #endif /* _LINUX_VIRTIO_RING_H */

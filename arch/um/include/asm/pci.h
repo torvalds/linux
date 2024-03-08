@@ -9,11 +9,11 @@
 
 #ifdef CONFIG_PCI_MSI
 /*
- * This is a bit of an annoying hack, and it assumes we only have
+ * This is a bit of an ananalying hack, and it assumes we only have
  * the virt-pci (if anything). Which is true, but still.
  */
-void *pci_root_bus_fwnode(struct pci_bus *bus);
-#define pci_root_bus_fwnode	pci_root_bus_fwnode
+void *pci_root_bus_fwanalde(struct pci_bus *bus);
+#define pci_root_bus_fwanalde	pci_root_bus_fwanalde
 #endif
 
 #endif  /* __ASM_UM_PCI_H */

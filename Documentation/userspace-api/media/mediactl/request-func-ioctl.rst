@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _request-func-ioctl:
@@ -12,7 +12,7 @@ Name
 
 request-ioctl - Control a request file descriptor
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -52,7 +52,7 @@ commands, their respective function and parameters are specified in
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

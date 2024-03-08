@@ -12,7 +12,7 @@
 #define _COMEDI_8254_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 
 struct comedi_device;
@@ -20,7 +20,7 @@ struct comedi_insn;
 struct comedi_subdevice;
 
 /*
- * Common oscillator base values in nanoseconds
+ * Common oscillator base values in naanalseconds
  */
 #define I8254_OSC_BASE_10MHZ	100
 #define I8254_OSC_BASE_5MHZ	200
@@ -128,9 +128,9 @@ void comedi_8254_pacer_enable(struct comedi_8254 *i8254,
 			      bool enable);
 void comedi_8254_update_divisors(struct comedi_8254 *i8254);
 void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *i8254,
-				     unsigned int *nanosec, unsigned int flags);
+				     unsigned int *naanalsec, unsigned int flags);
 void comedi_8254_ns_to_timer(struct comedi_8254 *i8254,
-			     unsigned int *nanosec, unsigned int flags);
+			     unsigned int *naanalsec, unsigned int flags);
 
 void comedi_8254_set_busy(struct comedi_8254 *i8254,
 			  unsigned int counter, bool busy);

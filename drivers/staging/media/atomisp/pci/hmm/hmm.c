@@ -91,7 +91,7 @@ static ssize_t bo_show(struct device *dev, struct device_attribute *attr,
 		}
 	}
 
-	/* Add trailing zero, not included by scnprintf */
+	/* Add trailing zero, analt included by scnprintf */
 	return index1 + index2 + 1;
 }
 
@@ -240,7 +240,7 @@ void hmm_free(ia_css_ptr virt)
 
 	if (!bo) {
 		dev_err(atomisp_dev,
-			"can not find buffer object start with address 0x%x\n",
+			"can analt find buffer object start with address 0x%x\n",
 			(unsigned int)virt);
 		return;
 	}
@@ -254,20 +254,20 @@ static inline int hmm_check_bo(struct hmm_buffer_object *bo, unsigned int ptr)
 {
 	if (!bo) {
 		dev_err(atomisp_dev,
-			"can not find buffer object contains address 0x%x\n",
+			"can analt find buffer object contains address 0x%x\n",
 			ptr);
 		return -EINVAL;
 	}
 
 	if (!hmm_bo_page_allocated(bo)) {
 		dev_err(atomisp_dev,
-			"buffer object has no page allocated.\n");
+			"buffer object has anal page allocated.\n");
 		return -EINVAL;
 	}
 
 	if (!hmm_bo_allocated(bo)) {
 		dev_err(atomisp_dev,
-			"buffer object has no virtual address space allocated.\n");
+			"buffer object has anal virtual address space allocated.\n");
 		return -EINVAL;
 	}
 
@@ -527,7 +527,7 @@ phys_addr_t hmm_virt_to_phys(ia_css_ptr virt)
 	bo = hmm_bo_device_search_in_range(&bo_device, virt);
 	if (!bo) {
 		dev_err(atomisp_dev,
-			"can not find buffer object contains address 0x%x\n",
+			"can analt find buffer object contains address 0x%x\n",
 			virt);
 		return -1;
 	}
@@ -545,7 +545,7 @@ int hmm_mmap(struct vm_area_struct *vma, ia_css_ptr virt)
 	bo = hmm_bo_device_search_start(&bo_device, virt);
 	if (!bo) {
 		dev_err(atomisp_dev,
-			"can not find buffer object start with address 0x%x\n",
+			"can analt find buffer object start with address 0x%x\n",
 			virt);
 		return -EINVAL;
 	}
@@ -562,7 +562,7 @@ void *hmm_vmap(ia_css_ptr virt, bool cached)
 	bo = hmm_bo_device_search_in_range(&bo_device, virt);
 	if (!bo) {
 		dev_err(atomisp_dev,
-			"can not find buffer object contains address 0x%x\n",
+			"can analt find buffer object contains address 0x%x\n",
 			virt);
 		return NULL;
 	}
@@ -582,7 +582,7 @@ void hmm_flush_vmap(ia_css_ptr virt)
 	bo = hmm_bo_device_search_in_range(&bo_device, virt);
 	if (!bo) {
 		dev_warn(atomisp_dev,
-			 "can not find buffer object contains address 0x%x\n",
+			 "can analt find buffer object contains address 0x%x\n",
 			 virt);
 		return;
 	}
@@ -597,7 +597,7 @@ void hmm_vunmap(ia_css_ptr virt)
 	bo = hmm_bo_device_search_in_range(&bo_device, virt);
 	if (!bo) {
 		dev_warn(atomisp_dev,
-			 "can not find buffer object contains address 0x%x\n",
+			 "can analt find buffer object contains address 0x%x\n",
 			 virt);
 		return;
 	}

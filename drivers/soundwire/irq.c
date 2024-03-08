@@ -3,7 +3,7 @@
 //                    Cirrus Logic International Semiconductor Ltd.
 
 #include <linux/device.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/soundwire/sdw.h>
@@ -17,7 +17,7 @@ static int sdw_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_data(virq, bus);
 	irq_set_chip(virq, &bus->irq_chip);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -27,11 +27,11 @@ static const struct irq_domain_ops sdw_domain_ops = {
 };
 
 int sdw_irq_create(struct sdw_bus *bus,
-		   struct fwnode_handle *fwnode)
+		   struct fwanalde_handle *fwanalde)
 {
 	bus->irq_chip.name = dev_name(bus->dev);
 
-	bus->domain = irq_domain_create_linear(fwnode, SDW_MAX_DEVICES,
+	bus->domain = irq_domain_create_linear(fwanalde, SDW_MAX_DEVICES,
 					       &sdw_domain_ops, bus);
 	if (!bus->domain) {
 		dev_err(bus->dev, "Failed to add IRQ domain\n");

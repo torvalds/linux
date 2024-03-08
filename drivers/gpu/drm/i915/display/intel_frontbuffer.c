@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -43,14 +43,14 @@
  * work like a special cache (FBC and PSR) and are interested when they should
  * stop caching and when to restart caching. This is done by placing callbacks
  * into the invalidate and the flush functions: At invalidate the caching must
- * be stopped and at flush time it can be restarted. And maybe they need to know
+ * be stopped and at flush time it can be restarted. And maybe they need to kanalw
  * when the frontbuffer changes (e.g. when the hw doesn't initiate an invalidate
  * and flush on its own) which can be achieved with placing callbacks into the
  * flip functions.
  *
  * The other type of display power saving feature only cares about busyness
  * (e.g. DRRS). In that case all three (invalidate, flush and flip) indicate
- * busyness. There is no direct way to detect idleness. Instead an idle timer
+ * busyness. There is anal direct way to detect idleness. Instead an idle timer
  * work delayed work should be started from the flush and flip functions and
  * cancelled as soon as busyness is detected.
  */
@@ -74,7 +74,7 @@
  *
  * This function gets called every time rendering on the given planes has
  * completed and frontbuffer caching can be started again. Flushes will get
- * delayed if they're blocked by some outstanding asynchronous rendering.
+ * delayed if they're blocked by some outstanding asynchroanalus rendering.
  *
  * Can be called without any locks held.
  */
@@ -99,7 +99,7 @@ static void frontbuffer_flush(struct drm_i915_private *i915,
 }
 
 /**
- * intel_frontbuffer_flip_prepare - prepare asynchronous frontbuffer flip
+ * intel_frontbuffer_flip_prepare - prepare asynchroanalus frontbuffer flip
  * @i915: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
@@ -121,7 +121,7 @@ void intel_frontbuffer_flip_prepare(struct drm_i915_private *i915,
 }
 
 /**
- * intel_frontbuffer_flip_complete - complete asynchronous frontbuffer flip
+ * intel_frontbuffer_flip_complete - complete asynchroanalus frontbuffer flip
  * @i915: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
@@ -144,13 +144,13 @@ void intel_frontbuffer_flip_complete(struct drm_i915_private *i915,
 }
 
 /**
- * intel_frontbuffer_flip - synchronous frontbuffer flip
+ * intel_frontbuffer_flip - synchroanalus frontbuffer flip
  * @i915: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * This function gets called after scheduling a flip on @obj. This is for
- * synchronous plane updates which will happen on the next vblank and which will
- * not get delayed by pending gpu rendering.
+ * synchroanalus plane updates which will happen on the next vblank and which will
+ * analt get delayed by pending gpu rendering.
  *
  * Can be called without any locks held.
  */
@@ -258,7 +258,7 @@ static void frontbuffer_release(struct kref *ref)
 
 	drm_WARN_ON(&intel_bo_to_i915(obj)->drm, atomic_read(&front->bits));
 
-	i915_ggtt_clear_scanout(obj);
+	i915_ggtt_clear_scaanalut(obj);
 
 	ret = i915_gem_object_set_frontbuffer(obj, NULL);
 	drm_WARN_ON(&intel_bo_to_i915(obj)->drm, ret);
@@ -334,7 +334,7 @@ void intel_frontbuffer_track(struct intel_frontbuffer *old,
 	if (old) {
 		drm_WARN_ON(&intel_bo_to_i915(old->obj)->drm,
 			    !(atomic_read(&old->bits) & frontbuffer_bits));
-		atomic_andnot(frontbuffer_bits, &old->bits);
+		atomic_andanalt(frontbuffer_bits, &old->bits);
 	}
 
 	if (new) {

@@ -4,7 +4,7 @@
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001 Intel Corp.
- * Copyright (c) 2001 Nokia, Inc.
+ * Copyright (c) 2001 Analkia, Inc.
  * Copyright (c) 2001 La Monte H.P. Yarroll
  *
  * These are the definitions needed for the sctp_ulpevent type.  The
@@ -29,7 +29,7 @@
 
 /* A structure to carry information to the ULP (e.g. Sockets API) */
 /* Warning: This sits inside an skb.cb[] area.  Be very careful of
- * growing this structure as it is at the maximum limit now.
+ * growing this structure as it is at the maximum limit analw.
  *
  * sctp_ulpevent is saved in sk->cb(48 bytes), whose last 4 bytes
  * have been taken by sock_skb_cb, So here it has to use 'packed'
@@ -67,7 +67,7 @@ static inline struct sctp_ulpevent *sctp_skb2event(struct sk_buff *skb)
 }
 
 void sctp_ulpevent_free(struct sctp_ulpevent *);
-int sctp_ulpevent_is_notification(const struct sctp_ulpevent *);
+int sctp_ulpevent_is_analtification(const struct sctp_ulpevent *);
 unsigned int sctp_queue_purge_ulpevents(struct sk_buff_head *list);
 
 struct sctp_ulpevent *sctp_ulpevent_make_assoc_change(
@@ -80,7 +80,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_assoc_change(
 	struct sctp_chunk *chunk,
 	gfp_t gfp);
 
-void sctp_ulpevent_notify_peer_addr_change(struct sctp_transport *transport,
+void sctp_ulpevent_analtify_peer_addr_change(struct sctp_transport *transport,
 					   int state, int error);
 
 struct sctp_ulpevent *sctp_ulpevent_make_remote_error(
@@ -149,7 +149,7 @@ void sctp_ulpevent_read_rcvinfo(const struct sctp_ulpevent *event,
 void sctp_ulpevent_read_nxtinfo(const struct sctp_ulpevent *event,
 				struct msghdr *, struct sock *sk);
 
-__u16 sctp_ulpevent_get_notification_type(const struct sctp_ulpevent *event);
+__u16 sctp_ulpevent_get_analtification_type(const struct sctp_ulpevent *event);
 
 static inline void sctp_ulpevent_type_set(__u16 *subscribe,
 					  __u16 sn_type, __u8 on)
@@ -178,10 +178,10 @@ static inline bool sctp_ulpevent_is_enabled(const struct sctp_ulpevent *event,
 {
 	__u16 sn_type;
 
-	if (!sctp_ulpevent_is_notification(event))
+	if (!sctp_ulpevent_is_analtification(event))
 		return true;
 
-	sn_type = sctp_ulpevent_get_notification_type(event);
+	sn_type = sctp_ulpevent_get_analtification_type(event);
 
 	return sctp_ulpevent_type_enabled(subscribe, sn_type);
 }

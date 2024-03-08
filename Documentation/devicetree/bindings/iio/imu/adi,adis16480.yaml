@@ -39,7 +39,7 @@ properties:
     minItems: 1
     maxItems: 2
     description:
-      Default if not supplied is DIO1.
+      Default if analt supplied is DIO1.
     items:
       enum:
         - DIO1
@@ -56,7 +56,7 @@ properties:
 
   clocks:
     maxItems: 1
-    description: If not provided, then the internal clock is used.
+    description: If analt provided, then the internal clock is used.
 
   clock-names:
     description: |
@@ -72,7 +72,7 @@ properties:
             Table 154 in the datasheet.
             The clock-frequency must be:
             * 1 to 128 Hz for adis1649x devices.
-            * This mode is not supported by adis1648x devices.
+            * This mode is analt supported by adis1648x devices.
     enum:
       - sync
       - pps
@@ -86,7 +86,7 @@ properties:
       two assignments, the enable bit for the lower priority function
       automatically resets to zero (disabling the lower priority function).
       Data ready has highest priority.
-      If not provided then DIO2 is assigned as default external clock
+      If analt provided then DIO2 is assigned as default external clock
       input pin.
     enum:
       - DIO1

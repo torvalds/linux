@@ -116,7 +116,7 @@ static int gpiomux_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int gpiomux_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int gpiomux_s_std(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 	u32 data;
@@ -218,14 +218,14 @@ static int resetctrl_reset(struct v4l2_subdev *sd, u32 val)
 		 * 1. Assert RESET for min of 4 clock cycles at 18.432 MHz to
 		 *    initiate
 		 * 2. Reset then takes 66 WDT cycles at 10 kHz + 16 xtal clock
-		 *    cycles (6,601,085 nanoseconds ~= 7 milliseconds)
-		 * 3. DBG pin must be high before chip exits reset for normal
+		 *    cycles (6,601,085 naanalseconds ~= 7 milliseconds)
+		 * 3. DBG pin must be high before chip exits reset for analrmal
 		 *    operation.  DBG is open drain and hopefully pulled high
-		 *    since we don't normally drive it (GPIO 1?) for the
+		 *    since we don't analrmally drive it (GPIO 1?) for the
 		 *    HVR-1600
 		 * 4. Z8F0811 won't exit reset until RESET is deasserted
 		 * 5. Zilog comes out of reset, loads reset vector address and
-		 *    executes from there. Required recovery delay unknown.
+		 *    executes from there. Required recovery delay unkanalwn.
 		 */
 		gpio_reset_seq(cx, p->ir_reset_mask, 0,
 			       p->msecs_asserted, p->msecs_recovery);

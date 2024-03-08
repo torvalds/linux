@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016 Avago Technologies.  All rights reserved.
+ * Copyright (c) 2016 Avago Techanallogies.  All rights reserved.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -65,7 +65,7 @@ fcloop_parse_options(struct fcloop_ctrl_options *opts,
 
 	options = o = kstrdup(buf, GFP_KERNEL);
 	if (!options)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while ((p = strsep(&o, ",\n")) != NULL) {
 		if (!*p)
@@ -121,7 +121,7 @@ fcloop_parse_options(struct fcloop_ctrl_options *opts,
 			opts->lpwwpn = token64;
 			break;
 		default:
-			pr_warn("unknown parameter or missing value '%s'\n", p);
+			pr_warn("unkanalwn parameter or missing value '%s'\n", p);
 			ret = -EINVAL;
 			goto out_free_options;
 		}
@@ -147,7 +147,7 @@ fcloop_parse_nm_options(struct device *dev, u64 *nname, u64 *pname,
 
 	options = o = kstrdup(buf, GFP_KERNEL);
 	if (!options)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while ((p = strsep(&o, ",\n")) != NULL) {
 		if (!*p)
@@ -172,7 +172,7 @@ fcloop_parse_nm_options(struct device *dev, u64 *nname, u64 *pname,
 			*pname = token64;
 			break;
 		default:
-			pr_warn("unknown parameter or missing value '%s'\n", p);
+			pr_warn("unkanalwn parameter or missing value '%s'\n", p);
 			ret = -EINVAL;
 			goto out_free_options;
 		}
@@ -240,7 +240,7 @@ struct fcloop_nport {
 	struct fcloop_lport *lport;
 	struct list_head nport_list;
 	struct kref ref;
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 	u32 port_role;
 	u32 port_id;
@@ -335,7 +335,7 @@ fcloop_rport_lsrqst_work(struct work_struct *work)
 		tls_req->lsreq->done(tls_req->lsreq, tls_req->status);
 		/*
 		 * callee may free memory containing tls_req.
-		 * do not reference lsreq after this.
+		 * do analt reference lsreq after this.
 		 */
 
 		spin_lock(&rport->lock);
@@ -419,7 +419,7 @@ fcloop_tport_lsrqst_work(struct work_struct *work)
 		tls_req->lsreq->done(tls_req->lsreq, tls_req->status);
 		/*
 		 * callee may free memory containing tls_req.
-		 * do not reference lsreq after this.
+		 * do analt reference lsreq after this.
 		 */
 
 		spin_lock(&tport->lock);
@@ -437,7 +437,7 @@ fcloop_t2h_ls_req(struct nvmet_fc_target_port *targetport, void *hosthandle,
 
 	/*
 	 * hosthandle should be the dst.rport value.
-	 * hosthandle ignored as fcloop currently is
+	 * hosthandle iganalred as fcloop currently is
 	 * 1:1 tgtport vs remoteport
 	 */
 	tls_req->lsreq = lsreq;
@@ -489,7 +489,7 @@ fcloop_t2h_xmt_ls_rsp(struct nvme_fc_local_port *localport,
 static void
 fcloop_t2h_host_release(void *hosthandle)
 {
-	/* host handle ignored for now */
+	/* host handle iganalred for analw */
 }
 
 /*
@@ -575,7 +575,7 @@ static int drop_current_cnt;
 /*
  * Routine to parse io and determine if the io is to be dropped.
  * Returns:
- *  0 if io is not obstructed
+ *  0 if io is analt obstructed
  *  1 if io was dropped
  */
 static int check_for_drop(struct fcloop_fcpreq *tfcp_req)
@@ -725,7 +725,7 @@ fcloop_fcp_req(struct nvme_fc_local_port *localport,
 
 	tfcp_req = kzalloc(sizeof(*tfcp_req), GFP_ATOMIC);
 	if (!tfcp_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	inireq->fcpreq = fcpreq;
 	inireq->tfcp_req = tfcp_req;
@@ -912,7 +912,7 @@ fcloop_tgt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	tfcp_req->status = NVME_SC_INTERNAL;
 
 	/*
-	 * nothing more to do. If io wasn't active, the transport should
+	 * analthing more to do. If io wasn't active, the transport should
 	 * immediately call the req_release. If it was active, the op
 	 * will complete, and the lldd should call req_release.
 	 */
@@ -984,7 +984,7 @@ fcloop_fcp_abort(struct nvme_fc_local_port *localport,
 	else  {
 		/*
 		 * as the io has already had the done callback made,
-		 * nothing more to do. So release the reference taken above
+		 * analthing more to do. So release the reference taken above
 		 */
 		fcloop_tfcp_req_put(tfcp_req);
 	}
@@ -1095,11 +1095,11 @@ fcloop_create_local_port(struct device *dev, struct device_attribute *attr,
 	struct fcloop_lport *lport;
 	struct fcloop_lport_priv *lport_priv;
 	unsigned long flags;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	lport = kzalloc(sizeof(*lport), GFP_KERNEL);
 	if (!lport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
@@ -1116,7 +1116,7 @@ fcloop_create_local_port(struct device *dev, struct device_attribute *attr,
 	}
 
 	memset(&pinfo, 0, sizeof(pinfo));
-	pinfo.node_name = opts->wwnn;
+	pinfo.analde_name = opts->wwnn;
 	pinfo.port_name = opts->wwpn;
 	pinfo.port_role = opts->roles;
 	pinfo.port_id = opts->fcaddr;
@@ -1175,18 +1175,18 @@ fcloop_delete_local_port(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct fcloop_lport *tlport, *lport = NULL;
-	u64 nodename, portname;
+	u64 analdename, portname;
 	unsigned long flags;
 	int ret;
 
-	ret = fcloop_parse_nm_options(dev, &nodename, &portname, buf);
+	ret = fcloop_parse_nm_options(dev, &analdename, &portname, buf);
 	if (ret)
 		return ret;
 
 	spin_lock_irqsave(&fcloop_lock, flags);
 
 	list_for_each_entry(tlport, &fcloop_lports, lport_list) {
-		if (tlport->localport->node_name == nodename &&
+		if (tlport->localport->analde_name == analdename &&
 		    tlport->localport->port_name == portname) {
 			lport = tlport;
 			__unlink_local_port(lport);
@@ -1196,7 +1196,7 @@ fcloop_delete_local_port(struct device *dev, struct device_attribute *attr,
 	spin_unlock_irqrestore(&fcloop_lock, flags);
 
 	if (!lport)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = __wait_localport_unreg(lport);
 
@@ -1232,7 +1232,7 @@ fcloop_alloc_nport(const char *buf, size_t count, bool remoteport)
 		goto out_free_opts;
 
 	INIT_LIST_HEAD(&newnport->nport_list);
-	newnport->node_name = opts->wwnn;
+	newnport->analde_name = opts->wwnn;
 	newnport->port_name = opts->wwpn;
 	if (opts->mask & NVMF_OPT_ROLES)
 		newnport->port_role = opts->roles;
@@ -1243,11 +1243,11 @@ fcloop_alloc_nport(const char *buf, size_t count, bool remoteport)
 	spin_lock_irqsave(&fcloop_lock, flags);
 
 	list_for_each_entry(tmplport, &fcloop_lports, lport_list) {
-		if (tmplport->localport->node_name == opts->wwnn &&
+		if (tmplport->localport->analde_name == opts->wwnn &&
 		    tmplport->localport->port_name == opts->wwpn)
 			goto out_invalid_opts;
 
-		if (tmplport->localport->node_name == opts->lpwwnn &&
+		if (tmplport->localport->analde_name == opts->lpwwnn &&
 		    tmplport->localport->port_name == opts->lpwwpn)
 			lport = tmplport;
 	}
@@ -1259,7 +1259,7 @@ fcloop_alloc_nport(const char *buf, size_t count, bool remoteport)
 	}
 
 	list_for_each_entry(nport, &fcloop_nports, nport_list) {
-		if (nport->node_name == opts->wwnn &&
+		if (nport->analde_name == opts->wwnn &&
 		    nport->port_name == opts->wwpn) {
 			if ((remoteport && nport->rport) ||
 			    (!remoteport && nport->tport)) {
@@ -1312,7 +1312,7 @@ fcloop_create_remote_port(struct device *dev, struct device_attribute *attr,
 		return -EIO;
 
 	memset(&pinfo, 0, sizeof(pinfo));
-	pinfo.node_name = nport->node_name;
+	pinfo.analde_name = nport->analde_name;
 	pinfo.port_name = nport->port_name;
 	pinfo.port_role = nport->port_role;
 	pinfo.port_id = nport->port_id;
@@ -1372,18 +1372,18 @@ fcloop_delete_remote_port(struct device *dev, struct device_attribute *attr,
 {
 	struct fcloop_nport *nport = NULL, *tmpport;
 	static struct fcloop_rport *rport;
-	u64 nodename, portname;
+	u64 analdename, portname;
 	unsigned long flags;
 	int ret;
 
-	ret = fcloop_parse_nm_options(dev, &nodename, &portname, buf);
+	ret = fcloop_parse_nm_options(dev, &analdename, &portname, buf);
 	if (ret)
 		return ret;
 
 	spin_lock_irqsave(&fcloop_lock, flags);
 
 	list_for_each_entry(tmpport, &fcloop_nports, nport_list) {
-		if (tmpport->node_name == nodename &&
+		if (tmpport->analde_name == analdename &&
 		    tmpport->port_name == portname && tmpport->rport) {
 			nport = tmpport;
 			rport = __unlink_remote_port(nport);
@@ -1394,7 +1394,7 @@ fcloop_delete_remote_port(struct device *dev, struct device_attribute *attr,
 	spin_unlock_irqrestore(&fcloop_lock, flags);
 
 	if (!nport)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = __remoteport_unreg(nport, rport);
 
@@ -1415,7 +1415,7 @@ fcloop_create_target_port(struct device *dev, struct device_attribute *attr,
 	if (!nport)
 		return -EIO;
 
-	tinfo.node_name = nport->node_name;
+	tinfo.analde_name = nport->analde_name;
 	tinfo.port_name = nport->port_name;
 	tinfo.port_id = nport->port_id;
 
@@ -1470,18 +1470,18 @@ fcloop_delete_target_port(struct device *dev, struct device_attribute *attr,
 {
 	struct fcloop_nport *nport = NULL, *tmpport;
 	struct fcloop_tport *tport = NULL;
-	u64 nodename, portname;
+	u64 analdename, portname;
 	unsigned long flags;
 	int ret;
 
-	ret = fcloop_parse_nm_options(dev, &nodename, &portname, buf);
+	ret = fcloop_parse_nm_options(dev, &analdename, &portname, buf);
 	if (ret)
 		return ret;
 
 	spin_lock_irqsave(&fcloop_lock, flags);
 
 	list_for_each_entry(tmpport, &fcloop_nports, nport_list) {
-		if (tmpport->node_name == nodename &&
+		if (tmpport->analde_name == analdename &&
 		    tmpport->port_name == portname && tmpport->tport) {
 			nport = tmpport;
 			tport = __unlink_target_port(nport);
@@ -1492,7 +1492,7 @@ fcloop_delete_target_port(struct device *dev, struct device_attribute *attr,
 	spin_unlock_irqrestore(&fcloop_lock, flags);
 
 	if (!nport)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = __targetport_unreg(nport, tport);
 
@@ -1513,7 +1513,7 @@ fcloop_set_cmd_drop(struct device *dev, struct device_attribute *attr,
 	drop_fabric_opcode = (opcode & ~DROP_OPCODE_MASK) ? true : false;
 	drop_opcode = (opcode & DROP_OPCODE_MASK);
 	drop_instance = starting;
-	/* the check to drop routine uses instance + count to know when
+	/* the check to drop routine uses instance + count to kanalw when
 	 * to end. Thus, if dropping 1 instance, count should be 0.
 	 * so subtract 1 from the count.
 	 */

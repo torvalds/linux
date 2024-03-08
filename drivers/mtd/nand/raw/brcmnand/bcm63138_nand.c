@@ -64,7 +64,7 @@ static int bcm63138_nand_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	soc = &priv->soc;
 
 	priv->base = devm_platform_ioremap_resource_byname(pdev, "nand-int-base");
@@ -95,5 +95,5 @@ static struct platform_driver bcm63138_nand_driver = {
 module_platform_driver(bcm63138_nand_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Brian Norris");
+MODULE_AUTHOR("Brian Analrris");
 MODULE_DESCRIPTION("NAND driver for BCM63138");

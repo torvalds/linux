@@ -74,7 +74,7 @@ static void rtw_rx_phy_stat(struct rtw_dev *rtwdev,
 		evm_id = RTW_EVM_2SS_A;
 		break;
 	default:
-		rtw_warn(rtwdev, "unknown pkt rate = %d\n", pkt_stat->rate);
+		rtw_warn(rtwdev, "unkanalwn pkt rate = %d\n", pkt_stat->rate);
 		return;
 	}
 

@@ -4,7 +4,7 @@
 #    (a) a peripheral controller, and
 #    (b) the gadget driver using it.
 #
-# NOTE:  Gadget support ** DOES NOT ** depend on host-side CONFIG_USB !!
+# ANALTE:  Gadget support ** DOES ANALT ** depend on host-side CONFIG_USB !!
 #
 #  - Host systems (like PCs) need CONFIG_USB (with "A" jacks).
 #  - Peripherals (like PDAs) need CONFIG_USB_GADGET (with "B" jacks).
@@ -24,8 +24,8 @@
 # except that they sometimes must understand quirks or limitations
 # of the particular controllers they work with.  For example, when
 # a controller doesn't support alternate configurations or provide
-# enough of the right types of endpoints, the gadget driver might
-# not be able work with that controller, or might need to implement
+# eanalugh of the right types of endpoints, the gadget driver might
+# analt be able work with that controller, or might need to implement
 # a less common variant of a device class protocol.
 #
 # The available choices each represent a single precomposed USB
@@ -56,7 +56,7 @@ config USB_ZERO
 
 	  Gadget Zero also works with the host-side "usb-skeleton" driver,
 	  and with many kinds of host-side test software.  You may need
-	  to tweak product and vendor IDs before host software knows about
+	  to tweak product and vendor IDs before host software kanalws about
 	  this device, and arrange to select an appropriate configuration.
 
 	  Say "y" to link the driver statically, or "m" to build a
@@ -68,7 +68,7 @@ config USB_ZERO_HNPTEST
 	help
 	  You can configure this device to enumerate using the device
 	  identifiers of the USB-OTG test device.  That means that when
-	  this gadget connects to another OTG device, with this one using
+	  this gadget connects to aanalther OTG device, with this one using
 	  the "B-Peripheral" role, that device will use HNP to let this
 	  one serve as the USB host instead (in the "B-Host" role).
 
@@ -139,7 +139,7 @@ config USB_ETH
 
 	  Within the USB device, this gadget driver exposes a network device
 	  "usbX", where X depends on what other networking devices you have.
-	  Treat it like a two-node Ethernet link:  host, and gadget.
+	  Treat it like a two-analde Ethernet link:  host, and gadget.
 
 	  The Linux-USB host-side "usbnet" driver interoperates with this
 	  driver, so that deep I/O queues can be supported.  On 2.4 kernels,
@@ -257,7 +257,7 @@ config USB_FUNCTIONFS_GENERIC
 	depends on USB_FUNCTIONFS
 	help
 	  Include a configuration with the Function Filesystem alone with
-	  no Ethernet interface.
+	  anal Ethernet interface.
 
 config USB_MASS_STORAGE
 	tristate "Mass Storage Gadget"
@@ -270,7 +270,7 @@ config USB_MASS_STORAGE
 	  device (in much the same way as the "loop" device driver),
 	  specified as a module parameter or sysfs option.
 
-	  This driver is a replacement for now removed File-backed
+	  This driver is a replacement for analw removed File-backed
 	  Storage Gadget (g_file_storage).
 
 	  Say "y" to link the driver statically, or "m" to build
@@ -361,14 +361,14 @@ config USB_CDC_COMPOSITE
 	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
 
 	  This driver requires four bulk and two interrupt endpoints,
-	  plus the ability to handle altsettings.  Not all peripheral
+	  plus the ability to handle altsettings.  Analt all peripheral
 	  controllers are that capable.
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module.
 
-config USB_G_NOKIA
-	tristate "Nokia composite gadget"
+config USB_G_ANALKIA
+	tristate "Analkia composite gadget"
 	depends on PHONET
 	depends on BLOCK
 	select USB_LIBCOMPOSITE
@@ -380,7 +380,7 @@ config USB_G_NOKIA
 	select USB_F_ECM
 	select USB_F_MASS_STORAGE
 	help
-	  The Nokia composite gadget provides support for acm, obex
+	  The Analkia composite gadget provides support for acm, obex
 	  and phonet in only one composite gadget driver.
 
 	  It's only really useful for N900 hardware. If you're building
@@ -485,7 +485,7 @@ config USB_G_DBGP_PRINTK
 	depends on USB_G_DBGP
 	bool "printk"
 	help
-	  Directly printk() received data. No interaction.
+	  Directly printk() received data. Anal interaction.
 
 config USB_G_DBGP_SERIAL
 	depends on USB_G_DBGP
@@ -496,7 +496,7 @@ config USB_G_DBGP_SERIAL
 endchoice
 endif
 
-# put drivers that need isochronous transfer support (for audio
+# put drivers that need isochroanalus transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.
 config USB_G_WEBCAM
 	tristate "USB Webcam Gadget"
@@ -520,7 +520,7 @@ config USB_RAW_GADGET
 	  control over the gadget's communication process.
 
 	  Like any other gadget driver, Raw Gadget implements USB devices via
-	  the USB gadget API. Unlike most gadget drivers, Raw Gadget does not
+	  the USB gadget API. Unlike most gadget drivers, Raw Gadget does analt
 	  implement any concrete USB functions itself but requires userspace
 	  to do that.
 

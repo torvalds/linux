@@ -83,7 +83,7 @@ struct prng_ws_s {
 	u64 byte_counter;
 };
 
-struct prno_ws_s {
+struct pranal_ws_s {
 	u32 res;
 	u32 reseed_counter;
 	u64 stream_bytes;
@@ -95,7 +95,7 @@ struct prng_data_s {
 	struct mutex mutex;
 	union {
 		struct prng_ws_s prngws;
-		struct prno_ws_s prnows;
+		struct pranal_ws_s pranalws;
 	};
 	u8 *buf;
 	u32 rest;
@@ -153,7 +153,7 @@ static int generate_entropy(u8 *ebuf, size_t nbytes)
 	pg = (u8 *) __get_free_page(GFP_KERNEL);
 	if (!pg) {
 		prng_errorflag = PRNG_GEN_ENTROPY_FAILED;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* fill the ebuf in chunks of 64 byte each */
@@ -232,7 +232,7 @@ static int __init prng_tdes_instantiate(void)
 	prng_data = kzalloc(datalen, GFP_KERNEL);
 	if (!prng_data) {
 		prng_errorflag = PRNG_INSTANTIATE_FAILED;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	mutex_init(&prng_data->mutex);
 	prng_data->buf = ((u8 *)prng_data) + sizeof(struct prng_data_s);
@@ -330,12 +330,12 @@ static int __init prng_sha512_selftest(void)
 		0x36, 0x8c, 0x5a, 0x9f, 0x7a, 0x4b, 0x3e, 0xe2 };
 
 	u8 buf[sizeof(random)];
-	struct prno_ws_s ws;
+	struct pranal_ws_s ws;
 
 	memset(&ws, 0, sizeof(ws));
 
 	/* initial seed */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
+	cpacf_pranal(CPACF_PRANAL_SHA512_DRNG_SEED,
 		   &ws, NULL, 0, seed, sizeof(seed));
 
 	/* check working states V and C */
@@ -348,9 +348,9 @@ static int __init prng_sha512_selftest(void)
 	}
 
 	/* generate random bytes */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
+	cpacf_pranal(CPACF_PRANAL_SHA512_DRNG_GEN,
 		   &ws, buf, sizeof(buf), NULL, 0);
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
+	cpacf_pranal(CPACF_PRANAL_SHA512_DRNG_GEN,
 		   &ws, buf, sizeof(buf), NULL, 0);
 
 	/* check against expected data */
@@ -381,7 +381,7 @@ static int __init prng_sha512_instantiate(void)
 	prng_data = kzalloc(datalen, GFP_KERNEL);
 	if (!prng_data) {
 		prng_errorflag = PRNG_INSTANTIATE_FAILED;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	mutex_init(&prng_data->mutex);
 	prng_data->buf = ((u8 *)prng_data) + sizeof(struct prng_data_s);
@@ -402,7 +402,7 @@ static int __init prng_sha512_instantiate(void)
 		cpacf_trng(NULL, 0, seed, seedlen);
 	} else {
 		/*
-		 * No trng available, so use the generate_entropy() function.
+		 * Anal trng available, so use the generate_entropy() function.
 		 * This function works in 64 byte junks and produces
 		 * 50% entropy. So we pull 2*64 bytes which gives us 512 bits
 		 * of entropy.
@@ -413,21 +413,21 @@ static int __init prng_sha512_instantiate(void)
 			goto outfree;
 	}
 
-	/* append the seed by 16 bytes of unique nonce */
+	/* append the seed by 16 bytes of unique analnce */
 	store_tod_clock_ext((union tod_clock *)(seed + seedlen));
 	seedlen += 16;
 
-	/* now initial seed of the prno drng */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
-		   &prng_data->prnows, NULL, 0, seed, seedlen);
+	/* analw initial seed of the pranal drng */
+	cpacf_pranal(CPACF_PRANAL_SHA512_DRNG_SEED,
+		   &prng_data->pranalws, NULL, 0, seed, seedlen);
 	memzero_explicit(seed, sizeof(seed));
 
 	/* if fips mode is enabled, generate a first block of random
 	   bytes for the FIPS 140-2 Conditional Self Test */
 	if (fips_enabled) {
 		prng_data->prev = prng_data->buf + prng_chunk_size;
-		cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
-			   &prng_data->prnows,
+		cpacf_pranal(CPACF_PRANAL_SHA512_DRNG_GEN,
+			   &prng_data->pranalws,
 			   prng_data->prev, prng_chunk_size, NULL, 0);
 	}
 
@@ -464,9 +464,9 @@ static int prng_sha512_reseed(void)
 			return ret;
 	}
 
-	/* do a reseed of the prno drng with this bytestring */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
-		   &prng_data->prnows, NULL, 0, seed, seedlen);
+	/* do a reseed of the pranal drng with this bytestring */
+	cpacf_pranal(CPACF_PRANAL_SHA512_DRNG_SEED,
+		   &prng_data->pranalws, NULL, 0, seed, seedlen);
 	memzero_explicit(seed, sizeof(seed));
 
 	return 0;
@@ -478,15 +478,15 @@ static int prng_sha512_generate(u8 *buf, size_t nbytes)
 	int ret;
 
 	/* reseed needed ? */
-	if (prng_data->prnows.reseed_counter > prng_reseed_limit) {
+	if (prng_data->pranalws.reseed_counter > prng_reseed_limit) {
 		ret = prng_sha512_reseed();
 		if (ret)
 			return ret;
 	}
 
-	/* PRNO generate */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
-		   &prng_data->prnows, buf, nbytes, NULL, 0);
+	/* PRANAL generate */
+	cpacf_pranal(CPACF_PRANAL_SHA512_DRNG_GEN,
+		   &prng_data->pranalws, buf, nbytes, NULL, 0);
 
 	/* FIPS 140-2 Conditional Self Test */
 	if (fips_enabled) {
@@ -503,9 +503,9 @@ static int prng_sha512_generate(u8 *buf, size_t nbytes)
 
 /*** file io functions ***/
 
-static int prng_open(struct inode *inode, struct file *file)
+static int prng_open(struct ianalde *ianalde, struct file *file)
 {
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 
@@ -555,13 +555,13 @@ static ssize_t prng_tdes_read(struct file *file, char __user *ubuf,
 		 * Beside the STCKF the input for the TDES-EDE is the output
 		 * of the last operation. We differ here from X9.17 since we
 		 * only store one timestamp into the buffer. Padding the whole
-		 * buffer with timestamps does not improve security, since
+		 * buffer with timestamps does analt improve security, since
 		 * successive stckf have nearly constant offsets.
-		 * If an attacker knows the first timestamp it would be
+		 * If an attacker kanalws the first timestamp it would be
 		 * trivial to guess the additional values. One timestamp
-		 * is therefore enough and still guarantees unique input values.
+		 * is therefore eanalugh and still guarantees unique input values.
 		 *
-		 * Note: you can still get strict X9.17 conformity by setting
+		 * Analte: you can still get strict X9.17 conformity by setting
 		 * prng_chunk_size to 8 bytes.
 		 */
 		cpacf_kmc(CPACF_KMC_PRNG, prng_data->prngws.parm_block,
@@ -593,7 +593,7 @@ static ssize_t prng_sha512_read(struct file *file, char __user *ubuf,
 	int n, ret = 0;
 	u8 *p;
 
-	/* if errorflag is set do nothing and return 'broken pipe' */
+	/* if errorflag is set do analthing and return 'broken pipe' */
 	if (prng_errorflag)
 		return -EPIPE;
 
@@ -664,14 +664,14 @@ static const struct file_operations prng_sha512_fops = {
 	.open		= &prng_open,
 	.release	= NULL,
 	.read		= &prng_sha512_read,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 static const struct file_operations prng_tdes_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &prng_open,
 	.release	= NULL,
 	.read		= &prng_tdes_read,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 /* chunksize attribute (ro) */
@@ -693,7 +693,7 @@ static ssize_t prng_counter_show(struct device *dev,
 	if (mutex_lock_interruptible(&prng_data->mutex))
 		return -ERESTARTSYS;
 	if (prng_mode == PRNG_MODE_SHA512)
-		counter = prng_data->prnows.stream_bytes;
+		counter = prng_data->pranalws.stream_bytes;
 	else
 		counter = prng_data->prngws.byte_counter;
 	mutex_unlock(&prng_data->mutex);
@@ -799,7 +799,7 @@ ATTRIBUTE_GROUPS(prng_tdes_dev);
 
 static struct miscdevice prng_sha512_dev = {
 	.name	= "prandom",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.mode	= 0644,
 	.fops	= &prng_sha512_fops,
 	.groups = prng_sha512_dev_groups,
@@ -807,7 +807,7 @@ static struct miscdevice prng_sha512_dev = {
 
 static struct miscdevice prng_tdes_dev = {
 	.name	= "prandom",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.mode	= 0644,
 	.fops	= &prng_tdes_fops,
 	.groups = prng_tdes_dev_groups,
@@ -822,20 +822,20 @@ static int __init prng_init(void)
 
 	/* check if the CPU has a PRNG */
 	if (!cpacf_query_func(CPACF_KMC, CPACF_KMC_PRNG))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* check if TRNG subfunction is available */
-	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
+	if (cpacf_query_func(CPACF_PRANAL, CPACF_PRANAL_TRNG))
 		trng_available = true;
 
 	/* choose prng mode */
 	if (prng_mode != PRNG_MODE_TDES) {
-		/* check for MSA5 support for PRNO operations */
-		if (!cpacf_query_func(CPACF_PRNO, CPACF_PRNO_SHA512_DRNG_GEN)) {
+		/* check for MSA5 support for PRANAL operations */
+		if (!cpacf_query_func(CPACF_PRANAL, CPACF_PRANAL_SHA512_DRNG_GEN)) {
 			if (prng_mode == PRNG_MODE_SHA512) {
-				pr_err("The prng module cannot "
+				pr_err("The prng module cananalt "
 				       "start in SHA-512 mode\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			prng_mode = PRNG_MODE_TDES;
 		} else

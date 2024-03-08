@@ -314,8 +314,8 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev,
 	u32 flags;
 	int ret;
 
-	/* check if the init_core is already enabled, if yes, reset and make it run,
-	 * if not, powerdown and enable it again.
+	/* check if the init_core is already enabled, if anal, reset and make it run,
+	 * if analt, powerdown and enable it again.
 	 */
 	if (hda_dsp_core_is_enabled(sdev, chip->init_core_mask)) {
 		/* if enabled, reset it, and run the init_core. */
@@ -329,7 +329,7 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev,
 			goto err;
 		}
 	} else {
-		/* if not enabled, power down it first and then powerup and run
+		/* if analt enabled, power down it first and then powerup and run
 		 * the init_core.
 		 */
 		ret = hda_dsp_core_reset_power_down(sdev, chip->init_core_mask);
@@ -436,7 +436,7 @@ static int cl_skl_cldma_wait_interruptible(struct snd_sof_dev *sdev,
 		return -EIO;
 	}
 
-	/* now check DMA interrupt status */
+	/* analw check DMA interrupt status */
 	cl_dma_intr_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					      sd_offset + SOF_HDA_ADSP_REG_SD_STS);
 

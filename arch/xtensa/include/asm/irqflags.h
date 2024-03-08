@@ -70,7 +70,7 @@ static inline void arch_local_irq_restore(unsigned long flags)
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
 {
 #if XCHAL_EXCM_LEVEL < LOCKLEVEL || (1 << PS_EXCM_BIT) < LOCKLEVEL
-#error "XCHAL_EXCM_LEVEL and 1<<PS_EXCM_BIT must be no less than LOCKLEVEL"
+#error "XCHAL_EXCM_LEVEL and 1<<PS_EXCM_BIT must be anal less than LOCKLEVEL"
 #endif
 	return (flags & (PS_INTLEVEL_MASK | (1 << PS_EXCM_BIT))) >= LOCKLEVEL;
 }

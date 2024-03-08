@@ -8,7 +8,7 @@ menuconfig X86_PLATFORM_DRIVERS_HP
 	help
 	  Say Y here to get to see options for device drivers for various
 	  HP x86 platforms, including vendor-specific laptop extension drivers.
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 

@@ -69,7 +69,7 @@ static void sharpsl_nand_hwcontrol(struct nand_chip *chip, int cmd,
 		writeb((readb(sharpsl->io + FLASHCTL) & ~0x17) | bits, sharpsl->io + FLASHCTL);
 	}
 
-	if (cmd != NAND_CMD_NONE)
+	if (cmd != NAND_CMD_ANALNE)
 		writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
@@ -127,19 +127,19 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	struct sharpsl_nand_platform_data *data = dev_get_platdata(&pdev->dev);
 
 	if (!data) {
-		dev_err(&pdev->dev, "no platform data!\n");
+		dev_err(&pdev->dev, "anal platform data!\n");
 		return -EINVAL;
 	}
 
 	/* Allocate memory for MTD device structure and private data */
 	sharpsl = kzalloc(sizeof(struct sharpsl_nand), GFP_KERNEL);
 	if (!sharpsl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no io memory resource defined!\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "anal io memory resource defined!\n");
+		err = -EANALDEV;
 		goto err_get_res;
 	}
 

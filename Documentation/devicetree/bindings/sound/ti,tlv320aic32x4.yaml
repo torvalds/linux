@@ -67,7 +67,7 @@ required:
 allOf:
   - $ref: dai-common.yaml#
   - if:
-      not:
+      analt:
         required:
           - ldoin-supply
     then:

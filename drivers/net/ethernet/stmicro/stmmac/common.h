@@ -26,7 +26,7 @@
 #include "hwif.h"
 #include "mmc.h"
 
-/* Synopsys Core versions */
+/* Syanalpsys Core versions */
 #define	DWMAC_CORE_3_40		0x34
 #define	DWMAC_CORE_3_50		0x35
 #define	DWMAC_CORE_4_00		0x40
@@ -97,11 +97,11 @@ struct stmmac_rxq_stats {
 	struct stmmac_napi_rx_stats napi;
 } ____cacheline_aligned_in_smp;
 
-/* Updates on each CPU protected by not allowing nested irqs. */
+/* Updates on each CPU protected by analt allowing nested irqs. */
 struct stmmac_pcpu_stats {
 	struct u64_stats_sync syncp;
-	u64_stats_t rx_normal_irq_n[MTL_MAX_TX_QUEUES];
-	u64_stats_t tx_normal_irq_n[MTL_MAX_RX_QUEUES];
+	u64_stats_t rx_analrmal_irq_n[MTL_MAX_TX_QUEUES];
+	u64_stats_t tx_analrmal_irq_n[MTL_MAX_RX_QUEUES];
 };
 
 /* Extra statistic and debug information exposed by ethtool */
@@ -167,7 +167,7 @@ struct stmmac_extra_stats {
 	unsigned long ip_csum_bypassed;
 	unsigned long ipv4_pkt_rcvd;
 	unsigned long ipv6_pkt_rcvd;
-	unsigned long no_ptp_rx_msg_type_ext;
+	unsigned long anal_ptp_rx_msg_type_ext;
 	unsigned long ptp_rx_msg_type_sync;
 	unsigned long ptp_rx_msg_type_follow_up;
 	unsigned long ptp_rx_msg_type_delay_req;
@@ -175,7 +175,7 @@ struct stmmac_extra_stats {
 	unsigned long ptp_rx_msg_type_pdelay_req;
 	unsigned long ptp_rx_msg_type_pdelay_resp;
 	unsigned long ptp_rx_msg_type_pdelay_follow_up;
-	unsigned long ptp_rx_msg_type_announce;
+	unsigned long ptp_rx_msg_type_ananalunce;
 	unsigned long ptp_rx_msg_type_management;
 	unsigned long ptp_rx_msg_pkt_reserved_type;
 	unsigned long ptp_frame_type;
@@ -186,7 +186,7 @@ struct stmmac_extra_stats {
 	unsigned long vlan_tag_priority_val;
 	unsigned long l3_filter_match;
 	unsigned long l4_filter_match;
-	unsigned long l3_l4_filter_no_match;
+	unsigned long l3_l4_filter_anal_match;
 	/* PCS */
 	unsigned long irq_pcs_ane_n;
 	unsigned long irq_pcs_link_n;
@@ -196,7 +196,7 @@ struct stmmac_extra_stats {
 	unsigned long pcs_speed;
 	/* debug register */
 	unsigned long mtl_tx_status_fifo_full;
-	unsigned long mtl_tx_fifo_not_empty;
+	unsigned long mtl_tx_fifo_analt_empty;
 	unsigned long mmtl_fifo_ctrl;
 	unsigned long mtl_tx_fifo_read_ctrl_write;
 	unsigned long mtl_tx_fifo_read_ctrl_wait;
@@ -295,8 +295,8 @@ struct stmmac_safety_stats {
 #define DMA_HW_FEAT_RXTYP1COE	0x00020000	/* IP COE (Type 1) in Rx */
 #define DMA_HW_FEAT_RXTYP2COE	0x00040000	/* IP COE (Type 2) in Rx */
 #define DMA_HW_FEAT_RXFIFOSIZE	0x00080000	/* Rx FIFO > 2048 Bytes */
-#define DMA_HW_FEAT_RXCHCNT	0x00300000	/* No. additional Rx Channels */
-#define DMA_HW_FEAT_TXCHCNT	0x00c00000	/* No. additional Tx Channels */
+#define DMA_HW_FEAT_RXCHCNT	0x00300000	/* Anal. additional Rx Channels */
+#define DMA_HW_FEAT_TXCHCNT	0x00c00000	/* Anal. additional Tx Channels */
 #define DMA_HW_FEAT_ENHDESSEL	0x01000000	/* Alternate Descriptor */
 /* Timestamping with Internal System Time */
 #define DMA_HW_FEAT_INTTSEN	0x02000000
@@ -337,16 +337,16 @@ enum packets_types {
 enum rx_frame_status {
 	good_frame = 0x0,
 	discard_frame = 0x1,
-	csum_none = 0x2,
+	csum_analne = 0x2,
 	llc_snap = 0x4,
 	dma_own = 0x8,
-	rx_not_ls = 0x10,
+	rx_analt_ls = 0x10,
 };
 
 /* Tx status */
 enum tx_frame_status {
 	tx_done = 0x0,
-	tx_not_ls = 0x1,
+	tx_analt_ls = 0x1,
 	tx_err = 0x2,
 	tx_dma_own = 0x4,
 	tx_err_bump_tc = 0x8,
@@ -374,7 +374,7 @@ enum request_irq_err {
 	REQ_IRQ_ERR_LPI,
 	REQ_IRQ_ERR_WOL,
 	REQ_IRQ_ERR_MAC,
-	REQ_IRQ_ERR_NO,
+	REQ_IRQ_ERR_ANAL,
 };
 
 /* EEE and LPI defines */
@@ -384,7 +384,7 @@ enum request_irq_err {
 #define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 3)
 
 /* FPE defines */
-#define FPE_EVENT_UNKNOWN		0
+#define FPE_EVENT_UNKANALWN		0
 #define FPE_EVENT_TRSP			BIT(0)
 #define FPE_EVENT_TVER			BIT(1)
 #define FPE_EVENT_RRSP			BIT(2)
@@ -513,7 +513,7 @@ struct dma_features {
 #define BUF_SIZE_2KiB 2048
 
 /* Power Down and WOL */
-#define PMT_NOT_SUPPORTED 0
+#define PMT_ANALT_SUPPORTED 0
 #define PMT_SUPPORTED 1
 
 /* Common MAC defines */
@@ -536,7 +536,7 @@ struct dma_features {
 #define STMMAC_RSS_MAX_TABLE_SIZE	256
 
 /* VLAN */
-#define STMMAC_VLAN_NONE	0x0
+#define STMMAC_VLAN_ANALNE	0x0
 #define STMMAC_VLAN_REMOVE	0x1
 #define STMMAC_VLAN_INSERT	0x2
 #define STMMAC_VLAN_REPLACE	0x3

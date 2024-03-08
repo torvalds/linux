@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* Hop Limit modification module for ip6tables
  * Maciej Soltysiak <solt@dns.toxicfilms.tv>
  * Based on HW's TTL module */

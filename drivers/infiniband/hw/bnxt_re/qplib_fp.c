@@ -15,18 +15,18 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
@@ -205,7 +205,7 @@ static int bnxt_qplib_alloc_qp_hdr_buf(struct bnxt_qplib_res *res,
 					sq->max_wqe * qp->sq_hdr_buf_size,
 					&qp->sq_hdr_buf_map, GFP_KERNEL);
 		if (!qp->sq_hdr_buf) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			dev_err(&res->pdev->dev,
 				"Failed to create sq_hdr_buf\n");
 			goto fail;
@@ -219,7 +219,7 @@ static int bnxt_qplib_alloc_qp_hdr_buf(struct bnxt_qplib_res *res,
 						    &qp->rq_hdr_buf_map,
 						    GFP_KERNEL);
 		if (!qp->rq_hdr_buf) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			dev_err(&res->pdev->dev,
 				"Failed to create rq_hdr_buf\n");
 			goto fail;
@@ -256,7 +256,7 @@ static void clean_nq(struct bnxt_qplib_nq *nq, struct bnxt_qplib_cq *cq)
 
 		type = le16_to_cpu(nqe->info10_type) & NQ_BASE_TYPE_MASK;
 		switch (type) {
-		case NQ_BASE_TYPE_CQ_NOTIFICATION:
+		case NQ_BASE_TYPE_CQ_ANALTIFICATION:
 		{
 			struct nq_cn *nqcne = (struct nq_cn *)nqe;
 
@@ -320,7 +320,7 @@ static void bnxt_qplib_service_nq(struct tasklet_struct *t)
 
 		type = le16_to_cpu(nqe->info10_type) & NQ_BASE_TYPE_MASK;
 		switch (type) {
-		case NQ_BASE_TYPE_CQ_NOTIFICATION:
+		case NQ_BASE_TYPE_CQ_ANALTIFICATION:
 		{
 			struct nq_cn *nqcne = (struct nq_cn *)nqe;
 
@@ -339,7 +339,7 @@ static void bnxt_qplib_service_nq(struct tasklet_struct *t)
 			atomic_set(&cq->arm_state, 0);
 			if (nq->cqn_handler(nq, (cq)))
 				dev_warn(&nq->pdev->dev,
-					 "cqn - type 0x%x not handled\n", type);
+					 "cqn - type 0x%x analt handled\n", type);
 			cq->cnq_events++;
 			spin_unlock_bh(&cq->compl_lock);
 			break;
@@ -360,7 +360,7 @@ static void bnxt_qplib_service_nq(struct tasklet_struct *t)
 					     (struct bnxt_qplib_srq *)q_handle,
 					     nqsrqe->event))
 				dev_warn(&nq->pdev->dev,
-					 "SRQ event 0x%x not handled\n",
+					 "SRQ event 0x%x analt handled\n",
 					 nqsrqe->event);
 			break;
 		}
@@ -368,7 +368,7 @@ static void bnxt_qplib_service_nq(struct tasklet_struct *t)
 			break;
 		default:
 			dev_warn(&nq->pdev->dev,
-				 "nqe with type = 0x%x not handled\n", type);
+				 "nqe with type = 0x%x analt handled\n", type);
 			break;
 		}
 		hw_polled++;
@@ -380,12 +380,12 @@ static void bnxt_qplib_service_nq(struct tasklet_struct *t)
 	spin_unlock_bh(&hwq->lock);
 }
 
-/* bnxt_re_synchronize_nq - self polling notification queue.
- * @nq      -     notification queue pointer
+/* bnxt_re_synchronize_nq - self polling analtification queue.
+ * @nq      -     analtification queue pointer
  *
- * This function will start polling entries of a given notification queue
+ * This function will start polling entries of a given analtification queue
  * for all pending  entries.
- * This function is useful to synchronize notification entries while resources
+ * This function is useful to synchronize analtification entries while resources
  * are going away.
  */
 
@@ -472,7 +472,7 @@ int bnxt_qplib_nq_start_irq(struct bnxt_qplib_nq *nq, int nq_indx,
 	nq->name = kasprintf(GFP_KERNEL, "bnxt_re-nq-%d@pci:%s",
 			     nq_indx, pci_name(res->pdev));
 	if (!nq->name)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = request_irq(nq->msix_vec, bnxt_qplib_nq_irq, 0, nq->name, nq);
 	if (rc) {
 		kfree(nq->name);
@@ -510,7 +510,7 @@ static int bnxt_qplib_map_nq_db(struct bnxt_qplib_nq *nq,  u32 reg_offt)
 	if (!nq_db->reg.bar_base) {
 		dev_err(&pdev->dev, "QPLIB: NQ BAR region %d resc start is 0!",
 			nq_db->reg.bar_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	reg_base = nq_db->reg.bar_base + reg_offt;
@@ -520,7 +520,7 @@ static int bnxt_qplib_map_nq_db(struct bnxt_qplib_nq *nq,  u32 reg_offt)
 	if (!nq_db->reg.bar_reg) {
 		dev_err(&pdev->dev, "QPLIB: NQ BAR region %d mapping failed",
 			nq_db->reg.bar_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	nq_db->dbinfo.db = nq_db->reg.bar_reg;
@@ -541,10 +541,10 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 	nq->cqn_handler = cqn_handler;
 	nq->srqn_handler = srqn_handler;
 
-	/* Have a task to schedule CQ notifiers in post send case */
+	/* Have a task to schedule CQ analtifiers in post send case */
 	nq->cqn_wq  = create_singlethread_workqueue("bnxt_qplib_nq");
 	if (!nq->cqn_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = bnxt_qplib_map_nq_db(nq, bar_reg_offset);
 	if (rc)
@@ -591,7 +591,7 @@ int bnxt_qplib_alloc_nq(struct bnxt_qplib_res *res, struct bnxt_qplib_nq *nq)
 	hwq_attr.type = bnxt_qplib_get_hwq_type(nq->res);
 	if (bnxt_qplib_alloc_init_hwq(&nq->hwq, &hwq_attr)) {
 		dev_err(&nq->pdev->dev, "FP NQ allocation failed");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	nq->budget = 8;
 	return 0;
@@ -646,7 +646,7 @@ int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,
 	srq->swq = kcalloc(srq->hwq.max_elements, sizeof(*srq->swq),
 			   GFP_KERNEL);
 	if (!srq->swq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 	srq->dbinfo.flags = 0;
@@ -737,7 +737,7 @@ int bnxt_qplib_query_srq(struct bnxt_qplib_res *res,
 	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,
 				     &sbuf.dma_addr, GFP_KERNEL);
 	if (!sbuf.sb)
-		return -ENOMEM;
+		return -EANALMEM;
 	req.resp_size = sbuf.size / BNXT_QPLIB_CMDQE_UNITS;
 	req.srq_cid = cpu_to_le32(srq->id);
 	sb = sbuf.sb;
@@ -811,7 +811,7 @@ static int bnxt_qplib_alloc_init_swq(struct bnxt_qplib_q *que)
 
 	que->swq = kcalloc(que->max_wqe, sizeof(*que->swq), GFP_KERNEL);
 	if (!que->swq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	que->swq_start = 0;
 	que->swq_last = que->max_wqe - 1;
@@ -903,7 +903,7 @@ int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	/* Header buffer - allow hdr_buf pass in */
 	rc = bnxt_qplib_alloc_qp_hdr_buf(res, qp);
 	if (rc) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto rq_rwq;
 	}
 	qp_flags |= CMDQ_CREATE_QP1_QP_FLAGS_RESERVED_LKEY_ENABLE;
@@ -1181,7 +1181,7 @@ static void __modify_flags_from_init_state(struct bnxt_qplib_qp *qp)
 	switch (qp->state) {
 	case CMDQ_MODIFY_QP_NEW_STATE_RTR:
 		/* INIT->RTR, configure the path_mtu to the default
-		 * 2048 if not being requested
+		 * 2048 if analt being requested
 		 */
 		if (!(qp->modify_flags &
 		    CMDQ_MODIFY_QP_MODIFY_MASK_PATH_MTU)) {
@@ -1192,11 +1192,11 @@ static void __modify_flags_from_init_state(struct bnxt_qplib_qp *qp)
 		}
 		qp->modify_flags &=
 			~CMDQ_MODIFY_QP_MODIFY_MASK_VLAN_ID;
-		/* Bono FW require the max_dest_rd_atomic to be >= 1 */
+		/* Boanal FW require the max_dest_rd_atomic to be >= 1 */
 		if (qp->max_dest_rd_atomic < 1)
 			qp->max_dest_rd_atomic = 1;
 		qp->modify_flags &= ~CMDQ_MODIFY_QP_MODIFY_MASK_SRC_MAC;
-		/* Bono FW 20.6.5 requires SGID_INDEX configuration */
+		/* Boanal FW 20.6.5 requires SGID_INDEX configuration */
 		if (!(qp->modify_flags &
 		    CMDQ_MODIFY_QP_MODIFY_MASK_SGID_INDEX)) {
 			qp->modify_flags |=
@@ -1213,10 +1213,10 @@ static void __modify_flags_from_rtr_state(struct bnxt_qplib_qp *qp)
 {
 	switch (qp->state) {
 	case CMDQ_MODIFY_QP_NEW_STATE_RTS:
-		/* Bono FW requires the max_rd_atomic to be >= 1 */
+		/* Boanal FW requires the max_rd_atomic to be >= 1 */
 		if (qp->max_rd_atomic < 1)
 			qp->max_rd_atomic = 1;
-		/* Bono FW does not allow PKEY_INDEX,
+		/* Boanal FW does analt allow PKEY_INDEX,
 		 * DGID, FLOW_LABEL, SGID_INDEX, HOP_LIMIT,
 		 * TRAFFIC_CLASS, DEST_MAC, PATH_MTU, RQ_PSN,
 		 * MIN_RNR_TIMER, MAX_DEST_RD_ATOMIC, DEST_QP_ID
@@ -1285,12 +1285,12 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	req.modify_mask = cpu_to_le32(qp->modify_flags);
 	req.qp_cid = cpu_to_le32(qp->id);
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_STATE) {
-		req.network_type_en_sqd_async_notify_new_state =
+		req.network_type_en_sqd_async_analtify_new_state =
 				(qp->state & CMDQ_MODIFY_QP_NEW_STATE_MASK) |
-				(qp->en_sqd_async_notify ?
-					CMDQ_MODIFY_QP_EN_SQD_ASYNC_NOTIFY : 0);
+				(qp->en_sqd_async_analtify ?
+					CMDQ_MODIFY_QP_EN_SQD_ASYNC_ANALTIFY : 0);
 	}
-	req.network_type_en_sqd_async_notify_new_state |= qp->nw_type;
+	req.network_type_en_sqd_async_analtify_new_state |= qp->nw_type;
 
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_ACCESS)
 		req.access = qp->access;
@@ -1386,7 +1386,7 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,
 				     &sbuf.dma_addr, GFP_KERNEL);
 	if (!sbuf.sb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sb = sbuf.sb;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
@@ -1401,10 +1401,10 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	if (rc)
 		goto bail;
 	/* Extract the context from the side buffer */
-	qp->state = sb->en_sqd_async_notify_state &
+	qp->state = sb->en_sqd_async_analtify_state &
 			CREQ_QUERY_QP_RESP_SB_STATE_MASK;
-	qp->en_sqd_async_notify = sb->en_sqd_async_notify_state &
-				  CREQ_QUERY_QP_RESP_SB_EN_SQD_ASYNC_NOTIFY;
+	qp->en_sqd_async_analtify = sb->en_sqd_async_analtify_state &
+				  CREQ_QUERY_QP_RESP_SB_EN_SQD_ASYNC_ANALTIFY;
 	qp->access = sb->access;
 	qp->pkey_index = le16_to_cpu(sb->pkey);
 	qp->qkey = le32_to_cpu(sb->qkey);
@@ -1425,7 +1425,7 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		}
 	}
 	if (i == res->sgid_tbl.max)
-		dev_warn(&res->pdev->dev, "SGID not found??\n");
+		dev_warn(&res->pdev->dev, "SGID analt found??\n");
 
 	qp->ah.hop_limit = sb->hop_limit;
 	qp->ah.traffic_class = sb->traffic_class;
@@ -1680,7 +1680,7 @@ static int bnxt_qplib_put_inline(struct bnxt_qplib_qp *qp,
 		il_src = (void *)wqe->sg_list[indx].addr;
 		t_len += len;
 		if (t_len > qp->max_inline_data)
-			return -ENOMEM;
+			return -EANALMEM;
 		while (len) {
 			if (pull_dst) {
 				pull_dst = false;
@@ -1733,7 +1733,7 @@ static u16 bnxt_qplib_required_slots(struct bnxt_qplib_qp *qp,
 	u16 slot;
 
 	nsge = wqe->num_sge;
-	/* Adding sq_send_hdr is a misnomer, for rq also hdr size is same. */
+	/* Adding sq_send_hdr is a misanalmer, for rq also hdr size is same. */
 	bytes = sizeof(struct sq_send_hdr) + nsge * sizeof(struct sq_sge);
 	if (wqe->flags & BNXT_QPLIB_SWQE_FLAGS_INLINE) {
 		ilsize = bnxt_qplib_calc_ilsize(wqe, qp->max_inline_data);
@@ -1813,7 +1813,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 		dev_err(&hwq->pdev->dev,
 			"prod = %#x cons = %#x qdepth = %#x delta = %#x\n",
 			hwq->prod, hwq->cons, hwq->depth, sq->q_full_delta);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto done;
 	}
 
@@ -2027,7 +2027,7 @@ done:
 		} else {
 			dev_err(&hwq->pdev->dev,
 				"FP: Failed to allocate SQ nq_work!\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 		}
 	}
 	return rc;
@@ -2114,7 +2114,7 @@ done:
 		} else {
 			dev_err(&hwq->pdev->dev,
 				"FP: Failed to allocate RQ nq_work!\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 		}
 	}
 
@@ -2276,7 +2276,7 @@ static int __flush_sq(struct bnxt_qplib_q *sq, struct bnxt_qplib_qp *qp,
 	u32 start, last;
 	int rc = 0;
 
-	/* Now complete all outstanding SQEs with FLUSHED_ERR */
+	/* Analw complete all outstanding SQEs with FLUSHED_ERR */
 	start = sq->swq_start;
 	cqe = *pcqe;
 	while (*budget) {
@@ -2370,7 +2370,7 @@ void bnxt_qplib_mark_qp_error(void *qp_handle)
 	bnxt_qplib_cancel_phantom_processing(qp);
 }
 
-/* Note: SQE is valid from sw_sq_cons up to cqe_sq_cons (exclusive)
+/* Analte: SQE is valid from sw_sq_cons up to cqe_sq_cons (exclusive)
  *       CQE is track from sw_cq_cons to max_element but valid only if VALID=1
  */
 static int do_wa9060(struct bnxt_qplib_qp *qp, struct bnxt_qplib_cq *cq,
@@ -2385,7 +2385,7 @@ static int do_wa9060(struct bnxt_qplib_qp *qp, struct bnxt_qplib_cq *cq,
 	struct cq_base *peek_hwcqe;
 	int i, rc = 0;
 
-	/* Normal mode */
+	/* Analrmal mode */
 	/* Check for the psn_search marking before completing */
 	swq = &sq->swq[swq_last];
 	if (swq->psn_search &&
@@ -2451,9 +2451,9 @@ static int do_wa9060(struct bnxt_qplib_qp *qp, struct bnxt_qplib_cq *cq,
 						goto out;
 					}
 				}
-				/* Valid but not the phantom, so keep looping */
+				/* Valid but analt the phantom, so keep looping */
 			} else {
-				/* Not valid yet, just exit and wait */
+				/* Analt valid yet, just exit and wait */
 				rc = -EINVAL;
 				goto out;
 			}
@@ -2462,7 +2462,7 @@ static int do_wa9060(struct bnxt_qplib_qp *qp, struct bnxt_qplib_cq *cq,
 						 1, &peek_flags);
 		}
 		dev_err(&cq->hwq.pdev->dev,
-			"Should not have come here! cq_cons=0x%x qp=0x%x sq cons sw=0x%x hw=0x%x\n",
+			"Should analt have come here! cq_cons=0x%x qp=0x%x sq cons sw=0x%x hw=0x%x\n",
 			cq_cons, qp->id, swq_last, cqe_sq_cons);
 		rc = -EINVAL;
 	}
@@ -2518,7 +2518,7 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 		cqe->type = swq->type;
 
 		/* For the last CQE, check for status.  For errors, regardless
-		 * of the request being signaled or not, it must complete with
+		 * of the request being signaled or analt, it must complete with
 		 * the hwcqe error status
 		 */
 		if (swq->next_idx == cqe_sq_cons &&
@@ -2560,7 +2560,7 @@ out:
 		goto done;
 	}
 	/*
-	 * Back to normal completion mode only after it has completed all of
+	 * Back to analrmal completion mode only after it has completed all of
 	 * the WC for this CQE
 	 */
 	sq->single = false;
@@ -2805,7 +2805,7 @@ static int bnxt_qplib_cq_process_res_raweth_qp1(struct bnxt_qplib_cq *cq,
 		srq = qp->srq;
 		if (!srq) {
 			dev_err(&cq->hwq.pdev->dev,
-				"FP: SRQ used but not defined??\n");
+				"FP: SRQ used but analt defined??\n");
 			return -EINVAL;
 		}
 		if (wr_id_idx >= srq->hwq.max_elements) {
@@ -3050,7 +3050,7 @@ int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
 			goto exit;
 		default:
 			dev_err(&cq->hwq.pdev->dev,
-				"process_cq unknown type 0x%lx\n",
+				"process_cq unkanalwn type 0x%lx\n",
 				hw_cqe->cqe_type_toggle &
 				CQ_BASE_CQE_TYPE_MASK);
 			rc = -EINVAL;
@@ -3077,7 +3077,7 @@ exit:
 	return num_cqes - budget;
 }
 
-void bnxt_qplib_req_notify_cq(struct bnxt_qplib_cq *cq, u32 arm_type)
+void bnxt_qplib_req_analtify_cq(struct bnxt_qplib_cq *cq, u32 arm_type)
 {
 	cq->dbinfo.toggle = cq->toggle;
 	if (arm_type)

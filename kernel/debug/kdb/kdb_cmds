@@ -1,7 +1,7 @@
 # Initial commands for kdb, alter to suit your needs.
-# These commands are executed in kdb_init() context, no SMP, no
+# These commands are executed in kdb_init() context, anal SMP, anal
 # processes.  Commands that require process data (including stack or
-# registers) are not reliable this early.  set and bp commands should
+# registers) are analt reliable this early.  set and bp commands should
 # be safe.  Global breakpoint commands affect each cpu as it is booted.
 
 # Standard debugging information for first level support, just type archkdb

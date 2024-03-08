@@ -225,7 +225,7 @@ static int gf2k_connect(struct gameport *gameport, struct gameport_driver *drv)
 	gf2k = kzalloc(sizeof(struct gf2k), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!gf2k || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 
@@ -247,19 +247,19 @@ static int gf2k_connect(struct gameport *gameport, struct gameport_driver *drv)
 	msleep(GF2K_TIMEOUT);
 
 	if (gf2k_read_packet(gameport, GF2K_LENGTH, data) < 12) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 
 	if (!(gf2k->id = GB(7,2,0) | GB(3,3,2) | GB(0,3,5))) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 
 #ifdef RESET_WORKS
 	if ((gf2k->id != (GB(19,2,0) | GB(15,3,2) | GB(12,3,5))) &&
 	    (gf2k->id != (GB(31,2,0) | GB(27,3,2) | GB(24,3,5)))) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 #else
@@ -267,9 +267,9 @@ static int gf2k_connect(struct gameport *gameport, struct gameport_driver *drv)
 #endif
 
 	if (gf2k->id > GF2K_ID_MAX || !gf2k_axes[gf2k->id]) {
-		printk(KERN_WARNING "gf2k.c: Not yet supported joystick on %s. [id: %d type:%s]\n",
-			gameport->phys, gf2k->id, gf2k->id > GF2K_ID_MAX ? "Unknown" : gf2k_names[gf2k->id]);
-		err = -ENODEV;
+		printk(KERN_WARNING "gf2k.c: Analt yet supported joystick on %s. [id: %d type:%s]\n",
+			gameport->phys, gf2k->id, gf2k->id > GF2K_ID_MAX ? "Unkanalwn" : gf2k_names[gf2k->id]);
+		err = -EANALDEV;
 		goto fail2;
 	}
 

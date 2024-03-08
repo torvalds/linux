@@ -62,7 +62,7 @@ int ptrace_get_debugreg(struct task_struct *child, unsigned long addr,
 {
 	unsigned long dabr_fake;
 
-	/* We only support one DABR and no IABRS at the moment */
+	/* We only support one DABR and anal IABRS at the moment */
 	if (addr > 0)
 		return -EINVAL;
 	dabr_fake = ((child->thread.hw_brk[0].address & (~HW_BRK_TYPE_DABR)) |
@@ -86,8 +86,8 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr, unsigned l
 	bool set_bp = true;
 	struct arch_hw_breakpoint hw_brk;
 
-	/* For ppc64 we support one DABR and no IABR's at the moment (ppc64).
-	 *  For embedded processors we support one DAC and no IAC's at the
+	/* For ppc64 we support one DABR and anal IABR's at the moment (ppc64).
+	 *  For embedded processors we support one DAC and anal IAC's at the
 	 *  moment.
 	 */
 	if (addr > 0)
@@ -160,7 +160,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr, unsigned l
 
 #else /* !CONFIG_HAVE_HW_BREAKPOINT */
 	if (set_bp && (!ppc_breakpoint_available()))
-		return -ENODEV;
+		return -EANALDEV;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 	task->thread.hw_brk[0] = hw_brk;
 	return 0;
@@ -202,13 +202,13 @@ long ppc_set_hwdebug(struct task_struct *child, struct ppc_hw_breakpoint *bp_inf
 	struct arch_hw_breakpoint brk;
 
 	if (bp_info->version != 1)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	/*
 	 * We only support one data breakpoint
 	 */
 	if ((bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_RW) == 0 ||
 	    (bp_info->trigger_type & ~PPC_BREAKPOINT_TRIGGER_RW) != 0 ||
-	    bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE)
+	    bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_ANALNE)
 		return -EINVAL;
 
 	if ((unsigned long)bp_info->addr >= TASK_SIZE)
@@ -232,7 +232,7 @@ long ppc_set_hwdebug(struct task_struct *child, struct ppc_hw_breakpoint *bp_inf
 
 	i = find_empty_ptrace_bp(thread);
 	if (i < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Create a new breakpoint request if one doesn't exist already */
 	hw_breakpoint_init(&attr);
@@ -255,10 +255,10 @@ long ppc_set_hwdebug(struct task_struct *child, struct ppc_hw_breakpoint *bp_inf
 
 	i = find_empty_hw_brk(&child->thread);
 	if (i < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (!ppc_breakpoint_available())
-		return -ENODEV;
+		return -EANALDEV;
 
 	child->thread.hw_brk[i] = brk;
 
@@ -281,13 +281,13 @@ long ppc_del_hwdebug(struct task_struct *child, long data)
 		unregister_hw_breakpoint(bp);
 		thread->ptrace_bps[data - 1] = NULL;
 	} else {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	}
 	return ret;
 #else /* CONFIG_HAVE_HW_BREAKPOINT */
 	if (!(child->thread.hw_brk[data - 1].flags & HW_BRK_FLAG_DISABLED) &&
 	    child->thread.hw_brk[data - 1].address == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	child->thread.hw_brk[data - 1].address = 0;
 	child->thread.hw_brk[data - 1].type = 0;

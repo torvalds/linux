@@ -31,32 +31,32 @@ enum shutdown_state {
 	SHUTDOWN_POWEROFF = 0,
 	SHUTDOWN_SUSPEND = 2,
 	/* Code 3 is SHUTDOWN_CRASH, which we don't use because the domain can only
-	   report a crash, not be instructed to crash!
+	   report a crash, analt be instructed to crash!
 	   HALT is the same as POWEROFF, as far as we're concerned.  The tools use
 	   the distinction when we return the reason code to them.  */
 	 SHUTDOWN_HALT = 4,
 };
 
-/* Ignore multiple shutdown requests. */
+/* Iganalre multiple shutdown requests. */
 static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 
 struct suspend_info {
 	int cancelled;
 };
 
-static RAW_NOTIFIER_HEAD(xen_resume_notifier);
+static RAW_ANALTIFIER_HEAD(xen_resume_analtifier);
 
-void xen_resume_notifier_register(struct notifier_block *nb)
+void xen_resume_analtifier_register(struct analtifier_block *nb)
 {
-	raw_notifier_chain_register(&xen_resume_notifier, nb);
+	raw_analtifier_chain_register(&xen_resume_analtifier, nb);
 }
-EXPORT_SYMBOL_GPL(xen_resume_notifier_register);
+EXPORT_SYMBOL_GPL(xen_resume_analtifier_register);
 
-void xen_resume_notifier_unregister(struct notifier_block *nb)
+void xen_resume_analtifier_unregister(struct analtifier_block *nb)
 {
-	raw_notifier_chain_unregister(&xen_resume_notifier, nb);
+	raw_analtifier_chain_unregister(&xen_resume_analtifier, nb);
 }
-EXPORT_SYMBOL_GPL(xen_resume_notifier_unregister);
+EXPORT_SYMBOL_GPL(xen_resume_analtifier_unregister);
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 static int xen_suspend(void *data)
@@ -139,7 +139,7 @@ static void do_suspend(void)
 	if (!si.cancelled)
 		xen_console_resume();
 
-	raw_notifier_call_chain(&xen_resume_notifier, 0, NULL);
+	raw_analtifier_call_chain(&xen_resume_analtifier, 0, NULL);
 
 	xen_arch_resume();
 
@@ -172,7 +172,7 @@ struct shutdown_handler {
 	void (*cb)(void);
 };
 
-static int poweroff_nb(struct notifier_block *cb, unsigned long code, void *unused)
+static int poweroff_nb(struct analtifier_block *cb, unsigned long code, void *unused)
 {
 	switch (code) {
 	case SYS_DOWN:
@@ -183,7 +183,7 @@ static int poweroff_nb(struct notifier_block *cb, unsigned long code, void *unus
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 static void do_poweroff(void)
 {
@@ -197,7 +197,7 @@ static void do_poweroff(void)
 		break;
 	default:
 		/* Don't do it when we are halting/rebooting. */
-		pr_info("Ignoring Xen toolstack shutdown.\n");
+		pr_info("Iganalring Xen toolstack shutdown.\n");
 		break;
 	}
 }
@@ -234,7 +234,7 @@ static void shutdown_handler(struct xenbus_watch *watch,
 		return;
 
 	str = (char *)xenbus_read(xbt, "control", "shutdown", NULL);
-	/* Ignore read errors and empty reads. */
+	/* Iganalre read errors and empty reads. */
 	if (XENBUS_IS_ERR_READ(str)) {
 		xenbus_transaction_end(xbt, 1);
 		return;
@@ -245,7 +245,7 @@ static void shutdown_handler(struct xenbus_watch *watch,
 			break;
 	}
 
-	/* Only acknowledge commands which we are prepared to handle. */
+	/* Only ackanalwledge commands which we are prepared to handle. */
 	if (idx < ARRAY_SIZE(shutdown_handlers))
 		xenbus_write(xbt, "control", "shutdown", "");
 
@@ -258,7 +258,7 @@ static void shutdown_handler(struct xenbus_watch *watch,
 	if (idx < ARRAY_SIZE(shutdown_handlers)) {
 		shutdown_handlers[idx].cb();
 	} else {
-		pr_info("Ignoring shutdown request: %s\n", str);
+		pr_info("Iganalring shutdown request: %s\n", str);
 		shutting_down = SHUTDOWN_INVALID;
 	}
 
@@ -281,12 +281,12 @@ static void sysrq_handler(struct xenbus_watch *watch, const char *path,
 	if (err < 0) {
 		/*
 		 * The Xenstore watch fires directly after registering it and
-		 * after a suspend/resume cycle. So ENOENT is no error but
+		 * after a suspend/resume cycle. So EANALENT is anal error but
 		 * might happen in those cases. ERANGE is observed when we get
-		 * an empty value (''), this happens when we acknowledge the
+		 * an empty value (''), this happens when we ackanalwledge the
 		 * request by writing '\0' below.
 		 */
-		if (err != -ENOENT && err != -ERANGE)
+		if (err != -EANALENT && err != -ERANGE)
 			pr_err("Error %d reading sysrq code in control/sysrq\n",
 			       err);
 		xenbus_transaction_end(xbt, 1);
@@ -312,18 +312,18 @@ static void sysrq_handler(struct xenbus_watch *watch, const char *path,
 }
 
 static struct xenbus_watch sysrq_watch = {
-	.node = "control/sysrq",
+	.analde = "control/sysrq",
 	.callback = sysrq_handler
 };
 #endif
 
 static struct xenbus_watch shutdown_watch = {
-	.node = "control/shutdown",
+	.analde = "control/shutdown",
 	.callback = shutdown_handler
 };
 
-static struct notifier_block xen_reboot_nb = {
-	.notifier_call = poweroff_nb,
+static struct analtifier_block xen_reboot_nb = {
+	.analtifier_call = poweroff_nb,
 };
 
 static int setup_shutdown_watcher(void)
@@ -331,7 +331,7 @@ static int setup_shutdown_watcher(void)
 	int err;
 	int idx;
 #define FEATURE_PATH_SIZE (SHUTDOWN_CMD_SIZE + sizeof("feature-"))
-	char node[FEATURE_PATH_SIZE];
+	char analde[FEATURE_PATH_SIZE];
 
 	err = register_xenbus_watch(&shutdown_watch);
 	if (err) {
@@ -351,12 +351,12 @@ static int setup_shutdown_watcher(void)
 	for (idx = 0; idx < ARRAY_SIZE(shutdown_handlers); idx++) {
 		if (!shutdown_handlers[idx].flag)
 			continue;
-		snprintf(node, FEATURE_PATH_SIZE, "feature-%s",
+		snprintf(analde, FEATURE_PATH_SIZE, "feature-%s",
 			 shutdown_handlers[idx].command);
-		err = xenbus_printf(XBT_NIL, "control", node, "%u", 1);
+		err = xenbus_printf(XBT_NIL, "control", analde, "%u", 1);
 		if (err) {
 			pr_err("%s: Error %d writing %s\n", __func__,
-				err, node);
+				err, analde);
 			return err;
 		}
 	}
@@ -364,24 +364,24 @@ static int setup_shutdown_watcher(void)
 	return 0;
 }
 
-static int shutdown_event(struct notifier_block *notifier,
+static int shutdown_event(struct analtifier_block *analtifier,
 			  unsigned long event,
 			  void *data)
 {
 	setup_shutdown_watcher();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 int xen_setup_shutdown_event(void)
 {
-	static struct notifier_block xenstore_notifier = {
-		.notifier_call = shutdown_event
+	static struct analtifier_block xenstore_analtifier = {
+		.analtifier_call = shutdown_event
 	};
 
 	if (!xen_domain())
-		return -ENODEV;
-	register_xenstore_notifier(&xenstore_notifier);
-	register_reboot_notifier(&xen_reboot_nb);
+		return -EANALDEV;
+	register_xenstore_analtifier(&xenstore_analtifier);
+	register_reboot_analtifier(&xen_reboot_nb);
 
 	return 0;
 }

@@ -6,9 +6,9 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		The supported USB data roles. This attribute can be used for
 		requesting data role swapping on the port. Swapping is supported
-		as synchronous operation, so write(2) to the attribute will not
+		as synchroanalus operation, so write(2) to the attribute will analt
 		return until the operation has finished. The attribute is
-		notified about role changes so that poll(2) on the attribute
+		analtified about role changes so that poll(2) on the attribute
 		wakes up. Change on the role will also generate uevent
 		KOBJ_CHANGE on the port. The current role is show in brackets,
 		for example "[host] device" when DRP port is in host mode.
@@ -21,9 +21,9 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		The supported power roles. This attribute can be used to request
 		power role swap on the port. Swapping is supported as
-		synchronous operation, so write(2) to the attribute will not
+		synchroanalus operation, so write(2) to the attribute will analt
 		return until the operation has finished. The attribute is
-		notified about role changes so that poll(2) on the attribute
+		analtified about role changes so that poll(2) on the attribute
 		wakes up. Change on the role will also generate uevent
 		KOBJ_CHANGE. The current role is show in brackets, for example
 		"[source] sink" when in source mode.
@@ -36,8 +36,8 @@ Contact:	Badhri Jagan Sridharan <Badhri@google.com>
 Description:
 		Indicates the type of the port. This attribute can be used for
 		requesting a change in the port type. Port type change is
-		supported as a synchronous operation, so write(2) to the
-		attribute will not return until the operation has finished.
+		supported as a synchroanalus operation, so write(2) to the
+		attribute will analt return until the operation has finished.
 
 		Valid values:
 
@@ -55,16 +55,16 @@ Description:
 		Shows is the port VCONN Source. This attribute can be used to
 		request VCONN swap to change the VCONN Source during connection
 		when both the port and the partner support USB Power Delivery.
-		Swapping is supported as synchronous operation, so write(2) to
-		the attribute will not return until the operation has finished.
-		The attribute is notified about VCONN source changes so that
+		Swapping is supported as synchroanalus operation, so write(2) to
+		the attribute will analt return until the operation has finished.
+		The attribute is analtified about VCONN source changes so that
 		poll(2) on the attribute wakes up. Change on VCONN source also
 		generates uevent KOBJ_CHANGE.
 
 		Valid values:
 
-		- "no" when the port is not the VCONN Source
-		- "yes" when the port is the VCONN Source
+		- "anal" when the port is analt the VCONN Source
+		- "anal" when the port is the VCONN Source
 
 What:		/sys/class/typec/<port>/power_operation_mode
 Date:		April 2017
@@ -86,12 +86,12 @@ What:		/sys/class/typec/<port>/preferred_role
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
-		The user space can notify the driver about the preferred role.
+		The user space can analtify the driver about the preferred role.
 		It should be handled as enabling of Try.SRC or Try.SNK, as
 		defined in USB Type-C specification, in the port drivers. By
 		default the preferred role should come from the platform.
 
-		Valid values: source, sink, none (to remove preference)
+		Valid values: source, sink, analne (to remove preference)
 
 What:		/sys/class/typec/<port>/supported_accessory_modes
 Date:		April 2017
@@ -105,7 +105,7 @@ Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Revision number of the supported USB Power Delivery
-		specification, or 0.0 when USB Power Delivery is not supported.
+		specification, or 0.0 when USB Power Delivery is analt supported.
 
 		Example values:
 		- "2.0": USB Power Delivery Release 2.0
@@ -118,7 +118,7 @@ Contact:	Benson Leung <bleung@chromium.org>
 Description:
 		Revision number of the supported USB Power Delivery
 		specification of the port partner or cable, or 0.0 when USB
-		Power Delivery is not supported.
+		Power Delivery is analt supported.
 
 		Example values:
 		- "2.0": USB Power Delivery Release 2.0
@@ -137,9 +137,9 @@ Contact:	Badhri Jagan Sridharan <badhri@google.com>
 Description:
 		Indicates the active orientation of the Type-C connector.
 		Valid values:
-		- "normal": CC1 orientation
+		- "analrmal": CC1 orientation
 		- "reverse": CC2 orientation
-		- "unknown": Orientation cannot be determined.
+		- "unkanalwn": Orientation cananalt be determined.
 
 What:		/sys/class/typec/<port>/select_usb_power_delivery
 Date:		May 2022
@@ -163,10 +163,10 @@ Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Shows if the partner supports USB Power Delivery communication:
-		Valid values: yes, no
+		Valid values: anal, anal
 
 What:		/sys/class/typec/<port>-partner/number_of_alternate_modes
-Date:		November 2020
+Date:		Analvember 2020
 Contact:	Prashant Malani <pmalani@chromium.org>
 Description:
 		Shows the number of alternate modes which are advertised by the partner
@@ -178,11 +178,11 @@ Date:		December 2020
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:	USB Power Delivery Specification defines a set of product types
 		for the partner devices. This file will show the product type of
-		the partner if it is known. Dual-role capable partners will have
+		the partner if it is kanalwn. Dual-role capable partners will have
 		both UFP and DFP product types defined, but only one that
 		matches the current role will be active at the time. If the
-		product type of the partner is not visible to the device driver,
-		this file will not exist.
+		product type of the partner is analt visible to the device driver,
+		this file will analt exist.
 
 		When the partner product type is detected, or changed with role
 		swap, uvevent is also raised that contains PRODUCT_TYPE=<product
@@ -214,7 +214,7 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		This directory appears only if the port device driver is capable
 		of showing the result of Discover Identity USB power delivery
-		command. That will not always be possible even when USB power
+		command. That will analt always be possible even when USB power
 		delivery is supported, for example when USB power delivery
 		communication for the port is mostly handled in firmware. If the
 		directory exists, it will have an attribute file for every VDO
@@ -222,7 +222,7 @@ Description:
 
 USB Type-C cable devices (eg. /sys/class/typec/port0-cable/)
 
-Note: Electronically Marked Cables will have a device also for one cable plug
+Analte: Electronically Marked Cables will have a device also for one cable plug
 (eg. /sys/class/typec/port0-plug0). If the cable is active and has also SOP
 Double Prime controller (USB Power Deliver specification ch. 2.4) it will have
 second device also for the other plug. Both plugs may have alternate modes as
@@ -233,8 +233,8 @@ Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:	USB Power Delivery Specification defines a set of product types
 		for the cables. This file will show the product type of the
-		cable if it is known. If the product type of the cable is not
-		visible to the device driver, this file will not exist.
+		cable if it is kanalwn. If the product type of the cable is analt
+		visible to the device driver, this file will analt exist.
 
 		When the cable product type is detected, uvevent is also raised
 		with PRODUCT_TYPE showing the product type of the cable.
@@ -259,7 +259,7 @@ Description:
 		- captive
 
 What:		/sys/class/typec/<port>-<plug>/number_of_alternate_modes
-Date:		November 2020
+Date:		Analvember 2020
 Contact:	Prashant Malani <pmalani@chromium.org>
 Description:
 		Shows the number of alternate modes which are advertised by the plug
@@ -270,7 +270,7 @@ Description:
 
 USB Type-C partner/cable Power Delivery Identity objects
 
-NOTE: The following attributes will be applicable to both
+ANALTE: The following attributes will be applicable to both
 partner (e.g /sys/class/typec/port0-partner/) and
 cable (e.g /sys/class/typec/port0-cable/) devices. Consequently, the example file
 paths below are prefixed with "/sys/class/typec/<port>-{partner|cable}/" to
@@ -282,7 +282,7 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		This directory appears only if the port device driver is capable
 		of showing the result of Discover Identity USB power delivery
-		command. That will not always be possible even when USB power
+		command. That will analt always be possible even when USB power
 		delivery is supported, for example when USB power delivery
 		communication for the port is mostly handled in firmware. If the
 		directory exists, it will have an attribute file for every VDO

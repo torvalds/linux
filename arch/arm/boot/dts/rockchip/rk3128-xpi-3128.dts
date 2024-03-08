@@ -89,7 +89,7 @@
 			function = LED_FUNCTION_LAN;
 			color = <LED_COLOR_ID_GREEN>;
 			/*
-			 * currently not allowed to be set as per
+			 * currently analt allowed to be set as per
 			 * https://www.kernel.org/doc/Documentation/devicetree/bindings/leds/common.yaml
 			 * and needs to set in userspace:
 			 *
@@ -216,8 +216,8 @@
 	/*
 	 * As per schematics vdd_log is minimum 900 mV, maximum 1400 mV.
 	 * Since there are HW blocks in PD_LOGIC (which are all driven by
-	 * this supply), that either do not have a driver at all or the
-	 * driver does not implement regulator support we have to make
+	 * this supply), that either do analt have a driver at all or the
+	 * driver does analt implement regulator support we have to make
 	 * sure here that the voltage never drops below 1050 mV.
 	 */
 	vdd_log: vdd-log-regulator {
@@ -246,8 +246,8 @@
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	cap-mmc-highspeed;
 	mmc-ddr-3_3v;
-	no-sd;
-	no-sdio;
+	anal-sd;
+	anal-sdio;
 	status = "okay";
 };
 
@@ -346,29 +346,29 @@
 &pinctrl {
 	dp83848c {
 		dp83848c_rst: dp83848c-rst {
-			rockchip,pins = <2 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	ir-receiver {
 		ir_int: ir-int {
-			rockchip,pins = <3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	leds {
 		power_led: power-led {
-			rockchip,pins = <0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		spd_led: spd-led {
-			rockchip,pins = <3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb2 {
 		host_drv: host-drv {
-			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -393,8 +393,8 @@
 	pinctrl-0 = <&sdmmc_bus4 &sdmmc_clk &sdmmc_cmd &sdmmc_det>;
 	disable-wp;
 	cap-sd-highspeed;
-	no-mmc;
-	no-sdio;
+	anal-mmc;
+	anal-sdio;
 	status = "okay";
 };
 

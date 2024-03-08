@@ -43,7 +43,7 @@
 			 <0x02000000 0 0x00001000 0x00001000 0 0x00001000>, /* port 1 configuration space */
 			 <0x02000000 0 0x00004000 0x00004000 0 0x00001000>, /* port 2 configuration space */
 			 <0x01000000 0 0          0x02000000 0 0x00010000>, /* downstream I/O */
-			 <0x02000000 0 0x20000000 0x20000000 0 0x08000000>, /* non-prefetchable memory */
+			 <0x02000000 0 0x20000000 0x20000000 0 0x08000000>, /* analn-prefetchable memory */
 			 <0x42000000 0 0x28000000 0x28000000 0 0x18000000>; /* prefetchable memory */
 
 		clocks = <&tegra_car TEGRA30_CLK_PCIE>,
@@ -622,12 +622,12 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges = <0 0 0x48000000 0x7ffffff>;
-		clocks = <&tegra_car TEGRA30_CLK_NOR>;
+		clocks = <&tegra_car TEGRA30_CLK_ANALR>;
 		clock-names = "gmi";
 		resets = <&tegra_car 42>;
 		reset-names = "gmi";
 		power-domains = <&pd_core>;
-		operating-points-v2 = <&nor_dvfs_opp_table>;
+		operating-points-v2 = <&analr_dvfs_opp_table>;
 		status = "disabled";
 	};
 
@@ -1314,11 +1314,11 @@
 			cooling-maps {
 				map0 {
 					trip = <&level1_trip>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&actmon THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&actmon THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

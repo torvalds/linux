@@ -50,7 +50,7 @@ static void tx4927_machine_restart(char *command)
 		 "external" : "internal");
 	/* clear watchdog status */
 	tx4927_ccfg_set(TX4927_CCFG_WDRST);	/* W1C */
-	txx9_wdt_now(TX4927_TMR_REG(2) & 0xfffffffffULL);
+	txx9_wdt_analw(TX4927_TMR_REG(2) & 0xfffffffffULL);
 	while (!(____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_WDRST))
 		;
 	mdelay(10);
@@ -330,7 +330,7 @@ static void __init tx4927_stop_unused_modules(void)
 static int __init tx4927_late_init(void)
 {
 	if (txx9_pcode != 0x4927)
-		return -ENODEV;
+		return -EANALDEV;
 	tx4927_stop_unused_modules();
 	return 0;
 }

@@ -3,7 +3,7 @@
  * Copyright 2019 Advanced Micro Devices, Inc.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -38,7 +38,7 @@ static int amdtee_open(struct tee_context *ctx)
 
 	ctxdata = kzalloc(sizeof(*ctxdata), GFP_KERNEL);
 	if (!ctxdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ctxdata->sess_list);
 	INIT_LIST_HEAD(&ctxdata->shm_list);
@@ -77,12 +77,12 @@ static void amdtee_release(struct tee_context *ctx)
 
 		sess = list_first_entry_or_null(&ctxdata->sess_list,
 						struct amdtee_session,
-						list_node);
+						list_analde);
 
 		if (!sess)
 			break;
 
-		list_del(&sess->list_node);
+		list_del(&sess->list_analde);
 		release_session(sess);
 	}
 	mutex_destroy(&ctxdata->shm_mutex);
@@ -98,7 +98,7 @@ static void amdtee_release(struct tee_context *ctx)
  *              allocated.
  *
  * Scans the TEE context's session list to check if TA is already loaded in to
- * TEE. If yes, returns the 'session' structure for that TA. Else allocates,
+ * TEE. If anal, returns the 'session' structure for that TA. Else allocates,
  * initializes a new 'session' structure and adds it to context's session list.
  *
  * The caller must hold a mutex.
@@ -113,7 +113,7 @@ static struct amdtee_session *alloc_session(struct amdtee_context_data *ctxdata,
 	u32 ta_handle = get_ta_handle(session);
 
 	/* Scan session list to check if TA is already loaded in to TEE */
-	list_for_each_entry(sess, &ctxdata->sess_list, list_node)
+	list_for_each_entry(sess, &ctxdata->sess_list, list_analde)
 		if (sess->ta_handle == ta_handle) {
 			kref_get(&sess->refcount);
 			return sess;
@@ -125,7 +125,7 @@ static struct amdtee_session *alloc_session(struct amdtee_context_data *ctxdata,
 		sess->ta_handle = ta_handle;
 		kref_init(&sess->refcount);
 		spin_lock_init(&sess->lock);
-		list_add(&sess->list_node, &ctxdata->sess_list);
+		list_add(&sess->list_analde, &ctxdata->sess_list);
 	}
 
 	return sess;
@@ -142,7 +142,7 @@ static struct amdtee_session *find_session(struct amdtee_context_data *ctxdata,
 	if (index >= TEE_NUM_SESSIONS)
 		return NULL;
 
-	list_for_each_entry(sess, &ctxdata->sess_list, list_node)
+	list_for_each_entry(sess, &ctxdata->sess_list, list_analde)
 		if (ta_handle == sess->ta_handle &&
 		    test_bit(index, sess->sess_mask))
 			return sess;
@@ -157,7 +157,7 @@ u32 get_buffer_id(struct tee_shm *shm)
 	u32 buf_id = 0;
 
 	mutex_lock(&ctxdata->shm_mutex);
-	list_for_each_entry(shmdata, &ctxdata->shm_list, shm_node)
+	list_for_each_entry(shmdata, &ctxdata->shm_list, shm_analde)
 		if (shmdata->kaddr == shm->kaddr) {
 			buf_id = shmdata->buf_id;
 			break;
@@ -197,7 +197,7 @@ static int copy_ta_binary(struct tee_context *ctx, void *ptr, void **ta,
 	n = request_firmware(&fw, fw_name, &ctx->teedev->dev);
 	if (n) {
 		pr_err("failed to load firmware %s\n", fw_name);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 
@@ -205,7 +205,7 @@ static int copy_ta_binary(struct tee_context *ctx, void *ptr, void **ta,
 	*ta = (void *)__get_free_pages(GFP_KERNEL, get_order(*ta_size));
 	if (!*ta) {
 		pr_err("%s: get_free_pages failed\n", __func__);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto rel_fw;
 	}
 
@@ -223,7 +223,7 @@ static void destroy_session(struct kref *ref)
 	struct amdtee_session *sess = container_of(ref, struct amdtee_session,
 						   refcount);
 
-	list_del(&sess->list_node);
+	list_del(&sess->list_analde);
 	mutex_unlock(&session_list_mutex);
 	kfree(sess);
 }
@@ -263,7 +263,7 @@ int amdtee_open_session(struct tee_context *ctx,
 
 	if (!sess) {
 		handle_unload_ta(ta_handle);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -293,7 +293,7 @@ int amdtee_open_session(struct tee_context *ctx,
 		handle_unload_ta(ta_handle);
 		kref_put_mutex(&sess->refcount, destroy_session,
 			       &session_list_mutex);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -341,7 +341,7 @@ int amdtee_close_session(struct tee_context *ctx, u32 session)
 int amdtee_map_shmem(struct tee_shm *shm)
 {
 	struct amdtee_context_data *ctxdata;
-	struct amdtee_shm_data *shmnode;
+	struct amdtee_shm_data *shmanalde;
 	struct shmem_desc shmem;
 	int rc, count;
 	u32 buf_id;
@@ -349,9 +349,9 @@ int amdtee_map_shmem(struct tee_shm *shm)
 	if (!shm)
 		return -EINVAL;
 
-	shmnode = kmalloc(sizeof(*shmnode), GFP_KERNEL);
-	if (!shmnode)
-		return -ENOMEM;
+	shmanalde = kmalloc(sizeof(*shmanalde), GFP_KERNEL);
+	if (!shmanalde)
+		return -EANALMEM;
 
 	count = 1;
 	shmem.kaddr = shm->kaddr;
@@ -364,18 +364,18 @@ int amdtee_map_shmem(struct tee_shm *shm)
 	rc = handle_map_shmem(count, &shmem, &buf_id);
 	if (rc) {
 		pr_err("map_shmem failed: ret = %d\n", rc);
-		kfree(shmnode);
+		kfree(shmanalde);
 		return rc;
 	}
 
-	shmnode->kaddr = shm->kaddr;
-	shmnode->buf_id = buf_id;
+	shmanalde->kaddr = shm->kaddr;
+	shmanalde->buf_id = buf_id;
 	ctxdata = shm->ctx->data;
 	mutex_lock(&ctxdata->shm_mutex);
-	list_add(&shmnode->shm_node, &ctxdata->shm_list);
+	list_add(&shmanalde->shm_analde, &ctxdata->shm_list);
 	mutex_unlock(&ctxdata->shm_mutex);
 
-	pr_debug("buf_id :[%x] kaddr[%p]\n", shmnode->buf_id, shmnode->kaddr);
+	pr_debug("buf_id :[%x] kaddr[%p]\n", shmanalde->buf_id, shmanalde->kaddr);
 
 	return 0;
 }
@@ -383,7 +383,7 @@ int amdtee_map_shmem(struct tee_shm *shm)
 void amdtee_unmap_shmem(struct tee_shm *shm)
 {
 	struct amdtee_context_data *ctxdata;
-	struct amdtee_shm_data *shmnode;
+	struct amdtee_shm_data *shmanalde;
 	u32 buf_id;
 
 	if (!shm)
@@ -395,10 +395,10 @@ void amdtee_unmap_shmem(struct tee_shm *shm)
 
 	ctxdata = shm->ctx->data;
 	mutex_lock(&ctxdata->shm_mutex);
-	list_for_each_entry(shmnode, &ctxdata->shm_list, shm_node)
-		if (buf_id == shmnode->buf_id) {
-			list_del(&shmnode->shm_node);
-			kfree(shmnode);
+	list_for_each_entry(shmanalde, &ctxdata->shm_list, shm_analde)
+		if (buf_id == shmanalde->buf_id) {
+			list_del(&shmanalde->shm_analde);
+			kfree(shmanalde);
 			break;
 		}
 	mutex_unlock(&ctxdata->shm_mutex);
@@ -459,17 +459,17 @@ static int __init amdtee_driver_init(void)
 
 	rc = psp_check_tee_status();
 	if (rc) {
-		pr_err("amd-tee driver: tee not present\n");
+		pr_err("amd-tee driver: tee analt present\n");
 		return rc;
 	}
 
 	drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	amdtee = kzalloc(sizeof(*amdtee), GFP_KERNEL);
 	if (!amdtee) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_kfree_drv_data;
 	}
 

@@ -47,14 +47,14 @@ static void edac_pci_write_dword(struct pci_dev *dev, int reg, u32 val32)
 /* Support up to two AMD8131 chipsets on a platform */
 static struct amd8131_dev_info amd8131_devices[] = {
 	{
-	.inst = NORTH_A,
-	.devfn = DEVFN_PCIX_BRIDGE_NORTH_A,
-	.ctl_name = "AMD8131_PCIX_NORTH_A",
+	.inst = ANALRTH_A,
+	.devfn = DEVFN_PCIX_BRIDGE_ANALRTH_A,
+	.ctl_name = "AMD8131_PCIX_ANALRTH_A",
 	},
 	{
-	.inst = NORTH_B,
-	.devfn = DEVFN_PCIX_BRIDGE_NORTH_B,
-	.ctl_name = "AMD8131_PCIX_NORTH_B",
+	.inst = ANALRTH_B,
+	.devfn = DEVFN_PCIX_BRIDGE_ANALRTH_B,
+	.ctl_name = "AMD8131_PCIX_ANALRTH_B",
 	},
 	{
 	.inst = SOUTH_A,
@@ -66,7 +66,7 @@ static struct amd8131_dev_info amd8131_devices[] = {
 	.devfn = DEVFN_PCIX_BRIDGE_SOUTH_B,
 	.ctl_name = "AMD8131_PCIX_SOUTH_B",
 	},
-	{.inst = NO_BRIDGE,},
+	{.inst = ANAL_BRIDGE,},
 };
 
 static void amd8131_pcix_init(struct amd8131_dev_info *dev_info)
@@ -229,13 +229,13 @@ static int amd8131_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct amd8131_dev_info *dev_info;
 
-	for (dev_info = amd8131_chipset.devices; dev_info->inst != NO_BRIDGE;
+	for (dev_info = amd8131_chipset.devices; dev_info->inst != ANAL_BRIDGE;
 		dev_info++)
 		if (dev_info->devfn == dev->devfn)
 			break;
 
-	if (dev_info->inst == NO_BRIDGE) /* should never happen */
-		return -ENODEV;
+	if (dev_info->inst == ANAL_BRIDGE) /* should never happen */
+		return -EANALDEV;
 
 	/*
 	 * We can't call pci_get_device() as we are used to do because
@@ -249,18 +249,18 @@ static int amd8131_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			"vendor %x, device %x, devfn %x, name %s\n",
 			PCI_VENDOR_ID_AMD, amd8131_chipset.err_dev,
 			dev_info->devfn, dev_info->ctl_name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
-	 * we do not allocate extra private structure for
+	 * we do analt allocate extra private structure for
 	 * edac_pci_ctl_info, but make use of existing
 	 * one instead.
 	 */
 	dev_info->edac_idx = edac_pci_alloc_index();
 	dev_info->edac_dev = edac_pci_alloc_ctl_info(0, dev_info->ctl_name);
 	if (!dev_info->edac_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_info->edac_dev->pvt_info = dev_info;
 	dev_info->edac_dev->dev = &dev_info->dev->dev;
@@ -278,7 +278,7 @@ static int amd8131_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		printk(KERN_ERR "failed edac_pci_add_device() for %s\n",
 			dev_info->ctl_name);
 		edac_pci_free_ctl_info(dev_info->edac_dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	printk(KERN_INFO "added one device on AMD8131 "
@@ -293,12 +293,12 @@ static void amd8131_remove(struct pci_dev *dev)
 {
 	struct amd8131_dev_info *dev_info;
 
-	for (dev_info = amd8131_chipset.devices; dev_info->inst != NO_BRIDGE;
+	for (dev_info = amd8131_chipset.devices; dev_info->inst != ANAL_BRIDGE;
 		dev_info++)
 		if (dev_info->devfn == dev->devfn)
 			break;
 
-	if (dev_info->inst == NO_BRIDGE) /* should never happen */
+	if (dev_info->inst == ANAL_BRIDGE) /* should never happen */
 		return;
 
 	if (dev_info->edac_dev) {

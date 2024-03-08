@@ -23,7 +23,7 @@ struct xen_p2m_entry {
 	unsigned long pfn;
 	unsigned long mfn;
 	unsigned long nr_pages;
-	struct rb_node rbnode_phys;
+	struct rb_analde rbanalde_phys;
 };
 
 static rwlock_t p2m_lock;
@@ -32,14 +32,14 @@ EXPORT_SYMBOL_GPL(phys_to_mach);
 
 static int xen_add_phys_to_mach_entry(struct xen_p2m_entry *new)
 {
-	struct rb_node **link = &phys_to_mach.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **link = &phys_to_mach.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct xen_p2m_entry *entry;
 	int rc = 0;
 
 	while (*link) {
 		parent = *link;
-		entry = rb_entry(parent, struct xen_p2m_entry, rbnode_phys);
+		entry = rb_entry(parent, struct xen_p2m_entry, rbanalde_phys);
 
 		if (new->pfn == entry->pfn)
 			goto err_out;
@@ -49,13 +49,13 @@ static int xen_add_phys_to_mach_entry(struct xen_p2m_entry *new)
 		else
 			link = &(*link)->rb_right;
 	}
-	rb_link_node(&new->rbnode_phys, parent, link);
-	rb_insert_color(&new->rbnode_phys, &phys_to_mach);
+	rb_link_analde(&new->rbanalde_phys, parent, link);
+	rb_insert_color(&new->rbanalde_phys, &phys_to_mach);
 	goto out;
 
 err_out:
 	rc = -EINVAL;
-	pr_warn("%s: cannot add pfn=%pa -> mfn=%pa: pfn=%pa -> mfn=%pa already exists\n",
+	pr_warn("%s: cananalt add pfn=%pa -> mfn=%pa: pfn=%pa -> mfn=%pa already exists\n",
 			__func__, &new->pfn, &new->mfn, &entry->pfn, &entry->mfn);
 out:
 	return rc;
@@ -63,14 +63,14 @@ out:
 
 unsigned long __pfn_to_mfn(unsigned long pfn)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 	struct xen_p2m_entry *entry;
 	unsigned long irqflags;
 
 	read_lock_irqsave(&p2m_lock, irqflags);
-	n = phys_to_mach.rb_node;
+	n = phys_to_mach.rb_analde;
 	while (n) {
-		entry = rb_entry(n, struct xen_p2m_entry, rbnode_phys);
+		entry = rb_entry(n, struct xen_p2m_entry, rbanalde_phys);
 		if (entry->pfn <= pfn &&
 				entry->pfn + entry->nr_pages > pfn) {
 			unsigned long mfn = entry->mfn + (pfn - entry->pfn);
@@ -153,16 +153,16 @@ bool __set_phys_to_machine_multi(unsigned long pfn,
 	int rc;
 	unsigned long irqflags;
 	struct xen_p2m_entry *p2m_entry;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	if (mfn == INVALID_P2M_ENTRY) {
 		write_lock_irqsave(&p2m_lock, irqflags);
-		n = phys_to_mach.rb_node;
+		n = phys_to_mach.rb_analde;
 		while (n) {
-			p2m_entry = rb_entry(n, struct xen_p2m_entry, rbnode_phys);
+			p2m_entry = rb_entry(n, struct xen_p2m_entry, rbanalde_phys);
 			if (p2m_entry->pfn <= pfn &&
 					p2m_entry->pfn + p2m_entry->nr_pages > pfn) {
-				rb_erase(&p2m_entry->rbnode_phys, &phys_to_mach);
+				rb_erase(&p2m_entry->rbanalde_phys, &phys_to_mach);
 				write_unlock_irqrestore(&p2m_lock, irqflags);
 				kfree(p2m_entry);
 				return true;
@@ -176,7 +176,7 @@ bool __set_phys_to_machine_multi(unsigned long pfn,
 		return true;
 	}
 
-	p2m_entry = kzalloc(sizeof(*p2m_entry), GFP_NOWAIT);
+	p2m_entry = kzalloc(sizeof(*p2m_entry), GFP_ANALWAIT);
 	if (!p2m_entry)
 		return false;
 

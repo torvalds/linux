@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _media-func-open:
@@ -12,7 +12,7 @@ Name
 
 media-open - Open a media device
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -29,28 +29,28 @@ Arguments
 
 ``flags``
     Open flags. Access mode must be either ``O_RDONLY`` or ``O_RDWR``.
-    Other flags have no effect.
+    Other flags have anal effect.
 
 Description
 ===========
 
 To open a media device applications call :c:func:`open()` with the
-desired device name. The function has no side effects; the device
+desired device name. The function has anal side effects; the device
 configuration remain unchanged.
 
 When the device is opened in read-only mode, attempts to modify its
-configuration will result in an error, and ``errno`` will be set to
+configuration will result in an error, and ``erranal`` will be set to
 EBADF.
 
 Return Value
 ============
 
 :c:func:`open()` returns the new file descriptor on success. On error,
--1 is returned, and ``errno`` is set appropriately. Possible error codes
+-1 is returned, and ``erranal`` is set appropriately. Possible error codes
 are:
 
 EACCES
-    The requested access to the file is not allowed.
+    The requested access to the file is analt allowed.
 
 EMFILE
     The process already has the maximum number of files open.
@@ -58,8 +58,8 @@ EMFILE
 ENFILE
     The system limit on the total number of open files has been reached.
 
-ENOMEM
+EANALMEM
     Insufficient kernel memory was available.
 
 ENXIO
-    No device corresponding to this device special file exists.
+    Anal device corresponding to this device special file exists.

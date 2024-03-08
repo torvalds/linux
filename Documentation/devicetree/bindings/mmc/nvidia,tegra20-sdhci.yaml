@@ -90,7 +90,7 @@ properties:
 
   nvidia,default-tap:
     description: Specify the default inbound sampling clock trimmer value for
-      non-tunable modes.
+      analn-tunable modes.
 
       The values are used for compensating trace length differences by
       adjusting the sampling point. The values are programmed to the Vendor

@@ -47,7 +47,7 @@ static int intel_reg_show(struct seq_file *s_file, void *data)
 
 	buf = kzalloc(RD_BUF, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = scnprintf(buf, RD_BUF, "Register  Value\n");
 	ret += scnprintf(buf + ret, RD_BUF - ret, "\nShim\n");

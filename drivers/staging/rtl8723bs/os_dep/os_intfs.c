@@ -33,7 +33,7 @@ static int rtw_adhoc_tx_pwr = 1;
 static int rtw_soft_ap;
 /* int smart_ps = 1; */
 static int rtw_power_mgnt = 1;
-static int rtw_ips_mode = IPS_NORMAL;
+static int rtw_ips_mode = IPS_ANALRMAL;
 module_param(rtw_ips_mode, int, 0644);
 MODULE_PARM_DESC(rtw_ips_mode, "The default IPS mode");
 
@@ -49,7 +49,7 @@ static int rtw_long_retry_lmt = 7;
 static int rtw_short_retry_lmt = 7;
 static int rtw_busy_thresh = 40;
 /* int qos_enable = 0; */
-static int rtw_ack_policy = NORMAL_ACK;
+static int rtw_ack_policy = ANALRMAL_ACK;
 
 static int rtw_software_encrypt;
 static int rtw_software_decrypt;
@@ -58,7 +58,7 @@ static int rtw_acm_method;/*  0:By SW 1:By HW. */
 
 static int rtw_wmm_enable = 1;/*  default is set to enable the wmm. */
 static int rtw_uapsd_enable;
-static int rtw_uapsd_max_sp = NO_LIMIT;
+static int rtw_uapsd_max_sp = ANAL_LIMIT;
 static int rtw_uapsd_acbk_en;
 static int rtw_uapsd_acbe_en;
 static int rtw_uapsd_acvi_en;
@@ -75,10 +75,10 @@ static int rtw_ampdu_enable = 1;/* for enable tx_ampdu ,0: disable, 0x1:enable (
 static int rtw_rx_stbc = 1;/*  0: disable, 1:enable 2.4g */
 static int rtw_ampdu_amsdu;/*  0: disabled, 1:enabled, 2:auto . There is an IOT issu with DLINK DIR-629 when the flag turn on */
 /*  Short GI support Bit Map */
-/*  BIT0 - 20MHz, 0: non-support, 1: support */
-/*  BIT1 - 40MHz, 0: non-support, 1: support */
-/*  BIT2 - 80MHz, 0: non-support, 1: support */
-/*  BIT3 - 160MHz, 0: non-support, 1: support */
+/*  BIT0 - 20MHz, 0: analn-support, 1: support */
+/*  BIT1 - 40MHz, 0: analn-support, 1: support */
+/*  BIT2 - 80MHz, 0: analn-support, 1: support */
+/*  BIT3 - 160MHz, 0: analn-support, 1: support */
 static int rtw_short_gi = 0xf;
 /*  BIT0: Enable VHT LDPC Rx, BIT1: Enable VHT LDPC Tx, BIT4: Enable HT LDPC Rx, BIT5: Enable HT LDPC Tx */
 static int rtw_ldpc_cap = 0x33;
@@ -157,9 +157,9 @@ module_param(rtw_mc2u_disable, int, 0644);
 module_param(rtw_80211d, int, 0644);
 MODULE_PARM_DESC(rtw_80211d, "Enable 802.11d mechanism");
 
-static uint rtw_notch_filter;
-module_param(rtw_notch_filter, uint, 0644);
-MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
+static uint rtw_analtch_filter;
+module_param(rtw_analtch_filter, uint, 0644);
+MODULE_PARM_DESC(rtw_analtch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
 
 #define CONFIG_RTW_HIQ_FILTER 1
 
@@ -260,7 +260,7 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 
 	snprintf(registry_par->ifname, 16, "%s", ifname);
 
-	registry_par->notch_filter = (u8)rtw_notch_filter;
+	registry_par->analtch_filter = (u8)rtw_analtch_filter;
 
 	registry_par->RegEnableTxPowerLimit = (u8)rtw_tx_pwr_lmt_enable;
 	registry_par->RegEnableTxPowerByRate = (u8)rtw_tx_pwr_by_rate;
@@ -382,31 +382,31 @@ u16 rtw_recv_select_queue(struct sk_buff *skb)
 	return rtw_1d_to_queue[priority];
 }
 
-static int rtw_ndev_notifier_call(struct notifier_block *nb, unsigned long state, void *ptr)
+static int rtw_ndev_analtifier_call(struct analtifier_block *nb, unsigned long state, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	if (dev->netdev_ops->ndo_do_ioctl != rtw_ioctl)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	netdev_dbg(dev, FUNC_NDEV_FMT " state:%lu\n", FUNC_NDEV_ARG(dev),
 		    state);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block rtw_ndev_notifier = {
-	.notifier_call = rtw_ndev_notifier_call,
+static struct analtifier_block rtw_ndev_analtifier = {
+	.analtifier_call = rtw_ndev_analtifier_call,
 };
 
-int rtw_ndev_notifier_register(void)
+int rtw_ndev_analtifier_register(void)
 {
-	return register_netdevice_notifier(&rtw_ndev_notifier);
+	return register_netdevice_analtifier(&rtw_ndev_analtifier);
 }
 
-void rtw_ndev_notifier_unregister(void)
+void rtw_ndev_analtifier_unregister(void)
 {
-	unregister_netdevice_notifier(&rtw_ndev_notifier);
+	unregister_netdevice_analtifier(&rtw_ndev_analtifier);
 }
 
 
@@ -559,11 +559,11 @@ static void rtw_init_default_value(struct adapter *padapter)
 	psecuritypriv->sw_decrypt = pregistrypriv->software_decrypt;
 
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open; /* open system */
-	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
+	psecuritypriv->dot11PrivacyAlgrthm = _ANAL_PRIVACY_;
 
 	psecuritypriv->dot11PrivacyKeyIndex = 0;
 
-	psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
+	psecuritypriv->dot118021XGrpPrivacy = _ANAL_PRIVACY_;
 	psecuritypriv->dot118021XGrpKeyid = 1;
 
 	psecuritypriv->ndisauthtype = Ndis802_11AuthModeOpen;
@@ -580,7 +580,7 @@ static void rtw_init_default_value(struct adapter *padapter)
 	RTW_ENABLE_FUNC(padapter, DF_RX_BIT);
 	RTW_ENABLE_FUNC(padapter, DF_TX_BIT);
 	padapter->bLinkInfoDump = 0;
-	padapter->bNotifyChannelChange = 0;
+	padapter->bAnaltifyChannelChange = 0;
 
 	/* for debug purpose */
 	padapter->fix_rate = 0xFF;
@@ -686,7 +686,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 	if (_rtw_init_recv_priv(&padapter->recvpriv, padapter) == _FAIL)
 		goto free_xmit_priv;
-	/*  add for CONFIG_IEEE80211W, none 11w also can use */
+	/*  add for CONFIG_IEEE80211W, analne 11w also can use */
 	spin_lock_init(&padapter->security_key_mutex);
 
 	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by vzalloc(). */
@@ -829,7 +829,7 @@ static int _netdev_open(struct net_device *pnetdev)
 
 	if (pwrctrlpriv->ps_flag) {
 		padapter->net_closed = false;
-		goto netdev_open_normal_process;
+		goto netdev_open_analrmal_process;
 	}
 
 	if (!padapter->bup) {
@@ -862,7 +862,7 @@ static int _netdev_open(struct net_device *pnetdev)
 	else
 		rtw_netif_wake_queue(pnetdev);
 
-netdev_open_normal_process:
+netdev_open_analrmal_process:
 
 	return 0;
 
@@ -943,13 +943,13 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 		rtw_hal_deinit(padapter);
 }
 
-static int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
+static int pm_netdev_open(struct net_device *pnetdev, u8 banalrmal)
 {
 	int status = -1;
 
 	struct adapter *padapter = rtw_netdev_priv(pnetdev);
 
-	if (bnormal) {
+	if (banalrmal) {
 		if (mutex_lock_interruptible(&(adapter_to_dvobj(padapter)->hw_init_mutex)) == 0) {
 			status = _netdev_open(pnetdev);
 			mutex_unlock(&(adapter_to_dvobj(padapter)->hw_init_mutex));
@@ -1049,11 +1049,11 @@ void rtw_dev_unload(struct adapter *padapter)
 			LeaveAllPowerSaveMode(padapter);
 		} else {
 			netdev_dbg(padapter->pnetdev,
-				   "%s: driver not in IPS\n", __func__);
+				   "%s: driver analt in IPS\n", __func__);
 		}
 
 		if (!padapter->bSurpriseRemoved) {
-			hal_btcoex_IpsNotify(padapter, pwrctl->ips_mode_req);
+			hal_btcoex_IpsAnaltify(padapter, pwrctl->ips_mode_req);
 
 			/* amy modify 20120221 for power seq is different between driver open and ips */
 			rtw_hal_deinit(padapter);
@@ -1103,7 +1103,7 @@ static int rtw_suspend_free_assoc_resource(struct adapter *padapter)
 	return _SUCCESS;
 }
 
-static void rtw_suspend_normal(struct adapter *padapter)
+static void rtw_suspend_analrmal(struct adapter *padapter)
 {
 	struct net_device *pnetdev = padapter->pnetdev;
 
@@ -1157,13 +1157,13 @@ void rtw_suspend_common(struct adapter *padapter)
 
 	/*  wait for the latest FW to remove this condition. */
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
-		hal_btcoex_SuspendNotify(padapter, 0);
+		hal_btcoex_SuspendAnaltify(padapter, 0);
 	else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
-		hal_btcoex_SuspendNotify(padapter, 1);
+		hal_btcoex_SuspendAnaltify(padapter, 1);
 
 	rtw_ps_deny_cancel(padapter, PS_DENY_SUSPEND);
 
-	rtw_suspend_normal(padapter);
+	rtw_suspend_analrmal(padapter);
 
 	netdev_dbg(padapter->pnetdev, "rtw suspend success in %d ms\n",
 		   jiffies_to_msecs(jiffies - start_time));
@@ -1173,7 +1173,7 @@ exit:
 	return;
 }
 
-static int rtw_resume_process_normal(struct adapter *padapter)
+static int rtw_resume_process_analrmal(struct adapter *padapter)
 {
 	struct net_device *pnetdev;
 	struct pwrctrl_priv *pwrpriv;
@@ -1240,9 +1240,9 @@ int rtw_resume_common(struct adapter *padapter)
 
 	netdev_dbg(padapter->pnetdev, "resume start\n");
 
-	rtw_resume_process_normal(padapter);
+	rtw_resume_process_analrmal(padapter);
 
-	hal_btcoex_SuspendNotify(padapter, 0);
+	hal_btcoex_SuspendAnaltify(padapter, 0);
 
 	if (pwrpriv) {
 		pwrpriv->bInSuspend = false;

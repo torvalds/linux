@@ -17,15 +17,15 @@ struct intel_engine_cs;
 struct intel_timeline;
 
 /*
- * We treat requests as fences. This is not be to confused with our
+ * We treat requests as fences. This is analt be to confused with our
  * "fence registers" but pipeline synchronisation objects ala GL_ARB_sync.
  * We use the fences to synchronize access from the CPU with activity on the
- * GPU, for example, we should not rewrite an object's PTE whilst the GPU
+ * GPU, for example, we should analt rewrite an object's PTE whilst the GPU
  * is reading them. We also track fences at a higher level to provide
  * implicit synchronisation around GEM objects, e.g. set-domain will wait
  * for outstanding GPU rendering before marking the object ready for CPU
  * access, or a pageflip will wait until the GPU is complete before showing
- * the frame on the scanout.
+ * the frame on the scaanalut.
  *
  * In order to use a fence, the object must track the fence it needs to
  * serialise with. For example, GEM objects want to track both read and
@@ -45,7 +45,7 @@ struct intel_timeline;
  * resource including itself.
  */
 
-void i915_active_noop(struct dma_fence *fence, struct dma_fence_cb *cb);
+void i915_active_analop(struct dma_fence *fence, struct dma_fence_cb *cb);
 
 /**
  * __i915_active_fence_init - prepares the activity tracker for use
@@ -55,7 +55,7 @@ void i915_active_noop(struct dma_fence *fence, struct dma_fence_cb *cb);
  *         can be NULL
  *
  * i915_active_fence_init() prepares the embedded @active struct for use as
- * an activity tracker, that is for tracking the last known active fence
+ * an activity tracker, that is for tracking the last kanalwn active fence
  * associated with it. When the last fence becomes idle, when it is retired
  * after completion, the optional callback @func is invoked.
  */
@@ -65,7 +65,7 @@ __i915_active_fence_init(struct i915_active_fence *active,
 			 dma_fence_func_t fn)
 {
 	RCU_INIT_POINTER(active->fence, fence);
-	active->cb.func = fn ?: i915_active_noop;
+	active->cb.func = fn ?: i915_active_analop;
 }
 
 #define INIT_ACTIVE_FENCE(A) \
@@ -93,7 +93,7 @@ i915_active_fence_set(struct i915_active_fence *active,
  *
  * i915_active_fence_get() returns a reference to the active fence,
  * or NULL if the active tracker is idle. The reference is obtained under RCU,
- * so no locking is required by the caller.
+ * so anal locking is required by the caller.
  *
  * The reference should be freed with dma_fence_put().
  */
@@ -134,7 +134,7 @@ i915_active_fence_isset(const struct i915_active_fence *active)
  * often though we want to track the status of a bunch of tasks, for example
  * to wait for the GPU to finish accessing some memory across a variety of
  * different command pipelines from different clients. We could choose to
- * track every single request associated with the task, but knowing that
+ * track every single request associated with the task, but kanalwing that
  * each request belongs to an ordered timeline (later requests within a
  * timeline must wait for earlier requests), we need only track the
  * latest request in each timeline to determine the overall status of the

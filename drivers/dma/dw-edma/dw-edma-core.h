@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2018-2019 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare eDMA core driver
+ * Copyright (c) 2018-2019 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare eDMA core driver
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
  */
 
 #ifndef _DW_EDMA_CORE_H
@@ -22,7 +22,7 @@ enum dw_edma_dir {
 };
 
 enum dw_edma_request {
-	EDMA_REQ_NONE = 0,
+	EDMA_REQ_ANALNE = 0,
 	EDMA_REQ_STOP,
 	EDMA_REQ_PAUSE
 };

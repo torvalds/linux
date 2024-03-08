@@ -36,7 +36,7 @@
 #define SHT4X_CRC8_LEN		1
 #define SHT4X_WORD_LEN		2
 #define SHT4X_RESPONSE_LENGTH	6
-#define SHT4X_CRC8_POLYNOMIAL	0x31
+#define SHT4X_CRC8_POLYANALMIAL	0x31
 #define SHT4X_CRC8_INIT		0xff
 #define SHT4X_MIN_TEMPERATURE	-45000
 #define SHT4X_MAX_TEMPERATURE	125000
@@ -68,7 +68,7 @@ struct sht4x_data {
 /**
  * sht4x_read_values() - read and parse the raw data from the SHT4X
  * @data: the struct sht4x_data to use for the lock
- * Return: 0 if successful, -ERRNO if not
+ * Return: 0 if successful, -ERRANAL if analt
  */
 static int sht4x_read_values(struct sht4x_data *data)
 {
@@ -96,7 +96,7 @@ static int sht4x_read_values(struct sht4x_data *data)
 	ret = i2c_master_recv(client, raw_data, SHT4X_RESPONSE_LENGTH);
 	if (ret != SHT4X_RESPONSE_LENGTH) {
 		if (ret >= 0)
-			ret = -ENODATA;
+			ret = -EANALDATA;
 		goto unlock;
 	}
 
@@ -198,7 +198,7 @@ static int sht4x_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_chip:
 		return sht4x_interval_read(data, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -211,7 +211,7 @@ static int sht4x_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_chip:
 		return sht4x_interval_write(data, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -243,22 +243,22 @@ static int sht4x_probe(struct i2c_client *client)
 
 	/*
 	 * we require full i2c support since the sht4x uses multi-byte read and
-	 * writes as well as multi-byte commands which are not supported by
+	 * writes as well as multi-byte commands which are analt supported by
 	 * the smbus protocol
 	 */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	data = devm_kzalloc(device, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->update_interval = SHT4X_MIN_POLL_INTERVAL;
 	data->client = client;
 
 	mutex_init(&data->lock);
 
-	crc8_populate_msb(sht4x_crc8_table, SHT4X_CRC8_POLYNOMIAL);
+	crc8_populate_msb(sht4x_crc8_table, SHT4X_CRC8_POLYANALMIAL);
 
 	ret = i2c_master_send(client, cmd, SHT4X_CMD_LEN);
 	if (ret < 0)

@@ -18,7 +18,7 @@
 #include <linux/nvme-keyring.h>
 #include <crypto/hash.h>
 #include <crypto/kpp.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "nvmet.h"
 
@@ -156,9 +156,9 @@ static ssize_t nvmet_addr_traddr_store(struct config_item *item,
 CONFIGFS_ATTR(nvmet_, addr_traddr);
 
 static const struct nvmet_type_name_map nvmet_addr_treq[] = {
-	{ NVMF_TREQ_NOT_SPECIFIED,	"not specified" },
+	{ NVMF_TREQ_ANALT_SPECIFIED,	"analt specified" },
 	{ NVMF_TREQ_REQUIRED,		"required" },
-	{ NVMF_TREQ_NOT_REQUIRED,	"not required" },
+	{ NVMF_TREQ_ANALT_REQUIRED,	"analt required" },
 };
 
 static inline u8 nvmet_port_disc_addr_treq_mask(struct nvmet_port *port)
@@ -202,12 +202,12 @@ found:
 	if (port->disc_addr.trtype == NVMF_TRTYPE_TCP &&
 	    port->disc_addr.tsas.tcp.sectype == NVMF_TCP_SECTYPE_TLS13) {
 		switch (nvmet_addr_treq[i].type) {
-		case NVMF_TREQ_NOT_SPECIFIED:
-			pr_debug("treq '%s' not allowed for TLS1.3\n",
+		case NVMF_TREQ_ANALT_SPECIFIED:
+			pr_debug("treq '%s' analt allowed for TLS1.3\n",
 				 nvmet_addr_treq[i].name);
 			return -EINVAL;
-		case NVMF_TREQ_NOT_REQUIRED:
-			pr_warn("Allow non-TLS connections while TLS1.3 is enabled\n");
+		case NVMF_TREQ_ANALT_REQUIRED:
+			pr_warn("Allow analn-TLS connections while TLS1.3 is enabled\n");
 			break;
 		default:
 			break;
@@ -319,7 +319,7 @@ static ssize_t nvmet_addr_trtype_show(struct config_item *item,
 static void nvmet_port_init_tsas_rdma(struct nvmet_port *port)
 {
 	port->disc_addr.tsas.rdma.qptype = NVMF_RDMA_QPTYPE_CONNECTED;
-	port->disc_addr.tsas.rdma.prtype = NVMF_RDMA_PRTYPE_NOT_SPECIFIED;
+	port->disc_addr.tsas.rdma.prtype = NVMF_RDMA_PRTYPE_ANALT_SPECIFIED;
 	port->disc_addr.tsas.rdma.cms = NVMF_RDMA_CMS_RDMA_CM;
 }
 
@@ -351,14 +351,14 @@ found:
 	if (port->disc_addr.trtype == NVMF_TRTYPE_RDMA)
 		nvmet_port_init_tsas_rdma(port);
 	else if (port->disc_addr.trtype == NVMF_TRTYPE_TCP)
-		nvmet_port_init_tsas_tcp(port, NVMF_TCP_SECTYPE_NONE);
+		nvmet_port_init_tsas_tcp(port, NVMF_TCP_SECTYPE_ANALNE);
 	return count;
 }
 
 CONFIGFS_ATTR(nvmet_, addr_trtype);
 
 static const struct nvmet_type_name_map nvmet_addr_tsas_tcp[] = {
-	{ NVMF_TCP_SECTYPE_NONE,	"none" },
+	{ NVMF_TCP_SECTYPE_ANALNE,	"analne" },
 	{ NVMF_TCP_SECTYPE_TLS13,	"tls1.3" },
 };
 
@@ -414,11 +414,11 @@ static ssize_t nvmet_addr_tsas_store(struct config_item *item,
 found:
 	if (sectype == NVMF_TCP_SECTYPE_TLS13) {
 		if (!IS_ENABLED(CONFIG_NVME_TARGET_TCP_TLS)) {
-			pr_err("TLS is not supported\n");
+			pr_err("TLS is analt supported\n");
 			return -EINVAL;
 		}
 		if (!port->keyring) {
-			pr_err("TLS keyring not configured\n");
+			pr_err("TLS keyring analt configured\n");
 			return -EINVAL;
 		}
 	}
@@ -430,12 +430,12 @@ found:
 	if (sectype == NVMF_TCP_SECTYPE_TLS13) {
 		u8 sc = nvmet_port_disc_addr_treq_secure_channel(port);
 
-		if (sc == NVMF_TREQ_NOT_SPECIFIED)
+		if (sc == NVMF_TREQ_ANALT_SPECIFIED)
 			treq |= NVMF_TREQ_REQUIRED;
 		else
 			treq |= sc;
 	} else {
-		treq |= NVMF_TREQ_NOT_SPECIFIED;
+		treq |= NVMF_TREQ_ANALT_SPECIFIED;
 	}
 	port->disc_addr.treq = treq;
 	return count;
@@ -470,7 +470,7 @@ static ssize_t nvmet_ns_device_path_store(struct config_item *item,
 		goto out_unlock;
 
 	kfree(ns->device_path);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ns->device_path = kmemdup_nul(page, len, GFP_KERNEL);
 	if (!ns->device_path)
 		goto out_unlock;
@@ -622,7 +622,7 @@ static ssize_t nvmet_ns_ana_grpid_store(struct config_item *item,
 
 	down_write(&nvmet_ana_sem);
 	oldgrpid = ns->anagrpid;
-	newgrpid = array_index_nospec(newgrpid, NVMET_MAX_ANAGRPS);
+	newgrpid = array_index_analspec(newgrpid, NVMET_MAX_ANAGRPS);
 	nvmet_ana_group_enabled[newgrpid]++;
 	ns->anagrpid = newgrpid;
 	nvmet_ana_group_enabled[oldgrpid]--;
@@ -763,7 +763,7 @@ static struct config_group *nvmet_ns_make(struct config_group *group,
 		goto out;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ns = nvmet_ns_alloc(subsys, nsid);
 	if (!ns)
 		goto out;
@@ -814,7 +814,7 @@ static ssize_t nvmet_passthru_device_path_store(struct config_item *item,
 		goto out_unlock;
 
 	kfree(subsys->passthru_ctrl_path);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	subsys->passthru_ctrl_path = kstrndup(page, len, GFP_KERNEL);
 	if (!subsys->passthru_ctrl_path)
 		goto out_unlock;
@@ -957,7 +957,7 @@ static int nvmet_port_subsys_allow_link(struct config_item *parent,
 	subsys = to_subsys(target);
 	link = kmalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 	link->subsys = subsys;
 
 	down_write(&nvmet_config_sem);
@@ -1037,7 +1037,7 @@ static int nvmet_allowed_hosts_allow_link(struct config_item *parent,
 	host = to_host(target);
 	link = kmalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 	link->host = host;
 
 	down_write(&nvmet_config_sem);
@@ -1140,31 +1140,31 @@ static ssize_t nvmet_subsys_attr_version_show(struct config_item *item,
 	if (NVME_TERTIARY(subsys->ver))
 		return snprintf(page, PAGE_SIZE, "%llu.%llu.%llu\n",
 				NVME_MAJOR(subsys->ver),
-				NVME_MINOR(subsys->ver),
+				NVME_MIANALR(subsys->ver),
 				NVME_TERTIARY(subsys->ver));
 
 	return snprintf(page, PAGE_SIZE, "%llu.%llu\n",
 			NVME_MAJOR(subsys->ver),
-			NVME_MINOR(subsys->ver));
+			NVME_MIANALR(subsys->ver));
 }
 
 static ssize_t
 nvmet_subsys_attr_version_store_locked(struct nvmet_subsys *subsys,
 		const char *page, size_t count)
 {
-	int major, minor, tertiary = 0;
+	int major, mianalr, tertiary = 0;
 	int ret;
 
 	if (subsys->subsys_discovered) {
 		if (NVME_TERTIARY(subsys->ver))
 			pr_err("Can't set version number. %llu.%llu.%llu is already assigned\n",
 			       NVME_MAJOR(subsys->ver),
-			       NVME_MINOR(subsys->ver),
+			       NVME_MIANALR(subsys->ver),
 			       NVME_TERTIARY(subsys->ver));
 		else
 			pr_err("Can't set version number. %llu.%llu is already assigned\n",
 			       NVME_MAJOR(subsys->ver),
-			       NVME_MINOR(subsys->ver));
+			       NVME_MIANALR(subsys->ver));
 		return -EINVAL;
 	}
 
@@ -1172,11 +1172,11 @@ nvmet_subsys_attr_version_store_locked(struct nvmet_subsys *subsys,
 	if (nvmet_is_passthru_subsys(subsys))
 		return -EINVAL;
 
-	ret = sscanf(page, "%d.%d.%d\n", &major, &minor, &tertiary);
+	ret = sscanf(page, "%d.%d.%d\n", &major, &mianalr, &tertiary);
 	if (ret != 2 && ret != 3)
 		return -EINVAL;
 
-	subsys->ver = NVME_VS(major, minor, tertiary);
+	subsys->ver = NVME_VS(major, mianalr, tertiary);
 
 	return count;
 }
@@ -1225,7 +1225,7 @@ nvmet_subsys_attr_serial_store_locked(struct nvmet_subsys *subsys,
 	}
 
 	if (!len || len > NVMET_SN_MAX_SIZE) {
-		pr_err("Serial Number can not be empty or exceed %d Bytes\n",
+		pr_err("Serial Number can analt be empty or exceed %d Bytes\n",
 		       NVMET_SN_MAX_SIZE);
 		return -EINVAL;
 	}
@@ -1343,7 +1343,7 @@ static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
 		return -EINVAL;
 
 	if (len > NVMET_MN_MAX_SIZE) {
-		pr_err("Model number size can not exceed %d Bytes\n",
+		pr_err("Model number size can analt exceed %d Bytes\n",
 		       NVMET_MN_MAX_SIZE);
 		return -EINVAL;
 	}
@@ -1355,7 +1355,7 @@ static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
 
 	val = kmemdup_nul(page, len, GFP_KERNEL);
 	if (!val)
-		return -ENOMEM;
+		return -EANALMEM;
 	kfree(subsys->model_number);
 	subsys->model_number = val;
 	return count;
@@ -1450,7 +1450,7 @@ static ssize_t nvmet_subsys_attr_firmware_store_locked(struct nvmet_subsys *subs
 		return -EINVAL;
 
 	if (len > NVMET_FR_MAX_SIZE) {
-		pr_err("Firmware revision size can not exceed %d Bytes\n",
+		pr_err("Firmware revision size can analt exceed %d Bytes\n",
 		       NVMET_FR_MAX_SIZE);
 		return -EINVAL;
 	}
@@ -1462,7 +1462,7 @@ static ssize_t nvmet_subsys_attr_firmware_store_locked(struct nvmet_subsys *subs
 
 	val = kmemdup_nul(page, len, GFP_KERNEL);
 	if (!val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kfree(subsys->firmware_rev);
 
@@ -1659,7 +1659,7 @@ static struct configfs_attribute *nvmet_referral_attrs[] = {
 	NULL,
 };
 
-static void nvmet_referral_notify(struct config_group *group,
+static void nvmet_referral_analtify(struct config_group *group,
 		struct config_item *item)
 {
 	struct nvmet_port *parent = to_nvmet_port(item->ci_parent->ci_parent);
@@ -1692,7 +1692,7 @@ static struct config_group *nvmet_referral_make(
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&port->entry);
 	config_group_init_type_name(&port->group, name, &nvmet_referral_type);
@@ -1702,7 +1702,7 @@ static struct config_group *nvmet_referral_make(
 
 static struct configfs_group_operations nvmet_referral_group_ops = {
 	.make_group		= nvmet_referral_make,
-	.disconnect_notify	= nvmet_referral_notify,
+	.disconnect_analtify	= nvmet_referral_analtify,
 };
 
 static const struct config_item_type nvmet_referrals_type = {
@@ -1712,7 +1712,7 @@ static const struct config_item_type nvmet_referrals_type = {
 
 static struct nvmet_type_name_map nvmet_ana_state[] = {
 	{ NVME_ANA_OPTIMIZED,		"optimized" },
-	{ NVME_ANA_NONOPTIMIZED,	"non-optimized" },
+	{ NVME_ANA_ANALANALPTIMIZED,	"analn-optimized" },
 	{ NVME_ANA_INACCESSIBLE,	"inaccessible" },
 	{ NVME_ANA_PERSISTENT_LOSS,	"persistent-loss" },
 	{ NVME_ANA_CHANGE,		"change" },
@@ -1806,7 +1806,7 @@ static struct config_group *nvmet_ana_groups_make_group(
 	if (grpid <= 1 || grpid > NVMET_MAX_ANAGRPS)
 		goto out;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	grp = kzalloc(sizeof(*grp), GFP_KERNEL);
 	if (!grp)
 		goto out;
@@ -1814,7 +1814,7 @@ static struct config_group *nvmet_ana_groups_make_group(
 	grp->grpid = grpid;
 
 	down_write(&nvmet_ana_sem);
-	grpid = array_index_nospec(grpid, NVMET_MAX_ANAGRPS);
+	grpid = array_index_analspec(grpid, NVMET_MAX_ANAGRPS);
 	nvmet_ana_group_enabled[grpid]++;
 	up_write(&nvmet_ana_sem);
 
@@ -1887,19 +1887,19 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	port->ana_state = kcalloc(NVMET_MAX_ANAGRPS + 1,
 			sizeof(*port->ana_state), GFP_KERNEL);
 	if (!port->ana_state) {
 		kfree(port);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	if (IS_ENABLED(CONFIG_NVME_TARGET_TCP_TLS) && nvme_keyring_id()) {
 		port->keyring = key_lookup(nvme_keyring_id());
 		if (IS_ERR(port->keyring)) {
-			pr_warn("NVMe keyring not available, disabling TLS\n");
+			pr_warn("NVMe keyring analt available, disabling TLS\n");
 			port->keyring = NULL;
 		}
 	}
@@ -2019,7 +2019,7 @@ static ssize_t nvmet_host_dhchap_hash_show(struct config_item *item,
 	struct nvmet_host *host = to_host(item);
 	const char *hash_name = nvme_auth_hmac_name(host->dhchap_hash_id);
 
-	return sprintf(page, "%s\n", hash_name ? hash_name : "none");
+	return sprintf(page, "%s\n", hash_name ? hash_name : "analne");
 }
 
 static ssize_t nvmet_host_dhchap_hash_store(struct config_item *item,
@@ -2032,7 +2032,7 @@ static ssize_t nvmet_host_dhchap_hash_store(struct config_item *item,
 	if (hmac_id == NVME_AUTH_HASH_INVALID)
 		return -EINVAL;
 	if (!crypto_has_shash(nvme_auth_hmac_name(hmac_id), 0, 0))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	host->dhchap_hash_id = hmac_id;
 	return count;
 }
@@ -2045,7 +2045,7 @@ static ssize_t nvmet_host_dhchap_dhgroup_show(struct config_item *item,
 	struct nvmet_host *host = to_host(item);
 	const char *dhgroup = nvme_auth_dhgroup_name(host->dhchap_dhgroup_id);
 
-	return sprintf(page, "%s\n", dhgroup ? dhgroup : "none");
+	return sprintf(page, "%s\n", dhgroup ? dhgroup : "analne");
 }
 
 static ssize_t nvmet_host_dhchap_dhgroup_store(struct config_item *item,
@@ -2108,7 +2108,7 @@ static struct config_group *nvmet_hosts_make_group(struct config_group *group,
 
 	host = kzalloc(sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 #ifdef CONFIG_NVME_TARGET_AUTH
 	/* Default to SHA256 */

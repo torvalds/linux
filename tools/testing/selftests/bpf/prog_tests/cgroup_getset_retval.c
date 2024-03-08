@@ -38,7 +38,7 @@ static void test_setsockopt_set(int cgroup_fd, int sock_fd)
 	if (!ASSERT_ERR(setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR,
 				   &zero, sizeof(int)), "setsockopt"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(errno, EUNATCH, "setsockopt-errno"))
+	if (!ASSERT_EQ(erranal, EUNATCH, "setsockopt-erranal"))
 		goto close_bpf_object;
 
 	if (!ASSERT_EQ(obj->bss->invocations, 1, "invocations"))
@@ -64,7 +64,7 @@ static void test_setsockopt_set_and_get(int cgroup_fd, int sock_fd)
 	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
 	/* Attach setsockopt that sets EUNATCH, and one that gets the
-	 * previously set errno. Assert that we get the same errno back.
+	 * previously set erranal. Assert that we get the same erranal back.
 	 */
 	link_set_eunatch = bpf_program__attach_cgroup(obj->progs.set_eunatch,
 						      cgroup_fd);
@@ -78,7 +78,7 @@ static void test_setsockopt_set_and_get(int cgroup_fd, int sock_fd)
 	if (!ASSERT_ERR(setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR,
 				   &zero, sizeof(int)), "setsockopt"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(errno, EUNATCH, "setsockopt-errno"))
+	if (!ASSERT_EQ(erranal, EUNATCH, "setsockopt-erranal"))
 		goto close_bpf_object;
 
 	if (!ASSERT_EQ(obj->bss->invocations, 2, "invocations"))
@@ -106,7 +106,7 @@ static void test_setsockopt_default_zero(int cgroup_fd, int sock_fd)
 
 	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
-	/* Attach setsockopt that gets the previously set errno.
+	/* Attach setsockopt that gets the previously set erranal.
 	 * Assert that, without anything setting one, we get 0.
 	 */
 	link_get_retval = bpf_program__attach_cgroup(obj->progs.get_retval,
@@ -142,9 +142,9 @@ static void test_setsockopt_default_zero_and_set(int cgroup_fd, int sock_fd)
 
 	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
-	/* Attach setsockopt that gets the previously set errno, and then
-	 * one that sets the errno to EUNATCH. Assert that the get does not
-	 * see EUNATCH set later, and does not prevent EUNATCH from being set.
+	/* Attach setsockopt that gets the previously set erranal, and then
+	 * one that sets the erranal to EUNATCH. Assert that the get does analt
+	 * see EUNATCH set later, and does analt prevent EUNATCH from being set.
 	 */
 	link_get_retval = bpf_program__attach_cgroup(obj->progs.get_retval,
 						     cgroup_fd);
@@ -158,7 +158,7 @@ static void test_setsockopt_default_zero_and_set(int cgroup_fd, int sock_fd)
 	if (!ASSERT_ERR(setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR,
 				   &zero, sizeof(int)), "setsockopt"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(errno, EUNATCH, "setsockopt-errno"))
+	if (!ASSERT_EQ(erranal, EUNATCH, "setsockopt-erranal"))
 		goto close_bpf_object;
 
 	if (!ASSERT_EQ(obj->bss->invocations, 2, "invocations"))
@@ -188,8 +188,8 @@ static void test_setsockopt_override(int cgroup_fd, int sock_fd)
 	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
 	/* Attach setsockopt that sets EUNATCH, then one that sets EISCONN,
-	 * and then one that gets the exported errno. Assert both the syscall
-	 * and the helper sees the last set errno.
+	 * and then one that gets the exported erranal. Assert both the syscall
+	 * and the helper sees the last set erranal.
 	 */
 	link_set_eunatch = bpf_program__attach_cgroup(obj->progs.set_eunatch,
 						      cgroup_fd);
@@ -207,7 +207,7 @@ static void test_setsockopt_override(int cgroup_fd, int sock_fd)
 	if (!ASSERT_ERR(setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR,
 				   &zero, sizeof(int)), "setsockopt"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(errno, EISCONN, "setsockopt-errno"))
+	if (!ASSERT_EQ(erranal, EISCONN, "setsockopt-erranal"))
 		goto close_bpf_object;
 
 	if (!ASSERT_EQ(obj->bss->invocations, 3, "invocations"))
@@ -236,8 +236,8 @@ static void test_setsockopt_legacy_eperm(int cgroup_fd, int sock_fd)
 
 	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
-	/* Attach setsockopt that return a reject without setting errno
-	 * (legacy reject), and one that gets the errno. Assert that for
+	/* Attach setsockopt that return a reject without setting erranal
+	 * (legacy reject), and one that gets the erranal. Assert that for
 	 * backward compatibility the syscall result in EPERM, and this
 	 * is also visible to the helper.
 	 */
@@ -253,7 +253,7 @@ static void test_setsockopt_legacy_eperm(int cgroup_fd, int sock_fd)
 	if (!ASSERT_ERR(setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR,
 				   &zero, sizeof(int)), "setsockopt"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(errno, EPERM, "setsockopt-errno"))
+	if (!ASSERT_EQ(erranal, EPERM, "setsockopt-erranal"))
 		goto close_bpf_object;
 
 	if (!ASSERT_EQ(obj->bss->invocations, 2, "invocations"))
@@ -270,7 +270,7 @@ close_bpf_object:
 	cgroup_getset_retval_setsockopt__destroy(obj);
 }
 
-static void test_setsockopt_legacy_no_override(int cgroup_fd, int sock_fd)
+static void test_setsockopt_legacy_anal_override(int cgroup_fd, int sock_fd)
 {
 	struct cgroup_getset_retval_setsockopt *obj;
 	struct bpf_link *link_set_eunatch = NULL, *link_legacy_eperm = NULL;
@@ -283,9 +283,9 @@ static void test_setsockopt_legacy_no_override(int cgroup_fd, int sock_fd)
 	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
 	/* Attach setsockopt that sets EUNATCH, then one that return a reject
-	 * without setting errno, and then one that gets the exported errno.
-	 * Assert both the syscall and the helper's errno are unaffected by
-	 * the second prog (i.e. legacy rejects does not override the errno
+	 * without setting erranal, and then one that gets the exported erranal.
+	 * Assert both the syscall and the helper's erranal are unaffected by
+	 * the second prog (i.e. legacy rejects does analt override the erranal
 	 * to EPERM).
 	 */
 	link_set_eunatch = bpf_program__attach_cgroup(obj->progs.set_eunatch,
@@ -304,7 +304,7 @@ static void test_setsockopt_legacy_no_override(int cgroup_fd, int sock_fd)
 	if (!ASSERT_ERR(setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR,
 				   &zero, sizeof(int)), "setsockopt"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(errno, EUNATCH, "setsockopt-errno"))
+	if (!ASSERT_EQ(erranal, EUNATCH, "setsockopt-erranal"))
 		goto close_bpf_object;
 
 	if (!ASSERT_EQ(obj->bss->invocations, 3, "invocations"))
@@ -335,7 +335,7 @@ static void test_getsockopt_get(int cgroup_fd, int sock_fd)
 
 	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
-	/* Attach getsockopt that gets previously set errno. Assert that the
+	/* Attach getsockopt that gets previously set erranal. Assert that the
 	 * error from kernel is in both ctx_retval_value and retval_value.
 	 */
 	link_get_retval = bpf_program__attach_cgroup(obj->progs.get_retval,
@@ -346,16 +346,16 @@ static void test_getsockopt_get(int cgroup_fd, int sock_fd)
 	if (!ASSERT_ERR(getsockopt(sock_fd, SOL_CUSTOM, 0,
 				   &buf, &optlen), "getsockopt"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(errno, EOPNOTSUPP, "getsockopt-errno"))
+	if (!ASSERT_EQ(erranal, EOPANALTSUPP, "getsockopt-erranal"))
 		goto close_bpf_object;
 
 	if (!ASSERT_EQ(obj->bss->invocations, 1, "invocations"))
 		goto close_bpf_object;
 	if (!ASSERT_FALSE(obj->bss->assertion_error, "assertion_error"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(obj->bss->retval_value, -EOPNOTSUPP, "retval_value"))
+	if (!ASSERT_EQ(obj->bss->retval_value, -EOPANALTSUPP, "retval_value"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(obj->bss->ctx_retval_value, -EOPNOTSUPP, "ctx_retval_value"))
+	if (!ASSERT_EQ(obj->bss->ctx_retval_value, -EOPANALTSUPP, "ctx_retval_value"))
 		goto close_bpf_object;
 
 close_bpf_object:
@@ -388,7 +388,7 @@ static void test_getsockopt_override(int cgroup_fd, int sock_fd)
 	if (!ASSERT_ERR(getsockopt(sock_fd, SOL_CUSTOM, 0,
 				   &buf, &optlen), "getsockopt"))
 		goto close_bpf_object;
-	if (!ASSERT_EQ(errno, EISCONN, "getsockopt-errno"))
+	if (!ASSERT_EQ(erranal, EISCONN, "getsockopt-erranal"))
 		goto close_bpf_object;
 
 	if (!ASSERT_EQ(obj->bss->invocations, 1, "invocations"))
@@ -529,8 +529,8 @@ void test_cgroup_getset_retval(void)
 	if (test__start_subtest("setsockopt-legacy_eperm"))
 		test_setsockopt_legacy_eperm(cgroup_fd, sock_fd);
 
-	if (test__start_subtest("setsockopt-legacy_no_override"))
-		test_setsockopt_legacy_no_override(cgroup_fd, sock_fd);
+	if (test__start_subtest("setsockopt-legacy_anal_override"))
+		test_setsockopt_legacy_anal_override(cgroup_fd, sock_fd);
 
 	if (test__start_subtest("getsockopt-get"))
 		test_getsockopt_get(cgroup_fd, sock_fd);

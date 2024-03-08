@@ -1,13 +1,13 @@
 [
     {
-        "BriefDescription": "Nonzero segbase 1 bubble",
+        "BriefDescription": "Analnzero segbase 1 bubble",
         "EventCode": "0x5",
         "EventName": "MISALIGN_MEM_REF.BUBBLE",
         "SampleAfterValue": "200000",
         "UMask": "0x97"
     },
     {
-        "BriefDescription": "Nonzero segbase load 1 bubble",
+        "BriefDescription": "Analnzero segbase load 1 bubble",
         "EventCode": "0x5",
         "EventName": "MISALIGN_MEM_REF.LD_BUBBLE",
         "SampleAfterValue": "200000",
@@ -28,7 +28,7 @@
         "UMask": "0x89"
     },
     {
-        "BriefDescription": "Nonzero segbase ld-op-st 1 bubble",
+        "BriefDescription": "Analnzero segbase ld-op-st 1 bubble",
         "EventCode": "0x5",
         "EventName": "MISALIGN_MEM_REF.RMW_BUBBLE",
         "SampleAfterValue": "200000",
@@ -56,7 +56,7 @@
         "UMask": "0x8f"
     },
     {
-        "BriefDescription": "Nonzero segbase store 1 bubble",
+        "BriefDescription": "Analnzero segbase store 1 bubble",
         "EventCode": "0x5",
         "EventName": "MISALIGN_MEM_REF.ST_BUBBLE",
         "SampleAfterValue": "200000",

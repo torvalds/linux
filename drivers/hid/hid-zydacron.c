@@ -169,7 +169,7 @@ static int zc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	zc = devm_kzalloc(&hdev->dev, sizeof(*zc), GFP_KERNEL);
 	if (zc == NULL) {
 		hid_err(hdev, "can't alloc descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hid_set_drvdata(hdev, zc);

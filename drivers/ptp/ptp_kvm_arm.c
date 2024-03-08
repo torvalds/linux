@@ -17,7 +17,7 @@ int kvm_arch_ptp_init(void)
 
 	ret = kvm_arm_hyp_service_available(ARM_SMCCC_KVM_FUNC_PTP);
 	if (ret <= 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }

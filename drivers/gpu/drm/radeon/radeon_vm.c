@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -37,7 +37,7 @@
  * for the entire GPU, there are multiple VM page tables active
  * at any given time.  The VM page tables can contain a mix
  * vram pages and system memory pages and system memory pages
- * can be mapped as snooped (cached system pages) or unsnooped
+ * can be mapped as sanaloped (cached system pages) or unsanaloped
  * (uncached system pages).
  * Each VM has an ID associated with it and there is a page table
  * associated with each VMID.  When execting a command buffer,
@@ -287,7 +287,7 @@ void radeon_vm_fence(struct radeon_device *rdev,
  *
  * Find @bo inside the requested vm (cayman+).
  * Search inside the @bos vm list for the requested vm
- * Returns the found bo_va or NULL if none is found
+ * Returns the found bo_va or NULL if analne is found
  *
  * Object has to be reserved!
  */
@@ -479,7 +479,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 	soffset /= RADEON_GPU_PAGE_SIZE;
 	eoffset /= RADEON_GPU_PAGE_SIZE;
 	if (soffset || eoffset) {
-		struct interval_tree_node *it;
+		struct interval_tree_analde *it;
 		it = interval_tree_iter_first(&vm->va, soffset, eoffset);
 		if (it && it != &bo_va->it) {
 			struct radeon_bo_va *tmp;
@@ -500,7 +500,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		tmp = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
 		if (!tmp) {
 			mutex_unlock(&vm->mutex);
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto error_unreserve;
 		}
 		tmp->it.start = bo_va->it.start;
@@ -620,7 +620,7 @@ static uint32_t radeon_vm_page_flags(uint32_t flags)
 	hw_flags |= (flags & RADEON_VM_PAGE_WRITEABLE) ? R600_PTE_WRITEABLE : 0;
 	if (flags & RADEON_VM_PAGE_SYSTEM) {
 		hw_flags |= R600_PTE_SYSTEM;
-		hw_flags |= (flags & RADEON_VM_PAGE_SNOOPED) ? R600_PTE_SNOOPED : 0;
+		hw_flags |= (flags & RADEON_VM_PAGE_SANALOPED) ? R600_PTE_SANALOPED : 0;
 	}
 	return hw_flags;
 }
@@ -656,7 +656,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 
 	/* update too big for an IB */
 	if (ndw > 0xfffff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib, NULL, ndw * 4);
 	if (r)
@@ -735,7 +735,7 @@ static void radeon_vm_frag_ptes(struct radeon_device *rdev,
 {
 	/**
 	 * The MC L1 TLB supports variable sized pages, based on a fragment
-	 * field in the PTE. When this field is set to a non-zero value, page
+	 * field in the PTE. When this field is set to a analn-zero value, page
 	 * granularity is increased from 4KB to (1 << (12 + frag)). The PTE
 	 * flags are considered valid for all PTEs within the fragment range
 	 * and corresponding mappings are assumed to be physically contiguous.
@@ -764,7 +764,7 @@ static void radeon_vm_frag_ptes(struct radeon_device *rdev,
 
 	unsigned count;
 
-	/* system pages are non continuously */
+	/* system pages are analn continuously */
 	if ((flags & R600_PTE_SYSTEM) || !(flags & R600_PTE_VALID) ||
 	    (frag_start >= frag_end)) {
 
@@ -940,7 +940,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 
 	bo_va->flags &= ~RADEON_VM_PAGE_VALID;
 	bo_va->flags &= ~RADEON_VM_PAGE_SYSTEM;
-	bo_va->flags &= ~RADEON_VM_PAGE_SNOOPED;
+	bo_va->flags &= ~RADEON_VM_PAGE_SANALOPED;
 	if (bo_va->bo && radeon_ttm_tt_is_readonly(rdev, bo_va->bo->tbo.ttm))
 		bo_va->flags &= ~RADEON_VM_PAGE_WRITEABLE;
 
@@ -952,7 +952,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 		if (mem->mem_type == TTM_PL_TT) {
 			bo_va->flags |= RADEON_VM_PAGE_SYSTEM;
 			if (!(bo_va->bo->flags & (RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC)))
-				bo_va->flags |= RADEON_VM_PAGE_SNOOPED;
+				bo_va->flags |= RADEON_VM_PAGE_SANALOPED;
 
 		} else {
 			addr += rdev->vm_manager.vram_base_offset;
@@ -994,7 +994,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 
 	/* update too big for an IB */
 	if (ndw > 0xfffff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib, NULL, ndw * 4);
 	if (r)
@@ -1197,8 +1197,8 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	pts_size = pd_entries * sizeof(struct radeon_vm_pt);
 	vm->page_tables = kzalloc(pts_size, GFP_KERNEL);
 	if (vm->page_tables == NULL) {
-		DRM_ERROR("Cannot allocate memory for page table array\n");
-		return -ENOMEM;
+		DRM_ERROR("Cananalt allocate memory for page table array\n");
+		return -EANALMEM;
 	}
 
 	r = radeon_bo_create(rdev, pd_size, align, true,

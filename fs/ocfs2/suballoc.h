@@ -11,7 +11,7 @@
 #define _CHAINALLOC_H_
 
 struct ocfs2_suballoc_result;
-typedef int (group_search_t)(struct inode *,
+typedef int (group_search_t)(struct ianalde *,
 			     struct buffer_head *,
 			     u32,			/* bits_wanted */
 			     u32,			/* min_bits */
@@ -20,14 +20,14 @@ typedef int (group_search_t)(struct inode *,
 							/* found bits */
 
 struct ocfs2_alloc_context {
-	struct inode *ac_inode;    /* which bitmap are we allocating from? */
+	struct ianalde *ac_ianalde;    /* which bitmap are we allocating from? */
 	struct buffer_head *ac_bh; /* file entry bh */
 	u32    ac_alloc_slot;   /* which slot are we allocating from? */
 	u32    ac_bits_wanted;
 	u32    ac_bits_given;
 #define OCFS2_AC_USE_LOCAL 1
 #define OCFS2_AC_USE_MAIN  2
-#define OCFS2_AC_USE_INODE 3
+#define OCFS2_AC_USE_IANALDE 3
 #define OCFS2_AC_USE_META  4
 	u32    ac_which;
 
@@ -54,8 +54,8 @@ static inline int ocfs2_alloc_context_bits_left(struct ocfs2_alloc_context *ac)
 }
 
 /*
- * Please note that the caller must make sure that root_el is the root
- * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
+ * Please analte that the caller must make sure that root_el is the root
+ * of extent tree. So for an ianalde, it should be &fe->id2.i_list. Otherwise
  * the result may be wrong.
  */
 int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
@@ -64,23 +64,23 @@ int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
 int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
 				      int blocks,
 				      struct ocfs2_alloc_context **ac);
-int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
+int ocfs2_reserve_new_ianalde(struct ocfs2_super *osb,
 			    struct ocfs2_alloc_context **ac);
 int ocfs2_reserve_clusters(struct ocfs2_super *osb,
 			   u32 bits_wanted,
 			   struct ocfs2_alloc_context **ac);
 
-int ocfs2_alloc_dinode_update_counts(struct inode *inode,
+int ocfs2_alloc_dianalde_update_counts(struct ianalde *ianalde,
 			 handle_t *handle,
 			 struct buffer_head *di_bh,
 			 u32 num_bits,
 			 u16 chain);
-void ocfs2_rollback_alloc_dinode_counts(struct inode *inode,
+void ocfs2_rollback_alloc_dianalde_counts(struct ianalde *ianalde,
 			 struct buffer_head *di_bh,
 			 u32 num_bits,
 			 u16 chain);
 int ocfs2_block_group_set_bits(handle_t *handle,
-			 struct inode *alloc_inode,
+			 struct ianalde *alloc_ianalde,
 			 struct ocfs2_group_desc *bg,
 			 struct buffer_head *group_bh,
 			 unsigned int bit_off,
@@ -92,14 +92,14 @@ int ocfs2_claim_metadata(handle_t *handle,
 			 u64 *suballoc_loc,
 			 u16 *suballoc_bit_start,
 			 u32 *num_bits,
-			 u64 *blkno_start);
-int ocfs2_claim_new_inode(handle_t *handle,
-			  struct inode *dir,
+			 u64 *blkanal_start);
+int ocfs2_claim_new_ianalde(handle_t *handle,
+			  struct ianalde *dir,
 			  struct buffer_head *parent_fe_bh,
 			  struct ocfs2_alloc_context *ac,
 			  u64 *suballoc_loc,
 			  u16 *suballoc_bit,
-			  u64 *fe_blkno);
+			  u64 *fe_blkanal);
 int ocfs2_claim_clusters(handle_t *handle,
 			 struct ocfs2_alloc_context *ac,
 			 u32 min_clusters,
@@ -117,22 +117,22 @@ int __ocfs2_claim_clusters(handle_t *handle,
 			   u32 *num_clusters);
 
 int ocfs2_free_suballoc_bits(handle_t *handle,
-			     struct inode *alloc_inode,
+			     struct ianalde *alloc_ianalde,
 			     struct buffer_head *alloc_bh,
 			     unsigned int start_bit,
-			     u64 bg_blkno,
+			     u64 bg_blkanal,
 			     unsigned int count);
-int ocfs2_free_dinode(handle_t *handle,
-		      struct inode *inode_alloc_inode,
-		      struct buffer_head *inode_alloc_bh,
-		      struct ocfs2_dinode *di);
+int ocfs2_free_dianalde(handle_t *handle,
+		      struct ianalde *ianalde_alloc_ianalde,
+		      struct buffer_head *ianalde_alloc_bh,
+		      struct ocfs2_dianalde *di);
 int ocfs2_free_clusters(handle_t *handle,
-			struct inode *bitmap_inode,
+			struct ianalde *bitmap_ianalde,
 			struct buffer_head *bitmap_bh,
 			u64 start_blk,
 			unsigned int num_clusters);
 int ocfs2_release_clusters(handle_t *handle,
-			   struct inode *bitmap_inode,
+			   struct ianalde *bitmap_ianalde,
 			   struct buffer_head *bitmap_bh,
 			   u64 start_blk,
 			   unsigned int num_clusters);
@@ -145,25 +145,25 @@ static inline u64 ocfs2_which_suballoc_group(u64 block, unsigned int bit)
 }
 
 static inline u32 ocfs2_cluster_from_desc(struct ocfs2_super *osb,
-					  u64 bg_blkno)
+					  u64 bg_blkanal)
 {
 	/* This should work for all block group descriptors as only
 	 * the 1st group descriptor of the cluster bitmap is
 	 * different. */
 
-	if (bg_blkno == osb->first_cluster_group_blkno)
+	if (bg_blkanal == osb->first_cluster_group_blkanal)
 		return 0;
 
 	/* the rest of the block groups are located at the beginning
 	 * of their 1st cluster, so a direct translation just
 	 * works. */
-	return ocfs2_blocks_to_clusters(osb->sb, bg_blkno);
+	return ocfs2_blocks_to_clusters(osb->sb, bg_blkanal);
 }
 
-static inline int ocfs2_is_cluster_bitmap(struct inode *inode)
+static inline int ocfs2_is_cluster_bitmap(struct ianalde *ianalde)
 {
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	return osb->bitmap_blkno == OCFS2_I(inode)->ip_blkno;
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
+	return osb->bitmap_blkanal == OCFS2_I(ianalde)->ip_blkanal;
 }
 
 /* This is for local alloc ONLY. Others should use the task-specific
@@ -174,7 +174,7 @@ void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac);
 
 /* given a cluster offset, calculate which block group it belongs to
  * and return that block offset. */
-u64 ocfs2_which_cluster_group(struct inode *inode, u32 cluster);
+u64 ocfs2_which_cluster_group(struct ianalde *ianalde, u32 cluster);
 
 /*
  * By default, ocfs2_read_group_descriptor() calls ocfs2_error() when it
@@ -184,38 +184,38 @@ u64 ocfs2_which_cluster_group(struct inode *inode, u32 cluster);
  * Everyone else should be using ocfs2_read_group_descriptor().
  */
 int ocfs2_check_group_descriptor(struct super_block *sb,
-				 struct ocfs2_dinode *di,
+				 struct ocfs2_dianalde *di,
 				 struct buffer_head *bh);
 /*
  * Read a group descriptor block into *bh.  If *bh is NULL, a bh will be
  * allocated.  This is a cached read.  The descriptor will be validated with
  * ocfs2_validate_group_descriptor().
  */
-int ocfs2_read_group_descriptor(struct inode *inode, struct ocfs2_dinode *di,
-				u64 gd_blkno, struct buffer_head **bh);
+int ocfs2_read_group_descriptor(struct ianalde *ianalde, struct ocfs2_dianalde *di,
+				u64 gd_blkanal, struct buffer_head **bh);
 
-int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_extent_tree *et,
+int ocfs2_lock_allocators(struct ianalde *ianalde, struct ocfs2_extent_tree *et,
 			  u32 clusters_to_add, u32 extents_to_split,
 			  struct ocfs2_alloc_context **data_ac,
 			  struct ocfs2_alloc_context **meta_ac);
 
-int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res);
+int ocfs2_test_ianalde_bit(struct ocfs2_super *osb, u64 blkanal, int *res);
 
 
 
 /*
- * The following two interfaces are for ocfs2_create_inode_in_orphan().
+ * The following two interfaces are for ocfs2_create_ianalde_in_orphan().
  */
-int ocfs2_find_new_inode_loc(struct inode *dir,
+int ocfs2_find_new_ianalde_loc(struct ianalde *dir,
 			     struct buffer_head *parent_fe_bh,
 			     struct ocfs2_alloc_context *ac,
-			     u64 *fe_blkno);
+			     u64 *fe_blkanal);
 
-int ocfs2_claim_new_inode_at_loc(handle_t *handle,
-				 struct inode *dir,
+int ocfs2_claim_new_ianalde_at_loc(handle_t *handle,
+				 struct ianalde *dir,
 				 struct ocfs2_alloc_context *ac,
 				 u64 *suballoc_loc,
 				 u16 *suballoc_bit,
-				 u64 di_blkno);
+				 u64 di_blkanal);
 
 #endif /* _CHAINALLOC_H_ */

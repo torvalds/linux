@@ -258,7 +258,7 @@ static void rda_uart_set_termios(struct uart_port *port,
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
 	case CS6:
-		dev_warn(port->dev, "bit size not supported, using 7 bits\n");
+		dev_warn(port->dev, "bit size analt supported, using 7 bits\n");
 		fallthrough;
 	case CS7:
 		ctrl &= ~RDA_UART_DBITS_8;
@@ -373,7 +373,7 @@ static void rda_uart_receive_chars(struct uart_port *port)
 
 	status = rda_uart_read(port, RDA_UART_STATUS);
 	while ((status & RDA_UART_RX_FIFO_MASK)) {
-		char flag = TTY_NORMAL;
+		char flag = TTY_ANALRMAL;
 
 		if (status & RDA_UART_RX_PARITY_ERR) {
 			port->icount.parity++;
@@ -440,7 +440,7 @@ static int rda_uart_startup(struct uart_port *port)
 	rda_uart_write(port, 0, RDA_UART_IRQ_MASK);
 	uart_port_unlock_irqrestore(port, flags);
 
-	ret = request_irq(port->irq, rda_interrupt, IRQF_NO_SUSPEND,
+	ret = request_irq(port->irq, rda_interrupt, IRQF_ANAL_SUSPEND,
 			  "rda-uart", port);
 	if (ret)
 		return ret;
@@ -517,7 +517,7 @@ static void rda_uart_config_port(struct uart_port *port, int flags)
 
 	uart_port_lock_irqsave(port, &irq_flags);
 
-	/* Clear mask, so no surprise interrupts. */
+	/* Clear mask, so anal surprise interrupts. */
 	rda_uart_write(port, 0, RDA_UART_IRQ_MASK);
 
 	/* Clear status register */
@@ -645,7 +645,7 @@ static int rda_uart_console_setup(struct console *co, char *options)
 
 	rda_port = rda_uart_ports[co->index];
 	if (!rda_port || !rda_port->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -684,7 +684,7 @@ static int __init
 rda_uart_early_console_setup(struct earlycon_device *device, const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = rda_uart_early_console_write;
 
@@ -719,8 +719,8 @@ static int rda_uart_probe(struct platform_device *pdev)
 	struct rda_uart_port *rda_port;
 	int ret, irq;
 
-	if (pdev->dev.of_node)
-		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (pdev->dev.of_analde)
+		pdev->id = of_alias_get_id(pdev->dev.of_analde, "serial");
 
 	if (pdev->id < 0 || pdev->id >= RDA_UART_PORT_NUM) {
 		dev_err(&pdev->dev, "id %d out of range\n", pdev->id);
@@ -729,8 +729,8 @@ static int rda_uart_probe(struct platform_device *pdev)
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		dev_err(&pdev->dev, "could not get mem\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "could analt get mem\n");
+		return -EANALDEV;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -744,11 +744,11 @@ static int rda_uart_probe(struct platform_device *pdev)
 
 	rda_port = devm_kzalloc(&pdev->dev, sizeof(*rda_port), GFP_KERNEL);
 	if (!rda_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rda_port->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rda_port->clk)) {
-		dev_err(&pdev->dev, "could not get clk\n");
+		dev_err(&pdev->dev, "could analt get clk\n");
 		return PTR_ERR(rda_port->clk);
 	}
 

@@ -55,8 +55,8 @@ int __init skx_adxl_get(void)
 
 	names = adxl_get_component_names();
 	if (!names) {
-		skx_printk(KERN_NOTICE, "No firmware support for address translation.\n");
-		return -ENODEV;
+		skx_printk(KERN_ANALTICE, "Anal firmware support for address translation.\n");
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < INDEX_MAX; i++) {
@@ -77,7 +77,7 @@ int __init skx_adxl_get(void)
 
 	if (skx_mem_cfg_2lm) {
 		if (!adxl_nm_bitmap)
-			skx_printk(KERN_NOTICE, "Not enough ADXL components for 2-level memory.\n");
+			skx_printk(KERN_ANALTICE, "Analt eanalugh ADXL components for 2-level memory.\n");
 		else
 			edac_dbg(2, "adxl_nm_bitmap: 0x%lx\n", adxl_nm_bitmap);
 	}
@@ -90,25 +90,25 @@ int __init skx_adxl_get(void)
 			      GFP_KERNEL);
 	if (!adxl_values) {
 		adxl_component_count = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	adxl_msg = kzalloc(MSG_SIZE, GFP_KERNEL);
 	if (!adxl_msg) {
 		adxl_component_count = 0;
 		kfree(adxl_values);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
 err:
-	skx_printk(KERN_ERR, "'%s' is not matched from DSM parameters: ",
+	skx_printk(KERN_ERR, "'%s' is analt matched from DSM parameters: ",
 		   component_names[i]);
 	for (j = 0; names[j]; j++)
 		skx_printk(KERN_CONT, "%s ", names[j]);
 	skx_printk(KERN_CONT, "\n");
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void __exit skx_adxl_put(void)
@@ -163,7 +163,7 @@ static bool skx_adxl_decode(struct decoded_addr *res, bool error_in_1st_level_me
 	}
 
 	if (!res->dev) {
-		skx_printk(KERN_ERR, "No device for src_id %d imc %d\n",
+		skx_printk(KERN_ERR, "Anal device for src_id %d imc %d\n",
 			   res->socket, res->imc);
 		return false;
 	}
@@ -200,20 +200,20 @@ int skx_get_src_id(struct skx_dev *d, int off, u8 *id)
 
 	if (pci_read_config_dword(d->util_all, off, &reg)) {
 		skx_printk(KERN_ERR, "Failed to read src id\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	*id = GET_BITFIELD(reg, 12, 14);
 	return 0;
 }
 
-int skx_get_node_id(struct skx_dev *d, u8 *id)
+int skx_get_analde_id(struct skx_dev *d, u8 *id)
 {
 	u32 reg;
 
 	if (pci_read_config_dword(d->util_all, 0xf4, &reg)) {
-		skx_printk(KERN_ERR, "Failed to read node id\n");
-		return -ENODEV;
+		skx_printk(KERN_ERR, "Failed to read analde id\n");
+		return -EANALDEV;
 	}
 
 	*id = GET_BITFIELD(reg, 0, 2);
@@ -230,7 +230,7 @@ static int get_width(u32 mtr)
 	case 2:
 		return DEV_X16;
 	}
-	return DEV_UNKNOWN;
+	return DEV_UNKANALWN;
 }
 
 /*
@@ -254,14 +254,14 @@ int skx_get_all_bus_mappings(struct res_config *cfg, struct list_head **list)
 		d = kzalloc(sizeof(*d), GFP_KERNEL);
 		if (!d) {
 			pci_dev_put(pdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
-		if (pci_read_config_dword(pdev, cfg->busno_cfg_offset, &reg)) {
+		if (pci_read_config_dword(pdev, cfg->busanal_cfg_offset, &reg)) {
 			kfree(d);
 			pci_dev_put(pdev);
 			skx_printk(KERN_ERR, "Failed to read bus idx\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		d->bus[0] = GET_BITFIELD(reg, 0, 7);
@@ -293,7 +293,7 @@ int skx_get_hi_lo(unsigned int did, int off[], u64 *tolm, u64 *tohm)
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, did, NULL);
 	if (!pdev) {
 		edac_dbg(2, "Can't get tolm/tohm\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pci_read_config_dword(pdev, off[0], &reg)) {
@@ -321,7 +321,7 @@ int skx_get_hi_lo(unsigned int did, int off[], u64 *tolm, u64 *tohm)
 	return 0;
 fail:
 	pci_dev_put(pdev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int skx_get_dimm_attr(u32 reg, int lobit, int hibit, int add,
@@ -341,7 +341,7 @@ static int skx_get_dimm_attr(u32 reg, int lobit, int hibit, int add,
 #define numcol(reg)	skx_get_dimm_attr(reg, 0, 1, 10, 0, 2, "cols")
 
 int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
-		      struct skx_imc *imc, int chan, int dimmno,
+		      struct skx_imc *imc, int chan, int dimmanal,
 		      struct res_config *cfg)
 {
 	int  banks, ranks, rows, cols, npages;
@@ -370,14 +370,14 @@ int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 	npages = MiB_TO_PAGES(size);
 
 	edac_dbg(0, "mc#%d: channel %d, dimm %d, %lld MiB (%d pages) bank: %d, rank: %d, row: 0x%x, col: 0x%x\n",
-		 imc->mc, chan, dimmno, size, npages,
+		 imc->mc, chan, dimmanal, size, npages,
 		 banks, 1 << ranks, rows, cols);
 
-	imc->chan[chan].dimms[dimmno].close_pg = GET_BITFIELD(mcmtr, 0, 0);
-	imc->chan[chan].dimms[dimmno].bank_xor_enable = GET_BITFIELD(mcmtr, 9, 9);
-	imc->chan[chan].dimms[dimmno].fine_grain_bank = GET_BITFIELD(amap, 0, 0);
-	imc->chan[chan].dimms[dimmno].rowbits = rows;
-	imc->chan[chan].dimms[dimmno].colbits = cols;
+	imc->chan[chan].dimms[dimmanal].close_pg = GET_BITFIELD(mcmtr, 0, 0);
+	imc->chan[chan].dimms[dimmanal].bank_xor_enable = GET_BITFIELD(mcmtr, 9, 9);
+	imc->chan[chan].dimms[dimmanal].fine_grain_bank = GET_BITFIELD(amap, 0, 0);
+	imc->chan[chan].dimms[dimmanal].rowbits = rows;
+	imc->chan[chan].dimms[dimmanal].colbits = cols;
 
 	dimm->nr_pages = npages;
 	dimm->grain = 32;
@@ -390,36 +390,36 @@ int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 			 imc->src_id, imc->lmc, chan);
 	else
 		snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
-			 imc->src_id, imc->lmc, chan, dimmno);
+			 imc->src_id, imc->lmc, chan, dimmanal);
 
 	return 1;
 }
 
 int skx_get_nvdimm_info(struct dimm_info *dimm, struct skx_imc *imc,
-			int chan, int dimmno, const char *mod_str)
+			int chan, int dimmanal, const char *mod_str)
 {
 	int smbios_handle;
 	u32 dev_handle;
 	u16 flags;
 	u64 size = 0;
 
-	dev_handle = ACPI_NFIT_BUILD_DEVICE_HANDLE(dimmno, chan, imc->lmc,
+	dev_handle = ACPI_NFIT_BUILD_DEVICE_HANDLE(dimmanal, chan, imc->lmc,
 						   imc->src_id, 0);
 
 	smbios_handle = nfit_get_smbios_id(dev_handle, &flags);
-	if (smbios_handle == -EOPNOTSUPP) {
+	if (smbios_handle == -EOPANALTSUPP) {
 		pr_warn_once("%s: Can't find size of NVDIMM. Try enabling CONFIG_ACPI_NFIT\n", mod_str);
-		goto unknown_size;
+		goto unkanalwn_size;
 	}
 
 	if (smbios_handle < 0) {
 		skx_printk(KERN_ERR, "Can't find handle for NVDIMM ADR=0x%x\n", dev_handle);
-		goto unknown_size;
+		goto unkanalwn_size;
 	}
 
 	if (flags & ACPI_NFIT_MEM_MAP_FAILED) {
-		skx_printk(KERN_ERR, "NVDIMM ADR=0x%x is not mapped\n", dev_handle);
-		goto unknown_size;
+		skx_printk(KERN_ERR, "NVDIMM ADR=0x%x is analt mapped\n", dev_handle);
+		goto unkanalwn_size;
 	}
 
 	size = dmi_memdev_size(smbios_handle);
@@ -427,18 +427,18 @@ int skx_get_nvdimm_info(struct dimm_info *dimm, struct skx_imc *imc,
 		skx_printk(KERN_ERR, "Can't find size for NVDIMM ADR=0x%x/SMBIOS=0x%x\n",
 			   dev_handle, smbios_handle);
 
-unknown_size:
+unkanalwn_size:
 	dimm->nr_pages = size >> PAGE_SHIFT;
 	dimm->grain = 32;
-	dimm->dtype = DEV_UNKNOWN;
+	dimm->dtype = DEV_UNKANALWN;
 	dimm->mtype = MEM_NVDIMM;
 	dimm->edac_mode = EDAC_SECDED; /* likely better than this */
 
 	edac_dbg(0, "mc#%d: channel %d, dimm %d, %llu MiB (%u pages)\n",
-		 imc->mc, chan, dimmno, size >> 20, dimm->nr_pages);
+		 imc->mc, chan, dimmanal, size >> 20, dimm->nr_pages);
 
 	snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
-		 imc->src_id, imc->lmc, chan, dimmno);
+		 imc->src_id, imc->lmc, chan, dimmanal);
 
 	return (size == 0 || size == ~0ull) ? 0 : 1;
 }
@@ -464,7 +464,7 @@ int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 			    sizeof(struct skx_pvt));
 
 	if (unlikely(!mci))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(0, "MC#%d: mci = %p\n", imc->mc, mci);
 
@@ -474,17 +474,17 @@ int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 	pvt->imc = imc;
 
 	mci->ctl_name = kasprintf(GFP_KERNEL, "%s#%d IMC#%d", ctl_name,
-				  imc->node_id, imc->lmc);
+				  imc->analde_id, imc->lmc);
 	if (!mci->ctl_name) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail0;
 	}
 
 	mci->mtype_cap = MEM_FLAG_DDR4 | MEM_FLAG_NVDIMM;
 	if (cfg->support_ddr5)
 		mci->mtype_cap |= MEM_FLAG_DDR5;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE;
-	mci->edac_cap = EDAC_FLAG_NONE;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE;
+	mci->edac_cap = EDAC_FLAG_ANALNE;
 	mci->mod_name = mod_str;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
@@ -522,7 +522,7 @@ static void skx_unregister_mci(struct skx_imc *imc)
 
 	edac_dbg(0, "MC%d: mci = %p\n", imc->mc, mci);
 
-	/* Remove MC sysfs nodes */
+	/* Remove MC sysfs analdes */
 	edac_mc_del_mc(mci->pdev);
 
 	edac_dbg(1, "%s: free mci struct\n", mci->ctl_name);
@@ -630,7 +630,7 @@ static bool skx_error_in_mem(const struct mce *m)
 	return (errcode == MCACOD_MEM_CTL_ERR || errcode == MCACOD_EXT_MEM_ERR);
 }
 
-int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
+int skx_mce_check_error(struct analtifier_block *nb, unsigned long val,
 			void *data)
 {
 	struct mce *mce = (struct mce *)data;
@@ -639,31 +639,31 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	char *type;
 
 	if (mce->kflags & MCE_HANDLED_CEC)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	/* Ignore unless this is memory related with an address */
+	/* Iganalre unless this is memory related with an address */
 	if (!skx_error_in_mem(mce) || !(mce->status & MCI_STATUS_ADDRV))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	memset(&res, 0, sizeof(res));
 	res.mce  = mce;
 	res.addr = mce->addr & MCI_ADDR_PHYSADDR;
 	if (!pfn_to_online_page(res.addr >> PAGE_SHIFT)) {
 		pr_err("Invalid address 0x%llx in IA32_MC%d_ADDR\n", mce->addr, mce->bank);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	/* Try driver decoder first */
 	if (!(driver_decode && driver_decode(&res))) {
 		/* Then try firmware decoder (ACPI DSM methods) */
 		if (!(adxl_component_count && skx_adxl_decode(&res, skx_error_in_1st_level_mem(mce))))
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 	}
 
 	mci = res.dev->imc[res.imc].mci;
 
 	if (!mci)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (mce->mcgstatus & MCG_STATUS_MCIP)
 		type = "Exception";
@@ -686,7 +686,7 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	skx_mce_output_error(mci, mce, &res);
 
 	mce->kflags |= MCE_HANDLED_EDAC;
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void skx_remove(void)

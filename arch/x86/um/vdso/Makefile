@@ -3,10 +3,10 @@
 # Building vDSO images for x86.
 #
 
-# do not instrument on vdso because KASAN is not compatible with user mode
+# do analt instrument on vdso because KASAN is analt compatible with user mode
 KASAN_SANITIZE			:= n
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is analt linked in.
 KCOV_INSTRUMENT                := n
 
 VDSO64-y		:= y
@@ -15,7 +15,7 @@ vdso-install-$(VDSO64-y)	+= vdso.so
 
 
 # files to link into the vdso
-vobjs-y := vdso-note.o um_vdso.o
+vobjs-y := vdso-analte.o um_vdso.o
 
 # files to link into kernel
 obj-$(VDSO64-y)			+= vdso.o vma.o
@@ -44,26 +44,26 @@ $(obj)/%.so: $(obj)/%.so.dbg FORCE
 # Don't omit frame pointers for ease of userspace debugging, but do
 # optimize sibling calls.
 #
-CFL := $(PROFILING) -mcmodel=small -fPIC -O2 -fasynchronous-unwind-tables -m64 \
-       $(filter -g%,$(KBUILD_CFLAGS)) -fno-stack-protector \
-       -fno-omit-frame-pointer -foptimize-sibling-calls
+CFL := $(PROFILING) -mcmodel=small -fPIC -O2 -fasynchroanalus-unwind-tables -m64 \
+       $(filter -g%,$(KBUILD_CFLAGS)) -fanal-stack-protector \
+       -fanal-omit-frame-pointer -foptimize-sibling-calls
 
 $(vobjs): KBUILD_CFLAGS += $(CFL)
 
 #
 # vDSO code runs in userspace and -pg doesn't help with profiling anyway.
 #
-CFLAGS_REMOVE_vdso-note.o = -pg -fprofile-arcs -ftest-coverage
+CFLAGS_REMOVE_vdso-analte.o = -pg -fprofile-arcs -ftest-coverage
 CFLAGS_REMOVE_um_vdso.o = -pg -fprofile-arcs -ftest-coverage
 
 #
 # The DSO images are built using a special linker script.
 #
 quiet_cmd_vdso = VDSO    $@
-      cmd_vdso = $(CC) -nostdlib -o $@ \
+      cmd_vdso = $(CC) -analstdlib -o $@ \
 		       $(CC_FLAGS_LTO) $(VDSO_LDFLAGS) $(VDSO_LDFLAGS_$(filter %.lds,$(^F))) \
 		       -Wl,-T,$(filter %.lds,$^) $(filter %.o,$^) && \
 		 sh $(srctree)/$(src)/checkundef.sh '$(NM)' '$@'
 
-VDSO_LDFLAGS = -fPIC -shared -Wl,--hash-style=sysv -z noexecstack
+VDSO_LDFLAGS = -fPIC -shared -Wl,--hash-style=sysv -z analexecstack
 GCOV_PROFILE := n

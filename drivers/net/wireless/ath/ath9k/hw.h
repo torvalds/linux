@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -59,7 +59,7 @@
 
 #define AR5416_AR9100_DEVID	0x000b
 
-#define	AR_SUBVENDOR_ID_NOG	0x0e11
+#define	AR_SUBVENDOR_ID_ANALG	0x0e11
 #define AR_SUBVENDOR_ID_NEW_A	0x7065
 #define AR5416_MAGIC		0x19641014
 
@@ -69,7 +69,7 @@
 
 #define ATH_AMPDU_LIMIT_MAX        (64 * 1024 - 1)
 
-#define	ATH_DEFAULT_NOISE_FLOOR -95
+#define	ATH_DEFAULT_ANALISE_FLOOR -95
 
 #define ATH9K_RSSI_BAD			-128
 
@@ -310,7 +310,7 @@ struct ath9k_hw_capabilities {
 	u8 txs_len;
 };
 
-#define AR_NO_SPUR      	0x8000
+#define AR_ANAL_SPUR      	0x8000
 #define AR_BASE_FREQ_2GHZ   	2300
 #define AR_BASE_FREQ_5GHZ   	4900
 #define AR_SPUR_FEEQ_BOUND_HT40 19
@@ -334,7 +334,7 @@ enum ath9k_hw_hang_checks {
 struct ath9k_ops_config {
 	int dma_beacon_response_time;
 	int sw_beacon_response_time;
-	bool cwm_ignore_extcca;
+	bool cwm_iganalre_extcca;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
 	u32 ofdm_trig_low;
@@ -367,7 +367,7 @@ enum ath9k_int {
 	ATH9K_INT_RXDESC = 0x00000002,
 	ATH9K_INT_RXHP = 0x00000001,
 	ATH9K_INT_RXLP = 0x00000002,
-	ATH9K_INT_RXNOFRM = 0x00000008,
+	ATH9K_INT_RXANALFRM = 0x00000008,
 	ATH9K_INT_RXEOL = 0x00000010,
 	ATH9K_INT_RXORN = 0x00000020,
 	ATH9K_INT_TX = 0x00000040,
@@ -398,7 +398,7 @@ enum ath9k_int {
 		ATH9K_INT_DTIMSYNC |
 		ATH9K_INT_TSFOOR |
 		ATH9K_INT_CABEND,
-	ATH9K_INT_COMMON = ATH9K_INT_RXNOFRM |
+	ATH9K_INT_COMMON = ATH9K_INT_RXANALFRM |
 		ATH9K_INT_RXDESC |
 		ATH9K_INT_RXEOL |
 		ATH9K_INT_RXORN |
@@ -410,7 +410,7 @@ enum ath9k_int {
 		ATH9K_INT_SWBA |
 		ATH9K_INT_BMISS |
 		ATH9K_INT_GPIO,
-	ATH9K_INT_NOCARD = 0xffffffff
+	ATH9K_INT_ANALCARD = 0xffffffff
 };
 
 #define MAX_RTT_TABLE_ENTRY     6
@@ -451,7 +451,7 @@ struct ath9k_channel {
 	struct ieee80211_channel *chan;
 	u16 channel;
 	u16 channelFlags;
-	s16 noisefloor;
+	s16 analisefloor;
 };
 
 #define CHANNEL_5GHZ		BIT(0)
@@ -693,7 +693,7 @@ struct ath_hw_private_ops {
  *	    (period*256*Tclk). Tclk = ath_common->clockrate
  * @fft_period: PHY passes FFT frames to MAC every (fft_period+1)*4uS
  *
- * Note: Tclk = 40MHz or 44MHz depending upon operating mode.
+ * Analte: Tclk = 40MHz or 44MHz depending upon operating mode.
  *	 Typically it's 44MHz in 2/5GHz on later chips, but there's
  *	 a "fast clock" check for this in 5GHz.
  *
@@ -755,7 +755,7 @@ struct ath_hw_ops {
 struct ath_nf_limits {
 	s16 max;
 	s16 min;
-	s16 nominal;
+	s16 analminal;
 	s16 cal[AR5416_MAX_CHAINS];
 	s16 pwr[AR5416_MAX_CHAINS];
 };
@@ -770,7 +770,7 @@ enum ath_cal_list {
 #define AH_USE_EEPROM   0x1
 #define AH_UNPLUGGED    0x2 /* The card has been physically removed. */
 #define AH_FASTCC       0x4
-#define AH_NO_EEP_SWAP  0x8 /* Do not swap EEPROM data */
+#define AH_ANAL_EEP_SWAP  0x8 /* Do analt swap EEPROM data */
 
 struct ath_hw {
 	struct ath_ops reg_ops;
@@ -815,7 +815,7 @@ struct ath_hw {
 	enum nl80211_iftype opmode;
 	enum ath9k_power_mode power_mode;
 
-	s8 noise;
+	s8 analise;
 	struct ath9k_hw_cal_data *caldata;
 	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
@@ -880,7 +880,7 @@ struct ath_hw {
 	/* Accessed by the lower level driver */
 	struct ath_hw_ops ops;
 
-	/* Used to program the radio on non single-chip devices */
+	/* Used to program the radio on analn single-chip devices */
 	u32 *analogBank6Data;
 
 	int coverage_class;
@@ -923,7 +923,7 @@ struct ath_hw {
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray ini_modes_rx_gain_bounds;
 	struct ar5416IniArray iniModesTxGain;
-	struct ar5416IniArray iniCckfirNormal;
+	struct ar5416IniArray iniCckfirAnalrmal;
 	struct ar5416IniArray iniCckfirJapan2484;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray ini_radio_post_sys2ant;
@@ -959,7 +959,7 @@ struct ath_hw {
 	u8 paprd_gain_table_index[PAPRD_GAIN_TABLE_ENTRIES];
 	/*
 	 * Store the permanent value of Reg 0x4004in WARegVal
-	 * so we dont have to R/M/W. We should not be reading
+	 * so we dont have to R/M/W. We should analt be reading
 	 * this register when in sleep states.
 	 */
 	u32 WARegVal;
@@ -1193,7 +1193,7 @@ static inline void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 static inline enum ath_btcoex_scheme
 ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 {
-	return ATH_BTCOEX_CFG_NONE;
+	return ATH_BTCOEX_CFG_ANALNE;
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 

@@ -32,14 +32,14 @@ static int msg_enable;
 /**
  * struct ks8851_net_par - KS8851 Parallel driver private data
  * @ks8851: KS8851 driver common private data
- * @lock: Lock to ensure that the device is not accessed when busy.
+ * @lock: Lock to ensure that the device is analt accessed when busy.
  * @hw_addr	: start address of data register.
  * @hw_addr_cmd	: start address of command register.
  * @cmd_reg_cache	: command register cached.
  *
  * The @lock ensures that the chip is protected when certain operations are
  * in progress. When the read or write packet transfer is in progress, most
- * of the chip registers are not accessible until the transfer is finished
+ * of the chip registers are analt accessible until the transfer is finished
  * and the DMA has been de-asserted.
  */
 struct ks8851_net_par {
@@ -102,7 +102,7 @@ static int ks_check_endian(struct ks8851_net *ks)
 	 *
 	 * Luckily for us, the byte-enable bits are the top four MSbits of
 	 * the address register and the CIDER register is at offset 0xc0.
-	 * Hence, by reading address 0xc0c0, which is not impacted by endian
+	 * Hence, by reading address 0xc0c0, which is analt impacted by endian
 	 * swapping, we assert either BE[3:2] or BE[1:0] while reading the
 	 * CIDER register.
 	 *
@@ -111,8 +111,8 @@ static int ks_check_endian(struct ks8851_net *ks)
 	 * with bottom two LSbits of address set to 0, BE[1:0] must be
 	 * asserted.
 	 *
-	 * If the bus configuration is NOT correct, reading 0xc0c0 asserts
-	 * BE[1:0] and this read returns non-zero 0x8872 value.
+	 * If the bus configuration is ANALT correct, reading 0xc0c0 asserts
+	 * BE[1:0] and this read returns analn-zero 0x8872 value.
 	 */
 	iowrite16(BE3 | BE2 | KS_CIDER, ksp->hw_addr_cmd);
 	cider = ioread16(ksp->hw_addr);
@@ -287,7 +287,7 @@ static int ks8851_probe_par(struct platform_device *pdev)
 
 	netdev = devm_alloc_etherdev(dev, sizeof(struct ks8851_net_par));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ks = netdev_priv(netdev);
 
@@ -354,4 +354,4 @@ MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_LICENSE("GPL");
 
 module_param_named(message, msg_enable, int, 0);
-MODULE_PARM_DESC(message, "Message verbosity level (0=none, 31=all)");
+MODULE_PARM_DESC(message, "Message verbosity level (0=analne, 31=all)");

@@ -12,7 +12,7 @@ in AArch64 Linux.
 
 The kernel configures the translation tables so that translations made
 via TTBR0 (i.e. userspace mappings) have the top byte (bits 63:56) of
-the virtual address ignored by the translation hardware. This frees up
+the virtual address iganalred by the translation hardware. This frees up
 this byte for application use.
 
 
@@ -24,7 +24,7 @@ an address tag of 0x00, unless the application enables the AArch64
 Tagged Address ABI explicitly
 (Documentation/arch/arm64/tagged-address-abi.rst).
 
-This includes, but is not limited to, addresses found in:
+This includes, but is analt limited to, addresses found in:
 
  - pointer arguments to system calls, including pointers in structures
    passed to system calls,
@@ -35,17 +35,17 @@ This includes, but is not limited to, addresses found in:
  - the frame pointer (x29) and frame records, e.g. when interpreting
    them to generate a backtrace or call graph.
 
-Using non-zero address tags in any of these locations when the
-userspace application did not enable the AArch64 Tagged Address ABI may
+Using analn-zero address tags in any of these locations when the
+userspace application did analt enable the AArch64 Tagged Address ABI may
 result in an error code being returned, a (fatal) signal being raised,
 or other modes of failure.
 
 For these reasons, when the AArch64 Tagged Address ABI is disabled,
-passing non-zero address tags to the kernel via system calls is
-forbidden, and using a non-zero address tag for sp is strongly
+passing analn-zero address tags to the kernel via system calls is
+forbidden, and using a analn-zero address tag for sp is strongly
 discouraged.
 
-Programs maintaining a frame pointer and frame records that use non-zero
+Programs maintaining a frame pointer and frame records that use analn-zero
 address tags may suffer impaired or inaccurate debug and profiling
 visibility.
 
@@ -53,15 +53,15 @@ visibility.
 Preserving tags
 ---------------
 
-When delivering signals, non-zero tags are not preserved in
+When delivering signals, analn-zero tags are analt preserved in
 siginfo.si_addr unless the flag SA_EXPOSE_TAGBITS was set in
 sigaction.sa_flags when the signal handler was installed. This means
-that signal handlers in applications making use of tags cannot rely
+that signal handlers in applications making use of tags cananalt rely
 on the tag information for user virtual addresses being maintained
 in these fields unless the flag was set.
 
 Due to architecture limitations, bits 63:60 of the fault address
-are not preserved in response to synchronous tag check faults
+are analt preserved in response to synchroanalus tag check faults
 (SEGV_MTESERR) even if SA_EXPOSE_TAGBITS was set. Applications should
 treat the values of these bits as undefined in order to accommodate
 future architecture revisions which may preserve the bits.
@@ -70,7 +70,7 @@ For signals raised in response to watchpoint debug exceptions, the
 tag information will be preserved regardless of the SA_EXPOSE_TAGBITS
 flag setting.
 
-Non-zero tags are never preserved in sigcontext.fault_address
+Analn-zero tags are never preserved in sigcontext.fault_address
 regardless of the SA_EXPOSE_TAGBITS flag setting.
 
 The architecture prevents the use of a tagged PC, so the upper byte will
@@ -84,5 +84,5 @@ Other considerations
 --------------------
 
 Special care should be taken when using tagged pointers, since it is
-likely that C compilers will not hazard two virtual addresses differing
+likely that C compilers will analt hazard two virtual addresses differing
 only in the upper byte.

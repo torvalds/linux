@@ -2,7 +2,7 @@
 /*
  * General Purpose I2C multiplexer
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techanallogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -17,7 +17,7 @@
 struct mux {
 	struct mux_control *control;
 
-	bool do_not_deselect;
+	bool do_analt_deselect;
 };
 
 static int i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
@@ -26,7 +26,7 @@ static int i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 	int ret;
 
 	ret = mux_control_select(mux->control, chan);
-	mux->do_not_deselect = ret < 0;
+	mux->do_analt_deselect = ret < 0;
 
 	return ret;
 }
@@ -35,7 +35,7 @@ static int i2c_mux_deselect(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct mux *mux = i2c_mux_priv(muxc);
 
-	if (mux->do_not_deselect)
+	if (mux->do_analt_deselect)
 		return 0;
 
 	return mux_control_deselect(mux->control);
@@ -43,17 +43,17 @@ static int i2c_mux_deselect(struct i2c_mux_core *muxc, u32 chan)
 
 static struct i2c_adapter *mux_parent_adapter(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *parent_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *parent_np;
 	struct i2c_adapter *parent;
 
 	parent_np = of_parse_phandle(np, "i2c-parent", 0);
 	if (!parent_np) {
-		dev_err(dev, "Cannot parse i2c-parent\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(dev, "Cananalt parse i2c-parent\n");
+		return ERR_PTR(-EANALDEV);
 	}
-	parent = of_get_i2c_adapter_by_node(parent_np);
-	of_node_put(parent_np);
+	parent = of_get_i2c_adapter_by_analde(parent_np);
+	of_analde_put(parent_np);
 	if (!parent)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -69,8 +69,8 @@ MODULE_DEVICE_TABLE(of, i2c_mux_of_match);
 static int i2c_mux_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	struct i2c_mux_core *muxc;
 	struct mux *mux;
 	struct i2c_adapter *parent;
@@ -78,11 +78,11 @@ static int i2c_mux_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mux->control = devm_mux_control_get(dev, NULL);
 	if (IS_ERR(mux->control))
@@ -99,7 +99,7 @@ static int i2c_mux_probe(struct platform_device *pdev)
 	muxc = i2c_mux_alloc(parent, dev, children, 0, 0,
 			     i2c_mux_select, i2c_mux_deselect);
 	if (!muxc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_parent;
 	}
 	muxc->priv = mux;
@@ -108,12 +108,12 @@ static int i2c_mux_probe(struct platform_device *pdev)
 
 	muxc->mux_locked = of_property_read_bool(np, "mux-locked");
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		u32 chan;
 
 		ret = of_property_read_u32(child, "reg", &chan);
 		if (ret < 0) {
-			dev_err(dev, "no reg property for node '%pOFn'\n",
+			dev_err(dev, "anal reg property for analde '%pOFn'\n",
 				child);
 			goto err_children;
 		}
@@ -134,7 +134,7 @@ static int i2c_mux_probe(struct platform_device *pdev)
 	return 0;
 
 err_children:
-	of_node_put(child);
+	of_analde_put(child);
 	i2c_mux_del_adapters(muxc);
 err_parent:
 	i2c_put_adapter(parent);

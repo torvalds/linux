@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -39,7 +39,7 @@
  * Structure describing application specific information.
  * __cvmx_app_init() populates this from the cvmx boot descriptor.
  * This structure is private to simple executive applications, so
- * no versioning is required.
+ * anal versioning is required.
  *
  * This structure must be provided with some fields set in order to
  * use simple executive functions in other applications (Linux kernel,
@@ -80,7 +80,7 @@ struct cvmx_sysinfo {
 
 	uint16_t board_type;
 	uint8_t board_rev_major;
-	uint8_t board_rev_minor;
+	uint8_t board_rev_mianalr;
 	uint8_t mac_addr_base[6];
 	uint8_t mac_addr_count;
 	char board_serial_number[OCTEON_SERIAL_LEN];
@@ -88,7 +88,7 @@ struct cvmx_sysinfo {
 	 * Several boards support compact flash on the Octeon boot
 	 * bus.	 The CF memory spaces may be mapped to different
 	 * addresses on different boards.  These values will be 0 if
-	 * CF is not present.  Note that these addresses are physical
+	 * CF is analt present.  Analte that these addresses are physical
 	 * addresses, and it is up to the application to use the
 	 * proper addressing mode (XKPHYS, KSEG0, etc.)
 	 */
@@ -96,7 +96,7 @@ struct cvmx_sysinfo {
 	uint64_t compact_flash_attribute_base_addr;
 	/*
 	 * Base address of the LED display (as on EBT3000 board) This
-	 * will be 0 if LED display not present.  Note that this
+	 * will be 0 if LED display analt present.  Analte that this
 	 * address is a physical address, and it is up to the
 	 * application to use the proper addressing mode (XKPHYS,
 	 * KSEG0, etc.)

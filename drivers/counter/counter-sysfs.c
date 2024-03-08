@@ -27,7 +27,7 @@ static inline struct counter_device *counter_from_dev(struct device *dev)
 /**
  * struct counter_attribute - Counter sysfs attribute
  * @dev_attr:	device attribute for sysfs
- * @l:		node to add Counter attribute to attribute group list
+ * @l:		analde to add Counter attribute to attribute group list
  * @comp:	Counter component callbacks and data
  * @scope:	Counter scope of the attribute
  * @parent:	pointer to the parent component
@@ -73,7 +73,7 @@ static const char *const counter_signal_value_str[] = {
 };
 
 static const char *const counter_synapse_action_str[] = {
-	[COUNTER_SYNAPSE_ACTION_NONE] = "none",
+	[COUNTER_SYNAPSE_ACTION_ANALNE] = "analne",
 	[COUNTER_SYNAPSE_ACTION_RISING_EDGE] = "rising edge",
 	[COUNTER_SYNAPSE_ACTION_FALLING_EDGE] = "falling edge",
 	[COUNTER_SYNAPSE_ACTION_BOTH_EDGES] = "both edges"
@@ -85,9 +85,9 @@ static const char *const counter_count_direction_str[] = {
 };
 
 static const char *const counter_count_mode_str[] = {
-	[COUNTER_COUNT_MODE_NORMAL] = "normal",
+	[COUNTER_COUNT_MODE_ANALRMAL] = "analrmal",
 	[COUNTER_COUNT_MODE_RANGE_LIMIT] = "range limit",
-	[COUNTER_COUNT_MODE_NON_RECYCLE] = "non-recycle",
+	[COUNTER_COUNT_MODE_ANALN_RECYCLE] = "analn-recycle",
 	[COUNTER_COUNT_MODE_MODULO_N] = "modulo-n",
 	[COUNTER_COUNT_MODE_INTERRUPT_ON_TERMINAL_COUNT] = "interrupt on terminal count",
 	[COUNTER_COUNT_MODE_HARDWARE_RETRIGGERABLE_ONESHOT] = "hardware retriggerable one-shot",
@@ -538,7 +538,7 @@ static int counter_avail_attr_create(struct device *const dev,
 
 	counter_attr = devm_kzalloc(dev, sizeof(*counter_attr), GFP_KERNEL);
 	if (!counter_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Configure Counter attribute */
 	counter_attr->comp.type = comp->type;
@@ -553,11 +553,11 @@ static int counter_avail_attr_create(struct device *const dev,
 	dev_attr->attr.name = devm_kasprintf(dev, GFP_KERNEL, "%s_available",
 					     comp->name);
 	if (!dev_attr->attr.name)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_attr->attr.mode = 0444;
 	dev_attr->show = counter_comp_available_show;
 
-	/* Store list node */
+	/* Store list analde */
 	list_add(&counter_attr->l, &group->attr_list);
 	group->num_attr++;
 
@@ -576,7 +576,7 @@ static int counter_attr_create(struct device *const dev,
 
 	counter_attr = devm_kzalloc(dev, sizeof(*counter_attr), GFP_KERNEL);
 	if (!counter_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Configure Counter attribute */
 	counter_attr->comp = *comp;
@@ -655,7 +655,7 @@ static int counter_attr_create(struct device *const dev,
 		return -EINVAL;
 	}
 
-	/* Store list node */
+	/* Store list analde */
 	list_add(&counter_attr->l, &group->attr_list);
 	group->num_attr++;
 
@@ -685,7 +685,7 @@ static int counter_name_attr_create(struct device *const dev,
 
 	counter_attr = devm_kzalloc(dev, sizeof(*counter_attr), GFP_KERNEL);
 	if (!counter_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Configure Counter attribute */
 	counter_attr->comp.name = name;
@@ -696,7 +696,7 @@ static int counter_name_attr_create(struct device *const dev,
 	counter_attr->dev_attr.attr.mode = 0444;
 	counter_attr->dev_attr.show = counter_comp_name_show;
 
-	/* Store list node */
+	/* Store list analde */
 	list_add(&counter_attr->l, &group->attr_list);
 	group->num_attr++;
 
@@ -720,12 +720,12 @@ static int counter_comp_id_attr_create(struct device *const dev,
 	/* Allocate Counter attribute */
 	counter_attr = devm_kzalloc(dev, sizeof(*counter_attr), GFP_KERNEL);
 	if (!counter_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Generate component ID name */
 	name = devm_kasprintf(dev, GFP_KERNEL, "%s_component_id", name);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Configure Counter attribute */
 	counter_attr->comp.priv = (void *)id;
@@ -736,7 +736,7 @@ static int counter_comp_id_attr_create(struct device *const dev,
 	counter_attr->dev_attr.attr.mode = 0444;
 	counter_attr->dev_attr.show = counter_comp_id_show;
 
-	/* Store list node */
+	/* Store list analde */
 	list_add(&counter_attr->l, &group->attr_list);
 	group->num_attr++;
 
@@ -778,12 +778,12 @@ static int counter_array_attrs_create(struct device *const dev,
 		ext.name = devm_kasprintf(dev, GFP_KERNEL, "%s%zu", comp->name,
 					  idx);
 		if (!ext.name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Allocate and configure array element */
 		element = devm_kzalloc(dev, sizeof(*element), GFP_KERNEL);
 		if (!element)
-			return -ENOMEM;
+			return -EANALMEM;
 		element->type = array->type;
 		element->avail = array->avail;
 		element->idx = idx;
@@ -875,7 +875,7 @@ static int counter_sysfs_signals_add(struct counter_device *const counter,
 		groups[i].name = devm_kasprintf(&counter->dev, GFP_KERNEL,
 						"signal%zu", i);
 		if (!groups[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Create all attributes associated with Signal */
 		err = counter_signal_attrs_create(counter, groups + i,
@@ -908,7 +908,7 @@ static int counter_sysfs_synapses_add(struct counter_device *const counter,
 		comp.name = devm_kasprintf(dev, GFP_KERNEL, "signal%zu_action",
 					   id);
 		if (!comp.name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Create action attribute */
 		comp.type = COUNTER_COMP_SYNAPSE_ACTION;
@@ -987,7 +987,7 @@ static int counter_sysfs_counts_add(struct counter_device *const counter,
 		groups[i].name = devm_kasprintf(&counter->dev, GFP_KERNEL,
 						"count%zu", i);
 		if (!groups[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Add sysfs attributes of the Synapses */
 		err = counter_sysfs_synapses_add(counter, groups + i, count);
@@ -1112,7 +1112,7 @@ static int counter_sysfs_attr_add(struct counter_device *const counter,
  * Counter sysfs attributes are created and added to the respective device
  * structure for later registration to the system. Resource-managed memory
  * allocation is performed by this function, and this memory should be freed
- * when no longer needed (automatically by a device_unregister call, or
+ * when anal longer needed (automatically by a device_unregister call, or
  * manually by a devres_release_all call).
  */
 int counter_sysfs_add(struct counter_device *const counter)
@@ -1129,7 +1129,7 @@ int counter_sysfs_add(struct counter_device *const counter)
 	cattr_groups = devm_kcalloc(dev, num_groups, sizeof(*cattr_groups),
 				    GFP_KERNEL);
 	if (!cattr_groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize attribute lists */
 	for (i = 0; i < num_groups; i++)
@@ -1144,12 +1144,12 @@ int counter_sysfs_add(struct counter_device *const counter)
 	dev->groups = devm_kcalloc(dev, num_groups + 1, sizeof(*dev->groups),
 				   GFP_KERNEL);
 	if (!dev->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate space for attribute groups */
 	groups = devm_kcalloc(dev, num_groups, sizeof(*groups), GFP_KERNEL);
 	if (!groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Prepare each group of attributes for association */
 	for (i = 0; i < num_groups; i++) {
@@ -1161,7 +1161,7 @@ int counter_sysfs_add(struct counter_device *const counter)
 					       sizeof(*groups[i].attrs),
 					       GFP_KERNEL);
 		if (!groups[i].attrs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Add attribute pointers to attribute group */
 		j = 0;

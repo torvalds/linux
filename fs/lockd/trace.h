@@ -14,7 +14,7 @@
 #define NLM_STATUS_LIST					\
 	nlm_status_code(LCK_GRANTED)			\
 	nlm_status_code(LCK_DENIED)			\
-	nlm_status_code(LCK_DENIED_NOLOCKS)		\
+	nlm_status_code(LCK_DENIED_ANALLOCKS)		\
 	nlm_status_code(LCK_BLOCKED)			\
 	nlm_status_code(LCK_DENIED_GRACE_PERIOD)	\
 	nlm_status_code(DEADLCK)			\
@@ -26,7 +26,7 @@
 #define NLM_STATUS_LIST					\
 	nlm_status_code(LCK_GRANTED)			\
 	nlm_status_code(LCK_DENIED)			\
-	nlm_status_code(LCK_DENIED_NOLOCKS)		\
+	nlm_status_code(LCK_DENIED_ANALLOCKS)		\
 	nlm_status_code(LCK_BLOCKED)			\
 	nlm_status_code_end(LCK_DENIED_GRACE_PERIOD)
 #endif

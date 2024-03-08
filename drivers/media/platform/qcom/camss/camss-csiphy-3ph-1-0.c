@@ -326,7 +326,7 @@ static irqreturn_t csiphy_isr(int irq, void *dev)
  * is calculated based on the CSI2 transmitter link frequency.
  *
  * Return settle count value or 0 if the CSI2 link frequency
- * is not available
+ * is analt available
  */
 static u8 csiphy_settle_cnt_calc(s64 link_freq, u32 timer_clk_rate)
 {
@@ -429,7 +429,7 @@ static void csiphy_gen2_config_lanes(struct csiphy_device *csiphy,
 		array_size = ARRAY_SIZE(lane_regs_sm8250[0]);
 		break;
 	default:
-		WARN(1, "unknown cspi version\n");
+		WARN(1, "unkanalwn cspi version\n");
 		return;
 	}
 

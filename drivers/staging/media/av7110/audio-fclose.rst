@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.audio
 
 .. _audio_fclose:
@@ -14,7 +14,7 @@ Digital TV audio close()
 
 .. attention:: This ioctl is deprecated
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:function:: int close(int fd)
@@ -48,4 +48,4 @@ Return Value
 
        -  ``EBADF``
 
-       -  fd is not a valid open file descriptor.
+       -  fd is analt a valid open file descriptor.

@@ -139,7 +139,7 @@ struct prueth_emac {
 	int duplex;
 
 	const char *phy_id;
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	phy_interface_t phy_if;
 	enum prueth_port port_id;
 	struct icss_iep *iep;
@@ -198,7 +198,7 @@ struct prueth_pdata {
  * @shram: PRUSS shared RAM region
  * @sram_pool: MSMC RAM pool for buffers
  * @msmcram: MSMC RAM region
- * @eth_node: DT node for the port
+ * @eth_analde: DT analde for the port
  * @emac: private EMAC data structure
  * @registered_netdevs: list of registered netdevs
  * @miig_rt: regmap to mii_g_rt block
@@ -221,7 +221,7 @@ struct prueth {
 	struct gen_pool *sram_pool;
 	struct pruss_mem_region msmcram;
 
-	struct device_node *eth_node[PRUETH_NUM_MACS];
+	struct device_analde *eth_analde[PRUETH_NUM_MACS];
 	struct prueth_emac *emac[PRUETH_NUM_MACS];
 	struct net_device *registered_netdevs[PRUETH_NUM_MACS];
 	struct regmap *miig_rt;

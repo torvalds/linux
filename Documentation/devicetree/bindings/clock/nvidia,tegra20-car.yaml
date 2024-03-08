@@ -58,7 +58,7 @@ patternProperties:
 
       clocks:
         items:
-          - description: node's clock
+          - description: analde's clock
 
       power-domains:
         maxItems: 1

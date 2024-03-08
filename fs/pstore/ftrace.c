@@ -23,7 +23,7 @@
 /* This doesn't need to be atomic: speed is chosen over correctness here. */
 static u64 pstore_ftrace_stamp;
 
-static void notrace pstore_ftrace_call(unsigned long ip,
+static void analtrace pstore_ftrace_call(unsigned long ip,
 				       unsigned long parent_ip,
 				       struct ftrace_ops *op,
 				       struct ftrace_regs *fregs)
@@ -88,7 +88,7 @@ static int pstore_set_ftrace_enabled(bool on)
 	return ret;
 }
 
-static ssize_t pstore_ftrace_knob_write(struct file *f, const char __user *buf,
+static ssize_t pstore_ftrace_kanalb_write(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
 	u8 on;
@@ -108,7 +108,7 @@ static ssize_t pstore_ftrace_knob_write(struct file *f, const char __user *buf,
 	return ret;
 }
 
-static ssize_t pstore_ftrace_knob_read(struct file *f, char __user *buf,
+static ssize_t pstore_ftrace_kanalb_read(struct file *f, char __user *buf,
 				       size_t count, loff_t *ppos)
 {
 	char val[] = { '0' + pstore_ftrace_enabled, '\n' };
@@ -116,10 +116,10 @@ static ssize_t pstore_ftrace_knob_read(struct file *f, char __user *buf,
 	return simple_read_from_buffer(buf, count, ppos, val, sizeof(val));
 }
 
-static const struct file_operations pstore_knob_fops = {
+static const struct file_operations pstore_kanalb_fops = {
 	.open	= simple_open,
-	.read	= pstore_ftrace_knob_read,
-	.write	= pstore_ftrace_knob_write,
+	.read	= pstore_ftrace_kanalb_read,
+	.write	= pstore_ftrace_kanalb_write,
 };
 
 static struct dentry *pstore_ftrace_dir;
@@ -139,7 +139,7 @@ void pstore_register_ftrace(void)
 	pstore_set_ftrace_enabled(record_ftrace);
 
 	debugfs_create_file("record_ftrace", 0600, pstore_ftrace_dir, NULL,
-			    &pstore_knob_fops);
+			    &pstore_kanalb_fops);
 }
 
 void pstore_unregister_ftrace(void)
@@ -172,7 +172,7 @@ ssize_t pstore_ftrace_combine_log(char **dest_log, size_t *dest_log_size,
 	total = dest_size + src_size;
 	merged_buf = kmalloc(total, GFP_KERNEL);
 	if (!merged_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drec = (struct pstore_ftrace_record *)(*dest_log + dest_off);
 	srec = (struct pstore_ftrace_record *)(src_log + src_off);

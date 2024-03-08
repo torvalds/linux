@@ -12,12 +12,12 @@
 };
 
 /*
- * There are no module specific differences compared to TQMa6UL2,
+ * There are anal module specific differences compared to TQMa6UL2,
  * only external interfaces differ
  */
 
 /*
- * Devices not available on i.MX6ULG1 and should not be enabled on
+ * Devices analt available on i.MX6ULG1 and should analt be enabled on
  * mainboard level (again)
  */
 &can2 {

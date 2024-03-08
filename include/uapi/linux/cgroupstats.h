@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-analte */
 /* cgroupstats.h - exporting per-cgroup statistics
  *
  * Copyright IBM Corporation, 2007
@@ -38,7 +38,7 @@ struct cgroupstats {
 
 /*
  * Commands sent from userspace
- * Not versioned. New commands should only be inserted at the enum's end
+ * Analt versioned. New commands should only be inserted at the enum's end
  * prior to __CGROUPSTATS_CMD_MAX
  */
 

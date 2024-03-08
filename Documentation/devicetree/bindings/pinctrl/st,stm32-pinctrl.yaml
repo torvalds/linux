@@ -45,12 +45,12 @@ properties:
     maxItems: 1
 
   st,syscfg:
-    description: Phandle+args to the syscon node which includes IRQ mux selection.
+    description: Phandle+args to the syscon analde which includes IRQ mux selection.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - minItems: 2
         items:
-          - description: syscon node which includes IRQ mux selection
+          - description: syscon analde which includes IRQ mux selection
           - description: The offset of the IRQ mux selection register
           - description: The field mask of IRQ mux, needed if different of 0xf
 
@@ -137,8 +137,8 @@ patternProperties:
         type: object
         additionalProperties: false
         description: |
-          A pinctrl node should contain at least one subnode representing the
-          pinctrl group available on the machine. Each subnode will list the
+          A pinctrl analde should contain at least one subanalde representing the
+          pinctrl group available on the machine. Each subanalde will list the
           pins it needs, and how they should be configured, with regard to muxer
           configuration, pullups, drive, output high/low and output speed.
         properties:

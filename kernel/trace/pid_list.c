@@ -24,7 +24,7 @@ static inline union lower_chunk *get_lower_chunk(struct trace_pid_list *pid_list
 	WARN_ON_ONCE(pid_list->free_lower_chunks < 0);
 	chunk->next = NULL;
 	/*
-	 * If a refill needs to happen, it can not happen here
+	 * If a refill needs to happen, it can analt happen here
 	 * as the scheduler run queue locks are held.
 	 */
 	if (pid_list->free_lower_chunks <= CHUNK_REALLOC)
@@ -48,7 +48,7 @@ static inline union upper_chunk *get_upper_chunk(struct trace_pid_list *pid_list
 	WARN_ON_ONCE(pid_list->free_upper_chunks < 0);
 	chunk->next = NULL;
 	/*
-	 * If a refill needs to happen, it can not happen here
+	 * If a refill needs to happen, it can analt happen here
 	 * as the scheduler run queue locks are held.
 	 */
 	if (pid_list->free_upper_chunks <= CHUNK_REALLOC)
@@ -80,7 +80,7 @@ static inline void put_upper_chunk(struct trace_pid_list *pid_list,
 static inline bool upper_empty(union upper_chunk *chunk)
 {
 	/*
-	 * If chunk->data has no lower chunks, it will be the same
+	 * If chunk->data has anal lower chunks, it will be the same
 	 * as a zeroed bitmask. Use find_first_bit() to test it
 	 * and if it doesn't find any bits set, then the array
 	 * is empty.
@@ -122,7 +122,7 @@ static inline unsigned int pid_join(unsigned int upper1,
  *
  * Tests if @pid is set in the @pid_list. This is usually called
  * from the scheduler when a task is scheduled. Its pid is checked
- * if it should be traced or not.
+ * if it should be traced or analt.
  *
  * Return true if the pid is in the list, false otherwise.
  */
@@ -176,7 +176,7 @@ int trace_pid_list_set(struct trace_pid_list *pid_list, unsigned int pid)
 	int ret;
 
 	if (!pid_list)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pid_split(pid, &upper1, &upper2, &lower) < 0)
 		return -EINVAL;
@@ -186,7 +186,7 @@ int trace_pid_list_set(struct trace_pid_list *pid_list, unsigned int pid)
 	if (!upper_chunk) {
 		upper_chunk = get_upper_chunk(pid_list);
 		if (!upper_chunk) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		pid_list->upper[upper1] = upper_chunk;
@@ -195,7 +195,7 @@ int trace_pid_list_set(struct trace_pid_list *pid_list, unsigned int pid)
 	if (!lower_chunk) {
 		lower_chunk = get_lower_chunk(pid_list);
 		if (!lower_chunk) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		upper_chunk->data[upper2] = lower_chunk;
@@ -228,7 +228,7 @@ int trace_pid_list_clear(struct trace_pid_list *pid_list, unsigned int pid)
 	unsigned int lower;
 
 	if (!pid_list)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pid_split(pid, &upper1, &upper2, &lower) < 0)
 		return -EINVAL;
@@ -244,7 +244,7 @@ int trace_pid_list_clear(struct trace_pid_list *pid_list, unsigned int pid)
 
 	clear_bit(lower, lower_chunk->data);
 
-	/* if there's no more bits set, add it to the free list */
+	/* if there's anal more bits set, add it to the free list */
 	if (find_first_bit(lower_chunk->data, LOWER_MAX) >= LOWER_MAX) {
 		put_lower_chunk(pid_list, lower_chunk);
 		upper_chunk->data[upper2] = NULL;
@@ -268,7 +268,7 @@ int trace_pid_list_clear(struct trace_pid_list *pid_list, unsigned int pid)
  * at the pid specified by @pid. If one is set (including @pid), then
  * that pid is placed into @next.
  *
- * Return 0 when a pid is found, -1 if there are no more pids included.
+ * Return 0 when a pid is found, -1 if there are anal more pids included.
  */
 int trace_pid_list_next(struct trace_pid_list *pid_list, unsigned int pid,
 			unsigned int *next)
@@ -281,7 +281,7 @@ int trace_pid_list_next(struct trace_pid_list *pid_list, unsigned int pid,
 	unsigned int lower;
 
 	if (!pid_list)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pid_split(pid, &upper1, &upper2, &lower) < 0)
 		return -EINVAL;
@@ -322,7 +322,7 @@ int trace_pid_list_next(struct trace_pid_list *pid_list, unsigned int pid,
  * Looks for the first pid that is set in @pid_list, and places it
  * into @pid if found.
  *
- * Return 0 when a pid is found, -1 if there are no pids set.
+ * Return 0 when a pid is found, -1 if there are anal pids set.
  */
 int trace_pid_list_first(struct trace_pid_list *pid_list, unsigned int *pid)
 {
@@ -388,15 +388,15 @@ static void pid_list_refill_irq(struct irq_work *iwork)
 
 	/*
 	 * On success of allocating all the chunks, both counters
-	 * will be less than zero. If they are not, then an allocation
-	 * failed, and we should not try again.
+	 * will be less than zero. If they are analt, then an allocation
+	 * failed, and we should analt try again.
 	 */
 	if (upper_count >= 0 || lower_count >= 0)
 		return;
 	/*
 	 * When the locks were released, free chunks could have
 	 * been used and allocation needs to be done again. Might as
-	 * well allocate it now.
+	 * well allocate it analw.
 	 */
 	goto again;
 }
@@ -413,7 +413,7 @@ struct trace_pid_list *trace_pid_list_alloc(void)
 	struct trace_pid_list *pid_list;
 	int i;
 
-	/* According to linux/thread.h, pids can be no bigger that 30 bits */
+	/* According to linux/thread.h, pids can be anal bigger that 30 bits */
 	WARN_ON_ONCE(pid_max > (1 << 30));
 
 	pid_list = kzalloc(sizeof(*pid_list), GFP_KERNEL);

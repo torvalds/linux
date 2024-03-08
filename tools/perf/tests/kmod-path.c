@@ -54,7 +54,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("/xxxx/xxxx/x-x.ko", false     , true, 0    , NULL   );
 	T("/xxxx/xxxx/x-x.ko", true      , true, 0    , "[x_x]");
 	T("/xxxx/xxxx/x-x.ko", false     , true, 0    , NULL   );
-	M("/xxxx/xxxx/x-x.ko", PERF_RECORD_MISC_CPUMODE_UNKNOWN, true);
+	M("/xxxx/xxxx/x-x.ko", PERF_RECORD_MISC_CPUMODE_UNKANALWN, true);
 	M("/xxxx/xxxx/x-x.ko", PERF_RECORD_MISC_KERNEL, true);
 	M("/xxxx/xxxx/x-x.ko", PERF_RECORD_MISC_USER, false);
 
@@ -64,7 +64,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("/xxxx/xxxx/x.ko.gz", false    , true, 1   , NULL );
 	T("/xxxx/xxxx/x.ko.gz", true     , true, 1   , "[x]");
 	T("/xxxx/xxxx/x.ko.gz", false    , true, 1   , NULL );
-	M("/xxxx/xxxx/x.ko.gz", PERF_RECORD_MISC_CPUMODE_UNKNOWN, true);
+	M("/xxxx/xxxx/x.ko.gz", PERF_RECORD_MISC_CPUMODE_UNKANALWN, true);
 	M("/xxxx/xxxx/x.ko.gz", PERF_RECORD_MISC_KERNEL, true);
 	M("/xxxx/xxxx/x.ko.gz", PERF_RECORD_MISC_USER, false);
 
@@ -73,7 +73,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("/xxxx/xxxx/x.gz", false     , false, 1   , NULL  );
 	T("/xxxx/xxxx/x.gz", true      , false, 1   , "x.gz");
 	T("/xxxx/xxxx/x.gz", false     , false, 1   , NULL  );
-	M("/xxxx/xxxx/x.gz", PERF_RECORD_MISC_CPUMODE_UNKNOWN, false);
+	M("/xxxx/xxxx/x.gz", PERF_RECORD_MISC_CPUMODE_UNKANALWN, false);
 	M("/xxxx/xxxx/x.gz", PERF_RECORD_MISC_KERNEL, false);
 	M("/xxxx/xxxx/x.gz", PERF_RECORD_MISC_USER, false);
 
@@ -82,7 +82,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("x.gz", false     , false, 1   , NULL  );
 	T("x.gz", true      , false, 1   , "x.gz");
 	T("x.gz", false     , false, 1   , NULL  );
-	M("x.gz", PERF_RECORD_MISC_CPUMODE_UNKNOWN, false);
+	M("x.gz", PERF_RECORD_MISC_CPUMODE_UNKANALWN, false);
 	M("x.gz", PERF_RECORD_MISC_KERNEL, false);
 	M("x.gz", PERF_RECORD_MISC_USER, false);
 
@@ -91,7 +91,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("x.ko.gz", false     , true, 1   , NULL );
 	T("x.ko.gz", true      , true, 1   , "[x]");
 	T("x.ko.gz", false     , true, 1   , NULL );
-	M("x.ko.gz", PERF_RECORD_MISC_CPUMODE_UNKNOWN, true);
+	M("x.ko.gz", PERF_RECORD_MISC_CPUMODE_UNKANALWN, true);
 	M("x.ko.gz", PERF_RECORD_MISC_KERNEL, true);
 	M("x.ko.gz", PERF_RECORD_MISC_USER, false);
 #endif
@@ -101,7 +101,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("[test_module]", false     , true, false, NULL           );
 	T("[test_module]", true      , true, false, "[test_module]");
 	T("[test_module]", false     , true, false, NULL           );
-	M("[test_module]", PERF_RECORD_MISC_CPUMODE_UNKNOWN, true);
+	M("[test_module]", PERF_RECORD_MISC_CPUMODE_UNKANALWN, true);
 	M("[test_module]", PERF_RECORD_MISC_KERNEL, true);
 	M("[test_module]", PERF_RECORD_MISC_USER, false);
 
@@ -110,7 +110,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("[test.module]", false     , true, false, NULL           );
 	T("[test.module]", true      , true, false, "[test.module]");
 	T("[test.module]", false     , true, false, NULL           );
-	M("[test.module]", PERF_RECORD_MISC_CPUMODE_UNKNOWN, true);
+	M("[test.module]", PERF_RECORD_MISC_CPUMODE_UNKANALWN, true);
 	M("[test.module]", PERF_RECORD_MISC_KERNEL, true);
 	M("[test.module]", PERF_RECORD_MISC_USER, false);
 
@@ -119,7 +119,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("[vdso]", false     , false, false, NULL    );
 	T("[vdso]", true      , false, false, "[vdso]");
 	T("[vdso]", false     , false, false, NULL    );
-	M("[vdso]", PERF_RECORD_MISC_CPUMODE_UNKNOWN, false);
+	M("[vdso]", PERF_RECORD_MISC_CPUMODE_UNKANALWN, false);
 	M("[vdso]", PERF_RECORD_MISC_KERNEL, false);
 	M("[vdso]", PERF_RECORD_MISC_USER, false);
 
@@ -127,7 +127,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("[vdso32]", false     , false, false, NULL      );
 	T("[vdso32]", true      , false, false, "[vdso32]");
 	T("[vdso32]", false     , false, false, NULL      );
-	M("[vdso32]", PERF_RECORD_MISC_CPUMODE_UNKNOWN, false);
+	M("[vdso32]", PERF_RECORD_MISC_CPUMODE_UNKANALWN, false);
 	M("[vdso32]", PERF_RECORD_MISC_KERNEL, false);
 	M("[vdso32]", PERF_RECORD_MISC_USER, false);
 
@@ -135,7 +135,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("[vdsox32]", false     , false, false, NULL       );
 	T("[vdsox32]", true      , false, false, "[vdsox32]");
 	T("[vdsox32]", false     , false, false, NULL       );
-	M("[vdsox32]", PERF_RECORD_MISC_CPUMODE_UNKNOWN, false);
+	M("[vdsox32]", PERF_RECORD_MISC_CPUMODE_UNKANALWN, false);
 	M("[vdsox32]", PERF_RECORD_MISC_KERNEL, false);
 	M("[vdsox32]", PERF_RECORD_MISC_USER, false);
 
@@ -144,7 +144,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("[vsyscall]", false     , false, false, NULL        );
 	T("[vsyscall]", true      , false, false, "[vsyscall]");
 	T("[vsyscall]", false     , false, false, NULL        );
-	M("[vsyscall]", PERF_RECORD_MISC_CPUMODE_UNKNOWN, false);
+	M("[vsyscall]", PERF_RECORD_MISC_CPUMODE_UNKANALWN, false);
 	M("[vsyscall]", PERF_RECORD_MISC_KERNEL, false);
 	M("[vsyscall]", PERF_RECORD_MISC_USER, false);
 
@@ -153,7 +153,7 @@ static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subte
 	T("[kernel.kallsyms]", false     , false, false, NULL               );
 	T("[kernel.kallsyms]", true      , false, false, "[kernel.kallsyms]");
 	T("[kernel.kallsyms]", false     , false, false, NULL               );
-	M("[kernel.kallsyms]", PERF_RECORD_MISC_CPUMODE_UNKNOWN, false);
+	M("[kernel.kallsyms]", PERF_RECORD_MISC_CPUMODE_UNKANALWN, false);
 	M("[kernel.kallsyms]", PERF_RECORD_MISC_KERNEL, false);
 	M("[kernel.kallsyms]", PERF_RECORD_MISC_USER, false);
 

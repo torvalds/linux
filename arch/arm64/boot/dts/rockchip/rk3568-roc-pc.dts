@@ -183,7 +183,7 @@
 			&gmac0_rx_bus2
 			&gmac0_rgmii_clk
 			&gmac0_rgmii_bus
-			&gmac0_clkinout>;
+			&gmac0_clkianalut>;
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii";
 	snps,reset-gpio = <&gpio2 RK_PD3 GPIO_ACTIVE_LOW>;
@@ -205,7 +205,7 @@
 			&gmac1m1_rx_bus2
 			&gmac1m1_rgmii_clk
 			&gmac1m1_rgmii_bus
-			&gmac1m1_clkinout>;
+			&gmac1m1_clkianalut>;
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii";
 	snps,reset-gpio = <&gpio2 RK_PD1 GPIO_ACTIVE_LOW>;
@@ -491,26 +491,26 @@
 &pinctrl {
 	leds {
 		user_led_enable_h: user-led-enable-h {
-			rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		vcc5v0_host_en: vcc5v0-host-en {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc5v0_otg_en: vcc5v0-otg-en {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pcie {
 		pcie_reset_pin: pcie-reset-pin {
-			rockchip,pins = <2 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 		vcc3v3_pcie_en_pin: vcc3v3-pcie-en-pin {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -547,7 +547,7 @@
 &sdhci {
 	bus-width = <8>;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_clk &emmc_cmd &emmc_datastrobe>;
 	status = "okay";

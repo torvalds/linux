@@ -121,7 +121,7 @@ static inline int ili9320_power_off(struct ili9320 *lcd)
 	return 0;
 }
 
-#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_NORMAL)
+#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_ANALRMAL)
 
 static int ili9320_power(struct ili9320 *lcd, int power)
 {
@@ -204,7 +204,7 @@ int ili9320_probe_spi(struct spi_device *spi,
 	/* verify we where given some information */
 
 	if (cfg == NULL) {
-		dev_err(dev, "no platform data supplied\n");
+		dev_err(dev, "anal platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -217,7 +217,7 @@ int ili9320_probe_spi(struct spi_device *spi,
 
 	ili = devm_kzalloc(&spi->dev, sizeof(struct ili9320), GFP_KERNEL);
 	if (ili == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ili->access.spi.id = ILI9320_SPI_IDCODE | ILI9320_SPI_ID(1);
 

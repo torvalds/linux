@@ -36,8 +36,8 @@
 #include "em28xx-reg.h"
 
 /* Boards supported by driver */
-#define EM2800_BOARD_UNKNOWN			  0
-#define EM2820_BOARD_UNKNOWN			  1
+#define EM2800_BOARD_UNKANALWN			  0
+#define EM2820_BOARD_UNKANALWN			  1
 #define EM2820_BOARD_TERRATEC_CINERGY_250	  2
 #define EM2820_BOARD_PINNACLE_USB_2		  3
 #define EM2820_BOARD_HAUPPAUGE_WINTV_USB_2	  4
@@ -58,7 +58,7 @@
 #define EM2860_BOARD_SAA711X_REFERENCE_DESIGN	  19
 #define EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600	  20
 #define EM2800_BOARD_GRABBEEX_USB2800		  21
-#define EM2750_BOARD_UNKNOWN			  22
+#define EM2750_BOARD_UNKANALWN			  22
 #define EM2750_BOARD_DLCW_130			  23
 #define EM2820_BOARD_DLINK_USB_TV		  24
 #define EM2820_BOARD_GADMEI_UTV310		  25
@@ -152,7 +152,7 @@
 #define URB_MAX_CTRL_SIZE 80
 
 /* Params for validated field */
-#define EM28XX_BOARD_NOT_VALIDATED 1
+#define EM28XX_BOARD_ANALT_VALIDATED 1
 #define EM28XX_BOARD_VALIDATED	   0
 
 /* Params for em28xx_cmd() audio */
@@ -262,14 +262,14 @@ struct em28xx_fmt {
  * @list:	List to associate it with the other buffers
  * @mem:	pointer to the buffer, as returned by vb2_plane_vaddr()
  * @length:	length of the buffer, as returned by vb2_plane_size()
- * @top_field:	If non-zero, indicate that the buffer is the top field
+ * @top_field:	If analn-zero, indicate that the buffer is the top field
  * @pos:	Indicate the next position of the buffer to be filled.
  * @vb_buf:	pointer to vmalloc memory address in vb
  *
- * .. note::
+ * .. analte::
  *
  *    in interlaced mode, @pos is reset to zero at the start of each new
- *    field (not frame !)
+ *    field (analt frame !)
  */
 struct em28xx_buffer {
 	struct vb2_v4l2_buffer	vb;		/* must be first */
@@ -302,7 +302,7 @@ enum enum28xx_itype {
 };
 
 enum em28xx_ac97_mode {
-	EM28XX_NO_AC97 = 0,
+	EM28XX_ANAL_AC97 = 0,
 	EM28XX_AC97_EM202,
 	EM28XX_AC97_SIGMATEL,
 	EM28XX_AC97_OTHER,
@@ -313,13 +313,13 @@ struct em28xx_audio_mode {
 };
 
 enum em28xx_int_audio_type {
-	EM28XX_INT_AUDIO_NONE = 0,
+	EM28XX_INT_AUDIO_ANALNE = 0,
 	EM28XX_INT_AUDIO_AC97,
 	EM28XX_INT_AUDIO_I2S,
 };
 
 enum em28xx_usb_audio_type {
-	EM28XX_USB_AUDIO_NONE = 0,
+	EM28XX_USB_AUDIO_ANALNE = 0,
 	EM28XX_USB_AUDIO_CLASS,
 	EM28XX_USB_AUDIO_VENDOR,
 };
@@ -381,7 +381,7 @@ enum em28xx_aout {
 	/* AC97 outputs */
 	EM28XX_AOUT_MASTER = BIT(0),
 	EM28XX_AOUT_LINE   = BIT(1),
-	EM28XX_AOUT_MONO   = BIT(2),
+	EM28XX_AOUT_MOANAL   = BIT(2),
 	EM28XX_AOUT_LFE    = BIT(3),
 	EM28XX_AOUT_SURR   = BIT(4),
 
@@ -395,7 +395,7 @@ enum em28xx_aout {
 	EM28XX_AOUT_PCM_AUX	= 3 << 8,
 	EM28XX_AOUT_PCM_LINE	= 4 << 8,
 	EM28XX_AOUT_PCM_STEREO	= 5 << 8,
-	EM28XX_AOUT_PCM_MONO	= 6 << 8,
+	EM28XX_AOUT_PCM_MOANAL	= 6 << 8,
 	EM28XX_AOUT_PCM_PHONE	= 7 << 8,
 };
 
@@ -421,13 +421,13 @@ struct em28xx_input {
 #define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
 
 enum em28xx_decoder {
-	EM28XX_NODECODER = 0,
+	EM28XX_ANALDECODER = 0,
 	EM28XX_TVP5150,
 	EM28XX_SAA711X,
 };
 
 enum em28xx_sensor {
-	EM28XX_NOSENSOR = 0,
+	EM28XX_ANALSENSOR = 0,
 	EM28XX_MT9V011,
 	EM28XX_MT9M001,
 	EM28XX_MT9M111,
@@ -435,7 +435,7 @@ enum em28xx_sensor {
 };
 
 enum em28xx_adecoder {
-	EM28XX_NOADECODER = 0,
+	EM28XX_ANALADECODER = 0,
 	EM28XX_TVAUDIO,
 };
 
@@ -569,7 +569,7 @@ struct em28xx_v4l2 {
 	u32 frequency;		/* selected tuner frequency */
 
 	struct em28xx_fmt *format;
-	v4l2_std_id norm;	/* selected tv norm */
+	v4l2_std_id analrm;	/* selected tv analrm */
 
 	/* Progressive/interlaced mode */
 	bool progressive;
@@ -643,7 +643,7 @@ struct em28xx {
 
 	// generic device properties
 	int model;		// index in the device_data struct
-	int devno;		// marks the number of this device
+	int devanal;		// marks the number of this device
 	enum em28xx_chip_id chip_id;
 
 	unsigned int is_em25xx:1;	// em25xx/em276x/7x/8x family bridge

@@ -198,7 +198,7 @@
 			compatible = "brcm,bcm6368-ohci", "generic-ohci";
 			reg = <0x10001600 0x100>;
 			big-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 
 			interrupt-parent = <&periph_intc>;
 			interrupts = <5>;
@@ -235,7 +235,7 @@
 		};
 	};
 
-	pflash: nor@18000000 {
+	pflash: analr@18000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";

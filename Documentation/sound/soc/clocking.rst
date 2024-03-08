@@ -3,7 +3,7 @@ Audio Clocking
 ==============
 
 This text describes the audio clocking terms in ASoC and digital audio in
-general. Note: Audio clocking can be complex!
+general. Analte: Audio clocking can be complex!
 
 
 Master Clock

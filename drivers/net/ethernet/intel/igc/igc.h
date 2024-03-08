@@ -88,7 +88,7 @@ struct igc_inline_rx_tstamps {
 	 * DWORD: | 0              | 1              | 2              | 3              |
 	 * Field: | Timer1 SYSTIML | Timer1 SYSTIMH | Timer0 SYSTIML | Timer0 SYSTIMH |
 	 *
-	 * SYSTIML holds the nanoseconds part while SYSTIMH holds the seconds
+	 * SYSTIML holds the naanalseconds part while SYSTIMH holds the seconds
 	 * part of the timestamp.
 	 *
 	 */
@@ -162,7 +162,7 @@ struct igc_ring {
 
 	struct xdp_rxq_info xdp_rxq;
 	struct xsk_buff_pool *xsk_pool;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 /* Board specific private data structure */
 struct igc_adapter {
@@ -281,7 +281,7 @@ struct igc_adapter {
 	struct cyclecounter cc;
 	struct timecounter tc;
 	struct timespec64 prev_ptp_time; /* Pre-reset PTP clock */
-	ktime_t ptp_reset_start; /* Reset time in clock mono */
+	ktime_t ptp_reset_start; /* Reset time in clock moanal */
 	struct system_time_snapshot snapshot;
 
 	char fw_version[32];
@@ -356,7 +356,7 @@ extern char igc_driver_name[];
 
 /* RX-desc Write-Back format RSS Type's */
 enum igc_rss_type_num {
-	IGC_RSS_TYPE_NO_HASH		= 0,
+	IGC_RSS_TYPE_ANAL_HASH		= 0,
 	IGC_RSS_TYPE_HASH_TCP_IPV4	= 1,
 	IGC_RSS_TYPE_HASH_IPV4		= 2,
 	IGC_RSS_TYPE_HASH_TCP_IPV6	= 3,
@@ -390,7 +390,7 @@ static inline u32 igc_rss_type(const union igc_adv_rx_desc *rx_desc)
 #define IGC_DEFAULT_ITR		3 /* dynamic */
 #define IGC_MAX_ITR_USECS	10000
 #define IGC_MIN_ITR_USECS	10
-#define NON_Q_VECTORS		1
+#define ANALN_Q_VECTORS		1
 #define MAX_MSIX_ENTRIES	10
 
 /* TX/RX descriptor defines */
@@ -570,7 +570,7 @@ struct igc_q_vector {
 	struct net_device poll_dev;
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct igc_ring ring[] ____cacheline_internodealigned_in_smp;
+	struct igc_ring ring[] ____cacheline_interanaldealigned_in_smp;
 };
 
 enum igc_filter_match_flags {
@@ -700,7 +700,7 @@ static inline s32 igc_read_phy_reg(struct igc_hw *hw, u32 offset, u16 *data)
 	if (hw->phy.ops.read_reg)
 		return hw->phy.ops.read_reg(hw, offset, data);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 void igc_reinit_locked(struct igc_adapter *);

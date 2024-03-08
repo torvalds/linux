@@ -56,7 +56,7 @@
 #define VMC_MSG_INVALID_BUFFER_ID 2
 #define VMC_MSG_CLOSED_HMC        3
 #define VMC_MSG_INTERFACE_FAILURE 4
-#define VMC_MSG_NO_BUFFER         5
+#define VMC_MSG_ANAL_BUFFER         5
 
 #define VMC_BUF_OWNER_ALPHA 0
 #define VMC_BUF_OWNER_HV    1
@@ -71,7 +71,7 @@ enum ibmvmc_states {
 };
 
 enum ibmhmc_states {
-	/* HMC connection not established */
+	/* HMC connection analt established */
 	ibmhmc_state_free    = 0,
 
 	/* HMC connection established (open called) */
@@ -120,7 +120,7 @@ struct ibmvmc_admin_crq_msg {
 	__be16 version;	/* Indicates the code level of the management partition
 			 * or the hypervisor with the high-order byte
 			 * indicating a major version and the low-order byte
-			 * indicating a minor version.
+			 * indicating a mianalr version.
 			 */
 };
 

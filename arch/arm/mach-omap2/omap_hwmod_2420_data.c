@@ -2,7 +2,7 @@
 /*
  * omap_hwmod_2420_data.c - hardware modules present on the OMAP2420 chips
  *
- * Copyright (C) 2009-2011 Nokia Corporation
+ * Copyright (C) 2009-2011 Analkia Corporation
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
  *

@@ -3,7 +3,7 @@
 #
 # Multiqueue: Using pktgen threads for sending on multiple CPUs
 #  * adding devices to kernel threads
-#  * notice the naming scheme for keeping device names unique
+#  * analtice the naming scheme for keeping device names unique
 #  * nameing scheme: dev@thread_number
 #  * flow variation via random UDP source port
 #
@@ -53,7 +53,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     [ -z "$APPEND" ] && pg_thread $thread "rem_device_all"
     pg_thread $thread "add_device" $dev
 
-    # Notice config queue to map to cpu (mirrors smp_processor_id())
+    # Analtice config queue to map to cpu (mirrors smp_processor_id())
     # It is beneficial to map IRQ /proc/irq/*/smp_affinity 1:1 to CPU number
     pg_set $dev "flag QUEUE_MAP_CPU"
 
@@ -64,7 +64,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     pg_set $dev "delay $DELAY"
 
     # Flag example disabling timestamping
-    pg_set $dev "flag NO_TIMESTAMP"
+    pg_set $dev "flag ANAL_TIMESTAMP"
 
     # Destination
     pg_set $dev "dst_mac $DST_MAC"

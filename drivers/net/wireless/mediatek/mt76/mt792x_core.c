@@ -147,7 +147,7 @@ int mt792x_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 
-	/* no need to update right away, we'll get BSS_CHANGED_QOS */
+	/* anal need to update right away, we'll get BSS_CHANGED_QOS */
 	queue = mt76_connac_lmac_mapping(queue);
 	mvif->queue_params[queue] = *params;
 
@@ -703,7 +703,7 @@ int mt792x_init_wcid(struct mt792x_dev *dev)
 	/* Beacon and mgmt frames should occupy wcid 0 */
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT792x_WTBL_STA - 1);
 	if (idx)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	dev->mt76.global_wcid.idx = idx;
 	dev->mt76.global_wcid.hw_key_idx = -1;

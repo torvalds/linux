@@ -30,7 +30,7 @@
 
 #include "platform_support.h"
 #include "assert_support.h"
-#include "misc_support.h"	/* NOT_USED */
+#include "misc_support.h"	/* ANALT_USED */
 #include "math_support.h"	/* max(), min()  EVEN_FLOOR()*/
 
 #include "ia_css_stream.h"
@@ -121,7 +121,7 @@ static size_t morph_plane_bytes(const struct ia_css_binary *binary)
 }
 
 /* We keep a second copy of the ptr struct for the SP to access.
-   Again, this would not be necessary on the chip. */
+   Again, this would analt be necessary on the chip. */
 static ia_css_ptr sp_ddr_ptrs;
 
 /* sp group address on DDR */
@@ -135,7 +135,7 @@ static ia_css_ptr xmem_isp_stage_ptrs[IA_CSS_PIPE_ID_NUM]
 static ia_css_ptr default_gdc_lut;
 static int interleaved_lut_temp[4][HRT_GDC_N];
 
-/* END DO NOT MOVE INTO VIMALS_WORLD */
+/* END DO ANALT MOVE INTO VIMALS_WORLD */
 
 /* Digital Zoom lookup table. See documentation for more details about the
  * contents of this table.
@@ -768,7 +768,7 @@ sh_css_params_ddr_address_map(void)
  * 1: Coefficient 1 used bits
  * 2: Coefficient 2 used bits
  * 3: Coefficient 3 used bits
- * x: not used
+ * x: analt used
  *
  * xx33333332222222 | xx11111110000000
  *
@@ -820,8 +820,8 @@ store_fpntbl(struct ia_css_isp_parameters *params, ia_css_ptr ptr)
 
 	isp_data = convert_allocate_fpntbl(params);
 	if (!isp_data) {
-		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-		return -ENOMEM;
+		IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+		return -EANALMEM;
 	}
 	ia_css_params_store_ia_css_host_data(ptr, isp_data);
 
@@ -841,7 +841,7 @@ convert_raw_to_fpn(struct ia_css_isp_parameters *params)
 	for (i = 0; i < params->fpn_config.height * params->fpn_config.width; i++) {
 		int val = params->fpn_config.data[i];
 		/* Make sure FPN value can be represented in 13-bit unsigned
-		 * number (ISP precision - 1), but note that actual input range
+		 * number (ISP precision - 1), but analte that actual input range
 		 * depends on precision of input frame data.
 		 */
 		if (val < 0) {
@@ -898,9 +898,9 @@ sh_css_select_dp_10bpp_config(const struct ia_css_pipe *pipe,
 	/* Currently we check if 10bpp DPC configuration is required based
 	 * on the use case,i.e. if BDS and DPC is both enabled. The more cleaner
 	 * design choice would be to expose the type of DPC (either 10bpp or 13bpp)
-	 * using the binary info, but the current control flow does not allow this
+	 * using the binary info, but the current control flow does analt allow this
 	 * implementation. (This is because the configuration is set before a
-	 * binary is selected, and the binary info is not available)
+	 * binary is selected, and the binary info is analt available)
 	 */
 	if ((!pipe) || (!is_dp_10bpp)) {
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
@@ -964,8 +964,8 @@ sh_css_set_black_frame(struct ia_css_stream *stream,
 						   GFP_KERNEL);
 		if (!params->fpn_config.data) {
 			IA_CSS_ERROR("out of memory");
-			IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-			return -ENOMEM;
+			IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+			return -EANALMEM;
 		}
 		params->fpn_config.width = width;
 		params->fpn_config.height = height;
@@ -1044,7 +1044,7 @@ sh_css_set_shading_table(struct ia_css_stream *stream,
 	if (table != params->sc_table) {
 		params->sc_table = table;
 		params->sc_table_changed = true;
-		/* Not very clean, this goes to sh_css.c to invalidate the
+		/* Analt very clean, this goes to sh_css.c to invalidate the
 		 * shading table for all pipes. Should replaced by a loop
 		 * and a pipe-specific call.
 		 */
@@ -1137,8 +1137,8 @@ int ia_css_params_store_sctbl(
 
 	isp_sc_tbl = ia_css_params_alloc_convert_sctbl(stage, sc_config);
 	if (!isp_sc_tbl) {
-		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-		return -ENOMEM;
+		IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+		return -EANALMEM;
 	}
 	/* store the shading table to ddr */
 	ia_css_params_store_ia_css_host_data(sc_tbl, isp_sc_tbl);
@@ -1182,8 +1182,8 @@ ia_css_process_zoom_and_motion(
 	/* Go through all stages to udate uds and cropping */
 	for (stage = first_stage; stage; stage = stage->next) {
 		struct ia_css_binary *binary;
-		/* note: the var below is made static as it is quite large;
-		   if it is not static it ends up on the stack which could
+		/* analte: the var below is made static as it is quite large;
+		   if it is analt static it ends up on the stack which could
 		   cause issues for drivers
 		*/
 		static struct ia_css_binary tmp_binary;
@@ -1431,7 +1431,7 @@ static int sh_css_params_default_morph_table(
 
 	tab = ia_css_morph_table_allocate(width, height);
 	if (!tab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {
 		short val_y = start_y[i];
@@ -1521,13 +1521,13 @@ ia_css_isp_3a_statistics_map_allocate(
     void *data_ptr)
 {
 	struct ia_css_isp_3a_statistics_map *me;
-	/* Windows compiler does not like adding sizes to a void *
+	/* Windows compiler does analt like adding sizes to a void *
 	 * so we use a local char * instead. */
 	char *base_ptr;
 
 	me = kvmalloc(sizeof(*me), GFP_KERNEL);
 	if (!me) {
-		IA_CSS_LEAVE("cannot allocate memory");
+		IA_CSS_LEAVE("cananalt allocate memory");
 		goto err;
 	}
 
@@ -1536,7 +1536,7 @@ ia_css_isp_3a_statistics_map_allocate(
 	if (!data_ptr) {
 		me->data_ptr = kvmalloc(isp_stats->size, GFP_KERNEL);
 		if (!me->data_ptr) {
-			IA_CSS_LEAVE("cannot allocate memory");
+			IA_CSS_LEAVE("cananalt allocate memory");
 			goto err;
 		}
 	}
@@ -1579,14 +1579,14 @@ ia_css_get_3a_statistics(struct ia_css_3a_statistics           *host_stats,
 		ia_css_isp_3a_statistics_map_free(map);
 	} else {
 		IA_CSS_ERROR("out of memory");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	IA_CSS_LEAVE_ERR(ret);
 	return ret;
 }
 
-/* Parameter encoding is not yet orthogonal.
+/* Parameter encoding is analt yet orthogonal.
    This function hnadles some of the exceptions.
 */
 static void
@@ -1884,12 +1884,12 @@ sh_css_set_global_isp_config_on_pipe(
 
 	err1 = sh_css_init_isp_params_from_config(curr_pipe, curr_pipe->stream->isp_params_configs, config, pipe);
 
-	/* Now commit all changes to the SP */
+	/* Analw commit all changes to the SP */
 	err2 = sh_css_param_update_isp_params(curr_pipe, curr_pipe->stream->isp_params_configs, sh_css_sp_is_running(), pipe);
 
 	/* The following code is intentional. The sh_css_init_isp_params_from_config interface
 	 * throws an error when both DPC and BDS is enabled. The CSS API must pass this error
-	 * information to the caller, ie. the host. We do not return this error immediately,
+	 * information to the caller, ie. the host. We do analt return this error immediately,
 	 * but instead continue with updating the ISP params to enable testing of features
 	 * which are currently in TR phase. */
 
@@ -1953,13 +1953,13 @@ sh_css_set_per_frame_isp_config_on_pipe(
 		}
 	}
 
-	/* now commit to ddr */
+	/* analw commit to ddr */
 	err3 = sh_css_param_update_isp_params(stream->pipes[0], params, sh_css_sp_is_running(), pipe);
 
 	/* The following code is intentional. The sh_css_init_sp_params_from_config and
 	 * sh_css_init_isp_params_from_config throws an error when both DPC and BDS is enabled.
 	 * The CSS API must pass this error information to the caller, ie. the host.
-	 * We do not return this error immediately, but instead continue with updating the ISP params
+	 * We do analt return this error immediately, but instead continue with updating the ISP params
 	 *  to enable testing of features which are currently in TR phase. */
 	err = (err1 != 0) ? err1 :
 	      (err2 != 0) ? err2 :
@@ -2011,7 +2011,7 @@ sh_css_init_isp_params_from_config(struct ia_css_pipe *pipe,
 	    sh_css_select_dp_10bpp_config(pipe, &is_dp_10bpp)) {
 		/* return an error when both DPC and BDS is enabled by the
 		 * user. */
-		/* we do not exit from this point immediately to allow internal
+		/* we do analt exit from this point immediately to allow internal
 		 * firmware feature testing. */
 		if (is_dp_10bpp) {
 			err = -EINVAL;
@@ -2105,7 +2105,7 @@ static bool realloc_isp_css_mm_buf(
 	ia_css_refcount_decrement(id, *curr_buf);
 	*curr_buf = ia_css_refcount_increment(id, hmm_alloc(needed_size));
 	if (!*curr_buf) {
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		*curr_size = 0;
 	} else {
 		*curr_size = needed_size;
@@ -2287,7 +2287,7 @@ ia_css_stream_isp_parameters_init(struct ia_css_stream *stream)
 
 	params = stream->isp_params_configs;
 	if (!sh_css_init_isp_params_from_global(stream, params, true, NULL)) {
-		/* we do not return the error immediately to enable internal
+		/* we do analt return the error immediately to enable internal
 		 * firmware feature testing */
 		err = -EINVAL;
 	}
@@ -2343,8 +2343,8 @@ sh_css_create_isp_params(struct ia_css_stream *stream,
 
 	if (!params) {
 		*isp_params_out = NULL;
-		err = -ENOMEM;
-		IA_CSS_ERROR("%s:%d error: cannot allocate memory", __FILE__, __LINE__);
+		err = -EANALMEM;
+		IA_CSS_ERROR("%s:%d error: cananalt allocate memory", __FILE__, __LINE__);
 		IA_CSS_LEAVE_ERR_PRIVATE(err);
 		return err;
 	} else {
@@ -2380,7 +2380,7 @@ sh_css_create_isp_params(struct ia_css_stream *stream,
 	*isp_params_out = params;
 
 	if (!succ)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -2521,11 +2521,11 @@ sh_css_init_isp_params_from_global(struct ia_css_stream *stream,
 			if (0 ==
 			    sh_css_select_dp_10bpp_config(stream->pipes[i], &is_dp_10bpp)) {
 				/* set the return value as false if both DPC and
-				 * BDS is enabled by the user. But we do not return
+				 * BDS is enabled by the user. But we do analt return
 				 * the value immediately to enable internal firmware
 				 * feature testing. */
 				retval = !is_dp_10bpp;
-				/* FIXME: should it ignore this error? */
+				/* FIXME: should it iganalre this error? */
 			} else {
 				retval = false;
 				goto exit;
@@ -2596,8 +2596,8 @@ sh_css_params_init(void)
 			if ((xmem_sp_stage_ptrs[p][i] == mmgr_NULL) ||
 			    (xmem_isp_stage_ptrs[p][i] == mmgr_NULL)) {
 				sh_css_params_uninit();
-				IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-				return -ENOMEM;
+				IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+				return -EANALMEM;
 			}
 
 			hmm_set(xmem_sp_stage_ptrs[p][i], 0, sizeof(struct sh_css_sp_stage));
@@ -2619,8 +2619,8 @@ sh_css_params_init(void)
 	if ((sp_ddr_ptrs == mmgr_NULL) ||
 	    (xmem_sp_group_ptrs == mmgr_NULL)) {
 		ia_css_uninit();
-		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-		return -ENOMEM;
+		IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+		return -EANALMEM;
 	}
 	hmm_set(sp_ddr_ptrs, 0, CEIL_MUL(sizeof(struct sh_css_ddr_address_map),
 					 HIVE_ISP_DDR_WORD_BYTES));
@@ -2651,15 +2651,15 @@ int ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 		return err;
 	}
 
-	/* If the pipe belongs to a stream and the stream has started, it is not
-	 * safe to store lut to gdc HW. If pipe->stream is NULL, then no stream is
+	/* If the pipe belongs to a stream and the stream has started, it is analt
+	 * safe to store lut to gdc HW. If pipe->stream is NULL, then anal stream is
 	 * created with this pipe, so it is safe to do this operation as long as
 	 * ia_css_init() has been called. */
 	if (pipe->stream && pipe->stream->started) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				    "unable to set scaler lut since stream has started\n");
 		stream_started = true;
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 	}
 
 	/* Free any existing tables. */
@@ -2674,7 +2674,7 @@ int ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 		if (pipe->scaler_pp_lut == mmgr_NULL) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 					    "unable to allocate scaler_pp_lut\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 		} else {
 			gdc_lut_convert_to_isp_format((const int(*)[HRT_GDC_N])lut,
 						      interleaved_lut_temp);
@@ -2705,7 +2705,7 @@ int sh_css_params_map_and_store_default_gdc_lut(void)
 
 	IA_CSS_ENTER_PRIVATE("void");
 
-	/* Is table already mapped? Nothing to do if it is mapped. */
+	/* Is table already mapped? Analthing to do if it is mapped. */
 	if (default_gdc_lut != mmgr_NULL)
 		return err;
 
@@ -2714,7 +2714,7 @@ int sh_css_params_map_and_store_default_gdc_lut(void)
 	default_gdc_lut = hmm_alloc(sizeof(zoom_table));
 
 	if (default_gdc_lut == mmgr_NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gdc_lut_convert_to_isp_format((const int(*)[HRT_GDC_N])zoom_table,
 				      interleaved_lut_temp);
@@ -2912,7 +2912,7 @@ convert_allocate_morph_plane(
 	me = ia_css_host_data_allocate((size_t)isp_data_size);
 
 	if (!me) {
-		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
+		IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
 		return NULL;
 	}
 
@@ -2945,8 +2945,8 @@ store_morph_plane(
 
 	isp_data = convert_allocate_morph_plane(data, width, height, aligned_width);
 	if (!isp_data) {
-		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-		return -ENOMEM;
+		IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+		return -EANALMEM;
 	}
 	ia_css_params_store_ia_css_host_data(dest, isp_data);
 
@@ -2997,8 +2997,8 @@ void ia_css_dequeue_param_buffers(/*unsigned int pipe_num*/ void)
 	IA_CSS_ENTER_PRIVATE("void");
 
 	if (!sh_css_sp_is_running()) {
-		IA_CSS_LEAVE_PRIVATE("sp is not running");
-		/* SP is not running. The queues are not valid */
+		IA_CSS_LEAVE_PRIVATE("sp is analt running");
+		/* SP is analt running. The queues are analt valid */
 		return;
 	}
 
@@ -3081,7 +3081,7 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 	IA_CSS_ENTER_PRIVATE("pipe=%p, isp_parameters_id=%d", pipe_in, params->isp_parameters_id);
 	raw_bit_depth = ia_css_stream_input_format_bits_per_pixel(curr_pipe->stream);
 
-	/* now make the map available to the sp */
+	/* analw make the map available to the sp */
 	if (!commit) {
 		IA_CSS_LEAVE_ERR_PRIVATE(err);
 		return err;
@@ -3109,14 +3109,14 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 					       : IA_CSS_BUFFER_TYPE_PARAMETER_SET,
 					       thread_id, &queue_id);
 		if (!sh_css_sp_is_running()) {
-			/* SP is not running. The queues are not valid */
+			/* SP is analt running. The queues are analt valid */
 			err = -EBUSY;
 			break;
 		}
 		cur_map = &params->pipe_ddr_ptrs[pipeline->pipe_id];
 		cur_map_size = &params->pipe_ddr_ptrs_size[pipeline->pipe_id];
 
-		/* TODO: Normally, zoom and motion parameters shouldn't
+		/* TODO: Analrmally, zoom and motion parameters shouldn't
 		 * be part of "isp_params" as it is resolution/pipe dependent
 		 * Therefore, move the zoom config elsewhere (e.g. shading
 		 * table can be taken as an example! @GC
@@ -3192,7 +3192,7 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 		isp_params_info.output_frame_ptr =
 		    (params->output_frame) ? params->output_frame->data : mmgr_NULL;
 
-		/* now write the copy to ddr */
+		/* analw write the copy to ddr */
 		err = write_ia_css_isp_parameter_set_info_to_ddr(&isp_params_info, &cpy);
 		if (err)
 			break;
@@ -3215,11 +3215,11 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 			g_param_buffer_enqueue_count++;
 			assert(g_param_buffer_enqueue_count < g_param_buffer_dequeue_count + 50);
 			/*
-			 * Tell the SP which queues are not empty,
+			 * Tell the SP which queues are analt empty,
 			 * by sending the software event.
 			 */
 			if (!sh_css_sp_is_running()) {
-				/* SP is not running. The queues are not valid */
+				/* SP is analt running. The queues are analt valid */
 				IA_CSS_LEAVE_ERR_PRIVATE(-EBUSY);
 				return -EBUSY;
 			}
@@ -3272,7 +3272,7 @@ sh_css_params_write_to_ddr_internal(
 	unsigned int mem;
 	bool buff_realloced;
 
-	/* struct is > 128 bytes so it should not be on stack (see checkpatch) */
+	/* struct is > 128 bytes so it should analt be on stack (see checkpatch) */
 	static struct ia_css_macc_table converted_macc_table;
 
 	IA_CSS_ENTER_PRIVATE("void");
@@ -3346,8 +3346,8 @@ sh_css_params_write_to_ddr_internal(
 										binary->sctbl_width_per_color,
 										binary->sctbl_height);
 					if (!params->sc_config) {
-						IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-						return -ENOMEM;
+						IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+						return -EANALMEM;
 					}
 
 					/* store the shading table to ddr */
@@ -3377,8 +3377,8 @@ sh_css_params_write_to_ddr_internal(
 				    &params->sc_config,
 				    binary, pipe->required_bds_factor);
 				if (!params->sc_config) {
-					IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-					return -ENOMEM;
+					IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+					return -EANALMEM;
 				}
 
 				/* store the shading table to ddr */
@@ -3486,8 +3486,8 @@ sh_css_params_write_to_ddr_internal(
 				params->pipe_dvs_6axis_config[pipe_id] =
 				    generate_dvs_6axis_table(&binary->out_frame_info[0].res, &dvs_offset);
 				if (!params->pipe_dvs_6axis_config[pipe_id]) {
-					IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-					return -ENOMEM;
+					IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+					return -EANALMEM;
 				}
 				params->pipe_dvs_6axis_config_changed[pipe_id] = true;
 
@@ -3795,7 +3795,7 @@ static int ref_sh_css_ddr_address_map(
 
 	/* we will use a union to copy things; overlaying an array
 	   with the struct; that way adding fields in the struct
-	   will keep things working, and we will not get type errors.
+	   will keep things working, and we will analt get type errors.
 	*/
 	union {
 		struct sh_css_ddr_address_map *map;
@@ -3845,7 +3845,7 @@ static int write_ia_css_isp_parameter_set_info_to_ddr(
 		hmm_store(*out,
 			   me, sizeof(struct ia_css_isp_parameter_set_info));
 	else
-		err = -ENOMEM;
+		err = -EANALMEM;
 
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
@@ -4034,7 +4034,7 @@ sh_css_update_uds_and_crop_info(
 			else
 				crop_y = 2;
 		} else {
-			/* video nodz: here we can only crop. We make sure we
+			/* video analdz: here we can only crop. We make sure we
 			   crop at least the first 8x8 pixels away. */
 			env_width  = dvs_env->width -
 				     SH_CSS_MIN_DVS_ENVELOPE;
@@ -4085,13 +4085,13 @@ sh_css_update_uds_and_crop_info_based_on_zoom_region(
 {
 	unsigned int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
 	int err = 0;
-	/* Note:
+	/* Analte:
 	* Filter_Envelope = 0 for NND/LUT
 	* Filter_Envelope = 1 for BCI
 	* Filter_Envelope = 3 for BLI
-	* Currently, not considering this filter envelope because, In uds.sp.c is recalculating
+	* Currently, analt considering this filter envelope because, In uds.sp.c is recalculating
 	* the dx/dy based on filter envelope and other information (ia_css_uds_sp_scale_params)
-	* Ideally, That should be done on host side not on sp side.
+	* Ideally, That should be done on host side analt on sp side.
 	*/
 	unsigned int filter_envelope = 0;
 
@@ -4120,12 +4120,12 @@ sh_css_update_uds_and_crop_info_based_on_zoom_region(
 
 	if (info->enable.dvs_envelope) {
 		/* Zoom region is only supported by the UDS module on ISP
-		 * 2 and higher. It is not supported in video mode on ISP 1 */
+		 * 2 and higher. It is analt supported in video mode on ISP 1 */
 		return -EINVAL;
 	} else {
 		if (enable_zoom) {
 			/* A. Calculate dx/dy based on crop region using in_frame_info
-			* Scale the crop region if in_frame_info to the stage is not same as
+			* Scale the crop region if in_frame_info to the stage is analt same as
 			* actual effective input of the pipeline
 			*/
 			if (in_frame_info->res.width != pipe_in_res.width ||
@@ -4179,7 +4179,7 @@ ia_css_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid)
 	me->data = kvmalloc(grid_size * sizeof(*me->data), GFP_KERNEL);
 	if (!me->data)
 		goto err;
-	/* No weighted histogram, no structure, treat the histogram data as a byte dump in a byte array */
+	/* Anal weighted histogram, anal structure, treat the histogram data as a byte dump in a byte array */
 	me->rgby_data = kvmalloc(sizeof_hmem(HMEM0_ID), GFP_KERNEL);
 
 	IA_CSS_LEAVE("return=%p", me);

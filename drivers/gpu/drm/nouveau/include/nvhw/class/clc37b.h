@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -29,12 +29,12 @@
 #define NVC37B_DMA_OPCODE                                                        31:29
 #define NVC37B_DMA_OPCODE_METHOD                                            0x00000000
 #define NVC37B_DMA_OPCODE_JUMP                                              0x00000001
-#define NVC37B_DMA_OPCODE_NONINC_METHOD                                     0x00000002
+#define NVC37B_DMA_OPCODE_ANALNINC_METHOD                                     0x00000002
 #define NVC37B_DMA_OPCODE_SET_SUBDEVICE_MASK                                0x00000003
 #define NVC37B_DMA_METHOD_COUNT                                                  27:18
 #define NVC37B_DMA_METHOD_OFFSET                                                  13:2
 #define NVC37B_DMA_DATA                                                           31:0
-#define NVC37B_DMA_DATA_NOP                                                 0x00000000
+#define NVC37B_DMA_DATA_ANALP                                                 0x00000000
 #define NVC37B_DMA_JUMP_OFFSET                                                    11:2
 #define NVC37B_DMA_SET_SUBDEVICE_MASK_VALUE                                       11:0
 

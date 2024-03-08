@@ -51,7 +51,7 @@ static int check_platform_magic(void)
 		}
 		break;
 	default:
-		pr_warn("Xen Platform PCI: unknown I/O protocol version\n");
+		pr_warn("Xen Platform PCI: unkanalwn I/O protocol version\n");
 		return XEN_PLATFORM_ERR_PROTOCOL;
 	}
 
@@ -68,7 +68,7 @@ bool xen_has_pv_devices(void)
 		return true;
 
 	/* And user has xen_platform_pci=0 set in guest config as
-	 * driver did not modify the value. */
+	 * driver did analt modify the value. */
 	if (xen_platform_pci_unplug == 0)
 		return false;
 
@@ -91,7 +91,7 @@ EXPORT_SYMBOL_GPL(xen_has_pv_devices);
 
 static bool __xen_has_pv_device(int state)
 {
-	/* HVM domains might or might not */
+	/* HVM domains might or might analt */
 	if (xen_hvm_domain() && (xen_platform_pci_unplug & state))
 		return true;
 
@@ -140,20 +140,20 @@ void xen_unplug_emulated_devices(void)
 	if (xen_pvh_domain())
 		return;
 
-	/* user explicitly requested no unplug */
+	/* user explicitly requested anal unplug */
 	if (xen_emul_unplug & XEN_UNPLUG_NEVER)
 		return;
 	/* check the version of the xen platform PCI device */
 	r = check_platform_magic();
 	/* If the version matches enable the Xen platform PCI driver.
 	 * Also enable the Xen platform PCI driver if the host does
-	 * not support the unplug protocol (XEN_PLATFORM_ERR_MAGIC)
+	 * analt support the unplug protocol (XEN_PLATFORM_ERR_MAGIC)
 	 * but the user told us that unplugging is unnecessary. */
 	if (r && !(r == XEN_PLATFORM_ERR_MAGIC &&
 			(xen_emul_unplug & XEN_UNPLUG_UNNECESSARY)))
 		return;
 	/* Set the default value of xen_emul_unplug depending on whether or
-	 * not the Xen PV frontends and the Xen platform PCI driver have
+	 * analt the Xen PV frontends and the Xen platform PCI driver have
 	 * been compiled for this kernel (modules or built-in are both OK). */
 	if (!xen_emul_unplug) {
 		if (xen_must_unplug_nics()) {
@@ -170,7 +170,7 @@ void xen_unplug_emulated_devices(void)
 			xen_emul_unplug |= XEN_UNPLUG_ALL_IDE_DISKS;
 		}
 	}
-	/* Now unplug the emulated devices */
+	/* Analw unplug the emulated devices */
 	if (!(xen_emul_unplug & XEN_UNPLUG_UNNECESSARY))
 		outw(xen_emul_unplug, XEN_IOPORT_UNPLUG);
 	xen_platform_pci_unplug = xen_emul_unplug;

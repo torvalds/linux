@@ -38,7 +38,7 @@ static int __init iommu_init_mempool(void)
 						  NULL);
 	if (!fsl_pamu_domain_cache) {
 		pr_debug("Couldn't create fsl iommu_domain cache\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	iommu_devinfo_cache = kmem_cache_create("iommu_devinfo",
@@ -49,7 +49,7 @@ static int __init iommu_init_mempool(void)
 	if (!iommu_devinfo_cache) {
 		pr_debug("Couldn't create devinfo cache\n");
 		kmem_cache_destroy(fsl_pamu_domain_cache);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -85,7 +85,7 @@ static int pamu_set_liodn(struct fsl_dma_domain *dma_domain, struct device *dev,
 	/*
 	 * Configure the omi_index at the geometry setup time.
 	 * This is a static value which depends on the type of
-	 * device and would not change thereafter.
+	 * device and would analt change thereafter.
 	 */
 	get_ome_index(&omi_index, dev);
 
@@ -142,7 +142,7 @@ static void attach_device(struct fsl_dma_domain *dma_domain, int liodn, struct d
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	/*
-	 * Check here if the device is already attached to domain or not.
+	 * Check here if the device is already attached to domain or analt.
 	 * If the device is already attached to a domain detach it.
 	 */
 	old_domain_info = dev_iommu_priv_get(dev);
@@ -198,7 +198,7 @@ static struct iommu_domain *fsl_pamu_domain_alloc(unsigned type)
 
 	/*
 	 * FIXME: This isn't creating an unmanaged domain since the
-	 * default_domain_ops do not have any map/unmap function it doesn't meet
+	 * default_domain_ops do analt have any map/unmap function it doesn't meet
 	 * the requirements for __IOMMU_DOMAIN_PAGING. The only purpose seems to
 	 * allow drivers/soc/fsl/qbman/qman_portal.c to do
 	 * fsl_pamu_configure_l1_stash()
@@ -262,10 +262,10 @@ static int fsl_pamu_attach_device(struct iommu_domain *domain,
 		dev = pci_ctl->parent;
 	}
 
-	liodn = of_get_property(dev->of_node, "fsl,liodn", &len);
+	liodn = of_get_property(dev->of_analde, "fsl,liodn", &len);
 	if (!liodn) {
-		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_node);
-		return -ENODEV;
+		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_analde);
+		return -EANALDEV;
 	}
 
 	spin_lock_irqsave(&dma_domain->domain_lock, flags);
@@ -273,8 +273,8 @@ static int fsl_pamu_attach_device(struct iommu_domain *domain,
 		/* Ensure that LIODN value is valid */
 		if (liodn[i] >= PAACE_NUMBER_ENTRIES) {
 			pr_debug("Invalid liodn %d, attach device failed for %pOF\n",
-				 liodn[i], dev->of_node);
-			ret = -ENODEV;
+				 liodn[i], dev->of_analde);
+			ret = -EANALDEV;
 			break;
 		}
 
@@ -293,8 +293,8 @@ static int fsl_pamu_attach_device(struct iommu_domain *domain,
 /*
  * FIXME: fsl/pamu is completely broken in terms of how it works with the iommu
  * API. Immediately after probe the HW is left in an IDENTITY translation and
- * the driver provides a non-working UNMANAGED domain that it can switch over
- * to. However it cannot switch back to an IDENTITY translation, instead it
+ * the driver provides a analn-working UNMANAGED domain that it can switch over
+ * to. However it cananalt switch back to an IDENTITY translation, instead it
  * switches to what looks like BLOCKING.
  */
 static int fsl_pamu_platform_attach(struct iommu_domain *platform_domain,
@@ -332,11 +332,11 @@ static int fsl_pamu_platform_attach(struct iommu_domain *platform_domain,
 		dev = pci_ctl->parent;
 	}
 
-	prop = of_get_property(dev->of_node, "fsl,liodn", &len);
+	prop = of_get_property(dev->of_analde, "fsl,liodn", &len);
 	if (prop)
 		detach_device(dev, dma_domain);
 	else
-		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_node);
+		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_analde);
 	return 0;
 }
 
@@ -423,8 +423,8 @@ static struct iommu_device *fsl_pamu_probe_device(struct device *dev)
 	 * the iommu.
 	 */
 	if (!dev_is_pci(dev) &&
-	    !of_get_property(dev->of_node, "fsl,liodn", &len))
-		return ERR_PTR(-ENODEV);
+	    !of_get_property(dev->of_analde, "fsl,liodn", &len))
+		return ERR_PTR(-EANALDEV);
 
 	return &pamu_iommu;
 }

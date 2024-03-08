@@ -132,11 +132,11 @@ struct ibmvnic_query_ip_offload_buffer {
 	__be32 max_large_rx_size;
 	u8 reserved2[16];
 	u8 ipv6_extension_header;
-#define IPV6_EH_NOT_SUPPORTED	0x00
+#define IPV6_EH_ANALT_SUPPORTED	0x00
 #define IPV6_EH_SUPPORTED_LIM	0x01
 #define IPV6_EH_SUPPORTED	0xFF
 	u8 tcp_pseudosum_req;
-#define TCP_PS_NOT_REQUIRED	0x00
+#define TCP_PS_ANALT_REQUIRED	0x00
 #define TCP_PS_REQUIRED		0x01
 	u8 reserved3[30];
 	__be16 num_ipv6_ext_headers;
@@ -660,9 +660,9 @@ enum ibmvnic_rc_codes {
 	SUCCESS = 0,
 	PARTIALSUCCESS = 1,
 	PERMISSION = 2,
-	NOMEMORY = 3,
+	ANALMEMORY = 3,
 	PARAMETER = 4,
-	UNKNOWNCOMMAND = 5,
+	UNKANALWNCOMMAND = 5,
 	ABORTED = 6,
 	INVALIDSTATE = 7,
 	INVALIDIOBA = 8,
@@ -897,7 +897,7 @@ enum vnic_state {VNIC_PROBING = 1,
 enum ibmvnic_reset_reason {VNIC_RESET_FAILOVER = 1,
 			   VNIC_RESET_MOBILITY,
 			   VNIC_RESET_FATAL,
-			   VNIC_RESET_NON_FATAL,
+			   VNIC_RESET_ANALN_FATAL,
 			   VNIC_RESET_TIMEOUT,
 			   VNIC_RESET_CHANGE_PARAM,
 			   VNIC_RESET_PASSIVE_INIT};
@@ -934,7 +934,7 @@ struct ibmvnic_adapter {
 	struct ibmvnic_statistics stats;
 	dma_addr_t stats_token;
 	struct completion stats_done;
-	int replenish_no_mem;
+	int replenish_anal_mem;
 	int replenish_add_buff_success;
 	int replenish_add_buff_failure;
 	int replenish_task_cycles;
@@ -985,8 +985,8 @@ struct ibmvnic_adapter {
 	bool wait_for_reset;
 
 	/* CPU hotplug instances for online & dead */
-	struct hlist_node node;
-	struct hlist_node node_dead;
+	struct hlist_analde analde;
+	struct hlist_analde analde_dead;
 
 	/* partner capabilities */
 	u64 min_tx_queues;

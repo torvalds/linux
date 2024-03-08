@@ -36,42 +36,42 @@
 #include <trace/events/ext4.h>
 
 /*
- * If we're not journaling and this is a just-created file, we have to
+ * If we're analt journaling and this is a just-created file, we have to
  * sync our parent directory (if it was freshly created) since
  * otherwise it will only be written by writeback, leaving a huge
  * window during which a crash may lose the file.  This may apply for
  * the parent directory's parent as well, and so on recursively, if
  * they are also freshly created.
  */
-static int ext4_sync_parent(struct inode *inode)
+static int ext4_sync_parent(struct ianalde *ianalde)
 {
 	struct dentry *dentry, *next;
 	int ret = 0;
 
-	if (!ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY))
+	if (!ext4_test_ianalde_state(ianalde, EXT4_STATE_NEWENTRY))
 		return 0;
-	dentry = d_find_any_alias(inode);
+	dentry = d_find_any_alias(ianalde);
 	if (!dentry)
 		return 0;
-	while (ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY)) {
-		ext4_clear_inode_state(inode, EXT4_STATE_NEWENTRY);
+	while (ext4_test_ianalde_state(ianalde, EXT4_STATE_NEWENTRY)) {
+		ext4_clear_ianalde_state(ianalde, EXT4_STATE_NEWENTRY);
 
 		next = dget_parent(dentry);
 		dput(dentry);
 		dentry = next;
-		inode = dentry->d_inode;
+		ianalde = dentry->d_ianalde;
 
 		/*
-		 * The directory inode may have gone through rmdir by now. But
-		 * the inode itself and its blocks are still allocated (we hold
-		 * a reference to the inode via its dentry), so it didn't go
-		 * through ext4_evict_inode()) and so we are safe to flush
-		 * metadata blocks and the inode.
+		 * The directory ianalde may have gone through rmdir by analw. But
+		 * the ianalde itself and its blocks are still allocated (we hold
+		 * a reference to the ianalde via its dentry), so it didn't go
+		 * through ext4_evict_ianalde()) and so we are safe to flush
+		 * metadata blocks and the ianalde.
 		 */
-		ret = sync_mapping_buffers(inode->i_mapping);
+		ret = sync_mapping_buffers(ianalde->i_mapping);
 		if (ret)
 			break;
-		ret = sync_inode_metadata(inode, 1);
+		ret = sync_ianalde_metadata(ianalde, 1);
 		if (ret)
 			break;
 	}
@@ -79,34 +79,34 @@ static int ext4_sync_parent(struct inode *inode)
 	return ret;
 }
 
-static int ext4_fsync_nojournal(struct file *file, loff_t start, loff_t end,
+static int ext4_fsync_analjournal(struct file *file, loff_t start, loff_t end,
 				int datasync, bool *needs_barrier)
 {
-	struct inode *inode = file->f_inode;
+	struct ianalde *ianalde = file->f_ianalde;
 	int ret;
 
-	ret = generic_buffers_fsync_noflush(file, start, end, datasync);
+	ret = generic_buffers_fsync_analflush(file, start, end, datasync);
 	if (!ret)
-		ret = ext4_sync_parent(inode);
-	if (test_opt(inode->i_sb, BARRIER))
+		ret = ext4_sync_parent(ianalde);
+	if (test_opt(ianalde->i_sb, BARRIER))
 		*needs_barrier = true;
 
 	return ret;
 }
 
-static int ext4_fsync_journal(struct inode *inode, bool datasync,
+static int ext4_fsync_journal(struct ianalde *ianalde, bool datasync,
 			     bool *needs_barrier)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
+	journal_t *journal = EXT4_SB(ianalde->i_sb)->s_journal;
 	tid_t commit_tid = datasync ? ei->i_datasync_tid : ei->i_sync_tid;
 
 	/*
-	 * Fastcommit does not really support fsync on directories or other
+	 * Fastcommit does analt really support fsync on directories or other
 	 * special files. Force a full commit.
 	 */
-	if (!S_ISREG(inode->i_mode))
-		return ext4_force_commit(inode->i_sb);
+	if (!S_ISREG(ianalde->i_mode))
+		return ext4_force_commit(ianalde->i_sb);
 
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !jbd2_trans_will_send_data_barrier(journal, commit_tid))
@@ -119,36 +119,36 @@ static int ext4_fsync_journal(struct inode *inode, bool datasync,
  * akpm: A new design for ext4_sync_file().
  *
  * This is only called from sys_fsync(), sys_fdatasync() and sys_msync().
- * There cannot be a transaction open by this task.
- * Another task could have dirtied this inode.  Its data can be in any
+ * There cananalt be a transaction open by this task.
+ * Aanalther task could have dirtied this ianalde.  Its data can be in any
  * state in the journalling system.
  *
  * What we do is just kick off a commit and wait on it.  This will snapshot the
- * inode to disk.
+ * ianalde to disk.
  */
 int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	int ret = 0, err;
 	bool needs_barrier = false;
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
+	if (unlikely(ext4_forced_shutdown(ianalde->i_sb)))
 		return -EIO;
 
 	ASSERT(ext4_journal_current_handle() == NULL);
 
 	trace_ext4_sync_file_enter(file, datasync);
 
-	if (sb_rdonly(inode->i_sb)) {
+	if (sb_rdonly(ianalde->i_sb)) {
 		/* Make sure that we read updated s_ext4_flags value */
 		smp_rmb();
-		if (ext4_forced_shutdown(inode->i_sb))
+		if (ext4_forced_shutdown(ianalde->i_sb))
 			ret = -EROFS;
 		goto out;
 	}
 
-	if (!EXT4_SB(inode->i_sb)->s_journal) {
-		ret = ext4_fsync_nojournal(file, start, end, datasync,
+	if (!EXT4_SB(ianalde->i_sb)->s_journal) {
+		ret = ext4_fsync_analjournal(file, start, end, datasync,
 					   &needs_barrier);
 		if (needs_barrier)
 			goto issue_flush;
@@ -164,11 +164,11 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 *  Metadata is in the journal, we wait for proper transaction to
 	 *  commit here.
 	 */
-	ret = ext4_fsync_journal(inode, datasync, &needs_barrier);
+	ret = ext4_fsync_journal(ianalde, datasync, &needs_barrier);
 
 issue_flush:
 	if (needs_barrier) {
-		err = blkdev_issue_flush(inode->i_sb->s_bdev);
+		err = blkdev_issue_flush(ianalde->i_sb->s_bdev);
 		if (!ret)
 			ret = err;
 	}
@@ -176,6 +176,6 @@ out:
 	err = file_check_and_advance_wb_err(file);
 	if (ret == 0)
 		ret = err;
-	trace_ext4_sync_file_exit(inode, ret);
+	trace_ext4_sync_file_exit(ianalde, ret);
 	return ret;
 }

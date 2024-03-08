@@ -5,7 +5,7 @@
 OMAP 3 Image Signal Processor (ISP) driver
 ==========================================
 
-Copyright |copy| 2010 Nokia Corporation
+Copyright |copy| 2010 Analkia Corporation
 
 Copyright |copy| 2009 Texas Instruments, Inc.
 
@@ -19,7 +19,7 @@ Introduction
 This file documents the Texas Instruments OMAP 3 Image Signal Processor (ISP)
 driver located under drivers/media/platform/ti/omap3isp. The original driver was
 written by Texas Instruments but since that it has been rewritten (twice) at
-Nokia.
+Analkia.
 
 The driver has been successfully used on the following versions of OMAP 3:
 
@@ -66,7 +66,7 @@ partial frames.
 
 Autoidle does have issues with some ISP blocks on the 3430, at least.
 Autoidle is only enabled on 3630 when the omap3isp module parameter autoidle
-is non-zero.
+is analn-zero.
 
 Technical reference manuals (TRMs) and other documentation
 ----------------------------------------------------------

@@ -117,7 +117,7 @@ static unsigned int tegra186_cpufreq_get(unsigned int cpu)
 
 static struct cpufreq_driver tegra186_cpufreq_driver = {
 	.name = "tegra186",
-	.flags = CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
+	.flags = CPUFREQ_HAVE_GOVERANALR_PER_POLICY |
 			CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.get = tegra186_cpufreq_get,
 	.verify = cpufreq_generic_frequency_table_verify,
@@ -141,7 +141,7 @@ static struct cpufreq_frequency_table *init_vhint_table(
 	virt = dma_alloc_coherent(bpmp->dev, sizeof(*data), &phys,
 				  GFP_KERNEL);
 	if (!virt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	data = (struct cpu_vhint_data *)virt;
 
@@ -180,7 +180,7 @@ static struct cpufreq_frequency_table *init_vhint_table(
 	table = devm_kcalloc(&pdev->dev, num_rates + 1, sizeof(*table),
 			     GFP_KERNEL);
 	if (!table) {
-		table = ERR_PTR(-ENOMEM);
+		table = ERR_PTR(-EANALMEM);
 		goto free;
 	}
 
@@ -225,7 +225,7 @@ static int tegra186_cpufreq_probe(struct platform_device *pdev)
 			    struct_size(data, clusters, TEGRA186_NUM_CLUSTERS),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->cpus = tegra186_cpus;
 

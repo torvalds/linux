@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 ************
 Introduction
@@ -23,6 +23,6 @@ select the part of display where the image should be displayed. The size
 and position of such a window is controlled by the compose target.
 
 Rectangles for all cropping and composing targets are defined even if
-the device does supports neither cropping nor composing. Their size and
-position will be fixed in such a case. If the device does not support
+the device does supports neither cropping analr composing. Their size and
+position will be fixed in such a case. If the device does analt support
 scaling then the cropping and composing rectangles have the same size.

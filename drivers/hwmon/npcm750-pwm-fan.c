@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2014-2018 Nuvoton Technology corporation.
+// Copyright (c) 2014-2018 Nuvoton Techanallogy corporation.
 
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -95,7 +95,7 @@
 #define NPCM7XX_FAN_REG_TINASEL(base, n)  (NPCM7XX_FAN_REG_BASE(base, n) + 0x1A)
 #define NPCM7XX_FAN_REG_TINBSEL(base, n)  (NPCM7XX_FAN_REG_BASE(base, n) + 0x1C)
 
-#define NPCM7XX_FAN_TCKC_CLKX_NONE	0
+#define NPCM7XX_FAN_TCKC_CLKX_ANALNE	0
 #define NPCM7XX_FAN_TCKC_CLK1_APB	BIT(0)
 #define NPCM7XX_FAN_TCKC_CLK2_APB	BIT(3)
 
@@ -169,7 +169,7 @@
 #define FAN_DISABLE				0xFF
 #define FAN_INIT				0x00
 #define FAN_PREPARE_TO_GET_FIRST_CAPTURE	0x01
-#define FAN_ENOUGH_SAMPLE			0x02
+#define FAN_EANALUGH_SAMPLE			0x02
 
 struct npcm_hwmon_info {
 	u32 pwm_max_channel;
@@ -248,7 +248,7 @@ static int npcm7xx_pwm_config_set(struct npcm7xx_pwm_fan_data *data,
 		break;
 	default:
 		mutex_unlock(&data->pwm_lock[module]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (val == 0) {
@@ -286,7 +286,7 @@ static inline void npcm7xx_fan_start_capture(struct npcm7xx_pwm_fan_data *data,
 		reg_int = ioread8(NPCM7XX_FAN_REG_TIEN(data->fan_base, fan));
 
 		/*
-		 * the interrupt enable bits do not need to be cleared before
+		 * the interrupt enable bits do analt need to be cleared before
 		 * it sets, the interrupt enable bits are cleared only on reset.
 		 * the clock unit control register is behaving in the same
 		 * manner that the interrupt enable register behave.
@@ -389,9 +389,9 @@ static inline void npcm7xx_fan_compute(struct npcm7xx_pwm_fan_data *data,
 
 		/* reset counter */
 		data->fan_dev[fan_id].fan_cnt_tmp = 0;
-	} else if (data->fan_dev[fan_id].fan_st_flg < FAN_ENOUGH_SAMPLE) {
+	} else if (data->fan_dev[fan_id].fan_st_flg < FAN_EANALUGH_SAMPLE) {
 		/*
-		 * collect the enough sample,
+		 * collect the eanalugh sample,
 		 * (ex: 2 pulse fan need to get 2 sample)
 		 */
 		data->fan_dev[fan_id].fan_cnt_tmp +=
@@ -399,15 +399,15 @@ static inline void npcm7xx_fan_compute(struct npcm7xx_pwm_fan_data *data,
 
 		data->fan_dev[fan_id].fan_st_flg++;
 	} else {
-		/* get enough sample or fan disable */
-		if (data->fan_dev[fan_id].fan_st_flg == FAN_ENOUGH_SAMPLE) {
+		/* get eanalugh sample or fan disable */
+		if (data->fan_dev[fan_id].fan_st_flg == FAN_EANALUGH_SAMPLE) {
 			data->fan_dev[fan_id].fan_cnt_tmp +=
 				(NPCM7XX_FAN_TCNT - fan_cap);
 
 			/* compute finial average cnt per pulse */
 			data->fan_dev[fan_id].fan_cnt =
 				data->fan_dev[fan_id].fan_cnt_tmp /
-				FAN_ENOUGH_SAMPLE;
+				FAN_EANALUGH_SAMPLE;
 
 			data->fan_dev[fan_id].fan_st_flg = FAN_INIT;
 		}
@@ -504,7 +504,7 @@ static irqreturn_t npcm7xx_fan_isr(int irq, void *dev_id)
 
 	spin_unlock_irqrestore(&data->fan_lock[module], flags);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int npcm7xx_read_pwm(struct device *dev, u32 attr, int channel,
@@ -520,7 +520,7 @@ static int npcm7xx_read_pwm(struct device *dev, u32 attr, int channel,
 			(NPCM7XX_PWM_REG_CMRx(data->pwm_base, module, pmw_ch));
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -537,7 +537,7 @@ static int npcm7xx_write_pwm(struct device *dev, u32 attr, int channel,
 		err = npcm7xx_pwm_config_set(data, channel, (u16)val);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -578,7 +578,7 @@ static int npcm7xx_read_fan(struct device *dev, u32 attr, int channel,
 				 data->fan_dev[channel].fan_pls_per_rev));
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -606,7 +606,7 @@ static int npcm7xx_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_fan:
 		return npcm7xx_read_fan(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -617,7 +617,7 @@ static int npcm7xx_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		return npcm7xx_write_pwm(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -736,7 +736,7 @@ static void npcm7xx_fan_init(struct npcm7xx_pwm_fan_data *data)
 
 	for (md = 0; md < NPCM7XX_FAN_MAX_MODULE; md++) {
 		/* stop FAN0~7 clock */
-		iowrite8(NPCM7XX_FAN_TCKC_CLKX_NONE,
+		iowrite8(NPCM7XX_FAN_TCKC_CLKX_ANALNE,
 			 NPCM7XX_FAN_REG_TCKC(data->fan_base, md));
 
 		/* disable all interrupt */
@@ -838,7 +838,7 @@ static const struct thermal_cooling_device_ops npcm7xx_pwm_cool_ops = {
 };
 
 static int npcm7xx_create_pwm_cooling(struct device *dev,
-				      struct device_node *child,
+				      struct device_analde *child,
 				      struct npcm7xx_pwm_fan_data *data,
 				      u32 pwm_port, u8 num_levels)
 {
@@ -847,18 +847,18 @@ static int npcm7xx_create_pwm_cooling(struct device *dev,
 
 	cdev = devm_kzalloc(dev, sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->cooling_levels = devm_kzalloc(dev, num_levels, GFP_KERNEL);
 	if (!cdev->cooling_levels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->max_state = num_levels - 1;
 	ret = of_property_read_u8_array(child, "cooling-levels",
 					cdev->cooling_levels,
 					num_levels);
 	if (ret) {
-		dev_err(dev, "Property 'cooling-levels' cannot be read.\n");
+		dev_err(dev, "Property 'cooling-levels' cananalt be read.\n");
 		return ret;
 	}
 	snprintf(cdev->name, THERMAL_NAME_LENGTH, "%pOFn%d", child,
@@ -878,7 +878,7 @@ static int npcm7xx_create_pwm_cooling(struct device *dev,
 }
 
 static int npcm7xx_en_pwm_fan(struct device *dev,
-			      struct device_node *child,
+			      struct device_analde *child,
 			      struct npcm7xx_pwm_fan_data *data)
 {
 	u8 *fan_ch;
@@ -910,7 +910,7 @@ static int npcm7xx_en_pwm_fan(struct device *dev,
 
 	fan_ch = devm_kcalloc(dev, fan_cnt, sizeof(*fan_ch), GFP_KERNEL);
 	if (!fan_ch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u8_array(child, "fan-tach-ch", fan_ch, fan_cnt);
 	if (ret)
@@ -928,7 +928,7 @@ static int npcm7xx_en_pwm_fan(struct device *dev,
 static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np, *child;
+	struct device_analde *np, *child;
 	struct npcm7xx_pwm_fan_data *data;
 	struct resource *res;
 	struct device *hwmon;
@@ -937,11 +937,11 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 	u32 output_freq;
 	u32 i;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->info = device_get_match_data(dev);
 	if (!data->info)
@@ -951,8 +951,8 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pwm");
 	if (!res) {
-		dev_err(dev, "pwm resource not found\n");
-		return -ENODEV;
+		dev_err(dev, "pwm resource analt found\n");
+		return -EANALDEV;
 	}
 
 	data->pwm_base = devm_ioremap_resource(dev, res);
@@ -968,8 +968,8 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fan");
 	if (!res) {
-		dev_err(dev, "fan resource not found\n");
-		return -ENODEV;
+		dev_err(dev, "fan resource analt found\n");
+		return -EANALDEV;
 	}
 
 	data->fan_base = devm_ioremap_resource(dev, res);
@@ -1005,11 +1005,11 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 		}
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		ret = npcm7xx_en_pwm_fan(dev, child, data);
 		if (ret) {
 			dev_err(dev, "enable pwm and fan failed\n");
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}

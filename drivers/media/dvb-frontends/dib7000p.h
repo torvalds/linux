@@ -55,11 +55,11 @@ struct dib7000p_ops {
 	u32 (*ctrl_timf)(struct dvb_frontend *fe, u8 op, u32 timf);
 	int (*dib7000pc_detection)(struct i2c_adapter *i2c_adap);
 	struct i2c_adapter *(*get_i2c_master)(struct dvb_frontend *demod, enum dibx000_i2c_interface intf, int gating);
-	int (*pid_filter_ctrl)(struct dvb_frontend *fe, u8 onoff);
-	int (*pid_filter)(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff);
-	int (*i2c_enumeration)(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000p_config cfg[]);
+	int (*pid_filter_ctrl)(struct dvb_frontend *fe, u8 oanalff);
+	int (*pid_filter)(struct dvb_frontend *fe, u8 id, u16 pid, u8 oanalff);
+	int (*i2c_enumeration)(struct i2c_adapter *i2c, int anal_of_demods, u8 default_addr, struct dib7000p_config cfg[]);
 	struct i2c_adapter *(*get_i2c_tuner)(struct dvb_frontend *fe);
-	int (*tuner_sleep)(struct dvb_frontend *fe, int onoff);
+	int (*tuner_sleep)(struct dvb_frontend *fe, int oanalff);
 	int (*get_adc_power)(struct dvb_frontend *fe);
 	int (*slave_reset)(struct dvb_frontend *fe);
 	struct dvb_frontend *(*init)(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg);

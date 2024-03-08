@@ -19,7 +19,7 @@
 #include <drm/drm_crtc.h> /* This is only to get MAX_ELD_BYTES */
 #include <drm/drm_eld.h>
 
-#define HDMI_CODEC_CHMAP_IDX_UNKNOWN  -1
+#define HDMI_CODEC_CHMAP_IDX_UNKANALWN  -1
 
 /*
  * CEA speaker placement for HDMI 1.4:
@@ -374,7 +374,7 @@ static int hdmi_codec_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 	map = info->chmap[hcp->chmap_idx].map;
 
 	for (i = 0; i < info->max_channels; i++) {
-		if (hcp->chmap_idx == HDMI_CODEC_CHMAP_IDX_UNKNOWN)
+		if (hcp->chmap_idx == HDMI_CODEC_CHMAP_IDX_UNKANALWN)
 			ucontrol->value.integer.value[i] = 0;
 		else
 			ucontrol->value.integer.value[i] = map[i];
@@ -429,8 +429,8 @@ static int hdmi_codec_startup(struct snd_pcm_substream *substream,
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	bool has_capture = !hcp->hcd.no_i2s_capture;
-	bool has_playback = !hcp->hcd.no_i2s_playback;
+	bool has_capture = !hcp->hcd.anal_i2s_capture;
+	bool has_playback = !hcp->hcd.anal_i2s_playback;
 	int ret = 0;
 
 	if (!((has_playback && tx) || (has_capture && !tx)))
@@ -475,13 +475,13 @@ static void hdmi_codec_shutdown(struct snd_pcm_substream *substream,
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	bool has_capture = !hcp->hcd.no_i2s_capture;
-	bool has_playback = !hcp->hcd.no_i2s_playback;
+	bool has_capture = !hcp->hcd.anal_i2s_capture;
+	bool has_playback = !hcp->hcd.anal_i2s_playback;
 
 	if (!((has_playback && tx) || (has_capture && !tx)))
 		return;
 
-	hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKNOWN;
+	hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKANALWN;
 	hcp->hcd.ops->audio_shutdown(dai->dev->parent, hcp->hcd.data);
 
 	mutex_lock(&hcp->lock);
@@ -496,18 +496,18 @@ static int hdmi_codec_fill_codec_params(struct snd_soc_dai *dai,
 					struct hdmi_codec_params *hp)
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
-	int idx = HDMI_CODEC_CHMAP_IDX_UNKNOWN;
+	int idx = HDMI_CODEC_CHMAP_IDX_UNKANALWN;
 	u8 ca_id = 0;
-	bool pcm_audio = !(hcp->iec_status[0] & IEC958_AES0_NONAUDIO);
+	bool pcm_audio = !(hcp->iec_status[0] & IEC958_AES0_ANALNAUDIO);
 
 	if (pcm_audio) {
 		/* Select a channel allocation that matches with ELD and pcm channels */
 		idx = hdmi_codec_get_ch_alloc_table_idx(hcp, channels);
 
 		if (idx < 0) {
-			dev_err(dai->dev, "Not able to map channels to speakers (%d)\n",
+			dev_err(dai->dev, "Analt able to map channels to speakers (%d)\n",
 				idx);
-			hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKNOWN;
+			hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKANALWN;
 			return idx;
 		}
 
@@ -535,7 +535,7 @@ static int hdmi_codec_fill_codec_params(struct snd_soc_dai *dai,
 	if (pcm_audio)
 		hcp->chmap_idx = ca_id;
 	else
-		hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKNOWN;
+		hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKANALWN;
 
 	return 0;
 }
@@ -693,27 +693,27 @@ static int hdmi_codec_mute(struct snd_soc_dai *dai, int mute, int direction)
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
 
 	/*
-	 * ignore if direction was CAPTURE
-	 * and it had .no_capture_mute flag
+	 * iganalre if direction was CAPTURE
+	 * and it had .anal_capture_mute flag
 	 * see
 	 *	snd_soc_dai_digital_mute()
 	 */
 	if (hcp->hcd.ops->mute_stream &&
 	    (direction == SNDRV_PCM_STREAM_PLAYBACK ||
-	     !hcp->hcd.ops->no_capture_mute))
+	     !hcp->hcd.ops->anal_capture_mute))
 		return hcp->hcd.ops->mute_stream(dai->dev->parent,
 						 hcp->hcd.data,
 						 mute, direction);
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 /*
  * This driver can select all SND_SOC_DAIFMT_CBx_CFx,
- * but need to be selected from Sound Card, not be auto selected.
+ * but need to be selected from Sound Card, analt be auto selected.
  * Because it might be used from other driver.
  * For example,
- *	${LINUX}/drivers/gpu/drm/bridge/synopsys/dw-hdmi-i2s-audio.c
+ *	${LINUX}/drivers/gpu/drm/bridge/syanalpsys/dw-hdmi-i2s-audio.c
  */
 static u64 hdmi_codec_formats =
 	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
@@ -737,9 +737,9 @@ static u64 hdmi_codec_formats =
 
 /*
  * This list is only for formats allowed on the I2S bus. So there is
- * some formats listed that are not supported by HDMI interface. For
+ * some formats listed that are analt supported by HDMI interface. For
  * instance allowing the 32-bit formats enables 24-precision with CPU
- * DAIs that do not support 24-bit formats. If the extra formats cause
+ * DAIs that do analt support 24-bit formats. If the extra formats cause
  * problems, we should add the video side driver an option to disable
  * them.
  */
@@ -792,7 +792,7 @@ static int hdmi_codec_pcm_new(struct snd_soc_pcm_runtime *rtd,
 
 	/* default chmap supported is stereo */
 	hcp->chmap_info->chmap = hdmi_codec_stereo_chmaps;
-	hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKNOWN;
+	hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKANALWN;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_codec_controls); i++) {
 		struct snd_kcontrol *kctl;
@@ -800,7 +800,7 @@ static int hdmi_codec_pcm_new(struct snd_soc_pcm_runtime *rtd,
 		/* add ELD ctl with the device number corresponding to the PCM stream */
 		kctl = snd_ctl_new1(&hdmi_codec_controls[i], dai->component);
 		if (!kctl)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		kctl->id.device = rtd->pcm->device;
 		ret = snd_ctl_add(rtd->card->snd_card, kctl);
@@ -841,7 +841,7 @@ static int hdmi_dai_probe(struct snd_soc_dai *dai)
 
 	daifmt = devm_kzalloc(dai->dev, sizeof(*daifmt), GFP_KERNEL);
 	if (!daifmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_dai_dma_data_set_playback(dai, daifmt);
 
@@ -892,7 +892,7 @@ static int hdmi_codec_set_jack(struct snd_soc_component *component,
 		return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int hdmi_dai_spdif_probe(struct snd_soc_dai *dai)
@@ -975,10 +975,10 @@ static const struct snd_soc_dai_driver hdmi_spdif_dai = {
 };
 
 static int hdmi_of_xlate_dai_id(struct snd_soc_component *component,
-				 struct device_node *endpoint)
+				 struct device_analde *endpoint)
 {
 	struct hdmi_codec_priv *hcp = snd_soc_component_get_drvdata(component);
-	int ret = -ENOTSUPP; /* see snd_soc_get_dai_id() */
+	int ret = -EANALTSUPP; /* see snd_soc_get_dai_id() */
 
 	if (hcp->hcd.ops->get_dai_id)
 		ret = hcp->hcd.ops->get_dai_id(component, endpoint);
@@ -1032,7 +1032,7 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!hcd) {
-		dev_err(dev, "%s: No platform data\n", __func__);
+		dev_err(dev, "%s: Anal platform data\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1046,7 +1046,7 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 
 	hcp = devm_kzalloc(dev, sizeof(*hcp), GFP_KERNEL);
 	if (!hcp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcp->hcd = *hcd;
 	mutex_init(&hcp->lock);
@@ -1058,15 +1058,15 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 
 	daidrv = devm_kcalloc(dev, dai_count, sizeof(*daidrv), GFP_KERNEL);
 	if (!daidrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (hcd->i2s) {
 		daidrv[i] = hdmi_i2s_dai;
 		daidrv[i].playback.channels_max = hcd->max_i2s_channels;
-		if (hcd->no_i2s_playback)
+		if (hcd->anal_i2s_playback)
 			memset(&daidrv[i].playback, 0,
 			       sizeof(daidrv[i].playback));
-		if (hcd->no_i2s_capture)
+		if (hcd->anal_i2s_capture)
 			memset(&daidrv[i].capture, 0,
 			       sizeof(daidrv[i].capture));
 		i++;
@@ -1074,10 +1074,10 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 
 	if (hcd->spdif) {
 		daidrv[i] = hdmi_spdif_dai;
-		if (hcd->no_spdif_playback)
+		if (hcd->anal_spdif_playback)
 			memset(&daidrv[i].playback, 0,
 			       sizeof(daidrv[i].playback));
-		if (hcd->no_spdif_capture)
+		if (hcd->anal_spdif_capture)
 			memset(&daidrv[i].capture, 0,
 			       sizeof(daidrv[i].capture));
 	}

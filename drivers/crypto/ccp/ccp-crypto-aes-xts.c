@@ -205,7 +205,7 @@ static int ccp_aes_xts_init_tfm(struct crypto_skcipher *tfm)
 	fallback_tfm = crypto_alloc_skcipher("xts(aes)", 0,
 					     CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(fallback_tfm)) {
-		pr_warn("could not load fallback driver xts(aes)\n");
+		pr_warn("could analt load fallback driver xts(aes)\n");
 		return PTR_ERR(fallback_tfm);
 	}
 	ctx->u.aes.tfm_skcipher = fallback_tfm;
@@ -233,7 +233,7 @@ static int ccp_register_aes_xts_alg(struct list_head *head,
 
 	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
 	if (!ccp_alg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ccp_alg->entry);
 

@@ -11,7 +11,7 @@ maintainers:
 
 description: |+
   This binding is intended for performance management of groups of devices or
-  CPUs that run in the same performance domain. Performance domains must not
+  CPUs that run in the same performance domain. Performance domains must analt
   be confused with power domains. A performance domain is defined by a set
   of devices that always have to run at the same performance level. For a given
   performance domain, there is a single point of control that affects all the
@@ -23,19 +23,19 @@ description: |+
 
   This device tree binding can be used to bind performance domain consumer
   devices with their performance domains provided by performance domain
-  providers. A performance domain provider can be represented by any node in
+  providers. A performance domain provider can be represented by any analde in
   the device tree and can provide one or more performance domains. A consumer
-  node can refer to the provider by a phandle and a set of phandle arguments
+  analde can refer to the provider by a phandle and a set of phandle arguments
   (so called performance domain specifiers) of length specified by the
-  \#performance-domain-cells property in the performance domain provider node.
+  \#performance-domain-cells property in the performance domain provider analde.
 
 select: true
 
 properties:
   "#performance-domain-cells":
     description:
-      Number of cells in a performance domain specifier. Typically 0 for nodes
-      representing a single performance domain and 1 for nodes providing
+      Number of cells in a performance domain specifier. Typically 0 for analdes
+      representing a single performance domain and 1 for analdes providing
       multiple performance domains (e.g. performance controllers), but can be
       any value as specified by device tree binding documentation of particular
       provider.
@@ -63,7 +63,7 @@ examples:
         };
     };
 
-    // The node above defines a performance controller that is a performance
+    // The analde above defines a performance controller that is a performance
     // domain provider and expects one cell as its phandle argument.
 
     cpus {

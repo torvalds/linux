@@ -31,14 +31,14 @@ properties:
   panel: true
 
   reset-gpios:
-    description: Reset GPIO; not all touchscreens using eKTH6915 hook this up.
+    description: Reset GPIO; analt all touchscreens using eKTH6915 hook this up.
 
   vcc33-supply:
     description: The 3.3V supply to the touchscreen.
 
   vccio-supply:
     description:
-      The IO supply to the touchscreen. Need not be specified if this is the
+      The IO supply to the touchscreen. Need analt be specified if this is the
       same as the 3.3V supply.
 
 required:

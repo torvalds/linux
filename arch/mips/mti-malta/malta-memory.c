@@ -6,7 +6,7 @@
  * PROM library functions for acquiring/using memory descriptors given to
  * us from the YAMON.
  *
- * Copyright (C) 1999,2000,2012  MIPS Technologies, Inc.
+ * Copyright (C) 1999,2000,2012  MIPS Techanallogies, Inc.
  * All rights reserved.
  * Authors: Carsten Langgaard <carstenl@mips.com>
  *          Steven J. Hill <sjhill@mips.com>
@@ -21,7 +21,7 @@
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
 
-/* determined physical memory size, not overridden by command line args	 */
+/* determined physical memory size, analt overridden by command line args	 */
 unsigned long physical_memsize = 0L;
 
 static void free_init_pages_eva_malta(void *begin, void *end)

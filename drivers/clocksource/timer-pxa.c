@@ -44,7 +44,7 @@
  * This is PXA's sched_clock implementation. This has a resolution
  * of at least 308 ns and a maximum value of 208 days.
  *
- * The return value is guaranteed to be monotonic in that range as
+ * The return value is guaranteed to be moanaltonic in that range as
  * long as there is always less than 582 seconds between successive
  * calls to sched_clock() which should always be the case in practice.
  */
@@ -54,7 +54,7 @@
 
 static void __iomem *timer_base;
 
-static u64 notrace pxa_read_sched_clock(void)
+static u64 analtrace pxa_read_sched_clock(void)
 {
 	return timer_readl(OSCR);
 }
@@ -115,7 +115,7 @@ static void pxa_timer_resume(struct clock_event_device *cedev)
 	 * Ensure that we have at least MIN_OSCR_DELTA between match
 	 * register 0 and the OSCR, to guarantee that we will receive
 	 * the one-shot timer interrupt.  We adjust OSMR0 in preference
-	 * to OSCR to guarantee that OSCR is monotonically incrementing.
+	 * to OSCR to guarantee that OSCR is moanaltonically incrementing.
 	 */
 	if (osmr[0] - oscr < MIN_OSCR_DELTA)
 		osmr[0] += MIN_OSCR_DELTA;
@@ -174,7 +174,7 @@ static int __init pxa_timer_common_init(int irq, unsigned long clock_tick_rate)
 	return 0;
 }
 
-static int __init pxa_timer_dt_init(struct device_node *np)
+static int __init pxa_timer_dt_init(struct device_analde *np)
 {
 	struct clk *clk;
 	int irq, ret;
@@ -210,9 +210,9 @@ static int __init pxa_timer_dt_init(struct device_node *np)
 TIMER_OF_DECLARE(pxa_timer, "marvell,pxa-timer", pxa_timer_dt_init);
 
 /*
- * Legacy timer init for non device-tree boards.
+ * Legacy timer init for analn device-tree boards.
  */
-void __init pxa_timer_nodt_init(int irq, void __iomem *base)
+void __init pxa_timer_analdt_init(int irq, void __iomem *base)
 {
 	struct clk *clk;
 

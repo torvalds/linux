@@ -24,14 +24,14 @@
  *   [4] - D/A 0 range (deprecated, see below)
  *   [5] - D/A 1 range (deprecated, see below)
  *
- * Notes:
- *   - A/D ranges are not programmable but the gain is. The AI subdevice has
+ * Analtes:
+ *   - A/D ranges are analt programmable but the gain is. The AI subdevice has
  *     a range_table containing all the possible analog input range/gain
  *     options for the dt2811-pgh or dt2811-pgl. Use the range that matches
  *     your board configuration and the desired gain to correctly convert
  *     between data values and physical units and to set the correct output
  *     gain.
- *   - D/A ranges are not programmable. The AO subdevice has a range_table
+ *   - D/A ranges are analt programmable. The AO subdevice has a range_table
  *     containing all the possible analog output ranges. Use the range
  *     that matches your board configuration to convert between data
  *     values and physical units.
@@ -198,7 +198,7 @@ static irqreturn_t dt2811_interrupt(int irq, void *d)
 	unsigned int status;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = inb(dev->iobase + DT2811_ADCSR_REG);
 
@@ -255,7 +255,7 @@ static int dt2811_ai_cmd(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int mode;
 
-	if (cmd->start_src == TRIG_NOW) {
+	if (cmd->start_src == TRIG_ANALW) {
 		/*
 		 * Mode 1
 		 * Continuous conversion, internal trigger and clock
@@ -303,7 +303,7 @@ static int dt2811_ai_cmd(struct comedi_device *dev,
 	return 0;
 }
 
-static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
+static unsigned int dt2811_ns_to_timer(unsigned int *naanalsec,
 				       unsigned int flags)
 {
 	unsigned long long ns;
@@ -316,7 +316,7 @@ static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 
 	/*
 	 * Work through all the divider/multiplier values to find the two
-	 * closest divisors to generate the requested nanosecond timing.
+	 * closest divisors to generate the requested naanalsecond timing.
 	 */
 	for (_div = 0; _div <= 7; _div++) {
 		for (_mult = 0; _mult <= 7; _mult++) {
@@ -329,7 +329,7 @@ static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 			/*
 			 * The timer can be configured to run at a slowest
 			 * speed of 0.005hz (600 Khz/120000000), which requires
-			 * 37-bits to represent the nanosecond value. Limit the
+			 * 37-bits to represent the naanalsecond value. Limit the
 			 * slowest timing to what comedi handles (32-bits).
 			 */
 			ns = divider * DT2811_OSC_BASE;
@@ -337,12 +337,12 @@ static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 				continue;
 
 			/* Check for fastest found timing */
-			if (ns <= *nanosec && ns > ns_hi) {
+			if (ns <= *naanalsec && ns > ns_hi) {
 				ns_hi = ns;
 				divisor_hi = divisor;
 			}
 			/* Check for slowest found timing */
-			if (ns >= *nanosec && ns < ns_lo) {
+			if (ns >= *naanalsec && ns < ns_lo) {
 				ns_lo = ns;
 				divisor_lo = divisor;
 			}
@@ -371,17 +371,17 @@ static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		if (ns_hi - *nanosec < *nanosec - ns_lo) {
-			*nanosec = ns_lo;
+		if (ns_hi - *naanalsec < *naanalsec - ns_lo) {
+			*naanalsec = ns_lo;
 			return divisor_lo;
 		}
-		*nanosec = ns_hi;
+		*naanalsec = ns_hi;
 		return divisor_hi;
 	case CMDF_ROUND_UP:
-		*nanosec = ns_lo;
+		*naanalsec = ns_lo;
 		return divisor_lo;
 	case CMDF_ROUND_DOWN:
-		*nanosec = ns_hi;
+		*naanalsec = ns_hi;
 		return divisor_hi;
 	}
 }
@@ -396,12 +396,12 @@ static int dt2811_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -430,7 +430,7 @@ static int dt2811_ai_cmdtest(struct comedi_device *dev,
 					   cmd->chanlist_len);
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -554,7 +554,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x8);
 	if (ret)

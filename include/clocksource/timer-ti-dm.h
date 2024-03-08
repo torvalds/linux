@@ -7,8 +7,8 @@
  *
  * Platform device conversion and hwmod support.
  *
- * Copyright (C) 2005 Nokia Corporation
- * Author: Lauri Leukkunen <lauri.leukkunen@nokia.com>
+ * Copyright (C) 2005 Analkia Corporation
+ * Author: Lauri Leukkunen <lauri.leukkunen@analkia.com>
  * PWM and clock framwork support by Timo Teras.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -17,16 +17,16 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if analt, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -48,7 +48,7 @@
 #define OMAP_TIMER_INT_MATCH			(1 << 0)
 
 /* trigger types */
-#define OMAP_TIMER_TRIGGER_NONE			0x00
+#define OMAP_TIMER_TRIGGER_ANALNE			0x00
 #define OMAP_TIMER_TRIGGER_OVERFLOW		0x01
 #define OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE	0x02
 
@@ -65,7 +65,7 @@ struct omap_dm_timer {
 u32 omap_dm_timer_modify_idlect_mask(u32 inputmask);
 
 /*
- * Do not use the defines below, they are not needed. They should be only
+ * Do analt use the defines below, they are analt needed. They should be only
  * used by dmtimer.c and sys_timer related code.
  */
 
@@ -112,7 +112,7 @@ u32 omap_dm_timer_modify_idlect_mask(u32 inputmask);
 #define _OMAP_TIMER_LOAD_OFFSET		0x2c
 #define _OMAP_TIMER_TRIGGER_OFFSET	0x30
 #define _OMAP_TIMER_WRITE_PEND_OFFSET	0x34
-#define		WP_NONE			0	/* no write pending bit */
+#define		WP_ANALNE			0	/* anal write pending bit */
 #define		WP_TCLR			(1 << 0)
 #define		WP_TCRR			(1 << 1)
 #define		WP_TLDR			(1 << 2)

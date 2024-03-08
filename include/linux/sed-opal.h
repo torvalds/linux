@@ -3,7 +3,7 @@
  * Copyright © 2016 Intel Corporation
  *
  * Authors:
- *    Rafael Antognolli <rafael.antognolli@intel.com>
+ *    Rafael Antoganallli <rafael.antoganallli@intel.com>
  *    Scott  Bauer      <scott.bauer@intel.com>
  */
 

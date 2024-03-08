@@ -414,7 +414,7 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 				enable_midi_irq(ice, VT1724_IRQ_MPU_TX, 0);
 			/* Due to mysterical reasons, MPU_TX is always
 			 * generated (and can't be cleared) when a PCM
-			 * playback is going.  So let's ignore at the
+			 * playback is going.  So let's iganalre at the
 			 * next loop.
 			 */
 			status_mask &= ~VT1724_IRQ_MPU_TX;
@@ -618,7 +618,7 @@ static unsigned char stdclock_set_mclk(struct snd_ice1712 *ice,
 			return 1;
 		}
 	}
-	/* no change in master clock */
+	/* anal change in master clock */
 	return 0;
 }
 
@@ -636,7 +636,7 @@ static int snd_vt1724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
 	spin_lock_irqsave(&ice->reg_lock, flags);
 	if ((inb(ICEMT1724(ice, DMA_CONTROL)) & DMA_STARTS) ||
 	    (inb(ICEMT1724(ice, DMA_PAUSE)) & DMA_PAUSES)) {
-		/* running? we cannot change the rate now... */
+		/* running? we cananalt change the rate analw... */
 		spin_unlock_irqrestore(&ice->reg_lock, flags);
 		return ((rate == ice->cur_rate) && !force) ? 0 : -EBUSY;
 	}
@@ -895,7 +895,7 @@ static const struct snd_pcm_hardware snd_vt1724_playback_pro = {
 				 SNDRV_PCM_INFO_MMAP_VALID |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_SYNC_START),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_192000,
+	.rates =		SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_192000,
 	.rate_min =		8000,
 	.rate_max =		192000,
 	.channels_min =		2,
@@ -934,7 +934,7 @@ static const struct snd_pcm_hardware snd_vt1724_2ch_stereo = {
 				 SNDRV_PCM_INFO_MMAP_VALID |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_SYNC_START),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_192000,
+	.rates =		SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_192000,
 	.rate_min =		8000,
 	.rate_max =		192000,
 	.channels_min =		2,
@@ -971,7 +971,7 @@ static int set_rate_constraints(struct snd_ice1712 *ice,
 
 	runtime->hw.rate_min = ice->hw_rates->list[0];
 	runtime->hw.rate_max = ice->hw_rates->list[ice->hw_rates->count - 1];
-	runtime->hw.rates = SNDRV_PCM_RATE_KNOT;
+	runtime->hw.rates = SNDRV_PCM_RATE_KANALT;
 	return snd_pcm_hw_constraint_list(runtime, 0,
 					  SNDRV_PCM_HW_PARAM_RATE,
 					  ice->hw_rates);
@@ -1103,7 +1103,7 @@ static int snd_vt1724_pcm_profi(struct snd_ice1712 *ice, int device)
 	int capt, err;
 
 	if ((ice->eeprom.data[ICE_EEP2_SYSCONF] & VT1724_CFG_ADC_MASK) ==
-	    VT1724_CFG_ADC_NONE)
+	    VT1724_CFG_ADC_ANALNE)
 		capt = 0;
 	else
 		capt = 1;
@@ -1294,7 +1294,7 @@ static int snd_vt1724_pcm_spdif(struct snd_ice1712 *ice, int device)
 	} else
 		capt = 0;
 	if (!play && !capt)
-		return 0; /* no spdif device */
+		return 0; /* anal spdif device */
 
 	if (ice->force_pdma4 || ice->force_rdma1)
 		name = "ICE1724 Secondary";
@@ -1465,7 +1465,7 @@ static int snd_vt1724_ac97_mixer(struct snd_ice1712 *ice)
 		err = snd_ac97_mixer(pbus, &ac97, &ice->ac97);
 		if (err < 0)
 			dev_warn(ice->card->dev,
-				 "cannot initialize pro ac97, skipped\n");
+				 "cananalt initialize pro ac97, skipped\n");
 		else
 			return 0;
 	}
@@ -1575,7 +1575,7 @@ static unsigned int encode_spdif_bits(struct snd_aes_iec958 *diga)
 {
 	unsigned int val, rbits;
 
-	val = diga->status[0] & 0x03; /* professional, non-audio */
+	val = diga->status[0] & 0x03; /* professional, analn-audio */
 	if (val & 0x01) {
 		/* professional */
 		if ((diga->status[0] & IEC958_AES0_PRO_EMPHASIS) ==
@@ -1616,7 +1616,7 @@ static unsigned int encode_spdif_bits(struct snd_aes_iec958 *diga)
 static void decode_spdif_bits(struct snd_aes_iec958 *diga, unsigned int val)
 {
 	memset(diga->status, 0, sizeof(diga->status));
-	diga->status[0] = val & 0x03; /* professional, non-audio */
+	diga->status[0] = val & 0x03; /* professional, analn-audio */
 	if (val & 0x01) {
 		/* professional */
 		if (val & (1U << 3))
@@ -1678,9 +1678,9 @@ static const struct snd_kcontrol_new snd_vt1724_spdif_default =
 static int snd_vt1724_spdif_maskc_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.iec958.status[0] = IEC958_AES0_NONAUDIO |
+	ucontrol->value.iec958.status[0] = IEC958_AES0_ANALNAUDIO |
 						     IEC958_AES0_PROFESSIONAL |
-						     IEC958_AES0_CON_NOT_COPYRIGHT |
+						     IEC958_AES0_CON_ANALT_COPYRIGHT |
 						     IEC958_AES0_CON_EMPHASIS;
 	ucontrol->value.iec958.status[1] = IEC958_AES1_CON_ORIGINAL |
 						     IEC958_AES1_CON_CATEGORY;
@@ -1691,7 +1691,7 @@ static int snd_vt1724_spdif_maskc_get(struct snd_kcontrol *kcontrol,
 static int snd_vt1724_spdif_maskp_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.iec958.status[0] = IEC958_AES0_NONAUDIO |
+	ucontrol->value.iec958.status[0] = IEC958_AES0_ANALNAUDIO |
 						     IEC958_AES0_PROFESSIONAL |
 						     IEC958_AES0_PRO_FS |
 						     IEC958_AES0_PRO_EMPHASIS;
@@ -1716,7 +1716,7 @@ static const struct snd_kcontrol_new snd_vt1724_spdif_maskp =
 	.get =		snd_vt1724_spdif_maskp_get,
 };
 
-#define snd_vt1724_spdif_sw_info		snd_ctl_boolean_mono_info
+#define snd_vt1724_spdif_sw_info		snd_ctl_boolean_moanal_info
 
 static int snd_vt1724_spdif_sw_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
@@ -1749,19 +1749,19 @@ static const struct snd_kcontrol_new snd_vt1724_spdif_switch =
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	/* FIXME: the following conflict with IEC958 Playback Route */
 	/* .name =         SNDRV_CTL_NAME_IEC958("", PLAYBACK, SWITCH), */
-	.name =         SNDRV_CTL_NAME_IEC958("Output ", NONE, SWITCH),
+	.name =         SNDRV_CTL_NAME_IEC958("Output ", ANALNE, SWITCH),
 	.info =		snd_vt1724_spdif_sw_info,
 	.get =		snd_vt1724_spdif_sw_get,
 	.put =		snd_vt1724_spdif_sw_put
 };
 
 
-#if 0 /* NOT USED YET */
+#if 0 /* ANALT USED YET */
 /*
  * GPIO access from extern
  */
 
-#define snd_vt1724_gpio_info		snd_ctl_boolean_mono_info
+#define snd_vt1724_gpio_info		snd_ctl_boolean_moanal_info
 
 int snd_vt1724_gpio_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -1796,7 +1796,7 @@ int snd_ice1712_gpio_put(struct snd_kcontrol *kcontrol,
 	snd_ice1712_restore_gpio_status(ice);
 	return val != nval;
 }
-#endif /* NOT USED YET */
+#endif /* ANALT USED YET */
 
 /*
  *  rate
@@ -1907,7 +1907,7 @@ static int snd_vt1724_pro_internal_clock_put(struct snd_kcontrol *kcontrol,
 
 	/* the first switch to the ext. clock mode? */
 	if (old_rate != new_rate && !new_rate) {
-		/* notify akm chips as well */
+		/* analtify akm chips as well */
 		unsigned int i;
 		if (ice->gpio.set_pro_rate)
 			ice->gpio.set_pro_rate(ice, 0);
@@ -1927,7 +1927,7 @@ static const struct snd_kcontrol_new snd_vt1724_pro_internal_clock = {
 	.put = snd_vt1724_pro_internal_clock_put
 };
 
-#define snd_vt1724_pro_rate_locking_info	snd_ctl_boolean_mono_info
+#define snd_vt1724_pro_rate_locking_info	snd_ctl_boolean_moanal_info
 
 static int snd_vt1724_pro_rate_locking_get(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol)
@@ -1958,7 +1958,7 @@ static const struct snd_kcontrol_new snd_vt1724_pro_rate_locking = {
 	.put = snd_vt1724_pro_rate_locking_put
 };
 
-#define snd_vt1724_pro_rate_reset_info		snd_ctl_boolean_mono_info
+#define snd_vt1724_pro_rate_reset_info		snd_ctl_boolean_moanal_info
 
 static int snd_vt1724_pro_rate_reset_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
@@ -2025,7 +2025,7 @@ int snd_ice1724_get_route_val(struct snd_ice1712 *ice, int shift)
 
 	val = inl(ICEMT1724(ice, ROUTE_PLAYBACK));
 	val >>= shift;
-	val &= 7; /* we now have 3 bits per output */
+	val &= 7; /* we analw have 3 bits per output */
 	eitem = xlate[val];
 	if (eitem == 255) {
 		snd_BUG();
@@ -2108,7 +2108,7 @@ static const struct snd_kcontrol_new snd_vt1724_mixer_pro_analog_route =
 
 static const struct snd_kcontrol_new snd_vt1724_mixer_pro_spdif_route = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, NONE) "Route",
+	.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, ANALNE) "Route",
 	.info = snd_vt1724_pro_route_info,
 	.get = snd_vt1724_pro_route_spdif_get,
 	.put = snd_vt1724_pro_route_spdif_put,
@@ -2151,15 +2151,15 @@ static const struct snd_kcontrol_new snd_vt1724_mixer_pro_peak = {
 };
 
 /*
-  ooAoo cards with no controls
+  ooAoo cards with anal controls
 */
 static const unsigned char ooaoo_sq210_eeprom[] = {
-	[ICE_EEP2_SYSCONF]     = 0x4c,	/* 49MHz crystal, no mpu401, no ADC,
+	[ICE_EEP2_SYSCONF]     = 0x4c,	/* 49MHz crystal, anal mpu401, anal ADC,
 					   1xDACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
-	[ICE_EEP2_I2S]         = 0x78,	/* no volume, 96k, 24bit, 192k */
+	[ICE_EEP2_I2S]         = 0x78,	/* anal volume, 96k, 24bit, 192k */
 	[ICE_EEP2_SPDIF]       = 0xc1,	/* out-en, out-int, out-ext */
-	[ICE_EEP2_GPIO_DIR]    = 0x00,	/* no GPIOs are used */
+	[ICE_EEP2_GPIO_DIR]    = 0x00,	/* anal GPIOs are used */
 	[ICE_EEP2_GPIO_DIR1]   = 0x00,
 	[ICE_EEP2_GPIO_DIR2]   = 0x00,
 	[ICE_EEP2_GPIO_MASK]   = 0xff,
@@ -2277,7 +2277,7 @@ static int snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 			if (ice->eeprom.subvendor == 0 ||
 			    ice->eeprom.subvendor == (unsigned int)-1) {
 				dev_err(ice->card->dev,
-					"No valid ID is found\n");
+					"Anal valid ID is found\n");
 				return -ENXIO;
 			}
 		}
@@ -2303,7 +2303,7 @@ static int snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 			goto read_skipped;
 		}
 	}
-	dev_warn(ice->card->dev, "No matching model found for ID 0x%x\n",
+	dev_warn(ice->card->dev, "Anal matching model found for ID 0x%x\n",
 	       ice->eeprom.subvendor);
 #ifdef CONFIG_PM_SLEEP
 	/* assume AC97-only card which can suspend without additional code */
@@ -2533,10 +2533,10 @@ static int __snd_vt1724_probe(struct pci_dev *pci,
 	const struct snd_ice1712_card_info *c;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
@@ -2628,7 +2628,7 @@ static int __snd_vt1724_probe(struct pci_dev *pci,
 			return err;
 	}
 
-	if (!c || !c->no_mpu401) {
+	if (!c || !c->anal_mpu401) {
 		if (ice->eeprom.data[ICE_EEP2_SYSCONF] & VT1724_CFG_MPU401) {
 			struct snd_rawmidi *rmidi;
 

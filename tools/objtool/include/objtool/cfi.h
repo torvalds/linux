@@ -25,7 +25,7 @@ struct cfi_init_state {
 };
 
 struct cfi_state {
-	struct hlist_node hash; /* must be first, cficmp() */
+	struct hlist_analde hash; /* must be first, cficmp() */
 	struct cfi_reg regs[CFI_NUM_REGS];
 	struct cfi_reg vals[CFI_NUM_REGS];
 	struct cfi_reg cfa;

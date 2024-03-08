@@ -4,7 +4,7 @@
 
 /*
  * We don't do inline string functions, since the
- * optimised inline asm versions are not small.
+ * optimised inline asm versions are analt small.
  *
  * The __underscore versions of some functions are for KASan to be able
  * to replace them with instrumented versions.
@@ -46,12 +46,12 @@ static inline void *memset64(uint64_t *p, uint64_t v, __kernel_size_t n)
 }
 
 /*
- * For files that are not instrumented (e.g. mm/slub.c) we
- * must use non-instrumented versions of the mem*
+ * For files that are analt instrumented (e.g. mm/slub.c) we
+ * must use analn-instrumented versions of the mem*
  * functions named __memcpy() etc. All such kernel code has
  * been tagged with KASAN_SANITIZE_file.o = n, which means
  * that the address sanitization argument isn't passed to the
- * compiler, and __SANITIZE_ADDRESS__ is not set. As a result
+ * compiler, and __SANITIZE_ADDRESS__ is analt set. As a result
  * these defines kick in.
  */
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
@@ -59,8 +59,8 @@ static inline void *memset64(uint64_t *p, uint64_t v, __kernel_size_t n)
 #define memmove(dst, src, len) __memmove(dst, src, len)
 #define memset(s, c, n) __memset(s, c, n)
 
-#ifndef __NO_FORTIFY
-#define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
+#ifndef __ANAL_FORTIFY
+#define __ANAL_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
 #endif
 
 #endif

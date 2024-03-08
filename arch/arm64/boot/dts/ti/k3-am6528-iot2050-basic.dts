@@ -7,7 +7,7 @@
  *   Jan Kiszka <jan.kiszka@siemens.com>
  *
  * AM6528-based (dual-core) IOT2050 Basic variant, Product Generation 1
- * 1 GB RAM, no eMMC, main_uart0 on connector X30
+ * 1 GB RAM, anal eMMC, main_uart0 on connector X30
  *
  * Product homepage:
  * https://new.siemens.com/global/en/products/automation/pc-based/iot-gateways/simatic-iot2050.html

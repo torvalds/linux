@@ -12,11 +12,11 @@
  *
  *
  * Corey Minyard's driver for the KSC interface has the following
- * copyright notice:
+ * copyright analtice:
  *   Copyright 2002 MontaVista Software Inc.
  *
  * the kernel patch "mmcdev-patch-245" by HP has the following
- * copyright notice:
+ * copyright analtice:
  * (c) Copyright 2001 Grant Grundler (c) Copyright
  * 2001 Hewlett-Packard Company
  */
@@ -31,7 +31,7 @@
 #include "ipmi_si_sm.h"
 
 /* smic_debug is a bit-field
- *	SMIC_DEBUG_ENABLE -	turned on for now
+ *	SMIC_DEBUG_ENABLE -	turned on for analw
  *	SMIC_DEBUG_MSG -	commands and their responses
  *	SMIC_DEBUG_STATES -	state machine
 */
@@ -71,7 +71,7 @@ enum smic_states {
 /*
  * SMIC_SMI and SMIC_EVM_DATA_AVAIL are only used by
  * a few systems, and then only by Systems Management
- * Interrupts, not by the OS.  Always ignore these bits.
+ * Interrupts, analt by the OS.  Always iganalre these bits.
  *
  */
 #define SMIC_SMI		0x10
@@ -80,10 +80,10 @@ enum smic_states {
 #define SMIC_FLAG_BSY		0x01
 
 /* SMIC Error Codes */
-#define	EC_NO_ERROR		0x00
+#define	EC_ANAL_ERROR		0x00
 #define	EC_ABORTED		0x01
 #define	EC_ILLEGAL_CONTROL	0x02
-#define	EC_NO_RESPONSE		0x03
+#define	EC_ANAL_RESPONSE		0x03
 #define	EC_ILLEGAL_COMMAND	0x04
 #define	EC_BUFFER_FULL		0x05
 
@@ -131,7 +131,7 @@ static int start_smic_transaction(struct si_sm_data *smic,
 	if ((smic->state != SMIC_IDLE) && (smic->state != SMIC_HOSED)) {
 		dev_warn(smic->io->dev,
 			 "SMIC in invalid state %d\n", smic->state);
-		return IPMI_NOT_IN_MY_STATE_ERR;
+		return IPMI_ANALT_IN_MY_STATE_ERR;
 	}
 
 	if (smic_debug & SMIC_DEBUG_MSG) {
@@ -370,7 +370,7 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 
 	case SMIC_OP_OK:
 		if (status != SMIC_SC_SMS_READY) {
-			/* this should not happen */
+			/* this should analt happen */
 			start_error_recovery(smic,
 					     "state = SMIC_OP_OK,"
 					     " status != SMIC_SC_SMS_READY");
@@ -391,7 +391,7 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 			return SI_SM_CALL_WITH_DELAY;
 		}
 		/*
-		 * we must not issue WR_(NEXT|END) unless
+		 * we must analt issue WR_(NEXT|END) unless
 		 * TX_DATA_READY is set
 		 * */
 		if (flags & SMIC_TX_DATA_READY) {
@@ -543,7 +543,7 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 		if (smic_debug & SMIC_DEBUG_ENABLE) {
 			dev_dbg(smic->io->dev,
 				"smic->state = %d\n", smic->state);
-			start_error_recovery(smic, "state = UNKNOWN");
+			start_error_recovery(smic, "state = UNKANALWN");
 			return SI_SM_CALL_WITH_DELAY;
 		}
 	}

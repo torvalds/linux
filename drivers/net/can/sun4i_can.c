@@ -16,28 +16,28 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this analtice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are analt restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -243,7 +243,7 @@ static void sun4i_can_write_cmdreg(struct sun4ican_priv *priv, u8 val)
 	spin_unlock_irqrestore(&priv->cmdreg_lock, flags);
 }
 
-static int set_normal_mode(struct net_device *dev)
+static int set_analrmal_mode(struct net_device *dev)
 {
 	struct sun4ican_priv *priv = netdev_priv(dev);
 	int retry = SUN4I_MODE_MAX_RETRIES;
@@ -257,7 +257,7 @@ static int set_normal_mode(struct net_device *dev)
 
 	if (readl(priv->base + SUN4I_REG_MSEL_ADDR) & SUN4I_MSEL_RESET_MODE) {
 		netdev_err(dev,
-			   "setting controller into normal mode failed!\n");
+			   "setting controller into analrmal mode failed!\n");
 		return -ETIMEDOUT;
 	}
 
@@ -314,7 +314,7 @@ static int sun4ican_get_berr_counter(const struct net_device *dev,
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
-		netdev_err(dev, "could not enable clock\n");
+		netdev_err(dev, "could analt enable clock\n");
 		return err;
 	}
 
@@ -337,7 +337,7 @@ static int sun4i_can_start(struct net_device *dev)
 	/* we need to enter the reset mode */
 	err = set_reset_mode(dev);
 	if (err) {
-		netdev_err(dev, "could not enter reset mode\n");
+		netdev_err(dev, "could analt enter reset mode\n");
 		return err;
 	}
 
@@ -359,7 +359,7 @@ static int sun4i_can_start(struct net_device *dev)
 	mod_reg_val = readl(priv->base + SUN4I_REG_MSEL_ADDR);
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		mod_reg_val |= SUN4I_MSEL_LOOPBACK_MODE;
-	else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		mod_reg_val |= SUN4I_MSEL_LISTEN_ONLY_MODE;
 	writel(mod_reg_val, priv->base + SUN4I_REG_MSEL_ADDR);
 
@@ -367,10 +367,10 @@ static int sun4i_can_start(struct net_device *dev)
 	if (err)
 		return err;
 
-	/* we are ready to enter the normal mode */
-	err = set_normal_mode(dev);
+	/* we are ready to enter the analrmal mode */
+	err = set_analrmal_mode(dev);
 	if (err) {
-		netdev_err(dev, "could not enter normal mode\n");
+		netdev_err(dev, "could analt enter analrmal mode\n");
 		return err;
 	}
 
@@ -388,7 +388,7 @@ static int sun4i_can_stop(struct net_device *dev)
 	/* we need to enter reset mode */
 	err = set_reset_mode(dev);
 	if (err) {
-		netdev_err(dev, "could not enter reset mode\n");
+		netdev_err(dev, "could analt enter reset mode\n");
 		return err;
 	}
 
@@ -414,7 +414,7 @@ static int sun4ican_set_mode(struct net_device *dev, enum can_mode mode)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -551,10 +551,10 @@ static int sun4i_can_err(struct net_device *dev, u8 isrc, u8 status)
 		stats->rx_errors++;
 
 		/* reset the CAN IP by entering reset mode
-		 * ignoring timeout error
+		 * iganalring timeout error
 		 */
 		set_reset_mode(dev);
-		set_normal_mode(dev);
+		set_analrmal_mode(dev);
 
 		/* clear bit */
 		sun4i_can_write_cmdreg(priv, SUN4I_CMD_CLEAR_OR_FLAG);
@@ -640,7 +640,7 @@ static int sun4i_can_err(struct net_device *dev, u8 isrc, u8 status)
 	if (likely(skb))
 		netif_rx(skb);
 	else
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -671,7 +671,7 @@ static irqreturn_t sun4i_can_interrupt(int irq, void *dev_id)
 		    !(isrc & SUN4I_INT_DATA_OR)) {
 			/* receive interrupt - don't read if overrun occurred */
 			while (status & SUN4I_STA_RBUF_RDY) {
-				/* RX buffer is not empty */
+				/* RX buffer is analt empty */
 				sun4i_can_rx(dev);
 				status = readl(priv->base + SUN4I_REG_STA_ADDR);
 			}
@@ -690,7 +690,7 @@ static irqreturn_t sun4i_can_interrupt(int irq, void *dev_id)
 	if (n >= SUN4I_CAN_MAX_IRQ)
 		netdev_dbg(dev, "%d messages handled in ISR", n);
 
-	return (n) ? IRQ_HANDLED : IRQ_NONE;
+	return (n) ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int sun4ican_open(struct net_device *dev)
@@ -713,20 +713,20 @@ static int sun4ican_open(struct net_device *dev)
 	/* software reset deassert */
 	err = reset_control_deassert(priv->reset);
 	if (err) {
-		netdev_err(dev, "could not deassert CAN reset\n");
+		netdev_err(dev, "could analt deassert CAN reset\n");
 		goto exit_soft_reset;
 	}
 
 	/* turn on clocking for CAN peripheral block */
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
-		netdev_err(dev, "could not enable CAN peripheral clock\n");
+		netdev_err(dev, "could analt enable CAN peripheral clock\n");
 		goto exit_clock;
 	}
 
 	err = sun4i_can_start(dev);
 	if (err) {
-		netdev_err(dev, "could not start CAN peripheral\n");
+		netdev_err(dev, "could analt start CAN peripheral\n");
 		goto exit_can_start;
 	}
 
@@ -815,7 +815,7 @@ static void sun4ican_remove(struct platform_device *pdev)
 
 static int sun4ican_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct clk *clk;
 	struct reset_control *reset = NULL;
 	void __iomem *addr;
@@ -827,7 +827,7 @@ static int sun4ican_probe(struct platform_device *pdev)
 	quirks = of_device_get_match_data(&pdev->dev);
 	if (!quirks) {
 		dev_err(&pdev->dev, "failed to determine the quirks to use\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -843,13 +843,13 @@ static int sun4ican_probe(struct platform_device *pdev)
 	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "unable to request clock\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -862,8 +862,8 @@ static int sun4ican_probe(struct platform_device *pdev)
 	dev = alloc_candev(sizeof(struct sun4ican_priv), 1);
 	if (!dev) {
 		dev_err(&pdev->dev,
-			"could not allocate memory for CAN device\n");
-		err = -ENOMEM;
+			"could analt allocate memory for CAN device\n");
+		err = -EANALMEM;
 		goto exit;
 	}
 
@@ -878,7 +878,7 @@ static int sun4ican_probe(struct platform_device *pdev)
 	priv->can.do_set_mode = sun4ican_set_mode;
 	priv->can.do_get_berr_counter = sun4ican_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_BERR_REPORTING |
-				       CAN_CTRLMODE_LISTENONLY |
+				       CAN_CTRLMODE_LISTEANALNLY |
 				       CAN_CTRLMODE_LOOPBACK |
 				       CAN_CTRLMODE_3_SAMPLES;
 	priv->base = addr;

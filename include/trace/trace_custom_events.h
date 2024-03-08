@@ -75,7 +75,7 @@
 
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(call, proto, args, tstruct, assign, print) \
-static notrace enum print_line_t					\
+static analtrace enum print_line_t					\
 trace_custom_raw_output_##call(struct trace_iterator *iter, int flags,	\
 			struct trace_event *trace_event)		\
 {									\
@@ -118,7 +118,7 @@ static struct trace_event_fields trace_custom_event_fields_##call[] = {	\
 
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(call, proto, args, tstruct, assign, print) \
-static inline notrace int trace_custom_event_get_offsets_##call(	\
+static inline analtrace int trace_custom_event_get_offsets_##call(	\
 	struct trace_custom_event_data_offsets_##call *__data_offsets, proto) \
 {									\
 	int __data_size = 0;						\
@@ -139,7 +139,7 @@ static inline notrace int trace_custom_event_get_offsets_##call(	\
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(call, proto, args, tstruct, assign, print) \
 									\
-static notrace void							\
+static analtrace void							\
 trace_custom_event_raw_event_##call(void *__data, proto)		\
 {									\
 	struct trace_event_file *trace_file = __data;			\

@@ -92,7 +92,7 @@ int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr, struct per
 
 #else // HAVE_AUXTRACE_SUPPORT
 
-#include <errno.h>
+#include <erranal.h>
 
 static inline int
 perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr __maybe_unused,

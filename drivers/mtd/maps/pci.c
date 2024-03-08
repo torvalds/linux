@@ -75,7 +75,7 @@ static void mtd_pci_copyto(struct map_info *_map, unsigned long to, const void *
 }
 
 static const struct map_info mtd_pci_map = {
-	.phys =		NO_XIP,
+	.phys =		ANAL_XIP,
 	.copy_from =	mtd_pci_copyfrom,
 	.copy_to =	mtd_pci_copyto,
 };
@@ -98,11 +98,11 @@ intel_iq80310_init(struct pci_dev *dev, struct map_pci_info *map)
 					    pci_resource_len(dev, 0));
 
 	if (!map->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We want to base the memory window at Xscale
-	 * bus address 0, not 0x1000.
+	 * bus address 0, analt 0x1000.
 	 */
 	pci_read_config_dword(dev, 0x44, &win_base);
 	pci_write_config_dword(dev, 0x44, 0);
@@ -127,7 +127,7 @@ intel_iq80310_translate(struct map_pci_info *map, unsigned long ofs)
 
 	/*
 	 * This mundges the flash location so we avoid
-	 * the first 80 bytes (they appear to read nonsense).
+	 * the first 80 bytes (they appear to read analnsense).
 	 */
 	if (page_addr) {
 		writel(0x00000008, map->base + 0x1558);
@@ -162,7 +162,7 @@ intel_dc21285_init(struct pci_dev *dev, struct map_pci_info *map)
 
 	if (!len || !base) {
 		/*
-		 * No ROM resource
+		 * Anal ROM resource
 		 */
 		base = pci_resource_start(dev, 2);
 		len  = pci_resource_len(dev, 2);
@@ -174,7 +174,7 @@ intel_dc21285_init(struct pci_dev *dev, struct map_pci_info *map)
 	} else {
 		/*
 		 * Hmm, if an address was allocated to the ROM resource, but
-		 * not enabled, should we be allocating a new resource for it
+		 * analt enabled, should we be allocating a new resource for it
 		 * or simply enabling it?
 		 */
 		pci_enable_rom(dev);
@@ -191,7 +191,7 @@ intel_dc21285_init(struct pci_dev *dev, struct map_pci_info *map)
 	map->base         = ioremap(base, len);
 
 	if (!map->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -265,7 +265,7 @@ static int mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto out;
 
 	map = kmalloc(sizeof(*map), GFP_KERNEL);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!map)
 		goto release;
 
@@ -280,7 +280,7 @@ static int mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto release;
 
 	mtd = do_map_probe(info->map_name, &map->map);
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!mtd)
 		goto release;
 

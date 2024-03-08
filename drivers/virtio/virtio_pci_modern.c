@@ -15,8 +15,8 @@
  */
 
 #include <linux/delay.h>
-#define VIRTIO_PCI_NO_LEGACY
-#define VIRTIO_RING_NO_LEGACY
+#define VIRTIO_PCI_ANAL_LEGACY
+#define VIRTIO_RING_ANAL_LEGACY
 #include "virtio_pci_common.h"
 
 #define VIRTIO_AVQ_SGS_MAX	4
@@ -55,7 +55,7 @@ static int virtqueue_exec_admin_cmd(struct virtio_pci_admin_vq *admin_vq,
 	if (opcode != VIRTIO_ADMIN_CMD_LIST_QUERY &&
 	    opcode != VIRTIO_ADMIN_CMD_LIST_USE &&
 	    !((1ULL << opcode) & admin_vq->supported_cmds))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = virtqueue_add_sgs(vq, sgs, out_num, in_num, data, GFP_KERNEL);
 	if (ret < 0)
@@ -86,15 +86,15 @@ int vp_modern_admin_cmd_exec(struct virtio_device *vdev,
 	int ret;
 
 	if (!virtio_has_feature(vdev, VIRTIO_F_ADMIN_VQ))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	va_status = kzalloc(sizeof(*va_status), GFP_KERNEL);
 	if (!va_status)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	va_hdr = kzalloc(sizeof(*va_hdr), GFP_KERNEL);
 	if (!va_hdr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -237,7 +237,7 @@ static int __vp_check_common_size_one_feature(struct virtio_device *vdev, u32 fb
 		return 0;
 
 	dev_err(&vdev->dev,
-		"virtio: common cfg size(%zu) does not match the feature %s\n",
+		"virtio: common cfg size(%zu) does analt match the feature %s\n",
 		vp_dev->mdev.common_len, fname);
 
 	return -EINVAL;
@@ -249,7 +249,7 @@ static int __vp_check_common_size_one_feature(struct virtio_device *vdev, u32 fb
 
 static int vp_check_common_size(struct virtio_device *vdev)
 {
-	if (vp_check_common_size_one_feature(vdev, VIRTIO_F_NOTIF_CONFIG_DATA, queue_notify_data))
+	if (vp_check_common_size_one_feature(vdev, VIRTIO_F_ANALTIF_CONFIG_DATA, queue_analtify_data))
 		return -EINVAL;
 
 	if (vp_check_common_size_one_feature(vdev, VIRTIO_F_RING_RESET, queue_reset))
@@ -275,7 +275,7 @@ static int vp_finalize_features(struct virtio_device *vdev)
 
 	if (!__virtio_test_bit(vdev, VIRTIO_F_VERSION_1)) {
 		dev_err(&vdev->dev, "virtio: device uses modern interface "
-			"but does not have VIRTIO_F_VERSION_1\n");
+			"but does analt have VIRTIO_F_VERSION_1\n");
 		return -EINVAL;
 	}
 
@@ -423,9 +423,9 @@ static int vp_active_vq(struct virtqueue *vq, u16 msix_vec)
 				virtqueue_get_avail_addr(vq),
 				virtqueue_get_used_addr(vq));
 
-	if (msix_vec != VIRTIO_MSI_NO_VECTOR) {
+	if (msix_vec != VIRTIO_MSI_ANAL_VECTOR) {
 		msix_vec = vp_modern_queue_vector(mdev, index, msix_vec);
-		if (msix_vec == VIRTIO_MSI_NO_VECTOR)
+		if (msix_vec == VIRTIO_MSI_ANAL_VECTOR)
 			return -EBUSY;
 	}
 
@@ -440,7 +440,7 @@ static int vp_modern_disable_vq_and_reset(struct virtqueue *vq)
 	unsigned long flags;
 
 	if (!virtio_has_feature(vq->vdev, VIRTIO_F_RING_RESET))
-		return -ENOENT;
+		return -EANALENT;
 
 	vp_modern_set_queue_reset(mdev, vq->index);
 
@@ -448,22 +448,22 @@ static int vp_modern_disable_vq_and_reset(struct virtqueue *vq)
 
 	/* delete vq from irq handler */
 	spin_lock_irqsave(&vp_dev->lock, flags);
-	list_del(&info->node);
+	list_del(&info->analde);
 	spin_unlock_irqrestore(&vp_dev->lock, flags);
 
-	INIT_LIST_HEAD(&info->node);
+	INIT_LIST_HEAD(&info->analde);
 
-#ifdef CONFIG_VIRTIO_HARDEN_NOTIFICATION
+#ifdef CONFIG_VIRTIO_HARDEN_ANALTIFICATION
 	__virtqueue_break(vq);
 #endif
 
 	/* For the case where vq has an exclusive irq, call synchronize_irq() to
 	 * wait for completion.
 	 *
-	 * note: We can't use disable_irq() since it conflicts with the affinity
+	 * analte: We can't use disable_irq() since it conflicts with the affinity
 	 * managed IRQ that is used by some drivers.
 	 */
-	if (vp_dev->per_vq_vectors && info->msix_vector != VIRTIO_MSI_NO_VECTOR)
+	if (vp_dev->per_vq_vectors && info->msix_vector != VIRTIO_MSI_ANAL_VECTOR)
 		synchronize_irq(pci_irq_vector(vp_dev->pci_dev, info->msix_vector));
 
 	vq->reset = true;
@@ -497,13 +497,13 @@ static int vp_modern_enable_vq_after_reset(struct virtqueue *vq)
 
 	if (vq->callback) {
 		spin_lock_irqsave(&vp_dev->lock, flags);
-		list_add(&info->node, &vp_dev->virtqueues);
+		list_add(&info->analde, &vp_dev->virtqueues);
 		spin_unlock_irqrestore(&vp_dev->lock, flags);
 	} else {
-		INIT_LIST_HEAD(&info->node);
+		INIT_LIST_HEAD(&info->analde);
 	}
 
-#ifdef CONFIG_VIRTIO_HARDEN_NOTIFICATION
+#ifdef CONFIG_VIRTIO_HARDEN_ANALTIFICATION
 	__virtqueue_unbreak(vq);
 #endif
 
@@ -518,9 +518,9 @@ static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
 	return vp_modern_config_vector(&vp_dev->mdev, vector);
 }
 
-static bool vp_notify_with_data(struct virtqueue *vq)
+static bool vp_analtify_with_data(struct virtqueue *vq)
 {
-	u32 data = vring_notification_data(vq);
+	u32 data = vring_analtification_data(vq);
 
 	iowrite32(data, (void __iomem *)vq->priv);
 
@@ -537,16 +537,16 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 {
 
 	struct virtio_pci_modern_device *mdev = &vp_dev->mdev;
-	bool (*notify)(struct virtqueue *vq);
+	bool (*analtify)(struct virtqueue *vq);
 	struct virtqueue *vq;
 	bool is_avq;
 	u16 num;
 	int err;
 
-	if (__virtio_test_bit(&vp_dev->vdev, VIRTIO_F_NOTIFICATION_DATA))
-		notify = vp_notify_with_data;
+	if (__virtio_test_bit(&vp_dev->vdev, VIRTIO_F_ANALTIFICATION_DATA))
+		analtify = vp_analtify_with_data;
 	else
-		notify = vp_notify;
+		analtify = vp_analtify;
 
 	is_avq = vp_is_avq(&vp_dev->vdev, index);
 	if (index >= vp_modern_get_num_queues(mdev) && !is_avq)
@@ -554,9 +554,9 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 
 	num = is_avq ?
 		VIRTIO_AVQ_SGS_MAX : vp_modern_get_queue_size(mdev, index);
-	/* Check if queue is either not available or already active. */
+	/* Check if queue is either analt available or already active. */
 	if (!num || vp_modern_get_queue_enable(mdev, index))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	info->msix_vector = msix_vec;
 
@@ -564,9 +564,9 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	vq = vring_create_virtqueue(index, num,
 				    SMP_CACHE_BYTES, &vp_dev->vdev,
 				    true, true, ctx,
-				    notify, callback, name);
+				    analtify, callback, name);
 	if (!vq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vq->num_max = num;
 
@@ -574,9 +574,9 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	if (err)
 		goto err;
 
-	vq->priv = (void __force *)vp_modern_map_vq_notify(mdev, index, NULL);
+	vq->priv = (void __force *)vp_modern_map_vq_analtify(mdev, index, NULL);
 	if (!vq->priv) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -607,7 +607,7 @@ static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 		return rc;
 
 	/* Select and activate all queues. Has to be done last: once we do
-	 * this, there's no way to go back except reset.
+	 * this, there's anal way to go back except reset.
 	 */
 	list_for_each_entry(vq, &vdev->vqs, list)
 		vp_modern_set_queue_enable(&vp_dev->mdev, vq->index, true);
@@ -629,9 +629,9 @@ static void del_vq(struct virtio_pci_vq_info *info)
 
 	if (vp_dev->msix_enabled)
 		vp_modern_queue_vector(mdev, vq->index,
-				       VIRTIO_MSI_NO_VECTOR);
+				       VIRTIO_MSI_ANAL_VECTOR);
 
-	if (!mdev->notify_base)
+	if (!mdev->analtify_base)
 		pci_iounmap(mdev->pci_dev, (void __force __iomem *)vq->priv);
 
 	vring_del_virtqueue(vq);
@@ -683,7 +683,7 @@ static int virtio_pci_find_shm_cap(struct pci_dev *dev, u8 required_id,
 							  length), &tmp32);
 		res_length = tmp32;
 
-		/* and now the top half */
+		/* and analw the top half */
 		pci_read_config_dword(dev,
 				      pos + offsetof(struct virtio_pci_cap64,
 						     offset_hi), &tmp32);
@@ -754,7 +754,7 @@ static int vp_modern_create_avq(struct virtio_device *vdev)
 	avq->vq_index = vp_modern_avq_index(&vp_dev->mdev);
 	sprintf(avq->name, "avq.%u", avq->vq_index);
 	vq = vp_dev->setup_vq(vp_dev, &vp_dev->admin_vq.info, avq->vq_index, NULL,
-			      avq->name, NULL, VIRTIO_MSI_NO_VECTOR);
+			      avq->name, NULL, VIRTIO_MSI_ANAL_VECTOR);
 	if (IS_ERR(vq)) {
 		dev_err(&vdev->dev, "failed to setup admin virtqueue, err=%ld",
 			PTR_ERR(vq));
@@ -775,7 +775,7 @@ static void vp_modern_destroy_avq(struct virtio_device *vdev)
 	vp_dev->del_vq(&vp_dev->admin_vq.info);
 }
 
-static const struct virtio_config_ops virtio_pci_config_nodev_ops = {
+static const struct virtio_config_ops virtio_pci_config_analdev_ops = {
 	.get		= NULL,
 	.set		= NULL,
 	.generation	= vp_generation,
@@ -835,7 +835,7 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 	if (mdev->device)
 		vp_dev->vdev.config = &virtio_pci_config_ops;
 	else
-		vp_dev->vdev.config = &virtio_pci_config_nodev_ops;
+		vp_dev->vdev.config = &virtio_pci_config_analdev_ops;
 
 	vp_dev->config_vector = vp_config_vector;
 	vp_dev->setup_vq = setup_vq;

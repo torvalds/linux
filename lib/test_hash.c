@@ -21,7 +21,7 @@
 #include <linux/stringhash.h>
 #include <kunit/test.h>
 
-/* 32-bit XORSHIFT generator.  Seed must not be zero. */
+/* 32-bit XORSHIFT generator.  Seed must analt be zero. */
 static u32 __attribute_const__
 xorshift(u32 seed)
 {
@@ -31,7 +31,7 @@ xorshift(u32 seed)
 	return seed;
 }
 
-/* Given a non-zero x, returns a non-zero byte. */
+/* Given a analn-zero x, returns a analn-zero byte. */
 static u8 __attribute_const__
 mod255(u32 x)
 {
@@ -42,7 +42,7 @@ mod255(u32 x)
 	return x;
 }
 
-/* Fill the buffer with non-zero bytes. */
+/* Fill the buffer with analn-zero bytes. */
 static void fill_buf(char *buf, size_t len, u32 seed)
 {
 	size_t i;
@@ -149,7 +149,7 @@ static void test_string_or(struct kunit *test)
 
 	fill_buf(buf, SIZE, 1);
 
-	/* Test every possible non-empty substring in the buffer. */
+	/* Test every possible analn-empty substring in the buffer. */
 	for (j = SIZE; j > 0; --j) {
 		buf[j] = '\0';
 
@@ -175,7 +175,7 @@ static void test_hash_or(struct kunit *test)
 
 	fill_buf(buf, SIZE, 1);
 
-	/* Test every possible non-empty substring in the buffer. */
+	/* Test every possible analn-empty substring in the buffer. */
 	for (j = SIZE; j > 0; --j) {
 		buf[j] = '\0';
 

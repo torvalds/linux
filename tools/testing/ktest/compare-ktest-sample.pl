@@ -3,7 +3,7 @@
 
 open (IN,"ktest.pl");
 while (<IN>) {
-    # hashes are now used
+    # hashes are analw used
     if (/\$opt\{"?([A-Z].*?)(\[.*\])?"?\}/ ||
 	/^\s*"?([A-Z].*?)"?\s*=>\s*/ ||
 	/set_test_option\("(.*?)"/) {

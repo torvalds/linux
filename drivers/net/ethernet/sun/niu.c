@@ -37,7 +37,7 @@
 
 /* This driver wants to store a link to a "next page" within the
  * page struct itself by overloading the content of the "mapping"
- * member. This is not expected by the page API, but does currently
+ * member. This is analt expected by the page API, but does currently
  * work. However, the randstruct plugin gets very bothered by this
  * case because "mapping" (struct address_space) is randomized, so
  * casts to/from it trigger warnings. Hide this by way of a union,
@@ -128,7 +128,7 @@ static int __niu_wait_bits_clear_mac(struct niu *np, unsigned long reg,
 		udelay(delay);
 	}
 	if (limit < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -141,7 +141,7 @@ static int __niu_set_and_wait_clear_mac(struct niu *np, unsigned long reg,
 	nw64_mac(reg, bits);
 	err = __niu_wait_bits_clear_mac(np, reg, bits, limit, delay);
 	if (err)
-		netdev_err(np->dev, "bits (%llx) of register %s would not clear, val[%llx]\n",
+		netdev_err(np->dev, "bits (%llx) of register %s would analt clear, val[%llx]\n",
 			   (unsigned long long)bits, reg_name,
 			   (unsigned long long)nr64_mac(reg));
 	return err;
@@ -163,7 +163,7 @@ static int __niu_wait_bits_clear_ipp(struct niu *np, unsigned long reg,
 		udelay(delay);
 	}
 	if (limit < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -180,7 +180,7 @@ static int __niu_set_and_wait_clear_ipp(struct niu *np, unsigned long reg,
 
 	err = __niu_wait_bits_clear_ipp(np, reg, bits, limit, delay);
 	if (err)
-		netdev_err(np->dev, "bits (%llx) of register %s would not clear, val[%llx]\n",
+		netdev_err(np->dev, "bits (%llx) of register %s would analt clear, val[%llx]\n",
 			   (unsigned long long)bits, reg_name,
 			   (unsigned long long)nr64_ipp(reg));
 	return err;
@@ -202,7 +202,7 @@ static int __niu_wait_bits_clear(struct niu *np, unsigned long reg,
 		udelay(delay);
 	}
 	if (limit < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -220,7 +220,7 @@ static int __niu_set_and_wait_clear(struct niu *np, unsigned long reg,
 	nw64(reg, bits);
 	err = __niu_wait_bits_clear(np, reg, bits, limit, delay);
 	if (err)
-		netdev_err(np->dev, "bits (%llx) of register %s would not clear, val[%llx]\n",
+		netdev_err(np->dev, "bits (%llx) of register %s would analt clear, val[%llx]\n",
 			   (unsigned long long)bits, reg_name,
 			   (unsigned long long)nr64(reg));
 	return err;
@@ -326,7 +326,7 @@ static int mdio_wait(struct niu *np)
 		udelay(10);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int mdio_read(struct niu *np, int port, int dev, int reg)
@@ -532,9 +532,9 @@ static int serdes_init_niu_1g_serdes(struct niu *np)
 	}
 
 	if ((sig & mask) != val) {
-		netdev_err(np->dev, "Port %u signal bits [%08x] are not [%08x]\n",
+		netdev_err(np->dev, "Port %u signal bits [%08x] are analt [%08x]\n",
 			   np->port, (int)(sig & mask), (int)val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -638,7 +638,7 @@ static int serdes_init_niu_10g_serdes(struct niu *np)
 	}
 
 	if ((sig & mask) != val) {
-		pr_info("NIU Port %u signal bits [%08x] are not [%08x] for 10G...trying 1G\n",
+		pr_info("NIU Port %u signal bits [%08x] are analt [%08x] for 10G...trying 1G\n",
 			np->port, (int)(sig & mask), (int)val);
 
 		/* 10G failed, try initializing at 1G */
@@ -649,7 +649,7 @@ static int serdes_init_niu_10g_serdes(struct niu *np)
 		}  else {
 			netdev_err(np->dev, "Port %u 10G/1G SERDES Link Failed\n",
 				   np->port);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	return 0;
@@ -762,9 +762,9 @@ static int esr_reset(struct niu *np)
 	if (err)
 		return err;
 	if (reset != 0) {
-		netdev_err(np->dev, "Port %u ESR_RESET did not clear [%08x]\n",
+		netdev_err(np->dev, "Port %u ESR_RESET did analt clear [%08x]\n",
 			   np->port, reset);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -887,9 +887,9 @@ static int serdes_init_10g(struct niu *np)
 			np->flags &= ~NIU_FLAGS_HOTPLUG_PHY_PRESENT;
 			return 0;
 		}
-		netdev_err(np->dev, "Port %u signal bits [%08x] are not [%08x]\n",
+		netdev_err(np->dev, "Port %u signal bits [%08x] are analt [%08x]\n",
 			   np->port, (int)(sig & mask), (int)val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (np->flags & NIU_FLAGS_HOTPLUG_PHY)
 		np->flags |= NIU_FLAGS_HOTPLUG_PHY_PRESENT;
@@ -1036,9 +1036,9 @@ static int serdes_init_1g_serdes(struct niu *np)
 	}
 
 	if ((sig & mask) != val) {
-		netdev_err(np->dev, "Port %u signal bits [%08x] are not [%08x]\n",
+		netdev_err(np->dev, "Port %u signal bits [%08x] are analt [%08x]\n",
 			   np->port, (int)(sig & mask), (int)val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1297,9 +1297,9 @@ static int bcm8704_reset(struct niu *np)
 			break;
 	}
 	if (limit < 0) {
-		netdev_err(np->dev, "Port %u PHY will not reset (bmcr=%04x)\n",
+		netdev_err(np->dev, "Port %u PHY will analt reset (bmcr=%04x)\n",
 			   np->port, (err & 0xffff));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -1494,7 +1494,7 @@ static int xcvr_diag_bcm870x(struct niu *np)
 	pr_info("Port %u PHYXS(MII_NWAYTEST) [%04x]\n", np->port, err);
 #endif
 
-	/* XXX dig this out it might not be so useful XXX */
+	/* XXX dig this out it might analt be so useful XXX */
 	err = mdio_read(np, np->phy_addr, BCM8704_USER_DEV3_ADDR,
 			BCM8704_USER_ANALOG_STATUS0);
 	if (err < 0)
@@ -1517,7 +1517,7 @@ static int xcvr_diag_bcm870x(struct niu *np)
 
 	if (analog_stat0 != 0x03fc) {
 		if ((analog_stat0 == 0x43bc) && (tx_alarm_status != 0)) {
-			pr_info("Port %u cable not connected or bad cable\n",
+			pr_info("Port %u cable analt connected or bad cable\n",
 				np->port);
 		} else if (analog_stat0 == 0x639c) {
 			pr_info("Port %u optical module is bad or missing\n",
@@ -1661,9 +1661,9 @@ static int mii_reset(struct niu *np)
 			break;
 	}
 	if (limit < 0) {
-		netdev_err(np->dev, "Port %u MII would not reset, bmcr[%04x]\n",
+		netdev_err(np->dev, "Port %u MII would analt reset, bmcr[%04x]\n",
 			   np->port, err);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1823,8 +1823,8 @@ static int mii_init_common(struct niu *np)
 			return -EINVAL;
 
 		if (lp->speed == SPEED_1000) {
-			/* if X-full requested while not supported, or
-			   X-half requested while not supported... */
+			/* if X-full requested while analt supported, or
+			   X-half requested while analt supported... */
 			if ((fulldpx && !(estat & ESTATUS_1000_TFULL)) ||
 				(!fulldpx && !(estat & ESTATUS_1000_THALF)))
 				return -EINVAL;
@@ -2181,7 +2181,7 @@ static int link_status_10g_hotplug(struct niu *np, int *link_up_p)
 					err = mdio_read(np, np->phy_addr,
 						BCM8704_PHYXS_DEV_ADDR, MII_BMCR);
 					if (err == 0xffff) {
-						/* No mdio, back-to-back XAUI */
+						/* Anal mdio, back-to-back XAUI */
 						goto out;
 					}
 					/* debounce */
@@ -2198,7 +2198,7 @@ out:
 		if (np->flags & NIU_FLAGS_HOTPLUG_PHY_PRESENT) {
 			err = link_status_10g_bcm8706(np, link_up_p);
 			if (err == 0xffff) {
-				/* No mdio, back-to-back XAUI: it is C10NEM */
+				/* Anal mdio, back-to-back XAUI: it is C10NEM */
 				*link_up_p = 1;
 				np->link_config.active_speed = SPEED_10000;
 				np->link_config.active_duplex = DUPLEX_FULL;
@@ -2488,7 +2488,7 @@ static int serdes_init_10g_serdes(struct niu *np)
 		}  else {
 			netdev_err(np->dev, "Port %u 10G/1G SERDES Link Failed\n",
 				   np->port);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -2604,7 +2604,7 @@ static int niu_determine_phy_disposition(struct niu *np)
 static int niu_init_link(struct niu *np)
 {
 	struct niu_parent *parent = np->parent;
-	int err, ignore;
+	int err, iganalre;
 
 	if (parent->plat_type == PLAT_TYPE_NIU) {
 		err = niu_xcvr_init(np);
@@ -2618,7 +2618,7 @@ static int niu_init_link(struct niu *np)
 	msleep(200);
 	err = niu_xcvr_init(np);
 	if (!err || (np->flags & NIU_FLAGS_HOTPLUG_PHY))
-		niu_link_status(np, &ignore);
+		niu_link_status(np, &iganalre);
 	return 0;
 }
 
@@ -2799,7 +2799,7 @@ static int tcam_wait_bit(struct niu *np, u64 bit)
 		udelay(1);
 	}
 	if (limit <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -3078,7 +3078,7 @@ static void fflp_reset(struct niu *np)
 	udelay(10);
 	nw64(FFLP_CFG_1, 0);
 
-	val = FFLP_CFG_1_FCRAMOUTDR_NORMAL | FFLP_CFG_1_FFLPINITDONE;
+	val = FFLP_CFG_1_FCRAMOUTDR_ANALRMAL | FFLP_CFG_1_FFLPINITDONE;
 	nw64(FFLP_CFG_1, val);
 }
 
@@ -3332,13 +3332,13 @@ static int niu_rbr_add_page(struct niu *np, struct rx_ring_info *rp,
 
 	page = alloc_page(mask);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	addr = np->ops->map_page(np->device, page, 0,
 				 PAGE_SIZE, DMA_FROM_DEVICE);
 	if (!addr) {
 		__free_page(page);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	niu_hash_page(rp, page, addr);
@@ -3380,7 +3380,7 @@ static void niu_rbr_refill(struct niu *np, struct rx_ring_info *rp, gfp_t mask)
 	}
 }
 
-static int niu_rx_pkt_ignore(struct niu *np, struct rx_ring_info *rp)
+static int niu_rx_pkt_iganalre(struct niu *np, struct rx_ring_info *rp)
 {
 	unsigned int index = rp->rcr_index;
 	int num_rcr = 0;
@@ -3430,7 +3430,7 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 
 	skb = netdev_alloc_skb(np->dev, RX_SKB_ALLOC_SIZE);
 	if (unlikely(!skb))
-		return niu_rx_pkt_ignore(np, rp);
+		return niu_rx_pkt_iganalre(np, rp);
 
 	num_rcr = 0;
 	while (1) {
@@ -3460,11 +3460,11 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 			ptype = (val >> RCR_ENTRY_PKT_TYPE_SHIFT);
 			if ((ptype == RCR_PKT_TYPE_TCP ||
 			     ptype == RCR_PKT_TYPE_UDP) &&
-			    !(val & (RCR_ENTRY_NOPORT |
+			    !(val & (RCR_ENTRY_ANALPORT |
 				     RCR_ENTRY_ERROR)))
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			else
-				skb_checksum_none_assert(skb);
+				skb_checksum_analne_assert(skb);
 		} else if (!(val & RCR_ENTRY_MULTI))
 			append_size = append_size - skb->len;
 
@@ -3648,8 +3648,8 @@ static inline void niu_sync_rx_discard_stats(struct niu *np,
 {
 	/* This elaborate scheme is needed for reading the RX discard
 	 * counters, as they are only 16-bit and can overflow quickly,
-	 * and because the overflow indication bit is not usable as
-	 * the counter value does not wrap, but remains at max value
+	 * and because the overflow indication bit is analt usable as
+	 * the counter value does analt wrap, but remains at max value
 	 * 0xFFFF.
 	 *
 	 * In theory and in practice counters can be lost in between
@@ -3895,7 +3895,7 @@ static int niu_tx_error(struct niu *np, struct tx_ring_info *rp)
 
 	niu_log_txchan_errors(np, rp, cs);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int niu_mif_interrupt(struct niu *np)
@@ -3913,7 +3913,7 @@ static int niu_mif_interrupt(struct niu *np)
 	netdev_err(np->dev, "MIF interrupt, stat[%llx] phy_mdint(%d)\n",
 		   (unsigned long long)mif_status, phy_mdint);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void niu_xmac_interrupt(struct niu *np)
@@ -4014,7 +4014,7 @@ static void niu_bmac_interrupt(struct niu *np)
 		mp->rx_len_errors += BRXMAC_CODE_VIOL_ERR_CNT_COUNT;
 
 	val = nr64_mac(BMAC_CTRL_STATUS);
-	if (val & BMAC_CTRL_STATUS_NOPAUSE)
+	if (val & BMAC_CTRL_STATUS_ANALPAUSE)
 		mp->pause_off_state++;
 	if (val & BMAC_CTRL_STATUS_PAUSE)
 		mp->pause_on_state++;
@@ -4071,7 +4071,7 @@ static int niu_device_error(struct niu *np)
 
 	niu_log_device_error(np, stat);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int niu_slowpath_interrupt(struct niu *np, struct niu_ldg *lp,
@@ -4234,7 +4234,7 @@ static irqreturn_t niu_interrupt(int irq, void *dev_id)
 
 	if (unlikely(!v0 && !v1 && !v2)) {
 		spin_unlock_irqrestore(&np->lock, flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (unlikely((v0 & ((u64)1 << LDN_MIF)) || v1 || v2)) {
@@ -4344,13 +4344,13 @@ static int niu_alloc_rx_ring_info(struct niu *np,
 	rp->rxhash = kcalloc(MAX_RBR_RING_SIZE, sizeof(struct page *),
 			     GFP_KERNEL);
 	if (!rp->rxhash)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rp->mbox = np->ops->alloc_coherent(np->device,
 					   sizeof(struct rxdma_mailbox),
 					   &rp->mbox_dma, GFP_KERNEL);
 	if (!rp->mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 	if ((unsigned long)rp->mbox & (64UL - 1)) {
 		netdev_err(np->dev, "Coherent alloc gives misaligned RXDMA mailbox %p\n",
 			   rp->mbox);
@@ -4361,7 +4361,7 @@ static int niu_alloc_rx_ring_info(struct niu *np,
 					  MAX_RCR_RING_SIZE * sizeof(__le64),
 					  &rp->rcr_dma, GFP_KERNEL);
 	if (!rp->rcr)
-		return -ENOMEM;
+		return -EANALMEM;
 	if ((unsigned long)rp->rcr & (64UL - 1)) {
 		netdev_err(np->dev, "Coherent alloc gives misaligned RXDMA RCR table %p\n",
 			   rp->rcr);
@@ -4374,7 +4374,7 @@ static int niu_alloc_rx_ring_info(struct niu *np,
 					  MAX_RBR_RING_SIZE * sizeof(__le32),
 					  &rp->rbr_dma, GFP_KERNEL);
 	if (!rp->rbr)
-		return -ENOMEM;
+		return -EANALMEM;
 	if ((unsigned long)rp->rbr & (64UL - 1)) {
 		netdev_err(np->dev, "Coherent alloc gives misaligned RXDMA RBR table %p\n",
 			   rp->rbr);
@@ -4408,7 +4408,7 @@ static int niu_alloc_tx_ring_info(struct niu *np,
 					   sizeof(struct txdma_mailbox),
 					   &rp->mbox_dma, GFP_KERNEL);
 	if (!rp->mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 	if ((unsigned long)rp->mbox & (64UL - 1)) {
 		netdev_err(np->dev, "Coherent alloc gives misaligned TXDMA mailbox %p\n",
 			   rp->mbox);
@@ -4419,7 +4419,7 @@ static int niu_alloc_tx_ring_info(struct niu *np,
 					    MAX_TX_RING_SIZE * sizeof(__le64),
 					    &rp->descr_dma, GFP_KERNEL);
 	if (!rp->descr)
-		return -ENOMEM;
+		return -EANALMEM;
 	if ((unsigned long)rp->descr & (64UL - 1)) {
 		netdev_err(np->dev, "Coherent alloc gives misaligned TXDMA descr table %p\n",
 			   rp->descr);
@@ -4487,7 +4487,7 @@ static int niu_alloc_channels(struct niu *np)
 
 	rx_rings = kcalloc(num_rx_rings, sizeof(struct rx_ring_info),
 			   GFP_KERNEL);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!rx_rings)
 		goto out_err;
 
@@ -4510,8 +4510,8 @@ static int niu_alloc_channels(struct niu *np)
 		niu_size_rbr(np, rp);
 
 		/* XXX better defaults, configurable, etc... XXX */
-		rp->nonsyn_window = 64;
-		rp->nonsyn_threshold = rp->rcr_table_size - 64;
+		rp->analnsyn_window = 64;
+		rp->analnsyn_threshold = rp->rcr_table_size - 64;
 		rp->syn_window = 64;
 		rp->syn_threshold = rp->rcr_table_size - 64;
 		rp->rcr_pkt_threshold = 16;
@@ -4527,7 +4527,7 @@ static int niu_alloc_channels(struct niu *np)
 
 	tx_rings = kcalloc(num_tx_rings, sizeof(struct tx_ring_info),
 			   GFP_KERNEL);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!tx_rings)
 		goto out_err;
 
@@ -4564,7 +4564,7 @@ static int niu_tx_cs_sng_poll(struct niu *np, int channel)
 		if (val & TX_CS_SNG_STATE)
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int niu_tx_channel_stop(struct niu *np, int channel)
@@ -4586,7 +4586,7 @@ static int niu_tx_cs_reset_poll(struct niu *np, int channel)
 		if (!(val & TX_CS_RST))
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int niu_tx_channel_reset(struct niu *np, int channel)
@@ -4691,7 +4691,7 @@ static int niu_init_one_tx_channel(struct niu *np, struct tx_ring_info *rp)
 
 	if (rp->descr_dma & ~(TX_RNG_CFIG_STADDR_BASE |
 			      TX_RNG_CFIG_STADDR)) {
-		netdev_err(np->dev, "TX ring channel %d DMA addr (%llx) is not aligned\n",
+		netdev_err(np->dev, "TX ring channel %d DMA addr (%llx) is analt aligned\n",
 			   channel, (unsigned long long)rp->descr_dma);
 		return -EINVAL;
 	}
@@ -4813,8 +4813,8 @@ static void niu_rx_channel_wred_init(struct niu *np, struct rx_ring_info *rp)
 {
 	u64 val;
 
-	val = (((u64)rp->nonsyn_window << RDC_RED_PARA_WIN_SHIFT) |
-	       ((u64)rp->nonsyn_threshold << RDC_RED_PARA_THRE_SHIFT) |
+	val = (((u64)rp->analnsyn_window << RDC_RED_PARA_WIN_SHIFT) |
+	       ((u64)rp->analnsyn_threshold << RDC_RED_PARA_THRE_SHIFT) |
 	       ((u64)rp->syn_window << RDC_RED_PARA_WIN_SYN_SHIFT) |
 	       ((u64)rp->syn_threshold << RDC_RED_PARA_THRE_SYN_SHIFT));
 	nw64(RDC_RED_PARA(rp->rx_channel), val);
@@ -4918,7 +4918,7 @@ static int niu_enable_rx_channel(struct niu *np, int channel, int on)
 		udelay(10);
 	}
 	if (limit <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -5016,12 +5016,12 @@ static int niu_set_ip_frag_rule(struct niu *np)
 	index = cp->tcam_top;
 	tp = &parent->tcam[index];
 
-	/* Note that the noport bit is the same in both ipv4 and
+	/* Analte that the analport bit is the same in both ipv4 and
 	 * ipv6 format TCAM entries.
 	 */
 	memset(tp, 0, sizeof(*tp));
-	tp->key[1] = TCAM_V4KEY1_NOPORT;
-	tp->key_mask[1] = TCAM_V4KEY1_NOPORT;
+	tp->key[1] = TCAM_V4KEY1_ANALPORT;
+	tp->key_mask[1] = TCAM_V4KEY1_ANALPORT;
 	tp->assoc_data = (TCAM_ASSOCDATA_TRES_USE_OFFSET |
 			  ((u64)0 << TCAM_ASSOCDATA_OFFSET_SHIFT));
 	err = tcam_write(np, index, tp->key, tp->key_mask);
@@ -5488,10 +5488,10 @@ static int niu_reset_tx_bmac(struct niu *np)
 		udelay(100);
 	}
 	if (limit < 0) {
-		dev_err(np->device, "Port %u TX BMAC would not reset, BTXMAC_SW_RST[%llx]\n",
+		dev_err(np->device, "Port %u TX BMAC would analt reset, BTXMAC_SW_RST[%llx]\n",
 			np->port,
 			(unsigned long long) nr64_mac(BTXMAC_SW_RST));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -5531,7 +5531,7 @@ static void niu_init_tx_xmac(struct niu *np, u64 min, u64 max)
 	nw64_mac(XMAC_IPG, val);
 
 	val = nr64_mac(XMAC_CONFIG);
-	val &= ~(XMAC_CONFIG_ALWAYS_NO_CRC |
+	val &= ~(XMAC_CONFIG_ALWAYS_ANAL_CRC |
 		 XMAC_CONFIG_STRETCH_MODE |
 		 XMAC_CONFIG_VAR_MIN_IPG_EN |
 		 XMAC_CONFIG_TX_ENABLE);
@@ -5593,10 +5593,10 @@ static int niu_reset_rx_xmac(struct niu *np)
 		udelay(100);
 	}
 	if (limit < 0) {
-		dev_err(np->device, "Port %u RX XMAC would not reset, XRXMAC_SW_RST[%llx]\n",
+		dev_err(np->device, "Port %u RX XMAC would analt reset, XRXMAC_SW_RST[%llx]\n",
 			np->port,
 			(unsigned long long) nr64_mac(XRXMAC_SW_RST));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -5614,10 +5614,10 @@ static int niu_reset_rx_bmac(struct niu *np)
 		udelay(100);
 	}
 	if (limit < 0) {
-		dev_err(np->device, "Port %u RX BMAC would not reset, BRXMAC_SW_RST[%llx]\n",
+		dev_err(np->device, "Port %u RX BMAC would analt reset, BRXMAC_SW_RST[%llx]\n",
 			np->port,
 			(unsigned long long) nr64_mac(BRXMAC_SW_RST));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -5918,7 +5918,7 @@ static void niu_disable_ipp(struct niu *np)
 	}
 	if (limit < 0 &&
 	    (rd != 0 && wr != 1)) {
-		netdev_err(np->dev, "IPP would not quiesce, rd_ptr[%llx] wr_ptr[%llx]\n",
+		netdev_err(np->dev, "IPP would analt quiesce, rd_ptr[%llx] wr_ptr[%llx]\n",
 			   (unsigned long long)nr64_ipp(IPP_DFIFO_RD_PTR),
 			   (unsigned long long)nr64_ipp(IPP_DFIFO_WR_PTR));
 	}
@@ -6244,7 +6244,7 @@ static void niu_get_rx_stats(struct niu *np,
 
 	rx_rings = READ_ONCE(np->rx_rings);
 	if (!rx_rings)
-		goto no_rings;
+		goto anal_rings;
 
 	for (i = 0; i < np->num_rx_rings; i++) {
 		struct rx_ring_info *rp = &rx_rings[i];
@@ -6257,7 +6257,7 @@ static void niu_get_rx_stats(struct niu *np,
 		errors += rp->rx_errors;
 	}
 
-no_rings:
+anal_rings:
 	stats->rx_packets = pkts;
 	stats->rx_bytes = bytes;
 	stats->rx_dropped = dropped;
@@ -6275,7 +6275,7 @@ static void niu_get_tx_stats(struct niu *np,
 
 	tx_rings = READ_ONCE(np->tx_rings);
 	if (!tx_rings)
-		goto no_rings;
+		goto anal_rings;
 
 	for (i = 0; i < np->num_tx_rings; i++) {
 		struct tx_ring_info *rp = &tx_rings[i];
@@ -6285,7 +6285,7 @@ static void niu_get_tx_stats(struct niu *np,
 		errors += rp->tx_errors;
 	}
 
-no_rings:
+anal_rings:
 	stats->tx_packets = pkts;
 	stats->tx_bytes = bytes;
 	stats->tx_errors = errors;
@@ -6403,7 +6403,7 @@ static int niu_set_mac_addr(struct net_device *dev, void *p)
 	unsigned long flags;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, addr->sa_data);
 
@@ -6421,7 +6421,7 @@ static int niu_set_mac_addr(struct net_device *dev, void *p)
 
 static int niu_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void niu_netif_stop(struct niu *np)
@@ -6435,7 +6435,7 @@ static void niu_netif_stop(struct niu *np)
 
 static void niu_netif_start(struct niu *np)
 {
-	/* NOTE: unconditional netif_wake_queue is only appropriate
+	/* ANALTE: unconditional netif_wake_queue is only appropriate
 	 * so long as all callers are assured to have free tx slots
 	 * (such as after niu_init_hw).
 	 */
@@ -6588,7 +6588,7 @@ static u64 niu_compute_tx_flags(struct sk_buff *skb, struct ethhdr *ehdr,
 		break;
 	}
 
-	csum_bits = TXHDR_CSUM_NONE;
+	csum_bits = TXHDR_CSUM_ANALNE;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u64 start, stuff;
 
@@ -6801,7 +6801,7 @@ static void niu_get_drvinfo(struct net_device *dev,
 	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 	strscpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%d.%d",
-		vpd->fcode_major, vpd->fcode_minor);
+		vpd->fcode_major, vpd->fcode_mianalr);
 	if (np->parent->plat_type != PLAT_TYPE_NIU)
 		strscpy(info->bus_info, pci_name(np->pdev),
 			sizeof(info->bus_info));
@@ -7218,7 +7218,7 @@ static int niu_get_ethtool_tcam_entry(struct niu *np,
 	case SCTP_V6_FLOW:
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
-		/* Not yet implemented */
+		/* Analt yet implemented */
 		ret = -EINVAL;
 		break;
 	case IP_USER_FLOW:
@@ -7330,7 +7330,7 @@ static int niu_set_hash_opts(struct niu *np, struct ethtool_rxnfc *nfc)
 		niu_unlock_parent(np, flags);
 		return 0;
 	} else {
-		/* Discard was set before, but is not set now */
+		/* Discard was set before, but is analt set analw */
 		if (np->parent->tcam_key[class - CLASS_CODE_USER_PROG1] &
 		    TCAM_KEY_DISC) {
 			niu_lock_parent(np, flags);
@@ -7499,7 +7499,7 @@ static int niu_add_ethtool_tcam_entry(struct niu *np,
 			}
 		}
 		if (!add_usr_cls) {
-			netdev_info(np->dev, "niu%d: %s(): Could not find/insert class for pid %d\n",
+			netdev_info(np->dev, "niu%d: %s(): Could analt find/insert class for pid %d\n",
 				    parent->index, __func__, uspec->proto);
 			ret = -EINVAL;
 			goto out;
@@ -7532,8 +7532,8 @@ static int niu_add_ethtool_tcam_entry(struct niu *np,
 	case SCTP_V6_FLOW:
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
-		/* Not yet implemented */
-		netdev_info(np->dev, "niu%d: In %s(): flow %d for IPv6 not implemented\n",
+		/* Analt yet implemented */
+		netdev_info(np->dev, "niu%d: In %s(): flow %d for IPv6 analt implemented\n",
 			    parent->index, __func__, fsp->flow_type);
 		ret = -EINVAL;
 		goto out;
@@ -7541,7 +7541,7 @@ static int niu_add_ethtool_tcam_entry(struct niu *np,
 		niu_get_tcamkey_from_ip4fs(fsp, tp, l2_rdc_table, class);
 		break;
 	default:
-		netdev_info(np->dev, "niu%d: In %s(): Unknown flow type %d\n",
+		netdev_info(np->dev, "niu%d: In %s(): Unkanalwn flow type %d\n",
 			    parent->index, __func__, fsp->flow_type);
 		ret = -EINVAL;
 		goto out;
@@ -7623,7 +7623,7 @@ static int niu_del_ethtool_tcam_entry(struct niu *np, u32 loc)
 			}
 		}
 		if (i == NIU_L3_PROG_CLS) {
-			netdev_info(np->dev, "niu%d: In %s(): Usr class 0x%llx not found\n",
+			netdev_info(np->dev, "niu%d: In %s(): Usr class 0x%llx analt found\n",
 				    parent->index, __func__,
 				    (unsigned long long)class);
 			ret = -EINVAL;
@@ -7922,7 +7922,7 @@ static int niu_ldg_assign_ldn(struct niu *np, struct niu_parent *parent,
 
 	if (np->parent->plat_type == PLAT_TYPE_NIU) {
 		/* On N2 NIU, the ldn-->ldg assignments are setup and fixed by
-		 * the firmware, and we're not supposed to change them.
+		 * the firmware, and we're analt supposed to change them.
 		 * Validate the mapping, because if it's wrong we probably
 		 * won't get any interrupts and that's painful to debug.
 		 */
@@ -7982,7 +7982,7 @@ static int niu_pci_eeprom_read(struct niu *np, u32 addr)
 	if (!(frame & ESPC_PIO_STAT_READ_END)) {
 		dev_err(np->device, "EEPROM read timeout frame[%llx]\n",
 			(unsigned long long) frame);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	frame = frame_base;
@@ -7997,7 +7997,7 @@ static int niu_pci_eeprom_read(struct niu *np, u32 addr)
 	if (!(frame & ESPC_PIO_STAT_READ_END)) {
 		dev_err(np->device, "EEPROM read timeout frame[%llx]\n",
 			(unsigned long long) frame);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	frame = nr64(ESPC_PIO_STAT);
@@ -8072,14 +8072,14 @@ static void niu_vpd_parse_version(struct niu *np)
 		return;
 
 	s += i + 5;
-	sscanf(s, "%d.%d", &vpd->fcode_major, &vpd->fcode_minor);
+	sscanf(s, "%d.%d", &vpd->fcode_major, &vpd->fcode_mianalr);
 
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
-		     "VPD_SCAN: FCODE major(%d) minor(%d)\n",
-		     vpd->fcode_major, vpd->fcode_minor);
+		     "VPD_SCAN: FCODE major(%d) mianalr(%d)\n",
+		     vpd->fcode_major, vpd->fcode_mianalr);
 	if (vpd->fcode_major > NIU_VPD_MIN_MAJOR ||
 	    (vpd->fcode_major == NIU_VPD_MIN_MAJOR &&
-	     vpd->fcode_minor >= NIU_VPD_MIN_MINOR))
+	     vpd->fcode_mianalr >= NIU_VPD_MIN_MIANALR))
 		np->flags |= NIU_FLAGS_VPD_VALID;
 }
 
@@ -8209,7 +8209,7 @@ static int niu_pci_vpd_fetch(struct niu *np, u32 start)
 		err = niu_pci_vpd_scan_props(np, here, end);
 		if (err < 0)
 			return err;
-		/* ret == 1 is not an error */
+		/* ret == 1 is analt an error */
 		if (err == 1)
 			return 0;
 	}
@@ -8561,7 +8561,7 @@ static int niu_get_and_validate_port(struct niu *np)
 	}
 
 	if (np->port >= parent->num_ports)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -8861,7 +8861,7 @@ static int walk_phys(struct niu *np, struct niu_parent *parent)
 			else if (lowest_1g == 26)
 				parent->plat_type = PLAT_TYPE_VF_P1;
 			else
-				goto unknown_vg_1g_port;
+				goto unkanalwn_vg_1g_port;
 
 			fallthrough;
 		case 0x22:
@@ -8886,7 +8886,7 @@ static int walk_phys(struct niu *np, struct niu_parent *parent)
 			else if (lowest_1g == 26)
 				parent->plat_type = PLAT_TYPE_VF_P1;
 			else
-				goto unknown_vg_1g_port;
+				goto unkanalwn_vg_1g_port;
 
 			fallthrough;
 		case 0x13:
@@ -8908,7 +8908,7 @@ static int walk_phys(struct niu *np, struct niu_parent *parent)
 			else if (lowest_1g == 26)
 				parent->plat_type = PLAT_TYPE_VF_P1;
 			else
-				goto unknown_vg_1g_port;
+				goto unkanalwn_vg_1g_port;
 
 			val = (phy_encode(PORT_TYPE_1G, 0) |
 			       phy_encode(PORT_TYPE_1G, 1) |
@@ -8934,8 +8934,8 @@ static int walk_phys(struct niu *np, struct niu_parent *parent)
 
 	return 0;
 
-unknown_vg_1g_port:
-	pr_err("Cannot identify platform type, 1gport=%d\n", lowest_1g);
+unkanalwn_vg_1g_port:
+	pr_err("Cananalt identify platform type, 1gport=%d\n", lowest_1g);
 	return -EINVAL;
 }
 
@@ -8944,7 +8944,7 @@ static int niu_probe_ports(struct niu *np)
 	struct niu_parent *parent = np->parent;
 	int err, i;
 
-	if (parent->port_phy == PORT_PHY_UNKNOWN) {
+	if (parent->port_phy == PORT_PHY_UNKANALWN) {
 		err = walk_phys(np, parent);
 		if (err)
 			return err;
@@ -9029,7 +9029,7 @@ static int niu_init_mac_ipp_pcs_base(struct niu *np)
 		break;
 
 	default:
-		dev_err(np->device, "Port %u is invalid, cannot compute MAC block offset\n", np->port);
+		dev_err(np->device, "Port %u is invalid, cananalt compute MAC block offset\n", np->port);
 		return -EINVAL;
 	}
 
@@ -9077,9 +9077,9 @@ static int niu_n2_irq_init(struct niu *np, u8 *ldg_num_map)
 	const u32 *int_prop;
 	int i;
 
-	int_prop = of_get_property(op->dev.of_node, "interrupts", NULL);
+	int_prop = of_get_property(op->dev.of_analde, "interrupts", NULL);
 	if (!int_prop)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < op->archdata.num_irqs; i++) {
 		ldg_num_map[i] = int_prop[i];
@@ -9221,25 +9221,25 @@ static int niu_get_of_props(struct niu *np)
 {
 #ifdef CONFIG_SPARC64
 	struct net_device *dev = np->dev;
-	struct device_node *dp;
+	struct device_analde *dp;
 	const char *phy_type;
 	const u8 *mac_addr;
 	const char *model;
 	int prop_len;
 
 	if (np->parent->plat_type == PLAT_TYPE_NIU)
-		dp = np->op->dev.of_node;
+		dp = np->op->dev.of_analde;
 	else
-		dp = pci_device_to_OF_node(np->pdev);
+		dp = pci_device_to_OF_analde(np->pdev);
 
 	phy_type = of_get_property(dp, "phy-type", NULL);
 	if (!phy_type) {
-		netdev_err(dev, "%pOF: OF node lacks phy-type property\n", dp);
+		netdev_err(dev, "%pOF: OF analde lacks phy-type property\n", dp);
 		return -EINVAL;
 	}
 
-	if (!strcmp(phy_type, "none"))
-		return -ENODEV;
+	if (!strcmp(phy_type, "analne"))
+		return -EANALDEV;
 
 	strcpy(np->vpd.phy_type, phy_type);
 
@@ -9251,7 +9251,7 @@ static int niu_get_of_props(struct niu *np)
 
 	mac_addr = of_get_property(dp, "local-mac-address", &prop_len);
 	if (!mac_addr) {
-		netdev_err(dev, "%pOF: OF node lacks local-mac-address property\n",
+		netdev_err(dev, "%pOF: OF analde lacks local-mac-address property\n",
 			   dp);
 		return -EINVAL;
 	}
@@ -9288,7 +9288,7 @@ static int niu_get_invariants(struct niu *np)
 	u32 offset;
 
 	err = niu_get_of_props(np);
-	if (err == -ENODEV)
+	if (err == -EANALDEV)
 		return err;
 
 	have_props = !err;
@@ -9363,7 +9363,7 @@ static ssize_t show_port_phy(struct device *dev,
 	char *orig_buf = buf;
 	int i;
 
-	if (port_phy == PORT_PHY_UNKNOWN ||
+	if (port_phy == PORT_PHY_UNKANALWN ||
 	    port_phy == PORT_PHY_INVALID)
 		return 0;
 
@@ -9405,7 +9405,7 @@ static ssize_t show_plat_type(struct device *dev,
 		type_str = "vf_p1";
 		break;
 	default:
-		type_str = "unknown";
+		type_str = "unkanalwn";
 		break;
 	}
 
@@ -9503,7 +9503,7 @@ static struct niu_parent *niu_new_parent(struct niu *np,
 
 	p->tcam_num_entries = NIU_PCI_TCAM_ENTRIES;
 	if (p->plat_type == PLAT_TYPE_NIU)
-		p->tcam_num_entries = NIU_NONPCI_TCAM_ENTRIES;
+		p->tcam_num_entries = NIU_ANALNPCI_TCAM_ENTRIES;
 
 	for (i = CLASS_CODE_USER_PROG1; i <= CLASS_CODE_SCTP_IPV6; i++) {
 		int index = i - CLASS_CODE_USER_PROG1;
@@ -9704,7 +9704,7 @@ static void niu_assign_netdev_ops(struct net_device *dev)
 	dev->watchdog_timeo = NIU_TX_TIMEOUT;
 }
 
-static void niu_device_announce(struct niu *np)
+static void niu_device_ananalunce(struct niu *np)
 {
 	struct net_device *dev = np->dev;
 
@@ -9751,33 +9751,33 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device, aborting\n");
+		dev_err(&pdev->dev, "Cananalt enable PCI device, aborting\n");
 		return err;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM) ||
 	    !(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
-		dev_err(&pdev->dev, "Cannot find proper PCI device base addresses, aborting\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "Cananalt find proper PCI device base addresses, aborting\n");
+		err = -EANALDEV;
 		goto err_out_disable_pdev;
 	}
 
 	err = pci_request_regions(pdev, DRV_MODULE_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources, aborting\n");
+		dev_err(&pdev->dev, "Cananalt obtain PCI resources, aborting\n");
 		goto err_out_disable_pdev;
 	}
 
 	if (!pci_is_pcie(pdev)) {
-		dev_err(&pdev->dev, "Cannot find PCI Express capability, aborting\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "Cananalt find PCI Express capability, aborting\n");
+		err = -EANALDEV;
 		goto err_out_free_res;
 	}
 
 	dev = niu_alloc_and_init(&pdev->dev, pdev, NULL,
 				 &niu_pci_ops, PCI_FUNC(pdev->devfn));
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_res;
 	}
 	np = netdev_priv(dev);
@@ -9790,12 +9790,12 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 	np->parent = niu_get_parent(np, &parent_id,
 				    PLAT_TYPE_ATLAS);
 	if (!np->parent) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_dev;
 	}
 
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
-		PCI_EXP_DEVCTL_NOSNOOP_EN,
+		PCI_EXP_DEVCTL_ANALSANALOP_EN,
 		PCI_EXP_DEVCTL_CERE | PCI_EXP_DEVCTL_NFERE |
 		PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE |
 		PCI_EXP_DEVCTL_RELAX_EN);
@@ -9806,7 +9806,7 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 	if (err) {
 		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
+			dev_err(&pdev->dev, "Anal usable DMA configuration, aborting\n");
 			goto err_out_release_parent;
 		}
 	}
@@ -9817,8 +9817,8 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 
 	np->regs = pci_ioremap_bar(pdev, 0);
 	if (!np->regs) {
-		dev_err(&pdev->dev, "Cannot map device registers, aborting\n");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt map device registers, aborting\n");
+		err = -EANALMEM;
 		goto err_out_release_parent;
 	}
 
@@ -9835,20 +9835,20 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 
 	err = niu_get_invariants(np);
 	if (err) {
-		if (err != -ENODEV)
+		if (err != -EANALDEV)
 			dev_err(&pdev->dev, "Problem fetching invariants of chip, aborting\n");
 		goto err_out_iounmap;
 	}
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot register net device, aborting\n");
+		dev_err(&pdev->dev, "Cananalt register net device, aborting\n");
 		goto err_out_iounmap;
 	}
 
 	pci_set_drvdata(pdev, dev);
 
-	niu_device_announce(np);
+	niu_device_ananalunce(np);
 
 	return 0;
 
@@ -9992,7 +9992,7 @@ static u64 niu_phys_map_page(struct device *dev, struct page *page,
 static void niu_phys_unmap_page(struct device *dev, u64 dma_address,
 				size_t size, enum dma_data_direction direction)
 {
-	/* Nothing to do.  */
+	/* Analthing to do.  */
 }
 
 static u64 niu_phys_map_single(struct device *dev, void *cpu_addr,
@@ -10006,7 +10006,7 @@ static void niu_phys_unmap_single(struct device *dev, u64 dma_address,
 				  size_t size,
 				  enum dma_data_direction direction)
 {
-	/* Nothing to do.  */
+	/* Analthing to do.  */
 }
 
 static const struct niu_ops niu_phys_ops = {
@@ -10028,28 +10028,28 @@ static int niu_of_probe(struct platform_device *op)
 
 	niu_driver_version();
 
-	reg = of_get_property(op->dev.of_node, "reg", NULL);
+	reg = of_get_property(op->dev.of_analde, "reg", NULL);
 	if (!reg) {
-		dev_err(&op->dev, "%pOF: No 'reg' property, aborting\n",
-			op->dev.of_node);
-		return -ENODEV;
+		dev_err(&op->dev, "%pOF: Anal 'reg' property, aborting\n",
+			op->dev.of_analde);
+		return -EANALDEV;
 	}
 
 	dev = niu_alloc_and_init(&op->dev, NULL, op,
 				 &niu_phys_ops, reg[0] & 0x1);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 	np = netdev_priv(dev);
 
 	memset(&parent_id, 0, sizeof(parent_id));
-	parent_id.of = of_get_parent(op->dev.of_node);
+	parent_id.of = of_get_parent(op->dev.of_analde);
 
 	np->parent = niu_get_parent(np, &parent_id,
 				    PLAT_TYPE_NIU);
 	if (!np->parent) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_dev;
 	}
 
@@ -10059,8 +10059,8 @@ static int niu_of_probe(struct platform_device *op)
 			      resource_size(&op->resource[1]),
 			      "niu regs");
 	if (!np->regs) {
-		dev_err(&op->dev, "Cannot map device registers, aborting\n");
-		err = -ENOMEM;
+		dev_err(&op->dev, "Cananalt map device registers, aborting\n");
+		err = -EANALMEM;
 		goto err_out_release_parent;
 	}
 
@@ -10068,8 +10068,8 @@ static int niu_of_probe(struct platform_device *op)
 				    resource_size(&op->resource[2]),
 				    "niu vregs-1");
 	if (!np->vir_regs_1) {
-		dev_err(&op->dev, "Cannot map device vir registers 1, aborting\n");
-		err = -ENOMEM;
+		dev_err(&op->dev, "Cananalt map device vir registers 1, aborting\n");
+		err = -EANALMEM;
 		goto err_out_iounmap;
 	}
 
@@ -10077,8 +10077,8 @@ static int niu_of_probe(struct platform_device *op)
 				    resource_size(&op->resource[3]),
 				    "niu vregs-2");
 	if (!np->vir_regs_2) {
-		dev_err(&op->dev, "Cannot map device vir registers 2, aborting\n");
-		err = -ENOMEM;
+		dev_err(&op->dev, "Cananalt map device vir registers 2, aborting\n");
+		err = -EANALMEM;
 		goto err_out_iounmap;
 	}
 
@@ -10086,20 +10086,20 @@ static int niu_of_probe(struct platform_device *op)
 
 	err = niu_get_invariants(np);
 	if (err) {
-		if (err != -ENODEV)
+		if (err != -EANALDEV)
 			dev_err(&op->dev, "Problem fetching invariants of chip, aborting\n");
 		goto err_out_iounmap;
 	}
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&op->dev, "Cannot register net device, aborting\n");
+		dev_err(&op->dev, "Cananalt register net device, aborting\n");
 		goto err_out_iounmap;
 	}
 
 	platform_set_drvdata(op, dev);
 
-	niu_device_announce(np);
+	niu_device_ananalunce(np);
 
 	return 0;
 

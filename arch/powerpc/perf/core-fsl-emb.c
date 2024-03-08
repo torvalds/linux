@@ -358,9 +358,9 @@ static void fsl_emb_pmu_del(struct perf_event *event, int flags)
 
 	/*
 	 * TODO: if at least one restricted event exists, and we
-	 * just freed up a non-restricted-capable counter, and
+	 * just freed up a analn-restricted-capable counter, and
 	 * there is a restricted-capable counter occupied by
-	 * a non-restricted event, migrate that event to the
+	 * a analn-restricted event, migrate that event to the
 	 * vacated counter.
 	 */
 
@@ -459,7 +459,7 @@ static int hw_perf_cache_event(u64 config, u64 *eventp)
 
 	ev = (*ppmu->cache_events)[type][op][result];
 	if (ev == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (ev == -1)
 		return -EINVAL;
 	*eventp = ev;
@@ -476,7 +476,7 @@ static int fsl_emb_pmu_event_init(struct perf_event *event)
 	int i;
 
 	if (ppmu->n_counter > MAX_HWEVENTS) {
-		WARN(1, "No. of perf counters (%d) is higher than max array size(%d)\n",
+		WARN(1, "Anal. of perf counters (%d) is higher than max array size(%d)\n",
 			ppmu->n_counter, MAX_HWEVENTS);
 		ppmu->n_counter = MAX_HWEVENTS;
 	}
@@ -485,7 +485,7 @@ static int fsl_emb_pmu_event_init(struct perf_event *event)
 	case PERF_TYPE_HARDWARE:
 		ev = event->attr.config;
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		ev = ppmu->generic_events[ev];
 		break;
 
@@ -500,7 +500,7 @@ static int fsl_emb_pmu_event_init(struct perf_event *event)
 		break;
 
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	event->hw.config = ppmu->xlate_event(ev);
@@ -541,19 +541,19 @@ static int fsl_emb_pmu_event_init(struct perf_event *event)
 	if (event->attr.exclude_kernel)
 		event->hw.config_base |= PMLCA_FCS;
 	if (event->attr.exclude_idle)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	event->hw.last_period = event->hw.sample_period;
 	local64_set(&event->hw.period_left, event->hw.last_period);
 
 	/*
 	 * See if we need to reserve the PMU.
-	 * If no events are currently in use, then we have to take a
-	 * mutex to ensure that we don't race with another task doing
+	 * If anal events are currently in use, then we have to take a
+	 * mutex to ensure that we don't race with aanalther task doing
 	 * reserve_pmc_hardware or release_pmc_hardware.
 	 */
 	err = 0;
-	if (!atomic_inc_not_zero(&num_events)) {
+	if (!atomic_inc_analt_zero(&num_events)) {
 		mutex_lock(&pmc_reserve_mutex);
 		if (atomic_read(&num_events) == 0 &&
 		    reserve_pmc_hardware(perf_event_interrupt))
@@ -583,8 +583,8 @@ static struct pmu fsl_emb_pmu = {
 
 /*
  * A counter has overflowed; update its count and record
- * things if requested.  Note that interrupts are hard-disabled
- * here so there is no possibility of being interrupted.
+ * things if requested.  Analte that interrupts are hard-disabled
+ * here so there is anal possibility of being interrupted.
  */
 static void record_and_restart(struct perf_event *event, unsigned long val,
 			       struct pt_regs *regs)

@@ -109,7 +109,7 @@ static int qcom_refgen_probe(struct platform_device *pdev)
 
 	rdesc = of_device_get_match_data(dev);
 	if (!rdesc)
-		return -ENODATA;
+		return -EANALDATA;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -119,13 +119,13 @@ static int qcom_refgen_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	init_data = of_get_regulator_init_data(dev, dev->of_node, rdesc);
+	init_data = of_get_regulator_init_data(dev, dev->of_analde, rdesc);
 	if (!init_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config.dev = dev;
 	config.init_data = init_data;
-	config.of_node = dev->of_node;
+	config.of_analde = dev->of_analde;
 	config.regmap = regmap;
 
 	rdev = devm_regulator_register(dev, rdesc, &config);

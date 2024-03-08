@@ -31,14 +31,14 @@ static int wol_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	if (!dev->ethtool_ops->get_wol)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
 	dev->ethtool_ops->get_wol(dev, &data->wol);
 	ethnl_ops_complete(dev);
-	/* do not include password in notifications */
+	/* do analt include password in analtifications */
 	data->show_sopass = !genl_info_is_ntf(info) &&
 		(data->wol.supported & WAKE_MAGICSECURE);
 
@@ -98,7 +98,7 @@ ethnl_set_wol_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
 
-	return ops->get_wol && ops->set_wol ? 1 : -EOPNOTSUPP;
+	return ops->get_wol && ops->set_wol ? 1 : -EOPANALTSUPP;
 }
 
 static int
@@ -118,14 +118,14 @@ ethnl_set_wol(struct ethnl_req_info *req_info, struct genl_info *info)
 		return ret;
 	if (wol.wolopts & ~wol.supported) {
 		NL_SET_ERR_MSG_ATTR(info->extack, tb[ETHTOOL_A_WOL_MODES],
-				    "cannot enable unsupported WoL mode");
+				    "cananalt enable unsupported WoL mode");
 		return -EINVAL;
 	}
 	if (tb[ETHTOOL_A_WOL_SOPASS]) {
 		if (!(wol.supported & WAKE_MAGICSECURE)) {
 			NL_SET_ERR_MSG_ATTR(info->extack,
 					    tb[ETHTOOL_A_WOL_SOPASS],
-					    "magicsecure not supported, cannot set password");
+					    "magicsecure analt supported, cananalt set password");
 			return -EINVAL;
 		}
 		ethnl_update_binary(wol.sopass, sizeof(wol.sopass),

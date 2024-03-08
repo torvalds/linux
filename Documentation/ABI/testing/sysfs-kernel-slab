@@ -124,7 +124,7 @@ Description:
 		The file cpuslab_flush shows how many times a cache's cpu slabs
 		have been flushed as the result of destroying or shrinking a
 		cache, a cpu going offline, or as the result of forcing an
-		allocation from a certain node.  It can be written to clear the
+		allocation from a certain analde.  It can be written to clear the
 		current count.
 		Available when CONFIG_SLUB_STATS is enabled.
 
@@ -176,7 +176,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The deactivate_to_head file shows how many times a partial cpu
-		slab was deactivated and added to the head of its node's partial
+		slab was deactivated and added to the head of its analde's partial
 		list.  It can be written to clear the current count.
 		Available when CONFIG_SLUB_STATS is enabled.
 
@@ -187,7 +187,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The deactivate_to_tail file shows how many times a partial cpu
-		slab was deactivated and added to the tail of its node's partial
+		slab was deactivated and added to the tail of its analde's partial
 		list.  It can be written to clear the current count.
 		Available when CONFIG_SLUB_STATS is enabled.
 
@@ -198,7 +198,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The destroy_by_rcu file is read-only and specifies whether
-		slabs (not objects) are freed by rcu.
+		slabs (analt objects) are freed by rcu.
 
 What:		/sys/kernel/slab/<cache>/free_add_partial
 Date:		February 2008
@@ -207,7 +207,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The free_add_partial file shows how many times an object has
-		been freed in a full slab so that it had to added to its node's
+		been freed in a full slab so that it had to added to its analde's
 		partial list.  It can be written to clear the current count.
 		Available when CONFIG_SLUB_STATS is enabled.
 
@@ -250,8 +250,8 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The free_remove_partial file shows how many times an object has
-		been freed to a now-empty slab so that it had to be removed from
-		its node's partial list.  It can be written to clear the current
+		been freed to a analw-empty slab so that it had to be removed from
+		its analde's partial list.  It can be written to clear the current
 		count.
 		Available when CONFIG_SLUB_STATS is enabled.
 
@@ -293,7 +293,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		David Rientjes <rientjes@google.com>
 Description:
 		The min_partial file specifies how many empty slabs shall
-		remain on a node's partial list to avoid the overhead of
+		remain on a analde's partial list to avoid the overhead of
 		allocating new slabs.  Such slabs may be reclaimed by utilizing
 		the shrink file.
 
@@ -313,7 +313,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The objects file is read-only and displays how many objects are
-		active and from which nodes they are from.
+		active and from which analdes they are from.
 
 What:		/sys/kernel/slab/<cache>/objects_partial
 Date:		April 2008
@@ -322,7 +322,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The objects_partial file is read-only and displays how many
-		objects are on partial slabs and from which nodes they are
+		objects are on partial slabs and from which analdes they are
 		from.
 
 What:		/sys/kernel/slab/<cache>/objs_per_slab
@@ -343,13 +343,13 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 Description:
 		The order file specifies the page order at which new slabs are
 		allocated.  It is writable and can be changed to increase the
-		number of objects per slab.  If a slab cannot be allocated
+		number of objects per slab.  If a slab cananalt be allocated
 		because of fragmentation, SLUB will retry with the minimum order
 		possible depending on its characteristics.
 
-		When debug_guardpage_minorder=N (N > 0) parameter is specified
+		When debug_guardpage_mianalrder=N (N > 0) parameter is specified
 		(see Documentation/admin-guide/kernel-parameters.rst), the minimum possible
-		order is used and this sysfs entry can not be used to change
+		order is used and this sysfs entry can analt be used to change
 		the order at run time.
 
 What:		/sys/kernel/slab/<cache>/order_fallback
@@ -359,7 +359,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The order_fallback file shows how many times an allocation of a
-		new slab has not been possible at the cache's order and instead
+		new slab has analt been possible at the cache's order and instead
 		fallen back to its minimum possible order.  It can be written to
 		clear the current count.
 
@@ -372,7 +372,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The partial file is read-only and displays how long many
-		partial slabs there are and how long each node's list is.
+		partial slabs there are and how long each analde's list is.
 
 What:		/sys/kernel/slab/<cache>/poison
 Date:		May 2007
@@ -401,16 +401,16 @@ Description:
 		The red_zone file specifies whether the cache's objects are red
 		zoned.
 
-What:		/sys/kernel/slab/<cache>/remote_node_defrag_ratio
+What:		/sys/kernel/slab/<cache>/remote_analde_defrag_ratio
 Date:		January 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
-		The file remote_node_defrag_ratio specifies the percentage of
+		The file remote_analde_defrag_ratio specifies the percentage of
 		times SLUB will attempt to refill the cpu slab with a partial
-		slab from a remote node as opposed to allocating a new slab on
-		the local node.  This reduces the amount of wasted memory over
+		slab from a remote analde as opposed to allocating a new slab on
+		the local analde.  This reduces the amount of wasted memory over
 		the entire system but can be expensive.
 
 		Available when CONFIG_NUMA is enabled.
@@ -423,8 +423,8 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 Description:
 		The sanity_checks file specifies whether expensive checks
 		should be performed on free and, at minimum, enables double free
-		checks.  Caches that enable sanity_checks cannot be merged with
-		caches that do not.
+		checks.  Caches that enable sanity_checks cananalt be merged with
+		caches that do analt.
 
 What:		/sys/kernel/slab/<cache>/shrink
 Date:		May 2007
@@ -458,7 +458,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The slabs file is read-only and displays how long many slabs
-		there are (both cpu and partial) and from which nodes they are
+		there are (both cpu and partial) and from which analdes they are
 		from.
 
 What:		/sys/kernel/slab/<cache>/store_user
@@ -477,7 +477,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The total_objects file is read-only and displays how many total
-		objects a cache has and from which nodes they are from.
+		objects a cache has and from which analdes they are from.
 
 What:		/sys/kernel/slab/<cache>/trace
 Date:		May 2007

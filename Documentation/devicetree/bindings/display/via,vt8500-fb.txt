@@ -7,7 +7,7 @@ Required properties:
 - interrupts : framebuffer controller interrupt
 - bits-per-pixel : bit depth of framebuffer (16 or 32)
 
-Required subnodes:
+Required subanaldes:
 - display-timings: see display-timing.txt for information
 
 Example:

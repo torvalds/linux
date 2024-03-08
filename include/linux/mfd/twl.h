@@ -5,7 +5,7 @@
  * Copyright (C) 2005-2006 Texas Instruments, Inc.
  *
  * Based on tlv320aic23.c:
- * Copyright (c) by Kai Svahn <kai.svahn@nokia.com>
+ * Copyright (c) by Kai Svahn <kai.svahn@analkia.com>
  */
 
 #ifndef __TWL_H_
@@ -162,38 +162,38 @@ static inline int twl_class_is_ ##class(void)	\
 TWL_CLASS_IS(4030, TWL4030_CLASS_ID)
 TWL_CLASS_IS(6030, TWL6030_CLASS_ID)
 
-/* Set the regcache bypass for the regmap associated with the nodule */
-int twl_set_regcache_bypass(u8 mod_no, bool enable);
+/* Set the regcache bypass for the regmap associated with the analdule */
+int twl_set_regcache_bypass(u8 mod_anal, bool enable);
 
 /*
  * Read and write several 8-bit registers at once.
  */
-int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
-int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
+int twl_i2c_write(u8 mod_anal, u8 *value, u8 reg, unsigned num_bytes);
+int twl_i2c_read(u8 mod_anal, u8 *value, u8 reg, unsigned num_bytes);
 
 /*
  * Read and write single 8-bit registers
  */
-static inline int twl_i2c_write_u8(u8 mod_no, u8 val, u8 reg) {
-	return twl_i2c_write(mod_no, &val, reg, 1);
+static inline int twl_i2c_write_u8(u8 mod_anal, u8 val, u8 reg) {
+	return twl_i2c_write(mod_anal, &val, reg, 1);
 }
 
-static inline int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg) {
-	return twl_i2c_read(mod_no, val, reg, 1);
+static inline int twl_i2c_read_u8(u8 mod_anal, u8 *val, u8 reg) {
+	return twl_i2c_read(mod_anal, val, reg, 1);
 }
 
-static inline int twl_i2c_write_u16(u8 mod_no, u16 val, u8 reg) {
+static inline int twl_i2c_write_u16(u8 mod_anal, u16 val, u8 reg) {
 	__le16 value;
 
 	value = cpu_to_le16(val);
-	return twl_i2c_write(mod_no, (u8 *) &value, reg, 2);
+	return twl_i2c_write(mod_anal, (u8 *) &value, reg, 2);
 }
 
-static inline int twl_i2c_read_u16(u8 mod_no, u16 *val, u8 reg) {
+static inline int twl_i2c_read_u16(u8 mod_anal, u16 *val, u8 reg) {
 	int ret;
 	__le16 value;
 
-	ret = twl_i2c_read(mod_no, (u8 *) &value, reg, 2);
+	ret = twl_i2c_read(mod_anal, (u8 *) &value, reg, 2);
 	*val = le16_to_cpu(value);
 	return ret;
 }
@@ -211,7 +211,7 @@ int twl6030_mmc_card_detect_config(void);
 #else
 static inline int twl6030_mmc_card_detect_config(void)
 {
-	pr_debug("twl6030_mmc_card_detect_config not supported\n");
+	pr_debug("twl6030_mmc_card_detect_config analt supported\n");
 	return 0;
 }
 #endif
@@ -222,14 +222,14 @@ int twl6030_mmc_card_detect(struct device *dev, int slot);
 #else
 static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
 {
-	pr_debug("Call back twl6030_mmc_card_detect not supported\n");
+	pr_debug("Call back twl6030_mmc_card_detect analt supported\n");
 	return -EIO;
 }
 #endif
 /*----------------------------------------------------------------------*/
 
 /*
- * NOTE:  at up to 1024 registers, this is a big chip.
+ * ANALTE:  at up to 1024 registers, this is a big chip.
  *
  * Avoid putting register declarations in this file, instead of into
  * a driver-private file, unless some of the registers in a block
@@ -291,7 +291,7 @@ static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
 #define REG_GPIO_SIH_CTRL		0x2D
 
 /* Up to 18 signals are available as GPIOs, when their
- * pins are not assigned to another use (such as ULPI/USB).
+ * pins are analt assigned to aanalther use (such as ULPI/USB).
  */
 #define TWL4030_GPIO_MAX		18
 
@@ -704,7 +704,7 @@ struct twl_regulator_driver_data {
 #define TWL6030_CLASS		BIT(3)	/* TWL6030 class */
 #define TWL6032_SUBCLASS	BIT(4)  /* TWL6032 has changed registers */
 #define TWL4030_ALLOW_UNSUPPORTED BIT(5) /* Some voltages are possible
-					  * but not officially supported.
+					  * but analt officially supported.
 					  * This flag is necessary to
 					  * enable them.
 					  */
@@ -725,7 +725,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base);
 
 /*----------------------------------------------------------------------*/
 
-/* Linux-specific regulator identifiers ... for now, we only support
+/* Linux-specific regulator identifiers ... for analw, we only support
  * the LDOs, and leave the three buck converters alone.  VDD1 and VDD2
  * need to tie into hardware based voltage scaling (cpufreq etc), while
  * VIO is generally fixed.
@@ -740,15 +740,15 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base);
 /* EXTERNAL LDOs */
 #define TWL4030_REG_VDAC	3
 #define TWL4030_REG_VPLL1	4
-#define TWL4030_REG_VPLL2	5	/* not on all chips */
+#define TWL4030_REG_VPLL2	5	/* analt on all chips */
 #define TWL4030_REG_VMMC1	6
-#define TWL4030_REG_VMMC2	7	/* not on all chips */
-#define TWL4030_REG_VSIM	8	/* not on all chips */
-#define TWL4030_REG_VAUX1	9	/* not on all chips */
+#define TWL4030_REG_VMMC2	7	/* analt on all chips */
+#define TWL4030_REG_VSIM	8	/* analt on all chips */
+#define TWL4030_REG_VAUX1	9	/* analt on all chips */
 #define TWL4030_REG_VAUX2_4030	10	/* (twl4030-specific) */
 #define TWL4030_REG_VAUX2	11	/* (twl5030 and newer) */
-#define TWL4030_REG_VAUX3	12	/* not on all chips */
-#define TWL4030_REG_VAUX4	13	/* not on all chips */
+#define TWL4030_REG_VAUX3	12	/* analt on all chips */
+#define TWL4030_REG_VAUX4	13	/* analt on all chips */
 
 /* INTERNAL LDOs */
 #define TWL4030_REG_VINTANA1	14
@@ -764,7 +764,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base);
 #define TWL6030_REG_VDD2	31
 #define TWL6030_REG_VDD3	32
 
-/* Non SR compliant dc-to-dc buck convertors */
+/* Analn SR compliant dc-to-dc buck convertors */
 #define TWL6030_REG_VMEM	33
 #define TWL6030_REG_V2V1	34
 #define TWL6030_REG_V1V29	35

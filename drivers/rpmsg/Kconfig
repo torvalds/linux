@@ -24,12 +24,12 @@ config RPMSG_CTRL
 	  source and destination addresses.
 
 config RPMSG_NS
-	tristate "RPMSG name service announcement"
+	tristate "RPMSG name service ananaluncement"
 	depends on RPMSG
 	help
-	  Say Y here to enable the support of the name service announcement
+	  Say Y here to enable the support of the name service ananaluncement
 	  channel that probes the associated RPMsg device on remote endpoint
-	  service announcement.
+	  service ananaluncement.
 
 config RPMSG_MTK_SCP
 	tristate "MediaTek SCP"

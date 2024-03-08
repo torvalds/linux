@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Helpers for DMA ops implementations.  These generally rely on the fact that
- * the allocated memory contains normal pages in the direct kernel mapping.
+ * the allocated memory contains analrmal pages in the direct kernel mapping.
  */
 #include <linux/dma-map-ops.h>
 
@@ -66,7 +66,7 @@ struct page *dma_common_alloc_pages(struct device *dev, size_t size,
 
 	page = dma_alloc_contiguous(dev, size, gfp);
 	if (!page)
-		page = alloc_pages_node(dev_to_node(dev), gfp, get_order(size));
+		page = alloc_pages_analde(dev_to_analde(dev), gfp, get_order(size));
 	if (!page)
 		return NULL;
 

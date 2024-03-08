@@ -2,14 +2,14 @@
 Net DIM - Generic Network Dynamic Interrupt Moderation
 ======================================================
 
-:Author: Tal Gilboa <talgi@mellanox.com>
+:Author: Tal Gilboa <talgi@mellaanalx.com>
 
 .. contents:: :depth: 2
 
 Assumptions
 ===========
 
-This document assumes the reader has basic knowledge in network drivers
+This document assumes the reader has basic kanalwledge in network drivers
 and in general interrupt moderation.
 
 
@@ -27,7 +27,7 @@ interrupt moderation configuration fields. The data sample is composed of data
 bandwidth, the number of packets and the number of events. The time between
 samples is also measured. Net DIM compares the current and the previous data and
 returns an adjusted interrupt moderation configuration object. In some cases,
-the algorithm might decide not to change anything. The configuration fields are
+the algorithm might decide analt to change anything. The configuration fields are
 the minimum duration (microseconds) allowed between events and the maximum
 number of wanted packets per event. The Net DIM algorithm ascribes importance to
 increase bandwidth over reducing interrupt rate.
@@ -48,20 +48,20 @@ supplied by the driver registered to Net DIM. The previous data is the new data
 supplied to the previous iteration. The comparison step checks the difference
 between the new and previous data and decides on the result of the last step.
 A step would result as "better" if bandwidth increases and as "worse" if
-bandwidth reduces. If there is no change in bandwidth, the packet rate is
+bandwidth reduces. If there is anal change in bandwidth, the packet rate is
 compared in a similar fashion - increase == "better" and decrease == "worse".
-In case there is no change in the packet rate as well, the interrupt rate is
+In case there is anal change in the packet rate as well, the interrupt rate is
 compared. Here the algorithm tries to optimize for lower interrupt rate so an
 increase in the interrupt rate is considered "worse" and a decrease is
 considered "better". Step #2 has an optimization for avoiding false results: it
 only considers a difference between samples as valid if it is greater than a
-certain percentage. Also, since Net DIM does not measure anything by itself, it
+certain percentage. Also, since Net DIM does analt measure anything by itself, it
 assumes the data provided by the driver is valid.
 
 Step #3 decides on the suggested configuration based on the result from step #2
 and the internal state of the algorithm. The states reflect the "direction" of
 the algorithm: is it going left (reducing moderation), right (increasing
-moderation) or standing still. Another optimization is that if a decision
+moderation) or standing still. Aanalther optimization is that if a decision
 to stay still is made multiple times, the interval between iterations of the
 algorithm would increase in order to reduce calculation overhead. Also, after
 "parking" on one of the most left or most right decisions, the algorithm may
@@ -70,15 +70,15 @@ done in order to avoid getting stuck in a "deep sleep" scenario. Once a
 decision is made, an interrupt moderation configuration is selected from
 the predefined profiles.
 
-The last step is to notify the registered driver that it should apply the
+The last step is to analtify the registered driver that it should apply the
 suggested configuration. This is done by scheduling a work function, defined by
 the Net DIM API and provided by the registered driver.
 
-As you can see, Net DIM itself does not actively interact with the system. It
+As you can see, Net DIM itself does analt actively interact with the system. It
 would have trouble making the correct decisions if the wrong data is supplied to
-it and it would be useless if the work function would not apply the suggested
+it and it would be useless if the work function would analt apply the suggested
 configuration. This does, however, allow the registered driver some room for
-manoeuvre as it may provide partial data or ignore the algorithm suggestion
+maanaleuvre as it may provide partial data or iganalre the algorithm suggestion
 under some conditions.
 
 
@@ -103,19 +103,19 @@ the driver.
 In order to use Net DIM from a networking driver, the driver needs to call the
 main net_dim() function. The recommended method is to call net_dim() on each
 interrupt. Since Net DIM has a built-in moderation and it might decide to skip
-iterations under certain conditions, there is no need to moderate the net_dim()
+iterations under certain conditions, there is anal need to moderate the net_dim()
 calls as well. As mentioned above, the driver needs to provide an object of type
 :c:type:`struct dim <dim>` to the net_dim() function call. It is advised for
 each entity using Net DIM to hold a :c:type:`struct dim <dim>` as part of its
 data structure and use it as the main Net DIM API object.
 The :c:type:`struct dim_sample <dim_sample>` should hold the latest
-bytes, packets and interrupts count. No need to perform any calculations, just
+bytes, packets and interrupts count. Anal need to perform any calculations, just
 include the raw data.
 
-The net_dim() call itself does not return anything. Instead Net DIM relies on
+The net_dim() call itself does analt return anything. Instead Net DIM relies on
 the driver to provide a callback function, which is called when the algorithm
 decides to make a change in the interrupt moderation parameters. This callback
-will be scheduled and run in a separate thread in order not to add overhead to
+will be scheduled and run in a separate thread in order analt to add overhead to
 the data flow. After the work is done, Net DIM algorithm needs to be set to
 the proper state in order to move to the next iteration.
 
@@ -124,7 +124,7 @@ Example
 =======
 
 The following code demonstrates how to register a driver to Net DIM. The actual
-usage is not complete but it should make the outline of the usage clear.
+usage is analt complete but it should make the outline of the usage clear.
 
 .. code-block:: c
 

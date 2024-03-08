@@ -12,7 +12,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/reboot.h>
 #include <linux/kdev_t.h>
 #include <linux/types.h>
@@ -31,7 +31,7 @@
 #include <platform/hardware.h>
 #include <platform/serial.h>
 
-/* Assumes s points to an 8-chr string.  No checking for NULL. */
+/* Assumes s points to an 8-chr string.  Anal checking for NULL. */
 
 static void led_print (int f, char *s)
 {
@@ -47,21 +47,21 @@ static int xt2000_power_off(struct sys_off_data *unused)
 	led_print (0, "POWEROFF");
 	local_irq_disable();
 	while (1);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int xt2000_restart(struct notifier_block *this,
+static int xt2000_restart(struct analtifier_block *this,
 			  unsigned long event, void *ptr)
 {
 	/* Flush and reset the mmu, simulate a processor reset, and
 	 * jump to the reset vector. */
 	cpu_reset();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block xt2000_restart_block = {
-	.notifier_call = xt2000_restart,
+static struct analtifier_block xt2000_restart_block = {
+	.analtifier_call = xt2000_restart,
 };
 
 void __init platform_setup(char** cmdline)

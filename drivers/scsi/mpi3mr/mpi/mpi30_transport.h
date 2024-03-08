@@ -7,7 +7,7 @@
 struct mpi3_version_struct {
 	u8         dev;
 	u8         unit;
-	u8         minor;
+	u8         mianalr;
 	u8         major;
 };
 
@@ -17,7 +17,7 @@ union mpi3_version_union {
 };
 
 #define MPI3_VERSION_MAJOR                                              (3)
-#define MPI3_VERSION_MINOR                                              (0)
+#define MPI3_VERSION_MIANALR                                              (0)
 #define MPI3_VERSION_UNIT                                               (28)
 #define MPI3_VERSION_DEV                                                (0)
 #define MPI3_DEVHANDLE_INVALID                                          (0xffff)
@@ -49,7 +49,7 @@ struct mpi3_sysif_registers {
 	struct mpi3_sysif_oper_queue_indexes   oper_queue_indexes[383];
 	__le32                             reserved1c00;
 	__le32                             write_sequence;
-	__le32                             host_diagnostic;
+	__le32                             host_diaganalstic;
 	__le32                             reserved1c0c;
 	__le32                             fault;
 	__le32                             fault_info[3];
@@ -81,8 +81,8 @@ struct mpi3_sysif_registers {
 #define MPI3_SYSIF_IOC_CONFIG_OPER_REQ_ENT_SZ                           (0x000f0000)
 #define MPI3_SYSIF_IOC_CONFIG_OPER_REQ_ENT_SZ_SHIFT                     (16)
 #define MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_MASK                             (0x0000c000)
-#define MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_NO                               (0x00000000)
-#define MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_NORMAL                           (0x00004000)
+#define MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_ANAL                               (0x00000000)
+#define MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_ANALRMAL                           (0x00004000)
 #define MPI3_SYSIF_IOC_CONFIG_DEVICE_SHUTDOWN_SEND_REQ                  (0x00002000)
 #define MPI3_SYSIF_IOC_CONFIG_DIAG_SAVE                                 (0x00000010)
 #define MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC                                (0x00000001)
@@ -90,7 +90,7 @@ struct mpi3_sysif_registers {
 #define MPI3_SYSIF_IOC_STATUS_RESET_HISTORY                             (0x00000010)
 #define MPI3_SYSIF_IOC_STATUS_SHUTDOWN_MASK                             (0x0000000c)
 #define MPI3_SYSIF_IOC_STATUS_SHUTDOWN_SHIFT                            (0x00000002)
-#define MPI3_SYSIF_IOC_STATUS_SHUTDOWN_NONE                             (0x00000000)
+#define MPI3_SYSIF_IOC_STATUS_SHUTDOWN_ANALNE                             (0x00000000)
 #define MPI3_SYSIF_IOC_STATUS_SHUTDOWN_IN_PROGRESS                      (0x00000004)
 #define MPI3_SYSIF_IOC_STATUS_SHUTDOWN_COMPLETE                         (0x00000008)
 #define MPI3_SYSIF_IOC_STATUS_FAULT                                     (0x00000002)
@@ -106,7 +106,7 @@ struct mpi3_sysif_registers {
 #define MPI3_SYSIF_ADMIN_REPLY_Q_ADDR_HIGH_OFFSET                       (0x00000034)
 #define MPI3_SYSIF_COALESCE_CONTROL_OFFSET                              (0x00000040)
 #define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_MASK                         (0xc0000000)
-#define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_NO_CHANGE                    (0x00000000)
+#define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_ANAL_CHANGE                    (0x00000000)
 #define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_DISABLE                      (0x40000000)
 #define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_ENABLE                       (0xc0000000)
 #define MPI3_SYSIF_COALESCE_CONTROL_VALID                               (0x20000000)
@@ -133,7 +133,7 @@ struct mpi3_sysif_registers {
 #define MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_6TH                         (0xd)
 #define MPI3_SYSIF_HOST_DIAG_OFFSET                                     (0x00001c08)
 #define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_MASK                          (0x00000700)
-#define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_NO_RESET                      (0x00000000)
+#define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_ANAL_RESET                      (0x00000000)
 #define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET                    (0x00000100)
 #define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_HOST_CONTROL_BOOT_RESET       (0x00000200)
 #define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_COMPLETE_RESET                (0x00000300)
@@ -252,7 +252,7 @@ struct mpi3_status_reply_descriptor {
 #define MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_LOGINFOAVAIL               (0x8000)
 #define MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_STATUS_MASK                (0x7fff)
 #define MPI3_REPLY_DESCRIPT_STATUS_IOCLOGINFO_TYPE_MASK                 (0xf0000000)
-#define MPI3_REPLY_DESCRIPT_STATUS_IOCLOGINFO_TYPE_NO_INFO              (0x00000000)
+#define MPI3_REPLY_DESCRIPT_STATUS_IOCLOGINFO_TYPE_ANAL_INFO              (0x00000000)
 #define MPI3_REPLY_DESCRIPT_STATUS_IOCLOGINFO_TYPE_SAS                  (0x30000000)
 #define MPI3_REPLY_DESCRIPT_STATUS_IOCLOGINFO_DATA_MASK                 (0x0fffffff)
 union mpi3_reply_descriptors_union {
@@ -321,7 +321,7 @@ union mpi3_sge_union {
 #define MPI3_EEDPFLAGS_CHK_APP_TAG                  (0x0200)
 #define MPI3_EEDPFLAGS_CHK_GUARD                    (0x0100)
 #define MPI3_EEDPFLAGS_ESC_MODE_MASK                (0x00c0)
-#define MPI3_EEDPFLAGS_ESC_MODE_DO_NOT_DISABLE      (0x0040)
+#define MPI3_EEDPFLAGS_ESC_MODE_DO_ANALT_DISABLE      (0x0040)
 #define MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE      (0x0080)
 #define MPI3_EEDPFLAGS_ESC_MODE_APPTAG_REFTAG_DISABLE   (0x00c0)
 #define MPI3_EEDPFLAGS_HOST_GUARD_MASK              (0x0030)
@@ -370,7 +370,7 @@ struct mpi3_default_reply {
 #define MPI3_FUNCTION_IOC_FACTS                     (0x01)
 #define MPI3_FUNCTION_IOC_INIT                      (0x02)
 #define MPI3_FUNCTION_PORT_ENABLE                   (0x03)
-#define MPI3_FUNCTION_EVENT_NOTIFICATION            (0x04)
+#define MPI3_FUNCTION_EVENT_ANALTIFICATION            (0x04)
 #define MPI3_FUNCTION_EVENT_ACK                     (0x05)
 #define MPI3_FUNCTION_CI_DOWNLOAD                   (0x06)
 #define MPI3_FUNCTION_CI_UPLOAD                     (0x07)
@@ -419,12 +419,12 @@ struct mpi3_default_reply {
 #define MPI3_IOCSTATUS_CONFIG_INVALID_TYPE          (0x0021)
 #define MPI3_IOCSTATUS_CONFIG_INVALID_PAGE          (0x0022)
 #define MPI3_IOCSTATUS_CONFIG_INVALID_DATA          (0x0023)
-#define MPI3_IOCSTATUS_CONFIG_NO_DEFAULTS           (0x0024)
+#define MPI3_IOCSTATUS_CONFIG_ANAL_DEFAULTS           (0x0024)
 #define MPI3_IOCSTATUS_CONFIG_CANT_COMMIT           (0x0025)
 #define MPI3_IOCSTATUS_SCSI_RECOVERED_ERROR         (0x0040)
-#define MPI3_IOCSTATUS_SCSI_TM_NOT_SUPPORTED        (0x0041)
+#define MPI3_IOCSTATUS_SCSI_TM_ANALT_SUPPORTED        (0x0041)
 #define MPI3_IOCSTATUS_SCSI_INVALID_DEVHANDLE       (0x0042)
-#define MPI3_IOCSTATUS_SCSI_DEVICE_NOT_THERE        (0x0043)
+#define MPI3_IOCSTATUS_SCSI_DEVICE_ANALT_THERE        (0x0043)
 #define MPI3_IOCSTATUS_SCSI_DATA_OVERRUN            (0x0044)
 #define MPI3_IOCSTATUS_SCSI_DATA_UNDERRUN           (0x0045)
 #define MPI3_IOCSTATUS_SCSI_IO_DATA_ERROR           (0x0046)
@@ -439,8 +439,8 @@ struct mpi3_default_reply {
 #define MPI3_IOCSTATUS_EEDP_APP_TAG_ERROR           (0x004f)
 #define MPI3_IOCSTATUS_TARGET_INVALID_IO_INDEX      (0x0062)
 #define MPI3_IOCSTATUS_TARGET_ABORTED               (0x0063)
-#define MPI3_IOCSTATUS_TARGET_NO_CONN_RETRYABLE     (0x0064)
-#define MPI3_IOCSTATUS_TARGET_NO_CONNECTION         (0x0065)
+#define MPI3_IOCSTATUS_TARGET_ANAL_CONN_RETRYABLE     (0x0064)
+#define MPI3_IOCSTATUS_TARGET_ANAL_CONNECTION         (0x0065)
 #define MPI3_IOCSTATUS_TARGET_XFER_COUNT_MISMATCH   (0x006a)
 #define MPI3_IOCSTATUS_TARGET_DATA_OFFSET_ERROR     (0x006d)
 #define MPI3_IOCSTATUS_TARGET_TOO_MUCH_WRITE_DATA   (0x006e)
@@ -449,12 +449,12 @@ struct mpi3_default_reply {
 #define MPI3_IOCSTATUS_TARGET_NAK_RECEIVED          (0x0071)
 #define MPI3_IOCSTATUS_SAS_SMP_REQUEST_FAILED       (0x0090)
 #define MPI3_IOCSTATUS_SAS_SMP_DATA_OVERRUN         (0x0091)
-#define MPI3_IOCSTATUS_DIAGNOSTIC_RELEASED          (0x00a0)
+#define MPI3_IOCSTATUS_DIAGANALSTIC_RELEASED          (0x00a0)
 #define MPI3_IOCSTATUS_CI_UNSUPPORTED               (0x00b0)
 #define MPI3_IOCSTATUS_CI_UPDATE_SEQUENCE           (0x00b1)
 #define MPI3_IOCSTATUS_CI_VALIDATION_FAILED         (0x00b2)
 #define MPI3_IOCSTATUS_CI_KEY_UPDATE_PENDING        (0x00b3)
-#define MPI3_IOCSTATUS_CI_KEY_UPDATE_NOT_POSSIBLE   (0x00b4)
+#define MPI3_IOCSTATUS_CI_KEY_UPDATE_ANALT_POSSIBLE   (0x00b4)
 #define MPI3_IOCSTATUS_SECURITY_KEY_REQUIRED        (0x00c0)
 #define MPI3_IOCSTATUS_SECURITY_VIOLATION           (0x00c1)
 #define MPI3_IOCSTATUS_INVALID_QUEUE_ID             (0x0f00)
@@ -464,7 +464,7 @@ struct mpi3_default_reply {
 #define MPI3_IOCSTATUS_INVALID_QUEUE_DELETION       (0x0f04)
 #define MPI3_IOCLOGINFO_TYPE_MASK               (0xf0000000)
 #define MPI3_IOCLOGINFO_TYPE_SHIFT              (28)
-#define MPI3_IOCLOGINFO_TYPE_NONE               (0x0)
+#define MPI3_IOCLOGINFO_TYPE_ANALNE               (0x0)
 #define MPI3_IOCLOGINFO_TYPE_SAS                (0x3)
 #define MPI3_IOCLOGINFO_LOG_DATA_MASK           (0x0fffffff)
 #endif

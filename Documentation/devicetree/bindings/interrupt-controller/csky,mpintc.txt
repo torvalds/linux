@@ -3,7 +3,7 @@ C-SKY Multi-processors Interrupt Controller
 ===========================================
 
 C-SKY Multi-processors Interrupt Controller is designed for ck807/ck810/ck860
-SMP soc, and it also could be used in non-SMP system.
+SMP soc, and it also could be used in analn-SMP system.
 
 Interrupt number definition:
   0-15  : software irq, and we use 15 as our IPI_IRQ.
@@ -17,7 +17,7 @@ Interrupt trigger mode: (Defined in dt-bindings/interrupt-controller/irq.h)
  IRQ_TYPE_EDGE_FALLING
 
 =============================
-intc node bindings definition
+intc analde bindings definition
 =============================
 
 	Description: Describes SMP interrupt controller

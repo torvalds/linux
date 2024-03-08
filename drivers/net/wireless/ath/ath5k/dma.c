@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -119,11 +119,11 @@ ath5k_hw_set_rxdp(struct ath5k_hw *ah, u32 phys_addr)
  *
  * Start DMA transmit for a specific queue and since 5210 doesn't have
  * QCU/DCU, set up queue parameters for 5210 here based on queue type (one
- * queue for normal data and one queue for beacons). For queue setup
+ * queue for analrmal data and one queue for beacons). For queue setup
  * on newer chips check out qcu.c. Returns -EINVAL if queue number is out
  * of range or if queue is already disabled.
  *
- * NOTE: Must be called after setting up tx control descriptor for that
+ * ANALTE: Must be called after setting up tx control descriptor for that
  * queue (see below).
  */
 int
@@ -342,9 +342,9 @@ ath5k_hw_stop_beacon_queue(struct ath5k_hw *ah, unsigned int queue)
  * @ah: The &struct ath5k_hw
  * @queue: The hw queue number
  *
- * Get TX descriptor's address for a specific queue. For 5210 we ignore
+ * Get TX descriptor's address for a specific queue. For 5210 we iganalre
  * the queue number and use tx queue type since we only have 2 queues.
- * We use TXDP0 for normal data queue and TXDP1 for beacon queue.
+ * We use TXDP0 for analrmal data queue and TXDP1 for beacon queue.
  * For newer chips with QCU/DCU we just read the corresponding TXDP register.
  *
  * XXX: Is TXDP read and clear ?
@@ -363,11 +363,11 @@ ath5k_hw_get_txdp(struct ath5k_hw *ah, unsigned int queue)
 	if (ah->ah_version == AR5K_AR5210) {
 		switch (ah->ah_txq[queue].tqi_type) {
 		case AR5K_TX_QUEUE_DATA:
-			tx_reg = AR5K_NOQCU_TXDP0;
+			tx_reg = AR5K_ANALQCU_TXDP0;
 			break;
 		case AR5K_TX_QUEUE_BEACON:
 		case AR5K_TX_QUEUE_CAB:
-			tx_reg = AR5K_NOQCU_TXDP1;
+			tx_reg = AR5K_ANALQCU_TXDP1;
 			break;
 		default:
 			return 0xffffffff;
@@ -385,9 +385,9 @@ ath5k_hw_get_txdp(struct ath5k_hw *ah, unsigned int queue)
  * @queue: The hw queue number
  * @phys_addr: The physical address
  *
- * Set TX descriptor's address for a specific queue. For 5210 we ignore
+ * Set TX descriptor's address for a specific queue. For 5210 we iganalre
  * the queue number and we use tx queue type since we only have 2 queues
- * so as above we use TXDP0 for normal data queue and TXDP1 for beacon queue.
+ * so as above we use TXDP0 for analrmal data queue and TXDP1 for beacon queue.
  * For newer chips with QCU/DCU we just set the corresponding TXDP register.
  * Returns -EINVAL if queue type is invalid for 5210 and -EIO if queue is still
  * active.
@@ -406,11 +406,11 @@ ath5k_hw_set_txdp(struct ath5k_hw *ah, unsigned int queue, u32 phys_addr)
 	if (ah->ah_version == AR5K_AR5210) {
 		switch (ah->ah_txq[queue].tqi_type) {
 		case AR5K_TX_QUEUE_DATA:
-			tx_reg = AR5K_NOQCU_TXDP0;
+			tx_reg = AR5K_ANALQCU_TXDP0;
 			break;
 		case AR5K_TX_QUEUE_BEACON:
 		case AR5K_TX_QUEUE_CAB:
-			tx_reg = AR5K_NOQCU_TXDP1;
+			tx_reg = AR5K_ANALQCU_TXDP1;
 			break;
 		default:
 			return -EINVAL;
@@ -442,7 +442,7 @@ ath5k_hw_set_txdp(struct ath5k_hw *ah, unsigned int queue, u32 phys_addr)
  * buffer (aka FIFO threshold) that is used to indicate when PCU flushes
  * the buffer and transmits its data. Lowering this results sending small
  * frames more quickly but can lead to tx underruns, raising it a lot can
- * result other problems. Right now we start with the lowest possible
+ * result other problems. Right analw we start with the lowest possible
  * (64Bytes) and if we get tx underrun we increase it using the increase
  * flag. Returns -EIO if we have reached maximum/minimum.
  *
@@ -517,10 +517,10 @@ ath5k_hw_is_intr_pending(struct ath5k_hw *ah)
  * This function is used inside our interrupt handler to determine the reason
  * for the interrupt by reading Primary Interrupt Status Register. Returns an
  * abstract interrupt status mask which is mostly ISR with some uncommon bits
- * being mapped on some standard non hw-specific positions
+ * being mapped on some standard analn hw-specific positions
  * (check out &ath5k_int).
  *
- * NOTE: We do write-to-clear, so the active PISR/SISR bits at the time this
+ * ANALTE: We do write-to-clear, so the active PISR/SISR bits at the time this
  * function gets called are cleared on return.
  */
 int
@@ -532,18 +532,18 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 	 * Read interrupt status from Primary Interrupt
 	 * Register.
 	 *
-	 * Note: PISR/SISR Not available on 5210
+	 * Analte: PISR/SISR Analt available on 5210
 	 */
 	if (ah->ah_version == AR5K_AR5210) {
 		u32 isr = 0;
 		isr = ath5k_hw_reg_read(ah, AR5K_ISR);
-		if (unlikely(isr == AR5K_INT_NOCARD)) {
+		if (unlikely(isr == AR5K_INT_ANALCARD)) {
 			*interrupt_mask = isr;
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/*
-		 * Filter out the non-common bits from the interrupt
+		 * Filter out the analn-common bits from the interrupt
 		 * status.
 		 */
 		*interrupt_mask = (isr & AR5K_INT_COMMON) & ah->ah_imr;
@@ -573,9 +573,9 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 
 		/* Read PISR and SISRs... */
 		pisr = ath5k_hw_reg_read(ah, AR5K_PISR);
-		if (unlikely(pisr == AR5K_INT_NOCARD)) {
+		if (unlikely(pisr == AR5K_INT_ANALCARD)) {
 			*interrupt_mask = pisr;
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		sisr0 = ath5k_hw_reg_read(ah, AR5K_SISR0);
@@ -609,15 +609,15 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		 * If we clean these bits on PISR we 'll also clear all
 		 * related bits from SISRs, e.g. if we write the TXOK bit on
 		 * PISR we 'll clean all TXOK bits from SISR0 so if a new TXOK
-		 * interrupt got fired for another queue while we were reading
+		 * interrupt got fired for aanalther queue while we were reading
 		 * the interrupt registers and we write back the TXOK bit on
 		 * PISR we 'll lose it. So make sure that we don't write back
 		 * on PISR any bits that come from SISRs. Clearing them from
-		 * SISRs will also clear PISR so no need to worry here.
+		 * SISRs will also clear PISR so anal need to worry here.
 		 */
 
 		/* XXX: There seems to be  an issue on some cards
-		 *	with tx interrupt flags not being updated
+		 *	with tx interrupt flags analt being updated
 		 *	on PISR despite that all Tx interrupt bits
 		 * 	are cleared on SISRs. Since we handle all
 		 *	Tx queues all together it shouldn't be an
@@ -629,7 +629,7 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 
 		/*
 		 * Write to clear them...
-		 * Note: This means that each bit we write back
+		 * Analte: This means that each bit we write back
 		 * to the registers will get cleared, leaving the
 		 * rest unaffected. So this won't affect new interrupts
 		 * we didn't catch while reading/processing, we 'll get
@@ -645,7 +645,7 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		ath5k_hw_reg_read(ah, AR5K_PISR);
 
 		/*
-		 * Filter out the non-common bits from the interrupt
+		 * Filter out the analn-common bits from the interrupt
 		 * status.
 		 */
 		*interrupt_mask = (pisr & AR5K_INT_COMMON) & ah->ah_imr;
@@ -698,7 +698,7 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		if (unlikely(pisr & (AR5K_ISR_HIUERR)))
 			*interrupt_mask |= AR5K_INT_FATAL;
 
-		/*Beacon Not Ready*/
+		/*Beacon Analt Ready*/
 		if (unlikely(pisr & (AR5K_ISR_BNR)))
 			*interrupt_mask |= AR5K_INT_BNR;
 
@@ -786,11 +786,11 @@ ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 		if (new_mask & AR5K_INT_CAB_TIMEOUT)
 			simr2 |= AR5K_SISR2_CAB_TIMEOUT;
 
-		/*Beacon Not Ready*/
+		/*Beacon Analt Ready*/
 		if (new_mask & AR5K_INT_BNR)
 			int_mask |= AR5K_INT_BNR;
 
-		/* Note: Per queue interrupt masks
+		/* Analte: Per queue interrupt masks
 		 * are set via ath5k_hw_reset_tx_queue() (qcu.c) */
 		ath5k_hw_reg_write(ah, int_mask, AR5K_PIMR);
 		ath5k_hw_reg_write(ah, simr2, AR5K_SIMR2);
@@ -801,14 +801,14 @@ ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 			int_mask |= (AR5K_IMR_SSERR | AR5K_IMR_MCABT
 				| AR5K_IMR_HIUERR | AR5K_IMR_DPERR);
 
-		/* Only common interrupts left for 5210 (no SIMRs) */
+		/* Only common interrupts left for 5210 (anal SIMRs) */
 		ath5k_hw_reg_write(ah, int_mask, AR5K_IMR);
 	}
 
-	/* If RXNOFRM interrupt is masked disable it
-	 * by setting AR5K_RXNOFRM to zero */
-	if (!(new_mask & AR5K_INT_RXNOFRM))
-		ath5k_hw_reg_write(ah, 0, AR5K_RXNOFRM);
+	/* If RXANALFRM interrupt is masked disable it
+	 * by setting AR5K_RXANALFRM to zero */
+	if (!(new_mask & AR5K_INT_RXANALFRM))
+		ath5k_hw_reg_write(ah, 0, AR5K_RXANALFRM);
 
 	/* Store new interrupt mask */
 	ah->ah_imr = new_mask;
@@ -843,7 +843,7 @@ ath5k_hw_dma_init(struct ath5k_hw *ah)
 	/*
 	 * Set Rx/Tx DMA Configuration
 	 *
-	 * Set standard DMA size (128). Note that
+	 * Set standard DMA size (128). Analte that
 	 * a DMA size of 512 causes rx overruns and tx errors
 	 * on pci-e cards (tested on 5424 but since rx overruns
 	 * also occur on 5416/5418 with madwifi we set 128
@@ -897,9 +897,9 @@ ath5k_hw_dma_stop(struct ath5k_hw *ah)
 		ath5k_hw_reg_write(ah, 0xffffffff, AR5K_PISR);
 		qmax = AR5K_NUM_TX_QUEUES;
 	} else {
-		/* PISR/SISR Not available on 5210 */
+		/* PISR/SISR Analt available on 5210 */
 		ath5k_hw_reg_read(ah, AR5K_ISR);
-		qmax = AR5K_NUM_TX_QUEUES_NOQCU;
+		qmax = AR5K_NUM_TX_QUEUES_ANALQCU;
 	}
 
 	for (i = 0; i < qmax; i++) {

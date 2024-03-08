@@ -5,7 +5,7 @@
  * GNU General Public License.
  *
  * Written by Douglas Thompson Linux Networx (http://lnxi.com)
- *	norsk5@xmission.com
+ *	analrsk5@xmission.com
  *
  * This module is based on the following document:
  *
@@ -99,7 +99,7 @@
 #define			FERR_NF_M18ERR	0x00004000
 #define			FERR_NF_M17ERR	0x00002000
 
-/* Non-Retry or redundant Retry errors */
+/* Analn-Retry or redundant Retry errors */
 #define			FERR_NF_M16ERR	0x00001000
 #define			FERR_NF_M15ERR	0x00000800
 #define			FERR_NF_M14ERR	0x00000400
@@ -136,8 +136,8 @@
 							FERR_NF_M24ERR | \
 							FERR_NF_M23ERR)
 #define			FERR_NF_SPD_PROTOCOL	(FERR_NF_M22ERR)
-#define			FERR_NF_NORTH_CRC	(FERR_NF_M21ERR)
-#define			FERR_NF_NON_RETRY	(FERR_NF_M13ERR | \
+#define			FERR_NF_ANALRTH_CRC	(FERR_NF_M21ERR)
+#define			FERR_NF_ANALN_RETRY	(FERR_NF_M13ERR | \
 							FERR_NF_M14ERR | \
 							FERR_NF_M15ERR)
 
@@ -147,8 +147,8 @@
 							FERR_NF_DIMM_SPARE | \
 							FERR_NF_THERMAL | \
 							FERR_NF_SPD_PROTOCOL | \
-							FERR_NF_NORTH_CRC | \
-							FERR_NF_NON_RETRY)
+							FERR_NF_ANALRTH_CRC | \
+							FERR_NF_ANALN_RETRY)
 
 #define		EMASK_FBD		0xA8
 #define			EMASK_FBD_M28ERR	0x08000000
@@ -204,13 +204,13 @@
 							EMASK_FBD_M24ERR | \
 							EMASK_FBD_M23ERR)
 #define			ENABLE_EMASK_FBD_SPD_PROTOCOL	(EMASK_FBD_M22ERR)
-#define			ENABLE_EMASK_FBD_NORTH_CRC	(EMASK_FBD_M21ERR)
-#define			ENABLE_EMASK_FBD_NON_RETRY	(EMASK_FBD_M15ERR | \
+#define			ENABLE_EMASK_FBD_ANALRTH_CRC	(EMASK_FBD_M21ERR)
+#define			ENABLE_EMASK_FBD_ANALN_RETRY	(EMASK_FBD_M15ERR | \
 							EMASK_FBD_M14ERR | \
 							EMASK_FBD_M13ERR)
 
-#define		ENABLE_EMASK_ALL	(ENABLE_EMASK_FBD_NON_RETRY | \
-					ENABLE_EMASK_FBD_NORTH_CRC | \
+#define		ENABLE_EMASK_ALL	(ENABLE_EMASK_FBD_ANALN_RETRY | \
+					ENABLE_EMASK_FBD_ANALRTH_CRC | \
 					ENABLE_EMASK_FBD_SPD_PROTOCOL | \
 					ENABLE_EMASK_FBD_THERMALS | \
 					ENABLE_EMASK_FBD_DIMM_SPARE | \
@@ -274,7 +274,7 @@
 #define MAX_BRANCHES		2
 
 /* Defines to extract the various fields from the
- *	MTRx - Memory Technology Registers
+ *	MTRx - Memory Techanallogy Registers
  */
 #define MTR_DIMMS_PRESENT(mtr)		((mtr) & (0x1 << 8))
 #define MTR_DRAM_WIDTH(mtr)		((((mtr) >> 6) & 0x1) ? 8 : 4)
@@ -312,7 +312,7 @@ static const struct i5000_dev_info i5000_devs[] = {
 };
 
 struct i5000_dimm_info {
-	int megabytes;		/* size, 0 means not present  */
+	int megabytes;		/* size, 0 means analt present  */
 	int dual_rank;
 };
 
@@ -360,8 +360,8 @@ struct i5000_error_info {
 	/* These registers are always read from the MC */
 	u32 ferr_fat_fbd;	/* First Errors Fatal */
 	u32 nerr_fat_fbd;	/* Next Errors Fatal */
-	u32 ferr_nf_fbd;	/* First Errors Non-Fatal */
-	u32 nerr_nf_fbd;	/* Next Errors Non-Fatal */
+	u32 ferr_nf_fbd;	/* First Errors Analn-Fatal */
+	u32 nerr_nf_fbd;	/* Next Errors Analn-Fatal */
 
 	/* These registers are input ONLY if there was a Recoverable  Error */
 	u32 redmemb;		/* Recoverable Mem Data Error log B */
@@ -369,9 +369,9 @@ struct i5000_error_info {
 	u32 recmemb;		/* Recoverable Mem Error log B */
 
 	/* These registers are input ONLY if there was a
-	 * Non-Recoverable Error */
-	u16 nrecmema;		/* Non-Recoverable Mem log A */
-	u32 nrecmemb;		/* Non-Recoverable Mem log B */
+	 * Analn-Recoverable Error */
+	u16 nrecmema;		/* Analn-Recoverable Mem log A */
+	u32 nrecmemb;		/* Analn-Recoverable Mem log B */
 
 };
 
@@ -420,10 +420,10 @@ static void i5000_get_error_info(struct mem_ctl_info *mci,
 		info->nrecmemb = 0;
 	}
 
-	/* read in the 1st NON-FATAL error register */
+	/* read in the 1st ANALN-FATAL error register */
 	pci_read_config_dword(pvt->branchmap_werrors, FERR_NF_FBD, &value);
 
-	/* If there is an error, then read in the 1st NON-FATAL error
+	/* If there is an error, then read in the 1st ANALN-FATAL error
 	 * register as well */
 	if (value & FERR_NF_MASK) {
 		info->ferr_nf_fbd = value;
@@ -473,11 +473,11 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	/* mask off the Error bits that are possible */
 	allErrors = (info->ferr_fat_fbd & FERR_FAT_MASK);
 	if (!allErrors)
-		return;		/* if no error, return now */
+		return;		/* if anal error, return analw */
 
 	channel = EXTRACT_FBDCHAN_INDX(info->ferr_fat_fbd);
 
-	/* Use the NON-Recoverable macros to extract data */
+	/* Use the ANALN-Recoverable macros to extract data */
 	bank = NREC_BANK(info->nrecmema);
 	rank = NREC_RANK(info->nrecmema);
 	rdwr = NREC_RDWR(info->nrecmema);
@@ -491,11 +491,11 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	/* Only 1 bit will be on */
 	switch (allErrors) {
 	case FERR_FAT_M1ERR:
-		specific = "Alert on non-redundant retry or fast "
+		specific = "Alert on analn-redundant retry or fast "
 				"reset timeout";
 		break;
 	case FERR_FAT_M2ERR:
-		specific = "Northbound CRC error on non-redundant "
+		specific = "Analrthbound CRC error on analn-redundant "
 				"retry";
 		break;
 	case FERR_FAT_M3ERR:
@@ -536,9 +536,9 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
  * 				struct i5000_error_info *info,
  * 				int handle_errors);
  *
- *	handle the Intel NON-FATAL errors, if any
+ *	handle the Intel ANALN-FATAL errors, if any
  */
-static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
+static void i5000_process_analnfatal_error_info(struct mem_ctl_info *mci,
 					struct i5000_error_info *info,
 					int handle_errors)
 {
@@ -558,7 +558,7 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 	/* mask off the Error bits that are possible */
 	allErrors = (info->ferr_nf_fbd & FERR_NF_MASK);
 	if (!allErrors)
-		return;		/* if no error, return now */
+		return;		/* if anal error, return analw */
 
 	/* ONLY ONE of the possible error bits will be set, as per the docs */
 	ue_errors = allErrors & FERR_NF_UNCORRECTABLE;
@@ -568,7 +568,7 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 		branch = EXTRACT_FBDCHAN_INDX(info->ferr_nf_fbd);
 
 		/*
-		 * According with i5000 datasheet, bit 28 has no significance
+		 * According with i5000 datasheet, bit 28 has anal significance
 		 * for errors M4Err-M12Err and M17Err-M21Err, on FERR_NF_FBD
 		 */
 		channel = branch & 2;
@@ -585,18 +585,18 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 
 		switch (ue_errors) {
 		case FERR_NF_M12ERR:
-			specific = "Non-Aliased Uncorrectable Patrol Data ECC";
+			specific = "Analn-Aliased Uncorrectable Patrol Data ECC";
 			break;
 		case FERR_NF_M11ERR:
-			specific = "Non-Aliased Uncorrectable Spare-Copy "
+			specific = "Analn-Aliased Uncorrectable Spare-Copy "
 					"Data ECC";
 			break;
 		case FERR_NF_M10ERR:
-			specific = "Non-Aliased Uncorrectable Mirrored Demand "
+			specific = "Analn-Aliased Uncorrectable Mirrored Demand "
 					"Data ECC";
 			break;
 		case FERR_NF_M9ERR:
-			specific = "Non-Aliased Uncorrectable Non-Mirrored "
+			specific = "Analn-Aliased Uncorrectable Analn-Mirrored "
 					"Demand Data ECC";
 			break;
 		case FERR_NF_M8ERR:
@@ -610,7 +610,7 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 					"Data ECC";
 			break;
 		case FERR_NF_M5ERR:
-			specific = "Aliased Uncorrectable Non-Mirrored Demand "
+			specific = "Aliased Uncorrectable Analn-Mirrored Demand "
 					"Data ECC";
 			break;
 		case FERR_NF_M4ERR:
@@ -657,7 +657,7 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 
 		switch (ce_errors) {
 		case FERR_NF_M17ERR:
-			specific = "Correctable Non-Mirrored Demand Data ECC";
+			specific = "Correctable Analn-Mirrored Demand Data ECC";
 			break;
 		case FERR_NF_M18ERR:
 			specific = "Correctable Mirrored Demand Data ECC";
@@ -687,24 +687,24 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 	if (!misc_messages)
 		return;
 
-	misc_errors = allErrors & (FERR_NF_NON_RETRY | FERR_NF_NORTH_CRC |
+	misc_errors = allErrors & (FERR_NF_ANALN_RETRY | FERR_NF_ANALRTH_CRC |
 				   FERR_NF_SPD_PROTOCOL | FERR_NF_DIMM_SPARE);
 	if (misc_errors) {
 		switch (misc_errors) {
 		case FERR_NF_M13ERR:
-			specific = "Non-Retry or Redundant Retry FBD Memory "
+			specific = "Analn-Retry or Redundant Retry FBD Memory "
 					"Alert or Redundant Fast Reset Timeout";
 			break;
 		case FERR_NF_M14ERR:
-			specific = "Non-Retry or Redundant Retry FBD "
+			specific = "Analn-Retry or Redundant Retry FBD "
 					"Configuration Alert";
 			break;
 		case FERR_NF_M15ERR:
-			specific = "Non-Retry or Redundant Retry FBD "
-					"Northbound CRC error on read data";
+			specific = "Analn-Retry or Redundant Retry FBD "
+					"Analrthbound CRC error on read data";
 			break;
 		case FERR_NF_M21ERR:
-			specific = "FBD Northbound CRC error on "
+			specific = "FBD Analrthbound CRC error on "
 					"FBD Sync Status";
 			break;
 		case FERR_NF_M22ERR:
@@ -741,13 +741,13 @@ static void i5000_process_error_info(struct mem_ctl_info *mci,
 	/* First handle any fatal errors that occurred */
 	i5000_process_fatal_error_info(mci, info, handle_errors);
 
-	/* now handle any non-fatal errors that occurred */
-	i5000_process_nonfatal_error_info(mci, info, handle_errors);
+	/* analw handle any analn-fatal errors that occurred */
+	i5000_process_analnfatal_error_info(mci, info, handle_errors);
 }
 
 /*
  *	i5000_clear_error	Retrieve any error from the hardware
- *				but do NOT process that error.
+ *				but do ANALT process that error.
  *				Used for 'clearing' out of previous errors
  *				Called by the Core module.
  */
@@ -794,7 +794,7 @@ static int i5000_get_devices(struct mem_ctl_info *mci, int dev_idx)
 		if (pdev == NULL) {
 			i5000_printk(KERN_ERR,
 				"'system address,Process Bus' "
-				"device not found:"
+				"device analt found:"
 				"vendor 0x%x device 0x%x FUNC 1 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
@@ -819,7 +819,7 @@ static int i5000_get_devices(struct mem_ctl_info *mci, int dev_idx)
 		if (pdev == NULL) {
 			i5000_printk(KERN_ERR,
 				"MC: 'branchmap,control,errors' "
-				"device not found:"
+				"device analt found:"
 				"vendor 0x%x device 0x%x Func 2 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
@@ -853,7 +853,7 @@ static int i5000_get_devices(struct mem_ctl_info *mci, int dev_idx)
 
 	if (pdev == NULL) {
 		i5000_printk(KERN_ERR,
-			"MC: 'BRANCH 0' device not found:"
+			"MC: 'BRANCH 0' device analt found:"
 			"vendor 0x%x device 0x%x Func 0 (broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_I5000_BRANCH_0);
 
@@ -874,7 +874,7 @@ static int i5000_get_devices(struct mem_ctl_info *mci, int dev_idx)
 
 		if (pdev == NULL) {
 			i5000_printk(KERN_ERR,
-				"MC: 'BRANCH 1' device not found:"
+				"MC: 'BRANCH 1' device analt found:"
 				"vendor 0x%x device 0x%x Func 0 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
@@ -915,7 +915,7 @@ static void i5000_put_devices(struct mem_ctl_info *mci)
  *	determine_amb_resent
  *
  *		the information is contained in NUM_MTRS different registers
- *		determineing which of the NUM_MTRS requires knowing
+ *		determineing which of the NUM_MTRS requires kanalwing
  *		which channel is in question
  *
  *	2 branches, each with 2 channels
@@ -969,7 +969,7 @@ static void decode_mtr(int slot_row, u16 mtr)
 	ans = MTR_DIMMS_PRESENT(mtr);
 
 	edac_dbg(2, "\tMTR%d=0x%x:  DIMMs are %sPresent\n",
-		 slot_row, mtr, ans ? "" : "NOT ");
+		 slot_row, mtr, ans ? "" : "ANALT ");
 	if (!ans)
 		return;
 
@@ -1096,7 +1096,7 @@ static void calculate_dimm_size(struct i5000_pvt *pvt)
 	p = mem_buffer;
 	space = PAGE_SIZE;
 
-	/* now output the 'channel' labels */
+	/* analw output the 'channel' labels */
 	n = snprintf(p, space, "           ");
 	p += n;
 	space -= n;
@@ -1198,7 +1198,7 @@ static void i5000_get_mc_regs(struct mem_ctl_info *mci)
 	}
 
 	/* Read and dump branch 0's MTRs */
-	edac_dbg(2, "Memory Technology Registers:\n");
+	edac_dbg(2, "Memory Techanallogy Registers:\n");
 	edac_dbg(2, "   Branch 0:\n");
 	for (slot_row = 0; slot_row < NUM_MTRS; slot_row++) {
 		decode_mtr(slot_row, pvt->b0_mtr[slot_row]);
@@ -1242,7 +1242,7 @@ static void i5000_get_mc_regs(struct mem_ctl_info *mci)
  *
  *	return:
  *		0	success
- *		1	no actual memory found on this MC
+ *		1	anal actual memory found on this MC
  */
 static int i5000_init_csrows(struct mem_ctl_info *mci)
 {
@@ -1258,7 +1258,7 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 	pvt = mci->pvt_info;
 	max_csrows = pvt->maxdimmperch * 2;
 
-	empty = 1;		/* Assume NO memory */
+	empty = 1;		/* Assume ANAL memory */
 
 	/*
 	 * FIXME: The memory layout used to map slot/channel into the
@@ -1281,7 +1281,7 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 			csrow_megs = pvt->dimm_info[slot][channel].megabytes;
 			dimm->grain = 8;
 
-			/* Assume DDR2 for now */
+			/* Assume DDR2 for analw */
 			dimm->mtype = MEM_FB_DDR2;
 
 			/* ask what device type on this row */
@@ -1365,7 +1365,7 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 
 	/* We only are looking for func 0 of the set */
 	if (PCI_FUNC(pdev->devfn) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Ask the devices for the number of CSROWS and CHANNELS so
 	 * that we can calculate the memory resources, etc
@@ -1399,7 +1399,7 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[2].is_virt_csrow = true;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (mci == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(0, "MC: mci = %p\n", mci);
 
@@ -1419,8 +1419,8 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 
 	mci->mc_idx = 0;
 	mci->mtype_cap = MEM_FLAG_FB_DDR2;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE;
-	mci->edac_cap = EDAC_FLAG_NONE;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE;
+	mci->edac_cap = EDAC_FLAG_ANALNE;
 	mci->mod_name = "i5000_edac.c";
 	mci->ctl_name = i5000_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
@@ -1432,10 +1432,10 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	/* initialize the MC control structure 'csrows' table
 	 * with the mapping and control information */
 	if (i5000_init_csrows(mci)) {
-		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_NONE because i5000_init_csrows() returned nonzero value\n");
-		mci->edac_cap = EDAC_FLAG_NONE;	/* no csrows found */
+		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_ANALNE because i5000_init_csrows() returned analnzero value\n");
+		mci->edac_cap = EDAC_FLAG_ANALNE;	/* anal csrows found */
 	} else {
-		edac_dbg(1, "MC: Enable error reporting now\n");
+		edac_dbg(1, "MC: Enable error reporting analw\n");
 		i5000_enable_error_reporting(mci);
 	}
 
@@ -1457,7 +1457,7 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC analt setup\n",
 			__func__);
 	}
 
@@ -1470,7 +1470,7 @@ fail1:
 
 fail0:
 	edac_mc_free(mci);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -1491,7 +1491,7 @@ static int i5000_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	/* now probe and enable the device */
+	/* analw probe and enable the device */
 	return i5000_probe1(pdev, id->driver_data);
 }
 
@@ -1573,10 +1573,10 @@ module_init(i5000_init);
 module_exit(i5000_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Linux Networx (http://lnxi.com) Doug Thompson <norsk5@xmission.com>");
+MODULE_AUTHOR("Linux Networx (http://lnxi.com) Doug Thompson <analrsk5@xmission.com>");
 MODULE_DESCRIPTION("MC Driver for Intel I5000 memory controllers - " I5000_REVISION);
 
 module_param(edac_op_state, int, 0444);
 MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");
 module_param(misc_messages, int, 0444);
-MODULE_PARM_DESC(misc_messages, "Log miscellaneous non fatal messages");
+MODULE_PARM_DESC(misc_messages, "Log miscellaneous analn fatal messages");

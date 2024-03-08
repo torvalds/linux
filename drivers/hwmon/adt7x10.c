@@ -28,7 +28,7 @@
 #define ADT7X10_STAT_T_LOW		(1 << 4)
 #define ADT7X10_STAT_T_HIGH		(1 << 5)
 #define ADT7X10_STAT_T_CRIT		(1 << 6)
-#define ADT7X10_STAT_NOT_RDY		(1 << 7)
+#define ADT7X10_STAT_ANALT_RDY		(1 << 7)
 
 /*
  * ADT7X10 config
@@ -87,11 +87,11 @@ static irqreturn_t adt7x10_irq_handler(int irq, void *private)
 		return IRQ_HANDLED;
 
 	if (status & ADT7X10_STAT_T_HIGH)
-		hwmon_notify_event(dev, hwmon_temp, hwmon_temp_max_alarm, 0);
+		hwmon_analtify_event(dev, hwmon_temp, hwmon_temp_max_alarm, 0);
 	if (status & ADT7X10_STAT_T_LOW)
-		hwmon_notify_event(dev, hwmon_temp, hwmon_temp_min_alarm, 0);
+		hwmon_analtify_event(dev, hwmon_temp, hwmon_temp_min_alarm, 0);
 	if (status & ADT7X10_STAT_T_CRIT)
-		hwmon_notify_event(dev, hwmon_temp, hwmon_temp_crit_alarm, 0);
+		hwmon_analtify_event(dev, hwmon_temp, hwmon_temp_crit_alarm, 0);
 
 	return IRQ_HANDLED;
 }
@@ -105,7 +105,7 @@ static int adt7x10_temp_ready(struct regmap *regmap)
 		ret = regmap_read(regmap, ADT7X10_STATUS, &status);
 		if (ret < 0)
 			return ret;
-		if (!(status & ADT7X10_STAT_NOT_RDY))
+		if (!(status & ADT7X10_STAT_ANALT_RDY))
 			return 0;
 		msleep(60);
 	}
@@ -286,7 +286,7 @@ static int adt7x10_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp_crit_alarm:
 		return adt7x10_alarm_read(data, ADT7X10_STAT_T_CRIT, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -305,7 +305,7 @@ static int adt7x10_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp_max_hyst:
 		return adt7x10_hyst_write(data, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -345,7 +345,7 @@ int adt7x10_probe(struct device *dev, const char *name, int irq,
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = regmap;
 
@@ -361,7 +361,7 @@ int adt7x10_probe(struct device *dev, const char *name, int irq,
 	data->oldconfig = config;
 
 	/*
-	 * Set to 16 bit resolution, continous conversion and comparator mode.
+	 * Set to 16 bit resolution, contianalus conversion and comparator mode.
 	 */
 	data->config = data->oldconfig;
 	data->config &= ~(ADT7X10_MODE_MASK | ADT7X10_CT_POLARITY |

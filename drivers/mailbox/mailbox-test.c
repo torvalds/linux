@@ -53,7 +53,7 @@ static ssize_t mbox_test_signal_write(struct file *filp,
 	struct mbox_test_device *tdev = filp->private_data;
 
 	if (!tdev->tx_channel) {
-		dev_err(tdev->dev, "Channel cannot do Tx\n");
+		dev_err(tdev->dev, "Channel cananalt do Tx\n");
 		return -EINVAL;
 	}
 
@@ -68,7 +68,7 @@ static ssize_t mbox_test_signal_write(struct file *filp,
 	if (!tdev->signal) {
 		tdev->signal = kzalloc(MBOX_MAX_SIG_LEN, GFP_KERNEL);
 		if (!tdev->signal)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (copy_from_user(tdev->signal, userbuf, count)) {
@@ -103,7 +103,7 @@ static ssize_t mbox_test_message_write(struct file *filp,
 	int ret;
 
 	if (!tdev->tx_channel) {
-		dev_err(tdev->dev, "Channel cannot do Tx\n");
+		dev_err(tdev->dev, "Channel cananalt do Tx\n");
 		return -EINVAL;
 	}
 
@@ -116,7 +116,7 @@ static ssize_t mbox_test_message_write(struct file *filp,
 
 	message = kzalloc(MBOX_MAX_MSG_LEN, GFP_KERNEL);
 	if (!message)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&tdev->mutex);
 
@@ -181,10 +181,10 @@ static ssize_t mbox_test_message_read(struct file *filp, char __user *userbuf,
 
 	touser = kzalloc(MBOX_HEXDUMP_MAX_LEN + 1, GFP_KERNEL);
 	if (!touser)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!tdev->rx_channel) {
-		ret = snprintf(touser, 20, "<NO RX CAPABILITY>\n");
+		ret = snprintf(touser, 20, "<ANAL RX CAPABILITY>\n");
 		ret = simple_read_from_buffer(userbuf, count, ppos,
 					      touser, ret);
 		goto kfree_err;
@@ -198,7 +198,7 @@ static ssize_t mbox_test_message_read(struct file *filp, char __user *userbuf,
 		if (mbox_test_message_data_ready(tdev))
 			break;
 
-		if (filp->f_flags & O_NONBLOCK) {
+		if (filp->f_flags & O_ANALNBLOCK) {
 			ret = -EAGAIN;
 			goto waitq_err;
 		}
@@ -248,7 +248,7 @@ mbox_test_message_poll(struct file *filp, struct poll_table_struct *wait)
 	poll_wait(filp, &tdev->waitq, wait);
 
 	if (mbox_test_message_data_ready(tdev))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -322,7 +322,7 @@ static void mbox_test_message_sent(struct mbox_client *client,
 {
 	if (r)
 		dev_warn(client->dev,
-			 "Client: Message could not be sent: %d\n", r);
+			 "Client: Message could analt be sent: %d\n", r);
 	else
 		dev_info(client->dev,
 			 "Client: Message sent\n");
@@ -336,14 +336,14 @@ mbox_test_request_channel(struct platform_device *pdev, const char *name)
 
 	client = devm_kzalloc(&pdev->dev, sizeof(*client), GFP_KERNEL);
 	if (!client)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	client->dev		= &pdev->dev;
 	client->rx_callback	= mbox_test_receive_message;
 	client->tx_prepare	= mbox_test_prepare_message;
 	client->tx_done		= mbox_test_message_sent;
 	client->tx_block	= true;
-	client->knows_txdone	= false;
+	client->kanalws_txdone	= false;
 	client->tx_tout		= 500;
 
 	channel = mbox_request_channel_byname(client, name);
@@ -364,7 +364,7 @@ static int mbox_test_probe(struct platform_device *pdev)
 
 	tdev = devm_kzalloc(&pdev->dev, sizeof(*tdev), GFP_KERNEL);
 	if (!tdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* It's okay for MMIO to be NULL */
 	tdev->tx_mmio = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
@@ -391,7 +391,7 @@ static int mbox_test_probe(struct platform_device *pdev)
 	if (IS_ERR_OR_NULL(tdev->tx_channel) && IS_ERR_OR_NULL(tdev->rx_channel))
 		return -EPROBE_DEFER;
 
-	/* If Rx is not specified but has Rx MMIO, then Rx = Tx */
+	/* If Rx is analt specified but has Rx MMIO, then Rx = Tx */
 	if (!tdev->rx_channel && (tdev->rx_mmio != tdev->tx_mmio))
 		tdev->rx_channel = tdev->tx_channel;
 
@@ -405,7 +405,7 @@ static int mbox_test_probe(struct platform_device *pdev)
 		tdev->rx_buffer = devm_kzalloc(&pdev->dev,
 					       MBOX_MAX_MSG_LEN, GFP_KERNEL);
 		if (!tdev->rx_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = mbox_test_add_debugfs(pdev, tdev);

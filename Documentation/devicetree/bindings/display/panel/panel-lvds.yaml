@@ -20,14 +20,14 @@ select:
       contains:
         const: panel-lvds
 
-  not:
+  analt:
     properties:
       compatible:
         contains:
           enum:
             - advantech,idk-1110wr
             - advantech,idk-2121wr
-            - innolux,ee101ia-01d
+            - inanallux,ee101ia-01d
             - mitsubishi,aa104xd12
             - mitsubishi,aa121td01
             - sgd,gktw70sdae4se
@@ -44,7 +44,7 @@ properties:
           - chunghwa,claa070wp03xg
           # HannStar Display Corp. HSD101PWW2 10.1" WXGA (1280x800) LVDS panel
           - hannstar,hsd101pww2
-          # Hydis Technologies 7" WXGA (800x1280) TFT LCD LVDS panel
+          # Hydis Techanallogies 7" WXGA (800x1280) TFT LCD LVDS panel
           - hydis,hv070wx2-1e0
           - tbs,a711-panel
 

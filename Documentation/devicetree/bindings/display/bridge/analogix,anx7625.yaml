@@ -80,7 +80,7 @@ properties:
 
   analogix,audio-enable:
     type: boolean
-    description: let the driver enable audio HDMI codec function or not.
+    description: let the driver enable audio HDMI codec function or analt.
 
   aux-bus:
     $ref: /schemas/display/dp-aux-bus.yaml#
@@ -172,7 +172,7 @@ examples:
 
             aux-bus {
                 panel {
-                    compatible = "innolux,n125hce-gn1";
+                    compatible = "inanallux,n125hce-gn1";
                     power-supply = <&pp3300_disp_x>;
                     backlight = <&backlight_lcd0>;
 

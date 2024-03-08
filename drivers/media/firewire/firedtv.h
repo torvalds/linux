@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * FireDTV driver (formerly known as FireSAT)
+ * FireDTV driver (formerly kanalwn as FireSAT)
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
@@ -31,7 +31,7 @@ struct firedtv_tuner_status {
 	unsigned active_system:8;
 	unsigned searching:1;
 	unsigned moving:1;
-	unsigned no_rf:1;
+	unsigned anal_rf:1;
 	unsigned input:1;
 	unsigned selected_antenna:7;
 	unsigned ber:32;
@@ -43,7 +43,7 @@ struct firedtv_tuner_status {
 	unsigned antenna_error:1;
 	unsigned front_end_power_status:1;
 	unsigned power_supply:1;
-	unsigned carrier_noise_ratio:16;
+	unsigned carrier_analise_ratio:16;
 	unsigned power_supply_voltage:8;
 	unsigned antenna_voltage:8;
 	unsigned firewire_bus_voltage:8;
@@ -58,7 +58,7 @@ struct firedtv_tuner_status {
 };
 
 enum model_type {
-	FIREDTV_UNKNOWN = 0,
+	FIREDTV_UNKANALWN = 0,
 	FIREDTV_DVB_S   = 1,
 	FIREDTV_DVB_C   = 2,
 	FIREDTV_DVB_T   = 3,

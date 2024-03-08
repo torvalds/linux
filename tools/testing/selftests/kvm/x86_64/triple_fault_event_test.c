@@ -52,7 +52,7 @@ void l1_guest_code_svm(struct svm_test_data *svm)
 
 	run_guest(vmcb, svm->vmcb_gpa);
 
-	/* should not reach here, L1 should crash  */
+	/* should analt reach here, L1 should crash  */
 	GUEST_ASSERT(0);
 }
 
@@ -104,7 +104,7 @@ int main(void)
 	TEST_ASSERT(events.flags & KVM_VCPUEVENT_VALID_TRIPLE_FAULT,
 		    "Triple fault event invalid");
 	TEST_ASSERT(events.triple_fault.pending,
-		    "No triple fault pending");
+		    "Anal triple fault pending");
 	vcpu_run(vcpu);
 
 

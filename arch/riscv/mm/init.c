@@ -76,7 +76,7 @@ static void __init zone_sizes_init(void)
 #ifdef CONFIG_ZONE_DMA32
 	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(dma32_phys_limit);
 #endif
-	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfns[ZONE_ANALRMAL] = max_low_pfn;
 
 	free_area_init(max_zone_pfns);
 }
@@ -90,26 +90,26 @@ static void __init zone_sizes_init(void)
 
 static inline void print_mlk(char *name, unsigned long b, unsigned long t)
 {
-	pr_notice("%12s : 0x%08lx - 0x%08lx   (%4ld kB)\n", name, b, t,
+	pr_analtice("%12s : 0x%08lx - 0x%08lx   (%4ld kB)\n", name, b, t,
 		  (((t) - (b)) >> LOG2_SZ_1K));
 }
 
 static inline void print_mlm(char *name, unsigned long b, unsigned long t)
 {
-	pr_notice("%12s : 0x%08lx - 0x%08lx   (%4ld MB)\n", name, b, t,
+	pr_analtice("%12s : 0x%08lx - 0x%08lx   (%4ld MB)\n", name, b, t,
 		  (((t) - (b)) >> LOG2_SZ_1M));
 }
 
 static inline void print_mlg(char *name, unsigned long b, unsigned long t)
 {
-	pr_notice("%12s : 0x%08lx - 0x%08lx   (%4ld GB)\n", name, b, t,
+	pr_analtice("%12s : 0x%08lx - 0x%08lx   (%4ld GB)\n", name, b, t,
 		   (((t) - (b)) >> LOG2_SZ_1G));
 }
 
 #ifdef CONFIG_64BIT
 static inline void print_mlt(char *name, unsigned long b, unsigned long t)
 {
-	pr_notice("%12s : 0x%08lx - 0x%08lx   (%4ld TB)\n", name, b, t,
+	pr_analtice("%12s : 0x%08lx - 0x%08lx   (%4ld TB)\n", name, b, t,
 		   (((t) - (b)) >> LOG2_SZ_1T));
 }
 #else
@@ -132,7 +132,7 @@ static inline void print_ml(char *name, unsigned long b, unsigned long t)
 
 static void __init print_vm_layout(void)
 {
-	pr_notice("Virtual kernel memory layout:\n");
+	pr_analtice("Virtual kernel memory layout:\n");
 	print_ml("fixmap", (unsigned long)FIXADDR_START,
 		(unsigned long)FIXADDR_TOP);
 	print_ml("pci io", (unsigned long)PCI_IO_START,
@@ -188,7 +188,7 @@ static int __init early_mem(char *p)
 	size = memparse(p, &p) & PAGE_MASK;
 	memory_limit = min_t(u64, size, memory_limit);
 
-	pr_notice("Memory limited to %lldMB\n", (u64)memory_limit >> 20);
+	pr_analtice("Memory limited to %lldMB\n", (u64)memory_limit >> 20);
 
 	return 0;
 }
@@ -209,7 +209,7 @@ static void __init setup_bootmem(void)
 
 	/*
 	 * Make sure we align the reservation on PMD_SIZE since we will
-	 * map the kernel in the linear mapping as read-only: we do not want
+	 * map the kernel in the linear mapping as read-only: we do analt want
 	 * any allocation to happen between _end and the next pmd aligned page.
 	 */
 	if (IS_ENABLED(CONFIG_64BIT) && IS_ENABLED(CONFIG_STRICT_KERNEL_RWX))
@@ -230,15 +230,15 @@ static void __init setup_bootmem(void)
 
 	/*
 	 * In 64-bit, any use of __va/__pa before this point is wrong as we
-	 * did not know the start of DRAM before.
+	 * did analt kanalw the start of DRAM before.
 	 */
 	if (IS_ENABLED(CONFIG_64BIT))
 		kernel_map.va_pa_offset = PAGE_OFFSET - phys_ram_base;
 
 	/*
-	 * memblock allocator is not aware of the fact that last 4K bytes of
-	 * the addressable memory can not be mapped because of IS_ERR_VALUE
-	 * macro. Make sure that last 4k bytes are not usable by memblock
+	 * memblock allocator is analt aware of the fact that last 4K bytes of
+	 * the addressable memory can analt be mapped because of IS_ERR_VALUE
+	 * macro. Make sure that last 4k bytes are analt usable by memblock
 	 * if end of dram is equal to maximum addressable memory.  For 64-bit
 	 * kernel, this problem can't happen here as the end of the virtual
 	 * address space is occupied by the kernel mapping then this check must
@@ -260,17 +260,17 @@ static void __init setup_bootmem(void)
 	reserve_initrd_mem();
 
 	/*
-	 * No allocation should be done before reserving the memory as defined
+	 * Anal allocation should be done before reserving the memory as defined
 	 * in the device tree, otherwise the allocation could end up in a
 	 * reserved region.
 	 */
 	early_init_fdt_scan_reserved_mem();
 
 	/*
-	 * If DTB is built in, no need to reserve its memblock.
+	 * If DTB is built in, anal need to reserve its memblock.
 	 * Otherwise, do reserve it but avoid using
 	 * early_init_fdt_reserve_self() since __pa() does
-	 * not work for DTB pointers that are fixmap addresses
+	 * analt work for DTB pointers that are fixmap addresses
 	 */
 	if (!IS_ENABLED(CONFIG_BUILTIN_DTB))
 		memblock_reserve(dtb_early_pa, fdt_totalsize(dtb_early_va));
@@ -297,7 +297,7 @@ pgd_t early_pg_dir[PTRS_PER_PGD] __initdata __aligned(PAGE_SIZE);
 #endif /* CONFIG_XIP_KERNEL */
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READ,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY,
@@ -305,7 +305,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_READ_EXEC,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY_EXEC,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_EXEC,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READ,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,
@@ -378,7 +378,7 @@ static void __init create_pte_mapping(pte_t *ptep,
 
 	BUG_ON(sz != PAGE_SIZE);
 
-	if (pte_none(ptep[pte_idx]))
+	if (pte_analne(ptep[pte_idx]))
 		ptep[pte_idx] = pfn_pte(PFN_DOWN(pa), prot);
 }
 
@@ -460,12 +460,12 @@ static void __init create_pmd_mapping(pmd_t *pmdp,
 	uintptr_t pmd_idx = pmd_index(va);
 
 	if (sz == PMD_SIZE) {
-		if (pmd_none(pmdp[pmd_idx]))
+		if (pmd_analne(pmdp[pmd_idx]))
 			pmdp[pmd_idx] = pfn_pmd(PFN_DOWN(pa), prot);
 		return;
 	}
 
-	if (pmd_none(pmdp[pmd_idx])) {
+	if (pmd_analne(pmdp[pmd_idx])) {
 		pte_phys = pt_ops.alloc_pte(va);
 		pmdp[pmd_idx] = pfn_pmd(PFN_DOWN(pte_phys), PAGE_TABLE);
 		ptep = pt_ops.get_pte_virt(pte_phys);
@@ -753,19 +753,19 @@ static void __init disable_pgtable_l4(void)
 	satp_mode = SATP_MODE_39;
 }
 
-static int __init print_no4lvl(char *p)
+static int __init print_anal4lvl(char *p)
 {
 	pr_info("Disabled 4-level and 5-level paging");
 	return 0;
 }
-early_param("no4lvl", print_no4lvl);
+early_param("anal4lvl", print_anal4lvl);
 
-static int __init print_no5lvl(char *p)
+static int __init print_anal5lvl(char *p)
 {
 	pr_info("Disabled 5-level paging");
 	return 0;
 }
-early_param("no5lvl", print_no5lvl);
+early_param("anal5lvl", print_anal5lvl);
 
 /*
  * There is a simple way to determine if 4-level is supported by the
@@ -834,19 +834,19 @@ retry:
 /*
  * setup_vm() is called from head.S with MMU-off.
  *
- * Following requirements should be honoured for setup_vm() to work
+ * Following requirements should be hoanalured for setup_vm() to work
  * correctly:
  * 1) It should use PC-relative addressing for accessing kernel symbols.
  *    To achieve this we always use GCC cmodel=medany.
- * 2) The compiler instrumentation for FTRACE will not work for setup_vm()
+ * 2) The compiler instrumentation for FTRACE will analt work for setup_vm()
  *    so disable compiler instrumentation when FTRACE is enabled.
  *
- * Currently, the above requirements are honoured by using custom CFLAGS
+ * Currently, the above requirements are hoanalured by using custom CFLAGS
  * for init.o in mm/Makefile.
  */
 
 #ifndef __riscv_cmodel_medany
-#error "setup_vm() is called from head.S before relocate so it should not use absolute addressing."
+#error "setup_vm() is called from head.S before relocate so it should analt use absolute addressing."
 #endif
 
 #ifdef CONFIG_RELOCATABLE
@@ -874,7 +874,7 @@ static void __init relocate_kernel(void)
 			continue;
 
 		/*
-		 * Make sure to not relocate vdso symbols like rt_sigreturn
+		 * Make sure to analt relocate vdso symbols like rt_sigreturn
 		 * which are linked from the address 0 in vmlinux since
 		 * vdso symbol addresses are actually used as an offset from
 		 * mm->context.vdso in VDSO_OFFSET macro.
@@ -953,7 +953,7 @@ static void __init create_fdt_early_page_table(uintptr_t fix_fdt_va,
 	 * For 64-bit kernel, __va can't be used since it would return a linear
 	 * mapping address whereas dtb_early_va will be used before
 	 * setup_vm_final installs the linear mapping. For 32-bit kernel, as the
-	 * kernel is mapped in the linear mapping, that makes no difference.
+	 * kernel is mapped in the linear mapping, that makes anal difference.
 	 */
 	dtb_early_va = kernel_mapping_pa_to_va(dtb_pa);
 #endif
@@ -962,7 +962,7 @@ static void __init create_fdt_early_page_table(uintptr_t fix_fdt_va,
 }
 
 /*
- * MMU is not enabled, the page tables are allocated directly using
+ * MMU is analt enabled, the page tables are allocated directly using
  * early_pmd/pud/p4d and the address returned is the physical one.
  */
 static void __init pt_ops_set_early(void)
@@ -980,11 +980,11 @@ static void __init pt_ops_set_early(void)
 }
 
 /*
- * MMU is enabled but page table setup is not complete yet.
+ * MMU is enabled but page table setup is analt complete yet.
  * fixmap page table alloc functions must be used as a means to temporarily
- * map the allocated physical pages since the linear mapping does not exist yet.
+ * map the allocated physical pages since the linear mapping does analt exist yet.
  *
- * Note that this is called with MMU disabled, hence kernel_mapping_pa_to_va,
+ * Analte that this is called with MMU disabled, hence kernel_mapping_pa_to_va,
  * but it will be used as described above.
  */
 static void __init pt_ops_set_fixmap(void)
@@ -1002,7 +1002,7 @@ static void __init pt_ops_set_fixmap(void)
 }
 
 /*
- * MMU is enabled and page table setup is complete, so from now, we can use
+ * MMU is enabled and page table setup is complete, so from analw, we can use
  * generic page allocation functions to setup page table.
  */
 static void __init pt_ops_set_late(void)
@@ -1020,15 +1020,15 @@ static void __init pt_ops_set_late(void)
 }
 
 #ifdef CONFIG_RANDOMIZE_BASE
-extern bool __init __pi_set_nokaslr_from_cmdline(uintptr_t dtb_pa);
+extern bool __init __pi_set_analkaslr_from_cmdline(uintptr_t dtb_pa);
 extern u64 __init __pi_get_kaslr_seed(uintptr_t dtb_pa);
 
-static int __init print_nokaslr(char *p)
+static int __init print_analkaslr(char *p)
 {
 	pr_info("Disabled KASLR");
 	return 0;
 }
-early_param("nokaslr", print_nokaslr);
+early_param("analkaslr", print_analkaslr);
 
 unsigned long kaslr_offset(void)
 {
@@ -1041,7 +1041,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	pmd_t __maybe_unused fix_bmap_spmd, fix_bmap_epmd;
 
 #ifdef CONFIG_RANDOMIZE_BASE
-	if (!__pi_set_nokaslr_from_cmdline(dtb_pa)) {
+	if (!__pi_set_analkaslr_from_cmdline(dtb_pa)) {
 		u64 kaslr_seed = __pi_get_kaslr_seed(dtb_pa);
 		u32 kernel_size = (uintptr_t)(&_end) - (uintptr_t)(&_start);
 		u32 nr_pos;
@@ -1090,7 +1090,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	 * for the linear mapping. This is only possible because the kernel
 	 * mapping lies outside the linear mapping.
 	 * In 32-bit however, as the kernel resides in the linear mapping,
-	 * setup_vm_final can not change the mapping established here,
+	 * setup_vm_final can analt change the mapping established here,
 	 * otherwise the same kernel addresses would get mapped to different
 	 * physical addresses (if the start of dram is different from the
 	 * kernel physical address start).
@@ -1113,7 +1113,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 
 #ifdef CONFIG_64BIT
 	/*
-	 * The last 4K bytes of the addressable memory can not be mapped because
+	 * The last 4K bytes of the addressable memory can analt be mapped because
 	 * of IS_ERR_VALUE macro.
 	 */
 	BUG_ON((kernel_map.virt_addr + kernel_map.size) > ADDRESS_SPACE_END - SZ_4K);
@@ -1124,7 +1124,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	 * Early page table uses only one PUD, which makes it possible
 	 * to map PUD_SIZE aligned on PUD_SIZE: if the relocation offset
 	 * makes the kernel cross over a PUD_SIZE boundary, raise a bug
-	 * since a part of the kernel would not get mapped.
+	 * since a part of the kernel would analt get mapped.
 	 */
 	BUG_ON(PUD_SIZE - (kernel_map.virt_addr & (PUD_SIZE - 1)) < kernel_map.size);
 	relocate_kernel();
@@ -1182,7 +1182,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 
 	/*
 	 * Bootime fixmap only can handle PMD_SIZE mapping. Thus, boot-ioremap
-	 * range can not span multiple pmds.
+	 * range can analt span multiple pmds.
 	 */
 	BUG_ON((__fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT)
 		     != (__fix_to_virt(FIX_BTMAP_END) >> PMD_SHIFT));
@@ -1192,7 +1192,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	 * Early ioremap fixmap is already created as it lies within first 2MB
 	 * of fixmap region. We always map PMD_SIZE. Thus, both FIX_BTMAP_END
 	 * FIX_BTMAP_BEGIN should lie in the same pmd. Verify that and warn
-	 * the user if not.
+	 * the user if analt.
 	 */
 	fix_bmap_spmd = fixmap_pmd[pmd_index(__fix_to_virt(FIX_BTMAP_BEGIN))];
 	fix_bmap_epmd = fixmap_pmd[pmd_index(__fix_to_virt(FIX_BTMAP_END))];
@@ -1243,8 +1243,8 @@ static void __init create_linear_mapping_page_table(void)
 	phys_addr_t krodata_size = _data - __start_rodata;
 
 	/* Isolate kernel text and rodata so they don't get mapped with a PUD */
-	memblock_mark_nomap(ktext_start,  ktext_size);
-	memblock_mark_nomap(krodata_start, krodata_size);
+	memblock_mark_analmap(ktext_start,  ktext_size);
+	memblock_mark_analmap(krodata_start, krodata_size);
 #endif
 
 #ifdef CONFIG_KFENCE
@@ -1256,7 +1256,7 @@ static void __init create_linear_mapping_page_table(void)
 	kfence_pool = memblock_phys_alloc(KFENCE_POOL_SIZE, PAGE_SIZE);
 	BUG_ON(!kfence_pool);
 
-	memblock_mark_nomap(kfence_pool, KFENCE_POOL_SIZE);
+	memblock_mark_analmap(kfence_pool, KFENCE_POOL_SIZE);
 	__kfence_pool = __va(kfence_pool);
 #endif
 
@@ -1278,8 +1278,8 @@ static void __init create_linear_mapping_page_table(void)
 	create_linear_mapping_range(krodata_start,
 				    krodata_start + krodata_size, 0);
 
-	memblock_clear_nomap(ktext_start,  ktext_size);
-	memblock_clear_nomap(krodata_start, krodata_size);
+	memblock_clear_analmap(ktext_start,  ktext_size);
+	memblock_clear_analmap(krodata_start, krodata_size);
 #endif
 
 #ifdef CONFIG_KFENCE
@@ -1287,7 +1287,7 @@ static void __init create_linear_mapping_page_table(void)
 				    kfence_pool + KFENCE_POOL_SIZE,
 				    PAGE_SIZE);
 
-	memblock_clear_nomap(kfence_pool, KFENCE_POOL_SIZE);
+	memblock_clear_analmap(kfence_pool, KFENCE_POOL_SIZE);
 #endif
 }
 
@@ -1395,29 +1395,29 @@ void __init misc_mem_init(void)
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-void __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int node,
+void __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int analde,
 			       unsigned long addr, unsigned long next)
 {
 	pmd_set_huge(pmd, virt_to_phys(p), PAGE_KERNEL);
 }
 
-int __meminit vmemmap_check_pmd(pmd_t *pmdp, int node,
+int __meminit vmemmap_check_pmd(pmd_t *pmdp, int analde,
 				unsigned long addr, unsigned long next)
 {
-	vmemmap_verify((pte_t *)pmdp, node, addr, next);
+	vmemmap_verify((pte_t *)pmdp, analde, addr, next);
 	return 1;
 }
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int analde,
 			       struct vmem_altmap *altmap)
 {
 	/*
-	 * Note that SPARSEMEM_VMEMMAP is only selected for rv64 and that we
+	 * Analte that SPARSEMEM_VMEMMAP is only selected for rv64 and that we
 	 * can't use hugepage mappings for 2-level page table because in case of
-	 * memory hotplug, we are not able to update all the page tables with
+	 * memory hotplug, we are analt able to update all the page tables with
 	 * the new PMDs.
 	 */
-	return vmemmap_populate_hugepages(start, end, node, NULL);
+	return vmemmap_populate_hugepages(start, end, analde, NULL);
 }
 #endif
 
@@ -1465,7 +1465,7 @@ static void __init preallocate_pgd_pages_range(unsigned long start, unsigned lon
 
 failed:
 	/*
-	 * The pages have to be there now or they will be missing in
+	 * The pages have to be there analw or they will be missing in
 	 * process page-tables later.
 	 */
 	panic("Failed to pre-allocate %s pages for %s area\n", lvl, area);

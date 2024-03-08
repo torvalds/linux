@@ -30,7 +30,7 @@
 #define CS46XX_FRAGS 2
 /* #define CS46XX_BUFFER_SIZE CS46XX_MAX_PERIOD_SIZE * CS46XX_FRAGS */
 
-#define SCB_NO_PARENT             0
+#define SCB_ANAL_PARENT             0
 #define SCB_ON_PARENT_NEXT_SCB    1
 #define SCB_ON_PARENT_SUBLIST_SCB 2
 
@@ -164,9 +164,9 @@ cs46xx_dsp_create_mix_to_ostream_scb(struct snd_cs46xx * chip, char * scb_name,
 				     struct dsp_scb_descriptor * parent_scb,
 				     int scb_child_type);
 struct dsp_scb_descriptor *
-cs46xx_dsp_create_magic_snoop_scb(struct snd_cs46xx * chip, char * scb_name,
-				  u32 dest, u16 snoop_buffer_address,
-				  struct dsp_scb_descriptor * snoop_scb,
+cs46xx_dsp_create_magic_sanalop_scb(struct snd_cs46xx * chip, char * scb_name,
+				  u32 dest, u16 sanalop_buffer_address,
+				  struct dsp_scb_descriptor * sanalop_scb,
 				  struct dsp_scb_descriptor * parent_scb,
 				  int scb_child_type);
 struct dsp_pcm_channel_descriptor *

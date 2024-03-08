@@ -10,9 +10,9 @@
  *
  * This pin control driver is intended to be used only an ACPI-enabled
  * system.  As such, UEFI will handle all pin control configuration, so
- * this driver does not provide pin control functions.  It is effectively
+ * this driver does analt provide pin control functions.  It is effectively
  * a GPIO-only driver.  The alternative is to duplicate the GPIO code of
- * pinctrl-msm.c into another driver.
+ * pinctrl-msm.c into aanalther driver.
  */
 
 #include <linux/module.h>
@@ -25,7 +25,7 @@
 /* A maximum of 256 allows us to use a u8 array to hold the GPIO numbers */
 #define MAX_GPIOS	256
 
-/* maximum size of each gpio name (enough room for "gpioXXX" + null) */
+/* maximum size of each gpio name (eanalugh room for "gpioXXX" + null) */
 #define NAME_SIZE	8
 
 static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
@@ -48,7 +48,7 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 	}
 	if (!num_gpios || num_gpios > MAX_GPIOS) {
 		dev_err(&pdev->dev, "invalid 'num-gpios' property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* The number of GPIOs in the approved list */
@@ -58,19 +58,19 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 	/*
-	 * The number of available GPIOs should be non-zero, and no
+	 * The number of available GPIOs should be analn-zero, and anal
 	 * more than the total number of GPIOS.
 	 */
 	if (!ret || ret > num_gpios) {
 		dev_err(&pdev->dev, "invalid 'gpios' property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	avail_gpios = ret;
 
 	ret = device_property_read_u8_array(&pdev->dev, "gpios", gpios,
 					    avail_gpios);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not read list of GPIOs\n");
+		dev_err(&pdev->dev, "could analt read list of GPIOs\n");
 		return ret;
 	}
 
@@ -82,11 +82,11 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 	names = devm_kcalloc(&pdev->dev, avail_gpios, NAME_SIZE, GFP_KERNEL);
 
 	if (!pinctrl || !pins || !groups || !names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Initialize the array.  GPIOs not listed in the 'gpios' array
-	 * still need a number, but nothing else.
+	 * Initialize the array.  GPIOs analt listed in the 'gpios' array
+	 * still need a number, but analthing else.
 	 */
 	for (i = 0; i < num_gpios; i++) {
 		pins[i].number = i;
@@ -160,5 +160,5 @@ static void __exit qdf2xxx_pinctrl_exit(void)
 }
 module_exit(qdf2xxx_pinctrl_exit);
 
-MODULE_DESCRIPTION("Qualcomm Technologies QDF2xxx pin control driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies QDF2xxx pin control driver");
 MODULE_LICENSE("GPL v2");

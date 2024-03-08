@@ -190,14 +190,14 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 
 	/* Check functionality */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE)) {
-		dev_err(&client->dev, "%s adapter not supported\n",
+		dev_err(&client->dev, "%s adapter analt supported\n",
 			dev_driver_string(&client->adapter->dev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
-		dev_dbg(&client->dev, "no platform data\n");
+		dev_dbg(&client->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -205,11 +205,11 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 			    struct_size(chip, buttons, pdata->nbuttons),
 			    GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->client = client;
 	chip->input = input;
@@ -244,7 +244,7 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 
 	/*
 	 * Initialize cached registers from their original values.
-	 * we can't share this chip with another i2c master.
+	 * we can't share this chip with aanalther i2c master.
 	 */
 	error = tca6416_setup_registers(chip);
 	if (error)
@@ -263,7 +263,7 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 						  NULL, tca6416_keys_isr,
 						  IRQF_TRIGGER_FALLING |
 							IRQF_ONESHOT |
-							IRQF_NO_AUTOEN,
+							IRQF_ANAL_AUTOEN,
 						  "tca6416-keypad", input);
 		if (error) {
 			dev_dbg(&client->dev,

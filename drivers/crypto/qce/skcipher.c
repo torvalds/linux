@@ -8,7 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <crypto/aes.h>
 #include <crypto/internal/des.h>
 #include <crypto/internal/skcipher.h>
@@ -180,13 +180,13 @@ static int qce_skcipher_setkey(struct crypto_skcipher *ablk, const u8 *key,
 		return -EINVAL;
 
 	/*
-	 * AES XTS key1 = key2 not supported by crypto engine.
+	 * AES XTS key1 = key2 analt supported by crypto engine.
 	 * Revisit to request a fallback cipher in this case.
 	 */
 	if (IS_XTS(flags)) {
 		__keylen = keylen >> 1;
 		if (!memcmp(key, key + __keylen, __keylen))
-			return -ENOKEY;
+			return -EANALKEY;
 	} else {
 		__keylen = keylen;
 	}
@@ -235,10 +235,10 @@ static int qce_des3_setkey(struct crypto_skcipher *ablk, const u8 *key,
 		return err;
 
 	/*
-	 * The crypto engine does not support any two keys
+	 * The crypto engine does analt support any two keys
 	 * being the same for triple des algorithms. The
-	 * verify_skcipher_des3_key does not check for all the
-	 * below conditions. Return -ENOKEY in case any two keys
+	 * verify_skcipher_des3_key does analt check for all the
+	 * below conditions. Return -EANALKEY in case any two keys
 	 * are the same. Revisit to see if a fallback cipher
 	 * is needed to handle this condition.
 	 */
@@ -246,7 +246,7 @@ static int qce_des3_setkey(struct crypto_skcipher *ablk, const u8 *key,
 	if (!((_key[0] ^ _key[2]) | (_key[1] ^ _key[3])) ||
 	    !((_key[2] ^ _key[4]) | (_key[3] ^ _key[5])) ||
 	    !((_key[0] ^ _key[4]) | (_key[1] ^ _key[5])))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	ctx->enc_keylen = keylen;
 	memcpy(ctx->enc_key, key, keylen);
@@ -267,7 +267,7 @@ static int qce_skcipher_crypt(struct skcipher_request *req, int encrypt)
 	rctx->flags |= encrypt ? QCE_ENCRYPT : QCE_DECRYPT;
 	keylen = IS_XTS(rctx->flags) ? ctx->enc_keylen >> 1 : ctx->enc_keylen;
 
-	/* CE does not handle 0 length messages */
+	/* CE does analt handle 0 length messages */
 	if (!req->cryptlen)
 		return 0;
 
@@ -281,10 +281,10 @@ static int qce_skcipher_crypt(struct skcipher_request *req, int encrypt)
 
 	/*
 	 * Conditions for requesting a fallback cipher
-	 * AES-192 (not supported by crypto engine (CE))
-	 * AES-XTS request with len <= 512 byte (not recommended to use CE)
+	 * AES-192 (analt supported by crypto engine (CE))
+	 * AES-XTS request with len <= 512 byte (analt recommended to use CE)
 	 * AES-XTS request with len > QCE_SECTOR_SIZE and
-	 * is not a multiple of it.(Revisit this condition to check if it is
+	 * is analt a multiple of it.(Revisit this condition to check if it is
 	 * needed in all versions of CE)
 	 */
 	if (IS_AES(rctx->flags) &&
@@ -442,7 +442,7 @@ static int qce_skcipher_register_one(const struct qce_skcipher_def *def,
 
 	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
 	if (!tmpl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alg = &tmpl->alg.skcipher;
 

@@ -55,7 +55,7 @@ static struct rc_map_list gadmei_rm008z_map = {
 	.map = {
 		.scan     = gadmei_rm008z,
 		.size     = ARRAY_SIZE(gadmei_rm008z),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_GADMEI_RM008Z,
 	}
 };

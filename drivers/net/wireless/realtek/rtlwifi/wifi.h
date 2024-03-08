@@ -94,7 +94,7 @@
 #define MAC80211_3ADDR_LEN			24
 #define MAC80211_4ADDR_LEN			30
 
-#define CHANNEL_MAX_NUMBER	(14 + 24 + 21)	/* 14 is the max channel no */
+#define CHANNEL_MAX_NUMBER	(14 + 24 + 21)	/* 14 is the max channel anal */
 #define CHANNEL_MAX_NUMBER_2G		14
 #define CHANNEL_MAX_NUMBER_5G		49 /* Please refer to
 					    *"phy_GetChnlGroup8812A" and
@@ -188,8 +188,8 @@ enum rtl_c2h_evt_v2 {
 
 #define DEL_SW_IDX_SZ		30
 
-/* For now, it's just for 8192ee
- * but not OK yet, keep it 0
+/* For analw, it's just for 8192ee
+ * but analt OK yet, keep it 0
  */
 #define RTL8192EE_SEG_NUM		BUFDESC_SEG_NUM
 
@@ -197,10 +197,10 @@ enum rf_tx_num {
 	RF_1TX = 0,
 	RF_2TX,
 	RF_MAX_TX_NUM,
-	RF_TX_NUM_NONIMPLEMENT,
+	RF_TX_NUM_ANALNIMPLEMENT,
 };
 
-#define PACKET_NORMAL			0
+#define PACKET_ANALRMAL			0
 #define PACKET_DHCP			1
 #define PACKET_ARP			2
 #define PACKET_EAPOL			3
@@ -445,7 +445,7 @@ enum hw_variables {
 	HW_VAR_ACM_CTRL = 0x21,
 	HW_VAR_DIS_REQ_QSIZE = 0x22,
 	HW_VAR_CCX_CHNL_LOAD = 0x23,
-	HW_VAR_CCX_NOISE_HISTOGRAM = 0x24,
+	HW_VAR_CCX_ANALISE_HISTOGRAM = 0x24,
 	HW_VAR_CCX_CLM_NHM = 0x25,
 	HW_VAR_TXOPLIMIT = 0x26,
 	HW_VAR_TURBO_MODE = 0x27,
@@ -539,7 +539,7 @@ enum rt_oem_id {
 	RT_CID_819X_ALPHA = 15,
 	RT_CID_819X_SITECOM = 16,
 	RT_CID_CCX = 17,
-	RT_CID_819X_LENOVO = 18,
+	RT_CID_819X_LEANALVO = 18,
 	RT_CID_819X_QMI = 19,
 	RT_CID_819X_EDIMAX_BELKIN = 20,
 	RT_CID_819X_SERCOMM_BELKIN = 21,
@@ -558,7 +558,7 @@ enum rt_oem_id {
 	RT_CID_NETGEAR = 36,
 	RT_CID_PLANEX = 37,
 	RT_CID_CC_C = 38,
-	RT_CID_LENOVO_CHINA = 40,
+	RT_CID_LEANALVO_CHINA = 40,
 };
 
 enum hw_descs {
@@ -601,7 +601,7 @@ enum ht_channel_width {
  * Cipher Suites Encryption Algorithms
  */
 enum rt_enc_alg {
-	NO_ENCRYPTION = 0,
+	ANAL_ENCRYPTION = 0,
 	WEP40_ENCRYPTION = 1,
 	TKIP_ENCRYPTION = 2,
 	RSERVED_ENCRYPTION = 3,
@@ -706,7 +706,7 @@ enum rtl_var_map {
 	RCAMO,
 	CAMDBG,
 	SECR,
-	SEC_CAM_NONE,
+	SEC_CAM_ANALNE,
 	SEC_CAM_WEP40,
 	SEC_CAM_TKIP,
 	SEC_CAM_AES,
@@ -809,7 +809,7 @@ enum rt_psmode {
 enum led_ctl_mode {
 	LED_CTL_POWER_ON = 1,
 	LED_CTL_LINK = 2,
-	LED_CTL_NO_LINK = 3,
+	LED_CTL_ANAL_LINK = 3,
 	LED_CTL_TX = 4,
 	LED_CTL_RX = 5,
 	LED_CTL_SITE_SURVEY = 6,
@@ -863,7 +863,7 @@ union aci_aifsn {
 
 /*mlme related.*/
 enum wireless_mode {
-	WIRELESS_MODE_UNKNOWN = 0x00,
+	WIRELESS_MODE_UNKANALWN = 0x00,
 	WIRELESS_MODE_A = 0x01,
 	WIRELESS_MODE_B = 0x02,
 	WIRELESS_MODE_G = 0x04,
@@ -920,7 +920,7 @@ enum ratr_table_mode_new {
 };
 
 enum rtl_link_state {
-	MAC80211_NOLINK = 0,
+	MAC80211_ANALLINK = 0,
 	MAC80211_LINKING = 1,
 	MAC80211_LINKED = 2,
 	MAC80211_LINKED_SCANNING = 3,
@@ -966,7 +966,7 @@ enum wolpattern_type {
 	MULTICAST_PATTERN = 1,
 	BROADCAST_PATTERN = 2,
 	DONT_CARE_DA = 3,
-	UNKNOWN_TYPE = 4,
+	UNKANALWN_TYPE = 4,
 };
 
 enum package_type {
@@ -1016,7 +1016,7 @@ enum dm_info_query {
 };
 
 enum rx_packet_type {
-	NORMAL_RX,
+	ANALRMAL_RX,
 	TX_REPORT1,
 	TX_REPORT2,
 	HIS_REPORT,
@@ -1132,7 +1132,7 @@ struct wireless_stats {
 
 	long rx_snr_db[4];
 	/*Correct smoothed ss in Dbm, only used
-	 * in driver to report real power now.
+	 * in driver to report real power analw.
 	 */
 	long recv_signal_power;
 	long signal_quality;
@@ -1142,7 +1142,7 @@ struct wireless_stats {
 	u32 pwdb_all_cnt;
 
 	/* Transformed, in dbm. Beautified signal
-	 * strength for UI, not correct.
+	 * strength for UI, analt correct.
 	 */
 	long signal_strength;
 
@@ -1219,7 +1219,7 @@ struct rtl_rfkill {
 };
 
 /*for P2P PS**/
-#define	P2P_MAX_NOA_NUM		2
+#define	P2P_MAX_ANALA_NUM		2
 
 enum p2p_role {
 	P2P_ROLE_DISABLE = 0,
@@ -1237,40 +1237,40 @@ enum p2p_ps_state {
 };
 
 enum p2p_ps_mode {
-	P2P_PS_NONE = 0,
+	P2P_PS_ANALNE = 0,
 	P2P_PS_CTWINDOW = 1,
-	P2P_PS_NOA	 = 2,
-	P2P_PS_MIX = 3, /* CTWindow and NoA */
+	P2P_PS_ANALA	 = 2,
+	P2P_PS_MIX = 3, /* CTWindow and AnalA */
 };
 
 struct rtl_p2p_ps_info {
 	enum p2p_ps_mode p2p_ps_mode; /* indicate p2p ps mode */
 	enum p2p_ps_state p2p_ps_state; /*  indicate p2p ps state */
-	u8 noa_index; /*  Identifies instance of Notice of Absence timing. */
+	u8 anala_index; /*  Identifies instance of Analtice of Absence timing. */
 	/*  Client traffic window. A period of time in TU after TBTT. */
 	u8 ctwindow;
 	u8 opp_ps; /*  opportunistic power save. */
-	u8 noa_num; /*  number of NoA descriptor in P2P IE. */
+	u8 anala_num; /*  number of AnalA descriptor in P2P IE. */
 	/*  Count for owner, Type of client. */
-	u8 noa_count_type[P2P_MAX_NOA_NUM];
+	u8 anala_count_type[P2P_MAX_ANALA_NUM];
 	/*  Max duration for owner, preferred or min acceptable duration
 	 * for client.
 	 */
-	u32 noa_duration[P2P_MAX_NOA_NUM];
+	u32 anala_duration[P2P_MAX_ANALA_NUM];
 	/*  Length of interval for owner, preferred or max acceptable intervali
 	 * of client.
 	 */
-	u32 noa_interval[P2P_MAX_NOA_NUM];
+	u32 anala_interval[P2P_MAX_ANALA_NUM];
 	/*  schedule in terms of the lower 4 bytes of the TSF timer. */
-	u32 noa_start_time[P2P_MAX_NOA_NUM];
+	u32 anala_start_time[P2P_MAX_ANALA_NUM];
 };
 
 struct p2p_ps_offload_t {
 	u8 offload_en:1;
 	u8 role:1; /* 1: Owner, 0: Client */
 	u8 ctwindow_en:1;
-	u8 noa0_en:1;
-	u8 noa1_en:1;
+	u8 anala0_en:1;
+	u8 anala1_en:1;
 	u8 allstasleep:1;
 	u8 discovery:1;
 	u8 reserved:1;
@@ -1579,7 +1579,7 @@ struct btdm_8723 {
 	u32 wlan_act_lo;
 	u32 bt_retry_index;
 	bool dec_bt_pwr;
-	bool ignore_wlan_act;
+	bool iganalre_wlan_act;
 };
 
 struct bt_coexist_8723 {
@@ -1748,7 +1748,7 @@ struct dm_phy_dbg_info {
 	u64 num_qry_phy_status_cck;
 	u64 num_qry_phy_status_ofdm;
 	u16 num_qry_beacon_pkt;
-	u16 num_non_be_pkt;
+	u16 num_analn_be_pkt;
 	s32 rx_evm[4];
 };
 
@@ -1762,7 +1762,7 @@ struct rtl_dm {
 	bool dm_initialgain_enable;
 	bool dynamic_txpower_enable;
 	bool current_turbo_edca;
-	bool is_any_nonbepkts;	/*out dm */
+	bool is_any_analnbepkts;	/*out dm */
 	bool is_cur_rdlstate;
 	bool txpower_trackinginit;
 	bool disable_framebursting;
@@ -1949,7 +1949,7 @@ struct rtl_efuse {
 	u8 delta_lck;
 
 	u8 legacy_ht_txpowerdiff;	/*Legacy to HT rate power diff */
-	bool apk_thermalmeterignore;
+	bool apk_thermalmeteriganalre;
 
 	bool b1x1_recvcombine;
 	bool b1ss_support;
@@ -2043,7 +2043,7 @@ struct rtl_stats {
 	u32 mac_time[2];
 	s8 rssi;
 	u8 signal;
-	u8 noise;
+	u8 analise;
 	u8 rate;		/* hw desc rate */
 	u8 received_channel;
 	u8 control;
@@ -2056,7 +2056,7 @@ struct rtl_stats {
 	u16 length;
 	u8 signalquality;	/*in 0-100 index. */
 	/* Real power in dBm for this packet,
-	 * no beautification and aggregation.
+	 * anal beautification and aggregation.
 	 */
 	s32 recvsignalpower;
 	s8 rxpower;		/*in dBm Translate from PWdB */
@@ -2232,7 +2232,7 @@ struct rtl_hal_ops {
 			      struct ieee80211_rx_status *rx_status,
 			      u8 *pdesc, struct sk_buff *skb);
 	void (*set_channel_access)(struct ieee80211_hw *hw);
-	bool (*radio_onoff_checking)(struct ieee80211_hw *hw, u8 *valid);
+	bool (*radio_oanalff_checking)(struct ieee80211_hw *hw, u8 *valid);
 	void (*dm_watchdog)(struct ieee80211_hw *hw);
 	void (*scan_operation_backup)(struct ieee80211_hw *hw, u8 operation);
 	bool (*set_rf_power_state)(struct ieee80211_hw *hw,
@@ -2272,7 +2272,7 @@ struct rtl_hal_ops {
 	void (*phy_set_bw_mode_callback)(struct ieee80211_hw *hw);
 	void (*dm_dynamic_txpower)(struct ieee80211_hw *hw);
 	void (*c2h_command_handle)(struct ieee80211_hw *hw);
-	void (*bt_wifi_media_status_notify)(struct ieee80211_hw *hw,
+	void (*bt_wifi_media_status_analtify)(struct ieee80211_hw *hw,
 					    bool mstate);
 	void (*bt_coex_off_before_lps)(struct ieee80211_hw *hw);
 	void (*fill_h2c_cmd)(struct ieee80211_hw *hw, u8 element_id,
@@ -2322,7 +2322,7 @@ struct rtl_mod_params {
 	/* default: 0 = DBG_EMERG (0)*/
 	int debug_level;
 
-	/* default: 1 = using no linked power save */
+	/* default: 1 = using anal linked power save */
 	bool inactiveps;
 
 	/* default: 1 = using linked sw power save */
@@ -2331,7 +2331,7 @@ struct rtl_mod_params {
 	/* default: 1 = using linked fw power save */
 	bool fwctrl_lps;
 
-	/* default: 0 = not using MSI interrupts mode
+	/* default: 0 = analt using MSI interrupts mode
 	 * submodules should set their own default value
 	 */
 	bool msi_support;
@@ -2345,7 +2345,7 @@ struct rtl_mod_params {
 	/* default 0: 1 means disable */
 	bool disable_watchdog;
 
-	/* default 0: 1 means do not disable interrupts */
+	/* default 0: 1 means do analt disable interrupts */
 	bool int_clear;
 
 	/* select antenna */
@@ -2452,19 +2452,19 @@ struct rtl_debug {
 
 #define MIMO_PS_STATIC			0
 #define MIMO_PS_DYNAMIC			1
-#define MIMO_PS_NOLIMIT			3
+#define MIMO_PS_ANALLIMIT			3
 
 struct rtl_dmsp_ctl {
 	bool activescan_for_slaveofdmsp;
-	bool scan_for_anothermac_fordmsp;
+	bool scan_for_aanalthermac_fordmsp;
 	bool scan_for_itself_fordmsp;
-	bool writedig_for_anothermacofdmsp;
-	u32 curdigvalue_for_anothermacofdmsp;
-	bool changecckpdstate_for_anothermacofdmsp;
-	u8 curcckpdstate_for_anothermacofdmsp;
-	bool changetxhighpowerlvl_for_anothermacofdmsp;
-	u8 curtxhighlvl_for_anothermacofdmsp;
-	long rssivalmin_for_anothermacofdmsp;
+	bool writedig_for_aanalthermacofdmsp;
+	u32 curdigvalue_for_aanalthermacofdmsp;
+	bool changecckpdstate_for_aanalthermacofdmsp;
+	u8 curcckpdstate_for_aanalthermacofdmsp;
+	bool changetxhighpowerlvl_for_aanalthermacofdmsp;
+	u8 curtxhighlvl_for_aanalthermacofdmsp;
+	long rssivalmin_for_aanalthermacofdmsp;
 };
 
 struct ps_t {
@@ -2592,7 +2592,7 @@ struct bt_coexist_info {
 	bool init_set;
 	bool bt_busy_traffic;
 	bool bt_traffic_mode_set;
-	bool bt_non_traffic_mode_set;
+	bool bt_analn_traffic_mode_set;
 
 	bool fw_coexist_all_off;
 	bool sw_coexist_all_off;
@@ -2627,28 +2627,28 @@ struct rtl_btc_ops {
 	void (*btc_power_on_setting)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config_wifi_only)(struct rtl_priv *rtlpriv);
-	void (*btc_ips_notify)(struct rtl_priv *rtlpriv, u8 type);
-	void (*btc_lps_notify)(struct rtl_priv *rtlpriv, u8 type);
-	void (*btc_scan_notify)(struct rtl_priv *rtlpriv, u8 scantype);
-	void (*btc_scan_notify_wifi_only)(struct rtl_priv *rtlpriv,
+	void (*btc_ips_analtify)(struct rtl_priv *rtlpriv, u8 type);
+	void (*btc_lps_analtify)(struct rtl_priv *rtlpriv, u8 type);
+	void (*btc_scan_analtify)(struct rtl_priv *rtlpriv, u8 scantype);
+	void (*btc_scan_analtify_wifi_only)(struct rtl_priv *rtlpriv,
 					  u8 scantype);
-	void (*btc_connect_notify)(struct rtl_priv *rtlpriv, u8 action);
-	void (*btc_mediastatus_notify)(struct rtl_priv *rtlpriv,
+	void (*btc_connect_analtify)(struct rtl_priv *rtlpriv, u8 action);
+	void (*btc_mediastatus_analtify)(struct rtl_priv *rtlpriv,
 				       enum rt_media_status mstatus);
 	void (*btc_periodical)(struct rtl_priv *rtlpriv);
-	void (*btc_halt_notify)(struct rtl_priv *rtlpriv);
-	void (*btc_btinfo_notify)(struct rtl_priv *rtlpriv,
+	void (*btc_halt_analtify)(struct rtl_priv *rtlpriv);
+	void (*btc_btinfo_analtify)(struct rtl_priv *rtlpriv,
 				  u8 *tmp_buf, u8 length);
-	void (*btc_btmpinfo_notify)(struct rtl_priv *rtlpriv,
+	void (*btc_btmpinfo_analtify)(struct rtl_priv *rtlpriv,
 				    u8 *tmp_buf, u8 length);
 	bool (*btc_is_limited_dig)(struct rtl_priv *rtlpriv);
 	bool (*btc_is_disable_edca_turbo)(struct rtl_priv *rtlpriv);
 	bool (*btc_is_bt_disabled)(struct rtl_priv *rtlpriv);
-	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
+	void (*btc_special_packet_analtify)(struct rtl_priv *rtlpriv,
 					  u8 pkt_type);
-	void (*btc_switch_band_notify)(struct rtl_priv *rtlpriv, u8 type,
+	void (*btc_switch_band_analtify)(struct rtl_priv *rtlpriv, u8 type,
 				       bool scanning);
-	void (*btc_switch_band_notify_wifi_only)(struct rtl_priv *rtlpriv,
+	void (*btc_switch_band_analtify_wifi_only)(struct rtl_priv *rtlpriv,
 						 u8 type, bool scanning);
 	void (*btc_display_bt_coex_info)(struct rtl_priv *rtlpriv,
 					 struct seq_file *m);
@@ -2869,9 +2869,9 @@ enum bt_radio_shared {
 #define	RT_RF_OFF_LEVL_FW_32K		BIT(5)	/*FW in 32k */
 /*Always enable ASPM and Clock Req in initialization.*/
 #define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT(6)
-/* no matter RFOFF or SLEEP we set PS_ASPM_LEVL*/
+/* anal matter RFOFF or SLEEP we set PS_ASPM_LEVL*/
 #define	RT_PS_LEVEL_ASPM		BIT(7)
-/*When LPS is on, disable 2R if no packet is received or transmittd.*/
+/*When LPS is on, disable 2R if anal packet is received or transmittd.*/
 #define	RT_RF_LPS_DISALBE_2R		BIT(30)
 #define	RT_RF_LPS_LEVEL_ASPM		BIT(31)	/*LPS with ASPM */
 #define	RT_IN_PS_LEVEL(ppsc, _ps_flg)		\

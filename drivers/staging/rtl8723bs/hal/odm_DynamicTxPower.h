@@ -13,7 +13,7 @@
 #define		TX_POWER_NEAR_FIELD_THRESH_AP		0x3F
 #define		TX_POWER_NEAR_FIELD_THRESH_8812	60
 
-#define		TxHighPwrLevel_Normal		0
+#define		TxHighPwrLevel_Analrmal		0
 #define		TxHighPwrLevel_Level1		1
 #define		TxHighPwrLevel_Level2		2
 #define		TxHighPwrLevel_BT1			3

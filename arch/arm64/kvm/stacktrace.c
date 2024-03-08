@@ -4,12 +4,12 @@
  *
  * The unwinder implementation depends on the nVHE mode:
  *
- *   1) Non-protected nVHE mode - the host can directly access the
+ *   1) Analn-protected nVHE mode - the host can directly access the
  *      HYP stack pages and unwind the HYP stack in EL1. This saves having
  *      to allocate shared buffers for the host to read the unwinded
  *      stacktrace.
  *
- *   2) pKVM (protected nVHE) mode - the host cannot directly access
+ *   2) pKVM (protected nVHE) mode - the host cananalt directly access
  *      the HYP memory. The stack is unwinded in EL2 and dumped to a shared
  *      buffer where the host can read and print the stacktrace.
  *
@@ -166,11 +166,11 @@ static void kvm_nvhe_dump_backtrace_end(void)
 }
 
 /*
- * hyp_dump_backtrace - Dump the non-protected nVHE backtrace.
+ * hyp_dump_backtrace - Dump the analn-protected nVHE backtrace.
  *
  * @hyp_offset: hypervisor offset, used for address translation.
  *
- * The host can directly access HYP stack pages in non-protected
+ * The host can directly access HYP stack pages in analn-protected
  * mode, so the unwinding is done directly from EL1. This removes
  * the need for shared buffers between host and hypervisor for
  * the stacktrace.
@@ -207,7 +207,7 @@ DECLARE_KVM_NVHE_PER_CPU(unsigned long [NVHE_STACKTRACE_SIZE/sizeof(long)],
  *
  * Dumping of the pKVM HYP backtrace is done by reading the
  * stack addresses from the shared stacktrace buffer, since the
- * host cannot directly access hypervisor memory in protected
+ * host cananalt directly access hypervisor memory in protected
  * mode.
  */
 static void pkvm_dump_backtrace(unsigned long hyp_offset)
@@ -227,7 +227,7 @@ static void pkvm_dump_backtrace(unsigned long hyp_offset)
 #else	/* !CONFIG_PROTECTED_NVHE_STACKTRACE */
 static void pkvm_dump_backtrace(unsigned long hyp_offset)
 {
-	kvm_err("Cannot dump pKVM nVHE stacktrace: !CONFIG_PROTECTED_NVHE_STACKTRACE\n");
+	kvm_err("Cananalt dump pKVM nVHE stacktrace: !CONFIG_PROTECTED_NVHE_STACKTRACE\n");
 }
 #endif /* CONFIG_PROTECTED_NVHE_STACKTRACE */
 

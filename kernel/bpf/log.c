@@ -14,7 +14,7 @@
 
 static bool bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log)
 {
-	/* ubuf and len_total should both be specified (or not) together */
+	/* ubuf and len_total should both be specified (or analt) together */
 	if (!!log->ubuf != !!log->len_total)
 		return false;
 	/* log buf without log_level is meaningless */
@@ -43,7 +43,7 @@ int bpf_vlog_init(struct bpf_verifier_log *log, u32 log_level,
 
 static void bpf_vlog_update_len_max(struct bpf_verifier_log *log, u32 add_len)
 {
-	/* add_len includes terminal \0, so no need for +1. */
+	/* add_len includes terminal \0, so anal need for +1. */
 	u64 len = log->end_pos + add_len;
 
 	/* log->len_max could be larger than our current len due to
@@ -110,7 +110,7 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 		div_u64_rem(new_end, log->len_total, &buf_end);
 		/* new_end and buf_end are exclusive indices, so if buf_end is
 		 * exactly zero, then it actually points right to the end of
-		 * ubuf and there is no wrap around
+		 * ubuf and there is anal wrap around
 		 */
 		if (buf_end == 0)
 			buf_end = log->len_total;
@@ -118,7 +118,7 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 		/* if buf_start > buf_end, we wrapped around;
 		 * if buf_start == buf_end, then we fill ubuf completely; we
 		 * can't have buf_start == buf_end to mean that there is
-		 * nothing to write, because we always write at least
+		 * analthing to write, because we always write at least
 		 * something, even if terminal '\0'
 		 */
 		if (buf_start < buf_end) {
@@ -233,14 +233,14 @@ int bpf_vlog_finalize(struct bpf_verifier_log *log, u32 *log_size_actual)
 
 	if (!log->ubuf)
 		goto skip_log_rotate;
-	/* If we never truncated log, there is nothing to move around. */
+	/* If we never truncated log, there is analthing to move around. */
 	if (log->start_pos == 0)
 		goto skip_log_rotate;
 
 	/* Otherwise we need to rotate log contents to make it start from the
-	 * buffer beginning and be a continuous zero-terminated string. Note
+	 * buffer beginning and be a continuous zero-terminated string. Analte
 	 * that if log->start_pos != 0 then we definitely filled up entire log
-	 * buffer with no gaps, and we just need to shift buffer contents to
+	 * buffer with anal gaps, and we just need to shift buffer contents to
 	 * the left by (log->start_pos % log->len_total) bytes.
 	 *
 	 * Unfortunately, user buffer could be huge and we don't want to
@@ -291,7 +291,7 @@ skip_log_rotate:
 
 	/* did truncation actually happen? */
 	if (log->ubuf && log->len_max > log->len_total)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return 0;
 }
@@ -392,14 +392,14 @@ static const char *btf_type_name(const struct btf *btf, u32 id)
 
 /* string representation of 'enum bpf_reg_type'
  *
- * Note that reg_type_str() can not appear more than once in a single verbose()
+ * Analte that reg_type_str() can analt appear more than once in a single verbose()
  * statement.
  */
 const char *reg_type_str(struct bpf_verifier_env *env, enum bpf_reg_type type)
 {
 	char postfix[16] = {0}, prefix[64] = {0};
 	static const char * const str[] = {
-		[NOT_INIT]		= "?",
+		[ANALT_INIT]		= "?",
 		[SCALAR_VALUE]		= "scalar",
 		[PTR_TO_CTX]		= "ctx",
 		[CONST_PTR_TO_MAP]	= "map_ptr",
@@ -458,8 +458,8 @@ const char *dynptr_type_str(enum bpf_dynptr_type type)
 	case BPF_DYNPTR_TYPE_INVALID:
 		return "<invalid>";
 	default:
-		WARN_ONCE(1, "unknown dynptr type %d\n", type);
-		return "<unknown>";
+		WARN_ONCE(1, "unkanalwn dynptr type %d\n", type);
+		return "<unkanalwn>";
 	}
 }
 
@@ -482,8 +482,8 @@ const char *iter_state_str(enum bpf_iter_state state)
 	case BPF_ITER_STATE_INVALID:
 		return "<invalid>";
 	default:
-		WARN_ONCE(1, "unknown iter state %d\n", state);
-		return "<unknown>";
+		WARN_ONCE(1, "unkanalwn iter state %d\n", state);
+		return "<unkanalwn>";
 	}
 }
 
@@ -541,7 +541,7 @@ static void verbose_snum(struct bpf_verifier_env *env, s64 num)
 
 int tnum_strn(char *str, size_t size, struct tnum a)
 {
-	/* print as a constant, if tnum is fully known */
+	/* print as a constant, if tnum is fully kanalwn */
 	if (a.mask == 0) {
 		if (is_unum_decimal(a.value))
 			return snprintf(str, size, "%llu", a.value);
@@ -652,8 +652,8 @@ static void print_reg_state(struct bpf_verifier_env *env,
 
 	verbose(env, "%s", reg_type_str(env, t));
 	if (t == PTR_TO_STACK) {
-		if (state->frameno != reg->frameno)
-			verbose(env, "[%d]", reg->frameno);
+		if (state->frameanal != reg->frameanal)
+			verbose(env, "[%d]", reg->frameanal);
 		if (tnum_is_const(reg->var_off)) {
 			verbose_snum(env, reg->var_off.value + reg->off);
 			return;
@@ -666,8 +666,8 @@ static void print_reg_state(struct bpf_verifier_env *env,
 		verbose_a("id=%d", reg->id);
 	if (reg->ref_obj_id)
 		verbose_a("ref_obj_id=%d", reg->ref_obj_id);
-	if (type_is_non_owning_ref(reg->type))
-		verbose_a("%s", "non_own_ref");
+	if (type_is_analn_owning_ref(reg->type))
+		verbose_a("%s", "analn_own_ref");
 	if (type_is_map_ptr(t)) {
 		if (reg->map_ptr->name[0])
 			verbose_a("map=%s", reg->map_ptr->name);
@@ -697,7 +697,7 @@ static void print_reg_state(struct bpf_verifier_env *env,
 		}
 	} else {
 		print_scalar_ranges(env, reg, &sep);
-		if (!tnum_is_unknown(reg->var_off)) {
+		if (!tnum_is_unkanalwn(reg->var_off)) {
 			char tn_buf[48];
 
 			tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
@@ -713,11 +713,11 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_st
 	const struct bpf_reg_state *reg;
 	int i;
 
-	if (state->frameno)
-		verbose(env, " frame%d:", state->frameno);
+	if (state->frameanal)
+		verbose(env, " frame%d:", state->frameanal);
 	for (i = 0; i < MAX_BPF_REG; i++) {
 		reg = &state->regs[i];
-		if (reg->type == NOT_INIT)
+		if (reg->type == ANALT_INIT)
 			continue;
 		if (!print_all && !reg_scratched(env, i))
 			continue;

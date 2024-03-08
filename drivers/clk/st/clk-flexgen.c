@@ -41,7 +41,7 @@ struct flexgen {
 	struct clk_gate fgate;
 	/* Final divisor */
 	struct clk_divider fdiv;
-	/* Asynchronous mode control */
+	/* Asynchroanalus mode control */
 	struct clk_gate sync;
 	/* hw control flags */
 	bool control_mode;
@@ -215,11 +215,11 @@ static struct clk *clk_register_flexgen(const char *name,
 
 	fgxbar = kzalloc(sizeof(struct flexgen), GFP_KERNEL);
 	if (!fgxbar)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &flexgen_ops;
-	init.flags = CLK_GET_RATE_NOCACHE | flexgen_flags;
+	init.flags = CLK_GET_RATE_ANALCACHE | flexgen_flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
@@ -275,7 +275,7 @@ static struct clk *clk_register_flexgen(const char *name,
 	return clk;
 }
 
-static const char ** __init flexgen_get_parents(struct device_node *np,
+static const char ** __init flexgen_get_parents(struct device_analde *np,
 						       int *num_parents)
 {
 	const char **parents;
@@ -639,9 +639,9 @@ static const struct of_device_id flexgen_of_match[] = {
 	{}
 };
 
-static void __init st_of_flexgen_setup(struct device_node *np)
+static void __init st_of_flexgen_setup(struct device_analde *np)
 {
-	struct device_node *pnode;
+	struct device_analde *panalde;
 	void __iomem *reg;
 	struct clk_onecell_data *clk_data;
 	const char **parents;
@@ -654,12 +654,12 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	bool clk_mode = 0;
 	const char *clk_name;
 
-	pnode = of_get_parent(np);
-	if (!pnode)
+	panalde = of_get_parent(np);
+	if (!panalde)
 		return;
 
-	reg = of_iomap(pnode, 0);
-	of_node_put(pnode);
+	reg = of_iomap(panalde, 0);
+	of_analde_put(panalde);
 	if (!reg)
 		return;
 
@@ -669,7 +669,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 		return;
 	}
 
-	match = of_match_node(flexgen_of_match, np);
+	match = of_match_analde(flexgen_of_match, np);
 	if (match) {
 		data = (struct clkgen_data *)match->data;
 		flex_flags = data->flags;

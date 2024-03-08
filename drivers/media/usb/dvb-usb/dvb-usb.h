@@ -39,10 +39,10 @@
 }
 #define DVB_USB_DEBUG_STATUS
 #else
-#define dprintk(var, level, args...) no_printk(args)
+#define dprintk(var, level, args...) anal_printk(args)
 #define debug_dump(b, l, func) do { } while (0)
 
-#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
+#define DVB_USB_DEBUG_STATUS " (debugging is analt enabled)"
 
 #endif
 
@@ -129,7 +129,7 @@ struct usb_data_stream_properties {
  * @num_frontends: number of frontends of the DVB USB adapter.
  * @frontend_ctrl: called to power on/off active frontend.
  * @streaming_ctrl: called to start and stop the MPEG2-TS streaming of the
- *  device (not URB submitting/killing).
+ *  device (analt URB submitting/killing).
  *  This callback will be called without data URBs being active - data URBs
  *  will be submitted only after streaming_ctrl(1) returns successfully and
  *  they will be killed before streaming_ctrl(0) gets called.
@@ -163,14 +163,14 @@ struct dvb_usb_adapter_fe_properties {
 	int size_of_priv;
 };
 
-#define MAX_NO_OF_FE_PER_ADAP 3
+#define MAX_ANAL_OF_FE_PER_ADAP 3
 struct dvb_usb_adapter_properties {
 	int size_of_priv;
 
 	int (*frontend_ctrl)   (struct dvb_frontend *, int);
 
 	int num_frontends;
-	struct dvb_usb_adapter_fe_properties fe[MAX_NO_OF_FE_PER_ADAP];
+	struct dvb_usb_adapter_fe_properties fe[MAX_ANAL_OF_FE_PER_ADAP];
 };
 
 /**
@@ -183,7 +183,7 @@ struct dvb_usb_adapter_properties {
  */
 struct dvb_rc_legacy {
 /* remote control properties */
-#define REMOTE_NO_KEY_PRESSED      0x00
+#define REMOTE_ANAL_KEY_PRESSED      0x00
 #define REMOTE_KEY_PRESSED         0x01
 #define REMOTE_KEY_REPEAT          0x02
 	struct rc_map_table  *rc_map_table;
@@ -240,7 +240,7 @@ enum dvb_usb_mode {
  * @firmware: name of the firmware file.
  * @download_firmware: called to download the firmware when the usb_ctrl is
  *  DEVICE_SPECIFIC.
- * @no_reconnect: device doesn't do a reconnect after downloading the firmware,
+ * @anal_reconnect: device doesn't do a reconnect after downloading the firmware,
  *  so do the warm initialization right after it
  *
  * @size_of_priv: how many bytes shall be allocated for the private field
@@ -256,7 +256,7 @@ enum dvb_usb_mode {
  * @power_ctrl: called to enable/disable power of the device.
  * @read_mac_address: called to read the MAC address of the device.
  * @identify_state: called to determine the state (cold or warm), when it
- *  is not distinguishable by the USB IDs.
+ *  is analt distinguishable by the USB IDs.
  *
  * @rc: remote controller properties
  *
@@ -264,12 +264,12 @@ enum dvb_usb_mode {
  *
  * @generic_bulk_ctrl_endpoint: most of the DVB USB devices have a generic
  *  endpoint which received control messages with bulk transfers. When this
- *  is non-zero, one can use dvb_usb_generic_rw and dvb_usb_generic_write-
+ *  is analn-zero, one can use dvb_usb_generic_rw and dvb_usb_generic_write-
  *  helper functions.
  *
  * @generic_bulk_ctrl_endpoint_response: some DVB USB devices use a separate
  *  endpoint for responses to control messages sent with bulk transfers via
- *  the generic_bulk_ctrl_endpoint. When this is non-zero, this will be used
+ *  the generic_bulk_ctrl_endpoint. When this is analn-zero, this will be used
  *  instead of the generic_bulk_ctrl_endpoint when reading usb responses in
  *  the dvb_usb_generic_rw helper function.
  *
@@ -278,7 +278,7 @@ enum dvb_usb_mode {
  *  properties.
  */
 struct dvb_usb_device_properties {
-#define MAX_NO_OF_ADAPTER_PER_DEVICE 2
+#define MAX_ANAL_OF_ADAPTER_PER_DEVICE 2
 #define DVB_USB_IS_AN_I2C_ADAPTER            0x01
 	int caps;
 
@@ -289,14 +289,14 @@ struct dvb_usb_device_properties {
 	int        usb_ctrl;
 	int        (*download_firmware) (struct usb_device *, const struct firmware *);
 	const char *firmware;
-	int        no_reconnect;
+	int        anal_reconnect;
 
 	int size_of_priv;
 	int (*priv_init)(struct dvb_usb_device *);
 	void (*priv_destroy)(struct dvb_usb_device *);
 
 	int num_adapters;
-	struct dvb_usb_adapter_properties adapter[MAX_NO_OF_ADAPTER_PER_DEVICE];
+	struct dvb_usb_adapter_properties adapter[MAX_ANAL_OF_ADAPTER_PER_DEVICE];
 
 	int (*power_ctrl)       (struct dvb_usb_device *, int);
 	int (*read_mac_address) (struct dvb_usb_device *, u8 []);
@@ -337,7 +337,7 @@ struct dvb_usb_device_properties {
  * @user_priv: for private use.
  */
 struct usb_data_stream {
-#define MAX_NO_URBS_FOR_DATA_STREAM 10
+#define MAX_ANAL_URBS_FOR_DATA_STREAM 10
 	struct usb_device                 *udev;
 	struct usb_data_stream_properties  props;
 
@@ -347,11 +347,11 @@ struct usb_data_stream {
 
 	void (*complete) (struct usb_data_stream *, u8 *, size_t);
 
-	struct urb    *urb_list[MAX_NO_URBS_FOR_DATA_STREAM];
+	struct urb    *urb_list[MAX_ANAL_URBS_FOR_DATA_STREAM];
 	int            buf_num;
 	unsigned long  buf_size;
-	u8            *buf_list[MAX_NO_URBS_FOR_DATA_STREAM];
-	dma_addr_t     dma_addr[MAX_NO_URBS_FOR_DATA_STREAM];
+	u8            *buf_list[MAX_ANAL_URBS_FOR_DATA_STREAM];
+	dma_addr_t     dma_addr[MAX_ANAL_URBS_FOR_DATA_STREAM];
 
 	int urbs_initialized;
 	int urbs_submitted;
@@ -365,7 +365,7 @@ struct usb_data_stream {
  * @fe_init:  rerouted frontend-init (wakeup) function.
  * @fe_sleep: rerouted frontend-sleep function.
  * @stream: the usb data stream.
- * @pid_filtering: is hardware pid_filtering used or not.
+ * @pid_filtering: is hardware pid_filtering used or analt.
  * @max_feed_count: how many feeds can be handled simultaneously by this
  *  device
  * @priv: private pointer
@@ -421,7 +421,7 @@ struct dvb_usb_adapter {
 	struct dvb_demux     demux;
 	struct dvb_net       dvb_net;
 
-	struct dvb_usb_fe_adapter fe_adap[MAX_NO_OF_FE_PER_ADAP];
+	struct dvb_usb_fe_adapter fe_adap[MAX_ANAL_OF_FE_PER_ADAP];
 	int active_fe;
 	int num_frontends_initialized;
 
@@ -434,15 +434,15 @@ struct dvb_usb_adapter {
  * @desc: pointer to the device's struct dvb_usb_device_description.
  * @state: initialization and runtime state of the device.
  *
- * @powered: indicated whether the device is power or not.
+ * @powered: indicated whether the device is power or analt.
  *  Powered is in/decremented for each call to modify the state.
  * @udev: pointer to the device's struct usb_device.
  *
  * @data_mutex: mutex to protect the data structure used to store URB data
  * @usb_mutex: mutex of USB control messages (reading needs two messages).
- *	Please notice that this mutex is used internally at the generic
+ *	Please analtice that this mutex is used internally at the generic
  *	URB control functions. So, drivers using dvb_usb_generic_rw() and
- *	derivated functions should not lock it internally.
+ *	derivated functions should analt lock it internally.
  * @i2c_mutex: mutex for i2c-transfers
  *
  * @i2c_adap: device's i2c_adapter if it uses I2CoverUSB
@@ -455,7 +455,7 @@ struct dvb_usb_adapter {
  * @rc_phys: rc device path
  * @rc_query_work: struct work_struct frequent rc queries
  * @last_event: last triggered event
- * @last_state: last state (no, pressed, repeat)
+ * @last_state: last state (anal, pressed, repeat)
  * @owner: owner of the dvb_adapter
  * @priv: private data of the actual driver (allocate by dvb-usb, size defined
  *  in size_of_priv of dvb_usb_properties).
@@ -483,7 +483,7 @@ struct dvb_usb_device {
 	struct i2c_adapter i2c_adap;
 
 	int                    num_adapters_initialized;
-	struct dvb_usb_adapter adapter[MAX_NO_OF_ADAPTER_PER_DEVICE];
+	struct dvb_usb_adapter adapter[MAX_ANAL_OF_ADAPTER_PER_DEVICE];
 
 	/* remote control */
 	struct rc_dev *rc_dev;

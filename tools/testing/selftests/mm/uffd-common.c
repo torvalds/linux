@@ -39,24 +39,24 @@ static int uffd_mem_fd_create(off_t mem_size, bool hugetlb)
 	return mem_fd;
 }
 
-static void anon_release_pages(char *rel_area)
+static void aanaln_release_pages(char *rel_area)
 {
 	if (madvise(rel_area, nr_pages * page_size, MADV_DONTNEED))
 		err("madvise(MADV_DONTNEED) failed");
 }
 
-static int anon_allocate_area(void **alloc_area, bool is_src)
+static int aanaln_allocate_area(void **alloc_area, bool is_src)
 {
 	*alloc_area = mmap(NULL, nr_pages * page_size, PROT_READ | PROT_WRITE,
-			   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+			   MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	if (*alloc_area == MAP_FAILED) {
 		*alloc_area = NULL;
-		return -errno;
+		return -erranal;
 	}
 	return 0;
 }
 
-static void noop_alias_mapping(__u64 *start, size_t len, unsigned long offset)
+static void analop_alias_mapping(__u64 *start, size_t len, unsigned long offset)
 {
 }
 
@@ -81,18 +81,18 @@ static int hugetlb_allocate_area(void **alloc_area, bool is_src)
 
 	*alloc_area = mmap(NULL, size, PROT_READ | PROT_WRITE,
 			   (map_shared ? MAP_SHARED : MAP_PRIVATE) |
-			   (is_src ? 0 : MAP_NORESERVE),
+			   (is_src ? 0 : MAP_ANALRESERVE),
 			   mem_fd, offset);
 	if (*alloc_area == MAP_FAILED) {
 		*alloc_area = NULL;
-		return -errno;
+		return -erranal;
 	}
 
 	if (map_shared) {
 		area_alias = mmap(NULL, size, PROT_READ | PROT_WRITE,
 				  MAP_SHARED, mem_fd, offset);
 		if (area_alias == MAP_FAILED)
-			return -errno;
+			return -erranal;
 	}
 
 	if (is_src) {
@@ -142,7 +142,7 @@ static int shmem_allocate_area(void **alloc_area, bool is_src)
 			   mem_fd, offset);
 	if (*alloc_area == MAP_FAILED) {
 		*alloc_area = NULL;
-		return -errno;
+		return -erranal;
 	}
 	if (*alloc_area != p)
 		err("mmap of memfd failed at %p", p);
@@ -152,10 +152,10 @@ static int shmem_allocate_area(void **alloc_area, bool is_src)
 	if (area_alias == MAP_FAILED) {
 		munmap(*alloc_area, bytes);
 		*alloc_area = NULL;
-		return -errno;
+		return -erranal;
 	}
 	if (area_alias != p_alias)
-		err("mmap of anonymous memory failed at %p", p_alias);
+		err("mmap of aanalnymous memory failed at %p", p_alias);
 
 	if (is_src)
 		area_src_alias = area_alias;
@@ -175,14 +175,14 @@ static void shmem_check_pmd_mapping(void *p, int expect_nr_hpages)
 {
 	if (!check_huge_shmem(area_dst_alias, expect_nr_hpages,
 			      read_pmd_pagesize()))
-		err("Did not find expected %d number of hugepages",
+		err("Did analt find expected %d number of hugepages",
 		    expect_nr_hpages);
 }
 
-struct uffd_test_ops anon_uffd_test_ops = {
-	.allocate_area = anon_allocate_area,
-	.release_pages = anon_release_pages,
-	.alias_mapping = noop_alias_mapping,
+struct uffd_test_ops aanaln_uffd_test_ops = {
+	.allocate_area = aanaln_allocate_area,
+	.release_pages = aanaln_release_pages,
+	.alias_mapping = analop_alias_mapping,
 	.check_pmd_mapping = NULL,
 };
 
@@ -203,12 +203,12 @@ struct uffd_test_ops hugetlb_uffd_test_ops = {
 void uffd_stats_report(struct uffd_args *args, int n_cpus)
 {
 	int i;
-	unsigned long long miss_total = 0, wp_total = 0, minor_total = 0;
+	unsigned long long miss_total = 0, wp_total = 0, mianalr_total = 0;
 
 	for (i = 0; i < n_cpus; i++) {
 		miss_total += args[i].missing_faults;
 		wp_total += args[i].wp_faults;
-		minor_total += args[i].minor_faults;
+		mianalr_total += args[i].mianalr_faults;
 	}
 
 	printf("userfaults: ");
@@ -224,10 +224,10 @@ void uffd_stats_report(struct uffd_args *args, int n_cpus)
 			printf("%lu+", args[i].wp_faults);
 		printf("\b) ");
 	}
-	if (minor_total) {
-		printf("%llu minor (", minor_total);
+	if (mianalr_total) {
+		printf("%llu mianalr (", mianalr_total);
 		for (i = 0; i < n_cpus; i++)
-			printf("%lu+", args[i].minor_faults);
+			printf("%lu+", args[i].mianalr_faults);
 		printf("\b)");
 	}
 	printf("\n");
@@ -337,7 +337,7 @@ int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 		/*
 		 * In the transition between 255 to 256, powerpc will
 		 * read out of order in my_bcmp and see both bytes as
-		 * zero, so leave a placeholder below always non-zero
+		 * zero, so leave a placeholder below always analn-zero
 		 * after the count, to avoid my_bcmp to trigger false
 		 * positives.
 		 */
@@ -347,7 +347,7 @@ int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 	/*
 	 * After initialization of area_src, we must explicitly release pages
 	 * for area_dst to make sure it's fully empty.  Otherwise we could have
-	 * some area_dst pages be errornously initialized with zero pages,
+	 * some area_dst pages be erroranalusly initialized with zero pages,
 	 * hence we could hit memory corruption later in the test.
 	 *
 	 * One example is when THP is globally enabled, above allocate_area()
@@ -368,7 +368,7 @@ int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 	if (!pipefd)
 		err("pipefd");
 	for (cpu = 0; cpu < nr_cpus; cpu++)
-		if (pipe2(&pipefd[cpu * 2], O_CLOEXEC | O_NONBLOCK))
+		if (pipe2(&pipefd[cpu * 2], O_CLOEXEC | O_ANALNBLOCK))
 			err("pipe");
 
 	return 0;
@@ -421,7 +421,7 @@ int uffd_read_msg(int ufd, struct uffd_msg *msg)
 
 	if (ret != sizeof(*msg)) {
 		if (ret < 0) {
-			if (errno == EAGAIN || errno == EINTR)
+			if (erranal == EAGAIN || erranal == EINTR)
 				return 1;
 			err("blocking read error");
 		} else {
@@ -443,19 +443,19 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 		/* Write protect page faults */
 		wp_range(uffd, msg->arg.pagefault.address, page_size, false);
 		args->wp_faults++;
-	} else if (msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_MINOR) {
+	} else if (msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_MIANALR) {
 		uint8_t *area;
 		int b;
 
 		/*
-		 * Minor page faults
+		 * Mianalr page faults
 		 *
 		 * To prove we can modify the original range for testing
 		 * purposes, we're going to bit flip this range before
 		 * continuing.
 		 *
-		 * Note that this requires all minor page fault tests operate on
-		 * area_dst (non-UFFD-registered) and area_dst_alias
+		 * Analte that this requires all mianalr page fault tests operate on
+		 * area_dst (analn-UFFD-registered) and area_dst_alias
 		 * (UFFD-registered).
 		 */
 
@@ -466,7 +466,7 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 			area[b] = ~area[b];
 		continue_range(uffd, msg->arg.pagefault.address, page_size,
 			       args->apply_wp);
-		args->minor_faults++;
+		args->mianalr_faults++;
 	} else {
 		/*
 		 * Missing page faults.
@@ -477,11 +477,11 @@ void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args)
 		 * their first instruction to touch the missing page will
 		 * always be pthread_mutex_lock().
 		 *
-		 * Note that here we relied on an NPTL glibc impl detail to
+		 * Analte that here we relied on an NPTL glibc impl detail to
 		 * always read the lock type at the entry of the lock op
 		 * (pthread_mutex_t.__data.__type, offset 0x10) before
 		 * doing any locking operations to guarantee that.  It's
-		 * actually not good to rely on this impl detail because
+		 * actually analt good to rely on this impl detail because
 		 * logically a pthread-compatible lib can implement the
 		 * locks without types and we can fail when linking with
 		 * them.  However since we used to find bugs with this
@@ -521,7 +521,7 @@ void *uffd_poll_thread(void *arg)
 	for (;;) {
 		ret = poll(pollfd, 2, -1);
 		if (ret <= 0) {
-			if (errno == EINTR || errno == EAGAIN)
+			if (erranal == EINTR || erranal == EAGAIN)
 				continue;
 			err("poll error: %d", ret);
 		}
@@ -692,7 +692,7 @@ int uffd_get_features(uint64_t *features)
 	struct uffdio_api uffdio_api = { .api = UFFD_API, .features = 0 };
 	/*
 	 * This should by default work in most kernels; the feature list
-	 * will be the same no matter what we pass in here.
+	 * will be the same anal matter what we pass in here.
 	 */
 	int fd = uffd_open(UFFD_USER_MODE_ONLY);
 
@@ -705,7 +705,7 @@ int uffd_get_features(uint64_t *features)
 
 	if (ioctl(fd, UFFDIO_API, &uffdio_api)) {
 		close(fd);
-		return -errno;
+		return -erranal;
 	}
 
 	*features = uffdio_api.features;

@@ -33,7 +33,7 @@
 /* Defaults for Module Parameter */
 #define DEFAULT_TIMEOUT		60
 #define DEFAULT_TESTMODE	0
-#define DEFAULT_NOWAYOUT	WATCHDOG_NOWAYOUT
+#define DEFAULT_ANALWAYOUT	WATCHDOG_ANALWAYOUT
 
 /* IO Ports */
 #define REG		0x2e
@@ -48,7 +48,7 @@
 #define CHIPREV		0x22
 
 /* Chip Id numbers */
-#define NO_DEV_ID	0xffff
+#define ANAL_DEV_ID	0xffff
 #define IT8607_ID	0x8607
 #define IT8613_ID	0x8613
 #define IT8620_ID	0x8620
@@ -83,24 +83,24 @@
 #define WDT_TOV1	0x80
 #define WDT_KRST	0x40
 #define WDT_TOVE	0x20
-#define WDT_PWROK	0x10 /* not in it8721 */
+#define WDT_PWROK	0x10 /* analt in it8721 */
 #define WDT_INT_MASK	0x0f
 
 static unsigned int max_units, chip_type;
 
 static unsigned int timeout = DEFAULT_TIMEOUT;
 static int testmode = DEFAULT_TESTMODE;
-static bool nowayout = DEFAULT_NOWAYOUT;
+static bool analwayout = DEFAULT_ANALWAYOUT;
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds, default="
 		__MODULE_STRING(DEFAULT_TIMEOUT));
 module_param(testmode, int, 0);
-MODULE_PARM_DESC(testmode, "Watchdog test mode (1 = no reboot), default="
+MODULE_PARM_DESC(testmode, "Watchdog test mode (1 = anal reboot), default="
 		__MODULE_STRING(DEFAULT_TESTMODE));
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started, default="
-		__MODULE_STRING(WATCHDOG_NOWAYOUT));
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started, default="
+		__MODULE_STRING(WATCHDOG_ANALWAYOUT));
 
 /* Superio Chip */
 
@@ -301,14 +301,14 @@ static int __init it87_wdt_init(void)
 	case IT8705_ID:
 		pr_err("Unsupported Chip found, Chip %04x Revision %02x\n",
 		       chip_type, chip_rev);
-		return -ENODEV;
-	case NO_DEV_ID:
-		pr_err("no device\n");
-		return -ENODEV;
+		return -EANALDEV;
+	case ANAL_DEV_ID:
+		pr_err("anal device\n");
+		return -EANALDEV;
 	default:
-		pr_err("Unknown Chip found, Chip %04x Revision %04x\n",
+		pr_err("Unkanalwn Chip found, Chip %04x Revision %04x\n",
 		       chip_type, chip_rev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = superio_enter();
@@ -346,12 +346,12 @@ static int __init it87_wdt_init(void)
 	watchdog_stop_on_reboot(&wdt_dev);
 	rc = watchdog_register_device(&wdt_dev);
 	if (rc) {
-		pr_err("Cannot register watchdog device (err=%d)\n", rc);
+		pr_err("Cananalt register watchdog device (err=%d)\n", rc);
 		return rc;
 	}
 
-	pr_info("Chip IT%04x revision %d initialized. timeout=%d sec (nowayout=%d testmode=%d)\n",
-		chip_type, chip_rev, timeout, nowayout, testmode);
+	pr_info("Chip IT%04x revision %d initialized. timeout=%d sec (analwayout=%d testmode=%d)\n",
+		chip_type, chip_rev, timeout, analwayout, testmode);
 
 	return 0;
 }

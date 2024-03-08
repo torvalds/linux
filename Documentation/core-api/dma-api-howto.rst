@@ -16,7 +16,7 @@ CPU and DMA addresses
 There are several kinds of addresses involved in the DMA API, and it's
 important to understand the differences.
 
-The kernel normally uses virtual addresses.  Any address returned by
+The kernel analrmally uses virtual addresses.  Any address returned by
 kmalloc(), vmalloc(), and similar interfaces is a virtual address and can
 be stored in a ``void *``.
 
@@ -24,14 +24,14 @@ The virtual memory system (TLB, page tables, etc.) translates virtual
 addresses to CPU physical addresses, which are stored as "phys_addr_t" or
 "resource_size_t".  The kernel manages device resources like registers as
 physical addresses.  These are the addresses in /proc/iomem.  The physical
-address is not directly useful to a driver; it must use ioremap() to map
+address is analt directly useful to a driver; it must use ioremap() to map
 the space and produce a virtual address.
 
 I/O devices use a third kind of address: a "bus address".  If a device has
 registers at an MMIO address, or if it performs DMA to read or write system
 memory, the addresses used by the device are bus addresses.  In some
 systems, bus addresses are identical to CPU physical addresses, but in
-general they are not.  IOMMUs and host bridges can produce arbitrary
+general they are analt.  IOMMUs and host bridges can produce arbitrary
 mappings between physical and bus addresses.
 
 From a device's point of view, DMA uses the bus address space, but it may
@@ -76,7 +76,7 @@ If the device supports DMA, the driver sets up a buffer using kmalloc() or
 a similar interface, which returns a virtual address (X).  The virtual
 memory system maps X to a physical address (Y) in system RAM.  The driver
 can use virtual address X to access the buffer, but the device itself
-cannot because DMA doesn't go through the CPU virtual memory system.
+cananalt because DMA doesn't go through the CPU virtual memory system.
 
 In some simple systems, the device can do DMA directly to physical address
 Y.  But in many others, there is IOMMU hardware that translates DMA
@@ -92,10 +92,10 @@ drivers, namely it has to take into account that DMA addresses should be
 mapped only for the time they are actually used and unmapped after the DMA
 transfer.
 
-The following API will work of course even on platforms where no such
+The following API will work of course even on platforms where anal such
 hardware exists.
 
-Note that the DMA API works with any bus independent of the underlying
+Analte that the DMA API works with any bus independent of the underlying
 microprocessor architecture. You should use the DMA API rather than the
 bus-specific DMA API, i.e., use the dma_map_*() interfaces rather than the
 pci_map_*() interfaces.
@@ -111,7 +111,7 @@ everywhere you hold a DMA address returned from the DMA mapping functions.
 What memory is DMA'able?
 ========================
 
-The first piece of information you must know is what kernel memory can
+The first piece of information you must kanalw is what kernel memory can
 be used with the DMA mapping facilities.  There has been an unwritten
 set of rules regarding this, and this text is an attempt to finally
 write them down.
@@ -121,16 +121,16 @@ If you acquired your memory via the page allocator
 (i.e. kmalloc() or kmem_cache_alloc()) then you may DMA to/from
 that memory using the addresses returned from those routines.
 
-This means specifically that you may _not_ use the memory/addresses
+This means specifically that you may _analt_ use the memory/addresses
 returned from vmalloc() for DMA.  It is possible to DMA to the
 _underlying_ memory mapped into a vmalloc() area, but this requires
 walking page tables to get the physical addresses, and then
 translating each of those pages back to a kernel address using
 something like __va().  [ EDIT: Update this when we integrate
-Gerd Knorr's generic code which does this. ]
+Gerd Kanalrr's generic code which does this. ]
 
 This rule also means that you may use neither kernel image addresses
-(items in data/text/bss segments), nor module image addresses, nor
+(items in data/text/bss segments), analr module image addresses, analr
 stack addresses for DMA.  These could all be mapped somewhere entirely
 different than the rest of physical memory.  Even if those classes of
 memory could physically work with DMA, you'd need to ensure the I/O
@@ -139,7 +139,7 @@ sharing problems (data corruption) on CPUs with DMA-incoherent caches.
 (The CPU could write to one word, DMA would write to a different one
 in the same cache line, and one of them could be overwritten.)
 
-Also, this means that you cannot take the return of a kmap()
+Also, this means that you cananalt take the return of a kmap()
 call and DMA to/from that.  This is similar to vmalloc().
 
 What about block I/O and networking buffers?  The block I/O and
@@ -153,7 +153,7 @@ By default, the kernel assumes that your device can address 32-bits of DMA
 addressing.  For a 64-bit capable device, this needs to be increased, and for
 a device with limitations, it needs to be decreased.
 
-Special note about PCI: PCI-X specification requires PCI-X devices to support
+Special analte about PCI: PCI-X specification requires PCI-X devices to support
 64-bit addressing (DAC) for all transactions.  And at least one platform (SGI
 SN2) requires 64-bit consistent allocations to operate correctly when the IO
 bus is in PCI-X mode.
@@ -188,26 +188,26 @@ PCI device (pdev is a pointer to the PCI device struct of your device).
 These calls usually return zero to indicate your device can perform DMA
 properly on the machine given the address mask you provided, but they might
 return an error if the mask is too small to be supportable on the given
-system.  If it returns non-zero, your device cannot perform DMA properly on
+system.  If it returns analn-zero, your device cananalt perform DMA properly on
 this platform, and attempting to do so will result in undefined behavior.
-You must not use DMA on this device unless the dma_set_mask family of
+You must analt use DMA on this device unless the dma_set_mask family of
 functions has returned success.
 
 This means that in the failure case, you have two options:
 
-1) Use some non-DMA mode for data transfer, if possible.
-2) Ignore this device and do not initialize it.
+1) Use some analn-DMA mode for data transfer, if possible.
+2) Iganalre this device and do analt initialize it.
 
 It is recommended that your driver print a kernel KERN_WARNING message when
 setting the DMA mask fails.  In this manner, if a user of your driver reports
-that performance is bad or that the device is not even detected, you can ask
+that performance is bad or that the device is analt even detected, you can ask
 them for the kernel messages to find out exactly why.
 
 The standard 64-bit addressing device would do something like this::
 
 	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
-		dev_warn(dev, "mydev: No suitable DMA available\n");
-		goto ignore_this_device;
+		dev_warn(dev, "mydev: Anal suitable DMA available\n");
+		goto iganalre_this_device;
 	}
 
 If the device only supports 32-bit addressing for descriptors in the
@@ -215,8 +215,8 @@ coherent allocations, but supports full 64-bits for streaming mappings
 it would look like this::
 
 	if (dma_set_mask(dev, DMA_BIT_MASK(64))) {
-		dev_warn(dev, "mydev: No suitable DMA available\n");
-		goto ignore_this_device;
+		dev_warn(dev, "mydev: Anal suitable DMA available\n");
+		goto iganalre_this_device;
 	}
 
 The coherent mask will always be able to set the same or a smaller mask as
@@ -228,8 +228,8 @@ Finally, if your device can only drive the low 24-bits of
 address you might do something like::
 
 	if (dma_set_mask(dev, DMA_BIT_MASK(24))) {
-		dev_warn(dev, "mydev: 24-bit DMA addressing not available\n");
-		goto ignore_this_device;
+		dev_warn(dev, "mydev: 24-bit DMA addressing analt available\n");
+		goto iganalre_this_device;
 	}
 
 When dma_set_mask() or dma_set_mask_and_coherent() is successful, and
@@ -284,7 +284,7 @@ There are two types of DMA mappings:
   in parallel and will see updates made by each other without any
   explicit software flushing.
 
-  Think of "consistent" as "synchronous" or "coherent".
+  Think of "consistent" as "synchroanalus" or "coherent".
 
   The current default is to return consistent memory in the low 32
   bits of the DMA space.  However, for future compatibility you should
@@ -304,9 +304,9 @@ There are two types of DMA mappings:
 
   .. important::
 
-	     Consistent DMA memory does not preclude the usage of
+	     Consistent DMA memory does analt preclude the usage of
 	     proper memory barriers.  The CPU may reorder stores to
-	     consistent memory just as it may normal memory.  Example:
+	     consistent memory just as it may analrmal memory.  Example:
 	     if it is important for the device to see the first word
 	     of a descriptor updated before the second, you must do
 	     something like::
@@ -326,7 +326,7 @@ There are two types of DMA mappings:
   transfer, unmapped right after it (unless you use dma_sync_* below)
   and for which hardware can optimize for sequential accesses.
 
-  Think of "streaming" as "asynchronous" or "outside the coherency
+  Think of "streaming" as "asynchroanalus" or "outside the coherency
   domain".
 
   Good examples of what to use streaming mappings for are:
@@ -381,7 +381,7 @@ guaranteed to be aligned to the smallest PAGE_SIZE order which
 is greater than or equal to the requested size.  This invariant
 exists (for example) to guarantee that if you allocate a chunk
 which is smaller than or equal to 64 kilobytes, the extent of the
-buffer you receive will not cross a 64K boundary.
+buffer you receive will analt cross a 64K boundary.
 
 To unmap and free such a DMA region, you call::
 
@@ -389,12 +389,12 @@ To unmap and free such a DMA region, you call::
 
 where dev, size are the same as in the above call and cpu_addr and
 dma_handle are the values dma_alloc_coherent() returned to you.
-This function may not be called in interrupt context.
+This function may analt be called in interrupt context.
 
 If your driver needs lots of smaller memory regions, you can write
 custom code to subdivide pages returned by dma_alloc_coherent(),
 or you can use the dma_pool API to do that.  A dma_pool is like
-a kmem_cache, but it uses dma_alloc_coherent(), not __get_free_pages().
+a kmem_cache, but it uses dma_alloc_coherent(), analt __get_free_pages().
 Also, it understands common hardware constraints for alignment,
 like queue heads needing to be aligned on N byte boundaries.
 
@@ -404,19 +404,19 @@ Create a dma_pool like this::
 
 	pool = dma_pool_create(name, dev, size, align, boundary);
 
-The "name" is for diagnostics (like a kmem_cache name); dev and size
+The "name" is for diaganalstics (like a kmem_cache name); dev and size
 are as above.  The device's hardware alignment requirement for this
 type of data is "align" (which is expressed in bytes, and must be a
-power of two).  If your device has no boundary crossing restrictions,
+power of two).  If your device has anal boundary crossing restrictions,
 pass 0 for boundary; passing 4096 says memory allocated from this pool
-must not cross 4KByte boundaries (but at that time it may be better to
+must analt cross 4KByte boundaries (but at that time it may be better to
 use dma_alloc_coherent() directly instead).
 
 Allocate memory from a DMA pool like this::
 
 	cpu_addr = dma_pool_alloc(pool, flags, &dma_handle);
 
-flags are GFP_KERNEL if blocking is permitted (not in_interrupt nor
+flags are GFP_KERNEL if blocking is permitted (analt in_interrupt analr
 holding SMP locks), GFP_ATOMIC otherwise.  Like dma_alloc_coherent(),
 this returns two values, cpu_addr and dma_handle.
 
@@ -433,7 +433,7 @@ Destroy a dma_pool by calling::
 	dma_pool_destroy(pool);
 
 Make sure you've called dma_pool_free() for all memory allocated
-from a pool before you destroy the pool. This function may not
+from a pool before you destroy the pool. This function may analt
 be called in interrupt context.
 
 DMA Direction
@@ -446,9 +446,9 @@ one of the following values::
  DMA_BIDIRECTIONAL
  DMA_TO_DEVICE
  DMA_FROM_DEVICE
- DMA_NONE
+ DMA_ANALNE
 
-You should provide the exact DMA direction if you know it.
+You should provide the exact DMA direction if you kanalw it.
 
 DMA_TO_DEVICE means "from main memory to the device"
 DMA_FROM_DEVICE means "from the device to main memory"
@@ -458,18 +458,18 @@ transfer.
 You are _strongly_ encouraged to specify this as precisely
 as you possibly can.
 
-If you absolutely cannot know the direction of the DMA transfer,
+If you absolutely cananalt kanalw the direction of the DMA transfer,
 specify DMA_BIDIRECTIONAL.  It means that the DMA can go in
 either direction.  The platform guarantees that you may legally
 specify this, and that it will work, but this may be at the
 cost of performance for example.
 
-The value DMA_NONE is to be used for debugging.  One can
-hold this in a data structure before you come to know the
+The value DMA_ANALNE is to be used for debugging.  One can
+hold this in a data structure before you come to kanalw the
 precise direction, and this will help catch cases where your
 direction tracking logic has failed to set things up properly.
 
-Another advantage of specifying this value precisely (outside of
+Aanalther advantage of specifying this value precisely (outside of
 potential platform-specific optimizations of such) is for debugging.
 Some platforms actually have a write permission boolean which DMA
 mappings can be marked with, much like page protections in the user
@@ -530,7 +530,7 @@ You should call dma_unmap_single() when the DMA activity is finished, e.g.,
 from the interrupt which told you that the DMA transfer is done.
 
 Using CPU pointers like this for single mappings has a disadvantage:
-you cannot reference HIGHMEM memory in this way.  Thus, there is a
+you cananalt reference HIGHMEM memory in this way.  Thus, there is a
 map/unmap interface pair akin to dma_{map,unmap}_single().  These
 interfaces deal with page/offset pairs instead of CPU pointers.
 Specifically::
@@ -579,11 +579,11 @@ The implementation is free to merge several consecutive sglist entries
 into one (e.g. if DMA mapping is done with PAGE_SIZE granularity, any
 consecutive sglist entries can be merged into one provided the first one
 ends and the second one starts on a page boundary - in fact this is a huge
-advantage for cards which either cannot do scatter-gather or have very
+advantage for cards which either cananalt do scatter-gather or have very
 limited number of scatter-gather entries) and returns the actual number
 of sg entries it mapped them to. On failure 0 is returned.
 
-Then you should loop count times (note: this can be less than nents times)
+Then you should loop count times (analte: this can be less than nents times)
 and use sg_dma_address() and sg_dma_len() macros where you previously
 accessed sg->address and sg->length as shown above.
 
@@ -593,11 +593,11 @@ To unmap a scatterlist, just call::
 
 Again, make sure DMA activity has already finished.
 
-.. note::
+.. analte::
 
 	The 'nents' argument to the dma_unmap_sg call must be
 	the _same_ one you passed into the dma_map_sg call,
-	it should _NOT_ be the 'count' value _returned_ from the
+	it should _ANALT_ be the 'count' value _returned_ from the
 	dma_map_sg call.
 
 Every dma_map_{single,sg}() call should have its dma_unmap_{single,sg}()
@@ -632,11 +632,11 @@ or::
 
 as appropriate.
 
-.. note::
+.. analte::
 
 	      The 'nents' argument to dma_sync_sg_for_cpu() and
 	      dma_sync_sg_for_device() must be the same passed to
-	      dma_map_sg(). It is _NOT_ the count returned by
+	      dma_map_sg(). It is _ANALT_ the count returned by
 	      dma_map_sg().
 
 After the last DMA transfer call one of the DMA unmap routines
@@ -687,7 +687,7 @@ to use the dma_sync_*() interfaces::
 						cp->rx_len,
 						DMA_FROM_DEVICE);
 
-			/* Now it is safe to examine the buffer. */
+			/* Analw it is safe to examine the buffer. */
 			hp = (struct my_card_header *) cp->rx_buf;
 			if (header_is_ok(hp)) {
 				dma_unmap_single(&cp->dev, cp->rx_dma, cp->rx_len,
@@ -695,10 +695,10 @@ to use the dma_sync_*() interfaces::
 				pass_to_upper_layers(cp->rx_buf);
 				make_and_setup_new_rx_buf(cp);
 			} else {
-				/* CPU should not write to
+				/* CPU should analt write to
 				 * DMA_FROM_DEVICE-mapped area,
 				 * so dma_sync_single_for_device() is
-				 * not needed here. It would be required
+				 * analt needed here. It would be required
 				 * for DMA_BIDIRECTIONAL mapping if
 				 * the memory was modified.
 				 */
@@ -815,7 +815,7 @@ passes the command to the driver again later.
 Optimizing Unmap State Space Consumption
 ========================================
 
-On many platforms, dma_unmap_{single,page}() is simply a nop.
+On many platforms, dma_unmap_{single,page}() is simply a analp.
 Therefore, keeping track of the mapping address and length is a waste
 of space.  Instead of filling your drivers up with ifdefs and the like
 to "work around" this (which would defeat the whole purpose of a
@@ -872,7 +872,7 @@ need the address in order to perform the unmap operation.
 Platform Issues
 ===============
 
-If you are just writing drivers for Linux and do not maintain
+If you are just writing drivers for Linux and do analt maintain
 an architecture port for the kernel, you can safely skip down
 to "Closing".
 
@@ -891,7 +891,7 @@ to "Closing".
    makes sure that kmalloc'ed buffer doesn't share a cache line with
    the others. See arch/arm/include/asm/cache.h as an example.
 
-   Note that ARCH_DMA_MINALIGN is about DMA memory alignment
+   Analte that ARCH_DMA_MINALIGN is about DMA memory alignment
    constraints. You don't need to worry about the architecture data
    alignment constraints (e.g. the alignment constraints about 64-bit
    objects).
@@ -899,9 +899,9 @@ to "Closing".
 Closing
 =======
 
-This document, and the API itself, would not be in its current
+This document, and the API itself, would analt be in its current
 form without the feedback and suggestions from numerous individuals.
-We would like to specifically mention, in no particular order, the
+We would like to specifically mention, in anal particular order, the
 following people::
 
 	Russell King <rmk@arm.linux.org.uk>

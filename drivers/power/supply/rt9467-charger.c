@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  *
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  *         ChiaEn Wu <chiaen_wu@richtek.com>
@@ -248,7 +248,7 @@ enum rt9467_adc_chan {
 };
 
 enum rt9467_chg_type {
-	RT9467_CHG_TYPE_NOVBUS = 0,
+	RT9467_CHG_TYPE_ANALVBUS = 0,
 	RT9467_CHG_TYPE_UNDER_GOING,
 	RT9467_CHG_TYPE_SDP,
 	RT9467_CHG_TYPE_SDPNSTD,
@@ -282,15 +282,15 @@ struct rt9467_chg_data {
 	int ieoc_ua;
 };
 
-static int rt9467_otg_of_parse_cb(struct device_node *of,
+static int rt9467_otg_of_parse_cb(struct device_analde *of,
 				  const struct regulator_desc *desc,
 				  struct regulator_config *cfg)
 {
 	struct rt9467_chg_data *data = cfg->driver_data;
 
-	cfg->ena_gpiod = fwnode_gpiod_get_index(of_fwnode_handle(of),
+	cfg->ena_gpiod = fwanalde_gpiod_get_index(of_fwanalde_handle(of),
 						"enable", 0, GPIOD_OUT_LOW |
-						GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+						GPIOD_FLAGS_BIT_ANALNEXCLUSIVE,
 						desc->name);
 	if (IS_ERR(cfg->ena_gpiod)) {
 		cfg->ena_gpiod = NULL;
@@ -520,7 +520,7 @@ static int rt9467_psy_get_status(struct rt9467_chg_data *data, int *state)
 
 	switch (status) {
 	case RT9467_STAT_READY:
-		*state = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*state = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		return 0;
 	case RT9467_STAT_PROGRESS:
 		*state = POWER_SUPPLY_STATUS_CHARGING;
@@ -529,7 +529,7 @@ static int rt9467_psy_get_status(struct rt9467_chg_data *data, int *state)
 		*state = POWER_SUPPLY_STATUS_FULL;
 		return 0;
 	default:
-		*state = POWER_SUPPLY_STATUS_UNKNOWN;
+		*state = POWER_SUPPLY_STATUS_UNKANALWN;
 		return 0;
 	}
 }
@@ -573,7 +573,7 @@ static int rt9467_run_aicl(struct rt9467_chg_data *data)
 	}
 
 	if (!(statc & RT9467_MASK_PWR_RDY) || !(statc & RT9467_MASK_MIVR_STAT)) {
-		dev_info(data->dev, "Condition not matched %d\n", statc);
+		dev_info(data->dev, "Condition analt matched %d\n", statc);
 		return 0;
 	}
 
@@ -631,7 +631,7 @@ out:
 }
 
 static const enum power_supply_usb_type rt9467_chg_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
 	POWER_SUPPLY_USB_TYPE_CDP,
@@ -665,7 +665,7 @@ static int rt9467_psy_get_property(struct power_supply *psy,
 		return regmap_field_read(data->rm_field[F_PWR_RDY], &val->intval);
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		mutex_lock(&data->attach_lock);
-		if (data->psy_usb_type == POWER_SUPPLY_USB_TYPE_UNKNOWN ||
+		if (data->psy_usb_type == POWER_SUPPLY_USB_TYPE_UNKANALWN ||
 		    data->psy_usb_type == POWER_SUPPLY_USB_TYPE_SDP)
 			val->intval = 500000;
 		else
@@ -710,7 +710,7 @@ static int rt9467_psy_get_property(struct power_supply *psy,
 		mutex_unlock(&data->ichg_ieoc_lock);
 		return 0;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -834,7 +834,7 @@ static int rt9467_register_psy(struct rt9467_chg_data *data)
 {
 	struct power_supply_config cfg = {
 		.drv_data = data,
-		.of_node = dev_of_node(data->dev),
+		.of_analde = dev_of_analde(data->dev),
 		.attr_grp = rt9467_sysfs_groups,
 	};
 
@@ -886,7 +886,7 @@ static irqreturn_t rt9467_statc_handler(int irq, void *priv)
 	ret = regmap_read(data->regmap, RT9467_REG_CHG_STATC, &new_stat);
 	if (ret) {
 		dev_err(data->dev, "Failed to read chg_statc\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	evts = data->old_stat ^ new_stat;
@@ -911,7 +911,7 @@ static irqreturn_t rt9467_wdt_handler(int irq, void *priv)
 	ret = regmap_read(data->regmap, RT9467_REG_DEVICE_ID, &dev_id);
 	if (ret) {
 		dev_err(data->dev, "Failed to kick wdt (%d)\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -929,13 +929,13 @@ static int rt9467_report_usb_state(struct rt9467_chg_data *data)
 		return ret;
 
 	if (!power_ready)
-		usb_stat = RT9467_CHG_TYPE_NOVBUS;
+		usb_stat = RT9467_CHG_TYPE_ANALVBUS;
 
 	mutex_lock(&data->attach_lock);
 
 	switch (usb_stat) {
-	case RT9467_CHG_TYPE_NOVBUS:
-		data->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+	case RT9467_CHG_TYPE_ANALVBUS:
+		data->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 		break;
 	case RT9467_CHG_TYPE_SDP:
 		data->psy_usb_type = POWER_SUPPLY_USB_TYPE_SDP;
@@ -971,7 +971,7 @@ static irqreturn_t rt9467_usb_state_handler(int irq, void *priv)
 	ret = rt9467_report_usb_state(data);
 	if (ret) {
 		dev_err(data->dev, "Failed to report attach type (%d)\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -1130,8 +1130,8 @@ static int rt9467_check_vendor_info(struct rt9467_chg_data *data)
 	}
 
 	if ((vid != RT9466_VID) && (vid != RT9467_VID))
-		return dev_err_probe(data->dev, -ENODEV,
-				     "VID not correct [0x%02X]\n", vid);
+		return dev_err_probe(data->dev, -EANALDEV,
+				     "VID analt correct [0x%02X]\n", vid);
 
 	data->vid = vid;
 	return 0;
@@ -1186,7 +1186,7 @@ static int rt9467_charger_probe(struct i2c_client *i2c)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, data);

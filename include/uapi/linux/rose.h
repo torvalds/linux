@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * These are the public elements of the Linux kernel Rose implementation.
  * For kernel AX.25 see the file ax25.h. This file requires ax25.h for the
@@ -38,7 +38,7 @@
 #define	ROSE_NETWORK_CONGESTION	0x05
 #define	ROSE_OUT_OF_ORDER	0x09
 #define	ROSE_ACCESS_BARRED	0x0B
-#define	ROSE_NOT_OBTAINABLE	0x0D
+#define	ROSE_ANALT_OBTAINABLE	0x0D
 #define	ROSE_REMOTE_PROCEDURE	0x11
 #define	ROSE_LOCAL_PROCEDURE	0x13
 #define	ROSE_SHIP_ABSENT	0x39
@@ -74,7 +74,7 @@ struct rose_route_struct {
 
 struct rose_cause_struct {
 	unsigned char	cause;
-	unsigned char	diagnostic;
+	unsigned char	diaganalstic;
 };
 
 struct rose_facilities_struct {

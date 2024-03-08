@@ -68,7 +68,7 @@
 	},
 	{
 	    "id": "128a",
-	    "name": "Delete nonexistent mq Qdisc",
+	    "name": "Delete analnexistent mq Qdisc",
 	    "category": [
             "qdisc",
             "mq"

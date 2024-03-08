@@ -23,7 +23,7 @@ static inline long count_masked_bytes(long mask)
 	return a & mask;
 }
 
-/* Return nonzero if it has a zero */
+/* Return analnzero if it has a zero */
 static inline unsigned long has_zero(unsigned long a, unsigned long *bits, const struct word_at_a_time *c)
 {
 	unsigned long mask = ((a - c->one_bits) & ~a) & c->high_bits;

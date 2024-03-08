@@ -5,7 +5,7 @@
  * Copyright (c) 2013-2016 Brocade Communications Systems, Inc.
  * Copyright (c) 2016, Microsoft Corporation.
  *
- * Since the driver does not declare any device ids, you must allocate
+ * Since the driver does analt declare any device ids, you must allocate
  * id and bind the device to the driver yourself.  For example:
  *
  * Associate Network GUID with UIO device
@@ -99,7 +99,7 @@ static void hv_uio_channel_cb(void *context)
 	chan->inbound.ring_buffer->interrupt_mask = 1;
 	virt_mb();
 
-	uio_event_notify(&pdata->info);
+	uio_event_analtify(&pdata->info);
 }
 
 /*
@@ -117,7 +117,7 @@ static void hv_uio_rescind(struct vmbus_channel *channel)
 	pdata->info.irq = 0;
 
 	/* Wake up reader */
-	uio_event_notify(&pdata->info);
+	uio_event_analtify(&pdata->info);
 }
 
 /* Sysfs API to allow mmap of the ring buffers
@@ -132,7 +132,7 @@ static int hv_uio_ring_mmap(struct file *filp, struct kobject *kobj,
 	void *ring_buffer = page_address(channel->ringbuffer_page);
 
 	if (channel->state != CHANNEL_OPENED_STATE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return vm_iomap_memory(vma, virt_to_phys(ring_buffer),
 			       channel->ringbuffer_pagecount << PAGE_SHIFT);
@@ -192,7 +192,7 @@ hv_uio_cleanup(struct hv_device *dev, struct hv_uio_private_data *pdata)
 
 /* VMBus primary channel is opened on first use */
 static int
-hv_uio_open(struct uio_info *info, struct inode *inode)
+hv_uio_open(struct uio_info *info, struct ianalde *ianalde)
 {
 	struct hv_uio_private_data *pdata
 		= container_of(info, struct hv_uio_private_data, info);
@@ -217,7 +217,7 @@ hv_uio_open(struct uio_info *info, struct inode *inode)
 
 /* VMBus primary channel is closed on last close */
 static int
-hv_uio_release(struct uio_info *info, struct inode *inode)
+hv_uio_release(struct uio_info *info, struct ianalde *ianalde)
 {
 	struct hv_uio_private_data *pdata
 		= container_of(info, struct hv_uio_private_data, info);
@@ -239,15 +239,15 @@ hv_uio_probe(struct hv_device *dev,
 	void *ring_buffer;
 	int ret;
 
-	/* Communicating with host has to be via shared memory not hypercall */
+	/* Communicating with host has to be via shared memory analt hypercall */
 	if (!channel->offermsg.monitor_allocated) {
 		dev_err(&dev->device, "vmbus channel requires hypercall\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	pdata = devm_kzalloc(&dev->device, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = vmbus_alloc_ring(channel, HV_RING_SIZE * PAGE_SIZE,
 			       HV_RING_SIZE * PAGE_SIZE);
@@ -288,7 +288,7 @@ hv_uio_probe(struct hv_device *dev,
 
 	pdata->recv_buf = vzalloc(RECV_BUFFER_SIZE);
 	if (pdata->recv_buf == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_free_ring;
 	}
 
@@ -310,7 +310,7 @@ hv_uio_probe(struct hv_device *dev,
 
 	pdata->send_buf = vzalloc(SEND_BUFFER_SIZE);
 	if (pdata->send_buf == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_close;
 	}
 
@@ -340,7 +340,7 @@ hv_uio_probe(struct hv_device *dev,
 
 	ret = sysfs_create_bin_file(&channel->kobj, &ring_buffer_bin_attr);
 	if (ret)
-		dev_notice(&dev->device,
+		dev_analtice(&dev->device,
 			   "sysfs create ring bin file failed; %d\n", ret);
 
 	hv_set_drvdata(dev, pdata);

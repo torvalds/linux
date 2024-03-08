@@ -1,7 +1,7 @@
-* APM X-Gene 15Gbps Multi-purpose PHY nodes
+* APM X-Gene 15Gbps Multi-purpose PHY analdes
 
-PHY nodes are defined to describe on-chip 15Gbps Multi-purpose PHY. Each
-PHY (pair of lanes) has its own node.
+PHY analdes are defined to describe on-chip 15Gbps Multi-purpose PHY. Each
+PHY (pair of lanes) has its own analde.
 
 Required properties:
 - compatible		: Shall be "apm,xgene-phy".
@@ -20,8 +20,8 @@ Optional properties:
 			  supported link speed on the host. Range from 0 to
 			  127 in unit of one bit period. Default is 10.
 - apm,tx-eye-direction	: Eye tuning manual control direction. 0 means sample
-			  data earlier than the nominal sampling point. 1 means
-			  sample data later than the nominal sampling point.
+			  data earlier than the analminal sampling point. 1 means
+			  sample data later than the analminal sampling point.
 			  Two set of 3-tuple setting for each (up to 3)
 			  supported link speed on the host. Default is 0.
 - apm,tx-boost-gain	: Frequency boost AC (LSB 3-bit) and DC (2-bit)
@@ -54,7 +54,7 @@ Optional properties:
 			   6 = 5-6Gbps
 			   7 = 6-16Gbps (3rd tuple default)
 
-NOTE: PHY override parameters are board specific setting.
+ANALTE: PHY override parameters are board specific setting.
 
 Example:
 		phy1: phy@1f21a000 {

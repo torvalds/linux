@@ -453,13 +453,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
 	{
 		.id = "INTC10B0",
 		.drv_name = "rpl_lt6911_hdmi_ssp",
-		.sof_tplg_filename = "sof-rpl-nocodec-hdmi-ssp02.tplg"
+		.sof_tplg_filename = "sof-rpl-analcodec-hdmi-ssp02.tplg"
 	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_rpl_machines);
 
-/* this table is used when there is no I2S codec present */
+/* this table is used when there is anal I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_sdw_machines[] = {
 	{
 		.link_mask = 0xF, /* 4 active links required */

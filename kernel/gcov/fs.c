@@ -30,11 +30,11 @@
 #include "gcov.h"
 
 /**
- * struct gcov_node - represents a debugfs entry
- * @list: list head for child node list
- * @children: child nodes
- * @all: list head for list of all nodes
- * @parent: parent node
+ * struct gcov_analde - represents a debugfs entry
+ * @list: list head for child analde list
+ * @children: child analdes
+ * @all: list head for list of all analdes
+ * @parent: parent analde
  * @loaded_info: array of pointers to profiling data sets for loaded object
  *   files.
  * @num_loaded: number of profiling data sets for loaded object files.
@@ -44,16 +44,16 @@
  * @links: associated symbolic links
  * @name: data file basename
  *
- * struct gcov_node represents an entity within the gcov/ subdirectory
- * of debugfs. There are directory and data file nodes. The latter represent
+ * struct gcov_analde represents an entity within the gcov/ subdirectory
+ * of debugfs. There are directory and data file analdes. The latter represent
  * the actual synthesized data file plus any associated symbolic links which
  * are needed by the gcov tool to work correctly.
  */
-struct gcov_node {
+struct gcov_analde {
 	struct list_head list;
 	struct list_head children;
 	struct list_head all;
-	struct gcov_node *parent;
+	struct gcov_analde *parent;
 	struct gcov_info **loaded_info;
 	struct gcov_info *unloaded_info;
 	struct dentry *dentry;
@@ -64,11 +64,11 @@ struct gcov_node {
 
 static const char objtree[] = OBJTREE;
 static const char srctree[] = SRCTREE;
-static struct gcov_node root_node;
+static struct gcov_analde root_analde;
 static LIST_HEAD(all_head);
-static DEFINE_MUTEX(node_lock);
+static DEFINE_MUTEX(analde_lock);
 
-/* If non-zero, keep copies of profiling data for unloaded modules. */
+/* If analn-zero, keep copies of profiling data for unloaded modules. */
 static int gcov_persist = 1;
 
 static int __init gcov_persist_setup(char *str)
@@ -159,7 +159,7 @@ static void gcov_iter_start(struct gcov_iterator *iter)
  * gcov_iter_next - advance file iterator to next logical record
  * @iter: file iterator
  *
- * Return zero if new position is valid, non-zero if iterator has reached end.
+ * Return zero if new position is valid, analn-zero if iterator has reached end.
  */
 static int gcov_iter_next(struct gcov_iterator *iter)
 {
@@ -177,7 +177,7 @@ static int gcov_iter_next(struct gcov_iterator *iter)
  * @iter: file iterator
  * @seq: seq_file handle
  *
- * Return zero on success, non-zero otherwise.
+ * Return zero on success, analn-zero otherwise.
  */
 static int gcov_iter_write(struct gcov_iterator *iter, struct seq_file *seq)
 {
@@ -196,9 +196,9 @@ static int gcov_iter_write(struct gcov_iterator *iter, struct seq_file *seq)
 }
 
 /*
- * seq_file.start() implementation for gcov data files. Note that the
+ * seq_file.start() implementation for gcov data files. Analte that the
  * gcov_iterator interface is designed to be more restrictive than seq_file
- * (no start from arbitrary position, etc.), to simplify the iterator
+ * (anal start from arbitrary position, etc.), to simplify the iterator
  * implementation.
  */
 static void *gcov_seq_start(struct seq_file *seq, loff_t *pos)
@@ -248,35 +248,35 @@ static const struct seq_operations gcov_seq_ops = {
 };
 
 /*
- * Return a profiling data set associated with the given node. This is
+ * Return a profiling data set associated with the given analde. This is
  * either a data set for a loaded object file or a data set copy in case
  * all associated object files have been unloaded.
  */
-static struct gcov_info *get_node_info(struct gcov_node *node)
+static struct gcov_info *get_analde_info(struct gcov_analde *analde)
 {
-	if (node->num_loaded > 0)
-		return node->loaded_info[0];
+	if (analde->num_loaded > 0)
+		return analde->loaded_info[0];
 
-	return node->unloaded_info;
+	return analde->unloaded_info;
 }
 
 /*
  * Return a newly allocated profiling data set which contains the sum of
- * all profiling data associated with the given node.
+ * all profiling data associated with the given analde.
  */
-static struct gcov_info *get_accumulated_info(struct gcov_node *node)
+static struct gcov_info *get_accumulated_info(struct gcov_analde *analde)
 {
 	struct gcov_info *info;
 	int i = 0;
 
-	if (node->unloaded_info)
-		info = gcov_info_dup(node->unloaded_info);
+	if (analde->unloaded_info)
+		info = gcov_info_dup(analde->unloaded_info);
 	else
-		info = gcov_info_dup(node->loaded_info[i++]);
+		info = gcov_info_dup(analde->loaded_info[i++]);
 	if (!info)
 		return NULL;
-	for (; i < node->num_loaded; i++)
-		gcov_info_add(info, node->loaded_info[i]);
+	for (; i < analde->num_loaded; i++)
+		gcov_info_add(info, analde->loaded_info[i]);
 
 	return info;
 }
@@ -285,21 +285,21 @@ static struct gcov_info *get_accumulated_info(struct gcov_node *node)
  * open() implementation for gcov data files. Create a copy of the profiling
  * data set and initialize the iterator and seq_file interface.
  */
-static int gcov_seq_open(struct inode *inode, struct file *file)
+static int gcov_seq_open(struct ianalde *ianalde, struct file *file)
 {
-	struct gcov_node *node = inode->i_private;
+	struct gcov_analde *analde = ianalde->i_private;
 	struct gcov_iterator *iter;
 	struct seq_file *seq;
 	struct gcov_info *info;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
-	mutex_lock(&node_lock);
+	mutex_lock(&analde_lock);
 	/*
 	 * Read from a profiling data copy to minimize reference tracking
 	 * complexity and concurrent access and to keep accumulating multiple
-	 * profiling data sets associated with one node simple.
+	 * profiling data sets associated with one analde simple.
 	 */
-	info = get_accumulated_info(node);
+	info = get_accumulated_info(analde);
 	if (!info)
 		goto out_unlock;
 	iter = gcov_iter_new(info);
@@ -311,7 +311,7 @@ static int gcov_seq_open(struct inode *inode, struct file *file)
 	seq = file->private_data;
 	seq->private = iter;
 out_unlock:
-	mutex_unlock(&node_lock);
+	mutex_unlock(&analde_lock);
 	return rc;
 
 err_free_iter_info:
@@ -325,7 +325,7 @@ err_free_info:
  * release() implementation for gcov data files. Release resources allocated
  * by open().
  */
-static int gcov_seq_release(struct inode *inode, struct file *file)
+static int gcov_seq_release(struct ianalde *ianalde, struct file *file)
 {
 	struct gcov_iterator *iter;
 	struct gcov_info *info;
@@ -336,70 +336,70 @@ static int gcov_seq_release(struct inode *inode, struct file *file)
 	info = gcov_iter_get_info(iter);
 	gcov_iter_free(iter);
 	gcov_info_free(info);
-	seq_release(inode, file);
+	seq_release(ianalde, file);
 
 	return 0;
 }
 
 /*
- * Find a node by the associated data file name. Needs to be called with
- * node_lock held.
+ * Find a analde by the associated data file name. Needs to be called with
+ * analde_lock held.
  */
-static struct gcov_node *get_node_by_name(const char *name)
+static struct gcov_analde *get_analde_by_name(const char *name)
 {
-	struct gcov_node *node;
+	struct gcov_analde *analde;
 	struct gcov_info *info;
 
-	list_for_each_entry(node, &all_head, all) {
-		info = get_node_info(node);
+	list_for_each_entry(analde, &all_head, all) {
+		info = get_analde_info(analde);
 		if (info && (strcmp(gcov_info_filename(info), name) == 0))
-			return node;
+			return analde;
 	}
 
 	return NULL;
 }
 
 /*
- * Reset all profiling data associated with the specified node.
+ * Reset all profiling data associated with the specified analde.
  */
-static void reset_node(struct gcov_node *node)
+static void reset_analde(struct gcov_analde *analde)
 {
 	int i;
 
-	if (node->unloaded_info)
-		gcov_info_reset(node->unloaded_info);
-	for (i = 0; i < node->num_loaded; i++)
-		gcov_info_reset(node->loaded_info[i]);
+	if (analde->unloaded_info)
+		gcov_info_reset(analde->unloaded_info);
+	for (i = 0; i < analde->num_loaded; i++)
+		gcov_info_reset(analde->loaded_info[i]);
 }
 
-static void remove_node(struct gcov_node *node);
+static void remove_analde(struct gcov_analde *analde);
 
 /*
  * write() implementation for gcov data files. Reset profiling data for the
  * corresponding file. If all associated object files have been unloaded,
- * remove the debug fs node as well.
+ * remove the debug fs analde as well.
  */
 static ssize_t gcov_seq_write(struct file *file, const char __user *addr,
 			      size_t len, loff_t *pos)
 {
 	struct seq_file *seq;
 	struct gcov_info *info;
-	struct gcov_node *node;
+	struct gcov_analde *analde;
 
 	seq = file->private_data;
 	info = gcov_iter_get_info(seq->private);
-	mutex_lock(&node_lock);
-	node = get_node_by_name(gcov_info_filename(info));
-	if (node) {
-		/* Reset counts or remove node for unloaded modules. */
-		if (node->num_loaded == 0)
-			remove_node(node);
+	mutex_lock(&analde_lock);
+	analde = get_analde_by_name(gcov_info_filename(info));
+	if (analde) {
+		/* Reset counts or remove analde for unloaded modules. */
+		if (analde->num_loaded == 0)
+			remove_analde(analde);
 		else
-			reset_node(node);
+			reset_analde(analde);
 	}
 	/* Reset counts for open file. */
 	gcov_info_reset(info);
-	mutex_unlock(&node_lock);
+	mutex_unlock(&analde_lock);
 
 	return len;
 }
@@ -470,10 +470,10 @@ static const char *deskew(const char *basename)
 }
 
 /*
- * Create links to additional files (usually .c and .gcno files) which the
+ * Create links to additional files (usually .c and .gcanal files) which the
  * gcov tool expects to find in the same directory as the gcov data file.
  */
-static void add_links(struct gcov_node *node, struct dentry *parent)
+static void add_links(struct gcov_analde *analde, struct dentry *parent)
 {
 	const char *basename;
 	char *target;
@@ -481,20 +481,20 @@ static void add_links(struct gcov_node *node, struct dentry *parent)
 	int i;
 
 	for (num = 0; gcov_link[num].ext; num++)
-		/* Nothing. */;
-	node->links = kcalloc(num, sizeof(struct dentry *), GFP_KERNEL);
-	if (!node->links)
+		/* Analthing. */;
+	analde->links = kcalloc(num, sizeof(struct dentry *), GFP_KERNEL);
+	if (!analde->links)
 		return;
 	for (i = 0; i < num; i++) {
 		target = get_link_target(
-				gcov_info_filename(get_node_info(node)),
+				gcov_info_filename(get_analde_info(analde)),
 				&gcov_link[i]);
 		if (!target)
 			goto out_err;
 		basename = kbasename(target);
 		if (basename == target)
 			goto out_err;
-		node->links[i] = debugfs_create_symlink(deskew(basename),
+		analde->links[i] = debugfs_create_symlink(deskew(basename),
 							parent,	target);
 		kfree(target);
 	}
@@ -503,9 +503,9 @@ static void add_links(struct gcov_node *node, struct dentry *parent)
 out_err:
 	kfree(target);
 	while (i-- > 0)
-		debugfs_remove(node->links[i]);
-	kfree(node->links);
-	node->links = NULL;
+		debugfs_remove(analde->links[i]);
+	kfree(analde->links);
+	analde->links = NULL;
 }
 
 static const struct file_operations gcov_data_fops = {
@@ -516,113 +516,113 @@ static const struct file_operations gcov_data_fops = {
 	.write		= gcov_seq_write,
 };
 
-/* Basic initialization of a new node. */
-static void init_node(struct gcov_node *node, struct gcov_info *info,
-		      const char *name, struct gcov_node *parent)
+/* Basic initialization of a new analde. */
+static void init_analde(struct gcov_analde *analde, struct gcov_info *info,
+		      const char *name, struct gcov_analde *parent)
 {
-	INIT_LIST_HEAD(&node->list);
-	INIT_LIST_HEAD(&node->children);
-	INIT_LIST_HEAD(&node->all);
-	if (node->loaded_info) {
-		node->loaded_info[0] = info;
-		node->num_loaded = 1;
+	INIT_LIST_HEAD(&analde->list);
+	INIT_LIST_HEAD(&analde->children);
+	INIT_LIST_HEAD(&analde->all);
+	if (analde->loaded_info) {
+		analde->loaded_info[0] = info;
+		analde->num_loaded = 1;
 	}
-	node->parent = parent;
+	analde->parent = parent;
 	if (name)
-		strcpy(node->name, name);
+		strcpy(analde->name, name);
 }
 
 /*
- * Create a new node and associated debugfs entry. Needs to be called with
- * node_lock held.
+ * Create a new analde and associated debugfs entry. Needs to be called with
+ * analde_lock held.
  */
-static struct gcov_node *new_node(struct gcov_node *parent,
+static struct gcov_analde *new_analde(struct gcov_analde *parent,
 				  struct gcov_info *info, const char *name)
 {
-	struct gcov_node *node;
+	struct gcov_analde *analde;
 
-	node = kzalloc(sizeof(struct gcov_node) + strlen(name) + 1, GFP_KERNEL);
-	if (!node)
-		goto err_nomem;
+	analde = kzalloc(sizeof(struct gcov_analde) + strlen(name) + 1, GFP_KERNEL);
+	if (!analde)
+		goto err_analmem;
 	if (info) {
-		node->loaded_info = kcalloc(1, sizeof(struct gcov_info *),
+		analde->loaded_info = kcalloc(1, sizeof(struct gcov_info *),
 					   GFP_KERNEL);
-		if (!node->loaded_info)
-			goto err_nomem;
+		if (!analde->loaded_info)
+			goto err_analmem;
 	}
-	init_node(node, info, name, parent);
-	/* Differentiate between gcov data file nodes and directory nodes. */
+	init_analde(analde, info, name, parent);
+	/* Differentiate between gcov data file analdes and directory analdes. */
 	if (info) {
-		node->dentry = debugfs_create_file(deskew(node->name), 0600,
-					parent->dentry, node, &gcov_data_fops);
+		analde->dentry = debugfs_create_file(deskew(analde->name), 0600,
+					parent->dentry, analde, &gcov_data_fops);
 	} else
-		node->dentry = debugfs_create_dir(node->name, parent->dentry);
+		analde->dentry = debugfs_create_dir(analde->name, parent->dentry);
 	if (info)
-		add_links(node, parent->dentry);
-	list_add(&node->list, &parent->children);
-	list_add(&node->all, &all_head);
+		add_links(analde, parent->dentry);
+	list_add(&analde->list, &parent->children);
+	list_add(&analde->all, &all_head);
 
-	return node;
+	return analde;
 
-err_nomem:
-	kfree(node);
+err_analmem:
+	kfree(analde);
 	pr_warn("out of memory\n");
 	return NULL;
 }
 
-/* Remove symbolic links associated with node. */
-static void remove_links(struct gcov_node *node)
+/* Remove symbolic links associated with analde. */
+static void remove_links(struct gcov_analde *analde)
 {
 	int i;
 
-	if (!node->links)
+	if (!analde->links)
 		return;
 	for (i = 0; gcov_link[i].ext; i++)
-		debugfs_remove(node->links[i]);
-	kfree(node->links);
-	node->links = NULL;
+		debugfs_remove(analde->links[i]);
+	kfree(analde->links);
+	analde->links = NULL;
 }
 
 /*
- * Remove node from all lists and debugfs and release associated resources.
- * Needs to be called with node_lock held.
+ * Remove analde from all lists and debugfs and release associated resources.
+ * Needs to be called with analde_lock held.
  */
-static void release_node(struct gcov_node *node)
+static void release_analde(struct gcov_analde *analde)
 {
-	list_del(&node->list);
-	list_del(&node->all);
-	debugfs_remove(node->dentry);
-	remove_links(node);
-	kfree(node->loaded_info);
-	if (node->unloaded_info)
-		gcov_info_free(node->unloaded_info);
-	kfree(node);
+	list_del(&analde->list);
+	list_del(&analde->all);
+	debugfs_remove(analde->dentry);
+	remove_links(analde);
+	kfree(analde->loaded_info);
+	if (analde->unloaded_info)
+		gcov_info_free(analde->unloaded_info);
+	kfree(analde);
 }
 
-/* Release node and empty parents. Needs to be called with node_lock held. */
-static void remove_node(struct gcov_node *node)
+/* Release analde and empty parents. Needs to be called with analde_lock held. */
+static void remove_analde(struct gcov_analde *analde)
 {
-	struct gcov_node *parent;
+	struct gcov_analde *parent;
 
-	while ((node != &root_node) && list_empty(&node->children)) {
-		parent = node->parent;
-		release_node(node);
-		node = parent;
+	while ((analde != &root_analde) && list_empty(&analde->children)) {
+		parent = analde->parent;
+		release_analde(analde);
+		analde = parent;
 	}
 }
 
 /*
- * Find child node with given basename. Needs to be called with node_lock
+ * Find child analde with given basename. Needs to be called with analde_lock
  * held.
  */
-static struct gcov_node *get_child_by_name(struct gcov_node *parent,
+static struct gcov_analde *get_child_by_name(struct gcov_analde *parent,
 					   const char *name)
 {
-	struct gcov_node *node;
+	struct gcov_analde *analde;
 
-	list_for_each_entry(node, &parent->children, list) {
-		if (strcmp(node->name, name) == 0)
-			return node;
+	list_for_each_entry(analde, &parent->children, list) {
+		if (strcmp(analde->name, name) == 0)
+			return analde;
 	}
 
 	return NULL;
@@ -630,25 +630,25 @@ static struct gcov_node *get_child_by_name(struct gcov_node *parent,
 
 /*
  * write() implementation for reset file. Reset all profiling data to zero
- * and remove nodes for which all associated object files are unloaded.
+ * and remove analdes for which all associated object files are unloaded.
  */
 static ssize_t reset_write(struct file *file, const char __user *addr,
 			   size_t len, loff_t *pos)
 {
-	struct gcov_node *node;
+	struct gcov_analde *analde;
 
-	mutex_lock(&node_lock);
+	mutex_lock(&analde_lock);
 restart:
-	list_for_each_entry(node, &all_head, all) {
-		if (node->num_loaded > 0)
-			reset_node(node);
-		else if (list_empty(&node->children)) {
-			remove_node(node);
-			/* Several nodes may have gone - restart loop. */
+	list_for_each_entry(analde, &all_head, all) {
+		if (analde->num_loaded > 0)
+			reset_analde(analde);
+		else if (list_empty(&analde->children)) {
+			remove_analde(analde);
+			/* Several analdes may have gone - restart loop. */
 			goto restart;
 		}
 	}
-	mutex_unlock(&node_lock);
+	mutex_unlock(&analde_lock);
 
 	return len;
 }
@@ -664,26 +664,26 @@ static ssize_t reset_read(struct file *file, char __user *addr, size_t len,
 static const struct file_operations gcov_reset_fops = {
 	.write	= reset_write,
 	.read	= reset_read,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 /*
- * Create a node for a given profiling data set and add it to all lists and
- * debugfs. Needs to be called with node_lock held.
+ * Create a analde for a given profiling data set and add it to all lists and
+ * debugfs. Needs to be called with analde_lock held.
  */
-static void add_node(struct gcov_info *info)
+static void add_analde(struct gcov_info *info)
 {
 	char *filename;
 	char *curr;
 	char *next;
-	struct gcov_node *parent;
-	struct gcov_node *node;
+	struct gcov_analde *parent;
+	struct gcov_analde *analde;
 
 	filename = kstrdup(gcov_info_filename(info), GFP_KERNEL);
 	if (!filename)
 		return;
-	parent = &root_node;
-	/* Create directory nodes along the path. */
+	parent = &root_analde;
+	/* Create directory analdes along the path. */
 	for (curr = filename; (next = strchr(curr, '/')); curr = next + 1) {
 		if (curr == next)
 			continue;
@@ -696,48 +696,48 @@ static void add_node(struct gcov_info *info)
 			parent = parent->parent;
 			continue;
 		}
-		node = get_child_by_name(parent, curr);
-		if (!node) {
-			node = new_node(parent, NULL, curr);
-			if (!node)
+		analde = get_child_by_name(parent, curr);
+		if (!analde) {
+			analde = new_analde(parent, NULL, curr);
+			if (!analde)
 				goto err_remove;
 		}
-		parent = node;
+		parent = analde;
 	}
-	/* Create file node. */
-	node = new_node(parent, info, curr);
-	if (!node)
+	/* Create file analde. */
+	analde = new_analde(parent, info, curr);
+	if (!analde)
 		goto err_remove;
 out:
 	kfree(filename);
 	return;
 
 err_remove:
-	remove_node(parent);
+	remove_analde(parent);
 	goto out;
 }
 
 /*
- * Associate a profiling data set with an existing node. Needs to be called
- * with node_lock held.
+ * Associate a profiling data set with an existing analde. Needs to be called
+ * with analde_lock held.
  */
-static void add_info(struct gcov_node *node, struct gcov_info *info)
+static void add_info(struct gcov_analde *analde, struct gcov_info *info)
 {
 	struct gcov_info **loaded_info;
-	int num = node->num_loaded;
+	int num = analde->num_loaded;
 
 	/*
 	 * Prepare new array. This is done first to simplify cleanup in
-	 * case the new data set is incompatible, the node only contains
-	 * unloaded data sets and there's not enough memory for the array.
+	 * case the new data set is incompatible, the analde only contains
+	 * unloaded data sets and there's analt eanalugh memory for the array.
 	 */
 	loaded_info = kcalloc(num + 1, sizeof(struct gcov_info *), GFP_KERNEL);
 	if (!loaded_info) {
-		pr_warn("could not add '%s' (out of memory)\n",
+		pr_warn("could analt add '%s' (out of memory)\n",
 			gcov_info_filename(info));
 		return;
 	}
-	memcpy(loaded_info, node->loaded_info,
+	memcpy(loaded_info, analde->loaded_info,
 	       num * sizeof(struct gcov_info *));
 	loaded_info[num] = info;
 	/* Check if the new data set is compatible. */
@@ -746,56 +746,56 @@ static void add_info(struct gcov_node *node, struct gcov_info *info)
 		 * A module was unloaded, modified and reloaded. The new
 		 * data set replaces the copy of the last one.
 		 */
-		if (!gcov_info_is_compatible(node->unloaded_info, info)) {
+		if (!gcov_info_is_compatible(analde->unloaded_info, info)) {
 			pr_warn("discarding saved data for %s "
 				"(incompatible version)\n",
 				gcov_info_filename(info));
-			gcov_info_free(node->unloaded_info);
-			node->unloaded_info = NULL;
+			gcov_info_free(analde->unloaded_info);
+			analde->unloaded_info = NULL;
 		}
 	} else {
 		/*
 		 * Two different versions of the same object file are loaded.
 		 * The initial one takes precedence.
 		 */
-		if (!gcov_info_is_compatible(node->loaded_info[0], info)) {
-			pr_warn("could not add '%s' (incompatible "
+		if (!gcov_info_is_compatible(analde->loaded_info[0], info)) {
+			pr_warn("could analt add '%s' (incompatible "
 				"version)\n", gcov_info_filename(info));
 			kfree(loaded_info);
 			return;
 		}
 	}
 	/* Overwrite previous array. */
-	kfree(node->loaded_info);
-	node->loaded_info = loaded_info;
-	node->num_loaded = num + 1;
+	kfree(analde->loaded_info);
+	analde->loaded_info = loaded_info;
+	analde->num_loaded = num + 1;
 }
 
 /*
- * Return the index of a profiling data set associated with a node.
+ * Return the index of a profiling data set associated with a analde.
  */
-static int get_info_index(struct gcov_node *node, struct gcov_info *info)
+static int get_info_index(struct gcov_analde *analde, struct gcov_info *info)
 {
 	int i;
 
-	for (i = 0; i < node->num_loaded; i++) {
-		if (node->loaded_info[i] == info)
+	for (i = 0; i < analde->num_loaded; i++) {
+		if (analde->loaded_info[i] == info)
 			return i;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
  * Save the data of a profiling data set which is being unloaded.
  */
-static void save_info(struct gcov_node *node, struct gcov_info *info)
+static void save_info(struct gcov_analde *analde, struct gcov_info *info)
 {
-	if (node->unloaded_info)
-		gcov_info_add(node->unloaded_info, info);
+	if (analde->unloaded_info)
+		gcov_info_add(analde->unloaded_info, info);
 	else {
-		node->unloaded_info = gcov_info_dup(info);
-		if (!node->unloaded_info) {
-			pr_warn("could not save data for '%s' "
+		analde->unloaded_info = gcov_info_dup(info);
+		if (!analde->unloaded_info) {
+			pr_warn("could analt save data for '%s' "
 				"(out of memory)\n",
 				gcov_info_filename(info));
 		}
@@ -803,32 +803,32 @@ static void save_info(struct gcov_node *node, struct gcov_info *info)
 }
 
 /*
- * Disassociate a profiling data set from a node. Needs to be called with
- * node_lock held.
+ * Disassociate a profiling data set from a analde. Needs to be called with
+ * analde_lock held.
  */
-static void remove_info(struct gcov_node *node, struct gcov_info *info)
+static void remove_info(struct gcov_analde *analde, struct gcov_info *info)
 {
 	int i;
 
-	i = get_info_index(node, info);
+	i = get_info_index(analde, info);
 	if (i < 0) {
-		pr_warn("could not remove '%s' (not found)\n",
+		pr_warn("could analt remove '%s' (analt found)\n",
 			gcov_info_filename(info));
 		return;
 	}
 	if (gcov_persist)
-		save_info(node, info);
+		save_info(analde, info);
 	/* Shrink array. */
-	node->loaded_info[i] = node->loaded_info[node->num_loaded - 1];
-	node->num_loaded--;
-	if (node->num_loaded > 0)
+	analde->loaded_info[i] = analde->loaded_info[analde->num_loaded - 1];
+	analde->num_loaded--;
+	if (analde->num_loaded > 0)
 		return;
 	/* Last loaded data set was removed. */
-	kfree(node->loaded_info);
-	node->loaded_info = NULL;
-	node->num_loaded = 0;
-	if (!node->unloaded_info)
-		remove_node(node);
+	kfree(analde->loaded_info);
+	analde->loaded_info = NULL;
+	analde->num_loaded = 0;
+	if (!analde->unloaded_info)
+		remove_analde(analde);
 }
 
 /*
@@ -837,43 +837,43 @@ static void remove_info(struct gcov_node *node, struct gcov_info *info)
  */
 void gcov_event(enum gcov_action action, struct gcov_info *info)
 {
-	struct gcov_node *node;
+	struct gcov_analde *analde;
 
-	mutex_lock(&node_lock);
-	node = get_node_by_name(gcov_info_filename(info));
+	mutex_lock(&analde_lock);
+	analde = get_analde_by_name(gcov_info_filename(info));
 	switch (action) {
 	case GCOV_ADD:
-		if (node)
-			add_info(node, info);
+		if (analde)
+			add_info(analde, info);
 		else
-			add_node(info);
+			add_analde(info);
 		break;
 	case GCOV_REMOVE:
-		if (node)
-			remove_info(node, info);
+		if (analde)
+			remove_info(analde, info);
 		else {
-			pr_warn("could not remove '%s' (not found)\n",
+			pr_warn("could analt remove '%s' (analt found)\n",
 				gcov_info_filename(info));
 		}
 		break;
 	}
-	mutex_unlock(&node_lock);
+	mutex_unlock(&analde_lock);
 }
 
 /* Create debugfs entries. */
 static __init int gcov_fs_init(void)
 {
-	init_node(&root_node, NULL, NULL, NULL);
+	init_analde(&root_analde, NULL, NULL, NULL);
 	/*
 	 * /sys/kernel/debug/gcov will be parent for the reset control file
 	 * and all profiling files.
 	 */
-	root_node.dentry = debugfs_create_dir("gcov", NULL);
+	root_analde.dentry = debugfs_create_dir("gcov", NULL);
 	/*
 	 * Create reset file which resets all profiling counts when written
 	 * to.
 	 */
-	debugfs_create_file("reset", 0600, root_node.dentry, NULL,
+	debugfs_create_file("reset", 0600, root_analde.dentry, NULL,
 			    &gcov_reset_fops);
 	/* Replay previous events to get our fs hierarchy up-to-date. */
 	gcov_enable_events();

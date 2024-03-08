@@ -69,9 +69,9 @@ struct xe_reg_sr;
 /**
  * XE_RTP_RULE_GRAPHICS_STEP - Create rule matching graphics stepping
  * @start_: First stepping matching the rule
- * @end_: First stepping that does not match the rule
+ * @end_: First stepping that does analt match the rule
  *
- * Note that the range matching this rule is [ @start_, @end_ ), i.e. inclusive
+ * Analte that the range matching this rule is [ @start_, @end_ ), i.e. inclusive
  * on the left, exclusive on the right.
  *
  * Refer to XE_RTP_RULES() for expected usage.
@@ -82,9 +82,9 @@ struct xe_reg_sr;
 /**
  * XE_RTP_RULE_MEDIA_STEP - Create rule matching media stepping
  * @start_: First stepping matching the rule
- * @end_: First stepping that does not match the rule
+ * @end_: First stepping that does analt match the rule
  *
- * Note that the range matching this rule is [ @start_, @end_ ), i.e. inclusive
+ * Analte that the range matching this rule is [ @start_, @end_ ), i.e. inclusive
  * on the left, exclusive on the right.
  *
  * Refer to XE_RTP_RULES() for expected usage.
@@ -130,7 +130,7 @@ struct xe_reg_sr;
  * @ver_start__: First graphics IP version to match
  * @ver_end__: Last graphics IP version to match
  *
- * Note that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
+ * Analte that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
  * inclusive on boths sides
  *
  * Refer to XE_RTP_RULES() for expected usage.
@@ -154,7 +154,7 @@ struct xe_reg_sr;
  * @ver_start__: First media IP version to match
  * @ver_end__: Last media IP version to match
  *
- * Note that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
+ * Analte that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
  * inclusive on boths sides
  *
  * Refer to XE_RTP_RULES() for expected usage.
@@ -186,7 +186,7 @@ struct xe_reg_sr;
  * @val_: Value to set
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
- * The correspondent notation in bspec is:
+ * The correspondent analtation in bspec is:
  *
  *	REGNAME = VALUE
  */
@@ -202,7 +202,7 @@ struct xe_reg_sr;
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * For masked registers this translates to a single write, while for other
- * registers it's a RMW. The correspondent bspec notation is (example for bits 2
+ * registers it's a RMW. The correspondent bspec analtation is (example for bits 2
  * and 5, but could be any):
  *
  *	REGNAME[2] = 1
@@ -220,7 +220,7 @@ struct xe_reg_sr;
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * For masked registers this translates to a single write, while for other
- * registers it's a RMW. The correspondent bspec notation is (example for bits 2
+ * registers it's a RMW. The correspondent bspec analtation is (example for bits 2
  * and 5, but could be any):
  *
  *	REGNAME[2] = 0
@@ -235,11 +235,11 @@ struct xe_reg_sr;
  * XE_RTP_ACTION_FIELD_SET: Set a bit range
  * @reg_: Register
  * @mask_bits_: Mask of bits to be changed in the register, forming a field
- * @val_: Value to set in the field denoted by @mask_bits_
+ * @val_: Value to set in the field deanalted by @mask_bits_
  * @...: Additional fields to override in the struct xe_rtp_action entry
  *
  * For masked registers this translates to a single write, while for other
- * registers it's a RMW. The correspondent bspec notation is:
+ * registers it's a RMW. The correspondent bspec analtation is:
  *
  *	REGNAME[<end>:<start>] = VALUE
  */
@@ -248,7 +248,7 @@ struct xe_reg_sr;
 	  .clr_bits = mask_bits_, .set_bits = val_,				\
 	  .read_mask = mask_bits_, ##__VA_ARGS__ }
 
-#define XE_RTP_ACTION_FIELD_SET_NO_READ_MASK(reg_, mask_bits_, val_, ...)	\
+#define XE_RTP_ACTION_FIELD_SET_ANAL_READ_MASK(reg_, mask_bits_, val_, ...)	\
 	{ .reg = XE_RTP_DROP_CAST(reg_),					\
 	  .clr_bits = (mask_bits_), .set_bits = (val_),				\
 	  .read_mask = 0, ##__VA_ARGS__ }
@@ -263,10 +263,10 @@ struct xe_reg_sr;
  * regular user privileges.
  */
 #define XE_RTP_ACTION_WHITELIST(reg_, val_, ...)				\
-	/* TODO fail build if ((flags) & ~(RING_FORCE_TO_NONPRIV_MASK_VALID)) */\
+	/* TODO fail build if ((flags) & ~(RING_FORCE_TO_ANALNPRIV_MASK_VALID)) */\
 	{ .reg = XE_RTP_DROP_CAST(reg_),					\
 	  .set_bits = val_,							\
-	  .clr_bits = RING_FORCE_TO_NONPRIV_MASK_VALID,				\
+	  .clr_bits = RING_FORCE_TO_ANALNPRIV_MASK_VALID,				\
 	  ##__VA_ARGS__ }
 
 /**

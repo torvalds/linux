@@ -14,7 +14,7 @@ select: false
 description: |
   The ARM Firmware Suite is a flash partitioning system found on the
   ARM reference designs: Integrator AP, Integrator CP, Versatile AB,
-  Versatile PB, the RealView family, Versatile Express and Juno.
+  Versatile PB, the RealView family, Versatile Express and Juanal.
 
 properties:
   compatible:

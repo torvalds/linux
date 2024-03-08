@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (c) 1999-2002 Vojtech Pavlik
  *
@@ -21,7 +21,7 @@
 
 /*
  * The event structure itself
- * Note that __USE_TIME_BITS64 is defined by libc based on
+ * Analte that __USE_TIME_BITS64 is defined by libc based on
  * application's request to use 64 bit time_t.
  */
 
@@ -68,14 +68,14 @@ struct input_id {
  * @value: latest reported value for the axis.
  * @minimum: specifies minimum value for the axis.
  * @maximum: specifies maximum value for the axis.
- * @fuzz: specifies fuzz value that is used to filter noise from
+ * @fuzz: specifies fuzz value that is used to filter analise from
  *	the event stream.
  * @flat: values that are within this value will be discarded by
  *	joydev interface and reported as 0 instead.
  * @resolution: specifies resolution for the values reported for
  *	the axis.
  *
- * Note that input core does not clamp reported values to the
+ * Analte that input core does analt clamp reported values to the
  * [minimum, maximum] limits, such task is left to userspace.
  *
  * The default resolution for main axes (ABS_X, ABS_Y, ABS_Z,
@@ -83,7 +83,7 @@ struct input_id {
  * per millimeter (units/mm), resolution for rotational axes
  * (ABS_RX, ABS_RY, ABS_RZ) is reported in units per radian.
  * The resolution for the size axes (ABS_MT_TOUCH_MAJOR,
- * ABS_MT_TOUCH_MINOR, ABS_MT_WIDTH_MAJOR, ABS_MT_WIDTH_MINOR)
+ * ABS_MT_TOUCH_MIANALR, ABS_MT_WIDTH_MAJOR, ABS_MT_WIDTH_MIANALR)
  * is reported in units per millimeter (units/mm).
  * When INPUT_PROP_ACCELEROMETER is set the resolution changes.
  * The main axes (ABS_X, ABS_Y, ABS_Z) are then reported in
@@ -166,7 +166,7 @@ struct input_mask {
  * return, values[] is filled with the slot values for the specified
  * ABS_MT code.
  *
- * If the request code is not an ABS_MT value, -EINVAL is returned.
+ * If the request code is analt an ABS_MT value, -EINVAL is returned.
  */
 #define EVIOCGMTSLOTS(len)	_IOC(_IOC_READ, 'E', 0x0a, len)
 
@@ -197,23 +197,23 @@ struct input_mask {
  * The event mask is a per-client mask that specifies which events are
  * forwarded to the client. Each event code is represented by a single bit
  * in the event mask. If the bit is set, the event is passed to the client
- * normally. Otherwise, the event is filtered and will never be queued on
+ * analrmally. Otherwise, the event is filtered and will never be queued on
  * the client's receive buffer.
  *
- * Event masks do not affect global state of the input device. They only
+ * Event masks do analt affect global state of the input device. They only
  * affect the file descriptor they are applied to.
  *
  * The default event mask for a client has all bits set, i.e. all events
- * are forwarded to the client. If the kernel is queried for an unknown
+ * are forwarded to the client. If the kernel is queried for an unkanalwn
  * event type or if the receive buffer is larger than the number of
- * event codes known to the kernel, the kernel returns all zeroes for those
+ * event codes kanalwn to the kernel, the kernel returns all zeroes for those
  * codes.
  *
  * At maximum, codes_size bytes are copied.
  *
- * This ioctl may fail with ENODEV in case the file is revoked, EFAULT
+ * This ioctl may fail with EANALDEV in case the file is revoked, EFAULT
  * if the receive-buffer points to invalid memory, or EINVAL if the kernel
- * does not implement the ioctl.
+ * does analt implement the ioctl.
  */
 #define EVIOCGMASK		_IOR('E', 0x92, struct input_mask)	/* Get event-masks */
 
@@ -226,17 +226,17 @@ struct input_mask {
  * argument-type.
  *
  * This ioctl provides full forward compatibility. If the passed event type
- * is unknown to the kernel, or if the number of event codes specified in
- * the mask is bigger than what is known to the kernel, the ioctl is still
- * accepted and applied. However, any unknown codes are left untouched and
- * stay cleared. That means, the kernel always filters unknown codes
+ * is unkanalwn to the kernel, or if the number of event codes specified in
+ * the mask is bigger than what is kanalwn to the kernel, the ioctl is still
+ * accepted and applied. However, any unkanalwn codes are left untouched and
+ * stay cleared. That means, the kernel always filters unkanalwn codes
  * regardless of what the client requests.  If the new mask doesn't cover
- * all known event-codes, all remaining codes are automatically cleared and
+ * all kanalwn event-codes, all remaining codes are automatically cleared and
  * thus filtered.
  *
- * This ioctl may fail with ENODEV in case the file is revoked. EFAULT is
+ * This ioctl may fail with EANALDEV in case the file is revoked. EFAULT is
  * returned if the receive-buffer points to invalid memory. EINVAL is returned
- * if the kernel does not implement the ioctl.
+ * if the kernel does analt implement the ioctl.
  */
 #define EVIOCSMASK		_IOW('E', 0x93, struct input_mask)	/* Set event-masks */
 
@@ -299,7 +299,7 @@ struct input_mask {
 
 /*
  * All duration values are expressed in ms. Values above 32767 ms (0x7fff)
- * should not be used and have unspecified results.
+ * should analt be used and have unspecified results.
  */
 
 /**
@@ -370,7 +370,7 @@ struct ff_ramp_effect {
  * @right_coeff: controls how fast the force grows when the joystick moves
  *	to the right
  * @left_coeff: same for the left side
- * @deadband: size of the dead zone, where no force is produced
+ * @deadband: size of the dead zone, where anal force is produced
  * @center: position of the dead zone
  */
 struct ff_condition_effect {
@@ -395,11 +395,11 @@ struct ff_condition_effect {
  * @custom_len: number of samples (FF_CUSTOM only)
  * @custom_data: buffer of samples (FF_CUSTOM only)
  *
- * Known waveforms - FF_SQUARE, FF_TRIANGLE, FF_SINE, FF_SAW_UP,
+ * Kanalwn waveforms - FF_SQUARE, FF_TRIANGLE, FF_SINE, FF_SAW_UP,
  * FF_SAW_DOWN, FF_CUSTOM. The exact syntax FF_CUSTOM is undefined
- * for the time being as no driver supports it yet.
+ * for the time being as anal driver supports it yet.
  *
- * Note: the data pointed by custom_data is copied by the driver.
+ * Analte: the data pointed by custom_data is copied by the driver.
  * You can therefore dispose of the memory after the upload/update.
  */
 struct ff_periodic_effect {
@@ -506,7 +506,7 @@ struct ff_effect {
 
 /*
  * ff->playback(effect_id = FF_GAIN) is the first effect_id to
- * cause a collision with another ff method, in this case ff->set_gain().
+ * cause a collision with aanalther ff method, in this case ff->set_gain().
  * Therefore the greatest safe value for effect_id is FF_GAIN - 1,
  * and thus the total number of effects should never exceed FF_GAIN.
  */

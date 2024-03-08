@@ -15,7 +15,7 @@ config ECRYPT_FS
 	  module will be called ecryptfs.
 
 config ECRYPT_FS_MESSAGING
-	bool "Enable notifications for userspace key wrap/unwrap"
+	bool "Enable analtifications for userspace key wrap/unwrap"
 	depends on ECRYPT_FS
 	help
 	  Enables the /dev/ecryptfs entry for use by ecryptfsd. This allows

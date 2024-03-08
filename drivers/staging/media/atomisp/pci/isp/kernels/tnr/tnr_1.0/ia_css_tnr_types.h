@@ -17,16 +17,16 @@
 #define __IA_CSS_TNR_TYPES_H
 
 /* @file
-* CSS-API header file for Temporal Noise Reduction (TNR) parameters.
+* CSS-API header file for Temporal Analise Reduction (TNR) parameters.
 */
 
-/* Temporal Noise Reduction (TNR) configuration.
+/* Temporal Analise Reduction (TNR) configuration.
  *
  *  When difference between current frame and previous frame is less than or
  *  equal to threshold, TNR works and current frame is mixed
  *  with previous frame.
  *  When difference between current frame and previous frame is greater
- *  than threshold, we judge motion is detected. Then, TNR does not work and
+ *  than threshold, we judge motion is detected. Then, TNR does analt work and
  *  current frame is outputted as it is.
  *  Therefore, when threshold_y and threshold_uv are set as 0, TNR can be disabled.
  *

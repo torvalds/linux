@@ -6,17 +6,17 @@
  * Copyright (C) 2012 John Crispin <john@phrozen.org>
  * Copyright (C) 2017 - 2019 Hauke Mehrtens <hauke@hauke-m.de>
  *
- * The VLAN and bridge model the GSWIP hardware uses does not directly
+ * The VLAN and bridge model the GSWIP hardware uses does analt directly
  * matches the model DSA uses.
  *
  * The hardware has 64 possible table entries for bridges with one VLAN
  * ID, one flow id and a list of ports for each bridge. All entries which
  * match the same flow ID are combined in the mac learning table, they
  * act as one global bridge.
- * The hardware does not support VLAN filter on the port, but on the
+ * The hardware does analt support VLAN filter on the port, but on the
  * bridge, this driver converts the DSA model to the hardware.
  *
- * The CPU gets all the exception frames which do not match any forwarding
+ * The CPU gets all the exception frames which do analt match any forwarding
  * rule and the CPU port is also added to all bridges. This makes it possible
  * to handle all the special cases easily in software.
  * At the initialization the driver allocates one bridge table entry for
@@ -168,7 +168,7 @@
 #define  GSWIP_PCE_TBL_CTRL_ADDR_MASK	GENMASK(4, 0)
 #define GSWIP_PCE_PMAP1			0x453	/* Monitoring port map */
 #define GSWIP_PCE_PMAP2			0x454	/* Default Multicast port map */
-#define GSWIP_PCE_PMAP3			0x455	/* Default Unknown Unicast port map */
+#define GSWIP_PCE_PMAP3			0x455	/* Default Unkanalwn Unicast port map */
 #define GSWIP_PCE_GCTRL_0		0x456
 #define  GSWIP_PCE_GCTRL_0_MTFL		BIT(0)  /* MAC Table Flushing */
 #define  GSWIP_PCE_GCTRL_0_MC_VALID	BIT(3)
@@ -187,7 +187,7 @@
 #define  GSWIP_PCE_PCTRL_0_PSTATE_FORWARDING	0x7
 #define  GSWIP_PCE_PCTRL_0_PSTATE_MASK	GENMASK(2, 0)
 #define GSWIP_PCE_VCTRL(p)		(0x485 + ((p) * 0xA))
-#define  GSWIP_PCE_VCTRL_UVR		BIT(0)	/* Unknown VLAN Rule */
+#define  GSWIP_PCE_VCTRL_UVR		BIT(0)	/* Unkanalwn VLAN Rule */
 #define  GSWIP_PCE_VCTRL_VIMR		BIT(3)	/* VLAN Ingress Member violation rule */
 #define  GSWIP_PCE_VCTRL_VEMR		BIT(4)	/* VLAN Egress Member violation rule */
 #define  GSWIP_PCE_VCTRL_VSR		BIT(5)	/* VLAN Security */
@@ -203,7 +203,7 @@
 #define  GSWIP_MAC_CTRL_0_FCON_RX	0x0010
 #define  GSWIP_MAC_CTRL_0_FCON_TX	0x0020
 #define  GSWIP_MAC_CTRL_0_FCON_RXTX	0x0030
-#define  GSWIP_MAC_CTRL_0_FCON_NONE	0x0040
+#define  GSWIP_MAC_CTRL_0_FCON_ANALNE	0x0040
 #define  GSWIP_MAC_CTRL_0_FDUP_MASK	0x000C
 #define  GSWIP_MAC_CTRL_0_FDUP_AUTO	0x0000
 #define  GSWIP_MAC_CTRL_0_FDUP_EN	0x0004
@@ -236,7 +236,7 @@
 #define GSWIP_TABLE_ACTIVE_VLAN		0x01
 #define GSWIP_TABLE_VLAN_MAPPING	0x02
 #define GSWIP_TABLE_MAC_BRIDGE		0x0b
-#define  GSWIP_TABLE_MAC_BRIDGE_STATIC	0x01	/* Static not, aging entry */
+#define  GSWIP_TABLE_MAC_BRIDGE_STATIC	0x01	/* Static analt, aging entry */
 
 #define XRX200_GPHY_FW_ALIGN	(16 * 1024)
 
@@ -310,7 +310,7 @@ struct gswip_rmon_cnt_desc {
 #define MIB_DESC(_size, _offset, _name) {.size = _size, .offset = _offset, .name = _name}
 
 static const struct gswip_rmon_cnt_desc gswip_rmon_cnt[] = {
-	/** Receive Packet Count (only packets that are accepted and not discarded). */
+	/** Receive Packet Count (only packets that are accepted and analt discarded). */
 	MIB_DESC(1, 0x1F, "RxGoodPkts"),
 	MIB_DESC(1, 0x23, "RxUnicastPkts"),
 	MIB_DESC(1, 0x22, "RxMulticastPkts"),
@@ -424,7 +424,7 @@ static void gswip_mii_mask(struct gswip_priv *priv, u32 clear, u32 set,
 static void gswip_mii_mask_cfg(struct gswip_priv *priv, u32 clear, u32 set,
 			       int port)
 {
-	/* There's no MII_CFG register for the CPU port */
+	/* There's anal MII_CFG register for the CPU port */
 	if (!dsa_is_cpu_port(priv->ds, port))
 		gswip_mii_mask(priv, clear, set, GSWIP_MII_CFGp(port));
 }
@@ -507,19 +507,19 @@ static int gswip_mdio_rd(struct mii_bus *bus, int addr, int reg)
 
 static int gswip_mdio(struct gswip_priv *priv)
 {
-	struct device_node *mdio_np, *switch_np = priv->dev->of_node;
+	struct device_analde *mdio_np, *switch_np = priv->dev->of_analde;
 	struct device *dev = priv->dev;
 	struct mii_bus *bus;
 	int err = 0;
 
 	mdio_np = of_get_compatible_child(switch_np, "lantiq,xrx200-mdio");
 	if (!of_device_is_available(mdio_np))
-		goto out_put_node;
+		goto out_put_analde;
 
 	bus = devm_mdiobus_alloc(dev);
 	if (!bus) {
-		err = -ENOMEM;
-		goto out_put_node;
+		err = -EANALMEM;
+		goto out_put_analde;
 	}
 
 	bus->priv = priv;
@@ -531,8 +531,8 @@ static int gswip_mdio(struct gswip_priv *priv)
 
 	err = devm_of_mdiobus_register(dev, bus, mdio_np);
 
-out_put_node:
-	of_node_put(mdio_np);
+out_put_analde:
+	of_analde_put(mdio_np);
 
 	return err;
 }
@@ -645,7 +645,7 @@ static int gswip_pce_table_entry_write(struct gswip_priv *priv,
 
 /* Add the LAN port into a bridge with the CPU port by
  * default. This prevents automatic forwarding of
- * packages between the LAN ports when no explicit
+ * packages between the LAN ports when anal explicit
  * bridge is configured.
  */
 static int gswip_add_single_port_br(struct gswip_priv *priv, int port, bool add)
@@ -784,10 +784,10 @@ static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
 	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
 
-	/* Do not allow changing the VLAN filtering options while in bridge */
+	/* Do analt allow changing the VLAN filtering options while in bridge */
 	if (bridge && !!(priv->port_vlan_filter & BIT(port)) != vlan_filtering) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Dynamic toggling of vlan_filtering not supported");
+				   "Dynamic toggling of vlan_filtering analt supported");
 		return -EIO;
 	}
 
@@ -840,7 +840,7 @@ static int gswip_setup(struct dsa_switch *ds)
 		return err;
 	}
 
-	/* Default unknown Broadcast/Multicast/Unicast port maps */
+	/* Default unkanalwn Broadcast/Multicast/Unicast port maps */
 	gswip_switch_w(priv, BIT(cpu_port), GSWIP_PCE_PMAP1);
 	gswip_switch_w(priv, BIT(cpu_port), GSWIP_PCE_PMAP2);
 	gswip_switch_w(priv, BIT(cpu_port), GSWIP_PCE_PMAP3);
@@ -852,12 +852,12 @@ static int gswip_setup(struct dsa_switch *ds)
 	 * as well as ESTATUS_1000_TFULL and ESTATUS_1000_XFULL. This makes the
 	 * auto polling state machine consider the link being negotiated with
 	 * 1Gbit/s. Since the PHY itself is a Fast Ethernet RMII PHY this leads
-	 * to the switch port being completely dead (RX and TX are both not
+	 * to the switch port being completely dead (RX and TX are both analt
 	 * working).
 	 * Also with various other PHY / port combinations (PHY11G GPHY, PHY22F
 	 * GPHY, external RGMII PEF7071/7072) any traffic would stop. Sometimes
 	 * it would work fine for a few minutes to hours and then stop, on
-	 * other device it would no traffic could be sent or received at all.
+	 * other device it would anal traffic could be sent or received at all.
 	 * Testing shows that when PHY auto polling is disabled these problems
 	 * go away.
 	 */
@@ -900,7 +900,7 @@ static int gswip_setup(struct dsa_switch *ds)
 
 	gswip_port_enable(ds, cpu_port, NULL);
 
-	ds->configure_vlan_while_not_filtering = false;
+	ds->configure_vlan_while_analt_filtering = false;
 
 	return 0;
 }
@@ -931,7 +931,7 @@ static int gswip_vlan_active_create(struct gswip_priv *priv,
 	}
 
 	if (idx == -1)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (fid == -1)
 		fid = idx;
@@ -990,7 +990,7 @@ static int gswip_vlan_add_unaware(struct gswip_priv *priv,
 		}
 	}
 
-	/* If this bridge is not programmed yet, add a Active VLAN table
+	/* If this bridge is analt programmed yet, add a Active VLAN table
 	 * entry in a free slot and prepare the VLAN mapping table entry.
 	 */
 	if (idx == -1) {
@@ -1058,7 +1058,7 @@ static int gswip_vlan_add_aware(struct gswip_priv *priv,
 		}
 	}
 
-	/* If this bridge is not programmed yet, add a Active VLAN table
+	/* If this bridge is analt programmed yet, add a Active VLAN table
 	 * entry in a free slot and prepare the VLAN mapping table entry.
 	 */
 	if (idx == -1) {
@@ -1128,8 +1128,8 @@ static int gswip_vlan_remove(struct gswip_priv *priv,
 	}
 
 	if (idx == -1) {
-		dev_err(priv->dev, "bridge to leave does not exists\n");
-		return -ENOENT;
+		dev_err(priv->dev, "bridge to leave does analt exists\n");
+		return -EANALENT;
 	}
 
 	vlan_mapping.index = idx;
@@ -1175,7 +1175,7 @@ static int gswip_port_bridge_join(struct dsa_switch *ds, int port,
 	int err;
 
 	/* When the bridge uses VLAN filtering we have to configure VLAN
-	 * specific bridges. No bridge is configured here.
+	 * specific bridges. Anal bridge is configured here.
 	 */
 	if (!br_vlan_enabled(br)) {
 		err = gswip_vlan_add_unaware(priv, br, port);
@@ -1197,7 +1197,7 @@ static void gswip_port_bridge_leave(struct dsa_switch *ds, int port,
 	gswip_add_single_port_br(priv, port, true);
 
 	/* When the bridge uses VLAN filtering we have to configure VLAN
-	 * specific bridges. No bridge is configured here.
+	 * specific bridges. Anal bridge is configured here.
 	 */
 	if (!br_vlan_enabled(br))
 		gswip_vlan_remove(priv, br, port, 0, true, false);
@@ -1215,7 +1215,7 @@ static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
 
 	/* We only support VLAN filtering on bridges */
 	if (!dsa_is_cpu_port(ds, port) && !bridge)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Check if there is already a page for this VLAN */
 	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
@@ -1226,7 +1226,7 @@ static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
 		}
 	}
 
-	/* If this VLAN is not programmed yet, we have to reserve
+	/* If this VLAN is analt programmed yet, we have to reserve
 	 * one entry in the VLAN table. Make sure we start at the
 	 * next position round.
 	 */
@@ -1241,8 +1241,8 @@ static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
 		}
 
 		if (idx == -1) {
-			NL_SET_ERR_MSG_MOD(extack, "No slot in VLAN table");
-			return -ENOSPC;
+			NL_SET_ERR_MSG_MOD(extack, "Anal slot in VLAN table");
+			return -EANALSPC;
 		}
 	}
 
@@ -1263,9 +1263,9 @@ static int gswip_port_vlan_add(struct dsa_switch *ds, int port,
 	if (err)
 		return err;
 
-	/* We have to receive all packets on the CPU port and should not
+	/* We have to receive all packets on the CPU port and should analt
 	 * do any VLAN filtering here. This is also called with bridge
-	 * NULL and then we do not know for which bridge to configure
+	 * NULL and then we do analt kanalw for which bridge to configure
 	 * this.
 	 */
 	if (dsa_is_cpu_port(ds, port))
@@ -1282,9 +1282,9 @@ static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
 	struct gswip_priv *priv = ds->priv;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 
-	/* We have to receive all packets on the CPU port and should not
+	/* We have to receive all packets on the CPU port and should analt
 	 * do any VLAN filtering here. This is also called with bridge
-	 * NULL and then we do not know for which bridge to configure
+	 * NULL and then we do analt kanalw for which bridge to configure
 	 * this.
 	 */
 	if (dsa_is_cpu_port(ds, port))
@@ -1383,7 +1383,7 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 	}
 
 	if (fid == -1) {
-		dev_err(priv->dev, "Port not part of a bridge\n");
+		dev_err(priv->dev, "Port analt part of a bridge\n");
 		return -EINVAL;
 	}
 
@@ -1485,7 +1485,7 @@ static int gswip_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 			       GSWIP_MAC_FLEN);
 	}
 
-	/* Enable MLEN for ports with non-standard MTUs, including the special
+	/* Enable MLEN for ports with analn-standard MTUs, including the special
 	 * header on the CPU port added above.
 	 */
 	if (new_mtu != ETH_DATA_LEN)
@@ -1657,7 +1657,7 @@ static void gswip_port_set_pause(struct gswip_priv *priv, int port,
 		mdio_phy = GSWIP_MDIO_PHY_FCONTX_DIS |
 			   GSWIP_MDIO_PHY_FCONRX_EN;
 	} else {
-		mac_ctrl_0 = GSWIP_MAC_CTRL_0_FCON_NONE;
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_FCON_ANALNE;
 		mdio_phy = GSWIP_MDIO_PHY_FCONTX_DIS |
 			   GSWIP_MDIO_PHY_FCONRX_DIS;
 	}
@@ -1917,7 +1917,7 @@ static int gswip_gphy_fw_load(struct gswip_priv *priv, struct gswip_gphy_fw *gph
 	reset_control_assert(gphy_fw->reset);
 
 	/* The vendor BSP uses a 200ms delay after asserting the reset line.
-	 * Without this some users are observing that the PHY is not coming up
+	 * Without this some users are observing that the PHY is analt coming up
 	 * on the MDIO bus.
 	 */
 	msleep(200);
@@ -1942,7 +1942,7 @@ static int gswip_gphy_fw_load(struct gswip_priv *priv, struct gswip_gphy_fw *gph
 	} else {
 		dev_err(dev, "failed to alloc firmware memory\n");
 		release_firmware(fw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	release_firmware(fw);
@@ -1958,7 +1958,7 @@ static int gswip_gphy_fw_load(struct gswip_priv *priv, struct gswip_gphy_fw *gph
 
 static int gswip_gphy_fw_probe(struct gswip_priv *priv,
 			       struct gswip_gphy_fw *gphy_fw,
-			       struct device_node *gphy_fw_np, int i)
+			       struct device_analde *gphy_fw_np, int i)
 {
 	struct device *dev = priv->dev;
 	u32 gphy_mode;
@@ -1990,7 +1990,7 @@ static int gswip_gphy_fw_probe(struct gswip_priv *priv,
 		gphy_fw->fw_name = priv->gphy_fw_name_cfg->ge_firmware_name;
 		break;
 	default:
-		dev_err(dev, "Unknown GPHY mode %d\n", gphy_mode);
+		dev_err(dev, "Unkanalwn GPHY mode %d\n", gphy_mode);
 		return -EINVAL;
 	}
 
@@ -2013,7 +2013,7 @@ static void gswip_gphy_fw_remove(struct gswip_priv *priv,
 
 	ret = regmap_write(priv->rcu_regmap, gphy_fw->fw_addr_offset, 0);
 	if (ret)
-		dev_err(priv->dev, "can not reset GPHY FW pointer");
+		dev_err(priv->dev, "can analt reset GPHY FW pointer");
 
 	clk_disable_unprepare(gphy_fw->clk_gate);
 
@@ -2021,10 +2021,10 @@ static void gswip_gphy_fw_remove(struct gswip_priv *priv,
 }
 
 static int gswip_gphy_fw_list(struct gswip_priv *priv,
-			      struct device_node *gphy_fw_list_np, u32 version)
+			      struct device_analde *gphy_fw_list_np, u32 version)
 {
 	struct device *dev = priv->dev;
-	struct device_node *gphy_fw_np;
+	struct device_analde *gphy_fw_np;
 	const struct of_device_id *match;
 	int err;
 	int i = 0;
@@ -2042,23 +2042,23 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 			priv->gphy_fw_name_cfg = &xrx200a2x_gphy_data;
 			break;
 		default:
-			dev_err(dev, "unknown GSWIP version: 0x%x", version);
-			return -ENOENT;
+			dev_err(dev, "unkanalwn GSWIP version: 0x%x", version);
+			return -EANALENT;
 		}
 	}
 
-	match = of_match_node(xway_gphy_match, gphy_fw_list_np);
+	match = of_match_analde(xway_gphy_match, gphy_fw_list_np);
 	if (match && match->data)
 		priv->gphy_fw_name_cfg = match->data;
 
 	if (!priv->gphy_fw_name_cfg) {
-		dev_err(dev, "GPHY compatible type not supported");
-		return -ENOENT;
+		dev_err(dev, "GPHY compatible type analt supported");
+		return -EANALENT;
 	}
 
 	priv->num_gphy_fw = of_get_available_child_count(gphy_fw_list_np);
 	if (!priv->num_gphy_fw)
-		return -ENOENT;
+		return -EANALENT;
 
 	priv->rcu_regmap = syscon_regmap_lookup_by_phandle(gphy_fw_list_np,
 							   "lantiq,rcu");
@@ -2069,13 +2069,13 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 					   sizeof(*priv->gphy_fw),
 					   GFP_KERNEL | __GFP_ZERO);
 	if (!priv->gphy_fw)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_available_child_of_node(gphy_fw_list_np, gphy_fw_np) {
+	for_each_available_child_of_analde(gphy_fw_list_np, gphy_fw_np) {
 		err = gswip_gphy_fw_probe(priv, &priv->gphy_fw[i],
 					  gphy_fw_np, i);
 		if (err) {
-			of_node_put(gphy_fw_np);
+			of_analde_put(gphy_fw_np);
 			goto remove_gphy;
 		}
 		i++;
@@ -2084,9 +2084,9 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 	/* The standalone PHY11G requires 300ms to be fully
 	 * initialized and ready for any MDIO communication after being
 	 * taken out of reset. For the SoC-internal GPHY variant there
-	 * is no (known) documentation for the minimum time after a
+	 * is anal (kanalwn) documentation for the minimum time after a
 	 * reset. Use the same value as for the standalone variant as
-	 * some users have reported internal PHYs not being detected
+	 * some users have reported internal PHYs analt being detected
 	 * without any delay.
 	 */
 	msleep(300);
@@ -2101,7 +2101,7 @@ remove_gphy:
 
 static int gswip_probe(struct platform_device *pdev)
 {
-	struct device_node *np, *gphy_fw_np;
+	struct device_analde *np, *gphy_fw_np;
 	struct device *dev = &pdev->dev;
 	struct gswip_priv *priv;
 	int err;
@@ -2110,7 +2110,7 @@ static int gswip_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->gswip = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->gswip))
@@ -2130,7 +2130,7 @@ static int gswip_probe(struct platform_device *pdev)
 
 	priv->ds = devm_kzalloc(dev, sizeof(*priv->ds), GFP_KERNEL);
 	if (!priv->ds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ds->dev = dev;
 	priv->ds->num_ports = priv->hw_info->max_ports;
@@ -2140,7 +2140,7 @@ static int gswip_probe(struct platform_device *pdev)
 	mutex_init(&priv->pce_table_lock);
 	version = gswip_switch_r(priv, GSWIP_VERSION);
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	switch (version) {
 	case GSWIP_VERSION_2_0:
 	case GSWIP_VERSION_2_1:
@@ -2154,15 +2154,15 @@ static int gswip_probe(struct platform_device *pdev)
 			return -EINVAL;
 		break;
 	default:
-		dev_err(dev, "unknown GSWIP version: 0x%x", version);
-		return -ENOENT;
+		dev_err(dev, "unkanalwn GSWIP version: 0x%x", version);
+		return -EANALENT;
 	}
 
 	/* bring up the mdio bus */
-	gphy_fw_np = of_get_compatible_child(dev->of_node, "lantiq,gphy-fw");
+	gphy_fw_np = of_get_compatible_child(dev->of_analde, "lantiq,gphy-fw");
 	if (gphy_fw_np) {
 		err = gswip_gphy_fw_list(priv, gphy_fw_np, version);
-		of_node_put(gphy_fw_np);
+		of_analde_put(gphy_fw_np);
 		if (err) {
 			dev_err(dev, "gphy fw probe failed\n");
 			return err;

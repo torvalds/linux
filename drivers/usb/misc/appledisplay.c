@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -28,7 +28,7 @@
 #define ACD_USB_EDID		0x0302
 #define ACD_USB_BRIGHTNESS	0x0310
 
-#define ACD_BTN_NONE		0
+#define ACD_BTN_ANALNE		0
 #define ACD_BTN_BRIGHT_UP	3
 #define ACD_BTN_BRIGHT_DOWN	4
 
@@ -91,14 +91,14 @@ static void appledisplay_complete(struct urb *urb)
 			ACD_URB_BUFFER_LEN, pdata->urb->actual_length);
 		fallthrough;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
 		dev_dbg(dev, "%s - urb shuttingdown with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -109,7 +109,7 @@ static void appledisplay_complete(struct urb *urb)
 		pdata->button_pressed = 1;
 		schedule_delayed_work(&pdata->work, 0);
 		break;
-	case ACD_BTN_NONE:
+	case ACD_BTN_ANALNE:
 	default:
 		pdata->button_pressed = 0;
 		break;
@@ -213,7 +213,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	/* use only the first interrupt-in endpoint */
 	retval = usb_find_int_in_endpoint(iface->cur_altsetting, &endpoint);
 	if (retval) {
-		dev_err(&iface->dev, "Could not find int-in endpoint\n");
+		dev_err(&iface->dev, "Could analt find int-in endpoint\n");
 		return retval;
 	}
 
@@ -222,7 +222,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	/* allocate memory for our device state and initialize it */
 	pdata = kzalloc(sizeof(struct appledisplay), GFP_KERNEL);
 	if (!pdata) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error;
 	}
 
@@ -234,14 +234,14 @@ static int appledisplay_probe(struct usb_interface *iface,
 	/* Allocate buffer for control messages */
 	pdata->msgdata = kmalloc(ACD_MSG_BUFFER_LEN, GFP_KERNEL);
 	if (!pdata->msgdata) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error;
 	}
 
 	/* Allocate interrupt URB */
 	pdata->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!pdata->urb) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error;
 	}
 
@@ -249,7 +249,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	pdata->urbdata = usb_alloc_coherent(pdata->udev, ACD_URB_BUFFER_LEN,
 		GFP_KERNEL, &pdata->urb->transfer_dma);
 	if (!pdata->urbdata) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		dev_err(&iface->dev, "Allocating URB buffer failed\n");
 		goto error;
 	}
@@ -259,7 +259,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 		usb_rcvintpipe(udev, int_in_endpointAddr),
 		pdata->urbdata, ACD_URB_BUFFER_LEN, appledisplay_complete,
 		pdata, 1);
-	pdata->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+	pdata->urb->transfer_flags = URB_ANAL_TRANSFER_DMA_MAP;
 	if (usb_submit_urb(pdata->urb, GFP_KERNEL)) {
 		retval = -EIO;
 		dev_err(&iface->dev, "Submitting URB failed\n");

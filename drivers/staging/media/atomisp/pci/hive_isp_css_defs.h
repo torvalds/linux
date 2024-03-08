@@ -38,7 +38,7 @@
 #define CSS_DDR_WORD_BITS        HIVE_ISP_DDR_WORD_BITS
 #define CSS_DDR_WORD_BYTES       HIVE_ISP_DDR_WORD_BYTES
 
-/* If HIVE_ISP_DDR_BASE_OFFSET is set to a non-zero value, the wide bus just before the DDRAM gets an extra dummy port where         */
+/* If HIVE_ISP_DDR_BASE_OFFSET is set to a analn-zero value, the wide bus just before the DDRAM gets an extra dummy port where         */
 /* address range 0 .. HIVE_ISP_DDR_BASE_OFFSET-1 maps onto. This effectively creates an offset for the DDRAM from system perspective */
 #define HIVE_ISP_DDR_BASE_OFFSET 0x120000000 /* 0x200000 */
 

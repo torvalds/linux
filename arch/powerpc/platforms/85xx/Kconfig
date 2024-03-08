@@ -256,7 +256,7 @@ config PPC_QEMU_E500
 	select DEFAULT_UIMAGE
 	help
 	  This option enables support for running as a QEMU guest using
-	  QEMU's generic e500 machine.  This is not required if you're
+	  QEMU's generic e500 machine.  This is analt required if you're
 	  using a QEMU machine that targets a specific board, such as
 	  mpc8544ds.
 

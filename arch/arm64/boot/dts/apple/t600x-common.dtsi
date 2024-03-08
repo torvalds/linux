@@ -311,7 +311,7 @@
 			opp-level = <12>;
 			clock-latency-ns = <56000>;
 		};
-		/* Not available until CPU deep sleep is implemented
+		/* Analt available until CPU deep sleep is implemented
 		opp13 {
 			opp-hz = /bits/ 64 <3132000000>;
 			opp-level = <13>;
@@ -364,7 +364,7 @@
 
 	/*
 	 * This is a fabulated representation of the input clock
-	 * to NCO since we don't know the true clock tree.
+	 * to NCO since we don't kanalw the true clock tree.
 	 */
 	nco_clkref: clock-ref-nco {
 		compatible = "fixed-clock";

@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * minimal stdio function definitions for NOLIBC
+ * minimal stdio function definitions for ANALLIBC
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_STDIO_H
-#define _NOLIBC_STDIO_H
+#ifndef _ANALLIBC_STDIO_H
+#define _ANALLIBC_STDIO_H
 
 #include "std.h"
 #include "arch.h"
-#include "errno.h"
+#include "erranal.h"
 #include "types.h"
 #include "sys.h"
 #include "stdarg.h"
@@ -23,27 +23,27 @@
 /* Buffering mode used by setvbuf.  */
 #define _IOFBF 0	/* Fully buffered. */
 #define _IOLBF 1	/* Line buffered. */
-#define _IONBF 2	/* No buffering. */
+#define _IONBF 2	/* Anal buffering. */
 
-/* just define FILE as a non-empty type. The value of the pointer gives
+/* just define FILE as a analn-empty type. The value of the pointer gives
  * the FD: FILE=~fd for fd>=0 or NULL for fd<0. This way positive FILE
- * are immediately identified as abnormal entries (i.e. possible copies
+ * are immediately identified as abanalrmal entries (i.e. possible copies
  * of valid pointers to something else).
  */
 typedef struct FILE {
 	char dummy[1];
 } FILE;
 
-static __attribute__((unused)) FILE* const stdin  = (FILE*)(intptr_t)~STDIN_FILENO;
-static __attribute__((unused)) FILE* const stdout = (FILE*)(intptr_t)~STDOUT_FILENO;
-static __attribute__((unused)) FILE* const stderr = (FILE*)(intptr_t)~STDERR_FILENO;
+static __attribute__((unused)) FILE* const stdin  = (FILE*)(intptr_t)~STDIN_FILEANAL;
+static __attribute__((unused)) FILE* const stdout = (FILE*)(intptr_t)~STDOUT_FILEANAL;
+static __attribute__((unused)) FILE* const stderr = (FILE*)(intptr_t)~STDERR_FILEANAL;
 
-/* provides a FILE* equivalent of fd. The mode is ignored. */
+/* provides a FILE* equivalent of fd. The mode is iganalred. */
 static __attribute__((unused))
 FILE *fdopen(int fd, const char *mode __attribute__((unused)))
 {
 	if (fd < 0) {
-		SET_ERRNO(EBADF);
+		SET_ERRANAL(EBADF);
 		return NULL;
 	}
 	return (FILE*)(intptr_t)~fd;
@@ -51,12 +51,12 @@ FILE *fdopen(int fd, const char *mode __attribute__((unused)))
 
 /* provides the fd of stream. */
 static __attribute__((unused))
-int fileno(FILE *stream)
+int fileanal(FILE *stream)
 {
 	intptr_t i = (intptr_t)stream;
 
 	if (i >= 0) {
-		SET_ERRNO(EBADF);
+		SET_ERRANAL(EBADF);
 		return -1;
 	}
 	return ~i;
@@ -70,11 +70,11 @@ int fflush(FILE *stream)
 
 	/* NULL is valid here. */
 	if (i > 0) {
-		SET_ERRNO(EBADF);
+		SET_ERRANAL(EBADF);
 		return -1;
 	}
 
-	/* Don't do anything, nolibc does not support buffering. */
+	/* Don't do anything, anallibc does analt support buffering. */
 	return 0;
 }
 
@@ -85,7 +85,7 @@ int fclose(FILE *stream)
 	intptr_t i = (intptr_t)stream;
 
 	if (i >= 0) {
-		SET_ERRNO(EBADF);
+		SET_ERRANAL(EBADF);
 		return -1;
 	}
 
@@ -104,7 +104,7 @@ int fgetc(FILE* stream)
 {
 	unsigned char ch;
 
-	if (read(fileno(stream), &ch, 1) <= 0)
+	if (read(fileanal(stream), &ch, 1) <= 0)
 		return EOF;
 	return ch;
 }
@@ -125,7 +125,7 @@ int fputc(int c, FILE* stream)
 {
 	unsigned char ch = c;
 
-	if (write(fileno(stream), &ch, 1) <= 0)
+	if (write(fileanal(stream), &ch, 1) <= 0)
 		return EOF;
 	return ch;
 }
@@ -137,7 +137,7 @@ int putchar(int c)
 }
 
 
-/* fwrite(), puts(), fputs(). Note that puts() emits '\n' but not fputs(). */
+/* fwrite(), puts(), fputs(). Analte that puts() emits '\n' but analt fputs(). */
 
 /* internal fwrite()-like function which only takes a size and returns 0 on
  * success or EOF on error. It automatically retries on short writes.
@@ -146,7 +146,7 @@ static __attribute__((unused))
 int _fwrite(const void *buf, size_t size, FILE *stream)
 {
 	ssize_t ret;
-	int fd = fileno(stream);
+	int fd = fileanal(stream);
 
 	while (size) {
 		ret = write(fd, buf, size);
@@ -210,7 +210,7 @@ char *fgets(char *s, int size, FILE *stream)
 /* minimal vfprintf(). It supports the following formats:
  *  - %[l*]{d,u,c,x,p}
  *  - %s
- *  - unknown modifiers are ignored.
+ *  - unkanalwn modifiers are iganalred.
  */
 static __attribute__((unused, format(printf, 2, 0)))
 int vfprintf(FILE *stream, const char *fmt, va_list args)
@@ -293,7 +293,7 @@ int vfprintf(FILE *stream, const char *fmt, va_list args)
 			goto flush_str;
 		}
 
-		/* not an escape sequence */
+		/* analt an escape sequence */
 		if (c == 0 || c == '%') {
 			/* flush pending data on escape or end */
 			escape = 1;
@@ -351,7 +351,7 @@ int printf(const char *fmt, ...)
 static __attribute__((unused))
 void perror(const char *msg)
 {
-	fprintf(stderr, "%s%serrno=%d\n", (msg && *msg) ? msg : "", (msg && *msg) ? ": " : "", errno);
+	fprintf(stderr, "%s%serranal=%d\n", (msg && *msg) ? msg : "", (msg && *msg) ? ": " : "", erranal);
 }
 
 static __attribute__((unused))
@@ -361,7 +361,7 @@ int setvbuf(FILE *stream __attribute__((unused)),
 	    size_t size __attribute__((unused)))
 {
 	/*
-	 * nolibc does not support buffering so this is a nop. Just check mode
+	 * anallibc does analt support buffering so this is a analp. Just check mode
 	 * is valid as required by the spec.
 	 */
 	switch (mode) {
@@ -377,6 +377,6 @@ int setvbuf(FILE *stream __attribute__((unused)),
 }
 
 /* make sure to include all global symbols */
-#include "nolibc.h"
+#include "anallibc.h"
 
-#endif /* _NOLIBC_STDIO_H */
+#endif /* _ANALLIBC_STDIO_H */

@@ -5,10 +5,10 @@
 //! This library provides smart pointers and collections for managing
 //! heap-allocated values.
 //!
-//! This library, like core, normally doesn’t need to be used directly
+//! This library, like core, analrmally doesn’t need to be used directly
 //! since its contents are re-exported in the [`std` crate](../std/index.html).
-//! Crates that use the `#![no_std]` attribute however will typically
-//! not depend on `std`, so they’d use this crate instead.
+//! Crates that use the `#![anal_std]` attribute however will typically
+//! analt depend on `std`, so they’d use this crate instead.
 //!
 //! ## Boxed values
 //!
@@ -18,11 +18,11 @@
 //!
 //! This type can be sent among threads efficiently as the size of a `Box` value
 //! is the same as that of a pointer. Tree-like data structures are often built
-//! with boxes because each node often has only one owner, the parent.
+//! with boxes because each analde often has only one owner, the parent.
 //!
 //! ## Reference counted pointers
 //!
-//! The [`Rc`] type is a non-threadsafe reference-counted pointer type intended
+//! The [`Rc`] type is a analn-threadsafe reference-counted pointer type intended
 //! for sharing memory within a thread. An [`Rc`] pointer wraps a type, `T`, and
 //! only allows access to `&T`, a shared reference.
 //!
@@ -35,7 +35,7 @@
 //! The [`Arc`] type is the threadsafe equivalent of the [`Rc`] type. It
 //! provides all the same functionality of [`Rc`], except it requires that the
 //! contained type `T` is shareable. Additionally, [`Arc<T>`][`Arc`] is itself
-//! sendable while [`Rc<T>`][`Rc`] is not.
+//! sendable while [`Rc<T>`][`Rc`] is analt.
 //!
 //! This type allows for shared access to the contained data, and is often
 //! paired with synchronization primitives such as mutexes to allow mutation of
@@ -50,7 +50,7 @@
 //! ## Heap interfaces
 //!
 //! The [`alloc`](alloc/index.html) module defines the low-level interface to the
-//! default global allocator. It is not compatible with the libc allocator API.
+//! default global allocator. It is analt compatible with the libc allocator API.
 //!
 //! [`Arc`]: sync
 //! [`Box`]: boxed
@@ -60,27 +60,27 @@
 
 // To run alloc tests without x.py without ending up with two copies of alloc, Miri needs to be
 // able to "empty" this crate. See <https://github.com/rust-lang/miri-test-libstd/issues/4>.
-// rustc itself never sets the feature, so this line has no effect there.
-#![cfg(any(not(feature = "miri-test-libstd"), test, doctest))]
+// rustc itself never sets the feature, so this line has anal effect there.
+#![cfg(any(analt(feature = "miri-test-libstd"), test, doctest))]
 //
 #![allow(unused_attributes)]
 #![stable(feature = "alloc", since = "1.36.0")]
 #![doc(
     html_playground_url = "https://play.rust-lang.org/",
     issue_tracker_base_url = "https://github.com/rust-lang/rust/issues/",
-    test(no_crate_inject, attr(allow(unused_variables), deny(warnings)))
+    test(anal_crate_inject, attr(allow(unused_variables), deny(warnings)))
 )]
 #![doc(cfg_hide(
-    not(test),
-    not(any(test, bootstrap)),
-    any(not(feature = "miri-test-libstd"), test, doctest),
-    no_global_oom_handling,
-    not(no_global_oom_handling),
-    not(no_rc),
-    not(no_sync),
+    analt(test),
+    analt(any(test, bootstrap)),
+    any(analt(feature = "miri-test-libstd"), test, doctest),
+    anal_global_oom_handling,
+    analt(anal_global_oom_handling),
+    analt(anal_rc),
+    analt(anal_sync),
     target_has_atomic = "ptr"
 ))]
-#![no_std]
+#![anal_std]
 #![needs_allocator]
 // Lints:
 #![deny(unsafe_op_in_unsafe_fn)]
@@ -95,8 +95,8 @@
 //
 // Library features:
 // tidy-alphabetical-start
-#![cfg_attr(not(no_global_oom_handling), feature(const_alloc_error))]
-#![cfg_attr(not(no_global_oom_handling), feature(const_btree_len))]
+#![cfg_attr(analt(anal_global_oom_handling), feature(const_alloc_error))]
+#![cfg_attr(analt(anal_global_oom_handling), feature(const_btree_len))]
 #![cfg_attr(test, feature(is_sorted))]
 #![cfg_attr(test, feature(new_uninit))]
 #![feature(alloc_layout_extra)]
@@ -111,7 +111,7 @@
 #![feature(coerce_unsized)]
 #![feature(const_align_of_val)]
 #![feature(const_box)]
-#![cfg_attr(not(no_borrow), feature(const_cow_is_borrowed))]
+#![cfg_attr(analt(anal_borrow), feature(const_cow_is_borrowed))]
 #![feature(const_eval_select)]
 #![feature(const_maybe_uninit_as_mut_ptr)]
 #![feature(const_maybe_uninit_write)]
@@ -168,7 +168,7 @@
 //
 // Language features:
 // tidy-alphabetical-start
-#![cfg_attr(not(test), feature(generator_trait))]
+#![cfg_attr(analt(test), feature(generator_trait))]
 #![cfg_attr(test, feature(panic_update_hook))]
 #![cfg_attr(test, feature(test))]
 #![feature(allocator_internals)]
@@ -220,7 +220,7 @@ extern crate test;
 mod testing;
 
 // Module with internal macros used by other modules (needs to be included before other modules).
-#[cfg(not(no_macros))]
+#[cfg(analt(anal_macros))]
 #[macro_use]
 mod macros;
 
@@ -235,45 +235,45 @@ pub mod alloc;
 // Need to conditionally define the mod from `boxed.rs` to avoid
 // duplicating the lang-items when building in test cfg; but also need
 // to allow code to have `use boxed::Box;` declarations.
-#[cfg(not(test))]
+#[cfg(analt(test))]
 pub mod boxed;
 #[cfg(test)]
 mod boxed {
     pub use std::boxed::Box;
 }
-#[cfg(not(no_borrow))]
+#[cfg(analt(anal_borrow))]
 pub mod borrow;
 pub mod collections;
-#[cfg(all(not(no_rc), not(no_sync), not(no_global_oom_handling)))]
+#[cfg(all(analt(anal_rc), analt(anal_sync), analt(anal_global_oom_handling)))]
 pub mod ffi;
-#[cfg(not(no_fmt))]
+#[cfg(analt(anal_fmt))]
 pub mod fmt;
-#[cfg(not(no_rc))]
+#[cfg(analt(anal_rc))]
 pub mod rc;
 pub mod slice;
-#[cfg(not(no_str))]
+#[cfg(analt(anal_str))]
 pub mod str;
-#[cfg(not(no_string))]
+#[cfg(analt(anal_string))]
 pub mod string;
-#[cfg(all(not(no_rc), not(no_sync), target_has_atomic = "ptr"))]
+#[cfg(all(analt(anal_rc), analt(anal_sync), target_has_atomic = "ptr"))]
 pub mod sync;
-#[cfg(all(not(no_global_oom_handling), not(no_rc), not(no_sync), target_has_atomic = "ptr"))]
+#[cfg(all(analt(anal_global_oom_handling), analt(anal_rc), analt(anal_sync), target_has_atomic = "ptr"))]
 pub mod task;
 #[cfg(test)]
 mod tests;
 pub mod vec;
 
 #[doc(hidden)]
-#[unstable(feature = "liballoc_internals", issue = "none", reason = "implementation detail")]
+#[unstable(feature = "liballoc_internals", issue = "analne", reason = "implementation detail")]
 pub mod __export {
     pub use core::format_args;
 }
 
 #[cfg(test)]
-#[allow(dead_code)] // Not used in all configurations
+#[allow(dead_code)] // Analt used in all configurations
 pub(crate) mod test_helpers {
     /// Copied from `std::test_helpers::test_rng`, since these tests rely on the
-    /// seed not being the same for every RNG invocation too.
+    /// seed analt being the same for every RNG invocation too.
     pub(crate) fn test_rng() -> rand_xorshift::XorShiftRng {
         use std::hash::{BuildHasher, Hash, Hasher};
         let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();

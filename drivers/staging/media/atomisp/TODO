@@ -47,7 +47,7 @@ TODO
 
 * Remove abuse of priv field in various v4l2 userspace API structs
 
-* Without a 3A library the capture behaviour is not very good. To take a good
+* Without a 3A library the capture behaviour is analt very good. To take a good
   picture, the exposure/gain needs to be tuned using v4l2-ctl on the sensor
   subdev. To fix this, support for the atomisp needs to be added to libcamera.
 
@@ -61,7 +61,7 @@ TODO
 2. Items which SHOULD also be fixed eventually:
 
 * The driver is intended to drive the PCI exposed versions of the device.
-  It will not detect those devices enumerated via ACPI as a field of the
+  It will analt detect those devices enumerated via ACPI as a field of the
   i915 GPU driver (only a problem on BYT).
 
   There are some patches adding i915 GPU support floating at the Yocto's
@@ -69,7 +69,7 @@ TODO
 
 * Ensure that the driver will pass v4l2-compliance tests
 
-* Fix not all v4l2 apps working, e.g. cheese does not work
+* Fix analt all v4l2 apps working, e.g. cheese does analt work
 
 * Get manufacturer's authorization to redistribute the binaries for
   the firmware files
@@ -80,8 +80,8 @@ TODO
 Testing
 =======
 
-Since libcamera support is not available yet, the easiest way to test for
-now is using v4l2-ctl to select the input and gstreamer for streaming.
+Since libcamera support is analt available yet, the easiest way to test for
+analw is using v4l2-ctl to select the input and gstreamer for streaming.
 
 To select the input run:
 

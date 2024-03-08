@@ -145,23 +145,23 @@
 #define B43_NPHY_RXF20_NUM0			B43_PHY_N(0x049) /* RX filter 20 numerator 0 */
 #define B43_NPHY_RXF20_NUM1			B43_PHY_N(0x04A) /* RX filter 20 numerator 1 */
 #define B43_NPHY_RXF20_NUM2			B43_PHY_N(0x04B) /* RX filter 20 numerator 2 */
-#define B43_NPHY_RXF20_DENOM0			B43_PHY_N(0x04C) /* RX filter 20 denominator 0 */
-#define B43_NPHY_RXF20_DENOM1			B43_PHY_N(0x04D) /* RX filter 20 denominator 1 */
+#define B43_NPHY_RXF20_DEANALM0			B43_PHY_N(0x04C) /* RX filter 20 deanalminator 0 */
+#define B43_NPHY_RXF20_DEANALM1			B43_PHY_N(0x04D) /* RX filter 20 deanalminator 1 */
 #define B43_NPHY_RXF20_NUM10			B43_PHY_N(0x04E) /* RX filter 20 numerator 10 */
 #define B43_NPHY_RXF20_NUM11			B43_PHY_N(0x04F) /* RX filter 20 numerator 11 */
 #define B43_NPHY_RXF20_NUM12			B43_PHY_N(0x050) /* RX filter 20 numerator 12 */
-#define B43_NPHY_RXF20_DENOM10			B43_PHY_N(0x051) /* RX filter 20 denominator 10 */
-#define B43_NPHY_RXF20_DENOM11			B43_PHY_N(0x052) /* RX filter 20 denominator 11 */
+#define B43_NPHY_RXF20_DEANALM10			B43_PHY_N(0x051) /* RX filter 20 deanalminator 10 */
+#define B43_NPHY_RXF20_DEANALM11			B43_PHY_N(0x052) /* RX filter 20 deanalminator 11 */
 #define B43_NPHY_RXF40_NUM0			B43_PHY_N(0x053) /* RX filter 40 numerator 0 */
 #define B43_NPHY_RXF40_NUM1			B43_PHY_N(0x054) /* RX filter 40 numerator 1 */
 #define B43_NPHY_RXF40_NUM2			B43_PHY_N(0x055) /* RX filter 40 numerator 2 */
-#define B43_NPHY_RXF40_DENOM0			B43_PHY_N(0x056) /* RX filter 40 denominator 0 */
-#define B43_NPHY_RXF40_DENOM1			B43_PHY_N(0x057) /* RX filter 40 denominator 1 */
+#define B43_NPHY_RXF40_DEANALM0			B43_PHY_N(0x056) /* RX filter 40 deanalminator 0 */
+#define B43_NPHY_RXF40_DEANALM1			B43_PHY_N(0x057) /* RX filter 40 deanalminator 1 */
 #define B43_NPHY_RXF40_NUM10			B43_PHY_N(0x058) /* RX filter 40 numerator 10 */
 #define B43_NPHY_RXF40_NUM11			B43_PHY_N(0x059) /* RX filter 40 numerator 11 */
 #define B43_NPHY_RXF40_NUM12			B43_PHY_N(0x05A) /* RX filter 40 numerator 12 */
-#define B43_NPHY_RXF40_DENOM10			B43_PHY_N(0x05B) /* RX filter 40 denominator 10 */
-#define B43_NPHY_RXF40_DENOM11			B43_PHY_N(0x05C) /* RX filter 40 denominator 11 */
+#define B43_NPHY_RXF40_DEANALM10			B43_PHY_N(0x05B) /* RX filter 40 deanalminator 10 */
+#define B43_NPHY_RXF40_DEANALM11			B43_PHY_N(0x05C) /* RX filter 40 deanalminator 11 */
 #define B43_NPHY_PPROC_RSTLEN			B43_PHY_N(0x060) /* Packet processing reset length */
 #define B43_NPHY_INITCARR_DLEN			B43_PHY_N(0x061) /* Initial carrier detection length */
 #define B43_NPHY_CLIP1CARR_DLEN			B43_PHY_N(0x062) /* Clip1 carrier detection length */
@@ -405,10 +405,10 @@
 #define B43_NPHY_TGNSYNC_CRCM2			B43_PHY_N(0x106) /* TGNsync CRC mask 2 */
 #define B43_NPHY_TGNSYNC_CRCM3			B43_PHY_N(0x107) /* TGNsync CRC mask 3 */
 #define B43_NPHY_TGNSYNC_CRCM4			B43_PHY_N(0x108) /* TGNsync CRC mask 4 */
-#define B43_NPHY_CRCPOLY			B43_PHY_N(0x109) /* CRC polynomial */
+#define B43_NPHY_CRCPOLY			B43_PHY_N(0x109) /* CRC polyanalmial */
 #define B43_NPHY_SIGCNT				B43_PHY_N(0x10A) /* # sig count */
 #define B43_NPHY_SIGSTARTBIT_CTL		B43_PHY_N(0x10B) /* Sig start bit control */
-#define B43_NPHY_CRCPOLY_ORDER			B43_PHY_N(0x10C) /* CRC polynomial order */
+#define B43_NPHY_CRCPOLY_ORDER			B43_PHY_N(0x10C) /* CRC polyanalmial order */
 #define B43_NPHY_RFCTL_CST0			B43_PHY_N(0x10D) /* RF control core swap table 0 */
 #define B43_NPHY_RFCTL_CST1			B43_PHY_N(0x10E) /* RF control core swap table 1 */
 #define B43_NPHY_RFCTL_CST2O			B43_PHY_N(0x10F) /* RF control core swap table 2 + others */
@@ -737,7 +737,7 @@
 #define B43_NPHY_TIMEOUTEN			B43_PHY_N(0x231)
 #define B43_NPHY_OFDMPAYDECODETIMEOUTLEN	B43_PHY_N(0x232)
 #define B43_NPHY_CCKPAYDECODETIMEOUTLEN		B43_PHY_N(0x233)
-#define B43_NPHY_NONPAYDECODETIMEOUTLEN		B43_PHY_N(0x234)
+#define B43_NPHY_ANALNPAYDECODETIMEOUTLEN		B43_PHY_N(0x234)
 #define B43_NPHY_TIMEOUTSTATUS			B43_PHY_N(0x235)
 #define B43_NPHY_RFCTRLCORE0GPIO0		B43_PHY_N(0x236)
 #define B43_NPHY_RFCTRLCORE0GPIO1		B43_PHY_N(0x237)
@@ -751,7 +751,7 @@
 /* REV3+ */
 #define B43_NPHY_FORCEFRONT0			B43_PHY_N(0x23F)
 #define B43_NPHY_FORCEFRONT1			B43_PHY_N(0x240)
-#define B43_NPHY_NORMVARHYSTTH			B43_PHY_N(0x241)
+#define B43_NPHY_ANALRMVARHYSTTH			B43_PHY_N(0x241)
 #define B43_NPHY_TXCCKERROR			B43_PHY_N(0x242)
 #define B43_NPHY_AFESEQINITDACGAIN		B43_PHY_N(0x243)
 #define B43_NPHY_TXANTSWLUT			B43_PHY_N(0x244)
@@ -760,7 +760,7 @@
 #define B43_NPHY_ANTENNACCKDIVDWELLTIME		B43_PHY_N(0x247)
 #define B43_NPHY_ANTENNADIVBACKOFFGAIN		B43_PHY_N(0x248)
 #define B43_NPHY_ANTENNADIVMINGAIN		B43_PHY_N(0x249)
-#define B43_NPHY_BRDSEL_NORMVARHYSTTH		B43_PHY_N(0x24A)
+#define B43_NPHY_BRDSEL_ANALRMVARHYSTTH		B43_PHY_N(0x24A)
 #define B43_NPHY_RXANTSWITCHCTRL		B43_PHY_N(0x24B)
 #define B43_NPHY_ENERGYDROPTIMEOUTLEN2		B43_PHY_N(0x24C)
 #define B43_NPHY_ML_LOG_TXEVM0			B43_PHY_N(0x250)
@@ -831,7 +831,7 @@
 #define B43_NPHY_BPHYFILTNUM2COEF		B43_PHY_N(0x291)
 #define B43_NPHY_BPHYFILTNUM01COEF2		B43_PHY_N(0x292)
 #define B43_NPHY_BPHYFILTBYPASS			B43_PHY_N(0x293)
-#define B43_NPHY_SGILTRNOFFSET			B43_PHY_N(0x294)
+#define B43_NPHY_SGILTRANALFFSET			B43_PHY_N(0x294)
 #define B43_NPHY_RADAR_T2_MIN			B43_PHY_N(0x295)
 #define B43_NPHY_TXPWRCTRLDAMPING		B43_PHY_N(0x296)
 #define B43_NPHY_PAPD_EN0			B43_PHY_N(0x297) /* PAPD Enable0 TBD */
@@ -998,7 +998,7 @@ struct b43_phy_n {
 	struct b43_phy_n_rssical_cache rssical_cache;
 	struct b43_phy_n_cal_cache cal_cache;
 	bool crsminpwr_adjusted;
-	bool noisevars_adjusted;
+	bool analisevars_adjusted;
 };
 
 

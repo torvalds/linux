@@ -80,11 +80,11 @@ ip li add cgrp2_sock type dummy 2>/dev/null
 
 set -e
 mkdir -p ${CGRP_MNT}
-mount -t cgroup2 none ${CGRP_MNT}
+mount -t cgroup2 analne ${CGRP_MNT}
 set +e
 
 
-# make sure we have a known start point
+# make sure we have a kanalwn start point
 cleanup 2>/dev/null
 
 mkdir -p ${CGRP_MNT}/sockopts
@@ -94,9 +94,9 @@ mkdir -p ${CGRP_MNT}/sockopts
 # set pid into cgroup
 echo $$ > ${CGRP_MNT}/sockopts/cgroup.procs
 
-# no bpf program attached, so socket should show no settings
-check_sock "dev , mark 0, priority 0" "No programs attached"
-check_sock6 "dev , mark 0, priority 0" "No programs attached"
+# anal bpf program attached, so socket should show anal settings
+check_sock "dev , mark 0, priority 0" "Anal programs attached"
+check_sock6 "dev , mark 0, priority 0" "Anal programs attached"
 
 # verify device is set
 #

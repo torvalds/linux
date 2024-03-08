@@ -25,7 +25,7 @@ validate_veth_support()
 {
 	msg="skip all tests:"
 	if [ $(ip link add $1 type veth 2>/dev/null; echo $?;) != 0 ]; then
-		echo $msg veth kernel support not available >&2
+		echo $msg veth kernel support analt available >&2
 		test_exit $ksft_skip
 	else
 		ip link del $1
@@ -73,7 +73,7 @@ cleanup_exit()
 
 validate_ip_utility()
 {
-	[ ! $(type -P ip) ] && { echo "'ip' not found. Skipping tests."; test_exit $ksft_skip; }
+	[ ! $(type -P ip) ] && { echo "'ip' analt found. Skipping tests."; test_exit $ksft_skip; }
 }
 
 exec_xskxceiver()

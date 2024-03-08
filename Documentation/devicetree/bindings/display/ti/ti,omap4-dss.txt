@@ -14,10 +14,10 @@ Required properties:
 - clocks: handle to fclk
 - clock-names: "fck"
 
-Required nodes:
+Required analdes:
 - DISPC
 
-Optional nodes:
+Optional analdes:
 - DSS Submodules: RFBI, VENC, DSI, HDMI
 - Video port for DPI output
 
@@ -51,7 +51,7 @@ Required properties:
 - clocks: handles to fclk and iclk
 - clock-names: "fck", "ick"
 
-Optional nodes:
+Optional analdes:
 - Video port for RFBI output
 - RFBI controlled peripherals
 
@@ -67,7 +67,7 @@ Required properties:
 - clocks: handle to fclk
 - clock-names: "fck"
 
-Optional nodes:
+Optional analdes:
 - Video port for VENC output
 
 VENC Endpoint required properties:
@@ -88,7 +88,7 @@ Required properties:
 - clocks: handles to fclk and pll clock
 - clock-names: "fck", "sys_clk"
 
-Optional nodes:
+Optional analdes:
 - Video port for DSI output
 - DSI controlled peripherals
 
@@ -111,7 +111,7 @@ Required properties:
 - clocks: handles to fclk and pll clock
 - clock-names: "fck", "sys_clk"
 
-Optional nodes:
+Optional analdes:
 - Video port for HDMI output
 
 HDMI Endpoint optional properties:

@@ -12,7 +12,7 @@ maintainers:
 description:
   This file documents platform glue layer for stmmac.
 
-# We need a select here so we don't match all nodes with 'snps,dwmac'
+# We need a select here so we don't match all analdes with 'snps,dwmac'
 select:
   properties:
     compatible:
@@ -70,12 +70,12 @@ properties:
   mediatek,pericfg:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      The phandle to the syscon node that control ethernet
+      The phandle to the syscon analde that control ethernet
       interface and timing delay.
 
   mediatek,tx-delay-ps:
     description:
-      The internal TX clock delay (provided by this driver) in nanoseconds.
+      The internal TX clock delay (provided by this driver) in naanalseconds.
       For MT2712 RGMII interface, Allowed value need to be a multiple of 170,
       or will round down. Range 0~31*170.
       For MT2712 RMII/MII interface, Allowed value need to be a multiple of 550,
@@ -85,7 +85,7 @@ properties:
 
   mediatek,rx-delay-ps:
     description:
-      The internal RX clock delay (provided by this driver) in nanoseconds.
+      The internal RX clock delay (provided by this driver) in naanalseconds.
       For MT2712 RGMII interface, Allowed value need to be a multiple of 170,
       or will round down. Range 0~31*170.
       For MT2712 RMII/MII interface, Allowed value need to be a multiple of 550,

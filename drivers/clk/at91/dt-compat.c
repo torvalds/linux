@@ -27,17 +27,17 @@
 static DEFINE_SPINLOCK(mck_lock);
 
 #ifdef CONFIG_HAVE_AT91_AUDIO_PLL
-static void __init of_sama5d2_clk_audio_pll_frac_setup(struct device_node *np)
+static void __init of_sama5d2_clk_audio_pll_frac_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *name = np->name;
 	const char *parent_name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -53,17 +53,17 @@ CLK_OF_DECLARE(of_sama5d2_clk_audio_pll_frac_setup,
 	       "atmel,sama5d2-clk-audio-pll-frac",
 	       of_sama5d2_clk_audio_pll_frac_setup);
 
-static void __init of_sama5d2_clk_audio_pll_pad_setup(struct device_node *np)
+static void __init of_sama5d2_clk_audio_pll_pad_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *name = np->name;
 	const char *parent_name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -79,17 +79,17 @@ CLK_OF_DECLARE(of_sama5d2_clk_audio_pll_pad_setup,
 	       "atmel,sama5d2-clk-audio-pll-pad",
 	       of_sama5d2_clk_audio_pll_pad_setup);
 
-static void __init of_sama5d2_clk_audio_pll_pmc_setup(struct device_node *np)
+static void __init of_sama5d2_clk_audio_pll_pmc_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *name = np->name;
 	const char *parent_name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -121,7 +121,7 @@ static const struct clk_pcr_layout dt_pcr_layout = {
 #define GCK_ID_I2S1		55
 #define GCK_ID_CLASSD		59
 
-static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
+static void __init of_sama5d2_clk_generated_setup(struct device_analde *np)
 {
 	int num;
 	u32 id;
@@ -129,7 +129,7 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 	struct clk_hw *hw;
 	unsigned int num_parents;
 	const char *parent_names[GENERATED_SOURCE_MAX];
-	struct device_node *gcknp, *parent_np;
+	struct device_analde *gcknp, *parent_np;
 	struct clk_range range = CLK_RANGE(0, 0);
 	struct regmap *regmap;
 
@@ -144,12 +144,12 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 		return;
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
-	for_each_child_of_node(np, gcknp) {
+	for_each_child_of_analde(np, gcknp) {
 		int chg_pid = INT_MIN;
 
 		if (of_property_read_u32(gcknp, "reg", &id))
@@ -185,17 +185,17 @@ CLK_OF_DECLARE(of_sama5d2_clk_generated_setup, "atmel,sama5d2-clk-generated",
 #endif /* CONFIG_HAVE_AT91_GENERATED_CLK */
 
 #ifdef CONFIG_HAVE_AT91_H32MX
-static void __init of_sama5d4_clk_h32mx_setup(struct device_node *np)
+static void __init of_sama5d4_clk_h32mx_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *name = np->name;
 	const char *parent_name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -214,12 +214,12 @@ CLK_OF_DECLARE(of_sama5d4_clk_h32mx_setup, "atmel,sama5d4-clk-h32mx",
 #ifdef CONFIG_HAVE_AT91_I2S_MUX_CLK
 #define	I2S_BUS_NR	2
 
-static void __init of_sama5d2_clk_i2s_mux_setup(struct device_node *np)
+static void __init of_sama5d2_clk_i2s_mux_setup(struct device_analde *np)
 {
 	struct regmap *regmap_sfr;
 	u8 bus_id;
 	const char *parent_names[2];
-	struct device_node *i2s_mux_np;
+	struct device_analde *i2s_mux_np;
 	struct clk_hw *hw;
 	int ret;
 
@@ -227,7 +227,7 @@ static void __init of_sama5d2_clk_i2s_mux_setup(struct device_node *np)
 	if (IS_ERR(regmap_sfr))
 		return;
 
-	for_each_child_of_node(np, i2s_mux_np) {
+	for_each_child_of_analde(np, i2s_mux_np) {
 		if (of_property_read_u8(i2s_mux_np, "reg", &bus_id))
 			continue;
 
@@ -250,22 +250,22 @@ CLK_OF_DECLARE(sama5d2_clk_i2s_mux, "atmel,sama5d2-clk-i2s-mux",
 	       of_sama5d2_clk_i2s_mux_setup);
 #endif /* CONFIG_HAVE_AT91_I2S_MUX_CLK */
 
-static void __init of_at91rm9200_clk_main_osc_setup(struct device_node *np)
+static void __init of_at91rm9200_clk_main_osc_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *name = np->name;
 	const char *parent_name;
 	struct regmap *regmap;
 	bool bypass;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	of_property_read_string(np, "clock-output-names", &name);
 	bypass = of_property_read_bool(np, "atmel,osc-bypass");
 	parent_name = of_clk_get_parent_name(np, 0);
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -278,22 +278,22 @@ static void __init of_at91rm9200_clk_main_osc_setup(struct device_node *np)
 CLK_OF_DECLARE(at91rm9200_clk_main_osc, "atmel,at91rm9200-clk-main-osc",
 	       of_at91rm9200_clk_main_osc_setup);
 
-static void __init of_at91sam9x5_clk_main_rc_osc_setup(struct device_node *np)
+static void __init of_at91sam9x5_clk_main_rc_osc_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	u32 frequency = 0;
 	u32 accuracy = 0;
 	const char *name = np->name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	of_property_read_string(np, "clock-output-names", &name);
 	of_property_read_u32(np, "clock-frequency", &frequency);
 	of_property_read_u32(np, "clock-accuracy", &accuracy);
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -306,20 +306,20 @@ static void __init of_at91sam9x5_clk_main_rc_osc_setup(struct device_node *np)
 CLK_OF_DECLARE(at91sam9x5_clk_main_rc_osc, "atmel,at91sam9x5-clk-main-rc-osc",
 	       of_at91sam9x5_clk_main_rc_osc_setup);
 
-static void __init of_at91rm9200_clk_main_setup(struct device_node *np)
+static void __init of_at91rm9200_clk_main_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *parent_name;
 	const char *name = np->name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	of_property_read_string(np, "clock-output-names", &name);
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -332,14 +332,14 @@ static void __init of_at91rm9200_clk_main_setup(struct device_node *np)
 CLK_OF_DECLARE(at91rm9200_clk_main, "atmel,at91rm9200-clk-main",
 	       of_at91rm9200_clk_main_setup);
 
-static void __init of_at91sam9x5_clk_main_setup(struct device_node *np)
+static void __init of_at91sam9x5_clk_main_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *parent_names[2];
 	unsigned int num_parents;
 	const char *name = np->name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents == 0 || num_parents > 2)
@@ -347,8 +347,8 @@ static void __init of_at91sam9x5_clk_main_setup(struct device_node *np)
 
 	of_clk_parent_fill(np, parent_names, num_parents);
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -365,7 +365,7 @@ CLK_OF_DECLARE(at91sam9x5_clk_main, "atmel,at91sam9x5-clk-main",
 	       of_at91sam9x5_clk_main_setup);
 
 static struct clk_master_characteristics * __init
-of_at91_clk_master_get_characteristics(struct device_node *np)
+of_at91_clk_master_get_characteristics(struct device_analde *np)
 {
 	struct clk_master_characteristics *characteristics;
 
@@ -390,7 +390,7 @@ out_free_characteristics:
 }
 
 static void __init
-of_at91_clk_master_setup(struct device_node *np,
+of_at91_clk_master_setup(struct device_analde *np,
 			 const struct clk_master_layout *layout)
 {
 	struct clk_hw *hw;
@@ -399,7 +399,7 @@ of_at91_clk_master_setup(struct device_node *np,
 	const char *name = np->name;
 	struct clk_master_characteristics *characteristics;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents == 0 || num_parents > MASTER_SOURCE_MAX)
@@ -414,8 +414,8 @@ of_at91_clk_master_setup(struct device_node *np,
 		return;
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -438,14 +438,14 @@ out_free_characteristics:
 	kfree(characteristics);
 }
 
-static void __init of_at91rm9200_clk_master_setup(struct device_node *np)
+static void __init of_at91rm9200_clk_master_setup(struct device_analde *np)
 {
 	of_at91_clk_master_setup(np, &at91rm9200_master_layout);
 }
 CLK_OF_DECLARE(at91rm9200_clk_master, "atmel,at91rm9200-clk-master",
 	       of_at91rm9200_clk_master_setup);
 
-static void __init of_at91sam9x5_clk_master_setup(struct device_node *np)
+static void __init of_at91sam9x5_clk_master_setup(struct device_analde *np)
 {
 	of_at91_clk_master_setup(np, &at91sam9x5_master_layout);
 }
@@ -453,16 +453,16 @@ CLK_OF_DECLARE(at91sam9x5_clk_master, "atmel,at91sam9x5-clk-master",
 	       of_at91sam9x5_clk_master_setup);
 
 static void __init
-of_at91_clk_periph_setup(struct device_node *np, u8 type)
+of_at91_clk_periph_setup(struct device_analde *np, u8 type)
 {
 	int num;
 	u32 id;
 	struct clk_hw *hw;
 	const char *parent_name;
 	const char *name;
-	struct device_node *periphclknp;
+	struct device_analde *periphclknp;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	if (!parent_name)
@@ -473,12 +473,12 @@ of_at91_clk_periph_setup(struct device_node *np, u8 type)
 		return;
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
-	for_each_child_of_node(np, periphclknp) {
+	for_each_child_of_analde(np, periphclknp) {
 		if (of_property_read_u32(periphclknp, "reg", &id))
 			continue;
 
@@ -502,7 +502,7 @@ of_at91_clk_periph_setup(struct device_node *np, u8 type)
 			/*
 			 * mpddr_clk feed DDR controller and is enabled by
 			 * bootloader thus we need to keep it enabled in case
-			 * there is no Linux consumer for it.
+			 * there is anal Linux consumer for it.
 			 */
 			if (!strcmp(periphclknp->name, "mpddr_clk"))
 				flags = CLK_IS_CRITICAL;
@@ -525,14 +525,14 @@ of_at91_clk_periph_setup(struct device_node *np, u8 type)
 	}
 }
 
-static void __init of_at91rm9200_clk_periph_setup(struct device_node *np)
+static void __init of_at91rm9200_clk_periph_setup(struct device_analde *np)
 {
 	of_at91_clk_periph_setup(np, PERIPHERAL_AT91RM9200);
 }
 CLK_OF_DECLARE(at91rm9200_clk_periph, "atmel,at91rm9200-clk-peripheral",
 	       of_at91rm9200_clk_periph_setup);
 
-static void __init of_at91sam9x5_clk_periph_setup(struct device_node *np)
+static void __init of_at91sam9x5_clk_periph_setup(struct device_analde *np)
 {
 	of_at91_clk_periph_setup(np, PERIPHERAL_AT91SAM9X5);
 }
@@ -540,7 +540,7 @@ CLK_OF_DECLARE(at91sam9x5_clk_periph, "atmel,at91sam9x5-clk-peripheral",
 	       of_at91sam9x5_clk_periph_setup);
 
 static struct clk_pll_characteristics * __init
-of_at91_clk_pll_get_characteristics(struct device_node *np)
+of_at91_clk_pll_get_characteristics(struct device_analde *np)
 {
 	int i;
 	int offset;
@@ -636,7 +636,7 @@ out_free_characteristics:
 }
 
 static void __init
-of_at91_clk_pll_setup(struct device_node *np,
+of_at91_clk_pll_setup(struct device_analde *np,
 		      const struct clk_pll_layout *layout)
 {
 	u32 id;
@@ -644,7 +644,7 @@ of_at91_clk_pll_setup(struct device_node *np,
 	struct regmap *regmap;
 	const char *parent_name;
 	const char *name = np->name;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 	struct clk_pll_characteristics *characteristics;
 
 	if (of_property_read_u32(np, "reg", &id))
@@ -655,8 +655,8 @@ of_at91_clk_pll_setup(struct device_node *np,
 	of_property_read_string(np, "clock-output-names", &name);
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -676,28 +676,28 @@ out_free_characteristics:
 	kfree(characteristics);
 }
 
-static void __init of_at91rm9200_clk_pll_setup(struct device_node *np)
+static void __init of_at91rm9200_clk_pll_setup(struct device_analde *np)
 {
 	of_at91_clk_pll_setup(np, &at91rm9200_pll_layout);
 }
 CLK_OF_DECLARE(at91rm9200_clk_pll, "atmel,at91rm9200-clk-pll",
 	       of_at91rm9200_clk_pll_setup);
 
-static void __init of_at91sam9g45_clk_pll_setup(struct device_node *np)
+static void __init of_at91sam9g45_clk_pll_setup(struct device_analde *np)
 {
 	of_at91_clk_pll_setup(np, &at91sam9g45_pll_layout);
 }
 CLK_OF_DECLARE(at91sam9g45_clk_pll, "atmel,at91sam9g45-clk-pll",
 	       of_at91sam9g45_clk_pll_setup);
 
-static void __init of_at91sam9g20_clk_pllb_setup(struct device_node *np)
+static void __init of_at91sam9g20_clk_pllb_setup(struct device_analde *np)
 {
 	of_at91_clk_pll_setup(np, &at91sam9g20_pllb_layout);
 }
 CLK_OF_DECLARE(at91sam9g20_clk_pllb, "atmel,at91sam9g20-clk-pllb",
 	       of_at91sam9g20_clk_pllb_setup);
 
-static void __init of_sama5d3_clk_pll_setup(struct device_node *np)
+static void __init of_sama5d3_clk_pll_setup(struct device_analde *np)
 {
 	of_at91_clk_pll_setup(np, &sama5d3_pll_layout);
 }
@@ -705,21 +705,21 @@ CLK_OF_DECLARE(sama5d3_clk_pll, "atmel,sama5d3-clk-pll",
 	       of_sama5d3_clk_pll_setup);
 
 static void __init
-of_at91sam9x5_clk_plldiv_setup(struct device_node *np)
+of_at91sam9x5_clk_plldiv_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *parent_name;
 	const char *name = np->name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_name = of_clk_get_parent_name(np, 0);
 
 	of_property_read_string(np, "clock-output-names", &name);
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -733,7 +733,7 @@ CLK_OF_DECLARE(at91sam9x5_clk_plldiv, "atmel,at91sam9x5-clk-plldiv",
 	       of_at91sam9x5_clk_plldiv_setup);
 
 static void __init
-of_at91_clk_prog_setup(struct device_node *np,
+of_at91_clk_prog_setup(struct device_analde *np,
 		       const struct clk_programmable_layout *layout,
 		       u32 *mux_table)
 {
@@ -743,7 +743,7 @@ of_at91_clk_prog_setup(struct device_node *np,
 	unsigned int num_parents;
 	const char *parent_names[PROG_SOURCE_MAX];
 	const char *name;
-	struct device_node *progclknp, *parent_np;
+	struct device_analde *progclknp, *parent_np;
 	struct regmap *regmap;
 
 	num_parents = of_clk_get_parent_count(np);
@@ -757,12 +757,12 @@ of_at91_clk_prog_setup(struct device_node *np,
 		return;
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
-	for_each_child_of_node(np, progclknp) {
+	for_each_child_of_analde(np, progclknp) {
 		if (of_property_read_u32(progclknp, "reg", &id))
 			continue;
 
@@ -779,35 +779,35 @@ of_at91_clk_prog_setup(struct device_node *np,
 	}
 }
 
-static void __init of_at91rm9200_clk_prog_setup(struct device_node *np)
+static void __init of_at91rm9200_clk_prog_setup(struct device_analde *np)
 {
 	of_at91_clk_prog_setup(np, &at91rm9200_programmable_layout, NULL);
 }
 CLK_OF_DECLARE(at91rm9200_clk_prog, "atmel,at91rm9200-clk-programmable",
 	       of_at91rm9200_clk_prog_setup);
 
-static void __init of_at91sam9g45_clk_prog_setup(struct device_node *np)
+static void __init of_at91sam9g45_clk_prog_setup(struct device_analde *np)
 {
 	of_at91_clk_prog_setup(np, &at91sam9g45_programmable_layout, NULL);
 }
 CLK_OF_DECLARE(at91sam9g45_clk_prog, "atmel,at91sam9g45-clk-programmable",
 	       of_at91sam9g45_clk_prog_setup);
 
-static void __init of_at91sam9x5_clk_prog_setup(struct device_node *np)
+static void __init of_at91sam9x5_clk_prog_setup(struct device_analde *np)
 {
 	of_at91_clk_prog_setup(np, &at91sam9x5_programmable_layout, NULL);
 }
 CLK_OF_DECLARE(at91sam9x5_clk_prog, "atmel,at91sam9x5-clk-programmable",
 	       of_at91sam9x5_clk_prog_setup);
 
-static void __init of_at91sam9260_clk_slow_setup(struct device_node *np)
+static void __init of_at91sam9260_clk_slow_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *parent_names[2];
 	unsigned int num_parents;
 	const char *name = np->name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents != 2)
@@ -815,8 +815,8 @@ static void __init of_at91sam9260_clk_slow_setup(struct device_node *np)
 
 	of_clk_parent_fill(np, parent_names, num_parents);
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -835,14 +835,14 @@ CLK_OF_DECLARE(at91sam9260_clk_slow, "atmel,at91sam9260-clk-slow",
 #ifdef CONFIG_HAVE_AT91_SMD
 #define SMD_SOURCE_MAX		2
 
-static void __init of_at91sam9x5_clk_smd_setup(struct device_node *np)
+static void __init of_at91sam9x5_clk_smd_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	unsigned int num_parents;
 	const char *parent_names[SMD_SOURCE_MAX];
 	const char *name = np->name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents == 0 || num_parents > SMD_SOURCE_MAX)
@@ -853,8 +853,8 @@ static void __init of_at91sam9x5_clk_smd_setup(struct device_node *np)
 	of_property_read_string(np, "clock-output-names", &name);
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -869,13 +869,13 @@ CLK_OF_DECLARE(at91sam9x5_clk_smd, "atmel,at91sam9x5-clk-smd",
 	       of_at91sam9x5_clk_smd_setup);
 #endif /* CONFIG_HAVE_AT91_SMD */
 
-static void __init of_at91rm9200_clk_sys_setup(struct device_node *np)
+static void __init of_at91rm9200_clk_sys_setup(struct device_analde *np)
 {
 	int num;
 	u32 id;
 	struct clk_hw *hw;
 	const char *name;
-	struct device_node *sysclknp, *parent_np;
+	struct device_analde *sysclknp, *parent_np;
 	const char *parent_name;
 	struct regmap *regmap;
 
@@ -884,12 +884,12 @@ static void __init of_at91rm9200_clk_sys_setup(struct device_node *np)
 		return;
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
-	for_each_child_of_node(np, sysclknp) {
+	for_each_child_of_analde(np, sysclknp) {
 		unsigned long flags = 0;
 
 		if (of_property_read_u32(sysclknp, "reg", &id))
@@ -902,7 +902,7 @@ static void __init of_at91rm9200_clk_sys_setup(struct device_node *np)
 
 		/*
 		 * ddrck feeds DDR controller and is enabled by bootloader thus
-		 * we need to keep it enabled in case there is no Linux consumer
+		 * we need to keep it enabled in case there is anal Linux consumer
 		 * for it.
 		 */
 		if (!strcmp(sysclknp->name, "ddrck"))
@@ -922,14 +922,14 @@ CLK_OF_DECLARE(at91rm9200_clk_sys, "atmel,at91rm9200-clk-system",
 #ifdef CONFIG_HAVE_AT91_USB_CLK
 #define USB_SOURCE_MAX		2
 
-static void __init of_at91sam9x5_clk_usb_setup(struct device_node *np)
+static void __init of_at91sam9x5_clk_usb_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	unsigned int num_parents;
 	const char *parent_names[USB_SOURCE_MAX];
 	const char *name = np->name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents == 0 || num_parents > USB_SOURCE_MAX)
@@ -940,8 +940,8 @@ static void __init of_at91sam9x5_clk_usb_setup(struct device_node *np)
 	of_property_read_string(np, "clock-output-names", &name);
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -955,13 +955,13 @@ static void __init of_at91sam9x5_clk_usb_setup(struct device_node *np)
 CLK_OF_DECLARE(at91sam9x5_clk_usb, "atmel,at91sam9x5-clk-usb",
 	       of_at91sam9x5_clk_usb_setup);
 
-static void __init of_at91sam9n12_clk_usb_setup(struct device_node *np)
+static void __init of_at91sam9n12_clk_usb_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *parent_name;
 	const char *name = np->name;
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	if (!parent_name)
@@ -970,8 +970,8 @@ static void __init of_at91sam9n12_clk_usb_setup(struct device_node *np)
 	of_property_read_string(np, "clock-output-names", &name);
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -984,14 +984,14 @@ static void __init of_at91sam9n12_clk_usb_setup(struct device_node *np)
 CLK_OF_DECLARE(at91sam9n12_clk_usb, "atmel,at91sam9n12-clk-usb",
 	       of_at91sam9n12_clk_usb_setup);
 
-static void __init of_at91rm9200_clk_usb_setup(struct device_node *np)
+static void __init of_at91rm9200_clk_usb_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *parent_name;
 	const char *name = np->name;
 	u32 divisors[4] = {0, 0, 0, 0};
 	struct regmap *regmap;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	if (!parent_name)
@@ -1004,8 +1004,8 @@ static void __init of_at91rm9200_clk_usb_setup(struct device_node *np)
 	of_property_read_string(np, "clock-output-names", &name);
 
 	parent_np = of_get_parent(np);
-	regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap))
 		return;
 	hw = at91rm9200_clk_register_usb(regmap, name, parent_name, divisors);
@@ -1019,21 +1019,21 @@ CLK_OF_DECLARE(at91rm9200_clk_usb, "atmel,at91rm9200-clk-usb",
 #endif /* CONFIG_HAVE_AT91_USB_CLK */
 
 #ifdef CONFIG_HAVE_AT91_UTMI
-static void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np)
+static void __init of_at91sam9x5_clk_utmi_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *parent_name;
 	const char *name = np->name;
 	struct regmap *regmap_pmc, *regmap_sfr;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	parent_name = of_clk_get_parent_name(np, 0);
 
 	of_property_read_string(np, "clock-output-names", &name);
 
 	parent_np = of_get_parent(np);
-	regmap_pmc = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	regmap_pmc = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap_pmc))
 		return;
 

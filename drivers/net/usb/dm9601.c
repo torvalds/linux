@@ -332,7 +332,7 @@ static int dm9601_set_mac_address(struct net_device *net, void *p)
 	struct usbnet *dev = netdev_priv(net);
 
 	if (!is_valid_ether_addr(addr->sa_data)) {
-		dev_err(&net->dev, "not setting invalid mac address %pM\n",
+		dev_err(&net->dev, "analt setting invalid mac address %pM\n",
 								addr->sa_data);
 		return -EINVAL;
 	}
@@ -389,7 +389,7 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* read MAC */
 	if (dm_read(dev, DM_PHY_ADDR, ETH_ALEN, mac) < 0) {
 		printk(KERN_ERR "Error reading MAC address\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -400,14 +400,14 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 		eth_hw_addr_set(dev->net, mac);
 	else {
 		printk(KERN_WARNING
-			"dm9601: No valid MAC address in EEPROM, using %pM\n",
+			"dm9601: Anal valid MAC address in EEPROM, using %pM\n",
 			dev->net->dev_addr);
 		__dm9601_set_mac_address(dev);
 	}
 
 	if (dm_read_reg(dev, DM_CHIP_ID, &id) < 0) {
 		netdev_err(dev->net, "Error reading chip ID\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -417,7 +417,7 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 
 		if (dm_read_reg(dev, DM_MODE_CTRL, &mode) < 0) {
 			netdev_err(dev->net, "Error reading MODE_CTRL\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto out;
 		}
 		dm_write_reg(dev, DM_MODE_CTRL, mode & 0x7f);

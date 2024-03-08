@@ -191,7 +191,7 @@
 
 	sys_clkout_src_gate: sys_clkout_src_gate@70 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clocks = <&core_ck>;
 		ti,bit-shift = <7>;
 		reg = <0x0070>;
@@ -333,7 +333,7 @@
 
 	dss_ick: dss_ick@210 {
 		#clock-cells = <0>;
-		compatible = "ti,omap3-no-wait-interface-clock";
+		compatible = "ti,omap3-anal-wait-interface-clock";
 		clocks = <&l4_ck>;
 		ti,bit-shift = <0>;
 		reg = <0x0210>;
@@ -341,7 +341,7 @@
 
 	dss1_gate_fck: dss1_gate_fck@200 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clocks = <&core_ck>;
 		ti,bit-shift = <0>;
 		reg = <0x0200>;
@@ -441,7 +441,7 @@
 
 	dss2_gate_fck: dss2_gate_fck@200 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clocks = <&func_48m_ck>;
 		ti,bit-shift = <1>;
 		reg = <0x0200>;
@@ -1059,7 +1059,7 @@
 
 	cam_ick: cam_ick@210 {
 		#clock-cells = <0>;
-		compatible = "ti,omap3-no-wait-interface-clock";
+		compatible = "ti,omap3-anal-wait-interface-clock";
 		clocks = <&l4_ck>;
 		ti,bit-shift = <31>;
 		reg = <0x0210>;

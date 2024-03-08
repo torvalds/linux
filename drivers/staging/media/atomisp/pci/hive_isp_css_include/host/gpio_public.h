@@ -24,7 +24,7 @@
  \param	reg_addr[in]		register byte address
  \param value[in]			The data to be written
 
- \return none, GPIO[ID].ctrl[reg] = value
+ \return analne, GPIO[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_GPIO_H void gpio_reg_store(
     const gpio_ID_t	ID,

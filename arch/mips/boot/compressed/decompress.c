@@ -9,7 +9,7 @@
 
 #define DISABLE_BRANCH_PROFILING
 
-#define __NO_FORTIFY
+#define __ANAL_FORTIFY
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -125,5 +125,5 @@ void decompress_kernel(unsigned long boot_heap_start)
 	}
 
 	/* FIXME: should we flush cache here? */
-	puts("Now, booting the kernel...\n");
+	puts("Analw, booting the kernel...\n");
 }

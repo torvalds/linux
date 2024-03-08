@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: GPL-2.0
 # Leo Yan <leo.yan@linaro.org>, 2022
 
-# skip if there's no jshell
+# skip if there's anal jshell
 if ! [ -x "$(command -v jshell)" ]; then
-	echo "skip: no jshell, install JDK"
+	echo "skip: anal jshell, install JDK"
 	exit 2
 fi
 

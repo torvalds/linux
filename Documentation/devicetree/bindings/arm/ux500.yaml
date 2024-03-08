@@ -10,7 +10,7 @@ maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -30,9 +30,9 @@ properties:
           - const: st-ericsson,hrefv60+
           - const: st-ericsson,u8500
 
-      - description: Calao Systems Snowball
+      - description: Calao Systems Sanalwball
         items:
-          - const: calaosystems,snowball-a9500
+          - const: calaosystems,sanalwball-a9500
           - const: st-ericsson,u9500
 
       - description: Samsung Galaxy Ace 2 (GT-I8160)

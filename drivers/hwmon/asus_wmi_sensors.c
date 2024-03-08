@@ -254,7 +254,7 @@ static int asus_wmi_hwmon_add_chan_info(struct hwmon_channel_info *asus_wmi_hwmo
 
 	cfg = devm_kcalloc(dev, num + 1, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asus_wmi_hwmon_chan->type = type;
 	asus_wmi_hwmon_chan->config = cfg;
@@ -442,7 +442,7 @@ unlock:
 	return ret;
 }
 
-/* Now follow the functions that implement the hwmon interface */
+/* Analw follow the functions that implement the hwmon interface */
 static int asus_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			       u32 attr, int channel, long *val)
 {
@@ -542,12 +542,12 @@ static int asus_wmi_configure_sensor_setup(struct device *dev,
 					   sizeof(*asus_wmi_hwmon_chan),
 					   GFP_KERNEL);
 	if (!asus_wmi_hwmon_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr_asus_wmi_ci = devm_kcalloc(dev, nr_types + 1,
 				       sizeof(*ptr_asus_wmi_ci), GFP_KERNEL);
 	if (!ptr_asus_wmi_ci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asus_wmi_chip_info.info = ptr_asus_wmi_ci;
 	chip_info = &asus_wmi_chip_info;
@@ -557,7 +557,7 @@ static int asus_wmi_configure_sensor_setup(struct device *dev,
 						   GFP_KERNEL);
 
 	if (!sensor_data->wmi.info_by_id)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (type = 0; type < hwmon_max; type++) {
 		if (!nr_count[type])
@@ -576,13 +576,13 @@ static int asus_wmi_configure_sensor_setup(struct device *dev,
 							   sizeof(*sensor_data->wmi.info),
 							   GFP_KERNEL);
 		if (!sensor_data->wmi.info[type])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for (i = sensor_data->wmi.sensor_count - 1; i >= 0; i--) {
 		temp_sensor = devm_kzalloc(dev, sizeof(*temp_sensor), GFP_KERNEL);
 		if (!temp_sensor)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		err = asus_wmi_sensor_info(i, temp_sensor);
 		if (err)
@@ -618,23 +618,23 @@ static int asus_wmi_probe(struct wmi_device *wdev, const void *context)
 	u32 version = 0;
 
 	if (!dmi_check_system(asus_wmi_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sensor_data = devm_kzalloc(dev, sizeof(*sensor_data), GFP_KERNEL);
 	if (!sensor_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (asus_wmi_get_version(&version))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (asus_wmi_get_item_count(&sensor_data->wmi.sensor_count))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (sensor_data->wmi.sensor_count  <= 0 || version < 2) {
 		dev_info(dev, "version: %u with %d sensors is unsupported\n",
 			 version, sensor_data->wmi.sensor_count);
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_init(&sensor_data->lock);

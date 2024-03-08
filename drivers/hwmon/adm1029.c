@@ -7,7 +7,7 @@
  * Based on LM83 Driver by Jean Delvare <jdelvare@suse.de>
  *
  * Give only processor, motherboard temperatures and fan tachs
- * Very rare chip please let me know if you use it
+ * Very rare chip please let me kanalw if you use it
  *
  * http://www.analog.com/UploadedFiles/Data_Sheets/ADM1029.pdf
  */
@@ -26,7 +26,7 @@
  * Addresses to scan
  */
 
-static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+static const unsigned short analrmal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END
 };
 
@@ -119,7 +119,7 @@ static struct adm1029_data *adm1029_update_device(struct device *dev)
 	mutex_lock(&data->update_lock);
 	/*
 	 * Use the "cache" Luke, don't recheck values
-	 * if there are already checked not a long time later
+	 * if there are already checked analt a long time later
 	 */
 	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
 		int nr;
@@ -226,7 +226,7 @@ static ssize_t fan_div_store(struct device *dev,
 	default:
 		mutex_unlock(&data->update_lock);
 		dev_err(&client->dev,
-			"fan_div value %ld not supported. Choose one of 1, 2 or 4!\n",
+			"fan_div value %ld analt supported. Choose one of 1, 2 or 4!\n",
 			val);
 		return -EINVAL;
 	}
@@ -291,7 +291,7 @@ ATTRIBUTE_GROUPS(adm1029);
  * Real code
  */
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int adm1029_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -299,7 +299,7 @@ static int adm1029_detect(struct i2c_client *client,
 	u8 man_id, chip_id, temp_devices_installed, nb_fan_support;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * ADM1029 doesn't have CHIP ID, check just MAN ID
@@ -317,16 +317,16 @@ static int adm1029_detect(struct i2c_client *client,
 	/* 0x41 is Analog Devices */
 	if (man_id != 0x41 || (temp_devices_installed & 0xf9) != 0x01 ||
 	    nb_fan_support != 0x03)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((chip_id & 0xF0) != 0x00) {
 		/*
-		 * There are no "official" CHIP ID, so actually
-		 * we use Major/Minor revision for that
+		 * There are anal "official" CHIP ID, so actually
+		 * we use Major/Mianalr revision for that
 		 */
-		pr_info("Unknown major revision %x, please let us know\n",
+		pr_info("Unkanalwn major revision %x, please let us kanalw\n",
 			chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, "adm1029", I2C_NAME_SIZE);
@@ -360,7 +360,7 @@ static int adm1029_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct adm1029_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -370,7 +370,7 @@ static int adm1029_probe(struct i2c_client *client)
 	 * Check config register
 	 */
 	if (adm1029_init_client(client) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
 							   data,
@@ -392,7 +392,7 @@ static struct i2c_driver adm1029_driver = {
 	.probe		= adm1029_probe,
 	.id_table	= adm1029_id,
 	.detect		= adm1029_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(adm1029_driver);

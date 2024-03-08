@@ -23,7 +23,7 @@
 };
 
 &sdio2 {
-	non-removable;
+	analn-removable;
 	max-frequency = <48000000>;
 	status = "okay";
 };

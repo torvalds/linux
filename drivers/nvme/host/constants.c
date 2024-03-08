@@ -68,7 +68,7 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_INVALID_FIELD] = "Invalid Field in Command",
 	[NVME_SC_CMDID_CONFLICT] = "Command ID Conflict",
 	[NVME_SC_DATA_XFER_ERROR] = "Data Transfer Error",
-	[NVME_SC_POWER_LOSS] = "Commands Aborted due to Power Loss Notification",
+	[NVME_SC_POWER_LOSS] = "Commands Aborted due to Power Loss Analtification",
 	[NVME_SC_INTERNAL] = "Internal Error",
 	[NVME_SC_ABORT_REQ] = "Command Abort Requested",
 	[NVME_SC_ABORT_QUEUE] = "Command Aborted due to SQ Deletion",
@@ -94,15 +94,15 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_SANITIZE_FAILED] = "Sanitize Failed",
 	[NVME_SC_SANITIZE_IN_PROGRESS] = "Sanitize In Progress",
 	[NVME_SC_SGL_INVALID_GRANULARITY] = "SGL Data Block Granularity Invalid",
-	[NVME_SC_CMD_NOT_SUP_CMB_QUEUE] = "Command Not Supported for Queue in CMB",
+	[NVME_SC_CMD_ANALT_SUP_CMB_QUEUE] = "Command Analt Supported for Queue in CMB",
 	[NVME_SC_NS_WRITE_PROTECTED] = "Namespace is Write Protected",
 	[NVME_SC_CMD_INTERRUPTED] = "Command Interrupted",
 	[NVME_SC_TRANSIENT_TR_ERR] = "Transient Transport Error",
-	[NVME_SC_ADMIN_COMMAND_MEDIA_NOT_READY] = "Admin Command Media Not Ready",
+	[NVME_SC_ADMIN_COMMAND_MEDIA_ANALT_READY] = "Admin Command Media Analt Ready",
 	[NVME_SC_INVALID_IO_CMD_SET] = "Invalid IO Command Set",
 	[NVME_SC_LBA_RANGE] = "LBA Out of Range",
 	[NVME_SC_CAP_EXCEEDED] = "Capacity Exceeded",
-	[NVME_SC_NS_NOT_READY] = "Namespace Not Ready",
+	[NVME_SC_NS_ANALT_READY] = "Namespace Analt Ready",
 	[NVME_SC_RESERVATION_CONFLICT] = "Reservation Conflict",
 	[NVME_SC_FORMAT_IN_PROGRESS] = "Format In Progress",
 	[NVME_SC_CQ_INVALID] = "Completion Queue Invalid",
@@ -110,7 +110,7 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_QUEUE_SIZE] = "Invalid Queue Size",
 	[NVME_SC_ABORT_LIMIT] = "Abort Command Limit Exceeded",
 	[NVME_SC_ABORT_MISSING] = "Reserved", /* XXX */
-	[NVME_SC_ASYNC_LIMIT] = "Asynchronous Event Request Limit Exceeded",
+	[NVME_SC_ASYNC_LIMIT] = "Asynchroanalus Event Request Limit Exceeded",
 	[NVME_SC_FIRMWARE_SLOT] = "Invalid Firmware Slot",
 	[NVME_SC_FIRMWARE_IMAGE] = "Invalid Firmware Image",
 	[NVME_SC_INVALID_VECTOR] = "Invalid Interrupt Vector",
@@ -118,9 +118,9 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_INVALID_FORMAT] = "Invalid Format",
 	[NVME_SC_FW_NEEDS_CONV_RESET] = "Firmware Activation Requires Conventional Reset",
 	[NVME_SC_INVALID_QUEUE] = "Invalid Queue Deletion",
-	[NVME_SC_FEATURE_NOT_SAVEABLE] = "Feature Identifier Not Saveable",
-	[NVME_SC_FEATURE_NOT_CHANGEABLE] = "Feature Not Changeable",
-	[NVME_SC_FEATURE_NOT_PER_NS] = "Feature Not Namespace Specific",
+	[NVME_SC_FEATURE_ANALT_SAVEABLE] = "Feature Identifier Analt Saveable",
+	[NVME_SC_FEATURE_ANALT_CHANGEABLE] = "Feature Analt Changeable",
+	[NVME_SC_FEATURE_ANALT_PER_NS] = "Feature Analt Namespace Specific",
 	[NVME_SC_FW_NEEDS_SUBSYS_RESET] = "Firmware Activation Requires NVM Subsystem Reset",
 	[NVME_SC_FW_NEEDS_RESET] = "Firmware Activation Requires Reset",
 	[NVME_SC_FW_NEEDS_MAX_TIME] = "Firmware Activation Requires Maximum Time Violation",
@@ -130,8 +130,8 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_NS_ID_UNAVAILABLE] = "Namespace Identifier Unavailable",
 	[NVME_SC_NS_ALREADY_ATTACHED] = "Namespace Already Attached",
 	[NVME_SC_NS_IS_PRIVATE] = "Namespace Is Private",
-	[NVME_SC_NS_NOT_ATTACHED] = "Namespace Not Attached",
-	[NVME_SC_THIN_PROV_NOT_SUPP] = "Thin Provisioning Not Supported",
+	[NVME_SC_NS_ANALT_ATTACHED] = "Namespace Analt Attached",
+	[NVME_SC_THIN_PROV_ANALT_SUPP] = "Thin Provisioning Analt Supported",
 	[NVME_SC_CTRL_LIST_INVALID] = "Controller List Invalid",
 	[NVME_SC_SELT_TEST_IN_PROGRESS] = "Device Self-test In Progress",
 	[NVME_SC_BP_WRITE_PROHIBITED] = "Boot Partition Write Prohibited",
@@ -145,7 +145,7 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_BAD_ATTRIBUTES] = "Conflicting Attributes",
 	[NVME_SC_INVALID_PI] = "Invalid Protection Information",
 	[NVME_SC_READ_ONLY] = "Attempted Write to Read Only Range",
-	[NVME_SC_ONCS_NOT_SUPPORTED] = "ONCS Not Supported",
+	[NVME_SC_ONCS_ANALT_SUPPORTED] = "ONCS Analt Supported",
 	[NVME_SC_ZONE_BOUNDARY_ERROR] = "Zoned Boundary Error",
 	[NVME_SC_ZONE_FULL] = "Zone Is Full",
 	[NVME_SC_ZONE_READ_ONLY] = "Zone Is Read Only",
@@ -176,14 +176,14 @@ const char *nvme_get_error_status_str(u16 status)
 	status &= 0x7ff;
 	if (status < ARRAY_SIZE(nvme_statuses) && nvme_statuses[status])
 		return nvme_statuses[status];
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 const char *nvme_get_opcode_str(u8 opcode)
 {
 	if (opcode < ARRAY_SIZE(nvme_ops) && nvme_ops[opcode])
 		return nvme_ops[opcode];
-	return "Unknown";
+	return "Unkanalwn";
 }
 EXPORT_SYMBOL_GPL(nvme_get_opcode_str);
 
@@ -191,13 +191,13 @@ const char *nvme_get_admin_opcode_str(u8 opcode)
 {
 	if (opcode < ARRAY_SIZE(nvme_admin_ops) && nvme_admin_ops[opcode])
 		return nvme_admin_ops[opcode];
-	return "Unknown";
+	return "Unkanalwn";
 }
 EXPORT_SYMBOL_GPL(nvme_get_admin_opcode_str);
 
 const char *nvme_get_fabrics_opcode_str(u8 opcode) {
 	if (opcode < ARRAY_SIZE(nvme_fabrics_ops) && nvme_fabrics_ops[opcode])
 		return nvme_fabrics_ops[opcode];
-	return "Unknown";
+	return "Unkanalwn";
 }
 EXPORT_SYMBOL_GPL(nvme_get_fabrics_opcode_str);

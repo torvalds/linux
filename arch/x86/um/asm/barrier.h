@@ -7,7 +7,7 @@
 
 /*
  * Force strict CPU ordering.
- * And yes, this is required on UP too when we're talking
+ * And anal, this is required on UP too when we're talking
  * to devices.
  */
 #ifdef CONFIG_X86_32

@@ -108,7 +108,7 @@ struct aic31xx_pdata {
 #define AIC31XX_HPCONTROL	AIC31XX_REG(1, 44) /* HP Driver Control */
 #define AIC31XX_MICBIAS		AIC31XX_REG(1, 46) /* MIC Bias Control */
 #define AIC31XX_MICPGA		AIC31XX_REG(1, 47) /* MIC PGA*/
-#define AIC31XX_MICPGAPI	AIC31XX_REG(1, 48) /* Delta-Sigma Mono ADC Channel Fine-Gain Input Selection for P-Terminal */
+#define AIC31XX_MICPGAPI	AIC31XX_REG(1, 48) /* Delta-Sigma Moanal ADC Channel Fine-Gain Input Selection for P-Terminal */
 #define AIC31XX_MICPGAMI	AIC31XX_REG(1, 49) /* ADC Input Selection for M-Terminal */
 #define AIC31XX_MICPGACM	AIC31XX_REG(1, 50) /* Input CM Settings */
 
@@ -198,7 +198,7 @@ struct aic31xx_pdata {
 #define AIC31XX_HSPLUGDET		BIT(7)
 #define AIC31XX_BUTTONPRESSDET		BIT(6)
 #define AIC31XX_DRCTHRES		BIT(5)
-#define AIC31XX_AGCNOISE		BIT(4)
+#define AIC31XX_AGCANALISE		BIT(4)
 #define AIC31XX_SC			BIT(3)
 #define AIC31XX_ENGINE			BIT(2)
 
@@ -225,7 +225,7 @@ struct aic31xx_pdata {
 #define AIC31XX_HSD_ENABLE		BIT(7)
 #define AIC31XX_HSD_TYPE_MASK		GENMASK(6, 5)
 #define AIC31XX_HSD_TYPE_SHIFT		5
-#define AIC31XX_HSD_NONE		0x00
+#define AIC31XX_HSD_ANALNE		0x00
 #define AIC31XX_HSD_HP			0x01
 #define AIC31XX_HSD_HS			0x03
 

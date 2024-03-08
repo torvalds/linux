@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Linear Technology LTC4222 Dual Hot Swap controller
+ * Driver for Linear Techanallogy LTC4222 Dual Hot Swap controller
  *
  * Copyright (c) 2014 Guenter Roeck
  */

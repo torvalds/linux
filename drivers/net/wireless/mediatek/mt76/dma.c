@@ -253,12 +253,12 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
 	if (mt76_queue_is_wed_rx(q)) {
 		txwi = mt76_get_rxwi(dev);
 		if (!txwi)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rx_token = mt76_rx_token_consume(dev, data, txwi, buf->addr);
 		if (rx_token < 0) {
 			mt76_put_rxwi(dev, txwi);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		buf1 |= FIELD_PREP(MT_DMA_CTL_TOKEN, rx_token);
@@ -400,7 +400,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
 		mt76_queue_tx_complete(dev, q, &entry);
 
 		if (entry.txwi) {
-			if (!(dev->drv->drv_flags & MT_DRV_TXWI_NO_FREE))
+			if (!(dev->drv->drv_flags & MT_DRV_TXWI_ANAL_FREE))
 				mt76_put_txwi(dev, entry.txwi);
 		}
 
@@ -530,7 +530,7 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
 
 error:
 	dev_kfree_skb(skb);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int
@@ -545,7 +545,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 		.skb = skb,
 	};
 	struct ieee80211_hw *hw;
-	int len, n = 0, ret = -ENOMEM;
+	int len, n = 0, ret = -EANALMEM;
 	struct mt76_txwi_cache *t;
 	struct sk_buff *iter;
 	dma_addr_t addr;
@@ -589,7 +589,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	tx_info.nbuf = n;
 
 	if (q->queued + (tx_info.nbuf + 1) / 2 >= q->ndesc - 1) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unmap;
 	}
 
@@ -776,7 +776,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 	q->desc = dmam_alloc_coherent(dev->dma_dev, q->ndesc * size,
 				      &q->desc_dma, GFP_KERNEL);
 	if (!q->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mt76_queue_is_wed_rro_ind(q)) {
 		struct mt76_wed_rro_desc *rro_desc;
@@ -794,7 +794,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 	size = q->ndesc * sizeof(*q->entry);
 	q->entry = devm_kzalloc(dev->dev, size, GFP_KERNEL);
 	if (!q->entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mt76_create_page_pool(dev, q);
 	if (ret)

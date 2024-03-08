@@ -1145,13 +1145,13 @@ static const struct tegra_mc_reset tegra124_mc_resets[] = {
 	TEGRA124_MC_RESET(GPU,       0x970, 0x974,  2),
 };
 
-static int tegra124_mc_icc_set(struct icc_node *src, struct icc_node *dst)
+static int tegra124_mc_icc_set(struct icc_analde *src, struct icc_analde *dst)
 {
 	/* TODO: program PTSA */
 	return 0;
 }
 
-static int tegra124_mc_icc_aggreate(struct icc_node *node, u32 tag, u32 avg_bw,
+static int tegra124_mc_icc_aggreate(struct icc_analde *analde, u32 tag, u32 avg_bw,
 				    u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
 {
 	/*
@@ -1169,32 +1169,32 @@ static int tegra124_mc_icc_aggreate(struct icc_node *node, u32 tag, u32 avg_bw,
 	return 0;
 }
 
-static struct icc_node_data *
+static struct icc_analde_data *
 tegra124_mc_of_icc_xlate_extended(struct of_phandle_args *spec, void *data)
 {
 	struct tegra_mc *mc = icc_provider_to_tegra_mc(data);
 	const struct tegra_mc_client *client;
 	unsigned int i, idx = spec->args[0];
-	struct icc_node_data *ndata;
-	struct icc_node *node;
+	struct icc_analde_data *ndata;
+	struct icc_analde *analde;
 
-	list_for_each_entry(node, &mc->provider.nodes, node_list) {
-		if (node->id != idx)
+	list_for_each_entry(analde, &mc->provider.analdes, analde_list) {
+		if (analde->id != idx)
 			continue;
 
 		ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
 		if (!ndata)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		client = &mc->soc->clients[idx];
-		ndata->node = node;
+		ndata->analde = analde;
 
 		switch (client->swgroup) {
 		case TEGRA_SWGROUP_DC:
 		case TEGRA_SWGROUP_DCB:
 		case TEGRA_SWGROUP_PTC:
 		case TEGRA_SWGROUP_VI:
-			/* these clients are isochronous by default */
+			/* these clients are isochroanalus by default */
 			ndata->tag = TEGRA_MC_ICC_TAG_ISO;
 			break;
 

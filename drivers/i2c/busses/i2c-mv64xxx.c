@@ -43,19 +43,19 @@
 #define	MV64XXX_I2C_STATUS_MAST_START			0x08
 #define	MV64XXX_I2C_STATUS_MAST_REPEAT_START		0x10
 #define	MV64XXX_I2C_STATUS_MAST_WR_ADDR_ACK		0x18
-#define	MV64XXX_I2C_STATUS_MAST_WR_ADDR_NO_ACK		0x20
+#define	MV64XXX_I2C_STATUS_MAST_WR_ADDR_ANAL_ACK		0x20
 #define	MV64XXX_I2C_STATUS_MAST_WR_ACK			0x28
-#define	MV64XXX_I2C_STATUS_MAST_WR_NO_ACK		0x30
+#define	MV64XXX_I2C_STATUS_MAST_WR_ANAL_ACK		0x30
 #define	MV64XXX_I2C_STATUS_MAST_LOST_ARB		0x38
 #define	MV64XXX_I2C_STATUS_MAST_RD_ADDR_ACK		0x40
-#define	MV64XXX_I2C_STATUS_MAST_RD_ADDR_NO_ACK		0x48
+#define	MV64XXX_I2C_STATUS_MAST_RD_ADDR_ANAL_ACK		0x48
 #define	MV64XXX_I2C_STATUS_MAST_RD_DATA_ACK		0x50
-#define	MV64XXX_I2C_STATUS_MAST_RD_DATA_NO_ACK		0x58
+#define	MV64XXX_I2C_STATUS_MAST_RD_DATA_ANAL_ACK		0x58
 #define	MV64XXX_I2C_STATUS_MAST_WR_ADDR_2_ACK		0xd0
-#define	MV64XXX_I2C_STATUS_MAST_WR_ADDR_2_NO_ACK	0xd8
+#define	MV64XXX_I2C_STATUS_MAST_WR_ADDR_2_ANAL_ACK	0xd8
 #define	MV64XXX_I2C_STATUS_MAST_RD_ADDR_2_ACK		0xe0
-#define	MV64XXX_I2C_STATUS_MAST_RD_ADDR_2_NO_ACK	0xe8
-#define	MV64XXX_I2C_STATUS_NO_STATUS			0xf8
+#define	MV64XXX_I2C_STATUS_MAST_RD_ADDR_2_ANAL_ACK	0xe8
+#define	MV64XXX_I2C_STATUS_ANAL_STATUS			0xf8
 
 /* Register defines (I2C bridge) */
 #define	MV64XXX_I2C_REG_TX_DATA_LO			0xc0
@@ -146,7 +146,7 @@ struct mv64xxx_i2c_data {
 	bool			errata_delay;
 	struct reset_control	*rstc;
 	bool			irq_clear_inverted;
-	/* Clk div is 2 to the power n, not 2 to the power n + 1 */
+	/* Clk div is 2 to the power n, analt 2 to the power n + 1 */
 	bool			clk_n_base_0;
 	struct i2c_bus_recovery_info	rinfo;
 	bool			atomic;
@@ -313,14 +313,14 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 			drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_ACK;
 		break;
 
-	case MV64XXX_I2C_STATUS_MAST_RD_DATA_NO_ACK: /* 0x58 */
+	case MV64XXX_I2C_STATUS_MAST_RD_DATA_ANAL_ACK: /* 0x58 */
 		drv_data->action = MV64XXX_I2C_ACTION_RCV_DATA_STOP;
 		drv_data->state = MV64XXX_I2C_STATE_IDLE;
 		break;
 
-	case MV64XXX_I2C_STATUS_MAST_WR_ADDR_NO_ACK: /* 0x20 */
-	case MV64XXX_I2C_STATUS_MAST_WR_NO_ACK: /* 30 */
-	case MV64XXX_I2C_STATUS_MAST_RD_ADDR_NO_ACK: /* 48 */
+	case MV64XXX_I2C_STATUS_MAST_WR_ADDR_ANAL_ACK: /* 0x20 */
+	case MV64XXX_I2C_STATUS_MAST_WR_ANAL_ACK: /* 30 */
+	case MV64XXX_I2C_STATUS_MAST_RD_ADDR_ANAL_ACK: /* 48 */
 		/* Doesn't seem to be a device at other end */
 		drv_data->action = MV64XXX_I2C_ACTION_SEND_STOP;
 		drv_data->state = MV64XXX_I2C_STATE_IDLE;
@@ -371,7 +371,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		/*
 		 * We're never at the start of the message here, and by this
 		 * time it's already too late to do any protocol mangling.
-		 * Thankfully, do not advertise support for that feature.
+		 * Thankfully, do analt advertise support for that feature.
 		 */
 		drv_data->send_stop = drv_data->num_msgs == 1;
 		break;
@@ -461,7 +461,7 @@ mv64xxx_i2c_intr_offload(struct mv64xxx_i2c_data *drv_data)
 	cause = readl(drv_data->reg_base +
 		      MV64XXX_I2C_REG_BRIDGE_INTR_CAUSE);
 	if (!cause)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = readl(drv_data->reg_base +
 		       MV64XXX_I2C_REG_BRIDGE_STATUS);
@@ -510,7 +510,7 @@ mv64xxx_i2c_intr(int irq, void *dev_id)
 {
 	struct mv64xxx_i2c_data	*drv_data = dev_id;
 	u32		status;
-	irqreturn_t	rc = IRQ_NONE;
+	irqreturn_t	rc = IRQ_ANALNE;
 
 	spin_lock(&drv_data->lock);
 
@@ -524,7 +524,7 @@ mv64xxx_i2c_intr(int irq, void *dev_id)
 		 * register only after it asserts IFLG in control register.
 		 * This may result in weird bugs when in atomic mode. A delay
 		 * of 100 ns before reading the status register solves this
-		 * issue. This bug does not seem to appear when using
+		 * issue. This bug does analt seem to appear when using
 		 * interrupts.
 		 */
 		if (drv_data->atomic)
@@ -567,7 +567,7 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 		drv_data->rc = -ETIMEDOUT;
 		abort = 1;
 	} else if (time_left < 0) { /* Interrupted/Error */
-		drv_data->rc = time_left; /* errno value */
+		drv_data->rc = time_left; /* erranal value */
 		abort = 1;
 	}
 
@@ -859,16 +859,16 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		  struct device *dev)
 {
 	const struct mv64xxx_i2c_regs *data;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 bus_freq, tclk;
 	int rc = 0;
 
 	/* CLK is mandatory when using DT to describe the i2c bus. We
-	 * need to know tclk in order to calculate bus clock
+	 * need to kanalw tclk in order to calculate bus clock
 	 * factors.
 	 */
 	if (!drv_data->clk) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 	tclk = clk_get_rate(drv_data->clk);
@@ -891,14 +891,14 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		goto out;
 	}
 
-	/* Its not yet defined how timeouts will be specified in device tree.
+	/* Its analt yet defined how timeouts will be specified in device tree.
 	 * So hard code the value to 1 second.
 	 */
 	drv_data->adapter.timeout = HZ;
 
 	data = device_get_match_data(dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memcpy(&drv_data->reg_offsets, data, sizeof(drv_data->reg_offsets));
 
@@ -931,7 +931,7 @@ static int
 mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		  struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif /* CONFIG_OF */
 
@@ -944,10 +944,10 @@ static int mv64xxx_i2c_init_recovery_info(struct mv64xxx_i2c_data *drv_data,
 	if (IS_ERR(rinfo->pinctrl)) {
 		if (PTR_ERR(rinfo->pinctrl) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(dev, "can't get pinctrl, bus recovery not supported\n");
+		dev_info(dev, "can't get pinctrl, bus recovery analt supported\n");
 		return PTR_ERR(rinfo->pinctrl);
 	} else if (!rinfo->pinctrl) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	drv_data->adapter.bus_recovery_info = rinfo;
@@ -987,13 +987,13 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	struct mv64xxx_i2c_pdata	*pdata = dev_get_platdata(&pd->dev);
 	int	rc;
 
-	if ((!pdata && !pd->dev.of_node))
-		return -ENODEV;
+	if ((!pdata && !pd->dev.of_analde))
+		return -EANALDEV;
 
 	drv_data = devm_kzalloc(&pd->dev, sizeof(struct mv64xxx_i2c_data),
 				GFP_KERNEL);
 	if (!drv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drv_data->reg_base = devm_platform_ioremap_resource(pd, 0);
 	if (IS_ERR(drv_data->reg_base))
@@ -1005,7 +1005,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	init_waitqueue_head(&drv_data->waitq);
 	spin_lock_init(&drv_data->lock);
 
-	/* Not all platforms have clocks */
+	/* Analt all platforms have clocks */
 	drv_data->clk = devm_clk_get(&pd->dev, NULL);
 	if (IS_ERR(drv_data->clk)) {
 		if (PTR_ERR(drv_data->clk) == -EPROBE_DEFER)
@@ -1030,7 +1030,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 		drv_data->adapter.timeout = msecs_to_jiffies(pdata->timeout);
 		drv_data->offload_enabled = false;
 		memcpy(&drv_data->reg_offsets, &mv64xxx_i2c_regs_mv64xxx, sizeof(drv_data->reg_offsets));
-	} else if (pd->dev.of_node) {
+	} else if (pd->dev.of_analde) {
 		rc = mv64xxx_of_config(drv_data, &pd->dev);
 		if (rc)
 			return rc;
@@ -1045,7 +1045,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	drv_data->adapter.owner = THIS_MODULE;
 	drv_data->adapter.class = I2C_CLASS_DEPRECATED;
 	drv_data->adapter.nr = pd->id;
-	drv_data->adapter.dev.of_node = pd->dev.of_node;
+	drv_data->adapter.dev.of_analde = pd->dev.of_analde;
 	platform_set_drvdata(pd, drv_data);
 	i2c_set_adapdata(&drv_data->adapter, drv_data);
 
@@ -1098,7 +1098,7 @@ mv64xxx_i2c_remove(struct platform_device *pd)
 static const struct dev_pm_ops mv64xxx_i2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(mv64xxx_i2c_runtime_suspend,
 			   mv64xxx_i2c_runtime_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				      pm_runtime_force_resume)
 };
 

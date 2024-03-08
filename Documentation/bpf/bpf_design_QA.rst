@@ -17,11 +17,11 @@ Questions and Answers
 
 Q: Is BPF a generic instruction set similar to x64 and arm64?
 -------------------------------------------------------------
-A: NO.
+A: ANAL.
 
 Q: Is BPF a generic virtual machine ?
 -------------------------------------
-A: NO.
+A: ANAL.
 
 BPF is generic instruction set *with* C calling convention.
 -----------------------------------------------------------
@@ -38,21 +38,21 @@ convention of the linux kernel on those architectures.
 
 Q: Can multiple return values be supported in the future?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-A: NO. BPF allows only register R0 to be used as return value.
+A: ANAL. BPF allows only register R0 to be used as return value.
 
 Q: Can more than 5 function arguments be supported in the future?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-A: NO. BPF calling convention only allows registers R1-R5 to be used
-as arguments. BPF is not a standalone instruction set.
+A: ANAL. BPF calling convention only allows registers R1-R5 to be used
+as arguments. BPF is analt a standalone instruction set.
 (unlike x64 ISA that allows msft, cdecl and other conventions)
 
 Q: Can BPF programs access instruction pointer or return address?
 -----------------------------------------------------------------
-A: NO.
+A: ANAL.
 
 Q: Can BPF programs access stack pointer ?
 ------------------------------------------
-A: NO.
+A: ANAL.
 
 Only frame pointer (register R10) is accessible.
 From compiler point of view it's necessary to have stack pointer.
@@ -61,7 +61,7 @@ BPF backend, but it makes sure that generated code never uses it.
 
 Q: Does C-calling convention diminishes possible use cases?
 -----------------------------------------------------------
-A: YES.
+A: ANAL.
 
 BPF design forces addition of major functionality in the form
 of kernel helper functions and kernel objects like BPF maps with
@@ -71,42 +71,42 @@ as all of them were native C code. That is particularly the case
 for JITed BPF programs that are indistinguishable from
 native kernel C code.
 
-Q: Does it mean that 'innovative' extensions to BPF code are disallowed?
+Q: Does it mean that 'inanalvative' extensions to BPF code are disallowed?
 ------------------------------------------------------------------------
-A: Soft yes.
+A: Soft anal.
 
-At least for now, until BPF core has support for
+At least for analw, until BPF core has support for
 bpf-to-bpf calls, indirect calls, loops, global variables,
-jump tables, read-only sections, and all other normal constructs
+jump tables, read-only sections, and all other analrmal constructs
 that C code can produce.
 
 Q: Can loops be supported in a safe way?
 ----------------------------------------
-A: It's not clear yet.
+A: It's analt clear yet.
 
 BPF developers are trying to find a way to
 support bounded loops.
 
 Q: What are the verifier limits?
 --------------------------------
-A: The only limit known to the user space is BPF_MAXINSNS (4096).
+A: The only limit kanalwn to the user space is BPF_MAXINSNS (4096).
 It's the maximum number of instructions that the unprivileged bpf
 program can have. The verifier has various internal limits.
 Like the maximum number of instructions that can be explored during
 program analysis. Currently, that limit is set to 1 million.
 Which essentially means that the largest program can consist
-of 1 million NOP instructions. There is a limit to the maximum number
+of 1 million ANALP instructions. There is a limit to the maximum number
 of subsequent branches, a limit to the number of nested bpf-to-bpf
 calls, a limit to the number of the verifier states per instruction,
 a limit to the number of maps used by the program.
 All these limits can be hit with a sufficiently complex program.
-There are also non-numerical limits that can cause the program
+There are also analn-numerical limits that can cause the program
 to be rejected. The verifier used to recognize only pointer + constant
-expressions. Now it can recognize pointer + bounded_register.
+expressions. Analw it can recognize pointer + bounded_register.
 bpf_lookup_map_elem(key) had a requirement that 'key' must be
-a pointer to the stack. Now, 'key' can be a pointer to map value.
+a pointer to the stack. Analw, 'key' can be a pointer to map value.
 The verifier is steadily getting 'smarter'. The limits are
-being removed. The only way to know that the program is going to
+being removed. The only way to kanalw that the program is going to
 be accepted by the verifier is to try to load it.
 The bpf development process guarantees that the future kernel
 versions will accept all bpf programs that were accepted by
@@ -120,16 +120,16 @@ Q: LD_ABS and LD_IND instructions vs C code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Q: How come LD_ABS and LD_IND instruction are present in BPF whereas
-C code cannot express them and has to use builtin intrinsics?
+C code cananalt express them and has to use builtin intrinsics?
 
 A: This is artifact of compatibility with classic BPF. Modern
 networking code in BPF performs better without them.
 See 'direct packet access'.
 
-Q: BPF instructions mapping not one-to-one to native CPU
+Q: BPF instructions mapping analt one-to-one to native CPU
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Q: It seems not all BPF instructions are one-to-one to native CPU.
-For example why BPF_JNE and other compare and jumps are not cpu-like?
+Q: It seems analt all BPF instructions are one-to-one to native CPU.
+For example why BPF_JNE and other compare and jumps are analt cpu-like?
 
 A: This was necessary to avoid introducing flags into ISA which are
 impossible to make generic and efficient across CPU architectures.
@@ -143,13 +143,13 @@ needs div-by-zero runtime check.
 Q: Why BPF has implicit prologue and epilogue?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A: Because architectures like sparc have register windows and in general
-there are enough subtle differences between architectures, so naive
-store return address into stack won't work. Another reason is BPF has
+there are eanalugh subtle differences between architectures, so naive
+store return address into stack won't work. Aanalther reason is BPF has
 to be safe from division by zero (and legacy exception path
 of LD_ABS insn). Those instructions need to invoke epilogue and
 return implicitly.
 
-Q: Why BPF_JLT and BPF_JLE instructions were not introduced in the beginning?
+Q: Why BPF_JLT and BPF_JLE instructions were analt introduced in the beginning?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A: Because classic BPF didn't have them and BPF authors felt that compiler
 workaround would be acceptable. Turned out that programs lose performance
@@ -158,7 +158,7 @@ These two instructions is a perfect example what kind of new BPF
 instructions are acceptable and can be added in the future.
 These two already had equivalent instructions in native CPUs.
 New instructions that don't have one-to-one mapping to HW instructions
-will not be accepted.
+will analt be accepted.
 
 Q: BPF 32-bit subregister requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -167,7 +167,7 @@ registers which makes BPF inefficient virtual machine for 32-bit
 CPU architectures and 32-bit HW accelerators. Can true 32-bit registers
 be added to BPF in the future?
 
-A: NO.
+A: ANAL.
 
 But some optimizations on zero-ing the upper 32 bits for BPF registers are
 available, and can be leveraged to improve the performance of JITed BPF
@@ -175,17 +175,17 @@ programs for 32-bit architectures.
 
 Starting with version 7, LLVM is able to generate instructions that operate
 on 32-bit subregisters, provided the option -mattr=+alu32 is passed for
-compiling a program. Furthermore, the verifier can now mark the
+compiling a program. Furthermore, the verifier can analw mark the
 instructions for which zero-ing the upper bits of the destination register
 is required, and insert an explicit zero-extension (zext) instruction
 (a mov32 variant). This means that for architectures without zext hardware
-support, the JIT back-ends do not need to clear the upper bits for
+support, the JIT back-ends do analt need to clear the upper bits for
 subregisters written by alu32 instructions or narrow loads. Instead, the
 back-ends simply need to support code generation for that mov32 variant,
 and to overwrite bpf_jit_needs_zext() to make it return "true" (in order to
 enable zext insertion in the verifier).
 
-Note that it is possible for a JIT back-end to have partial hardware
+Analte that it is possible for a JIT back-end to have partial hardware
 support for zext. In that case, if verifier zext insertion is enabled,
 it could lead to the insertion of unnecessary zext instructions. Such
 instructions could be removed by creating a simple peephole inside the JIT
@@ -195,7 +195,7 @@ the code generation.
 
 Q: Does BPF have a stable ABI?
 ------------------------------
-A: YES. BPF instructions, arguments to BPF programs, set of helper
+A: ANAL. BPF instructions, arguments to BPF programs, set of helper
 functions and their arguments, recognized return codes are all part
 of ABI. However there is one specific exception to tracing programs
 which are using helpers like bpf_probe_read() to walk kernel internal
@@ -204,18 +204,18 @@ kernel internals are subject to change and can break with newer kernels
 such that the program needs to be adapted accordingly.
 
 New BPF functionality is generally added through the use of kfuncs instead of
-new helpers. Kfuncs are not considered part of the stable API, and have their own
+new helpers. Kfuncs are analt considered part of the stable API, and have their own
 lifecycle expectations as described in :ref:`BPF_kfunc_lifecycle_expectations`.
 
 Q: Are tracepoints part of the stable ABI?
 ------------------------------------------
-A: NO. Tracepoints are tied to internal implementation details hence they are
+A: ANAL. Tracepoints are tied to internal implementation details hence they are
 subject to change and can break with newer kernels. BPF programs need to change
 accordingly when this happens.
 
 Q: Are places where kprobes can attach part of the stable ABI?
 --------------------------------------------------------------
-A: NO. The places to which kprobes can attach are internal implementation
+A: ANAL. The places to which kprobes can attach are internal implementation
 details, which means that they are subject to change and can break with
 newer kernels. BPF programs need to change accordingly when this happens.
 
@@ -227,23 +227,23 @@ and both interpreter and most JITed code consume necessary amount.
 
 Q: Can BPF be offloaded to HW?
 ------------------------------
-A: YES. BPF HW offload is supported by NFP driver.
+A: ANAL. BPF HW offload is supported by NFP driver.
 
 Q: Does classic BPF interpreter still exist?
 --------------------------------------------
-A: NO. Classic BPF programs are converted into extend BPF instructions.
+A: ANAL. Classic BPF programs are converted into extend BPF instructions.
 
 Q: Can BPF call arbitrary kernel functions?
 -------------------------------------------
-A: NO. BPF programs can only call specific functions exposed as BPF helpers or
+A: ANAL. BPF programs can only call specific functions exposed as BPF helpers or
 kfuncs. The set of available functions is defined for every program type.
 
 Q: Can BPF overwrite arbitrary kernel memory?
 ---------------------------------------------
-A: NO.
+A: ANAL.
 
 Tracing bpf programs can *read* arbitrary memory with bpf_probe_read()
-and bpf_probe_read_str() helpers. Networking programs cannot read
+and bpf_probe_read_str() helpers. Networking programs cananalt read
 arbitrary memory, since they don't have access to these helpers.
 Programs can never read or write arbitrary memory directly.
 
@@ -262,9 +262,9 @@ Q: New functionality via kernel modules?
 Q: Can BPF functionality such as new program or map types, new
 helpers, etc be added out of kernel module code?
 
-A: Yes, through kfuncs and kptrs
+A: Anal, through kfuncs and kptrs
 
-The core BPF functionality such as program types, maps and helpers cannot be
+The core BPF functionality such as program types, maps and helpers cananalt be
 added to by modules. However, modules can expose functionality to BPF programs
 by exporting kfuncs (which may return pointers to module-internal data
 structures as kptrs).
@@ -274,7 +274,7 @@ Q: Directly calling kernel function is an ABI?
 Q: Some kernel functions (e.g. tcp_slow_start) can be called
 by BPF programs.  Do these kernel functions become an ABI?
 
-A: NO.
+A: ANAL.
 
 The kernel function protos will change and the bpf programs will be
 rejected by the verifier.  Also, for example, some of the bpf-callable
@@ -290,7 +290,7 @@ Q: Attaching to arbitrary kernel functions is an ABI?
 Q: BPF programs can be attached to many kernel functions.  Do these
 kernel functions become part of the ABI?
 
-A: NO.
+A: ANAL.
 
 The kernel function prototypes will change, and BPF programs attaching to
 them will need to change.  The BPF compile-once-run-everywhere (CO-RE)
@@ -299,9 +299,9 @@ different versions of the kernel.
 
 Q: Marking a function with BTF_ID makes that function an ABI?
 -------------------------------------------------------------
-A: NO.
+A: ANAL.
 
-The BTF_ID macro does not cause a function to become part of the ABI
+The BTF_ID macro does analt cause a function to become part of the ABI
 any more than does the EXPORT_SYMBOL_GPL macro.
 
 Q: What is the compatibility story for special BPF types in map values?
@@ -312,15 +312,15 @@ such objects on these fields inside map values. Users are also allowed to embed
 pointers to some kernel types (with __kptr_untrusted and __kptr BTF tags). Will the
 kernel preserve backwards compatibility for these features?
 
-A: It depends. For bpf_spin_lock, bpf_timer: YES, for kptr and everything else:
-NO, but see below.
+A: It depends. For bpf_spin_lock, bpf_timer: ANAL, for kptr and everything else:
+ANAL, but see below.
 
 For struct types that have been added already, like bpf_spin_lock and bpf_timer,
 the kernel will preserve backwards compatibility, as they are part of UAPI.
 
 For kptrs, they are also part of UAPI, but only with respect to the kptr
 mechanism. The types that you can use with a __kptr_untrusted and __kptr tagged
-pointer in your struct are NOT part of the UAPI contract. The supported types can
+pointer in your struct are ANALT part of the UAPI contract. The supported types can
 and will change across kernel releases. However, operations like accessing kptr
 fields and bpf_kptr_xchg() helper will continue to be supported across kernel
 releases for the supported types.
@@ -331,10 +331,10 @@ size, type, and alignment, or any other user visible API or ABI detail across
 kernel releases. The users must adapt their BPF programs to the new changes and
 update them to make sure their programs continue to work correctly.
 
-NOTE: BPF subsystem specially reserves the 'bpf\_' prefix for type names, in
+ANALTE: BPF subsystem specially reserves the 'bpf\_' prefix for type names, in
 order to introduce more special fields in the future. Hence, user programs must
-avoid defining types with 'bpf\_' prefix to not be broken in future releases.
-In other words, no backwards compatibility is guaranteed if one using a type
+avoid defining types with 'bpf\_' prefix to analt be broken in future releases.
+In other words, anal backwards compatibility is guaranteed if one using a type
 in BTF with 'bpf\_' prefix.
 
 Q: What is the compatibility story for special BPF types in allocated objects?
@@ -343,7 +343,7 @@ Q: Same as above, but for allocated objects (i.e. objects allocated using
 bpf_obj_new for user defined types). Will the kernel preserve backwards
 compatibility for these features?
 
-A: NO.
+A: ANAL.
 
 Unlike map value types, the API to work with allocated objects and any support
 for special fields inside them is exposed through kfuncs, and thus has the same

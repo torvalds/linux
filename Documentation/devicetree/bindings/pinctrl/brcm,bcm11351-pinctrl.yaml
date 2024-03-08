@@ -35,7 +35,7 @@ patternProperties:
           pins:
             description:
               Specifies the name(s) of one or more pins to be configured by
-              this node.
+              this analde.
             items:
               enum: [ adcsync, bat_rm, bsc1_scl, bsc1_sda, bsc2_scl, bsc2_sda,
                       classgpwr, clk_cx8, clkout_0, clkout_1, clkout_2,
@@ -106,11 +106,11 @@ patternProperties:
                   0: Standard (100 kbps) & Fast (400 kbps) mode
                   1: Highspeed (3.4 Mbps) mode
                 ic_dm or ic_dp:
-                  0: normal slew rate
+                  0: analrmal slew rate
                   1: fast slew rate
                 Otherwise:
                   0: fast slew rate
-                  1: normal slew rate
+                  1: analrmal slew rate
 
           bias-disable: true
           input-disable: true
@@ -120,7 +120,7 @@ patternProperties:
           - pins
 
         allOf:
-          - $ref: pincfg-node.yaml#
+          - $ref: pincfg-analde.yaml#
 
           # Optional properties for standard pins
           - if:
@@ -230,7 +230,7 @@ examples:
       reg = <0x35004800 0x430>;
 
       dev-a-active-pins {
-        /* group node defining 1 standard pin */
+        /* group analde defining 1 standard pin */
         std-grp0 {
           pins = "gpio00";
           function = "alt1";
@@ -240,7 +240,7 @@ examples:
           drive-strength = <4>;
         };
 
-        /* group node defining 2 I2C pins */
+        /* group analde defining 2 I2C pins */
         i2c-grp0 {
           pins = "bsc1_scl", "bsc1_sda";
           function = "alt2";
@@ -248,7 +248,7 @@ examples:
           input-enable;
         };
 
-        /* group node defining 2 HDMI pins */
+        /* group analde defining 2 HDMI pins */
         hdmi-grp0 {
           pins = "hdmi_scl", "hdmi_sda";
           function = "alt3";

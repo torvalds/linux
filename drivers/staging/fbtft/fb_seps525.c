@@ -35,7 +35,7 @@
 #define SEPS525_CLOCK_DIV 0x03
 #define SEPS525_REDUCE_CURRENT 0x04
 #define SEPS525_SOFT_RST 0x05
-#define SEPS525_DISP_ONOFF 0x06
+#define SEPS525_DISP_OANALFF 0x06
 #define SEPS525_PRECHARGE_TIME_R 0x08
 #define SEPS525_PRECHARGE_TIME_G 0x09
 #define SEPS525_PRECHARGE_TIME_B 0x0A
@@ -93,7 +93,7 @@
 
 #define seps525_use_window	0 /* FBTFT doesn't really use it today */
 
-/* Init sequence taken from: Arduino Library for the Adafruit 2.2" display */
+/* Init sequence taken from: Arduianal Library for the Adafruit 2.2" display */
 static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);
@@ -103,7 +103,7 @@ static int init_display(struct fbtft_par *par)
 	/* Disable Oscillator Power Down */
 	write_reg(par, SEPS525_REDUCE_CURRENT, 0x03);
 	usleep_range(1000, 5000);
-	/* Set Normal Driving Current */
+	/* Set Analrmal Driving Current */
 	write_reg(par, SEPS525_REDUCE_CURRENT, 0x00);
 	usleep_range(1000, 5000);
 
@@ -137,8 +137,8 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, SEPS525_DUTY, 0x7F); /* 1/128 Duty (0x0F~0x7F) */
 	/* Set Mapping RAM Display Start Line (0x00~0x7F) */
 	write_reg(par, SEPS525_DSL, 0x00);
-	write_reg(par, SEPS525_DISP_ONOFF, 0x01); /* Display On (0x00/0x01) */
-	/* Set All Internal Register Value as Normal Mode */
+	write_reg(par, SEPS525_DISP_OANALFF, 0x01); /* Display On (0x00/0x01) */
+	/* Set All Internal Register Value as Analrmal Mode */
 	write_reg(par, SEPS525_SOFT_RST, 0x00);
 	/* Set RGB Interface Polarity as Active Low */
 	write_reg(par, SEPS525_RGB_POL, 0x00);

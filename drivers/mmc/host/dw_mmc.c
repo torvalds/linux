@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare Multimedia Card Interface driver
+ * Syanalpsys DesignWare Multimedia Card Interface driver
  *  (Based on NXP driver for lpc 31xx)
  *
  * Copyright (C) 2009 NXP Semiconductors
- * Copyright (C) 2009, 2010 Imagination Technologies Ltd.
+ * Copyright (C) 2009, 2010 Imagination Techanallogies Ltd.
  */
 
 #include <linux/blkdev.h>
@@ -271,7 +271,7 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 	if (cmd->opcode == SD_SWITCH_VOLTAGE) {
 		u32 clk_en_a;
 
-		/* Special bit makes CMD11 not die */
+		/* Special bit makes CMD11 analt die */
 		cmdr |= SDMMC_CMD_VOLT_SWITCH;
 
 		/* Change state to continue to handle CMD11 weirdness */
@@ -284,9 +284,9 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 		 * since stopping the clock is a specific part of the UHS
 		 * voltage change dance.
 		 *
-		 * Note that low power mode (SDMMC_CLKEN_LOW_PWR) will be
+		 * Analte that low power mode (SDMMC_CLKEN_LOW_PWR) will be
 		 * unconditionally turned back on in dw_mci_setup_bus() if it's
-		 * ever called with a non-zero clock.  That shouldn't happen
+		 * ever called with a analn-zero clock.  That shouldn't happen
 		 * until the voltage change is all done.
 		 */
 		clk_en_a = mci_readl(host, CLKENA);
@@ -312,7 +312,7 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 			cmdr |= SDMMC_CMD_DAT_WR;
 	}
 
-	if (!test_bit(DW_MMC_CARD_NO_USE_HOLD, &slot->flags))
+	if (!test_bit(DW_MMC_CARD_ANAL_USE_HOLD, &slot->flags))
 		cmdr |= SDMMC_CMD_USE_HOLD_REG;
 
 	return cmdr;
@@ -351,7 +351,7 @@ static u32 dw_mci_prep_stop_abort(struct dw_mci *host, struct mmc_command *cmd)
 	cmdr = stop->opcode | SDMMC_CMD_STOP |
 		SDMMC_CMD_RESP_CRC | SDMMC_CMD_RESP_EXP;
 
-	if (!test_bit(DW_MMC_CARD_NO_USE_HOLD, &host->slot->flags))
+	if (!test_bit(DW_MMC_CARD_ANAL_USE_HOLD, &host->slot->flags))
 		cmdr |= SDMMC_CMD_USE_HOLD_REG;
 
 	return cmdr;
@@ -381,7 +381,7 @@ static inline void dw_mci_set_cto(struct dw_mci *host)
 	 * command timeout is _at most_ 5.1 ms, so that means we expect an
 	 * interrupt (either command done or timeout) to come rather quickly
 	 * after the mci_writel.  ...but just in case we have a long interrupt
-	 * latency let's add a bit of paranoia.
+	 * latency let's add a bit of paraanalia.
 	 *
 	 * In general we'll assume that at least an interrupt will be asserted
 	 * in hardware by the time the cto_timer runs.  ...and if it hasn't
@@ -489,7 +489,7 @@ static void dw_mci_dmac_complete_dma(void *arg)
 	host->dma_ops->cleanup(host);
 
 	/*
-	 * If the card was removed, data will be NULL. No point in trying to
+	 * If the card was removed, data will be NULL. Anal point in trying to
 	 * send the stop command or waiting for NBUSY in this case.
 	 */
 	if (data) {
@@ -602,7 +602,7 @@ static inline int dw_mci_prepare_desc64(struct dw_mci *host,
 			 * Wait for the former clear OWN bit operation
 			 * of IDMAC to make sure that this descriptor
 			 * isn't still owned by IDMAC as IDMAC's write
-			 * ops and CPU's read ops are asynchronous.
+			 * ops and CPU's read ops are asynchroanalus.
 			 */
 			if (readl_poll_timeout_atomic(&desc->des0, val,
 						!(val & IDMAC_DES0_OWN),
@@ -674,7 +674,7 @@ static inline int dw_mci_prepare_desc32(struct dw_mci *host,
 			 * Wait for the former clear OWN bit operation
 			 * of IDMAC to make sure that this descriptor
 			 * isn't still owned by IDMAC as IDMAC's write
-			 * ops and CPU's read ops are asynchronous.
+			 * ops and CPU's read ops are asynchroanalus.
 			 */
 			if (readl_poll_timeout_atomic(&desc->des0, val,
 						      IDMAC_OWN_CLR64(val),
@@ -837,7 +837,7 @@ static int dw_mci_edmac_init(struct dw_mci *host)
 	/* Request external dma channel */
 	host->dms = kzalloc(sizeof(struct dw_mci_dma_slave), GFP_KERNEL);
 	if (!host->dms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->dms->ch = dma_request_chan(host->dev, "rx-tx");
 	if (IS_ERR(host->dms->ch)) {
@@ -885,7 +885,7 @@ static int dw_mci_pre_dma_transfer(struct dw_mci *host,
 
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
-	 * non-word-aligned buffers or lengths. Also, we don't bother
+	 * analn-word-aligned buffers or lengths. Also, we don't bother
 	 * with all the DMA setup overhead for short transfers.
 	 */
 	if (data->blocks * data->blksz < DW_MCI_DMA_THRESHOLD)
@@ -964,7 +964,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 					"card is polling.\n");
 			} else {
 				dev_info(&mmc->class_dev,
-					"card is non-removable.\n");
+					"card is analn-removable.\n");
 			}
 			set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
 		}
@@ -981,7 +981,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 		dev_dbg(&mmc->class_dev, "card is present\n");
 	else if (!present &&
 			!test_and_clear_bit(DW_MMC_CARD_PRESENT, &slot->flags))
-		dev_dbg(&mmc->class_dev, "card is not present\n");
+		dev_dbg(&mmc->class_dev, "card is analt present\n");
 	spin_unlock_bh(&host->lock);
 
 	return present;
@@ -1005,7 +1005,7 @@ static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
 
 	/*
 	 * MSIZE is '1',
-	 * if blksz is not a multiple of the FIFO width
+	 * if blksz is analt a multiple of the FIFO width
 	 */
 	if (blksz % fifo_width)
 		goto done;
@@ -1089,7 +1089,7 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 
 	/* If we don't have a channel, we can't do DMA */
 	if (!host->use_dma)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sg_len = dw_mci_pre_dma_transfer(host, data, COOKIE_MAPPED);
 	if (sg_len < 0) {
@@ -1109,7 +1109,7 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 	/*
 	 * Decide the MSIZE and RX/TX Watermark.
 	 * If current block size is same with previous size,
-	 * no need to update fifoth.
+	 * anal need to update fifoth.
 	 */
 	if (host->prev_blksz != data->blksz)
 		dw_mci_adjust_fifoth(host, data);
@@ -1132,7 +1132,7 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 		dev_dbg(host->dev,
 			"%s: fall back to PIO mode for current transfer\n",
 			__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1262,9 +1262,9 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 		/* inform CIU */
 		mci_send_cmd(slot, sdmmc_cmd_bits, 0);
 
-		/* enable clock; only low power if no SDIO */
+		/* enable clock; only low power if anal SDIO */
 		clk_en_a = SDMMC_CLKEN_ENABLE << slot->id;
-		if (!test_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags))
+		if (!test_bit(DW_MMC_CARD_ANAL_LOW_PWR, &slot->flags))
 			clk_en_a |= SDMMC_CLKEN_LOW_PWR << slot->id;
 		mci_writel(host, CLKENA, clk_en_a);
 
@@ -1356,7 +1356,7 @@ static void __dw_mci_start_request(struct dw_mci *host,
 		unsigned long irqflags;
 
 		/*
-		 * Databook says to fail after 2ms w/ no response, but evidence
+		 * Databook says to fail after 2ms w/ anal response, but evidence
 		 * shows that sometimes the cmd11 interrupt takes over 130ms.
 		 * We'll set to 500ms, plus an extra jiffy just in case jiffies
 		 * is just about to roll over.
@@ -1409,7 +1409,7 @@ static void dw_mci_queue_request(struct dw_mci *host, struct dw_mci_slot *slot,
 		host->state = STATE_SENDING_CMD;
 		dw_mci_start_request(host, slot);
 	} else {
-		list_add_tail(&slot->queue_node, &host->queue);
+		list_add_tail(&slot->queue_analde, &host->queue);
 	}
 }
 
@@ -1423,11 +1423,11 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	/*
 	 * The check for card presence and queueing of the request must be
 	 * atomic, otherwise the card could be removed in between and the
-	 * request wouldn't fail until another card was inserted.
+	 * request wouldn't fail until aanalther card was inserted.
 	 */
 
 	if (!dw_mci_get_cd(mmc)) {
-		mrq->cmd->error = -ENOMEDIUM;
+		mrq->cmd->error = -EANALMEDIUM;
 		mmc_request_done(mmc, mrq);
 		return;
 	}
@@ -1571,9 +1571,9 @@ static int dw_mci_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 		return drv_data->switch_voltage(mmc, ios);
 
 	/*
-	 * Program the voltage.  Note that some instances of dw_mmc may use
-	 * the UHS_REG for this.  For other instances (like exynos) the UHS_REG
-	 * does no harm but you need to set the regulator directly.  Try both.
+	 * Program the voltage.  Analte that some instances of dw_mmc may use
+	 * the UHS_REG for this.  For other instances (like exyanals) the UHS_REG
+	 * does anal harm but you need to set the regulator directly.  Try both.
 	 */
 	uhs = mci_readl(host, UHS_REG);
 	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
@@ -1657,10 +1657,10 @@ static void dw_mci_prepare_sdio_irq(struct dw_mci_slot *slot, bool prepare)
 
 	clk_en_a_old = mci_readl(host, CLKENA);
 	if (prepare) {
-		set_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags);
+		set_bit(DW_MMC_CARD_ANAL_LOW_PWR, &slot->flags);
 		clk_en_a = clk_en_a_old & ~clken_low_pwr;
 	} else {
-		clear_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags);
+		clear_bit(DW_MMC_CARD_ANAL_LOW_PWR, &slot->flags);
 		clk_en_a = clk_en_a_old | clken_low_pwr;
 	}
 
@@ -1700,9 +1700,9 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 
 	/* Avoid runtime suspending the device when SDIO IRQ is enabled */
 	if (enb)
-		pm_runtime_get_noresume(host->dev);
+		pm_runtime_get_analresume(host->dev);
 	else
-		pm_runtime_put_noidle(host->dev);
+		pm_runtime_put_analidle(host->dev);
 }
 
 static void dw_mci_ack_sdio_irq(struct mmc_host *mmc)
@@ -1840,7 +1840,7 @@ static enum hrtimer_restart dw_mci_fault_timer(struct hrtimer *t)
 
 	spin_unlock_irqrestore(&host->irq_lock, flags);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void dw_mci_start_fault_timer(struct dw_mci *host)
@@ -1870,7 +1870,7 @@ static void dw_mci_init_fault(struct dw_mci *host)
 {
 	host->fail_data_crc = (struct fault_attr) FAULT_ATTR_INITIALIZER;
 
-	hrtimer_init(&host->fault_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&host->fault_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	host->fault_timer.function = dw_mci_fault_timer;
 }
 #else
@@ -1900,9 +1900,9 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 	host->mrq = NULL;
 	if (!list_empty(&host->queue)) {
 		slot = list_entry(host->queue.next,
-				  struct dw_mci_slot, queue_node);
-		list_del(&slot->queue_node);
-		dev_vdbg(host->dev, "list not empty: %s is next\n",
+				  struct dw_mci_slot, queue_analde);
+		list_del(&slot->queue_analde);
+		dev_vdbg(host->dev, "list analt empty: %s is next\n",
 			 mmc_hostname(slot->mmc));
 		host->state = STATE_SENDING_CMD;
 		dw_mci_start_request(host, slot);
@@ -1966,7 +1966,7 @@ static int dw_mci_data_complete(struct dw_mci *host, struct mmc_data *data)
 			if (host->dir_status ==
 				DW_MCI_SEND_STATUS) {
 				/*
-				 * No data CRC status was returned.
+				 * Anal data CRC status was returned.
 				 * The number of bytes transferred
 				 * will be exaggerated in PIO mode.
 				 */
@@ -2034,7 +2034,7 @@ static bool dw_mci_clear_pending_cmd_complete(struct dw_mci *host)
 
 	/*
 	 * Really be certain that the timer has stopped.  This is a bit of
-	 * paranoia and could only really happen if we had really bad
+	 * paraanalia and could only really happen if we had really bad
 	 * interrupt latency and the interrupt routine and timeout were
 	 * running concurrently so that the del_timer() in the interrupt
 	 * handler couldn't run.
@@ -2050,7 +2050,7 @@ static bool dw_mci_clear_pending_data_complete(struct dw_mci *host)
 	if (!test_bit(EVENT_DATA_COMPLETE, &host->pending_events))
 		return false;
 
-	/* Extra paranoia just like dw_mci_clear_pending_cmd_complete() */
+	/* Extra paraanalia just like dw_mci_clear_pending_cmd_complete() */
 	WARN_ON(del_timer_sync(&host->dto_timer));
 	clear_bit(EVENT_DATA_COMPLETE, &host->pending_events);
 
@@ -2111,7 +2111,7 @@ static void dw_mci_tasklet_func(struct tasklet_struct *t)
 				 * STATE_SENDING_DATA.
 				 *
 				 * Although letting the data transfer take place
-				 * will waste a bit of time (we already know
+				 * will waste a bit of time (we already kanalw
 				 * the command was bad), it can't cause any
 				 * errors since it's possible it would have
 				 * taken place anyway if this tasklet got
@@ -2143,7 +2143,7 @@ static void dw_mci_tasklet_func(struct tasklet_struct *t)
 			 * We could get a data error and never a transfer
 			 * complete so we'd better check for it here.
 			 *
-			 * Note that we don't really care if we also got a
+			 * Analte that we don't really care if we also got a
 			 * transfer complete; stopping the DMA and sending an
 			 * abort won't hurt.
 			 */
@@ -2172,13 +2172,13 @@ static void dw_mci_tasklet_func(struct tasklet_struct *t)
 
 			/*
 			 * Handle an EVENT_DATA_ERROR that might have shown up
-			 * before the transfer completed.  This might not have
+			 * before the transfer completed.  This might analt have
 			 * been caught by the check above because the interrupt
 			 * could have gone off between the previous check and
 			 * the check for transfer complete.
 			 *
-			 * Technically this ought not be needed assuming we
-			 * get a DATA_COMPLETE eventually (we'll notice the
+			 * Technically this ought analt be needed assuming we
+			 * get a DATA_COMPLETE eventually (we'll analtice the
 			 * error and end the request), but it shouldn't hurt.
 			 *
 			 * This has the advantage of sending the stop command.
@@ -2226,7 +2226,7 @@ static void dw_mci_tasklet_func(struct tasklet_struct *t)
 					send_stop_abort(host, data);
 			} else {
 				/*
-				 * If we don't have a command complete now we'll
+				 * If we don't have a command complete analw we'll
 				 * never get one since we just reset everything;
 				 * better end the request.
 				 *
@@ -2243,7 +2243,7 @@ static void dw_mci_tasklet_func(struct tasklet_struct *t)
 			}
 
 			/*
-			 * If err has non-zero,
+			 * If err has analn-zero,
 			 * stop-abort command has been already issued.
 			 */
 			prev_state = state = STATE_SENDING_STOP;
@@ -2736,7 +2736,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			pending &= ~SDMMC_INT_VOLT_SWITCH;
 
 			/*
-			 * Hold the lock; we know cmd11_timer can't be kicked
+			 * Hold the lock; we kanalw cmd11_timer can't be kicked
 			 * off after the lock is released, so safe to delete.
 			 */
 			spin_lock(&host->irq_lock);
@@ -2771,7 +2771,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			set_bit(EVENT_DATA_ERROR, &host->pending_events);
 
 			if (host->quirks & DW_MMC_QUIRK_EXTENDED_TMOUT)
-				/* In case of error, we cannot expect a DTO */
+				/* In case of error, we cananalt expect a DTO */
 				set_bit(EVENT_DATA_COMPLETE,
 					&host->pending_events);
 
@@ -2877,8 +2877,8 @@ static int dw_mci_init_slot_caps(struct dw_mci_slot *slot)
 	if (drv_data)
 		mmc->caps |= drv_data->common_caps;
 
-	if (host->dev->of_node) {
-		ctrl_id = of_alias_get_id(host->dev->of_node, "mshc");
+	if (host->dev->of_analde) {
+		ctrl_id = of_alias_get_id(host->dev->of_analde, "mshc");
 		if (ctrl_id < 0)
 			ctrl_id = 0;
 	} else {
@@ -2908,7 +2908,7 @@ static int dw_mci_init_slot_caps(struct dw_mci_slot *slot)
 
 	/* Process SDIO IRQs through the sdio_irq_work. */
 	if (mmc->caps & MMC_CAP_SDIO_IRQ)
-		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
+		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_ANALTHREAD;
 
 	return 0;
 }
@@ -2921,7 +2921,7 @@ static int dw_mci_init_slot(struct dw_mci *host)
 
 	mmc = mmc_alloc_host(sizeof(struct dw_mci_slot), host->dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slot = mmc_priv(mmc);
 	slot->id = 0;
@@ -3005,12 +3005,12 @@ static void dw_mci_init_dma(struct dw_mci *host)
 	/*
 	* Check tansfer mode from HCON[17:16]
 	* Clear the ambiguous description of dw_mmc databook:
-	* 2b'00: No DMA Interface -> Actually means using Internal DMA block
-	* 2b'01: DesignWare DMA Interface -> Synopsys DW-DMA block
-	* 2b'10: Generic DMA Interface -> non-Synopsys generic DMA block
-	* 2b'11: Non DW DMA Interface -> pio only
+	* 2b'00: Anal DMA Interface -> Actually means using Internal DMA block
+	* 2b'01: DesignWare DMA Interface -> Syanalpsys DW-DMA block
+	* 2b'10: Generic DMA Interface -> analn-Syanalpsys generic DMA block
+	* 2b'11: Analn DW DMA Interface -> pio only
 	* Compared to DesignWare DMA Interface, Generic DMA Interface has a
-	* simpler request/acknowledge handshake mechanism and both of them
+	* simpler request/ackanalwledge handshake mechanism and both of them
 	* are regarded as external dma master for dw_mmc.
 	*/
 	host->use_dma = SDMMC_GET_TRANS_MODE(mci_readl(host, HCON));
@@ -3020,7 +3020,7 @@ static void dw_mci_init_dma(struct dw_mci *host)
 		   host->use_dma == DMA_INTERFACE_GDMA) {
 		host->use_dma = TRANS_MODE_EDMAC;
 	} else {
-		goto no_dma;
+		goto anal_dma;
 	}
 
 	/* Determine which DMA interface to use */
@@ -3052,9 +3052,9 @@ static void dw_mci_init_dma(struct dw_mci *host)
 						   &host->sg_dma, GFP_KERNEL);
 		if (!host->sg_cpu) {
 			dev_err(host->dev,
-				"%s: could not alloc DMA memory\n",
+				"%s: could analt alloc DMA memory\n",
 				__func__);
-			goto no_dma;
+			goto anal_dma;
 		}
 
 		host->dma_ops = &dw_mci_idmac_ops;
@@ -3063,7 +3063,7 @@ static void dw_mci_init_dma(struct dw_mci *host)
 		/* TRANS_MODE_EDMAC: check dma bindings again */
 		if ((device_property_string_array_count(dev, "dma-names") < 0) ||
 		    !device_property_present(dev, "dmas")) {
-			goto no_dma;
+			goto anal_dma;
 		}
 		host->dma_ops = &dw_mci_edmac_ops;
 		dev_info(host->dev, "Using external DMA controller.\n");
@@ -3074,16 +3074,16 @@ static void dw_mci_init_dma(struct dw_mci *host)
 		if (host->dma_ops->init(host)) {
 			dev_err(host->dev, "%s: Unable to initialize DMA Controller.\n",
 				__func__);
-			goto no_dma;
+			goto anal_dma;
 		}
 	} else {
-		dev_err(host->dev, "DMA initialization not found.\n");
-		goto no_dma;
+		dev_err(host->dev, "DMA initialization analt found.\n");
+		goto anal_dma;
 	}
 
 	return;
 
-no_dma:
+anal_dma:
 	dev_info(host->dev, "Using PIO mode.\n");
 	host->use_dma = TRANS_MODE_PIO;
 }
@@ -3113,14 +3113,14 @@ static void dw_mci_cto_timer(struct timer_list *t)
 	/*
 	 * If somehow we have very bad interrupt latency it's remotely possible
 	 * that the timer could fire while the interrupt is still pending or
-	 * while the interrupt is midway through running.  Let's be paranoid
-	 * and detect those two cases.  Note that this is paranoia is somewhat
+	 * while the interrupt is midway through running.  Let's be paraanalid
+	 * and detect those two cases.  Analte that this is paraanalia is somewhat
 	 * justified because in this function we don't actually cancel the
 	 * pending command in the controller--we just assume it will never come.
 	 */
 	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
 	if (pending & (DW_MCI_CMD_ERROR_FLAGS | SDMMC_INT_CMD_DONE)) {
-		/* The interrupt should fire; no need to act but we can warn */
+		/* The interrupt should fire; anal need to act but we can warn */
 		dev_warn(host->dev, "Unexpected interrupt latency\n");
 		goto exit;
 	}
@@ -3131,16 +3131,16 @@ static void dw_mci_cto_timer(struct timer_list *t)
 	}
 
 	/*
-	 * Continued paranoia to make sure we're in the state we expect.
-	 * This paranoia isn't really justified but it seems good to be safe.
+	 * Continued paraanalia to make sure we're in the state we expect.
+	 * This paraanalia isn't really justified but it seems good to be safe.
 	 */
 	switch (host->state) {
 	case STATE_SENDING_CMD11:
 	case STATE_SENDING_CMD:
 	case STATE_SENDING_STOP:
 		/*
-		 * If CMD_DONE interrupt does NOT come in sending command
-		 * state, we should notify the driver to terminate current
+		 * If CMD_DONE interrupt does ANALT come in sending command
+		 * state, we should analtify the driver to terminate current
 		 * transfer and report a command timeout to the core.
 		 */
 		host->cmd_status = SDMMC_INT_RTO;
@@ -3167,11 +3167,11 @@ static void dw_mci_dto_timer(struct timer_list *t)
 
 	/*
 	 * The DTO timer is much longer than the CTO timer, so it's even less
-	 * likely that we'll these cases, but it pays to be paranoid.
+	 * likely that we'll these cases, but it pays to be paraanalid.
 	 */
 	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
 	if (pending & SDMMC_INT_DATA_OVER) {
-		/* The interrupt should fire; no need to act but we can warn */
+		/* The interrupt should fire; anal need to act but we can warn */
 		dev_warn(host->dev, "Unexpected data interrupt latency\n");
 		goto exit;
 	}
@@ -3182,15 +3182,15 @@ static void dw_mci_dto_timer(struct timer_list *t)
 	}
 
 	/*
-	 * Continued paranoia to make sure we're in the state we expect.
-	 * This paranoia isn't really justified but it seems good to be safe.
+	 * Continued paraanalia to make sure we're in the state we expect.
+	 * This paraanalia isn't really justified but it seems good to be safe.
 	 */
 	switch (host->state) {
 	case STATE_SENDING_DATA:
 	case STATE_DATA_BUSY:
 		/*
-		 * If DTO interrupt does NOT come in sending data state,
-		 * we should notify the driver to terminate current transfer
+		 * If DTO interrupt does ANALT come in sending data state,
+		 * we should analtify the driver to terminate current transfer
 		 * and report a data timeout to the core.
 		 */
 		host->data_status = SDMMC_INT_DRTO;
@@ -3219,7 +3219,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* find reset controller when exist */
 	pdata->rstc = devm_reset_control_get_optional_exclusive(dev, "reset");
@@ -3228,7 +3228,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (device_property_read_u32(dev, "fifo-depth", &pdata->fifo_depth))
 		dev_info(dev,
-			 "fifo-depth property not found, using value of FIFOTH register as default\n");
+			 "fifo-depth property analt found, using value of FIFOTH register as default\n");
 
 	device_property_read_u32(dev, "card-detect-delay",
 				 &pdata->detect_delay_ms);
@@ -3263,7 +3263,7 @@ static void dw_mci_enable_cd(struct dw_mci *host)
 	u32 temp;
 
 	/*
-	 * No need for CD if all slots have a non-error GPIO
+	 * Anal need for CD if all slots have a analn-error GPIO
 	 * as well as broken card detection is found.
 	 */
 	if (host->slot->mmc->caps & MMC_CAP_NEEDS_POLL)
@@ -3288,12 +3288,12 @@ int dw_mci_probe(struct dw_mci *host)
 		host->pdata = dw_mci_parse_dt(host);
 		if (IS_ERR(host->pdata))
 			return dev_err_probe(host->dev, PTR_ERR(host->pdata),
-					     "platform data not available\n");
+					     "platform data analt available\n");
 	}
 
 	host->biu_clk = devm_clk_get(host->dev, "biu");
 	if (IS_ERR(host->biu_clk)) {
-		dev_dbg(host->dev, "biu clock not available\n");
+		dev_dbg(host->dev, "biu clock analt available\n");
 	} else {
 		ret = clk_prepare_enable(host->biu_clk);
 		if (ret) {
@@ -3304,7 +3304,7 @@ int dw_mci_probe(struct dw_mci *host)
 
 	host->ciu_clk = devm_clk_get(host->dev, "ciu");
 	if (IS_ERR(host->ciu_clk)) {
-		dev_dbg(host->dev, "ciu clock not available\n");
+		dev_dbg(host->dev, "ciu clock analt available\n");
 		host->bus_hz = host->pdata->bus_hz;
 	} else {
 		ret = clk_prepare_enable(host->ciu_clk);
@@ -3326,7 +3326,7 @@ int dw_mci_probe(struct dw_mci *host)
 	if (!host->bus_hz) {
 		dev_err(host->dev,
 			"Platform data must supply bus speed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_clk_ciu;
 	}
 
@@ -3383,7 +3383,7 @@ int dw_mci_probe(struct dw_mci *host)
 
 	/* Reset all blocks */
 	if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_ALL_RESET_FLAGS)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_clk_ciu;
 	}
 
@@ -3405,7 +3405,7 @@ int dw_mci_probe(struct dw_mci *host)
 		/*
 		 * Power-on value of RX_WMark is FIFO_DEPTH-1, but this may
 		 * have been overwritten by the bootloader, just like we're
-		 * about to do, so if you know the value for your hardware, you
+		 * about to do, so if you kanalw the value for your hardware, you
 		 * should put it in the platform data.
 		 */
 		fifo_size = mci_readl(host, FIFOTH);
@@ -3463,7 +3463,7 @@ int dw_mci_probe(struct dw_mci *host)
 		goto err_dmaunmap;
 	}
 
-	/* Now that slots are all setup, we can enable card detect */
+	/* Analw that slots are all setup, we can enable card detect */
 	dw_mci_enable_cd(host);
 
 	return 0;
@@ -3547,7 +3547,7 @@ int dw_mci_runtime_resume(struct device *dev)
 
 	if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_ALL_RESET_FLAGS)) {
 		clk_disable_unprepare(host->ciu_clk);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -3581,7 +3581,7 @@ int dw_mci_runtime_resume(struct device *dev)
 	if (sdio_irq_claimed(host->slot->mmc))
 		__dw_mci_enable_sdio_irq(host->slot, 1);
 
-	/* Now that slots are all setup, we can enable card detect */
+	/* Analw that slots are all setup, we can enable card detect */
 	dw_mci_enable_cd(host);
 
 	return 0;
@@ -3599,7 +3599,7 @@ EXPORT_SYMBOL(dw_mci_runtime_resume);
 
 static int __init dw_mci_init(void)
 {
-	pr_info("Synopsys Designware Multimedia Card Interface Driver\n");
+	pr_info("Syanalpsys Designware Multimedia Card Interface Driver\n");
 	return 0;
 }
 
@@ -3612,5 +3612,5 @@ module_exit(dw_mci_exit);
 
 MODULE_DESCRIPTION("DW Multimedia Card Interface driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");
-MODULE_AUTHOR("Imagination Technologies Ltd");
+MODULE_AUTHOR("Imagination Techanallogies Ltd");
 MODULE_LICENSE("GPL v2");

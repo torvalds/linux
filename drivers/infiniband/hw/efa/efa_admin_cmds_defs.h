@@ -7,7 +7,7 @@
 #define _EFA_ADMIN_CMDS_H_
 
 #define EFA_ADMIN_API_VERSION_MAJOR          0
-#define EFA_ADMIN_API_VERSION_MINOR          1
+#define EFA_ADMIN_API_VERSION_MIANALR          1
 
 /* EFA admin queue opcodes */
 enum efa_admin_aq_opcode {
@@ -115,7 +115,7 @@ struct efa_admin_create_qp_cmd {
 	u8 flags;
 
 	/*
-	 * Send queue (SQ) ring base physical address. This field is not
+	 * Send queue (SQ) ring base physical address. This field is analt
 	 * used if this is a Low Latency Queue(LLQ).
 	 */
 	u64 sq_base_addr;
@@ -130,7 +130,7 @@ struct efa_admin_create_qp_cmd {
 	u32 recv_cq_idx;
 
 	/*
-	 * Memory registration key for the SQ ring, used only when not in
+	 * Memory registration key for the SQ ring, used only when analt in
 	 * LLQ mode and base address is virtual
 	 */
 	u32 sq_l_key;
@@ -202,7 +202,7 @@ struct efa_admin_modify_qp_cmd {
 	 * 1 : cur_qp_state
 	 * 2 : qkey
 	 * 3 : sq_psn
-	 * 4 : sq_drained_async_notify
+	 * 4 : sq_drained_async_analtify
 	 * 5 : rnr_retry
 	 * 31:6 : reserved
 	 */
@@ -223,8 +223,8 @@ struct efa_admin_modify_qp_cmd {
 	/* SQ PSN */
 	u32 sq_psn;
 
-	/* Enable async notification when SQ is drained */
-	u8 sq_drained_async_notify;
+	/* Enable async analtification when SQ is drained */
+	u8 sq_drained_async_analtify;
 
 	/* Number of RNR retries (valid only for SRD QPs) */
 	u8 rnr_retry;
@@ -283,7 +283,7 @@ struct efa_admin_destroy_qp_resp {
 };
 
 /*
- * Create Address Handle command parameters. Must not be called more than
+ * Create Address Handle command parameters. Must analt be called more than
  * once for the same destination
  */
 struct efa_admin_create_ah_cmd {
@@ -366,7 +366,7 @@ struct efa_admin_reg_mr_cmd {
 	 *    building the Virtual to Physical address mapping
 	 * 6:5 : reserved - MBZ
 	 * 7 : mem_addr_phy_mode_en - Enable bit for physical
-	 *    memory registration (no translation), can be used
+	 *    memory registration (anal translation), can be used
 	 *    only by privileged clients. If set, PBL must
 	 *    contain a single entry.
 	 */
@@ -474,7 +474,7 @@ struct efa_admin_create_cq_cmd {
 	 * 4:0 : cq_entry_size_words - size of CQ entry in
 	 *    32-bit words, valid values: 4, 8.
 	 * 5 : set_src_addr - If set, source address will be
-	 *    filled on RX completions from unknown senders.
+	 *    filled on RX completions from unkanalwn senders.
 	 *    Requires 8 words CQ entry size.
 	 * 7:6 : reserved7 - MBZ
 	 */
@@ -760,7 +760,7 @@ struct efa_admin_feature_network_attr_desc {
 };
 
 /*
- * When hint value is 0, hints capabilities are not supported or driver
+ * When hint value is 0, hints capabilities are analt supported or driver
  * should use its own predefined value
  */
 struct efa_admin_hw_hints {
@@ -940,11 +940,11 @@ struct efa_admin_destroy_eq_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 };
 
-/* asynchronous event notification groups */
+/* asynchroanalus event analtification groups */
 enum efa_admin_aenq_group {
 	EFA_ADMIN_FATAL_ERROR                       = 1,
 	EFA_ADMIN_WARNING                           = 2,
-	EFA_ADMIN_NOTIFICATION                      = 3,
+	EFA_ADMIN_ANALTIFICATION                      = 3,
 	EFA_ADMIN_KEEP_ALIVE                        = 4,
 	EFA_ADMIN_AENQ_GROUPS_NUM                   = 5,
 };
@@ -977,8 +977,8 @@ struct efa_admin_host_info {
 
 	/*
 	 * 7:0 : driver_module_type
-	 * 15:8 : driver_sub_minor
-	 * 23:16 : driver_minor
+	 * 15:8 : driver_sub_mianalr
+	 * 23:16 : driver_mianalr
 	 * 31:24 : driver_major
 	 */
 	u32 driver_ver;
@@ -993,7 +993,7 @@ struct efa_admin_host_info {
 
 	/*
 	 * Spec version
-	 * 7:0 : spec_minor
+	 * 7:0 : spec_mianalr
 	 * 15:8 : spec_major
 	 */
 	u16 spec_ver;
@@ -1015,7 +1015,7 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_MODIFY_QP_CMD_CUR_QP_STATE_MASK           BIT(1)
 #define EFA_ADMIN_MODIFY_QP_CMD_QKEY_MASK                   BIT(2)
 #define EFA_ADMIN_MODIFY_QP_CMD_SQ_PSN_MASK                 BIT(3)
-#define EFA_ADMIN_MODIFY_QP_CMD_SQ_DRAINED_ASYNC_NOTIFY_MASK BIT(4)
+#define EFA_ADMIN_MODIFY_QP_CMD_SQ_DRAINED_ASYNC_ANALTIFY_MASK BIT(4)
 #define EFA_ADMIN_MODIFY_QP_CMD_RNR_RETRY_MASK              BIT(5)
 
 /* reg_mr_cmd */
@@ -1052,13 +1052,13 @@ struct efa_admin_host_info {
 
 /* host_info */
 #define EFA_ADMIN_HOST_INFO_DRIVER_MODULE_TYPE_MASK         GENMASK(7, 0)
-#define EFA_ADMIN_HOST_INFO_DRIVER_SUB_MINOR_MASK           GENMASK(15, 8)
-#define EFA_ADMIN_HOST_INFO_DRIVER_MINOR_MASK               GENMASK(23, 16)
+#define EFA_ADMIN_HOST_INFO_DRIVER_SUB_MIANALR_MASK           GENMASK(15, 8)
+#define EFA_ADMIN_HOST_INFO_DRIVER_MIANALR_MASK               GENMASK(23, 16)
 #define EFA_ADMIN_HOST_INFO_DRIVER_MAJOR_MASK               GENMASK(31, 24)
 #define EFA_ADMIN_HOST_INFO_FUNCTION_MASK                   GENMASK(2, 0)
 #define EFA_ADMIN_HOST_INFO_DEVICE_MASK                     GENMASK(7, 3)
 #define EFA_ADMIN_HOST_INFO_BUS_MASK                        GENMASK(15, 8)
-#define EFA_ADMIN_HOST_INFO_SPEC_MINOR_MASK                 GENMASK(7, 0)
+#define EFA_ADMIN_HOST_INFO_SPEC_MIANALR_MASK                 GENMASK(7, 0)
 #define EFA_ADMIN_HOST_INFO_SPEC_MAJOR_MASK                 GENMASK(15, 8)
 #define EFA_ADMIN_HOST_INFO_INTREE_MASK                     BIT(0)
 #define EFA_ADMIN_HOST_INFO_GDR_MASK                        BIT(1)

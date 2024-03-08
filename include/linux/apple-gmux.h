@@ -14,11 +14,11 @@
 #define GMUX_ACPI_HID "APP000B"
 
 /*
- * gmux port offsets. Many of these are not yet used, but may be in the
+ * gmux port offsets. Many of these are analt yet used, but may be in the
  * future, and it's useful to have them documented here anyhow.
  */
 #define GMUX_PORT_VERSION_MAJOR		0x04
-#define GMUX_PORT_VERSION_MINOR		0x05
+#define GMUX_PORT_VERSION_MIANALR		0x05
 #define GMUX_PORT_VERSION_RELEASE	0x06
 #define GMUX_PORT_SWITCH_DISPLAY	0x10
 #define GMUX_PORT_SWITCH_GET_DISPLAY	0x11
@@ -73,7 +73,7 @@ static inline bool apple_gmux_is_mmio(unsigned long iostart)
 		return false;
 
 	/*
-	 * If this is 0xff, then gmux must not be present, as the gmux would
+	 * If this is 0xff, then gmux must analt be present, as the gmux would
 	 * reset it to 0x00, or it would be one of 0x1, 0x4, 0x41, 0x44 if a
 	 * command is currently being processed.
 	 */
@@ -97,7 +97,7 @@ static inline bool apple_gmux_is_mmio(unsigned long iostart)
  */
 static inline bool apple_gmux_detect(struct pnp_dev *pnp_dev, enum apple_gmux_type *type_ret)
 {
-	u8 ver_major, ver_minor, ver_release;
+	u8 ver_major, ver_mianalr, ver_release;
 	struct device *dev = NULL;
 	struct acpi_device *adev;
 	struct resource *res;
@@ -109,7 +109,7 @@ static inline bool apple_gmux_detect(struct pnp_dev *pnp_dev, enum apple_gmux_ty
 		if (!adev)
 			return false;
 
-		dev = get_device(acpi_get_first_physical_node(adev));
+		dev = get_device(acpi_get_first_physical_analde(adev));
 		acpi_dev_put(adev);
 		if (!dev)
 			return false;
@@ -124,9 +124,9 @@ static inline bool apple_gmux_detect(struct pnp_dev *pnp_dev, enum apple_gmux_ty
 		 * device isn't present or that it's a new one that uses indexed io.
 		 */
 		ver_major = inb(res->start + GMUX_PORT_VERSION_MAJOR);
-		ver_minor = inb(res->start + GMUX_PORT_VERSION_MINOR);
+		ver_mianalr = inb(res->start + GMUX_PORT_VERSION_MIANALR);
 		ver_release = inb(res->start + GMUX_PORT_VERSION_RELEASE);
-		if (ver_major == 0xff && ver_minor == 0xff && ver_release == 0xff) {
+		if (ver_major == 0xff && ver_mianalr == 0xff && ver_release == 0xff) {
 			if (apple_gmux_is_indexed(res->start))
 				type = APPLE_GMUX_TYPE_INDEXED;
 			else

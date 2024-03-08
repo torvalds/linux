@@ -78,14 +78,14 @@ ip_vs_app_inc_new(struct netns_ipvs *ipvs, struct ip_vs_app *app, __u16 proto,
 	int ret;
 
 	if (!(pp = ip_vs_proto_get(proto)))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (!pp->unregister_app)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	inc = kmemdup(app, sizeof(*inc), GFP_KERNEL);
 	if (!inc)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&inc->p_list);
 	INIT_LIST_HEAD(&inc->incs_list);
 	inc->app = app;
@@ -97,7 +97,7 @@ ip_vs_app_inc_new(struct netns_ipvs *ipvs, struct ip_vs_app *app, __u16 proto,
 			ip_vs_create_timeout_table(app->timeouts,
 						   app->timeouts_size);
 		if (!inc->timeout_table) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
@@ -195,7 +195,7 @@ struct ip_vs_app *register_ip_vs_app(struct netns_ipvs *ipvs, struct ip_vs_app *
 
 	/* increase the module use count */
 	if (!ip_vs_use_count_inc()) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out_unlock;
 	}
 
@@ -209,7 +209,7 @@ struct ip_vs_app *register_ip_vs_app(struct netns_ipvs *ipvs, struct ip_vs_app *
 	}
 	a = kmemdup(app, sizeof(*app), GFP_KERNEL);
 	if (!a) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		/* decrease the module use count */
 		ip_vs_use_count_dec();
 		goto out_unlock;
@@ -226,7 +226,7 @@ out_unlock:
 
 /*
  *	ip_vs_app unregistration routine
- *	We are sure there are no app incarnations attached to services
+ *	We are sure there are anal app incarnations attached to services
  *	Caller should use synchronize_rcu() or rcu_barrier()
  */
 void unregister_ip_vs_app(struct netns_ipvs *ipvs, struct ip_vs_app *app)
@@ -603,7 +603,7 @@ int __net_init ip_vs_app_net_init(struct netns_ipvs *ipvs)
 	if (!proc_create_net("ip_vs_app", 0, ipvs->net->proc_net,
 			     &ip_vs_app_seq_ops,
 			     sizeof(struct seq_net_private)))
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 	return 0;
 }

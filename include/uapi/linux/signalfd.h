@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  include/linux/signalfd.h
  *
@@ -10,16 +10,16 @@
 #define _UAPI_LINUX_SIGNALFD_H
 
 #include <linux/types.h>
-/* For O_CLOEXEC and O_NONBLOCK */
+/* For O_CLOEXEC and O_ANALNBLOCK */
 #include <linux/fcntl.h>
 
 /* Flags for signalfd4.  */
 #define SFD_CLOEXEC O_CLOEXEC
-#define SFD_NONBLOCK O_NONBLOCK
+#define SFD_ANALNBLOCK O_ANALNBLOCK
 
 struct signalfd_siginfo {
-	__u32 ssi_signo;
-	__s32 ssi_errno;
+	__u32 ssi_siganal;
+	__s32 ssi_erranal;
 	__s32 ssi_code;
 	__u32 ssi_pid;
 	__u32 ssi_uid;
@@ -27,7 +27,7 @@ struct signalfd_siginfo {
 	__u32 ssi_tid;
 	__u32 ssi_band;
 	__u32 ssi_overrun;
-	__u32 ssi_trapno;
+	__u32 ssi_trapanal;
 	__s32 ssi_status;
 	__s32 ssi_int;
 	__u64 ssi_ptr;

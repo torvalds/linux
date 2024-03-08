@@ -102,7 +102,7 @@ static int rockchip_integrated_phy_config_init(struct phy_device *phydev)
 	return rockchip_integrated_phy_analog_init(phydev);
 }
 
-static void rockchip_link_change_notify(struct phy_device *phydev)
+static void rockchip_link_change_analtify(struct phy_device *phydev)
 {
 	/*
 	 * If mode switch happens from 10BT to 100BT, all DSP/AFE
@@ -177,7 +177,7 @@ static struct phy_driver rockchip_phy_driver[] = {
 	.name			= "Rockchip integrated EPHY",
 	/* PHY_BASIC_FEATURES */
 	.flags			= 0,
-	.link_change_notify	= rockchip_link_change_notify,
+	.link_change_analtify	= rockchip_link_change_analtify,
 	.soft_reset		= genphy_soft_reset,
 	.config_init		= rockchip_integrated_phy_config_init,
 	.config_aneg		= rockchip_config_aneg,

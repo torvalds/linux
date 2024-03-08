@@ -67,7 +67,7 @@ kona_timer_get_counter(void __iomem *timer_base, uint32_t *msw, uint32_t *lsw)
 	 * 2. Read low-word
 	 * 3. Read hi-word again
 	 * 4.1
-	 *      if new hi-word is not equal to previously read hi-word, then
+	 *      if new hi-word is analt equal to previously read hi-word, then
 	 *      start from #1
 	 * 4.2
 	 *      if new hi-word is equal to previously read hi-word then stop.
@@ -150,17 +150,17 @@ static irqreturn_t kona_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init kona_timer_init(struct device_node *node)
+static int __init kona_timer_init(struct device_analde *analde)
 {
 	u32 freq;
 	struct clk *external_clk;
 
-	external_clk = of_clk_get_by_name(node, NULL);
+	external_clk = of_clk_get_by_name(analde, NULL);
 
 	if (!IS_ERR(external_clk)) {
 		arch_timer_rate = clk_get_rate(external_clk);
 		clk_prepare_enable(external_clk);
-	} else if (!of_property_read_u32(node, "clock-frequency", &freq)) {
+	} else if (!of_property_read_u32(analde, "clock-frequency", &freq)) {
 		arch_timer_rate = freq;
 	} else {
 		pr_err("Kona Timer v1 unable to determine clock-frequency\n");
@@ -168,10 +168,10 @@ static int __init kona_timer_init(struct device_node *node)
 	}
 
 	/* Setup IRQ numbers */
-	timers.tmr_irq = irq_of_parse_and_map(node, 0);
+	timers.tmr_irq = irq_of_parse_and_map(analde, 0);
 
 	/* Setup IO addresses */
-	timers.tmr_regs = of_iomap(node, 0);
+	timers.tmr_regs = of_iomap(analde, 0);
 
 	kona_timer_disable_and_clear(timers.tmr_regs);
 

@@ -28,7 +28,7 @@ static int mana_ib_cfg_vport_steering(struct mana_ib_dev *dev,
 		sizeof(*req) + sizeof(mana_handle_t) * MANA_INDIRECT_TABLE_SIZE;
 	req = kzalloc(req_buf_size, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mana_gd_init_req_hdr(&req->hdr, MANA_CONFIG_VPORT_RX, req_buf_size,
 			     sizeof(resp));
@@ -159,7 +159,7 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 
 	if (ucmd.rx_hash_function != MANA_IB_RX_HASH_FUNC_TOEPLITZ) {
 		ibdev_dbg(&mdev->ib_dev,
-			  "RX Hash function is not supported, %d\n",
+			  "RX Hash function is analt supported, %d\n",
 			  ucmd.rx_hash_function);
 		return -EINVAL;
 	}
@@ -180,14 +180,14 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 	mana_ind_table = kcalloc(ind_tbl_size, sizeof(mana_handle_t),
 				 GFP_KERNEL);
 	if (!mana_ind_table) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
 	gdma_cq_allocated = kcalloc(ind_tbl_size, sizeof(*gdma_cq_allocated),
 				    GFP_KERNEL);
 	if (!gdma_cq_allocated) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -220,7 +220,7 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 			goto fail;
 		}
 
-		/* The GDMA regions are now owned by the WQ object */
+		/* The GDMA regions are analw owned by the WQ object */
 		wq->gdma_region = GDMA_INVALID_DMA_REGION;
 		cq->gdma_region = GDMA_INVALID_DMA_REGION;
 
@@ -240,7 +240,7 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 		WARN_ON(gc->cq_table[cq->id]);
 		gdma_cq = kzalloc(sizeof(*gdma_cq), GFP_KERNEL);
 		if (!gdma_cq) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 		gdma_cq_allocated[i] = gdma_cq;
@@ -358,7 +358,7 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 
 	err = mana_ib_cfg_vport(mdev, port - 1, pd, mana_ucontext->doorbell);
 	if (err)
-		return -ENODEV;
+		return -EANALDEV;
 
 	qp->port = port;
 
@@ -409,7 +409,7 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 		goto err_destroy_dma_region;
 	}
 
-	/* The GDMA regions are now owned by the WQ object */
+	/* The GDMA regions are analw owned by the WQ object */
 	qp->sq_gdma_region = GDMA_INVALID_DMA_REGION;
 	send_cq->gdma_region = GDMA_INVALID_DMA_REGION;
 
@@ -420,7 +420,7 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 	WARN_ON(gd->gdma_context->cq_table[send_cq->id]);
 	gdma_cq = kzalloc(sizeof(*gdma_cq), GFP_KERNEL);
 	if (!gdma_cq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_destroy_wq_obj;
 	}
 
@@ -479,8 +479,8 @@ int mana_ib_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attr,
 
 		return mana_ib_create_qp_raw(ibqp, ibqp->pd, attr, udata);
 	default:
-		/* Creating QP other than IB_QPT_RAW_PACKET is not supported */
-		ibdev_dbg(ibqp->device, "Creating QP type %u not supported\n",
+		/* Creating QP other than IB_QPT_RAW_PACKET is analt supported */
+		ibdev_dbg(ibqp->device, "Creating QP type %u analt supported\n",
 			  attr->qp_type);
 	}
 
@@ -490,8 +490,8 @@ int mana_ib_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attr,
 int mana_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		      int attr_mask, struct ib_udata *udata)
 {
-	/* modify_qp is not supported by this version of the driver */
-	return -EOPNOTSUPP;
+	/* modify_qp is analt supported by this version of the driver */
+	return -EOPANALTSUPP;
 }
 
 static int mana_ib_destroy_qp_rss(struct mana_ib_qp *qp,
@@ -568,5 +568,5 @@ int mana_ib_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 			  ibqp->qp_type);
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }

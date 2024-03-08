@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * TS3A227E Autonous Audio Accessory Detection and Configureation Switch
+ * TS3A227E Autoanalus Audio Accessory Detection and Configureation Switch
  *
  * Copyright (C) 2014 Google, Inc.
  */

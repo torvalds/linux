@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2016-2017 Zodiac Inflight Innovations
+ * Copyright (C) 2016-2017 Zodiac Inflight Inanalvations
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -320,7 +320,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "st,m25p128", "jedec,spi-nor";
+		compatible = "st,m25p128", "jedec,spi-analr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -591,7 +591,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <2>;
+			syna,analsleep-mode = <2>;
 		};
 
 		rmi4-f11@11 {
@@ -674,8 +674,8 @@
 	disable-wp;
 	vmmc-supply = <&reg_3p3v_sd>;
 	vqmmc-supply = <&reg_3p3v>;
-	no-1-8-v;
-	no-sdio;
+	anal-1-8-v;
+	anal-sdio;
 	status = "okay";
 };
 
@@ -687,8 +687,8 @@
 	disable-wp;
 	vmmc-supply = <&reg_3p3v_sd>;
 	vqmmc-supply = <&reg_3p3v>;
-	no-1-8-v;
-	no-sdio;
+	anal-1-8-v;
+	anal-sdio;
 	status = "okay";
 };
 
@@ -698,10 +698,10 @@
 	bus-width = <8>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
-	no-1-8-v;
-	non-removable;
-	no-sdio;
-	no-sd;
+	anal-1-8-v;
+	analn-removable;
+	anal-sdio;
+	anal-sd;
 	status = "okay";
 };
 

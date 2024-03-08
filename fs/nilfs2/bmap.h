@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/nilfs2_ondisk.h>	/* nilfs_binfo, nilfs_inode, etc */
+#include <linux/nilfs2_ondisk.h>	/* nilfs_binfo, nilfs_ianalde, etc */
 #include "alloc.h"
 #include "dat.h"
 
@@ -73,7 +73,7 @@ struct nilfs_bmap_operations {
 };
 
 
-#define NILFS_BMAP_SIZE		(NILFS_INODE_BMAP_SIZE * sizeof(__le64))
+#define NILFS_BMAP_SIZE		(NILFS_IANALDE_BMAP_SIZE * sizeof(__le64))
 #define NILFS_BMAP_KEY_BIT	(sizeof(unsigned long) * 8 /* CHAR_BIT */)
 #define NILFS_BMAP_NEW_PTR_INIT	\
 	(1UL << (sizeof(unsigned long) * 8 /* CHAR_BIT */ - 1))
@@ -88,13 +88,13 @@ static inline int nilfs_bmap_is_new_ptr(unsigned long ptr)
  * struct nilfs_bmap - bmap structure
  * @b_u: raw data
  * @b_sem: semaphore
- * @b_inode: owner of bmap
+ * @b_ianalde: owner of bmap
  * @b_ops: bmap operation table
  * @b_last_allocated_key: last allocated key for data block
  * @b_last_allocated_ptr: last allocated ptr for data block
  * @b_ptr_type: pointer type
  * @b_state: state
- * @b_nchildren_per_block: maximum number of child nodes for non-root nodes
+ * @b_nchildren_per_block: maximum number of child analdes for analn-root analdes
  */
 struct nilfs_bmap {
 	union {
@@ -102,7 +102,7 @@ struct nilfs_bmap {
 		__le64 u_data[NILFS_BMAP_SIZE / sizeof(__le64)];
 	} b_u;
 	struct rw_semaphore b_sem;
-	struct inode *b_inode;
+	struct ianalde *b_ianalde;
 	const struct nilfs_bmap_operations *b_ops;
 	__u64 b_last_allocated_key;
 	__u64 b_last_allocated_ptr;
@@ -130,7 +130,7 @@ struct nilfs_bmap {
 
 /**
  * struct nilfs_bmap_store - shadow copy of bmap state
- * @data: cached raw block mapping of on-disk inode
+ * @data: cached raw block mapping of on-disk ianalde
  * @last_allocated_key: cached value of last allocated key for data block
  * @last_allocated_ptr: cached value of last allocated ptr for data block
  * @state: cached value of state field of bmap structure
@@ -143,8 +143,8 @@ struct nilfs_bmap_store {
 };
 
 int nilfs_bmap_test_and_clear_dirty(struct nilfs_bmap *);
-int nilfs_bmap_read(struct nilfs_bmap *, struct nilfs_inode *);
-void nilfs_bmap_write(struct nilfs_bmap *, struct nilfs_inode *);
+int nilfs_bmap_read(struct nilfs_bmap *, struct nilfs_ianalde *);
+void nilfs_bmap_write(struct nilfs_bmap *, struct nilfs_ianalde *);
 int nilfs_bmap_lookup_contig(struct nilfs_bmap *, __u64, __u64 *, unsigned int);
 int nilfs_bmap_insert(struct nilfs_bmap *bmap, __u64 key, unsigned long rec);
 int nilfs_bmap_delete(struct nilfs_bmap *bmap, __u64 key);
@@ -173,22 +173,22 @@ static inline int nilfs_bmap_lookup(struct nilfs_bmap *bmap, __u64 key,
 /*
  * Internal use only
  */
-struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *);
+struct ianalde *nilfs_bmap_get_dat(const struct nilfs_bmap *);
 
 static inline int nilfs_bmap_prepare_alloc_ptr(struct nilfs_bmap *bmap,
 					       union nilfs_bmap_ptr_req *req,
-					       struct inode *dat)
+					       struct ianalde *dat)
 {
 	if (dat)
 		return nilfs_dat_prepare_alloc(dat, &req->bpr_req);
-	/* ignore target ptr */
+	/* iganalre target ptr */
 	req->bpr_ptr = bmap->b_last_allocated_ptr++;
 	return 0;
 }
 
 static inline void nilfs_bmap_commit_alloc_ptr(struct nilfs_bmap *bmap,
 					       union nilfs_bmap_ptr_req *req,
-					       struct inode *dat)
+					       struct ianalde *dat)
 {
 	if (dat)
 		nilfs_dat_commit_alloc(dat, &req->bpr_req);
@@ -196,7 +196,7 @@ static inline void nilfs_bmap_commit_alloc_ptr(struct nilfs_bmap *bmap,
 
 static inline void nilfs_bmap_abort_alloc_ptr(struct nilfs_bmap *bmap,
 					      union nilfs_bmap_ptr_req *req,
-					      struct inode *dat)
+					      struct ianalde *dat)
 {
 	if (dat)
 		nilfs_dat_abort_alloc(dat, &req->bpr_req);
@@ -206,14 +206,14 @@ static inline void nilfs_bmap_abort_alloc_ptr(struct nilfs_bmap *bmap,
 
 static inline int nilfs_bmap_prepare_end_ptr(struct nilfs_bmap *bmap,
 					     union nilfs_bmap_ptr_req *req,
-					     struct inode *dat)
+					     struct ianalde *dat)
 {
 	return dat ? nilfs_dat_prepare_end(dat, &req->bpr_req) : 0;
 }
 
 static inline void nilfs_bmap_commit_end_ptr(struct nilfs_bmap *bmap,
 					     union nilfs_bmap_ptr_req *req,
-					     struct inode *dat)
+					     struct ianalde *dat)
 {
 	if (dat)
 		nilfs_dat_commit_end(dat, &req->bpr_req,
@@ -222,7 +222,7 @@ static inline void nilfs_bmap_commit_end_ptr(struct nilfs_bmap *bmap,
 
 static inline void nilfs_bmap_abort_end_ptr(struct nilfs_bmap *bmap,
 					    union nilfs_bmap_ptr_req *req,
-					    struct inode *dat)
+					    struct ianalde *dat)
 {
 	if (dat)
 		nilfs_dat_abort_end(dat, &req->bpr_req);

@@ -53,8 +53,8 @@ BCJ过滤器。
 ==================
 
 因为XZ Embedded只支持没有完整性校验的数据流或者CRC32，请确保你在编码未来将被
-内核解码的文件时没有使用其他完整性校验方式。使用liblzma时，你需要使用LZMA_CHECK_NONE
-或LZMA_CHECK_CRC32。使用xz命令行工具时，使用--check=none或--check=crc32。
+内核解码的文件时没有使用其他完整性校验方式。使用liblzma时，你需要使用LZMA_CHECK_ANALNE
+或LZMA_CHECK_CRC32。使用xz命令行工具时，使用--check=analne或--check=crc32。
 
 除非有其他环节会验证解压数据的完整性，否则强烈使用CRC32。双重验证可能会浪费
 CPU周期。请注意头部总是会包含用于解压器验证的CRC32，你只能修改或禁用解压后数据
@@ -92,7 +92,7 @@ CPU周期。请注意头部总是会包含用于解压器验证的CRC32，你只
 请在报告错误前确认是否已经在上游修复。可以从<https://tukaani.org/xz/embedded.html>
 获取最新的源码。
 
-可以通过联系<lasse.collin@tukaani.org>或者访问Freenode上的#tukaani
+可以通过联系<lasse.collin@tukaani.org>或者访问Freeanalde上的#tukaani
 联系Larhzu。我并不经常阅读LKML或者其他内核相关的邮件列表，所以如果要告知我什么事情
 ，你应该通过我的私人邮箱或者IRC联系我。
 

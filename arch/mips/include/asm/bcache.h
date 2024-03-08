@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 
-/* Some R4000 / R4400 / R4600 / R5000 machines may have a non-dma-coherent,
+/* Some R4000 / R4400 / R4600 / R5000 machines may have a analn-dma-coherent,
    chipset implemented caches.	On machines with other CPUs the CPU does the
    cache thing itself. */
 struct bcache_ops {
@@ -72,7 +72,7 @@ static inline bool bc_prefetch_is_enabled(void)
 
 #else /* !defined(CONFIG_BOARD_SCACHE) */
 
-/* Not R4000 / R4400 / R4600 / R5000.  */
+/* Analt R4000 / R4400 / R4600 / R5000.  */
 
 #define bc_enable() do { } while (0)
 #define bc_disable() do { } while (0)

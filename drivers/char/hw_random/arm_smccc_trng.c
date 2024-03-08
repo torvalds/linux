@@ -31,7 +31,7 @@
 #define SMCCC_TRNG_MAX_TRIES	20
 
 #define SMCCC_RET_TRNG_INVALID_PARAMETER	-2
-#define SMCCC_RET_TRNG_NO_ENTROPY		-3
+#define SMCCC_RET_TRNG_ANAL_ENTROPY		-3
 
 static int copy_from_registers(char *buf, struct arm_smccc_res *res,
 			       size_t bytes)
@@ -78,7 +78,7 @@ static int smccc_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 						      bits / BITS_PER_BYTE);
 			tries = 0;
 			break;
-		case SMCCC_RET_TRNG_NO_ENTROPY:
+		case SMCCC_RET_TRNG_ANAL_ENTROPY:
 			if (!wait)
 				return copied;
 			tries++;
@@ -100,7 +100,7 @@ static int smccc_trng_probe(struct platform_device *pdev)
 
 	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
 	if (!trng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trng->name = "smccc_trng";
 	trng->read = smccc_trng_read;

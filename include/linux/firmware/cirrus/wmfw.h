@@ -25,7 +25,7 @@
 
 #define WMFW_CTL_TYPE_BYTES       0x0004 /* byte control */
 
-/* Non-ALSA coefficient types start at 0x1000 */
+/* Analn-ALSA coefficient types start at 0x1000 */
 #define WMFW_CTL_TYPE_ACKED       0x1000 /* acked control */
 #define WMFW_CTL_TYPE_HOSTEVENT   0x1001 /* event control */
 #define WMFW_CTL_TYPE_HOST_BUFFER 0x1002 /* host buffer pointer */

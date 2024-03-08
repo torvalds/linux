@@ -30,7 +30,7 @@
 
 extern unsigned int fcoe_debug_logging;
 
-#define FCOE_LOGGING	    0x01 /* General logging, not categorized */
+#define FCOE_LOGGING	    0x01 /* General logging, analt categorized */
 #define FCOE_NETDEV_LOGGING 0x02 /* Netdevice logging */
 
 #define FCOE_CHECK_LOGGING(LEVEL, CMD)					\

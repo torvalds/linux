@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# Copyright (C) 2016-2021 Microchip Technology, Inc.
+# Copyright (C) 2016-2021 Microchip Techanallogy, Inc.
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/media/atmel,isc.yaml#
@@ -47,7 +47,7 @@ properties:
     $ref: /schemas/graph.yaml#/$defs/port-base
     additionalProperties: false
     description:
-      Input port node, single endpoint describing the input pad.
+      Input port analde, single endpoint describing the input pad.
 
     properties:
       endpoint:

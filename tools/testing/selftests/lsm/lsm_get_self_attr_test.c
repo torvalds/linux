@@ -30,9 +30,9 @@ TEST(size_null_lsm_get_self_attr)
 	struct lsm_ctx *ctx = calloc(page_size, 1);
 
 	ASSERT_NE(NULL, ctx);
-	errno = 0;
+	erranal = 0;
 	ASSERT_EQ(-1, lsm_get_self_attr(LSM_ATTR_CURRENT, ctx, NULL, 0));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 
 	free(ctx);
 }
@@ -60,12 +60,12 @@ TEST(size_too_small_lsm_get_self_attr)
 	size_t size = 1;
 
 	ASSERT_NE(NULL, ctx);
-	errno = 0;
+	erranal = 0;
 	ASSERT_EQ(-1, lsm_get_self_attr(LSM_ATTR_CURRENT, ctx, &size, 0));
 	if (attr_lsm_count()) {
-		ASSERT_EQ(E2BIG, errno);
+		ASSERT_EQ(E2BIG, erranal);
 	} else {
-		ASSERT_EQ(EOPNOTSUPP, errno);
+		ASSERT_EQ(EOPANALTSUPP, erranal);
 	}
 	ASSERT_NE(1, size);
 
@@ -82,11 +82,11 @@ TEST(flags_zero_lsm_get_self_attr)
 	int i;
 
 	ASSERT_NE(NULL, ctx);
-	errno = 0;
+	erranal = 0;
 	size = page_size;
 	ASSERT_EQ(-1, lsm_get_self_attr(LSM_ATTR_CURRENT, ctx, &size,
 					LSM_FLAG_SINGLE));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 	ASSERT_EQ(page_size, size);
 
 	lsmcount = syscall(__NR_lsm_list_modules, syscall_lsms, &size, 0);
@@ -94,7 +94,7 @@ TEST(flags_zero_lsm_get_self_attr)
 	ASSERT_NE(NULL, syscall_lsms);
 
 	for (i = 0; i < lsmcount; i++) {
-		errno = 0;
+		erranal = 0;
 		size = page_size;
 		ctx->id = syscall_lsms[i];
 
@@ -121,18 +121,18 @@ TEST(flags_overset_lsm_get_self_attr)
 
 	ASSERT_NE(NULL, ctx);
 
-	errno = 0;
+	erranal = 0;
 	size = page_size;
 	ASSERT_EQ(-1, lsm_get_self_attr(LSM_ATTR_CURRENT | LSM_ATTR_PREV, ctx,
 					&size, 0));
-	ASSERT_EQ(EOPNOTSUPP, errno);
+	ASSERT_EQ(EOPANALTSUPP, erranal);
 
-	errno = 0;
+	erranal = 0;
 	size = page_size;
 	ASSERT_EQ(-1, lsm_get_self_attr(LSM_ATTR_CURRENT, ctx, &size,
 					LSM_FLAG_SINGLE |
 					(LSM_FLAG_SINGLE << 1)));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 
 	free(ctx);
 }

@@ -29,7 +29,7 @@ td3	.req	lr
 
 		/*
 		 * Handle 0 to 7 bytes, with any alignment of source and
-		 * destination pointers.  Note that when we get here, C = 0
+		 * destination pointers.  Analte that when we get here, C = 0
 		 */
 .Lless8:		teq	len, #0			@ check for zero count
 		beq	.Lzero
@@ -44,7 +44,7 @@ td3	.req	lr
 .Lless4:		tst	len, #6
 		beq	.Lless8_byte
 
-		/* we are now half-word aligned */
+		/* we are analw half-word aligned */
 
 .Lless8_wordlp:
 #if __LINUX_ARM_ARCH__ >= 4
@@ -74,7 +74,7 @@ td3	.req	lr
 		movne	r0, r0, ror #8		@ rotate checksum by 8 bits
 		ldr	pc, [sp], #4		@ return
 
-.Lnot_aligned:	tst	buf, #1			@ odd address
+.Lanalt_aligned:	tst	buf, #1			@ odd address
 		ldrbne	td0, [buf], #1		@ make even
 		subne	len, len, #1
 		adcsne	sum, sum, td0, put_byte_1	@ update checksum
@@ -106,7 +106,7 @@ ENTRY(csum_partial)
 
 		adds	sum, sum, #0		@ C = 0
 		tst	buf, #3			@ Test destination alignment
-		blne	.Lnot_aligned		@ align destination, return here
+		blne	.Lanalt_aligned		@ align destination, return here
 
 1:		bics	ip, len, #31
 		beq	3f
@@ -127,7 +127,7 @@ ENTRY(csum_partial)
 		bne	2b
 		ldmfd	sp!, {r4 - r5}
 
-3:		tst	len, #0x1c		@ should not change C
+3:		tst	len, #0x1c		@ should analt change C
 		beq	.Lless4
 
 4:		ldr	td0, [buf], #4

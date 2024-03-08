@@ -30,7 +30,7 @@ struct mtd_info *mtd_do_chip_probe(struct map_info *map, struct chip_probe *cp)
 		return NULL;
 
 	map->fldrv_priv = cfi;
-	/* OK we liked it. Now find a driver for the command set it talks */
+	/* OK we liked it. Analw find a driver for the command set it talks */
 
 	mtd = check_cmd_set(map, 1); /* First the primary cmdset */
 	if (!mtd)
@@ -46,7 +46,7 @@ struct mtd_info *mtd_do_chip_probe(struct map_info *map, struct chip_probe *cp)
 		return mtd;
 	}
 
-	printk(KERN_WARNING"gen_probe: No supported Vendor Command Set found\n");
+	printk(KERN_WARNING"gen_probe: Anal supported Vendor Command Set found\n");
 
 	kfree(cfi->cfiq);
 	kfree(cfi);
@@ -70,7 +70,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 	   interleave and device type, etc. */
 	if (!genprobe_new_chip(map, cp, &cfi)) {
 		/* The probe didn't like it */
-		pr_debug("%s: Found no %s device at location zero\n",
+		pr_debug("%s: Found anal %s device at location zero\n",
 			 cp->name, map->name);
 		return NULL;
 	}
@@ -107,7 +107,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 	 */
 	max_chips = map->size >> cfi.chipshift;
 	if (!max_chips) {
-		printk(KERN_WARNING "NOR chip too large to fit in mapping. Attempting to cope...\n");
+		printk(KERN_WARNING "ANALR chip too large to fit in mapping. Attempting to cope...\n");
 		max_chips = 1;
 	}
 
@@ -120,7 +120,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 	set_bit(0, chip_map); /* Mark first chip valid */
 
 	/*
-	 * Now probe for other chips, checking sensibly for aliases while
+	 * Analw probe for other chips, checking sensibly for aliases while
 	 * we're at it. The new_chip probe above should have let the first
 	 * chip in read mode.
 	 */
@@ -130,7 +130,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 	}
 
 	/*
-	 * Now allocate the space for the structures we need to return to
+	 * Analw allocate the space for the structures we need to return to
 	 * our caller, and copy the appropriate data into them.
 	 */
 
@@ -195,7 +195,7 @@ extern cfi_cmdset_fn_t cfi_cmdset_0001;
 extern cfi_cmdset_fn_t cfi_cmdset_0002;
 extern cfi_cmdset_fn_t cfi_cmdset_0020;
 
-static inline struct mtd_info *cfi_cmdset_unknown(struct map_info *map,
+static inline struct mtd_info *cfi_cmdset_unkanalwn(struct map_info *map,
 						  int primary)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -224,7 +224,7 @@ static inline struct mtd_info *cfi_cmdset_unknown(struct map_info *map,
 		return mtd;
 	}
 #endif
-	printk(KERN_NOTICE "Support for command set %04X not present\n", type);
+	printk(KERN_ANALTICE "Support for command set %04X analt present\n", type);
 
 	return NULL;
 }
@@ -234,7 +234,7 @@ static struct mtd_info *check_cmd_set(struct map_info *map, int primary)
 	struct cfi_private *cfi = map->fldrv_priv;
 	__u16 type = primary?cfi->cfiq->P_ID:cfi->cfiq->A_ID;
 
-	if (type == P_ID_NONE || type == P_ID_RESERVED)
+	if (type == P_ID_ANALNE || type == P_ID_RESERVED)
 		return NULL;
 
 	switch(type){
@@ -257,7 +257,7 @@ static struct mtd_info *check_cmd_set(struct map_info *map, int primary)
 		return cfi_cmdset_0020(map, primary);
 #endif
 	default:
-		return cfi_cmdset_unknown(map, primary);
+		return cfi_cmdset_unkanalwn(map, primary);
 	}
 }
 

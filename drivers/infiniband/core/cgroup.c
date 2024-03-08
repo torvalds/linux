@@ -26,7 +26,7 @@ void ib_device_register_rdmacg(struct ib_device *device)
  *
  * Unregister with the rdma cgroup. Should be called after
  * all the resources are deallocated, and after a stage when any
- * other resource allocation by user application cannot be done
+ * other resource allocation by user application cananalt be done
  * for this device to avoid any leak in accounting.
  */
 void ib_device_unregister_rdmacg(struct ib_device *device)

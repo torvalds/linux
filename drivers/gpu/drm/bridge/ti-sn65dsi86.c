@@ -98,7 +98,7 @@
 #define  SCRAMBLE_DISABLE			BIT(4)
 #define SN_ML_TX_MODE_REG			0x96
 #define  ML_TX_MAIN_LINK_OFF			0
-#define  ML_TX_NORMAL_MODE			BIT(0)
+#define  ML_TX_ANALRMAL_MODE			BIT(0)
 #define SN_PWM_PRE_DIV_REG			0xA0
 #define SN_BACKLIGHT_SCALE_REG			0xA1
 #define  BACKLIGHT_SCALE_MAX			0xFFFF
@@ -117,7 +117,7 @@
 #define DP_CLK_FUDGE_NUM	10
 #define DP_CLK_FUDGE_DEN	8
 
-/* Matches DP_AUX_MAX_PAYLOAD_BYTES (for now) */
+/* Matches DP_AUX_MAX_PAYLOAD_BYTES (for analw) */
 #define SN_AUX_MAX_PAYLOAD_BYTES	16
 
 #define SN_REGULATOR_SUPPLY_NUM		4
@@ -142,7 +142,7 @@
  * @aux:          Our aux channel.
  * @bridge:       Our bridge.
  * @connector:    Our connector.
- * @host_node:    Remote DSI node.
+ * @host_analde:    Remote DSI analde.
  * @dsi:          Our MIPI DSI source.
  * @refclk:       Our reference clock.
  * @next_bridge:  The bridge on the eDP side.
@@ -180,7 +180,7 @@ struct ti_sn65dsi86 {
 	struct drm_dp_aux		aux;
 	struct drm_bridge		bridge;
 	struct drm_connector		*connector;
-	struct device_node		*host_node;
+	struct device_analde		*host_analde;
 	struct mipi_dsi_device		*dsi;
 	struct clk			*refclk;
 	struct drm_bridge		*next_bridge;
@@ -209,15 +209,15 @@ static const struct regmap_range ti_sn65dsi86_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table ti_sn_bridge_volatile_table = {
-	.yes_ranges = ti_sn65dsi86_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ti_sn65dsi86_volatile_ranges),
+	.anal_ranges = ti_sn65dsi86_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(ti_sn65dsi86_volatile_ranges),
 };
 
 static const struct regmap_config ti_sn65dsi86_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.volatile_table = &ti_sn_bridge_volatile_table,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.max_register = 0xFF,
 };
 
@@ -455,7 +455,7 @@ static void ti_sn65dsi86_debugfs_init(struct ti_sn65dsi86 *pdata)
 }
 
 /* -----------------------------------------------------------------------------
- * Auxiliary Devices (*not* AUX)
+ * Auxiliary Devices (*analt* AUX)
  */
 
 static void ti_sn65dsi86_uninit_aux(void *data)
@@ -485,12 +485,12 @@ static int ti_sn65dsi86_add_aux_device(struct ti_sn65dsi86 *pdata,
 
 	aux = kzalloc(sizeof(*aux), GFP_KERNEL);
 	if (!aux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aux->name = name;
 	aux->dev.parent = dev;
 	aux->dev.release = ti_sn65dsi86_aux_device_release;
-	device_set_of_node_from_dev(&aux->dev, dev);
+	device_set_of_analde_from_dev(&aux->dev, dev);
 	ret = auxiliary_device_init(aux);
 	if (ret) {
 		kfree(aux);
@@ -541,7 +541,7 @@ static ssize_t ti_sn_aux_transfer(struct drm_dp_aux *aux,
 	/*
 	 * If someone tries to do a DDC over AUX transaction before pre_enable()
 	 * on a device without a dedicated reference clock then we just can't
-	 * do it. Fail right away. This prevents non-refclk users from reading
+	 * do it. Fail right away. This prevents analn-refclk users from reading
 	 * the EDID before enabling the panel but such is life.
 	 */
 	if (!pdata->comms_enabled) {
@@ -593,7 +593,7 @@ static ssize_t ti_sn_aux_transfer(struct drm_dp_aux *aux,
 	if (val & AUX_IRQ_STATUS_AUX_RPLY_TOUT) {
 		/*
 		 * The hardware tried the message seven times per the DP spec
-		 * but it hit a timeout. We ignore defers here because they're
+		 * but it hit a timeout. We iganalre defers here because they're
 		 * handled in hardware.
 		 */
 		ret = -ETIMEDOUT;
@@ -669,7 +669,7 @@ static int ti_sn_aux_probe(struct auxiliary_device *adev,
 
 	/*
 	 * The eDP to MIPI bridge parts don't work until the AUX channel is
-	 * setup so we don't add it in the main driver probe, we add it now.
+	 * setup so we don't add it in the main driver probe, we add it analw.
 	 */
 	return ti_sn65dsi86_add_aux_device(pdata, &pdata->bridge_aux, "bridge");
 }
@@ -702,10 +702,10 @@ static int ti_sn_attach_host(struct auxiliary_device *adev, struct ti_sn65dsi86 
 	struct device *dev = pdata->dev;
 	const struct mipi_dsi_device_info info = { .type = "ti_sn_bridge",
 						   .channel = 0,
-						   .node = NULL,
+						   .analde = NULL,
 	};
 
-	host = of_find_mipi_dsi_host_by_node(pdata->host_node);
+	host = of_find_mipi_dsi_host_by_analde(pdata->host_analde);
 	if (!host)
 		return -EPROBE_DEFER;
 
@@ -713,17 +713,17 @@ static int ti_sn_attach_host(struct auxiliary_device *adev, struct ti_sn65dsi86 
 	if (IS_ERR(dsi))
 		return PTR_ERR(dsi);
 
-	/* TODO: setting to 4 MIPI lanes always for now */
+	/* TODO: setting to 4 MIPI lanes always for analw */
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO;
 
-	/* check if continuous dsi clock is required or not */
+	/* check if continuous dsi clock is required or analt */
 	pm_runtime_get_sync(dev);
 	regmap_read(pdata->regmap, SN_DPPLL_SRC_REG, &val);
 	pm_runtime_put_autosuspend(dev);
 	if (!(val & DPPLL_CLK_SRC_DSICLK))
-		dsi->mode_flags |= MIPI_DSI_CLOCK_NON_CONTINUOUS;
+		dsi->mode_flags |= MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	pdata->dsi = dsi;
 
@@ -748,11 +748,11 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge,
 	 * We never want the next bridge to *also* create a connector.
 	 */
 	ret = drm_bridge_attach(bridge->encoder, pdata->next_bridge,
-				&pdata->bridge, flags | DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				&pdata->bridge, flags | DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret < 0)
 		goto err_initted_aux;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)
 		return 0;
 
 	pdata->connector = drm_bridge_connector_init(pdata->bridge.dev,
@@ -927,7 +927,7 @@ static unsigned int ti_sn_bridge_read_valid_rates(struct ti_sn65dsi86 *pdata)
 				return valid_rates;
 		}
 		DRM_DEV_ERROR(pdata->dev,
-			      "No matching eDP rates in table; falling back\n");
+			      "Anal matching eDP rates in table; falling back\n");
 	}
 
 	/* On older versions best we can do is use DP_MAX_LINK_RATE */
@@ -1046,7 +1046,7 @@ static int ti_sn_link_training(struct ti_sn65dsi86 *pdata, int dp_rate_idx,
 		regmap_write(pdata->regmap, SN_ML_TX_MODE_REG, 0x0A);
 		ret = regmap_read_poll_timeout(pdata->regmap, SN_ML_TX_MODE_REG, val,
 					       val == ML_TX_MAIN_LINK_OFF ||
-					       val == ML_TX_NORMAL_MODE, 1000,
+					       val == ML_TX_ANALRMAL_MODE, 1000,
 					       500 * 1000);
 		if (ret) {
 			*last_err_str = "Training complete polling failed";
@@ -1059,7 +1059,7 @@ static int ti_sn_link_training(struct ti_sn65dsi86 *pdata, int dp_rate_idx,
 		break;
 	}
 
-	/* If we saw quite a few retries, add a note about it */
+	/* If we saw quite a few retries, add a analte about it */
 	if (!ret && i > SN_LINK_TRAINING_TRIES / 2)
 		DRM_DEV_INFO(pdata->dev, "Link training needed %d retries\n", i);
 
@@ -1076,7 +1076,7 @@ static void ti_sn_bridge_atomic_enable(struct drm_bridge *bridge,
 {
 	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
 	struct drm_connector *connector;
-	const char *last_err_str = "No supported DP rate";
+	const char *last_err_str = "Anal supported DP rate";
 	unsigned int valid_rates;
 	int dp_rate_idx;
 	unsigned int val;
@@ -1087,7 +1087,7 @@ static void ti_sn_bridge_atomic_enable(struct drm_bridge *bridge,
 	connector = drm_atomic_get_new_connector_for_encoder(old_bridge_state->base.state,
 							     bridge->encoder);
 	if (!connector) {
-		dev_err_ratelimited(pdata->dev, "Could not get the connector\n");
+		dev_err_ratelimited(pdata->dev, "Could analt get the connector\n");
 		return;
 	}
 
@@ -1231,11 +1231,11 @@ static const struct drm_bridge_funcs ti_sn_bridge_funcs = {
 };
 
 static void ti_sn_bridge_parse_lanes(struct ti_sn65dsi86 *pdata,
-				     struct device_node *np)
+				     struct device_analde *np)
 {
 	u32 lane_assignments[SN_MAX_DP_LANES] = { 0, 1, 2, 3 };
 	u32 lane_polarities[SN_MAX_DP_LANES] = { };
-	struct device_node *endpoint;
+	struct device_analde *endpoint;
 	u8 ln_assign = 0;
 	u8 ln_polrs = 0;
 	int dp_lanes;
@@ -1244,8 +1244,8 @@ static void ti_sn_bridge_parse_lanes(struct ti_sn65dsi86 *pdata,
 	/*
 	 * Read config from the device tree about lane remapping and lane
 	 * polarities.  These are optional and we assume identity map and
-	 * normal polarity if nothing is specified.  It's OK to specify just
-	 * data-lanes but not lane-polarities but not vice versa.
+	 * analrmal polarity if analthing is specified.  It's OK to specify just
+	 * data-lanes but analt lane-polarities but analt vice versa.
 	 *
 	 * Error checking is light (we just make sure we don't crash or
 	 * buffer overrun) and we assume dts is well formed and specifying
@@ -1261,7 +1261,7 @@ static void ti_sn_bridge_parse_lanes(struct ti_sn65dsi86 *pdata,
 	} else {
 		dp_lanes = SN_MAX_DP_LANES;
 	}
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 
 	/*
 	 * Convert into register format.  Loop over all lanes even if
@@ -1281,13 +1281,13 @@ static void ti_sn_bridge_parse_lanes(struct ti_sn65dsi86 *pdata,
 
 static int ti_sn_bridge_parse_dsi_host(struct ti_sn65dsi86 *pdata)
 {
-	struct device_node *np = pdata->dev->of_node;
+	struct device_analde *np = pdata->dev->of_analde;
 
-	pdata->host_node = of_graph_get_remote_node(np, 0, 0);
+	pdata->host_analde = of_graph_get_remote_analde(np, 0, 0);
 
-	if (!pdata->host_node) {
-		DRM_ERROR("remote dsi host node not found\n");
-		return -ENODEV;
+	if (!pdata->host_analde) {
+		DRM_ERROR("remote dsi host analde analt found\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1297,7 +1297,7 @@ static int ti_sn_bridge_probe(struct auxiliary_device *adev,
 			      const struct auxiliary_device_id *id)
 {
 	struct ti_sn65dsi86 *pdata = dev_get_drvdata(adev->dev.parent);
-	struct device_node *np = pdata->dev->of_node;
+	struct device_analde *np = pdata->dev->of_analde;
 	int ret;
 
 	pdata->next_bridge = devm_drm_of_get_bridge(&adev->dev, np, 1, 0);
@@ -1312,7 +1312,7 @@ static int ti_sn_bridge_probe(struct auxiliary_device *adev,
 		return ret;
 
 	pdata->bridge.funcs = &ti_sn_bridge_funcs;
-	pdata->bridge.of_node = np;
+	pdata->bridge.of_analde = np;
 	pdata->bridge.type = pdata->next_bridge->type == DRM_MODE_CONNECTOR_DisplayPort
 			   ? DRM_MODE_CONNECTOR_DisplayPort : DRM_MODE_CONNECTOR_eDP;
 
@@ -1343,7 +1343,7 @@ static void ti_sn_bridge_remove(struct auxiliary_device *adev)
 
 	drm_bridge_remove(&pdata->bridge);
 
-	of_node_put(pdata->host_node);
+	of_analde_put(pdata->host_analde);
 }
 
 static const struct auxiliary_device_id ti_sn_bridge_id_table[] = {
@@ -1393,12 +1393,12 @@ static void ti_sn_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 
 /*
  * Limitations:
- * - The PWM signal is not driven when the chip is powered down, or in its
- *   reset state and the driver does not implement the "suspend state"
+ * - The PWM signal is analt driven when the chip is powered down, or in its
+ *   reset state and the driver does analt implement the "suspend state"
  *   described in the documentation. In order to save power, state->enabled is
- *   interpreted as denoting if the signal is expected to be valid, and is used
+ *   interpreted as deanalting if the signal is expected to be valid, and is used
  *   to determine if the chip needs to be kept powered.
- * - Changing both period and duty_cycle is not done atomically, neither is the
+ * - Changing both period and duty_cycle is analt done atomically, neither is the
  *   multi-byte register updates, so the output might briefly be undefined
  *   during update.
  */
@@ -1468,7 +1468,7 @@ static int ti_sn_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		 *                          PWM_PRE_DIV
 		 *
 		 * Here T_pwm is represented in seconds, so appropriate scaling
-		 * to nanoseconds is necessary.
+		 * to naanalseconds is necessary.
 		 */
 
 		/* Minimum T_pwm is 1 / REFCLK_FREQ */
@@ -1497,7 +1497,7 @@ static int ti_sn_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		 *    period    BACKLIGHT_SCALE + 1
 		 *
 		 * Solve for BACKLIGHT, substituting BACKLIGHT_SCALE according
-		 * to definition above and adjusting for nanosecond
+		 * to definition above and adjusting for naanalsecond
 		 * representation of duty cycle gives us:
 		 */
 		backlight = div64_u64(state->duty_cycle * pdata->pwm_refclk_freq,
@@ -1562,7 +1562,7 @@ static int ti_sn_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (FIELD_GET(SN_PWM_INV_MASK, pwm_en_inv))
 		state->polarity = PWM_POLARITY_INVERSED;
 	else
-		state->polarity = PWM_POLARITY_NORMAL;
+		state->polarity = PWM_POLARITY_ANALRMAL;
 
 	state->period = DIV_ROUND_UP_ULL((u64)NSEC_PER_SEC * pre_div * (scale + 1),
 					 pdata->pwm_refclk_freq);
@@ -1682,10 +1682,10 @@ static int ti_sn_bridge_gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 	/*
 	 * When the pin is an input we don't forcibly keep the bridge
-	 * powered--we just power it on to read the pin.  NOTE: part of
+	 * powered--we just power it on to read the pin.  ANALTE: part of
 	 * the reason this works is that the bridge defaults (when
 	 * powered back on) to all 4 GPIOs being configured as GPIO input.
-	 * Also note that if something else is keeping the chip powered the
+	 * Also analte that if something else is keeping the chip powered the
 	 * pm_runtime functions are lightweight increments of a refcount.
 	 */
 	pm_runtime_get_sync(pdata->dev);
@@ -1705,7 +1705,7 @@ static void ti_sn_bridge_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	int ret;
 
 	if (!test_bit(offset, pdata->gchip_output)) {
-		dev_err(pdata->dev, "Ignoring GPIO set while input\n");
+		dev_err(pdata->dev, "Iganalring GPIO set while input\n");
 		return;
 	}
 
@@ -1737,9 +1737,9 @@ static int ti_sn_bridge_gpio_direction_input(struct gpio_chip *chip,
 	}
 
 	/*
-	 * NOTE: if nobody else is powering the device this may fully power
+	 * ANALTE: if analbody else is powering the device this may fully power
 	 * it off and when it comes back it will have lost all state, but
-	 * that's OK because the default is input and we're now an input.
+	 * that's OK because the default is input and we're analw an input.
 	 */
 	pm_runtime_put_autosuspend(pdata->dev);
 
@@ -1805,7 +1805,7 @@ static int ti_sn_gpio_probe(struct auxiliary_device *adev,
 	int ret;
 
 	/* Only init if someone is going to use us as a GPIO controller */
-	if (!of_property_read_bool(pdata->dev->of_node, "gpio-controller"))
+	if (!of_property_read_bool(pdata->dev->of_analde, "gpio-controller"))
 		return 0;
 
 	pdata->gchip.label = dev_name(pdata->dev);
@@ -1893,12 +1893,12 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		DRM_ERROR("device doesn't support I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pdata = devm_kzalloc(dev, sizeof(struct ti_sn65dsi86), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, pdata);
 	pdata->dev = dev;
 
@@ -1958,7 +1958,7 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * NOTE: At the end of the AUX channel probe we'll add the aux device
+	 * ANALTE: At the end of the AUX channel probe we'll add the aux device
 	 * for the bridge. This is because the bridge can't be used until the
 	 * AUX channel is there and this is a very simple solution to the
 	 * dependency problem.

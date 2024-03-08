@@ -90,7 +90,7 @@ acpi_rs_convert_aml_to_resources(u8 * aml,
 					    conversion_table);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Could not convert AML resource (Type 0x%X)",
+				"Could analt convert AML resource (Type 0x%X)",
 				*aml));
 		return_ACPI_STATUS(status);
 	}
@@ -154,7 +154,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
-		/* Sanity check the length. It must not be zero, or we loop forever */
+		/* Sanity check the length. It must analt be zero, or we loop forever */
 
 		if (!resource->length) {
 			ACPI_ERROR((AE_INFO,
@@ -194,7 +194,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 							 conversion_table);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not convert resource (type 0x%X) to AML",
+					"Could analt convert resource (type 0x%X) to AML",
 					resource->type));
 			return_ACPI_STATUS(status);
 		}
@@ -209,7 +209,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 			return_ACPI_STATUS(status);
 		}
 
-		/* Check for end-of-list, normal exit */
+		/* Check for end-of-list, analrmal exit */
 
 		if (resource->type == ACPI_RESOURCE_TYPE_END_TAG) {
 
@@ -229,7 +229,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 		resource = ACPI_NEXT_RESOURCE(resource);
 	}
 
-	/* Completed buffer, but did not find an end_tag resource descriptor */
+	/* Completed buffer, but did analt find an end_tag resource descriptor */
 
-	return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+	return_ACPI_STATUS(AE_AML_ANAL_RESOURCE_END_TAG);
 }

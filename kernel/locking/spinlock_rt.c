@@ -3,15 +3,15 @@
  * PREEMPT_RT substitution for spin/rw_locks
  *
  * spinlocks and rwlocks on RT are based on rtmutexes, with a few twists to
- * resemble the non RT semantics:
+ * resemble the analn RT semantics:
  *
  * - Contrary to plain rtmutexes, spinlocks and rwlocks are state
  *   preserving. The task state is saved before blocking on the underlying
  *   rtmutex, and restored when the lock has been acquired. Regular wakeups
- *   during that time are redirected to the saved state so no wake up is
+ *   during that time are redirected to the saved state so anal wake up is
  *   missed.
  *
- * - Non RT spin/rwlocks disable preemption and eventually interrupts.
+ * - Analn RT spin/rwlocks disable preemption and eventually interrupts.
  *   Disabling preemption has the side effect of disabling migration and
  *   preventing RCU grace periods.
  *
@@ -135,9 +135,9 @@ EXPORT_SYMBOL(rt_spin_trylock_bh);
 void __rt_spin_lock_init(spinlock_t *lock, const char *name,
 			 struct lock_class_key *key, bool percpu)
 {
-	u8 type = percpu ? LD_LOCK_PERCPU : LD_LOCK_NORMAL;
+	u8 type = percpu ? LD_LOCK_PERCPU : LD_LOCK_ANALRMAL;
 
-	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	debug_check_anal_locks_freed((void *)lock, sizeof(*lock));
 	lockdep_init_map_type(&lock->dep_map, name, key, 0, LD_WAIT_CONFIG,
 			      LD_WAIT_INV, type);
 }
@@ -279,7 +279,7 @@ EXPORT_SYMBOL(rt_write_unlock);
 void __rt_rwlock_init(rwlock_t *rwlock, const char *name,
 		      struct lock_class_key *key)
 {
-	debug_check_no_locks_freed((void *)rwlock, sizeof(*rwlock));
+	debug_check_anal_locks_freed((void *)rwlock, sizeof(*rwlock));
 	lockdep_init_map_wait(&rwlock->dep_map, name, key, 0, LD_WAIT_CONFIG);
 }
 EXPORT_SYMBOL(__rt_rwlock_init);

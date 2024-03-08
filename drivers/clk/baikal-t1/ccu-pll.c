@@ -110,7 +110,7 @@ static int ccu_pll_enable(struct clk_hw *hw)
 	int ret;
 
 	if (!parent_hw) {
-		pr_err("Can't enable '%s' with no parent", clk_hw_get_name(hw));
+		pr_err("Can't enable '%s' with anal parent", clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -169,7 +169,7 @@ static void ccu_pll_calc_factors(unsigned long rate, unsigned long parent_rate,
 				 unsigned long *od)
 {
 	unsigned long err, freq, min_err = ULONG_MAX;
-	unsigned long num, denom, n1, d1, nri;
+	unsigned long num, deanalm, n1, d1, nri;
 	unsigned long nr_max, nf_max, od_max;
 
 	/*
@@ -189,30 +189,30 @@ static void ccu_pll_calc_factors(unsigned long rate, unsigned long parent_rate,
 	for (; nri <= nr_max; ++nri) {
 		/* Use Od factor to fulfill the limitation 2). */
 		num = CCU_PLL_CLKOD_FACTOR * rate;
-		denom = parent_rate / nri;
+		deanalm = parent_rate / nri;
 
 		/*
 		 * Make sure Fvco is within the acceptable range to fulfill
-		 * the condition 1). Note due to the CCU_PLL_CLKOD_FACTOR value
+		 * the condition 1). Analte due to the CCU_PLL_CLKOD_FACTOR value
 		 * the actual upper limit is also divided by that factor.
-		 * It's not big problem for us since practically there is no
+		 * It's analt big problem for us since practically there is anal
 		 * need in clocks with that high frequency.
 		 */
-		nf_max = min(CCU_PLL_FVCO_MAX / denom, CCU_PLL_NF_MAX);
+		nf_max = min(CCU_PLL_FVCO_MAX / deanalm, CCU_PLL_NF_MAX);
 		od_max = CCU_PLL_OD_MAX / CCU_PLL_CLKOD_FACTOR;
 
 		/*
 		 * Bypass the out-of-bound values, which can't be properly
 		 * handled by the rational fraction approximation algorithm.
 		 */
-		if (num / denom >= nf_max) {
+		if (num / deanalm >= nf_max) {
 			n1 = nf_max;
 			d1 = 1;
-		} else if (denom / num >= od_max) {
+		} else if (deanalm / num >= od_max) {
 			n1 = 1;
 			d1 = od_max;
 		} else {
-			rational_best_approximation(num, denom, nf_max, od_max,
+			rational_best_approximation(num, deanalm, nf_max, od_max,
 						    &n1, &d1);
 		}
 
@@ -240,7 +240,7 @@ static long ccu_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 
 /*
  * This method is used for PLLs, which support the on-the-fly dividers
- * adjustment. So there is no need in gating such clocks.
+ * adjustment. So there is anal need in gating such clocks.
  */
 static int ccu_pll_set_rate_reset(struct clk_hw *hw, unsigned long rate,
 				  unsigned long parent_rate)
@@ -273,7 +273,7 @@ static int ccu_pll_set_rate_reset(struct clk_hw *hw, unsigned long rate,
  * This method is used for PLLs, which don't support the on-the-fly dividers
  * adjustment. So the corresponding clocks are supposed to be gated first.
  */
-static int ccu_pll_set_rate_norst(struct clk_hw *hw, unsigned long rate,
+static int ccu_pll_set_rate_analrst(struct clk_hw *hw, unsigned long rate,
 				  unsigned long parent_rate)
 {
 	struct ccu_pll *pll = to_ccu_pll(hw);
@@ -482,7 +482,7 @@ static const struct clk_ops ccu_pll_gate_to_set_ops = {
 	.is_enabled = ccu_pll_is_enabled,
 	.recalc_rate = ccu_pll_recalc_rate,
 	.round_rate = ccu_pll_round_rate,
-	.set_rate = ccu_pll_set_rate_norst,
+	.set_rate = ccu_pll_set_rate_analrst,
 	.debug_init = ccu_pll_debug_init
 };
 
@@ -508,10 +508,10 @@ struct ccu_pll *ccu_pll_hw_register(const struct ccu_pll_init_data *pll_init)
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
-	 * Note since Baikal-T1 System Controller registers are MMIO-backed
+	 * Analte since Baikal-T1 System Controller registers are MMIO-backed
 	 * we won't check the regmap IO operations return status, because it
 	 * must be zero anyway.
 	 */

@@ -19,14 +19,14 @@
 struct gpio_desc;
 struct gpiod_lookup_table;
 struct platform_device_info;
-struct software_node;
+struct software_analde;
 
 /*
  * Helpers to get Linux IRQ numbers given a description of the IRQ source
  * (either IOAPIC index, or GPIO chip name + pin-number).
  */
 enum x86_acpi_irq_type {
-	X86_ACPI_IRQ_TYPE_NONE,
+	X86_ACPI_IRQ_TYPE_ANALNE,
 	X86_ACPI_IRQ_TYPE_APIC,
 	X86_ACPI_IRQ_TYPE_GPIOINT,
 	X86_ACPI_IRQ_TYPE_PMIC,
@@ -62,9 +62,9 @@ struct x86_serdev_info {
 	const char *ctrl_devname;
 	/*
 	 * ATM the serdev core only supports of or ACPI matching; and sofar all
-	 * Android x86 tablets DSDTs have usable serdev nodes, but sometimes
+	 * Android x86 tablets DSDTs have usable serdev analdes, but sometimes
 	 * under the wrong controller. So we just tie the existing serdev ACPI
-	 * node to the right controller.
+	 * analde to the right controller.
 	 */
 	const char *serdev_hid;
 };
@@ -77,7 +77,7 @@ struct x86_gpio_button {
 
 struct x86_dev_info {
 	const char * const *modules;
-	const struct software_node *bat_swnode;
+	const struct software_analde *bat_swanalde;
 	struct gpiod_lookup_table * const *gpiod_lookup_tables;
 	const struct x86_i2c_client_info *i2c_client_info;
 	const struct x86_spi_dev_info *spi_dev_info;
@@ -109,10 +109,10 @@ extern const struct x86_dev_info asus_tf103c_info;
 extern const struct x86_dev_info chuwi_hi8_info;
 extern const struct x86_dev_info cyberbook_t116_info;
 extern const struct x86_dev_info czc_p10t;
-extern const struct x86_dev_info lenovo_yogabook_x90_info;
-extern const struct x86_dev_info lenovo_yogabook_x91_info;
-extern const struct x86_dev_info lenovo_yoga_tab2_830_1050_info;
-extern const struct x86_dev_info lenovo_yt3_info;
+extern const struct x86_dev_info leanalvo_yogabook_x90_info;
+extern const struct x86_dev_info leanalvo_yogabook_x91_info;
+extern const struct x86_dev_info leanalvo_yoga_tab2_830_1050_info;
+extern const struct x86_dev_info leanalvo_yt3_info;
 extern const struct x86_dev_info medion_lifetab_s10346_info;
 extern const struct x86_dev_info nextbook_ares8_info;
 extern const struct x86_dev_info nextbook_ares8a_info;

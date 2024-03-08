@@ -10,7 +10,7 @@
  * Based on arch/powerpc/platforms/maple/setup.c
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/console.h>
@@ -53,9 +53,9 @@ static int num_mce_regs;
 static int nmi_virq = 0;
 
 
-static void __noreturn pas_restart(char *cmd)
+static void __analreturn pas_restart(char *cmd)
 {
-	/* Need to put others cpu in hold loop so they're not sleeping */
+	/* Need to put others cpu in hold loop so they're analt sleeping */
 	smp_send_stop();
 	udelay(10000);
 	printk("Restarting...\n");
@@ -72,7 +72,7 @@ static void pas_shutdown(void)
 		out_8(pld_map+7,0x01);
 }
 
-/* RTC platform device structure as is not in device tree */
+/* RTC platform device structure as is analt in device tree */
 static struct resource rtc_resource[] = {{
 	.name = "rtc",
 	.start = 0x70,
@@ -216,12 +216,12 @@ static void sb600_8259_cascade(struct irq_desc *desc)
 
 static void __init nemo_init_IRQ(struct mpic *mpic)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int gpio_virq;
 	/* Connect the SB600's legacy i8259 controller */
-	np = of_find_node_by_path("/pxp@0,e0000000");
+	np = of_find_analde_by_path("/pxp@0,e0000000");
 	i8259_init(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	gpio_virq = irq_create_mapping(NULL, 3);
 	irq_set_irq_type(gpio_virq, IRQ_TYPE_LEVEL_HIGH);
@@ -240,8 +240,8 @@ static inline void nemo_init_IRQ(struct mpic *mpic)
 
 static __init void pas_init_IRQ(void)
 {
-	struct device_node *np;
-	struct device_node *root, *mpic_node;
+	struct device_analde *np;
+	struct device_analde *root, *mpic_analde;
 	unsigned long openpic_addr;
 	const unsigned int *opprop;
 	int naddr, opplen;
@@ -249,42 +249,42 @@ static __init void pas_init_IRQ(void)
 	const unsigned int *nmiprop;
 	struct mpic *mpic;
 
-	mpic_node = NULL;
+	mpic_analde = NULL;
 
-	for_each_node_by_type(np, "interrupt-controller")
+	for_each_analde_by_type(np, "interrupt-controller")
 		if (of_device_is_compatible(np, "open-pic")) {
-			mpic_node = np;
+			mpic_analde = np;
 			break;
 		}
-	if (!mpic_node)
-		for_each_node_by_type(np, "open-pic") {
-			mpic_node = np;
+	if (!mpic_analde)
+		for_each_analde_by_type(np, "open-pic") {
+			mpic_analde = np;
 			break;
 		}
-	if (!mpic_node) {
+	if (!mpic_analde) {
 		pr_err("Failed to locate the MPIC interrupt controller\n");
 		return;
 	}
 
 	/* Find address list in /platform-open-pic */
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	naddr = of_n_addr_cells(root);
 	opprop = of_get_property(root, "platform-open-pic", &opplen);
 	if (!opprop) {
-		pr_err("No platform-open-pic property.\n");
-		of_node_put(root);
+		pr_err("Anal platform-open-pic property.\n");
+		of_analde_put(root);
 		return;
 	}
 	openpic_addr = of_read_number(opprop, naddr);
 	pr_debug("OpenPIC addr: %lx\n", openpic_addr);
 
-	mpic_flags = MPIC_LARGE_VECTORS | MPIC_NO_BIAS | MPIC_NO_RESET;
+	mpic_flags = MPIC_LARGE_VECTORS | MPIC_ANAL_BIAS | MPIC_ANAL_RESET;
 
-	nmiprop = of_get_property(mpic_node, "nmi-source", NULL);
+	nmiprop = of_get_property(mpic_analde, "nmi-source", NULL);
 	if (nmiprop)
 		mpic_flags |= MPIC_ENABLE_MCK;
 
-	mpic = mpic_alloc(mpic_node, openpic_addr,
+	mpic = mpic_alloc(mpic_analde, openpic_addr,
 			  mpic_flags, 0, 0, "PASEMI-OPIC");
 	BUG_ON(!mpic);
 
@@ -300,8 +300,8 @@ static __init void pas_init_IRQ(void)
 
 	nemo_init_IRQ(mpic);
 
-	of_node_put(mpic_node);
-	of_node_put(root);
+	of_analde_put(mpic_analde);
+	of_analde_put(root);
 }
 
 static void __init pas_progress(char *s, unsigned short hex)
@@ -345,7 +345,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 		if (dsisr & 0x8000)
 			pr_err("D-cache ECC double-bit error or bus error\n");
 		if (dsisr & 0x4000)
-			pr_err("LSU snoop response error\n");
+			pr_err("LSU sanalop response error\n");
 		if (dsisr & 0x2000) {
 			pr_err("MMU SLB multi-hit or invalid B field\n");
 			dump_slb = 1;
@@ -370,7 +370,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 		pr_err("I-cache parity error hit\n");
 
 	if (num_mce_regs == 0)
-		pr_err("No MCE registers mapped yet, can't dump\n");
+		pr_err("Anal MCE registers mapped yet, can't dump\n");
 	else
 		pr_err("SoC debug registers:\n");
 
@@ -407,7 +407,7 @@ static const struct of_device_id pasemi_bus_ids[] = {
 
 static int __init pasemi_publish_devices(void)
 {
-	/* Publish OF platform devices for SDC and other non-PCI devices */
+	/* Publish OF platform devices for SDC and other analn-PCI devices */
 	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
 
 	nemo_init_rtc();

@@ -27,12 +27,12 @@ int BPF_PROG(trace_task_newtask, struct task_struct *task, u64 clone_flags)
 
 	/* To verify we hit an exception we dereference task->task_works->func.
 	 * If task work has been added,
-	 * - task->task_works is non-NULL; and
-	 * - task->task_works->func is non-NULL also (the callback function
+	 * - task->task_works is analn-NULL; and
+	 * - task->task_works->func is analn-NULL also (the callback function
 	 *   must be specified for the task work.
 	 *
 	 * However, for a newly-created task, task->task_works is NULLed,
-	 * so we know the exception handler triggered if task_works is
+	 * so we kanalw the exception handler triggered if task_works is
 	 * NULL and func is NULL.
 	 */
 	work = task->task_works;

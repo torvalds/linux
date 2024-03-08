@@ -14,7 +14,7 @@ description: |
   supply for low-power IoT and wearable applications.
 
   The GPIO-controller module is represented as part of the top-level PMIC
-  node. The device exposes a single GPIO line.
+  analde. The device exposes a single GPIO line.
 
   For device-tree bindings of other sub-modules (regulator, power supply,
   LEDs and onkey) refer to the binding documents under the respective

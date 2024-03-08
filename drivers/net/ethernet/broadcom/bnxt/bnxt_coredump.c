@@ -8,7 +8,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -29,7 +29,7 @@ static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg,
 	dma_buf = hwrm_req_dma_slice(bp, msg, info->dma_len, &dma_handle);
 	if (!dma_buf) {
 		hwrm_req_drop(bp, msg);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hwrm_req_timeout(bp, msg, bp->hwrm_cmd_max_timeout);
@@ -61,7 +61,7 @@ static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg,
 			info->dest_buf = kmalloc(info->dest_buf_size,
 						 GFP_KERNEL);
 			if (!info->dest_buf) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				break;
 			}
 		}
@@ -71,7 +71,7 @@ static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg,
 			    BNXT_COREDUMP_BUF_LEN(info->buf_len)) {
 				memcpy(info->dest_buf + off, dma_buf, len);
 			} else {
-				rc = -ENOBUFS;
+				rc = -EANALBUFS;
 				break;
 			}
 		}
@@ -102,7 +102,7 @@ static int bnxt_hwrm_dbg_coredump_list(struct bnxt *bp,
 		return rc;
 
 	info.dma_len = COREDUMP_LIST_BUF_LEN;
-	info.seq_off = offsetof(struct hwrm_dbg_coredump_list_input, seq_no);
+	info.seq_off = offsetof(struct hwrm_dbg_coredump_list_input, seq_anal);
 	info.data_len_off = offsetof(struct hwrm_dbg_coredump_list_output,
 				     data_len);
 
@@ -149,7 +149,7 @@ static int bnxt_hwrm_dbg_coredump_retrieve(struct bnxt *bp, u16 component_id,
 
 	info.dma_len = COREDUMP_RETRIEVE_BUF_LEN;
 	info.seq_off = offsetof(struct hwrm_dbg_coredump_retrieve_input,
-				seq_no);
+				seq_anal);
 	info.data_len_off = offsetof(struct hwrm_dbg_coredump_retrieve_output,
 				     data_len);
 	if (buf) {
@@ -224,7 +224,7 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 			  int status)
 {
 	time64_t end = ktime_get_real_seconds();
-	u32 os_ver_major = 0, os_ver_minor = 0;
+	u32 os_ver_major = 0, os_ver_mianalr = 0;
 	struct tm tm;
 
 	time64_to_tm(start, 0, &tm);
@@ -234,7 +234,7 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	record->low_version = 0;
 	record->high_version = 1;
 	record->asic_state = 0;
-	strscpy(record->system_name, utsname()->nodename,
+	strscpy(record->system_name, utsname()->analdename,
 		sizeof(record->system_name));
 	record->year = cpu_to_le16(tm.tm_year + 1900);
 	record->month = cpu_to_le16(tm.tm_mon + 1);
@@ -246,10 +246,10 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	bnxt_fill_cmdline(record);
 	record->total_segments = cpu_to_le32(total_segs);
 
-	if (sscanf(utsname()->release, "%u.%u", &os_ver_major, &os_ver_minor) != 2)
-		netdev_warn(bp->dev, "Unknown OS release in coredump\n");
+	if (sscanf(utsname()->release, "%u.%u", &os_ver_major, &os_ver_mianalr) != 2)
+		netdev_warn(bp->dev, "Unkanalwn OS release in coredump\n");
 	record->os_ver_major = cpu_to_le32(os_ver_major);
-	record->os_ver_minor = cpu_to_le32(os_ver_minor);
+	record->os_ver_mianalr = cpu_to_le32(os_ver_mianalr);
 
 	strscpy(record->os_name, utsname()->sysname, sizeof(record->os_name));
 	time64_to_tm(end, 0, &tm);
@@ -317,7 +317,7 @@ static int __bnxt_get_coredump(struct bnxt *bp, void *buf, u32 *dump_len)
 
 		if (buf && ((offset + seg_hdr_len) >
 			    BNXT_COREDUMP_BUF_LEN(buf_len))) {
-			rc = -ENOBUFS;
+			rc = -EANALBUFS;
 			goto err;
 		}
 
@@ -335,7 +335,7 @@ static int __bnxt_get_coredump(struct bnxt *bp, void *buf, u32 *dump_len)
 		rc = bnxt_hwrm_dbg_coredump_retrieve(bp, comp_id, seg_id,
 						     &seg_len, buf, buf_len,
 						     offset + seg_hdr_len);
-		if (rc && rc == -ENOBUFS)
+		if (rc && rc == -EANALBUFS)
 			goto err;
 		else if (rc)
 			netdev_err(bp->dev,
@@ -367,7 +367,7 @@ err:
 					  rc);
 	kfree(coredump.data);
 	*dump_len += sizeof(struct bnxt_coredump_record);
-	if (rc == -ENOBUFS)
+	if (rc == -EANALBUFS)
 		netdev_err(bp->dev, "Firmware returned large coredump buffer\n");
 	return rc;
 }
@@ -378,7 +378,7 @@ int bnxt_get_coredump(struct bnxt *bp, u16 dump_type, void *buf, u32 *dump_len)
 #ifdef CONFIG_TEE_BNXT_FW
 		return tee_bnxt_copy_coredump(buf, 0, *dump_len);
 #else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 #endif
 	} else {
 		return __bnxt_get_coredump(bp, buf, dump_len);
@@ -392,11 +392,11 @@ static int bnxt_hwrm_get_dump_len(struct bnxt *bp, u16 dump_type, u32 *dump_len)
 	int rc, hdr_len = 0;
 
 	if (!(bp->fw_cap & BNXT_FW_CAP_DBG_QCAPS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (dump_type == BNXT_DUMP_CRASH &&
 	    !(bp->fw_dbg_cap & DBG_QCAPS_RESP_FLAGS_CRASHDUMP_SOC_DDR))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = hwrm_req_init(bp, req, HWRM_DBG_QCFG);
 	if (rc)

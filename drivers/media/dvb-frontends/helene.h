@@ -27,8 +27,8 @@ enum helene_xtal {
  * @i2c_address:	I2C address of the tuner
  * @xtal_freq_mhz:	Oscillator frequency, MHz
  * @set_tuner_priv:	Callback function private context
- * @set_tuner_callback:	Callback function that notifies the parent driver
- *			which tuner is active now
+ * @set_tuner_callback:	Callback function that analtifies the parent driver
+ *			which tuner is active analw
  * @xtal: Cristal frequency as described by &enum helene_xtal
  * @fe: Frontend for which connects this tuner
  */

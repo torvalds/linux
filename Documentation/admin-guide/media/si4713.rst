@@ -5,16 +5,16 @@
 The Silicon Labs Si4713 FM Radio Transmitter Driver
 ===================================================
 
-Copyright |copy| 2009 Nokia Corporation
+Copyright |copy| 2009 Analkia Corporation
 
-Contact: Eduardo Valentin <eduardo.valentin@nokia.com>
+Contact: Eduardo Valentin <eduardo.valentin@analkia.com>
 
 
 Information about the Device
 ----------------------------
 
 This chip is a Silicon Labs product. It is a I2C device, currently on 0x63 address.
-Basically, it has transmission and signal noise level measurement features.
+Basically, it has transmission and signal analise level measurement features.
 
 The Si4713 integrates transmit functions for FM broadcast stereo transmission.
 The chip also allows integrated receive power scanning to identify low signal
@@ -50,7 +50,7 @@ Properties description
 The properties can be accessed using v4l2 extended controls.
 Here is an output from v4l2-ctl util:
 
-.. code-block:: none
+.. code-block:: analne
 
 	/ # v4l2-ctl -d /dev/radio0 --all -L
 	Driver Info:
@@ -141,10 +141,10 @@ Here is a summary of them:
 RNL
 ---
 
-This device also has an interface to measure received noise level. To do that, you should
-ioctl the device node. Here is an code of example:
+This device also has an interface to measure received analise level. To do that, you should
+ioctl the device analde. Here is an code of example:
 
-.. code-block:: none
+.. code-block:: analne
 
 	int main (int argc, char *argv[])
 	{
@@ -164,7 +164,7 @@ ioctl the device node. Here is an code of example:
 		if (rval < 0)
 			return rval;
 
-		printf("received noise level: %d\n", rnl.rnl);
+		printf("received analise level: %d\n", rnl.rnl);
 
 		close(fd);
 	}
@@ -172,7 +172,7 @@ ioctl the device node. Here is an code of example:
 The struct si4713_rnl and SI4713_IOC_MEASURE_RNL are defined under
 include/linux/platform_data/media/si4713.h.
 
-Stereo/Mono and RDS subchannels
+Stereo/Moanal and RDS subchannels
 -------------------------------
 
 The device can also be configured using the available sub channels for
@@ -186,7 +186,7 @@ The tool can be found in v4l-dvb repository under v4l2-apps/util directory.
 
 Example for setting rds ps name:
 
-.. code-block:: none
+.. code-block:: analne
 
 	# v4l2-ctl -d /dev/radio0 --set-ctrl=rds_ps_name="Dummy"
 

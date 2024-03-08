@@ -12,8 +12,8 @@ maintainers:
 
 description: |
   The Intel IXP4xx cryptographic engine makes use of the IXP4xx NPE
-  (Network Processing Engine). Since it is not a device on its own
-  it is defined as a subnode of the NPE, if crypto support is
+  (Network Processing Engine). Since it is analt a device on its own
+  it is defined as a subanalde of the NPE, if crypto support is
   available on the platform.
 
 properties:

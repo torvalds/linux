@@ -35,9 +35,9 @@
 #include "../include/linux/atomisp_platform.h"
 
 /*
- * FIXME: non-preview resolutions are currently broken
+ * FIXME: analn-preview resolutions are currently broken
  */
-#define ENABLE_NON_PREVIEW     0
+#define ENABLE_ANALN_PREVIEW     0
 
 /* Defines for register writes and register array processing */
 #define I2C_MSG_LENGTH		0x2
@@ -49,22 +49,22 @@
 
 /*
  * focal length bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
+ * bits 31-16: numerator, bits 15-0: deanalminator
  */
 #define GC2235_FOCAL_LENGTH_DEFAULT 0x1160064
 
 /*
  * current f-number bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
+ * bits 31-16: numerator, bits 15-0: deanalminator
  */
 #define GC2235_F_NUMBER_DEFAULT 0x1a000a
 
 /*
  * f-number range bits definition:
  * bits 31-24: max f-number numerator
- * bits 23-16: max f-number denominator
+ * bits 23-16: max f-number deanalminator
  * bits 15-8: min f-number numerator
- * bits 7-0: min f-number denominator
+ * bits 7-0: min f-number deanalminator
  */
 #define GC2235_F_NUMBER_RANGE 0x1a0a1a0a
 #define GC2235_ID	0x2235
@@ -283,7 +283,7 @@ static struct gc2235_reg const gc2235_init_settings[] = {
 /*
  * Register settings for various resolution
  */
-#if ENABLE_NON_PREVIEW
+#if ENABLE_ANALN_PREVIEW
 static struct gc2235_reg const gc2235_1296_736_30fps[] = {
 	{ GC2235_8BIT, 0x8b, 0xa0 },
 	{ GC2235_8BIT, 0x8c, 0x02 },
@@ -567,10 +567,10 @@ static struct gc2235_resolution gc2235_res_preview[] = {
 #define N_RES_PREVIEW (ARRAY_SIZE(gc2235_res_preview))
 
 /*
- * Disable non-preview configurations until the configuration selection is
+ * Disable analn-preview configurations until the configuration selection is
  * improved.
  */
-#if ENABLE_NON_PREVIEW
+#if ENABLE_ANALN_PREVIEW
 static struct gc2235_resolution gc2235_res_still[] = {
 	{
 		.desc = "gc2235_1600_900_30fps",

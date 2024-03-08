@@ -74,7 +74,7 @@ static int dbgp_consume(char *buf, unsigned len)
 	if (c != 0)
 		buf[len-1] = 0;
 
-	printk(KERN_NOTICE "%s%c", buf, c);
+	printk(KERN_ANALTICE "%s%c", buf, c);
 	return 0;
 }
 
@@ -132,14 +132,14 @@ static int dbgp_enable_ep_req(struct usb_ep *ep)
 
 	req = usb_ep_alloc_request(ep, GFP_KERNEL);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		stp = 1;
 		goto fail_1;
 	}
 
 	req->buf = kzalloc(DBGP_REQ_LEN, GFP_KERNEL);
 	if (!req->buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		stp = 2;
 		goto fail_2;
 	}
@@ -271,7 +271,7 @@ static int dbgp_configure_endpoints(struct usb_gadget *gadget)
 
 fail_1:
 	dev_dbg(&dbgp.gadget->dev, "ep config: failure (%d)\n", stp);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int dbgp_bind(struct usb_gadget *gadget,
@@ -283,14 +283,14 @@ static int dbgp_bind(struct usb_gadget *gadget,
 
 	dbgp.req = usb_ep_alloc_request(gadget->ep0, GFP_KERNEL);
 	if (!dbgp.req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		stp = 1;
 		goto fail;
 	}
 
 	dbgp.req->buf = kmalloc(DBGP_REQ_EP0_LEN, GFP_KERNEL);
 	if (!dbgp.req->buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		stp = 2;
 		goto fail;
 	}
@@ -301,13 +301,13 @@ static int dbgp_bind(struct usb_gadget *gadget,
 	dbgp.serial = kzalloc(sizeof(struct gserial), GFP_KERNEL);
 	if (!dbgp.serial) {
 		stp = 3;
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
 	if (gserial_alloc_line(&tty_line)) {
 		stp = 4;
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail;
 	}
 #endif
@@ -341,7 +341,7 @@ static int dbgp_setup(struct usb_gadget *gadget,
 	u8 request = ctrl->bRequest;
 	u16 value = le16_to_cpu(ctrl->wValue);
 	u16 length = le16_to_cpu(ctrl->wLength);
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	void *data = NULL;
 	u16 len = 0;
 

@@ -14,7 +14,7 @@
  * @cmd: passed from the userspace program rebooting the system (if provided)
  *
  * Resets the SoC.  For @cmd, see the 'reboot' syscall in
- * kernel/sys.c.  No return value.
+ * kernel/sys.c.  Anal return value.
  */
 void am33xx_restart(enum reboot_mode mode, const char *cmd)
 {

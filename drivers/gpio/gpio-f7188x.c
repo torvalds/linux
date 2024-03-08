@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010-2013 LaCie
  *
- * Author: Simon Guinot <simon.guinot@sequanux.org>
+ * Author: Simon Guianalt <simon.guianalt@sequanux.org>
  */
 
 #define DRVNAME "gpio-f7188x"
@@ -424,7 +424,7 @@ static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 
 	if (param != PIN_CONFIG_DRIVE_OPEN_DRAIN &&
 	    param != PIN_CONFIG_DRIVE_PUSH_PULL)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	err = superio_enter(sio->addr);
 	if (err)
@@ -455,7 +455,7 @@ static int f7188x_gpio_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (sio->type) {
 	case f71869:
@@ -495,7 +495,7 @@ static int f7188x_gpio_probe(struct platform_device *pdev)
 		data->bank = nct6126d_gpio_bank;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	data->sio = sio;
 
@@ -530,7 +530,7 @@ static int __init f7188x_find(int addr, struct f7188x_sio *sio)
 	if (err)
 		return err;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 
 	sio->device = SIO_LD_GPIO_FINTEK;
 	devid = superio_inw(addr, SIO_DEVID);
@@ -572,7 +572,7 @@ static int __init f7188x_find(int addr, struct f7188x_sio *sio)
 	if (sio->type != nct6126d) {
 		manid = superio_inw(addr, SIO_FINTEK_MANID);
 		if (manid != SIO_FINTEK_ID) {
-			pr_debug("Not a Fintek device at 0x%08x\n", addr);
+			pr_debug("Analt a Fintek device at 0x%08x\n", addr);
 			goto err;
 		}
 	}
@@ -598,7 +598,7 @@ f7188x_gpio_device_add(const struct f7188x_sio *sio)
 
 	f7188x_gpio_pdev = platform_device_alloc(DRVNAME, -1);
 	if (!f7188x_gpio_pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = platform_device_add_data(f7188x_gpio_pdev,
 				       sio, sizeof(*sio));
@@ -641,7 +641,7 @@ static int __init f7188x_gpio_init(void)
 
 	if (f7188x_find(0x2e, &sio) &&
 	    f7188x_find(0x4e, &sio))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = platform_driver_register(&f7188x_gpio_driver);
 	if (!err) {
@@ -662,5 +662,5 @@ static void __exit f7188x_gpio_exit(void)
 module_exit(f7188x_gpio_exit);
 
 MODULE_DESCRIPTION("GPIO driver for Super-I/O chips F71869, F71869A, F71882FG, F71889A, F71889F and F81866");
-MODULE_AUTHOR("Simon Guinot <simon.guinot@sequanux.org>");
+MODULE_AUTHOR("Simon Guianalt <simon.guianalt@sequanux.org>");
 MODULE_LICENSE("GPL");

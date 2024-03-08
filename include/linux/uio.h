@@ -40,7 +40,7 @@ struct iov_iter_state {
 
 struct iov_iter {
 	u8 iter_type;
-	bool nofault;
+	bool analfault;
 	bool data_source;
 	size_t iov_offset;
 	/*
@@ -55,9 +55,9 @@ struct iov_iter {
 	 */
 	union {
 		/*
-		 * This really should be a const, but we cannot do that without
+		 * This really should be a const, but we cananalt do that without
 		 * also modifying any of the zero-filling iter init functions.
-		 * Leave it non-const for now, but it should be treated as such.
+		 * Leave it analn-const for analw, but it should be treated as such.
 		 */
 		struct iovec __ubuf_iovec;
 		struct {
@@ -144,7 +144,7 @@ static inline bool user_backed_iter(const struct iov_iter *i)
 /*
  * Total number of bytes covered by an iovec.
  *
- * NOTE that it is not safe to use this function until all the iovec's
+ * ANALTE that it is analt safe to use this function until all the iovec's
  * segment lengths have been validated.  Because the individual lengths can
  * overflow a size_t when added together.
  */
@@ -172,7 +172,7 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
 size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
-size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i);
+size_t _copy_from_iter_analcache(void *addr, size_t bytes, struct iov_iter *i);
 
 static inline size_t copy_folio_to_iter(struct folio *folio, size_t offset,
 		size_t bytes, struct iov_iter *i)
@@ -186,7 +186,7 @@ static inline size_t copy_folio_from_iter_atomic(struct folio *folio,
 	return copy_page_from_iter_atomic(&folio->page, offset, bytes, i);
 }
 
-size_t copy_page_to_iter_nofault(struct page *page, unsigned offset,
+size_t copy_page_to_iter_analfault(struct page *page, unsigned offset,
 				 size_t bytes, struct iov_iter *i);
 
 static __always_inline __must_check
@@ -216,17 +216,17 @@ bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 }
 
 static __always_inline __must_check
-size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
+size_t copy_from_iter_analcache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	if (check_copy_size(addr, bytes, false))
-		return _copy_from_iter_nocache(addr, bytes, i);
+		return _copy_from_iter_analcache(addr, bytes, i);
 	return 0;
 }
 
 static __always_inline __must_check
-bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
+bool copy_from_iter_full_analcache(void *addr, size_t bytes, struct iov_iter *i)
 {
-	size_t copied = copy_from_iter_nocache(addr, bytes, i);
+	size_t copied = copy_from_iter_analcache(addr, bytes, i);
 	if (likely(copied == bytes))
 		return true;
 	iov_iter_revert(i, copied);
@@ -235,14 +235,14 @@ bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
 /*
- * Note, users like pmem that depend on the stricter semantics of
- * _copy_from_iter_flushcache() than _copy_from_iter_nocache() must check for
+ * Analte, users like pmem that depend on the stricter semantics of
+ * _copy_from_iter_flushcache() than _copy_from_iter_analcache() must check for
  * IS_ENABLED(CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE) before assuming that the
  * destination is flushed from the cache on return.
  */
 size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i);
 #else
-#define _copy_from_iter_flushcache _copy_from_iter_nocache
+#define _copy_from_iter_flushcache _copy_from_iter_analcache
 #endif
 
 #ifdef CONFIG_ARCH_HAS_COPY_MC
@@ -280,10 +280,10 @@ static inline size_t iov_iter_count(const struct iov_iter *i)
 }
 
 /*
- * Cap the iov_iter by given limit; note that the second argument is
- * *not* the new size - it's upper limit for such.  Passing it a value
+ * Cap the iov_iter by given limit; analte that the second argument is
+ * *analt* the new size - it's upper limit for such.  Passing it a value
  * greater than the amount of data in iov_iter is fine - it'll just do
- * nothing in that case.
+ * analthing in that case.
  */
 static inline void iov_iter_truncate(struct iov_iter *i, u64 count)
 {
@@ -298,7 +298,7 @@ static inline void iov_iter_truncate(struct iov_iter *i, u64 count)
 }
 
 /*
- * reexpand a previously truncated iterator; count must be no more than how much
+ * reexpand a previously truncated iterator; count must be anal more than how much
  * we had shrunk it.
  */
 static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)
@@ -368,7 +368,7 @@ ssize_t iov_iter_extract_pages(struct iov_iter *i, struct page ***pages,
  * to forcibly copy a page for the child (the parent must retain the original
  * page).
  *
- * %false indicates that no measures are taken and that it's up to the caller
+ * %false indicates that anal measures are taken and that it's up to the caller
  * to retain the pages.
  */
 static inline bool iov_iter_extract_will_pin(const struct iov_iter *iter)

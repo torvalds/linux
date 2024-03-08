@@ -7,7 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/time.h>
@@ -35,7 +35,7 @@ static LIST_HEAD(records_list);
 static DEFINE_MUTEX(pstore_sb_lock);
 static struct super_block *pstore_sb;
 
-DEFINE_FREE(pstore_iput, struct inode *, if (_T) iput(_T))
+DEFINE_FREE(pstore_iput, struct ianalde *, if (_T) iput(_T))
 
 struct pstore_private {
 	struct list_head list;
@@ -139,9 +139,9 @@ static ssize_t pstore_file_read(struct file *file, char __user *userbuf,
 				       ps->record->buf, ps->total_size);
 }
 
-static int pstore_file_open(struct inode *inode, struct file *file)
+static int pstore_file_open(struct ianalde *ianalde, struct file *file)
 {
-	struct pstore_private *ps = inode->i_private;
+	struct pstore_private *ps = ianalde->i_private;
 	struct seq_file *sf;
 	int err;
 	const struct seq_operations *sops = NULL;
@@ -179,9 +179,9 @@ static const struct file_operations pstore_file_operations = {
  * When a file is unlinked from our file system we call the
  * platform driver to erase the record from persistent store.
  */
-static int pstore_unlink(struct inode *dir, struct dentry *dentry)
+static int pstore_unlink(struct ianalde *dir, struct dentry *dentry)
 {
-	struct pstore_private *p = d_inode(dentry)->i_private;
+	struct pstore_private *p = d_ianalde(dentry)->i_private;
 	struct pstore_record *record = p->record;
 
 	if (!record->psi->erase)
@@ -192,7 +192,7 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 		if (!list_empty(&p->list))
 			list_del_init(&p->list);
 		else
-			return -ENOENT;
+			return -EANALENT;
 		p->dentry = NULL;
 	}
 
@@ -202,27 +202,27 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 	return simple_unlink(dir, dentry);
 }
 
-static void pstore_evict_inode(struct inode *inode)
+static void pstore_evict_ianalde(struct ianalde *ianalde)
 {
-	struct pstore_private	*p = inode->i_private;
+	struct pstore_private	*p = ianalde->i_private;
 
-	clear_inode(inode);
+	clear_ianalde(ianalde);
 	free_pstore_private(p);
 }
 
-static const struct inode_operations pstore_dir_inode_operations = {
+static const struct ianalde_operations pstore_dir_ianalde_operations = {
 	.lookup		= simple_lookup,
 	.unlink		= pstore_unlink,
 };
 
-static struct inode *pstore_get_inode(struct super_block *sb)
+static struct ianalde *pstore_get_ianalde(struct super_block *sb)
 {
-	struct inode *inode = new_inode(sb);
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		simple_inode_init_ts(inode);
+	struct ianalde *ianalde = new_ianalde(sb);
+	if (ianalde) {
+		ianalde->i_ianal = get_next_ianal();
+		simple_ianalde_init_ts(ianalde);
 	}
-	return inode;
+	return ianalde;
 }
 
 enum {
@@ -279,8 +279,8 @@ static int pstore_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations pstore_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
-	.evict_inode	= pstore_evict_inode,
+	.drop_ianalde	= generic_delete_ianalde,
+	.evict_ianalde	= pstore_evict_ianalde,
 	.remount_fs	= pstore_remount,
 	.show_options	= pstore_show_options,
 };
@@ -291,14 +291,14 @@ static struct dentry *psinfo_lock_root(void)
 
 	guard(mutex)(&pstore_sb_lock);
 	/*
-	 * Having no backend is fine -- no records appear.
-	 * Not being mounted is fine -- nothing to do.
+	 * Having anal backend is fine -- anal records appear.
+	 * Analt being mounted is fine -- analthing to do.
 	 */
 	if (!psinfo || !pstore_sb)
 		return NULL;
 
 	root = pstore_sb->s_root;
-	inode_lock(d_inode(root));
+	ianalde_lock(d_ianalde(root));
 
 	return root;
 }
@@ -317,7 +317,7 @@ int pstore_put_backend_records(struct pstore_info *psi)
 		list_for_each_entry_safe(pos, tmp, &records_list, list) {
 			if (pos->record->psi == psi) {
 				list_del_init(&pos->list);
-				rc = simple_unlink(d_inode(root), pos->dentry);
+				rc = simple_unlink(d_ianalde(root), pos->dentry);
 				if (WARN_ON(rc))
 					break;
 				d_drop(pos->dentry);
@@ -327,7 +327,7 @@ int pstore_put_backend_records(struct pstore_info *psi)
 		}
 	}
 
-	inode_unlock(d_inode(root));
+	ianalde_unlock(d_ianalde(root));
 
 	return rc;
 }
@@ -340,12 +340,12 @@ int pstore_put_backend_records(struct pstore_info *psi)
 int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 {
 	struct dentry		*dentry;
-	struct inode		*inode __free(pstore_iput) = NULL;
+	struct ianalde		*ianalde __free(pstore_iput) = NULL;
 	char			name[PSTORE_NAMELEN];
 	struct pstore_private	*private __free(pstore_private) = NULL, *pos;
-	size_t			size = record->size + record->ecc_notice_size;
+	size_t			size = record->size + record->ecc_analtice_size;
 
-	if (WARN_ON(!inode_is_locked(d_inode(root))))
+	if (WARN_ON(!ianalde_is_locked(d_ianalde(root))))
 		return -EINVAL;
 
 	guard(mutex)(&records_list_lock);
@@ -358,11 +358,11 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 			return -EEXIST;
 	}
 
-	inode = pstore_get_inode(root->d_sb);
-	if (!inode)
-		return -ENOMEM;
-	inode->i_mode = S_IFREG | 0444;
-	inode->i_fop = &pstore_file_operations;
+	ianalde = pstore_get_ianalde(root->d_sb);
+	if (!ianalde)
+		return -EANALMEM;
+	ianalde->i_mode = S_IFREG | 0444;
+	ianalde->i_fop = &pstore_file_operations;
 	scnprintf(name, sizeof(name), "%s-%s-%llu%s",
 			pstore_type_to_name(record->type),
 			record->psi->name, record->id,
@@ -370,24 +370,24 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dentry = d_alloc_name(root, name);
 	if (!dentry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	private->dentry = dentry;
 	private->record = record;
-	inode->i_size = private->total_size = size;
-	inode->i_private = private;
+	ianalde->i_size = private->total_size = size;
+	ianalde->i_private = private;
 
 	if (record->time.tv_sec)
-		inode_set_mtime_to_ts(inode,
-				      inode_set_ctime_to_ts(inode, record->time));
+		ianalde_set_mtime_to_ts(ianalde,
+				      ianalde_set_ctime_to_ts(ianalde, record->time));
 
-	d_add(dentry, no_free_ptr(inode));
+	d_add(dentry, anal_free_ptr(ianalde));
 
-	list_add(&(no_free_ptr(private))->list, &records_list);
+	list_add(&(anal_free_ptr(private))->list, &records_list);
 
 	return 0;
 }
@@ -407,12 +407,12 @@ void pstore_get_records(int quiet)
 		return;
 
 	pstore_get_backend_records(psinfo, root, quiet);
-	inode_unlock(d_inode(root));
+	ianalde_unlock(d_ianalde(root));
 }
 
 static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	sb->s_maxbytes		= MAX_LFS_FILESIZE;
 	sb->s_blocksize		= PAGE_SIZE;
@@ -423,16 +423,16 @@ static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 
 	parse_options(data);
 
-	inode = pstore_get_inode(sb);
-	if (inode) {
-		inode->i_mode = S_IFDIR | 0750;
-		inode->i_op = &pstore_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
-		inc_nlink(inode);
+	ianalde = pstore_get_ianalde(sb);
+	if (ianalde) {
+		ianalde->i_mode = S_IFDIR | 0750;
+		ianalde->i_op = &pstore_dir_ianalde_operations;
+		ianalde->i_fop = &simple_dir_operations;
+		inc_nlink(ianalde);
 	}
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(ianalde);
 	if (!sb->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scoped_guard(mutex, &pstore_sb_lock)
 		pstore_sb = sb;

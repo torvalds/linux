@@ -14,7 +14,7 @@ static int gssx_enc_bool(struct xdr_stream *xdr, int v)
 
 	p = xdr_reserve_space(xdr, 4);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 	*p = v ? xdr_one : xdr_zero;
 	return 0;
 }
@@ -25,7 +25,7 @@ static int gssx_dec_bool(struct xdr_stream *xdr, u32 *v)
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 	*v = be32_to_cpu(*p);
 	return 0;
 }
@@ -37,7 +37,7 @@ static int gssx_enc_buffer(struct xdr_stream *xdr,
 
 	p = xdr_reserve_space(xdr, sizeof(u32) + buf->len);
 	if (!p)
-		return -ENOSPC;
+		return -EANALSPC;
 	xdr_encode_opaque(p, buf->data, buf->len);
 	return 0;
 }
@@ -49,7 +49,7 @@ static int gssx_enc_in_token(struct xdr_stream *xdr,
 
 	p = xdr_reserve_space(xdr, 4);
 	if (!p)
-		return -ENOSPC;
+		return -EANALSPC;
 	*p = cpu_to_be32(in->page_len);
 
 	/* all we need to do is to write pages */
@@ -67,24 +67,24 @@ static int gssx_dec_buffer(struct xdr_stream *xdr,
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	length = be32_to_cpup(p);
 	p = xdr_inline_decode(xdr, length);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (buf->len == 0) {
-		/* we intentionally are not interested in this buffer */
+		/* we intentionally are analt interested in this buffer */
 		return 0;
 	}
 	if (length > buf->len)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (!buf->data) {
 		buf->data = kmemdup(p, length, GFP_KERNEL);
 		if (!buf->data)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		memcpy(buf->data, p, length);
 	}
@@ -126,7 +126,7 @@ static int dummy_enc_opt_array(struct xdr_stream *xdr,
 
 	p = xdr_reserve_space(xdr, 4);
 	if (!p)
-		return -ENOSPC;
+		return -EANALSPC;
 	*p = 0;
 
 	return 0;
@@ -141,7 +141,7 @@ static int dummy_dec_opt_array(struct xdr_stream *xdr,
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 	count = be32_to_cpup(p++);
 	memset(&dummy, 0, sizeof(dummy));
 	for (i = 0; i < count; i++) {
@@ -176,12 +176,12 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	length = be32_to_cpup(p);
 
 	if (length > (3 + NGROUPS_MAX) * sizeof(u32))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* uid */
 	err = get_host_u32(xdr, &tmp);
@@ -204,7 +204,7 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 		return -EINVAL;
 	creds->cr_group_info = groups_alloc(N);
 	if (creds->cr_group_info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* gid's */
 	for (i = 0; i < N; i++) {
@@ -236,7 +236,7 @@ static int gssx_dec_option_array(struct xdr_stream *xdr,
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 	count = be32_to_cpup(p++);
 	if (!count)
 		return 0;
@@ -246,12 +246,12 @@ static int gssx_dec_option_array(struct xdr_stream *xdr,
 
 	oa->data = kmalloc(sizeof(struct gssx_option), GFP_KERNEL);
 	if (!oa->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	creds = kzalloc(sizeof(struct svc_cred), GFP_KERNEL);
 	if (!creds) {
 		kfree(oa->data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	oa->data[0].option.data = CREDS_VALUE;
@@ -266,12 +266,12 @@ static int gssx_dec_option_array(struct xdr_stream *xdr,
 		/* option buffer */
 		p = xdr_inline_decode(xdr, 4);
 		if (unlikely(p == NULL))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		length = be32_to_cpup(p);
 		p = xdr_inline_decode(xdr, length);
 		if (unlikely(p == NULL))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		if (length == sizeof(CREDS_VALUE) &&
 		    memcmp(p, CREDS_VALUE, sizeof(CREDS_VALUE)) == 0) {
@@ -299,7 +299,7 @@ static int gssx_dec_status(struct xdr_stream *xdr,
 	/* status->major_status */
 	p = xdr_inline_decode(xdr, 8);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 	p = xdr_decode_hyper(p, &status->major_status);
 
 	/* status->mech */
@@ -307,19 +307,19 @@ static int gssx_dec_status(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* status->minor_status */
+	/* status->mianalr_status */
 	p = xdr_inline_decode(xdr, 8);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
-	p = xdr_decode_hyper(p, &status->minor_status);
+		return -EANALSPC;
+	p = xdr_decode_hyper(p, &status->mianalr_status);
 
 	/* status->major_status_string */
 	err = gssx_dec_buffer(xdr, &status->major_status_string);
 	if (err)
 		return err;
 
-	/* status->minor_status_string */
-	err = gssx_dec_buffer(xdr, &status->minor_status_string);
+	/* status->mianalr_status_string */
+	err = gssx_dec_buffer(xdr, &status->mianalr_status_string);
 	if (err)
 		return err;
 
@@ -328,7 +328,7 @@ static int gssx_dec_status(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* we assume we have no options for now, so simply consume them */
+	/* we assume we have anal options for analw, so simply consume them */
 	/* status->options */
 	err = dummy_dec_opt_array(xdr, &status->options);
 
@@ -405,7 +405,7 @@ static int dummy_enc_nameattr_array(struct xdr_stream *xdr,
 
 	p = xdr_reserve_space(xdr, 4);
 	if (!p)
-		return -ENOSPC;
+		return -EANALSPC;
 	*p = 0;
 
 	return 0;
@@ -420,7 +420,7 @@ static int dummy_dec_nameattr_array(struct xdr_stream *xdr,
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 	count = be32_to_cpup(p++);
 	for (i = 0; i < count; i++) {
 		gssx_dec_name_attr(xdr, &dummy);
@@ -462,14 +462,14 @@ static int gssx_enc_name(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* leave name_attributes empty for now, will add once we have any
+	/* leave name_attributes empty for analw, will add once we have any
 	 * to pass up at all */
 	/* name->name_attributes */
 	err = dummy_enc_nameattr_array(xdr, &zero_name_attr_array);
 	if (err)
 		return err;
 
-	/* leave options empty for now, will add once we have any options
+	/* leave options empty for analw, will add once we have any options
 	 * to pass up at all */
 	/* name->extensions */
 	err = dummy_enc_opt_array(xdr, &zero_option_array);
@@ -506,13 +506,13 @@ static int gssx_dec_name(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* we assume we have no attributes for now, so simply consume them */
+	/* we assume we have anal attributes for analw, so simply consume them */
 	/* name->name_attributes */
 	err = dummy_dec_nameattr_array(xdr, &dummy_name_attr_array);
 	if (err)
 		return err;
 
-	/* we assume we have no options for now, so simply consume them */
+	/* we assume we have anal options for analw, so simply consume them */
 	/* name->extensions */
 	err = dummy_dec_opt_array(xdr, &dummy_option_array);
 
@@ -529,7 +529,7 @@ static int dummy_enc_credel_array(struct xdr_stream *xdr,
 
 	p = xdr_reserve_space(xdr, 4);
 	if (!p)
-		return -ENOSPC;
+		return -EANALSPC;
 	*p = 0;
 
 	return 0;
@@ -600,7 +600,7 @@ static int gssx_enc_ctx(struct xdr_stream *xdr,
 	/* ctx->lifetime */
 	p = xdr_reserve_space(xdr, 8+8);
 	if (!p)
-		return -ENOSPC;
+		return -EANALSPC;
 	p = xdr_encode_hyper(p, ctx->lifetime);
 
 	/* ctx->ctx_flags */
@@ -616,7 +616,7 @@ static int gssx_enc_ctx(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* leave options empty for now, will add once we have any options
+	/* leave options empty for analw, will add once we have any options
 	 * to pass up at all */
 	/* ctx->options */
 	err = dummy_enc_opt_array(xdr, &ctx->options);
@@ -663,7 +663,7 @@ static int gssx_dec_ctx(struct xdr_stream *xdr,
 	/* ctx->lifetime */
 	p = xdr_inline_decode(xdr, 8+8);
 	if (unlikely(p == NULL))
-		return -ENOSPC;
+		return -EANALSPC;
 	p = xdr_decode_hyper(p, &ctx->lifetime);
 
 	/* ctx->ctx_flags */
@@ -679,7 +679,7 @@ static int gssx_dec_ctx(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* we assume we have no options for now, so simply consume them */
+	/* we assume we have anal options for analw, so simply consume them */
 	/* ctx->options */
 	err = dummy_dec_opt_array(xdr, &ctx->options);
 
@@ -694,7 +694,7 @@ static int gssx_enc_cb(struct xdr_stream *xdr, struct gssx_cb *cb)
 	/* cb->initiator_addrtype */
 	p = xdr_reserve_space(xdr, 8);
 	if (!p)
-		return -ENOSPC;
+		return -EANALSPC;
 	p = xdr_encode_hyper(p, cb->initiator_addrtype);
 
 	/* cb->initiator_address */
@@ -705,7 +705,7 @@ static int gssx_enc_cb(struct xdr_stream *xdr, struct gssx_cb *cb)
 	/* cb->acceptor_addrtype */
 	p = xdr_reserve_space(xdr, 8);
 	if (!p)
-		return -ENOSPC;
+		return -EANALSPC;
 	p = xdr_encode_hyper(p, cb->acceptor_addrtype);
 
 	/* cb->acceptor_address */
@@ -763,7 +763,7 @@ void gssx_enc_accept_sec_context(struct rpc_rqst *req,
 	if (err)
 		goto done;
 
-	/* leave options empty for now, will add once we have any options
+	/* leave options empty for analw, will add once we have any options
 	 * to pass up at all */
 	/* arg->options */
 	err = dummy_enc_opt_array(xdr, &arg->options);
@@ -787,7 +787,7 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 
 	scratch = alloc_page(GFP_KERNEL);
 	if (!scratch)
-		return -ENOMEM;
+		return -EANALMEM;
 	xdr_set_scratch_page(xdr, scratch);
 
 	/* res->status */
@@ -824,7 +824,7 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 	if (err)
 		goto out_free;
 	if (value_follows) {
-		/* we do not support upcall servers sending this data. */
+		/* we do analt support upcall servers sending this data. */
 		err = -EINVAL;
 		goto out_free;
 	}

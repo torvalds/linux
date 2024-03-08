@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "internal.h"
 #include "afs_fs.h"
 #include "protocol_uae.h"
@@ -18,20 +18,20 @@
 int afs_abort_to_error(u32 abort_code)
 {
 	switch (abort_code) {
-		/* Low errno codes inserted into abort namespace */
+		/* Low erranal codes inserted into abort namespace */
 	case 13:		return -EACCES;
 	case 27:		return -EFBIG;
 	case 30:		return -EROFS;
 
 		/* VICE "special error" codes; 101 - 111 */
 	case VSALVAGE:		return -EIO;
-	case VNOVNODE:		return -ENOENT;
-	case VNOVOL:		return -ENOMEDIUM;
+	case VANALVANALDE:		return -EANALENT;
+	case VANALVOL:		return -EANALMEDIUM;
 	case VVOLEXISTS:	return -EEXIST;
-	case VNOSERVICE:	return -EIO;
-	case VOFFLINE:		return -ENOENT;
+	case VANALSERVICE:	return -EIO;
+	case VOFFLINE:		return -EANALENT;
 	case VONLINE:		return -EEXIST;
-	case VDISKFULL:		return -ENOSPC;
+	case VDISKFULL:		return -EANALSPC;
 	case VOVERQUOTA:	return -EDQUOT;
 	case VBUSY:		return -EBUSY;
 	case VMOVED:		return -ENXIO;
@@ -41,18 +41,18 @@ int afs_abort_to_error(u32 abort_code)
 	case AFSVL_IO:			return -EREMOTEIO;
 	case AFSVL_NAMEEXIST:		return -EEXIST;
 	case AFSVL_CREATEFAIL:		return -EREMOTEIO;
-	case AFSVL_NOENT:		return -ENOMEDIUM;
-	case AFSVL_EMPTY:		return -ENOMEDIUM;
-	case AFSVL_ENTDELETED:		return -ENOMEDIUM;
+	case AFSVL_ANALENT:		return -EANALMEDIUM;
+	case AFSVL_EMPTY:		return -EANALMEDIUM;
+	case AFSVL_ENTDELETED:		return -EANALMEDIUM;
 	case AFSVL_BADNAME:		return -EINVAL;
 	case AFSVL_BADINDEX:		return -EINVAL;
 	case AFSVL_BADVOLTYPE:		return -EINVAL;
 	case AFSVL_BADSERVER:		return -EINVAL;
 	case AFSVL_BADPARTITION:	return -EINVAL;
 	case AFSVL_REPSFULL:		return -EFBIG;
-	case AFSVL_NOREPSERVER:		return -ENOENT;
+	case AFSVL_ANALREPSERVER:		return -EANALENT;
 	case AFSVL_DUPREPSERVER:	return -EEXIST;
-	case AFSVL_RWNOTFOUND:		return -ENOENT;
+	case AFSVL_RWANALTFOUND:		return -EANALENT;
 	case AFSVL_BADREFCOUNT:		return -EINVAL;
 	case AFSVL_SIZEEXCEEDED:	return -EINVAL;
 	case AFSVL_BADENTRY:		return -EINVAL;
@@ -64,28 +64,28 @@ int afs_abort_to_error(u32 abort_code)
 	case AFSVL_RERELEASE:		return -EREMOTEIO;
 	case AFSVL_BADSERVERFLAG:	return -EINVAL;
 	case AFSVL_PERM:		return -EACCES;
-	case AFSVL_NOMEM:		return -EREMOTEIO;
+	case AFSVL_ANALMEM:		return -EREMOTEIO;
 
 		/* Unified AFS error table */
 	case UAEPERM:			return -EPERM;
-	case UAENOENT:			return -ENOENT;
+	case UAEANALENT:			return -EANALENT;
 	case UAEAGAIN:			return -EAGAIN;
 	case UAEACCES:			return -EACCES;
 	case UAEBUSY:			return -EBUSY;
 	case UAEEXIST:			return -EEXIST;
-	case UAENOTDIR:			return -ENOTDIR;
+	case UAEANALTDIR:			return -EANALTDIR;
 	case UAEISDIR:			return -EISDIR;
 	case UAEFBIG:			return -EFBIG;
-	case UAENOSPC:			return -ENOSPC;
+	case UAEANALSPC:			return -EANALSPC;
 	case UAEROFS:			return -EROFS;
 	case UAEMLINK:			return -EMLINK;
 	case UAEDEADLK:			return -EDEADLK;
 	case UAENAMETOOLONG:		return -ENAMETOOLONG;
-	case UAENOLCK:			return -ENOLCK;
-	case UAENOTEMPTY:		return -ENOTEMPTY;
+	case UAEANALLCK:			return -EANALLCK;
+	case UAEANALTEMPTY:		return -EANALTEMPTY;
 	case UAELOOP:			return -ELOOP;
 	case UAEOVERFLOW:		return -EOVERFLOW;
-	case UAENOMEDIUM:		return -ENOMEDIUM;
+	case UAEANALMEDIUM:		return -EANALMEDIUM;
 	case UAEDQUOT:			return -EDQUOT;
 
 		/* RXKAD abort codes; from include/rxrpc/packet.h.  ET "RXK" == 0x1260B00 */
@@ -94,16 +94,16 @@ int afs_abort_to_error(u32 abort_code)
 	case RXKADLEVELFAIL:	return -EKEYREJECTED;
 	case RXKADTICKETLEN:	return -EKEYREJECTED;
 	case RXKADOUTOFSEQUENCE: return -EPROTO;
-	case RXKADNOAUTH:	return -EKEYREJECTED;
+	case RXKADANALAUTH:	return -EKEYREJECTED;
 	case RXKADBADKEY:	return -EKEYREJECTED;
 	case RXKADBADTICKET:	return -EKEYREJECTED;
-	case RXKADUNKNOWNKEY:	return -EKEYREJECTED;
+	case RXKADUNKANALWNKEY:	return -EKEYREJECTED;
 	case RXKADEXPIRED:	return -EKEYEXPIRED;
 	case RXKADSEALEDINCON:	return -EKEYREJECTED;
 	case RXKADDATALEN:	return -EKEYREJECTED;
 	case RXKADILLEGALLEVEL:	return -EKEYREJECTED;
 
-	case RXGEN_OPCODE:	return -ENOTSUPP;
+	case RXGEN_OPCODE:	return -EANALTSUPP;
 
 	default:		return -EREMOTEIO;
 	}
@@ -126,20 +126,20 @@ void afs_prioritise_error(struct afs_error *e, int error, u32 abort_code)
 		fallthrough;
 	case -ETIMEDOUT:
 	case -ETIME:
-		if (e->error == -ENOMEM ||
-		    e->error == -ENONET)
+		if (e->error == -EANALMEM ||
+		    e->error == -EANALNET)
 			return;
 		fallthrough;
-	case -ENOMEM:
-	case -ENONET:
+	case -EANALMEM:
+	case -EANALNET:
 		if (e->error == -ERFKILL)
 			return;
 		fallthrough;
 	case -ERFKILL:
-		if (e->error == -EADDRNOTAVAIL)
+		if (e->error == -EADDRANALTAVAIL)
 			return;
 		fallthrough;
-	case -EADDRNOTAVAIL:
+	case -EADDRANALTAVAIL:
 		if (e->error == -ENETUNREACH)
 			return;
 		fallthrough;

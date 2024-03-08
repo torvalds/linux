@@ -8,7 +8,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <linux/interrupt.h>
@@ -409,7 +409,7 @@ static void at91_chip_start(struct net_device *dev)
 	at91_setup_mailboxes(dev);
 
 	/* enable chip */
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		reg_mr = AT91_MR_CANEN | AT91_MR_ABM;
 	else
 		reg_mr = AT91_MR_CANEN;
@@ -506,7 +506,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* This triggers transmission */
 	at91_write(priv, AT91_MCR(mb), reg_mcr);
 
-	/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
+	/* _ANALTE_: subtract AT91_MB_TX_FIRST offset from mb! */
 	can_put_echo_skb(skb, dev, mb - get_mb_tx_first(priv), 0);
 
 	/* we have to stop the queue and deliver all messages in case
@@ -514,7 +514,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * tx_head buffer prio and mailbox equals 0.
 	 *
 	 * also stop the queue if next buffer is still in use
-	 * (== not ready)
+	 * (== analt ready)
 	 */
 	priv->tx_head++;
 	if (!(at91_read(priv, AT91_MSR(get_tx_head_mb(priv))) &
@@ -580,7 +580,7 @@ static void at91_rx_overflow_err(struct net_device *dev)
  * @timestamp: pointer to 32 bit timestamp
  * @drop: true indicated mailbox to mark as read and drop frame
  *
- * Reads a CAN message from the given mailbox if not empty.
+ * Reads a CAN message from the given mailbox if analt empty.
  */
 static struct sk_buff *at91_mailbox_read(struct can_rx_offload *offload,
 					 unsigned int mb, u32 *timestamp,
@@ -596,13 +596,13 @@ static struct sk_buff *at91_mailbox_read(struct can_rx_offload *offload,
 		return NULL;
 
 	if (unlikely(drop)) {
-		skb = ERR_PTR(-ENOBUFS);
+		skb = ERR_PTR(-EANALBUFS);
 		goto mark_as_read;
 	}
 
 	skb = alloc_can_skb(offload->dev, &cf);
 	if (unlikely(!skb)) {
-		skb = ERR_PTR(-ENOMEM);
+		skb = ERR_PTR(-EANALMEM);
 		goto mark_as_read;
 	}
 
@@ -640,12 +640,12 @@ static struct sk_buff *at91_mailbox_read(struct can_rx_offload *offload,
 /* theory of operation:
  *
  * priv->tx_tail holds the number of the oldest can_frame put for
- * transmission into the hardware, but not yet ACKed by the CAN tx
+ * transmission into the hardware, but analt yet ACKed by the CAN tx
  * complete IRQ.
  *
  * We iterate from priv->tx_tail to priv->tx_head and check if the
  * packet has been transmitted, echo it back to the CAN framework. If
- * we discover a not yet transmitted package, stop looking for more.
+ * we discover a analt yet transmitted package, stop looking for more.
  *
  */
 static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
@@ -657,7 +657,7 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 	for (/* nix */; (priv->tx_head - priv->tx_tail) > 0; priv->tx_tail++) {
 		mb = get_tx_tail_mb(priv);
 
-		/* no event in mailbox? */
+		/* anal event in mailbox? */
 		if (!(reg_sr & (1 << mb)))
 			break;
 
@@ -674,7 +674,7 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 			       ~reg_msr & AT91_MSR_MABT)))
 			continue;
 
-		/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
+		/* _ANALTE_: subtract AT91_MB_TX_FIRST offset from mb! */
 		dev->stats.tx_bytes +=
 			can_get_echo_skb(dev, mb - get_mb_tx_first(priv), NULL);
 		dev->stats.tx_packets++;
@@ -706,7 +706,7 @@ static void at91_irq_err_line(struct net_device *dev, const u32 reg_sr)
 	/* The chip automatically recovers from bus-off after 128
 	 * occurrences of 11 consecutive recessive bits.
 	 *
-	 * After an auto-recovered bus-off, the error counters no
+	 * After an auto-recovered bus-off, the error counters anal
 	 * longer reflect this fact. On the sam9263 the state bits in
 	 * the SR register show the current state (based on the
 	 * current error counters), while on sam9x5 and newer SoCs
@@ -828,7 +828,7 @@ static irqreturn_t at91_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct at91_priv *priv = netdev_priv(dev);
-	irqreturn_t handled = IRQ_NONE;
+	irqreturn_t handled = IRQ_ANALNE;
 	u32 reg_sr = 0, reg_sr_rx;
 	int ret;
 
@@ -938,7 +938,7 @@ static int at91_set_mode(struct net_device *dev, enum can_mode mode)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1030,12 +1030,12 @@ MODULE_DEVICE_TABLE(of, at91_can_dt_ids);
 
 static const struct at91_devtype_data *at91_can_get_driver_data(struct platform_device *pdev)
 {
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		const struct of_device_id *match;
 
-		match = of_match_node(at91_can_dt_ids, pdev->dev.of_node);
+		match = of_match_analde(at91_can_dt_ids, pdev->dev.of_analde);
 		if (!match) {
-			dev_err(&pdev->dev, "no matching node found in dtb\n");
+			dev_err(&pdev->dev, "anal matching analde found in dtb\n");
 			return NULL;
 		}
 		return (const struct at91_devtype_data *)match->data;
@@ -1057,22 +1057,22 @@ static int at91_can_probe(struct platform_device *pdev)
 
 	devtype_data = at91_can_get_driver_data(pdev);
 	if (!devtype_data) {
-		dev_err(&pdev->dev, "no driver data\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "anal driver data\n");
+		err = -EANALDEV;
 		goto exit;
 	}
 
 	clk = clk_get(&pdev->dev, "can_clk");
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "no clock defined\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "anal clock defined\n");
+		err = -EANALDEV;
 		goto exit;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
 	if (!res || irq <= 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_put;
 	}
 
@@ -1085,14 +1085,14 @@ static int at91_can_probe(struct platform_device *pdev)
 
 	addr = ioremap(res->start, resource_size(res));
 	if (!addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_release;
 	}
 
 	dev = alloc_candev(sizeof(struct at91_priv),
 			   1 << devtype_data->tx_shift);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_iounmap;
 	}
 
@@ -1114,7 +1114,7 @@ static int at91_can_probe(struct platform_device *pdev)
 	priv->can.do_set_mode = at91_set_mode;
 	priv->can.do_get_berr_counter = at91_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
-		CAN_CTRLMODE_LISTENONLY;
+		CAN_CTRLMODE_LISTEANALNLY;
 	priv->reg_base = addr;
 	priv->devtype_data = *devtype_data;
 	priv->clk = clk;

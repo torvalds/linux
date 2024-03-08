@@ -58,7 +58,7 @@ struct trace_uprobe {
 	struct dyn_event		devent;
 	struct uprobe_consumer		consumer;
 	struct path			path;
-	struct inode			*inode;
+	struct ianalde			*ianalde;
 	char				*filename;
 	unsigned long			offset;
 	unsigned long			ref_ctr_offset;
@@ -120,7 +120,7 @@ static unsigned long get_user_stack_nth(struct pt_regs *regs, unsigned int n)
 /*
  * Uprobes-specific fetch functions
  */
-static nokprobe_inline int
+static analkprobe_inline int
 probe_mem_read(void *dest, void *src, size_t size)
 {
 	void __user *vaddr = (void __force __user *)src;
@@ -128,7 +128,7 @@ probe_mem_read(void *dest, void *src, size_t size)
 	return copy_from_user(dest, vaddr, size) ? -EFAULT : 0;
 }
 
-static nokprobe_inline int
+static analkprobe_inline int
 probe_mem_read_user(void *dest, void *src, size_t size)
 {
 	return probe_mem_read(dest, src, size);
@@ -138,7 +138,7 @@ probe_mem_read_user(void *dest, void *src, size_t size)
  * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
  * length and relative data location.
  */
-static nokprobe_inline int
+static analkprobe_inline int
 fetch_store_string(unsigned long addr, void *dest, void *base)
 {
 	long ret;
@@ -148,7 +148,7 @@ fetch_store_string(unsigned long addr, void *dest, void *base)
 	void __user *src = (void __force __user *) addr;
 
 	if (unlikely(!maxlen))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (addr == FETCH_TOKEN_COMM)
 		ret = strscpy(dst, current->comm, maxlen);
@@ -160,7 +160,7 @@ fetch_store_string(unsigned long addr, void *dest, void *base)
 		else
 			/*
 			 * Include the terminating null byte. In this case it
-			 * was copied by strncpy_from_user but not accounted
+			 * was copied by strncpy_from_user but analt accounted
 			 * for in ret.
 			 */
 			ret++;
@@ -171,14 +171,14 @@ fetch_store_string(unsigned long addr, void *dest, void *base)
 	return ret;
 }
 
-static nokprobe_inline int
+static analkprobe_inline int
 fetch_store_string_user(unsigned long addr, void *dest, void *base)
 {
 	return fetch_store_string(addr, dest, base);
 }
 
 /* Return the length of string -- including null terminal byte */
-static nokprobe_inline int
+static analkprobe_inline int
 fetch_store_strlen(unsigned long addr)
 {
 	int len;
@@ -192,7 +192,7 @@ fetch_store_strlen(unsigned long addr)
 	return (len > MAX_STRING_SIZE) ? 0 : len;
 }
 
-static nokprobe_inline int
+static analkprobe_inline int
 fetch_store_strlen_user(unsigned long addr)
 {
 	return fetch_store_strlen(addr);
@@ -209,7 +209,7 @@ static unsigned long translate_user_vaddr(unsigned long file_offset)
 	return base_addr + file_offset;
 }
 
-/* Note that we don't verify it, since the code does not come from user space */
+/* Analte that we don't verify it, since the code does analt come from user space */
 static int
 process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 		   void *base)
@@ -247,7 +247,7 @@ process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 
 	return process_fetch_insn_bottom(code, val, dest, base);
 }
-NOKPROBE_SYMBOL(process_fetch_insn)
+ANALKPROBE_SYMBOL(process_fetch_insn)
 
 static inline void init_trace_uprobe_filter(struct trace_uprobe_filter *filter)
 {
@@ -312,7 +312,7 @@ static bool trace_uprobe_match(const char *system, const char *event,
 	   trace_uprobe_match_command_head(tu, argc, argv);
 }
 
-static nokprobe_inline struct trace_uprobe *
+static analkprobe_inline struct trace_uprobe *
 trace_uprobe_primary_from_call(struct trace_event_call *call)
 {
 	struct trace_probe *tp;
@@ -335,7 +335,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 
 	tu = kzalloc(struct_size(tu, tp.args, nargs), GFP_KERNEL);
 	if (!tu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = trace_probe_init(&tu->tp, event, group, true);
 	if (ret < 0)
@@ -405,11 +405,11 @@ static bool trace_uprobe_has_same_uprobe(struct trace_uprobe *orig,
 					 struct trace_uprobe *comp)
 {
 	struct trace_probe_event *tpe = orig->tp.event;
-	struct inode *comp_inode = d_real_inode(comp->path.dentry);
+	struct ianalde *comp_ianalde = d_real_ianalde(comp->path.dentry);
 	int i;
 
 	list_for_each_entry(orig, &tpe->probes, tp.list) {
-		if (comp_inode != d_real_inode(orig->path.dentry) ||
+		if (comp_ianalde != d_real_ianalde(orig->path.dentry) ||
 		    comp->offset != orig->offset)
 			continue;
 
@@ -436,7 +436,7 @@ static int append_trace_uprobe(struct trace_uprobe *tu, struct trace_uprobe *to)
 
 	ret = trace_probe_compare_arg_type(&tu->tp, &to->tp);
 	if (ret) {
-		/* Note that argument starts index = 2 */
+		/* Analte that argument starts index = 2 */
 		trace_probe_log_set_index(ret + 1);
 		trace_probe_log_err(0, DIFF_ARG_TYPE);
 		return -EEXIST;
@@ -456,22 +456,22 @@ static int append_trace_uprobe(struct trace_uprobe *tu, struct trace_uprobe *to)
 }
 
 /*
- * Uprobe with multiple reference counter is not allowed. i.e.
- * If inode and offset matches, reference counter offset *must*
+ * Uprobe with multiple reference counter is analt allowed. i.e.
+ * If ianalde and offset matches, reference counter offset *must*
  * match as well. Though, there is one exception: If user is
  * replacing old trace_uprobe with new one(same group/event),
  * then we allow same uprobe with new reference counter as far
- * as the new one does not conflict with any other existing
+ * as the new one does analt conflict with any other existing
  * ones.
  */
 static int validate_ref_ctr_offset(struct trace_uprobe *new)
 {
 	struct dyn_event *pos;
 	struct trace_uprobe *tmp;
-	struct inode *new_inode = d_real_inode(new->path.dentry);
+	struct ianalde *new_ianalde = d_real_ianalde(new->path.dentry);
 
 	for_each_trace_uprobe(tmp, pos) {
-		if (new_inode == d_real_inode(tmp->path.dentry) &&
+		if (new_ianalde == d_real_ianalde(tmp->path.dentry) &&
 		    new->offset == tmp->offset &&
 		    new->ref_ctr_offset != tmp->ref_ctr_offset) {
 			pr_warn("Reference counter offset mismatch.");
@@ -565,7 +565,7 @@ static int __trace_uprobe_create(int argc, const char **argv)
 
 	filename = kstrdup(argv[1], GFP_KERNEL);
 	if (!filename)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Find the last occurrence, in case the path contains ':' too. */
 	arg = strrchr(filename, ':');
@@ -580,13 +580,13 @@ static int __trace_uprobe_create(int argc, const char **argv)
 	*arg++ = '\0';
 	ret = kern_path(filename, LOOKUP_FOLLOW, &path);
 	if (ret) {
-		trace_probe_log_err(0, FILE_NOT_FOUND);
+		trace_probe_log_err(0, FILE_ANALT_FOUND);
 		kfree(filename);
 		trace_probe_log_clear();
 		return ret;
 	}
 	if (!d_is_reg(path.dentry)) {
-		trace_probe_log_err(0, NO_REGULAR_FILE);
+		trace_probe_log_err(0, ANAL_REGULAR_FILE);
 		ret = -EINVAL;
 		goto fail_address_parse;
 	}
@@ -652,7 +652,7 @@ static int __trace_uprobe_create(int argc, const char **argv)
 
 		tail = kstrdup(kbasename(filename), GFP_KERNEL);
 		if (!tail) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_address_parse;
 		}
 
@@ -671,8 +671,8 @@ static int __trace_uprobe_create(int argc, const char **argv)
 	tu = alloc_trace_uprobe(group, event, argc, is_return);
 	if (IS_ERR(tu)) {
 		ret = PTR_ERR(tu);
-		/* This must return -ENOMEM otherwise there is a bug */
-		WARN_ON_ONCE(ret != -ENOMEM);
+		/* This must return -EANALMEM otherwise there is a bug */
+		WARN_ON_ONCE(ret != -EANALMEM);
 		goto fail_address_parse;
 	}
 	tu->offset = offset;
@@ -693,7 +693,7 @@ static int __trace_uprobe_create(int argc, const char **argv)
 			goto error;
 	}
 
-	ptype = is_ret_probe(tu) ? PROBE_PRINT_RETURN : PROBE_PRINT_NORMAL;
+	ptype = is_ret_probe(tu) ? PROBE_PRINT_RETURN : PROBE_PRINT_ANALRMAL;
 	ret = traceprobe_set_print_fmt(&tu->tp, ptype);
 	if (ret < 0)
 		goto error;
@@ -777,7 +777,7 @@ static const struct seq_operations probes_seq_op = {
 	.show   = probes_seq_show
 };
 
-static int probes_open(struct inode *inode, struct file *file)
+static int probes_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 
@@ -832,7 +832,7 @@ static const struct seq_operations profile_seq_op = {
 	.show	= probes_profile_seq_show
 };
 
-static int profile_open(struct inode *inode, struct file *file)
+static int profile_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 
@@ -864,10 +864,10 @@ static int uprobe_buffer_init(void)
 
 	uprobe_cpu_buffer = alloc_percpu(struct uprobe_cpu_buffer);
 	if (uprobe_cpu_buffer == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_possible_cpu(cpu) {
-		struct page *p = alloc_pages_node(cpu_to_node(cpu),
+		struct page *p = alloc_pages_analde(cpu_to_analde(cpu),
 						  GFP_KERNEL, 0);
 		if (p == NULL) {
 			err_cpu = cpu;
@@ -887,7 +887,7 @@ err:
 	}
 
 	free_percpu(uprobe_cpu_buffer);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int uprobe_buffer_enable(void)
@@ -1056,16 +1056,16 @@ static int trace_uprobe_enable(struct trace_uprobe *tu, filter_func_t filter)
 	int ret;
 
 	tu->consumer.filter = filter;
-	tu->inode = d_real_inode(tu->path.dentry);
+	tu->ianalde = d_real_ianalde(tu->path.dentry);
 
 	if (tu->ref_ctr_offset)
-		ret = uprobe_register_refctr(tu->inode, tu->offset,
+		ret = uprobe_register_refctr(tu->ianalde, tu->offset,
 				tu->ref_ctr_offset, &tu->consumer);
 	else
-		ret = uprobe_register(tu->inode, tu->offset, &tu->consumer);
+		ret = uprobe_register(tu->ianalde, tu->offset, &tu->consumer);
 
 	if (ret)
-		tu->inode = NULL;
+		tu->ianalde = NULL;
 
 	return ret;
 }
@@ -1078,11 +1078,11 @@ static void __probe_event_disable(struct trace_probe *tp)
 	WARN_ON(!uprobe_filter_is_empty(tu->tp.event->filter));
 
 	list_for_each_entry(tu, trace_probe_probe_list(tp), tp.list) {
-		if (!tu->inode)
+		if (!tu->ianalde)
 			continue;
 
-		uprobe_unregister(tu->inode, tu->offset, &tu->consumer);
-		tu->inode = NULL;
+		uprobe_unregister(tu->ianalde, tu->offset, &tu->consumer);
+		tu->ianalde = NULL;
 	}
 }
 
@@ -1096,7 +1096,7 @@ static int probe_event_enable(struct trace_event_call *call,
 
 	tp = trace_probe_primary_from_call(call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENODEV;
+		return -EANALDEV;
 	enabled = trace_probe_is_enabled(tp);
 
 	/* This may also change "enabled" state */
@@ -1179,7 +1179,7 @@ static int uprobe_event_define_fields(struct trace_event_call *event_call)
 
 	tu = trace_uprobe_primary_from_call(event_call);
 	if (unlikely(!tu))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (is_ret_probe(tu)) {
 		DEFINE_FIELD(unsigned long, vaddr[0], FIELD_STRING_FUNC, 0);
@@ -1275,14 +1275,14 @@ static int uprobe_perf_close(struct trace_event_call *call,
 
 	tp = trace_probe_primary_from_call(call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	tu = container_of(tp, struct trace_uprobe, tp);
 	if (trace_uprobe_filter_remove(tu->tp.event->filter, event))
 		return 0;
 
 	list_for_each_entry(tu, trace_probe_probe_list(tp), tp.list) {
-		ret = uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
+		ret = uprobe_apply(tu->ianalde, tu->offset, &tu->consumer, false);
 		if (ret)
 			break;
 	}
@@ -1299,14 +1299,14 @@ static int uprobe_perf_open(struct trace_event_call *call,
 
 	tp = trace_probe_primary_from_call(call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	tu = container_of(tp, struct trace_uprobe, tp);
 	if (trace_uprobe_filter_add(tu->tp.event->filter, event))
 		return 0;
 
 	list_for_each_entry(tu, trace_probe_probe_list(tp), tp.list) {
-		err = uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
+		err = uprobe_apply(tu->ianalde, tu->offset, &tu->consumer, true);
 		if (err) {
 			uprobe_perf_close(call, event);
 			break;
@@ -1358,7 +1358,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 
 	size = esize + tu->tp.size + dsize;
 	size = ALIGN(size + sizeof(u32), sizeof(u64)) - sizeof(u32);
-	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE, "profile buffer not large enough"))
+	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE, "profile buffer analt large eanalugh"))
 		return;
 
 	preempt_disable();
@@ -1594,8 +1594,8 @@ create_local_trace_uprobe(char *name, unsigned long offs,
 	}
 
 	/*
-	 * local trace_kprobes are not added to dyn_event, so they are never
-	 * searched in find_trace_kprobe(). Therefore, there is no concern of
+	 * local trace_kprobes are analt added to dyn_event, so they are never
+	 * searched in find_trace_kprobe(). Therefore, there is anal concern of
 	 * duplicated name "DUMMY_EVENT" here.
 	 */
 	tu = alloc_trace_uprobe(UPROBE_EVENT_SYSTEM, "DUMMY_EVENT", 0,
@@ -1613,15 +1613,15 @@ create_local_trace_uprobe(char *name, unsigned long offs,
 	tu->ref_ctr_offset = ref_ctr_offset;
 	tu->filename = kstrdup(name, GFP_KERNEL);
 	if (!tu->filename) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	init_trace_event_call(tu);
 
-	ptype = is_ret_probe(tu) ? PROBE_PRINT_RETURN : PROBE_PRINT_NORMAL;
+	ptype = is_ret_probe(tu) ? PROBE_PRINT_RETURN : PROBE_PRINT_ANALRMAL;
 	if (traceprobe_set_print_fmt(&tu->tp, ptype) < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 

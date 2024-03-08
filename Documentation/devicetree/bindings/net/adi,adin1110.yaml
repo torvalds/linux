@@ -18,7 +18,7 @@ description: |
   The ADIN2111 is a low power, low complexity, two-Ethernet ports
   switch with integrated 10BASE-T1L PHYs and one serial peripheral
   interface (SPI) port. The device is designed for industrial Ethernet
-  applications using low power constrained nodes and is compliant
+  applications using low power constrained analdes and is compliant
   with the IEEE 802.3cg-2019 Ethernet standard for long reach
   10 Mbps single pair Ethernet (SPE).
 

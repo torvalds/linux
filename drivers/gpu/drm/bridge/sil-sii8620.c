@@ -50,7 +50,7 @@ enum sii8620_mode {
 };
 
 enum sii8620_sink_type {
-	SINK_NONE,
+	SINK_ANALNE,
 	SINK_HDMI,
 	SINK_DVI
 };
@@ -86,7 +86,7 @@ struct sii8620 {
 	unsigned int gen2_write_burst:1;
 	enum sii8620_mt_state mt_state;
 	struct extcon_dev *extcon;
-	struct notifier_block extcon_nb;
+	struct analtifier_block extcon_nb;
 	struct work_struct extcon_wq;
 	int cable_state;
 	struct list_head mt_queue;
@@ -109,7 +109,7 @@ typedef void (*sii8620_mt_msg_cb)(struct sii8620 *ctx,
 typedef void (*sii8620_cb)(struct sii8620 *ctx, int ret);
 
 struct sii8620_mt_msg {
-	struct list_head node;
+	struct list_head analde;
 	u8 reg[4];
 	u8 ret;
 	sii8620_mt_msg_cb send;
@@ -203,7 +203,7 @@ static void sii8620_write_buf(struct sii8620 *ctx, u16 addr, const u8 *buf,
 	if (len > 1) {
 		msg.buf = kmalloc(len + 1, GFP_KERNEL);
 		if (!msg.buf) {
-			ctx->error = -ENOMEM;
+			ctx->error = -EANALMEM;
 			return;
 		}
 		memcpy(msg.buf + 1, buf, len);
@@ -268,8 +268,8 @@ static void sii8620_mt_cleanup(struct sii8620 *ctx)
 {
 	struct sii8620_mt_msg *msg, *n;
 
-	list_for_each_entry_safe(msg, n, &ctx->mt_queue, node) {
-		list_del(&msg->node);
+	list_for_each_entry_safe(msg, n, &ctx->mt_queue, analde) {
+		list_del(&msg->analde);
 		kfree(msg);
 	}
 	ctx->mt_state = MT_STATE_READY;
@@ -287,8 +287,8 @@ static void sii8620_mt_work(struct sii8620 *ctx)
 	if (ctx->mt_state == MT_STATE_DONE) {
 		ctx->mt_state = MT_STATE_READY;
 		msg = list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg,
-				       node);
-		list_del(&msg->node);
+				       analde);
+		list_del(&msg->analde);
 		if (msg->recv)
 			msg->recv(ctx, msg);
 		if (msg->continuation)
@@ -300,7 +300,7 @@ static void sii8620_mt_work(struct sii8620 *ctx)
 		return;
 
 	ctx->mt_state = MT_STATE_BUSY;
-	msg = list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg, node);
+	msg = list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg, analde);
 	if (msg->send)
 		msg->send(ctx, msg);
 }
@@ -377,7 +377,7 @@ static void sii8620_mt_msc_cmd_send(struct sii8620 *ctx,
 			      BIT_MSC_COMMAND_START_READ_DEVCAP);
 		break;
 	default:
-		dev_err(ctx->dev, "%s: command %#x not supported\n", __func__,
+		dev_err(ctx->dev, "%s: command %#x analt supported\n", __func__,
 			msg->reg[0]);
 	}
 }
@@ -387,9 +387,9 @@ static struct sii8620_mt_msg *sii8620_mt_msg_new(struct sii8620 *ctx)
 	struct sii8620_mt_msg *msg = kzalloc(sizeof(*msg), GFP_KERNEL);
 
 	if (!msg)
-		ctx->error = -ENOMEM;
+		ctx->error = -EANALMEM;
 	else
-		list_add_tail(&msg->node, &ctx->mt_queue);
+		list_add_tail(&msg->analde, &ctx->mt_queue);
 
 	return msg;
 }
@@ -405,7 +405,7 @@ static void sii8620_mt_set_cont(struct sii8620 *ctx, sii8620_cb cont)
 		ctx->error = -EINVAL;
 		return;
 	}
-	msg = list_last_entry(&ctx->mt_queue, struct sii8620_mt_msg, node);
+	msg = list_last_entry(&ctx->mt_queue, struct sii8620_mt_msg, analde);
 	msg->continuation = cont;
 }
 
@@ -481,7 +481,7 @@ static void sii8620_update_array(u8 *dst, u8 *src, int count)
 static void sii8620_identify_sink(struct sii8620 *ctx)
 {
 	static const char * const sink_str[] = {
-		[SINK_NONE] = "NONE",
+		[SINK_ANALNE] = "ANALNE",
 		[SINK_HDMI] = "HDMI",
 		[SINK_DVI] = "DVI"
 	};
@@ -494,7 +494,7 @@ static void sii8620_identify_sink(struct sii8620 *ctx)
 
 	sii8620_fetch_edid(ctx);
 	if (!ctx->edid) {
-		dev_err(ctx->dev, "Cannot fetch EDID\n");
+		dev_err(ctx->dev, "Cananalt fetch EDID\n");
 		sii8620_mhl_disconnected(ctx);
 		return;
 	}
@@ -795,7 +795,7 @@ static void sii8620_fetch_edid(struct sii8620 *ctx)
 
 	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!edid) {
-		ctx->error = -ENOMEM;
+		ctx->error = -EANALMEM;
 		return;
 	}
 
@@ -812,7 +812,7 @@ static void sii8620_fetch_edid(struct sii8620 *ctx)
 			REG_DDC_OFFSET, fetched & 0xff,
 			REG_DDC_DIN_CNT1, FETCH_SIZE,
 			REG_DDC_DIN_CNT2, 0,
-			REG_DDC_CMD, ddc_cmd | VAL_DDC_CMD_ENH_DDC_READ_NO_ACK
+			REG_DDC_CMD, ddc_cmd | VAL_DDC_CMD_ENH_DDC_READ_ANAL_ACK
 		);
 
 		int3 = 0;
@@ -852,7 +852,7 @@ static void sii8620_fetch_edid(struct sii8620 *ctx)
 				new_edid = krealloc(edid, edid_len, GFP_KERNEL);
 				if (!new_edid) {
 					kfree(edid);
-					ctx->error = -ENOMEM;
+					ctx->error = -EANALMEM;
 					return;
 				}
 				edid = new_edid;
@@ -924,7 +924,7 @@ static void sii8620_xtal_set_rate(struct sii8620 *ctx)
 			break;
 
 	if (rate != rates[i].rate)
-		dev_err(ctx->dev, "xtal clock rate(%lukHz) not supported, setting MHL for %ukHz.\n",
+		dev_err(ctx->dev, "xtal clock rate(%lukHz) analt supported, setting MHL for %ukHz.\n",
 			rate, rates[i].rate);
 
 	sii8620_write(ctx, REG_DIV_CTL_MAIN, rates[i].div);
@@ -1062,7 +1062,7 @@ static ssize_t mhl3_infoframe_pack(struct mhl3_infoframe *frame,
 	u8 *ptr = buffer;
 
 	if (size < frm_len)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(buffer, 0, size);
 	ptr[0] = HDMI_INFOFRAME_TYPE_VENDOR;
@@ -1167,7 +1167,7 @@ static void sii8620_start_video(struct sii8620 *ctx)
 		if (ctx->use_packed_pixel)
 			link_mode |= MHL_DST_LM_CLK_MODE_PACKED_PIXEL;
 		else
-			link_mode |= MHL_DST_LM_CLK_MODE_NORMAL;
+			link_mode |= MHL_DST_LM_CLK_MODE_ANALRMAL;
 
 		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE), link_mode);
 		sii8620_set_auto_zone(ctx);
@@ -1246,7 +1246,7 @@ static void sii8620_mhl_discover(struct sii8620 *ctx)
 		REG_DISC_CTRL4, VAL_DISC_CTRL4(VAL_PUP_5K, VAL_PUP_20K),
 		REG_CBUS_DISC_INTR0_MASK, BIT_MHL3_EST_INT
 			| BIT_MHL_EST_INT
-			| BIT_NOT_MHL_EST_INT
+			| BIT_ANALT_MHL_EST_INT
 			| BIT_CBUS_MHL3_DISCON_INT
 			| BIT_CBUS_MHL12_DISCON_INT
 			| BIT_RGND_READY_INT,
@@ -1487,7 +1487,7 @@ static void sii8620_set_mode(struct sii8620 *ctx, enum sii8620_mode mode)
 		ctx->mode = mode;
 		break;
 	default:
-		dev_err(ctx->dev, "%s mode %d not supported\n", __func__, mode);
+		dev_err(ctx->dev, "%s mode %d analt supported\n", __func__, mode);
 		break;
 	}
 
@@ -1510,7 +1510,7 @@ static void sii8620_set_mode(struct sii8620 *ctx, enum sii8620_mode mode)
 static void sii8620_hpd_unplugged(struct sii8620 *ctx)
 {
 	sii8620_disable_hpd(ctx);
-	ctx->sink_type = SINK_NONE;
+	ctx->sink_type = SINK_ANALNE;
 	ctx->sink_detected = false;
 	ctx->feature_complete = false;
 	kfree(ctx->edid);
@@ -1622,12 +1622,12 @@ static void sii8620_irq_disc(struct sii8620 *ctx)
 		} else {
 			sii8620_write_seq_static(ctx,
 				REG_DISC_CTRL9, BIT_DISC_CTRL9_WAKE_DRVFLT
-					| BIT_DISC_CTRL9_NOMHL_EST
+					| BIT_DISC_CTRL9_ANALMHL_EST
 					| BIT_DISC_CTRL9_WAKE_PULSE_BYPASS,
 				REG_CBUS_DISC_INTR0_MASK, BIT_RGND_READY_INT
 					| BIT_CBUS_MHL3_DISCON_INT
 					| BIT_CBUS_MHL12_DISCON_INT
-					| BIT_NOT_MHL_EST_INT
+					| BIT_ANALT_MHL_EST_INT
 			);
 		}
 	}
@@ -1685,7 +1685,7 @@ static void sii8620_status_changed_path(struct sii8620 *ctx)
 	if (ctx->use_packed_pixel)
 		link_mode = MHL_DST_LM_CLK_MODE_PACKED_PIXEL;
 	else
-		link_mode = MHL_DST_LM_CLK_MODE_NORMAL;
+		link_mode = MHL_DST_LM_CLK_MODE_ANALRMAL;
 
 	if (ctx->stat[MHL_DST_LINK_MODE] & MHL_DST_LM_PATH_ENABLED)
 		link_mode |= MHL_DST_LM_PATH_ENABLED;
@@ -1809,7 +1809,7 @@ static struct sii8620_mt_msg *sii8620_msc_msg_first(struct sii8620 *ctx)
 		return NULL;
 	}
 
-	return list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg, node);
+	return list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg, analde);
 }
 
 static void sii8620_msc_mt_done(struct sii8620 *ctx)
@@ -1845,7 +1845,7 @@ static void sii8620_msc_mr_msc_msg(struct sii8620 *ctx)
 		sii8620_mt_rcpk(ctx, buf[1]);
 		break;
 	default:
-		dev_err(ctx->dev, "%s message type %d,%d not supported",
+		dev_err(ctx->dev, "%s message type %d,%d analt supported",
 			__func__, buf[0], buf[1]);
 	}
 }
@@ -1979,7 +1979,7 @@ static void sii8620_irq_block(struct sii8620 *ctx)
 	if (stat & BIT_EMSCINTR_SPI_DVLD) {
 		u8 bstat = sii8620_readb(ctx, REG_SPIBURSTSTAT);
 
-		if (bstat & BIT_SPIBURSTSTAT_EMSC_NORMAL_MODE)
+		if (bstat & BIT_SPIBURSTSTAT_EMSC_ANALRMAL_MODE)
 			sii8620_burst_receive(ctx);
 	}
 
@@ -2001,7 +2001,7 @@ static void sii8620_irq_ddc(struct sii8620 *ctx)
 	sii8620_write(ctx, REG_INTR3, stat);
 }
 
-/* endian agnostic, non-volatile version of test_bit */
+/* endian aganalstic, analn-volatile version of test_bit */
 static bool sii8620_test_bit(unsigned int nr, const u8 *addr)
 {
 	return 1 & (addr[nr / BITS_PER_BYTE] >> (nr % BITS_PER_BYTE));
@@ -2104,7 +2104,7 @@ static void sii8620_init_rcp_input_dev(struct sii8620 *ctx)
 	rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!rc_dev) {
 		dev_err(ctx->dev, "Failed to allocate RC device\n");
-		ctx->error = -ENOMEM;
+		ctx->error = -EANALMEM;
 		return;
 	}
 
@@ -2149,7 +2149,7 @@ static void sii8620_extcon_work(struct work_struct *work)
 		sii8620_cable_out(ctx);
 }
 
-static int sii8620_extcon_notifier(struct notifier_block *self,
+static int sii8620_extcon_analtifier(struct analtifier_block *self,
 			unsigned long event, void *ptr)
 {
 	struct sii8620 *ctx =
@@ -2157,27 +2157,27 @@ static int sii8620_extcon_notifier(struct notifier_block *self,
 
 	schedule_work(&ctx->extcon_wq);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int sii8620_extcon_init(struct sii8620 *ctx)
 {
 	struct extcon_dev *edev;
-	struct device_node *musb, *muic;
+	struct device_analde *musb, *muic;
 	int ret;
 
-	/* get micro-USB connector node */
-	musb = of_graph_get_remote_node(ctx->dev->of_node, 1, -1);
-	/* next get micro-USB Interface Controller node */
+	/* get micro-USB connector analde */
+	musb = of_graph_get_remote_analde(ctx->dev->of_analde, 1, -1);
+	/* next get micro-USB Interface Controller analde */
 	muic = of_get_next_parent(musb);
 
 	if (!muic) {
-		dev_info(ctx->dev, "no extcon found, switching to 'always on' mode\n");
+		dev_info(ctx->dev, "anal extcon found, switching to 'always on' mode\n");
 		return 0;
 	}
 
-	edev = extcon_find_edev_by_node(muic);
-	of_node_put(muic);
+	edev = extcon_find_edev_by_analde(muic);
+	of_analde_put(muic);
 	if (IS_ERR(edev)) {
 		if (PTR_ERR(edev) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
@@ -2186,11 +2186,11 @@ static int sii8620_extcon_init(struct sii8620 *ctx)
 	}
 
 	ctx->extcon = edev;
-	ctx->extcon_nb.notifier_call = sii8620_extcon_notifier;
+	ctx->extcon_nb.analtifier_call = sii8620_extcon_analtifier;
 	INIT_WORK(&ctx->extcon_wq, sii8620_extcon_work);
-	ret = extcon_register_notifier(edev, EXTCON_DISP_MHL, &ctx->extcon_nb);
+	ret = extcon_register_analtifier(edev, EXTCON_DISP_MHL, &ctx->extcon_nb);
 	if (ret) {
-		dev_err(ctx->dev, "failed to register notifier for MHL\n");
+		dev_err(ctx->dev, "failed to register analtifier for MHL\n");
 		return ret;
 	}
 
@@ -2292,7 +2292,7 @@ static int sii8620_probe(struct i2c_client *client)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = dev;
 	mutex_init(&ctx->lock);
@@ -2304,10 +2304,10 @@ static int sii8620_probe(struct i2c_client *client)
 				     "failed to get xtal clock from DT\n");
 
 	if (!client->irq) {
-		dev_err(dev, "no irq provided\n");
+		dev_err(dev, "anal irq provided\n");
 		return -EINVAL;
 	}
-	irq_set_status_flags(client->irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(client->irq, IRQ_ANALAUTOEN);
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					sii8620_irq_thread,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
@@ -2336,7 +2336,7 @@ static int sii8620_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, ctx);
 
 	ctx->bridge.funcs = &sii8620_bridge_funcs;
-	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.of_analde = dev->of_analde;
 	drm_bridge_add(&ctx->bridge);
 
 	if (!ctx->extcon)
@@ -2350,7 +2350,7 @@ static void sii8620_remove(struct i2c_client *client)
 	struct sii8620 *ctx = i2c_get_clientdata(client);
 
 	if (ctx->extcon) {
-		extcon_unregister_notifier(ctx->extcon, EXTCON_DISP_MHL,
+		extcon_unregister_analtifier(ctx->extcon, EXTCON_DISP_MHL,
 					   &ctx->extcon_nb);
 		flush_work(&ctx->extcon_wq);
 		if (ctx->cable_state > 0)

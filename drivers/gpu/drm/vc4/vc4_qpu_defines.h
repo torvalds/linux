@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -25,7 +25,7 @@
 #define VC4_QPU_DEFINES_H
 
 enum qpu_op_add {
-	QPU_A_NOP,
+	QPU_A_ANALP,
 	QPU_A_FADD,
 	QPU_A_FSUB,
 	QPU_A_FMIN,
@@ -45,14 +45,14 @@ enum qpu_op_add {
 	QPU_A_AND,
 	QPU_A_OR,
 	QPU_A_XOR,
-	QPU_A_NOT,
+	QPU_A_ANALT,
 	QPU_A_CLZ,
 	QPU_A_V8ADDS = 30,
 	QPU_A_V8SUBS = 31,
 };
 
 enum qpu_op_mul {
-	QPU_M_NOP,
+	QPU_M_ANALP,
 	QPU_M_FMUL,
 	QPU_M_MUL24,
 	QPU_M_V8MULD,
@@ -68,7 +68,7 @@ enum qpu_raddr {
 	QPU_R_UNIF = 32,
 	QPU_R_VARY = 35,
 	QPU_R_ELEM_QPU = 38,
-	QPU_R_NOP,
+	QPU_R_ANALP,
 	QPU_R_XY_PIXEL_COORD = 41,
 	QPU_R_MS_REV_FLAGS = 42,
 	QPU_R_VPM = 48,
@@ -83,10 +83,10 @@ enum qpu_waddr {
 	QPU_W_ACC1,
 	QPU_W_ACC2,
 	QPU_W_ACC3,
-	QPU_W_TMU_NOSWAP,
+	QPU_W_TMU_ANALSWAP,
 	QPU_W_ACC5,
 	QPU_W_HOST_INT,
-	QPU_W_NOP,
+	QPU_W_ANALP,
 	QPU_W_UNIFORMS_ADDRESS,
 	QPU_W_QUAD_XY, /* X for regfile a, Y for regfile b */
 	QPU_W_MS_FLAGS = 42,
@@ -116,7 +116,7 @@ enum qpu_waddr {
 
 enum qpu_sig_bits {
 	QPU_SIG_SW_BREAKPOINT,
-	QPU_SIG_NONE,
+	QPU_SIG_ANALNE,
 	QPU_SIG_THREAD_SWITCH,
 	QPU_SIG_PROG_END,
 	QPU_SIG_WAIT_FOR_SCOREBOARD,
@@ -144,7 +144,7 @@ enum qpu_mux {
 	QPU_MUX_A,
 	QPU_MUX_B,
 
-	/* non-hardware mux values */
+	/* analn-hardware mux values */
 	QPU_MUX_IMM,
 };
 
@@ -160,7 +160,7 @@ enum qpu_cond {
 };
 
 enum qpu_pack_mul {
-	QPU_PACK_MUL_NOP,
+	QPU_PACK_MUL_ANALP,
 	/* replicated to each 8 bits of the 32-bit dst. */
 	QPU_PACK_MUL_8888 = 3,
 	QPU_PACK_MUL_8A,
@@ -170,7 +170,7 @@ enum qpu_pack_mul {
 };
 
 enum qpu_pack_a {
-	QPU_PACK_A_NOP,
+	QPU_PACK_A_ANALP,
 	/* convert to 16 bit float if float input, or to int16. */
 	QPU_PACK_A_16A,
 	QPU_PACK_A_16B,
@@ -194,7 +194,7 @@ enum qpu_pack_a {
 };
 
 enum qpu_unpack_r4 {
-	QPU_UNPACK_R4_NOP,
+	QPU_UNPACK_R4_ANALP,
 	QPU_UNPACK_R4_F16A_TO_F32,
 	QPU_UNPACK_R4_F16B_TO_F32,
 	QPU_UNPACK_R4_8D_REP,
@@ -217,7 +217,7 @@ enum qpu_unpack_r4 {
 #define QPU_UNPACK_MASK                 QPU_MASK(59, 57)
 
 /**
- * If set, the pack field means PACK_MUL or R4 packing, instead of normal
+ * If set, the pack field means PACK_MUL or R4 packing, instead of analrmal
  * regfile a packing.
  */
 #define QPU_PM                          ((uint64_t)1 << 56)

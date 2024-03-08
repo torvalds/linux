@@ -4,7 +4,7 @@
  *
  * OMAP1 pin multiplexing configurations
  *
- * Copyright (C) 2003 - 2008 Nokia Corporation
+ * Copyright (C) 2003 - 2008 Analkia Corporation
  *
  * Written by Tony Lindgren
  */
@@ -119,7 +119,7 @@ MUX_CFG("MCBSP2_DX",		 C,   15,    0,	  2,  31,   1,	 NA,	 0,  1)
 MUX_CFG("MCBSP2_FSR",		 C,   12,    0,	  2,  30,   1,	 NA,	 0,  1)
 MUX_CFG("MCBSP2_FSX",		 C,    3,    0,	  2,  27,   1,	 NA,	 0,  1)
 
-/* MCBSP3 NOTE: Mode must 1 for clock */
+/* MCBSP3 ANALTE: Mode must 1 for clock */
 MUX_CFG("MCBSP3_CLKX",		 9,    3,    1,	  1,  29,   0,	 NA,	 0,  1)
 
 /* Misc ballouts */
@@ -421,21 +421,21 @@ int omap_cfg_reg(const unsigned long index)
 	}
 
 	if (mux_cfg == NULL) {
-		printk(KERN_ERR "Pin mux table not initialized\n");
-		return -ENODEV;
+		printk(KERN_ERR "Pin mux table analt initialized\n");
+		return -EANALDEV;
 	}
 
 	if (index >= mux_cfg->size) {
 		printk(KERN_ERR "Invalid pin mux index: %lu (%lu)\n",
 		       index, mux_cfg->size);
 		dump_stack();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	reg = &mux_cfg->pins[index];
 
 	if (!mux_cfg->cfg_reg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return mux_cfg->cfg_reg(reg);
 }

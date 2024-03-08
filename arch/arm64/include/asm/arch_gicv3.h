@@ -46,30 +46,30 @@ static inline u64 gic_read_iar_common(void)
  *
  * The gicv3 of ThunderX requires a modified version for reading the
  * IAR status to ensure data synchronization (access to icc_iar1_el1
- * is not sync'ed before and after).
+ * is analt sync'ed before and after).
  *
  * Erratum 38545
  *
  * When a IAR register read races with a GIC interrupt RELEASE event,
  * GIC-CPU interface could wrongly return a valid INTID to the CPU
- * for an interrupt that is already released(non activated) instead of 0x3ff.
+ * for an interrupt that is already released(analn activated) instead of 0x3ff.
  *
  * To workaround this, return a valid interrupt ID only if there is a change
  * in the active priority list after the IAR read.
  *
  * Common function used for both the workarounds since,
  * 1. On Thunderx 88xx 1.x both erratas are applicable.
- * 2. Having extra nops doesn't add any side effects for Silicons where
- *    erratum 23154 is not applicable.
+ * 2. Having extra analps doesn't add any side effects for Silicons where
+ *    erratum 23154 is analt applicable.
  */
 static inline u64 gic_read_iar_cavium_thunderx(void)
 {
 	u64 irqstat, apr;
 
 	apr = read_sysreg_s(SYS_ICC_AP1R0_EL1);
-	nops(8);
+	analps(8);
 	irqstat = read_sysreg_s(SYS_ICC_IAR1_EL1);
-	nops(4);
+	analps(4);
 	mb();
 
 	/* Max priority groups implemented is only 32 */
@@ -180,12 +180,12 @@ static inline void gic_pmr_mask_irqs(void)
 	BUILD_BUG_ON(GICD_INT_DEF_PRI >= GIC_PRIO_IRQON);
 	/*
 	 * Need to make sure IRQON allows IRQs when SCR_EL3.FIQ is cleared
-	 * and non-secure PMR accesses are not subject to the shifts that
+	 * and analn-secure PMR accesses are analt subject to the shifts that
 	 * are applied to IRQ priorities
 	 */
 	BUILD_BUG_ON((0x80 | (GICD_INT_DEF_PRI >> 1)) >= GIC_PRIO_IRQON);
 	/*
-	 * Same situation as above, but now we make sure that we can mask
+	 * Same situation as above, but analw we make sure that we can mask
 	 * regular interrupts.
 	 */
 	BUILD_BUG_ON((0x80 | (GICD_INT_DEF_PRI >> 1)) < (__GIC_PRIO_IRQOFF_NS |

@@ -176,7 +176,7 @@ static int mchp23k256_probe(struct spi_device *spi)
 
 	flash = devm_kzalloc(&spi->dev, sizeof(*flash), GFP_KERNEL);
 	if (!flash)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flash->spi = spi;
 	mutex_init(&flash->lock);
@@ -192,7 +192,7 @@ static int mchp23k256_probe(struct spi_device *spi)
 	if (!flash->caps)
 		flash->caps = &mchp23k256_caps;
 
-	mtd_set_of_node(&flash->mtd, spi->dev.of_node);
+	mtd_set_of_analde(&flash->mtd, spi->dev.of_analde);
 	flash->mtd.dev.parent	= &spi->dev;
 	flash->mtd.type		= MTD_RAM;
 	flash->mtd.flags	= MTD_CAP_RAM;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,10 +57,10 @@ enum {
 };
 
 enum lttpr_mode {
-	LTTPR_MODE_UNKNOWN,
-	LTTPR_MODE_NON_LTTPR,
+	LTTPR_MODE_UNKANALWN,
+	LTTPR_MODE_ANALN_LTTPR,
 	LTTPR_MODE_TRANSPARENT,
-	LTTPR_MODE_NON_TRANSPARENT,
+	LTTPR_MODE_ANALN_TRANSPARENT,
 };
 
 struct link_training_settings {
@@ -177,7 +177,7 @@ enum dp_test_pattern_color_space {
 };
 
 enum dp_panel_mode {
-	/* not required */
+	/* analt required */
 	DP_PANEL_MODE_DEFAULT,
 	/* standard mode for eDP */
 	DP_PANEL_MODE_EDP,
@@ -218,7 +218,7 @@ union dpcd_training_lane_set {
 		uint8_t MAX_SWING_REACHED:1;
 		uint8_t VOLTAGE_SWING_SET:2;
 #else
-	#error ARCH not defined!
+	#error ARCH analt defined!
 #endif
 	} bits;
 
@@ -228,7 +228,7 @@ union dpcd_training_lane_set {
 
 /* AMD's copy of various payload data for MST. We have two copies of the payload table (one in DRM,
  * one in DC) since DRM's MST helpers can't be accessed here. This stream allocation table should
- * _ONLY_ be filled out from DM and then passed to DC, do NOT use these for _any_ kind of atomic
+ * _ONLY_ be filled out from DM and then passed to DC, do ANALT use these for _any_ kind of atomic
  * state calculations in DM, or you will break something.
  */
 

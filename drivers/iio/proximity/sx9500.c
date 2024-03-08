@@ -158,15 +158,15 @@ static const struct regmap_range sx9500_writable_reg_ranges[] = {
 };
 
 static const struct regmap_access_table sx9500_writeable_regs = {
-	.yes_ranges = sx9500_writable_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sx9500_writable_reg_ranges),
+	.anal_ranges = sx9500_writable_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sx9500_writable_reg_ranges),
 };
 
 /*
  * All allocated registers are readable, so we just list unallocated
  * ones.
  */
-static const struct regmap_range sx9500_non_readable_reg_ranges[] = {
+static const struct regmap_range sx9500_analn_readable_reg_ranges[] = {
 	regmap_reg_range(SX9500_REG_STAT + 1, SX9500_REG_STAT + 1),
 	regmap_reg_range(SX9500_REG_IRQ_MSK + 1, SX9500_REG_PROX_CTRL0 - 1),
 	regmap_reg_range(SX9500_REG_PROX_CTRL8 + 1, SX9500_REG_SENSOR_SEL - 1),
@@ -174,8 +174,8 @@ static const struct regmap_range sx9500_non_readable_reg_ranges[] = {
 };
 
 static const struct regmap_access_table sx9500_readable_regs = {
-	.no_ranges = sx9500_non_readable_reg_ranges,
-	.n_no_ranges = ARRAY_SIZE(sx9500_non_readable_reg_ranges),
+	.anal_ranges = sx9500_analn_readable_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sx9500_analn_readable_reg_ranges),
 };
 
 static const struct regmap_range sx9500_volatile_reg_ranges[] = {
@@ -185,8 +185,8 @@ static const struct regmap_range sx9500_volatile_reg_ranges[] = {
 };
 
 static const struct regmap_access_table sx9500_volatile_regs = {
-	.yes_ranges = sx9500_volatile_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sx9500_volatile_reg_ranges),
+	.anal_ranges = sx9500_volatile_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sx9500_volatile_reg_ranges),
 };
 
 static const struct regmap_config sx9500_regmap_config = {
@@ -206,7 +206,7 @@ static int sx9500_inc_users(struct sx9500_data *data, int *counter,
 {
 	(*counter)++;
 	if (*counter != 1)
-		/* Bit is already active, nothing to do. */
+		/* Bit is already active, analthing to do. */
 		return 0;
 
 	return regmap_update_bits(data->regmap, reg, bitmask, bitmask);
@@ -217,7 +217,7 @@ static int sx9500_dec_users(struct sx9500_data *data, int *counter,
 {
 	(*counter)--;
 	if (*counter != 0)
-		/* There are more users, do not deactivate. */
+		/* There are more users, do analt deactivate. */
 		return 0;
 
 	return regmap_update_bits(data->regmap, reg, bitmask, 0);
@@ -282,7 +282,7 @@ static int sx9500_read_prox_data(struct sx9500_data *data,
 }
 
 /*
- * If we have no interrupt support, we have to wait for a scan period
+ * If we have anal interrupt support, we have to wait for a scan period
  * after enabling a channel to get a result.
  */
 static int sx9500_wait_for_sample(struct sx9500_data *data)
@@ -455,9 +455,9 @@ static irqreturn_t sx9500_irq_handler(int irq, void *private)
 		iio_trigger_poll(data->trig);
 
 	/*
-	 * Even if no event is enabled, we need to wake the thread to
+	 * Even if anal event is enabled, we need to wake the thread to
 	 * clear the interrupt state by reading SX9500_REG_IRQ_SRC.  It
-	 * is not possible to do that here because regmap_read takes a
+	 * is analt possible to do that here because regmap_read takes a
 	 * mutex.
 	 */
 	return IRQ_WAKE_THREAD;
@@ -484,7 +484,7 @@ static void sx9500_push_events(struct iio_dev *indio_dev)
 		if (!data->event_enabled[chan])
 			continue;
 		if (new_prox == data->prox_stat[chan])
-			/* No change on this channel. */
+			/* Anal change on this channel. */
 			continue;
 
 		dir = new_prox ? IIO_EV_DIR_FALLING : IIO_EV_DIR_RISING;
@@ -591,7 +591,7 @@ static int sx9500_update_scan_mode(struct iio_dev *indio_dev,
 	mutex_unlock(&data->mutex);
 
 	if (data->buffer == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -670,7 +670,7 @@ static irqreturn_t sx9500_trigger_handler(int irq, void *private)
 out:
 	mutex_unlock(&data->mutex);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -746,7 +746,7 @@ static const struct sx9500_reg_default sx9500_default_regs[] = {
 	},
 	{
 		.reg = SX9500_REG_PROX_CTRL3,
-		/* Doze enabled, 2x scan period doze, no raw filter. */
+		/* Doze enabled, 2x scan period doze, anal raw filter. */
 		.def = 0x40,
 	},
 	{
@@ -770,7 +770,7 @@ static const struct sx9500_reg_default sx9500_default_regs[] = {
 	{
 		.reg = SX9500_REG_PROX_CTRL7,
 		/*
-		 * No automatic compensation, compensate each pin
+		 * Anal automatic compensation, compensate each pin
 		 * independently, proximity hysteresis: 32, close
 		 * debouncer off, far debouncer off.
 		 */
@@ -778,7 +778,7 @@ static const struct sx9500_reg_default sx9500_default_regs[] = {
 	},
 	{
 		.reg = SX9500_REG_PROX_CTRL8,
-		/* No stuck timeout, no periodic compensation. */
+		/* Anal stuck timeout, anal periodic compensation. */
 		.def = 0x00,
 	},
 	{
@@ -864,9 +864,9 @@ static const struct acpi_gpio_mapping acpi_sx9500_gpios[] = {
 	{ "reset-gpios", &reset_gpios, 1 },
 	/*
 	 * Some platforms have a bug in ACPI GPIO description making IRQ
-	 * GPIO to be output only. Ask the GPIO core to ignore this limit.
+	 * GPIO to be output only. Ask the GPIO core to iganalre this limit.
 	 */
-	{ "interrupt-gpios", &interrupt_gpios, 1, ACPI_GPIO_QUIRK_NO_IO_RESTRICTION },
+	{ "interrupt-gpios", &interrupt_gpios, 1, ACPI_GPIO_QUIRK_ANAL_IO_RESTRICTION },
 	{ },
 };
 
@@ -909,7 +909,7 @@ static int sx9500_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;
@@ -935,7 +935,7 @@ static int sx9500_probe(struct i2c_client *client)
 		return ret;
 
 	if (client->irq <= 0)
-		dev_warn(&client->dev, "no valid irq found\n");
+		dev_warn(&client->dev, "anal valid irq found\n");
 	else {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 				sx9500_irq_handler, sx9500_irq_thread_handler,
@@ -947,7 +947,7 @@ static int sx9500_probe(struct i2c_client *client)
 		data->trig = devm_iio_trigger_alloc(&client->dev,
 				"%s-dev%d", indio_dev->name, iio_device_id(indio_dev));
 		if (!data->trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data->trig->ops = &sx9500_trigger_ops;
 		iio_trigger_set_drvdata(data->trig, indio_dev);

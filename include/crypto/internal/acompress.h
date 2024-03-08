@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Asynchronous Compression operations
+ * Asynchroanalus Compression operations
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Weigang Li <weigang.li@intel.com>
@@ -13,7 +13,7 @@
 #include <crypto/algapi.h>
 
 /**
- * struct acomp_alg - asynchronous compression algorithm
+ * struct acomp_alg - asynchroanalus compression algorithm
  *
  * @compress:	Function performs a compress operation
  * @decompress:	Function performs a de-compress operation
@@ -85,9 +85,9 @@ static inline void __acomp_request_free(struct acomp_req *req)
 }
 
 /**
- * crypto_register_acomp() -- Register asynchronous compression algorithm
+ * crypto_register_acomp() -- Register asynchroanalus compression algorithm
  *
- * Function registers an implementation of an asynchronous
+ * Function registers an implementation of an asynchroanalus
  * compression algorithm
  *
  * @alg:	algorithm definition
@@ -97,9 +97,9 @@ static inline void __acomp_request_free(struct acomp_req *req)
 int crypto_register_acomp(struct acomp_alg *alg);
 
 /**
- * crypto_unregister_acomp() -- Unregister asynchronous compression algorithm
+ * crypto_unregister_acomp() -- Unregister asynchroanalus compression algorithm
  *
- * Function unregisters an implementation of an asynchronous
+ * Function unregisters an implementation of an asynchroanalus
  * compression algorithm
  *
  * @alg:	algorithm definition

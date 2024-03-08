@@ -5,7 +5,7 @@
 #include <linux/init.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -20,13 +20,13 @@
  * PCI bus specific translator
  */
 
-static int of_bus_pci_match(struct device_node *np)
+static int of_bus_pci_match(struct device_analde *np)
 {
-	if (of_node_is_type(np, "pci") || of_node_is_type(np, "pciex")) {
-		/* Do not do PCI specific frobbing if the
+	if (of_analde_is_type(np, "pci") || of_analde_is_type(np, "pciex")) {
+		/* Do analt do PCI specific frobbing if the
 		 * PCI bridge lacks a ranges property.  We
 		 * want to pass it through up to the next
-		 * parent as-is, not with the PCI translate
+		 * parent as-is, analt with the PCI translate
 		 * method which chops off the top address cell.
 		 */
 		if (!of_property_present(np, "ranges"))
@@ -38,7 +38,7 @@ static int of_bus_pci_match(struct device_node *np)
 	return 0;
 }
 
-static void of_bus_pci_count_cells(struct device_node *np,
+static void of_bus_pci_count_cells(struct device_analde *np,
 				   int *addrc, int *sizec)
 {
 	if (addrc)
@@ -105,12 +105,12 @@ static unsigned long of_bus_sbus_get_flags(const u32 *addr, unsigned long flags)
  * AMBAPP bus specific translator
  */
 
-static int of_bus_ambapp_match(struct device_node *np)
+static int of_bus_ambapp_match(struct device_analde *np)
 {
-	return of_node_is_type(np, "ambapp");
+	return of_analde_is_type(np, "ambapp");
 }
 
-static void of_bus_ambapp_count_cells(struct device_node *child,
+static void of_bus_ambapp_count_cells(struct device_analde *child,
 				      int *addrc, int *sizec)
 {
 	if (addrc)
@@ -174,7 +174,7 @@ static struct of_bus of_busses[] = {
 	},
 };
 
-static struct of_bus *of_match_bus(struct device_node *np)
+static struct of_bus *of_match_bus(struct device_analde *np)
 {
 	int i;
 
@@ -185,7 +185,7 @@ static struct of_bus *of_match_bus(struct device_node *np)
 	return NULL;
 }
 
-static int __init build_one_resource(struct device_node *parent,
+static int __init build_one_resource(struct device_analde *parent,
 				     struct of_bus *bus,
 				     struct of_bus *pbus,
 				     u32 *addr,
@@ -209,7 +209,7 @@ static int __init build_one_resource(struct device_node *parent,
 		return 0;
 	}
 
-	/* Now walk through the ranges */
+	/* Analw walk through the ranges */
 	rlen /= 4;
 	rone = na + pna + ns;
 	for (; rlen >= rone; rlen -= rone, ranges += rone) {
@@ -220,22 +220,22 @@ static int __init build_one_resource(struct device_node *parent,
 	return 1;
 }
 
-static int __init use_1to1_mapping(struct device_node *pp)
+static int __init use_1to1_mapping(struct device_analde *pp)
 {
 	/* If we have a ranges property in the parent, use it.  */
 	if (of_property_present(pp, "ranges"))
 		return 0;
 
-	/* Some SBUS devices use intermediate nodes to express
+	/* Some SBUS devices use intermediate analdes to express
 	 * hierarchy within the device itself.  These aren't
-	 * real bus nodes, and don't have a 'ranges' property.
+	 * real bus analdes, and don't have a 'ranges' property.
 	 * But, we should still pass the translation work up
 	 * to the SBUS itself.
 	 */
-	if (of_node_name_eq(pp, "dma") ||
-	    of_node_name_eq(pp, "espdma") ||
-	    of_node_name_eq(pp, "ledma") ||
-	    of_node_name_eq(pp, "lebuffer"))
+	if (of_analde_name_eq(pp, "dma") ||
+	    of_analde_name_eq(pp, "espdma") ||
+	    of_analde_name_eq(pp, "ledma") ||
+	    of_analde_name_eq(pp, "lebuffer"))
 		return 0;
 
 	return 1;
@@ -256,10 +256,10 @@ static void __init build_device_resources(struct platform_device *op,
 		return;
 
 	p_op = to_platform_device(parent);
-	bus = of_match_bus(p_op->dev.of_node);
-	bus->count_cells(op->dev.of_node, &na, &ns);
+	bus = of_match_bus(p_op->dev.of_analde);
+	bus->count_cells(op->dev.of_analde, &na, &ns);
 
-	preg = of_get_property(op->dev.of_node, bus->addr_prop_name, &num_reg);
+	preg = of_get_property(op->dev.of_analde, bus->addr_prop_name, &num_reg);
 	if (!preg || num_reg == 0)
 		return;
 
@@ -275,8 +275,8 @@ static void __init build_device_resources(struct platform_device *op,
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
 		const u32 *reg = (preg + (index * ((na + ns) * 4)));
-		struct device_node *dp = op->dev.of_node;
-		struct device_node *pp = p_op->dev.of_node;
+		struct device_analde *dp = op->dev.of_analde;
+		struct device_analde *pp = p_op->dev.of_analde;
 		struct of_bus *pbus, *dbus;
 		u64 size, result = OF_BAD_ADDR;
 		unsigned long flags;
@@ -325,7 +325,7 @@ static void __init build_device_resources(struct platform_device *op,
 
 		if (of_resource_verbose)
 			printk("%pOF reg[%d] -> %llx\n",
-			       op->dev.of_node, index,
+			       op->dev.of_analde, index,
 			       result);
 
 		if (result != OF_BAD_ADDR) {
@@ -333,11 +333,11 @@ static void __init build_device_resources(struct platform_device *op,
 			r->end = result + size - 1;
 			r->flags = flags | ((result >> 32ULL) & 0xffUL);
 		}
-		r->name = op->dev.of_node->full_name;
+		r->name = op->dev.of_analde->full_name;
 	}
 }
 
-static struct platform_device * __init scan_one_device(struct device_node *dp,
+static struct platform_device * __init scan_one_device(struct device_analde *dp,
 						 struct device *parent)
 {
 	struct platform_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
@@ -351,7 +351,7 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	sd = &op->dev.archdata;
 	sd->op = op;
 
-	op->dev.of_node = dp;
+	op->dev.of_analde = dp;
 
 	intr = of_get_property(dp, "intr", &len);
 	if (intr) {
@@ -386,7 +386,7 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	op->dev.dma_mask = &op->dev.coherent_dma_mask;
 
 	if (of_device_register(op)) {
-		printk("%pOF: Could not register of device.\n", dp);
+		printk("%pOF: Could analt register of device.\n", dp);
 		kfree(op);
 		op = NULL;
 	}
@@ -394,7 +394,7 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	return op;
 }
 
-static void __init scan_tree(struct device_node *dp, struct device *parent)
+static void __init scan_tree(struct device_analde *dp, struct device *parent)
 {
 	while (dp) {
 		struct platform_device *op = scan_one_device(dp, parent);
@@ -408,7 +408,7 @@ static void __init scan_tree(struct device_node *dp, struct device *parent)
 
 static int __init scan_of_devices(void)
 {
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_analde *root = of_find_analde_by_path("/");
 	struct platform_device *parent;
 
 	parent = scan_one_device(root, NULL);

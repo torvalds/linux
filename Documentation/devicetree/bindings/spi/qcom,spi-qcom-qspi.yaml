@@ -11,7 +11,7 @@ maintainers:
 
 description: The QSPI controller allows SPI protocol communication in single,
   dual, or quad wire transmission modes for read/write access to slaves such
-  as NOR flash.
+  as ANALR flash.
 
 allOf:
   - $ref: /schemas/spi/spi-controller.yaml#
@@ -85,11 +85,11 @@ examples:
             #size-cells = <0>;
             interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
             clock-names = "iface", "core";
-            clocks = <&gcc GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+            clocks = <&gcc GCC_QSPI_CANALC_PERIPH_AHB_CLK>,
                          <&gcc GCC_QSPI_CORE_CLK>;
 
             flash@0 {
-                compatible = "jedec,spi-nor";
+                compatible = "jedec,spi-analr";
                 reg = <0>;
                 spi-max-frequency = <25000000>;
                 spi-tx-bus-width = <2>;

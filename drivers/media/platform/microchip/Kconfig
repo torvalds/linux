@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-comment "Microchip Technology, Inc. media platform drivers"
+comment "Microchip Techanallogy, Inc. media platform drivers"
 
 config VIDEO_MICROCHIP_ISC
 	tristate "Microchip Image Sensor Controller (ISC) support"
@@ -11,7 +11,7 @@ config VIDEO_MICROCHIP_ISC
 	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
 	select REGMAP_MMIO
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_MICROCHIP_ISC_BASE
 	help
 	   This module makes the Microchip Image Sensor Controller available
@@ -27,7 +27,7 @@ config VIDEO_MICROCHIP_XISC
 	depends on ARCH_AT91 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select REGMAP_MMIO
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_MICROCHIP_ISC_BASE
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
@@ -51,7 +51,7 @@ config VIDEO_MICROCHIP_CSI2DC
 	depends on ARCH_AT91 || COMPILE_TEST
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  CSI2 Demux Controller driver. CSI2DC is a helper chip
 	  that converts IDI interface byte stream to a parallel pixel stream.

@@ -16,10 +16,10 @@ static int test_body(void)
 	addr = (void *)0xa0000000;
 
 	p = mmap(addr, SIZE, PROT_READ | PROT_WRITE,
-		 MAP_HUGETLB | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		 MAP_HUGETLB | MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	if (p != MAP_FAILED) {
 		/*
-		 * Typically the mmap will fail because no huge pages are
+		 * Typically the mmap will fail because anal huge pages are
 		 * allocated on the system. But if there are huge pages
 		 * allocated the mmap will succeed. That's fine too, we just
 		 * munmap here before continuing.  munmap() length of
@@ -32,7 +32,7 @@ static int test_body(void)
 	}
 
 	p = mmap(addr, SIZE, PROT_READ | PROT_WRITE,
-		 MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		 MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	if (p == MAP_FAILED) {
 		printf("Mapping failed @ %p\n", addr);
 		perror("mmap");

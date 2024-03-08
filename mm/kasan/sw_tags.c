@@ -3,7 +3,7 @@
  * This file contains core software tag-based KASAN code.
  *
  * Copyright (c) 2018 Google, Inc.
- * Author: Andrey Konovalov <andreyknvl@google.com>
+ * Author: Andrey Koanalvalov <andreyknvl@google.com>
  */
 
 #define pr_fmt(fmt) "kasan: " fmt
@@ -56,7 +56,7 @@ void __init kasan_init_sw_tags(void)
  *
  * Ideally the tags use strong randomness to prevent any attempts to predict
  * them during explicit exploit attempts. But strong randomness is expensive,
- * and we did an intentional trade-off to use a PRNG. This non-atomic RMW
+ * and we did an intentional trade-off to use a PRNG. This analn-atomic RMW
  * sequence has in fact positive effect, since interrupts that randomly skew
  * PRNG at unpredictable points do only good.
  */
@@ -86,7 +86,7 @@ bool kasan_check_range(const void *addr, size_t size, bool write,
 	tag = get_tag((const void *)addr);
 
 	/*
-	 * Ignore accesses for pointers tagged with 0xff (native kernel
+	 * Iganalre accesses for pointers tagged with 0xff (native kernel
 	 * pointer tag) to suppress false positives caused by kmap.
 	 *
 	 * Some kernel code was written to account for archs that don't keep
@@ -133,16 +133,16 @@ bool kasan_byte_accessible(const void *addr)
 }
 
 #define DEFINE_HWASAN_LOAD_STORE(size)					\
-	void __hwasan_load##size##_noabort(void *addr)			\
+	void __hwasan_load##size##_analabort(void *addr)			\
 	{								\
 		kasan_check_range(addr, size, false, _RET_IP_);		\
 	}								\
-	EXPORT_SYMBOL(__hwasan_load##size##_noabort);			\
-	void __hwasan_store##size##_noabort(void *addr)			\
+	EXPORT_SYMBOL(__hwasan_load##size##_analabort);			\
+	void __hwasan_store##size##_analabort(void *addr)			\
 	{								\
 		kasan_check_range(addr, size, true, _RET_IP_);		\
 	}								\
-	EXPORT_SYMBOL(__hwasan_store##size##_noabort)
+	EXPORT_SYMBOL(__hwasan_store##size##_analabort)
 
 DEFINE_HWASAN_LOAD_STORE(1);
 DEFINE_HWASAN_LOAD_STORE(2);
@@ -150,17 +150,17 @@ DEFINE_HWASAN_LOAD_STORE(4);
 DEFINE_HWASAN_LOAD_STORE(8);
 DEFINE_HWASAN_LOAD_STORE(16);
 
-void __hwasan_loadN_noabort(void *addr, ssize_t size)
+void __hwasan_loadN_analabort(void *addr, ssize_t size)
 {
 	kasan_check_range(addr, size, false, _RET_IP_);
 }
-EXPORT_SYMBOL(__hwasan_loadN_noabort);
+EXPORT_SYMBOL(__hwasan_loadN_analabort);
 
-void __hwasan_storeN_noabort(void *addr, ssize_t size)
+void __hwasan_storeN_analabort(void *addr, ssize_t size)
 {
 	kasan_check_range(addr, size, true, _RET_IP_);
 }
-EXPORT_SYMBOL(__hwasan_storeN_noabort);
+EXPORT_SYMBOL(__hwasan_storeN_analabort);
 
 void __hwasan_tag_memory(void *addr, u8 tag, ssize_t size)
 {

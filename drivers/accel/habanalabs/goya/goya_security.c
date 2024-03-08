@@ -113,7 +113,7 @@ static void goya_init_mme_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmMME_QM_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmMME_QM_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmMME_QM_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmMME_QM_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmMME_QM_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmMME_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmMME_QM_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmMME_QM_PQ_BASE_LO & 0x7F) >> 2);
@@ -203,7 +203,7 @@ static void goya_init_mme_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmMME_CMDQ_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmMME_CMDQ_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmMME_CMDQ_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmMME_CMDQ_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmMME_CMDQ_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmMME_CMDQ_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmMME_CMDQ_GLBL_STS1 & 0x7F) >> 2);
 
@@ -288,7 +288,7 @@ static void goya_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmDMA_QM_0_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_0_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_0_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmDMA_QM_0_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmDMA_QM_0_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_0_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_0_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_0_PQ_BASE_LO & 0x7F) >> 2);
@@ -366,7 +366,7 @@ static void goya_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmDMA_QM_1_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_1_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_1_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmDMA_QM_1_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmDMA_QM_1_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_1_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_1_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_1_PQ_BASE_LO & 0x7F) >> 2);
@@ -444,7 +444,7 @@ static void goya_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmDMA_QM_2_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_2_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_2_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmDMA_QM_2_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmDMA_QM_2_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_2_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_2_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_2_PQ_BASE_LO & 0x7F) >> 2);
@@ -522,7 +522,7 @@ static void goya_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmDMA_QM_3_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_3_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_3_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmDMA_QM_3_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmDMA_QM_3_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_3_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_3_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_3_PQ_BASE_LO & 0x7F) >> 2);
@@ -600,7 +600,7 @@ static void goya_init_dma_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmDMA_QM_4_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_4_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_4_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmDMA_QM_4_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmDMA_QM_4_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_4_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_4_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmDMA_QM_4_PQ_BASE_LO & 0x7F) >> 2);
@@ -736,7 +736,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC0_QM_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_QM_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_QM_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC0_QM_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC0_QM_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_QM_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_QM_PQ_BASE_LO & 0x7F) >> 2);
@@ -812,7 +812,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC0_CMDQ_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CMDQ_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CMDQ_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC0_CMDQ_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC0_CMDQ_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CMDQ_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC0_CMDQ_GLBL_STS1 & 0x7F) >> 2);
 
@@ -932,7 +932,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC1_QM_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_QM_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_QM_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC1_QM_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC1_QM_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_QM_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_QM_PQ_BASE_LO & 0x7F) >> 2);
@@ -1008,7 +1008,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC1_CMDQ_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_CMDQ_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_CMDQ_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC1_CMDQ_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC1_CMDQ_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_CMDQ_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC1_CMDQ_GLBL_STS1 & 0x7F) >> 2);
 
@@ -1128,7 +1128,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC2_QM_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_QM_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_QM_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC2_QM_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC2_QM_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_QM_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_QM_PQ_BASE_LO & 0x7F) >> 2);
@@ -1204,7 +1204,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC2_CMDQ_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_CMDQ_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_CMDQ_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC2_CMDQ_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC2_CMDQ_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_CMDQ_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC2_CMDQ_GLBL_STS1 & 0x7F) >> 2);
 
@@ -1324,7 +1324,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC3_QM_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_QM_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_QM_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC3_QM_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC3_QM_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_QM_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_QM_PQ_BASE_LO & 0x7F) >> 2);
@@ -1400,7 +1400,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC3_CMDQ_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_CMDQ_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_CMDQ_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC3_CMDQ_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC3_CMDQ_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_CMDQ_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC3_CMDQ_GLBL_STS1 & 0x7F) >> 2);
 
@@ -1520,7 +1520,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC4_QM_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_QM_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_QM_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC4_QM_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC4_QM_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_QM_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_QM_PQ_BASE_LO & 0x7F) >> 2);
@@ -1596,7 +1596,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC4_CMDQ_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_CMDQ_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_CMDQ_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC4_CMDQ_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC4_CMDQ_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_CMDQ_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC4_CMDQ_GLBL_STS1 & 0x7F) >> 2);
 
@@ -1716,7 +1716,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC5_QM_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_QM_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_QM_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC5_QM_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC5_QM_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_QM_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_QM_PQ_BASE_LO & 0x7F) >> 2);
@@ -1792,7 +1792,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC5_CMDQ_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_CMDQ_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_CMDQ_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC5_CMDQ_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC5_CMDQ_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_CMDQ_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC5_CMDQ_GLBL_STS1 & 0x7F) >> 2);
 
@@ -1912,7 +1912,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC6_QM_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_QM_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_QM_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC6_QM_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC6_QM_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_QM_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_QM_PQ_BASE_LO & 0x7F) >> 2);
@@ -1988,7 +1988,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC6_CMDQ_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_CMDQ_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_CMDQ_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC6_CMDQ_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC6_CMDQ_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_CMDQ_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC6_CMDQ_GLBL_STS1 & 0x7F) >> 2);
 
@@ -2108,7 +2108,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC7_QM_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_QM_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_QM_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC7_QM_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC7_QM_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_QM_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_QM_GLBL_STS1 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_QM_PQ_BASE_LO & 0x7F) >> 2);
@@ -2184,7 +2184,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
 	mask |= 1 << ((mmTPC7_CMDQ_GLBL_ERR_ADDR_HI & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_CMDQ_GLBL_ERR_WDATA & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_CMDQ_GLBL_SECURE_PROPS & 0x7F) >> 2);
-	mask |= 1 << ((mmTPC7_CMDQ_GLBL_NON_SECURE_PROPS & 0x7F) >> 2);
+	mask |= 1 << ((mmTPC7_CMDQ_GLBL_ANALN_SECURE_PROPS & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_CMDQ_GLBL_STS0 & 0x7F) >> 2);
 	mask |= 1 << ((mmTPC7_CMDQ_GLBL_STS1 & 0x7F) >> 2);
 
@@ -2247,7 +2247,7 @@ static void goya_init_tpc_protection_bits(struct hl_device *hdev)
  *
  * @hdev: pointer to hl_device structure
  *
- * All protection bits are 1 by default, means not protected. Need to set to 0
+ * All protection bits are 1 by default, means analt protected. Need to set to 0
  * each bit that belongs to a protected register.
  *
  */

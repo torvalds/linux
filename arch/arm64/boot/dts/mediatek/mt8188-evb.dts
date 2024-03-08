@@ -39,7 +39,7 @@
 		scp_mem_reserved: memory@50000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x50000000 0 0x2900000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -107,9 +107,9 @@
 	mmc-hs400-1_8v;
 	supports-cqe;
 	cap-mmc-hw-reset;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 
 	vmmc-supply = <&mt6359_vemc_1_ldo_reg>;
 	vqmmc-supply = <&mt6359_vufs_ldo_reg>;
@@ -137,15 +137,15 @@
 	regulator-always-on;
 };
 
-&nor_flash {
+&analr_flash {
 	pinctrl-names = "default";
-	pinctrl-0 = <&nor_pins_default>;
+	pinctrl-0 = <&analr_pins_default>;
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <52000000>;
 	};
@@ -274,18 +274,18 @@
 		};
 	};
 
-	nor_pins_default: nor-pins {
+	analr_pins_default: analr-pins {
 		pins-io-ck {
-			pinmux = <PINMUX_GPIO127__FUNC_B0_SPINOR_IO0>,
-				 <PINMUX_GPIO125__FUNC_O_SPINOR_CK>,
-				 <PINMUX_GPIO128__FUNC_B0_SPINOR_IO1>;
+			pinmux = <PINMUX_GPIO127__FUNC_B0_SPIANALR_IO0>,
+				 <PINMUX_GPIO125__FUNC_O_SPIANALR_CK>,
+				 <PINMUX_GPIO128__FUNC_B0_SPIANALR_IO1>;
 			bias-pull-down;
 		};
 
 		pins-io-cs {
-			pinmux = <PINMUX_GPIO126__FUNC_O_SPINOR_CS>,
-				 <PINMUX_GPIO129__FUNC_B0_SPINOR_IO2>,
-				 <PINMUX_GPIO130__FUNC_B0_SPINOR_IO3>;
+			pinmux = <PINMUX_GPIO126__FUNC_O_SPIANALR_CS>,
+				 <PINMUX_GPIO129__FUNC_B0_SPIANALR_IO2>,
+				 <PINMUX_GPIO130__FUNC_B0_SPIANALR_IO3>;
 			bias-pull-up;
 		};
 	};

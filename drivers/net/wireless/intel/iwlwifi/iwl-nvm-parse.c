@@ -302,12 +302,12 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 	((flags & NVM_CHANNEL_##x) ? " " #x : "")
 
 	if (!(flags & NVM_CHANNEL_VALID)) {
-		IWL_DEBUG_DEV(dev, level, "Ch. %d: 0x%x: No traffic\n",
+		IWL_DEBUG_DEV(dev, level, "Ch. %d: 0x%x: Anal traffic\n",
 			      chan, flags);
 		return;
 	}
 
-	/* Note: already can print up to 101 characters, 110 is the limit! */
+	/* Analte: already can print up to 101 characters, 110 is the limit! */
 	IWL_DEBUG_DEV(dev, level,
 		      "Ch. %d: 0x%x:%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		      chan, flags,
@@ -329,29 +329,29 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, enum nl80211_band band,
 				 u32 nvm_flags, const struct iwl_cfg *cfg)
 {
-	u32 flags = IEEE80211_CHAN_NO_HT40;
+	u32 flags = IEEE80211_CHAN_ANAL_HT40;
 
 	if (band == NL80211_BAND_2GHZ && (nvm_flags & NVM_CHANNEL_40MHZ)) {
 		if (ch_num <= LAST_2GHZ_HT_PLUS)
-			flags &= ~IEEE80211_CHAN_NO_HT40PLUS;
+			flags &= ~IEEE80211_CHAN_ANAL_HT40PLUS;
 		if (ch_num >= FIRST_2GHZ_HT_MINUS)
-			flags &= ~IEEE80211_CHAN_NO_HT40MINUS;
+			flags &= ~IEEE80211_CHAN_ANAL_HT40MINUS;
 	} else if (nvm_flags & NVM_CHANNEL_40MHZ) {
 		if ((ch_idx - NUM_2GHZ_CHANNELS) % 2 == 0)
-			flags &= ~IEEE80211_CHAN_NO_HT40PLUS;
+			flags &= ~IEEE80211_CHAN_ANAL_HT40PLUS;
 		else
-			flags &= ~IEEE80211_CHAN_NO_HT40MINUS;
+			flags &= ~IEEE80211_CHAN_ANAL_HT40MINUS;
 	}
 	if (!(nvm_flags & NVM_CHANNEL_80MHZ))
-		flags |= IEEE80211_CHAN_NO_80MHZ;
+		flags |= IEEE80211_CHAN_ANAL_80MHZ;
 	if (!(nvm_flags & NVM_CHANNEL_160MHZ))
-		flags |= IEEE80211_CHAN_NO_160MHZ;
+		flags |= IEEE80211_CHAN_ANAL_160MHZ;
 
 	if (!(nvm_flags & NVM_CHANNEL_IBSS))
-		flags |= IEEE80211_CHAN_NO_IR;
+		flags |= IEEE80211_CHAN_ANAL_IR;
 
 	if (!(nvm_flags & NVM_CHANNEL_ACTIVE))
-		flags |= IEEE80211_CHAN_NO_IR;
+		flags |= IEEE80211_CHAN_ANAL_IR;
 
 	if (nvm_flags & NVM_CHANNEL_RADAR)
 		flags |= IEEE80211_CHAN_RADAR;
@@ -359,11 +359,11 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, enum nl80211_band band,
 	if (nvm_flags & NVM_CHANNEL_INDOOR_ONLY)
 		flags |= IEEE80211_CHAN_INDOOR_ONLY;
 
-	/* Set the GO concurrent flag only in case that NO_IR is set.
+	/* Set the GO concurrent flag only in case that ANAL_IR is set.
 	 * Otherwise it is meaningless
 	 */
 	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT) &&
-	    (flags & IEEE80211_CHAN_NO_IR))
+	    (flags & IEEE80211_CHAN_ANAL_IR))
 		flags |= IEEE80211_CHAN_IR_CONCURRENT;
 
 	return flags;
@@ -419,7 +419,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			continue;
 
 		/* workaround to disable wide channels in 5GHz */
-		if ((sbands_flags & IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ) &&
+		if ((sbands_flags & IWL_NVM_SBANDS_FLAGS_ANAL_WIDE_IN_5GHZ) &&
 		    band == NL80211_BAND_5GHZ) {
 			ch_flags &= ~(NVM_CHANNEL_40MHZ |
 				     NVM_CHANNEL_80MHZ |
@@ -454,7 +454,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 		/*
 		 * Default value - highest tx power value.  max_power
-		 * is not used in mvm, and is used for backwards compatibility
+		 * is analt used in mvm, and is used for backwards compatibility
 		 */
 		channel->max_power = IWL_DEFAULT_MAX_TX_POWER;
 
@@ -534,7 +534,7 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
-			WARN(1, "RB size of 2K is not supported by this device\n");
+			WARN(1, "RB size of 2K is analt supported by this device\n");
 		break;
 	case IWL_AMSDU_4K:
 		vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
@@ -552,18 +552,18 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 	vht_cap->vht_mcs.rx_mcs_map =
 		cpu_to_le16(IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
 			    IEEE80211_VHT_MCS_SUPPORT_0_9 << 2 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 4 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 6 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 8 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 10 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 14);
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 4 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 6 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 8 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 10 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 12 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 14);
 
 	if (num_rx_ants == 1 || cfg->rx_with_siso_diversity) {
 		vht_cap->cap |= IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN;
-		/* this works because NOT_SUPPORTED == 3 */
+		/* this works because ANALT_SUPPORTED == 3 */
 		vht_cap->vht_mcs.rx_mcs_map |=
-			cpu_to_le16(IEEE80211_VHT_MCS_NOT_SUPPORTED << 2);
+			cpu_to_le16(IEEE80211_VHT_MCS_ANALT_SUPPORTED << 2);
 	}
 
 	vht_cap->vht_mcs.tx_mcs_map = vht_cap->vht_mcs.rx_mcs_map;
@@ -639,9 +639,9 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 					IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_242,
 				.phy_cap_info[9] =
 					IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
-					IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB |
-					(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_RESERVED <<
-					IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_POS),
+					IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_ANALN_COMP_SIGB |
+					(IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_RESERVED <<
+					IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_POS),
 				.phy_cap_info[10] =
 					IEEE80211_HE_PHY_CAP10_HE_MU_M1RU_MAX_LTF,
 			},
@@ -695,7 +695,7 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 					IEEE80211_EHT_PHY_CAP4_POWER_BOOST_FACT_SUPP |
 					IEEE80211_EHT_PHY_CAP4_EHT_MU_PPDU_4_EHT_LTF_08_GI,
 				.phy_cap_info[5] =
-					IEEE80211_EHT_PHY_CAP5_NON_TRIG_CQI_FEEDBACK |
+					IEEE80211_EHT_PHY_CAP5_ANALN_TRIG_CQI_FEEDBACK |
 					IEEE80211_EHT_PHY_CAP5_TX_LESS_242_TONE_RU_SUPP |
 					IEEE80211_EHT_PHY_CAP5_RX_LESS_242_TONE_RU_SUPP |
 					IEEE80211_EHT_PHY_CAP5_PPE_THRESHOLD_PRESENT,
@@ -708,7 +708,7 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 			},
 
 			/* For all MCS and bandwidth, set 2 NSS for both Tx and
-			 * Rx - note we don't set the only_20mhz, but due to this
+			 * Rx - analte we don't set the only_20mhz, but due to this
 			 * being a union, it gets set correctly anyway.
 			 */
 			.eht_mcs_nss_supp = {
@@ -766,8 +766,8 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 					IEEE80211_HE_PHY_CAP8_HE_ER_SU_PPDU_4XLTF_AND_08_US_GI |
 					IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_242,
 				.phy_cap_info[9] =
-					IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_RESERVED
-					<< IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_POS,
+					IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_RESERVED
+					<< IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_POS,
 			},
 			/*
 			 * Set default Tx/Rx HE MCS NSS Support field.
@@ -803,7 +803,7 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 			},
 
 			/* For all MCS and bandwidth, set 2 NSS for both Tx and
-			 * Rx - note we don't set the only_20mhz, but due to this
+			 * Rx - analte we don't set the only_20mhz, but due to this
 			 * being a union, it gets set correctly anyway.
 			 */
 			.eht_mcs_nss_supp = {
@@ -865,7 +865,7 @@ static void iwl_init_he_6ghz_capa(struct iwl_trans *trans,
 	exp = u32_get_bits(vht_cap.cap, IEEE80211_VHT_CAP_MAX_MPDU_MASK);
 	he_6ghz_capa |=
 		u16_encode_bits(exp, IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
-	/* we don't support extended_ht_cap_info anywhere, so no RD_RESPONDER */
+	/* we don't support extended_ht_cap_info anywhere, so anal RD_RESPONDER */
 	if (vht_cap.cap & IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN)
 		he_6ghz_capa |= IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS;
 	if (vht_cap.cap & IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN)
@@ -873,7 +873,7 @@ static void iwl_init_he_6ghz_capa(struct iwl_trans *trans,
 
 	IWL_DEBUG_EEPROM(trans->dev, "he_6ghz_capa=0x%x\n", he_6ghz_capa);
 
-	/* we know it's writable - we set it before ourselves */
+	/* we kanalw it's writable - we set it before ourselves */
 	iftype_data = (void *)(uintptr_t)sband->iftype_data;
 	for (i = 0; i < sband->n_iftype_data; i++)
 		iftype_data[i].he_6ghz_capa.capa = cpu_to_le16(he_6ghz_capa);
@@ -888,9 +888,9 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			 const struct iwl_fw *fw)
 {
 	bool is_ap = iftype_data->types_mask & BIT(NL80211_IFTYPE_AP);
-	bool no_320;
+	bool anal_320;
 
-	no_320 = !trans->trans_cfg->integrated &&
+	anal_320 = !trans->trans_cfg->integrated &&
 		 trans->pcie_link_speed < PCI_EXP_LNKSTA_CLS_8_0GB;
 
 	if (!data->sku_cap_11be_enable || iwlwifi_mod_params.disable_11be)
@@ -918,7 +918,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 				       IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK);
 		break;
 	case NL80211_BAND_6GHZ:
-		if (!no_320) {
+		if (!anal_320) {
 			iftype_data->eht_cap.eht_cap_elem.phy_cap_info[0] |=
 				IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
 			iftype_data->eht_cap.eht_cap_elem.phy_cap_info[1] |=
@@ -972,8 +972,8 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 		}
 
 		if (!is_ap) {
-			/* If not 2x2, we need to indicate 1x1 in the
-			 * Midamble RX Max NSTS - but not for AP mode
+			/* If analt 2x2, we need to indicate 1x1 in the
+			 * Midamble RX Max NSTS - but analt for AP mode
 			 */
 			iftype_data->he_cap.he_cap_elem.phy_cap_info[1] &=
 				~IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_TX_MAX_NSTS;
@@ -984,17 +984,17 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 		}
 
 		he_mcs_nss_supp->rx_mcs_80 |=
-			cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << 2);
+			cpu_to_le16(IEEE80211_HE_MCS_ANALT_SUPPORTED << 2);
 		he_mcs_nss_supp->tx_mcs_80 |=
-			cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << 2);
+			cpu_to_le16(IEEE80211_HE_MCS_ANALT_SUPPORTED << 2);
 		he_mcs_nss_supp->rx_mcs_160 |=
-			cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << 2);
+			cpu_to_le16(IEEE80211_HE_MCS_ANALT_SUPPORTED << 2);
 		he_mcs_nss_supp->tx_mcs_160 |=
-			cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << 2);
+			cpu_to_le16(IEEE80211_HE_MCS_ANALT_SUPPORTED << 2);
 		he_mcs_nss_supp->rx_mcs_80p80 |=
-			cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << 2);
+			cpu_to_le16(IEEE80211_HE_MCS_ANALT_SUPPORTED << 2);
 		he_mcs_nss_supp->tx_mcs_80p80 |=
-			cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << 2);
+			cpu_to_le16(IEEE80211_HE_MCS_ANALT_SUPPORTED << 2);
 	}
 
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210 && !is_ap)
@@ -1032,7 +1032,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			~(IEEE80211_EHT_PHY_CAP4_PART_BW_DL_MU_MIMO |
 			  IEEE80211_EHT_PHY_CAP4_POWER_BOOST_FACT_SUPP);
 		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[5] &=
-			~IEEE80211_EHT_PHY_CAP5_NON_TRIG_CQI_FEEDBACK;
+			~IEEE80211_EHT_PHY_CAP5_ANALN_TRIG_CQI_FEEDBACK;
 		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[6] &=
 			~(IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_MASK |
 			  IEEE80211_EHT_PHY_CAP6_EHT_DUP_6GHZ_SUPP);
@@ -1307,7 +1307,7 @@ static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 
 		/*
 		 * Store the MAC address from MAO section.
-		 * No byte swapping is required in MAO section
+		 * Anal byte swapping is required in MAO section
 		 */
 		memcpy(data->hw_addr, hw_addr, ETH_ALEN);
 
@@ -1320,7 +1320,7 @@ static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 			return;
 
 		IWL_ERR(trans,
-			"mac address from nvm override section is not valid\n");
+			"mac address from nvm override section is analt valid\n");
 	}
 
 	if (nvm_hw) {
@@ -1335,7 +1335,7 @@ static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 		return;
 	}
 
-	IWL_ERR(trans, "mac address is not found\n");
+	IWL_ERR(trans, "mac address is analt found\n");
 }
 
 static int iwl_set_hw_address(struct iwl_trans *trans,
@@ -1361,19 +1361,19 @@ static int iwl_set_hw_address(struct iwl_trans *trans,
 	}
 
 	if (!is_valid_ether_addr(data->hw_addr)) {
-		IWL_ERR(trans, "no valid mac address was found\n");
+		IWL_ERR(trans, "anal valid mac address was found\n");
 		return -EINVAL;
 	}
 
 	if (!trans->csme_own)
-		IWL_INFO(trans, "base HW address: %pM, OTP minor version: 0x%x\n",
-			 data->hw_addr, iwl_read_prph(trans, REG_OTP_MINOR));
+		IWL_INFO(trans, "base HW address: %pM, OTP mianalr version: 0x%x\n",
+			 data->hw_addr, iwl_read_prph(trans, REG_OTP_MIANALR));
 
 	return 0;
 }
 
 static bool
-iwl_nvm_no_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_nvm_anal_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			const __be16 *nvm_hw)
 {
 	/*
@@ -1451,7 +1451,7 @@ iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	data->lar_enabled = mei_nvm->caps & MEI_NVM_CAPS_LARI_SUPPORT;
 
 	data->n_hw_addrs = mei_nvm->n_hw_addrs;
-	/* If no valid mac address was found - bail out */
+	/* If anal valid mac address was found - bail out */
 	if (iwl_set_hw_address(trans, cfg, data, NULL, NULL)) {
 		kfree(data);
 		return NULL;
@@ -1548,7 +1548,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		ch_section = &regulatory[NVM_CHANNELS_EXTENDED];
 	}
 
-	/* If no valid mac address was found - bail out */
+	/* If anal valid mac address was found - bail out */
 	if (iwl_set_hw_address(trans, cfg, data, nvm_hw, mac_override)) {
 		kfree(data);
 		return NULL;
@@ -1558,8 +1558,8 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	    fw_has_capa(&fw->ucode_capa, IWL_UCODE_TLV_CAPA_LAR_SUPPORT))
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
 
-	if (iwl_nvm_no_wide_in_5ghz(trans, cfg, nvm_hw))
-		sbands_flags |= IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ;
+	if (iwl_nvm_anal_wide_in_5ghz(trans, cfg, nvm_hw))
+		sbands_flags |= IWL_NVM_SBANDS_FLAGS_ANAL_WIDE_IN_5GHZ;
 
 	iwl_init_sbands(trans, data, ch_section, tx_chains, rx_chains,
 			sbands_flags, false, fw);
@@ -1574,47 +1574,47 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 				       struct iwl_reg_capa reg_capa,
 				       const struct iwl_cfg *cfg)
 {
-	u32 flags = NL80211_RRF_NO_HT40;
+	u32 flags = NL80211_RRF_ANAL_HT40;
 
 	if (ch_idx < NUM_2GHZ_CHANNELS &&
 	    (nvm_flags & NVM_CHANNEL_40MHZ)) {
 		if (nvm_chan[ch_idx] <= LAST_2GHZ_HT_PLUS)
-			flags &= ~NL80211_RRF_NO_HT40PLUS;
+			flags &= ~NL80211_RRF_ANAL_HT40PLUS;
 		if (nvm_chan[ch_idx] >= FIRST_2GHZ_HT_MINUS)
-			flags &= ~NL80211_RRF_NO_HT40MINUS;
+			flags &= ~NL80211_RRF_ANAL_HT40MINUS;
 	} else if (nvm_flags & NVM_CHANNEL_40MHZ) {
 		if ((ch_idx - NUM_2GHZ_CHANNELS) % 2 == 0)
-			flags &= ~NL80211_RRF_NO_HT40PLUS;
+			flags &= ~NL80211_RRF_ANAL_HT40PLUS;
 		else
-			flags &= ~NL80211_RRF_NO_HT40MINUS;
+			flags &= ~NL80211_RRF_ANAL_HT40MINUS;
 	}
 
 	if (!(nvm_flags & NVM_CHANNEL_80MHZ))
-		flags |= NL80211_RRF_NO_80MHZ;
+		flags |= NL80211_RRF_ANAL_80MHZ;
 	if (!(nvm_flags & NVM_CHANNEL_160MHZ))
-		flags |= NL80211_RRF_NO_160MHZ;
+		flags |= NL80211_RRF_ANAL_160MHZ;
 
 	if (!(nvm_flags & NVM_CHANNEL_ACTIVE))
-		flags |= NL80211_RRF_NO_IR;
+		flags |= NL80211_RRF_ANAL_IR;
 
 	if (nvm_flags & NVM_CHANNEL_RADAR)
 		flags |= NL80211_RRF_DFS;
 
 	if (nvm_flags & NVM_CHANNEL_INDOOR_ONLY)
-		flags |= NL80211_RRF_NO_OUTDOOR;
+		flags |= NL80211_RRF_ANAL_OUTDOOR;
 
-	/* Set the GO concurrent flag only in case that NO_IR is set.
+	/* Set the GO concurrent flag only in case that ANAL_IR is set.
 	 * Otherwise it is meaningless
 	 */
 	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT)) {
-		if (flags & NL80211_RRF_NO_IR)
+		if (flags & NL80211_RRF_ANAL_IR)
 			flags |= NL80211_RRF_GO_CONCURRENT;
 		if (flags & NL80211_RRF_DFS) {
 			flags |= NL80211_RRF_DFS_CONCURRENT;
 			/* Our device doesn't set active bit for DFS channels
-			 * however, once marked as DFS no-ir is not needed.
+			 * however, once marked as DFS anal-ir is analt needed.
 			 */
-			flags &= ~NL80211_RRF_NO_IR;
+			flags &= ~NL80211_RRF_ANAL_IR;
 		}
 	}
 	/*
@@ -1622,23 +1622,23 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 	 */
 	if (ch_idx >= NUM_2GHZ_CHANNELS) {
 		if (!reg_capa.allow_40mhz)
-			flags |= NL80211_RRF_NO_HT40;
+			flags |= NL80211_RRF_ANAL_HT40;
 
 		if (!reg_capa.allow_80mhz)
-			flags |= NL80211_RRF_NO_80MHZ;
+			flags |= NL80211_RRF_ANAL_80MHZ;
 
 		if (!reg_capa.allow_160mhz)
-			flags |= NL80211_RRF_NO_160MHZ;
+			flags |= NL80211_RRF_ANAL_160MHZ;
 
 		if (!reg_capa.allow_320mhz)
-			flags |= NL80211_RRF_NO_320MHZ;
+			flags |= NL80211_RRF_ANAL_320MHZ;
 	}
 
 	if (reg_capa.disable_11ax)
-		flags |= NL80211_RRF_NO_HE;
+		flags |= NL80211_RRF_ANAL_HE;
 
 	if (reg_capa.disable_11be)
-		flags |= NL80211_RRF_NO_EHT;
+		flags |= NL80211_RRF_ANAL_EHT;
 
 	return flags;
 }
@@ -1713,7 +1713,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	/* build a regdomain rule for every valid channel */
 	regd = kzalloc(struct_size(regd, reg_rules, num_of_ch), GFP_KERNEL);
 	if (!regd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* set alpha2 from FW. */
 	regd->alpha2[0] = fw_mcc >> 8;
@@ -1754,7 +1754,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 
 		rule->freq_range.end_freq_khz = MHZ_TO_KHZ(center_freq + 10);
 
-		/* this doesn't matter - not used by FW */
+		/* this doesn't matter - analt used by FW */
 		rule->power_rule.max_antenna_gain = DBI_TO_MBI(6);
 		rule->power_rule.max_eirp =
 			DBM_TO_MBM(IWL_DEFAULT_MAX_TX_POWER);
@@ -1779,8 +1779,8 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	}
 
 	/*
-	 * Certain firmware versions might report no valid channels
-	 * if booted in RF-kill, i.e. not all calibrations etc. are
+	 * Certain firmware versions might report anal valid channels
+	 * if booted in RF-kill, i.e. analt all calibrations etc. are
 	 * running. We'll get out of this situation later when the
 	 * rfkill is removed and we update the regdomain again, but
 	 * since cfg80211 doesn't accept an empty regdomain, add a
@@ -1806,7 +1806,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	copy_rd = kmemdup(regd, struct_size(regd, reg_rules, valid_rules),
 			  GFP_KERNEL);
 	if (!copy_rd)
-		copy_rd = ERR_PTR(-ENOMEM);
+		copy_rd = ERR_PTR(-EANALMEM);
 
 	kfree(regd);
 	return copy_rd;
@@ -1887,9 +1887,9 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 
 	/*
 	 * Obtain NVM image via request_firmware. Since we already used
-	 * request_firmware_nowait() for the firmware binary load and only
+	 * request_firmware_analwait() for the firmware binary load and only
 	 * get here after that we assume the NVM request can be satisfied
-	 * synchronously.
+	 * synchroanalusly.
 	 */
 	ret = request_firmware(&fw_entry, nvm_file_name, trans->dev);
 	if (ret) {
@@ -1990,7 +1990,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 
 		temp = kmemdup(file_sec->data, section_size, GFP_KERNEL);
 		if (!temp) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -2060,7 +2060,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 
 	nvm = kzalloc(struct_size(nvm, channels, IWL_NUM_CHANNELS), GFP_KERNEL);
 	if (!nvm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -2068,7 +2068,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	/* TODO: if platform NVM has MAC address - override it here */
 
 	if (!is_valid_ether_addr(nvm->hw_addr)) {
-		IWL_ERR(trans, "no valid mac address was found\n");
+		IWL_ERR(trans, "anal valid mac address was found\n");
 		ret = -EINVAL;
 		goto err_free;
 	}
@@ -2080,7 +2080,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	nvm->n_hw_addrs = rsp->general.n_hw_addrs;
 	if (nvm->n_hw_addrs == 0)
 		IWL_WARN(trans,
-			 "Firmware declares no reserved mac addresses. OTP is empty: %d\n",
+			 "Firmware declares anal reserved mac addresses. OTP is empty: %d\n",
 			 empty_otp);
 
 	/* Initialize MAC sku data */

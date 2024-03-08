@@ -12,10 +12,10 @@ maintainers:
 
 description: |
   RPMh interconnect providers support system bandwidth requirements through
-  RPMh hardware accelerators known as Bus Clock Manager (BCM). The provider is
+  RPMh hardware accelerators kanalwn as Bus Clock Manager (BCM). The provider is
   able to communicate with the BCM through the Resource State Coordinator (RSC)
-  associated with each execution environment. Provider nodes must point to at
-  least one RPMh device child node pertaining to their RSC and each provider
+  associated with each execution environment. Provider analdes must point to at
+  least one RPMh device child analde pertaining to their RSC and each provider
   can map to multiple RPMh resources.
 
   See also:: include/dt-bindings/interconnect/qcom,sm8650-rpmh.h
@@ -23,20 +23,20 @@ description: |
 properties:
   compatible:
     enum:
-      - qcom,sm8650-aggre1-noc
-      - qcom,sm8650-aggre2-noc
+      - qcom,sm8650-aggre1-analc
+      - qcom,sm8650-aggre2-analc
       - qcom,sm8650-clk-virt
-      - qcom,sm8650-cnoc-main
-      - qcom,sm8650-config-noc
-      - qcom,sm8650-gem-noc
-      - qcom,sm8650-lpass-ag-noc
-      - qcom,sm8650-lpass-lpiaon-noc
-      - qcom,sm8650-lpass-lpicx-noc
+      - qcom,sm8650-canalc-main
+      - qcom,sm8650-config-analc
+      - qcom,sm8650-gem-analc
+      - qcom,sm8650-lpass-ag-analc
+      - qcom,sm8650-lpass-lpiaon-analc
+      - qcom,sm8650-lpass-lpicx-analc
       - qcom,sm8650-mc-virt
-      - qcom,sm8650-mmss-noc
-      - qcom,sm8650-nsp-noc
-      - qcom,sm8650-pcie-anoc
-      - qcom,sm8650-system-noc
+      - qcom,sm8650-mmss-analc
+      - qcom,sm8650-nsp-analc
+      - qcom,sm8650-pcie-aanalc
+      - qcom,sm8650-system-analc
 
   reg:
     maxItems: 1
@@ -69,20 +69,20 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8650-pcie-anoc
+              - qcom,sm8650-pcie-aanalc
     then:
       properties:
         clocks:
           items:
-            - description: aggre-NOC PCIe AXI clock
-            - description: cfg-NOC PCIe a-NOC AHB clock
+            - description: aggre-ANALC PCIe AXI clock
+            - description: cfg-ANALC PCIe a-ANALC AHB clock
 
   - if:
       properties:
         compatible:
           contains:
             enum:
-              - qcom,sm8650-aggre1-noc
+              - qcom,sm8650-aggre1-analc
     then:
       properties:
         clocks:
@@ -95,7 +95,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8650-aggre2-noc
+              - qcom,sm8650-aggre2-analc
     then:
       properties:
         clocks:
@@ -107,9 +107,9 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8650-aggre1-noc
-              - qcom,sm8650-aggre2-noc
-              - qcom,sm8650-pcie-anoc
+              - qcom,sm8650-aggre1-analc
+              - qcom,sm8650-aggre2-analc
+              - qcom,sm8650-pcie-aanalc
     then:
       required:
         - clocks
@@ -127,8 +127,8 @@ examples:
       qcom,bcm-voters = <&apps_bcm_voter>;
     };
 
-    aggre1_noc: interconnect@16e0000 {
-      compatible = "qcom,sm8650-aggre1-noc";
+    aggre1_analc: interconnect@16e0000 {
+      compatible = "qcom,sm8650-aggre1-analc";
       reg = <0x016e0000 0x14400>;
       #interconnect-cells = <2>;
       clocks = <&gcc_phy_axi_clk>, <&gcc_prim_axi_clk>;

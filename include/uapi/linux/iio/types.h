@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* industrial I/O data types needed both in and out of kernel
  *
  * Copyright (c) 2008 Jonathan Cameron
@@ -54,7 +54,7 @@ enum iio_chan_type {
 };
 
 enum iio_modifier {
-	IIO_NO_MOD,
+	IIO_ANAL_MOD,
 	IIO_MOD_X,
 	IIO_MOD_Y,
 	IIO_MOD_Z,
@@ -77,10 +77,10 @@ enum iio_modifier {
 	IIO_MOD_QUATERNION,
 	IIO_MOD_TEMP_AMBIENT,
 	IIO_MOD_TEMP_OBJECT,
-	IIO_MOD_NORTH_MAGN,
-	IIO_MOD_NORTH_TRUE,
-	IIO_MOD_NORTH_MAGN_TILT_COMP,
-	IIO_MOD_NORTH_TRUE_TILT_COMP,
+	IIO_MOD_ANALRTH_MAGN,
+	IIO_MOD_ANALRTH_TRUE,
+	IIO_MOD_ANALRTH_MAGN_TILT_COMP,
+	IIO_MOD_ANALRTH_TRUE_TILT_COMP,
 	IIO_MOD_RUNNING,
 	IIO_MOD_JOGGING,
 	IIO_MOD_WALKING,
@@ -96,7 +96,7 @@ enum iio_modifier {
 	IIO_MOD_PM2P5,
 	IIO_MOD_PM4,
 	IIO_MOD_PM10,
-	IIO_MOD_ETHANOL,
+	IIO_MOD_ETHAANALL,
 	IIO_MOD_H2,
 	IIO_MOD_O2,
 	IIO_MOD_LINEAR_X,
@@ -124,7 +124,7 @@ enum iio_event_direction {
 	IIO_EV_DIR_EITHER,
 	IIO_EV_DIR_RISING,
 	IIO_EV_DIR_FALLING,
-	IIO_EV_DIR_NONE,
+	IIO_EV_DIR_ANALNE,
 	IIO_EV_DIR_SINGLETAP,
 	IIO_EV_DIR_DOUBLETAP,
 };

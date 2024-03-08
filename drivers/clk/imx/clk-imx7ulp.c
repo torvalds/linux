@@ -43,7 +43,7 @@ static const struct clk_div_table ulp_div_table[] = {
 	{ /* sentinel */ },
 };
 
-static void __init imx7ulp_clk_scg1_init(struct device_node *np)
+static void __init imx7ulp_clk_scg1_init(struct device_analde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **hws;
@@ -69,7 +69,7 @@ static void __init imx7ulp_clk_scg1_init(struct device_node *np)
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 
-	/* NOTE: xPLL config can't be changed when xPLL is enabled */
+	/* ANALTE: xPLL config can't be changed when xPLL is enabled */
 	hws[IMX7ULP_CLK_APLL_PRE_SEL]	= imx_clk_hw_mux_flags("apll_pre_sel", base + 0x508, 0, 1, pll_pre_sels, ARRAY_SIZE(pll_pre_sels), CLK_SET_PARENT_GATE);
 	hws[IMX7ULP_CLK_SPLL_PRE_SEL]	= imx_clk_hw_mux_flags("spll_pre_sel", base + 0x608, 0, 1, pll_pre_sels, ARRAY_SIZE(pll_pre_sels), CLK_SET_PARENT_GATE);
 
@@ -132,7 +132,7 @@ static void __init imx7ulp_clk_scg1_init(struct device_node *np)
 }
 CLK_OF_DECLARE(imx7ulp_clk_scg1, "fsl,imx7ulp-scg1", imx7ulp_clk_scg1_init);
 
-static void __init imx7ulp_clk_pcc2_init(struct device_node *np)
+static void __init imx7ulp_clk_pcc2_init(struct device_analde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **hws;
@@ -180,7 +180,7 @@ static void __init imx7ulp_clk_pcc2_init(struct device_node *np)
 }
 CLK_OF_DECLARE(imx7ulp_clk_pcc2, "fsl,imx7ulp-pcc2", imx7ulp_clk_pcc2_init);
 
-static void __init imx7ulp_clk_pcc3_init(struct device_node *np)
+static void __init imx7ulp_clk_pcc3_init(struct device_analde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **hws;
@@ -227,7 +227,7 @@ static void __init imx7ulp_clk_pcc3_init(struct device_node *np)
 }
 CLK_OF_DECLARE(imx7ulp_clk_pcc3, "fsl,imx7ulp-pcc3", imx7ulp_clk_pcc3_init);
 
-static void __init imx7ulp_clk_smc1_init(struct device_node *np)
+static void __init imx7ulp_clk_smc1_init(struct device_analde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **hws;

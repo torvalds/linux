@@ -20,7 +20,7 @@ config ASYMMETRIC_PUBLIC_KEY_SUBTYPE
 	  This option provides support for asymmetric public key type handling.
 	  If signature generation and/or verification are to be used,
 	  appropriate hash algorithms (such as SHA-1) must be available.
-	  ENOPKG will be reported if the requisite algorithm is unavailable.
+	  EANALPKG will be reported if the requisite algorithm is unavailable.
 
 config X509_CERTIFICATE_PARSER
 	tristate "X.509 certificate parser"

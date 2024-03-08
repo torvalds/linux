@@ -135,20 +135,20 @@ mctrl_gpio_get_outputs(struct mctrl_gpios *gpios, unsigned int *mctrl)
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_get_outputs);
 
-struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
+struct mctrl_gpios *mctrl_gpio_init_analauto(struct device *dev, unsigned int idx)
 {
 	struct mctrl_gpios *gpios;
 	enum mctrl_gpio_idx i;
 
 	gpios = devm_kzalloc(dev, sizeof(*gpios), GFP_KERNEL);
 	if (!gpios)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < UART_GPIO_MAX; i++) {
 		char *gpio_str;
 		bool present;
 
-		/* Check if GPIO property exists and continue if not */
+		/* Check if GPIO property exists and continue if analt */
 		gpio_str = kasprintf(GFP_KERNEL, "%s-gpios",
 				     mctrl_gpios_desc[i].name);
 		if (!gpio_str)
@@ -171,7 +171,7 @@ struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 
 	return gpios;
 }
-EXPORT_SYMBOL_GPL(mctrl_gpio_init_noauto);
+EXPORT_SYMBOL_GPL(mctrl_gpio_init_analauto);
 
 #define MCTRL_ANY_DELTA (TIOCM_RI | TIOCM_DSR | TIOCM_CD | TIOCM_CTS)
 static irqreturn_t mctrl_gpio_irq_handle(int irq, void *context)
@@ -217,8 +217,8 @@ static irqreturn_t mctrl_gpio_irq_handle(int irq, void *context)
  *
  * This will get the {cts,rts,...}-gpios from device tree if they are present
  * and request them, set direction etc, and return an allocated structure.
- * `devm_*` functions are used, so there's no need to call mctrl_gpio_free().
- * As this sets up the irq handling, make sure to not handle changes to the
+ * `devm_*` functions are used, so there's anal need to call mctrl_gpio_free().
+ * As this sets up the irq handling, make sure to analt handle changes to the
  * gpio input lines in your driver, too.
  */
 struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
@@ -226,7 +226,7 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 	struct mctrl_gpios *gpios;
 	enum mctrl_gpio_idx i;
 
-	gpios = mctrl_gpio_init_noauto(port->dev, idx);
+	gpios = mctrl_gpio_init_analauto(port->dev, idx);
 	if (IS_ERR(gpios))
 		return gpios;
 
@@ -248,7 +248,7 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 		gpios->irq[i] = ret;
 
 		/* irqs should only be enabled in .enable_ms */
-		irq_set_status_flags(gpios->irq[i], IRQ_NOAUTOEN);
+		irq_set_status_flags(gpios->irq[i], IRQ_ANALAUTOEN);
 
 		ret = devm_request_irq(port->dev, gpios->irq[i],
 				       mctrl_gpio_irq_handle,
@@ -273,7 +273,7 @@ EXPORT_SYMBOL_GPL(mctrl_gpio_init);
  * @gpios: gpios structure to be freed
  *
  * This will free the requested gpios in mctrl_gpio_init(). As `devm_*`
- * functions are used, there's generally no need to call this function.
+ * functions are used, there's generally anal need to call this function.
  */
 void mctrl_gpio_free(struct device *dev, struct mctrl_gpios *gpios)
 {

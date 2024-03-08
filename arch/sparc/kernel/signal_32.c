@@ -10,7 +10,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -81,13 +81,13 @@ asmlinkage void do_sigreturn(struct pt_regs *regs)
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	synchronize_user_stack();
 
 	sf = (struct signal_frame __user *) regs->u_regs[UREG_FP];
 
-	/* 1. Make sure we are not getting garbage from the user */
+	/* 1. Make sure we are analt getting garbage from the user */
 	if (invalid_frame_pointer(sf, sizeof(*sf)))
 		goto segv_and_exit;
 
@@ -121,7 +121,7 @@ asmlinkage void do_sigreturn(struct pt_regs *regs)
 	if (rwin_save)
 		err |= restore_rwin_state(rwin_save);
 
-	/* This is pretty much atomic, no amount locking would prevent
+	/* This is pretty much atomic, anal amount locking would prevent
 	 * the races which exist anyways.
 	 */
 	err |= __get_user(set.sig[0], &sf->info.si_mask);
@@ -212,9 +212,9 @@ static inline void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *re
 	sp = sigsp(sp, ksig) - framesize;
 
 	/* Always align the stack frame.  This handles two cases.  First,
-	 * sigaltstack need not be mindful of platform specific stack
+	 * sigaltstack need analt be mindful of platform specific stack
 	 * alignment.  Second, if we took this signal because the stack
-	 * is not aligned properly, we'd like to take the signal cleanly
+	 * is analt aligned properly, we'd like to take the signal cleanly
 	 * and report that.
 	 */
 	sp &= ~15UL;
@@ -432,24 +432,24 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
 {
 	switch(regs->u_regs[UREG_I0]) {
 	case ERESTART_RESTARTBLOCK:
-	case ERESTARTNOHAND:
-	no_system_call_restart:
+	case ERESTARTANALHAND:
+	anal_system_call_restart:
 		regs->u_regs[UREG_I0] = EINTR;
 		regs->psr |= PSR_C;
 		break;
 	case ERESTARTSYS:
 		if (!(sa->sa_flags & SA_RESTART))
-			goto no_system_call_restart;
+			goto anal_system_call_restart;
 		fallthrough;
-	case ERESTARTNOINTR:
+	case ERESTARTANALINTR:
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->pc -= 4;
 		regs->npc -= 4;
 	}
 }
 
-/* Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+/* Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  */
 static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
@@ -471,7 +471,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	 * preserved across a system call trap by various pieces of
 	 * code in glibc.
 	 *
-	 * %g7 is used as the "thread register".   %g6 is not used in
+	 * %g7 is used as the "thread register".   %g6 is analt used in
 	 * any fixed manner.  %g6 is used as a scratch register and
 	 * a compiler temporary, but it's value is never used across
 	 * a system call.  Therefore %g6 is usable for orig_i0 storage.
@@ -482,7 +482,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	has_handler = get_signal(&ksig);
 
 	/* If the debugger messes with the program counter, it clears
-	 * the software "in syscall" bit, directing us to not perform
+	 * the software "in syscall" bit, directing us to analt perform
 	 * a syscall restart.
 	 */
 	restart_syscall = 0;
@@ -498,9 +498,9 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	} else {
 		if (restart_syscall) {
 			switch (regs->u_regs[UREG_I0]) {
-			case ERESTARTNOHAND:
+			case ERESTARTANALHAND:
 	     		case ERESTARTSYS:
-			case ERESTARTNOINTR:
+			case ERESTARTANALINTR:
 				/* replay the system call when we are done */
 				regs->u_regs[UREG_I0] = orig_i0;
 				regs->pc -= 4;
@@ -518,12 +518,12 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	}
 }
 
-void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0,
+void do_analtify_resume(struct pt_regs *regs, unsigned long orig_i0,
 		      unsigned long thread_info_flags)
 {
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL))
 		do_signal(regs, orig_i0);
-	if (thread_info_flags & _TIF_NOTIFY_RESUME)
+	if (thread_info_flags & _TIF_ANALTIFY_RESUME)
 		resume_user_mode_work(regs);
 }
 
@@ -541,7 +541,7 @@ asmlinkage int do_sys_sigstack(struct sigstack __user *ssptr,
 			goto out;
 	}
 
-	/* Now see if we want to update the new state. */
+	/* Analw see if we want to update the new state. */
 	if (ssptr) {
 		char *ss_sp;
 
@@ -553,7 +553,7 @@ asmlinkage int do_sys_sigstack(struct sigstack __user *ssptr,
 		if (current->sas_ss_sp && on_sig_stack(sp))
 			goto out;
 
-		/* Since we don't know the extent of the stack, and we don't
+		/* Since we don't kanalw the extent of the stack, and we don't
 		   track onstack-ness, but rather calculate it, we must
 		   presume a size.  Ho hum this interface is lossy.  */
 		current->sas_ss_sp = (unsigned long)ss_sp - SIGSTKSZ;

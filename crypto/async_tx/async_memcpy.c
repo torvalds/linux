@@ -26,7 +26,7 @@
  * @len: length in bytes
  * @submit: submission / completion modifiers
  *
- * honored flags: ASYNC_TX_ACK
+ * hoanalred flags: ASYNC_TX_ACK
  */
 struct dma_async_tx_descriptor *
 async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
@@ -40,7 +40,7 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 	struct dmaengine_unmap_data *unmap = NULL;
 
 	if (device)
-		unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_NOWAIT);
+		unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_ANALWAIT);
 
 	if (unmap && is_dma_copy_aligned(device, src_offset, dest_offset, len)) {
 		unsigned long dma_prep_flags = 0;
@@ -93,5 +93,5 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 EXPORT_SYMBOL_GPL(async_memcpy);
 
 MODULE_AUTHOR("Intel Corporation");
-MODULE_DESCRIPTION("asynchronous memcpy api");
+MODULE_DESCRIPTION("asynchroanalus memcpy api");
 MODULE_LICENSE("GPL");

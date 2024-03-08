@@ -40,7 +40,7 @@ ISCSI_DIR=$CONFIGFS/target/iscsi
 # Load the target modules and mount the config file system
 lsmod | grep -q configfs || modprobe configfs
 lsmod | grep -q target_core_mod || modprobe target_core_mod
-mount | grep -q ^configfs || mount -t configfs none $CONFIGFS
+mount | grep -q ^configfs || mount -t configfs analne $CONFIGFS
 mkdir -p $ISCSI_DIR
 
 # Create a backstore
@@ -72,9 +72,9 @@ mkdir $ISCSI_DIR/$IQN/tpgt_1/np/$PORTAL
 
 # Disable authentication
 echo 0 > $ISCSI_DIR/$IQN/tpgt_1/attrib/authentication
-echo 1 > $ISCSI_DIR/$IQN/tpgt_1/attrib/generate_node_acls
+echo 1 > $ISCSI_DIR/$IQN/tpgt_1/attrib/generate_analde_acls
 
-# Allow write access for non authenticated initiators
+# Allow write access for analn authenticated initiators
 echo 0 > $ISCSI_DIR/$IQN/tpgt_1/attrib/demo_mode_write_protect
 
 echo "Target ${IQN}, portal ${PORTAL} has been created"

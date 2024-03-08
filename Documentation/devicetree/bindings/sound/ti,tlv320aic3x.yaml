@@ -15,12 +15,12 @@ description: |
   The serial control bus supports SPI or I2C protocols, while the serial audio
   data bus is programmable for I2S, left/right-justified, DSP, or TDM modes.
 
-  The following pins can be referred in the sound node's audio routing property:
+  The following pins can be referred in the sound analde's audio routing property:
 
   CODEC output pins:
      LLOUT
      RLOUT
-     MONO_LOUT
+     MOANAL_LOUT
      HPLOUT
      HPROUT
      HPLCOM
@@ -73,7 +73,7 @@ properties:
     maxItems: 2
 
   ai3x-micbias-vg:
-    description: MicBias required voltage. If node is omitted then MicBias is powered down.
+    description: MicBias required voltage. If analde is omitted then MicBias is powered down.
     $ref: /schemas/types.yaml#/definitions/uint32
     oneOf:
       - const: 1

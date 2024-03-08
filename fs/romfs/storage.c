@@ -11,7 +11,7 @@
 #include "internal.h"
 
 #if !defined(CONFIG_ROMFS_ON_MTD) && !defined(CONFIG_ROMFS_ON_BLOCK)
-#error no ROMFS backing store interface configured
+#error anal ROMFS backing store interface configured
 #endif
 
 #ifdef CONFIG_ROMFS_ON_MTD
@@ -258,7 +258,7 @@ ssize_t romfs_dev_strnlen(struct super_block *sb,
 
 /*
  * compare a string to one in romfs
- * - the string to be compared to, str, may not be NUL-terminated; instead the
+ * - the string to be compared to, str, may analt be NUL-terminated; instead the
  *   string is of the specified size
  * - return 1 if matched, 0 if differ, -ve if error
  */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Author: Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
@@ -46,7 +46,7 @@ static int __init loongson3_acpi_suspend_init(void)
 	acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
 	status = acpi_evaluate_integer(NULL, "\\SADR", NULL, &suspend_addr);
 	if (ACPI_FAILURE(status) || !suspend_addr) {
-		pr_err("ACPI S3 is not support!\n");
+		pr_err("ACPI S3 is analt support!\n");
 		return -1;
 	}
 	loongson_sysconf.suspend_addr = (u64)phys_to_virt(PHYSADDR(suspend_addr));

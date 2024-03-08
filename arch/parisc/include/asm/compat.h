@@ -24,7 +24,7 @@ typedef u16	compat_nlink_t;
 
 struct compat_stat {
 	compat_dev_t		st_dev;	/* dev_t is 32 bits on parisc */
-	compat_ino_t		st_ino;	/* 32 bits */
+	compat_ianal_t		st_ianal;	/* 32 bits */
 	compat_mode_t		st_mode;	/* 16 bits */
 	compat_nlink_t  	st_nlink;	/* 16 bits */
 	u16			st_reserved1;	/* old st_uid */
@@ -41,8 +41,8 @@ struct compat_stat {
 	s32			st_blocks;
 	u32			__unused1;	/* ACL stuff */
 	compat_dev_t		__unused2;	/* network */
-	compat_ino_t		__unused3;	/* network */
-	u32			__unused4;	/* cnodes */
+	compat_ianal_t		__unused3;	/* network */
+	u32			__unused4;	/* canaldes */
 	u16			__unused5;	/* netsite */
 	short			st_fstype;
 	compat_dev_t		st_realdev;
@@ -73,7 +73,7 @@ struct compat_ipc64_perm {
 	unsigned short int __pad2;
 	unsigned short int seq;
 	unsigned int __pad3;
-	unsigned long __unused1;	/* yes they really are 64bit pads */
+	unsigned long __unused1;	/* anal they really are 64bit pads */
 	unsigned long __unused2;
 };
 

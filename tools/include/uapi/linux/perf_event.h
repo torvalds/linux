@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Performance events:
  *
@@ -34,7 +34,7 @@ enum perf_type_id {
 	PERF_TYPE_RAW				= 4,
 	PERF_TYPE_BREAKPOINT			= 5,
 
-	PERF_TYPE_MAX,				/* non-ABI */
+	PERF_TYPE_MAX,				/* analn-ABI */
 };
 
 /*
@@ -72,13 +72,13 @@ enum perf_hw_id {
 	PERF_COUNT_HW_STALLED_CYCLES_BACKEND	= 8,
 	PERF_COUNT_HW_REF_CPU_CYCLES		= 9,
 
-	PERF_COUNT_HW_MAX,			/* non-ABI */
+	PERF_COUNT_HW_MAX,			/* analn-ABI */
 };
 
 /*
  * Generalized hardware cache events:
  *
- *       { L1-D, L1-I, LLC, ITLB, DTLB, BPU, NODE } x
+ *       { L1-D, L1-I, LLC, ITLB, DTLB, BPU, ANALDE } x
  *       { read, write, prefetch } x
  *       { accesses, misses }
  */
@@ -89,9 +89,9 @@ enum perf_hw_cache_id {
 	PERF_COUNT_HW_CACHE_DTLB		= 3,
 	PERF_COUNT_HW_CACHE_ITLB		= 4,
 	PERF_COUNT_HW_CACHE_BPU			= 5,
-	PERF_COUNT_HW_CACHE_NODE		= 6,
+	PERF_COUNT_HW_CACHE_ANALDE		= 6,
 
-	PERF_COUNT_HW_CACHE_MAX,		/* non-ABI */
+	PERF_COUNT_HW_CACHE_MAX,		/* analn-ABI */
 };
 
 enum perf_hw_cache_op_id {
@@ -99,19 +99,19 @@ enum perf_hw_cache_op_id {
 	PERF_COUNT_HW_CACHE_OP_WRITE		= 1,
 	PERF_COUNT_HW_CACHE_OP_PREFETCH		= 2,
 
-	PERF_COUNT_HW_CACHE_OP_MAX,		/* non-ABI */
+	PERF_COUNT_HW_CACHE_OP_MAX,		/* analn-ABI */
 };
 
 enum perf_hw_cache_op_result_id {
 	PERF_COUNT_HW_CACHE_RESULT_ACCESS	= 0,
 	PERF_COUNT_HW_CACHE_RESULT_MISS		= 1,
 
-	PERF_COUNT_HW_CACHE_RESULT_MAX,		/* non-ABI */
+	PERF_COUNT_HW_CACHE_RESULT_MAX,		/* analn-ABI */
 };
 
 /*
  * Special "software" events provided by the kernel, even if the hardware
- * does not support performance events. These events measure various
+ * does analt support performance events. These events measure various
  * physical and sw events of the kernel (and allow the profiling of them as
  * well):
  */
@@ -129,7 +129,7 @@ enum perf_sw_ids {
 	PERF_COUNT_SW_BPF_OUTPUT		= 10,
 	PERF_COUNT_SW_CGROUP_SWITCHES		= 11,
 
-	PERF_COUNT_SW_MAX,			/* non-ABI */
+	PERF_COUNT_SW_MAX,			/* analn-ABI */
 };
 
 /*
@@ -163,16 +163,16 @@ enum perf_event_sample_format {
 	PERF_SAMPLE_CODE_PAGE_SIZE		= 1U << 23,
 	PERF_SAMPLE_WEIGHT_STRUCT		= 1U << 24,
 
-	PERF_SAMPLE_MAX = 1U << 25,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 25,		/* analn-ABI */
 };
 
 #define PERF_SAMPLE_WEIGHT_TYPE	(PERF_SAMPLE_WEIGHT | PERF_SAMPLE_WEIGHT_STRUCT)
 /*
  * values to program into branch_sample_type when PERF_SAMPLE_BRANCH is set
  *
- * If the user does not pass priv level information via branch_sample_type,
+ * If the user does analt pass priv level information via branch_sample_type,
  * the kernel uses the event's priv level. Branch and event priv levels do
- * not have to match. Branch priv level is checked for permissions.
+ * analt have to match. Branch priv level is checked for permissions.
  *
  * The branch types can be combined, however BRANCH_ANY covers all types
  * of branches and therefore it supersedes all the other types.
@@ -188,15 +188,15 @@ enum perf_branch_sample_type_shift {
 	PERF_SAMPLE_BRANCH_IND_CALL_SHIFT	= 6, /* indirect calls */
 	PERF_SAMPLE_BRANCH_ABORT_TX_SHIFT	= 7, /* transaction aborts */
 	PERF_SAMPLE_BRANCH_IN_TX_SHIFT		= 8, /* in transaction */
-	PERF_SAMPLE_BRANCH_NO_TX_SHIFT		= 9, /* not in transaction */
+	PERF_SAMPLE_BRANCH_ANAL_TX_SHIFT		= 9, /* analt in transaction */
 	PERF_SAMPLE_BRANCH_COND_SHIFT		= 10, /* conditional branches */
 
 	PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT	= 11, /* call/ret stack */
 	PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT	= 12, /* indirect jumps */
 	PERF_SAMPLE_BRANCH_CALL_SHIFT		= 13, /* direct call */
 
-	PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT	= 14, /* no flags */
-	PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT	= 15, /* no cycles */
+	PERF_SAMPLE_BRANCH_ANAL_FLAGS_SHIFT	= 14, /* anal flags */
+	PERF_SAMPLE_BRANCH_ANAL_CYCLES_SHIFT	= 15, /* anal cycles */
 
 	PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT	= 16, /* save branch type */
 
@@ -206,7 +206,7 @@ enum perf_branch_sample_type_shift {
 
 	PERF_SAMPLE_BRANCH_COUNTERS_SHIFT	= 19, /* save occurrences of events on a branch */
 
-	PERF_SAMPLE_BRANCH_MAX_SHIFT		/* non-ABI */
+	PERF_SAMPLE_BRANCH_MAX_SHIFT		/* analn-ABI */
 };
 
 enum perf_branch_sample_type {
@@ -220,15 +220,15 @@ enum perf_branch_sample_type {
 	PERF_SAMPLE_BRANCH_IND_CALL	= 1U << PERF_SAMPLE_BRANCH_IND_CALL_SHIFT,
 	PERF_SAMPLE_BRANCH_ABORT_TX	= 1U << PERF_SAMPLE_BRANCH_ABORT_TX_SHIFT,
 	PERF_SAMPLE_BRANCH_IN_TX	= 1U << PERF_SAMPLE_BRANCH_IN_TX_SHIFT,
-	PERF_SAMPLE_BRANCH_NO_TX	= 1U << PERF_SAMPLE_BRANCH_NO_TX_SHIFT,
+	PERF_SAMPLE_BRANCH_ANAL_TX	= 1U << PERF_SAMPLE_BRANCH_ANAL_TX_SHIFT,
 	PERF_SAMPLE_BRANCH_COND		= 1U << PERF_SAMPLE_BRANCH_COND_SHIFT,
 
 	PERF_SAMPLE_BRANCH_CALL_STACK	= 1U << PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT,
 	PERF_SAMPLE_BRANCH_IND_JUMP	= 1U << PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT,
 	PERF_SAMPLE_BRANCH_CALL		= 1U << PERF_SAMPLE_BRANCH_CALL_SHIFT,
 
-	PERF_SAMPLE_BRANCH_NO_FLAGS	= 1U << PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT,
-	PERF_SAMPLE_BRANCH_NO_CYCLES	= 1U << PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT,
+	PERF_SAMPLE_BRANCH_ANAL_FLAGS	= 1U << PERF_SAMPLE_BRANCH_ANAL_FLAGS_SHIFT,
+	PERF_SAMPLE_BRANCH_ANAL_CYCLES	= 1U << PERF_SAMPLE_BRANCH_ANAL_CYCLES_SHIFT,
 
 	PERF_SAMPLE_BRANCH_TYPE_SAVE	=
 		1U << PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT,
@@ -246,7 +246,7 @@ enum perf_branch_sample_type {
  * Common flow change classification
  */
 enum {
-	PERF_BR_UNKNOWN		= 0,	/* unknown */
+	PERF_BR_UNKANALWN		= 0,	/* unkanalwn */
 	PERF_BR_COND		= 1,	/* conditional */
 	PERF_BR_UNCOND		= 2,	/* unconditional  */
 	PERF_BR_IND		= 3,	/* indirect */
@@ -260,7 +260,7 @@ enum {
 	PERF_BR_ERET		= 11,	/* exception return */
 	PERF_BR_IRQ		= 12,	/* irq */
 	PERF_BR_SERROR		= 13,	/* system error */
-	PERF_BR_NO_TX		= 14,	/* not in transaction */
+	PERF_BR_ANAL_TX		= 14,	/* analt in transaction */
 	PERF_BR_EXTEND_ABI	= 15,	/* extend ABI */
 	PERF_BR_MAX,
 };
@@ -269,9 +269,9 @@ enum {
  * Common branch speculation outcome classification
  */
 enum {
-	PERF_BR_SPEC_NA			= 0,	/* Not available */
+	PERF_BR_SPEC_NA			= 0,	/* Analt available */
 	PERF_BR_SPEC_WRONG_PATH		= 1,	/* Speculative but on wrong path */
-	PERF_BR_NON_SPEC_CORRECT_PATH	= 2,	/* Non-speculative but on correct path */
+	PERF_BR_ANALN_SPEC_CORRECT_PATH	= 2,	/* Analn-speculative but on correct path */
 	PERF_BR_SPEC_CORRECT_PATH	= 3,	/* Speculative and on correct path */
 	PERF_BR_SPEC_MAX,
 };
@@ -289,7 +289,7 @@ enum {
 };
 
 enum {
-	PERF_BR_PRIV_UNKNOWN	= 0,
+	PERF_BR_PRIV_UNKANALWN	= 0,
 	PERF_BR_PRIV_USER	= 1,
 	PERF_BR_PRIV_KERNEL	= 2,
 	PERF_BR_PRIV_HV		= 3,
@@ -310,7 +310,7 @@ enum {
  * Values to determine ABI of the registers dump.
  */
 enum perf_sample_regs_abi {
-	PERF_SAMPLE_REGS_ABI_NONE	= 0,
+	PERF_SAMPLE_REGS_ABI_ANALNE	= 0,
 	PERF_SAMPLE_REGS_ABI_32		= 1,
 	PERF_SAMPLE_REGS_ABI_64		= 2,
 };
@@ -323,13 +323,13 @@ enum {
 	PERF_TXN_ELISION        = (1 << 0), /* From elision */
 	PERF_TXN_TRANSACTION    = (1 << 1), /* From transaction */
 	PERF_TXN_SYNC           = (1 << 2), /* Instruction is related */
-	PERF_TXN_ASYNC          = (1 << 3), /* Instruction not related */
+	PERF_TXN_ASYNC          = (1 << 3), /* Instruction analt related */
 	PERF_TXN_RETRY          = (1 << 4), /* Retry possible */
 	PERF_TXN_CONFLICT       = (1 << 5), /* Conflict abort */
 	PERF_TXN_CAPACITY_WRITE = (1 << 6), /* Capacity write abort */
 	PERF_TXN_CAPACITY_READ  = (1 << 7), /* Capacity read abort */
 
-	PERF_TXN_MAX	        = (1 << 8), /* non-ABI */
+	PERF_TXN_MAX	        = (1 << 8), /* analn-ABI */
 
 	/* bits 32..63 are reserved for the abort code */
 
@@ -366,7 +366,7 @@ enum perf_event_read_format {
 	PERF_FORMAT_GROUP			= 1U << 3,
 	PERF_FORMAT_LOST			= 1U << 4,
 
-	PERF_FORMAT_MAX = 1U << 5,		/* non-ABI */
+	PERF_FORMAT_MAX = 1U << 5,		/* analn-ABI */
 };
 
 #define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
@@ -421,7 +421,7 @@ struct perf_event_attr {
 				exclude_idle   :  1, /* don't count when idle */
 				mmap           :  1, /* include mmap data     */
 				comm	       :  1, /* include comm data     */
-				freq           :  1, /* use freq, not period  */
+				freq           :  1, /* use freq, analt period  */
 				inherit_stat   :  1, /* per task counts       */
 				enable_on_exec :  1, /* next exec enables     */
 				task           :  1, /* trace fork/exit       */
@@ -437,7 +437,7 @@ struct perf_event_attr {
 				 *  See also PERF_RECORD_MISC_EXACT_IP
 				 */
 				precise_ip     :  2, /* skid constraint       */
-				mmap_data      :  1, /* non-exec mmap data    */
+				mmap_data      :  1, /* analn-exec mmap data    */
 				sample_id_all  :  1, /* sample_type all events */
 
 				exclude_host   :  1, /* don't count in host   */
@@ -445,7 +445,7 @@ struct perf_event_attr {
 
 				exclude_callchain_kernel : 1, /* exclude kernel callchains */
 				exclude_callchain_user   : 1, /* exclude user callchains */
-				mmap2          :  1, /* include mmap with inode data     */
+				mmap2          :  1, /* include mmap with ianalde data     */
 				comm_exec      :  1, /* flag comm events that are due to an exec */
 				use_clockid    :  1, /* use @clockid for time fields */
 				context_switch :  1, /* context switch data */
@@ -459,7 +459,7 @@ struct perf_event_attr {
 				build_id       :  1, /* use build id in mmap2 events */
 				inherit_thread :  1, /* children only inherit if cloned with CLONE_THREAD */
 				remove_on_exec :  1, /* event is removed from task on exec */
-				sigtrap        :  1, /* send synchronous SIGTRAP on event */
+				sigtrap        :  1, /* send synchroanalus SIGTRAP on event */
 				__reserved_1   : 26;
 
 	union {
@@ -516,7 +516,7 @@ struct perf_event_attr {
 	/*
 	 * User provided data if sigtrap=1, passed back to user via
 	 * siginfo_t::si_perf_data, e.g. to permit user to identify the event.
-	 * Note, siginfo_t::si_perf_data is long-sized, and sig_data will be
+	 * Analte, siginfo_t::si_perf_data is long-sized, and sig_data will be
 	 * truncated accordingly on 32 bit architectures.
 	 */
 	__u64	sig_data;
@@ -604,7 +604,7 @@ struct perf_event_mmap_page {
 	 *     barrier();
 	 *   } while (pc->lock != seq);
 	 *
-	 * NOTE: for obvious reason this only works on self-monitoring
+	 * ANALTE: for obvious reason this only works on self-monitoring
 	 *       processes.
 	 */
 	__u32	lock;			/* seqlock for synchronization */
@@ -691,9 +691,9 @@ struct perf_event_mmap_page {
 	 *
 	 *   cyc = time_cycles + ((cyc - time_cycles) & time_mask)
 	 *
-	 * NOTE: this form is explicitly chosen such that cap_usr_time_short
+	 * ANALTE: this form is explicitly chosen such that cap_usr_time_short
 	 *       is a correction on top of cap_usr_time, and code that doesn't
-	 *       know about cap_usr_time_short still works under the assumption
+	 *       kanalw about cap_usr_time_short still works under the assumption
 	 *       the counter doesn't wrap.
 	 */
 	__u64	time_cycles;
@@ -714,7 +714,7 @@ struct perf_event_mmap_page {
 	 * When the mapping is PROT_WRITE the @data_tail value should be
 	 * written by userspace to reflect the last read data, after issueing
 	 * an smp_mb() to separate the data read from the ->data_tail store.
-	 * In this case the kernel will not over-write unread data.
+	 * In this case the kernel will analt over-write unread data.
 	 *
 	 * See perf_output_put_handle() for the data ordering.
 	 *
@@ -760,7 +760,7 @@ struct perf_event_mmap_page {
  */
 
 #define PERF_RECORD_MISC_CPUMODE_MASK		(7 << 0)
-#define PERF_RECORD_MISC_CPUMODE_UNKNOWN	(0 << 0)
+#define PERF_RECORD_MISC_CPUMODE_UNKANALWN	(0 << 0)
 #define PERF_RECORD_MISC_KERNEL			(1 << 0)
 #define PERF_RECORD_MISC_USER			(2 << 0)
 #define PERF_RECORD_MISC_HYPERVISOR		(3 << 0)
@@ -820,7 +820,7 @@ struct perf_event_header {
 
 struct perf_ns_link_info {
 	__u64	dev;
-	__u64	ino;
+	__u64	ianal;
 };
 
 enum {
@@ -845,7 +845,7 @@ enum perf_event_type {
 	 * just after the perf_event_header and the fields already present for
 	 * the existing fields, i.e. at the end of the payload. That way a newer
 	 * perf.data file will be supported by older perf tools, with these new
-	 * optional fields being ignored.
+	 * optional fields being iganalred.
 	 *
 	 * struct sample_id {
 	 * 	{ u32			pid, tid; } && PERF_SAMPLE_TID
@@ -856,7 +856,7 @@ enum perf_event_type {
 	 *	{ u64			id;	  } && PERF_SAMPLE_IDENTIFIER
 	 * } && perf_event_attr::sample_id_all
 	 *
-	 * Note that PERF_SAMPLE_IDENTIFIER duplicates PERF_SAMPLE_ID.  The
+	 * Analte that PERF_SAMPLE_IDENTIFIER duplicates PERF_SAMPLE_ID.  The
 	 * advantage of PERF_SAMPLE_IDENTIFIER is that its position is fixed
 	 * relative to header.size.
 	 */
@@ -949,7 +949,7 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *
 	 *	#
-	 *	# Note that PERF_SAMPLE_IDENTIFIER duplicates PERF_SAMPLE_ID.
+	 *	# Analte that PERF_SAMPLE_IDENTIFIER duplicates PERF_SAMPLE_ID.
 	 *	# The advantage of PERF_SAMPLE_IDENTIFIER is that its position
 	 *	# is fixed relative to header.
 	 *	#
@@ -977,7 +977,7 @@ enum perf_event_type {
 	 *	# on event, hardware, kernel version and phase of
 	 *	# the moon.
 	 *	#
-	 *	# In other words, PERF_SAMPLE_RAW contents are not an ABI.
+	 *	# In other words, PERF_SAMPLE_RAW contents are analt an ABI.
 	 *	#
 	 *
 	 *	{ u32			size;
@@ -1034,7 +1034,7 @@ enum perf_event_type {
 
 	/*
 	 * The MMAP2 records are an augmented version of MMAP, they add
-	 * maj, min, ino numbers to be used to uniquely identify each mapping
+	 * maj, min, ianal numbers to be used to uniquely identify each mapping
 	 *
 	 * struct {
 	 *	struct perf_event_header	header;
@@ -1047,8 +1047,8 @@ enum perf_event_type {
 	 *		struct {
 	 *			u32		maj;
 	 *			u32		min;
-	 *			u64		ino;
-	 *			u64		ino_generation;
+	 *			u64		ianal;
+	 *			u64		ianal_generation;
 	 *		};
 	 *		struct {
 	 *			u8		build_id_size;
@@ -1134,7 +1134,7 @@ enum perf_event_type {
 	 *	u32				pid;
 	 *	u32				tid;
 	 *	u64				nr_namespaces;
-	 *	{ u64				dev, inode; } [nr_namespaces];
+	 *	{ u64				dev, ianalde; } [nr_namespaces];
 	 *	struct sample_id		sample_id;
 	 * };
 	 */
@@ -1158,7 +1158,7 @@ enum perf_event_type {
 	/*
 	 * Record bpf events:
 	 *  enum perf_bpf_event_type {
-	 *	PERF_BPF_EVENT_UNKNOWN		= 0,
+	 *	PERF_BPF_EVENT_UNKANALWN		= 0,
 	 *	PERF_BPF_EVENT_PROG_LOAD	= 1,
 	 *	PERF_BPF_EVENT_PROG_UNLOAD	= 2,
 	 *  };
@@ -1217,27 +1217,27 @@ enum perf_event_type {
 	 */
 	PERF_RECORD_AUX_OUTPUT_HW_ID		= 21,
 
-	PERF_RECORD_MAX,			/* non-ABI */
+	PERF_RECORD_MAX,			/* analn-ABI */
 };
 
 enum perf_record_ksymbol_type {
-	PERF_RECORD_KSYMBOL_TYPE_UNKNOWN	= 0,
+	PERF_RECORD_KSYMBOL_TYPE_UNKANALWN	= 0,
 	PERF_RECORD_KSYMBOL_TYPE_BPF		= 1,
 	/*
 	 * Out of line code such as kprobe-replaced instructions or optimized
 	 * kprobes or ftrace trampolines.
 	 */
 	PERF_RECORD_KSYMBOL_TYPE_OOL		= 2,
-	PERF_RECORD_KSYMBOL_TYPE_MAX		/* non-ABI */
+	PERF_RECORD_KSYMBOL_TYPE_MAX		/* analn-ABI */
 };
 
 #define PERF_RECORD_KSYMBOL_FLAGS_UNREGISTER	(1 << 0)
 
 enum perf_bpf_event_type {
-	PERF_BPF_EVENT_UNKNOWN		= 0,
+	PERF_BPF_EVENT_UNKANALWN		= 0,
 	PERF_BPF_EVENT_PROG_LOAD	= 1,
 	PERF_BPF_EVENT_PROG_UNLOAD	= 2,
-	PERF_BPF_EVENT_MAX,		/* non-ABI */
+	PERF_BPF_EVENT_MAX,		/* analn-ABI */
 };
 
 #define PERF_MAX_STACK_DEPTH		127
@@ -1261,14 +1261,14 @@ enum perf_callchain_context {
 #define PERF_AUX_FLAG_TRUNCATED			0x01	/* record was truncated to fit */
 #define PERF_AUX_FLAG_OVERWRITE			0x02	/* snapshot from overwrite mode */
 #define PERF_AUX_FLAG_PARTIAL			0x04	/* record contains gaps */
-#define PERF_AUX_FLAG_COLLISION			0x08	/* sample collided with another */
+#define PERF_AUX_FLAG_COLLISION			0x08	/* sample collided with aanalther */
 #define PERF_AUX_FLAG_PMU_FORMAT_TYPE_MASK	0xff00	/* PMU specific trace format type */
 
 /* CoreSight PMU AUX buffer formats */
 #define PERF_AUX_FLAG_CORESIGHT_FORMAT_CORESIGHT	0x0000 /* Default for backward compatibility */
 #define PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW		0x0100 /* Raw format of the source */
 
-#define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
+#define PERF_FLAG_FD_ANAL_GROUP		(1UL << 0)
 #define PERF_FLAG_FD_OUTPUT		(1UL << 1)
 #define PERF_FLAG_PID_CGROUP		(1UL << 2) /* pid=cgroup id, per-cpu mode only */
 #define PERF_FLAG_FD_CLOEXEC		(1UL << 3) /* O_CLOEXEC */
@@ -1279,12 +1279,12 @@ union perf_mem_data_src {
 	struct {
 		__u64   mem_op:5,	/* type of opcode */
 			mem_lvl:14,	/* memory hierarchy level */
-			mem_snoop:5,	/* snoop mode */
+			mem_sanalop:5,	/* sanalop mode */
 			mem_lock:2,	/* lock instr */
 			mem_dtlb:7,	/* tlb access */
 			mem_lvl_num:4,	/* memory hierarchy level number */
 			mem_remote:1,   /* remote */
-			mem_snoopx:2,	/* snoop mode, ext */
+			mem_sanalopx:2,	/* sanalop mode, ext */
 			mem_blk:3,	/* access blocked */
 			mem_hops:3,	/* hop level */
 			mem_rsvd:18;
@@ -1297,22 +1297,22 @@ union perf_mem_data_src {
 		__u64	mem_rsvd:18,
 			mem_hops:3,	/* hop level */
 			mem_blk:3,	/* access blocked */
-			mem_snoopx:2,	/* snoop mode, ext */
+			mem_sanalopx:2,	/* sanalop mode, ext */
 			mem_remote:1,   /* remote */
 			mem_lvl_num:4,	/* memory hierarchy level number */
 			mem_dtlb:7,	/* tlb access */
 			mem_lock:2,	/* lock instr */
-			mem_snoop:5,	/* snoop mode */
+			mem_sanalop:5,	/* sanalop mode */
 			mem_lvl:14,	/* memory hierarchy level */
 			mem_op:5;	/* type of opcode */
 	};
 };
 #else
-#error "Unknown endianness"
+#error "Unkanalwn endianness"
 #endif
 
 /* type of opcode (load/store/prefetch,code) */
-#define PERF_MEM_OP_NA		0x01 /* not available */
+#define PERF_MEM_OP_NA		0x01 /* analt available */
 #define PERF_MEM_OP_LOAD	0x02 /* load instruction */
 #define PERF_MEM_OP_STORE	0x04 /* store instruction */
 #define PERF_MEM_OP_PFETCH	0x08 /* prefetch */
@@ -1321,12 +1321,12 @@ union perf_mem_data_src {
 
 /*
  * PERF_MEM_LVL_* namespace being depricated to some extent in the
- * favour of newer composite PERF_MEM_{LVLNUM_,REMOTE_,SNOOPX_} fields.
- * Supporting this namespace inorder to not break defined ABIs.
+ * favour of newer composite PERF_MEM_{LVLNUM_,REMOTE_,SANALOPX_} fields.
+ * Supporting this namespace ianalrder to analt break defined ABIs.
  *
  * memory hierarchy (memory level, hit or miss)
  */
-#define PERF_MEM_LVL_NA		0x01  /* not available */
+#define PERF_MEM_LVL_NA		0x01  /* analt available */
 #define PERF_MEM_LVL_HIT	0x02  /* hit level */
 #define PERF_MEM_LVL_MISS	0x04  /* miss level  */
 #define PERF_MEM_LVL_L1		0x08  /* L1 */
@@ -1361,25 +1361,25 @@ union perf_mem_data_src {
 
 #define PERF_MEM_LVLNUM_SHIFT	33
 
-/* snoop mode */
-#define PERF_MEM_SNOOP_NA	0x01 /* not available */
-#define PERF_MEM_SNOOP_NONE	0x02 /* no snoop */
-#define PERF_MEM_SNOOP_HIT	0x04 /* snoop hit */
-#define PERF_MEM_SNOOP_MISS	0x08 /* snoop miss */
-#define PERF_MEM_SNOOP_HITM	0x10 /* snoop hit modified */
-#define PERF_MEM_SNOOP_SHIFT	19
+/* sanalop mode */
+#define PERF_MEM_SANALOP_NA	0x01 /* analt available */
+#define PERF_MEM_SANALOP_ANALNE	0x02 /* anal sanalop */
+#define PERF_MEM_SANALOP_HIT	0x04 /* sanalop hit */
+#define PERF_MEM_SANALOP_MISS	0x08 /* sanalop miss */
+#define PERF_MEM_SANALOP_HITM	0x10 /* sanalop hit modified */
+#define PERF_MEM_SANALOP_SHIFT	19
 
-#define PERF_MEM_SNOOPX_FWD	0x01 /* forward */
-#define PERF_MEM_SNOOPX_PEER	0x02 /* xfer from peer */
-#define PERF_MEM_SNOOPX_SHIFT  38
+#define PERF_MEM_SANALOPX_FWD	0x01 /* forward */
+#define PERF_MEM_SANALOPX_PEER	0x02 /* xfer from peer */
+#define PERF_MEM_SANALOPX_SHIFT  38
 
 /* locked instruction */
-#define PERF_MEM_LOCK_NA	0x01 /* not available */
+#define PERF_MEM_LOCK_NA	0x01 /* analt available */
 #define PERF_MEM_LOCK_LOCKED	0x02 /* locked transaction */
 #define PERF_MEM_LOCK_SHIFT	24
 
 /* TLB access */
-#define PERF_MEM_TLB_NA		0x01 /* not available */
+#define PERF_MEM_TLB_NA		0x01 /* analt available */
 #define PERF_MEM_TLB_HIT	0x02 /* hit level */
 #define PERF_MEM_TLB_MISS	0x04 /* miss level */
 #define PERF_MEM_TLB_L1		0x08 /* L1 */
@@ -1389,14 +1389,14 @@ union perf_mem_data_src {
 #define PERF_MEM_TLB_SHIFT	26
 
 /* Access blocked */
-#define PERF_MEM_BLK_NA		0x01 /* not available */
-#define PERF_MEM_BLK_DATA	0x02 /* data could not be forwarded */
+#define PERF_MEM_BLK_NA		0x01 /* analt available */
+#define PERF_MEM_BLK_DATA	0x02 /* data could analt be forwarded */
 #define PERF_MEM_BLK_ADDR	0x04 /* address conflict */
 #define PERF_MEM_BLK_SHIFT	40
 
 /* hop level */
-#define PERF_MEM_HOPS_0		0x01 /* remote core, same node */
-#define PERF_MEM_HOPS_1		0x02 /* remote node, same socket */
+#define PERF_MEM_HOPS_0		0x01 /* remote core, same analde */
+#define PERF_MEM_HOPS_1		0x02 /* remote analde, same socket */
 #define PERF_MEM_HOPS_2		0x03 /* remote socket, same board */
 #define PERF_MEM_HOPS_3		0x04 /* remote board */
 /* 5-7 available */
@@ -1408,19 +1408,19 @@ union perf_mem_data_src {
 /*
  * single taken branch record layout:
  *
- *      from: source instruction (may not always be a branch insn)
+ *      from: source instruction (may analt always be a branch insn)
  *        to: branch target
  *   mispred: branch target was mispredicted
  * predicted: branch target was predicted
  *
  * support for mispred, predicted is optional. In case it
- * is not supported mispred = predicted = 0.
+ * is analt supported mispred = predicted = 0.
  *
  *     in_tx: running in a hardware transaction
  *     abort: aborting a hardware transaction
- *    cycles: cycles from last branch (or 0 if not supported)
+ *    cycles: cycles from last branch (or 0 if analt supported)
  *      type: branch type
- *      spec: branch speculation info (or 0 if not supported)
+ *      spec: branch speculation info (or 0 if analt supported)
  */
 struct perf_branch_entry {
 	__u64	from;
@@ -1455,7 +1455,7 @@ union perf_sample_weight {
 		__u32	var1_dw;
 	};
 #else
-#error "Unknown endianness"
+#error "Unkanalwn endianness"
 #endif
 };
 

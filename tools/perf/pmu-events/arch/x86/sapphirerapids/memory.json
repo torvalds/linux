@@ -11,7 +11,7 @@
         "BriefDescription": "Number of machine clears due to memory ordering conflicts.",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture",
+        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may analt conform to the memory ordering rules of the x86 architecture",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -36,7 +36,7 @@
         "CounterMask": "5",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.STALLS_L2_MISS",
-        "PublicDescription": "Execution stalls while L2 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock).",
+        "PublicDescription": "Execution stalls while L2 cache miss demand cacheable load request is outstanding (will analt count for uncacheable demand requests e.g. bus lock).",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -45,7 +45,7 @@
         "CounterMask": "9",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.STALLS_L3_MISS",
-        "PublicDescription": "Execution stalls while L3 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock).",
+        "PublicDescription": "Execution stalls while L3 cache miss demand cacheable load request is outstanding (will analt count for uncacheable demand requests e.g. bus lock).",
         "SampleAfterValue": "1000003",
         "UMask": "0x9"
     },
@@ -156,7 +156,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_CODE_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -165,7 +165,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts demand data reads that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -174,7 +174,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -192,7 +192,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts hardware prefetches to the L3 only that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts hardware prefetches to the L3 only that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.HWPF_L3.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -201,7 +201,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were analt supplied by the local socket's L1, L2, or L3 caches.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -210,7 +210,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -219,7 +219,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that missed the L3 Cache and were supplied by the local socket (DRAM or PMM), whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM or DRAM accesses that are controlled by the close or distant SNC Cluster.  It does not count misses to the L3 which go to Local CXL Type 2 Memory or Local Non DRAM.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that missed the L3 Cache and were supplied by the local socket (DRAM or PMM), whether or analt in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM or DRAM accesses that are controlled by the close or distant SNC Cluster.  It does analt count misses to the L3 which go to Local CXL Type 2 Memory or Local Analn DRAM.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.L3_MISS_LOCAL_SOCKET",
         "MSRIndex": "0x1a6,0x1a7",
@@ -237,7 +237,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts streaming stores that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "BriefDescription": "Counts streaming stores that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.STREAMING_WR.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
@@ -253,10 +253,10 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "For every cycle, increments by the number of demand data read requests pending that are known to have missed the L3 cache.",
+        "BriefDescription": "For every cycle, increments by the number of demand data read requests pending that are kanalwn to have missed the L3 cache.",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD",
-        "PublicDescription": "For every cycle, increments by the number of demand data read requests pending that are known to have missed the L3 cache.  Note that this does not capture all elapsed cycles while requests are outstanding - only cycles from when the requests were known by the requesting core to have missed the L3 cache.",
+        "PublicDescription": "For every cycle, increments by the number of demand data read requests pending that are kanalwn to have missed the L3 cache.  Analte that this does analt capture all elapsed cycles while requests are outstanding - only cycles from when the requests were kanalwn by the requesting core to have missed the L3 cache.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -269,10 +269,10 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "BriefDescription": "Number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt)",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_EVENTS",
-        "PublicDescription": "Counts the number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
+        "PublicDescription": "Counts the number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt).",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -312,7 +312,7 @@
         "BriefDescription": "Number of times an RTM execution started.",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Counts the number of times we entered an RTM region. Does not count nested transactions.",
+        "PublicDescription": "Counts the number of times we entered an RTM region. Does analt count nested transactions.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },

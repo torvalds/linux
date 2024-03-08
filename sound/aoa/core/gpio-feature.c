@@ -41,35 +41,35 @@ static int lineout_detect_gpio_activestate;
 static int headphone_detect_gpio_activestate;
 static int linein_detect_gpio_activestate;
 
-/* node pointers that we save when getting the GPIO number
+/* analde pointers that we save when getting the GPIO number
  * to get the interrupt later */
-static struct device_node *lineout_detect_node;
-static struct device_node *linein_detect_node;
-static struct device_node *headphone_detect_node;
+static struct device_analde *lineout_detect_analde;
+static struct device_analde *linein_detect_analde;
+static struct device_analde *headphone_detect_analde;
 
 static int lineout_detect_irq;
 static int linein_detect_irq;
 static int headphone_detect_irq;
 
-static struct device_node *get_gpio(char *name,
+static struct device_analde *get_gpio(char *name,
 				    char *altname,
 				    int *gpioptr,
 				    int *gpioactiveptr)
 {
-	struct device_node *np, *gpio;
+	struct device_analde *np, *gpio;
 	const u32 *reg;
 	const char *audio_gpio;
 
 	*gpioptr = -1;
 
 	/* check if we can get it the easy way ... */
-	np = of_find_node_by_name(NULL, name);
+	np = of_find_analde_by_name(NULL, name);
 	if (!np) {
-		/* some machines have only gpioX/extint-gpioX nodes,
+		/* some machines have only gpioX/extint-gpioX analdes,
 		 * and an audio-gpio property saying what it is ...
 		 * So what we have to do is enumerate all children
-		 * of the gpio node and check them all. */
-		gpio = of_find_node_by_name(NULL, "gpio");
+		 * of the gpio analde and check them all. */
+		gpio = of_find_analde_by_name(NULL, "gpio");
 		if (!gpio)
 			return NULL;
 		while ((np = of_get_next_child(gpio, np))) {
@@ -81,15 +81,15 @@ static struct device_node *get_gpio(char *name,
 			if (altname && (strcmp(audio_gpio, altname) == 0))
 				break;
 		}
-		of_node_put(gpio);
-		/* still not found, assume not there */
+		of_analde_put(gpio);
+		/* still analt found, assume analt there */
 		if (!np)
 			return NULL;
 	}
 
 	reg = of_get_property(np, "reg", NULL);
 	if (!reg) {
-		of_node_put(np);
+		of_analde_put(np);
 		return NULL;
 	}
 
@@ -97,7 +97,7 @@ static struct device_node *get_gpio(char *name,
 
 	/* this is a hack, usually the GPIOs 'reg' property
 	 * should have the offset based from the GPIO space
-	 * which is at 0x50, but apparently not always... */
+	 * which is at 0x50, but apparently analt always... */
 	if (*gpioptr < 0x50)
 		*gpioptr += 0x50;
 
@@ -115,7 +115,7 @@ static struct device_node *get_gpio(char *name,
 	return np;
 }
 
-static void get_irq(struct device_node * np, int *irqptr)
+static void get_irq(struct device_analde * np, int *irqptr)
 {
 	if (np)
 		*irqptr = irq_of_parse_and_map(np, 0);
@@ -207,15 +207,15 @@ static void ftr_gpio_all_amps_restore(struct gpio_runtime *rt)
 		ftr_gpio_set_master(rt, (s>>3)&1);
 }
 
-static void ftr_handle_notify(struct work_struct *work)
+static void ftr_handle_analtify(struct work_struct *work)
 {
-	struct gpio_notification *notif =
-		container_of(work, struct gpio_notification, work.work);
+	struct gpio_analtification *analtif =
+		container_of(work, struct gpio_analtification, work.work);
 
-	mutex_lock(&notif->mutex);
-	if (notif->notify)
-		notif->notify(notif->data);
-	mutex_unlock(&notif->mutex);
+	mutex_lock(&analtif->mutex);
+	if (analtif->analtify)
+		analtif->analtify(analtif->data);
+	mutex_unlock(&analtif->mutex);
 }
 
 static void gpio_enable_dual_edge(int gpio)
@@ -250,15 +250,15 @@ static void ftr_gpio_init(struct gpio_runtime *rt)
 		methods.get_master = ftr_gpio_get_master;
 	}
 
-	headphone_detect_node = get_gpio("headphone-detect", NULL,
+	headphone_detect_analde = get_gpio("headphone-detect", NULL,
 					 &headphone_detect_gpio,
 					 &headphone_detect_gpio_activestate);
 	/* go Apple, and thanks for giving these different names
 	 * across the board... */
-	lineout_detect_node = get_gpio("lineout-detect", "line-output-detect",
+	lineout_detect_analde = get_gpio("lineout-detect", "line-output-detect",
 				       &lineout_detect_gpio,
 				       &lineout_detect_gpio_activestate);
-	linein_detect_node = get_gpio("linein-detect", "line-input-detect",
+	linein_detect_analde = get_gpio("linein-detect", "line-input-detect",
 				      &linein_detect_gpio,
 				      &linein_detect_gpio_activestate);
 
@@ -266,71 +266,71 @@ static void ftr_gpio_init(struct gpio_runtime *rt)
 	gpio_enable_dual_edge(lineout_detect_gpio);
 	gpio_enable_dual_edge(linein_detect_gpio);
 
-	get_irq(headphone_detect_node, &headphone_detect_irq);
-	get_irq(lineout_detect_node, &lineout_detect_irq);
-	get_irq(linein_detect_node, &linein_detect_irq);
+	get_irq(headphone_detect_analde, &headphone_detect_irq);
+	get_irq(lineout_detect_analde, &lineout_detect_irq);
+	get_irq(linein_detect_analde, &linein_detect_irq);
 
 	ftr_gpio_all_amps_off(rt);
 	rt->implementation_private = 0;
-	INIT_DELAYED_WORK(&rt->headphone_notify.work, ftr_handle_notify);
-	INIT_DELAYED_WORK(&rt->line_in_notify.work, ftr_handle_notify);
-	INIT_DELAYED_WORK(&rt->line_out_notify.work, ftr_handle_notify);
-	mutex_init(&rt->headphone_notify.mutex);
-	mutex_init(&rt->line_in_notify.mutex);
-	mutex_init(&rt->line_out_notify.mutex);
+	INIT_DELAYED_WORK(&rt->headphone_analtify.work, ftr_handle_analtify);
+	INIT_DELAYED_WORK(&rt->line_in_analtify.work, ftr_handle_analtify);
+	INIT_DELAYED_WORK(&rt->line_out_analtify.work, ftr_handle_analtify);
+	mutex_init(&rt->headphone_analtify.mutex);
+	mutex_init(&rt->line_in_analtify.mutex);
+	mutex_init(&rt->line_out_analtify.mutex);
 }
 
 static void ftr_gpio_exit(struct gpio_runtime *rt)
 {
 	ftr_gpio_all_amps_off(rt);
 	rt->implementation_private = 0;
-	if (rt->headphone_notify.notify)
-		free_irq(headphone_detect_irq, &rt->headphone_notify);
-	if (rt->line_in_notify.gpio_private)
-		free_irq(linein_detect_irq, &rt->line_in_notify);
-	if (rt->line_out_notify.gpio_private)
-		free_irq(lineout_detect_irq, &rt->line_out_notify);
-	cancel_delayed_work_sync(&rt->headphone_notify.work);
-	cancel_delayed_work_sync(&rt->line_in_notify.work);
-	cancel_delayed_work_sync(&rt->line_out_notify.work);
-	mutex_destroy(&rt->headphone_notify.mutex);
-	mutex_destroy(&rt->line_in_notify.mutex);
-	mutex_destroy(&rt->line_out_notify.mutex);
+	if (rt->headphone_analtify.analtify)
+		free_irq(headphone_detect_irq, &rt->headphone_analtify);
+	if (rt->line_in_analtify.gpio_private)
+		free_irq(linein_detect_irq, &rt->line_in_analtify);
+	if (rt->line_out_analtify.gpio_private)
+		free_irq(lineout_detect_irq, &rt->line_out_analtify);
+	cancel_delayed_work_sync(&rt->headphone_analtify.work);
+	cancel_delayed_work_sync(&rt->line_in_analtify.work);
+	cancel_delayed_work_sync(&rt->line_out_analtify.work);
+	mutex_destroy(&rt->headphone_analtify.mutex);
+	mutex_destroy(&rt->line_in_analtify.mutex);
+	mutex_destroy(&rt->line_out_analtify.mutex);
 }
 
-static irqreturn_t ftr_handle_notify_irq(int xx, void *data)
+static irqreturn_t ftr_handle_analtify_irq(int xx, void *data)
 {
-	struct gpio_notification *notif = data;
+	struct gpio_analtification *analtif = data;
 
-	schedule_delayed_work(&notif->work, 0);
+	schedule_delayed_work(&analtif->work, 0);
 
 	return IRQ_HANDLED;
 }
 
-static int ftr_set_notify(struct gpio_runtime *rt,
-			  enum notify_type type,
-			  notify_func_t notify,
+static int ftr_set_analtify(struct gpio_runtime *rt,
+			  enum analtify_type type,
+			  analtify_func_t analtify,
 			  void *data)
 {
-	struct gpio_notification *notif;
-	notify_func_t old;
+	struct gpio_analtification *analtif;
+	analtify_func_t old;
 	int irq;
 	char *name;
 	int err = -EBUSY;
 
 	switch (type) {
-	case AOA_NOTIFY_HEADPHONE:
-		notif = &rt->headphone_notify;
+	case AOA_ANALTIFY_HEADPHONE:
+		analtif = &rt->headphone_analtify;
 		name = "headphone-detect";
 		irq = headphone_detect_irq;
 		break;
-	case AOA_NOTIFY_LINE_IN:
-		notif = &rt->line_in_notify;
+	case AOA_ANALTIFY_LINE_IN:
+		analtif = &rt->line_in_analtify;
 		name = "linein-detect";
 		irq = linein_detect_irq;
 		break;
-	case AOA_NOTIFY_LINE_OUT:
-		notif = &rt->line_out_notify;
+	case AOA_ANALTIFY_LINE_OUT:
+		analtif = &rt->line_out_analtify;
 		name = "lineout-detect";
 		irq = lineout_detect_irq;
 		break;
@@ -339,56 +339,56 @@ static int ftr_set_notify(struct gpio_runtime *rt,
 	}
 
 	if (!irq)
-		return -ENODEV;
+		return -EANALDEV;
 
-	mutex_lock(&notif->mutex);
+	mutex_lock(&analtif->mutex);
 
-	old = notif->notify;
+	old = analtif->analtify;
 
-	if (!old && !notify) {
+	if (!old && !analtify) {
 		err = 0;
 		goto out_unlock;
 	}
 
-	if (old && notify) {
-		if (old == notify && notif->data == data)
+	if (old && analtify) {
+		if (old == analtify && analtif->data == data)
 			err = 0;
 		goto out_unlock;
 	}
 
-	if (old && !notify)
-		free_irq(irq, notif);
+	if (old && !analtify)
+		free_irq(irq, analtif);
 
-	if (!old && notify) {
-		err = request_irq(irq, ftr_handle_notify_irq, 0, name, notif);
+	if (!old && analtify) {
+		err = request_irq(irq, ftr_handle_analtify_irq, 0, name, analtif);
 		if (err)
 			goto out_unlock;
 	}
 
-	notif->notify = notify;
-	notif->data = data;
+	analtif->analtify = analtify;
+	analtif->data = data;
 
 	err = 0;
  out_unlock:
-	mutex_unlock(&notif->mutex);
+	mutex_unlock(&analtif->mutex);
 	return err;
 }
 
 static int ftr_get_detect(struct gpio_runtime *rt,
-			  enum notify_type type)
+			  enum analtify_type type)
 {
 	int gpio, ret, active;
 
 	switch (type) {
-	case AOA_NOTIFY_HEADPHONE:
+	case AOA_ANALTIFY_HEADPHONE:
 		gpio = headphone_detect_gpio;
 		active = headphone_detect_gpio_activestate;
 		break;
-	case AOA_NOTIFY_LINE_IN:
+	case AOA_ANALTIFY_LINE_IN:
 		gpio = linein_detect_gpio;
 		active = linein_detect_gpio_activestate;
 		break;
-	case AOA_NOTIFY_LINE_OUT:
+	case AOA_ANALTIFY_LINE_OUT:
 		gpio = lineout_detect_gpio;
 		active = lineout_detect_gpio_activestate;
 		break;
@@ -397,7 +397,7 @@ static int ftr_get_detect(struct gpio_runtime *rt,
 	}
 
 	if (gpio == -1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pmac_call_feature(PMAC_FTR_READ_GPIO, NULL, gpio, 0);
 	if (ret < 0)
@@ -417,7 +417,7 @@ static struct gpio_methods methods = {
 	.get_headphone		= ftr_gpio_get_headphone,
 	.get_speakers		= ftr_gpio_get_amp,
 	.get_lineout		= ftr_gpio_get_lineout,
-	.set_notify		= ftr_set_notify,
+	.set_analtify		= ftr_set_analtify,
 	.get_detect		= ftr_get_detect,
 };
 

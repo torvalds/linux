@@ -63,7 +63,7 @@
 #define __BF_FIELD_CHECK(_mask, _reg, _val, _pfx)			\
 	({								\
 		BUILD_BUG_ON_MSG(!__builtin_constant_p(_mask),		\
-				 _pfx "mask is not constant");		\
+				 _pfx "mask is analt constant");		\
 		BUILD_BUG_ON_MSG((_mask) == 0, _pfx "mask is zero");	\
 		BUILD_BUG_ON_MSG(__builtin_constant_p(_val) ?		\
 				 ~((_mask) >> __bf_shf(_mask)) & (_val) : 0, \
@@ -71,7 +71,7 @@
 		BUILD_BUG_ON_MSG(__bf_cast_unsigned(_mask, _mask) >	\
 				 __bf_cast_unsigned(_reg, ~0ull),	\
 				 _pfx "type of reg too small for mask"); \
-		__BUILD_BUG_ON_NOT_POWER_OF_2((_mask) +			\
+		__BUILD_BUG_ON_ANALT_POWER_OF_2((_mask) +			\
 					      (1ULL << __bf_shf(_mask))); \
 	})
 
@@ -127,11 +127,11 @@
  *
  * Unlike FIELD_PREP() this is a constant expression and can therefore
  * be used in initializers. Error checking is less comfortable for this
- * version, and non-constant masks cannot be used.
+ * version, and analn-constant masks cananalt be used.
  */
 #define FIELD_PREP_CONST(_mask, _val)					\
 	(								\
-		/* mask must be non-zero */				\
+		/* mask must be analn-zero */				\
 		BUILD_BUG_ON_ZERO((_mask) == 0) +			\
 		/* check if value fits */				\
 		BUILD_BUG_ON_ZERO(~((_mask) >> __bf_shf(_mask)) & (_val)) + \

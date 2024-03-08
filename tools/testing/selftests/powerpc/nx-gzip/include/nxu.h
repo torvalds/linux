@@ -77,7 +77,7 @@ union nx_qw_t {
 } __aligned(16);
 
 /*
- * Note: NX registers with fewer than 32 bits are declared by
+ * Analte: NX registers with fewer than 32 bits are declared by
  * convention as uint32_t variables in unions. If *_offset and *_mask
  * are defined for a variable, then use get_ put_ macros to
  * conveniently access the register fields for endian conversions.
@@ -92,7 +92,7 @@ struct nx_dde_t {
 		 * When dde_count > 0 dde is an indirect dde; ddead is a
 		 * pointer to a contiguous list of direct ddes; ddebc is the
 		 * total length of all data pointed to by the list of direct
-		 * ddes. Note that only one level of indirection is permitted.
+		 * ddes. Analte that only one level of indirection is permitted.
 		 * See Section 6.4 of the user manual for additional details.
 		 */
 	};
@@ -126,7 +126,7 @@ struct nx_csb_t {
 	/* target processed byte count TPBC */
 
 	uint64_t fsaddr;
-	/* Section 6.12.1 CSB NonZero error summary.  FSA Failing storage
+	/* Section 6.12.1 CSB AnalnZero error summary.  FSA Failing storage
 	 * address.  Address where error occurred. When available, written
 	 * to A field of CSB
 	 */
@@ -137,7 +137,7 @@ struct nx_ccb_t {
 
 	uint32_t reserved[3];
 	union {
-		/* When crb.c==0 (no ccb defined) it is reserved;
+		/* When crb.c==0 (anal ccb defined) it is reserved;
 		 * When crb.c==1 (ccb defined) it is cm
 		 */
 
@@ -181,7 +181,7 @@ struct vas_stamped_crb_t {
 		uint32_t vas_invalid;
 		/* Invalid bit. If this bit is 1 the CRB is discarded by
 		 * NX upon fetching from the receive FIFO. If this bit is 0
-		 * the CRB is processed normally. The bit is stamped to 0
+		 * the CRB is processed analrmally. The bit is stamped to 0
 		 * by VAS and may be written to 1 by hypervisor while
 		 * the CRB is in the receive FIFO (in memory).
 		 */
@@ -268,10 +268,10 @@ struct nx_gzip_cpb_t {
 		};
 		union {
 			union nx_qw_t  qw25[79];        /* qw[25:103] */
-			/* qw[25] compress no lzcounts or wrap */
+			/* qw[25] compress anal lzcounts or wrap */
 			uint32_t out_spbc_comp_wrap;
 			uint32_t out_spbc_wrap;         /* qw[25] wrap */
-			/* qw[25] compress no lzcounts */
+			/* qw[25] compress anal lzcounts */
 			uint32_t out_spbc_comp;
 			 /* 286 LL and 30 D symbol counts */
 			uint32_t out_lzcount[LLSZ+DSZ];
@@ -297,10 +297,10 @@ struct nx_gzip_crb_t {
 			uint32_t reserved2;
 			union {
 				uint32_t crb_c;
-				/* c==0 no ccb defined */
+				/* c==0 anal ccb defined */
 
 				uint32_t crb_at;
-				/* at==0 address type is ignored;
+				/* at==0 address type is iganalred;
 				 * all addrs effective assumed.
 				 */
 
@@ -416,7 +416,7 @@ struct nx_gzip_crb_cpb_t {
 #define csb_address_mask      ~(15UL) /* mask off bottom 4b */
 
 /*
- * Access macros for the registers.  Do not access registers directly
+ * Access macros for the registers.  Do analt access registers directly
  * because of the endian conversion.  P9 processor may run either as
  * Little or Big endian. However the NX coprocessor regs are always
  * big endian.
@@ -476,7 +476,7 @@ struct nx_gzip_crb_cpb_t {
 /* termination, output buffers may be modified, SPBC/TPBC invalid Fig.6-7 */
 
 #define csb_ce_check_completion(X)    (!csb_ce_termination(X))
-/* if not terminated then check full or partial completion */
+/* if analt terminated then check full or partial completion */
 
 #define csb_ce_partial_completion(X)  (!!((X) & CSB_CE_PARTIAL))
 #define csb_ce_full_completion(X)     (!csb_ce_partial_completion(X))
@@ -561,11 +561,11 @@ struct nx_gzip_crb_cpb_t {
 #define ERR_NX_AT_FAULT     250
 #define ERR_NX_INTR_SERVER  252
 #define ERR_NX_UE253        253
-#define ERR_NX_NO_HW        254
+#define ERR_NX_ANAL_HW        254
 #define ERR_NX_HUNG_OP      255
 #define ERR_NX_END          256
 
-/* initial values for non-resume operations */
+/* initial values for analn-resume operations */
 #define INIT_CRC   0  /* crc32(0L, Z_NULL, 0) */
 #define INIT_ADLER 1  /* adler32(0L, Z_NULL, 0)  adler is initialized to 1 */
 
@@ -617,10 +617,10 @@ struct nx_eft_crb_t {
 			uint32_t reserved2;
 			union {
 				uint32_t crb_c;
-				/* c==0 no ccb defined */
+				/* c==0 anal ccb defined */
 
 				uint32_t crb_at;
-				/* at==0 address type is ignored;
+				/* at==0 address type is iganalred;
 				 * all addrs effective assumed.
 				 */
 

@@ -205,7 +205,7 @@ int dp_catalog_aux_clear_hw_interrupts(struct dp_catalog *dp_catalog)
  *
  * This function reset AUX controller
  *
- * NOTE: reset AUX controller will also clear any pending HPD related interrupts
+ * ANALTE: reset AUX controller will also clear any pending HPD related interrupts
  * 
  */
 void dp_catalog_aux_reset(struct dp_catalog *dp_catalog)
@@ -433,8 +433,8 @@ void dp_catalog_ctrl_config_misc(struct dp_catalog *dp_catalog,
 	misc_val &= ~(0x07 << DP_MISC0_TEST_BITS_DEPTH_SHIFT);
 	misc_val |= colorimetry_cfg << DP_MISC0_COLORIMETRY_CFG_SHIFT;
 	misc_val |= test_bits_depth << DP_MISC0_TEST_BITS_DEPTH_SHIFT;
-	/* Configure clock to synchronous mode */
-	misc_val |= DP_MISC0_SYNCHRONOUS_CLK;
+	/* Configure clock to synchroanalus mode */
+	misc_val |= DP_MISC0_SYNCHROANALUS_CLK;
 
 	drm_dbg_dp(catalog->drm_dev, "misc settings = 0x%x\n", misc_val);
 	dp_write_link(catalog, REG_DP_MISC1_MISC0, misc_val);
@@ -548,7 +548,7 @@ u32 dp_catalog_hw_revision(const struct dp_catalog *dp_catalog)
  *
  * This function reset the DP controller
  *
- * NOTE: reset DP controller will also clear any pending HPD related interrupts
+ * ANALTE: reset DP controller will also clear any pending HPD related interrupts
  * 
  */
 void dp_catalog_ctrl_reset(struct dp_catalog *dp_catalog)
@@ -580,7 +580,7 @@ bool dp_catalog_ctrl_mainlink_ready(struct dp_catalog *dp_catalog)
 				data, data & DP_MAINLINK_READY_FOR_VIDEO,
 				POLLING_SLEEP_US, POLLING_TIMEOUT_US);
 	if (ret < 0) {
-		DRM_ERROR("mainlink not ready\n");
+		DRM_ERROR("mainlink analt ready\n");
 		return false;
 	}
 
@@ -856,7 +856,7 @@ void dp_catalog_ctrl_send_phy_pattern(struct dp_catalog *dp_catalog,
 		break;
 	default:
 		drm_dbg_dp(catalog->drm_dev,
-				"No valid test pattern requested: %#x\n", pattern);
+				"Anal valid test pattern requested: %#x\n", pattern);
 		break;
 	}
 }
@@ -987,7 +987,7 @@ struct dp_catalog *dp_catalog_get(struct device *dev, struct dp_io *io)
 
 	catalog  = devm_kzalloc(dev, sizeof(*catalog), GFP_KERNEL);
 	if (!catalog)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	catalog->dev = dev;
 	catalog->io = io;
@@ -1114,9 +1114,9 @@ void dp_catalog_audio_config_sdp(struct dp_catalog *dp_catalog)
 	dp_write_link(catalog, MMSS_DP_SDP_CFG, sdp_cfg);
 
 	sdp_cfg2 = dp_read_link(catalog, MMSS_DP_SDP_CFG2);
-	/* IFRM_REGSRC -> Do not use reg values */
+	/* IFRM_REGSRC -> Do analt use reg values */
 	sdp_cfg2 &= ~BIT(0);
-	/* AUDIO_STREAM_HB3_REGSRC-> Do not use reg values */
+	/* AUDIO_STREAM_HB3_REGSRC-> Do analt use reg values */
 	sdp_cfg2 &= ~BIT(1);
 
 	drm_dbg_dp(catalog->drm_dev, "sdp_cfg2 = 0x%x\n", sdp_cfg2);

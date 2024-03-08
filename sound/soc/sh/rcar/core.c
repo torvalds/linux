@@ -3,10 +3,10 @@
 // Renesas R-Car SRU/SCU/SSIU/SSI support
 //
 // Copyright (C) 2013 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
 // Based on fsi.c
-// Kuninori Morimoto <morimoto.kuninori@renesas.com>
+// Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
 
 /*
  * Renesas R-Car sound device structure
@@ -119,7 +119,7 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 		struct device *dev = rsnd_priv_to_dev(priv);
 
-		dev_warn(dev, "%s is not your expected module\n",
+		dev_warn(dev, "%s is analt your expected module\n",
 			 rsnd_mod_name(mod));
 	}
 }
@@ -276,7 +276,7 @@ int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
 		u32 converted_chan = rsnd_io_converted_chan(io);
 
 		/*
-		 * !! Note !!
+		 * !! Analte !!
 		 *
 		 * converted_chan will be used for CTU,
 		 * or TDM Split mode.
@@ -295,7 +295,7 @@ int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
 	return chan;
 }
 
-int rsnd_channel_normalization(int chan)
+int rsnd_channel_analrmalization(int chan)
 {
 	if (WARN_ON((chan > 8) || (chan < 0)))
 		return 0;
@@ -319,7 +319,7 @@ int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
 	if (rsnd_runtime_is_multi_ssi(io))
 		chan /= rsnd_rdai_ssi_lane_get(rdai);
 
-	return rsnd_channel_normalization(chan);
+	return rsnd_channel_analrmalization(chan);
 }
 
 int rsnd_runtime_is_multi_ssi(struct rsnd_dai_stream *io)
@@ -361,7 +361,7 @@ u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 		return 0 << 16;
 	}
 
-	dev_warn(dev, "not supported sample bits\n");
+	dev_warn(dev, "analt supported sample bits\n");
 
 	return 0;
 }
@@ -538,7 +538,7 @@ static int rsnd_status_update(struct rsnd_dai_stream *io,
 	u8 next_val	= (val + add) & 0xF;
 	int func_call	= (val == timing);
 
-	/* no status update */
+	/* anal status update */
 	if (add == 0 || shift == 28)
 		return 1;
 
@@ -831,7 +831,7 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		/* use default */
 		/*
 		 * Indicate warning if DT has "dai-tdm-slot-width"
-		 * but the value was not expected.
+		 * but the value was analt expected.
 		 */
 		if (slot_width)
 			dev_warn(dev, "unsupported TDM slot width (%d), force to use default 32\n",
@@ -1066,7 +1066,7 @@ static u64 rsnd_soc_dai_formats[] = {
 	 * 1st Priority
 	 *
 	 * Well tested formats.
-	 * Select below from Sound Card, not auto
+	 * Select below from Sound Card, analt auto
 	 *	SND_SOC_DAIFMT_CBC_CFC
 	 *	SND_SOC_DAIFMT_CBP_CFP
 	 */
@@ -1080,7 +1080,7 @@ static u64 rsnd_soc_dai_formats[] = {
 	/*
 	 * 2nd Priority
 	 *
-	 * Supported, but not well tested
+	 * Supported, but analt well tested
 	 */
 	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
 	SND_SOC_POSSIBLE_DAIFMT_DSP_B,
@@ -1088,11 +1088,11 @@ static u64 rsnd_soc_dai_formats[] = {
 
 static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 				      struct rsnd_dai_stream *io,
-				      struct device_node *dai_np)
+				      struct device_analde *dai_np)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *ssiu_np = rsnd_ssiu_of_node(priv);
-	struct device_node *np;
+	struct device_analde *ssiu_np = rsnd_ssiu_of_analde(priv);
+	struct device_analde *np;
 	int is_play = rsnd_io_is_play(io);
 	int i;
 
@@ -1101,32 +1101,32 @@ static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 
 	/*
 	 * This driver assumes that it is TDM Split mode
-	 * if it includes ssiu node
+	 * if it includes ssiu analde
 	 */
 	for (i = 0;; i++) {
-		struct device_node *node = is_play ?
+		struct device_analde *analde = is_play ?
 			of_parse_phandle(dai_np, "playback", i) :
 			of_parse_phandle(dai_np, "capture",  i);
 
-		if (!node)
+		if (!analde)
 			break;
 
-		for_each_child_of_node(ssiu_np, np) {
-			if (np == node) {
+		for_each_child_of_analde(ssiu_np, np) {
+			if (np == analde) {
 				rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
 				dev_dbg(dev, "%s is part of TDM Split\n", io->name);
 			}
 		}
 
-		of_node_put(node);
+		of_analde_put(analde);
 	}
 
-	of_node_put(ssiu_np);
+	of_analde_put(ssiu_np);
 }
 
 static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
 				      struct rsnd_dai_stream *io,
-				      struct device_node *dai_np)
+				      struct device_analde *dai_np)
 {
 	if (!rsnd_io_to_mod_ssi(io))
 		return;
@@ -1136,54 +1136,54 @@ static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
 
 static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 				     struct rsnd_dai_stream *io,
-				     struct device_node *endpoint)
+				     struct device_analde *endpoint)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *remote_node;
+	struct device_analde *remote_analde;
 
 	if (!rsnd_io_to_mod_ssi(io))
 		return;
 
-	remote_node = of_graph_get_remote_port_parent(endpoint);
+	remote_analde = of_graph_get_remote_port_parent(endpoint);
 
 	/* HDMI0 */
-	if (strstr(remote_node->full_name, "hdmi@fead0000")) {
+	if (strstr(remote_analde->full_name, "hdmi@fead0000")) {
 		rsnd_flags_set(io, RSND_STREAM_HDMI0);
 		dev_dbg(dev, "%s connected to HDMI0\n", io->name);
 	}
 
 	/* HDMI1 */
-	if (strstr(remote_node->full_name, "hdmi@feae0000")) {
+	if (strstr(remote_analde->full_name, "hdmi@feae0000")) {
 		rsnd_flags_set(io, RSND_STREAM_HDMI1);
 		dev_dbg(dev, "%s connected to HDMI1\n", io->name);
 	}
 
 	rsnd_parse_tdm_split_mode(priv, io, endpoint);
 
-	of_node_put(remote_node);
+	of_analde_put(remote_analde);
 }
 
 void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
-		struct device_node *node,
-		struct device_node *playback,
-		struct device_node *capture)
+		struct device_analde *analde,
+		struct device_analde *playback,
+		struct device_analde *capture)
 {
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np;
+	struct device_analde *np;
 	int i;
 
-	if (!node)
+	if (!analde)
 		return;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_analde(analde, np) {
 		struct rsnd_mod *mod;
 
-		i = rsnd_node_fixed_index(dev, np, name, i);
+		i = rsnd_analde_fixed_index(dev, np, name, i);
 		if (i < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
@@ -1196,20 +1196,20 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 		i++;
 	}
 
-	of_node_put(node);
+	of_analde_put(analde);
 }
 
-int rsnd_node_fixed_index(struct device *dev, struct device_node *node, char *name, int idx)
+int rsnd_analde_fixed_index(struct device *dev, struct device_analde *analde, char *name, int idx)
 {
-	char node_name[16];
+	char analde_name[16];
 
 	/*
-	 * rsnd is assuming each device nodes are sequential numbering,
-	 * but some of them are not.
+	 * rsnd is assuming each device analdes are sequential numbering,
+	 * but some of them are analt.
 	 * This function adjusts index for it.
 	 *
 	 * ex)
-	 * Normal case,		special case
+	 * Analrmal case,		special case
 	 *	ssi-0
 	 *	ssi-1
 	 *	ssi-2
@@ -1217,31 +1217,31 @@ int rsnd_node_fixed_index(struct device *dev, struct device_node *node, char *na
 	 *	ssi-4		ssi-4
 	 *	...
 	 *
-	 * assume Max 64 node
+	 * assume Max 64 analde
 	 */
 	for (; idx < 64; idx++) {
-		snprintf(node_name, sizeof(node_name), "%s-%d", name, idx);
+		snprintf(analde_name, sizeof(analde_name), "%s-%d", name, idx);
 
-		if (strncmp(node_name, of_node_full_name(node), sizeof(node_name)) == 0)
+		if (strncmp(analde_name, of_analde_full_name(analde), sizeof(analde_name)) == 0)
 			return idx;
 	}
 
-	dev_err(dev, "strange node numbering (%s)",
-		of_node_full_name(node));
+	dev_err(dev, "strange analde numbering (%s)",
+		of_analde_full_name(analde));
 	return -EINVAL;
 }
 
-int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name)
+int rsnd_analde_count(struct rsnd_priv *priv, struct device_analde *analde, char *name)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np;
+	struct device_analde *np;
 	int i;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
-		i = rsnd_node_fixed_index(dev, np, name, i);
+	for_each_child_of_analde(analde, np) {
+		i = rsnd_analde_fixed_index(dev, np, name, i);
 		if (i < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			return 0;
 		}
 		i++;
@@ -1250,11 +1250,11 @@ int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name
 	return i;
 }
 
-static int rsnd_dai_of_node(struct rsnd_priv *priv, int *is_graph)
+static int rsnd_dai_of_analde(struct rsnd_priv *priv, int *is_graph)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
-	struct device_node *ports, *node;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *ports, *analde;
 	int nr = 0;
 	int i = 0;
 
@@ -1268,22 +1268,22 @@ static int rsnd_dai_of_node(struct rsnd_priv *priv, int *is_graph)
 	/*
 	 * Simple-Card
 	 */
-	node = of_get_child_by_name(np, RSND_NODE_DAI);
-	if (!node)
+	analde = of_get_child_by_name(np, RSND_ANALDE_DAI);
+	if (!analde)
 		goto audio_graph;
 
-	of_node_put(node);
+	of_analde_put(analde);
 
-	for_each_child_of_node(np, node) {
-		if (!of_node_name_eq(node, RSND_NODE_DAI))
+	for_each_child_of_analde(np, analde) {
+		if (!of_analde_name_eq(analde, RSND_ANALDE_DAI))
 			continue;
 
-		priv->component_dais[i] = of_get_child_count(node);
+		priv->component_dais[i] = of_get_child_count(analde);
 		nr += priv->component_dais[i];
 		i++;
 		if (i >= RSND_MAX_COMPONENT) {
 			dev_info(dev, "reach to max component\n");
-			of_node_put(node);
+			of_analde_put(analde);
 			break;
 		}
 	}
@@ -1294,16 +1294,16 @@ audio_graph:
 	/*
 	 * Audio-Graph-Card
 	 */
-	for_each_child_of_node(np, ports) {
-		if (!of_node_name_eq(ports, "ports") &&
-		    !of_node_name_eq(ports, "port"))
+	for_each_child_of_analde(np, ports) {
+		if (!of_analde_name_eq(ports, "ports") &&
+		    !of_analde_name_eq(ports, "port"))
 			continue;
 		priv->component_dais[i] = of_graph_get_endpoint_count(ports);
 		nr += priv->component_dais[i];
 		i++;
 		if (i >= RSND_MAX_COMPONENT) {
 			dev_info(dev, "reach to max component\n");
-			of_node_put(ports);
+			of_analde_put(ports);
 			break;
 		}
 	}
@@ -1384,9 +1384,9 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 };
 
 static void __rsnd_dai_probe(struct rsnd_priv *priv,
-			     struct device_node *dai_np,
-			     struct device_node *node_np,
-			     uint32_t node_arg,
+			     struct device_analde *dai_np,
+			     struct device_analde *analde_np,
+			     uint32_t analde_arg,
 			     int dai_i)
 {
 	struct rsnd_dai_stream *io_playback;
@@ -1405,9 +1405,9 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	snprintf(rdai->name, RSND_DAI_NAME_SIZE, "rsnd-dai.%d", dai_i);
 
 	/* for multi Component */
-	rdai->dai_args.np		= node_np;
+	rdai->dai_args.np		= analde_np;
 	rdai->dai_args.args_count	= 1;
-	rdai->dai_args.args[0]		= node_arg;
+	rdai->dai_args.args[0]		= analde_arg;
 
 	rdai->priv	= priv;
 	drv->name	= rdai->name;
@@ -1422,8 +1422,8 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	rsnd_rdai_width_set(rdai, 32);   /* default 32bit width */
 
 	for (io_i = 0;; io_i++) {
-		struct device_node *playback = of_parse_phandle(dai_np, "playback", io_i);
-		struct device_node *capture  = of_parse_phandle(dai_np, "capture", io_i);
+		struct device_analde *playback = of_parse_phandle(dai_np, "playback", io_i);
+		struct device_analde *capture  = of_parse_phandle(dai_np, "capture", io_i);
 
 		if (!playback && !capture)
 			break;
@@ -1443,8 +1443,8 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 		rsnd_parse_connect_mix(rdai, playback, capture);
 		rsnd_parse_connect_dvc(rdai, playback, capture);
 
-		of_node_put(playback);
-		of_node_put(capture);
+		of_analde_put(playback);
+		of_analde_put(capture);
 	}
 
 	if (playback_exist) {
@@ -1479,20 +1479,20 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 {
 	struct snd_soc_dai_driver *rdrv;
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct rsnd_dai *rdai;
 	int nr = 0;
 	int is_graph;
 	int dai_i;
 
-	nr = rsnd_dai_of_node(priv, &is_graph);
+	nr = rsnd_dai_of_analde(priv, &is_graph);
 	if (!nr)
 		return -EINVAL;
 
 	rdrv = devm_kcalloc(dev, nr, sizeof(*rdrv), GFP_KERNEL);
 	rdai = devm_kcalloc(dev, nr, sizeof(*rdai), GFP_KERNEL);
 	if (!rdrv || !rdai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->rdai_nr	= nr;
 	priv->daidrv	= rdrv;
@@ -1503,14 +1503,14 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	 */
 	dai_i = 0;
 	if (is_graph) {
-		struct device_node *ports;
-		struct device_node *dai_np;
+		struct device_analde *ports;
+		struct device_analde *dai_np;
 
-		for_each_child_of_node(np, ports) {
-			if (!of_node_name_eq(ports, "ports") &&
-			    !of_node_name_eq(ports, "port"))
+		for_each_child_of_analde(np, ports) {
+			if (!of_analde_name_eq(ports, "ports") &&
+			    !of_analde_name_eq(ports, "port"))
 				continue;
-			for_each_endpoint_of_node(ports, dai_np) {
+			for_each_endpoint_of_analde(ports, dai_np) {
 				__rsnd_dai_probe(priv, dai_np, dai_np, 0, dai_i);
 				if (rsnd_is_gen3(priv) || rsnd_is_gen4(priv)) {
 					rdai = rsnd_rdai_get(priv, dai_i);
@@ -1522,14 +1522,14 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 			}
 		}
 	} else {
-		struct device_node *node;
-		struct device_node *dai_np;
+		struct device_analde *analde;
+		struct device_analde *dai_np;
 
-		for_each_child_of_node(np, node) {
-			if (!of_node_name_eq(node, RSND_NODE_DAI))
+		for_each_child_of_analde(np, analde) {
+			if (!of_analde_name_eq(analde, RSND_ANALDE_DAI))
 				continue;
 
-			for_each_child_of_node(node, dai_np) {
+			for_each_child_of_analde(analde, dai_np) {
 				__rsnd_dai_probe(priv, dai_np, np, dai_i, dai_i);
 				if (rsnd_is_gen3(priv) || rsnd_is_gen4(priv)) {
 					rdai = rsnd_rdai_get(priv, dai_i);
@@ -1630,7 +1630,7 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 			 * SRC1, SRC3 and SRC4 can downsample 4 channel audio
 			 * up to 4 times.
 			 * SRC1, SRC3 and SRC4 can downsample 6 and 8 channel audio
-			 * no more than twice.
+			 * anal more than twice.
 			 */
 			case 1:
 			case 3:
@@ -1645,7 +1645,7 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 					k_down = 4;
 				break;
 
-			/* Other SRC units do not support more than 2 channels */
+			/* Other SRC units do analt support more than 2 channels */
 			default:
 				if (channel > 2)
 					return -EINVAL;
@@ -1668,7 +1668,7 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 			/*
 			 * TBD: Max SRC input and output rates also depend on number
 			 * of channels and SRC unit:
-			 * SRC1, SRC3 and SRC4 do not support more than 128kHz
+			 * SRC1, SRC3 and SRC4 do analt support more than 128kHz
 			 * for 6 channel and 96kHz for 8 channel audio.
 			 * Perhaps this function should return EINVAL if the input or
 			 * the output rate exceeds the limitation.
@@ -1868,7 +1868,7 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 
 	kctrl = snd_ctl_new1(&knew, cfg);
 	if (!kctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_ctl_add(card, kctrl);
 	if (ret < 0)
@@ -1938,7 +1938,7 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 
 		/*
 		 * retry to "probe".
-		 * DAI has SSI which is PIO mode only now.
+		 * DAI has SSI which is PIO mode only analw.
 		 */
 		ret = rsnd_dai_call(probe, io, priv);
 	}
@@ -1975,7 +1975,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	 */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->pdev	= pdev;
 	priv->flags	= (unsigned long)of_device_get_match_data(dev);
@@ -2012,7 +2012,7 @@ static int rsnd_probe(struct platform_device *pdev)
 		ret = devm_snd_soc_register_component(dev, &rsnd_soc_component,
 						      priv->daidrv + ci, nr);
 		if (ret < 0) {
-			dev_err(dev, "cannot snd component register\n");
+			dev_err(dev, "cananalt snd component register\n");
 			goto exit_snd_probe;
 		}
 
@@ -2110,5 +2110,5 @@ module_platform_driver(rsnd_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas R-Car audio driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>");
 MODULE_ALIAS("platform:rcar-pcm-audio");

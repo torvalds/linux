@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology corporation.
+// Copyright (c) 2018 Nuvoton Techanallogy corporation.
 
 #include <linux/kernel.h>
 #include <linux/bitfield.h>
@@ -299,7 +299,7 @@ static irqreturn_t npcm_pspi_handler(int irq, void *dev_id)
 	stat = ioread8(priv->base + NPCM_PSPI_STAT);
 
 	if (!priv->tx_buf && !priv->rx_buf)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (priv->tx_buf) {
 		if (stat & NPCM_PSPI_STAT_RBF) {
@@ -319,7 +319,7 @@ static irqreturn_t npcm_pspi_handler(int irq, void *dev_id)
 	if (priv->rx_buf) {
 		if (stat & NPCM_PSPI_STAT_RBF) {
 			if (!priv->rx_bytes)
-				return IRQ_NONE;
+				return IRQ_ANALNE;
 
 			npcm_pspi_recv(priv);
 
@@ -347,7 +347,7 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*priv));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
 
@@ -401,7 +401,7 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 	host->max_speed_hz = DIV_ROUND_UP(clk_hz, NPCM_PSPI_MIN_CLK_DIVIDER);
 	host->min_speed_hz = DIV_ROUND_UP(clk_hz, NPCM_PSPI_MAX_CLK_DIVIDER);
 	host->mode_bits = SPI_CPHA | SPI_CPOL;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->bus_num = -1;
 	host->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	host->transfer_one = npcm_pspi_transfer_one;

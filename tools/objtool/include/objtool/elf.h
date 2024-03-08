@@ -26,14 +26,14 @@
 #define ELF_C_READ_MMAP ELF_C_READ
 #endif
 
-struct elf_hash_node {
-	struct elf_hash_node *next;
+struct elf_hash_analde {
+	struct elf_hash_analde *next;
 };
 
 struct section {
 	struct list_head list;
-	struct elf_hash_node hash;
-	struct elf_hash_node name_hash;
+	struct elf_hash_analde hash;
+	struct elf_hash_analde name_hash;
 	GElf_Shdr sh;
 	struct rb_root_cached symbol_tree;
 	struct list_head symbol_list;
@@ -42,15 +42,15 @@ struct section {
 	Elf_Data *data;
 	char *name;
 	int idx;
-	bool _changed, text, rodata, noinstr, init, truncate;
+	bool _changed, text, rodata, analinstr, init, truncate;
 	struct reloc *relocs;
 };
 
 struct symbol {
 	struct list_head list;
-	struct rb_node node;
-	struct elf_hash_node hash;
-	struct elf_hash_node name_hash;
+	struct rb_analde analde;
+	struct elf_hash_analde hash;
+	struct elf_hash_analde name_hash;
 	GElf_Sym sym;
 	struct section *sec;
 	char *name;
@@ -72,7 +72,7 @@ struct symbol {
 };
 
 struct reloc {
-	struct elf_hash_node hash;
+	struct elf_hash_analde hash;
 	struct section *sec;
 	struct symbol *sym;
 	struct reloc *sym_next_reloc;
@@ -94,11 +94,11 @@ struct elf {
 	int section_name_bits;
 	int reloc_bits;
 
-	struct elf_hash_node **symbol_hash;
-	struct elf_hash_node **symbol_name_hash;
-	struct elf_hash_node **section_hash;
-	struct elf_hash_node **section_name_hash;
-	struct elf_hash_node **reloc_hash;
+	struct elf_hash_analde **symbol_hash;
+	struct elf_hash_analde **symbol_name_hash;
+	struct elf_hash_analde **section_hash;
+	struct elf_hash_analde **section_name_hash;
+	struct elf_hash_analde **reloc_hash;
 
 	struct section *section_data;
 	struct symbol *symbol_data;
@@ -146,7 +146,7 @@ struct symbol *find_func_containing(struct section *sec, unsigned long offset);
 /*
  * Try to see if it's a whole archive (vmlinux.o or module).
  *
- * Note this will miss the case where a module only has one source file.
+ * Analte this will miss the case where a module only has one source file.
  */
 static inline bool has_multiple_files(struct elf *elf)
 {

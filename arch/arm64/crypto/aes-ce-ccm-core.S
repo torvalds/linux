@@ -134,7 +134,7 @@ CPU_LE(	rev	x8, x8			)	/* keep swabbed ctr in reg */
 	rev	x9, x8
 	cmp	w4, #12				/* which key size? */
 	sub	w7, w4, #2			/* get modified # of rounds */
-	ins	v1.d[1], x9			/* no carry in lower ctr */
+	ins	v1.d[1], x9			/* anal carry in lower ctr */
 	ld1	{v3.4s}, [x3]			/* load first round key */
 	add	x10, x3, #16
 	bmi	1f

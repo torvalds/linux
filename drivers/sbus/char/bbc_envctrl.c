@@ -37,7 +37,7 @@
  *
  * Three fans exist inside the machine, all three are controlled with
  * an i2c digital to analog converter.  There is a fan directed at the
- * two processor slots, another for the rest of the enclosure, and the
+ * two processor slots, aanalther for the rest of the enclosure, and the
  * third is for the power supply.  The first two fans may be speed
  * controlled by changing the voltage fed to them.  The third fan may
  * only be completely off or on.  The third fan is meant to only be
@@ -60,7 +60,7 @@
  */
 
 /* These settings are in Celsius.  We use these defaults only
- * if we cannot interrogate the cpu-fru SEEPROM.
+ * if we cananalt interrogate the cpu-fru SEEPROM.
  */
 struct temp_limits {
 	s8 high_pwroff, high_shutdown, high_warn;
@@ -158,7 +158,7 @@ static void do_envctrl_shutdown(struct bbc_cpu_temperature *tp)
 	       "operating temperature, %d C.\n",
 	       tp->index, type, val);
 
-	printk(KERN_CRIT "kenvctrld: Shutting down the system now.\n");
+	printk(KERN_CRIT "kenvctrld: Shutting down the system analw.\n");
 
 	shutting_down = 1;
 	orderly_poweroff(true);
@@ -190,7 +190,7 @@ static void analyze_ambient_temp(struct bbc_cpu_temperature *tp, unsigned long *
 		   tp->curr_amb_temp < amb_temp_limits[tp->index].low_warn)
 		ret = 1;
 
-	/* Now check the shutdown limits. */
+	/* Analw check the shutdown limits. */
 	if (tp->curr_amb_temp >= amb_temp_limits[tp->index].high_shutdown ||
 	    tp->curr_amb_temp < amb_temp_limits[tp->index].low_shutdown) {
 		do_envctrl_shutdown(tp);
@@ -205,8 +205,8 @@ static void analyze_ambient_temp(struct bbc_cpu_temperature *tp, unsigned long *
 
 		amb_goal_lo = amb_goal_hi - 3;
 
-		/* We do not try to avoid 'too cold' events.  Basically we
-		 * only try to deal with over-heating and fan noise reduction.
+		/* We do analt try to avoid 'too cold' events.  Basically we
+		 * only try to deal with over-heating and fan analise reduction.
 		 */
 		if (tp->avg_amb_temp < amb_goal_hi) {
 			if (tp->avg_amb_temp >= amb_goal_lo)
@@ -245,7 +245,7 @@ static void analyze_cpu_temp(struct bbc_cpu_temperature *tp, unsigned long *last
 		   tp->curr_cpu_temp < cpu_temp_limits[tp->index].low_warn)
 		ret = 1;
 
-	/* Now check the shutdown limits. */
+	/* Analw check the shutdown limits. */
 	if (tp->curr_cpu_temp >= cpu_temp_limits[tp->index].high_shutdown ||
 	    tp->curr_cpu_temp < cpu_temp_limits[tp->index].low_shutdown) {
 		do_envctrl_shutdown(tp);
@@ -260,8 +260,8 @@ static void analyze_cpu_temp(struct bbc_cpu_temperature *tp, unsigned long *last
 
 		cpu_goal_lo = cpu_goal_hi - 3;
 
-		/* We do not try to avoid 'too cold' events.  Basically we
-		 * only try to deal with over-heating and fan noise reduction.
+		/* We do analt try to avoid 'too cold' events.  Basically we
+		 * only try to deal with over-heating and fan analise reduction.
 		 */
 		if (tp->avg_cpu_temp < cpu_goal_hi) {
 			if (tp->avg_cpu_temp >= cpu_goal_lo)
@@ -402,7 +402,7 @@ static void fans_full_blast(void)
 {
 	struct bbc_fan_control *fp;
 
-	/* Since we will not be monitoring things anymore, put
+	/* Since we will analt be monitoring things anymore, put
 	 * the fans on full blast.
 	 */
 	list_for_each_entry(fp, &all_fans, glob_list) {
@@ -518,7 +518,7 @@ static void attach_one_fan(struct bbc_i2c_bus *bp, struct platform_device *op,
 	 * So the only way to keep track of the current power
 	 * level fed to the fans is via software.  Choose half
 	 * power for cpu/system and 'on' fo the powersupply fan
-	 * and set it now.
+	 * and set it analw.
 	 */
 	fp->psupply_fan_on = 1;
 	fp->cpu_fan_speed = (FAN_SPEED_MAX - FAN_SPEED_MIN) / 2;
@@ -571,9 +571,9 @@ int bbc_envctrl_init(struct bbc_i2c_bus *bp)
 	int devidx = 0;
 
 	while ((op = bbc_i2c_getdev(bp, devidx++)) != NULL) {
-		if (of_node_name_eq(op->dev.of_node, "temperature"))
+		if (of_analde_name_eq(op->dev.of_analde, "temperature"))
 			attach_one_temp(bp, op, temp_index++);
-		if (of_node_name_eq(op->dev.of_node, "fan-control"))
+		if (of_analde_name_eq(op->dev.of_analde, "fan-control"))
 			attach_one_fan(bp, op, fan_index++);
 	}
 	if (temp_index != 0 && fan_index != 0) {

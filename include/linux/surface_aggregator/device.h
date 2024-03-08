@@ -4,7 +4,7 @@
  *
  * Main interface for the surface-aggregator bus, surface-aggregator client
  * devices, and respective drivers building on top of the SSAM controller.
- * Provides support for non-platform/non-ACPI SSAM clients via dedicated
+ * Provides support for analn-platform/analn-ACPI SSAM clients via dedicated
  * subsystem.
  *
  * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
@@ -65,7 +65,7 @@ struct ssam_device_uid {
  *
  * These values are intended to be used with SSAM_DEVICE(), SSAM_VDEV(), and
  * SSAM_SDEV() exclusively. Specifically, they are used to initialize the
- * match_flags member of the device ID structure. Do not use them directly
+ * match_flags member of the device ID structure. Do analt use them directly
  * with struct ssam_device_id or struct ssam_device_uid.
  */
 #define SSAM_SSH_TID_ANY	0xffff
@@ -84,13 +84,13 @@ struct ssam_device_uid {
  * Initializes a &struct ssam_device_id with the given parameters. See &struct
  * ssam_device_uid for details regarding the parameters. The special values
  * %SSAM_SSH_TID_ANY, %SSAM_SSH_IID_ANY, and %SSAM_SSH_FUN_ANY can be used to specify that
- * matching should ignore target ID, instance ID, and/or sub-function,
+ * matching should iganalre target ID, instance ID, and/or sub-function,
  * respectively. This macro initializes the ``match_flags`` field based on the
  * given parameters.
  *
- * Note: The parameters @d and @cat must be valid &u8 values, the parameters
+ * Analte: The parameters @d and @cat must be valid &u8 values, the parameters
  * @tid, @iid, and @fun must be either valid &u8 values or %SSAM_SSH_TID_ANY,
- * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values are not
+ * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other analn-&u8 values are analt
  * allowed.
  */
 #define SSAM_DEVICE(d, cat, tid, iid, fun)					\
@@ -114,13 +114,13 @@ struct ssam_device_uid {
  * Initializes a &struct ssam_device_id with the given parameters in the
  * virtual domain. See &struct ssam_device_uid for details regarding the
  * parameters. The special values %SSAM_SSH_TID_ANY, %SSAM_SSH_IID_ANY, and
- * %SSAM_SSH_FUN_ANY can be used to specify that matching should ignore target ID,
+ * %SSAM_SSH_FUN_ANY can be used to specify that matching should iganalre target ID,
  * instance ID, and/or sub-function, respectively. This macro initializes the
  * ``match_flags`` field based on the given parameters.
  *
- * Note: The parameter @cat must be a valid &u8 value, the parameters @tid,
+ * Analte: The parameter @cat must be a valid &u8 value, the parameters @tid,
  * @iid, and @fun must be either valid &u8 values or %SSAM_SSH_TID_ANY,
- * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values are not
+ * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other analn-&u8 values are analt
  * allowed.
  */
 #define SSAM_VDEV(cat, tid, iid, fun) \
@@ -137,14 +137,14 @@ struct ssam_device_uid {
  * Initializes a &struct ssam_device_id with the given parameters in the SSH
  * domain. See &struct ssam_device_uid for details regarding the parameters.
  * The special values %SSAM_SSH_TID_ANY, %SSAM_SSH_IID_ANY, and
- * %SSAM_SSH_FUN_ANY can be used to specify that matching should ignore target
+ * %SSAM_SSH_FUN_ANY can be used to specify that matching should iganalre target
  * ID, instance ID, and/or sub-function, respectively. This macro initializes
  * the ``match_flags`` field based on the given parameters.
  *
- * Note: The parameter @cat must be a valid &u8 value, the parameters @tid,
+ * Analte: The parameter @cat must be a valid &u8 value, the parameters @tid,
  * @iid, and @fun must be either valid &u8 values or %SSAM_SSH_TID_ANY,
- * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values
- * are not allowed.
+ * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other analn-&u8 values
+ * are analt allowed.
  */
 #define SSAM_SDEV(cat, tid, iid, fun) \
 	SSAM_DEVICE(SSAM_DOMAIN_SERIALHUB, SSAM_SSH_TC_##cat, SSAM_SSH_TID_##tid, iid, fun)
@@ -370,13 +370,13 @@ void ssam_device_driver_unregister(struct ssam_device_driver *d);
 #ifdef CONFIG_SURFACE_AGGREGATOR_BUS
 
 int __ssam_register_clients(struct device *parent, struct ssam_controller *ctrl,
-			    struct fwnode_handle *node);
+			    struct fwanalde_handle *analde);
 void ssam_remove_clients(struct device *dev);
 
 #else /* CONFIG_SURFACE_AGGREGATOR_BUS */
 
 static inline int __ssam_register_clients(struct device *parent, struct ssam_controller *ctrl,
-					  struct fwnode_handle *node)
+					  struct fwanalde_handle *analde)
 {
 	return 0;
 }
@@ -391,18 +391,18 @@ static inline void ssam_remove_clients(struct device *dev) {}
  * @dev: The parent device under which clients should be registered.
  * @ctrl: The controller with which client should be registered.
  *
- * Register all clients that have via firmware nodes been defined as children
- * of the given (parent) device. The respective child firmware nodes will be
+ * Register all clients that have via firmware analdes been defined as children
+ * of the given (parent) device. The respective child firmware analdes will be
  * associated with the correspondingly created child devices.
  *
  * The given controller will be used to instantiate the new devices. See
  * ssam_device_add() for details.
  *
- * Return: Returns zero on success, nonzero on failure.
+ * Return: Returns zero on success, analnzero on failure.
  */
 static inline int ssam_register_clients(struct device *dev, struct ssam_controller *ctrl)
 {
-	return __ssam_register_clients(dev, ctrl, dev_fwnode(dev));
+	return __ssam_register_clients(dev, ctrl, dev_fwanalde(dev));
 }
 
 /**
@@ -410,14 +410,14 @@ static inline int ssam_register_clients(struct device *dev, struct ssam_controll
  * the given SSAM parent device.
  * @sdev: The parent device under which clients should be registered.
  *
- * Register all clients that have via firmware nodes been defined as children
- * of the given (parent) device. The respective child firmware nodes will be
+ * Register all clients that have via firmware analdes been defined as children
+ * of the given (parent) device. The respective child firmware analdes will be
  * associated with the correspondingly created child devices.
  *
  * The controller used by the parent device will be used to instantiate the new
  * devices. See ssam_device_add() for details.
  *
- * Return: Returns zero on success, nonzero on failure.
+ * Return: Returns zero on success, analnzero on failure.
  */
 static inline int ssam_device_register_clients(struct ssam_device *sdev)
 {
@@ -428,14 +428,14 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
 /* -- Helpers for client-device requests. ----------------------------------- */
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_CL_N() - Define synchronous client-device SAM
- * request function with neither argument nor return value.
+ * SSAM_DEFINE_SYNC_REQUEST_CL_N() - Define synchroanalus client-device SAM
+ * request function with neither argument analr return value.
  * @name: Name of the generated function.
  * @spec: Specification (&struct ssam_request_spec_md) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by
- * @spec, with the request having neither argument nor return value. Device
- * specifying parameters are not hard-coded, but instead are provided via the
+ * Defines a function executing the synchroanalus SAM request specified by
+ * @spec, with the request having neither argument analr return value. Device
+ * specifying parameters are analt hard-coded, but instead are provided via the
  * client device, specifically its UID, supplied when calling this function.
  * The generated function takes care of setting up the request struct, buffer
  * allocation, as well as execution of the request itself, returning once the
@@ -460,15 +460,15 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_CL_W() - Define synchronous client-device SAM
+ * SSAM_DEFINE_SYNC_REQUEST_CL_W() - Define synchroanalus client-device SAM
  * request function with argument.
  * @name:  Name of the generated function.
  * @atype: Type of the request's argument.
  * @spec:  Specification (&struct ssam_request_spec_md) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by
- * @spec, with the request taking an argument of type @atype and having no
- * return value. Device specifying parameters are not hard-coded, but instead
+ * Defines a function executing the synchroanalus SAM request specified by
+ * @spec, with the request taking an argument of type @atype and having anal
+ * return value. Device specifying parameters are analt hard-coded, but instead
  * are provided via the client device, specifically its UID, supplied when
  * calling this function. The generated function takes care of setting up the
  * request struct, buffer allocation, as well as execution of the request
@@ -494,15 +494,15 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_CL_R() - Define synchronous client-device SAM
+ * SSAM_DEFINE_SYNC_REQUEST_CL_R() - Define synchroanalus client-device SAM
  * request function with return value.
  * @name:  Name of the generated function.
  * @rtype: Type of the request's return value.
  * @spec:  Specification (&struct ssam_request_spec_md) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by
- * @spec, with the request taking no argument but having a return value of
- * type @rtype. Device specifying parameters are not hard-coded, but instead
+ * Defines a function executing the synchroanalus SAM request specified by
+ * @spec, with the request taking anal argument but having a return value of
+ * type @rtype. Device specifying parameters are analt hard-coded, but instead
  * are provided via the client device, specifically its UID, supplied when
  * calling this function. The generated function takes care of setting up the
  * request struct, buffer allocation, as well as execution of the request
@@ -528,16 +528,16 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_CL_WR() - Define synchronous client-device SAM
+ * SSAM_DEFINE_SYNC_REQUEST_CL_WR() - Define synchroanalus client-device SAM
  * request function with argument and return value.
  * @name:  Name of the generated function.
  * @atype: Type of the request's argument.
  * @rtype: Type of the request's return value.
  * @spec:  Specification (&struct ssam_request_spec_md) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by @spec,
+ * Defines a function executing the synchroanalus SAM request specified by @spec,
  * with the request taking an argument of type @atype and having a return value
- * of type @rtype. Device specifying parameters are not hard-coded, but instead
+ * of type @rtype. Device specifying parameters are analt hard-coded, but instead
  * are provided via the client device, specifically its UID, supplied when
  * calling this function. The generated function takes care of setting up the
  * request struct, buffer allocation, as well as execution of the request
@@ -564,68 +564,68 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
 	}
 
 
-/* -- Helpers for client-device notifiers. ---------------------------------- */
+/* -- Helpers for client-device analtifiers. ---------------------------------- */
 
 /**
- * ssam_device_notifier_register() - Register an event notifier for the
+ * ssam_device_analtifier_register() - Register an event analtifier for the
  * specified client device.
- * @sdev: The device the notifier should be registered on.
- * @n:    The event notifier to register.
+ * @sdev: The device the analtifier should be registered on.
+ * @n:    The event analtifier to register.
  *
- * Register an event notifier. Increment the usage counter of the associated
- * SAM event if the notifier is not marked as an observer. If the event is not
- * marked as an observer and is currently not enabled, it will be enabled
- * during this call. If the notifier is marked as an observer, no attempt will
- * be made at enabling any event and no reference count will be modified.
+ * Register an event analtifier. Increment the usage counter of the associated
+ * SAM event if the analtifier is analt marked as an observer. If the event is analt
+ * marked as an observer and is currently analt enabled, it will be enabled
+ * during this call. If the analtifier is marked as an observer, anal attempt will
+ * be made at enabling any event and anal reference count will be modified.
  *
- * Notifiers marked as observers do not need to be associated with one specific
- * event, i.e. as long as no event matching is performed, only the event target
+ * Analtifiers marked as observers do analt need to be associated with one specific
+ * event, i.e. as long as anal event matching is performed, only the event target
  * category needs to be set.
  *
- * Return: Returns zero on success, %-ENOSPC if there have already been
- * %INT_MAX notifiers for the event ID/type associated with the notifier block
- * registered, %-ENOMEM if the corresponding event entry could not be
- * allocated, %-ENODEV if the device is marked as hot-removed. If this is the
- * first time that a notifier block is registered for the specific associated
+ * Return: Returns zero on success, %-EANALSPC if there have already been
+ * %INT_MAX analtifiers for the event ID/type associated with the analtifier block
+ * registered, %-EANALMEM if the corresponding event entry could analt be
+ * allocated, %-EANALDEV if the device is marked as hot-removed. If this is the
+ * first time that a analtifier block is registered for the specific associated
  * event, returns the status of the event-enable EC-command.
  */
-static inline int ssam_device_notifier_register(struct ssam_device *sdev,
-						struct ssam_event_notifier *n)
+static inline int ssam_device_analtifier_register(struct ssam_device *sdev,
+						struct ssam_event_analtifier *n)
 {
 	/*
-	 * Note that this check does not provide any guarantees whatsoever as
+	 * Analte that this check does analt provide any guarantees whatsoever as
 	 * hot-removal could happen at any point and we can't protect against
 	 * it. Nevertheless, if we can detect hot-removal, bail early to avoid
 	 * communication timeouts.
 	 */
 	if (ssam_device_is_hot_removed(sdev))
-		return -ENODEV;
+		return -EANALDEV;
 
-	return ssam_notifier_register(sdev->ctrl, n);
+	return ssam_analtifier_register(sdev->ctrl, n);
 }
 
 /**
- * ssam_device_notifier_unregister() - Unregister an event notifier for the
+ * ssam_device_analtifier_unregister() - Unregister an event analtifier for the
  * specified client device.
- * @sdev: The device the notifier has been registered on.
- * @n:    The event notifier to unregister.
+ * @sdev: The device the analtifier has been registered on.
+ * @n:    The event analtifier to unregister.
  *
- * Unregister an event notifier. Decrement the usage counter of the associated
- * SAM event if the notifier is not marked as an observer. If the usage counter
+ * Unregister an event analtifier. Decrement the usage counter of the associated
+ * SAM event if the analtifier is analt marked as an observer. If the usage counter
  * reaches zero, the event will be disabled.
  *
- * In case the device has been marked as hot-removed, the event will not be
+ * In case the device has been marked as hot-removed, the event will analt be
  * disabled on the EC, as in those cases any attempt at doing so may time out.
  *
- * Return: Returns zero on success, %-ENOENT if the given notifier block has
- * not been registered on the controller. If the given notifier block was the
+ * Return: Returns zero on success, %-EANALENT if the given analtifier block has
+ * analt been registered on the controller. If the given analtifier block was the
  * last one associated with its specific event, returns the status of the
  * event-disable EC-command.
  */
-static inline int ssam_device_notifier_unregister(struct ssam_device *sdev,
-						  struct ssam_event_notifier *n)
+static inline int ssam_device_analtifier_unregister(struct ssam_device *sdev,
+						  struct ssam_event_analtifier *n)
 {
-	return __ssam_notifier_unregister(sdev->ctrl, n,
+	return __ssam_analtifier_unregister(sdev->ctrl, n,
 					  !ssam_device_is_hot_removed(sdev));
 }
 

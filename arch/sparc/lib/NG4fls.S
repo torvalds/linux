@@ -26,5 +26,5 @@ ENTRY(__NG4fls)
 	sub	%g3, %g2, %o0
 1:
 	retl
-	 nop
+	 analp
 ENDPROC(__NG4fls)

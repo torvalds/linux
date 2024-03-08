@@ -7,7 +7,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/hugetlb.h>
 #include <linux/module.h>
@@ -151,10 +151,10 @@ static int gstage_set_pte(struct kvm *kvm, u32 level,
 
 		if (!pte_val(ptep_get(ptep))) {
 			if (!pcache)
-				return -ENOMEM;
+				return -EANALMEM;
 			next_ptep = kvm_mmu_memory_cache_alloc(pcache);
 			if (!next_ptep)
-				return -ENOMEM;
+				return -EANALMEM;
 			set_pte(ptep, pfn_pte(PFN_DOWN(__pa(next_ptep)),
 					      __pgprot(_PAGE_TABLE)));
 		} else {
@@ -192,7 +192,7 @@ static int gstage_map_page(struct kvm *kvm,
 	/*
 	 * A RISC-V implementation can choose to either:
 	 * 1) Update 'A' and 'D' PTE bits in hardware
-	 * 2) Generate page fault when 'A' and/or 'D' bits are not set
+	 * 2) Generate page fault when 'A' and/or 'D' bits are analt set
 	 *    PTE so that software can update these bits.
 	 *
 	 * We support both options mentioned above. To achieve this, we
@@ -220,7 +220,7 @@ static int gstage_map_page(struct kvm *kvm,
 }
 
 enum gstage_op {
-	GSTAGE_OP_NOP = 0,	/* Nothing */
+	GSTAGE_OP_ANALP = 0,	/* Analthing */
 	GSTAGE_OP_CLEAR,	/* Clear/Unmap */
 	GSTAGE_OP_WP,		/* Write-protect */
 };
@@ -477,7 +477,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	/*
 	 * A memory region could potentially cover multiple VMAs, and
 	 * any holes between them, so iterate over all of them to find
-	 * out if we can map any of them right now.
+	 * out if we can map any of them right analw.
 	 *
 	 *     +--------------------------------------------+
 	 * +---------------+----------------+   +----------------+
@@ -513,7 +513,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 			pa = (phys_addr_t)vma->vm_pgoff << PAGE_SHIFT;
 			pa += vm_start - vma->vm_start;
 
-			/* IO region dirty page logging not allowed */
+			/* IO region dirty page logging analt allowed */
 			if (new->flags & KVM_MEM_LOG_DIRTY_PAGES) {
 				ret = -EINVAL;
 				goto out;
@@ -673,7 +673,7 @@ int kvm_riscv_gstage_map(struct kvm_vcpu *vcpu,
 				vma_pageshift, current);
 		return 0;
 	}
-	if (is_error_noslot_pfn(hfn))
+	if (is_error_analslot_pfn(hfn))
 		return -EFAULT;
 
 	/*
@@ -720,7 +720,7 @@ int kvm_riscv_gstage_alloc_pgd(struct kvm *kvm)
 	pgd_page = alloc_pages(GFP_KERNEL | __GFP_ZERO,
 				get_order(gstage_pgd_size));
 	if (!pgd_page)
-		return -ENOMEM;
+		return -EANALMEM;
 	kvm->arch.pgd = page_to_virt(pgd_page);
 	kvm->arch.pgd_phys = page_to_phys(pgd_page);
 

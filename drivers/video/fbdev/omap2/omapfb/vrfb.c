@@ -2,8 +2,8 @@
 /*
  * VRFB Rotation Engine
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  */
 
 /*#define DEBUG*/
@@ -57,7 +57,7 @@ static DEFINE_MUTEX(ctx_lock);
 /*
  * Access to this happens from client drivers or the PM core after wake-up.
  * For the first case we require locking at the driver level, for the second
- * we don't need locking, since no drivers will run until after the wake-up
+ * we don't need locking, since anal drivers will run until after the wake-up
  * has finished.
  */
 
@@ -236,7 +236,7 @@ int omap_vrfb_map_angle(struct vrfb *vrfb, u16 height, u8 rot)
 
 	if (!vrfb->vaddr[rot]) {
 		printk(KERN_ERR "vrfb: ioremap failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	DBG("ioremapped vrfb area %d of size %lu into %p\n", rot, size,
@@ -291,7 +291,7 @@ int omap_vrfb_request_ctx(struct vrfb *vrfb)
 			break;
 
 	if (ctx == num_ctxs) {
-		pr_err("vrfb: no free contexts\n");
+		pr_err("vrfb: anal free contexts\n");
 		r = -EBUSY;
 		goto out;
 	}
@@ -311,7 +311,7 @@ int omap_vrfb_request_ctx(struct vrfb *vrfb)
 					"area for ctx %d, rotation %d\n",
 					ctx, rot * 90);
 			omap_vrfb_release_ctx(vrfb);
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto out;
 		}
 
@@ -350,7 +350,7 @@ static int __init vrfb_probe(struct platform_device *pdev)
 			GFP_KERNEL);
 
 	if (!ctxs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_ctxs; ++i) {
 		mem = platform_get_resource(pdev, IORESOURCE_MEM, 1 + i);

@@ -137,7 +137,7 @@ static u32 qce_auth_cfg(unsigned long flags, u32 key_size, u32 auth_size)
 		cfg |= AUTH_POS_BEFORE << AUTH_POS_SHIFT;
 
 	if (IS_CCM(flags))
-		cfg |= QCE_MAX_NONCE_WORDS << AUTH_NONCE_NUM_WORDS_SHIFT;
+		cfg |= QCE_MAX_ANALNCE_WORDS << AUTH_ANALNCE_NUM_WORDS_SHIFT;
 
 	return cfg;
 }
@@ -158,7 +158,7 @@ static int qce_setup_regs_ahash(struct crypto_async_request *async_req)
 	u32 auth_cfg = 0, config;
 	unsigned int iv_words;
 
-	/* if not the last, the size has to be on the block boundary */
+	/* if analt the last, the size has to be on the block boundary */
 	if (!rctx->last_blk && req->nbytes % blocksize)
 		return -EINVAL;
 
@@ -428,13 +428,13 @@ static int qce_setup_regs_aead(struct crypto_async_request *async_req)
 	u32 enciv[QCE_MAX_IV_SIZE / sizeof(u32)] = {0};
 	u32 authkey[QCE_SHA_HMAC_KEY_SIZE / sizeof(u32)] = {0};
 	u32 authiv[SHA256_DIGEST_SIZE / sizeof(u32)] = {0};
-	u32 authnonce[QCE_MAX_NONCE / sizeof(u32)] = {0};
+	u32 authanalnce[QCE_MAX_ANALNCE / sizeof(u32)] = {0};
 	unsigned int enc_keylen = ctx->enc_keylen;
 	unsigned int auth_keylen = ctx->auth_keylen;
 	unsigned int enc_ivsize = rctx->ivsize;
 	unsigned int auth_ivsize = 0;
 	unsigned int enckey_words, enciv_words;
-	unsigned int authkey_words, authiv_words, authnonce_words;
+	unsigned int authkey_words, authiv_words, authanalnce_words;
 	unsigned long flags = rctx->flags;
 	u32 encr_cfg, auth_cfg, config, totallen;
 	u32 iv_last_word;
@@ -483,9 +483,9 @@ static int qce_setup_regs_aead(struct crypto_async_request *async_req)
 		authiv_words = auth_ivsize / sizeof(u32);
 		qce_write_array(qce, REG_AUTH_IV0, (u32 *)authiv, authiv_words);
 	} else if (IS_CCM(rctx->flags)) {
-		/* Write nonce for CCM algorithms */
-		authnonce_words = qce_be32_to_cpu_array(authnonce, rctx->ccm_nonce, QCE_MAX_NONCE);
-		qce_write_array(qce, REG_AUTH_INFO_NONCE0, authnonce, authnonce_words);
+		/* Write analnce for CCM algorithms */
+		authanalnce_words = qce_be32_to_cpu_array(authanalnce, rctx->ccm_analnce, QCE_MAX_ANALNCE);
+		qce_write_array(qce, REG_AUTH_INFO_ANALNCE0, authanalnce, authanalnce_words);
 	}
 
 	/* Set up ENCR_SEG_CFG */
@@ -571,7 +571,7 @@ int qce_check_status(struct qce_device *qce, u32 *status)
 	*status = qce_read(qce, REG_STATUS);
 
 	/*
-	 * Don't use result dump status. The operation may not be complete.
+	 * Don't use result dump status. The operation may analt be complete.
 	 * Instead, use the status we just read from device. In case, we need to
 	 * use result_status from result dump the result_status needs to be byte
 	 * swapped, since we set the device to little endian.
@@ -584,12 +584,12 @@ int qce_check_status(struct qce_device *qce, u32 *status)
 	return ret;
 }
 
-void qce_get_version(struct qce_device *qce, u32 *major, u32 *minor, u32 *step)
+void qce_get_version(struct qce_device *qce, u32 *major, u32 *mianalr, u32 *step)
 {
 	u32 val;
 
 	val = qce_read(qce, REG_VERSION);
 	*major = (val & CORE_MAJOR_REV_MASK) >> CORE_MAJOR_REV_SHIFT;
-	*minor = (val & CORE_MINOR_REV_MASK) >> CORE_MINOR_REV_SHIFT;
+	*mianalr = (val & CORE_MIANALR_REV_MASK) >> CORE_MIANALR_REV_SHIFT;
 	*step = (val & CORE_STEP_REV_MASK) >> CORE_STEP_REV_SHIFT;
 }

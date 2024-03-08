@@ -16,7 +16,7 @@
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/uv_geo.h>
 
-#define INVALID_CNODE -1
+#define INVALID_CANALDE -1
 
 struct kobject *sgi_uv_kobj;
 static struct kset *uv_pcibus_kset;
@@ -26,8 +26,8 @@ static struct uv_bios_port_info **port_buf;
 static struct uv_hub **uv_hubs;
 static struct uv_pci_top_obj **uv_pci_objs;
 static int num_pci_lines;
-static int num_cnodes;
-static int *prev_obj_to_cnode;
+static int num_canaldes;
+static int *prev_obj_to_canalde;
 static int uv_bios_obj_cnt;
 static signed short uv_master_nasid = -1;
 static void *uv_biosheap;
@@ -47,22 +47,22 @@ static const char *uv_type_string(void)
 	else if (uv_get_hubless_system())
 		return "0.1";
 	else
-		return "unknown";
+		return "unkanalwn";
 }
 
 static int ordinal_to_nasid(int ordinal)
 {
-	if (ordinal < num_cnodes && ordinal >= 0)
-		return UV_PNODE_TO_NASID(uv_blade_to_pnode(ordinal));
+	if (ordinal < num_canaldes && ordinal >= 0)
+		return UV_PANALDE_TO_NASID(uv_blade_to_panalde(ordinal));
 	else
 		return -1;
 }
 
-static union geoid_u cnode_to_geoid(int cnode)
+static union geoid_u canalde_to_geoid(int canalde)
 {
 	union geoid_u geoid;
 
-	uv_bios_get_geoinfo(ordinal_to_nasid(cnode), (u64)sizeof(union geoid_u), (u64 *)&geoid);
+	uv_bios_get_geoinfo(ordinal_to_nasid(canalde), (u64)sizeof(union geoid_u), (u64 *)&geoid);
 	return geoid;
 }
 
@@ -79,9 +79,9 @@ static int location_to_bpos(char *location, int *rack, int *slot, int *blade)
 	return 0;
 }
 
-static int cache_obj_to_cnode(struct uv_bios_hub_info *obj)
+static int cache_obj_to_canalde(struct uv_bios_hub_info *obj)
 {
-	int cnode;
+	int canalde;
 	union geoid_u geoid;
 	int obj_rack, obj_slot, obj_blade;
 	int rack, slot, blade;
@@ -92,21 +92,21 @@ static int cache_obj_to_cnode(struct uv_bios_hub_info *obj)
 	if (location_to_bpos(obj->location, &obj_rack, &obj_slot, &obj_blade))
 		return -1;
 
-	for (cnode = 0; cnode < num_cnodes; cnode++) {
-		geoid = cnode_to_geoid(cnode);
+	for (canalde = 0; canalde < num_canaldes; canalde++) {
+		geoid = canalde_to_geoid(canalde);
 		rack = geo_rack(geoid);
 		slot = geo_slot(geoid);
 		blade = geo_blade(geoid);
 		if (obj_rack == rack && obj_slot == slot && obj_blade == blade)
-			prev_obj_to_cnode[obj->id] = cnode;
+			prev_obj_to_canalde[obj->id] = canalde;
 	}
 
 	return 0;
 }
 
-static int get_obj_to_cnode(int obj_id)
+static int get_obj_to_canalde(int obj_id)
 {
-	return prev_obj_to_cnode[obj_id];
+	return prev_obj_to_canalde[obj_id];
 }
 
 struct uv_hub {
@@ -138,13 +138,13 @@ static ssize_t hub_shared_show(struct uv_bios_hub_info *hub_info, char *buf)
 }
 static ssize_t hub_nasid_show(struct uv_bios_hub_info *hub_info, char *buf)
 {
-	int cnode = get_obj_to_cnode(hub_info->id);
+	int canalde = get_obj_to_canalde(hub_info->id);
 
-	return sprintf(buf, "%d\n", ordinal_to_nasid(cnode));
+	return sprintf(buf, "%d\n", ordinal_to_nasid(canalde));
 }
-static ssize_t hub_cnode_show(struct uv_bios_hub_info *hub_info, char *buf)
+static ssize_t hub_canalde_show(struct uv_bios_hub_info *hub_info, char *buf)
 {
-	return sprintf(buf, "%d\n", get_obj_to_cnode(hub_info->id));
+	return sprintf(buf, "%d\n", get_obj_to_canalde(hub_info->id));
 }
 
 struct hub_sysfs_entry {
@@ -163,8 +163,8 @@ static struct hub_sysfs_entry shared_attribute =
 	__ATTR(shared, 0444, hub_shared_show, NULL);
 static struct hub_sysfs_entry nasid_attribute =
 	__ATTR(nasid, 0444, hub_nasid_show, NULL);
-static struct hub_sysfs_entry cnode_attribute =
-	__ATTR(cnode, 0444, hub_cnode_show, NULL);
+static struct hub_sysfs_entry canalde_attribute =
+	__ATTR(canalde, 0444, hub_canalde_show, NULL);
 
 static struct attribute *uv_hub_attrs[] = {
 	&name_attribute.attr,
@@ -172,7 +172,7 @@ static struct attribute *uv_hub_attrs[] = {
 	&partition_attribute.attr,
 	&shared_attribute.attr,
 	&nasid_attribute.attr,
-	&cnode_attribute.attr,
+	&canalde_attribute.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(uv_hub);
@@ -215,23 +215,23 @@ static int uv_hubs_init(void)
 	u64 sz;
 	int i, ret;
 
-	prev_obj_to_cnode = kmalloc_array(uv_bios_obj_cnt, sizeof(*prev_obj_to_cnode),
+	prev_obj_to_canalde = kmalloc_array(uv_bios_obj_cnt, sizeof(*prev_obj_to_canalde),
 					 GFP_KERNEL);
-	if (!prev_obj_to_cnode)
-		return -ENOMEM;
+	if (!prev_obj_to_canalde)
+		return -EANALMEM;
 
 	for (i = 0; i < uv_bios_obj_cnt; i++)
-		prev_obj_to_cnode[i] = INVALID_CNODE;
+		prev_obj_to_canalde[i] = INVALID_CANALDE;
 
 	uv_hubs_kset = kset_create_and_add("hubs", NULL, sgi_uv_kobj);
 	if (!uv_hubs_kset) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_hubs_kset;
 	}
 	sz = uv_bios_obj_cnt * sizeof(*hub_buf);
 	hub_buf = kzalloc(sz, GFP_KERNEL);
 	if (!hub_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_hub_buf;
 	}
 
@@ -243,7 +243,7 @@ static int uv_hubs_init(void)
 
 	uv_hubs = kcalloc(uv_bios_obj_cnt, sizeof(*uv_hubs), GFP_KERNEL);
 	if (!uv_hubs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_enum_objs;
 	}
 
@@ -251,12 +251,12 @@ static int uv_hubs_init(void)
 		uv_hubs[i] = kzalloc(sizeof(*uv_hubs[i]), GFP_KERNEL);
 		if (!uv_hubs[i]) {
 			i--;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_hubs;
 		}
 
 		uv_hubs[i]->hub_info = &hub_buf[i];
-		cache_obj_to_cnode(uv_hubs[i]->hub_info);
+		cache_obj_to_canalde(uv_hubs[i]->hub_info);
 
 		uv_hubs[i]->kobj.kset = uv_hubs_kset;
 
@@ -277,7 +277,7 @@ err_enum_objs:
 err_hub_buf:
 	kset_unregister(uv_hubs_kset);
 err_hubs_kset:
-	kfree(prev_obj_to_cnode);
+	kfree(prev_obj_to_canalde);
 	return ret;
 
 }
@@ -292,7 +292,7 @@ static void uv_hubs_exit(void)
 	kfree(uv_hubs);
 	kfree(hub_buf);
 	kset_unregister(uv_hubs_kset);
-	kfree(prev_obj_to_cnode);
+	kfree(prev_obj_to_canalde);
 }
 
 struct uv_port {
@@ -369,13 +369,13 @@ static int uv_ports_init(void)
 
 	port_buf = kcalloc(uv_bios_obj_cnt, sizeof(*port_buf), GFP_KERNEL);
 	if (!port_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (j = 0; j < uv_bios_obj_cnt; j++) {
 		sz = hub_buf[j].ports * sizeof(*port_buf[j]);
 		port_buf[j] = kzalloc(sz, GFP_KERNEL);
 		if (!port_buf[j]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			j--;
 			goto err_port_info;
 		}
@@ -390,7 +390,7 @@ static int uv_ports_init(void)
 		uv_hubs[j]->ports = kcalloc(hub_buf[j].ports,
 					   sizeof(*uv_hubs[j]->ports), GFP_KERNEL);
 		if (!uv_hubs[j]->ports) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			j--;
 			goto err_ports;
 		}
@@ -399,7 +399,7 @@ static int uv_ports_init(void)
 		for (k = 0; k < hub_buf[j].ports; k++) {
 			uv_hubs[j]->ports[k] = kzalloc(sizeof(*uv_hubs[j]->ports[k]), GFP_KERNEL);
 			if (!uv_hubs[j]->ports[k]) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				k--;
 				goto err_kobj_ports;
 			}
@@ -569,9 +569,9 @@ static int init_pci_top_obj(struct uv_pci_top_obj *top_obj, char *line)
 	/* r001i01b00h0 BASE IO (IIO Stack 0)
 	 * r001i01b00h1 PCIe IO (IIO Stack 1)
 	 * r001i01b03h1 PCIe SLOT
-	 * r001i01b00h0 NODE IO
+	 * r001i01b00h0 ANALDE IO
 	 * r001i01b00h0 Riser
-	 * (IIO Stack #) may not be present.
+	 * (IIO Stack #) may analt be present.
 	 */
 	if (start[0] == 'r') {
 		str_cnt = sscanf(start, "%13s %10[^(] %*s %*s %d)",
@@ -580,15 +580,15 @@ static int init_pci_top_obj(struct uv_pci_top_obj *top_obj, char *line)
 			return -EINVAL;
 		top_obj->type = kstrdup(type, GFP_KERNEL);
 		if (!top_obj->type)
-			return -ENOMEM;
+			return -EANALMEM;
 		top_obj->location = kstrdup(location, GFP_KERNEL);
 		if (!top_obj->location) {
 			kfree(top_obj->type);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	/* PPB at 0000:80:00.00 (slot 3)
-	 * (slot #) may not be present.
+	 * (slot #) may analt be present.
 	 */
 	else if (start[0] == 'P') {
 		str_cnt = sscanf(start, "%10s %*s %14s %*s %d)",
@@ -597,11 +597,11 @@ static int init_pci_top_obj(struct uv_pci_top_obj *top_obj, char *line)
 			return -EINVAL;
 		top_obj->type = kstrdup(type, GFP_KERNEL);
 		if (!top_obj->type)
-			return -ENOMEM;
+			return -EANALMEM;
 		top_obj->ppb_addr = kstrdup(ppb_addr, GFP_KERNEL);
 		if (!top_obj->ppb_addr) {
 			kfree(top_obj->type);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else
 		return -EINVAL;
@@ -656,12 +656,12 @@ static int pci_topology_init(void)
 
 	uv_pcibus_kset = kset_create_and_add("pcibuses", NULL, sgi_uv_kobj);
 	if (!uv_pcibus_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (sz = PAGE_SIZE; sz < 16 * PAGE_SIZE; sz += PAGE_SIZE) {
 		pci_top_str = kmalloc(sz, GFP_KERNEL);
 		if (!pci_top_str) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_pci_top_str;
 		}
 		biosr = uv_bios_get_pci_topology((u64)sz, (u64 *)pci_top_str);
@@ -677,14 +677,14 @@ static int pci_topology_init(void)
 					     sizeof(*uv_pci_objs), GFP_KERNEL);
 			if (!uv_pci_objs) {
 				kfree(pci_top_str);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_pci_top_str;
 			}
 			start = pci_top_str;
 			while ((found = strsep(&start, "\n")) != NULL) {
 				uv_pci_objs[k] = kzalloc(sizeof(*uv_pci_objs[k]), GFP_KERNEL);
 				if (!uv_pci_objs[k]) {
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					goto err_pci_obj;
 				}
 				ret = init_pci_top_obj(uv_pci_objs[k], found);
@@ -799,7 +799,7 @@ static int initial_bios_setup(void)
 
 	uv_biosheap = vmalloc(v);
 	if (!uv_biosheap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	biosr = uv_bios_install_heap((u64)uv_master_nasid, v, (u64 *)uv_biosheap);
 	if (biosr) {
@@ -847,9 +847,9 @@ static int __init uv_sysfs_init(void)
 	int ret = 0;
 
 	if (!is_uv_system() && !uv_get_hubless_system())
-		return -ENODEV;
+		return -EANALDEV;
 
-	num_cnodes = uv_num_possible_blades();
+	num_canaldes = uv_num_possible_blades();
 
 	if (!sgi_uv_kobj)
 		sgi_uv_kobj = kobject_create_and_add("sgi_uv", firmware_kobj);

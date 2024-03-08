@@ -44,7 +44,7 @@
 #define PWRC_T7_DDR1_ID			34
 #define PWRC_T7_DMC0_ID			35
 #define PWRC_T7_DMC1_ID			36
-#define PWRC_T7_NOC_ID			37
+#define PWRC_T7_ANALC_ID			37
 #define PWRC_T7_NIC2_ID			38
 #define PWRC_T7_NIC3_ID			39
 #define PWRC_T7_CCI_ID			40

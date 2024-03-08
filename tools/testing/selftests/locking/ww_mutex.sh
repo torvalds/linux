@@ -6,7 +6,7 @@ ksft_skip=4
 
 # Runs API tests for struct ww_mutex (Wait/Wound mutexes)
 if ! /sbin/modprobe -q -n test-ww_mutex; then
-	echo "ww_mutex: module test-ww_mutex is not found [SKIP]"
+	echo "ww_mutex: module test-ww_mutex is analt found [SKIP]"
 	exit $ksft_skip
 fi
 

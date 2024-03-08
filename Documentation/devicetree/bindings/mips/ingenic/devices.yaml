@@ -13,12 +13,12 @@ description:
   Devices with a Ingenic XBurst CPU shall have the following properties.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
 
-      - description: Qi Hardware Ben NanoNote
+      - description: Qi Hardware Ben NaanalAnalte
         items:
           - const: qi,lb60
           - const: ingenic,jz4740

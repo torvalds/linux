@@ -4,12 +4,12 @@
    National Semiconductor SCx200 GPIO driver.  Allows a user space
    process to play with the GPIO pins.
 
-   Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com> */
+   Copyright (c) 2001,2002 Christer Weinigel <wingel@naanal-system.com> */
 
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -26,7 +26,7 @@
 
 static struct platform_device *pdev;
 
-MODULE_AUTHOR("Christer Weinigel <wingel@nano-system.com>");
+MODULE_AUTHOR("Christer Weinigel <wingel@naanal-system.com>");
 MODULE_DESCRIPTION("NatSemi/AMD SCx200 GPIO Pin Driver");
 MODULE_LICENSE("GPL");
 
@@ -34,7 +34,7 @@ static int major = 0;		/* default to dynamic major */
 module_param(major, int, 0);
 MODULE_PARM_DESC(major, "Major device number");
 
-#define MAX_PINS 32		/* 64 later, when known ok */
+#define MAX_PINS 32		/* 64 later, when kanalwn ok */
 
 struct nsc_gpio_ops scx200_gpio_ops = {
 	.owner		= THIS_MODULE,
@@ -47,17 +47,17 @@ struct nsc_gpio_ops scx200_gpio_ops = {
 };
 EXPORT_SYMBOL_GPL(scx200_gpio_ops);
 
-static int scx200_gpio_open(struct inode *inode, struct file *file)
+static int scx200_gpio_open(struct ianalde *ianalde, struct file *file)
 {
-	unsigned m = iminor(inode);
+	unsigned m = imianalr(ianalde);
 	file->private_data = &scx200_gpio_ops;
 
 	if (m >= MAX_PINS)
 		return -EINVAL;
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
-static int scx200_gpio_release(struct inode *inode, struct file *file)
+static int scx200_gpio_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -68,7 +68,7 @@ static const struct file_operations scx200_gpio_fileops = {
 	.read    = nsc_gpio_read,
 	.open    = scx200_gpio_open,
 	.release = scx200_gpio_release,
-	.llseek  = no_llseek,
+	.llseek  = anal_llseek,
 };
 
 static struct cdev scx200_gpio_cdev;  /* use 1 cdev for all pins */
@@ -79,14 +79,14 @@ static int __init scx200_gpio_init(void)
 	dev_t devid;
 
 	if (!scx200_gpio_present()) {
-		printk(KERN_ERR DRVNAME ": no SCx200 gpio present\n");
-		return -ENODEV;
+		printk(KERN_ERR DRVNAME ": anal SCx200 gpio present\n");
+		return -EANALDEV;
 	}
 
 	/* support dev_dbg() with pdev->dev */
 	pdev = platform_device_alloc(DRVNAME, 0);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = platform_device_add(pdev);
 	if (rc)

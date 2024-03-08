@@ -100,7 +100,7 @@ union otx2_cpt_eng_caps {
 		u64 mul:1;
 		u64 sha1_sha2:1;
 		u64 chacha20:1;
-		u64 zuc_snow3g:1;
+		u64 zuc_sanalw3g:1;
 		u64 sha3:1;
 		u64 aes:1;
 		u64 kasumi:1;

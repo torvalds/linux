@@ -110,7 +110,7 @@ sram_code:
 	/* self refresh */
 	lwz	r4, SDRAM_CTRL(r8)
 
-	/* send NOP (precharge) */
+	/* send ANALP (precharge) */
 	oris	r4, r4, SC_MODE_EN@h	/* mode_en */
 	stw	r4, SDRAM_CTRL(r8)
 	sync
@@ -124,12 +124,12 @@ sram_code:
 	stw	r4, SDRAM_CTRL(r8)
 	sync
 
-	/* delay (for NOP to finish) */
+	/* delay (for ANALP to finish) */
 	li	r12, 1
 	bl	udelay
 
 	/*
-	 * mode_en must not be set when enabling self-refresh
+	 * mode_en must analt be set when enabling self-refresh
 	 * send AR with CKE low (self-refresh)
 	 */
 	oris	r4, r4, (SC_REF_EN | SC_CKE)@h
@@ -252,7 +252,7 @@ mmu_on:
 
 
 	blr
-_ASM_NOKPROBE_SYMBOL(lite5200_wakeup)
+_ASM_ANALKPROBE_SYMBOL(lite5200_wakeup)
 
 
 /* ---------------------------------------------------------------------- */
@@ -345,7 +345,7 @@ SYM_FUNC_START_LOCAL(restore_regs)
 	lis	r4, registers@h
 	ori	r4, r4, registers@l
 
-	/* MMU is not up yet */
+	/* MMU is analt up yet */
 	subis	r4, r4, CONFIG_KERNEL_START@h
 
 	lwz	r0, 0(r4)
@@ -397,7 +397,7 @@ SYM_FUNC_START_LOCAL(restore_regs)
 	LOAD_SPRN(TBWU,  0x5b);
 
 	blr
-_ASM_NOKPROBE_SYMBOL(restore_regs)
+_ASM_ANALKPROBE_SYMBOL(restore_regs)
 SYM_FUNC_END(restore_regs)
 
 

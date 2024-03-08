@@ -15,7 +15,7 @@
 #include <linux/rtc.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bcd.h>
 
 struct rtc_mem {
@@ -280,12 +280,12 @@ static int pcf8583_probe(struct i2c_client *client)
 	struct pcf8583 *pcf8583;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcf8583 = devm_kzalloc(&client->dev, sizeof(struct pcf8583),
 				GFP_KERNEL);
 	if (!pcf8583)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, pcf8583);
 

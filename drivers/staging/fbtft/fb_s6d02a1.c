@@ -2,7 +2,7 @@
 /*
  * FB driver for the S6D02A1 LCD Controller
  *
- * Based on fb_st7735r.c by Noralf Tronnes
+ * Based on fb_st7735r.c by Analralf Tronnes
  * Init code from UTFT library by Henning Karlsen
  */
 

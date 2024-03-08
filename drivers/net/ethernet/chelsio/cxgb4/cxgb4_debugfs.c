@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -194,12 +194,12 @@ static int cim_la_show_pc_t6(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int cim_la_open(struct inode *inode, struct file *file)
+static int cim_la_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 	unsigned int cfg;
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = ianalde->i_private;
 
 	ret = t4_cim_read(adap, UP_UP_DBG_LA_CFG_A, 1, &cfg);
 	if (ret)
@@ -218,11 +218,11 @@ static int cim_la_open(struct inode *inode, struct file *file)
 							     cim_la_show);
 	}
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = t4_cim_read_la(adap, (u32 *)p->data, NULL);
 	if (ret)
-		seq_release_private(inode, file);
+		seq_release_private(ianalde, file);
 	return ret;
 }
 
@@ -254,15 +254,15 @@ static int cim_pif_la_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int cim_pif_la_open(struct inode *inode, struct file *file)
+static int cim_pif_la_open(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = ianalde->i_private;
 
 	p = seq_open_tab(file, 2 * CIM_PIFLA_SIZE, 6 * sizeof(u32), 1,
 			 cim_pif_la_show);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t4_cim_read_pif_la(adap, (u32 *)p->data,
 			   (u32 *)p->data + 6 * CIM_PIFLA_SIZE, NULL, NULL);
@@ -300,15 +300,15 @@ static int cim_ma_la_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int cim_ma_la_open(struct inode *inode, struct file *file)
+static int cim_ma_la_open(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = ianalde->i_private;
 
 	p = seq_open_tab(file, 2 * CIM_MALA_SIZE, 5 * sizeof(u32), 1,
 			 cim_ma_la_show);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t4_cim_read_ma_la(adap, (u32 *)p->data,
 			  (u32 *)p->data + 5 * CIM_MALA_SIZE);
@@ -389,20 +389,20 @@ static int cimq_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int cim_ibq_open(struct inode *inode, struct file *file)
+static int cim_ibq_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 	struct seq_tab *p;
-	unsigned int qid = (uintptr_t)inode->i_private & 7;
-	struct adapter *adap = inode->i_private - qid;
+	unsigned int qid = (uintptr_t)ianalde->i_private & 7;
+	struct adapter *adap = ianalde->i_private - qid;
 
 	p = seq_open_tab(file, CIM_IBQ_SIZE, 4 * sizeof(u32), 0, cimq_show);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = t4_read_cim_ibq(adap, qid, (u32 *)p->data, CIM_IBQ_SIZE * 4);
 	if (ret < 0)
-		seq_release_private(inode, file);
+		seq_release_private(ianalde, file);
 	else
 		ret = 0;
 	return ret;
@@ -416,20 +416,20 @@ static const struct file_operations cim_ibq_fops = {
 	.release = seq_release_private
 };
 
-static int cim_obq_open(struct inode *inode, struct file *file)
+static int cim_obq_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 	struct seq_tab *p;
-	unsigned int qid = (uintptr_t)inode->i_private & 7;
-	struct adapter *adap = inode->i_private - qid;
+	unsigned int qid = (uintptr_t)ianalde->i_private & 7;
+	struct adapter *adap = ianalde->i_private - qid;
 
 	p = seq_open_tab(file, 6 * CIM_OBQ_SIZE, 4 * sizeof(u32), 0, cimq_show);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = t4_read_cim_obq(adap, qid, (u32 *)p->data, 6 * CIM_OBQ_SIZE * 4);
 	if (ret < 0) {
-		seq_release_private(inode, file);
+		seq_release_private(ianalde, file);
 	} else {
 		seq_tab_trim(p, ret / 4);
 		ret = 0;
@@ -636,10 +636,10 @@ static int tp_la_show3(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int tp_la_open(struct inode *inode, struct file *file)
+static int tp_la_open(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = ianalde->i_private;
 
 	switch (DBGLAMODE_G(t4_read_reg(adap, TP_DBG_LA_CONFIG_A))) {
 	case 2:
@@ -654,7 +654,7 @@ static int tp_la_open(struct inode *inode, struct file *file)
 		p = seq_open_tab(file, TPLA_SIZE, sizeof(u64), 0, tp_la_show);
 	}
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t4_tp_read_la(adap, (u64 *)p->data, NULL);
 	return 0;
@@ -667,7 +667,7 @@ static ssize_t tp_la_write(struct file *file, const char __user *buf,
 	char s[32];
 	unsigned long val;
 	size_t size = min(sizeof(s) - 1, count);
-	struct adapter *adap = file_inode(file)->i_private;
+	struct adapter *adap = file_ianalde(file)->i_private;
 
 	if (copy_from_user(s, buf, size))
 		return -EFAULT;
@@ -705,15 +705,15 @@ static int ulprx_la_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int ulprx_la_open(struct inode *inode, struct file *file)
+static int ulprx_la_open(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = ianalde->i_private;
 
 	p = seq_open_tab(file, ULPRX_LA_SIZE, 8 * sizeof(u32), 1,
 			 ulprx_la_show);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t4_ulprx_read_la(adap, (u32 *)p->data);
 	return 0;
@@ -768,7 +768,7 @@ static int pm_stats_show(struct seq_file *seq, void *v)
 
 	if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
 		/* In T5 the granularity of the total wait is too fine.
-		 * It is not useful as it reaches the max value too fast.
+		 * It is analt useful as it reaches the max value too fast.
 		 * Hence display this Input FIFO wait for T6 onwards.
 		 */
 		seq_printf(seq, "%13s %10s  %20s\n",
@@ -778,7 +778,7 @@ static int pm_stats_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "Rx FIFO wait  %10u  %20llu\n",
 			   rx_cnt[i], rx_cyc[i]);
 
-		/* Skip index 6 as there is nothing useful ihere */
+		/* Skip index 6 as there is analthing useful ihere */
 		i += 2;
 
 		/* At index 7, a new stat for read latency (count, total wait)
@@ -794,15 +794,15 @@ static int pm_stats_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int pm_stats_open(struct inode *inode, struct file *file)
+static int pm_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, pm_stats_show, inode->i_private);
+	return single_open(file, pm_stats_show, ianalde->i_private);
 }
 
 static ssize_t pm_stats_clear(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct adapter *adap = file_inode(file)->i_private;
+	struct adapter *adap = file_ianalde(file)->i_private;
 
 	t4_write_reg(adap, PM_RX_STAT_CONFIG_A, 0);
 	t4_write_reg(adap, PM_TX_STAT_CONFIG_A, 0);
@@ -862,7 +862,7 @@ static int cctrl_tbl_show(struct seq_file *seq, void *v)
 
 	incr = kmalloc_array(NMTUS, sizeof(*incr), GFP_KERNEL);
 	if (!incr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t4_read_cong_tbl(adap, incr);
 
@@ -948,7 +948,7 @@ static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
 	[FW_DEVLOG_LEVEL_CRIT]		= "CRIT",
 	[FW_DEVLOG_LEVEL_ERR]		= "ERR",
-	[FW_DEVLOG_LEVEL_NOTICE]	= "NOTICE",
+	[FW_DEVLOG_LEVEL_ANALTICE]	= "ANALTICE",
 	[FW_DEVLOG_LEVEL_INFO]		= "INFO",
 	[FW_DEVLOG_LEVEL_DEBUG]		= "DEBUG"
 };
@@ -1016,14 +1016,14 @@ static int devlog_show(struct seq_file *seq, void *v)
 		 * eventually have to put a format interpreter in here ...
 		 */
 		seq_printf(seq, "%10d  %15llu  %8s  %8s  ",
-			   be32_to_cpu(e->seqno),
+			   be32_to_cpu(e->seqanal),
 			   be64_to_cpu(e->timestamp),
 			   (e->level < ARRAY_SIZE(devlog_level_strings)
 			    ? devlog_level_strings[e->level]
-			    : "UNKNOWN"),
+			    : "UNKANALWN"),
 			   (e->facility < ARRAY_SIZE(devlog_facility_strings)
 			    ? devlog_facility_strings[e->facility]
-			    : "UNKNOWN"));
+			    : "UNKANALWN"));
 		seq_printf(seq, e->fmt,
 			   be32_to_cpu(e->params[0]),
 			   be32_to_cpu(e->params[1]),
@@ -1078,16 +1078,16 @@ static const struct seq_operations devlog_seq_ops = {
 /* Set up for reading the firmware's device log.  We read the entire log here
  * and then display it incrementally in devlog_show().
  */
-static int devlog_open(struct inode *inode, struct file *file)
+static int devlog_open(struct ianalde *ianalde, struct file *file)
 {
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = ianalde->i_private;
 	struct devlog_params *dparams = &adap->params.devlog;
 	struct devlog_info *dinfo;
 	unsigned int index;
-	u32 fseqno;
+	u32 fseqanal;
 	int ret;
 
-	/* If we don't know where the log is we can't do anything.
+	/* If we don't kanalw where the log is we can't do anything.
 	 */
 	if (dparams->start == 0)
 		return -ENXIO;
@@ -1098,7 +1098,7 @@ static int devlog_open(struct inode *inode, struct file *file)
 	dinfo = __seq_open_private(file, &devlog_seq_ops,
 				   sizeof(*dinfo) + dparams->size);
 	if (!dinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Record the basic log buffer information and read in the raw log.
 	 */
@@ -1110,23 +1110,23 @@ static int devlog_open(struct inode *inode, struct file *file)
 			   T4_MEMORY_READ);
 	spin_unlock(&adap->win0_lock);
 	if (ret) {
-		seq_release_private(inode, file);
+		seq_release_private(ianalde, file);
 		return ret;
 	}
 
 	/* Find the earliest (lowest Sequence Number) log entry in the
 	 * circular Device Log.
 	 */
-	for (fseqno = ~((u32)0), index = 0; index < dinfo->nentries; index++) {
+	for (fseqanal = ~((u32)0), index = 0; index < dinfo->nentries; index++) {
 		struct fw_devlog_e *e = &dinfo->log[index];
-		__u32 seqno;
+		__u32 seqanal;
 
 		if (e->timestamp == 0)
 			continue;
 
-		seqno = be32_to_cpu(e->seqno);
-		if (seqno < fseqno) {
-			fseqno = seqno;
+		seqanal = be32_to_cpu(e->seqanal);
+		if (seqanal < fseqanal) {
+			fseqanal = seqanal;
 			dinfo->first = index;
 		}
 	}
@@ -1143,9 +1143,9 @@ static const struct file_operations devlog_fops = {
 
 /* Show Firmware Mailbox Command/Reply Log
  *
- * Note that we don't do any locking when dumping the Firmware Mailbox Log so
+ * Analte that we don't do any locking when dumping the Firmware Mailbox Log so
  * it's possible that we can catch things during a log update and therefore
- * see partially corrupted log entries.  But it's probably Good Enough(tm).
+ * see partially corrupted log entries.  But it's probably Good Eanalugh(tm).
  * If we ever decide that we want to make sure that we're dumping a coherent
  * log, we'd need to perform locking in the mailbox logging and in
  * mboxlog_open() where we'd need to grab the entire mailbox log in one go
@@ -1176,7 +1176,7 @@ static int mboxlog_show(struct seq_file *seq, void *v)
 		return 0;
 
 	seq_printf(seq, "%10u  %15llu  %5d  %5d",
-		   entry->seqno, entry->timestamp,
+		   entry->seqanal, entry->timestamp,
 		   entry->access, entry->execute);
 	for (i = 0; i < MBOX_LEN / 8; i++) {
 		u64 flit = entry->cmd[i];
@@ -1219,14 +1219,14 @@ static const struct seq_operations mboxlog_seq_ops = {
 	.show  = mboxlog_show
 };
 
-static int mboxlog_open(struct inode *inode, struct file *file)
+static int mboxlog_open(struct ianalde *ianalde, struct file *file)
 {
 	int res = seq_open(file, &mboxlog_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
 
-		seq->private = inode->i_private;
+		seq->private = ianalde->i_private;
 	}
 	return res;
 }
@@ -1241,8 +1241,8 @@ static const struct file_operations mboxlog_fops = {
 
 static int mbox_show(struct seq_file *seq, void *v)
 {
-	static const char * const owner[] = { "none", "FW", "driver",
-					      "unknown", "<unread>" };
+	static const char * const owner[] = { "analne", "FW", "driver",
+					      "unkanalwn", "<unread>" };
 
 	int i;
 	unsigned int mbox = (uintptr_t)seq->private & 7;
@@ -1251,7 +1251,7 @@ static int mbox_show(struct seq_file *seq, void *v)
 
 	/* For T4 we don't have a shadow copy of the Mailbox Control register.
 	 * And since reading that real register causes a side effect of
-	 * granting ownership, we're best of simply not reading it at all.
+	 * granting ownership, we're best of simply analt reading it at all.
 	 */
 	if (is_t4(adap->params.chip)) {
 		i = 4; /* index of "<unread>" */
@@ -1270,9 +1270,9 @@ static int mbox_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int mbox_open(struct inode *inode, struct file *file)
+static int mbox_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, mbox_show, inode->i_private);
+	return single_open(file, mbox_show, ianalde->i_private);
 }
 
 static ssize_t mbox_write(struct file *file, const char __user *buf,
@@ -1281,7 +1281,7 @@ static ssize_t mbox_write(struct file *file, const char __user *buf,
 	int i;
 	char c = '\n', s[256];
 	unsigned long long data[8];
-	const struct inode *ino;
+	const struct ianalde *ianal;
 	unsigned int mbox;
 	struct adapter *adap;
 	void __iomem *addr;
@@ -1298,9 +1298,9 @@ static ssize_t mbox_write(struct file *file, const char __user *buf,
 		   &data[7], &c) < 8 || c != '\n')
 		return -EINVAL;
 
-	ino = file_inode(file);
-	mbox = (uintptr_t)ino->i_private & 7;
-	adap = ino->i_private - mbox;
+	ianal = file_ianalde(file);
+	mbox = (uintptr_t)ianal->i_private & 7;
+	adap = ianal->i_private - mbox;
 	addr = adap->regs + PF_REG(mbox, CIM_PF_MAILBOX_DATA_A);
 	ctrl = addr + MBOX_LEN;
 
@@ -1344,7 +1344,7 @@ static int mps_trc_show(struct seq_file *seq, void *v)
 		i = adap->chan_map[tp.port & 3];
 		if (i >= MAX_NPORTS) {
 			dev_err(adap->pdev_dev, "tracer %u is assigned "
-				"to non-existing port\n", trcidx);
+				"to analn-existing port\n", trcidx);
 			return -EINVAL;
 		}
 		seq_printf(seq, "tracer is capturing %s %s, ",
@@ -1355,7 +1355,7 @@ static int mps_trc_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "snap length: %u, min length: %u\n", tp.snap_len,
 		   tp.min_len);
 	seq_printf(seq, "packets captured %smatch filter\n",
-		   tp.invert ? "do not " : "");
+		   tp.invert ? "do analt " : "");
 
 	if (tp.skip_ofst) {
 		seq_puts(seq, "filter pattern: ");
@@ -1377,9 +1377,9 @@ static int mps_trc_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int mps_trc_open(struct inode *inode, struct file *file)
+static int mps_trc_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, mps_trc_show, inode->i_private);
+	return single_open(file, mps_trc_show, ianalde->i_private);
 }
 
 static unsigned int xdigit2int(unsigned char c)
@@ -1387,7 +1387,7 @@ static unsigned int xdigit2int(unsigned char c)
 	return isdigit(c) ? c - '0' : tolower(c) - 'a' + 10;
 }
 
-#define TRC_PORT_NONE 0xff
+#define TRC_PORT_ANALNE 0xff
 #define TRC_RSS_ENABLE 0x33
 #define TRC_RSS_DISABLE 0x13
 
@@ -1397,7 +1397,7 @@ static unsigned int xdigit2int(unsigned char c)
  *
  * to disable tracing, or
  *
- * interface qid=<qid no> [snaplen=<val>] [minlen=<val>] [not] [<pattern>]...
+ * interface qid=<qid anal> [snaplen=<val>] [minlen=<val>] [analt] [<pattern>]...
  *
  * where interface is one of rxN, txN, or loopbackN, N = 0..3, qid can be one
  * of the NIC's response qid obtained from sge_qinfo and pattern has the form
@@ -1414,15 +1414,15 @@ static ssize_t mps_trc_write(struct file *file, const char __user *buf,
 	int i, enable, ret;
 	u32 *data, *mask;
 	struct trace_params tp;
-	const struct inode *ino;
+	const struct ianalde *ianal;
 	unsigned int trcidx;
 	char *s, *p, *word, *end;
 	struct adapter *adap;
 	u32 j;
 
-	ino = file_inode(file);
-	trcidx = (uintptr_t)ino->i_private & 3;
-	adap = ino->i_private - trcidx;
+	ianal = file_ianalde(file);
+	trcidx = (uintptr_t)ianal->i_private & 3;
+	adap = ianal->i_private - trcidx;
 
 	/* Don't accept input more than 1K, can't be anything valid except lots
 	 * of whitespace.  Well, use less.
@@ -1431,7 +1431,7 @@ static ssize_t mps_trc_write(struct file *file, const char __user *buf,
 		return -EFBIG;
 	p = s = kzalloc(count + 1, GFP_USER);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (copy_from_user(s, buf, count)) {
 		count = -EFAULT;
 		goto out;
@@ -1451,7 +1451,7 @@ static ssize_t mps_trc_write(struct file *file, const char __user *buf,
 		t4_write_reg(adap, MPS_TRC_CFG_A, TRC_RSS_DISABLE);
 
 	memset(&tp, 0, sizeof(tp));
-	tp.port = TRC_PORT_NONE;
+	tp.port = TRC_PORT_ANALNE;
 	i = 0;	/* counts pattern nibbles */
 
 	while (p) {
@@ -1508,17 +1508,17 @@ inval:				count = -EINVAL;
 			tp.min_len = j;
 			continue;
 		}
-		if (!strcmp(word, "not")) {
+		if (!strcmp(word, "analt")) {
 			tp.invert = !tp.invert;
 			continue;
 		}
-		if (!strncmp(word, "loopback", 8) && tp.port == TRC_PORT_NONE) {
+		if (!strncmp(word, "loopback", 8) && tp.port == TRC_PORT_ANALNE) {
 			if (word[8] < '0' || word[8] > '3' || word[9])
 				goto inval;
 			tp.port = word[8] - '0' + 8;
 			continue;
 		}
-		if (!strncmp(word, "tx", 2) && tp.port == TRC_PORT_NONE) {
+		if (!strncmp(word, "tx", 2) && tp.port == TRC_PORT_ANALNE) {
 			if (word[2] < '0' || word[2] > '3' || word[3])
 				goto inval;
 			tp.port = word[2] - '0' + 4;
@@ -1526,7 +1526,7 @@ inval:				count = -EINVAL;
 				goto inval;
 			continue;
 		}
-		if (!strncmp(word, "rx", 2) && tp.port == TRC_PORT_NONE) {
+		if (!strncmp(word, "rx", 2) && tp.port == TRC_PORT_ANALNE) {
 			if (word[2] < '0' || word[2] > '3' || word[3])
 				goto inval;
 			tp.port = word[2] - '0';
@@ -1568,7 +1568,7 @@ inval:				count = -EINVAL;
 			}
 			if (i != j)                 /* mask shorter than data */
 				goto inval;
-		} else {                            /* no mask, use all 1s */
+		} else {                            /* anal mask, use all 1s */
 			for ( ; i - j >= 8; j += 8)
 				*mask++ = 0xffffffff;
 			if (i % 8)
@@ -1595,7 +1595,7 @@ inval:				count = -EINVAL;
 		}
 	}
 
-	if (tp.port == TRC_PORT_NONE)
+	if (tp.port == TRC_PORT_ANALNE)
 		goto inval;
 
 apply:
@@ -1620,7 +1620,7 @@ static ssize_t flash_read(struct file *file, char __user *buf, size_t count,
 			  loff_t *ppos)
 {
 	loff_t pos = *ppos;
-	loff_t avail = file_inode(file)->i_size;
+	loff_t avail = file_ianalde(file)->i_size;
 	struct adapter *adap = file->private_data;
 
 	if (pos < 0)
@@ -1915,14 +1915,14 @@ static const struct seq_operations mps_tcam_seq_ops = {
 	.show  = mps_tcam_show
 };
 
-static int mps_tcam_open(struct inode *inode, struct file *file)
+static int mps_tcam_open(struct ianalde *ianalde, struct file *file)
 {
 	int res = seq_open(file, &mps_tcam_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
 
-		seq->private = inode->i_private;
+		seq->private = ianalde->i_private;
 	}
 	return res;
 }
@@ -1943,8 +1943,8 @@ static int sensors_show(struct seq_file *seq, void *v)
 	u32 param[7], val[7];
 	int ret;
 
-	/* Note that if the sensors haven't been initialized and turned on
-	 * we'll get values of 0, so treat those as "<unknown>" ...
+	/* Analte that if the sensors haven't been initialized and turned on
+	 * we'll get values of 0, so treat those as "<unkanalwn>" ...
 	 */
 	param[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
 		    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DIAG) |
@@ -1956,12 +1956,12 @@ static int sensors_show(struct seq_file *seq, void *v)
 			      param, val);
 
 	if (ret < 0 || val[0] == 0)
-		seq_puts(seq, "Temperature: <unknown>\n");
+		seq_puts(seq, "Temperature: <unkanalwn>\n");
 	else
 		seq_printf(seq, "Temperature: %dC\n", val[0]);
 
 	if (ret < 0 || val[1] == 0)
-		seq_puts(seq, "Core VDD:    <unknown>\n");
+		seq_puts(seq, "Core VDD:    <unkanalwn>\n");
 	else
 		seq_printf(seq, "Core VDD:    %dmV\n", val[1]);
 
@@ -1986,20 +1986,20 @@ static int rss_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int rss_open(struct inode *inode, struct file *file)
+static int rss_open(struct ianalde *ianalde, struct file *file)
 {
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = ianalde->i_private;
 	int ret, nentries;
 	struct seq_tab *p;
 
 	nentries = t4_chip_rss_size(adap);
 	p = seq_open_tab(file, nentries / 8, 8 * sizeof(u16), 0, rss_show);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = t4_read_rss(adap, (u16 *)p->data);
 	if (ret)
-		seq_release_private(inode, file);
+		seq_release_private(ianalde, file);
 
 	return ret;
 }
@@ -2015,15 +2015,15 @@ static const struct file_operations rss_debugfs_fops = {
 /* RSS Configuration.
  */
 
-/* Small utility function to return the strings "yes" or "no" if the supplied
- * argument is non-zero.
+/* Small utility function to return the strings "anal" or "anal" if the supplied
+ * argument is analn-zero.
  */
-static const char *yesno(int x)
+static const char *analanal(int x)
 {
-	static const char *yes = "yes";
-	static const char *no = "no";
+	static const char *anal = "anal";
+	static const char *anal = "anal";
 
-	return x ? yes : no;
+	return x ? anal : anal;
 }
 
 static int rss_config_show(struct seq_file *seq, void *v)
@@ -2039,51 +2039,51 @@ static int rss_config_show(struct seq_file *seq, void *v)
 
 	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_A);
 	seq_printf(seq, "TP_RSS_CONFIG: %#x\n", rssconf);
-	seq_printf(seq, "  Tnl4TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Tnl4TupEnIpv6: %3s\n", analanal(rssconf &
 							TNL4TUPENIPV6_F));
-	seq_printf(seq, "  Tnl2TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Tnl2TupEnIpv6: %3s\n", analanal(rssconf &
 							TNL2TUPENIPV6_F));
-	seq_printf(seq, "  Tnl4TupEnIpv4: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Tnl4TupEnIpv4: %3s\n", analanal(rssconf &
 							TNL4TUPENIPV4_F));
-	seq_printf(seq, "  Tnl2TupEnIpv4: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Tnl2TupEnIpv4: %3s\n", analanal(rssconf &
 							TNL2TUPENIPV4_F));
-	seq_printf(seq, "  TnlTcpSel:     %3s\n", yesno(rssconf & TNLTCPSEL_F));
-	seq_printf(seq, "  TnlIp6Sel:     %3s\n", yesno(rssconf & TNLIP6SEL_F));
-	seq_printf(seq, "  TnlVrtSel:     %3s\n", yesno(rssconf & TNLVRTSEL_F));
-	seq_printf(seq, "  TnlMapEn:      %3s\n", yesno(rssconf & TNLMAPEN_F));
-	seq_printf(seq, "  OfdHashSave:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  TnlTcpSel:     %3s\n", analanal(rssconf & TNLTCPSEL_F));
+	seq_printf(seq, "  TnlIp6Sel:     %3s\n", analanal(rssconf & TNLIP6SEL_F));
+	seq_printf(seq, "  TnlVrtSel:     %3s\n", analanal(rssconf & TNLVRTSEL_F));
+	seq_printf(seq, "  TnlMapEn:      %3s\n", analanal(rssconf & TNLMAPEN_F));
+	seq_printf(seq, "  OfdHashSave:   %3s\n", analanal(rssconf &
 							OFDHASHSAVE_F));
-	seq_printf(seq, "  OfdVrtSel:     %3s\n", yesno(rssconf & OFDVRTSEL_F));
-	seq_printf(seq, "  OfdMapEn:      %3s\n", yesno(rssconf & OFDMAPEN_F));
-	seq_printf(seq, "  OfdLkpEn:      %3s\n", yesno(rssconf & OFDLKPEN_F));
-	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  OfdVrtSel:     %3s\n", analanal(rssconf & OFDVRTSEL_F));
+	seq_printf(seq, "  OfdMapEn:      %3s\n", analanal(rssconf & OFDMAPEN_F));
+	seq_printf(seq, "  OfdLkpEn:      %3s\n", analanal(rssconf & OFDLKPEN_F));
+	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", analanal(rssconf &
 							SYN4TUPENIPV6_F));
-	seq_printf(seq, "  Syn2TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Syn2TupEnIpv6: %3s\n", analanal(rssconf &
 							SYN2TUPENIPV6_F));
-	seq_printf(seq, "  Syn4TupEnIpv4: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Syn4TupEnIpv4: %3s\n", analanal(rssconf &
 							SYN4TUPENIPV4_F));
-	seq_printf(seq, "  Syn2TupEnIpv4: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Syn2TupEnIpv4: %3s\n", analanal(rssconf &
 							SYN2TUPENIPV4_F));
-	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", analanal(rssconf &
 							SYN4TUPENIPV6_F));
-	seq_printf(seq, "  SynIp6Sel:     %3s\n", yesno(rssconf & SYNIP6SEL_F));
-	seq_printf(seq, "  SynVrt6Sel:    %3s\n", yesno(rssconf & SYNVRTSEL_F));
-	seq_printf(seq, "  SynMapEn:      %3s\n", yesno(rssconf & SYNMAPEN_F));
-	seq_printf(seq, "  SynLkpEn:      %3s\n", yesno(rssconf & SYNLKPEN_F));
-	seq_printf(seq, "  ChnEn:         %3s\n", yesno(rssconf &
+	seq_printf(seq, "  SynIp6Sel:     %3s\n", analanal(rssconf & SYNIP6SEL_F));
+	seq_printf(seq, "  SynVrt6Sel:    %3s\n", analanal(rssconf & SYNVRTSEL_F));
+	seq_printf(seq, "  SynMapEn:      %3s\n", analanal(rssconf & SYNMAPEN_F));
+	seq_printf(seq, "  SynLkpEn:      %3s\n", analanal(rssconf & SYNLKPEN_F));
+	seq_printf(seq, "  ChnEn:         %3s\n", analanal(rssconf &
 							CHANNELENABLE_F));
-	seq_printf(seq, "  PrtEn:         %3s\n", yesno(rssconf &
+	seq_printf(seq, "  PrtEn:         %3s\n", analanal(rssconf &
 							PORTENABLE_F));
-	seq_printf(seq, "  TnlAllLkp:     %3s\n", yesno(rssconf &
+	seq_printf(seq, "  TnlAllLkp:     %3s\n", analanal(rssconf &
 							TNLALLLOOKUP_F));
-	seq_printf(seq, "  VrtEn:         %3s\n", yesno(rssconf &
+	seq_printf(seq, "  VrtEn:         %3s\n", analanal(rssconf &
 							VIRTENABLE_F));
-	seq_printf(seq, "  CngEn:         %3s\n", yesno(rssconf &
+	seq_printf(seq, "  CngEn:         %3s\n", analanal(rssconf &
 							CONGESTIONENABLE_F));
-	seq_printf(seq, "  HashToeplitz:  %3s\n", yesno(rssconf &
+	seq_printf(seq, "  HashToeplitz:  %3s\n", analanal(rssconf &
 							HASHTOEPLITZ_F));
-	seq_printf(seq, "  Udp4En:        %3s\n", yesno(rssconf & UDPENABLE_F));
-	seq_printf(seq, "  Disable:       %3s\n", yesno(rssconf & DISABLE_F));
+	seq_printf(seq, "  Udp4En:        %3s\n", analanal(rssconf & UDPENABLE_F));
+	seq_printf(seq, "  Disable:       %3s\n", analanal(rssconf & DISABLE_F));
 
 	seq_puts(seq, "\n");
 
@@ -2093,18 +2093,18 @@ static int rss_config_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "  MaskFilter:    %3d\n", MASKFILTER_G(rssconf));
 	if (CHELSIO_CHIP_VERSION(adapter->params.chip) > CHELSIO_T5) {
 		seq_printf(seq, "  HashAll:     %3s\n",
-			   yesno(rssconf & HASHALL_F));
+			   analanal(rssconf & HASHALL_F));
 		seq_printf(seq, "  HashEth:     %3s\n",
-			   yesno(rssconf & HASHETH_F));
+			   analanal(rssconf & HASHETH_F));
 	}
-	seq_printf(seq, "  UseWireCh:     %3s\n", yesno(rssconf & USEWIRECH_F));
+	seq_printf(seq, "  UseWireCh:     %3s\n", analanal(rssconf & USEWIRECH_F));
 
 	seq_puts(seq, "\n");
 
 	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_OFD_A);
 	seq_printf(seq, "TP_RSS_CONFIG_OFD: %#x\n", rssconf);
 	seq_printf(seq, "  MaskSize:      %3d\n", MASKSIZE_G(rssconf));
-	seq_printf(seq, "  RRCplMapEn:    %3s\n", yesno(rssconf &
+	seq_printf(seq, "  RRCplMapEn:    %3s\n", analanal(rssconf &
 							RRCPLMAPEN_F));
 	seq_printf(seq, "  RRCplQueWidth: %3d\n", RRCPLQUEWIDTH_G(rssconf));
 
@@ -2113,7 +2113,7 @@ static int rss_config_show(struct seq_file *seq, void *v)
 	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_SYN_A);
 	seq_printf(seq, "TP_RSS_CONFIG_SYN: %#x\n", rssconf);
 	seq_printf(seq, "  MaskSize:      %3d\n", MASKSIZE_G(rssconf));
-	seq_printf(seq, "  UseWireCh:     %3s\n", yesno(rssconf & USEWIRECH_F));
+	seq_printf(seq, "  UseWireCh:     %3s\n", analanal(rssconf & USEWIRECH_F));
 
 	seq_puts(seq, "\n");
 
@@ -2123,15 +2123,15 @@ static int rss_config_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "  KeyWrAddrX:     %3d\n",
 			   KEYWRADDRX_G(rssconf));
 		seq_printf(seq, "  KeyExtend:      %3s\n",
-			   yesno(rssconf & KEYEXTEND_F));
+			   analanal(rssconf & KEYEXTEND_F));
 	}
-	seq_printf(seq, "  VfRdRg:        %3s\n", yesno(rssconf & VFRDRG_F));
-	seq_printf(seq, "  VfRdEn:        %3s\n", yesno(rssconf & VFRDEN_F));
-	seq_printf(seq, "  VfPerrEn:      %3s\n", yesno(rssconf & VFPERREN_F));
-	seq_printf(seq, "  KeyPerrEn:     %3s\n", yesno(rssconf & KEYPERREN_F));
-	seq_printf(seq, "  DisVfVlan:     %3s\n", yesno(rssconf &
+	seq_printf(seq, "  VfRdRg:        %3s\n", analanal(rssconf & VFRDRG_F));
+	seq_printf(seq, "  VfRdEn:        %3s\n", analanal(rssconf & VFRDEN_F));
+	seq_printf(seq, "  VfPerrEn:      %3s\n", analanal(rssconf & VFPERREN_F));
+	seq_printf(seq, "  KeyPerrEn:     %3s\n", analanal(rssconf & KEYPERREN_F));
+	seq_printf(seq, "  DisVfVlan:     %3s\n", analanal(rssconf &
 							DISABLEVLAN_F));
-	seq_printf(seq, "  EnUpSwt:       %3s\n", yesno(rssconf & ENABLEUP0_F));
+	seq_printf(seq, "  EnUpSwt:       %3s\n", analanal(rssconf & ENABLEUP0_F));
 	seq_printf(seq, "  HashDelay:     %3d\n", HASHDELAY_G(rssconf));
 	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
 		seq_printf(seq, "  VfWrAddr:      %3d\n", VFWRADDR_G(rssconf));
@@ -2139,36 +2139,36 @@ static int rss_config_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "  VfWrAddr:      %3d\n",
 			   T6_VFWRADDR_G(rssconf));
 	seq_printf(seq, "  KeyMode:       %s\n", keymode[KEYMODE_G(rssconf)]);
-	seq_printf(seq, "  VfWrEn:        %3s\n", yesno(rssconf & VFWREN_F));
-	seq_printf(seq, "  KeyWrEn:       %3s\n", yesno(rssconf & KEYWREN_F));
+	seq_printf(seq, "  VfWrEn:        %3s\n", analanal(rssconf & VFWREN_F));
+	seq_printf(seq, "  KeyWrEn:       %3s\n", analanal(rssconf & KEYWREN_F));
 	seq_printf(seq, "  KeyWrAddr:     %3d\n", KEYWRADDR_G(rssconf));
 
 	seq_puts(seq, "\n");
 
 	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_CNG_A);
 	seq_printf(seq, "TP_RSS_CONFIG_CNG: %#x\n", rssconf);
-	seq_printf(seq, "  ChnCount3:     %3s\n", yesno(rssconf & CHNCOUNT3_F));
-	seq_printf(seq, "  ChnCount2:     %3s\n", yesno(rssconf & CHNCOUNT2_F));
-	seq_printf(seq, "  ChnCount1:     %3s\n", yesno(rssconf & CHNCOUNT1_F));
-	seq_printf(seq, "  ChnCount0:     %3s\n", yesno(rssconf & CHNCOUNT0_F));
-	seq_printf(seq, "  ChnUndFlow3:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  ChnCount3:     %3s\n", analanal(rssconf & CHNCOUNT3_F));
+	seq_printf(seq, "  ChnCount2:     %3s\n", analanal(rssconf & CHNCOUNT2_F));
+	seq_printf(seq, "  ChnCount1:     %3s\n", analanal(rssconf & CHNCOUNT1_F));
+	seq_printf(seq, "  ChnCount0:     %3s\n", analanal(rssconf & CHNCOUNT0_F));
+	seq_printf(seq, "  ChnUndFlow3:   %3s\n", analanal(rssconf &
 							CHNUNDFLOW3_F));
-	seq_printf(seq, "  ChnUndFlow2:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  ChnUndFlow2:   %3s\n", analanal(rssconf &
 							CHNUNDFLOW2_F));
-	seq_printf(seq, "  ChnUndFlow1:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  ChnUndFlow1:   %3s\n", analanal(rssconf &
 							CHNUNDFLOW1_F));
-	seq_printf(seq, "  ChnUndFlow0:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  ChnUndFlow0:   %3s\n", analanal(rssconf &
 							CHNUNDFLOW0_F));
-	seq_printf(seq, "  RstChn3:       %3s\n", yesno(rssconf & RSTCHN3_F));
-	seq_printf(seq, "  RstChn2:       %3s\n", yesno(rssconf & RSTCHN2_F));
-	seq_printf(seq, "  RstChn1:       %3s\n", yesno(rssconf & RSTCHN1_F));
-	seq_printf(seq, "  RstChn0:       %3s\n", yesno(rssconf & RSTCHN0_F));
-	seq_printf(seq, "  UpdVld:        %3s\n", yesno(rssconf & UPDVLD_F));
-	seq_printf(seq, "  Xoff:          %3s\n", yesno(rssconf & XOFF_F));
-	seq_printf(seq, "  UpdChn3:       %3s\n", yesno(rssconf & UPDCHN3_F));
-	seq_printf(seq, "  UpdChn2:       %3s\n", yesno(rssconf & UPDCHN2_F));
-	seq_printf(seq, "  UpdChn1:       %3s\n", yesno(rssconf & UPDCHN1_F));
-	seq_printf(seq, "  UpdChn0:       %3s\n", yesno(rssconf & UPDCHN0_F));
+	seq_printf(seq, "  RstChn3:       %3s\n", analanal(rssconf & RSTCHN3_F));
+	seq_printf(seq, "  RstChn2:       %3s\n", analanal(rssconf & RSTCHN2_F));
+	seq_printf(seq, "  RstChn1:       %3s\n", analanal(rssconf & RSTCHN1_F));
+	seq_printf(seq, "  RstChn0:       %3s\n", analanal(rssconf & RSTCHN0_F));
+	seq_printf(seq, "  UpdVld:        %3s\n", analanal(rssconf & UPDVLD_F));
+	seq_printf(seq, "  Xoff:          %3s\n", analanal(rssconf & XOFF_F));
+	seq_printf(seq, "  UpdChn3:       %3s\n", analanal(rssconf & UPDCHN3_F));
+	seq_printf(seq, "  UpdChn2:       %3s\n", analanal(rssconf & UPDCHN2_F));
+	seq_printf(seq, "  UpdChn1:       %3s\n", analanal(rssconf & UPDCHN1_F));
+	seq_printf(seq, "  UpdChn0:       %3s\n", analanal(rssconf & UPDCHN0_F));
 	seq_printf(seq, "  Queue:         %3d\n", QUEUE_G(rssconf));
 
 	return 0;
@@ -2189,9 +2189,9 @@ static int rss_key_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int rss_key_open(struct inode *inode, struct file *file)
+static int rss_key_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, rss_key_show, inode->i_private);
+	return single_open(file, rss_key_show, ianalde->i_private);
 }
 
 static ssize_t rss_key_write(struct file *file, const char __user *buf,
@@ -2200,7 +2200,7 @@ static ssize_t rss_key_write(struct file *file, const char __user *buf,
 	int i, j;
 	u32 key[10];
 	char s[100], *p;
-	struct adapter *adap = file_inode(file)->i_private;
+	struct adapter *adap = file_ianalde(file)->i_private;
 
 	if (count > sizeof(s) - 1)
 		return -EINVAL;
@@ -2263,17 +2263,17 @@ static int rss_pf_config_show(struct seq_file *seq, void *v, int idx)
 		pfconf = v;
 		seq_printf(seq, "%3d  %3s %3s %3s  %3d  %3d  %3d   %3s %3s   %3s %3s   %3s  %3d  %3d\n",
 			   idx,
-			   yesno(pfconf->rss_pf_config & MAPENABLE_F),
-			   yesno(pfconf->rss_pf_config & CHNENABLE_F),
-			   yesno(pfconf->rss_pf_config & PRTENABLE_F),
+			   analanal(pfconf->rss_pf_config & MAPENABLE_F),
+			   analanal(pfconf->rss_pf_config & CHNENABLE_F),
+			   analanal(pfconf->rss_pf_config & PRTENABLE_F),
 			   G_PFnLKPIDX(pfconf->rss_pf_map, idx),
 			   G_PFnMSKSIZE(pfconf->rss_pf_mask, idx),
 			   IVFWIDTH_G(pfconf->rss_pf_config),
-			   yesno(pfconf->rss_pf_config & IP6FOURTUPEN_F),
-			   yesno(pfconf->rss_pf_config & IP6TWOTUPEN_F),
-			   yesno(pfconf->rss_pf_config & IP4FOURTUPEN_F),
-			   yesno(pfconf->rss_pf_config & IP4TWOTUPEN_F),
-			   yesno(pfconf->rss_pf_config & UDPFOURTUPEN_F),
+			   analanal(pfconf->rss_pf_config & IP6FOURTUPEN_F),
+			   analanal(pfconf->rss_pf_config & IP6TWOTUPEN_F),
+			   analanal(pfconf->rss_pf_config & IP4FOURTUPEN_F),
+			   analanal(pfconf->rss_pf_config & IP4TWOTUPEN_F),
+			   analanal(pfconf->rss_pf_config & UDPFOURTUPEN_F),
 			   CH1DEFAULTQUEUE_G(pfconf->rss_pf_config),
 			   CH0DEFAULTQUEUE_G(pfconf->rss_pf_config));
 
@@ -2283,9 +2283,9 @@ static int rss_pf_config_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int rss_pf_config_open(struct inode *inode, struct file *file)
+static int rss_pf_config_open(struct ianalde *ianalde, struct file *file)
 {
-	struct adapter *adapter = inode->i_private;
+	struct adapter *adapter = ianalde->i_private;
 	struct seq_tab *p;
 	u32 rss_pf_map, rss_pf_mask;
 	struct rss_pf_conf *pfconf;
@@ -2293,7 +2293,7 @@ static int rss_pf_config_open(struct inode *inode, struct file *file)
 
 	p = seq_open_tab(file, 8, sizeof(*pfconf), 1, rss_pf_config_show);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pfconf = (struct rss_pf_conf *)p->data;
 	rss_pf_map = t4_read_rss_pf_map(adapter, true);
@@ -2334,16 +2334,16 @@ static int rss_vf_config_show(struct seq_file *seq, void *v, int idx)
 
 		seq_printf(seq, "%3d  %3s %3s  %3d   %3s %3s   %3s %3s   %3s  %3s   %3s  %4d  %3d %#10x\n",
 			   idx,
-			   yesno(vfconf->rss_vf_vfh & VFCHNEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFPRTEN_F),
+			   analanal(vfconf->rss_vf_vfh & VFCHNEN_F),
+			   analanal(vfconf->rss_vf_vfh & VFPRTEN_F),
 			   VFLKPIDX_G(vfconf->rss_vf_vfh),
-			   yesno(vfconf->rss_vf_vfh & VFVLNEX_F),
-			   yesno(vfconf->rss_vf_vfh & VFUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFIP6TWOTUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFIP4TWOTUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & ENABLEUDPHASH_F),
+			   analanal(vfconf->rss_vf_vfh & VFVLNEX_F),
+			   analanal(vfconf->rss_vf_vfh & VFUPEN_F),
+			   analanal(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
+			   analanal(vfconf->rss_vf_vfh & VFIP6TWOTUPEN_F),
+			   analanal(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
+			   analanal(vfconf->rss_vf_vfh & VFIP4TWOTUPEN_F),
+			   analanal(vfconf->rss_vf_vfh & ENABLEUDPHASH_F),
 			   DEFAULTQUEUE_G(vfconf->rss_vf_vfh),
 			   KEYINDEX_G(vfconf->rss_vf_vfh),
 			   vfconf->rss_vf_vfl);
@@ -2351,16 +2351,16 @@ static int rss_vf_config_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int rss_vf_config_open(struct inode *inode, struct file *file)
+static int rss_vf_config_open(struct ianalde *ianalde, struct file *file)
 {
-	struct adapter *adapter = inode->i_private;
+	struct adapter *adapter = ianalde->i_private;
 	struct seq_tab *p;
 	struct rss_vf_conf *vfconf;
 	int vf, vfcount = adapter->params.arch.vfcount;
 
 	p = seq_open_tab(file, vfcount, sizeof(*vfconf), 1, rss_vf_config_show);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vfconf = (struct rss_vf_conf *)p->data;
 	for (vf = 0; vf < vfcount; vf++) {
@@ -2397,7 +2397,7 @@ static int dcb_info_show(struct seq_file *seq, void *v)
 		seq_puts(seq, "\n");
 		seq_printf(seq, "Port: %d (DCB negotiated: %s)\n",
 			   port,
-			   cxgb4_dcb_enabled(dev) ? "yes" : "no");
+			   cxgb4_dcb_enabled(dev) ? "anal" : "anal");
 
 		if (cxgb4_dcb_enabled(dev))
 			seq_printf(seq, "[ DCBx Version %s ]\n",
@@ -2496,7 +2496,7 @@ static int dcb_info_show(struct seq_file *seq, void *v)
 				if (ap->sel_field < ARRAY_SIZE(sel_names))
 					sel_name = sel_names[ap->sel_field];
 				else
-					sel_name = "UNKNOWN";
+					sel_name = "UNKANALWN";
 
 				seq_printf(seq, "  %3d    %#04x        %-10s (%d)    %#06x (%d)\n",
 					   app,
@@ -2505,7 +2505,7 @@ static int dcb_info_show(struct seq_file *seq, void *v)
 					   ap->protocolid, ap->protocolid);
 			}
 			if (napps == 0)
-				seq_puts(seq, "    --- None ---\n");
+				seq_puts(seq, "    --- Analne ---\n");
 		}
 	}
 	return 0;
@@ -2546,14 +2546,14 @@ static const struct seq_operations dcb_info_seq_ops = {
 	.show  = dcb_info_show
 };
 
-static int dcb_info_open(struct inode *inode, struct file *file)
+static int dcb_info_open(struct ianalde *ianalde, struct file *file)
 {
 	int res = seq_open(file, &dcb_info_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
 
-		seq->private = inode->i_private;
+		seq->private = ianalde->i_private;
 	}
 	return res;
 }
@@ -2835,7 +2835,7 @@ do { \
 		RL("RxPackets:", stats.pkts);
 		RL("RxImm:", stats.imm);
 		RL("RxAN", stats.an);
-		RL("RxNoMem", stats.nomem);
+		RL("RxAnalMem", stats.analmem);
 		TL("TSO:", tso);
 		TL("USO:", uso);
 		TL("TxCSO:", tx_cso);
@@ -3230,14 +3230,14 @@ static const struct seq_operations sge_qinfo_seq_ops = {
 	.show  = sge_qinfo_show
 };
 
-static int sge_qinfo_open(struct inode *inode, struct file *file)
+static int sge_qinfo_open(struct ianalde *ianalde, struct file *file)
 {
 	int res = seq_open(file, &sge_qinfo_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
 
-		seq->private = inode->i_private;
+		seq->private = ianalde->i_private;
 	}
 	return res;
 }
@@ -3250,12 +3250,12 @@ static const struct file_operations sge_qinfo_debugfs_fops = {
 	.release = seq_release,
 };
 
-int mem_open(struct inode *inode, struct file *file)
+int mem_open(struct ianalde *ianalde, struct file *file)
 {
 	unsigned int mem;
 	struct adapter *adap;
 
-	file->private_data = inode->i_private;
+	file->private_data = ianalde->i_private;
 
 	mem = (uintptr_t)file->private_data & 0x7;
 	adap = file->private_data - mem;
@@ -3269,7 +3269,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
 	loff_t pos = *ppos;
-	loff_t avail = file_inode(file)->i_size;
+	loff_t avail = file_ianalde(file)->i_size;
 	unsigned int mem = (uintptr_t)file->private_data & 0x7;
 	struct adapter *adap = file->private_data - mem;
 	__be32 *data;
@@ -3284,7 +3284,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 
 	data = kvzalloc(count, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&adap->win0_lock);
 	ret = t4_memory_rw(adap, 0, mem, pos, count, data, T4_MEMORY_READ);
@@ -3412,7 +3412,7 @@ static ssize_t blocked_fl_read(struct file *filp, char __user *ubuf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = snprintf(buf, size - 1, "%*pb\n",
 		       adap->sge.egr_sz, adap->sge.blocked_fl);
@@ -3431,7 +3431,7 @@ static ssize_t blocked_fl_write(struct file *filp, const char __user *ubuf,
 
 	t = bitmap_zalloc(adap->sge.egr_sz, GFP_KERNEL);
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = bitmap_parse_user(ubuf, count, t, adap->sge.egr_sz);
 	if (err) {
@@ -3655,8 +3655,8 @@ static void show_rdma_stats(struct seq_file *seq)
 	t4_tp_get_rdma_stats(adap, &stats, false);
 	spin_unlock(&adap->stats_lock);
 
-	PRINT_ADAP_STATS("rdma_no_rqe_mod_defer:", stats.rqe_dfr_mod);
-	PRINT_ADAP_STATS("rdma_no_rqe_pkt_defer:", stats.rqe_dfr_pkt);
+	PRINT_ADAP_STATS("rdma_anal_rqe_mod_defer:", stats.rqe_dfr_mod);
+	PRINT_ADAP_STATS("rdma_anal_rqe_pkt_defer:", stats.rqe_dfr_pkt);
 }
 
 static void show_tp_err_adapter_stats(struct seq_file *seq)
@@ -3668,7 +3668,7 @@ static void show_tp_err_adapter_stats(struct seq_file *seq)
 	t4_tp_get_err_stats(adap, &stats, false);
 	spin_unlock(&adap->stats_lock);
 
-	PRINT_ADAP_STATS("tp_err_ofld_no_neigh:", stats.ofld_no_neigh);
+	PRINT_ADAP_STATS("tp_err_ofld_anal_neigh:", stats.ofld_anal_neigh);
 	PRINT_ADAP_STATS("tp_err_ofld_cong_defer:", stats.ofld_cong_defer);
 }
 
@@ -3833,7 +3833,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "tp_stats", &tp_stats_fops, 0400, 0 },
 	};
 
-	/* Debug FS nodes common to all T5 and later adapters.
+	/* Debug FS analdes common to all T5 and later adapters.
 	 */
 	static struct t4_debugfs_entry t5_debugfs_files[] = {
 		{ "obq_sge_rx_q0", &cim_obq_fops, 0400, 6 },

@@ -45,8 +45,8 @@ struct usbnet {
 	u32			hard_mtu;	/* count any extra framing */
 	size_t			rx_urb_size;	/* size for rx urbs */
 	struct mii_if_info	mii;
-	long			rx_speed;	/* If MII not used */
-	long			tx_speed;	/* If MII not used */
+	long			rx_speed;	/* If MII analt used */
+	long			tx_speed;	/* If MII analt used */
 #		define SPEED_UNSET	-1
 
 	/* various kinds of pending driver work */
@@ -71,11 +71,11 @@ struct usbnet {
 #		define EVENT_DEV_ASLEEP 6
 #		define EVENT_DEV_OPEN	7
 #		define EVENT_DEVICE_REPORT_IDLE	8
-#		define EVENT_NO_RUNTIME_PM	9
+#		define EVENT_ANAL_RUNTIME_PM	9
 #		define EVENT_RX_KILL	10
 #		define EVENT_LINK_CHANGE	11
 #		define EVENT_SET_RX_MODE	12
-#		define EVENT_NO_IP_ALIGN	13
+#		define EVENT_ANAL_IP_ALIGN	13
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -88,13 +88,13 @@ struct driver_info {
 	char		*description;
 
 	int		flags;
-/* framing is CDC Ethernet, not writing ZLPs (hw issues), or optionally: */
+/* framing is CDC Ethernet, analt writing ZLPs (hw issues), or optionally: */
 #define FLAG_FRAMING_NC	0x0001		/* guard against device dropouts */
 #define FLAG_FRAMING_GL	0x0002		/* genelink batches packets */
 #define FLAG_FRAMING_Z	0x0004		/* zaurus adds a trailer */
 #define FLAG_FRAMING_RN	0x0008		/* RNDIS batches, plus huge header */
 
-#define FLAG_NO_SETINT	0x0010		/* device can't set_interface() */
+#define FLAG_ANAL_SETINT	0x0010		/* device can't set_interface() */
 #define FLAG_ETHER	0x0020		/* maybe use "eth%d" names */
 
 #define FLAG_FRAMING_AX 0x0040		/* AX88772/178 packets */
@@ -113,7 +113,7 @@ struct driver_info {
  */
 #define FLAG_MULTI_PACKET	0x2000
 #define FLAG_RX_ASSEMBLE	0x4000	/* rx packets may span >1 frames */
-#define FLAG_NOARP		0x8000	/* device can't do ARP */
+#define FLAG_ANALARP		0x8000	/* device can't do ARP */
 
 	/* init device ... can sleep, or cause probe() failure */
 	int	(*bind)(struct usbnet *, struct usb_interface *);
@@ -181,15 +181,15 @@ extern int usbnet_read_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, void *data, u16 size);
 extern int usbnet_write_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, const void *data, u16 size);
-extern int usbnet_read_cmd_nopm(struct usbnet *dev, u8 cmd, u8 reqtype,
+extern int usbnet_read_cmd_analpm(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, void *data, u16 size);
-extern int usbnet_write_cmd_nopm(struct usbnet *dev, u8 cmd, u8 reqtype,
+extern int usbnet_write_cmd_analpm(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, const void *data, u16 size);
 extern int usbnet_write_cmd_async(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, const void *data, u16 size);
 
 /* Drivers that reuse some of the standard USB CDC infrastructure
- * (notably, using multiple interfaces according to the CDC
+ * (analtably, using multiple interfaces according to the CDC
  * union descriptor) get some helper code.
  */
 struct cdc_state {

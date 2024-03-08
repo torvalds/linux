@@ -39,9 +39,9 @@
 #define SSC_RX_FSTAT			0x03C
 #define SSC_PRE_SCALER_BRG		0x040
 #define SSC_CLR				0x080
-#define SSC_NOISE_SUPP_WIDTH		0x100
+#define SSC_ANALISE_SUPP_WIDTH		0x100
 #define SSC_PRSCALER			0x104
-#define SSC_NOISE_SUPP_WIDTH_DATAOUT	0x108
+#define SSC_ANALISE_SUPP_WIDTH_DATAOUT	0x108
 #define SSC_PRSCALER_DATAOUT		0x10c
 
 /* SSC Control */
@@ -325,13 +325,13 @@ static void st_i2c_hw_config(struct st_i2c_dev *i2c_dev)
 	writel_relaxed(val, i2c_dev->base + SSC_PRSCALER);
 	writel_relaxed(val, i2c_dev->base + SSC_PRSCALER_DATAOUT);
 
-	/* Noise suppression witdh */
+	/* Analise suppression witdh */
 	val = i2c_dev->scl_min_width_us * rate / 100000000;
-	writel_relaxed(val, i2c_dev->base + SSC_NOISE_SUPP_WIDTH);
+	writel_relaxed(val, i2c_dev->base + SSC_ANALISE_SUPP_WIDTH);
 
-	/* Noise suppression max output data delay width */
+	/* Analise suppression max output data delay width */
 	val = i2c_dev->sda_min_width_us * rate / 100000000;
-	writel_relaxed(val, i2c_dev->base + SSC_NOISE_SUPP_WIDTH_DATAOUT);
+	writel_relaxed(val, i2c_dev->base + SSC_ANALISE_SUPP_WIDTH_DATAOUT);
 }
 
 static int st_i2c_recover_bus(struct i2c_adapter *i2c_adap)
@@ -343,7 +343,7 @@ static int st_i2c_recover_bus(struct i2c_adapter *i2c_adap)
 
 	/*
 	 * SSP IP is dual role SPI/I2C to generate 9 clock pulses
-	 * we switch to SPI node, 9 bit words and write a 0. This
+	 * we switch to SPI analde, 9 bit words and write a 0. This
 	 * has been validate with a oscilloscope and is easier
 	 * than switching to GPIO mode.
 	 */
@@ -379,7 +379,7 @@ static int st_i2c_wait_free_bus(struct st_i2c_dev *i2c_dev)
 		usleep_range(2000, 4000);
 	}
 
-	dev_err(i2c_dev->dev, "bus not free (status = 0x%08x)\n", sta);
+	dev_err(i2c_dev->dev, "bus analt free (status = 0x%08x)\n", sta);
 
 	ret = i2c_recover_bus(&i2c_dev->adap);
 	if (ret) {
@@ -577,7 +577,7 @@ static irqreturn_t st_i2c_isr_thread(int irq, void *data)
 	if (it < 0) {
 		dev_dbg(i2c_dev->dev, "spurious it (sta=0x%04x, ien=0x%04x)\n",
 				sta, ien);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	switch (1 << it) {
@@ -777,21 +777,21 @@ static struct i2c_bus_recovery_info st_i2c_recovery_info = {
 	.recover_bus = st_i2c_recover_bus,
 };
 
-static int st_i2c_of_get_deglitch(struct device_node *np,
+static int st_i2c_of_get_deglitch(struct device_analde *np,
 		struct st_i2c_dev *i2c_dev)
 {
 	int ret;
 
 	ret = of_property_read_u32(np, "st,i2c-min-scl-pulse-width-us",
 			&i2c_dev->scl_min_width_us);
-	if ((ret == -ENODATA) || (ret == -EOVERFLOW)) {
+	if ((ret == -EANALDATA) || (ret == -EOVERFLOW)) {
 		dev_err(i2c_dev->dev, "st,i2c-min-scl-pulse-width-us invalid\n");
 		return ret;
 	}
 
 	ret = of_property_read_u32(np, "st,i2c-min-sda-pulse-width-us",
 			&i2c_dev->sda_min_width_us);
-	if ((ret == -ENODATA) || (ret == -EOVERFLOW)) {
+	if ((ret == -EANALDATA) || (ret == -EOVERFLOW)) {
 		dev_err(i2c_dev->dev, "st,i2c-min-sda-pulse-width-us invalid\n");
 		return ret;
 	}
@@ -801,7 +801,7 @@ static int st_i2c_of_get_deglitch(struct device_node *np,
 
 static int st_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct st_i2c_dev *i2c_dev;
 	struct resource *res;
 	u32 clk_rate;
@@ -810,7 +810,7 @@ static int st_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(i2c_dev->base))
@@ -860,7 +860,7 @@ static int st_i2c_probe(struct platform_device *pdev)
 	adap->algo = &st_i2c_algo;
 	adap->bus_recovery_info = &st_i2c_recovery_info;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 
 	init_completion(&i2c_dev->complete);
 

@@ -90,7 +90,7 @@ struct cfctrl_link_param {
 
 /* This structure is used internally in CFCTRL */
 struct cfctrl_request_info {
-	int sequence_no;
+	int sequence_anal;
 	enum cfctrl_cmd cmd;
 	u8 channel_id;
 	struct cfctrl_link_param param;
@@ -101,12 +101,12 @@ struct cfctrl_request_info {
 struct cfctrl {
 	struct cfsrvl serv;
 	struct cfctrl_rsp res;
-	atomic_t req_seq_no;
-	atomic_t rsp_seq_no;
+	atomic_t req_seq_anal;
+	atomic_t rsp_seq_anal;
 	struct list_head list;
 	/* Protects from simultaneous access to first_req list */
 	spinlock_t info_list_lock;
-#ifndef CAIF_NO_LOOP
+#ifndef CAIF_ANAL_LOOP
 	u8 loop_linkid;
 	int loop_linkused[256];
 	/* Protects simultaneous access to loop_linkid and loop_linkused */

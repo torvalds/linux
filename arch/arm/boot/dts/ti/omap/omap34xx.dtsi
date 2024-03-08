@@ -147,13 +147,13 @@
 		};
 
 		/*
-		 * On omap34xx the OCP registers do not seem to be accessible
+		 * On omap34xx the OCP registers do analt seem to be accessible
 		 * at all unlike on 36xx. Maybe SGX is permanently set to
 		 * "OCP bypass mode", or maybe there is OCP_SYSCONFIG that is
 		 * write-only at 0x50000e10. We detect SGX based on the SGX
 		 * revision register instead of the unreadable OCP revision
-		 * register. Also note that on early 34xx es1 revision there
-		 * are also different clocks, but we do not have any dts users
+		 * register. Also analte that on early 34xx es1 revision there
+		 * are also different clocks, but we do analt have any dts users
 		 * for it.
 		 */
 		sgx_module: target-module@50000000 {
@@ -167,7 +167,7 @@
 			ranges = <0 0x50000000 0x4000>;
 
 			/*
-			 * Closed source PowerVR driver, no child device
+			 * Closed source PowerVR driver, anal child device
 			 * binding or driver in mainline
 			 */
 		};

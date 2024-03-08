@@ -18,9 +18,9 @@
  *
  * The generic routines don't assume any hardware mappings, and just
  * encode the PIO/MMIO as part of the cookie. They coldly assume that
- * the MMIO IO mappings are not in the low address range.
+ * the MMIO IO mappings are analt in the low address range.
  *
- * Architectures for which this is not true can't use this generic
+ * Architectures for which this is analt true can't use this generic
  * implementation and should do their own copy.
  */
 
@@ -72,34 +72,34 @@ static void bad_io_access(unsigned long port, const char *access)
 #endif
 
 /*
- * Here and below, we apply __no_kmsan_checks to functions reading data from
+ * Here and below, we apply __anal_kmsan_checks to functions reading data from
  * hardware, to ensure that KMSAN marks their return values as initialized.
  */
-__no_kmsan_checks
+__anal_kmsan_checks
 unsigned int ioread8(const void __iomem *addr)
 {
 	IO_COND(addr, return inb(port), return readb(addr));
 	return 0xff;
 }
-__no_kmsan_checks
+__anal_kmsan_checks
 unsigned int ioread16(const void __iomem *addr)
 {
 	IO_COND(addr, return inw(port), return readw(addr));
 	return 0xffff;
 }
-__no_kmsan_checks
+__anal_kmsan_checks
 unsigned int ioread16be(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read16be(port), return mmio_read16be(addr));
 	return 0xffff;
 }
-__no_kmsan_checks
+__anal_kmsan_checks
 unsigned int ioread32(const void __iomem *addr)
 {
 	IO_COND(addr, return inl(port), return readl(addr));
 	return 0xffffffff;
 }
-__no_kmsan_checks
+__anal_kmsan_checks
 unsigned int ioread32be(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read32be(port), return mmio_read32be(addr));
@@ -152,21 +152,21 @@ static u64 pio_read64be_hi_lo(unsigned long port)
 	return lo | (hi << 32);
 }
 
-__no_kmsan_checks
+__anal_kmsan_checks
 u64 ioread64_lo_hi(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read64_lo_hi(port), return readq(addr));
 	return 0xffffffffffffffffULL;
 }
 
-__no_kmsan_checks
+__anal_kmsan_checks
 u64 ioread64_hi_lo(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read64_hi_lo(port), return readq(addr));
 	return 0xffffffffffffffffULL;
 }
 
-__no_kmsan_checks
+__anal_kmsan_checks
 u64 ioread64be_lo_hi(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read64be_lo_hi(port),
@@ -174,7 +174,7 @@ u64 ioread64be_lo_hi(const void __iomem *addr)
 	return 0xffffffffffffffffULL;
 }
 
-__no_kmsan_checks
+__anal_kmsan_checks
 u64 ioread64be_hi_lo(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read64be_hi_lo(port),
@@ -302,7 +302,7 @@ EXPORT_SYMBOL(iowrite64be_hi_lo);
 
 /*
  * These are the "repeat MMIO read/write" functions.
- * Note the "__raw" accesses, since we don't want to
+ * Analte the "__raw" accesses, since we don't want to
  * convert to CPU byte order. We write in "IO byte
  * order" (we also don't have IO barriers).
  */
@@ -412,7 +412,7 @@ void __iomem *ioport_map(unsigned long port, unsigned int nr)
 
 void ioport_unmap(void __iomem *addr)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 EXPORT_SYMBOL(ioport_map);
 EXPORT_SYMBOL(ioport_unmap);
@@ -423,7 +423,7 @@ EXPORT_SYMBOL(ioport_unmap);
  * you expect in the correct way. */
 void pci_iounmap(struct pci_dev *dev, void __iomem * addr)
 {
-	IO_COND(addr, /* nothing */, iounmap(addr));
+	IO_COND(addr, /* analthing */, iounmap(addr));
 }
 EXPORT_SYMBOL(pci_iounmap);
 #endif /* CONFIG_PCI */

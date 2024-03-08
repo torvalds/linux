@@ -180,7 +180,7 @@ int adf_ae_init(struct adf_accel_dev *accel_dev)
 
 	loader_data = kzalloc(sizeof(*loader_data), GFP_KERNEL);
 	if (!loader_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	accel_dev->fw_loader = loader_data;
 	if (qat_hal_init(accel_dev)) {

@@ -29,7 +29,7 @@
 #include <asm/unistd.h>
 #include <asm/xilinx_mb_manager.h>
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/signal.h>
 #include <asm/mmu.h>
 
@@ -166,14 +166,14 @@ syscall_debug_table:
 #define VM_ON		\
 	set_ums;	\
 	rted	r0, 2f;	\
-	nop; \
+	analp; \
 2:
 
 /* turn off virtual protected mode save and user mode save*/
 #define VM_OFF			\
 	clear_vms_ums;		\
 	rted	r0, TOPHYS(1f);	\
-	nop; \
+	analp; \
 1:
 
 #define SAVE_REGS \
@@ -307,7 +307,7 @@ C_ENTRY(mb_flush_dcache):
 	RESTORE_REGS
 	addik	r1, r1, PT_SIZE
 	rtsd	r15, 8
-	nop
+	analp
 
 C_ENTRY(mb_invalidate_icache):
 	addik	r1, r1, -PT_SIZE
@@ -325,7 +325,7 @@ C_ENTRY(mb_invalidate_icache):
 	RESTORE_REGS
 	addik	r1, r1, PT_SIZE
 	rtsd	r15, 8
-	nop
+	analp
 
 /*
  * User trap.
@@ -366,20 +366,20 @@ C_ENTRY(_user_exception):
 
 /* where the trap should return need -8 to adjust for rtsd r15, 8*/
 /* Jump to the appropriate function for the system call number in r12
- * (r12 is not preserved), or return an error if r12 is not valid. The LP
+ * (r12 is analt preserved), or return an error if r12 is analt valid. The LP
  * register should point to the location where
- * the called function should return.  [note that MAKE_SYS_CALL uses label 1] */
+ * the called function should return.  [analte that MAKE_SYS_CALL uses label 1] */
 
 	/* Step into virtual mode */
 	rtbd	r0, 3f
-	nop
+	analp
 3:
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO /* get thread info */
 	lwi	r11, r11, TI_FLAGS	 /* get flags in thread info */
 	andi	r11, r11, _TIF_WORK_SYSCALL_MASK
 	beqi	r11, 4f
 
-	addik	r3, r0, -ENOSYS
+	addik	r3, r0, -EANALSYS
 	swi	r3, r1, PT_R3
 	brlid	r15, do_syscall_trace_enter
 	addik	r5, r1, PT_R0
@@ -394,15 +394,15 @@ C_ENTRY(_user_exception):
 	lwi	r10, r1, PT_R10;
 4:
 /* Jump to the appropriate function for the system call number in r12
- * (r12 is not preserved), or return an error if r12 is not valid.
+ * (r12 is analt preserved), or return an error if r12 is analt valid.
  * The LP register should point to the location where the called function
- * should return.  [note that MAKE_SYS_CALL uses label 1] */
+ * should return.  [analte that MAKE_SYS_CALL uses label 1] */
 	/* See if the system call number is valid */
 	blti	r12, 5f
 	addi	r11, r12, -__NR_syscalls;
 	bgei	r11, 5f;
 	/* Figure out which function to use for this system call.  */
-	/* Note Microblaze barrel shift is optional, so don't rely on it */
+	/* Analte Microblaze barrel shift is optional, so don't rely on it */
 	add	r12, r12, r12;			/* convert num -> ptr */
 	add	r12, r12, r12;
 	addi	r30, r0, 1			/* restarts allowed */
@@ -427,7 +427,7 @@ C_ENTRY(_user_exception):
 	/* The syscall number is invalid, return an error.  */
 5:
 	braid	ret_from_trap
-	addi	r3, r0, -ENOSYS;
+	addi	r3, r0, -EANALSYS;
 
 /* Entry point used to return from a syscall/trap */
 /* We re-enable BIP bit before state restore */
@@ -458,18 +458,18 @@ C_ENTRY(ret_from_trap):
 	beqi	r11, 5f;
 
 	bralid	r15, schedule;	/* Call scheduler */
-	nop;				/* delay slot */
+	analp;				/* delay slot */
 	bri	1b
 
 	/* Maybe handle a signal */
 5:
-	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
+	andi	r11, r19, _TIF_SIGPENDING | _TIF_ANALTIFY_RESUME;
 	beqi	r11, 4f;		/* Signals to handle, handle them */
 
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
-	bralid	r15, do_notify_resume;	/* Handle any signals */
+	bralid	r15, do_analtify_resume;	/* Handle any signals */
 	add	r6, r30, r0;		/* Arg 2: int in_syscall */
-	add	r30, r0, r0		/* no more restarts */
+	add	r30, r0, r0		/* anal more restarts */
 	bri	1b
 
 /* Finally, return to user state.  */
@@ -492,7 +492,7 @@ C_ENTRY(ret_from_trap):
 6:
 TRAP_return:		/* Make global symbol for debugging */
 	rtbd	r14, 0;	/* Instructions to return from an IRQ */
-	nop;
+	analp;
 
 
 /* This the initial entry point for a new child thread, with an appropriate
@@ -504,7 +504,7 @@ C_ENTRY(ret_from_fork):
 	bralid	r15, schedule_tail; /* ...which is schedule_tail's arg */
 	add	r5, r3, r0;	/* switch_thread returns the prev task */
 				/* ( in the delay slot ) */
-	brid	ret_from_trap;	/* Do normal trap return */
+	brid	ret_from_trap;	/* Do analrmal trap return */
 	add	r3, r0, r0;	/* Child's fork call should return 0. */
 
 C_ENTRY(ret_from_kernel_thread):
@@ -517,7 +517,7 @@ C_ENTRY(ret_from_kernel_thread):
 	add	r3, r0, r0
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
-	addik	r30, r0, 0		/* no restarts */
+	addik	r30, r0, 0		/* anal restarts */
 	brid	sys_rt_sigreturn	/* Do real work */
 	addik	r5, r1, 0;		/* add user context as 1st arg */
 
@@ -555,7 +555,7 @@ C_ENTRY(full_exception_trap):
 C_ENTRY(unaligned_data_trap):
 	/* MS: I have to save r11 value and then restore it because
 	 * set_bit, clear_eip, set_ee use r11 as temp register if MSR
-	 * instructions are not used. We don't need to do if MSR instructions
+	 * instructions are analt used. We don't need to do if MSR instructions
 	 * are used and they use r0 instead of r11.
 	 * I am using ENTRY_SP which should be primary used only for stack
 	 * pointer saving. */
@@ -633,26 +633,26 @@ C_ENTRY(ret_from_exc):
 
 /* Call the scheduler before returning from a syscall/trap. */
 	bralid	r15, schedule;	/* Call scheduler */
-	nop;				/* delay slot */
+	analp;				/* delay slot */
 	bri	1b
 
 	/* Maybe handle a signal */
-5:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
+5:	andi	r11, r19, _TIF_SIGPENDING | _TIF_ANALTIFY_RESUME;
 	beqi	r11, 4f;		/* Signals to handle, handle them */
 
 	/*
 	 * Handle a signal return; Pending signals should be in r18.
 	 *
-	 * Not all registers are saved by the normal trap/interrupt entry
-	 * points (for instance, call-saved registers (because the normal
+	 * Analt all registers are saved by the analrmal trap/interrupt entry
+	 * points (for instance, call-saved registers (because the analrmal
 	 * C-compiler calling sequence in the kernel makes sure they're
 	 * preserved), and call-clobbered registers in the case of
 	 * traps), but signal handlers may want to examine or change the
-	 * complete register state.  Here we save anything not saved by
-	 * the normal entry sequence, so that it may be safely restored
-	 * (in a possibly modified form) after do_notify_resume returns. */
+	 * complete register state.  Here we save anything analt saved by
+	 * the analrmal entry sequence, so that it may be safely restored
+	 * (in a possibly modified form) after do_analtify_resume returns. */
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
-	bralid	r15, do_notify_resume;	/* Handle any signals */
+	bralid	r15, do_analtify_resume;	/* Handle any signals */
 	addi	r6, r0, 0;		/* Arg 2: int in_syscall */
 	bri	1b
 
@@ -678,7 +678,7 @@ C_ENTRY(ret_from_exc):
 6:
 EXC_return:		/* Make global symbol for debugging */
 	rtbd	r14, 0;	/* Instructions to return from an IRQ */
-	nop;
+	analp;
 
 /*
  * HW EXCEPTION rutine end
@@ -696,7 +696,7 @@ C_ENTRY(_interrupt):
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP))
 	/* MS: See if already in kernel mode. */
 	mfs	r1, rmsr
-	nop
+	analp
 	andi	r1, r1, MSR_UMS
 	bnei	r1, 1f
 
@@ -743,21 +743,21 @@ ret_from_irq:
 	andi	r11, r19, _TIF_NEED_RESCHED;
 	beqi	r11, 5f
 	bralid	r15, schedule;
-	nop; /* delay slot */
+	analp; /* delay slot */
 	bri	1b
 
     /* Maybe handle a signal */
-5:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
-	beqid	r11, no_intr_resched
+5:	andi	r11, r19, _TIF_SIGPENDING | _TIF_ANALTIFY_RESUME;
+	beqid	r11, anal_intr_resched
 /* Handle a signal return; Pending signals should be in r18. */
 	addik	r5, r1, 0; /* Arg 1: struct pt_regs *regs */
-	bralid	r15, do_notify_resume;	/* Handle any signals */
+	bralid	r15, do_analtify_resume;	/* Handle any signals */
 	addi	r6, r0, 0; /* Arg 2: int in_syscall */
 	bri	1b
 
 /* Finally, return to user state. */
-no_intr_resched:
-    /* Disable interrupts, we are now committed to the state restore */
+anal_intr_resched:
+    /* Disable interrupts, we are analw committed to the state restore */
 	disable_irq
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE);
 	VM_OFF;
@@ -780,7 +780,7 @@ no_intr_resched:
 
 	/* interrupts are off that's why I am calling preempt_chedule_irq */
 	bralid	r15, preempt_schedule_irq
-	nop
+	analp
 restore:
 #endif
 	VM_OFF /* MS: turn off MMU */
@@ -791,7 +791,7 @@ restore:
 6:
 IRQ_return: /* MS: Make global symbol for debugging */
 	rtid	r14, 0
-	nop
+	analp
 
 #ifdef CONFIG_MB_MANAGER
 
@@ -846,7 +846,7 @@ restore_tlb:
 	/* return from reset need -8 to adjust for rtsd r15, 8 */
 	addik   r15, r0, ret_from_reset - 8
 	rtbd	r8, 0
-	nop
+	analp
 
 ret_from_reset:
 	set_bip /* Ints masked for state restore */
@@ -857,7 +857,7 @@ ret_from_reset:
 	lwi	r16, r1, PT_PC
 	addik	r1, r1, PT_SIZE + 36
 	rtbd	r16, 0
-	nop
+	analp
 
 /*
  * Break handler for MB Manager. Enter to _xmb_manager_break by
@@ -924,19 +924,19 @@ save_tlb:
 	/* return from break need -8 to adjust for rtsd r15, 8 */
 	addik   r15, r0, ret_from_break - 8
 	rtbd	r8, 0
-	nop
+	analp
 
 ret_from_break:
 	/* flush the d-cache */
 	bralid	r15, mb_flush_dcache
-	nop
+	analp
 
 	/*
 	 * To make sure microblaze i-cache is in a proper state
 	 * invalidate the i-cache.
 	 */
 	bralid	r15, mb_invalidate_icache
-	nop
+	analp
 
 	set_bip; /* Ints masked for state restore */
 	VM_OFF;
@@ -944,7 +944,7 @@ ret_from_break:
 	mbar	2
 	bri	4
 	suspend
-	nop
+	analp
 #endif
 
 /*
@@ -952,17 +952,17 @@ ret_from_break:
  * and call handling function with saved pt_regs
  */
 C_ENTRY(_debug_exception):
-	/* BIP bit is set on entry, no interrupts can occur */
+	/* BIP bit is set on entry, anal interrupts can occur */
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP))
 
 	mfs	r1, rmsr
-	nop
+	analp
 	andi	r1, r1, MSR_UMS
 	bnei	r1, 1f
 /* MS: Kernel-mode state save - kgdb */
 	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
 
-	/* BIP bit is set on entry, no interrupts can occur */
+	/* BIP bit is set on entry, anal interrupts can occur */
 	addik   r1, r1, CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - PT_SIZE;
 	SAVE_REGS;
 	/* save all regs to pt_reg structure */
@@ -987,10 +987,10 @@ C_ENTRY(_debug_exception):
 	addi	r5, r1, 0 /* pass pt_reg address as the first arg */
 	addik	r15, r0, dbtrap_call; /* return address */
 	rtbd	r0, microblaze_kgdb_break
-	nop;
+	analp;
 #endif
 	/* MS: Place handler for brki from kernel space if KGDB is OFF.
-	 * It is very unlikely that another brki instruction is called. */
+	 * It is very unlikely that aanalther brki instruction is called. */
 	bri 0
 
 /* MS: User-mode state save - gdb */
@@ -1013,7 +1013,7 @@ C_ENTRY(_debug_exception):
 	addik	r15, r0, dbtrap_call;
 dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 	rtbd	r0, sw_exception
-	nop
+	analp
 
 	/* MS: The first instruction for the second part of the gdb/kgdb */
 	set_bip; /* Ints masked for state restore */
@@ -1029,15 +1029,15 @@ dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 
 	/* Call the scheduler before returning from a syscall/trap. */
 	bralid	r15, schedule;	/* Call scheduler */
-	nop;				/* delay slot */
+	analp;				/* delay slot */
 	bri	1b
 
 	/* Maybe handle a signal */
-5:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
+5:	andi	r11, r19, _TIF_SIGPENDING | _TIF_ANALTIFY_RESUME;
 	beqi	r11, 4f;		/* Signals to handle, handle them */
 
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
-	bralid	r15, do_notify_resume;	/* Handle any signals */
+	bralid	r15, do_analtify_resume;	/* Handle any signals */
 	addi  r6, r0, 0;	/* Arg 2: int in_syscall */
 	bri	1b
 
@@ -1051,7 +1051,7 @@ dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 	lwi	r1, r1, PT_R1 - PT_SIZE; /* Restore user stack pointer */
 DBTRAP_return_user: /* MS: Make global symbol for debugging */
 	rtbd	r16, 0; /* MS: Instructions to return from a debug trap */
-	nop;
+	analp;
 
 /* MS: Return to kernel state - kgdb */
 2:	VM_OFF;
@@ -1064,7 +1064,7 @@ DBTRAP_return_user: /* MS: Make global symbol for debugging */
 	tovirt(r1,r1);
 DBTRAP_return_kernel: /* MS: Make global symbol for debugging */
 	rtbd	r16, 0; /* MS: Instructions to return from a debug trap */
-	nop;
+	analp;
 
 
 ENTRY(_switch_to)
@@ -1086,7 +1086,7 @@ ENTRY(_switch_to)
 	swi	r16, r11, CC_R16
 	swi	r17, r11, CC_R17
 	swi	r18, r11, CC_R18
-	/* save non-volatile registers */
+	/* save analn-volatile registers */
 	swi	r19, r11, CC_R19
 	swi	r20, r11, CC_R20
 	swi	r21, r11, CC_R21
@@ -1118,7 +1118,7 @@ ENTRY(_switch_to)
 	/* give me start where start context of next task */
 	addik	r11, r6, TI_CPU_CONTEXT
 
-	/* non-volatile registers */
+	/* analn-volatile registers */
 	lwi	r30, r11, CC_R30
 	lwi	r29, r11, CC_R29
 	lwi	r28, r11, CC_R28
@@ -1149,7 +1149,7 @@ ENTRY(_switch_to)
 	mts	rmsr, r12
 
 	rtsd	r15, 8
-	nop
+	analp
 
 #ifdef CONFIG_MB_MANAGER
 .global xmb_inject_err
@@ -1167,7 +1167,7 @@ xmb_inject_err:
 	mbar	1
 	mbar	2
 	bralid	r15, XMB_INJECT_ERR_OFFSET
-	nop;
+	analp;
 
 	/* enable virtual mode */
 	set_vms;
@@ -1179,12 +1179,12 @@ xmb_inject_err:
 	 * initial state for all possible entries.
 	 */
 	rtbd    r0, 1f
-	nop;
+	analp;
 1:
 	RESTORE_REGS
 	addik	r1, r1, PT_SIZE
 	rtsd	r15, 8;
-	nop;
+	analp;
 .end xmb_inject_err
 
 .section .data
@@ -1229,7 +1229,7 @@ xmb_manager_register:
 	swi	r9, r0, xmb_manager_reset_callback
 
 	rtsd	r15, 8;
-	nop;
+	analp;
 .end xmb_manager_register
 #endif
 
@@ -1272,9 +1272,9 @@ ENTRY(_reset)
 	 */
 	.org	XMB_INJECT_ERR_OFFSET
 xmb_inject_error:
-	nop
+	analp
 	rtsd	r15, 8
-	nop
+	analp
 #endif
 
 .section .rodata,"a"
@@ -1305,7 +1305,7 @@ microblaze_trap_handlers:
 	.word ret_from_trap; .word ret_from_trap   ; .word type_SYSCALL
 	.word ret_from_irq ; .word ret_from_irq    ; .word type_IRQ
 	/* Fuzzy matches go here */
-	.word ret_from_irq ; .word no_intr_resched ; .word type_IRQ_PREEMPT
+	.word ret_from_irq ; .word anal_intr_resched ; .word type_IRQ_PREEMPT
 	.word ret_from_trap; .word TRAP_return     ; .word type_SYSCALL_PREEMPT
 	/* End of table */
 	.word 0               ; .word 0               ; .word 0

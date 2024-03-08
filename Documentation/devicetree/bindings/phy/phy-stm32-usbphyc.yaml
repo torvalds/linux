@@ -55,13 +55,13 @@ properties:
     description: number of clock cells for ck_usbo_48m consumer
     const: 0
 
-# Required child nodes:
+# Required child analdes:
 
 patternProperties:
   "^usb-phy@[0|1]$":
     type: object
     description:
-      Each port the controller provides must be represented as a sub-node.
+      Each port the controller provides must be represented as a sub-analde.
 
     properties:
       reg:
@@ -91,7 +91,7 @@ patternProperties:
         description: Current boosting in uA
         enum: [ 1000, 2000 ]
 
-      st,no-lsfs-fb-cap:
+      st,anal-lsfs-fb-cap:
         description: Disables the LS/FS feedback capacitor
         type: boolean
 
@@ -102,7 +102,7 @@ patternProperties:
       st,tune-hs-dc-level:
         description: |
           Tunes the HS driver DC level
-          - <0> normal level
+          - <0> analrmal level
           - <1> increases the level by 5 to 7 mV
           - <2> increases the level by 10 to 14 mV
           - <3> decreases the level by 5 to 7 mV
@@ -122,22 +122,22 @@ patternProperties:
       st,trim-hs-current:
         description: |
           Controls HS driver current trimming for choke compensation
-          - <0> = 18.87 mA target current / nominal + 0%
-          - <1> = 19.165 mA target current / nominal + 1.56%
-          - <2> = 19.46 mA target current / nominal + 3.12%
-          - <3> = 19.755 mA target current / nominal + 4.68%
-          - <4> = 20.05 mA target current / nominal + 6.24%
-          - <5> = 20.345 mA target current / nominal + 7.8%
-          - <6> = 20.64 mA target current / nominal + 9.36%
-          - <7> = 20.935 mA target current / nominal + 10.92%
-          - <8> = 21.23 mA target current / nominal + 12.48%
-          - <9> = 21.525 mA target current / nominal + 14.04%
-          - <10> = 21.82 mA target current / nominal + 15.6%
-          - <11> = 22.115 mA target current / nominal + 17.16%
-          - <12> = 22.458 mA target current / nominal + 19.01%
-          - <13> = 22.755 mA target current / nominal + 20.58%
-          - <14> = 23.052 mA target current / nominal + 22.16%
-          - <15> = 23.348 mA target current / nominal + 23.73%
+          - <0> = 18.87 mA target current / analminal + 0%
+          - <1> = 19.165 mA target current / analminal + 1.56%
+          - <2> = 19.46 mA target current / analminal + 3.12%
+          - <3> = 19.755 mA target current / analminal + 4.68%
+          - <4> = 20.05 mA target current / analminal + 6.24%
+          - <5> = 20.345 mA target current / analminal + 7.8%
+          - <6> = 20.64 mA target current / analminal + 9.36%
+          - <7> = 20.935 mA target current / analminal + 10.92%
+          - <8> = 21.23 mA target current / analminal + 12.48%
+          - <9> = 21.525 mA target current / analminal + 14.04%
+          - <10> = 21.82 mA target current / analminal + 15.6%
+          - <11> = 22.115 mA target current / analminal + 17.16%
+          - <12> = 22.458 mA target current / analminal + 19.01%
+          - <13> = 22.755 mA target current / analminal + 20.58%
+          - <14> = 23.052 mA target current / analminal + 22.16%
+          - <15> = 23.348 mA target current / analminal + 23.73%
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 15
@@ -146,7 +146,7 @@ patternProperties:
       st,trim-hs-impedance:
         description: |
           Controls HS driver impedance tuning for choke compensation
-          - <0> = no impedance offset
+          - <0> = anal impedance offset
           - <1> = reduce the impedance by 2 ohms
           - <2> = reduce the impedance by 4 ohms
           - <3> = reduce the impedance by 6 ohms
@@ -158,7 +158,7 @@ patternProperties:
       st,tune-squelch-level:
         description: |
           Tunes the squelch DC threshold value
-          - <0> = no shift in threshold
+          - <0> = anal shift in threshold
           - <1> = threshold shift by +7 mV
           - <2> = threshold shift by -5 mV
           - <3> = threshold shift by +14 mV
@@ -174,7 +174,7 @@ patternProperties:
       st,tune-hs-rx-offset:
         description: |
           Adjusts the HS Rx offset
-          - <0> = no offset
+          - <0> = anal offset
           - <1> = offset of +5 mV
           - <2> = offset of +10 mV
           - <3> = offset of -5 mV
@@ -183,11 +183,11 @@ patternProperties:
         maximum: 3
         default: 0
 
-      st,no-hs-ftime-ctrl:
+      st,anal-hs-ftime-ctrl:
         description: Disables the HS fall time control of single ended signals during pre-emphasis
         type: boolean
 
-      st,no-lsfs-sc:
+      st,anal-lsfs-sc:
         description: Disables the short circuit protection in LS/FS driver
         type: boolean
 
@@ -258,7 +258,7 @@ examples:
             st,trim-hs-impedance = <1>;
             st,tune-squelch-level = <3>;
             st,tune-hs-rx-offset = <2>;
-            st,no-lsfs-sc;
+            st,anal-lsfs-sc;
             connector {
                 compatible = "usb-a-connector";
                 vbus-supply = <&vbus_sw>;
@@ -276,7 +276,7 @@ examples:
             st,trim-hs-impedance = <1>;
             st,tune-squelch-level = <3>;
             st,tune-hs-rx-offset = <2>;
-            st,no-lsfs-sc;
+            st,anal-lsfs-sc;
         };
     };
 ...

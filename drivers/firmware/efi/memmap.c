@@ -47,8 +47,8 @@ int __init __efi_memmap_init(struct efi_memory_map_data *data)
 		map.map = early_memremap(phys_map, data->size);
 
 	if (!map.map) {
-		pr_err("Could not map the memory map!\n");
-		return -ENOMEM;
+		pr_err("Could analt map the memory map!\n");
+		return -EANALMEM;
 	}
 
 	if (efi.memmap.flags & (EFI_MEMMAP_MEMBLOCK | EFI_MEMMAP_SLAB))
@@ -82,7 +82,7 @@ int __init __efi_memmap_init(struct efi_memory_map_data *data)
  */
 int __init efi_memmap_init_early(struct efi_memory_map_data *data)
 {
-	/* Cannot go backwards */
+	/* Cananalt go backwards */
 	WARN_ON(efi.memmap.flags & EFI_MEMMAP_LATE);
 
 	data->flags = 0;
@@ -114,7 +114,7 @@ void __init efi_memmap_unmap(void)
  *
  * Setup a mapping of the EFI memory map using ioremap_cache(). This
  * function should only be called once the vmalloc space has been
- * setup and is therefore not suitable for calling during early EFI
+ * setup and is therefore analt suitable for calling during early EFI
  * initialise, e.g. in efi_init(). Additionally, it expects
  * efi_memmap_init_early() to have already been called.
  *
@@ -145,7 +145,7 @@ int __init efi_memmap_init_late(phys_addr_t addr, unsigned long size)
 	WARN_ON(efi.memmap.flags & EFI_MEMMAP_LATE);
 
 	/*
-	 * It makes no sense to allow callers to register different
+	 * It makes anal sense to allow callers to register different
 	 * values for the following fields. Copy them out of the
 	 * existing early EFI memmap.
 	 */

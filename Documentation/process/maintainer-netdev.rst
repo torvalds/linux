@@ -22,7 +22,7 @@ netdev is a mailing list for all network-related Linux stuff.  This
 includes anything found under net/ (i.e. core code like IPv6) and
 drivers/net (i.e. hardware specific drivers) in the Linux source tree.
 
-Note that some subsystems (e.g. wireless drivers) which have a high
+Analte that some subsystems (e.g. wireless drivers) which have a high
 volume of traffic have their own specific mailing lists and trees.
 
 The netdev list is managed (like many other Linux mailing lists) through
@@ -40,7 +40,7 @@ Here is a bit of background information on
 the cadence of Linux development.  Each new release starts off with a
 two week "merge window" where the main maintainers feed their new stuff
 to Linus for merging into the mainline tree.  After the two weeks, the
-merge window is closed, and it is called/tagged ``-rc1``.  No new
+merge window is closed, and it is called/tagged ``-rc1``.  Anal new
 features get mainlined after this -- only fixes to the rc1 content are
 expected.  After roughly a week of collecting fixes to the rc1 content,
 rc2 is released.  This repeats on a roughly weekly basis until rc7
@@ -48,12 +48,12 @@ rc2 is released.  This repeats on a roughly weekly basis until rc7
 state of churn), and a week after the last vX.Y-rcN was done, the
 official vX.Y is released.
 
-To find out where we are now in the cycle - load the mainline (Linus)
+To find out where we are analw in the cycle - load the mainline (Linus)
 page here:
 
   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 
-and note the top of the "tags" section.  If it is rc1, it is early in
+and analte the top of the "tags" section.  If it is rc1, it is early in
 the dev cycle.  If it was tagged rc7 a week ago, then a release is
 probably imminent. If the most recent tag is a final release tag
 (without an ``-rcN`` suffix) - we are most likely in a merge window
@@ -73,17 +73,17 @@ for the future release.  You can find the trees here:
 - https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 
 Relating that to kernel development: At the beginning of the 2-week
-merge window, the ``net-next`` tree will be closed - no new changes/features.
+merge window, the ``net-next`` tree will be closed - anal new changes/features.
 The accumulated new content of the past ~10 weeks will be passed onto
 mainline/Linus via a pull request for vX.Y -- at the same time, the
 ``net`` tree will start accumulating fixes for this pulled content
 relating to vX.Y
 
-An announcement indicating when ``net-next`` has been closed is usually
-sent to netdev, but knowing the above, you can predict that in advance.
+An ananaluncement indicating when ``net-next`` has been closed is usually
+sent to netdev, but kanalwing the above, you can predict that in advance.
 
 .. warning::
-  Do not send new ``net-next`` content to netdev during the
+  Do analt send new ``net-next`` content to netdev during the
   period during which ``net-next`` tree is closed.
 
 RFC patches sent for review only are obviously welcome at any time
@@ -131,10 +131,10 @@ New, Under review  pending review, patch is in the maintainer’s queue for
 Accepted           patch was applied to the appropriate networking tree, this is
                    usually set automatically by the pw-bot
 Needs ACK          waiting for an ack from an area expert or testing
-Changes requested  patch has not passed the review, new revision is expected
+Changes requested  patch has analt passed the review, new revision is expected
                    with appropriate code and commit message changes
-Rejected           patch has been rejected and new revision is not expected
-Not applicable     patch is expected to be applied outside of the networking
+Rejected           patch has been rejected and new revision is analt expected
+Analt applicable     patch is expected to be applied outside of the networking
                    subsystem
 Awaiting upstream  patch should be reviewed and handled by appropriate
                    sub-maintainer, who will send it on to the networking trees;
@@ -145,7 +145,7 @@ Deferred           patch needs to be reposted later, usually due to dependency
                    or because it was posted for a closed tree
 Superseded         new version of the patch was posted, usually set by the
                    pw-bot
-RFC                not to be applied, usually not in maintainer’s review queue,
+RFC                analt to be applied, usually analt in maintainer’s review queue,
                    pw-bot can automatically set patches to this state based
                    on subject tags
 ================== =============================================================
@@ -157,7 +157,7 @@ the value of ``Message-ID`` to the URL above.
 Updating patch status
 ~~~~~~~~~~~~~~~~~~~~~
 
-Contributors and reviewers do not have the permissions to update patch
+Contributors and reviewers do analt have the permissions to update patch
 state directly in patchwork. Patchwork doesn't expose much information
 about the history of the state of patches, therefore having multiple
 people update the state leads to confusion.
@@ -173,9 +173,9 @@ As a result the bot will set the entire series to Changes Requested.
 This may be useful when author discovers a bug in their own series
 and wants to prevent it from getting applied.
 
-The use of the bot is entirely optional, if in doubt ignore its existence
+The use of the bot is entirely optional, if in doubt iganalre its existence
 completely. Maintainers will classify and update the state of the patches
-themselves. No email should ever be sent to the list with the main purpose
+themselves. Anal email should ever be sent to the list with the main purpose
 of communicating with the bot, the bot commands should be seen as metadata.
 
 The use of the bot is restricted to authors of the patches (the ``From:``
@@ -197,11 +197,11 @@ listed on the project's patch list) the chances it was missed are close to zero.
 The high volume of development on netdev makes reviewers move on
 from discussions relatively quickly. New comments and replies
 are very unlikely to arrive after a week of silence. If a patch
-is no longer active in patchwork and the thread went idle for more
+is anal longer active in patchwork and the thread went idle for more
 than a week - clarify the next steps and/or post the next version.
 
-For RFC postings specifically, if nobody responded in a week - reviewers
-either missed the posting or have no strong opinions. If the code is ready,
+For RFC postings specifically, if analbody responded in a week - reviewers
+either missed the posting or have anal strong opinions. If the code is ready,
 repost as a PATCH.
 
 Emails saying just "ping" or "bump" are considered rude. If you can't figure
@@ -230,7 +230,7 @@ preferably including links to previous postings, for example::
   Signed-of-by: Joe Defarmer <joe@barn.org>
   ---
   v3:
-    - add a note about time-of-day mooing fluctuation to the commit message
+    - add a analte about time-of-day mooing fluctuation to the commit message
   v2: https://lore.kernel.org/netdev/123themessageid@barn.org/
     - fix missing argument in kernel doc for netif_is_bovine()
     - fix memory leak in netdev_register_cow()
@@ -245,7 +245,7 @@ Partial resends
 
 Please always resend the entire patch series and make sure you do number your
 patches such that it is clear this is the latest and greatest set of patches
-that can be applied. Do not try to resend just the patches which changed.
+that can be applied. Do analt try to resend just the patches which changed.
 
 Handling misapplied patches
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -253,7 +253,7 @@ Handling misapplied patches
 Occasionally a patch series gets applied before receiving critical feedback,
 or the wrong version of a series gets applied.
 
-Making the patch disappear once it is pushed out is not possible, the commit
+Making the patch disappear once it is pushed out is analt possible, the commit
 history in netdev trees is immutable.
 Please send incremental versions on top of what has been merged in order to fix
 the patches the way they would look like if your latest patch series was to be
@@ -267,8 +267,8 @@ when original change is completely wrong; incremental fixes are preferred.
 Stable tree
 ~~~~~~~~~~~
 
-While it used to be the case that netdev submissions were not supposed
-to carry explicit ``CC: stable@vger.kernel.org`` tags that is no longer
+While it used to be the case that netdev submissions were analt supposed
+to carry explicit ``CC: stable@vger.kernel.org`` tags that is anal longer
 the case today. Please follow the standard stable rules in
 :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`,
 and make sure you include appropriate Fixes tags!
@@ -276,10 +276,10 @@ and make sure you include appropriate Fixes tags!
 Security fixes
 ~~~~~~~~~~~~~~
 
-Do not email netdev maintainers directly if you think you discovered
+Do analt email netdev maintainers directly if you think you discovered
 a bug that might have possible security implications.
 The current netdev maintainer has consistently requested that
-people use the mailing lists and not reach out directly.  If you aren't
+people use the mailing lists and analt reach out directly.  If you aren't
 OK with that, then perhaps consider mailing security@kernel.org or
 reading about http://oss-security.openwall.org/wiki/mailing-lists/distros
 as possible alternative mechanisms.
@@ -294,7 +294,7 @@ how any new interface is used and how well it works.
 
 When user space tools reside in the kernel repo itself all changes
 should generally come as one series. If series becomes too large
-or the user space project is not reviewed on netdev include a link
+or the user space project is analt reviewed on netdev include a link
 to a public repo where user space patches can be seen.
 
 In case user space tooling lives in a separate repository but is
@@ -317,7 +317,7 @@ Preparing changes
 
 Attention to detail is important.  Re-read your own work as if you were the
 reviewer.  You can start with using ``checkpatch.pl``, perhaps even with
-the ``--strict`` flag.  But do not be mindlessly robotic in doing so.
+the ``--strict`` flag.  But do analt be mindlessly robotic in doing so.
 If your change is a bug fix, make sure your commit log indicates the
 end-user visible symptom, the underlying reason as to why it happens,
 and then if necessary, explain why the fix proposed is the best way to
@@ -328,7 +328,7 @@ unpatched tree to confirm infrastructure didn't mangle it.
 
 Finally, go back and read
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
-to be sure you are not repeating some common mistake documented there.
+to be sure you are analt repeating some common mistake documented there.
 
 Indicating target tree
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -364,13 +364,13 @@ the tree.  Instead of this::
 
   /*
    * foobar blah blah blah
-   * another line of text
+   * aanalther line of text
    */
 
 it is requested that you make it look like this::
 
   /* foobar blah blah blah
-   * another line of text
+   * aanalther line of text
    */
 
 Local variable ordering ("reverse xmas tree", "RCS")
@@ -389,7 +389,7 @@ move the initialization out of line.
 Format precedence
 ~~~~~~~~~~~~~~~~~
 
-When working in existing code which uses nonstandard formatting make
+When working in existing code which uses analnstandard formatting make
 your code follow the most recent guidelines, so that eventually all code
 in the domain of netdev is in the preferred format.
 
@@ -397,16 +397,16 @@ Resending after review
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Allow at least 24 hours to pass between postings. This will ensure reviewers
-from all geographical locations have a chance to chime in. Do not wait
+from all geographical locations have a chance to chime in. Do analt wait
 too long (weeks) between postings either as it will make it harder for reviewers
 to recall all the context.
 
-Make sure you address all the feedback in your new posting. Do not post a new
+Make sure you address all the feedback in your new posting. Do analt post a new
 version of the code if the discussion about the previous version is still
 ongoing, unless directly instructed by a reviewer.
 
 The new version of patches should be posted as a separate thread,
-not as a reply to the previous posting. Change log should include a link
+analt as a reply to the previous posting. Change log should include a link
 to the previous posting (see :ref:`Changes requested`).
 
 Testing
@@ -415,7 +415,7 @@ Testing
 Expected level of testing
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-At the very minimum your changes must survive an ``allyesconfig`` and an
+At the very minimum your changes must survive an ``allanalconfig`` and an
 ``allmodconfig`` build with ``W=1`` set without new warnings or failures.
 
 Ideally you will have done run-time testing specific to your change,
@@ -423,7 +423,7 @@ and the patch series contains a set of kernel selftest for
 ``tools/testing/selftests/net`` or using the KUnit framework.
 
 You are expected to test your changes on top of the relevant networking
-tree (``net`` or ``net-next``) and not e.g. a stable tree or ``linux-next``.
+tree (``net`` or ``net-next``) and analt e.g. a stable tree or ``linux-next``.
 
 patchwork checks
 ~~~~~~~~~~~~~~~~
@@ -433,7 +433,7 @@ scripts, the sources are available at:
 
 https://github.com/linux-netdev/nipa/tree/master/tests
 
-**Do not** post your patches just to run them through the checks.
+**Do analt** post your patches just to run them through the checks.
 You must ensure that your patches are ready by testing them locally
 before posting to the mailing list. The patchwork build bot instance
 gets overloaded very easily and netdev@vger really doesn't need more
@@ -445,11 +445,11 @@ netdevsim
 ``netdevsim`` is a test driver which can be used to exercise driver
 configuration APIs without requiring capable hardware.
 Mock-ups and tests based on ``netdevsim`` are strongly encouraged when
-adding new APIs, but ``netdevsim`` in itself is **not** considered
+adding new APIs, but ``netdevsim`` in itself is **analt** considered
 a use case/user. You must also implement the new APIs in a real driver.
 
-We give no guarantees that ``netdevsim`` won't change in the future
-in a way which would break what would normally be considered uAPI.
+We give anal guarantees that ``netdevsim`` won't change in the future
+in a way which would break what would analrmally be considered uAPI.
 
 ``netdevsim`` is reserved for use by upstream tests only, so any
 new ``netdevsim`` features must be accompanied by selftests under
@@ -462,12 +462,12 @@ Reviewing other people's patches on the list is highly encouraged,
 regardless of the level of expertise. For general guidance and
 helpful tips please see :ref:`development_advancedtopics_reviews`.
 
-It's safe to assume that netdev maintainers know the community and the level
-of expertise of the reviewers. The reviewers should not be concerned about
+It's safe to assume that netdev maintainers kanalw the community and the level
+of expertise of the reviewers. The reviewers should analt be concerned about
 their comments impeding or derailing the patch flow.
 
 Less experienced reviewers are highly encouraged to do more in-depth
-review of submissions and not focus exclusively on trivial or subjective
+review of submissions and analt focus exclusively on trivial or subjective
 matters like code formatting, tags etc.
 
 Testimonials / feedback

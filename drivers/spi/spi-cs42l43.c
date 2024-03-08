@@ -8,7 +8,7 @@
 #include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mfd/cs42l43.h>
 #include <linux/mfd/cs42l43-regs.h>
 #include <linux/module.h>
@@ -157,7 +157,7 @@ static int cs42l43_prepare_message(struct spi_controller *ctlr, struct spi_messa
 	struct spi_device *spi = msg->spi;
 	unsigned int spi_config1 = 0;
 
-	/* select another internal CS, which doesn't exist, so CS 0 is not used */
+	/* select aanalther internal CS, which doesn't exist, so CS 0 is analt used */
 	if (spi_get_csgpiod(spi, 0))
 		spi_config1 |= 1 << CS42L43_SPI_SS_SEL_SHIFT;
 	if (spi->mode & SPI_CPOL)
@@ -205,16 +205,16 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 {
 	struct cs42l43 *cs42l43 = dev_get_drvdata(pdev->dev.parent);
 	struct cs42l43_spi *priv;
-	struct fwnode_handle *fwnode = dev_fwnode(cs42l43->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(cs42l43->dev);
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*priv->ctlr));
 	if (!priv->ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_controller_set_devdata(priv->ctlr, priv);
 
@@ -228,10 +228,10 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 	priv->ctlr->set_cs = cs42l43_set_cs;
 	priv->ctlr->max_transfer_size = cs42l43_spi_max_length;
 
-	if (is_of_node(fwnode))
-		fwnode = fwnode_get_named_child_node(fwnode, "spi");
+	if (is_of_analde(fwanalde))
+		fwanalde = fwanalde_get_named_child_analde(fwanalde, "spi");
 
-	device_set_node(&priv->ctlr->dev, fwnode);
+	device_set_analde(&priv->ctlr->dev, fwanalde);
 
 	priv->ctlr->mode_bits = SPI_3WIRE | SPI_MODE_X_MASK;
 	priv->ctlr->flags = SPI_CONTROLLER_HALF_DUPLEX;

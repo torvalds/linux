@@ -63,7 +63,7 @@ struct cros_ec_codec_priv {
 	bool wov_burst_read;
 	struct snd_pcm_substream *wov_substream;
 	struct delayed_work wov_copy_work;
-	struct notifier_block wov_notifier;
+	struct analtifier_block wov_analtifier;
 };
 
 static int ec_codec_capable(struct cros_ec_codec_priv *priv, uint8_t cap)
@@ -80,7 +80,7 @@ static int send_ec_host_command(struct cros_ec_device *ec_dev, uint32_t cmd,
 
 	msg = kmalloc(sizeof(*msg) + max(outsize, insize), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->version = 0;
 	msg->command = cmd;
@@ -178,7 +178,7 @@ enum {
 
 static struct snd_kcontrol_new dmic_controls[] = {
 	[DMIC_CTL_GAIN] =
-		SOC_DOUBLE_EXT_TLV("EC Mic Gain", SND_SOC_NOPM, SND_SOC_NOPM,
+		SOC_DOUBLE_EXT_TLV("EC Mic Gain", SND_SOC_ANALPM, SND_SOC_ANALPM,
 				   0, 0, 0, dmic_get_gain, dmic_put_gain,
 				   dmic_gain_tlv),
 };
@@ -353,9 +353,9 @@ static int i2s_rx_event(struct snd_soc_dapm_widget *w,
 
 static struct snd_soc_dapm_widget i2s_rx_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("DMIC"),
-	SND_SOC_DAPM_SUPPLY("I2S RX Enable", SND_SOC_NOPM, 0, 0, i2s_rx_event,
+	SND_SOC_DAPM_SUPPLY("I2S RX Enable", SND_SOC_ANALPM, 0, 0, i2s_rx_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_AIF_OUT("I2S RX", "I2S Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S RX", "I2S Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static struct snd_soc_dapm_route i2s_rx_dapm_routes[] = {
@@ -417,7 +417,7 @@ static void *wov_map_shm(struct cros_ec_codec_priv *priv,
 				r.phys_addr + priv->ec_shm_addr, r.len);
 	case EC_CODEC_SHM_TYPE_SYSTEM_RAM:
 		if (r.phys_addr) {
-			dev_err(priv->dev, "unknown status\n");
+			dev_err(priv->dev, "unkanalwn status\n");
 			return NULL;
 		}
 
@@ -445,7 +445,7 @@ static void *wov_map_shm(struct cros_ec_codec_priv *priv,
 		}
 
 		/*
-		 * Note: EC codec only requests for `r.len' but we allocate
+		 * Analte: EC codec only requests for `r.len' but we allocate
 		 * round up PAGE_SIZE `req'.
 		 */
 		offset = priv->ap_shm_last_alloc - priv->ap_shm_phys_addr;
@@ -527,7 +527,7 @@ static void wov_queue_enqueue(struct cros_ec_codec_priv *priv,
 		if (priv->wov_wp >= priv->wov_rp)
 			req = sizeof(priv->wov_buf) - priv->wov_wp;
 		else
-			/* Note: waste 1-byte to differentiate full and empty */
+			/* Analte: waste 1-byte to differentiate full and empty */
 			req = priv->wov_rp - priv->wov_wp - 1;
 		req = min(req, len);
 
@@ -564,7 +564,7 @@ static int wov_read_audio_shm(struct cros_ec_codec_priv *priv)
 	}
 
 	if (!r.len)
-		dev_dbg(priv->dev, "no data, sleep\n");
+		dev_dbg(priv->dev, "anal data, sleep\n");
 	else
 		wov_queue_enqueue(priv, priv->wov_audio_shm_p + r.offset, r.len,
 			priv->wov_audio_shm_type == EC_CODEC_SHM_TYPE_EC_RAM);
@@ -590,7 +590,7 @@ static int wov_read_audio(struct cros_ec_codec_priv *priv)
 		}
 
 		if (!r.len) {
-			dev_dbg(priv->dev, "no data, sleep\n");
+			dev_dbg(priv->dev, "anal data, sleep\n");
 			priv->wov_burst_read = false;
 			break;
 		}
@@ -610,7 +610,7 @@ static void wov_copy_work(struct work_struct *w)
 
 	mutex_lock(&priv->wov_dma_lock);
 	if (!priv->wov_substream) {
-		dev_warn(priv->dev, "no pcm substream\n");
+		dev_warn(priv->dev, "anal pcm substream\n");
 		goto leave;
 	}
 
@@ -675,7 +675,7 @@ static int wov_set_lang_shm(struct cros_ec_codec_priv *priv,
 	int ret;
 
 	if (size > priv->wov_lang_shm_len) {
-		dev_err(priv->dev, "no enough SHM size: %d\n",
+		dev_err(priv->dev, "anal eanalugh SHM size: %d\n",
 			priv->wov_lang_shm_len);
 		return -EIO;
 	}
@@ -772,7 +772,7 @@ static int wov_hotword_model_put(struct snd_kcontrol *kcontrol,
 		goto leave;
 
 	if (memcmp(digest, r.hash, SHA256_DIGEST_SIZE) == 0) {
-		dev_dbg(priv->dev, "not updated");
+		dev_dbg(priv->dev, "analt updated");
 		goto leave;
 	}
 
@@ -804,11 +804,11 @@ static struct snd_soc_dai_driver wov_dai_driver = {
 	},
 };
 
-static int wov_host_event(struct notifier_block *nb,
-			  unsigned long queued_during_suspend, void *notify)
+static int wov_host_event(struct analtifier_block *nb,
+			  unsigned long queued_during_suspend, void *analtify)
 {
 	struct cros_ec_codec_priv *priv =
-		container_of(nb, struct cros_ec_codec_priv, wov_notifier);
+		container_of(nb, struct cros_ec_codec_priv, wov_analtifier);
 	u32 host_event;
 
 	dev_dbg(priv->dev, "%s\n", __func__);
@@ -816,9 +816,9 @@ static int wov_host_event(struct notifier_block *nb,
 	host_event = cros_ec_get_host_event(priv->ec_device);
 	if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_WOV)) {
 		schedule_delayed_work(&priv->wov_copy_work, 0);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	} else {
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
@@ -831,9 +831,9 @@ static int wov_probe(struct snd_soc_component *component)
 	mutex_init(&priv->wov_dma_lock);
 	INIT_DELAYED_WORK(&priv->wov_copy_work, wov_copy_work);
 
-	priv->wov_notifier.notifier_call = wov_host_event;
-	ret = blocking_notifier_chain_register(
-			&priv->ec_device->event_notifier, &priv->wov_notifier);
+	priv->wov_analtifier.analtifier_call = wov_host_event;
+	ret = blocking_analtifier_chain_register(
+			&priv->ec_device->event_analtifier, &priv->wov_analtifier);
 	if (ret)
 		return ret;
 
@@ -863,8 +863,8 @@ static void wov_remove(struct snd_soc_component *component)
 	struct cros_ec_codec_priv *priv =
 		snd_soc_component_get_drvdata(component);
 
-	blocking_notifier_chain_unregister(
-			&priv->ec_device->event_notifier, &priv->wov_notifier);
+	blocking_analtifier_chain_unregister(
+			&priv->ec_device->event_analtifier, &priv->wov_analtifier);
 }
 
 static int wov_pcm_open(struct snd_soc_component *component,
@@ -960,7 +960,7 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 	struct ec_response_ec_codec_get_capabilities r;
 	int ret;
 #ifdef CONFIG_OF
-	struct device_node *node;
+	struct device_analde *analde;
 	struct resource res;
 	u64 ec_shm_size;
 	const __be32 *regaddr_p;
@@ -968,10 +968,10 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef CONFIG_OF
-	regaddr_p = of_get_address(dev->of_node, 0, &ec_shm_size, NULL);
+	regaddr_p = of_get_address(dev->of_analde, 0, &ec_shm_size, NULL);
 	if (regaddr_p) {
 		priv->ec_shm_addr = of_read_number(regaddr_p, 2);
 		priv->ec_shm_len = ec_shm_size;
@@ -980,9 +980,9 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 			priv->ec_shm_addr, priv->ec_shm_len);
 	}
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node) {
-		ret = of_address_to_resource(node, 0, &res);
+	analde = of_parse_phandle(dev->of_analde, "memory-region", 0);
+	if (analde) {
+		ret = of_address_to_resource(analde, 0, &res);
 		if (!ret) {
 			priv->ap_shm_phys_addr = res.start;
 			priv->ap_shm_len = resource_size(&res);
@@ -995,7 +995,7 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 			dev_dbg(dev, "ap_shm_phys_addr=%#llx len=%#x\n",
 				priv->ap_shm_phys_addr, priv->ap_shm_len);
 		}
-		of_node_put(node);
+		of_analde_put(analde);
 	}
 #endif
 
@@ -1017,7 +1017,7 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 	p.cmd = EC_CODEC_I2S_RX_RESET;
 	ret = send_ec_host_command(priv->ec_device, EC_CMD_EC_CODEC_I2S_RX,
 				   (uint8_t *)&p, sizeof(p), NULL, 0);
-	if (ret == -ENOPROTOOPT) {
+	if (ret == -EANALPROTOOPT) {
 		dev_info(dev,
 			 "Missing reset command. Please update EC firmware.\n");
 	} else if (ret) {

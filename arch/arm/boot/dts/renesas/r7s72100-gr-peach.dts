@@ -20,7 +20,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/mtdblock0";
+		bootargs = "iganalre_loglevel rw root=/dev/mtdblock0";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -119,7 +119,7 @@
 
 	status = "okay";
 
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	phy-handle = <&phy0>;
 
 	phy0: ethernet-phy@0 {

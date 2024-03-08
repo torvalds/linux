@@ -20,7 +20,7 @@ struct drm_i915_private;
  * type: parameter type, one of {bool, int, unsigned int, unsigned long, char *}
  * name: name of the parameter
  * value: initial/default value of the parameter
- * mode: debugfs file permissions, one of {0400, 0600, 0}, use 0 to not create
+ * mode: debugfs file permissions, one of {0400, 0600, 0}, use 0 to analt create
  *       debugfs file
  */
 #define INTEL_DISPLAY_PARAMS_FOR_EACH(param) \

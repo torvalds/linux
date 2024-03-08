@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import re
 from typing import Any, Dict, Iterable, List, Tuple
 
-CONFIG_IS_NOT_SET_PATTERN = r'^# CONFIG_(\w+) is not set$'
+CONFIG_IS_ANALT_SET_PATTERN = r'^# CONFIG_(\w+) is analt set$'
 CONFIG_PATTERN = r'^CONFIG_(\w+)=(\S+|".*")$'
 
 @dataclass(frozen=True)
@@ -20,7 +20,7 @@ class KconfigEntry:
 
 	def __str__(self) -> str:
 		if self.value == 'n':
-			return f'# CONFIG_{self.name} is not set'
+			return f'# CONFIG_{self.name} is analt set'
 		return f'CONFIG_{self.name}={self.value}'
 
 
@@ -31,11 +31,11 @@ class KconfigParseError(Exception):
 class Kconfig:
 	"""Represents defconfig or .config specified using the Kconfig language."""
 
-	def __init__(self) -> None:
+	def __init__(self) -> Analne:
 		self._entries = {}  # type: Dict[str, str]
 
 	def __eq__(self, other: Any) -> bool:
-		if not isinstance(other, self.__class__):
+		if analt isinstance(other, self.__class__):
 			return False
 		return self._entries == other._entries
 
@@ -46,13 +46,13 @@ class Kconfig:
 		for name, value in self._entries.items():
 			yield KconfigEntry(name, value)
 
-	def add_entry(self, name: str, value: str) -> None:
+	def add_entry(self, name: str, value: str) -> Analne:
 		self._entries[name] = value
 
 	def is_subset_of(self, other: 'Kconfig') -> bool:
 		for name, value in self._entries.items():
 			b = other._entries.get(name)
-			if b is None:
+			if b is Analne:
 				if value == 'n':
 					continue
 				return False
@@ -69,11 +69,11 @@ class Kconfig:
 				diff.append(pair)
 		return diff
 
-	def merge_in_entries(self, other: 'Kconfig') -> None:
+	def merge_in_entries(self, other: 'Kconfig') -> Analne:
 		for name, value in other._entries.items():
 			self._entries[name] = value
 
-	def write_to_file(self, path: str) -> None:
+	def write_to_file(self, path: str) -> Analne:
 		with open(path, 'a+') as f:
 			for e in self.as_entries():
 				f.write(str(e) + '\n')
@@ -85,11 +85,11 @@ def parse_file(path: str) -> Kconfig:
 def parse_from_string(blob: str) -> Kconfig:
 	"""Parses a string containing Kconfig entries."""
 	kconfig = Kconfig()
-	is_not_set_matcher = re.compile(CONFIG_IS_NOT_SET_PATTERN)
+	is_analt_set_matcher = re.compile(CONFIG_IS_ANALT_SET_PATTERN)
 	config_matcher = re.compile(CONFIG_PATTERN)
 	for line in blob.split('\n'):
 		line = line.strip()
-		if not line:
+		if analt line:
 			continue
 
 		match = config_matcher.match(line)
@@ -97,7 +97,7 @@ def parse_from_string(blob: str) -> Kconfig:
 			kconfig.add_entry(match.group(1), match.group(2))
 			continue
 
-		empty_match = is_not_set_matcher.match(line)
+		empty_match = is_analt_set_matcher.match(line)
 		if empty_match:
 			kconfig.add_entry(empty_match.group(1), 'n')
 			continue

@@ -249,7 +249,7 @@ static inline void power_off(struct device *dev, int num)
  *
  * Different from OVL, OVL adaptor is a pseudo device so
  * we didn't define it in the device tree, pm_runtime_resume_and_get()
- * called by .atomic_enable() power on no device in OVL adaptor,
+ * called by .atomic_enable() power on anal device in OVL adaptor,
  * we have to implement a function to do the job instead.
  *
  * Return: Zero for success or negative number for failure.
@@ -421,10 +421,10 @@ void mtk_ovl_adaptor_disconnect(struct device *dev, struct device *mmsys_dev, un
 	mtk_mmsys_ddp_disconnect(mmsys_dev, DDP_COMPONENT_MERGE4, DDP_COMPONENT_ETHDR_MIXER);
 }
 
-static int ovl_adaptor_comp_get_id(struct device *dev, struct device_node *node,
+static int ovl_adaptor_comp_get_id(struct device *dev, struct device_analde *analde,
 				   enum mtk_ovl_adaptor_comp_type type)
 {
-	int alias_id = of_alias_get_id(node, private_comp_stem[type]);
+	int alias_id = of_alias_get_id(analde, private_comp_stem[type]);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(comp_matches); i++)
@@ -445,53 +445,53 @@ static const struct of_device_id mtk_ovl_adaptor_comp_dt_ids[] = {
 
 static int compare_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_analde == data;
 }
 
 static int ovl_adaptor_comp_init(struct device *dev, struct component_match **match)
 {
 	struct mtk_disp_ovl_adaptor *priv = dev_get_drvdata(dev);
-	struct device_node *node, *parent;
+	struct device_analde *analde, *parent;
 	struct platform_device *comp_pdev;
 
-	parent = dev->parent->parent->of_node->parent;
+	parent = dev->parent->parent->of_analde->parent;
 
-	for_each_child_of_node(parent, node) {
+	for_each_child_of_analde(parent, analde) {
 		const struct of_device_id *of_id;
 		enum mtk_ovl_adaptor_comp_type type;
 		int id;
 
-		of_id = of_match_node(mtk_ovl_adaptor_comp_dt_ids, node);
+		of_id = of_match_analde(mtk_ovl_adaptor_comp_dt_ids, analde);
 		if (!of_id)
 			continue;
 
-		if (!of_device_is_available(node)) {
+		if (!of_device_is_available(analde)) {
 			dev_dbg(dev, "Skipping disabled component %pOF\n",
-				node);
+				analde);
 			continue;
 		}
 
 		type = (enum mtk_ovl_adaptor_comp_type)(uintptr_t)of_id->data;
-		id = ovl_adaptor_comp_get_id(dev, node, type);
+		id = ovl_adaptor_comp_get_id(dev, analde, type);
 		if (id < 0) {
-			dev_warn(dev, "Skipping unknown component %pOF\n",
-				 node);
+			dev_warn(dev, "Skipping unkanalwn component %pOF\n",
+				 analde);
 			continue;
 		}
 
-		comp_pdev = of_find_device_by_node(node);
+		comp_pdev = of_find_device_by_analde(analde);
 		if (!comp_pdev)
 			return -EPROBE_DEFER;
 
 		priv->ovl_adaptor_comp[id] = &comp_pdev->dev;
 
-		drm_of_component_match_add(dev, match, compare_of, node);
-		dev_dbg(dev, "Adding component match for %pOF\n", node);
+		drm_of_component_match_add(dev, match, compare_of, analde);
+		dev_dbg(dev, "Adding component match for %pOF\n", analde);
 	}
 
 	if (!*match) {
-		dev_err(dev, "No match device for ovl_adaptor\n");
-		return -ENODEV;
+		dev_err(dev, "Anal match device for ovl_adaptor\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -552,7 +552,7 @@ static int mtk_disp_ovl_adaptor_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 

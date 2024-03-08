@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/delay.h>
@@ -47,7 +47,7 @@ struct loongson_gfxpll_bitmap {
 	unsigned set_param     : 1;   /* 43        Trigger the update     */
 	unsigned bypass        : 1;   /* 44                               */
 	unsigned powerdown     : 1;   /* 45                               */
-	unsigned _reserved_2_  : 18;  /* 46 : 63   no use                 */
+	unsigned _reserved_2_  : 18;  /* 46 : 63   anal use                 */
 };
 
 union loongson_gfxpll_reg_bitmap {
@@ -72,7 +72,7 @@ static void __gfxpll_rreg(struct loongson_gfxpll *this,
 static int loongson_gfxpll_update(struct loongson_gfxpll * const this,
 				  struct loongson_gfxpll_parms const *pin)
 {
-	/* None, TODO */
+	/* Analne, TODO */
 
 	return 0;
 }
@@ -156,7 +156,7 @@ static int loongson_gfxpll_init(struct loongson_gfxpll * const this)
 
 	this->mmio = ioremap(this->reg_base, this->reg_size);
 	if (IS_ERR_OR_NULL(this->mmio))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	this->funcs->print(this, &printer, false);
 
@@ -180,7 +180,7 @@ int loongson_gfxpll_create(struct drm_device *ddev,
 
 	this = kzalloc(sizeof(*this), GFP_KERNEL);
 	if (IS_ERR_OR_NULL(this))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	this->ddev = ddev;
 	this->reg_size = gfx->gfxpll.reg_size;

@@ -27,7 +27,7 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs):
             line = line.replace("\n", "")
             cfg.append(line)
 
-    # Now fill the crates list -- dependencies need to come first.
+    # Analw fill the crates list -- dependencies need to come first.
     #
     # Avoid O(n^2) iterations by keeping a map of indexes.
     crates = []
@@ -110,23 +110,23 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs):
     def is_root_crate(build_file, target):
         try:
             return f"{target}.o" in open(build_file).read()
-        except FileNotFoundError:
+        except FileAnaltFoundError:
             return False
 
     # Then, the rest outside of `rust/`.
     #
     # We explicitly mention the top-level folders we want to cover.
     extra_dirs = map(lambda dir: srctree / dir, ("samples", "drivers"))
-    if external_src is not None:
+    if external_src is analt Analne:
         extra_dirs = [external_src]
     for folder in extra_dirs:
         for path in folder.rglob("*.rs"):
             logging.info("Checking %s", path)
             name = path.name.replace(".rs", "")
 
-            # Skip those that are not crate roots.
-            if not is_root_crate(path.parent / "Makefile", name) and \
-               not is_root_crate(path.parent / "Kbuild", name):
+            # Skip those that are analt crate roots.
+            if analt is_root_crate(path.parent / "Makefile", name) and \
+               analt is_root_crate(path.parent / "Kbuild", name):
                 continue
 
             logging.info("Adding %s", name)

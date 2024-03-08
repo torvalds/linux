@@ -30,7 +30,7 @@
  * To use the helper, display controller drivers create a bridge connector with
  * a call to drm_bridge_connector_init(). This associates the newly created
  * connector with the chain of bridges passed to the function and registers it
- * with the DRM device. At that point the connector becomes fully usable, no
+ * with the DRM device. At that point the connector becomes fully usable, anal
  * further operation is needed.
  *
  * The DRM bridge connector operations are implemented based on the operations
@@ -40,8 +40,8 @@
  *
  * To make use of this helper, all bridges in the chain shall report bridge
  * operation flags (&drm_bridge->ops) and bridge output type
- * (&drm_bridge->type), as well as the DRM_BRIDGE_ATTACH_NO_CONNECTOR attach
- * flag (none of the bridges shall create a DRM connector directly).
+ * (&drm_bridge->type), as well as the DRM_BRIDGE_ATTACH_ANAL_CONNECTOR attach
+ * flag (analne of the bridges shall create a DRM connector directly).
  */
 
 /**
@@ -69,7 +69,7 @@ struct drm_bridge_connector {
 	 * @bridge_hpd:
 	 *
 	 * The last bridge in the chain (closest to the connector) that provides
-	 * hot-plug detection notification, if any (see &DRM_BRIDGE_OP_HPD).
+	 * hot-plug detection analtification, if any (see &DRM_BRIDGE_OP_HPD).
 	 */
 	struct drm_bridge *bridge_hpd;
 	/**
@@ -95,17 +95,17 @@ struct drm_bridge_connector {
  * Bridge Connector Hot-Plug Handling
  */
 
-static void drm_bridge_connector_hpd_notify(struct drm_connector *connector,
+static void drm_bridge_connector_hpd_analtify(struct drm_connector *connector,
 					    enum drm_connector_status status)
 {
 	struct drm_bridge_connector *bridge_connector =
 		to_drm_bridge_connector(connector);
 	struct drm_bridge *bridge;
 
-	/* Notify all bridges in the pipeline of hotplug events. */
+	/* Analtify all bridges in the pipeline of hotplug events. */
 	drm_for_each_bridge_in_chain(bridge_connector->encoder, bridge) {
-		if (bridge->funcs->hpd_notify)
-			bridge->funcs->hpd_notify(bridge, status);
+		if (bridge->funcs->hpd_analtify)
+			bridge->funcs->hpd_analtify(bridge, status);
 	}
 }
 
@@ -119,7 +119,7 @@ static void drm_bridge_connector_handle_hpd(struct drm_bridge_connector *drm_bri
 	connector->status = status;
 	mutex_unlock(&dev->mode_config.mutex);
 
-	drm_bridge_connector_hpd_notify(connector, status);
+	drm_bridge_connector_hpd_analtify(connector, status);
 
 	drm_kms_helper_connector_hotplug_event(connector);
 }
@@ -175,7 +175,7 @@ drm_bridge_connector_detect(struct drm_connector *connector, bool force)
 	if (detect) {
 		status = detect->funcs->detect(detect);
 
-		drm_bridge_connector_hpd_notify(connector, status);
+		drm_bridge_connector_hpd_analtify(connector, status);
 	} else {
 		switch (connector->connector_type) {
 		case DRM_MODE_CONNECTOR_DPI:
@@ -185,7 +185,7 @@ drm_bridge_connector_detect(struct drm_connector *connector, bool force)
 			status = connector_status_connected;
 			break;
 		default:
-			status = connector_status_unknown;
+			status = connector_status_unkanalwn;
 			break;
 		}
 	}
@@ -201,7 +201,7 @@ static void drm_bridge_connector_destroy(struct drm_connector *connector)
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 
-	fwnode_handle_put(connector->fwnode);
+	fwanalde_handle_put(connector->fwanalde);
 
 	kfree(bridge_connector);
 }
@@ -214,7 +214,7 @@ static void drm_bridge_connector_debugfs_init(struct drm_connector *connector,
 	struct drm_encoder *encoder = bridge_connector->encoder;
 	struct drm_bridge *bridge;
 
-	list_for_each_entry(bridge, &encoder->bridge_chain, chain_node) {
+	list_for_each_entry(bridge, &encoder->bridge_chain, chain_analde) {
 		if (bridge->funcs->debugfs_init)
 			bridge->funcs->debugfs_init(bridge, root);
 	}
@@ -244,12 +244,12 @@ static int drm_bridge_connector_get_modes_edid(struct drm_connector *connector,
 
 	status = drm_bridge_connector_detect(connector, false);
 	if (status != connector_status_connected)
-		goto no_edid;
+		goto anal_edid;
 
 	edid = drm_bridge_get_edid(bridge, connector);
 	if (!drm_edid_is_valid(edid)) {
 		kfree(edid);
-		goto no_edid;
+		goto anal_edid;
 	}
 
 	drm_connector_update_edid_property(connector, edid);
@@ -258,7 +258,7 @@ static int drm_bridge_connector_get_modes_edid(struct drm_connector *connector,
 	kfree(edid);
 	return n;
 
-no_edid:
+anal_edid:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;
 }
@@ -270,7 +270,7 @@ static int drm_bridge_connector_get_modes(struct drm_connector *connector)
 	struct drm_bridge *bridge;
 
 	/*
-	 * If display exposes EDID, then we parse that in the normal way to
+	 * If display exposes EDID, then we parse that in the analrmal way to
 	 * build table of supported modes.
 	 */
 	bridge = bridge_connector->bridge_edid;
@@ -295,7 +295,7 @@ static int drm_bridge_connector_get_modes(struct drm_connector *connector)
 
 static const struct drm_connector_helper_funcs drm_bridge_connector_helper_funcs = {
 	.get_modes = drm_bridge_connector_get_modes,
-	/* No need for .mode_valid(), the bridges are checked by the core. */
+	/* Anal need for .mode_valid(), the bridges are checked by the core. */
 	.enable_hpd = drm_bridge_connector_enable_hpd,
 	.disable_hpd = drm_bridge_connector_disable_hpd,
 };
@@ -312,7 +312,7 @@ static const struct drm_connector_helper_funcs drm_bridge_connector_helper_funcs
  * Allocate, initialise and register a &drm_bridge_connector with the @drm
  * device. The connector is associated with a chain of bridges that starts at
  * the @encoder. All bridges in the chain shall report bridge operation flags
- * (&drm_bridge->ops) and bridge output type (&drm_bridge->type), and none of
+ * (&drm_bridge->ops) and bridge output type (&drm_bridge->type), and analne of
  * them may create a DRM connector directly.
  *
  * Returns a pointer to the new connector on success, or a negative error
@@ -330,7 +330,7 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 
 	bridge_connector = kzalloc(sizeof(*bridge_connector), GFP_KERNEL);
 	if (!bridge_connector)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bridge_connector->encoder = encoder;
 
@@ -345,10 +345,10 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 	 * Initialise connector status handling. First locate the furthest
 	 * bridges in the pipeline that support HPD and output detection. Then
 	 * initialise the connector polling mode, using HPD if available and
-	 * falling back to polling if supported. If neither HPD nor output
+	 * falling back to polling if supported. If neither HPD analr output
 	 * detection are available, we don't support hotplug detection at all.
 	 */
-	connector_type = DRM_MODE_CONNECTOR_Unknown;
+	connector_type = DRM_MODE_CONNECTOR_Unkanalwn;
 	drm_for_each_bridge_in_chain(encoder, bridge) {
 		if (!bridge->interlace_allowed)
 			connector->interlace_allowed = false;
@@ -367,8 +367,8 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 
 #ifdef CONFIG_OF
 		if (!drm_bridge_get_next_bridge(bridge) &&
-		    bridge->of_node)
-			connector->fwnode = fwnode_handle_get(of_fwnode_handle(bridge->of_node));
+		    bridge->of_analde)
+			connector->fwanalde = fwanalde_handle_get(of_fwanalde_handle(bridge->of_analde));
 #endif
 
 		if (bridge->ddc)
@@ -378,7 +378,7 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 			panel_bridge = bridge;
 	}
 
-	if (connector_type == DRM_MODE_CONNECTOR_Unknown) {
+	if (connector_type == DRM_MODE_CONNECTOR_Unkanalwn) {
 		kfree(bridge_connector);
 		return ERR_PTR(-EINVAL);
 	}

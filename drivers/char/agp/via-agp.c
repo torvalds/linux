@@ -37,7 +37,7 @@ static int via_fetch_size(void)
 			return values[i].size;
 		}
 	}
-	printk(KERN_ERR PFX "Unknown aperture size from AGP bridge (0x%x)\n", temp);
+	printk(KERN_ERR PFX "Unkanalwn aperture size from AGP bridge (0x%x)\n", temp);
 	return 0;
 }
 
@@ -71,7 +71,7 @@ static void via_cleanup(void)
 	previous_size = A_SIZE_8(agp_bridge->previous_size);
 	pci_write_config_byte(agp_bridge->dev, VIA_APSIZE,
 			      previous_size->size_value);
-	/* Do not disable by writing 0 to VIA_ATTBASE, it screws things up
+	/* Do analt disable by writing 0 to VIA_ATTBASE, it screws things up
 	 * during reinitialization.
 	 */
 }
@@ -396,7 +396,7 @@ static struct agp_device_ids via_agp_device_ids[] =
 	 * architecture, the AGP resource and behavior are different from
 	 * the traditional AGP which resides only in chipset. AGP is used
 	 * by 3D driver which wasn't available for the VT3336 and VT3364
-	 * generation until now.  Unfortunately, by testing, VT3364 works
+	 * generation until analw.  Unfortunately, by testing, VT3364 works
 	 * but VT3336 doesn't. - explanation from via, just leave this as
 	 * as a placeholder to avoid future patches adding it back in.
 	 */
@@ -444,14 +444,14 @@ static int agp_via_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	j = ent - agp_via_pci_table;
 	printk (KERN_INFO PFX "Detected VIA %s chipset\n", devs[j].chipset_name);
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->dev = pdev;
 	bridge->capndx = cap_ptr;

@@ -13,7 +13,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -412,11 +412,11 @@ static void parse(FILE *f)
 				continue;
 			}
 			if (lasthut != -1) {
-				/* do not store hut */
+				/* do analt store hut */
 				continue;
 			}
 			if (lastlang != -1) {
-				/* do not store langid */
+				/* do analt store langid */
 				continue;
 			}
 			err("Product/Subclass spec without prior Vendor/Class spec at line %u",
@@ -467,7 +467,7 @@ static void parse(FILE *f)
 		if (buf[0] == 'V' && buf[1] == 'T')
 			continue;
 
-		err("Unknown line at line %u", linectr);
+		err("Unkanalwn line at line %u", linectr);
 	}
 }
 
@@ -478,7 +478,7 @@ int names_init(char *n)
 
 	f = fopen(n, "r");
 	if (!f)
-		return errno;
+		return erranal;
 
 	parse(f);
 	fclose(f);

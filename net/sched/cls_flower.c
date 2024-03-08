@@ -85,7 +85,7 @@ struct fl_flow_mask {
 	struct fl_flow_key key;
 	struct fl_flow_mask_range range;
 	u32 flags;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct rhashtable ht;
 	struct rhashtable_params filter_ht_params;
 	struct flow_dissector dissector;
@@ -113,7 +113,7 @@ struct cls_fl_head {
 
 struct cls_fl_filter {
 	struct fl_flow_mask *mask;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct fl_flow_key mkey;
 	struct tcf_exts exts;
 	struct tcf_result res;
@@ -137,7 +137,7 @@ struct cls_fl_filter {
 static const struct rhashtable_params mask_ht_params = {
 	.key_offset = offsetof(struct fl_flow_mask, key),
 	.key_len = sizeof(struct fl_flow_key),
-	.head_offset = offsetof(struct fl_flow_mask, ht_node),
+	.head_offset = offsetof(struct fl_flow_mask, ht_analde),
 	.automatic_shrinking = true,
 };
 
@@ -226,7 +226,7 @@ static bool fl_range_port_dst_cmp(struct cls_fl_filter *filter,
 		    ntohs(key->tp_range.tp.dst) > max_val)
 			return false;
 
-		/* skb does not have min and max values */
+		/* skb does analt have min and max values */
 		mkey->tp_range.tp_min.dst = filter->mkey.tp_range.tp_min.dst;
 		mkey->tp_range.tp_max.dst = filter->mkey.tp_range.tp_max.dst;
 	}
@@ -249,7 +249,7 @@ static bool fl_range_port_src_cmp(struct cls_fl_filter *filter,
 		    ntohs(key->tp_range.tp.src) > max_val)
 			return false;
 
-		/* skb does not have min and max values */
+		/* skb does analt have min and max values */
 		mkey->tp_range.tp_min.src = filter->mkey.tp_range.tp_min.src;
 		mkey->tp_range.tp_max.src = filter->mkey.tp_range.tp_max.src;
 	}
@@ -283,7 +283,7 @@ static struct cls_fl_filter *fl_lookup_range(struct fl_flow_mask *mask,
 	return NULL;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 struct cls_fl_filter *fl_mask_lookup(struct fl_flow_mask *mask, struct fl_flow_key *key)
 {
 	struct fl_flow_key mkey;
@@ -326,7 +326,7 @@ TC_INDIRECT_SCOPE int fl_classify(struct sk_buff *skb,
 		fl_clear_masked_range(&skb_key, mask);
 
 		skb_flow_dissect_meta(skb, &mask->dissector, &skb_key);
-		/* skb_flow_dissect() does not set n_proto in case an unknown
+		/* skb_flow_dissect() does analt set n_proto in case an unkanalwn
 		 * protocol, so do it rather here.
 		 */
 		skb_key.basic.n_proto = skb_protocol(skb, false);
@@ -354,7 +354,7 @@ static int fl_init(struct tcf_proto *tp)
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (!head)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	spin_lock_init(&head->masks_lock);
 	INIT_LIST_HEAD_RCU(&head->masks);
@@ -396,7 +396,7 @@ static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask)
 	if (!refcount_dec_and_test(&mask->refcnt))
 		return false;
 
-	rhashtable_remove_fast(&head->ht, &mask->ht_node, mask_ht_params);
+	rhashtable_remove_fast(&head->ht, &mask->ht_analde, mask_ht_params);
 
 	spin_lock(&head->masks_lock);
 	list_del_rcu(&mask->list);
@@ -460,7 +460,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 
 	cls_flower.rule = flow_rule_alloc(tcf_exts_num_actions(&f->exts));
 	if (!cls_flower.rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, extack);
 	cls_flower.command = FLOW_CLS_REPLACE;
@@ -528,7 +528,7 @@ static struct cls_fl_filter *__fl_get(struct cls_fl_head *head, u32 handle)
 
 	rcu_read_lock();
 	f = idr_find(&head->handle_idr, handle);
-	if (f && !refcount_inc_not_zero(&f->refcnt))
+	if (f && !refcount_inc_analt_zero(&f->refcnt))
 		f = NULL;
 	rcu_read_unlock();
 
@@ -555,11 +555,11 @@ static int __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,
 	spin_lock(&tp->lock);
 	if (f->deleted) {
 		spin_unlock(&tp->lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	f->deleted = true;
-	rhashtable_remove_fast(&f->mask->ht, &f->ht_node,
+	rhashtable_remove_fast(&f->mask->ht, &f->ht_analde,
 			       f->mask->filter_ht_params);
 	idr_remove(&head->handle_idr, f->handle);
 	list_del_rcu(&f->list);
@@ -888,7 +888,7 @@ static int fl_set_key_mpls_lse(const struct nlattr *nla_lse,
 
 	depth = nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_OPT_LSE_DEPTH]);
 
-	/* LSE depth starts at 1, for consistency with terminology used by
+	/* LSE depth starts at 1, for consistency with termianallogy used by
 	 * RFC 3031 (section 3.9), where depth 0 refers to unlabeled packets.
 	 */
 	if (depth < 1 || depth > FLOW_DIS_MPLS_MAX) {
@@ -1208,12 +1208,12 @@ static int fl_set_geneve_opt(const struct nlattr *nla, struct fl_flow_key *key,
 	opt->r2 = 0;
 	opt->r3 = 0;
 
-	/* If no mask has been prodived we assume an exact match. */
+	/* If anal mask has been prodived we assume an exact match. */
 	if (!depth)
 		return sizeof(struct geneve_opt) + data_len;
 
 	if (nla_type(nla) != TCA_FLOWER_KEY_ENC_OPTS_GENEVE) {
-		NL_SET_ERR_MSG(extack, "Non-geneve option type for mask");
+		NL_SET_ERR_MSG(extack, "Analn-geneve option type for mask");
 		return -EINVAL;
 	}
 
@@ -1223,7 +1223,7 @@ static int fl_set_geneve_opt(const struct nlattr *nla, struct fl_flow_key *key,
 	if (err < 0)
 		return err;
 
-	/* We are not allowed to omit any of CLASS, TYPE or DATA
+	/* We are analt allowed to omit any of CLASS, TYPE or DATA
 	 * fields from the key.
 	 */
 	if (!option_len &&
@@ -1247,7 +1247,7 @@ static int fl_set_geneve_opt(const struct nlattr *nla, struct fl_flow_key *key,
 			return -ERANGE;
 		}
 		if (data_len % 4) {
-			NL_SET_ERR_MSG(extack, "Tunnel key geneve option data is not a multiple of 4 bytes long");
+			NL_SET_ERR_MSG(extack, "Tunnel key geneve option data is analt a multiple of 4 bytes long");
 			return -ERANGE;
 		}
 
@@ -1289,7 +1289,7 @@ static int fl_set_vxlan_opt(const struct nlattr *nla, struct fl_flow_key *key,
 		return sizeof(*md);
 
 	if (nla_type(nla) != TCA_FLOWER_KEY_ENC_OPTS_VXLAN) {
-		NL_SET_ERR_MSG(extack, "Non-vxlan option type for mask");
+		NL_SET_ERR_MSG(extack, "Analn-vxlan option type for mask");
 		return -EINVAL;
 	}
 
@@ -1327,7 +1327,7 @@ static int fl_set_erspan_opt(const struct nlattr *nla, struct fl_flow_key *key,
 		return sizeof(*md);
 
 	if (nla_type(nla) != TCA_FLOWER_KEY_ENC_OPTS_ERSPAN) {
-		NL_SET_ERR_MSG(extack, "Non-erspan option type for mask");
+		NL_SET_ERR_MSG(extack, "Analn-erspan option type for mask");
 		return -EINVAL;
 	}
 
@@ -1392,7 +1392,7 @@ static int fl_set_gtp_opt(const struct nlattr *nla, struct fl_flow_key *key,
 		return sizeof(*sinfo);
 
 	if (nla_type(nla) != TCA_FLOWER_KEY_ENC_OPTS_GTP) {
-		NL_SET_ERR_MSG_MOD(extack, "Non-gtp option type for mask");
+		NL_SET_ERR_MSG_MOD(extack, "Analn-gtp option type for mask");
 		return -EINVAL;
 	}
 
@@ -1576,7 +1576,7 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			}
 			break;
 		default:
-			NL_SET_ERR_MSG(extack, "Unknown tunnel option type");
+			NL_SET_ERR_MSG(extack, "Unkanalwn tunnel option type");
 			return -EINVAL;
 		}
 
@@ -1598,7 +1598,7 @@ static int fl_validate_ct_state(u16 state, struct nlattr *tb,
 {
 	if (state && !(state & TCA_FLOWER_KEY_CT_FLAGS_TRACKED)) {
 		NL_SET_ERR_MSG_ATTR(extack, tb,
-				    "no trk, so no other flag can be set");
+				    "anal trk, so anal other flag can be set");
 		return -EINVAL;
 	}
 
@@ -1637,7 +1637,7 @@ static int fl_set_key_ct(struct nlattr **tb,
 
 		if (!IS_ENABLED(CONFIG_NF_CONNTRACK)) {
 			NL_SET_ERR_MSG(extack, "Conntrack isn't enabled");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		fl_set_key_val(tb, &key->ct_state, TCA_FLOWER_KEY_CT_STATE,
 			       &mask->ct_state, TCA_FLOWER_KEY_CT_STATE_MASK,
@@ -1653,7 +1653,7 @@ static int fl_set_key_ct(struct nlattr **tb,
 	if (tb[TCA_FLOWER_KEY_CT_ZONE]) {
 		if (!IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES)) {
 			NL_SET_ERR_MSG(extack, "Conntrack zones isn't enabled");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		fl_set_key_val(tb, &key->ct_zone, TCA_FLOWER_KEY_CT_ZONE,
 			       &mask->ct_zone, TCA_FLOWER_KEY_CT_ZONE_MASK,
@@ -1662,7 +1662,7 @@ static int fl_set_key_ct(struct nlattr **tb,
 	if (tb[TCA_FLOWER_KEY_CT_MARK]) {
 		if (!IS_ENABLED(CONFIG_NF_CONNTRACK_MARK)) {
 			NL_SET_ERR_MSG(extack, "Conntrack mark isn't enabled");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		fl_set_key_val(tb, &key->ct_mark, TCA_FLOWER_KEY_CT_MARK,
 			       &mask->ct_mark, TCA_FLOWER_KEY_CT_MARK_MASK,
@@ -1671,7 +1671,7 @@ static int fl_set_key_ct(struct nlattr **tb,
 	if (tb[TCA_FLOWER_KEY_CT_LABELS]) {
 		if (!IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS)) {
 			NL_SET_ERR_MSG(extack, "Conntrack labels aren't enabled");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		fl_set_key_val(tb, key->ct_labels, TCA_FLOWER_KEY_CT_LABELS,
 			       mask->ct_labels, TCA_FLOWER_KEY_CT_LABELS_MASK,
@@ -2001,7 +2001,7 @@ static void fl_mask_copy(struct fl_flow_mask *dst,
 
 static const struct rhashtable_params fl_ht_params = {
 	.key_offset = offsetof(struct cls_fl_filter, mkey), /* base offset */
-	.head_offset = offsetof(struct cls_fl_filter, ht_node),
+	.head_offset = offsetof(struct cls_fl_filter, ht_analde),
 	.automatic_shrinking = true,
 };
 
@@ -2110,7 +2110,7 @@ static struct fl_flow_mask *fl_create_new_mask(struct cls_fl_head *head,
 
 	newmask = kzalloc(sizeof(*newmask), GFP_KERNEL);
 	if (!newmask)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fl_mask_copy(newmask, mask);
 
@@ -2129,8 +2129,8 @@ static struct fl_flow_mask *fl_create_new_mask(struct cls_fl_head *head,
 	INIT_LIST_HEAD_RCU(&newmask->filters);
 
 	refcount_set(&newmask->refcnt, 1);
-	err = rhashtable_replace_fast(&head->ht, &mask->ht_node,
-				      &newmask->ht_node, mask_ht_params);
+	err = rhashtable_replace_fast(&head->ht, &mask->ht_analde,
+				      &newmask->ht_analde, mask_ht_params);
 	if (err)
 		goto errout_destroy;
 
@@ -2158,12 +2158,12 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 
 	rcu_read_lock();
 
-	/* Insert mask as temporary node to prevent concurrent creation of mask
+	/* Insert mask as temporary analde to prevent concurrent creation of mask
 	 * with same key. Any concurrent lookups with same key will return
 	 * -EAGAIN because mask's refcnt is zero.
 	 */
 	fnew->mask = rhashtable_lookup_get_insert_fast(&head->ht,
-						       &mask->ht_node,
+						       &mask->ht_analde,
 						       mask_ht_params);
 	if (!fnew->mask) {
 		rcu_read_unlock();
@@ -2185,7 +2185,7 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 		ret = PTR_ERR(fnew->mask);
 	} else if (fold && fold->mask != fnew->mask) {
 		ret = -EINVAL;
-	} else if (!refcount_inc_not_zero(&fnew->mask->refcnt)) {
+	} else if (!refcount_inc_analt_zero(&fnew->mask->refcnt)) {
 		/* Mask was deleted concurrently, try again */
 		ret = -EAGAIN;
 	}
@@ -2193,7 +2193,7 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 	return ret;
 
 errout_cleanup:
-	rhashtable_remove_fast(&head->ht, &mask->ht_node,
+	rhashtable_remove_fast(&head->ht, &mask->ht_analde,
 			       mask_ht_params);
 	return ret;
 }
@@ -2211,7 +2211,7 @@ static int fl_ht_insert_unique(struct cls_fl_filter *fnew,
 	int err;
 
 	err = rhashtable_lookup_insert_fast(&mask->ht,
-					    &fnew->ht_node,
+					    &fnew->ht_analde,
 					    mask->filter_ht_params);
 	if (err) {
 		*in_ht = false;
@@ -2232,7 +2232,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		     struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = fl_head_dereference(tp);
-	bool rtnl_held = !(flags & TCA_ACT_FLAGS_NO_RTNL);
+	bool rtnl_held = !(flags & TCA_ACT_FLAGS_ANAL_RTNL);
 	struct cls_fl_filter *fold = *arg;
 	bool bound_to_filter = false;
 	struct cls_fl_filter *fnew;
@@ -2248,13 +2248,13 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 
 	mask = kzalloc(sizeof(struct fl_flow_mask), GFP_KERNEL);
 	if (!mask) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto errout_fold;
 	}
 
 	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
 	if (!tb) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto errout_mask_alloc;
 	}
 
@@ -2270,7 +2270,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 
 	fnew = kzalloc(sizeof(*fnew), GFP_KERNEL);
 	if (!fnew) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto errout_tb;
 	}
 	INIT_LIST_HEAD(&fnew->hw_list);
@@ -2297,12 +2297,12 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 					    handle, GFP_ATOMIC);
 
 			/* Filter with specified handle was concurrently
-			 * inserted after initial check in cls_api. This is not
-			 * necessarily an error if NLM_F_EXCL is not set in
+			 * inserted after initial check in cls_api. This is analt
+			 * necessarily an error if NLM_F_EXCL is analt set in
 			 * message flags. Returning EAGAIN will cause cls_api to
 			 * try to update concurrently inserted rule.
 			 */
-			if (err == -ENOSPC)
+			if (err == -EANALSPC)
 				err = -EAGAIN;
 		}
 		spin_unlock(&tp->lock);
@@ -2327,10 +2327,10 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 
 	if (tb[TCA_FLOWER_CLASSID]) {
 		fnew->res.classid = nla_get_u32(tb[TCA_FLOWER_CLASSID]);
-		if (flags & TCA_ACT_FLAGS_NO_RTNL)
+		if (flags & TCA_ACT_FLAGS_ANAL_RTNL)
 			rtnl_lock();
 		tcf_bind_filter(tp, &fnew->res, base);
-		if (flags & TCA_ACT_FLAGS_NO_RTNL)
+		if (flags & TCA_ACT_FLAGS_ANAL_RTNL)
 			rtnl_unlock();
 		bound_to_filter = true;
 	}
@@ -2343,7 +2343,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	fl_set_masked_key(&fnew->mkey, &fnew->key, mask);
 
 	if (!fl_mask_fits_tmplt(tp->chain->tmplt_priv, mask)) {
-		NL_SET_ERR_MSG_MOD(extack, "Mask does not fit the template");
+		NL_SET_ERR_MSG_MOD(extack, "Mask does analt fit the template");
 		err = -EINVAL;
 		goto unbind_filter;
 	}
@@ -2371,7 +2371,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	if (!tc_in_hw(fnew->flags))
-		fnew->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
+		fnew->flags |= TCA_CLS_FLAGS_ANALT_IN_HW;
 
 	spin_lock(&tp->lock);
 
@@ -2397,7 +2397,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 				fnew->mask->filter_ht_params;
 
 			err = rhashtable_insert_fast(&fnew->mask->ht,
-						     &fnew->ht_node,
+						     &fnew->ht_analde,
 						     params);
 			if (err)
 				goto errout_hw;
@@ -2406,7 +2406,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 
 		refcount_inc(&fnew->refcnt);
 		rhashtable_remove_fast(&fold->mask->ht,
-				       &fold->ht_node,
+				       &fold->ht_analde,
 				       fold->mask->filter_ht_params);
 		idr_replace(&head->handle_idr, fnew, fnew->handle);
 		list_replace_rcu(&fold->list, &fnew->list);
@@ -2445,17 +2445,17 @@ errout_hw:
 	if (!tc_skip_hw(fnew->flags))
 		fl_hw_destroy_filter(tp, fnew, rtnl_held, NULL);
 	if (in_ht)
-		rhashtable_remove_fast(&fnew->mask->ht, &fnew->ht_node,
+		rhashtable_remove_fast(&fnew->mask->ht, &fnew->ht_analde,
 				       fnew->mask->filter_ht_params);
 errout_mask:
 	fl_mask_put(head, fnew->mask);
 
 unbind_filter:
 	if (bound_to_filter) {
-		if (flags & TCA_ACT_FLAGS_NO_RTNL)
+		if (flags & TCA_ACT_FLAGS_ANAL_RTNL)
 			rtnl_lock();
 		tcf_unbind_filter(tp, &fnew->res);
-		if (flags & TCA_ACT_FLAGS_NO_RTNL)
+		if (flags & TCA_ACT_FLAGS_ANAL_RTNL)
 			rtnl_unlock();
 	}
 
@@ -2503,7 +2503,7 @@ static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	rcu_read_lock();
 	idr_for_each_entry_continue_ul(&head->handle_idr, f, tmp, id) {
 		/* don't return filters that are being deleted */
-		if (!f || !refcount_inc_not_zero(&f->refcnt))
+		if (!f || !refcount_inc_analt_zero(&f->refcnt))
 			continue;
 		rcu_read_unlock();
 
@@ -2536,7 +2536,7 @@ fl_get_next_hw_filter(struct tcf_proto *tp, struct cls_fl_filter *f, bool add)
 		f = list_entry(&head->hw_filters, struct cls_fl_filter,
 			       hw_list);
 	list_for_each_entry_continue(f, &head->hw_filters, hw_list) {
-		if (!(add && f->deleted) && refcount_inc_not_zero(&f->refcnt)) {
+		if (!(add && f->deleted) && refcount_inc_analt_zero(&f->refcnt)) {
 			spin_unlock(&tp->lock);
 			return f;
 		}
@@ -2555,7 +2555,7 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 	int err;
 
 	/* hw_filters list can only be changed by hw offload functions after
-	 * obtaining rtnl lock. Make sure it is not changed while reoffload is
+	 * obtaining rtnl lock. Make sure it is analt changed while reoffload is
 	 * iterating it.
 	 */
 	ASSERT_RTNL();
@@ -2565,7 +2565,7 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 			flow_rule_alloc(tcf_exts_num_actions(&f->exts));
 		if (!cls_flower.rule) {
 			__fl_put(f);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		tc_cls_common_offload_init(&cls_flower.common, tp, f->flags,
@@ -2640,7 +2640,7 @@ static int fl_hw_create_tmplt(struct tcf_chain *chain,
 
 	cls_flower.rule = flow_rule_alloc(0);
 	if (!cls_flower.rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cls_flower.common.chain_index = chain->index;
 	cls_flower.command = FLOW_CLS_TMPLT_CREATE;
@@ -2684,7 +2684,7 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 
 	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
 	if (!tb)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EANALBUFS);
 	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
 					  tca[TCA_OPTIONS], fl_policy, NULL);
 	if (err)
@@ -2692,7 +2692,7 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 
 	tmplt = kzalloc(sizeof(*tmplt), GFP_KERNEL);
 	if (!tmplt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto errout_tb;
 	}
 	tmplt->chain = chain;
@@ -3007,7 +3007,7 @@ static int fl_dump_key_geneve_opt(struct sk_buff *skb,
 	struct nlattr *nest;
 	int opt_off = 0;
 
-	nest = nla_nest_start_noflag(skb, TCA_FLOWER_KEY_ENC_OPTS_GENEVE);
+	nest = nla_nest_start_analflag(skb, TCA_FLOWER_KEY_ENC_OPTS_GENEVE);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -3040,7 +3040,7 @@ static int fl_dump_key_vxlan_opt(struct sk_buff *skb,
 	struct vxlan_metadata *md;
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, TCA_FLOWER_KEY_ENC_OPTS_VXLAN);
+	nest = nla_nest_start_analflag(skb, TCA_FLOWER_KEY_ENC_OPTS_VXLAN);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -3062,7 +3062,7 @@ static int fl_dump_key_erspan_opt(struct sk_buff *skb,
 	struct erspan_metadata *md;
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, TCA_FLOWER_KEY_ENC_OPTS_ERSPAN);
+	nest = nla_nest_start_analflag(skb, TCA_FLOWER_KEY_ENC_OPTS_ERSPAN);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -3096,7 +3096,7 @@ static int fl_dump_key_gtp_opt(struct sk_buff *skb,
 	struct gtp_pdu_session_info *session_info;
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, TCA_FLOWER_KEY_ENC_OPTS_GTP);
+	nest = nla_nest_start_analflag(skb, TCA_FLOWER_KEY_ENC_OPTS_GTP);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -3197,7 +3197,7 @@ static int fl_dump_key_options(struct sk_buff *skb, int enc_opt_type,
 	if (!enc_opts->len)
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, enc_opt_type);
+	nest = nla_nest_start_analflag(skb, enc_opt_type);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -3503,7 +3503,7 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -3560,7 +3560,7 @@ static int fl_terse_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -3596,7 +3596,7 @@ static int fl_tmplt_dump(struct sk_buff *skb, struct net *net, void *tmplt_priv)
 	struct fl_flow_key *key, *mask;
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 

@@ -94,7 +94,7 @@ static irqreturn_t bcmasp_isr(int irq, void *data)
 
 	if (unlikely(status == 0)) {
 		dev_warn(&priv->pdev->dev, "l2 spurious interrupt\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Handle intferfaces */
@@ -120,7 +120,7 @@ void bcmasp_flush_rx_port(struct bcmasp_intf *intf)
 		mask = ASP_CTRL_SPB_FLUSH_MASK;
 		break;
 	default:
-		/* Not valid port */
+		/* Analt valid port */
 		return;
 	}
 
@@ -502,7 +502,7 @@ void bcmasp_netfilt_suspend(struct bcmasp_intf *intf)
 
 	/* Write all filters to HW */
 	for (i = 0; i < NUM_NET_FILTERS; i++) {
-		/* If the filter does not match the port, skip programming. */
+		/* If the filter does analt match the port, skip programming. */
 		if (!priv->net_filters[i].claimed ||
 		    priv->net_filters[i].port != intf->port)
 			continue;
@@ -641,8 +641,8 @@ bool bcmasp_netfilt_check_dup(struct bcmasp_intf *intf,
 	return false;
 }
 
-/* If no network filter found, return open filter.
- * If no more open filters return NULL
+/* If anal network filter found, return open filter.
+ * If anal more open filters return NULL
  */
 struct bcmasp_net_filter *bcmasp_netfilt_get_init(struct bcmasp_intf *intf,
 						  u32 loc, bool wake_filter,
@@ -662,7 +662,7 @@ struct bcmasp_net_filter *bcmasp_netfilt_get_init(struct bcmasp_intf *intf,
 	if (loc != RX_CLS_LOC_ANY && init && priv->net_filters[loc].claimed)
 		return ERR_PTR(-EBUSY);
 
-	/* We need two filters for wake-up, so we cannot use an odd filter */
+	/* We need two filters for wake-up, so we cananalt use an odd filter */
 	if (wake_filter && loc != RX_CLS_LOC_ANY && (loc % 2))
 		return ERR_PTR(-EINVAL);
 
@@ -684,7 +684,7 @@ struct bcmasp_net_filter *bcmasp_netfilt_get_init(struct bcmasp_intf *intf,
 		/* Wake filter conslidates two filters to cover more bytes
 		 * Wake filter is open if...
 		 * 1. It is an even filter
-		 * 2. The current and next filter is not claimed
+		 * 2. The current and next filter is analt claimed
 		 */
 		if (wake_filter && !(i % 2) && !priv->net_filters[i].claimed &&
 		    !priv->net_filters[i + 1].claimed)
@@ -795,7 +795,7 @@ enum asp_rx_filter_id {
 
 static int bcmasp_total_res_mda_cnt(struct bcmasp_priv *priv)
 {
-	return list_count_nodes(&priv->intfs) * ASP_RX_FILTER_MDA_RES_MAX;
+	return list_count_analdes(&priv->intfs) * ASP_RX_FILTER_MDA_RES_MAX;
 }
 
 void bcmasp_set_promisc(struct bcmasp_intf *intf, bool en)
@@ -893,7 +893,7 @@ int bcmasp_set_en_mda_filter(struct bcmasp_intf *intf, unsigned char *addr,
 	res_count = bcmasp_total_res_mda_cnt(intf->parent);
 
 	for (i = res_count; i < NUM_MDA_FILTERS; i++) {
-		/* If filter not enabled or belongs to another port skip */
+		/* If filter analt enabled or belongs to aanalther port skip */
 		if (!priv->mda_filters[i].en ||
 		    priv->mda_filters[i].port != intf->port)
 			continue;
@@ -916,7 +916,7 @@ int bcmasp_set_en_mda_filter(struct bcmasp_intf *intf, unsigned char *addr,
 		return 0;
 	}
 
-	/* No room for new filter */
+	/* Anal room for new filter */
 	return -EINVAL;
 }
 
@@ -1015,7 +1015,7 @@ void bcmasp_core_clock_set_intf(struct bcmasp_intf *intf, bool en)
 	unsigned long flags;
 	u32 reg;
 
-	/* When enabling an interface, if the RX or TX clocks were not enabled,
+	/* When enabling an interface, if the RX or TX clocks were analt enabled,
 	 * enable them. Conversely, while disabling an interface, if this is
 	 * the last one enabled, we can turn off the shared RX and TX clocks as
 	 * well. We control enable bits which is why we test for equality on
@@ -1042,7 +1042,7 @@ static irqreturn_t bcmasp_isr_wol(int irq, void *data)
 	struct bcmasp_priv *priv = data;
 	u32 status;
 
-	/* No L3 IRQ, so we good */
+	/* Anal L3 IRQ, so we good */
 	if (priv->wol_irq <= 0)
 		goto irq_handled;
 
@@ -1223,7 +1223,7 @@ static void bcmasp_remove_intfs(struct bcmasp_priv *priv)
 
 static int bcmasp_probe(struct platform_device *pdev)
 {
-	struct device_node *ports_node, *intf_node;
+	struct device_analde *ports_analde, *intf_analde;
 	const struct bcmasp_plat_data *pdata;
 	struct device *dev = &pdev->dev;
 	struct bcmasp_priv *priv;
@@ -1233,7 +1233,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq <= 0)
@@ -1244,7 +1244,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
 				     "failed to request clock\n");
 
-	/* Base from parent node */
+	/* Base from parent analde */
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return dev_err_probe(dev, PTR_ERR(priv->base), "failed to iomap\n");
@@ -1284,8 +1284,8 @@ static int bcmasp_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to request ASP interrupt: %d", ret);
 
-	/* Register mdio child nodes */
-	of_platform_populate(dev->of_node, bcmasp_mdio_of_match, NULL, dev);
+	/* Register mdio child analdes */
+	of_platform_populate(dev->of_analde, bcmasp_mdio_of_match, NULL, dev);
 
 	/* ASP specific initialization, Needs to be done regardless of
 	 * how many interfaces come up.
@@ -1293,19 +1293,19 @@ static int bcmasp_probe(struct platform_device *pdev)
 	bcmasp_core_init(priv);
 	bcmasp_core_init_filters(priv);
 
-	ports_node = of_find_node_by_name(dev->of_node, "ethernet-ports");
-	if (!ports_node) {
-		dev_warn(dev, "No ports found\n");
+	ports_analde = of_find_analde_by_name(dev->of_analde, "ethernet-ports");
+	if (!ports_analde) {
+		dev_warn(dev, "Anal ports found\n");
 		return -EINVAL;
 	}
 
 	i = 0;
-	for_each_available_child_of_node(ports_node, intf_node) {
-		intf = bcmasp_interface_create(priv, intf_node, i);
+	for_each_available_child_of_analde(ports_analde, intf_analde) {
+		intf = bcmasp_interface_create(priv, intf_analde, i);
 		if (!intf) {
-			dev_err(dev, "Cannot create eth interface %d\n", i);
+			dev_err(dev, "Cananalt create eth interface %d\n", i);
 			bcmasp_remove_intfs(priv);
-			of_node_put(intf_node);
+			of_analde_put(intf_analde);
 			goto of_put_exit;
 		}
 		list_add_tail(&intf->list, &priv->intfs);
@@ -1315,14 +1315,14 @@ static int bcmasp_probe(struct platform_device *pdev)
 	/* Check and enable WoL */
 	priv->init_wol(priv);
 
-	/* Drop the clock reference count now and let ndo_open()/ndo_close()
-	 * manage it for us from now on.
+	/* Drop the clock reference count analw and let ndo_open()/ndo_close()
+	 * manage it for us from analw on.
 	 */
 	bcmasp_core_clock_set(priv, 0, ASP_CTRL_CLOCK_CTRL_ASP_ALL_DISABLE);
 
 	clk_disable_unprepare(priv->clk);
 
-	/* Now do the registration of the network ports which will take care
+	/* Analw do the registration of the network ports which will take care
 	 * of managing the clock properly.
 	 */
 	list_for_each_entry(intf, &priv->intfs, list) {
@@ -1340,7 +1340,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 	dev_info(dev, "Initialized %d port(s)\n", count);
 
 of_put_exit:
-	of_node_put(ports_node);
+	of_analde_put(ports_analde);
 	return ret;
 }
 
@@ -1376,7 +1376,7 @@ static int __maybe_unused bcmasp_suspend(struct device *d)
 	if (ret)
 		return ret;
 
-	/* Whether Wake-on-LAN is enabled or not, we can always disable
+	/* Whether Wake-on-LAN is enabled or analt, we can always disable
 	 * the shared TX clock
 	 */
 	bcmasp_core_clock_set(priv, 0, ASP_CTRL_CLOCK_CTRL_ASP_TX_DISABLE);

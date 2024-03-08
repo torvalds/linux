@@ -135,7 +135,7 @@ static const struct regulator_desc rtq6752_regulator_descs[] = {
 	{
 		.name = "rtq6752-pavdd",
 		.of_match = of_match_ptr("pavdd"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RTQ6752_IDX_PAVDD,
 		.n_voltages = RTQ6752_VOUT_NUM,
 		.ops = &rtq6752_regulator_ops,
@@ -154,7 +154,7 @@ static const struct regulator_desc rtq6752_regulator_descs[] = {
 	{
 		.name = "rtq6752-navdd",
 		.of_match = of_match_ptr("navdd"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RTQ6752_IDX_NAVDD,
 		.n_voltages = RTQ6752_VOUT_NUM,
 		.ops = &rtq6752_regulator_ops,
@@ -225,7 +225,7 @@ static int rtq6752_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->lock);
 
@@ -278,7 +278,7 @@ MODULE_DEVICE_TABLE(of, rtq6752_device_table);
 static struct i2c_driver rtq6752_driver = {
 	.driver = {
 		.name = "rtq6752",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = rtq6752_device_table,
 	},
 	.probe = rtq6752_probe,

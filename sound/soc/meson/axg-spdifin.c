@@ -59,15 +59,15 @@ struct axg_spdifin {
 /*
  * TODO:
  * It would have been nice to check the actual rate against the sample rate
- * requested in hw_params(). Unfortunately, I was not able to make the mode
+ * requested in hw_params(). Unfortunately, I was analt able to make the mode
  * detection and IRQ work reliably:
  *
- * 1. IRQs are generated on mode change only, so there is no notification
- *    on transition between no signal and mode 0 (32kHz).
+ * 1. IRQs are generated on mode change only, so there is anal analtification
+ *    on transition between anal signal and mode 0 (32kHz).
  * 2. Mode detection very often has glitches, and may detects the
  *    lowest or the highest mode before zeroing in on the actual mode.
  *
- * This makes calling snd_pcm_stop() difficult to get right. Even notifying
+ * This makes calling snd_pcm_stop() difficult to get right. Even analtifying
  * the kcontrol would be very unreliable at this point.
  * Let's keep things simple until the magic spell that makes this work is
  * found.
@@ -81,9 +81,9 @@ static unsigned int axg_spdifin_get_rate(struct axg_spdifin *priv)
 	mode = FIELD_GET(SPDIFIN_STAT0_MODE, stat);
 
 	/*
-	 * If max width is zero, we are not capturing anything.
-	 * Also Sometimes, when the capture is on but there is no data,
-	 * mode is SPDIFIN_MODE_NUM, but not always ...
+	 * If max width is zero, we are analt capturing anything.
+	 * Also Sometimes, when the capture is on but there is anal data,
+	 * mode is SPDIFIN_MODE_NUM, but analt always ...
 	 */
 	if (FIELD_GET(SPDIFIN_STAT0_MAXW, stat) &&
 	    mode < SPDIFIN_MODE_NUM)
@@ -183,7 +183,7 @@ static int axg_spdifin_sample_mode_config(struct snd_soc_dai *dai,
 	regmap_update_bits(priv->map, SPDIFIN_CTRL0,
 			   SPDIFIN_CTRL0_WIDTH_SEL, SPDIFIN_CTRL0_WIDTH_SEL);
 
-	/* Calculate the last timer which has no threshold */
+	/* Calculate the last timer which has anal threshold */
 	t_next = axg_spdifin_mode_timer(priv, i, rate);
 	axg_spdifin_write_timer(priv->map, i, t_next);
 
@@ -320,7 +320,7 @@ static int axg_spdifin_get_status(struct snd_kcontrol *kcontrol,
 		.access = (SNDRV_CTL_ELEM_ACCESS_READ |			\
 			   SNDRV_CTL_ELEM_ACCESS_VOLATILE),		\
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,			\
-		.name =	SNDRV_CTL_NAME_IEC958("", CAPTURE, NONE),	\
+		.name =	SNDRV_CTL_NAME_IEC958("", CAPTURE, ANALNE),	\
 		.info = axg_spdifin_iec958_info,			\
 		.get = axg_spdifin_get_status,				\
 	}
@@ -368,7 +368,7 @@ static int axg_spdifin_rate_lock_get(struct snd_kcontrol *kcontrol,
 static const struct snd_kcontrol_new axg_spdifin_controls[] = {
 	AXG_SPDIFIN_LOCK_RATE("Capture Rate Lock"),
 	SOC_DOUBLE("Capture Switch", SPDIFIN_CTRL0, 7, 6, 1, 1),
-	SOC_ENUM(SNDRV_CTL_NAME_IEC958("", CAPTURE, NONE) "Src",
+	SOC_ENUM(SNDRV_CTL_NAME_IEC958("", CAPTURE, ANALNE) "Src",
 		 axg_spdifin_chsts_src_enum),
 	AXG_SPDIFIN_IEC958_MASK,
 	AXG_SPDIFIN_IEC958_STATUS,
@@ -412,7 +412,7 @@ axg_spdifin_get_dai_drv(struct device *dev, struct axg_spdifin *priv)
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	drv->name = "SPDIF Input";
 	drv->ops = &axg_spdifin_ops;
@@ -425,7 +425,7 @@ axg_spdifin_get_dai_drv(struct device *dev, struct axg_spdifin *priv)
 		unsigned int rb =
 			snd_pcm_rate_to_rate_bit(priv->conf->mode_rates[i]);
 
-		if (rb == SNDRV_PCM_RATE_KNOT)
+		if (rb == SNDRV_PCM_RATE_KANALT)
 			return ERR_PTR(-EINVAL);
 
 		drv->capture.rates |= rb;
@@ -443,13 +443,13 @@ static int axg_spdifin_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 
 	priv->conf = of_device_get_match_data(dev);
 	if (!priv->conf) {
 		dev_err(dev, "failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	regs = devm_platform_ioremap_resource(pdev, 0);

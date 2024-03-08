@@ -5,7 +5,7 @@
  * Copyright (C) IBM Corporation, 2010
  *
  * Author: Keith Mannthey <kmannth@us.ibm.com>
- *         Vernon Mauery <vernux@us.ibm.com>
+ *         Veranaln Mauery <vernux@us.ibm.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -19,11 +19,11 @@
 #include <linux/mutex.h>
 #include <asm/bios_ebda.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
+MODULE_PARM_DESC(force, "Force driver load, iganalre DMI data");
 
 static bool debug;
 module_param(debug, bool, 0644);
@@ -31,7 +31,7 @@ MODULE_PARM_DESC(debug, "Show debug output");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Keith Mannthey <kmmanth@us.ibm.com>");
-MODULE_AUTHOR("Vernon Mauery <vernux@us.ibm.com>");
+MODULE_AUTHOR("Veranaln Mauery <vernux@us.ibm.com>");
 
 #define RTL_ADDR_TYPE_IO    1
 #define RTL_ADDR_TYPE_MMIO  2
@@ -121,7 +121,7 @@ static int ibm_rtl_write(u8 value)
 		while (ioread8(&rtl_table->command)) {
 			msleep(10);
 			if (count++ > 500) {
-				pr_err("Hardware not responding to "
+				pr_err("Hardware analt responding to "
 				       "mode switch request\n");
 				ret = -EIO;
 				break;
@@ -235,24 +235,24 @@ static const struct dmi_system_id ibm_rtl_dmi_table[] __initconst = {
 static int __init ibm_rtl_init(void) {
 	unsigned long ebda_addr, ebda_size;
 	unsigned int ebda_kb;
-	int ret = -ENODEV, i;
+	int ret = -EANALDEV, i;
 
 	if (force)
 		pr_warn("module loaded by force\n");
 	/* first ensure that we are running on IBM HW */
 	else if (efi_enabled(EFI_BOOT) || !dmi_check_system(ibm_rtl_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Get the address for the Extended BIOS Data Area */
 	ebda_addr = get_bios_ebda();
 	if (!ebda_addr) {
-		RTL_DEBUG("no BIOS EBDA found\n");
-		return -ENODEV;
+		RTL_DEBUG("anal BIOS EBDA found\n");
+		return -EANALDEV;
 	}
 
 	ebda_map = ioremap(ebda_addr, 4);
 	if (!ebda_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* First word in the EDBA is the Size in KB */
 	ebda_kb = ioread16(ebda_map);
@@ -267,7 +267,7 @@ static int __init ibm_rtl_init(void) {
 	/* Remap the whole table */
 	ebda_map = ioremap(ebda_addr, ebda_size);
 	if (!ebda_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* search for the _RTL_ signature at the start of the table */
 	for (i = 0 ; i < ebda_size/sizeof(unsigned int); i++) {
@@ -290,7 +290,7 @@ static int __init ibm_rtl_init(void) {
 			rtl_cmd_addr = rtl_port_map(addr, plen);
 			RTL_DEBUG("rtl_cmd_addr = %p\n", rtl_cmd_addr);
 			if (!rtl_cmd_addr) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 			ret = rtl_setup_sysfs();
@@ -311,7 +311,7 @@ static void __exit ibm_rtl_exit(void)
 {
 	if (rtl_table) {
 		RTL_DEBUG("cleaning up");
-		/* do not leave the machine in SMI-free mode */
+		/* do analt leave the machine in SMI-free mode */
 		ibm_rtl_write(0);
 		/* unmap, unlink and remove all traces */
 		rtl_teardown_sysfs();

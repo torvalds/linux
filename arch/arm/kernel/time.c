@@ -10,7 +10,7 @@
  */
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

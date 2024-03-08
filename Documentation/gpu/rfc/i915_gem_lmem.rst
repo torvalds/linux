@@ -13,7 +13,7 @@ real, with all the uAPI bits is:
           start running IGTs which can utilize local-memory in CI
 * Convert over to TTM, make sure it all keeps working. Some of the work items:
         * TTM shrinker for discrete
-        * dma_resv_lockitem for full dma_resv_lock, i.e not just trylock
+        * dma_resv_lockitem for full dma_resv_lock, i.e analt just trylock
         * Use TTM CPU pagefault handler
         * Route shmem backend over to TTM SYSTEM for discrete
         * TTM purgeable object support

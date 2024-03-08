@@ -401,7 +401,7 @@ static const struct go7007_usb_board board_adlink_mpg24 = {
 		.i2c_devs	 = {
 			{
 				.type	= "tw2804",
-				.addr	= 0x00, /* yes, really */
+				.addr	= 0x00, /* anal, really */
 				.flags  = I2C_CLIENT_TEN,
 				.is_video = 1,
 			},
@@ -507,7 +507,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
 					USB_DEVICE_ID_MATCH_INT_INFO,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techanallogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x200,   /* Revision number of XMen */
 		.bcdDevice_hi	= 0x200,
@@ -518,7 +518,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techanallogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x202,   /* Revision number of Matrix II */
 		.bcdDevice_hi	= 0x202,
@@ -526,7 +526,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techanallogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x204,   /* Revision number of Matrix */
 		.bcdDevice_hi	= 0x204,   /*     Reloaded */
@@ -535,7 +535,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
 					USB_DEVICE_ID_MATCH_INT_INFO,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techanallogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x205,   /* Revision number of XMen-II */
 		.bcdDevice_hi	= 0x205,
@@ -546,7 +546,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techanallogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x208,   /* Revision number of Star Trek */
 		.bcdDevice_hi	= 0x208,
@@ -555,7 +555,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
 					USB_DEVICE_ID_MATCH_INT_INFO,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techanallogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x209,   /* Revision number of XMen-III */
 		.bcdDevice_hi	= 0x209,
@@ -566,7 +566,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Technologies */
+		.idVendor	= 0x0eb1,  /* Vendor ID of WIS Techanallogies */
 		.idProduct	= 0x7007,  /* Product ID of GO7007SB chip */
 		.bcdDevice_lo	= 0x210,   /* Revision number of Matrix */
 		.bcdDevice_hi	= 0x210,   /*     Revolution */
@@ -606,7 +606,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
-		.idVendor	= 0x06e1,  /* Vendor ID of ADS Technologies */
+		.idVendor	= 0x06e1,  /* Vendor ID of ADS Techanallogies */
 		.idProduct	= 0x0709,  /* Product ID of DVD Xpress DX2 */
 		.bcdDevice_lo	= 0x204,
 		.bcdDevice_hi	= 0x204,
@@ -956,7 +956,7 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 	int ret = -EIO;
 
 	if (go->status == STATUS_SHUTDOWN)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&usb->i2c_lock);
 
@@ -1019,7 +1019,7 @@ i2c_done:
 
 static u32 go7007_usb_functionality(struct i2c_adapter *adapter)
 {
-	/* No errors are reported by the hardware, so we don't bother
+	/* Anal errors are reported by the hardware, so we don't bother
 	 * supporting quick writes to avoid confusing probing */
 	return (I2C_FUNC_SMBUS_EMUL) & ~I2C_FUNC_SMBUS_QUICK;
 }
@@ -1085,12 +1085,12 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_matrix_ii;
 		break;
 	case GO7007_BOARDID_PX_TV402U:
-		name = "Plextor PX-TV402U (unknown tuner)";
+		name = "Plextor PX-TV402U (unkanalwn tuner)";
 		board = &board_px_tv402u;
 		break;
 	case GO7007_BOARDID_LIFEVIEW_LR192:
-		dev_err(&intf->dev, "The Lifeview TV Walker Ultra is not supported. Sorry!\n");
-		return -ENODEV;
+		dev_err(&intf->dev, "The Lifeview TV Walker Ultra is analt supported. Sorry!\n");
+		return -EANALDEV;
 #if 0
 		name = "Lifeview TV Walker Ultra";
 		board = &board_lifeview_lr192;
@@ -1106,19 +1106,19 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_ads_usbav_709;
 		break;
 	default:
-		dev_err(&intf->dev, "unknown board ID %d!\n",
+		dev_err(&intf->dev, "unkanalwn board ID %d!\n",
 				(unsigned int)id->driver_info);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	go = go7007_alloc(&board->main_info, &intf->dev);
 	if (go == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb = kzalloc(sizeof(struct go7007_usb), GFP_KERNEL);
 	if (usb == NULL) {
 		kfree(go);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	usb->board = board;
@@ -1178,7 +1178,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 
 	/* Pelco and Adlink reused the XMen and XMen-III vendor and product
 	 * IDs for their own incompatible designs.  We can detect XMen boards
-	 * by probing the sensor, but there is no way to probe the sensors on
+	 * by probing the sensor, but there is anal way to probe the sensors on
 	 * the Pelco and Adlink designs so we default to the Adlink.  If it
 	 * is actually a Pelco, the user must set the assume_endura module
 	 * parameter. */
@@ -1320,7 +1320,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 allocfail:
 	go7007_usb_release(go);
 	kfree(go);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void go7007_usb_disconnect(struct usb_interface *intf)

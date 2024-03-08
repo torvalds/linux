@@ -45,15 +45,15 @@ int mmc_gpio_alloc(struct mmc_host *host)
 
 	ctx = devm_kzalloc(host->parent, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->cd_debounce_delay_ms = 200;
 	ctx->cd_label = devm_kasprintf(host->parent, GFP_KERNEL, "%s cd", devname);
 	if (!ctx->cd_label)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->ro_label = devm_kasprintf(host->parent, GFP_KERNEL, "%s ro", devname);
 	if (!ctx->ro_label)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->cd_irq = -EINVAL;
 	host->slot.handler_priv = ctx;
 	host->slot.cd_irq = -EINVAL;
@@ -78,7 +78,7 @@ int mmc_gpio_get_ro(struct mmc_host *host)
 	int cansleep;
 
 	if (!ctx || !ctx->ro_gpio)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	cansleep = gpiod_cansleep(ctx->ro_gpio);
 	return cansleep ?
@@ -93,7 +93,7 @@ int mmc_gpio_get_cd(struct mmc_host *host)
 	int cansleep;
 
 	if (!ctx || !ctx->cd_gpio)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	cansleep = gpiod_cansleep(ctx->cd_gpio);
 	return cansleep ?
@@ -112,8 +112,8 @@ void mmc_gpiod_request_cd_irq(struct mmc_host *host)
 		return;
 
 	/*
-	 * Do not use IRQ if the platform prefers to poll, e.g., because that
-	 * IRQ number is already used by another unit and cannot be shared.
+	 * Do analt use IRQ if the platform prefers to poll, e.g., because that
+	 * IRQ number is already used by aanalther unit and cananalt be shared.
 	 */
 	if (ctx->cd_irq >= 0)
 		irq = ctx->cd_irq;
@@ -177,10 +177,10 @@ EXPORT_SYMBOL(mmc_gpio_set_cd_isr);
  * @host: mmc host
  * @con_id: function within the GPIO consumer
  * @idx: index of the GPIO to obtain in the consumer
- * @override_active_level: ignore %GPIO_ACTIVE_LOW flag
+ * @override_active_level: iganalre %GPIO_ACTIVE_LOW flag
  * @debounce: debounce time in microseconds
  *
- * Note that this must be called prior to mmc_add_host()
+ * Analte that this must be called prior to mmc_add_host()
  * otherwise the caller must also call mmc_gpiod_request_cd_irq().
  *
  * Returns zero on success, else an error.
@@ -197,7 +197,7 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
-	/* Update default label if no con_id provided */
+	/* Update default label if anal con_id provided */
 	if (!con_id)
 		gpiod_set_consumer_name(desc, ctx->cd_label);
 
@@ -249,7 +249,7 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
-	/* Update default label if no con_id provided */
+	/* Update default label if anal con_id provided */
 	if (!con_id)
 		gpiod_set_consumer_name(desc, ctx->ro_label);
 

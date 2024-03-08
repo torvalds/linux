@@ -2,7 +2,7 @@
 out := arch/$(SRCARCH)/include/generated/asm
 uapi := arch/$(SRCARCH)/include/generated/uapi/asm
 
-# Create output directory if not already present
+# Create output directory if analt already present
 $(shell mkdir -p $(out) $(uapi))
 
 syscall32 := $(src)/syscall_32.tbl

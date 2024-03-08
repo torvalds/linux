@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The Freescale i.MX8qm/qxp Display Pixel Link(DPL) forms a standard
-  asynchronous linkage between pixel sources(display controller or
+  asynchroanalus linkage between pixel sources(display controller or
   camera module) and pixel consumers(imaging or displays).
   It consists of two distinct functions, a pixel transfer function and a
   control interface.  Multiple pixel channels can exist per one control channel.
@@ -46,12 +46,12 @@ properties:
     properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
-        description: The pixel link input port node from upstream video source.
+        description: The pixel link input port analde from upstream video source.
 
     patternProperties:
       "^port@[1-4]$":
         $ref: /schemas/graph.yaml#/properties/port
-        description: The pixel link output port node to downstream bridge.
+        description: The pixel link output port analde to downstream bridge.
 
     required:
       - port@0

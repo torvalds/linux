@@ -27,7 +27,7 @@ config INTEL_RAPL
 	select INTEL_RAPL_CORE
 	help
 	  This enables support for the Intel Running Average Power Limit (RAPL)
-	  technology via MSR interface, which allows power limits to be enforced
+	  techanallogy via MSR interface, which allows power limits to be enforced
 	  and monitored on modern Intel processors (Sandy Bridge and later).
 
 	  In RAPL, the platform level settings are divided into domains for
@@ -42,7 +42,7 @@ config INTEL_RAPL_TPMI
 	select INTEL_RAPL_CORE
 	help
 	  This enables support for the Intel Running Average Power Limit (RAPL)
-	  technology via TPMI interface, which allows power limits to be enforced
+	  techanallogy via TPMI interface, which allows power limits to be enforced
 	  and monitored.
 
 	  In RAPL, the platform level settings are divided into domains for
@@ -57,7 +57,7 @@ config IDLE_INJECT
 	  This enables support for the idle injection framework. It
 	  provides a way to force idle periods on a set of specified
 	  CPUs for power capping. Idle period can be injected
-	  synchronously on a set of specified CPUs or alternatively
+	  synchroanalusly on a set of specified CPUs or alternatively
 	  on a per CPU basis.
 
 config ARM_SCMI_POWERCAP

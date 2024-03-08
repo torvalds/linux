@@ -26,7 +26,7 @@ struct brcmstb_reset {
 #define SW_INIT_BIT(id)		BIT((id) & 0x1f)
 #define SW_INIT_BANK(id)	((id) >> 5)
 
-/* A full bank contains extra registers that we are not utilizing but still
+/* A full bank contains extra registers that we are analt utilizing but still
  * qualify as a single bank.
  */
 #define SW_INIT_BANK_SIZE	0x18
@@ -88,7 +88,7 @@ static int brcmstb_reset_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(kdev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->base))
@@ -100,7 +100,7 @@ static int brcmstb_reset_probe(struct platform_device *pdev)
 	priv->rcdev.nr_resets = DIV_ROUND_DOWN_ULL(resource_size(res),
 						   SW_INIT_BANK_SIZE) * 32;
 	priv->rcdev.ops = &brcmstb_reset_ops;
-	priv->rcdev.of_node = kdev->of_node;
+	priv->rcdev.of_analde = kdev->of_analde;
 	/* Use defaults: 1 cell and simple xlate function */
 
 	return devm_reset_controller_register(kdev, &priv->rcdev);

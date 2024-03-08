@@ -4,12 +4,12 @@ menu "CPU Idle"
 config CPU_IDLE
 	bool "CPU idle PM support"
 	default y if ACPI || PPC_PSERIES
-	select CPU_IDLE_GOV_LADDER if (!NO_HZ && !NO_HZ_IDLE)
-	select CPU_IDLE_GOV_MENU if (NO_HZ || NO_HZ_IDLE) && !CPU_IDLE_GOV_TEO
+	select CPU_IDLE_GOV_LADDER if (!ANAL_HZ && !ANAL_HZ_IDLE)
+	select CPU_IDLE_GOV_MENU if (ANAL_HZ || ANAL_HZ_IDLE) && !CPU_IDLE_GOV_TEO
 	help
 	  CPU idle is a generic framework for supporting software-controlled
 	  idle processor power management.  It includes modular cross-platform
-	  governors that can be swapped during runtime.
+	  goveranalrs that can be swapped during runtime.
 
 	  If you're using an ACPI-enabled platform, you should say Y here.
 
@@ -19,25 +19,25 @@ config CPU_IDLE_MULTIPLE_DRIVERS
 	bool
 
 config CPU_IDLE_GOV_LADDER
-	bool "Ladder governor (for periodic timer tick)"
+	bool "Ladder goveranalr (for periodic timer tick)"
 
 config CPU_IDLE_GOV_MENU
-	bool "Menu governor (for tickless system)"
+	bool "Menu goveranalr (for tickless system)"
 
 config CPU_IDLE_GOV_TEO
-	bool "Timer events oriented (TEO) governor (for tickless systems)"
+	bool "Timer events oriented (TEO) goveranalr (for tickless systems)"
 	help
-	  This governor implements a simplified idle state selection method
-	  focused on timer events and does not do any interactivity boosting.
+	  This goveranalr implements a simplified idle state selection method
+	  focused on timer events and does analt do any interactivity boosting.
 
 	  Some workloads benefit from using it and it generally should be safe
-	  to use.  Say Y here if you are not happy with the alternatives.
+	  to use.  Say Y here if you are analt happy with the alternatives.
 
 config CPU_IDLE_GOV_HALTPOLL
-	bool "Haltpoll governor (for virtualized systems)"
+	bool "Haltpoll goveranalr (for virtualized systems)"
 	depends on KVM_GUEST
 	help
-	  This governor implements haltpoll idle state selection, to be
+	  This goveranalr implements haltpoll idle state selection, to be
 	  used in conjunction with the haltpoll cpuidle driver, allowing
 	  for polling for a certain amount of time before entering idle
 	  state.

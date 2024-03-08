@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -252,8 +252,8 @@ static void dump_cred_dist(struct htc_endpoint_credit_dist *ep_dist)
 		   ep_dist->endpoint, ep_dist->svc_id);
 	ath6kl_dbg(ATH6KL_DBG_CREDIT, " dist_flags     : 0x%X\n",
 		   ep_dist->dist_flags);
-	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_norm      : %d\n",
-		   ep_dist->cred_norm);
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_analrm      : %d\n",
+		   ep_dist->cred_analrm);
 	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_min       : %d\n",
 		   ep_dist->cred_min);
 	ath6kl_dbg(ATH6KL_DBG_CREDIT, " credits        : %d\n",
@@ -307,7 +307,7 @@ static ssize_t read_file_war_stats(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%25s\n",
@@ -373,22 +373,22 @@ void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len)
 	return;
 }
 
-static int ath6kl_fwlog_open(struct inode *inode, struct file *file)
+static int ath6kl_fwlog_open(struct ianalde *ianalde, struct file *file)
 {
-	struct ath6kl *ar = inode->i_private;
+	struct ath6kl *ar = ianalde->i_private;
 
 	if (ar->debug.fwlog_open)
 		return -EBUSY;
 
 	ar->debug.fwlog_open = true;
 
-	file->private_data = inode->i_private;
+	file->private_data = ianalde->i_private;
 	return 0;
 }
 
-static int ath6kl_fwlog_release(struct inode *inode, struct file *file)
+static int ath6kl_fwlog_release(struct ianalde *ianalde, struct file *file)
 {
-	struct ath6kl *ar = inode->i_private;
+	struct ath6kl *ar = ianalde->i_private;
 
 	ar->debug.fwlog_open = false;
 
@@ -406,7 +406,7 @@ static ssize_t ath6kl_fwlog_read(struct file *file, char __user *user_buf,
 
 	buf = vmalloc(count);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* read undelivered logs from firmware */
 	ath6kl_read_fwlogs(ar);
@@ -415,7 +415,7 @@ static ssize_t ath6kl_fwlog_read(struct file *file, char __user *user_buf,
 
 	while ((skb = __skb_dequeue(&ar->debug.fwlog_queue))) {
 		if (skb->len > count - len) {
-			/* not enough space, put skb back and leave */
+			/* analt eanalugh space, put skb back and leave */
 			__skb_queue_head(&ar->debug.fwlog_queue, skb);
 			break;
 		}
@@ -454,13 +454,13 @@ static ssize_t ath6kl_fwlog_block_read(struct file *file,
 	struct ath6kl *ar = file->private_data;
 	struct sk_buff *skb;
 	ssize_t ret_cnt;
-	size_t len = 0, not_copied;
+	size_t len = 0, analt_copied;
 	char *buf;
 	int ret;
 
 	buf = vmalloc(count);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&ar->debug.fwlog_queue.lock);
 
@@ -482,7 +482,7 @@ static ssize_t ath6kl_fwlog_block_read(struct file *file,
 
 	while ((skb = __skb_dequeue(&ar->debug.fwlog_queue))) {
 		if (skb->len > count - len) {
-			/* not enough space, put skb back and leave */
+			/* analt eanalugh space, put skb back and leave */
 			__skb_queue_head(&ar->debug.fwlog_queue, skb);
 			break;
 		}
@@ -498,8 +498,8 @@ static ssize_t ath6kl_fwlog_block_read(struct file *file,
 
 	/* FIXME: what to do if len == 0? */
 
-	not_copied = copy_to_user(user_buf, buf, len);
-	if (not_copied != 0) {
+	analt_copied = copy_to_user(user_buf, buf, len);
+	if (analt_copied != 0) {
 		ret_cnt = -EFAULT;
 		goto out;
 	}
@@ -580,7 +580,7 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rv = ath6kl_read_tgt_stats(ar, vif);
 	if (rv < 0) {
@@ -715,7 +715,7 @@ static ssize_t read_file_credit_dist_stats(struct file *file,
 		  get_queue_depth(&target->cred_dist_list) * CREDIT_INFO_LEN;
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len += scnprintf(buf + len, buf_len - len, "%25s%5d\n",
 			 "Total Avail Credits: ",
@@ -725,14 +725,14 @@ static ssize_t read_file_credit_dist_stats(struct file *file,
 			 target->credit_info->cur_free_credits);
 
 	len += scnprintf(buf + len, buf_len - len,
-			 " Epid  Flags    Cred_norm  Cred_min  Credits  Cred_assngd"
+			 " Epid  Flags    Cred_analrm  Cred_min  Credits  Cred_assngd"
 			 "  Seek_cred  Cred_sz  Cred_per_msg  Cred_to_dist"
 			 "  qdepth\n");
 
 	list_for_each_entry(ep_list, &target->cred_dist_list, list) {
 		print_credit_info("  %2d", endpoint);
 		print_credit_info("%10x", dist_flags);
-		print_credit_info("%8d", cred_norm);
+		print_credit_info("%8d", cred_analrm);
 		print_credit_info("%9d", cred_min);
 		print_credit_info("%9d", credits);
 		print_credit_info("%10d", cred_assngd);
@@ -792,7 +792,7 @@ static ssize_t ath6kl_endpoint_stats_read(struct file *file,
 		(25 + ENDPOINT_MAX * 11);
 	buf = kmalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #define EPSTAT(name)							\
 	do {								\
@@ -935,9 +935,9 @@ static const struct file_operations fops_diag_reg_read = {
 	.llseek = default_llseek,
 };
 
-static int ath6kl_regdump_open(struct inode *inode, struct file *file)
+static int ath6kl_regdump_open(struct ianalde *ianalde, struct file *file)
 {
-	struct ath6kl *ar = inode->i_private;
+	struct ath6kl *ar = ianalde->i_private;
 	u8 *buf;
 	unsigned long int reg_len;
 	unsigned int len = 0, n_reg;
@@ -945,7 +945,7 @@ static int ath6kl_regdump_open(struct inode *inode, struct file *file)
 	__le32 reg_val;
 	int i, status;
 
-	/* Dump all the registers if no register is specified */
+	/* Dump all the registers if anal register is specified */
 	if (!ar->debug.dbgfs_diag_reg)
 		n_reg = ath6kl_get_num_reg();
 	else
@@ -957,7 +957,7 @@ static int ath6kl_regdump_open(struct inode *inode, struct file *file)
 
 	buf = vmalloc(reg_len);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (n_reg == 1) {
 		addr = ar->debug.dbgfs_diag_reg;
@@ -1007,7 +1007,7 @@ static ssize_t ath6kl_regdump_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
 
-static int ath6kl_regdump_release(struct inode *inode, struct file *file)
+static int ath6kl_regdump_release(struct ianalde *ianalde, struct file *file)
 {
 	vfree(file->private_data);
 	return 0;
@@ -1143,7 +1143,7 @@ int ath6kl_debug_roam_tbl_event(struct ath6kl *ar, const void *buf,
 		kfree(ar->debug.roam_tbl);
 		ar->debug.roam_tbl = kmalloc(len, GFP_ATOMIC);
 		if (ar->debug.roam_tbl == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	memcpy(ar->debug.roam_tbl, buf, len);
@@ -1188,7 +1188,7 @@ static ssize_t ath6kl_roam_table_read(struct file *file, char __user *user_buf,
 		return -ETIMEDOUT;
 
 	if (ar->debug.roam_tbl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tbl = (struct wmi_target_roam_tbl *) ar->debug.roam_tbl;
 	num_entries = le16_to_cpu(tbl->num_entries);
@@ -1196,7 +1196,7 @@ static ssize_t ath6kl_roam_table_read(struct file *file, char __user *user_buf,
 	buf_len = 100 + num_entries * 100;
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	len = 0;
 	len += scnprintf(buf + len, buf_len - len,
 			 "roam_mode=%u\n\n"
@@ -1488,7 +1488,7 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 		return -EINVAL;
 	if (kstrtou16(token, 0, &val16))
 		return -EINVAL;
-	pstream.nominal_msdu = cpu_to_le16(val16);
+	pstream.analminal_msdu = cpu_to_le16(val16);
 
 	token = strsep(&sptr, " ");
 	if (!token)
@@ -1553,7 +1553,7 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 		return -EINVAL;
 	pstream.medium_time = cpu_to_le32(val32);
 
-	pstream.nominal_phy = le32_to_cpu(pstream.min_phy_rate) / 1000000;
+	pstream.analminal_phy = le32_to_cpu(pstream.min_phy_rate) / 1000000;
 
 	ath6kl_wmi_create_pstream_cmd(ar->wmi, vif->fw_vif_idx, &pstream);
 
@@ -1778,7 +1778,7 @@ void ath6kl_debug_init(struct ath6kl *ar)
 	init_completion(&ar->debug.fwlog_completion);
 
 	/*
-	 * Actually we are lying here but don't know how to read the mask
+	 * Actually we are lying here but don't kanalw how to read the mask
 	 * value from the firmware.
 	 */
 	ar->debug.fwlog_mask = 0;

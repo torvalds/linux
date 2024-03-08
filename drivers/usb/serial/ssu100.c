@@ -6,7 +6,7 @@
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -129,7 +129,7 @@ static inline int ssu100_setregister(struct usb_device *dev,
 #define set_mctrl(dev, set)		update_mctrl((dev), (set), 0)
 #define clear_mctrl(dev, clear)	update_mctrl((dev), 0, (clear))
 
-/* these do not deal with device that have more than 1 port */
+/* these do analt deal with device that have more than 1 port */
 static inline int update_mctrl(struct usb_device *dev, unsigned int set,
 			       unsigned int clear)
 {
@@ -137,8 +137,8 @@ static inline int update_mctrl(struct usb_device *dev, unsigned int set,
 	int result;
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0) {
-		dev_dbg(&dev->dev, "%s - DTR|RTS not being set|cleared\n", __func__);
-		return 0;	/* no change */
+		dev_dbg(&dev->dev, "%s - DTR|RTS analt being set|cleared\n", __func__);
+		return 0;	/* anal change */
 	}
 
 	clear &= ~set;	/* 'set' takes precedence over 'clear' */
@@ -162,7 +162,7 @@ static int ssu100_initdevice(struct usb_device *dev)
 
 	data = kzalloc(3, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = ssu100_getdevice(dev, data);
 	if (result < 0) {
@@ -285,7 +285,7 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	data = kzalloc(2, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 				 QT_OPEN_CLOSE_CHANNEL,
@@ -328,7 +328,7 @@ static int ssu100_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->status_lock);
 
@@ -354,7 +354,7 @@ static int ssu100_tiocmget(struct tty_struct *tty)
 
 	d = kzalloc(2, GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = ssu100_getregister(dev, 0, UART_MCR, d);
 	if (r < 0)
@@ -434,7 +434,7 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
 	priv->shadowLSR = lsr;
 	spin_unlock_irqrestore(&priv->status_lock, flags);
 
-	*tty_flag = TTY_NORMAL;
+	*tty_flag = TTY_ANALRMAL;
 	if (lsr & UART_LSR_BRK_ERROR_BITS) {
 		/* we always want to update icount, but we only want to
 		 * update tty_flag for one case */
@@ -445,12 +445,12 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
 		}
 		if (lsr & UART_LSR_PE) {
 			port->icount.parity++;
-			if (*tty_flag == TTY_NORMAL)
+			if (*tty_flag == TTY_ANALRMAL)
 				*tty_flag = TTY_PARITY;
 		}
 		if (lsr & UART_LSR_FE) {
 			port->icount.frame++;
-			if (*tty_flag == TTY_NORMAL)
+			if (*tty_flag == TTY_ANALRMAL)
 				*tty_flag = TTY_FRAME;
 		}
 		if (lsr & UART_LSR_OE) {
@@ -465,7 +465,7 @@ static void ssu100_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	char *packet = urb->transfer_buffer;
-	char flag = TTY_NORMAL;
+	char flag = TTY_ANALRMAL;
 	u32 len = urb->actual_length;
 	int i;
 	char *ch;

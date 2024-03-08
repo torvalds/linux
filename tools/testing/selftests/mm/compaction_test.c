@@ -12,7 +12,7 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -33,7 +33,7 @@ int read_memory_info(unsigned long *memfree, unsigned long *hugepagesize)
 	FILE *cmdfile = popen(cmd, "r");
 
 	if (!(fgets(buffer, sizeof(buffer), cmdfile))) {
-		ksft_print_msg("Failed to read meminfo: %s\n", strerror(errno));
+		ksft_print_msg("Failed to read meminfo: %s\n", strerror(erranal));
 		return -1;
 	}
 
@@ -44,7 +44,7 @@ int read_memory_info(unsigned long *memfree, unsigned long *hugepagesize)
 	cmdfile = popen(cmd, "r");
 
 	if (!(fgets(buffer, sizeof(buffer), cmdfile))) {
-		ksft_print_msg("Failed to read meminfo: %s\n", strerror(errno));
+		ksft_print_msg("Failed to read meminfo: %s\n", strerror(erranal));
 		return -1;
 	}
 
@@ -60,16 +60,16 @@ int prereq(void)
 	int fd;
 
 	fd = open("/proc/sys/vm/compact_unevictable_allowed",
-		  O_RDONLY | O_NONBLOCK);
+		  O_RDONLY | O_ANALNBLOCK);
 	if (fd < 0) {
 		ksft_print_msg("Failed to open /proc/sys/vm/compact_unevictable_allowed: %s\n",
-			       strerror(errno));
+			       strerror(erranal));
 		return -1;
 	}
 
 	if (read(fd, &allowed, sizeof(char)) != sizeof(char)) {
 		ksft_print_msg("Failed to read from /proc/sys/vm/compact_unevictable_allowed: %s\n",
-			       strerror(errno));
+			       strerror(erranal));
 		close(fd);
 		return -1;
 	}
@@ -93,23 +93,23 @@ int check_compaction(unsigned long mem_free, unsigned int hugepage_size)
 	   in to play */
 	mem_free = mem_free * 0.8;
 
-	fd = open("/proc/sys/vm/nr_hugepages", O_RDWR | O_NONBLOCK);
+	fd = open("/proc/sys/vm/nr_hugepages", O_RDWR | O_ANALNBLOCK);
 	if (fd < 0) {
 		ksft_test_result_fail("Failed to open /proc/sys/vm/nr_hugepages: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		return -1;
 	}
 
 	if (read(fd, initial_nr_hugepages, sizeof(initial_nr_hugepages)) <= 0) {
 		ksft_test_result_fail("Failed to read from /proc/sys/vm/nr_hugepages: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		goto close_fd;
 	}
 
 	/* Start with the initial condition of 0 huge pages*/
 	if (write(fd, "0", sizeof(char)) != sizeof(char)) {
 		ksft_test_result_fail("Failed to write 0 to /proc/sys/vm/nr_hugepages: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		goto close_fd;
 	}
 
@@ -119,7 +119,7 @@ int check_compaction(unsigned long mem_free, unsigned int hugepage_size)
 	   as much as it can */
 	if (write(fd, "100000", (6*sizeof(char))) != (6*sizeof(char))) {
 		ksft_test_result_fail("Failed to write 100000 to /proc/sys/vm/nr_hugepages: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		goto close_fd;
 	}
 
@@ -127,7 +127,7 @@ int check_compaction(unsigned long mem_free, unsigned int hugepage_size)
 
 	if (read(fd, nr_hugepages, sizeof(nr_hugepages)) <= 0) {
 		ksft_test_result_fail("Failed to re-read from /proc/sys/vm/nr_hugepages: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		goto close_fd;
 	}
 
@@ -140,18 +140,18 @@ int check_compaction(unsigned long mem_free, unsigned int hugepage_size)
 	if (write(fd, initial_nr_hugepages, strlen(initial_nr_hugepages))
 	    != strlen(initial_nr_hugepages)) {
 		ksft_test_result_fail("Failed to write value to /proc/sys/vm/nr_hugepages: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		goto close_fd;
 	}
 
 	if (compaction_index > 3) {
 		ksft_print_msg("ERROR: Less that 1/%d of memory is available\n"
 			       "as huge pages\n", compaction_index);
-		ksft_test_result_fail("No of huge pages allocated = %d\n", (atoi(nr_hugepages)));
+		ksft_test_result_fail("Anal of huge pages allocated = %d\n", (atoi(nr_hugepages)));
 		goto close_fd;
 	}
 
-	ksft_test_result_pass("Memory compaction succeeded. No of huge pages allocated = %d\n",
+	ksft_test_result_pass("Memory compaction succeeded. Anal of huge pages allocated = %d\n",
 			      (atoi(nr_hugepages)));
 	ret = 0;
 
@@ -181,7 +181,7 @@ int main(int argc, char **argv)
 	lim.rlim_cur = RLIM_INFINITY;
 	lim.rlim_max = RLIM_INFINITY;
 	if (setrlimit(RLIMIT_MEMLOCK, &lim))
-		ksft_exit_fail_msg("Failed to set rlimit: %s\n", strerror(errno));
+		ksft_exit_fail_msg("Failed to set rlimit: %s\n", strerror(erranal));
 
 	page_size = getpagesize();
 
@@ -192,7 +192,7 @@ int main(int argc, char **argv)
 
 	while (mem_fragmentable_MB > 0) {
 		map = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE,
-			   MAP_ANONYMOUS | MAP_PRIVATE | MAP_LOCKED, -1, 0);
+			   MAP_AANALNYMOUS | MAP_PRIVATE | MAP_LOCKED, -1, 0);
 		if (map == MAP_FAILED)
 			break;
 

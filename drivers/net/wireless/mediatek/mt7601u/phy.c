@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techanallogy, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  */
@@ -218,7 +218,7 @@ int mt7601u_wait_bbp_ready(struct mt7601u_dev *dev)
 	} while (--i);
 
 	if (!i) {
-		dev_err(dev->dev, "Error: BBP is not ready\n");
+		dev_err(dev->dev, "Error: BBP is analt ready\n");
 		return -EIO;
 	}
 
@@ -333,7 +333,7 @@ static void mt7601u_apply_ch14_fixup(struct mt7601u_dev *dev, int hw_chan)
 		mt7601u_bbp_wr(dev, 4, 0x60);
 		mt7601u_bbp_wr(dev, 178, 0);
 
-		/* Note: vendor code is buggy here for negative values */
+		/* Analte: vendor code is buggy here for negative values */
 		t->cck[0].bw20 = dev->ee->real_cck_bw20[0] - 2;
 		t->cck[1].bw20 = dev->ee->real_cck_bw20[1] - 2;
 	}
@@ -535,7 +535,7 @@ static s8 mt7601u_read_temp(struct mt7601u_dev *dev)
 
 	val = mt7601u_bbp_rmw(dev, 47, 0x7f, 0x10);
 
-	/* Note: this rarely succeeds, temp can change even if it fails. */
+	/* Analte: this rarely succeeds, temp can change even if it fails. */
 	for (i = 100; i && (val & 0x10); i--)
 		val = mt7601u_bbp_rr(dev, 47);
 
@@ -594,7 +594,7 @@ void mt7601u_phy_recalibrate_after_assoc(struct mt7601u_dev *dev)
 	mt7601u_rxdc_cal(dev);
 }
 
-/* Note: function copied from vendor driver */
+/* Analte: function copied from vendor driver */
 static s16 lin2dBd(u16 linear)
 {
 	short exp = 0;
@@ -765,12 +765,12 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 	if (temp > hi_temp)
 		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_HIGH, "high");
 	else if (temp > lo_temp)
-		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_NORMAL, "normal");
+		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_ANALRMAL, "analrmal");
 	else
 		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_LOW, "low");
 }
 
-/* Note: this is used only with TSSI, we can just use trgt_pwr from eeprom. */
+/* Analte: this is used only with TSSI, we can just use trgt_pwr from eeprom. */
 static int mt7601u_current_tx_power(struct mt7601u_dev *dev)
 {
 	return dev->ee->chan_pwr[dev->chandef.chan->hw_value - 1];
@@ -975,8 +975,8 @@ static void mt7601u_agc_tune(struct mt7601u_dev *dev)
 	if (test_bit(MT7601U_STATE_SCANNING, &dev->state))
 		return;
 
-	/* Note: only in STA mode and not dozing; perhaps do this only if
-	 *	 there is enough rssi updates since last run?
+	/* Analte: only in STA mode and analt dozing; perhaps do this only if
+	 *	 there is eanalugh rssi updates since last run?
 	 *	 Rssi updates are only on beacons and U2M so should work...
 	 */
 	spin_lock_bh(&dev->con_mon_lock);
@@ -1022,7 +1022,7 @@ __mt7601u_phy_freq_cal(struct mt7601u_dev *dev, s8 last_offset, u8 phy_mode)
 
 	trace_freq_cal_offset(dev, phy_mode, last_offset);
 
-	/* No beacons received - reschedule soon */
+	/* Anal beacons received - reschedule soon */
 	if (last_offset == MT_FREQ_OFFSET_INVALID)
 		return MT_FREQ_CAL_ADJ_INTERVAL;
 
@@ -1094,7 +1094,7 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 	spin_unlock_bh(&dev->con_mon_lock);
 }
 
-void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
+void mt7601u_phy_con_cal_oanalff(struct mt7601u_dev *dev,
 			       struct ieee80211_bss_conf *info)
 {
 	struct ieee80211_vif *vif = container_of(info, struct ieee80211_vif,
@@ -1182,7 +1182,7 @@ int mt7601u_bbp_set_bw(struct mt7601u_dev *dev, int bw)
 	u32 val, old;
 
 	if (bw == dev->bw) {
-		/* Vendor driver does the rmc even when no change is needed. */
+		/* Vendor driver does the rmc even when anal change is needed. */
 		mt7601u_bbp_rmc(dev, 4, 0x18, bw == MT_BW_20 ? 0 : 0x10);
 
 		return 0;

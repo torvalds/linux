@@ -124,7 +124,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_msc0>;
 
-	non-removable;
+	analn-removable;
 };
 
 &msc1 {
@@ -138,7 +138,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_msc1>;
 
-	non-removable;
+	analn-removable;
 
 	mmc-pwrseq = <&wlan_pwrseq>;
 

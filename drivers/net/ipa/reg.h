@@ -25,7 +25,7 @@ struct reg {
 	const char *name;
 };
 
-/* Helper macro for defining "simple" (non-parameterized) registers */
+/* Helper macro for defining "simple" (analn-parameterized) registers */
 #define REG(__NAME, __reg_id, __offset)					\
 	REG_STRIDE(__NAME, __reg_id, __offset, 0)
 

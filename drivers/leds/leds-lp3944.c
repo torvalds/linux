@@ -31,7 +31,7 @@
 
 /* Read Only Registers */
 #define LP3944_REG_INPUT1     0x00 /* LEDs 0-7 InputRegister (Read Only) */
-#define LP3944_REG_REGISTER1  0x01 /* None (Read Only) */
+#define LP3944_REG_REGISTER1  0x01 /* Analne (Read Only) */
 
 #define LP3944_REG_PSC0       0x02 /* Frequency Prescaler 0 (R/W) */
 #define LP3944_REG_PWM0       0x03 /* PWM Register 0 (R/W) */
@@ -40,8 +40,8 @@
 #define LP3944_REG_LS0        0x06 /* LEDs 0-3 Selector (R/W) */
 #define LP3944_REG_LS1        0x07 /* LEDs 4-7 Selector (R/W) */
 
-/* These registers are not used to control leds in LP3944, they can store
- * arbitrary values which the chip will ignore.
+/* These registers are analt used to control leds in LP3944, they can store
+ * arbitrary values which the chip will iganalre.
  */
 #define LP3944_REG_REGISTER8  0x08
 #define LP3944_REG_REGISTER9  0x09
@@ -171,7 +171,7 @@ static int lp3944_led_set(struct lp3944_led_data *led, u8 status)
 	u8 val = 0;
 	int err;
 
-	dev_dbg(&led->client->dev, "%s: %s, status before normalization:%d\n",
+	dev_dbg(&led->client->dev, "%s: %s, status before analrmalization:%d\n",
 		__func__, led->ldev.name, status);
 
 	switch (id) {
@@ -253,7 +253,7 @@ static int lp3944_led_set_blink(struct led_classdev *led_cdev,
 	if (led->type == LP3944_LED_TYPE_LED_INVERTED)
 		duty_cycle = 100 - duty_cycle;
 
-	/* NOTE: using always the first DIM mode, this means that all leds
+	/* ANALTE: using always the first DIM mode, this means that all leds
 	 * will have the same blinking pattern.
 	 *
 	 * We could find a way later to have two leds blinking in hardware
@@ -333,7 +333,7 @@ static int lp3944_configure(struct i2c_client *client,
 			}
 			break;
 
-		case LP3944_LED_TYPE_NONE:
+		case LP3944_LED_TYPE_ANALNE:
 		default:
 			break;
 
@@ -351,7 +351,7 @@ exit:
 				led_classdev_unregister(&data->leds[i].ldev);
 				break;
 
-			case LP3944_LED_TYPE_NONE:
+			case LP3944_LED_TYPE_ANALNE:
 			default:
 				break;
 			}
@@ -367,7 +367,7 @@ static int lp3944_probe(struct i2c_client *client)
 	int err;
 
 	if (lp3944_pdata == NULL) {
-		dev_err(&client->dev, "no platform data\n");
+		dev_err(&client->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -375,13 +375,13 @@ static int lp3944_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&client->dev, "insufficient functionality!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(&client->dev, sizeof(struct lp3944_data),
 			GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	i2c_set_clientdata(client, data);
@@ -409,7 +409,7 @@ static void lp3944_remove(struct i2c_client *client)
 			led_classdev_unregister(&data->leds[i].ldev);
 			break;
 
-		case LP3944_LED_TYPE_NONE:
+		case LP3944_LED_TYPE_ANALNE:
 		default:
 			break;
 		}

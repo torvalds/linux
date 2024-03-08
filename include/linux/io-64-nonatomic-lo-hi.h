@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_IO_64_NONATOMIC_LO_HI_H_
-#define _LINUX_IO_64_NONATOMIC_LO_HI_H_
+#ifndef _LINUX_IO_64_ANALNATOMIC_LO_HI_H_
+#define _LINUX_IO_64_ANALNATOMIC_LO_HI_H_
 
 #include <linux/io.h>
 #include <asm-generic/int-ll64.h>
@@ -100,23 +100,23 @@ static inline void iowrite64be_lo_hi(u64 val, void __iomem *addr)
 #endif
 
 #ifndef ioread64
-#define ioread64_is_nonatomic
+#define ioread64_is_analnatomic
 #define ioread64 ioread64_lo_hi
 #endif
 
 #ifndef iowrite64
-#define iowrite64_is_nonatomic
+#define iowrite64_is_analnatomic
 #define iowrite64 iowrite64_lo_hi
 #endif
 
 #ifndef ioread64be
-#define ioread64be_is_nonatomic
+#define ioread64be_is_analnatomic
 #define ioread64be ioread64be_lo_hi
 #endif
 
 #ifndef iowrite64be
-#define iowrite64be_is_nonatomic
+#define iowrite64be_is_analnatomic
 #define iowrite64be iowrite64be_lo_hi
 #endif
 
-#endif	/* _LINUX_IO_64_NONATOMIC_LO_HI_H_ */
+#endif	/* _LINUX_IO_64_ANALNATOMIC_LO_HI_H_ */

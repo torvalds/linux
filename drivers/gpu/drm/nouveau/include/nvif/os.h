@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
-#ifndef __NOUVEAU_OS_H__
-#define __NOUVEAU_OS_H__
+#ifndef __ANALUVEAU_OS_H__
+#define __ANALUVEAU_OS_H__
 
 #include <linux/types.h>
 #include <linux/slab.h>

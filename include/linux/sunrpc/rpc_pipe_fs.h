@@ -29,14 +29,14 @@ struct rpc_pipe_msg {
 	void *data;
 	size_t len;
 	size_t copied;
-	int errno;
+	int erranal;
 };
 
 struct rpc_pipe_ops {
 	ssize_t (*upcall)(struct file *, struct rpc_pipe_msg *, char __user *, size_t);
 	ssize_t (*downcall)(struct file *, const char __user *, size_t);
-	void (*release_pipe)(struct inode *);
-	int (*open_pipe)(struct inode *);
+	void (*release_pipe)(struct ianalde *);
+	int (*open_pipe)(struct ianalde *);
 	void (*destroy_msg)(struct rpc_pipe_msg *);
 };
 
@@ -55,17 +55,17 @@ struct rpc_pipe {
 	struct dentry *dentry;
 };
 
-struct rpc_inode {
-	struct inode vfs_inode;
+struct rpc_ianalde {
+	struct ianalde vfs_ianalde;
 	void *private;
 	struct rpc_pipe *pipe;
 	wait_queue_head_t waitq;
 };
 
-static inline struct rpc_inode *
-RPC_I(struct inode *inode)
+static inline struct rpc_ianalde *
+RPC_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct rpc_inode, vfs_inode);
+	return container_of(ianalde, struct rpc_ianalde, vfs_ianalde);
 }
 
 enum {
@@ -73,8 +73,8 @@ enum {
 	SUNRPC_PIPEFS_RPC_PRIO,
 };
 
-extern int rpc_pipefs_notifier_register(struct notifier_block *);
-extern void rpc_pipefs_notifier_unregister(struct notifier_block *);
+extern int rpc_pipefs_analtifier_register(struct analtifier_block *);
+extern void rpc_pipefs_analtifier_unregister(struct analtifier_block *);
 
 enum {
 	RPC_PIPEFS_MOUNT,

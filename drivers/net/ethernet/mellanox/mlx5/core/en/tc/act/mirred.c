@@ -28,13 +28,13 @@ verify_uplink_forwarding(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_rep_priv *rep_priv;
 
-	/* Forwarding non encapsulated traffic between
+	/* Forwarding analn encapsulated traffic between
 	 * uplink ports is allowed only if
 	 * termination_table_raw_traffic cap is set.
 	 *
 	 * Input vport was stored attr->in_rep.
 	 * In LAG case, *priv* is the private data of
-	 * uplink which may be not the input vport.
+	 * uplink which may be analt the input vport.
 	 */
 	rep_priv = mlx5e_rep_to_rep_priv(attr->esw_attr->in_rep);
 
@@ -46,11 +46,11 @@ verify_uplink_forwarding(struct mlx5e_priv *priv,
 					termination_table_raw_traffic)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "devices are both uplink, can't offload forwarding");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	} else if (out_dev != rep_priv->netdev) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "devices are not the same uplink, can't offload forwarding");
-		return -EOPNOTSUPP;
+				   "devices are analt the same uplink, can't offload forwarding");
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -115,7 +115,7 @@ tc_act_can_offload_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 
 	if (!out_dev) {
 		/* out_dev is NULL when filters with
-		 * non-existing mirred device are replayed to
+		 * analn-existing mirred device are replayed to
 		 * the driver.
 		 */
 		return false;
@@ -137,9 +137,9 @@ tc_act_can_offload_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 	}
 
 	if (mlx5e_is_ft_flow(flow) && out_dev == priv->netdev) {
-		/* Ignore forward to self rules generated
+		/* Iganalre forward to self rules generated
 		 * by adding both mlx5 devs to the flow table
-		 * block on a normal nft offload setup.
+		 * block on a analrmal nft offload setup.
 		 */
 		return false;
 	}
@@ -162,12 +162,12 @@ tc_act_can_offload_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 		/* All mlx5 devices are called to configure
 		 * high level device filters. Therefore, the
 		 * *attempt* to  install a filter on invalid
-		 * eswitch should not trigger an explicit error
+		 * eswitch should analt trigger an explicit error
 		 */
 		return false;
 	}
 
-	NL_SET_ERR_MSG_MOD(extack, "devices are not on same switch HW, can't offload forwarding");
+	NL_SET_ERR_MSG_MOD(extack, "devices are analt on same switch HW, can't offload forwarding");
 
 	return false;
 }
@@ -186,7 +186,7 @@ parse_mirred_encap(struct mlx5e_tc_act_parse_state *parse_state,
 		mlx5e_dup_tun_info(parse_state->tun_info);
 
 	if (!parse_attr->tun_info[esw_attr->out_count])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parse_state->encap = false;
 
@@ -226,20 +226,20 @@ parse_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 	if_count = parse_state->if_count;
 
 	if (is_duplicated_output_device(priv->netdev, out_dev, ifindexes, if_count, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	parse_state->ifindexes[if_count] = out_dev->ifindex;
 	parse_state->if_count++;
 
 	if (mlx5_lag_mpesw_do_mirred(priv->mdev, out_dev, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (netif_is_macvlan(out_dev))
 		out_dev = macvlan_dev_real_dev(out_dev);
 
 	out_dev = get_fdb_out_dev(uplink_dev, out_dev);
 	if (!out_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (is_vlan_dev(out_dev)) {
 		err = mlx5e_tc_act_vlan_add_push_action(priv, attr, &out_dev, extack);
@@ -259,13 +259,13 @@ parse_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 
 	if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "devices are not on same switch HW, can't offload forwarding");
-		return -EOPNOTSUPP;
+				   "devices are analt on same switch HW, can't offload forwarding");
+		return -EOPANALTSUPP;
 	}
 
 	if (same_vf_reps(priv, out_dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "can't forward from a VF to itself");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	out_priv = netdev_priv(out_dev);
@@ -307,7 +307,7 @@ tc_act_parse_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 		    struct mlx5_flow_attr *attr)
 {
 	struct net_device *out_dev = act->dev;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	if (parse_state->encap)
 		err = parse_mirred_encap(parse_state, act, attr);

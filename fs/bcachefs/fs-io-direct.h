@@ -2,7 +2,7 @@
 #ifndef _BCACHEFS_FS_IO_DIRECT_H
 #define _BCACHEFS_FS_IO_DIRECT_H
 
-#ifndef NO_BCACHEFS_FS
+#ifndef ANAL_BCACHEFS_FS
 ssize_t bch2_direct_write(struct kiocb *, struct iov_iter *);
 ssize_t bch2_read_iter(struct kiocb *, struct iov_iter *);
 

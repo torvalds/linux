@@ -43,8 +43,8 @@ static int hns3_dbg_common_file_init(struct hnae3_handle *handle, u32 cmd);
 
 static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 	{
-		.name = "tm_nodes",
-		.cmd = HNAE3_DBG_CMD_TM_NODES,
+		.name = "tm_analdes",
+		.cmd = HNAE3_DBG_CMD_TM_ANALDES,
 		.dentry = HNS3_DBG_DENTRY_TM,
 		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
@@ -504,13 +504,13 @@ static void hns3_get_coal_info(struct hns3_enet_tqp_vector *tqp_vector,
 
 	sprintf(result[j++], "%d", i);
 	sprintf(result[j++], "%s", dim->state < ARRAY_SIZE(dim_state_str) ?
-		dim_state_str[dim->state] : "unknown");
+		dim_state_str[dim->state] : "unkanalwn");
 	sprintf(result[j++], "%u", dim->profile_ix);
 	sprintf(result[j++], "%s", dim->mode < ARRAY_SIZE(dim_cqe_mode_str) ?
-		dim_cqe_mode_str[dim->mode] : "unknown");
+		dim_cqe_mode_str[dim->mode] : "unkanalwn");
 	sprintf(result[j++], "%s",
 		dim->tune_state < ARRAY_SIZE(dim_tune_stat_str) ?
-		dim_tune_stat_str[dim->tune_state] : "unknown");
+		dim_tune_stat_str[dim->tune_state] : "unkanalwn");
 	sprintf(result[j++], "%u", dim->steps_left);
 	sprintf(result[j++], "%u", dim->steps_right);
 	sprintf(result[j++], "%u", dim->tired);
@@ -590,7 +590,7 @@ static void hns3_dbg_tx_spare_info(struct hns3_enet_ring *ring, char *buf,
 
 	if (!tx_spare) {
 		*pos += scnprintf(buf + *pos, len - *pos,
-				  "tx spare buffer is not enabled\n");
+				  "tx spare buffer is analt enabled\n");
 		return;
 	}
 
@@ -844,7 +844,7 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h, char *buf, int len)
 	u32 i;
 
 	if (!h->ae_algo->ops->get_global_queue_id)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < ARRAY_SIZE(queue_map_items); i++)
 		result[i] = &data_str[i][0];
@@ -926,7 +926,7 @@ static int hns3_dbg_rx_bd_info(struct hns3_dbg_data *d, char *buf, int len)
 
 	if (d->qid >= d->handle->kinfo.num_tqps) {
 		dev_err(&d->handle->pdev->dev,
-			"queue%u is not in use\n", d->qid);
+			"queue%u is analt in use\n", d->qid);
 		return -EINVAL;
 	}
 
@@ -999,7 +999,7 @@ static int hns3_dbg_tx_bd_info(struct hns3_dbg_data *d, char *buf, int len)
 
 	if (d->qid >= d->handle->kinfo.num_tqps) {
 		dev_err(&d->handle->pdev->dev,
-			"queue%u is not in use\n", d->qid);
+			"queue%u is analt in use\n", d->qid);
 		return -EINVAL;
 	}
 
@@ -1030,7 +1030,7 @@ static void
 hns3_dbg_dev_caps(struct hnae3_handle *h, char *buf, int len, int *pos)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
-	const char * const str[] = {"no", "yes"};
+	const char * const str[] = {"anal", "anal"};
 	unsigned long *caps = ae_dev->caps;
 	u32 i, state;
 
@@ -1058,8 +1058,8 @@ hns3_dbg_dev_specs(struct hnae3_handle *h, char *buf, int len, int *pos)
 			  dev_specs->mac_entry_num);
 	*pos += scnprintf(buf + *pos, len - *pos, "MNG entry num: %u\n",
 			  dev_specs->mng_entry_num);
-	*pos += scnprintf(buf + *pos, len - *pos, "MAX non tso bd num: %u\n",
-			  dev_specs->max_non_tso_bd_num);
+	*pos += scnprintf(buf + *pos, len - *pos, "MAX analn tso bd num: %u\n",
+			  dev_specs->max_analn_tso_bd_num);
 	*pos += scnprintf(buf + *pos, len - *pos, "RSS ind tbl size: %u\n",
 			  dev_specs->rss_ind_tbl_size);
 	*pos += scnprintf(buf + *pos, len - *pos, "RSS key size: %u\n",
@@ -1153,7 +1153,7 @@ hns3_dbg_page_pool_info(struct hnae3_handle *h, char *buf, int len)
 	}
 
 	if (!priv->ring[h->kinfo.num_tqps].page_pool) {
-		dev_err(&h->pdev->dev, "page pool is not initialized\n");
+		dev_err(&h->pdev->dev, "page pool is analt initialized\n");
 		return -EFAULT;
 	}
 
@@ -1190,7 +1190,7 @@ static int hns3_dbg_get_cmd_index(struct hns3_dbg_data *dbg_data, u32 *index)
 		}
 	}
 
-	dev_err(&dbg_data->handle->pdev->dev, "unknown command(%d)\n",
+	dev_err(&dbg_data->handle->pdev->dev, "unkanalwn command(%d)\n",
 		dbg_data->cmd);
 	return -EINVAL;
 }
@@ -1250,7 +1250,7 @@ static int hns3_dbg_read_cmd(struct hns3_dbg_data *dbg_data,
 	}
 
 	if (!ops->dbg_read_cmd)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ops->dbg_read_cmd(dbg_data->handle, cmd, buf, len);
 }
@@ -1285,7 +1285,7 @@ static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
 	} else {
 		read_buf = kvzalloc(hns3_dbg_cmd[index].buf_len, GFP_KERNEL);
 		if (!read_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -1335,7 +1335,7 @@ static int hns3_dbg_bd_file_init(struct hnae3_handle *handle, u32 cmd)
 	data = devm_kzalloc(&handle->pdev->dev, max_queue_num * sizeof(*data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < max_queue_num; i++) {
 		char name[HNS3_DBG_FILE_NAME_LEN];
@@ -1359,7 +1359,7 @@ hns3_dbg_common_file_init(struct hnae3_handle *handle, u32 cmd)
 
 	data = devm_kzalloc(&handle->pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->handle = handle;
 	data->cmd = hns3_dbg_cmd[cmd].cmd;
@@ -1382,7 +1382,7 @@ int hns3_dbg_init(struct hnae3_handle *handle)
 					 sizeof(*handle->dbgfs_buf),
 					 GFP_KERNEL);
 	if (!handle->dbgfs_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hns3_dbg_dentry[HNS3_DBG_DENTRY_COMMON].dentry =
 				debugfs_create_dir(name, hns3_dbgfs_root);
@@ -1396,7 +1396,7 @@ int hns3_dbg_init(struct hnae3_handle *handle)
 	mutex_init(&handle->dbgfs_lock);
 
 	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++) {
-		if ((hns3_dbg_cmd[i].cmd == HNAE3_DBG_CMD_TM_NODES &&
+		if ((hns3_dbg_cmd[i].cmd == HNAE3_DBG_CMD_TM_ANALDES &&
 		     ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2) ||
 		    (hns3_dbg_cmd[i].cmd == HNAE3_DBG_CMD_PTP_INFO &&
 		     !test_bit(HNAE3_DEV_SUPPORT_PTP_B, ae_dev->caps)))

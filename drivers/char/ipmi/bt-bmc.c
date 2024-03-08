@@ -5,7 +5,7 @@
 
 #include <linux/atomic.h>
 #include <linux/bt-bmc.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/miscdevice.h>
@@ -146,7 +146,7 @@ static struct bt_bmc *file_bt_bmc(struct file *file)
 	return container_of(file->private_data, struct bt_bmc, miscdev);
 }
 
-static int bt_bmc_open(struct inode *inode, struct file *file)
+static int bt_bmc_open(struct ianalde *ianalde, struct file *file)
 {
 	struct bt_bmc *bt_bmc = file_bt_bmc(file);
 
@@ -161,7 +161,7 @@ static int bt_bmc_open(struct inode *inode, struct file *file)
 
 /*
  * The BT (Block Transfer) interface means that entire messages are
- * buffered by the host before a notification is sent to the BMC that
+ * buffered by the host before a analtification is sent to the BMC that
  * there is data to be read. The first byte is the length and the
  * message data follows. The read operation just tries to capture the
  * whole before returning it to userspace.
@@ -200,7 +200,7 @@ static ssize_t bt_bmc_read(struct file *file, char __user *buf,
 	clr_rd_ptr(bt_bmc);
 
 	/*
-	 * The BT frames start with the message length, which does not
+	 * The BT frames start with the message length, which does analt
 	 * include the length byte.
 	 */
 	kbuffer[0] = bt_read(bt_bmc);
@@ -255,7 +255,7 @@ static ssize_t bt_bmc_write(struct file *file, const char __user *buf,
 	WARN_ON(*ppos);
 
 	/*
-	 * There's no interrupt for clearing bmc busy so we have to
+	 * There's anal interrupt for clearing bmc busy so we have to
 	 * poll
 	 */
 	if (wait_event_interruptible(bt_bmc->queue,
@@ -307,7 +307,7 @@ static long bt_bmc_ioctl(struct file *file, unsigned int cmd,
 	return -EINVAL;
 }
 
-static int bt_bmc_release(struct inode *inode, struct file *file)
+static int bt_bmc_release(struct ianalde *ianalde, struct file *file)
 {
 	struct bt_bmc *bt_bmc = file_bt_bmc(file);
 
@@ -363,7 +363,7 @@ static irqreturn_t bt_bmc_irq(int irq, void *arg)
 
 	reg &= BT_CR2_IRQ_H2B | BT_CR2_IRQ_HBUSY;
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* ack pending IRQs */
 	writel(reg, bt_bmc->base + BT_CR2);
@@ -415,7 +415,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 
 	bt_bmc = devm_kzalloc(dev, sizeof(*bt_bmc), GFP_KERNEL);
 	if (!bt_bmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, bt_bmc);
 
@@ -426,7 +426,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 	mutex_init(&bt_bmc->mutex);
 	init_waitqueue_head(&bt_bmc->queue);
 
-	bt_bmc->miscdev.minor	= MISC_DYNAMIC_MINOR;
+	bt_bmc->miscdev.mianalr	= MISC_DYNAMIC_MIANALR;
 	bt_bmc->miscdev.name	= DEVICE_NAME;
 	bt_bmc->miscdev.fops	= &bt_bmc_fops;
 	bt_bmc->miscdev.parent = dev;
@@ -441,7 +441,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 	if (bt_bmc->irq >= 0) {
 		dev_info(dev, "Using IRQ %d\n", bt_bmc->irq);
 	} else {
-		dev_info(dev, "No IRQ; using timer\n");
+		dev_info(dev, "Anal IRQ; using timer\n");
 		timer_setup(&bt_bmc->poll_timer, poll_timer, 0);
 		bt_bmc->poll_timer.expires = jiffies + msecs_to_jiffies(10);
 		add_timer(&bt_bmc->poll_timer);

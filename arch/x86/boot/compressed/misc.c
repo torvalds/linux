@@ -22,8 +22,8 @@
 /*
  * WARNING!!
  * This code is compiled with -fPIC and it is relocated dynamically at
- * run time, but no relocation processing is performed. This means that
- * it is not safe to place pointers in static structures.
+ * run time, but anal relocation processing is performed. This means that
+ * it is analt safe to place pointers in static structures.
  */
 
 /* Macros used by the included decompressor code below. */
@@ -34,7 +34,7 @@
 
 /*
  * Provide definitions of memzero and memmove as some of the decompressors will
- * try to define their own functions if these are not defined as macros.
+ * try to define their own functions if these are analt defined as macros.
  */
 #define memzero(s, n)	memset((s), 0, (n))
 #ifndef memmove
@@ -88,7 +88,7 @@ static int cols __section(".data");
 #include "../../../../lib/decompress_unzstd.c"
 #endif
 /*
- * NOTE: When adding a new decompressor, please update the analysis in
+ * ANALTE: When adding a new decompressor, please update the analysis in
  * ../header.S.
  */
 
@@ -214,7 +214,7 @@ static void handle_relocations(void *output, unsigned long output_len,
 		delta = virt_addr - LOAD_PHYSICAL_ADDR;
 
 	if (!delta) {
-		debug_putstr("No relocation needed... ");
+		debug_putstr("Anal relocation needed... ");
 		return;
 	}
 	debug_putstr("Performing relocations... ");
@@ -294,7 +294,7 @@ static size_t parse_elf(void *output)
 	   ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
 	   ehdr.e_ident[EI_MAG2] != ELFMAG2 ||
 	   ehdr.e_ident[EI_MAG3] != ELFMAG3)
-		error("Kernel is not a valid ELF file");
+		error("Kernel is analt a valid ELF file");
 
 	debug_putstr("Parsing ELF... ");
 
@@ -321,7 +321,7 @@ static size_t parse_elf(void *output)
 #endif
 			memmove(dest, output + phdr->p_offset, phdr->p_filesz);
 			break;
-		default: /* Ignore other PT_* */ break;
+		default: /* Iganalre other PT_* */ break;
 		}
 	}
 
@@ -474,7 +474,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, unsigned char *output)
 #endif
 #ifndef CONFIG_RELOCATABLE
 	if (virt_addr != LOAD_PHYSICAL_ADDR)
-		error("Destination virtual address changed when not relocatable");
+		error("Destination virtual address changed when analt relocatable");
 #endif
 
 	debug_putstr("\nDecompressing Linux... ");

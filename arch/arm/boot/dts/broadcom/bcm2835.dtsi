@@ -20,9 +20,9 @@
 			 * Source for d/i-cache-size
 			 * https://forums.raspberrypi.com/viewtopic.php?t=98428
 			 *
-			 * NOTE: The BCM2835 has a L2 cache but it is dedicated to the GPU
+			 * ANALTE: The BCM2835 has a L2 cache but it is dedicated to the GPU
 			 * It can be shared with the CPU through fw settings,
-			 * but this is not recommended.
+			 * but this is analt recommended.
 			 */
 			d-cache-size = <0x4000>;
 			d-cache-line-size = <16>;

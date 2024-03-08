@@ -17,7 +17,7 @@
 
 /* types of component */
 enum sof_comp_type {
-	SOF_COMP_NONE = 0,
+	SOF_COMP_ANALNE = 0,
 	SOF_COMP_HOST,
 	SOF_COMP_DAI,
 	SOF_COMP_SG_HOST,	/**< scatter gather variant */
@@ -36,7 +36,7 @@ enum sof_comp_type {
 	SOF_COMP_KPB,			/* A key phrase buffer component */
 	SOF_COMP_SELECTOR,		/**< channel selector component */
 	SOF_COMP_DEMUX,
-	SOF_COMP_ASRC,		/**< Asynchronous sample rate converter */
+	SOF_COMP_ASRC,		/**< Asynchroanalus sample rate converter */
 	SOF_COMP_DCBLOCK,
 	SOF_COMP_SMART_AMP,             /**< smart amplifier component */
 	SOF_COMP_MODULE_ADAPTER,		/**< module adapter */
@@ -58,7 +58,7 @@ struct sof_ipc_comp {
 	uint32_t pipeline_id;
 	uint32_t core;
 
-	/* extended data length, 0 if no extended data */
+	/* extended data length, 0 if anal extended data */
 	uint32_t ext_data_length;
 } __packed __aligned(4);
 
@@ -119,7 +119,7 @@ struct sof_ipc_comp_host {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
 	uint32_t direction;	/**< SOF_IPC_STREAM_ */
-	uint32_t no_irq;	/**< don't send periodic IRQ to host/DSP */
+	uint32_t anal_irq;	/**< don't send periodic IRQ to host/DSP */
 	uint32_t dmac_config; /**< DMA engine specific */
 } __packed __aligned(4);
 
@@ -146,7 +146,7 @@ enum sof_volume_ramp {
 	SOF_VOLUME_LINEAR_ZC,
 	SOF_VOLUME_LOG_ZC,
 	SOF_VOLUME_WINDOWS_FADE,
-	SOF_VOLUME_WINDOWS_NO_FADE,
+	SOF_VOLUME_WINDOWS_ANAL_FADE,
 };
 
 /* generic volume component */
@@ -164,7 +164,7 @@ struct sof_ipc_comp_volume {
 struct sof_ipc_comp_src {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
-	/* either source or sink rate must be non zero */
+	/* either source or sink rate must be analn zero */
 	uint32_t source_rate;	/**< source rate or 0 for variable */
 	uint32_t sink_rate;	/**< sink rate or 0 for variable */
 	uint32_t rate_mask;	/**< SOF_RATE_ supported rates */
@@ -174,14 +174,14 @@ struct sof_ipc_comp_src {
 struct sof_ipc_comp_asrc {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
-	/* either source or sink rate must be non zero */
+	/* either source or sink rate must be analn zero */
 	uint32_t source_rate;		/**< Define fixed source rate or */
 					/**< use 0 to indicate need to get */
 					/**< the rate from stream */
 	uint32_t sink_rate;		/**< Define fixed sink rate or */
 					/**< use 0 to indicate need to get */
 					/**< the rate from stream */
-	uint32_t asynchronous_mode;	/**< synchronous 0, asynchronous 1 */
+	uint32_t asynchroanalus_mode;	/**< synchroanalus 0, asynchroanalus 1 */
 					/**< When 1 the ASRC tracks and */
 					/**< compensates for drift. */
 	uint32_t operation_mode;	/**< push 0, pull 1, In push mode the */
@@ -219,7 +219,7 @@ struct sof_ipc_comp_tone {
 
 /** \brief Types of processing components */
 enum sof_ipc_process_type {
-	SOF_PROCESS_NONE = 0,		/**< None */
+	SOF_PROCESS_ANALNE = 0,		/**< Analne */
 	SOF_PROCESS_EQFIR,		/**< Intel FIR */
 	SOF_PROCESS_EQIIR,		/**< Intel IIR */
 	SOF_PROCESS_KEYWORD_DETECT,	/**< Keyword Detection */
@@ -303,7 +303,7 @@ struct sof_ipc_pipe_comp_connect {
 
 /* external events */
 enum sof_event_types {
-	SOF_EVENT_NONE = 0,
+	SOF_EVENT_ANALNE = 0,
 	SOF_KEYWORD_DETECT_DAPM_EVENT,
 };
 

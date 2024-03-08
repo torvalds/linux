@@ -13,7 +13,7 @@ struct drm_i915_private;
 struct hdcp_port_data;
 struct hdcp2_ake_init;
 struct hdcp2_ake_send_cert;
-struct hdcp2_ake_no_stored_km;
+struct hdcp2_ake_anal_stored_km;
 struct hdcp2_ake_send_hprime;
 struct hdcp2_ake_send_pairing_info;
 struct hdcp2_lc_init;
@@ -35,7 +35,7 @@ intel_hdcp_gsc_verify_receiver_cert_prepare_km(struct device *dev,
 					       struct hdcp_port_data *data,
 					       struct hdcp2_ake_send_cert *rx_cert,
 					       bool *km_stored,
-					       struct hdcp2_ake_no_stored_km
+					       struct hdcp2_ake_anal_stored_km
 					       *ek_pub_km,
 					       size_t *msg_sz);
 int

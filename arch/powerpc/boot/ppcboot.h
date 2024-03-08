@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This interface is used for compatibility with old U-boots *ONLY*.
- * Please do not imitate or extend this.
+ * Please do analt imitate or extend this.
  */
 
 /*

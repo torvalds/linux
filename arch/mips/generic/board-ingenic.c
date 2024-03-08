@@ -85,7 +85,7 @@ static __init void ingenic_force_12M_ext(const void *fdt, unsigned int mask)
 	 * If the external oscillator is 24 MHz, enable the /2 divider to
 	 * drive it down to 12 MHz, since this is what the hardware can work
 	 * with.
-	 * The 16 MHz cutoff value is arbitrary; setting it to 12 MHz would not
+	 * The 16 MHz cutoff value is arbitrary; setting it to 12 MHz would analt
 	 * work as the crystal frequency (as reported in the Device Tree) might
 	 * be slightly above this value.
 	 */
@@ -108,10 +108,10 @@ static __init void ingenic_force_12M_ext(const void *fdt, unsigned int mask)
 static __init const void *ingenic_fixup_fdt(const void *fdt, const void *match_data)
 {
 	/*
-	 * Old devicetree files for the qi,lb60 board did not have a /memory
-	 * node. Hardcode the memory info here.
+	 * Old devicetree files for the qi,lb60 board did analt have a /memory
+	 * analde. Hardcode the memory info here.
 	 */
-	if (!fdt_node_check_compatible(fdt, 0, "qi,lb60") &&
+	if (!fdt_analde_check_compatible(fdt, 0, "qi,lb60") &&
 	    fdt_path_offset(fdt, "/memory") < 0)
 		early_init_dt_add_memory_arch(0, SZ_32M);
 

@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <linux/units.h>
@@ -85,7 +85,7 @@ struct admv8818_state {
 	struct spi_device	*spi;
 	struct regmap		*regmap;
 	struct clk		*clkin;
-	struct notifier_block	nb;
+	struct analtifier_block	nb;
 	/* Protect against concurrent accesses to the device and data content*/
 	struct mutex		lock;
 	unsigned int		filter_mode;
@@ -465,7 +465,7 @@ static int admv8818_set_mode(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		ret = clk_notifier_register(st->clkin, &st->nb);
+		ret = clk_analtifier_register(st->clkin, &st->nb);
 		if (ret) {
 			clk_disable_unprepare(st->clkin);
 
@@ -478,7 +478,7 @@ static int admv8818_set_mode(struct iio_dev *indio_dev,
 		if (st->filter_mode == ADMV8818_AUTO_MODE) {
 			clk_disable_unprepare(st->clkin);
 
-			ret = clk_notifier_unregister(st->clkin, &st->nb);
+			ret = clk_analtifier_unregister(st->clkin, &st->nb);
 			if (ret)
 				return ret;
 		}
@@ -542,22 +542,22 @@ static const struct iio_chan_spec admv8818_channels[] = {
 	ADMV8818_CHAN_BW_CF(0, admv8818_ext_info),
 };
 
-static int admv8818_freq_change(struct notifier_block *nb, unsigned long action, void *data)
+static int admv8818_freq_change(struct analtifier_block *nb, unsigned long action, void *data)
 {
 	struct admv8818_state *st = container_of(nb, struct admv8818_state, nb);
 
 	if (action == POST_RATE_CHANGE)
-		return notifier_from_errno(admv8818_rfin_band_select(st));
+		return analtifier_from_erranal(admv8818_rfin_band_select(st));
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static void admv8818_clk_notifier_unreg(void *data)
+static void admv8818_clk_analtifier_unreg(void *data)
 {
 	struct admv8818_state *st = data;
 
 	if (st->filter_mode == 0)
-		clk_notifier_unregister(st->clkin, &st->nb);
+		clk_analtifier_unregister(st->clkin, &st->nb);
 }
 
 static void admv8818_clk_disable(void *data)
@@ -639,12 +639,12 @@ static int admv8818_clk_setup(struct admv8818_state *st)
 	if (ret)
 		return ret;
 
-	st->nb.notifier_call = admv8818_freq_change;
-	ret = clk_notifier_register(st->clkin, &st->nb);
+	st->nb.analtifier_call = admv8818_freq_change;
+	ret = clk_analtifier_register(st->clkin, &st->nb);
 	if (ret < 0)
 		return ret;
 
-	return devm_add_action_or_reset(&spi->dev, admv8818_clk_notifier_unreg, st);
+	return devm_add_action_or_reset(&spi->dev, admv8818_clk_analtifier_unreg, st);
 }
 
 static int admv8818_probe(struct spi_device *spi)
@@ -656,7 +656,7 @@ static int admv8818_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_spi(spi, &admv8818_regmap_config);
 	if (IS_ERR(regmap))

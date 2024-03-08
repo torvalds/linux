@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /*
- * Please note that modifications to all structs defined here are
+ * Please analte that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
  * Sections in this file are organized as follows:
  *   1. IOCTL definition
@@ -28,7 +28,7 @@ extern "C" {
  * The diagram below represents a high-level simplification of a discrete
  * GPU supported by the Xe driver. It shows some device components which
  * are necessary to understand this API, as well as how their relations
- * to each other. This diagram does not represent real hardware::
+ * to each other. This diagram does analt represent real hardware::
  *
  *   ┌──────────────────────────────────────────────────────────────────┐
  *   │ ┌──────────────────────────────────────────────────┐ ┌─────────┐ │
@@ -100,7 +100,7 @@ extern "C" {
 #define DRM_XE_EXEC_QUEUE_GET_PROPERTY	0x08
 #define DRM_XE_EXEC			0x09
 #define DRM_XE_WAIT_USER_FENCE		0x0a
-/* Must be kept compact -- no holes */
+/* Must be kept compact -- anal holes */
 
 #define DRM_IOCTL_XE_DEVICE_QUERY		DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_DEVICE_QUERY, struct drm_xe_device_query)
 #define DRM_IOCTL_XE_GEM_CREATE			DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_GEM_CREATE, struct drm_xe_gem_create)
@@ -121,7 +121,7 @@ extern "C" {
  * that every IOCTL in Xe is extensible.
  *
  * Many interfaces need to grow over time. In most cases we can simply
- * extend the struct and have userspace pass in more data. Another option,
+ * extend the struct and have userspace pass in more data. Aanalther option,
  * as demonstrated by Vulkan's approach to providing extensions for forward
  * and backward compatibility, is to use a list of optional structs to
  * provide those extra details.
@@ -168,9 +168,9 @@ struct drm_xe_user_extension {
 	/**
 	 * @name: Name of the extension.
 	 *
-	 * Note that the name here is just some integer.
+	 * Analte that the name here is just some integer.
 	 *
-	 * Also note that the name space for this is not global for the whole
+	 * Also analte that the name space for this is analt global for the whole
 	 * driver, but rather its scope/meaning is limited to the specific piece
 	 * of uAPI which has embedded the struct drm_xe_user_extension.
 	 */
@@ -220,7 +220,7 @@ struct drm_xe_ext_set_property {
  *  - %DRM_XE_ENGINE_CLASS_VIDEO_DECODE
  *  - %DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE
  *  - %DRM_XE_ENGINE_CLASS_COMPUTE
- *  - %DRM_XE_ENGINE_CLASS_VM_BIND - Kernel only classes (not actual
+ *  - %DRM_XE_ENGINE_CLASS_VM_BIND - Kernel only classes (analt actual
  *    hardware engine class). Used for creating ordered queues of VM
  *    bind operations.
  */
@@ -277,13 +277,13 @@ enum drm_xe_memory_class {
 	/**
 	 * @DRM_XE_MEM_REGION_CLASS_VRAM: On discrete platforms, this
 	 * represents the memory that is local to the device, which we
-	 * call VRAM. Not valid on integrated platforms.
+	 * call VRAM. Analt valid on integrated platforms.
 	 */
 	DRM_XE_MEM_REGION_CLASS_VRAM
 };
 
 /**
- * struct drm_xe_mem_region - Describes some region as known to
+ * struct drm_xe_mem_region - Describes some region as kanalwn to
  * the driver.
  */
 struct drm_xe_mem_region {
@@ -310,7 +310,7 @@ struct drm_xe_mem_region {
 	 * may be placed in this region must also have their GPU virtual
 	 * address and range aligned to this value.
 	 * Affected IOCTLS will return %-EINVAL if alignment restrictions are
-	 * not met.
+	 * analt met.
 	 */
 	__u32 min_page_size;
 	/**
@@ -330,7 +330,7 @@ struct drm_xe_mem_region {
 	 * accessed, in bytes.
 	 *
 	 * This will always be <= @total_size, and the remainder (if
-	 * any) will not be CPU accessible. If the CPU accessible part
+	 * any) will analt be CPU accessible. If the CPU accessible part
 	 * is smaller than @total_size then this is referred to as a
 	 * small BAR system.
 	 *
@@ -338,7 +338,7 @@ struct drm_xe_mem_region {
 	 * always equal the @total_size, since all of it will be CPU
 	 * accessible.
 	 *
-	 * Note this is only tracked for DRM_XE_MEM_REGION_CLASS_VRAM
+	 * Analte this is only tracked for DRM_XE_MEM_REGION_CLASS_VRAM
 	 * regions (for other types the value here will always equal
 	 * zero).
 	 */
@@ -349,7 +349,7 @@ struct drm_xe_mem_region {
 	 *
 	 * Requires CAP_PERFMON or CAP_SYS_ADMIN to get reliable
 	 * accounting. Without this the value here will always equal
-	 * zero.  Note this is only currently tracked for
+	 * zero.  Analte this is only currently tracked for
 	 * DRM_XE_MEM_REGION_CLASS_VRAM regions (for other types the value
 	 * here will always be zero).
 	 */
@@ -417,7 +417,7 @@ struct drm_xe_query_config {
  *
  * To be used with drm_xe_query_gt_list, which will return a list with all the
  * existing GT individual descriptions.
- * Graphics Technology (GT) is a subset of a GPU/tile that is responsible for
+ * Graphics Techanallogy (GT) is a subset of a GPU/tile that is responsible for
  * implementing graphics and/or media operations.
  *
  * The index in @type can be:
@@ -442,7 +442,7 @@ struct drm_xe_gt {
 	 * drm_xe_query_mem_regions that are nearest to the current engines
 	 * of this GT.
 	 * Each index in this mask refers directly to the struct
-	 * drm_xe_query_mem_regions' instance, no assumptions should
+	 * drm_xe_query_mem_regions' instance, anal assumptions should
 	 * be made about order. The type of each region is described
 	 * by struct drm_xe_query_mem_regions' mem_class.
 	 */
@@ -454,7 +454,7 @@ struct drm_xe_gt {
 	 * @near_mem_regions. For a discrete device this could mean system
 	 * memory and memory living in a different tile.
 	 * Each index in this mask refers directly to the struct
-	 * drm_xe_query_mem_regions' instance, no assumptions should
+	 * drm_xe_query_mem_regions' instance, anal assumptions should
 	 * be made about order. The type of each region is described
 	 * by struct drm_xe_query_mem_regions' mem_class.
 	 */
@@ -546,8 +546,8 @@ struct drm_xe_query_engine_cycles {
 	/**
 	 * @clockid: This is input by the user and is the reference clock id for
 	 * CPU timestamp. For definition, see clock_gettime(2) and
-	 * perf_event_open(2). Supported clock ids are CLOCK_MONOTONIC,
-	 * CLOCK_MONOTONIC_RAW, CLOCK_REALTIME, CLOCK_BOOTTIME, CLOCK_TAI.
+	 * perf_event_open(2). Supported clock ids are CLOCK_MOANALTONIC,
+	 * CLOCK_MOANALTONIC_RAW, CLOCK_REALTIME, CLOCK_BOOTTIME, CLOCK_TAI.
 	 */
 	__s32 clockid;
 
@@ -628,7 +628,7 @@ struct drm_xe_query_engine_cycles {
  *                 DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE ? "VIDEO_ENHANCE":
  *             engines->engines[i].instance.engine_class ==
  *                 DRM_XE_ENGINE_CLASS_COMPUTE ? "COMPUTE":
- *             "UNKNOWN");
+ *             "UNKANALWN");
  *     }
  *     free(engines);
  */
@@ -662,18 +662,18 @@ struct drm_xe_device_query {
  *
  * The @flags can be:
  *  - %DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING
- *  - %DRM_XE_GEM_CREATE_FLAG_SCANOUT
+ *  - %DRM_XE_GEM_CREATE_FLAG_SCAANALUT
  *  - %DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM - When using VRAM as a
  *    possible placement, ensure that the corresponding VRAM allocation
  *    will always use the CPU accessible part of VRAM. This is important
  *    for small-bar systems (on full-bar systems this gets turned into a
- *    noop).
- *    Note1: System memory can be used as an extra placement if the kernel
+ *    analop).
+ *    Analte1: System memory can be used as an extra placement if the kernel
  *    should spill the allocation to system memory, if space can't be made
  *    available in the CPU accessible part of VRAM (giving the same
  *    behaviour as the i915 interface, see
  *    I915_GEM_CREATE_EXT_FLAG_NEEDS_CPU_ACCESS).
- *    Note2: For clear-color CCS surfaces the kernel needs to read the
+ *    Analte2: For clear-color CCS surfaces the kernel needs to read the
  *    clear-color value stored in the buffer, and on discrete platforms we
  *    need to use VRAM for display surfaces, therefore the kernel requires
  *    setting this flag for such objects, otherwise an error is thrown on
@@ -681,10 +681,10 @@ struct drm_xe_device_query {
  *
  * @cpu_caching supports the following values:
  *  - %DRM_XE_GEM_CPU_CACHING_WB - Allocate the pages with write-back
- *    caching. On iGPU this can't be used for scanout surfaces. Currently
- *    not allowed for objects placed in VRAM.
+ *    caching. On iGPU this can't be used for scaanalut surfaces. Currently
+ *    analt allowed for objects placed in VRAM.
  *  - %DRM_XE_GEM_CPU_CACHING_WC - Allocate the pages as write-combined. This
- *    is uncached. Scanout surfaces should likely use this. All objects
+ *    is uncached. Scaanalut surfaces should likely use this. All objects
  *    that can be placed in VRAM must use this.
  */
 struct drm_xe_gem_create {
@@ -700,14 +700,14 @@ struct drm_xe_gem_create {
 	/**
 	 * @placement: A mask of memory instances of where BO can be placed.
 	 * Each index in this mask refers directly to the struct
-	 * drm_xe_query_mem_regions' instance, no assumptions should
+	 * drm_xe_query_mem_regions' instance, anal assumptions should
 	 * be made about order. The type of each region is described
 	 * by struct drm_xe_query_mem_regions' mem_class.
 	 */
 	__u32 placement;
 
 #define DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING		(1 << 0)
-#define DRM_XE_GEM_CREATE_FLAG_SCANOUT			(1 << 1)
+#define DRM_XE_GEM_CREATE_FLAG_SCAANALUT			(1 << 1)
 #define DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM	(1 << 2)
 	/**
 	 * @flags: Flags, currently a mask of memory instances of where BO can
@@ -721,14 +721,14 @@ struct drm_xe_gem_create {
 	 * If a VM is specified, this BO must:
 	 *
 	 *  1. Only ever be bound to that VM.
-	 *  2. Cannot be exported as a PRIME fd.
+	 *  2. Cananalt be exported as a PRIME fd.
 	 */
 	__u32 vm_id;
 
 	/**
 	 * @handle: Returned handle for the object.
 	 *
-	 * Object handles are nonzero.
+	 * Object handles are analnzero.
 	 */
 	__u32 handle;
 
@@ -779,7 +779,7 @@ struct drm_xe_gem_mmap_offset {
  *    used as out-syncobjs, that is, together with DRM_XE_SYNC_FLAG_SIGNAL.
  *    LR VMs can be created in recoverable page-fault mode using
  *    DRM_XE_VM_CREATE_FLAG_FAULT_MODE, if the device supports it.
- *    If that flag is omitted, the UMD can not rely on the slightly
+ *    If that flag is omitted, the UMD can analt rely on the slightly
  *    different per-VM overcommit semantics that are enabled by
  *    DRM_XE_VM_CREATE_FLAG_FAULT_MODE (see below), but KMD may
  *    still enable recoverable pagefaults if supported by the device.
@@ -858,9 +858,9 @@ struct drm_xe_vm_bind_op {
 	 * For coherency the @pat_index needs to be at least 1way coherent when
 	 * drm_xe_gem_create.cpu_caching is DRM_XE_GEM_CPU_CACHING_WB. The KMD
 	 * will extract the coherency mode from the @pat_index and reject if
-	 * there is a mismatch (see note below for pre-MTL platforms).
+	 * there is a mismatch (see analte below for pre-MTL platforms).
 	 *
-	 * Note: On pre-MTL platforms there is only a caching mode and no
+	 * Analte: On pre-MTL platforms there is only a caching mode and anal
 	 * explicit coherency mode, but on such hardware there is always a
 	 * shared-LLC (or is dgpu) so all GT memory accesses are coherent with
 	 * CPU caches even with the caching mode set as uncached.  It's only the
@@ -869,26 +869,26 @@ struct drm_xe_vm_bind_op {
 	 * consistent with newer platforms the KMD groups the different cache
 	 * levels into the following coherency buckets on all pre-MTL platforms:
 	 *
-	 *	ppGTT UC -> COH_NONE
-	 *	ppGTT WC -> COH_NONE
-	 *	ppGTT WT -> COH_NONE
+	 *	ppGTT UC -> COH_ANALNE
+	 *	ppGTT WC -> COH_ANALNE
+	 *	ppGTT WT -> COH_ANALNE
 	 *	ppGTT WB -> COH_AT_LEAST_1WAY
 	 *
-	 * In practice UC/WC/WT should only ever used for scanout surfaces on
+	 * In practice UC/WC/WT should only ever used for scaanalut surfaces on
 	 * such platforms (or perhaps in general for dma-buf if shared with
-	 * another device) since it is only the display engine that is actually
+	 * aanalther device) since it is only the display engine that is actually
 	 * incoherent.  Everything else should typically use WB given that we
 	 * have a shared-LLC.  On MTL+ this completely changes and the HW
 	 * defines the coherency mode as part of the @pat_index, where
 	 * incoherent GT access is possible.
 	 *
-	 * Note: For userptr and externally imported dma-buf the kernel expects
+	 * Analte: For userptr and externally imported dma-buf the kernel expects
 	 * either 1WAY or 2WAY for the @pat_index.
 	 *
-	 * For DRM_XE_VM_BIND_FLAG_NULL bindings there are no KMD restrictions
-	 * on the @pat_index. For such mappings there is no actual memory being
+	 * For DRM_XE_VM_BIND_FLAG_NULL bindings there are anal KMD restrictions
+	 * on the @pat_index. For such mappings there is anal actual memory being
 	 * mapped (the address in the PTE is invalid), so the various PAT memory
-	 * attributes likely do not apply.  Simply leaving as zero is one
+	 * attributes likely do analt apply.  Simply leaving as zero is one
 	 * option (still a valid pat_index).
 	 */
 	__u16 pat_index;
@@ -899,7 +899,7 @@ struct drm_xe_vm_bind_op {
 	union {
 		/**
 		 * @obj_offset: Offset into the object, MBZ for CLEAR_RANGE,
-		 * ignored for unbind
+		 * iganalred for unbind
 		 */
 		__u64 obj_offset;
 
@@ -930,7 +930,7 @@ struct drm_xe_vm_bind_op {
 
 	/**
 	 * @prefetch_mem_region_instance: Memory region to prefetch VMA to.
-	 * It is a region instance, not a mask.
+	 * It is a region instance, analt a mask.
 	 * To be used only with %DRM_XE_VM_BIND_OP_PREFETCH operation.
 	 */
 	__u32 prefetch_mem_region_instance;
@@ -946,7 +946,7 @@ struct drm_xe_vm_bind_op {
  * struct drm_xe_vm_bind - Input of &DRM_IOCTL_XE_VM_BIND
  *
  * Below is an example of a minimal use of @drm_xe_vm_bind to
- * asynchronously bind the buffer `data` at address `BIND_ADDRESS` to
+ * asynchroanalusly bind the buffer `data` at address `BIND_ADDRESS` to
  * illustrate `userptr`. It can be synchronized by using the example
  * provided for @drm_xe_sync.
  *
@@ -1017,7 +1017,7 @@ struct drm_xe_vm_bind {
  * struct drm_xe_exec_queue_create - Input of &DRM_IOCTL_XE_EXEC_QUEUE_CREATE
  *
  * The example below shows how to use @drm_xe_exec_queue_create to create
- * a simple exec_queue (no parallel submission) of class
+ * a simple exec_queue (anal parallel submission) of class
  * &DRM_XE_ENGINE_CLASS_RENDER.
  *
  * .. code-block:: C
@@ -1295,12 +1295,12 @@ struct drm_xe_wait_user_fence {
 	__u64 mask;
 
 	/**
-	 * @timeout: how long to wait before bailing, value in nanoseconds.
+	 * @timeout: how long to wait before bailing, value in naanalseconds.
 	 * Without DRM_XE_UFENCE_WAIT_FLAG_ABSTIME flag set (relative timeout)
-	 * it contains timeout expressed in nanoseconds to wait (fence will
-	 * expire at now() + timeout).
+	 * it contains timeout expressed in naanalseconds to wait (fence will
+	 * expire at analw() + timeout).
 	 * When DRM_XE_UFENCE_WAIT_FLAG_ABSTIME flat is set (absolute timeout) wait
-	 * will end at timeout (uses system MONOTONIC_CLOCK).
+	 * will end at timeout (uses system MOANALTONIC_CLOCK).
 	 * Passing negative timeout leads to neverending wait.
 	 *
 	 * On relative timeout this value is updated with timeout left

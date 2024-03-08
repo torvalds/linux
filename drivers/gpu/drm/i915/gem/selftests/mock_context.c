@@ -92,7 +92,7 @@ live_context(struct drm_i915_private *i915, struct file *file)
 	if (IS_ERR(ctx))
 		return ctx;
 
-	i915_gem_context_set_no_error_capture(ctx);
+	i915_gem_context_set_anal_error_capture(ctx);
 
 	err = xa_alloc(&fpriv->context_xa, &id, NULL, xa_limit_32b, GFP_KERNEL);
 	if (err < 0)
@@ -117,7 +117,7 @@ live_context_for_engine(struct intel_engine_cs *engine, struct file *file)
 
 	engines = alloc_engines(1);
 	if (!engines)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctx = live_context(engine->i915, file);
 	if (IS_ERR(ctx)) {
@@ -169,7 +169,7 @@ kernel_context(struct drm_i915_private *i915,
 
 	i915_gem_context_clear_bannable(ctx);
 	i915_gem_context_set_persistence(ctx);
-	i915_gem_context_set_no_error_capture(ctx);
+	i915_gem_context_set_anal_error_capture(ctx);
 
 	return ctx;
 }

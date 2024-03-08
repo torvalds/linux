@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * linux/mii.h: definitions for MII-compatible transceivers
  * Originally drivers/net/sunhme.h.
@@ -170,7 +170,7 @@
 /* MMD Access Control register fields */
 #define MII_MMD_CTRL_DEVAD_MASK	0x1f	/* Mask MMD DEVAD*/
 #define MII_MMD_CTRL_ADDR	0x0000	/* Address */
-#define MII_MMD_CTRL_NOINCR	0x4000	/* no post increment */
+#define MII_MMD_CTRL_ANALINCR	0x4000	/* anal post increment */
 #define MII_MMD_CTRL_INCR_RDWT	0x8000	/* post increment on reads & writes */
 #define MII_MMD_CTRL_INCR_ON_WT	0xC000	/* post increment on writes only */
 

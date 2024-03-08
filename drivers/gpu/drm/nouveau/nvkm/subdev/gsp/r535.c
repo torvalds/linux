@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -71,14 +71,14 @@ struct r535_gsp_msg {
 #define GSP_MSG_HDR_SIZE offsetof(struct r535_gsp_msg, data)
 
 static int
-r535_rpc_status_to_errno(uint32_t rpc_status)
+r535_rpc_status_to_erranal(uint32_t rpc_status)
 {
 	switch (rpc_status) {
-	case 0x55: /* NV_ERR_NOT_READY */
+	case 0x55: /* NV_ERR_ANALT_READY */
 	case 0x66: /* NV_ERR_TIMEOUT_RETRY */
 		return -EAGAIN;
-	case 0x51: /* NV_ERR_NO_MEMORY */
-		return -ENOMEM;
+	case 0x51: /* NV_ERR_ANAL_MEMORY */
+		return -EANALMEM;
 	default:
 		return -EINVAL;
 	}
@@ -121,7 +121,7 @@ r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 repc, u32 *prepc, int *ptime)
 
 	msg = kvmalloc(repc, GFP_KERNEL);
 	if (!msg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	len = ((gsp->msgq.cnt - rptr) * GSP_PAGE_SIZE) - sizeof(*mqe);
 	len = min_t(u32, repc, len);
@@ -226,7 +226,7 @@ r535_gsp_cmdq_get(struct nvkm_gsp *gsp, u32 argc)
 	size = ALIGN(size, GSP_MSG_MIN_SIZE);
 	cmd = kvzalloc(size, GFP_KERNEL);
 	if (!cmd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cmd->checksum = argc;
 	return cmd->data;
@@ -338,7 +338,7 @@ r535_gsp_msg_ntfy_add(struct nvkm_gsp *gsp, u32 fn, nvkm_gsp_msg_ntfy_func func,
 
 	mutex_lock(&gsp->msgq.mutex);
 	if (WARN_ON(gsp->msgq.ntfy_nr >= ARRAY_SIZE(gsp->msgq.ntfy))) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 	} else {
 		gsp->msgq.ntfy[gsp->msgq.ntfy_nr].fn = fn;
 		gsp->msgq.ntfy[gsp->msgq.ntfy_nr].func = func;
@@ -416,15 +416,15 @@ static int
 r535_gsp_device_event_get(struct nvkm_gsp_event *event)
 {
 	struct nvkm_gsp_device *device = event->device;
-	NV2080_CTRL_EVENT_SET_NOTIFICATION_PARAMS *ctrl;
+	NV2080_CTRL_EVENT_SET_ANALTIFICATION_PARAMS *ctrl;
 
 	ctrl = nvkm_gsp_rm_ctrl_get(&device->subdevice,
-				    NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION, sizeof(*ctrl));
+				    NV2080_CTRL_CMD_EVENT_SET_ANALTIFICATION, sizeof(*ctrl));
 	if (IS_ERR(ctrl))
 		return PTR_ERR(ctrl);
 
 	ctrl->event = event->id;
-	ctrl->action = NV2080_CTRL_EVENT_SET_NOTIFICATION_ACTION_REPEAT;
+	ctrl->action = NV2080_CTRL_EVENT_SET_ANALTIFICATION_ACTION_REPEAT;
 	return nvkm_gsp_rm_ctrl_wr(&device->subdevice, ctrl);
 }
 
@@ -446,7 +446,7 @@ r535_gsp_device_event_ctor(struct nvkm_gsp_device *device, u32 handle, u32 id,
 	args->hParentClient = client->object.handle;
 	args->hSrcResource = 0;
 	args->hClass = NV01_EVENT_KERNEL_CALLBACK_EX;
-	args->notifyIndex = NV01_EVENT_CLIENT_RM | id;
+	args->analtifyIndex = NV01_EVENT_CLIENT_RM | id;
 	args->data = NULL;
 
 	ret = nvkm_gsp_rm_alloc_wr(&event->object, args);
@@ -598,7 +598,7 @@ r535_gsp_rpc_rm_alloc_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
 		return rpc;
 
 	if (rpc->status) {
-		ret = ERR_PTR(r535_rpc_status_to_errno(rpc->status));
+		ret = ERR_PTR(r535_rpc_status_to_erranal(rpc->status));
 		if (PTR_ERR(ret) != -EAGAIN)
 			nvkm_error(&gsp->subdev, "RM_ALLOC: 0x%x\n", rpc->status);
 	} else {
@@ -657,7 +657,7 @@ r535_gsp_rpc_rm_ctrl_push(struct nvkm_gsp_object *object, void **argv, u32 repc)
 	}
 
 	if (rpc->status) {
-		ret = r535_rpc_status_to_errno(rpc->status);
+		ret = r535_rpc_status_to_erranal(rpc->status);
 		if (ret != -EAGAIN)
 			nvkm_error(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x failed: 0x%08x\n",
 				   object->client->object.handle, object->handle, rpc->cmd, rpc->status);
@@ -833,7 +833,7 @@ r535_gsp_intr(struct nvkm_inth *inth)
 
 	if (!stat) {
 		nvkm_debug(subdev, "inte %08x %08x\n", intr, inte);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (stat & 0x00000040) {
@@ -874,9 +874,9 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 		int inst;
 
 		nvkm_debug(&gsp->subdev,
-			   "%2d: engineIdx %3d pmcIntrMask %08x stall %08x nonStall %08x\n", i,
+			   "%2d: engineIdx %3d pmcIntrMask %08x stall %08x analnStall %08x\n", i,
 			   ctrl->table[i].engineIdx, ctrl->table[i].pmcIntrMask,
-			   ctrl->table[i].vectorStall, ctrl->table[i].vectorNonStall);
+			   ctrl->table[i].vectorStall, ctrl->table[i].vectorAnalnStall);
 
 		switch (ctrl->table[i].engineIdx) {
 		case MC_ENGINE_IDX_GSP:
@@ -916,14 +916,14 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 		}
 
 		if (WARN_ON(gsp->intr_nr == ARRAY_SIZE(gsp->intr))) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			break;
 		}
 
 		gsp->intr[gsp->intr_nr].type = type;
 		gsp->intr[gsp->intr_nr].inst = inst;
 		gsp->intr[gsp->intr_nr].stall = ctrl->table[i].vectorStall;
-		gsp->intr[gsp->intr_nr].nonstall = ctrl->table[i].vectorNonStall;
+		gsp->intr[gsp->intr_nr].analnstall = ctrl->table[i].vectorAnalnStall;
 		gsp->intr_nr++;
 	}
 
@@ -1018,7 +1018,7 @@ nvkm_gsp_mem_ctor(struct nvkm_gsp *gsp, size_t size, struct nvkm_gsp_mem *mem)
 	mem->size = size;
 	mem->data = dma_alloc_coherent(gsp->subdev.device->dev, size, &mem->addr, GFP_KERNEL);
 	if (WARN_ON(!mem->data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1043,7 +1043,7 @@ r535_gsp_postinit(struct nvkm_gsp *gsp)
 	if (WARN_ON(ret < 0))
 		return ret;
 
-	ret = nvkm_inth_add(&device->vfn->intr, ret, NVKM_INTR_PRIO_NORMAL, &gsp->subdev,
+	ret = nvkm_inth_add(&device->vfn->intr, ret, NVKM_INTR_PRIO_ANALRMAL, &gsp->subdev,
 			    r535_gsp_intr, &gsp->subdev.inth);
 	if (WARN_ON(ret))
 		return ret;
@@ -1316,7 +1316,7 @@ r535_gsp_rpc_set_system_info(struct nvkm_gsp *gsp)
 	GspSystemInfo *info;
 
 	if (WARN_ON(device->type == NVKM_DEVICE_TEGRA))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	info = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_GSP_SET_SYSTEM_INFO, sizeof(*info));
 	if (IS_ERR(info))
@@ -1366,7 +1366,7 @@ r535_gsp_msg_rc_triggered(void *priv, u32 fn, void *repv, u32 repc)
 
 	chan = nvkm_chan_get_chid(&subdev->device->fifo->engine, msg->chid / 8, &flags);
 	if (!chan) {
-		nvkm_error(subdev, "rc chid:%d not found!\n", msg->chid);
+		nvkm_error(subdev, "rc chid:%d analt found!\n", msg->chid);
 		return 0;
 	}
 
@@ -1401,8 +1401,8 @@ r535_gsp_msg_post_event(void *priv, u32 fn, void *repv, u32 repc)
 		return -EINVAL;
 
 	nvkm_debug(subdev, "event: %08x %08x %d %08x %08x %d %d\n",
-		   msg->hClient, msg->hEvent, msg->notifyIndex, msg->data,
-		   msg->status, msg->eventDataSize, msg->bNotifyList);
+		   msg->hClient, msg->hEvent, msg->analtifyIndex, msg->data,
+		   msg->status, msg->eventDataSize, msg->bAnaltifyList);
 
 	mutex_lock(&gsp->client_id.mutex);
 	client = idr_find(&gsp->client_id.idr, msg->hClient & 0xffff);
@@ -1418,11 +1418,11 @@ r535_gsp_msg_post_event(void *priv, u32 fn, void *repv, u32 repc)
 		}
 
 		if (!handled) {
-			nvkm_error(subdev, "event: cid 0x%08x event 0x%08x not found!\n",
+			nvkm_error(subdev, "event: cid 0x%08x event 0x%08x analt found!\n",
 				   msg->hClient, msg->hEvent);
 		}
 	} else {
-		nvkm_error(subdev, "event: cid 0x%08x not found!\n", msg->hClient);
+		nvkm_error(subdev, "event: cid 0x%08x analt found!\n", msg->hClient);
 	}
 	mutex_unlock(&gsp->client_id.mutex);
 	return 0;
@@ -1555,7 +1555,7 @@ r535_gsp_msg_run_cpu_sequencer(void *priv, u32 fn, void *repv, u32 repc)
 		}
 			break;
 		default:
-			nvkm_error(subdev, "unknown sequencer opcode %08x\n", cmd->opCode);
+			nvkm_error(subdev, "unkanalwn sequencer opcode %08x\n", cmd->opCode);
 			return -EINVAL;
 		}
 	}
@@ -1573,7 +1573,7 @@ r535_gsp_booter_unload(struct nvkm_gsp *gsp, u32 mbox0, u32 mbox1)
 
 	wpr2_hi = nvkm_rd32(device, 0x1fa828);
 	if (!wpr2_hi) {
-		nvkm_debug(subdev, "WPR2 not set - skipping booter unload\n");
+		nvkm_debug(subdev, "WPR2 analt set - skipping booter unload\n");
 		return 0;
 	}
 
@@ -1633,8 +1633,8 @@ r535_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
 	meta->sizeOfSignature = gsp->sig.size;
 
 	meta->gspFwRsvdStart = gsp->fb.heap.addr;
-	meta->nonWprHeapOffset = gsp->fb.heap.addr;
-	meta->nonWprHeapSize = gsp->fb.heap.size;
+	meta->analnWprHeapOffset = gsp->fb.heap.addr;
+	meta->analnWprHeapSize = gsp->fb.heap.size;
 	meta->gspFwWprStart = gsp->fb.wpr2.addr;
 	meta->gspFwHeapOffset = gsp->fb.wpr2.heap.addr;
 	meta->gspFwHeapSize = gsp->fb.wpr2.heap.size;
@@ -1761,7 +1761,7 @@ r535_gsp_libos_id8(const char *name)
  *
  * GSP-RM sometimes expects physically-contiguous buffers to have an array of
  * "PTEs" for each page in that buffer.  Although in theory that allows for
- * the buffer to be physically discontiguous, GSP-RM does not currently
+ * the buffer to be physically discontiguous, GSP-RM does analt currently
  * support that.
  *
  * In this case, the PTEs are DMA addresses of each page of the buffer.  Since
@@ -1799,7 +1799,7 @@ static void create_pte_array(u64 *ptes, dma_addr_t addr, size_t size)
  * physically contiguous, it's simple math to calculate the addresses.
  *
  * The buffers must be a multiple of GSP_PAGE_SIZE.  GSP-RM also currently
- * ignores the @kind field for LOGINIT, LOGINTR, and LOGRM, but expects the
+ * iganalres the @kind field for LOGINIT, LOGINTR, and LOGRM, but expects the
  * buffers to be physically contiguous anyway.
  *
  * The memory allocated for the arguments must remain until the GSP sends the
@@ -1898,7 +1898,7 @@ nvkm_gsp_sg(struct nvkm_device *device, u64 size, struct sg_table *sgt)
 
 		if (!page) {
 			nvkm_gsp_sg_free(device, sgt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		sg_set_page(sgl, page, PAGE_SIZE, 0);
@@ -1937,7 +1937,7 @@ nvkm_gsp_radix3_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_radix3 *rx3)
  * pages, that limits the size of the firmware to 512*512*GSP_PAGE_SIZE = 1GB.
  *
  * Internally, the GSP has its window into system memory, but the base
- * physical address of the aperture is not 0.  In fact, it varies depending on
+ * physical address of the aperture is analt 0.  In fact, it varies depending on
  * the GPU architecture.  Since the GPU is a PCI device, this window is
  * accessed via DMA and is therefore bound by IOMMU translation.  The end
  * result is that GSP-RM must translate the bus addresses in the table to GSP
@@ -2126,8 +2126,8 @@ r535_gsp_elf_section(struct nvkm_gsp *gsp, const char *name, const u8 **pdata, u
 		}
 	}
 
-	nvkm_error(&gsp->subdev, "section '%s' not found\n", name);
-	return -ENOENT;
+	nvkm_error(&gsp->subdev, "section '%s' analt found\n", name);
+	return -EANALENT;
 }
 
 static void
@@ -2230,7 +2230,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (ret)
 		return ret;
 
-	/* Release FW images - we've copied them to DMA buffers now. */
+	/* Release FW images - we've copied them to DMA buffers analw. */
 	r535_gsp_dtor_fws(gsp);
 
 	/* Calculate FB layout. */
@@ -2314,7 +2314,7 @@ r535_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 	int ret;
 	bool enable_gsp = fwif->enable;
 
-#if IS_ENABLED(CONFIG_DRM_NOUVEAU_GSP_DEFAULT)
+#if IS_ENABLED(CONFIG_DRM_ANALUVEAU_GSP_DEFAULT)
 	enable_gsp = true;
 #endif
 	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", enable_gsp))

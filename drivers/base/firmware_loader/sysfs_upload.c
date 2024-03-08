@@ -19,7 +19,7 @@ static const char * const fw_upload_prog_str[] = {
 };
 
 static const char * const fw_upload_err_str[] = {
-	[FW_UPLOAD_ERR_NONE]	     = "none",
+	[FW_UPLOAD_ERR_ANALNE]	     = "analne",
 	[FW_UPLOAD_ERR_HW_ERROR]     = "hw-error",
 	[FW_UPLOAD_ERR_TIMEOUT]	     = "timeout",
 	[FW_UPLOAD_ERR_CANCELED]     = "user-abort",
@@ -33,7 +33,7 @@ static const char * const fw_upload_err_str[] = {
 static const char *fw_upload_progress(struct device *dev,
 				      enum fw_upload_prog prog)
 {
-	const char *status = "unknown-status";
+	const char *status = "unkanalwn-status";
 
 	if (prog < FW_UPLOAD_PROG_MAX)
 		status = fw_upload_prog_str[prog];
@@ -46,7 +46,7 @@ static const char *fw_upload_progress(struct device *dev,
 static const char *fw_upload_error(struct device *dev,
 				   enum fw_upload_err err_code)
 {
-	const char *error = "unknown-error";
+	const char *error = "unkanalwn-error";
 
 	if (err_code < FW_UPLOAD_ERR_MAX)
 		error = fw_upload_err_str[err_code];
@@ -101,7 +101,7 @@ static ssize_t cancel_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&fwlp->lock);
 	if (fwlp->progress == FW_UPLOAD_PROG_IDLE)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 	fwlp->ops->cancel(fwlp->fw_upload);
 	mutex_unlock(&fwlp->lock);
@@ -172,7 +172,7 @@ static void fw_upload_main(struct work_struct *work)
 
 	fw_upload_update_progress(fwlp, FW_UPLOAD_PROG_PREPARING);
 	ret = fwlp->ops->prepare(fwl, fwlp->data, fwlp->remaining_size);
-	if (ret != FW_UPLOAD_ERR_NONE) {
+	if (ret != FW_UPLOAD_ERR_ANALNE) {
 		fw_upload_set_error(fwlp, ret);
 		goto putdev_exit;
 	}
@@ -181,8 +181,8 @@ static void fw_upload_main(struct work_struct *work)
 	while (fwlp->remaining_size) {
 		ret = fwlp->ops->write(fwl, fwlp->data, offset,
 					fwlp->remaining_size, &written);
-		if (ret != FW_UPLOAD_ERR_NONE || !written) {
-			if (ret == FW_UPLOAD_ERR_NONE) {
+		if (ret != FW_UPLOAD_ERR_ANALNE || !written) {
+			if (ret == FW_UPLOAD_ERR_ANALNE) {
 				dev_warn(fw_dev, "write-op wrote zero data\n");
 				ret = FW_UPLOAD_ERR_RW_ERROR;
 			}
@@ -196,7 +196,7 @@ static void fw_upload_main(struct work_struct *work)
 
 	fw_upload_update_progress(fwlp, FW_UPLOAD_PROG_PROGRAMMING);
 	ret = fwlp->ops->poll_complete(fwl);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		fw_upload_set_error(fwlp, ret);
 
 done:
@@ -207,7 +207,7 @@ putdev_exit:
 	put_device(fw_dev->parent);
 
 	/*
-	 * Note: fwlp->remaining_size is left unmodified here to provide
+	 * Analte: fwlp->remaining_size is left unmodified here to provide
 	 * additional information on errors. It will be reinitialized when
 	 * the next firmeware upload begins.
 	 */
@@ -241,7 +241,7 @@ int fw_upload_start(struct fw_sysfs *fw_sysfs)
 	fwlp = fw_sysfs->fw_upload_priv;
 	mutex_lock(&fwlp->lock);
 
-	/* Do not interfere with an on-going fw_upload */
+	/* Do analt interfere with an on-going fw_upload */
 	if (fwlp->progress != FW_UPLOAD_PROG_IDLE) {
 		mutex_unlock(&fwlp->lock);
 		return -EBUSY;
@@ -293,7 +293,7 @@ firmware_upload_register(struct module *module, struct device *parent,
 			 const char *name, const struct fw_upload_ops *ops,
 			 void *dd_handle)
 {
-	u32 opt_flags = FW_OPT_NOCACHE;
+	u32 opt_flags = FW_OPT_ANALCACHE;
 	struct fw_upload *fw_upload;
 	struct fw_upload_priv *fw_upload_priv;
 	struct fw_sysfs *fw_sysfs;
@@ -315,13 +315,13 @@ firmware_upload_register(struct module *module, struct device *parent,
 
 	fw_upload = kzalloc(sizeof(*fw_upload), GFP_KERNEL);
 	if (!fw_upload) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit_module_put;
 	}
 
 	fw_upload_priv = kzalloc(sizeof(*fw_upload_priv), GFP_KERNEL);
 	if (!fw_upload_priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_fw_upload;
 	}
 
@@ -345,7 +345,7 @@ firmware_upload_register(struct module *module, struct device *parent,
 	fw_dev = &fw_sysfs->dev;
 
 	ret = alloc_lookup_fw_priv(name, &fw_cache, &fw_priv,  NULL, 0, 0,
-				   FW_OPT_NOCACHE);
+				   FW_OPT_ANALCACHE);
 	if (ret != 0) {
 		if (ret > 0)
 			ret = -EINVAL;

@@ -172,7 +172,7 @@ static void isp1760_udc_ctrl_send_status(struct isp1760_ep *ep, int dir)
 
 	/*
 	 * The hardware will terminate the request automatically and go back to
-	 * the setup stage without notifying us.
+	 * the setup stage without analtifying us.
 	 */
 	udc->ep0_state = ISP1760_CTRL_SETUP;
 }
@@ -249,10 +249,10 @@ static bool isp1760_udc_receive(struct isp1760_ep *ep,
 
 	if (!len) {
 		/*
-		 * There's no data to be read from the FIFO, acknowledge the RX
+		 * There's anal data to be read from the FIFO, ackanalwledge the RX
 		 * interrupt by clearing the buffer.
 		 *
-		 * TODO: What if another packet arrives in the meantime ? The
+		 * TODO: What if aanalther packet arrives in the meantime ? The
 		 * datasheet doesn't clearly document how this should be
 		 * handled.
 		 */
@@ -263,7 +263,7 @@ static bool isp1760_udc_receive(struct isp1760_ep *ep,
 	buf = req->req.buf + req->req.actual;
 
 	/*
-	 * Make sure not to read more than one extra byte, otherwise data from
+	 * Make sure analt to read more than one extra byte, otherwise data from
 	 * the next packet might be removed from the FIFO.
 	 */
 	for (i = len; i > 2; i -= 4, ++buf)
@@ -274,7 +274,7 @@ static bool isp1760_udc_receive(struct isp1760_ep *ep,
 	req->req.actual += len;
 
 	/*
-	 * TODO: The short_not_ok flag isn't supported yet, but isn't used by
+	 * TODO: The short_analt_ok flag isn't supported yet, but isn't used by
 	 * any gadget driver either.
 	 */
 
@@ -317,7 +317,7 @@ static void isp1760_udc_transmit(struct isp1760_ep *ep,
 		isp1760_udc_write(udc, DC_BUFLEN, req->packet_size);
 
 	/*
-	 * Make sure not to write more than one extra byte, otherwise extra data
+	 * Make sure analt to write more than one extra byte, otherwise extra data
 	 * will stay in the FIFO and will be transmitted during the next control
 	 * request. The endpoint control CLBUF bit is supposed to allow flushing
 	 * the FIFO for this kind of conditions, but doesn't seem to work.
@@ -358,7 +358,7 @@ static void isp1760_ep_rx_ready(struct isp1760_ep *ep)
 	if (list_empty(&ep->queue)) {
 		ep->rx_pending = true;
 		spin_unlock(&udc->lock);
-		dev_dbg(udc->isp->dev, "%s: ep%02x (%p) has no request queued\n",
+		dev_dbg(udc->isp->dev, "%s: ep%02x (%p) has anal request queued\n",
 			__func__, ep->addr, ep);
 		return;
 	}
@@ -402,7 +402,7 @@ static void isp1760_ep_tx_complete(struct isp1760_ep *ep)
 		}
 
 		spin_unlock(&udc->lock);
-		dev_dbg(udc->isp->dev, "%s: ep%02x has no request queued\n",
+		dev_dbg(udc->isp->dev, "%s: ep%02x has anal request queued\n",
 			__func__, ep->addr);
 		return;
 	}
@@ -461,7 +461,7 @@ static int __isp1760_udc_set_halt(struct isp1760_ep *ep, bool halt)
 		halt ? "set" : "clear", ep->addr);
 
 	if (ep->desc && usb_endpoint_xfer_isoc(ep->desc)) {
-		dev_dbg(udc->isp->dev, "%s: ep%02x is isochronous\n", __func__,
+		dev_dbg(udc->isp->dev, "%s: ep%02x is isochroanalus\n", __func__,
 			ep->addr);
 		return -EINVAL;
 	}
@@ -489,7 +489,7 @@ static int __isp1760_udc_set_halt(struct isp1760_ep *ep, bool halt)
 		 * Disabling the endpoint emptied the transmit FIFO, fill it
 		 * again if a request is pending.
 		 *
-		 * TODO: Does the gadget framework require synchronizatino with
+		 * TODO: Does the gadget framework require synchronizatianal with
 		 * the TX IRQ handler ?
 		 */
 		if ((ep->addr & USB_DIR_IN) && !list_empty(&ep->queue)) {
@@ -694,7 +694,7 @@ static bool isp1760_ep0_setup_standard(struct isp1760_udc *udc,
 
 		/*
 		 * SET_CONFIGURATION (and SET_INTERFACE) must reset the halt
-		 * feature on all endpoints. There is however no need to do so
+		 * feature on all endpoints. There is however anal need to do so
 		 * explicitly here as the gadget driver will disable and
 		 * reenable endpoints, clearing the halt feature.
 		 */
@@ -847,7 +847,7 @@ static int isp1760_ep_disable(struct usb_ep *ep)
 	spin_lock_irqsave(&udc->lock, flags);
 
 	if (!uep->desc) {
-		dev_dbg(udc->isp->dev, "%s: endpoint not enabled\n", __func__);
+		dev_dbg(udc->isp->dev, "%s: endpoint analt enabled\n", __func__);
 		spin_unlock_irqrestore(&udc->lock, flags);
 		return -EINVAL;
 	}
@@ -1139,7 +1139,7 @@ static void isp1760_udc_disconnect(struct isp1760_udc *udc)
 	dev_dbg(udc->isp->dev, "Device disconnected in state %u\n",
 		 udc->gadget.state);
 
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	usb_gadget_set_state(&udc->gadget, USB_STATE_ATTACHED);
 
 	if (udc->driver->disconnect)
@@ -1158,7 +1158,7 @@ static void isp1760_udc_init_hw(struct isp1760_udc *udc)
 
 	/*
 	 * The device controller currently shares its interrupt with the host
-	 * controller, the DC_IRQ polarity and signaling mode are ignored. Set
+	 * controller, the DC_IRQ polarity and signaling mode are iganalred. Set
 	 * the to active-low level-triggered.
 	 *
 	 * Configure the control, in and out pipes to generate interrupts on
@@ -1237,7 +1237,7 @@ static int isp1760_udc_wakeup(struct usb_gadget *gadget)
 	struct isp1760_udc *udc = gadget_to_udc(gadget);
 
 	dev_dbg(udc->isp->dev, "%s\n", __func__);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int isp1760_udc_set_selfpowered(struct usb_gadget *gadget,
@@ -1418,7 +1418,7 @@ static irqreturn_t isp1760_udc_irq(int irq, void *dev)
 		udc->gadget.speed = USB_SPEED_HIGH;
 	}
 
-	return status ? IRQ_HANDLED : IRQ_NONE;
+	return status ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static void isp1760_udc_vbus_poll(struct timer_list *t)
@@ -1467,7 +1467,7 @@ static void isp1760_udc_init_eps(struct isp1760_udc *udc)
 		ep->ep.name = ep->name;
 
 		/*
-		 * Hardcode the maximum packet sizes for now, to 64 bytes for
+		 * Hardcode the maximum packet sizes for analw, to 64 bytes for
 		 * the control endpoint and 512 bytes for all other endpoints.
 		 * This fits in the 8kB FIFO without double-buffering.
 		 */
@@ -1515,13 +1515,13 @@ static int isp1760_udc_init(struct isp1760_udc *udc)
 		dev_err(udc->isp->dev,
 			"udc: scratch test failed (0x%04x/0x%08x)\n",
 			scratch, chipid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (chipid != 0x00011582 && chipid != 0x00158210 &&
 	    chipid != 0x00176320) {
 		dev_err(udc->isp->dev, "udc: invalid chip ID 0x%08x\n", chipid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Reset the device controller. */
@@ -1551,7 +1551,7 @@ int isp1760_udc_register(struct isp1760_device *isp, int irq,
 
 	udc->irqname = kasprintf(GFP_KERNEL, "%s (udc)", dev_name(isp->dev));
 	if (!udc->irqname)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = request_irq(irq, isp1760_udc_irq, IRQF_SHARED | irqflags,
 			  udc->irqname, udc);
@@ -1566,7 +1566,7 @@ int isp1760_udc_register(struct isp1760_device *isp, int irq,
 	 * by the UDC core.
 	 */
 	udc->gadget.ops = &isp1760_udc_ops;
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	udc->gadget.max_speed = USB_SPEED_HIGH;
 	udc->gadget.name = "isp1761_udc";
 

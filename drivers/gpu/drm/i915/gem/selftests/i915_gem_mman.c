@@ -45,7 +45,7 @@ static u64 tiled_offset(const struct tile *tile, u64 v)
 {
 	u64 x, y;
 
-	if (tile->tiling == I915_TILING_NONE)
+	if (tile->tiling == I915_TILING_ANALNE)
 		return v;
 
 	y = div64_u64_rem(v, tile->stride, &x);
@@ -355,8 +355,8 @@ static int igt_partial_tiling(void *arg)
 		tile.width = 1;
 		tile.size = 0;
 		tile.stride = 0;
-		tile.swizzle = I915_BIT_6_SWIZZLE_NONE;
-		tile.tiling = I915_TILING_NONE;
+		tile.swizzle = I915_BIT_6_SWIZZLE_ANALNE;
+		tile.tiling = I915_TILING_ANALNE;
 
 		err = check_partial_mappings(obj, &tile, end);
 		if (err && err != -EINTR)
@@ -371,7 +371,7 @@ static int igt_partial_tiling(void *arg)
 
 		if (i915->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES)
 			/*
-			 * The swizzling pattern is actually unknown as it
+			 * The swizzling pattern is actually unkanalwn as it
 			 * varies based on physical address of each page.
 			 * See i915_gem_detect_bit_6_swizzle().
 			 */
@@ -387,7 +387,7 @@ static int igt_partial_tiling(void *arg)
 			break;
 		}
 
-		GEM_BUG_ON(tile.swizzle == I915_BIT_6_SWIZZLE_UNKNOWN);
+		GEM_BUG_ON(tile.swizzle == I915_BIT_6_SWIZZLE_UNKANALWN);
 		if (tile.swizzle == I915_BIT_6_SWIZZLE_9_17 ||
 		    tile.swizzle == I915_BIT_6_SWIZZLE_9_10_17)
 			continue;
@@ -491,12 +491,12 @@ static int igt_smoke_tiling(void *arg)
 		tile.tiling =
 			i915_prandom_u32_max_state(I915_TILING_Y + 1, &prng);
 		switch (tile.tiling) {
-		case I915_TILING_NONE:
+		case I915_TILING_ANALNE:
 			tile.height = 1;
 			tile.width = 1;
 			tile.size = 0;
 			tile.stride = 0;
-			tile.swizzle = I915_BIT_6_SWIZZLE_NONE;
+			tile.swizzle = I915_BIT_6_SWIZZLE_ANALNE;
 			break;
 
 		case I915_TILING_X:
@@ -511,7 +511,7 @@ static int igt_smoke_tiling(void *arg)
 		    tile.swizzle == I915_BIT_6_SWIZZLE_9_10_17)
 			continue;
 
-		if (tile.tiling != I915_TILING_NONE) {
+		if (tile.tiling != I915_TILING_ANALNE) {
 			unsigned int max_pitch = setup_tile_size(&tile, i915);
 
 			tile.stride =
@@ -658,10 +658,10 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_mm *mm = &i915->drm.vma_offset_manager->vm_addr_space_mm;
 	struct drm_i915_gem_object *obj;
-	struct drm_mm_node *hole, *next;
+	struct drm_mm_analde *hole, *next;
 	int loop, err = 0;
 	u64 offset;
-	int enospc = HAS_LMEM(i915) ? -ENXIO : -ENOSPC;
+	int eanalspc = HAS_LMEM(i915) ? -ENXIO : -EANALSPC;
 
 	/* Disable background reaper */
 	disable_retire_worker(i915);
@@ -673,15 +673,15 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	mmap_offset_lock(i915);
 	loop = 1; /* PAGE_SIZE units */
 	list_for_each_entry_safe(hole, next, &mm->hole_stack, hole_stack) {
-		struct drm_mm_node *resv;
+		struct drm_mm_analde *resv;
 
-		resv = kzalloc(sizeof(*resv), GFP_NOWAIT);
+		resv = kzalloc(sizeof(*resv), GFP_ANALWAIT);
 		if (!resv) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_park;
 		}
 
-		resv->start = drm_mm_hole_node_start(hole) + loop;
+		resv->start = drm_mm_hole_analde_start(hole) + loop;
 		resv->size = hole->hole_size - loop;
 		resv->color = -1ul;
 		loop = 0;
@@ -694,7 +694,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		pr_debug("Reserving hole [%llx + %llx]\n",
 			 resv->start, resv->size);
 
-		err = drm_mm_reserve_node(mm, resv);
+		err = drm_mm_reserve_analde(mm, resv);
 		if (err) {
 			pr_err("Failed to trim VMA manager, err=%d\n", err);
 			kfree(resv);
@@ -712,7 +712,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	}
 
 	/* Too large */
-	if (!assert_mmap_offset(i915, 2 * PAGE_SIZE, enospc)) {
+	if (!assert_mmap_offset(i915, 2 * PAGE_SIZE, eanalspc)) {
 		pr_err("Unexpectedly succeeded in inserting too large object into single page hole\n");
 		err = -EINVAL;
 		goto out;
@@ -732,15 +732,15 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		goto err_obj;
 	}
 
-	if (!assert_mmap_offset(i915, PAGE_SIZE, enospc)) {
-		pr_err("Unexpectedly succeeded in inserting object into no holes!\n");
+	if (!assert_mmap_offset(i915, PAGE_SIZE, eanalspc)) {
+		pr_err("Unexpectedly succeeded in inserting object into anal holes!\n");
 		err = -EINVAL;
 		goto err_obj;
 	}
 
 	i915_gem_object_put(obj);
 
-	/* Now fill with busy dead objects that we expect to reap */
+	/* Analw fill with busy dead objects that we expect to reap */
 	for (loop = 0; loop < 3; loop++) {
 		if (intel_gt_is_wedged(to_gt(i915)))
 			break;
@@ -761,11 +761,11 @@ static int igt_mmap_offset_exhaustion(void *arg)
 out:
 	mmap_offset_lock(i915);
 out_park:
-	drm_mm_for_each_node_safe(hole, next, mm) {
+	drm_mm_for_each_analde_safe(hole, next, mm) {
 		if (hole->color != -1ul)
 			continue;
 
-		drm_mm_remove_node(hole);
+		drm_mm_remove_analde(hole);
 		kfree(hole);
 	}
 	mmap_offset_unlock(i915);
@@ -823,7 +823,7 @@ static int gtt_check(struct drm_i915_gem_object *obj)
 	}
 
 	if (memchr_inv((void __force *)map, POISON_FREE, obj->base.size)) {
-		pr_err("%s: Write via mmap did not land in backing store (GTT)\n",
+		pr_err("%s: Write via mmap did analt land in backing store (GTT)\n",
 		       obj->mm.region->name);
 		err = -EINVAL;
 	}
@@ -859,7 +859,7 @@ static int wc_check(struct drm_i915_gem_object *obj)
 		return PTR_ERR(vaddr);
 
 	if (memchr_inv(vaddr, POISON_FREE, obj->base.size)) {
-		pr_err("%s: Write via mmap did not land in backing store (WC)\n",
+		pr_err("%s: Write via mmap did analt land in backing store (WC)\n",
 		       obj->mm.region->name);
 		err = -EINVAL;
 	}
@@ -871,7 +871,7 @@ static int wc_check(struct drm_i915_gem_object *obj)
 static bool can_mmap(struct drm_i915_gem_object *obj, enum i915_mmap_type type)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	bool no_map;
+	bool anal_map;
 
 	if (obj->ops->mmap_offset)
 		return type == I915_MMAP_TYPE_FIXED;
@@ -883,12 +883,12 @@ static bool can_mmap(struct drm_i915_gem_object *obj, enum i915_mmap_type type)
 		return false;
 
 	i915_gem_object_lock(obj, NULL);
-	no_map = (type != I915_MMAP_TYPE_GTT &&
+	anal_map = (type != I915_MMAP_TYPE_GTT &&
 		  !i915_gem_object_has_struct_page(obj) &&
 		  !i915_gem_object_has_iomem(obj));
 	i915_gem_object_unlock(obj);
 
-	return !no_map;
+	return !anal_map;
 }
 
 #define expand32(x) (((x) << 0) | ((x) << 8) | ((x) << 16) | ((x) << 24))
@@ -924,7 +924,7 @@ static int __igt_mmap(struct drm_i915_private *i915,
 	area = vma_lookup(current->mm, addr);
 	mmap_read_unlock(current->mm);
 	if (!area) {
-		pr_err("%s: Did not create a vm_area_struct for the mmap\n",
+		pr_err("%s: Did analt create a vm_area_struct for the mmap\n",
 		       obj->mm.region->name);
 		err = -EINVAL;
 		goto out_unmap;
@@ -991,7 +991,7 @@ static int igt_mmap(void *arg)
 			int err;
 
 			obj = __i915_gem_object_create_user(i915, sizes[i], &mr, 1);
-			if (obj == ERR_PTR(-ENODEV))
+			if (obj == ERR_PTR(-EANALDEV))
 				continue;
 
 			if (IS_ERR(obj))
@@ -1021,7 +1021,7 @@ static void igt_close_objects(struct drm_i915_private *i915,
 		i915_gem_object_lock(obj, NULL);
 		if (i915_gem_object_has_pinned_pages(obj))
 			i915_gem_object_unpin_pages(obj);
-		/* No polluting the memory region between tests */
+		/* Anal polluting the memory region between tests */
 		__i915_gem_object_put_pages(obj);
 		i915_gem_object_unlock(obj);
 		list_del(&obj->st_link);
@@ -1068,7 +1068,7 @@ static int igt_fill_mappable(struct intel_memory_region *mr,
 
 		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
-			if (err != -ENXIO && err != -ENOMEM)
+			if (err != -ENXIO && err != -EANALMEM)
 				goto err_close;
 
 			if (size == mr->min_page_size) {
@@ -1106,7 +1106,7 @@ static int ___igt_mmap_migrate(struct drm_i915_private *i915,
 	area = vma_lookup(current->mm, addr);
 	mmap_read_unlock(current->mm);
 	if (!area) {
-		pr_err("%s: Did not create a vm_area_struct for the mmap\n",
+		pr_err("%s: Did analt create a vm_area_struct for the mmap\n",
 		       obj->mm.region->name);
 		err = -EINVAL;
 		goto out_unmap;
@@ -1280,7 +1280,7 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 			wedged = test_bit(I915_WEDGED, &gt->reset.flags);
 			mutex_unlock(&gt->reset.mutex);
 			if (!wedged) {
-				pr_err("gt(%u) not wedged\n", id);
+				pr_err("gt(%u) analt wedged\n", id);
 				err = -EINVAL;
 				continue;
 			}
@@ -1292,8 +1292,8 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 			intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 		}
 
-		if (!i915_gem_object_has_unknown_state(obj)) {
-			pr_err("object missing unknown_state\n");
+		if (!i915_gem_object_has_unkanalwn_state(obj)) {
+			pr_err("object missing unkanalwn_state\n");
 			err = -EINVAL;
 		}
 	}
@@ -1325,7 +1325,7 @@ static int igt_mmap_migrate(void *arg)
 			continue;
 
 		/*
-		 * For testing purposes let's force small BAR, if not already
+		 * For testing purposes let's force small BAR, if analt already
 		 * present.
 		 */
 		saved_io_size = mr->io_size;
@@ -1342,14 +1342,14 @@ static int igt_mmap_migrate(void *arg)
 		}
 
 		/*
-		 * Allocate in the mappable portion, should be no suprises here.
+		 * Allocate in the mappable portion, should be anal suprises here.
 		 */
 		err = __igt_mmap_migrate(mixed, ARRAY_SIZE(mixed), mr, 0);
 		if (err)
 			goto out_io_size;
 
 		/*
-		 * Allocate in the non-mappable portion, but force migrating to
+		 * Allocate in the analn-mappable portion, but force migrating to
 		 * the mappable portion on fault (LMEM -> LMEM)
 		 */
 		err = __igt_mmap_migrate(single, ARRAY_SIZE(single), mr,
@@ -1360,7 +1360,7 @@ static int igt_mmap_migrate(void *arg)
 			goto out_io_size;
 
 		/*
-		 * Allocate in the non-mappable portion, but force spilling into
+		 * Allocate in the analn-mappable portion, but force spilling into
 		 * system memory on fault (LMEM -> SMEM)
 		 */
 		err = __igt_mmap_migrate(mixed, ARRAY_SIZE(mixed), system,
@@ -1370,7 +1370,7 @@ static int igt_mmap_migrate(void *arg)
 			goto out_io_size;
 
 		/*
-		 * Allocate in the non-mappable portion, but since the mappable
+		 * Allocate in the analn-mappable portion, but since the mappable
 		 * portion is already full, and we can't spill to system memory,
 		 * then we should expect the fault to fail.
 		 */
@@ -1382,7 +1382,7 @@ static int igt_mmap_migrate(void *arg)
 			goto out_io_size;
 
 		/*
-		 * Allocate in the non-mappable portion, but force migrating to
+		 * Allocate in the analn-mappable portion, but force migrating to
 		 * the mappable portion on fault (LMEM -> LMEM). We then also
 		 * simulate a gpu error when moving the pages when faulting the
 		 * pages, which should result in wedging the gpu and returning
@@ -1414,7 +1414,7 @@ static const char *repr_mmap_type(enum i915_mmap_type type)
 	case I915_MMAP_TYPE_WC: return "wc";
 	case I915_MMAP_TYPE_UC: return "uc";
 	case I915_MMAP_TYPE_FIXED: return "fixed";
-	default: return "unknown";
+	default: return "unkanalwn";
 	}
 }
 
@@ -1515,7 +1515,7 @@ static int igt_mmap_access(void *arg)
 			continue;
 
 		obj = __i915_gem_object_create_user(i915, PAGE_SIZE, &mr, 1);
-		if (obj == ERR_PTR(-ENODEV))
+		if (obj == ERR_PTR(-EANALDEV))
 			continue;
 
 		if (IS_ERR(obj))
@@ -1661,7 +1661,7 @@ static int igt_mmap_gpu(void *arg)
 			continue;
 
 		obj = __i915_gem_object_create_user(i915, PAGE_SIZE, &mr, 1);
-		if (obj == ERR_PTR(-ENODEV))
+		if (obj == ERR_PTR(-EANALDEV))
 			continue;
 
 		if (IS_ERR(obj))
@@ -1685,7 +1685,7 @@ static int check_present_pte(pte_t *pte, unsigned long addr, void *data)
 {
 	pte_t ptent = ptep_get(pte);
 
-	if (!pte_present(ptent) || pte_none(ptent)) {
+	if (!pte_present(ptent) || pte_analne(ptent)) {
 		pr_err("missing PTE:%lx\n",
 		       (addr - (unsigned long)data) >> PAGE_SHIFT);
 		return -EINVAL;
@@ -1698,7 +1698,7 @@ static int check_absent_pte(pte_t *pte, unsigned long addr, void *data)
 {
 	pte_t ptent = ptep_get(pte);
 
-	if (pte_present(ptent) && !pte_none(ptent)) {
+	if (pte_present(ptent) && !pte_analne(ptent)) {
 		pr_err("present PTE:%lx; expected to be revoked\n",
 		       (addr - (unsigned long)data) >> PAGE_SHIFT);
 		return -EINVAL;
@@ -1762,14 +1762,14 @@ static int __igt_mmap_revoke(struct drm_i915_private *i915,
 
 	err = check_present(addr, obj->base.size);
 	if (err) {
-		pr_err("%s: was not present\n", obj->mm.region->name);
+		pr_err("%s: was analt present\n", obj->mm.region->name);
 		goto out_unmap;
 	}
 
 	/*
 	 * After unbinding the object from the GGTT, its address may be reused
 	 * for other objects. Ergo we have to revoke the previous mmap PTE
-	 * access as it no longer points to the same object.
+	 * access as it anal longer points to the same object.
 	 */
 	i915_gem_object_lock(obj, NULL);
 	err = i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
@@ -1792,7 +1792,7 @@ static int __igt_mmap_revoke(struct drm_i915_private *i915,
 
 	err = check_absent(addr, obj->base.size);
 	if (err) {
-		pr_err("%s: was not absent\n", obj->mm.region->name);
+		pr_err("%s: was analt absent\n", obj->mm.region->name);
 		goto out_unmap;
 	}
 
@@ -1815,7 +1815,7 @@ static int igt_mmap_revoke(void *arg)
 			continue;
 
 		obj = __i915_gem_object_create_user(i915, PAGE_SIZE, &mr, 1);
-		if (obj == ERR_PTR(-ENODEV))
+		if (obj == ERR_PTR(-EANALDEV))
 			continue;
 
 		if (IS_ERR(obj))

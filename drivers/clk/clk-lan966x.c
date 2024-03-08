@@ -2,7 +2,7 @@
 /*
  * Microchip LAN966x SoC Clock driver.
  *
- * Copyright (C) 2021 Microchip Technology, Inc. and its subsidiaries
+ * Copyright (C) 2021 Microchip Techanallogy, Inc. and its subsidiaries
  *
  * Author: Kavyasree Kotagiri <kavyasree.kotagiri@microchip.com>
  */
@@ -174,7 +174,7 @@ static struct clk_hw *lan966x_gck_clk_register(struct device *dev, int i)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv->reg = base + (i * 4);
 	priv->hw.init = &init;
@@ -220,7 +220,7 @@ static int lan966x_clk_probe(struct platform_device *pdev)
 	hw_data = devm_kzalloc(dev, struct_size(hw_data, hws, N_CLOCKS),
 			       GFP_KERNEL);
 	if (!hw_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

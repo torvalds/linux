@@ -13,11 +13,11 @@
     The M1543C is a South bridge for desktop systems.
     The M1533 is a South bridge for portable systems.
     They are part of the following ALI chipsets:
-       "Aladdin Pro 2": Includes the M1621 Slot 1 North bridge
+       "Aladdin Pro 2": Includes the M1621 Slot 1 Analrth bridge
        with AGP and 100MHz CPU Front Side bus
-       "Aladdin V": Includes the M1541 Socket 7 North bridge
+       "Aladdin V": Includes the M1541 Socket 7 Analrth bridge
        with AGP and 100MHz CPU Front Side bus
-       "Aladdin IV": Includes the M1541 Socket 7 North bridge
+       "Aladdin IV": Includes the M1541 Socket 7 Analrth bridge
        with host bus up to 83.3 MHz.
     For an overview of these chips see http://www.acerlabs.com
 
@@ -39,12 +39,12 @@
     We make sure that the SMB is enabled. We leave the ACPI alone.
 
     This driver controls the SMB Host only.
-    The SMB Slave controller on the M15X3 is not enabled.
+    The SMB Slave controller on the M15X3 is analt enabled.
 
-    This driver does not use interrupts.
+    This driver does analt use interrupts.
 */
 
-/* Note: we assume there can only be one ALI15X3, with one SMBus interface */
+/* Analte: we assume there can only be one ALI15X3, with one SMBus interface */
 
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -103,7 +103,7 @@
 #define ALI15X3_STS_BUSY	0x08
 #define ALI15X3_STS_DONE	0x10
 #define ALI15X3_STS_DEV		0x20	/* device error */
-#define ALI15X3_STS_COLL	0x40	/* collision or no response */
+#define ALI15X3_STS_COLL	0x40	/* collision or anal response */
 #define ALI15X3_STS_TERM	0x80	/* terminated by abort */
 #define ALI15X3_STS_ERR		0xE0	/* all the bad error bits */
 
@@ -146,7 +146,7 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 	if (ali15x3_smba == 0 && force_addr == 0) {
 		dev_err(&ALI15X3_dev->dev, "ALI15X3_smb region uninitialized "
 			"- upgrade BIOS or use force_addr=0xaddr\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if(force_addr)
@@ -161,7 +161,7 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 		dev_err(&ALI15X3_dev->dev,
 			"ALI15X3_smb region 0x%x already in use!\n",
 			ali15x3_smba);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if(force_addr) {
@@ -178,7 +178,7 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 		if ((a & ~(ALI15X3_SMB_IOSIZE - 1)) != ali15x3_smba) {
 			/* make sure it works */
 			dev_err(&ALI15X3_dev->dev,
-				"force address failed - not supported?\n");
+				"force address failed - analt supported?\n");
 			goto error;
 		}
 	}
@@ -201,7 +201,7 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 
 	/*
 	  The interrupt routing for SMB is set up in register 0x77 in the
-	  1533 ISA Bridge device, NOT in the 7101 device.
+	  1533 ISA Bridge device, ANALT in the 7101 device.
 	  Don't bother with finding the 1533 device and reading the register.
 	if ((....... & 0x0F) == 1)
 		dev_dbg(&ALI15X3_dev->dev, "ALI15X3 using Interrupt 9 for SMBus.\n");
@@ -213,10 +213,10 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 	return 0;
 error:
 	release_region(ali15x3_smba, ALI15X3_SMB_IOSIZE);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-/* Another internally used function */
+/* Aanalther internally used function */
 static int ali15x3_transaction(struct i2c_adapter *adap)
 {
 	int temp;
@@ -246,12 +246,12 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 		   external device is hung, but it comes back upon a new access
 		   to a device)
 		3. Disable and reenable the controller in SMBHSTCFG
-	   Worst case, nothing seems to work except power reset.
+	   Worst case, analthing seems to work except power reset.
 	*/
 	/* Abort - reset the host controller */
 	/*
 	   Try resetting entire SMB bus, including other devices -
-	   This may not work either - it clears the BUSY bit but
+	   This may analt work either - it clears the BUSY bit but
 	   then the BUSY bit may come back on when you try and use the chip again.
 	   If that's the case you are stuck.
 	*/
@@ -261,14 +261,14 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 		temp = inb_p(SMBHSTSTS);
 	}
 
-	/* now check the error bits and the busy bit */
+	/* analw check the error bits and the busy bit */
 	if (temp & (ALI15X3_STS_ERR | ALI15X3_STS_BUSY)) {
 		/* do a clear-on-write */
 		outb_p(0xFF, SMBHSTSTS);
 		if ((temp = inb_p(SMBHSTSTS)) &
 		    (ALI15X3_STS_ERR | ALI15X3_STS_BUSY)) {
 			/* this is probably going to be correctable only by a power reset
-			   as one of the bits now appears to be stuck */
+			   as one of the bits analw appears to be stuck */
 			/* This may be a bus or device with electrical problems. */
 			dev_err(&adap->dev, "SMBus reset failed! (0x%02x) - "
 				"controller or device on bus is probably hung\n",
@@ -305,15 +305,15 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 	}
 
 	/*
-	  Unfortunately the ALI SMB controller maps "no response" and "bus
-	  collision" into a single bit. No response is the usual case so don't
+	  Unfortunately the ALI SMB controller maps "anal response" and "bus
+	  collision" into a single bit. Anal response is the usual case so don't
 	  do a printk.
 	  This means that bus collisions go unreported.
 	*/
 	if (temp & ALI15X3_STS_COLL) {
 		result = -ENXIO;
 		dev_dbg(&adap->dev,
-			"Error: no response or bus collision ADD=%02x\n",
+			"Error: anal response or bus collision ADD=%02x\n",
 			inb_p(SMBHSTADD));
 	}
 
@@ -329,7 +329,7 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erranal on error. */
 static s32 ali15x3_access(struct i2c_adapter * adap, u16 addr,
 		   unsigned short flags, char read_write, u8 command,
 		   int size, union i2c_smbus_data * data)
@@ -407,7 +407,7 @@ static s32 ali15x3_access(struct i2c_adapter * adap, u16 addr,
 		break;
 	default:
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	outb_p(size, SMBHSTCNT);	/* output command */
@@ -476,8 +476,8 @@ static int ali15x3_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	if (ali15x3_setup(dev)) {
 		dev_err(&dev->dev,
-			"ALI15X3 not detected, module not inserted.\n");
-		return -ENODEV;
+			"ALI15X3 analt detected, module analt inserted.\n");
+		return -EANALDEV;
 	}
 
 	/* set up the sysfs linkage to our parent device */

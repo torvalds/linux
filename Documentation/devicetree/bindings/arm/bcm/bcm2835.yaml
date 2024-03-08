@@ -11,7 +11,7 @@ maintainers:
   - Stefan Wahren <wahrenst@gmx.net>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -29,7 +29,7 @@ properties:
               - raspberrypi,model-a
               - raspberrypi,model-a-plus
               - raspberrypi,model-b
-              - raspberrypi,model-b-i2c0  # Raspberry Pi Model B (no P5)
+              - raspberrypi,model-b-i2c0  # Raspberry Pi Model B (anal P5)
               - raspberrypi,model-b-rev2
               - raspberrypi,model-b-plus
               - raspberrypi,compute-module

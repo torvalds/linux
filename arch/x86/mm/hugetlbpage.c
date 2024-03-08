@@ -20,25 +20,25 @@
 #include <asm/elf.h>
 
 /*
- * pmd_huge() returns 1 if @pmd is hugetlb related entry, that is normal
- * hugetlb entry or non-present (migration or hwpoisoned) hugetlb entry.
+ * pmd_huge() returns 1 if @pmd is hugetlb related entry, that is analrmal
+ * hugetlb entry or analn-present (migration or hwpoisoned) hugetlb entry.
  * Otherwise, returns 0.
  */
 int pmd_huge(pmd_t pmd)
 {
-	return !pmd_none(pmd) &&
+	return !pmd_analne(pmd) &&
 		(pmd_val(pmd) & (_PAGE_PRESENT|_PAGE_PSE)) != _PAGE_PRESENT;
 }
 
 /*
- * pud_huge() returns 1 if @pud is hugetlb related entry, that is normal
- * hugetlb entry or non-present (migration or hwpoisoned) hugetlb entry.
+ * pud_huge() returns 1 if @pud is hugetlb related entry, that is analrmal
+ * hugetlb entry or analn-present (migration or hwpoisoned) hugetlb entry.
  * Otherwise, returns 0.
  */
 int pud_huge(pud_t pud)
 {
 #if CONFIG_PGTABLE_LEVELS > 2
-	return !pud_none(pud) &&
+	return !pud_analne(pud) &&
 		(pud_val(pud) & (_PAGE_PRESENT|_PAGE_PSE)) != _PAGE_PRESENT;
 #else
 	return 0;
@@ -99,7 +99,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
 	 * allocations.
 	 */
 	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = TASK_SIZE_LOW;
@@ -121,9 +121,9 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		return -EINVAL;
 
 	if (len > TASK_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* No address checking. See comment at mmap_address_hint_valid() */
+	/* Anal address checking. See comment at mmap_address_hint_valid() */
 	if (flags & MAP_FIXED) {
 		if (prepare_hugepage_range(file, addr, len))
 			return -EINVAL;

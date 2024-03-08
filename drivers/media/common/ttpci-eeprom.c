@@ -5,7 +5,7 @@
     use by dvb_net.c
 
     This card appear to have the 24C16 write protect held to ground,
-    thus permitting normal read/write operation. Theoretically it
+    thus permitting analrmal read/write operation. Theoretically it
     would be possible to write routines to burn a different (encoded)
     MAC address into the EEPROM.
 
@@ -19,7 +19,7 @@
 
 */
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -67,7 +67,7 @@ static int getmac_tt(u8 * decodedMAC, u8 * encodedMAC)
 			>> ((data[2 * i + 1] >> 6) & 3);
 
 	if (check_mac_tt(data))
-		return -ENODEV;
+		return -EANALDEV;
 
 	decodedMAC[0] = data[2]; decodedMAC[1] = data[1]; decodedMAC[2] = data[0];
 	decodedMAC[3] = data[6]; decodedMAC[4] = data[5]; decodedMAC[5] = data[4];
@@ -91,7 +91,7 @@ int ttpci_eeprom_decode_mac(u8 *decodedMAC, u8 *encodedMAC)
 			>> ((data[2 * i + 1] >> 6) & 3);
 
 	if (check_mac_tt(data))
-		return -ENODEV;
+		return -EANALDEV;
 
 	decodedMAC[0] = data[2];
 	decodedMAC[1] = data[1];
@@ -118,7 +118,7 @@ static int ttpci_eeprom_read_encodedMAC(struct i2c_adapter *adapter, u8 * encode
 	ret = i2c_transfer(adapter, msg, 2);
 
 	if (ret != 2)		/* Assume EEPROM isn't there */
-		return (-ENODEV);
+		return (-EANALDEV);
 
 	return 0;
 }
@@ -132,8 +132,8 @@ int ttpci_eeprom_parse_mac(struct i2c_adapter *adapter, u8 *proposed_mac)
 
 	ret = ttpci_eeprom_read_encodedMAC(adapter, encodedMAC);
 
-	if (ret != 0) {		/* Will only be -ENODEV */
-		dprintk("Couldn't read from EEPROM: not there?\n");
+	if (ret != 0) {		/* Will only be -EANALDEV */
+		dprintk("Couldn't read from EEPROM: analt there?\n");
 		eth_zero_addr(proposed_mac);
 		return ret;
 	}
@@ -156,4 +156,4 @@ EXPORT_SYMBOL(ttpci_eeprom_parse_mac);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, others");
-MODULE_DESCRIPTION("Decode dvb_net MAC address from EEPROM of PCI DVB cards made by Siemens, Technotrend, Hauppauge");
+MODULE_DESCRIPTION("Decode dvb_net MAC address from EEPROM of PCI DVB cards made by Siemens, Techanaltrend, Hauppauge");

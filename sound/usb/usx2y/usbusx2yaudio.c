@@ -110,7 +110,7 @@ static int usx2y_urb_capt_retire(struct snd_usx2y_substream *subs)
  * we copy the data directly from the pcm buffer.
  * the current position to be copied is held in hwptr field.
  * since a urb can handle only a single linear buffer, if the total
- * transferred area overflows the buffer boundary, we cannot send
+ * transferred area overflows the buffer boundary, we cananalt send
  * it directly from the buffer.  thus the data is once copied to
  * a temporary buffer and urb points to that.
  */
@@ -128,7 +128,7 @@ static int usx2y_urb_play_prepare(struct snd_usx2y_substream *subs,
 		counts = cap_urb->iso_frame_desc[pack].actual_length / usx2y->stride;
 		count += counts;
 		if (counts < 43 || counts > 50) {
-			snd_printk(KERN_ERR "should not be here with counts=%i\n", counts);
+			snd_printk(KERN_ERR "should analt be here with counts=%i\n", counts);
 			return -EPIPE;
 		}
 		/* set up descriptor */
@@ -190,7 +190,7 @@ static int usx2y_urb_submit(struct snd_usx2y_substream *subs, struct urb *urb, i
 	int err;
 
 	if (!urb)
-		return -ENODEV;
+		return -EANALDEV;
 	urb->start_frame = frame + NRURBS * nr_of_packs();  // let hcd do rollover sanity checks
 	urb->hcpriv = NULL;
 	urb->dev = subs->usx2y->dev; /* we need to set this at each time */
@@ -428,7 +428,7 @@ static int usx2y_urbs_allocate(struct snd_usx2y_substream *subs)
 	if (is_playback && !subs->tmpbuf) {	/* allocate a temporary buffer for playback */
 		subs->tmpbuf = kcalloc(nr_of_packs(), subs->maxpacksize, GFP_KERNEL);
 		if (!subs->tmpbuf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	/* allocate and initialize data urbs */
 	for (i = 0; i < NRURBS; i++) {
@@ -440,7 +440,7 @@ static int usx2y_urbs_allocate(struct snd_usx2y_substream *subs)
 		*purb = usb_alloc_urb(nr_of_packs(), GFP_KERNEL);
 		if (!*purb) {
 			usx2y_urbs_release(subs);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (!is_playback && !(*purb)->transfer_buffer) {
 			/* allocate a capture buffer per urb */
@@ -449,7 +449,7 @@ static int usx2y_urbs_allocate(struct snd_usx2y_substream *subs)
 					      nr_of_packs(), GFP_KERNEL);
 			if (!(*purb)->transfer_buffer) {
 				usx2y_urbs_release(subs);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 		(*purb)->dev = dev;
@@ -505,7 +505,7 @@ static int usx2y_urbs_start(struct snd_usx2y_substream *subs)
 			urb->transfer_buffer_length = subs->maxpacksize * nr_of_packs();
 			err = usb_submit_urb(urb, GFP_ATOMIC);
 			if (err < 0) {
-				snd_printk(KERN_ERR "cannot submit datapipe for urb %d, err = %d\n", i, err);
+				snd_printk(KERN_ERR "cananalt submit datapipe for urb %d, err = %d\n", i, err);
 				err = -EPIPE;
 				goto cleanup;
 			} else {
@@ -584,7 +584,7 @@ struct s_c2 {
 
 static const struct s_c2 setrate_44100[] = {
 	{ 0x14, 0x08},	// this line sets 44100, well actually a little less
-	{ 0x18, 0x40},	// only tascam / frontier design knows the further lines .......
+	{ 0x18, 0x40},	// only tascam / frontier design kanalws the further lines .......
 	{ 0x18, 0x42},
 	{ 0x18, 0x45},
 	{ 0x18, 0x46},
@@ -620,7 +620,7 @@ static const struct s_c2 setrate_44100[] = {
 
 static const struct s_c2 setrate_48000[] = {
 	{ 0x14, 0x09},	// this line sets 48000, well actually a little less
-	{ 0x18, 0x40},	// only tascam / frontier design knows the further lines .......
+	{ 0x18, 0x40},	// only tascam / frontier design kanalws the further lines .......
 	{ 0x18, 0x42},
 	{ 0x18, 0x45},
 	{ 0x18, 0x46},
@@ -654,7 +654,7 @@ static const struct s_c2 setrate_48000[] = {
 	{ 0x18, 0x7E}
 };
 
-#define NOOF_SETRATE_URBS ARRAY_SIZE(setrate_48000)
+#define ANALOF_SETRATE_URBS ARRAY_SIZE(setrate_48000)
 
 static void i_usx2y_04int(struct urb *urb)
 {
@@ -675,23 +675,23 @@ static int usx2y_rate_set(struct usx2ydev *usx2y, int rate)
 	struct urb *urb;
 
 	if (usx2y->rate != rate) {
-		us = kzalloc(struct_size(us, urb, NOOF_SETRATE_URBS),
+		us = kzalloc(struct_size(us, urb, ANALOF_SETRATE_URBS),
 			     GFP_KERNEL);
 		if (!us) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto cleanup;
 		}
-		us->len = NOOF_SETRATE_URBS;
-		usbdata = kmalloc_array(NOOF_SETRATE_URBS, sizeof(int),
+		us->len = ANALOF_SETRATE_URBS;
+		usbdata = kmalloc_array(ANALOF_SETRATE_URBS, sizeof(int),
 					GFP_KERNEL);
 		if (!usbdata) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto cleanup;
 		}
-		for (i = 0; i < NOOF_SETRATE_URBS; ++i) {
+		for (i = 0; i < ANALOF_SETRATE_URBS; ++i) {
 			us->urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 			if (!us->urb[i]) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto cleanup;
 			}
 			((char *)(usbdata + i))[0] = ra[i].c1;
@@ -707,17 +707,17 @@ static int usx2y_rate_set(struct usx2ydev *usx2y, int rate)
 		wait_event_timeout(usx2y->in04_wait_queue, !us->len, HZ);
 		usx2y->us04 =	NULL;
 		if (us->len)
-			err = -ENODEV;
+			err = -EANALDEV;
 	cleanup:
 		if (us) {
-			us->submitted =	2*NOOF_SETRATE_URBS;
-			for (i = 0; i < NOOF_SETRATE_URBS; ++i) {
+			us->submitted =	2*ANALOF_SETRATE_URBS;
+			for (i = 0; i < ANALOF_SETRATE_URBS; ++i) {
 				urb = us->urb[i];
 				if (!urb)
 					continue;
 				if (urb->status) {
 					if (!err)
-						err = -ENODEV;
+						err = -EANALDEV;
 					usb_kill_urb(urb);
 				}
 				usb_free_urb(urb);
@@ -969,7 +969,7 @@ static int usx2y_audio_stream_new(struct snd_card *card, int playback_endpoint, 
 	     i <= SNDRV_PCM_STREAM_CAPTURE; ++i) {
 		usx2y_substream[i] = kzalloc(sizeof(struct snd_usx2y_substream), GFP_KERNEL);
 		if (!usx2y_substream[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		usx2y_substream[i]->usx2y = usx2y(card);
 	}

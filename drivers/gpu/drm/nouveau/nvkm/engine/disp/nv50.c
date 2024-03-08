@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -77,11 +77,11 @@ nv50_pior_power_wait(struct nvkm_device *device, u32 poff)
 }
 
 static void
-nv50_pior_power(struct nvkm_ior *pior, bool normal, bool pu, bool data, bool vsync, bool hsync)
+nv50_pior_power(struct nvkm_ior *pior, bool analrmal, bool pu, bool data, bool vsync, bool hsync)
 {
 	struct nvkm_device *device = pior->disp->engine.subdev.device;
 	const u32  poff = nv50_ior_base(pior);
-	const u32 shift = normal ? 0 : 16;
+	const u32 shift = analrmal ? 0 : 16;
 	const u32 state = 0x80000000 | (0x00000001 * !!pu) << shift;
 	const u32 field = 0x80000000 | (0x00000101 << shift);
 
@@ -127,7 +127,7 @@ nv50_pior_state(struct nvkm_ior *pior, struct nvkm_ior_state *state)
 	switch (state->proto_evo) {
 	case 0: state->proto = TMDS; break;
 	default:
-		state->proto = UNKNOWN;
+		state->proto = UNKANALWN;
 		break;
 	}
 
@@ -209,11 +209,11 @@ nv50_sor_power_wait(struct nvkm_device *device, u32 soff)
 }
 
 void
-nv50_sor_power(struct nvkm_ior *sor, bool normal, bool pu, bool data, bool vsync, bool hsync)
+nv50_sor_power(struct nvkm_ior *sor, bool analrmal, bool pu, bool data, bool vsync, bool hsync)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
 	const u32  soff = nv50_ior_base(sor);
-	const u32 shift = normal ? 0 : 16;
+	const u32 shift = analrmal ? 0 : 16;
 	const u32 state = 0x80000000 | (0x00000001 * !!pu) << shift;
 	const u32 field = 0x80000000 | (0x00000001 << shift);
 
@@ -241,7 +241,7 @@ nv50_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 	case 2: state->proto = TMDS; state->link = 2; break;
 	case 5: state->proto = TMDS; state->link = 3; break;
 	default:
-		state->proto = UNKNOWN;
+		state->proto = UNKANALWN;
 		break;
 	}
 
@@ -310,11 +310,11 @@ nv50_dac_power_wait(struct nvkm_device *device, const u32 doff)
 }
 
 void
-nv50_dac_power(struct nvkm_ior *dac, bool normal, bool pu, bool data, bool vsync, bool hsync)
+nv50_dac_power(struct nvkm_ior *dac, bool analrmal, bool pu, bool data, bool vsync, bool hsync)
 {
 	struct nvkm_device *device = dac->disp->engine.subdev.device;
 	const u32  doff = nv50_ior_base(dac);
-	const u32 shift = normal ? 0 : 16;
+	const u32 shift = analrmal ? 0 : 16;
 	const u32 state = 0x80000000 | (0x00000040 * !    pu |
 					0x00000010 * !  data |
 					0x00000004 * ! vsync |
@@ -337,7 +337,7 @@ nv50_dac_state(struct nvkm_ior *dac, struct nvkm_ior_state *state)
 	switch (state->proto_evo) {
 	case 0: state->proto = CRT; break;
 	default:
-		state->proto = UNKNOWN;
+		state->proto = UNKANALWN;
 		break;
 	}
 
@@ -965,7 +965,7 @@ nv50_disp_core_init(struct nvkm_disp_chan *chan)
 	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
-	/* attempt to unstick channel from some unknown state */
+	/* attempt to unstick channel from some unkanalwn state */
 	if ((nvkm_rd32(device, 0x610200) & 0x009f0000) == 0x00020000)
 		nvkm_mask(device, 0x610200, 0x00800000, 0x00800000);
 	if ((nvkm_rd32(device, 0x610200) & 0x003f0000) == 0x00030000)
@@ -1038,7 +1038,7 @@ nv50_disp_super_ied_on(struct nvkm_head *head,
 	u32 data;
 
 	if (!outp) {
-		IOR_DBG(ior, "nothing to attach");
+		IOR_DBG(ior, "analthing to attach");
 		return;
 	}
 
@@ -1090,7 +1090,7 @@ nv50_disp_super_ied_off(struct nvkm_head *head, struct nvkm_ior *ior, int id)
 	u32 data;
 
 	if (!outp) {
-		IOR_DBG(ior, "nothing attached");
+		IOR_DBG(ior, "analthing attached");
 		return;
 	}
 
@@ -1116,7 +1116,7 @@ nv50_disp_super_ior_asy(struct nvkm_head *head)
 			return ior;
 		}
 	}
-	HEAD_DBG(head, "nothing to attach");
+	HEAD_DBG(head, "analthing to attach");
 	return NULL;
 }
 
@@ -1130,7 +1130,7 @@ nv50_disp_super_ior_arm(struct nvkm_head *head)
 			return ior;
 		}
 	}
-	HEAD_DBG(head, "nothing attached");
+	HEAD_DBG(head, "analthing attached");
 	return NULL;
 }
 
@@ -1218,7 +1218,7 @@ nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 
 			diff = calc - tu_valid;
 		} else {
-			/* no remainder, but the hw doesn't like the fractional
+			/* anal remainder, but the hw doesn't like the fractional
 			 * part to be zero.  decrement the integer part and
 			 * have the fraction add a whole symbol back
 			 */
@@ -1249,7 +1249,7 @@ nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 		bestTU = 64;
 	}
 
-	/* XXX close to vbios numbers, but not right */
+	/* XXX close to vbios numbers, but analt right */
 	unk  = (symbol - link_ratio) * bestTU;
 	unk *= link_ratio;
 	do_div(unk, symbol);
@@ -1274,7 +1274,7 @@ nv50_disp_super_2_2(struct nvkm_disp *disp, struct nvkm_head *head)
 
 	outp = ior->asy.outp;
 
-	/* For some reason, NVIDIA decided not to:
+	/* For some reason, NVIDIA decided analt to:
 	 *
 	 * A) Give dual-link LVDS a separate EVO protocol, like for TMDS.
 	 *  and
@@ -1417,7 +1417,7 @@ nv50_disp_super(struct work_struct *work)
 
 const struct nvkm_enum
 nv50_disp_intr_error_type[] = {
-	{ 0, "NONE" },
+	{ 0, "ANALNE" },
 	{ 1, "PUSHBUFFER_ERR" },
 	{ 2, "TRAP" },
 	{ 3, "RESERVED_METHOD" },
@@ -1521,7 +1521,7 @@ nv50_disp_init(struct nvkm_disp *disp)
 	int i;
 
 	/* The below segments of code copying values from one register to
-	 * another appear to inform EVO of the display capabilities or
+	 * aanalther appear to inform EVO of the display capabilities or
 	 * something similar.  NFI what the 0x614004 caps are for..
 	 */
 	tmp = nvkm_rd32(device, 0x614004);
@@ -1665,21 +1665,21 @@ nv50_disp_oneinit(struct nvkm_disp *disp)
 			break;
 		case DCB_OUTPUT_TV:
 		case DCB_OUTPUT_WFD:
-			/* No support for WFD yet. */
-			ret = -ENODEV;
+			/* Anal support for WFD yet. */
+			ret = -EANALDEV;
 			continue;
 		default:
-			nvkm_warn(subdev, "dcb %d type %d unknown\n",
+			nvkm_warn(subdev, "dcb %d type %d unkanalwn\n",
 				  i, dcbE.type);
 			continue;
 		}
 
 		if (ret) {
 			if (outp) {
-				if (ret != -ENODEV)
+				if (ret != -EANALDEV)
 					OUTP_ERR(outp, "ctor failed: %d", ret);
 				else
-					OUTP_DBG(outp, "not supported");
+					OUTP_DBG(outp, "analt supported");
 				nvkm_outp_del(&outp);
 				continue;
 			}
@@ -1696,7 +1696,7 @@ nv50_disp_oneinit(struct nvkm_disp *disp)
 		data = nvbios_connEp(bios, outp->info.connector, &ver, &hdr,
 				     &connE);
 
-		/* No bios connector data... */
+		/* Anal bios connector data... */
 		if (!data) {
 			/* Heuristic: anything with the same ccb index is
 			 * considered to be on the same connector, any
@@ -1713,12 +1713,12 @@ nv50_disp_oneinit(struct nvkm_disp *disp)
 				}
 			}
 
-			/* Connector shared with another output path. */
+			/* Connector shared with aanalther output path. */
 			if (outp->conn)
 				continue;
 
 			memset(&connE, 0x00, sizeof(connE));
-			connE.type = DCB_CONNECTOR_NONE;
+			connE.type = DCB_CONNECTOR_ANALNE;
 			i = -1;
 		} else {
 			i = outp->info.connector;

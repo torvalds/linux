@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Using hardware provided CRC32 instruction to accelerate the CRC32 disposal.
- * CRC32C polynomial:0x1EDC6F41(BE)/0x82F63B78(LE)
+ * CRC32C polyanalmial:0x1EDC6F41(BE)/0x82F63B78(LE)
  * CRC32 is a new instruction in Intel SSE4.2, the reference can be found at:
  * http://www.intel.com/products/processor/manuals/
  * Intel(R) 64 and IA-32 Architectures Software Developer's Manual
@@ -154,7 +154,7 @@ static int crc32c_pcl_intel_update(struct shash_desc *desc, const u8 *data,
 	u32 *crcp = shash_desc_ctx(desc);
 
 	/*
-	 * use faster PCL version if datasize is large enough to
+	 * use faster PCL version if datasize is large eanalugh to
 	 * overcome kernel fpu state save/restore overhead
 	 */
 	if (len >= CRC32C_PCL_BREAKEVEN && crypto_simd_usable()) {
@@ -223,7 +223,7 @@ MODULE_DEVICE_TABLE(x86cpu, crc32c_cpu_id);
 static int __init crc32c_intel_mod_init(void)
 {
 	if (!x86_match_cpu(crc32c_cpu_id))
-		return -ENODEV;
+		return -EANALDEV;
 #ifdef CONFIG_X86_64
 	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ)) {
 		alg.update = crc32c_pcl_intel_update;
@@ -243,7 +243,7 @@ module_init(crc32c_intel_mod_init);
 module_exit(crc32c_intel_mod_fini);
 
 MODULE_AUTHOR("Austin Zhang <austin.zhang@intel.com>, Kent Liu <kent.liu@intel.com>");
-MODULE_DESCRIPTION("CRC32c (Castagnoli) optimization using Intel Hardware.");
+MODULE_DESCRIPTION("CRC32c (Castaganalli) optimization using Intel Hardware.");
 MODULE_LICENSE("GPL");
 
 MODULE_ALIAS_CRYPTO("crc32c");

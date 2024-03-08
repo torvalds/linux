@@ -14,7 +14,7 @@ maintainers:
 
 description: |
   SB Temperature Sensor Interface (SB-TSI) is an SMBus compatible
-  interface that reports AMD SoC's Ttcl (normalized temperature),
+  interface that reports AMD SoC's Ttcl (analrmalized temperature),
   and resembles a typical 8-pin remote temperature sensor's I2C interface
   to BMC. The emulated thermal sensor can report temperatures in increments
   of 0.125 degrees, ranging from 0 to 255.875.
@@ -28,7 +28,7 @@ properties:
     maxItems: 1
     description: |
       I2C bus address of the device as specified in Section 6.3.1 of the
-      SoC register reference. The SB-TSI address is normally 98h for socket
+      SoC register reference. The SB-TSI address is analrmally 98h for socket
       0 and 90h for socket 1, but it could vary based on hardware address
       select pins.
       \[open source SoC register reference\]

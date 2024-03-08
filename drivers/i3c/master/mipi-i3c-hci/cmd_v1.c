@@ -300,14 +300,14 @@ static int hci_cmd_v1_daa(struct i3c_hci *hci)
 
 	xfer = hci_alloc_xfer(1);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Simple for now: we allocate a temporary DAT entry, do a single
+	 * Simple for analw: we allocate a temporary DAT entry, do a single
 	 * DAA, register the device which will allocate its own DAT entry
 	 * via the core callback, then free the temporary DAT entry.
-	 * Loop until there is no more devices to assign an address to.
-	 * Yes, there is room for improvements.
+	 * Loop until there is anal more devices to assign an address to.
+	 * Anal, there is room for improvements.
 	 */
 	for (;;) {
 		ret = mipi_i3c_hci_dat_v1.alloc_entry(hci);
@@ -342,7 +342,7 @@ static int hci_cmd_v1_daa(struct i3c_hci *hci)
 		if ((RESP_STATUS(xfer->response) == RESP_ERR_ADDR_HEADER ||
 		     RESP_STATUS(xfer->response) == RESP_ERR_NACK) &&
 		    RESP_DATA_LENGTH(xfer->response) == 1) {
-			ret = 0;  /* no more devices to be assigned */
+			ret = 0;  /* anal more devices to be assigned */
 			break;
 		}
 		if (RESP_STATUS(xfer->response) != RESP_SUCCESS) {

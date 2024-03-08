@@ -1,7 +1,7 @@
 [
     {
         "ArchStdEvent": "BUS_ACCESS",
-        "PublicDescription": "Counts memory transactions issued by the CPU to the external bus, including snoop requests and snoop responses. Each beat of data is counted individually."
+        "PublicDescription": "Counts memory transactions issued by the CPU to the external bus, including sanalop requests and sanalop responses. Each beat of data is counted individually."
     },
     {
         "ArchStdEvent": "BUS_CYCLES",

@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_targdb.c
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techanallogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -15,19 +15,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but analt limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
  * DISCLAIMER OF LIABILITY
- * NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ * NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -50,13 +50,13 @@ void esas2r_targ_db_initialize(struct esas2r_adapter *a)
 	for (t = a->targetdb; t < a->targetdb_end; t++) {
 		memset(t, 0, sizeof(struct esas2r_target));
 
-		t->target_state = TS_NOT_PRESENT;
-		t->buffered_target_state = TS_NOT_PRESENT;
+		t->target_state = TS_ANALT_PRESENT;
+		t->buffered_target_state = TS_ANALT_PRESENT;
 		t->new_target_state = TS_INVALID;
 	}
 }
 
-void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool notify)
+void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool analtify)
 {
 	struct esas2r_target *t;
 	unsigned long flags;
@@ -69,12 +69,12 @@ void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool notify)
 		esas2r_targ_db_remove(a, t);
 		spin_unlock_irqrestore(&a->mem_lock, flags);
 
-		if (notify) {
+		if (analtify) {
 			esas2r_trace("remove id:%d", esas2r_targ_get_id(t,
 									a));
 			esas2r_target_state_changed(a, esas2r_targ_get_id(t,
 									  a),
-						    TS_NOT_PRESENT);
+						    TS_ANALT_PRESENT);
 		}
 	}
 }
@@ -222,7 +222,7 @@ void esas2r_targ_db_remove(struct esas2r_adapter *a, struct esas2r_target *t)
 {
 	esas2r_trace_enter();
 
-	t->target_state = TS_NOT_PRESENT;
+	t->target_state = TS_ANALT_PRESENT;
 
 	esas2r_trace("remove id:%d", esas2r_targ_get_id(t, a));
 

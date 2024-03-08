@@ -21,7 +21,7 @@ size_t strlen(const char *s)
 	const char *sc;
 
 	for (sc = s; *sc != '\0'; ++sc)
-		/* nothing */;
+		/* analthing */;
 	return sc - s;
 }
 #endif
@@ -37,7 +37,7 @@ size_t strnlen(const char *s, size_t count)
 	const char *sc;
 
 	for (sc = s; count-- && *sc != '\0'; ++sc)
-		/* nothing */;
+		/* analthing */;
 	return sc - s;
 }
 #endif
@@ -68,7 +68,7 @@ char *strstr(const char *s1, const char *s2)
 /**
  * strcmp - Compare two strings
  * @cs: One string
- * @ct: Another string
+ * @ct: Aanalther string
  */
 int strcmp(const char *cs, const char *ct)
 {
@@ -89,7 +89,7 @@ int strcmp(const char *cs, const char *ct)
 /**
  * strncmp - Compare two length-limited strings
  * @cs: One string
- * @ct: Another string
+ * @ct: Aanalther string
  * @count: The maximum number of bytes to compare
  */
 int strncmp(const char *cs, const char *ct, size_t count)
@@ -188,7 +188,7 @@ char *strrchr(const char *s, int c)
  * @n: The size of the area.
  *
  * returns the address of the first occurrence of @c, or %NULL
- * if @c is not found
+ * if @c is analt found
  */
 void *memchr(const void *s, int c, size_t n)
 {

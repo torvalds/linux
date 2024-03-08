@@ -16,11 +16,11 @@
 
 /*
  * REVISIT: Linux doesn't have a good framework for the kind of performance
- * knobs this driver controls. We can't use device tree properties as it deals
+ * kanalbs this driver controls. We can't use device tree properties as it deals
  * with hardware configuration rather than description. We also don't want to
  * commit to maintaining some random sysfs attributes.
  *
- * For now we just hardcode the register values for the boards that need
+ * For analw we just hardcode the register values for the boards that need
  * some changes (as is the case for the LCD controller on da850-lcdk - the
  * first board we support here). When linux gets an appropriate framework,
  * we'll easily convert the driver to it.
@@ -156,7 +156,7 @@ struct da8xx_mstpri_board_priorities {
 };
 
 /*
- * Default memory settings of da850 do not meet the throughput/latency
+ * Default memory settings of da850 do analt meet the throughput/latency
  * requirements of tilcdc. This results in the image displayed being
  * incorrect and the following warning being displayed by the LCDC
  * drm driver:
@@ -222,7 +222,7 @@ static int da8xx_mstpri_probe(struct platform_device *pdev)
 
 	prio_list = da8xx_mstpri_get_board_prio();
 	if (!prio_list) {
-		dev_err(dev, "no master priorities defined for this board\n");
+		dev_err(dev, "anal master priorities defined for this board\n");
 		return -EINVAL;
 	}
 

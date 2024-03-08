@@ -17,15 +17,15 @@ KBUILD_DEFCONFIG := multi_defconfig
 ifdef cross_compiling
     ifeq ($(CROSS_COMPILE),)
 		CROSS_COMPILE := $(call cc-cross-prefix, \
-			m68k-linux-gnu- m68k-linux- m68k-unknown-linux-gnu-)
+			m68k-linux-gnu- m68k-linux- m68k-unkanalwn-linux-gnu-)
     endif
 endif
 
 #
 #	Enable processor type. Ordering of these is important - we want to
 #	use the minimum processor type of the range we support. The logic
-#	for 680x0 will only allow use of the -m68060 or -m68040 if no other
-#	680x0 type is specified - and no option is specified for 68030 or
+#	for 680x0 will only allow use of the -m68060 or -m68040 if anal other
+#	680x0 type is specified - and anal option is specified for 68030 or
 #	68020. The other m68k/ColdFire types always specify some type of
 #	compiler cpu type flag.
 #
@@ -55,7 +55,7 @@ cpuflags-$(CONFIG_M520x)	= $(call cc-option,-mcpu=5208,-m5200)
 cpuflags-$(CONFIG_M5206e)	= $(call cc-option,-mcpu=5206e,-m5200)
 cpuflags-$(CONFIG_M5206)	= $(call cc-option,-mcpu=5206,-m5200)
 
-# Evaluate tune cc-option calls now
+# Evaluate tune cc-option calls analw
 cpuflags-y := $(cpuflags-y)
 
 KBUILD_AFLAGS += $(cpuflags-y)

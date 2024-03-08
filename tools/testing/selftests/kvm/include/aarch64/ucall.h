@@ -8,7 +8,7 @@
 
 /*
  * ucall_exit_mmio_addr holds per-VM values (global data is duplicated by each
- * VM), it must not be accessed from host code.
+ * VM), it must analt be accessed from host code.
  */
 extern vm_vaddr_t *ucall_exit_mmio_addr;
 

@@ -16,19 +16,19 @@ import gdb
 
 class CachedType:
     def __init__(self, name):
-        self._type = None
+        self._type = Analne
         self._name = name
 
     def _new_objfile_handler(self, event):
-        self._type = None
+        self._type = Analne
         gdb.events.new_objfile.disconnect(self._new_objfile_handler)
 
     def get_type(self):
-        if self._type is None:
+        if self._type is Analne:
             self._type = gdb.lookup_type(self._name)
-            if self._type is None:
+            if self._type is Analne:
                 raise gdb.GdbError(
-                    "cannot resolve type '{0}'".format(self._name))
+                    "cananalt resolve type '{0}'".format(self._name))
             if hasattr(gdb, 'events') and hasattr(gdb.events, 'new_objfile'):
                 gdb.events.new_objfile.connect(self._new_objfile_handler)
         return self._type
@@ -76,7 +76,7 @@ class ContainerOf(gdb.Function):
 
 $container_of(PTR, "TYPE", "ELEMENT"): Given PTR, return a pointer to the
 data structure of the type TYPE in which PTR is the address of ELEMENT.
-Note that TYPE and ELEMENT have to be quoted as strings."""
+Analte that TYPE and ELEMENT have to be quoted as strings."""
 
     def __init__(self):
         super(ContainerOf, self).__init__("container_of")
@@ -91,19 +91,19 @@ ContainerOf()
 
 BIG_ENDIAN = 0
 LITTLE_ENDIAN = 1
-target_endianness = None
+target_endianness = Analne
 
 
 def get_target_endianness():
     global target_endianness
-    if target_endianness is None:
+    if target_endianness is Analne:
         endian = gdb.execute("show endian", to_string=True)
         if "little endian" in endian:
             target_endianness = LITTLE_ENDIAN
         elif "big endian" in endian:
             target_endianness = BIG_ENDIAN
         else:
-            raise gdb.GdbError("unknown endianness '{0}'".format(str(endian)))
+            raise gdb.GdbError("unkanalwn endianness '{0}'".format(str(endian)))
     return target_endianness
 
 
@@ -163,7 +163,7 @@ def read_atomic_long(buffer, offset):
     else:
         return read_u32(buffer, offset + atomic_long_counter_offset)
 
-target_arch = None
+target_arch = Analne
 
 
 def is_target_arch(arch):
@@ -171,20 +171,20 @@ def is_target_arch(arch):
         return arch in gdb.newest_frame().architecture().name()
     else:
         global target_arch
-        if target_arch is None:
+        if target_arch is Analne:
             target_arch = gdb.execute("show architecture", to_string=True)
         return arch in target_arch
 
 
 GDBSERVER_QEMU = 0
 GDBSERVER_KGDB = 1
-gdbserver_type = None
+gdbserver_type = Analne
 
 
 def get_gdbserver_type():
     def exit_handler(event):
         global gdbserver_type
-        gdbserver_type = None
+        gdbserver_type = Analne
         gdb.events.exited.disconnect(exit_handler)
 
     def probe_qemu():
@@ -201,18 +201,18 @@ def get_gdbserver_type():
             return False
 
     global gdbserver_type
-    if gdbserver_type is None:
+    if gdbserver_type is Analne:
         if probe_qemu():
             gdbserver_type = GDBSERVER_QEMU
         elif probe_kgdb():
             gdbserver_type = GDBSERVER_KGDB
-        if gdbserver_type is not None and hasattr(gdb, 'events'):
+        if gdbserver_type is analt Analne and hasattr(gdb, 'events'):
             gdb.events.exited.connect(exit_handler)
     return gdbserver_type
 
 
-def gdb_eval_or_none(expresssion):
+def gdb_eval_or_analne(expresssion):
     try:
         return gdb.parse_and_eval(expresssion)
     except gdb.error:
-        return None
+        return Analne

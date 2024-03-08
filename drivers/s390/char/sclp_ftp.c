@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *    SCLP Event Type (ET) 7 - Diagnostic Test FTP Services, useable on LPAR
+ *    SCLP Event Type (ET) 7 - Diaganalstic Test FTP Services, useable on LPAR
  *
  *    Copyright IBM Corp. 2013
  *    Author(s): Ralf Hoppe (rhoppe@de.ibm.com)
@@ -30,7 +30,7 @@ static u64 sclp_ftp_fsize;
 static u64 sclp_ftp_length;
 
 /**
- * sclp_ftp_txcb() - Diagnostic Test FTP services SCLP command callback
+ * sclp_ftp_txcb() - Diaganalstic Test FTP services SCLP command callback
  * @req: sclp request
  * @data: pointer to struct completion
  */
@@ -46,15 +46,15 @@ static void sclp_ftp_txcb(struct sclp_req *req, void *data)
 }
 
 /**
- * sclp_ftp_rxcb() - Diagnostic Test FTP services receiver event callback
- * @evbuf: pointer to Diagnostic Test (ET7) event buffer
+ * sclp_ftp_rxcb() - Diaganalstic Test FTP services receiver event callback
+ * @evbuf: pointer to Diaganalstic Test (ET7) event buffer
  */
 static void sclp_ftp_rxcb(struct evbuf_header *evbuf)
 {
 	struct sclp_diag_evbuf *diag = (struct sclp_diag_evbuf *) evbuf;
 
 	/*
-	 * Check for Diagnostic Test FTP Service
+	 * Check for Diaganalstic Test FTP Service
 	 */
 	if (evbuf->type != EVTYP_DIAG_TEST ||
 	    diag->route != SCLP_DIAG_FTP_ROUTE ||
@@ -80,7 +80,7 @@ static void sclp_ftp_rxcb(struct evbuf_header *evbuf)
 }
 
 /**
- * sclp_ftp_et7() - start a Diagnostic Test FTP Service SCLP request
+ * sclp_ftp_et7() - start a Diaganalstic Test FTP Service SCLP request
  * @ftp: pointer to FTP descriptor
  *
  * Return: 0 on success, else a (negative) error code
@@ -96,7 +96,7 @@ static int sclp_ftp_et7(const struct hmcdrv_ftp_cmdspec *ftp)
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!req || !sccb) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free;
 	}
 
@@ -146,7 +146,7 @@ static int sclp_ftp_et7(const struct hmcdrv_ftp_cmdspec *ftp)
 
 	/*
 	 * Check if sclp accepted the request. The data transfer runs
-	 * asynchronously and the completion is indicated with an
+	 * asynchroanalusly and the completion is indicated with an
 	 * sclp ET7 event.
 	 */
 	if (req->status != SCLP_REQ_DONE ||
@@ -162,11 +162,11 @@ out_free:
 }
 
 /**
- * sclp_ftp_cmd() - executes a HMC related SCLP Diagnose (ET7) FTP command
+ * sclp_ftp_cmd() - executes a HMC related SCLP Diaganalse (ET7) FTP command
  * @ftp: pointer to FTP command specification
  * @fsize: return of file size (or NULL if undesirable)
  *
- * Attention: Notice that this function is not reentrant - so the caller
+ * Attention: Analtice that this function is analt reentrant - so the caller
  * must ensure locking.
  *
  * Return: number of bytes read/written or a (negative) error code
@@ -190,7 +190,7 @@ ssize_t sclp_ftp_cmd(const struct hmcdrv_ftp_cmdspec *ftp, size_t *fsize)
 		goto out_unlock;
 
 	/*
-	 * There is no way to cancel the sclp ET7 request, the code
+	 * There is anal way to cancel the sclp ET7 request, the code
 	 * needs to wait unconditionally until the transfer is complete.
 	 */
 	wait_for_completion(&sclp_ftp_rx_complete);
@@ -215,7 +215,7 @@ ssize_t sclp_ftp_cmd(const struct hmcdrv_ftp_cmdspec *ftp, size_t *fsize)
 		len = -EBUSY;
 		break;
 	case SCLP_DIAG_FTP_LDFAIL:
-		len = -ENOENT;
+		len = -EANALENT;
 		break;
 	default:
 		len = -EIO;

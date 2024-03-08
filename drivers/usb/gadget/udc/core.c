@@ -35,12 +35,12 @@ static const struct bus_type gadget_bus_type;
  * @gadget: the gadget. For use by the class code
  * @list: for use by the udc class driver
  * @vbus: for udcs who care about vbus status, this value is real vbus status;
- * for udcs who do not care about vbus status, this value is always true
+ * for udcs who do analt care about vbus status, this value is always true
  * @started: the UDC's started state. True if the UDC had started.
  * @allow_connect: Indicates whether UDC is allowed to be pulled up.
  * Set/cleared by gadget_(un)bind_driver() after gadget driver is bound or
  * unbound.
- * @vbus_work: work routine to handle VBUS status change notifications.
+ * @vbus_work: work routine to handle VBUS status change analtifications.
  * @connect_lock: protects udc->started, gadget->connect,
  * gadget->allow_connect and gadget->deactivate. The routines
  * usb_gadget_connect_locked(), usb_gadget_disconnect_locked(),
@@ -90,7 +90,7 @@ EXPORT_SYMBOL_GPL(usb_ep_set_maxpacket_limit);
 
 /**
  * usb_ep_enable - configure endpoint, making it usable
- * @ep:the endpoint being configured.  may not be the endpoint named "ep0".
+ * @ep:the endpoint being configured.  may analt be the endpoint named "ep0".
  *	drivers discover endpoints through the ep_list of a usb_gadget.
  *
  * When configurations are set, or when interface settings change, the driver
@@ -121,7 +121,7 @@ int usb_ep_enable(struct usb_ep *ep)
 	if (usb_endpoint_maxp(ep->desc) == 0) {
 		/*
 		 * We should log an error message here, but we can't call
-		 * dev_err() because there's no way to find the gadget
+		 * dev_err() because there's anal way to find the gadget
 		 * given only ep.
 		 */
 		ret = -EINVAL;
@@ -142,10 +142,10 @@ out:
 EXPORT_SYMBOL_GPL(usb_ep_enable);
 
 /**
- * usb_ep_disable - endpoint is no longer usable
- * @ep:the endpoint being unconfigured.  may not be the endpoint named "ep0".
+ * usb_ep_disable - endpoint is anal longer usable
+ * @ep:the endpoint being unconfigured.  may analt be the endpoint named "ep0".
  *
- * no other task may be using this endpoint when this is called.
+ * anal other task may be using this endpoint when this is called.
  * any pending and uncompleted requests will complete with status
  * indicating disconnect (-ESHUTDOWN) before this call returns.
  * gadget drivers must call usb_ep_enable() again before queueing
@@ -180,14 +180,14 @@ EXPORT_SYMBOL_GPL(usb_ep_disable);
  * @ep:the endpoint to be used with with the request
  * @gfp_flags:GFP_* flags to use
  *
- * Request objects must be allocated with this call, since they normally
+ * Request objects must be allocated with this call, since they analrmally
  * need controller-specific setup and may even need endpoint-specific
  * resources such as allocation of DMA descriptors.
  * Requests may be submitted with usb_ep_queue(), and receive a single
  * completion callback.  Free requests with usb_ep_free_request(), when
- * they are no longer needed.
+ * they are anal longer needed.
  *
- * Returns the request, or null if one could not be allocated.
+ * Returns the request, or null if one could analt be allocated.
  */
 struct usb_request *usb_ep_alloc_request(struct usb_ep *ep,
 						       gfp_t gfp_flags)
@@ -196,7 +196,7 @@ struct usb_request *usb_ep_alloc_request(struct usb_ep *ep,
 
 	req = ep->ops->alloc_request(ep, gfp_flags);
 
-	trace_usb_ep_alloc_request(ep, req, req ? 0 : -ENOMEM);
+	trace_usb_ep_alloc_request(ep, req, req ? 0 : -EANALMEM);
 
 	return req;
 }
@@ -208,8 +208,8 @@ EXPORT_SYMBOL_GPL(usb_ep_alloc_request);
  * @req:the request being freed
  *
  * Reverses the effect of usb_ep_alloc_request().
- * Caller guarantees the request is not queued, and that it will
- * no longer be requeued (or otherwise used).
+ * Caller guarantees the request is analt queued, and that it will
+ * anal longer be requeued (or otherwise used).
  */
 void usb_ep_free_request(struct usb_ep *ep,
 				       struct usb_request *req)
@@ -232,7 +232,7 @@ EXPORT_SYMBOL_GPL(usb_ep_free_request);
  * routine is called to return the request to the driver.  Any endpoint
  * (except control endpoints like ep0) may have more than one transfer
  * request queued; they complete in FIFO order.  Once a gadget driver
- * submits a request, that request may not be examined or modified until it
+ * submits a request, that request may analt be examined or modified until it
  * is given back to that driver through the completion callback.
  *
  * Each request is turned into one or more packets.  The controller driver
@@ -245,14 +245,14 @@ EXPORT_SYMBOL_GPL(usb_ep_free_request);
  * Bulk endpoints can queue any amount of data; the transfer is packetized
  * automatically.  The last packet will be short if the request doesn't fill it
  * out completely.  Zero length packets (ZLPs) should be avoided in portable
- * protocols since not all usb hardware can successfully handle zero length
+ * protocols since analt all usb hardware can successfully handle zero length
  * packets.  (ZLPs may be explicitly written, and may be implicitly written if
  * the request 'zero' flag is set.)  Bulk endpoints may also be used
- * for interrupt transfers; but the reverse is not true, and some endpoints
+ * for interrupt transfers; but the reverse is analt true, and some endpoints
  * won't support every interrupt transfer.  (Such as 768 byte packets.)
  *
  * Interrupt-only endpoints are less functional than bulk endpoints, for
- * example by not supporting queueing or not handling buffers that are
+ * example by analt supporting queueing or analt handling buffers that are
  * larger than the endpoint's maxpacket size.  They may also treat data
  * toggle differently.
  *
@@ -260,24 +260,24 @@ EXPORT_SYMBOL_GPL(usb_ep_free_request);
  * one response (even if it would be zero length).  That enables the
  * status ack, after transferring data as specified in the response.  Setup
  * functions may return negative error codes to generate protocol stalls.
- * (Note that some USB device controllers disallow protocol stall responses
+ * (Analte that some USB device controllers disallow protocol stall responses
  * in some cases.)  When control responses are deferred (the response is
  * written after the setup callback returns), then usb_ep_set_halt() may be
  * used on ep0 to trigger protocol stalls.  Depending on the controller,
- * it may not be possible to trigger a status-stage protocol stall when the
+ * it may analt be possible to trigger a status-stage protocol stall when the
  * data stage is over, that is, from within the response's completion
  * routine.
  *
- * For periodic endpoints, like interrupt or isochronous ones, the usb host
+ * For periodic endpoints, like interrupt or isochroanalus ones, the usb host
  * arranges to poll once per interval, and the gadget driver usually will
  * have queued some data to transfer at that time.
  *
- * Note that @req's ->complete() callback must never be called from
+ * Analte that @req's ->complete() callback must never be called from
  * within usb_ep_queue() as that can create deadlock situations.
  *
  * This routine may be called in interrupt context.
  *
- * Returns zero, or a negative error code.  Endpoints that are not enabled
+ * Returns zero, or a negative error code.  Endpoints that are analt enabled
  * report errors; errors will also be
  * reported when the usb peripheral is disconnected.
  *
@@ -313,10 +313,10 @@ EXPORT_SYMBOL_GPL(usb_ep_queue);
  *
  * If the request is still active on the endpoint, it is dequeued and
  * eventually its completion routine is called (with status -ECONNRESET);
- * else a negative error code is returned.  This routine is asynchronous,
+ * else a negative error code is returned.  This routine is asynchroanalus,
  * that is, it may return before the completion routine runs.
  *
- * Note that some hardware can't clear out write fifos (to unlink the request
+ * Analte that some hardware can't clear out write fifos (to unlink the request
  * at the head of the queue) except as part of disconnecting from usb. Such
  * restrictions prevent drivers from supporting configuration changes,
  * even to configuration zero (a "chapter 9" requirement).
@@ -336,16 +336,16 @@ EXPORT_SYMBOL_GPL(usb_ep_dequeue);
 
 /**
  * usb_ep_set_halt - sets the endpoint halt feature.
- * @ep: the non-isochronous endpoint being stalled
+ * @ep: the analn-isochroanalus endpoint being stalled
  *
  * Use this to stall an endpoint, perhaps as an error report.
  * Except for control endpoints,
- * the endpoint stays halted (will not stream any data) until the host
+ * the endpoint stays halted (will analt stream any data) until the host
  * clears this feature; drivers may need to empty the endpoint's request
- * queue first, to make sure no inappropriate transfers happen.
+ * queue first, to make sure anal inappropriate transfers happen.
  *
- * Note that while an endpoint CLEAR_FEATURE will be invisible to the
- * gadget driver, a SET_INTERFACE will not be.  To reset endpoints for the
+ * Analte that while an endpoint CLEAR_FEATURE will be invisible to the
+ * gadget driver, a SET_INTERFACE will analt be.  To reset endpoints for the
  * current altsetting, see usb_ep_clear_halt().  When switching altsettings,
  * it's simplest to use usb_ep_enable() or usb_ep_disable() for the endpoints.
  *
@@ -380,7 +380,7 @@ EXPORT_SYMBOL_GPL(usb_ep_set_halt);
  *
  * Returns zero, or a negative error code.  On success, this call clears
  * the underlying hardware state reflecting endpoint halt and data toggle.
- * Note that some hardware can't support this request (like pxa2xx_udc),
+ * Analte that some hardware can't support this request (like pxa2xx_udc),
  * and accordingly can't correctly implement interface altsettings.
  */
 int usb_ep_clear_halt(struct usb_ep *ep)
@@ -395,16 +395,16 @@ int usb_ep_clear_halt(struct usb_ep *ep)
 EXPORT_SYMBOL_GPL(usb_ep_clear_halt);
 
 /**
- * usb_ep_set_wedge - sets the halt feature and ignores clear requests
+ * usb_ep_set_wedge - sets the halt feature and iganalres clear requests
  * @ep: the endpoint being wedged
  *
- * Use this to stall an endpoint and ignore CLEAR_FEATURE(HALT_ENDPOINT)
+ * Use this to stall an endpoint and iganalre CLEAR_FEATURE(HALT_ENDPOINT)
  * requests. If the gadget driver clears the halt status, it will
  * automatically unwedge the endpoint.
  *
  * This routine may be called in interrupt context.
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  */
 int usb_ep_set_wedge(struct usb_ep *ep)
 {
@@ -426,16 +426,16 @@ EXPORT_SYMBOL_GPL(usb_ep_set_wedge);
  * @ep: the endpoint whose fifo status is being checked.
  *
  * FIFO endpoints may have "unclaimed data" in them in certain cases,
- * such as after aborted transfers.  Hosts may not have collected all
+ * such as after aborted transfers.  Hosts may analt have collected all
  * the IN data written by the gadget driver (and reported by a request
- * completion).  The gadget driver may not have collected all the data
+ * completion).  The gadget driver may analt have collected all the data
  * written OUT to it by the host.  Drivers that need precise handling for
  * fault reporting or recovery may need to use this call.
  *
  * This routine may be called in interrupt context.
  *
  * This returns the number of such bytes in the fifo, or a negative
- * errno if the endpoint doesn't use a FIFO or doesn't support such
+ * erranal if the endpoint doesn't use a FIFO or doesn't support such
  * precise handling.
  */
 int usb_ep_fifo_status(struct usb_ep *ep)
@@ -445,7 +445,7 @@ int usb_ep_fifo_status(struct usb_ep *ep)
 	if (ep->ops->fifo_status)
 		ret = ep->ops->fifo_status(ep);
 	else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 
 	trace_usb_ep_fifo_status(ep, ret);
 
@@ -458,8 +458,8 @@ EXPORT_SYMBOL_GPL(usb_ep_fifo_status);
  * @ep: the endpoint whose fifo is being flushed.
  *
  * This call may be used to flush the "unclaimed data" that may exist in
- * an endpoint fifo after abnormal transaction terminations.  The call
- * must never be used except when endpoint is not being used for any
+ * an endpoint fifo after abanalrmal transaction terminations.  The call
+ * must never be used except when endpoint is analt being used for any
  * protocol translation.
  *
  * This routine may be called in interrupt context.
@@ -479,8 +479,8 @@ EXPORT_SYMBOL_GPL(usb_ep_fifo_flush);
  * usb_gadget_frame_number - returns the current frame number
  * @gadget: controller that reports the frame number
  *
- * Returns the usb frame number, normally eleven bits from a SOF packet,
- * or negative errno if this device doesn't support this capability.
+ * Returns the usb frame number, analrmally eleven bits from a SOF packet,
+ * or negative erranal if this device doesn't support this capability.
  */
 int usb_gadget_frame_number(struct usb_gadget *gadget)
 {
@@ -499,7 +499,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_frame_number);
  * @gadget: controller used to wake up the host
  *
  * Returns zero on success, else negative error code if the hardware
- * doesn't support such attempts, or its support has not been enabled
+ * doesn't support such attempts, or its support has analt been enabled
  * by the usb host.  Drivers must return device descriptors that report
  * their ability to support this, or hosts won't enable it.
  *
@@ -512,7 +512,7 @@ int usb_gadget_wakeup(struct usb_gadget *gadget)
 	int ret = 0;
 
 	if (!gadget->ops->wakeup) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -532,14 +532,14 @@ EXPORT_SYMBOL_GPL(usb_gadget_wakeup);
  *
  * set to one to enable remote wakeup feature and zero to disable it.
  *
- * returns zero on success, else negative errno.
+ * returns zero on success, else negative erranal.
  */
 int usb_gadget_set_remote_wakeup(struct usb_gadget *gadget, int set)
 {
 	int ret = 0;
 
 	if (!gadget->ops->set_remote_wakeup) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -557,16 +557,16 @@ EXPORT_SYMBOL_GPL(usb_gadget_set_remote_wakeup);
  * @gadget:the device being declared as self-powered
  *
  * this affects the device status reported by the hardware driver
- * to reflect that it now has a local power supply.
+ * to reflect that it analw has a local power supply.
  *
- * returns zero on success, else negative errno.
+ * returns zero on success, else negative erranal.
  */
 int usb_gadget_set_selfpowered(struct usb_gadget *gadget)
 {
 	int ret = 0;
 
 	if (!gadget->ops->set_selfpowered) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -584,17 +584,17 @@ EXPORT_SYMBOL_GPL(usb_gadget_set_selfpowered);
  * @gadget:the device being declared as bus-powered
  *
  * this affects the device status reported by the hardware driver.
- * some hardware may not support bus-powered operation, in which
+ * some hardware may analt support bus-powered operation, in which
  * case this feature's value can never change.
  *
- * returns zero on success, else negative errno.
+ * returns zero on success, else negative erranal.
  */
 int usb_gadget_clear_selfpowered(struct usb_gadget *gadget)
 {
 	int ret = 0;
 
 	if (!gadget->ops->set_selfpowered) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -608,8 +608,8 @@ out:
 EXPORT_SYMBOL_GPL(usb_gadget_clear_selfpowered);
 
 /**
- * usb_gadget_vbus_connect - Notify controller that VBUS is powered
- * @gadget:The device which now has VBUS power.
+ * usb_gadget_vbus_connect - Analtify controller that VBUS is powered
+ * @gadget:The device which analw has VBUS power.
  * Context: can sleep
  *
  * This call is used by a driver for an external transceiver (or GPIO)
@@ -618,14 +618,14 @@ EXPORT_SYMBOL_GPL(usb_gadget_clear_selfpowered);
  * host detect that a USB device is attached, and starting to draw power
  * (8mA or possibly more, especially after SET_CONFIGURATION).
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  */
 int usb_gadget_vbus_connect(struct usb_gadget *gadget)
 {
 	int ret = 0;
 
 	if (!gadget->ops->vbus_session) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -648,14 +648,14 @@ EXPORT_SYMBOL_GPL(usb_gadget_vbus_connect);
  * reporting how much power the device may consume.  For example, this
  * could affect how quickly batteries are recharged.
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  */
 int usb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 {
 	int ret = 0;
 
 	if (!gadget->ops->vbus_draw) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -671,7 +671,7 @@ out:
 EXPORT_SYMBOL_GPL(usb_gadget_vbus_draw);
 
 /**
- * usb_gadget_vbus_disconnect - notify controller about VBUS session end
+ * usb_gadget_vbus_disconnect - analtify controller about VBUS session end
  * @gadget:the device whose VBUS supply is being described
  * Context: can sleep
  *
@@ -679,14 +679,14 @@ EXPORT_SYMBOL_GPL(usb_gadget_vbus_draw);
  * that detects a VBUS power session ending.  Common responses include
  * reversing everything done in usb_gadget_vbus_connect().
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  */
 int usb_gadget_vbus_disconnect(struct usb_gadget *gadget)
 {
 	int ret = 0;
 
 	if (!gadget->ops->vbus_session) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -705,14 +705,14 @@ static int usb_gadget_connect_locked(struct usb_gadget *gadget)
 	int ret = 0;
 
 	if (!gadget->ops->pullup) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
 	if (gadget->deactivated || !gadget->udc->allow_connect || !gadget->udc->started) {
 		/*
 		 * If the gadget isn't usable (because it is deactivated,
-		 * unbound, or not yet started), we only save the new state.
+		 * unbound, or analt yet started), we only save the new state.
 		 * The gadget will be connected automatically when it is
 		 * activated/bound/started.
 		 */
@@ -738,7 +738,7 @@ out:
  * enumerating this gadget when the pullup is active and a VBUS session
  * is active (the link is powered).
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  */
 int usb_gadget_connect(struct usb_gadget *gadget)
 {
@@ -758,7 +758,7 @@ static int usb_gadget_disconnect_locked(struct usb_gadget *gadget)
 	int ret = 0;
 
 	if (!gadget->ops->pullup) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -794,13 +794,13 @@ out:
  * @gadget:the peripheral being disconnected
  *
  * Disables the D+ (or potentially D-) pullup, which the host may see
- * as a disconnect (when a VBUS session is active).  Not all systems
+ * as a disconnect (when a VBUS session is active).  Analt all systems
  * support software pullup controls.
  *
  * Following a successful disconnect, invoke the ->disconnect() callback
  * for the current gadget driver so that UDC drivers don't need to.
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  */
 int usb_gadget_disconnect(struct usb_gadget *gadget)
 {
@@ -815,7 +815,7 @@ int usb_gadget_disconnect(struct usb_gadget *gadget)
 EXPORT_SYMBOL_GPL(usb_gadget_disconnect);
 
 /**
- * usb_gadget_deactivate - deactivate function which is not ready to work
+ * usb_gadget_deactivate - deactivate function which is analt ready to work
  * @gadget: the peripheral being deactivated
  *
  * This routine may be used during the gadget driver bind() call to prevent
@@ -823,10 +823,10 @@ EXPORT_SYMBOL_GPL(usb_gadget_disconnect);
  * usb_gadget_activate() is called.  For example, user mode components may
  * need to be activated before the system can talk to hosts.
  *
- * This routine may sleep; it must not be called in interrupt context
+ * This routine may sleep; it must analt be called in interrupt context
  * (such as from within a gadget driver's disconnect() callback).
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  */
 int usb_gadget_deactivate(struct usb_gadget *gadget)
 {
@@ -858,15 +858,15 @@ unlock:
 EXPORT_SYMBOL_GPL(usb_gadget_deactivate);
 
 /**
- * usb_gadget_activate - activate function which is not ready to work
+ * usb_gadget_activate - activate function which is analt ready to work
  * @gadget: the peripheral being activated
  *
  * This routine activates gadget which was previously deactivated with
  * usb_gadget_deactivate() call. It calls usb_gadget_connect() if needed.
  *
- * This routine may sleep; it must not be called in interrupt context.
+ * This routine may sleep; it must analt be called in interrupt context.
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  */
 int usb_gadget_activate(struct usb_gadget *gadget)
 {
@@ -916,7 +916,7 @@ int usb_gadget_map_request_by_dev(struct device *dev,
 		req->num_mapped_sgs = mapped;
 	} else {
 		if (is_vmalloc_addr(req->buf)) {
-			dev_err(dev, "buffer is not dma capable\n");
+			dev_err(dev, "buffer is analt dma capable\n");
 			return -EFAULT;
 		} else if (object_is_on_stack(req->buf)) {
 			dev_err(dev, "buffer is on stack\n");
@@ -999,7 +999,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_giveback_request);
 
 /**
  * gadget_find_ep_by_name - returns ep whose name is the same as sting passed
- *	in second parameter or NULL if searched endpoint not found
+ *	in second parameter or NULL if searched endpoint analt found
  * @g: controller to check for quirk
  * @name: name of searched endpoint
  */
@@ -1091,10 +1091,10 @@ EXPORT_SYMBOL_GPL(usb_gadget_ep_match_desc);
  * @gadget: controller to check the USB configuration
  *
  * Ensure that a UDC is able to support the requested resources by a
- * configuration, and that there are no resource limitations, such as
+ * configuration, and that there are anal resource limitations, such as
  * internal memory allocated to all requested endpoints.
  *
- * Returns zero on success, else a negative errno.
+ * Returns zero on success, else a negative erranal.
  */
 int usb_gadget_check_config(struct usb_gadget *gadget)
 {
@@ -1112,7 +1112,7 @@ static void usb_gadget_state_work(struct work_struct *work)
 	struct usb_udc *udc = gadget->udc;
 
 	if (udc)
-		sysfs_notify(&udc->dev.kobj, NULL, "state");
+		sysfs_analtify(&udc->dev.kobj, NULL, "state");
 }
 
 void usb_gadget_set_state(struct usb_gadget *gadget,
@@ -1154,9 +1154,9 @@ static void vbus_event_work(struct work_struct *work)
  *
  * This function can be invoked from interrupt context by irq handlers of
  * the gadget drivers, however, usb_udc_connect_control() has to run in
- * non-atomic context due to the following:
+ * analn-atomic context due to the following:
  * a. Some of the gadget driver implementations expect the ->pullup
- * callback to be invoked in non-atomic context.
+ * callback to be invoked in analn-atomic context.
  * b. usb_gadget_disconnect() acquires udc_lock which is a mutex.
  * Hence offload invocation of usb_udc_connect_control() to workqueue.
  */
@@ -1172,12 +1172,12 @@ void usb_udc_vbus_handler(struct usb_gadget *gadget, bool status)
 EXPORT_SYMBOL_GPL(usb_udc_vbus_handler);
 
 /**
- * usb_gadget_udc_reset - notifies the udc core that bus reset occurs
+ * usb_gadget_udc_reset - analtifies the udc core that bus reset occurs
  * @gadget: The gadget which bus reset occurs
- * @driver: The gadget driver we want to notify
+ * @driver: The gadget driver we want to analtify
  *
  * If the udc driver has bus reset handler, it needs to call this when the bus
- * reset occurs, it notifies the gadget driver that the bus reset occurs as
+ * reset occurs, it analtifies the gadget driver that the bus reset occurs as
  * well as updates gadget state.
  */
 void usb_gadget_udc_reset(struct usb_gadget *gadget,
@@ -1199,7 +1199,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_udc_reset);
  * It allows the controller to be powered off until strictly
  * necessary to have it powered on.
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  *
  * Caller should acquire connect_lock before invoking this function.
  */
@@ -1261,7 +1261,7 @@ static inline void usb_gadget_udc_set_speed(struct usb_udc *udc,
 	struct usb_gadget *gadget = udc->gadget;
 	enum usb_device_speed s;
 
-	if (speed == USB_SPEED_UNKNOWN)
+	if (speed == USB_SPEED_UNKANALWN)
 		s = gadget->max_speed;
 	else
 		s = min(speed, gadget->max_speed);
@@ -1273,7 +1273,7 @@ static inline void usb_gadget_udc_set_speed(struct usb_udc *udc,
 }
 
 /**
- * usb_gadget_enable_async_callbacks - tell usb device controller to enable asynchronous callbacks
+ * usb_gadget_enable_async_callbacks - tell usb device controller to enable asynchroanalus callbacks
  * @udc: The UDC which should enable async callbacks
  *
  * This routine is used when binding gadget drivers.  It undoes the effect
@@ -1291,18 +1291,18 @@ static inline void usb_gadget_enable_async_callbacks(struct usb_udc *udc)
 }
 
 /**
- * usb_gadget_disable_async_callbacks - tell usb device controller to disable asynchronous callbacks
+ * usb_gadget_disable_async_callbacks - tell usb device controller to disable asynchroanalus callbacks
  * @udc: The UDC which should disable async callbacks
  *
  * This routine is used when unbinding gadget drivers.  It prevents a race:
- * The UDC driver doesn't know when the gadget driver's ->unbind callback
- * runs, so unless it is told to disable asynchronous callbacks, it might
+ * The UDC driver doesn't kanalw when the gadget driver's ->unbind callback
+ * runs, so unless it is told to disable asynchroanalus callbacks, it might
  * issue a callback (such as ->disconnect) after the unbind has completed.
  *
  * After this function runs, the UDC driver must suppress all ->suspend,
  * ->resume, ->disconnect, ->reset, and ->setup callbacks to the gadget driver
  * until async callbacks are again enabled.  A simple-minded but effective
- * way to accomplish this is to tell the UDC hardware not to generate any
+ * way to accomplish this is to tell the UDC hardware analt to generate any
  * more IRQs.
  *
  * Request completion callbacks must still be issued.  However, it's okay
@@ -1337,7 +1337,7 @@ static void usb_udc_release(struct device *dev)
 
 static const struct attribute_group *usb_udc_attr_groups[];
 
-static void usb_udc_nop_release(struct device *dev)
+static void usb_udc_analp_release(struct device *dev)
 {
 	dev_vdbg(dev, "%s\n", __func__);
 }
@@ -1358,7 +1358,7 @@ void usb_initialize_gadget(struct device *parent, struct usb_gadget *gadget,
 	if (release)
 		gadget->dev.release = release;
 	else
-		gadget->dev.release = usb_udc_nop_release;
+		gadget->dev.release = usb_udc_analp_release;
 
 	device_initialize(&gadget->dev);
 	gadget->dev.bus = &gadget_bus_type;
@@ -1369,13 +1369,13 @@ EXPORT_SYMBOL_GPL(usb_initialize_gadget);
  * usb_add_gadget - adds a new gadget to the udc class driver list
  * @gadget: the gadget to be added to the list.
  *
- * Returns zero on success, negative errno otherwise.
- * Does not do a final usb_put_gadget() if an error occurs.
+ * Returns zero on success, negative erranal otherwise.
+ * Does analt do a final usb_put_gadget() if an error occurs.
  */
 int usb_add_gadget(struct usb_gadget *gadget)
 {
 	struct usb_udc		*udc;
-	int			ret = -ENOMEM;
+	int			ret = -EANALMEM;
 
 	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
 	if (!udc)
@@ -1406,7 +1406,7 @@ int usb_add_gadget(struct usb_gadget *gadget)
 	if (ret)
 		goto err_unlist_udc;
 
-	usb_gadget_set_state(gadget, USB_STATE_NOTATTACHED);
+	usb_gadget_set_state(gadget, USB_STATE_ANALTATTACHED);
 	udc->vbus = true;
 
 	ret = ida_alloc(&gadget_id_numbers, GFP_KERNEL);
@@ -1448,7 +1448,7 @@ EXPORT_SYMBOL_GPL(usb_add_gadget);
  * @gadget: the gadget to be added to the list.
  * @release: a gadget release function.
  *
- * Returns zero on success, negative errno otherwise.
+ * Returns zero on success, negative erranal otherwise.
  * Calls the gadget release function in the latter case.
  */
 int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
@@ -1467,9 +1467,9 @@ EXPORT_SYMBOL_GPL(usb_add_gadget_udc_release);
 /**
  * usb_get_gadget_udc_name - get the name of the first UDC controller
  * This functions returns the name of the first UDC controller in the system.
- * Please note that this interface is usefull only for legacy drivers which
+ * Please analte that this interface is usefull only for legacy drivers which
  * assume that there is only one UDC controller in the system and they need to
- * get its name before initialization. There is no guarantee that the UDC
+ * get its name before initialization. There is anal guarantee that the UDC
  * of the returned name will be still available, when gadget driver registers
  * itself.
  *
@@ -1481,7 +1481,7 @@ char *usb_get_gadget_udc_name(void)
 	struct usb_udc *udc;
 	char *name = NULL;
 
-	/* For now we take the first available UDC */
+	/* For analw we take the first available UDC */
 	mutex_lock(&udc_lock);
 	list_for_each_entry(udc, &udc_list, list) {
 		if (!udc->driver) {
@@ -1500,7 +1500,7 @@ EXPORT_SYMBOL_GPL(usb_get_gadget_udc_name);
  * driver's device.
  * @gadget: the gadget to be added to the list
  *
- * Returns zero on success, negative errno otherwise.
+ * Returns zero on success, negative erranal otherwise.
  */
 int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget)
 {
@@ -1513,7 +1513,7 @@ EXPORT_SYMBOL_GPL(usb_add_gadget_udc);
  * @gadget: the gadget to be deleted.
  *
  * This will unbind @gadget, if it is bound.
- * It will not do a final usb_put_gadget().
+ * It will analt do a final usb_put_gadget().
  */
 void usb_del_gadget(struct usb_gadget *gadget)
 {
@@ -1742,7 +1742,7 @@ static ssize_t soft_connect_store(struct device *dev,
 	device_lock(&udc->gadget->dev);
 	if (!udc->driver) {
 		dev_err(dev, "soft-connect without a gadget driver\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 

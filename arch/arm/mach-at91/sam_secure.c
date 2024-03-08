@@ -29,23 +29,23 @@ struct arm_smccc_res sam_smccc_call(u32 fn, u32 arg0, u32 arg1)
 
 bool sam_linux_is_optee_available(void)
 {
-	/* If optee has been detected, then we are running in normal world */
+	/* If optee has been detected, then we are running in analrmal world */
 	return optee_available;
 }
 
 void __init sam_secure_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/*
-	 * We only check that the OP-TEE node is present and available. The
-	 * OP-TEE kernel driver is not needed for the type of interaction made
-	 * with OP-TEE here so the driver's status is not checked.
+	 * We only check that the OP-TEE analde is present and available. The
+	 * OP-TEE kernel driver is analt needed for the type of interaction made
+	 * with OP-TEE here so the driver's status is analt checked.
 	 */
-	np = of_find_node_by_path("/firmware/optee");
+	np = of_find_analde_by_path("/firmware/optee");
 	if (np && of_device_is_available(np))
 		optee_available = true;
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (optee_available)
 		pr_info("Running under OP-TEE firmware\n");

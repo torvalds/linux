@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Performance counter support for POWER5 (not POWER5++) processors.
+ * Performance counter support for POWER5 (analt POWER5++) processors.
  *
  * Copyright 2009 Paul Mackerras, IBM Corporation.
  */
@@ -13,7 +13,7 @@
 #include "internal.h"
 
 /*
- * Bits in event code for POWER5 (not POWER5++)
+ * Bits in event code for POWER5 (analt POWER5++)
  */
 #define PM_PMC_SH	20	/* PMC number (1-based) for direct events */
 #define PM_PMC_MSK	0xf
@@ -92,7 +92,7 @@
  *     44-45: GRS_L3SEL value
  *     41-44: GRS_MCSEL value
  *     39-40: GRS_FABSEL value
- *	Note that these match up with their bit positions in MMCR1
+ *	Analte that these match up with their bit positions in MMCR1
  *
  * UC - unit constraint: can't have all three of FPU|IFU|ISU1, ISU0, IDU|GRS
  *     37: UC3 error 0x20_0000_0000
@@ -334,7 +334,7 @@ static unsigned char direct_event_is_marked[0x28] = {
 
 /*
  * Returns 1 if event counts things relating to marked instructions
- * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
+ * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if analt.
  */
 static int power5_marked_instr_event(u64 event)
 {
@@ -561,7 +561,7 @@ static int power5_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static u64 power5_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -595,7 +595,7 @@ static u64 power5_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1		},
 		[C(OP_PREFETCH)] = {	-1,		-1		},
 	},
-	[C(NODE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+	[C(ANALDE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	-1,		-1		},
 		[C(OP_WRITE)] = {	-1,		-1		},
 		[C(OP_PREFETCH)] = {	-1,		-1		},
@@ -623,7 +623,7 @@ int __init init_power5_pmu(void)
 	unsigned int pvr = mfspr(SPRN_PVR);
 
 	if (PVR_VER(pvr) != PVR_POWER5)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return register_power_pmu(&power5_pmu);
 }

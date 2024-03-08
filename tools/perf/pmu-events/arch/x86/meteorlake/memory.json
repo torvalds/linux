@@ -67,7 +67,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of machine clears due to memory ordering caused by a snoop from an external agent. Does not count internally generated machine clears such as those due to memory disambiguation.",
+        "BriefDescription": "Counts the number of machine clears due to memory ordering caused by a sanalop from an external agent. Does analt count internally generated machine clears such as those due to memory disambiguation.",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
         "SampleAfterValue": "20003",
@@ -78,7 +78,7 @@
         "BriefDescription": "Number of machine clears due to memory ordering conflicts.",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture",
+        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may analt conform to the memory ordering rules of the x86 architecture",
         "SampleAfterValue": "100003",
         "UMask": "0x2",
         "Unit": "cpu_core"
@@ -106,7 +106,7 @@
         "CounterMask": "5",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.STALLS_L2_MISS",
-        "PublicDescription": "Execution stalls while L2 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock).",
+        "PublicDescription": "Execution stalls while L2 cache miss demand cacheable load request is outstanding (will analt count for uncacheable demand requests e.g. bus lock).",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_core"
@@ -116,7 +116,7 @@
         "CounterMask": "9",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.STALLS_L3_MISS",
-        "PublicDescription": "Execution stalls while L3 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock).",
+        "PublicDescription": "Execution stalls while L3 cache miss demand cacheable load request is outstanding (will analt count for uncacheable demand requests e.g. bus lock).",
         "SampleAfterValue": "1000003",
         "UMask": "0x9",
         "Unit": "cpu_core"
@@ -297,7 +297,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts demand data reads that were not supplied by the L3 cache.",
+        "BriefDescription": "Counts demand data reads that were analt supplied by the L3 cache.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -307,7 +307,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the L3 cache.",
+        "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were analt supplied by the L3 cache.",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -335,20 +335,20 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "For every cycle, increments by the number of demand data read requests pending that are known to have missed the L3 cache.",
+        "BriefDescription": "For every cycle, increments by the number of demand data read requests pending that are kanalwn to have missed the L3 cache.",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD",
-        "PublicDescription": "For every cycle, increments by the number of demand data read requests pending that are known to have missed the L3 cache.  Note that this does not capture all elapsed cycles while requests are outstanding - only cycles from when the requests were known by the requesting core to have missed the L3 cache.",
+        "PublicDescription": "For every cycle, increments by the number of demand data read requests pending that are kanalwn to have missed the L3 cache.  Analte that this does analt capture all elapsed cycles while requests are outstanding - only cycles from when the requests were kanalwn by the requesting core to have missed the L3 cache.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles where the core is waiting on at least 6 outstanding demand data read requests known to have missed the L3 cache.",
+        "BriefDescription": "Cycles where the core is waiting on at least 6 outstanding demand data read requests kanalwn to have missed the L3 cache.",
         "CounterMask": "6",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD_GE_6",
-        "PublicDescription": "Cycles where the core is waiting on at least 6 outstanding demand data read requests known to have missed the L3 cache.  Note that this event does not capture all elapsed cycles while the requests are outstanding - only cycles from when the requests were known to have missed the L3 cache.",
+        "PublicDescription": "Cycles where the core is waiting on at least 6 outstanding demand data read requests kanalwn to have missed the L3 cache.  Analte that this event does analt capture all elapsed cycles while the requests are outstanding - only cycles from when the requests were kanalwn to have missed the L3 cache.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10",
         "Unit": "cpu_core"

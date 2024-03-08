@@ -66,14 +66,14 @@ static irqreturn_t bt1_axi_isr(int irq, void *data)
 	dev_crit_ratelimited(axi->dev,
 		"AXI-bus fault %d: %s at 0x%x%08x\n",
 		atomic_inc_return(&axi->count),
-		high & BT1_AXI_WERRH_TYPE ? "no slave" : "slave protocol error",
+		high & BT1_AXI_WERRH_TYPE ? "anal slave" : "slave protocol error",
 		high, low);
 
 	/*
 	 * Print backtrace on each CPU. This might be pointless if the fault
 	 * has happened on the same CPU as the IRQ handler is executed or
 	 * the other core proceeded further execution despite the error.
-	 * But if it's not, by looking at the trace we would get straight to
+	 * But if it's analt, by looking at the trace we would get straight to
 	 * the cause of the problem.
 	 */
 	trigger_all_cpu_backtrace();
@@ -97,7 +97,7 @@ static struct bt1_axi *bt1_axi_create_data(struct platform_device *pdev)
 
 	axi = devm_kzalloc(dev, sizeof(*axi), GFP_KERNEL);
 	if (!axi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = devm_add_action(dev, bt1_axi_clear_data, axi);
 	if (ret) {
@@ -117,7 +117,7 @@ static int bt1_axi_request_regs(struct bt1_axi *axi)
 	struct platform_device *pdev = to_platform_device(axi->dev);
 	struct device *dev = axi->dev;
 
-	axi->sys_regs = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
+	axi->sys_regs = syscon_regmap_lookup_by_phandle(dev->of_analde, "syscon");
 	if (IS_ERR(axi->sys_regs)) {
 		dev_err(dev, "Couldn't find syscon registers\n");
 		return PTR_ERR(axi->sys_regs);

@@ -8,7 +8,7 @@
  * the project's page is at https://linuxtv.org
  */
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -129,7 +129,7 @@ static struct dvb_frontend *lnbx2x_attach(struct dvb_frontend *fe,
 	/* bits which should be forced to '0' */
 	lnbp21->override_and = ~override_clear;
 
-	/* detect if it is present or not */
+	/* detect if it is present or analt */
 	if (lnbp21_set_voltage(fe, SEC_VOLTAGE_OFF)) {
 		kfree(lnbp21);
 		return NULL;

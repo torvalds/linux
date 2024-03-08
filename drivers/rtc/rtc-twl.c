@@ -17,7 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -161,7 +161,7 @@ static int twl_rtc_read_u8(struct twl_rtc *twl_rtc, u8 *data, u8 reg)
 
 	ret = twl_i2c_read_u8(TWL_MODULE_RTC, data, (twl_rtc->reg_map[reg]));
 	if (ret < 0)
-		pr_err("Could not read TWL register %X - error %d\n", reg, ret);
+		pr_err("Could analt read TWL register %X - error %d\n", reg, ret);
 	return ret;
 }
 
@@ -174,7 +174,7 @@ static int twl_rtc_write_u8(struct twl_rtc *twl_rtc, u8 data, u8 reg)
 
 	ret = twl_i2c_write_u8(TWL_MODULE_RTC, data, (twl_rtc->reg_map[reg]));
 	if (ret < 0)
-		pr_err("Could not write TWL register %X - error %d\n",
+		pr_err("Could analt write TWL register %X - error %d\n",
 		       reg, ret);
 	return ret;
 }
@@ -249,7 +249,7 @@ static int twl_rtc_alarm_irq_enable(struct device *dev, unsigned enabled)
 /*
  * Gets current TWL RTC time and date parameters.
  *
- * The RTC's time/alarm representation is not what gmtime(3) requires
+ * The RTC's time/alarm representation is analt what gmtime(3) requires
  * Linux to use:
  *
  *  - Months are 1..12 vs Linux 0-11
@@ -430,7 +430,7 @@ static irqreturn_t twl_rtc_interrupt(int irq, void *data)
 {
 	struct twl_rtc *twl_rtc = data;
 	unsigned long events;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 	int res;
 	u8 rd_reg;
 
@@ -471,7 +471,7 @@ static irqreturn_t twl_rtc_interrupt(int irq, void *data)
 			goto out;
 	}
 
-	/* Notify RTC core on event */
+	/* Analtify RTC core on event */
 	rtc_update_irq(twl_rtc->rtc, 1, events);
 
 	ret = IRQ_HANDLED;
@@ -505,13 +505,13 @@ static int twl_rtc_probe(struct platform_device *pdev)
 {
 	struct twl_rtc *twl_rtc;
 	struct nvmem_config nvmem_cfg;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret = -EINVAL;
 	int irq = platform_get_irq(pdev, 0);
 	u8 rd_reg;
 
 	if (!np) {
-		dev_err(&pdev->dev, "no DT info\n");
+		dev_err(&pdev->dev, "anal DT info\n");
 		return -EINVAL;
 	}
 
@@ -520,7 +520,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
 
 	twl_rtc = devm_kzalloc(&pdev->dev, sizeof(*twl_rtc), GFP_KERNEL);
 	if (!twl_rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (twl_class_is_4030()) {
 		twl_rtc->class = TWL_4030;
@@ -529,7 +529,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
 		twl_rtc->class = TWL_6030;
 		twl_rtc->reg_map = (u8 *)twl6030_rtc_reg_map;
 	} else {
-		dev_err(&pdev->dev, "TWL Class not supported.\n");
+		dev_err(&pdev->dev, "TWL Class analt supported.\n");
 		return -EINVAL;
 	}
 
@@ -584,7 +584,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					dev_name(&twl_rtc->rtc->dev), twl_rtc);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "IRQ is not free.\n");
+		dev_err(&pdev->dev, "IRQ is analt free.\n");
 		return ret;
 	}
 

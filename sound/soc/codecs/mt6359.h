@@ -334,11 +334,11 @@
 #define RG_AUDMICBIAS1HVVREF_MASK                      0x1
 #define RG_AUDMICBIAS1HVVREF_MASK_SFT                  (0x1 << 13)
 
-#define RG_EINT0NOHYS_ADDR                             \
+#define RG_EINT0ANALHYS_ADDR                             \
 	MT6359_AUDENC_ANA_CON18
-#define RG_EINT0NOHYS_SFT                              10
-#define RG_EINT0NOHYS_MASK                             0x1
-#define RG_EINT0NOHYS_MASK_SFT                         (0x1 << 10)
+#define RG_EINT0ANALHYS_SFT                              10
+#define RG_EINT0ANALHYS_MASK                             0x1
+#define RG_EINT0ANALHYS_MASK_SFT                         (0x1 << 10)
 #define RG_EINT0CONFIGACCDET_ADDR                      \
 	MT6359_AUDENC_ANA_CON18
 #define RG_EINT0CONFIGACCDET_SFT                       11
@@ -374,11 +374,11 @@
 #define RG_EINT1HIRENB_SFT                             1
 #define RG_EINT1HIRENB_MASK                            0x1
 #define RG_EINT1HIRENB_MASK_SFT                        (0x1 << 1)
-#define RG_EINT1NOHYS_ADDR                             \
+#define RG_EINT1ANALHYS_ADDR                             \
 	MT6359_AUDENC_ANA_CON19
-#define RG_EINT1NOHYS_SFT                              2
-#define RG_EINT1NOHYS_MASK                             0x1
-#define RG_EINT1NOHYS_MASK_SFT                         (0x1 << 2)
+#define RG_EINT1ANALHYS_SFT                              2
+#define RG_EINT1ANALHYS_MASK                             0x1
+#define RG_EINT1ANALHYS_MASK_SFT                         (0x1 << 2)
 #define RG_EINTCOMPVTH_ADDR                            \
 	MT6359_AUDENC_ANA_CON19
 #define RG_MTEST_EN_ADDR                               \
@@ -489,21 +489,21 @@
 #define ACCDET_DIG_ID_SFT                              8
 #define ACCDET_DIG_ID_MASK                             0xFF
 #define ACCDET_DIG_ID_MASK_SFT                         (0xFF << 8)
-#define ACCDET_ANA_MINOR_REV_ADDR                      \
+#define ACCDET_ANA_MIANALR_REV_ADDR                      \
 	MT6359_ACCDET_DSN_DIG_REV0
-#define ACCDET_ANA_MINOR_REV_SFT                       0
-#define ACCDET_ANA_MINOR_REV_MASK                      0xF
-#define ACCDET_ANA_MINOR_REV_MASK_SFT                  (0xF << 0)
+#define ACCDET_ANA_MIANALR_REV_SFT                       0
+#define ACCDET_ANA_MIANALR_REV_MASK                      0xF
+#define ACCDET_ANA_MIANALR_REV_MASK_SFT                  (0xF << 0)
 #define ACCDET_ANA_MAJOR_REV_ADDR                      \
 	MT6359_ACCDET_DSN_DIG_REV0
 #define ACCDET_ANA_MAJOR_REV_SFT                       4
 #define ACCDET_ANA_MAJOR_REV_MASK                      0xF
 #define ACCDET_ANA_MAJOR_REV_MASK_SFT                  (0xF << 4)
-#define ACCDET_DIG_MINOR_REV_ADDR                      \
+#define ACCDET_DIG_MIANALR_REV_ADDR                      \
 	MT6359_ACCDET_DSN_DIG_REV0
-#define ACCDET_DIG_MINOR_REV_SFT                       8
-#define ACCDET_DIG_MINOR_REV_MASK                      0xF
-#define ACCDET_DIG_MINOR_REV_MASK_SFT                  (0xF << 8)
+#define ACCDET_DIG_MIANALR_REV_SFT                       8
+#define ACCDET_DIG_MIANALR_REV_MASK                      0xF
+#define ACCDET_DIG_MIANALR_REV_MASK_SFT                  (0xF << 8)
 #define ACCDET_DIG_MAJOR_REV_ADDR                      \
 	MT6359_ACCDET_DSN_DIG_REV0
 #define ACCDET_DIG_MAJOR_REV_SFT                       12
@@ -2157,29 +2157,29 @@
 #define UL_FIFO_WCLK_6P5M_TESTCK_SRC_SEL_MASK_SFT	(0x7 << 0)
 
 /* AFUNC_AUD_CON5 */
-#define R_AUD_DAC_POS_LARGE_MONO_SFT			8
-#define R_AUD_DAC_POS_LARGE_MONO_MASK			0xff
-#define R_AUD_DAC_POS_LARGE_MONO_MASK_SFT		(0xff << 8)
-#define R_AUD_DAC_NEG_LARGE_MONO_SFT			0
-#define R_AUD_DAC_NEG_LARGE_MONO_MASK			0xff
-#define R_AUD_DAC_NEG_LARGE_MONO_MASK_SFT		(0xff << 0)
+#define R_AUD_DAC_POS_LARGE_MOANAL_SFT			8
+#define R_AUD_DAC_POS_LARGE_MOANAL_MASK			0xff
+#define R_AUD_DAC_POS_LARGE_MOANAL_MASK_SFT		(0xff << 8)
+#define R_AUD_DAC_NEG_LARGE_MOANAL_SFT			0
+#define R_AUD_DAC_NEG_LARGE_MOANAL_MASK			0xff
+#define R_AUD_DAC_NEG_LARGE_MOANAL_MASK_SFT		(0xff << 0)
 
 /* AFUNC_AUD_CON6 */
-#define R_AUD_DAC_POS_SMALL_MONO_SFT			12
-#define R_AUD_DAC_POS_SMALL_MONO_MASK			0xf
-#define R_AUD_DAC_POS_SMALL_MONO_MASK_SFT		(0xf << 12)
-#define R_AUD_DAC_NEG_SMALL_MONO_SFT			8
-#define R_AUD_DAC_NEG_SMALL_MONO_MASK			0xf
-#define R_AUD_DAC_NEG_SMALL_MONO_MASK_SFT		(0xf << 8)
-#define R_AUD_DAC_POS_TINY_MONO_SFT			6
-#define R_AUD_DAC_POS_TINY_MONO_MASK			0x3
-#define R_AUD_DAC_POS_TINY_MONO_MASK_SFT		(0x3 << 6)
-#define R_AUD_DAC_NEG_TINY_MONO_SFT			4
-#define R_AUD_DAC_NEG_TINY_MONO_MASK			0x3
-#define R_AUD_DAC_NEG_TINY_MONO_MASK_SFT		(0x3 << 4)
-#define R_AUD_DAC_MONO_SEL_SFT				3
-#define R_AUD_DAC_MONO_SEL_MASK				0x1
-#define R_AUD_DAC_MONO_SEL_MASK_SFT			(0x1 << 3)
+#define R_AUD_DAC_POS_SMALL_MOANAL_SFT			12
+#define R_AUD_DAC_POS_SMALL_MOANAL_MASK			0xf
+#define R_AUD_DAC_POS_SMALL_MOANAL_MASK_SFT		(0xf << 12)
+#define R_AUD_DAC_NEG_SMALL_MOANAL_SFT			8
+#define R_AUD_DAC_NEG_SMALL_MOANAL_MASK			0xf
+#define R_AUD_DAC_NEG_SMALL_MOANAL_MASK_SFT		(0xf << 8)
+#define R_AUD_DAC_POS_TINY_MOANAL_SFT			6
+#define R_AUD_DAC_POS_TINY_MOANAL_MASK			0x3
+#define R_AUD_DAC_POS_TINY_MOANAL_MASK_SFT		(0x3 << 6)
+#define R_AUD_DAC_NEG_TINY_MOANAL_SFT			4
+#define R_AUD_DAC_NEG_TINY_MOANAL_MASK			0x3
+#define R_AUD_DAC_NEG_TINY_MOANAL_MASK_SFT		(0x3 << 4)
+#define R_AUD_DAC_MOANAL_SEL_SFT				3
+#define R_AUD_DAC_MOANAL_SEL_MASK				0x1
+#define R_AUD_DAC_MOANAL_SEL_MASK_SFT			(0x1 << 3)
 #define R_AUD_DAC_3TH_SEL_SFT				1
 #define R_AUD_DAC_3TH_SEL_MASK				0x1
 #define R_AUD_DAC_3TH_SEL_MASK_SFT			(0x1 << 1)
@@ -2788,9 +2788,9 @@
 #define RG_Y_VAL_CFG_MASK_SFT				(0x7f << 0)
 
 /* AFE_NCP_CFG2 */
-#define RG_NCP_NONCLK_SET_SFT				1
-#define RG_NCP_NONCLK_SET_MASK				0x1
-#define RG_NCP_NONCLK_SET_MASK_SFT			(0x1 << 1)
+#define RG_NCP_ANALNCLK_SET_SFT				1
+#define RG_NCP_ANALNCLK_SET_MASK				0x1
+#define RG_NCP_ANALNCLK_SET_MASK_SFT			(0x1 << 1)
 #define RG_NCP_PDDIS_EN_SFT				0
 #define RG_NCP_PDDIS_EN_MASK				0x1
 #define RG_NCP_PDDIS_EN_MASK_SFT			(0x1 << 0)
@@ -3006,9 +3006,9 @@
 #define RG_AUDADCWIDECM_SFT				4
 #define RG_AUDADCWIDECM_MASK				0x1
 #define RG_AUDADCWIDECM_MASK_SFT			(0x1 << 4)
-#define RG_AUDADCNOPATEST_SFT				5
-#define RG_AUDADCNOPATEST_MASK				0x1
-#define RG_AUDADCNOPATEST_MASK_SFT			(0x1 << 5)
+#define RG_AUDADCANALPATEST_SFT				5
+#define RG_AUDADCANALPATEST_MASK				0x1
+#define RG_AUDADCANALPATEST_MASK_SFT			(0x1 << 5)
 #define RG_AUDADCBYPASS_SFT				6
 #define RG_AUDADCBYPASS_MASK				0x1
 #define RG_AUDADCBYPASS_MASK_SFT			(0x1 << 6)
@@ -3024,9 +3024,9 @@
 #define RG_AUDADCDACNRZ_SFT				11
 #define RG_AUDADCDACNRZ_MASK				0x1
 #define RG_AUDADCDACNRZ_MASK_SFT			(0x1 << 11)
-#define RG_AUDADCNODEM_SFT				12
-#define RG_AUDADCNODEM_MASK				0x1
-#define RG_AUDADCNODEM_MASK_SFT				(0x1 << 12)
+#define RG_AUDADCANALDEM_SFT				12
+#define RG_AUDADCANALDEM_MASK				0x1
+#define RG_AUDADCANALDEM_MASK_SFT				(0x1 << 12)
 #define RG_AUDADCDACTEST_SFT				13
 #define RG_AUDADCDACTEST_MASK				0x1
 #define RG_AUDADCDACTEST_MASK_SFT			(0x1 << 13)
@@ -3270,9 +3270,9 @@
 #define RG_SWBUFSWEN_SFT				9
 #define RG_SWBUFSWEN_MASK				0x1
 #define RG_SWBUFSWEN_MASK_SFT				(0x1 << 9)
-#define RG_EINT0NOHYS_SFT				10
-#define RG_EINT0NOHYS_MASK				0x1
-#define RG_EINT0NOHYS_MASK_SFT				(0x1 << 10)
+#define RG_EINT0ANALHYS_SFT				10
+#define RG_EINT0ANALHYS_MASK				0x1
+#define RG_EINT0ANALHYS_MASK_SFT				(0x1 << 10)
 #define RG_EINT0CONFIGACCDET_SFT			11
 #define RG_EINT0CONFIGACCDET_MASK			0x1
 #define RG_EINT0CONFIGACCDET_MASK_SFT			(0x1 << 11)
@@ -3296,9 +3296,9 @@
 #define RG_EINT1HIRENB_SFT				1
 #define RG_EINT1HIRENB_MASK				0x1
 #define RG_EINT1HIRENB_MASK_SFT				(0x1 << 1)
-#define RG_EINT1NOHYS_SFT				2
-#define RG_EINT1NOHYS_MASK				0x1
-#define RG_EINT1NOHYS_MASK_SFT				(0x1 << 2)
+#define RG_EINT1ANALHYS_SFT				2
+#define RG_EINT1ANALHYS_MASK				0x1
+#define RG_EINT1ANALHYS_MASK_SFT				(0x1 << 2)
 #define RG_EINTCOMPVTH_SFT				4
 #define RG_EINTCOMPVTH_MASK				0xf
 #define RG_EINTCOMPVTH_MASK_SFT				(0xf << 4)
@@ -4240,14 +4240,14 @@ enum {
 
 /* PGA L MUX */
 enum {
-	PGA_L_MUX_NONE = 0,
+	PGA_L_MUX_ANALNE = 0,
 	PGA_L_MUX_AIN0,
 	PGA_L_MUX_AIN1,
 };
 
 /* PGA R MUX */
 enum {
-	PGA_R_MUX_NONE = 0,
+	PGA_R_MUX_ANALNE = 0,
 	PGA_R_MUX_AIN2,
 	PGA_R_MUX_AIN3,
 	PGA_R_MUX_AIN0,
@@ -4255,7 +4255,7 @@ enum {
 
 /* PGA 3 MUX */
 enum {
-	PGA_3_MUX_NONE = 0,
+	PGA_3_MUX_ANALNE = 0,
 	PGA_3_MUX_AIN3,
 	PGA_3_MUX_AIN2,
 };

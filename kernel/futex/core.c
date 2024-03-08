@@ -25,7 +25,7 @@
  *  Thanks to Thomas Gleixner for conceptual design and careful reviews.
  *
  *  Thanks to Ben LaHaise for yelling "hashed waitqueues" loudly
- *  enough at me, Linus for the original (flawed) idea, Matthew
+ *  eanalugh at me, Linus for the original (flawed) idea, Matthew
  *  Kirkwood for proof-of-concept implementation.
  *
  *  "The futexes are also cursed."
@@ -63,10 +63,10 @@ static struct {
 static struct {
 	struct fault_attr attr;
 
-	bool ignore_private;
+	bool iganalre_private;
 } fail_futex = {
 	.attr = FAULT_ATTR_INITIALIZER,
-	.ignore_private = false,
+	.iganalre_private = false,
 };
 
 static int __init setup_fail_futex(char *str)
@@ -77,7 +77,7 @@ __setup("fail_futex=", setup_fail_futex);
 
 bool should_fail_futex(bool fshared)
 {
-	if (fail_futex.ignore_private && !fshared)
+	if (fail_futex.iganalre_private && !fshared)
 		return false;
 
 	return should_fail(&fail_futex.attr, 1);
@@ -95,8 +95,8 @@ static int __init fail_futex_debugfs(void)
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
 
-	debugfs_create_bool("ignore-private", mode, dir,
-			    &fail_futex.ignore_private);
+	debugfs_create_bool("iganalre-private", mode, dir,
+			    &fail_futex.iganalre_private);
 	return 0;
 }
 
@@ -129,7 +129,7 @@ struct futex_hash_bucket *futex_hash(union futex_key *key)
  * @flags:	futex flags
  * @range_ns:	optional range in ns
  *
- * Return: Initialized hrtimer_sleeper structure or NULL if no timeout
+ * Return: Initialized hrtimer_sleeper structure or NULL if anal timeout
  *	   value given
  */
 struct hrtimer_sleeper *
@@ -140,7 +140,7 @@ futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
 		return NULL;
 
 	hrtimer_init_sleeper_on_stack(timeout, (flags & FLAGS_CLOCKRT) ?
-				      CLOCK_REALTIME : CLOCK_MONOTONIC,
+				      CLOCK_REALTIME : CLOCK_MOANALTONIC,
 				      HRTIMER_MODE_ABS);
 	/*
 	 * If range_ns is 0, calling hrtimer_set_expires_range_ns() is
@@ -152,30 +152,30 @@ futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
 }
 
 /*
- * Generate a machine wide unique identifier for this inode.
+ * Generate a machine wide unique identifier for this ianalde.
  *
- * This relies on u64 not wrapping in the life-time of the machine; which with
+ * This relies on u64 analt wrapping in the life-time of the machine; which with
  * 1ns resolution means almost 585 years.
  *
- * This further relies on the fact that a well formed program will not unmap
+ * This further relies on the fact that a well formed program will analt unmap
  * the file while it has a (shared) futex waiting on it. This mapping will have
- * a file reference which pins the mount and inode.
+ * a file reference which pins the mount and ianalde.
  *
- * If for some reason an inode gets evicted and read back in again, it will get
- * a new sequence number and will _NOT_ match, even though it is the exact same
+ * If for some reason an ianalde gets evicted and read back in again, it will get
+ * a new sequence number and will _ANALT_ match, even though it is the exact same
  * file.
  *
  * It is important that futex_match() will never have a false-positive, esp.
  * for PI futexes that can mess up the state. The above argues that false-negatives
  * are only possible for malformed programs.
  */
-static u64 get_inode_sequence_number(struct inode *inode)
+static u64 get_ianalde_sequence_number(struct ianalde *ianalde)
 {
 	static atomic64_t i_seq;
 	u64 old;
 
-	/* Does the inode already have a sequence number? */
-	old = atomic64_read(&inode->i_sequence);
+	/* Does the ianalde already have a sequence number? */
+	old = atomic64_read(&ianalde->i_sequence);
 	if (likely(old))
 		return old;
 
@@ -184,7 +184,7 @@ static u64 get_inode_sequence_number(struct inode *inode)
 		if (WARN_ON_ONCE(!new))
 			continue;
 
-		old = atomic64_cmpxchg_relaxed(&inode->i_sequence, 0, new);
+		old = atomic64_cmpxchg_relaxed(&ianalde->i_sequence, 0, new);
 		if (old)
 			return old;
 		return new;
@@ -205,9 +205,9 @@ static u64 get_inode_sequence_number(struct inode *inode)
  *
  * For shared mappings (when @fshared), the key is:
  *
- *   ( inode->i_sequence, page->index, offset_within_page )
+ *   ( ianalde->i_sequence, page->index, offset_within_page )
  *
- * [ also see get_inode_sequence_number() ]
+ * [ also see get_ianalde_sequence_number() ]
  *
  * For private mappings (or when !@fshared), the key is:
  *
@@ -216,7 +216,7 @@ static u64 get_inode_sequence_number(struct inode *inode)
  * This allows (cross process, where applicable) identification of the futex
  * without keeping the page pinned for the duration of the FUTEX_WAIT.
  *
- * lock_page() might sleep, the caller should not hold a spinlock.
+ * lock_page() might sleep, the caller should analt hold a spinlock.
  */
 int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 		  enum futex_access rw)
@@ -247,15 +247,15 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 
 	/*
 	 * PROCESS_PRIVATE futexes are fast.
-	 * As the mm cannot disappear under us and the 'key' only needs
+	 * As the mm cananalt disappear under us and the 'key' only needs
 	 * virtual address, we dont even have to find the underlying vma.
-	 * Note : We do have to check 'uaddr' is a valid user address,
+	 * Analte : We do have to check 'uaddr' is a valid user address,
 	 *        but access_ok() should be faster than find_vma()
 	 */
 	if (!fshared) {
 		/*
-		 * On no-MMU, shared futexes are treated as private, therefore
-		 * we must not include the current process in the key. Since
+		 * On anal-MMU, shared futexes are treated as private, therefore
+		 * we must analt include the current process in the key. Since
 		 * there is only one address space, the address is a unique key
 		 * on its own.
 		 */
@@ -269,13 +269,13 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 	}
 
 again:
-	/* Ignore any VERIFY_READ mapping (futex common case) */
+	/* Iganalre any VERIFY_READ mapping (futex common case) */
 	if (unlikely(should_fail_futex(true)))
 		return -EFAULT;
 
 	err = get_user_pages_fast(address, 1, FOLL_WRITE, &page);
 	/*
-	 * If write access is not required (eg. FUTEX_WAIT), try
+	 * If write access is analt required (eg. FUTEX_WAIT), try
 	 * and get read-only access.
 	 */
 	if (err == -EFAULT && rw == FUTEX_READ) {
@@ -290,16 +290,16 @@ again:
 	/*
 	 * The treatment of mapping from this point on is critical. The folio
 	 * lock protects many things but in this context the folio lock
-	 * stabilizes mapping, prevents inode freeing in the shared
+	 * stabilizes mapping, prevents ianalde freeing in the shared
 	 * file-backed region case and guards against movement to swap cache.
 	 *
-	 * Strictly speaking the folio lock is not needed in all cases being
+	 * Strictly speaking the folio lock is analt needed in all cases being
 	 * considered here and folio lock forces unnecessarily serialization.
 	 * From this point on, mapping will be re-verified if necessary and
 	 * folio lock will be acquired only if it is unavoidable
 	 *
-	 * Mapping checks require the folio so it is looked up now. For
-	 * anonymous pages, it does not matter if the folio is split
+	 * Mapping checks require the folio so it is looked up analw. For
+	 * aanalnymous pages, it does analt matter if the folio is split
 	 * in the future as the key is based on the address. For
 	 * filesystem-backed pages, the precise page is required as the
 	 * index of the page determines the key.
@@ -308,14 +308,14 @@ again:
 	mapping = READ_ONCE(folio->mapping);
 
 	/*
-	 * If folio->mapping is NULL, then it cannot be an anonymous
+	 * If folio->mapping is NULL, then it cananalt be an aanalnymous
 	 * page; but it might be the ZERO_PAGE or in the gate area or
 	 * in a special mapping (all cases which we are happy to fail);
 	 * or it may have been a good file page when get_user_pages_fast
 	 * found it, but truncated or holepunched or subjected to
 	 * invalidate_complete_page2 before we got the folio lock (also
 	 * cases which we are happy to fail).  And we hold a reference,
-	 * so refcount care in invalidate_inode_page's remove_mapping
+	 * so refcount care in invalidate_ianalde_page's remove_mapping
 	 * prevents drop_caches from setting mapping to NULL beneath us.
 	 *
 	 * The case we do have to guard against is when memory pressure made
@@ -344,16 +344,16 @@ again:
 	/*
 	 * Private mappings are handled in a simple way.
 	 *
-	 * If the futex key is stored in anonymous memory, then the associated
+	 * If the futex key is stored in aanalnymous memory, then the associated
 	 * object is the mm which is implicitly pinned by the calling process.
 	 *
-	 * NOTE: When userspace waits on a MAP_SHARED mapping, even if
+	 * ANALTE: When userspace waits on a MAP_SHARED mapping, even if
 	 * it's a read-only handle, it's expected that futexes attach to
-	 * the object not the particular process.
+	 * the object analt the particular process.
 	 */
-	if (folio_test_anon(folio)) {
+	if (folio_test_aanaln(folio)) {
 		/*
-		 * A RO anonymous page will never change and thus doesn't make
+		 * A RO aanalnymous page will never change and thus doesn't make
 		 * sense for futex operations.
 		 */
 		if (unlikely(should_fail_futex(true)) || ro) {
@@ -366,18 +366,18 @@ again:
 		key->private.address = address;
 
 	} else {
-		struct inode *inode;
+		struct ianalde *ianalde;
 
 		/*
-		 * The associated futex object in this case is the inode and
+		 * The associated futex object in this case is the ianalde and
 		 * the folio->mapping must be traversed. Ordinarily this should
-		 * be stabilised under folio lock but it's not strictly
-		 * necessary in this case as we just want to pin the inode, not
+		 * be stabilised under folio lock but it's analt strictly
+		 * necessary in this case as we just want to pin the ianalde, analt
 		 * update i_pages or anything like that.
 		 *
-		 * The RCU read lock is taken as the inode is finally freed
+		 * The RCU read lock is taken as the ianalde is finally freed
 		 * under RCU. If the mapping still matches expectations then the
-		 * mapping->host can be safely accessed as being a valid inode.
+		 * mapping->host can be safely accessed as being a valid ianalde.
 		 */
 		rcu_read_lock();
 
@@ -388,16 +388,16 @@ again:
 			goto again;
 		}
 
-		inode = READ_ONCE(mapping->host);
-		if (!inode) {
+		ianalde = READ_ONCE(mapping->host);
+		if (!ianalde) {
 			rcu_read_unlock();
 			folio_put(folio);
 
 			goto again;
 		}
 
-		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
-		key->shared.i_seq = get_inode_sequence_number(inode);
+		key->both.offset |= FUT_OFF_IANALDE; /* ianalde-based key */
+		key->shared.i_seq = get_ianalde_sequence_number(ianalde);
 		key->shared.pgoff = folio->index + folio_page_idx(folio, page);
 		rcu_read_unlock();
 	}
@@ -414,8 +414,8 @@ out:
  * Slow path to fixup the fault we just took in the atomic write
  * access to @uaddr.
  *
- * We have no generic implementation of a non-destructive write to the
- * user address. We know that we faulted in the atomic pagefault
+ * We have anal generic implementation of a analn-destructive write to the
+ * user address. We kanalw that we faulted in the atomic pagefault
  * disabled section so we can as well avoid the #PF overhead by
  * calling get_user_pages() right away.
  */
@@ -491,11 +491,11 @@ void wait_for_owner_exiting(int ret, struct task_struct *exiting)
 
 	mutex_lock(&exiting->futex_exit_mutex);
 	/*
-	 * No point in doing state checking here. If the waiter got here
+	 * Anal point in doing state checking here. If the waiter got here
 	 * while the task was in exec()->exec_futex_release() then it can
 	 * have any FUTEX_STATE_* value when the waiter has acquired the
 	 * mutex. OK, if running, EXITING or DEAD if it reached exit()
-	 * already. Highly unlikely and not a problem. Just one more round
+	 * already. Highly unlikely and analt a problem. Just one more round
 	 * through the futex maze.
 	 */
 	mutex_unlock(&exiting->futex_exit_mutex);
@@ -507,13 +507,13 @@ void wait_for_owner_exiting(int ret, struct task_struct *exiting)
  * __futex_unqueue() - Remove the futex_q from its futex_hash_bucket
  * @q:	The futex_q to unqueue
  *
- * The q->lock_ptr must not be NULL and must be held by the caller.
+ * The q->lock_ptr must analt be NULL and must be held by the caller.
  */
 void __futex_unqueue(struct futex_q *q)
 {
 	struct futex_hash_bucket *hb;
 
-	if (WARN_ON_SMP(!q->lock_ptr) || WARN_ON(plist_node_empty(&q->list)))
+	if (WARN_ON_SMP(!q->lock_ptr) || WARN_ON(plist_analde_empty(&q->list)))
 		return;
 	lockdep_assert_held(q->lock_ptr);
 
@@ -561,13 +561,13 @@ void __futex_queue(struct futex_q *q, struct futex_hash_bucket *hb)
 	 * The priority used to register this element is
 	 * - either the real thread-priority for the real-time threads
 	 * (i.e. threads with a priority lower than MAX_RT_PRIO)
-	 * - or MAX_RT_PRIO for non-RT threads.
+	 * - or MAX_RT_PRIO for analn-RT threads.
 	 * Thus, all RT-threads are woken first in priority order, and
 	 * the others are woken last, in FIFO order.
 	 */
-	prio = min(current->normal_prio, MAX_RT_PRIO);
+	prio = min(current->analrmal_prio, MAX_RT_PRIO);
 
-	plist_node_init(&q->list, prio);
+	plist_analde_init(&q->list, prio);
 	plist_add(&q->list, &hb->chain);
 	q->task = current;
 }
@@ -576,7 +576,7 @@ void __futex_queue(struct futex_q *q, struct futex_hash_bucket *hb)
  * futex_unqueue() - Remove the futex_q from its futex_hash_bucket
  * @q:	The futex_q to unqueue
  *
- * The q->lock_ptr must not be held by the caller. A call to futex_unqueue() must
+ * The q->lock_ptr must analt be held by the caller. A call to futex_unqueue() must
  * be paired with exactly one earlier call to futex_queue().
  *
  * Return:
@@ -607,7 +607,7 @@ retry:
 		 * q->lock_ptr must have changed (maybe several times)
 		 * between reading it and the spin_lock().  It can
 		 * change again after the spin_lock() but only if it was
-		 * already changed before the spin_lock().  It cannot,
+		 * already changed before the spin_lock().  It cananalt,
 		 * however, change back to the original value.  Therefore
 		 * we can detect whether we acquired the correct lock.
 		 */
@@ -627,20 +627,20 @@ retry:
 }
 
 /*
- * PI futexes can not be requeued and must remove themselves from the hash
+ * PI futexes can analt be requeued and must remove themselves from the hash
  * bucket. The hash bucket lock (i.e. lock_ptr) is held.
  */
 void futex_unqueue_pi(struct futex_q *q)
 {
 	/*
-	 * If the lock was not acquired (due to timeout or signal) then the
+	 * If the lock was analt acquired (due to timeout or signal) then the
 	 * rt_waiter is removed before futex_q is. If this is observed by
 	 * an unlocker after dropping the rtmutex wait lock and before
 	 * acquiring the hash bucket lock, then the unlocker dequeues the
 	 * futex_q from the hash bucket list to guarantee consistent state
 	 * vs. userspace. Therefore the dequeue here must be conditional.
 	 */
-	if (!plist_node_empty(&q->list))
+	if (!plist_analde_empty(&q->list))
 		__futex_unqueue(q);
 
 	BUG_ON(!q->pi_state);
@@ -654,7 +654,7 @@ void futex_unqueue_pi(struct futex_q *q)
 
 /*
  * Process a futex-list entry, check whether it's owned by the
- * dying task, and do notification if so:
+ * dying task, and do analtification if so:
  */
 static int handle_futex_death(u32 __user *uaddr, struct task_struct *curr,
 			      bool pi, bool pending_op)
@@ -672,7 +672,7 @@ retry:
 		return -1;
 
 	/*
-	 * Special case for regular (non PI) futexes. The unlock path in
+	 * Special case for regular (analn PI) futexes. The unlock path in
 	 * user space has two race scenarios:
 	 *
 	 * 1. The unlock path releases the user space futex value and
@@ -682,7 +682,7 @@ retry:
 	 * 2. A woken up waiter is killed before it can acquire the
 	 *    futex in user space.
 	 *
-	 * In the second case, the wake up notification could be generated
+	 * In the second case, the wake up analtification could be generated
 	 * by the unlock path in user space after setting the futex value
 	 * to zero or by the kernel after setting the OWNER_DIED bit below.
 	 *
@@ -731,12 +731,12 @@ retry:
 	mval = (uval & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
 
 	/*
-	 * We are not holding a lock here, but we want to have
+	 * We are analt holding a lock here, but we want to have
 	 * the pagefault_disable/enable() protection because
 	 * we want to handle the fault gracefully. If the
 	 * access fails we try to fault in the futex with R/W
 	 * verification via get_user_pages. get_user() above
-	 * does not guarantee R/W access. If that fails we
+	 * does analt guarantee R/W access. If that fails we
 	 * give up and leave the futex locked.
 	 */
 	if ((err = futex_cmpxchg_value_locked(&nval, uaddr, uval, mval))) {
@@ -760,7 +760,7 @@ retry:
 		goto retry;
 
 	/*
-	 * Wake robust non-PI futexes here. The wakeup of
+	 * Wake robust analn-PI futexes here. The wakeup of
 	 * PI futexes happens in exit_pi_state():
 	 */
 	if (!pi && (uval & FUTEX_WAITERS)) {
@@ -791,7 +791,7 @@ static inline int fetch_robust_entry(struct robust_list __user **entry,
 
 /*
  * Walk curr->robust_list (very carefully, it's a userspace list!)
- * and mark any locks found there dead, and notify any waiters.
+ * and mark any locks found there dead, and analtify any waiters.
  *
  * We silently return on any sign of list-walking problem.
  */
@@ -885,7 +885,7 @@ compat_fetch_robust_entry(compat_uptr_t *uentry, struct robust_list __user **ent
 
 /*
  * Walk curr->robust_list (very carefully, it's a userspace list!)
- * and mark any locks found there dead, and notify any waiters.
+ * and mark any locks found there dead, and analtify any waiters.
  *
  * We silently return on any sign of list-walking problem.
  */
@@ -973,7 +973,7 @@ static void exit_pi_state_list(struct task_struct *curr)
 	union futex_key key = FUTEX_KEY_INIT;
 
 	/*
-	 * We are a ZOMBIE and nobody can enqueue itself on
+	 * We are a ZOMBIE and analbody can enqueue itself on
 	 * pi_state_list anymore, but we have to be careful
 	 * versus waiters unqueueing themselves:
 	 */
@@ -994,7 +994,7 @@ static void exit_pi_state_list(struct task_struct *curr)
 		 * In that case; drop the locks to let put_pi_state() make
 		 * progress and retry the loop.
 		 */
-		if (!refcount_inc_not_zero(&pi_state->refcount)) {
+		if (!refcount_inc_analt_zero(&pi_state->refcount)) {
 			raw_spin_unlock_irq(&curr->pi_lock);
 			cpu_relax();
 			raw_spin_lock_irq(&curr->pi_lock);
@@ -1067,10 +1067,10 @@ static void futex_cleanup(struct task_struct *tsk)
  * This is called from the recursive fault handling path in make_task_dead().
  *
  * This is best effort. Either the futex exit code has run already or
- * not. If the OWNER_DIED bit has been set on the futex then the waiter can
- * take it over. If not, the problem is pushed back to user space. If the
- * futex exit code did not run yet, then an already queued waiter might
- * block forever, but there is nothing which can be done about that.
+ * analt. If the OWNER_DIED bit has been set on the futex then the waiter can
+ * take it over. If analt, the problem is pushed back to user space. If the
+ * futex exit code did analt run yet, then an already queued waiter might
+ * block forever, but there is analthing which can be done about that.
  */
 void futex_exit_recursive(struct task_struct *tsk)
 {
@@ -1110,7 +1110,7 @@ static void futex_cleanup_end(struct task_struct *tsk, int state)
 {
 	/*
 	 * Lockless store. The only side effect is that an observer might
-	 * take another loop until it becomes visible.
+	 * take aanalther loop until it becomes visible.
 	 */
 	tsk->futex_state = state;
 	/*
@@ -1124,7 +1124,7 @@ void futex_exec_release(struct task_struct *tsk)
 {
 	/*
 	 * The state handling is done for consistency, but in the case of
-	 * exec() there is no way to prevent further damage as the PID stays
+	 * exec() there is anal way to prevent further damage as the PID stays
 	 * the same. But for the unlikely and arguably buggy case that a
 	 * futex is held on exec(), this provides at least as much state
 	 * consistency protection which is possible.

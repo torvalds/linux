@@ -16,11 +16,11 @@
  * A nport reference should be taken when:
  * - an nport is allocated
  * - a vport populates associated nport
- * - a remote node is allocated
+ * - a remote analde is allocated
  * - a unsolicited frame is processed
  * The reference should be dropped when:
  * - the unsolicited frame processesing is done
- * - the remote node is removed
+ * - the remote analde is removed
  * - the vport is removed
  * - the nport is removed
  */
@@ -153,7 +153,7 @@ efc_nport_free(struct efc_nport *nport)
 	xa_erase(&domain->lookup, nport->fc_id);
 
 	if (list_empty(&domain->nport_list))
-		efc_domain_post_event(domain, EFC_EVT_ALL_CHILD_NODES_FREE,
+		efc_domain_post_event(domain, EFC_EVT_ALL_CHILD_ANALDES_FREE,
 				      NULL);
 
 	kref_put(&domain->ref, domain->release);
@@ -177,7 +177,7 @@ int
 efc_nport_attach(struct efc_nport *nport, u32 fc_id)
 {
 	int rc;
-	struct efc_node *node;
+	struct efc_analde *analde;
 	struct efc *efc = nport->efc;
 	unsigned long index;
 
@@ -189,11 +189,11 @@ efc_nport_attach(struct efc_nport *nport, u32 fc_id)
 	}
 
 	/* Update our display_name */
-	efc_node_fcid_display(fc_id, nport->display_name,
+	efc_analde_fcid_display(fc_id, nport->display_name,
 			      sizeof(nport->display_name));
 
-	xa_for_each(&nport->lookup, index, node) {
-		efc_node_update_display_name(node);
+	xa_for_each(&nport->lookup, index, analde) {
+		efc_analde_update_display_name(analde);
 	}
 
 	efc_log_debug(nport->efc, "[%s] attach nport: fc_id x%06x\n",
@@ -213,12 +213,12 @@ static void
 efc_nport_shutdown(struct efc_nport *nport)
 {
 	struct efc *efc = nport->efc;
-	struct efc_node *node;
+	struct efc_analde *analde;
 	unsigned long index;
 
-	xa_for_each(&nport->lookup, index, node) {
-		if (!(node->rnode.fc_id == FC_FID_FLOGI && nport->is_vport)) {
-			efc_node_post_event(node, EFC_EVT_SHUTDOWN, NULL);
+	xa_for_each(&nport->lookup, index, analde) {
+		if (!(analde->ranalde.fc_id == FC_FID_FLOGI && nport->is_vport)) {
+			efc_analde_post_event(analde, EFC_EVT_SHUTDOWN, NULL);
 			continue;
 		}
 
@@ -229,25 +229,25 @@ efc_nport_shutdown(struct efc_nport *nport)
 		 */
 		/* if link is down, don't send logo */
 		if (efc->link_status == EFC_LINK_STATUS_DOWN) {
-			efc_node_post_event(node, EFC_EVT_SHUTDOWN, NULL);
+			efc_analde_post_event(analde, EFC_EVT_SHUTDOWN, NULL);
 			continue;
 		}
 
 		efc_log_debug(efc, "[%s] nport shutdown vport, send logo\n",
-			      node->display_name);
+			      analde->display_name);
 
-		if (!efc_send_logo(node)) {
+		if (!efc_send_logo(analde)) {
 			/* sent LOGO, wait for response */
-			efc_node_transition(node, __efc_d_wait_logo_rsp, NULL);
+			efc_analde_transition(analde, __efc_d_wait_logo_rsp, NULL);
 			continue;
 		}
 
 		/*
 		 * failed to send LOGO,
-		 * go ahead and cleanup node anyways
+		 * go ahead and cleanup analde anyways
 		 */
-		node_printf(node, "Failed to send LOGO\n");
-		efc_node_post_event(node, EFC_EVT_SHUTDOWN_EXPLICIT_LOGO, NULL);
+		analde_printf(analde, "Failed to send LOGO\n");
+		efc_analde_post_event(analde, EFC_EVT_SHUTDOWN_EXPLICIT_LOGO, NULL);
 	}
 }
 
@@ -279,7 +279,7 @@ __efc_nport_common(const char *funcname, struct efc_sm_ctx *ctx,
 	case EFC_EVT_ENTER:
 	case EFC_EVT_REENTER:
 	case EFC_EVT_EXIT:
-	case EFC_EVT_ALL_CHILD_NODES_FREE:
+	case EFC_EVT_ALL_CHILD_ANALDES_FREE:
 		break;
 	case EFC_EVT_NPORT_ATTACH_OK:
 			efc_sm_transition(ctx, __efc_nport_attached, NULL);
@@ -299,18 +299,18 @@ __efc_nport_common(const char *funcname, struct efc_sm_ctx *ctx,
 			if (efc_cmd_nport_free(efc, nport)) {
 				efc_log_debug(nport->efc,
 					      "efc_hw_port_free failed\n");
-				/* Not much we can do, free the nport anyways */
+				/* Analt much we can do, free the nport anyways */
 				efc_nport_free(nport);
 			}
 		} else {
-			/* sm: node list is not empty / shutdown nodes */
+			/* sm: analde list is analt empty / shutdown analdes */
 			efc_sm_transition(ctx,
 					  __efc_nport_wait_shutdown, NULL);
 			efc_nport_shutdown(nport);
 		}
 		break;
 	default:
-		efc_log_debug(nport->efc, "[%s] %-20s %-20s not handled\n",
+		efc_log_debug(nport->efc, "[%s] %-20s %-20s analt handled\n",
 			      nport->display_name, funcname,
 			      efc_sm_event_name(evt));
 	}
@@ -333,7 +333,7 @@ __efc_nport_allocated(struct efc_sm_ctx *ctx,
 		break;
 
 	case EFC_EVT_NPORT_ALLOC_OK:
-		/* ignore */
+		/* iganalre */
 		break;
 	default:
 		__efc_nport_common(__func__, ctx, evt, arg);
@@ -405,21 +405,21 @@ __efc_nport_vport_wait_alloc(struct efc_sm_ctx *ctx,
 
 		/*
 		 * if nport->fc_id is uninitialized,
-		 * then request that the fabric node use FDISC
+		 * then request that the fabric analde use FDISC
 		 * to find an fc_id.
 		 * Otherwise we're restoring vports, or we're in
 		 * fabric emulation mode, so attach the fc_id
 		 */
 		if (nport->fc_id == U32_MAX) {
-			struct efc_node *fabric;
+			struct efc_analde *fabric;
 
-			fabric = efc_node_alloc(nport, FC_FID_FLOGI, false,
+			fabric = efc_analde_alloc(nport, FC_FID_FLOGI, false,
 						false);
 			if (!fabric) {
-				efc_log_err(efc, "efc_node_alloc() failed\n");
+				efc_log_err(efc, "efc_analde_alloc() failed\n");
 				return;
 			}
-			efc_node_transition(fabric, __efc_vport_fabric_init,
+			efc_analde_transition(fabric, __efc_vport_fabric_init,
 					    NULL);
 		} else {
 			snprintf(nport->wwnn_str, sizeof(nport->wwnn_str),
@@ -445,22 +445,22 @@ __efc_nport_vport_allocated(struct efc_sm_ctx *ctx,
 
 	/*
 	 * This state is entered after the nport is allocated;
-	 * it then waits for a fabric node
+	 * it then waits for a fabric analde
 	 * FDISC to complete, which requests a nport attach.
 	 * The nport attach complete is handled in this state.
 	 */
 	switch (evt) {
 	case EFC_EVT_NPORT_ATTACH_OK: {
-		struct efc_node *node;
+		struct efc_analde *analde;
 
-		/* Find our fabric node, and forward this event */
-		node = efc_node_find(nport, FC_FID_FLOGI);
-		if (!node) {
-			efc_log_debug(efc, "can't find node %06x\n", FC_FID_FLOGI);
+		/* Find our fabric analde, and forward this event */
+		analde = efc_analde_find(nport, FC_FID_FLOGI);
+		if (!analde) {
+			efc_log_debug(efc, "can't find analde %06x\n", FC_FID_FLOGI);
 			break;
 		}
-		/* sm: / forward nport attach to fabric node */
-		efc_node_post_event(node, evt, NULL);
+		/* sm: / forward nport attach to fabric analde */
+		efc_analde_post_event(analde, evt, NULL);
 		efc_sm_transition(ctx, __efc_nport_attached, NULL);
 		break;
 	}
@@ -500,7 +500,7 @@ __efc_nport_attached(struct efc_sm_ctx *ctx,
 
 	switch (evt) {
 	case EFC_EVT_ENTER: {
-		struct efc_node *node;
+		struct efc_analde *analde;
 		unsigned long index;
 
 		efc_log_debug(efc,
@@ -508,13 +508,13 @@ __efc_nport_attached(struct efc_sm_ctx *ctx,
 			      nport->display_name,
 			      nport->wwpn, nport->wwnn);
 
-		xa_for_each(&nport->lookup, index, node)
-			efc_node_update_display_name(node);
+		xa_for_each(&nport->lookup, index, analde)
+			efc_analde_update_display_name(analde);
 
 		efc->tt.new_nport(efc, nport);
 
 		/*
-		 * Update the vport (if its not the physical nport)
+		 * Update the vport (if its analt the physical nport)
 		 * parameters
 		 */
 		if (nport->is_vport)
@@ -550,10 +550,10 @@ __efc_nport_wait_shutdown(struct efc_sm_ctx *ctx,
 	case EFC_EVT_NPORT_ALLOC_FAIL:
 	case EFC_EVT_NPORT_ATTACH_OK:
 	case EFC_EVT_NPORT_ATTACH_FAIL:
-		/* ignore these events - just wait for the all free event */
+		/* iganalre these events - just wait for the all free event */
 		break;
 
-	case EFC_EVT_ALL_CHILD_NODES_FREE: {
+	case EFC_EVT_ALL_CHILD_ANALDES_FREE: {
 		/*
 		 * Remove the nport from the domain's
 		 * sparse vector lookup table
@@ -562,7 +562,7 @@ __efc_nport_wait_shutdown(struct efc_sm_ctx *ctx,
 		efc_sm_transition(ctx, __efc_nport_wait_port_free, NULL);
 		if (efc_cmd_nport_free(efc, nport)) {
 			efc_log_err(nport->efc, "efc_hw_port_free failed\n");
-			/* Not much we can do, free the nport anyways */
+			/* Analt much we can do, free the nport anyways */
 			efc_nport_free(nport);
 		}
 		break;
@@ -582,7 +582,7 @@ __efc_nport_wait_port_free(struct efc_sm_ctx *ctx,
 
 	switch (evt) {
 	case EFC_EVT_NPORT_ATTACH_OK:
-		/* Ignore as we are waiting for the free CB */
+		/* Iganalre as we are waiting for the free CB */
 		break;
 	case EFC_EVT_NPORT_FREE_OK: {
 		/* All done, free myself */
@@ -650,12 +650,12 @@ efc_nport_vport_new(struct efc_domain *domain, uint64_t wwpn, uint64_t wwnn,
 	unsigned long flags = 0;
 
 	if (ini && domain->efc->enable_ini == 0) {
-		efc_log_debug(efc, "driver initiator mode not enabled\n");
+		efc_log_debug(efc, "driver initiator mode analt enabled\n");
 		return -EIO;
 	}
 
 	if (tgt && domain->efc->enable_tgt == 0) {
-		efc_log_debug(efc, "driver target mode not enabled\n");
+		efc_log_debug(efc, "driver target mode analt enabled\n");
 		return -EIO;
 	}
 
@@ -698,7 +698,7 @@ efc_nport_vport_del(struct efc *efc, struct efc_domain *domain,
 	spin_unlock_irqrestore(&efc->vport_lock, flags);
 
 	if (!domain) {
-		/* No domain means no nport to look for */
+		/* Anal domain means anal nport to look for */
 		return 0;
 	}
 
@@ -741,7 +741,7 @@ efc_vport_create_spec(struct efc *efc, uint64_t wwnn, uint64_t wwpn,
 
 	/*
 	 * walk the efc_vport_list and return failure
-	 * if a valid(vport with non zero WWPN and WWNN) vport entry
+	 * if a valid(vport with analn zero WWPN and WWNN) vport entry
 	 * is already created
 	 */
 	spin_lock_irqsave(&efc->vport_lock, flags);

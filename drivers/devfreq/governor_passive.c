@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/drivers/devfreq/governor_passive.c
+ * linux/drivers/devfreq/goveranalr_passive.c
  *
  * Copyright (C) 2016 Samsung Electronics
  * Author: Chanwoo Choi <cw00.choi@samsung.com>
@@ -15,7 +15,7 @@
 #include <linux/device.h>
 #include <linux/devfreq.h>
 #include <linux/units.h>
-#include "governor.h"
+#include "goveranalr.h"
 
 static struct devfreq_cpu_data *
 get_parent_cpu_data(struct devfreq_passive_data *p_data,
@@ -26,7 +26,7 @@ get_parent_cpu_data(struct devfreq_passive_data *p_data,
 	if (!p_data || !policy)
 		return NULL;
 
-	list_for_each_entry(parent_cpu_data, &p_data->cpu_data_list, node)
+	list_for_each_entry(parent_cpu_data, &p_data->cpu_data_list, analde)
 		if (parent_cpu_data->first_cpu == cpumask_first(policy->related_cpus))
 			return parent_cpu_data;
 
@@ -37,8 +37,8 @@ static void delete_parent_cpu_data(struct devfreq_passive_data *p_data)
 {
 	struct devfreq_cpu_data *parent_cpu_data, *tmp;
 
-	list_for_each_entry_safe(parent_cpu_data, tmp, &p_data->cpu_data_list, node) {
-		list_del(&parent_cpu_data->node);
+	list_for_each_entry_safe(parent_cpu_data, tmp, &p_data->cpu_data_list, analde) {
+		list_del(&parent_cpu_data->analde);
 
 		if (parent_cpu_data->opp_table)
 			dev_pm_opp_put_opp_table(parent_cpu_data->opp_table);
@@ -110,7 +110,7 @@ static int get_target_freq_with_cpufreq(struct devfreq *devfreq,
 			continue;
 		}
 
-		/* Use interpolation if required opps is not available */
+		/* Use interpolation if required opps is analt available */
 		devfreq_get_freq_range(devfreq, &dev_min, &dev_max);
 
 		cpu_min = parent_cpu_data->min_freq;
@@ -143,7 +143,7 @@ static int get_target_freq_with_devfreq(struct devfreq *devfreq,
 	if (child_freq)
 		goto out;
 
-	/* Use interpolation if required opps is not available */
+	/* Use interpolation if required opps is analt available */
 	for (i = 0; i < parent_devfreq->max_state; i++)
 		if (parent_devfreq->freq_table[i] == *freq)
 			break;
@@ -175,7 +175,7 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 		return -EINVAL;
 
 	/*
-	 * If the devfreq device with passive governor has the specific method
+	 * If the devfreq device with passive goveranalr has the specific method
 	 * to determine the next frequency, should use the get_target_freq()
 	 * of struct devfreq_passive_data.
 	 */
@@ -198,7 +198,7 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 	return ret;
 }
 
-static int cpufreq_passive_notifier_call(struct notifier_block *nb,
+static int cpufreq_passive_analtifier_call(struct analtifier_block *nb,
 					 unsigned long event, void *ptr)
 {
 	struct devfreq_passive_data *p_data =
@@ -231,15 +231,15 @@ static int cpufreq_passive_notifier_call(struct notifier_block *nb,
 	return 0;
 }
 
-static int cpufreq_passive_unregister_notifier(struct devfreq *devfreq)
+static int cpufreq_passive_unregister_analtifier(struct devfreq *devfreq)
 {
 	struct devfreq_passive_data *p_data
 			= (struct devfreq_passive_data *)devfreq->data;
 	int ret;
 
-	if (p_data->nb.notifier_call) {
-		ret = cpufreq_unregister_notifier(&p_data->nb,
-					CPUFREQ_TRANSITION_NOTIFIER);
+	if (p_data->nb.analtifier_call) {
+		ret = cpufreq_unregister_analtifier(&p_data->nb,
+					CPUFREQ_TRANSITION_ANALTIFIER);
 		if (ret < 0)
 			return ret;
 	}
@@ -249,7 +249,7 @@ static int cpufreq_passive_unregister_notifier(struct devfreq *devfreq)
 	return 0;
 }
 
-static int cpufreq_passive_register_notifier(struct devfreq *devfreq)
+static int cpufreq_passive_register_analtifier(struct devfreq *devfreq)
 {
 	struct devfreq_passive_data *p_data
 			= (struct devfreq_passive_data *)devfreq->data;
@@ -264,11 +264,11 @@ static int cpufreq_passive_register_notifier(struct devfreq *devfreq)
 	p_data->cpu_data_list
 		= (struct list_head)LIST_HEAD_INIT(p_data->cpu_data_list);
 
-	p_data->nb.notifier_call = cpufreq_passive_notifier_call;
-	ret = cpufreq_register_notifier(&p_data->nb, CPUFREQ_TRANSITION_NOTIFIER);
+	p_data->nb.analtifier_call = cpufreq_passive_analtifier_call;
+	ret = cpufreq_register_analtifier(&p_data->nb, CPUFREQ_TRANSITION_ANALTIFIER);
 	if (ret) {
-		dev_err(dev, "failed to register cpufreq notifier\n");
-		p_data->nb.notifier_call = NULL;
+		dev_err(dev, "failed to register cpufreq analtifier\n");
+		p_data->nb.analtifier_call = NULL;
 		goto err;
 	}
 
@@ -288,14 +288,14 @@ static int cpufreq_passive_register_notifier(struct devfreq *devfreq)
 		parent_cpu_data = kzalloc(sizeof(*parent_cpu_data),
 						GFP_KERNEL);
 		if (!parent_cpu_data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_put_policy;
 		}
 
 		cpu_dev = get_cpu_device(cpu);
 		if (!cpu_dev) {
 			dev_err(dev, "failed to get cpu device\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_free_cpu_data;
 		}
 
@@ -313,7 +313,7 @@ static int cpufreq_passive_register_notifier(struct devfreq *devfreq)
 		parent_cpu_data->min_freq = policy->cpuinfo.min_freq;
 		parent_cpu_data->max_freq = policy->cpuinfo.max_freq;
 
-		list_add_tail(&parent_cpu_data->node, &p_data->cpu_data_list);
+		list_add_tail(&parent_cpu_data->analde, &p_data->cpu_data_list);
 		cpufreq_cpu_put(policy);
 	}
 
@@ -334,7 +334,7 @@ err:
 	return ret;
 }
 
-static int devfreq_passive_notifier_call(struct notifier_block *nb,
+static int devfreq_passive_analtifier_call(struct analtifier_block *nb,
 				unsigned long event, void *ptr)
 {
 	struct devfreq_passive_data *data
@@ -361,33 +361,33 @@ static int devfreq_passive_notifier_call(struct notifier_block *nb,
 
 	if (ret < 0)
 		dev_warn(&devfreq->dev,
-			"failed to update devfreq using passive governor\n");
+			"failed to update devfreq using passive goveranalr\n");
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int devfreq_passive_unregister_notifier(struct devfreq *devfreq)
+static int devfreq_passive_unregister_analtifier(struct devfreq *devfreq)
 {
 	struct devfreq_passive_data *p_data
 			= (struct devfreq_passive_data *)devfreq->data;
 	struct devfreq *parent = (struct devfreq *)p_data->parent;
-	struct notifier_block *nb = &p_data->nb;
+	struct analtifier_block *nb = &p_data->nb;
 
-	return devfreq_unregister_notifier(parent, nb, DEVFREQ_TRANSITION_NOTIFIER);
+	return devfreq_unregister_analtifier(parent, nb, DEVFREQ_TRANSITION_ANALTIFIER);
 }
 
-static int devfreq_passive_register_notifier(struct devfreq *devfreq)
+static int devfreq_passive_register_analtifier(struct devfreq *devfreq)
 {
 	struct devfreq_passive_data *p_data
 			= (struct devfreq_passive_data *)devfreq->data;
 	struct devfreq *parent = (struct devfreq *)p_data->parent;
-	struct notifier_block *nb = &p_data->nb;
+	struct analtifier_block *nb = &p_data->nb;
 
 	if (!parent)
 		return -EPROBE_DEFER;
 
-	nb->notifier_call = devfreq_passive_notifier_call;
-	return devfreq_register_notifier(parent, nb, DEVFREQ_TRANSITION_NOTIFIER);
+	nb->analtifier_call = devfreq_passive_analtifier_call;
+	return devfreq_register_analtifier(parent, nb, DEVFREQ_TRANSITION_ANALTIFIER);
 }
 
 static int devfreq_passive_event_handler(struct devfreq *devfreq,
@@ -405,15 +405,15 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 	switch (event) {
 	case DEVFREQ_GOV_START:
 		if (p_data->parent_type == DEVFREQ_PARENT_DEV)
-			ret = devfreq_passive_register_notifier(devfreq);
+			ret = devfreq_passive_register_analtifier(devfreq);
 		else if (p_data->parent_type == CPUFREQ_PARENT_DEV)
-			ret = cpufreq_passive_register_notifier(devfreq);
+			ret = cpufreq_passive_register_analtifier(devfreq);
 		break;
 	case DEVFREQ_GOV_STOP:
 		if (p_data->parent_type == DEVFREQ_PARENT_DEV)
-			WARN_ON(devfreq_passive_unregister_notifier(devfreq));
+			WARN_ON(devfreq_passive_unregister_analtifier(devfreq));
 		else if (p_data->parent_type == CPUFREQ_PARENT_DEV)
-			WARN_ON(cpufreq_passive_unregister_notifier(devfreq));
+			WARN_ON(cpufreq_passive_unregister_analtifier(devfreq));
 		break;
 	default:
 		break;
@@ -422,7 +422,7 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 	return ret;
 }
 
-static struct devfreq_governor devfreq_passive = {
+static struct devfreq_goveranalr devfreq_passive = {
 	.name = DEVFREQ_GOV_PASSIVE,
 	.flags = DEVFREQ_GOV_FLAG_IMMUTABLE,
 	.get_target_freq = devfreq_passive_get_target_freq,
@@ -431,7 +431,7 @@ static struct devfreq_governor devfreq_passive = {
 
 static int __init devfreq_passive_init(void)
 {
-	return devfreq_add_governor(&devfreq_passive);
+	return devfreq_add_goveranalr(&devfreq_passive);
 }
 subsys_initcall(devfreq_passive_init);
 
@@ -439,13 +439,13 @@ static void __exit devfreq_passive_exit(void)
 {
 	int ret;
 
-	ret = devfreq_remove_governor(&devfreq_passive);
+	ret = devfreq_remove_goveranalr(&devfreq_passive);
 	if (ret)
-		pr_err("%s: failed remove governor %d\n", __func__, ret);
+		pr_err("%s: failed remove goveranalr %d\n", __func__, ret);
 }
 module_exit(devfreq_passive_exit);
 
 MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
-MODULE_DESCRIPTION("DEVFREQ Passive governor");
+MODULE_DESCRIPTION("DEVFREQ Passive goveranalr");
 MODULE_LICENSE("GPL v2");

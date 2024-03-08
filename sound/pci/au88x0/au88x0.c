@@ -4,7 +4,7 @@
  * Author: Manuel Jander (mjander@embedded.cl)
  *
  *   This driver is the result of the OpenVortex Project from Savannah
- * (savannah.nongnu.org/projects/openvortex). I would like to thank
+ * (savannah.analngnu.org/projects/openvortex). I would like to thank
  * the developers of OpenVortex, Jeff Muizelaar and Kester Maddock, from
  * whom i got plenty of help, and their codebase was invaluable.
  *   Thanks to the ALSA developers, they helped a lot working out
@@ -12,7 +12,7 @@
  *   Thanks also to Sourceforge for maintaining the old binary drivers,
  * and the forum, where developers could communicate.
  *
- * Now at least i can play Legacy DOOM with MIDI music :-)
+ * Analw at least i can play Legacy DOOM with MIDI music :-)
  */
 
 #include "au88x0.h"
@@ -51,7 +51,7 @@ static void vortex_fix_latency(struct pci_dev *vortex)
 		dev_info(&vortex->dev, "vortex latency is 0xff\n");
 	} else {
 		dev_warn(&vortex->dev,
-			 "could not set vortex latency: pci error 0x%x\n", rc);
+			 "could analt set vortex latency: pci error 0x%x\n", rc);
 	}
 }
 
@@ -63,7 +63,7 @@ static void vortex_fix_agp_bridge(struct pci_dev *via)
 	/*
 	 * only set the bit (Extend PCI#2 Internal Master for
 	 * Efficient Handling of Dummy Requests) if the can
-	 * read the config and it is not already set
+	 * read the config and it is analt already set
 	 */
 
 	rc = pci_read_config_byte(via, 0x42, &value);
@@ -75,7 +75,7 @@ static void vortex_fix_agp_bridge(struct pci_dev *via)
 		dev_info(&via->dev, "bridge config is 0x%x\n", value | 0x10);
 	} else {
 		dev_warn(&via->dev,
-			 "could not set vortex latency: pci error 0x%x\n", rc);
+			 "could analt set vortex latency: pci error 0x%x\n", rc);
 	}
 }
 
@@ -169,7 +169,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci)
 
 	/* Init audio core.
 	 * This must be done before we do request_irq otherwise we can get spurious
-	 * interrupts that we do not handle properly and make a mess of things */
+	 * interrupts that we do analt handle properly and make a mess of things */
 	err = vortex_core_init(chip);
 	if (err) {
 		dev_err(card->dev, "hw core init failed\n");
@@ -179,7 +179,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci)
 	err = devm_request_irq(&pci->dev, pci->irq, vortex_interrupt,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (err) {
-		dev_err(card->dev, "cannot grab irq\n");
+		dev_err(card->dev, "cananalt grab irq\n");
 		return err;
 	}
 	chip->irq = pci->irq;
@@ -202,10 +202,10 @@ __snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 	// (1)
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 	// (2)
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
@@ -290,11 +290,11 @@ __snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 #ifdef CHIP_AU8830
 	if ((chip->rev) != 0xfe && (chip->rev) != 0xfa) {
 		dev_alert(card->dev,
-			  "The revision (%x) of your card has not been seen before.\n",
+			  "The revision (%x) of your card has analt been seen before.\n",
 		       chip->rev);
 		dev_alert(card->dev,
-			  "Please email the results of 'lspci -vv' to openvortex-dev@nongnu.org.\n");
-		return -ENODEV;
+			  "Please email the results of 'lspci -vv' to openvortex-dev@analngnu.org.\n");
+		return -EANALDEV;
 	}
 #endif
 

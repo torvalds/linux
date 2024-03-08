@@ -6,14 +6,14 @@
 char _license[] SEC("license") = "GPL";
 
 struct net_device {
-	/* Structure does not need to contain all entries,
+	/* Structure does analt need to contain all entries,
 	 * as "preserve_access_index" will use BTF to fix this...
 	 */
 	int ifindex;
 } __attribute__((preserve_access_index));
 
 struct xdp_rxq_info {
-	/* Structure does not need to contain all entries,
+	/* Structure does analt need to contain all entries,
 	 * as "preserve_access_index" will use BTF to fix this...
 	 */
 	struct net_device *dev;

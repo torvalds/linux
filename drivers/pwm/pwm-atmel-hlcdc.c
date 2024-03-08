@@ -64,7 +64,7 @@ static int atmel_hlcdc_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			do_div(clk_period_ns, clk_freq);
 		}
 
-		/* Errata: cannot use slow clk on some IP revisions */
+		/* Errata: cananalt use slow clk on some IP revisions */
 		if ((atmel->errata && atmel->errata->slow_clk_erratum) ||
 		    clk_period_ns > state->period) {
 			new_clk = hlcdc->sys_clk;
@@ -77,7 +77,7 @@ static int atmel_hlcdc_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		}
 
 		for (pres = 0; pres <= ATMEL_HLCDC_PWMPS_MAX; pres++) {
-		/* Errata: cannot divide by 1 on some IP revisions */
+		/* Errata: cananalt divide by 1 on some IP revisions */
 			if (!pres && atmel->errata &&
 			    atmel->errata->div1_clk_erratum)
 				continue;
@@ -126,7 +126,7 @@ static int atmel_hlcdc_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 		pwmcfg |= ATMEL_HLCDC_PWMCVAL(pwmcval);
 
-		if (state->polarity == PWM_POLARITY_NORMAL)
+		if (state->polarity == PWM_POLARITY_ANALRMAL)
 			pwmcfg |= ATMEL_HLCDC_PWMPOL;
 
 		ret = regmap_update_bits(hlcdc->regmap, ATMEL_HLCDC_CFG(6),
@@ -251,13 +251,13 @@ static int atmel_hlcdc_pwm_probe(struct platform_device *pdev)
 
 	atmel = devm_kzalloc(dev, sizeof(*atmel), GFP_KERNEL);
 	if (!atmel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = clk_prepare_enable(hlcdc->periph_clk);
 	if (ret)
 		return ret;
 
-	match = of_match_node(atmel_hlcdc_dt_ids, dev->parent->of_node);
+	match = of_match_analde(atmel_hlcdc_dt_ids, dev->parent->of_analde);
 	if (match)
 		atmel->errata = match->data;
 

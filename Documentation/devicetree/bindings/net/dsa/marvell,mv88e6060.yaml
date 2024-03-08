@@ -15,7 +15,7 @@ description:
   MDIO address of the switch to be 0x10 or 0x00, and on the MDIO bus
   connected to the switch, the PHYs inside the switch appear as
   independent devices on address 0x00-0x04 or 0x10-0x14, so in difference
-  from many other DSA switches this switch does not have an internal
+  from many other DSA switches this switch does analt have an internal
   MDIO bus for the PHY devices.
 
 properties:

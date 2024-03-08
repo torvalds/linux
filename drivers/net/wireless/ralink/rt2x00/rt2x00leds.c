@@ -48,7 +48,7 @@ void rt2x00leds_led_quality(struct rt2x00_dev *rt2x00dev, int rssi)
 		rssi = 5;
 
 	/*
-	 * Note that we must _not_ send LED_OFF since the driver
+	 * Analte that we must _analt_ send LED_OFF since the driver
 	 * is going to calculate the value and might use it in a
 	 * division.
 	 */
@@ -175,7 +175,7 @@ static void rt2x00leds_unregister_led(struct rt2x00_led *led)
 	/*
 	 * This might look weird, but when we are unregistering while
 	 * suspended the led is already off, and since we haven't
-	 * fully resumed yet, access to the device might not be
+	 * fully resumed yet, access to the device might analt be
 	 * possible yet.
 	 */
 	if (!(led->led_dev.flags & LED_SUSPENDED))

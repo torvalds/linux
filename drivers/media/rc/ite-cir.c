@@ -181,7 +181,7 @@ static void ite_set_carrier_params(struct ite_dev *dev)
 	bool for_tx = dev->transmitting;
 
 	if (for_tx) {
-		/* we don't need no stinking calculations */
+		/* we don't need anal stinking calculations */
 		freq = dev->tx_carrier_freq;
 		allowance = ITE_RXDCR_DEFAULT;
 		use_demodulator = false;
@@ -224,7 +224,7 @@ static void ite_set_carrier_params(struct ite_dev *dev)
 static irqreturn_t ite_cir_isr(int irq, void *data)
 {
 	struct ite_dev *dev = data;
-	irqreturn_t ret = IRQ_RETVAL(IRQ_NONE);
+	irqreturn_t ret = IRQ_RETVAL(IRQ_ANALNE);
 	u8 rx_buf[ITE_RX_FIFO_LEN];
 	int rx_bytes;
 	int iflags;
@@ -344,7 +344,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 
 	spin_lock_irqsave(&dev->lock, flags);
 
-	/* let everybody know we're now transmitting */
+	/* let everybody kanalw we're analw transmitting */
 	dev->transmitting = true;
 
 	/* and set the carrier values for transmission */
@@ -373,7 +373,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 		dev_dbg(&dev->rdev->dev, "%s: %d\n",
 			is_pulse ? "pulse" : "space", remaining_us);
 
-		/* repeat while the pulse is non-zero length */
+		/* repeat while the pulse is analn-zero length */
 		while (remaining_us > 0) {
 			if (remaining_us > max_rle_us)
 				next_rle_us = max_rle_us;
@@ -415,7 +415,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 				/* drop the spinlock */
 				spin_unlock_irqrestore(&dev->lock, flags);
 
-				/* wait for the FIFO to empty enough */
+				/* wait for the FIFO to empty eanalugh */
 				wait_event_interruptible(dev->tx_queue,
 					(fifo_avail = ITE_TX_FIFO_LEN - dev->params->get_tx_used_slots(dev)) >= 8);
 
@@ -426,7 +426,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 				dev->params->disable_tx_interrupt(dev);
 			}
 
-			/* now send the byte through the FIFO */
+			/* analw send the byte through the FIFO */
 			dev->params->put_tx_byte(dev, val);
 			fifo_avail--;
 		}
@@ -454,7 +454,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	/* reacquire the spinlock */
 	spin_lock_irqsave(&dev->lock, flags);
 
-	/* now we're not transmitting anymore */
+	/* analw we're analt transmitting anymore */
 	dev->transmitting = false;
 
 	/* and set the carrier values for reception */
@@ -463,7 +463,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	/* re-enable the receiver */
 	dev->params->enable_rx(dev);
 
-	/* notify transmission end */
+	/* analtify transmission end */
 	wake_up_interruptible(&dev->tx_ended);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
@@ -560,7 +560,7 @@ static int it87_get_rx_bytes(struct ite_dev *dev, u8 * buf, int buf_size)
 }
 
 /* return how many bytes are still in the FIFO; this will be called
- * with the device spinlock NOT HELD while waiting for the TX FIFO to get
+ * with the device spinlock ANALT HELD while waiting for the TX FIFO to get
  * empty; let's expect this won't be a problem */
 static int it87_get_tx_used_slots(struct ite_dev *dev)
 {
@@ -573,7 +573,7 @@ static void it87_put_tx_byte(struct ite_dev *dev, u8 value)
 	outb(value, dev->cir_addr + IT87_DR);
 }
 
-/* idle the receiver so that we won't receive samples until another
+/* idle the receiver so that we won't receive samples until aanalther
   pulse is detected; this must be called with the device spinlock held */
 static void it87_idle_rx(struct ite_dev *dev)
 {
@@ -763,7 +763,7 @@ static int it8708_get_rx_bytes(struct ite_dev *dev, u8 * buf, int buf_size)
 }
 
 /* return how many bytes are still in the FIFO; this will be called
- * with the device spinlock NOT HELD while waiting for the TX FIFO to get
+ * with the device spinlock ANALT HELD while waiting for the TX FIFO to get
  * empty; let's expect this won't be a problem */
 static int it8708_get_tx_used_slots(struct ite_dev *dev)
 {
@@ -776,7 +776,7 @@ static void it8708_put_tx_byte(struct ite_dev *dev, u8 value)
 	outb(value, dev->cir_addr + IT8708_C0DR);
 }
 
-/* idle the receiver so that we won't receive samples until another
+/* idle the receiver so that we won't receive samples until aanalther
   pulse is detected; this must be called with the device spinlock held */
 static void it8708_idle_rx(struct ite_dev *dev)
 {
@@ -949,7 +949,7 @@ static u8 it8709_rr(struct ite_dev *dev, int index)
 /* write the value of a CIR register */
 static void it8709_wr(struct ite_dev *dev, u8 val, int index)
 {
-	/* we wait before writing, and not afterwards, since this allows us to
+	/* we wait before writing, and analt afterwards, since this allows us to
 	 * pipeline the host CPU with the microcontroller */
 	it8709_wait(dev);
 	it8709_wm(dev, val, IT8709_REG_VAL);
@@ -1037,7 +1037,7 @@ static int it8709_get_rx_bytes(struct ite_dev *dev, u8 * buf, int buf_size)
 }
 
 /* return how many bytes are still in the FIFO; this will be called
- * with the device spinlock NOT HELD while waiting for the TX FIFO to get
+ * with the device spinlock ANALT HELD while waiting for the TX FIFO to get
  * empty; let's expect this won't be a problem */
 static int it8709_get_tx_used_slots(struct ite_dev *dev)
 {
@@ -1050,7 +1050,7 @@ static void it8709_put_tx_byte(struct ite_dev *dev, u8 value)
 	it8709_wr(dev, value, IT85_C0DR);
 }
 
-/* idle the receiver so that we won't receive samples until another
+/* idle the receiver so that we won't receive samples until aanalther
   pulse is detected; this must be called with the device spinlock held */
 static void it8709_idle_rx(struct ite_dev *dev)
 {
@@ -1208,7 +1208,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	{	/* 0: ITE8704 */
 	       .model = "ITE8704 CIR transceiver",
 	       .io_region_size = IT87_IOREG_LENGTH,
-	       .io_rsrc_no = 0,
+	       .io_rsrc_anal = 0,
 
 		/* operations */
 	       .get_irq_causes = it87_get_irq_causes,
@@ -1227,7 +1227,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	{	/* 1: ITE8713 */
 	       .model = "ITE8713 CIR transceiver",
 	       .io_region_size = IT87_IOREG_LENGTH,
-	       .io_rsrc_no = 0,
+	       .io_rsrc_anal = 0,
 
 		/* operations */
 	       .get_irq_causes = it87_get_irq_causes,
@@ -1246,7 +1246,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	{	/* 2: ITE8708 */
 	       .model = "ITE8708 CIR transceiver",
 	       .io_region_size = IT8708_IOREG_LENGTH,
-	       .io_rsrc_no = 0,
+	       .io_rsrc_anal = 0,
 
 		/* operations */
 	       .get_irq_causes = it8708_get_irq_causes,
@@ -1266,7 +1266,7 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	{	/* 3: ITE8709 */
 	       .model = "ITE8709 CIR transceiver",
 	       .io_region_size = IT8709_IOREG_LENGTH,
-	       .io_rsrc_no = 2,
+	       .io_rsrc_anal = 2,
 
 		/* operations */
 	       .get_irq_causes = it8709_get_irq_causes,
@@ -1300,9 +1300,9 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	const struct ite_dev_params *dev_desc = NULL;
 	struct ite_dev *itdev = NULL;
 	struct rc_dev *rdev = NULL;
-	int ret = -ENOMEM;
-	int model_no;
-	int io_rsrc_no;
+	int ret = -EANALMEM;
+	int model_anal;
+	int io_rsrc_anal;
 
 	itdev = kzalloc(sizeof(struct ite_dev), GFP_KERNEL);
 	if (!itdev)
@@ -1314,37 +1314,37 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 		goto exit_free_dev_rdev;
 	itdev->rdev = rdev;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 
 	/* get the model number */
-	model_no = (int)dev_id->driver_data;
+	model_anal = (int)dev_id->driver_data;
 	dev_dbg(&pdev->dev, "Auto-detected model: %s\n",
-		ite_dev_descs[model_no].model);
+		ite_dev_descs[model_anal].model);
 
 	if (model_number >= 0 && model_number < ARRAY_SIZE(ite_dev_descs)) {
-		model_no = model_number;
+		model_anal = model_number;
 		dev_info(&pdev->dev, "model has been forced to: %s",
-			 ite_dev_descs[model_no].model);
+			 ite_dev_descs[model_anal].model);
 	}
 
 	/* get the description for the device */
-	dev_desc = &ite_dev_descs[model_no];
-	io_rsrc_no = dev_desc->io_rsrc_no;
+	dev_desc = &ite_dev_descs[model_anal];
+	io_rsrc_anal = dev_desc->io_rsrc_anal;
 
 	/* validate pnp resources */
-	if (!pnp_port_valid(pdev, io_rsrc_no) ||
-	    pnp_port_len(pdev, io_rsrc_no) < dev_desc->io_region_size) {
-		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
+	if (!pnp_port_valid(pdev, io_rsrc_anal) ||
+	    pnp_port_len(pdev, io_rsrc_anal) < dev_desc->io_region_size) {
+		dev_err(&pdev->dev, "IR PNP Port analt valid!\n");
 		goto exit_free_dev_rdev;
 	}
 
 	if (!pnp_irq_valid(pdev, 0)) {
-		dev_err(&pdev->dev, "PNP IRQ not valid!\n");
+		dev_err(&pdev->dev, "PNP IRQ analt valid!\n");
 		goto exit_free_dev_rdev;
 	}
 
 	/* store resource values */
-	itdev->cir_addr = pnp_port_start(pdev, io_rsrc_no);
+	itdev->cir_addr = pnp_port_start(pdev, io_rsrc_anal);
 	itdev->cir_irq = pnp_irq(pdev, 0);
 
 	/* initialize spinlocks */
@@ -1400,7 +1400,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 		goto exit_free_dev_rdev;
 
 	ret = -EBUSY;
-	/* now claim resources */
+	/* analw claim resources */
 	if (!request_region(itdev->cir_addr,
 				dev_desc->io_region_size, ITE_DRIVER_NAME))
 		goto exit_unregister_device;

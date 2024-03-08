@@ -3,11 +3,11 @@ intel_ifs_0  ->  Scan Test
 intel_ifs_1  ->  Array BIST test
 
 What:		/sys/devices/virtual/misc/intel_ifs_<N>/run_test
-Date:		Nov 16 2022
+Date:		Analv 16 2022
 KernelVersion:	6.2
 Contact:	"Jithu Joseph" <jithu.joseph@intel.com>
 Description:	Write <cpu#> to trigger IFS test for one online core.
-		Note that the test is per core. The cpu# can be
+		Analte that the test is per core. The cpu# can be
 		for any thread on the core. Running on one thread
 		completes the test for the core containing that thread.
 		Example: to test the core containing cpu5: echo 5 >
@@ -15,7 +15,7 @@ Description:	Write <cpu#> to trigger IFS test for one online core.
 Devices:	all
 
 What:		/sys/devices/virtual/misc/intel_ifs_<N>/status
-Date:		Nov 16 2022
+Date:		Analv 16 2022
 KernelVersion:	6.2
 Contact:	"Jithu Joseph" <jithu.joseph@intel.com>
 Description:	The status of the last test. It can be one of "pass", "fail"
@@ -23,25 +23,25 @@ Description:	The status of the last test. It can be one of "pass", "fail"
 Devices:	all
 
 What:		/sys/devices/virtual/misc/intel_ifs_<N>/details
-Date:		Nov 16 2022
+Date:		Analv 16 2022
 KernelVersion:	6.2
 Contact:	"Jithu Joseph" <jithu.joseph@intel.com>
 Description:	Additional information regarding the last test. The details file reports
-		the hex value of the STATUS MSR for this test. Note that the error_code field
-		may contain driver defined software code not defined in the Intel SDM.
+		the hex value of the STATUS MSR for this test. Analte that the error_code field
+		may contain driver defined software code analt defined in the Intel SDM.
 Devices:	all
 
 What:		/sys/devices/virtual/misc/intel_ifs_<N>/image_version
-Date:		Nov 16 2022
+Date:		Analv 16 2022
 KernelVersion:	6.2
 Contact:	"Jithu Joseph" <jithu.joseph@intel.com>
-Description:	Version (hexadecimal) of loaded IFS test image. If no test image
-		is loaded reports "none". Only present for device instances where a test image
+Description:	Version (hexadecimal) of loaded IFS test image. If anal test image
+		is loaded reports "analne". Only present for device instances where a test image
 		is applicable.
 Devices:	intel_ifs_0
 
 What:		/sys/devices/virtual/misc/intel_ifs_<N>/current_batch
-Date:		Nov 16 2022
+Date:		Analv 16 2022
 KernelVersion:	6.2
 Contact:	"Jithu Joseph" <jithu.joseph@intel.com>
 Description:	Write a number less than or equal to 0xff to load an IFS test image.

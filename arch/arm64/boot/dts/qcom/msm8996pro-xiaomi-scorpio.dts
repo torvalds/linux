@@ -13,7 +13,7 @@
 #include <dt-bindings/sound/qcom,wcd9335.h>
 
 / {
-	model = "Xiaomi Mi Note 2";
+	model = "Xiaomi Mi Analte 2";
 	compatible = "xiaomi,scorpio", "qcom,msm8996pro", "qcom,msm8996";
 	chassis-type = "handset";
 	qcom,msm-id = <305 0x10000>;
@@ -52,7 +52,7 @@
 	reserved-memory {
 		cont_splash_mem: memory@83401000 {
 			reg = <0x0 0x83401000 0x0 (1080 * 1920 * 3)>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -100,7 +100,7 @@
 &mdp_smmu {
 	/*
 	 * Probing this SMMU causes a crash due to writing to some secure
-	 * registers. Disable it for now.
+	 * registers. Disable it for analw.
 	 */
 	status = "disabled";
 };
@@ -108,7 +108,7 @@
 &mdss {
 	/*
 	 * MDSS depends on the MDP SMMU, and probing it alters the bootloader
-	 * configured framebuffer used by simplefb. Disable it for now.
+	 * configured framebuffer used by simplefb. Disable it for analw.
 	 */
 	status = "disabled";
 };

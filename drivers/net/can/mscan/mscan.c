@@ -55,7 +55,7 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 	int i;
 	u8 canctl1;
 
-	if (mode != MSCAN_NORMAL_MODE) {
+	if (mode != MSCAN_ANALRMAL_MODE) {
 		if (priv->tx_active) {
 			/* Abort transfers before going to sleep */#
 			out_8(&regs->cantarq, priv->tx_active);
@@ -78,7 +78,7 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 			 * undocumented and seems to differ between mscan built
 			 * in mpc5200b and mpc5200. We proceed in that case,
 			 * since otherwise the slprq will be kept set and the
-			 * controller will get stuck. NOTE: INITRQ or CSWAI
+			 * controller will get stuck. ANALTE: INITRQ or CSWAI
 			 * will abort all active transmit actions, if still
 			 * any, at once.
 			 */
@@ -97,7 +97,7 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 					break;
 			}
 			if (i >= MSCAN_SET_MODE_RETRIES)
-				ret = -ENODEV;
+				ret = -EANALDEV;
 		}
 		if (!ret)
 			priv->can.state = CAN_STATE_STOPPED;
@@ -115,7 +115,7 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 					break;
 			}
 			if (i >= MSCAN_SET_MODE_RETRIES)
-				ret = -ENODEV;
+				ret = -EANALDEV;
 			else
 				priv->can.state = CAN_STATE_ERROR_ACTIVE;
 		}
@@ -145,7 +145,7 @@ static int mscan_start(struct net_device *dev)
 			out_8(&regs->canmisc, MSCAN_BOHOLD);
 	}
 
-	err = mscan_set_mode(dev, MSCAN_NORMAL_MODE);
+	err = mscan_set_mode(dev, MSCAN_ANALRMAL_MODE);
 	if (err)
 		return err;
 
@@ -395,7 +395,7 @@ static int mscan_rx_poll(struct napi_struct *napi, int quota)
 		skb = alloc_can_skb(dev, &frame);
 		if (!skb) {
 			if (printk_ratelimit())
-				netdev_notice(dev, "packet dropped\n");
+				netdev_analtice(dev, "packet dropped\n");
 			stats->rx_dropped++;
 			out_8(&regs->canrflg, canrflg);
 			continue;
@@ -431,7 +431,7 @@ static irqreturn_t mscan_isr(int irq, void *dev_id)
 	struct mscan_regs __iomem *regs = priv->reg_base;
 	struct net_device_stats *stats = &dev->stats;
 	u8 cantier, cantflg, canrflg;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	cantier = in_8(&regs->cantier) & MSCAN_TXE;
 	cantflg = in_8(&regs->cantflg) & cantier;
@@ -499,7 +499,7 @@ static int mscan_do_set_mode(struct net_device *dev, enum can_mode mode)
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 	return ret;
@@ -563,7 +563,7 @@ static int mscan_open(struct net_device *dev)
 		goto exit_napi_disable;
 	}
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		setbits8(&regs->canctl1, MSCAN_LISTEN);
 	else
 		clrbits8(&regs->canctl1, MSCAN_LISTEN);
@@ -690,7 +690,7 @@ struct net_device *alloc_mscandev(void)
 	priv->can.do_set_bittiming = mscan_do_set_bittiming;
 	priv->can.do_set_mode = mscan_do_set_mode;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
-		CAN_CTRLMODE_LISTENONLY;
+		CAN_CTRLMODE_LISTEANALNLY;
 
 	for (i = 0; i < TX_QUEUE_SIZE; i++) {
 		priv->tx_queue[i].id = i;

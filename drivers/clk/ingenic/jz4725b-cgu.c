@@ -222,13 +222,13 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 
 	[JZ4725B_CLK_BCH] = {
 		"bch", CGU_CLK_GATE,
-		.parents = { JZ4725B_CLK_MCLK/* not sure */, -1, -1, -1 },
+		.parents = { JZ4725B_CLK_MCLK/* analt sure */, -1, -1, -1 },
 		.gate = { CGU_REG_CLKGR, 11 },
 	},
 
 	[JZ4725B_CLK_TCU] = {
 		"tcu", CGU_CLK_GATE,
-		.parents = { JZ4725B_CLK_EXT/* not sure */, -1, -1, -1 },
+		.parents = { JZ4725B_CLK_EXT/* analt sure */, -1, -1, -1 },
 		.gate = { CGU_REG_CLKGR, 1 },
 	},
 
@@ -253,7 +253,7 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 	},
 };
 
-static void __init jz4725b_cgu_init(struct device_node *np)
+static void __init jz4725b_cgu_init(struct device_analde *np)
 {
 	int retval;
 

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * s390 specific definitions for NOLIBC
+ * s390 specific definitions for ANALLIBC
  */
 
-#ifndef _NOLIBC_ARCH_S390_H
-#define _NOLIBC_ARCH_S390_H
+#ifndef _ANALLIBC_ARCH_S390_H
+#define _ANALLIBC_ARCH_S390_H
 #include <asm/signal.h>
 #include <asm/unistd.h>
 
@@ -139,7 +139,7 @@
 })
 
 /* startup code */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
+void __attribute__((weak, analreturn, optimize("Os", "omit-frame-pointer"))) __anal_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"lgr	%r2, %r15\n"          /* save stack pointer to %r2, as arg1 of _start_c */
@@ -183,4 +183,4 @@ pid_t sys_fork(void)
 }
 #define sys_fork sys_fork
 
-#endif /* _NOLIBC_ARCH_S390_H */
+#endif /* _ANALLIBC_ARCH_S390_H */

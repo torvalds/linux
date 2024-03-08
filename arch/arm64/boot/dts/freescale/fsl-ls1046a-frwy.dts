@@ -110,7 +110,7 @@
 	status = "okay";
 
 	mt25qu512a0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <50000000>;

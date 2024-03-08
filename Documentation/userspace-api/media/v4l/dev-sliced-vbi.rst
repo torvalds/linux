@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _sliced:
@@ -8,12 +8,12 @@ Sliced VBI Data Interface
 *************************
 
 VBI stands for Vertical Blanking Interval, a gap in the sequence of
-lines of an analog video signal. During VBI no picture information is
+lines of an analog video signal. During VBI anal picture information is
 transmitted, allowing some time while the electron beam of a cathode ray
 tube TV returns to the top of the screen.
 
 Sliced VBI devices use hardware to demodulate data transmitted in the
-VBI. V4L2 drivers shall *not* do this by software, see also the
+VBI. V4L2 drivers shall *analt* do this by software, see also the
 :ref:`raw VBI interface <raw-vbi>`. The data is passed as short
 packets of fixed size, covering one scan line each. The number of
 packets per video frame is variable.
@@ -62,7 +62,7 @@ ioctl. The results may differ from those of the
 lines the hardware can capture or output per frame, or the number of
 services it can identify on a given line are limited. For example on PAL
 line 16 the hardware may be able to look for a VPS or Teletext signal,
-but not both at the same time.
+but analt both at the same time.
 
 To determine the currently selected services applications set the
 ``type`` field of struct :c:type:`v4l2_format` to
@@ -78,7 +78,7 @@ modifying the ``fmt.sliced`` member and calling the
 struct :c:type:`v4l2_format` structure.
 
 The sliced VBI API is more complicated than the raw VBI API because the
-hardware must be told which VBI service to expect on each scan line. Not
+hardware must be told which VBI service to expect on each scan line. Analt
 all services may be supported by the hardware on all lines (this is
 especially true for VBI output where Teletext is often unsupported and
 other services can only be inserted in one specific line). In many
@@ -121,7 +121,7 @@ struct v4l2_sliced_vbi_format
       - ``service_set``
       - :cspan:`2`
 
-	If ``service_set`` is non-zero when passed with
+	If ``service_set`` is analn-zero when passed with
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
 	:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`, the ``service_lines``
 	array will be filled by the driver according to the services
@@ -134,9 +134,9 @@ struct v4l2_sliced_vbi_format
 
 	On return the driver sets this field to the union of all elements
 	of the returned ``service_lines`` array. It may contain less
-	services than requested, perhaps just one, if the hardware cannot
+	services than requested, perhaps just one, if the hardware cananalt
 	handle more services simultaneously. It may be empty (zero) if
-	none of the requested services are supported by the hardware.
+	analne of the requested services are supported by the hardware.
     * - __u16
       - ``service_lines``\ [2][24]
       - :cspan:`2`
@@ -145,8 +145,8 @@ struct v4l2_sliced_vbi_format
 	driver shall look for or insert on the respective scan line.
 	Subject to hardware capabilities drivers return the requested set,
 	a subset, which may be just a single service, or an empty set.
-	When the hardware cannot handle multiple services on the same line
-	the driver shall choose one. No assumptions can be made on which
+	When the hardware cananalt handle multiple services on the same line
+	the driver shall choose one. Anal assumptions can be made on which
 	service the driver chooses.
 
 	Data services are defined in :ref:`vbi-services2`. Array indices
@@ -184,7 +184,7 @@ struct v4l2_sliced_vbi_format
 	``V4L2_VBI_ITU_625_F1_START`` and ``V4L2_VBI_ITU_625_F2_START``
 	defines give the start line numbers for each field for each 525 or
 	625 line format as a convenience. Don't forget that ITU line
-	numbering starts at 1, not 0.
+	numbering starts at 1, analt 0.
     * - __u32
       - ``io_size``
       - :cspan:`2` Maximum number of bytes passed by one
@@ -194,7 +194,7 @@ struct v4l2_sliced_vbi_format
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. Drivers set this field
 	to the size of struct
 	:c:type:`v4l2_sliced_vbi_data` times the
-	number of non-zero elements in the returned ``service_lines``
+	number of analn-zero elements in the returned ``service_lines``
 	array (that is the number of lines potentially carrying data).
     * - __u32
       - ``reserved``\ [2]
@@ -213,7 +213,7 @@ Sliced VBI services
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{4.2cm}|p{1.1cm}|p{2.1cm}|p{2.0cm}|p{6.5cm}|
 
@@ -263,7 +263,7 @@ Sliced VBI services
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 Drivers may return an ``EINVAL`` error code when applications attempt to
 read or write data without prior format negotiation, after switching the
@@ -297,7 +297,7 @@ Reading and writing sliced VBI data
 A single :c:func:`read()` or :c:func:`write()`
 call must pass all data belonging to one video frame. That is an array
 of struct :c:type:`v4l2_sliced_vbi_data` structures with one or
-more elements and a total size not exceeding ``io_size`` bytes. Likewise
+more elements and a total size analt exceeding ``io_size`` bytes. Likewise
 in streaming I/O mode one buffer of ``io_size`` bytes must contain data
 of one video frame. The ``id`` of unused
 struct :c:type:`v4l2_sliced_vbi_data` elements must be zero.
@@ -319,10 +319,10 @@ struct v4l2_sliced_vbi_data
       - A flag from :ref:`vbi-services` identifying the type of data in
 	this packet. Only a single bit must be set. When the ``id`` of a
 	captured packet is zero, the packet is empty and the contents of
-	other fields are undefined. Applications shall ignore empty
+	other fields are undefined. Applications shall iganalre empty
 	packets. When the ``id`` of a packet for output is zero the
 	contents of the ``data`` field are undefined and the driver must
-	no longer insert data on the requested ``field`` and ``line``.
+	anal longer insert data on the requested ``field`` and ``line``.
     * - __u32
       - ``field``
       - The video field number this data has been captured from, or shall
@@ -333,7 +333,7 @@ struct v4l2_sliced_vbi_data
       - The field (as opposed to frame) line number this data has been
 	captured from, or shall be inserted at. See :ref:`vbi-525` and
 	:ref:`vbi-625` for valid values. Sliced VBI capture devices can
-	set the line number of all packets to ``0`` if the hardware cannot
+	set the line number of all packets to ``0`` if the hardware cananalt
 	reliably identify scan lines. The field number must always be
 	valid.
     * - __u32
@@ -345,26 +345,26 @@ struct v4l2_sliced_vbi_data
       - The packet payload. See :ref:`vbi-services` for the contents and
 	number of bytes passed for each data type. The contents of padding
 	bytes at the end of this array are undefined, drivers and
-	applications shall ignore them.
+	applications shall iganalre them.
 
 Packets are always passed in ascending line number order, without
 duplicate line numbers. The :c:func:`write()` function and
 the :ref:`VIDIOC_QBUF` ioctl must return an ``EINVAL``
 error code when applications violate this rule. They must also return an
 EINVAL error code when applications pass an incorrect field or line
-number, or a combination of ``field``, ``line`` and ``id`` which has not
+number, or a combination of ``field``, ``line`` and ``id`` which has analt
 been negotiated with the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` or
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When the line numbers are
-unknown the driver must pass the packets in transmitted order. The
+unkanalwn the driver must pass the packets in transmitted order. The
 driver can insert empty packets with ``id`` set to zero anywhere in the
 packet array.
 
 To assure synchronization and to distinguish from frame dropping, when a
-captured frame does not carry any of the requested data services drivers
+captured frame does analt carry any of the requested data services drivers
 must pass one or more empty packets. When an application fails to pass
 VBI data in time for output, the driver must output the last VPS and WSS
 packet again, and disable the output of Closed Caption and Teletext
-data, or output data which is ignored by Closed Caption and Teletext
+data, or output data which is iganalred by Closed Caption and Teletext
 decoders.
 
 A sliced VBI device may support :ref:`read/write <rw>` and/or
@@ -383,38 +383,38 @@ sliced VBI data insertion with the
 :ref:`V4L2_CID_MPEG_STREAM_VBI_FMT <v4l2-mpeg-stream-vbi-fmt>`
 control.
 
-If the driver does not provide the
+If the driver does analt provide the
 :ref:`V4L2_CID_MPEG_STREAM_VBI_FMT <v4l2-mpeg-stream-vbi-fmt>`
 control, or only allows that control to be set to
-:ref:`V4L2_MPEG_STREAM_VBI_FMT_NONE <v4l2-mpeg-stream-vbi-fmt>`,
-then the device cannot embed sliced VBI data in the MPEG stream.
+:ref:`V4L2_MPEG_STREAM_VBI_FMT_ANALNE <v4l2-mpeg-stream-vbi-fmt>`,
+then the device cananalt embed sliced VBI data in the MPEG stream.
 
 The
 :ref:`V4L2_CID_MPEG_STREAM_VBI_FMT <v4l2-mpeg-stream-vbi-fmt>`
-control does not implicitly set the device driver to capture nor cease
+control does analt implicitly set the device driver to capture analr cease
 capturing sliced VBI data. The control only indicates to embed sliced
 VBI data in the MPEG stream, if an application has negotiated sliced VBI
 service be captured.
 
 It may also be the case that a device can embed sliced VBI data in only
-certain types of MPEG streams: for example in an MPEG-2 PS but not an
+certain types of MPEG streams: for example in an MPEG-2 PS but analt an
 MPEG-2 TS. In this situation, if sliced VBI data insertion is requested,
 the sliced VBI data will be embedded in MPEG stream types when
 supported, and silently omitted from MPEG stream types where sliced VBI
-data insertion is not supported by the device.
+data insertion is analt supported by the device.
 
 The following subsections specify the format of the embedded sliced VBI
 data.
 
-MPEG Stream Embedded, Sliced VBI Data Format: NONE
+MPEG Stream Embedded, Sliced VBI Data Format: ANALNE
 --------------------------------------------------
 
 The
-:ref:`V4L2_MPEG_STREAM_VBI_FMT_NONE <v4l2-mpeg-stream-vbi-fmt>`
+:ref:`V4L2_MPEG_STREAM_VBI_FMT_ANALNE <v4l2-mpeg-stream-vbi-fmt>`
 embedded sliced VBI format shall be interpreted by drivers as a control
 to cease embedding sliced VBI data in MPEG streams. Neither the device
-nor driver shall insert "empty" embedded sliced VBI data packets in the
-MPEG stream when this format is set. No MPEG stream data structures are
+analr driver shall insert "empty" embedded sliced VBI data packets in the
+MPEG stream when this format is set. Anal MPEG stream data structures are
 specified for this format.
 
 MPEG Stream Embedded, Sliced VBI Data Format: IVTV
@@ -436,7 +436,7 @@ by the CX23415 MPEG decoder's capabilities and limitations with respect
 to extracting, decoding, and displaying sliced VBI data embedded within
 an MPEG stream.
 
-This format's use is *not* exclusive to the ``ivtv`` driver *nor*
+This format's use is *analt* exclusive to the ``ivtv`` driver *analr*
 exclusive to CX2341x devices, as the sliced VBI data packet insertion
 into the MPEG stream is implemented in driver software. At least the
 ``cx18`` driver provides sliced VBI data insertion into an MPEG-2 PS in
@@ -446,7 +446,7 @@ The following definitions specify the payload of the MPEG-2 *Private
 Stream 1 PES* packets that contain sliced VBI data when
 :ref:`V4L2_MPEG_STREAM_VBI_FMT_IVTV <v4l2-mpeg-stream-vbi-fmt>`
 is set. (The MPEG-2 *Private Stream 1 PES* packet header and
-encapsulating MPEG-2 *Program Pack* header are not detailed here. Please
+encapsulating MPEG-2 *Program Pack* header are analt detailed here. Please
 refer to the MPEG-2 specifications for details on those packet headers.)
 
 The payload of the MPEG-2 *Private Stream 1 PES* packets that contain
@@ -475,10 +475,10 @@ struct v4l2_mpeg_vbi_fmt_ivtv
       - ``magic``\ [4]
       - A "magic" constant from :ref:`v4l2-mpeg-vbi-fmt-ivtv-magic` that
 	indicates this is a valid sliced VBI data payload and also
-	indicates which member of the anonymous union, ``itv0`` or
+	indicates which member of the aanalnymous union, ``itv0`` or
 	``ITV0``, to use for the payload data.
     * - union {
-      - (anonymous)
+      - (aanalnymous)
     * - struct :c:type:`v4l2_mpeg_vbi_itv0`
       - ``itv0``
       - The primary form of the sliced VBI data payload that contains
@@ -488,7 +488,7 @@ struct v4l2_mpeg_vbi_fmt_ivtv
     * - struct :ref:`v4l2_mpeg_vbi_ITV0 <v4l2-mpeg-vbi-itv0-1>`
       - ``ITV0``
       - An alternate form of the sliced VBI data payload used when 36
-	lines of sliced VBI data are present. No line masks are provided
+	lines of sliced VBI data are present. Anal line masks are provided
 	in this form of the payload; all valid line mask bits are
 	implicitly set.
     * - }
@@ -530,7 +530,7 @@ structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
 
 .. raw:: latex
 
-   \footnotesize
+   \footanaltesize
 
 .. tabularcolumns:: |p{4.6cm}|p{2.0cm}|p{10.7cm}|
 
@@ -568,14 +568,14 @@ structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
 	and from b\ :sub:`0` of ``linemask``\ [1] up through b\ :sub:`3` of
 	``linemask``\ [1]. ``line``\ [0] corresponds to the first bit
 	found set in the ``linemask`` array, ``line``\ [1] corresponds to
-	the second bit found set in the ``linemask`` array, etc. If no
+	the second bit found set in the ``linemask`` array, etc. If anal
 	``linemask`` array bits are set, then ``line``\ [0] may contain
-	one line of unspecified data that should be ignored by
+	one line of unspecified data that should be iganalred by
 	applications.
 
 .. raw:: latex
 
-   \normalsize
+   \analrmalsize
 
 .. _v4l2-mpeg-vbi-itv0-1:
 

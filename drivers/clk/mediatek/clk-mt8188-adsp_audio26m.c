@@ -21,7 +21,7 @@ static const struct mtk_gate_regs adsp_audio26m_cg_regs = {
 
 #define GATE_ADSP_FLAGS(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &adsp_audio26m_cg_regs, _shift,		\
-		&mtk_clk_gate_ops_no_setclr)
+		&mtk_clk_gate_ops_anal_setclr)
 
 static const struct mtk_gate adsp_audio26m_clks[] = {
 	GATE_ADSP_FLAGS(CLK_AUDIODSP_AUDIO26M, "audiodsp_audio26m", "clk26m", 3),

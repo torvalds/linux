@@ -20,7 +20,7 @@
 #include <linux/file.h>
 #include <linux/uio.h>
 #include <linux/vdpa.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/vmalloc.h>
 #include <linux/sched/mm.h>
 #include <uapi/linux/vduse.h>
@@ -36,7 +36,7 @@
 #define DRV_DESC     "vDPA Device in Userspace"
 #define DRV_LICENSE  "GPL v2"
 
-#define VDUSE_DEV_MAX (1U << MINORBITS)
+#define VDUSE_DEV_MAX (1U << MIANALRBITS)
 #define VDUSE_MAX_BOUNCE_SIZE (1024 * 1024 * 1024)
 #define VDUSE_MIN_BOUNCE_SIZE (1024 * 1024)
 #define VDUSE_BOUNCE_SIZE (64 * 1024 * 1024)
@@ -98,7 +98,7 @@ struct vduse_dev {
 	struct work_struct inject;
 	spinlock_t irq_lock;
 	struct rw_semaphore rwsem;
-	int minor;
+	int mianalr;
 	bool broken;
 	bool connected;
 	u64 api_version;
@@ -334,7 +334,7 @@ static ssize_t vduse_dev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			break;
 
 		ret = -EAGAIN;
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			goto unlock;
 
 		spin_unlock(&dev->msg_lock);
@@ -389,7 +389,7 @@ static ssize_t vduse_dev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	spin_lock(&dev->msg_lock);
 	msg = vduse_find_msg(&dev->recv_list, resp.request_id);
 	if (!msg) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock;
 	}
 
@@ -414,9 +414,9 @@ static __poll_t vduse_dev_poll(struct file *file, poll_table *wait)
 	if (unlikely(dev->broken))
 		mask |= EPOLLERR;
 	if (!list_empty(&dev->send_list))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (!list_empty(&dev->recv_list))
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 
 	spin_unlock(&dev->msg_lock);
 
@@ -700,7 +700,7 @@ static void vduse_vdpa_get_config(struct vdpa_device *vdpa, unsigned int offset,
 static void vduse_vdpa_set_config(struct vdpa_device *vdpa, unsigned int offset,
 			const void *buf, unsigned int len)
 {
-	/* Now we only support read-only configuration space */
+	/* Analw we only support read-only configuration space */
 }
 
 static int vduse_vdpa_reset(struct vdpa_device *vdpa)
@@ -897,7 +897,7 @@ static int vduse_kickfd_setup(struct vduse_dev *dev,
 	if (eventfd->index >= dev->vq_num)
 		return -EINVAL;
 
-	index = array_index_nospec(eventfd->index, dev->vq_num);
+	index = array_index_analspec(eventfd->index, dev->vq_num);
 	vq = dev->vqs[index];
 	if (eventfd->fd >= 0) {
 		ctx = eventfd_ctx_fdget(eventfd->fd);
@@ -996,7 +996,7 @@ static int vduse_dev_dereg_umem(struct vduse_dev *dev,
 	int ret;
 
 	mutex_lock(&dev->mem_lock);
-	ret = -ENOENT;
+	ret = -EANALENT;
 	if (!dev->umem)
 		goto unlock;
 
@@ -1040,7 +1040,7 @@ static int vduse_dev_reg_umem(struct vduse_dev *dev,
 	if (dev->umem)
 		goto unlock;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	npages = size >> PAGE_SHIFT;
 	page_list = __vmalloc(array_size(npages, sizeof(struct page *)),
 			      GFP_KERNEL_ACCOUNT);
@@ -1057,7 +1057,7 @@ static int vduse_dev_reg_umem(struct vduse_dev *dev,
 	pinned = pin_user_pages(uaddr, npages, FOLL_LONGTERM | FOLL_WRITE,
 				page_list);
 	if (pinned != npages) {
-		ret = pinned < 0 ? pinned : -ENOMEM;
+		ret = pinned < 0 ? pinned : -EANALMEM;
 		goto out;
 	}
 
@@ -1210,7 +1210,7 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 				 sizeof(config.reserved)))
 			break;
 
-		index = array_index_nospec(config.index, dev->vq_num);
+		index = array_index_analspec(config.index, dev->vq_num);
 		dev->vqs[index]->num_max = config.max_size;
 		ret = 0;
 		break;
@@ -1228,7 +1228,7 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		if (vq_info.index >= dev->vq_num)
 			break;
 
-		index = array_index_nospec(vq_info.index, dev->vq_num);
+		index = array_index_analspec(vq_info.index, dev->vq_num);
 		vq = dev->vqs[index];
 		vq_info.desc_addr = vq->desc_addr;
 		vq_info.driver_addr = vq->driver_addr;
@@ -1279,7 +1279,7 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			break;
 
 		ret = 0;
-		index = array_index_nospec(index, dev->vq_num);
+		index = array_index_analspec(index, dev->vq_num);
 		if (!vduse_vq_signal_irqfd(dev->vqs[index])) {
 			vduse_vq_update_effective_cpu(dev->vqs[index]);
 			ret = vduse_dev_queue_irq_work(dev,
@@ -1368,14 +1368,14 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 	default:
-		ret = -ENOIOCTLCMD;
+		ret = -EANALIOCTLCMD;
 		break;
 	}
 
 	return ret;
 }
 
-static int vduse_dev_release(struct inode *inode, struct file *file)
+static int vduse_dev_release(struct ianalde *ianalde, struct file *file)
 {
 	struct vduse_dev *dev = file->private_data;
 
@@ -1392,24 +1392,24 @@ static int vduse_dev_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct vduse_dev *vduse_dev_get_from_minor(int minor)
+static struct vduse_dev *vduse_dev_get_from_mianalr(int mianalr)
 {
 	struct vduse_dev *dev;
 
 	mutex_lock(&vduse_lock);
-	dev = idr_find(&vduse_idr, minor);
+	dev = idr_find(&vduse_idr, mianalr);
 	mutex_unlock(&vduse_lock);
 
 	return dev;
 }
 
-static int vduse_dev_open(struct inode *inode, struct file *file)
+static int vduse_dev_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
-	struct vduse_dev *dev = vduse_dev_get_from_minor(iminor(inode));
+	struct vduse_dev *dev = vduse_dev_get_from_mianalr(imianalr(ianalde));
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = -EBUSY;
 	mutex_lock(&dev->lock);
@@ -1434,7 +1434,7 @@ static const struct file_operations vduse_dev_fops = {
 	.poll		= vduse_dev_poll,
 	.unlocked_ioctl	= vduse_dev_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static ssize_t irq_cb_affinity_show(struct vduse_virtqueue *vq, char *buf)
@@ -1449,7 +1449,7 @@ static ssize_t irq_cb_affinity_store(struct vduse_virtqueue *vq,
 	int ret;
 
 	if (!zalloc_cpumask_var(&new_value, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpumask_parse(buf, new_value);
 	if (ret)
@@ -1527,14 +1527,14 @@ static const struct kobj_type vq_type = {
 	.default_groups	= vq_groups,
 };
 
-static char *vduse_devnode(const struct device *dev, umode_t *mode)
+static char *vduse_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "vduse/%s", dev_name(dev));
 }
 
 static const struct class vduse_class = {
 	.name = "vduse",
-	.devnode = vduse_devnode,
+	.devanalde = vduse_devanalde,
 };
 
 static void vduse_dev_deinit_vqs(struct vduse_dev *dev)
@@ -1557,12 +1557,12 @@ static int vduse_dev_init_vqs(struct vduse_dev *dev, u32 vq_align, u32 vq_num)
 	dev->vq_num = vq_num;
 	dev->vqs = kcalloc(dev->vq_num, sizeof(*dev->vqs), GFP_KERNEL);
 	if (!dev->vqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vq_num; i++) {
 		dev->vqs[i] = kzalloc(sizeof(*dev->vqs[i]), GFP_KERNEL);
 		if (!dev->vqs[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1647,8 +1647,8 @@ static int vduse_destroy_dev(char *name)
 	mutex_unlock(&dev->lock);
 
 	vduse_dev_reset(dev);
-	device_destroy(&vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
-	idr_remove(&vduse_idr, dev->minor);
+	device_destroy(&vduse_class, MKDEV(MAJOR(vduse_major), dev->mianalr));
+	idr_remove(&vduse_idr, dev->mianalr);
 	kvfree(dev->config);
 	vduse_dev_deinit_vqs(dev);
 	if (dev->domain)
@@ -1676,7 +1676,7 @@ static bool features_is_valid(u64 features)
 	if (!(features & (1ULL << VIRTIO_F_ACCESS_PLATFORM)))
 		return false;
 
-	/* Now we only support read-only configuration space */
+	/* Analw we only support read-only configuration space */
 	if (features & (1ULL << VIRTIO_BLK_F_CONFIG_WCE))
 		return false;
 
@@ -1791,7 +1791,7 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 	if (vduse_find_dev(config->name))
 		goto err;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	dev = vduse_dev_create();
 	if (!dev)
 		goto err;
@@ -1812,10 +1812,10 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 	if (ret < 0)
 		goto err_idr;
 
-	dev->minor = ret;
+	dev->mianalr = ret;
 	dev->msg_timeout = VDUSE_MSG_DEFAULT_TIMEOUT;
 	dev->dev = device_create_with_groups(&vduse_class, NULL,
-				MKDEV(MAJOR(vduse_major), dev->minor),
+				MKDEV(MAJOR(vduse_major), dev->mianalr),
 				dev, vduse_dev_groups, "%s", config->name);
 	if (IS_ERR(dev->dev)) {
 		ret = PTR_ERR(dev->dev);
@@ -1830,9 +1830,9 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 
 	return 0;
 err_vqs:
-	device_destroy(&vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
+	device_destroy(&vduse_class, MKDEV(MAJOR(vduse_major), dev->mianalr));
 err_dev:
-	idr_remove(&vduse_idr, dev->minor);
+	idr_remove(&vduse_idr, dev->mianalr);
 err_idr:
 	kfree(dev->name);
 err_str:
@@ -1912,7 +1912,7 @@ static long vduse_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static int vduse_release(struct inode *inode, struct file *file)
+static int vduse_release(struct ianalde *ianalde, struct file *file)
 {
 	struct vduse_control *control = file->private_data;
 
@@ -1920,13 +1920,13 @@ static int vduse_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int vduse_open(struct inode *inode, struct file *file)
+static int vduse_open(struct ianalde *ianalde, struct file *file)
 {
 	struct vduse_control *control;
 
 	control = kmalloc(sizeof(struct vduse_control), GFP_KERNEL);
 	if (!control)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	control->api_version = VDUSE_API_VERSION;
 	file->private_data = control;
@@ -1940,7 +1940,7 @@ static const struct file_operations vduse_ctrl_fops = {
 	.release	= vduse_release,
 	.unlocked_ioctl	= vduse_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 struct vduse_mgmt_dev {
@@ -2002,7 +2002,7 @@ static int vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	mutex_unlock(&dev->domain_lock);
 	if (!dev->domain) {
 		put_device(&dev->vdev->vdpa.dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = _vdpa_register_device(&dev->vdev->vdpa, dev->vq_num);
@@ -2047,7 +2047,7 @@ static int vduse_mgmtdev_init(void)
 
 	vduse_mgmt = kzalloc(sizeof(*vduse_mgmt), GFP_KERNEL);
 	if (!vduse_mgmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dev_set_name(&vduse_mgmt->dev, "vduse");
 	if (ret) {
@@ -2115,7 +2115,7 @@ static int vduse_init(void)
 	if (ret)
 		goto err_cdev;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	vduse_irq_wq = alloc_workqueue("vduse-irq",
 				WQ_HIGHPRI | WQ_SYSFS | WQ_UNBOUND, 0);
 	if (!vduse_irq_wq)

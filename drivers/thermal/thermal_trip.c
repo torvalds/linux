@@ -53,13 +53,13 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_num_trips);
  * The function computes the next temperature boundaries by browsing
  * the trip points. The result is the closer low and high trip points
  * to the current temperature. These values are passed to the backend
- * driver to let it set its own notification mechanism (usually an
+ * driver to let it set its own analtification mechanism (usually an
  * interrupt).
  *
  * This function must be called with tz->lock held. Both tz and tz->ops
  * must be valid pointers.
  *
- * It does not return a value
+ * It does analt return a value
  */
 void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 {
@@ -92,7 +92,7 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 		}
 	}
 
-	/* No need to change trip points */
+	/* Anal need to change trip points */
 	if (tz->prev_low_trip == low && tz->prev_high_trip == high)
 		return;
 
@@ -155,7 +155,7 @@ int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 void thermal_zone_trip_updated(struct thermal_zone_device *tz,
 			       const struct thermal_trip *trip)
 {
-	thermal_notify_tz_trip_change(tz, trip);
+	thermal_analtify_tz_trip_change(tz, trip);
 	__thermal_zone_device_update(tz, THERMAL_TRIP_CHANGED);
 }
 
@@ -166,6 +166,6 @@ void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
 		return;
 
 	trip->temperature = temp;
-	thermal_notify_tz_trip_change(tz, trip);
+	thermal_analtify_tz_trip_change(tz, trip);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_set_trip_temp);

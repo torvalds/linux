@@ -35,7 +35,7 @@ static bool decode_cfi_insn(struct pt_regs *regs, unsigned long *target,
 	 * We can decode the expected type and the target address from the
 	 * movl/addl instructions.
 	 */
-	if (copy_from_kernel_nofault(buffer, (void *)regs->ip - 12, MAX_INSN_SIZE))
+	if (copy_from_kernel_analfault(buffer, (void *)regs->ip - 12, MAX_INSN_SIZE))
 		return false;
 	if (insn_decode_kernel(&insn, &buffer[offset]))
 		return false;
@@ -44,7 +44,7 @@ static bool decode_cfi_insn(struct pt_regs *regs, unsigned long *target,
 
 	*type = -(u32)insn.immediate.value;
 
-	if (copy_from_kernel_nofault(buffer, (void *)regs->ip - 6, MAX_INSN_SIZE))
+	if (copy_from_kernel_analfault(buffer, (void *)regs->ip - 6, MAX_INSN_SIZE))
 		return false;
 	if (insn_decode_kernel(&insn, &buffer[offset]))
 		return false;
@@ -71,16 +71,16 @@ enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 	u32 type;
 
 	if (!is_cfi_trap(regs->ip))
-		return BUG_TRAP_TYPE_NONE;
+		return BUG_TRAP_TYPE_ANALNE;
 
 	if (!decode_cfi_insn(regs, &target, &type))
-		return report_cfi_failure_noaddr(regs, regs->ip);
+		return report_cfi_failure_analaddr(regs, regs->ip);
 
 	return report_cfi_failure(regs, regs->ip, &target, type);
 }
 
 /*
  * Ensure that __kcfi_typeid_ symbols are emitted for functions that may
- * not be indirectly called with all configurations.
+ * analt be indirectly called with all configurations.
  */
 __ADDRESSABLE(__memcpy)

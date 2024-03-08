@@ -5,7 +5,7 @@
 
 extra-y		:= vmlinux.lds
 asflags-y	:= $(KBUILD_CFLAGS)
-ccflags-y	:= -Wno-sign-compare
+ccflags-y	:= -Wanal-sign-compare
 
 obj-y    := head.o entry.o traps.o process.o osf_sys.o irq.o \
 	    irq_alpha.o signal.o setup.o ptrace.o time.o \
@@ -28,7 +28,7 @@ obj-y 	 += core_apecs.o core_cia.o core_irongate.o core_lca.o \
 
 obj-y	 += sys_alcor.o sys_cabriolet.o sys_dp264.o sys_eb64p.o sys_eiger.o \
 	    sys_jensen.o sys_miata.o sys_mikasa.o sys_nautilus.o \
-	    sys_noritake.o sys_rawhide.o sys_ruffian.o sys_rx164.o \
+	    sys_analritake.o sys_rawhide.o sys_ruffian.o sys_rx164.o \
 	    sys_sable.o sys_sio.o sys_sx164.o sys_takara.o
 
 ifndef CONFIG_ALPHA_LEGACY_START_ADDRESS
@@ -78,13 +78,13 @@ obj-$(CONFIG_ALPHA_TITAN)	+= sys_titan.o irq_i8259.o smc37c669.o
 obj-$(CONFIG_ALPHA_EB64P)	+= sys_eb64p.o irq_i8259.o
 obj-$(CONFIG_ALPHA_EB66)	+= sys_eb64p.o irq_i8259.o
 obj-$(CONFIG_ALPHA_EIGER)	+= sys_eiger.o irq_i8259.o
-obj-$(CONFIG_ALPHA_JENSEN)	+= sys_jensen.o pci-noop.o irq_i8259.o
+obj-$(CONFIG_ALPHA_JENSEN)	+= sys_jensen.o pci-analop.o irq_i8259.o
 obj-$(CONFIG_ALPHA_MARVEL)	+= sys_marvel.o 
 obj-$(CONFIG_ALPHA_MIATA)	+= sys_miata.o irq_pyxis.o irq_i8259.o \
 				   es1888.o smc37c669.o
 obj-$(CONFIG_ALPHA_MIKASA)	+= sys_mikasa.o irq_i8259.o irq_srm.o
 obj-$(CONFIG_ALPHA_NAUTILUS)	+= sys_nautilus.o irq_i8259.o irq_srm.o
-obj-$(CONFIG_ALPHA_NORITAKE)	+= sys_noritake.o irq_i8259.o
+obj-$(CONFIG_ALPHA_ANALRITAKE)	+= sys_analritake.o irq_i8259.o
 obj-$(CONFIG_ALPHA_RAWHIDE)	+= sys_rawhide.o irq_i8259.o
 obj-$(CONFIG_ALPHA_RUFFIAN)	+= sys_ruffian.o irq_pyxis.o irq_i8259.o
 obj-$(CONFIG_ALPHA_RX164)	+= sys_rx164.o irq_i8259.o
@@ -92,7 +92,7 @@ obj-$(CONFIG_ALPHA_SABLE)	+= sys_sable.o
 obj-$(CONFIG_ALPHA_LYNX)	+= sys_sable.o
 obj-$(CONFIG_ALPHA_BOOK1)	+= sys_sio.o irq_i8259.o irq_srm.o pc873xx.o
 obj-$(CONFIG_ALPHA_AVANTI)	+= sys_sio.o irq_i8259.o irq_srm.o pc873xx.o
-obj-$(CONFIG_ALPHA_NONAME)	+= sys_sio.o irq_i8259.o irq_srm.o pc873xx.o
+obj-$(CONFIG_ALPHA_ANALNAME)	+= sys_sio.o irq_i8259.o irq_srm.o pc873xx.o
 obj-$(CONFIG_ALPHA_P2K)		+= sys_sio.o irq_i8259.o irq_srm.o pc873xx.o
 obj-$(CONFIG_ALPHA_XL)		+= sys_sio.o irq_i8259.o irq_srm.o pc873xx.o
 obj-$(CONFIG_ALPHA_SX164)	+= sys_sx164.o irq_pyxis.o irq_i8259.o \

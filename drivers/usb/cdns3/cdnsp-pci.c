@@ -87,7 +87,7 @@ static int cdnsp_pci_probe(struct pci_dev *pdev,
 	} else {
 		cdnsp = kzalloc(sizeof(*cdnsp), GFP_KERNEL);
 		if (!cdnsp) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto disable_pci;
 		}
 	}
@@ -157,7 +157,7 @@ static int cdnsp_pci_probe(struct pci_dev *pdev,
 
 	device_wakeup_enable(&pdev->dev);
 	if (pci_dev_run_wake(pdev))
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 
 	return 0;
 
@@ -183,7 +183,7 @@ static void cdnsp_pci_remove(struct pci_dev *pdev)
 	cdnsp = (struct cdns *)pci_get_drvdata(pdev);
 
 	if (pci_dev_run_wake(pdev))
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_analresume(&pdev->dev);
 
 	if (pci_is_enabled(func)) {
 		cdns_remove(cdnsp);

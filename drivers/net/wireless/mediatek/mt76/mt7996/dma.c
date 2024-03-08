@@ -356,7 +356,7 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
 	}
 
 	if (dev->hif2) {
-		/* fix hardware limitation, pcie1's rx ring3 is not available
+		/* fix hardware limitation, pcie1's rx ring3 is analt available
 		 * so, redirect pcie0 rx ring3 interrupt to pcie1
 		 */
 		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
@@ -520,7 +520,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 	if (ret)
 		return ret;
 
-	/* tx free notify event from WA for band0 */
+	/* tx free analtify event from WA for band0 */
 	if (mtk_wed_device_active(wed) && !dev->has_rro) {
 		dev->mt76.q_rx[MT_RXQ_MAIN_WA].flags = MT_WED_Q_TXFREE;
 		dev->mt76.q_rx[MT_RXQ_MAIN_WA].wed = wed;
@@ -545,7 +545,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		if (ret)
 			return ret;
 
-		/* tx free notify event from WA for mt7996 band2
+		/* tx free analtify event from WA for mt7996 band2
 		 * use pcie0's rx ring3, but, redirect pcie0 rx ring3 interrupt to pcie1
 		 */
 		if (mtk_wed_device_active(wed_hif2) && !dev->has_rro) {
@@ -571,7 +571,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		if (ret)
 			return ret;
 
-		/* tx free notify event from WA for mt7992 band1 */
+		/* tx free analtify event from WA for mt7992 band1 */
 		rx_base = MT_RXQ_RING_BASE(MT_RXQ_BAND1_WA) + hif1_ofs;
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_BAND1_WA],
 				       MT_RXQ_ID(MT_RXQ_BAND1_WA),
@@ -596,7 +596,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		if (ret)
 			return ret;
 
-		/* tx free notify event from WA for band0 */
+		/* tx free analtify event from WA for band0 */
 		dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].flags = MT_WED_Q_TXFREE;
 		dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].wed = wed;
 
@@ -621,7 +621,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 			if (ret)
 				return ret;
 
-			/* tx free notify event from MAC for band2 */
+			/* tx free analtify event from MAC for band2 */
 			if (mtk_wed_device_active(wed_hif2)) {
 				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND2].flags = MT_WED_Q_TXFREE;
 				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND2].wed = wed_hif2;

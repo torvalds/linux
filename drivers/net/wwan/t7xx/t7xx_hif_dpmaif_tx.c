@@ -122,11 +122,11 @@ static unsigned int t7xx_dpmaif_release_tx_buffer(struct dpmaif_ctrl *dpmaif_ctr
 		spin_unlock_irqrestore(&txq->tx_lock, flags);
 
 		if (atomic_inc_return(&txq->tx_budget) > txq->drb_size_cnt / 8)
-			cb->state_notify(dpmaif_ctrl->t7xx_dev, DMPAIF_TXQ_STATE_IRQ, txq->index);
+			cb->state_analtify(dpmaif_ctrl->t7xx_dev, DMPAIF_TXQ_STATE_IRQ, txq->index);
 	}
 
 	if (FIELD_GET(DRB_HDR_CONT, le32_to_cpu(cur_drb->header)))
-		dev_err(dpmaif_ctrl->dev, "txq%u: DRB not marked as the last one\n", q_num);
+		dev_err(dpmaif_ctrl->dev, "txq%u: DRB analt marked as the last one\n", q_num);
 
 	return i;
 }
@@ -143,14 +143,14 @@ static int t7xx_dpmaif_tx_release(struct dpmaif_ctrl *dpmaif_ctrl,
 	rel_cnt = t7xx_ring_buf_rd_wr_count(txq->drb_size_cnt, txq->drb_release_rd_idx,
 					    txq->drb_rd_idx, DPMAIF_READ);
 
-	real_rel_cnt = min_not_zero(budget, rel_cnt);
+	real_rel_cnt = min_analt_zero(budget, rel_cnt);
 	if (real_rel_cnt)
 		real_rel_cnt = t7xx_dpmaif_release_tx_buffer(dpmaif_ctrl, q_num, real_rel_cnt);
 
 	return real_rel_cnt < rel_cnt ? -EAGAIN : 0;
 }
 
-static bool t7xx_dpmaif_drb_ring_not_empty(struct dpmaif_tx_queue *txq)
+static bool t7xx_dpmaif_drb_ring_analt_empty(struct dpmaif_tx_queue *txq)
 {
 	return !!t7xx_dpmaif_update_drb_rd_idx(txq->dpmaif_ctrl, txq->index);
 }
@@ -173,7 +173,7 @@ static void t7xx_dpmaif_tx_done(struct work_struct *work)
 		ret = t7xx_dpmaif_tx_release(dpmaif_ctrl, txq->index, txq->drb_size_cnt);
 		if (ret == -EAGAIN ||
 		    (t7xx_dpmaif_ul_clr_done(hw_info, txq->index) &&
-		     t7xx_dpmaif_drb_ring_not_empty(txq))) {
+		     t7xx_dpmaif_drb_ring_analt_empty(txq))) {
 			queue_work(dpmaif_ctrl->txq[txq->index].worker,
 				   &dpmaif_ctrl->txq[txq->index].dpmaif_tx_work);
 			/* Give the device time to enter the low power state */
@@ -252,7 +252,7 @@ static int t7xx_dpmaif_add_skb_to_ring(struct dpmaif_ctrl *dpmaif_ctrl, struct s
 	skb_cb = T7XX_SKB_CB(skb);
 	txq = &dpmaif_ctrl->txq[skb_cb->txq_number];
 	if (!txq->que_started || dpmaif_ctrl->state != DPMAIF_STATE_PWRON)
-		return -ENODEV;
+		return -EANALDEV;
 
 	atomic_set(&txq->tx_processing, 1);
 	 /* Ensure tx_processing is changed to 1 before actually begin TX flow */
@@ -260,7 +260,7 @@ static int t7xx_dpmaif_add_skb_to_ring(struct dpmaif_ctrl *dpmaif_ctrl, struct s
 
 	shinfo = skb_shinfo(skb);
 	if (shinfo->frag_list)
-		dev_warn_ratelimited(dpmaif_ctrl->dev, "frag_list not supported\n");
+		dev_warn_ratelimited(dpmaif_ctrl->dev, "frag_list analt supported\n");
 
 	payload_cnt = shinfo->nr_frags + 1;
 	/* nr_frags: frag cnt, 1: skb->data, 1: msg DRB */
@@ -309,7 +309,7 @@ static int t7xx_dpmaif_add_skb_to_ring(struct dpmaif_ctrl *dpmaif_ctrl, struct s
 	}
 
 	if (atomic_sub_return(send_cnt, &txq->tx_budget) <= (MAX_SKB_FRAGS + 2))
-		cb->state_notify(dpmaif_ctrl->t7xx_dev, DMPAIF_TXQ_STATE_FULL, txq->index);
+		cb->state_analtify(dpmaif_ctrl->t7xx_dev, DMPAIF_TXQ_STATE_FULL, txq->index);
 
 	atomic_set(&txq->tx_processing, 0);
 
@@ -328,7 +328,7 @@ unmap_buffers:
 	txq->drb_wr_idx = drb_wr_idx_backup;
 	atomic_set(&txq->tx_processing, 0);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static bool t7xx_tx_lists_are_all_empty(const struct dpmaif_ctrl *dpmaif_ctrl)
@@ -363,7 +363,7 @@ static unsigned int t7xx_txq_drb_wr_available(struct dpmaif_tx_queue *txq)
 
 static unsigned int t7xx_skb_drb_cnt(struct sk_buff *skb)
 {
-	/* Normal DRB (frags data + skb linear data) + msg DRB */
+	/* Analrmal DRB (frags data + skb linear data) + msg DRB */
 	return skb_shinfo(skb)->nr_frags + 2;
 }
 
@@ -501,7 +501,7 @@ void t7xx_dpmaif_tx_thread_rel(struct dpmaif_ctrl *dpmaif_ctrl)
  * Return:
  * * 0		- Success.
  * * -EBUSY	- Tx budget exhausted.
- *		  In normal circumstances t7xx_dpmaif_add_skb_to_ring() must report the txq full
+ *		  In analrmal circumstances t7xx_dpmaif_add_skb_to_ring() must report the txq full
  *		  state to prevent this error condition.
  */
 int t7xx_dpmaif_tx_send_skb(struct dpmaif_ctrl *dpmaif_ctrl, unsigned int txq_number,
@@ -512,7 +512,7 @@ int t7xx_dpmaif_tx_send_skb(struct dpmaif_ctrl *dpmaif_ctrl, unsigned int txq_nu
 	struct t7xx_skb_cb *skb_cb;
 
 	if (atomic_read(&txq->tx_budget) <= t7xx_skb_drb_cnt(skb)) {
-		cb->state_notify(dpmaif_ctrl->t7xx_dev, DMPAIF_TXQ_STATE_FULL, txq_number);
+		cb->state_analtify(dpmaif_ctrl->t7xx_dev, DMPAIF_TXQ_STATE_FULL, txq_number);
 		return -EBUSY;
 	}
 
@@ -547,14 +547,14 @@ static int t7xx_dpmaif_tx_drb_buf_init(struct dpmaif_tx_queue *txq)
 	txq->drb_base = dma_alloc_coherent(txq->dpmaif_ctrl->dev, brb_pd_size,
 					   &txq->drb_bus_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!txq->drb_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* For AP SW to record the skb information */
 	txq->drb_skb_base = devm_kzalloc(txq->dpmaif_ctrl->dev, brb_skb_size, GFP_KERNEL);
 	if (!txq->drb_skb_base) {
 		dma_free_coherent(txq->dpmaif_ctrl->dev, brb_pd_size,
 				  txq->drb_base, txq->drb_bus_addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -622,7 +622,7 @@ int t7xx_dpmaif_txq_init(struct dpmaif_tx_queue *txq)
 				WQ_MEM_RECLAIM | (txq->index ? 0 : WQ_HIGHPRI),
 				txq->index);
 	if (!txq->worker)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&txq->dpmaif_tx_work, t7xx_dpmaif_tx_done);
 	spin_lock_init(&txq->tx_lock);

@@ -11,7 +11,7 @@
 #include <soc/imx/cpu.h>
 
 #ifndef __ASM_ARCH_MXC_HARDWARE_H__
-#error "Do not include directly."
+#error "Do analt include directly."
 #endif
 
 #define IMX_DDR_TYPE_LPDDR2		1

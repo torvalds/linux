@@ -191,8 +191,8 @@ static const u32 vsc9959_qsys_regmap[] = {
 	REG(QSYS_STAT_CNT_CFG,			0x00f49c),
 	REG(QSYS_EEE_CFG,			0x00f4a0),
 	REG(QSYS_EEE_THRES,			0x00f4b8),
-	REG(QSYS_IGR_NO_SHARING,		0x00f4bc),
-	REG(QSYS_EGR_NO_SHARING,		0x00f4c0),
+	REG(QSYS_IGR_ANAL_SHARING,		0x00f4bc),
+	REG(QSYS_EGR_ANAL_SHARING,		0x00f4c0),
 	REG(QSYS_SW_STATUS,			0x00f4c4),
 	REG(QSYS_EXT_CPU_CFG,			0x00f4e0),
 	REG_RESERVED(QSYS_PAD_CFG),
@@ -407,8 +407,8 @@ static const u32 vsc9959_sys_regmap[] = {
 	REG(SYS_COUNT_DROP_GREEN_PRIO_6,	0x000440),
 	REG(SYS_COUNT_DROP_GREEN_PRIO_7,	0x000444),
 	REG(SYS_COUNT_SF_MATCHING_FRAMES,	0x000800),
-	REG(SYS_COUNT_SF_NOT_PASSING_FRAMES,	0x000804),
-	REG(SYS_COUNT_SF_NOT_PASSING_SDU,	0x000808),
+	REG(SYS_COUNT_SF_ANALT_PASSING_FRAMES,	0x000804),
+	REG(SYS_COUNT_SF_ANALT_PASSING_SDU,	0x000808),
 	REG(SYS_COUNT_SF_RED_FRAMES,		0x00080c),
 	REG(SYS_RESET_CFG,			0x000e00),
 	REG(SYS_SR_ETYPE_CFG,			0x000e04),
@@ -576,7 +576,7 @@ static const struct reg_field vsc9959_regfields[REGFIELD_MAX] = {
 	[ANA_ANEVENTS_FWD_DISCARD] = REG_FIELD(ANA_ANEVENTS, 12, 12),
 	[ANA_ANEVENTS_MULTICAST_FLOOD] = REG_FIELD(ANA_ANEVENTS, 11, 11),
 	[ANA_ANEVENTS_UNICAST_FLOOD] = REG_FIELD(ANA_ANEVENTS, 10, 10),
-	[ANA_ANEVENTS_DEST_KNOWN] = REG_FIELD(ANA_ANEVENTS, 9, 9),
+	[ANA_ANEVENTS_DEST_KANALWN] = REG_FIELD(ANA_ANEVENTS, 9, 9),
 	[ANA_ANEVENTS_BUCKET3_MATCH] = REG_FIELD(ANA_ANEVENTS, 8, 8),
 	[ANA_ANEVENTS_BUCKET2_MATCH] = REG_FIELD(ANA_ANEVENTS, 7, 7),
 	[ANA_ANEVENTS_BUCKET1_MATCH] = REG_FIELD(ANA_ANEVENTS, 6, 6),
@@ -654,7 +654,7 @@ static const struct vcap_field vsc9959_vcap_is1_keys[] = {
 	[VCAP_IS1_HK_VID]			= { 26,  12},
 	[VCAP_IS1_HK_DEI]			= { 38,   1},
 	[VCAP_IS1_HK_PCP]			= { 39,   3},
-	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	/* Specific Fields for IS1 Half Key S1_ANALRMAL */
 	[VCAP_IS1_HK_L2_SMAC]			= { 42,  48},
 	[VCAP_IS1_HK_ETYPE_LEN]			= { 90,   1},
 	[VCAP_IS1_HK_ETYPE]			= { 91,  16},
@@ -747,7 +747,7 @@ static struct vcap_field vsc9959_vcap_is2_keys[] = {
 	[VCAP_IS2_HK_MAC_ARP_LEN_OK]		= { 91,   1},
 	[VCAP_IS2_HK_MAC_ARP_TARGET_MATCH]	= { 92,   1},
 	[VCAP_IS2_HK_MAC_ARP_SENDER_MATCH]	= { 93,   1},
-	[VCAP_IS2_HK_MAC_ARP_OPCODE_UNKNOWN]	= { 94,   1},
+	[VCAP_IS2_HK_MAC_ARP_OPCODE_UNKANALWN]	= { 94,   1},
 	[VCAP_IS2_HK_MAC_ARP_OPCODE]		= { 95,   2},
 	[VCAP_IS2_HK_MAC_ARP_L3_IP4_DIP]	= { 97,  32},
 	[VCAP_IS2_HK_MAC_ARP_L3_IP4_SIP]	= {129,  32},
@@ -816,8 +816,8 @@ static struct vcap_props vsc9959_vcap_props[] = {
 	[VCAP_ES0] = {
 		.action_type_width = 0,
 		.action_table = {
-			[ES0_ACTION_TYPE_NORMAL] = {
-				.width = 72, /* HIT_STICKY not included */
+			[ES0_ACTION_TYPE_ANALRMAL] = {
+				.width = 72, /* HIT_STICKY analt included */
 				.count = 1,
 			},
 		},
@@ -828,8 +828,8 @@ static struct vcap_props vsc9959_vcap_props[] = {
 	[VCAP_IS1] = {
 		.action_type_width = 0,
 		.action_table = {
-			[IS1_ACTION_TYPE_NORMAL] = {
-				.width = 78, /* HIT_STICKY not included */
+			[IS1_ACTION_TYPE_ANALRMAL] = {
+				.width = 78, /* HIT_STICKY analt included */
 				.count = 4,
 			},
 		},
@@ -840,7 +840,7 @@ static struct vcap_props vsc9959_vcap_props[] = {
 	[VCAP_IS2] = {
 		.action_type_width = 1,
 		.action_table = {
-			[IS2_ACTION_TYPE_NORMAL] = {
+			[IS2_ACTION_TYPE_ANALRMAL] = {
 				.width = 44,
 				.count = 2
 			},
@@ -972,7 +972,7 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 				  GFP_KERNEL);
 	if (!felix->pcs) {
 		dev_err(dev, "failed to allocate array for PCS PHYs\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	imdio_base = pci_resource_start(pdev, VSC9959_IMDIO_PCI_BAR);
@@ -993,7 +993,7 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 
 	bus = mdiobus_alloc_size(sizeof(*mdio_priv));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->name = "VSC9959 internal MDIO bus";
 	bus->read = enetc_mdio_read_c22;
@@ -1115,7 +1115,7 @@ static void vsc9959_tas_min_gate_lengths(struct tc_taprio_qopt_offload *taprio,
 				gate_len[tc] += entry->interval;
 				gates_ever_opened |= BIT(tc);
 			} else {
-				/* Gate closes now, record a potential new
+				/* Gate closes analw, record a potential new
 				 * minimum and reinitialize length
 				 */
 				if (min_gate_len[tc] > gate_len[tc] &&
@@ -1129,7 +1129,7 @@ static void vsc9959_tas_min_gate_lengths(struct tc_taprio_qopt_offload *taprio,
 	/* min_gate_len[tc] actually tracks minimum *open* gate time, so for
 	 * permanently closed gates, min_gate_len[tc] will still be U64_MAX.
 	 * Therefore they are currently indistinguishable from permanently
-	 * open gates. Overwrite the gate len with 0 when we know they're
+	 * open gates. Overwrite the gate len with 0 when we kanalw they're
 	 * actually permanently closed, i.e. after the loop above.
 	 */
 	for (tc = 0; tc < OCELOT_NUM_TC; tc++)
@@ -1299,7 +1299,7 @@ static void vsc9959_tas_guard_bands_update(struct ocelot *ocelot, int port)
 			 * for frames larger than the smallest that would fit.
 			 *
 			 * However, the exact same register, QSYS_QMAXSDU_CFG_*,
-			 * controls not only oversized frame dropping, but also
+			 * controls analt only oversized frame dropping, but also
 			 * per-tc static guard band lengths, so it reduces the
 			 * useful gate interval length. Therefore, be careful
 			 * to calculate a guard band (and therefore max_sdu)
@@ -1325,7 +1325,7 @@ static void vsc9959_tas_guard_bands_update(struct ocelot *ocelot, int port)
 
 			dev_info(ocelot->dev,
 				 "port %d tc %d min gate length %llu"
-				 " ns not enough for max frame size %d at %d"
+				 " ns analt eanalugh for max frame size %d at %d"
 				 " Mbps, dropping frames over %d"
 				 " octets including FCS\n",
 				 port, tc, min_gate_len[tc], maxlen, speed,
@@ -1437,7 +1437,7 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 		mutex_unlock(&ocelot->fwd_domain_lock);
 		return 0;
 	} else if (taprio->cmd != TAPRIO_CMD_REPLACE) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_unlock;
 	}
 
@@ -1471,7 +1471,7 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 		   QSYS_TAS_PARAM_CFG_CTRL_ALWAYS_GUARD_BAND_SCH_Q,
 		   QSYS_TAS_PARAM_CFG_CTRL);
 
-	/* Hardware errata -  Admin config could not be overwritten if
+	/* Hardware errata -  Admin config could analt be overwritten if
 	 * config is pending, need reset the TAS module
 	 */
 	val = ocelot_read(ocelot, QSYS_PARAM_STATUS_REG_8);
@@ -1643,7 +1643,7 @@ static int vsc9959_qos_query_caps(struct tc_query_caps_base *base)
 		return 0;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1675,7 +1675,7 @@ static int vsc9959_port_setup_tc(struct dsa_switch *ds, int port,
 	case TC_SETUP_QDISC_CBS:
 		return vsc9959_qos_port_cbs_set(ds, port, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1703,8 +1703,8 @@ struct felix_stream {
 
 struct felix_stream_filter_counters {
 	u64 match;
-	u64 not_pass_gate;
-	u64 not_pass_sdu;
+	u64 analt_pass_gate;
+	u64 analt_pass_sdu;
 	u64 red;
 };
 
@@ -1753,7 +1753,7 @@ static int vsc9959_stream_identify(struct flow_cls_offload *f,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_match_eth_addrs match;
@@ -1761,9 +1761,9 @@ static int vsc9959_stream_identify(struct flow_cls_offload *f,
 		flow_rule_match_eth_addrs(rule, &match);
 		ether_addr_copy(stream->dmac, match.key->dst);
 		if (!is_zero_ether_addr(match.mask->src))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
@@ -1776,10 +1776,10 @@ static int vsc9959_stream_identify(struct flow_cls_offload *f,
 			stream->prio = -1;
 
 		if (!match.mask->vlan_id)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		stream->vid = match.key->vlan_id;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	stream->id = f->cookie;
@@ -1799,18 +1799,18 @@ static int vsc9959_mact_stream_set(struct ocelot *ocelot,
 	ether_addr_copy(mac, stream->dmac);
 	vid = stream->vid;
 
-	/* Stream identification desn't support to add a stream with non
-	 * existent MAC (The MAC entry has not been learned in MAC table).
+	/* Stream identification desn't support to add a stream with analn
+	 * existent MAC (The MAC entry has analt been learned in MAC table).
 	 */
 	ret = ocelot_mact_lookup(ocelot, &dst_idx, mac, vid, &type);
 	if (ret) {
 		if (extack)
-			NL_SET_ERR_MSG_MOD(extack, "Stream is not learned in MAC table");
-		return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Stream is analt learned in MAC table");
+		return -EOPANALTSUPP;
 	}
 
 	if ((stream->sfid_valid || stream->ssid_valid) &&
-	    type == ENTRYTYPE_NORMAL)
+	    type == ENTRYTYPE_ANALRMAL)
 		type = ENTRYTYPE_LOCKED;
 
 	sfid = stream->sfid_valid ? stream->sfid : -1;
@@ -1846,7 +1846,7 @@ static int vsc9959_stream_table_add(struct ocelot *ocelot,
 
 	stream_entry = kmemdup(stream, sizeof(*stream_entry), GFP_KERNEL);
 	if (!stream_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!stream->dummy) {
 		ret = vsc9959_mact_stream_set(ocelot, stream_entry, extack);
@@ -1965,7 +1965,7 @@ static int vsc9959_psfp_sfi_list_add(struct ocelot *ocelot,
 
 	sfi_entry = kmemdup(sfi, sizeof(*sfi_entry), GFP_KERNEL);
 	if (!sfi_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	refcount_set(&sfi_entry->refcount, 1);
 
@@ -2188,7 +2188,7 @@ static int vsc9959_psfp_sgi_table_add(struct ocelot *ocelot,
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = vsc9959_psfp_sgi_set(ocelot, sgi);
 	if (ret) {
@@ -2259,7 +2259,7 @@ static int vsc9959_psfp_filter_add(struct ocelot *ocelot, int port,
 			size = struct_size(sgi, entries, a->gate.num_entries);
 			sgi = kzalloc(size, GFP_KERNEL);
 			if (!sgi) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err;
 			}
 			vsc9959_psfp_parse_gate(a, sgi);
@@ -2295,7 +2295,7 @@ static int vsc9959_psfp_filter_add(struct ocelot *ocelot, int port,
 			break;
 		default:
 			mutex_unlock(&psfp->lock);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -2392,13 +2392,13 @@ static int vsc9959_psfp_filter_del(struct ocelot *ocelot,
 	stream = vsc9959_stream_table_get(&psfp->stream_list, f->cookie);
 	if (!stream) {
 		mutex_unlock(&psfp->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sfi = vsc9959_psfp_sfi_table_get(&psfp->sfi_list, stream->sfid);
 	if (!sfi) {
 		mutex_unlock(&psfp->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (sfi->sg_valid)
@@ -2434,7 +2434,7 @@ static void vsc9959_update_sfid_stats(struct ocelot *ocelot,
 				      struct felix_stream_filter *sfi)
 {
 	struct felix_stream_filter_counters *s = &sfi->stats;
-	u32 match, not_pass_gate, not_pass_sdu, red;
+	u32 match, analt_pass_gate, analt_pass_sdu, red;
 	u32 sfid = sfi->index;
 
 	lockdep_assert_held(&ocelot->stat_view_lock);
@@ -2444,8 +2444,8 @@ static void vsc9959_update_sfid_stats(struct ocelot *ocelot,
 		   SYS_STAT_CFG);
 
 	match = ocelot_read(ocelot, SYS_COUNT_SF_MATCHING_FRAMES);
-	not_pass_gate = ocelot_read(ocelot, SYS_COUNT_SF_NOT_PASSING_FRAMES);
-	not_pass_sdu = ocelot_read(ocelot, SYS_COUNT_SF_NOT_PASSING_SDU);
+	analt_pass_gate = ocelot_read(ocelot, SYS_COUNT_SF_ANALT_PASSING_FRAMES);
+	analt_pass_sdu = ocelot_read(ocelot, SYS_COUNT_SF_ANALT_PASSING_SDU);
 	red = ocelot_read(ocelot, SYS_COUNT_SF_RED_FRAMES);
 
 	/* Clear the PSFP counter. */
@@ -2455,8 +2455,8 @@ static void vsc9959_update_sfid_stats(struct ocelot *ocelot,
 		     SYS_STAT_CFG);
 
 	s->match += match;
-	s->not_pass_gate += not_pass_gate;
-	s->not_pass_sdu += not_pass_sdu;
+	s->analt_pass_gate += analt_pass_gate;
+	s->analt_pass_sdu += analt_pass_sdu;
 	s->red += red;
 }
 
@@ -2485,7 +2485,7 @@ static int vsc9959_psfp_stats_get(struct ocelot *ocelot,
 
 	stream = vsc9959_stream_table_get(&psfp->stream_list, f->cookie);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sfi = vsc9959_psfp_sfi_table_get(&psfp->sfi_list, stream->sfid);
 	if (!sfi)
@@ -2497,7 +2497,7 @@ static int vsc9959_psfp_stats_get(struct ocelot *ocelot,
 
 	s = &sfi->stats;
 	stats->pkts = s->match;
-	stats->drops = s->not_pass_gate + s->not_pass_sdu + s->red;
+	stats->drops = s->analt_pass_gate + s->analt_pass_sdu + s->red;
 
 	memset(s, 0, sizeof(*s));
 
@@ -2519,8 +2519,8 @@ static void vsc9959_psfp_init(struct ocelot *ocelot)
 /* When using cut-through forwarding and the egress port runs at a higher data
  * rate than the ingress port, the packet currently under transmission would
  * suffer an underrun since it would be transmitted faster than it is received.
- * The Felix switch implementation of cut-through forwarding does not check in
- * hardware whether this condition is satisfied or not, so we must restrict the
+ * The Felix switch implementation of cut-through forwarding does analt check in
+ * hardware whether this condition is satisfied or analt, so we must restrict the
  * list of ports that have cut-through forwarding enabled on egress to only be
  * the ports operating at the lowest link speed within their respective
  * forwarding domain.
@@ -2547,7 +2547,7 @@ static void vsc9959_cut_through_fwd(struct ocelot *ocelot)
 		if (dsa_is_cpu_port(ds, port)) {
 			/* Ocelot switches forward from the NPI port towards
 			 * any port, regardless of it being in the NPI port's
-			 * forwarding domain or not.
+			 * forwarding domain or analt.
 			 */
 			mask = dsa_user_ports(ds);
 		} else {
@@ -2635,7 +2635,7 @@ static const struct felix_info felix_info_vsc9959 = {
 	.num_ports		= VSC9959_NUM_PORTS,
 	.num_tx_queues		= OCELOT_NUM_TC,
 	.quirks			= FELIX_MAC_QUIRKS,
-	.quirk_no_xtr_irq	= true,
+	.quirk_anal_xtr_irq	= true,
 	.ptp_caps		= &vsc9959_ptp_caps,
 	.mdio_bus_alloc		= vsc9959_mdio_bus_alloc,
 	.mdio_bus_free		= vsc9959_mdio_bus_free,
@@ -2645,7 +2645,7 @@ static const struct felix_info felix_info_vsc9959 = {
 };
 
 /* The INTB interrupt is shared between for PTP TX timestamp availability
- * notification and MAC Merge status change on each port.
+ * analtification and MAC Merge status change on each port.
  */
 static irqreturn_t felix_irq_handler(int irq, void *data)
 {
@@ -2665,9 +2665,9 @@ static int felix_pci_probe(struct pci_dev *pdev,
 	struct felix *felix;
 	int err;
 
-	if (pdev->dev.of_node && !of_device_is_available(pdev->dev.of_node)) {
+	if (pdev->dev.of_analde && !of_device_is_available(pdev->dev.of_analde)) {
 		dev_info(&pdev->dev, "device is disabled, skipping\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = pci_enable_device(pdev);
@@ -2678,7 +2678,7 @@ static int felix_pci_probe(struct pci_dev *pdev,
 
 	felix = kzalloc(sizeof(struct felix), GFP_KERNEL);
 	if (!felix) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&pdev->dev, "Failed to allocate driver memory\n");
 		goto err_alloc_felix;
 	}
@@ -2705,7 +2705,7 @@ static int felix_pci_probe(struct pci_dev *pdev,
 
 	ds = kzalloc(sizeof(struct dsa_switch), GFP_KERNEL);
 	if (!ds) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&pdev->dev, "Failed to allocate DSA switch\n");
 		goto err_alloc_ds;
 	}

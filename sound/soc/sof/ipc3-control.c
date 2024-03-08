@@ -45,7 +45,7 @@ static int sof_ipc3_set_get_kcontrol_data(struct snd_sof_control *scontrol,
 	/*
 	 * Volatile controls should always be part of static pipelines and the
 	 * widget use_count would always be > 0 in this case. For the others,
-	 * just return the cached value if the widget is not set up.
+	 * just return the cached value if the widget is analt set up.
 	 */
 	if (!swidget->use_count)
 		goto unlock;
@@ -53,7 +53,7 @@ static int sof_ipc3_set_get_kcontrol_data(struct snd_sof_control *scontrol,
 	/*
 	 * Select the IPC cmd and the ctrl_type based on the ctrl_cmd and the
 	 * direction
-	 * Note: SOF_CTRL_TYPE_VALUE_COMP_* is not used and supported currently
+	 * Analte: SOF_CTRL_TYPE_VALUE_COMP_* is analt used and supported currently
 	 *	 for ctrl_type
 	 */
 	if (cdata->cmd == SOF_CTRL_CMD_BINARY) {
@@ -104,14 +104,14 @@ static int sof_ipc3_set_get_kcontrol_data(struct snd_sof_control *scontrol,
 		if (!scontrol->old_ipc_control_data)
 			goto unlock;
 		/*
-		 * Current ipc_control_data is not valid, we use the last known good
+		 * Current ipc_control_data is analt valid, we use the last kanalwn good
 		 * configuration
 		 */
 		memcpy(scontrol->ipc_control_data, scontrol->old_ipc_control_data,
 		       scontrol->max_size);
 		kfree(scontrol->old_ipc_control_data);
 		scontrol->old_ipc_control_data = NULL;
-		/* Send the last known good configuration to firmware */
+		/* Send the last kanalwn good configuration to firmware */
 		ret = iops->set_get_data(sdev, cdata, cdata->rhdr.hdr.size, set);
 		if (ret < 0)
 			goto unlock;
@@ -188,7 +188,7 @@ static bool sof_ipc3_volume_put(struct snd_sof_control *scontrol,
 		cdata->chanv[i].value = value;
 	}
 
-	/* notify DSP of mixer updates */
+	/* analtify DSP of mixer updates */
 	if (pm_runtime_active(scomp->dev)) {
 		int ret = sof_ipc3_set_get_kcontrol_data(scontrol, true, true);
 
@@ -236,7 +236,7 @@ static bool sof_ipc3_switch_put(struct snd_sof_control *scontrol,
 		cdata->chanv[i].value = value;
 	}
 
-	/* notify DSP of mixer updates */
+	/* analtify DSP of mixer updates */
 	if (pm_runtime_active(scomp->dev)) {
 		int ret = sof_ipc3_set_get_kcontrol_data(scontrol, true, true);
 
@@ -284,7 +284,7 @@ static bool sof_ipc3_enum_put(struct snd_sof_control *scontrol,
 		cdata->chanv[i].value = value;
 	}
 
-	/* notify DSP of enum updates */
+	/* analtify DSP of enum updates */
 	if (pm_runtime_active(scomp->dev)) {
 		int ret = sof_ipc3_set_get_kcontrol_data(scontrol, true, true);
 
@@ -356,7 +356,7 @@ static int sof_ipc3_bytes_put(struct snd_sof_control *scontrol,
 	/* copy from kcontrol */
 	memcpy(data, ucontrol->value.bytes.data, size);
 
-	/* notify DSP of byte control updates */
+	/* analtify DSP of byte control updates */
 	if (pm_runtime_active(scomp->dev))
 		return sof_ipc3_set_get_kcontrol_data(scontrol, true, true);
 
@@ -375,7 +375,7 @@ static int sof_ipc3_bytes_ext_put(struct snd_sof_control *scontrol,
 
 	/*
 	 * The beginning of bytes data contains a header from where
-	 * the length (as bytes) is needed to know the correct copy
+	 * the length (as bytes) is needed to kanalw the correct copy
 	 * length of data from tlvd->tlv.
 	 */
 	if (copy_from_user(&header, tlvd, sizeof(struct snd_ctl_tlv)))
@@ -407,7 +407,7 @@ static int sof_ipc3_bytes_ext_put(struct snd_sof_control *scontrol,
 		scontrol->old_ipc_control_data = kmemdup(scontrol->ipc_control_data,
 							 scontrol->max_size, GFP_KERNEL);
 		if (!scontrol->old_ipc_control_data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (copy_from_user(cdata->data, tlvd->tlv, header.length)) {
@@ -432,7 +432,7 @@ static int sof_ipc3_bytes_ext_put(struct snd_sof_control *scontrol,
 		goto err_restore;
 	}
 
-	/* notify DSP of byte control updates */
+	/* analtify DSP of byte control updates */
 	if (pm_runtime_active(scomp->dev)) {
 		/* Actually send the data to the DSP; this is an opportunity to validate the data */
 		return sof_ipc3_set_get_kcontrol_data(scontrol, true, true);
@@ -462,10 +462,10 @@ static int _sof_ipc3_bytes_ext_get(struct snd_sof_control *scontrol,
 
 	/*
 	 * Decrement the limit by ext bytes header size to
-	 * ensure the user space buffer is not exceeded.
+	 * ensure the user space buffer is analt exceeded.
 	 */
 	if (size < sizeof(struct snd_ctl_tlv))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	size -= sizeof(struct snd_ctl_tlv);
 
@@ -493,7 +493,7 @@ static int _sof_ipc3_bytes_ext_get(struct snd_sof_control *scontrol,
 
 	/* make sure we don't exceed size provided by user space for data */
 	if (data_size > size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	header.numid = cdata->cmd;
 	header.length = data_size;
@@ -563,7 +563,7 @@ static void sof_ipc3_control_update(struct snd_sof_dev *sdev, void *ipc_control_
 
 	if (cdata->type == SOF_CTRL_TYPE_VALUE_COMP_GET ||
 	    cdata->type == SOF_CTRL_TYPE_VALUE_COMP_SET) {
-		dev_err(sdev->dev, "Component data is not supported in control notification\n");
+		dev_err(sdev->dev, "Component data is analt supported in control analtification\n");
 		return;
 	}
 
@@ -591,13 +591,13 @@ static void sof_ipc3_control_update(struct snd_sof_dev *sdev, void *ipc_control_
 		type = SND_SOC_TPLG_TYPE_ENUM;
 		break;
 	default:
-		dev_err(sdev->dev, "Unknown cmd %u in %s\n", cdata->cmd, __func__);
+		dev_err(sdev->dev, "Unkanalwn cmd %u in %s\n", cdata->cmd, __func__);
 		return;
 	}
 
 	widget = swidget->widget;
 	for (i = 0; i < widget->num_kcontrols; i++) {
-		/* skip non matching types or non matching indexes within type */
+		/* skip analn matching types or analn matching indexes within type */
 		if (widget->dobj.widget.kcontrol_type[i] == type &&
 		    widget->kcontrol_news[i].index == cdata->index) {
 			kc = widget->kcontrols[i];
@@ -642,21 +642,21 @@ static void sof_ipc3_control_update(struct snd_sof_dev *sdev, void *ipc_control_
 	}
 
 	if (cdata->rhdr.hdr.size != expected_size) {
-		dev_err(sdev->dev, "Component notification size mismatch\n");
+		dev_err(sdev->dev, "Component analtification size mismatch\n");
 		return;
 	}
 
 	if (cdata->num_elems)
 		/*
 		 * The message includes the updated value/data, update the
-		 * control's local cache using the received notification
+		 * control's local cache using the received analtification
 		 */
 		snd_sof_update_control(scontrol, cdata);
 	else
 		/* Mark the scontrol that the value/data is changed in SOF */
 		scontrol->comp_data_dirty = true;
 
-	snd_ctl_notify_one(swidget->scomp->card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, kc, 0);
+	snd_ctl_analtify_one(swidget->scomp->card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, kc, 0);
 }
 
 static int sof_ipc3_widget_kcontrol_setup(struct snd_sof_dev *sdev,
@@ -704,7 +704,7 @@ sof_ipc3_set_up_volume_table(struct snd_sof_control *scontrol, int tlv[SOF_TLV_I
 	/* init the volume table */
 	scontrol->volume_table = kcalloc(size, sizeof(u32), GFP_KERNEL);
 	if (!scontrol->volume_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* populate the volume table */
 	for (i = 0; i < size ; i++)

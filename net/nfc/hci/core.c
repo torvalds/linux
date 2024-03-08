@@ -19,20 +19,20 @@
 /* Largest headroom needed for outgoing HCI commands */
 #define HCI_CMDS_HEADROOM 1
 
-int nfc_hci_result_to_errno(u8 result)
+int nfc_hci_result_to_erranal(u8 result)
 {
 	switch (result) {
 	case NFC_HCI_ANY_OK:
 		return 0;
-	case NFC_HCI_ANY_E_REG_PAR_UNKNOWN:
-		return -EOPNOTSUPP;
+	case NFC_HCI_ANY_E_REG_PAR_UNKANALWN:
+		return -EOPANALTSUPP;
 	case NFC_HCI_ANY_E_TIMEOUT:
 		return -ETIME;
 	default:
 		return -1;
 	}
 }
-EXPORT_SYMBOL(nfc_hci_result_to_errno);
+EXPORT_SYMBOL(nfc_hci_result_to_erranal);
 
 void nfc_hci_reset_pipes(struct nfc_hci_dev *hdev)
 {
@@ -172,7 +172,7 @@ void nfc_hci_resp_received(struct nfc_hci_dev *hdev, u8 result,
 		goto exit;
 	}
 
-	__nfc_hci_cmd_completion(hdev, nfc_hci_result_to_errno(result), skb);
+	__nfc_hci_cmd_completion(hdev, nfc_hci_result_to_erranal(result), skb);
 
 exit:
 	mutex_unlock(&hdev->msg_tx_mutex);
@@ -183,29 +183,29 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 {
 	u8 status = NFC_HCI_ANY_OK;
 	const struct hci_create_pipe_resp *create_info;
-	const struct hci_delete_pipe_noti *delete_info;
-	const struct hci_all_pipe_cleared_noti *cleared_info;
+	const struct hci_delete_pipe_analti *delete_info;
+	const struct hci_all_pipe_cleared_analti *cleared_info;
 	u8 gate;
 
 	pr_debug("from pipe %x cmd %x\n", pipe, cmd);
 
 	if (pipe >= NFC_HCI_MAX_PIPES) {
-		status = NFC_HCI_ANY_E_NOK;
+		status = NFC_HCI_ANY_E_ANALK;
 		goto exit;
 	}
 
 	gate = hdev->pipes[pipe].gate;
 
 	switch (cmd) {
-	case NFC_HCI_ADM_NOTIFY_PIPE_CREATED:
+	case NFC_HCI_ADM_ANALTIFY_PIPE_CREATED:
 		if (skb->len != 5) {
-			status = NFC_HCI_ANY_E_NOK;
+			status = NFC_HCI_ANY_E_ANALK;
 			goto exit;
 		}
 		create_info = (struct hci_create_pipe_resp *)skb->data;
 
 		if (create_info->pipe >= NFC_HCI_MAX_PIPES) {
-			status = NFC_HCI_ANY_E_NOK;
+			status = NFC_HCI_ANY_E_ANALK;
 			goto exit;
 		}
 
@@ -221,36 +221,36 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 		break;
 	case NFC_HCI_ANY_OPEN_PIPE:
 		if (gate == NFC_HCI_INVALID_GATE) {
-			status = NFC_HCI_ANY_E_NOK;
+			status = NFC_HCI_ANY_E_ANALK;
 			goto exit;
 		}
 		break;
-	case NFC_HCI_ADM_NOTIFY_PIPE_DELETED:
+	case NFC_HCI_ADM_ANALTIFY_PIPE_DELETED:
 		if (skb->len != 1) {
-			status = NFC_HCI_ANY_E_NOK;
+			status = NFC_HCI_ANY_E_ANALK;
 			goto exit;
 		}
-		delete_info = (struct hci_delete_pipe_noti *)skb->data;
+		delete_info = (struct hci_delete_pipe_analti *)skb->data;
 
 		if (delete_info->pipe >= NFC_HCI_MAX_PIPES) {
-			status = NFC_HCI_ANY_E_NOK;
+			status = NFC_HCI_ANY_E_ANALK;
 			goto exit;
 		}
 
 		hdev->pipes[delete_info->pipe].gate = NFC_HCI_INVALID_GATE;
 		hdev->pipes[delete_info->pipe].dest_host = NFC_HCI_INVALID_HOST;
 		break;
-	case NFC_HCI_ADM_NOTIFY_ALL_PIPE_CLEARED:
+	case NFC_HCI_ADM_ANALTIFY_ALL_PIPE_CLEARED:
 		if (skb->len != 1) {
-			status = NFC_HCI_ANY_E_NOK;
+			status = NFC_HCI_ANY_E_ANALK;
 			goto exit;
 		}
-		cleared_info = (struct hci_all_pipe_cleared_noti *)skb->data;
+		cleared_info = (struct hci_all_pipe_cleared_analti *)skb->data;
 
 		nfc_hci_reset_pipes_per_host(hdev, cleared_info->host);
 		break;
 	default:
-		pr_info("Discarded unknown cmd %x to gate %x\n", cmd, gate);
+		pr_info("Discarded unkanalwn cmd %x to gate %x\n", cmd, gate);
 		break;
 	}
 
@@ -293,7 +293,7 @@ int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 
 	targets = kzalloc(sizeof(struct nfc_target), GFP_KERNEL);
 	if (targets == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (gate) {
 	case NFC_HCI_RF_READER_A_GATE:
@@ -391,27 +391,27 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 
 	gate = hdev->pipes[pipe].gate;
 	if (gate == NFC_HCI_INVALID_GATE) {
-		pr_err("Discarded event %x to unopened pipe %x\n", event, pipe);
+		pr_err("Discarded event %x to uanalpened pipe %x\n", event, pipe);
 		goto exit;
 	}
 
 	if (hdev->ops->event_received) {
 		r = hdev->ops->event_received(hdev, pipe, event, skb);
 		if (r <= 0)
-			goto exit_noskb;
+			goto exit_analskb;
 	}
 
 	switch (event) {
 	case NFC_HCI_EVT_TARGET_DISCOVERED:
-		if (skb->len < 1) {	/* no status data? */
+		if (skb->len < 1) {	/* anal status data? */
 			r = -EPROTO;
 			goto exit;
 		}
 
 		if (skb->data[0] == 3) {
-			/* TODO: Multiple targets in field, none activated
-			 * poll is supposedly stopped, but there is no
-			 * single target to activate, so nothing to report
+			/* TODO: Multiple targets in field, analne activated
+			 * poll is supposedly stopped, but there is anal
+			 * single target to activate, so analthing to report
 			 * up.
 			 * if we need to restart poll, we must save the
 			 * protocols from the initial poll and reuse here.
@@ -426,7 +426,7 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 		r = nfc_hci_target_discovered(hdev, gate);
 		break;
 	default:
-		pr_info("Discarded unknown event %x to gate %x\n", event, gate);
+		pr_info("Discarded unkanalwn event %x to gate %x\n", event, gate);
 		r = -EINVAL;
 		break;
 	}
@@ -434,7 +434,7 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 exit:
 	kfree_skb(skb);
 
-exit_noskb:
+exit_analskb:
 	if (r)
 		nfc_hci_driver_failure(hdev, r);
 }
@@ -524,8 +524,8 @@ static int hci_dev_version(struct nfc_hci_dev *hdev)
 
 	r = nfc_hci_get_param(hdev, NFC_HCI_ID_MGMT_GATE,
 			      NFC_HCI_ID_MGMT_VERSION_SW, &skb);
-	if (r == -EOPNOTSUPP) {
-		pr_info("Software/Hardware info not available\n");
+	if (r == -EOPANALTSUPP) {
+		pr_info("Software/Hardware info analt available\n");
 		return 0;
 	}
 	if (r < 0)
@@ -539,7 +539,7 @@ static int hci_dev_version(struct nfc_hci_dev *hdev)
 	hdev->sw_romlib = (skb->data[0] & 0xf0) >> 4;
 	hdev->sw_patch = skb->data[0] & 0x0f;
 	hdev->sw_flashlib_major = skb->data[1];
-	hdev->sw_flashlib_minor = skb->data[2];
+	hdev->sw_flashlib_mianalr = skb->data[2];
 
 	kfree_skb(skb);
 
@@ -565,7 +565,7 @@ static int hci_dev_version(struct nfc_hci_dev *hdev)
 	pr_info("RomLib         : %d\n", hdev->sw_romlib);
 	pr_info("Patch          : %d\n", hdev->sw_patch);
 	pr_info("FlashLib Major : %d\n", hdev->sw_flashlib_major);
-	pr_info("FlashLib Minor : %d\n", hdev->sw_flashlib_minor);
+	pr_info("FlashLib Mianalr : %d\n", hdev->sw_flashlib_mianalr);
 	pr_info("HARDWARE INFO:\n");
 	pr_info("Derivative     : %d\n", hdev->hw_derivative);
 	pr_info("HW Version     : %d\n", hdev->hw_version);
@@ -705,7 +705,7 @@ static void hci_transceive_cb(void *context, struct sk_buff *skb, int err)
 		/*
 		 * TODO: Check RF Error indicator to make sure data is valid.
 		 * It seems that HCI cmd can complete without error, but data
-		 * can be invalid if an RF error occurred? Ignore for now.
+		 * can be invalid if an RF error occurred? Iganalre for analw.
 		 */
 		if (err == 0)
 			skb_trim(skb, skb->len - 1); /* RF Err ind */
@@ -753,9 +753,9 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			r = hdev->ops->im_transceive(hdev, target, skb, cb,
 						     cb_context);
 			if (r == 1)
-				r = -ENOTSUPP;
+				r = -EANALTSUPP;
 		} else {
-			r = -ENOTSUPP;
+			r = -EANALTSUPP;
 		}
 		break;
 	}
@@ -771,7 +771,7 @@ static int hci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 
 	if (!hdev->ops->tm_send) {
 		kfree_skb(skb);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return hdev->ops->tm_send(hdev, skb);
@@ -881,7 +881,7 @@ static void nfc_hci_recv_from_llc(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 		hcp_skb = nfc_alloc_recv_skb(NFC_HCI_HCP_PACKET_HEADER_LEN +
 					     msg_len, GFP_KERNEL);
 		if (hcp_skb == NULL) {
-			nfc_hci_failure(hdev, -ENOMEM);
+			nfc_hci_failure(hdev, -EANALMEM);
 			return;
 		}
 
@@ -923,7 +923,7 @@ static int hci_fw_download(struct nfc_dev *nfc_dev, const char *firmware_name)
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
 	if (!hdev->ops->fw_download)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return hdev->ops->fw_download(hdev, firmware_name);
 }

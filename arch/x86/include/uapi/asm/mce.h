@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_X86_MCE_H
 #define _UAPI_ASM_X86_MCE_H
 
@@ -6,7 +6,7 @@
 #include <linux/ioctl.h>
 
 /*
- * Fields are zero when not available. Also, this struct is shared with
+ * Fields are zero when analt available. Also, this struct is shared with
  * userspace mcelog and thus must keep existing fields at current offsets.
  * Only add new fields to the end of the structure
  */

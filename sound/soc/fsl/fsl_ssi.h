@@ -41,14 +41,14 @@
 /*
  * SSI Test Register (Intended for debugging purposes only)
  *
- * Note: STR is not documented in recent IMX datasheet, but
+ * Analte: STR is analt documented in recent IMX datasheet, but
  * is described in IMX51 reference manual at section 56.3.3.14
  */
 #define REG_SSI_STR			0x30
 /*
  * SSI Option Register (Intended for internal use only)
  *
- * Note: SOR is not documented in recent IMX datasheet, but
+ * Analte: SOR is analt documented in recent IMX datasheet, but
  * is described in IMX51 reference manual at section 56.3.3.15
  */
 #define REG_SSI_SOR			0x34
@@ -88,7 +88,7 @@
 #define SSI_SCR_TCH_EN			0x00000100
 #define SSI_SCR_SYS_CLK_EN		0x00000080
 #define SSI_SCR_I2S_MODE_MASK		0x00000060
-#define SSI_SCR_I2S_MODE_NORMAL		0x00000000
+#define SSI_SCR_I2S_MODE_ANALRMAL		0x00000000
 #define SSI_SCR_I2S_MODE_MASTER		0x00000020
 #define SSI_SCR_I2S_MODE_SLAVE		0x00000040
 #define SSI_SCR_SYN			0x00000010

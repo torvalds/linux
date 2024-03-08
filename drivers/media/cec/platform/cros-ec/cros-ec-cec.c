@@ -17,7 +17,7 @@
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 #define DRV_NAME	"cros-ec-cec"
 
@@ -26,14 +26,14 @@
  *
  * @port_num: port number
  * @adap: CEC adapter
- * @notify: CEC notifier pointer
+ * @analtify: CEC analtifier pointer
  * @rx_msg: storage for a received message
  * @cros_ec_cec: pointer to the parent struct
  */
 struct cros_ec_cec_port {
 	int port_num;
 	struct cec_adapter *adap;
-	struct cec_notifier *notify;
+	struct cec_analtifier *analtify;
 	struct cec_msg rx_msg;
 	struct cros_ec_cec *cros_ec_cec;
 };
@@ -42,14 +42,14 @@ struct cros_ec_cec_port {
  * struct cros_ec_cec - Driver data for EC CEC
  *
  * @cros_ec: Pointer to EC device
- * @notifier: Notifier info for responding to EC events
+ * @analtifier: Analtifier info for responding to EC events
  * @write_cmd_version: Highest supported version of EC_CMD_CEC_WRITE_MSG.
  * @num_ports: Number of CEC ports
  * @ports: Array of ports
  */
 struct cros_ec_cec {
 	struct cros_ec_device *cros_ec;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	int write_cmd_version;
 	int num_ports;
 	struct cros_ec_cec_port *ports[EC_CEC_MAX_PORTS];
@@ -78,7 +78,7 @@ static void handle_cec_message(struct cros_ec_cec *cros_ec_cec)
 	 * 1. Old EC firmware which only supports one port sends the data in a
 	 *    cec_message MKBP event.
 	 * 2. New EC firmware which supports multiple ports uses
-	 *    EC_MKBP_CEC_HAVE_DATA to notify that data is ready and
+	 *    EC_MKBP_CEC_HAVE_DATA to analtify that data is ready and
 	 *    EC_CMD_CEC_READ_MSG to read it.
 	 * Check that the EC only has one CEC port, and then we can assume the
 	 * message is from port 0.
@@ -142,27 +142,27 @@ static void handle_cec_event(struct cros_ec_cec *cros_ec_cec)
 		cros_ec_cec_read_message(port);
 }
 
-static int cros_ec_cec_event(struct notifier_block *nb,
+static int cros_ec_cec_event(struct analtifier_block *nb,
 			     unsigned long queued_during_suspend,
-			     void *_notify)
+			     void *_analtify)
 {
 	struct cros_ec_cec *cros_ec_cec;
 	struct cros_ec_device *cros_ec;
 
-	cros_ec_cec = container_of(nb, struct cros_ec_cec, notifier);
+	cros_ec_cec = container_of(nb, struct cros_ec_cec, analtifier);
 	cros_ec = cros_ec_cec->cros_ec;
 
 	if (cros_ec->event_data.event_type == EC_MKBP_EVENT_CEC_EVENT) {
 		handle_cec_event(cros_ec_cec);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
 	if (cros_ec->event_data.event_type == EC_MKBP_EVENT_CEC_MESSAGE) {
 		handle_cec_message(cros_ec_cec);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int cros_ec_cec_set_log_addr(struct cec_adapter *adap, u8 logical_addr)
@@ -306,8 +306,8 @@ static const struct cec_dmi_match cec_dmi_match_table[] = {
 	{ "Google", "Brask", "0000:00:02.0", port_b_conns },
 	/* Google Moli */
 	{ "Google", "Moli", "0000:00:02.0", port_b_conns },
-	/* Google Kinox */
-	{ "Google", "Kinox", "0000:00:02.0", port_b_conns },
+	/* Google Kianalx */
+	{ "Google", "Kianalx", "0000:00:02.0", port_b_conns },
 	/* Google Kuldax */
 	{ "Google", "Kuldax", "0000:00:02.0", port_b_conns },
 	/* Google Aurash */
@@ -340,7 +340,7 @@ static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 		    dmi_match(DMI_PRODUCT_NAME, m->product_name)) {
 			struct device *d;
 
-			/* Find the device, bail out if not yet registered */
+			/* Find the device, bail out if analt yet registered */
 			d = bus_find_device_by_name(&pci_bus_type, NULL,
 						    m->devname);
 			if (!d)
@@ -352,9 +352,9 @@ static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 	}
 
 	/* Hardware support must be added in the cec_dmi_match_table */
-	dev_warn(dev, "CEC notifier not configured for this hardware\n");
+	dev_warn(dev, "CEC analtifier analt configured for this hardware\n");
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 #else
@@ -362,7 +362,7 @@ static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 						const char * const **conns)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 #endif
@@ -376,7 +376,7 @@ static int cros_ec_cec_get_num_ports(struct cros_ec_cec *cros_ec_cec)
 			  0, &response, sizeof(response));
 	if (ret < 0) {
 		/*
-		 * Old EC firmware only supports one port and does not support
+		 * Old EC firmware only supports one port and does analt support
 		 * the port count command, so fall back to assuming one port.
 		 */
 		cros_ec_cec->num_ports = 1;
@@ -386,7 +386,7 @@ static int cros_ec_cec_get_num_ports(struct cros_ec_cec *cros_ec_cec)
 	if (response.port_count == 0) {
 		dev_err(cros_ec_cec->cros_ec->dev,
 			"EC reports 0 CEC ports\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (response.port_count > EC_CEC_MAX_PORTS) {
@@ -441,7 +441,7 @@ static int cros_ec_cec_init_port(struct device *dev,
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->cros_ec_cec = cros_ec_cec;
 	port->port_num = port_num;
@@ -453,28 +453,28 @@ static int cros_ec_cec_init_port(struct device *dev,
 		return PTR_ERR(port->adap);
 
 	if (!conns[port_num]) {
-		dev_err(dev, "no conn for port %d\n", port_num);
-		ret = -ENODEV;
+		dev_err(dev, "anal conn for port %d\n", port_num);
+		ret = -EANALDEV;
 		goto out_probe_adapter;
 	}
 
-	port->notify = cec_notifier_cec_adap_register(hdmi_dev, conns[port_num],
+	port->analtify = cec_analtifier_cec_adap_register(hdmi_dev, conns[port_num],
 						      port->adap);
-	if (!port->notify) {
-		ret = -ENOMEM;
+	if (!port->analtify) {
+		ret = -EANALMEM;
 		goto out_probe_adapter;
 	}
 
 	ret = cec_register_adapter(port->adap, dev);
 	if (ret < 0)
-		goto out_probe_notify;
+		goto out_probe_analtify;
 
 	cros_ec_cec->ports[port_num] = port;
 
 	return 0;
 
-out_probe_notify:
-	cec_notifier_cec_adap_unregister(port->notify, port->adap);
+out_probe_analtify:
+	cec_analtifier_cec_adap_unregister(port->analtify, port->adap);
 out_probe_adapter:
 	cec_delete_adapter(port->adap);
 	return ret;
@@ -497,7 +497,7 @@ static int cros_ec_cec_probe(struct platform_device *pdev)
 	cros_ec_cec = devm_kzalloc(&pdev->dev, sizeof(*cros_ec_cec),
 				   GFP_KERNEL);
 	if (!cros_ec_cec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, cros_ec_cec);
 	cros_ec_cec->cros_ec = cros_ec;
@@ -520,11 +520,11 @@ static int cros_ec_cec_probe(struct platform_device *pdev)
 	}
 
 	/* Get CEC events from the EC. */
-	cros_ec_cec->notifier.notifier_call = cros_ec_cec_event;
-	ret = blocking_notifier_chain_register(&cros_ec->event_notifier,
-					       &cros_ec_cec->notifier);
+	cros_ec_cec->analtifier.analtifier_call = cros_ec_cec_event;
+	ret = blocking_analtifier_chain_register(&cros_ec->event_analtifier,
+					       &cros_ec_cec->analtifier);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register notifier\n");
+		dev_err(&pdev->dev, "failed to register analtifier\n");
 		goto unregister_ports;
 	}
 
@@ -534,13 +534,13 @@ unregister_ports:
 	/*
 	 * Unregister any adapters which have been registered. We don't add the
 	 * port to the array until the adapter has been registered successfully,
-	 * so any non-NULL ports must have been registered.
+	 * so any analn-NULL ports must have been registered.
 	 */
 	for (int i = 0; i < cros_ec_cec->num_ports; i++) {
 		port = cros_ec_cec->ports[i];
 		if (!port)
 			break;
-		cec_notifier_cec_adap_unregister(port->notify, port->adap);
+		cec_analtifier_cec_adap_unregister(port->analtify, port->adap);
 		cec_unregister_adapter(port->adap);
 	}
 	return ret;
@@ -554,19 +554,19 @@ static void cros_ec_cec_remove(struct platform_device *pdev)
 	int ret;
 
 	/*
-	 * blocking_notifier_chain_unregister() only fails if the notifier isn't
-	 * in the list. We know it was added to it by .probe(), so there should
-	 * be no need for error checking. Be cautious and still check.
+	 * blocking_analtifier_chain_unregister() only fails if the analtifier isn't
+	 * in the list. We kanalw it was added to it by .probe(), so there should
+	 * be anal need for error checking. Be cautious and still check.
 	 */
-	ret = blocking_notifier_chain_unregister(
-			&cros_ec_cec->cros_ec->event_notifier,
-			&cros_ec_cec->notifier);
+	ret = blocking_analtifier_chain_unregister(
+			&cros_ec_cec->cros_ec->event_analtifier,
+			&cros_ec_cec->analtifier);
 	if (ret)
-		dev_err(dev, "failed to unregister notifier\n");
+		dev_err(dev, "failed to unregister analtifier\n");
 
 	for (int i = 0; i < cros_ec_cec->num_ports; i++) {
 		port = cros_ec_cec->ports[i];
-		cec_notifier_cec_adap_unregister(port->notify, port->adap);
+		cec_analtifier_cec_adap_unregister(port->analtify, port->adap);
 		cec_unregister_adapter(port->adap);
 	}
 }

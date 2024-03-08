@@ -30,7 +30,7 @@
 static int ahci_octeon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	void __iomem *base;
 	u64 cfg;
 	int ret;
@@ -56,12 +56,12 @@ static int ahci_octeon_probe(struct platform_device *pdev)
 
 	cvmx_writeq_csr(base + CVMX_SATA_UCTL_SHIM_CFG, cfg);
 
-	if (!node) {
-		dev_err(dev, "no device node, failed to add octeon sata\n");
-		return -ENODEV;
+	if (!analde) {
+		dev_err(dev, "anal device analde, failed to add octeon sata\n");
+		return -EANALDEV;
 	}
 
-	ret = of_platform_populate(node, NULL, NULL, dev);
+	ret = of_platform_populate(analde, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "failed to add ahci-platform core\n");
 		return ret;

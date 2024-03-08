@@ -23,10 +23,10 @@
 #define MaxSector (~(sector_t)0)
 
 /*
- * These flags should really be called "NO_RETRY" rather than
+ * These flags should really be called "ANAL_RETRY" rather than
  * "FAILFAST" because they don't make any promise about time lapse,
  * only about the number of retries, which will be zero.
- * REQ_FAILFAST_DRIVER is not included because
+ * REQ_FAILFAST_DRIVER is analt included because
  * Commit: 4a27446f3e39 ("[SCSI] modify scsi to handle new fail fast flags.")
  * seems to suggest that the errors it avoids retrying should usually
  * be retried.
@@ -53,7 +53,7 @@ struct md_rdev {
 	int last_events;		/* IO event timestamp */
 
 	/*
-	 * If meta_bdev is non-NULL, it means that a separate device is
+	 * If meta_bdev is analn-NULL, it means that a separate device is
 	 * being used to store the metadata (superblock/bitmap) which
 	 * would otherwise be contained on the same device as the data (bdev).
 	 */
@@ -68,14 +68,14 @@ struct md_rdev {
 	sector_t	new_data_offset;/* only relevant while reshaping */
 	sector_t	sb_start;	/* offset of the super block (in 512byte sectors) */
 	int		sb_size;	/* bytes in the superblock */
-	int		preferred_minor;	/* autorun support */
+	int		preferred_mianalr;	/* autorun support */
 
 	struct kobject	kobj;
 
 	/* A device can be in one of three states based on two flags:
-	 * Not working:   faulty==1 in_sync==0
+	 * Analt working:   faulty==1 in_sync==0
 	 * Fully working: faulty==0 in_sync==1
-	 * Working, but not
+	 * Working, but analt
 	 * in sync with array
 	 *                faulty==0 in_sync==0
 	 *
@@ -111,9 +111,9 @@ struct md_rdev {
 					 * support hot removal
 					 */
 	atomic_t	read_errors;	/* number of consecutive read errors that
-					 * we have tried to ignore.
+					 * we have tried to iganalre.
 					 */
-	time64_t	last_read_error;	/* monotonic time since our
+	time64_t	last_read_error;	/* moanaltonic time since our
 						 * last read error
 						 */
 	atomic_t	corrected_errors; /* number of corrected read errors,
@@ -123,33 +123,33 @@ struct md_rdev {
 
 	struct serial_in_rdev *serial;  /* used for raid1 io serialization */
 
-	struct kernfs_node *sysfs_state; /* handle for 'state'
+	struct kernfs_analde *sysfs_state; /* handle for 'state'
 					   * sysfs entry */
-	/* handle for 'unacknowledged_bad_blocks' sysfs dentry */
-	struct kernfs_node *sysfs_unack_badblocks;
+	/* handle for 'unackanalwledged_bad_blocks' sysfs dentry */
+	struct kernfs_analde *sysfs_unack_badblocks;
 	/* handle for 'bad_blocks' sysfs dentry */
-	struct kernfs_node *sysfs_badblocks;
+	struct kernfs_analde *sysfs_badblocks;
 	struct badblocks badblocks;
 
 	struct {
 		short offset;	/* Offset from superblock to start of PPL.
-				 * Not used by external metadata. */
+				 * Analt used by external metadata. */
 		unsigned int size;	/* Size in sectors of the PPL space */
 		sector_t sector;	/* First sector of the PPL space */
 	} ppl;
 };
 enum flag_bits {
-	Faulty,			/* device is known to have a fault */
+	Faulty,			/* device is kanalwn to have a fault */
 	In_sync,		/* device is in_sync with rest of array */
-	Bitmap_sync,		/* ..actually, not quite In_sync.  Need a
+	Bitmap_sync,		/* ..actually, analt quite In_sync.  Need a
 				 * bitmap-based recovery to get fully in sync.
 				 * The bit is only meaningful before device
 				 * has been passed to pers->hot_add_disk.
 				 */
 	WriteMostly,		/* Avoid reading if at all possible */
 	AutoDetected,		/* added by auto-detect */
-	Blocked,		/* An error occurred but has not yet
-				 * been acknowledged by the metadata
+	Blocked,		/* An error occurred but has analt yet
+				 * been ackanalwledged by the metadata
 				 * handler, so don't allow writes
 				 * until it is cleared */
 	WriteErrorSeen,		/* A write error has been seen on this
@@ -162,14 +162,14 @@ enum flag_bits {
 				 * on disk yet.
 				 */
 	BlockedBadBlocks,	/* A writer is blocked because they
-				 * found an unacknowledged bad-block.
+				 * found an unackanalwledged bad-block.
 				 * This can safely be cleared at any
 				 * time, and the writer will re-check.
 				 * It may be set at any time, and at
 				 * worst the writer will timeout and
 				 * re-check.  So setting it as
 				 * accurately as possible is good, but
-				 * not absolutely critical.
+				 * analt absolutely critical.
 				 */
 	WantReplacement,	/* This device is a candidate to be
 				 * hot-replaced, either because it has
@@ -181,7 +181,7 @@ enum flag_bits {
 				 * raid_disk number.
 				 */
 	Candidate,		/* For clustered environments only:
-				 * This device is seen locally but not
+				 * This device is seen locally but analt
 				 * by the whole cluster
 				 */
 	Journal,		/* This device is used as journal for
@@ -196,7 +196,7 @@ enum flag_bits {
 	FailFast,		/* Minimal retries should be attempted on
 				 * this device, so use REQ_FAILFAST_DEV.
 				 * Also don't try to repair failed reads.
-				 * It is expects that no bad block log
+				 * It is expects that anal bad block log
 				 * is present.
 				 */
 	LastDev,		/* Seems to be the last working dev as
@@ -231,17 +231,17 @@ struct md_cluster_info;
 /**
  * enum mddev_flags - md device flags.
  * @MD_ARRAY_FIRST_USE: First use of array, needs initialization.
- * @MD_CLOSING: If set, we are closing the array, do not open it then.
+ * @MD_CLOSING: If set, we are closing the array, do analt open it then.
  * @MD_JOURNAL_CLEAN: A raid with journal is already clean.
  * @MD_HAS_JOURNAL: The raid array has journal feature set.
- * @MD_CLUSTER_RESYNC_LOCKED: cluster raid only, which means node, already took
+ * @MD_CLUSTER_RESYNC_LOCKED: cluster raid only, which means analde, already took
  *			       resync lock, need to release the lock.
  * @MD_FAILFAST_SUPPORTED: Using MD_FAILFAST on metadata writes is supported as
  *			    calls to md_error() will never cause the array to
  *			    become failed.
  * @MD_HAS_PPL:  The raid array has PPL feature set.
  * @MD_HAS_MULTIPLE_PPLS: The raid array has multiple PPLs feature set.
- * @MD_NOT_READY: do_md_run() is active, so 'array_state', ust not report that
+ * @MD_ANALT_READY: do_md_run() is active, so 'array_state', ust analt report that
  *		   array is ready yet.
  * @MD_BROKEN: This is used to stop writes and mark array as failed.
  * @MD_DELETED: This device is being deleted
@@ -257,7 +257,7 @@ enum mddev_flags {
 	MD_FAILFAST_SUPPORTED,
 	MD_HAS_PPL,
 	MD_HAS_MULTIPLE_PPLS,
-	MD_NOT_READY,
+	MD_ANALT_READY,
 	MD_BROKEN,
 	MD_DELETED,
 };
@@ -272,10 +272,10 @@ enum mddev_sb_flags {
 #define NR_SERIAL_INFOS		8
 /* record current range of serialize IOs */
 struct serial_info {
-	struct rb_node node;
-	sector_t start;		/* start sector of rb node */
-	sector_t last;		/* end sector of rb node */
-	sector_t _subtree_last; /* highest sector in subtree of rb node */
+	struct rb_analde analde;
+	sector_t start;		/* start sector of rb analde */
+	sector_t last;		/* end sector of rb analde */
+	sector_t _subtree_last; /* highest sector in subtree of rb analde */
 };
 
 /*
@@ -283,11 +283,11 @@ struct serial_info {
  * also has some overloaded values.
  */
 enum {
-	/* No resync in progress */
-	MD_RESYNC_NONE = 0,
-	/* Yielded to allow another conflicting resync to commence */
+	/* Anal resync in progress */
+	MD_RESYNC_ANALNE = 0,
+	/* Yielded to allow aanalther conflicting resync to commence */
 	MD_RESYNC_YIELDED = 1,
-	/* Delayed to check that there is no conflict with another sync */
+	/* Delayed to check that there is anal conflict with aanalther sync */
 	MD_RESYNC_DELAYED = 2,
 	/* Any value greater than or equal to this is in an active resync */
 	MD_RESYNC_ACTIVE = 3,
@@ -297,7 +297,7 @@ struct mddev {
 	void				*private;
 	struct md_personality		*pers;
 	dev_t				unit;
-	int				md_minor;
+	int				md_mianalr;
 	struct list_head		disks;
 	unsigned long			flags;
 	unsigned long			sb_flags;
@@ -308,7 +308,7 @@ struct mddev {
 	int				ro;
 	int				sysfs_active; /* set when sysfs deletes
 						       * are happening, so run/
-						       * takeover/stop are not safe
+						       * takeover/stop are analt safe
 						       */
 	struct gendisk			*gendisk;
 
@@ -319,7 +319,7 @@ struct mddev {
 
 	/* Superblock information */
 	int				major_version,
-					minor_version,
+					mianalr_version,
 					patch_version;
 	int				persistent;
 	int				external;	/* metadata is
@@ -349,7 +349,7 @@ struct mddev {
 	/* If the array is being reshaped, we need to record the
 	 * new shape and an indication of where we are up to.
 	 * This is written to the superblock.
-	 * If reshape_position is MaxSector, then no reshape is happening (yet).
+	 * If reshape_position is MaxSector, then anal reshape is happening (yet).
 	 */
 	sector_t			reshape_position;
 	int				delta_disks, new_level, new_layout;
@@ -359,7 +359,7 @@ struct mddev {
 	struct md_thread __rcu		*thread;	/* management thread */
 	struct md_thread __rcu		*sync_thread;	/* doing resync or reconstruct */
 
-	/* 'last_sync_action' is initialized to "none".  It is set when a
+	/* 'last_sync_action' is initialized to "analne".  It is set when a
 	 * sync operation (i.e "data-check", "requested-resync", "resync",
 	 * "recovery", or "reshape") is started.  It holds this value even
 	 * when the sync thread is "frozen" (interrupted) or "idle" (stopped
@@ -367,7 +367,7 @@ struct mddev {
 	 */
 	char				*last_sync_action;
 	sector_t			curr_resync;	/* last block scheduled */
-	/* As resync requests can complete out of order, we cannot easily track
+	/* As resync requests can complete out of order, we cananalt easily track
 	 * how much resync has been completed.  So we occasionally pause until
 	 * everything completes, then set curr_resync_completed to curr_resync.
 	 * As such it may be well behind the real resync mark, but it is a value
@@ -376,7 +376,7 @@ struct mddev {
 	sector_t			curr_resync_completed;
 	unsigned long			resync_mark;	/* a recent timestamp */
 	sector_t			resync_mark_cnt;/* blocks written at resync_mark */
-	sector_t			curr_mark_cnt; /* blocks scheduled now */
+	sector_t			curr_mark_cnt; /* blocks scheduled analw */
 
 	sector_t			resync_max_sectors; /* may be set by personality */
 
@@ -399,12 +399,12 @@ struct mddev {
 	unsigned long			recovery;
 	/* If a RAID personality determines that recovery (of a particular
 	 * device) will fail due to a read error on the source device, it
-	 * takes a copy of this number and does not attempt recovery again
+	 * takes a copy of this number and does analt attempt recovery again
 	 * until this number changes.
 	 */
 	int				recovery_disabled;
 
-	int				in_sync;	/* know to not need resync */
+	int				in_sync;	/* kanalw to analt need resync */
 	/* 'open_mutex' avoids races between 'md_open' and 'do_md_stop', so
 	 * that we are never stopping an array while it is open.
 	 * 'reconfig_mutex' protects all other reconfiguration.
@@ -425,7 +425,7 @@ struct mddev {
 							 * adding a spare
 							 */
 
-	atomic_t			recovery_active; /* blocks scheduled, but not written */
+	atomic_t			recovery_active; /* blocks scheduled, but analt written */
 	wait_queue_head_t		recovery_wait;
 	sector_t			recovery_cp;
 	sector_t			resync_min;	/* user requested sync
@@ -433,13 +433,13 @@ struct mddev {
 	sector_t			resync_max;	/* resync should pause
 							 * when it gets here */
 
-	struct kernfs_node		*sysfs_state;	/* handle for 'array_state'
+	struct kernfs_analde		*sysfs_state;	/* handle for 'array_state'
 							 * file in sysfs.
 							 */
-	struct kernfs_node		*sysfs_action;  /* handle for 'sync_action' */
-	struct kernfs_node		*sysfs_completed;	/*handle for 'sync_completed' */
-	struct kernfs_node		*sysfs_degraded;	/*handle for 'degraded' */
-	struct kernfs_node		*sysfs_level;		/*handle for 'level' */
+	struct kernfs_analde		*sysfs_action;  /* handle for 'sync_action' */
+	struct kernfs_analde		*sysfs_completed;	/*handle for 'sync_completed' */
+	struct kernfs_analde		*sysfs_degraded;	/*handle for 'degraded' */
+	struct kernfs_analde		*sysfs_level;		/*handle for 'level' */
 
 	/* used for delayed sysfs removal */
 	struct work_struct del_work;
@@ -462,7 +462,7 @@ struct mddev {
 	atomic_t			pending_writes;	/* number of active superblock writes */
 
 	unsigned int			safemode;	/* if set, update "clean" superblock
-							 * when no writes pending.
+							 * when anal writes pending.
 							 */
 	unsigned int			safemode_delay;
 	struct timer_list		safemode_timer;
@@ -475,7 +475,7 @@ struct mddev {
 		struct file		*file; /* the bitmap file */
 		loff_t			offset; /* offset from superblock of
 						 * start of bitmap. May be
-						 * negative, but not '0'
+						 * negative, but analt '0'
 						 * For external metadata, offset
 						 * from start of device.
 						 */
@@ -491,7 +491,7 @@ struct mddev {
 		unsigned long		daemon_sleep; /* how many jiffies between updates? */
 		unsigned long		max_write_behind; /* write-behind mode */
 		int			external;
-		int			nodes; /* Maximum number of nodes in the cluster */
+		int			analdes; /* Maximum number of analdes in the cluster */
 		char                    cluster_name[64]; /* Name of the cluster */
 	} bitmap_info;
 
@@ -521,7 +521,7 @@ struct mddev {
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
-	unsigned int			noio_flag; /* for memalloc scope API */
+	unsigned int			analio_flag; /* for memalloc scope API */
 
 	/*
 	 * Temporarily store rdev that will be finally removed when
@@ -544,18 +544,18 @@ enum recovery_flags {
 	 * If neither SYNC or RESHAPE are set, then it is a recovery.
 	 */
 	MD_RECOVERY_RUNNING,	/* a thread is running, or about to be started */
-	MD_RECOVERY_SYNC,	/* actually doing a resync, not a recovery */
+	MD_RECOVERY_SYNC,	/* actually doing a resync, analt a recovery */
 	MD_RECOVERY_RECOVER,	/* doing recovery, or need to try it. */
 	MD_RECOVERY_INTR,	/* resync needs to be aborted for some reason */
 	MD_RECOVERY_DONE,	/* thread is done and is waiting to be reaped */
 	MD_RECOVERY_NEEDED,	/* we might need to start a resync/recover */
 	MD_RECOVERY_REQUESTED,	/* user-space has requested a sync (used with SYNC) */
-	MD_RECOVERY_CHECK,	/* user-space request for check-only, no repair */
+	MD_RECOVERY_CHECK,	/* user-space request for check-only, anal repair */
 	MD_RECOVERY_RESHAPE,	/* A reshape is happening */
-	MD_RECOVERY_FROZEN,	/* User request to abort, and not restart, any action */
+	MD_RECOVERY_FROZEN,	/* User request to abort, and analt restart, any action */
 	MD_RECOVERY_ERROR,	/* sync-action interrupted because io-error */
 	MD_RECOVERY_WAIT,	/* waiting for pers->start() to finish */
-	MD_RESYNCING_REMOTE,	/* remote node is running resync thread */
+	MD_RESYNCING_REMOTE,	/* remote analde is running resync thread */
 };
 
 static inline int __must_check mddev_lock(struct mddev *mddev)
@@ -564,9 +564,9 @@ static inline int __must_check mddev_lock(struct mddev *mddev)
 }
 
 /* Sometimes we need to take the lock in a situation where
- * failure due to interrupts is not acceptable.
+ * failure due to interrupts is analt acceptable.
  */
-static inline void mddev_lock_nointr(struct mddev *mddev)
+static inline void mddev_lock_analintr(struct mddev *mddev)
 {
 	mutex_lock(&mddev->reconfig_mutex);
 }
@@ -595,7 +595,7 @@ struct md_personality
 	struct module *owner;
 	bool __must_check (*make_request)(struct mddev *mddev, struct bio *bio);
 	/*
-	 * start up works that do NOT require md_thread. tasks that
+	 * start up works that do ANALT require md_thread. tasks that
 	 * requires md_thread should go into start()
 	 */
 	int (*run)(struct mddev *mddev);
@@ -619,11 +619,11 @@ struct md_personality
 	void (*update_reshape_pos) (struct mddev *mddev);
 	/* quiesce suspends or resumes internal processing.
 	 * 1 - stop new actions and wait for action io to complete
-	 * 0 - return to normal behaviour
+	 * 0 - return to analrmal behaviour
 	 */
 	void (*quiesce) (struct mddev *mddev, int quiesce);
 	/* takeover is used to transition an array from one
-	 * personality to another.  The new personality must be able
+	 * personality to aanalther.  The new personality must be able
 	 * to handle the data in the current layout.
 	 * e.g. 2drive raid1 -> 2drive raid5
 	 *      ndrive raid5 -> degraded n+1drive raid6 with special layout
@@ -643,16 +643,16 @@ struct md_sysfs_entry {
 };
 extern const struct attribute_group md_bitmap_group;
 
-static inline struct kernfs_node *sysfs_get_dirent_safe(struct kernfs_node *sd, char *name)
+static inline struct kernfs_analde *sysfs_get_dirent_safe(struct kernfs_analde *sd, char *name)
 {
 	if (sd)
 		return sysfs_get_dirent(sd, name);
 	return sd;
 }
-static inline void sysfs_notify_dirent_safe(struct kernfs_node *sd)
+static inline void sysfs_analtify_dirent_safe(struct kernfs_analde *sd)
 {
 	if (sd)
-		sysfs_notify_dirent(sd);
+		sysfs_analtify_dirent(sd);
 }
 
 static inline char * mdname (struct mddev * mddev)
@@ -731,7 +731,7 @@ extern int unregister_md_personality(struct md_personality *p);
 extern int register_md_cluster_operations(struct md_cluster_operations *ops,
 		struct module *module);
 extern int unregister_md_cluster_operations(void);
-extern int md_setup_cluster(struct mddev *mddev, int nodes);
+extern int md_setup_cluster(struct mddev *mddev, int analdes);
 extern void md_cluster_stop(struct mddev *mddev);
 extern struct md_thread *md_register_thread(
 	void (*run)(struct md_thread *thread),
@@ -762,7 +762,7 @@ extern void md_new_event(void);
 extern void md_allow_write(struct mddev *mddev);
 extern void md_wait_for_blocked_rdev(struct md_rdev *rdev, struct mddev *mddev);
 extern void md_set_array_sectors(struct mddev *mddev, sector_t array_sectors);
-extern int md_check_no_bitmap(struct mddev *mddev);
+extern int md_check_anal_bitmap(struct mddev *mddev);
 extern int md_integrity_register(struct mddev *mddev);
 extern int md_integrity_add_rdev(struct md_rdev *rdev, struct mddev *mddev);
 extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
@@ -807,7 +807,7 @@ static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 extern struct md_cluster_operations *md_cluster_ops;
 static inline int mddev_is_clustered(struct mddev *mddev)
 {
-	return mddev->cluster_info && mddev->bitmap_info.nodes > 1;
+	return mddev->cluster_info && mddev->bitmap_info.analdes > 1;
 }
 
 /* clear unsupported mddev_flags */
@@ -839,7 +839,7 @@ static inline int mddev_suspend_and_lock(struct mddev *mddev)
 	return ret;
 }
 
-static inline void mddev_suspend_and_lock_nointr(struct mddev *mddev)
+static inline void mddev_suspend_and_lock_analintr(struct mddev *mddev)
 {
 	mddev_suspend(mddev, false);
 	mutex_lock(&mddev->reconfig_mutex);

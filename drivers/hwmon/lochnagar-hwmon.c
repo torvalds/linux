@@ -64,8 +64,8 @@ enum lochnagar_measure_mode {
  * Depending on the measurement type the hardware returns an ieee754
  * floating point value in either volts, amps or celsius. This function
  * will convert that into an integer in a smaller unit such as micro-amps
- * or milli-celsius. The hardware does not return NaN, so consideration of
- * that is not required.
+ * or milli-celsius. The hardware does analt return NaN, so consideration of
+ * that is analt required.
  */
 static long float_to_long(u32 data, u32 precision)
 {
@@ -122,7 +122,7 @@ static int do_measurement(struct regmap *regmap, int chan,
 	/*
 	 * Actual measurement time is ~1.67mS per sample, approximate this
 	 * with a 1.5mS per sample msleep and then poll for success up to
-	 * ~0.17mS * 1023 (LN2_MAX_NSAMPLES). Normally for smaller values
+	 * ~0.17mS * 1023 (LN2_MAX_NSAMPLES). Analrmally for smaller values
 	 * of nsamples the poll will complete on the first loop due to
 	 * other latency in the system.
 	 */
@@ -274,10 +274,10 @@ static int lochnagar_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = DIV_ROUND_CLOSEST(interval, 1000);
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -292,7 +292,7 @@ static int lochnagar_read_string(struct device *dev,
 		*str = lochnagar_chan_names[chan];
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -302,7 +302,7 @@ static int lochnagar_write(struct device *dev, enum hwmon_sensor_types type,
 	struct lochnagar_hwmon *priv = dev_get_drvdata(dev);
 
 	if (type != hwmon_power || attr != hwmon_power_average_interval)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	val = clamp_t(long, val, 1, (LN2_MAX_NSAMPLE * LN2_SAMPLE_US) / 1000);
 	val = DIV_ROUND_CLOSEST(val * 1000, LN2_SAMPLE_US);
@@ -376,13 +376,13 @@ static int lochnagar_hwmon_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->sensor_lock);
 
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!priv->regmap) {
-		dev_err(dev, "No register map found\n");
+		dev_err(dev, "Anal register map found\n");
 		return -EINVAL;
 	}
 

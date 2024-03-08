@@ -17,7 +17,7 @@
 static u64 bar_max_size[] = {
 	[RP_BAR0] = _ULL(128 * SZ_2G),
 	[RP_BAR1] = SZ_2G,
-	[RP_NO_BAR] = _BITULL(63),
+	[RP_ANAL_BAR] = _BITULL(63),
 };
 
 static u8 bar_aperture_mask[] = {
@@ -37,7 +37,7 @@ void __iomem *cdns_pci_map_bus(struct pci_bus *bus, unsigned int devfn,
 	if (pci_is_root_bus(bus)) {
 		/*
 		 * Only the root port (devfn == 0) is connected to this bus.
-		 * All other PCI devices are behind some bridge hence on another
+		 * All other PCI devices are behind some bridge hence on aanalther
 		 * bus.
 		 */
 		if (devfn)
@@ -105,7 +105,7 @@ static int cdns_pcie_host_wait_for_link(struct cdns_pcie *pcie)
 	struct device *dev = pcie->dev;
 	int retries;
 
-	/* Check if the link is up or not */
+	/* Check if the link is up or analt */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (cdns_pcie_link_up(pcie)) {
 			dev_info(dev, "Link up\n");
@@ -235,7 +235,7 @@ static int cdns_pcie_host_bar_ib_config(struct cdns_pcie_rc *rc,
 	cdns_pcie_writel(pcie, CDNS_PCIE_AT_IB_RP_BAR_ADDR0(bar), addr0);
 	cdns_pcie_writel(pcie, CDNS_PCIE_AT_IB_RP_BAR_ADDR1(bar), addr1);
 
-	if (bar == RP_NO_BAR)
+	if (bar == RP_ANAL_BAR)
 		return 0;
 
 	value = cdns_pcie_readl(pcie, CDNS_PCIE_LM_RC_BAR_CFG);
@@ -266,7 +266,7 @@ cdns_pcie_host_find_min_bar(struct cdns_pcie_rc *rc, u64 size)
 	enum cdns_pcie_rp_bar bar, sel_bar;
 
 	sel_bar = RP_BAR_UNDEFINED;
-	for (bar = RP_BAR0; bar <= RP_NO_BAR; bar++) {
+	for (bar = RP_BAR0; bar <= RP_ANAL_BAR; bar++) {
 		if (!rc->avail_ib_bar[bar])
 			continue;
 
@@ -290,7 +290,7 @@ cdns_pcie_host_find_max_bar(struct cdns_pcie_rc *rc, u64 size)
 	enum cdns_pcie_rp_bar bar, sel_bar;
 
 	sel_bar = RP_BAR_UNDEFINED;
-	for (bar = RP_BAR0; bar <= RP_NO_BAR; bar++) {
+	for (bar = RP_BAR0; bar <= RP_ANAL_BAR; bar++) {
 		if (!rc->avail_ib_bar[bar])
 			continue;
 
@@ -349,18 +349,18 @@ static int cdns_pcie_host_bar_config(struct cdns_pcie_rc *rc,
 
 		/*
 		 * If the control reaches here, it would mean the remaining
-		 * resource_entry size cannot be fitted in a single BAR. So we
+		 * resource_entry size cananalt be fitted in a single BAR. So we
 		 * find a maximum BAR whose size is less than or equal to the
 		 * remaining resource_entry size and split the resource entry
 		 * so that part of resource entry is fitted inside the maximum
 		 * BAR. The remaining size would be fitted during the next
 		 * iteration of the loop.
-		 * If a maximum BAR is not found, there is no way we can fit
+		 * If a maximum BAR is analt found, there is anal way we can fit
 		 * this resource_entry, so we error out.
 		 */
 		bar = cdns_pcie_host_find_max_bar(rc, size);
 		if (bar == RP_BAR_UNDEFINED) {
-			dev_err(dev, "No free BAR to map cpu_addr %llx\n",
+			dev_err(dev, "Anal free BAR to map cpu_addr %llx\n",
 				cpu_addr);
 			return -EINVAL;
 		}
@@ -385,8 +385,8 @@ static int cdns_pcie_host_dma_ranges_cmp(void *priv, const struct list_head *a,
 {
 	struct resource_entry *entry1, *entry2;
 
-        entry1 = container_of(a, struct resource_entry, node);
-        entry2 = container_of(b, struct resource_entry, node);
+        entry1 = container_of(a, struct resource_entry, analde);
+        entry2 = container_of(b, struct resource_entry, analde);
 
         return resource_size(entry2->res) - resource_size(entry1->res);
 }
@@ -395,23 +395,23 @@ static int cdns_pcie_host_map_dma_ranges(struct cdns_pcie_rc *rc)
 {
 	struct cdns_pcie *pcie = &rc->pcie;
 	struct device *dev = pcie->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct pci_host_bridge *bridge;
 	struct resource_entry *entry;
-	u32 no_bar_nbits = 32;
+	u32 anal_bar_nbits = 32;
 	int err;
 
 	bridge = pci_host_bridge_from_priv(rc);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (list_empty(&bridge->dma_ranges)) {
-		of_property_read_u32(np, "cdns,no-bar-match-nbits",
-				     &no_bar_nbits);
-		err = cdns_pcie_host_bar_ib_config(rc, RP_NO_BAR, 0x0,
-						   (u64)1 << no_bar_nbits, 0);
+		of_property_read_u32(np, "cdns,anal-bar-match-nbits",
+				     &anal_bar_nbits);
+		err = cdns_pcie_host_bar_ib_config(rc, RP_ANAL_BAR, 0x0,
+						   (u64)1 << anal_bar_nbits, 0);
 		if (err)
-			dev_err(dev, "IB BAR: %d config failed\n", RP_NO_BAR);
+			dev_err(dev, "IB BAR: %d config failed\n", RP_ANAL_BAR);
 		return err;
 	}
 
@@ -501,7 +501,7 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 {
 	struct device *dev = rc->pcie.dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct pci_host_bridge *bridge;
 	enum cdns_pcie_rp_bar bar;
 	struct cdns_pcie *pcie;
@@ -510,7 +510,7 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 
 	bridge = pci_host_bridge_from_priv(rc);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie = &rc->pcie;
 	pcie->is_rc = true;
@@ -548,7 +548,7 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 	if (ret)
 		dev_dbg(dev, "PCIe link never came up\n");
 
-	for (bar = RP_BAR0; bar <= RP_NO_BAR; bar++)
+	for (bar = RP_BAR0; bar <= RP_ANAL_BAR; bar++)
 		rc->avail_ib_bar[bar] = true;
 
 	ret = cdns_pcie_host_init(dev, rc);

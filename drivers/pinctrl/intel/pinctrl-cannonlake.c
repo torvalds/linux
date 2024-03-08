@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel Cannon Lake PCH pinctrl/GPIO driver
+ * Intel Cananaln Lake PCH pinctrl/GPIO driver
  *
  * Copyright (C) 2017, Intel Corporation
  * Authors: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
@@ -42,7 +42,7 @@
 #define CNL_H_COMMUNITY(b, s, e, g)			\
 	INTEL_COMMUNITY_GPPS(b, s, e, g, CNL_H)
 
-/* Cannon Lake-H */
+/* Cananaln Lake-H */
 static const struct pinctrl_pin_desc cnlh_pins[] = {
 	/* GPP_A */
 	PINCTRL_PIN(0, "RCINB"),
@@ -370,9 +370,9 @@ static const struct intel_padgroup cnlh_community1_gpps[] = {
 	CNL_GPP(0, 51, 74, 64),				/* GPP_C */
 	CNL_GPP(1, 75, 98, 96),				/* GPP_D */
 	CNL_GPP(2, 99, 106, 128),			/* GPP_G */
-	CNL_GPP(3, 107, 114, INTEL_GPIO_BASE_NOMAP),	/* AZA */
+	CNL_GPP(3, 107, 114, INTEL_GPIO_BASE_ANALMAP),	/* AZA */
 	CNL_GPP(4, 115, 146, 160),			/* vGPIO_0 */
-	CNL_GPP(5, 147, 154, INTEL_GPIO_BASE_NOMAP),	/* vGPIO_1 */
+	CNL_GPP(5, 147, 154, INTEL_GPIO_BASE_ANALMAP),	/* vGPIO_1 */
 };
 
 static const struct intel_padgroup cnlh_community3_gpps[] = {
@@ -380,12 +380,12 @@ static const struct intel_padgroup cnlh_community3_gpps[] = {
 	CNL_GPP(1, 179, 202, 224),			/* GPP_H */
 	CNL_GPP(2, 203, 215, 256),			/* GPP_E */
 	CNL_GPP(3, 216, 239, 288),			/* GPP_F */
-	CNL_GPP(4, 240, 248, INTEL_GPIO_BASE_NOMAP),	/* SPI */
+	CNL_GPP(4, 240, 248, INTEL_GPIO_BASE_ANALMAP),	/* SPI */
 };
 
 static const struct intel_padgroup cnlh_community4_gpps[] = {
-	CNL_GPP(0, 249, 259, INTEL_GPIO_BASE_NOMAP),	/* CPU */
-	CNL_GPP(1, 260, 268, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
+	CNL_GPP(0, 249, 259, INTEL_GPIO_BASE_ANALMAP),	/* CPU */
+	CNL_GPP(1, 260, 268, INTEL_GPIO_BASE_ANALMAP),	/* JTAG */
 	CNL_GPP(2, 269, 286, 320),			/* GPP_I */
 	CNL_GPP(3, 287, 298, 352),			/* GPP_J */
 };
@@ -458,7 +458,7 @@ static const struct intel_pinctrl_soc_data cnlh_soc_data = {
 	.ncommunities = ARRAY_SIZE(cnlh_communities),
 };
 
-/* Cannon Lake-LP */
+/* Cananaln Lake-LP */
 static const struct pinctrl_pin_desc cnllp_pins[] = {
 	/* GPP_A */
 	PINCTRL_PIN(0, "RCINB"),
@@ -783,7 +783,7 @@ static const struct intel_padgroup cnllp_community0_gpps[] = {
 	CNL_GPP(0, 0, 24, 0),				/* GPP_A */
 	CNL_GPP(1, 25, 50, 32),				/* GPP_B */
 	CNL_GPP(2, 51, 58, 64),				/* GPP_G */
-	CNL_GPP(3, 59, 67, INTEL_GPIO_BASE_NOMAP),	/* SPI */
+	CNL_GPP(3, 59, 67, INTEL_GPIO_BASE_ANALMAP),	/* SPI */
 };
 
 static const struct intel_padgroup cnllp_community1_gpps[] = {
@@ -797,8 +797,8 @@ static const struct intel_padgroup cnllp_community1_gpps[] = {
 static const struct intel_padgroup cnllp_community4_gpps[] = {
 	CNL_GPP(0, 181, 204, 256),			/* GPP_C */
 	CNL_GPP(1, 205, 228, 288),			/* GPP_E */
-	CNL_GPP(2, 229, 237, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
-	CNL_GPP(3, 238, 243, INTEL_GPIO_BASE_NOMAP),	/* HVCMOS */
+	CNL_GPP(2, 229, 237, INTEL_GPIO_BASE_ANALMAP),	/* JTAG */
+	CNL_GPP(3, 238, 243, INTEL_GPIO_BASE_ANALMAP),	/* HVCMOS */
 };
 
 static const struct intel_community cnllp_communities[] = {
@@ -828,7 +828,7 @@ MODULE_DEVICE_TABLE(acpi, cnl_pinctrl_acpi_match);
 static struct platform_driver cnl_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
-		.name = "cannonlake-pinctrl",
+		.name = "cananalnlake-pinctrl",
 		.acpi_match_table = cnl_pinctrl_acpi_match,
 		.pm = pm_sleep_ptr(&intel_pinctrl_pm_ops),
 	},
@@ -836,6 +836,6 @@ static struct platform_driver cnl_pinctrl_driver = {
 module_platform_driver(cnl_pinctrl_driver);
 
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
-MODULE_DESCRIPTION("Intel Cannon Lake PCH pinctrl/GPIO driver");
+MODULE_DESCRIPTION("Intel Cananaln Lake PCH pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(PINCTRL_INTEL);

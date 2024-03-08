@@ -11,7 +11,7 @@
  * ACPICA getopt() implementation
  *
  * Option strings:
- *    "f"       - Option has no arguments
+ *    "f"       - Option has anal arguments
  *    "f:"      - Option requires an argument
  *    "f+"      - Option has an optional argument
  *    "f^"      - Option has optional single-char sub-options
@@ -43,7 +43,7 @@ static int current_char_ptr = 1;
  *
  * DESCRIPTION: Get the next argument. Used to obtain arguments for the
  *              two-character options after the original call to acpi_getopt.
- *              Note: Either the argument starts at the next character after
+ *              Analte: Either the argument starts at the next character after
  *              the option, or it is pointed to by the next argv entry.
  *              (After call to acpi_getopt, we need to backup to the previous
  *              argv entry).
@@ -190,7 +190,7 @@ int acpi_getopt(int argc, char **argv, char *opts)
 		current_char_ptr = 1;
 	}
 
-	/* Option with no arguments */
+	/* Option with anal arguments */
 
 	else {
 		if (argv[acpi_gbl_optind][++current_char_ptr] == '\0') {

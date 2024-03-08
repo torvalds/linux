@@ -7,7 +7,7 @@
  */
 
 #define pr_fmt(fmt)	"riscv-kvm-pmu: " fmt
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/perf/riscv_pmu.h>
@@ -93,7 +93,7 @@ static u64 kvm_pmu_get_perf_event_cache_config(u32 sbi_event_code)
 	u64 config = U64_MAX;
 	unsigned int cache_type, cache_op, cache_result;
 
-	/* All the cache event masks lie within 0xFF. No separate masking is necessary */
+	/* All the cache event masks lie within 0xFF. Anal separate masking is necessary */
 	cache_type = (sbi_event_code & SBI_PMU_EVENT_CACHE_ID_CODE_MASK) >>
 		      SBI_PMU_EVENT_CACHE_ID_SHIFT;
 	cache_op = (sbi_event_code & SBI_PMU_EVENT_CACHE_OP_ID_CODE_MASK) >>
@@ -242,7 +242,7 @@ static int kvm_pmu_create_perf_event(struct kvm_pmc *pmc, struct perf_event_attr
 	}
 
 	/*
-	 * Set the default sample_period for now. The guest specified value
+	 * Set the default sample_period for analw. The guest specified value
 	 * will be updated in the start call.
 	 */
 	attr->sample_period = kvm_pmu_get_sample_period(pmc);
@@ -487,7 +487,7 @@ int kvm_riscv_vcpu_pmu_ctr_cfg_match(struct kvm_vcpu *vcpu, unsigned long ctr_ba
 	event_code = get_event_code(eidx);
 	is_fevent = kvm_pmu_is_fw_event(eidx);
 	if (is_fevent && event_code >= SBI_PMU_FW_MAX) {
-		sbiret = SBI_ERR_NOT_SUPPORTED;
+		sbiret = SBI_ERR_ANALT_SUPPORTED;
 		goto out;
 	}
 
@@ -504,7 +504,7 @@ int kvm_riscv_vcpu_pmu_ctr_cfg_match(struct kvm_vcpu *vcpu, unsigned long ctr_ba
 	} else  {
 		ctr_idx = pmu_get_pmc_index(kvpmu, eidx, ctr_base, ctr_mask);
 		if (ctr_idx < 0) {
-			sbiret = SBI_ERR_NOT_SUPPORTED;
+			sbiret = SBI_ERR_ANALT_SUPPORTED;
 			goto out;
 		}
 	}
@@ -573,10 +573,10 @@ void kvm_riscv_vcpu_pmu_init(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * There is no correlation between the logical hardware counter and virtual counters.
+	 * There is anal correlation between the logical hardware counter and virtual counters.
 	 * However, we need to encode a hpmcounter CSR in the counter info field so that
 	 * KVM can trap n emulate the read. This works well in the migration use case as
-	 * KVM doesn't care if the actual hpmcounter is available in the hardware or not.
+	 * KVM doesn't care if the actual hpmcounter is available in the hardware or analt.
 	 */
 	for (i = 0; i < kvm_pmu_num_counters(kvpmu); i++) {
 		/* TIME CSR shouldn't be read from perf interface */

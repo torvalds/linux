@@ -11,7 +11,7 @@
 
 #include <linux/compat.h>
 #include <linux/cpu_pm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/kprobes.h>
 #include <linux/perf_event.h>
@@ -51,7 +51,7 @@ int hw_breakpoint_slots(int type)
 	case TYPE_DATA:
 		return get_num_wrps();
 	default:
-		pr_warn("unknown slot type: %d\n", type);
+		pr_warn("unkanalwn slot type: %d\n", type);
 		return 0;
 	}
 }
@@ -112,12 +112,12 @@ static u64 read_wb_reg(int reg, int n)
 	GEN_READ_WB_REG_CASES(AARCH64_DBG_REG_WVR, AARCH64_DBG_REG_NAME_WVR, val);
 	GEN_READ_WB_REG_CASES(AARCH64_DBG_REG_WCR, AARCH64_DBG_REG_NAME_WCR, val);
 	default:
-		pr_warn("attempt to read from unknown breakpoint register %d\n", n);
+		pr_warn("attempt to read from unkanalwn breakpoint register %d\n", n);
 	}
 
 	return val;
 }
-NOKPROBE_SYMBOL(read_wb_reg);
+ANALKPROBE_SYMBOL(read_wb_reg);
 
 static void write_wb_reg(int reg, int n, u64 val)
 {
@@ -127,11 +127,11 @@ static void write_wb_reg(int reg, int n, u64 val)
 	GEN_WRITE_WB_REG_CASES(AARCH64_DBG_REG_WVR, AARCH64_DBG_REG_NAME_WVR, val);
 	GEN_WRITE_WB_REG_CASES(AARCH64_DBG_REG_WCR, AARCH64_DBG_REG_NAME_WCR, val);
 	default:
-		pr_warn("attempt to write to unknown breakpoint register %d\n", n);
+		pr_warn("attempt to write to unkanalwn breakpoint register %d\n", n);
 	}
 	isb();
 }
-NOKPROBE_SYMBOL(write_wb_reg);
+ANALKPROBE_SYMBOL(write_wb_reg);
 
 /*
  * Convert a breakpoint privilege level to the corresponding exception
@@ -149,7 +149,7 @@ static enum dbg_active_el debug_exception_level(int privilege)
 		return -EINVAL;
 	}
 }
-NOKPROBE_SYMBOL(debug_exception_level);
+ANALKPROBE_SYMBOL(debug_exception_level);
 
 enum hw_breakpoint_ops {
 	HW_BREAKPOINT_INSTALL,
@@ -162,9 +162,9 @@ static int is_compat_bp(struct perf_event *bp)
 	struct task_struct *tsk = bp->hw.target;
 
 	/*
-	 * tsk can be NULL for per-cpu (non-ptrace) breakpoints.
+	 * tsk can be NULL for per-cpu (analn-ptrace) breakpoints.
 	 * In this case, use the native interface, since we don't have
-	 * the notion of a "compat CPU" and could end up relying on
+	 * the analtion of a "compat CPU" and could end up relying on
 	 * deprecated behaviour if we use unaligned watchpoints in
 	 * AArch64 state.
 	 */
@@ -182,7 +182,7 @@ static int is_compat_bp(struct perf_event *bp)
  *
  * Return:
  *	slot index on success
- *	-ENOSPC if no slot is available/matches
+ *	-EANALSPC if anal slot is available/matches
  *	-EINVAL on wrong operations parameter
  */
 static int hw_breakpoint_slot_setup(struct perf_event **slots, int max_slots,
@@ -216,7 +216,7 @@ static int hw_breakpoint_slot_setup(struct perf_event **slots, int max_slots,
 			return -EINVAL;
 		}
 	}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int hw_breakpoint_control(struct perf_event *bp,
@@ -475,7 +475,7 @@ static int arch_build_bp_info(struct perf_event *bp,
 			/*
 			 * FIXME: Some tools (I'm looking at you perf) assume
 			 *	  that breakpoints should be sizeof(long). This
-			 *	  is nonsense. For now, we fix up the parameter
+			 *	  is analnsense. For analw, we fix up the parameter
 			 *	  but we should probably return -EINVAL instead.
 			 */
 			hw->ctrl.len = ARM_BREAKPOINT_LEN_4;
@@ -487,7 +487,7 @@ static int arch_build_bp_info(struct perf_event *bp,
 
 	/*
 	 * Privilege
-	 * Note that we disallow combined EL0/EL1 breakpoints because
+	 * Analte that we disallow combined EL0/EL1 breakpoints because
 	 * that would complicate the stepping code.
 	 */
 	if (arch_check_bp_in_kernelspace(hw))
@@ -612,7 +612,7 @@ static void toggle_bp_registers(int reg, enum dbg_active_el el, int enable)
 		write_wb_reg(reg, i, ctrl);
 	}
 }
-NOKPROBE_SYMBOL(toggle_bp_registers);
+ANALKPROBE_SYMBOL(toggle_bp_registers);
 
 /*
  * Debug exception handlers.
@@ -679,7 +679,7 @@ unlock:
 		toggle_bp_registers(AARCH64_DBG_REG_BCR, DBG_ACTIVE_EL1, 0);
 		kernel_step = this_cpu_ptr(&stepping_kernel_bp);
 
-		if (*kernel_step != ARM_KERNEL_STEP_NONE)
+		if (*kernel_step != ARM_KERNEL_STEP_ANALNE)
 			return 0;
 
 		if (kernel_active_single_step()) {
@@ -692,13 +692,13 @@ unlock:
 
 	return 0;
 }
-NOKPROBE_SYMBOL(breakpoint_handler);
+ANALKPROBE_SYMBOL(breakpoint_handler);
 
 /*
- * Arm64 hardware does not always report a watchpoint hit address that matches
+ * Arm64 hardware does analt always report a watchpoint hit address that matches
  * one of the watchpoints set. It can also report an address "near" the
  * watchpoint if a single instruction access both watched and unwatched
- * addresses. There is no straight-forward way, short of disassembling the
+ * addresses. There is anal straight-forward way, short of disassembling the
  * offending instruction, to map that address back to the watchpoint. This
  * function computes the distance of the memory access from the watchpoint as a
  * heuristic for the likelihood that a given access triggered the watchpoint.
@@ -766,7 +766,7 @@ static int watchpoint_handler(unsigned long addr, unsigned long esr,
 	debug_info = &current->thread.debug;
 
 	/*
-	 * Find all watchpoints that match the reported address. If no exact
+	 * Find all watchpoints that match the reported address. If anal exact
 	 * match is found. Attribute the hit to the closest watchpoint.
 	 */
 	rcu_read_lock();
@@ -800,7 +800,7 @@ static int watchpoint_handler(unsigned long addr, unsigned long esr,
 		step = watchpoint_report(wp, addr, regs);
 	}
 
-	/* No exact match found? */
+	/* Anal exact match found? */
 	if (min_dist > 0 && min_dist != -1)
 		step = watchpoint_report(slots[closest_match], addr, regs);
 
@@ -830,7 +830,7 @@ static int watchpoint_handler(unsigned long addr, unsigned long esr,
 		toggle_bp_registers(AARCH64_DBG_REG_WCR, DBG_ACTIVE_EL1, 0);
 		kernel_step = this_cpu_ptr(&stepping_kernel_bp);
 
-		if (*kernel_step != ARM_KERNEL_STEP_NONE)
+		if (*kernel_step != ARM_KERNEL_STEP_ANALNE)
 			return 0;
 
 		if (kernel_active_single_step()) {
@@ -843,7 +843,7 @@ static int watchpoint_handler(unsigned long addr, unsigned long esr,
 
 	return 0;
 }
-NOKPROBE_SYMBOL(watchpoint_handler);
+ANALKPROBE_SYMBOL(watchpoint_handler);
 
 /*
  * Handle single-step exception.
@@ -882,7 +882,7 @@ int reinstall_suspended_bps(struct pt_regs *regs)
 				user_disable_single_step(current);
 			}
 		}
-	} else if (*kernel_step != ARM_KERNEL_STEP_NONE) {
+	} else if (*kernel_step != ARM_KERNEL_STEP_ANALNE) {
 		toggle_bp_registers(AARCH64_DBG_REG_BCR, DBG_ACTIVE_EL1, 1);
 		toggle_bp_registers(AARCH64_DBG_REG_WCR, DBG_ACTIVE_EL1, 1);
 
@@ -896,12 +896,12 @@ int reinstall_suspended_bps(struct pt_regs *regs)
 			handled_exception = 0;
 		}
 
-		*kernel_step = ARM_KERNEL_STEP_NONE;
+		*kernel_step = ARM_KERNEL_STEP_ANALNE;
 	}
 
 	return !handled_exception;
 }
-NOKPROBE_SYMBOL(reinstall_suspended_bps);
+ANALKPROBE_SYMBOL(reinstall_suspended_bps);
 
 /*
  * Context-switcher for restoring suspended breakpoints.
@@ -910,10 +910,10 @@ void hw_breakpoint_thread_switch(struct task_struct *next)
 {
 	/*
 	 *           current        next
-	 * disabled: 0              0     => The usual case, NOTIFY_DONE
+	 * disabled: 0              0     => The usual case, ANALTIFY_DONE
 	 *           0              1     => Disable the registers
 	 *           1              0     => Enable the registers
-	 *           1              1     => NOTIFY_DONE. per-task bps will
+	 *           1              1     => ANALTIFY_DONE. per-task bps will
 	 *                                   get taken care of by perf.
 	 */
 
@@ -943,13 +943,13 @@ static int hw_breakpoint_reset(unsigned int cpu)
 	int i;
 	struct perf_event **slots;
 	/*
-	 * When a CPU goes through cold-boot, it does not have any installed
+	 * When a CPU goes through cold-boot, it does analt have any installed
 	 * slot, so it is safe to share the same function for restoring and
 	 * resetting breakpoints; when a CPU is hotplugged in, it goes
 	 * through the slots, which are all empty, hence it just resets control
 	 * and value for debug registers.
 	 * When this function is triggered on warm-boot through a CPU PM
-	 * notifier some slots might be initialized; if so they are
+	 * analtifier some slots might be initialized; if so they are
 	 * reprogrammed according to the debug slots content.
 	 */
 	for (slots = this_cpu_ptr(bp_on_reg), i = 0; i < core_num_brps; ++i) {
@@ -1000,7 +1000,7 @@ static int __init arch_hw_breakpoint_init(void)
 			  "perf/arm64/hw_breakpoint:starting",
 			  hw_breakpoint_reset, NULL);
 	if (ret)
-		pr_err("failed to register CPU hotplug notifier: %d\n", ret);
+		pr_err("failed to register CPU hotplug analtifier: %d\n", ret);
 
 	/* Register cpu_suspend hw breakpoint restore hook */
 	cpu_suspend_set_dbg_restorer(hw_breakpoint_reset);
@@ -1014,10 +1014,10 @@ void hw_breakpoint_pmu_read(struct perf_event *bp)
 }
 
 /*
- * Dummy function to register with die_notifier.
+ * Dummy function to register with die_analtifier.
  */
-int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
+int hw_breakpoint_exceptions_analtify(struct analtifier_block *unused,
 				    unsigned long val, void *data)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }

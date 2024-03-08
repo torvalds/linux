@@ -20,7 +20,7 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 	struct panfrost_device *pfdev = obj->dev->dev_private;
 
 	/*
-	 * Make sure the BO is no longer inserted in the shrinker list before
+	 * Make sure the BO is anal longer inserted in the shrinker list before
 	 * taking care of the destruction itself. If we don't do that we have a
 	 * race condition between this function and what's done in
 	 * panfrost_gem_shrinker_scan().
@@ -59,7 +59,7 @@ panfrost_gem_mapping_get(struct panfrost_gem_object *bo,
 	struct panfrost_gem_mapping *iter, *mapping = NULL;
 
 	mutex_lock(&bo->mappings.lock);
-	list_for_each_entry(iter, &bo->mappings.list, node) {
+	list_for_each_entry(iter, &bo->mappings.list, analde) {
 		if (iter->mmu == priv->mmu) {
 			kref_get(&iter->refcount);
 			mapping = iter;
@@ -78,8 +78,8 @@ panfrost_gem_teardown_mapping(struct panfrost_gem_mapping *mapping)
 		panfrost_mmu_unmap(mapping);
 
 	spin_lock(&mapping->mmu->mm_lock);
-	if (drm_mm_node_allocated(&mapping->mmnode))
-		drm_mm_remove_node(&mapping->mmnode);
+	if (drm_mm_analde_allocated(&mapping->mmanalde))
+		drm_mm_remove_analde(&mapping->mmanalde);
 	spin_unlock(&mapping->mmu->mm_lock);
 }
 
@@ -107,7 +107,7 @@ void panfrost_gem_teardown_mappings_locked(struct panfrost_gem_object *bo)
 {
 	struct panfrost_gem_mapping *mapping;
 
-	list_for_each_entry(mapping, &bo->mappings.list, node)
+	list_for_each_entry(mapping, &bo->mappings.list, analde)
 		panfrost_gem_teardown_mapping(mapping);
 }
 
@@ -117,33 +117,33 @@ int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 	size_t size = obj->size;
 	u64 align;
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
-	unsigned long color = bo->noexec ? PANFROST_BO_NOEXEC : 0;
+	unsigned long color = bo->analexec ? PANFROST_BO_ANALEXEC : 0;
 	struct panfrost_file_priv *priv = file_priv->driver_priv;
 	struct panfrost_gem_mapping *mapping;
 
 	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	INIT_LIST_HEAD(&mapping->node);
+	INIT_LIST_HEAD(&mapping->analde);
 	kref_init(&mapping->refcount);
 	drm_gem_object_get(obj);
 	mapping->obj = bo;
 
 	/*
-	 * Executable buffers cannot cross a 16MB boundary as the program
+	 * Executable buffers cananalt cross a 16MB boundary as the program
 	 * counter is 24-bits. We assume executable buffers will be less than
 	 * 16MB and aligning executable buffers to their size will avoid
 	 * crossing a 16MB boundary.
 	 */
-	if (!bo->noexec)
+	if (!bo->analexec)
 		align = size >> PAGE_SHIFT;
 	else
 		align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
 
 	mapping->mmu = panfrost_mmu_ctx_get(priv->mmu);
 	spin_lock(&mapping->mmu->mm_lock);
-	ret = drm_mm_insert_node_generic(&mapping->mmu->mm, &mapping->mmnode,
+	ret = drm_mm_insert_analde_generic(&mapping->mmu->mm, &mapping->mmanalde,
 					 size >> PAGE_SHIFT, align, color, 0);
 	spin_unlock(&mapping->mmu->mm_lock);
 	if (ret)
@@ -157,7 +157,7 @@ int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 
 	mutex_lock(&bo->mappings.lock);
 	WARN_ON(bo->base.madv != PANFROST_MADV_WILLNEED);
-	list_add_tail(&mapping->node, &bo->mappings.list);
+	list_add_tail(&mapping->analde, &bo->mappings.list);
 	mutex_unlock(&bo->mappings.lock);
 
 err:
@@ -173,10 +173,10 @@ void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
 	struct panfrost_gem_mapping *mapping = NULL, *iter;
 
 	mutex_lock(&bo->mappings.lock);
-	list_for_each_entry(iter, &bo->mappings.list, node) {
+	list_for_each_entry(iter, &bo->mappings.list, analde) {
 		if (iter->mmu == priv->mmu) {
 			mapping = iter;
-			list_del(&iter->node);
+			list_del(&iter->analde);
 			break;
 		}
 	}
@@ -254,7 +254,7 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&obj->mappings.list);
 	mutex_init(&obj->mappings.lock);
@@ -279,7 +279,7 @@ panfrost_gem_create(struct drm_device *dev, size_t size, u32 flags)
 		return ERR_CAST(shmem);
 
 	bo = to_panfrost_bo(&shmem->base);
-	bo->noexec = !!(flags & PANFROST_BO_NOEXEC);
+	bo->analexec = !!(flags & PANFROST_BO_ANALEXEC);
 	bo->is_heap = !!(flags & PANFROST_BO_HEAP);
 
 	return bo;
@@ -298,7 +298,7 @@ panfrost_gem_prime_import_sg_table(struct drm_device *dev,
 		return ERR_CAST(obj);
 
 	bo = to_panfrost_bo(obj);
-	bo->noexec = true;
+	bo->analexec = true;
 
 	return obj;
 }

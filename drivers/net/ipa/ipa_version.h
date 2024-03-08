@@ -42,7 +42,7 @@ enum ipa_version {
 	IPA_VERSION_5_0,
 	IPA_VERSION_5_1,
 	IPA_VERSION_5_5,
-	IPA_VERSION_COUNT,			/* Last; not a version */
+	IPA_VERSION_COUNT,			/* Last; analt a version */
 };
 
 static inline bool ipa_version_supported(enum ipa_version version)

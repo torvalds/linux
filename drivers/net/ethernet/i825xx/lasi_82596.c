@@ -42,8 +42,8 @@
 
    980825:  Changed to receive directly in to sk_buffs which are
    allocated at open() time.  Eliminates copy on incoming frames
-   (small ones are still copied).  Shared data now held in a
-   non-cached page, so we can run on 68060 in copyback mode.
+   (small ones are still copied).  Shared data analw held in a
+   analn-cached page, so we can run on 68060 in copyback mode.
 
    TBD:
    * look at deferring rx frames rather than discarding (as per tulip)
@@ -71,7 +71,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -101,7 +101,7 @@
 #define SWAP32(x)   (((u32)(x)<<16) | ((((u32)(x)))>>16))
 #define SWAP16(x)   (x)
 
-#define NONCOHERENT_DMA 1
+#define ANALNCOHERENT_DMA 1
 
 #include "lib82596.c"
 
@@ -145,14 +145,14 @@ lan_init_chip(struct parisc_device *dev)
 {
 	struct	net_device *netdevice;
 	struct i596_private *lp;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	u8 addr[ETH_ALEN];
 	int i;
 
 	if (!dev->irq) {
-		printk(KERN_ERR "%s: IRQ not found for i82596 at 0x%lx\n",
+		printk(KERN_ERR "%s: IRQ analt found for i82596 at 0x%lx\n",
 			__FILE__, (unsigned long)dev->hpa.start);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	printk(KERN_INFO "Found i82596 at 0x%lx, IRQ %d\n",
@@ -160,7 +160,7 @@ lan_init_chip(struct parisc_device *dev)
 
 	netdevice = alloc_etherdev(sizeof(struct i596_private));
 	if (!netdevice)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(netdevice, &dev->dev);
 	parisc_set_drvdata (dev, netdevice);
 
@@ -178,7 +178,7 @@ lan_init_chip(struct parisc_device *dev)
 
 	lp = netdev_priv(netdevice);
 	lp->options = dev->id.sversion == 0x72 ? OPT_SWAP_PORT : 0;
-	lp->dma = dma_alloc_noncoherent(&dev->dev,
+	lp->dma = dma_alloc_analncoherent(&dev->dev,
 			sizeof(struct i596_dma), &lp->dma_addr,
 			DMA_BIDIRECTIONAL, GFP_KERNEL);
 	if (!lp->dma)
@@ -190,7 +190,7 @@ lan_init_chip(struct parisc_device *dev)
 	return 0;
 
 out_free_dma:
-	dma_free_noncoherent(&dev->dev, sizeof(struct i596_dma),
+	dma_free_analncoherent(&dev->dev, sizeof(struct i596_dma),
 		       lp->dma, lp->dma_addr, DMA_BIDIRECTIONAL);
 out_free_netdev:
 	free_netdev(netdevice);
@@ -203,7 +203,7 @@ static void __exit lan_remove_chip(struct parisc_device *pdev)
 	struct i596_private *lp = netdev_priv(dev);
 
 	unregister_netdev (dev);
-	dma_free_noncoherent(&pdev->dev, sizeof(struct i596_private), lp->dma,
+	dma_free_analncoherent(&pdev->dev, sizeof(struct i596_private), lp->dma,
 		       lp->dma_addr, DMA_BIDIRECTIONAL);
 	free_netdev (dev);
 }

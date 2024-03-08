@@ -16,7 +16,7 @@
 #include <net/ipv6.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/io.h>
 #include <linux/list.h>
@@ -119,7 +119,7 @@ static int qed_ll2_alloc_buffer(struct qed_dev *cdev,
 	*data = kmalloc(size, GFP_ATOMIC);
 	if (!(*data)) {
 		DP_INFO(cdev, "Failed to allocate LL2 buffer data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*phys_addr = dma_map_single(&cdev->pdev->dev,
@@ -128,7 +128,7 @@ static int qed_ll2_alloc_buffer(struct qed_dev *cdev,
 	if (dma_mapping_error(&cdev->pdev->dev, *phys_addr)) {
 		DP_INFO(cdev, "Failed to map LL2 buffer data\n");
 		kfree((*data));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -197,7 +197,7 @@ static void qed_ll2b_complete_rx_packet(void *cxt,
 		rc = qed_ll2_alloc_buffer(p_hwfn->cdev, &new_data,
 					  &new_phys_addr);
 
-	/* If need to reuse or there's no replacement buffer, repost this */
+	/* If need to reuse or there's anal replacement buffer, repost this */
 	if (rc)
 		goto out_post;
 	dma_unmap_single(&cdev->pdev->dev, buffer->phys_addr,
@@ -213,7 +213,7 @@ static void qed_ll2b_complete_rx_packet(void *cxt,
 	data->u.placement_offset += NET_SKB_PAD;
 	skb_reserve(skb, data->u.placement_offset);
 	skb_put(skb, data->length.packet_length);
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 
 	/* Get parital ethernet information instead of eth_type_trans(),
 	 * Since we don't have an associated net_device.
@@ -382,8 +382,8 @@ static int qed_ll2_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 		list_del(&p_pkt->list_entry);
 
 		if (unlikely(num_bds < num_bds_in_packet)) {
-			DP_NOTICE(p_hwfn,
-				  "Rest of BDs does not cover whole packet\n");
+			DP_ANALTICE(p_hwfn,
+				  "Rest of BDs does analt cover whole packet\n");
 			goto out;
 		}
 
@@ -454,15 +454,15 @@ qed_ll2_handle_slowpath(struct qed_hwfn *p_hwfn,
 
 	sp_cqe = &p_cqe->rx_cqe_sp;
 	if (sp_cqe->ramrod_cmd_id != CORE_RAMROD_RX_QUEUE_FLUSH) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "LL2 - unexpected Rx CQE slowpath ramrod_cmd_id:%d\n",
 			  sp_cqe->ramrod_cmd_id);
 		return -EINVAL;
 	}
 
 	if (!p_ll2_conn->cbs.slowpath_cb) {
-		DP_NOTICE(p_hwfn,
-			  "LL2 - received RX_QUEUE_FLUSH but no callback was provided\n");
+		DP_ANALTICE(p_hwfn,
+			  "LL2 - received RX_QUEUE_FLUSH but anal callback was provided\n");
 		return -EINVAL;
 	}
 
@@ -492,7 +492,7 @@ qed_ll2_rxq_handle_completion(struct qed_hwfn *p_hwfn,
 		p_pkt = list_first_entry(&p_rx->active_descq,
 					 struct qed_ll2_rx_packet, list_entry);
 	if (unlikely(!p_pkt)) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "[%d] LL2 Rx completion but active_descq is empty\n",
 			  p_ll2_conn->input.conn_type);
 
@@ -505,7 +505,7 @@ qed_ll2_rxq_handle_completion(struct qed_hwfn *p_hwfn,
 	else
 		qed_ll2_rxq_parse_gsi(p_hwfn, p_cqe, &data);
 	if (unlikely(qed_chain_consume(&p_rx->rxq_chain) != p_pkt->rxq_bd))
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Mismatch between active_descq and the LL2 Rx chain\n");
 
 	list_add_tail(&p_pkt->list_entry, &p_rx->free_descq);
@@ -675,8 +675,8 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 				continue;
 
 		if (unlikely(cqe_type != CORE_RX_CQE_TYPE_REGULAR)) {
-			DP_NOTICE(p_hwfn,
-				  "Got a non-regular LB LL2 completion [type 0x%02x]\n",
+			DP_ANALTICE(p_hwfn,
+				  "Got a analn-regular LB LL2 completion [type 0x%02x]\n",
 				  cqe_type);
 			return -EINVAL;
 		}
@@ -696,13 +696,13 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 					     ooo_opq->drop_isle,
 					     ooo_opq->drop_size);
 
-		if (ooo_opq->ooo_opcode == TCP_EVENT_NOP)
+		if (ooo_opq->ooo_opcode == TCP_EVENT_ANALP)
 			continue;
 
-		/* Now process create/add/join isles */
+		/* Analw process create/add/join isles */
 		if (unlikely(list_empty(&p_rx->active_descq))) {
-			DP_NOTICE(p_hwfn,
-				  "LL2 OOO RX chain has no submitted buffers\n"
+			DP_ANALTICE(p_hwfn,
+				  "LL2 OOO RX chain has anal submitted buffers\n"
 				  );
 			return -EIO;
 		}
@@ -716,8 +716,8 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 			   ooo_opq->ooo_opcode == TCP_EVENT_ADD_PEN ||
 			   ooo_opq->ooo_opcode == TCP_EVENT_JOIN)) {
 			if (unlikely(!p_pkt)) {
-				DP_NOTICE(p_hwfn,
-					  "LL2 OOO RX packet is not valid\n");
+				DP_ANALTICE(p_hwfn,
+					  "LL2 OOO RX packet is analt valid\n");
 				return -EIO;
 			}
 			list_del(&p_pkt->list_entry);
@@ -771,7 +771,7 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 				break;
 			}
 		} else {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Unexpected event (%d) TX OOO completion\n",
 				  ooo_opq->ooo_opcode);
 		}
@@ -907,7 +907,7 @@ static int qed_ll2_lb_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 			return -EINVAL;
 
 		if (unlikely(p_pkt->bd_used != 1)) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Unexpectedly many BDs(%d) in TX OOO completion\n",
 				  p_pkt->bd_used);
 			return -EINVAL;
@@ -1002,7 +1002,7 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->queue_id = p_ll2_conn->queue_id;
 	p_ramrod->main_func_queue = p_ll2_conn->main_func_queue ? 1 : 0;
 
-	if (test_bit(QED_MF_LL2_NON_UNICAST, &p_hwfn->cdev->mf_bits) &&
+	if (test_bit(QED_MF_LL2_ANALN_UNICAST, &p_hwfn->cdev->mf_bits) &&
 	    p_ramrod->main_func_queue && conn_type != QED_LL2_TYPE_ROCE &&
 	    conn_type != QED_LL2_TYPE_IWARP &&
 		(!QED_IS_NVMETCP_PERSONALITY(p_hwfn))) {
@@ -1100,7 +1100,7 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 		break;
 	default:
 		p_ramrod->conn_type = PROTOCOLID_ETH;
-		DP_NOTICE(p_hwfn, "Unknown connection type: %d\n", conn_type);
+		DP_ANALTICE(p_hwfn, "Unkanalwn connection type: %d\n", conn_type);
 	}
 
 	p_ramrod->gsi_offload_flag = p_ll2_conn->input.gsi_enable;
@@ -1190,7 +1190,7 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 
 	rc = qed_chain_alloc(cdev, &p_ll2_info->rx_queue.rxq_chain, &params);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to allocate ll2 rxq chain\n");
+		DP_ANALTICE(p_hwfn, "Failed to allocate ll2 rxq chain\n");
 		goto out;
 	}
 
@@ -1198,8 +1198,8 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 	p_descq = kcalloc(capacity, sizeof(struct qed_ll2_rx_packet),
 			  GFP_KERNEL);
 	if (!p_descq) {
-		rc = -ENOMEM;
-		DP_NOTICE(p_hwfn, "Failed to allocate ll2 Rx desc\n");
+		rc = -EANALMEM;
+		DP_ANALTICE(p_hwfn, "Failed to allocate ll2 Rx desc\n");
 		goto out;
 	}
 	p_ll2_info->rx_queue.descq_array = p_descq;
@@ -1209,7 +1209,7 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 
 	rc = qed_chain_alloc(cdev, &p_ll2_info->rx_queue.rcq_chain, &params);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to allocate ll2 rcq chain\n");
+		DP_ANALTICE(p_hwfn, "Failed to allocate ll2 rcq chain\n");
 		goto out;
 	}
 
@@ -1251,7 +1251,7 @@ static int qed_ll2_acquire_connection_tx(struct qed_hwfn *p_hwfn,
 
 	p_descq = kcalloc(capacity, desc_size, GFP_KERNEL);
 	if (!p_descq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	p_ll2_info->tx_queue.descq_mem = p_descq;
@@ -1262,7 +1262,7 @@ static int qed_ll2_acquire_connection_tx(struct qed_hwfn *p_hwfn,
 
 out:
 	if (rc)
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Can't allocate memory for Tx LL2 with 0x%08x buffers\n",
 			  p_ll2_info->input.tx_num_desc);
 	return rc;
@@ -1293,7 +1293,7 @@ qed_ll2_acquire_connection_ooo(struct qed_hwfn *p_hwfn,
 	     buf_idx++) {
 		p_buf = kzalloc(sizeof(*p_buf), GFP_KERNEL);
 		if (!p_buf) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -1307,7 +1307,7 @@ qed_ll2_acquire_connection_ooo(struct qed_hwfn *p_hwfn,
 					    GFP_KERNEL);
 		if (!p_virt) {
 			kfree(p_buf);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -1366,12 +1366,12 @@ qed_ll2_get_error_choice(enum qed_ll2_error_handle err)
 	switch (err) {
 	case QED_LL2_DROP_PACKET:
 		return LL2_DROP_PACKET;
-	case QED_LL2_DO_NOTHING:
-		return LL2_DO_NOTHING;
+	case QED_LL2_DO_ANALTHING:
+		return LL2_DO_ANALTHING;
 	case QED_LL2_ASSERT:
 		return LL2_ASSERT;
 	default:
-		return LL2_DO_NOTHING;
+		return LL2_DO_ANALTHING;
 	}
 }
 
@@ -1436,7 +1436,7 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 
 	rc = qed_ll2_set_cbs(p_ll2_info, data->cbs);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Invalid callback functions\n");
+		DP_ANALTICE(p_hwfn, "Invalid callback functions\n");
 		goto q_allocate_fail;
 	}
 
@@ -1484,7 +1484,7 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 
 q_allocate_fail:
 	qed_ll2_release_connection(p_hwfn, i);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int qed_ll2_establish_connection_rx(struct qed_hwfn *p_hwfn,
@@ -1503,9 +1503,9 @@ static int qed_ll2_establish_connection_rx(struct qed_hwfn *p_hwfn,
 	error_mode = qed_ll2_get_error_choice(error_input);
 	SET_FIELD(action_on_error,
 		  CORE_RX_ACTION_ON_ERROR_PACKET_TOO_BIG, error_mode);
-	error_input = p_ll2_conn->input.ai_err_no_buf;
+	error_input = p_ll2_conn->input.ai_err_anal_buf;
 	error_mode = qed_ll2_get_error_choice(error_input);
-	SET_FIELD(action_on_error, CORE_RX_ACTION_ON_ERROR_NO_BUFF, error_mode);
+	SET_FIELD(action_on_error, CORE_RX_ACTION_ON_ERROR_ANAL_BUFF, error_mode);
 
 	rc = qed_sp_ll2_rx_queue_start(p_hwfn, p_ll2_conn, action_on_error);
 	if (rc)
@@ -1626,7 +1626,7 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	cxt_info.iid = p_ll2_conn->cid;
 	rc = qed_cxt_get_cid_info(p_hwfn, &cxt_info);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Cannot find context info for cid=%d\n",
+		DP_ANALTICE(p_hwfn, "Cananalt find context info for cid=%d\n",
 			  p_ll2_conn->cid);
 		goto out;
 	}
@@ -1643,12 +1643,12 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	p_ll2_conn->queue_id = qid;
 	p_ll2_conn->tx_stats_id = stats_id;
 
-	/* If there is no valid stats id for this connection, disable stats */
+	/* If there is anal valid stats id for this connection, disable stats */
 	if (p_ll2_conn->tx_stats_id == QED_LL2_INVALID_STATS_ID) {
 		p_ll2_conn->tx_stats_en = 0;
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_LL2,
-			   "Disabling stats for queue %d - not enough counters\n",
+			   "Disabling stats for queue %d - analt eanalugh counters\n",
 			   qid);
 	}
 
@@ -1718,13 +1718,13 @@ out:
 	return rc;
 }
 
-static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
+static void qed_ll2_post_rx_buffer_analtify_fw(struct qed_hwfn *p_hwfn,
 					     struct qed_ll2_rx_queue *p_rx,
 					     struct qed_ll2_rx_packet *p_curp)
 {
 	struct qed_ll2_rx_packet *p_posting_packet = NULL;
 	struct core_ll2_rx_prod rx_prod = { 0, 0 };
-	bool b_notify_fw = false;
+	bool b_analtify_fw = false;
 	u16 bd_prod, cq_prod;
 
 	/* This handles the flushing of already posted buffers */
@@ -1734,16 +1734,16 @@ static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
 						    list_entry);
 		list_move_tail(&p_posting_packet->list_entry,
 			       &p_rx->active_descq);
-		b_notify_fw = true;
+		b_analtify_fw = true;
 	}
 
 	/* This handles the supplied packet [if there is one] */
 	if (p_curp) {
 		list_add_tail(&p_curp->list_entry, &p_rx->active_descq);
-		b_notify_fw = true;
+		b_analtify_fw = true;
 	}
 
-	if (!b_notify_fw)
+	if (!b_analtify_fw)
 		return;
 
 	bd_prod = qed_chain_get_prod_idx(&p_rx->rxq_chain);
@@ -1774,7 +1774,7 @@ static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
 int qed_ll2_post_rx_buffer(void *cxt,
 			   u8 connection_handle,
 			   dma_addr_t addr,
-			   u16 buf_len, void *cookie, u8 notify_fw)
+			   u16 buf_len, void *cookie, u8 analtify_fw)
 {
 	struct qed_hwfn *p_hwfn = cxt;
 	struct core_rx_bd_with_buff_len *p_curb = NULL;
@@ -1809,7 +1809,7 @@ int qed_ll2_post_rx_buffer(void *cxt,
 	if (!p_curp || !p_curb) {
 		rc = -EBUSY;
 		p_curp = NULL;
-		goto out_notify;
+		goto out_analtify;
 	}
 
 	/* We have an Rx packet we can fill */
@@ -1822,13 +1822,13 @@ int qed_ll2_post_rx_buffer(void *cxt,
 	list_del(&p_curp->list_entry);
 
 	/* Check if we only want to enqueue this packet without informing FW */
-	if (!notify_fw) {
+	if (!analtify_fw) {
 		list_add_tail(&p_curp->list_entry, &p_rx->posting_descq);
 		goto out;
 	}
 
-out_notify:
-	qed_ll2_post_rx_buffer_notify_fw(p_hwfn, p_rx, p_curp);
+out_analtify:
+	qed_ll2_post_rx_buffer_analtify_fw(p_hwfn, p_rx, p_curp);
 out:
 	spin_unlock_irqrestore(&p_rx->lock, flags);
 	return rc;
@@ -1838,12 +1838,12 @@ static void qed_ll2_prepare_tx_packet_set(struct qed_hwfn *p_hwfn,
 					  struct qed_ll2_tx_queue *p_tx,
 					  struct qed_ll2_tx_packet *p_curp,
 					  struct qed_ll2_tx_pkt_info *pkt,
-					  u8 notify_fw)
+					  u8 analtify_fw)
 {
 	list_del(&p_curp->list_entry);
 	p_curp->cookie = pkt->cookie;
 	p_curp->bd_used = pkt->num_of_bds;
-	p_curp->notify_fw = notify_fw;
+	p_curp->analtify_fw = analtify_fw;
 	p_tx->cur_send_packet = p_curp;
 	p_tx->cur_send_frag_num = 0;
 
@@ -1944,15 +1944,15 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 }
 
 /* This should be called while the Txq spinlock is being held */
-static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
+static void qed_ll2_tx_packet_analtify(struct qed_hwfn *p_hwfn,
 				     struct qed_ll2_info *p_ll2_conn)
 {
-	bool b_notify = p_ll2_conn->tx_queue.cur_send_packet->notify_fw;
+	bool b_analtify = p_ll2_conn->tx_queue.cur_send_packet->analtify_fw;
 	struct qed_ll2_tx_queue *p_tx = &p_ll2_conn->tx_queue;
 	struct qed_ll2_tx_packet *p_pkt = NULL;
 	u16 bd_prod;
 
-	/* If there are missing BDs, don't do anything now */
+	/* If there are missing BDs, don't do anything analw */
 	if (p_ll2_conn->tx_queue.cur_send_frag_num !=
 	    p_ll2_conn->tx_queue.cur_send_packet->bd_used)
 		return;
@@ -1963,8 +1963,8 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 	p_ll2_conn->tx_queue.cur_send_packet = NULL;
 	p_ll2_conn->tx_queue.cur_send_frag_num = 0;
 
-	/* Notify FW of packet only if requested to */
-	if (!b_notify)
+	/* Analtify FW of packet only if requested to */
+	if (!b_analtify)
 		return;
 
 	bd_prod = qed_chain_get_prod_idx(&p_ll2_conn->tx_queue.txq_chain);
@@ -1996,7 +1996,7 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 int qed_ll2_prepare_tx_packet(void *cxt,
 			      u8 connection_handle,
 			      struct qed_ll2_tx_pkt_info *pkt,
-			      bool notify_fw)
+			      bool analtify_fw)
 {
 	struct qed_hwfn *p_hwfn = cxt;
 	struct qed_ll2_tx_packet *p_curp = NULL;
@@ -2035,11 +2035,11 @@ int qed_ll2_prepare_tx_packet(void *cxt,
 	}
 
 	/* Prepare packet and BD, and perhaps send a doorbell to FW */
-	qed_ll2_prepare_tx_packet_set(p_hwfn, p_tx, p_curp, pkt, notify_fw);
+	qed_ll2_prepare_tx_packet_set(p_hwfn, p_tx, p_curp, pkt, analtify_fw);
 
 	qed_ll2_prepare_tx_packet_set_bd(p_hwfn, p_ll2_conn, p_curp, pkt);
 
-	qed_ll2_tx_packet_notify(p_hwfn, p_ll2_conn);
+	qed_ll2_tx_packet_analtify(p_hwfn, p_ll2_conn);
 
 out:
 	spin_unlock_irqrestore(&p_tx->lock, flags);
@@ -2070,7 +2070,7 @@ int qed_ll2_set_fragment_of_tx_packet(void *cxt,
 	if (unlikely(cur_send_frag_num >= p_cur_send_packet->bd_used))
 		return -EINVAL;
 
-	/* Fill the BD information, and possibly notify FW */
+	/* Fill the BD information, and possibly analtify FW */
 	p_bd = p_cur_send_packet->bds_set[cur_send_frag_num].txq_bd;
 	DMA_REGPAIR_LE(p_bd->addr, addr);
 	p_bd->nbytes = cpu_to_le16(nbytes);
@@ -2080,7 +2080,7 @@ int qed_ll2_set_fragment_of_tx_packet(void *cxt,
 	p_ll2_conn->tx_queue.cur_send_frag_num++;
 
 	spin_lock_irqsave(&p_ll2_conn->tx_queue.lock, flags);
-	qed_ll2_tx_packet_notify(p_hwfn, p_ll2_conn);
+	qed_ll2_tx_packet_analtify(p_hwfn, p_ll2_conn);
 	spin_unlock_irqrestore(&p_ll2_conn->tx_queue.lock, flags);
 
 	return 0;
@@ -2203,8 +2203,8 @@ int qed_ll2_alloc(struct qed_hwfn *p_hwfn)
 	p_ll2_connections = kcalloc(QED_MAX_NUM_OF_LL2_CONNECTIONS,
 				    sizeof(struct qed_ll2_info), GFP_KERNEL);
 	if (!p_ll2_connections) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_ll2'\n");
-		return -ENOMEM;
+		DP_ANALTICE(p_hwfn, "Failed to allocate `struct qed_ll2'\n");
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < QED_MAX_NUM_OF_LL2_CONNECTIONS; i++)
@@ -2268,7 +2268,7 @@ static void _qed_ll2_get_tstats(struct qed_hwfn *p_hwfn,
 
 	p_stats->packet_too_big_discard +=
 			HILO_64_REGPAIR(tstats.packet_too_big_discard);
-	p_stats->no_buff_discard += HILO_64_REGPAIR(tstats.no_buff_discard);
+	p_stats->anal_buff_discard += HILO_64_REGPAIR(tstats.anal_buff_discard);
 }
 
 static void _qed_ll2_get_ustats(struct qed_hwfn *p_hwfn,
@@ -2483,13 +2483,13 @@ static int qed_ll2_stop(struct qed_dev *cdev)
 	if (b_is_storage_eng1) {
 		rc2 = __qed_ll2_stop(QED_LEADING_HWFN(cdev));
 		if (rc2)
-			DP_NOTICE(QED_LEADING_HWFN(cdev),
+			DP_ANALTICE(QED_LEADING_HWFN(cdev),
 				  "Failed to stop LL2 on engine 0\n");
 	}
 
 	rc = __qed_ll2_stop(p_hwfn);
 	if (rc)
-		DP_NOTICE(p_hwfn, "Failed to stop LL2\n");
+		DP_ANALTICE(p_hwfn, "Failed to stop LL2\n");
 
 	qed_ll2_kill_buffers(cdev);
 
@@ -2560,7 +2560,7 @@ static int __qed_ll2_start(struct qed_hwfn *p_hwfn,
 	spin_unlock_bh(&cdev->ll2->lock);
 
 	if (rx_cnt == cdev->ll2->rx_cnt) {
-		DP_NOTICE(p_hwfn, "Failed passing even a single Rx buffer\n");
+		DP_ANALTICE(p_hwfn, "Failed passing even a single Rx buffer\n");
 		goto terminate_conn;
 	}
 	cdev->ll2->rx_cnt = rx_cnt;
@@ -2582,7 +2582,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	int rx_num_desc, i, rc;
 
 	if (!is_valid_ether_addr(params->ll2_mac_address)) {
-		DP_NOTICE(cdev, "Invalid Ethernet address\n");
+		DP_ANALTICE(cdev, "Invalid Ethernet address\n");
 		return -EINVAL;
 	}
 
@@ -2606,7 +2606,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 		if (!buffer) {
 			DP_INFO(cdev, "Failed to allocate LL2 buffers\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err0;
 		}
 
@@ -2622,7 +2622,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 
 	rc = __qed_ll2_start(p_hwfn, params);
 	if (rc) {
-		DP_NOTICE(cdev, "Failed to start LL2\n");
+		DP_ANALTICE(cdev, "Failed to start LL2\n");
 		goto err0;
 	}
 
@@ -2632,7 +2632,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	if (b_is_storage_eng1) {
 		rc = __qed_ll2_start(QED_LEADING_HWFN(cdev), params);
 		if (rc) {
-			DP_NOTICE(QED_LEADING_HWFN(cdev),
+			DP_ANALTICE(QED_LEADING_HWFN(cdev),
 				  "Failed to start LL2 on engine 0\n");
 			goto err1;
 		}
@@ -2642,7 +2642,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 		DP_VERBOSE(cdev, QED_MSG_STORAGE, "Starting OOO LL2 queue\n");
 		rc = qed_ll2_start_ooo(p_hwfn, params);
 		if (rc) {
-			DP_NOTICE(cdev, "Failed to start OOO LL2\n");
+			DP_ANALTICE(cdev, "Failed to start OOO LL2\n");
 			goto err2;
 		}
 	}
@@ -2650,7 +2650,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	if (!QED_IS_NVMETCP_PERSONALITY(p_hwfn)) {
 		rc = qed_llh_add_mac_filter(cdev, 0, params->ll2_mac_address);
 		if (rc) {
-			DP_NOTICE(cdev, "Failed to add an LLH filter\n");
+			DP_ANALTICE(cdev, "Failed to add an LLH filter\n");
 			goto err3;
 		}
 	}
@@ -2684,8 +2684,8 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 	dma_addr_t mapping;
 	u16 vlan = 0;
 
-	if (unlikely(skb->ip_summed != CHECKSUM_NONE)) {
-		DP_INFO(cdev, "Cannot transmit a checksummed packet\n");
+	if (unlikely(skb->ip_summed != CHECKSUM_ANALNE)) {
+		DP_INFO(cdev, "Cananalt transmit a checksummed packet\n");
 		return -EINVAL;
 	}
 
@@ -2695,7 +2695,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 	nr_frags = skb_shinfo(skb)->nr_frags;
 
 	if (unlikely(1 + nr_frags > CORE_LL2_TX_MAX_BDS_PER_PACKET)) {
-		DP_ERR(cdev, "Cannot transmit a packet with %d fragments\n",
+		DP_ERR(cdev, "Cananalt transmit a packet with %d fragments\n",
 		       1 + nr_frags);
 		return -EINVAL;
 	}
@@ -2703,7 +2703,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 	mapping = dma_map_single(&cdev->pdev->dev, skb->data,
 				 skb->len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(&cdev->pdev->dev, mapping))) {
-		DP_NOTICE(cdev, "SKB mapping failed\n");
+		DP_ANALTICE(cdev, "SKB mapping failed\n");
 		return -EINVAL;
 	}
 
@@ -2730,8 +2730,8 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 		pkt.remove_stag = true;
 
 	/* qed_ll2_prepare_tx_packet() may actually send the packet if
-	 * there are no fragments in the skb and subsequently the completion
-	 * routine may run and free the SKB, so no dereferencing the SKB
+	 * there are anal fragments in the skb and subsequently the completion
+	 * routine may run and free the SKB, so anal dereferencing the SKB
 	 * beyond this point unless skb has any fragments.
 	 */
 	rc = qed_ll2_prepare_tx_packet(p_hwfn, cdev->ll2->handle,
@@ -2746,9 +2746,9 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 					   skb_frag_size(frag), DMA_TO_DEVICE);
 
 		if (unlikely(dma_mapping_error(&cdev->pdev->dev, mapping))) {
-			DP_NOTICE(cdev,
+			DP_ANALTICE(cdev,
 				  "Unable to map frag - dropping packet\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 
@@ -2757,7 +2757,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 						       mapping,
 						       skb_frag_size(frag));
 
-		/* if failed not much to do here, partial packet has been posted
+		/* if failed analt much to do here, partial packet has been posted
 		 * we can't free memory, will need to wait for completion
 		 */
 		if (unlikely(rc))
@@ -2783,7 +2783,7 @@ static int qed_ll2_stats(struct qed_dev *cdev, struct qed_ll2_stats *stats)
 
 	rc = qed_ll2_get_stats(p_hwfn, cdev->ll2->handle, stats);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to get LL2 stats\n");
+		DP_ANALTICE(p_hwfn, "Failed to get LL2 stats\n");
 		return rc;
 	}
 
@@ -2792,7 +2792,7 @@ static int qed_ll2_stats(struct qed_dev *cdev, struct qed_ll2_stats *stats)
 		rc = __qed_ll2_get_stats(QED_LEADING_HWFN(cdev),
 					 cdev->ll2->handle, stats);
 		if (rc) {
-			DP_NOTICE(QED_LEADING_HWFN(cdev),
+			DP_ANALTICE(QED_LEADING_HWFN(cdev),
 				  "Failed to get LL2 stats on engine 0\n");
 			return rc;
 		}
@@ -2812,7 +2812,7 @@ const struct qed_ll2_ops qed_ll2_ops_pass = {
 int qed_ll2_alloc_if(struct qed_dev *cdev)
 {
 	cdev->ll2 = kzalloc(sizeof(*cdev->ll2), GFP_KERNEL);
-	return cdev->ll2 ? 0 : -ENOMEM;
+	return cdev->ll2 ? 0 : -EANALMEM;
 }
 
 void qed_ll2_dealloc_if(struct qed_dev *cdev)

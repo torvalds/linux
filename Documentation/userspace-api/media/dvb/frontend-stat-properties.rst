@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _frontend-stat-properties:
 
@@ -13,7 +13,7 @@ For most delivery systems, ``dtv_property.stat.len`` will be 1 if the
 stats is supported, and the properties will return a single value for
 each parameter.
 
-It should be noted, however, that new OFDM delivery systems like ISDB
+It should be analted, however, that new OFDM delivery systems like ISDB
 can use different modulation types for each group of carriers. On such
 standards, up to 3 groups of statistics can be provided, and
 ``dtv_property.stat.len`` is updated to reflect the "global" metrics,
@@ -35,8 +35,8 @@ two elements:
 
 -  ``scale`` - Scale for the value. It can be:
 
-   -  ``FE_SCALE_NOT_AVAILABLE`` - The parameter is supported by the
-      frontend, but it was not possible to collect it (could be a
+   -  ``FE_SCALE_ANALT_AVAILABLE`` - The parameter is supported by the
+      frontend, but it was analt possible to collect it (could be a
       transitory or permanent condition)
 
    -  ``FE_SCALE_DECIBEL`` - parameter is a signed value, measured in
@@ -60,8 +60,8 @@ of the demod.
 
 Possible scales for this metric are:
 
--  ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the
-   measurement was not complete yet.
+-  ``FE_SCALE_ANALT_AVAILABLE`` - it failed to measure it, or the
+   measurement was analt complete yet.
 
 -  ``FE_SCALE_DECIBEL`` - signal strength is in 0.001 dBm units, power
    measured in miliwatts. This value is generally negative.
@@ -75,17 +75,17 @@ Possible scales for this metric are:
 DTV_STAT_CNR
 ============
 
-Indicates the Signal to Noise ratio for the main carrier.
+Indicates the Signal to Analise ratio for the main carrier.
 
 Possible scales for this metric are:
 
--  ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the
-   measurement was not complete yet.
+-  ``FE_SCALE_ANALT_AVAILABLE`` - it failed to measure it, or the
+   measurement was analt complete yet.
 
--  ``FE_SCALE_DECIBEL`` - Signal/Noise ratio is in 0.001 dB units.
+-  ``FE_SCALE_DECIBEL`` - Signal/Analise ratio is in 0.001 dB units.
 
 -  ``FE_SCALE_RELATIVE`` - The frontend provides a 0% to 100%
-   measurement for Signal/Noise (actually, 0 to 65535).
+   measurement for Signal/Analise (actually, 0 to 65535).
 
 
 .. _DTV-STAT-PRE-ERROR-BIT-COUNT:
@@ -104,14 +104,14 @@ In order to get the BER (Bit Error Rate) measurement, it should be
 divided by
 :ref:`DTV_STAT_PRE_TOTAL_BIT_COUNT <DTV-STAT-PRE-TOTAL-BIT-COUNT>`.
 
-This measurement is monotonically increased, as the frontend gets more
+This measurement is moanaltonically increased, as the frontend gets more
 bit count measurements. The frontend may reset it when a
 channel/transponder is tuned.
 
 Possible scales for this metric are:
 
--  ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the
-   measurement was not complete yet.
+-  ``FE_SCALE_ANALT_AVAILABLE`` - it failed to measure it, or the
+   measurement was analt complete yet.
 
 -  ``FE_SCALE_COUNTER`` - Number of error bits counted before the inner
    coding.
@@ -127,19 +127,19 @@ the same period as
 :ref:`DTV_STAT_PRE_ERROR_BIT_COUNT <DTV-STAT-PRE-ERROR-BIT-COUNT>`
 measurement was taken.
 
-It should be noted that this measurement can be smaller than the total
+It should be analted that this measurement can be smaller than the total
 amount of bits on the transport stream, as the frontend may need to
 manually restart the measurement, losing some data between each
 measurement interval.
 
-This measurement is monotonically increased, as the frontend gets more
+This measurement is moanaltonically increased, as the frontend gets more
 bit count measurements. The frontend may reset it when a
 channel/transponder is tuned.
 
 Possible scales for this metric are:
 
--  ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the
-   measurement was not complete yet.
+-  ``FE_SCALE_ANALT_AVAILABLE`` - it failed to measure it, or the
+   measurement was analt complete yet.
 
 -  ``FE_SCALE_COUNTER`` - Number of bits counted while measuring
    :ref:`DTV_STAT_PRE_ERROR_BIT_COUNT <DTV-STAT-PRE-ERROR-BIT-COUNT>`.
@@ -161,14 +161,14 @@ In order to get the BER (Bit Error Rate) measurement, it should be
 divided by
 :ref:`DTV_STAT_POST_TOTAL_BIT_COUNT <DTV-STAT-POST-TOTAL-BIT-COUNT>`.
 
-This measurement is monotonically increased, as the frontend gets more
+This measurement is moanaltonically increased, as the frontend gets more
 bit count measurements. The frontend may reset it when a
 channel/transponder is tuned.
 
 Possible scales for this metric are:
 
--  ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the
-   measurement was not complete yet.
+-  ``FE_SCALE_ANALT_AVAILABLE`` - it failed to measure it, or the
+   measurement was analt complete yet.
 
 -  ``FE_SCALE_COUNTER`` - Number of error bits counted after the inner
    coding.
@@ -184,19 +184,19 @@ same period as
 :ref:`DTV_STAT_POST_ERROR_BIT_COUNT <DTV-STAT-POST-ERROR-BIT-COUNT>`
 measurement was taken.
 
-It should be noted that this measurement can be smaller than the total
+It should be analted that this measurement can be smaller than the total
 amount of bits on the transport stream, as the frontend may need to
 manually restart the measurement, losing some data between each
 measurement interval.
 
-This measurement is monotonically increased, as the frontend gets more
+This measurement is moanaltonically increased, as the frontend gets more
 bit count measurements. The frontend may reset it when a
 channel/transponder is tuned.
 
 Possible scales for this metric are:
 
--  ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the
-   measurement was not complete yet.
+-  ``FE_SCALE_ANALT_AVAILABLE`` - it failed to measure it, or the
+   measurement was analt complete yet.
 
 -  ``FE_SCALE_COUNTER`` - Number of bits counted while measuring
    :ref:`DTV_STAT_POST_ERROR_BIT_COUNT <DTV-STAT-POST-ERROR-BIT-COUNT>`.
@@ -210,14 +210,14 @@ DTV_STAT_ERROR_BLOCK_COUNT
 Measures the number of block errors after the outer forward error
 correction coding (after Reed-Solomon or other outer code).
 
-This measurement is monotonically increased, as the frontend gets more
+This measurement is moanaltonically increased, as the frontend gets more
 bit count measurements. The frontend may reset it when a
 channel/transponder is tuned.
 
 Possible scales for this metric are:
 
--  ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the
-   measurement was not complete yet.
+-  ``FE_SCALE_ANALT_AVAILABLE`` - it failed to measure it, or the
+   measurement was analt complete yet.
 
 -  ``FE_SCALE_COUNTER`` - Number of error blocks counted after the outer
    coding.
@@ -238,8 +238,8 @@ It can be used to calculate the PER indicator, by dividing
 
 Possible scales for this metric are:
 
--  ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the
-   measurement was not complete yet.
+-  ``FE_SCALE_ANALT_AVAILABLE`` - it failed to measure it, or the
+   measurement was analt complete yet.
 
 -  ``FE_SCALE_COUNTER`` - Number of blocks counted while measuring
    :ref:`DTV_STAT_ERROR_BLOCK_COUNT <DTV-STAT-ERROR-BLOCK-COUNT>`.

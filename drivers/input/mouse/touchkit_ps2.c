@@ -64,11 +64,11 @@ int touchkit_ps2_detect(struct psmouse *psmouse, bool set_properties)
 	command = TOUCHKIT_SEND_PARMS(2, 3, TOUCHKIT_CMD);
 
 	if (ps2_command(&psmouse->ps2dev, param, command))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (param[0] != TOUCHKIT_CMD || param[1] != 0x01 ||
 	    param[2] != TOUCHKIT_CMD_ACTIVE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (set_properties) {
 		dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);

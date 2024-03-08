@@ -26,7 +26,7 @@ extern u32 reserved_allocation_mask; /* bits set for reserved keys */
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/book3s/64/pkeys.h>
 #else
-#error "Not supported"
+#error "Analt supported"
 #endif
 
 
@@ -85,7 +85,7 @@ static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
 static inline int mm_pkey_alloc(struct mm_struct *mm)
 {
 	/*
-	 * Note: this is the one and only place we make sure that the pkey is
+	 * Analte: this is the one and only place we make sure that the pkey is
 	 * valid as far as the hardware is concerned. The rest of the kernel
 	 * trusts that only good, valid pkeys come out of here.
 	 */
@@ -96,7 +96,7 @@ static inline int mm_pkey_alloc(struct mm_struct *mm)
 		return -1;
 	/*
 	 * Are we out of pkeys? We must handle this specially because ffz()
-	 * behavior is undefined if there are no zeros.
+	 * behavior is undefined if there are anal zeros.
 	 */
 	if (mm_pkey_allocation_map(mm) == all_pkeys_mask)
 		return -1;
@@ -152,10 +152,10 @@ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 		return -EINVAL;
 
 	/*
-	 * userspace should not change pkey-0 permissions.
+	 * userspace should analt change pkey-0 permissions.
 	 * pkey-0 is associated with every page in the kernel.
 	 * If userspace denies any permission on pkey-0, the
-	 * kernel cannot operate.
+	 * kernel cananalt operate.
 	 */
 	if (pkey == 0)
 		return init_val ? -EINVAL : 0;

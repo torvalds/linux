@@ -14,7 +14,7 @@ static int nvidia_altmode_probe(struct typec_altmode *alt)
 	if (alt->svid == USB_TYPEC_NVIDIA_VLINK_SID)
 		return dp_altmode_probe(alt);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 
 static void nvidia_altmode_remove(struct typec_altmode *alt)

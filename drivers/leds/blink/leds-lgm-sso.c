@@ -346,13 +346,13 @@ static void sso_led_hw_cfg(struct sso_led_priv *priv, struct sso_led *led)
 }
 
 static int sso_create_led(struct sso_led_priv *priv, struct sso_led *led,
-			  struct fwnode_handle *child)
+			  struct fwanalde_handle *child)
 {
 	struct sso_led_desc *desc = &led->desc;
 	struct led_init_data init_data;
 	int err;
 
-	init_data.fwnode = child;
+	init_data.fwanalde = child;
 	init_data.devicename = SSO_DEV_NAME;
 	init_data.default_label = ":";
 
@@ -569,12 +569,12 @@ static int sso_gpio_hw_init(struct sso_led_priv *priv)
 			return err;
 	}
 
-	/* NO HW directly controlled pin by default */
+	/* ANAL HW directly controlled pin by default */
 	err = regmap_write(priv->mmap, SSO_CON3, 0);
 	if (err)
 		return err;
 
-	/* NO BLINK for all pins */
+	/* ANAL BLINK for all pins */
 	err = regmap_write(priv->mmap, SSO_CON2, 0);
 	if (err)
 		return err;
@@ -614,9 +614,9 @@ static void sso_led_shutdown(struct sso_led *led)
 }
 
 static int
-__sso_led_dt_parse(struct sso_led_priv *priv, struct fwnode_handle *fw_ssoled)
+__sso_led_dt_parse(struct sso_led_priv *priv, struct fwanalde_handle *fw_ssoled)
 {
-	struct fwnode_handle *fwnode_child;
+	struct fwanalde_handle *fwanalde_child;
 	struct device *dev = priv->dev;
 	struct sso_led_desc *desc;
 	struct sso_led *led;
@@ -624,10 +624,10 @@ __sso_led_dt_parse(struct sso_led_priv *priv, struct fwnode_handle *fw_ssoled)
 	u32 prop;
 	int ret;
 
-	fwnode_for_each_child_node(fw_ssoled, fwnode_child) {
+	fwanalde_for_each_child_analde(fw_ssoled, fwanalde_child) {
 		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 		if (!led) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto __dt_err;
 		}
 
@@ -635,29 +635,29 @@ __sso_led_dt_parse(struct sso_led_priv *priv, struct fwnode_handle *fw_ssoled)
 		led->priv = priv;
 		desc = &led->desc;
 
-		led->gpiod = devm_fwnode_gpiod_get(dev, fwnode_child, NULL,
+		led->gpiod = devm_fwanalde_gpiod_get(dev, fwanalde_child, NULL,
 						   GPIOD_ASIS, NULL);
 		if (IS_ERR(led->gpiod)) {
 			ret = dev_err_probe(dev, PTR_ERR(led->gpiod), "led: get gpio fail!\n");
 			goto __dt_err;
 		}
 
-		fwnode_property_read_string(fwnode_child,
+		fwanalde_property_read_string(fwanalde_child,
 					    "linux,default-trigger",
 					    &desc->default_trigger);
 
-		if (fwnode_property_present(fwnode_child,
+		if (fwanalde_property_present(fwanalde_child,
 					    "retain-state-suspended"))
 			desc->retain_state_suspended = 1;
 
-		if (fwnode_property_present(fwnode_child,
+		if (fwanalde_property_present(fwanalde_child,
 					    "retain-state-shutdown"))
 			desc->retain_state_shutdown = 1;
 
-		if (fwnode_property_present(fwnode_child, "panic-indicator"))
+		if (fwanalde_property_present(fwanalde_child, "panic-indicator"))
 			desc->panic_indicator = 1;
 
-		ret = fwnode_property_read_u32(fwnode_child, "reg", &prop);
+		ret = fwanalde_property_read_u32(fwanalde_child, "reg", &prop);
 		if (ret)
 			goto __dt_err;
 		if (prop >= SSO_LED_MAX_NUM) {
@@ -667,10 +667,10 @@ __sso_led_dt_parse(struct sso_led_priv *priv, struct fwnode_handle *fw_ssoled)
 		}
 		desc->pin = prop;
 
-		if (fwnode_property_present(fwnode_child, "intel,sso-hw-blink"))
+		if (fwanalde_property_present(fwanalde_child, "intel,sso-hw-blink"))
 			desc->hw_blink = 1;
 
-		desc->hw_trig = fwnode_property_read_bool(fwnode_child,
+		desc->hw_trig = fwanalde_property_read_bool(fwanalde_child,
 							  "intel,sso-hw-trigger");
 		if (desc->hw_trig) {
 			desc->default_trigger = NULL;
@@ -680,7 +680,7 @@ __sso_led_dt_parse(struct sso_led_priv *priv, struct fwnode_handle *fw_ssoled)
 			desc->hw_blink = 0;
 		}
 
-		if (fwnode_property_read_u32(fwnode_child,
+		if (fwanalde_property_read_u32(fwanalde_child,
 					     "intel,sso-blink-rate-hz", &prop)) {
 			/* default first freq rate */
 			desc->freq_idx = 0;
@@ -693,12 +693,12 @@ __sso_led_dt_parse(struct sso_led_priv *priv, struct fwnode_handle *fw_ssoled)
 			desc->blink_rate = priv->freq[desc->freq_idx];
 		}
 
-		if (!fwnode_property_read_string(fwnode_child, "default-state", &tmp)) {
+		if (!fwanalde_property_read_string(fwanalde_child, "default-state", &tmp)) {
 			if (!strcmp(tmp, "on"))
 				desc->brightness = LED_FULL;
 		}
 
-		ret = sso_create_led(priv, led, fwnode_child);
+		ret = sso_create_led(priv, led, fwanalde_child);
 		if (ret)
 			goto __dt_err;
 	}
@@ -706,7 +706,7 @@ __sso_led_dt_parse(struct sso_led_priv *priv, struct fwnode_handle *fw_ssoled)
 	return 0;
 
 __dt_err:
-	fwnode_handle_put(fwnode_child);
+	fwanalde_handle_put(fwanalde_child);
 	/* unregister leds */
 	list_for_each_entry(led, &priv->led_list, list)
 		sso_led_shutdown(led);
@@ -716,20 +716,20 @@ __dt_err:
 
 static int sso_led_dt_parse(struct sso_led_priv *priv)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(priv->dev);
-	struct fwnode_handle *fw_ssoled;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(priv->dev);
+	struct fwanalde_handle *fw_ssoled;
 	struct device *dev = priv->dev;
 	int count;
 	int ret;
 
-	count = device_get_child_node_count(dev);
+	count = device_get_child_analde_count(dev);
 	if (!count)
 		return 0;
 
-	fw_ssoled = fwnode_get_named_child_node(fwnode, "ssoled");
+	fw_ssoled = fwanalde_get_named_child_analde(fwanalde, "ssoled");
 	if (fw_ssoled) {
 		ret = __sso_led_dt_parse(priv, fw_ssoled);
-		fwnode_handle_put(fw_ssoled);
+		fwanalde_handle_put(fw_ssoled);
 		if (ret)
 			return ret;
 	}
@@ -777,7 +777,7 @@ static int intel_sso_led_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pdev = pdev;
 	priv->dev = dev;
@@ -806,9 +806,9 @@ static int intel_sso_led_probe(struct platform_device *pdev)
 
 	priv->fpid_clkrate = clk_get_rate(priv->clocks[1].clk);
 
-	priv->mmap = syscon_node_to_regmap(dev->of_node);
+	priv->mmap = syscon_analde_to_regmap(dev->of_analde);
 
-	priv->mmap = syscon_node_to_regmap(dev->of_node);
+	priv->mmap = syscon_analde_to_regmap(dev->of_analde);
 	if (IS_ERR(priv->mmap)) {
 		dev_err(dev, "Failed to map iomem!\n");
 		return PTR_ERR(priv->mmap);

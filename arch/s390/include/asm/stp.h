@@ -8,8 +8,8 @@
 
 #include <linux/compiler.h>
 
-/* notifier for syncs */
-extern struct atomic_notifier_head s390_epoch_delta_notifier;
+/* analtifier for syncs */
+extern struct atomic_analtifier_head s390_epoch_delta_analtifier;
 
 /* STP interruption parameter */
 struct stp_irq_parm {

@@ -57,7 +57,7 @@
 &rmem {
 	/*
 	 * RPi4's co-processor will copy the board's bootloader configuration
-	 * into memory for the OS to consume. It'll also update this node with
+	 * into memory for the OS to consume. It'll also update this analde with
 	 * its placement information.
 	 */
 	blconfig: nvram@0 {
@@ -65,7 +65,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x0 0x0 0x0>;
-		no-map;
+		anal-map;
 		status = "disabled";
 	};
 };

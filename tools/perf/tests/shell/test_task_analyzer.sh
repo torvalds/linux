@@ -51,7 +51,7 @@ find_str_or_fail() {
 }
 
 # check if perf is compiled with libtraceevent support
-skip_no_probe_record_support() {
+skip_anal_probe_record_support() {
 	perf version --build-options | grep -q " OFF .* HAVE_LIBTRACEEVENT" && return 2
 	return 0
 }
@@ -66,7 +66,7 @@ prepare_perf_data() {
 	fi
 }
 
-# check standard inkvokation with no arguments
+# check standard inkvokation with anal arguments
 test_basic() {
 	out="$tmpdir/perf.out"
 	perf script report task-analyzer > "$out"
@@ -151,10 +151,10 @@ test_csvsummary_extended() {
 	find_str_or_fail "Out-Out;" csvsummary "${FUNCNAME[0]}"
 }
 
-skip_no_probe_record_support
+skip_anal_probe_record_support
 err=$?
 if [ $err -ne 0 ]; then
-	echo "WARN: Skipping tests. No libtraceevent support"
+	echo "WARN: Skipping tests. Anal libtraceevent support"
 	cleanup
 	exit $err
 fi

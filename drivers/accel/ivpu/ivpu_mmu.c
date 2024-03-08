@@ -231,7 +231,7 @@
 				  (REG_FLD(IVPU_MMU_REG_GERROR, MSI_PRIQ_ABT)) | \
 				  (REG_FLD(IVPU_MMU_REG_GERROR, MSI_ABT)))
 
-#define IVPU_MMU_CERROR_NONE         0x0
+#define IVPU_MMU_CERROR_ANALNE         0x0
 #define IVPU_MMU_CERROR_ILL          0x1
 #define IVPU_MMU_CERROR_ABT          0x2
 #define IVPU_MMU_CERROR_ATC_INV_SYNC 0x3
@@ -250,7 +250,7 @@ static const char *ivpu_mmu_event_to_str(u32 cmd)
 	case IVPU_MMU_EVT_F_BAD_ATS_TREQ:
 		return "Address Request disallowed for a StreamID";
 	case IVPU_MMU_EVT_F_STREAM_DISABLED:
-		return "Transaction marks non-substream disabled";
+		return "Transaction marks analn-substream disabled";
 	case IVPU_MMU_EVT_F_TRANSL_FORBIDDEN:
 		return "MMU bypass is disallowed for this StreamID";
 	case IVPU_MMU_EVT_C_BAD_SUBSTREAMID:
@@ -278,15 +278,15 @@ static const char *ivpu_mmu_event_to_str(u32 cmd)
 	case IVPU_MMU_EVT_F_VMS_FETCH:
 		return "Fetch of VMS caused external abort";
 	default:
-		return "Unknown CMDQ command";
+		return "Unkanalwn CMDQ command";
 	}
 }
 
 static const char *ivpu_mmu_cmdq_err_to_str(u32 err)
 {
 	switch (err) {
-	case IVPU_MMU_CERROR_NONE:
-		return "No CMDQ Error";
+	case IVPU_MMU_CERROR_ANALNE:
+		return "Anal CMDQ Error";
 	case IVPU_MMU_CERROR_ILL:
 		return "Illegal command";
 	case IVPU_MMU_CERROR_ABT:
@@ -294,7 +294,7 @@ static const char *ivpu_mmu_cmdq_err_to_str(u32 err)
 	case IVPU_MMU_CERROR_ATC_INV_SYNC:
 		return "Sync failed to complete ATS invalidation";
 	default:
-		return "Unknown CMDQ Error";
+		return "Unkanalwn CMDQ Error";
 	}
 }
 
@@ -340,7 +340,7 @@ static int ivpu_mmu_cdtab_alloc(struct ivpu_device *vdev)
 
 	cdtab->base = dmam_alloc_coherent(vdev->drm.dev, size, &cdtab->dma, GFP_KERNEL);
 	if (!cdtab->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ivpu_dbg(vdev, MMU, "CDTAB alloc: dma=%pad size=%zu\n", &cdtab->dma, size);
 
@@ -355,7 +355,7 @@ static int ivpu_mmu_strtab_alloc(struct ivpu_device *vdev)
 
 	strtab->base = dmam_alloc_coherent(vdev->drm.dev, size, &strtab->dma, GFP_KERNEL);
 	if (!strtab->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strtab->base_cfg = IVPU_MMU_STRTAB_CFG;
 	strtab->dma_q = IVPU_MMU_STRTAB_BASE_RA;
@@ -374,7 +374,7 @@ static int ivpu_mmu_cmdq_alloc(struct ivpu_device *vdev)
 
 	q->base = dmam_alloc_coherent(vdev->drm.dev, IVPU_MMU_CMDQ_SIZE, &q->dma, GFP_KERNEL);
 	if (!q->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->dma_q = IVPU_MMU_Q_BASE_RWA;
 	q->dma_q |= q->dma & IVPU_MMU_Q_BASE_ADDR_MASK;
@@ -393,7 +393,7 @@ static int ivpu_mmu_evtq_alloc(struct ivpu_device *vdev)
 
 	q->base = dmam_alloc_coherent(vdev->drm.dev, IVPU_MMU_EVTQ_SIZE, &q->dma, GFP_KERNEL);
 	if (!q->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->dma_q = IVPU_MMU_Q_BASE_RWA;
 	q->dma_q |= q->dma & IVPU_MMU_Q_BASE_ADDR_MASK;
@@ -531,7 +531,7 @@ static int ivpu_mmu_cmdq_sync(struct ivpu_device *vdev)
 
 		ivpu_err(vdev, "Timed out waiting for MMU consumer: %d, error: %s\n", ret,
 			 ivpu_mmu_cmdq_err_to_str(err));
-		ivpu_hw_diagnose_failure(vdev);
+		ivpu_hw_diaganalse_failure(vdev);
 	}
 
 	return ret;

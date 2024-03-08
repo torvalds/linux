@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include "sparx5_main_regs.h"
@@ -14,7 +14,7 @@
 #define XTR_PRUNED    ntohl((__force __be32)0x80000004u)
 #define XTR_ABORT     ntohl((__force __be32)0x80000005u)
 #define XTR_ESCAPE    ntohl((__force __be32)0x80000006u)
-#define XTR_NOT_READY ntohl((__force __be32)0x80000007u)
+#define XTR_ANALT_READY ntohl((__force __be32)0x80000007u)
 
 #define XTR_VALID_BYTES(x)      (4 - ((x) & 3))
 
@@ -28,7 +28,7 @@ void sparx5_xtr_flush(struct sparx5 *sparx5, u8 grp)
 	/* Allow to drain */
 	mdelay(1);
 
-	/* All Queues normal */
+	/* All Queues analrmal */
 	spx5_wr(0, sparx5, QS_XTR_FLUSH);
 }
 
@@ -36,7 +36,7 @@ void sparx5_ifh_parse(u32 *ifh, struct frame_info *info)
 {
 	u8 *xtr_hdr = (u8 *)ifh;
 
-	/* FWD is bit 45-72 (28 bits), but we only read the 27 LSB for now */
+	/* FWD is bit 45-72 (28 bits), but we only read the 27 LSB for analw */
 	u32 fwd =
 		((u32)xtr_hdr[27] << 24) |
 		((u32)xtr_hdr[28] << 16) |
@@ -84,13 +84,13 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 	skb = netdev_alloc_skb(netdev, netdev->mtu + ETH_HLEN);
 	if (!skb) {
 		sparx5_xtr_flush(sparx5, grp);
-		dev_err(sparx5->dev, "No skb allocated\n");
+		dev_err(sparx5->dev, "Anal skb allocated\n");
 		netdev->stats.rx_dropped++;
 		return;
 	}
 	rxbuf = (u32 *)skb->data;
 
-	/* Now, pull frame data */
+	/* Analw, pull frame data */
 	while (!eof_flag) {
 		u32 val = spx5_rd(sparx5, QS_XTR_RD(grp));
 		u32 cmp = val;
@@ -99,10 +99,10 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 			cmp = ntohl((__force __be32)val);
 
 		switch (cmp) {
-		case XTR_NOT_READY:
+		case XTR_ANALT_READY:
 			break;
 		case XTR_ABORT:
-			/* No accompanying data */
+			/* Anal accompanying data */
 			abort_flag = true;
 			eof_flag = true;
 			break;
@@ -146,7 +146,7 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 	/* Everything we see on an interface that is in the HW bridge
 	 * has already been forwarded
 	 */
-	if (test_bit(port->portno, sparx5->bridge_mask))
+	if (test_bit(port->portanal, sparx5->bridge_mask))
 		skb->offload_fwd_mark = 1;
 
 	/* Finish up skb */
@@ -170,7 +170,7 @@ static int sparx5_inject(struct sparx5 *sparx5,
 
 	val = spx5_rd(sparx5, QS_INJ_STATUS);
 	if (!(QS_INJ_STATUS_FIFO_RDY_GET(val) & BIT(grp))) {
-		pr_err_ratelimited("Injection: Queue not ready: 0x%lx\n",
+		pr_err_ratelimited("Injection: Queue analt ready: 0x%lx\n",
 				   QS_INJ_STATUS_FIFO_RDY_GET(val));
 		return -EBUSY;
 	}
@@ -231,7 +231,7 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 	netdev_tx_t ret;
 
 	memset(ifh, 0, IFH_LEN * 4);
-	sparx5_set_port_ifh(ifh, port->portno);
+	sparx5_set_port_ifh(ifh, port->portanal);
 
 	if (sparx5->ptp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		if (sparx5_ptp_txtstamp_request(port, skb) < 0)
@@ -292,16 +292,16 @@ static enum hrtimer_restart sparx5_injection_timeout(struct hrtimer *tmr)
 		spx5_rmw(DSM_DEV_TX_STOP_WM_CFG_DEV_TX_CNT_CLR_SET(1),
 			 DSM_DEV_TX_STOP_WM_CFG_DEV_TX_CNT_CLR,
 			 port->sparx5,
-			 DSM_DEV_TX_STOP_WM_CFG(port->portno));
+			 DSM_DEV_TX_STOP_WM_CFG(port->portanal));
 	}
 	netif_wake_queue(port->ndev);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 int sparx5_manual_injection_mode(struct sparx5 *sparx5)
 {
 	const int byte_swap = 1;
-	int portno;
+	int portanal;
 
 	/* Change mode to manual extraction and injection */
 	spx5_wr(QS_XTR_GRP_CFG_MODE_SET(1) |
@@ -313,31 +313,31 @@ int sparx5_manual_injection_mode(struct sparx5 *sparx5)
 		sparx5, QS_INJ_GRP_CFG(INJ_QUEUE));
 
 	/* CPU ports capture setup */
-	for (portno = SPX5_PORT_CPU_0; portno <= SPX5_PORT_CPU_1; portno++) {
-		/* ASM CPU port: No preamble, IFH, enable padding */
+	for (portanal = SPX5_PORT_CPU_0; portanal <= SPX5_PORT_CPU_1; portanal++) {
+		/* ASM CPU port: Anal preamble, IFH, enable padding */
 		spx5_wr(ASM_PORT_CFG_PAD_ENA_SET(1) |
-			ASM_PORT_CFG_NO_PREAMBLE_ENA_SET(1) |
+			ASM_PORT_CFG_ANAL_PREAMBLE_ENA_SET(1) |
 			ASM_PORT_CFG_INJ_FORMAT_CFG_SET(1), /* 1 = IFH */
-			sparx5, ASM_PORT_CFG(portno));
+			sparx5, ASM_PORT_CFG(portanal));
 
 		/* Reset WM cnt to unclog queued frames */
 		spx5_rmw(DSM_DEV_TX_STOP_WM_CFG_DEV_TX_CNT_CLR_SET(1),
 			 DSM_DEV_TX_STOP_WM_CFG_DEV_TX_CNT_CLR,
 			 sparx5,
-			 DSM_DEV_TX_STOP_WM_CFG(portno));
+			 DSM_DEV_TX_STOP_WM_CFG(portanal));
 
 		/* Set Disassembler Stop Watermark level */
 		spx5_rmw(DSM_DEV_TX_STOP_WM_CFG_DEV_TX_STOP_WM_SET(0),
 			 DSM_DEV_TX_STOP_WM_CFG_DEV_TX_STOP_WM,
 			 sparx5,
-			 DSM_DEV_TX_STOP_WM_CFG(portno));
+			 DSM_DEV_TX_STOP_WM_CFG(portanal));
 
 		/* Enable Disassembler buffer underrun watchdog
 		 */
 		spx5_rmw(DSM_BUF_CFG_UNDERFLOW_WATCHDOG_DIS_SET(0),
 			 DSM_BUF_CFG_UNDERFLOW_WATCHDOG_DIS,
 			 sparx5,
-			 DSM_BUF_CFG(portno));
+			 DSM_BUF_CFG(portanal));
 	}
 	return 0;
 }
@@ -356,6 +356,6 @@ irqreturn_t sparx5_xtr_handler(int irq, void *_sparx5)
 
 void sparx5_port_inj_timer_setup(struct sparx5_port *port)
 {
-	hrtimer_init(&port->inj_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&port->inj_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	port->inj_timer.function = sparx5_injection_timeout;
 }

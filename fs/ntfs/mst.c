@@ -20,9 +20,9 @@
  *
  * Return 0 on success and -EINVAL on error ("BAAD" magic will be present).
  *
- * NOTE: We consider the absence / invalidity of an update sequence array to
- * mean that the structure is not protected at all and hence doesn't need to
- * be fixed up. Thus, we return success and not failure in this case. This is
+ * ANALTE: We consider the absence / invalidity of an update sequence array to
+ * mean that the structure is analt protected at all and hence doesn't need to
+ * be fixed up. Thus, we return success and analt failure in this case. This is
  * in contrast to pre_write_mst_fixup(), see below.
  */
 int post_read_mst_fixup(NTFS_RECORD *b, const u32 size)
@@ -44,7 +44,7 @@ int post_read_mst_fixup(NTFS_RECORD *b, const u32 size)
 	usa_pos = (u16*)b + usa_ofs/sizeof(u16);
 	/*
 	 * The update sequence number which has to be equal to each of the
-	 * u16 values before they are fixed up. Note no need to care for
+	 * u16 values before they are fixed up. Analte anal need to care for
 	 * endianness since we are comparing and moving data for on disk
 	 * structures which means the data is consistent. - If it is
 	 * consistenty the wrong endianness it doesn't make any difference.
@@ -62,7 +62,7 @@ int post_read_mst_fixup(NTFS_RECORD *b, const u32 size)
 			/*
 			 * Incomplete multi sector transfer detected! )-:
 			 * Set the magic to "BAAD" and return failure.
-			 * Note that magic_BAAD is already converted to le32.
+			 * Analte that magic_BAAD is already converted to le32.
 			 */
 			b->magic = magic_BAAD;
 			return -EINVAL;
@@ -93,11 +93,11 @@ int post_read_mst_fixup(NTFS_RECORD *b, const u32 size)
  * Perform the necessary pre write multi sector transfer fixup on the data
  * pointer to by @b of @size.
  *
- * Return 0 if fixup applied (success) or -EINVAL if no fixup was performed
- * (assumed not needed). This is in contrast to post_read_mst_fixup() above.
+ * Return 0 if fixup applied (success) or -EINVAL if anal fixup was performed
+ * (assumed analt needed). This is in contrast to post_read_mst_fixup() above.
  *
- * NOTE: We consider the absence / invalidity of an update sequence array to
- * mean that the structure is not subject to protection and hence doesn't need
+ * ANALTE: We consider the absence / invalidity of an update sequence array to
+ * mean that the structure is analt subject to protection and hence doesn't need
  * to be fixed up. This means that you have to create a valid update sequence
  * array header in the ntfs record before calling this function, otherwise it
  * will fail (the header needs to contain the position of the update sequence
@@ -158,7 +158,7 @@ int pre_write_mst_fixup(NTFS_RECORD *b, const u32 size)
  * post_write_mst_fixup - fast deprotect multi sector transfer protected data
  * @b:		pointer to the data to deprotect
  *
- * Perform the necessary post write multi sector transfer fixup, not checking
+ * Perform the necessary post write multi sector transfer fixup, analt checking
  * for any errors, because we assume we have just used pre_write_mst_fixup(),
  * thus the data will be fine or we would never have gotten here.
  */

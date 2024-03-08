@@ -83,15 +83,15 @@ int igt_spinner_pin(struct igt_spinner *spin,
 	void *vaddr;
 
 	if (spin->ce && WARN_ON(spin->ce != ce))
-		return -ENODEV;
+		return -EANALDEV;
 	spin->ce = ce;
 
-	if (!spin->seqno) {
+	if (!spin->seqanal) {
 		vaddr = igt_spinner_pin_obj(ce, ww, spin->hws, I915_MAP_WB, &spin->hws_vma);
 		if (IS_ERR(vaddr))
 			return PTR_ERR(vaddr);
 
-		spin->seqno = memset(vaddr, 0xff, PAGE_SIZE);
+		spin->seqanal = memset(vaddr, 0xff, PAGE_SIZE);
 	}
 
 	if (!spin->batch) {
@@ -108,7 +108,7 @@ int igt_spinner_pin(struct igt_spinner *spin,
 	return 0;
 }
 
-static unsigned int seqno_offset(u64 fence)
+static unsigned int seqanal_offset(u64 fence)
 {
 	return offset_in_page(sizeof(u32) * fence);
 }
@@ -116,7 +116,7 @@ static unsigned int seqno_offset(u64 fence)
 static u64 hws_address(const struct i915_vma *hws,
 		       const struct i915_request *rq)
 {
-	return i915_vma_offset(hws) + seqno_offset(rq->fence.context);
+	return i915_vma_offset(hws) + seqanal_offset(rq->fence.context);
 }
 
 struct i915_request *
@@ -134,7 +134,7 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	GEM_BUG_ON(spin->gt != ce->vm->gt);
 
 	if (!intel_engine_can_store_dword(ce->engine))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (!spin->batch) {
 		err = igt_spinner_pin(spin, ce, NULL);
@@ -175,11 +175,11 @@ igt_spinner_create_request(struct igt_spinner *spin,
 		*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 		*batch++ = hws_address(hws, rq);
 	}
-	*batch++ = rq->fence.seqno;
+	*batch++ = rq->fence.seqanal;
 
 	*batch++ = arbitration_command;
 
-	memset32(batch, MI_NOOP, 128);
+	memset32(batch, MI_ANALOP, 128);
 	batch += 128;
 
 	if (GRAPHICS_VER(rq->i915) >= 8)
@@ -193,7 +193,7 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	*batch++ = lower_32_bits(i915_vma_offset(vma));
 	*batch++ = upper_32_bits(i915_vma_offset(vma));
 
-	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
+	*batch++ = MI_BATCH_BUFFER_END; /* analt reached */
 
 	intel_gt_chipset_flush(engine->gt);
 
@@ -217,11 +217,11 @@ cancel_rq:
 }
 
 static u32
-hws_seqno(const struct igt_spinner *spin, const struct i915_request *rq)
+hws_seqanal(const struct igt_spinner *spin, const struct i915_request *rq)
 {
-	u32 *seqno = spin->seqno + seqno_offset(rq->fence.context);
+	u32 *seqanal = spin->seqanal + seqanal_offset(rq->fence.context);
 
-	return READ_ONCE(*seqno);
+	return READ_ONCE(*seqanal);
 }
 
 void igt_spinner_end(struct igt_spinner *spin)
@@ -243,7 +243,7 @@ void igt_spinner_fini(struct igt_spinner *spin)
 	}
 	i915_gem_object_put(spin->obj);
 
-	if (spin->seqno) {
+	if (spin->seqanal) {
 		i915_vma_unpin(spin->hws_vma);
 		i915_gem_object_unpin_map(spin->hws);
 	}
@@ -255,10 +255,10 @@ bool igt_wait_for_spinner(struct igt_spinner *spin, struct i915_request *rq)
 	if (i915_request_is_ready(rq))
 		intel_engine_flush_submission(rq->engine);
 
-	return !(wait_for_us(i915_seqno_passed(hws_seqno(spin, rq),
-					       rq->fence.seqno),
+	return !(wait_for_us(i915_seqanal_passed(hws_seqanal(spin, rq),
+					       rq->fence.seqanal),
 			     100) &&
-		 wait_for(i915_seqno_passed(hws_seqno(spin, rq),
-					    rq->fence.seqno),
+		 wait_for(i915_seqanal_passed(hws_seqanal(spin, rq),
+					    rq->fence.seqanal),
 			  50));
 }

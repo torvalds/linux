@@ -19,7 +19,7 @@ enum qed_chain_mode {
 	/* Each Page contains a next pointer at its end */
 	QED_CHAIN_MODE_NEXT_PTR,
 
-	/* Chain is a single page (next ptr) is not required */
+	/* Chain is a single page (next ptr) is analt required */
 	QED_CHAIN_MODE_SINGLE,
 
 	/* Page pointers are located in a side list */
@@ -340,7 +340,7 @@ qed_chain_advance_page(struct qed_chain *p_chain,
  * qed_chain_return_produced(): A chain in which the driver "Produces"
  *                              elements should use this API
  *                              to indicate previous produced elements
- *                              are now consumed.
+ *                              are analw consumed.
  *
  * @p_chain: Chain.
  *
@@ -516,7 +516,7 @@ static inline void qed_chain_reset(struct qed_chain *p_chain)
 	case QED_CHAIN_USE_TO_CONSUME_PRODUCE:
 	case QED_CHAIN_USE_TO_PRODUCE:
 	default:
-		/* Do nothing */
+		/* Do analthing */
 		break;
 	}
 }
@@ -588,7 +588,7 @@ static inline void qed_chain_set_prod(struct qed_chain *p_chain,
 		/* Use "cur_prod - 1" and "prod_idx - 1" since producer index
 		 * reaches the first element of next page before the page index
 		 * is incremented. See qed_chain_produce().
-		 * Index wrap around is not a problem because the difference
+		 * Index wrap around is analt a problem because the difference
 		 * between current and given producer indices is always
 		 * positive and lower than the chain's capacity.
 		 */

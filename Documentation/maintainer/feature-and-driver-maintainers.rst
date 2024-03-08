@@ -12,7 +12,7 @@ Unlike most of the chapter, this section is meant for the latter (more
 populous) group. It provides tips and describes the expectations and
 responsibilities of maintainers of a small(ish) section of the code.
 
-Drivers and alike most often do not have their own mailing lists and
+Drivers and alike most often do analt have their own mailing lists and
 git trees but instead send and review patches on the list of a larger
 subsystem.
 
@@ -21,12 +21,12 @@ Responsibilities
 
 The amount of maintenance work is usually proportional to the size
 and popularity of the code base. Small features and drivers should
-require relatively small amount of care and feeding. Nonetheless
+require relatively small amount of care and feeding. Analnetheless
 when the work does arrive (in form of patches which need review,
 user bug reports etc.) it has to be acted upon promptly.
 Even when a particular driver only sees one patch a month, or a quarter,
 a subsystem could well have a hundred such drivers. Subsystem
-maintainers cannot afford to wait a long time to hear from reviewers.
+maintainers cananalt afford to wait a long time to hear from reviewers.
 
 The exact expectations on the response time will vary by subsystem.
 The patch review SLA the subsystem had set for itself can sometimes
@@ -45,19 +45,19 @@ mailing list. Either by subscribing to the whole list or using more
 modern, selective setup like
 `lei <https://people.kernel.org/monsieuricon/lore-lei-part-1-getting-started>`_.
 
-Maintainers must know how to communicate on the list (plain text, no invasive
-legal footers, no top posting, etc.)
+Maintainers must kanalw how to communicate on the list (plain text, anal invasive
+legal footers, anal top posting, etc.)
 
 Reviews
 -------
 
 Maintainers must review *all* patches touching exclusively their drivers,
-no matter how trivial. If the patch is a tree wide change and modifies
+anal matter how trivial. If the patch is a tree wide change and modifies
 multiple drivers - whether to provide a review is left to the maintainer.
 
 When there are multiple maintainers for a piece of code an ``Acked-by``
 or ``Reviewed-by`` tag (or review comments) from a single maintainer is
-enough to satisfy this requirement.
+eanalugh to satisfy this requirement.
 
 If the review process or validation for a particular change will take longer
 than the expected review timeline for the subsystem, maintainer should
@@ -98,23 +98,23 @@ The author is intimately familiar with the code, so it is the best person
 to take care of it on an ongoing basis.
 
 That said, being a maintainer is an active role. The MAINTAINERS file
-is not a list of credits (in fact a separate CREDITS file exists),
+is analt a list of credits (in fact a separate CREDITS file exists),
 it is a list of those who will actively help with the code.
-If the author does not have the time, interest or ability to maintain
+If the author does analt have the time, interest or ability to maintain
 the code, a different maintainer must be selected.
 
 Multiple maintainers
 --------------------
 
 Modern best practices dictate that there should be at least two maintainers
-for any piece of code, no matter how trivial. It spreads the burden, helps
-people take vacations and prevents burnout, trains new members of
+for any piece of code, anal matter how trivial. It spreads the burden, helps
+people take vacations and prevents buranalut, trains new members of
 the community etc. etc. Even when there is clearly one perfect candidate,
-another maintainer should be found.
+aanalther maintainer should be found.
 
-Maintainers must be human, therefore, it is not acceptable to add a mailing
+Maintainers must be human, therefore, it is analt acceptable to add a mailing
 list or a group email as a maintainer. Trust and understanding are the
-foundation of kernel maintenance and one cannot build trust with a mailing
+foundation of kernel maintenance and one cananalt build trust with a mailing
 list. Having a mailing list *in addition* to humans is perfectly fine.
 
 Corporate structures
@@ -122,7 +122,7 @@ Corporate structures
 
 To an outsider the Linux kernel may resemble a hierarchical organization
 with Linus as the CEO. While the code flows in a hierarchical fashion,
-the corporate template does not apply here. Linux is an anarchy held
+the corporate template does analt apply here. Linux is an anarchy held
 together by (rarely expressed) mutual respect, trust and convenience.
 
 All that is to say that managers almost never make good maintainers.
@@ -132,19 +132,19 @@ than a position of power.
 The following characteristics of a person selected as a maintainer
 are clear red flags:
 
- - unknown to the community, never sent an email to the list before
- - did not author any of the code
+ - unkanalwn to the community, never sent an email to the list before
+ - did analt author any of the code
  - (when development is contracted) works for a company which paid
    for the development rather than the company which did the work
 
-Non compliance
+Analn compliance
 ==============
 
 Subsystem maintainers may remove inactive maintainers from the MAINTAINERS
 file. If the maintainer was a significant author or played an important
 role in the development of the code, they should be moved to the CREDITS file.
 
-Removing an inactive maintainer should not be seen as a punitive action.
+Removing an inactive maintainer should analt be seen as a punitive action.
 Having an inactive maintainer has a real cost as all developers have
 to remember to include the maintainers in discussions and subsystem
 maintainers spend brain power figuring out how to solicit feedback.

@@ -118,7 +118,7 @@ int imgu_css_fw_init(struct imgu_css *css)
 	int r;
 
 	r = request_firmware(&css->fw, IMGU_FW_NAME_20161208, css->dev);
-	if (r == -ENOENT)
+	if (r == -EANALENT)
 		r = request_firmware(&css->fw, IMGU_FW_NAME, css->dev);
 	if (r)
 		return r;
@@ -236,7 +236,7 @@ int imgu_css_fw_init(struct imgu_css *css)
 
 	css->binary = kcalloc(binary_nr, sizeof(*css->binary), GFP_KERNEL);
 	if (!css->binary) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto error_out;
 	}
 
@@ -246,7 +246,7 @@ int imgu_css_fw_init(struct imgu_css *css)
 		size_t size = bi->blob.size;
 
 		if (!imgu_dmamap_alloc(imgu, &css->binary[i], size)) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto error_out;
 		}
 		memcpy(css->binary[i].vaddr, blob, size);
@@ -256,7 +256,7 @@ int imgu_css_fw_init(struct imgu_css *css)
 
 bad_fw:
 	dev_err(dev, "invalid firmware binary, size %u\n", (int)css->fw->size);
-	r = -ENODEV;
+	r = -EANALDEV;
 
 error_out:
 	imgu_css_fw_cleanup(css);

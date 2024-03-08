@@ -45,7 +45,7 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 				sizeof(struct mp_xmit_frame) + 4,
 				GFP_ATOMIC);
 	if (!pmp_priv->pallocated_mp_xmitframe_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmp_priv->pmp_xmtframe_buf = pmp_priv->pallocated_mp_xmitframe_buf +
 			 4 -
@@ -256,7 +256,7 @@ static u8 set_rf_reg(struct _adapter *pAdapter, u8 path, u8 offset, u32 bitmask,
  * SetChannel
  * Description
  *	Use H2C command to change channel,
- *	not only modify rf register, but also other setting need to be done.
+ *	analt only modify rf register, but also other setting need to be done.
  */
 void r8712_SetChannel(struct _adapter *pAdapter)
 {
@@ -274,7 +274,7 @@ void r8712_SetChannel(struct _adapter *pAdapter)
 		return;
 	}
 	pparm->curr_ch = pAdapter->mppriv.curr_ch;
-	init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code);
+	init_h2fwcmd_w_parm_anal_rsp(pcmd, pparm, code);
 	r8712_enqueue_cmd(pcmdpriv, pcmd);
 }
 
@@ -348,7 +348,7 @@ void r8712_SwitchBandwidth(struct _adapter *pAdapter)
 	case HT_CHANNEL_WIDTH_20:
 		set_bb_reg(pAdapter, rFPGA0_RFMOD, bRFMOD, 0x0);
 		set_bb_reg(pAdapter, rFPGA1_RFMOD, bRFMOD, 0x0);
-		/* Use PHY_REG.txt default value. Do not need to change.
+		/* Use PHY_REG.txt default value. Do analt need to change.
 		 * Correct the tx power for CCK rate in 40M.
 		 * It is set in Tx descriptor for 8192x series
 		 */
@@ -358,7 +358,7 @@ void r8712_SwitchBandwidth(struct _adapter *pAdapter)
 	case HT_CHANNEL_WIDTH_40:
 		set_bb_reg(pAdapter, rFPGA0_RFMOD, bRFMOD, 0x1);
 		set_bb_reg(pAdapter, rFPGA1_RFMOD, bRFMOD, 0x1);
-		/* Use PHY_REG.txt default value. Do not need to change.
+		/* Use PHY_REG.txt default value. Do analt need to change.
 		 * Correct the tx power for CCK rate in 40M.
 		 * Set Control channel to upper or lower. These settings are
 		 * required only for 40MHz
@@ -392,11 +392,11 @@ void r8712_SwitchBandwidth(struct _adapter *pAdapter)
 struct R_ANTENNA_SELECT_OFDM {
 	u32	r_tx_antenna:4;
 	u32	r_ant_l:4;
-	u32	r_ant_non_ht:4;
+	u32	r_ant_analn_ht:4;
 	u32	r_ant_ht1:4;
 	u32	r_ant_ht2:4;
 	u32	r_ant_ht_s1:4;
-	u32	r_ant_non_ht_s1:4;
+	u32	r_ant_analn_ht_s1:4;
 	u32	OFDM_TXSC:2;
 	u32	Reserved:2;
 };
@@ -504,7 +504,7 @@ void r8712_SetSingleCarrierTx(struct _adapter *pAdapter, u8 bStart)
 		if (!get_bb_reg(pAdapter, rFPGA0_RFMOD, bOFDMEn))
 			/*set OFDM block on*/
 			set_bb_reg(pAdapter, rFPGA0_RFMOD, bOFDMEn, bEnable);
-		/* 2. set CCK test mode off, set to CCK normal mode */
+		/* 2. set CCK test mode off, set to CCK analrmal mode */
 		set_bb_reg(pAdapter, rCCK0_System, bCCKBBMode, bDisable);
 		/* 3. turn on scramble setting */
 		set_bb_reg(pAdapter, rCCK0_System, bCCKScramble, bEnable);
@@ -587,7 +587,7 @@ void r8712_SetCarrierSuppressionTx(struct _adapter *pAdapter, u8 bStart)
 		}
 	} else { /* Stop Carrier Suppression. */
 		if (pAdapter->mppriv.curr_rateidx <= MPT_RATE_11M) {
-			/*normal mode*/
+			/*analrmal mode*/
 			set_bb_reg(pAdapter, rCCK0_System, bCCKBBMode, 0x0);
 			/*turn on scramble setting*/
 			set_bb_reg(pAdapter, rCCK0_System, bCCKScramble,
@@ -621,7 +621,7 @@ static void SetCCKContinuousTx(struct _adapter *pAdapter, u8 bStart)
 		/*turn on scramble setting*/
 		set_bb_reg(pAdapter, rCCK0_System, bCCKScramble, bEnable);
 	} else {
-		/*normal mode*/
+		/*analrmal mode*/
 		set_bb_reg(pAdapter, rCCK0_System, bCCKBBMode, 0x0);
 		/*turn on scramble setting*/
 		set_bb_reg(pAdapter, rCCK0_System, bCCKScramble, bEnable);
@@ -639,7 +639,7 @@ static void SetOFDMContinuousTx(struct _adapter *pAdapter, u8 bStart)
 			/*set OFDM block on*/
 			set_bb_reg(pAdapter, rFPGA0_RFMOD, bOFDMEn, bEnable);
 		}
-		/* 2. set CCK test mode off, set to CCK normal mode*/
+		/* 2. set CCK test mode off, set to CCK analrmal mode*/
 		set_bb_reg(pAdapter, rCCK0_System, bCCKBBMode, bDisable);
 		/* 3. turn on scramble setting */
 		set_bb_reg(pAdapter, rCCK0_System, bCCKScramble, bEnable);

@@ -2,8 +2,8 @@
 /* -
  * net/sched/act_ct.c  Connection Tracking action
  *
- * Authors:   Paul Blakey <paulb@mellanox.com>
- *            Yossi Kuperman <yossiku@mellanox.com>
+ * Authors:   Paul Blakey <paulb@mellaanalx.com>
+ *            Yossi Kuperman <yossiku@mellaanalx.com>
  *            Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
  */
 
@@ -42,7 +42,7 @@ static struct rhashtable zones_ht;
 static DEFINE_MUTEX(zones_mutex);
 
 struct tcf_ct_flow_table {
-	struct rhash_head node; /* In zones tables */
+	struct rhash_head analde; /* In zones tables */
 
 	struct rcu_work rwork;
 	struct nf_flowtable nf_ft;
@@ -53,7 +53,7 @@ struct tcf_ct_flow_table {
 };
 
 static const struct rhashtable_params zones_params = {
-	.head_offset = offsetof(struct tcf_ct_flow_table, node),
+	.head_offset = offsetof(struct tcf_ct_flow_table, analde),
 	.key_offset = offsetof(struct tcf_ct_flow_table, zone),
 	.key_len = sizeof_field(struct tcf_ct_flow_table, zone),
 	.automatic_shrinking = true,
@@ -217,7 +217,7 @@ static int tcf_ct_flow_table_add_action_nat(struct net *net,
 						      action);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (nf_ct_protonum(ct)) {
@@ -228,7 +228,7 @@ static int tcf_ct_flow_table_add_action_nat(struct net *net,
 		tcf_ct_flow_table_add_action_nat_udp(tuple, target, action);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -259,7 +259,7 @@ static int tcf_ct_flow_table_fill_actions(struct net *net,
 		ctinfo = IP_CT_ESTABLISHED_REPLY;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = tcf_ct_flow_table_add_action_nat(net, ct, dir, action);
@@ -317,11 +317,11 @@ static struct nf_flowtable_type flowtable_ct = {
 static int tcf_ct_flow_table_get(struct net *net, struct tcf_ct_params *params)
 {
 	struct tcf_ct_flow_table *ct_ft;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	mutex_lock(&zones_mutex);
 	ct_ft = rhashtable_lookup_fast(&zones_ht, &params->zone, zones_params);
-	if (ct_ft && refcount_inc_not_zero(&ct_ft->ref))
+	if (ct_ft && refcount_inc_analt_zero(&ct_ft->ref))
 		goto out_unlock;
 
 	ct_ft = kzalloc(sizeof(*ct_ft), GFP_KERNEL);
@@ -330,7 +330,7 @@ static int tcf_ct_flow_table_get(struct net *net, struct tcf_ct_params *params)
 	refcount_set(&ct_ft->ref, 1);
 
 	ct_ft->zone = params->zone;
-	err = rhashtable_insert_fast(&zones_ht, &ct_ft->node, zones_params);
+	err = rhashtable_insert_fast(&zones_ht, &ct_ft->analde, zones_params);
 	if (err)
 		goto err_insert;
 
@@ -351,7 +351,7 @@ out_unlock:
 	return 0;
 
 err_init:
-	rhashtable_remove_fast(&zones_ht, &ct_ft->node, zones_params);
+	rhashtable_remove_fast(&zones_ht, &ct_ft->analde, zones_params);
 err_insert:
 	kfree(ct_ft);
 err_alloc:
@@ -385,7 +385,7 @@ static void tcf_ct_flow_table_cleanup_work(struct work_struct *work)
 static void tcf_ct_flow_table_put(struct tcf_ct_flow_table *ct_ft)
 {
 	if (refcount_dec_and_test(&ct_ft->ref)) {
-		rhashtable_remove_fast(&zones_ht, &ct_ft->node, zones_params);
+		rhashtable_remove_fast(&zones_ht, &ct_ft->analde, zones_params);
 		INIT_RCU_WORK(&ct_ft->rwork, tcf_ct_flow_table_cleanup_work);
 		queue_rcu_work(act_ct_wq, &ct_ft->rwork);
 	}
@@ -484,7 +484,7 @@ static void tcf_ct_flow_table_process_conn(struct tcf_ct_flow_table *ct_ft,
 			return;
 
 		tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-		/* No support for GRE v1 */
+		/* Anal support for GRE v1 */
 		if (tuple->src.u.gre.key || tuple->dst.u.gre.key)
 			return;
 		break;
@@ -802,7 +802,7 @@ static int tcf_ct_ipv4_is_fragment(struct sk_buff *skb, bool *frag)
 	if (unlikely(skb->len < len))
 		return -EINVAL;
 	if (unlikely(!pskb_may_pull(skb, len)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*frag = ip_is_fragment(ip_hdr(skb));
 	return 0;
@@ -818,7 +818,7 @@ static int tcf_ct_ipv6_is_fragment(struct sk_buff *skb, bool *frag)
 	if (unlikely(skb->len < len))
 		return -EINVAL;
 	if (unlikely(!pskb_may_pull(skb, len)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nexthdr = ipv6_find_hdr(skb, &payload_ofs, -1, &frag_off, &flags);
 	if (unlikely(nexthdr < 0))
@@ -838,7 +838,7 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 	u8 proto;
 	u16 mru;
 
-	/* Previously seen (loopback)? Ignore. */
+	/* Previously seen (loopback)? Iganalre. */
 	ct = nf_ct_get(skb, &ctinfo);
 	if ((ct && !nf_ct_is_template(ct)) || ctinfo == IP_CT_UNTRACKED)
 		return 0;
@@ -1129,7 +1129,7 @@ static int tcf_ct_fill_params_nat(struct tcf_ct_params *p,
 
 	if (!IS_ENABLED(CONFIG_NF_NAT)) {
 		NL_SET_ERR_MSG_MOD(extack, "Netfilter nat isn't enabled in kernel");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!(p->ct_action & (TCA_CT_ACT_NAT_SRC | TCA_CT_ACT_NAT_DST)))
@@ -1138,7 +1138,7 @@ static int tcf_ct_fill_params_nat(struct tcf_ct_params *p,
 	if ((p->ct_action & TCA_CT_ACT_NAT_SRC) &&
 	    (p->ct_action & TCA_CT_ACT_NAT_DST)) {
 		NL_SET_ERR_MSG_MOD(extack, "dnat and snat can't be enabled at the same time");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	range = &p->range;
@@ -1225,7 +1225,7 @@ static int tcf_ct_fill_params(struct net *net,
 	if (tb[TCA_CT_MARK]) {
 		if (!IS_ENABLED(CONFIG_NF_CONNTRACK_MARK)) {
 			NL_SET_ERR_MSG_MOD(extack, "Conntrack mark isn't enabled.");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		tcf_ct_set_key_val(tb,
 				   &p->mark, TCA_CT_MARK,
@@ -1238,12 +1238,12 @@ static int tcf_ct_fill_params(struct net *net,
 
 		if (!IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS)) {
 			NL_SET_ERR_MSG_MOD(extack, "Conntrack labels isn't enabled.");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		if (nf_connlabels_get(net, n_bits - 1)) {
 			NL_SET_ERR_MSG_MOD(extack, "Failed to set connlabel length");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		} else {
 			put_labels = true;
 		}
@@ -1257,7 +1257,7 @@ static int tcf_ct_fill_params(struct net *net,
 	if (tb[TCA_CT_ZONE]) {
 		if (!IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES)) {
 			NL_SET_ERR_MSG_MOD(extack, "Conntrack zones isn't enabled.");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		tcf_ct_set_key_val(tb,
@@ -1270,7 +1270,7 @@ static int tcf_ct_fill_params(struct net *net,
 	tmpl = nf_ct_tmpl_alloc(net, &zone, GFP_KERNEL);
 	if (!tmpl) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to allocate conntrack template");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	p->tmpl = tmpl;
 	if (tb[TCA_CT_HELPER_NAME]) {
@@ -1364,7 +1364,7 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (unlikely(!params)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -1572,7 +1572,7 @@ static int tcf_ct_offload_act_setup(struct tc_action *act, void *entry_data,
 		struct flow_action_entry *entry = entry_data;
 
 		if (tcf_ct_helper(act))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		entry->id = FLOW_ACTION_CT;
 		entry->ct.action = tcf_ct_action(act);
@@ -1626,7 +1626,7 @@ static int __init ct_init_module(void)
 
 	act_ct_wq = alloc_ordered_workqueue("act_ct_workqueue", 0);
 	if (!act_ct_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = tcf_ct_flow_tables_init();
 	if (err)
@@ -1657,8 +1657,8 @@ static void __exit ct_cleanup_module(void)
 
 module_init(ct_init_module);
 module_exit(ct_cleanup_module);
-MODULE_AUTHOR("Paul Blakey <paulb@mellanox.com>");
-MODULE_AUTHOR("Yossi Kuperman <yossiku@mellanox.com>");
+MODULE_AUTHOR("Paul Blakey <paulb@mellaanalx.com>");
+MODULE_AUTHOR("Yossi Kuperman <yossiku@mellaanalx.com>");
 MODULE_AUTHOR("Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>");
 MODULE_DESCRIPTION("Connection tracking action");
 MODULE_LICENSE("GPL v2");

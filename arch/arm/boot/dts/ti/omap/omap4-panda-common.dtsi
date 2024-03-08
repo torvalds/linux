@@ -113,7 +113,7 @@
 		/*
 		 * boot-on is required along with always-on as the
 		 * regulator framework doesn't enable the regulator
-		 * if boot-on is not there.
+		 * if boot-on is analt there.
 		 */
 		regulator-always-on;
 		regulator-boot-on;
@@ -121,7 +121,7 @@
 
 	/* HS USB Host PHY on PORT 1 */
 	hsusb1_phy: hsusb1_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;   /* gpio_62 */
 		#phy-cells = <0>;
 		vcc-supply = <&hsusb1_power>;
@@ -484,7 +484,7 @@
 	vmmc-supply = <&wl12xx_vmmc>;
 	interrupts-extended = <&wakeupgen GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core 0x10e>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 

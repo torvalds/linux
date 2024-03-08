@@ -9,9 +9,9 @@ my $output = $ARGV[0];
 open my $tmp, '>', "$output.tmp";
 
 while (<STDIN>) {
-	next if (/^\\input texinfo/../\@node Top/);
+	next if (/^\\input texinfo/../\@analde Top/);
 	next if (/^\@bye/ || /^\.ft/);
-	if (s/^\@top (.*)/\@node $1,,,Top/) {
+	if (s/^\@top (.*)/\@analde $1,,,Top/) {
 		push @menu, $1;
 	}
 	s/\(\@pxref\{\[(URLS|REMOTES)\]}\)//;
@@ -27,7 +27,7 @@ print '\input texinfo
 @direntry
 * Git Man Pages: (gitman).  Manual pages for Git revision control system
 @end direntry
-@node Top,,, (dir)
+@analde Top,,, (dir)
 @top Git Manual Pages
 @documentlanguage en
 @menu

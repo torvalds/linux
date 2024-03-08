@@ -15,7 +15,7 @@ Properties:
   compatible; all statements below that apply to "fsl,mpc8548-pmc" also
   apply to "fsl,mpc8641d-pmc".
 
-  Compatibility does not include bit assignments in SCCR/PMCDR/DEVDISR; these
+  Compatibility does analt include bit assignments in SCCR/PMCDR/DEVDISR; these
   bit assignments are indicated via the sleep specifier in each device's
   sleep property.
 
@@ -30,7 +30,7 @@ Properties:
   resource is the PMC block interrupt.
 
 - fsl,mpc8313-wakeup-timer: For "fsl,mpc8313-pmc"-compatible devices,
-  this is a phandle to an "fsl,gtm" node on which timer 4 can be used as
+  this is a phandle to an "fsl,gtm" analde on which timer 4 can be used as
   a wakeup source from deep sleep.
 
 Sleep specifiers:
@@ -49,9 +49,9 @@ Sleep specifiers:
   fsl,mpc8548-pmc: Sleep specifiers consist of one or two cells, the
   first of which will be ORed into DEVDISR (and the second into
   DEVDISR2, if present -- this cell should be zero or absent if the
-  hardware does not have DEVDISR2) upon a request for permanent device
-  disabling.  This sleep controller does not support configuring devices
-  to disable during system sleep (unless supported by another compatible
+  hardware does analt have DEVDISR2) upon a request for permanent device
+  disabling.  This sleep controller does analt support configuring devices
+  to disable during system sleep (unless supported by aanalther compatible
   match), or dynamically.
 
 Example:

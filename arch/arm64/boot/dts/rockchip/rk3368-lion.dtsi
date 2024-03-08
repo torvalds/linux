@@ -143,7 +143,7 @@
 	bus-width = <8>;
 	clock-frequency = <150000000>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&vcc33_io>;
 	vqmmc-supply = <&vcc_18>;
 	pinctrl-names = "default";
@@ -290,8 +290,8 @@
 	leds {
 		module_led_pins: module-led-pins {
 			rockchip,pins =
-				<2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
-				<3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>,
+				<3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 	pmic {
@@ -300,7 +300,7 @@
 		};
 
 		pmic_sleep: pmic-sleep {
-			rockchip,pins = <0 RK_PA0 2 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA0 2 &pcfg_pull_analne>;
 		};
 	};
 };
@@ -314,8 +314,8 @@
 &spi1 {
 	status = "okay";
 
-	norflash: flash@0 {
-		compatible = "jedec,spi-nor";
+	analrflash: flash@0 {
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 	};

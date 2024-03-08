@@ -73,7 +73,7 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      Output port node. This port should be connected to the input
+      Output port analde. This port should be connected to the input
       port of an attached DSI panel or DSI-to-eDP encoder chip.
 
 required:

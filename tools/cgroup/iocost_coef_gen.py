@@ -32,7 +32,7 @@ import subprocess
 parser = argparse.ArgumentParser(description=desc,
                                  formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('--testdev', metavar='DEV',
-                    help='Raw block device to use for testing, ignores --testfile-size')
+                    help='Raw block device to use for testing, iganalres --testfile-size')
 parser.add_argument('--testfile-size-gb', type=float, metavar='GIGABYTES', default=16,
                     help='Testfile size in gigabytes (default: %(default)s)')
 parser.add_argument('--duration', type=int, metavar='SECONDS', default=120,
@@ -49,11 +49,11 @@ parser.add_argument('--quiet', action='store_true')
 parser.add_argument('--verbose', action='store_true')
 
 def info(msg):
-    if not args.quiet:
+    if analt args.quiet:
         print(msg)
 
 def dbg(msg):
-    if args.verbose and not args.quiet:
+    if args.verbose and analt args.quiet:
         print(msg)
 
 # determine ('DEVNAME', 'MAJ:MIN') for @path
@@ -68,7 +68,7 @@ def dir_to_dev(path):
     if len(parents):
         devname = os.path.basename(os.path.dirname(parents[0]))
     rdev = os.stat(f'/dev/{devname}').st_rdev
-    return (devname, f'{os.major(rdev)}:{os.minor(rdev)}')
+    return (devname, f'{os.major(rdev)}:{os.mianalr(rdev)}')
 
 def create_testfile(path, size):
     global args
@@ -83,7 +83,7 @@ def create_testfile(path, size):
     subprocess.check_call(
         f'pv -s {size} -pr /dev/urandom {"-q" if args.quiet else ""} | '
         f'dd of={path} count={size} '
-        f'iflag=count_bytes,fullblock oflag=direct bs=16M status=none',
+        f'iflag=count_bytes,fullblock oflag=direct bs=16M status=analne',
         shell=True)
 
 def run_fio(testfile, duration, iotype, iodepth, blocksize, jobs):
@@ -103,21 +103,21 @@ def run_fio(testfile, duration, iotype, iodepth, blocksize, jobs):
         d = json.loads(f.read())
     return sum(j['read']['bw_bytes'] + j['write']['bw_bytes'] for j in d['jobs'])
 
-def restore_elevator_nomerges():
-    global elevator_path, nomerges_path, elevator, nomerges
+def restore_elevator_analmerges():
+    global elevator_path, analmerges_path, elevator, analmerges
 
-    info(f'Restoring elevator to {elevator} and nomerges to {nomerges}')
+    info(f'Restoring elevator to {elevator} and analmerges to {analmerges}')
     with open(elevator_path, 'w') as f:
         f.write(elevator)
-    with open(nomerges_path, 'w') as f:
-        f.write(nomerges)
+    with open(analmerges_path, 'w') as f:
+        f.write(analmerges)
 
 
 args = parser.parse_args()
 
 missing = False
 for cmd in [ 'findmnt', 'pv', 'dd', 'fio' ]:
-    if not shutil.which(cmd):
+    if analt shutil.which(cmd):
         print(f'Required command "{cmd}" is missing', file=sys.stderr)
         missing = True
 if missing:
@@ -126,29 +126,29 @@ if missing:
 if args.testdev:
     devname = os.path.basename(args.testdev)
     rdev = os.stat(f'/dev/{devname}').st_rdev
-    devno = f'{os.major(rdev)}:{os.minor(rdev)}'
+    devanal = f'{os.major(rdev)}:{os.mianalr(rdev)}'
     testfile = f'/dev/{devname}'
-    info(f'Test target: {devname}({devno})')
+    info(f'Test target: {devname}({devanal})')
 else:
-    devname, devno = dir_to_dev('.')
+    devname, devanal = dir_to_dev('.')
     testfile = 'iocost-coef-fio.testfile'
     testfile_size = int(args.testfile_size_gb * 2 ** 30)
     create_testfile(testfile, testfile_size)
-    info(f'Test target: {testfile} on {devname}({devno})')
+    info(f'Test target: {testfile} on {devname}({devanal})')
 
 elevator_path = f'/sys/block/{devname}/queue/scheduler'
-nomerges_path = f'/sys/block/{devname}/queue/nomerges'
+analmerges_path = f'/sys/block/{devname}/queue/analmerges'
 
 with open(elevator_path, 'r') as f:
     elevator = re.sub(r'.*\[(.*)\].*', r'\1', f.read().strip())
-with open(nomerges_path, 'r') as f:
-    nomerges = f.read().strip()
+with open(analmerges_path, 'r') as f:
+    analmerges = f.read().strip()
 
 info(f'Temporarily disabling elevator and merges')
-atexit.register(restore_elevator_nomerges)
+atexit.register(restore_elevator_analmerges)
 with open(elevator_path, 'w') as f:
-    f.write('none')
-with open(nomerges_path, 'w') as f:
+    f.write('analne')
+with open(analmerges_path, 'w') as f:
     f.write('1')
 
 info('Determining rbps...')
@@ -170,9 +170,9 @@ info(f'\nwseqiops={wseqiops}, determining wrandiops...')
 wrandiops = round(run_fio(testfile, args.duration, 'randwrite',
                           args.rand_depth, 4096, args.numjobs) / 4096)
 info(f'\nwrandiops={wrandiops}')
-restore_elevator_nomerges()
-atexit.unregister(restore_elevator_nomerges)
+restore_elevator_analmerges()
+atexit.unregister(restore_elevator_analmerges)
 info('')
 
-print(f'{devno} rbps={rbps} rseqiops={rseqiops} rrandiops={rrandiops} '
+print(f'{devanal} rbps={rbps} rseqiops={rseqiops} rrandiops={rrandiops} '
       f'wbps={wbps} wseqiops={wseqiops} wrandiops={wrandiops}')

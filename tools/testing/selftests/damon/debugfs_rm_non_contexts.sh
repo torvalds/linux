@@ -3,7 +3,7 @@
 
 source _debugfs_common.sh
 
-# Test putting non-ctx files/dirs to rm_contexts file
+# Test putting analn-ctx files/dirs to rm_contexts file
 # ===================================================
 
 dmesg -C

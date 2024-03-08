@@ -44,7 +44,7 @@ static int snd_ctl_elem_list_compat(struct snd_card *card,
 
 /*
  * control element info
- * it uses union, so the things are not easy..
+ * it uses union, so the things are analt easy..
  */
 
 struct snd_ctl_elem_info32 {
@@ -84,7 +84,7 @@ static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (! data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = -EFAULT;
 	/* copy id */
@@ -176,12 +176,12 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 	kctl = snd_ctl_find_id_locked(card, id);
 	if (! kctl) {
 		up_read(&card->controls_rwsem);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
 		up_read(&card->controls_rwsem);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	info->id = *id;
 	err = snd_power_ref_and_wait(card);
@@ -246,7 +246,7 @@ static int copy_ctl_value_from_user(struct snd_card *card,
 	} else {
 		size = get_elem_size((__force snd_ctl_elem_type_t)type, count);
 		if (size < 0) {
-			dev_err(card->dev, "snd_ioctl32_ctl_elem_value: unknown type %d\n", type);
+			dev_err(card->dev, "snd_ioctl32_ctl_elem_value: unkanalwn type %d\n", type);
 			return -EINVAL;
 		}
 		if (copy_from_user(data->value.bytes.data, valuep, size))
@@ -294,7 +294,7 @@ static int ctl_elem_read_user(struct snd_card *card,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = copy_ctl_value_from_user(card, data, userdata, valuep,
 				       &type, &count);
@@ -319,7 +319,7 @@ static int ctl_elem_write_user(struct snd_ctl_file *file,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = copy_ctl_value_from_user(card, data, userdata, valuep,
 				       &type, &count);
@@ -371,7 +371,7 @@ static int snd_ctl_elem_add_compat(struct snd_ctl_file *file,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (! data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = -EFAULT;
 	/* id, type, access, count */ \
@@ -472,12 +472,12 @@ static inline long snd_ctl_ioctl_compat(struct file *file, unsigned int cmd, uns
 	list_for_each_entry(p, &snd_control_compat_ioctls, list) {
 		if (p->fioctl) {
 			err = p->fioctl(ctl->card, ctl, cmd, arg);
-			if (err != -ENOIOCTLCMD) {
+			if (err != -EANALIOCTLCMD) {
 				up_read(&snd_ioctl_rwsem);
 				return err;
 			}
 		}
 	}
 	up_read(&snd_ioctl_rwsem);
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }

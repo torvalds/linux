@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation
+ * Copyright (C) 2006-2008 Analkia Corporation
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -54,19 +54,19 @@
 /*
  * Minimum amount of LEBs reserved for the index. At present the index needs at
  * least 2 LEBs: one for the index head and one for in-the-gaps method (which
- * currently does not cater for the index head and so excludes it from
+ * currently does analt cater for the index head and so excludes it from
  * consideration).
  */
 #define MIN_INDEX_LEBS 2
 
 /* Minimum amount of data UBIFS writes to the flash */
-#define MIN_WRITE_SZ (UBIFS_DATA_NODE_SZ + 8)
+#define MIN_WRITE_SZ (UBIFS_DATA_ANALDE_SZ + 8)
 
 /*
- * Currently we do not support inode number overlapping and re-using, so this
- * watermark defines dangerous inode number level. This should be fixed later,
- * although it is difficult to exceed current limit. Another option is to use
- * 64-bit inode numbers, but this means more overhead.
+ * Currently we do analt support ianalde number overlapping and re-using, so this
+ * watermark defines dangerous ianalde number level. This should be fixed later,
+ * although it is difficult to exceed current limit. Aanalther option is to use
+ * 64-bit ianalde numbers, but this means more overhead.
  */
 #define INUM_WARN_WATERMARK 0xFFF00000
 #define INUM_WATERMARK      0xFFFFFF00
@@ -80,24 +80,24 @@
  */
 #define BGT_NAME_PATTERN "ubifs_bgt%d_%d"
 
-/* Maximum possible inode number (only 32-bit inodes are supported now) */
+/* Maximum possible ianalde number (only 32-bit ianaldes are supported analw) */
 #define MAX_INUM 0xFFFFFFFF
 
-/* Number of non-data journal heads */
-#define NONDATA_JHEADS_CNT 2
+/* Number of analn-data journal heads */
+#define ANALNDATA_JHEADS_CNT 2
 
 /* Shorter names for journal head numbers for internal usage */
 #define GCHD   UBIFS_GC_HEAD
 #define BASEHD UBIFS_BASE_HEAD
 #define DATAHD UBIFS_DATA_HEAD
 
-/* 'No change' value for 'ubifs_change_lp()' */
+/* 'Anal change' value for 'ubifs_change_lp()' */
 #define LPROPS_NC 0x80000001
 
 /*
- * There is no notion of truncation key because truncation nodes do not exist
+ * There is anal analtion of truncation key because truncation analdes do analt exist
  * in TNC. However, when replaying, it is handy to introduce fake "truncation"
- * keys for truncation nodes because the code becomes simpler. So we define
+ * keys for truncation analdes because the code becomes simpler. So we define
  * %UBIFS_TRUN_KEY type.
  *
  * But otherwise, out of the journal reply scope, the truncation keys are
@@ -108,26 +108,26 @@
 
 /*
  * How much a directory entry/extended attribute entry adds to the parent/host
- * inode.
+ * ianalde.
  */
-#define CALC_DENT_SIZE(name_len) ALIGN(UBIFS_DENT_NODE_SZ + (name_len) + 1, 8)
+#define CALC_DENT_SIZE(name_len) ALIGN(UBIFS_DENT_ANALDE_SZ + (name_len) + 1, 8)
 
-/* How much an extended attribute adds to the host inode */
-#define CALC_XATTR_BYTES(data_len) ALIGN(UBIFS_INO_NODE_SZ + (data_len) + 1, 8)
+/* How much an extended attribute adds to the host ianalde */
+#define CALC_XATTR_BYTES(data_len) ALIGN(UBIFS_IANAL_ANALDE_SZ + (data_len) + 1, 8)
 
 /*
- * Znodes which were not touched for 'OLD_ZNODE_AGE' seconds are considered
- * "old", and znode which were touched last 'YOUNG_ZNODE_AGE' seconds ago are
- * considered "young". This is used by shrinker when selecting znode to trim
+ * Zanaldes which were analt touched for 'OLD_ZANALDE_AGE' seconds are considered
+ * "old", and zanalde which were touched last 'YOUNG_ZANALDE_AGE' seconds ago are
+ * considered "young". This is used by shrinker when selecting zanalde to trim
  * off.
  */
-#define OLD_ZNODE_AGE 20
-#define YOUNG_ZNODE_AGE 5
+#define OLD_ZANALDE_AGE 20
+#define YOUNG_ZANALDE_AGE 5
 
 /*
  * Some compressors, like LZO, may end up with more data then the input buffer.
  * So UBIFS always allocates larger output buffer, to be sure the compressor
- * will not corrupt memory in case of worst case compression.
+ * will analt corrupt memory in case of worst case compression.
  */
 #define WORST_COMPR_FACTOR 2
 
@@ -138,15 +138,15 @@
 #endif
 
 /*
- * How much memory is needed for a buffer where we compress a data node.
+ * How much memory is needed for a buffer where we compress a data analde.
  */
-#define COMPRESSED_DATA_NODE_BUF_SZ \
-	(UBIFS_DATA_NODE_SZ + UBIFS_BLOCK_SIZE * WORST_COMPR_FACTOR)
+#define COMPRESSED_DATA_ANALDE_BUF_SZ \
+	(UBIFS_DATA_ANALDE_SZ + UBIFS_BLOCK_SIZE * WORST_COMPR_FACTOR)
 
 /* Maximum expected tree height for use by bottom_up_buf */
 #define BOTTOM_UP_HEIGHT 64
 
-/* Maximum number of data nodes to bulk-read */
+/* Maximum number of data analdes to bulk-read */
 #define UBIFS_MAX_BULK_READ 32
 
 #ifdef CONFIG_UBIFS_FS_AUTHENTICATION
@@ -165,7 +165,7 @@
 #define UBIFS_DFS_DIR_LEN  (3 + 1 + 2*2 + 1)
 
 /*
- * Lockdep classes for UBIFS inode @ui_mutex.
+ * Lockdep classes for UBIFS ianalde @ui_mutex.
  */
 enum {
 	WB_MUTEX_1 = 0,
@@ -175,25 +175,25 @@ enum {
 };
 
 /*
- * Znode flags (actually, bit numbers which store the flags).
+ * Zanalde flags (actually, bit numbers which store the flags).
  *
- * DIRTY_ZNODE: znode is dirty
- * COW_ZNODE: znode is being committed and a new instance of this znode has to
- *            be created before changing this znode
- * OBSOLETE_ZNODE: znode is obsolete, which means it was deleted, but it is
+ * DIRTY_ZANALDE: zanalde is dirty
+ * COW_ZANALDE: zanalde is being committed and a new instance of this zanalde has to
+ *            be created before changing this zanalde
+ * OBSOLETE_ZANALDE: zanalde is obsolete, which means it was deleted, but it is
  *                 still in the commit list and the ongoing commit operation
- *                 will commit it, and delete this znode after it is done
+ *                 will commit it, and delete this zanalde after it is done
  */
 enum {
-	DIRTY_ZNODE    = 0,
-	COW_ZNODE      = 1,
-	OBSOLETE_ZNODE = 2,
+	DIRTY_ZANALDE    = 0,
+	COW_ZANALDE      = 1,
+	OBSOLETE_ZANALDE = 2,
 };
 
 /*
  * Commit states.
  *
- * COMMIT_RESTING: commit is not wanted
+ * COMMIT_RESTING: commit is analt wanted
  * COMMIT_BACKGROUND: background commit has been requested
  * COMMIT_REQUIRED: commit is required
  * COMMIT_RUNNING_BACKGROUND: background commit is running
@@ -210,43 +210,43 @@ enum {
 };
 
 /*
- * 'ubifs_scan_a_node()' return values.
+ * 'ubifs_scan_a_analde()' return values.
  *
  * SCANNED_GARBAGE:  scanned garbage
  * SCANNED_EMPTY_SPACE: scanned empty space
- * SCANNED_A_NODE: scanned a valid node
- * SCANNED_A_CORRUPT_NODE: scanned a corrupted node
- * SCANNED_A_BAD_PAD_NODE: scanned a padding node with invalid pad length
+ * SCANNED_A_ANALDE: scanned a valid analde
+ * SCANNED_A_CORRUPT_ANALDE: scanned a corrupted analde
+ * SCANNED_A_BAD_PAD_ANALDE: scanned a padding analde with invalid pad length
  *
  * Greater than zero means: 'scanned that number of padding bytes'
  */
 enum {
 	SCANNED_GARBAGE        = 0,
 	SCANNED_EMPTY_SPACE    = -1,
-	SCANNED_A_NODE         = -2,
-	SCANNED_A_CORRUPT_NODE = -3,
-	SCANNED_A_BAD_PAD_NODE = -4,
+	SCANNED_A_ANALDE         = -2,
+	SCANNED_A_CORRUPT_ANALDE = -3,
+	SCANNED_A_BAD_PAD_ANALDE = -4,
 };
 
 /*
- * LPT cnode flag bits.
+ * LPT canalde flag bits.
  *
- * DIRTY_CNODE: cnode is dirty
- * OBSOLETE_CNODE: cnode is being committed and has been copied (or deleted),
+ * DIRTY_CANALDE: canalde is dirty
+ * OBSOLETE_CANALDE: canalde is being committed and has been copied (or deleted),
  *                 so it can (and must) be freed when the commit is finished
- * COW_CNODE: cnode is being committed and must be copied before writing
+ * COW_CANALDE: canalde is being committed and must be copied before writing
  */
 enum {
-	DIRTY_CNODE    = 0,
-	OBSOLETE_CNODE = 1,
-	COW_CNODE      = 2,
+	DIRTY_CANALDE    = 0,
+	OBSOLETE_CANALDE = 1,
+	COW_CANALDE      = 2,
 };
 
 /*
- * Dirty flag bits (lpt_drty_flgs) for LPT special nodes.
+ * Dirty flag bits (lpt_drty_flgs) for LPT special analdes.
  *
- * LTAB_DIRTY: ltab node is dirty
- * LSAVE_DIRTY: lsave node is dirty
+ * LTAB_DIRTY: ltab analde is dirty
+ * LSAVE_DIRTY: lsave analde is dirty
  */
 enum {
 	LTAB_DIRTY  = 1,
@@ -278,13 +278,13 @@ enum {
 };
 
 /**
- * struct ubifs_old_idx - index node obsoleted since last commit start.
- * @rb: rb-tree node
- * @lnum: LEB number of obsoleted index node
- * @offs: offset of obsoleted index node
+ * struct ubifs_old_idx - index analde obsoleted since last commit start.
+ * @rb: rb-tree analde
+ * @lnum: LEB number of obsoleted index analde
+ * @offs: offset of obsoleted index analde
  */
 struct ubifs_old_idx {
-	struct rb_node rb;
+	struct rb_analde rb;
 	int lnum;
 	int offs;
 };
@@ -298,37 +298,37 @@ union ubifs_key {
 };
 
 /**
- * struct ubifs_scan_node - UBIFS scanned node information.
- * @list: list of scanned nodes
- * @key: key of node scanned (if it has one)
+ * struct ubifs_scan_analde - UBIFS scanned analde information.
+ * @list: list of scanned analdes
+ * @key: key of analde scanned (if it has one)
  * @sqnum: sequence number
- * @type: type of node scanned
- * @offs: offset with LEB of node scanned
- * @len: length of node scanned
- * @node: raw node
+ * @type: type of analde scanned
+ * @offs: offset with LEB of analde scanned
+ * @len: length of analde scanned
+ * @analde: raw analde
  */
-struct ubifs_scan_node {
+struct ubifs_scan_analde {
 	struct list_head list;
 	union ubifs_key key;
 	unsigned long long sqnum;
 	int type;
 	int offs;
 	int len;
-	void *node;
+	void *analde;
 };
 
 /**
  * struct ubifs_scan_leb - UBIFS scanned LEB information.
  * @lnum: logical eraseblock number
- * @nodes_cnt: number of nodes scanned
- * @nodes: list of struct ubifs_scan_node
+ * @analdes_cnt: number of analdes scanned
+ * @analdes: list of struct ubifs_scan_analde
  * @endpt: end point (and therefore the start of empty space)
  * @buf: buffer containing entire LEB scanned
  */
 struct ubifs_scan_leb {
 	int lnum;
-	int nodes_cnt;
-	struct list_head nodes;
+	int analdes_cnt;
+	struct list_head analdes;
 	int endpt;
 	void *buf;
 };
@@ -340,7 +340,7 @@ struct ubifs_scan_leb {
  * @unmap: OK to unmap this LEB
  *
  * This data structure is used to temporary store garbage-collected indexing
- * LEBs - they are not released immediately, but only after the next commit.
+ * LEBs - they are analt released immediately, but only after the next commit.
  * This is needed to guarantee recoverability.
  */
 struct ubifs_gced_idx_leb {
@@ -350,67 +350,67 @@ struct ubifs_gced_idx_leb {
 };
 
 /**
- * struct ubifs_inode - UBIFS in-memory inode description.
- * @vfs_inode: VFS inode description object
+ * struct ubifs_ianalde - UBIFS in-memory ianalde description.
+ * @vfs_ianalde: VFS ianalde description object
  * @creat_sqnum: sequence number at time of creation
- * @del_cmtno: commit number corresponding to the time the inode was deleted,
+ * @del_cmtanal: commit number corresponding to the time the ianalde was deleted,
  *             protected by @c->commit_sem;
  * @xattr_size: summarized size of all extended attributes in bytes
- * @xattr_cnt: count of extended attributes this inode has
+ * @xattr_cnt: count of extended attributes this ianalde has
  * @xattr_names: sum of lengths of all extended attribute names belonging to
- *               this inode
- * @dirty: non-zero if the inode is dirty
- * @xattr: non-zero if this is an extended attribute inode
- * @bulk_read: non-zero if bulk-read should be used
- * @ui_mutex: serializes inode write-back with the rest of VFS operations,
+ *               this ianalde
+ * @dirty: analn-zero if the ianalde is dirty
+ * @xattr: analn-zero if this is an extended attribute ianalde
+ * @bulk_read: analn-zero if bulk-read should be used
+ * @ui_mutex: serializes ianalde write-back with the rest of VFS operations,
  *            serializes "clean <-> dirty" state changes, serializes bulk-read,
  *            protects @dirty, @bulk_read, @ui_size, and @xattr_size
  * @xattr_sem: serilizes write operations (remove|set|create) on xattr
  * @ui_lock: protects @synced_i_size
- * @synced_i_size: synchronized size of inode, i.e. the value of inode size
+ * @synced_i_size: synchronized size of ianalde, i.e. the value of ianalde size
  *                 currently stored on the flash; used only for regular file
- *                 inodes
- * @ui_size: inode size used by UBIFS when writing to flash
- * @flags: inode flags (@UBIFS_COMPR_FL, etc)
- * @compr_type: default compression type used for this inode
+ *                 ianaldes
+ * @ui_size: ianalde size used by UBIFS when writing to flash
+ * @flags: ianalde flags (@UBIFS_COMPR_FL, etc)
+ * @compr_type: default compression type used for this ianalde
  * @last_page_read: page number of last page read (for bulk read)
  * @read_in_a_row: number of consecutive pages read in a row (for bulk read)
- * @data_len: length of the data attached to the inode
- * @data: inode's data
+ * @data_len: length of the data attached to the ianalde
+ * @data: ianalde's data
  *
- * @ui_mutex exists for two main reasons. At first it prevents inodes from
+ * @ui_mutex exists for two main reasons. At first it prevents ianaldes from
  * being written back while UBIFS changing them, being in the middle of an VFS
- * operation. This way UBIFS makes sure the inode fields are consistent. For
- * example, in 'ubifs_rename()' we change 4 inodes simultaneously, and
- * write-back must not write any of them before we have finished.
+ * operation. This way UBIFS makes sure the ianalde fields are consistent. For
+ * example, in 'ubifs_rename()' we change 4 ianaldes simultaneously, and
+ * write-back must analt write any of them before we have finished.
  *
  * The second reason is budgeting - UBIFS has to budget all operations. If an
- * operation is going to mark an inode dirty, it has to allocate budget for
- * this. It cannot just mark it dirty because there is no guarantee there will
- * be enough flash space to write the inode back later. This means UBIFS has
- * to have full control over inode "clean <-> dirty" transitions (and pages
- * actually). But unfortunately, VFS marks inodes dirty in many places, and it
- * does not ask the file-system if it is allowed to do so (there is a notifier,
- * but it is not enough), i.e., there is no mechanism to synchronize with this.
- * So UBIFS has its own inode dirty flag and its own mutex to serialize
+ * operation is going to mark an ianalde dirty, it has to allocate budget for
+ * this. It cananalt just mark it dirty because there is anal guarantee there will
+ * be eanalugh flash space to write the ianalde back later. This means UBIFS has
+ * to have full control over ianalde "clean <-> dirty" transitions (and pages
+ * actually). But unfortunately, VFS marks ianaldes dirty in many places, and it
+ * does analt ask the file-system if it is allowed to do so (there is a analtifier,
+ * but it is analt eanalugh), i.e., there is anal mechanism to synchronize with this.
+ * So UBIFS has its own ianalde dirty flag and its own mutex to serialize
  * "clean <-> dirty" transitions.
  *
  * The @synced_i_size field is used to make sure we never write pages which are
- * beyond last synchronized inode size. See 'ubifs_writepage()' for more
+ * beyond last synchronized ianalde size. See 'ubifs_writepage()' for more
  * information.
  *
- * The @ui_size is a "shadow" variable for @inode->i_size and UBIFS uses
- * @ui_size instead of @inode->i_size. The reason for this is that UBIFS cannot
- * make sure @inode->i_size is always changed under @ui_mutex, because it
- * cannot call 'truncate_setsize()' with @ui_mutex locked, because it would
- * deadlock with 'ubifs_writepage()' (see file.c). All the other inode fields
- * are changed under @ui_mutex, so they do not need "shadow" fields. Note, one
+ * The @ui_size is a "shadow" variable for @ianalde->i_size and UBIFS uses
+ * @ui_size instead of @ianalde->i_size. The reason for this is that UBIFS cananalt
+ * make sure @ianalde->i_size is always changed under @ui_mutex, because it
+ * cananalt call 'truncate_setsize()' with @ui_mutex locked, because it would
+ * deadlock with 'ubifs_writepage()' (see file.c). All the other ianalde fields
+ * are changed under @ui_mutex, so they do analt need "shadow" fields. Analte, one
  * could consider to rework locking and base it on "shadow" fields.
  */
-struct ubifs_inode {
-	struct inode vfs_inode;
+struct ubifs_ianalde {
+	struct ianalde vfs_ianalde;
 	unsigned long long creat_sqnum;
-	unsigned long long del_cmtno;
+	unsigned long long del_cmtanal;
 	unsigned int xattr_size;
 	unsigned int xattr_cnt;
 	unsigned int xattr_names;
@@ -437,7 +437,7 @@ struct ubifs_inode {
  * @endpt: offset where recovery ended
  *
  * This structure records a LEB identified during recovery that needs to be
- * cleaned but was not because UBIFS was mounted read-only. The information
+ * cleaned but was analt because UBIFS was mounted read-only. The information
  * is used to clean the LEB when remounting to read-write mode.
  */
 struct ubifs_unclean_leb {
@@ -449,17 +449,17 @@ struct ubifs_unclean_leb {
 /*
  * LEB properties flags.
  *
- * LPROPS_UNCAT: not categorized
- * LPROPS_DIRTY: dirty > free, dirty >= @c->dead_wm, not index
- * LPROPS_DIRTY_IDX: dirty + free > @c->min_idx_node_sze and index
- * LPROPS_FREE: free > 0, dirty < @c->dead_wm, not empty, not index
+ * LPROPS_UNCAT: analt categorized
+ * LPROPS_DIRTY: dirty > free, dirty >= @c->dead_wm, analt index
+ * LPROPS_DIRTY_IDX: dirty + free > @c->min_idx_analde_sze and index
+ * LPROPS_FREE: free > 0, dirty < @c->dead_wm, analt empty, analt index
  * LPROPS_HEAP_CNT: number of heaps used for storing categorized LEBs
- * LPROPS_EMPTY: LEB is empty, not taken
- * LPROPS_FREEABLE: free + dirty == leb_size, not index, not taken
+ * LPROPS_EMPTY: LEB is empty, analt taken
+ * LPROPS_FREEABLE: free + dirty == leb_size, analt index, analt taken
  * LPROPS_FRDI_IDX: free + dirty == leb_size and index, may be taken
  * LPROPS_CAT_MASK: mask for the LEB categories above
- * LPROPS_TAKEN: LEB was taken (this flag is not saved on the media)
- * LPROPS_INDEX: LEB contains indexing nodes (this flag also exists on flash)
+ * LPROPS_TAKEN: LEB was taken (this flag is analt saved on the media)
+ * LPROPS_INDEX: LEB contains indexing analdes (this flag also exists on flash)
  */
 enum {
 	LPROPS_UNCAT     =  0,
@@ -516,23 +516,23 @@ struct ubifs_lpt_lprops {
  * @idx_lebs: number of indexing LEBs
  * @total_free: total free space in bytes (includes all LEBs)
  * @total_dirty: total dirty space in bytes (includes all LEBs)
- * @total_used: total used space in bytes (does not include index LEBs)
- * @total_dead: total dead space in bytes (does not include index LEBs)
- * @total_dark: total dark space in bytes (does not include index LEBs)
+ * @total_used: total used space in bytes (does analt include index LEBs)
+ * @total_dead: total dead space in bytes (does analt include index LEBs)
+ * @total_dark: total dark space in bytes (does analt include index LEBs)
  *
  * The @taken_empty_lebs field counts the LEBs that are in the transient state
- * of having been "taken" for use but not yet written to. @taken_empty_lebs is
+ * of having been "taken" for use but analt yet written to. @taken_empty_lebs is
  * needed to account correctly for @gc_lnum, otherwise @empty_lebs could be
  * used by itself (in which case 'unused_lebs' would be a better name). In the
  * case of @gc_lnum, it is "taken" at mount time or whenever a LEB is retained
- * by GC, but unlike other empty LEBs that are "taken", it may not be written
+ * by GC, but unlike other empty LEBs that are "taken", it may analt be written
  * straight away (i.e. before the next commit start or unmount), so either
  * @gc_lnum must be specially accounted for, or the current approach followed
  * i.e. count it under @taken_empty_lebs.
  *
  * @empty_lebs includes @taken_empty_lebs.
  *
- * @total_used, @total_dead and @total_dark fields do not account indexing
+ * @total_used, @total_dead and @total_dark fields do analt account indexing
  * LEBs.
  */
 struct ubifs_lp_stats {
@@ -546,20 +546,20 @@ struct ubifs_lp_stats {
 	long long total_dark;
 };
 
-struct ubifs_nnode;
+struct ubifs_nanalde;
 
 /**
- * struct ubifs_cnode - LEB Properties Tree common node.
- * @parent: parent nnode
- * @cnext: next cnode to commit
- * @flags: flags (%DIRTY_LPT_NODE or %OBSOLETE_LPT_NODE)
+ * struct ubifs_canalde - LEB Properties Tree common analde.
+ * @parent: parent nanalde
+ * @cnext: next canalde to commit
+ * @flags: flags (%DIRTY_LPT_ANALDE or %OBSOLETE_LPT_ANALDE)
  * @iip: index in parent
- * @level: level in the tree (zero for pnodes, greater than zero for nnodes)
- * @num: node number
+ * @level: level in the tree (zero for panaldes, greater than zero for nanaldes)
+ * @num: analde number
  */
-struct ubifs_cnode {
-	struct ubifs_nnode *parent;
-	struct ubifs_cnode *cnext;
+struct ubifs_canalde {
+	struct ubifs_nanalde *parent;
+	struct ubifs_canalde *cnext;
 	unsigned long flags;
 	int iip;
 	int level;
@@ -567,61 +567,61 @@ struct ubifs_cnode {
 };
 
 /**
- * struct ubifs_pnode - LEB Properties Tree leaf node.
- * @parent: parent nnode
- * @cnext: next cnode to commit
- * @flags: flags (%DIRTY_LPT_NODE or %OBSOLETE_LPT_NODE)
+ * struct ubifs_panalde - LEB Properties Tree leaf analde.
+ * @parent: parent nanalde
+ * @cnext: next canalde to commit
+ * @flags: flags (%DIRTY_LPT_ANALDE or %OBSOLETE_LPT_ANALDE)
  * @iip: index in parent
- * @level: level in the tree (always zero for pnodes)
- * @num: node number
+ * @level: level in the tree (always zero for panaldes)
+ * @num: analde number
  * @lprops: LEB properties array
  */
-struct ubifs_pnode {
-	struct ubifs_nnode *parent;
-	struct ubifs_cnode *cnext;
+struct ubifs_panalde {
+	struct ubifs_nanalde *parent;
+	struct ubifs_canalde *cnext;
 	unsigned long flags;
 	int iip;
 	int level;
 	int num;
-	struct ubifs_lprops lprops[UBIFS_LPT_FANOUT];
+	struct ubifs_lprops lprops[UBIFS_LPT_FAANALUT];
 };
 
 /**
- * struct ubifs_nbranch - LEB Properties Tree internal node branch.
+ * struct ubifs_nbranch - LEB Properties Tree internal analde branch.
  * @lnum: LEB number of child
  * @offs: offset of child
- * @nnode: nnode child
- * @pnode: pnode child
- * @cnode: cnode child
+ * @nanalde: nanalde child
+ * @panalde: panalde child
+ * @canalde: canalde child
  */
 struct ubifs_nbranch {
 	int lnum;
 	int offs;
 	union {
-		struct ubifs_nnode *nnode;
-		struct ubifs_pnode *pnode;
-		struct ubifs_cnode *cnode;
+		struct ubifs_nanalde *nanalde;
+		struct ubifs_panalde *panalde;
+		struct ubifs_canalde *canalde;
 	};
 };
 
 /**
- * struct ubifs_nnode - LEB Properties Tree internal node.
- * @parent: parent nnode
- * @cnext: next cnode to commit
- * @flags: flags (%DIRTY_LPT_NODE or %OBSOLETE_LPT_NODE)
+ * struct ubifs_nanalde - LEB Properties Tree internal analde.
+ * @parent: parent nanalde
+ * @cnext: next canalde to commit
+ * @flags: flags (%DIRTY_LPT_ANALDE or %OBSOLETE_LPT_ANALDE)
  * @iip: index in parent
- * @level: level in the tree (always greater than zero for nnodes)
- * @num: node number
- * @nbranch: branches to child nodes
+ * @level: level in the tree (always greater than zero for nanaldes)
+ * @num: analde number
+ * @nbranch: branches to child analdes
  */
-struct ubifs_nnode {
-	struct ubifs_nnode *parent;
-	struct ubifs_cnode *cnext;
+struct ubifs_nanalde {
+	struct ubifs_nanalde *parent;
+	struct ubifs_canalde *cnext;
 	unsigned long flags;
 	int iip;
 	int level;
 	int num;
-	struct ubifs_nbranch nbranch[UBIFS_LPT_FANOUT];
+	struct ubifs_nbranch nbranch[UBIFS_LPT_FAANALUT];
 };
 
 /**
@@ -653,7 +653,7 @@ enum {
 
 struct ubifs_info;
 
-/* Callback used by the 'ubifs_lpt_scan_nolock()' function */
+/* Callback used by the 'ubifs_lpt_scan_anallock()' function */
 typedef int (*ubifs_lpt_scan_callback)(struct ubifs_info *c,
 				       const struct ubifs_lprops *lprops,
 				       int in_tree, void *data);
@@ -667,23 +667,23 @@ typedef int (*ubifs_lpt_scan_callback)(struct ubifs_info *c,
  * @avail: number of bytes available in the write-buffer
  * @used:  number of used bytes in the write-buffer
  * @size: write-buffer size (in [@c->min_io_size, @c->max_write_size] range)
- * @jhead: journal head the mutex belongs to (note, needed only to shut lockdep
+ * @jhead: journal head the mutex belongs to (analte, needed only to shut lockdep
  *         up by 'mutex_lock_nested()).
  * @sync_callback: write-buffer synchronization callback
  * @io_mutex: serializes write-buffer I/O
- * @lock: serializes @buf, @lnum, @offs, @avail, @used, @next_ino and @inodes
+ * @lock: serializes @buf, @lnum, @offs, @avail, @used, @next_ianal and @ianaldes
  *        fields
  * @timer: write-buffer timer
- * @no_timer: non-zero if this write-buffer does not have a timer
- * @need_sync: non-zero if the timer expired and the wbuf needs sync'ing
- * @next_ino: points to the next position of the following inode number
- * @inodes: stores the inode numbers of the nodes which are in wbuf
+ * @anal_timer: analn-zero if this write-buffer does analt have a timer
+ * @need_sync: analn-zero if the timer expired and the wbuf needs sync'ing
+ * @next_ianal: points to the next position of the following ianalde number
+ * @ianaldes: stores the ianalde numbers of the analdes which are in wbuf
  *
  * The write-buffer synchronization callback is called when the write-buffer is
- * synchronized in order to notify how much space was wasted due to
+ * synchronized in order to analtify how much space was wasted due to
  * write-buffer padding and how much free space is left in the LEB.
  *
- * Note: the fields @buf, @lnum, @offs, @avail and @used can be read under
+ * Analte: the fields @buf, @lnum, @offs, @avail and @used can be read under
  * spin-lock or mutex because they are written under both mutex and spin-lock.
  * @buf is appended to under mutex but overwritten under both mutex and
  * spin-lock. Thus the data between @buf and @buf + @used can be read under
@@ -702,10 +702,10 @@ struct ubifs_wbuf {
 	struct mutex io_mutex;
 	spinlock_t lock;
 	struct hrtimer timer;
-	unsigned int no_timer:1;
+	unsigned int anal_timer:1;
 	unsigned int need_sync:1;
-	int next_ino;
-	ino_t *inodes;
+	int next_ianal;
+	ianal_t *ianaldes;
 };
 
 /**
@@ -715,14 +715,14 @@ struct ubifs_wbuf {
  * @jhead: journal head number this bud belongs to
  * @list: link in the list buds belonging to the same journal head
  * @rb: link in the tree of all buds
- * @log_hash: the log hash from the commit start node up to this bud
+ * @log_hash: the log hash from the commit start analde up to this bud
  */
 struct ubifs_bud {
 	int lnum;
 	int start;
 	int jhead;
 	struct list_head list;
-	struct rb_node rb;
+	struct rb_analde rb;
 	struct shash_desc *log_hash;
 };
 
@@ -730,10 +730,10 @@ struct ubifs_bud {
  * struct ubifs_jhead - journal head.
  * @wbuf: head's write-buffer
  * @buds_list: list of bud LEBs belonging to this journal head
- * @grouped: non-zero if UBIFS groups nodes when writing to this journal head
- * @log_hash: the log hash from the commit start node up to this journal head
+ * @grouped: analn-zero if UBIFS groups analdes when writing to this journal head
+ * @log_hash: the log hash from the commit start analde up to this journal head
  *
- * Note, the @buds list is protected by the @c->buds_lock.
+ * Analte, the @buds list is protected by the @c->buds_lock.
  */
 struct ubifs_jhead {
 	struct ubifs_wbuf wbuf;
@@ -743,18 +743,18 @@ struct ubifs_jhead {
 };
 
 /**
- * struct ubifs_zbranch - key/coordinate/length branch stored in znodes.
+ * struct ubifs_zbranch - key/coordinate/length branch stored in zanaldes.
  * @key: key
- * @znode: znode address in memory
- * @lnum: LEB number of the target node (indexing node or data node)
- * @offs: target node offset within @lnum
- * @len: target node length
- * @hash: the hash of the target node
+ * @zanalde: zanalde address in memory
+ * @lnum: LEB number of the target analde (indexing analde or data analde)
+ * @offs: target analde offset within @lnum
+ * @len: target analde length
+ * @hash: the hash of the target analde
  */
 struct ubifs_zbranch {
 	union ubifs_key key;
 	union {
-		struct ubifs_znode *znode;
+		struct ubifs_zanalde *zanalde;
 		void *leaf;
 	};
 	int lnum;
@@ -764,29 +764,29 @@ struct ubifs_zbranch {
 };
 
 /**
- * struct ubifs_znode - in-memory representation of an indexing node.
- * @parent: parent znode or NULL if it is the root
- * @cnext: next znode to commit
- * @cparent: parent node for this commit
+ * struct ubifs_zanalde - in-memory representation of an indexing analde.
+ * @parent: parent zanalde or NULL if it is the root
+ * @cnext: next zanalde to commit
+ * @cparent: parent analde for this commit
  * @ciip: index in cparent's zbranch array
- * @flags: znode flags (%DIRTY_ZNODE, %COW_ZNODE or %OBSOLETE_ZNODE)
+ * @flags: zanalde flags (%DIRTY_ZANALDE, %COW_ZANALDE or %OBSOLETE_ZANALDE)
  * @time: last access time (seconds)
  * @level: level of the entry in the TNC tree
- * @child_cnt: count of child znodes
+ * @child_cnt: count of child zanaldes
  * @iip: index in parent's zbranch array
  * @alt: lower bound of key range has altered i.e. child inserted at slot 0
- * @lnum: LEB number of the corresponding indexing node
- * @offs: offset of the corresponding indexing node
- * @len: length  of the corresponding indexing node
- * @zbranch: array of znode branches (@c->fanout elements)
+ * @lnum: LEB number of the corresponding indexing analde
+ * @offs: offset of the corresponding indexing analde
+ * @len: length  of the corresponding indexing analde
+ * @zbranch: array of zanalde branches (@c->faanalut elements)
  *
- * Note! The @lnum, @offs, and @len fields are not really needed - we have them
+ * Analte! The @lnum, @offs, and @len fields are analt really needed - we have them
  * only for internal consistency check. They could be removed to save some RAM.
  */
-struct ubifs_znode {
-	struct ubifs_znode *parent;
-	struct ubifs_znode *cnext;
-	struct ubifs_znode *cparent;
+struct ubifs_zanalde {
+	struct ubifs_zanalde *parent;
+	struct ubifs_zanalde *cnext;
+	struct ubifs_zanalde *cparent;
 	int ciip;
 	unsigned long flags;
 	time64_t time;
@@ -802,12 +802,12 @@ struct ubifs_znode {
 
 /**
  * struct bu_info - bulk-read information.
- * @key: first data node key
- * @zbranch: zbranches of data nodes to bulk read
+ * @key: first data analde key
+ * @zbranch: zbranches of data analdes to bulk read
  * @buf: buffer to read into
  * @buf_len: buffer length
  * @gc_seq: GC sequence number to detect races with GC
- * @cnt: number of data nodes for bulk read
+ * @cnt: number of data analdes for bulk read
  * @blk_cnt: number of data blocks including holes
  * @oef: end of file reached
  */
@@ -823,14 +823,14 @@ struct bu_info {
 };
 
 /**
- * struct ubifs_node_range - node length range description data structure.
- * @len: fixed node length
- * @min_len: minimum possible node length
- * @max_len: maximum possible node length
+ * struct ubifs_analde_range - analde length range description data structure.
+ * @len: fixed analde length
+ * @min_len: minimum possible analde length
+ * @max_len: maximum possible analde length
  *
- * If @max_len is %0, the node has fixed length @len.
+ * If @max_len is %0, the analde has fixed length @len.
  */
-struct ubifs_node_range {
+struct ubifs_analde_range {
 	union {
 		int len;
 		int min_len;
@@ -859,36 +859,36 @@ struct ubifs_compressor {
 /**
  * struct ubifs_budget_req - budget requirements of an operation.
  *
- * @fast: non-zero if the budgeting should try to acquire budget quickly and
- *        should not try to call write-back
- * @recalculate: non-zero if @idx_growth, @data_growth, and @dd_growth fields
+ * @fast: analn-zero if the budgeting should try to acquire budget quickly and
+ *        should analt try to call write-back
+ * @recalculate: analn-zero if @idx_growth, @data_growth, and @dd_growth fields
  *               have to be re-calculated
- * @new_page: non-zero if the operation adds a new page
- * @dirtied_page: non-zero if the operation makes a page dirty
- * @new_dent: non-zero if the operation adds a new directory entry
- * @mod_dent: non-zero if the operation removes or modifies an existing
+ * @new_page: analn-zero if the operation adds a new page
+ * @dirtied_page: analn-zero if the operation makes a page dirty
+ * @new_dent: analn-zero if the operation adds a new directory entry
+ * @mod_dent: analn-zero if the operation removes or modifies an existing
  *            directory entry
- * @new_ino: non-zero if the operation adds a new inode
- * @new_ino_d: how much data newly created inode contains
- * @dirtied_ino: how many inodes the operation makes dirty
- * @dirtied_ino_d: how much data dirtied inode contains
+ * @new_ianal: analn-zero if the operation adds a new ianalde
+ * @new_ianal_d: how much data newly created ianalde contains
+ * @dirtied_ianal: how many ianaldes the operation makes dirty
+ * @dirtied_ianal_d: how much data dirtied ianalde contains
  * @idx_growth: how much the index will supposedly grow
  * @data_growth: how much new data the operation will supposedly add
  * @dd_growth: how much data that makes other data dirty the operation will
  *             supposedly add
  *
- * @idx_growth, @data_growth and @dd_growth are not used in budget request. The
+ * @idx_growth, @data_growth and @dd_growth are analt used in budget request. The
  * budgeting subsystem caches index and data growth values there to avoid
  * re-calculating them when the budget is released. However, if @idx_growth is
  * %-1, it is calculated by the release function using other fields.
  *
- * An inode may contain 4KiB of data at max., thus the widths of @new_ino_d
- * is 13 bits, and @dirtied_ino_d - 15, because up to 4 inodes may be made
+ * An ianalde may contain 4KiB of data at max., thus the widths of @new_ianal_d
+ * is 13 bits, and @dirtied_ianal_d - 15, because up to 4 ianaldes may be made
  * dirty by the re-name operation.
  *
- * Note, UBIFS aligns node lengths to 8-bytes boundary, so the requester has to
- * make sure the amount of inode data which contribute to @new_ino_d and
- * @dirtied_ino_d fields are aligned.
+ * Analte, UBIFS aligns analde lengths to 8-bytes boundary, so the requester has to
+ * make sure the amount of ianalde data which contribute to @new_ianal_d and
+ * @dirtied_ianal_d fields are aligned.
  */
 struct ubifs_budget_req {
 	unsigned int fast:1;
@@ -898,20 +898,20 @@ struct ubifs_budget_req {
 	unsigned int dirtied_page:1;
 	unsigned int new_dent:1;
 	unsigned int mod_dent:1;
-	unsigned int new_ino:1;
-	unsigned int new_ino_d:13;
-	unsigned int dirtied_ino:4;
-	unsigned int dirtied_ino_d:15;
+	unsigned int new_ianal:1;
+	unsigned int new_ianal_d:13;
+	unsigned int dirtied_ianal:4;
+	unsigned int dirtied_ianal_d:15;
 #else
-	/* Not bit-fields to check for overflows */
+	/* Analt bit-fields to check for overflows */
 	unsigned int new_page;
 	unsigned int dirtied_page;
 	unsigned int new_dent;
 	unsigned int mod_dent;
-	unsigned int new_ino;
-	unsigned int new_ino_d;
-	unsigned int dirtied_ino;
-	unsigned int dirtied_ino_d;
+	unsigned int new_ianal;
+	unsigned int new_ianal_d;
+	unsigned int dirtied_ianal;
+	unsigned int dirtied_ianal_d;
 #endif
 	int idx_growth;
 	int data_growth;
@@ -919,27 +919,27 @@ struct ubifs_budget_req {
 };
 
 /**
- * struct ubifs_orphan - stores the inode number of an orphan.
- * @rb: rb-tree node of rb-tree of orphans sorted by inode number
+ * struct ubifs_orphan - stores the ianalde number of an orphan.
+ * @rb: rb-tree analde of rb-tree of orphans sorted by ianalde number
  * @list: list head of list of orphans in order added
  * @new_list: list head of list of orphans added since the last commit
  * @child_list: list of xattr children if this orphan hosts xattrs, list head
- * if this orphan is a xattr, not used otherwise.
+ * if this orphan is a xattr, analt used otherwise.
  * @cnext: next orphan to commit
  * @dnext: next orphan to delete
- * @inum: inode number
+ * @inum: ianalde number
  * @new: %1 => added since the last commit, otherwise %0
  * @cmt: %1 => commit pending, otherwise %0
  * @del: %1 => delete pending, otherwise %0
  */
 struct ubifs_orphan {
-	struct rb_node rb;
+	struct rb_analde rb;
 	struct list_head list;
 	struct list_head new_list;
 	struct list_head child_list;
 	struct ubifs_orphan *cnext;
 	struct ubifs_orphan *dnext;
-	ino_t inum;
+	ianal_t inum;
 	unsigned new:1;
 	unsigned cmt:1;
 	unsigned del:1;
@@ -947,15 +947,15 @@ struct ubifs_orphan {
 
 /**
  * struct ubifs_mount_opts - UBIFS-specific mount options information.
- * @unmount_mode: selected unmount mode (%0 default, %1 normal, %2 fast)
+ * @unmount_mode: selected unmount mode (%0 default, %1 analrmal, %2 fast)
  * @bulk_read: enable/disable bulk-reads (%0 default, %1 disable, %2 enable)
- * @chk_data_crc: enable/disable CRC data checking when reading data nodes
+ * @chk_data_crc: enable/disable CRC data checking when reading data analdes
  *                (%0 default, %1 disable, %2 enable)
- * @override_compr: override default compressor (%0 - do not override and use
+ * @override_compr: override default compressor (%0 - do analt override and use
  *                  superblock compressor, %1 - override and use compressor
  *                  specified in @compr_type)
  * @compr_type: compressor type to override the superblock compressor with
- *              (%UBIFS_COMPR_NONE, etc)
+ *              (%UBIFS_COMPR_ANALNE, etc)
  */
 struct ubifs_mount_opts {
 	unsigned int unmount_mode:2;
@@ -973,15 +973,15 @@ struct ubifs_mount_opts {
  *             other data dirty
  * @uncommitted_idx: amount of bytes were budgeted for growth of the index, but
  *                   which still have to be taken into account because the index
- *                   has not been committed so far
+ *                   has analt been committed so far
  * @old_idx_sz: size of index on flash
  * @min_idx_lebs: minimum number of LEBs required for the index
- * @nospace: non-zero if the file-system does not have flash space (used as
+ * @analspace: analn-zero if the file-system does analt have flash space (used as
  *           optimization)
- * @nospace_rp: the same as @nospace, but additionally means that even reserved
+ * @analspace_rp: the same as @analspace, but additionally means that even reserved
  *              pool is full
  * @page_budget: budget for a page (constant, never changed after mount)
- * @inode_budget: budget for an inode (constant, never changed after mount)
+ * @ianalde_budget: budget for an ianalde (constant, never changed after mount)
  * @dent_budget: budget for a directory entry (constant, never changed after
  *               mount)
  */
@@ -992,22 +992,22 @@ struct ubifs_budg_info {
 	long long uncommitted_idx;
 	unsigned long long old_idx_sz;
 	int min_idx_lebs;
-	unsigned int nospace:1;
-	unsigned int nospace_rp:1;
+	unsigned int analspace:1;
+	unsigned int analspace_rp:1;
 	int page_budget;
-	int inode_budget;
+	int ianalde_budget;
 	int dent_budget;
 };
 
 /**
  * ubifs_stats_info - per-FS statistics information.
  * @magic_errors: number of bad magic numbers (will be reset with a new mount).
- * @node_errors: number of bad nodes (will be reset with a new mount).
+ * @analde_errors: number of bad analdes (will be reset with a new mount).
  * @crc_errors: number of bad crcs (will be reset with a new mount).
  */
 struct ubifs_stats_info {
 	unsigned int magic_errors;
-	unsigned int node_errors;
+	unsigned int analde_errors;
 	unsigned int crc_errors;
 };
 
@@ -1017,11 +1017,11 @@ struct ubifs_debug_info;
  * struct ubifs_info - UBIFS file-system description data structure
  * (per-superblock).
  * @vfs_sb: VFS @struct super_block object
- * @sup_node: The super block node as read from the device
+ * @sup_analde: The super block analde as read from the device
  *
- * @highest_inum: highest used inode number
+ * @highest_inum: highest used ianalde number
  * @max_sqnum: current global sequence number
- * @cmt_no: commit number of the last successfully completed commit, protected
+ * @cmt_anal: commit number of the last successfully completed commit, protected
  *          by @commit_sem
  * @cnt_lock: protects @highest_inum and @max_sqnum counters
  * @fmt_version: UBIFS on-flash format version
@@ -1057,19 +1057,19 @@ struct ubifs_debug_info;
  * @space_fixup: flag indicating that free space in LEBs needs to be cleaned up
  * @double_hash: flag indicating that we can do lookups by hash
  * @encrypted: flag indicating that this file system contains encrypted files
- * @no_chk_data_crc: do not check CRCs when reading data nodes (except during
+ * @anal_chk_data_crc: do analt check CRCs when reading data analdes (except during
  *                   recovery)
  * @bulk_read: enable bulk-reads
  * @default_compr: default compression algorithm (%UBIFS_COMPR_LZO, etc)
- * @rw_incompat: the media is not R/W compatible
+ * @rw_incompat: the media is analt R/W compatible
  * @assert_action: action to take when a ubifs_assert() fails
  * @authenticated: flag indigating the FS is mounted in authenticated mode
  *
- * @tnc_mutex: protects the Tree Node Cache (TNC), @zroot, @cnext, @enext, and
+ * @tnc_mutex: protects the Tree Analde Cache (TNC), @zroot, @cnext, @enext, and
  *             @calc_idx_sz
- * @zroot: zbranch which points to the root index node and znode
- * @cnext: next znode to commit
- * @enext: next znode to commit to empty space
+ * @zroot: zbranch which points to the root index analde and zanalde
+ * @cnext: next zanalde to commit
+ * @enext: next zanalde to commit to empty space
  * @gap_lebs: array of LEBs used by the in-gaps commit method
  * @cbuf: commit buffer
  * @ileb_buf: buffer for commit in-the-gaps method
@@ -1079,11 +1079,11 @@ struct ubifs_debug_info;
  * @ilebs: pre-allocated index LEBs
  * @ileb_cnt: number of pre-allocated index LEBs
  * @ileb_nxt: next pre-allocated index LEBs
- * @old_idx: tree of index nodes obsoleted since the last commit start
+ * @old_idx: tree of index analdes obsoleted since the last commit start
  * @bottom_up_buf: a buffer which is used by 'dirty_cow_bottom_up()' in tnc.c
  *
- * @mst_node: master node
- * @mst_offs: offset of valid master node
+ * @mst_analde: master analde
+ * @mst_offs: offset of valid master analde
  *
  * @max_bu_buf_len: maximum bulk-read buffer length
  * @bu_mutex: protects the pre-allocated bulk-read buffer and @c->bu
@@ -1111,8 +1111,8 @@ struct ubifs_debug_info;
  * @key_hash: direntry key hash function
  * @key_fmt: key format
  * @key_len: key length
- * @hash_len: The length of the index node hashes
- * @fanout: fanout of the index tree (number of links per indexing node)
+ * @hash_len: The length of the index analde hashes
+ * @faanalut: faanalut of the index tree (number of links per indexing analde)
  *
  * @min_io_size: minimal input/output unit size
  * @min_io_shift: number of bits in @min_io_size minus one
@@ -1124,16 +1124,16 @@ struct ubifs_debug_info;
  *             eraseblocks
  * @half_leb_size: half LEB size
  * @idx_leb_size: how many bytes of an LEB are effectively available when it is
- *                used to store indexing nodes (@leb_size - @max_idx_node_sz)
+ *                used to store indexing analdes (@leb_size - @max_idx_analde_sz)
  * @leb_cnt: count of logical eraseblocks
  * @max_leb_cnt: maximum count of logical eraseblocks
  * @ro_media: the underlying UBI volume is read-only
  * @ro_mount: the file-system was mounted as read-only
  * @ro_error: UBIFS switched to R/O mode because an error happened
  *
- * @dirty_pg_cnt: number of dirty pages (not used)
- * @dirty_zn_cnt: number of dirty znodes
- * @clean_zn_cnt: number of clean znodes
+ * @dirty_pg_cnt: number of dirty pages (analt used)
+ * @dirty_zn_cnt: number of dirty zanaldes
+ * @clean_zn_cnt: number of clean zanaldes
  *
  * @space_lock: protects @bi and @lst
  * @lst: lprops statistics
@@ -1141,39 +1141,39 @@ struct ubifs_debug_info;
  * @calc_idx_sz: temporary variable which is used to calculate new index size
  *               (contains accurate new index size at end of TNC commit start)
  *
- * @ref_node_alsz: size of the LEB reference node aligned to the min. flash
+ * @ref_analde_alsz: size of the LEB reference analde aligned to the min. flash
  *                 I/O unit
- * @mst_node_alsz: master node aligned size
- * @min_idx_node_sz: minimum indexing node aligned on 8-bytes boundary
- * @max_idx_node_sz: maximum indexing node aligned on 8-bytes boundary
- * @max_inode_sz: maximum possible inode size in bytes
- * @max_znode_sz: size of znode in bytes
+ * @mst_analde_alsz: master analde aligned size
+ * @min_idx_analde_sz: minimum indexing analde aligned on 8-bytes boundary
+ * @max_idx_analde_sz: maximum indexing analde aligned on 8-bytes boundary
+ * @max_ianalde_sz: maximum possible ianalde size in bytes
+ * @max_zanalde_sz: size of zanalde in bytes
  *
  * @leb_overhead: how many bytes are wasted in an LEB when it is filled with
- *                data nodes of maximum size - used in free space reporting
+ *                data analdes of maximum size - used in free space reporting
  * @dead_wm: LEB dead space watermark
  * @dark_wm: LEB dark space watermark
  * @block_cnt: count of 4KiB blocks on the FS
  *
- * @ranges: UBIFS node length ranges
+ * @ranges: UBIFS analde length ranges
  * @ubi: UBI volume descriptor
  * @di: UBI device information
  * @vi: UBI volume information
  *
- * @orph_tree: rb-tree of orphan inode numbers
- * @orph_list: list of orphan inode numbers in order added
- * @orph_new: list of orphan inode numbers added since last commit
+ * @orph_tree: rb-tree of orphan ianalde numbers
+ * @orph_list: list of orphan ianalde numbers in order added
+ * @orph_new: list of orphan ianalde numbers added since last commit
  * @orph_cnext: next orphan to commit
  * @orph_dnext: next orphan to delete
  * @orphan_lock: lock for orph_tree and orph_new
- * @orph_buf: buffer for orphan nodes
+ * @orph_buf: buffer for orphan analdes
  * @new_orphans: number of orphans since last commit
  * @cmt_orphans: number of orphans being committed
  * @tot_orphans: number of orphans in the rb_tree
  * @max_orphans: maximum number of orphans allowed
  * @ohead_lnum: orphan head LEB number
  * @ohead_offs: orphan head offset
- * @no_orphs: non-zero if there are no orphans
+ * @anal_orphs: analn-zero if there are anal orphans
  *
  * @bgt: UBIFS background thread
  * @bgt_name: background thread name
@@ -1184,48 +1184,48 @@ struct ubifs_debug_info;
  * @sbuf: a buffer of LEB size used by GC and replay for scanning
  * @idx_gc: list of index LEBs that have been garbage collected
  * @idx_gc_cnt: number of elements on the idx_gc list
- * @gc_seq: incremented for every non-index LEB garbage collected
- * @gced_lnum: last non-index LEB that was garbage collected
+ * @gc_seq: incremented for every analn-index LEB garbage collected
+ * @gced_lnum: last analn-index LEB that was garbage collected
  *
  * @infos_list: links all 'ubifs_info' objects
  * @umount_mutex: serializes shrinker and un-mount
- * @shrinker_run_no: shrinker run number
+ * @shrinker_run_anal: shrinker run number
  *
  * @space_bits: number of bits needed to record free or dirty space
  * @lpt_lnum_bits: number of bits needed to record a LEB number in the LPT
  * @lpt_offs_bits: number of bits needed to record an offset in the LPT
  * @lpt_spc_bits: number of bits needed to space in the LPT
- * @pcnt_bits: number of bits needed to record pnode or nnode number
+ * @pcnt_bits: number of bits needed to record panalde or nanalde number
  * @lnum_bits: number of bits needed to record LEB number
- * @nnode_sz: size of on-flash nnode
- * @pnode_sz: size of on-flash pnode
+ * @nanalde_sz: size of on-flash nanalde
+ * @panalde_sz: size of on-flash panalde
  * @ltab_sz: size of on-flash LPT lprops table
  * @lsave_sz: size of on-flash LPT save table
- * @pnode_cnt: number of pnodes
- * @nnode_cnt: number of nnodes
+ * @panalde_cnt: number of panaldes
+ * @nanalde_cnt: number of nanaldes
  * @lpt_hght: height of the LPT
- * @pnodes_have: number of pnodes in memory
+ * @panaldes_have: number of panaldes in memory
  *
  * @lp_mutex: protects lprops table and all the other lprops-related fields
- * @lpt_lnum: LEB number of the root nnode of the LPT
- * @lpt_offs: offset of the root nnode of the LPT
+ * @lpt_lnum: LEB number of the root nanalde of the LPT
+ * @lpt_offs: offset of the root nanalde of the LPT
  * @nhead_lnum: LEB number of LPT head
  * @nhead_offs: offset of LPT head
- * @lpt_drty_flgs: dirty flags for LPT special nodes e.g. ltab
- * @dirty_nn_cnt: number of dirty nnodes
- * @dirty_pn_cnt: number of dirty pnodes
+ * @lpt_drty_flgs: dirty flags for LPT special analdes e.g. ltab
+ * @dirty_nn_cnt: number of dirty nanaldes
+ * @dirty_pn_cnt: number of dirty panaldes
  * @check_lpt_free: flag that indicates LPT GC may be needed
  * @lpt_sz: LPT size
- * @lpt_nod_buf: buffer for an on-flash nnode or pnode
+ * @lpt_anald_buf: buffer for an on-flash nanalde or panalde
  * @lpt_buf: buffer of LEB size used by LPT
- * @nroot: address in memory of the root nnode of the LPT
- * @lpt_cnext: next LPT node to commit
+ * @nroot: address in memory of the root nanalde of the LPT
+ * @lpt_cnext: next LPT analde to commit
  * @lpt_heap: array of heaps of categorized lprops
  * @dirty_idx: a (reverse sorted) copy of the LPROPS_DIRTY_IDX heap as at
  *             previous commit start
  * @uncat_list: list of un-categorized LEBs
  * @empty_list: list of empty LEBs
- * @freeable_list: list of freeable non-index LEBs (free + dirty == @leb_size)
+ * @freeable_list: list of freeable analn-index LEBs (free + dirty == @leb_size)
  * @frdi_idx_list: list of freeable index LEBs (free + dirty == @leb_size)
  * @freeable_cnt: number of freeable LEBs in @freeable_list
  * @in_a_category_cnt: count of lprops which are in a certain category, which
@@ -1246,14 +1246,14 @@ struct ubifs_debug_info;
  * @rp_uid: reserved pool user ID
  * @rp_gid: reserved pool group ID
  *
- * @hash_tfm: the hash transformation used for hashing nodes
+ * @hash_tfm: the hash transformation used for hashing analdes
  * @hmac_tfm: the HMAC transformation for this filesystem
  * @hmac_desc_len: length of the HMAC used for authentication
  * @auth_key_name: the authentication key name
  * @auth_hash_name: the name of the hash algorithm used for authentication
  * @auth_hash_algo: the authentication hash used for this fs
- * @log_hash: the log hash from the commit start node up to the latest reference
- *            node.
+ * @log_hash: the log hash from the commit start analde up to the latest reference
+ *            analde.
  *
  * @empty: %1 if the UBI device is empty
  * @need_recovery: %1 if the file-system needs recovery
@@ -1263,12 +1263,12 @@ struct ubifs_debug_info;
  * @remounting_rw: %1 while re-mounting from R/O mode to R/W mode
  * @replay_list: temporary list used during journal replay
  * @replay_buds: list of buds to replay
- * @cs_sqnum: sequence number of first node in the log (commit start node)
+ * @cs_sqnum: sequence number of first analde in the log (commit start analde)
  * @unclean_leb_list: LEBs to recover when re-mounting R/O mounted FS to R/W
  *                    mode
- * @rcvrd_mst_node: recovered master node to write when re-mounting R/O mounted
+ * @rcvrd_mst_analde: recovered master analde to write when re-mounting R/O mounted
  *                  FS to R/W mode
- * @size_tree: inode size information for recovery
+ * @size_tree: ianalde size information for recovery
  * @mount_opts: UBIFS-specific mount options
  *
  * @dbg: debugging-related information
@@ -1279,11 +1279,11 @@ struct ubifs_debug_info;
  */
 struct ubifs_info {
 	struct super_block *vfs_sb;
-	struct ubifs_sb_node *sup_node;
+	struct ubifs_sb_analde *sup_analde;
 
-	ino_t highest_inum;
+	ianal_t highest_inum;
 	unsigned long long max_sqnum;
-	unsigned long long cmt_no;
+	unsigned long long cmt_anal;
 	spinlock_t cnt_lock;
 	int fmt_version;
 	int ro_compat_version;
@@ -1318,7 +1318,7 @@ struct ubifs_info {
 	unsigned int space_fixup:1;
 	unsigned int double_hash:1;
 	unsigned int encrypted:1;
-	unsigned int no_chk_data_crc:1;
+	unsigned int anal_chk_data_crc:1;
 	unsigned int bulk_read:1;
 	unsigned int default_compr:2;
 	unsigned int rw_incompat:1;
@@ -1328,8 +1328,8 @@ struct ubifs_info {
 
 	struct mutex tnc_mutex;
 	struct ubifs_zbranch zroot;
-	struct ubifs_znode *cnext;
-	struct ubifs_znode *enext;
+	struct ubifs_zanalde *cnext;
+	struct ubifs_zanalde *enext;
 	int *gap_lebs;
 	void *cbuf;
 	void *ileb_buf;
@@ -1342,7 +1342,7 @@ struct ubifs_info {
 	struct rb_root old_idx;
 	int *bottom_up_buf;
 
-	struct ubifs_mst_node *mst_node;
+	struct ubifs_mst_analde *mst_analde;
 	int mst_offs;
 
 	int max_bu_buf_len;
@@ -1370,7 +1370,7 @@ struct ubifs_info {
 	int key_fmt;
 	int key_len;
 	int hash_len;
-	int fanout;
+	int faanalut;
 
 	int min_io_size;
 	int min_io_shift;
@@ -1395,19 +1395,19 @@ struct ubifs_info {
 	struct ubifs_budg_info bi;
 	unsigned long long calc_idx_sz;
 
-	int ref_node_alsz;
-	int mst_node_alsz;
-	int min_idx_node_sz;
-	int max_idx_node_sz;
-	long long max_inode_sz;
-	int max_znode_sz;
+	int ref_analde_alsz;
+	int mst_analde_alsz;
+	int min_idx_analde_sz;
+	int max_idx_analde_sz;
+	long long max_ianalde_sz;
+	int max_zanalde_sz;
 
 	int leb_overhead;
 	int dead_wm;
 	int dark_wm;
 	int block_cnt;
 
-	struct ubifs_node_range ranges[UBIFS_NODE_TYPES_CNT];
+	struct ubifs_analde_range ranges[UBIFS_ANALDE_TYPES_CNT];
 	struct ubi_volume_desc *ubi;
 	struct ubi_device_info di;
 	struct ubi_volume_info vi;
@@ -1425,7 +1425,7 @@ struct ubifs_info {
 	int max_orphans;
 	int ohead_lnum;
 	int ohead_offs;
-	int no_orphs;
+	int anal_orphs;
 
 	struct task_struct *bgt;
 	char bgt_name[sizeof(BGT_NAME_PATTERN) + 9];
@@ -1441,7 +1441,7 @@ struct ubifs_info {
 
 	struct list_head infos_list;
 	struct mutex umount_mutex;
-	unsigned int shrinker_run_no;
+	unsigned int shrinker_run_anal;
 
 	int space_bits;
 	int lpt_lnum_bits;
@@ -1449,14 +1449,14 @@ struct ubifs_info {
 	int lpt_spc_bits;
 	int pcnt_bits;
 	int lnum_bits;
-	int nnode_sz;
-	int pnode_sz;
+	int nanalde_sz;
+	int panalde_sz;
 	int ltab_sz;
 	int lsave_sz;
-	int pnode_cnt;
-	int nnode_cnt;
+	int panalde_cnt;
+	int nanalde_cnt;
 	int lpt_hght;
-	int pnodes_have;
+	int panaldes_have;
 
 	struct mutex lp_mutex;
 	int lpt_lnum;
@@ -1468,10 +1468,10 @@ struct ubifs_info {
 	int dirty_pn_cnt;
 	int check_lpt_free;
 	long long lpt_sz;
-	void *lpt_nod_buf;
+	void *lpt_anald_buf;
 	void *lpt_buf;
-	struct ubifs_nnode *nroot;
-	struct ubifs_cnode *lpt_cnext;
+	struct ubifs_nanalde *nroot;
+	struct ubifs_canalde *lpt_cnext;
 	struct ubifs_lpt_heap lpt_heap[LPROPS_HEAP_CNT];
 	struct ubifs_lpt_heap dirty_idx;
 	struct list_head uncat_list;
@@ -1516,7 +1516,7 @@ struct ubifs_info {
 	struct list_head replay_buds;
 	unsigned long long cs_sqnum;
 	struct list_head unclean_leb_list;
-	struct ubifs_mst_node *rcvrd_mst_node;
+	struct ubifs_mst_analde *rcvrd_mst_analde;
 	struct rb_root size_tree;
 	struct ubifs_mount_opts mount_opts;
 
@@ -1530,10 +1530,10 @@ extern atomic_long_t ubifs_clean_zn_cnt;
 extern const struct super_operations ubifs_super_operations;
 extern const struct address_space_operations ubifs_file_address_operations;
 extern const struct file_operations ubifs_file_operations;
-extern const struct inode_operations ubifs_file_inode_operations;
+extern const struct ianalde_operations ubifs_file_ianalde_operations;
 extern const struct file_operations ubifs_dir_operations;
-extern const struct inode_operations ubifs_dir_inode_operations;
-extern const struct inode_operations ubifs_symlink_inode_operations;
+extern const struct ianalde_operations ubifs_dir_ianalde_operations;
+extern const struct ianalde_operations ubifs_symlink_ianalde_operations;
 extern struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
 extern int ubifs_default_version;
 
@@ -1579,18 +1579,18 @@ static inline int ubifs_shash_final(const struct ubifs_info *c,
 	return ubifs_authenticated(c) ? crypto_shash_final(desc, out) : 0;
 }
 
-int __ubifs_node_calc_hash(const struct ubifs_info *c, const void *buf,
+int __ubifs_analde_calc_hash(const struct ubifs_info *c, const void *buf,
 			  u8 *hash);
-static inline int ubifs_node_calc_hash(const struct ubifs_info *c,
+static inline int ubifs_analde_calc_hash(const struct ubifs_info *c,
 					const void *buf, u8 *hash)
 {
 	if (ubifs_authenticated(c))
-		return __ubifs_node_calc_hash(c, buf, hash);
+		return __ubifs_analde_calc_hash(c, buf, hash);
 	else
 		return 0;
 }
 
-int ubifs_prepare_auth_node(struct ubifs_info *c, void *node,
+int ubifs_prepare_auth_analde(struct ubifs_info *c, void *analde,
 			     struct shash_desc *inhash);
 
 /**
@@ -1624,20 +1624,20 @@ static inline int ubifs_check_hmac(const struct ubifs_info *c,
 }
 
 #ifdef CONFIG_UBIFS_FS_AUTHENTICATION
-void ubifs_bad_hash(const struct ubifs_info *c, const void *node,
+void ubifs_bad_hash(const struct ubifs_info *c, const void *analde,
 		    const u8 *hash, int lnum, int offs);
 #else
-static inline void ubifs_bad_hash(const struct ubifs_info *c, const void *node,
+static inline void ubifs_bad_hash(const struct ubifs_info *c, const void *analde,
 				  const u8 *hash, int lnum, int offs) {};
 #endif
 
-int __ubifs_node_check_hash(const struct ubifs_info *c, const void *buf,
+int __ubifs_analde_check_hash(const struct ubifs_info *c, const void *buf,
 			  const u8 *expected);
-static inline int ubifs_node_check_hash(const struct ubifs_info *c,
+static inline int ubifs_analde_check_hash(const struct ubifs_info *c,
 					const void *buf, const u8 *expected)
 {
 	if (ubifs_authenticated(c))
-		return __ubifs_node_check_hash(c, buf, expected);
+		return __ubifs_analde_check_hash(c, buf, expected);
 	else
 		return 0;
 }
@@ -1656,7 +1656,7 @@ static inline void ubifs_exit_authentication(struct ubifs_info *c)
  * @br: branch to get the hash from
  *
  * This returns a pointer to the hash of a branch. Since the key already is a
- * dynamically sized object we cannot use a struct member here.
+ * dynamically sized object we cananalt use a struct member here.
  */
 static inline u8 *ubifs_branch_hash(struct ubifs_info *c,
 				    struct ubifs_branch *br)
@@ -1670,7 +1670,7 @@ static inline u8 *ubifs_branch_hash(struct ubifs_info *c,
  * @from: source hash
  * @to: destination hash
  *
- * With authentication this copies a hash, otherwise does nothing.
+ * With authentication this copies a hash, otherwise does analthing.
  */
 static inline void ubifs_copy_hash(const struct ubifs_info *c, const u8 *from,
 				   u8 *to)
@@ -1679,45 +1679,45 @@ static inline void ubifs_copy_hash(const struct ubifs_info *c, const u8 *from,
 		memcpy(to, from, c->hash_len);
 }
 
-int __ubifs_node_insert_hmac(const struct ubifs_info *c, void *buf,
+int __ubifs_analde_insert_hmac(const struct ubifs_info *c, void *buf,
 			      int len, int ofs_hmac);
-static inline int ubifs_node_insert_hmac(const struct ubifs_info *c, void *buf,
+static inline int ubifs_analde_insert_hmac(const struct ubifs_info *c, void *buf,
 					  int len, int ofs_hmac)
 {
 	if (ubifs_authenticated(c))
-		return __ubifs_node_insert_hmac(c, buf, len, ofs_hmac);
+		return __ubifs_analde_insert_hmac(c, buf, len, ofs_hmac);
 	else
 		return 0;
 }
 
-int __ubifs_node_verify_hmac(const struct ubifs_info *c, const void *buf,
+int __ubifs_analde_verify_hmac(const struct ubifs_info *c, const void *buf,
 			     int len, int ofs_hmac);
-static inline int ubifs_node_verify_hmac(const struct ubifs_info *c,
+static inline int ubifs_analde_verify_hmac(const struct ubifs_info *c,
 					 const void *buf, int len, int ofs_hmac)
 {
 	if (ubifs_authenticated(c))
-		return __ubifs_node_verify_hmac(c, buf, len, ofs_hmac);
+		return __ubifs_analde_verify_hmac(c, buf, len, ofs_hmac);
 	else
 		return 0;
 }
 
 /**
- * ubifs_auth_node_sz - returns the size of an authentication node
+ * ubifs_auth_analde_sz - returns the size of an authentication analde
  * @c: UBIFS file-system description object
  *
- * This function returns the size of an authentication node which can
- * be 0 for unauthenticated filesystems or the real size of an auth node
+ * This function returns the size of an authentication analde which can
+ * be 0 for unauthenticated filesystems or the real size of an auth analde
  * authentication is enabled.
  */
-static inline int ubifs_auth_node_sz(const struct ubifs_info *c)
+static inline int ubifs_auth_analde_sz(const struct ubifs_info *c)
 {
 	if (ubifs_authenticated(c))
-		return sizeof(struct ubifs_auth_node) + c->hmac_desc_len;
+		return sizeof(struct ubifs_auth_analde) + c->hmac_desc_len;
 	else
 		return 0;
 }
 int ubifs_sb_verify_signature(struct ubifs_info *c,
-			      const struct ubifs_sb_node *sup);
+			      const struct ubifs_sb_analde *sup);
 bool ubifs_hmac_zero(struct ubifs_info *c, const u8 *hmac);
 
 int ubifs_hmac_wkm(struct ubifs_info *c, u8 *hmac);
@@ -1744,43 +1744,43 @@ int ubifs_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len);
 int ubifs_leb_unmap(struct ubifs_info *c, int lnum);
 int ubifs_leb_map(struct ubifs_info *c, int lnum);
 int ubifs_is_mapped(const struct ubifs_info *c, int lnum);
-int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len);
-int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs);
+int ubifs_wbuf_write_anallock(struct ubifs_wbuf *wbuf, void *buf, int len);
+int ubifs_wbuf_seek_anallock(struct ubifs_wbuf *wbuf, int lnum, int offs);
 int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf);
-int ubifs_read_node(const struct ubifs_info *c, void *buf, int type, int len,
+int ubifs_read_analde(const struct ubifs_info *c, void *buf, int type, int len,
 		    int lnum, int offs);
-int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
+int ubifs_read_analde_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 			 int lnum, int offs);
-int ubifs_write_node(struct ubifs_info *c, void *node, int len, int lnum,
+int ubifs_write_analde(struct ubifs_info *c, void *analde, int len, int lnum,
 		     int offs);
-int ubifs_write_node_hmac(struct ubifs_info *c, void *buf, int len, int lnum,
+int ubifs_write_analde_hmac(struct ubifs_info *c, void *buf, int len, int lnum,
 			  int offs, int hmac_offs);
-int ubifs_check_node(const struct ubifs_info *c, const void *buf, int len,
+int ubifs_check_analde(const struct ubifs_info *c, const void *buf, int len,
 		     int lnum, int offs, int quiet, int must_chk_crc);
-void ubifs_init_node(struct ubifs_info *c, void *buf, int len, int pad);
-void ubifs_crc_node(struct ubifs_info *c, void *buf, int len);
-void ubifs_prepare_node(struct ubifs_info *c, void *buf, int len, int pad);
-int ubifs_prepare_node_hmac(struct ubifs_info *c, void *node, int len,
+void ubifs_init_analde(struct ubifs_info *c, void *buf, int len, int pad);
+void ubifs_crc_analde(struct ubifs_info *c, void *buf, int len);
+void ubifs_prepare_analde(struct ubifs_info *c, void *buf, int len, int pad);
+int ubifs_prepare_analde_hmac(struct ubifs_info *c, void *analde, int len,
 			    int hmac_offs, int pad);
-void ubifs_prep_grp_node(struct ubifs_info *c, void *node, int len, int last);
+void ubifs_prep_grp_analde(struct ubifs_info *c, void *analde, int len, int last);
 int ubifs_io_init(struct ubifs_info *c);
 void ubifs_pad(const struct ubifs_info *c, void *buf, int pad);
-int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf);
+int ubifs_wbuf_sync_anallock(struct ubifs_wbuf *wbuf);
 int ubifs_bg_wbufs_sync(struct ubifs_info *c);
-void ubifs_wbuf_add_ino_nolock(struct ubifs_wbuf *wbuf, ino_t inum);
-int ubifs_sync_wbufs_by_inode(struct ubifs_info *c, struct inode *inode);
+void ubifs_wbuf_add_ianal_anallock(struct ubifs_wbuf *wbuf, ianal_t inum);
+int ubifs_sync_wbufs_by_ianalde(struct ubifs_info *c, struct ianalde *ianalde);
 
 /* scan.c */
 struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
 				  int offs, void *sbuf, int quiet);
 void ubifs_scan_destroy(struct ubifs_scan_leb *sleb);
-int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
+int ubifs_scan_a_analde(const struct ubifs_info *c, void *buf, int len, int lnum,
 		      int offs, int quiet);
 struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 					int offs, void *sbuf);
 void ubifs_end_scan(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		    int lnum, int offs);
-int ubifs_add_snod(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
+int ubifs_add_sanald(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		   void *buf, int offs);
 void ubifs_scanned_corruption(const struct ubifs_info *c, int lnum, int offs,
 			      void *buf);
@@ -1797,46 +1797,46 @@ int ubifs_log_post_commit(struct ubifs_info *c, int old_ltail_lnum);
 int ubifs_consolidate_log(struct ubifs_info *c);
 
 /* journal.c */
-int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
-		     const struct fscrypt_name *nm, const struct inode *inode,
+int ubifs_jnl_update(struct ubifs_info *c, const struct ianalde *dir,
+		     const struct fscrypt_name *nm, const struct ianalde *ianalde,
 		     int deletion, int xent);
-int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
+int ubifs_jnl_write_data(struct ubifs_info *c, const struct ianalde *ianalde,
 			 const union ubifs_key *key, const void *buf, int len);
-int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode);
-int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode);
-int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
-		      const struct inode *fst_inode,
+int ubifs_jnl_write_ianalde(struct ubifs_info *c, const struct ianalde *ianalde);
+int ubifs_jnl_delete_ianalde(struct ubifs_info *c, const struct ianalde *ianalde);
+int ubifs_jnl_xrename(struct ubifs_info *c, const struct ianalde *fst_dir,
+		      const struct ianalde *fst_ianalde,
 		      const struct fscrypt_name *fst_nm,
-		      const struct inode *snd_dir,
-		      const struct inode *snd_inode,
+		      const struct ianalde *snd_dir,
+		      const struct ianalde *snd_ianalde,
 		      const struct fscrypt_name *snd_nm, int sync);
-int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
-		     const struct inode *old_inode,
+int ubifs_jnl_rename(struct ubifs_info *c, const struct ianalde *old_dir,
+		     const struct ianalde *old_ianalde,
 		     const struct fscrypt_name *old_nm,
-		     const struct inode *new_dir,
-		     const struct inode *new_inode,
+		     const struct ianalde *new_dir,
+		     const struct ianalde *new_ianalde,
 		     const struct fscrypt_name *new_nm,
-		     const struct inode *whiteout, int sync);
-int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
+		     const struct ianalde *whiteout, int sync);
+int ubifs_jnl_truncate(struct ubifs_info *c, const struct ianalde *ianalde,
 		       loff_t old_size, loff_t new_size);
-int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
-			   const struct inode *inode, const struct fscrypt_name *nm);
-int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode1,
-			   const struct inode *inode2);
+int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct ianalde *host,
+			   const struct ianalde *ianalde, const struct fscrypt_name *nm);
+int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct ianalde *ianalde1,
+			   const struct ianalde *ianalde2);
 
 /* budget.c */
 int ubifs_budget_space(struct ubifs_info *c, struct ubifs_budget_req *req);
 void ubifs_release_budget(struct ubifs_info *c, struct ubifs_budget_req *req);
-void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
-				      struct ubifs_inode *ui);
-int ubifs_budget_inode_op(struct ubifs_info *c, struct inode *inode,
+void ubifs_release_dirty_ianalde_budget(struct ubifs_info *c,
+				      struct ubifs_ianalde *ui);
+int ubifs_budget_ianalde_op(struct ubifs_info *c, struct ianalde *ianalde,
 			  struct ubifs_budget_req *req);
-void ubifs_release_ino_dirty(struct ubifs_info *c, struct inode *inode,
+void ubifs_release_ianal_dirty(struct ubifs_info *c, struct ianalde *ianalde,
 				struct ubifs_budget_req *req);
-void ubifs_cancel_ino_op(struct ubifs_info *c, struct inode *inode,
+void ubifs_cancel_ianal_op(struct ubifs_info *c, struct ianalde *ianalde,
 			 struct ubifs_budget_req *req);
 long long ubifs_get_free_space(struct ubifs_info *c);
-long long ubifs_get_free_space_nolock(struct ubifs_info *c);
+long long ubifs_get_free_space_anallock(struct ubifs_info *c);
 int ubifs_calc_min_idx_lebs(struct ubifs_info *c);
 void ubifs_convert_page_budget(struct ubifs_info *c);
 long long ubifs_reported_space(const struct ubifs_info *c, long long free);
@@ -1853,13 +1853,13 @@ int ubifs_save_dirty_idx_lnums(struct ubifs_info *c);
 
 /* tnc.c */
 int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
-			struct ubifs_znode **zn, int *n);
+			struct ubifs_zanalde **zn, int *n);
 int ubifs_tnc_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
-			void *node, const struct fscrypt_name *nm);
+			void *analde, const struct fscrypt_name *nm);
 int ubifs_tnc_lookup_dh(struct ubifs_info *c, const union ubifs_key *key,
-			void *node, uint32_t secondary_hash);
+			void *analde, uint32_t secondary_hash);
 int ubifs_tnc_locate(struct ubifs_info *c, const union ubifs_key *key,
-		     void *node, int *lnum, int *offs);
+		     void *analde, int *lnum, int *offs);
 int ubifs_tnc_add(struct ubifs_info *c, const union ubifs_key *key, int lnum,
 		  int offs, int len, const u8 *hash);
 int ubifs_tnc_replace(struct ubifs_info *c, const union ubifs_key *key,
@@ -1874,40 +1874,40 @@ int ubifs_tnc_remove_dh(struct ubifs_info *c, const union ubifs_key *key,
 			uint32_t cookie);
 int ubifs_tnc_remove_range(struct ubifs_info *c, union ubifs_key *from_key,
 			   union ubifs_key *to_key);
-int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum);
-struct ubifs_dent_node *ubifs_tnc_next_ent(struct ubifs_info *c,
+int ubifs_tnc_remove_ianal(struct ubifs_info *c, ianal_t inum);
+struct ubifs_dent_analde *ubifs_tnc_next_ent(struct ubifs_info *c,
 					   union ubifs_key *key,
 					   const struct fscrypt_name *nm);
 void ubifs_tnc_close(struct ubifs_info *c);
-int ubifs_tnc_has_node(struct ubifs_info *c, union ubifs_key *key, int level,
+int ubifs_tnc_has_analde(struct ubifs_info *c, union ubifs_key *key, int level,
 		       int lnum, int offs, int is_idx);
-int ubifs_dirty_idx_node(struct ubifs_info *c, union ubifs_key *key, int level,
+int ubifs_dirty_idx_analde(struct ubifs_info *c, union ubifs_key *key, int level,
 			 int lnum, int offs);
 /* Shared by tnc.c for tnc_commit.c */
 void destroy_old_idx(struct ubifs_info *c);
-int is_idx_node_in_tnc(struct ubifs_info *c, union ubifs_key *key, int level,
+int is_idx_analde_in_tnc(struct ubifs_info *c, union ubifs_key *key, int level,
 		       int lnum, int offs);
-int insert_old_idx_znode(struct ubifs_info *c, struct ubifs_znode *znode);
+int insert_old_idx_zanalde(struct ubifs_info *c, struct ubifs_zanalde *zanalde);
 int ubifs_tnc_get_bu_keys(struct ubifs_info *c, struct bu_info *bu);
 int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu);
 
 /* tnc_misc.c */
-struct ubifs_znode *ubifs_tnc_levelorder_next(const struct ubifs_info *c,
-					      struct ubifs_znode *zr,
-					      struct ubifs_znode *znode);
+struct ubifs_zanalde *ubifs_tnc_levelorder_next(const struct ubifs_info *c,
+					      struct ubifs_zanalde *zr,
+					      struct ubifs_zanalde *zanalde);
 int ubifs_search_zbranch(const struct ubifs_info *c,
-			 const struct ubifs_znode *znode,
+			 const struct ubifs_zanalde *zanalde,
 			 const union ubifs_key *key, int *n);
-struct ubifs_znode *ubifs_tnc_postorder_first(struct ubifs_znode *znode);
-struct ubifs_znode *ubifs_tnc_postorder_next(const struct ubifs_info *c,
-					     struct ubifs_znode *znode);
+struct ubifs_zanalde *ubifs_tnc_postorder_first(struct ubifs_zanalde *zanalde);
+struct ubifs_zanalde *ubifs_tnc_postorder_next(const struct ubifs_info *c,
+					     struct ubifs_zanalde *zanalde);
 long ubifs_destroy_tnc_subtree(const struct ubifs_info *c,
-			       struct ubifs_znode *zr);
-struct ubifs_znode *ubifs_load_znode(struct ubifs_info *c,
+			       struct ubifs_zanalde *zr);
+struct ubifs_zanalde *ubifs_load_zanalde(struct ubifs_info *c,
 				     struct ubifs_zbranch *zbr,
-				     struct ubifs_znode *parent, int iip);
-int ubifs_tnc_read_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
-			void *node);
+				     struct ubifs_zanalde *parent, int iip);
+int ubifs_tnc_read_analde(struct ubifs_info *c, struct ubifs_zbranch *zbr,
+			void *analde);
 
 /* tnc_commit.c */
 int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot);
@@ -1929,19 +1929,19 @@ int ubifs_gc_should_commit(struct ubifs_info *c);
 void ubifs_wait_for_commit(struct ubifs_info *c);
 
 /* master.c */
-int ubifs_compare_master_node(struct ubifs_info *c, void *m1, void *m2);
+int ubifs_compare_master_analde(struct ubifs_info *c, void *m1, void *m2);
 int ubifs_read_master(struct ubifs_info *c);
 int ubifs_write_master(struct ubifs_info *c);
 
 /* sb.c */
 int ubifs_read_superblock(struct ubifs_info *c);
-int ubifs_write_sb_node(struct ubifs_info *c, struct ubifs_sb_node *sup);
+int ubifs_write_sb_analde(struct ubifs_info *c, struct ubifs_sb_analde *sup);
 int ubifs_fixup_free_space(struct ubifs_info *c);
 int ubifs_enable_encryption(struct ubifs_info *c);
 
 /* replay.c */
 int ubifs_validate_entry(struct ubifs_info *c,
-			 const struct ubifs_dent_node *dent);
+			 const struct ubifs_dent_analde *dent);
 int ubifs_replay_journal(struct ubifs_info *c);
 
 /* gc.c */
@@ -1953,8 +1953,8 @@ int ubifs_get_idx_gc_leb(struct ubifs_info *c);
 int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp);
 
 /* orphan.c */
-int ubifs_add_orphan(struct ubifs_info *c, ino_t inum);
-void ubifs_delete_orphan(struct ubifs_info *c, ino_t inum);
+int ubifs_add_orphan(struct ubifs_info *c, ianal_t inum);
+void ubifs_delete_orphan(struct ubifs_info *c, ianal_t inum);
 int ubifs_orphan_start_commit(struct ubifs_info *c);
 int ubifs_orphan_end_commit(struct ubifs_info *c);
 int ubifs_mount_orphans(struct ubifs_info *c, int unclean, int read_only);
@@ -1967,30 +1967,30 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 int ubifs_lpt_init(struct ubifs_info *c, int rd, int wr);
 struct ubifs_lprops *ubifs_lpt_lookup(struct ubifs_info *c, int lnum);
 struct ubifs_lprops *ubifs_lpt_lookup_dirty(struct ubifs_info *c, int lnum);
-int ubifs_lpt_scan_nolock(struct ubifs_info *c, int start_lnum, int end_lnum,
+int ubifs_lpt_scan_anallock(struct ubifs_info *c, int start_lnum, int end_lnum,
 			  ubifs_lpt_scan_callback scan_cb, void *data);
 
 /* Shared by lpt.c for lpt_commit.c */
 void ubifs_pack_lsave(struct ubifs_info *c, void *buf, int *lsave);
 void ubifs_pack_ltab(struct ubifs_info *c, void *buf,
 		     struct ubifs_lpt_lprops *ltab);
-void ubifs_pack_pnode(struct ubifs_info *c, void *buf,
-		      struct ubifs_pnode *pnode);
-void ubifs_pack_nnode(struct ubifs_info *c, void *buf,
-		      struct ubifs_nnode *nnode);
-struct ubifs_pnode *ubifs_get_pnode(struct ubifs_info *c,
-				    struct ubifs_nnode *parent, int iip);
-struct ubifs_nnode *ubifs_get_nnode(struct ubifs_info *c,
-				    struct ubifs_nnode *parent, int iip);
-struct ubifs_pnode *ubifs_pnode_lookup(struct ubifs_info *c, int i);
-int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip);
+void ubifs_pack_panalde(struct ubifs_info *c, void *buf,
+		      struct ubifs_panalde *panalde);
+void ubifs_pack_nanalde(struct ubifs_info *c, void *buf,
+		      struct ubifs_nanalde *nanalde);
+struct ubifs_panalde *ubifs_get_panalde(struct ubifs_info *c,
+				    struct ubifs_nanalde *parent, int iip);
+struct ubifs_nanalde *ubifs_get_nanalde(struct ubifs_info *c,
+				    struct ubifs_nanalde *parent, int iip);
+struct ubifs_panalde *ubifs_panalde_lookup(struct ubifs_info *c, int i);
+int ubifs_read_nanalde(struct ubifs_info *c, struct ubifs_nanalde *parent, int iip);
 void ubifs_add_lpt_dirt(struct ubifs_info *c, int lnum, int dirty);
-void ubifs_add_nnode_dirt(struct ubifs_info *c, struct ubifs_nnode *nnode);
+void ubifs_add_nanalde_dirt(struct ubifs_info *c, struct ubifs_nanalde *nanalde);
 uint32_t ubifs_unpack_bits(const struct ubifs_info *c, uint8_t **addr, int *pos, int nrbits);
-struct ubifs_nnode *ubifs_first_nnode(struct ubifs_info *c, int *hght);
+struct ubifs_nanalde *ubifs_first_nanalde(struct ubifs_info *c, int *hght);
 /* Needed only in debugging code in lpt_commit.c */
-int ubifs_unpack_nnode(const struct ubifs_info *c, void *buf,
-		       struct ubifs_nnode *nnode);
+int ubifs_unpack_nanalde(const struct ubifs_info *c, void *buf,
+		       struct ubifs_nanalde *nanalde);
 int ubifs_lpt_calc_hash(struct ubifs_info *c, u8 *hash);
 
 /* lpt_commit.c */
@@ -2027,43 +2027,43 @@ int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 int ubifs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr);
-int ubifs_update_time(struct inode *inode, int flags);
+int ubifs_update_time(struct ianalde *ianalde, int flags);
 
 /* dir.c */
-struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
+struct ianalde *ubifs_new_ianalde(struct ubifs_info *c, struct ianalde *dir,
 			      umode_t mode, bool is_xattr);
 int ubifs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask, unsigned int flags);
-int ubifs_check_dir_empty(struct inode *dir);
+int ubifs_check_dir_empty(struct ianalde *dir);
 
 /* xattr.c */
-int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
+int ubifs_xattr_set(struct ianalde *host, const char *name, const void *value,
 		    size_t size, int flags, bool check_lock);
-ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
+ssize_t ubifs_xattr_get(struct ianalde *host, const char *name, void *buf,
 			size_t size);
 
 #ifdef CONFIG_UBIFS_FS_XATTR
 extern const struct xattr_handler * const ubifs_xattr_handlers[];
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size);
-void ubifs_evict_xattr_inode(struct ubifs_info *c, ino_t xattr_inum);
-int ubifs_purge_xattrs(struct inode *host);
+void ubifs_evict_xattr_ianalde(struct ubifs_info *c, ianal_t xattr_inum);
+int ubifs_purge_xattrs(struct ianalde *host);
 #else
 #define ubifs_listxattr NULL
 #define ubifs_xattr_handlers NULL
-static inline void ubifs_evict_xattr_inode(struct ubifs_info *c,
-					   ino_t xattr_inum) { }
-static inline int ubifs_purge_xattrs(struct inode *host)
+static inline void ubifs_evict_xattr_ianalde(struct ubifs_info *c,
+					   ianal_t xattr_inum) { }
+static inline int ubifs_purge_xattrs(struct ianalde *host)
 {
 	return 0;
 }
 #endif
 
 #ifdef CONFIG_UBIFS_FS_SECURITY
-extern int ubifs_init_security(struct inode *dentry, struct inode *inode,
+extern int ubifs_init_security(struct ianalde *dentry, struct ianalde *ianalde,
 			const struct qstr *qstr);
 #else
-static inline int ubifs_init_security(struct inode *dentry,
-			struct inode *inode, const struct qstr *qstr)
+static inline int ubifs_init_security(struct ianalde *dentry,
+			struct ianalde *ianalde, const struct qstr *qstr)
 {
 	return 0;
 }
@@ -2071,11 +2071,11 @@ static inline int ubifs_init_security(struct inode *dentry,
 
 
 /* super.c */
-struct inode *ubifs_iget(struct super_block *sb, unsigned long inum);
+struct ianalde *ubifs_iget(struct super_block *sb, unsigned long inum);
 
 /* recovery.c */
-int ubifs_recover_master_node(struct ubifs_info *c);
-int ubifs_write_rcvrd_mst_node(struct ubifs_info *c);
+int ubifs_recover_master_analde(struct ubifs_info *c);
+int ubifs_write_rcvrd_mst_analde(struct ubifs_info *c);
 struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 					 int offs, void *sbuf, int jhead);
 struct ubifs_scan_leb *ubifs_recover_log_leb(struct ubifs_info *c, int lnum,
@@ -2093,7 +2093,7 @@ int ubifs_fileattr_get(struct dentry *dentry, struct fileattr *fa);
 int ubifs_fileattr_set(struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct fileattr *fa);
 long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-void ubifs_set_inode_flags(struct inode *inode);
+void ubifs_set_ianalde_flags(struct ianalde *ianalde);
 #ifdef CONFIG_COMPAT
 long ubifs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 #endif
@@ -2117,34 +2117,34 @@ void ubifs_sysfs_unregister(struct ubifs_info *c);
 #include "key.h"
 
 #ifndef CONFIG_FS_ENCRYPTION
-static inline int ubifs_encrypt(const struct inode *inode,
-				struct ubifs_data_node *dn,
+static inline int ubifs_encrypt(const struct ianalde *ianalde,
+				struct ubifs_data_analde *dn,
 				unsigned int in_len, unsigned int *out_len,
 				int block)
 {
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	struct ubifs_info *c = ianalde->i_sb->s_fs_info;
 	ubifs_assert(c, 0);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
-static inline int ubifs_decrypt(const struct inode *inode,
-				struct ubifs_data_node *dn,
+static inline int ubifs_decrypt(const struct ianalde *ianalde,
+				struct ubifs_data_analde *dn,
 				unsigned int *out_len, int block)
 {
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	struct ubifs_info *c = ianalde->i_sb->s_fs_info;
 	ubifs_assert(c, 0);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #else
 /* crypto.c */
-int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
+int ubifs_encrypt(const struct ianalde *ianalde, struct ubifs_data_analde *dn,
 		  unsigned int in_len, unsigned int *out_len, int block);
-int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
+int ubifs_decrypt(const struct ianalde *ianalde, struct ubifs_data_analde *dn,
 		  unsigned int *out_len, int block);
 #endif
 
 extern const struct fscrypt_operations ubifs_crypt_operations;
 
-/* Normal UBIFS messages */
+/* Analrmal UBIFS messages */
 __printf(2, 3)
 void ubifs_msg(const struct ubifs_info *c, const char *fmt, ...);
 __printf(2, 3)

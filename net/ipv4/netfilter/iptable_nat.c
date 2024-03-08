@@ -66,11 +66,11 @@ static int ipt_nat_register_lookups(struct net *net)
 	xt_nat_net = net_generic(net, iptable_nat_net_id);
 	table = xt_find_table(net, NFPROTO_IPV4, "nat");
 	if (WARN_ON_ONCE(!table))
-		return -ENOENT;
+		return -EANALENT;
 
 	ops = kmemdup(nf_nat_ipv4_ops, sizeof(nf_nat_ipv4_ops), GFP_KERNEL);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(nf_nat_ipv4_ops); i++) {
 		ops[i].priv = table;
@@ -110,7 +110,7 @@ static int iptable_nat_table_init(struct net *net)
 
 	repl = ipt_alloc_initial_table(&nf_nat_ipv4_table);
 	if (repl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ipt_register_table(net, &nf_nat_ipv4_table, repl, NULL);
 	if (ret < 0) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Caninos Labrador SoM V2
+ * Canianals Labrador SoM V2
  *
  * Copyright (c) 2019-2020 Matheus Castello
  */
@@ -8,8 +8,8 @@
 #include "owl-s500.dtsi"
 
 / {
-	model = "Caninos Labrador Core V2.1";
-	compatible = "caninos,labrador-v2", "actions,s500";
+	model = "Canianals Labrador Core V2.1";
+	compatible = "canianals,labrador-v2", "actions,s500";
 
 	memory@0 {
 		device_type = "memory";

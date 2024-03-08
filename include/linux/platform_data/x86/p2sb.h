@@ -6,7 +6,7 @@
 #ifndef _PLATFORM_DATA_X86_P2SB_H
 #define _PLATFORM_DATA_X86_P2SB_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kconfig.h>
 
 struct pci_bus;
@@ -20,9 +20,9 @@ int p2sb_bar(struct pci_bus *bus, unsigned int devfn, struct resource *mem);
 
 static inline int p2sb_bar(struct pci_bus *bus, unsigned int devfn, struct resource *mem)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-#endif /* CONFIG_P2SB is not set */
+#endif /* CONFIG_P2SB is analt set */
 
 #endif /* _PLATFORM_DATA_X86_P2SB_H */

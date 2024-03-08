@@ -59,7 +59,7 @@ struct mdp5_ctl_manager {
 	u32 nlm;
 	u32 nctl;
 
-	/* to filter out non-present bits in the current hardware config */
+	/* to filter out analn-present bits in the current hardware config */
 	u32 flush_hw_mask;
 
 	/* status for single FLUSH */
@@ -170,7 +170,7 @@ int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline)
 	struct mdp5_kms *mdp5_kms = get_kms(ctl->ctlm);
 	struct mdp5_interface *intf = pipeline->intf;
 
-	/* Virtual interfaces need not set a display intf (e.g.: Writeback) */
+	/* Virtual interfaces need analt set a display intf (e.g.: Writeback) */
 	if (!mdp5_cfg_intf_is_virtual(intf->type))
 		set_display_intf(mdp5_kms, intf);
 
@@ -220,7 +220,7 @@ static void send_start_signal(struct mdp5_ctl *ctl)
  * @pipeline: the encoder's INTF + MIXER configuration
  * @enabled:  true, when encoder is ready for data streaming; false, otherwise.
  *
- * Note:
+ * Analte:
  * This encoder state is needed to trigger START signal (data path kickoff).
  */
 int mdp5_ctl_set_encoder_state(struct mdp5_ctl *ctl,
@@ -243,7 +243,7 @@ int mdp5_ctl_set_encoder_state(struct mdp5_ctl *ctl,
 }
 
 /*
- * Note:
+ * Analte:
  * CTL registers need to be flushed after calling this function
  * (call mdp5_ctl_commit() with mdp_ctl_flush_mask_ctl() mask)
  */
@@ -256,7 +256,7 @@ int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 	struct mdp5_hw_mixer *mixer = pipeline->mixer;
 
 	if (WARN_ON(!mixer)) {
-		DRM_DEV_ERROR(ctl_mgr->dev->dev, "CTL %d cannot find LM",
+		DRM_DEV_ERROR(ctl_mgr->dev->dev, "CTL %d cananalt find LM",
 			ctl->id);
 		return -EINVAL;
 	}
@@ -523,7 +523,7 @@ static void fix_for_single_flush(struct mdp5_ctl *ctl, u32 *flush_mask,
  * programmed, and are safe to update to the back copy of the double
  * buffered registers.
  *
- * Some registers FLUSH bits are shared when the hardware does not have
+ * Some registers FLUSH bits are shared when the hardware does analt have
  * dedicated bits for them; handling these is the job of fix_sw_flush().
  *
  * CTL registers need to be flushed in some circumstances; if that is the
@@ -595,7 +595,7 @@ int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable)
 	struct mdp5_ctl_manager *ctl_mgr = ctlx->ctlm;
 	struct mdp5_kms *mdp5_kms = get_kms(ctl_mgr);
 
-	/* do nothing silently if hw doesn't support */
+	/* do analthing silently if hw doesn't support */
 	if (!ctl_mgr->single_flush_supported)
 		return 0;
 
@@ -625,9 +625,9 @@ int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable)
  * mdp5_ctl_request() - CTL allocation
  *
  * Try to return booked CTL for @intf_num is 1 or 2, unbooked for other INTFs.
- * If no CTL is available in preferred category, allocate from the other one.
+ * If anal CTL is available in preferred category, allocate from the other one.
  *
- * @return fail if no CTL is available.
+ * @return fail if anal CTL is available.
  */
 struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctl_mgr,
 		int intf_num)
@@ -653,7 +653,7 @@ struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctl_mgr,
 		if ((ctl_mgr->ctls[c].status & checkm) == match)
 			goto found;
 
-	DRM_DEV_ERROR(ctl_mgr->dev->dev, "No more CTL available!");
+	DRM_DEV_ERROR(ctl_mgr->dev->dev, "Anal more CTL available!");
 	goto unlock;
 
 found:
@@ -695,13 +695,13 @@ struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 	ctl_mgr = devm_kzalloc(dev->dev, sizeof(*ctl_mgr), GFP_KERNEL);
 	if (!ctl_mgr) {
 		DRM_DEV_ERROR(dev->dev, "failed to allocate CTL manager\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	if (WARN_ON(ctl_cfg->count > MAX_CTL)) {
 		DRM_DEV_ERROR(dev->dev, "Increase static pool size to at least %d\n",
 				ctl_cfg->count);
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 	}
 
 	/* initialize the CTL manager: */

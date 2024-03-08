@@ -498,7 +498,7 @@ static struct clk_rcg2 byte0_clk_src = {
 		.parent_data = mmcc_xo_dsibyte,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dsibyte),
 		.ops = &clk_byte2_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -512,7 +512,7 @@ static struct clk_rcg2 byte1_clk_src = {
 		.parent_data = mmcc_xo_dsibyte,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dsibyte),
 		.ops = &clk_byte2_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -816,7 +816,7 @@ static struct clk_rcg2 dp_link_clk_src = {
 		.parent_data = mmcc_xo_dplink_dpvco,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dplink_dpvco),
 		.ops = &clk_rcg2_ops,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -830,7 +830,7 @@ static struct clk_rcg2 dp_pixel_clk_src = {
 		.parent_data = mmcc_xo_dplink_dpvco,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dplink_dpvco),
 		.ops = &clk_dp_ops,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -989,7 +989,7 @@ static struct clk_rcg2 pclk0_clk_src = {
 		.parent_data = mmcc_xo_dsi0pll_dsi1pll,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dsi0pll_dsi1pll),
 		.ops = &clk_pixel_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1003,7 +1003,7 @@ static struct clk_rcg2 pclk1_clk_src = {
 		.parent_data = mmcc_xo_dsi0pll_dsi1pll,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dsi0pll_dsi1pll),
 		.ops = &clk_pixel_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2110,8 +2110,8 @@ static struct clk_regmap_div mdss_byte0_intf_div_clk = {
 	.shift = 0,
 	.width = 2,
 	/*
-	 * NOTE: Op does not work for div-3. Current assumption is that div-3
-	 * is not a recommended setting for this divider.
+	 * ANALTE: Op does analt work for div-3. Current assumption is that div-3
+	 * is analt a recommended setting for this divider.
 	 */
 	.clkr = {
 		.hw.init = &(struct clk_init_data){
@@ -2119,7 +2119,7 @@ static struct clk_regmap_div mdss_byte0_intf_div_clk = {
 			.parent_hws = (const struct clk_hw *[]){ &byte0_clk_src.clkr.hw },
 			.num_parents = 1,
 			.ops = &clk_regmap_div_ops,
-			.flags = CLK_GET_RATE_NOCACHE,
+			.flags = CLK_GET_RATE_ANALCACHE,
 		},
 	},
 };
@@ -2134,7 +2134,7 @@ static struct clk_branch mdss_byte0_intf_clk = {
 			.name = "mdss_byte0_intf_clk",
 			.parent_hws = (const struct clk_hw *[]){ &mdss_byte0_intf_div_clk.clkr.hw },
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2161,8 +2161,8 @@ static struct clk_regmap_div mdss_byte1_intf_div_clk = {
 	.shift = 0,
 	.width = 2,
 	/*
-	 * NOTE: Op does not work for div-3. Current assumption is that div-3
-	 * is not a recommended setting for this divider.
+	 * ANALTE: Op does analt work for div-3. Current assumption is that div-3
+	 * is analt a recommended setting for this divider.
 	 */
 	.clkr = {
 		.hw.init = &(struct clk_init_data){
@@ -2170,7 +2170,7 @@ static struct clk_regmap_div mdss_byte1_intf_div_clk = {
 			.parent_hws = (const struct clk_hw *[]){ &byte1_clk_src.clkr.hw },
 			.num_parents = 1,
 			.ops = &clk_regmap_div_ops,
-			.flags = CLK_GET_RATE_NOCACHE,
+			.flags = CLK_GET_RATE_ANALCACHE,
 		},
 	},
 };
@@ -2185,7 +2185,7 @@ static struct clk_branch mdss_byte1_intf_clk = {
 			.name = "mdss_byte1_intf_clk",
 			.parent_hws = (const struct clk_hw *[]){ &mdss_byte1_intf_div_clk.clkr.hw },
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2249,7 +2249,7 @@ static struct clk_branch mdss_dp_link_clk = {
 			.name = "mdss_dp_link_clk",
 			.parent_hws = (const struct clk_hw *[]){ &dp_link_clk_src.clkr.hw },
 			.num_parents = 1,
-			.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+			.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2281,7 +2281,7 @@ static struct clk_branch mdss_dp_pixel_clk = {
 			.name = "mdss_dp_pixel_clk",
 			.parent_hws = (const struct clk_hw *[]){ &dp_pixel_clk_src.clkr.hw },
 			.num_parents = 1,
-			.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+			.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2414,14 +2414,14 @@ static struct clk_branch mdss_vsync_clk = {
 	},
 };
 
-static struct clk_branch mnoc_ahb_clk = {
+static struct clk_branch manalc_ahb_clk = {
 	.halt_reg = 0x5024,
 	.halt_check = BRANCH_VOTED,
 	.clkr = {
 		.enable_reg = 0x5024,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mnoc_ahb_clk",
+			.name = "manalc_ahb_clk",
 			.parent_hws = (const struct clk_hw *[]){ &ahb_clk_src.clkr.hw },
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2444,7 +2444,7 @@ static struct clk_branch misc_ahb_clk = {
 			 * Dependency to be enabled before the branch is
 			 * enabled.
 			 */
-			.parent_hws = (const struct clk_hw *[]){ &mnoc_ahb_clk.clkr.hw },
+			.parent_hws = (const struct clk_hw *[]){ &manalc_ahb_clk.clkr.hw },
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
 		},
@@ -2468,14 +2468,14 @@ static struct clk_branch misc_cxo_clk = {
 	},
 };
 
-static struct clk_branch snoc_dvm_axi_clk = {
+static struct clk_branch sanalc_dvm_axi_clk = {
 	.halt_reg = 0xe040,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xe040,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "snoc_dvm_axi_clk",
+			.name = "sanalc_dvm_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2552,7 +2552,7 @@ static struct clk_branch video_subcore0_clk = {
 			.name = "video_subcore0_clk",
 			.parent_hws = (const struct clk_hw *[]){ &video_core_clk_src.clkr.hw },
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2754,8 +2754,8 @@ static struct clk_regmap *mmcc_660_clocks[] = {
 	[MDSS_VSYNC_CLK] = &mdss_vsync_clk.clkr,
 	[MISC_AHB_CLK] = &misc_ahb_clk.clkr,
 	[MISC_CXO_CLK] = &misc_cxo_clk.clkr,
-	[MNOC_AHB_CLK] = &mnoc_ahb_clk.clkr,
-	[SNOC_DVM_AXI_CLK] = &snoc_dvm_axi_clk.clkr,
+	[MANALC_AHB_CLK] = &manalc_ahb_clk.clkr,
+	[SANALC_DVM_AXI_CLK] = &sanalc_dvm_axi_clk.clkr,
 	[THROTTLE_CAMSS_AXI_CLK] = &throttle_camss_axi_clk.clkr,
 	[THROTTLE_MDSS_AXI_CLK] = &throttle_mdss_axi_clk.clkr,
 	[THROTTLE_VIDEO_AXI_CLK] = &throttle_video_axi_clk.clkr,

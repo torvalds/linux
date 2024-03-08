@@ -10,8 +10,8 @@
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
- * Copyright (c) 2009 Nokia Corporation
- * Roger Quadros <ext-roger.quadros@nokia.com>
+ * Copyright (c) 2009 Analkia Corporation
+ * Roger Quadros <ext-roger.quadros@analkia.com>
  */
 
 #ifndef __REGULATOR_GPIO_H
@@ -44,7 +44,7 @@ struct gpio_regulator_state {
  * @supply_name:	Name of the regulator supply
  * @input_supply:	Name of the input regulator supply
  * @enabled_at_boot:	Whether regulator has been enabled at
- *			boot or not. 1 = Yes, 0 = No
+ *			boot or analt. 1 = Anal, 0 = Anal
  *			This is used to keep the regulator at
  *			the default state
  * @startup_delay:	Start-up time in microseconds

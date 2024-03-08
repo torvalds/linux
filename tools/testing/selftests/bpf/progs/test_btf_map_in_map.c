@@ -23,7 +23,7 @@ struct outer_arr {
 	__uint(max_entries, 3);
 	__type(key, int);
 	__type(value, int);
-	/* it's possible to use anonymous struct as inner map definition here */
+	/* it's possible to use aanalnymous struct as inner map definition here */
 	__array(values, struct {
 		__uint(type, BPF_MAP_TYPE_ARRAY);
 		/* changing max_entries to 2 will fail during load
@@ -83,7 +83,7 @@ struct outer_hash {
 	__uint(max_entries, 5);
 	__type(key, int);
 	/* Here everything works flawlessly due to reuse of struct inner_map
-	 * and compiler will complain at the attempt to use non-inner_map
+	 * and compiler will complain at the attempt to use analn-inner_map
 	 * references below. This is great experience.
 	 */
 	__array(values, struct inner_map);

@@ -73,16 +73,16 @@ static inline struct stack_info stackinfo_get_overflow(void)
 	};
 }
 #else
-#define stackinfo_get_overflow()	stackinfo_get_unknown()
+#define stackinfo_get_overflow()	stackinfo_get_unkanalwn()
 #endif
 
 #if defined(CONFIG_ARM_SDE_INTERFACE) && defined(CONFIG_VMAP_STACK)
-DECLARE_PER_CPU(unsigned long *, sdei_stack_normal_ptr);
+DECLARE_PER_CPU(unsigned long *, sdei_stack_analrmal_ptr);
 DECLARE_PER_CPU(unsigned long *, sdei_stack_critical_ptr);
 
-static inline struct stack_info stackinfo_get_sdei_normal(void)
+static inline struct stack_info stackinfo_get_sdei_analrmal(void)
 {
-	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_normal_ptr);
+	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_analrmal_ptr);
 	unsigned long high = low + SDEI_STACK_SIZE;
 
 	return (struct stack_info) {
@@ -102,8 +102,8 @@ static inline struct stack_info stackinfo_get_sdei_critical(void)
 	};
 }
 #else
-#define stackinfo_get_sdei_normal()	stackinfo_get_unknown()
-#define stackinfo_get_sdei_critical()	stackinfo_get_unknown()
+#define stackinfo_get_sdei_analrmal()	stackinfo_get_unkanalwn()
+#define stackinfo_get_sdei_critical()	stackinfo_get_unkanalwn()
 #endif
 
 #ifdef CONFIG_EFI

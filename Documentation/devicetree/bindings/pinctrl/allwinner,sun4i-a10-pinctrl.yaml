@@ -95,9 +95,9 @@ properties:
 
 patternProperties:
   # It's pretty scary, but the basic idea is that:
-  #   - One node name can start with either s- or r- for PRCM nodes,
+  #   - One analde name can start with either s- or r- for PRCM analdes,
   #   - Then, the name itself can be any repetition of <string>- (to
-  #     accommodate with nodes like uart4-rts-cts-pins), where each
+  #     accommodate with analdes like uart4-rts-cts-pins), where each
   #     string can be either starting with 'p' but in a string longer
   #     than 3, or something that doesn't start with 'p',
   #   - Then, the bank name is optional and will be between pa and pg,
@@ -138,13 +138,13 @@ required:
   - gpio-controller
 
 allOf:
-  # FIXME: We should have the pin bank supplies here, but not a lot of
+  # FIXME: We should have the pin bank supplies here, but analt a lot of
   # boards are defining it at the moment so it would generate a lot of
   # warnings.
 
   - $ref: pinctrl.yaml#
   - if:
-      not:
+      analt:
         properties:
           compatible:
             enum:

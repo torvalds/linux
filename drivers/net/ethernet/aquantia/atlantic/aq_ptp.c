@@ -121,7 +121,7 @@ static int __aq_ptp_skb_put(struct ptp_skb_ring *ring, struct sk_buff *skb)
 	unsigned int next_head = (ring->head + 1) % ring->size;
 
 	if (next_head == ring->tail)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->buff[ring->head] = skb_get(skb);
 	ring->head = next_head;
@@ -185,7 +185,7 @@ static int aq_ptp_skb_ring_init(struct ptp_skb_ring *ring, unsigned int size)
 	struct sk_buff **buff = kmalloc(sizeof(*buff) * size, GFP_KERNEL);
 
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ring->lock);
 
@@ -344,11 +344,11 @@ static int aq_ptp_settime(struct ptp_clock_info *ptp,
 	struct aq_nic_s *aq_nic = aq_ptp->aq_nic;
 	unsigned long flags;
 	u64 ns = timespec64_to_ns(ts);
-	u64 now;
+	u64 analw;
 
 	spin_lock_irqsave(&aq_ptp->ptp_lock, flags);
-	aq_nic->aq_hw_ops->hw_get_ptp_ts(aq_nic->aq_hw, &now);
-	aq_nic->aq_hw_ops->hw_adj_sys_clock(aq_nic->aq_hw, (s64)ns - (s64)now);
+	aq_nic->aq_hw_ops->hw_get_ptp_ts(aq_nic->aq_hw, &analw);
+	aq_nic->aq_hw_ops->hw_adj_sys_clock(aq_nic->aq_hw, (s64)ns - (s64)analw);
 
 	spin_unlock_irqrestore(&aq_ptp->ptp_lock, flags);
 
@@ -375,7 +375,7 @@ static int aq_ptp_hw_pin_conf(struct aq_nic_s *aq_nic, u32 pin_index, u64 start,
 			   "Disable GPIO %d pulsing, start time %llu, period %u\n",
 			   pin_index, start, (u32)period);
 
-	/* Notify hardware of request to being sending pulses.
+	/* Analtify hardware of request to being sending pulses.
 	 * If period is ZERO then pulsen is disabled.
 	 */
 	mutex_lock(&aq_nic->fwreq_mutex);
@@ -400,7 +400,7 @@ static int aq_ptp_perout_pin_configure(struct ptp_clock_info *ptp,
 	if (pin_index >= ptp->n_per_out)
 		return -EINVAL;
 
-	/* we cannot support periods greater
+	/* we cananalt support periods greater
 	 * than 4 seconds due to reg limit
 	 */
 	if (t->sec > 4 || t->sec < 0)
@@ -495,7 +495,7 @@ static int aq_ptp_gpio_feature_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_PPS:
 		return aq_ptp_pps_pin_configure(ptp, rq, on);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -514,7 +514,7 @@ static int aq_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 	if (!ptp->pin_config || pin >= ptp->n_pins)
 		return -EINVAL;
 
-	/* enforce locked channels, no changing them */
+	/* enforce locked channels, anal changing them */
 	if (chan != ptp->pin_config[pin].chan)
 		return -EINVAL;
 
@@ -740,7 +740,7 @@ static irqreturn_t aq_ptp_isr(int irq, void *private)
 	napi_schedule(&aq_ptp->napi);
 
 err_exit:
-	return err >= 0 ? IRQ_HANDLED : IRQ_NONE;
+	return err >= 0 ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb)
@@ -757,7 +757,7 @@ int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb)
 	}
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
-	/* Frags cannot be bigger 16KB
+	/* Frags cananalt be bigger 16KB
 	 * because PTP usually works
 	 * without Jumbo even in a background
 	 */
@@ -980,7 +980,7 @@ int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
 
 	err = aq_ptp_skb_ring_init(&aq_ptp->skb_ring, aq_nic->aq_nic_cfg.rxds);
 	if (err != 0) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_exit_hwts_rx;
 	}
 
@@ -1185,7 +1185,7 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 
 	aq_ptp = kzalloc(sizeof(*aq_ptp), GFP_KERNEL);
 	if (!aq_ptp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_exit;
 	}
 
@@ -1277,7 +1277,7 @@ struct ptp_clock *aq_ptp_get_ptp_clock(struct aq_ptp_s *aq_ptp)
 	return aq_ptp->ptp_clock;
 }
 
-/* PTP external GPIO nanoseconds count */
+/* PTP external GPIO naanalseconds count */
 static uint64_t aq_ptp_get_sync1588_ts(struct aq_nic_s *aq_nic)
 {
 	u64 ts = 0;

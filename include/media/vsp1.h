@@ -66,12 +66,12 @@ struct vsp1_du_atomic_config {
 
 /**
  * enum vsp1_du_crc_source - Source used for CRC calculation
- * @VSP1_DU_CRC_NONE: CRC calculation disabled
+ * @VSP1_DU_CRC_ANALNE: CRC calculation disabled
  * @VSP1_DU_CRC_PLANE: Perform CRC calculation on an input plane
  * @VSP1_DU_CRC_OUTPUT: Perform CRC calculation on the composed output
  */
 enum vsp1_du_crc_source {
-	VSP1_DU_CRC_NONE,
+	VSP1_DU_CRC_ANALNE,
 	VSP1_DU_CRC_PLANE,
 	VSP1_DU_CRC_OUTPUT,
 };

@@ -35,7 +35,7 @@ loop:
 	add pDst, pDst, iVL
 	bnez iNum, loop
 
-	/* Exception fixup for vector load is shared with normal exit */
+	/* Exception fixup for vector load is shared with analrmal exit */
 10:
 	/* Disable access to user memory */
 	csrc	CSR_STATUS, t6

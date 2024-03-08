@@ -46,8 +46,8 @@
 #define LPC32XX_TSC_ADCCON_AUTO_EN		BIT(0)
 
 #define LPC32XX_TSC_FIFO_TS_P_LEVEL		BIT(31)
-#define LPC32XX_TSC_FIFO_NORMALIZE_X_VAL(x)	(((x) & 0x03FF0000) >> 16)
-#define LPC32XX_TSC_FIFO_NORMALIZE_Y_VAL(y)	((y) & 0x000003FF)
+#define LPC32XX_TSC_FIFO_ANALRMALIZE_X_VAL(x)	(((x) & 0x03FF0000) >> 16)
+#define LPC32XX_TSC_FIFO_ANALRMALIZE_Y_VAL(y)	((y) & 0x000003FF)
 
 #define LPC32XX_TSC_ADCDAT_VALUE_MASK		0x000003FF
 
@@ -91,7 +91,7 @@ static irqreturn_t lpc32xx_ts_interrupt(int irq, void *dev_id)
 	}
 
 	/*
-	 * Gather and normalize 4 samples. Pen-up events may have less
+	 * Gather and analrmalize 4 samples. Pen-up events may have less
 	 * than 4 samples, but its ok to pop 4 and let the last sample
 	 * pen status check drop the samples.
 	 */
@@ -101,9 +101,9 @@ static irqreturn_t lpc32xx_ts_interrupt(int irq, void *dev_id)
 			LPC32XX_TSC_STAT_FIFO_EMPTY)) {
 		tmp = tsc_readl(tsc, LPC32XX_TSC_FIFO);
 		xs[idx] = LPC32XX_TSC_ADCDAT_VALUE_MASK -
-			LPC32XX_TSC_FIFO_NORMALIZE_X_VAL(tmp);
+			LPC32XX_TSC_FIFO_ANALRMALIZE_X_VAL(tmp);
 		ys[idx] = LPC32XX_TSC_ADCDAT_VALUE_MASK -
-			LPC32XX_TSC_FIFO_NORMALIZE_Y_VAL(tmp);
+			LPC32XX_TSC_FIFO_ANALRMALIZE_Y_VAL(tmp);
 		rv[idx] = tmp;
 		idx++;
 	}
@@ -157,7 +157,7 @@ static int lpc32xx_setup_tsc(struct lpc32xx_tsc *tsc)
 	tsc_writel(tsc, LPC32XX_TSC_MIN_Y, LPC32XX_TSC_MIN_XY_VAL);
 	tsc_writel(tsc, LPC32XX_TSC_MAX_Y, LPC32XX_TSC_MAX_XY_VAL);
 
-	/* Aux support is not used */
+	/* Aux support is analt used */
 	tsc_writel(tsc, LPC32XX_TSC_AUX_UTR, 0);
 	tsc_writel(tsc, LPC32XX_TSC_AUX_MIN, 0);
 	tsc_writel(tsc, LPC32XX_TSC_AUX_MAX, 0);
@@ -210,7 +210,7 @@ static int lpc32xx_ts_probe(struct platform_device *pdev)
 
 	tsc = devm_kzalloc(dev, sizeof(*tsc), GFP_KERNEL);
 	if (!tsc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tsc->irq = irq;
 
@@ -227,7 +227,7 @@ static int lpc32xx_ts_probe(struct platform_device *pdev)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(&pdev->dev, "failed allocating input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input->name = MOD_NAME;
@@ -275,7 +275,7 @@ static int lpc32xx_ts_suspend(struct device *dev)
 
 	/*
 	 * Suspend and resume can be called when the device hasn't been
-	 * enabled. If there are no users that have the device open, then
+	 * enabled. If there are anal users that have the device open, then
 	 * avoid calling the TSC stop and start functions as the TSC
 	 * isn't yet clocked.
 	 */

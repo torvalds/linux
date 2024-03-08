@@ -2,7 +2,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "sysfs_utils.h"
 #include "usbip_common.h"

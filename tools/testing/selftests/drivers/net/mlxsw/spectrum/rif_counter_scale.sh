@@ -17,7 +17,7 @@ rif_counter_get_target()
 	# 10 KVD slots per counter, ingress+egress counters per RIF
 	((max_cnts /= 20))
 
-	# Pointless to run the overflow test if we don't have enough RIFs to
+	# Pointless to run the overflow test if we don't have eanalugh RIFs to
 	# host all the counters.
 	if ((max_cnts > max_rifs && should_fail)); then
 		echo 0

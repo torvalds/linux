@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * LoongArch specific definitions for NOLIBC
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * LoongArch specific definitions for ANALLIBC
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
-#ifndef _NOLIBC_ARCH_LOONGARCH_H
-#define _NOLIBC_ARCH_LOONGARCH_H
+#ifndef _ANALLIBC_ARCH_LOONGARCH_H
+#define _ANALLIBC_ARCH_LOONGARCH_H
 
 #include "compiler.h"
 #include "crt.h"
@@ -21,7 +21,7 @@
  *     so that we don't have to experience issues with register constraints.
  */
 
-#define _NOLIBC_SYSCALL_CLOBBERLIST \
+#define _ANALLIBC_SYSCALL_CLOBBERLIST \
 	"memory", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8"
 
 #define my_syscall0(num)                                                      \
@@ -33,7 +33,7 @@
 		"syscall 0\n"                                                 \
 		: "=r"(_arg1)                                                 \
 		: "r"(_num)                                                   \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -47,7 +47,7 @@
 		"syscall 0\n"                                                 \
 		: "+r"(_arg1)                                                 \
 		: "r"(_num)                                                   \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -63,7 +63,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2),                                                 \
 		  "r"(_num)                                                   \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -80,7 +80,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3),                                     \
 		  "r"(_num)                                                   \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -98,7 +98,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3), "r"(_arg4),                         \
 		  "r"(_num)                                                   \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -117,7 +117,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5),             \
 		  "r"(_num)                                                   \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -137,7 +137,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), "r"(_arg6), \
 		  "r"(_num)                                                   \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -149,7 +149,7 @@
 #endif
 
 /* startup code */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
+void __attribute__((weak, analreturn, optimize("Os", "omit-frame-pointer"))) __anal_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"move          $a0, $sp\n"         /* save stack pointer to $a0, as arg1 of _start_c */
@@ -159,4 +159,4 @@ void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_
 	__builtin_unreachable();
 }
 
-#endif /* _NOLIBC_ARCH_LOONGARCH_H */
+#endif /* _ANALLIBC_ARCH_LOONGARCH_H */

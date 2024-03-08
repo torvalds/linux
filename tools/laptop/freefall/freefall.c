@@ -15,13 +15,13 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdint.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <sys/mman.h>
 #include <sched.h>
 #include <syslog.h>
 
-static int noled;
+static int analled;
 static char unload_heads_path[64];
 static char device_path[32];
 static const char app_name[] = "FREE FALL";
@@ -72,7 +72,7 @@ static void write_int(char *path, int i)
 
 static void set_led(int on)
 {
-	if (noled)
+	if (analled)
 		return;
 	write_int("/sys/class/leds/hp::hddprotect/brightness", on);
 }
@@ -97,7 +97,7 @@ static int lid_open(void)
 	return 1;
 }
 
-static void ignore_me(int signum)
+static void iganalre_me(int signum)
 {
 	protect(0);
 	set_led(0);
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 	}
 
 	if (stat("/sys/class/leds/hp::hddprotect/brightness", &st))
-		noled = 1;
+		analled = 1;
 
 	if (daemon(0, 0) != 0) {
 		perror("daemon");
@@ -142,14 +142,14 @@ int main(int argc, char **argv)
 	sched_setscheduler(0, SCHED_FIFO, &param);
 	mlockall(MCL_CURRENT|MCL_FUTURE);
 
-	signal(SIGALRM, ignore_me);
+	signal(SIGALRM, iganalre_me);
 
 	for (;;) {
 		unsigned char count;
 
 		ret = read(fd, &count, sizeof(count));
 		alarm(0);
-		if ((ret == -1) && (errno == EINTR)) {
+		if ((ret == -1) && (erranal == EINTR)) {
 			/* Alarm expired, time to unpark the heads */
 			continue;
 		}

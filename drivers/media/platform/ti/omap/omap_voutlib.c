@@ -19,7 +19,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/videodev2.h>
@@ -36,7 +36,7 @@ MODULE_LICENSE("GPL");
 
 /* Return the default overlay cropping rectangle in crop given the image
  * size in pix and the video display size in fbuf.  The default
- * cropping rectangle is the largest rectangle no larger than the capture size
+ * cropping rectangle is the largest rectangle anal larger than the capture size
  * that will fit on the display.  The default cropping rectangle is centered in
  * the image.  All dimensions and offsets are rounded down to even numbers.
  */
@@ -58,7 +58,7 @@ EXPORT_SYMBOL_GPL(omap_vout_default_crop);
  * nearest supported configuration.  The adjusted window parameters are
  * returned in new_win.
  * Returns zero if successful, or -EINVAL if the requested window is
- * impossible and cannot reasonably be adjusted.
+ * impossible and cananalt reasonably be adjusted.
  */
 int omap_vout_try_window(struct v4l2_framebuffer *fbuf,
 			struct v4l2_window *new_win)
@@ -93,9 +93,9 @@ int omap_vout_try_window(struct v4l2_framebuffer *fbuf,
 	if (try_win.width <= 0 || try_win.height <= 0)
 		return -EINVAL;
 
-	/* We now have a valid preview window, so go with it */
+	/* We analw have a valid preview window, so go with it */
 	new_win->w = try_win;
-	new_win->field = V4L2_FIELD_NONE;
+	new_win->field = V4L2_FIELD_ANALNE;
 	new_win->clips = NULL;
 	new_win->clipcount = 0;
 	new_win->bitmap = NULL;
@@ -110,7 +110,7 @@ EXPORT_SYMBOL_GPL(omap_vout_try_window);
  * window as close to the requested configuration as possible.  If
  * successful, new_win, vout->win, and crop are updated.
  * Returns zero if successful, or -EINVAL if the requested preview window is
- * impossible and cannot reasonably be adjusted.
+ * impossible and cananalt reasonably be adjusted.
  */
 int omap_vout_new_window(struct v4l2_rect *crop,
 		struct v4l2_window *win, struct v4l2_framebuffer *fbuf,
@@ -139,7 +139,7 @@ int omap_vout_new_window(struct v4l2_rect *crop,
 		if (crop->width > 768) {
 			/* The OMAP2420 vertical resizing line buffer is 768
 			 * pixels wide. If the cropped image is wider than
-			 * 768 pixels then it cannot be vertically resized.
+			 * 768 pixels then it cananalt be vertically resized.
 			 */
 			if (crop->height != win->w.height)
 				crop->width = 768;
@@ -164,7 +164,7 @@ EXPORT_SYMBOL_GPL(omap_vout_new_window);
  * will also be adjusted to maintain the rescaling ratios.  If successful, crop
  * and win are updated.
  * Returns zero if successful, or -EINVAL if the requested cropping rectangle is
- * impossible and cannot reasonably be adjusted.
+ * impossible and cananalt reasonably be adjusted.
  */
 int omap_vout_new_crop(struct v4l2_pix_format *pix,
 	      struct v4l2_rect *crop, struct v4l2_window *win,
@@ -257,7 +257,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 		if (try_crop.width > 768) {
 			/* The OMAP2420 vertical resizing line buffer is
 			 * 768 pixels wide.  If the cropped image is wider
-			 * than 768 pixels then it cannot be vertically resized.
+			 * than 768 pixels then it cananalt be vertically resized.
 			 */
 			if (try_crop.height != win->w.height)
 				try_crop.width = 768;

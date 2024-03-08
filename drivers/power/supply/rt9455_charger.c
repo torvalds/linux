@@ -33,7 +33,7 @@
 
 #define RT9455_IAICR_100MA			0x00
 #define RT9455_IAICR_500MA			0x01
-#define RT9455_IAICR_NO_LIMIT			0x03
+#define RT9455_IAICR_ANAL_LIMIT			0x03
 
 #define RT9455_CHARGE_DISABLE			0x00
 #define RT9455_CHARGE_ENABLE			0x01
@@ -74,19 +74,19 @@ enum rt9455_fields {
 
 	F_BATD_EN, F_CHG_EN, F_VMREG, /* CTRL7 reg fields */
 
-	F_TSDI, F_VINOVPI, F_BATAB, /* IRQ1 reg fields */
+	F_TSDI, F_VIANALVPI, F_BATAB, /* IRQ1 reg fields */
 
 	F_CHRVPI, F_CHBATOVI, F_CHTERMI, F_CHRCHGI, F_CH32MI, F_CHTREGI,
 	F_CHMIVRI, /* IRQ2 reg fields */
 
 	F_BSTBUSOVI, F_BSTOLI, F_BSTLOWVI, F_BST32SI, /* IRQ3 reg fields */
 
-	F_TSDM, F_VINOVPIM, F_BATABM, /* MASK1 reg fields */
+	F_TSDM, F_VIANALVPIM, F_BATABM, /* MASK1 reg fields */
 
 	F_CHRVPIM, F_CHBATOVIM, F_CHTERMIM, F_CHRCHGIM, F_CH32MIM, F_CHTREGIM,
 	F_CHMIVRIM, /* MASK2 reg fields */
 
-	F_BSTVINOVIM, F_BSTOLIM, F_BSTLOWVIM, F_BST32SIM, /* MASK3 reg fields */
+	F_BSTVIANALVIM, F_BSTOLIM, F_BSTLOWVIM, F_BST32SIM, /* MASK3 reg fields */
 
 	F_MAX_FIELDS
 };
@@ -128,7 +128,7 @@ static const struct reg_field rt9455_reg_fields[] = {
 	[F_VMREG]		= REG_FIELD(RT9455_REG_CTRL7, 0, 3),
 
 	[F_TSDI]		= REG_FIELD(RT9455_REG_IRQ1, 7, 7),
-	[F_VINOVPI]		= REG_FIELD(RT9455_REG_IRQ1, 6, 6),
+	[F_VIANALVPI]		= REG_FIELD(RT9455_REG_IRQ1, 6, 6),
 	[F_BATAB]		= REG_FIELD(RT9455_REG_IRQ1, 0, 0),
 
 	[F_CHRVPI]		= REG_FIELD(RT9455_REG_IRQ2, 7, 7),
@@ -145,7 +145,7 @@ static const struct reg_field rt9455_reg_fields[] = {
 	[F_BST32SI]		= REG_FIELD(RT9455_REG_IRQ3, 3, 3),
 
 	[F_TSDM]		= REG_FIELD(RT9455_REG_MASK1, 7, 7),
-	[F_VINOVPIM]		= REG_FIELD(RT9455_REG_MASK1, 6, 6),
+	[F_VIANALVPIM]		= REG_FIELD(RT9455_REG_MASK1, 6, 6),
 	[F_BATABM]		= REG_FIELD(RT9455_REG_MASK1, 0, 0),
 
 	[F_CHRVPIM]		= REG_FIELD(RT9455_REG_MASK2, 7, 7),
@@ -156,7 +156,7 @@ static const struct reg_field rt9455_reg_fields[] = {
 	[F_CHTREGIM]		= REG_FIELD(RT9455_REG_MASK2, 1, 1),
 	[F_CHMIVRIM]		= REG_FIELD(RT9455_REG_MASK2, 0, 0),
 
-	[F_BSTVINOVIM]		= REG_FIELD(RT9455_REG_MASK3, 7, 7),
+	[F_BSTVIANALVIM]		= REG_FIELD(RT9455_REG_MASK3, 7, 7),
 	[F_BSTOLIM]		= REG_FIELD(RT9455_REG_MASK3, 6, 6),
 	[F_BSTLOWVIM]		= REG_FIELD(RT9455_REG_MASK3, 5, 5),
 	[F_BST32SIM]		= REG_FIELD(RT9455_REG_MASK3, 3, 3),
@@ -236,7 +236,7 @@ struct rt9455_info {
 	struct power_supply		*charger;
 #if IS_ENABLED(CONFIG_USB_PHY)
 	struct usb_phy			*usb_phy;
-	struct notifier_block		nb;
+	struct analtifier_block		nb;
 #endif
 	struct delayed_work		pwr_rdy_work;
 	struct delayed_work		max_charging_time_work;
@@ -248,15 +248,15 @@ struct rt9455_info {
 /*
  * Iterate through each element of the 'tbl' array until an element whose value
  * is greater than v is found. Return the index of the respective element,
- * or the index of the last element in the array, if no such element is found.
+ * or the index of the last element in the array, if anal such element is found.
  */
 static unsigned int rt9455_find_idx(const int tbl[], int tbl_size, int v)
 {
 	int i;
 
 	/*
-	 * No need to iterate until the last index in the table because
-	 * if no element greater than v is found in the table,
+	 * Anal need to iterate until the last index in the table because
+	 * if anal element greater than v is found in the table,
 	 * or if only the last element is greater than v,
 	 * function returns the index of the last element.
 	 */
@@ -382,11 +382,11 @@ static int rt9455_charger_get_status(struct rt9455_info *info,
 		 * If PWR_RDY bit is set, but STAT bits value is 0, the charger
 		 * may be in one of the following cases:
 		 * 1. CHG_EN bit is 0.
-		 * 2. CHG_EN bit is 1 but the battery is not connected.
-		 * In any of these cases, POWER_SUPPLY_STATUS_NOT_CHARGING is
+		 * 2. CHG_EN bit is 1 but the battery is analt connected.
+		 * In any of these cases, POWER_SUPPLY_STATUS_ANALT_CHARGING is
 		 * returned.
 		 */
-		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		return 0;
 	case 1:
 		val->intval = POWER_SUPPLY_STATUS_CHARGING;
@@ -395,7 +395,7 @@ static int rt9455_charger_get_status(struct rt9455_info *info,
 		val->intval = POWER_SUPPLY_STATUS_FULL;
 		return 0;
 	default:
-		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 		return 0;
 	}
 }
@@ -419,7 +419,7 @@ static int rt9455_charger_get_health(struct rt9455_info *info,
 		val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
 		return 0;
 	}
-	if (v & GET_MASK(F_VINOVPI)) {
+	if (v & GET_MASK(F_VIANALVPI)) {
 		val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
 		return 0;
 	}
@@ -493,7 +493,7 @@ static int rt9455_charger_get_battery_presence(struct rt9455_info *info,
 	}
 
 	/*
-	 * Since BATAB is 1 when battery is NOT present and 0 otherwise,
+	 * Since BATAB is 1 when battery is ANALT present and 0 otherwise,
 	 * !BATAB is returned.
 	 */
 	val->intval = !v;
@@ -642,7 +642,7 @@ static int rt9455_charger_get_property(struct power_supply *psy,
 		val->strval = RT9455_MANUFACTURER;
 		return 0;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -685,10 +685,10 @@ static int rt9455_hw_init(struct rt9455_info *info, u32 ichrg,
 
 	/*
 	 * Disable Safety Timer. In charge mode, this timer terminates charging
-	 * if no read or write via I2C is done within 32 minutes. This timer
-	 * avoids overcharging the baterry when the OS is not loaded and the
+	 * if anal read or write via I2C is done within 32 minutes. This timer
+	 * avoids overcharging the baterry when the OS is analt loaded and the
 	 * charger is connected to a power source.
-	 * In boost mode, this timer triggers BST32SI interrupt if no read or
+	 * In boost mode, this timer triggers BST32SI interrupt if anal read or
 	 * write via I2C is done within 32 seconds.
 	 * When the OS is loaded and the charger driver is inserted, it is used
 	 * delayed_work, named max_charging_time_work, to avoid overcharging
@@ -742,7 +742,7 @@ static int rt9455_hw_init(struct rt9455_info *info, u32 ichrg,
 
 	/*
 	 * Set MIVR to value retrieved from device-specific data.
-	 * If no value is specified, default value for MIVR is 4.5V.
+	 * If anal value is specified, default value for MIVR is 4.5V.
 	 */
 	if (mivr == -1)
 		mivr = 4500000;
@@ -757,7 +757,7 @@ static int rt9455_hw_init(struct rt9455_info *info, u32 ichrg,
 
 	/*
 	 * Set IAICR to value retrieved from device-specific data.
-	 * If no value is specified, default value for IAICR is 500 mA.
+	 * If anal value is specified, default value for IAICR is 500 mA.
 	 */
 	if (iaicr == -1)
 		iaicr = 500000;
@@ -772,7 +772,7 @@ static int rt9455_hw_init(struct rt9455_info *info, u32 ichrg,
 
 	/*
 	 * Set IAICR_INT bit so that IAICR value is determined by IAICR bits
-	 * and not by OTG pin.
+	 * and analt by OTG pin.
 	 */
 	ret = regmap_field_write(info->regmap_fields[F_IAICR_INT], 0x01);
 	if (ret) {
@@ -782,7 +782,7 @@ static int rt9455_hw_init(struct rt9455_info *info, u32 ichrg,
 
 	/*
 	 * Disable CHMIVRI interrupt. Because the driver sets MIVR value,
-	 * CHMIVRI is triggered, but there is no action to be taken by the
+	 * CHMIVRI is triggered, but there is anal action to be taken by the
 	 * driver when CHMIVRI is triggered.
 	 */
 	ret = regmap_field_write(info->regmap_fields[F_CHMIVRIM], 0x01);
@@ -873,7 +873,7 @@ static int rt9455_irq_handler_check_irq1_register(struct rt9455_info *info,
 		alert_userspace = true;
 	}
 
-	if (irq1 & GET_MASK(F_VINOVPI)) {
+	if (irq1 & GET_MASK(F_VIANALVPI)) {
 		dev_err(dev, "Overvoltage input occurred\n");
 		alert_userspace = true;
 	}
@@ -918,14 +918,14 @@ static int rt9455_irq_handler_check_irq1_register(struct rt9455_info *info,
 
 		/*
 		 * When the battery is absent, max_charging_time_work is
-		 * cancelled, since no charging is done.
+		 * cancelled, since anal charging is done.
 		 */
 		cancel_delayed_work_sync(&info->max_charging_time_work);
 		/*
-		 * Since no interrupt is triggered when the battery is
-		 * reconnected, max_charging_time_work is not rescheduled.
+		 * Since anal interrupt is triggered when the battery is
+		 * reconnected, max_charging_time_work is analt rescheduled.
 		 * Therefore, batt_presence_work is scheduled to check whether
-		 * the battery is still absent or not.
+		 * the battery is still absent or analt.
 		 */
 		queue_delayed_work(system_power_efficient_wq,
 				   &info->batt_presence_work,
@@ -970,9 +970,9 @@ static int rt9455_irq_handler_check_irq2_register(struct rt9455_info *info,
 		 * To identify the case, PWR_RDY bit is checked. Because
 		 * PWR_RDY bit is set / cleared after CHRVPI interrupt is
 		 * triggered, it is used delayed_work to later read PWR_RDY bit.
-		 * Also, do not set to true alert_userspace, because there is no
-		 * need to notify userspace when CHRVPI interrupt has occurred.
-		 * Userspace will be notified after PWR_RDY bit is read.
+		 * Also, do analt set to true alert_userspace, because there is anal
+		 * need to analtify userspace when CHRVPI interrupt has occurred.
+		 * Userspace will be analtified after PWR_RDY bit is read.
 		 */
 		queue_delayed_work(system_power_efficient_wq,
 				   &info->pwr_rdy_work,
@@ -1022,9 +1022,9 @@ static int rt9455_irq_handler_check_irq2_register(struct rt9455_info *info,
 		}
 		if (!is_battery_absent) {
 			/*
-			 * No need to check whether the charger is connected to
+			 * Anal need to check whether the charger is connected to
 			 * power source when CHRCHGI is received, since CHRCHGI
-			 * is not triggered if the charger is not connected to
+			 * is analt triggered if the charger is analt connected to
 			 * the power source.
 			 */
 			queue_delayed_work(system_power_efficient_wq,
@@ -1119,13 +1119,13 @@ static irqreturn_t rt9455_irq_handler_thread(int irq, void *data)
 	int ret;
 
 	if (!info)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dev = &info->client->dev;
 
 	if (irq != info->client->irq) {
-		dev_err(dev, "Interrupt is not for RT9455 charger\n");
-		return IRQ_NONE;
+		dev_err(dev, "Interrupt is analt for RT9455 charger\n");
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_field_read(info->regmap_fields[F_STAT], &status);
@@ -1169,8 +1169,8 @@ static irqreturn_t rt9455_irq_handler_thread(int irq, void *data)
 	if (alert_userspace) {
 		/*
 		 * Sometimes, an interrupt occurs while rt9455_probe() function
-		 * is executing and power_supply_register() is not yet called.
-		 * Do not call power_supply_changed() in this case.
+		 * is executing and power_supply_register() is analt yet called.
+		 * Do analt call power_supply_changed() in this case.
 		 */
 		if (info->charger)
 			power_supply_changed(info->charger);
@@ -1186,8 +1186,8 @@ static int rt9455_discover_charger(struct rt9455_info *info, u32 *ichrg,
 	struct device *dev = &info->client->dev;
 	int ret;
 
-	if (!dev->of_node && !ACPI_HANDLE(dev)) {
-		dev_err(dev, "No support for either device tree or ACPI\n");
+	if (!dev->of_analde && !ACPI_HANDLE(dev)) {
+		dev_err(dev, "Anal support for either device tree or ACPI\n");
 		return -EINVAL;
 	}
 	/*
@@ -1224,8 +1224,8 @@ static int rt9455_discover_charger(struct rt9455_info *info, u32 *ichrg,
 	}
 
 	/*
-	 * MIVR and IAICR are optional parameters. Do not return error if one of
-	 * them is not present in ACPI table or device tree specification.
+	 * MIVR and IAICR are optional parameters. Do analt return error if one of
+	 * them is analt present in ACPI table or device tree specification.
 	 */
 	device_property_read_u32(dev, "richtek,min-input-voltage-regulation",
 				 mivr);
@@ -1236,7 +1236,7 @@ static int rt9455_discover_charger(struct rt9455_info *info, u32 *ichrg,
 }
 
 #if IS_ENABLED(CONFIG_USB_PHY)
-static int rt9455_usb_event_none(struct rt9455_info *info,
+static int rt9455_usb_event_analne(struct rt9455_info *info,
 				 u8 opa_mode, u8 iaicr)
 {
 	struct device *dev = &info->client->dev;
@@ -1250,30 +1250,30 @@ static int rt9455_usb_event_none(struct rt9455_info *info,
 		}
 		/*
 		 * If the charger is in boost mode, and it has received
-		 * USB_EVENT_NONE, this means the consumer device powered by the
-		 * charger is not connected anymore.
+		 * USB_EVENT_ANALNE, this means the consumer device powered by the
+		 * charger is analt connected anymore.
 		 * In this case, the charger goes into charge mode.
 		 */
-		dev_dbg(dev, "USB_EVENT_NONE received, therefore the charger goes into charge mode\n");
+		dev_dbg(dev, "USB_EVENT_ANALNE received, therefore the charger goes into charge mode\n");
 		ret = regmap_field_write(info->regmap_fields[F_OPA_MODE],
 					 RT9455_CHARGE_MODE);
 		if (ret) {
 			dev_err(dev, "Failed to set charger in charge mode\n");
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 	}
 
-	dev_dbg(dev, "USB_EVENT_NONE received, therefore IAICR is set to its minimum value\n");
+	dev_dbg(dev, "USB_EVENT_ANALNE received, therefore IAICR is set to its minimum value\n");
 	if (iaicr != RT9455_IAICR_100MA) {
 		ret = regmap_field_write(info->regmap_fields[F_IAICR],
 					 RT9455_IAICR_100MA);
 		if (ret) {
 			dev_err(dev, "Failed to set IAICR value\n");
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int rt9455_usb_event_vbus(struct rt9455_info *info,
@@ -1291,7 +1291,7 @@ static int rt9455_usb_event_vbus(struct rt9455_info *info,
 		/*
 		 * If the charger is in boost mode, and it has received
 		 * USB_EVENT_VBUS, this means the consumer device powered by the
-		 * charger is not connected anymore.
+		 * charger is analt connected anymore.
 		 * In this case, the charger goes into charge mode.
 		 */
 		dev_dbg(dev, "USB_EVENT_VBUS received, therefore the charger goes into charge mode\n");
@@ -1299,7 +1299,7 @@ static int rt9455_usb_event_vbus(struct rt9455_info *info,
 					 RT9455_CHARGE_MODE);
 		if (ret) {
 			dev_err(dev, "Failed to set charger in charge mode\n");
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 	}
 
@@ -1309,11 +1309,11 @@ static int rt9455_usb_event_vbus(struct rt9455_info *info,
 					 RT9455_IAICR_500MA);
 		if (ret) {
 			dev_err(dev, "Failed to set IAICR value\n");
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int rt9455_usb_event_id(struct rt9455_info *info,
@@ -1339,7 +1339,7 @@ static int rt9455_usb_event_id(struct rt9455_info *info,
 					 RT9455_BOOST_MODE);
 		if (ret) {
 			dev_err(dev, "Failed to set charger in boost mode\n");
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 	}
 
@@ -1349,11 +1349,11 @@ static int rt9455_usb_event_id(struct rt9455_info *info,
 					 RT9455_IAICR_100MA);
 		if (ret) {
 			dev_err(dev, "Failed to set IAICR value\n");
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int rt9455_usb_event_charger(struct rt9455_info *info,
@@ -1371,7 +1371,7 @@ static int rt9455_usb_event_charger(struct rt9455_info *info,
 		/*
 		 * If the charger is in boost mode, and it has received
 		 * USB_EVENT_CHARGER, this means the consumer device powered by
-		 * the charger is not connected anymore.
+		 * the charger is analt connected anymore.
 		 * In this case, the charger goes into charge mode.
 		 */
 		dev_dbg(dev, "USB_EVENT_CHARGER received, therefore the charger goes into charge mode\n");
@@ -1379,24 +1379,24 @@ static int rt9455_usb_event_charger(struct rt9455_info *info,
 					 RT9455_CHARGE_MODE);
 		if (ret) {
 			dev_err(dev, "Failed to set charger in charge mode\n");
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 	}
 
-	dev_dbg(dev, "USB_EVENT_CHARGER received, therefore IAICR is set to no current limit\n");
-	if (iaicr != RT9455_IAICR_NO_LIMIT) {
+	dev_dbg(dev, "USB_EVENT_CHARGER received, therefore IAICR is set to anal current limit\n");
+	if (iaicr != RT9455_IAICR_ANAL_LIMIT) {
 		ret = regmap_field_write(info->regmap_fields[F_IAICR],
-					 RT9455_IAICR_NO_LIMIT);
+					 RT9455_IAICR_ANAL_LIMIT);
 		if (ret) {
 			dev_err(dev, "Failed to set IAICR value\n");
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static int rt9455_usb_event(struct notifier_block *nb,
+static int rt9455_usb_event(struct analtifier_block *nb,
 			    unsigned long event, void *power)
 {
 	struct rt9455_info *info = container_of(nb, struct rt9455_info, nb);
@@ -1412,20 +1412,20 @@ static int rt9455_usb_event(struct notifier_block *nb,
 				&opa_mode);
 	if (ret) {
 		dev_err(dev, "Failed to read OPA_MODE value\n");
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	ret = regmap_field_read(info->regmap_fields[F_IAICR],
 				&iaicr);
 	if (ret) {
 		dev_err(dev, "Failed to read IAICR value\n");
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	dev_dbg(dev, "Received USB event %lu\n", event);
 	switch (event) {
-	case USB_EVENT_NONE:
-		return rt9455_usb_event_none(info, opa_mode, iaicr);
+	case USB_EVENT_ANALNE:
+		return rt9455_usb_event_analne(info, opa_mode, iaicr);
 	case USB_EVENT_VBUS:
 		return rt9455_usb_event_vbus(info, opa_mode, iaicr);
 	case USB_EVENT_ID:
@@ -1433,9 +1433,9 @@ static int rt9455_usb_event(struct notifier_block *nb,
 	case USB_EVENT_CHARGER:
 		return rt9455_usb_event_charger(info, opa_mode, iaicr);
 	default:
-		dev_err(dev, "Unknown USB event\n");
+		dev_err(dev, "Unkanalwn USB event\n");
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 #endif
 
@@ -1471,7 +1471,7 @@ static void rt9455_pwr_rdy_work_callback(struct work_struct *work)
 		break;
 	}
 	/*
-	 * Notify userspace that the charger has been either connected to or
+	 * Analtify userspace that the charger has been either connected to or
 	 * disconnected from the power source.
 	 */
 	power_supply_changed(info->charger);
@@ -1484,7 +1484,7 @@ static void rt9455_max_charging_time_work_callback(struct work_struct *work)
 	struct device *dev = &info->client->dev;
 	int ret;
 
-	dev_err(dev, "Battery has been charging for at least 6 hours and is not yet fully charged. Battery is dead, therefore charging is disabled.\n");
+	dev_err(dev, "Battery has been charging for at least 6 hours and is analt yet fully charged. Battery is dead, therefore charging is disabled.\n");
 	ret = regmap_field_write(info->regmap_fields[F_CHG_EN],
 				 RT9455_CHARGE_DISABLE);
 	if (ret)
@@ -1531,7 +1531,7 @@ static void rt9455_batt_presence_work_callback(struct work_struct *work)
 				dev_err(dev, "Failed to unmask BATAB interrupt\n");
 		}
 		/*
-		 * Notify userspace that the battery is now connected to the
+		 * Analtify userspace that the battery is analw connected to the
 		 * charger.
 		 */
 		power_supply_changed(info->charger);
@@ -1597,12 +1597,12 @@ static int rt9455_probe(struct i2c_client *client)
 	int i, ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(dev, "No support for SMBUS_BYTE_DATA\n");
-		return -ENODEV;
+		dev_err(dev, "Anal support for SMBUS_BYTE_DATA\n");
+		return -EANALDEV;
 	}
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->client = client;
 	i2c_set_clientdata(client, info);
@@ -1637,15 +1637,15 @@ static int rt9455_probe(struct i2c_client *client)
 	if (IS_ERR(info->usb_phy)) {
 		dev_err(dev, "Failed to get USB transceiver\n");
 	} else {
-		info->nb.notifier_call = rt9455_usb_event;
-		ret = usb_register_notifier(info->usb_phy, &info->nb);
+		info->nb.analtifier_call = rt9455_usb_event;
+		ret = usb_register_analtifier(info->usb_phy, &info->nb);
 		if (ret) {
-			dev_err(dev, "Failed to register USB notifier\n");
+			dev_err(dev, "Failed to register USB analtifier\n");
 			/*
-			 * If usb_register_notifier() fails, set notifier_call
-			 * to NULL, to avoid calling usb_unregister_notifier().
+			 * If usb_register_analtifier() fails, set analtifier_call
+			 * to NULL, to avoid calling usb_unregister_analtifier().
 			 */
-			info->nb.notifier_call = NULL;
+			info->nb.analtifier_call = NULL;
 		}
 	}
 #endif
@@ -1656,7 +1656,7 @@ static int rt9455_probe(struct i2c_client *client)
 	INIT_DEFERRABLE_WORK(&info->batt_presence_work,
 			     rt9455_batt_presence_work_callback);
 
-	rt9455_charger_config.of_node		= dev->of_node;
+	rt9455_charger_config.of_analde		= dev->of_analde;
 	rt9455_charger_config.drv_data		= info;
 	rt9455_charger_config.supplied_to	= rt9455_charger_supplied_to;
 	rt9455_charger_config.num_supplicants	=
@@ -1667,13 +1667,13 @@ static int rt9455_probe(struct i2c_client *client)
 					RT9455_DRIVER_NAME, info);
 	if (ret) {
 		dev_err(dev, "Failed to register IRQ handler\n");
-		goto put_usb_notifier;
+		goto put_usb_analtifier;
 	}
 
 	ret = rt9455_hw_init(info, ichrg, ieoc_percentage, mivr, iaicr);
 	if (ret) {
 		dev_err(dev, "Failed to set charger to its default values\n");
-		goto put_usb_notifier;
+		goto put_usb_analtifier;
 	}
 
 	info->charger = devm_power_supply_register(dev, &rt9455_charger_desc,
@@ -1681,16 +1681,16 @@ static int rt9455_probe(struct i2c_client *client)
 	if (IS_ERR(info->charger)) {
 		dev_err(dev, "Failed to register charger\n");
 		ret = PTR_ERR(info->charger);
-		goto put_usb_notifier;
+		goto put_usb_analtifier;
 	}
 
 	return 0;
 
-put_usb_notifier:
+put_usb_analtifier:
 #if IS_ENABLED(CONFIG_USB_PHY)
-	if (info->nb.notifier_call)  {
-		usb_unregister_notifier(info->usb_phy, &info->nb);
-		info->nb.notifier_call = NULL;
+	if (info->nb.analtifier_call)  {
+		usb_unregister_analtifier(info->usb_phy, &info->nb);
+		info->nb.analtifier_call = NULL;
 	}
 #endif
 	return ret;
@@ -1706,8 +1706,8 @@ static void rt9455_remove(struct i2c_client *client)
 		dev_err(&info->client->dev, "Failed to set charger to its default values\n");
 
 #if IS_ENABLED(CONFIG_USB_PHY)
-	if (info->nb.notifier_call)
-		usb_unregister_notifier(info->usb_phy, &info->nb);
+	if (info->nb.analtifier_call)
+		usb_unregister_analtifier(info->usb_phy, &info->nb);
 #endif
 
 	cancel_delayed_work_sync(&info->pwr_rdy_work);

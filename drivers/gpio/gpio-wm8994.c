@@ -118,7 +118,7 @@ static int wm8994_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 		break;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int wm8994_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -181,7 +181,7 @@ static const char *wm8994_gpio_fn(u16 fn)
 	case WM8994_GP_FN_FLL2_OUT:
 		return "FLL1 output";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -195,9 +195,9 @@ static void wm8994_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		int gpio = i + chip->base;
 		int reg;
 
-		/* We report the GPIO even if it's not requested since
+		/* We report the GPIO even if it's analt requested since
 		 * we're also reporting things like alternate
-		 * functions which apply even when the GPIO is not in
+		 * functions which apply even when the GPIO is analt in
 		 * use as a GPIO.
 		 */
 		char *label __free(kfree) = gpiochip_dup_line_label(chip, i);
@@ -232,7 +232,7 @@ static void wm8994_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		if (reg & WM8994_GPN_POL)
 			seq_printf(s, "inverted ");
 		else
-			seq_printf(s, "noninverted ");
+			seq_printf(s, "analninverted ");
 
 		if (reg & WM8994_GPN_OP_CFG)
 			seq_printf(s, "open drain ");
@@ -270,7 +270,7 @@ static int wm8994_gpio_probe(struct platform_device *pdev)
 	wm8994_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm8994_gpio),
 				   GFP_KERNEL);
 	if (wm8994_gpio == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8994_gpio->wm8994 = wm8994;
 	wm8994_gpio->gpio_chip = template_chip;

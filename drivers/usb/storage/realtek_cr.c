@@ -6,7 +6,7 @@
  *
  * Author:
  *   wwang (wei_wang@realsil.com.cn)
- *   No. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
+ *   Anal. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
  */
 
 #include <linux/module.h>
@@ -269,7 +269,7 @@ static int rts51x_bulk_transport(struct us_data *us, u8 lun,
 	/* based on the status code, we report good or bad */
 	switch (bcs->Status) {
 	case US_BULK_STAT_OK:
-		/* command good -- note that data could be short */
+		/* command good -- analte that data could be short */
 		return USB_STOR_TRANSPORT_GOOD;
 
 	case US_BULK_STAT_FAIL:
@@ -278,7 +278,7 @@ static int rts51x_bulk_transport(struct us_data *us, u8 lun,
 
 	case US_BULK_STAT_PHASE:
 		/*
-		 * phase error -- note that a transport reset will be
+		 * phase error -- analte that a transport reset will be
 		 * invoked by the invoke_transport() function
 		 */
 		return USB_STOR_TRANSPORT_ERROR;
@@ -363,9 +363,9 @@ static int rts51x_read_mem(struct us_data *us, u16 addr, u8 *data, u16 len)
 	u8 cmnd[12] = { 0 };
 	u8 *buf;
 
-	buf = kmalloc(len, GFP_NOIO);
+	buf = kmalloc(len, GFP_ANALIO);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_stor_dbg(us, "addr = 0x%x, len = %d\n", addr, len);
 
@@ -394,7 +394,7 @@ static int rts51x_write_mem(struct us_data *us, u16 addr, u8 *data, u16 len)
 	u8 cmnd[12] = { 0 };
 	u8 *buf;
 
-	buf = kmemdup(data, len, GFP_NOIO);
+	buf = kmemdup(data, len, GFP_ANALIO);
 	if (buf == NULL)
 		return USB_STOR_TRANSPORT_ERROR;
 
@@ -423,7 +423,7 @@ static int rts51x_read_status(struct us_data *us,
 	u8 cmnd[12] = { 0 };
 	u8 *buf;
 
-	buf = kmalloc(len, GFP_NOIO);
+	buf = kmalloc(len, GFP_ANALIO);
 	if (buf == NULL)
 		return USB_STOR_TRANSPORT_ERROR;
 
@@ -507,7 +507,7 @@ static int __do_config_autodelink(struct us_data *us, u8 *data, u16 len)
 
 	usb_stor_dbg(us, "addr = 0xfe47, len = %d\n", len);
 
-	buf = kmemdup(data, len, GFP_NOIO);
+	buf = kmemdup(data, len, GFP_ANALIO);
 	if (!buf)
 		return USB_STOR_TRANSPORT_ERROR;
 
@@ -699,7 +699,7 @@ static void fw5895_init(struct us_data *us)
 	u8 val;
 
 	if ((PRODUCT_ID(chip) != 0x0158) || (FW_VERSION(chip) != 0x5895)) {
-		usb_stor_dbg(us, "Not the specified device, return immediately!\n");
+		usb_stor_dbg(us, "Analt the specified device, return immediately!\n");
 	} else {
 		retval = rts51x_read_mem(us, 0xFD6F, &val, 1);
 		if (retval == STATUS_SUCCESS && (val & 0x1F) == 0) {
@@ -722,7 +722,7 @@ static void fw5895_set_mmc_wp(struct us_data *us)
 	u8 buf[13];
 
 	if ((PRODUCT_ID(chip) != 0x0158) || (FW_VERSION(chip) != 0x5895)) {
-		usb_stor_dbg(us, "Not the specified device, return immediately!\n");
+		usb_stor_dbg(us, "Analt the specified device, return immediately!\n");
 	} else {
 		retval = rts51x_read_mem(us, 0xFD6F, buf, 1);
 		if (retval == STATUS_SUCCESS && (buf[0] & 0x24) == 0x24) {
@@ -770,15 +770,15 @@ static void rts51x_suspend_timer_fn(struct timer_list *t)
 		if (atomic_read(&us->pusb_intf->dev.power.usage_count) > 0) {
 			usb_stor_dbg(us, "Ready to enter SS state\n");
 			rts51x_set_stat(chip, RTS51X_STAT_SS);
-			/* ignore mass storage interface's children */
-			pm_suspend_ignore_children(&us->pusb_intf->dev, true);
+			/* iganalre mass storage interface's children */
+			pm_suspend_iganalre_children(&us->pusb_intf->dev, true);
 			usb_autopm_put_interface_async(us->pusb_intf);
 			usb_stor_dbg(us, "RTS51X_STAT_SS 01, power.usage:%d\n",
 				     atomic_read(&us->pusb_intf->dev.power.usage_count));
 		}
 		break;
 	default:
-		usb_stor_dbg(us, "Unknown state !!!\n");
+		usb_stor_dbg(us, "Unkanalwn state !!!\n");
 		break;
 	}
 }
@@ -797,7 +797,7 @@ static void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	struct rts51x_chip *chip = (struct rts51x_chip *)(us->extra);
 	static int card_first_show = 1;
-	static u8 media_not_present[] = { 0x70, 0, 0x02, 0, 0, 0, 0,
+	static u8 media_analt_present[] = { 0x70, 0, 0x02, 0, 0, 0, 0,
 		10, 0, 0, 0, 0, 0x3A, 0, 0, 0, 0, 0
 	};
 	static u8 invalid_cmd_field[] = { 0x70, 0, 0x05, 0, 0, 0, 0,
@@ -818,7 +818,7 @@ static void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		chip->proto_handler_backup(srb, us);
 	} else {
 		if (rts51x_get_stat(chip) == RTS51X_STAT_SS) {
-			usb_stor_dbg(us, "NOT working scsi\n");
+			usb_stor_dbg(us, "ANALT working scsi\n");
 			if ((srb->cmnd[0] == TEST_UNIT_READY) &&
 			    (chip->pwr_state == US_SUSPEND)) {
 				if (TST_LUN_READY(chip, srb->device->lun)) {
@@ -826,7 +826,7 @@ static void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 				} else {
 					srb->result = SAM_STAT_CHECK_CONDITION;
 					memcpy(srb->sense_buffer,
-					       media_not_present,
+					       media_analt_present,
 					       US_SENSE_SIZE);
 				}
 				usb_stor_dbg(us, "TEST_UNIT_READY\n");
@@ -846,7 +846,7 @@ static void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 				goto out;
 			}
 		} else {
-			usb_stor_dbg(us, "NOT working scsi, not SS\n");
+			usb_stor_dbg(us, "ANALT working scsi, analt SS\n");
 			chip->proto_handler_backup(srb, us);
 			/* Check whether card is plugged in */
 			if (srb->cmnd[0] == TEST_UNIT_READY) {
@@ -946,7 +946,7 @@ static int realtek_cr_suspend(struct usb_interface *iface, pm_message_t message)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
-	/* wait until no command is running */
+	/* wait until anal command is running */
 	mutex_lock(&us->dev_mutex);
 
 	config_autodelink_before_power_down(us);
@@ -977,7 +977,7 @@ static int init_realtek_cr(struct us_data *us)
 
 	chip = kzalloc(sizeof(struct rts51x_chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	us->extra = chip;
 	us->extra_destructor = realtek_cr_destructor;
@@ -1064,7 +1064,7 @@ static struct usb_driver realtek_cr_driver = {
 	.id_table = realtek_cr_ids,
 	.soft_unbind = 1,
 	.supports_autosuspend = 1,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 };
 
 module_usb_stor_driver(realtek_cr_driver, realtek_cr_host_template, DRV_NAME);

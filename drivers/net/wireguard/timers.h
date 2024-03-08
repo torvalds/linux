@@ -21,10 +21,10 @@ void wg_timers_handshake_complete(struct wg_peer *peer);
 void wg_timers_session_derived(struct wg_peer *peer);
 void wg_timers_any_authenticated_packet_traversal(struct wg_peer *peer);
 
-static inline bool wg_birthdate_has_expired(u64 birthday_nanoseconds,
+static inline bool wg_birthdate_has_expired(u64 birthday_naanalseconds,
 					    u64 expiration_seconds)
 {
-	return (s64)(birthday_nanoseconds + expiration_seconds * NSEC_PER_SEC)
+	return (s64)(birthday_naanalseconds + expiration_seconds * NSEC_PER_SEC)
 		<= (s64)ktime_get_coarse_boottime_ns();
 }
 

@@ -4,7 +4,7 @@
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  *
- * Copyright (C) 2015 Paradox Innovation Ltd.
+ * Copyright (C) 2015 Paradox Inanalvation Ltd.
  */
 
 #include <linux/clk.h>
@@ -30,11 +30,11 @@
 #define II_CMD_RESTART		2
 #define II_CMD_SEND_ACK		3
 #define II_CMD_GET_ACK		6
-#define II_CMD_GET_NOACK	7
+#define II_CMD_GET_ANALACK	7
 #define II_CMD_STOP		10
 #define II_COMMAND_GO		BIT(7)
 #define II_COMMAND_COMPLETION_STATUS(r)	(((r) >> 5) & 3)
-#define II_CMD_STATUS_NORMAL	0
+#define II_CMD_STATUS_ANALRMAL	0
 #define II_CMD_STATUS_ACK_GOOD	1
 #define II_CMD_STATUS_ACK_BAD	2
 #define II_CMD_STATUS_ABORT	3
@@ -103,7 +103,7 @@ static void dc_i2c_next_read(struct dc_i2c *i2c)
 {
 	bool last = (i2c->msgbuf_ptr + 1 == i2c->msg->len);
 
-	dc_i2c_cmd(i2c, last ? II_CMD_GET_NOACK : II_CMD_GET_ACK);
+	dc_i2c_cmd(i2c, last ? II_CMD_GET_ANALACK : II_CMD_GET_ACK);
 }
 
 static void dc_i2c_stop(struct dc_i2c *i2c)
@@ -144,7 +144,7 @@ static void dc_i2c_start_msg(struct dc_i2c *i2c, int first)
 {
 	struct i2c_msg *msg = i2c->msg;
 
-	if (!(msg->flags & I2C_M_NOSTART)) {
+	if (!(msg->flags & I2C_M_ANALSTART)) {
 		i2c->state = STATE_START;
 		dc_i2c_cmd(i2c, first ? II_CMD_START : II_CMD_RESTART);
 	} else if (msg->flags & I2C_M_RD) {
@@ -277,7 +277,7 @@ static int dc_i2c_init_hw(struct dc_i2c *i2c)
 
 static u32 dc_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_NOSTART;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_ANALSTART;
 }
 
 static const struct i2c_algorithm dc_i2c_algorithm = {
@@ -287,15 +287,15 @@ static const struct i2c_algorithm dc_i2c_algorithm = {
 
 static int dc_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct dc_i2c *i2c;
 	int ret = 0, irq;
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct dc_i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	if (of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 				 &i2c->frequency))
 		i2c->frequency = I2C_MAX_STANDARD_MODE_FREQ;
 
@@ -327,7 +327,7 @@ static int dc_i2c_probe(struct platform_device *pdev)
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &dc_i2c_algorithm;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = np;
+	i2c->adap.dev.of_analde = np;
 	i2c->adap.algo_data = i2c;
 
 	ret = dc_i2c_init_hw(i2c);

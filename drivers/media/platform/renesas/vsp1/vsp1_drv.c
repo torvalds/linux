@@ -47,7 +47,7 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 	u32 mask = VI6_WPF_IRQ_STA_DFE | VI6_WPF_IRQ_STA_FRE |
 		   VI6_WPF_IRQ_STA_UND;
 	struct vsp1_device *vsp1 = data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	unsigned int i;
 	u32 status;
 
@@ -89,11 +89,11 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
  * are skipped. Those include all links
  *
  * - from a UDS to a UDS (UDS entities can't be chained)
- * - from an entity to itself (no loops are allowed)
+ * - from an entity to itself (anal loops are allowed)
  *
- * Furthermore, the BRS can't be connected to histogram generators, but no
+ * Furthermore, the BRS can't be connected to histogram generators, but anal
  * special check is currently needed as all VSP instances that include a BRS
- * have no histogram generator.
+ * have anal histogram generator.
  */
 static int vsp1_create_sink_links(struct vsp1_device *vsp1,
 				  struct vsp1_entity *sink)
@@ -463,7 +463,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	/*
-	 * Create links and register subdev nodes if the userspace API is
+	 * Create links and register subdev analdes if the userspace API is
 	 * enabled or initialize the DRM pipeline otherwise.
 	 */
 	if (vsp1->info->uapi) {
@@ -471,7 +471,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		if (ret < 0)
 			goto done;
 
-		ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
+		ret = v4l2_device_register_subdev_analdes(&vsp1->v4l2_dev);
 		if (ret < 0)
 			goto done;
 
@@ -529,28 +529,28 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 		   (8 << VI6_CLK_DCSWT_CSTRW_SHIFT));
 
 	for (i = 0; i < vsp1->info->rpf_count; ++i)
-		vsp1_write(vsp1, VI6_DPR_RPF_ROUTE(i), VI6_DPR_NODE_UNUSED);
+		vsp1_write(vsp1, VI6_DPR_RPF_ROUTE(i), VI6_DPR_ANALDE_UNUSED);
 
 	for (i = 0; i < vsp1->info->uds_count; ++i)
-		vsp1_write(vsp1, VI6_DPR_UDS_ROUTE(i), VI6_DPR_NODE_UNUSED);
+		vsp1_write(vsp1, VI6_DPR_UDS_ROUTE(i), VI6_DPR_ANALDE_UNUSED);
 
 	for (i = 0; i < vsp1->info->uif_count; ++i)
-		vsp1_write(vsp1, VI6_DPR_UIF_ROUTE(i), VI6_DPR_NODE_UNUSED);
+		vsp1_write(vsp1, VI6_DPR_UIF_ROUTE(i), VI6_DPR_ANALDE_UNUSED);
 
-	vsp1_write(vsp1, VI6_DPR_SRU_ROUTE, VI6_DPR_NODE_UNUSED);
-	vsp1_write(vsp1, VI6_DPR_LUT_ROUTE, VI6_DPR_NODE_UNUSED);
-	vsp1_write(vsp1, VI6_DPR_CLU_ROUTE, VI6_DPR_NODE_UNUSED);
-	vsp1_write(vsp1, VI6_DPR_HST_ROUTE, VI6_DPR_NODE_UNUSED);
-	vsp1_write(vsp1, VI6_DPR_HSI_ROUTE, VI6_DPR_NODE_UNUSED);
-	vsp1_write(vsp1, VI6_DPR_BRU_ROUTE, VI6_DPR_NODE_UNUSED);
+	vsp1_write(vsp1, VI6_DPR_SRU_ROUTE, VI6_DPR_ANALDE_UNUSED);
+	vsp1_write(vsp1, VI6_DPR_LUT_ROUTE, VI6_DPR_ANALDE_UNUSED);
+	vsp1_write(vsp1, VI6_DPR_CLU_ROUTE, VI6_DPR_ANALDE_UNUSED);
+	vsp1_write(vsp1, VI6_DPR_HST_ROUTE, VI6_DPR_ANALDE_UNUSED);
+	vsp1_write(vsp1, VI6_DPR_HSI_ROUTE, VI6_DPR_ANALDE_UNUSED);
+	vsp1_write(vsp1, VI6_DPR_BRU_ROUTE, VI6_DPR_ANALDE_UNUSED);
 
 	if (vsp1_feature(vsp1, VSP1_HAS_BRS))
-		vsp1_write(vsp1, VI6_DPR_ILV_BRS_ROUTE, VI6_DPR_NODE_UNUSED);
+		vsp1_write(vsp1, VI6_DPR_ILV_BRS_ROUTE, VI6_DPR_ANALDE_UNUSED);
 
 	vsp1_write(vsp1, VI6_DPR_HGO_SMPPT, (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
-		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
+		   (VI6_DPR_ANALDE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 	vsp1_write(vsp1, VI6_DPR_HGT_SMPPT, (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
-		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
+		   (VI6_DPR_ANALDE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 
 	vsp1_dlm_setup(vsp1);
 
@@ -570,7 +570,7 @@ static void vsp1_mask_all_interrupts(struct vsp1_device *vsp1)
 /*
  * vsp1_device_get - Acquire the VSP1 device
  *
- * Make sure the device is not suspended and initialize it if needed.
+ * Make sure the device is analt suspended and initialize it if needed.
  *
  * Return 0 on success or a negative error code otherwise.
  */
@@ -809,7 +809,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.model = "VSP2-D",
 		.soc = VI6_IP_VERSION_SOC_V3M,
 		.gen = 3,
-		.features = VSP1_HAS_BRS | VSP1_HAS_BRU | VSP1_HAS_NON_ZERO_LBA,
+		.features = VSP1_HAS_BRS | VSP1_HAS_BRU | VSP1_HAS_ANALN_ZERO_LBA,
 		.lif_count = 1,
 		.rpf_count = 5,
 		.uif_count = 1,
@@ -844,7 +844,7 @@ static const struct vsp1_device_info rzg2l_vsp2_device_info = {
 	.soc = VI6_IP_VERSION_SOC_RZG2L,
 	.gen = 3,
 	.features = VSP1_HAS_BRS | VSP1_HAS_WPF_VFLIP | VSP1_HAS_EXT_DL
-		  | VSP1_HAS_NON_ZERO_LBA,
+		  | VSP1_HAS_ANALN_ZERO_LBA,
 	.lif_count = 1,
 	.rpf_count = 2,
 	.wpf_count = 1,
@@ -886,13 +886,13 @@ static const struct vsp1_device_info *vsp1_lookup_info(struct vsp1_device *vsp1)
 static int vsp1_probe(struct platform_device *pdev)
 {
 	struct vsp1_device *vsp1;
-	struct device_node *fcp_node;
+	struct device_analde *fcp_analde;
 	int ret;
 	int irq;
 
 	vsp1 = devm_kzalloc(&pdev->dev, sizeof(*vsp1), GFP_KERNEL);
 	if (vsp1 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vsp1->dev = &pdev->dev;
 	INIT_LIST_HEAD(&vsp1->entities);
@@ -915,12 +915,12 @@ static int vsp1_probe(struct platform_device *pdev)
 				     "failed to get reset control\n");
 
 	/* FCP (optional). */
-	fcp_node = of_parse_phandle(pdev->dev.of_node, "renesas,fcp", 0);
-	if (fcp_node) {
-		vsp1->fcp = rcar_fcp_get(fcp_node);
-		of_node_put(fcp_node);
+	fcp_analde = of_parse_phandle(pdev->dev.of_analde, "renesas,fcp", 0);
+	if (fcp_analde) {
+		vsp1->fcp = rcar_fcp_get(fcp_analde);
+		of_analde_put(fcp_analde);
 		if (IS_ERR(vsp1->fcp)) {
-			dev_dbg(&pdev->dev, "FCP not found (%ld)\n",
+			dev_dbg(&pdev->dev, "FCP analt found (%ld)\n",
 				PTR_ERR(vsp1->fcp));
 			return PTR_ERR(vsp1->fcp);
 		}

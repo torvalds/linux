@@ -7,7 +7,7 @@
  *
  * Based on sun5i-ir.c:
  * Copyright (C) 2007-2012 Daniel Wang
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techanallogy Co., Ltd. <www.allwinnertech.com>
  */
 
 #include <linux/clk.h>
@@ -65,15 +65,15 @@
 
 /* IR Sample Config */
 #define SUNXI_IR_CIR_REG      0x34
-/* CIR_REG register noise threshold */
+/* CIR_REG register analise threshold */
 #define REG_CIR_NTHR(val)    (((val) << 2) & (GENMASK(7, 2)))
 /* CIR_REG register idle threshold */
 #define REG_CIR_ITHR(val)    (((val) << 8) & (GENMASK(15, 8)))
 
 /* Required frequency for IR0 or IR1 clock in CIR mode (default) */
 #define SUNXI_IR_BASE_CLK     8000000
-/* Noise threshold in samples  */
-#define SUNXI_IR_RXNOISE      1
+/* Analise threshold in samples  */
+#define SUNXI_IR_RXANALISE      1
 
 /**
  * struct sunxi_ir_quirks - Differences between SoC variants.
@@ -97,7 +97,7 @@ struct sunxi_ir {
 	const char      *map_name;
 };
 
-static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
+static irqreturn_t sunxi_ir_irq(int irqanal, void *dev_id)
 {
 	unsigned long status;
 	unsigned char dt;
@@ -161,8 +161,8 @@ static int sunxi_ir_set_timeout(struct rc_dev *rc_dev, unsigned int timeout)
 
 	dev_dbg(rc_dev->dev.parent, "setting idle threshold to %u\n", ithr);
 
-	/* Set noise threshold and idle threshold */
-	writel(REG_CIR_NTHR(SUNXI_IR_RXNOISE) | REG_CIR_ITHR(ithr),
+	/* Set analise threshold and idle threshold */
+	writel(REG_CIR_NTHR(SUNXI_IR_RXANALISE) | REG_CIR_ITHR(ithr),
 	       ir->base + SUNXI_IR_CIR_REG);
 
 	rc_dev->timeout = sunxi_ithr_to_usec(base_clk, ithr);
@@ -195,7 +195,7 @@ static int sunxi_ir_hw_init(struct device *dev)
 	/* Enable CIR Mode */
 	writel(REG_CTL_MD, ir->base + SUNXI_IR_CTL_REG);
 
-	/* Set noise threshold and idle threshold */
+	/* Set analise threshold and idle threshold */
 	sunxi_ir_set_timeout(ir->rc, ir->rc->timeout);
 
 	/* Invert Input Signal */
@@ -254,19 +254,19 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
+	struct device_analde *dn = dev->of_analde;
 	const struct sunxi_ir_quirks *quirks;
 	struct sunxi_ir *ir;
 	u32 b_clk_freq = SUNXI_IR_BASE_CLK;
 
 	ir = devm_kzalloc(dev, sizeof(struct sunxi_ir), GFP_KERNEL);
 	if (!ir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	quirks = of_device_get_match_data(&pdev->dev);
 	if (!quirks) {
 		dev_err(&pdev->dev, "Failed to determine the quirks to use\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ir->fifo_size = quirks->fifo_size;
@@ -309,7 +309,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	ir->rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir->rc) {
 		dev_err(dev, "failed to allocate device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ir->rc->priv = ir;

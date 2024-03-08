@@ -2,7 +2,7 @@
 /*
  * omap_hwmod_2430_data.c - hardware modules present on the OMAP2430 chips
  *
- * Copyright (C) 2009-2011 Nokia Corporation
+ * Copyright (C) 2009-2011 Analkia Corporation
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
  *
@@ -75,9 +75,9 @@ static struct omap_hwmod omap2430_i2c1_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			/*
-			 * NOTE: The CM_FCLKEN* and CM_ICLKEN* for
-			 * I2CHS IP's do not follow the usual pattern.
-			 * prcm_reg_id alone cannot be used to program
+			 * ANALTE: The CM_FCLKEN* and CM_ICLKEN* for
+			 * I2CHS IP's do analt follow the usual pattern.
+			 * prcm_reg_id alone cananalt be used to program
 			 * the iclk and fclk. Needs to be handled using
 			 * additional flags when clk handling is moved
 			 * to hwmod framework.
@@ -156,8 +156,8 @@ static struct omap_hwmod_class_sysconfig omap2430_usbhsotg_sysc = {
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE|
 			  SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			  SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			  MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART |
+			  MSTANDBY_FORCE | MSTANDBY_ANAL | MSTANDBY_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -183,7 +183,7 @@ static struct omap_hwmod omap2430_usbhsotg_hwmod = {
 	 * broken when autoidle is enabled
 	 * workaround is to disable the autoidle bit at module level.
 	 */
-	.flags		= HWMOD_NO_OCP_AUTOIDLE | HWMOD_SWSUP_SIDLE
+	.flags		= HWMOD_ANAL_OCP_AUTOIDLE | HWMOD_SWSUP_SIDLE
 				| HWMOD_SWSUP_MSTANDBY,
 };
 
@@ -297,7 +297,7 @@ static struct omap_hwmod_class_sysconfig omap2430_mmc_sysc = {
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
 

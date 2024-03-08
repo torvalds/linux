@@ -62,7 +62,7 @@ struct dsa_port;
 struct ip_tunnel_parm;
 struct macsec_context;
 struct macsec_ops;
-struct netdev_name_node;
+struct netdev_name_analde;
 struct sd_flow_limit;
 struct sfp_bus;
 /* 802.11 specific */
@@ -99,13 +99,13 @@ void netdev_sw_irq_coalesce_default_on(struct net_device *dev);
  *
  * - qdisc return codes
  * - driver transmit return codes
- * - errno values
+ * - erranal values
  *
  * Drivers are allowed to return any one of those in their hard_start_xmit()
  * function. Real network devices commonly used with qdiscs should only return
  * the driver transmit return codes though - when qdiscs are used, the actual
- * transmission happens asynchronously, so the value is not propagated to
- * higher layers. Virtual network devices transmit synchronously; in this case
+ * transmission happens asynchroanalusly, so the value is analt propagated to
+ * higher layers. Virtual network devices transmit synchroanalusly; in this case
  * the driver transmit return codes are consumed by dev_queue_xmit(), and all
  * others are propagated to higher layers.
  */
@@ -113,14 +113,14 @@ void netdev_sw_irq_coalesce_default_on(struct net_device *dev);
 /* qdisc ->enqueue() return codes. */
 #define NET_XMIT_SUCCESS	0x00
 #define NET_XMIT_DROP		0x01	/* skb dropped			*/
-#define NET_XMIT_CN		0x02	/* congestion notification	*/
+#define NET_XMIT_CN		0x02	/* congestion analtification	*/
 #define NET_XMIT_MASK		0x0f	/* qdisc flags in net/sch_generic.h */
 
-/* NET_XMIT_CN is special. It does not guarantee that this packet is lost. It
+/* NET_XMIT_CN is special. It does analt guarantee that this packet is lost. It
  * indicates that the device will soon be dropping packets, or already drops
  * some packets of the same priority; prompting us to send less aggressively. */
 #define net_xmit_eval(e)	((e) == NET_XMIT_CN ? 0 : (e))
-#define net_xmit_errno(e)	((e) != NET_XMIT_CN ? -ENOBUFS : 0)
+#define net_xmit_erranal(e)	((e) != NET_XMIT_CN ? -EANALBUFS : 0)
 
 /* Driver transmit return codes */
 #define NETDEV_TX_MASK		0xf0
@@ -218,7 +218,7 @@ struct net_device_stats {
 struct net_device_core_stats {
 	unsigned long	rx_dropped;
 	unsigned long	tx_dropped;
-	unsigned long	rx_nohandler;
+	unsigned long	rx_analhandler;
 	unsigned long	rx_otherhost_dropped;
 } __aligned(4 * sizeof(unsigned long));
 
@@ -237,7 +237,7 @@ struct sk_buff;
 
 struct netdev_hw_addr {
 	struct list_head	list;
-	struct rb_node		node;
+	struct rb_analde		analde;
 	unsigned char		addr[MAX_ADDR_LEN];
 	unsigned char		type;
 #define NETDEV_HW_ADDR_T_LAN		1
@@ -322,14 +322,14 @@ struct header_ops {
 };
 
 /* These flag bits are private to the generic network queueing
- * layer; they may not be explicitly referenced by any other
+ * layer; they may analt be explicitly referenced by any other
  * code.
  */
 
 enum netdev_state_t {
 	__LINK_STATE_START,
 	__LINK_STATE_PRESENT,
-	__LINK_STATE_NOCARRIER,
+	__LINK_STATE_ANALCARRIER,
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
 	__LINK_STATE_TESTING,
@@ -372,14 +372,14 @@ struct napi_struct {
 	struct net_device	*dev;
 	struct gro_list		gro_hash[GRO_HASH_BUCKETS];
 	struct sk_buff		*skb;
-	struct list_head	rx_list; /* Pending GRO_NORMAL skbs */
+	struct list_head	rx_list; /* Pending GRO_ANALRMAL skbs */
 	int			rx_count; /* length of rx_list */
 	unsigned int		napi_id;
 	struct hrtimer		timer;
 	struct task_struct	*thread;
 	/* control-path-only fields follow */
 	struct list_head	dev_list;
-	struct hlist_node	napi_hash_node;
+	struct hlist_analde	napi_hash_analde;
 	int			irq;
 };
 
@@ -389,7 +389,7 @@ enum {
 	NAPI_STATE_DISABLE,		/* Disable pending */
 	NAPI_STATE_NPSVC,		/* Netpoll - don't dequeue from poll_list */
 	NAPI_STATE_LISTED,		/* NAPI added to system lists */
-	NAPI_STATE_NO_BUSY_POLL,	/* Do not add in napi_hash, no busy polling */
+	NAPI_STATE_ANAL_BUSY_POLL,	/* Do analt add in napi_hash, anal busy polling */
 	NAPI_STATE_IN_BUSY_POLL,	/* sk_busy_loop() owns this NAPI */
 	NAPI_STATE_PREFER_BUSY_POLL,	/* prefer busy-polling over softirq processing*/
 	NAPI_STATE_THREADED,		/* The poll is performed inside its own thread*/
@@ -402,7 +402,7 @@ enum {
 	NAPIF_STATE_DISABLE		= BIT(NAPI_STATE_DISABLE),
 	NAPIF_STATE_NPSVC		= BIT(NAPI_STATE_NPSVC),
 	NAPIF_STATE_LISTED		= BIT(NAPI_STATE_LISTED),
-	NAPIF_STATE_NO_BUSY_POLL	= BIT(NAPI_STATE_NO_BUSY_POLL),
+	NAPIF_STATE_ANAL_BUSY_POLL	= BIT(NAPI_STATE_ANAL_BUSY_POLL),
 	NAPIF_STATE_IN_BUSY_POLL	= BIT(NAPI_STATE_IN_BUSY_POLL),
 	NAPIF_STATE_PREFER_BUSY_POLL	= BIT(NAPI_STATE_PREFER_BUSY_POLL),
 	NAPIF_STATE_THREADED		= BIT(NAPI_STATE_THREADED),
@@ -413,19 +413,19 @@ enum gro_result {
 	GRO_MERGED,
 	GRO_MERGED_FREE,
 	GRO_HELD,
-	GRO_NORMAL,
+	GRO_ANALRMAL,
 	GRO_CONSUMED,
 };
 typedef enum gro_result gro_result_t;
 
 /*
  * enum rx_handler_result - Possible return values for rx_handlers.
- * @RX_HANDLER_CONSUMED: skb was consumed by rx_handler, do not process it
+ * @RX_HANDLER_CONSUMED: skb was consumed by rx_handler, do analt process it
  * further.
- * @RX_HANDLER_ANOTHER: Do another round in receive path. This is indicated in
+ * @RX_HANDLER_AANALTHER: Do aanalther round in receive path. This is indicated in
  * case skb->dev was changed by rx_handler.
- * @RX_HANDLER_EXACT: Force exact delivery, no wildcard.
- * @RX_HANDLER_PASS: Do nothing, pass the skb as if no rx_handler was called.
+ * @RX_HANDLER_EXACT: Force exact delivery, anal wildcard.
+ * @RX_HANDLER_PASS: Do analthing, pass the skb as if anal rx_handler was called.
  *
  * rx_handlers are functions called from inside __netif_receive_skb(), to do
  * special processing of the skb, prior to delivery to protocol handlers.
@@ -444,15 +444,15 @@ typedef enum gro_result gro_result_t;
  * RX_HANDLER_CONSUMED. This is appropriate when the rx_handler arranged for
  * the skb to be delivered in some other way.
  *
- * If the rx_handler changed skb->dev, to divert the skb to another
- * net_device, it should return RX_HANDLER_ANOTHER. The rx_handler for the
+ * If the rx_handler changed skb->dev, to divert the skb to aanalther
+ * net_device, it should return RX_HANDLER_AANALTHER. The rx_handler for the
  * new device will be called if it exists.
  *
- * If the rx_handler decides the skb should be ignored, it should return
+ * If the rx_handler decides the skb should be iganalred, it should return
  * RX_HANDLER_EXACT. The skb will only be delivered to protocol handlers that
  * are registered on exact device (ptype->dev == skb->dev).
  *
- * If the rx_handler didn't change skb->dev, but wants the skb to be normally
+ * If the rx_handler didn't change skb->dev, but wants the skb to be analrmally
  * delivered, it should return RX_HANDLER_PASS.
  *
  * A device without a registered rx_handler will behave as if rx_handler
@@ -461,7 +461,7 @@ typedef enum gro_result gro_result_t;
 
 enum rx_handler_result {
 	RX_HANDLER_CONSUMED,
-	RX_HANDLER_ANOTHER,
+	RX_HANDLER_AANALTHER,
 	RX_HANDLER_EXACT,
 	RX_HANDLER_PASS,
 };
@@ -485,12 +485,12 @@ static inline bool napi_prefer_busy_poll(struct napi_struct *n)
  * napi_is_scheduled - test if NAPI is scheduled
  * @n: NAPI context
  *
- * This check is "best-effort". With no locking implemented,
+ * This check is "best-effort". With anal locking implemented,
  * a NAPI can be scheduled or terminate right after this check
- * and produce not precise results.
+ * and produce analt precise results.
  *
  * NAPI_STATE_SCHED is an internal state, napi_is_scheduled
- * should not be used normally and napi_schedule should be
+ * should analt be used analrmally and napi_schedule should be
  * used instead.
  *
  * Use only if the driver really needs to check if a NAPI
@@ -510,11 +510,11 @@ bool napi_schedule_prep(struct napi_struct *n);
  *	napi_schedule - schedule NAPI poll
  *	@n: NAPI context
  *
- * Schedule NAPI poll routine to be called if it is not already
+ * Schedule NAPI poll routine to be called if it is analt already
  * running.
- * Return true if we schedule a NAPI or false if not.
+ * Return true if we schedule a NAPI or false if analt.
  * Refer to napi_schedule_prep() for additional reason on why
- * a NAPI might not be scheduled.
+ * a NAPI might analt be scheduled.
  */
 static inline bool napi_schedule(struct napi_struct *n)
 {
@@ -544,7 +544,7 @@ static inline void napi_schedule_irqoff(struct napi_struct *n)
  * @work_done: number of packets processed
  *
  * Mark NAPI processing as complete. Should only be called if poll budget
- * has not been completely consumed.
+ * has analt been completely consumed.
  * Prefer over napi_complete().
  * Return false if device should avoid rearming interrupts.
  */
@@ -569,12 +569,12 @@ void napi_disable(struct napi_struct *n);
 void napi_enable(struct napi_struct *n);
 
 /**
- *	napi_synchronize - wait until NAPI is not running
+ *	napi_synchronize - wait until NAPI is analt running
  *	@n: NAPI context
  *
  * Wait until NAPI is done being scheduled on this context.
  * Waits till any outstanding processing completes but
- * does not disable future activations.
+ * does analt disable future activations.
  */
 static inline void napi_synchronize(const struct napi_struct *n)
 {
@@ -633,7 +633,7 @@ enum netdev_queue_state_t {
  * __QUEUE_STATE_STACK_XOFF flag is used by the stack to stop the transmit
  * queue independently.  The netif_xmit_*stopped functions below are called
  * to check if the queue has been stopped by the driver or stack (either
- * of the XOFF bits are set in the state).  Drivers should not need to call
+ * of the XOFF bits are set in the state).  Drivers should analt need to call
  * netif_xmit*stopped functions, they should only be using netif_tx_*.
  */
 
@@ -650,7 +650,7 @@ struct netdev_queue {
 	struct kobject		kobj;
 #endif
 #if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
-	int			numa_node;
+	int			numa_analde;
 #endif
 	unsigned long		tx_maxrate;
 	/*
@@ -691,7 +691,7 @@ extern int sysctl_devconf_inherit_init_net;
 /*
  * sysctl_fb_tunnels_only_for_init_net == 0 : For all netns
  *                                     == 1 : For initns only
- *                                     == 2 : For none.
+ *                                     == 2 : For analne.
  */
 static inline bool net_has_fallback_tunnels(const struct net *net)
 {
@@ -714,19 +714,19 @@ static inline int net_inherit_devconf(void)
 #endif
 }
 
-static inline int netdev_queue_numa_node_read(const struct netdev_queue *q)
+static inline int netdev_queue_numa_analde_read(const struct netdev_queue *q)
 {
 #if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
-	return q->numa_node;
+	return q->numa_analde;
 #else
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 #endif
 }
 
-static inline void netdev_queue_numa_node_write(struct netdev_queue *q, int node)
+static inline void netdev_queue_numa_analde_write(struct netdev_queue *q, int analde)
 {
 #if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
-	q->numa_node = node;
+	q->numa_analde = analde;
 #endif
 }
 
@@ -752,7 +752,7 @@ struct rps_dev_flow {
 	u16 filter;
 	unsigned int last_qtail;
 };
-#define RPS_NO_FILTER 0xffff
+#define RPS_ANAL_FILTER 0xffff
 
 /*
  * The rps_dev_flow_table structure contains a table of flow mappings.
@@ -782,7 +782,7 @@ struct rps_sock_flow_table {
 };
 #define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (offsetof(struct rps_sock_flow_table, ents[_num]))
 
-#define RPS_NO_CPU 0xffff
+#define RPS_ANAL_CPU 0xffff
 
 extern u32 rps_cpu_mask;
 extern struct rps_sock_flow_table __rcu *rps_sock_flow_table;
@@ -798,7 +798,7 @@ static inline void rps_record_sock_flow(struct rps_sock_flow_table *table,
 		val |= raw_smp_processor_id();
 
 		/* The following WRITE_ONCE() is paired with the READ_ONCE()
-		 * here, and another one in get_rps_cpu().
+		 * here, and aanalther one in get_rps_cpu().
 		 */
 		if (READ_ONCE(table->ents[index]) != val)
 			WRITE_ONCE(table->ents[index], val);
@@ -837,11 +837,11 @@ struct xps_map {
  * This structure holds all XPS maps for device.  Maps are indexed by CPU.
  *
  * We keep track of the number of cpus/rxqs used when the struct is allocated,
- * in nr_ids. This will help not accessing out-of-bound memory.
+ * in nr_ids. This will help analt accessing out-of-bound memory.
  *
  * We keep track of the number of traffic classes used when the struct is
  * allocated, in num_tc. This will be used to navigate the maps, to ensure we're
- * not crossing its upper bound, as the original dev->num_tc can be updated in
+ * analt crossing its upper bound, as the original dev->num_tc can be updated in
  * the meantime.
  */
 struct xps_dev_maps {
@@ -997,9 +997,9 @@ enum bpf_netdev_command {
 	/* Set or clear a bpf program used in the earliest stages of packet
 	 * rx. The prog will have been loaded as BPF_PROG_TYPE_XDP. The callee
 	 * is responsible for calling bpf_prog_put on any old progs that are
-	 * stored. In case of error, the callee need not release the new prog
+	 * stored. In case of error, the callee need analt release the new prog
 	 * reference, but on success it takes ownership and must bpf_prog_put
-	 * when it is no longer used.
+	 * when it is anal longer used.
 	 */
 	XDP_SETUP_PROG,
 	XDP_SETUP_PROG_HW,
@@ -1075,14 +1075,14 @@ struct dev_ifalias {
 struct devlink;
 struct tlsdev_ops;
 
-struct netdev_net_notifier {
+struct netdev_net_analtifier {
 	struct list_head list;
-	struct notifier_block *nb;
+	struct analtifier_block *nb;
 };
 
 /*
  * This structure defines the management hooks for network devices.
- * The following hooks can be defined; unless noted otherwise, they are
+ * The following hooks can be defined; unless analted otherwise, they are
  * optional and can be filled with a null pointer.
  *
  * int (*ndo_init)(struct net_device *dev);
@@ -1093,7 +1093,7 @@ struct netdev_net_notifier {
  *
  * void (*ndo_uninit)(struct net_device *dev);
  *     This function is called when device is unregistered or when registration
- *     fails. It is not called if init fails.
+ *     fails. It is analt called if init fails.
  *
  * int (*ndo_open)(struct net_device *dev);
  *     This function is called when a network device transitions to the up
@@ -1108,16 +1108,16 @@ struct netdev_net_notifier {
  *	Called when a packet needs to be transmitted.
  *	Returns NETDEV_TX_OK.  Can return NETDEV_TX_BUSY, but you should stop
  *	the queue before that can happen; it's for obsolete devices and weird
- *	corner cases, but the stack really does a non-trivial amount
+ *	corner cases, but the stack really does a analn-trivial amount
  *	of useless work if you return NETDEV_TX_BUSY.
- *	Required; cannot be NULL.
+ *	Required; cananalt be NULL.
  *
  * netdev_features_t (*ndo_features_check)(struct sk_buff *skb,
  *					   struct net_device *dev
  *					   netdev_features_t features);
  *	Called by core transmit path to determine if device is capable of
  *	performing offload operations on a given packet. This is to give
- *	the device an opportunity to implement any restrictions that cannot
+ *	the device an opportunity to implement any restrictions that cananalt
  *	be otherwise expressed by feature flags. The check is called with
  *	the set of features that the stack has calculated and it returns
  *	those the driver believes to be appropriate.
@@ -1138,15 +1138,15 @@ struct netdev_net_notifier {
  *
  * int (*ndo_set_mac_address)(struct net_device *dev, void *addr);
  *	This function  is called when the Media Access Control address
- *	needs to be changed. If this interface is not defined, the
- *	MAC address can not be changed.
+ *	needs to be changed. If this interface is analt defined, the
+ *	MAC address can analt be changed.
  *
  * int (*ndo_validate_addr)(struct net_device *dev);
  *	Test if Media Access Control address is valid for the device.
  *
  * int (*ndo_do_ioctl)(struct net_device *dev, struct ifreq *ifr, int cmd);
  *	Old-style ioctl entry point. This is used internally by the
- *	appletalk and ieee802154 subsystems but is no longer called by
+ *	appletalk and ieee802154 subsystems but is anal longer called by
  *	the device ioctl handler.
  *
  * int (*ndo_siocbond)(struct net_device *dev, struct ifreq *ifr, int cmd);
@@ -1168,7 +1168,7 @@ struct netdev_net_notifier {
  *	of a device.
  *
  * void (*ndo_tx_timeout)(struct net_device *dev, unsigned int txqueue);
- *	Callback used when the transmitter has not made any progress
+ *	Callback used when the transmitter has analt made any progress
  *	for dev->watchdog ticks.
  *
  * void (*ndo_get_stats64)(struct net_device *dev,
@@ -1179,10 +1179,10 @@ struct netdev_net_notifier {
  *	1. Define @ndo_get_stats64 to fill in a zero-initialised
  *	   rtnl_link_stats64 structure passed by the caller.
  *	2. Define @ndo_get_stats to update a net_device_stats structure
- *	   (which should normally be dev->stats) and return a pointer to
- *	   it. The structure may be changed asynchronously only if each
+ *	   (which should analrmally be dev->stats) and return a pointer to
+ *	   it. The structure may be changed asynchroanalusly only if each
  *	   field is written atomically.
- *	3. Update dev->stats asynchronously and atomically, and define
+ *	3. Update dev->stats asynchroanalusly and atomically, and define
  *	   neither operation.
  *
  * bool (*ndo_has_offload_stats)(const struct net_device *dev, int attr_id)
@@ -1269,7 +1269,7 @@ struct netdev_net_notifier {
  * int (*ndo_fcoe_get_wwn)(struct net_device *dev, u64 *wwn, int type);
  *	Called when the underlying device wants to override default World Wide
  *	Name (WWN) generation mechanism in FCoE protocol stack to pass its own
- *	World Wide Port Name (WWPN) or World Wide Node Name (WWNN) to the FCoE
+ *	World Wide Port Name (WWPN) or World Wide Analde Name (WWNN) to the FCoE
  *	protocol stack to use.
  *
  *	RFS acceleration.
@@ -1281,7 +1281,7 @@ struct netdev_net_notifier {
  *
  *	Slave management functions (for bridge, bonding, etc).
  * int (*ndo_add_slave)(struct net_device *dev, struct net_device *slave_dev);
- *	Called to make another netdev an underling.
+ *	Called to make aanalther netdev an underling.
  *
  * int (*ndo_del_slave)(struct net_device *dev, struct net_device *slave_dev);
  *	Called to release previously enslaved netdev.
@@ -1296,13 +1296,13 @@ struct netdev_net_notifier {
  * netdev_features_t (*ndo_fix_features)(struct net_device *dev,
  *		netdev_features_t features);
  *	Adjusts the requested feature flags according to device-specific
- *	constraints, and returns the resulting flags. Must not modify
+ *	constraints, and returns the resulting flags. Must analt modify
  *	the device state.
  *
  * int (*ndo_set_features)(struct net_device *dev, netdev_features_t features);
  *	Called to update device configuration to new features. Passed
  *	feature set might be less than what was returned by ndo_fix_features()).
- *	Must return >0 or -errno if it changed dev->features itself.
+ *	Must return >0 or -erranal if it changed dev->features itself.
  *
  * int (*ndo_fdb_add)(struct ndmsg *ndm, struct nlattr *tb[],
  *		      struct net_device *dev,
@@ -1345,16 +1345,16 @@ struct netdev_net_notifier {
  *
  * int (*ndo_change_carrier)(struct net_device *dev, bool new_carrier);
  *	Called to change device carrier. Soft-devices (like dummy, team, etc)
- *	which do not represent real hardware may define this to allow their
+ *	which do analt represent real hardware may define this to allow their
  *	userspace components to manage their virtual carrier state. Devices
  *	that determine carrier state from physical hardware properties (eg
  *	network cables) or protocol-dependent mechanisms (eg
- *	USB_CDC_NOTIFY_NETWORK_CONNECTION) should NOT implement this function.
+ *	USB_CDC_ANALTIFY_NETWORK_CONNECTION) should ANALT implement this function.
  *
  * int (*ndo_get_phys_port_id)(struct net_device *dev,
  *			       struct netdev_phys_item_id *ppid);
  *	Called to get ID of physical port of this device. If driver does
- *	not implement this, it is assumed that the hw is not able to have
+ *	analt implement this, it is assumed that the hw is analt able to have
  *	multiple net devices on single physical port.
  *
  * int (*ndo_get_port_parent_id)(struct net_device *dev,
@@ -1399,7 +1399,7 @@ struct netdev_net_notifier {
  *	netdevice. Returns number of frames successfully transmitted, frames
  *	that got dropped are freed/returned via xdp_return_frame().
  *	Returns negative number, means general error invoking ndo, meaning
- *	no frames were xmit'ed and core-caller will free all frames.
+ *	anal frames were xmit'ed and core-caller will free all frames.
  * struct net_device *(*ndo_xdp_get_xmit_slave)(struct net_device *dev,
  *					        struct xdp_buff *xdp);
  *      Get the xmit slave of master device based on the xdp_buff.
@@ -1420,7 +1420,7 @@ struct netdev_net_notifier {
  * ktime_t (*ndo_get_tstamp)(struct net_device *dev,
  *			     const struct skb_shared_hwtstamps *hwtstamps,
  *			     bool cycles);
- *	Get hardware timestamp based on normal/adjustable time or free running
+ *	Get hardware timestamp based on analrmal/adjustable time or free running
  *	cycle counter. This function is required if physical clock supports a
  *	free running cycle counter.
  *
@@ -1519,7 +1519,7 @@ struct net_device_ops {
 						   int vf, struct sk_buff *skb);
 	int			(*ndo_get_vf_guid)(struct net_device *dev,
 						   int vf,
-						   struct ifla_vf_guid *node_guid,
+						   struct ifla_vf_guid *analde_guid,
 						   struct ifla_vf_guid *port_guid);
 	int			(*ndo_set_vf_guid)(struct net_device *dev,
 						   int vf, u64 guid,
@@ -1704,14 +1704,14 @@ struct net_device_ops {
  * @IFF_TX_SKB_SHARING: The interface supports sharing skbs on transmit
  * @IFF_UNICAST_FLT: Supports unicast filtering
  * @IFF_TEAM_PORT: device used as team port
- * @IFF_SUPP_NOFCS: device supports sending custom FCS
+ * @IFF_SUPP_ANALFCS: device supports sending custom FCS
  * @IFF_LIVE_ADDR_CHANGE: device supports hardware address
  *	change when it's running
  * @IFF_MACVLAN: Macvlan device
- * @IFF_XMIT_DST_RELEASE_PERM: IFF_XMIT_DST_RELEASE not taking into account
+ * @IFF_XMIT_DST_RELEASE_PERM: IFF_XMIT_DST_RELEASE analt taking into account
  *	underlying stacked devices
  * @IFF_L3MDEV_MASTER: device is an L3 master device
- * @IFF_NO_QUEUE: device can run without qdisc attached
+ * @IFF_ANAL_QUEUE: device can run without qdisc attached
  * @IFF_OPENVSWITCH: device is a Open vSwitch master
  * @IFF_L3MDEV_SLAVE: device is enslaved to an L3 master device
  * @IFF_TEAM: device is a team device
@@ -1719,12 +1719,12 @@ struct net_device_ops {
  * @IFF_PHONY_HEADROOM: the headroom value is controlled by an external
  *	entity (i.e. the master device for bridged veth)
  * @IFF_MACSEC: device is a MACsec device
- * @IFF_NO_RX_HANDLER: device doesn't support the rx_handler hook
+ * @IFF_ANAL_RX_HANDLER: device doesn't support the rx_handler hook
  * @IFF_FAILOVER: device is a failover master device
  * @IFF_FAILOVER_SLAVE: device is lower dev of a failover master device
  * @IFF_L3MDEV_RX_HANDLER: only invoke the rx handler of L3 master device
- * @IFF_NO_ADDRCONF: prevent ipv6 addrconf
- * @IFF_TX_SKB_NO_LINEAR: device/driver is capable of xmitting frames with
+ * @IFF_ANAL_ADDRCONF: prevent ipv6 addrconf
+ * @IFF_TX_SKB_ANAL_LINEAR: device/driver is capable of xmitting frames with
  *	skb_headlen(skb) == 0 (data starts from frag0)
  * @IFF_CHANGE_PROTO_DOWN: device supports setting carrier via IFLA_PROTO_DOWN
  * @IFF_SEE_ALL_HWTSTAMP_REQUESTS: device wants to see calls to
@@ -1746,24 +1746,24 @@ enum netdev_priv_flags {
 	IFF_TX_SKB_SHARING		= 1<<11,
 	IFF_UNICAST_FLT			= 1<<12,
 	IFF_TEAM_PORT			= 1<<13,
-	IFF_SUPP_NOFCS			= 1<<14,
+	IFF_SUPP_ANALFCS			= 1<<14,
 	IFF_LIVE_ADDR_CHANGE		= 1<<15,
 	IFF_MACVLAN			= 1<<16,
 	IFF_XMIT_DST_RELEASE_PERM	= 1<<17,
 	IFF_L3MDEV_MASTER		= 1<<18,
-	IFF_NO_QUEUE			= 1<<19,
+	IFF_ANAL_QUEUE			= 1<<19,
 	IFF_OPENVSWITCH			= 1<<20,
 	IFF_L3MDEV_SLAVE		= 1<<21,
 	IFF_TEAM			= 1<<22,
 	IFF_RXFH_CONFIGURED		= 1<<23,
 	IFF_PHONY_HEADROOM		= 1<<24,
 	IFF_MACSEC			= 1<<25,
-	IFF_NO_RX_HANDLER		= 1<<26,
+	IFF_ANAL_RX_HANDLER		= 1<<26,
 	IFF_FAILOVER			= 1<<27,
 	IFF_FAILOVER_SLAVE		= 1<<28,
 	IFF_L3MDEV_RX_HANDLER		= 1<<29,
-	IFF_NO_ADDRCONF			= BIT_ULL(30),
-	IFF_TX_SKB_NO_LINEAR		= BIT_ULL(31),
+	IFF_ANAL_ADDRCONF			= BIT_ULL(30),
+	IFF_TX_SKB_ANAL_LINEAR		= BIT_ULL(31),
 	IFF_CHANGE_PROTO_DOWN		= BIT_ULL(32),
 	IFF_SEE_ALL_HWTSTAMP_REQUESTS	= BIT_ULL(33),
 };
@@ -1782,32 +1782,32 @@ enum netdev_priv_flags {
 #define IFF_TX_SKB_SHARING		IFF_TX_SKB_SHARING
 #define IFF_UNICAST_FLT			IFF_UNICAST_FLT
 #define IFF_TEAM_PORT			IFF_TEAM_PORT
-#define IFF_SUPP_NOFCS			IFF_SUPP_NOFCS
+#define IFF_SUPP_ANALFCS			IFF_SUPP_ANALFCS
 #define IFF_LIVE_ADDR_CHANGE		IFF_LIVE_ADDR_CHANGE
 #define IFF_MACVLAN			IFF_MACVLAN
 #define IFF_XMIT_DST_RELEASE_PERM	IFF_XMIT_DST_RELEASE_PERM
 #define IFF_L3MDEV_MASTER		IFF_L3MDEV_MASTER
-#define IFF_NO_QUEUE			IFF_NO_QUEUE
+#define IFF_ANAL_QUEUE			IFF_ANAL_QUEUE
 #define IFF_OPENVSWITCH			IFF_OPENVSWITCH
 #define IFF_L3MDEV_SLAVE		IFF_L3MDEV_SLAVE
 #define IFF_TEAM			IFF_TEAM
 #define IFF_RXFH_CONFIGURED		IFF_RXFH_CONFIGURED
 #define IFF_PHONY_HEADROOM		IFF_PHONY_HEADROOM
 #define IFF_MACSEC			IFF_MACSEC
-#define IFF_NO_RX_HANDLER		IFF_NO_RX_HANDLER
+#define IFF_ANAL_RX_HANDLER		IFF_ANAL_RX_HANDLER
 #define IFF_FAILOVER			IFF_FAILOVER
 #define IFF_FAILOVER_SLAVE		IFF_FAILOVER_SLAVE
 #define IFF_L3MDEV_RX_HANDLER		IFF_L3MDEV_RX_HANDLER
-#define IFF_TX_SKB_NO_LINEAR		IFF_TX_SKB_NO_LINEAR
+#define IFF_TX_SKB_ANAL_LINEAR		IFF_TX_SKB_ANAL_LINEAR
 
 /* Specifies the type of the struct net_device::ml_priv pointer */
 enum netdev_ml_priv_type {
-	ML_PRIV_NONE,
+	ML_PRIV_ANALNE,
 	ML_PRIV_CAN,
 };
 
 enum netdev_stat_type {
-	NETDEV_PCPU_STAT_NONE,
+	NETDEV_PCPU_STAT_ANALNE,
 	NETDEV_PCPU_STAT_LSTATS, /* struct pcpu_lstats */
 	NETDEV_PCPU_STAT_TSTATS, /* struct pcpu_sw_netstats */
 	NETDEV_PCPU_STAT_DSTATS, /* struct pcpu_dstats */
@@ -1817,14 +1817,14 @@ enum netdev_stat_type {
  *	struct net_device - The DEVICE structure.
  *
  *	Actually, this whole structure is a big mistake.  It mixes I/O
- *	data with strictly "high-level" data, and it has to know about
+ *	data with strictly "high-level" data, and it has to kanalw about
  *	almost every data structure used in the INET module.
  *
  *	@name:	This is the first field of the "visible" part of this structure
  *		(i.e. as seen by users in the "Space.c" file).  It is the name
  *		of the interface.
  *
- *	@name_node:	Name hashlist node
+ *	@name_analde:	Name hashlist analde
  *	@ifalias:	SNMP alias
  *	@mem_end:	Shared memory end
  *	@mem_start:	Shared memory start
@@ -1862,7 +1862,7 @@ enum netdev_stat_type {
  *			rtnl_link_stats64 instead
  *
  *	@core_stats:	core networking counters,
- *			do not use this in drivers
+ *			do analt use this in drivers
  *	@carrier_up_count:	Number of times the carrier has been up
  *	@carrier_down_count:	Number of times the carrier has been down
  *
@@ -1901,9 +1901,9 @@ enum netdev_stat_type {
  *	@hard_header_len: Maximum hardware header length.
  *	@min_header_len:  Minimum hardware header length
  *
- *	@needed_headroom: Extra headroom the hardware may need, but not in all
+ *	@needed_headroom: Extra headroom the hardware may need, but analt in all
  *			  cases can this be guaranteed
- *	@needed_tailroom: Extra tailroom the hardware may need, but not in all
+ *	@needed_tailroom: Extra tailroom the hardware may need, but analt in all
  *			  cases can this be guaranteed. Some cases also use
  *			  LL_MAX_HEADER instead to allocate the skb
  *
@@ -1924,7 +1924,7 @@ enum netdev_stat_type {
  *	@uc_promisc:		Counter that indicates promiscuous mode
  *				has been enabled due to the need to listen to
  *				additional unicast addresses in a device that
- *				does not implement ndo_set_rx_mode()
+ *				does analt implement ndo_set_rx_mode()
  *	@uc:			unicast mac addresses
  *	@mc:			multicast mac addresses
  *	@dev_addrs:		list of device hw addresses
@@ -1956,7 +1956,7 @@ enum netdev_stat_type {
  *	@real_num_rx_queues: 	Number of RX queues currently active in device
  *	@xdp_prog:		XDP sockets filter program pointer
  *	@gro_flush_timeout:	timeout for GRO layer in NAPI
- *	@napi_defer_hard_irqs:	If not zero, provides a counter that would
+ *	@napi_defer_hard_irqs:	If analt zero, provides a counter that would
  *				allow to avoid NIC hard IRQ, on busy queues.
  *
  *	@rx_handler:		handler for received packets
@@ -2010,7 +2010,7 @@ enum netdev_stat_type {
  *	@ml_priv_type:  Mid-layer private type
  *
  *	@pcpu_stat_type:	Type of device statistics which the core should
- *				allocate/free: none, lstats, tstats, dstats. none
+ *				allocate/free: analne, lstats, tstats, dstats. analne
  *				means the driver is handling statistics allocation/
  *				freeing internally.
  *	@lstats:		Loopback statistics: packets, bytes
@@ -2049,7 +2049,7 @@ enum netdev_stat_type {
  *			for hardware timestamping
  *	@sfp_bus:	attached &struct sfp_bus structure.
  *
- *	@qdisc_tx_busylock: lockdep class annotating Qdisc->busylock spinlock
+ *	@qdisc_tx_busylock: lockdep class ananaltating Qdisc->busylock spinlock
  *
  *	@proto_down:	protocol port state information can be sent to the
  *			switch driver and used to set the phys state of the
@@ -2059,9 +2059,9 @@ enum netdev_stat_type {
  *
  *	@threaded:	napi threaded mode is enabled
  *
- *	@net_notifier_list:	List of per-net netdev notifier block
+ *	@net_analtifier_list:	List of per-net netdev analtifier block
  *				that follow this device when it is moved
- *				to another network namespace.
+ *				to aanalther network namespace.
  *
  *	@macsec_ops:    MACsec offloading ops
  *
@@ -2118,10 +2118,10 @@ struct net_device {
 	unsigned int		gso_ipv4_max_size;
 	u16			gso_max_segs;
 	s16			num_tc;
-	/* Note : dev->mtu is often read without holding a lock.
+	/* Analte : dev->mtu is often read without holding a lock.
 	 * Writers usually hold RTNL.
-	 * It is recommended to use READ_ONCE() to annotate the reads,
-	 * and to use WRITE_ONCE() to annotate the writes.
+	 * It is recommended to use READ_ONCE() to ananaltate the reads,
+	 * and to use WRITE_ONCE() to ananaltate the writes.
 	 */
 	unsigned int		mtu;
 	unsigned short		needed_headroom;
@@ -2173,7 +2173,7 @@ struct net_device {
 	__cacheline_group_end(net_device_read_rx);
 
 	char			name[IFNAMSIZ];
-	struct netdev_name_node	*name_node;
+	struct netdev_name_analde	*name_analde;
 	struct dev_ifalias	__rcu *ifalias;
 	/*
 	 *	I/O specific fields
@@ -2185,7 +2185,7 @@ struct net_device {
 
 	/*
 	 *	Some hardware also needs these fields (state,dev_list,
-	 *	napi_list,unreg_list,close_list) but they are not
+	 *	napi_list,unreg_list,close_list) but they are analt
 	 *	part of the usual set specified in Space.c.
 	 */
 
@@ -2224,7 +2224,7 @@ struct net_device {
 
 	int			group;
 
-	struct net_device_stats	stats; /* not used by modern drivers */
+	struct net_device_stats	stats; /* analt used by modern drivers */
 
 	struct net_device_core_stats __percpu *core_stats;
 
@@ -2343,7 +2343,7 @@ struct net_device {
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap		*rx_cpu_rmap;
 #endif
-	struct hlist_node	index_hlist;
+	struct hlist_analde	index_hlist;
 
 /*
  * Cache lines mostly used on transmit path
@@ -2446,7 +2446,7 @@ struct net_device {
 	unsigned		wol_enabled:1;
 	unsigned		threaded:1;
 
-	struct list_head	net_notifier_list;
+	struct list_head	net_analtifier_list;
 
 #if IS_ENABLED(CONFIG_MACSEC)
 	/* MACsec management functions */
@@ -2634,7 +2634,7 @@ static inline void netdev_set_ml_priv(struct net_device *dev,
 	     "Overwriting already set ml_priv_type (%u) with different ml_priv_type (%u)!\n",
 	     dev->ml_priv_type, type);
 	WARN(!dev->ml_priv_type && dev->ml_priv,
-	     "Overwriting already set ml_priv and ml_priv_type is ML_PRIV_NONE!\n");
+	     "Overwriting already set ml_priv and ml_priv_type is ML_PRIV_ANALNE!\n");
 
 	dev->ml_priv = ml_priv;
 	dev->ml_priv_type = type;
@@ -2687,7 +2687,7 @@ static inline void netif_napi_set_irq(struct napi_struct *napi, int irq)
 }
 
 /* Default NAPI poll() weight
- * Device drivers are strongly advised to not use bigger value
+ * Device drivers are strongly advised to analt use bigger value
  */
 #define NAPI_POLL_WEIGHT 64
 
@@ -2716,7 +2716,7 @@ netif_napi_add_tx_weight(struct net_device *dev,
 			 int (*poll)(struct napi_struct *, int),
 			 int weight)
 {
-	set_bit(NAPI_STATE_NO_BUSY_POLL, &napi->state);
+	set_bit(NAPI_STATE_ANAL_BUSY_POLL, &napi->state);
 	netif_napi_add_weight(dev, napi, poll, weight);
 }
 
@@ -2761,7 +2761,7 @@ static inline void netif_napi_del(struct napi_struct *napi)
 
 struct packet_type {
 	__be16			type;	/* This is really htons(ether_type). */
-	bool			ignore_outgoing;
+	bool			iganalre_outgoing;
 	struct net_device	*dev;	/* NULL is wildcarded here	     */
 	netdevice_tracker	dev_tracker;
 	int			(*func) (struct sk_buff *,
@@ -2884,7 +2884,7 @@ static inline void dev_lstats_add(struct net_device *dev, unsigned int len)
 })
 
 enum netdev_lag_tx_type {
-	NETDEV_LAG_TX_TYPE_UNKNOWN,
+	NETDEV_LAG_TX_TYPE_UNKANALWN,
 	NETDEV_LAG_TX_TYPE_RANDOM,
 	NETDEV_LAG_TX_TYPE_BROADCAST,
 	NETDEV_LAG_TX_TYPE_ROUNDROBIN,
@@ -2893,14 +2893,14 @@ enum netdev_lag_tx_type {
 };
 
 enum netdev_lag_hash {
-	NETDEV_LAG_HASH_NONE,
+	NETDEV_LAG_HASH_ANALNE,
 	NETDEV_LAG_HASH_L2,
 	NETDEV_LAG_HASH_L34,
 	NETDEV_LAG_HASH_L23,
 	NETDEV_LAG_HASH_E23,
 	NETDEV_LAG_HASH_E34,
 	NETDEV_LAG_HASH_VLAN_SRCMAC,
-	NETDEV_LAG_HASH_UNKNOWN,
+	NETDEV_LAG_HASH_UNKANALWN,
 };
 
 struct netdev_lag_upper_info {
@@ -2913,25 +2913,25 @@ struct netdev_lag_lower_state_info {
 	   tx_enabled : 1;
 };
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
-/* netdevice notifier chain. Please remember to update netdev_cmd_to_name()
- * and the rtnetlink notification exclusion list in rtnetlink_event() when
+/* netdevice analtifier chain. Please remember to update netdev_cmd_to_name()
+ * and the rtnetlink analtification exclusion list in rtnetlink_event() when
  * adding new types.
  */
 enum netdev_cmd {
-	NETDEV_UP	= 1,	/* For now you can't veto a device up/down */
+	NETDEV_UP	= 1,	/* For analw you can't veto a device up/down */
 	NETDEV_DOWN,
 	NETDEV_REBOOT,		/* Tell a protocol stack a network interface
 				   detected a hardware crash and restarted
 				   - we can use this eg to kick tcp sessions
 				   once done */
-	NETDEV_CHANGE,		/* Notify device state change */
+	NETDEV_CHANGE,		/* Analtify device state change */
 	NETDEV_REGISTER,
 	NETDEV_UNREGISTER,
-	NETDEV_CHANGEMTU,	/* notify after mtu change happened */
-	NETDEV_CHANGEADDR,	/* notify after the address change */
-	NETDEV_PRE_CHANGEADDR,	/* notify before the address change */
+	NETDEV_CHANGEMTU,	/* analtify after mtu change happened */
+	NETDEV_CHANGEADDR,	/* analtify after the address change */
+	NETDEV_PRE_CHANGEADDR,	/* analtify before the address change */
 	NETDEV_GOING_DOWN,
 	NETDEV_CHANGENAME,
 	NETDEV_FEAT_CHANGE,
@@ -2942,11 +2942,11 @@ enum netdev_cmd {
 	NETDEV_POST_INIT,
 	NETDEV_PRE_UNINIT,
 	NETDEV_RELEASE,
-	NETDEV_NOTIFY_PEERS,
+	NETDEV_ANALTIFY_PEERS,
 	NETDEV_JOIN,
 	NETDEV_CHANGEUPPER,
 	NETDEV_RESEND_IGMP,
-	NETDEV_PRECHANGEMTU,	/* notify before mtu change happened */
+	NETDEV_PRECHANGEMTU,	/* analtify before mtu change happened */
 	NETDEV_CHANGEINFODATA,
 	NETDEV_BONDING_INFO,
 	NETDEV_PRECHANGEUPPER,
@@ -2966,50 +2966,50 @@ enum netdev_cmd {
 };
 const char *netdev_cmd_to_name(enum netdev_cmd cmd);
 
-int register_netdevice_notifier(struct notifier_block *nb);
-int unregister_netdevice_notifier(struct notifier_block *nb);
-int register_netdevice_notifier_net(struct net *net, struct notifier_block *nb);
-int unregister_netdevice_notifier_net(struct net *net,
-				      struct notifier_block *nb);
-int register_netdevice_notifier_dev_net(struct net_device *dev,
-					struct notifier_block *nb,
-					struct netdev_net_notifier *nn);
-int unregister_netdevice_notifier_dev_net(struct net_device *dev,
-					  struct notifier_block *nb,
-					  struct netdev_net_notifier *nn);
+int register_netdevice_analtifier(struct analtifier_block *nb);
+int unregister_netdevice_analtifier(struct analtifier_block *nb);
+int register_netdevice_analtifier_net(struct net *net, struct analtifier_block *nb);
+int unregister_netdevice_analtifier_net(struct net *net,
+				      struct analtifier_block *nb);
+int register_netdevice_analtifier_dev_net(struct net_device *dev,
+					struct analtifier_block *nb,
+					struct netdev_net_analtifier *nn);
+int unregister_netdevice_analtifier_dev_net(struct net_device *dev,
+					  struct analtifier_block *nb,
+					  struct netdev_net_analtifier *nn);
 
-struct netdev_notifier_info {
+struct netdev_analtifier_info {
 	struct net_device	*dev;
 	struct netlink_ext_ack	*extack;
 };
 
-struct netdev_notifier_info_ext {
-	struct netdev_notifier_info info; /* must be first */
+struct netdev_analtifier_info_ext {
+	struct netdev_analtifier_info info; /* must be first */
 	union {
 		u32 mtu;
 	} ext;
 };
 
-struct netdev_notifier_change_info {
-	struct netdev_notifier_info info; /* must be first */
+struct netdev_analtifier_change_info {
+	struct netdev_analtifier_info info; /* must be first */
 	unsigned int flags_changed;
 };
 
-struct netdev_notifier_changeupper_info {
-	struct netdev_notifier_info info; /* must be first */
+struct netdev_analtifier_changeupper_info {
+	struct netdev_analtifier_info info; /* must be first */
 	struct net_device *upper_dev; /* new upper dev */
 	bool master; /* is upper dev master */
-	bool linking; /* is the notification for link or unlink */
+	bool linking; /* is the analtification for link or unlink */
 	void *upper_info; /* upper dev info */
 };
 
-struct netdev_notifier_changelowerstate_info {
-	struct netdev_notifier_info info; /* must be first */
+struct netdev_analtifier_changelowerstate_info {
+	struct netdev_analtifier_info info; /* must be first */
 	void *lower_state_info; /* is lower dev state */
 };
 
-struct netdev_notifier_pre_changeaddr_info {
-	struct netdev_notifier_info info; /* must be first */
+struct netdev_analtifier_pre_changeaddr_info {
+	struct netdev_analtifier_info info; /* must be first */
 	const unsigned char *dev_addr;
 };
 
@@ -3017,15 +3017,15 @@ enum netdev_offload_xstats_type {
 	NETDEV_OFFLOAD_XSTATS_TYPE_L3 = 1,
 };
 
-struct netdev_notifier_offload_xstats_info {
-	struct netdev_notifier_info info; /* must be first */
+struct netdev_analtifier_offload_xstats_info {
+	struct netdev_analtifier_info info; /* must be first */
 	enum netdev_offload_xstats_type type;
 
 	union {
 		/* NETDEV_OFFLOAD_XSTATS_REPORT_DELTA */
-		struct netdev_notifier_offload_xstats_rd *report_delta;
+		struct netdev_analtifier_offload_xstats_rd *report_delta;
 		/* NETDEV_OFFLOAD_XSTATS_REPORT_USED */
-		struct netdev_notifier_offload_xstats_ru *report_used;
+		struct netdev_analtifier_offload_xstats_ru *report_used;
 	};
 };
 
@@ -3041,15 +3041,15 @@ int netdev_offload_xstats_get(struct net_device *dev,
 			      struct rtnl_hw_stats64 *stats, bool *used,
 			      struct netlink_ext_ack *extack);
 void
-netdev_offload_xstats_report_delta(struct netdev_notifier_offload_xstats_rd *rd,
+netdev_offload_xstats_report_delta(struct netdev_analtifier_offload_xstats_rd *rd,
 				   const struct rtnl_hw_stats64 *stats);
 void
-netdev_offload_xstats_report_used(struct netdev_notifier_offload_xstats_ru *ru);
+netdev_offload_xstats_report_used(struct netdev_analtifier_offload_xstats_ru *ru);
 void netdev_offload_xstats_push_delta(struct net_device *dev,
 				      enum netdev_offload_xstats_type type,
 				      const struct rtnl_hw_stats64 *stats);
 
-static inline void netdev_notifier_info_init(struct netdev_notifier_info *info,
+static inline void netdev_analtifier_info_init(struct netdev_analtifier_info *info,
 					     struct net_device *dev)
 {
 	info->dev = dev;
@@ -3057,20 +3057,20 @@ static inline void netdev_notifier_info_init(struct netdev_notifier_info *info,
 }
 
 static inline struct net_device *
-netdev_notifier_info_to_dev(const struct netdev_notifier_info *info)
+netdev_analtifier_info_to_dev(const struct netdev_analtifier_info *info)
 {
 	return info->dev;
 }
 
 static inline struct netlink_ext_ack *
-netdev_notifier_info_to_extack(const struct netdev_notifier_info *info)
+netdev_analtifier_info_to_extack(const struct netdev_analtifier_info *info)
 {
 	return info->extack;
 }
 
-int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
-int call_netdevice_notifiers_info(unsigned long val,
-				  struct netdev_notifier_info *info);
+int call_netdevice_analtifiers(unsigned long val, struct net_device *dev);
+int call_netdevice_analtifiers_info(unsigned long val,
+				  struct netdev_analtifier_info *info);
 
 extern rwlock_t				dev_base_lock;		/* Device list lock */
 
@@ -3318,7 +3318,7 @@ struct softnet_data {
 	struct sk_buff_head	input_pkt_queue;
 	struct napi_struct	backlog;
 
-	/* Another possibly contended cache line */
+	/* Aanalther possibly contended cache line */
 	spinlock_t		defer_lock ____cacheline_aligned_in_smp;
 	int			defer_count;
 	int			defer_ipi_scheduled;
@@ -3500,7 +3500,7 @@ static inline void netdev_queue_set_dql_min_limit(struct netdev_queue *dev_queue
 static inline int netdev_queue_dql_avail(const struct netdev_queue *txq)
 {
 #ifdef CONFIG_BQL
-	/* Non-BQL migrated drivers will return 0, too. */
+	/* Analn-BQL migrated drivers will return 0, too. */
 	return dql_avail(&txq->dql);
 #else
 	return 0;
@@ -3563,14 +3563,14 @@ static inline void netdev_tx_sent_queue(struct netdev_queue *dev_queue,
 	 */
 	smp_mb();
 
-	/* check again in case another CPU has just made room avail */
+	/* check again in case aanalther CPU has just made room avail */
 	if (unlikely(dql_avail(&dev_queue->dql) >= 0))
 		clear_bit(__QUEUE_STATE_STACK_XOFF, &dev_queue->state);
 #endif
 }
 
 /* Variant of netdev_tx_sent_queue() for drivers that are aware
- * that they should not test BQL status themselves.
+ * that they should analt test BQL status themselves.
  * We do want to change __QUEUE_STATE_STACK_XOFF only for the last
  * skb of a batch.
  * Returns true if the doorbell must be used to kick the NIC.
@@ -3615,10 +3615,10 @@ static inline bool __netdev_sent_queue(struct net_device *dev,
 /**
  *	netdev_tx_completed_queue - report number of packets/bytes at TX completion.
  *	@dev_queue: network device queue
- *	@pkts: number of packets (currently ignored)
+ *	@pkts: number of packets (currently iganalred)
  *	@bytes: number of bytes dequeued from the device queue
  *
- *	Must be called at most once per TX completion round (and not per
+ *	Must be called at most once per TX completion round (and analt per
  *	individual packet), so that BQL can adjust its limits appropriately.
  */
 static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
@@ -3635,7 +3635,7 @@ static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 	 * netdev_tx_sent_queue will miss the update and cause the queue to
 	 * be stopped forever
 	 */
-	smp_mb(); /* NOTE: netdev_txq_completed_mb() assumes this exists */
+	smp_mb(); /* ANALTE: netdev_txq_completed_mb() assumes this exists */
 
 	if (unlikely(dql_avail(&dev_queue->dql) < 0))
 		return;
@@ -3836,7 +3836,7 @@ static inline bool netif_attr_test_online(unsigned long j,
  *	@srcp: the cpumask/Rx queue mask pointer
  *	@nr_bits: number of bits in the bitmask
  *
- * Returns >= nr_bits if no further CPUs/Rx queues set.
+ * Returns >= nr_bits if anal further CPUs/Rx queues set.
  */
 static inline unsigned int netif_attrmask_next(int n, const unsigned long *srcp,
 					       unsigned int nr_bits)
@@ -3858,7 +3858,7 @@ static inline unsigned int netif_attrmask_next(int n, const unsigned long *srcp,
  *	@src2p: the second CPUs/Rx queues mask pointer
  *	@nr_bits: number of bits in the bitmask
  *
- * Returns >= nr_bits if no further CPUs/Rx queues set in both.
+ * Returns >= nr_bits if anal further CPUs/Rx queues set in both.
  */
 static inline int netif_attrmask_next_and(int n, const unsigned long *src1p,
 					  const unsigned long *src2p,
@@ -3925,7 +3925,7 @@ void dev_kfree_skb_irq_reason(struct sk_buff *skb, enum skb_drop_reason reason);
 void dev_kfree_skb_any_reason(struct sk_buff *skb, enum skb_drop_reason reason);
 
 /*
- * It is not allowed to call kfree_skb() or consume_skb() from hardware
+ * It is analt allowed to call kfree_skb() or consume_skb() from hardware
  * interrupt context or with hardware interrupts being disabled.
  * (in_hardirq() || irqs_disabled())
  *
@@ -3937,15 +3937,15 @@ void dev_kfree_skb_any_reason(struct sk_buff *skb, enum skb_drop_reason reason);
  * dev_consume_skb_irq(skb) when caller consumes a packet from irq context.
  *  Typically used in place of consume_skb(skb) in TX completion path
  *
- * dev_kfree_skb_any(skb) when caller doesn't know its current irq context,
+ * dev_kfree_skb_any(skb) when caller doesn't kanalw its current irq context,
  *  replacing kfree_skb(skb)
  *
- * dev_consume_skb_any(skb) when caller doesn't know its current irq context,
+ * dev_consume_skb_any(skb) when caller doesn't kanalw its current irq context,
  *  and consumed a packet. Used in place of consume_skb(skb)
  */
 static inline void dev_kfree_skb_irq(struct sk_buff *skb)
 {
-	dev_kfree_skb_irq_reason(skb, SKB_DROP_REASON_NOT_SPECIFIED);
+	dev_kfree_skb_irq_reason(skb, SKB_DROP_REASON_ANALT_SPECIFIED);
 }
 
 static inline void dev_consume_skb_irq(struct sk_buff *skb)
@@ -3955,7 +3955,7 @@ static inline void dev_consume_skb_irq(struct sk_buff *skb)
 
 static inline void dev_kfree_skb_any(struct sk_buff *skb)
 {
-	dev_kfree_skb_any_reason(skb, SKB_DROP_REASON_NOT_SPECIFIED);
+	dev_kfree_skb_any_reason(skb, SKB_DROP_REASON_ANALT_SPECIFIED);
 }
 
 static inline void dev_consume_skb_any(struct sk_buff *skb)
@@ -4030,7 +4030,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net,
 }
 int __dev_set_mtu(struct net_device *, int);
 int dev_set_mtu(struct net_device *, int);
-int dev_pre_changeaddr_notify(struct net_device *dev, const char *addr,
+int dev_pre_changeaddr_analtify(struct net_device *dev, const char *addr,
 			      struct netlink_ext_ack *extack);
 int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa,
 			struct netlink_ext_ack *extack);
@@ -4051,7 +4051,7 @@ u32 dev_xdp_prog_id(struct net_device *dev, enum bpf_xdp_mode mode);
 
 int __dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
 int dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
-int dev_forward_skb_nomtu(struct net_device *dev, struct sk_buff *skb);
+int dev_forward_skb_analmtu(struct net_device *dev, struct sk_buff *skb);
 bool is_skb_forwardable(const struct net_device *dev,
 			const struct sk_buff *skb);
 
@@ -4091,7 +4091,7 @@ static inline void dev_core_stats_##FIELD##_inc(struct net_device *dev)		\
 }
 DEV_CORE_STATS_INC(rx_dropped)
 DEV_CORE_STATS_INC(tx_dropped)
-DEV_CORE_STATS_INC(rx_nohandler)
+DEV_CORE_STATS_INC(rx_analhandler)
 DEV_CORE_STATS_INC(rx_otherhost_dropped)
 #undef DEV_CORE_STATS_INC
 
@@ -4152,7 +4152,7 @@ static inline void netdev_tracker_alloc(struct net_device *dev,
 					netdevice_tracker *tracker, gfp_t gfp)
 {
 #ifdef CONFIG_NET_DEV_REFCNT_TRACKER
-	refcount_dec(&dev->refcnt_tracker.no_tracker);
+	refcount_dec(&dev->refcnt_tracker.anal_tracker);
 	__netdev_tracker_alloc(dev, tracker, gfp);
 #endif
 }
@@ -4228,7 +4228,7 @@ static inline void netdev_ref_replace(struct net_device *odev,
  *
  * The name carrier is inappropriate, these functions should really be
  * called netif_lowerlayer_*() because they represent the state of any
- * kind of lower layer not just hardware media.
+ * kind of lower layer analt just hardware media.
  */
 void linkwatch_fire_event(struct net_device *dev);
 
@@ -4249,7 +4249,7 @@ void linkwatch_sync_dev(struct net_device *dev);
  */
 static inline bool netif_carrier_ok(const struct net_device *dev)
 {
-	return !test_bit(__LINK_STATE_NOCARRIER, &dev->state);
+	return !test_bit(__LINK_STATE_ANALCARRIER, &dev->state);
 }
 
 unsigned long dev_trans_start(struct net_device *dev);
@@ -4266,8 +4266,8 @@ void netif_carrier_event(struct net_device *dev);
  *
  * Mark device as dormant (as per RFC2863).
  *
- * The dormant state indicates that the relevant interface is not
- * actually in a condition to pass packets (i.e., it is not 'up') but is
+ * The dormant state indicates that the relevant interface is analt
+ * actually in a condition to pass packets (i.e., it is analt 'up') but is
  * in a "pending" state, waiting for some external event.  For "on-
  * demand" interfaces, this new state identifies the situation where the
  * interface is waiting for events to place it in the up state.
@@ -4279,10 +4279,10 @@ static inline void netif_dormant_on(struct net_device *dev)
 }
 
 /**
- *	netif_dormant_off - set device as not dormant.
+ *	netif_dormant_off - set device as analt dormant.
  *	@dev: network device
  *
- * Device is not in dormant state.
+ * Device is analt in dormant state.
  */
 static inline void netif_dormant_off(struct net_device *dev)
 {
@@ -4319,10 +4319,10 @@ static inline void netif_testing_on(struct net_device *dev)
 }
 
 /**
- *	netif_testing_off - set device as not under test.
+ *	netif_testing_off - set device as analt under test.
  *	@dev: network device
  *
- * Device is not in testing state.
+ * Device is analt in testing state.
  */
 static inline void netif_testing_off(struct net_device *dev)
 {
@@ -4351,14 +4351,14 @@ static inline bool netif_testing(const struct net_device *dev)
 static inline bool netif_oper_up(const struct net_device *dev)
 {
 	return (dev->operstate == IF_OPER_UP ||
-		dev->operstate == IF_OPER_UNKNOWN /* backward compat */);
+		dev->operstate == IF_OPER_UNKANALWN /* backward compat */);
 }
 
 /**
  *	netif_device_present - is device available or removed
  *	@dev: network device
  *
- * Check if device has not been removed from system.
+ * Check if device has analt been removed from system.
  */
 static inline bool netif_device_present(const struct net_device *dev)
 {
@@ -4438,7 +4438,7 @@ static inline u32 netif_msg_init(int debug_value, int default_msg_enable_bits)
 	/* use default */
 	if (debug_value < 0 || debug_value >= (sizeof(u32) * 8))
 		return default_msg_enable_bits;
-	if (debug_value == 0)	/* no output */
+	if (debug_value == 0)	/* anal output */
 		return 0;
 	/* set low N bits */
 	return (1U << debug_value) - 1;
@@ -4505,10 +4505,10 @@ static inline void txq_trans_update(struct netdev_queue *txq)
 
 static inline void txq_trans_cond_update(struct netdev_queue *txq)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
-	if (READ_ONCE(txq->trans_start) != now)
-		WRITE_ONCE(txq->trans_start, now);
+	if (READ_ONCE(txq->trans_start) != analw)
+		WRITE_ONCE(txq->trans_start, analw);
 }
 
 /* legacy drivers only, netdev_start_xmit() sets txq->trans_start */
@@ -4777,8 +4777,8 @@ void dev_set_rx_mode(struct net_device *dev);
 int dev_set_promiscuity(struct net_device *dev, int inc);
 int dev_set_allmulti(struct net_device *dev, int inc);
 void netdev_state_change(struct net_device *dev);
-void __netdev_notify_peers(struct net_device *dev);
-void netdev_notify_peers(struct net_device *dev);
+void __netdev_analtify_peers(struct net_device *dev);
+void netdev_analtify_peers(struct net_device *dev);
 void netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 void dev_load(struct net *net, const char *name);
@@ -4793,7 +4793,7 @@ void dev_get_tstats64(struct net_device *dev, struct rtnl_link_stats64 *s);
 extern int		netdev_max_backlog;
 extern int		dev_rx_weight;
 extern int		dev_tx_weight;
-extern int		gro_normal_batch;
+extern int		gro_analrmal_batch;
 
 enum {
 	NESTED_SYNC_IMM_BIT,
@@ -4912,8 +4912,8 @@ struct netdev_bonding_info {
 	ifbond	master;
 };
 
-struct netdev_notifier_bonding_info {
-	struct netdev_notifier_info info; /* must be first */
+struct netdev_analtifier_bonding_info {
+	struct netdev_analtifier_info info; /* must be first */
 	struct netdev_bonding_info  bonding_info;
 };
 
@@ -4921,9 +4921,9 @@ void netdev_bonding_info_change(struct net_device *dev,
 				struct netdev_bonding_info *bonding_info);
 
 #if IS_ENABLED(CONFIG_ETHTOOL_NETLINK)
-void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data);
+void ethtool_analtify(struct net_device *dev, unsigned int cmd, const void *data);
 #else
-static inline void ethtool_notify(struct net_device *dev, unsigned int cmd,
+static inline void ethtool_analtify(struct net_device *dev, unsigned int cmd,
 				  const void *data)
 {
 }
@@ -4937,7 +4937,7 @@ static inline bool can_checksum_protocol(netdev_features_t features,
 	if (protocol == htons(ETH_P_FCOE))
 		return !!(features & NETIF_F_FCOE_CRC);
 
-	/* Assume this is an IP checksum (not SCTP CRC) */
+	/* Assume this is an IP checksum (analt SCTP CRC) */
 
 	if (features & NETIF_F_HW_CSUM) {
 		/* Can checksum everything */
@@ -5129,9 +5129,9 @@ static inline bool netif_is_bond_slave(const struct net_device *dev)
 	return dev->flags & IFF_SLAVE && dev->priv_flags & IFF_BONDING;
 }
 
-static inline bool netif_supports_nofcs(struct net_device *dev)
+static inline bool netif_supports_analfcs(struct net_device *dev)
 {
-	return dev->priv_flags & IFF_SUPP_NOFCS;
+	return dev->priv_flags & IFF_SUPP_ANALFCS;
 }
 
 static inline bool netif_has_l3_rx_handler(const struct net_device *dev)
@@ -5238,7 +5238,7 @@ static inline bool netif_reduces_vlan_mtu(struct net_device *dev)
 
 extern struct pernet_operations __net_initdata loopback_net_ops;
 
-/* Logging, debugging and troubleshooting/diagnostic helpers. */
+/* Logging, debugging and troubleshooting/diaganalstic helpers. */
 
 /* netdev_printk helpers, similar to dev_printk */
 
@@ -5260,8 +5260,8 @@ static inline const char *netdev_reg_state(const struct net_device *dev)
 	case NETREG_DUMMY: return " (dummy)";
 	}
 
-	WARN_ONCE(1, "%s: unknown reg_state %d\n", dev->name, dev->reg_state);
-	return " (unknown)";
+	WARN_ONCE(1, "%s: unkanalwn reg_state %d\n", dev->name, dev->reg_state);
+	return " (unkanalwn)";
 }
 
 #define MODULE_ALIAS_NETDEV(device) \
@@ -5307,7 +5307,7 @@ extern struct list_head ptype_base[PTYPE_HASH_SIZE] __read_mostly;
 
 extern struct net_device *blackhole_netdev;
 
-/* Note: Avoid these macros in fast path, prefer per-cpu or per-queue counters. */
+/* Analte: Avoid these macros in fast path, prefer per-cpu or per-queue counters. */
 #define DEV_STATS_INC(DEV, FIELD) atomic_long_inc(&(DEV)->stats.__##FIELD)
 #define DEV_STATS_ADD(DEV, FIELD, VAL) 	\
 		atomic_long_add((VAL), &(DEV)->stats.__##FIELD)

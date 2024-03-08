@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
+ *  Copyright (C) 2006 Jonathan McDowell <analodles@earth.li>
  *
  *  Derived from drivers/mtd/nand/toto.c (removed in v2.6.28)
  *    Copyright (c) 2003 Texas Instruments
@@ -218,7 +218,7 @@ static int gpio_nand_setup_interface(struct nand_chip *this, int csline,
 static int gpio_nand_attach_chip(struct nand_chip *chip)
 {
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -253,7 +253,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct gpio_nand),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	this = &priv->nand_chip;
 
@@ -261,7 +261,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	mtd->dev.parent = &pdev->dev;
 
 	nand_set_controller_data(this, priv);
-	nand_set_flash_node(this, pdev->dev.of_node);
+	nand_set_flash_analde(this, pdev->dev.of_analde);
 
 	priv->gpiod_rdy = devm_gpiod_get_optional(&pdev->dev, "rdy", GPIOD_IN);
 	if (IS_ERR(priv->gpiod_rdy)) {
@@ -330,8 +330,8 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	if (priv->data_gpiods) {
 		if (!priv->gpiod_nwe) {
 			dev_err(&pdev->dev,
-				"mandatory NWE pin not provided by platform\n");
-			return -ENODEV;
+				"mandatory NWE pin analt provided by platform\n");
+			return -EANALDEV;
 		}
 
 		priv->io_read = gpio_nand_io_read;
@@ -350,7 +350,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 
 	if (!priv->io_read || !priv->io_write) {
 		dev_err(&pdev->dev, "incomplete device configuration\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Initialize the NAND controller object embedded in gpio_nand. */
@@ -443,5 +443,5 @@ static struct platform_driver gpio_nand_driver = {
 module_platform_driver(gpio_nand_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Jonathan McDowell <noodles@earth.li>");
+MODULE_AUTHOR("Jonathan McDowell <analodles@earth.li>");
 MODULE_DESCRIPTION("Glue layer for NAND flash on Amstrad E3 (Delta)");

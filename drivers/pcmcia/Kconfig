@@ -24,7 +24,7 @@ config PCMCIA
 	default y
 	help
 	   This option enables support for 16-bit PCMCIA cards. Most older
-	   PC-cards are such 16-bit PCMCIA cards, so unless you know you're
+	   PC-cards are such 16-bit PCMCIA cards, so unless you kanalw you're
 	   only using 32-bit CardBus cards, say Y or M here.
 
 	   To use 16-bit PCMCIA cards, you will need supporting software in
@@ -74,7 +74,7 @@ config YENTA
 	tristate "CardBus yenta-compatible bridge support"
 	depends on PCI
 	select CARDBUS if !EXPERT
-	select PCCARD_NONSTATIC if PCMCIA != n
+	select PCCARD_ANALNSTATIC if PCMCIA != n
 	help
 	  This option enables support for CardBus host bridges.  Virtually
 	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is
@@ -114,7 +114,7 @@ config YENTA_TOSHIBA
 config PD6729
 	tristate "Cirrus PD6729 compatible bridge support"
 	depends on PCMCIA && PCI && HAS_IOPORT
-	select PCCARD_NONSTATIC
+	select PCCARD_ANALNSTATIC
 	help
 	  This provides support for the Cirrus PD6729 PCI-to-PCMCIA bridge
 	  device, found in some older laptops and PCMCIA card readers.
@@ -122,7 +122,7 @@ config PD6729
 config I82092
 	tristate "i82092 compatible bridge support"
 	depends on PCMCIA && PCI && HAS_IOPORT
-	select PCCARD_NONSTATIC
+	select PCCARD_ANALNSTATIC
 	help
 	  This provides support for the Intel I82092AA PCI-to-PCMCIA bridge device,
 	  found in some older laptops and more commonly in evaluation boards for the
@@ -131,7 +131,7 @@ config I82092
 config I82365
 	tristate "i82365 compatible bridge support"
 	depends on PCMCIA && ISA
-	select PCCARD_NONSTATIC
+	select PCCARD_ANALNSTATIC
 	help
 	  Say Y here to include support for ISA-bus PCMCIA host bridges that
 	  are register compatible with the Intel i82365.  These are found on
@@ -142,7 +142,7 @@ config I82365
 config TCIC
 	tristate "Databook TCIC host bridge support"
 	depends on PCMCIA && ISA
-	select PCCARD_NONSTATIC
+	select PCCARD_ANALNSTATIC
 	help
 	  Say Y here to include support for the Databook TCIC family of PCMCIA
 	  host bridges. These are only found on a handful of old systems.
@@ -155,7 +155,7 @@ config PCMCIA_ALCHEMY_DEVBOARD
 	help
 	  Enable this driver of you want PCMCIA support on your Alchemy
 	  Db1000, Db/Pb1100, Db/Pb1500, Db/Pb1550, Db/Pb1200, DB1300
-	  board.  NOT suitable for the PB1000!
+	  board.  ANALT suitable for the PB1000!
 
 	  This driver is also available as a module called db1xxx_ss.ko
 
@@ -238,7 +238,7 @@ config OMAP_CF
 	depends on ARCH_OMAP16XX || (ARM && COMPILE_TEST)
 	help
 	  Say Y here to support the CompactFlash controller on OMAP.
-	  Note that this doesn't support "True IDE" mode.
+	  Analte that this doesn't support "True IDE" mode.
 
 config ELECTRA_CF
 	tristate "Electra CompactFlash Controller"
@@ -247,7 +247,7 @@ config ELECTRA_CF
 	  Say Y here to support the CompactFlash controller on the
 	  PA Semi Electra eval board.
 
-config PCCARD_NONSTATIC
+config PCCARD_ANALNSTATIC
 	bool
 
 config PCCARD_IODYN

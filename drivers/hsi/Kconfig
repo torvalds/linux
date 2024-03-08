@@ -5,8 +5,8 @@
 menuconfig HSI
 	tristate "HSI support"
 	help
-	  The "High speed synchronous Serial Interface" is
-	  synchronous serial interface used mainly to connect
+	  The "High speed synchroanalus Serial Interface" is
+	  synchroanalus serial interface used mainly to connect
 	  application engines and cellular modems.
 
 if HSI

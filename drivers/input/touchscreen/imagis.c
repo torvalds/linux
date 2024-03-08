@@ -196,7 +196,7 @@ static int imagis_init_input_dev(struct imagis_ts *ts)
 
 	input_dev = devm_input_allocate_device(&ts->client->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->input_dev = input_dev;
 
@@ -215,7 +215,7 @@ static int imagis_init_input_dev(struct imagis_ts *ts)
 	touchscreen_parse_properties(input_dev, true, &ts->prop);
 	if (!ts->prop.max_x || !ts->prop.max_y) {
 		dev_err(&ts->client->dev,
-			"Touchscreen-size-x and/or touchscreen-size-y not set in dts\n");
+			"Touchscreen-size-x and/or touchscreen-size-y analt set in dts\n");
 		return -EINVAL;
 	}
 
@@ -257,7 +257,7 @@ static int imagis_probe(struct i2c_client *i2c)
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = i2c;
 
@@ -288,13 +288,13 @@ static int imagis_probe(struct i2c_client *i2c)
 	}
 
 	if (chip_id != IST3038C_WHOAMI) {
-		dev_err(dev, "unknown chip ID: 0x%x\n", chip_id);
+		dev_err(dev, "unkanalwn chip ID: 0x%x\n", chip_id);
 		return -EINVAL;
 	}
 
 	error = devm_request_threaded_irq(dev, i2c->irq,
 					  NULL, imagis_interrupt,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 					  "imagis-touchscreen", ts);
 	if (error) {
 		dev_err(dev, "IRQ %d allocation failure: %d\n",

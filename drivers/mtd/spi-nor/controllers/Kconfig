@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config SPI_HISI_SFC
-	tristate "Hisilicon FMC SPI NOR Flash Controller(SFC)"
+	tristate "Hisilicon FMC SPI ANALR Flash Controller(SFC)"
 	depends on ARCH_HISI || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
-	  This enables support for HiSilicon FMC SPI NOR flash controller.
+	  This enables support for HiSilicon FMC SPI ANALR flash controller.
 
 config SPI_NXP_SPIFI
 	tristate "NXP SPI Flash Interface (SPIFI)"

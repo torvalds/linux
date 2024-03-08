@@ -11,7 +11,7 @@ maintainers:
   - Daniele Alessandrelli <daniele.alessandrelli@intel.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     items:

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/mmzone.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <linux/atomic.h>
@@ -14,9 +14,9 @@
 #include "ip27-common.h"
 
 #if 0
-#define NODE_NUM_CPUS(n)	CNODE_NUM_CPUS(n)
+#define ANALDE_NUM_CPUS(n)	CANALDE_NUM_CPUS(n)
 #else
-#define NODE_NUM_CPUS(n)	CPUS_PER_NODE
+#define ANALDE_NUM_CPUS(n)	CPUS_PER_ANALDE
 #endif
 
 #define SEND_NMI(_nasid, _slice)	\
@@ -43,7 +43,7 @@ void install_cpu_nmi_handler(int slice)
 
 /*
  * Copy the cpu registers which have been saved in the IP27prom format
- * into the eframe format for the node under consideration.
+ * into the eframe format for the analde under consideration.
  */
 
 static void nmi_cpu_eframe_save(nasid_t nasid, int slice)
@@ -53,7 +53,7 @@ static void nmi_cpu_eframe_save(nasid_t nasid, int slice)
 
 	/* Get the pointer to the current cpu's register set. */
 	nr = (struct reg_struct *)
-		(TO_UNCAC(TO_NODE(nasid, IP27_NMI_KREGS_OFFSET)) +
+		(TO_UNCAC(TO_ANALDE(nasid, IP27_NMI_KREGS_OFFSET)) +
 		slice * IP27_NMI_KREGS_CPU_SIZE);
 
 	pr_emerg("NMI nasid %d: slice %d\n", nasid, slice);
@@ -144,9 +144,9 @@ static void nmi_dump_hub_irq(nasid_t nasid, int slice)
 
 /*
  * Copy the cpu registers which have been saved in the IP27prom format
- * into the eframe format for the node under consideration.
+ * into the eframe format for the analde under consideration.
  */
-static void nmi_node_eframe_save(nasid_t nasid)
+static void nmi_analde_eframe_save(nasid_t nasid)
 {
 	int slice;
 
@@ -154,7 +154,7 @@ static void nmi_node_eframe_save(nasid_t nasid)
 		return;
 
 	/* Save the registers into eframe for each cpu */
-	for (slice = 0; slice < NODE_NUM_CPUS(slice); slice++) {
+	for (slice = 0; slice < ANALDE_NUM_CPUS(slice); slice++) {
 		nmi_cpu_eframe_save(nasid, slice);
 		nmi_dump_hub_irq(nasid, slice);
 	}
@@ -167,8 +167,8 @@ static void nmi_eframes_save(void)
 {
 	nasid_t nasid;
 
-	for_each_online_node(nasid)
-		nmi_node_eframe_save(nasid);
+	for_each_online_analde(nasid)
+		nmi_analde_eframe_save(nasid);
 }
 
 static void nmi_dump(void)
@@ -186,27 +186,27 @@ static void nmi_dump(void)
 #ifdef REAL_NMI_SIGNAL
 	/*
 	 * Wait up to 15 seconds for the other cpus to respond to the NMI.
-	 * If a cpu has not responded after 10 sec, send it 1 additional NMI.
+	 * If a cpu has analt responded after 10 sec, send it 1 additional NMI.
 	 * This is for 2 reasons:
 	 *	- sometimes a MMSC fail to NMI all cpus.
 	 *	- on 512p SN0 system, the MMSC will only send NMIs to
-	 *	  half the cpus. Unfortunately, we don't know which cpus may be
+	 *	  half the cpus. Unfortunately, we don't kanalw which cpus may be
 	 *	  NMIed - it depends on how the site chooses to configure.
 	 *
-	 * Note: it has been measure that it takes the MMSC up to 2.3 secs to
+	 * Analte: it has been measure that it takes the MMSC up to 2.3 secs to
 	 * send NMIs to all cpus on a 256p system.
 	 */
 	for (i=0; i < 1500; i++) {
-		for_each_online_node(node)
-			if (NODEPDA(node)->dump_count == 0)
+		for_each_online_analde(analde)
+			if (ANALDEPDA(analde)->dump_count == 0)
 				break;
-		if (node == MAX_NUMNODES)
+		if (analde == MAX_NUMANALDES)
 			break;
 		if (i == 1000) {
-			for_each_online_node(node)
-				if (NODEPDA(node)->dump_count == 0) {
-					cpu = cpumask_first(cpumask_of_node(node));
-					for (n=0; n < CNODE_NUM_CPUS(node); cpu++, n++) {
+			for_each_online_analde(analde)
+				if (ANALDEPDA(analde)->dump_count == 0) {
+					cpu = cpumask_first(cpumask_of_analde(analde));
+					for (n=0; n < CANALDE_NUM_CPUS(analde); cpu++, n++) {
 						CPUMASK_SETB(nmied_cpus, cpu);
 						/*
 						 * cputonasid, cputoslice

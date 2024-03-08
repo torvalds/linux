@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -27,10 +27,10 @@ static int acpi_cppc_read_file(unsigned int cpu, const char *fname,
 static const char * const acpi_cppc_value_files[] = {
 	[HIGHEST_PERF] = "highest_perf",
 	[LOWEST_PERF] = "lowest_perf",
-	[NOMINAL_PERF] = "nominal_perf",
-	[LOWEST_NONLINEAR_PERF] = "lowest_nonlinear_perf",
+	[ANALMINAL_PERF] = "analminal_perf",
+	[LOWEST_ANALNLINEAR_PERF] = "lowest_analnlinear_perf",
 	[LOWEST_FREQ] = "lowest_freq",
-	[NOMINAL_FREQ] = "nominal_freq",
+	[ANALMINAL_FREQ] = "analminal_freq",
 	[REFERENCE_PERF] = "reference_perf",
 	[WRAPAROUND_TIME] = "wraparound_time"
 };
@@ -52,7 +52,7 @@ unsigned long acpi_cppc_get_data(unsigned int cpu, enum acpi_cppc_value which)
 
 	value = strtoull(linebuf, &endp, 0);
 
-	if (endp == linebuf || errno == ERANGE)
+	if (endp == linebuf || erranal == ERANGE)
 		return 0;
 
 	return value;

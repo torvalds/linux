@@ -3,7 +3,7 @@
 // Copyright (c) 2018 MediaTek Inc.
 
 #include <linux/completion.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/mailbox_controller.h>
@@ -49,9 +49,9 @@ int cmdq_dev_get_client_reg(struct device *dev,
 	int err;
 
 	if (!client_reg)
-		return -ENOENT;
+		return -EANALENT;
 
-	err = of_parse_phandle_with_fixed_args(dev->of_node,
+	err = of_parse_phandle_with_fixed_args(dev->of_analde,
 					       "mediatek,gce-client-reg",
 					       3, idx, &spec);
 	if (err < 0) {
@@ -65,7 +65,7 @@ int cmdq_dev_get_client_reg(struct device *dev,
 	client_reg->subsys = (u8)spec.args[0];
 	client_reg->offset = (u16)spec.args[1];
 	client_reg->size = (u16)spec.args[2];
-	of_node_put(spec.np);
+	of_analde_put(spec.np);
 
 	return 0;
 }
@@ -77,11 +77,11 @@ struct cmdq_client *cmdq_mbox_create(struct device *dev, int index)
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
-		return (struct cmdq_client *)-ENOMEM;
+		return (struct cmdq_client *)-EANALMEM;
 
 	client->client.dev = dev;
 	client->client.tx_block = false;
-	client->client.knows_txdone = true;
+	client->client.kanalws_txdone = true;
 	client->chan = mbox_request_channel(&client->client, index);
 
 	if (IS_ERR(client->chan)) {
@@ -113,11 +113,11 @@ struct cmdq_pkt *cmdq_pkt_create(struct cmdq_client *client, size_t size)
 
 	pkt = kzalloc(sizeof(*pkt), GFP_KERNEL);
 	if (!pkt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	pkt->va_base = kzalloc(size, GFP_KERNEL);
 	if (!pkt->va_base) {
 		kfree(pkt);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	pkt->buf_size = size;
 	pkt->cl = (void *)client;
@@ -129,7 +129,7 @@ struct cmdq_pkt *cmdq_pkt_create(struct cmdq_client *client, size_t size)
 		dev_err(dev, "dma map failed, size=%u\n", (u32)(u64)size);
 		kfree(pkt->va_base);
 		kfree(pkt);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	pkt->pa_base = dma_addr;
@@ -158,7 +158,7 @@ static int cmdq_pkt_append_command(struct cmdq_pkt *pkt,
 		/*
 		 * In the case of allocated buffer size (pkt->buf_size) is used
 		 * up, the real required size (pkt->cmdq_buf_size) is still
-		 * increased, so that the user knows how much memory should be
+		 * increased, so that the user kanalws how much memory should be
 		 * ultimately allocated after appending all commands and
 		 * flushing the command packet. Therefor, the user can call
 		 * cmdq_pkt_create() again with the real required buffer size.
@@ -166,7 +166,7 @@ static int cmdq_pkt_append_command(struct cmdq_pkt *pkt,
 		pkt->cmd_buf_size += CMDQ_INST_SIZE;
 		WARN_ONCE(1, "%s: buffer size %u is too small !\n",
 			__func__, (u32)pkt->buf_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd_ptr = pkt->va_base + pkt->cmd_buf_size;

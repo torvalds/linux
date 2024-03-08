@@ -17,39 +17,39 @@
 
 #define nfs_show_cache_validity(v) \
 	__print_flags(v, "|", \
-			{ NFS_INO_INVALID_DATA, "INVALID_DATA" }, \
-			{ NFS_INO_INVALID_ATIME, "INVALID_ATIME" }, \
-			{ NFS_INO_INVALID_ACCESS, "INVALID_ACCESS" }, \
-			{ NFS_INO_INVALID_ACL, "INVALID_ACL" }, \
-			{ NFS_INO_REVAL_FORCED, "REVAL_FORCED" }, \
-			{ NFS_INO_INVALID_LABEL, "INVALID_LABEL" }, \
-			{ NFS_INO_INVALID_CHANGE, "INVALID_CHANGE" }, \
-			{ NFS_INO_INVALID_CTIME, "INVALID_CTIME" }, \
-			{ NFS_INO_INVALID_MTIME, "INVALID_MTIME" }, \
-			{ NFS_INO_INVALID_SIZE, "INVALID_SIZE" }, \
-			{ NFS_INO_INVALID_OTHER, "INVALID_OTHER" }, \
-			{ NFS_INO_DATA_INVAL_DEFER, "DATA_INVAL_DEFER" }, \
-			{ NFS_INO_INVALID_BLOCKS, "INVALID_BLOCKS" }, \
-			{ NFS_INO_INVALID_XATTR, "INVALID_XATTR" }, \
-			{ NFS_INO_INVALID_NLINK, "INVALID_NLINK" }, \
-			{ NFS_INO_INVALID_MODE, "INVALID_MODE" })
+			{ NFS_IANAL_INVALID_DATA, "INVALID_DATA" }, \
+			{ NFS_IANAL_INVALID_ATIME, "INVALID_ATIME" }, \
+			{ NFS_IANAL_INVALID_ACCESS, "INVALID_ACCESS" }, \
+			{ NFS_IANAL_INVALID_ACL, "INVALID_ACL" }, \
+			{ NFS_IANAL_REVAL_FORCED, "REVAL_FORCED" }, \
+			{ NFS_IANAL_INVALID_LABEL, "INVALID_LABEL" }, \
+			{ NFS_IANAL_INVALID_CHANGE, "INVALID_CHANGE" }, \
+			{ NFS_IANAL_INVALID_CTIME, "INVALID_CTIME" }, \
+			{ NFS_IANAL_INVALID_MTIME, "INVALID_MTIME" }, \
+			{ NFS_IANAL_INVALID_SIZE, "INVALID_SIZE" }, \
+			{ NFS_IANAL_INVALID_OTHER, "INVALID_OTHER" }, \
+			{ NFS_IANAL_DATA_INVAL_DEFER, "DATA_INVAL_DEFER" }, \
+			{ NFS_IANAL_INVALID_BLOCKS, "INVALID_BLOCKS" }, \
+			{ NFS_IANAL_INVALID_XATTR, "INVALID_XATTR" }, \
+			{ NFS_IANAL_INVALID_NLINK, "INVALID_NLINK" }, \
+			{ NFS_IANAL_INVALID_MODE, "INVALID_MODE" })
 
 #define nfs_show_nfsi_flags(v) \
 	__print_flags(v, "|", \
-			{ BIT(NFS_INO_STALE), "STALE" }, \
-			{ BIT(NFS_INO_ACL_LRU_SET), "ACL_LRU_SET" }, \
-			{ BIT(NFS_INO_INVALIDATING), "INVALIDATING" }, \
-			{ BIT(NFS_INO_LAYOUTCOMMIT), "NEED_LAYOUTCOMMIT" }, \
-			{ BIT(NFS_INO_LAYOUTCOMMITTING), "LAYOUTCOMMIT" }, \
-			{ BIT(NFS_INO_LAYOUTSTATS), "LAYOUTSTATS" }, \
-			{ BIT(NFS_INO_ODIRECT), "ODIRECT" })
+			{ BIT(NFS_IANAL_STALE), "STALE" }, \
+			{ BIT(NFS_IANAL_ACL_LRU_SET), "ACL_LRU_SET" }, \
+			{ BIT(NFS_IANAL_INVALIDATING), "INVALIDATING" }, \
+			{ BIT(NFS_IANAL_LAYOUTCOMMIT), "NEED_LAYOUTCOMMIT" }, \
+			{ BIT(NFS_IANAL_LAYOUTCOMMITTING), "LAYOUTCOMMIT" }, \
+			{ BIT(NFS_IANAL_LAYOUTSTATS), "LAYOUTSTATS" }, \
+			{ BIT(NFS_IANAL_ODIRECT), "ODIRECT" })
 
-DECLARE_EVENT_CLASS(nfs_inode_event,
+DECLARE_EVENT_CLASS(nfs_ianalde_event,
 		TP_PROTO(
-			const struct inode *inode
+			const struct ianalde *ianalde
 		),
 
-		TP_ARGS(inode),
+		TP_ARGS(ianalde),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -59,29 +59,29 @@ DECLARE_EVENT_CLASS(nfs_inode_event,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
-			__entry->dev = inode->i_sb->s_dev;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
-			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->version = ianalde_peek_iversion_raw(ianalde);
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu ",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			(unsigned long long)__entry->version
 		)
 );
 
-DECLARE_EVENT_CLASS(nfs_inode_event_done,
+DECLARE_EVENT_CLASS(nfs_ianalde_event_done,
 		TP_PROTO(
-			const struct inode *inode,
+			const struct ianalde *ianalde,
 			int error
 		),
 
-		TP_ARGS(inode, error),
+		TP_ARGS(ianalde, error),
 
 		TP_STRUCT__entry(
 			__field(unsigned long, error)
@@ -96,14 +96,14 @@ DECLARE_EVENT_CLASS(nfs_inode_event_done,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			__entry->error = error < 0 ? -error : 0;
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
-			__entry->type = nfs_umode_to_dtype(inode->i_mode);
-			__entry->version = inode_peek_iversion_raw(inode);
-			__entry->size = i_size_read(inode);
+			__entry->type = nfs_umode_to_dtype(ianalde->i_mode);
+			__entry->version = ianalde_peek_iversion_raw(ianalde);
+			__entry->size = i_size_read(ianalde);
 			__entry->nfsi_flags = nfsi->flags;
 			__entry->cache_validity = nfsi->cache_validity;
 		),
@@ -113,7 +113,7 @@ DECLARE_EVENT_CLASS(nfs_inode_event_done,
 			"type=%u (%s) version=%llu size=%lld "
 			"cache_validity=0x%lx (%s) nfs_flags=0x%lx (%s)",
 			-__entry->error, show_nfs_status(__entry->error),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			__entry->type,
@@ -127,49 +127,49 @@ DECLARE_EVENT_CLASS(nfs_inode_event_done,
 		)
 );
 
-#define DEFINE_NFS_INODE_EVENT(name) \
-	DEFINE_EVENT(nfs_inode_event, name, \
+#define DEFINE_NFS_IANALDE_EVENT(name) \
+	DEFINE_EVENT(nfs_ianalde_event, name, \
 			TP_PROTO( \
-				const struct inode *inode \
+				const struct ianalde *ianalde \
 			), \
-			TP_ARGS(inode))
-#define DEFINE_NFS_INODE_EVENT_DONE(name) \
-	DEFINE_EVENT(nfs_inode_event_done, name, \
+			TP_ARGS(ianalde))
+#define DEFINE_NFS_IANALDE_EVENT_DONE(name) \
+	DEFINE_EVENT(nfs_ianalde_event_done, name, \
 			TP_PROTO( \
-				const struct inode *inode, \
+				const struct ianalde *ianalde, \
 				int error \
 			), \
-			TP_ARGS(inode, error))
-DEFINE_NFS_INODE_EVENT(nfs_set_inode_stale);
-DEFINE_NFS_INODE_EVENT(nfs_refresh_inode_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_refresh_inode_exit);
-DEFINE_NFS_INODE_EVENT(nfs_revalidate_inode_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_revalidate_inode_exit);
-DEFINE_NFS_INODE_EVENT(nfs_invalidate_mapping_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_invalidate_mapping_exit);
-DEFINE_NFS_INODE_EVENT(nfs_getattr_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_getattr_exit);
-DEFINE_NFS_INODE_EVENT(nfs_setattr_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_setattr_exit);
-DEFINE_NFS_INODE_EVENT(nfs_writeback_inode_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_writeback_inode_exit);
-DEFINE_NFS_INODE_EVENT(nfs_fsync_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_fsync_exit);
-DEFINE_NFS_INODE_EVENT(nfs_access_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_set_cache_invalid);
-DEFINE_NFS_INODE_EVENT(nfs_readdir_force_readdirplus);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_readdir_cache_fill_done);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_readdir_uncached_done);
+			TP_ARGS(ianalde, error))
+DEFINE_NFS_IANALDE_EVENT(nfs_set_ianalde_stale);
+DEFINE_NFS_IANALDE_EVENT(nfs_refresh_ianalde_enter);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_refresh_ianalde_exit);
+DEFINE_NFS_IANALDE_EVENT(nfs_revalidate_ianalde_enter);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_revalidate_ianalde_exit);
+DEFINE_NFS_IANALDE_EVENT(nfs_invalidate_mapping_enter);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_invalidate_mapping_exit);
+DEFINE_NFS_IANALDE_EVENT(nfs_getattr_enter);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_getattr_exit);
+DEFINE_NFS_IANALDE_EVENT(nfs_setattr_enter);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_setattr_exit);
+DEFINE_NFS_IANALDE_EVENT(nfs_writeback_ianalde_enter);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_writeback_ianalde_exit);
+DEFINE_NFS_IANALDE_EVENT(nfs_fsync_enter);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_fsync_exit);
+DEFINE_NFS_IANALDE_EVENT(nfs_access_enter);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_set_cache_invalid);
+DEFINE_NFS_IANALDE_EVENT(nfs_readdir_force_readdirplus);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_readdir_cache_fill_done);
+DEFINE_NFS_IANALDE_EVENT_DONE(nfs_readdir_uncached_done);
 
 TRACE_EVENT(nfs_access_exit,
 		TP_PROTO(
-			const struct inode *inode,
+			const struct ianalde *ianalde,
 			unsigned int mask,
 			unsigned int permitted,
 			int error
 		),
 
-		TP_ARGS(inode, mask, permitted, error),
+		TP_ARGS(ianalde, mask, permitted, error),
 
 		TP_STRUCT__entry(
 			__field(unsigned long, error)
@@ -186,14 +186,14 @@ TRACE_EVENT(nfs_access_exit,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			__entry->error = error < 0 ? -error : 0;
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
-			__entry->type = nfs_umode_to_dtype(inode->i_mode);
-			__entry->version = inode_peek_iversion_raw(inode);
-			__entry->size = i_size_read(inode);
+			__entry->type = nfs_umode_to_dtype(ianalde->i_mode);
+			__entry->version = ianalde_peek_iversion_raw(ianalde);
+			__entry->size = i_size_read(ianalde);
 			__entry->nfsi_flags = nfsi->flags;
 			__entry->cache_validity = nfsi->cache_validity;
 			__entry->mask = mask;
@@ -206,7 +206,7 @@ TRACE_EVENT(nfs_access_exit,
 			"cache_validity=0x%lx (%s) nfs_flags=0x%lx (%s) "
 			"mask=0x%x permitted=0x%x",
 			-__entry->error, show_nfs_status(__entry->error),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			__entry->type,
@@ -223,11 +223,11 @@ TRACE_EVENT(nfs_access_exit,
 
 DECLARE_EVENT_CLASS(nfs_update_size_class,
 		TP_PROTO(
-			const struct inode *inode,
+			const struct ianalde *ianalde,
 			loff_t new_size
 		),
 
-		TP_ARGS(inode, new_size),
+		TP_ARGS(ianalde, new_size),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -239,19 +239,19 @@ DECLARE_EVENT_CLASS(nfs_update_size_class,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->fileid = nfsi->fileid;
-			__entry->version = inode_peek_iversion_raw(inode);
-			__entry->cur_size = i_size_read(inode);
+			__entry->version = ianalde_peek_iversion_raw(ianalde);
+			__entry->cur_size = i_size_read(ianalde);
 			__entry->new_size = new_size;
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu cursize=%lld newsize=%lld",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->version,
 			__entry->cur_size, __entry->new_size
@@ -261,24 +261,24 @@ DECLARE_EVENT_CLASS(nfs_update_size_class,
 #define DEFINE_NFS_UPDATE_SIZE_EVENT(name) \
 	DEFINE_EVENT(nfs_update_size_class, nfs_size_##name, \
 			TP_PROTO( \
-				const struct inode *inode, \
+				const struct ianalde *ianalde, \
 				loff_t new_size \
 			), \
-			TP_ARGS(inode, new_size))
+			TP_ARGS(ianalde, new_size))
 
 DEFINE_NFS_UPDATE_SIZE_EVENT(truncate);
 DEFINE_NFS_UPDATE_SIZE_EVENT(wcc);
 DEFINE_NFS_UPDATE_SIZE_EVENT(update);
 DEFINE_NFS_UPDATE_SIZE_EVENT(grow);
 
-DECLARE_EVENT_CLASS(nfs_inode_range_event,
+DECLARE_EVENT_CLASS(nfs_ianalde_range_event,
 		TP_PROTO(
-			const struct inode *inode,
+			const struct ianalde *ianalde,
 			loff_t range_start,
 			loff_t range_end
 		),
 
-		TP_ARGS(inode, range_start, range_end),
+		TP_ARGS(ianalde, range_start, range_end),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -290,12 +290,12 @@ DECLARE_EVENT_CLASS(nfs_inode_range_event,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->fileid = nfsi->fileid;
-			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->version = ianalde_peek_iversion_raw(ianalde);
 			__entry->range_start = range_start;
 			__entry->range_end = range_end;
 		),
@@ -303,23 +303,23 @@ DECLARE_EVENT_CLASS(nfs_inode_range_event,
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu "
 			"range=[%lld, %lld]",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->version,
 			__entry->range_start, __entry->range_end
 		)
 );
 
-#define DEFINE_NFS_INODE_RANGE_EVENT(name) \
-	DEFINE_EVENT(nfs_inode_range_event, name, \
+#define DEFINE_NFS_IANALDE_RANGE_EVENT(name) \
+	DEFINE_EVENT(nfs_ianalde_range_event, name, \
 			TP_PROTO( \
-				const struct inode *inode, \
+				const struct ianalde *ianalde, \
 				loff_t range_start, \
 				loff_t range_end \
 			), \
-			TP_ARGS(inode, range_start, range_end))
+			TP_ARGS(ianalde, range_start, range_end))
 
-DEFINE_NFS_INODE_RANGE_EVENT(nfs_readdir_invalidate_cache_range);
+DEFINE_NFS_IANALDE_RANGE_EVENT(nfs_readdir_invalidate_cache_range);
 
 DECLARE_EVENT_CLASS(nfs_readdir_event,
 		TP_PROTO(
@@ -344,13 +344,13 @@ DECLARE_EVENT_CLASS(nfs_readdir_event,
 		),
 
 		TP_fast_assign(
-			const struct inode *dir = file_inode(file);
-			const struct nfs_inode *nfsi = NFS_I(dir);
+			const struct ianalde *dir = file_ianalde(file);
+			const struct nfs_ianalde *nfsi = NFS_I(dir);
 
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
-			__entry->version = inode_peek_iversion_raw(dir);
+			__entry->version = ianalde_peek_iversion_raw(dir);
 			if (cookie != 0)
 				memcpy(__entry->verifier, verifier,
 				       NFS4_VERIFIER_SIZE);
@@ -365,7 +365,7 @@ DECLARE_EVENT_CLASS(nfs_readdir_event,
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu "
 			"cookie=%s:0x%llx cache_index=%lu dtsize=%u",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid, __entry->fhandle,
 			__entry->version, show_nfs4_verifier(__entry->verifier),
 			(unsigned long long)__entry->cookie, __entry->index,
@@ -389,7 +389,7 @@ DEFINE_NFS_READDIR_EVENT(nfs_readdir_uncached);
 
 DECLARE_EVENT_CLASS(nfs_lookup_event,
 		TP_PROTO(
-			const struct inode *dir,
+			const struct ianalde *dir,
 			const struct dentry *dentry,
 			unsigned int flags
 		),
@@ -408,7 +408,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event,
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
 			__entry->flags = flags;
-			__entry->fileid = d_is_negative(dentry) ? 0 : NFS_FILEID(d_inode(dentry));
+			__entry->fileid = d_is_negative(dentry) ? 0 : NFS_FILEID(d_ianalde(dentry));
 			__assign_str(name, dentry->d_name.name);
 		),
 
@@ -416,7 +416,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event,
 			"flags=0x%lx (%s) name=%02x:%02x:%llu/%s fileid=%llu",
 			__entry->flags,
 			show_fs_lookup_flags(__entry->flags),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name),
 			__entry->fileid
@@ -426,7 +426,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event,
 #define DEFINE_NFS_LOOKUP_EVENT(name) \
 	DEFINE_EVENT(nfs_lookup_event, name, \
 			TP_PROTO( \
-				const struct inode *dir, \
+				const struct ianalde *dir, \
 				const struct dentry *dentry, \
 				unsigned int flags \
 			), \
@@ -434,7 +434,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event,
 
 DECLARE_EVENT_CLASS(nfs_lookup_event_done,
 		TP_PROTO(
-			const struct inode *dir,
+			const struct ianalde *dir,
 			const struct dentry *dentry,
 			unsigned int flags,
 			int error
@@ -456,7 +456,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event_done,
 			__entry->dir = NFS_FILEID(dir);
 			__entry->error = error < 0 ? -error : 0;
 			__entry->flags = flags;
-			__entry->fileid = d_is_negative(dentry) ? 0 : NFS_FILEID(d_inode(dentry));
+			__entry->fileid = d_is_negative(dentry) ? 0 : NFS_FILEID(d_ianalde(dentry));
 			__assign_str(name, dentry->d_name.name);
 		),
 
@@ -465,7 +465,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event_done,
 			-__entry->error, show_nfs_status(__entry->error),
 			__entry->flags,
 			show_fs_lookup_flags(__entry->flags),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name),
 			__entry->fileid
@@ -475,7 +475,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event_done,
 #define DEFINE_NFS_LOOKUP_EVENT_DONE(name) \
 	DEFINE_EVENT(nfs_lookup_event_done, name, \
 			TP_PROTO( \
-				const struct inode *dir, \
+				const struct ianalde *dir, \
 				const struct dentry *dentry, \
 				unsigned int flags, \
 				int error \
@@ -492,7 +492,7 @@ DEFINE_NFS_LOOKUP_EVENT_DONE(nfs_readdir_lookup_revalidate);
 
 TRACE_EVENT(nfs_atomic_open_enter,
 		TP_PROTO(
-			const struct inode *dir,
+			const struct ianalde *dir,
 			const struct nfs_open_context *ctx,
 			unsigned int flags
 		),
@@ -520,7 +520,7 @@ TRACE_EVENT(nfs_atomic_open_enter,
 			__entry->flags,
 			show_fs_fcntl_open_flags(__entry->flags),
 			show_fs_fmode_flags(__entry->fmode),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
 		)
@@ -528,7 +528,7 @@ TRACE_EVENT(nfs_atomic_open_enter,
 
 TRACE_EVENT(nfs_atomic_open_exit,
 		TP_PROTO(
-			const struct inode *dir,
+			const struct ianalde *dir,
 			const struct nfs_open_context *ctx,
 			unsigned int flags,
 			int error
@@ -561,7 +561,7 @@ TRACE_EVENT(nfs_atomic_open_exit,
 			__entry->flags,
 			show_fs_fcntl_open_flags(__entry->flags),
 			show_fs_fmode_flags(__entry->fmode),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
 		)
@@ -569,7 +569,7 @@ TRACE_EVENT(nfs_atomic_open_exit,
 
 TRACE_EVENT(nfs_create_enter,
 		TP_PROTO(
-			const struct inode *dir,
+			const struct ianalde *dir,
 			const struct dentry *dentry,
 			unsigned int flags
 		),
@@ -594,7 +594,7 @@ TRACE_EVENT(nfs_create_enter,
 			"flags=0x%lx (%s) name=%02x:%02x:%llu/%s",
 			__entry->flags,
 			show_fs_fcntl_open_flags(__entry->flags),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
 		)
@@ -602,7 +602,7 @@ TRACE_EVENT(nfs_create_enter,
 
 TRACE_EVENT(nfs_create_exit,
 		TP_PROTO(
-			const struct inode *dir,
+			const struct ianalde *dir,
 			const struct dentry *dentry,
 			unsigned int flags,
 			int error
@@ -631,7 +631,7 @@ TRACE_EVENT(nfs_create_exit,
 			-__entry->error, show_nfs_status(__entry->error),
 			__entry->flags,
 			show_fs_fcntl_open_flags(__entry->flags),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
 		)
@@ -639,7 +639,7 @@ TRACE_EVENT(nfs_create_exit,
 
 DECLARE_EVENT_CLASS(nfs_directory_event,
 		TP_PROTO(
-			const struct inode *dir,
+			const struct ianalde *dir,
 			const struct dentry *dentry
 		),
 
@@ -659,7 +659,7 @@ DECLARE_EVENT_CLASS(nfs_directory_event,
 
 		TP_printk(
 			"name=%02x:%02x:%llu/%s",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
 		)
@@ -668,14 +668,14 @@ DECLARE_EVENT_CLASS(nfs_directory_event,
 #define DEFINE_NFS_DIRECTORY_EVENT(name) \
 	DEFINE_EVENT(nfs_directory_event, name, \
 			TP_PROTO( \
-				const struct inode *dir, \
+				const struct ianalde *dir, \
 				const struct dentry *dentry \
 			), \
 			TP_ARGS(dir, dentry))
 
 DECLARE_EVENT_CLASS(nfs_directory_event_done,
 		TP_PROTO(
-			const struct inode *dir,
+			const struct ianalde *dir,
 			const struct dentry *dentry,
 			int error
 		),
@@ -699,7 +699,7 @@ DECLARE_EVENT_CLASS(nfs_directory_event_done,
 		TP_printk(
 			"error=%ld (%s) name=%02x:%02x:%llu/%s",
 			-__entry->error, show_nfs_status(__entry->error),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
 		)
@@ -708,14 +708,14 @@ DECLARE_EVENT_CLASS(nfs_directory_event_done,
 #define DEFINE_NFS_DIRECTORY_EVENT_DONE(name) \
 	DEFINE_EVENT(nfs_directory_event_done, name, \
 			TP_PROTO( \
-				const struct inode *dir, \
+				const struct ianalde *dir, \
 				const struct dentry *dentry, \
 				int error \
 			), \
 			TP_ARGS(dir, dentry, error))
 
-DEFINE_NFS_DIRECTORY_EVENT(nfs_mknod_enter);
-DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_mknod_exit);
+DEFINE_NFS_DIRECTORY_EVENT(nfs_mkanald_enter);
+DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_mkanald_exit);
 DEFINE_NFS_DIRECTORY_EVENT(nfs_mkdir_enter);
 DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_mkdir_exit);
 DEFINE_NFS_DIRECTORY_EVENT(nfs_rmdir_enter);
@@ -729,12 +729,12 @@ DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_symlink_exit);
 
 TRACE_EVENT(nfs_link_enter,
 		TP_PROTO(
-			const struct inode *inode,
-			const struct inode *dir,
+			const struct ianalde *ianalde,
+			const struct ianalde *dir,
 			const struct dentry *dentry
 		),
 
-		TP_ARGS(inode, dir, dentry),
+		TP_ARGS(ianalde, dir, dentry),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -744,17 +744,17 @@ TRACE_EVENT(nfs_link_enter,
 		),
 
 		TP_fast_assign(
-			__entry->dev = inode->i_sb->s_dev;
-			__entry->fileid = NFS_FILEID(inode);
+			__entry->dev = ianalde->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(ianalde);
 			__entry->dir = NFS_FILEID(dir);
 			__assign_str(name, dentry->d_name.name);
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu name=%02x:%02x:%llu/%s",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			__entry->fileid,
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
 		)
@@ -762,13 +762,13 @@ TRACE_EVENT(nfs_link_enter,
 
 TRACE_EVENT(nfs_link_exit,
 		TP_PROTO(
-			const struct inode *inode,
-			const struct inode *dir,
+			const struct ianalde *ianalde,
+			const struct ianalde *dir,
 			const struct dentry *dentry,
 			int error
 		),
 
-		TP_ARGS(inode, dir, dentry, error),
+		TP_ARGS(ianalde, dir, dentry, error),
 
 		TP_STRUCT__entry(
 			__field(unsigned long, error)
@@ -779,8 +779,8 @@ TRACE_EVENT(nfs_link_exit,
 		),
 
 		TP_fast_assign(
-			__entry->dev = inode->i_sb->s_dev;
-			__entry->fileid = NFS_FILEID(inode);
+			__entry->dev = ianalde->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(ianalde);
 			__entry->dir = NFS_FILEID(dir);
 			__entry->error = error < 0 ? -error : 0;
 			__assign_str(name, dentry->d_name.name);
@@ -789,9 +789,9 @@ TRACE_EVENT(nfs_link_exit,
 		TP_printk(
 			"error=%ld (%s) fileid=%02x:%02x:%llu name=%02x:%02x:%llu/%s",
 			-__entry->error, show_nfs_status(__entry->error),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			__entry->fileid,
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
 		)
@@ -799,9 +799,9 @@ TRACE_EVENT(nfs_link_exit,
 
 DECLARE_EVENT_CLASS(nfs_rename_event,
 		TP_PROTO(
-			const struct inode *old_dir,
+			const struct ianalde *old_dir,
 			const struct dentry *old_dentry,
-			const struct inode *new_dir,
+			const struct ianalde *new_dir,
 			const struct dentry *new_dentry
 		),
 
@@ -825,10 +825,10 @@ DECLARE_EVENT_CLASS(nfs_rename_event,
 
 		TP_printk(
 			"old_name=%02x:%02x:%llu/%s new_name=%02x:%02x:%llu/%s",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->old_dir,
 			__get_str(old_name),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->new_dir,
 			__get_str(new_name)
 		)
@@ -836,18 +836,18 @@ DECLARE_EVENT_CLASS(nfs_rename_event,
 #define DEFINE_NFS_RENAME_EVENT(name) \
 	DEFINE_EVENT(nfs_rename_event, name, \
 			TP_PROTO( \
-				const struct inode *old_dir, \
+				const struct ianalde *old_dir, \
 				const struct dentry *old_dentry, \
-				const struct inode *new_dir, \
+				const struct ianalde *new_dir, \
 				const struct dentry *new_dentry \
 			), \
 			TP_ARGS(old_dir, old_dentry, new_dir, new_dentry))
 
 DECLARE_EVENT_CLASS(nfs_rename_event_done,
 		TP_PROTO(
-			const struct inode *old_dir,
+			const struct ianalde *old_dir,
 			const struct dentry *old_dentry,
-			const struct inode *new_dir,
+			const struct ianalde *new_dir,
 			const struct dentry *new_dentry,
 			int error
 		),
@@ -876,10 +876,10 @@ DECLARE_EVENT_CLASS(nfs_rename_event_done,
 			"error=%ld (%s) old_name=%02x:%02x:%llu/%s "
 			"new_name=%02x:%02x:%llu/%s",
 			-__entry->error, show_nfs_status(__entry->error),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->old_dir,
 			__get_str(old_name),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->new_dir,
 			__get_str(new_name)
 		)
@@ -887,9 +887,9 @@ DECLARE_EVENT_CLASS(nfs_rename_event_done,
 #define DEFINE_NFS_RENAME_EVENT_DONE(name) \
 	DEFINE_EVENT(nfs_rename_event_done, name, \
 			TP_PROTO( \
-				const struct inode *old_dir, \
+				const struct ianalde *old_dir, \
 				const struct dentry *old_dentry, \
-				const struct inode *new_dir, \
+				const struct ianalde *new_dir, \
 				const struct dentry *new_dentry, \
 				int error \
 			), \
@@ -917,7 +917,7 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 		),
 
 		TP_fast_assign(
-			struct inode *dir = d_inode(data->dentry->d_parent);
+			struct ianalde *dir = d_ianalde(data->dentry->d_parent);
 			size_t len = data->args.name.len;
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
@@ -930,7 +930,7 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 		TP_printk(
 			"error=%ld (%s) name=%02x:%02x:%llu/%s",
 			-__entry->error, show_nfs_status(__entry->error),
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
 		)
@@ -938,11 +938,11 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 
 DECLARE_EVENT_CLASS(nfs_folio_event,
 		TP_PROTO(
-			const struct inode *inode,
+			const struct ianalde *ianalde,
 			struct folio *folio
 		),
 
-		TP_ARGS(inode, folio),
+		TP_ARGS(ianalde, folio),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -954,12 +954,12 @@ DECLARE_EVENT_CLASS(nfs_folio_event,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
-			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->version = ianalde_peek_iversion_raw(ianalde);
 			__entry->offset = folio_file_pos(folio);
 			__entry->count = nfs_folio_length(folio);
 		),
@@ -967,7 +967,7 @@ DECLARE_EVENT_CLASS(nfs_folio_event,
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu "
 			"offset=%lld count=%u",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->version,
 			__entry->offset, __entry->count
@@ -977,19 +977,19 @@ DECLARE_EVENT_CLASS(nfs_folio_event,
 #define DEFINE_NFS_FOLIO_EVENT(name) \
 	DEFINE_EVENT(nfs_folio_event, name, \
 			TP_PROTO( \
-				const struct inode *inode, \
+				const struct ianalde *ianalde, \
 				struct folio *folio \
 			), \
-			TP_ARGS(inode, folio))
+			TP_ARGS(ianalde, folio))
 
 DECLARE_EVENT_CLASS(nfs_folio_event_done,
 		TP_PROTO(
-			const struct inode *inode,
+			const struct ianalde *ianalde,
 			struct folio *folio,
 			int ret
 		),
 
-		TP_ARGS(inode, folio, ret),
+		TP_ARGS(ianalde, folio, ret),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -1002,12 +1002,12 @@ DECLARE_EVENT_CLASS(nfs_folio_event_done,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
-			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->version = ianalde_peek_iversion_raw(ianalde);
 			__entry->offset = folio_file_pos(folio);
 			__entry->count = nfs_folio_length(folio);
 			__entry->ret = ret;
@@ -1016,7 +1016,7 @@ DECLARE_EVENT_CLASS(nfs_folio_event_done,
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu "
 			"offset=%lld count=%u ret=%d",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->version,
 			__entry->offset, __entry->count, __entry->ret
@@ -1026,11 +1026,11 @@ DECLARE_EVENT_CLASS(nfs_folio_event_done,
 #define DEFINE_NFS_FOLIO_EVENT_DONE(name) \
 	DEFINE_EVENT(nfs_folio_event_done, name, \
 			TP_PROTO( \
-				const struct inode *inode, \
+				const struct ianalde *ianalde, \
 				struct folio *folio, \
 				int ret \
 			), \
-			TP_ARGS(inode, folio, ret))
+			TP_ARGS(ianalde, folio, ret))
 
 DEFINE_NFS_FOLIO_EVENT(nfs_aop_readpage);
 DEFINE_NFS_FOLIO_EVENT_DONE(nfs_aop_readpage_done);
@@ -1043,12 +1043,12 @@ DEFINE_NFS_FOLIO_EVENT_DONE(nfs_launder_folio_done);
 
 TRACE_EVENT(nfs_aop_readahead,
 		TP_PROTO(
-			const struct inode *inode,
+			const struct ianalde *ianalde,
 			loff_t pos,
 			unsigned int nr_pages
 		),
 
-		TP_ARGS(inode, pos, nr_pages),
+		TP_ARGS(ianalde, pos, nr_pages),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -1060,19 +1060,19 @@ TRACE_EVENT(nfs_aop_readahead,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
-			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->version = ianalde_peek_iversion_raw(ianalde);
 			__entry->offset = pos;
 			__entry->nr_pages = nr_pages;
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu offset=%lld nr_pages=%u",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->version,
 			__entry->offset, __entry->nr_pages
@@ -1081,12 +1081,12 @@ TRACE_EVENT(nfs_aop_readahead,
 
 TRACE_EVENT(nfs_aop_readahead_done,
 		TP_PROTO(
-			const struct inode *inode,
+			const struct ianalde *ianalde,
 			unsigned int nr_pages,
 			int ret
 		),
 
-		TP_ARGS(inode, nr_pages, ret),
+		TP_ARGS(ianalde, nr_pages, ret),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -1099,19 +1099,19 @@ TRACE_EVENT(nfs_aop_readahead_done,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
-			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->version = ianalde_peek_iversion_raw(ianalde);
 			__entry->nr_pages = nr_pages;
 			__entry->ret = ret;
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu nr_pages=%u ret=%d",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->version,
 			__entry->nr_pages, __entry->ret
@@ -1134,14 +1134,14 @@ TRACE_EVENT(nfs_initiate_read,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = hdr->inode;
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct ianalde *ianalde = hdr->ianalde;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			const struct nfs_fh *fh = hdr->args.fh ?
 						  hdr->args.fh : &nfsi->fh;
 
 			__entry->offset = hdr->args.offset;
 			__entry->count = hdr->args.count;
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
@@ -1149,7 +1149,7 @@ TRACE_EVENT(nfs_initiate_read,
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"offset=%lld count=%u",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			(long long)__entry->offset, __entry->count
@@ -1176,8 +1176,8 @@ TRACE_EVENT(nfs_readpage_done,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = hdr->inode;
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct ianalde *ianalde = hdr->ianalde;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			const struct nfs_fh *fh = hdr->args.fh ?
 						  hdr->args.fh : &nfsi->fh;
 
@@ -1186,7 +1186,7 @@ TRACE_EVENT(nfs_readpage_done,
 			__entry->arg_count = hdr->args.count;
 			__entry->res_count = hdr->res.count;
 			__entry->eof = hdr->res.eof;
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
@@ -1194,7 +1194,7 @@ TRACE_EVENT(nfs_readpage_done,
 		TP_printk(
 			"error=%d fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"offset=%lld count=%u res=%u%s", __entry->error,
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			(long long)__entry->offset, __entry->arg_count,
@@ -1222,8 +1222,8 @@ TRACE_EVENT(nfs_readpage_short,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = hdr->inode;
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct ianalde *ianalde = hdr->ianalde;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			const struct nfs_fh *fh = hdr->args.fh ?
 						  hdr->args.fh : &nfsi->fh;
 
@@ -1232,7 +1232,7 @@ TRACE_EVENT(nfs_readpage_short,
 			__entry->arg_count = hdr->args.count;
 			__entry->res_count = hdr->res.count;
 			__entry->eof = hdr->res.eof;
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
@@ -1240,7 +1240,7 @@ TRACE_EVENT(nfs_readpage_short,
 		TP_printk(
 			"error=%d fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"offset=%lld count=%u res=%u%s", __entry->error,
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			(long long)__entry->offset, __entry->arg_count,
@@ -1270,8 +1270,8 @@ TRACE_EVENT(nfs_pgio_error,
 	),
 
 	TP_fast_assign(
-		const struct inode *inode = hdr->inode;
-		const struct nfs_inode *nfsi = NFS_I(inode);
+		const struct ianalde *ianalde = hdr->ianalde;
+		const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 		const struct nfs_fh *fh = hdr->args.fh ?
 					  hdr->args.fh : &nfsi->fh;
 
@@ -1279,14 +1279,14 @@ TRACE_EVENT(nfs_pgio_error,
 		__entry->offset = hdr->args.offset;
 		__entry->arg_count = hdr->args.count;
 		__entry->res_count = hdr->res.count;
-		__entry->dev = inode->i_sb->s_dev;
+		__entry->dev = ianalde->i_sb->s_dev;
 		__entry->fileid = nfsi->fileid;
 		__entry->fhandle = nfs_fhandle_hash(fh);
 	),
 
 	TP_printk("error=%d fileid=%02x:%02x:%llu fhandle=0x%08x "
 		  "offset=%lld count=%u res=%u pos=%llu", __entry->error,
-		MAJOR(__entry->dev), MINOR(__entry->dev),
+		MAJOR(__entry->dev), MIANALR(__entry->dev),
 		(unsigned long long)__entry->fileid, __entry->fhandle,
 		(long long)__entry->offset, __entry->arg_count, __entry->res_count,
 		__entry->pos
@@ -1310,15 +1310,15 @@ TRACE_EVENT(nfs_initiate_write,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = hdr->inode;
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct ianalde *ianalde = hdr->ianalde;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			const struct nfs_fh *fh = hdr->args.fh ?
 						  hdr->args.fh : &nfsi->fh;
 
 			__entry->offset = hdr->args.offset;
 			__entry->count = hdr->args.count;
 			__entry->stable = hdr->args.stable;
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
@@ -1326,7 +1326,7 @@ TRACE_EVENT(nfs_initiate_write,
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"offset=%lld count=%u stable=%s",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			(long long)__entry->offset, __entry->count,
@@ -1355,8 +1355,8 @@ TRACE_EVENT(nfs_writeback_done,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = hdr->inode;
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct ianalde *ianalde = hdr->ianalde;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			const struct nfs_fh *fh = hdr->args.fh ?
 						  hdr->args.fh : &nfsi->fh;
 			const struct nfs_writeverf *verf = hdr->res.verf;
@@ -1369,7 +1369,7 @@ TRACE_EVENT(nfs_writeback_done,
 			memcpy(__entry->verifier,
 				&verf->verifier,
 				NFS4_VERIFIER_SIZE);
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
@@ -1378,7 +1378,7 @@ TRACE_EVENT(nfs_writeback_done,
 			"error=%d fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"offset=%lld count=%u res=%u stable=%s "
 			"verifier=%s", __entry->error,
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			(long long)__entry->offset, __entry->arg_count,
@@ -1390,12 +1390,12 @@ TRACE_EVENT(nfs_writeback_done,
 
 DECLARE_EVENT_CLASS(nfs_page_error_class,
 		TP_PROTO(
-			const struct inode *inode,
+			const struct ianalde *ianalde,
 			const struct nfs_page *req,
 			int error
 		),
 
-		TP_ARGS(inode, req, error),
+		TP_ARGS(ianalde, req, error),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -1407,8 +1407,8 @@ DECLARE_EVENT_CLASS(nfs_page_error_class,
 		),
 
 		TP_fast_assign(
-			const struct nfs_inode *nfsi = NFS_I(inode);
-			__entry->dev = inode->i_sb->s_dev;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->offset = req_offset(req);
@@ -1419,7 +1419,7 @@ DECLARE_EVENT_CLASS(nfs_page_error_class,
 		TP_printk(
 			"error=%d fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"offset=%lld count=%u", __entry->error,
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->offset,
 			__entry->count
@@ -1429,11 +1429,11 @@ DECLARE_EVENT_CLASS(nfs_page_error_class,
 #define DEFINE_NFS_PAGEERR_EVENT(name) \
 	DEFINE_EVENT(nfs_page_error_class, name, \
 			TP_PROTO( \
-				const struct inode *inode, \
+				const struct ianalde *ianalde, \
 				const struct nfs_page *req, \
 				int error \
 			), \
-			TP_ARGS(inode, req, error))
+			TP_ARGS(ianalde, req, error))
 
 DEFINE_NFS_PAGEERR_EVENT(nfs_write_error);
 DEFINE_NFS_PAGEERR_EVENT(nfs_comp_error);
@@ -1455,14 +1455,14 @@ TRACE_EVENT(nfs_initiate_commit,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = data->inode;
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct ianalde *ianalde = data->ianalde;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			const struct nfs_fh *fh = data->args.fh ?
 						  data->args.fh : &nfsi->fh;
 
 			__entry->offset = data->args.offset;
 			__entry->count = data->args.count;
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
@@ -1470,7 +1470,7 @@ TRACE_EVENT(nfs_initiate_commit,
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"offset=%lld count=%u",
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			(long long)__entry->offset, __entry->count
@@ -1496,8 +1496,8 @@ TRACE_EVENT(nfs_commit_done,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = data->inode;
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct ianalde *ianalde = data->ianalde;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			const struct nfs_fh *fh = data->args.fh ?
 						  data->args.fh : &nfsi->fh;
 			const struct nfs_writeverf *verf = data->res.verf;
@@ -1508,7 +1508,7 @@ TRACE_EVENT(nfs_commit_done,
 			memcpy(__entry->verifier,
 				&verf->verifier,
 				NFS4_VERIFIER_SIZE);
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
@@ -1516,7 +1516,7 @@ TRACE_EVENT(nfs_commit_done,
 		TP_printk(
 			"error=%d fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"offset=%lld stable=%s verifier=%s", __entry->error,
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			(long long)__entry->offset,
@@ -1550,11 +1550,11 @@ DECLARE_EVENT_CLASS(nfs_direct_req_class,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = dreq->inode;
-			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct ianalde *ianalde = dreq->ianalde;
+			const struct nfs_ianalde *nfsi = NFS_I(ianalde);
 			const struct nfs_fh *fh = &nfsi->fh;
 
-			__entry->dev = inode->i_sb->s_dev;
+			__entry->dev = ianalde->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(fh);
 			__entry->offset = dreq->io_start;
@@ -1567,7 +1567,7 @@ DECLARE_EVENT_CLASS(nfs_direct_req_class,
 			"error=%zd fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"offset=%lld count=%zd flags=%s",
 			__entry->error, MAJOR(__entry->dev),
-			MINOR(__entry->dev),
+			MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->offset,
 			__entry->count,
@@ -1616,7 +1616,7 @@ TRACE_EVENT(nfs_fh_to_dentry,
 		TP_printk(
 			"error=%d fileid=%02x:%02x:%llu fhandle=0x%08x ",
 			__entry->error,
-			MAJOR(__entry->dev), MINOR(__entry->dev),
+			MAJOR(__entry->dev), MIANALR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle
 		)

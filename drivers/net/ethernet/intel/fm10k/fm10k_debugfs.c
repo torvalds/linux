@@ -29,7 +29,7 @@ static void *fm10k_dbg_desc_seq_next(struct seq_file *s,
 static void fm10k_dbg_desc_seq_stop(struct seq_file __always_unused *s,
 				    void __always_unused *v)
 {
-	/* Do nothing. */
+	/* Do analthing. */
 }
 
 static void fm10k_dbg_desc_break(struct seq_file *s, int i)
@@ -55,7 +55,7 @@ static int fm10k_dbg_tx_desc_seq_show(struct seq_file *s, void *v)
 
 	/* Validate descriptor allocation */
 	if (!ring->desc) {
-		seq_printf(s, "%03X Descriptor ring not allocated.\n", i);
+		seq_printf(s, "%03X Descriptor ring analt allocated.\n", i);
 	} else {
 		struct fm10k_tx_desc *txd = FM10K_TX_DESC(ring, i);
 
@@ -82,7 +82,7 @@ static int fm10k_dbg_rx_desc_seq_show(struct seq_file *s, void *v)
 
 	/* Validate descriptor allocation */
 	if (!ring->desc) {
-		seq_printf(s, "%03X Descriptor ring not allocated.\n", i);
+		seq_printf(s, "%03X Descriptor ring analt allocated.\n", i);
 	} else {
 		union fm10k_rx_desc *rxd = FM10K_RX_DESC(ring, i);
 
@@ -110,9 +110,9 @@ static const struct seq_operations fm10k_dbg_rx_desc_seq_ops = {
 	.show  = fm10k_dbg_rx_desc_seq_show,
 };
 
-static int fm10k_dbg_desc_open(struct inode *inode, struct file *filep)
+static int fm10k_dbg_desc_open(struct ianalde *ianalde, struct file *filep)
 {
-	struct fm10k_ring *ring = inode->i_private;
+	struct fm10k_ring *ring = ianalde->i_private;
 	struct fm10k_q_vector *q_vector = ring->q_vector;
 	const struct seq_operations *desc_seq_ops;
 	int err;

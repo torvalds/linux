@@ -35,7 +35,7 @@ static inline const char *dvb_card_str(unsigned int c)
 	case STV0367_TDA18212_NIMB_2:	return "STV0367_TDA18212_NIMB_2";
 	case STV0903_6110_LNB24_NIMA:	return "STV0903_6110_LNB24_NIMA";
 	case STV0903_6110_LNB24_NIMB:	return "STV0903_6110_LNB24_NIMB";
-	default:			return "unknown dvb frontend card";
+	default:			return "unkanalwn dvb frontend card";
 	}
 }
 
@@ -76,21 +76,21 @@ static struct stv0367_config stv0367_tda18212_config[] = {
 		.demod_address = 0x1c,
 		.xtal = 16000000,
 		.if_khz = 4500,
-		.if_iq_mode = FE_TER_NORMAL_IF_TUNER,
+		.if_iq_mode = FE_TER_ANALRMAL_IF_TUNER,
 		.ts_mode = STV0367_SERIAL_PUNCT_CLOCK,
 		.clk_pol = STV0367_CLOCKPOLARITY_DEFAULT,
 	}, {
 		.demod_address = 0x1d,
 		.xtal = 16000000,
 		.if_khz = 4500,
-		.if_iq_mode = FE_TER_NORMAL_IF_TUNER,
+		.if_iq_mode = FE_TER_ANALRMAL_IF_TUNER,
 		.ts_mode = STV0367_SERIAL_PUNCT_CLOCK,
 		.clk_pol = STV0367_CLOCKPOLARITY_DEFAULT,
 	}, {
 		.demod_address = 0x1e,
 		.xtal = 16000000,
 		.if_khz = 4500,
-		.if_iq_mode = FE_TER_NORMAL_IF_TUNER,
+		.if_iq_mode = FE_TER_ANALRMAL_IF_TUNER,
 		.ts_mode = STV0367_SERIAL_PUNCT_CLOCK,
 		.clk_pol = STV0367_CLOCKPOLARITY_DEFAULT,
 	},
@@ -141,7 +141,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 			dev_err(c8sectpfe->device,
 				"%s: stv0367ter_attach failed for NIM card %s\n"
 				, __func__, dvb_card_str(tsin->dvb_card));
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/*
@@ -157,7 +157,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 		if (!tda18212) {
 			dev_err(c8sectpfe->device,
 				"%s: devm_kzalloc failed\n", __func__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		memcpy(tda18212, &tda18212_conf,
@@ -173,13 +173,13 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 					       &tda18212_info);
 		if (!i2c_client_has_driver(client)) {
 			dvb_frontend_detach(*fe);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (!try_module_get(client->dev.driver->owner)) {
 			i2c_unregister_device(client);
 			dvb_frontend_detach(*fe);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		tsin->i2c_client = client;
@@ -193,7 +193,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 			dev_err(c8sectpfe->device, "%s: stv090x_attach failed\n"
 				"\tfor NIM card %s\n",
 				__func__, dvb_card_str(tsin->dvb_card));
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		fe2 = dvb_attach(stv6110x_attach, *fe,
@@ -202,7 +202,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 			dev_err(c8sectpfe->device,
 				"%s: stv6110x_attach failed for NIM card %s\n"
 				, __func__, dvb_card_str(tsin->dvb_card));
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		stv090x_config.tuner_init = fe2->tuner_init;
@@ -221,9 +221,9 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 
 	default:
 		dev_err(c8sectpfe->device,
-			"%s: DVB frontend card %s not yet supported\n",
+			"%s: DVB frontend card %s analt yet supported\n",
 			__func__, dvb_card_str(tsin->dvb_card));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	(*fe)->id = chan_num;

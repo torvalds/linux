@@ -46,7 +46,7 @@ int main(void)
 	/*
 	 * Create the max number of vCPUs supported by selftests so that KVM
 	 * has decent amount of work to do when recalculating the map, i.e. to
-	 * make the problematic window large enough to hit.
+	 * make the problematic window large eanalugh to hit.
 	 */
 	vm = vm_create_with_vcpus(KVM_MAX_VCPUS, NULL, vcpus);
 

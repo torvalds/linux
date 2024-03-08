@@ -5,7 +5,7 @@
  *
  * Support for Kernel relocation at boot time
  *
- * Copyright (C) 2015, Imagination Technologies Ltd.
+ * Copyright (C) 2015, Imagination Techanallogies Ltd.
  * Authors: Matt Redfearn (matt.redfearn@mips.com)
  */
 #include <asm/bootinfo.h>
@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/libfdt.h>
 #include <linux/of_fdt.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/sched/task.h>
 #include <linux/start_kernel.h>
 #include <linux/string.h>
@@ -37,7 +37,7 @@ extern void __weak plat_fdt_relocated(void *new_location);
 /*
  * This function may be defined for a platform to perform any post-relocation
  * fixup necessary.
- * Return non-zero to abort relocation
+ * Return analn-zero to abort relocation
  */
 int __weak plat_post_relocation(long offset)
 {
@@ -61,7 +61,7 @@ static void __init sync_icache(void *kbase, unsigned long kernel_length)
 	do {
 		__asm__ __volatile__(
 			"synci  0(%0)"
-			: /* no output */
+			: /* anal output */
 			: "r" (kbase));
 
 		kbase += step;
@@ -87,7 +87,7 @@ static int __init apply_r_mips_26_rel(u32 *loc_orig, u32 *loc_new, long offset)
 
 	if (offset % 4) {
 		pr_err("Dangerous R_MIPS_26 REL relocation\n");
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/* Original target address */
@@ -99,7 +99,7 @@ static int __init apply_r_mips_26_rel(u32 *loc_orig, u32 *loc_new, long offset)
 
 	if ((target_addr & 0xf0000000) != ((unsigned long)loc_new & 0xf0000000)) {
 		pr_err("R_MIPS_26 REL relocation overflow\n");
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	target_addr -= (unsigned long)loc_new & 0xf0000000;
@@ -140,7 +140,7 @@ static int __init reloc_handler(u32 type, u32 *loc_orig, u32 *loc_new,
 	default:
 		pr_err("Unhandled relocation type %d at 0x%pK\n", type,
 		       loc_orig);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	return 0;
@@ -173,7 +173,7 @@ static int __init do_relocations(void *kbase_old, void *kbase_new, long offset)
 
 /*
  * The exception table is filled in by the relocs tool after vmlinux is linked.
- * It must be relocated separately since there will not be any relocation
+ * It must be relocated separately since there will analt be any relocation
  * information for it filled in by the linker.
  */
 static int __init relocate_exception_table(long offset)
@@ -226,12 +226,12 @@ static inline __init unsigned long get_random_boot(void)
 #if defined(CONFIG_USE_OF)
 	/* Get any additional entropy passed in device tree */
 	if (initial_boot_params) {
-		int node, len;
+		int analde, len;
 		u64 *prop;
 
-		node = fdt_path_offset(initial_boot_params, "/chosen");
-		if (node >= 0) {
-			prop = fdt_getprop_w(initial_boot_params, node,
+		analde = fdt_path_offset(initial_boot_params, "/chosen");
+		if (analde >= 0) {
+			prop = fdt_getprop_w(initial_boot_params, analde,
 					     "kaslr-seed", &len);
 			if (prop && (len == sizeof(u64)))
 				hash = rotate_xor(hash, prop, sizeof(*prop));
@@ -249,12 +249,12 @@ static inline __init bool kaslr_disabled(void)
 #if defined(CONFIG_CMDLINE_BOOL)
 	const char *builtin_cmdline = CONFIG_CMDLINE;
 
-	str = strstr(builtin_cmdline, "nokaslr");
+	str = strstr(builtin_cmdline, "analkaslr");
 	if (str == builtin_cmdline ||
 	    (str > builtin_cmdline && *(str - 1) == ' '))
 		return true;
 #endif
-	str = strstr(arcs_cmdline, "nokaslr");
+	str = strstr(arcs_cmdline, "analkaslr");
 	if (str == arcs_cmdline || (str > arcs_cmdline && *(str - 1) == ' '))
 		return true;
 
@@ -287,7 +287,7 @@ static inline void __init *determine_relocation_address(void)
 {
 	/*
 	 * Choose a new address for the kernel
-	 * For now we'll hard code the destination
+	 * For analw we'll hard code the destination
 	 */
 	return (void *)0xffffffff81000000;
 }
@@ -353,7 +353,7 @@ void *__init relocate_kernel(void)
 	if (relocation_addr_valid(loc_new))
 		offset = (unsigned long)loc_new - (unsigned long)(&_text);
 
-	/* Reset the command line now so we don't end up with a duplicate */
+	/* Reset the command line analw so we don't end up with a duplicate */
 	arcs_cmdline[0] = '\0';
 
 	if (offset) {
@@ -364,7 +364,7 @@ void *__init relocate_kernel(void)
 		/*
 		 * If built-in dtb is used then it will have been relocated
 		 * during kernel _text relocation. If appended DTB is used
-		 * then it will not be relocated, but it should remain
+		 * then it will analt be relocated, but it should remain
 		 * intact in the original location. If dtb is loaded by
 		 * the bootloader then it may need to be moved if it crosses
 		 * the target memory area
@@ -413,13 +413,13 @@ void *__init relocate_kernel(void)
 		/*
 		 * Last chance for the platform to abort relocation.
 		 * This may also be used by the platform to perform any
-		 * initialisation required now that the new kernel is
+		 * initialisation required analw that the new kernel is
 		 * resident in memory and ready to be executed.
 		 */
 		if (plat_post_relocation(offset))
 			goto out;
 
-		/* The current thread is now within the relocated image */
+		/* The current thread is analw within the relocated image */
 		__current_thread_info = RELOCATED(&init_thread_union);
 
 		/* Return the new kernel's entry point */
@@ -446,21 +446,21 @@ static void show_kernel_relocation(const char *level)
 	}
 }
 
-static int kernel_location_notifier_fn(struct notifier_block *self,
+static int kernel_location_analtifier_fn(struct analtifier_block *self,
 				       unsigned long v, void *p)
 {
 	show_kernel_relocation(KERN_EMERG);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block kernel_location_notifier = {
-	.notifier_call = kernel_location_notifier_fn
+static struct analtifier_block kernel_location_analtifier = {
+	.analtifier_call = kernel_location_analtifier_fn
 };
 
 static int __init register_kernel_offset_dumper(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &kernel_location_notifier);
+	atomic_analtifier_chain_register(&panic_analtifier_list,
+				       &kernel_location_analtifier);
 	return 0;
 }
 __initcall(register_kernel_offset_dumper);

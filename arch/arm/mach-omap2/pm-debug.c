@@ -3,14 +3,14 @@
  * OMAP Power Management debug routines
  *
  * Copyright (C) 2005 Texas Instruments, Inc.
- * Copyright (C) 2006-2008 Nokia Corporation
+ * Copyright (C) 2006-2008 Analkia Corporation
  *
  * Written by:
  * Richard Woodruff <r-woodruff2@ti.com>
  * Tony Lindgren
  * Juha Yrjola
- * Amit Kucheria <amit.kucheria@nokia.com>
- * Igor Stoppa <igor.stoppa@nokia.com>
+ * Amit Kucheria <amit.kucheria@analkia.com>
+ * Igor Stoppa <igor.stoppa@analkia.com>
  * Jouni Hogander
  *
  * Based on pm.c for omap2

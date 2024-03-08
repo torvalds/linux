@@ -6,7 +6,7 @@
  * Copyright (C) 2011-2019 Renesas Electronics Corporation
  *
  * Copyright (C) 2012-14 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  *
  * This file is based on the drivers/i2c/busses/i2c-sh7760.c
  * (c) 2005-2008 MSC Vertriebsges.m.b.H, Manuel Lauss <mlau@msc-ge.com>
@@ -52,10 +52,10 @@
 #define SDBS	BIT(3)	/* slave data buffer select */
 #define SIE	BIT(2)	/* slave interface enable */
 #define GCAE	BIT(1)	/* general call address enable */
-#define FNA	BIT(0)	/* forced non acknowledgment */
+#define FNA	BIT(0)	/* forced analn ackanalwledgment */
 
 /* ICMCR */
-#define MDBS	BIT(7)	/* non-fifo mode switch */
+#define MDBS	BIT(7)	/* analn-fifo mode switch */
 #define FSCL	BIT(6)	/* override SCL pin */
 #define FSDA	BIT(5)	/* override SDA pin */
 #define OBPC	BIT(4)	/* override pins */
@@ -124,9 +124,9 @@
 #define ID_EPROTO		BIT(5)
 /* persistent flags */
 #define ID_P_FMPLUS		BIT(27)
-#define ID_P_NOT_ATOMIC		BIT(28)
-#define ID_P_HOST_NOTIFY	BIT(29)
-#define ID_P_NO_RXDMA		BIT(30) /* HW forbids RXDMA sometimes */
+#define ID_P_ANALT_ATOMIC		BIT(28)
+#define ID_P_HOST_ANALTIFY	BIT(29)
+#define ID_P_ANAL_RXDMA		BIT(30) /* HW forbids RXDMA sometimes */
 #define ID_P_PM_BLOCKED		BIT(31)
 #define ID_P_MASK		GENMASK(31, 27)
 
@@ -165,7 +165,7 @@ struct rcar_i2c_priv {
 	struct reset_control *rstc;
 	int irq;
 
-	struct i2c_client *host_notify_client;
+	struct i2c_client *host_analtify_client;
 };
 
 #define rcar_i2c_priv_to_dev(p)		((p)->adap.dev.parent)
@@ -265,7 +265,7 @@ static int rcar_i2c_bus_barrier(struct rcar_i2c_priv *priv)
 	ret = readl_poll_timeout(priv->io + ICMCR, val, !(val & FSDA), 10,
 				 priv->adap.timeout);
 	if (ret) {
-		/* Waiting did not help, try to recover */
+		/* Waiting did analt help, try to recover */
 		priv->recovery_icmcr = MDBS | OBPC | FSDA | FSCL;
 		ret = i2c_recover_bus(&priv->adap);
 	}
@@ -285,7 +285,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 		.scl_int_delay_ns	= 50,
 	};
 
-	/* Fall back to previously used values if not supplied */
+	/* Fall back to previously used values if analt supplied */
 	i2c_parse_fw_timings(dev, &t, false);
 	priv->smd = RCAR_DEFAULT_SMD;
 
@@ -311,14 +311,14 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 	cdf = rate / 20000000;
 	cdf_width = (priv->devtype == I2C_RCAR_GEN1) ? 2 : 3;
 	if (cdf >= 1U << cdf_width)
-		goto err_no_val;
+		goto err_anal_val;
 
 	if (t.bus_freq_hz > I2C_MAX_FAST_MODE_FREQ && priv->devtype >= I2C_RCAR_GEN4)
 		priv->flags |= ID_P_FMPLUS;
 	else
 		priv->flags &= ~ID_P_FMPLUS;
 
-	/* On Gen3+, we use cdf only for the filters, not as a SCL divider */
+	/* On Gen3+, we use cdf only for the filters, analt as a SCL divider */
 	ick = rate / (priv->devtype < I2C_RCAR_GEN3 ? (cdf + 1) : 1);
 
 	/*
@@ -345,7 +345,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 		scl = ick / (20 + 8 * scgd + round);
 
 		if (scgd > 0x3f)
-			goto err_no_val;
+			goto err_anal_val;
 
 		dev_dbg(dev, "clk %u/%u(%lu), round %u, CDF: %u, SCGD: %u\n",
 			scl, t.bus_freq_hz, rate, round, cdf, scgd);
@@ -373,7 +373,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 		scl = rate / (8 + 2 * priv->smd + sum_ratio * x + round);
 
 		if (x == 0 || x * RCAR_SCLD_RATIO > 0xffff)
-			goto err_no_val;
+			goto err_anal_val;
 
 		priv->icccr = cdf;
 		priv->schd = RCAR_SCHD_RATIO * x;
@@ -387,7 +387,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 
 	return 0;
 
-err_no_val:
+err_anal_val:
 	dev_err(dev, "it is impossible to calculate best SCL\n");
 	return -EINVAL;
 }
@@ -410,7 +410,7 @@ static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 		priv->flags |= ID_LAST_MSG;
 
 	rcar_i2c_write(priv, ICMAR, i2c_8bit_addr_from_msg(priv->msg));
-	if (priv->flags & ID_P_NOT_ATOMIC)
+	if (priv->flags & ID_P_ANALT_ATOMIC)
 		rcar_i2c_write(priv, ICMIER, read ? RCAR_IRQ_RECV : RCAR_IRQ_SEND);
 
 	if (rep_start)
@@ -449,9 +449,9 @@ static void rcar_i2c_cleanup_dma(struct rcar_i2c_priv *priv, bool terminate)
 	/* Gen3+ can only do one RXDMA per transfer and we just completed it */
 	if (priv->devtype >= I2C_RCAR_GEN3 &&
 	    priv->dma_direction == DMA_FROM_DEVICE)
-		priv->flags |= ID_P_NO_RXDMA;
+		priv->flags |= ID_P_ANAL_RXDMA;
 
-	priv->dma_direction = DMA_NONE;
+	priv->dma_direction = DMA_ANALNE;
 
 	/* Disable DMA Master Received/Transmitted, must be last! */
 	rcar_i2c_write(priv, ICDMAER, 0);
@@ -480,8 +480,8 @@ static bool rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	int len;
 
 	/* Do various checks to see if DMA is feasible at all */
-	if (!(priv->flags & ID_P_NOT_ATOMIC) || IS_ERR(chan) || msg->len < RCAR_MIN_DMA_LEN ||
-	    !(msg->flags & I2C_M_DMA_SAFE) || (read && priv->flags & ID_P_NO_RXDMA))
+	if (!(priv->flags & ID_P_ANALT_ATOMIC) || IS_ERR(chan) || msg->len < RCAR_MIN_DMA_LEN ||
+	    !(msg->flags & I2C_M_DMA_SAFE) || (read && priv->flags & ID_P_ANAL_RXDMA))
 		return false;
 
 	if (read) {
@@ -544,7 +544,7 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 	struct i2c_msg *msg = priv->msg;
 	u32 irqs_to_clear = MDE;
 
-	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
+	/* FIXME: sometimes, unkanalwn interrupt happened. Do analthing */
 	if (!(msr & MDE))
 		return;
 
@@ -594,14 +594,14 @@ static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 	bool recv_len_init = priv->pos == 0 && msg->flags & I2C_M_RECV_LEN;
 	u32 irqs_to_clear = MDR;
 
-	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
+	/* FIXME: sometimes, unkanalwn interrupt happened. Do analthing */
 	if (!(msr & MDR))
 		return;
 
 	if (msr & MAT) {
 		irqs_to_clear |= MAT;
 		/*
-		 * Address transfer phase finished, but no data at this point.
+		 * Address transfer phase finished, but anal data at this point.
 		 * Try to use DMA to receive data.
 		 */
 		rcar_i2c_dma(priv);
@@ -616,17 +616,17 @@ static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 				return;
 			}
 			msg->len += msg->buf[0];
-			/* Enough data for DMA? */
+			/* Eanalugh data for DMA? */
 			if (rcar_i2c_dma(priv))
 				return;
-			/* new length after RECV_LEN now properly initialized */
+			/* new length after RECV_LEN analw properly initialized */
 			recv_len_init = false;
 		}
 		priv->pos++;
 	}
 
 	/*
-	 * If next received data is the _LAST_ and we are not waiting for a new
+	 * If next received data is the _LAST_ and we are analt waiting for a new
 	 * length because of RECV_LEN, then go to a new phase.
 	 */
 	if (priv->pos + 1 == msg->len && !recv_len_init) {
@@ -708,7 +708,7 @@ static bool rcar_i2c_slave_irq(struct rcar_i2c_priv *priv)
  * the interrupt was generated, otherwise an unwanted repeated message gets
  * generated. It turned out that taking a spinlock at the beginning of the ISR
  * was already causing repeated messages. Thus, this driver was converted to
- * the now lockless behaviour. Please keep this in mind when hacking the driver.
+ * the analw lockless behaviour. Please keep this in mind when hacking the driver.
  * R-Car Gen3 seems to have this fixed but earlier versions than R-Car Gen2 are
  * likely affected. Therefore, we have different interrupt handler entries.
  */
@@ -718,7 +718,7 @@ static irqreturn_t rcar_i2c_irq(int irq, struct rcar_i2c_priv *priv, u32 msr)
 		if (rcar_i2c_slave_irq(priv))
 			return IRQ_HANDLED;
 
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Arbitration lost */
@@ -730,7 +730,7 @@ static irqreturn_t rcar_i2c_irq(int irq, struct rcar_i2c_priv *priv, u32 msr)
 	/* Nack */
 	if (msr & MNR) {
 		/* HW automatically sends STOP after received NACK */
-		if (priv->flags & ID_P_NOT_ATOMIC)
+		if (priv->flags & ID_P_ANALT_ATOMIC)
 			rcar_i2c_write(priv, ICMIER, RCAR_IRQ_STOP);
 		priv->flags |= ID_NACK;
 		goto out;
@@ -752,7 +752,7 @@ out:
 	if (priv->flags & ID_DONE) {
 		rcar_i2c_write(priv, ICMIER, 0);
 		rcar_i2c_write(priv, ICMSR, 0);
-		if (priv->flags & ID_P_NOT_ATOMIC)
+		if (priv->flags & ID_P_ANALT_ATOMIC)
 			wake_up(&priv->wait);
 	}
 
@@ -770,7 +770,7 @@ static irqreturn_t rcar_i2c_gen2_irq(int irq, void *ptr)
 
 	/* Only handle interrupts that are currently enabled */
 	msr = rcar_i2c_read(priv, ICMSR);
-	if (priv->flags & ID_P_NOT_ATOMIC)
+	if (priv->flags & ID_P_ANALT_ATOMIC)
 		msr &= rcar_i2c_read(priv, ICMIER);
 
 	return rcar_i2c_irq(irq, priv, msr);
@@ -783,7 +783,7 @@ static irqreturn_t rcar_i2c_gen3_irq(int irq, void *ptr)
 
 	/* Only handle interrupts that are currently enabled */
 	msr = rcar_i2c_read(priv, ICMSR);
-	if (priv->flags & ID_P_NOT_ATOMIC)
+	if (priv->flags & ID_P_ANALT_ATOMIC)
 		msr &= rcar_i2c_read(priv, ICMIER);
 
 	/*
@@ -892,7 +892,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 	int i, ret;
 	long time_left;
 
-	priv->flags |= ID_P_NOT_ATOMIC;
+	priv->flags |= ID_P_ANALT_ATOMIC;
 
 	pm_runtime_get_sync(dev);
 
@@ -903,7 +903,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 	/* Gen3+ needs a reset. That also allows RXDMA once */
 	if (priv->devtype >= I2C_RCAR_GEN3) {
-		priv->flags &= ~ID_P_NO_RXDMA;
+		priv->flags &= ~ID_P_ANAL_RXDMA;
 		ret = rcar_i2c_do_reset(priv);
 		if (ret)
 			goto out;
@@ -920,7 +920,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 				     num * adap->timeout);
 
 	/* cleanup DMA if it couldn't complete properly due to an error */
-	if (priv->dma_direction != DMA_NONE)
+	if (priv->dma_direction != DMA_ANALNE)
 		rcar_i2c_cleanup_dma(priv, true);
 
 	if (!time_left) {
@@ -954,7 +954,7 @@ static int rcar_i2c_master_xfer_atomic(struct i2c_adapter *adap,
 	bool time_left;
 	int ret;
 
-	priv->flags &= ~ID_P_NOT_ATOMIC;
+	priv->flags &= ~ID_P_ANALT_ATOMIC;
 
 	pm_runtime_get_sync(dev);
 
@@ -1011,7 +1011,7 @@ static int rcar_reg_slave(struct i2c_client *slave)
 		return -EBUSY;
 
 	if (slave->flags & I2C_CLIENT_TEN)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	/* Keep device active for slave address detection logic */
 	pm_runtime_get_sync(rcar_i2c_priv_to_dev(priv));
@@ -1031,13 +1031,13 @@ static int rcar_unreg_slave(struct i2c_client *slave)
 
 	WARN_ON(!priv->slave);
 
-	/* ensure no irq is running before clearing ptr */
+	/* ensure anal irq is running before clearing ptr */
 	disable_irq(priv->irq);
 	rcar_i2c_write(priv, ICSIER, 0);
 	rcar_i2c_write(priv, ICSSR, 0);
 	enable_irq(priv->irq);
 	rcar_i2c_write(priv, ICSCR, SDBS);
-	rcar_i2c_write(priv, ICSAR, 0); /* Gen2: must be 0 if not using slave */
+	rcar_i2c_write(priv, ICSAR, 0); /* Gen2: must be 0 if analt using slave */
 
 	priv->slave = NULL;
 
@@ -1053,14 +1053,14 @@ static u32 rcar_i2c_func(struct i2c_adapter *adap)
 	/*
 	 * This HW can't do:
 	 * I2C_SMBUS_QUICK (setting FSB during START didn't work)
-	 * I2C_M_NOSTART (automatically sends address after START)
-	 * I2C_M_IGNORE_NAK (automatically sends STOP after NAK)
+	 * I2C_M_ANALSTART (automatically sends address after START)
+	 * I2C_M_IGANALRE_NAK (automatically sends STOP after NAK)
 	 */
 	u32 func = I2C_FUNC_I2C | I2C_FUNC_SLAVE |
 		   (I2C_FUNC_SMBUS_EMUL_ALL & ~I2C_FUNC_SMBUS_QUICK);
 
-	if (priv->flags & ID_P_HOST_NOTIFY)
-		func |= I2C_FUNC_SMBUS_HOST_NOTIFY;
+	if (priv->flags & ID_P_HOST_ANALTIFY)
+		func |= I2C_FUNC_SMBUS_HOST_ANALTIFY;
 
 	return func;
 }
@@ -1074,7 +1074,7 @@ static const struct i2c_algorithm rcar_i2c_algo = {
 };
 
 static const struct i2c_adapter_quirks rcar_i2c_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_ANAL_ZERO_LEN,
 };
 
 static const struct of_device_id rcar_i2c_dt_ids[] = {
@@ -1087,7 +1087,7 @@ static const struct of_device_id rcar_i2c_dt_ids[] = {
 	{ .compatible = "renesas,i2c-r8a7794", .data = (void *)I2C_RCAR_GEN2 },
 	{ .compatible = "renesas,i2c-r8a7795", .data = (void *)I2C_RCAR_GEN3 },
 	{ .compatible = "renesas,i2c-r8a7796", .data = (void *)I2C_RCAR_GEN3 },
-	/* S4 has no FM+ bit */
+	/* S4 has anal FM+ bit */
 	{ .compatible = "renesas,i2c-r8a779f0", .data = (void *)I2C_RCAR_GEN3 },
 	{ .compatible = "renesas,rcar-gen1-i2c", .data = (void *)I2C_RCAR_GEN1 },
 	{ .compatible = "renesas,rcar-gen2-i2c", .data = (void *)I2C_RCAR_GEN2 },
@@ -1111,11 +1111,11 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct rcar_i2c_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "cannot get clock\n");
+		dev_err(dev, "cananalt get clock\n");
 		return PTR_ERR(priv->clk);
 	}
 
@@ -1132,7 +1132,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	adap->class = I2C_CLASS_DEPRECATED;
 	adap->retries = 3;
 	adap->dev.parent = dev;
-	adap->dev.of_node = dev->of_node;
+	adap->dev.of_analde = dev->of_analde;
 	adap->bus_recovery_info = &rcar_i2c_bri;
 	adap->quirks = &rcar_i2c_quirks;
 	i2c_set_adapdata(adap, priv);
@@ -1140,7 +1140,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 
 	/* Init DMA */
 	sg_init_table(&priv->sg, 1);
-	priv->dma_direction = DMA_NONE;
+	priv->dma_direction = DMA_ANALNE;
 	priv->dma_rx = priv->dma_tx = ERR_PTR(-EPROBE_DEFER);
 
 	/* Activate device for clock calculation */
@@ -1152,21 +1152,21 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 		goto out_pm_disable;
 	}
 
-	rcar_i2c_write(priv, ICSAR, 0); /* Gen2: must be 0 if not using slave */
+	rcar_i2c_write(priv, ICSAR, 0); /* Gen2: must be 0 if analt using slave */
 
 	if (priv->devtype < I2C_RCAR_GEN3) {
-		irqflags |= IRQF_NO_THREAD;
+		irqflags |= IRQF_ANAL_THREAD;
 		irqhandler = rcar_i2c_gen2_irq;
 	}
 
 	/* Stay always active when multi-master to keep arbitration working */
-	if (of_property_read_bool(dev->of_node, "multi-master"))
+	if (of_property_read_bool(dev->of_analde, "multi-master"))
 		priv->flags |= ID_P_PM_BLOCKED;
 	else
 		pm_runtime_put(dev);
 
-	if (of_property_read_bool(dev->of_node, "smbus"))
-		priv->flags |= ID_P_HOST_NOTIFY;
+	if (of_property_read_bool(dev->of_analde, "smbus"))
+		priv->flags |= ID_P_HOST_ANALTIFY;
 
 	if (priv->devtype >= I2C_RCAR_GEN3) {
 		priv->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
@@ -1186,7 +1186,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	priv->irq = ret;
 	ret = devm_request_irq(dev, priv->irq, irqhandler, irqflags, dev_name(dev), priv);
 	if (ret < 0) {
-		dev_err(dev, "cannot get irq %d\n", priv->irq);
+		dev_err(dev, "cananalt get irq %d\n", priv->irq);
 		goto out_pm_put;
 	}
 
@@ -1196,10 +1196,10 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto out_pm_put;
 
-	if (priv->flags & ID_P_HOST_NOTIFY) {
-		priv->host_notify_client = i2c_new_slave_host_notify_device(adap);
-		if (IS_ERR(priv->host_notify_client)) {
-			ret = PTR_ERR(priv->host_notify_client);
+	if (priv->flags & ID_P_HOST_ANALTIFY) {
+		priv->host_analtify_client = i2c_new_slave_host_analtify_device(adap);
+		if (IS_ERR(priv->host_analtify_client)) {
+			ret = PTR_ERR(priv->host_analtify_client);
 			goto out_del_device;
 		}
 	}
@@ -1223,8 +1223,8 @@ static void rcar_i2c_remove(struct platform_device *pdev)
 	struct rcar_i2c_priv *priv = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
-	if (priv->host_notify_client)
-		i2c_free_slave_host_notify_device(priv->host_notify_client);
+	if (priv->host_analtify_client)
+		i2c_free_slave_host_analtify_device(priv->host_analtify_client);
 	i2c_del_adapter(&priv->adap);
 	rcar_i2c_release_dma(priv);
 	if (priv->flags & ID_P_PM_BLOCKED)
@@ -1249,7 +1249,7 @@ static int rcar_i2c_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rcar_i2c_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(rcar_i2c_suspend, rcar_i2c_resume)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(rcar_i2c_suspend, rcar_i2c_resume)
 };
 
 static struct platform_driver rcar_i2c_driver = {
@@ -1266,4 +1266,4 @@ module_platform_driver(rcar_i2c_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas R-Car I2C bus driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>");

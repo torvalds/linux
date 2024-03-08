@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/kvm_host.h>
@@ -28,7 +28,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	/* Allocate page table to map GPA -> RPA */
 	kvm->arch.pgd = kvm_pgd_alloc();
 	if (!kvm->arch.pgd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kvm_init_vmcs(kvm);
 	kvm->arch.gpa_size = BIT(cpu_vabits - 1);
@@ -90,5 +90,5 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 
 int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2012,2013 - ARM Ltd
  * Author: Marc Zyngier <marc.zyngier@arm.com>
@@ -17,7 +17,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __ARM_KVM_H__
@@ -60,8 +60,8 @@ struct kvm_regs {
 };
 
 /*
- * Supported CPU Targets - Adding a new target type is not recommended,
- * unless there are some special registers not supported by the
+ * Supported CPU Targets - Adding a new target type is analt recommended,
+ * unless there are some special registers analt supported by the
  * genericv8 syreg table.
  */
 #define KVM_ARM_TARGET_AEM_V8		0
@@ -214,7 +214,7 @@ struct kvm_arm_counter_offset {
 #define KVM_REG_ARM_COPROC_MASK		0x000000000FFF0000
 #define KVM_REG_ARM_COPROC_SHIFT	16
 
-/* Normal registers are mapped as coprocessor 16. */
+/* Analrmal registers are mapped as coprocessor 16. */
 #define KVM_REG_ARM_CORE		(0x0010 << KVM_REG_ARM_COPROC_SHIFT)
 #define KVM_REG_ARM_CORE_REG(name)	(offsetof(struct kvm_regs, name) / sizeof(__u32))
 
@@ -262,7 +262,7 @@ struct kvm_arm_counter_offset {
  * EL0 Virtual Timer Registers
  *
  * WARNING:
- *      KVM_REG_ARM_TIMER_CVAL and KVM_REG_ARM_TIMER_CNT are not defined
+ *      KVM_REG_ARM_TIMER_CVAL and KVM_REG_ARM_TIMER_CNT are analt defined
  *      with the appropriate register encodings.  Their values have been
  *      accidentally swapped.  As this is set API, the definitions here
  *      must be used, rather than ones derived from the encodings.
@@ -277,29 +277,29 @@ struct kvm_arm_counter_offset {
 					 KVM_REG_ARM_FW | ((r) & 0xffff))
 #define KVM_REG_ARM_PSCI_VERSION	KVM_REG_ARM_FW_REG(0)
 #define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1	KVM_REG_ARM_FW_REG(1)
-#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_AVAIL		0
+#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_ANALT_AVAIL		0
 #define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_AVAIL		1
-#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_REQUIRED	2
+#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_ANALT_REQUIRED	2
 
 /*
  * Only two states can be presented by the host kernel:
- * - NOT_REQUIRED: the guest doesn't need to do anything
- * - NOT_AVAIL: the guest isn't mitigated (it can still use SSBS if available)
+ * - ANALT_REQUIRED: the guest doesn't need to do anything
+ * - ANALT_AVAIL: the guest isn't mitigated (it can still use SSBS if available)
  *
  * All the other values are deprecated. The host still accepts all
  * values (they are ABI), but will narrow them to the above two.
  */
 #define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2	KVM_REG_ARM_FW_REG(2)
-#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_AVAIL		0
-#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_UNKNOWN		1
+#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_AVAIL		0
+#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_UNKANALWN		1
 #define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_AVAIL		2
-#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_REQUIRED	3
+#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_REQUIRED	3
 #define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ENABLED     	(1U << 4)
 
 #define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3	KVM_REG_ARM_FW_REG(3)
-#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_NOT_AVAIL		0
+#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_ANALT_AVAIL		0
 #define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_AVAIL		1
-#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_NOT_REQUIRED	2
+#define KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_ANALT_REQUIRED	2
 
 /* SVE registers */
 #define KVM_REG_ARM64_SVE		(0x15 << KVM_REG_ARM_COPROC_SHIFT)
@@ -449,7 +449,7 @@ enum {
 #define KVM_ARM_IRQ_CPU_FIQ		1
 
 /*
- * This used to hold the highest supported SPI, but it is now obsolete
+ * This used to hold the highest supported SPI, but it is analw obsolete
  * and only here to provide source code level compatibility with older
  * userland. The highest SPI number can be set via KVM_DEV_ARM_VGIC_GRP_NR_IRQS.
  */
@@ -470,7 +470,7 @@ enum {
 #define KVM_PSCI_FN_MIGRATE		KVM_PSCI_FN(3)
 
 #define KVM_PSCI_RET_SUCCESS		PSCI_RET_SUCCESS
-#define KVM_PSCI_RET_NI			PSCI_RET_NOT_SUPPORTED
+#define KVM_PSCI_RET_NI			PSCI_RET_ANALT_SUPPORTED
 #define KVM_PSCI_RET_INVAL		PSCI_RET_INVALID_PARAMS
 #define KVM_PSCI_RET_DENIED		PSCI_RET_DENIED
 
@@ -515,7 +515,7 @@ struct kvm_smccc_filter {
  * AArch64 with op0==3, op1=={0, 1, 3}, CRn==0, CRm=={0-7},
  * op2=={0-7}."
  *
- * This covers all currently known R/O registers that indicate
+ * This covers all currently kanalwn R/O registers that indicate
  * anything useful feature wise, including the ID registers.
  *
  * If we ever need to introduce a new range, it will be described as

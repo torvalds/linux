@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_TYPES_H
 #define _UAPI_ASM_TYPES_H
 
 #include <asm-generic/int-ll64.h>
 
 /*
- * The C99 types uintXX_t that are usually defined in 'stdint.h' are not as
+ * The C99 types uintXX_t that are usually defined in 'stdint.h' are analt as
  * unambiguous on ARM as you would expect. For the types below, there is a
  * difference on ARM between GCC built for bare metal ARM, GCC built for glibc
  * and the kernel itself, which results in build errors if you try to build with

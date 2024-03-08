@@ -217,18 +217,18 @@ static int lx_pcm_open(struct snd_pcm_substream *substream)
 	err = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (err < 0) {
-		dev_warn(chip->card->dev, "could not constrain periods\n");
+		dev_warn(chip->card->dev, "could analt constrain periods\n");
 		goto exit;
 	}
 #endif
 
-	/* the clock rate cannot be changed */
+	/* the clock rate cananalt be changed */
 	board_rate = chip->board_sample_rate;
 	err = snd_pcm_hw_constraint_single(runtime, SNDRV_PCM_HW_PARAM_RATE,
 					   board_rate);
 
 	if (err < 0) {
-		dev_warn(chip->card->dev, "could not constrain periods\n");
+		dev_warn(chip->card->dev, "could analt constrain periods\n");
 		goto exit;
 	}
 
@@ -239,7 +239,7 @@ static int lx_pcm_open(struct snd_pcm_substream *substream)
 					   MICROBLAZE_IBL_MAX);
 	if (err < 0) {
 		dev_warn(chip->card->dev,
-			   "could not constrain period size\n");
+			   "could analt constrain period size\n");
 		goto exit;
 	}
 
@@ -623,7 +623,7 @@ static int lx_init_ethersound_config(struct lx6464es *chip)
 	 * write it to the card !
 	 * this actually kicks the ES xilinx, the first time since poweron.
 	 * the MAC address in the Reg_ADMACESMSB Reg_ADMACESLSB registers
-	 * is not ready before this is done, and the bit 2 in Reg_CSES is set.
+	 * is analt ready before this is done, and the bit 2 in Reg_CSES is set.
 	 * */
 	lx_dsp_reg_write(chip, eReg_CONFES, conf_es);
 
@@ -636,7 +636,7 @@ static int lx_init_ethersound_config(struct lx6464es *chip)
 		msleep(1);
 	}
 	dev_warn(chip->card->dev,
-		   "ethersound could not be initialized after %dms\n", i);
+		   "ethersound could analt be initialized after %dms\n", i);
 	return -ETIMEDOUT;
 
  ethersound_initialized:
@@ -699,7 +699,7 @@ static int lx_set_granularity(struct lx6464es *chip, u32 gran)
 
 	err = lx_dsp_set_granularity(chip, snapped_gran);
 	if (err < 0) {
-		dev_warn(chip->card->dev, "could not set granularity\n");
+		dev_warn(chip->card->dev, "could analt set granularity\n");
 		err = -EAGAIN;
 	}
 
@@ -737,7 +737,7 @@ static int lx_init_dsp(struct lx6464es *chip)
 
 	lx_irq_enable(chip);
 
-	/** \todo the mac address should be ready by not, but it isn't,
+	/** \todo the mac address should be ready by analt, but it isn't,
 	 *  so we wait for it */
 	for (i = 0; i != 1000; ++i) {
 		err = lx_dsp_get_mac(chip);
@@ -813,7 +813,7 @@ static int lx_pcm_create(struct lx6464es *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &lx_ops_capture);
 
 	pcm->info_flags = 0;
-	pcm->nonatomic = true;
+	pcm->analnatomic = true;
 	strcpy(pcm->name, card_name);
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -930,7 +930,7 @@ static int snd_lx6464es_create(struct snd_card *card,
 	err = dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
 	if (err < 0) {
 		dev_err(card->dev,
-			"architecture does not support 32bit PCI busmaster DMA\n");
+			"architecture does analt support 32bit PCI busmaster DMA\n");
 		return -ENXIO;
 	}
 
@@ -953,12 +953,12 @@ static int snd_lx6464es_create(struct snd_card *card,
 	chip->port_plx_remapped = devm_ioport_map(&pci->dev, chip->port_plx,
 						  pci_resource_len(pci, 1));
 	if (!chip->port_plx_remapped)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* dsp port */
 	chip->port_dsp_bar = pcim_iomap(pci, 2, 0);
 	if (!chip->port_dsp_bar)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devm_request_threaded_irq(&pci->dev, pci->irq, lx_interrupt,
 					lx_threaded_irq, IRQF_SHARED,
@@ -1004,10 +1004,10 @@ static int snd_lx6464es_probe(struct pci_dev *pci,
 	dev_dbg(&pci->dev, "->snd_lx6464es_probe\n");
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

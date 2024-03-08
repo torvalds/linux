@@ -20,7 +20,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/i2c/ov7670.h>
@@ -191,8 +191,8 @@ struct ov7670_win_size {
 	int	width;
 	int	height;
 	unsigned char com7_bit;
-	int	hstart;		/* Start/stop values for the camera.  Note */
-	int	hstop;		/* that they do not always make complete */
+	int	hstart;		/* Start/stop values for the camera.  Analte */
+	int	hstop;		/* that they do analt always make complete */
 	int	vstart;		/* sense to humans, but evidently the sensor */
 	int	vstop;		/* will do the right thing... */
 	struct regval_list *regs; /* Regs to tweak */
@@ -208,7 +208,7 @@ struct ov7670_devtype {
 };
 
 /*
- * Information we maintain about a known sensor.
+ * Information we maintain about a kanalwn sensor.
  */
 struct ov7670_format_struct;  /* coming later */
 struct ov7670_info {
@@ -262,7 +262,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 
 /*
  * The default register settings, as obtained from OmniVision.  There
- * is really no making sense of most of these - lots of "reserved" values
+ * is really anal making sense of most of these - lots of "reserved" values
  * and such.
  *
  * These settings give VGA YUYV.
@@ -308,7 +308,7 @@ static struct regval_list ov7670_default_regs[] = {
 	{ 0x86, 0xaf },		{ 0x87, 0xc4 },
 	{ 0x88, 0xd7 },		{ 0x89, 0xe8 },
 
-	/* AGC and AEC parameters.  Note we start by disabling those features,
+	/* AGC and AEC parameters.  Analte we start by disabling those features,
 	   then turn them only after tweaking the values. */
 	{ REG_COM8, COM8_FASTAEC | COM8_AECSTEP | COM8_BFILT },
 	{ REG_GAIN, 0 },	{ REG_AECH, 0 },
@@ -404,7 +404,7 @@ static struct regval_list ov7670_default_regs[] = {
 
 static struct regval_list ov7670_fmt_yuv422[] = {
 	{ REG_COM7, 0x0 },  /* Selects YUV mode */
-	{ REG_RGB444, 0 },	/* No RGB444 please */
+	{ REG_RGB444, 0 },	/* Anal RGB444 please */
 	{ REG_COM1, 0 },	/* CCIR601 */
 	{ REG_COM15, COM15_R00FF },
 	{ REG_COM9, 0x48 }, /* 32x gain ceiling; 0x8 is reserved bit */
@@ -420,7 +420,7 @@ static struct regval_list ov7670_fmt_yuv422[] = {
 
 static struct regval_list ov7670_fmt_rgb565[] = {
 	{ REG_COM7, COM7_RGB },	/* Selects RGB mode */
-	{ REG_RGB444, 0 },	/* No RGB444 please */
+	{ REG_RGB444, 0 },	/* Anal RGB444 please */
 	{ REG_COM1, 0x0 },	/* CCIR601 */
 	{ REG_COM15, COM15_RGB565 },
 	{ REG_COM9, 0x38 },	/* 16x gain ceiling; 0x8 is reserved bit */
@@ -452,8 +452,8 @@ static struct regval_list ov7670_fmt_rgb444[] = {
 
 static struct regval_list ov7670_fmt_raw[] = {
 	{ REG_COM7, COM7_BAYER },
-	{ REG_COM13, 0x08 }, /* No gamma, magic rsvd bit */
-	{ REG_COM16, 0x3d }, /* Edge enhancement, denoise */
+	{ REG_COM13, 0x08 }, /* Anal gamma, magic rsvd bit */
+	{ REG_COM16, 0x3d }, /* Edge enhancement, deanalise */
 	{ REG_REG76, 0xe1 }, /* Pix correction, magic rsvd */
 	{ 0xff, 0xff },
 };
@@ -463,10 +463,10 @@ static struct regval_list ov7670_fmt_raw[] = {
 /*
  * Low-level register I/O.
  *
- * Note that there are two versions of these.  On the XO 1, the
+ * Analte that there are two versions of these.  On the XO 1, the
  * i2c controller only does SMBUS, so that's what we use.  The
- * ov7670 is not really an SMBUS device, though, so the communication
- * is not always entirely reliable.
+ * ov7670 is analt really an SMBUS device, though, so the communication
+ * is analt always entirely reliable.
  */
 static int ov7670_read_smbus(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char *value)
@@ -602,7 +602,7 @@ static int ov7670_write_array(struct v4l2_subdev *sd, struct regval_list *vals)
 
 
 /*
- * Stuff that knows about the sensor.
+ * Stuff that kanalws about the sensor.
  */
 static int ov7670_reset(struct v4l2_subdev *sd, u32 val)
 {
@@ -629,25 +629,25 @@ static int ov7670_detect(struct v4l2_subdev *sd)
 	if (ret < 0)
 		return ret;
 	if (v != 0x7f) /* OV manuf. id. */
-		return -ENODEV;
+		return -EANALDEV;
 	ret = ov7670_read(sd, REG_MIDL, &v);
 	if (ret < 0)
 		return ret;
 	if (v != 0xa2)
-		return -ENODEV;
+		return -EANALDEV;
 	/*
-	 * OK, we know we have an OmniVision chip...but which one?
+	 * OK, we kanalw we have an OmniVision chip...but which one?
 	 */
 	ret = ov7670_read(sd, REG_PID, &v);
 	if (ret < 0)
 		return ret;
 	if (v != 0x76)  /* PID + VER = 0x76 / 0x73 */
-		return -ENODEV;
+		return -EANALDEV;
 	ret = ov7670_read(sd, REG_VER, &v);
 	if (ret < 0)
 		return ret;
 	if (v != 0x73)  /* PID + VER = 0x76 / 0x73 */
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -697,7 +697,7 @@ static struct ov7670_format_struct {
 
 /*
  * QCIF mode is done (by OV) in a very strange way - it actually looks like
- * VGA with weird scaling options - they do *not* use the canned QCIF mode
+ * VGA with weird scaling options - they do *analt* use the canned QCIF mode
  * which is allegedly provided by the sensor.  So here's the weird register
  * settings.
  */
@@ -802,7 +802,7 @@ static void ov7675_get_framerate(struct v4l2_subdev *sd,
 		clkrc = (clkrc >> 1);
 
 	tpf->numerator = 1;
-	tpf->denominator = (5 * pll_factor * info->clock_speed) /
+	tpf->deanalminator = (5 * pll_factor * info->clock_speed) /
 			(4 * clkrc);
 }
 
@@ -833,12 +833,12 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	 * pixclk = clock_speed / (clkrc + 1) * PLLfactor
 	 *
 	 */
-	if (tpf->numerator == 0 || tpf->denominator == 0) {
+	if (tpf->numerator == 0 || tpf->deanalminator == 0) {
 		clkrc = 0;
 	} else {
 		pll_factor = info->pll_bypass ? 1 : PLL_FACTOR;
 		clkrc = (5 * pll_factor * info->clock_speed * tpf->numerator) /
-			(4 * tpf->denominator);
+			(4 * tpf->deanalminator);
 		if (info->fmt->mbus_code == MEDIA_BUS_FMT_SBGGR8_1X8)
 			clkrc = (clkrc << 1);
 		clkrc--;
@@ -859,8 +859,8 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	ov7675_get_framerate(sd, tpf);
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any changes to H/W at this time. Instead
+	 * If the device is analt powered up by the host driver do
+	 * analt apply any changes to H/W at this time. Instead
 	 * the framerate will be restored right after power-up.
 	 */
 	if (info->on)
@@ -875,9 +875,9 @@ static void ov7670_get_framerate_legacy(struct v4l2_subdev *sd,
 	struct ov7670_info *info = to_state(sd);
 
 	tpf->numerator = 1;
-	tpf->denominator = info->clock_speed;
+	tpf->deanalminator = info->clock_speed;
 	if ((info->clkrc & CLK_EXT) == 0 && (info->clkrc & CLK_SCALE) > 1)
-		tpf->denominator /= (info->clkrc & CLK_SCALE);
+		tpf->deanalminator /= (info->clkrc & CLK_SCALE);
 }
 
 static int ov7670_set_framerate_legacy(struct v4l2_subdev *sd,
@@ -886,21 +886,21 @@ static int ov7670_set_framerate_legacy(struct v4l2_subdev *sd,
 	struct ov7670_info *info = to_state(sd);
 	int div;
 
-	if (tpf->numerator == 0 || tpf->denominator == 0)
+	if (tpf->numerator == 0 || tpf->deanalminator == 0)
 		div = 1;  /* Reset to full rate */
 	else
-		div = (tpf->numerator * info->clock_speed) / tpf->denominator;
+		div = (tpf->numerator * info->clock_speed) / tpf->deanalminator;
 	if (div == 0)
 		div = 1;
 	else if (div > CLK_SCALE)
 		div = CLK_SCALE;
 	info->clkrc = (info->clkrc & 0x80) | div;
 	tpf->numerator = 1;
-	tpf->denominator = info->clock_speed / div;
+	tpf->deanalminator = info->clock_speed / div;
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any changes to H/W at this time. Instead
+	 * If the device is analt powered up by the host driver do
+	 * analt apply any changes to H/W at this time. Instead
 	 * the framerate will be restored right after power-up.
 	 */
 	if (info->on)
@@ -987,7 +987,7 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 	/*
 	 * Fields: the OV devices claim to be progressive.
 	 */
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 
 	/*
 	 * Don't consider values that don't match min_height and min_width
@@ -1005,7 +1005,7 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 		}
 	/*
 	 * Round requested image size down to the nearest
-	 * we support, but not below the smallest.
+	 * we support, but analt below the smallest.
 	 */
 	for (wsize = info->devtype->win_sizes;
 	     wsize < info->devtype->win_sizes + win_sizes_limit; wsize++)
@@ -1016,7 +1016,7 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 	if (ret_wsize != NULL)
 		*ret_wsize = wsize;
 	/*
-	 * Note the size we'll actually handle.
+	 * Analte the size we'll actually handle.
 	 */
 	fmt->width = wsize->width;
 	fmt->height = wsize->height;
@@ -1060,7 +1060,7 @@ static int ov7670_apply_fmt(struct v4l2_subdev *sd)
 		return ret;
 
 	/*
-	 * Now write the rest of the array.  Also store start/stops
+	 * Analw write the rest of the array.  Also store start/stops
 	 */
 	ret = ov7670_write_array(sd, info->fmt->regs + 1);
 	if (ret)
@@ -1079,11 +1079,11 @@ static int ov7670_apply_fmt(struct v4l2_subdev *sd)
 
 	/*
 	 * If we're running RGB565, we must rewrite clkrc after setting
-	 * the other parameters or the image looks poor.  If we're *not*
-	 * doing RGB565, we must not rewrite clkrc or the image looks
+	 * the other parameters or the image looks poor.  If we're *analt*
+	 * doing RGB565, we must analt rewrite clkrc or the image looks
 	 * *really* poor.
 	 *
-	 * (Update) Now that we retain clkrc state, we should be able
+	 * (Update) Analw that we retain clkrc state, we should be able
 	 * to write it unconditionally, and that will make the frame
 	 * rate persistent too.
 	 */
@@ -1122,8 +1122,8 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 		return ret;
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any changes to H/W at this time. Instead
+	 * If the device is analt powered up by the host driver do
+	 * analt apply any changes to H/W at this time. Instead
 	 * the frame format will be restored right after power-up.
 	 */
 	if (info->on)
@@ -1152,7 +1152,7 @@ static int ov7670_get_fmt(struct v4l2_subdev *sd,
 
 /*
  * Implement G/S_PARM.  There is a "high quality" mode we could try
- * to do someday; for now, we just do the frame rate tweak.
+ * to do someday; for analw, we just do the frame rate tweak.
  */
 static int ov7670_get_frame_interval(struct v4l2_subdev *sd,
 				     struct v4l2_subdev_state *sd_state,
@@ -1192,7 +1192,7 @@ static int ov7670_set_frame_interval(struct v4l2_subdev *sd,
 
 /*
  * Frame intervals.  Since frame rates are controlled with the clock
- * divider, we can only do 30/n for integer n values.  So no continuous
+ * divider, we can only do 30/n for integer n values.  So anal continuous
  * or stepwise options.  Here we just pick a handful of logical values.
  */
 
@@ -1230,7 +1230,7 @@ static int ov7670_enum_frame_interval(struct v4l2_subdev *sd,
 	if (i == n_win_sizes)
 		return -EINVAL;
 	fie->interval.numerator = 1;
-	fie->interval.denominator = ov7670_frame_rates[fie->index];
+	fie->interval.deanalminator = ov7670_frame_rates[fie->index];
 	return 0;
 }
 
@@ -1313,7 +1313,7 @@ static int ov7670_store_cmatrix(struct v4l2_subdev *sd,
 
 /*
  * Hue also requires messing with the color matrix.  It also requires
- * trig functions, which tend not to be well supported in the kernel.
+ * trig functions, which tend analt to be well supported in the kernel.
  * So here is a simple table of sine values, 0-90 degrees, in steps
  * of five degrees.  Values are multiplied by 1000.
  *
@@ -1554,7 +1554,7 @@ static int ov7670_s_autoexp(struct v4l2_subdev *sd,
 }
 
 static const char * const ov7670_test_pattern_menu[] = {
-	"No test output",
+	"Anal test output",
 	"Shifting \"1\"",
 	"8-bar color bar",
 	"Fade to gray color bar",
@@ -1603,7 +1603,7 @@ static int ov7670_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_HFLIP:
 		return ov7670_s_hflip(sd, ctrl->val);
 	case V4L2_CID_AUTOGAIN:
-		/* Only set manual gain if auto gain is not explicitly
+		/* Only set manual gain if auto gain is analt explicitly
 		   turned on. */
 		if (!ctrl->val) {
 			/* ov7670_s_gain turns off auto gain */
@@ -1611,7 +1611,7 @@ static int ov7670_s_ctrl(struct v4l2_ctrl *ctrl)
 		}
 		return ov7670_s_autogain(sd, ctrl->val);
 	case V4L2_CID_EXPOSURE_AUTO:
-		/* Only set manual exposure if auto exposure is not explicitly
+		/* Only set manual exposure if auto exposure is analt explicitly
 		   turned on. */
 		if (ctrl->val == V4L2_EXPOSURE_MANUAL) {
 			/* ov7670_s_exp turns off auto exposure */
@@ -1714,7 +1714,7 @@ static void ov7670_get_default_format(struct v4l2_subdev *sd,
 	format->height = info->devtype->win_sizes[0].height;
 	format->colorspace = info->fmt->colorspace;
 	format->code = info->fmt->mbus_code;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov7670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
@@ -1791,24 +1791,24 @@ static int ov7670_init_gpio(struct i2c_client *client, struct ov7670_info *info)
 static int ov7670_parse_dt(struct device *dev,
 			   struct ov7670_info *info)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = { .bus_type = 0 };
+	struct fwanalde_handle *ep;
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -EINVAL;
 
 	info->pclk_hb_disable = false;
-	if (fwnode_property_present(fwnode, "ov7670,pclk-hb-disable"))
+	if (fwanalde_property_present(fwanalde, "ov7670,pclk-hb-disable"))
 		info->pclk_hb_disable = true;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
@@ -1830,16 +1830,16 @@ static int ov7670_probe(struct i2c_client *client)
 
 	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &info->sd;
 	v4l2_i2c_subdev_init(sd, client, &ov7670_ops);
 
 	sd->internal_ops = &ov7670_subdev_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	info->clock_speed = 30; /* default: a guess */
 
-	if (dev_fwnode(&client->dev)) {
+	if (dev_fwanalde(&client->dev)) {
 		ret = ov7670_parse_dt(&client->dev, info);
 		if (ret)
 			return ret;
@@ -1887,7 +1887,7 @@ static int ov7670_probe(struct i2c_client *client)
 	ret = ov7670_detect(sd);
 	if (ret) {
 		v4l_dbg(1, debug, client,
-			"chip found @ 0x%x (%s) is not an ov7670 chip.\n",
+			"chip found @ 0x%x (%s) is analt an ov7670 chip.\n",
 			client->addr << 1, client->adapter->name);
 		goto power_off;
 	}
@@ -1904,7 +1904,7 @@ static int ov7670_probe(struct i2c_client *client)
 
 	/* Set default frame rate to 30 fps */
 	tpf.numerator = 1;
-	tpf.denominator = 30;
+	tpf.deanalminator = 30;
 	info->devtype->set_framerate(sd, &tpf);
 
 	v4l2_ctrl_handler_init(&info->hdl, 10);
@@ -1941,7 +1941,7 @@ static int ov7670_probe(struct i2c_client *client)
 	}
 	/*
 	 * We have checked empirically that hw allows to read back the gain
-	 * value chosen by auto gain but that's not the case for auto exposure.
+	 * value chosen by auto gain but that's analt the case for auto exposure.
 	 */
 	v4l2_ctrl_auto_cluster(2, &info->auto_gain, 0, true);
 	v4l2_ctrl_auto_cluster(2, &info->auto_exposure,

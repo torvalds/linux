@@ -93,7 +93,7 @@ static int patch_feature_section_mask(unsigned long value, unsigned long mask,
 	}
 
 	for (; dest < end; dest++)
-		raw_patch_instruction(dest, ppc_inst(PPC_RAW_NOP()));
+		raw_patch_instruction(dest, ppc_inst(PPC_RAW_ANALP()));
 
 	return 0;
 }
@@ -124,7 +124,7 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 	do_feature_fixups_mask(value, ~0, fixup_start, fixup_end);
 }
 
-#ifdef CONFIG_PPC_BARRIER_NOSPEC
+#ifdef CONFIG_PPC_BARRIER_ANALSPEC
 static bool is_fixup_addr_valid(void *dest, size_t size)
 {
 	return system_state < SYSTEM_FREEING_INITMEM ||
@@ -188,14 +188,14 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 	start = PTRRELOC(&__start___stf_entry_barrier_fixup);
 	end = PTRRELOC(&__stop___stf_entry_barrier_fixup);
 
-	instrs[0] = PPC_RAW_NOP();
-	instrs[1] = PPC_RAW_NOP();
-	instrs[2] = PPC_RAW_NOP();
+	instrs[0] = PPC_RAW_ANALP();
+	instrs[1] = PPC_RAW_ANALP();
+	instrs[2] = PPC_RAW_ANALP();
 
 	i = 0;
 	if (types & STF_BARRIER_FALLBACK) {
 		instrs[i++] = PPC_RAW_MFLR(_R10);
-		instrs[i++] = PPC_RAW_NOP(); /* branch patched below */
+		instrs[i++] = PPC_RAW_ANALP(); /* branch patched below */
 		instrs[i++] = PPC_RAW_MTLR(_R10);
 	} else if (types & STF_BARRIER_EIEIO) {
 		instrs[i++] = PPC_RAW_EIEIO() | 0x02000000; /* eieio + bit 6 hint */
@@ -209,11 +209,11 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 				  &stf_barrier_fallback);
 
 	printk(KERN_DEBUG "stf-barrier: patched %d entry locations (%s barrier)\n", i,
-		(types == STF_BARRIER_NONE)                  ? "no" :
+		(types == STF_BARRIER_ANALNE)                  ? "anal" :
 		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
 		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
 		(types == (STF_BARRIER_SYNC_ORI))            ? "hwsync"
-		                                           : "unknown");
+		                                           : "unkanalwn");
 }
 
 static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
@@ -225,12 +225,12 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 	start = PTRRELOC(&__start___stf_exit_barrier_fixup);
 	end = PTRRELOC(&__stop___stf_exit_barrier_fixup);
 
-	instrs[0] = PPC_RAW_NOP();
-	instrs[1] = PPC_RAW_NOP();
-	instrs[2] = PPC_RAW_NOP();
-	instrs[3] = PPC_RAW_NOP();
-	instrs[4] = PPC_RAW_NOP();
-	instrs[5] = PPC_RAW_NOP();
+	instrs[0] = PPC_RAW_ANALP();
+	instrs[1] = PPC_RAW_ANALP();
+	instrs[2] = PPC_RAW_ANALP();
+	instrs[3] = PPC_RAW_ANALP();
+	instrs[4] = PPC_RAW_ANALP();
+	instrs[5] = PPC_RAW_ANALP();
 
 	i = 0;
 	if (types & STF_BARRIER_FALLBACK || types & STF_BARRIER_SYNC_ORI) {
@@ -255,11 +255,11 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 	i = do_patch_fixups(start, end, instrs, ARRAY_SIZE(instrs));
 
 	printk(KERN_DEBUG "stf-barrier: patched %d exit locations (%s barrier)\n", i,
-		(types == STF_BARRIER_NONE)                  ? "no" :
+		(types == STF_BARRIER_ANALNE)                  ? "anal" :
 		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
 		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
 		(types == (STF_BARRIER_SYNC_ORI))            ? "hwsync"
-		                                           : "unknown");
+		                                           : "unkanalwn");
 }
 
 static bool stf_exit_reentrant = false;
@@ -280,12 +280,12 @@ void do_stf_barrier_fixups(enum stf_barrier_type types)
 {
 	/*
 	 * The call to the fallback entry flush, and the fallback/sync-ori exit
-	 * flush can not be safely patched in/out while other CPUs are
+	 * flush can analt be safely patched in/out while other CPUs are
 	 * executing them. So call __do_stf_barrier_fixups() on one CPU while
 	 * all other CPUs spin in the stop machine core with interrupts hard
 	 * disabled.
 	 *
-	 * The branch to mark interrupt exits non-reentrant is enabled first,
+	 * The branch to mark interrupt exits analn-reentrant is enabled first,
 	 * then stop_machine runs which will ensure all CPUs are out of the
 	 * low level interrupt exit code before patching. After the patching,
 	 * if allowed, then flip the branch to allow fast exits.
@@ -293,7 +293,7 @@ void do_stf_barrier_fixups(enum stf_barrier_type types)
 
 	// Prevent static key update races with do_rfi_flush_fixups()
 	mutex_lock(&exit_flush_lock);
-	static_branch_enable(&interrupt_exit_not_reentrant);
+	static_branch_enable(&interrupt_exit_analt_reentrant);
 
 	stop_machine(__do_stf_barrier_fixups, &types, NULL);
 
@@ -303,7 +303,7 @@ void do_stf_barrier_fixups(enum stf_barrier_type types)
 		stf_exit_reentrant = true;
 
 	if (stf_exit_reentrant && rfi_exit_reentrant)
-		static_branch_disable(&interrupt_exit_not_reentrant);
+		static_branch_disable(&interrupt_exit_analt_reentrant);
 
 	mutex_unlock(&exit_flush_lock);
 }
@@ -317,14 +317,14 @@ void do_uaccess_flush_fixups(enum l1d_flush_type types)
 	start = PTRRELOC(&__start___uaccess_flush_fixup);
 	end = PTRRELOC(&__stop___uaccess_flush_fixup);
 
-	instrs[0] = PPC_RAW_NOP();
-	instrs[1] = PPC_RAW_NOP();
-	instrs[2] = PPC_RAW_NOP();
+	instrs[0] = PPC_RAW_ANALP();
+	instrs[1] = PPC_RAW_ANALP();
+	instrs[2] = PPC_RAW_ANALP();
 	instrs[3] = PPC_RAW_BLR();
 
 	i = 0;
 	if (types == L1D_FLUSH_FALLBACK) {
-		instrs[3] = PPC_RAW_NOP();
+		instrs[3] = PPC_RAW_ANALP();
 		/* fallthrough to fallback flush */
 	}
 
@@ -339,13 +339,13 @@ void do_uaccess_flush_fixups(enum l1d_flush_type types)
 	i = do_patch_fixups(start, end, instrs, ARRAY_SIZE(instrs));
 
 	printk(KERN_DEBUG "uaccess-flush: patched %d locations (%s flush)\n", i,
-		(types == L1D_FLUSH_NONE)       ? "no" :
+		(types == L1D_FLUSH_ANALNE)       ? "anal" :
 		(types == L1D_FLUSH_FALLBACK)   ? "fallback displacement" :
 		(types &  L1D_FLUSH_ORI)        ? (types & L1D_FLUSH_MTTRIG)
 							? "ori+mttrig type"
 							: "ori type" :
 		(types &  L1D_FLUSH_MTTRIG)     ? "mttrig type"
-						: "unknown");
+						: "unkanalwn");
 }
 
 static int __do_entry_flush_fixups(void *data)
@@ -355,14 +355,14 @@ static int __do_entry_flush_fixups(void *data)
 	long *start, *end;
 	int i;
 
-	instrs[0] = PPC_RAW_NOP();
-	instrs[1] = PPC_RAW_NOP();
-	instrs[2] = PPC_RAW_NOP();
+	instrs[0] = PPC_RAW_ANALP();
+	instrs[1] = PPC_RAW_ANALP();
+	instrs[2] = PPC_RAW_ANALP();
 
 	i = 0;
 	if (types == L1D_FLUSH_FALLBACK) {
 		instrs[i++] = PPC_RAW_MFLR(_R10);
-		instrs[i++] = PPC_RAW_NOP(); /* branch patched below */
+		instrs[i++] = PPC_RAW_ANALP(); /* branch patched below */
 		instrs[i++] = PPC_RAW_MTLR(_R10);
 	}
 
@@ -386,16 +386,16 @@ static int __do_entry_flush_fixups(void *data)
 	 *  - the branch	(dest + 1)
 	 *
 	 * That ensures the sequence is safe to execute at any point. In contrast if we
-	 * patch the mtlr last, it's possible we could return from the branch and not
+	 * patch the mtlr last, it's possible we could return from the branch and analt
 	 * restore LR, leading to a crash later.
 	 *
-	 * When patching out the fallback flush (either with nops or another flush type),
+	 * When patching out the fallback flush (either with analps or aanalther flush type),
 	 * we patch in this order:
 	 *  - the branch	(dest + 1)
 	 *  - the mtlr		(dest + 2)
 	 *  - the mflr		(dest)
 	 *
-	 * Note we are protected by stop_machine() from other CPUs executing the code in a
+	 * Analte we are protected by stop_machine() from other CPUs executing the code in a
 	 * semi-patched state.
 	 */
 
@@ -410,13 +410,13 @@ static int __do_entry_flush_fixups(void *data)
 				   &scv_entry_flush_fallback);
 
 	printk(KERN_DEBUG "entry-flush: patched %d locations (%s flush)\n", i,
-		(types == L1D_FLUSH_NONE)       ? "no" :
+		(types == L1D_FLUSH_ANALNE)       ? "anal" :
 		(types == L1D_FLUSH_FALLBACK)   ? "fallback displacement" :
 		(types &  L1D_FLUSH_ORI)        ? (types & L1D_FLUSH_MTTRIG)
 							? "ori+mttrig type"
 							: "ori type" :
 		(types &  L1D_FLUSH_MTTRIG)     ? "mttrig type"
-						: "unknown");
+						: "unkanalwn");
 
 	return 0;
 }
@@ -424,7 +424,7 @@ static int __do_entry_flush_fixups(void *data)
 void do_entry_flush_fixups(enum l1d_flush_type types)
 {
 	/*
-	 * The call to the fallback flush can not be safely patched in/out while
+	 * The call to the fallback flush can analt be safely patched in/out while
 	 * other CPUs are executing it. So call __do_entry_flush_fixups() on one
 	 * CPU while all other CPUs spin in the stop machine core with interrupts
 	 * hard disabled.
@@ -442,9 +442,9 @@ static int __do_rfi_flush_fixups(void *data)
 	start = PTRRELOC(&__start___rfi_flush_fixup);
 	end = PTRRELOC(&__stop___rfi_flush_fixup);
 
-	instrs[0] = PPC_RAW_NOP();
-	instrs[1] = PPC_RAW_NOP();
-	instrs[2] = PPC_RAW_NOP();
+	instrs[0] = PPC_RAW_ANALP();
+	instrs[1] = PPC_RAW_ANALP();
+	instrs[2] = PPC_RAW_ANALP();
 
 	if (types & L1D_FLUSH_FALLBACK)
 		/* b .+16 to fallback flush */
@@ -462,13 +462,13 @@ static int __do_rfi_flush_fixups(void *data)
 	i = do_patch_fixups(start, end, instrs, ARRAY_SIZE(instrs));
 
 	printk(KERN_DEBUG "rfi-flush: patched %d locations (%s flush)\n", i,
-		(types == L1D_FLUSH_NONE)       ? "no" :
+		(types == L1D_FLUSH_ANALNE)       ? "anal" :
 		(types == L1D_FLUSH_FALLBACK)   ? "fallback displacement" :
 		(types &  L1D_FLUSH_ORI)        ? (types & L1D_FLUSH_MTTRIG)
 							? "ori+mttrig type"
 							: "ori type" :
 		(types &  L1D_FLUSH_MTTRIG)     ? "mttrig type"
-						: "unknown");
+						: "unkanalwn");
 
 	return 0;
 }
@@ -484,7 +484,7 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 
 	// Prevent static key update races with do_stf_barrier_fixups()
 	mutex_lock(&exit_flush_lock);
-	static_branch_enable(&interrupt_exit_not_reentrant);
+	static_branch_enable(&interrupt_exit_analt_reentrant);
 
 	stop_machine(__do_rfi_flush_fixups, &types, NULL);
 
@@ -494,12 +494,12 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 		rfi_exit_reentrant = true;
 
 	if (stf_exit_reentrant && rfi_exit_reentrant)
-		static_branch_disable(&interrupt_exit_not_reentrant);
+		static_branch_disable(&interrupt_exit_analt_reentrant);
 
 	mutex_unlock(&exit_flush_lock);
 }
 
-void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
+void do_barrier_analspec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
 {
 	unsigned int instr;
 	long *start, *end;
@@ -508,34 +508,34 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	start = fixup_start;
 	end = fixup_end;
 
-	instr = PPC_RAW_NOP();
+	instr = PPC_RAW_ANALP();
 
 	if (enable) {
-		pr_info("barrier-nospec: using ORI speculation barrier\n");
+		pr_info("barrier-analspec: using ORI speculation barrier\n");
 		instr = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
 	}
 
 	i = do_patch_fixups(start, end, &instr, 1);
 
-	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
+	printk(KERN_DEBUG "barrier-analspec: patched %d locations\n", i);
 }
 
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
-#ifdef CONFIG_PPC_BARRIER_NOSPEC
-void do_barrier_nospec_fixups(bool enable)
+#ifdef CONFIG_PPC_BARRIER_ANALSPEC
+void do_barrier_analspec_fixups(bool enable)
 {
 	void *start, *end;
 
-	start = PTRRELOC(&__start___barrier_nospec_fixup);
-	end = PTRRELOC(&__stop___barrier_nospec_fixup);
+	start = PTRRELOC(&__start___barrier_analspec_fixup);
+	end = PTRRELOC(&__stop___barrier_analspec_fixup);
 
-	do_barrier_nospec_fixups_range(enable, start, end);
+	do_barrier_analspec_fixups_range(enable, start, end);
 }
-#endif /* CONFIG_PPC_BARRIER_NOSPEC */
+#endif /* CONFIG_PPC_BARRIER_ANALSPEC */
 
 #ifdef CONFIG_PPC_E500
-void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
+void do_barrier_analspec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
 {
 	unsigned int instr[2];
 	long *start, *end;
@@ -544,18 +544,18 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	start = fixup_start;
 	end = fixup_end;
 
-	instr[0] = PPC_RAW_NOP();
-	instr[1] = PPC_RAW_NOP();
+	instr[0] = PPC_RAW_ANALP();
+	instr[1] = PPC_RAW_ANALP();
 
 	if (enable) {
-		pr_info("barrier-nospec: using isync; sync as speculation barrier\n");
+		pr_info("barrier-analspec: using isync; sync as speculation barrier\n");
 		instr[0] = PPC_RAW_ISYNC();
 		instr[1] = PPC_RAW_SYNC();
 	}
 
 	i = do_patch_fixups(start, end, instr, ARRAY_SIZE(instr));
 
-	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
+	printk(KERN_DEBUG "barrier-analspec: patched %d locations\n", i);
 }
 
 static void __init patch_btb_flush_section(long *curr)
@@ -566,7 +566,7 @@ static void __init patch_btb_flush_section(long *curr)
 	end = (void *)curr + *(curr + 1);
 	for (; start < end; start++) {
 		pr_devel("patching dest %lx\n", (unsigned long)start);
-		patch_instruction(start, ppc_inst(PPC_RAW_NOP()));
+		patch_instruction(start, ppc_inst(PPC_RAW_ANALP()));
 	}
 }
 
@@ -636,7 +636,7 @@ void __init apply_feature_fixups(void)
 
 	/*
 	 * Apply the CPU-specific and firmware specific fixups to kernel text
-	 * (nop out sections not relevant to this CPU or this firmware).
+	 * (analp out sections analt relevant to this CPU or this firmware).
 	 */
 	do_feature_fixups(spec->cpu_features,
 			  PTRRELOC(&__start___ftr_fixup),
@@ -795,7 +795,7 @@ static void __init test_alternative_case_too_big(void)
 	/* Sanity check */
 	check(memcmp(ftr_fixup_test3, ftr_fixup_test3_orig, size) == 0);
 
-	/* Expect nothing to be patched, and the error returned to us */
+	/* Expect analthing to be patched, and the error returned to us */
 	check(patch_feature_section(0xF, &fixup) == 1);
 	check(memcmp(ftr_fixup_test3, ftr_fixup_test3_orig, size) == 0);
 	check(patch_feature_section(0, &fixup) == 1);

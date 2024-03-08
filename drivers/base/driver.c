@@ -5,13 +5,13 @@
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
  * Copyright (c) 2007 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (c) 2007 Novell Inc.
+ * Copyright (c) 2007 Analvell Inc.
  */
 
 #include <linux/device/driver.h>
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
@@ -19,7 +19,7 @@
 
 static struct device *next_device(struct klist_iter *i)
 {
-	struct klist_node *n = klist_next(i);
+	struct klist_analde *n = klist_next(i);
 	struct device *dev = NULL;
 	struct device_private *dev_prv;
 
@@ -86,7 +86,7 @@ int driver_set_override(struct device *dev, const char **override,
 
 	new = kstrndup(s, len, GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_lock(dev);
 	old = *override;
@@ -124,8 +124,8 @@ int driver_for_each_device(struct device_driver *drv, struct device *start,
 	if (!drv)
 		return -EINVAL;
 
-	klist_iter_init_node(&drv->p->klist_devices, &i,
-			     start ? &start->p->knode_driver : NULL);
+	klist_iter_init_analde(&drv->p->klist_devices, &i,
+			     start ? &start->p->kanalde_driver : NULL);
 	while (!error && (dev = next_device(&i)))
 		error = fn(dev, data);
 	klist_iter_exit(&i);
@@ -144,9 +144,9 @@ EXPORT_SYMBOL_GPL(driver_for_each_device);
  * it returns a reference to a device that is 'found' for later use, as
  * determined by the @match callback.
  *
- * The callback should return 0 if the device doesn't match and non-zero
- * if it does.  If the callback returns non-zero, this function will
- * return to the caller and not iterate over any more devices.
+ * The callback should return 0 if the device doesn't match and analn-zero
+ * if it does.  If the callback returns analn-zero, this function will
+ * return to the caller and analt iterate over any more devices.
  */
 struct device *driver_find_device(struct device_driver *drv,
 				  struct device *start, const void *data,
@@ -158,8 +158,8 @@ struct device *driver_find_device(struct device_driver *drv,
 	if (!drv || !drv->p)
 		return NULL;
 
-	klist_iter_init_node(&drv->p->klist_devices, &i,
-			     (start ? &start->p->knode_driver : NULL));
+	klist_iter_init_analde(&drv->p->klist_devices, &i,
+			     (start ? &start->p->kanalde_driver : NULL));
 	while ((dev = next_device(&i)))
 		if (match(dev, data) && get_device(dev))
 			break;
@@ -225,7 +225,7 @@ int driver_register(struct device_driver *drv)
 	struct device_driver *other;
 
 	if (!bus_is_registered(drv->bus)) {
-		pr_err("Driver '%s' was unable to register with bus_type '%s' because the bus was not initialized.\n",
+		pr_err("Driver '%s' was unable to register with bus_type '%s' because the bus was analt initialized.\n",
 			   drv->name, drv->bus->name);
 		return -EINVAL;
 	}

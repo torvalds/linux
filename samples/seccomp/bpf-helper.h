@@ -9,7 +9,7 @@
  * and can serve as a starting point for developing
  * applications using prctl(PR_SET_SECCOMP, 2, ...).
  *
- * No guarantees are provided with respect to the correctness
+ * Anal guarantees are provided with respect to the correctness
  * or functionality of this code.
  */
 #ifndef __BPF_HELPER_H__
@@ -67,7 +67,7 @@ void seccomp_bpf_print(struct sock_filter *filter, size_t count);
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)]) + sizeof(__u32)
 #else
-#error "Unknown endianness"
+#error "Unkanalwn endianness"
 #endif
 
 /* Map all width-sensitive operations */
@@ -179,10 +179,10 @@ union arg64 {
  * A and M[1]. This invariant is kept by restoring A if necessary.
  */
 #define JEQ64(lo, hi, jt) \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
+	/* if (hi != arg.hi) goto ANALMATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	/* if (lo != arg.lo) goto NOMATCH; */ \
+	/* if (lo != arg.lo) goto ANALMATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (lo), 0, 2), \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), \
 	jt, \
@@ -211,7 +211,7 @@ union arg64 {
 #define JGE64(lo, hi, jt) \
 	/* if (hi > arg.hi) goto MATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 4, 0), \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
+	/* if (hi != arg.hi) goto ANALMATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), \
 	/* if (lo >= arg.lo) goto MATCH; */ \
@@ -223,7 +223,7 @@ union arg64 {
 #define JGT64(lo, hi, jt) \
 	/* if (hi > arg.hi) goto MATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 4, 0), \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
+	/* if (hi != arg.hi) goto ANALMATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), \
 	/* if (lo > arg.lo) goto MATCH; */ \
@@ -235,7 +235,7 @@ union arg64 {
 #define JLE64(lo, hi, jt) \
 	/* if (hi < arg.hi) goto MATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (hi), 0, 4), \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
+	/* if (hi != arg.hi) goto ANALMATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), \
 	/* if (lo <= arg.lo) goto MATCH; */ \
@@ -247,7 +247,7 @@ union arg64 {
 #define JLT64(lo, hi, jt) \
 	/* if (hi < arg.hi) goto MATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (hi), 0, 4), \
-	/* if (hi != arg.hi) goto NOMATCH; */ \
+	/* if (hi != arg.hi) goto ANALMATCH; */ \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), \
 	/* if (lo < arg.lo) goto MATCH; */ \

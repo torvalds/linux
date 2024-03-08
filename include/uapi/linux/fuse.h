@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-2-Clause) */
 /*
     This file defines the kernel interface of FUSE
     Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
@@ -15,17 +15,17 @@
     modification, are permitted provided that the following conditions
     are met:
     1. Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
+       analtice, this list of conditions and the following disclaimer.
     2. Redistributions in binary form must reproduce the above copyright
-       notice, this list of conditions and the following disclaimer in the
+       analtice, this list of conditions and the following disclaimer in the
        documentation and/or other materials provided with the distribution.
 
     THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
     IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-    ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+    ARE DISCLAIMED.  IN ANAL EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
     FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+    DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
     OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
     HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
     LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -40,7 +40,7 @@
  *
  * 7.1:
  *  - add the following messages:
- *      FUSE_SETATTR, FUSE_SYMLINK, FUSE_MKNOD, FUSE_MKDIR, FUSE_UNLINK,
+ *      FUSE_SETATTR, FUSE_SYMLINK, FUSE_MKANALD, FUSE_MKDIR, FUSE_UNLINK,
  *      FUSE_RMDIR, FUSE_RENAME, FUSE_LINK, FUSE_OPEN, FUSE_READ, FUSE_WRITE,
  *      FUSE_RELEASE, FUSE_FSYNC, FUSE_FLUSH, FUSE_SETXATTR, FUSE_GETXATTR,
  *      FUSE_LISTXATTR, FUSE_REMOVEXATTR, FUSE_OPENDIR, FUSE_READDIR,
@@ -81,19 +81,19 @@
  *  - add lock_owner field to fuse_setattr_in, fuse_read_in and fuse_write_in
  *  - add blksize field to fuse_attr
  *  - add file flags field to fuse_read_in and fuse_write_in
- *  - Add ATIME_NOW and MTIME_NOW flags to fuse_setattr_in
+ *  - Add ATIME_ANALW and MTIME_ANALW flags to fuse_setattr_in
  *
  * 7.10
- *  - add nonseekable open flag
+ *  - add analnseekable open flag
  *
  * 7.11
  *  - add IOCTL message
- *  - add unsolicited notification support
- *  - add POLL message and NOTIFY_POLL notification
+ *  - add unsolicited analtification support
+ *  - add POLL message and ANALTIFY_POLL analtification
  *
  * 7.12
- *  - add umask flag to input argument of create, mknod and mkdir
- *  - add notification messages for invalidation of inodes and
+ *  - add umask flag to input argument of create, mkanald and mkdir
+ *  - add analtification messages for invalidation of ianaldes and
  *    directory entries
  *
  * 7.13
@@ -104,12 +104,12 @@
  *  - add splice support to fuse device
  *
  * 7.15
- *  - add store notify
- *  - add retrieve notify
+ *  - add store analtify
+ *  - add retrieve analtify
  *
  * 7.16
  *  - add BATCH_FORGET request
- *  - FUSE_IOCTL_UNRESTRICTED shall now return with array of 'struct
+ *  - FUSE_IOCTL_UNRESTRICTED shall analw return with array of 'struct
  *    fuse_ioctl_iovec' instead of ambiguous 'struct iovec'
  *  - add FUSE_IOCTL_32BIT flag
  *
@@ -118,7 +118,7 @@
  *
  * 7.18
  *  - add FUSE_IOCTL_DIR flag
- *  - add FUSE_NOTIFY_DELETE
+ *  - add FUSE_ANALTIFY_DELETE
  *
  * 7.19
  *  - add FUSE_FALLOCATE
@@ -140,7 +140,7 @@
  *  - add FATTR_CTIME
  *  - add ctime and ctimensec to fuse_setattr_in
  *  - add FUSE_RENAME2 request
- *  - add FUSE_NO_OPEN_SUPPORT flag
+ *  - add FUSE_ANAL_OPEN_SUPPORT flag
  *
  *  7.24
  *  - add FUSE_LSEEK for SEEK_HOLE and SEEK_DATA support
@@ -162,7 +162,7 @@
  *  - add FUSE_CACHE_SYMLINKS
  *
  *  7.29
- *  - add FUSE_NO_OPENDIR_SUPPORT flag
+ *  - add FUSE_ANAL_OPENDIR_SUPPORT flag
  *
  *  7.30
  *  - add FUSE_EXPLICIT_INVAL_DATA
@@ -186,20 +186,20 @@
  *  - add FUSE_SYNCFS
  *
  *  7.35
- *  - add FOPEN_NOFLUSH
+ *  - add FOPEN_ANALFLUSH
  *
  *  7.36
  *  - extend fuse_init_in with reserved fields, add FUSE_INIT_EXT init flag
  *  - add flags2 to fuse_init_in and fuse_init_out
  *  - add FUSE_SECURITY_CTX init flag
- *  - add security context to create, mkdir, symlink, and mknod requests
- *  - add FUSE_HAS_INODE_DAX, FUSE_ATTR_DAX
+ *  - add security context to create, mkdir, symlink, and mkanald requests
+ *  - add FUSE_HAS_IANALDE_DAX, FUSE_ATTR_DAX
  *
  *  7.37
  *  - add FUSE_TMPFILE
  *
  *  7.38
- *  - add FUSE_EXPIRE_ONLY flag to fuse_notify_inval_entry
+ *  - add FUSE_EXPIRE_ONLY flag to fuse_analtify_inval_entry
  *  - add FOPEN_PARALLEL_DIRECT_WRITES
  *  - add total_extlen to fuse_in_header
  *  - add FUSE_MAX_NR_SECCTX
@@ -229,33 +229,33 @@
  * INIT request and reply respectively.
  *
  * If the major versions match then both shall use the smallest
- * of the two minor versions for communication.
+ * of the two mianalr versions for communication.
  *
  * If the kernel supports a larger major version, then userspace shall
- * reply with the major version it supports, ignore the rest of the
+ * reply with the major version it supports, iganalre the rest of the
  * INIT message and expect a new INIT message from the kernel with a
  * matching major version.
  *
  * If the library supports a larger major version, then it shall fall
  * back to the major protocol version sent by the kernel for
  * communication and reply with that major version (and an arbitrary
- * supported minor version).
+ * supported mianalr version).
  */
 
 /** Version number of this interface */
 #define FUSE_KERNEL_VERSION 7
 
-/** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 39
+/** Mianalr version number of this interface */
+#define FUSE_KERNEL_MIANALR_VERSION 39
 
-/** The node ID of the root inode */
+/** The analde ID of the root ianalde */
 #define FUSE_ROOT_ID 1
 
 /* Make sure all structures are padded to 64bit boundary, so 32bit
    userspace works under 64bit kernels */
 
 struct fuse_attr {
-	uint64_t	ino;
+	uint64_t	ianal;
 	uint64_t	size;
 	uint64_t	blocks;
 	uint64_t	atime;
@@ -292,7 +292,7 @@ struct fuse_statx {
 	uint32_t	gid;
 	uint16_t	mode;
 	uint16_t	__spare0[1];
-	uint64_t	ino;
+	uint64_t	ianal;
 	uint64_t	size;
 	uint64_t	blocks;
 	uint64_t	attributes_mask;
@@ -301,9 +301,9 @@ struct fuse_statx {
 	struct fuse_sx_time	ctime;
 	struct fuse_sx_time	mtime;
 	uint32_t	rdev_major;
-	uint32_t	rdev_minor;
+	uint32_t	rdev_mianalr;
 	uint32_t	dev_major;
-	uint32_t	dev_minor;
+	uint32_t	dev_mianalr;
 	uint64_t	__spare2[14];
 };
 
@@ -337,8 +337,8 @@ struct fuse_file_lock {
 #define FATTR_ATIME	(1 << 4)
 #define FATTR_MTIME	(1 << 5)
 #define FATTR_FH	(1 << 6)
-#define FATTR_ATIME_NOW	(1 << 7)
-#define FATTR_MTIME_NOW	(1 << 8)
+#define FATTR_ATIME_ANALW	(1 << 7)
+#define FATTR_MTIME_ANALW	(1 << 8)
 #define FATTR_LOCKOWNER	(1 << 9)
 #define FATTR_CTIME	(1 << 10)
 #define FATTR_KILL_SUIDGID	(1 << 11)
@@ -348,26 +348,26 @@ struct fuse_file_lock {
  *
  * FOPEN_DIRECT_IO: bypass page cache for this open file
  * FOPEN_KEEP_CACHE: don't invalidate the data cache on open
- * FOPEN_NONSEEKABLE: the file is not seekable
+ * FOPEN_ANALNSEEKABLE: the file is analt seekable
  * FOPEN_CACHE_DIR: allow caching this directory
- * FOPEN_STREAM: the file is stream-like (no file position at all)
- * FOPEN_NOFLUSH: don't flush data cache on close (unless FUSE_WRITEBACK_CACHE)
- * FOPEN_PARALLEL_DIRECT_WRITES: Allow concurrent direct writes on the same inode
+ * FOPEN_STREAM: the file is stream-like (anal file position at all)
+ * FOPEN_ANALFLUSH: don't flush data cache on close (unless FUSE_WRITEBACK_CACHE)
+ * FOPEN_PARALLEL_DIRECT_WRITES: Allow concurrent direct writes on the same ianalde
  */
 #define FOPEN_DIRECT_IO		(1 << 0)
 #define FOPEN_KEEP_CACHE	(1 << 1)
-#define FOPEN_NONSEEKABLE	(1 << 2)
+#define FOPEN_ANALNSEEKABLE	(1 << 2)
 #define FOPEN_CACHE_DIR		(1 << 3)
 #define FOPEN_STREAM		(1 << 4)
-#define FOPEN_NOFLUSH		(1 << 5)
+#define FOPEN_ANALFLUSH		(1 << 5)
 #define FOPEN_PARALLEL_DIRECT_WRITES	(1 << 6)
 
 /**
  * INIT request/reply flags
  *
- * FUSE_ASYNC_READ: asynchronous read requests
+ * FUSE_ASYNC_READ: asynchroanalus read requests
  * FUSE_POSIX_LOCKS: remote locking for POSIX file locks
- * FUSE_FILE_OPS: kernel sends file handle for fstat, etc... (not yet supported)
+ * FUSE_FILE_OPS: kernel sends file handle for fstat, etc... (analt yet supported)
  * FUSE_ATOMIC_O_TRUNC: handles the O_TRUNC open flag in the filesystem
  * FUSE_EXPORT_SUPPORT: filesystem handles lookups of "." and ".."
  * FUSE_BIG_WRITES: filesystem can handle write size larger than 4kB
@@ -380,16 +380,16 @@ struct fuse_file_lock {
  * FUSE_AUTO_INVAL_DATA: automatically invalidate cached pages
  * FUSE_DO_READDIRPLUS: do READDIRPLUS (READDIR+LOOKUP in one)
  * FUSE_READDIRPLUS_AUTO: adaptive readdirplus
- * FUSE_ASYNC_DIO: asynchronous direct I/O submission
+ * FUSE_ASYNC_DIO: asynchroanalus direct I/O submission
  * FUSE_WRITEBACK_CACHE: use writeback cache for buffered writes
- * FUSE_NO_OPEN_SUPPORT: kernel supports zero-message opens
+ * FUSE_ANAL_OPEN_SUPPORT: kernel supports zero-message opens
  * FUSE_PARALLEL_DIROPS: allow parallel lookups and readdir
  * FUSE_HANDLE_KILLPRIV: fs handles killing suid/sgid/cap on write/chown/trunc
  * FUSE_POSIX_ACL: filesystem supports posix acls
  * FUSE_ABORT_ERROR: reading the device after abort returns ECONNABORTED
  * FUSE_MAX_PAGES: init_out.max_pages contains the max number of req pages
  * FUSE_CACHE_SYMLINKS: cache READLINK responses
- * FUSE_NO_OPENDIR_SUPPORT: kernel supports zero-message opendir
+ * FUSE_ANAL_OPENDIR_SUPPORT: kernel supports zero-message opendir
  * FUSE_EXPLICIT_INVAL_DATA: only invalidate cached pages on explicit request
  * FUSE_MAP_ALIGNMENT: init_out.map_alignment contains log2(byte alignment) for
  *		       foffset and moffset fields in struct
@@ -397,17 +397,17 @@ struct fuse_file_lock {
  * FUSE_SUBMOUNTS: kernel supports auto-mounting directory submounts
  * FUSE_HANDLE_KILLPRIV_V2: fs kills suid/sgid/cap on write/chown/trunc.
  *			Upon write/truncate suid/sgid is only killed if caller
- *			does not have CAP_FSETID. Additionally upon
+ *			does analt have CAP_FSETID. Additionally upon
  *			write/truncate sgid is killed only if file has group
  *			execute permission. (Same as Linux VFS behavior).
  * FUSE_SETXATTR_EXT:	Server supports extended struct fuse_setxattr_in
  * FUSE_INIT_EXT: extended fuse_init_in request
- * FUSE_INIT_RESERVED: reserved, do not use
+ * FUSE_INIT_RESERVED: reserved, do analt use
  * FUSE_SECURITY_CTX:	add security context to create, mkdir, symlink, and
- *			mknod
- * FUSE_HAS_INODE_DAX:  use per inode DAX
+ *			mkanald
+ * FUSE_HAS_IANALDE_DAX:  use per ianalde DAX
  * FUSE_CREATE_SUPP_GROUP: add supplementary group info to create, mkdir,
- *			symlink and mknod (single group that matches parent)
+ *			symlink and mkanald (single group that matches parent)
  * FUSE_HAS_EXPIRE_ONLY: kernel supports expiry-only entry invalidation
  * FUSE_DIRECT_IO_ALLOW_MMAP: allow shared mmap in FOPEN_DIRECT_IO mode.
  */
@@ -428,14 +428,14 @@ struct fuse_file_lock {
 #define FUSE_READDIRPLUS_AUTO	(1 << 14)
 #define FUSE_ASYNC_DIO		(1 << 15)
 #define FUSE_WRITEBACK_CACHE	(1 << 16)
-#define FUSE_NO_OPEN_SUPPORT	(1 << 17)
+#define FUSE_ANAL_OPEN_SUPPORT	(1 << 17)
 #define FUSE_PARALLEL_DIROPS    (1 << 18)
 #define FUSE_HANDLE_KILLPRIV	(1 << 19)
 #define FUSE_POSIX_ACL		(1 << 20)
 #define FUSE_ABORT_ERROR	(1 << 21)
 #define FUSE_MAX_PAGES		(1 << 22)
 #define FUSE_CACHE_SYMLINKS	(1 << 23)
-#define FUSE_NO_OPENDIR_SUPPORT (1 << 24)
+#define FUSE_ANAL_OPENDIR_SUPPORT (1 << 24)
 #define FUSE_EXPLICIT_INVAL_DATA (1 << 25)
 #define FUSE_MAP_ALIGNMENT	(1 << 26)
 #define FUSE_SUBMOUNTS		(1 << 27)
@@ -445,7 +445,7 @@ struct fuse_file_lock {
 #define FUSE_INIT_RESERVED	(1 << 31)
 /* bits 32..63 get shifted down 32 bits into the flags2 field */
 #define FUSE_SECURITY_CTX	(1ULL << 32)
-#define FUSE_HAS_INODE_DAX	(1ULL << 33)
+#define FUSE_HAS_IANALDE_DAX	(1ULL << 33)
 #define FUSE_CREATE_SUPP_GROUP	(1ULL << 34)
 #define FUSE_HAS_EXPIRE_ONLY	(1ULL << 35)
 #define FUSE_DIRECT_IO_ALLOW_MMAP (1ULL << 36)
@@ -499,7 +499,7 @@ struct fuse_file_lock {
  * Ioctl flags
  *
  * FUSE_IOCTL_COMPAT: 32bit compat ioctl on 64bit machine
- * FUSE_IOCTL_UNRESTRICTED: not restricted to well-formed ioctls, retry allowed
+ * FUSE_IOCTL_UNRESTRICTED: analt restricted to well-formed ioctls, retry allowed
  * FUSE_IOCTL_RETRY: retry with new iovecs
  * FUSE_IOCTL_32BIT: 32bit ioctl
  * FUSE_IOCTL_DIR: is a directory
@@ -519,14 +519,14 @@ struct fuse_file_lock {
 /**
  * Poll flags
  *
- * FUSE_POLL_SCHEDULE_NOTIFY: request poll notify
+ * FUSE_POLL_SCHEDULE_ANALTIFY: request poll analtify
  */
-#define FUSE_POLL_SCHEDULE_NOTIFY (1 << 0)
+#define FUSE_POLL_SCHEDULE_ANALTIFY (1 << 0)
 
 /**
  * Fsync flags
  *
- * FUSE_FSYNC_FDATASYNC: Sync data only, not metadata
+ * FUSE_FSYNC_FDATASYNC: Sync data only, analt metadata
  */
 #define FUSE_FSYNC_FDATASYNC	(1 << 0)
 
@@ -534,7 +534,7 @@ struct fuse_file_lock {
  * fuse_attr flags
  *
  * FUSE_ATTR_SUBMOUNT: Object is a submount root
- * FUSE_ATTR_DAX: Enable DAX for this file in per inode DAX mode
+ * FUSE_ATTR_DAX: Enable DAX for this file in per ianalde DAX mode
  */
 #define FUSE_ATTR_SUBMOUNT      (1 << 0)
 #define FUSE_ATTR_DAX		(1 << 1)
@@ -552,7 +552,7 @@ struct fuse_file_lock {
 #define FUSE_SETXATTR_ACL_KILL_SGID	(1 << 0)
 
 /**
- * notify_inval_entry flags
+ * analtify_inval_entry flags
  * FUSE_EXPIRE_ONLY
  */
 #define FUSE_EXPIRE_ONLY		(1 << 0)
@@ -570,12 +570,12 @@ enum fuse_ext_type {
 
 enum fuse_opcode {
 	FUSE_LOOKUP		= 1,
-	FUSE_FORGET		= 2,  /* no reply */
+	FUSE_FORGET		= 2,  /* anal reply */
 	FUSE_GETATTR		= 3,
 	FUSE_SETATTR		= 4,
 	FUSE_READLINK		= 5,
 	FUSE_SYMLINK		= 6,
-	FUSE_MKNOD		= 8,
+	FUSE_MKANALD		= 8,
 	FUSE_MKDIR		= 9,
 	FUSE_UNLINK		= 10,
 	FUSE_RMDIR		= 11,
@@ -607,7 +607,7 @@ enum fuse_opcode {
 	FUSE_DESTROY		= 38,
 	FUSE_IOCTL		= 39,
 	FUSE_POLL		= 40,
-	FUSE_NOTIFY_REPLY	= 41,
+	FUSE_ANALTIFY_REPLY	= 41,
 	FUSE_BATCH_FORGET	= 42,
 	FUSE_FALLOCATE		= 43,
 	FUSE_READDIRPLUS	= 44,
@@ -628,14 +628,14 @@ enum fuse_opcode {
 	FUSE_INIT_BSWAP_RESERVED	= 436207616,	/* FUSE_INIT << 24 */
 };
 
-enum fuse_notify_code {
-	FUSE_NOTIFY_POLL   = 1,
-	FUSE_NOTIFY_INVAL_INODE = 2,
-	FUSE_NOTIFY_INVAL_ENTRY = 3,
-	FUSE_NOTIFY_STORE = 4,
-	FUSE_NOTIFY_RETRIEVE = 5,
-	FUSE_NOTIFY_DELETE = 6,
-	FUSE_NOTIFY_CODE_MAX,
+enum fuse_analtify_code {
+	FUSE_ANALTIFY_POLL   = 1,
+	FUSE_ANALTIFY_INVAL_IANALDE = 2,
+	FUSE_ANALTIFY_INVAL_ENTRY = 3,
+	FUSE_ANALTIFY_STORE = 4,
+	FUSE_ANALTIFY_RETRIEVE = 5,
+	FUSE_ANALTIFY_DELETE = 6,
+	FUSE_ANALTIFY_CODE_MAX,
 };
 
 /* The read buffer is required to be at least 8k, but may be much larger */
@@ -644,8 +644,8 @@ enum fuse_notify_code {
 #define FUSE_COMPAT_ENTRY_OUT_SIZE 120
 
 struct fuse_entry_out {
-	uint64_t	nodeid;		/* Inode ID */
-	uint64_t	generation;	/* Inode generation: nodeid:gen must
+	uint64_t	analdeid;		/* Ianalde ID */
+	uint64_t	generation;	/* Ianalde generation: analdeid:gen must
 					   be unique for the fs's lifetime */
 	uint64_t	entry_valid;	/* Cache timeout for the name */
 	uint64_t	attr_valid;	/* Cache timeout for the attributes */
@@ -659,7 +659,7 @@ struct fuse_forget_in {
 };
 
 struct fuse_forget_one {
-	uint64_t	nodeid;
+	uint64_t	analdeid;
 	uint64_t	nlookup;
 };
 
@@ -699,9 +699,9 @@ struct fuse_statx_out {
 	struct fuse_statx stat;
 };
 
-#define FUSE_COMPAT_MKNOD_IN_SIZE 8
+#define FUSE_COMPAT_MKANALD_IN_SIZE 8
 
-struct fuse_mknod_in {
+struct fuse_mkanald_in {
 	uint32_t	mode;
 	uint32_t	rdev;
 	uint32_t	umask;
@@ -724,7 +724,7 @@ struct fuse_rename2_in {
 };
 
 struct fuse_link_in {
-	uint64_t	oldnodeid;
+	uint64_t	oldanaldeid;
 };
 
 struct fuse_setattr_in {
@@ -855,7 +855,7 @@ struct fuse_access_in {
 
 struct fuse_init_in {
 	uint32_t	major;
-	uint32_t	minor;
+	uint32_t	mianalr;
 	uint32_t	max_readahead;
 	uint32_t	flags;
 	uint32_t	flags2;
@@ -867,7 +867,7 @@ struct fuse_init_in {
 
 struct fuse_init_out {
 	uint32_t	major;
-	uint32_t	minor;
+	uint32_t	mianalr;
 	uint32_t	max_readahead;
 	uint32_t	flags;
 	uint16_t	max_background;
@@ -884,20 +884,20 @@ struct fuse_init_out {
 
 struct cuse_init_in {
 	uint32_t	major;
-	uint32_t	minor;
+	uint32_t	mianalr;
 	uint32_t	unused;
 	uint32_t	flags;
 };
 
 struct cuse_init_out {
 	uint32_t	major;
-	uint32_t	minor;
+	uint32_t	mianalr;
 	uint32_t	unused;
 	uint32_t	flags;
 	uint32_t	max_read;
 	uint32_t	max_write;
 	uint32_t	dev_major;		/* chardev major */
-	uint32_t	dev_minor;		/* chardev minor */
+	uint32_t	dev_mianalr;		/* chardev mianalr */
 	uint32_t	spare[10];
 };
 
@@ -948,7 +948,7 @@ struct fuse_poll_out {
 	uint32_t	padding;
 };
 
-struct fuse_notify_poll_wakeup_out {
+struct fuse_analtify_poll_wakeup_out {
 	uint64_t	kh;
 };
 
@@ -964,7 +964,7 @@ struct fuse_in_header {
 	uint32_t	len;
 	uint32_t	opcode;
 	uint64_t	unique;
-	uint64_t	nodeid;
+	uint64_t	analdeid;
 	uint32_t	uid;
 	uint32_t	gid;
 	uint32_t	pid;
@@ -979,7 +979,7 @@ struct fuse_out_header {
 };
 
 struct fuse_dirent {
-	uint64_t	ino;
+	uint64_t	ianal;
 	uint64_t	off;
 	uint32_t	namelen;
 	uint32_t	type;
@@ -1005,42 +1005,42 @@ struct fuse_direntplus {
 #define FUSE_DIRENTPLUS_SIZE(d) \
 	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET_DIRENTPLUS + (d)->dirent.namelen)
 
-struct fuse_notify_inval_inode_out {
-	uint64_t	ino;
+struct fuse_analtify_inval_ianalde_out {
+	uint64_t	ianal;
 	int64_t		off;
 	int64_t		len;
 };
 
-struct fuse_notify_inval_entry_out {
+struct fuse_analtify_inval_entry_out {
 	uint64_t	parent;
 	uint32_t	namelen;
 	uint32_t	flags;
 };
 
-struct fuse_notify_delete_out {
+struct fuse_analtify_delete_out {
 	uint64_t	parent;
 	uint64_t	child;
 	uint32_t	namelen;
 	uint32_t	padding;
 };
 
-struct fuse_notify_store_out {
-	uint64_t	nodeid;
+struct fuse_analtify_store_out {
+	uint64_t	analdeid;
 	uint64_t	offset;
 	uint32_t	size;
 	uint32_t	padding;
 };
 
-struct fuse_notify_retrieve_out {
-	uint64_t	notify_unique;
-	uint64_t	nodeid;
+struct fuse_analtify_retrieve_out {
+	uint64_t	analtify_unique;
+	uint64_t	analdeid;
 	uint64_t	offset;
 	uint32_t	size;
 	uint32_t	padding;
 };
 
 /* Matches the size of fuse_write_in */
-struct fuse_notify_retrieve_in {
+struct fuse_analtify_retrieve_in {
 	uint64_t	dummy1;
 	uint64_t	offset;
 	uint32_t	size;
@@ -1067,7 +1067,7 @@ struct fuse_lseek_out {
 struct fuse_copy_file_range_in {
 	uint64_t	fh_in;
 	uint64_t	off_in;
-	uint64_t	nodeid_out;
+	uint64_t	analdeid_out;
 	uint64_t	fh_out;
 	uint64_t	off_out;
 	uint64_t	len;

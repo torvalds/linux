@@ -10,7 +10,7 @@ Kernel module signing facility
 .. - Manually signing modules.
 .. - Signed modules and stripping.
 .. - Loading signed modules.
-.. - Non-valid signatures and unsigned modules.
+.. - Analn-valid signatures and unsigned modules.
 .. - Administering/protecting the private key.
 
 
@@ -23,11 +23,11 @@ installation and then checks the signature upon loading the module.  This
 allows increased kernel security by disallowing the loading of unsigned modules
 or modules signed with an invalid key.  Module signing increases security by
 making it harder to load a malicious module into the kernel.  The module
-signature checking is done by the kernel so that it is not necessary to have
+signature checking is done by the kernel so that it is analt necessary to have
 trusted userspace bits.
 
 This facility uses X.509 ITU-T standard certificates to encode the public keys
-involved.  The signatures are not themselves encoded in any industrial standard
+involved.  The signatures are analt themselves encoded in any industrial standard
 type.  The built-in facility currently only supports the RSA & NIST P-384 ECDSA
 public key signing standard (though it is pluggable and permits others to be
 used).  The possible hash algorithms that can be used are SHA-2 and SHA-3 of
@@ -50,9 +50,9 @@ This has a number of options available:
      (``CONFIG_MODULE_SIG_FORCE``)
 
      This specifies how the kernel should deal with a module that has a
-     signature for which the key is not known or a module that is unsigned.
+     signature for which the key is analt kanalwn or a module that is unsigned.
 
-     If this is off (ie. "permissive"), then modules for which the key is not
+     If this is off (ie. "permissive"), then modules for which the key is analt
      available and modules that are unsigned are permitted, but the kernel will
      be marked as being tainted, and the concerned modules will be marked as
      tainted, shown with the character 'E'.
@@ -62,7 +62,7 @@ This has a number of options available:
      will be loaded.  All other modules will generate an error.
 
      Irrespective of the setting here, if the module has a signature block that
-     cannot be parsed, it will be rejected out of hand.
+     cananalt be parsed, it will be rejected out of hand.
 
 
  (2) :menuselection:`Automatically sign all modules`
@@ -118,7 +118,7 @@ This has a number of options available:
      additional certificates which will be included in the system keyring by
      default.
 
-Note that enabling module signing adds a dependency on the OpenSSL devel
+Analte that enabling module signing adds a dependency on the OpenSSL devel
 packages to the kernel build processes for the tool that does the signing.
 
 
@@ -133,9 +133,9 @@ it can be deleted or stored securely.  The public key gets built into the
 kernel so that it can be used to check the signatures as the modules are
 loaded.
 
-Under normal conditions, when ``CONFIG_MODULE_SIG_KEY`` is unchanged from its
+Under analrmal conditions, when ``CONFIG_MODULE_SIG_KEY`` is unchanged from its
 default, the kernel build will automatically generate a new keypair using
-openssl if one does not exist in the file::
+openssl if one does analt exist in the file::
 
 	certs/signing_key.pem
 
@@ -144,7 +144,7 @@ into vmlinux) using parameters in the::
 
 	certs/x509.genkey
 
-file (which is also generated if it does not already exist).
+file (which is also generated if it does analt already exist).
 
 One can select between RSA (``MODULE_SIG_KEY_TYPE_RSA``) and ECDSA
 (``MODULE_SIG_KEY_TYPE_ECDSA``) to generate either RSA 4k or NIST
@@ -152,7 +152,7 @@ P-384 keypair.
 
 It is strongly recommended that you provide your own x509.genkey file.
 
-Most notably, in the x509.genkey file, the req_distinguished_name section
+Most analtably, in the x509.genkey file, the req_distinguished_name section
 should be altered from the default::
 
 	[ req_distinguished_name ]
@@ -167,11 +167,11 @@ The generated RSA key size can also be set with::
 
 
 It is also possible to manually generate the key private/public files using the
-x509.genkey key generation configuration file in the root node of the Linux
+x509.genkey key generation configuration file in the root analde of the Linux
 kernel sources tree and the openssl command.  The following is an example to
 generate the public/private key files::
 
-	openssl req -new -nodes -utf8 -sha256 -days 36500 -batch -x509 \
+	openssl req -new -analdes -utf8 -sha256 -days 36500 -batch -x509 \
 	   -config x509.genkey -outform PEM -out kernel_key.pem \
 	   -keyout kernel_key.pem
 
@@ -208,7 +208,7 @@ e.g.::
 
 	keyctl padd asymmetric "" 0x223c7853 <my_public_key.x509
 
-Note, however, that the kernel will only permit keys to be added to
+Analte, however, that the kernel will only permit keys to be added to
 ``.builtin_trusted_keys`` **if** the new key's X.509 wrapper is validly signed by a key
 that is already resident in the ``.builtin_trusted_keys`` at the time the key was added.
 
@@ -230,7 +230,7 @@ The following is an example to sign a kernel module::
 	scripts/sign-file sha512 kernel-signkey.priv \
 		kernel-signkey.x509 module.ko
 
-The hash algorithm used does not have to match the one configured, but if it
+The hash algorithm used does analt have to match the one configured, but if it
 doesn't, you should make sure that hash algorithm is either built into the
 kernel or can be loaded without requiring itself.
 
@@ -244,11 +244,11 @@ Signed modules and stripping
 
 A signed module has a digital signature simply appended at the end.  The string
 ``~Module signature appended~.`` at the end of the module's file confirms that a
-signature is present but it does not confirm that the signature is valid!
+signature is present but it does analt confirm that the signature is valid!
 
 Signed modules are BRITTLE as the signature is outside of the defined ELF
-container.  Thus they MAY NOT be stripped once the signature is computed and
-attached.  Note the entire module is the signed payload, including any and all
+container.  Thus they MAY ANALT be stripped once the signature is computed and
+attached.  Analte the entire module is the signed payload, including any and all
 debug information present at the time of signing.
 
 
@@ -257,19 +257,19 @@ Loading signed modules
 ======================
 
 Modules are loaded with insmod, modprobe, ``init_module()`` or
-``finit_module()``, exactly as for unsigned modules as no processing is
+``finit_module()``, exactly as for unsigned modules as anal processing is
 done in userspace.  The signature checking is all done within the kernel.
 
 
 =========================================
-Non-valid signatures and unsigned modules
+Analn-valid signatures and unsigned modules
 =========================================
 
 If ``CONFIG_MODULE_SIG_FORCE`` is enabled or module.sig_enforce=1 is supplied on
 the kernel command line, the kernel will only load validly signed modules
 for which it has a public key.   Otherwise, it will also load modules that are
 unsigned.   Any module for which the kernel has a key, but which proves to have
-a signature mismatch will not be permitted to load.
+a signature mismatch will analt be permitted to load.
 
 Any module that has an unparsable signature will be rejected.
 
@@ -280,8 +280,8 @@ Administering/protecting the private key
 
 Since the private key is used to sign modules, viruses and malware could use
 the private key to sign modules and compromise the operating system.  The
-private key must be either destroyed or moved to a secure location and not kept
-in the root node of the kernel source tree.
+private key must be either destroyed or moved to a secure location and analt kept
+in the root analde of the kernel source tree.
 
 If you use the same private key to sign modules for multiple kernel
 configurations, you must ensure that the module version information is

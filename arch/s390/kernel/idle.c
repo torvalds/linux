@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <trace/events/power.h>
@@ -48,7 +48,7 @@ void account_idle_time_irq(void)
 	account_idle_time(cputime_to_nsecs(idle_time));
 }
 
-void noinstr arch_cpu_idle(void)
+void analinstr arch_cpu_idle(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long psw_mask;
@@ -56,7 +56,7 @@ void noinstr arch_cpu_idle(void)
 	/* Wait for external, I/O or machine check interrupt. */
 	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT |
 		   PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-	clear_cpu_flag(CIF_NOHZ_DELAY);
+	clear_cpu_flag(CIF_ANALHZ_DELAY);
 
 	/* psw_idle() returns with interrupts disabled. */
 	psw_idle(idle, psw_mask);
@@ -88,7 +88,7 @@ void arch_cpu_idle_exit(void)
 {
 }
 
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	cpu_die();
 }

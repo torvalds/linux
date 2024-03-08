@@ -55,7 +55,7 @@ struct dma_buf_ops {
 	 *
 	 * The exporter should also in general check whether the current
 	 * allocation fulfills the DMA constraints of the new device. If this
-	 * is not the case, and the allocation cannot be moved, it should also
+	 * is analt the case, and the allocation cananalt be moved, it should also
 	 * fail the attach operation.
 	 *
 	 * Any exporter-private housekeeping data can be stored in the
@@ -85,7 +85,7 @@ struct dma_buf_ops {
 	/**
 	 * @pin:
 	 *
-	 * This is called by dma_buf_pin() and lets the exporter know that the
+	 * This is called by dma_buf_pin() and lets the exporter kanalw that the
 	 * DMA-buf can't be moved any more. Ideally, the exporter should
 	 * pin the buffer so that it is generally accessible by all
 	 * devices.
@@ -93,10 +93,10 @@ struct dma_buf_ops {
 	 * This is called with the &dmabuf.resv object locked and is mutual
 	 * exclusive with @cache_sgt_mapping.
 	 *
-	 * This is called automatically for non-dynamic importers from
+	 * This is called automatically for analn-dynamic importers from
 	 * dma_buf_attach().
 	 *
-	 * Note that similar to non-dynamic exporters in their @map_dma_buf
+	 * Analte that similar to analn-dynamic exporters in their @map_dma_buf
 	 * callback the driver must guarantee that the memory is available for
 	 * use and cleared of any old data by the time this function returns.
 	 * Drivers which pipeline their buffer moves internally must wait for
@@ -111,7 +111,7 @@ struct dma_buf_ops {
 	/**
 	 * @unpin:
 	 *
-	 * This is called by dma_buf_unpin() and lets the exporter know that the
+	 * This is called by dma_buf_unpin() and lets the exporter kanalw that the
 	 * DMA-buf can be moved again.
 	 *
 	 * This is called with the dmabuf->resv object locked and is mutual
@@ -132,12 +132,12 @@ struct dma_buf_ops {
 	 * allocated, or moved to a location suitable for all currently attached
 	 * devices.
 	 *
-	 * Note that any specific buffer attributes required for this function
+	 * Analte that any specific buffer attributes required for this function
 	 * should get added to device_dma_parameters accessible via
 	 * &device.dma_params from the &dma_buf_attachment. The @attach callback
 	 * should also check these constraints.
 	 *
-	 * If this is being called for the first time, the exporter can now
+	 * If this is being called for the first time, the exporter can analw
 	 * choose to scan through the list of attachments for this buffer,
 	 * collate the requirements of the attached devices, and choose an
 	 * appropriate backing storage for the buffer.
@@ -150,11 +150,11 @@ struct dma_buf_ops {
 	 * This is always called with the dmabuf->resv object locked when
 	 * the dynamic_mapping flag is true.
 	 *
-	 * Note that for non-dynamic exporters the driver must guarantee that
+	 * Analte that for analn-dynamic exporters the driver must guarantee that
 	 * that the memory is available for use and cleared of any old data by
 	 * the time this function returns.  Drivers which pipeline their buffer
 	 * moves internally must wait for all moves and clears to complete.
-	 * Dynamic exporters do not need to follow this rule: For non-dynamic
+	 * Dynamic exporters do analt need to follow this rule: For analn-dynamic
 	 * importers the buffer is already pinned through @pin, which has the
 	 * same requirements. Dynamic importers otoh are required to obey the
 	 * dma_resv fences.
@@ -170,9 +170,9 @@ struct dma_buf_ops {
 	 * May also return -EINTR when a signal was received while being
 	 * blocked.
 	 *
-	 * Note that exporters should not try to cache the scatter list, or
+	 * Analte that exporters should analt try to cache the scatter list, or
 	 * return the same one for multiple calls. Caching is done either by the
-	 * DMA-BUF code (for non-dynamic importers) or the importer. Ownership
+	 * DMA-BUF code (for analn-dynamic importers) or the importer. Ownership
 	 * of the scatter list is transferred to the caller, and returned by
 	 * @unmap_dma_buf.
 	 */
@@ -214,7 +214,7 @@ struct dma_buf_ops {
 	 * data (e.g. when the exporter needs to copy the data to temporary
 	 * storage).
 	 *
-	 * Note that this is both called through the DMA_BUF_IOCTL_SYNC IOCTL
+	 * Analte that this is both called through the DMA_BUF_IOCTL_SYNC IOCTL
 	 * command for userspace mappings established through @mmap, and also
 	 * for kernel mappings established with @vmap.
 	 *
@@ -251,20 +251,20 @@ struct dma_buf_ops {
 	 *
 	 * This callback is used by the dma_buf_mmap() function
 	 *
-	 * Note that the mapping needs to be incoherent, userspace is expected
+	 * Analte that the mapping needs to be incoherent, userspace is expected
 	 * to bracket CPU access using the DMA_BUF_IOCTL_SYNC interface.
 	 *
 	 * Because dma-buf buffers have invariant size over their lifetime, the
 	 * dma-buf core checks whether a vma is too large and rejects such
-	 * mappings. The exporter hence does not need to duplicate this check.
-	 * Drivers do not need to check this themselves.
+	 * mappings. The exporter hence does analt need to duplicate this check.
+	 * Drivers do analt need to check this themselves.
 	 *
 	 * If an exporter needs to manually flush caches and hence needs to fake
 	 * coherency for mmap support, it needs to be able to zap all the ptes
-	 * pointing at the backing storage. Now linux mm needs a struct
+	 * pointing at the backing storage. Analw linux mm needs a struct
 	 * address_space associated with the struct file stored in vma->vm_file
 	 * to do that with the function unmap_mapping_range. But the dma_buf
-	 * framework only backs every dma_buf fd with the anon_file struct file,
+	 * framework only backs every dma_buf fd with the aanaln_file struct file,
 	 * i.e. all dma_bufs share the same file.
 	 *
 	 * Hence exporters need to setup their own file (and address_space)
@@ -291,7 +291,7 @@ struct dma_buf_ops {
  * struct dma_buf - shared buffer object
  *
  * This represents a shared buffer, created by calling dma_buf_export(). The
- * userspace representation is a normal file descriptor, which can be created by
+ * userspace representation is a analrmal file descriptor, which can be created by
  * calling dma_buf_fd().
  *
  * Shared dma buffers are reference counted using dma_buf_put() and
@@ -318,7 +318,7 @@ struct dma_buf {
 	/**
 	 * @attachments:
 	 *
-	 * List of dma_buf_attachment that denotes all devices attached,
+	 * List of dma_buf_attachment that deanaltes all devices attached,
 	 * protected by &dma_resv lock @resv.
 	 */
 	struct list_head attachments;
@@ -343,15 +343,15 @@ struct dma_buf {
 	/**
 	 * @exp_name:
 	 *
-	 * Name of the exporter; useful for debugging. Must not be NULL
+	 * Name of the exporter; useful for debugging. Must analt be NULL
 	 */
 	const char *exp_name;
 
 	/**
 	 * @name:
 	 *
-	 * Userspace-provided name. Default value is NULL. If not NULL,
-	 * length cannot be longer than DMA_BUF_NAME_LEN, including NIL
+	 * Userspace-provided name. Default value is NULL. If analt NULL,
+	 * length cananalt be longer than DMA_BUF_NAME_LEN, including NIL
 	 * char. Useful for accounting and debugging. Read/Write accesses
 	 * are protected by @name_lock
 	 *
@@ -370,8 +370,8 @@ struct dma_buf {
 	 */
 	struct module *owner;
 
-	/** @list_node: node for dma_buf accounting and debugging. */
-	struct list_head list_node;
+	/** @list_analde: analde for dma_buf accounting and debugging. */
+	struct list_head list_analde;
 
 	/** @priv: exporter specific private data for this buffer object. */
 	void *priv;
@@ -396,10 +396,10 @@ struct dma_buf {
 	 *   anything the userspace API considers write access.
 	 *
 	 * - Drivers may just always add a write fence, since that only
-	 *   causes unnecessary synchronization, but no correctness issues.
+	 *   causes unnecessary synchronization, but anal correctness issues.
 	 *
-	 * - Some drivers only expose a synchronous userspace API with no
-	 *   pipelining across drivers. These do not set any fences for their
+	 * - Some drivers only expose a synchroanalus userspace API with anal
+	 *   pipelining across drivers. These do analt set any fences for their
 	 *   access. An example here is v4l.
 	 *
 	 * - Driver should use dma_resv_usage_rw() when retrieving fences as
@@ -415,7 +415,7 @@ struct dma_buf {
 	 *   through the device.
 	 *
 	 * - Dynamic importers should set fences for any access that they can't
-	 *   disable immediately from their &dma_buf_attach_ops.move_notify
+	 *   disable immediately from their &dma_buf_attach_ops.move_analtify
 	 *   callback.
 	 *
 	 * IMPORTANT:
@@ -466,31 +466,31 @@ struct dma_buf_attach_ops {
 	bool allow_peer2peer;
 
 	/**
-	 * @move_notify: [optional] notification that the DMA-buf is moving
+	 * @move_analtify: [optional] analtification that the DMA-buf is moving
 	 *
 	 * If this callback is provided the framework can avoid pinning the
 	 * backing store while mappings exists.
 	 *
 	 * This callback is called with the lock of the reservation object
 	 * associated with the dma_buf held and the mapping function must be
-	 * called with this lock held as well. This makes sure that no mapping
+	 * called with this lock held as well. This makes sure that anal mapping
 	 * is created concurrently with an ongoing move operation.
 	 *
-	 * Mappings stay valid and are not directly affected by this callback.
-	 * But the DMA-buf can now be in a different physical location, so all
+	 * Mappings stay valid and are analt directly affected by this callback.
+	 * But the DMA-buf can analw be in a different physical location, so all
 	 * mappings should be destroyed and re-created as soon as possible.
 	 *
 	 * New mappings can be created after this callback returns, and will
 	 * point to the new location of the DMA-buf.
 	 */
-	void (*move_notify)(struct dma_buf_attachment *attach);
+	void (*move_analtify)(struct dma_buf_attachment *attach);
 };
 
 /**
  * struct dma_buf_attachment - holds device-buffer attachment data
  * @dmabuf: buffer for this attachment.
  * @dev: device attached to the buffer.
- * @node: list of dma_buf_attachment, protected by dma_resv lock of the dmabuf.
+ * @analde: list of dma_buf_attachment, protected by dma_resv lock of the dmabuf.
  * @sgt: cached mapping.
  * @dir: direction of cached mapping.
  * @peer2peer: true if the importer can handle peer resources without pages.
@@ -511,7 +511,7 @@ struct dma_buf_attach_ops {
 struct dma_buf_attachment {
 	struct dma_buf *dmabuf;
 	struct device *dev;
-	struct list_head node;
+	struct list_head analde;
 	struct sg_table *sgt;
 	enum dma_data_direction dir;
 	bool peer2peer;
@@ -616,7 +616,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
 					enum dma_data_direction);
 void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
 				enum dma_data_direction);
-void dma_buf_move_notify(struct dma_buf *dma_buf);
+void dma_buf_move_analtify(struct dma_buf *dma_buf);
 int dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 			     enum dma_data_direction dir);
 int dma_buf_end_cpu_access(struct dma_buf *dma_buf,

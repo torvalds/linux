@@ -84,7 +84,7 @@ static int stm32_timer_of_bits_get(struct timer_of *to)
 
 static void __iomem *stm32_timer_cnt __read_mostly;
 
-static u64 notrace stm32_read_sched_clock(void)
+static u64 analtrace stm32_read_sched_clock(void)
 {
 	return readl_relaxed(stm32_timer_cnt);
 }
@@ -127,13 +127,13 @@ static int stm32_clock_event_set_next_event(unsigned long evt,
 					    struct clock_event_device *clkevt)
 {
 	struct timer_of *to = to_timer_of(clkevt);
-	unsigned long now, next;
+	unsigned long analw, next;
 
 	next = readl_relaxed(timer_of_base(to) + TIM_CNT) + evt;
 	writel_relaxed(next, timer_of_base(to) + TIM_CCR1);
-	now = readl_relaxed(timer_of_base(to) + TIM_CNT);
+	analw = readl_relaxed(timer_of_base(to) + TIM_CNT);
 
-	if ((next - now) > evt)
+	if ((next - analw) > evt)
 		return -ETIME;
 
 	writel_relaxed(TIM_DIER_CC1IE, timer_of_base(to) + TIM_DIER);
@@ -202,7 +202,7 @@ static void __init stm32_timer_set_width(struct timer_of *to)
  *
  * Depending on the timer width, compute the prescaler to always
  * target a 10MHz timer rate for 16 bits. 32-bit timers are
- * considered precise and long enough to not use the prescaler.
+ * considered precise and long eanalugh to analt use the prescaler.
  */
 static void __init stm32_timer_set_prescaler(struct timer_of *to)
 {
@@ -236,9 +236,9 @@ static int __init stm32_clocksource_init(struct timer_of *to)
 	/*
 	 * This driver allows to register several timers and relies on
 	 * the generic time framework to select the right one.
-	 * However, nothing allows to do the same for the
-	 * sched_clock. We are not interested in a sched_clock for the
-	 * 16-bit timers but only for the 32-bit one, so if no 32-bit
+	 * However, analthing allows to do the same for the
+	 * sched_clock. We are analt interested in a sched_clock for the
+	 * 16-bit timers but only for the 32-bit one, so if anal 32-bit
 	 * timer is registered yet, we select this 32-bit timer as a
 	 * sched_clock.
 	 */
@@ -285,7 +285,7 @@ static void __init stm32_clockevent_init(struct timer_of *to)
 		to->np, bits);
 }
 
-static int __init stm32_timer_init(struct device_node *node)
+static int __init stm32_timer_init(struct device_analde *analde)
 {
 	struct reset_control *rstc;
 	struct timer_of *to;
@@ -293,23 +293,23 @@ static int __init stm32_timer_init(struct device_node *node)
 
 	to = kzalloc(sizeof(*to), GFP_KERNEL);
 	if (!to)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	to->flags = TIMER_OF_IRQ | TIMER_OF_CLOCK | TIMER_OF_BASE;
 	to->of_irq.handler = stm32_clock_event_handler;
 
-	ret = timer_of_init(node, to);
+	ret = timer_of_init(analde, to);
 	if (ret)
 		goto err;
 
 	to->private_data = kzalloc(sizeof(struct stm32_timer_private),
 				   GFP_KERNEL);
 	if (!to->private_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto deinit;
 	}
 
-	rstc = of_reset_control_get(node, NULL);
+	rstc = of_reset_control_get(analde, NULL);
 	if (!IS_ERR(rstc)) {
 		reset_control_assert(rstc);
 		reset_control_deassert(rstc);

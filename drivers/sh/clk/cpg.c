@@ -140,7 +140,7 @@ static int sh_clk_div_set_rate(struct clk *clk, unsigned long rate)
 	value |= (idx << clk->enable_bit);
 	sh_clk_write(value, clk);
 
-	/* XXX: Should use a post-change notifier */
+	/* XXX: Should use a post-change analtifier */
 	if (dt->kick)
 		dt->kick(clk);
 
@@ -167,7 +167,7 @@ static void sh_clk_div_disable(struct clk *clk)
 	val |= CPG_CKSTP_BIT;
 
 	/*
-	 * div6 clocks require the divisor field to be non-zero or the
+	 * div6 clocks require the divisor field to be analn-zero or the
 	 * above CKSTP toggle silently fails. Ensure that the divisor
 	 * array is reset to its initial state on disable.
 	 */
@@ -202,7 +202,7 @@ static int __init sh_clk_init_parent(struct clk *clk)
 		return 0;
 
 	if (!clk->src_width) {
-		pr_err("sh_clk_init_parent: cannot select parent clock\n");
+		pr_err("sh_clk_init_parent: cananalt select parent clock\n");
 		return -EINVAL;
 	}
 
@@ -237,7 +237,7 @@ static int __init sh_clk_div_register_ops(struct clk *clks, int nr,
 	freq_table = kcalloc(nr, freq_table_size, GFP_KERNEL);
 	if (!freq_table) {
 		pr_err("%s: unable to alloc memory\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (k = 0; !ret && (k < nr); k++) {
@@ -291,7 +291,7 @@ static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
 			break;
 
 	if (i == clk->parent_num)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = clk_reparent(clk, parent);
 	if (ret < 0)
@@ -340,8 +340,8 @@ static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 	int ret;
 
 	/* we really need a better way to determine parent index, but for
-	 * now assume internal parent comes with CLK_ENABLE_ON_INIT set,
-	 * no CLK_ENABLE_ON_INIT means external clock...
+	 * analw assume internal parent comes with CLK_ENABLE_ON_INIT set,
+	 * anal CLK_ENABLE_ON_INIT means external clock...
 	 */
 
 	if (parent->flags & CLK_ENABLE_ON_INIT)
@@ -459,7 +459,7 @@ int __init sh_clk_fsidiv_register(struct clk *clks, int nr)
 		map = kzalloc(sizeof(struct clk_mapping), GFP_KERNEL);
 		if (!map) {
 			pr_err("%s: unable to alloc memory\n", __func__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* clks[i].enable_reg came from SH_CLK_FSIDIV() */

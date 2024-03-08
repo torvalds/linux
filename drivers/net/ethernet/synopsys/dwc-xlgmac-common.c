@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syanalpsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syanalpsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syanalpsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syanalpsys and you. The Software IS ANALT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syanalpsys or any supplement thereto.
+ * Syanalpsys is a registered trademark of Syanalpsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -25,7 +25,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 static int debug = -1;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "DWC ethernet debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "DWC ethernet debug level (0=analne,...,16=all)");
 static const u32 default_msg_level = (NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
 				      NETIF_MSG_IFUP);
 
@@ -107,18 +107,18 @@ static int xlgmac_init(struct xlgmac_pdata *pdata)
 	 *  pdata->tx_desc_count;
 	 *  pdata->rx_desc_count;
 	 */
-	BUILD_BUG_ON_NOT_POWER_OF_2(XLGMAC_TX_DESC_CNT);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(XLGMAC_TX_DESC_CNT);
 	pdata->tx_desc_count = XLGMAC_TX_DESC_CNT;
 	if (pdata->tx_desc_count & (pdata->tx_desc_count - 1)) {
-		dev_err(pdata->dev, "tx descriptor count (%d) is not valid\n",
+		dev_err(pdata->dev, "tx descriptor count (%d) is analt valid\n",
 			pdata->tx_desc_count);
 		ret = -EINVAL;
 		return ret;
 	}
-	BUILD_BUG_ON_NOT_POWER_OF_2(XLGMAC_RX_DESC_CNT);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(XLGMAC_RX_DESC_CNT);
 	pdata->rx_desc_count = XLGMAC_RX_DESC_CNT;
 	if (pdata->rx_desc_count & (pdata->rx_desc_count - 1)) {
-		dev_err(pdata->dev, "rx descriptor count (%d) is not valid\n",
+		dev_err(pdata->dev, "rx descriptor count (%d) is analt valid\n",
 			pdata->rx_desc_count);
 		ret = -EINVAL;
 		return ret;
@@ -236,7 +236,7 @@ int xlgmac_drv_probe(struct device *dev, struct xlgmac_resources *res)
 
 	if (!netdev) {
 		dev_err(dev, "alloc_etherdev failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	SET_NETDEV_DEV(netdev, dev);
@@ -297,7 +297,7 @@ void xlgmac_dump_tx_desc(struct xlgmac_pdata *pdata,
 		netdev_dbg(pdata->netdev, "TX: dma_desc=%p, dma_desc_addr=%pad\n",
 			   desc_data->dma_desc, &desc_data->dma_desc_addr);
 		netdev_dbg(pdata->netdev,
-			   "TX_NORMAL_DESC[%d %s] = %08x:%08x:%08x:%08x\n", idx,
+			   "TX_ANALRMAL_DESC[%d %s] = %08x:%08x:%08x:%08x\n", idx,
 			   (flag == 1) ? "QUEUED FOR TX" : "TX BY DEVICE",
 			   le32_to_cpu(dma_desc->desc0),
 			   le32_to_cpu(dma_desc->desc1),
@@ -321,7 +321,7 @@ void xlgmac_dump_rx_desc(struct xlgmac_pdata *pdata,
 	netdev_dbg(pdata->netdev, "RX: dma_desc=%p, dma_desc_addr=%pad\n",
 		   desc_data->dma_desc, &desc_data->dma_desc_addr);
 	netdev_dbg(pdata->netdev,
-		   "RX_NORMAL_DESC[%d RX BY DEVICE] = %08x:%08x:%08x:%08x\n",
+		   "RX_ANALRMAL_DESC[%d RX BY DEVICE] = %08x:%08x:%08x:%08x\n",
 		   idx,
 		   le32_to_cpu(dma_desc->desc0),
 		   le32_to_cpu(dma_desc->desc1),
@@ -522,27 +522,27 @@ void xlgmac_print_all_hw_features(struct xlgmac_pdata *pdata)
 	XLGMAC_PR("\n");
 	/* HW Feature Register0 */
 	XLGMAC_PR("VLAN Hash Filter Selected                   : %s\n",
-		  pdata->hw_feat.vlhash ? "YES" : "NO");
+		  pdata->hw_feat.vlhash ? "ANAL" : "ANAL");
 	XLGMAC_PR("SMA (MDIO) Interface                        : %s\n",
-		  pdata->hw_feat.sma ? "YES" : "NO");
+		  pdata->hw_feat.sma ? "ANAL" : "ANAL");
 	XLGMAC_PR("PMT Remote Wake-up Packet Enable            : %s\n",
-		  pdata->hw_feat.rwk ? "YES" : "NO");
+		  pdata->hw_feat.rwk ? "ANAL" : "ANAL");
 	XLGMAC_PR("PMT Magic Packet Enable                     : %s\n",
-		  pdata->hw_feat.mgk ? "YES" : "NO");
+		  pdata->hw_feat.mgk ? "ANAL" : "ANAL");
 	XLGMAC_PR("RMON/MMC Module Enable                      : %s\n",
-		  pdata->hw_feat.mmc ? "YES" : "NO");
+		  pdata->hw_feat.mmc ? "ANAL" : "ANAL");
 	XLGMAC_PR("ARP Offload Enabled                         : %s\n",
-		  pdata->hw_feat.aoe ? "YES" : "NO");
+		  pdata->hw_feat.aoe ? "ANAL" : "ANAL");
 	XLGMAC_PR("IEEE 1588-2008 Timestamp Enabled            : %s\n",
-		  pdata->hw_feat.ts ? "YES" : "NO");
+		  pdata->hw_feat.ts ? "ANAL" : "ANAL");
 	XLGMAC_PR("Energy Efficient Ethernet Enabled           : %s\n",
-		  pdata->hw_feat.eee ? "YES" : "NO");
+		  pdata->hw_feat.eee ? "ANAL" : "ANAL");
 	XLGMAC_PR("Transmit Checksum Offload Enabled           : %s\n",
-		  pdata->hw_feat.tx_coe ? "YES" : "NO");
+		  pdata->hw_feat.tx_coe ? "ANAL" : "ANAL");
 	XLGMAC_PR("Receive Checksum Offload Enabled            : %s\n",
-		  pdata->hw_feat.rx_coe ? "YES" : "NO");
+		  pdata->hw_feat.rx_coe ? "ANAL" : "ANAL");
 	XLGMAC_PR("Additional MAC Addresses 1-31 Selected      : %s\n",
-		  pdata->hw_feat.addn_mac ? "YES" : "NO");
+		  pdata->hw_feat.addn_mac ? "ANAL" : "ANAL");
 
 	switch (pdata->hw_feat.ts_src) {
 	case 0:
@@ -561,7 +561,7 @@ void xlgmac_print_all_hw_features(struct xlgmac_pdata *pdata)
 	XLGMAC_PR("Timestamp System Time Source                : %s\n", str);
 
 	XLGMAC_PR("Source Address or VLAN Insertion Enable     : %s\n",
-		  pdata->hw_feat.sa_vlan_ins ? "YES" : "NO");
+		  pdata->hw_feat.sa_vlan_ins ? "ANAL" : "ANAL");
 
 	/* HW Feature Register1 */
 	switch (pdata->hw_feat.rx_fifo_size) {
@@ -649,19 +649,19 @@ void xlgmac_print_all_hw_features(struct xlgmac_pdata *pdata)
 	XLGMAC_PR("MTL Transmit FIFO Size                      : %s\n", str);
 
 	XLGMAC_PR("IEEE 1588 High Word Register Enable         : %s\n",
-		  pdata->hw_feat.adv_ts_hi ? "YES" : "NO");
+		  pdata->hw_feat.adv_ts_hi ? "ANAL" : "ANAL");
 	XLGMAC_PR("Address width                               : %u\n",
 		  pdata->hw_feat.dma_width);
 	XLGMAC_PR("DCB Feature Enable                          : %s\n",
-		  pdata->hw_feat.dcb ? "YES" : "NO");
+		  pdata->hw_feat.dcb ? "ANAL" : "ANAL");
 	XLGMAC_PR("Split Header Feature Enable                 : %s\n",
-		  pdata->hw_feat.sph ? "YES" : "NO");
+		  pdata->hw_feat.sph ? "ANAL" : "ANAL");
 	XLGMAC_PR("TCP Segmentation Offload Enable             : %s\n",
-		  pdata->hw_feat.tso ? "YES" : "NO");
+		  pdata->hw_feat.tso ? "ANAL" : "ANAL");
 	XLGMAC_PR("DMA Debug Registers Enabled                 : %s\n",
-		  pdata->hw_feat.dma_debug ? "YES" : "NO");
+		  pdata->hw_feat.dma_debug ? "ANAL" : "ANAL");
 	XLGMAC_PR("RSS Feature Enabled                         : %s\n",
-		  pdata->hw_feat.rss ? "YES" : "NO");
+		  pdata->hw_feat.rss ? "ANAL" : "ANAL");
 	XLGMAC_PR("Number of Traffic classes                   : %u\n",
 		  (pdata->hw_feat.tc_cnt));
 	XLGMAC_PR("Hash Table Size                             : %u\n",
@@ -681,7 +681,7 @@ void xlgmac_print_all_hw_features(struct xlgmac_pdata *pdata)
 
 	switch (pdata->hw_feat.pps_out_num) {
 	case 0:
-		str = "No PPS output";
+		str = "Anal PPS output";
 		break;
 	case 1:
 		str = "1 PPS output";
@@ -702,7 +702,7 @@ void xlgmac_print_all_hw_features(struct xlgmac_pdata *pdata)
 
 	switch (pdata->hw_feat.aux_snap_num) {
 	case 0:
-		str = "No auxiliary input";
+		str = "Anal auxiliary input";
 		break;
 	case 1:
 		str = "1 auxiliary input";

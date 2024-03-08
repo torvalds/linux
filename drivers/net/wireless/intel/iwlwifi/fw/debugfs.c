@@ -16,17 +16,17 @@ struct dbgfs_##name##_data {						\
 	ssize_t rlen;							\
 	char rbuf[buflen];						\
 };									\
-static int _iwl_dbgfs_##name##_open(struct inode *inode,		\
+static int _iwl_dbgfs_##name##_open(struct ianalde *ianalde,		\
 				    struct file *file)			\
 {									\
 	struct dbgfs_##name##_data *data;				\
 									\
 	data = kzalloc(sizeof(*data), GFP_KERNEL);			\
 	if (!data)							\
-		return -ENOMEM;						\
+		return -EANALMEM;						\
 									\
 	data->read_done = false;					\
-	data->arg = inode->i_private;					\
+	data->arg = ianalde->i_private;					\
 	file->private_data = data;					\
 									\
 	return 0;							\
@@ -52,7 +52,7 @@ static ssize_t _iwl_dbgfs_##name##_read(struct file *file,		\
 				       data->rbuf, data->rlen);		\
 }
 
-static int _iwl_dbgfs_release(struct inode *inode, struct file *file)
+static int _iwl_dbgfs_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 
@@ -239,7 +239,7 @@ static ssize_t iwl_dbgfs_send_hcmd_write(struct iwl_fw_runtime *fwrt, char *buf,
 
 	data = kmalloc(data_size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hex2bin((u8 *)data, buf, data_size);
 	if (ret)
@@ -252,7 +252,7 @@ static ssize_t iwl_dbgfs_send_hcmd_write(struct iwl_fw_runtime *fwrt, char *buf,
 
 	if (count != header_size + hcmd.len[0] * 2 + 1) {
 		IWL_ERR(fwrt,
-			"host command data size does not match header length\n");
+			"host command data size does analt match header length\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -363,7 +363,7 @@ static int iwl_dbgfs_fw_info_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "    name: %s\n",
 		   iwl_get_cmd_string(priv->fwrt->trans, cmd_id));
 	seq_printf(seq, "    cmd_ver: %d\n", ver->cmd_ver);
-	seq_printf(seq, "    notif_ver: %d\n", ver->notif_ver);
+	seq_printf(seq, "    analtif_ver: %d\n", ver->analtif_ver);
 	return 0;
 }
 
@@ -374,7 +374,7 @@ static const struct seq_operations iwl_dbgfs_info_seq_ops = {
 	.show = iwl_dbgfs_fw_info_seq_show,
 };
 
-static int iwl_dbgfs_fw_info_open(struct inode *inode, struct file *filp)
+static int iwl_dbgfs_fw_info_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct iwl_dbgfs_fw_info_priv *priv;
 
@@ -382,9 +382,9 @@ static int iwl_dbgfs_fw_info_open(struct inode *inode, struct file *filp)
 				  sizeof(*priv));
 
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->fwrt = inode->i_private;
+	priv->fwrt = ianalde->i_private;
 	return 0;
 }
 

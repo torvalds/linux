@@ -13,9 +13,9 @@
 #define DAI_NAME_SIZE	32
 
 struct snd_soc_dai_link;
-struct device_node;
+struct device_analde;
 
-int fsl_asoc_get_dma_channel(struct device_node *ssi_np, const char *name,
+int fsl_asoc_get_dma_channel(struct device_analde *ssi_np, const char *name,
 			     struct snd_soc_dai_link *dai,
 			     unsigned int *dma_channel_id,
 			     unsigned int *dma_id);

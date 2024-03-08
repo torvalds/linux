@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * An I2C driver for the PCF85063 RTC
- * Copyright 2014 Rose Technology
+ * Copyright 2014 Rose Techanallogy
  *
- * Author: Søren Andersen <san@rosetechnology.dk>
+ * Author: Søren Andersen <san@rosetechanallogy.dk>
  * Maintainers: http://www.nslu2-linux.org/
  *
  * Copyright (C) 2019 Micro Crystal AG
@@ -79,8 +79,8 @@ static int pcf85063_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	u8 regs[7];
 
 	/*
-	 * while reading, the time/date registers are blocked and not updated
-	 * anymore until the access is finished. To not lose a second
+	 * while reading, the time/date registers are blocked and analt updated
+	 * anymore until the access is finished. To analt lose a second
 	 * event, the access must be finished within one second. So, read all
 	 * time/date registers in one turn.
 	 */
@@ -89,7 +89,7 @@ static int pcf85063_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (rc)
 		return rc;
 
-	/* if the clock has lost its power it makes no sense to use its time */
+	/* if the clock has lost its power it makes anal sense to use its time */
 	if (regs[0] & PCF85063_REG_SC_OS) {
 		dev_warn(&pcf85063->rtc->dev, "Power loss detected, invalid time\n");
 		return -EINVAL;
@@ -151,7 +151,7 @@ static int pcf85063_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	/*
 	 * Write the control register as a separate action since the size of
 	 * the register space is different between the PCF85063TP and
-	 * PCF85063A devices.  The rollover point can not be used.
+	 * PCF85063A devices.  The rollover point can analt be used.
 	 */
 	return regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL1,
 				  PCF85063_REG_CTRL1_STOP, 0);
@@ -193,7 +193,7 @@ static int pcf85063_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	buf[1] = bin2bcd(alrm->time.tm_min);
 	buf[2] = bin2bcd(alrm->time.tm_hour);
 	buf[3] = bin2bcd(alrm->time.tm_mday);
-	buf[4] = PCF85063_AEN; /* Do not match on week day */
+	buf[4] = PCF85063_AEN; /* Do analt match on week day */
 
 	ret = regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
 				 PCF85063_CTRL2_AIE | PCF85063_CTRL2_AF, 0);
@@ -228,7 +228,7 @@ static irqreturn_t pcf85063_rtc_handle_irq(int irq, void *dev_id)
 
 	err = regmap_read(pcf85063->regmap, PCF85063_REG_CTRL2, &val);
 	if (err)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (val & PCF85063_CTRL2_AF) {
 		rtc_update_irq(pcf85063->rtc, 1, RTC_IRQF | RTC_AF);
@@ -238,7 +238,7 @@ static irqreturn_t pcf85063_rtc_handle_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int pcf85063_read_offset(struct device *dev, long *offset)
@@ -304,7 +304,7 @@ static int pcf85063_ioctl(struct device *dev, unsigned int cmd,
 		return put_user(status, (unsigned int __user *)arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -332,7 +332,7 @@ static int pcf85063_nvmem_write(void *priv, unsigned int offset,
 }
 
 static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
-				     const struct device_node *np,
+				     const struct device_analde *np,
 				     unsigned int force_cap)
 {
 	u32 load = 7000;
@@ -345,7 +345,7 @@ static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
 
 	switch (load) {
 	default:
-		dev_warn(&pcf85063->rtc->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 7000",
+		dev_warn(&pcf85063->rtc->dev, "Unkanalwn quartz-load-femtofarads value: %d. Assuming 7000",
 			 load);
 		fallthrough;
 	case 7000:
@@ -480,17 +480,17 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 {
 	struct clk *clk;
 	struct clk_init_data init;
-	struct device_node *node = pcf85063->rtc->dev.parent->of_node;
-	struct device_node *fixed_clock;
+	struct device_analde *analde = pcf85063->rtc->dev.parent->of_analde;
+	struct device_analde *fixed_clock;
 
-	fixed_clock = of_get_child_by_name(node, "clock");
+	fixed_clock = of_get_child_by_name(analde, "clock");
 	if (fixed_clock) {
 		/*
 		 * skip registering square wave clock when a fixed
 		 * clock has been registered. The fixed clock is
 		 * registered automatically when being referenced.
 		 */
-		of_node_put(fixed_clock);
+		of_analde_put(fixed_clock);
 		return NULL;
 	}
 
@@ -502,13 +502,13 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 	pcf85063->clkout_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string(analde, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = devm_clk_register(&pcf85063->rtc->dev, &pcf85063->clkout_hw);
 
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 
 	return clk;
 }
@@ -568,11 +568,11 @@ static int pcf85063_probe(struct i2c_client *client)
 	pcf85063 = devm_kzalloc(&client->dev, sizeof(struct pcf85063),
 				GFP_KERNEL);
 	if (!pcf85063)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config = i2c_get_match_data(client);
 	if (!config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcf85063->regmap = devm_regmap_init_i2c(client, &config->regmap);
 	if (IS_ERR(pcf85063->regmap))
@@ -582,7 +582,7 @@ static int pcf85063_probe(struct i2c_client *client)
 
 	err = regmap_read(pcf85063->regmap, PCF85063_REG_CTRL1, &tmp);
 	if (err) {
-		dev_err(&client->dev, "RTC chip is not present\n");
+		dev_err(&client->dev, "RTC chip is analt present\n");
 		return err;
 	}
 
@@ -590,7 +590,7 @@ static int pcf85063_probe(struct i2c_client *client)
 	if (IS_ERR(pcf85063->rtc))
 		return PTR_ERR(pcf85063->rtc);
 
-	err = pcf85063_load_capacitance(pcf85063, client->dev.of_node,
+	err = pcf85063_load_capacitance(pcf85063, client->dev.of_analde,
 					config->force_cap_7000 ? 7000 : 0);
 	if (err < 0)
 		dev_warn(&client->dev, "failed to set xtal load capacitance: %d",
@@ -606,7 +606,7 @@ static int pcf85063_probe(struct i2c_client *client)
 	if (config->has_alarms && client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			irqflags = 0;
 
 		err = devm_request_threaded_irq(&client->dev, client->irq,
@@ -670,6 +670,6 @@ static struct i2c_driver pcf85063_driver = {
 
 module_i2c_driver(pcf85063_driver);
 
-MODULE_AUTHOR("Søren Andersen <san@rosetechnology.dk>");
+MODULE_AUTHOR("Søren Andersen <san@rosetechanallogy.dk>");
 MODULE_DESCRIPTION("PCF85063 RTC driver");
 MODULE_LICENSE("GPL");

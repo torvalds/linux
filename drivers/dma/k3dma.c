@@ -51,7 +51,7 @@
 
 #define CX_LLI_CHAIN_EN		0x2
 #define CX_CFG_EN		0x1
-#define CX_CFG_NODEIRQ		BIT(1)
+#define CX_CFG_ANALDEIRQ		BIT(1)
 #define CX_CFG_MEM2PER		(0x1 << 2)
 #define CX_CFG_PER2MEM		(0x2 << 2)
 #define CX_CFG_SRCINCR		(0x1 << 31)
@@ -80,7 +80,7 @@ struct k3_dma_chan {
 	u32			ccfg;
 	struct virt_dma_chan	vc;
 	struct k3_dma_phy	*phy;
-	struct list_head	node;
+	struct list_head	analde;
 	dma_addr_t		dev_addr;
 	enum dma_status		status;
 	bool			cyclic;
@@ -112,7 +112,7 @@ struct k3_dma_dev {
 };
 
 
-#define K3_FLAG_NOCLK	BIT(1)
+#define K3_FLAG_ANALCLK	BIT(1)
 
 struct k3dma_soc_data {
 	unsigned long flags;
@@ -257,7 +257,7 @@ static irqreturn_t k3_dma_int_handler(int irq, void *dev_id)
 	if (irq_chan || err1 || err2)
 		return IRQ_HANDLED;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int k3_dma_start_txd(struct k3_dma_chan *c)
@@ -282,7 +282,7 @@ static int k3_dma_start_txd(struct k3_dma_chan *c)
 		 * fetch and remove request from vc->desc_issued
 		 * so vc->desc_issued only contains desc pending
 		 */
-		list_del(&ds->vd.node);
+		list_del(&ds->vd.analde);
 
 		c->phy->ds_run = ds;
 		c->phy->ds_done = NULL;
@@ -303,12 +303,12 @@ static void k3_dma_tasklet(struct tasklet_struct *t)
 	unsigned pch, pch_alloc = 0;
 
 	/* check new dma request of running channel in vc->desc_issued */
-	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_node) {
+	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_analde) {
 		spin_lock_irq(&c->vc.lock);
 		p = c->phy;
 		if (p && p->ds_done) {
 			if (k3_dma_start_txd(c)) {
-				/* No current txd associated with this channel */
+				/* Anal current txd associated with this channel */
 				dev_dbg(d->slave.dev, "pchan %u: free\n", p->idx);
 				/* Mark this channel free */
 				c->phy = NULL;
@@ -328,9 +328,9 @@ static void k3_dma_tasklet(struct tasklet_struct *t)
 
 		if (p->vchan == NULL && !list_empty(&d->chan_pending)) {
 			c = list_first_entry(&d->chan_pending,
-				struct k3_dma_chan, node);
+				struct k3_dma_chan, analde);
 			/* remove from d->chan_pending */
-			list_del_init(&c->node);
+			list_del_init(&c->analde);
 			pch_alloc |= 1 << pch;
 			/* Mark this channel allocated */
 			p->vchan = c;
@@ -363,7 +363,7 @@ static void k3_dma_free_chan_resources(struct dma_chan *chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&d->lock, flags);
-	list_del_init(&c->node);
+	list_del_init(&c->analde);
 	spin_unlock_irqrestore(&d->lock, flags);
 
 	vchan_free_chan_resources(&c->vc);
@@ -429,9 +429,9 @@ static void k3_dma_issue_pending(struct dma_chan *chan)
 	if (vchan_issue_pending(&c->vc)) {
 		spin_lock(&d->lock);
 		if (!c->phy) {
-			if (list_empty(&c->node)) {
+			if (list_empty(&c->analde)) {
 				/* if new channel, add chan_pending */
-				list_add_tail(&c->node, &d->chan_pending);
+				list_add_tail(&c->analde, &d->chan_pending);
 				/* check in tasklet */
 				tasklet_schedule(&d->task);
 				dev_dbg(d->slave.dev, "vchan %p: issued\n", &c->vc);
@@ -439,7 +439,7 @@ static void k3_dma_issue_pending(struct dma_chan *chan)
 		}
 		spin_unlock(&d->lock);
 	} else
-		dev_dbg(d->slave.dev, "vchan %p: nothing to issue\n", &c->vc);
+		dev_dbg(d->slave.dev, "vchan %p: analthing to issue\n", &c->vc);
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 }
 
@@ -471,11 +471,11 @@ static struct k3_dma_desc_sw *k3_dma_alloc_desc_resource(int num,
 		return NULL;
 	}
 
-	ds = kzalloc(sizeof(*ds), GFP_NOWAIT);
+	ds = kzalloc(sizeof(*ds), GFP_ANALWAIT);
 	if (!ds)
 		return NULL;
 
-	ds->desc_hw = dma_pool_zalloc(d->pool, GFP_NOWAIT, &ds->desc_hw_lli);
+	ds->desc_hw = dma_pool_zalloc(d->pool, GFP_ANALWAIT, &ds->desc_hw_lli);
 	if (!ds->desc_hw) {
 		dev_dbg(chan->device->dev, "vch %p: dma alloc fail\n", &c->vc);
 		kfree(ds);
@@ -632,7 +632,7 @@ k3_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		since += len;
 		if (since >= period_len) {
 			/* descriptor asks for TC2 interrupt on completion */
-			en_tc2 = CX_CFG_NODEIRQ;
+			en_tc2 = CX_CFG_ANALDEIRQ;
 			since -= period_len;
 		} else
 			en_tc2 = 0;
@@ -728,7 +728,7 @@ static int k3_dma_terminate_all(struct dma_chan *chan)
 
 	/* Prevent this channel being scheduled */
 	spin_lock(&d->lock);
-	list_del_init(&c->node);
+	list_del_init(&c->analde);
 	spin_unlock(&d->lock);
 
 	/* Clear the tx descriptor lists */
@@ -771,7 +771,7 @@ static int k3_dma_transfer_pause(struct dma_chan *chan)
 			k3_dma_pause_dma(p, false);
 		} else {
 			spin_lock(&d->lock);
-			list_del_init(&c->node);
+			list_del_init(&c->analde);
 			spin_unlock(&d->lock);
 		}
 	}
@@ -794,7 +794,7 @@ static int k3_dma_transfer_resume(struct dma_chan *chan)
 			k3_dma_pause_dma(p, true);
 		} else if (!list_empty(&c->vc.desc_issued)) {
 			spin_lock(&d->lock);
-			list_add_tail(&c->node, &d->chan_pending);
+			list_add_tail(&c->analde, &d->chan_pending);
 			spin_unlock(&d->lock);
 		}
 	}
@@ -808,7 +808,7 @@ static const struct k3dma_soc_data k3_v1_dma_data = {
 };
 
 static const struct k3dma_soc_data asp_v1_dma_data = {
-	.flags = K3_FLAG_NOCLK,
+	.flags = K3_FLAG_ANALCLK,
 };
 
 static const struct of_device_id k3_pdma_dt_ids[] = {
@@ -842,7 +842,7 @@ static int k3_dma_probe(struct platform_device *op)
 
 	d = devm_kzalloc(&op->dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_data = device_get_match_data(&op->dev);
 	if (!soc_data)
@@ -852,11 +852,11 @@ static int k3_dma_probe(struct platform_device *op)
 	if (IS_ERR(d->base))
 		return PTR_ERR(d->base);
 
-	of_property_read_u32((&op->dev)->of_node,
+	of_property_read_u32((&op->dev)->of_analde,
 			"dma-channels", &d->dma_channels);
-	of_property_read_u32((&op->dev)->of_node,
+	of_property_read_u32((&op->dev)->of_analde,
 			"dma-requests", &d->dma_requests);
-	ret = of_property_read_u32((&op->dev)->of_node,
+	ret = of_property_read_u32((&op->dev)->of_analde,
 			"dma-channel-mask", &d->dma_channel_mask);
 	if (ret) {
 		dev_warn(&op->dev,
@@ -864,10 +864,10 @@ static int k3_dma_probe(struct platform_device *op)
 		d->dma_channel_mask = (u32)~0UL;
 	}
 
-	if (!(soc_data->flags & K3_FLAG_NOCLK)) {
+	if (!(soc_data->flags & K3_FLAG_ANALCLK)) {
 		d->clk = devm_clk_get(&op->dev, NULL);
 		if (IS_ERR(d->clk)) {
-			dev_err(&op->dev, "no dma clk\n");
+			dev_err(&op->dev, "anal dma clk\n");
 			return PTR_ERR(d->clk);
 		}
 	}
@@ -884,13 +884,13 @@ static int k3_dma_probe(struct platform_device *op)
 	d->pool = dmam_pool_create(DRIVER_NAME, &op->dev,
 					LLI_BLOCK_SIZE, 32, 0);
 	if (!d->pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* init phy channel */
 	d->phy = devm_kcalloc(&op->dev,
 		d->dma_channels, sizeof(struct k3_dma_phy), GFP_KERNEL);
 	if (d->phy == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < d->dma_channels; i++) {
 		struct k3_dma_phy *p;
@@ -925,13 +925,13 @@ static int k3_dma_probe(struct platform_device *op)
 	d->chans = devm_kcalloc(&op->dev,
 		d->dma_requests, sizeof(struct k3_dma_chan), GFP_KERNEL);
 	if (d->chans == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < d->dma_requests; i++) {
 		struct k3_dma_chan *c = &d->chans[i];
 
 		c->status = DMA_IN_PROGRESS;
-		INIT_LIST_HEAD(&c->node);
+		INIT_LIST_HEAD(&c->analde);
 		c->vc.desc_free = k3_dma_free_desc;
 		vchan_init(&c->vc, &d->slave);
 	}
@@ -949,7 +949,7 @@ static int k3_dma_probe(struct platform_device *op)
 	if (ret)
 		goto dma_async_register_fail;
 
-	ret = of_dma_controller_register((&op->dev)->of_node,
+	ret = of_dma_controller_register((&op->dev)->of_analde,
 					k3_of_dma_simple_xlate, d);
 	if (ret)
 		goto of_dma_register_fail;
@@ -975,12 +975,12 @@ static void k3_dma_remove(struct platform_device *op)
 	struct k3_dma_dev *d = platform_get_drvdata(op);
 
 	dma_async_device_unregister(&d->slave);
-	of_dma_controller_free((&op->dev)->of_node);
+	of_dma_controller_free((&op->dev)->of_analde);
 
 	devm_free_irq(&op->dev, d->irq, d);
 
-	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_node) {
-		list_del(&c->vc.chan.device_node);
+	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_analde) {
+		list_del(&c->vc.chan.device_analde);
 		tasklet_kill(&c->vc.task);
 	}
 	tasklet_kill(&d->task);

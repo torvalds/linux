@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -57,10 +57,10 @@ static bool is_child_unique(struct ipoib_dev_priv *ppriv,
 	ASSERT_RTNL();
 
 	/*
-	 * Since the legacy sysfs interface uses pkey for deletion it cannot
+	 * Since the legacy sysfs interface uses pkey for deletion it cananalt
 	 * support more than one interface with the same pkey, it creates
 	 * ambiguity.  The RTNL interface deletes using the netdev so it does
-	 * not have a problem to support duplicated pkeys.
+	 * analt have a problem to support duplicated pkeys.
 	 */
 	if (priv->child_type != IPOIB_LEGACY_CHILD)
 		return true;
@@ -83,8 +83,8 @@ static bool is_child_unique(struct ipoib_dev_priv *ppriv,
 }
 
 /*
- * NOTE: If this function fails then the priv->dev will remain valid, however
- * priv will have been freed and must not be touched by caller in the error
+ * ANALTE: If this function fails then the priv->dev will remain valid, however
+ * priv will have been freed and must analt be touched by caller in the error
  * case.
  *
  * If (ndev->reg_state == NETREG_UNINITIALIZED) then it is up to the caller to
@@ -101,7 +101,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 	ASSERT_RTNL();
 
 	/*
-	 * We do not need to touch priv if register_netdevice fails, so just
+	 * We do analt need to touch priv if register_netdevice fails, so just
 	 * always use this flow.
 	 */
 	ndev->priv_destructor = ipoib_intf_free;
@@ -124,7 +124,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 	priv->child_type = type;
 
 	if (!is_child_unique(ppriv, priv)) {
-		result = -ENOTUNIQ;
+		result = -EANALTUNIQ;
 		goto out_early;
 	}
 
@@ -134,7 +134,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 
 		/*
 		 * register_netdevice sometimes calls priv_destructor,
-		 * sometimes not. Make sure it was done.
+		 * sometimes analt. Make sure it was done.
 		 */
 		goto out_early;
 	}
@@ -156,7 +156,7 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 
 sysfs_failed:
 	unregister_netdevice(priv->dev);
-	return -ENOMEM;
+	return -EANALMEM;
 
 out_early:
 	if (ndev->priv_destructor)
@@ -213,11 +213,11 @@ struct ipoib_vlan_delete_work {
 };
 
 /*
- * sysfs callbacks of a netdevice cannot obtain the rtnl lock as
+ * sysfs callbacks of a netdevice cananalt obtain the rtnl lock as
  * unregister_netdev ultimately deletes the sysfs files while holding the rtnl
  * lock. This deadlocks the system.
  *
- * A callback can use rtnl_trylock to avoid the deadlock but it cannot call
+ * A callback can use rtnl_trylock to avoid the deadlock but it cananalt call
  * unregister_netdev as that internally takes and releases the rtnl_lock.  So
  * instead we find the netdev to unregister and then do the actual unregister
  * from the global work queue where we can obtain the rtnl_lock safely.
@@ -230,7 +230,7 @@ static void ipoib_vlan_delete_task(struct work_struct *work)
 
 	rtnl_lock();
 
-	/* Unregistering tasks can race with another task or parent removal */
+	/* Unregistering tasks can race with aanalther task or parent removal */
 	if (dev->reg_state == NETREG_REGISTERED) {
 		struct ipoib_dev_priv *priv = ipoib_priv(dev);
 		struct ipoib_dev_priv *ppriv = ipoib_priv(priv->parent);
@@ -262,7 +262,7 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = ipoib_priv(pdev);
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 	list_for_each_entry_safe(priv, tpriv, &ppriv->child_intfs, list) {
 		if (priv->pkey == pkey &&
 		    priv->child_type == IPOIB_LEGACY_CHILD) {
@@ -270,7 +270,7 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 
 			work = kmalloc(sizeof(*work), GFP_KERNEL);
 			if (!work) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto out;
 			}
 

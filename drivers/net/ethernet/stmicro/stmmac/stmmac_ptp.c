@@ -41,7 +41,7 @@ static int stmmac_adjust_freq(struct ptp_clock_info *ptp, long scaled_ppm)
  * stmmac_adjust_time
  *
  * @ptp: pointer to ptp_clock_info structure
- * @delta: desired change in nanoseconds
+ * @delta: desired change in naanalseconds
  *
  * Description: this function will shift/adjust the hardware clock time.
  */
@@ -167,7 +167,7 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	void __iomem *ptpaddr = priv->ptpaddr;
 	struct stmmac_pps_cfg *cfg;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	unsigned long flags;
 	u32 acr_value;
 
@@ -175,7 +175,7 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_PEROUT:
 		/* Reject requests with unsupported flags */
 		if (rq->perout.flags)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		cfg = &priv->pps[rq->perout.index];
 
@@ -202,7 +202,7 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 		if (on) {
 			if (FIELD_GET(PTP_ACR_MASK, acr_value)) {
 				netdev_err(priv->dev,
-					   "Cannot enable auxiliary snapshot %d as auxiliary snapshot %d is already enabled",
+					   "Cananalt enable auxiliary snapshot %d as auxiliary snapshot %d is already enabled",
 					rq->extts.index, channel);
 				mutex_unlock(&priv->aux_ts_lock);
 				return -EBUSY;
@@ -237,7 +237,7 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 /**
  * stmmac_get_syncdevicetime
  * @device: current device time
- * @system: system counter value read synchronously with device time
+ * @system: system counter value read synchroanalusly with device time
  * @ctx: context provided by timekeeping code
  * Description: Read device and system clock simultaneously and return the
  * corrected clock values in ns.
@@ -251,7 +251,7 @@ static int stmmac_get_syncdevicetime(ktime_t *device,
 	if (priv->plat->crosststamp)
 		return priv->plat->crosststamp(device, system, ctx);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static int stmmac_getcrosststamp(struct ptp_clock_info *ptp,

@@ -18,12 +18,12 @@
 #define PMOD_MTU3	0
 
 #if (PMOD_MTU3 && PMOD1_SER0)
-#error "Cannot set as PMOD_MTU3 and PMOD1_SER0 are mutually exclusive "
+#error "Cananalt set as PMOD_MTU3 and PMOD1_SER0 are mutually exclusive "
 #endif
 
 #define MTU3_COUNTER_Z_PHASE_SIGNAL	0
 #if (!PMOD_MTU3 && MTU3_COUNTER_Z_PHASE_SIGNAL)
-#error "Cannot set 1 to MTU3_COUNTER_Z_PHASE_SIGNAL as PMOD_MTU3=0"
+#error "Cananalt set 1 to MTU3_COUNTER_Z_PHASE_SIGNAL as PMOD_MTU3=0"
 #endif
 
 #include "r9a07g054l2.dtsi"

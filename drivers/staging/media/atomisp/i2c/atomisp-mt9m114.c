@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/device.h>
@@ -58,8 +58,8 @@ mt9m114_read_reg(struct i2c_client *client, u16 data_length, u32 reg, u32 *val)
 	unsigned char data[4];
 
 	if (!client->adapter) {
-		v4l2_err(client, "%s error, no client->adapter\n", __func__);
-		return -ENODEV;
+		v4l2_err(client, "%s error, anal client->adapter\n", __func__);
+		return -EANALDEV;
 	}
 
 	if (data_length != MISENSOR_8BIT && data_length != MISENSOR_16BIT
@@ -112,8 +112,8 @@ mt9m114_write_reg(struct i2c_client *client, u16 data_length, u16 reg, u32 val)
 	int retry = 0;
 
 	if (!client->adapter) {
-		v4l2_err(client, "%s error, no client->adapter\n", __func__);
-		return -ENODEV;
+		v4l2_err(client, "%s error, anal client->adapter\n", __func__);
+		return -EANALDEV;
 	}
 
 	if (data_length != MISENSOR_8BIT && data_length != MISENSOR_16BIT
@@ -151,7 +151,7 @@ again:
 
 	/*
 	 * HACK: Need some delay here for Rev 2 sensors otherwise some
-	 * registers do not seem to load correctly.
+	 * registers do analt seem to load correctly.
 	 */
 	mdelay(1);
 
@@ -180,7 +180,7 @@ again:
  * @set: bits set
  *
  * Read/modify/write a value to a register in the  sensor device.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 static int
 misensor_rmw_reg(struct i2c_client *client, u16 data_length, u16 reg,
@@ -189,11 +189,11 @@ misensor_rmw_reg(struct i2c_client *client, u16 data_length, u16 reg,
 	int err;
 	u32 val;
 
-	/* Exit when no mask */
+	/* Exit when anal mask */
 	if (mask == 0)
 		return 0;
 
-	/* @mask must not exceed data length */
+	/* @mask must analt exceed data length */
 	switch (data_length) {
 	case MISENSOR_8BIT:
 		if (mask & ~0xff)
@@ -223,7 +223,7 @@ misensor_rmw_reg(struct i2c_client *client, u16 data_length, u16 reg,
 	 * Shift @set value to target bit location. @set should set only
 	 * bits included in @mask.
 	 *
-	 * REVISIT: This function expects @set to be non-shifted. Its shift
+	 * REVISIT: This function expects @set to be analn-shifted. Its shift
 	 * value is then defined to be equal to mask's LSB position.
 	 * How about to inform values in their right offset position and avoid
 	 * this unneeded shift operation?
@@ -274,7 +274,7 @@ again:
 
 	/*
 	 * REVISIT: Previously we had a delay after writing data to sensor.
-	 * But it was removed as our tests have shown it is not necessary
+	 * But it was removed as our tests have shown it is analt necessary
 	 * anymore.
 	 */
 
@@ -343,7 +343,7 @@ __mt9m114_write_reg_is_consecutive(struct i2c_client *client,
  *
  * __mt9m114_flush_reg_array, __mt9m114_buf_reg_array() and
  * __mt9m114_write_reg_is_consecutive() are internal functions to
- * mt9m114_write_reg_array() and should be not used anywhere else.
+ * mt9m114_write_reg_array() and should be analt used anywhere else.
  *
  */
 static int mt9m114_write_reg_array(struct i2c_client *client,
@@ -384,7 +384,7 @@ static int mt9m114_write_reg_array(struct i2c_client *client,
 			break;
 		default:
 			/*
-			 * If next address is not consecutive, data needs to be
+			 * If next address is analt consecutive, data needs to be
 			 * flushed before proceed.
 			 */
 			if (!__mt9m114_write_reg_is_consecutive(client, &ctrl,
@@ -451,7 +451,7 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 	struct mt9m114_device *dev = to_mt9m114_sensor(sd);
 
 	if (!dev || !dev->platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (flag) {
 		ret = dev->platform_data->v2p8_ctrl(sd, 1);
@@ -473,10 +473,10 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	struct mt9m114_device *dev = to_mt9m114_sensor(sd);
 
 	if (!dev || !dev->platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Note: current modules wire only one GPIO signal (RESET#),
+	 * Analte: current modules wire only one GPIO signal (RESET#),
 	 * but the schematic wires up two to the connector.  BIOS
 	 * versions have been unfortunately inconsistent with which
 	 * ACPI index RESET# is on, so hit both
@@ -502,8 +502,8 @@ static int power_up(struct v4l2_subdev *sd)
 	int ret;
 
 	if (!dev->platform_data) {
-		dev_err(&client->dev, "no camera_sensor_platform_data");
-		return -ENODEV;
+		dev_err(&client->dev, "anal camera_sensor_platform_data");
+		return -EANALDEV;
 	}
 
 	/* power control */
@@ -544,8 +544,8 @@ static int power_down(struct v4l2_subdev *sd)
 	int ret;
 
 	if (!dev->platform_data) {
-		dev_err(&client->dev, "no camera_sensor_platform_data");
-		return -ENODEV;
+		dev_err(&client->dev, "anal camera_sensor_platform_data");
+		return -EANALDEV;
 	}
 
 	ret = dev->platform_data->flisclk_ctrl(sd, 0);
@@ -599,7 +599,7 @@ static int mt9m114_res2size(struct v4l2_subdev *sd, int *h_size, int *v_size)
 		vsize = MT9M114_RES_960P_SIZE_V;
 		break;
 	default:
-		v4l2_err(sd, "%s: Resolution 0x%08x unknown\n", __func__,
+		v4l2_err(sd, "%s: Resolution 0x%08x unkanalwn\n", __func__,
 			 dev->res);
 		return -EINVAL;
 	}
@@ -672,20 +672,20 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 
 	switch (res->res) {
 	case MT9M114_RES_736P:
-		ret = mt9m114_write_reg_array(c, mt9m114_736P_init, NO_POLLING);
+		ret = mt9m114_write_reg_array(c, mt9m114_736P_init, ANAL_POLLING);
 		ret += misensor_rmw_reg(c, MISENSOR_16BIT, MISENSOR_READ_MODE,
-					MISENSOR_R_MODE_MASK, MISENSOR_NORMAL_SET);
+					MISENSOR_R_MODE_MASK, MISENSOR_ANALRMAL_SET);
 		break;
 	case MT9M114_RES_864P:
-		ret = mt9m114_write_reg_array(c, mt9m114_864P_init, NO_POLLING);
+		ret = mt9m114_write_reg_array(c, mt9m114_864P_init, ANAL_POLLING);
 		ret += misensor_rmw_reg(c, MISENSOR_16BIT, MISENSOR_READ_MODE,
-					MISENSOR_R_MODE_MASK, MISENSOR_NORMAL_SET);
+					MISENSOR_R_MODE_MASK, MISENSOR_ANALRMAL_SET);
 		break;
 	case MT9M114_RES_960P:
-		ret = mt9m114_write_reg_array(c, mt9m114_976P_init, NO_POLLING);
-		/* set sensor read_mode to Normal */
+		ret = mt9m114_write_reg_array(c, mt9m114_976P_init, ANAL_POLLING);
+		/* set sensor read_mode to Analrmal */
 		ret += misensor_rmw_reg(c, MISENSOR_16BIT, MISENSOR_READ_MODE,
-					MISENSOR_R_MODE_MASK, MISENSOR_NORMAL_SET);
+					MISENSOR_R_MODE_MASK, MISENSOR_ANALRMAL_SET);
 		break;
 	default:
 		v4l2_err(sd, "set resolution: %d failed!\n", res->res);
@@ -720,7 +720,7 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 		 * Marked current sensor res as being "used"
 		 *
 		 * REVISIT: We don't need to use an "used" field on each mode
-		 * list entry to know which mode is selected. If this
+		 * list entry to kanalw which mode is selected. If this
 		 * information is really necessary, how about to use a single
 		 * variable on sensor dev struct?
 		 */
@@ -735,7 +735,7 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 	}
 	/*
 	 * mt9m114 - we don't poll for context switch
-	 * because it does not happen with streaming disabled.
+	 * because it does analt happen with streaming disabled.
 	 */
 	dev->res = res->res;
 
@@ -823,7 +823,7 @@ static long mt9m114_s_exposure(struct v4l2_subdev *sd,
 	/* set coarse integration */
 	/*
 	 * 3A provide real exposure time.
-	 * should not translate to any value here.
+	 * should analt translate to any value here.
 	 */
 	ret = mt9m114_write_reg(client, MISENSOR_16BIT,
 				REG_EXPO_COARSE, (u16)(coarse_integration));
@@ -888,7 +888,7 @@ static long mt9m114_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 /*
  * This returns the exposure time being used. This should only be used
- * for filling in EXIF data, not for actual image processing.
+ * for filling in EXIF data, analt for actual image processing.
  */
 static int mt9m114_g_exposure(struct v4l2_subdev *sd, s32 *value)
 {
@@ -896,7 +896,7 @@ static int mt9m114_g_exposure(struct v4l2_subdev *sd, s32 *value)
 	u32 coarse;
 	int ret;
 
-	/* the fine integration time is currently not calculated */
+	/* the fine integration time is currently analt calculated */
 	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
 			       REG_EXPO_COARSE, &coarse);
 	if (ret)
@@ -928,7 +928,7 @@ static int mt9m114_s_exposure_metering(struct v4l2_subdev *sd, s32 val)
 	switch (val) {
 	case V4L2_EXPOSURE_METERING_SPOT:
 		ret = mt9m114_write_reg_array(client, mt9m114_exp_average,
-					      NO_POLLING);
+					      ANAL_POLLING);
 		if (ret) {
 			dev_err(&client->dev, "write exp_average reg err.\n");
 			return ret;
@@ -937,7 +937,7 @@ static int mt9m114_s_exposure_metering(struct v4l2_subdev *sd, s32 val)
 	case V4L2_EXPOSURE_METERING_CENTER_WEIGHTED:
 	default:
 		ret = mt9m114_write_reg_array(client, mt9m114_exp_center,
-					      NO_POLLING);
+					      ANAL_POLLING);
 		if (ret) {
 			dev_err(&client->dev, "write exp_default reg err");
 			return ret;
@@ -994,7 +994,7 @@ static int mt9m114_s_exposure_selection(struct v4l2_subdev *sd,
 	win_right  = clamp_t(int, win_right, 0, 4);
 	win_bottom = clamp_t(int, win_bottom, 0, 4);
 
-	ret = mt9m114_write_reg_array(client, mt9m114_exp_average, NO_POLLING);
+	ret = mt9m114_write_reg_array(client, mt9m114_exp_average, ANAL_POLLING);
 	if (ret) {
 		dev_err(&client->dev, "write exp_average reg err.\n");
 		return ret;
@@ -1073,7 +1073,7 @@ static int mt9m114_g_ev(struct v4l2_subdev *sd, s32 *val)
 
 /*
  * Fake interface
- * mt9m114 now can not support 3a_lock
+ * mt9m114 analw can analt support 3a_lock
  */
 static int mt9m114_s_3a_lock(struct v4l2_subdev *sd, s32 val)
 {
@@ -1245,7 +1245,7 @@ static int mt9m114_detect(struct mt9m114_device *dev, struct i2c_client *client)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "%s: i2c error", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ret = mt9m114_read_reg(client, MISENSOR_16BIT, MT9M114_PID, &model);
 	if (ret)
@@ -1255,7 +1255,7 @@ static int mt9m114_detect(struct mt9m114_device *dev, struct i2c_client *client)
 	if (model != MT9M114_MOD_ID) {
 		dev_err(&client->dev, "%s: failed: client->addr = %x\n",
 			__func__, client->addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1269,7 +1269,7 @@ mt9m114_s_config(struct v4l2_subdev *sd, int irq, void *platform_data)
 	int ret;
 
 	if (!platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->platform_data =
 	    (struct camera_sensor_platform_data *)platform_data;
@@ -1402,7 +1402,7 @@ static int mt9m114_get_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = mt9m114_res[dev->res].fps;
+	interval->interval.deanalminator = mt9m114_res[dev->res].fps;
 
 	return 0;
 }
@@ -1538,7 +1538,7 @@ static int mt9m114_probe(struct i2c_client *client)
 	/* Setup sensor configuration structure */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&dev->sd, client, &mt9m114_ops);
 	pdata = gmin_camera_platform_data(&dev->sd,
@@ -1561,7 +1561,7 @@ static int mt9m114_probe(struct i2c_client *client)
 	}
 
 	/* TODO add format code here */
-	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

@@ -6,7 +6,7 @@ Required properties:
 - ti,hwmods: Name of the hwmod associated with the DES module
 - reg : Offset and length of the register set for the module
 - interrupts : the interrupt-specifier for the DES module
-- clocks : A phandle to the functional clock node of the DES module
+- clocks : A phandle to the functional clock analde of the DES module
            corresponding to each entry in clock-names
 - clock-names : Name of the functional clock, should be "fck"
 

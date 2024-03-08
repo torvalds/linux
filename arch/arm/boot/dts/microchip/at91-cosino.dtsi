@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * at91-cosino.dtsi - Device Tree file for Cosino core module
+ * at91-cosianal.dtsi - Device Tree file for Cosianal core module
  *
  * Copyright (C) 2013 - Rodolfo Giometti <giometti@linux.it>
  *			HCE Engineering
@@ -13,8 +13,8 @@
 #include "at91sam9g35.dtsi"
 
 / {
-	model = "HCE Cosino core module";
-	compatible = "hce,cosino", "atmel,at91sam9x5", "atmel,at91sam9";
+	model = "HCE Cosianal core module";
+	compatible = "hce,cosianal", "atmel,at91sam9x5", "atmel,at91sam9";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootfstype=ext3 rootwait";

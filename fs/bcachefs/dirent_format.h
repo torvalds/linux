@@ -16,7 +16,7 @@
 struct bch_dirent {
 	struct bch_val		v;
 
-	/* Target inode number: */
+	/* Target ianalde number: */
 	union {
 	__le64			d_inum;
 	struct {		/* DT_SUBVOL */
@@ -26,7 +26,7 @@ struct bch_dirent {
 	};
 
 	/*
-	 * Copy of mode bits 12-15 from the target inode - so userspace can get
+	 * Copy of mode bits 12-15 from the target ianalde - so userspace can get
 	 * the filetype without having to do a stat()
 	 */
 	__u8			d_type;

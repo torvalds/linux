@@ -8,9 +8,9 @@
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-#define NOP		0x4000
-#define NOP32_HI	0xc400
-#define NOP32_LO	0x4820
+#define ANALP		0x4000
+#define ANALP32_HI	0xc400
+#define ANALP32_LO	0x4820
 #define PUSH_LR		0x14d0
 #define MOVIH_LINK	0xea3a
 #define ORI_LINK	0xef5a
@@ -21,14 +21,14 @@
  * Gcc-csky with -pg will insert stub in function prologue:
  *	push	lr
  *	jbsr	_mcount
- *	nop32
- *	nop32
+ *	analp32
+ *	analp32
  *
  * If the (callee - current_pc) is less then 64MB, we'll use bsr:
  *	push	lr
  *	bsr	_mcount
- *	nop32
- *	nop32
+ *	analp32
+ *	analp32
  * else we'll use (movih + ori + jsr):
  *	push	lr
  *	movih	r26, ...
@@ -39,11 +39,11 @@
  *
  */
 static inline void make_jbsr(unsigned long callee, unsigned long pc,
-			     uint16_t *call, bool nolr)
+			     uint16_t *call, bool anallr)
 {
 	long offset;
 
-	call[0]	= nolr ? NOP : PUSH_LR;
+	call[0]	= anallr ? ANALP : PUSH_LR;
 
 	offset = (long) callee - (long) pc;
 
@@ -60,24 +60,24 @@ static inline void make_jbsr(unsigned long callee, unsigned long pc,
 		call[1] = BSR_LINK |
 			 ((uint16_t)((unsigned long) offset >> 16) & 0x3ff);
 		call[2] = (uint16_t)((unsigned long) offset & 0xffff);
-		call[3] = call[5] = NOP32_HI;
-		call[4] = call[6] = NOP32_LO;
+		call[3] = call[5] = ANALP32_HI;
+		call[4] = call[6] = ANALP32_LO;
 	}
 }
 
-static uint16_t nops[7] = {NOP, NOP32_HI, NOP32_LO, NOP32_HI, NOP32_LO,
-				NOP32_HI, NOP32_LO};
-static int ftrace_check_current_nop(unsigned long hook)
+static uint16_t analps[7] = {ANALP, ANALP32_HI, ANALP32_LO, ANALP32_HI, ANALP32_LO,
+				ANALP32_HI, ANALP32_LO};
+static int ftrace_check_current_analp(unsigned long hook)
 {
 	uint16_t olds[7];
 	unsigned long hook_pos = hook - 2;
 
-	if (copy_from_kernel_nofault((void *)olds, (void *)hook_pos,
-			sizeof(nops)))
+	if (copy_from_kernel_analfault((void *)olds, (void *)hook_pos,
+			sizeof(analps)))
 		return -EFAULT;
 
-	if (memcmp((void *)nops, (void *)olds, sizeof(nops))) {
-		pr_err("%p: nop but get (%04x %04x %04x %04x %04x %04x %04x)\n",
+	if (memcmp((void *)analps, (void *)olds, sizeof(analps))) {
+		pr_err("%p: analp but get (%04x %04x %04x %04x %04x %04x %04x)\n",
 			(void *)hook_pos,
 			olds[0], olds[1], olds[2], olds[3], olds[4], olds[5],
 			olds[6]);
@@ -89,17 +89,17 @@ static int ftrace_check_current_nop(unsigned long hook)
 }
 
 static int ftrace_modify_code(unsigned long hook, unsigned long target,
-			      bool enable, bool nolr)
+			      bool enable, bool anallr)
 {
 	uint16_t call[7];
 
 	unsigned long hook_pos = hook - 2;
 	int ret = 0;
 
-	make_jbsr(target, hook, call, nolr);
+	make_jbsr(target, hook, call, anallr);
 
-	ret = copy_to_kernel_nofault((void *)hook_pos, enable ? call : nops,
-				 sizeof(nops));
+	ret = copy_to_kernel_analfault((void *)hook_pos, enable ? call : analps,
+				 sizeof(analps));
 	if (ret)
 		return -EPERM;
 
@@ -110,7 +110,7 @@ static int ftrace_modify_code(unsigned long hook, unsigned long target,
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
-	int ret = ftrace_check_current_nop(rec->ip);
+	int ret = ftrace_check_current_analp(rec->ip);
 
 	if (ret)
 		return ret;
@@ -118,7 +118,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return ftrace_modify_code(rec->ip, addr, true, false);
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_analp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	return ftrace_modify_code(rec->ip, addr, false, false);
@@ -167,7 +167,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		 * jl	_mcount
 		 * We only need set *parent for resume
 		 *
-		 * For csky-gcc function has no sub-call:
+		 * For csky-gcc function has anal sub-call:
 		 * subi	sp,	sp, 4
 		 * stw	r8,	(sp, 0)
 		 * mov	r8,	sp

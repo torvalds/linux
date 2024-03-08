@@ -39,14 +39,14 @@ enum gve_adminq_statuses {
 	GVE_ADMINQ_COMMAND_ERROR_FAILED_PRECONDITION	= 0xFFFFFFF5,
 	GVE_ADMINQ_COMMAND_ERROR_INTERNAL_ERROR		= 0xFFFFFFF6,
 	GVE_ADMINQ_COMMAND_ERROR_INVALID_ARGUMENT	= 0xFFFFFFF7,
-	GVE_ADMINQ_COMMAND_ERROR_NOT_FOUND		= 0xFFFFFFF8,
+	GVE_ADMINQ_COMMAND_ERROR_ANALT_FOUND		= 0xFFFFFFF8,
 	GVE_ADMINQ_COMMAND_ERROR_OUT_OF_RANGE		= 0xFFFFFFF9,
 	GVE_ADMINQ_COMMAND_ERROR_PERMISSION_DENIED	= 0xFFFFFFFA,
 	GVE_ADMINQ_COMMAND_ERROR_UNAUTHENTICATED	= 0xFFFFFFFB,
 	GVE_ADMINQ_COMMAND_ERROR_RESOURCE_EXHAUSTED	= 0xFFFFFFFC,
 	GVE_ADMINQ_COMMAND_ERROR_UNAVAILABLE		= 0xFFFFFFFD,
 	GVE_ADMINQ_COMMAND_ERROR_UNIMPLEMENTED		= 0xFFFFFFFE,
-	GVE_ADMINQ_COMMAND_ERROR_UNKNOWN_ERROR		= 0xFFFFFFFF,
+	GVE_ADMINQ_COMMAND_ERROR_UNKANALWN_ERROR		= 0xFFFFFFFF,
 };
 
 #define GVE_ADMINQ_DEVICE_DESCRIPTOR_VERSION 1
@@ -125,7 +125,7 @@ struct gve_device_option_jumbo_frames {
 
 static_assert(sizeof(struct gve_device_option_jumbo_frames) == 8);
 
-/* Terminology:
+/* Termianallogy:
  *
  * RDA - Raw DMA Addressing - Buffers associated with SKBs are directly DMA
  *       mapped and read/updated by the device.
@@ -185,10 +185,10 @@ enum gve_driver_capbility {
 struct gve_driver_info {
 	u8 os_type;	/* 0x01 = Linux */
 	u8 driver_major;
-	u8 driver_minor;
+	u8 driver_mianalr;
 	u8 driver_sub;
 	__be32 os_version_major;
-	__be32 os_version_minor;
+	__be32 os_version_mianalr;
 	__be32 os_version_sub;
 	__be64 driver_capability_flags[4];
 	u8 os_version_str1[GVE_VERSION_STR_LEN];
@@ -344,22 +344,22 @@ enum gve_stat_names {
 	TX_TIMEOUT_CNT			= 8,
 	// stats from NIC
 	RX_QUEUE_DROP_CNT		= 65,
-	RX_NO_BUFFERS_POSTED		= 66,
+	RX_ANAL_BUFFERS_POSTED		= 66,
 	RX_DROPS_PACKET_OVER_MRU	= 67,
 	RX_DROPS_INVALID_CHECKSUM	= 68,
 };
 
 enum gve_l3_type {
-	/* Must be zero so zero initialized LUT is unknown. */
-	GVE_L3_TYPE_UNKNOWN = 0,
+	/* Must be zero so zero initialized LUT is unkanalwn. */
+	GVE_L3_TYPE_UNKANALWN = 0,
 	GVE_L3_TYPE_OTHER,
 	GVE_L3_TYPE_IPV4,
 	GVE_L3_TYPE_IPV6,
 };
 
 enum gve_l4_type {
-	/* Must be zero so zero initialized LUT is unknown. */
-	GVE_L4_TYPE_UNKNOWN = 0,
+	/* Must be zero so zero initialized LUT is unkanalwn. */
+	GVE_L4_TYPE_UNKANALWN = 0,
 	GVE_L4_TYPE_OTHER,
 	GVE_L4_TYPE_TCP,
 	GVE_L4_TYPE_UDP,

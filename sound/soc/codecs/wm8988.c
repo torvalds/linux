@@ -155,11 +155,11 @@ static const char *ng_type_txt[] = {"Constant PGA Gain",
 static SOC_ENUM_SINGLE_DECL(ng_type,
 			    WM8988_NGATE, 1, ng_type_txt);
 
-static const char *deemph_txt[] = {"None", "32Khz", "44.1Khz", "48Khz"};
+static const char *deemph_txt[] = {"Analne", "32Khz", "44.1Khz", "48Khz"};
 static SOC_ENUM_SINGLE_DECL(deemph,
 			    WM8988_ADCDAC, 1, deemph_txt);
 
-static const char *adcpol_txt[] = {"Normal", "L Invert", "R Invert",
+static const char *adcpol_txt[] = {"Analrmal", "L Invert", "R Invert",
 				   "L + R Invert"};
 static SOC_ENUM_SINGLE_DECL(adcpol,
 			    WM8988_ADCDAC, 5, adcpol_txt);
@@ -319,32 +319,32 @@ static SOC_ENUM_SINGLE_DECL(diffmux,
 static const struct snd_kcontrol_new wm8988_diffmux_controls =
 	SOC_DAPM_ENUM("Route", diffmux);
 
-/* Mono ADC Mux */
-static const char *wm8988_mono_mux[] = {"Stereo", "Mono (Left)",
-	"Mono (Right)", "Digital Mono"};
-static SOC_ENUM_SINGLE_DECL(monomux,
-			    WM8988_ADCIN, 6, wm8988_mono_mux);
-static const struct snd_kcontrol_new wm8988_monomux_controls =
-	SOC_DAPM_ENUM("Route", monomux);
+/* Moanal ADC Mux */
+static const char *wm8988_moanal_mux[] = {"Stereo", "Moanal (Left)",
+	"Moanal (Right)", "Digital Moanal"};
+static SOC_ENUM_SINGLE_DECL(moanalmux,
+			    WM8988_ADCIN, 6, wm8988_moanal_mux);
+static const struct snd_kcontrol_new wm8988_moanalmux_controls =
+	SOC_DAPM_ENUM("Route", moanalmux);
 
 static const struct snd_soc_dapm_widget wm8988_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Mic Bias", WM8988_PWR1, 1, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_ANALPM, 0, 0,
 		&wm8988_diffmux_controls),
-	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_NOPM, 0, 0,
-		&wm8988_monomux_controls),
-	SND_SOC_DAPM_MUX("Right ADC Mux", SND_SOC_NOPM, 0, 0,
-		&wm8988_monomux_controls),
+	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_ANALPM, 0, 0,
+		&wm8988_moanalmux_controls),
+	SND_SOC_DAPM_MUX("Right ADC Mux", SND_SOC_ANALPM, 0, 0,
+		&wm8988_moanalmux_controls),
 
 	SND_SOC_DAPM_MUX("Left PGA Mux", WM8988_PWR1, 5, 0,
 		&wm8988_left_pga_controls),
 	SND_SOC_DAPM_MUX("Right PGA Mux", WM8988_PWR1, 4, 0,
 		&wm8988_right_pga_controls),
 
-	SND_SOC_DAPM_MUX("Left Line Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Left Line Mux", SND_SOC_ANALPM, 0, 0,
 		&wm8988_left_line_controls),
-	SND_SOC_DAPM_MUX("Right Line Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Right Line Mux", SND_SOC_ANALPM, 0, 0,
 		&wm8988_right_line_controls),
 
 	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", WM8988_PWR1, 2, 0),
@@ -353,10 +353,10 @@ static const struct snd_soc_dapm_widget wm8988_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("Right DAC", "Right Playback", WM8988_PWR2, 7, 0),
 	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", WM8988_PWR2, 8, 0),
 
-	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_ANALPM, 0, 0,
 		&wm8988_left_mixer_controls[0],
 		ARRAY_SIZE(wm8988_left_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Right Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right Mixer", SND_SOC_ANALPM, 0, 0,
 		&wm8988_right_mixer_controls[0],
 		ARRAY_SIZE(wm8988_right_mixer_controls)),
 
@@ -405,12 +405,12 @@ static const struct snd_soc_dapm_route wm8988_dapm_routes[] = {
 	{ "Differential Mux", "Line 2", "RINPUT2" },
 
 	{ "Left ADC Mux", "Stereo", "Left PGA Mux" },
-	{ "Left ADC Mux", "Mono (Left)", "Left PGA Mux" },
-	{ "Left ADC Mux", "Digital Mono", "Left PGA Mux" },
+	{ "Left ADC Mux", "Moanal (Left)", "Left PGA Mux" },
+	{ "Left ADC Mux", "Digital Moanal", "Left PGA Mux" },
 
 	{ "Right ADC Mux", "Stereo", "Right PGA Mux" },
-	{ "Right ADC Mux", "Mono (Right)", "Right PGA Mux" },
-	{ "Right ADC Mux", "Digital Mono", "Right PGA Mux" },
+	{ "Right ADC Mux", "Moanal (Right)", "Right PGA Mux" },
+	{ "Right ADC Mux", "Digital Moanal", "Right PGA Mux" },
 
 	{ "Left ADC", NULL, "Left ADC Mux" },
 	{ "Right ADC", NULL, "Right ADC Mux" },
@@ -547,7 +547,7 @@ static const struct snd_pcm_hw_constraint_list constraints_12 = {
 };
 
 /*
- * Note that this should be called from init rather than from hw_params.
+ * Analte that this should be called from init rather than from hw_params.
  */
 static int wm8988_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
@@ -650,7 +650,7 @@ static int wm8988_pcm_startup(struct snd_pcm_substream *substream,
 	 */
 	if (!wm8988->sysclk) {
 		dev_err(component->dev,
-			"No MCLK configured, call set_sysclk() on init\n");
+			"Anal MCLK configured, call set_sysclk() on init\n");
 		return -EINVAL;
 	}
 
@@ -767,7 +767,7 @@ static const struct snd_soc_dai_ops wm8988_ops = {
 	.set_fmt = wm8988_set_dai_fmt,
 	.set_sysclk = wm8988_set_dai_sysclk,
 	.mute_stream = wm8988_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8988_dai = {
@@ -846,7 +846,7 @@ static int wm8988_spi_probe(struct spi_device *spi)
 	wm8988 = devm_kzalloc(&spi->dev, sizeof(struct wm8988_priv),
 			      GFP_KERNEL);
 	if (wm8988 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8988->regmap = devm_regmap_init_spi(spi, &wm8988_regmap);
 	if (IS_ERR(wm8988->regmap)) {
@@ -879,7 +879,7 @@ static int wm8988_i2c_probe(struct i2c_client *i2c)
 	wm8988 = devm_kzalloc(&i2c->dev, sizeof(struct wm8988_priv),
 			      GFP_KERNEL);
 	if (wm8988 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, wm8988);
 

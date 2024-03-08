@@ -138,7 +138,7 @@ static enum es_result hv_ghcb_hv_call(struct ghcb *ghcb, u64 exit_code,
 		return ES_OK;
 }
 
-void __noreturn hv_ghcb_terminate(unsigned int set, unsigned int reason)
+void __analreturn hv_ghcb_terminate(unsigned int set, unsigned int reason)
 {
 	u64 val = GHCB_MSR_TERM_REQ;
 
@@ -300,7 +300,7 @@ int hv_snp_boot_ap(u32 cpu, unsigned long start_ip)
 	unsigned long flags;
 
 	if (!vmsa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	native_store_gdt(&gdtr);
 
@@ -327,7 +327,7 @@ int hv_snp_boot_ap(u32 cpu, unsigned long start_ip)
 
 	vmsa->xcr0 = 1;
 	vmsa->g_pat = HV_AP_INIT_GPAT_DEFAULT;
-	vmsa->rip = (u64)secondary_startup_64_no_verify;
+	vmsa->rip = (u64)secondary_startup_64_anal_verify;
 	vmsa->rsp = (u64)&ap_start_stack[PAGE_SIZE];
 
 	/*
@@ -469,7 +469,7 @@ static int hv_mark_gpa_visibility(u16 count, const u64 pfn[],
 	u64 hv_status;
 	unsigned long flags;
 
-	/* no-op if partition isolation is not enabled */
+	/* anal-op if partition isolation is analt enabled */
 	if (!hv_is_isolation_supported())
 		return 0;
 
@@ -516,8 +516,8 @@ static int hv_mark_gpa_visibility(u16 count, const u64 pfn[],
  * stray reference that can't be prevented by the caller, so Linux has
  * specific code to handle this case. But when the #VC and #VE exceptions
  * routed to a paravisor, the specific code doesn't work. To avoid this
- * problem, mark the pages as "not present" while the transition is in
- * progress. If load_unaligned_zeropad() causes a stray reference, a normal
+ * problem, mark the pages as "analt present" while the transition is in
+ * progress. If load_unaligned_zeropad() causes a stray reference, a analrmal
  * page fault is generated instead of #VC or #VE, and the page-fault-based
  * handlers for load_unaligned_zeropad() resolve the reference.  When the
  * transition is complete, hv_vtom_set_host_visibility() marks the pages
@@ -539,7 +539,7 @@ static bool hv_vtom_clear_present(unsigned long kbuffer, int pagecount, bool enc
 static bool hv_vtom_set_host_visibility(unsigned long kbuffer, int pagecount, bool enc)
 {
 	enum hv_mem_host_visibility visibility = enc ?
-			VMBUS_PAGE_NOT_VISIBLE : VMBUS_PAGE_VISIBLE_READ_WRITE;
+			VMBUS_PAGE_ANALT_VISIBLE : VMBUS_PAGE_VISIBLE_READ_WRITE;
 	u64 *pfn_array;
 	phys_addr_t paddr;
 	void *vaddr;
@@ -558,7 +558,7 @@ static bool hv_vtom_set_host_visibility(unsigned long kbuffer, int pagecount, bo
 		 * Use slow_virt_to_phys() because the PRESENT bit has been
 		 * temporarily cleared in the PTEs.  slow_virt_to_phys() works
 		 * without the PRESENT bit while virt_to_hvpfn() or similar
-		 * does not.
+		 * does analt.
 		 */
 		vaddr = (void *)kbuffer + (i * HV_HYP_PAGE_SIZE);
 		paddr = slow_virt_to_phys(vaddr);
@@ -595,7 +595,7 @@ err_set_memory_p:
 static bool hv_vtom_tlb_flush_required(bool private)
 {
 	/*
-	 * Since hv_vtom_clear_present() marks the PTEs as "not present"
+	 * Since hv_vtom_clear_present() marks the PTEs as "analt present"
 	 * and flushes the TLB, they can't be in the TLB. That makes the
 	 * flush controlled by this function redundant, so return "false".
 	 */
@@ -638,7 +638,7 @@ void __init hv_vtom_init(void)
 	 * so SEV initialization is bypassed and sev_status isn't set.
 	 * Set it here to indicate a vTOM VM.
 	 *
-	 * Note: if CONFIG_AMD_MEM_ENCRYPT is not set, sev_status is
+	 * Analte: if CONFIG_AMD_MEM_ENCRYPT is analt set, sev_status is
 	 * defined as 0ULL, to which we can't assigned a value.
 	 */
 #ifdef CONFIG_AMD_MEM_ENCRYPT
@@ -674,7 +674,7 @@ void __init hv_vtom_init(void)
 enum hv_isolation_type hv_get_isolation_type(void)
 {
 	if (!(ms_hyperv.priv_high & HV_ISOLATION))
-		return HV_ISOLATION_TYPE_NONE;
+		return HV_ISOLATION_TYPE_ANALNE;
 	return FIELD_GET(HV_ISOLATION_TYPE, ms_hyperv.isolation_config_b);
 }
 EXPORT_SYMBOL_GPL(hv_get_isolation_type);
@@ -691,7 +691,7 @@ bool hv_is_isolation_supported(void)
 	if (!hypervisor_is_type(X86_HYPER_MS_HYPERV))
 		return false;
 
-	return hv_get_isolation_type() != HV_ISOLATION_TYPE_NONE;
+	return hv_get_isolation_type() != HV_ISOLATION_TYPE_ANALNE;
 }
 
 DEFINE_STATIC_KEY_FALSE(isolation_type_snp);

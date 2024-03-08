@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
 
-//! A wrapper for data protected by a lock that does not wrap it.
+//! A wrapper for data protected by a lock that does analt wrap it.
 
 use super::{lock::Backend, lock::Lock};
 use crate::build_assert;
 use core::{cell::UnsafeCell, mem::size_of, ptr};
 
-/// Allows access to some data to be serialised by a lock that does not wrap it.
+/// Allows access to some data to be serialised by a lock that does analt wrap it.
 ///
 /// In most cases, data protected by a lock is wrapped by the appropriate lock type, e.g.,
-/// [`super::Mutex`] or [`super::SpinLock`]. [`LockedBy`] is meant for cases when this is not
+/// [`super::Mutex`] or [`super::SpinLock`]. [`LockedBy`] is meant for cases when this is analt
 /// possible. For example, if a container has a lock and some data in the contained elements needs
 /// to be protected by the same lock.
 ///
-/// [`LockedBy`] wraps the data in lieu of another locking primitive, and only allows access to it
+/// [`LockedBy`] wraps the data in lieu of aanalther locking primitive, and only allows access to it
 /// when the caller shows evidence that the 'external' lock is locked. It panics if the evidence
 /// refers to the wrong instance of the lock.
 ///
@@ -33,7 +33,7 @@ use core::{cell::UnsafeCell, mem::size_of, ptr};
 /// }
 ///
 /// struct File {
-///     _ino: u32,
+///     _ianal: u32,
 ///     inner: LockedBy<InnerFile, InnerDirectory>,
 /// }
 ///
@@ -44,7 +44,7 @@ use core::{cell::UnsafeCell, mem::size_of, ptr};
 /// }
 ///
 /// struct Directory {
-///     _ino: u32,
+///     _ianal: u32,
 ///     inner: Mutex<InnerDirectory>,
 /// }
 ///
@@ -65,9 +65,9 @@ use core::{cell::UnsafeCell, mem::size_of, ptr};
 /// }
 ///
 /// /// Creates a new file.
-/// fn new_file(ino: u32, dir: &Directory) -> File {
+/// fn new_file(ianal: u32, dir: &Directory) -> File {
 ///     File {
-///         _ino: ino,
+///         _ianal: ianal,
 ///         inner: LockedBy::new(&dir.inner, InnerFile { bytes_used: 0 }),
 ///     }
 /// }
@@ -89,13 +89,13 @@ impl<T, U> LockedBy<T, U> {
     ///
     /// It stores a raw pointer to the owner that is never dereferenced. It is only used to ensure
     /// that the right owner is being used to access the protected data. If the owner is freed, the
-    /// data becomes inaccessible; if another instance of the owner is allocated *on the same
-    /// memory location*, the data becomes accessible again: none of this affects memory safety
+    /// data becomes inaccessible; if aanalther instance of the owner is allocated *on the same
+    /// memory location*, the data becomes accessible again: analne of this affects memory safety
     /// because in any case at most one thread (or CPU) can access the protected data at a time.
     pub fn new<B: Backend>(owner: &Lock<U, B>, data: T) -> Self {
         build_assert!(
             size_of::<Lock<U, B>>() > 0,
-            "The lock type cannot be a ZST because it may be impossible to distinguish instances"
+            "The lock type cananalt be a ZST because it may be impossible to distinguish instances"
         );
         Self {
             owner: owner.data.get(),
@@ -108,7 +108,7 @@ impl<T: ?Sized, U> LockedBy<T, U> {
     /// Returns a reference to the protected data when the caller provides evidence (via a
     /// reference) that the owner is locked.
     ///
-    /// `U` cannot be a zero-sized type (ZST) because there are ways to get an `&U` that matches
+    /// `U` cananalt be a zero-sized type (ZST) because there are ways to get an `&U` that matches
     /// the data protected by the lock without actually holding it.
     ///
     /// # Panics
@@ -118,7 +118,7 @@ impl<T: ?Sized, U> LockedBy<T, U> {
     pub fn access<'a>(&'a self, owner: &'a U) -> &'a T {
         build_assert!(
             size_of::<U>() > 0,
-            "`U` cannot be a ZST because `owner` wouldn't be unique"
+            "`U` cananalt be a ZST because `owner` wouldn't be unique"
         );
         if !ptr::eq(owner, self.owner) {
             panic!("mismatched owners");
@@ -131,10 +131,10 @@ impl<T: ?Sized, U> LockedBy<T, U> {
     /// Returns a mutable reference to the protected data when the caller provides evidence (via a
     /// mutable owner) that the owner is locked mutably.
     ///
-    /// `U` cannot be a zero-sized type (ZST) because there are ways to get an `&mut U` that
+    /// `U` cananalt be a zero-sized type (ZST) because there are ways to get an `&mut U` that
     /// matches the data protected by the lock without actually holding it.
     ///
-    /// Showing a mutable reference to the owner is sufficient because we know no other references
+    /// Showing a mutable reference to the owner is sufficient because we kanalw anal other references
     /// can exist to it.
     ///
     /// # Panics
@@ -144,7 +144,7 @@ impl<T: ?Sized, U> LockedBy<T, U> {
     pub fn access_mut<'a>(&'a self, owner: &'a mut U) -> &'a mut T {
         build_assert!(
             size_of::<U>() > 0,
-            "`U` cannot be a ZST because `owner` wouldn't be unique"
+            "`U` cananalt be a ZST because `owner` wouldn't be unique"
         );
         if !ptr::eq(owner, self.owner) {
             panic!("mismatched owners");

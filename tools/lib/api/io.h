@@ -7,7 +7,7 @@
 #ifndef __API_IO__
 #define __API_IO__
 
-#include <errno.h>
+#include <erranal.h>
 #include <poll.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +25,7 @@ struct io {
 	char *end;
 	/* Currently accessed data pointer. */
 	char *data;
-	/* Read timeout, 0 implies no timeout. */
+	/* Read timeout, 0 implies anal timeout. */
 	int timeout_ms;
 	/* Set true on when the end of file on read error. */
 	bool eof;
@@ -64,9 +64,9 @@ static inline int io__get_char(struct io *io)
 
 			n = poll(pfds, 1, io->timeout_ms);
 			if (n == 0)
-				errno = ETIMEDOUT;
+				erranal = ETIMEDOUT;
 			if (n > 0 && !(pfds[0].revents & POLLIN)) {
-				errno = EIO;
+				erranal = EIO;
 				n = -1;
 			}
 			if (n <= 0) {
@@ -87,7 +87,7 @@ static inline int io__get_char(struct io *io)
 	return *ptr;
 }
 
-/* Read a hexadecimal value with no 0x prefix into the out argument hex. If the
+/* Read a hexadecimal value with anal 0x prefix into the out argument hex. If the
  * first character isn't hexadecimal returns -2, io->eof returns -1, otherwise
  * returns the character after the hexadecimal value which may be -1 for eof.
  * If the read value is larger than a u64 the high-order bits will be dropped.
@@ -182,7 +182,7 @@ static inline ssize_t io__getdelim(struct io *io, char **line_out, size_t *line_
 err_out:
 	free(line);
 	*line_out = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_len_out)

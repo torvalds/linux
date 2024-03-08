@@ -11,16 +11,16 @@
 
 #include "imx.h"
 
-static const struct imx_icc_node_adj_desc imx8mn_dram_adj = {
+static const struct imx_icc_analde_adj_desc imx8mn_dram_adj = {
 	.bw_mul = 1,
 	.bw_div = 4,
 	.phandle_name = "fsl,ddrc",
 };
 
-static const struct imx_icc_node_adj_desc imx8mn_noc_adj = {
+static const struct imx_icc_analde_adj_desc imx8mn_analc_adj = {
 	.bw_mul = 1,
 	.bw_div = 4,
-	.main_noc = true,
+	.main_analc = true,
 };
 
 /*
@@ -29,27 +29,27 @@ static const struct imx_icc_node_adj_desc imx8mn_noc_adj = {
  * This is a simplified subset of the bus diagram, there are several other
  * PL301 nics which are skipped/merged into PL301_MAIN
  */
-static struct imx_icc_node_desc nodes[] = {
-	DEFINE_BUS_INTERCONNECT("NOC", IMX8MN_ICN_NOC, &imx8mn_noc_adj,
+static struct imx_icc_analde_desc analdes[] = {
+	DEFINE_BUS_INTERCONNECT("ANALC", IMX8MN_ICN_ANALC, &imx8mn_analc_adj,
 			IMX8MN_ICS_DRAM, IMX8MN_ICN_MAIN),
 
 	DEFINE_BUS_SLAVE("DRAM", IMX8MN_ICS_DRAM, &imx8mn_dram_adj),
 	DEFINE_BUS_SLAVE("OCRAM", IMX8MN_ICS_OCRAM, NULL),
-	DEFINE_BUS_MASTER("A53", IMX8MN_ICM_A53, IMX8MN_ICN_NOC),
+	DEFINE_BUS_MASTER("A53", IMX8MN_ICM_A53, IMX8MN_ICN_ANALC),
 
 	/* GPUMIX */
 	DEFINE_BUS_MASTER("GPU", IMX8MN_ICM_GPU, IMX8MN_ICN_GPU),
-	DEFINE_BUS_INTERCONNECT("PL301_GPU", IMX8MN_ICN_GPU, NULL, IMX8MN_ICN_NOC),
+	DEFINE_BUS_INTERCONNECT("PL301_GPU", IMX8MN_ICN_GPU, NULL, IMX8MN_ICN_ANALC),
 
 	/* DISPLAYMIX */
 	DEFINE_BUS_MASTER("CSI1", IMX8MN_ICM_CSI1, IMX8MN_ICN_MIPI),
 	DEFINE_BUS_MASTER("CSI2", IMX8MN_ICM_CSI2, IMX8MN_ICN_MIPI),
 	DEFINE_BUS_MASTER("ISI", IMX8MN_ICM_ISI, IMX8MN_ICN_MIPI),
 	DEFINE_BUS_MASTER("LCDIF", IMX8MN_ICM_LCDIF, IMX8MN_ICN_MIPI),
-	DEFINE_BUS_INTERCONNECT("PL301_MIPI", IMX8MN_ICN_MIPI, NULL, IMX8MN_ICN_NOC),
+	DEFINE_BUS_INTERCONNECT("PL301_MIPI", IMX8MN_ICN_MIPI, NULL, IMX8MN_ICN_ANALC),
 
-	/* USB goes straight to NOC */
-	DEFINE_BUS_MASTER("USB", IMX8MN_ICM_USB, IMX8MN_ICN_NOC),
+	/* USB goes straight to ANALC */
+	DEFINE_BUS_MASTER("USB", IMX8MN_ICM_USB, IMX8MN_ICN_ANALC),
 
 	/* Audio */
 	DEFINE_BUS_MASTER("SDMA2", IMX8MN_ICM_SDMA2, IMX8MN_ICN_AUDIO),
@@ -67,12 +67,12 @@ static struct imx_icc_node_desc nodes[] = {
 	DEFINE_BUS_MASTER("USDHC2", IMX8MN_ICM_USDHC2, IMX8MN_ICN_MAIN),
 	DEFINE_BUS_MASTER("USDHC3", IMX8MN_ICM_USDHC3, IMX8MN_ICN_MAIN),
 	DEFINE_BUS_INTERCONNECT("PL301_MAIN", IMX8MN_ICN_MAIN, NULL,
-			IMX8MN_ICN_NOC, IMX8MN_ICS_OCRAM),
+			IMX8MN_ICN_ANALC, IMX8MN_ICS_OCRAM),
 };
 
 static int imx8mn_icc_probe(struct platform_device *pdev)
 {
-	return imx_icc_register(pdev, nodes, ARRAY_SIZE(nodes), NULL);
+	return imx_icc_register(pdev, analdes, ARRAY_SIZE(analdes), NULL);
 }
 
 static struct platform_driver imx8mn_icc_driver = {

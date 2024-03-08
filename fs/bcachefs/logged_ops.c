@@ -81,13 +81,13 @@ static int __bch2_logged_op_start(struct btree_trans *trans, struct bkey_i *k)
 
 int bch2_logged_op_start(struct btree_trans *trans, struct bkey_i *k)
 {
-	return commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+	return commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 			 __bch2_logged_op_start(trans, k));
 }
 
 void bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
 {
-	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 			    bch2_btree_delete(trans, BTREE_ID_logged_ops, k->k.p, 0));
 	/*
 	 * This needs to be a fatal error because we've left an unfinished

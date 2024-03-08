@@ -86,7 +86,7 @@ static int riscv_intc_domain_alloc(struct irq_domain *domain,
 {
 	int i, ret;
 	irq_hw_number_t hwirq;
-	unsigned int type = IRQ_TYPE_NONE;
+	unsigned int type = IRQ_TYPE_ANALNE;
 	struct irq_fwspec *fwspec = arg;
 
 	ret = irq_domain_translate_onecell(domain, fwspec, &hwirq, &type);
@@ -108,12 +108,12 @@ static const struct irq_domain_ops riscv_intc_domain_ops = {
 	.alloc	= riscv_intc_domain_alloc
 };
 
-static struct fwnode_handle *riscv_intc_hwnode(void)
+static struct fwanalde_handle *riscv_intc_hwanalde(void)
 {
-	return intc_domain->fwnode;
+	return intc_domain->fwanalde;
 }
 
-static int __init riscv_intc_init_common(struct fwnode_handle *fn)
+static int __init riscv_intc_init_common(struct fwanalde_handle *fn)
 {
 	int rc;
 
@@ -130,43 +130,43 @@ static int __init riscv_intc_init_common(struct fwnode_handle *fn)
 		return rc;
 	}
 
-	riscv_set_intc_hwnode_fn(riscv_intc_hwnode);
+	riscv_set_intc_hwanalde_fn(riscv_intc_hwanalde);
 
 	pr_info("%d local interrupts mapped\n", BITS_PER_LONG);
 
 	return 0;
 }
 
-static int __init riscv_intc_init(struct device_node *node,
-				  struct device_node *parent)
+static int __init riscv_intc_init(struct device_analde *analde,
+				  struct device_analde *parent)
 {
 	int rc;
 	unsigned long hartid;
 
-	rc = riscv_of_parent_hartid(node, &hartid);
+	rc = riscv_of_parent_hartid(analde, &hartid);
 	if (rc < 0) {
-		pr_warn("unable to find hart id for %pOF\n", node);
+		pr_warn("unable to find hart id for %pOF\n", analde);
 		return 0;
 	}
 
 	/*
-	 * The DT will have one INTC DT node under each CPU (or HART)
-	 * DT node so riscv_intc_init() function will be called once
-	 * for each INTC DT node. We only need to do INTC initialization
-	 * for the INTC DT node belonging to boot CPU (or boot HART).
+	 * The DT will have one INTC DT analde under each CPU (or HART)
+	 * DT analde so riscv_intc_init() function will be called once
+	 * for each INTC DT analde. We only need to do INTC initialization
+	 * for the INTC DT analde belonging to boot CPU (or boot HART).
 	 */
 	if (riscv_hartid_to_cpuid(hartid) != smp_processor_id()) {
 		/*
-		 * The INTC nodes of each CPU are suppliers for downstream
+		 * The INTC analdes of each CPU are suppliers for downstream
 		 * interrupt controllers (such as PLIC, IMSIC and APLIC
-		 * direct-mode) so we should mark an INTC node as initialized
-		 * if we are not creating IRQ domain for it.
+		 * direct-mode) so we should mark an INTC analde as initialized
+		 * if we are analt creating IRQ domain for it.
 		 */
-		fwnode_dev_initialized(of_fwnode_handle(node), true);
+		fwanalde_dev_initialized(of_fwanalde_handle(analde), true);
 		return 0;
 	}
 
-	return riscv_intc_init_common(of_node_to_fwnode(node));
+	return riscv_intc_init_common(of_analde_to_fwanalde(analde));
 }
 
 IRQCHIP_DECLARE(riscv, "riscv,cpu-intc", riscv_intc_init);
@@ -176,7 +176,7 @@ IRQCHIP_DECLARE(riscv, "riscv,cpu-intc", riscv_intc_init);
 static int __init riscv_intc_acpi_init(union acpi_subtable_headers *header,
 				       const unsigned long end)
 {
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 	struct acpi_madt_rintc *rintc;
 
 	rintc = (struct acpi_madt_rintc *)header;
@@ -190,10 +190,10 @@ static int __init riscv_intc_acpi_init(union acpi_subtable_headers *header,
 	if (riscv_hartid_to_cpuid(rintc->hart_id) != smp_processor_id())
 		return 0;
 
-	fn = irq_domain_alloc_named_fwnode("RISCV-INTC");
+	fn = irq_domain_alloc_named_fwanalde("RISCV-INTC");
 	if (!fn) {
-		pr_err("unable to allocate INTC FW node\n");
-		return -ENOMEM;
+		pr_err("unable to allocate INTC FW analde\n");
+		return -EANALMEM;
 	}
 
 	return riscv_intc_init_common(fn);

@@ -29,8 +29,8 @@ static void qat_comp_build_deflate(void *ctx)
 	header->serv_specif_flags =
 		ICP_QAT_FW_COMP_FLAGS_BUILD(ICP_QAT_FW_COMP_STATELESS_SESSION,
 					    ICP_QAT_FW_COMP_AUTO_SELECT_BEST,
-					    ICP_QAT_FW_COMP_NOT_ENH_AUTO_SELECT_BEST,
-					    ICP_QAT_FW_COMP_NOT_DISABLE_TYPE0_ENH_AUTO_SELECT_BEST,
+					    ICP_QAT_FW_COMP_ANALT_ENH_AUTO_SELECT_BEST,
+					    ICP_QAT_FW_COMP_ANALT_DISABLE_TYPE0_ENH_AUTO_SELECT_BEST,
 					    ICP_QAT_FW_COMP_ENABLE_SECURE_RAM_USED_AS_INTMD_BUF);
 	hw_comp_lower_csr.skip_ctrl = ICP_QAT_HW_COMP_20_BYTE_SKIP_3BYTE_LITERAL;
 	hw_comp_lower_csr.algo = ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_ILZ77;
@@ -55,12 +55,12 @@ static void qat_comp_build_deflate(void *ctx)
 						      ICP_QAT_FW_COMP_BFINAL,
 						      ICP_QAT_FW_COMP_CNV,
 						      ICP_QAT_FW_COMP_CNV_RECOVERY,
-						      ICP_QAT_FW_COMP_NO_CNV_DFX,
+						      ICP_QAT_FW_COMP_ANAL_CNV_DFX,
 						      ICP_QAT_FW_COMP_CRC_MODE_LEGACY,
-						      ICP_QAT_FW_COMP_NO_XXHASH_ACC,
-						      ICP_QAT_FW_COMP_CNV_ERROR_NONE,
-						      ICP_QAT_FW_COMP_NO_APPEND_CRC,
-						      ICP_QAT_FW_COMP_NO_DROP_DATA);
+						      ICP_QAT_FW_COMP_ANAL_XXHASH_ACC,
+						      ICP_QAT_FW_COMP_CNV_ERROR_ANALNE,
+						      ICP_QAT_FW_COMP_ANAL_APPEND_CRC,
+						      ICP_QAT_FW_COMP_ANAL_DROP_DATA);
 
 	/* Fill second half of the template for decompression */
 	memcpy(req_tmpl + 1, req_tmpl, sizeof(*req_tmpl));

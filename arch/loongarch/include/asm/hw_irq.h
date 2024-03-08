@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef __ASM_HW_IRQ_H
 #define __ASM_HW_IRQ_H
@@ -10,7 +10,7 @@
 extern atomic_t irq_err_count;
 
 /*
- * interrupt-retrigger: NOP for now. This may not be appropriate for all
+ * interrupt-retrigger: ANALP for analw. This may analt be appropriate for all
  * machines, we'll see ...
  */
 

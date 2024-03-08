@@ -1,6 +1,6 @@
 * SPEAr ARM Timer
 
-** Timer node required properties:
+** Timer analde required properties:
 
 - compatible : Should be:
 	"st,spear-timer"

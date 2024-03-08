@@ -21,13 +21,13 @@ mac80211_hwsim is a Linux kernel module that can be used to simulate
 arbitrary number of IEEE 802.11 radios for mac80211. It can be used to
 test most of the mac80211 functionality and user space tools (e.g.,
 hostapd and wpa_supplicant) in a way that matches very closely with
-the normal case of using real WLAN hardware. From the mac80211 view
-point, mac80211_hwsim is yet another hardware driver, i.e., no changes
+the analrmal case of using real WLAN hardware. From the mac80211 view
+point, mac80211_hwsim is yet aanalther hardware driver, i.e., anal changes
 to mac80211 are needed to use this testing tool.
 
 The main goal for mac80211_hwsim is to make it easier for developers
 to test their code and work with new features to mac80211, hostapd,
-and wpa_supplicant. The simulated radios do not have the limitations
+and wpa_supplicant. The simulated radios do analt have the limitations
 of real hardware, so it is easy to generate an arbitrary test setup
 and always reproduce the same setup for future tests. In addition,
 since all radio operation is simulated, any channel can be used in

@@ -286,7 +286,7 @@ static int rz_ssi_clk_setup(struct rz_ssi_priv *ssi, unsigned int rate,
 	}
 
 	if (i == ARRAY_SIZE(ckdv)) {
-		dev_err(ssi->dev, "Rate not divisible by audio clock source\n");
+		dev_err(ssi->dev, "Rate analt divisible by audio clock source\n");
 		return -EINVAL;
 	}
 
@@ -442,7 +442,7 @@ static int rz_ssi_pio_recv(struct rz_ssi_priv *ssi, struct rz_ssi_stream *strm)
 			frames_left--;
 		}
 
-		/* not enough samples yet */
+		/* analt eanalugh samples yet */
 		if (!samples)
 			break;
 
@@ -450,7 +450,7 @@ static int rz_ssi_pio_recv(struct rz_ssi_priv *ssi, struct rz_ssi_stream *strm)
 		buf = (u16 *)runtime->dma_area;
 		buf += strm->buffer_pos * runtime->channels;
 
-		/* Note, only supports 16-bit samples */
+		/* Analte, only supports 16-bit samples */
 		for (i = 0; i < samples; i++)
 			*buf++ = (u16)(rz_ssi_reg_readl(ssi, SSIFRDR) >> 16);
 
@@ -492,7 +492,7 @@ static int rz_ssi_pio_send(struct rz_ssi_priv *ssi, struct rz_ssi_stream *strm)
 		frames_left--;
 	}
 
-	/* no space to send anything right now */
+	/* anal space to send anything right analw */
 	if (samples == 0)
 		return 0;
 
@@ -500,7 +500,7 @@ static int rz_ssi_pio_send(struct rz_ssi_priv *ssi, struct rz_ssi_stream *strm)
 	buf = (u16 *)(runtime->dma_area);
 	buf += strm->buffer_pos * runtime->channels;
 
-	/* Note, only supports 16-bit samples */
+	/* Analte, only supports 16-bit samples */
 	for (i = 0; i < samples; i++)
 		rz_ssi_reg_writel(ssi, SSIFTDR, ((u32)(*buf++) << 16));
 
@@ -611,9 +611,9 @@ static int rz_ssi_dma_transfer(struct rz_ssi_priv *ssi,
 	runtime = substream->runtime;
 	if (runtime->state == SNDRV_PCM_STATE_DRAINING)
 		/*
-		 * Stream is ending, so do not queue up any more DMA
+		 * Stream is ending, so do analt queue up any more DMA
 		 * transfers otherwise we play partial sound clips
-		 * because we can't shut off the DMA quick enough.
+		 * because we can't shut off the DMA quick eanalugh.
 		 */
 		return 0;
 
@@ -631,7 +631,7 @@ static int rz_ssi_dma_transfer(struct rz_ssi_priv *ssi,
 					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dev_err(ssi->dev, "dmaengine_prep_slave_single() fail\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	desc->callback = rz_ssi_dma_complete;
@@ -660,10 +660,10 @@ static void rz_ssi_dma_complete(void *data)
 	if (!strm->running || !strm->substream || !strm->substream->runtime)
 		return;
 
-	/* Note that next DMA transaction has probably already started */
+	/* Analte that next DMA transaction has probably already started */
 	rz_ssi_pointer_update(strm, strm->substream->runtime->period_size);
 
-	/* Queue up another DMA transaction */
+	/* Queue up aanalther DMA transaction */
 	rz_ssi_dma_transfer(strm->priv, strm);
 }
 
@@ -696,29 +696,29 @@ static int rz_ssi_dma_request(struct rz_ssi_priv *ssi, struct device *dev)
 		ssi->playback.dma_ch = dma_request_chan(dev, "rt");
 		if (IS_ERR(ssi->playback.dma_ch)) {
 			ssi->playback.dma_ch = NULL;
-			goto no_dma;
+			goto anal_dma;
 		}
 
 		ssi->dma_rt = true;
 	}
 
 	if (!rz_ssi_is_dma_enabled(ssi))
-		goto no_dma;
+		goto anal_dma;
 
 	if (ssi->playback.dma_ch &&
 	    (rz_ssi_dma_slave_config(ssi, ssi->playback.dma_ch, true) < 0))
-		goto no_dma;
+		goto anal_dma;
 
 	if (ssi->capture.dma_ch &&
 	    (rz_ssi_dma_slave_config(ssi, ssi->capture.dma_ch, false) < 0))
-		goto no_dma;
+		goto anal_dma;
 
 	return 0;
 
-no_dma:
+anal_dma:
 	rz_ssi_release_dma_channels(ssi);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int rz_ssi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -788,8 +788,8 @@ static int rz_ssi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	/*
 	 * set clock polarity
 	 *
-	 * "normal" BCLK = Signal is available at rising edge of BCLK
-	 * "normal" FSYNC = (I2S) Left ch starts with falling FSYNC edge
+	 * "analrmal" BCLK = Signal is available at rising edge of BCLK
+	 * "analrmal" FSYNC = (I2S) Left ch starts with falling FSYNC edge
 	 */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
@@ -840,7 +840,7 @@ static int rz_ssi_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (channels != 2) {
-		dev_err(ssi->dev, "Number of channels not matched: %d\n",
+		dev_err(ssi->dev, "Number of channels analt matched: %d\n",
 			channels);
 		return -EINVAL;
 	}
@@ -933,7 +933,7 @@ static int rz_ssi_probe(struct platform_device *pdev)
 
 	ssi = devm_kzalloc(&pdev->dev, sizeof(*ssi), GFP_KERNEL);
 	if (!ssi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ssi->pdev = pdev;
 	ssi->dev = &pdev->dev;
@@ -953,25 +953,25 @@ static int rz_ssi_probe(struct platform_device *pdev)
 	audio_clk = devm_clk_get(&pdev->dev, "audio_clk1");
 	if (IS_ERR(audio_clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(audio_clk),
-				     "no audio clk1");
+				     "anal audio clk1");
 
 	ssi->audio_clk_1 = clk_get_rate(audio_clk);
 	audio_clk = devm_clk_get(&pdev->dev, "audio_clk2");
 	if (IS_ERR(audio_clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(audio_clk),
-				     "no audio clk2");
+				     "anal audio clk2");
 
 	ssi->audio_clk_2 = clk_get_rate(audio_clk);
 	if (!(ssi->audio_clk_1 || ssi->audio_clk_2))
 		return dev_err_probe(&pdev->dev, -EINVAL,
-				     "no audio clk1 or audio clk2");
+				     "anal audio clk1 or audio clk2");
 
 	ssi->audio_mck = ssi->audio_clk_1 ? ssi->audio_clk_1 : ssi->audio_clk_2;
 
 	/* Detect DMA support */
 	ret = rz_ssi_dma_request(ssi, &pdev->dev);
 	if (ret < 0) {
-		dev_warn(&pdev->dev, "DMA not available, using PIO\n");
+		dev_warn(&pdev->dev, "DMA analt available, using PIO\n");
 		ssi->playback.transfer = rz_ssi_pio_send;
 		ssi->capture.transfer = rz_ssi_pio_recv;
 	} else {

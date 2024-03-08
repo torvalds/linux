@@ -23,7 +23,7 @@ enum {
 
 struct ice_esw_br_fdb_entry {
 	struct ice_esw_br_fdb_data data;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct list_head list;
 
 	int flags;
@@ -68,9 +68,9 @@ struct ice_esw_br {
 struct ice_esw_br_offloads {
 	struct ice_pf *pf;
 	struct ice_esw_br *bridge;
-	struct notifier_block netdev_nb;
-	struct notifier_block switchdev_blk;
-	struct notifier_block switchdev_nb;
+	struct analtifier_block netdev_nb;
+	struct analtifier_block switchdev_blk;
+	struct analtifier_block switchdev_nb;
 
 	struct workqueue_struct *wq;
 	struct delayed_work update_work;
@@ -78,7 +78,7 @@ struct ice_esw_br_offloads {
 
 struct ice_esw_br_fdb_work {
 	struct work_struct work;
-	struct switchdev_notifier_fdb_info fdb_info;
+	struct switchdev_analtifier_fdb_info fdb_info;
 	struct net_device *dev;
 	unsigned long event;
 };
@@ -107,7 +107,7 @@ static inline bool ice_eswitch_br_is_vid_valid(u16 vid)
 {
 	/* In trunk VLAN mode, for untagged traffic the bridge sends requests
 	 * to offload VLAN 1 with pvid and untagged flags set. Since these
-	 * flags are not supported, add a MAC filter instead.
+	 * flags are analt supported, add a MAC filter instead.
 	 */
 	return vid > 1;
 }

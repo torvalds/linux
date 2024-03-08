@@ -64,14 +64,14 @@ static int st_magn_spi_probe(struct spi_device *spi)
 
 	settings = st_magn_get_settings(spi->modalias);
 	if (!settings) {
-		dev_err(&spi->dev, "device name %s not recognized.\n",
+		dev_err(&spi->dev, "device name %s analt recognized.\n",
 			spi->modalias);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*mdata));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdata = iio_priv(indio_dev);
 	mdata->sensor_settings = (struct st_sensor_settings *)settings;

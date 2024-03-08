@@ -13,7 +13,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_av1_seq_tmpl,
 	TP_ARGS(s),
 	TP_STRUCT__entry(__field_struct(struct v4l2_ctrl_av1_sequence, s)),
 	TP_fast_assign(__entry->s = *s;),
-	TP_printk("\nflags %s\nseq_profile: %u\norder_hint_bits: %u\nbit_depth: %u\n"
+	TP_printk("\nflags %s\nseq_profile: %u\analrder_hint_bits: %u\nbit_depth: %u\n"
 		  "max_frame_width_minus_1: %u\nmax_frame_height_minus_1: %u\n",
 		  __print_flags(__entry->s.flags, "|",
 		  {V4L2_AV1_SEQUENCE_FLAG_STILL_PICTURE, "STILL_PICTURE"},
@@ -30,7 +30,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_av1_seq_tmpl,
 		  {V4L2_AV1_SEQUENCE_FLAG_ENABLE_SUPERRES, "ENABLE_SUPERRES"},
 		  {V4L2_AV1_SEQUENCE_FLAG_ENABLE_CDEF, "ENABLE_CDEF"},
 		  {V4L2_AV1_SEQUENCE_FLAG_ENABLE_RESTORATION, "ENABLE_RESTORATION"},
-		  {V4L2_AV1_SEQUENCE_FLAG_MONO_CHROME, "MONO_CHROME"},
+		  {V4L2_AV1_SEQUENCE_FLAG_MOANAL_CHROME, "MOANAL_CHROME"},
 		  {V4L2_AV1_SEQUENCE_FLAG_COLOR_RANGE, "COLOR_RANGE"},
 		  {V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_X, "SUBSAMPLING_X"},
 		  {V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_Y, "SUBSAMPLING_Y"},
@@ -71,7 +71,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_av1_frame_tmpl,
 		  "quantization.delta_q_u_dc: %d\nquantization.delta_q_u_ac: %d\n"
 		  "quantization.delta_q_v_dc: %d\nquantization.delta_q_v_ac: %d\n"
 		  "quantization.qm_y: %u\nquantization.qm_u: %u\nquantization.qm_v: %u\n"
-		  "quantization.delta_q_res: %u\nsuperres_denom: %u\nsegmentation.flags: %s\n"
+		  "quantization.delta_q_res: %u\nsuperres_deanalm: %u\nsegmentation.flags: %s\n"
 		  "segmentation.last_active_seg_id: %u\nsegmentation.feature_enabled:%s\n"
 		  "loop_filter.flags: %s\nloop_filter.level: %s\nloop_filter.sharpness: %u\n"
 		  "loop_filter.ref_deltas: %s\nloop_filter.mode_deltas: %s\n"
@@ -81,10 +81,10 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_av1_frame_tmpl,
 		  "primary_ref_frame: %u\nloop_restoration.flags: %s\n"
 		  "loop_restoration.lr_unit_shift: %u\nloop_restoration.lr_uv_shift: %u\n"
 		  "loop_restoration.frame_restoration_type: %s\n"
-		  "loop_restoration.loop_restoration_size: %s\nflags: %s\norder_hint: %u\n"
+		  "loop_restoration.loop_restoration_size: %s\nflags: %s\analrder_hint: %u\n"
 		  "upscaled_width: %u\nframe_width_minus_1: %u\nframe_height_minus_1: %u\n"
 		  "render_width_minus_1: %u\nrender_height_minus_1: %u\ncurrent_frame_id: %u\n"
-		  "buffer_removal_time: %s\norder_hints: %s\nreference_frame_ts: %s\n"
+		  "buffer_removal_time: %s\analrder_hints: %s\nreference_frame_ts: %s\n"
 		  "ref_frame_idx: %s\nrefresh_frame_flags: %u\n",
 		  __print_flags(__entry->f.tile_info.flags, "|",
 		  {V4L2_AV1_TILE_INFO_FLAG_UNIFORM_TILE_SPACING, "UNIFORM_TILE_SPACING"}),
@@ -118,7 +118,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_av1_frame_tmpl,
 		  __entry->f.quantization.qm_u,
 		  __entry->f.quantization.qm_v,
 		  __entry->f.quantization.delta_q_res,
-		  __entry->f.superres_denom,
+		  __entry->f.superres_deanalm,
 		  __print_flags(__entry->f.segmentation.flags, "|",
 		  {V4L2_AV1_SEGMENTATION_FLAG_ENABLED, "ENABLED"},
 		  {V4L2_AV1_SEGMENTATION_FLAG_UPDATE_MAP, "UPDATE_MAP"},

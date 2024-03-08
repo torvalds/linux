@@ -147,7 +147,7 @@
     },
     {
         "id": "342c",
-        "name": "Create FQ with nopacing setting",
+        "name": "Create FQ with analpacing setting",
         "category": [
             "qdisc",
             "fq"
@@ -157,10 +157,10 @@
         },
         "setup": [
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq nopacing",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq analpacing",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p.*nopacing",
+        "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p.*analpacing",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root"

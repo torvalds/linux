@@ -65,7 +65,7 @@ properties:
     type: boolean
     description:
       A boolean property whose presence indicates that the PHY registers will be
-      configured by hardware. If not present, all sub-node optional properties
+      configured by hardware. If analt present, all sub-analde optional properties
       must be provided.
 
 patternProperties:
@@ -73,7 +73,7 @@ patternProperties:
     type: object
     description:
       Each group of PHY lanes with a single master lane should be represented as
-      a sub-node. Note that the actual configuration of each lane is determined
+      a sub-analde. Analte that the actual configuration of each lane is determined
       by hardware strapping, and must match the configuration specified here.
     properties:
       reg:
@@ -107,7 +107,7 @@ patternProperties:
 
       cdns,ssc-mode:
         description:
-          Specifies the Spread Spectrum Clocking mode used. It can be NO_SSC,
+          Specifies the Spread Spectrum Clocking mode used. It can be ANAL_SSC,
           EXTERNAL_SSC or INTERNAL_SSC.
           Refer include/dt-bindings/phy/phy-cadence.h for the constants to be used.
         $ref: /schemas/types.yaml#/definitions/uint32

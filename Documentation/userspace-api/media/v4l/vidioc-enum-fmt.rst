@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_ENUM_FMT:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_ENUM_FMT - Enumerate image formats
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_ENUM_FMT
@@ -43,24 +43,24 @@ formats in preference order, where preferred formats are returned before
 Depending on the ``V4L2_CAP_IO_MC`` :ref:`capability <device-capabilities>`,
 the ``mbus_code`` field is handled differently:
 
-1) ``V4L2_CAP_IO_MC`` is not set (also known as a 'video-node-centric' driver)
+1) ``V4L2_CAP_IO_MC`` is analt set (also kanalwn as a 'video-analde-centric' driver)
 
    Applications shall initialize the ``mbus_code`` field to zero and drivers
-   shall ignore the value of the field.
+   shall iganalre the value of the field.
 
    Drivers shall enumerate all image formats.
 
-   .. note::
+   .. analte::
 
       After switching the input or output the list of enumerated image
       formats may be different.
 
-2) ``V4L2_CAP_IO_MC`` is set (also known as an 'MC-centric' driver)
+2) ``V4L2_CAP_IO_MC`` is set (also kanalwn as an 'MC-centric' driver)
 
    If the ``mbus_code`` field is zero, then all image formats
    shall be enumerated.
 
-   If the ``mbus_code`` field is initialized to a valid (non-zero)
+   If the ``mbus_code`` field is initialized to a valid (analn-zero)
    :ref:`media bus format code <v4l2-mbus-pixelcode>`, then drivers
    shall restrict enumeration to only the image formats that can produce
    (for video output devices) or be produced from (for video capture
@@ -68,7 +68,7 @@ the ``mbus_code`` field is handled differently:
    the driver, then ``EINVAL`` shall be returned.
 
    Regardless of the value of the ``mbus_code`` field, the enumerated image
-   formats shall not depend on the active configuration of the video device
+   formats shall analt depend on the active configuration of the video device
    or device pipeline.
 
 .. c:type:: v4l2_fmtdesc
@@ -85,7 +85,7 @@ the ``mbus_code`` field is handled differently:
     * - __u32
       - ``index``
       - Number of the format in the enumeration, set by the application.
-	This is in no way related to the ``pixelformat`` field.
+	This is in anal way related to the ``pixelformat`` field.
     * - __u32
       - ``type``
       - Type of the data stream, set by the application. Only these types
@@ -123,7 +123,7 @@ the ``mbus_code`` field is handled differently:
 
 	.. attention::
 
-	   These codes are not the same as those used
+	   These codes are analt the same as those used
 	   in the Windows world.
     * - __u32
       - ``mbus_code``
@@ -153,14 +153,14 @@ the ``mbus_code`` field is handled differently:
       - This is a compressed format.
     * - ``V4L2_FMT_FLAG_EMULATED``
       - 0x0002
-      - This format is not native to the device but emulated through
+      - This format is analt native to the device but emulated through
 	software (usually libv4l2), where possible try to use a native
 	format instead for better performance.
     * - ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
       - 0x0004
       - The hardware decoder for this compressed bytestream format (aka coded
 	format) is capable of parsing a continuous bytestream. Applications do
-	not need to parse the bytestream themselves to find the boundaries
+	analt need to parse the bytestream themselves to find the boundaries
 	between frames/fields.
 
 	This flag can only be used in combination with the
@@ -169,7 +169,7 @@ the ``mbus_code`` field is handled differently:
     * - ``V4L2_FMT_FLAG_DYN_RESOLUTION``
       - 0x0008
       - Dynamic resolution switching is supported by the device for this
-	compressed bytestream format (aka coded format). It will notify the user
+	compressed bytestream format (aka coded format). It will analtify the user
 	via the event ``V4L2_EVENT_SOURCE_CHANGE`` when changes in the video
 	parameters are detected.
 
@@ -231,12 +231,12 @@ the ``mbus_code`` field is handled differently:
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :c:type:`v4l2_fmtdesc` ``type`` is not
+    The struct :c:type:`v4l2_fmtdesc` ``type`` is analt
     supported or the ``index`` is out of bounds.
 
     If ``V4L2_CAP_IO_MC`` is set and the specified ``mbus_code``

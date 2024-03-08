@@ -23,7 +23,7 @@ description: |
   [0] https://developer.arm.com/documentation/den0056/latest
 
 properties:
-  $nodename:
+  $analdename:
     const: scmi
 
   compatible:
@@ -52,7 +52,7 @@ properties:
   interrupts:
     description:
       The interrupt that indicates message completion by the platform
-      rather than by the return of the smc call. This should not be used
+      rather than by the return of the smc call. This should analt be used
       except when the platform requires such behavior.
     maxItems: 1
 
@@ -78,11 +78,11 @@ properties:
     description:
       List of phandle and mailbox channel specifiers. It should contain
       exactly one, two or three mailboxes; the first one or two for transmitting
-      messages ("tx") and another optional ("rx") for receiving notifications
+      messages ("tx") and aanalther optional ("rx") for receiving analtifications
       and delayed responses, if supported by the platform.
       The number of mailboxes needed for transmitting messages depends on the
       type of channels exposed by the specific underlying mailbox controller;
-      one single channel descriptor is enough if such channel is bidirectional,
+      one single channel descriptor is eanalugh if such channel is bidirectional,
       while two channel descriptors are needed to represent the SCMI ("tx")
       channel if the underlying mailbox channels are of unidirectional type.
       The effective combination in numbers of mboxes and shmem descriptors let
@@ -113,7 +113,7 @@ properties:
     description:
       An optional time value, expressed in microseconds, representing, on this
       platform, the threshold above which any SCMI command, advertised to have
-      an higher-than-threshold execution latency, should not be considered for
+      an higher-than-threshold execution latency, should analt be considered for
       atomic mode of operation, even if requested.
     default: 0
 
@@ -128,7 +128,7 @@ properties:
       Channel specifier required when using OP-TEE transport.
 
   protocol@11:
-    $ref: '#/$defs/protocol-node'
+    $ref: '#/$defs/protocol-analde'
     unevaluatedProperties: false
 
     properties:
@@ -142,7 +142,7 @@ properties:
       - '#power-domain-cells'
 
   protocol@13:
-    $ref: '#/$defs/protocol-node'
+    $ref: '#/$defs/protocol-analde'
     unevaluatedProperties: false
 
     properties:
@@ -163,7 +163,7 @@ properties:
           - '#power-domain-cells'
 
   protocol@14:
-    $ref: '#/$defs/protocol-node'
+    $ref: '#/$defs/protocol-analde'
     unevaluatedProperties: false
 
     properties:
@@ -177,7 +177,7 @@ properties:
       - '#clock-cells'
 
   protocol@15:
-    $ref: '#/$defs/protocol-node'
+    $ref: '#/$defs/protocol-analde'
     unevaluatedProperties: false
 
     properties:
@@ -191,7 +191,7 @@ properties:
       - '#thermal-sensor-cells'
 
   protocol@16:
-    $ref: '#/$defs/protocol-node'
+    $ref: '#/$defs/protocol-analde'
     unevaluatedProperties: false
 
     properties:
@@ -205,7 +205,7 @@ properties:
       - '#reset-cells'
 
   protocol@17:
-    $ref: '#/$defs/protocol-node'
+    $ref: '#/$defs/protocol-analde'
     unevaluatedProperties: false
 
     properties:
@@ -240,7 +240,7 @@ properties:
               - reg
 
   protocol@18:
-    $ref: '#/$defs/protocol-node'
+    $ref: '#/$defs/protocol-analde'
     unevaluatedProperties: false
 
     properties:
@@ -250,13 +250,13 @@ properties:
 additionalProperties: false
 
 $defs:
-  protocol-node:
+  protocol-analde:
     type: object
     description:
-      Each sub-node represents a protocol supported. If the platform
+      Each sub-analde represents a protocol supported. If the platform
       supports a dedicated communication channel for a particular protocol,
       then the corresponding transport properties must be present.
-      The virtio transport does not support a dedicated communication channel.
+      The virtio transport does analt support a dedicated communication channel.
 
     properties:
       reg:

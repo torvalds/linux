@@ -13,7 +13,7 @@
 #include <linux/regulator/consumer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OV5675_REG_VALUE_08BIT		1
 #define OV5675_REG_VALUE_16BIT		2
@@ -777,7 +777,7 @@ static const struct v4l2_ctrl_ops ov5675_ctrl_ops = {
 static int ov5675_init_controls(struct ov5675 *ov5675)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov5675->sd);
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 exposure_max, h_blank;
 	int ret;
@@ -839,11 +839,11 @@ static int ov5675_init_controls(struct ov5675 *ov5675)
 		return ctrl_hdlr->error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto error;
 
-	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov5675_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &ov5675_ctrl_ops,
 					      &props);
 	if (ret)
 		goto error;
@@ -864,7 +864,7 @@ static void ov5675_update_pad_format(const struct ov5675_mode *mode,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov5675_identify_module(struct ov5675 *ov5675)
@@ -1173,16 +1173,16 @@ static const struct v4l2_subdev_internal_ops ov5675_internal_ops = {
 
 static int ov5675_get_hwcfg(struct ov5675 *ov5675, struct device *dev)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	u32 xvclk_rate;
 	int ret;
 	unsigned int i, j;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
 	ov5675->xvclk = devm_clk_get_optional(dev, NULL);
@@ -1194,7 +1194,7 @@ static int ov5675_get_hwcfg(struct ov5675 *ov5675, struct device *dev)
 	if (ov5675->xvclk) {
 		xvclk_rate = clk_get_rate(ov5675->xvclk);
 	} else {
-		ret = fwnode_property_read_u32(fwnode, "clock-frequency",
+		ret = fwanalde_property_read_u32(fwanalde, "clock-frequency",
 					       &xvclk_rate);
 
 		if (ret) {
@@ -1225,24 +1225,24 @@ static int ov5675_get_hwcfg(struct ov5675 *ov5675, struct device *dev)
 	if (ret)
 		return ret;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV5675_DATA_LANES) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -1255,7 +1255,7 @@ static int ov5675_get_hwcfg(struct ov5675 *ov5675, struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "anal link frequency %lld supported",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -1263,7 +1263,7 @@ static int ov5675_get_hwcfg(struct ov5675 *ov5675, struct device *dev)
 	}
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1292,7 +1292,7 @@ static int ov5675_probe(struct i2c_client *client)
 
 	ov5675 = devm_kzalloc(&client->dev, sizeof(*ov5675), GFP_KERNEL);
 	if (!ov5675)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ov5675_get_hwcfg(ov5675, &client->dev);
 	if (ret) {
@@ -1327,7 +1327,7 @@ static int ov5675_probe(struct i2c_client *client)
 	}
 
 	ov5675->sd.internal_ops = &ov5675_internal_ops;
-	ov5675->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov5675->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov5675->sd.entity.ops = &ov5675_subdev_entity_ops;
 	ov5675->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ov5675->pad.flags = MEDIA_PAD_FL_SOURCE;

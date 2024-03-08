@@ -14,7 +14,7 @@
 
 struct sk_stg {
 	__u32 pid;
-	__u32 last_notclose_state;
+	__u32 last_analtclose_state;
 	char comm[16];
 };
 
@@ -32,8 +32,8 @@ static int check_sk_stg(int sk_fd, __u32 expected_state)
 	if (!ASSERT_OK(err, "map_lookup(sk_stg_map)"))
 		return -1;
 
-	if (!ASSERT_EQ(sk_stg.last_notclose_state, expected_state,
-		       "last_notclose_state"))
+	if (!ASSERT_EQ(sk_stg.last_analtclose_state, expected_state,
+		       "last_analtclose_state"))
 		return -1;
 
 	if (!ASSERT_EQ(sk_stg.pid, my_pid, "pid"))
@@ -52,12 +52,12 @@ static void do_test(void)
 
 	listen_fd = start_server(AF_INET6, SOCK_STREAM, LO_ADDR6, 0, 0);
 	if (CHECK(listen_fd == -1, "start_server",
-		  "listen_fd:%d errno:%d\n", listen_fd, errno))
+		  "listen_fd:%d erranal:%d\n", listen_fd, erranal))
 		return;
 
 	active_fd = connect_to_fd(listen_fd, 0);
-	if (CHECK(active_fd == -1, "connect_to_fd", "active_fd:%d errno:%d\n",
-		  active_fd, errno))
+	if (CHECK(active_fd == -1, "connect_to_fd", "active_fd:%d erranal:%d\n",
+		  active_fd, erranal))
 		goto out;
 
 	err = bpf_map_update_elem(bpf_map__fd(skel->maps.del_sk_stg_map),
@@ -66,8 +66,8 @@ static void do_test(void)
 		goto out;
 
 	passive_fd = accept(listen_fd, NULL, 0);
-	if (CHECK(passive_fd == -1, "accept", "passive_fd:%d errno:%d\n",
-		  passive_fd, errno))
+	if (CHECK(passive_fd == -1, "accept", "passive_fd:%d erranal:%d\n",
+		  passive_fd, erranal))
 		goto out;
 
 	shutdown(active_fd, SHUT_WR);

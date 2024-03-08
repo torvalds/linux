@@ -54,7 +54,7 @@ __i915_gem_object_create_region(struct intel_memory_region *mem,
 		return ERR_PTR(-EINVAL);
 
 	if (!mem)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	default_page_size = mem->min_page_size;
 	if (page_size)
@@ -78,7 +78,7 @@ __i915_gem_object_create_region(struct intel_memory_region *mem,
 
 	obj = i915_gem_object_alloc();
 	if (!obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Anything smaller than the min_page_size can't be freely inserted into
@@ -131,7 +131,7 @@ i915_gem_object_create_region_at(struct intel_memory_region *mem,
 	if (!(flags & I915_BO_ALLOC_GPU_ONLY) &&
 	    offset + size > mem->io_size &&
 	    !i915_ggtt_has_aperture(to_gt(mem->i915)->ggtt))
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
 	return __i915_gem_object_create_region(mem, offset, size, 0,
 					       flags | I915_BO_ALLOC_CONTIGUOUS);
@@ -144,10 +144,10 @@ i915_gem_object_create_region_at(struct intel_memory_region *mem,
  * @apply: ops and private data
  *
  * This function can be used to iterate over the regions object list,
- * checking whether to skip objects, and, if not, lock the objects and
- * process them using the supplied ops. Note that this function temporarily
+ * checking whether to skip objects, and, if analt, lock the objects and
+ * process them using the supplied ops. Analte that this function temporarily
  * removes objects from the region list while iterating, so that if run
- * concurrently with itself may not iterate over all objects.
+ * concurrently with itself may analt iterate over all objects.
  *
  * Return: 0 if successful, negative error code on failure.
  */
@@ -160,7 +160,7 @@ int i915_gem_process_region(struct intel_memory_region *mr,
 	int ret = 0;
 
 	/*
-	 * In the future, a non-NULL apply->ww could mean the caller is
+	 * In the future, a analn-NULL apply->ww could mean the caller is
 	 * already in a locking transaction and provides its own context.
 	 */
 	GEM_WARN_ON(apply->ww);
@@ -180,8 +180,8 @@ int i915_gem_process_region(struct intel_memory_region *mr,
 			continue;
 
 		/*
-		 * Note: Someone else might be migrating the object at this
-		 * point. The object's region is not stable until we lock
+		 * Analte: Someone else might be migrating the object at this
+		 * point. The object's region is analt stable until we lock
 		 * the object.
 		 */
 		mutex_unlock(&mr->objects.lock);

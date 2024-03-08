@@ -8,7 +8,7 @@
 #ifndef SECURITY_H_
 #define SECURITY_H_
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 struct hl_device;
 
@@ -28,20 +28,20 @@ struct hl_device;
  * @base_addr: base address of the first block of particular type,
  *             e.g., address of NIC0_UMR0_0 of 'NIC_UMR' block.
  * @major: number of major blocks of particular type.
- * @minor: number of minor blocks of particular type.
- * @sub_minor: number of sub minor blocks of particular type.
+ * @mianalr: number of mianalr blocks of particular type.
+ * @sub_mianalr: number of sub mianalr blocks of particular type.
  * @major_offset: address gap between 2 consecutive major blocks of particular type,
  *                e.g., offset between NIC0_UMR0_0 and NIC1_UMR0_0 is 0x80000.
- * @minor_offset: address gap between 2 consecutive minor blocks of particular type,
+ * @mianalr_offset: address gap between 2 consecutive mianalr blocks of particular type,
  *                e.g., offset between NIC0_UMR0_0 and NIC0_UMR1_0 is 0x20000.
- * @sub_minor_offset: address gap between 2 consecutive sub_minor blocks of particular
+ * @sub_mianalr_offset: address gap between 2 consecutive sub_mianalr blocks of particular
  *                    type, e.g., offset between NIC0_UMR0_0 and NIC0_UMR0_1 is 0x1000.
  *
  * e.g., in Gaudi2, NIC_UMR blocks can be interpreted as:
- * NIC<major>_UMR<minor>_<sub_minor> where major=12, minor=2, sub_minor=15.
+ * NIC<major>_UMR<mianalr>_<sub_mianalr> where major=12, mianalr=2, sub_mianalr=15.
  * In other words, for each of 12 major numbers (i.e 0 to 11) there are
- * 2 blocks with different minor numbers (i.e. 0 to 1). Again, for each minor
- * number there are 15 blocks with different sub_minor numbers (i.e. 0 to 14).
+ * 2 blocks with different mianalr numbers (i.e. 0 to 1). Again, for each mianalr
+ * number there are 15 blocks with different sub_mianalr numbers (i.e. 0 to 14).
  * So different blocks are NIC0_UMR0_0, NIC0_UMR0_1, ..., NIC0_UMR1_0, ....,
  * NIC11_UMR1_14.
  *
@@ -51,11 +51,11 @@ struct hl_special_block_info {
 	int block_type;
 	u32 base_addr;
 	u32 major;
-	u32 minor;
-	u32 sub_minor;
+	u32 mianalr;
+	u32 sub_mianalr;
 	u32 major_offset;
-	u32 minor_offset;
-	u32 sub_minor_offset;
+	u32 mianalr_offset;
+	u32 sub_mianalr_offset;
 };
 
 /*
@@ -66,7 +66,7 @@ struct hl_special_block_info {
  * @prot_map: each bit corresponds to one among 32 protection configuration regs
  *            (e.g., SPECIAL_GLBL_PRIV). '1' means 0xffffffff and '0' means 0x0
  *            to be written into the corresponding protection configuration reg.
- *            This bit is meaningful if same bit in data_map is 0, otherwise ignored.
+ *            This bit is meaningful if same bit in data_map is 0, otherwise iganalred.
  * @data_map: each bit corresponds to one among 32 protection configuration regs
  *            (e.g., SPECIAL_GLBL_PRIV). '1' means corresponding protection
  *            configuration reg is to be written with a value in array pointed
@@ -81,7 +81,7 @@ struct hl_special_block_info {
  * using configuration in data array. '0' in 'data_map" means protection
  * configuration to be done as per the value of corresponding bit in 'prot_map'.
  * '1' in 'prot_map' means the register to be programmed with 0xFFFFFFFF
- * (all non-protected). '0' in 'prot_map' means the register to be programmed
+ * (all analn-protected). '0' in 'prot_map' means the register to be programmed
  * with 0x0 (all protected).
  *
  * e.g., prot_map = 0x00000001, data_map = 0xC0000000 , data = {0xff, 0x12}
@@ -121,10 +121,10 @@ struct hl_special_blocks_cfg {
 /* struct hl_skip_blocks_cfg - holds arrays of block types & block ranges to be
  * excluded from special blocks configurations.
  *
- * @block_types: an array of block types NOT to be configured.
- * @block_types_len: len of an array of block types not to be configured.
- * @block_ranges: an array of block ranges not to be configured.
- * @block_ranges_len: len of an array of block ranges not to be configured.
+ * @block_types: an array of block types ANALT to be configured.
+ * @block_types_len: len of an array of block types analt to be configured.
+ * @block_ranges: an array of block ranges analt to be configured.
+ * @block_ranges_len: len of an array of block ranges analt to be configured.
  * @skip_block_hook: hook that will be called before initializing special blocks.
  */
 struct hl_skip_blocks_cfg {
@@ -134,7 +134,7 @@ struct hl_skip_blocks_cfg {
 	size_t block_ranges_len;
 	bool (*skip_block_hook)(struct hl_device *hdev,
 				struct hl_special_blocks_cfg *special_blocks_cfg,
-				u32 blk_idx, u32 major, u32 minor, u32 sub_minor);
+				u32 blk_idx, u32 major, u32 mianalr, u32 sub_mianalr);
 };
 
 /**
@@ -148,12 +148,12 @@ struct iterate_special_ctx {
 	 * @hdev: pointer to the habanalabs device structure
 	 * @block_id: block (ASIC specific definition can be dcore/hdcore)
 	 * @major: major block index within block_id
-	 * @minor: minor block index within the major block
-	 * @sub_minor: sub_minor block index within the minor block
+	 * @mianalr: mianalr block index within the major block
+	 * @sub_mianalr: sub_mianalr block index within the mianalr block
 	 * @data: function specific data
 	 */
-	int (*fn)(struct hl_device *hdev, u32 block_id, u32 major, u32 minor,
-						u32 sub_minor, void *data);
+	int (*fn)(struct hl_device *hdev, u32 block_id, u32 major, u32 mianalr,
+						u32 sub_mianalr, void *data);
 	void *data;
 };
 

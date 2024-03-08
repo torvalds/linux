@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved
+/* Copyright (c) 2016-2018 Mellaanalx Techanallogies. All rights reserved
  * Copyright (c) 2016 Ivan Vecera <cera@cera.cz>
  */
 
@@ -16,10 +16,10 @@
 
 #define MLXSW_THERMAL_POLL_INT	1000	/* ms */
 #define MLXSW_THERMAL_SLOW_POLL_INT	20000	/* ms */
-#define MLXSW_THERMAL_ASIC_TEMP_NORM	75000	/* 75C */
+#define MLXSW_THERMAL_ASIC_TEMP_ANALRM	75000	/* 75C */
 #define MLXSW_THERMAL_ASIC_TEMP_HIGH	85000	/* 85C */
 #define MLXSW_THERMAL_ASIC_TEMP_HOT	105000	/* 105C */
-#define MLXSW_THERMAL_MODULE_TEMP_NORM	55000	/* 55C */
+#define MLXSW_THERMAL_MODULE_TEMP_ANALRM	55000	/* 55C */
 #define MLXSW_THERMAL_MODULE_TEMP_HIGH	65000	/* 65C */
 #define MLXSW_THERMAL_MODULE_TEMP_HOT	80000	/* 80C */
 #define MLXSW_THERMAL_HYSTERESIS_TEMP	5000	/* 5C */
@@ -42,7 +42,7 @@ struct mlxsw_cooling_states {
 static const struct thermal_trip default_thermal_trips[] = {
 	{	/* In range - 0-40% PWM */
 		.type		= THERMAL_TRIP_ACTIVE,
-		.temperature	= MLXSW_THERMAL_ASIC_TEMP_NORM,
+		.temperature	= MLXSW_THERMAL_ASIC_TEMP_ANALRM,
 		.hysteresis	= MLXSW_THERMAL_HYSTERESIS_TEMP,
 	},
 	{
@@ -60,7 +60,7 @@ static const struct thermal_trip default_thermal_trips[] = {
 static const struct thermal_trip default_thermal_module_trips[] = {
 	{	/* In range - 0-40% PWM */
 		.type		= THERMAL_TRIP_ACTIVE,
-		.temperature	= MLXSW_THERMAL_MODULE_TEMP_NORM,
+		.temperature	= MLXSW_THERMAL_MODULE_TEMP_ANALRM,
 		.hysteresis	= MLXSW_THERMAL_HYSTERESIS_TEMP,
 	},
 	{
@@ -153,7 +153,7 @@ static int mlxsw_get_cooling_device_idx(struct mlxsw_thermal *thermal,
 			return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int mlxsw_thermal_bind(struct thermal_zone_device *tzdev,
@@ -227,7 +227,7 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 }
 
 static struct thermal_zone_params mlxsw_thermal_params = {
-	.no_hwmon = true,
+	.anal_hwmon = true,
 };
 
 static struct thermal_zone_device_ops mlxsw_thermal_ops = {
@@ -388,7 +388,7 @@ static int mlxsw_thermal_set_cur_state(struct thermal_cooling_device *cdev,
 	if (idx < 0)
 		return idx;
 
-	/* Normalize the state to the valid speed range. */
+	/* Analrmalize the state to the valid speed range. */
 	state = max_t(unsigned long, MLXSW_THERMAL_MIN_STATE, state);
 	mlxsw_reg_mfsc_pack(mfsc_pl, idx, mlxsw_state_to_duty(state));
 	err = mlxsw_reg_write(thermal->core, MLXSW_REG(mfsc), mfsc_pl);
@@ -499,7 +499,7 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 				      sizeof(*area->tz_module_arr),
 				      GFP_KERNEL);
 	if (!area->tz_module_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < area->tz_module_num; i++)
 		mlxsw_thermal_module_init(dev, core, thermal, area, i);
@@ -597,7 +597,7 @@ mlxsw_thermal_gearboxes_init(struct device *dev, struct mlxsw_core *core,
 				       sizeof(*area->tz_gearbox_arr),
 				       GFP_KERNEL);
 	if (!area->tz_gearbox_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < area->tz_gearbox_num; i++) {
 		gearbox_tz = &area->tz_gearbox_arr[i];
@@ -715,7 +715,7 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 	thermal = kzalloc(struct_size(thermal, line_cards, num_of_slots + 1),
 			  GFP_KERNEL);
 	if (!thermal)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	thermal->core = core;
 	thermal->bus_info = bus_info;

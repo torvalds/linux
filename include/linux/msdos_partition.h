@@ -34,8 +34,8 @@ enum msdos_sys_ind {
 	SOLARIS_X86_PARTITION =	0x82,	/* also Linux swap partitions */
 	NEW_SOLARIS_X86_PARTITION = 0xbf,
 
-	DM6_AUX1PARTITION = 0x51,	/* no DDO:  use xlated geom */
-	DM6_AUX3PARTITION = 0x53,	/* no DDO:  use xlated geom */
+	DM6_AUX1PARTITION = 0x51,	/* anal DDO:  use xlated geom */
+	DM6_AUX3PARTITION = 0x53,	/* anal DDO:  use xlated geom */
 	DM6_PARTITION =	0x54,		/* has DDO: use xlated geom & offset */
 	EZD_PARTITION =	0x55,		/* EZ-DRIVE */
 

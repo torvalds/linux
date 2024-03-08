@@ -30,12 +30,12 @@ union perf_mem_data_src___new {
 	struct {
 		__u64   mem_op:5,	/* type of opcode */
 			mem_lvl:14,	/* memory hierarchy level */
-			mem_snoop:5,	/* snoop mode */
+			mem_sanalop:5,	/* sanalop mode */
 			mem_lock:2,	/* lock instr */
 			mem_dtlb:7,	/* tlb access */
 			mem_lvl_num:4,	/* memory hierarchy level number */
 			mem_remote:1,   /* remote */
-			mem_snoopx:2,	/* snoop mode, ext */
+			mem_sanalopx:2,	/* sanalop mode, ext */
 			mem_blk:3,	/* access blocked */
 			mem_hops:3,	/* hop level */
 			mem_rsvd:18;
@@ -94,10 +94,10 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 		if (entry->part == 2)
 			return kctx->data->data_src.mem_lvl_num;
 		if (entry->part == 3) {
-			__u32 snoop = kctx->data->data_src.mem_snoop;
-			__u32 snoopx = kctx->data->data_src.mem_snoopx;
+			__u32 sanalop = kctx->data->data_src.mem_sanalop;
+			__u32 sanalopx = kctx->data->data_src.mem_sanalopx;
 
-			return (snoopx << 5) | snoop;
+			return (sanalopx << 5) | sanalop;
 		}
 		if (entry->part == 4)
 			return kctx->data->data_src.mem_remote;

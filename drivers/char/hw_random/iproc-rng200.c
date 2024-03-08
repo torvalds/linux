@@ -102,7 +102,7 @@ static int iproc_rng200_read(struct hwrng *rng, void *buf, size_t max,
 
 	while ((num_remaining > 0) && time_before(jiffies, idle_endtime)) {
 
-		/* Is RNG sane? If not, reset it. */
+		/* Is RNG sane? If analt, reset it. */
 		status = ioread32(priv->base + RNG_INT_STATUS_OFFSET);
 		if ((status & (RNG_INT_STATUS_MASTER_FAIL_LOCKOUT_IRQ_MASK |
 			RNG_INT_STATUS_NIST_FAIL_IRQ_MASK)) != 0) {
@@ -137,7 +137,7 @@ static int iproc_rng200_read(struct hwrng *rng, void *buf, size_t max,
 			idle_endtime = jiffies + MAX_IDLE_TIME;
 		} else {
 			if (!wait)
-				/* Cannot wait, return immediately */
+				/* Cananalt wait, return immediately */
 				return max - num_remaining;
 
 			/* Can wait, give others chance to run */
@@ -172,7 +172,7 @@ static int iproc_rng200_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map peripheral */
 	priv->base = devm_platform_ioremap_resource(pdev, 0);

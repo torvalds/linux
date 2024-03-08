@@ -120,14 +120,14 @@ typedef struct							/* Station ID address */
 #define PI_FMC_DESCR_K_RRR_FORMAT_ERR	0x06
 #define PI_FMC_DESCR_K_RRR_MAC_RESET	0x07
 
-#define PI_FMC_DESCR_K_DD_NO_MATCH		0x0
+#define PI_FMC_DESCR_K_DD_ANAL_MATCH		0x0
 #define PI_FMC_DESCR_K_DD_PROMISCUOUS	0x1
 #define PI_FMC_DESCR_K_DD_CAM_MATCH		0x2
 #define PI_FMC_DESCR_K_DD_LOCAL_MATCH	0x3
 
-#define PI_FMC_DESCR_K_SS_NO_MATCH		0x0
+#define PI_FMC_DESCR_K_SS_ANAL_MATCH		0x0
 #define PI_FMC_DESCR_K_SS_BRIDGE_MATCH	0x1
-#define PI_FMC_DESCR_K_SS_NOT_POSSIBLE	0x2
+#define PI_FMC_DESCR_K_SS_ANALT_POSSIBLE	0x2
 #define PI_FMC_DESCR_K_SS_LOCAL_MATCH	0x3
 
 /* Define some max buffer sizes */
@@ -192,7 +192,7 @@ typedef struct							/* Station ID address */
 #define PI_ITEM_K_LOOPBACK_MODE			0x0E 	/* Chars_Set 				  */
 #define PI_ITEM_K_CONFIG_POLICY			0x10 	/* SMTConfigPolicy 			  */
 #define PI_ITEM_K_CON_POLICY			0x11 	/* SMTConnectionPolicy 		  */
-#define PI_ITEM_K_T_NOTIFY				0x12 	/* SMTTNotify 				  */
+#define PI_ITEM_K_T_ANALTIFY				0x12 	/* SMTTAnaltify 				  */
 #define PI_ITEM_K_STATION_ACTION		0x13 	/* SMTStationAction			  */
 #define PI_ITEM_K_MAC_PATHS_REQ	   		0x15 	/* MACPathsRequested 		  */
 #define PI_ITEM_K_MAC_ACTION			0x17 	/* MACAction 				  */
@@ -231,15 +231,15 @@ typedef struct							/* Station ID address */
 #define PI_RSP_K_TVX_BAD				0x05
 #define PI_RSP_K_TREQ_BAD				0x06
 #define PI_RSP_K_TOKEN_BAD				0x07
-#define PI_RSP_K_NO_EOL					0x0C
+#define PI_RSP_K_ANAL_EOL					0x0C
 #define PI_RSP_K_FILTER_STATE_BAD		0x0D
 #define PI_RSP_K_CMD_TYPE_BAD			0x0E
 #define PI_RSP_K_ADAPTER_STATE_BAD		0x0F
 #define PI_RSP_K_RING_PURGER_BAD		0x10
 #define PI_RSP_K_LEM_THRESHOLD_BAD		0x11
-#define PI_RSP_K_LOOP_NOT_SUPPORTED		0x12
+#define PI_RSP_K_LOOP_ANALT_SUPPORTED		0x12
 #define PI_RSP_K_FLUSH_TIME_BAD			0x13
-#define PI_RSP_K_NOT_IMPLEMENTED		0x14
+#define PI_RSP_K_ANALT_IMPLEMENTED		0x14
 #define PI_RSP_K_CONFIG_POLICY_BAD		0x15
 #define PI_RSP_K_STATION_ACTION_BAD		0x16
 #define PI_RSP_K_MAC_ACTION_BAD			0x17
@@ -252,8 +252,8 @@ typedef struct							/* Station ID address */
 #define PI_RSP_K_MAC_T_REQ_BAD			0x1E
 #define PI_RSP_K_EMAC_RING_PURGER_BAD	0x1F
 #define PI_RSP_K_EMAC_RTOKEN_TIME_BAD	0x20
-#define PI_RSP_K_NO_SUCH_ENTRY			0x21
-#define PI_RSP_K_T_NOTIFY_BAD			0x22
+#define PI_RSP_K_ANAL_SUCH_ENTRY			0x21
+#define PI_RSP_K_T_ANALTIFY_BAD			0x22
 #define PI_RSP_K_TR_MAX_EXP_BAD			0x23
 #define PI_RSP_K_MAC_FRM_ERR_THR_BAD	0x24
 #define PI_RSP_K_MAX_T_REQ_BAD			0x25
@@ -420,13 +420,13 @@ typedef struct						  /* Refer to ANSI FDDI SMT Rev. 7.3 */
 	PI_UINT32	   	smt_user_data[8];
 	PI_UINT32	   	smt_mib_version_id;
 	PI_UINT32	   	smt_mac_ct;
-	PI_UINT32	   	smt_non_master_ct;
+	PI_UINT32	   	smt_analn_master_ct;
 	PI_UINT32	   	smt_master_ct;
 	PI_UINT32	   	smt_available_paths;
 	PI_UINT32	   	smt_config_capabilities;
 	PI_UINT32	   	smt_config_policy;
 	PI_UINT32	   	smt_connection_policy;
-	PI_UINT32	   	smt_t_notify;
+	PI_UINT32	   	smt_t_analtify;
 	PI_UINT32	   	smt_stat_rpt_policy;
 	PI_UINT32	   	smt_trace_max_expiration;
 	PI_UINT32	   	smt_bypass_present;
@@ -520,13 +520,13 @@ typedef struct						  /* Refer to ANSI FDDI SMT Rev. 7.3 */
 
 #define PI_GRP_K_SMT_STATION_CONFIG		0x1014
 #define PI_ITEM_K_SMT_MAC_CT			0x1015
-#define PI_ITEM_K_SMT_NON_MASTER_CT		0x1016
+#define PI_ITEM_K_SMT_ANALN_MASTER_CT		0x1016
 #define PI_ITEM_K_SMT_MASTER_CT			0x1017
 #define PI_ITEM_K_SMT_AVAIL_PATHS		0x1018
 #define PI_ITEM_K_SMT_CONFIG_CAPS		0x1019
 #define PI_ITEM_K_SMT_CONFIG_POL		0x101A
 #define PI_ITEM_K_SMT_CONN_POL			0x101B
-#define PI_ITEM_K_SMT_T_NOTIFY			0x101D
+#define PI_ITEM_K_SMT_T_ANALTIFY			0x101D
 #define PI_ITEM_K_SMT_STAT_POL			0x101E
 #define PI_ITEM_K_SMT_TR_MAX_EXP		0x101F
 #define PI_ITEM_K_SMT_PORT_INDEXES		0x1020
@@ -740,13 +740,13 @@ typedef struct
 	PI_UINT32		smt_hi_version_id;
 	PI_UINT32		smt_lo_version_id;
 	PI_UINT32		smt_mac_ct;
-	PI_UINT32		smt_non_master_ct;
+	PI_UINT32		smt_analn_master_ct;
 	PI_UINT32		smt_master_ct;
 	PI_UINT32		smt_paths_available;
 	PI_UINT32		smt_config_capabilities;
 	PI_UINT32		smt_config_policy;
 	PI_UINT32		smt_connection_policy;
-	PI_UINT32		smt_t_notify;
+	PI_UINT32		smt_t_analtify;
 	PI_UINT32		smt_status_reporting;
 	PI_UINT32		smt_ecm_state;
 	PI_UINT32		smt_cf_state;
@@ -785,7 +785,7 @@ typedef struct
 	PI_UINT32		mac_chip_set;
 	PI_UINT32		mac_action;
 
-	/* PATH GROUP => Does not need to be implemented */
+	/* PATH GROUP => Does analt need to be implemented */
 
 	/* PORT GROUP */
 
@@ -821,7 +821,7 @@ typedef struct
 	PI_UINT32		attachment_inserted_status;
 	PI_UINT32		attachment_insert_policy;
 
-	/* CHIP SET GROUP => Does not need to be implemented */
+	/* CHIP SET GROUP => Does analt need to be implemented */
 
 	} PI_CMD_FDDI_MIB_GET_RSP;
 
@@ -990,15 +990,15 @@ typedef struct
 	} PI_CMD_ERROR_LOG_GET_RSP;
 
 /* Define error log related constants and types.					*/
-/*   Not all of the caller id's can occur.  The only ones currently */
-/*   implemented are: none, selftest, mfg, fw, console				*/
+/*   Analt all of the caller id's can occur.  The only ones currently */
+/*   implemented are: analne, selftest, mfg, fw, console				*/
 
 #define PI_LOG_EVENT_STATUS_K_VALID		0	/* Valid Event Status 		*/
 #define PI_LOG_EVENT_STATUS_K_INVALID	1	/* Invalid Event Status 	*/
-#define PI_LOG_CALLER_ID_K_NONE		 	0	/* No caller 				*/
-#define PI_LOG_CALLER_ID_K_SELFTEST	 	1	/* Normal power-up selftest */
+#define PI_LOG_CALLER_ID_K_ANALNE		 	0	/* Anal caller 				*/
+#define PI_LOG_CALLER_ID_K_SELFTEST	 	1	/* Analrmal power-up selftest */
 #define PI_LOG_CALLER_ID_K_MFG		 	2	/* Mfg power-up selftest 	*/
-#define PI_LOG_CALLER_ID_K_ONLINE		3	/* On-line diagnostics 		*/
+#define PI_LOG_CALLER_ID_K_ONLINE		3	/* On-line diaganalstics 		*/
 #define PI_LOG_CALLER_ID_K_HW			4	/* Hardware 				*/
 #define PI_LOG_CALLER_ID_K_FW			5	/* Firmware 				*/
 #define PI_LOG_CALLER_ID_K_CNS_HW		6	/* CNS firmware 			*/
@@ -1100,7 +1100,7 @@ typedef struct
 #define PI_DESCR_BLK_K_CMD_REQ		0x1300
 
 /* Define format of a rcv descr (Rcv Data, Cmd Rsp, Unsolicited, SMT Host)   */
-/*   Note a field has been added for later versions of the PDQ to allow for  */
+/*   Analte a field has been added for later versions of the PDQ to allow for  */
 /*   finer granularity of the rcv buffer alignment.  For backwards		 	 */
 /*   compatibility, the two bits (which allow the rcv buffer to be longword  */
 /*   aligned) have been added at the MBZ bits.  To support previous drivers, */
@@ -1177,7 +1177,7 @@ typedef struct
 #define PI_PDQ_K_REG_PORT_STATUS		0x00000014
 #define PI_PDQ_K_REG_TYPE_0_STATUS 		0x00000018
 #define PI_PDQ_K_REG_HOST_INT_ENB	  	0x0000001C
-#define PI_PDQ_K_REG_TYPE_2_PROD_NOINT 	0x00000020
+#define PI_PDQ_K_REG_TYPE_2_PROD_ANALINT 	0x00000020
 #define PI_PDQ_K_REG_TYPE_2_PROD		0x00000024
 #define PI_PDQ_K_REG_CMD_RSP_PROD		0x00000028
 #define PI_PDQ_K_REG_CMD_REQ_PROD		0x0000002C
@@ -1215,7 +1215,7 @@ typedef struct
 #define PI_PDATA_B_DMA_BURST_SIZE_4	 	0		/* valid values for command */
 #define PI_PDATA_B_DMA_BURST_SIZE_8	 	1
 #define PI_PDATA_B_DMA_BURST_SIZE_16	2
-#define PI_PDATA_B_DMA_BURST_SIZE_32	3		/* not supported on PCI */
+#define PI_PDATA_B_DMA_BURST_SIZE_32	3		/* analt supported on PCI */
 #define PI_PDATA_B_DMA_BURST_SIZE_DEF	PI_PDATA_B_DMA_BURST_SIZE_16
 
 /* Port Data A Reset state */
@@ -1272,7 +1272,7 @@ typedef struct
 #define PI_PSTATUS_M_HALT_ID			0x000000FF
 
 /* Define Halt Id's			 					*/
-/*   Do not insert into this list, only append. */
+/*   Do analt insert into this list, only append. */
 
 #define PI_HALT_ID_K_SELFTEST_TIMEOUT	0
 #define PI_HALT_ID_K_PARITY_ERROR		1
@@ -1546,7 +1546,7 @@ typedef union
 /* Define the bits in the slot control register. */
 
 #define PI_SLOT_CNTRL_M_RESET		0x04	/* Don't use.       */
-#define PI_SLOT_CNTRL_M_ERROR		0x02	/* Not implemented. */
+#define PI_SLOT_CNTRL_M_ERROR		0x02	/* Analt implemented. */
 #define PI_SLOT_CNTRL_M_ENB		0x01	/* Must be set.     */
 
 /* Define the bits in the burst holdoff register. */
@@ -1594,7 +1594,7 @@ typedef union
 
 /* Define DEC FDDIcontroller/EISA (DEFEA) EISA hardware ID's */
 
-#define DEFEA_PRODUCT_ID	0x0030A310		/* DEC product 300 (no rev)	*/
+#define DEFEA_PRODUCT_ID	0x0030A310		/* DEC product 300 (anal rev)	*/
 #define DEFEA_PROD_ID_1		0x0130A310		/* DEC product 300, rev 1	*/
 #define DEFEA_PROD_ID_2		0x0230A310		/* DEC product 300, rev 2	*/
 #define DEFEA_PROD_ID_3		0x0330A310		/* DEC product 300, rev 3	*/
@@ -1755,7 +1755,7 @@ typedef struct DFX_board_tag
 
 	/* Resources to indicate reset type when resetting adapter */
 
-	u32				reset_type;					/* skip or rerun diagnostics */
+	u32				reset_type;					/* skip or rerun diaganalstics */
 
 	/* Store pointers to receive buffers for queue processing code */
 

@@ -36,7 +36,7 @@
 &emmc {
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

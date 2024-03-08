@@ -20,18 +20,18 @@
 #     conditions are met:
 #
 #      - Redistributions of source code must retain the above
-#        copyright notice, this list of conditions and the following
+#        copyright analtice, this list of conditions and the following
 #        disclaimer.
 #
 #      - Redistributions in binary form must reproduce the above
-#        copyright notice, this list of conditions and the following
+#        copyright analtice, this list of conditions and the following
 #        disclaimer in the documentation and/or other materials
 #        provided with the distribution.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
 # BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -276,7 +276,7 @@ frame_size = frame_WK + WK_SIZE
 ########################################################################
 SYM_TYPED_FUNC_START(sha512_transform_avx)
 	test msglen, msglen
-	je .Lnowork
+	je .Lanalwork
 
 	# Save GPRs
 	push	%rbx
@@ -361,7 +361,7 @@ SYM_TYPED_FUNC_START(sha512_transform_avx)
 	pop	%r12
 	pop	%rbx
 
-.Lnowork:
+.Lanalwork:
 	RET
 SYM_FUNC_END(sha512_transform_avx)
 
@@ -375,7 +375,7 @@ XMM_QWORD_BSWAP:
 	.octa 0x08090a0b0c0d0e0f0001020304050607
 
 # Mergeable 640-byte rodata section. This allows linker to merge the table
-# with other, exactly the same 640-byte fragment of another rodata section
+# with other, exactly the same 640-byte fragment of aanalther rodata section
 # (if such section exists).
 .section	.rodata.cst640.K512, "aM", @progbits, 640
 .align 64

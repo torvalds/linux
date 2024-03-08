@@ -15,7 +15,7 @@ int firmware_fallback_platform(struct fw_priv *fw_priv)
 	int rc;
 
 	if (!(fw_priv->opt_flags & FW_OPT_FALLBACK_PLATFORM))
-		return -ENOENT;
+		return -EANALENT;
 
 	rc = security_kernel_load_data(LOADING_FIRMWARE, true);
 	if (rc)
@@ -23,10 +23,10 @@ int firmware_fallback_platform(struct fw_priv *fw_priv)
 
 	rc = efi_get_embedded_fw(fw_priv->fw_name, &data, &size);
 	if (rc)
-		return rc; /* rc == -ENOENT when the fw was not found */
+		return rc; /* rc == -EANALENT when the fw was analt found */
 
 	if (fw_priv->data && size > fw_priv->allocated_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = security_kernel_post_load_data((u8 *)data, size, LOADING_FIRMWARE,
 						"platform");
@@ -36,7 +36,7 @@ int firmware_fallback_platform(struct fw_priv *fw_priv)
 	if (!fw_priv->data)
 		fw_priv->data = vmalloc(size);
 	if (!fw_priv->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(fw_priv->data, data, size);
 	fw_priv->size = size;

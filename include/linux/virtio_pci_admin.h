@@ -15,7 +15,7 @@ int virtio_pci_admin_legacy_device_io_write(struct pci_dev *pdev, u8 offset,
 					    u8 size, u8 *buf);
 int virtio_pci_admin_legacy_device_io_read(struct pci_dev *pdev, u8 offset,
 					   u8 size, u8 *buf);
-int virtio_pci_admin_legacy_io_notify_info(struct pci_dev *pdev,
+int virtio_pci_admin_legacy_io_analtify_info(struct pci_dev *pdev,
 					   u8 req_bar_flags, u8 *bar,
 					   u64 *bar_offset);
 #endif

@@ -51,7 +51,7 @@ struct etnaviv_iommu_global {
 
 	/*
 	 * This union holds members needed by either MMUv1 or MMUv2, which
-	 * can not exist at the same time.
+	 * can analt exist at the same time.
 	 */
 	union {
 		struct {
@@ -77,7 +77,7 @@ struct etnaviv_iommu_context {
 	struct drm_mm mm;
 	unsigned int flush_seq;
 
-	/* Not part of the context, but needs to have the same lifetime */
+	/* Analt part of the context, but needs to have the same lifetime */
 	struct etnaviv_vram_mapping cmdbuf_mapping;
 };
 

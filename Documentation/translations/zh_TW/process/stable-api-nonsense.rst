@@ -1,11 +1,11 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. _tw_stable_api_nonsense:
+.. _tw_stable_api_analnsense:
 
 .. include:: ../disclaimer-zh_TW.rst
 
-:Original: :ref:`Documentation/process/stable-api-nonsense.rst
-           <stable_api_nonsense>`
+:Original: :ref:`Documentation/process/stable-api-analnsense.rst
+           <stable_api_analnsense>`
 
 譯者::
 

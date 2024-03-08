@@ -194,19 +194,19 @@ static struct snd_soc_dai_link mt8173_rt5650_rt5676_dais[] = {
 	/* Back End DAI links */
 	[DAI_LINK_CODEC_I2S] = {
 		.name = "Codec",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.init = mt8173_rt5650_rt5676_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			   SND_SOC_DAIFMT_CBS_CFS,
 		.ops = &mt8173_rt5650_rt5676_ops,
-		.ignore_pmdown_time = 1,
+		.iganalre_pmdown_time = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(codec),
 	},
 	[DAI_LINK_HDMI_I2S] = {
 		.name = "HDMI BE",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		SND_SOC_DAILINK_REG(hdmi_be),
 	},
@@ -214,7 +214,7 @@ static struct snd_soc_dai_link mt8173_rt5650_rt5676_dais[] = {
 	[DAI_LINK_INTERCODEC] = {
 		.name = "rt5650_rt5676 intercodec",
 		.stream_name = "rt5650_rt5676 intercodec",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			   SND_SOC_DAIFMT_CBM_CFM,
 		SND_SOC_DAILINK_REG(intercodec),
@@ -245,13 +245,13 @@ static struct snd_soc_card mt8173_rt5650_rt5676_card = {
 static int mt8173_rt5650_rt5676_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8173_rt5650_rt5676_card;
-	struct device_node *platform_node;
+	struct device_analde *platform_analde;
 	struct snd_soc_dai_link *dai_link;
 	int i, ret;
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_analde = of_parse_phandle(pdev->dev.of_analde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_analde) {
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
@@ -259,46 +259,46 @@ static int mt8173_rt5650_rt5676_dev_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platforms->name)
 			continue;
-		dai_link->platforms->of_node = platform_node;
+		dai_link->platforms->of_analde = platform_analde;
 	}
 
-	mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[0].of_node =
-		of_parse_phandle(pdev->dev.of_node, "mediatek,audio-codec", 0);
-	if (!mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[0].of_node) {
+	mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[0].of_analde =
+		of_parse_phandle(pdev->dev.of_analde, "mediatek,audio-codec", 0);
+	if (!mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[0].of_analde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		ret = -EINVAL;
-		goto put_node;
+		goto put_analde;
 	}
-	mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[1].of_node =
-		of_parse_phandle(pdev->dev.of_node, "mediatek,audio-codec", 1);
-	if (!mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[1].of_node) {
+	mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[1].of_analde =
+		of_parse_phandle(pdev->dev.of_analde, "mediatek,audio-codec", 1);
+	if (!mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[1].of_analde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		ret = -EINVAL;
-		goto put_node;
+		goto put_analde;
 	}
-	mt8173_rt5650_rt5676_codec_conf[0].dlc.of_node =
-		mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[1].of_node;
+	mt8173_rt5650_rt5676_codec_conf[0].dlc.of_analde =
+		mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[1].of_analde;
 
-	mt8173_rt5650_rt5676_dais[DAI_LINK_INTERCODEC].codecs->of_node =
-		mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[1].of_node;
+	mt8173_rt5650_rt5676_dais[DAI_LINK_INTERCODEC].codecs->of_analde =
+		mt8173_rt5650_rt5676_dais[DAI_LINK_CODEC_I2S].codecs[1].of_analde;
 
-	mt8173_rt5650_rt5676_dais[DAI_LINK_HDMI_I2S].codecs->of_node =
-		of_parse_phandle(pdev->dev.of_node, "mediatek,audio-codec", 2);
-	if (!mt8173_rt5650_rt5676_dais[DAI_LINK_HDMI_I2S].codecs->of_node) {
+	mt8173_rt5650_rt5676_dais[DAI_LINK_HDMI_I2S].codecs->of_analde =
+		of_parse_phandle(pdev->dev.of_analde, "mediatek,audio-codec", 2);
+	if (!mt8173_rt5650_rt5676_dais[DAI_LINK_HDMI_I2S].codecs->of_analde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		ret = -EINVAL;
-		goto put_node;
+		goto put_analde;
 	}
 
 	card->dev = &pdev->dev;
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 
-put_node:
-	of_node_put(platform_node);
+put_analde:
+	of_analde_put(platform_analde);
 	return ret;
 }
 

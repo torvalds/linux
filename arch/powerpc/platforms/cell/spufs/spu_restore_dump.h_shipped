@@ -1,7 +1,7 @@
 /*
  * spu_restore_dump.h: Copyright (C) 2005 IBM.
  * Hex-dump auto generated from spu_restore.c.
- * Do not edit!
+ * Do analt edit!
  */
 static unsigned int spu_restore_code[]  __attribute__((__aligned__(128))) = {
 0x40800000,

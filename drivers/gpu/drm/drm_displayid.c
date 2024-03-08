@@ -42,7 +42,7 @@ validate_displayid(const u8 *displayid, int length, int idx)
 	for (i = 0; i < dispid_length; i++)
 		csum += displayid[idx + i];
 	if (csum) {
-		DRM_NOTE("DisplayID checksum invalid, remainder is %d\n", csum);
+		DRM_ANALTE("DisplayID checksum invalid, remainder is %d\n", csum);
 		return ERR_PTR(-EINVAL);
 	}
 

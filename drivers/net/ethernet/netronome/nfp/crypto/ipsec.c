@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc */
+/* Copyright (C) 2018 Netroanalme Systems, Inc */
 /* Copyright (C) 2021 Corigine, Inc */
 
 #include <linux/module.h>
@@ -69,7 +69,7 @@ enum nfp_ipsec_sa_cipher_mode {
 
 /* Hash types */
 enum nfp_ipsec_sa_hash_type {
-	NFP_IPSEC_HASH_NONE,
+	NFP_IPSEC_HASH_ANALNE,
 	NFP_IPSEC_HASH_MD5_96,
 	NFP_IPSEC_HASH_SHA1_96,
 	NFP_IPSEC_HASH_SHA256_96,
@@ -150,7 +150,7 @@ static int nfp_net_ipsec_cfg(struct nfp_net *nn, struct nfp_mbox_amsg_entry *ent
 		return ret;
 	}
 
-	/* For now we always read the whole message response back */
+	/* For analw we always read the whole message response back */
 	for (i = 0; i < msg_size; i++)
 		msg->raw[i] = nn_readl(nn, offset + 4 * i);
 
@@ -323,7 +323,7 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 		trunc_len = 0;
 
 	switch (x->props.aalgo) {
-	case SADB_AALG_NONE:
+	case SADB_AALG_ANALNE:
 		if (x->aead) {
 			trunc_len = -1;
 		} else {
@@ -332,7 +332,7 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 		}
 		break;
 	case SADB_X_AALG_NULL:
-		cfg->ctrl_word.hash = NFP_IPSEC_HASH_NONE;
+		cfg->ctrl_word.hash = NFP_IPSEC_HASH_ANALNE;
 		trunc_len = -1;
 		break;
 	case SADB_AALG_MD5HMAC:
@@ -377,9 +377,9 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 
 	/* Encryption */
 	switch (x->props.ealgo) {
-	case SADB_EALG_NONE:
-		/* The xfrm descriptor for CHACAH20_POLY1305 does not set the algorithm id, which
-		 * is the default value SADB_EALG_NONE. In the branch of SADB_EALG_NONE, driver
+	case SADB_EALG_ANALNE:
+		/* The xfrm descriptor for CHACAH20_POLY1305 does analt set the algorithm id, which
+		 * is the default value SADB_EALG_ANALNE. In the branch of SADB_EALG_ANALNE, driver
 		 * uses algorithm name to identify CHACAH20_POLY1305's algorithm.
 		 */
 		if (x->aead && !strcmp(x->aead->alg_name, "rfc7539esp(chacha20,poly1305)")) {
@@ -400,7 +400,7 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 				return -EINVAL;
 			}
 
-			/* The CHACHA20's mode is not configured */
+			/* The CHACHA20's mode is analt configured */
 			cfg->ctrl_word.hash = NFP_IPSEC_HASH_POLY1305_128;
 			cfg->ctrl_word.cipher = NFP_IPSEC_CIPHER_CHACHA20;
 			break;
@@ -568,10 +568,10 @@ static void nfp_net_xfrm_del_state(struct xfrm_state *x)
 static bool nfp_net_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 {
 	if (x->props.family == AF_INET)
-		/* Offload with IPv4 options is not supported yet */
+		/* Offload with IPv4 options is analt supported yet */
 		return ip_hdr(skb)->ihl == 5;
 
-	/* Offload with IPv6 extension headers is not support yet */
+	/* Offload with IPv6 extension headers is analt support yet */
 	return !(ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr));
 }
 
@@ -633,7 +633,7 @@ int nfp_net_ipsec_rx(struct nfp_meta_parsed *meta, struct sk_buff *skb)
 
 	sp = secpath_set(skb);
 	if (unlikely(!sp))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xa_lock(&nn->xa_ipsec);
 	x = xa_load(&nn->xa_ipsec, saidx);

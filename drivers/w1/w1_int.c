@@ -104,7 +104,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 		return(-EINVAL);
 	}
 
-	/* Lock until the device is added (or not) to w1_masters. */
+	/* Lock until the device is added (or analt) to w1_masters. */
 	mutex_lock(&w1_mlock);
 	/* Search for the first available id (starting at 1). */
 	id = 0;
@@ -123,7 +123,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 		&w1_master_driver, &w1_master_device);
 	if (!dev) {
 		mutex_unlock(&w1_mlock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	retval =  w1_create_master_attributes(dev);
@@ -156,7 +156,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 
 	return 0;
 
-#if 0 /* Thread cleanup code, not required currently. */
+#if 0 /* Thread cleanup code, analt required currently. */
 err_out_kill_thread:
 	set_bit(W1_ABORT_SEARCH, &dev->flags);
 	kthread_stop(dev->thread);

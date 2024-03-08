@@ -26,6 +26,6 @@ config INTEL_SKL_INT3472
 	  I2C_DESIGNWARE_PLATFORM option must be set to Y too.
 
 	  Say Y or M here if you have a SkyLake device designed for use
-	  with Windows or ChromeOS. Say N here if you are not sure.
+	  with Windows or ChromeOS. Say N here if you are analt sure.
 
 	  The module will be named "intel-skl-int3472".

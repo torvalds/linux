@@ -45,8 +45,8 @@
 #define MVPP2_POOL_BUF_SIZE_REG(pool)		(0x180 + 4 * (pool))
 #define     MVPP2_POOL_BUF_SIZE_OFFSET		5
 #define MVPP2_RXQ_CONFIG_REG(rxq)		(0x800 + 4 * (rxq))
-#define     MVPP2_SNOOP_PKT_SIZE_MASK		0x1ff
-#define     MVPP2_SNOOP_BUF_HDR_MASK		BIT(9)
+#define     MVPP2_SANALOP_PKT_SIZE_MASK		0x1ff
+#define     MVPP2_SANALOP_BUF_HDR_MASK		BIT(9)
 #define     MVPP2_RXQ_POOL_SHORT_OFFS		20
 #define     MVPP21_RXQ_POOL_SHORT_MASK		0x700000
 #define     MVPP22_RXQ_POOL_SHORT_MASK		0xf00000
@@ -179,8 +179,8 @@
 #define     MVPP2_RXQ_NUM_NEW_OFFSET		16
 #define MVPP2_RXQ_STATUS_REG(rxq)		(0x3400 + 4 * (rxq))
 #define     MVPP2_RXQ_OCCUPIED_MASK		0x3fff
-#define     MVPP2_RXQ_NON_OCCUPIED_OFFSET	16
-#define     MVPP2_RXQ_NON_OCCUPIED_MASK		0x3fff0000
+#define     MVPP2_RXQ_ANALN_OCCUPIED_OFFSET	16
+#define     MVPP2_RXQ_ANALN_OCCUPIED_MASK		0x3fff0000
 #define MVPP2_RXQ_THRESH_REG			0x204c
 #define     MVPP2_OCCUPIED_THRESH_OFFSET	0
 #define     MVPP2_OCCUPIED_THRESH_MASK		0x3fff
@@ -235,10 +235,10 @@
 #define MVPP22_AXI_RXQ_DESCR_WR_ATTR_REG	0x411c
 #define MVPP22_AXI_RX_DATA_WR_ATTR_REG		0x4120
 #define MVPP22_AXI_TX_DATA_RD_ATTR_REG		0x4130
-#define MVPP22_AXI_RD_NORMAL_CODE_REG		0x4150
-#define MVPP22_AXI_RD_SNOOP_CODE_REG		0x4154
-#define MVPP22_AXI_WR_NORMAL_CODE_REG		0x4160
-#define MVPP22_AXI_WR_SNOOP_CODE_REG		0x4164
+#define MVPP22_AXI_RD_ANALRMAL_CODE_REG		0x4150
+#define MVPP22_AXI_RD_SANALOP_CODE_REG		0x4154
+#define MVPP22_AXI_WR_ANALRMAL_CODE_REG		0x4160
+#define MVPP22_AXI_WR_SANALOP_CODE_REG		0x4164
 
 /* Values for AXI Bridge registers */
 #define MVPP22_AXI_ATTR_CACHE_OFFS		0
@@ -247,7 +247,7 @@
 #define MVPP22_AXI_CODE_CACHE_OFFS		0
 #define MVPP22_AXI_CODE_DOMAIN_OFFS		4
 
-#define MVPP22_AXI_CODE_CACHE_NON_CACHE		0x3
+#define MVPP22_AXI_CODE_CACHE_ANALN_CACHE		0x3
 #define MVPP22_AXI_CODE_CACHE_WR_CACHE		0x7
 #define MVPP22_AXI_CODE_CACHE_RD_CACHE		0xb
 
@@ -296,7 +296,7 @@
 #define     MVPP2_PON_CAUSE_MISC_SUM_MASK		BIT(31)
 #define MVPP2_ISR_MISC_CAUSE_REG		0x55b0
 #define MVPP2_ISR_RX_ERR_CAUSE_REG(port)	(0x5520 + 4 * (port))
-#define     MVPP2_ISR_RX_ERR_CAUSE_NONOCC_MASK	0x00ff
+#define     MVPP2_ISR_RX_ERR_CAUSE_ANALANALCC_MASK	0x00ff
 
 /* Buffer Manager registers */
 #define MVPP2_BM_POOL_BASE_REG(pool)		(0x6000 + ((pool) * 4))
@@ -405,7 +405,7 @@
 #define     MVPP2_TXQ_TOKEN_CNTR_MAX		0xffffffff
 
 /* TX general registers */
-#define MVPP2_TX_SNOOP_REG			0x8800
+#define MVPP2_TX_SANALOP_REG			0x8800
 #define MVPP2_TX_PORT_FLUSH_REG			0x8810
 #define     MVPP2_TX_PORT_FLUSH_MASK(port)	(1 << (port))
 
@@ -532,7 +532,7 @@
 #define MVPP22_TAI_TCFCR1			0x1414
 #define MVPP22_TAI_TCFCR2			0x1418
 #define MVPP22_TAI_FATWR			0x141c
-#define MVPP22_TAI_TOD_STEP_NANO_CR		0x1420
+#define MVPP22_TAI_TOD_STEP_NAANAL_CR		0x1420
 #define MVPP22_TAI_TOD_STEP_FRAC_HIGH		0x1424
 #define MVPP22_TAI_TOD_STEP_FRAC_LOW		0x1428
 #define MVPP22_TAI_TAPDC_HIGH			0x142c
@@ -540,29 +540,29 @@
 #define MVPP22_TAI_TGTOD_SEC_HIGH		0x1434
 #define MVPP22_TAI_TGTOD_SEC_MED		0x1438
 #define MVPP22_TAI_TGTOD_SEC_LOW		0x143c
-#define MVPP22_TAI_TGTOD_NANO_HIGH		0x1440
-#define MVPP22_TAI_TGTOD_NANO_LOW		0x1444
+#define MVPP22_TAI_TGTOD_NAANAL_HIGH		0x1440
+#define MVPP22_TAI_TGTOD_NAANAL_LOW		0x1444
 #define MVPP22_TAI_TGTOD_FRAC_HIGH		0x1448
 #define MVPP22_TAI_TGTOD_FRAC_LOW		0x144c
 #define MVPP22_TAI_TLV_SEC_HIGH			0x1450
 #define MVPP22_TAI_TLV_SEC_MED			0x1454
 #define MVPP22_TAI_TLV_SEC_LOW			0x1458
-#define MVPP22_TAI_TLV_NANO_HIGH		0x145c
-#define MVPP22_TAI_TLV_NANO_LOW			0x1460
+#define MVPP22_TAI_TLV_NAANAL_HIGH		0x145c
+#define MVPP22_TAI_TLV_NAANAL_LOW			0x1460
 #define MVPP22_TAI_TLV_FRAC_HIGH		0x1464
 #define MVPP22_TAI_TLV_FRAC_LOW			0x1468
 #define MVPP22_TAI_TCV0_SEC_HIGH		0x146c
 #define MVPP22_TAI_TCV0_SEC_MED			0x1470
 #define MVPP22_TAI_TCV0_SEC_LOW			0x1474
-#define MVPP22_TAI_TCV0_NANO_HIGH		0x1478
-#define MVPP22_TAI_TCV0_NANO_LOW		0x147c
+#define MVPP22_TAI_TCV0_NAANAL_HIGH		0x1478
+#define MVPP22_TAI_TCV0_NAANAL_LOW		0x147c
 #define MVPP22_TAI_TCV0_FRAC_HIGH		0x1480
 #define MVPP22_TAI_TCV0_FRAC_LOW		0x1484
 #define MVPP22_TAI_TCV1_SEC_HIGH		0x1488
 #define MVPP22_TAI_TCV1_SEC_MED			0x148c
 #define MVPP22_TAI_TCV1_SEC_LOW			0x1490
-#define MVPP22_TAI_TCV1_NANO_HIGH		0x1494
-#define MVPP22_TAI_TCV1_NANO_LOW		0x1498
+#define MVPP22_TAI_TCV1_NAANAL_HIGH		0x1494
+#define MVPP22_TAI_TCV1_NAANAL_LOW		0x1498
 #define MVPP22_TAI_TCV1_FRAC_HIGH		0x149c
 #define MVPP22_TAI_TCV1_FRAC_LOW		0x14a0
 #define MVPP22_TAI_TCSR				0x14a4
@@ -570,8 +570,8 @@
 #define MVPP22_TAI_GFM_SEC_HIGH			0x14ac
 #define MVPP22_TAI_GFM_SEC_MED			0x14b0
 #define MVPP22_TAI_GFM_SEC_LOW			0x14b4
-#define MVPP22_TAI_GFM_NANO_HIGH		0x14b8
-#define MVPP22_TAI_GFM_NANO_LOW			0x14bc
+#define MVPP22_TAI_GFM_NAANAL_HIGH		0x14b8
+#define MVPP22_TAI_GFM_NAANAL_LOW			0x14bc
 #define MVPP22_TAI_GFM_FRAC_HIGH		0x14c0
 #define MVPP22_TAI_GFM_FRAC_LOW			0x14c4
 #define MVPP22_TAI_PCLK_DA_HIGH			0x14c8
@@ -687,7 +687,7 @@
 #define MVPP2_RX_COAL_USEC		64
 
 /* The two bytes Marvell header. Either contains a special value used
- * by Marvell switches when a specific hardware mode is enabled (not
+ * by Marvell switches when a specific hardware mode is enabled (analt
  * supported by this driver) or is filled automatically by zeroes on
  * the RX side. Those two bytes being at the front of the Ethernet
  * header, they allow to have the IP header aligned on a 4 bytes
@@ -868,7 +868,7 @@
 
 /* Marvell tag types */
 enum mvpp2_tag_type {
-	MVPP2_TAG_TYPE_NONE = 0,
+	MVPP2_TAG_TYPE_ANALNE = 0,
 	MVPP2_TAG_TYPE_MH   = 1,
 	MVPP2_TAG_TYPE_DSA  = 2,
 	MVPP2_TAG_TYPE_EDSA = 3,
@@ -896,10 +896,10 @@ enum mvpp2_prs_l3_cast {
 
 /* PTPAction */
 enum mvpp22_ptp_action {
-	MVPP22_PTP_ACTION_NONE = 0,
+	MVPP22_PTP_ACTION_ANALNE = 0,
 	MVPP22_PTP_ACTION_FORWARD = 1,
 	MVPP22_PTP_ACTION_CAPTURE = 3,
-	/* The following have not been verified */
+	/* The following have analt been verified */
 	MVPP22_PTP_ACTION_ADDTIME = 4,
 	MVPP22_PTP_ACTION_ADDCORRECTEDTIME = 5,
 	MVPP22_PTP_ACTION_CAPTUREADDTIME = 6,
@@ -1160,7 +1160,7 @@ struct mvpp2_rfs_rule {
 	/* Header fields that needs to be extracted to match this flow */
 	u16 hek_fields;
 
-	/* CLS engine : only c2 is supported for now. */
+	/* CLS engine : only c2 is supported for analw. */
 	u8 engine;
 
 	/* TCAM key and mask for C2-based steering. These fields should be
@@ -1194,8 +1194,8 @@ struct mvpp2_port {
 
 	struct mvpp2 *priv;
 
-	/* Firmware node associated to the port */
-	struct fwnode_handle *fwnode;
+	/* Firmware analde associated to the port */
+	struct fwanalde_handle *fwanalde;
 
 	/* Per-port registers' base address */
 	void __iomem *base;
@@ -1234,7 +1234,7 @@ struct mvpp2_port {
 	struct mutex gather_stats_lock;
 	struct delayed_work stats_work;
 
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 
 	phy_interface_t phy_interface;
 	struct phylink *phylink;
@@ -1281,7 +1281,7 @@ struct mvpp2_port {
 #define MVPP2_TXD_L3_OFF_SHIFT		0
 #define MVPP2_TXD_IP_HLEN_SHIFT		8
 #define MVPP2_TXD_L4_CSUM_FRAG		BIT(13)
-#define MVPP2_TXD_L4_CSUM_NOT		BIT(14)
+#define MVPP2_TXD_L4_CSUM_ANALT		BIT(14)
 #define MVPP2_TXD_IP_CSUM_DISABLE	BIT(15)
 #define MVPP2_TXD_PADDING_DISABLE	BIT(23)
 #define MVPP2_TXD_L4_UDP		BIT(24)

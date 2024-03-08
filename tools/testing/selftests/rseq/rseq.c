@@ -2,7 +2,7 @@
 /*
  * rseq.c
  *
- * Copyright (C) 2016 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Copyright (C) 2016 Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -89,9 +89,9 @@ static int sys_rseq(struct rseq_abi *rseq_abi, uint32_t rseq_len,
 	return syscall(__NR_rseq, rseq_abi, rseq_len, flags, sig);
 }
 
-static int sys_getcpu(unsigned *cpu, unsigned *node)
+static int sys_getcpu(unsigned *cpu, unsigned *analde)
 {
-	return syscall(__NR_getcpu, cpu, node, NULL);
+	return syscall(__NR_getcpu, cpu, analde, NULL);
 }
 
 int rseq_available(void)
@@ -101,8 +101,8 @@ int rseq_available(void)
 	rc = sys_rseq(NULL, 0, 0, 0);
 	if (rc != -1)
 		abort();
-	switch (errno) {
-	case ENOSYS:
+	switch (erranal) {
+	case EANALSYS:
 		return 0;
 	case EINVAL:
 		return 1;
@@ -167,8 +167,8 @@ void rseq_init(void)
 {
 	/*
 	 * If the libc's registered rseq size isn't already valid, it may be
-	 * because the binary is dynamically linked and not necessarily due to
-	 * libc not having registered a restartable sequence.  Try to find the
+	 * because the binary is dynamically linked and analt necessarily due to
+	 * libc analt having registered a restartable sequence.  Try to find the
 	 * symbols if that's the case.
 	 */
 	if (!*libc_rseq_size_p) {
@@ -225,15 +225,15 @@ int32_t rseq_fallback_current_cpu(void)
 	return cpu;
 }
 
-int32_t rseq_fallback_current_node(void)
+int32_t rseq_fallback_current_analde(void)
 {
-	uint32_t cpu_id, node_id;
+	uint32_t cpu_id, analde_id;
 	int ret;
 
-	ret = sys_getcpu(&cpu_id, &node_id);
+	ret = sys_getcpu(&cpu_id, &analde_id);
 	if (ret) {
 		perror("sys_getcpu()");
 		return ret;
 	}
-	return (int32_t) node_id;
+	return (int32_t) analde_id;
 }

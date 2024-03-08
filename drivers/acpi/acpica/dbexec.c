@@ -40,7 +40,7 @@ static void ACPI_SYSTEM_XFACE acpi_db_single_execution_thread(void *context);
  * PARAMETERS:  count               - Count of objects in the list
  *              objects             - Array of ACPI_OBJECTs to be deleted
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Delete a list of ACPI_OBJECTS. Handles packages and nested
  *              packages via recursion.
@@ -103,7 +103,7 @@ acpi_db_execute_method(struct acpi_db_method_info *info,
 	ACPI_FUNCTION_TRACE(db_execute_method);
 
 	if (acpi_gbl_db_output_to_file && !acpi_dbg_level) {
-		acpi_os_printf("Warning: debug output is not enabled!\n");
+		acpi_os_printf("Warning: debug output is analt enabled!\n");
 	}
 
 	param_objects.count = 0;
@@ -184,7 +184,7 @@ cleanup:
  *
  * PARAMETERS:  info            - Valid method info
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Setup info segment prior to method execution
  *
@@ -224,7 +224,7 @@ static acpi_status acpi_db_execute_setup(struct acpi_db_method_info *info)
 	}
 
 	else {
-		/* No single step, allow redirection to a file */
+		/* Anal single step, allow redirection to a file */
 
 		acpi_db_set_output_destination(ACPI_DB_REDIRECTABLE_OUTPUT);
 	}
@@ -250,12 +250,12 @@ u32 acpi_db_get_cache_info(struct acpi_memory_list *cache)
  *
  * FUNCTION:    acpi_db_get_outstanding_allocations
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Current global allocation count minus cache entries
  *
  * DESCRIPTION: Determine the current number of "outstanding" allocations --
- *              those allocations that have not been freed and also are not
+ *              those allocations that have analt been freed and also are analt
  *              in one of the various object caches.
  *
  ******************************************************************************/
@@ -267,8 +267,8 @@ static u32 acpi_db_get_outstanding_allocations(void)
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
 	outstanding += acpi_db_get_cache_info(acpi_gbl_state_cache);
-	outstanding += acpi_db_get_cache_info(acpi_gbl_ps_node_cache);
-	outstanding += acpi_db_get_cache_info(acpi_gbl_ps_node_ext_cache);
+	outstanding += acpi_db_get_cache_info(acpi_gbl_ps_analde_cache);
+	outstanding += acpi_db_get_cache_info(acpi_gbl_ps_analde_ext_cache);
 	outstanding += acpi_db_get_cache_info(acpi_gbl_operand_cache);
 #endif
 
@@ -293,12 +293,12 @@ acpi_db_execution_walk(acpi_handle obj_handle,
 		       u32 nesting_level, void *context, void **return_value)
 {
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 	struct acpi_buffer return_obj;
 	acpi_status status;
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (obj_desc->method.param_count) {
 		return (AE_OK);
 	}
@@ -306,19 +306,19 @@ acpi_db_execution_walk(acpi_handle obj_handle,
 	return_obj.pointer = NULL;
 	return_obj.length = ACPI_ALLOCATE_BUFFER;
 
-	acpi_ns_print_node_pathname(node, "Evaluating");
+	acpi_ns_print_analde_pathname(analde, "Evaluating");
 
 	/* Do the actual method execution */
 
 	acpi_os_printf("\n");
 	acpi_gbl_method_executing = TRUE;
 
-	status = acpi_evaluate_object(node, NULL, NULL, &return_obj);
+	status = acpi_evaluate_object(analde, NULL, NULL, &return_obj);
 
 	acpi_gbl_method_executing = FALSE;
 
 	acpi_os_printf("Evaluation of [%4.4s] returned %s\n",
-		       acpi_ut_get_node_name(node),
+		       acpi_ut_get_analde_name(analde),
 		       acpi_format_exception(status));
 
 	return (AE_OK);
@@ -331,9 +331,9 @@ acpi_db_execution_walk(acpi_handle obj_handle,
  * PARAMETERS:  name                - Name of method to execute
  *              args                - Parameters to the method
  *              Types               -
- *              flags               - single step/no single step
+ *              flags               - single step/anal single step
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Execute a control method. Name is relative to the current
  *              scope. Function used for the "EXECUTE", "EVALUATE", and
@@ -423,7 +423,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 		return;
 	}
 
-	/* Get the NS node, determines existence also */
+	/* Get the NS analde, determines existence also */
 
 	status = acpi_get_handle(NULL, acpi_gbl_db_method_info.pathname,
 				 &acpi_gbl_db_method_info.method);
@@ -435,7 +435,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 
 	/*
 	 * Allow any handlers in separate threads to complete.
-	 * (Such as Notify handlers invoked from AML executed above).
+	 * (Such as Analtify handlers invoked from AML executed above).
 	 */
 	acpi_os_sleep((u64)10);
 
@@ -476,14 +476,14 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 
 			if (ACPI_COMPARE_NAMESEG
 			    ((ACPI_CAST_PTR
-			      (struct acpi_namespace_node,
+			      (struct acpi_namespace_analde,
 			       acpi_gbl_db_method_info.method)->name.ascii),
 			     METHOD_NAME__PLD)) {
 				acpi_db_dump_pld_buffer(return_obj.pointer);
 			}
 		} else {
 			acpi_os_printf
-			    ("No object was returned from evaluation of %s\n",
+			    ("Anal object was returned from evaluation of %s\n",
 			     acpi_gbl_db_method_info.pathname);
 		}
 	}
@@ -497,7 +497,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
  *
  * PARAMETERS:  context             - Execution info segment
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Debugger execute thread. Waits for a command line, then
  *              simply dispatches it.
@@ -518,8 +518,8 @@ static void ACPI_SYSTEM_XFACE acpi_db_method_thread(void *context)
 	 * Prevent acpi_gbl_db_method_info from being modified by multiple threads
 	 * concurrently.
 	 *
-	 * Note: The arguments we are passing are used by the ASL test suite
-	 * (aslts). Do not change them without updating the tests.
+	 * Analte: The arguments we are passing are used by the ASL test suite
+	 * (aslts). Do analt change them without updating the tests.
 	 */
 	(void)acpi_os_wait_semaphore(info->info_gate, 1, ACPI_WAIT_FOREVER);
 
@@ -590,7 +590,7 @@ static void ACPI_SYSTEM_XFACE acpi_db_method_thread(void *context)
 		status = acpi_os_signal_semaphore(info->main_thread_gate, 1);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("Could not signal debugger thread sync semaphore, %s\n",
+			    ("Could analt signal debugger thread sync semaphore, %s\n",
 			     acpi_format_exception(status));
 		}
 	}
@@ -602,7 +602,7 @@ static void ACPI_SYSTEM_XFACE acpi_db_method_thread(void *context)
  *
  * PARAMETERS:  context                 - Method info struct
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Create one thread and execute a method
  *
@@ -646,7 +646,7 @@ static void ACPI_SYSTEM_XFACE acpi_db_single_execution_thread(void *context)
  *              arguments               - Array of arguments to the method
  *              types                   - Corresponding array of object types
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Create a single thread to evaluate a namespace object. Handles
  *              arguments passed on command line for control methods.
@@ -681,12 +681,12 @@ acpi_db_create_execution_thread(char *method_name_arg,
 		return;
 	}
 
-	/* Get the NS node, determines existence also */
+	/* Get the NS analde, determines existence also */
 
 	status = acpi_get_handle(NULL, acpi_gbl_db_method_info.pathname,
 				 &acpi_gbl_db_method_info.method);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("%s Could not get handle for %s\n",
+		acpi_os_printf("%s Could analt get handle for %s\n",
 			       acpi_format_exception(status),
 			       acpi_gbl_db_method_info.pathname);
 		return;
@@ -710,7 +710,7 @@ acpi_db_create_execution_thread(char *method_name_arg,
  *              num_loops_arg           - Loop count for the thread(s)
  *              method_name_arg         - Control method to execute
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Create threads to execute method(s)
  *
@@ -746,7 +746,7 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 	 */
 	status = acpi_os_create_semaphore(1, 0, &main_thread_gate);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not create semaphore for "
+		acpi_os_printf("Could analt create semaphore for "
 			       "synchronization with the main thread, %s\n",
 			       acpi_format_exception(status));
 		return;
@@ -758,7 +758,7 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 	 */
 	status = acpi_os_create_semaphore(1, 1, &thread_complete_gate);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not create semaphore for "
+		acpi_os_printf("Could analt create semaphore for "
 			       "synchronization between the created threads, %s\n",
 			       acpi_format_exception(status));
 
@@ -768,7 +768,7 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 
 	status = acpi_os_create_semaphore(1, 1, &info_gate);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not create semaphore for "
+		acpi_os_printf("Could analt create semaphore for "
 			       "synchronization of AcpiGbl_DbMethodInfo, %s\n",
 			       acpi_format_exception(status));
 
@@ -786,7 +786,7 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 
 	acpi_gbl_db_method_info.threads = acpi_os_allocate(size);
 	if (acpi_gbl_db_method_info.threads == NULL) {
-		acpi_os_printf("No memory for thread IDs array\n");
+		acpi_os_printf("Anal memory for thread IDs array\n");
 		(void)acpi_os_delete_semaphore(main_thread_gate);
 		(void)acpi_os_delete_semaphore(thread_complete_gate);
 		(void)acpi_os_delete_semaphore(info_gate);
@@ -828,12 +828,12 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 		goto cleanup_and_exit;
 	}
 
-	/* Get the NS node, determines existence also */
+	/* Get the NS analde, determines existence also */
 
 	status = acpi_get_handle(NULL, acpi_gbl_db_method_info.pathname,
 				 &acpi_gbl_db_method_info.method);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("%s Could not get handle for %s\n",
+		acpi_os_printf("%s Could analt get handle for %s\n",
 			       acpi_format_exception(status),
 			       acpi_gbl_db_method_info.pathname);
 		goto cleanup_and_exit;

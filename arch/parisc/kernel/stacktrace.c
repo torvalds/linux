@@ -13,7 +13,7 @@
 
 #include <asm/unwind.h>
 
-static void notrace walk_stackframe(struct task_struct *task,
+static void analtrace walk_stackframe(struct task_struct *task,
 	struct pt_regs *regs, bool (*fn)(void *, unsigned long), void *cookie)
 {
 	struct unwind_frame_info info;

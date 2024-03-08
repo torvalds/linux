@@ -16,23 +16,23 @@
      /*  offset: the read register offset */
      /*  msk: the mask of the read value */
      /*  value: N/A, left by 0 */
-     /*  note: dirver shall implement this function by read & msk */
+     /*  analte: dirver shall implement this function by read & msk */
 
 #define PWR_CMD_WRITE			0x01
      /*  offset: the read register offset */
      /*  msk: the mask of the write bits */
      /*  value: write value */
-     /*  note: driver shall implement this cmd by read & msk after write */
+     /*  analte: driver shall implement this cmd by read & msk after write */
 
 #define PWR_CMD_POLLING			0x02
      /*  offset: the read register offset */
      /*  msk: the mask of the polled value */
      /*  value: the value to be polled, masked by the msd field. */
-     /*  note: driver shall implement this cmd by */
+     /*  analte: driver shall implement this cmd by */
      /*  do{ */
      /*  if ((Read(offset) & msk) == (value & msk)) */
      /*  break; */
-     /*  } while (not timeout); */
+     /*  } while (analt timeout); */
 
 #define PWR_CMD_DELAY			0x03
      /*  offset: the value to delay */

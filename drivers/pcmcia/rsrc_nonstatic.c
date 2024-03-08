@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * rsrc_nonstatic.c -- Resource management routines for !SS_CAP_STATIC_MAP sockets
+ * rsrc_analnstatic.c -- Resource management routines for !SS_CAP_STATIC_MAP sockets
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
@@ -120,7 +120,7 @@ static int add_interval(struct resource_map *map, u_long base, u_long num)
 	q = kmalloc(sizeof(struct resource_map), GFP_KERNEL);
 	if (!q) {
 		printk(KERN_WARNING "out of memory to update resources\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	q->base = base; q->num = num;
 	q->next = p->next; p->next = q;
@@ -159,7 +159,7 @@ static int sub_interval(struct resource_map *map, u_long base, u_long num)
 					GFP_KERNEL);
 				if (!p) {
 					printk(KERN_WARNING "out of memory to update resources\n");
-					return -ENOMEM;
+					return -EANALMEM;
 				}
 				p->base = base+num;
 				p->num = q->base+q->num - p->base;
@@ -243,7 +243,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 	if (bad) {
 		if ((num > 16) && (bad == base) && (i == base+num)) {
 			sub_interval(&s_data->io_db, bad, i-bad);
-			pr_cont(" nothing: probe failed.\n");
+			pr_cont(" analthing: probe failed.\n");
 			return;
 		} else {
 			sub_interval(&s_data->io_db, bad, i-bad);
@@ -337,7 +337,7 @@ static int checksum(struct pcmcia_socket *s, struct resource *res,
  *
  * do_validate_mem() splits up the memory region which is to be checked
  * into two parts. Both are passed to the @validate() function. If
- * @validate() returns non-zero, or the value parameter to @validate()
+ * @validate() returns analn-zero, or the value parameter to @validate()
  * is zero, or the value parameter is different between both calls,
  * the check fails, and -EINVAL is returned. Else, 0 is returned.
  */
@@ -490,9 +490,9 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 			return 0;
 		if (s_data->mem_db_valid.next != &s_data->mem_db_valid)
 			return 0;
-		dev_notice(&s->dev,
-			   "cs: warning: no high memory space available!\n");
-		return -ENODEV;
+		dev_analtice(&s->dev,
+			   "cs: warning: anal high memory space available!\n");
+		return -EANALDEV;
 	}
 
 	for (m = s_data->mem_db.next; m != &s_data->mem_db; m = mm.next) {
@@ -521,7 +521,7 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 	if (ok > 0)
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #else /* CONFIG_PCMCIA_PROBE */
@@ -529,7 +529,7 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 /**
  * validate_mem() - memory probe function
  * @s:		PCMCIA socket to validate
- * @probe_mask: ignored
+ * @probe_mask: iganalred
  *
  * Returns 0 on usuable ports.
  */
@@ -545,22 +545,22 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 	}
 	if (ok > 0)
 		return 0;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif /* CONFIG_PCMCIA_PROBE */
 
 
 /**
- * pcmcia_nonstatic_validate_mem() - try to validate iomem for PCMCIA use
+ * pcmcia_analnstatic_validate_mem() - try to validate iomem for PCMCIA use
  * @s:		PCMCIA socket to validate
  *
  * This is tricky... when we set up CIS memory, we try to validate
  * the memory window space allocations.
  *
- * Locking note: Must be called with skt_mutex held!
+ * Locking analte: Must be called with skt_mutex held!
  */
-static int pcmcia_nonstatic_validate_mem(struct pcmcia_socket *s)
+static int pcmcia_analnstatic_validate_mem(struct pcmcia_socket *s)
 {
 	struct socket_data *s_data = s->resource_data;
 	unsigned int probe_mask = MEM_PROBE_LOW;
@@ -614,7 +614,7 @@ pcmcia_align(void *align_data, const struct resource *res,
 		unsigned long map_end = m->base + m->num - 1;
 
 		/*
-		 * If the lower resources are not available, try aligning
+		 * If the lower resources are analt available, try aligning
 		 * to this entry of the resource database to see if it'll
 		 * fit here.
 		 */
@@ -623,7 +623,7 @@ pcmcia_align(void *align_data, const struct resource *res,
 
 		/*
 		 * If we're above the area which was passed in, there's
-		 * no point proceeding.
+		 * anal point proceeding.
 		 */
 		if (start >= res->end)
 			break;
@@ -645,13 +645,13 @@ pcmcia_align(void *align_data, const struct resource *res,
  * Adjust an existing IO region allocation, but making sure that we don't
  * encroach outside the resources which the user supplied.
  */
-static int __nonstatic_adjust_io_region(struct pcmcia_socket *s,
+static int __analnstatic_adjust_io_region(struct pcmcia_socket *s,
 					unsigned long r_start,
 					unsigned long r_end)
 {
 	struct resource_map *m;
 	struct socket_data *s_data = s->resource_data;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	for (m = s_data->io_db.next; m != &s_data->io_db; m = m->next) {
 		unsigned long start = m->base;
@@ -668,7 +668,7 @@ static int __nonstatic_adjust_io_region(struct pcmcia_socket *s,
 
 /*======================================================================
 
-    These find ranges of I/O ports or memory addresses that are not
+    These find ranges of I/O ports or memory addresses that are analt
     currently allocated by other devices.
 
     The 'align' field should reflect the number of bits of address
@@ -679,7 +679,7 @@ static int __nonstatic_adjust_io_region(struct pcmcia_socket *s,
 
 ======================================================================*/
 
-static struct resource *__nonstatic_find_io_region(struct pcmcia_socket *s,
+static struct resource *__analnstatic_find_io_region(struct pcmcia_socket *s,
 						unsigned long base, int num,
 						unsigned long align)
 {
@@ -713,14 +713,14 @@ static struct resource *__nonstatic_find_io_region(struct pcmcia_socket *s,
 	return res;
 }
 
-static int nonstatic_find_io(struct pcmcia_socket *s, unsigned int attr,
+static int analnstatic_find_io(struct pcmcia_socket *s, unsigned int attr,
 			unsigned int *base, unsigned int num,
 			unsigned int align, struct resource **parent)
 {
 	int i, ret = 0;
 
 	/* Check for an already-allocated window that must conflict with
-	 * what was asked for.  It is a hack because it does not catch all
+	 * what was asked for.  It is a hack because it does analt catch all
 	 * potential conflicts, just the most obvious ones.
 	 */
 	for (i = 0; i < MAX_IO_WIN; i++) {
@@ -746,7 +746,7 @@ static int nonstatic_find_io(struct pcmcia_socket *s, unsigned int attr,
 			if (align == 0)
 				align = 0x10000;
 
-			res = s->io[i].res = __nonstatic_find_io_region(s,
+			res = s->io[i].res = __analnstatic_find_io_region(s,
 								*base, num,
 								align);
 			if (!res)
@@ -764,7 +764,7 @@ static int nonstatic_find_io(struct pcmcia_socket *s, unsigned int attr,
 		/* Try to extend top of window */
 		try = res->end + 1;
 		if ((*base == 0) || (*base == try)) {
-			ret =  __nonstatic_adjust_io_region(s, res->start,
+			ret =  __analnstatic_adjust_io_region(s, res->start,
 							res->end + num);
 			if (!ret) {
 				ret = adjust_resource(s->io[i].res, res->start,
@@ -781,7 +781,7 @@ static int nonstatic_find_io(struct pcmcia_socket *s, unsigned int attr,
 		/* Try to extend bottom of window */
 		try = res->start - num;
 		if ((*base == 0) || (*base == try)) {
-			ret =  __nonstatic_adjust_io_region(s,
+			ret =  __analnstatic_adjust_io_region(s,
 							res->start - num,
 							res->end);
 			if (!ret) {
@@ -802,7 +802,7 @@ static int nonstatic_find_io(struct pcmcia_socket *s, unsigned int attr,
 }
 
 
-static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
+static struct resource *analnstatic_find_mem_region(u_long base, u_long num,
 		u_long align, int low, struct pcmcia_socket *s)
 {
 	struct resource *res = pcmcia_make_resource(0, num, IORESOURCE_MEM,
@@ -931,24 +931,24 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 
 
 #ifdef CONFIG_PCI
-static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
+static int analnstatic_autoadd_resources(struct pcmcia_socket *s)
 {
 	struct resource *res;
 	int i, done = 0;
 
 	if (!s->cb_dev || !s->cb_dev->bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 #if defined(CONFIG_X86)
 	/* If this is the root bus, the risk of hitting some strange
 	 * system devices is too high: If a driver isn't loaded, the
-	 * resources are not claimed; even if a driver is loaded, it
-	 * may not request all resources or even the wrong one. We
-	 * can neither trust the rest of the kernel nor ACPI/PNP and
+	 * resources are analt claimed; even if a driver is loaded, it
+	 * may analt request all resources or even the wrong one. We
+	 * can neither trust the rest of the kernel analr ACPI/PNP and
 	 * CRS parsing to get it right. Therefore, use several
 	 * safeguards:
 	 *
-	 * - Do not auto-add resources if the CardBus bridge is on
+	 * - Do analt auto-add resources if the CardBus bridge is on
 	 *   the PCI root bus
 	 *
 	 * - Avoid any I/O ports < 0x100.
@@ -1009,21 +1009,21 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 
 #else
 
-static inline int nonstatic_autoadd_resources(struct pcmcia_socket *s)
+static inline int analnstatic_autoadd_resources(struct pcmcia_socket *s)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif
 
 
-static int nonstatic_init(struct pcmcia_socket *s)
+static int analnstatic_init(struct pcmcia_socket *s)
 {
 	struct socket_data *data;
 
 	data = kzalloc(sizeof(struct socket_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->mem_db.next = &data->mem_db;
 	data->mem_db_valid.next = &data->mem_db_valid;
@@ -1031,12 +1031,12 @@ static int nonstatic_init(struct pcmcia_socket *s)
 
 	s->resource_data = (void *) data;
 
-	nonstatic_autoadd_resources(s);
+	analnstatic_autoadd_resources(s);
 
 	return 0;
 }
 
-static void nonstatic_release_resource_db(struct pcmcia_socket *s)
+static void analnstatic_release_resource_db(struct pcmcia_socket *s)
 {
 	struct socket_data *data = s->resource_data;
 	struct resource_map *p, *q;
@@ -1058,14 +1058,14 @@ static void nonstatic_release_resource_db(struct pcmcia_socket *s)
 }
 
 
-struct pccard_resource_ops pccard_nonstatic_ops = {
-	.validate_mem = pcmcia_nonstatic_validate_mem,
-	.find_io = nonstatic_find_io,
-	.find_mem = nonstatic_find_mem_region,
-	.init = nonstatic_init,
-	.exit = nonstatic_release_resource_db,
+struct pccard_resource_ops pccard_analnstatic_ops = {
+	.validate_mem = pcmcia_analnstatic_validate_mem,
+	.find_io = analnstatic_find_io,
+	.find_mem = analnstatic_find_mem_region,
+	.init = analnstatic_init,
+	.exit = analnstatic_release_resource_db,
 };
-EXPORT_SYMBOL(pccard_nonstatic_ops);
+EXPORT_SYMBOL(pccard_analnstatic_ops);
 
 
 /* sysfs interface to the resource database */
@@ -1206,7 +1206,7 @@ static int pccard_sysfs_add_rsrc(struct device *dev)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
 
-	if (s->resource_ops != &pccard_nonstatic_ops)
+	if (s->resource_ops != &pccard_analnstatic_ops)
 		return 0;
 	return sysfs_create_group(&dev->kobj, &rsrc_attributes);
 }
@@ -1215,7 +1215,7 @@ static void pccard_sysfs_remove_rsrc(struct device *dev)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
 
-	if (s->resource_ops != &pccard_nonstatic_ops)
+	if (s->resource_ops != &pccard_analnstatic_ops)
 		return;
 	sysfs_remove_group(&dev->kobj, &rsrc_attributes);
 }
@@ -1226,15 +1226,15 @@ static struct class_interface pccard_rsrc_interface __refdata = {
 	.remove_dev = &pccard_sysfs_remove_rsrc,
 };
 
-static int __init nonstatic_sysfs_init(void)
+static int __init analnstatic_sysfs_init(void)
 {
 	return class_interface_register(&pccard_rsrc_interface);
 }
 
-static void __exit nonstatic_sysfs_exit(void)
+static void __exit analnstatic_sysfs_exit(void)
 {
 	class_interface_unregister(&pccard_rsrc_interface);
 }
 
-module_init(nonstatic_sysfs_init);
-module_exit(nonstatic_sysfs_exit);
+module_init(analnstatic_sysfs_init);
+module_exit(analnstatic_sysfs_exit);

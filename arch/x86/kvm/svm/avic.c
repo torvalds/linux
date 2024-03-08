@@ -34,7 +34,7 @@
  *
  * For the vCPU ID, use however many bits are currently allowed for the max
  * guest physical APIC ID (limited by the size of the physical ID table), and
- * use whatever bits remain to assign arbitrary AVIC IDs to VMs.  Note, the
+ * use whatever bits remain to assign arbitrary AVIC IDs to VMs.  Analte, the
  * size of the GATag is defined by hardware (32 bits), but is an opaque value
  * as far as hardware is concerned.
  */
@@ -62,9 +62,9 @@ static_assert(__AVIC_GATAG(AVIC_VM_ID_MASK, AVIC_VCPU_ID_MASK) == -1u);
 static bool force_avic;
 module_param_unsafe(force_avic, bool, 0444);
 
-/* Note:
+/* Analte:
  * This hash table is used to map VM_ID to a struct kvm_svm,
- * when handling AMD IOMMU GALOG notification to schedule in
+ * when handling AMD IOMMU GALOG analtification to schedule in
  * a particular vCPU.
  */
 #define SVM_VM_DATA_HASH_BITS	8
@@ -78,7 +78,7 @@ bool x2avic_enabled;
  * This is a wrapper of struct amd_iommu_ir_data.
  */
 struct amd_svm_iommu_ir {
-	struct list_head node;	/* Used by SVM for per-vcpu ir_list */
+	struct list_head analde;	/* Used by SVM for per-vcpu ir_list */
 	void *data;		/* Storing pointer to struct amd_ir_data */
 };
 
@@ -92,7 +92,7 @@ static void avic_activate_vmcb(struct vcpu_svm *svm)
 	vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
 
 	/*
-	 * Note: KVM supports hybrid-AVIC mode, where KVM emulates x2APIC MSR
+	 * Analte: KVM supports hybrid-AVIC mode, where KVM emulates x2APIC MSR
 	 * accesses, while interrupt injection to a running vCPU can be
 	 * achieved using AVIC doorbell.  KVM disables the APIC access page
 	 * (deletes the memslot) if any vCPU has x2APIC enabled, thus enabling
@@ -105,7 +105,7 @@ static void avic_activate_vmcb(struct vcpu_svm *svm)
 		svm_set_x2apic_msr_interception(svm, false);
 	} else {
 		/*
-		 * Flush the TLB, the guest may have inserted a non-APIC
+		 * Flush the TLB, the guest may have inserted a analn-APIC
 		 * mapping into the TLB while AVIC was disabled.
 		 */
 		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, &svm->vcpu);
@@ -126,7 +126,7 @@ static void avic_deactivate_vmcb(struct vcpu_svm *svm)
 
 	/*
 	 * If running nested and the guest uses its own MSR bitmap, there
-	 * is no need to update L0's msr bitmap
+	 * is anal need to update L0's msr bitmap
 	 */
 	if (is_guest_mode(&svm->vcpu) &&
 	    vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_MSR_PROT))
@@ -136,11 +136,11 @@ static void avic_deactivate_vmcb(struct vcpu_svm *svm)
 	svm_set_x2apic_msr_interception(svm, true);
 }
 
-/* Note:
- * This function is called from IOMMU driver to notify
+/* Analte:
+ * This function is called from IOMMU driver to analtify
  * SVM to schedule in a particular vCPU of a particular VM.
  */
-int avic_ga_log_notifier(u32 ga_tag)
+int avic_ga_log_analtifier(u32 ga_tag)
 {
 	unsigned long flags;
 	struct kvm_svm *kvm_svm;
@@ -152,7 +152,7 @@ int avic_ga_log_notifier(u32 ga_tag)
 	trace_kvm_avic_ga_log(vm_id, vcpu_id);
 
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
-	hash_for_each_possible(svm_vm_data_hash, kvm_svm, hnode, vm_id) {
+	hash_for_each_possible(svm_vm_data_hash, kvm_svm, hanalde, vm_id) {
 		if (kvm_svm->avic_vm_id != vm_id)
 			continue;
 		vcpu = kvm_get_vcpu_by_id(&kvm_svm->kvm, vcpu_id);
@@ -160,7 +160,7 @@ int avic_ga_log_notifier(u32 ga_tag)
 	}
 	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
 
-	/* Note:
+	/* Analte:
 	 * At this point, the IOMMU should have already set the pending
 	 * bit in the vAPIC backing page. So, we just need to schedule
 	 * in the vcpu.
@@ -185,14 +185,14 @@ void avic_vm_destroy(struct kvm *kvm)
 		__free_page(kvm_svm->avic_physical_id_table_page);
 
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
-	hash_del(&kvm_svm->hnode);
+	hash_del(&kvm_svm->hanalde);
 	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
 }
 
 int avic_vm_init(struct kvm *kvm)
 {
 	unsigned long flags;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
 	struct kvm_svm *k2;
 	struct page *p_page;
@@ -219,19 +219,19 @@ int avic_vm_init(struct kvm *kvm)
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
  again:
 	vm_id = next_vm_id = (next_vm_id + 1) & AVIC_VM_ID_MASK;
-	if (vm_id == 0) { /* id is 1-based, zero is not okay */
+	if (vm_id == 0) { /* id is 1-based, zero is analt okay */
 		next_vm_id_wrapped = 1;
 		goto again;
 	}
 	/* Is it still in use? Only possible if wrapped at least once */
 	if (next_vm_id_wrapped) {
-		hash_for_each_possible(svm_vm_data_hash, k2, hnode, vm_id) {
+		hash_for_each_possible(svm_vm_data_hash, k2, hanalde, vm_id) {
 			if (k2->avic_vm_id == vm_id)
 				goto again;
 		}
 	}
 	kvm_svm->avic_vm_id = vm_id;
-	hash_add(svm_vm_data_hash, &kvm_svm->hnode, kvm_svm->avic_vm_id);
+	hash_add(svm_vm_data_hash, &kvm_svm->hanalde, kvm_svm->avic_vm_id);
 	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
 
 	return 0;
@@ -291,8 +291,8 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 		int ret;
 
 		/*
-		 * Note, AVIC hardware walks the nested page table to check
-		 * permissions, but does not use the SPA address specified in
+		 * Analte, AVIC hardware walks the nested page table to check
+		 * permissions, but does analt use the SPA address specified in
 		 * the leaf SPTE since it uses address in the AVIC_BACKING_PAGE
 		 * pointer field of the VMCB.
 		 */
@@ -321,11 +321,11 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 void avic_ring_doorbell(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * Note, the vCPU could get migrated to a different pCPU at any point,
+	 * Analte, the vCPU could get migrated to a different pCPU at any point,
 	 * which could result in signalling the wrong/previous pCPU.  But if
 	 * that happens the vCPU is guaranteed to do a VMRUN (after being
 	 * migrated) and thus will process pending interrupts, i.e. a doorbell
-	 * is not needed (and the spurious one is harmless).
+	 * is analt needed (and the spurious one is harmless).
 	 */
 	int cpu = READ_ONCE(vcpu->cpu);
 
@@ -355,7 +355,7 @@ static void avic_kick_vcpu_by_physical_id(struct kvm *kvm, u32 physical_id,
 	 */
 	struct kvm_vcpu *target_vcpu = kvm_get_vcpu_by_id(kvm, physical_id);
 
-	/* Once again, nothing to do if the target vCPU doesn't exist. */
+	/* Once again, analthing to do if the target vCPU doesn't exist. */
 	if (unlikely(!target_vcpu))
 		return;
 
@@ -370,7 +370,7 @@ static void avic_kick_vcpu_by_logical_id(struct kvm *kvm, u32 *avic_logical_id_t
 	if (avic_logical_id_table) {
 		u32 logid_entry = avic_logical_id_table[logid_index];
 
-		/* Nothing to do if the logical destination is invalid. */
+		/* Analthing to do if the logical destination is invalid. */
 		if (unlikely(!(logid_entry & AVIC_LOGICAL_ID_ENTRY_VALID_MASK)))
 			return;
 
@@ -380,7 +380,7 @@ static void avic_kick_vcpu_by_logical_id(struct kvm *kvm, u32 *avic_logical_id_t
 		/*
 		 * For x2APIC, the logical APIC ID is a read-only value that is
 		 * derived from the x2APIC ID, thus the x2APIC ID can be found
-		 * by reversing the calculation (stored in logid_index).  Note,
+		 * by reversing the calculation (stored in logid_index).  Analte,
 		 * bits 31:20 of the x2APIC ID aren't propagated to the logical
 		 * ID, but KVM limits the x2APIC ID limited to KVM_MAX_VCPU_IDS.
 		 */
@@ -402,7 +402,7 @@ static int avic_kick_target_vcpus_fast(struct kvm *kvm, struct kvm_lapic *source
 	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
 	u32 dest;
 
-	if (shorthand != APIC_DEST_NOSHORT)
+	if (shorthand != APIC_DEST_ANALSHORT)
 		return -EINVAL;
 
 	if (apic_x2apic_mode(source))
@@ -440,7 +440,7 @@ static int avic_kick_target_vcpus_fast(struct kvm *kvm, struct kvm_lapic *source
 			cluster = (dest >> 4) << 2;
 		}
 
-		/* Nothing to do if there are no destinations in the cluster. */
+		/* Analthing to do if there are anal destinations in the cluster. */
 		if (unlikely(!bitmap))
 			return 0;
 
@@ -476,7 +476,7 @@ static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
 
 	/*
 	 * Wake any target vCPUs that are blocking, i.e. waiting for a wake
-	 * event.  There's no need to signal doorbells, as hardware has handled
+	 * event.  There's anal need to signal doorbells, as hardware has handled
 	 * vCPUs that were in guest at the time of the IPI, and vCPUs that have
 	 * since entered the guest will have processed pending IRQs at VMRUN.
 	 */
@@ -502,7 +502,7 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 	case AVIC_IPI_FAILURE_INVALID_TARGET:
 	case AVIC_IPI_FAILURE_INVALID_INT_TYPE:
 		/*
-		 * Emulate IPIs that are not handled by AVIC hardware, which
+		 * Emulate IPIs that are analt handled by AVIC hardware, which
 		 * only virtualizes Fixed, Edge-Triggered INTRs, and falls over
 		 * if _any_ targets are invalid, e.g. if the logical mode mask
 		 * is a superset of running vCPUs.
@@ -514,11 +514,11 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 		 * order to clear the BUSY flag.
 		 */
 		if (icrl & APIC_ICR_BUSY)
-			kvm_apic_write_nodecode(vcpu, APIC_ICR);
+			kvm_apic_write_analdecode(vcpu, APIC_ICR);
 		else
 			kvm_apic_send_ipi(apic, icrl, icrh);
 		break;
-	case AVIC_IPI_FAILURE_TARGET_NOT_RUNNING:
+	case AVIC_IPI_FAILURE_TARGET_ANALT_RUNNING:
 		/*
 		 * At this point, we expect that the AVIC HW has already
 		 * set the appropriate IRR bits on the valid target
@@ -533,7 +533,7 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 		/* Invalid IPI with vector < 16 */
 		break;
 	default:
-		vcpu_unimpl(vcpu, "Unknown avic incomplete IPI interception\n");
+		vcpu_unimpl(vcpu, "Unkanalwn avic incomplete IPI interception\n");
 	}
 
 	return 1;
@@ -598,7 +598,7 @@ static void avic_invalidate_logical_id_entry(struct kvm_vcpu *vcpu)
 	bool flat = svm->dfr_reg == APIC_DFR_FLAT;
 	u32 *entry;
 
-	/* Note: x2AVIC does not use logical APIC ID table */
+	/* Analte: x2AVIC does analt use logical APIC ID table */
 	if (apic_x2apic_mode(vcpu->arch.apic))
 		return;
 
@@ -613,7 +613,7 @@ static void avic_handle_ldr_update(struct kvm_vcpu *vcpu)
 	u32 ldr = kvm_lapic_get_reg(vcpu->arch.apic, APIC_LDR);
 	u32 id = kvm_xapic_id(vcpu->arch.apic);
 
-	/* AVIC does not support LDR update for x2APIC */
+	/* AVIC does analt support LDR update for x2APIC */
 	if (apic_x2apic_mode(vcpu->arch.apic))
 		return;
 
@@ -651,13 +651,13 @@ static int avic_unaccel_trap_write(struct kvm_vcpu *vcpu)
 		avic_handle_dfr_update(vcpu);
 		break;
 	case APIC_RRR:
-		/* Ignore writes to Read Remote Data, it's read-only. */
+		/* Iganalre writes to Read Remote Data, it's read-only. */
 		return 1;
 	default:
 		break;
 	}
 
-	kvm_apic_write_nodecode(vcpu, offset);
+	kvm_apic_write_analdecode(vcpu, offset);
 	return 1;
 }
 
@@ -760,7 +760,7 @@ static int avic_set_pi_irte_mode(struct kvm_vcpu *vcpu, bool activate)
 	if (list_empty(&svm->ir_list))
 		goto out;
 
-	list_for_each_entry(ir, &svm->ir_list, node) {
+	list_for_each_entry(ir, &svm->ir_list, analde) {
 		if (activate)
 			ret = amd_iommu_activate_guest_mode(ir->data);
 		else
@@ -779,10 +779,10 @@ static void svm_ir_list_del(struct vcpu_svm *svm, struct amd_iommu_pi_data *pi)
 	struct amd_svm_iommu_ir *cur;
 
 	spin_lock_irqsave(&svm->ir_list_lock, flags);
-	list_for_each_entry(cur, &svm->ir_list, node) {
+	list_for_each_entry(cur, &svm->ir_list, analde) {
 		if (cur->data != pi->ir_data)
 			continue;
-		list_del(&cur->node);
+		list_del(&cur->analde);
 		kfree(cur);
 		break;
 	}
@@ -822,7 +822,7 @@ static int svm_ir_list_add(struct vcpu_svm *svm, struct amd_iommu_pi_data *pi)
 	 */
 	ir = kzalloc(sizeof(struct amd_svm_iommu_ir), GFP_KERNEL_ACCOUNT);
 	if (!ir) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ir->data = pi->ir_data;
@@ -831,7 +831,7 @@ static int svm_ir_list_add(struct vcpu_svm *svm, struct amd_iommu_pi_data *pi)
 
 	/*
 	 * Update the target pCPU for IOMMU doorbells if the vCPU is running.
-	 * If the vCPU is NOT running, i.e. is blocking or scheduled out, KVM
+	 * If the vCPU is ANALT running, i.e. is blocking or scheduled out, KVM
 	 * will update the pCPU info when the vCPU awkened and/or scheduled in.
 	 * See also avic_vcpu_load().
 	 */
@@ -840,15 +840,15 @@ static int svm_ir_list_add(struct vcpu_svm *svm, struct amd_iommu_pi_data *pi)
 		amd_iommu_update_ga(entry & AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK,
 				    true, pi->ir_data);
 
-	list_add(&ir->node, &svm->ir_list);
+	list_add(&ir->analde, &svm->ir_list);
 	spin_unlock_irqrestore(&svm->ir_list_lock, flags);
 out:
 	return ret;
 }
 
 /*
- * Note:
- * The HW cannot support posting multicast/broadcast
+ * Analte:
+ * The HW cananalt support posting multicast/broadcast
  * interrupts to a vCPU. So, we still use legacy interrupt
  * remapping for these kind of interrupts.
  *
@@ -910,7 +910,7 @@ int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
 
 	if (guest_irq >= irq_rt->nr_rt_entries ||
 		hlist_empty(&irq_rt->map[guest_irq])) {
-		pr_warn_once("no route for guest_irq %u/%u (broken user space?)\n",
+		pr_warn_once("anal route for guest_irq %u/%u (broken user space?)\n",
 			     guest_irq, irq_rt->nr_rt_entries);
 		goto out;
 	}
@@ -924,7 +924,7 @@ int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
 
 		/**
 		 * Here, we setup with legacy mode in the following cases:
-		 * 1. When cannot target interrupt to a specific vcpu.
+		 * 1. When cananalt target interrupt to a specific vcpu.
 		 * 2. Unsetting posted interrupt.
 		 * 3. APIC virtualization is disabled for the vcpu.
 		 * 4. IRQ has incompatible delivery mode (SMI, INIT, etc)
@@ -944,7 +944,7 @@ int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
 
 			/**
 			 * Here, we successfully setting up vcpu affinity in
-			 * IOMMU guest mode. Now, we need to store the posted
+			 * IOMMU guest mode. Analw, we need to store the posted
 			 * interrupt information in a per-vcpu ir_list so that
 			 * we can reference to them directly when we update vcpu
 			 * scheduling information in IOMMU irte.
@@ -1017,7 +1017,7 @@ avic_update_iommu_vcpu_affinity(struct kvm_vcpu *vcpu, int cpu, bool r)
 	if (list_empty(&svm->ir_list))
 		return 0;
 
-	list_for_each_entry(ir, &svm->ir_list, node) {
+	list_for_each_entry(ir, &svm->ir_list, analde) {
 		ret = amd_iommu_update_ga(cpu, r, ir->data);
 		if (ret)
 			return ret;
@@ -1038,7 +1038,7 @@ void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		return;
 
 	/*
-	 * No need to update anything if the vCPU is blocking, i.e. if the vCPU
+	 * Anal need to update anything if the vCPU is blocking, i.e. if the vCPU
 	 * is being scheduled in after being preempted.  The CPU entries in the
 	 * Physical APIC table and IRTE are consumed iff IsRun{ning} is '1'.
 	 * If the vCPU was migrated, its new CPU value will be stuffed when the
@@ -1078,7 +1078,7 @@ void avic_vcpu_put(struct kvm_vcpu *vcpu)
 	lockdep_assert_preemption_disabled();
 
 	/*
-	 * Note, reading the Physical ID entry outside of ir_list_lock is safe
+	 * Analte, reading the Physical ID entry outside of ir_list_lock is safe
 	 * as only the pCPU that has loaded (or is loading) the vCPU is allowed
 	 * to modify the entry, and preemption is disabled.  I.e. the vCPU
 	 * can't be scheduled out and thus avic_vcpu_{put,load}() can't run
@@ -1086,7 +1086,7 @@ void avic_vcpu_put(struct kvm_vcpu *vcpu)
 	 */
 	entry = READ_ONCE(*(svm->avic_physical_id_cache));
 
-	/* Nothing to do if IsRunning == '0' due to vCPU blocking. */
+	/* Analthing to do if IsRunning == '0' due to vCPU blocking. */
 	if (!(entry & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK))
 		return;
 
@@ -1096,7 +1096,7 @@ void avic_vcpu_put(struct kvm_vcpu *vcpu)
 	 * multiple writers (see above).  Holding ir_list_lock ensures that
 	 * either svm_ir_list_add() will consume up-to-date entry information,
 	 * or that this task will wait until svm_ir_list_add() completes to
-	 * mark the vCPU as not running.
+	 * mark the vCPU as analt running.
 	 */
 	spin_lock_irqsave(&svm->ir_list_lock, flags);
 
@@ -1120,7 +1120,7 @@ void avic_refresh_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	if (kvm_vcpu_apicv_active(vcpu)) {
 		/**
 		 * During AVIC temporary deactivation, guest could update
-		 * APIC ID, DFR and LDR registers, which would not be trapped
+		 * APIC ID, DFR and LDR registers, which would analt be trapped
 		 * by avic_unaccelerated_access_interception(). In this case,
 		 * we need to check and update the AVIC logical APIC ID table
 		 * accordingly before re-activating.
@@ -1159,7 +1159,7 @@ void avic_vcpu_blocking(struct kvm_vcpu *vcpu)
         * Unload the AVIC when the vCPU is about to block, _before_
         * the vCPU actually blocks.
         *
-        * Any IRQs that arrive before IsRunning=0 will not cause an
+        * Any IRQs that arrive before IsRunning=0 will analt cause an
         * incomplete IPI vmexit on the source, therefore vIRR will also
         * be checked by kvm_vcpu_check_block() before blocking.  The
         * memory barrier implicit in set_current_state orders writing
@@ -1180,7 +1180,7 @@ void avic_vcpu_unblocking(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Note:
+ * Analte:
  * - The module param avic enable both xAPIC and x2APIC mode.
  * - Hypervisor can support both xAVIC and x2AVIC in the same guest.
  * - The mode can be switched at run-time.
@@ -1193,7 +1193,7 @@ bool avic_hardware_setup(void)
 	/* AVIC is a prerequisite for x2AVIC. */
 	if (!boot_cpu_has(X86_FEATURE_AVIC) && !force_avic) {
 		if (boot_cpu_has(X86_FEATURE_X2AVIC)) {
-			pr_warn(FW_BUG "Cannot support x2AVIC due to AVIC is disabled");
+			pr_warn(FW_BUG "Cananalt support x2AVIC due to AVIC is disabled");
 			pr_warn(FW_BUG "Try enable AVIC using force_avic option");
 		}
 		return false;
@@ -1203,10 +1203,10 @@ bool avic_hardware_setup(void)
 		pr_info("AVIC enabled\n");
 	} else if (force_avic) {
 		/*
-		 * Some older systems does not advertise AVIC support.
+		 * Some older systems does analt advertise AVIC support.
 		 * See Revision Guide for specific AMD processor for more detail.
 		 */
-		pr_warn("AVIC is not supported in CPUID but force enabled");
+		pr_warn("AVIC is analt supported in CPUID but force enabled");
 		pr_warn("Your system might crash and burn");
 	}
 
@@ -1215,7 +1215,7 @@ bool avic_hardware_setup(void)
 	if (x2avic_enabled)
 		pr_info("x2AVIC enabled\n");
 
-	amd_iommu_register_ga_log_notifier(&avic_ga_log_notifier);
+	amd_iommu_register_ga_log_analtifier(&avic_ga_log_analtifier);
 
 	return true;
 }

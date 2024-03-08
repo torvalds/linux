@@ -28,7 +28,7 @@
 #include <net/netfilter/nf_conntrack_timeout.h>
 
 static const char *const sctp_conntrack_names[] = {
-	[SCTP_CONNTRACK_NONE]			= "NONE",
+	[SCTP_CONNTRACK_ANALNE]			= "ANALNE",
 	[SCTP_CONNTRACK_CLOSED]			= "CLOSED",
 	[SCTP_CONNTRACK_COOKIE_WAIT]		= "COOKIE_WAIT",
 	[SCTP_CONNTRACK_COOKIE_ECHOED]		= "COOKIE_ECHOED",
@@ -57,7 +57,7 @@ static const unsigned int sctp_timeouts[SCTP_CONNTRACK_MAX] = {
 
 #define	SCTP_FLAG_HEARTBEAT_VTAG_FAILED	1
 
-#define sNO SCTP_CONNTRACK_NONE
+#define sANAL SCTP_CONNTRACK_ANALNE
 #define	sCL SCTP_CONNTRACK_CLOSED
 #define	sCW SCTP_CONNTRACK_COOKIE_WAIT
 #define	sCE SCTP_CONNTRACK_COOKIE_ECHOED
@@ -71,12 +71,12 @@ static const unsigned int sctp_timeouts[SCTP_CONNTRACK_MAX] = {
 /*
 	These are the descriptions of the states:
 
-NOTE: These state names are tantalizingly similar to the states of an
+ANALTE: These state names are tantalizingly similar to the states of an
 SCTP endpoint. But the interpretation of the states is a little different,
-considering that these are the states of the connection and not of an end
-point. Please note the subtleties. -Kiran
+considering that these are the states of the connection and analt of an end
+point. Please analte the subtleties. -Kiran
 
-NONE              - Nothing so far.
+ANALNE              - Analthing so far.
 COOKIE WAIT       - We have seen an INIT chunk in the original direction, or also
 		    an INIT_ACK chunk in the reply direction.
 COOKIE ECHOED     - We have seen a COOKIE_ECHO chunk in the original direction.
@@ -104,7 +104,7 @@ cookie echoed to closed.
 static const u8 sctp_conntracks[2][11][SCTP_CONNTRACK_MAX] = {
 	{
 /*	ORIGINAL	*/
-/*                  sNO, sCL, sCW, sCE, sES, sSS, sSR, sSA, sHS */
+/*                  sANAL, sCL, sCW, sCE, sES, sSS, sSR, sSA, sHS */
 /* init         */ {sCL, sCL, sCW, sCE, sES, sCL, sCL, sSA, sCW},
 /* init_ack     */ {sCL, sCL, sCW, sCE, sES, sSS, sSR, sSA, sCL},
 /* abort        */ {sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL},
@@ -119,7 +119,7 @@ static const u8 sctp_conntracks[2][11][SCTP_CONNTRACK_MAX] = {
 	},
 	{
 /*	REPLY	*/
-/*                  sNO, sCL, sCW, sCE, sES, sSS, sSR, sSA, sHS */
+/*                  sANAL, sCL, sCW, sCE, sES, sSS, sSR, sSA, sHS */
 /* init         */ {sIV, sCL, sCW, sCE, sES, sSS, sSR, sSA, sIV},/* INIT in sCL Big TODO */
 /* init_ack     */ {sIV, sCW, sCW, sCE, sES, sSS, sSR, sSA, sIV},
 /* abort        */ {sIV, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sIV},
@@ -142,7 +142,7 @@ static void sctp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 }
 #endif
 
-/* do_basic_checks ensures sch->length > 0, do not use before */
+/* do_basic_checks ensures sch->length > 0, do analt use before */
 #define for_each_sctp_chunk(skb, sch, _sch, offset, dataoff, count)	\
 for ((offset) = (dataoff) + sizeof(struct sctphdr), (count) = 0;	\
 	(offset) < (skb)->len &&					\
@@ -169,8 +169,8 @@ static int do_basic_checks(struct nf_conn *ct,
 			flag = 1;
 
 		/*
-		 * Cookie Ack/Echo chunks not the first OR
-		 * Init / Init Ack / Shutdown compl chunks not the only chunks
+		 * Cookie Ack/Echo chunks analt the first OR
+		 * Init / Init Ack / Shutdown compl chunks analt the only chunks
 		 * OR zero-length.
 		 */
 		if (((sch->type == SCTP_CID_COOKIE_ACK ||
@@ -231,8 +231,8 @@ static int sctp_new_state(enum ip_conntrack_dir dir,
 		i = 10;
 		break;
 	default:
-		/* Other chunks like DATA or SACK do not change the state */
-		pr_debug("Unknown chunk type %d, Will stay in %s\n",
+		/* Other chunks like DATA or SACK do analt change the state */
+		pr_debug("Unkanalwn chunk type %d, Will stay in %s\n",
 			 chunk_type, sctp_conntrack_names[cur_state]);
 		return cur_state;
 	}
@@ -240,8 +240,8 @@ static int sctp_new_state(enum ip_conntrack_dir dir,
 	return sctp_conntracks[dir][i][cur_state];
 }
 
-/* Don't need lock here: this conntrack not in circulation yet */
-static noinline bool
+/* Don't need lock here: this conntrack analt in circulation yet */
+static analinline bool
 sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	 const struct sctphdr *sh, unsigned int dataoff)
 {
@@ -254,10 +254,10 @@ sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	new_state = SCTP_CONNTRACK_MAX;
 	for_each_sctp_chunk(skb, sch, _sch, offset, dataoff, count) {
 		new_state = sctp_new_state(IP_CT_DIR_ORIGINAL,
-					   SCTP_CONNTRACK_NONE, sch->type);
+					   SCTP_CONNTRACK_ANALNE, sch->type);
 
 		/* Invalid: delete conntrack */
-		if (new_state == SCTP_CONNTRACK_NONE ||
+		if (new_state == SCTP_CONNTRACK_ANALNE ||
 		    new_state == SCTP_CONNTRACK_MAX) {
 			pr_debug("nf_conntrack_sctp: invalid new deleting.\n");
 			return false;
@@ -291,7 +291,7 @@ sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 			ct->proto.sctp.vtag[IP_CT_DIR_REPLY] = sh->vtag;
 		}
 
-		ct->proto.sctp.state = SCTP_CONNTRACK_NONE;
+		ct->proto.sctp.state = SCTP_CONNTRACK_ANALNE;
 	}
 
 	return true;
@@ -310,7 +310,7 @@ static bool sctp_error(struct sk_buff *skb,
 	}
 	if (state->hook == NF_INET_PRE_ROUTING &&
 	    state->net->ct.sysctl_checksum &&
-	    skb->ip_summed == CHECKSUM_NONE) {
+	    skb->ip_summed == CHECKSUM_ANALNE) {
 		if (skb_ensure_writable(skb, dataoff + sizeof(*sh))) {
 			logmsg = "nf_ct_sctp: failed to read header ";
 			goto out_invalid;
@@ -344,7 +344,7 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 	u_int32_t offset, count;
 	unsigned int *timeouts;
 	unsigned long map[256 / sizeof(unsigned long)] = { 0 };
-	bool ignore = false;
+	bool iganalre = false;
 
 	if (sctp_error(skb, dataoff, state))
 		return -NF_ACCEPT;
@@ -382,7 +382,7 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 		goto out;
 	}
 
-	old_state = new_state = SCTP_CONNTRACK_NONE;
+	old_state = new_state = SCTP_CONNTRACK_ANALNE;
 	spin_lock_bh(&ct->lock);
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
 		/* Special cases of Verification tag check (Sec 8.5.1) */
@@ -420,12 +420,12 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 				pr_debug("Setting %d vtag %x for dir %d\n", sch->type, sh->vtag, dir);
 				ct->proto.sctp.vtag[dir] = sh->vtag;
 			} else if (sh->vtag != ct->proto.sctp.vtag[dir]) {
-				if (test_bit(SCTP_CID_DATA, map) || ignore)
+				if (test_bit(SCTP_CID_DATA, map) || iganalre)
 					goto out_unlock;
 
 				ct->proto.sctp.flags |= SCTP_FLAG_HEARTBEAT_VTAG_FAILED;
 				ct->proto.sctp.last_dir = dir;
-				ignore = true;
+				iganalre = true;
 				continue;
 			} else if (ct->proto.sctp.flags & SCTP_FLAG_HEARTBEAT_VTAG_FAILED) {
 				ct->proto.sctp.flags &= ~SCTP_FLAG_HEARTBEAT_VTAG_FAILED;
@@ -436,7 +436,7 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 					 sh->vtag, dir);
 				ct->proto.sctp.vtag[dir] = sh->vtag;
 			} else if (sh->vtag != ct->proto.sctp.vtag[dir]) {
-				if (test_bit(SCTP_CID_DATA, map) || ignore)
+				if (test_bit(SCTP_CID_DATA, map) || iganalre)
 					goto out_unlock;
 
 				if ((ct->proto.sctp.flags & SCTP_FLAG_HEARTBEAT_VTAG_FAILED) == 0 ||
@@ -463,7 +463,7 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 			goto out_unlock;
 		}
 
-		/* If it is an INIT or an INIT ACK note down the vtag */
+		/* If it is an INIT or an INIT ACK analte down the vtag */
 		if (sch->type == SCTP_CID_INIT) {
 			struct sctp_inithdr _ih, *ih;
 
@@ -479,13 +479,13 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 			ct->proto.sctp.vtag[!dir] = ih->init_tag;
 
 			/* don't renew timeout on init retransmit so
-			 * port reuse by client or NAT middlebox cannot
+			 * port reuse by client or NAT middlebox cananalt
 			 * keep entry alive indefinitely (incl. nat info).
 			 */
 			if (new_state == SCTP_CONNTRACK_CLOSED &&
 			    old_state == SCTP_CONNTRACK_CLOSED &&
 			    nf_ct_is_confirmed(ct))
-				ignore = true;
+				iganalre = true;
 		} else if (sch->type == SCTP_CID_INIT_ACK) {
 			struct sctp_inithdr _ih, *ih;
 			__be32 vtag;
@@ -516,8 +516,8 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 	}
 	spin_unlock_bh(&ct->lock);
 
-	/* allow but do not refresh timeout */
-	if (ignore)
+	/* allow but do analt refresh timeout */
+	if (iganalre)
 		return NF_ACCEPT;
 
 	timeouts = nf_ct_timeout_lookup(ct);
@@ -603,7 +603,7 @@ static int nlattr_to_sctp(struct nlattr *cda[], struct nf_conn *ct)
 	struct nlattr *tb[CTA_PROTOINFO_SCTP_MAX+1];
 	int err;
 
-	/* updates may not contain the internal protocol info, skip parsing */
+	/* updates may analt contain the internal protocol info, skip parsing */
 	if (!attr)
 		return 0;
 
@@ -672,7 +672,7 @@ sctp_timeout_obj_to_nlattr(struct sk_buff *skb, const void *data)
         return 0;
 
 nla_put_failure:
-        return -ENOSPC;
+        return -EANALSPC;
 }
 
 static const struct nla_policy

@@ -157,7 +157,7 @@ static int deinterlace_job_ready(void *priv)
 		return 1;
 	}
 
-	dprintk(pcdev, "Task not ready to run\n");
+	dprintk(pcdev, "Task analt ready to run\n");
 
 	return 0;
 }
@@ -364,13 +364,13 @@ static void deinterlace_device_run(void *priv)
 	 *  V4L2_FIELD_SEQ_TB --> V4L2_FIELD_INTERLACED_TB:
 	 *	two separate fields in the same input buffer are interlaced
 	 *	in the output buffer using weaving. Top field comes first.
-	 *  V4L2_FIELD_SEQ_TB --> V4L2_FIELD_NONE:
+	 *  V4L2_FIELD_SEQ_TB --> V4L2_FIELD_ANALNE:
 	 *	top field from the input buffer is copied to the output buffer
 	 *	using line doubling. Bottom field from the input buffer is discarded.
 	 * V4L2_FIELD_SEQ_BT --> V4L2_FIELD_INTERLACED_BT:
 	 *	two separate fields in the same input buffer are interlaced
 	 *	in the output buffer using weaving. Bottom field comes first.
-	 * V4L2_FIELD_SEQ_BT --> V4L2_FIELD_NONE:
+	 * V4L2_FIELD_SEQ_BT --> V4L2_FIELD_ANALNE:
 	 *	bottom field from the input buffer is copied to the output buffer
 	 *	using line doubling. Top field from the input buffer is discarded.
 	 */
@@ -388,7 +388,7 @@ static void deinterlace_device_run(void *priv)
 			deinterlace_issue_dma(ctx, YUV420_DMA_V_ODD, 0);
 			deinterlace_issue_dma(ctx, YUV420_DMA_V_EVEN, 1);
 			break;
-		case V4L2_FIELD_NONE:
+		case V4L2_FIELD_ANALNE:
 		default:
 			dprintk(ctx->dev, "%s: yuv420 interlaced line doubling.\n",
 				__func__);
@@ -411,7 +411,7 @@ static void deinterlace_device_run(void *priv)
 			deinterlace_issue_dma(ctx, YUYV_DMA_ODD, 0);
 			deinterlace_issue_dma(ctx, YUYV_DMA_EVEN, 1);
 			break;
-		case V4L2_FIELD_NONE:
+		case V4L2_FIELD_ANALNE:
 		default:
 			dprintk(ctx->dev, "%s: yuyv interlaced line doubling.\n",
 				__func__);
@@ -462,7 +462,7 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		return 0;
 	}
 
-	/* Format not found */
+	/* Format analt found */
 	return -EINVAL;
 }
 
@@ -550,7 +550,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	if (f->fmt.pix.field != V4L2_FIELD_INTERLACED_TB &&
 	    f->fmt.pix.field != V4L2_FIELD_INTERLACED_BT &&
-	    f->fmt.pix.field != V4L2_FIELD_NONE)
+	    f->fmt.pix.field != V4L2_FIELD_ANALNE)
 		f->fmt.pix.field = V4L2_FIELD_INTERLACED_TB;
 
 	return vidioc_try_fmt(f, fmt);
@@ -672,19 +672,19 @@ static int vidioc_streamon(struct file *file, void *priv,
 	/* Check that input and output deinterlacing types are compatible */
 	switch (s_q_data->field) {
 	case V4L2_FIELD_SEQ_BT:
-		if (d_q_data->field != V4L2_FIELD_NONE &&
+		if (d_q_data->field != V4L2_FIELD_ANALNE &&
 			d_q_data->field != V4L2_FIELD_INTERLACED_BT) {
 			v4l2_err(&ctx->dev->v4l2_dev,
-			 "src and dst field conversion [(%d)->(%d)] not supported.\n",
+			 "src and dst field conversion [(%d)->(%d)] analt supported.\n",
 				s_q_data->field, d_q_data->field);
 			return -EINVAL;
 		}
 		break;
 	case V4L2_FIELD_SEQ_TB:
-		if (d_q_data->field != V4L2_FIELD_NONE &&
+		if (d_q_data->field != V4L2_FIELD_ANALNE &&
 			d_q_data->field != V4L2_FIELD_INTERLACED_TB) {
 			v4l2_err(&ctx->dev->v4l2_dev,
-			 "src and dst field conversion [(%d)->(%d)] not supported.\n",
+			 "src and dst field conversion [(%d)->(%d)] analt supported.\n",
 				s_q_data->field, d_q_data->field);
 			return -EINVAL;
 		}
@@ -766,7 +766,7 @@ static int deinterlace_buf_prepare(struct vb2_buffer *vb)
 	q_data = get_q_data(vb->vb2_queue->type);
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
-		dprintk(ctx->dev, "%s data will not fit into plane (%lu < %lu)\n",
+		dprintk(ctx->dev, "%s data will analt fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0), (long)q_data->sizeimage);
 		return -EINVAL;
 	}
@@ -845,7 +845,7 @@ static int deinterlace_open(struct file *file)
 
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
 	file->private_data = &ctx->fh;
@@ -863,7 +863,7 @@ static int deinterlace_open(struct file *file)
 				sizeof(struct data_chunk), GFP_KERNEL);
 	if (!ctx->xt) {
 		kfree(ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctx->colorspace = V4L2_COLORSPACE_REC709;
@@ -904,7 +904,7 @@ static const struct video_device deinterlace_videodev = {
 	.name		= MEM2MEM_NAME,
 	.fops		= &deinterlace_fops,
 	.ioctl_ops	= &deinterlace_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release_empty,
 	.vfl_dir	= VFL_DIR_M2M,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
@@ -925,7 +925,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 
 	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&pcdev->irqlock);
 
@@ -933,11 +933,11 @@ static int deinterlace_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_INTERLEAVE, mask);
 	pcdev->dma_chan = dma_request_channel(mask, NULL, pcdev);
 	if (!pcdev->dma_chan)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!dma_has_cap(DMA_INTERLEAVE, pcdev->dma_chan->device->cap_mask)) {
-		dev_err(&pdev->dev, "DMA does not support INTERLEAVE\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "DMA does analt support INTERLEAVE\n");
+		ret = -EANALDEV;
 		goto rel_dma;
 	}
 

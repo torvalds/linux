@@ -27,7 +27,7 @@ int aead_encrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad, size_t aad_len,
 
 	aead_req = kzalloc(reqsize + aad_len, GFP_ATOMIC);
 	if (!aead_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__aad = (u8 *)aead_req + reqsize;
 	memcpy(__aad, aad, aad_len);
@@ -62,7 +62,7 @@ int aead_decrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad, size_t aad_len,
 
 	aead_req = kzalloc(reqsize + aad_len, GFP_ATOMIC);
 	if (!aead_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__aad = (u8 *)aead_req + reqsize;
 	memcpy(__aad, aad, aad_len);

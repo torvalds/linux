@@ -451,7 +451,7 @@ static int skl_unload_module(struct sst_dsp *ctx, u16 mod_id)
 		return -EIO;
 	}
 
-	/* if module is used by others return, no need to unload */
+	/* if module is used by others return, anal need to unload */
 	if (usage_cnt > 0)
 		return 0;
 
@@ -524,7 +524,7 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	ret = skl_sst_ctx_init(dev, irq, fw_name, dsp_ops, dsp, &skl_dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: no device\n", __func__);
+		dev_err(dev, "%s: anal device\n", __func__);
 		return ret;
 	}
 

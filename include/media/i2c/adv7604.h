@@ -25,7 +25,7 @@ enum adv7604_ain_sel {
  * outputs RGB.
  */
 enum adv7604_bus_order {
-	ADV7604_BUS_ORDER_RGB,		/* No operation	*/
+	ADV7604_BUS_ORDER_RGB,		/* Anal operation	*/
 	ADV7604_BUS_ORDER_GRB,		/* Swap 1-2	*/
 	ADV7604_BUS_ORDER_RBG,		/* Swap 2-3	*/
 	ADV7604_BUS_ORDER_BGR,		/* Swap 1-3	*/
@@ -151,7 +151,7 @@ enum adv76xx_pad {
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR_MANUAL	(V4L2_CID_DV_CLASS_BASE + 0x1001)
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR		(V4L2_CID_DV_CLASS_BASE + 0x1002)
 
-/* notify events */
+/* analtify events */
 #define ADV76XX_HOTPLUG		1
 
 #endif

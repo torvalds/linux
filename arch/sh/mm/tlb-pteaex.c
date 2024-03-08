@@ -56,7 +56,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	__raw_writel(pteval, MMU_PTEL);
 
 	/* Load the TLB */
-	asm volatile("ldtlb": /* no output */ : /* no input */ : "memory");
+	asm volatile("ldtlb": /* anal output */ : /* anal input */ : "memory");
 	local_irq_restore(flags);
 }
 

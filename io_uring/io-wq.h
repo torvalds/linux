@@ -18,7 +18,7 @@ enum {
 enum io_wq_cancel {
 	IO_WQ_CANCEL_OK,	/* cancelled before started */
 	IO_WQ_CANCEL_RUNNING,	/* found, running, and attempted cancelled */
-	IO_WQ_CANCEL_NOTFOUND,	/* work not found */
+	IO_WQ_CANCEL_ANALTFOUND,	/* work analt found */
 };
 
 typedef struct io_wq_work *(free_work_fn)(struct io_wq_work *);

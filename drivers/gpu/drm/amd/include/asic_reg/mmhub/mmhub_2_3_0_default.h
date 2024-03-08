@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -169,8 +169,8 @@
 #define mmDAGB0_WRCLI_OSD_PENDING_DEFAULT                                        0x00000000
 #define mmDAGB0_WRCLI_DBUS_ASK_PENDING_DEFAULT                                   0x00000000
 #define mmDAGB0_WRCLI_DBUS_GO_PENDING_DEFAULT                                    0x00000000
-#define mmDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_DEFAULT                                 0x00000000
-#define mmDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE_DEFAULT                           0x00000000
+#define mmDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_DEFAULT                                 0x00000000
+#define mmDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE_DEFAULT                           0x00000000
 #define mmDAGB0_DAGB_DLY_DEFAULT                                                 0x00000000
 #define mmDAGB0_CNTL_MISC_DEFAULT                                                0xcf7c1ffa
 #define mmDAGB0_CNTL_MISC2_DEFAULT                                               0x00fbd000
@@ -222,13 +222,13 @@
 #define mmMMEA0_DRAM_WR_PRI_QUANT_PRI1_DEFAULT                                   0x3f3f3f3f
 #define mmMMEA0_DRAM_WR_PRI_QUANT_PRI2_DEFAULT                                   0x7f7f7f7f
 #define mmMMEA0_DRAM_WR_PRI_QUANT_PRI3_DEFAULT                                   0xffffffff
-#define mmMMEA0_ADDRNORM_BASE_ADDR0_DEFAULT                                      0x00000000
-#define mmMMEA0_ADDRNORM_LIMIT_ADDR0_DEFAULT                                     0x00000000
-#define mmMMEA0_ADDRNORM_BASE_ADDR1_DEFAULT                                      0x00000000
-#define mmMMEA0_ADDRNORM_LIMIT_ADDR1_DEFAULT                                     0x00000000
-#define mmMMEA0_ADDRNORM_OFFSET_ADDR1_DEFAULT                                    0x00000000
-#define mmMMEA0_ADDRNORMDRAM_HOLE_CNTL_DEFAULT                                   0x00000000
-#define mmMMEA0_ADDRNORMDRAM_NP2_CHANNEL_CFG_DEFAULT                             0x00000000
+#define mmMMEA0_ADDRANALRM_BASE_ADDR0_DEFAULT                                      0x00000000
+#define mmMMEA0_ADDRANALRM_LIMIT_ADDR0_DEFAULT                                     0x00000000
+#define mmMMEA0_ADDRANALRM_BASE_ADDR1_DEFAULT                                      0x00000000
+#define mmMMEA0_ADDRANALRM_LIMIT_ADDR1_DEFAULT                                     0x00000000
+#define mmMMEA0_ADDRANALRM_OFFSET_ADDR1_DEFAULT                                    0x00000000
+#define mmMMEA0_ADDRANALRMDRAM_HOLE_CNTL_DEFAULT                                   0x00000000
+#define mmMMEA0_ADDRANALRMDRAM_NP2_CHANNEL_CFG_DEFAULT                             0x00000000
 #define mmMMEA0_ADDRDEC_BANK_CFG_DEFAULT                                         0x000003cf
 #define mmMMEA0_ADDRDEC_MISC_CFG_DEFAULT                                         0xfffff000
 #define mmMMEA0_ADDRDECDRAM_ADDR_HASH_BANK0_DEFAULT                              0x00000000
@@ -298,7 +298,7 @@
 #define mmMMEA0_ADDRDEC1_RM_SEL_CS23_DEFAULT                                     0x00000000
 #define mmMMEA0_ADDRDEC1_RM_SEL_CS1_DEFAULT                                      0x00000000
 #define mmMMEA0_ADDRDEC1_RM_SEL_CS3_DEFAULT                                      0x00000000
-#define mmMMEA0_ADDRNORMDRAM_GLOBAL_CNTL_DEFAULT                                 0x00600000
+#define mmMMEA0_ADDRANALRMDRAM_GLOBAL_CNTL_DEFAULT                                 0x00600000
 #define mmMMEA0_ADDRDECDRAM_GECC_HARV_ADJ0_DEFAULT                               0x00000000
 #define mmMMEA0_ADDRDECDRAM_GECC_HARV_ADJ1_DEFAULT                               0x00000000
 #define mmMMEA0_ADDRDECDRAM_GECC_HARV_ADJ2_DEFAULT                               0x00000000
@@ -329,7 +329,7 @@
 #define mmMMEA0_ADDRDEC1_COL_SEL_LO_CS3_DEFAULT                                  0x87654321
 #define mmMMEA0_ADDRDEC1_COL_SEL_HI_CS1_DEFAULT                                  0xa9876543
 #define mmMMEA0_ADDRDEC1_COL_SEL_HI_CS3_DEFAULT                                  0xa9876543
-#define mmMMEA0_ADDRNORMDRAM_MASKING_DEFAULT                                     0x00000fff
+#define mmMMEA0_ADDRANALRMDRAM_MASKING_DEFAULT                                     0x00000fff
 #define mmMMEA0_IO_RD_CLI2GRP_MAP0_DEFAULT                                       0xe4e4e4e4
 #define mmMMEA0_IO_RD_CLI2GRP_MAP1_DEFAULT                                       0xe4e4e4e4
 #define mmMMEA0_IO_WR_CLI2GRP_MAP0_DEFAULT                                       0xe4e4e4e4
@@ -395,8 +395,8 @@
 #define mmPCTL_MMHUB_DEEPSLEEP_IB_DEFAULT                                        0x00000000
 #define mmPCTL_MMHUB_DEEPSLEEP_OVERRIDE_DEFAULT                                  0x00000000
 #define mmPCTL_MMHUB_DEEPSLEEP_OVERRIDE_IB_DEFAULT                               0x00000000
-#define mmPCTL_PG_IGNORE_DEEPSLEEP_DEFAULT                                       0x00000000
-#define mmPCTL_PG_IGNORE_DEEPSLEEP_IB_DEFAULT                                    0x00000000
+#define mmPCTL_PG_IGANALRE_DEEPSLEEP_DEFAULT                                       0x00000000
+#define mmPCTL_PG_IGANALRE_DEEPSLEEP_IB_DEFAULT                                    0x00000000
 #define mmPCTL_SLICE0_CFG_DAGB_WRBUSY_DEFAULT                                    0x00000000
 #define mmPCTL_SLICE0_CFG_DAGB_RDBUSY_DEFAULT                                    0x00000000
 #define mmPCTL_SLICE0_CFG_DS_ALLOW_DEFAULT                                       0x00000000

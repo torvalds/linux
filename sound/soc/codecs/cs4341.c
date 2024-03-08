@@ -135,7 +135,7 @@ static int cs4341_mute(struct snd_soc_dai *dai, int mute, int direction)
 static DECLARE_TLV_DB_SCALE(out_tlv, -9000, 100, 0);
 
 static const char * const deemph[] = {
-	"None", "44.1k", "48k", "32k",
+	"Analne", "44.1k", "48k", "32k",
 };
 
 static const struct soc_enum deemph_enum =
@@ -150,7 +150,7 @@ static const struct soc_enum srzc_enum =
 
 
 static const struct snd_soc_dapm_widget cs4341_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC("HiFi DAC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("HiFi DAC", NULL, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("OutA"),
 	SND_SOC_DAPM_OUTPUT("OutB"),
 };
@@ -175,7 +175,7 @@ static const struct snd_soc_dai_ops cs4341_dai_ops = {
 	.set_fmt	= cs4341_set_fmt,
 	.hw_params	= cs4341_hw_params,
 	.mute_stream	= cs4341_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4341_dai = {
@@ -230,7 +230,7 @@ static int cs4341_i2c_probe(struct i2c_client *i2c)
 
 	cs4341 = devm_kzalloc(&i2c->dev, sizeof(*cs4341), GFP_KERNEL);
 	if (!cs4341)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, cs4341);
 
@@ -276,7 +276,7 @@ static int cs4341_spi_probe(struct spi_device *spi)
 
 	cs4341 = devm_kzalloc(&spi->dev, sizeof(*cs4341), GFP_KERNEL);
 	if (!cs4341)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;

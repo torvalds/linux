@@ -14,7 +14,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 
 static const char default_time[] = "00:00:00";
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 	fd = open(rtc, O_RDONLY);
 	if (fd == -1) {
 		perror(rtc);
-		exit(errno);
+		exit(erranal);
 	}
 
 	sscanf(date, "%d-%d-%d", &new.tm_mday, &new.tm_mon, &new.tm_year);
@@ -58,14 +58,14 @@ int main(int argc, char **argv)
 	if (retval == -1) {
 		perror("RTC_SET_TIME ioctl");
 		close(fd);
-		exit(errno);
+		exit(erranal);
 	}
 
 	/* Read back */
 	retval = ioctl(fd, RTC_RD_TIME, &current);
 	if (retval == -1) {
 		perror("RTC_RD_TIME ioctl");
-		exit(errno);
+		exit(erranal);
 	}
 
 	fprintf(stderr, "\n\nCurrent RTC date/time is %d-%d-%d, %02d:%02d:%02d.\n",

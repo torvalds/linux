@@ -62,14 +62,14 @@
 
 static void cell_show_cpuinfo(struct seq_file *m)
 {
-	struct device_node *root;
+	struct device_analde *root;
 	const char *model = "";
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (root)
 		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
-	of_node_put(root);
+	of_analde_put(root);
 }
 
 static void cell_progress(char *s, unsigned short hex)
@@ -116,7 +116,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, cell_fixup_pcie_rootcomplex);
 static int cell_setup_phb(struct pci_controller *phb)
 {
 	const char *model;
-	struct device_node *np;
+	struct device_analde *np;
 
 	int rc = rtas_setup_phb(phb);
 	if (rc)
@@ -126,7 +126,7 @@ static int cell_setup_phb(struct pci_controller *phb)
 
 	np = phb->dn;
 	model = of_get_property(np, "model", NULL);
-	if (model == NULL || !of_node_name_eq(np, "pci"))
+	if (model == NULL || !of_analde_name_eq(np, "pci"))
 		return 0;
 
 	/* Setup workarounds for spider */
@@ -152,9 +152,9 @@ static const struct of_device_id cell_bus_ids[] __initconst = {
 
 static int __init cell_publish_devices(void)
 {
-	struct device_node *root = of_find_node_by_path("/");
-	struct device_node *np;
-	int node;
+	struct device_analde *root = of_find_analde_by_path("/");
+	struct device_analde *np;
+	int analde;
 
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, cell_bus_ids, NULL);
@@ -162,21 +162,21 @@ static int __init cell_publish_devices(void)
 	/* On spider based blades, we need to manually create the OF
 	 * platform devices for the PCI host bridges
 	 */
-	for_each_child_of_node(root, np) {
-		if (!of_node_is_type(np, "pci") && !of_node_is_type(np, "pciex"))
+	for_each_child_of_analde(root, np) {
+		if (!of_analde_is_type(np, "pci") && !of_analde_is_type(np, "pciex"))
 			continue;
 		of_platform_device_create(np, NULL, NULL);
 	}
 
-	of_node_put(root);
+	of_analde_put(root);
 
-	/* There is no device for the MIC memory controller, thus we create
+	/* There is anal device for the MIC memory controller, thus we create
 	 * a platform device for it to attach the EDAC driver to.
 	 */
-	for_each_online_node(node) {
-		if (cbe_get_cpu_mic_tm_regs(cbe_node_to_cpu(node)) == NULL)
+	for_each_online_analde(analde) {
+		if (cbe_get_cpu_mic_tm_regs(cbe_analde_to_cpu(analde)) == NULL)
 			continue;
-		platform_device_register_simple("cbe-mic", node, NULL, 0);
+		platform_device_register_simple("cbe-mic", analde, NULL, 0);
 	}
 
 	return 0;
@@ -185,17 +185,17 @@ machine_subsys_initcall(cell, cell_publish_devices);
 
 static void __init mpic_init_IRQ(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	struct mpic *mpic;
 
-	for_each_node_by_name(dn, "interrupt-controller") {
+	for_each_analde_by_name(dn, "interrupt-controller") {
 		if (!of_device_is_compatible(dn, "CBEA,platform-open-pic"))
 			continue;
 
 		/* The MPIC driver will get everything it needs from the
 		 * device-tree, just pass 0 to all arguments
 		 */
-		mpic = mpic_alloc(dn, 0, MPIC_SECONDARY | MPIC_NO_RESET,
+		mpic = mpic_alloc(dn, 0, MPIC_SECONDARY | MPIC_ANAL_RESET,
 				0, 0, " MPIC     ");
 		if (mpic == NULL)
 			continue;

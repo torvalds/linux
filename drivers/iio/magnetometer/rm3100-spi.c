@@ -30,7 +30,7 @@ static int rm3100_probe(struct spi_device *spi)
 
 	/* Actually this device supports both mode 0 and mode 3. */
 	spi->mode = SPI_MODE_0;
-	/* Data rates cannot exceed 1Mbits. */
+	/* Data rates cananalt exceed 1Mbits. */
 	spi->max_speed_hz = 1000000;
 	spi->bits_per_word = 8;
 	ret = spi_setup(spi);

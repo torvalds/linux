@@ -2,7 +2,7 @@
 /*
  * Atomic operations.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_ATOMIC_H
 #define _ASM_ATOMIC_H

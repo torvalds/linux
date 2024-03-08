@@ -408,7 +408,7 @@ tegra_qspi_copy_client_txbuf_to_qspi_txbuf(struct tegra_qspi *tqspi, struct spi_
 	 *
 	 * In unpacked mode, each word in FIFO contains single packet and
 	 * based on bits per word any remaining bits in FIFO word will be
-	 * ignored by the hardware and are invalid bits.
+	 * iganalred by the hardware and are invalid bits.
 	 */
 	if (tqspi->is_packed) {
 		tqspi->cur_tx_pos += tqspi->curr_dma_words * tqspi->bytes_per_word;
@@ -580,14 +580,14 @@ static int tegra_qspi_dma_map_xfer(struct tegra_qspi *tqspi, struct spi_transfer
 	if (t->tx_buf) {
 		t->tx_dma = dma_map_single(tqspi->dev, (void *)tx_buf, len, DMA_TO_DEVICE);
 		if (dma_mapping_error(tqspi->dev, t->tx_dma))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (t->rx_buf) {
 		t->rx_dma = dma_map_single(tqspi->dev, (void *)rx_buf, len, DMA_FROM_DEVICE);
 		if (dma_mapping_error(tqspi->dev, t->rx_dma)) {
 			dma_unmap_single(tqspi->dev, t->tx_dma, len, DMA_TO_DEVICE);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -767,7 +767,7 @@ static int tegra_qspi_init_dma(struct tegra_qspi *tqspi)
 
 	dma_buf = dma_alloc_coherent(tqspi->dev, tqspi->dma_buf_size, &dma_phys, GFP_KERNEL);
 	if (!dma_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -784,7 +784,7 @@ static int tegra_qspi_init_dma(struct tegra_qspi *tqspi)
 
 	dma_buf = dma_alloc_coherent(tqspi->dev, tqspi->dma_buf_size, &dma_phys, GFP_KERNEL);
 	if (!dma_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -798,7 +798,7 @@ err_out:
 	tegra_qspi_deinit_dma(tqspi);
 
 	if (err != -EPROBE_DEFER) {
-		dev_err(tqspi->dev, "cannot use DMA: %d\n", err);
+		dev_err(tqspi->dev, "cananalt use DMA: %d\n", err);
 		dev_err(tqspi->dev, "falling back to PIO\n");
 		return 0;
 	}
@@ -1187,7 +1187,7 @@ exit:
 	return ret;
 }
 
-static int tegra_qspi_non_combined_seq_xfer(struct tegra_qspi *tqspi,
+static int tegra_qspi_analn_combined_seq_xfer(struct tegra_qspi *tqspi,
 					    struct spi_message *msg)
 {
 	struct spi_device *spi = msg->spi;
@@ -1272,7 +1272,7 @@ complete_xfer:
 		}
 
 		if (list_is_last(&xfer->transfer_list, &msg->transfers)) {
-			/* de-activate CS after last transfer only when cs_change is not set */
+			/* de-activate CS after last transfer only when cs_change is analt set */
 			if (!xfer->cs_change) {
 				tegra_qspi_transfer_end(spi);
 				spi_transfer_delay_exec(xfer);
@@ -1325,7 +1325,7 @@ static int tegra_qspi_transfer_one_message(struct spi_controller *host,
 	if (tegra_qspi_validate_cmb_seq(tqspi, msg))
 		ret = tegra_qspi_combined_seq_xfer(tqspi, msg);
 	else
-		ret = tegra_qspi_non_combined_seq_xfer(tqspi, msg);
+		ret = tegra_qspi_analn_combined_seq_xfer(tqspi, msg);
 
 	spi_finalize_current_message(host);
 
@@ -1541,7 +1541,7 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*tqspi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
 	tqspi = spi_controller_get_devdata(host);
@@ -1555,7 +1555,7 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 	host->num_chipselect = 1;
 	host->auto_runtime_pm = true;
 
-	bus_num = of_alias_get_id(pdev->dev.of_node, "spi");
+	bus_num = of_alias_get_id(pdev->dev.of_analde, "spi");
 	if (bus_num >= 0)
 		host->bus_num = bus_num;
 
@@ -1625,7 +1625,7 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 		goto exit_pm_disable;
 	}
 
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	ret = spi_register_controller(host);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to register host: %d\n", ret);

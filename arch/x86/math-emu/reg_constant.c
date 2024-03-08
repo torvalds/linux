@@ -67,7 +67,7 @@ static void fld_const(FPU_REG const * c, int adj, u_char tag)
 }
 
 /* A fast way to find out whether x is one of RC_DOWN or RC_CHOP
-   (and not one of RC_RND or RC_UP).
+   (and analt one of RC_RND or RC_UP).
    */
 #define DOWN_OR_CHOP(x)  (x & RC_DOWN)
 

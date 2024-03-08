@@ -19,7 +19,7 @@ static void call_path__init(struct call_path *cp, struct call_path *parent,
 	cp->ip = sym ? 0 : ip;
 	cp->db_id = 0;
 	cp->in_kernel = in_kernel;
-	RB_CLEAR_NODE(&cp->rb_node);
+	RB_CLEAR_ANALDE(&cp->rb_analde);
 	cp->children = RB_ROOT;
 }
 
@@ -39,8 +39,8 @@ void call_path_root__free(struct call_path_root *cpr)
 {
 	struct call_path_block *pos, *n;
 
-	list_for_each_entry_safe(pos, n, &cpr->blocks, node) {
-		list_del_init(&pos->node);
+	list_for_each_entry_safe(pos, n, &cpr->blocks, analde) {
+		list_del_init(&pos->analde);
 		free(pos);
 	}
 	free(cpr);
@@ -57,12 +57,12 @@ static struct call_path *call_path__new(struct call_path_root *cpr,
 
 	if (cpr->next < cpr->sz) {
 		cpb = list_last_entry(&cpr->blocks, struct call_path_block,
-				      node);
+				      analde);
 	} else {
 		cpb = zalloc(sizeof(struct call_path_block));
 		if (!cpb)
 			return NULL;
-		list_add_tail(&cpb->node, &cpr->blocks);
+		list_add_tail(&cpb->analde, &cpr->blocks);
 		cpr->sz += CALL_PATH_BLOCK_SIZE;
 	}
 
@@ -78,8 +78,8 @@ struct call_path *call_path__findnew(struct call_path_root *cpr,
 				     struct call_path *parent,
 				     struct symbol *sym, u64 ip, u64 ks)
 {
-	struct rb_node **p;
-	struct rb_node *node_parent = NULL;
+	struct rb_analde **p;
+	struct rb_analde *analde_parent = NULL;
 	struct call_path *cp;
 	bool in_kernel = ip >= ks;
 
@@ -89,10 +89,10 @@ struct call_path *call_path__findnew(struct call_path_root *cpr,
 	if (!parent)
 		return call_path__new(cpr, parent, sym, ip, in_kernel);
 
-	p = &parent->children.rb_node;
+	p = &parent->children.rb_analde;
 	while (*p != NULL) {
-		node_parent = *p;
-		cp = rb_entry(node_parent, struct call_path, rb_node);
+		analde_parent = *p;
+		cp = rb_entry(analde_parent, struct call_path, rb_analde);
 
 		if (cp->sym == sym && cp->ip == ip)
 			return cp;
@@ -107,8 +107,8 @@ struct call_path *call_path__findnew(struct call_path_root *cpr,
 	if (!cp)
 		return NULL;
 
-	rb_link_node(&cp->rb_node, node_parent, p);
-	rb_insert_color(&cp->rb_node, &parent->children);
+	rb_link_analde(&cp->rb_analde, analde_parent, p);
+	rb_insert_color(&cp->rb_analde, &parent->children);
 
 	return cp;
 }

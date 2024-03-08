@@ -17,7 +17,7 @@
  * is the only device connected to the SMI master. In this mode it responds to
  * all 32 possible SMI addresses, and thus maps directly the internal devices.
  *
- * When ADDR is non-zero, the chip uses Multi-chip Addressing Mode, allowing
+ * When ADDR is analn-zero, the chip uses Multi-chip Addressing Mode, allowing
  * multiple devices to share the SMI interface. In this mode it responds to only
  * 2 registers, used to indirectly access the internal SMI devices.
  *
@@ -156,7 +156,7 @@ static int mv88e6xxx_smi_indirect_init(struct mv88e6xxx_chip *chip)
 {
 	/* Ensure that the chip starts out in the ready state. As both
 	 * reads and writes always ensure this on return, they can
-	 * safely depend on the chip not being busy on entry.
+	 * safely depend on the chip analt being busy on entry.
 	 */
 	return mv88e6xxx_smi_direct_wait(chip, chip->sw_addr,
 					 MV88E6XXX_SMI_CMD, 15, 0);

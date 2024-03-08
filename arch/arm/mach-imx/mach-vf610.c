@@ -19,17 +19,17 @@
 
 static void __init vf610_detect_cpu(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 cpxcount, cpxcfg1;
 	unsigned int cpu_type;
 	void __iomem *mscm;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,vf610-mscm-cpucfg");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,vf610-mscm-cpucfg");
 	if (WARN_ON(!np))
 		return;
 
 	mscm = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (WARN_ON(!mscm))
 		return;

@@ -50,12 +50,12 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[],
 		}
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS]))) {
 			NL_SET_ERR_MSG_MOD(extack, "Invalid link address");
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 		}
 	}
 
 	if (!data) {
-		NL_SET_ERR_MSG_MOD(extack, "VLAN properties not specified");
+		NL_SET_ERR_MSG_MOD(extack, "VLAN properties analt specified");
 		return -EINVAL;
 	}
 
@@ -66,7 +66,7 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[],
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Invalid VLAN protocol");
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		}
 	}
 
@@ -148,19 +148,19 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 	int err;
 
 	if (!data[IFLA_VLAN_ID]) {
-		NL_SET_ERR_MSG_MOD(extack, "VLAN id not specified");
+		NL_SET_ERR_MSG_MOD(extack, "VLAN id analt specified");
 		return -EINVAL;
 	}
 
 	if (!tb[IFLA_LINK]) {
-		NL_SET_ERR_MSG_MOD(extack, "link not specified");
+		NL_SET_ERR_MSG_MOD(extack, "link analt specified");
 		return -EINVAL;
 	}
 
 	real_dev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (!real_dev) {
-		NL_SET_ERR_MSG_MOD(extack, "link does not exist");
-		return -ENODEV;
+		NL_SET_ERR_MSG_MOD(extack, "link does analt exist");
+		return -EANALDEV;
 	}
 
 	if (data[IFLA_VLAN_PROTOCOL])
@@ -186,7 +186,7 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 	else if (dev->mtu > max_mtu)
 		return -EINVAL;
 
-	/* Note: If this initial vlan_changelink() fails, we need
+	/* Analte: If this initial vlan_changelink() fails, we need
 	 * to call vlan_dev_free_egress_priority() to free memory.
 	 */
 	err = vlan_changelink(dev, tb, data, extack);
@@ -238,7 +238,7 @@ static int vlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			goto nla_put_failure;
 	}
 	if (vlan->nr_ingress_mappings) {
-		nest = nla_nest_start_noflag(skb, IFLA_VLAN_INGRESS_QOS);
+		nest = nla_nest_start_analflag(skb, IFLA_VLAN_INGRESS_QOS);
 		if (nest == NULL)
 			goto nla_put_failure;
 
@@ -256,7 +256,7 @@ static int vlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	}
 
 	if (vlan->nr_egress_mappings) {
-		nest = nla_nest_start_noflag(skb, IFLA_VLAN_EGRESS_QOS);
+		nest = nla_nest_start_analflag(skb, IFLA_VLAN_EGRESS_QOS);
 		if (nest == NULL)
 			goto nla_put_failure;
 

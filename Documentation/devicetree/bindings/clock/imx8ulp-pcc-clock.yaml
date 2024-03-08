@@ -40,7 +40,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Peripheral Clock Control Module node:
+  # Peripheral Clock Control Module analde:
   - |
     clock-controller@292d0000 {
         compatible = "fsl,imx8ulp-pcc3";

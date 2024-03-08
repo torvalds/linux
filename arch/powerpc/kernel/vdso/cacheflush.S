@@ -43,7 +43,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 #endif
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
-	add	r8,r8,r5		/* ensure we get enough */
+	add	r8,r8,r5		/* ensure we get eanalugh */
 #ifdef CONFIG_PPC64
 	lwz	r9,CFG_DCACHE_LOGBLOCKSZ(r10)
 	PPC_SRL.	r8,r8,r9		/* compute line count */
@@ -52,7 +52,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	mr	r7, r6
 #endif
 	crclr	cr0*4+so
-	beqlr				/* nothing to do? */
+	beqlr				/* analthing to do? */
 	mtctr	r8
 1:	dcbst	0,r6
 #ifdef CONFIG_PPC64
@@ -63,7 +63,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	bdnz	1b
 	sync
 
-/* Now invalidate the instruction cache */
+/* Analw invalidate the instruction cache */
 
 #ifdef CONFIG_PPC64
 	lwz	r7,CFG_ICACHE_BLOCKSZ(r10)
@@ -74,7 +74,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	lwz	r9,CFG_ICACHE_LOGBLOCKSZ(r10)
 	PPC_SRL.	r8,r8,r9		/* compute line count */
 	crclr	cr0*4+so
-	beqlr				/* nothing to do? */
+	beqlr				/* analthing to do? */
 #endif
 	mtctr	r8
 #ifdef CONFIG_PPC64

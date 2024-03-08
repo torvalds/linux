@@ -14,7 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -26,7 +26,7 @@ static __u64 time_get_ns(void)
 {
 	struct timespec ts;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MOANALTONIC, &ts);
 	return ts.tv_sec * 1000000000ull + ts.tv_nsec;
 }
 
@@ -36,7 +36,7 @@ enum test_type {
 	HASH_KMALLOC,
 	PERCPU_HASH_KMALLOC,
 	LRU_HASH_PREALLOC,
-	NOCOMMON_LRU_HASH_PREALLOC,
+	ANALCOMMON_LRU_HASH_PREALLOC,
 	LPM_KMALLOC,
 	HASH_LOOKUP,
 	ARRAY_LOOKUP,
@@ -51,7 +51,7 @@ const char *test_map_names[NR_TESTS] = {
 	[HASH_KMALLOC] = "hash_map_alloc",
 	[PERCPU_HASH_KMALLOC] = "percpu_hash_map_alloc",
 	[LRU_HASH_PREALLOC] = "lru_hash_map",
-	[NOCOMMON_LRU_HASH_PREALLOC] = "nocommon_lru_hash_map",
+	[ANALCOMMON_LRU_HASH_PREALLOC] = "analcommon_lru_hash_map",
 	[LPM_KMALLOC] = "lpm_trie_map_alloc",
 	[HASH_LOOKUP] = "hash_map",
 	[ARRAY_LOOKUP] = "array_map",
@@ -105,11 +105,11 @@ static int pre_test_lru_hash_lookup(int tasks)
 	 *
 	 * It is fine that the user requests for a map with
 	 * num_map_entries < 32 and some of the later lru hash lookup
-	 * may return not found.  For LRU map, we are not interested
+	 * may return analt found.  For LRU map, we are analt interested
 	 * in such small map performance.
 	 */
 	for (key = 0; key < lru_hash_lookup_test_entries; key++) {
-		ret = bpf_map_update_elem(fd, &key, &val, BPF_NOEXIST);
+		ret = bpf_map_update_elem(fd, &key, &val, BPF_ANALEXIST);
 		if (ret)
 			return ret;
 	}
@@ -127,22 +127,22 @@ static void do_test_lru(enum test_type test, int cpu)
 	int i, ret;
 
 	if (test == INNER_LRU_HASH_PREALLOC && cpu) {
-		/* If CPU is not 0, create inner_lru hash map and insert the fd
+		/* If CPU is analt 0, create inner_lru hash map and insert the fd
 		 * value into the array_of_lru_hash map. In case of CPU 0,
 		 * 'inner_lru_hash_map' was statically inserted on the map init
 		 */
 		int outer_fd = map_fd[array_of_lru_hashs_idx];
-		unsigned int mycpu, mynode;
+		unsigned int mycpu, myanalde;
 		LIBBPF_OPTS(bpf_map_create_opts, opts,
-			.map_flags = BPF_F_NUMA_NODE,
+			.map_flags = BPF_F_NUMA_ANALDE,
 		);
 
 		assert(cpu < MAX_NR_CPUS);
 
-		ret = syscall(__NR_getcpu, &mycpu, &mynode, NULL);
+		ret = syscall(__NR_getcpu, &mycpu, &myanalde, NULL);
 		assert(!ret);
 
-		opts.numa_node = mynode;
+		opts.numa_analde = myanalde;
 		inner_lru_map_fds[cpu] =
 			bpf_map_create(BPF_MAP_TYPE_LRU_HASH,
 				       test_map_names[INNER_LRU_HASH_PREALLOC],
@@ -150,8 +150,8 @@ static void do_test_lru(enum test_type test, int cpu)
 				       sizeof(long),
 				       inner_lru_hash_size, &opts);
 		if (inner_lru_map_fds[cpu] == -1) {
-			printf("cannot create BPF_MAP_TYPE_LRU_HASH %s(%d)\n",
-			       strerror(errno), errno);
+			printf("cananalt create BPF_MAP_TYPE_LRU_HASH %s(%d)\n",
+			       strerror(erranal), erranal);
 			exit(1);
 		}
 
@@ -159,8 +159,8 @@ static void do_test_lru(enum test_type test, int cpu)
 					  &inner_lru_map_fds[cpu],
 					  BPF_ANY);
 		if (ret) {
-			printf("cannot update ARRAY_OF_LRU_HASHS with key:%u. %s(%d)\n",
-			       cpu, strerror(errno), errno);
+			printf("cananalt update ARRAY_OF_LRU_HASHS with key:%u. %s(%d)\n",
+			       cpu, strerror(erranal), erranal);
 			exit(1);
 		}
 	}
@@ -171,8 +171,8 @@ static void do_test_lru(enum test_type test, int cpu)
 	if (test == LRU_HASH_PREALLOC) {
 		test_name = "lru_hash_map_perf";
 		in6.sin6_addr.s6_addr16[2] = 0;
-	} else if (test == NOCOMMON_LRU_HASH_PREALLOC) {
-		test_name = "nocommon_lru_hash_map_perf";
+	} else if (test == ANALCOMMON_LRU_HASH_PREALLOC) {
+		test_name = "analcommon_lru_hash_map_perf";
 		in6.sin6_addr.s6_addr16[2] = 1;
 	} else if (test == INNER_LRU_HASH_PREALLOC) {
 		test_name = "inner_lru_hash_map_perf";
@@ -188,7 +188,7 @@ static void do_test_lru(enum test_type test, int cpu)
 	start_time = time_get_ns();
 	for (i = 0; i < max_cnt; i++) {
 		ret = connect(-1, (const struct sockaddr *)&in6, sizeof(in6));
-		assert(ret == -1 && errno == EBADF);
+		assert(ret == -1 && erranal == EBADF);
 		if (in6.sin6_addr.s6_addr32[3] <
 		    lru_hash_lookup_test_entries - 32)
 			in6.sin6_addr.s6_addr32[3] += 32;
@@ -205,9 +205,9 @@ static void test_lru_hash_prealloc(int cpu)
 	do_test_lru(LRU_HASH_PREALLOC, cpu);
 }
 
-static void test_nocommon_lru_hash_prealloc(int cpu)
+static void test_analcommon_lru_hash_prealloc(int cpu)
 {
-	do_test_lru(NOCOMMON_LRU_HASH_PREALLOC, cpu);
+	do_test_lru(ANALCOMMON_LRU_HASH_PREALLOC, cpu);
 }
 
 static void test_inner_lru_hash_prealloc(int cpu)
@@ -304,7 +304,7 @@ const test_func test_funcs[] = {
 	[HASH_KMALLOC] = test_hash_kmalloc,
 	[PERCPU_HASH_KMALLOC] = test_percpu_hash_kmalloc,
 	[LRU_HASH_PREALLOC] = test_lru_hash_prealloc,
-	[NOCOMMON_LRU_HASH_PREALLOC] = test_nocommon_lru_hash_prealloc,
+	[ANALCOMMON_LRU_HASH_PREALLOC] = test_analcommon_lru_hash_prealloc,
 	[LPM_KMALLOC] = test_lpm_kmalloc,
 	[HASH_LOOKUP] = test_hash_lookup,
 	[ARRAY_LOOKUP] = test_array_lookup,

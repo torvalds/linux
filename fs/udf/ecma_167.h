@@ -12,20 +12,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -287,7 +287,7 @@ struct partitionDesc {
 #define PD_PARTITION_CONTENTS_NSR03	"+NSR03"
 
 /* Access Type (ECMA 167r3 3/10.5.7) */
-#define PD_ACCESS_TYPE_NONE		0x00000000
+#define PD_ACCESS_TYPE_ANALNE		0x00000000
 #define PD_ACCESS_TYPE_READ_ONLY	0x00000001
 #define PD_ACCESS_TYPE_WRITE_ONCE	0x00000002
 #define PD_ACCESS_TYPE_REWRITABLE	0x00000003
@@ -532,7 +532,7 @@ struct icbtag {
 #define ICBTAG_FLAG_AD_EXTENDED		0x0002
 #define ICBTAG_FLAG_AD_IN_ICB		0x0003
 #define ICBTAG_FLAG_SORTED		0x0008
-#define ICBTAG_FLAG_NONRELOCATABLE	0x0010
+#define ICBTAG_FLAG_ANALNRELOCATABLE	0x0010
 #define ICBTAG_FLAG_ARCHIVE		0x0020
 #define ICBTAG_FLAG_SETUID		0x0040
 #define ICBTAG_FLAG_SETGID		0x0080
@@ -693,7 +693,7 @@ struct deviceSpec {
 	__le32		attrLength;
 	__le32		impUseLength;
 	__le32		majorDeviceIdent;
-	__le32		minorDeviceIdent;
+	__le32		mianalrDeviceIdent;
 	uint8_t		impUse[];
 } __packed;
 
@@ -761,8 +761,8 @@ struct partitionIntegrityEntry {
 #define EXT_LENGTH_MASK			0x3FFFFFFF
 #define EXT_TYPE_MASK			0xC0000000
 #define EXT_RECORDED_ALLOCATED		0x00000000
-#define EXT_NOT_RECORDED_ALLOCATED	0x40000000
-#define EXT_NOT_RECORDED_NOT_ALLOCATED	0x80000000
+#define EXT_ANALT_RECORDED_ALLOCATED	0x40000000
+#define EXT_ANALT_RECORDED_ANALT_ALLOCATED	0x80000000
 #define EXT_NEXT_EXTENT_ALLOCDESCS	0xC0000000
 
 /* Long Allocation Descriptor (ECMA 167r3 4/14.14.2) */

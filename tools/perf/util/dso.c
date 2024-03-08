@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #ifdef HAVE_LIBBPF_SUPPORT
@@ -31,7 +31,7 @@
 #include "debug.h"
 #include "string2.h"
 #include "vdso.h"
-#include "annotate-data.h"
+#include "ananaltate-data.h"
 
 static const char * const debuglink_paths[] = {
 	"%.0s%s",
@@ -63,7 +63,7 @@ char dso__symtab_origin(const struct dso *dso)
 		[DSO_BINARY_TYPE__GUEST_VMLINUX]		= 'V',
 	};
 
-	if (dso == NULL || dso->symtab_type == DSO_BINARY_TYPE__NOT_FOUND)
+	if (dso == NULL || dso->symtab_type == DSO_BINARY_TYPE__ANALT_FOUND)
 		return '!';
 	return origin[dso->symtab_type];
 }
@@ -95,7 +95,7 @@ bool dso__is_object_file(const struct dso *dso)
 	case DSO_BINARY_TYPE__KCORE:
 	case DSO_BINARY_TYPE__GUEST_KCORE:
 	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
-	case DSO_BINARY_TYPE__NOT_FOUND:
+	case DSO_BINARY_TYPE__ANALT_FOUND:
 	default:
 		return true;
 	}
@@ -244,7 +244,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 	case DSO_BINARY_TYPE__BPF_PROG_INFO:
 	case DSO_BINARY_TYPE__BPF_IMAGE:
 	case DSO_BINARY_TYPE__OOL:
-	case DSO_BINARY_TYPE__NOT_FOUND:
+	case DSO_BINARY_TYPE__ANALT_FOUND:
 		ret = -1;
 		break;
 	}
@@ -253,7 +253,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 }
 
 enum {
-	COMP_ID__NONE = 0,
+	COMP_ID__ANALNE = 0,
 };
 
 static const struct {
@@ -261,7 +261,7 @@ static const struct {
 	int (*decompress)(const char *input, int output);
 	bool (*is_compressed)(const char *input);
 } compressions[] = {
-	[COMP_ID__NONE] = { .fmt = NULL, },
+	[COMP_ID__ANALNE] = { .fmt = NULL, },
 #ifdef HAVE_ZLIB_SUPPORT
 	{ "gz", gzip_decompress_to_file, gzip_is_compressed },
 #endif
@@ -279,7 +279,7 @@ static int is_supported_compression(const char *ext)
 		if (!strcmp(ext, compressions[i].fmt))
 			return i;
 	}
-	return COMP_ID__NONE;
+	return COMP_ID__ANALNE;
 }
 
 bool is_kernel_module(const char *pathname, int cpumode)
@@ -296,10 +296,10 @@ bool is_kernel_module(const char *pathname, int cpumode)
 	case PERF_RECORD_MISC_HYPERVISOR:
 	case PERF_RECORD_MISC_GUEST_USER:
 		return false;
-	/* Treat PERF_RECORD_MISC_CPUMODE_UNKNOWN as kernel */
+	/* Treat PERF_RECORD_MISC_CPUMODE_UNKANALWN as kernel */
 	default:
 		if (kmod_path__parse(&m, pathname)) {
-			pr_err("Failed to check whether %s is a kernel module or not. Assume it is.",
+			pr_err("Failed to check whether %s is a kernel module or analt. Assume it is.",
 					pathname);
 			return true;
 		}
@@ -328,7 +328,7 @@ int filename__decompress(const char *name, char *pathname,
 	 * when we try all possible 'debug' objects until we find the
 	 * data. So even if the DSO is represented by 'krava.xz' module,
 	 * we can end up here opening ~/.debug/....23432432/debug' file
-	 * which is not compressed.
+	 * which is analt compressed.
 	 *
 	 * To keep this transparent, we detect this and return the file
 	 * descriptor to the uncompressed file.
@@ -338,12 +338,12 @@ int filename__decompress(const char *name, char *pathname,
 
 	fd = mkstemp(tmpbuf);
 	if (fd < 0) {
-		*err = errno;
+		*err = erranal;
 		return -1;
 	}
 
 	if (compressions[comp].decompress(name, fd)) {
-		*err = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
+		*err = DSO_LOAD_ERRANAL__DECOMPRESSION_FAILURE;
 		close(fd);
 		fd = -1;
 	}
@@ -363,11 +363,11 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 	if (!dso__needs_decompress(dso))
 		return -1;
 
-	if (dso->comp == COMP_ID__NONE)
+	if (dso->comp == COMP_ID__ANALNE)
 		return -1;
 
 	return filename__decompress(name, pathname, len, dso->comp,
-				    &dso->load_errno);
+				    &dso->load_erranal);
 }
 
 int dso__decompress_kmodule_fd(struct dso *dso, const char *name)
@@ -398,7 +398,7 @@ int dso__decompress_kmodule_path(struct dso *dso, const char *name,
  *    @ext  - if (@alloc_ext && @comp) is true, it contains strdup-ed string
  *            the compression suffix
  *
- * Returns 0 if there's no strdup error, -ENOMEM otherwise.
+ * Returns 0 if there's anal strdup error, -EANALMEM otherwise.
  */
 int __kmod_path__parse(struct kmod_path *m, const char *path,
 		       bool alloc_name)
@@ -416,7 +416,7 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 	 * priority than '.ko' suffix.
 	 *
 	 * The kernel names are from machine__mmap_name. Such
-	 * name should belong to kernel itself, not kernel module.
+	 * name should belong to kernel itself, analt kernel module.
 	 */
 	if (name[0] == '[') {
 		is_simple_name = true;
@@ -432,30 +432,30 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 			m->kmod = true;
 	}
 
-	/* No extension, just return name. */
+	/* Anal extension, just return name. */
 	if ((ext == NULL) || is_simple_name) {
 		if (alloc_name) {
 			m->name = strdup(name);
-			return m->name ? 0 : -ENOMEM;
+			return m->name ? 0 : -EANALMEM;
 		}
 		return 0;
 	}
 
 	m->comp = is_supported_compression(ext + 1);
-	if (m->comp > COMP_ID__NONE)
+	if (m->comp > COMP_ID__ANALNE)
 		ext -= 3;
 
-	/* Check .ko extension only if there's enough name left. */
+	/* Check .ko extension only if there's eanalugh name left. */
 	if (ext > name)
 		m->kmod = !strncmp(ext, ".ko", 3);
 
 	if (alloc_name) {
 		if (m->kmod) {
 			if (asprintf(&m->name, "[%.*s]", (int) (ext - name), name) == -1)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
 			if (asprintf(&m->name, "%s", name) == -1)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		strreplace(m->name, '-', '_');
@@ -516,8 +516,8 @@ static int do_open(char *name)
 			return fd;
 
 		pr_debug("dso open failed: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
-		if (!dso__data_open_cnt || errno != EMFILE)
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
+		if (!dso__data_open_cnt || erranal != EMFILE)
 			break;
 
 		close_first_dso();
@@ -539,7 +539,7 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 	bool decomp = false;
 
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&dso->lock);
 	if (machine)
@@ -552,7 +552,7 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 	if (!is_regular_file(name)) {
 		char *new_name;
 
-		if (errno != ENOENT || dso->nsinfo == NULL)
+		if (erranal != EANALENT || dso->nsinfo == NULL)
 			goto out;
 
 		new_name = dso__filename_with_chroot(dso, name);
@@ -568,7 +568,7 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		size_t len = sizeof(newpath);
 
 		if (dso__decompress_kmodule_path(dso, name, newpath, len) < 0) {
-			fd = -dso->load_errno;
+			fd = -dso->load_erranal;
 			goto out;
 		}
 
@@ -658,7 +658,7 @@ static rlim_t get_fd_limit(void)
 	rlim_t limit = 0;
 
 	/* Allow half of the current open fd limit. */
-	if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
+	if (getrlimit(RLIMIT_ANALFILE, &l) == 0) {
 		if (l.rlim_cur == RLIM_INFINITY)
 			limit = l.rlim_cur;
 		else
@@ -697,7 +697,7 @@ static bool may_cache_fd(void)
 /*
  * Check and close LRU dso if we crossed allowed limit
  * for opened dso file descriptors. The limit is half
- * of the RLIMIT_NOFILE files opened.
+ * of the RLIMIT_ANALFILE files opened.
 */
 static void check_data_close(void)
 {
@@ -725,14 +725,14 @@ static void try_to_open_dso(struct dso *dso, struct machine *machine)
 	enum dso_binary_type binary_type_data[] = {
 		DSO_BINARY_TYPE__BUILD_ID_CACHE,
 		DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
-		DSO_BINARY_TYPE__NOT_FOUND,
+		DSO_BINARY_TYPE__ANALT_FOUND,
 	};
 	int i = 0;
 
 	if (dso->data.fd >= 0)
 		return;
 
-	if (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND) {
+	if (dso->binary_type != DSO_BINARY_TYPE__ANALT_FOUND) {
 		dso->data.fd = open_dso(dso, machine);
 		goto out;
 	}
@@ -744,7 +744,7 @@ static void try_to_open_dso(struct dso *dso, struct machine *machine)
 		if (dso->data.fd >= 0)
 			goto out;
 
-	} while (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND);
+	} while (dso->binary_type != DSO_BINARY_TYPE__ANALT_FOUND);
 out:
 	if (dso->data.fd >= 0)
 		dso->data.status = DSO_DATA_STATUS_OK;
@@ -759,7 +759,7 @@ out:
  *
  * External interface to find dso's file, open it and
  * returns file descriptor.  It should be paired with
- * dso__data_put_fd() if it returns non-negative value.
+ * dso__data_put_fd() if it returns analn-negative value.
  */
 int dso__data_get_fd(struct dso *dso, struct machine *machine)
 {
@@ -797,19 +797,19 @@ bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
 #ifdef HAVE_LIBBPF_SUPPORT
 static ssize_t bpf_read(struct dso *dso, u64 offset, char *data)
 {
-	struct bpf_prog_info_node *node;
+	struct bpf_prog_info_analde *analde;
 	ssize_t size = DSO__DATA_CACHE_SIZE;
 	u64 len;
 	u8 *buf;
 
-	node = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
-	if (!node || !node->info_linear) {
+	analde = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
+	if (!analde || !analde->info_linear) {
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		return -1;
 	}
 
-	len = node->info_linear->info.jited_prog_len;
-	buf = (u8 *)(uintptr_t)node->info_linear->info.jited_prog_insns;
+	len = analde->info_linear->info.jited_prog_len;
+	buf = (u8 *)(uintptr_t)analde->info_linear->info.jited_prog_insns;
 
 	if (offset >= len)
 		return -1;
@@ -821,15 +821,15 @@ static ssize_t bpf_read(struct dso *dso, u64 offset, char *data)
 
 static int bpf_size(struct dso *dso)
 {
-	struct bpf_prog_info_node *node;
+	struct bpf_prog_info_analde *analde;
 
-	node = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
-	if (!node || !node->info_linear) {
+	analde = perf_env__find_bpf_prog_info(dso->bpf_prog.env, dso->bpf_prog.id);
+	if (!analde || !analde->info_linear) {
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		return -1;
 	}
 
-	dso->data.file_size = node->info_linear->info.jited_prog_len;
+	dso->data.file_size = analde->info_linear->info.jited_prog_len;
 	return 0;
 }
 #endif // HAVE_LIBBPF_SUPPORT
@@ -838,15 +838,15 @@ static void
 dso_cache__free(struct dso *dso)
 {
 	struct rb_root *root = &dso->data.cache;
-	struct rb_node *next = rb_first(root);
+	struct rb_analde *next = rb_first(root);
 
 	mutex_lock(&dso->lock);
 	while (next) {
 		struct dso_cache *cache;
 
-		cache = rb_entry(next, struct dso_cache, rb_node);
-		next = rb_next(&cache->rb_node);
-		rb_erase(&cache->rb_node, root);
+		cache = rb_entry(next, struct dso_cache, rb_analde);
+		next = rb_next(&cache->rb_analde);
+		rb_erase(&cache->rb_analde, root);
 		free(cache);
 	}
 	mutex_unlock(&dso->lock);
@@ -855,15 +855,15 @@ dso_cache__free(struct dso *dso)
 static struct dso_cache *__dso_cache__find(struct dso *dso, u64 offset)
 {
 	const struct rb_root *root = &dso->data.cache;
-	struct rb_node * const *p = &root->rb_node;
-	const struct rb_node *parent = NULL;
+	struct rb_analde * const *p = &root->rb_analde;
+	const struct rb_analde *parent = NULL;
 	struct dso_cache *cache;
 
 	while (*p != NULL) {
 		u64 end;
 
 		parent = *p;
-		cache = rb_entry(parent, struct dso_cache, rb_node);
+		cache = rb_entry(parent, struct dso_cache, rb_analde);
 		end = cache->offset + DSO__DATA_CACHE_SIZE;
 
 		if (offset < cache->offset)
@@ -881,8 +881,8 @@ static struct dso_cache *
 dso_cache__insert(struct dso *dso, struct dso_cache *new)
 {
 	struct rb_root *root = &dso->data.cache;
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	struct dso_cache *cache;
 	u64 offset = new->offset;
 
@@ -891,7 +891,7 @@ dso_cache__insert(struct dso *dso, struct dso_cache *new)
 		u64 end;
 
 		parent = *p;
-		cache = rb_entry(parent, struct dso_cache, rb_node);
+		cache = rb_entry(parent, struct dso_cache, rb_analde);
 		end = cache->offset + DSO__DATA_CACHE_SIZE;
 
 		if (offset < cache->offset)
@@ -902,8 +902,8 @@ dso_cache__insert(struct dso *dso, struct dso_cache *new)
 			goto out;
 	}
 
-	rb_link_node(&new->rb_node, parent, p);
-	rb_insert_color(&new->rb_node, root);
+	rb_link_analde(&new->rb_analde, parent, p);
+	rb_insert_color(&new->rb_analde, root);
 
 	cache = NULL;
 out:
@@ -932,14 +932,14 @@ static ssize_t file_read(struct dso *dso, struct machine *machine,
 	pthread_mutex_lock(&dso__data_open_lock);
 
 	/*
-	 * dso->data.fd might be closed if other thread opened another
-	 * file (dso) due to open file limit (RLIMIT_NOFILE).
+	 * dso->data.fd might be closed if other thread opened aanalther
+	 * file (dso) due to open file limit (RLIMIT_ANALFILE).
 	 */
 	try_to_open_dso(dso, machine);
 
 	if (dso->data.fd < 0) {
 		dso->data.status = DSO_DATA_STATUS_ERROR;
-		ret = -errno;
+		ret = -erranal;
 		goto out;
 	}
 
@@ -959,7 +959,7 @@ static struct dso_cache *dso_cache__populate(struct dso *dso,
 
 	cache = zalloc(sizeof(*cache) + DSO__DATA_CACHE_SIZE);
 	if (!cache) {
-		*ret = -ENOMEM;
+		*ret = -EANALMEM;
 		return NULL;
 	}
 #ifdef HAVE_LIBBPF_SUPPORT
@@ -1016,7 +1016,7 @@ static ssize_t dso_cache_io(struct dso *dso, struct machine *machine,
 /*
  * Reads and caches dso data DSO__DATA_CACHE_SIZE size chunks
  * in the rb_tree. Any read to already cached data is served
- * by cached data. Writes update the cache only, not the backing file.
+ * by cached data. Writes update the cache only, analt the backing file.
  */
 static ssize_t cached_io(struct dso *dso, struct machine *machine,
 			 u64 offset, u8 *data, ssize_t size, bool out)
@@ -1056,21 +1056,21 @@ static int file_size(struct dso *dso, struct machine *machine)
 	pthread_mutex_lock(&dso__data_open_lock);
 
 	/*
-	 * dso->data.fd might be closed if other thread opened another
-	 * file (dso) due to open file limit (RLIMIT_NOFILE).
+	 * dso->data.fd might be closed if other thread opened aanalther
+	 * file (dso) due to open file limit (RLIMIT_ANALFILE).
 	 */
 	try_to_open_dso(dso, machine);
 
 	if (dso->data.fd < 0) {
-		ret = -errno;
+		ret = -erranal;
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
 
 	if (fstat(dso->data.fd, &st) < 0) {
-		ret = -errno;
+		ret = -erranal;
 		pr_err("dso cache fstat failed: %s\n",
-		       str_error_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(erranal, sbuf, sizeof(sbuf)));
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
@@ -1107,7 +1107,7 @@ off_t dso__data_size(struct dso *dso, struct machine *machine)
 	if (dso__data_file_size(dso, machine))
 		return -1;
 
-	/* For now just estimate dso data size is close to file size */
+	/* For analw just estimate dso data size is close to file size */
 	return dso->data.file_size;
 }
 
@@ -1175,7 +1175,7 @@ ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
  * @data: buffer to write
  * @size: size of the @data buffer
  *
- * Write into the dso file data cache, but do not change the file itself.
+ * Write into the dso file data cache, but do analt change the file itself.
  */
 ssize_t dso__data_write_cache_offs(struct dso *dso, struct machine *machine,
 				   u64 offset, const u8 *data_in, ssize_t size)
@@ -1196,7 +1196,7 @@ ssize_t dso__data_write_cache_offs(struct dso *dso, struct machine *machine,
  * @data: buffer to write
  * @size: size of the @data buffer
  *
- * External interface to write into the dso file data cache, but do not change
+ * External interface to write into the dso file data cache, but do analt change
  * the file itself.
  */
 ssize_t dso__data_write_cache_addr(struct dso *dso, struct map *map,
@@ -1231,7 +1231,7 @@ struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
 
 	/*
 	 * We need to run this in all cases, since during the build_id
-	 * processing we had no idea this was the kernel dso.
+	 * processing we had anal idea this was the kernel dso.
 	 */
 	if (dso != NULL) {
 		dso__set_short_name(dso, short_name, false);
@@ -1252,12 +1252,12 @@ static void dso__set_long_name_id(struct dso *dso, const char *name, struct dso_
 		free((char *)dso->long_name);
 
 	if (root) {
-		rb_erase(&dso->rb_node, root);
+		rb_erase(&dso->rb_analde, root);
 		/*
 		 * __dsos__findnew_link_by_longname_id() isn't guaranteed to
 		 * add it back, so a clean removal is required here.
 		 */
-		RB_CLEAR_NODE(&dso->rb_node);
+		RB_CLEAR_ANALDE(&dso->rb_analde);
 		dso->root = NULL;
 	}
 
@@ -1290,7 +1290,7 @@ void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 int dso__name_len(const struct dso *dso)
 {
 	if (!dso)
-		return strlen("[unknown]");
+		return strlen("[unkanalwn]");
 	if (verbose > 0)
 		return dso->long_name_len;
 
@@ -1326,13 +1326,13 @@ struct dso *dso__new_id(const char *name, struct dso_id *id)
 		dso->symbol_names = NULL;
 		dso->symbol_names_len = 0;
 		dso->data.cache = RB_ROOT;
-		dso->inlined_nodes = RB_ROOT_CACHED;
+		dso->inlined_analdes = RB_ROOT_CACHED;
 		dso->srclines = RB_ROOT_CACHED;
 		dso->data_types = RB_ROOT;
 		dso->data.fd = -1;
-		dso->data.status = DSO_DATA_STATUS_UNKNOWN;
-		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
-		dso->binary_type = DSO_BINARY_TYPE__NOT_FOUND;
+		dso->data.status = DSO_DATA_STATUS_UNKANALWN;
+		dso->symtab_type = DSO_BINARY_TYPE__ANALT_FOUND;
+		dso->binary_type = DSO_BINARY_TYPE__ANALT_FOUND;
 		dso->is_64_bit = (sizeof(void *) == 8);
 		dso->loaded = 0;
 		dso->rel = 0;
@@ -1343,10 +1343,10 @@ struct dso *dso__new_id(const char *name, struct dso_id *id)
 		dso->kernel = DSO_SPACE__USER;
 		dso->is_kmod = 0;
 		dso->needs_swap = DSO_SWAP__UNSET;
-		dso->comp = COMP_ID__NONE;
-		RB_CLEAR_NODE(&dso->rb_node);
+		dso->comp = COMP_ID__ANALNE;
+		RB_CLEAR_ANALDE(&dso->rb_analde);
 		dso->root = NULL;
-		INIT_LIST_HEAD(&dso->node);
+		INIT_LIST_HEAD(&dso->analde);
 		INIT_LIST_HEAD(&dso->data.open_entry);
 		mutex_init(&dso->lock);
 		refcount_set(&dso->refcnt, 1);
@@ -1362,17 +1362,17 @@ struct dso *dso__new(const char *name)
 
 void dso__delete(struct dso *dso)
 {
-	if (!RB_EMPTY_NODE(&dso->rb_node))
+	if (!RB_EMPTY_ANALDE(&dso->rb_analde))
 		pr_err("DSO %s is still in rbtree when being deleted!\n",
 		       dso->long_name);
 
 	/* free inlines first, as they reference symbols */
-	inlines__tree_delete(&dso->inlined_nodes);
+	inlines__tree_delete(&dso->inlined_analdes);
 	srcline__tree_delete(&dso->srclines);
 	symbols__delete(&dso->symbols);
 	dso->symbol_names_len = 0;
 	zfree(&dso->symbol_names);
-	annotated_data_type__tree_delete(&dso->data_types);
+	ananaltated_data_type__tree_delete(&dso->data_types);
 
 	if (dso->short_name_allocated) {
 		zfree((char **)&dso->short_name);
@@ -1435,7 +1435,7 @@ void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
 
 	if (machine__is_default_guest(machine))
 		return;
-	sprintf(path, "%s/sys/kernel/notes", machine->root_dir);
+	sprintf(path, "%s/sys/kernel/analtes", machine->root_dir);
 	if (sysfs__read_build_id(path, &dso->bid) == 0)
 		dso->has_build_id = true;
 }
@@ -1451,7 +1451,7 @@ int dso__kernel_module_get_build_id(struct dso *dso,
 	const char *name = dso->short_name + 1;
 
 	snprintf(filename, sizeof(filename),
-		 "%s/sys/module/%.*s/notes/.note.gnu.build-id",
+		 "%s/sys/module/%.*s/analtes/.analte.gnu.build-id",
 		 root_dir, (int)strlen(name) - 1, name);
 
 	if (sysfs__read_build_id(filename, &dso->bid) == 0)
@@ -1470,16 +1470,16 @@ static size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 
 size_t dso__fprintf(struct dso *dso, FILE *fp)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	size_t ret = fprintf(fp, "dso: %s (", dso->short_name);
 
 	if (dso->short_name != dso->long_name)
 		ret += fprintf(fp, "%s, ", dso->long_name);
-	ret += fprintf(fp, "%sloaded, ", dso__loaded(dso) ? "" : "NOT ");
+	ret += fprintf(fp, "%sloaded, ", dso__loaded(dso) ? "" : "ANALT ");
 	ret += dso__fprintf_buildid(dso, fp);
 	ret += fprintf(fp, ")\n");
 	for (nd = rb_first_cached(&dso->symbols); nd; nd = rb_next(nd)) {
-		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
+		struct symbol *pos = rb_entry(nd, struct symbol, rb_analde);
 		ret += symbol__fprintf(pos, fp);
 	}
 
@@ -1489,7 +1489,7 @@ size_t dso__fprintf(struct dso *dso, FILE *fp)
 enum dso_type dso__type(struct dso *dso, struct machine *machine)
 {
 	int fd;
-	enum dso_type type = DSO__TYPE_UNKNOWN;
+	enum dso_type type = DSO__TYPE_UNKANALWN;
 
 	fd = dso__data_get_fd(dso, machine);
 	if (fd >= 0) {
@@ -1502,14 +1502,14 @@ enum dso_type dso__type(struct dso *dso, struct machine *machine)
 
 int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 {
-	int idx, errnum = dso->load_errno;
+	int idx, errnum = dso->load_erranal;
 	/*
-	 * This must have a same ordering as the enum dso_load_errno.
+	 * This must have a same ordering as the enum dso_load_erranal.
 	 */
 	static const char *dso_load__error_str[] = {
 	"Internal tools/perf/ library error",
 	"Invalid ELF file",
-	"Can not read build id",
+	"Can analt read build id",
 	"Mismatching build id",
 	"Decompression failure",
 	};
@@ -1525,10 +1525,10 @@ int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 		return 0;
 	}
 
-	if (errnum <  __DSO_LOAD_ERRNO__START || errnum >= __DSO_LOAD_ERRNO__END)
+	if (errnum <  __DSO_LOAD_ERRANAL__START || errnum >= __DSO_LOAD_ERRANAL__END)
 		return -1;
 
-	idx = errnum - __DSO_LOAD_ERRNO__START;
+	idx = errnum - __DSO_LOAD_ERRANAL__START;
 	scnprintf(buf, buflen, "%s", dso_load__error_str[idx]);
 	return 0;
 }

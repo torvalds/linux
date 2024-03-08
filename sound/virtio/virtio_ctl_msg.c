@@ -13,14 +13,14 @@
  * @sg_request: Scattergather list containing a device request (header).
  * @sg_response: Scattergather list containing a device response (status).
  * @list: Pending message list entry.
- * @notify: Request completed notification.
+ * @analtify: Request completed analtification.
  * @ref_count: Reference count used to manage a message lifetime.
  */
 struct virtio_snd_msg {
 	struct scatterlist sg_request;
 	struct scatterlist sg_response;
 	struct list_head list;
-	struct completion notify;
+	struct completion analtify;
 	refcount_t ref_count;
 };
 
@@ -99,7 +99,7 @@ struct virtio_snd_msg *virtsnd_ctl_msg_alloc(size_t request_size,
 		    response_size);
 
 	INIT_LIST_HEAD(&msg->list);
-	init_completion(&msg->notify);
+	init_completion(&msg->analtify);
 	/* This reference is dropped in virtsnd_ctl_msg_complete(). */
 	refcount_set(&msg->ref_count, 1);
 
@@ -112,25 +112,25 @@ struct virtio_snd_msg *virtsnd_ctl_msg_alloc(size_t request_size,
  * @msg: Control message.
  * @out_sgs: Additional sg-list to attach to the request header (may be NULL).
  * @in_sgs: Additional sg-list to attach to the response header (may be NULL).
- * @nowait: Flag indicating whether to wait for completion.
+ * @analwait: Flag indicating whether to wait for completion.
  *
  * Context: Any context. Takes and releases the control queue spinlock.
- *          May sleep if @nowait is false.
- * Return: 0 on success, -errno on failure.
+ *          May sleep if @analwait is false.
+ * Return: 0 on success, -erranal on failure.
  */
 int virtsnd_ctl_msg_send(struct virtio_snd *snd, struct virtio_snd_msg *msg,
 			 struct scatterlist *out_sgs,
-			 struct scatterlist *in_sgs, bool nowait)
+			 struct scatterlist *in_sgs, bool analwait)
 {
 	struct virtio_device *vdev = snd->vdev;
 	struct virtio_snd_queue *queue = virtsnd_control_queue(snd);
 	unsigned int js = msecs_to_jiffies(virtsnd_msg_timeout_ms);
 	struct virtio_snd_hdr *request = virtsnd_ctl_msg_request(msg);
 	struct virtio_snd_hdr *response = virtsnd_ctl_msg_response(msg);
-	unsigned int nouts = 0;
+	unsigned int analuts = 0;
 	unsigned int nins = 0;
 	struct scatterlist *psgs[4];
-	bool notify = false;
+	bool analtify = false;
 	unsigned long flags;
 	int rc;
 
@@ -139,19 +139,19 @@ int virtsnd_ctl_msg_send(struct virtio_snd *snd, struct virtio_snd_msg *msg,
 	/* Set the default status in case the message was canceled. */
 	response->code = cpu_to_le32(VIRTIO_SND_S_IO_ERR);
 
-	psgs[nouts++] = &msg->sg_request;
+	psgs[analuts++] = &msg->sg_request;
 	if (out_sgs)
-		psgs[nouts++] = out_sgs;
+		psgs[analuts++] = out_sgs;
 
-	psgs[nouts + nins++] = &msg->sg_response;
+	psgs[analuts + nins++] = &msg->sg_response;
 	if (in_sgs)
-		psgs[nouts + nins++] = in_sgs;
+		psgs[analuts + nins++] = in_sgs;
 
 	spin_lock_irqsave(&queue->lock, flags);
-	rc = virtqueue_add_sgs(queue->vqueue, psgs, nouts, nins, msg,
+	rc = virtqueue_add_sgs(queue->vqueue, psgs, analuts, nins, msg,
 			       GFP_ATOMIC);
 	if (!rc) {
-		notify = virtqueue_kick_prepare(queue->vqueue);
+		analtify = virtqueue_kick_prepare(queue->vqueue);
 
 		list_add_tail(&msg->list, &snd->ctl_msgs);
 	}
@@ -162,7 +162,7 @@ int virtsnd_ctl_msg_send(struct virtio_snd *snd, struct virtio_snd_msg *msg,
 			le32_to_cpu(request->code));
 
 		/*
-		 * Since in this case virtsnd_ctl_msg_complete() will not be
+		 * Since in this case virtsnd_ctl_msg_complete() will analt be
 		 * called, it is necessary to decrement the reference count.
 		 */
 		virtsnd_ctl_msg_unref(msg);
@@ -170,13 +170,13 @@ int virtsnd_ctl_msg_send(struct virtio_snd *snd, struct virtio_snd_msg *msg,
 		goto on_exit;
 	}
 
-	if (notify)
-		virtqueue_notify(queue->vqueue);
+	if (analtify)
+		virtqueue_analtify(queue->vqueue);
 
-	if (nowait)
+	if (analwait)
 		goto on_exit;
 
-	rc = wait_for_completion_interruptible_timeout(&msg->notify, js);
+	rc = wait_for_completion_interruptible_timeout(&msg->analtify, js);
 	if (rc <= 0) {
 		if (!rc) {
 			dev_err(&vdev->dev,
@@ -192,8 +192,8 @@ int virtsnd_ctl_msg_send(struct virtio_snd *snd, struct virtio_snd_msg *msg,
 	case VIRTIO_SND_S_OK:
 		rc = 0;
 		break;
-	case VIRTIO_SND_S_NOT_SUPP:
-		rc = -EOPNOTSUPP;
+	case VIRTIO_SND_S_ANALT_SUPP:
+		rc = -EOPANALTSUPP;
 		break;
 	case VIRTIO_SND_S_IO_ERR:
 		rc = -EIO;
@@ -219,7 +219,7 @@ on_exit:
 void virtsnd_ctl_msg_complete(struct virtio_snd_msg *msg)
 {
 	list_del(&msg->list);
-	complete(&msg->notify);
+	complete(&msg->analtify);
 
 	virtsnd_ctl_msg_unref(msg);
 }
@@ -256,7 +256,7 @@ void virtsnd_ctl_msg_cancel_all(struct virtio_snd *snd)
  * @info: Buffer for storing item information.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int virtsnd_ctl_query_info(struct virtio_snd *snd, int command, int start_id,
 			   int count, size_t size, void *info)
@@ -268,7 +268,7 @@ int virtsnd_ctl_query_info(struct virtio_snd *snd, int command, int start_id,
 	msg = virtsnd_ctl_msg_alloc(sizeof(*query),
 				    sizeof(struct virtio_snd_hdr), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	query = virtsnd_ctl_msg_request(msg);
 	query->hdr.code = cpu_to_le32(command);
@@ -282,7 +282,7 @@ int virtsnd_ctl_query_info(struct virtio_snd *snd, int command, int start_id,
 }
 
 /**
- * virtsnd_ctl_notify_cb() - Process all completed control messages.
+ * virtsnd_ctl_analtify_cb() - Process all completed control messages.
  * @vqueue: Underlying control virtqueue.
  *
  * This callback function is called upon a vring interrupt request from the
@@ -290,7 +290,7 @@ int virtsnd_ctl_query_info(struct virtio_snd *snd, int command, int start_id,
  *
  * Context: Interrupt context. Takes and releases the control queue spinlock.
  */
-void virtsnd_ctl_notify_cb(struct virtqueue *vqueue)
+void virtsnd_ctl_analtify_cb(struct virtqueue *vqueue)
 {
 	struct virtio_snd *snd = vqueue->vdev->priv;
 	struct virtio_snd_queue *queue = virtsnd_control_queue(snd);

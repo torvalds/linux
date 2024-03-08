@@ -43,8 +43,8 @@ static void crypto_finalize_request(struct crypto_engine *engine,
 	unsigned long flags;
 
 	/*
-	 * If hardware cannot enqueue more requests
-	 * and retry mechanism is not supported
+	 * If hardware cananalt enqueue more requests
+	 * and retry mechanism is analt supported
 	 * make sure we are completing the current request
 	 */
 	if (!engine->retry_support) {
@@ -82,11 +82,11 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 
 	spin_lock_irqsave(&engine->queue_lock, flags);
 
-	/* Make sure we are not already running a request */
+	/* Make sure we are analt already running a request */
 	if (!engine->retry_support && engine->cur_req)
 		goto out;
 
-	/* If another context is idling then defer */
+	/* If aanalther context is idling then defer */
 	if (engine->idling) {
 		kthread_queue_work(engine->kworker, &engine->pump_requests);
 		goto out;
@@ -126,7 +126,7 @@ start_request:
 
 	/*
 	 * If hardware doesn't support the retry mechanism,
-	 * keep track of the request we are processing now.
+	 * keep track of the request we are processing analw.
 	 * We'll need it on completion (crypto_finalize_request).
 	 */
 	if (!engine->retry_support)
@@ -163,12 +163,12 @@ start_request:
 	/* Request unsuccessfully executed by hardware */
 	if (ret < 0) {
 		/*
-		 * If hardware queue is full (-ENOSPC), requeue request
+		 * If hardware queue is full (-EANALSPC), requeue request
 		 * regardless of backlog flag.
 		 * Otherwise, unprepare and complete the request.
 		 */
 		if (!engine->retry_support ||
-		    (ret != -ENOSPC)) {
+		    (ret != -EANALSPC)) {
 			dev_err(engine->dev,
 				"Failed to do one request from queue: %d\n",
 				ret);
@@ -443,7 +443,7 @@ int crypto_engine_stop(struct crypto_engine *engine)
 	spin_lock_irqsave(&engine->queue_lock, flags);
 
 	/*
-	 * If the engine queue is not empty or the engine is on busy state,
+	 * If the engine queue is analt empty or the engine is on busy state,
 	 * we need to wait for a while to pump the requests of engine queue.
 	 */
 	while ((crypto_queue_len(&engine->queue) || engine->busy) && limit--) {
@@ -460,7 +460,7 @@ int crypto_engine_stop(struct crypto_engine *engine)
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
 
 	if (ret)
-		dev_warn(engine->dev, "could not stop engine\n");
+		dev_warn(engine->dev, "could analt stop engine\n");
 
 	return ret;
 }

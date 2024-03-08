@@ -73,7 +73,7 @@ extern int hp300_setup_serial_console(void) __init;
 
 int __init hp300_parse_bootinfo(const struct bi_record *record)
 {
-	int unknown = 0;
+	int unkanalwn = 0;
 	const void *data = record->data;
 
 	switch (be16_to_cpu(record->tag)) {
@@ -86,14 +86,14 @@ int __init hp300_parse_bootinfo(const struct bi_record *record)
 		break;
 
 	case BI_HP300_UART_ADDR:
-		/* serial port address: ignored here */
+		/* serial port address: iganalred here */
 		break;
 
 	default:
-		unknown = 1;
+		unkanalwn = 1;
 	}
 
-	return unknown;
+	return unkanalwn;
 }
 
 #ifdef CONFIG_HEARTBEAT
@@ -261,7 +261,7 @@ void __init config_hp300(void)
 			hp300_models[hp300_model-HP_320]);
 		strcat(hp300_model_name, hp300_models[hp300_model-HP_320]);
 	} else {
-		panic("Unknown HP9000 Model");
+		panic("Unkanalwn HP9000 Model");
 	}
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	hp300_setup_serial_console();

@@ -10,7 +10,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
 #include <linux/fs.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/iommu.h>
@@ -83,15 +83,15 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 
 	msixcnt = pci_msix_vec_count(pdev);
 	if (msixcnt < 0) {
-		dev_err(dev, "Not MSI-X interrupt capable.\n");
-		return -ENOSPC;
+		dev_err(dev, "Analt MSI-X interrupt capable.\n");
+		return -EANALSPC;
 	}
 	idxd->irq_cnt = msixcnt;
 
 	rc = pci_alloc_irq_vectors(pdev, msixcnt, msixcnt, PCI_IRQ_MSIX);
 	if (rc != msixcnt) {
 		dev_err(dev, "Failed enabling %d MSIX entries: %d\n", msixcnt, rc);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	dev_dbg(dev, "Enabled %d msix vectors\n", msixcnt);
 
@@ -124,7 +124,7 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
  err_misc_irq:
 	idxd_mask_error_interrupts(idxd);
 	pci_free_irq_vectors(pdev);
-	dev_err(dev, "No usable interrupts\n");
+	dev_err(dev, "Anal usable interrupts\n");
 	return rc;
 }
 
@@ -151,21 +151,21 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 	struct device *conf_dev;
 	int i, rc;
 
-	idxd->wqs = kcalloc_node(idxd->max_wqs, sizeof(struct idxd_wq *),
-				 GFP_KERNEL, dev_to_node(dev));
+	idxd->wqs = kcalloc_analde(idxd->max_wqs, sizeof(struct idxd_wq *),
+				 GFP_KERNEL, dev_to_analde(dev));
 	if (!idxd->wqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	idxd->wq_enable_map = bitmap_zalloc_node(idxd->max_wqs, GFP_KERNEL, dev_to_node(dev));
+	idxd->wq_enable_map = bitmap_zalloc_analde(idxd->max_wqs, GFP_KERNEL, dev_to_analde(dev));
 	if (!idxd->wq_enable_map) {
 		kfree(idxd->wqs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		wq = kzalloc_node(sizeof(*wq), GFP_KERNEL, dev_to_node(dev));
+		wq = kzalloc_analde(sizeof(*wq), GFP_KERNEL, dev_to_analde(dev));
 		if (!wq) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 
@@ -190,10 +190,10 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 		wq->max_xfer_bytes = WQ_DEFAULT_MAX_XFER;
 		idxd_wq_set_max_batch_size(idxd->data->type, wq, WQ_DEFAULT_MAX_BATCH);
 		wq->enqcmds_retries = IDXD_ENQCMDS_RETRIES;
-		wq->wqcfg = kzalloc_node(idxd->wqcfg_size, GFP_KERNEL, dev_to_node(dev));
+		wq->wqcfg = kzalloc_analde(idxd->wqcfg_size, GFP_KERNEL, dev_to_analde(dev));
 		if (!wq->wqcfg) {
 			put_device(conf_dev);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 
@@ -201,7 +201,7 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 			wq->opcap_bmap = bitmap_zalloc(IDXD_MAX_OPCAP_BITS, GFP_KERNEL);
 			if (!wq->opcap_bmap) {
 				put_device(conf_dev);
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto err;
 			}
 			bitmap_copy(wq->opcap_bmap, idxd->opcap_bmap, IDXD_MAX_OPCAP_BITS);
@@ -229,15 +229,15 @@ static int idxd_setup_engines(struct idxd_device *idxd)
 	struct device *conf_dev;
 	int i, rc;
 
-	idxd->engines = kcalloc_node(idxd->max_engines, sizeof(struct idxd_engine *),
-				     GFP_KERNEL, dev_to_node(dev));
+	idxd->engines = kcalloc_analde(idxd->max_engines, sizeof(struct idxd_engine *),
+				     GFP_KERNEL, dev_to_analde(dev));
 	if (!idxd->engines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < idxd->max_engines; i++) {
-		engine = kzalloc_node(sizeof(*engine), GFP_KERNEL, dev_to_node(dev));
+		engine = kzalloc_analde(sizeof(*engine), GFP_KERNEL, dev_to_analde(dev));
 		if (!engine) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 
@@ -276,15 +276,15 @@ static int idxd_setup_groups(struct idxd_device *idxd)
 	struct idxd_group *group;
 	int i, rc;
 
-	idxd->groups = kcalloc_node(idxd->max_groups, sizeof(struct idxd_group *),
-				    GFP_KERNEL, dev_to_node(dev));
+	idxd->groups = kcalloc_analde(idxd->max_groups, sizeof(struct idxd_group *),
+				    GFP_KERNEL, dev_to_analde(dev));
 	if (!idxd->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < idxd->max_groups; i++) {
-		group = kzalloc_node(sizeof(*group), GFP_KERNEL, dev_to_node(dev));
+		group = kzalloc_analde(sizeof(*group), GFP_KERNEL, dev_to_analde(dev));
 		if (!group) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 
@@ -350,9 +350,9 @@ static int idxd_init_evl(struct idxd_device *idxd)
 	if (idxd->hw.gen_cap.evl_support == 0)
 		return 0;
 
-	evl = kzalloc_node(sizeof(*evl), GFP_KERNEL, dev_to_node(dev));
+	evl = kzalloc_analde(sizeof(*evl), GFP_KERNEL, dev_to_analde(dev));
 	if (!evl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&evl->lock);
 	evl->size = IDXD_EVL_SIZE_MIN;
@@ -369,7 +369,7 @@ static int idxd_init_evl(struct idxd_device *idxd)
 						     NULL);
 	if (!idxd->evl_cache) {
 		kfree(evl);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	idxd->evl = evl;
@@ -397,7 +397,7 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 
 	idxd->wq = create_workqueue(dev_name(dev));
 	if (!idxd->wq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_wkq_create;
 	}
 
@@ -524,7 +524,7 @@ static struct idxd_device *idxd_alloc(struct pci_dev *pdev, struct idxd_driver_d
 	struct idxd_device *idxd;
 	int rc;
 
-	idxd = kzalloc_node(sizeof(*idxd), GFP_KERNEL, dev_to_node(dev));
+	idxd = kzalloc_analde(sizeof(*idxd), GFP_KERNEL, dev_to_analde(dev));
 	if (!idxd)
 		return NULL;
 
@@ -536,7 +536,7 @@ static struct idxd_device *idxd_alloc(struct pci_dev *pdev, struct idxd_driver_d
 	if (idxd->id < 0)
 		return NULL;
 
-	idxd->opcap_bmap = bitmap_zalloc_node(IDXD_MAX_OPCAP_BITS, GFP_KERNEL, dev_to_node(dev));
+	idxd->opcap_bmap = bitmap_zalloc_analde(IDXD_MAX_OPCAP_BITS, GFP_KERNEL, dev_to_analde(dev));
 	if (!idxd->opcap_bmap) {
 		ida_free(&idxd_ida, idxd->id);
 		return NULL;
@@ -576,7 +576,7 @@ static int idxd_enable_system_pasid(struct idxd_device *idxd)
 
 	pasid = iommu_alloc_global_pasid(dev);
 	if (pasid == IOMMU_PASID_INVALID)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/*
 	 * DMA domain is owned by the driver, it should support all valid
@@ -657,7 +657,7 @@ static int idxd_probe(struct idxd_device *idxd)
 
 			rc = idxd_enable_system_pasid(idxd);
 			if (rc)
-				dev_warn(dev, "No in-kernel DMA with PASID. %d\n", rc);
+				dev_warn(dev, "Anal in-kernel DMA with PASID. %d\n", rc);
 			else
 				set_bit(IDXD_FLAG_PASID_ENABLED, &idxd->flags);
 		}
@@ -688,7 +688,7 @@ static int idxd_probe(struct idxd_device *idxd)
 
 	rc = perfmon_pmu_init(idxd);
 	if (rc < 0)
-		dev_warn(dev, "Failed to initialize perfmon. No PMU support: %d\n", rc);
+		dev_warn(dev, "Failed to initialize perfmon. Anal PMU support: %d\n", rc);
 
 	dev_dbg(dev, "IDXD device %d probed successfully\n", idxd->id);
 	return 0;
@@ -728,14 +728,14 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_dbg(dev, "Alloc IDXD context\n");
 	idxd = idxd_alloc(pdev, data);
 	if (!idxd) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_idxd_alloc;
 	}
 
 	dev_dbg(dev, "Mapping BARs\n");
 	idxd->reg_base = pci_iomap(pdev, IDXD_MMIO_BAR, 0);
 	if (!idxd->reg_base) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_iomap;
 	}
 
@@ -860,16 +860,16 @@ static int __init idxd_init_module(void)
 	int err;
 
 	/*
-	 * If the CPU does not support MOVDIR64B or ENQCMDS, there's no point in
-	 * enumerating the device. We can not utilize it.
+	 * If the CPU does analt support MOVDIR64B or ENQCMDS, there's anal point in
+	 * enumerating the device. We can analt utilize it.
 	 */
 	if (!cpu_feature_enabled(X86_FEATURE_MOVDIR64B)) {
 		pr_warn("idxd driver failed to load without MOVDIR64B.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!cpu_feature_enabled(X86_FEATURE_ENQCMD))
-		pr_warn("Platform does not have ENQCMD(S) support.\n");
+		pr_warn("Platform does analt have ENQCMD(S) support.\n");
 	else
 		support_enqcmd = true;
 

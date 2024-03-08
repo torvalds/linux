@@ -3,7 +3,7 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Exynos low-level resume code
+ * Exyanals low-level resume code
  */
 
 #include <linux/linkage.h>
@@ -20,18 +20,18 @@
 	/*
 	 * sleep magic, to allow the bootloader to check for an valid
 	 * image to resume to. Must be the first word before the
-	 * exynos_cpu_resume entry.
+	 * exyanals_cpu_resume entry.
 	 */
 
 	.word	0x2bedf00d
 
 	/*
-	 * exynos_cpu_resume
+	 * exyanals_cpu_resume
 	 *
 	 * resume code entry for bootloader to call
 	 */
 
-ENTRY(exynos_cpu_resume)
+ENTRY(exyanals_cpu_resume)
 #ifdef CONFIG_CACHE_L2X0
 	mrc	p15, 0, r0, c0, c0, 0
 	ldr	r1, =CPU_MASK
@@ -41,12 +41,12 @@ ENTRY(exynos_cpu_resume)
 	bleq	l2c310_early_resume
 #endif
 	b	cpu_resume
-ENDPROC(exynos_cpu_resume)
+ENDPROC(exyanals_cpu_resume)
 
 	.align
 	.arch armv7-a
 	.arch_extension sec
-ENTRY(exynos_cpu_resume_ns)
+ENTRY(exyanals_cpu_resume_ns)
 	mrc	p15, 0, r0, c0, c0, 0
 	ldr	r1, =CPU_MASK
 	and	r0, r0, r1
@@ -104,7 +104,7 @@ skip_l2x0:
 #endif /* CONFIG_CACHE_L2X0 */
 skip_cp15:
 	b	cpu_resume
-ENDPROC(exynos_cpu_resume_ns)
+ENDPROC(exyanals_cpu_resume_ns)
 
 	.align
 _cp15_save_power:
@@ -119,7 +119,7 @@ _cp15_save_diag:
 	.align	2
 	.globl cp15_save_diag
 cp15_save_diag:
-	.long	0	@ cp15 diagnostic
+	.long	0	@ cp15 diaganalstic
 	.globl cp15_save_power
 cp15_save_power:
 	.long	0	@ cp15 power control

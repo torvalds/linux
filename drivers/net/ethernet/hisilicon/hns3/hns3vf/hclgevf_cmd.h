@@ -118,7 +118,7 @@ struct hclgevf_dev_specs_0_cmd {
 	__le16 rss_ind_tbl_size;
 	__le16 rss_key_size;
 	__le16 int_ql_max;
-	u8 max_non_tso_bd_num;
+	u8 max_analn_tso_bd_num;
 	u8 rsv1[5];
 };
 

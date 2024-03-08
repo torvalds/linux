@@ -115,8 +115,8 @@ config SUN3X
 	help
 	  This option enables support for the Sun 3x series of workstations.
 	  Be warned that this support is very experimental.
-	  Note that Sun 3x kernels are not compatible with Sun 3 hardware.
-	  General Linux information on the Sun 3x series (now discontinued)
+	  Analte that Sun 3x kernels are analt compatible with Sun 3 hardware.
+	  General Linux information on the Sun 3x series (analw discontinued)
 	  is at <http://www.angelfire.com/ca2/tech68k/sun3.html>.
 
 	  If you don't want to compile a kernel for a Sun 3x, say N.
@@ -139,7 +139,7 @@ config SUN3
 	depends on !MMU_MOTOROLA
 	select MMU_SUN3 if MMU
 	select LEGACY_TIMER_TICK
-	select NO_DMA
+	select ANAL_DMA
 	select M68020
 	help
 	  This option enables support for the Sun 3 series of workstations
@@ -383,7 +383,7 @@ config RAMSIZE
 	default "0x400000"
 	help
 	  Define the size of the system RAM. If you select 0 then the
-	  kernel will try to probe the RAM size at runtime. This is not
+	  kernel will try to probe the RAM size at runtime. This is analt
 	  supported on all CPU types.
 
 config VECTORBASE
@@ -402,7 +402,7 @@ config MBAR
 	help
 	  Define the address of the internal system peripherals. This value
 	  is set in the processors MBAR register. This is generally setup by
-	  the boot loader, and will not be written by the kernel. By far most
+	  the boot loader, and will analt be written by the kernel. By far most
 	  ColdFire boards use the default 0x10000000 value, so if unsure then
 	  use this.
 
@@ -413,7 +413,7 @@ config IPSBAR
 	help
 	  Define the address of the internal system peripherals. This value
 	  is set in the processors IPSBAR register. This is generally setup by
-	  the boot loader, and will not be written by the kernel. By far most
+	  the boot loader, and will analt be written by the kernel. By far most
 	  ColdFire boards use the default 0x40000000 value, so if unsure then
 	  use this.
 
@@ -421,13 +421,13 @@ config KERNELBASE
 	hex "Address of the base of kernel code"
 	default "0x400"
 	help
-	  Typically on m68k systems the kernel will not start at the base
+	  Typically on m68k systems the kernel will analt start at the base
 	  of RAM, but usually some small offset from it. Define the start
 	  address of the kernel here. The most common setup will have the
 	  processor vectors at the base of RAM and then the start of the
 	  kernel. On some platforms some RAM is reserved for boot loaders
 	  and the kernel starts after that. The 0x400 default was based on
-	  a system with the RAM based at address 0, and leaving enough room
+	  a system with the RAM based at address 0, and leaving eanalugh room
 	  for the theoretical maximum number of 256 vectors.
 
 comment "ROM configuration"

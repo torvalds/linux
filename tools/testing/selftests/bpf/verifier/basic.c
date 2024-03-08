@@ -2,7 +2,7 @@
 	"empty prog",
 	.insns = {
 	},
-	.errstr = "last insn is not an exit or jmp",
+	.errstr = "last insn is analt an exit or jmp",
 	.result = REJECT,
 },
 {
@@ -14,10 +14,10 @@
 	.result = REJECT,
 },
 {
-	"no bpf_exit",
+	"anal bpf_exit",
 	.insns = {
 	BPF_ALU64_REG(BPF_MOV, BPF_REG_0, BPF_REG_2),
 	},
-	.errstr = "not an exit",
+	.errstr = "analt an exit",
 	.result = REJECT,
 },

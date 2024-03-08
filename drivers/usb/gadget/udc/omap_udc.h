@@ -25,7 +25,7 @@
 #	define	UDC_CLR_EP		(1 << 1)
 #	define	UDC_RESET_EP		(1 << 0)
 #define	UDC_STAT_FLG			(UDC_BASE + 0x10)	/* Endpoint status */
-#	define	UDC_NO_RXPACKET		(1 << 15)
+#	define	UDC_ANAL_RXPACKET		(1 << 15)
 #	define	UDC_MISS_IN		(1 << 14)
 #	define	UDC_DATA_FLUSH		(1 << 13)
 #	define	UDC_ISO_ERR		(1 << 12)
@@ -36,8 +36,8 @@
 #	define	UDC_NAK			(1 << 4)
 #	define	UDC_ACK			(1 << 3)
 #	define	UDC_FIFO_EN		(1 << 2)
-#	define	UDC_NON_ISO_FIFO_EMPTY	(1 << 1)
-#	define	UDC_NON_ISO_FIFO_FULL	(1 << 0)
+#	define	UDC_ANALN_ISO_FIFO_EMPTY	(1 << 1)
+#	define	UDC_ANALN_ISO_FIFO_FULL	(1 << 0)
 #define	UDC_RXFSTAT			(UDC_BASE + 0x14)	/* OUT bytecount */
 #define	UDC_SYSCON1			(UDC_BASE + 0x18)	/* System config 1 */
 #	define	UDC_CFG_LOCK		(1 << 8)
@@ -75,7 +75,7 @@
 #	define	UDC_DS_CHG_IE		(1 << 3)
 #	define	UDC_EP0_IE		(1 << 0)
 #define	UDC_DMA_IRQ_EN			(UDC_BASE + 0x2C)	/* DMA irq enable */
-	/* rx/tx dma channels numbered 1-3 not 0-2 */
+	/* rx/tx dma channels numbered 1-3 analt 0-2 */
 #	define	UDC_TX_DONE_IE(n)	(1 << (4 * (n) - 2))
 #	define	UDC_RX_CNT_IE(n)	(1 << (4 * (n) - 3))
 #	define	UDC_RX_EOT_IE(n)	(1 << (4 * (n) - 4))
@@ -104,7 +104,7 @@
 #define	UDC_TXDMA_CFG			(UDC_BASE + 0x44)	/* 3 eps for TX DMA */
 #define	UDC_DATA_DMA			(UDC_BASE + 0x48)	/* rx/tx fifo addr */
 
-/* rx/tx dma control, numbering channels 1-3 not 0-2 */
+/* rx/tx dma control, numbering channels 1-3 analt 0-2 */
 #define	UDC_TXDMA(chan)			(UDC_BASE + 0x50 - 4 + 4 * (chan))
 #	define UDC_TXN_EOT		(1 << 15)	/* bytes vs packets */
 #	define UDC_TXN_START		(1 << 14)	/* start transfer */

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -41,7 +41,7 @@
 #define SI_OLAND_M_A0     0x3C
 #define SI_HAINAN_V_A0    0x46
 
-#define SI_UNKNOWN        0xFF
+#define SI_UNKANALWN        0xFF
 
 #define ASIC_REV_IS_TAHITI_P(rev) \
 	((rev >= SI_TAHITI_P_A0) && (rev < SI_PITCAIRN_PM_A0))
@@ -56,14 +56,14 @@
 	((rev >= SI_OLAND_M_A0) && (rev < SI_HAINAN_V_A0))
 
 #define ASIC_REV_IS_HAINAN_V(rev) \
-	((rev >= SI_HAINAN_V_A0) && (rev < SI_UNKNOWN))
+	((rev >= SI_HAINAN_V_A0) && (rev < SI_UNKANALWN))
 
 /* DCE80 (based on ci_id.h in Perforce) */
 #define	CI_BONAIRE_M_A0 0x14
 #define	CI_BONAIRE_M_A1	0x15
 #define	CI_HAWAII_P_A0	0x28
 
-#define CI_UNKNOWN	0xFF
+#define CI_UNKANALWN	0xFF
 
 #define ASIC_REV_IS_BONAIRE_M(rev) \
 	((rev >= CI_BONAIRE_M_A0) && (rev < CI_HAWAII_P_A0))
@@ -93,16 +93,16 @@
 /* ML with Godavari GFX core, 2-4-1-1 (CU-Pix-Primitive-RB) */
 #define ML_GODAVARI_A1 0xA2
 
-#define KV_UNKNOWN 0xFF
+#define KV_UNKANALWN 0xFF
 
 #define ASIC_REV_IS_KALINDI(rev) \
-	((rev >= KB_KALINDI_A0) && (rev < KV_UNKNOWN))
+	((rev >= KB_KALINDI_A0) && (rev < KV_UNKANALWN))
 
 #define ASIC_REV_IS_BHAVANI(rev) \
 	((rev >= BV_KALINDI_A2) && (rev < ML_GODAVARI_A0))
 
 #define ASIC_REV_IS_GODAVARI(rev) \
-	((rev >= ML_GODAVARI_A0) && (rev < KV_UNKNOWN))
+	((rev >= ML_GODAVARI_A0) && (rev < KV_UNKANALWN))
 
 /* VI Family */
 /* DCE10 */
@@ -116,7 +116,7 @@
 #define VI_POLARIS12_V_A0 100
 #define VI_VEGAM_A0 110
 
-#define VI_UNKNOWN 0xFF
+#define VI_UNKANALWN 0xFF
 
 #define ASIC_REV_IS_TONGA_P(eChipRev) ((eChipRev >= VI_TONGA_P_A0) && \
 		(eChipRev < 40))
@@ -135,17 +135,17 @@
 #define CZ_CARRIZO_A0 0x01
 
 #define STONEY_A0 0x61
-#define CZ_UNKNOWN 0xFF
+#define CZ_UNKANALWN 0xFF
 
 #define ASIC_REV_IS_STONEY(rev) \
-	((rev >= STONEY_A0) && (rev < CZ_UNKNOWN))
+	((rev >= STONEY_A0) && (rev < CZ_UNKANALWN))
 
 /* DCE12 */
-#define AI_UNKNOWN 0xFF
+#define AI_UNKANALWN 0xFF
 
 #define AI_GREENLAND_P_A0 1
 #define AI_GREENLAND_P_A1 2
-#define AI_UNKNOWN 0xFF
+#define AI_UNKANALWN 0xFF
 
 #define AI_VEGA12_P_A0 20
 #define AI_VEGA20_P_A0 40
@@ -153,7 +153,7 @@
 #define ASICREV_IS_GREENLAND_P(eChipRev)  (eChipRev < AI_VEGA12_P_A0)
 
 #define ASICREV_IS_VEGA12_P(eChipRev) ((eChipRev >= AI_VEGA12_P_A0) && (eChipRev < AI_VEGA20_P_A0))
-#define ASICREV_IS_VEGA20_P(eChipRev) ((eChipRev >= AI_VEGA20_P_A0) && (eChipRev < AI_UNKNOWN))
+#define ASICREV_IS_VEGA20_P(eChipRev) ((eChipRev >= AI_VEGA20_P_A0) && (eChipRev < AI_UNKANALWN))
 
 /* DCN1_0 */
 #define INTERNAL_REV_RAVEN_A0             0x00    /* First spin of Raven */
@@ -163,10 +163,10 @@
 /* DCN1_01 */
 #define RAVEN2_A0 0x81
 #define RAVEN1_F0 0xF0
-#define RAVEN_UNKNOWN 0xFF
-#define RENOIR_A0 0x91
+#define RAVEN_UNKANALWN 0xFF
+#define REANALIR_A0 0x91
 #ifndef ASICREV_IS_RAVEN
-#define ASICREV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
+#define ASICREV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKANALWN)
 #endif
 #define PRID_DALI_DE 0xDE
 #define PRID_DALI_DF 0xDF
@@ -181,9 +181,9 @@
 
 #define ASICREV_IS_PICASSO(eChipRev) ((eChipRev >= PICASSO_A0) && (eChipRev < RAVEN2_A0))
 #ifndef ASICREV_IS_RAVEN2
-#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < RENOIR_A0))
+#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < REANALIR_A0))
 #endif
-#define ASICREV_IS_RV1_F0(eChipRev) ((eChipRev >= RAVEN1_F0) && (eChipRev < RAVEN_UNKNOWN))
+#define ASICREV_IS_RV1_F0(eChipRev) ((eChipRev >= RAVEN1_F0) && (eChipRev < RAVEN_UNKANALWN))
 
 #define FAMILY_RV 142 /* DCN 1*/
 
@@ -197,16 +197,16 @@ enum {
 	NV_SIENNA_CICHLID_P_A0      = 40,
 	NV_DIMGREY_CAVEFISH_P_A0      = 60,
 	NV_BEIGE_GOBY_P_A0  = 70,
-	NV_UNKNOWN          = 0xFF
+	NV_UNKANALWN          = 0xFF
 };
 
 #define ASICREV_IS_NAVI10_P(eChipRev)        (eChipRev < NV_NAVI12_P_A0)
 #define ASICREV_IS_NAVI12_P(eChipRev)        ((eChipRev >= NV_NAVI12_P_A0) && (eChipRev < NV_NAVI14_M_A0))
-#define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKNOWN))
-#define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < RAVEN1_F0))
+#define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKANALWN))
+#define ASICREV_IS_REANALIR(eChipRev) ((eChipRev >= REANALIR_A0) && (eChipRev < RAVEN1_F0))
 #define ASICREV_IS_SIENNA_CICHLID_P(eChipRev)        ((eChipRev >= NV_SIENNA_CICHLID_P_A0) && (eChipRev < NV_DIMGREY_CAVEFISH_P_A0))
 #define ASICREV_IS_DIMGREY_CAVEFISH_P(eChipRev)        ((eChipRev >= NV_DIMGREY_CAVEFISH_P_A0) && (eChipRev < NV_BEIGE_GOBY_P_A0))
-#define ASICREV_IS_BEIGE_GOBY_P(eChipRev)        ((eChipRev >= NV_BEIGE_GOBY_P_A0) && (eChipRev < NV_UNKNOWN))
+#define ASICREV_IS_BEIGE_GOBY_P(eChipRev)        ((eChipRev >= NV_BEIGE_GOBY_P_A0) && (eChipRev < NV_UNKANALWN))
 #define GREEN_SARDINE_A0 0xA1
 #ifndef ASICREV_IS_GREEN_SARDINE
 #define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
@@ -217,32 +217,32 @@ enum {
 #define DEVICE_ID_VGH_163F 0x163F
 #define DEVICE_ID_VGH_1435 0x1435
 #define VANGOGH_A0 0x01
-#define VANGOGH_UNKNOWN 0xFF
+#define VANGOGH_UNKANALWN 0xFF
 
 #ifndef ASICREV_IS_VANGOGH
-#define ASICREV_IS_VANGOGH(eChipRev) ((eChipRev >= VANGOGH_A0) && (eChipRev < VANGOGH_UNKNOWN))
+#define ASICREV_IS_VANGOGH(eChipRev) ((eChipRev >= VANGOGH_A0) && (eChipRev < VANGOGH_UNKANALWN))
 #endif
 
 #define FAMILY_YELLOW_CARP                     146
 #define YELLOW_CARP_A0 0x01
 #define YELLOW_CARP_B0 0x20
-#define YELLOW_CARP_UNKNOWN 0xFF
+#define YELLOW_CARP_UNKANALWN 0xFF
 
 #ifndef ASICREV_IS_YELLOW_CARP
-#define ASICREV_IS_YELLOW_CARP(eChipRev) ((eChipRev >= YELLOW_CARP_A0) && (eChipRev < YELLOW_CARP_UNKNOWN))
+#define ASICREV_IS_YELLOW_CARP(eChipRev) ((eChipRev >= YELLOW_CARP_A0) && (eChipRev < YELLOW_CARP_UNKANALWN))
 #endif
 
 #define AMDGPU_FAMILY_GC_10_3_6                     149
 #define GC_10_3_6_A0            0x01
-#define GC_10_3_6_UNKNOWN       0xFF
+#define GC_10_3_6_UNKANALWN       0xFF
 
-#define ASICREV_IS_GC_10_3_6(eChipRev) ((eChipRev >= GC_10_3_6_A0) && (eChipRev < GC_10_3_6_UNKNOWN))
+#define ASICREV_IS_GC_10_3_6(eChipRev) ((eChipRev >= GC_10_3_6_A0) && (eChipRev < GC_10_3_6_UNKANALWN))
 
 #define AMDGPU_FAMILY_GC_10_3_7                151
 #define GC_10_3_7_A0 0x01
-#define GC_10_3_7_UNKNOWN 0xFF
+#define GC_10_3_7_UNKANALWN 0xFF
 
-#define ASICREV_IS_GC_10_3_7(eChipRev) ((eChipRev >= GC_10_3_7_A0) && (eChipRev < GC_10_3_7_UNKNOWN))
+#define ASICREV_IS_GC_10_3_7(eChipRev) ((eChipRev >= GC_10_3_7_A0) && (eChipRev < GC_10_3_7_UNKANALWN))
 
 #define AMDGPU_FAMILY_GC_11_0_0 145
 #define AMDGPU_FAMILY_GC_11_0_1 148
@@ -250,11 +250,11 @@ enum {
 #define GC_11_0_0_A0 0x1
 #define GC_11_0_2_A0 0x10
 #define GC_11_0_3_A0 0x20
-#define GC_11_UNKNOWN 0xFF
+#define GC_11_UNKANALWN 0xFF
 
 #define ASICREV_IS_GC_11_0_0(eChipRev) (eChipRev < GC_11_0_2_A0)
 #define ASICREV_IS_GC_11_0_2(eChipRev) (eChipRev >= GC_11_0_2_A0 && eChipRev < GC_11_0_3_A0)
-#define ASICREV_IS_GC_11_0_3(eChipRev) (eChipRev >= GC_11_0_3_A0 && eChipRev < GC_11_UNKNOWN)
+#define ASICREV_IS_GC_11_0_3(eChipRev) (eChipRev >= GC_11_0_3_A0 && eChipRev < GC_11_UNKANALWN)
 
 /*
  * ASIC chip ID
@@ -275,8 +275,8 @@ enum {
 #define DEVICE_ID_TEMASH_9839 0x9839
 #define DEVICE_ID_TEMASH_983D 0x983D
 
-/* RENOIR */
-#define DEVICE_ID_RENOIR_1636 0x1636
+/* REANALIR */
+#define DEVICE_ID_REANALIR_1636 0x1636
 
 /* Asic Family IDs for different asic family. */
 #define FAMILY_SI 110 /* Southern Islands: Tahiti (P), Pitcairn (PM), Cape Verde (M), Oland (M), Hainan (V) */
@@ -287,6 +287,6 @@ enum {
 
 #define FAMILY_AI 141
 
-#define	FAMILY_UNKNOWN 0xFF
+#define	FAMILY_UNKANALWN 0xFF
 
 #endif /* __DAL_ASIC_ID_H__ */

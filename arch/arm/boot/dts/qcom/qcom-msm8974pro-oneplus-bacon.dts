@@ -111,7 +111,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -120,7 +120,7 @@
 			/*
 			 * Touchscreen size is 2040x1080, y-values between
 			 * 1920-2040 are used for touchkey (menu, home & back).
-			 * For now clip it off so we don't get touch events
+			 * For analw clip it off so we don't get touch events
 			 * outside of the display area.
 			 */
 			syna,clip-y-high = <1920>;
@@ -200,7 +200,7 @@
 &pm8941_gpios {
 	gpio_keys_default: gpio-keys-active-state {
 		pins = "gpio2", "gpio5";
-		function = "normal";
+		function = "analrmal";
 		input-enable;
 		bias-disable;
 		power-source = <PM8941_GPIO_S3>;

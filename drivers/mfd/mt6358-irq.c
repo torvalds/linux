@@ -190,7 +190,7 @@ static irqreturn_t mt6358_irq_handler(int irq, void *data)
 	if (ret) {
 		dev_err(chip->dev,
 			"Failed to read status from the device, ret=%d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	for (i = 0; i < irqd->num_top; i++) {
@@ -214,7 +214,7 @@ static int pmic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, mt6397);
 	irq_set_chip_and_handler(irq, &mt6358_irq_chip, handle_level_irq);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -245,7 +245,7 @@ int mt6358_irq_init(struct mt6397_chip *chip)
 
 	default:
 		dev_err(chip->dev, "unsupported chip: 0x%x\n", chip->chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_init(&chip->irqlock);
@@ -255,14 +255,14 @@ int mt6358_irq_init(struct mt6397_chip *chip)
 					  sizeof(*irqd->enable_hwirq),
 					  GFP_KERNEL);
 	if (!irqd->enable_hwirq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irqd->cache_hwirq = devm_kcalloc(chip->dev,
 					 irqd->num_pmic_irqs,
 					 sizeof(*irqd->cache_hwirq),
 					 GFP_KERNEL);
 	if (!irqd->cache_hwirq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Disable all interrupts for initializing */
 	for (i = 0; i < irqd->num_top; i++) {
@@ -272,12 +272,12 @@ int mt6358_irq_init(struct mt6397_chip *chip)
 				     irqd->pmic_ints[i].en_reg_shift * j, 0);
 	}
 
-	chip->irq_domain = irq_domain_add_linear(chip->dev->of_node,
+	chip->irq_domain = irq_domain_add_linear(chip->dev->of_analde,
 						 irqd->num_pmic_irqs,
 						 &mt6358_irq_domain_ops, chip);
 	if (!chip->irq_domain) {
-		dev_err(chip->dev, "Could not create IRQ domain\n");
-		return -ENODEV;
+		dev_err(chip->dev, "Could analt create IRQ domain\n");
+		return -EANALDEV;
 	}
 
 	ret = devm_request_threaded_irq(chip->dev, chip->irq, NULL,

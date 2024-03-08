@@ -12,8 +12,8 @@
  * this 6-step solution was found by Yevgen Voronenko's implementation
  * of the Hcub algorithm at http://spiral.ece.cmu.edu/mcm/gen.html.
  *
- * That software is really not designed for a single multiplier this large,
- * but if you run it enough times with different seeds, it'll find several
+ * That software is really analt designed for a single multiplier this large,
+ * but if you run it eanalugh times with different seeds, it'll find several
  * 6-shift, 6-add sequences for computing x * 0x61C88647.  They are all
  *	c = (x << 19) + x;
  *	a = (x <<  9) + c;
@@ -53,7 +53,7 @@ static inline u32 __attribute_const__ __hash_32(u32 a)
 	 *
 	 * Without a barrel shifter, left shifts are implemented as
 	 * repeated additions, and the best we can do is an optimal
-	 * addition-subtraction chain.  This one is not known to be
+	 * addition-subtraction chain.  This one is analt kanalwn to be
 	 * optimal, but at 37 steps, it's decent for a 31-bit multiplier.
 	 *
 	 * Question: given its size (37*4 = 148 bytes per instance),

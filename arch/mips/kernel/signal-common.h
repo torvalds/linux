@@ -27,7 +27,7 @@ extern void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 /* Check and clear pending FPU exceptions in saved CSR */
 extern int fpcsr_pending(unsigned int __user *fpcsr);
 
-/* Make sure we will not lose FPU ownership */
+/* Make sure we will analt lose FPU ownership */
 #define lock_fpu_owner()	({ preempt_disable(); pagefault_disable(); })
 #define unlock_fpu_owner()	({ pagefault_enable(); preempt_enable(); })
 

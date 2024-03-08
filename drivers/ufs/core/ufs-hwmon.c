@@ -40,7 +40,7 @@ static int ufs_get_temp(struct ufs_hba *hba, enum attr_idn idn, long *val)
 		return err;
 
 	if (value == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*val = ((long)value - 80) * MILLIDEGREE_PER_DEGREE;
 
@@ -81,7 +81,7 @@ static int ufs_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 
 
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 
 		break;
 	}
@@ -199,14 +199,14 @@ void ufs_hwmon_remove(struct ufs_hba *hba)
 	kfree(data);
 }
 
-void ufs_hwmon_notify_event(struct ufs_hba *hba, u8 ee_mask)
+void ufs_hwmon_analtify_event(struct ufs_hba *hba, u8 ee_mask)
 {
 	if (!hba->hwmon_device)
 		return;
 
 	if (ee_mask & MASK_EE_TOO_HIGH_TEMP)
-		hwmon_notify_event(hba->hwmon_device, hwmon_temp, hwmon_temp_max_alarm, 0);
+		hwmon_analtify_event(hba->hwmon_device, hwmon_temp, hwmon_temp_max_alarm, 0);
 
 	if (ee_mask & MASK_EE_TOO_LOW_TEMP)
-		hwmon_notify_event(hba->hwmon_device, hwmon_temp, hwmon_temp_min_alarm, 0);
+		hwmon_analtify_event(hba->hwmon_device, hwmon_temp, hwmon_temp_min_alarm, 0);
 }

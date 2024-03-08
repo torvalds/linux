@@ -263,7 +263,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000069, 0x01FF },   /* R105   - Always On Triggers Sequence Select 4 */
 	{ 0x0000006A, 0x01FF },   /* R106   - Always On Triggers Sequence Select 5 */
 	{ 0x0000006B, 0x01FF },   /* R107   - Always On Triggers Sequence Select 6 */
-	{ 0x00000070, 0x0000 },   /* R112   - Comfort Noise Generator */
+	{ 0x00000070, 0x0000 },   /* R112   - Comfort Analise Generator */
 	{ 0x00000090, 0x0000 },   /* R144   - Haptics Control 1 */
 	{ 0x00000091, 0x7FFF },   /* R145   - Haptics Control 2 */
 	{ 0x00000092, 0x0000 },   /* R146   - Haptics phase 1 intensity */
@@ -336,7 +336,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x000002A7, 0x2C37 },   /* R679   - Mic Detect Level 2 */
 	{ 0x000002A8, 0x1422 },   /* R680   - Mic Detect Level 3 */
 	{ 0x000002A9, 0x030A },   /* R681   - Mic Detect Level 4 */
-	{ 0x000002C3, 0x0000 },   /* R707   - Mic noise mix control 1 */
+	{ 0x000002C3, 0x0000 },   /* R707   - Mic analise mix control 1 */
 	{ 0x000002CB, 0x0000 },   /* R715   - Isolation control */
 	{ 0x000002D3, 0x0000 },   /* R723   - Jack detect analogue */
 	{ 0x00000300, 0x0000 },   /* R768   - Input Enables */
@@ -366,42 +366,42 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000410, 0x6080 },   /* R1040  - Output Path Config 1L */
 	{ 0x00000411, 0x0180 },   /* R1041  - DAC Digital Volume 1L */
 	{ 0x00000412, 0x0081 },   /* R1042  - DAC Volume Limit 1L */
-	{ 0x00000413, 0x0001 },   /* R1043  - Noise Gate Select 1L */
+	{ 0x00000413, 0x0001 },   /* R1043  - Analise Gate Select 1L */
 	{ 0x00000414, 0x0080 },   /* R1044  - Output Path Config 1R */
 	{ 0x00000415, 0x0180 },   /* R1045  - DAC Digital Volume 1R */
 	{ 0x00000416, 0x0081 },   /* R1046  - DAC Volume Limit 1R */
-	{ 0x00000417, 0x0002 },   /* R1047  - Noise Gate Select 1R */
+	{ 0x00000417, 0x0002 },   /* R1047  - Analise Gate Select 1R */
 	{ 0x00000418, 0xA080 },   /* R1048  - Output Path Config 2L */
 	{ 0x00000419, 0x0180 },   /* R1049  - DAC Digital Volume 2L */
 	{ 0x0000041A, 0x0081 },   /* R1050  - DAC Volume Limit 2L */
-	{ 0x0000041B, 0x0004 },   /* R1051  - Noise Gate Select 2L */
+	{ 0x0000041B, 0x0004 },   /* R1051  - Analise Gate Select 2L */
 	{ 0x0000041C, 0x0080 },   /* R1052  - Output Path Config 2R */
 	{ 0x0000041D, 0x0180 },   /* R1053  - DAC Digital Volume 2R */
 	{ 0x0000041E, 0x0081 },   /* R1054  - DAC Volume Limit 2R */
-	{ 0x0000041F, 0x0008 },   /* R1055  - Noise Gate Select 2R */
+	{ 0x0000041F, 0x0008 },   /* R1055  - Analise Gate Select 2R */
 	{ 0x00000420, 0xA080 },   /* R1056  - Output Path Config 3L */
 	{ 0x00000421, 0x0180 },   /* R1057  - DAC Digital Volume 3L */
 	{ 0x00000422, 0x0081 },   /* R1058  - DAC Volume Limit 3L */
-	{ 0x00000423, 0x0010 },   /* R1059  - Noise Gate Select 3L */
+	{ 0x00000423, 0x0010 },   /* R1059  - Analise Gate Select 3L */
 	{ 0x00000428, 0xE000 },   /* R1064  - Output Path Config 4L */
 	{ 0x00000429, 0x0180 },   /* R1065  - DAC Digital Volume 4L */
 	{ 0x0000042A, 0x0081 },   /* R1066  - Out Volume 4L */
-	{ 0x0000042B, 0x0040 },   /* R1067  - Noise Gate Select 4L */
+	{ 0x0000042B, 0x0040 },   /* R1067  - Analise Gate Select 4L */
 	{ 0x0000042D, 0x0180 },   /* R1069  - DAC Digital Volume 4R */
 	{ 0x0000042E, 0x0081 },   /* R1070  - Out Volume 4R */
-	{ 0x0000042F, 0x0080 },   /* R1071  - Noise Gate Select 4R */
+	{ 0x0000042F, 0x0080 },   /* R1071  - Analise Gate Select 4R */
 	{ 0x00000430, 0x0000 },   /* R1072  - Output Path Config 5L */
 	{ 0x00000431, 0x0180 },   /* R1073  - DAC Digital Volume 5L */
 	{ 0x00000432, 0x0081 },   /* R1074  - DAC Volume Limit 5L */
-	{ 0x00000433, 0x0100 },   /* R1075  - Noise Gate Select 5L */
+	{ 0x00000433, 0x0100 },   /* R1075  - Analise Gate Select 5L */
 	{ 0x00000435, 0x0180 },   /* R1077  - DAC Digital Volume 5R */
 	{ 0x00000436, 0x0081 },   /* R1078  - DAC Volume Limit 5R */
-	{ 0x00000437, 0x0200 },   /* R1079  - Noise Gate Select 5R */
+	{ 0x00000437, 0x0200 },   /* R1079  - Analise Gate Select 5R */
 	{ 0x00000440, 0x0FFF },   /* R1088  - DRE Enable */
 	{ 0x00000442, 0x3F0A },   /* R1090  - DRE Control 2 */
 	{ 0x00000443, 0xDC1F },   /* R1090  - DRE Control 3 */
 	{ 0x00000450, 0x0000 },   /* R1104  - DAC AEC Control 1 */
-	{ 0x00000458, 0x000B },   /* R1112  - Noise Gate Control */
+	{ 0x00000458, 0x000B },   /* R1112  - Analise Gate Control */
 	{ 0x00000490, 0x0069 },   /* R1168  - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 },   /* R1169  - PDM SPK1 CTRL 2 */
 	{ 0x00000500, 0x000C },   /* R1280  - AIF1 BCLK Ctrl */
@@ -496,14 +496,14 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000665, 0x0080 },   /* R1637  - MICMIX Input 3 Volume */
 	{ 0x00000666, 0x0000 },   /* R1638  - MICMIX Input 4 Source */
 	{ 0x00000667, 0x0080 },   /* R1639  - MICMIX Input 4 Volume */
-	{ 0x00000668, 0x0000 },   /* R1640  - NOISEMIX Input 1 Source */
-	{ 0x00000669, 0x0080 },   /* R1641  - NOISEMIX Input 1 Volume */
-	{ 0x0000066A, 0x0000 },   /* R1642  - NOISEMIX Input 2 Source */
-	{ 0x0000066B, 0x0080 },   /* R1643  - NOISEMIX Input 2 Volume */
-	{ 0x0000066C, 0x0000 },   /* R1644  - NOISEMIX Input 3 Source */
-	{ 0x0000066D, 0x0080 },   /* R1645  - NOISEMIX Input 3 Volume */
-	{ 0x0000066E, 0x0000 },   /* R1646  - NOISEMIX Input 4 Source */
-	{ 0x0000066F, 0x0080 },   /* R1647  - NOISEMIX Input 4 Volume */
+	{ 0x00000668, 0x0000 },   /* R1640  - ANALISEMIX Input 1 Source */
+	{ 0x00000669, 0x0080 },   /* R1641  - ANALISEMIX Input 1 Volume */
+	{ 0x0000066A, 0x0000 },   /* R1642  - ANALISEMIX Input 2 Source */
+	{ 0x0000066B, 0x0080 },   /* R1643  - ANALISEMIX Input 2 Volume */
+	{ 0x0000066C, 0x0000 },   /* R1644  - ANALISEMIX Input 3 Source */
+	{ 0x0000066D, 0x0080 },   /* R1645  - ANALISEMIX Input 3 Volume */
+	{ 0x0000066E, 0x0000 },   /* R1646  - ANALISEMIX Input 4 Source */
+	{ 0x0000066F, 0x0080 },   /* R1647  - ANALISEMIX Input 4 Volume */
 	{ 0x00000680, 0x0000 },   /* R1664  - OUT1LMIX Input 1 Source */
 	{ 0x00000681, 0x0080 },   /* R1665  - OUT1LMIX Input 1 Volume */
 	{ 0x00000682, 0x0000 },   /* R1666  - OUT1LMIX Input 2 Source */
@@ -1020,7 +1020,7 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_4:
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_5:
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_6:
-	case ARIZONA_COMFORT_NOISE_GENERATOR:
+	case ARIZONA_COMFORT_ANALISE_GENERATOR:
 	case ARIZONA_HAPTICS_CONTROL_1:
 	case ARIZONA_HAPTICS_CONTROL_2:
 	case ARIZONA_HAPTICS_PHASE_1_INTENSITY:
@@ -1104,7 +1104,7 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_MIC_DETECT_LEVEL_2:
 	case ARIZONA_MIC_DETECT_LEVEL_3:
 	case ARIZONA_MIC_DETECT_LEVEL_4:
-	case ARIZONA_MIC_NOISE_MIX_CONTROL_1:
+	case ARIZONA_MIC_ANALISE_MIX_CONTROL_1:
 	case ARIZONA_ISOLATION_CONTROL:
 	case ARIZONA_JACK_DETECT_ANALOGUE:
 	case ARIZONA_INPUT_ENABLES:
@@ -1135,42 +1135,42 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_OUTPUT_PATH_CONFIG_1L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1L:
 	case ARIZONA_DAC_VOLUME_LIMIT_1L:
-	case ARIZONA_NOISE_GATE_SELECT_1L:
+	case ARIZONA_ANALISE_GATE_SELECT_1L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_1R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1R:
 	case ARIZONA_DAC_VOLUME_LIMIT_1R:
-	case ARIZONA_NOISE_GATE_SELECT_1R:
+	case ARIZONA_ANALISE_GATE_SELECT_1R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_2L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_2L:
 	case ARIZONA_DAC_VOLUME_LIMIT_2L:
-	case ARIZONA_NOISE_GATE_SELECT_2L:
+	case ARIZONA_ANALISE_GATE_SELECT_2L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_2R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_2R:
 	case ARIZONA_DAC_VOLUME_LIMIT_2R:
-	case ARIZONA_NOISE_GATE_SELECT_2R:
+	case ARIZONA_ANALISE_GATE_SELECT_2R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_3L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_3L:
 	case ARIZONA_DAC_VOLUME_LIMIT_3L:
-	case ARIZONA_NOISE_GATE_SELECT_3L:
+	case ARIZONA_ANALISE_GATE_SELECT_3L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_4L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_4L:
 	case ARIZONA_OUT_VOLUME_4L:
-	case ARIZONA_NOISE_GATE_SELECT_4L:
+	case ARIZONA_ANALISE_GATE_SELECT_4L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_4R:
 	case ARIZONA_OUT_VOLUME_4R:
-	case ARIZONA_NOISE_GATE_SELECT_4R:
+	case ARIZONA_ANALISE_GATE_SELECT_4R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_5L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_5L:
 	case ARIZONA_DAC_VOLUME_LIMIT_5L:
-	case ARIZONA_NOISE_GATE_SELECT_5L:
+	case ARIZONA_ANALISE_GATE_SELECT_5L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_5R:
 	case ARIZONA_DAC_VOLUME_LIMIT_5R:
-	case ARIZONA_NOISE_GATE_SELECT_5R:
+	case ARIZONA_ANALISE_GATE_SELECT_5R:
 	case ARIZONA_DRE_ENABLE:
 	case ARIZONA_DRE_CONTROL_2:
 	case ARIZONA_DRE_CONTROL_3:
 	case ARIZONA_DAC_AEC_CONTROL_1:
-	case ARIZONA_NOISE_GATE_CONTROL:
+	case ARIZONA_ANALISE_GATE_CONTROL:
 	case ARIZONA_PDM_SPK1_CTRL_1:
 	case ARIZONA_PDM_SPK1_CTRL_2:
 	case ARIZONA_DAC_COMP_1:
@@ -1271,14 +1271,14 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_MICMIX_INPUT_3_VOLUME:
 	case ARIZONA_MICMIX_INPUT_4_SOURCE:
 	case ARIZONA_MICMIX_INPUT_4_VOLUME:
-	case ARIZONA_NOISEMIX_INPUT_1_SOURCE:
-	case ARIZONA_NOISEMIX_INPUT_1_VOLUME:
-	case ARIZONA_NOISEMIX_INPUT_2_SOURCE:
-	case ARIZONA_NOISEMIX_INPUT_2_VOLUME:
-	case ARIZONA_NOISEMIX_INPUT_3_SOURCE:
-	case ARIZONA_NOISEMIX_INPUT_3_VOLUME:
-	case ARIZONA_NOISEMIX_INPUT_4_SOURCE:
-	case ARIZONA_NOISEMIX_INPUT_4_VOLUME:
+	case ARIZONA_ANALISEMIX_INPUT_1_SOURCE:
+	case ARIZONA_ANALISEMIX_INPUT_1_VOLUME:
+	case ARIZONA_ANALISEMIX_INPUT_2_SOURCE:
+	case ARIZONA_ANALISEMIX_INPUT_2_VOLUME:
+	case ARIZONA_ANALISEMIX_INPUT_3_SOURCE:
+	case ARIZONA_ANALISEMIX_INPUT_3_VOLUME:
+	case ARIZONA_ANALISEMIX_INPUT_4_SOURCE:
+	case ARIZONA_ANALISEMIX_INPUT_4_VOLUME:
 	case ARIZONA_OUT1LMIX_INPUT_1_SOURCE:
 	case ARIZONA_OUT1LMIX_INPUT_1_VOLUME:
 	case ARIZONA_OUT1LMIX_INPUT_2_SOURCE:

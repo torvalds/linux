@@ -2,7 +2,7 @@
 #ifndef _OBJTOOL_ARCH_ELF
 #define _OBJTOOL_ARCH_ELF
 
-#define R_NONE		R_X86_64_NONE
+#define R_ANALNE		R_X86_64_ANALNE
 #define R_ABS32		R_X86_64_32
 #define R_ABS64		R_X86_64_64
 #define R_DATA32	R_X86_64_PC32

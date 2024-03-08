@@ -17,10 +17,10 @@ sparc64_ttable_tl0:
 tl0_resv000:	BOOT_KERNEL BTRAP(0x1) BTRAP(0x2) BTRAP(0x3)
 tl0_resv004:	BTRAP(0x4)  BTRAP(0x5) BTRAP(0x6) BTRAP(0x7)
 tl0_iax:	membar #Sync
-		TRAP_NOSAVE_7INSNS(__spitfire_insn_access_exception)
+		TRAP_ANALSAVE_7INSNS(__spitfire_insn_access_exception)
 tl0_itsb_4v:	SUN4V_ITSB_MISS
 tl0_iae:	membar #Sync
-		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
+		TRAP_ANALSAVE_7INSNS(__spitfire_access_error)
 tl0_resv00b:	BTRAP(0xb) BTRAP(0xc) BTRAP(0xd) BTRAP(0xe) BTRAP(0xf)
 tl0_ill:	membar #Sync
 		TRAP_7INSNS(do_illegal_instruction)
@@ -30,23 +30,23 @@ tl0_resv018:	BTRAP(0x18) BTRAP(0x19)
 tl0_mcd:	SUN4V_MCD_PRECISE
 tl0_resv01b:	BTRAP(0x1b)
 tl0_resv01c:	BTRAP(0x1c) BTRAP(0x1d)	BTRAP(0x1e) BTRAP(0x1f)
-tl0_fpdis:	TRAP_NOSAVE(do_fpdis)
+tl0_fpdis:	TRAP_ANALSAVE(do_fpdis)
 tl0_fpieee:	TRAP_SAVEFPU(do_fpieee)
-tl0_fpother:	TRAP_NOSAVE(do_fpother_check_fitos)
+tl0_fpother:	TRAP_ANALSAVE(do_fpother_check_fitos)
 tl0_tof:	TRAP(do_tof)
 tl0_cwin:	CLEAN_WINDOW
 tl0_div0:	TRAP(do_div0)
 tl0_resv029:	BTRAP(0x29) BTRAP(0x2a) BTRAP(0x2b) BTRAP(0x2c) BTRAP(0x2d) BTRAP(0x2e)
 tl0_resv02f:	BTRAP(0x2f)
-tl0_dax:	TRAP_NOSAVE(__spitfire_data_access_exception)
+tl0_dax:	TRAP_ANALSAVE(__spitfire_data_access_exception)
 tl0_dtsb_4v:	SUN4V_DTSB_MISS
 tl0_dae:	membar #Sync
-		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
+		TRAP_ANALSAVE_7INSNS(__spitfire_access_error)
 tl0_resv033:	BTRAP(0x33)
-tl0_mna:	TRAP_NOSAVE(do_mna)
-tl0_lddfmna:	TRAP_NOSAVE(do_lddfmna)
-tl0_stdfmna:	TRAP_NOSAVE(do_stdfmna)
-tl0_privact:	TRAP_NOSAVE(__do_privact)
+tl0_mna:	TRAP_ANALSAVE(do_mna)
+tl0_lddfmna:	TRAP_ANALSAVE(do_lddfmna)
+tl0_stdfmna:	TRAP_ANALSAVE(do_stdfmna)
+tl0_privact:	TRAP_ANALSAVE(__do_privact)
 tl0_resv038:	BTRAP(0x38) BTRAP(0x39) BTRAP(0x3a) BTRAP(0x3b) BTRAP(0x3c) BTRAP(0x3d)
 tl0_resv03e:	BTRAP(0x3e) BTRAP(0x3f) BTRAP(0x40)
 #ifdef CONFIG_SMP
@@ -83,7 +83,7 @@ tl0_ivec:	TRAP_IVEC
 tl0_paw:	TRAP(do_paw)
 tl0_vaw:	TRAP(do_vaw)
 tl0_cee:	membar #Sync
-		TRAP_NOSAVE_7INSNS(__spitfire_cee_trap)
+		TRAP_ANALSAVE_7INSNS(__spitfire_cee_trap)
 tl0_iamiss:
 #include	"itlb_miss.S"
 tl0_damiss:
@@ -95,14 +95,14 @@ tl0_dcpe:	BTRAP(0x71)	/* D-cache Parity Error on Cheetah+ */
 tl0_icpe:	BTRAP(0x72)	/* I-cache Parity Error on Cheetah+ */
 tl0_resv073:	BTRAP(0x73) BTRAP(0x74) BTRAP(0x75)
 tl0_resv076:	BTRAP(0x76) BTRAP(0x77) BTRAP(0x78) BTRAP(0x79) BTRAP(0x7a) BTRAP(0x7b)
-tl0_cpu_mondo:	TRAP_NOSAVE(sun4v_cpu_mondo)
-tl0_dev_mondo:	TRAP_NOSAVE(sun4v_dev_mondo)
-tl0_res_mondo:	TRAP_NOSAVE(sun4v_res_mondo)
-tl0_nres_mondo:	TRAP_NOSAVE(sun4v_nonres_mondo)
-tl0_s0n:	SPILL_0_NORMAL
-tl0_s1n:	SPILL_1_NORMAL
-tl0_s2n:	SPILL_2_NORMAL
-tl0_s3n:	SPILL_0_NORMAL_ETRAP
+tl0_cpu_mondo:	TRAP_ANALSAVE(sun4v_cpu_mondo)
+tl0_dev_mondo:	TRAP_ANALSAVE(sun4v_dev_mondo)
+tl0_res_mondo:	TRAP_ANALSAVE(sun4v_res_mondo)
+tl0_nres_mondo:	TRAP_ANALSAVE(sun4v_analnres_mondo)
+tl0_s0n:	SPILL_0_ANALRMAL
+tl0_s1n:	SPILL_1_ANALRMAL
+tl0_s2n:	SPILL_2_ANALRMAL
+tl0_s3n:	SPILL_0_ANALRMAL_ETRAP
 tl0_s4n:	SPILL_1_GENERIC_ETRAP
 tl0_s5n:	SPILL_1_GENERIC_ETRAP_FIXUP
 tl0_s6n:	SPILL_2_GENERIC_ETRAP
@@ -115,12 +115,12 @@ tl0_s4o:	SPILL_4_OTHER
 tl0_s5o:	SPILL_5_OTHER
 tl0_s6o:	SPILL_6_OTHER
 tl0_s7o:	SPILL_7_OTHER
-tl0_f0n:	FILL_0_NORMAL
-tl0_f1n:	FILL_1_NORMAL
-tl0_f2n:	FILL_2_NORMAL
-tl0_f3n:	FILL_3_NORMAL
-tl0_f4n:	FILL_4_NORMAL
-tl0_f5n:	FILL_0_NORMAL_RTRAP
+tl0_f0n:	FILL_0_ANALRMAL
+tl0_f1n:	FILL_1_ANALRMAL
+tl0_f2n:	FILL_2_ANALRMAL
+tl0_f3n:	FILL_3_ANALRMAL
+tl0_f4n:	FILL_4_ANALRMAL
+tl0_f5n:	FILL_0_ANALRMAL_RTRAP
 tl0_f6n:	FILL_1_GENERIC_RTRAP
 tl0_f7n:	FILL_2_GENERIC_RTRAP
 tl0_f0o:	FILL_0_OTHER
@@ -184,10 +184,10 @@ tl0_resv1f0:	BTRAPS(0x1f0) BTRAPS(0x1f8)
 sparc64_ttable_tl1:
 tl1_resv000:	BOOT_KERNEL    BTRAPTL1(0x1) BTRAPTL1(0x2) BTRAPTL1(0x3)
 tl1_resv004:	BTRAPTL1(0x4)  BTRAPTL1(0x5) BTRAPTL1(0x6) BTRAPTL1(0x7)
-tl1_iax:	TRAP_NOSAVE(__spitfire_insn_access_exception_tl1)
+tl1_iax:	TRAP_ANALSAVE(__spitfire_insn_access_exception_tl1)
 tl1_itsb_4v:	SUN4V_ITSB_MISS
 tl1_iae:	membar #Sync
-		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
+		TRAP_ANALSAVE_7INSNS(__spitfire_access_error)
 tl1_resv00b:	BTRAPTL1(0xb) BTRAPTL1(0xc) BTRAPTL1(0xd) BTRAPTL1(0xe) BTRAPTL1(0xf)
 tl1_ill:	TRAPTL1(do_ill_tl1)
 tl1_privop:	BTRAPTL1(0x11)
@@ -195,7 +195,7 @@ tl1_resv012:	BTRAPTL1(0x12) BTRAPTL1(0x13) BTRAPTL1(0x14) BTRAPTL1(0x15)
 tl1_resv016:	BTRAPTL1(0x16) BTRAPTL1(0x17) BTRAPTL1(0x18) BTRAPTL1(0x19)
 tl1_resv01a:	BTRAPTL1(0x1a) BTRAPTL1(0x1b) BTRAPTL1(0x1c) BTRAPTL1(0x1d)
 tl1_resv01e:	BTRAPTL1(0x1e) BTRAPTL1(0x1f)
-tl1_fpdis:	TRAP_NOSAVE(do_fpdis)
+tl1_fpdis:	TRAP_ANALSAVE(do_fpdis)
 tl1_fpieee:	TRAPTL1(do_fpieee_tl1)
 tl1_fpother:	TRAPTL1(do_fpother_tl1)
 tl1_tof:	TRAPTL1(do_tof_tl1)
@@ -203,12 +203,12 @@ tl1_cwin:	CLEAN_WINDOW
 tl1_div0:	TRAPTL1(do_div0_tl1)
 tl1_resv029:	BTRAPTL1(0x29) BTRAPTL1(0x2a) BTRAPTL1(0x2b) BTRAPTL1(0x2c)
 tl1_resv02d:	BTRAPTL1(0x2d) BTRAPTL1(0x2e) BTRAPTL1(0x2f)
-tl1_dax:	TRAP_NOSAVE(__spitfire_data_access_exception_tl1)
+tl1_dax:	TRAP_ANALSAVE(__spitfire_data_access_exception_tl1)
 tl1_dtsb_4v:	SUN4V_DTSB_MISS
 tl1_dae:	membar #Sync
-		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
+		TRAP_ANALSAVE_7INSNS(__spitfire_access_error)
 tl1_resv033:	BTRAPTL1(0x33)
-tl1_mna:	TRAP_NOSAVE(do_mna)
+tl1_mna:	TRAP_ANALSAVE(do_mna)
 tl1_lddfmna:	TRAPTL1(do_lddfmna_tl1)
 tl1_stdfmna:	TRAPTL1(do_stdfmna_tl1)
 tl1_privact:	BTRAPTL1(0x37)
@@ -241,14 +241,14 @@ tl1_resv073:	BTRAPTL1(0x73)
 tl1_resv074:	BTRAPTL1(0x74) BTRAPTL1(0x75) BTRAPTL1(0x76) BTRAPTL1(0x77)
 tl1_resv078:	BTRAPTL1(0x78) BTRAPTL1(0x79) BTRAPTL1(0x7a) BTRAPTL1(0x7b)
 tl1_resv07c:	BTRAPTL1(0x7c) BTRAPTL1(0x7d) BTRAPTL1(0x7e) BTRAPTL1(0x7f)
-tl1_s0n:	SPILL_0_NORMAL
-tl1_s1n:	SPILL_1_NORMAL
-tl1_s2n:	SPILL_2_NORMAL
-tl1_s3n:	SPILL_3_NORMAL
-tl1_s4n:	SPILL_4_NORMAL
-tl1_s5n:	SPILL_5_NORMAL
-tl1_s6n:	SPILL_6_NORMAL
-tl1_s7n:	SPILL_7_NORMAL
+tl1_s0n:	SPILL_0_ANALRMAL
+tl1_s1n:	SPILL_1_ANALRMAL
+tl1_s2n:	SPILL_2_ANALRMAL
+tl1_s3n:	SPILL_3_ANALRMAL
+tl1_s4n:	SPILL_4_ANALRMAL
+tl1_s5n:	SPILL_5_ANALRMAL
+tl1_s6n:	SPILL_6_ANALRMAL
+tl1_s7n:	SPILL_7_ANALRMAL
 tl1_s0o:	SPILL_0_OTHER
 tl1_s1o:	SPILL_1_OTHER
 tl1_s2o:	SPILL_2_OTHER
@@ -257,14 +257,14 @@ tl1_s4o:	SPILL_4_OTHER
 tl1_s5o:	SPILL_5_OTHER
 tl1_s6o:	SPILL_6_OTHER
 tl1_s7o:	SPILL_7_OTHER
-tl1_f0n:	FILL_0_NORMAL
-tl1_f1n:	FILL_1_NORMAL
-tl1_f2n:	FILL_2_NORMAL
-tl1_f3n:	FILL_3_NORMAL
-tl1_f4n:	FILL_4_NORMAL
-tl1_f5n:	FILL_5_NORMAL
-tl1_f6n:	FILL_6_NORMAL
-tl1_f7n:	FILL_7_NORMAL
+tl1_f0n:	FILL_0_ANALRMAL
+tl1_f1n:	FILL_1_ANALRMAL
+tl1_f2n:	FILL_2_ANALRMAL
+tl1_f3n:	FILL_3_ANALRMAL
+tl1_f4n:	FILL_4_ANALRMAL
+tl1_f5n:	FILL_5_ANALRMAL
+tl1_f6n:	FILL_6_ANALRMAL
+tl1_f7n:	FILL_7_ANALRMAL
 tl1_f0o:	FILL_0_OTHER
 tl1_f1o:	FILL_1_OTHER
 tl1_f2o:	FILL_2_OTHER

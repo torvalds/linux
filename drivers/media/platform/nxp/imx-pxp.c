@@ -57,8 +57,8 @@ MODULE_PARM_DESC(debug, "activates debug info");
 
 #define PXP_VERSION_MAJOR(version) \
 	FIELD_GET(BM_PXP_VERSION_MAJOR, version)
-#define PXP_VERSION_MINOR(version) \
-	FIELD_GET(BM_PXP_VERSION_MINOR, version)
+#define PXP_VERSION_MIANALR(version) \
+	FIELD_GET(BM_PXP_VERSION_MIANALR, version)
 
 #define dprintk(dev, fmt, arg...) \
 	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
@@ -917,7 +917,7 @@ static int pxp_start(struct pxp_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
 	out_ps_ulc = BF_PXP_OUT_PS_ULC_X(0) | BF_PXP_OUT_PS_ULC_Y(0);
 	out_ps_lrc = BF_PXP_OUT_PS_LRC_X(dst_width - 1) |
 		     BF_PXP_OUT_PS_LRC_Y(dst_height - 1);
-	/* no AS */
+	/* anal AS */
 	as_ulc = BF_PXP_OUT_AS_ULC_X(1) | BF_PXP_OUT_AS_ULC_Y(1);
 	as_lrc = BF_PXP_OUT_AS_LRC_X(0) | BF_PXP_OUT_AS_LRC_Y(0);
 
@@ -1079,7 +1079,7 @@ static int pxp_job_ready(void *priv)
 
 	if (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) < 1 ||
 	    v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx) < 1) {
-		dprintk(ctx->dev, "Not enough buffers available\n");
+		dprintk(ctx->dev, "Analt eanalugh buffers available\n");
 		return 0;
 	}
 
@@ -1162,7 +1162,7 @@ static int pxp_enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		return 0;
 	}
 
-	/* Format not found */
+	/* Format analt found */
 	return -EINVAL;
 }
 
@@ -1191,7 +1191,7 @@ static int pxp_g_fmt(struct pxp_ctx *ctx, struct v4l2_format *f)
 
 	f->fmt.pix.width	= q_data->width;
 	f->fmt.pix.height	= q_data->height;
-	f->fmt.pix.field	= V4L2_FIELD_NONE;
+	f->fmt.pix.field	= V4L2_FIELD_ANALNE;
 	f->fmt.pix.pixelformat	= q_data->fmt->fourcc;
 	f->fmt.pix.bytesperline	= q_data->bytesperline;
 	f->fmt.pix.sizeimage	= q_data->sizeimage;
@@ -1243,7 +1243,7 @@ static int pxp_try_fmt(struct v4l2_format *f, struct pxp_fmt *fmt)
 	f->fmt.pix.bytesperline = pxp_bytesperline(fmt, f->fmt.pix.width);
 	f->fmt.pix.sizeimage = pxp_sizeimage(fmt, f->fmt.pix.width,
 					     f->fmt.pix.height);
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -1258,7 +1258,7 @@ pxp_fixup_colorimetry_cap(struct pxp_ctx *ctx, u32 dst_fourcc,
 	if (pxp_v4l2_pix_fmt_is_yuv(ctx->q_data[V4L2_M2M_SRC].fmt->fourcc) ==
 	    dst_is_yuv) {
 		/*
-		 * There is no support for conversion between different YCbCr
+		 * There is anal support for conversion between different YCbCr
 		 * encodings or between RGB limited and full range.
 		 */
 		*ycbcr_enc = ctx->q_data[V4L2_M2M_SRC].ycbcr_enc;
@@ -1545,15 +1545,15 @@ static int pxp_buf_prepare(struct vb2_buffer *vb)
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
 	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
 		if (vbuf->field == V4L2_FIELD_ANY)
-			vbuf->field = V4L2_FIELD_NONE;
-		if (vbuf->field != V4L2_FIELD_NONE) {
+			vbuf->field = V4L2_FIELD_ANALNE;
+		if (vbuf->field != V4L2_FIELD_ANALNE) {
 			dprintk(dev, "%s field isn't supported\n", __func__);
 			return -EINVAL;
 		}
 	}
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
-		dprintk(dev, "%s data will not fit into plane (%lu < %lu)\n",
+		dprintk(dev, "%s data will analt fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0),
 			(long)q_data->sizeimage);
 		return -EINVAL;
@@ -1657,7 +1657,7 @@ static int pxp_open(struct file *file)
 		return -ERESTARTSYS;
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto open_unlock;
 	}
 
@@ -1747,7 +1747,7 @@ static const struct video_device pxp_videodev = {
 	.fops		= &pxp_fops,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 	.ioctl_ops	= &pxp_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release_empty,
 };
 
@@ -1789,7 +1789,7 @@ static int pxp_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->pdata = of_device_get_match_data(&pdev->dev);
 
@@ -1831,7 +1831,7 @@ static int pxp_probe(struct platform_device *pdev)
 
 	hw_version = pxp_read(dev, HW_PXP_VERSION);
 	dev_dbg(&pdev->dev, "PXP Version %u.%u\n",
-		PXP_VERSION_MAJOR(hw_version), PXP_VERSION_MINOR(hw_version));
+		PXP_VERSION_MAJOR(hw_version), PXP_VERSION_MIANALR(hw_version));
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)

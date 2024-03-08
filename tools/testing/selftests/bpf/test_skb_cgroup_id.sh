@@ -22,7 +22,7 @@ wait_for_ip()
 
 setup()
 {
-	# Create testing interfaces not to interfere with current environment.
+	# Create testing interfaces analt to interfere with current environment.
 	ip link add dev ${TEST_IF} type veth peer name ${TEST_IF_PEER}
 	ip link set ${TEST_IF} up
 	ip link set ${TEST_IF_PEER} up

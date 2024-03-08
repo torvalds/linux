@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
@@ -55,7 +55,7 @@ static int pvr_probe(struct usb_interface *intf,
 	if (!pvr) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Failed to create hdw handler");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pvr2_trace(PVR2_TRACE_INIT,"pvr_probe(pvr=%p)",pvr);

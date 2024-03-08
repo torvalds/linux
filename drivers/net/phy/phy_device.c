@@ -12,7 +12,7 @@
 #include <linux/acpi.h>
 #include <linux/bitmap.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/init.h>
@@ -251,7 +251,7 @@ static void phy_mdio_device_free(struct mdio_device *mdiodev)
 
 static void phy_device_release(struct device *dev)
 {
-	fwnode_handle_put(dev->fwnode);
+	fwanalde_handle_put(dev->fwanalde);
 	kfree(to_phy_device(dev));
 }
 
@@ -277,7 +277,7 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (!drv || !phydrv->suspend)
 		return false;
 
-	/* PHY not attached? May suspend if the PHY has not already been
+	/* PHY analt attached? May suspend if the PHY has analt already been
 	 * suspended as part of a prior call to phy_disconnect() ->
 	 * phy_detach() -> phy_suspend() because the parent netdev might be the
 	 * MDIO bus driver and clock gated at this point.
@@ -288,7 +288,7 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (netdev->wol_enabled)
 		return false;
 
-	/* As long as not all affected network drivers support the
+	/* As long as analt all affected network drivers support the
 	 * wol_enabled flag, let's check for hints that WoL is enabled.
 	 * Don't suspend PHY if the attached netdev parent may wake up.
 	 * The parent may point to a PCI device, as in tg3 driver.
@@ -348,14 +348,14 @@ static __maybe_unused int mdio_bus_phy_resume(struct device *dev)
 		return 0;
 
 	if (!phydev->suspended_by_mdio_bus)
-		goto no_resume;
+		goto anal_resume;
 
 	phydev->suspended_by_mdio_bus = 0;
 
 	/* If we managed to get here with the PHY state machine in a state
-	 * neither PHY_HALTED, PHY_READY nor PHY_UP, this is an indication
+	 * neither PHY_HALTED, PHY_READY analr PHY_UP, this is an indication
 	 * that something went wrong and we should most likely be using
-	 * MAC managed PM, but we are not.
+	 * MAC managed PM, but we are analt.
 	 */
 	WARN_ON(phydev->state != PHY_HALTED && phydev->state != PHY_READY &&
 		phydev->state != PHY_UP);
@@ -367,7 +367,7 @@ static __maybe_unused int mdio_bus_phy_resume(struct device *dev)
 	ret = phy_resume(phydev);
 	if (ret < 0)
 		return ret;
-no_resume:
+anal_resume:
 	if (phy_interrupt_is_valid(phydev)) {
 		phydev->irq_suspended = 0;
 		synchronize_irq(phydev->irq);
@@ -406,7 +406,7 @@ int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 	struct phy_fixup *fixup = kzalloc(sizeof(*fixup), GFP_KERNEL);
 
 	if (!fixup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(fixup->bus_id, bus_id, sizeof(fixup->bus_id));
 	fixup->phy_uid = phy_uid;
@@ -449,7 +449,7 @@ int phy_unregister_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask)
 	struct phy_fixup *fixup;
 	int ret;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 
 	mutex_lock(&phy_fixup_lock);
 	list_for_each_safe(pos, n, &phy_fixup_list) {
@@ -618,11 +618,11 @@ static int phy_request_driver_module(struct phy_device *dev, u32 phy_id)
 	ret = request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT,
 			     MDIO_ID_ARGS(phy_id));
 	/* We only check for failures in executing the usermode binary,
-	 * not whether a PHY driver module exists for the PHY ID.
-	 * Accept -ENOENT because this may occur in case no initramfs exists,
+	 * analt whether a PHY driver module exists for the PHY ID.
+	 * Accept -EANALENT because this may occur in case anal initramfs exists,
 	 * then modprobe isn't available.
 	 */
-	if (IS_ENABLED(CONFIG_MODULES) && ret < 0 && ret != -ENOENT) {
+	if (IS_ENABLED(CONFIG_MODULES) && ret < 0 && ret != -EANALENT) {
 		phydev_err(dev, "error %d loading PHY driver module for ID 0x%08lx\n",
 			   ret, (unsigned long)phy_id);
 		return ret;
@@ -642,7 +642,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 	/* We allocate the device, and initialize the default values */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mdiodev = &dev->mdio;
 	mdiodev->dev.parent = &bus->dev;
@@ -656,8 +656,8 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 	mdiodev->device_remove = phy_mdio_device_remove;
 	mdiodev->reset_state = -1;
 
-	dev->speed = SPEED_UNKNOWN;
-	dev->duplex = DUPLEX_UNKNOWN;
+	dev->speed = SPEED_UNKANALWN;
+	dev->duplex = DUPLEX_UNKANALWN;
 	dev->pause = 0;
 	dev->asym_pause = 0;
 	dev->link = 0;
@@ -666,7 +666,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 
 	dev->autoneg = AUTONEG_ENABLE;
 
-	dev->pma_extable = -ENODATA;
+	dev->pma_extable = -EANALDATA;
 	dev->is_c45 = is_c45;
 	dev->phy_id = phy_id;
 	if (c45_ids)
@@ -686,11 +686,11 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 	 * bother trying to do so only if it isn't already loaded,
 	 * because that gets complicated. A hotplug event would have
 	 * done an unconditional modprobe anyway.
-	 * We don't do normal hotplug because it won't work for MDIO
+	 * We don't do analrmal hotplug because it won't work for MDIO
 	 * -- because it relies on the device staying around for long
-	 * enough for the driver to get loaded. With MDIO, the NIC
+	 * eanalugh for the driver to get loaded. With MDIO, the NIC
 	 * driver will get bored and give up as soon as it finds that
-	 * there's no driver _already_ loaded.
+	 * there's anal driver _already_ loaded.
 	 */
 	if (is_c45 && c45_ids) {
 		const int num_ids = ARRAY_SIZE(c45_ids->device_ids);
@@ -726,7 +726,7 @@ EXPORT_SYMBOL(phy_device_create);
  * Read the MDIO_STAT2 register, and check whether a device is responding
  * at this address.
  *
- * Returns: negative error number on bus access error, zero if no device
+ * Returns: negative error number on bus access error, zero if anal device
  * is responding, or positive if a device is present.
  */
 static int phy_c45_probe_present(struct mii_bus *bus, int prtad, int devad)
@@ -779,7 +779,7 @@ static int get_phy_c45_devs_in_pkg(struct mii_bus *bus, int addr, int dev_addr,
  * the PHY identifiers for each device. Return the "devices in package"
  * and identifiers in @c45_ids.
  *
- * Returns zero on success, %-EIO on bus access error, or %-ENODEV if
+ * Returns zero on success, %-EIO on bus access error, or %-EANALDEV if
  * the "devices in package" is invalid.
  */
 static int get_phy_c45_ids(struct mii_bus *bus, int addr,
@@ -789,7 +789,7 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 	u32 devs_in_pkg = 0;
 	int i, ret, phy_reg;
 
-	/* Find first non-zero Devices In package. Device zero is reserved
+	/* Find first analn-zero Devices In package. Device zero is reserved
 	 * for 802.3 c45 complied PHYs, so don't probe it at first.
 	 */
 	for (i = 1; i < MDIO_MMD_NUM && (devs_in_pkg == 0 ||
@@ -798,7 +798,7 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 			/* Check that there is a device present at this
 			 * address before reading the devices-in-package
 			 * register to avoid reading garbage from the PHY.
-			 * Some PHYs (88x3310) vendor space is not IEEE802.3
+			 * Some PHYs (88x3310) vendor space is analt IEEE802.3
 			 * compliant.
 			 */
 			ret = phy_c45_probe_present(bus, addr, i);
@@ -814,7 +814,7 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 	}
 
 	if ((devs_in_pkg & 0x1fffffff) == 0x1fffffff) {
-		/* If mostly Fs, there is no device there, then let's probe
+		/* If mostly Fs, there is anal device there, then let's probe
 		 * MMD 0, as some 10G PHYs have zero Devices In package,
 		 * e.g. Cortina CS4315/CS4340 PHY.
 		 */
@@ -822,19 +822,19 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 		if (phy_reg < 0)
 			return -EIO;
 
-		/* no device there, let's get out of here */
+		/* anal device there, let's get out of here */
 		if ((devs_in_pkg & 0x1fffffff) == 0x1fffffff)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
-	/* Now probe Device Identifiers for each device present. */
+	/* Analw probe Device Identifiers for each device present. */
 	for (i = 1; i < num_ids; i++) {
 		if (!(devs_in_pkg & (1 << i)))
 			continue;
 
 		if (i == MDIO_MMD_VEND1 || i == MDIO_MMD_VEND2) {
 			/* Probe the "Device Present" bits for the vendor MMDs
-			 * to ignore these if they do not contain IEEE 802.3
+			 * to iganalre these if they do analt contain IEEE 802.3
 			 * registers.
 			 */
 			ret = phy_c45_probe_present(bus, addr, i);
@@ -871,7 +871,7 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
  *
  * Read the 802.3 clause 22 PHY ID from the PHY at @addr on the @bus,
  * placing it in @phy_id. Return zero on successful read and the ID is
- * valid, %-EIO on bus access error, or %-ENODEV if no device responds
+ * valid, %-EIO on bus access error, or %-EANALDEV if anal device responds
  * or invalid ID.
  */
 static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
@@ -881,8 +881,8 @@ static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
 	/* Grab the bits from PHYIR1, and put them in the upper half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID1);
 	if (phy_reg < 0) {
-		/* returning -ENODEV doesn't stop bus scanning */
-		return (phy_reg == -EIO || phy_reg == -ENODEV) ? -ENODEV : -EIO;
+		/* returning -EANALDEV doesn't stop bus scanning */
+		return (phy_reg == -EIO || phy_reg == -EANALDEV) ? -EANALDEV : -EIO;
 	}
 
 	*phy_id = phy_reg << 16;
@@ -890,15 +890,15 @@ static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
 	/* Grab the bits from PHYIR2, and put them in the lower half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID2);
 	if (phy_reg < 0) {
-		/* returning -ENODEV doesn't stop bus scanning */
-		return (phy_reg == -EIO || phy_reg == -ENODEV) ? -ENODEV : -EIO;
+		/* returning -EANALDEV doesn't stop bus scanning */
+		return (phy_reg == -EIO || phy_reg == -EANALDEV) ? -EANALDEV : -EIO;
 	}
 
 	*phy_id |= phy_reg;
 
-	/* If the phy_id is mostly Fs, there is no device there */
+	/* If the phy_id is mostly Fs, there is anal device there */
 	if ((*phy_id & 0x1fffffff) == 0x1fffffff)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -906,13 +906,13 @@ static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
 /* Extract the phy ID from the compatible string of the form
  * ethernet-phy-idAAAA.BBBB.
  */
-int fwnode_get_phy_id(struct fwnode_handle *fwnode, u32 *phy_id)
+int fwanalde_get_phy_id(struct fwanalde_handle *fwanalde, u32 *phy_id)
 {
 	unsigned int upper, lower;
 	const char *cp;
 	int ret;
 
-	ret = fwnode_property_read_string(fwnode, "compatible", &cp);
+	ret = fwanalde_property_read_string(fwanalde, "compatible", &cp);
 	if (ret)
 		return ret;
 
@@ -922,7 +922,7 @@ int fwnode_get_phy_id(struct fwnode_handle *fwnode, u32 *phy_id)
 	*phy_id = ((upper & GENMASK(15, 0)) << 16) | (lower & GENMASK(15, 0));
 	return 0;
 }
-EXPORT_SYMBOL(fwnode_get_phy_id);
+EXPORT_SYMBOL(fwanalde_get_phy_id);
 
 /**
  * get_phy_device - reads the specified PHY device and returns its @phy_device
@@ -940,8 +940,8 @@ EXPORT_SYMBOL(fwnode_get_phy_id);
  * If the "devices in package" appears valid, read the ID registers for each
  * MMD, allocate and return a &struct phy_device.
  *
- * Returns an allocated &struct phy_device on success, %-ENODEV if there is
- * no PHY present, or %-EIO on bus access error.
+ * Returns an allocated &struct phy_device on success, %-EANALDEV if there is
+ * anal PHY present, or %-EIO on bus access error.
  */
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 {
@@ -962,7 +962,7 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 		return ERR_PTR(r);
 
 	/* PHY device such as the Marvell Alaska 88E2110 will return a PHY ID
-	 * of 0 when probed using get_phy_c22_id() with no error. Proceed to
+	 * of 0 when probed using get_phy_c22_id() with anal error. Proceed to
 	 * probe with C45 to see if we're able to get a valid PHY ID in the C45
 	 * space, if successful, create the C45 PHY device.
 	 */
@@ -1042,7 +1042,7 @@ EXPORT_SYMBOL(phy_device_remove);
  * phy_get_c45_ids - Read 802.3-c45 IDs for phy device.
  * @phydev: phy_device structure to read 802.3-c45 IDs
  *
- * Returns zero on success, %-EIO on bus access error, or %-ENODEV if
+ * Returns zero on success, %-EIO on bus access error, or %-EANALDEV if
  * the "devices in package" is invalid.
  */
 int phy_get_c45_ids(struct phy_device *phydev)
@@ -1086,7 +1086,7 @@ static void phy_link_change(struct phy_device *phydev, bool up)
 /**
  * phy_prepare_link - prepares the PHY layer to monitor link status
  * @phydev: target phy_device struct
- * @handler: callback function for link status change notifications
+ * @handler: callback function for link status change analtifications
  *
  * Description: Tells the PHY infrastructure to handle the
  *   gory details on monitoring link status (whether through
@@ -1105,7 +1105,7 @@ static void phy_prepare_link(struct phy_device *phydev,
  * phy_connect_direct - connect an ethernet device to a specific phy_device
  * @dev: the network device to connect
  * @phydev: the pointer to the phy device
- * @handler: callback function for state change notifications
+ * @handler: callback function for state change analtifications
  * @interface: PHY device's interface
  */
 int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
@@ -1133,12 +1133,12 @@ EXPORT_SYMBOL(phy_connect_direct);
  * phy_connect - connect an ethernet device to a PHY device
  * @dev: the network device to connect
  * @bus_id: the id string of the PHY device to connect
- * @handler: callback function for state change notifications
+ * @handler: callback function for state change analtifications
  * @interface: PHY device's interface
  *
  * Description: Convenience function for connecting ethernet
  *   devices to PHY devices.  The default behavior is for
- *   the PHY infrastructure to handle everything, and only notify
+ *   the PHY infrastructure to handle everything, and only analtify
  *   the connected driver when the link status changes.  If you
  *   don't want, or can't use the provided functionality, you may
  *   choose to call only the subset of functions which provide
@@ -1157,8 +1157,8 @@ struct phy_device *phy_connect(struct net_device *dev, const char *bus_id,
 	 */
 	d = bus_find_device_by_name(&mdio_bus_type, NULL, bus_id);
 	if (!d) {
-		pr_err("PHY %s not found\n", bus_id);
-		return ERR_PTR(-ENODEV);
+		pr_err("PHY %s analt found\n", bus_id);
+		return ERR_PTR(-EANALDEV);
 	}
 	phydev = to_phy_device(d);
 
@@ -1198,11 +1198,11 @@ EXPORT_SYMBOL(phy_disconnect);
  *   published in 2008, a PHY reset may take up to 0.5 seconds.  The MII BMCR
  *   register must be polled until the BMCR_RESET bit clears.
  *
- *   Furthermore, any attempts to write to PHY registers may have no effect
+ *   Furthermore, any attempts to write to PHY registers may have anal effect
  *   or even generate MDIO bus errors until this is complete.
  *
  *   Some PHYs (such as the Marvell 88E1111) don't entirely conform to the
- *   standard and do not fully reset after the BMCR_RESET bit is set, and may
+ *   standard and do analt fully reset after the BMCR_RESET bit is set, and may
  *   even *REQUIRE* a soft-reset to properly restart autonegotiation.  In an
  *   effort to support such broken PHYs, this function is separate from the
  *   standard phy_init_hw() which will zero all the other bits in the BMCR
@@ -1217,7 +1217,7 @@ static int phy_poll_reset(struct phy_device *phydev)
 				    50000, 600000, true);
 	if (ret)
 		return ret;
-	/* Some chips (smsc911x) may still need up to another 1ms after the
+	/* Some chips (smsc911x) may still need up to aanalther 1ms after the
 	 * BMCR_RESET bit is cleared before they are usable.
 	 */
 	msleep(1);
@@ -1329,14 +1329,14 @@ static void phy_sysfs_create_links(struct phy_device *phydev)
 	if (err)
 		return;
 
-	err = sysfs_create_link_nowarn(&dev->dev.kobj,
+	err = sysfs_create_link_analwarn(&dev->dev.kobj,
 				       &phydev->mdio.dev.kobj,
 				       "phydev");
 	if (err) {
-		dev_err(&dev->dev, "could not add device link to %s err %d\n",
+		dev_err(&dev->dev, "could analt add device link to %s err %d\n",
 			kobject_name(&phydev->mdio.dev.kobj),
 			err);
-		/* non-fatal - some net drivers can use one netdevice
+		/* analn-fatal - some net drivers can use one netdevice
 		 * with more then one phy
 		 */
 	}
@@ -1399,8 +1399,8 @@ int phy_sfp_probe(struct phy_device *phydev,
 	struct sfp_bus *bus;
 	int ret = 0;
 
-	if (phydev->mdio.dev.fwnode) {
-		bus = sfp_bus_find_fwnode(phydev->mdio.dev.fwnode);
+	if (phydev->mdio.dev.fwanalde) {
+		bus = sfp_bus_find_fwanalde(phydev->mdio.dev.fwanalde);
 		if (IS_ERR(bus))
 			return PTR_ERR(bus);
 
@@ -1422,7 +1422,7 @@ EXPORT_SYMBOL(phy_sfp_probe);
  *
  * Description: Called by drivers to attach to a particular PHY
  *     device. The phy_device is found, and properly hooked up
- *     to the phy_driver.  If no driver is attached, then a
+ *     to the phy_driver.  If anal driver is attached, then a
  *     generic driver is used.  The phy_device is given a ptr to
  *     the attaching device, and given a callback for link status
  *     change.  The phy_device is returned to the attaching driver.
@@ -1438,8 +1438,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	int err;
 
 	/* For Ethernet device drivers that register their own MDIO bus, we
-	 * will have bus->owner match ndev_mod, so we do not want to increment
-	 * our own module->refcnt here, otherwise we would not be able to
+	 * will have bus->owner match ndev_mod, so we do analt want to increment
+	 * our own module->refcnt here, otherwise we would analt be able to
 	 * unload later on.
 	 */
 	if (dev)
@@ -1451,7 +1451,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	get_device(d);
 
-	/* Assume that if there is no driver, that it doesn't
+	/* Assume that if there is anal driver, that it doesn't
 	 * exist, and we should use the genphy driver.
 	 */
 	if (!d->driver) {
@@ -1498,7 +1498,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 * does the dev->dev.kobj initialization. Here we only check for
 	 * success which indicates that the network device kobject is
 	 * ready. Once we do that we still need to keep track of whether
-	 * links were successfully set up or not for phy_detach() to
+	 * links were successfully set up or analt for phy_detach() to
 	 * remove them accordingly.
 	 */
 	phydev->sysfs_links = false;
@@ -1524,7 +1524,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 * associated interrupt line. This could be the case if they
 	 * detect a broken interrupt handling.
 	 */
-	if (phydev->dev_flags & PHY_F_NO_IRQ)
+	if (phydev->dev_flags & PHY_F_ANAL_IRQ)
 		phydev->irq = PHY_POLL;
 
 	/* Port is set to PORT_TP by default and the actual PHY driver will set
@@ -1541,7 +1541,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	if (dev)
 		netif_carrier_off(phydev->attached_dev);
 
-	/* Do initial configuration here, now that
+	/* Do initial configuration here, analw that
 	 * we have certain key parameters
 	 * (dev_flags and interface)
 	 */
@@ -1555,7 +1555,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	/**
 	 * If the external phy used by current mac interface is managed by
-	 * another mac interface, so we should create a device link between
+	 * aanalther mac interface, so we should create a device link between
 	 * phy dev and mac dev.
 	 */
 	if (dev && phydev->mdio.bus->parent && dev->dev.parent != phydev->mdio.bus->parent)
@@ -1605,8 +1605,8 @@ struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 	 */
 	d = bus_find_device_by_name(bus, NULL, bus_id);
 	if (!d) {
-		pr_err("PHY %s not found\n", bus_id);
-		return ERR_PTR(-ENODEV);
+		pr_err("PHY %s analt found\n", bus_id);
+		return ERR_PTR(-EANALDEV);
 	}
 	phydev = to_phy_device(d);
 
@@ -1654,7 +1654,7 @@ EXPORT_SYMBOL_GPL(phy_driver_is_genphy_10g);
  * @phydev: target phy_device struct
  * @base_addr: cookie and base PHY address of PHY package for offset
  *   calculation of global register access
- * @priv_size: if non-zero allocate this amount of bytes for private data
+ * @priv_size: if analn-zero allocate this amount of bytes for private data
  *
  * This joins a PHY group and provides a shared storage for all phydevs in
  * this group. This is intended to be used for packages which contain
@@ -1671,7 +1671,7 @@ EXPORT_SYMBOL_GPL(phy_driver_is_genphy_10g);
  *
  * This will set the shared pointer of the phydev to the shared storage.
  * If this is the first call for a this cookie the shared storage will be
- * allocated. If priv_size is non-zero, the given amount of bytes are
+ * allocated. If priv_size is analn-zero, the given amount of bytes are
  * allocated for the priv member.
  *
  * Returns < 1 on error, 0 on success. Esp. calling phy_package_join()
@@ -1689,7 +1689,7 @@ int phy_package_join(struct phy_device *phydev, int base_addr, size_t priv_size)
 	mutex_lock(&bus->shared_lock);
 	shared = bus->shared[base_addr];
 	if (!shared) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		shared = kzalloc(sizeof(*shared), GFP_KERNEL);
 		if (!shared)
 			goto err_unlock;
@@ -1760,7 +1760,7 @@ static void devm_phy_package_leave(struct device *dev, void *res)
  * @phydev: target phy_device struct
  * @base_addr: cookie and base PHY address of PHY package for offset
  *   calculation of global register access
- * @priv_size: if non-zero allocate this amount of bytes for private data
+ * @priv_size: if analn-zero allocate this amount of bytes for private data
  *
  * Managed phy_package_join(). Shared storage fetched by this function,
  * phy_package_leave() is automatically called on driver detach. See
@@ -1775,7 +1775,7 @@ int devm_phy_package_join(struct device *dev, struct phy_device *phydev,
 	ptr = devres_alloc(devm_phy_package_leave, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = phy_package_join(phydev, base_addr, priv_size);
 
@@ -1829,7 +1829,7 @@ void phy_detach(struct phy_device *phydev)
 	if (phydev->mdio.dev.driver)
 		module_put(phydev->mdio.dev.driver->owner);
 
-	/* If the device had no specific driver before (i.e. - it
+	/* If the device had anal specific driver before (i.e. - it
 	 * was using the generic driver), we unbind the device
 	 * from the generic driver so that there's a chance a
 	 * real driver could be loaded
@@ -1867,7 +1867,7 @@ int phy_suspend(struct phy_device *phydev)
 
 	phy_ethtool_get_wol(phydev, &wol);
 	phydev->wol_enabled = wol.wolopts || (netdev && netdev->wol_enabled);
-	/* If the device has WOL enabled, we cannot suspend the PHY */
+	/* If the device has WOL enabled, we cananalt suspend the PHY */
 	if (phydev->wol_enabled && !(phydrv->flags & PHY_ALWAYS_CALL_SUSPEND))
 		return -EBUSY;
 
@@ -1951,7 +1951,7 @@ EXPORT_SYMBOL(phy_loopback);
  * phy_reset_after_clk_enable - perform a PHY reset if needed
  * @phydev: target phy_device struct
  *
- * Description: Some PHYs are known to need a reset after their refclk was
+ * Description: Some PHYs are kanalwn to need a reset after their refclk was
  *   enabled. This function evaluates the flags and perform the reset if it's
  *   needed. Returns < 0 on error, 0 if the phy wasn't reset and 1 if the phy
  *   was reset.
@@ -1959,7 +1959,7 @@ EXPORT_SYMBOL(phy_loopback);
 int phy_reset_after_clk_enable(struct phy_device *phydev)
 {
 	if (!phydev || !phydev->drv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (phydev->drv->flags & PHY_RST_AFTER_CLK_EN) {
 		phy_device_reset(phydev, 1);
@@ -2073,13 +2073,13 @@ int genphy_config_eee_advert(struct phy_device *phydev)
 {
 	int err;
 
-	/* Nothing to disable */
+	/* Analthing to disable */
 	if (!phydev->eee_broken_modes)
 		return 0;
 
 	err = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV,
 				     phydev->eee_broken_modes, 0);
-	/* If the call failed, we assume that EEE is not supported */
+	/* If the call failed, we assume that EEE is analt supported */
 	return err < 0 ? 0 : err;
 }
 EXPORT_SYMBOL(genphy_config_eee_advert);
@@ -2125,12 +2125,12 @@ static int genphy_setup_master_slave(struct phy_device *phydev)
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 		ctl |= CTL1000_ENABLE_MASTER;
 		break;
-	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNKANALWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
 		return 0;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return phy_modify_changed(phydev, MII_CTRL1000,
@@ -2143,8 +2143,8 @@ int genphy_read_master_slave(struct phy_device *phydev)
 	int cfg, state;
 	int val;
 
-	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
-	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
+	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKANALWN;
+	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKANALWN;
 
 	val = phy_read(phydev, MII_CTRL1000);
 	if (val < 0)
@@ -2175,7 +2175,7 @@ int genphy_read_master_slave(struct phy_device *phydev)
 		else
 			state = MASTER_SLAVE_STATE_SLAVE;
 	} else {
-		state = MASTER_SLAVE_STATE_UNKNOWN;
+		state = MASTER_SLAVE_STATE_UNKANALWN;
 	}
 
 	phydev->master_slave_get = cfg;
@@ -2233,7 +2233,7 @@ EXPORT_SYMBOL(genphy_check_and_restart_aneg);
  * @changed: whether autoneg is requested
  *
  * Description: If auto-negotiation is enabled, we configure the
- *   advertising, and then restart auto-negotiation.  If it is not
+ *   advertising, and then restart auto-negotiation.  If it is analt
  *   enabled, then we write the BMCR.
  */
 int __genphy_config_aneg(struct phy_device *phydev, bool changed)
@@ -2270,7 +2270,7 @@ EXPORT_SYMBOL(__genphy_config_aneg);
  * @phydev: target phy_device struct
  *
  * Description: If auto-negotiation is enabled, we configure the
- *   advertising, and then restart auto-negotiation.  If it is not
+ *   advertising, and then restart auto-negotiation.  If it is analt
  *   enabled, then we write the BMCR. This function is intended
  *   for use with Clause 37 1000Base-X mode.
  */
@@ -2352,7 +2352,7 @@ int genphy_update_link(struct phy_device *phydev)
 		goto done;
 
 	/* The link state is latched low so that momentary link
-	 * drops can be detected. Do not double-read the status
+	 * drops can be detected. Do analt double-read the status
 	 * in polling mode to detect such short link drops except
 	 * the link was already down.
 	 */
@@ -2373,7 +2373,7 @@ done:
 	phydev->autoneg_complete = status & BMSR_ANEGCOMPLETE ? 1 : 0;
 
 	/* Consider the case that autoneg was started and "aneg complete"
-	 * bit has been reset, but "link up" bit not yet.
+	 * bit has been reset, but "link up" bit analt yet.
 	 */
 	if (phydev->autoneg == AUTONEG_ENABLE && !phydev->autoneg_complete)
 		phydev->link = 0;
@@ -2409,7 +2409,7 @@ int genphy_read_lpa(struct phy_device *phydev)
 					phydev_err(phydev, "Master/Slave resolution failed, maybe conflicting manual settings?\n");
 				else
 					phydev_err(phydev, "Master/Slave resolution failed\n");
-				return -ENOLINK;
+				return -EANALLINK;
 			}
 
 			mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising,
@@ -2477,14 +2477,14 @@ int genphy_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	/* why bother the PHY if nothing can have changed */
+	/* why bother the PHY if analthing can have changed */
 	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
 		return 0;
 
 	phydev->master_slave_get = MASTER_SLAVE_CFG_UNSUPPORTED;
 	phydev->master_slave_state = MASTER_SLAVE_STATE_UNSUPPORTED;
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
@@ -2527,11 +2527,11 @@ int genphy_c37_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	/* why bother the PHY if nothing can have changed */
+	/* why bother the PHY if analthing can have changed */
 	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
 		return 0;
 
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
@@ -2606,10 +2606,10 @@ int genphy_soft_reset(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_soft_reset);
 
-irqreturn_t genphy_handle_interrupt_no_ack(struct phy_device *phydev)
+irqreturn_t genphy_handle_interrupt_anal_ack(struct phy_device *phydev)
 {
-	/* It seems there are cases where the interrupts are handled by another
-	 * entity (ie an IRQ controller embedded inside the PHY) and do not
+	/* It seems there are cases where the interrupts are handled by aanalther
+	 * entity (ie an IRQ controller embedded inside the PHY) and do analt
 	 * need any other interraction from phylib. In this case, just trigger
 	 * the state machine directly.
 	 */
@@ -2617,7 +2617,7 @@ irqreturn_t genphy_handle_interrupt_no_ack(struct phy_device *phydev)
 
 	return 0;
 }
-EXPORT_SYMBOL(genphy_handle_interrupt_no_ack);
+EXPORT_SYMBOL(genphy_handle_interrupt_anal_ack);
 
 /**
  * genphy_read_abilities - read PHY abilities from Clause 22 registers
@@ -2665,8 +2665,8 @@ int genphy_read_abilities(struct phy_device *phydev)
 				 phydev->supported, val & ESTATUS_1000_XFULL);
 	}
 
-	/* This is optional functionality. If not supported, we may get an error
-	 * which should be ignored.
+	/* This is optional functionality. If analt supported, we may get an error
+	 * which should be iganalred.
 	 */
 	genphy_c45_read_eee_abilities(phydev);
 
@@ -2680,14 +2680,14 @@ EXPORT_SYMBOL(genphy_read_abilities);
  */
 int genphy_read_mmd_unsupported(struct phy_device *phdev, int devad, u16 regnum)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(genphy_read_mmd_unsupported);
 
 int genphy_write_mmd_unsupported(struct phy_device *phdev, int devnum,
 				 u16 regnum, u16 val)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(genphy_write_mmd_unsupported);
 
@@ -2734,7 +2734,7 @@ EXPORT_SYMBOL(genphy_loopback);
  * @link_mode: Link mode to be removed
  *
  * Description: Some MACs don't support all link modes which the PHY
- * does.  e.g. a 1G MAC often does not support 1000Half. Add a helper
+ * does.  e.g. a 1G MAC often does analt support 1000Half. Add a helper
  * to remove a link mode.
  */
 void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode)
@@ -2774,7 +2774,7 @@ EXPORT_SYMBOL(phy_advertise_supported);
  * @phydev: target phy_device struct
  *
  * Description: Called by the MAC to indicate is supports symmetrical
- * Pause, but not asym pause.
+ * Pause, but analt asym pause.
  */
 void phy_support_sym_pause(struct phy_device *phydev)
 {
@@ -2922,12 +2922,12 @@ static int phy_get_int_delay_property(struct device *dev, const char *name)
  * @is_rx: boolean to indicate to get the rx internal delay
  *
  * Returns the index within the array of internal delay passed in.
- * If the device property is not present then the interface type is checked
+ * If the device property is analt present then the interface type is checked
  * if the interface defines use of internal delay then a 1 is returned otherwise
  * a 0 is returned.
- * The array must be in ascending order. If PHY does not have an ascending order
+ * The array must be in ascending order. If PHY does analt have an ascending order
  * array then size = 0 and the value of the delay property is returned.
- * Return -EINVAL if the delay is invalid or cannot be found.
+ * Return -EINVAL if the delay is invalid or cananalt be found.
  */
 s32 phy_get_internal_delay(struct phy_device *phydev, struct device *dev,
 			   const int *delay_values, int size, bool is_rx)
@@ -3092,7 +3092,7 @@ static void phy_leds_unregister(struct phy_device *phydev)
 }
 
 static int of_phy_led(struct phy_device *phydev,
-		      struct device_node *led)
+		      struct device_analde *led)
 {
 	struct device *dev = &phydev->mdio.dev;
 	struct led_init_data init_data = {};
@@ -3103,7 +3103,7 @@ static int of_phy_led(struct phy_device *phydev,
 
 	phyled = devm_kzalloc(dev, sizeof(*phyled), GFP_KERNEL);
 	if (!phyled)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev = &phyled->led_cdev;
 	phyled->phydev = phydev;
@@ -3134,7 +3134,7 @@ static int of_phy_led(struct phy_device *phydev,
 #endif
 	cdev->max_brightness = 1;
 	init_data.devicename = dev_name(&phydev->mdio.dev);
-	init_data.fwnode = of_fwnode_handle(led);
+	init_data.fwanalde = of_fwanalde_handle(led);
 	init_data.devname_mandatory = true;
 
 	err = led_classdev_register_ext(dev, cdev, &init_data);
@@ -3148,24 +3148,24 @@ static int of_phy_led(struct phy_device *phydev,
 
 static int of_phy_leds(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
-	struct device_node *leds, *led;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
+	struct device_analde *leds, *led;
 	int err;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return 0;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
-	leds = of_get_child_by_name(node, "leds");
+	leds = of_get_child_by_name(analde, "leds");
 	if (!leds)
 		return 0;
 
-	for_each_available_child_of_node(leds, led) {
+	for_each_available_child_of_analde(leds, led) {
 		err = of_phy_led(phydev, led);
 		if (err) {
-			of_node_put(led);
+			of_analde_put(led);
 			phy_leds_unregister(phydev);
 			return err;
 		}
@@ -3175,41 +3175,41 @@ static int of_phy_leds(struct phy_device *phydev)
 }
 
 /**
- * fwnode_mdio_find_device - Given a fwnode, find the mdio_device
- * @fwnode: pointer to the mdio_device's fwnode
+ * fwanalde_mdio_find_device - Given a fwanalde, find the mdio_device
+ * @fwanalde: pointer to the mdio_device's fwanalde
  *
  * If successful, returns a pointer to the mdio_device with the embedded
  * struct device refcount incremented by one, or NULL on failure.
  * The caller should call put_device() on the mdio_device after its use.
  */
-struct mdio_device *fwnode_mdio_find_device(struct fwnode_handle *fwnode)
+struct mdio_device *fwanalde_mdio_find_device(struct fwanalde_handle *fwanalde)
 {
 	struct device *d;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return NULL;
 
-	d = bus_find_device_by_fwnode(&mdio_bus_type, fwnode);
+	d = bus_find_device_by_fwanalde(&mdio_bus_type, fwanalde);
 	if (!d)
 		return NULL;
 
 	return to_mdio_device(d);
 }
-EXPORT_SYMBOL(fwnode_mdio_find_device);
+EXPORT_SYMBOL(fwanalde_mdio_find_device);
 
 /**
- * fwnode_phy_find_device - For provided phy_fwnode, find phy_device.
+ * fwanalde_phy_find_device - For provided phy_fwanalde, find phy_device.
  *
- * @phy_fwnode: Pointer to the phy's fwnode.
+ * @phy_fwanalde: Pointer to the phy's fwanalde.
  *
  * If successful, returns a pointer to the phy_device with the embedded
  * struct device refcount incremented by one, or NULL on failure.
  */
-struct phy_device *fwnode_phy_find_device(struct fwnode_handle *phy_fwnode)
+struct phy_device *fwanalde_phy_find_device(struct fwanalde_handle *phy_fwanalde)
 {
 	struct mdio_device *mdiodev;
 
-	mdiodev = fwnode_mdio_find_device(phy_fwnode);
+	mdiodev = fwanalde_mdio_find_device(phy_fwanalde);
 	if (!mdiodev)
 		return NULL;
 
@@ -3220,43 +3220,43 @@ struct phy_device *fwnode_phy_find_device(struct fwnode_handle *phy_fwnode)
 
 	return NULL;
 }
-EXPORT_SYMBOL(fwnode_phy_find_device);
+EXPORT_SYMBOL(fwanalde_phy_find_device);
 
 /**
  * device_phy_find_device - For the given device, get the phy_device
  * @dev: Pointer to the given device
  *
- * Refer return conditions of fwnode_phy_find_device().
+ * Refer return conditions of fwanalde_phy_find_device().
  */
 struct phy_device *device_phy_find_device(struct device *dev)
 {
-	return fwnode_phy_find_device(dev_fwnode(dev));
+	return fwanalde_phy_find_device(dev_fwanalde(dev));
 }
 EXPORT_SYMBOL_GPL(device_phy_find_device);
 
 /**
- * fwnode_get_phy_node - Get the phy_node using the named reference.
- * @fwnode: Pointer to fwnode from which phy_node has to be obtained.
+ * fwanalde_get_phy_analde - Get the phy_analde using the named reference.
+ * @fwanalde: Pointer to fwanalde from which phy_analde has to be obtained.
  *
- * Refer return conditions of fwnode_find_reference().
+ * Refer return conditions of fwanalde_find_reference().
  * For ACPI, only "phy-handle" is supported. Legacy DT properties "phy"
- * and "phy-device" are not supported in ACPI. DT supports all the three
- * named references to the phy node.
+ * and "phy-device" are analt supported in ACPI. DT supports all the three
+ * named references to the phy analde.
  */
-struct fwnode_handle *fwnode_get_phy_node(const struct fwnode_handle *fwnode)
+struct fwanalde_handle *fwanalde_get_phy_analde(const struct fwanalde_handle *fwanalde)
 {
-	struct fwnode_handle *phy_node;
+	struct fwanalde_handle *phy_analde;
 
 	/* Only phy-handle is used for ACPI */
-	phy_node = fwnode_find_reference(fwnode, "phy-handle", 0);
-	if (is_acpi_node(fwnode) || !IS_ERR(phy_node))
-		return phy_node;
-	phy_node = fwnode_find_reference(fwnode, "phy", 0);
-	if (IS_ERR(phy_node))
-		phy_node = fwnode_find_reference(fwnode, "phy-device", 0);
-	return phy_node;
+	phy_analde = fwanalde_find_reference(fwanalde, "phy-handle", 0);
+	if (is_acpi_analde(fwanalde) || !IS_ERR(phy_analde))
+		return phy_analde;
+	phy_analde = fwanalde_find_reference(fwanalde, "phy", 0);
+	if (IS_ERR(phy_analde))
+		phy_analde = fwanalde_find_reference(fwanalde, "phy-device", 0);
+	return phy_analde;
 }
-EXPORT_SYMBOL_GPL(fwnode_get_phy_node);
+EXPORT_SYMBOL_GPL(fwanalde_get_phy_analde);
 
 /**
  * phy_probe - probe and init a PHY device
@@ -3332,12 +3332,12 @@ static int phy_probe(struct device *dev)
 	if (err)
 		goto out;
 
-	/* There is no "enabled" flag. If PHY is advertising, assume it is
+	/* There is anal "enabled" flag. If PHY is advertising, assume it is
 	 * kind of enabled.
 	 */
 	phydev->eee_enabled = !linkmode_empty(phydev->advertising_eee);
 
-	/* Some PHYs may advertise, by default, not support EEE modes. So,
+	/* Some PHYs may advertise, by default, analt support EEE modes. So,
 	 * we need to clean them.
 	 */
 	if (phydev->eee_enabled)
@@ -3355,7 +3355,7 @@ static int phy_probe(struct device *dev)
 	 * use that result to determine whether to enable flow control via
 	 * pause frames.
 	 *
-	 * Normally, PHY drivers should not set the Pause bits, and instead
+	 * Analrmally, PHY drivers should analt set the Pause bits, and instead
 	 * allow phylib to do that.  However, there may be some situations
 	 * (e.g. hardware erratum) where the driver wants to set only one
 	 * of these bits.
@@ -3420,21 +3420,21 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 	int retval;
 
 	/* Either the features are hard coded, or dynamically
-	 * determined. It cannot be both.
+	 * determined. It cananalt be both.
 	 */
 	if (WARN_ON(new_driver->features && new_driver->get_features)) {
-		pr_err("%s: features and get_features must not both be set\n",
+		pr_err("%s: features and get_features must analt both be set\n",
 		       new_driver->name);
 		return -EINVAL;
 	}
 
-	/* PHYLIB device drivers must not match using a DT compatible table
+	/* PHYLIB device drivers must analt match using a DT compatible table
 	 * as this bypasses our checks that the mdiodev that is being matched
 	 * is backed by a struct phy_device. If such a case happens, we will
 	 * make out-of-bounds accesses and lockup in phydev->lock.
 	 */
 	if (WARN(new_driver->mdiodrv.driver.of_match_table,
-		 "%s: driver must not provide a DT match table\n",
+		 "%s: driver must analt provide a DT match table\n",
 		 new_driver->name))
 		return -EINVAL;
 
@@ -3444,7 +3444,7 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 	new_driver->mdiodrv.driver.probe = phy_probe;
 	new_driver->mdiodrv.driver.remove = phy_remove;
 	new_driver->mdiodrv.driver.owner = owner;
-	new_driver->mdiodrv.driver.probe_type = PROBE_FORCE_SYNCHRONOUS;
+	new_driver->mdiodrv.driver.probe_type = PROBE_FORCE_SYNCHROANALUS;
 
 	retval = driver_register(&new_driver->mdiodrv.driver);
 	if (retval) {

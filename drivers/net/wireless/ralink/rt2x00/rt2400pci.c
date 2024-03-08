@@ -255,8 +255,8 @@ static void rt2400pci_config_filter(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Start configuration steps.
-	 * Note that the version error will always be dropped
-	 * since there is no filter for it at this time.
+	 * Analte that the version error will always be dropped
+	 * since there is anal filter for it at this time.
 	 */
 	reg = rt2x00mmio_register_read(rt2x00dev, RXCSR0);
 	rt2x00_set_field32(&reg, RXCSR0_DROP_CRC,
@@ -265,7 +265,7 @@ static void rt2400pci_config_filter(struct rt2x00_dev *rt2x00dev,
 			   !(filter_flags & FIF_PLCPFAIL));
 	rt2x00_set_field32(&reg, RXCSR0_DROP_CONTROL,
 			   !(filter_flags & FIF_CONTROL));
-	rt2x00_set_field32(&reg, RXCSR0_DROP_NOT_TO_ME,
+	rt2x00_set_field32(&reg, RXCSR0_DROP_ANALT_TO_ME,
 			   !test_bit(CONFIG_MONITORING, &rt2x00dev->flags));
 	rt2x00_set_field32(&reg, RXCSR0_DROP_TODS,
 			   !test_bit(CONFIG_MONITORING, &rt2x00dev->flags) &&
@@ -606,7 +606,7 @@ static void rt2400pci_link_tuner(struct rt2x00_dev *rt2x00dev,
 				 struct link_qual *qual, const u32 count)
 {
 	/*
-	 * The link tuner should not run longer then 60 seconds,
+	 * The link tuner should analt run longer then 60 seconds,
 	 * and should run once every 2 seconds.
 	 */
 	if (count > 60 || !(count & 1))
@@ -972,7 +972,7 @@ static void rt2400pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Only toggle the interrupts bits we are going to use.
-	 * Non-checked interrupt bits are disabled by default.
+	 * Analn-checked interrupt bits are disabled by default.
 	 */
 	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
 
@@ -1037,7 +1037,7 @@ static int rt2400pci_set_state(struct rt2x00_dev *rt2x00dev,
 	rt2x00mmio_register_write(rt2x00dev, PWRCSR1, reg);
 
 	/*
-	 * Device is not guaranteed to be in the requested state yet.
+	 * Device is analt guaranteed to be in the requested state yet.
 	 * We must wait until the register indicates that the
 	 * device has entered the correct state.
 	 */
@@ -1077,7 +1077,7 @@ static int rt2400pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		retval = rt2400pci_set_state(rt2x00dev, state);
 		break;
 	default:
-		retval = -ENOTSUPP;
+		retval = -EANALTSUPP;
 		break;
 	}
 
@@ -1231,7 +1231,7 @@ static void rt2400pci_fill_rxdone(struct queue_entry *entry,
 	 * We only get the lower 32bits from the timestamp,
 	 * to get the full 64bits we must complement it with
 	 * the timestamp from get_tsf().
-	 * Note that when a wraparound of the lower 32bits
+	 * Analte that when a wraparound of the lower 32bits
 	 * has occurred between the frame arrival and the get_tsf()
 	 * call, we must decrease the higher 32bits with 1 to get
 	 * to correct value.
@@ -1379,7 +1379,7 @@ static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)
 	rt2x00mmio_register_write(rt2x00dev, CSR7, reg);
 
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
@@ -1408,7 +1408,7 @@ static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)
 	}
 
 	/*
-	 * Disable all interrupts for which a tasklet was scheduled right now,
+	 * Disable all interrupts for which a tasklet was scheduled right analw,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
 	spin_lock(&rt2x00dev->irqmask_lock);
@@ -1485,7 +1485,7 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	if (!rt2x00_rf(rt2x00dev, RF2420) && !rt2x00_rf(rt2x00dev, RF2421)) {
 		rt2x00_err(rt2x00dev, "Invalid RF chipset detected\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -1498,7 +1498,7 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * When the eeprom indicates SW_DIVERSITY use HW_DIVERSITY instead.
-	 * I am not 100% sure about this, but the legacy drivers do not
+	 * I am analt 100% sure about this, but the legacy drivers do analt
 	 * indicate antenna swapping in software is required when
 	 * diversity is enabled.
 	 */
@@ -1591,7 +1591,7 @@ static int rt2400pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 */
 	info = kcalloc(spec->num_channels, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->channels_info = info;
 
@@ -1640,7 +1640,7 @@ static int rt2400pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_DMA, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_SW_SEQANAL, &rt2x00dev->cap_flags);
 
 	/*
 	 * Set the rssi offset.
@@ -1663,7 +1663,7 @@ static int rt2400pci_conf_tx(struct ieee80211_hw *hw,
 	/*
 	 * We don't support variating cw_min and cw_max variables
 	 * per queue. So by default we only configure the TX queue,
-	 * and ignore all other configurations.
+	 * and iganalre all other configurations.
 	 */
 	if (queue != 0)
 		return -EINVAL;

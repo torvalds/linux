@@ -41,9 +41,9 @@
 #define APL_ADSPFW_OFFSET		0x2000
 
 /* Occasionally, engineering (release candidate) firmware is provided for testing. */
-static bool debug_ignore_fw_version;
-module_param_named(ignore_fw_version, debug_ignore_fw_version, bool, 0444);
-MODULE_PARM_DESC(ignore_fw_version, "Ignore firmware version check 0=no (default), 1=yes");
+static bool debug_iganalre_fw_version;
+module_param_named(iganalre_fw_version, debug_iganalre_fw_version, bool, 0444);
+MODULE_PARM_DESC(iganalre_fw_version, "Iganalre firmware version check 0=anal (default), 1=anal");
 
 #define AVS_LIB_NAME_SIZE	8
 
@@ -61,7 +61,7 @@ struct avs_fw_ext_manifest {
 	u32 id;
 	u32 len;
 	u16 version_major;
-	u16 version_minor;
+	u16 version_mianalr;
 	u32 entries;
 } __packed;
 
@@ -117,15 +117,15 @@ static int avs_fw_manifest_strip_verify(struct avs_dev *adev, struct firmware *f
 
 	man = (struct avs_fw_manifest *)(fw->data + offset);
 	if (man->version.major != min->major ||
-	    man->version.minor != min->minor ||
+	    man->version.mianalr != min->mianalr ||
 	    man->version.hotfix != min->hotfix ||
 	    man->version.build < min->build) {
 		dev_warn(adev->dev, "bad FW version %d.%d.%d.%d, expected %d.%d.%d.%d or newer\n",
-			 man->version.major, man->version.minor,
+			 man->version.major, man->version.mianalr,
 			 man->version.hotfix, man->version.build,
-			 min->major, min->minor, min->hotfix, min->build);
+			 min->major, min->mianalr, min->hotfix, min->build);
 
-		if (!debug_ignore_fw_version)
+		if (!debug_iganalre_fw_version)
 			return -EINVAL;
 	}
 
@@ -195,7 +195,7 @@ int avs_cldma_load_library(struct avs_dev *adev, struct firmware *lib, u32 id)
 	/* transfer modules manifest */
 	hda_cldma_transfer(cl, msecs_to_jiffies(AVS_CLDMA_START_DELAY_MS));
 
-	/* DMA id ignored as there is only ever one code-loader DMA */
+	/* DMA id iganalred as there is only ever one code-loader DMA */
 	ret = avs_ipc_load_library(adev, 0, id);
 	hda_cldma_stop(cl);
 
@@ -217,7 +217,7 @@ static int avs_cldma_load_module(struct avs_dev *adev, struct avs_module_entry *
 	mod_name = kasprintf(GFP_KERNEL, "%s/%s/dsp_mod_%pUL.bin", AVS_ROOT_DIR,
 			     adev->spec->name, mentry->uuid.b);
 	if (!mod_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = avs_request_firmware(adev, &mod, mod_name);
 	kfree(mod_name);
@@ -265,7 +265,7 @@ int avs_cldma_transfer_modules(struct avs_dev *adev, bool load,
 
 	mod_ids = kcalloc(num_mods, sizeof(u16), GFP_KERNEL);
 	if (!mod_ids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_mods; i++)
 		mod_ids[i] = mods[i].module_id;
@@ -315,7 +315,7 @@ avs_hda_init_rom(struct avs_dev *adev, unsigned int dma_id, bool purge)
 		goto err;
 	}
 
-	/* power down non-main cores */
+	/* power down analn-main cores */
 	if (corex_mask) {
 		ret = avs_dsp_op(adev, power, corex_mask, false);
 		if (ret < 0)
@@ -333,7 +333,7 @@ static int avs_imr_load_basefw(struct avs_dev *adev)
 {
 	int ret;
 
-	/* DMA id ignored when flashing from IMR as no transfer occurs. */
+	/* DMA id iganalred when flashing from IMR as anal transfer occurs. */
 	ret = avs_hda_init_rom(adev, 0, false);
 	if (ret < 0) {
 		dev_err(adev->dev, "rom init failed: %d\n", ret);
@@ -367,7 +367,7 @@ int avs_hda_load_basefw(struct avs_dev *adev, struct firmware *fw)
 	estream = snd_hdac_ext_stream_assign(bus, &substream,
 					     HDAC_EXT_STREAM_TYPE_HOST);
 	if (!estream)
-		return -ENODEV;
+		return -EANALDEV;
 	hstream = hdac_stream(estream);
 
 	/* code loading performed with default format */
@@ -434,7 +434,7 @@ int avs_hda_load_library(struct avs_dev *adev, struct firmware *lib, u32 id)
 	estream = snd_hdac_ext_stream_assign(bus, &substream,
 					     HDAC_EXT_STREAM_TYPE_HOST);
 	if (!estream)
-		return -ENODEV;
+		return -EANALDEV;
 	stream = hdac_stream(estream);
 
 	/* code loading performed with default format */
@@ -502,10 +502,10 @@ int avs_dsp_load_libraries(struct avs_dev *adev, struct avs_tplg_library *libs, 
 		filename = kasprintf(GFP_KERNEL, "%s/%s/%s", AVS_ROOT_DIR, adev->spec->name,
 				     libs[i].name);
 		if (!filename)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/*
-		 * If any call after this one fails, requested firmware is not released with
+		 * If any call after this one fails, requested firmware is analt released with
 		 * avs_release_last_firmware() as failing to load code results in need for reload
 		 * of entire driver module. And then avs_release_firmwares() is in place already.
 		 */
@@ -555,7 +555,7 @@ static int avs_dsp_load_basefw(struct avs_dev *adev)
 
 	filename = kasprintf(GFP_KERNEL, "%s/%s/%s", AVS_ROOT_DIR, spec->name, AVS_BASEFW_FILENAME);
 	if (!filename)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = avs_request_firmware(adev, &fw, filename);
 	kfree(filename);
@@ -622,7 +622,7 @@ int avs_dsp_boot_firmware(struct avs_dev *adev, bool purge)
 		goto reenable_gating;
 
 	mutex_lock(&adev->comp_list_mutex);
-	list_for_each_entry(acomp, &adev->comp_list, node) {
+	list_for_each_entry(acomp, &adev->comp_list, analde) {
 		struct avs_tplg *tplg = acomp->tplg;
 
 		ret = avs_dsp_load_libraries(adev, tplg->libs, tplg->num_libs);
@@ -689,12 +689,12 @@ int avs_dsp_first_boot_firmware(struct avs_dev *adev)
 	adev->lib_names = devm_kcalloc(adev->dev, adev->fw_cfg.max_libs_count,
 				       sizeof(*adev->lib_names), GFP_KERNEL);
 	if (!adev->core_refs || !adev->lib_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < adev->fw_cfg.max_libs_count; i++) {
 		adev->lib_names[i] = devm_kzalloc(adev->dev, AVS_LIB_NAME_SIZE, GFP_KERNEL);
 		if (!adev->lib_names[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* basefw always occupies slot 0 */

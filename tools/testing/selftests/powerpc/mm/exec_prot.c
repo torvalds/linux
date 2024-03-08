@@ -19,7 +19,7 @@
 #include "pkeys.h"
 
 
-#define PPC_INST_NOP	0x60000000
+#define PPC_INST_ANALP	0x60000000
 #define PPC_INST_TRAP	0x7fe00008
 #define PPC_INST_BLR	0x4e800020
 
@@ -88,7 +88,7 @@ static int check_exec_fault(int rights)
 	 * Jump to the executable region.
 	 *
 	 * The first iteration also checks if the overwrite of the
-	 * first instruction word from a trap to a no-op succeeded.
+	 * first instruction word from a trap to a anal-op succeeded.
 	 */
 	fault_code = -1;
 	remaining_faults = 0;
@@ -136,17 +136,17 @@ static int test(void)
 	pgsize = getpagesize();
 	numinsns = pgsize / sizeof(unsigned int);
 	insns = (unsigned int *)mmap(NULL, pgsize, PROT_READ | PROT_WRITE,
-				      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+				      MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	FAIL_IF(insns == MAP_FAILED);
 
 	/* Write the instruction words */
 	for (i = 1; i < numinsns - 1; i++)
-		insns[i] = PPC_INST_NOP;
+		insns[i] = PPC_INST_ANALP;
 
 	/*
 	 * Set the first instruction as an unconditional trap. If
 	 * the last write to this address succeeds, this should
-	 * get overwritten by a no-op.
+	 * get overwritten by a anal-op.
 	 */
 	insns[0] = PPC_INST_TRAP;
 
@@ -183,12 +183,12 @@ static int test(void)
 	remaining_faults = 1;
 	printf("Testing write on --x, should fault...");
 	FAIL_IF(mprotect(insns, pgsize, PROT_EXEC) != 0);
-	*fault_addr = PPC_INST_NOP;
+	*fault_addr = PPC_INST_ANALP;
 	FAIL_IF(remaining_faults != 0 || !is_fault_expected(fault_code));
 	printf("ok!\n");
 
 	printf("Testing exec on ---, should fault...");
-	FAIL_IF(check_exec_fault(PROT_NONE));
+	FAIL_IF(check_exec_fault(PROT_ANALNE));
 	printf("ok!\n");
 
 	printf("Testing exec on r--, should fault...");

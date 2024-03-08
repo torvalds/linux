@@ -25,12 +25,12 @@ Description
 -----------
 
 LM95233 and LM95234 are 11-bit digital temperature sensors with a 2-wire
-System Management Bus (SMBus) interface and TrueTherm technology
+System Management Bus (SMBus) interface and TrueTherm techanallogy
 that can very accurately monitor the temperature of two (LM95233)
 or four (LM95234) remote diodes as well as its own temperature.
 The remote diodes can be external devices such as microprocessors,
 graphics processors or diode-connected 2N3904s. The chip's TruTherm
-beta compensation technology allows sensing of 90 nm or 65 nm process
+beta compensation techanallogy allows sensing of 90 nm or 65 nm process
 thermal diodes accurately.
 
 All temperature values are given in millidegrees Celsius. Temperature
@@ -44,5 +44,5 @@ have a critical limit.
 
 The lm95234 driver can change its update interval to a fixed set of values.
 It will round up to the next selectable interval. See the datasheet for exact
-values. Reading sensor values more often will do no harm, but will return
+values. Reading sensor values more often will do anal harm, but will return
 'old' values.

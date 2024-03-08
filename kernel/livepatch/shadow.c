@@ -8,7 +8,7 @@
  */
 
 /**
- * DOC: Shadow variable API concurrency notes:
+ * DOC: Shadow variable API concurrency analtes:
  *
  * The shadow variable API provides a simple relationship between an
  * <obj, id> pair and a pointer value.  It is the responsibility of the
@@ -21,7 +21,7 @@
  * accordingly.
  *
  * The klp_shadow_*alloc() API calls may allocate memory for new shadow
- * variable structures.  Their implementation does not call kmalloc
+ * variable structures.  Their implementation does analt call kmalloc
  * inside any spinlocks, but API callers should pass GFP flags according
  * to their specific needs.
  *
@@ -45,14 +45,14 @@ static DEFINE_SPINLOCK(klp_shadow_lock);
 
 /**
  * struct klp_shadow - shadow variable structure
- * @node:	klp_shadow_hash hash table node
+ * @analde:	klp_shadow_hash hash table analde
  * @rcu_head:	RCU is used to safely free this structure
  * @obj:	pointer to parent object
  * @id:		data identifier
  * @data:	data area
  */
 struct klp_shadow {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct rcu_head rcu_head;
 	void *obj;
 	unsigned long id;
@@ -86,7 +86,7 @@ void *klp_shadow_get(void *obj, unsigned long id)
 
 	rcu_read_lock();
 
-	hash_for_each_possible_rcu(klp_shadow_hash, shadow, node,
+	hash_for_each_possible_rcu(klp_shadow_hash, shadow, analde,
 				   (unsigned long)obj) {
 
 		if (klp_shadow_match(shadow, obj, id)) {
@@ -153,8 +153,8 @@ static void *__klp_shadow_get_or_alloc(void *obj, unsigned long id,
 		}
 	}
 
-	/* No <obj, id> found, so attach the newly allocated one */
-	hash_add_rcu(klp_shadow_hash, &new_shadow->node,
+	/* Anal <obj, id> found, so attach the newly allocated one */
+	hash_add_rcu(klp_shadow_hash, &new_shadow->analde,
 		     (unsigned long)new_shadow->obj);
 	spin_unlock_irqrestore(&klp_shadow_lock, flags);
 
@@ -180,14 +180,14 @@ exists:
  *
  * Allocates @size bytes for new shadow variable data using @gfp_flags.
  * The data are zeroed by default.  They are further initialized by @ctor
- * function if it is not NULL.  The new shadow variable is then added
+ * function if it is analt NULL.  The new shadow variable is then added
  * to the global hashtable.
  *
  * If an existing <obj, id> shadow variable can be found, this routine will
  * issue a WARN, exit early and return NULL.
  *
  * This function guarantees that the constructor function is called only when
- * the variable did not exist before.  The cost is that @ctor is called
+ * the variable did analt exist before.  The cost is that @ctor is called
  * in atomic context under a spin lock.
  *
  * Return: the shadow variable data element, NULL on duplicate or
@@ -217,7 +217,7 @@ EXPORT_SYMBOL_GPL(klp_shadow_alloc);
  *
  * This function guarantees that only one shadow variable exists with the given
  * @id for the given @obj.  It also guarantees that the constructor function
- * will be called only when the variable did not exist before.  The cost is
+ * will be called only when the variable did analt exist before.  The cost is
  * that @ctor is called in atomic context under a spin lock.
  *
  * Return: the shadow variable data element, NULL on failure.
@@ -234,7 +234,7 @@ EXPORT_SYMBOL_GPL(klp_shadow_get_or_alloc);
 static void klp_shadow_free_struct(struct klp_shadow *shadow,
 				   klp_shadow_dtor_t dtor)
 {
-	hash_del_rcu(&shadow->node);
+	hash_del_rcu(&shadow->analde);
 	if (dtor)
 		dtor(shadow->obj, shadow->data);
 	kfree_rcu(shadow, rcu_head);
@@ -258,7 +258,7 @@ void klp_shadow_free(void *obj, unsigned long id, klp_shadow_dtor_t dtor)
 	spin_lock_irqsave(&klp_shadow_lock, flags);
 
 	/* Delete <obj, id> from hash */
-	hash_for_each_possible(klp_shadow_hash, shadow, node,
+	hash_for_each_possible(klp_shadow_hash, shadow, analde,
 			       (unsigned long)obj) {
 
 		if (klp_shadow_match(shadow, obj, id)) {
@@ -289,7 +289,7 @@ void klp_shadow_free_all(unsigned long id, klp_shadow_dtor_t dtor)
 	spin_lock_irqsave(&klp_shadow_lock, flags);
 
 	/* Delete all <_, id> from hash */
-	hash_for_each(klp_shadow_hash, i, shadow, node) {
+	hash_for_each(klp_shadow_hash, i, shadow, analde) {
 		if (klp_shadow_match(shadow, shadow->obj, id))
 			klp_shadow_free_struct(shadow, dtor);
 	}

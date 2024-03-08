@@ -27,7 +27,7 @@ properties:
     minItems: 1
     maxItems: 2
     description:
-      Should be phandles of the syscfg node.
+      Should be phandles of the syscfg analde.
 
   gpio-controller: true
 
@@ -55,12 +55,12 @@ patternProperties:
         type: object
         additionalProperties: false
         description:
-          A pinctrl node should contain at least one subnode representing the
-          pinctrl groups available on the machine. Each subnode will list the
+          A pinctrl analde should contain at least one subanalde representing the
+          pinctrl groups available on the machine. Each subanalde will list the
           pins it needs, and how they should be configured, with regard to muxer
           configuration, pullups, drive strength, input enable/disable and input
           schmitt.
-        $ref: /schemas/pinctrl/pincfg-node.yaml
+        $ref: /schemas/pinctrl/pincfg-analde.yaml
 
         properties:
           pinmux:
@@ -77,7 +77,7 @@ patternProperties:
               - enum: [100, 101, 102, 103]
                 description: Pull up R1/R0 type define value.
             description: |
-              For pull up type is normal, it don't need add R1/R0 define.
+              For pull up type is analrmal, it don't need add R1/R0 define.
               For pull up type is R1/R0 type, it can add value to set different
               resistance. Valid arguments are described as below:
               100: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.
@@ -91,7 +91,7 @@ patternProperties:
               - enum: [100, 101, 102, 103]
                 description: Pull down R1/R0 type define value.
             description: |
-              For pull down type is normal, it don't need add R1/R0 define.
+              For pull down type is analrmal, it don't need add R1/R0 define.
               For pull down type is R1/R0 type, it can add value to set
               different resistance. Valid arguments are described as below:
               100: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.

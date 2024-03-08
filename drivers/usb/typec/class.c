@@ -29,14 +29,14 @@ struct class typec_class = {
 /* Common attributes */
 
 static const char * const typec_accessory_modes[] = {
-	[TYPEC_ACCESSORY_NONE]		= "none",
+	[TYPEC_ACCESSORY_ANALNE]		= "analne",
 	[TYPEC_ACCESSORY_AUDIO]		= "analog_audio",
 	[TYPEC_ACCESSORY_DEBUG]		= "debug",
 };
 
 /* Product types defined in USB PD Specification R3.0 V2.0 */
 static const char * const product_type_ufp[8] = {
-	[IDH_PTYPE_NOT_UFP]		= "not_ufp",
+	[IDH_PTYPE_ANALT_UFP]		= "analt_ufp",
 	[IDH_PTYPE_HUB]			= "hub",
 	[IDH_PTYPE_PERIPH]		= "peripheral",
 	[IDH_PTYPE_PSD]			= "psd",
@@ -44,14 +44,14 @@ static const char * const product_type_ufp[8] = {
 };
 
 static const char * const product_type_dfp[8] = {
-	[IDH_PTYPE_NOT_DFP]		= "not_dfp",
+	[IDH_PTYPE_ANALT_DFP]		= "analt_dfp",
 	[IDH_PTYPE_DFP_HUB]		= "hub",
 	[IDH_PTYPE_DFP_HOST]		= "host",
 	[IDH_PTYPE_DFP_PB]		= "power_brick",
 };
 
 static const char * const product_type_cable[8] = {
-	[IDH_PTYPE_NOT_CABLE]		= "not_cable",
+	[IDH_PTYPE_ANALT_CABLE]		= "analt_cable",
 	[IDH_PTYPE_PCABLE]		= "passive",
 	[IDH_PTYPE_ACABLE]		= "active",
 	[IDH_PTYPE_VPD]			= "vpd",
@@ -171,7 +171,7 @@ static const struct attribute_group *usb_pd_id_groups[] = {
 	NULL,
 };
 
-static void typec_product_type_notify(struct device *dev)
+static void typec_product_type_analtify(struct device *dev)
 {
 	char *envp[2] = { };
 	const char *ptype;
@@ -180,7 +180,7 @@ static void typec_product_type_notify(struct device *dev)
 	if (!ptype)
 		return;
 
-	sysfs_notify(&dev->kobj, NULL, "type");
+	sysfs_analtify(&dev->kobj, NULL, "type");
 
 	envp[0] = kasprintf(GFP_KERNEL, "PRODUCT_TYPE=%s", ptype);
 	if (!envp[0])
@@ -192,13 +192,13 @@ static void typec_product_type_notify(struct device *dev)
 
 static void typec_report_identity(struct device *dev)
 {
-	sysfs_notify(&dev->kobj, "identity", "id_header");
-	sysfs_notify(&dev->kobj, "identity", "cert_stat");
-	sysfs_notify(&dev->kobj, "identity", "product");
-	sysfs_notify(&dev->kobj, "identity", "product_type_vdo1");
-	sysfs_notify(&dev->kobj, "identity", "product_type_vdo2");
-	sysfs_notify(&dev->kobj, "identity", "product_type_vdo3");
-	typec_product_type_notify(dev);
+	sysfs_analtify(&dev->kobj, "identity", "id_header");
+	sysfs_analtify(&dev->kobj, "identity", "cert_stat");
+	sysfs_analtify(&dev->kobj, "identity", "product");
+	sysfs_analtify(&dev->kobj, "identity", "product_type_vdo1");
+	sysfs_analtify(&dev->kobj, "identity", "product_type_vdo2");
+	sysfs_analtify(&dev->kobj, "identity", "product_type_vdo3");
+	typec_product_type_analtify(dev);
 }
 
 static ssize_t
@@ -305,8 +305,8 @@ void typec_altmode_update_active(struct typec_altmode *adev, bool active)
 
 	adev->active = active;
 	snprintf(dir, sizeof(dir), "mode%d", adev->mode);
-	sysfs_notify(&adev->dev.kobj, dir, "active");
-	sysfs_notify(&adev->dev.kobj, NULL, "active");
+	sysfs_analtify(&adev->dev.kobj, dir, "active");
+	sysfs_analtify(&adev->dev.kobj, NULL, "active");
 	kobject_uevent(&adev->dev.kobj, KOBJ_CHANGE);
 }
 EXPORT_SYMBOL_GPL(typec_altmode_update_active);
@@ -354,7 +354,7 @@ active_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct typec_altmode *alt = to_typec_altmode(dev);
 
-	return sprintf(buf, "%s\n", alt->active ? "yes" : "no");
+	return sprintf(buf, "%s\n", alt->active ? "anal" : "anal");
 }
 
 static ssize_t active_store(struct device *dev, struct device_attribute *attr,
@@ -385,7 +385,7 @@ static ssize_t active_store(struct device *dev, struct device_attribute *attr,
 		}
 	}
 
-	/* Note: If there is no driver, the mode will not be entered */
+	/* Analte: If there is anal driver, the mode will analt be entered */
 	if (adev->ops && adev->ops->activate) {
 		ret = adev->ops->activate(adev, enter);
 		if (ret)
@@ -524,7 +524,7 @@ typec_register_altmode(struct device *parent,
 	alt = kzalloc(sizeof(*alt), GFP_KERNEL);
 	if (!alt) {
 		altmode_id_remove(parent, id);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	alt->adev.svid = desc->svid;
@@ -611,7 +611,7 @@ static ssize_t supports_usb_power_delivery_show(struct device *dev,
 {
 	struct typec_partner *p = to_typec_partner(dev);
 
-	return sprintf(buf, "%s\n", p->usb_pd ? "yes" : "no");
+	return sprintf(buf, "%s\n", p->usb_pd ? "anal" : "anal");
 }
 static DEVICE_ATTR_RO(supports_usb_power_delivery);
 
@@ -743,10 +743,10 @@ void typec_partner_set_pd_revision(struct typec_partner *partner, u16 pd_revisio
 		return;
 
 	partner->pd_revision = pd_revision;
-	sysfs_notify(&partner->dev.kobj, NULL, "usb_power_delivery_revision");
+	sysfs_analtify(&partner->dev.kobj, NULL, "usb_power_delivery_revision");
 	if (pd_revision != 0 && !partner->usb_pd) {
 		partner->usb_pd = 1;
-		sysfs_notify(&partner->dev.kobj, NULL,
+		sysfs_analtify(&partner->dev.kobj, NULL,
 			     "supports_usb_power_delivery");
 	}
 	kobject_uevent(&partner->dev.kobj, KOBJ_CHANGE);
@@ -792,10 +792,10 @@ EXPORT_SYMBOL_GPL(typec_partner_set_usb_power_delivery);
  * @num_altmodes: The number of altmodes we want to specify as available.
  *
  * This routine is used to report the number of alternate modes supported by the
- * partner. This value is *not* enforced in alternate mode registration routines.
+ * partner. This value is *analt* enforced in alternate mode registration routines.
  *
- * @partner.num_altmodes is set to -1 on partner registration, denoting that
- * a valid value has not been set for it yet.
+ * @partner.num_altmodes is set to -1 on partner registration, deanalting that
+ * a valid value has analt been set for it yet.
  *
  * Returns 0 on success or negative error number on failure.
  */
@@ -811,7 +811,7 @@ int typec_partner_set_num_altmodes(struct typec_partner *partner, int num_altmod
 	if (ret < 0)
 		return ret;
 
-	sysfs_notify(&partner->dev.kobj, NULL, "number_of_alternate_modes");
+	sysfs_analtify(&partner->dev.kobj, NULL, "number_of_alternate_modes");
 	kobject_uevent(&partner->dev.kobj, KOBJ_CHANGE);
 
 	return 0;
@@ -888,7 +888,7 @@ struct typec_partner *typec_register_partner(struct typec_port *port,
 
 	partner = kzalloc(sizeof(*partner), GFP_KERNEL);
 	if (!partner)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ida_init(&partner->mode_ids);
 	partner->usb_pd = desc->usb_pd;
@@ -1003,10 +1003,10 @@ const struct device_type typec_plug_dev_type = {
  * @num_altmodes: The number of altmodes we want to specify as available.
  *
  * This routine is used to report the number of alternate modes supported by the
- * plug. This value is *not* enforced in alternate mode registration routines.
+ * plug. This value is *analt* enforced in alternate mode registration routines.
  *
- * @plug.num_altmodes is set to -1 on plug registration, denoting that
- * a valid value has not been set for it yet.
+ * @plug.num_altmodes is set to -1 on plug registration, deanalting that
+ * a valid value has analt been set for it yet.
  *
  * Returns 0 on success or negative error number on failure.
  */
@@ -1022,7 +1022,7 @@ int typec_plug_set_num_altmodes(struct typec_plug *plug, int num_altmodes)
 	if (ret < 0)
 		return ret;
 
-	sysfs_notify(&plug->dev.kobj, NULL, "number_of_alternate_modes");
+	sysfs_analtify(&plug->dev.kobj, NULL, "number_of_alternate_modes");
 	kobject_uevent(&plug->dev.kobj, KOBJ_CHANGE);
 
 	return 0;
@@ -1069,7 +1069,7 @@ struct typec_plug *typec_register_plug(struct typec_cable *cable,
 
 	plug = kzalloc(sizeof(*plug), GFP_KERNEL);
 	if (!plug)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sprintf(name, "plug%d", desc->index);
 
@@ -1108,7 +1108,7 @@ EXPORT_SYMBOL_GPL(typec_unregister_plug);
 /* Type-C Cables */
 
 static const char * const typec_plug_types[] = {
-	[USB_PLUG_NONE]		= "unknown",
+	[USB_PLUG_ANALNE]		= "unkanalwn",
 	[USB_PLUG_TYPE_A]	= "type-a",
 	[USB_PLUG_TYPE_B]	= "type-b",
 	[USB_PLUG_TYPE_C]	= "type-c",
@@ -1226,7 +1226,7 @@ struct typec_cable *typec_register_cable(struct typec_port *port,
 
 	cable = kzalloc(sizeof(*cable), GFP_KERNEL);
 	if (!cable)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cable->type = desc->type;
 	cable->active = desc->active;
@@ -1312,7 +1312,7 @@ static ssize_t select_usb_power_delivery_store(struct device *dev,
 	struct usb_power_delivery *pd;
 
 	if (!port->ops || !port->ops->pd_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pd = usb_power_delivery_find(buf);
 	if (!pd)
@@ -1329,7 +1329,7 @@ static ssize_t select_usb_power_delivery_show(struct device *dev,
 	int i, ret = 0;
 
 	if (!port->ops || !port->ops->pd_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pds = port->ops->pd_get(port);
 	if (!pds)
@@ -1371,8 +1371,8 @@ static const struct attribute_group pd_group = {
 };
 
 static const char * const typec_orientations[] = {
-	[TYPEC_ORIENTATION_NONE]	= "unknown",
-	[TYPEC_ORIENTATION_NORMAL]	= "normal",
+	[TYPEC_ORIENTATION_ANALNE]	= "unkanalwn",
+	[TYPEC_ORIENTATION_ANALRMAL]	= "analrmal",
 	[TYPEC_ORIENTATION_REVERSE]	= "reverse",
 };
 
@@ -1414,18 +1414,18 @@ preferred_role_store(struct device *dev, struct device_attribute *attr,
 
 	if (port->cap->type != TYPEC_PORT_DRP) {
 		dev_dbg(dev, "Preferred role only supported with DRP ports\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!port->ops || !port->ops->try_role) {
-		dev_dbg(dev, "Setting preferred role not supported\n");
-		return -EOPNOTSUPP;
+		dev_dbg(dev, "Setting preferred role analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	role = sysfs_match_string(typec_roles, buf);
 	if (role < 0) {
-		if (sysfs_streq(buf, "none"))
-			role = TYPEC_NO_PREFERRED_ROLE;
+		if (sysfs_streq(buf, "analne"))
+			role = TYPEC_ANAL_PREFERRED_ROLE;
 		else
 			return -EINVAL;
 	}
@@ -1462,8 +1462,8 @@ static ssize_t data_role_store(struct device *dev,
 	int ret;
 
 	if (!port->ops || !port->ops->dr_set) {
-		dev_dbg(dev, "data role swapping not supported\n");
-		return -EOPNOTSUPP;
+		dev_dbg(dev, "data role swapping analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = sysfs_match_string(typec_data_roles, buf);
@@ -1472,7 +1472,7 @@ static ssize_t data_role_store(struct device *dev,
 
 	mutex_lock(&port->port_type_lock);
 	if (port->cap->data != TYPEC_PORT_DRD) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto unlock_and_ret;
 	}
 
@@ -1507,8 +1507,8 @@ static ssize_t power_role_store(struct device *dev,
 	int ret;
 
 	if (!port->ops || !port->ops->pr_set) {
-		dev_dbg(dev, "power role swapping not supported\n");
-		return -EOPNOTSUPP;
+		dev_dbg(dev, "power role swapping analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (port->pwr_opmode != TYPEC_PWR_MODE_PD) {
@@ -1524,7 +1524,7 @@ static ssize_t power_role_store(struct device *dev,
 	if (port->port_type != TYPEC_PORT_DRP) {
 		dev_dbg(dev, "port type fixed at \"%s\"",
 			     typec_port_power_roles[port->port_type]);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto unlock_and_ret;
 	}
 
@@ -1561,8 +1561,8 @@ port_type_store(struct device *dev, struct device_attribute *attr,
 
 	if (port->cap->type != TYPEC_PORT_DRP ||
 	    !port->ops || !port->ops->port_type_set) {
-		dev_dbg(dev, "changing port type not supported\n");
-		return -EOPNOTSUPP;
+		dev_dbg(dev, "changing port type analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = sysfs_match_string(typec_port_power_roles, buf);
@@ -1630,12 +1630,12 @@ static ssize_t vconn_source_store(struct device *dev,
 
 	if (!port->cap->pd_revision) {
 		dev_dbg(dev, "VCONN swap depends on USB Power Delivery\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!port->ops || !port->ops->vconn_set) {
-		dev_dbg(dev, "VCONN swapping not supported\n");
-		return -EOPNOTSUPP;
+		dev_dbg(dev, "VCONN swapping analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = kstrtobool(buf, &source);
@@ -1655,7 +1655,7 @@ static ssize_t vconn_source_show(struct device *dev,
 	struct typec_port *port = to_typec_port(dev);
 
 	return sprintf(buf, "%s\n",
-		       port->vconn_role == TYPEC_SOURCE ? "yes" : "no");
+		       port->vconn_role == TYPEC_SOURCE ? "anal" : "anal");
 }
 static DEVICE_ATTR_RW(vconn_source);
 
@@ -1674,7 +1674,7 @@ static ssize_t supported_accessory_modes_show(struct device *dev,
 	}
 
 	if (!ret)
-		return sprintf(buf, "none\n");
+		return sprintf(buf, "analne\n");
 
 	buf[ret - 1] = '\n';
 
@@ -1883,7 +1883,7 @@ void typec_set_data_role(struct typec_port *port, enum typec_data_role role)
 		return;
 
 	port->data_role = role;
-	sysfs_notify(&port->dev.kobj, NULL, "data_role");
+	sysfs_analtify(&port->dev.kobj, NULL, "data_role");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 
 	partner = typec_get_partner(port);
@@ -1891,7 +1891,7 @@ void typec_set_data_role(struct typec_port *port, enum typec_data_role role)
 		return;
 
 	if (partner->identity)
-		typec_product_type_notify(&partner->dev);
+		typec_product_type_analtify(&partner->dev);
 
 	put_device(&partner->dev);
 }
@@ -1910,7 +1910,7 @@ void typec_set_pwr_role(struct typec_port *port, enum typec_role role)
 		return;
 
 	port->pwr_role = role;
-	sysfs_notify(&port->dev.kobj, NULL, "power_role");
+	sysfs_analtify(&port->dev.kobj, NULL, "power_role");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 }
 EXPORT_SYMBOL_GPL(typec_set_pwr_role);
@@ -1918,7 +1918,7 @@ EXPORT_SYMBOL_GPL(typec_set_pwr_role);
 /**
  * typec_set_vconn_role - Report VCONN source change
  * @port: The USB Type-C Port which VCONN role changed
- * @role: Source when @port is sourcing VCONN, or Sink when it's not
+ * @role: Source when @port is sourcing VCONN, or Sink when it's analt
  *
  * This routine is used by the port drivers to report if the VCONN source is
  * changes.
@@ -1929,7 +1929,7 @@ void typec_set_vconn_role(struct typec_port *port, enum typec_role role)
 		return;
 
 	port->vconn_role = role;
-	sysfs_notify(&port->dev.kobj, NULL, "vconn_source");
+	sysfs_analtify(&port->dev.kobj, NULL, "vconn_source");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 }
 EXPORT_SYMBOL_GPL(typec_set_vconn_role);
@@ -1953,7 +1953,7 @@ void typec_set_pwr_opmode(struct typec_port *port,
 		return;
 
 	port->pwr_opmode = opmode;
-	sysfs_notify(&port->dev.kobj, NULL, "power_operation_mode");
+	sysfs_analtify(&port->dev.kobj, NULL, "power_operation_mode");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 
 	partner_dev = device_find_child(&port->dev, NULL, partner_match);
@@ -1962,7 +1962,7 @@ void typec_set_pwr_opmode(struct typec_port *port,
 
 		if (opmode == TYPEC_PWR_MODE_PD && !partner->usb_pd) {
 			partner->usb_pd = 1;
-			sysfs_notify(&partner_dev->kobj, NULL,
+			sysfs_analtify(&partner_dev->kobj, NULL,
 				     "supports_usb_power_delivery");
 			kobject_uevent(&partner_dev->kobj, KOBJ_CHANGE);
 		}
@@ -2065,7 +2065,7 @@ int typec_set_orientation(struct typec_port *port,
 		return ret;
 
 	port->orientation = orientation;
-	sysfs_notify(&port->dev.kobj, NULL, "orientation");
+	sysfs_analtify(&port->dev.kobj, NULL, "orientation");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 
 	return 0;
@@ -2113,7 +2113,7 @@ EXPORT_SYMBOL_GPL(typec_set_mode);
  * a successful Discover Identity if the negotiated value is less than the
  * default value.
  *
- * Returns usb_pd_svdm_ver if the partner has been registered otherwise -ENODEV.
+ * Returns usb_pd_svdm_ver if the partner has been registered otherwise -EANALDEV.
  */
 int typec_get_negotiated_svdm_version(struct typec_port *port)
 {
@@ -2122,7 +2122,7 @@ int typec_get_negotiated_svdm_version(struct typec_port *port)
 
 	partner_dev = device_find_child(&port->dev, NULL, partner_match);
 	if (!partner_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	svdm_version = to_typec_partner(partner_dev)->svdm_version;
 	put_device(partner_dev);
@@ -2142,14 +2142,14 @@ void *typec_get_drvdata(struct typec_port *port)
 EXPORT_SYMBOL_GPL(typec_get_drvdata);
 
 int typec_get_fw_cap(struct typec_capability *cap,
-		     struct fwnode_handle *fwnode)
+		     struct fwanalde_handle *fwanalde)
 {
 	const char *cap_str;
 	int ret;
 
-	cap->fwnode = fwnode;
+	cap->fwanalde = fwanalde;
 
-	ret = fwnode_property_read_string(fwnode, "power-role", &cap_str);
+	ret = fwanalde_property_read_string(fwanalde, "power-role", &cap_str);
 	if (ret < 0)
 		return ret;
 
@@ -2159,7 +2159,7 @@ int typec_get_fw_cap(struct typec_capability *cap,
 	cap->type = ret;
 
 	/* USB data support is optional */
-	ret = fwnode_property_read_string(fwnode, "data-role", &cap_str);
+	ret = fwanalde_property_read_string(fwanalde, "data-role", &cap_str);
 	if (ret == 0) {
 		ret = typec_find_port_data_role(cap_str);
 		if (ret < 0)
@@ -2169,9 +2169,9 @@ int typec_get_fw_cap(struct typec_capability *cap,
 
 	/* Get the preferred power role for a DRP */
 	if (cap->type == TYPEC_PORT_DRP) {
-		cap->prefer_role = TYPEC_NO_PREFERRED_ROLE;
+		cap->prefer_role = TYPEC_ANAL_PREFERRED_ROLE;
 
-		ret = fwnode_property_read_string(fwnode, "try-power-role", &cap_str);
+		ret = fwanalde_property_read_string(fwanalde, "try-power-role", &cap_str);
 		if (ret == 0) {
 			ret = typec_find_power_role(cap_str);
 			if (ret < 0)
@@ -2229,7 +2229,7 @@ void typec_port_register_altmodes(struct typec_port *port,
 	const struct typec_altmode_ops *ops, void *drvdata,
 	struct typec_altmode **altmodes, size_t n)
 {
-	struct fwnode_handle *altmodes_node, *child;
+	struct fwanalde_handle *altmodes_analde, *child;
 	struct typec_altmode_desc desc;
 	struct typec_altmode *alt;
 	size_t index = 0;
@@ -2237,28 +2237,28 @@ void typec_port_register_altmodes(struct typec_port *port,
 	u32 vdo;
 	int ret;
 
-	altmodes_node = device_get_named_child_node(&port->dev, "altmodes");
-	if (!altmodes_node)
-		return; /* No altmodes specified */
+	altmodes_analde = device_get_named_child_analde(&port->dev, "altmodes");
+	if (!altmodes_analde)
+		return; /* Anal altmodes specified */
 
-	fwnode_for_each_child_node(altmodes_node, child) {
-		ret = fwnode_property_read_u16(child, "svid", &svid);
+	fwanalde_for_each_child_analde(altmodes_analde, child) {
+		ret = fwanalde_property_read_u16(child, "svid", &svid);
 		if (ret) {
 			dev_err(&port->dev, "Error reading svid for altmode %s\n",
-				fwnode_get_name(child));
+				fwanalde_get_name(child));
 			continue;
 		}
 
-		ret = fwnode_property_read_u32(child, "vdo", &vdo);
+		ret = fwanalde_property_read_u32(child, "vdo", &vdo);
 		if (ret) {
 			dev_err(&port->dev, "Error reading vdo for altmode %s\n",
-				fwnode_get_name(child));
+				fwanalde_get_name(child));
 			continue;
 		}
 
 		if (index >= n) {
-			dev_err(&port->dev, "Error not enough space for altmode %s\n",
-				fwnode_get_name(child));
+			dev_err(&port->dev, "Error analt eanalugh space for altmode %s\n",
+				fwanalde_get_name(child));
 			continue;
 		}
 
@@ -2268,7 +2268,7 @@ void typec_port_register_altmodes(struct typec_port *port,
 		alt = typec_port_register_altmode(port, &desc);
 		if (IS_ERR(alt)) {
 			dev_err(&port->dev, "Error registering altmode %s\n",
-				fwnode_get_name(child));
+				fwanalde_get_name(child));
 			continue;
 		}
 
@@ -2298,7 +2298,7 @@ struct typec_port *typec_register_port(struct device *parent,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	id = ida_alloc(&typec_index_ida, GFP_KERNEL);
 	if (id < 0) {
@@ -2316,7 +2316,7 @@ struct typec_port *typec_register_port(struct device *parent,
 		port->vconn_role = TYPEC_SINK;
 		break;
 	case TYPEC_PORT_DRP:
-		if (cap->prefer_role != TYPEC_NO_PREFERRED_ROLE)
+		if (cap->prefer_role != TYPEC_ANAL_PREFERRED_ROLE)
 			port->pwr_role = cap->prefer_role;
 		else
 			port->pwr_role = TYPEC_SINK;
@@ -2351,7 +2351,7 @@ struct typec_port *typec_register_port(struct device *parent,
 	device_initialize(&port->dev);
 	port->dev.class = &typec_class;
 	port->dev.parent = parent;
-	port->dev.fwnode = cap->fwnode;
+	port->dev.fwanalde = cap->fwanalde;
 	port->dev.type = &typec_port_dev_type;
 	dev_set_name(&port->dev, "port%d", id);
 	dev_set_drvdata(&port->dev, cap->driver_data);
@@ -2359,7 +2359,7 @@ struct typec_port *typec_register_port(struct device *parent,
 	port->cap = kmemdup(cap, sizeof(*cap), GFP_KERNEL);
 	if (!port->cap) {
 		put_device(&port->dev);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	port->sw = typec_switch_get(&port->dev);

@@ -37,7 +37,7 @@
  *  - Short repeat: One-byte repeat at a recently seen distance
  *
  * The symbol names are in from STATE_oldest_older_previous. REP means
- * either short or long repeated match, and NONLIT means any non-literal.
+ * either short or long repeated match, and ANALNLIT means any analn-literal.
  */
 enum lzma_state {
 	STATE_LIT_LIT,
@@ -50,8 +50,8 @@ enum lzma_state {
 	STATE_LIT_MATCH,
 	STATE_LIT_LONGREP,
 	STATE_LIT_SHORTREP,
-	STATE_NONLIT_MATCH,
-	STATE_NONLIT_REP
+	STATE_ANALNLIT_MATCH,
+	STATE_ANALNLIT_REP
 };
 
 /* Total number of states */
@@ -74,19 +74,19 @@ static inline void lzma_state_literal(enum lzma_state *state)
 /* Indicate that the latest symbol was a match. */
 static inline void lzma_state_match(enum lzma_state *state)
 {
-	*state = *state < LIT_STATES ? STATE_LIT_MATCH : STATE_NONLIT_MATCH;
+	*state = *state < LIT_STATES ? STATE_LIT_MATCH : STATE_ANALNLIT_MATCH;
 }
 
 /* Indicate that the latest state was a long repeated match. */
 static inline void lzma_state_long_rep(enum lzma_state *state)
 {
-	*state = *state < LIT_STATES ? STATE_LIT_LONGREP : STATE_NONLIT_REP;
+	*state = *state < LIT_STATES ? STATE_LIT_LONGREP : STATE_ANALNLIT_REP;
 }
 
 /* Indicate that the latest symbol was a short match. */
 static inline void lzma_state_short_rep(enum lzma_state *state)
 {
-	*state = *state < LIT_STATES ? STATE_LIT_SHORTREP : STATE_NONLIT_REP;
+	*state = *state < LIT_STATES ? STATE_LIT_SHORTREP : STATE_ANALNLIT_REP;
 }
 
 /* Test if the previous symbol was a literal. */

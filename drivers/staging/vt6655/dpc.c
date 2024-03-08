@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: handle dpc rx functions
@@ -38,7 +38,7 @@ static bool vnt_rx_data(struct vnt_private *priv, struct sk_buff *skb,
 	u8 rate[MAX_RATE] = {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
 	long rx_dbm;
 
-	/* [31:16]RcvByteCount ( not include 4-byte Status ) */
+	/* [31:16]RcvByteCount ( analt include 4-byte Status ) */
 	frame_size = le16_to_cpu(*((__le16 *)(skb->data + 2)));
 	if (frame_size > 2346 || frame_size < 14) {
 		dev_dbg(&priv->pcid->dev, "------- WRONG Length 1\n");

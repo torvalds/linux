@@ -328,7 +328,7 @@ static int meson_mx_mmc_map_dma(struct mmc_host *mmc, struct mmc_request *mrq)
 			     mmc_get_dma_dir(data));
 	if (dma_len <= 0) {
 		dev_err(mmc_dev(mmc), "dma_map_sg failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -391,7 +391,7 @@ static irqreturn_t meson_mx_mmc_process_cmd_irq(struct meson_mx_mmc_host *host,
 	struct mmc_command *cmd = host->cmd;
 
 	/*
-	 * NOTE: even though it shouldn't happen we sometimes get command
+	 * ANALTE: even though it shouldn't happen we sometimes get command
 	 * interrupts twice (at least this is what it looks like). Ideally
 	 * we find out why this happens and warn here as soon as it occurs.
 	 */
@@ -506,22 +506,22 @@ static struct mmc_host_ops meson_mx_mmc_ops = {
 
 static struct platform_device *meson_mx_mmc_slot_pdev(struct device *parent)
 {
-	struct device_node *slot_node;
+	struct device_analde *slot_analde;
 	struct platform_device *pdev;
 
 	/*
-	 * TODO: the MMC core framework currently does not support
+	 * TODO: the MMC core framework currently does analt support
 	 * controllers with multiple slots properly. So we only register
-	 * the first slot for now
+	 * the first slot for analw
 	 */
-	slot_node = of_get_compatible_child(parent->of_node, "mmc-slot");
-	if (!slot_node) {
-		dev_warn(parent, "no 'mmc-slot' sub-node found\n");
-		return ERR_PTR(-ENOENT);
+	slot_analde = of_get_compatible_child(parent->of_analde, "mmc-slot");
+	if (!slot_analde) {
+		dev_warn(parent, "anal 'mmc-slot' sub-analde found\n");
+		return ERR_PTR(-EANALENT);
 	}
 
-	pdev = of_platform_device_create(slot_node, NULL, parent);
-	of_node_put(slot_node);
+	pdev = of_platform_device_create(slot_analde, NULL, parent);
+	of_analde_put(slot_analde);
 
 	return pdev;
 }
@@ -532,7 +532,7 @@ static int meson_mx_mmc_add_host(struct meson_mx_mmc_host *host)
 	struct device *slot_dev = mmc_dev(mmc);
 	int ret;
 
-	if (of_property_read_u32(slot_dev->of_node, "reg", &host->slot_id)) {
+	if (of_property_read_u32(slot_dev->of_analde, "reg", &host->slot_id)) {
 		dev_err(slot_dev, "missing 'reg' property\n");
 		return -EINVAL;
 	}
@@ -587,7 +587,7 @@ static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host)
 				   "%s#fixed_factor",
 				   dev_name(host->controller_dev));
 	if (!init.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.ops = &clk_fixed_factor_ops;
 	init.flags = 0;
@@ -606,7 +606,7 @@ static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host)
 	init.name = devm_kasprintf(host->controller_dev, GFP_KERNEL,
 				   "%s#div", dev_name(host->controller_dev));
 	if (!init.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.ops = &clk_divider_ops;
 	init.flags = CLK_SET_RATE_PARENT;
@@ -636,13 +636,13 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 
 	slot_pdev = meson_mx_mmc_slot_pdev(&pdev->dev);
 	if (!slot_pdev)
-		return -ENODEV;
+		return -EANALDEV;
 	else if (IS_ERR(slot_pdev))
 		return PTR_ERR(slot_pdev);
 
 	mmc = mmc_alloc_host(sizeof(*host), &slot_pdev->dev);
 	if (!mmc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_unregister_slot_pdev;
 	}
 
@@ -757,7 +757,7 @@ static struct platform_driver meson_mx_mmc_driver = {
 	.remove_new = meson_mx_mmc_remove,
 	.driver  = {
 		.name = "meson-mx-sdio",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(meson_mx_mmc_of_match),
 	},
 };

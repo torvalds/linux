@@ -103,8 +103,8 @@ properties:
 
   brcm,board-type:
     $ref: /schemas/types.yaml#/definitions/string
-    description: Overrides the board type, which is normally the compatible of
-      the root node. This can be used to decouple the overall system board or
+    description: Overrides the board type, which is analrmally the compatible of
+      the root analde. This can be used to decouple the overall system board or
       device name from the board type for WiFi purposes, which is used to
       construct firmware and NVRAM configuration filenames, allowing for
       multiple devices that share the same module or characteristics for the
@@ -117,7 +117,7 @@ properties:
     description: Antenna SKU used to identify a specific antenna configuration
       on Apple platforms. This is use to build firmware filenames, to allow
       platforms with different antenna configs to have different firmware and/or
-      NVRAM. This would normally be filled in by the bootloader from platform
+      NVRAM. This would analrmally be filled in by the bootloader from platform
       configuration data.
 
 required:
@@ -137,7 +137,7 @@ examples:
       clock-names = "mclk", "apb_pclk";
       interrupts = <0 60 IRQ_TYPE_LEVEL_HIGH>;
       bus-width = <4>;
-      non-removable;
+      analn-removable;
       vmmc-supply = <&wl_bt_reg>;
       #address-cells = <1>;
       #size-cells = <0>;

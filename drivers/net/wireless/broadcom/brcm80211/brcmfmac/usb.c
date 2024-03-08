@@ -72,7 +72,7 @@ static const struct brcmf_firmware_mapping brcmf_usb_fwnames[] = {
 				 */
 #define DL_EXEC		7	/* jump to a supplied address */
 #define DL_RESETCFG	8	/* To support single enum on dongle
-				 * - Not used by bootloader
+				 * - Analt used by bootloader
 				 */
 #define DL_DEFER_RESP_OK 9	/* Potentially defer the response to setup
 				 * if resp unavailable
@@ -522,7 +522,7 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	skb = req->skb;
 	req->skb = NULL;
 
-	/* zero length packets indicate usb "failure". Do not refill */
+	/* zero length packets indicate usb "failure". Do analt refill */
 	if (urb->status != 0 || !urb->actual_length) {
 		brcmu_pkt_buf_free_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);
@@ -580,7 +580,7 @@ static void brcmf_usb_rx_fill_all(struct brcmf_usbdev_info *devinfo)
 	struct brcmf_usbreq *req;
 
 	if (devinfo->bus_pub.state != BRCMFMAC_USB_STATE_UP) {
-		brcmf_err("bus is not up=%d\n", devinfo->bus_pub.state);
+		brcmf_err("bus is analt up=%d\n", devinfo->bus_pub.state);
 		return;
 	}
 	while ((req = brcmf_usb_deq(devinfo, &devinfo->rx_freeq, NULL)) != NULL)
@@ -633,8 +633,8 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	req = brcmf_usb_deq(devinfo, &devinfo->tx_freeq,
 					&devinfo->tx_freecount);
 	if (!req) {
-		brcmf_err("no req to send\n");
-		ret = -ENOMEM;
+		brcmf_err("anal req to send\n");
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -756,7 +756,7 @@ static int brcmf_usb_dl_cmd(struct brcmf_usbdev_info *devinfo, u8 cmd,
 
 	tmpbuf = kmalloc(buflen, GFP_ATOMIC);
 	if (!tmpbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = buflen;
 	devinfo->ctl_urb->transfer_buffer_length = size;
@@ -853,7 +853,7 @@ brcmf_usb_resetcfg(struct brcmf_usbdev_info *devinfo)
 		brcmf_usb_dl_cmd(devinfo, DL_RESETCFG, &id, sizeof(id));
 		return 0;
 	} else {
-		brcmf_err("Cannot talk to Dongle. Firmware is not UP, %d ms\n",
+		brcmf_err("Cananalt talk to Dongle. Firmware is analt UP, %d ms\n",
 			  BRCMF_USB_RESET_GETVER_SPINWAIT * loop_cnt);
 		return -EINVAL;
 	}
@@ -898,7 +898,7 @@ brcmf_usb_dl_writeimage(struct brcmf_usbdev_info *devinfo, u8 *fw, int fwlen)
 
 	bulkchunk = kmalloc(TRX_RDL_CHUNK, GFP_ATOMIC);
 	if (bulkchunk == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
@@ -1012,12 +1012,12 @@ static int brcmf_usb_dlrun(struct brcmf_usbdev_info *devinfo)
 	/* Start the image */
 	if (state.state == cpu_to_le32(DL_RUNNABLE)) {
 		if (brcmf_usb_dl_cmd(devinfo, DL_GO, &state, sizeof(state)))
-			return -ENODEV;
+			return -EANALDEV;
 		if (brcmf_usb_resetcfg(devinfo))
-			return -ENODEV;
+			return -EANALDEV;
 		/* The Dongle may go for re-enumeration. */
 	} else {
-		brcmf_err("Dongle not runnable\n");
+		brcmf_err("Dongle analt runnable\n");
 		return -EINVAL;
 	}
 	brcmf_dbg(USB, "Exit\n");
@@ -1032,13 +1032,13 @@ brcmf_usb_fw_download(struct brcmf_usbdev_info *devinfo)
 
 	brcmf_dbg(USB, "Enter\n");
 	if (!devinfo) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	if (!devinfo->image) {
-		brcmf_err("No firmware!\n");
-		err = -ENOENT;
+		brcmf_err("Anal firmware!\n");
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -1157,8 +1157,8 @@ error:
 static int brcmf_usb_get_blob(struct device *dev, const struct firmware **fw,
 			      enum brcmf_blob_type type)
 {
-	/* No blobs for USB devices... */
-	return -ENOENT;
+	/* Anal blobs for USB devices... */
+	return -EANALENT;
 }
 
 static const struct brcmf_bus_ops brcmf_usb_bus_ops = {
@@ -1252,11 +1252,11 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo,
 	brcmf_dbg(USB, "Enter\n");
 	bus_pub = brcmf_usb_attach(devinfo, BRCMF_USB_NRXQ, BRCMF_USB_NTXQ);
 	if (!bus_pub)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bus = kzalloc(sizeof(struct brcmf_bus), GFP_ATOMIC);
 	if (!bus) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1276,7 +1276,7 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo,
 						   bus_pub->devid,
 						   bus_pub->chiprev);
 	if (!devinfo->settings) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1296,7 +1296,7 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo,
 
 	fwreq = brcmf_usb_prepare_fw_request(devinfo);
 	if (!fwreq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1348,8 +1348,8 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (!id) {
 		id = usb_match_id(intf, brcmf_usb_devid_table);
 		if (!id) {
-			dev_err(&intf->dev, "Error could not find matching usb_device_id\n");
-			return -ENODEV;
+			dev_err(&intf->dev, "Error could analt find matching usb_device_id\n");
+			return -EANALDEV;
 		}
 	}
 
@@ -1357,12 +1357,12 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	devinfo = kzalloc(sizeof(*devinfo), GFP_ATOMIC);
 	if (devinfo == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devinfo->usbdev = usb;
 	devinfo->dev = &usb->dev;
 	/* Init completion, to protect for disconnect while still loading.
-	 * Necessary because of the asynchronous firmware load construction
+	 * Necessary because of the asynchroanalus firmware load construction
 	 */
 	init_completion(&devinfo->dev_init_done);
 
@@ -1372,18 +1372,18 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* Check that the device supports only one configuration */
 	if (usb->descriptor.bNumConfigurations != 1) {
-		brcmf_err("Number of configurations: %d not supported\n",
+		brcmf_err("Number of configurations: %d analt supported\n",
 			  usb->descriptor.bNumConfigurations);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
 	if ((usb->descriptor.bDeviceClass != USB_CLASS_VENDOR_SPEC) &&
 	    (usb->descriptor.bDeviceClass != USB_CLASS_MISC) &&
 	    (usb->descriptor.bDeviceClass != USB_CLASS_WIRELESS_CONTROLLER)) {
-		brcmf_err("Device class: 0x%x not supported\n",
+		brcmf_err("Device class: 0x%x analt supported\n",
 			  usb->descriptor.bDeviceClass);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -1391,10 +1391,10 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if ((desc->bInterfaceClass != USB_CLASS_VENDOR_SPEC) ||
 	    (desc->bInterfaceSubClass != 2) ||
 	    (desc->bInterfaceProtocol != 0xff)) {
-		brcmf_err("non WLAN interface %d: 0x%x:0x%x:0x%x\n",
+		brcmf_err("analn WLAN interface %d: 0x%x:0x%x:0x%x\n",
 			  desc->bInterfaceNumber, desc->bInterfaceClass,
 			  desc->bInterfaceSubClass, desc->bInterfaceProtocol);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -1415,13 +1415,13 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		}
 	}
 	if (devinfo->rx_pipe == 0) {
-		brcmf_err("No RX (in) Bulk EP found\n");
-		ret = -ENODEV;
+		brcmf_err("Anal RX (in) Bulk EP found\n");
+		ret = -EANALDEV;
 		goto fail;
 	}
 	if (devinfo->tx_pipe == 0) {
-		brcmf_err("No TX (out) Bulk EP found\n");
-		ret = -ENODEV;
+		brcmf_err("Anal TX (out) Bulk EP found\n");
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -1515,7 +1515,7 @@ static int brcmf_usb_reset_resume(struct usb_interface *intf)
 
 	fwreq = brcmf_usb_prepare_fw_request(devinfo);
 	if (!fwreq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = brcmf_fw_get_firmwares(&usb->dev, fwreq, brcmf_usb_probe_phase2);
 	if (ret < 0)
@@ -1570,7 +1570,7 @@ static struct usb_driver brcmf_usbdrvr = {
 	.disable_hub_initiated_lpm = 1,
 };
 
-static int brcmf_usb_reset_device(struct device *dev, void *notused)
+static int brcmf_usb_reset_device(struct device *dev, void *analtused)
 {
 	/* device past is the usb interface so we
 	 * need to use parent here.

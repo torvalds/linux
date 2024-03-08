@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2019-2020 Red Hat GmbH
  *
- * Author: Stefano Brivio <sbrivio@redhat.com>
+ * Author: Stefaanal Brivio <sbrivio@redhat.com>
  */
 
 #include <linux/kernel.h>
@@ -26,11 +26,11 @@
 
 #define NFT_PIPAPO_LONGS_PER_M256	(XSAVE_YMM_SIZE / BITS_PER_LONG)
 
-/* Load from memory into YMM register with non-temporal hint ("stream load"),
+/* Load from memory into YMM register with analn-temporal hint ("stream load"),
  * that is, don't fetch lines from memory into the cache. This avoids pushing
  * precious packet data out of the cache hierarchy, and is appropriate when:
  *
- * - loading buckets from lookup tables, as they are not going to be used
+ * - loading buckets from lookup tables, as they are analt going to be used
  *   again before packets are entirely classified
  *
  * - loading the result bitmap from the previous field, as it's never used
@@ -56,7 +56,7 @@
 	asm volatile("vpand %ymm" #a ", %ymm" #b ", %ymm" #dst)
 
 /* Jump to label if @reg is zero */
-#define NFT_PIPAPO_AVX2_NOMATCH_GOTO(reg, label)			\
+#define NFT_PIPAPO_AVX2_ANALMATCH_GOTO(reg, label)			\
 	asm goto("vptest %%ymm" #reg ", %%ymm" #reg ";"	\
 			  "je %l[" #label "]" : : : : label)
 
@@ -88,10 +88,10 @@ static void nft_pipapo_avx2_prepare(void)
  * @start:	First bit to set
  * @len:	Count of bits to fill
  *
- * This is nothing else than a version of bitmap_set(), as used e.g. by
+ * This is analthing else than a version of bitmap_set(), as used e.g. by
  * pipapo_refill(), tailored for the microarchitectures using it and better
  * suited for the specific usage: it's very likely that we'll set a small number
- * of bits, not crossing a word boundary, and correct branch prediction is
+ * of bits, analt crossing a word boundary, and correct branch prediction is
  * critical here.
  *
  * This function doesn't actually use any AVX2 instruction.
@@ -142,7 +142,7 @@ static void nft_pipapo_avx2_fill(unsigned long *data, int start, int len)
  * @last:	Return index of first set bit, if this is the last field
  *
  * This is an alternative implementation of pipapo_refill() suitable for usage
- * with AVX2 lookup routines: we know there are four words to be scanned, at
+ * with AVX2 lookup routines: we kanalw there are four words to be scanned, at
  * a given offset inside the map, for each matching iteration.
  *
  * This function doesn't actually use any AVX2 instruction.
@@ -187,7 +187,7 @@ static int nft_pipapo_avx2_refill(int offset, unsigned long *map,
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -208,7 +208,7 @@ static int nft_pipapo_avx2_refill(int offset, unsigned long *map,
  * a number of logically distinct operations (i.e. loading buckets, intersecting
  * buckets) are interleaved.
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_4b_2(unsigned long *map, unsigned long *fill,
@@ -231,12 +231,12 @@ static int nft_pipapo_avx2_lookup_4b_2(unsigned long *map, unsigned long *fill,
 			NFT_PIPAPO_AVX2_BUCKET_LOAD4(0, lt, 0, pg[0], bsize);
 			NFT_PIPAPO_AVX2_LOAD(2, map[i_ul]);
 			NFT_PIPAPO_AVX2_BUCKET_LOAD4(1, lt, 1, pg[1], bsize);
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(2, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(2, analthing);
 			NFT_PIPAPO_AVX2_AND(3, 0, 1);
 			NFT_PIPAPO_AVX2_AND(4, 2, 3);
 		}
 
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(4, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(4, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 4);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -247,9 +247,9 @@ static int nft_pipapo_avx2_lookup_4b_2(unsigned long *map, unsigned long *fill,
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -261,7 +261,7 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -270,7 +270,7 @@ nothing:
  *
  * This is used for 16-bit fields (i.e. ports).
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_4b_4(unsigned long *map, unsigned long *fill,
@@ -303,7 +303,7 @@ static int nft_pipapo_avx2_lookup_4b_4(unsigned long *map, unsigned long *fill,
 			NFT_PIPAPO_AVX2_BUCKET_LOAD4(4, lt, 3, pg[3], bsize);
 			NFT_PIPAPO_AVX2_AND(5, 0, 1);
 
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(1, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(1, analthing);
 
 			NFT_PIPAPO_AVX2_AND(6, 2, 3);
 			NFT_PIPAPO_AVX2_AND(7, 4, 5);
@@ -312,7 +312,7 @@ static int nft_pipapo_avx2_lookup_4b_4(unsigned long *map, unsigned long *fill,
 		}
 
 		/* Stall */
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(7, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(7, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 7);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -323,9 +323,9 @@ static int nft_pipapo_avx2_lookup_4b_4(unsigned long *map, unsigned long *fill,
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -337,7 +337,7 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -346,7 +346,7 @@ nothing:
  *
  * This is used for 32-bit fields (i.e. IPv4 addresses).
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_4b_8(unsigned long *map, unsigned long *fill,
@@ -388,7 +388,7 @@ static int nft_pipapo_avx2_lookup_4b_8(unsigned long *map, unsigned long *fill,
 			NFT_PIPAPO_AVX2_BUCKET_LOAD4(3,  lt, 2, pg[2], bsize);
 			NFT_PIPAPO_AVX2_BUCKET_LOAD4(4,  lt, 3, pg[3], bsize);
 
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(1, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(1, analthing);
 
 			NFT_PIPAPO_AVX2_AND(5,   0,  1);
 			NFT_PIPAPO_AVX2_BUCKET_LOAD4(6,  lt, 4, pg[4], bsize);
@@ -406,7 +406,7 @@ static int nft_pipapo_avx2_lookup_4b_8(unsigned long *map, unsigned long *fill,
 			NFT_PIPAPO_AVX2_AND(1,   1, 14);
 		}
 
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(1, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(1, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 1);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -418,9 +418,9 @@ static int nft_pipapo_avx2_lookup_4b_8(unsigned long *map, unsigned long *fill,
 
 		continue;
 
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -432,7 +432,7 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -441,7 +441,7 @@ nothing:
  *
  * This is used for 48-bit fields (i.e. MAC addresses/EUI-48).
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_4b_12(unsigned long *map, unsigned long *fill,
@@ -467,7 +467,7 @@ static int nft_pipapo_avx2_lookup_4b_12(unsigned long *map, unsigned long *fill,
 		NFT_PIPAPO_AVX2_BUCKET_LOAD4(3,  lt,  2,  pg[2], bsize);
 
 		if (!first) {
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(0, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(0, analthing);
 			NFT_PIPAPO_AVX2_AND(1, 1, 0);
 		}
 
@@ -496,7 +496,7 @@ static int nft_pipapo_avx2_lookup_4b_12(unsigned long *map, unsigned long *fill,
 		NFT_PIPAPO_AVX2_AND(7,   4,  5);
 		NFT_PIPAPO_AVX2_AND(8,   6,  7);
 
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(8, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(8, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 8);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -507,9 +507,9 @@ static int nft_pipapo_avx2_lookup_4b_12(unsigned long *map, unsigned long *fill,
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -521,7 +521,7 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -530,7 +530,7 @@ nothing:
  *
  * This is used for 128-bit fields (i.e. IPv6 addresses).
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_4b_32(unsigned long *map, unsigned long *fill,
@@ -561,7 +561,7 @@ static int nft_pipapo_avx2_lookup_4b_32(unsigned long *map, unsigned long *fill,
 		NFT_PIPAPO_AVX2_BUCKET_LOAD4(3,  lt,  2,  pg[2], bsize);
 		NFT_PIPAPO_AVX2_BUCKET_LOAD4(4,  lt,  3,  pg[3], bsize);
 		if (!first) {
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(0, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(0, analthing);
 			NFT_PIPAPO_AVX2_AND(1, 1, 0);
 		}
 
@@ -631,7 +631,7 @@ static int nft_pipapo_avx2_lookup_4b_32(unsigned long *map, unsigned long *fill,
 		NFT_PIPAPO_AVX2_AND(4,   1,  2);
 		NFT_PIPAPO_AVX2_AND(5,   3,  4);
 
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(5, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(5, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 5);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -642,9 +642,9 @@ static int nft_pipapo_avx2_lookup_4b_32(unsigned long *map, unsigned long *fill,
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -656,7 +656,7 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -665,7 +665,7 @@ nothing:
  *
  * This is used for 8-bit fields (i.e. protocol numbers).
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_8b_1(unsigned long *map, unsigned long *fill,
@@ -685,10 +685,10 @@ static int nft_pipapo_avx2_lookup_8b_1(unsigned long *map, unsigned long *fill,
 			NFT_PIPAPO_AVX2_BUCKET_LOAD8(0, lt, 0, pkt[0], bsize);
 			NFT_PIPAPO_AVX2_LOAD(1, map[i_ul]);
 			NFT_PIPAPO_AVX2_AND(2, 0, 1);
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(1, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(1, analthing);
 		}
 
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(2, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(2, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 2);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -699,9 +699,9 @@ static int nft_pipapo_avx2_lookup_8b_1(unsigned long *map, unsigned long *fill,
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -713,7 +713,7 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -722,7 +722,7 @@ nothing:
  *
  * This is used for 16-bit fields (i.e. ports).
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_8b_2(unsigned long *map, unsigned long *fill,
@@ -747,12 +747,12 @@ static int nft_pipapo_avx2_lookup_8b_2(unsigned long *map, unsigned long *fill,
 
 			/* Stall */
 			NFT_PIPAPO_AVX2_AND(3, 0, 1);
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(0, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(0, analthing);
 			NFT_PIPAPO_AVX2_AND(4, 3, 2);
 		}
 
 		/* Stall */
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(4, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(4, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 4);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -763,9 +763,9 @@ static int nft_pipapo_avx2_lookup_8b_2(unsigned long *map, unsigned long *fill,
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -777,7 +777,7 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -786,7 +786,7 @@ nothing:
  *
  * This is used for 32-bit fields (i.e. IPv4 addresses).
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_8b_4(unsigned long *map, unsigned long *fill,
@@ -818,7 +818,7 @@ static int nft_pipapo_avx2_lookup_8b_4(unsigned long *map, unsigned long *fill,
 			NFT_PIPAPO_AVX2_BUCKET_LOAD8(4,  lt, 3, pkt[3], bsize);
 
 			NFT_PIPAPO_AVX2_AND(5, 0, 1);
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(1, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(1, analthing);
 			NFT_PIPAPO_AVX2_AND(6, 2, 3);
 
 			/* Stall */
@@ -826,7 +826,7 @@ static int nft_pipapo_avx2_lookup_8b_4(unsigned long *map, unsigned long *fill,
 			NFT_PIPAPO_AVX2_AND(0, 6, 7);
 		}
 
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(0, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(0, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 0);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -838,9 +838,9 @@ static int nft_pipapo_avx2_lookup_8b_4(unsigned long *map, unsigned long *fill,
 
 		continue;
 
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -852,7 +852,7 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -861,7 +861,7 @@ nothing:
  *
  * This is used for 48-bit fields (i.e. MAC addresses/EUI-48).
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_8b_6(unsigned long *map, unsigned long *fill,
@@ -898,7 +898,7 @@ static int nft_pipapo_avx2_lookup_8b_6(unsigned long *map, unsigned long *fill,
 			NFT_PIPAPO_AVX2_BUCKET_LOAD8(4,  lt, 3, pkt[3], bsize);
 
 			NFT_PIPAPO_AVX2_AND(5, 0, 1);
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(1, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(1, analthing);
 
 			NFT_PIPAPO_AVX2_AND(6, 2, 3);
 			NFT_PIPAPO_AVX2_BUCKET_LOAD8(7,  lt, 4, pkt[4], bsize);
@@ -911,7 +911,7 @@ static int nft_pipapo_avx2_lookup_8b_6(unsigned long *map, unsigned long *fill,
 			NFT_PIPAPO_AVX2_AND(4, 2, 3);
 		}
 
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(4, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(4, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 4);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -923,9 +923,9 @@ static int nft_pipapo_avx2_lookup_8b_6(unsigned long *map, unsigned long *fill,
 
 		continue;
 
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -937,7 +937,7 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
@@ -946,7 +946,7 @@ nothing:
  *
  * This is used for 128-bit fields (i.e. IPv6 addresses).
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_8b_16(unsigned long *map, unsigned long *fill,
@@ -967,7 +967,7 @@ static int nft_pipapo_avx2_lookup_8b_16(unsigned long *map, unsigned long *fill,
 		NFT_PIPAPO_AVX2_BUCKET_LOAD8(2, lt,  1,  pkt[1], bsize);
 		NFT_PIPAPO_AVX2_BUCKET_LOAD8(3, lt,  2,  pkt[2], bsize);
 		if (!first) {
-			NFT_PIPAPO_AVX2_NOMATCH_GOTO(0, nothing);
+			NFT_PIPAPO_AVX2_ANALMATCH_GOTO(0, analthing);
 			NFT_PIPAPO_AVX2_AND(1, 1, 0);
 		}
 		NFT_PIPAPO_AVX2_BUCKET_LOAD8(4, lt,  3,  pkt[3], bsize);
@@ -1003,7 +1003,7 @@ static int nft_pipapo_avx2_lookup_8b_16(unsigned long *map, unsigned long *fill,
 		NFT_PIPAPO_AVX2_AND(5, 2, 3);
 		NFT_PIPAPO_AVX2_AND(6, 4, 5);
 
-		NFT_PIPAPO_AVX2_NOMATCH_GOTO(6, nomatch);
+		NFT_PIPAPO_AVX2_ANALMATCH_GOTO(6, analmatch);
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 6);
 
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
@@ -1015,9 +1015,9 @@ static int nft_pipapo_avx2_lookup_8b_16(unsigned long *map, unsigned long *fill,
 
 		continue;
 
-nomatch:
+analmatch:
 		NFT_PIPAPO_AVX2_STORE(map[i_ul], 15);
-nothing:
+analthing:
 		;
 	}
 
@@ -1029,16 +1029,16 @@ nothing:
  * @map:	Previous match result, used as initial bitmap
  * @fill:	Destination bitmap to be filled with current match result
  * @f:		Field, containing lookup and mapping tables
- * @offset:	Ignore buckets before the given index, no bits are filled there
+ * @offset:	Iganalre buckets before the given index, anal bits are filled there
  * @pkt:	Packet data, pointer to input nftables register
  * @first:	If this is the first field, don't source previous result
  * @last:	Last field: stop at the first match and return bit index
  *
  * This function should never be called, but is provided for the case the field
- * size doesn't match any of the known data types. Matching rate is
+ * size doesn't match any of the kanalwn data types. Matching rate is
  * substantially lower than AVX2 routines.
  *
- * Return: -1 on no match, rule index of match if @last, otherwise first long
+ * Return: -1 on anal match, rule index of match if @last, otherwise first long
  * word index to be checked next (i.e. first filled word).
  */
 static int nft_pipapo_avx2_lookup_slow(unsigned long *map, unsigned long *fill,
@@ -1133,7 +1133,7 @@ bool nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 
 	/* This also protects access to all data related to scratch maps.
 	 *
-	 * Note that we don't need a valid MXCSR state for any of the
+	 * Analte that we don't need a valid MXCSR state for any of the
 	 * operations we use here, so pass 0 as mask and spare a LDMXCSR
 	 * instruction.
 	 */

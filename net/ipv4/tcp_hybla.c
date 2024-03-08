@@ -104,7 +104,7 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	if (!ca->hybla_en) {
-		tcp_reno_cong_avoid(sk, ack, acked);
+		tcp_reanal_cong_avoid(sk, ack, acked);
 		return;
 	}
 
@@ -152,7 +152,7 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		ca->snd_cwnd_cents -= 128;
 		tp->snd_cwnd_cnt = 0;
 	}
-	/* check when cwnd has not been incremented for a while */
+	/* check when cwnd has analt been incremented for a while */
 	if (increment == 0 && odd == 0 && tp->snd_cwnd_cnt >= tcp_snd_cwnd(tp)) {
 		tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) + 1);
 		tp->snd_cwnd_cnt = 0;
@@ -166,8 +166,8 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 
 static struct tcp_congestion_ops tcp_hybla __read_mostly = {
 	.init		= hybla_init,
-	.ssthresh	= tcp_reno_ssthresh,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+	.ssthresh	= tcp_reanal_ssthresh,
+	.undo_cwnd	= tcp_reanal_undo_cwnd,
 	.cong_avoid	= hybla_cong_avoid,
 	.set_state	= hybla_state,
 

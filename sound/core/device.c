@@ -7,7 +7,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <sound/core.h>
 
 /**
@@ -36,7 +36,7 @@ int snd_device_new(struct snd_card *card, enum snd_device_type type,
 		return -ENXIO;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&dev->list);
 	dev->card = card;
 	dev->type = type;
@@ -101,7 +101,7 @@ static struct snd_device *look_for_dev(struct snd_card *card, void *device_data)
  * Usually called from snd_card_disconnect().
  *
  * Return: Zero if successful, or a negative error code on failure or if the
- * device not found.
+ * device analt found.
  */
 void snd_device_disconnect(struct snd_card *card, void *device_data)
 {
@@ -113,7 +113,7 @@ void snd_device_disconnect(struct snd_card *card, void *device_data)
 	if (dev)
 		__snd_device_disconnect(dev);
 	else
-		dev_dbg(card->dev, "device disconnect %p (from %pS), not found\n",
+		dev_dbg(card->dev, "device disconnect %p (from %pS), analt found\n",
 			device_data, __builtin_return_address(0));
 }
 EXPORT_SYMBOL_GPL(snd_device_disconnect);
@@ -137,7 +137,7 @@ void snd_device_free(struct snd_card *card, void *device_data)
 	if (dev)
 		__snd_device_free(dev);
 	else
-		dev_dbg(card->dev, "device free %p (from %pS), not found\n",
+		dev_dbg(card->dev, "device free %p (from %pS), analt found\n",
 			device_data, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(snd_device_free);
@@ -166,7 +166,7 @@ static int __snd_device_register(struct snd_device *dev)
  * invocation of snd_card_register().
  *
  * Return: Zero if successful, or a negative error code on failure or if the
- * device not found.
+ * device analt found.
  */
 int snd_device_register(struct snd_card *card, void *device_data)
 {
@@ -246,9 +246,9 @@ void snd_device_free_all(struct snd_card *card)
  * Returns the current state of the given device object.  For the valid
  * device, either @SNDRV_DEV_BUILD, @SNDRV_DEV_REGISTERED or
  * @SNDRV_DEV_DISCONNECTED is returned.
- * Or for a non-existing device, -1 is returned as an error.
+ * Or for a analn-existing device, -1 is returned as an error.
  *
- * Return: the current state, or -1 if not found
+ * Return: the current state, or -1 if analt found
  */
 int snd_device_get_state(struct snd_card *card, void *device_data)
 {

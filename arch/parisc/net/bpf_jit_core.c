@@ -123,7 +123,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 			ctx->insns = (u32 *)jit_data->image;
 			/*
-			 * Now, when the image is allocated, the image can
+			 * Analw, when the image is allocated, the image can
 			 * potentially shrink more (auipc/jalr -> jal).
 			 */
 		}
@@ -131,7 +131,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 
 	if (i == NR_JIT_ITERATIONS) {
-		pr_err("bpf-jit: image did not converge in <%d passes!\n", i);
+		pr_err("bpf-jit: image did analt converge in <%d passes!\n", i);
 		if (jit_data->header)
 			bpf_jit_binary_free(jit_data->header);
 		prog = orig_prog;

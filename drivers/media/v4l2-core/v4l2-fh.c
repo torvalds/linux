@@ -4,7 +4,7 @@
  *
  * V4L2 file handles.
  *
- * Copyright (C) 2009--2010 Nokia Corporation.
+ * Copyright (C) 2009--2010 Analkia Corporation.
  *
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */
@@ -26,7 +26,7 @@ void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
 	INIT_LIST_HEAD(&fh->list);
 	set_bit(V4L2_FL_USES_V4L2_FH, &fh->vdev->flags);
 	/*
-	 * determine_valid_ioctls() does not know if struct v4l2_fh
+	 * determine_valid_ioctls() does analt kanalw if struct v4l2_fh
 	 * is used by this driver, but here we do. So enable the
 	 * prio ioctls here.
 	 */
@@ -59,7 +59,7 @@ int v4l2_fh_open(struct file *filp)
 
 	filp->private_data = fh;
 	if (fh == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	v4l2_fh_init(fh, vdev);
 	v4l2_fh_add(fh);
 	return 0;

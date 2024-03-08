@@ -27,7 +27,7 @@ mlxsw_sp_port_range_reg_configure(struct mlxsw_sp *mlxsw_sp,
 {
 	char pprr_pl[MLXSW_REG_PPRR_LEN];
 
-	/* We do not care if packet is IPv4/IPv6 and TCP/UDP, so set all four
+	/* We do analt care if packet is IPv4/IPv6 and TCP/UDP, so set all four
 	 * fields.
 	 */
 	mlxsw_reg_pprr_pack(pprr_pl, prr->index);
@@ -54,7 +54,7 @@ mlxsw_sp_port_range_reg_create(struct mlxsw_sp *mlxsw_sp,
 
 	prr = kzalloc(sizeof(*prr), GFP_KERNEL);
 	if (!prr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	prr->range = *range;
 	refcount_set(&prr->refcount, 1);
@@ -174,7 +174,7 @@ int mlxsw_sp_port_range_init(struct mlxsw_sp *mlxsw_sp)
 
 	pr_core = kzalloc(sizeof(*mlxsw_sp->pr_core), GFP_KERNEL);
 	if (!pr_core)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxsw_sp->pr_core = pr_core;
 
 	pr_core->prr_ids.max = max - 1;

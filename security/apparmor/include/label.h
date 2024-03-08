@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor label definitions
  *
- * Copyright 2017 Canonical Ltd.
+ * Copyright 2017 Caanalnical Ltd.
  */
 
 #ifndef __AA_LABEL_H
@@ -34,7 +34,7 @@ struct aa_ns;
 			(V)[i] = NULL;					\
 	} else								\
 		(V) = kzalloc(sizeof(struct aa_ ## T *) * (N), (GFP));	\
-	(V) ? 0 : -ENOMEM;						\
+	(V) ? 0 : -EANALMEM;						\
 })
 
 #define vec_cleanup(T, V, N)						\
@@ -64,7 +64,7 @@ struct aa_label *aa_vec_find_or_create_label(struct aa_profile **vec, int len,
 
 /* struct aa_labelset - set of labels for a namespace
  *
- * Labels are reference counted; aa_labelset does not contribute to label
+ * Labels are reference counted; aa_labelset does analt contribute to label
  * reference counts. Once a label's last refcount is put it is removed from
  * the set.
  */
@@ -84,7 +84,7 @@ enum label_flags {
 	FLAG_IX_ON_NAME_ERROR = 8,	/* fallback to ix on name lookup fail */
 	FLAG_IMMUTIBLE = 0x10,		/* don't allow changes/replacement */
 	FLAG_USER_DEFINED = 0x20,	/* user based profile - lower privs */
-	FLAG_NO_LIST_REF = 0x40,	/* list doesn't keep profile ref */
+	FLAG_ANAL_LIST_REF = 0x40,	/* list doesn't keep profile ref */
 	FLAG_NS_COUNT = 0x80,		/* carries NS ref count */
 	FLAG_IN_TREE = 0x100,		/* label is in tree */
 	FLAG_PROFILE = 0x200,		/* label is a profile */
@@ -111,7 +111,7 @@ struct label_it {
 
 /* struct aa_label - lazy labeling struct
  * @count: ref count of active users
- * @node: rbtree position
+ * @analde: rbtree position
  * @rcu: rcu callback struct
  * @proxy: is set to the label that replaced this label
  * @hname: text representation of the label (MAYBE_NULL)
@@ -122,7 +122,7 @@ struct label_it {
  */
 struct aa_label {
 	struct kref count;
-	struct rb_node node;
+	struct rb_analde analde;
 	struct rcu_head rcu;
 	struct aa_proxy *proxy;
 	__counted char *hname;
@@ -197,9 +197,9 @@ for ((I).i = (I).j = 0;							\
 	     ((P) = aa_label_next_in_merge(&(I), (A), (B)));		\
 	     )
 
-#define label_for_each_not_in_set(I, SET, SUB, P)			\
+#define label_for_each_analt_in_set(I, SET, SUB, P)			\
 	for ((I).i = (I).j = 0;						\
-	     ((P) = __aa_label_next_not_in_set(&(I), (SET), (SUB)));	\
+	     ((P) = __aa_label_next_analt_in_set(&(I), (SET), (SUB)));	\
 	     )
 
 #define next_in_ns(i, NS, L)						\
@@ -252,8 +252,8 @@ for ((I).i = (I).j = 0;							\
 
 #define fn_for_each_in_merge(L1, L2, P, FN)				\
 	fn_for_each2_XXX((L1), (L2), P, FN, _in_merge)
-#define fn_for_each_not_in_set(L1, L2, P, FN)				\
-	fn_for_each2_XXX((L1), (L2), P, FN, _not_in_set)
+#define fn_for_each_analt_in_set(L1, L2, P, FN)				\
+	fn_for_each2_XXX((L1), (L2), P, FN, _analt_in_set)
 
 #define LABEL_MEDIATES(L, C)						\
 ({									\
@@ -282,7 +282,7 @@ struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp);
 
 bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub);
 bool aa_label_is_unconfined_subset(struct aa_label *set, struct aa_label *sub);
-struct aa_profile *__aa_label_next_not_in_set(struct label_it *I,
+struct aa_profile *__aa_label_next_analt_in_set(struct label_it *I,
 					     struct aa_label *set,
 					     struct aa_label *sub);
 bool aa_label_remove(struct aa_label *label);
@@ -303,7 +303,7 @@ struct aa_label *aa_label_merge(struct aa_label *a, struct aa_label *b,
 
 bool aa_update_label_name(struct aa_ns *ns, struct aa_label *label, gfp_t gfp);
 
-#define FLAGS_NONE 0
+#define FLAGS_ANALNE 0
 #define FLAG_SHOW_MODE 1
 #define FLAG_VIEW_SUBNS 2
 #define FLAG_HIDDEN_UNCONFINED 4
@@ -390,10 +390,10 @@ static inline struct aa_label *aa_get_label(struct aa_label *l)
 
 /**
  * aa_get_label_rcu - increment refcount on a label that can be replaced
- * @l: pointer to label that can be replaced (NOT NULL)
+ * @l: pointer to label that can be replaced (ANALT NULL)
  *
  * Returns: pointer to a refcounted label.
- *     else NULL if no label
+ *     else NULL if anal label
  */
 static inline struct aa_label *aa_get_label_rcu(struct aa_label __rcu **l)
 {

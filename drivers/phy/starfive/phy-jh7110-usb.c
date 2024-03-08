@@ -2,7 +2,7 @@
 /*
  * StarFive JH7110 USB 2.0 PHY driver
  *
- * Copyright (C) 2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2023 StarFive Techanallogy Co., Ltd.
  * Author: Minda Chen <minda.chen@starfivetech.com>
  */
 
@@ -104,7 +104,7 @@ static int jh7110_usb_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->usb_125m_clk = devm_clk_get(dev, "125m");
 	if (IS_ERR(phy->usb_125m_clk))

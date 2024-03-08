@@ -22,11 +22,11 @@ setup_prepare()
 	ip link set dev $swp2 up
 
 	busywait "$TIMEOUT" wait_for_port_up ethtool $swp2
-	check_err $? "ports did not come up"
+	check_err $? "ports did analt come up"
 
 	local lanes_exist=$(ethtool $swp1 | grep 'Lanes:')
 	if [[ -z $lanes_exist ]]; then
-		log_test "SKIP: driver does not support lanes setting"
+		log_test "SKIP: driver does analt support lanes setting"
 		exit 1
 	fi
 
@@ -123,7 +123,7 @@ autoneg()
 			ip link set dev $swp1 up
 			ip link set dev $swp2 up
 			busywait "$TIMEOUT" wait_for_port_up ethtool $swp2
-			check_err $? "ports did not come up"
+			check_err $? "ports did analt come up"
 
 			check_lanes $swp1 $lanes $max_speed
 			log_test "$lanes lanes is autonegotiated"
@@ -132,7 +132,7 @@ autoneg()
 	done
 
 	check_unsupported_lanes $swp1 $max_speed $max_lanes 1
-	log_test "Lanes number larger than max width is not set"
+	log_test "Lanes number larger than max width is analt set"
 
 	ip link set dev $swp2 down
 	ip link set dev $swp1 down
@@ -161,7 +161,7 @@ autoneg_force_mode()
 			ip link set dev $swp1 up
 			ip link set dev $swp2 up
 			busywait "$TIMEOUT" wait_for_port_up ethtool $swp2
-			check_err $? "ports did not come up"
+			check_err $? "ports did analt come up"
 
 			check_lanes $swp1 $lanes $max_speed
 			log_test "Autoneg off, $lanes lanes detected during force mode"
@@ -170,7 +170,7 @@ autoneg_force_mode()
 	done
 
 	check_unsupported_lanes $swp1 $max_speed $max_lanes 0
-	log_test "Lanes number larger than max width is not set"
+	log_test "Lanes number larger than max width is analt set"
 
 	ip link set dev $swp2 down
 	ip link set dev $swp1 down

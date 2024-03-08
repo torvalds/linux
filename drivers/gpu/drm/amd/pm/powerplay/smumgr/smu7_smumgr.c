@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -72,7 +72,7 @@ int smu7_copy_bytes_from_smc(struct pp_hwmgr *hwmgr, uint32_t smc_start_address,
 	if (byte_count) {
 		smu7_read_smc_sram_dword(hwmgr, addr, &data, limit);
 		*pdata = PP_SMC_TO_HOST_UL(data);
-	/* Cast dest into byte type in dest_byte.  This way, we don't overflow if the allocated memory is not 4-byte aligned. */
+	/* Cast dest into byte type in dest_byte.  This way, we don't overflow if the allocated memory is analt 4-byte aligned. */
 		dest_byte = (uint8_t *)dest;
 		for (i = 0; i < byte_count; i++)
 			dest_byte[i] = data_byte[i];
@@ -173,7 +173,7 @@ int smu7_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 	ret = PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
 
 	if (ret == 0xFE)
-		dev_dbg(adev->dev, "last message was not supported\n");
+		dev_dbg(adev->dev, "last message was analt supported\n");
 	else if (ret != 1)
 		dev_info(adev->dev,
 			"\nlast message was failed ret is %d\n", ret);
@@ -186,7 +186,7 @@ int smu7_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 	ret = PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
 
 	if (ret == 0xFE)
-		dev_dbg(adev->dev, "message %x was not supported\n", msg);
+		dev_dbg(adev->dev, "message %x was analt supported\n", msg);
 	else if (ret != 1)
 		dev_dbg(adev->dev,
 			"failed to send message %x ret is %d \n",  msg, ret);
@@ -307,7 +307,7 @@ static int smu7_populate_single_firmware_entry(struct pp_hwmgr *hwmgr,
 		entry->meta_data_addr_low = 0;
 
 		/* digest need be excluded out */
-		if (!hwmgr->not_vf)
+		if (!hwmgr->analt_vf)
 			info.image_size -= 20;
 		entry->data_size_byte = info.image_size;
 		entry->num_register_entries = 0;
@@ -337,7 +337,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 					0x0);
 
 	if (hwmgr->chip_id > CHIP_TOPAZ) { /* add support for Topaz */
-		if (hwmgr->not_vf) {
+		if (hwmgr->analt_vf) {
 			smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_HI,
 						upper_32_bits(smu_data->smu_buffer.mc_addr),
@@ -371,7 +371,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 
 		smu_data->toc = kzalloc(sizeof(struct SMU_DRAMData_TOC), GFP_KERNEL);
 		if (!smu_data->toc)
-			return -ENOMEM;
+			return -EANALMEM;
 		toc = smu_data->toc;
 		toc->num_entries = 0;
 		toc->structure_version = 1;
@@ -403,7 +403,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
 				UCODE_ID_SDMA1, &toc->entry[toc->num_entries++]),
 				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
-		if (!hwmgr->not_vf)
+		if (!hwmgr->analt_vf)
 			PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
 				UCODE_ID_MEC_STORAGE, &toc->entry[toc->num_entries++]),
 				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
@@ -433,7 +433,7 @@ failed:
 	return r;
 }
 
-/* Check if the FW has been loaded, SMU will not return if loading has not finished. */
+/* Check if the FW has been loaded, SMU will analt return if loading has analt finished. */
 int smu7_check_fw_load_finish(struct pp_hwmgr *hwmgr, uint32_t fw_type)
 {
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
@@ -555,7 +555,7 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 	if (r)
 		return -EINVAL;
 
-	if (!hwmgr->not_vf)
+	if (!hwmgr->analt_vf)
 		return 0;
 
 	smu_data->smu_buffer.data_size = 200*4096;
@@ -590,7 +590,7 @@ int smu7_smu_fini(struct pp_hwmgr *hwmgr)
 					&smu_data->header_buffer.mc_addr,
 					&smu_data->header_buffer.kaddr);
 
-	if (hwmgr->not_vf)
+	if (hwmgr->analt_vf)
 		amdgpu_bo_free_kernel(&smu_data->smu_buffer.handle,
 					&smu_data->smu_buffer.mc_addr,
 					&smu_data->smu_buffer.kaddr);

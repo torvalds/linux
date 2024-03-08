@@ -9,21 +9,21 @@ Affected processors
 -------------------
 
 This vulnerability affects a wide range of Intel processors. The
-vulnerability is not present on:
+vulnerability is analt present on:
 
-   - Processors from AMD, Centaur and other non Intel vendors
+   - Processors from AMD, Centaur and other analn Intel vendors
 
    - Older processor models, where the CPU family is < 6
 
    - Some Atoms (Bonnell, Saltwell, Goldmont, GoldmontPlus)
 
-   - Intel processors which have the ARCH_CAP_MDS_NO bit set in the
+   - Intel processors which have the ARCH_CAP_MDS_ANAL bit set in the
      IA32_ARCH_CAPABILITIES MSR.
 
-Whether a processor is affected or not can be read out from the MDS
+Whether a processor is affected or analt can be read out from the MDS
 vulnerability file in sysfs. See :ref:`mds_sys_info`.
 
-Not all processors are affected by all variants of MDS, but the mitigation
+Analt all processors are affected by all variants of MDS, but the mitigation
 is identical for all of them so the kernel treats them as a single
 vulnerability.
 
@@ -49,7 +49,7 @@ buffer can be forwarded to load operations as an optimization.
 Under certain conditions, usually a fault/assist caused by a load
 operation, data unrelated to the load memory address can be speculatively
 forwarded from the buffers. Because the load operation causes a fault or
-assist and its result will be discarded, the forwarded data will not cause
+assist and its result will be discarded, the forwarded data will analt cause
 incorrect program execution or state changes. But a malicious operation
 may be able to forward this speculative data to a disclosure gadget which
 allows in turn to infer the value via a cache side channel attack.
@@ -64,12 +64,12 @@ architecture section: :ref:`Documentation/arch/x86/mds.rst <mds>`.
 Attack scenarios
 ----------------
 
-Attacks against the MDS vulnerabilities can be mounted from malicious non-
+Attacks against the MDS vulnerabilities can be mounted from malicious analn-
 privileged user space applications running on hosts or guest. Malicious
 guest OSes can obviously mount attacks as well.
 
 Contrary to other speculation based vulnerabilities the MDS vulnerability
-does not allow the attacker to control the memory target address. As a
+does analt allow the attacker to control the memory target address. As a
 consequence the attacks are purely sampling based, but as demonstrated with
 the TLBleed attack samples can be postprocessed successfully.
 
@@ -78,7 +78,7 @@ Web-Browsers
 
   It's unclear whether attacks through Web-Browsers are possible at
   all. The exploitation through Java-Script is considered very unlikely,
-  but other widely used web technologies like Webassembly could possibly be
+  but other widely used web techanallogies like Webassembly could possibly be
   abused.
 
 
@@ -97,21 +97,21 @@ The possible values in this file are:
 
   .. list-table::
 
-     * - 'Not affected'
-       - The processor is not vulnerable
+     * - 'Analt affected'
+       - The processor is analt vulnerable
      * - 'Vulnerable'
-       - The processor is vulnerable, but no mitigation enabled
-     * - 'Vulnerable: Clear CPU buffers attempted, no microcode'
-       - The processor is vulnerable but microcode is not updated. The
+       - The processor is vulnerable, but anal mitigation enabled
+     * - 'Vulnerable: Clear CPU buffers attempted, anal microcode'
+       - The processor is vulnerable but microcode is analt updated. The
          mitigation is enabled on a best effort basis.
 
          If the processor is vulnerable but the availability of the microcode
-         based mitigation mechanism is not advertised via CPUID, the kernel
+         based mitigation mechanism is analt advertised via CPUID, the kernel
          selects a best effort mitigation mode. This mode invokes the mitigation
          instructions without a guarantee that they clear the CPU buffers.
 
          This is done to address virtualization scenarios where the host has the
-         microcode update applied, but the hypervisor is not yet updated to
+         microcode update applied, but the hypervisor is analt yet updated to
          expose the CPUID to the guest. If the host has updated microcode the
          protection takes effect; otherwise a few CPU cycles are wasted
          pointlessly.
@@ -126,7 +126,7 @@ to the above information:
     'SMT vulnerable'          SMT is enabled
     'SMT mitigated'           SMT is enabled and mitigated
     'SMT disabled'            SMT is disabled
-    'SMT Host state unknown'  Kernel runs in a VM, Host SMT state unknown
+    'SMT Host state unkanalwn'  Kernel runs in a VM, Host SMT state unkanalwn
     ========================  ============================================
 
 Mitigation mechanism
@@ -149,11 +149,11 @@ CPU buffer clearing
   space and when entering a guest.
 
   If SMT is enabled it also clears the buffers on idle entry when the CPU
-  is only affected by MSBDS and not any other MDS variant, because the
-  other variants cannot be protected against cross Hyper-Thread attacks.
+  is only affected by MSBDS and analt any other MDS variant, because the
+  other variants cananalt be protected against cross Hyper-Thread attacks.
 
   For CPUs which are only affected by MSBDS the user space, guest and idle
-  transition mitigations are sufficient and SMT is not affected.
+  transition mitigations are sufficient and SMT is analt affected.
 
 .. _virt_mechanism:
 
@@ -175,7 +175,7 @@ Virtualization mitigation
     For details on L1TF and virtualization see:
     :ref:`Documentation/admin-guide/hw-vuln//l1tf.rst <mitigation_control_kvm>`.
 
-  - CPU is not affected by L1TF:
+  - CPU is analt affected by L1TF:
 
     CPU buffers are flushed before entering the guest when the host MDS
     mitigation is enabled.
@@ -185,21 +185,21 @@ Virtualization mitigation
   ============ ===== ============= ============ =================
    L1TF         MDS   VMX-L1FLUSH   Host MDS     MDS-State
 
-   Don't care   No    Don't care    N/A          Not affected
+   Don't care   Anal    Don't care    N/A          Analt affected
 
-   Yes          Yes   Disabled      Off          Vulnerable
+   Anal          Anal   Disabled      Off          Vulnerable
 
-   Yes          Yes   Disabled      Full         Mitigated
+   Anal          Anal   Disabled      Full         Mitigated
 
-   Yes          Yes   Enabled       Don't care   Mitigated
+   Anal          Anal   Enabled       Don't care   Mitigated
 
-   No           Yes   N/A           Off          Vulnerable
+   Anal           Anal   N/A           Off          Vulnerable
 
-   No           Yes   N/A           Full         Mitigated
+   Anal           Anal   N/A           Full         Mitigated
   ============ ===== ============= ============ =================
 
   This only covers the host to guest transition, i.e. prevents leakage from
-  host to guest, but does not protect the guest internally. Guests need to
+  host to guest, but does analt protect the guest internally. Guests need to
   have their own protections.
 
 .. _xeon_phi:
@@ -213,9 +213,9 @@ XEON PHI specific considerations
   for malicious user space. The exposure can be disabled on the kernel
   command line with the 'ring3mwait=disable' command line option.
 
-  XEON PHI is not affected by the other MDS variants and MSBDS is mitigated
-  before the CPU enters a idle state. As XEON PHI is not affected by L1TF
-  either disabling SMT is not required for full protection.
+  XEON PHI is analt affected by the other MDS variants and MSBDS is mitigated
+  before the CPU enters a idle state. As XEON PHI is analt affected by L1TF
+  either disabling SMT is analt required for full protection.
 
 .. _mds_smt_control:
 
@@ -248,19 +248,19 @@ time with the option "mds=". The valid arguments for this option are:
 		userspace and when entering a VM. Idle transitions are
 		protected as well if SMT is enabled.
 
-		It does not automatically disable SMT.
+		It does analt automatically disable SMT.
 
-  full,nosmt	The same as mds=full, with SMT disabled on vulnerable
+  full,analsmt	The same as mds=full, with SMT disabled on vulnerable
 		CPUs.  This is the complete mitigation.
 
   off		Disables MDS mitigations completely.
 
   ============  =============================================================
 
-Not specifying this option is equivalent to "mds=full". For processors
-that are affected by both TAA (TSX Asynchronous Abort) and MDS,
+Analt specifying this option is equivalent to "mds=full". For processors
+that are affected by both TAA (TSX Asynchroanalus Abort) and MDS,
 specifying just "mds=off" without an accompanying "tsx_async_abort=off"
-will have no effect as the same mitigation is used for both
+will have anal effect as the same mitigation is used for both
 vulnerabilities.
 
 Mitigation selection guide
@@ -269,7 +269,7 @@ Mitigation selection guide
 1. Trusted userspace
 ^^^^^^^^^^^^^^^^^^^^
 
-   If all userspace applications are from a trusted source and do not
+   If all userspace applications are from a trusted source and do analt
    execute untrusted code which is supplied externally, then the mitigation
    can be disabled.
 
@@ -297,7 +297,7 @@ Default mitigations
 
   - Enable CPU buffer clearing
 
-  The kernel does not by default enforce the disabling of SMT, which leaves
+  The kernel does analt by default enforce the disabling of SMT, which leaves
   SMT systems vulnerable when running untrusted code. The same rationale as
   for L1TF applies.
   See :ref:`Documentation/admin-guide/hw-vuln//l1tf.rst <default_mitigations>`.

@@ -21,7 +21,7 @@ static int mgag200_g200_init_pci_options(struct pci_dev *pdev)
 	err = pci_read_config_dword(pdev, PCI_MGA_OPTION, &option);
 	if (err != PCIBIOS_SUCCESSFUL) {
 		dev_err(dev, "pci_read_config_dword(PCI_MGA_OPTION) failed: %d\n", err);
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 	}
 
 	has_sgram = !!(option & PCI_MGA_OPTION_HARDPWMSK);
@@ -309,7 +309,7 @@ static void mgag200_g200_interpret_bios(struct mgag200_g200_device *g200,
 	}
 
 	if (version < 1 || version > 5) {
-		drm_warn(dev, "Unknown BIOS PInS version: %d\n", version);
+		drm_warn(dev, "Unkanalwn BIOS PInS version: %d\n", version);
 		return;
 	}
 	if (pins_len != expected_length[version]) {

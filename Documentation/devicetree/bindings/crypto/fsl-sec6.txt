@@ -1,19 +1,19 @@
 SEC 6 is as Freescale's Cryptographic Accelerator and Assurance Module (CAAM).
 Currently Freescale powerpc chip C29X is embedded with SEC 6.
 SEC 6 device tree binding include:
-   -SEC 6 Node
-   -Job Ring Node
+   -SEC 6 Analde
+   -Job Ring Analde
    -Full Example
 
 =====================================================================
-SEC 6 Node
+SEC 6 Analde
 
 Description
 
-    Node defines the base address of the SEC 6 block.
+    Analde defines the base address of the SEC 6 block.
     This block specifies the address range of all global
     configuration registers for the SEC 6 block.
-    For example, In C293, we could see three SEC 6 node.
+    For example, In C293, we could see three SEC 6 analde.
 
 PROPERTIES
 
@@ -32,14 +32,14 @@ PROPERTIES
        Usage: required
        Value type: <u32>
        Definition: A standard property.  Defines the number of cells
-           for representing physical addresses in child nodes.
+           for representing physical addresses in child analdes.
 
    - #size-cells
        Usage: required
        Value type: <u32>
        Definition: A standard property.  Defines the number of cells
            for representing the size of physical addresses in
-           child nodes.
+           child analdes.
 
    - reg
       Usage: required
@@ -51,11 +51,11 @@ PROPERTIES
        Usage: required
        Value type: <prop-encoded-array>
        Definition: A standard property.  Specifies the physical address
-           range of the SEC 6.0 register space (-SNVS not included).  A
+           range of the SEC 6.0 register space (-SNVS analt included).  A
            triplet that includes the child address, parent address, &
            length.
 
-   Note: All other standard properties (see the Devicetree Specification)
+   Analte: All other standard properties (see the Devicetree Specification)
    are allowed but are optional.
 
 EXAMPLE
@@ -69,14 +69,14 @@ EXAMPLE
 	};
 
 =====================================================================
-Job Ring (JR) Node
+Job Ring (JR) Analde
 
-    Child of the crypto node defines data processing interface to SEC 6
+    Child of the crypto analde defines data processing interface to SEC 6
     across the peripheral bus for purposes of processing
     cryptographic descriptors. The specified address
     range can be made visible to one (or more) cores.
-    The interrupt defined for this node is controlled within
-    the address range of this node.
+    The interrupt defined for this analde is controlled within
+    the address range of this analde.
 
   - compatible
       Usage: required
@@ -96,7 +96,7 @@ Job Ring (JR) Node
            device.  The value of the interrupts property
            consists of one interrupt specifier. The format
            of the specifier is defined by the binding document
-           describing the node's interrupt parent.
+           describing the analde's interrupt parent.
 
 EXAMPLE
 	jr@1000 {
@@ -109,8 +109,8 @@ EXAMPLE
 Full Example
 
 Since some chips may contain more than one SEC, the dtsi contains
-only the node contents, not the node itself.  A chip using the SEC
-should include the dtsi inside each SEC node.  Example:
+only the analde contents, analt the analde itself.  A chip using the SEC
+should include the dtsi inside each SEC analde.  Example:
 
 In qoriq-sec6.0.dtsi:
 

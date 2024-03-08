@@ -65,7 +65,7 @@ static int axg_card_tdm_dai_init(struct snd_soc_pcm_runtime *rtd)
 					       be->codec_masks[i].tx,
 					       be->codec_masks[i].rx,
 					       be->slots, be->slot_width);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(codec_dai->dev,
 				"setting tdm link slots failed\n");
 			return ret;
@@ -118,11 +118,11 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 
 	lb->name = devm_kasprintf(card->dev, GFP_KERNEL, "%s-lb", pad->name);
 	if (!lb->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dlc = devm_kzalloc(card->dev, sizeof(*dlc), GFP_KERNEL);
 	if (!dlc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lb->cpus = dlc;
 	lb->codecs = &snd_soc_dummy_dlc;
@@ -130,10 +130,10 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 	lb->num_codecs = 1;
 
 	lb->stream_name = lb->name;
-	lb->cpus->of_node = pad->cpus->of_node;
+	lb->cpus->of_analde = pad->cpus->of_analde;
 	lb->cpus->dai_name = "TDM Loopback";
 	lb->dpcm_capture = 1;
-	lb->no_pcm = 1;
+	lb->anal_pcm = 1;
 	lb->ops = &axg_card_tdm_be_ops;
 	lb->init = axg_card_tdm_dai_lb_init;
 
@@ -142,9 +142,9 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 
 	/*
 	 * axg_card_clean_references() will iterate over this link,
-	 * make sure the node count is balanced
+	 * make sure the analde count is balanced
 	 */
-	of_node_get(lb->cpus->of_node);
+	of_analde_get(lb->cpus->of_analde);
 
 	/* Let add_links continue where it should */
 	*index += 1;
@@ -154,7 +154,7 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 
 static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 					struct snd_soc_dai_link *link,
-					struct device_node *node,
+					struct device_analde *analde,
 					struct axg_dai_link_tdm_data *be)
 {
 	char propname[32];
@@ -166,38 +166,38 @@ static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 	be->rx_mask = devm_kcalloc(card->dev, AXG_TDM_NUM_LANES,
 				   sizeof(*be->rx_mask), GFP_KERNEL);
 	if (!be->tx_mask || !be->rx_mask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, tx = 0; i < AXG_TDM_NUM_LANES; i++) {
 		snprintf(propname, 32, "dai-tdm-slot-tx-mask-%d", i);
-		snd_soc_of_get_slot_mask(node, propname, &be->tx_mask[i]);
+		snd_soc_of_get_slot_mask(analde, propname, &be->tx_mask[i]);
 		tx = max(tx, be->tx_mask[i]);
 	}
 
-	/* Disable playback is the interface has no tx slots */
+	/* Disable playback is the interface has anal tx slots */
 	if (!tx)
 		link->dpcm_playback = 0;
 
 	for (i = 0, rx = 0; i < AXG_TDM_NUM_LANES; i++) {
 		snprintf(propname, 32, "dai-tdm-slot-rx-mask-%d", i);
-		snd_soc_of_get_slot_mask(node, propname, &be->rx_mask[i]);
+		snd_soc_of_get_slot_mask(analde, propname, &be->rx_mask[i]);
 		rx = max(rx, be->rx_mask[i]);
 	}
 
-	/* Disable capture is the interface has no rx slots */
+	/* Disable capture is the interface has anal rx slots */
 	if (!rx)
 		link->dpcm_capture = 0;
 
 	/* ... but the interface should at least have one of them */
 	if (!tx && !rx) {
-		dev_err(card->dev, "tdm link has no cpu slots\n");
+		dev_err(card->dev, "tdm link has anal cpu slots\n");
 		return -EINVAL;
 	}
 
-	of_property_read_u32(node, "dai-tdm-slot-num", &be->slots);
+	of_property_read_u32(analde, "dai-tdm-slot-num", &be->slots);
 	if (!be->slots) {
 		/*
-		 * If the slot number is not provided, set it such as it
+		 * If the slot number is analt provided, set it such as it
 		 * accommodates the largest mask
 		 */
 		be->slots = fls(max(tx, rx));
@@ -210,27 +210,27 @@ static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
-	of_property_read_u32(node, "dai-tdm-slot-width", &be->slot_width);
+	of_property_read_u32(analde, "dai-tdm-slot-width", &be->slot_width);
 
 	return 0;
 }
 
 static int axg_card_parse_codecs_masks(struct snd_soc_card *card,
 				       struct snd_soc_dai_link *link,
-				       struct device_node *node,
+				       struct device_analde *analde,
 				       struct axg_dai_link_tdm_data *be)
 {
 	struct axg_dai_link_tdm_mask *codec_mask;
-	struct device_node *np;
+	struct device_analde *np;
 
 	codec_mask = devm_kcalloc(card->dev, link->num_codecs,
 				  sizeof(*codec_mask), GFP_KERNEL);
 	if (!codec_mask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	be->codec_masks = codec_mask;
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_analde(analde, np) {
 		snd_soc_of_get_slot_mask(np, "dai-tdm-slot-rx-mask",
 					 &codec_mask->rx);
 		snd_soc_of_get_slot_mask(np, "dai-tdm-slot-tx-mask",
@@ -243,7 +243,7 @@ static int axg_card_parse_codecs_masks(struct snd_soc_card *card,
 }
 
 static int axg_card_parse_tdm(struct snd_soc_card *card,
-			      struct device_node *node,
+			      struct device_analde *analde,
 			      int *index)
 {
 	struct meson_card *priv = snd_soc_card_get_drvdata(card);
@@ -254,23 +254,23 @@ static int axg_card_parse_tdm(struct snd_soc_card *card,
 	/* Allocate tdm link parameters */
 	be = devm_kzalloc(card->dev, sizeof(*be), GFP_KERNEL);
 	if (!be)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->link_data[*index] = be;
 
 	/* Setup tdm link */
 	link->ops = &axg_card_tdm_be_ops;
 	link->init = axg_card_tdm_dai_init;
-	link->dai_fmt = meson_card_parse_daifmt(node, link->cpus->of_node);
+	link->dai_fmt = meson_card_parse_daifmt(analde, link->cpus->of_analde);
 
-	of_property_read_u32(node, "mclk-fs", &be->mclk_fs);
+	of_property_read_u32(analde, "mclk-fs", &be->mclk_fs);
 
-	ret = axg_card_parse_cpu_tdm_slots(card, link, node, be);
+	ret = axg_card_parse_cpu_tdm_slots(card, link, analde, be);
 	if (ret) {
 		dev_err(card->dev, "error parsing tdm link slots\n");
 		return ret;
 	}
 
-	ret = axg_card_parse_codecs_masks(card, link, node, be);
+	ret = axg_card_parse_codecs_masks(card, link, analde, be);
 	if (ret)
 		return ret;
 
@@ -284,28 +284,28 @@ static int axg_card_parse_tdm(struct snd_soc_card *card,
 	return 0;
 }
 
-static int axg_card_cpu_is_capture_fe(struct device_node *np)
+static int axg_card_cpu_is_capture_fe(struct device_analde *np)
 {
 	return of_device_is_compatible(np, DT_PREFIX "axg-toddr");
 }
 
-static int axg_card_cpu_is_playback_fe(struct device_node *np)
+static int axg_card_cpu_is_playback_fe(struct device_analde *np)
 {
 	return of_device_is_compatible(np, DT_PREFIX "axg-frddr");
 }
 
-static int axg_card_cpu_is_tdm_iface(struct device_node *np)
+static int axg_card_cpu_is_tdm_iface(struct device_analde *np)
 {
 	return of_device_is_compatible(np, DT_PREFIX "axg-tdm-iface");
 }
 
-static int axg_card_cpu_is_codec(struct device_node *np)
+static int axg_card_cpu_is_codec(struct device_analde *np)
 {
 	return of_device_is_compatible(np, DT_PREFIX "g12a-tohdmitx") ||
 		of_device_is_compatible(np, DT_PREFIX "g12a-toacodec");
 }
 
-static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
+static int axg_card_add_link(struct snd_soc_card *card, struct device_analde *np,
 			     int *index)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[*index];
@@ -314,7 +314,7 @@ static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
 
 	cpu = devm_kzalloc(card->dev, sizeof(*cpu), GFP_KERNEL);
 	if (!cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dai_link->cpus = cpu;
 	dai_link->num_cpus = 1;
@@ -323,9 +323,9 @@ static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
 	if (ret)
 		return ret;
 
-	if (axg_card_cpu_is_playback_fe(dai_link->cpus->of_node))
+	if (axg_card_cpu_is_playback_fe(dai_link->cpus->of_analde))
 		return meson_card_set_fe_link(card, dai_link, np, true);
-	else if (axg_card_cpu_is_capture_fe(dai_link->cpus->of_node))
+	else if (axg_card_cpu_is_capture_fe(dai_link->cpus->of_analde))
 		return meson_card_set_fe_link(card, dai_link, np, false);
 
 
@@ -333,13 +333,13 @@ static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
 	if (ret)
 		return ret;
 
-	if (axg_card_cpu_is_codec(dai_link->cpus->of_node)) {
+	if (axg_card_cpu_is_codec(dai_link->cpus->of_analde)) {
 		dai_link->c2c_params = &codec_params;
 		dai_link->num_c2c_params = 1;
 	} else {
-		dai_link->no_pcm = 1;
+		dai_link->anal_pcm = 1;
 		snd_soc_dai_link_set_capabilities(dai_link);
-		if (axg_card_cpu_is_tdm_iface(dai_link->cpus->of_node))
+		if (axg_card_cpu_is_tdm_iface(dai_link->cpus->of_analde))
 			ret = axg_card_parse_tdm(card, np, index);
 	}
 

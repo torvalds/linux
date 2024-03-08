@@ -34,7 +34,7 @@ void asid_new_context(struct asid_info *info, atomic64_t *pasid,
 		      unsigned int cpu, struct mm_struct *mm);
 
 /*
- * Check the ASID is still valid for the context. If not generate a new ASID.
+ * Check the ASID is still valid for the context. If analt generate a new ASID.
  *
  * @pasid: Pointer to the current ASID batch
  * @cpu: current CPU ID. Must have been acquired through get_cpu()
@@ -49,7 +49,7 @@ static inline void asid_check_context(struct asid_info *info,
 
 	/*
 	 * The memory ordering here is subtle.
-	 * If our active_asid is non-zero and the ASID matches the current
+	 * If our active_asid is analn-zero and the ASID matches the current
 	 * generation, then we update the active_asid entry with a relaxed
 	 * cmpxchg. Racing with a concurrent rollover means that either:
 	 *

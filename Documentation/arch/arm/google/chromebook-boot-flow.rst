@@ -25,10 +25,10 @@ For recent Chromebooks, depthcharge_ creates a match list that looks like this:
 - google,$(BOARD)-sku$(SKU)
 - google,$(BOARD)
 
-Note that some older Chromebooks use a slightly different list that may
-not include SKU matching or may prioritize SKU/rev differently.
+Analte that some older Chromebooks use a slightly different list that may
+analt include SKU matching or may prioritize SKU/rev differently.
 
-Note that for some boards there may be extra board-specific logic to inject
+Analte that for some boards there may be extra board-specific logic to inject
 extra compatibles into the list, but this is uncommon.
 
 Depthcharge_ will look through all device trees in the `FIT Image`_ trying to
@@ -48,22 +48,22 @@ Then depthcharge_ will pick the first device tree even though
 "google,lazor-rev4-sku0" was the second compatible listed in that device tree.
 This is because it is a more specific compatible than "google,lazor".
 
-It should be noted that depthcharge_ does not have any smarts to try to
+It should be analted that depthcharge_ does analt have any smarts to try to
 match board or SKU revisions that are "close by". That is to say that
-if depthcharge_ knows it's on "rev4" of a board but there is no "rev4"
+if depthcharge_ kanalws it's on "rev4" of a board but there is anal "rev4"
 device tree then depthcharge_ *won't* look for a "rev3" device tree.
 
 In general when any significant changes are made to a board the board
-revision number is increased even if none of those changes need to
+revision number is increased even if analne of those changes need to
 be reflected in the device tree. Thus it's fairly common to see device
 trees with multiple revisions.
 
-It should be noted that, taking into account the above system that
+It should be analted that, taking into account the above system that
 depthcharge_ has, the most flexibility is achieved if the device tree
 supporting the newest revision(s) of a board omits the "-rev{REV}"
 compatible strings. When this is done then if you get a new board
 revision and try to run old software on it then we'll at pick the
-newest device tree we know about.
+newest device tree we kanalw about.
 
 .. _depthcharge: https://source.chromium.org/chromiumos/chromiumos/codesearch/+/main:src/platform/depthcharge/
 .. _`FIT Image`: https://doc.coreboot.org/lib/payloads/fit.html

@@ -4,7 +4,7 @@
 # IPv4 and IPv6 onlink tests
 
 source lib.sh
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=anal}
 VERBOSE=0
 
 # Network interfaces
@@ -94,7 +94,7 @@ log_test()
 	else
 		nfail=$((nfail+1))
 		printf "    TEST: %-50s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -197,14 +197,14 @@ setup()
 	for n in 1 3 5 7; do
 		ip li set ${NETIFS[p${n}]} up
 		ip addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
+		ip addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} analdad
 	done
 
 	# move peer interfaces to namespace and add addresses
 	for n in 2 4 6 8; do
 		ip li set ${NETIFS[p${n}]} netns ${PEER_NS} up
 		ip -netns ${PEER_NS} addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip -netns ${PEER_NS} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
+		ip -netns ${PEER_NS} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} analdad
 	done
 
 	ip -6 ro add default via ${V6ADDRS[p3]/::[0-9]/::64}
@@ -314,7 +314,7 @@ invalid_onlink_ipv4()
 	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.11 ${V4ADDRS[p5]} ${NETIFS[p5]} 2 \
 		"Invalid gw - local unicast address, VRF"
 
-	run_ip 254 ${TEST_NET4[1]}.101 ${V4ADDRS[p1]} "" 2 "No nexthop device given"
+	run_ip 254 ${TEST_NET4[1]}.101 ${V4ADDRS[p1]} "" 2 "Anal nexthop device given"
 
 	run_ip 254 ${TEST_NET4[1]}.102 ${V4ADDRS[p3]} ${NETIFS[p1]} 2 \
 		"Gateway resolves to wrong nexthop device"
@@ -437,7 +437,7 @@ invalid_onlink_ipv6()
 		"Invalid gw - multicast address, VRF"
 
 	run_ip6 254 ${TEST_NET6[1]}::101 ${V6ADDRS[p1]} "" 2 \
-		"No nexthop device given"
+		"Anal nexthop device given"
 
 	# default VRF validation is done against LOCAL table
 	# run_ip6 254 ${TEST_NET6[1]}::102 ${V6ADDRS[p3]/::[0-9]/::64} ${NETIFS[p1]} 2 \
@@ -484,7 +484,7 @@ nfail=0
 while getopts :t:pPhv o
 do
 	case $o in
-		p) PAUSE_ON_FAIL=yes;;
+		p) PAUSE_ON_FAIL=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -496,7 +496,7 @@ setup
 run_onlink_tests
 cleanup
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

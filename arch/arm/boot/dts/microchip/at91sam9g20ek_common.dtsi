@@ -34,7 +34,7 @@
 				board {
 					pinctrl_pck0_as_mck: pck0_as_mck {
 						atmel,pins =
-							<AT91_PIOC 1 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PC1 periph B */
+							<AT91_PIOC 1 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;	/* PC1 periph B */
 					};
 
 				};

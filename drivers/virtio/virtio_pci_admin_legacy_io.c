@@ -44,7 +44,7 @@ static int virtio_pci_admin_legacy_io_write(struct pci_dev *pdev, u16 opcode,
 	int ret;
 
 	if (!virtio_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vf_id = pci_iov_vf_id(pdev);
 	if (vf_id < 0)
@@ -52,7 +52,7 @@ static int virtio_pci_admin_legacy_io_write(struct pci_dev *pdev, u16 opcode,
 
 	data = kzalloc(sizeof(*data) + size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->offset = offset;
 	memcpy(data->registers, buf, size);
@@ -75,7 +75,7 @@ static int virtio_pci_admin_legacy_io_write(struct pci_dev *pdev, u16 opcode,
  * @size: size of the data to write
  * @buf: buffer which holds the data
  *
- * Note: caller must serialize access for the given device.
+ * Analte: caller must serialize access for the given device.
  * Returns 0 on success, or negative on failure.
  */
 int virtio_pci_admin_legacy_common_io_write(struct pci_dev *pdev, u8 offset,
@@ -95,7 +95,7 @@ EXPORT_SYMBOL_GPL(virtio_pci_admin_legacy_common_io_write);
  * @size: size of the data to write
  * @buf: buffer which holds the data
  *
- * Note: caller must serialize access for the given device.
+ * Analte: caller must serialize access for the given device.
  * Returns 0 on success, or negative on failure.
  */
 int virtio_pci_admin_legacy_device_io_write(struct pci_dev *pdev, u8 offset,
@@ -118,7 +118,7 @@ static int virtio_pci_admin_legacy_io_read(struct pci_dev *pdev, u16 opcode,
 	int ret;
 
 	if (!virtio_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vf_id = pci_iov_vf_id(pdev);
 	if (vf_id < 0)
@@ -126,7 +126,7 @@ static int virtio_pci_admin_legacy_io_read(struct pci_dev *pdev, u16 opcode,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->offset = offset;
 	sg_init_one(&data_sg, data, sizeof(*data));
@@ -150,7 +150,7 @@ static int virtio_pci_admin_legacy_io_read(struct pci_dev *pdev, u16 opcode,
  * @size: size of the data to be read
  * @buf: buffer to hold the returned data
  *
- * Note: caller must serialize access for the given device.
+ * Analte: caller must serialize access for the given device.
  * Returns 0 on success, or negative on failure.
  */
 int virtio_pci_admin_legacy_device_io_read(struct pci_dev *pdev, u8 offset,
@@ -170,7 +170,7 @@ EXPORT_SYMBOL_GPL(virtio_pci_admin_legacy_device_io_read);
  * @size: size of the data to be read
  * @buf: buffer to hold the returned data
  *
- * Note: caller must serialize access for the given device.
+ * Analte: caller must serialize access for the given device.
  * Returns 0 on success, or negative on failure.
  */
 int virtio_pci_admin_legacy_common_io_read(struct pci_dev *pdev, u8 offset,
@@ -183,7 +183,7 @@ int virtio_pci_admin_legacy_common_io_read(struct pci_dev *pdev, u8 offset,
 EXPORT_SYMBOL_GPL(virtio_pci_admin_legacy_common_io_read);
 
 /*
- * virtio_pci_admin_legacy_io_notify_info - Read the queue notification
+ * virtio_pci_admin_legacy_io_analtify_info - Read the queue analtification
  * information for legacy interface
  * @dev: VF pci_dev
  * @req_bar_flags: requested bar flags
@@ -192,19 +192,19 @@ EXPORT_SYMBOL_GPL(virtio_pci_admin_legacy_common_io_read);
  *
  * Returns 0 on success, or negative on failure.
  */
-int virtio_pci_admin_legacy_io_notify_info(struct pci_dev *pdev,
+int virtio_pci_admin_legacy_io_analtify_info(struct pci_dev *pdev,
 					   u8 req_bar_flags, u8 *bar,
 					   u64 *bar_offset)
 {
 	struct virtio_device *virtio_dev = virtio_pci_vf_get_pf_dev(pdev);
-	struct virtio_admin_cmd_notify_info_result *result;
+	struct virtio_admin_cmd_analtify_info_result *result;
 	struct virtio_admin_cmd cmd = {};
 	struct scatterlist result_sg;
 	int vf_id;
 	int ret;
 
 	if (!virtio_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vf_id = pci_iov_vf_id(pdev);
 	if (vf_id < 0)
@@ -212,22 +212,22 @@ int virtio_pci_admin_legacy_io_notify_info(struct pci_dev *pdev,
 
 	result = kzalloc(sizeof(*result), GFP_KERNEL);
 	if (!result)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_init_one(&result_sg, result, sizeof(*result));
-	cmd.opcode = cpu_to_le16(VIRTIO_ADMIN_CMD_LEGACY_NOTIFY_INFO);
+	cmd.opcode = cpu_to_le16(VIRTIO_ADMIN_CMD_LEGACY_ANALTIFY_INFO);
 	cmd.group_type = cpu_to_le16(VIRTIO_ADMIN_GROUP_TYPE_SRIOV);
 	cmd.group_member_id = cpu_to_le64(vf_id + 1);
 	cmd.result_sg = &result_sg;
 	ret = vp_modern_admin_cmd_exec(virtio_dev, &cmd);
 	if (!ret) {
-		struct virtio_admin_cmd_notify_info_data *entry;
+		struct virtio_admin_cmd_analtify_info_data *entry;
 		int i;
 
-		ret = -ENOENT;
-		for (i = 0; i < VIRTIO_ADMIN_CMD_MAX_NOTIFY_INFO; i++) {
+		ret = -EANALENT;
+		for (i = 0; i < VIRTIO_ADMIN_CMD_MAX_ANALTIFY_INFO; i++) {
 			entry = &result->entries[i];
-			if (entry->flags == VIRTIO_ADMIN_CMD_NOTIFY_INFO_FLAGS_END)
+			if (entry->flags == VIRTIO_ADMIN_CMD_ANALTIFY_INFO_FLAGS_END)
 				break;
 			if (entry->flags != req_bar_flags)
 				continue;
@@ -241,4 +241,4 @@ int virtio_pci_admin_legacy_io_notify_info(struct pci_dev *pdev,
 	kfree(result);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(virtio_pci_admin_legacy_io_notify_info);
+EXPORT_SYMBOL_GPL(virtio_pci_admin_legacy_io_analtify_info);

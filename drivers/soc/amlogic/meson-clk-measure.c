@@ -613,12 +613,12 @@ static int meson_msr_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct meson_msr),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match_data = device_get_match_data(&pdev->dev);
 	if (!match_data) {
 		dev_err(&pdev->dev, "failed to get match data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	memcpy(priv->msr_table, match_data, sizeof(priv->msr_table));

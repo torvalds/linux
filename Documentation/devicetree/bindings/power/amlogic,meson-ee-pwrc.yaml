@@ -11,8 +11,8 @@ maintainers:
   - Neil Armstrong <neil.armstrong@linaro.org>
 
 description: |+
-  The Everything-Else Power Domains node should be the child of a syscon
-  node with the required property:
+  The Everything-Else Power Domains analde should be the child of a syscon
+  analde with the required property:
 
   - compatible: Should be the following:
                 "amlogic,meson-gx-hhi-sysctrl", "simple-mfd", "syscon"
@@ -53,7 +53,7 @@ properties:
     const: 1
 
   amlogic,ao-sysctrl:
-    description: phandle to the AO sysctrl node
+    description: phandle to the AO sysctrl analde
     $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:

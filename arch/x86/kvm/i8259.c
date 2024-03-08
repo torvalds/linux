@@ -12,12 +12,12 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -75,13 +75,13 @@ static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 	if (s != &s->pics_state->pics[0])
 		irq += 8;
 	/*
-	 * We are dropping lock while calling ack notifiers since ack
-	 * notifier callbacks for assigned devices call into PIC recursively.
+	 * We are dropping lock while calling ack analtifiers since ack
+	 * analtifier callbacks for assigned devices call into PIC recursively.
 	 * Other interrupt may be delivered to PIC while lock is dropped but
 	 * it should be safe since PIC state is already updated at this stage.
 	 */
 	pic_unlock(s->pics_state);
-	kvm_notify_acked_irq(s->pics_state->kvm, SELECT_PIC(irq), irq);
+	kvm_analtify_acked_irq(s->pics_state->kvm, SELECT_PIC(irq), irq);
 	pic_lock(s->pics_state);
 }
 
@@ -116,7 +116,7 @@ static inline int pic_set_irq1(struct kvm_kpic_state *s, int irq, int level)
 
 /*
  * return the highest priority found in mask (highest = smallest
- * number). Return 8 if no irq
+ * number). Return 8 if anal irq
  */
 static inline int get_priority(struct kvm_kpic_state *s, int mask)
 {
@@ -130,7 +130,7 @@ static inline int get_priority(struct kvm_kpic_state *s, int mask)
 }
 
 /*
- * return the pic wanted interrupt. return -1 if none
+ * return the pic wanted interrupt. return -1 if analne
  */
 static int pic_get_irq(struct kvm_kpic_state *s)
 {
@@ -142,7 +142,7 @@ static int pic_get_irq(struct kvm_kpic_state *s)
 		return -1;
 	/*
 	 * compute current priority. If special fully nested mode on the
-	 * master, the IRQ coming from the slave is not taken into account
+	 * master, the IRQ coming from the slave is analt taken into account
 	 * for the priority computation.
 	 */
 	mask = s->isr;
@@ -214,7 +214,7 @@ void kvm_pic_clear_all(struct kvm_pic *s, int irq_source_id)
 }
 
 /*
- * acknowledge interrupt 'irq'
+ * ackanalwledge interrupt 'irq'
  */
 static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 {
@@ -235,7 +235,7 @@ static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 
 int kvm_pic_read_irq(struct kvm *kvm)
 {
-	int irq, irq2, intno;
+	int irq, irq2, intanal;
 	struct kvm_pic *s = kvm->arch.vpic;
 
 	s->output = 0;
@@ -253,20 +253,20 @@ int kvm_pic_read_irq(struct kvm *kvm)
 				 * spurious IRQ on slave controller
 				 */
 				irq2 = 7;
-			intno = s->pics[1].irq_base + irq2;
+			intanal = s->pics[1].irq_base + irq2;
 		} else
-			intno = s->pics[0].irq_base + irq;
+			intanal = s->pics[0].irq_base + irq;
 	} else {
 		/*
 		 * spurious IRQ on host controller
 		 */
 		irq = 7;
-		intno = s->pics[0].irq_base + irq;
+		intanal = s->pics[0].irq_base + irq;
 	}
 	pic_update_irq(s);
 	pic_unlock(s);
 
-	return intno;
+	return intanal;
 }
 
 static void kvm_pic_reset(struct kvm_kpic_state *s)
@@ -314,10 +314,10 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 		if (val & 0x10) {
 			s->init4 = val & 1;
 			if (val & 0x02)
-				pr_pic_unimpl("single mode not supported");
+				pr_pic_unimpl("single mode analt supported");
 			if (val & 0x08)
 				pr_pic_unimpl(
-						"level sensitive irq not supported");
+						"level sensitive irq analt supported");
 			kvm_pic_reset(s);
 		} else if (val & 0x08) {
 			if (val & 0x04)
@@ -360,18 +360,18 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 				pic_update_irq(s->pics_state);
 				break;
 			default:
-				break;	/* no operation */
+				break;	/* anal operation */
 			}
 		}
 	} else
 		switch (s->init_state) {
-		case 0: { /* normal mode */
+		case 0: { /* analrmal mode */
 			u8 imr_diff = s->imr ^ val,
 				off = (s == &s->pics_state->pics[0]) ? 0 : 8;
 			s->imr = val;
 			for (irq = 0; irq < PIC_NUM_PINS/2; irq++)
 				if (imr_diff & (1 << irq))
-					kvm_fire_mask_notifiers(
+					kvm_fire_mask_analtifiers(
 						s->pics_state->kvm,
 						SELECT_PIC(irq + off),
 						irq + off,
@@ -414,7 +414,7 @@ static u32 pic_poll_read(struct kvm_kpic_state *s, u32 addr1)
 		/* Bit 7 is 1, means there's an interrupt */
 		ret |= 0x80;
 	} else {
-		/* Bit 7 is 0, means there's no interrupt */
+		/* Bit 7 is 0, means there's anal interrupt */
 		ret = 0x07;
 		pic_update_irq(s->pics_state);
 	}
@@ -459,7 +459,7 @@ static int picdev_write(struct kvm_pic *s,
 	unsigned char data = *(unsigned char *)val;
 
 	if (len != 1) {
-		pr_pic_unimpl("non byte write\n");
+		pr_pic_unimpl("analn byte write\n");
 		return 0;
 	}
 	switch (addr) {
@@ -482,7 +482,7 @@ static int picdev_write(struct kvm_pic *s,
 		pic_unlock(s);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -494,7 +494,7 @@ static int picdev_read(struct kvm_pic *s,
 
 	if (len != 1) {
 		memset(val, 0, len);
-		pr_pic_unimpl("non byte read\n");
+		pr_pic_unimpl("analn byte read\n");
 		return 0;
 	}
 	switch (addr) {
@@ -513,7 +513,7 @@ static int picdev_read(struct kvm_pic *s,
 		pic_unlock(s);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -594,7 +594,7 @@ int kvm_pic_init(struct kvm *kvm)
 
 	s = kzalloc(sizeof(struct kvm_pic), GFP_KERNEL_ACCOUNT);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&s->lock);
 	s->kvm = kvm;
 	s->pics[0].elcr_mask = 0xf8;

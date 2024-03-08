@@ -69,15 +69,15 @@ static const struct of_device_id cm_match[] = {
 
 void cm_init(void)
 {
-	struct device_node *cm = of_find_matching_node(NULL, cm_match);
+	struct device_analde *cm = of_find_matching_analde(NULL, cm_match);
 
 	if (!cm) {
-		pr_crit("no core module node found in device tree\n");
+		pr_crit("anal core module analde found in device tree\n");
 		return;
 	}
 	cm_base = of_iomap(cm, 0);
 	if (!cm_base) {
-		pr_crit("could not remap core module\n");
+		pr_crit("could analt remap core module\n");
 		return;
 	}
 	cm_clear_irqs();
@@ -85,7 +85,7 @@ void cm_init(void)
 
 /*
  * We need to stop things allocating the low memory; ideally we need a
- * better implementation of GFP_DMA which does not assume that DMA-able
+ * better implementation of GFP_DMA which does analt assume that DMA-able
  * memory starts at zero.
  */
 void __init integrator_reserve(void)

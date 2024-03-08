@@ -7,7 +7,7 @@
  *		Checksumming functions for IPv6
  *
  * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.anal>
  *		Borrows very liberally from tcp.c and ip.c, see those
  *		files for more names.
  */
@@ -79,7 +79,7 @@ static inline __sum16 udp_v6_check(int len,
 	return csum_ipv6_magic(saddr, daddr, len, IPPROTO_UDP, base);
 }
 
-void udp6_set_csum(bool nocheck, struct sk_buff *skb,
+void udp6_set_csum(bool analcheck, struct sk_buff *skb,
 		   const struct in6_addr *saddr,
 		   const struct in6_addr *daddr, int len);
 

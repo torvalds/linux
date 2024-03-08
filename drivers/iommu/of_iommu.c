@@ -21,15 +21,15 @@ static int of_iommu_xlate(struct device *dev,
 			  struct of_phandle_args *iommu_spec)
 {
 	const struct iommu_ops *ops;
-	struct fwnode_handle *fwnode = &iommu_spec->np->fwnode;
+	struct fwanalde_handle *fwanalde = &iommu_spec->np->fwanalde;
 	int ret;
 
-	ops = iommu_ops_from_fwnode(fwnode);
+	ops = iommu_ops_from_fwanalde(fwanalde);
 	if ((ops && !ops->of_xlate) ||
 	    !of_device_is_available(iommu_spec->np))
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = iommu_fwspec_init(dev, &iommu_spec->np->fwnode, ops);
+	ret = iommu_fwspec_init(dev, &iommu_spec->np->fwanalde, ops);
 	if (ret)
 		return ret;
 	/*
@@ -41,14 +41,14 @@ static int of_iommu_xlate(struct device *dev,
 		return driver_deferred_probe_check_state(dev);
 
 	if (!try_module_get(ops->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = ops->of_xlate(dev, iommu_spec);
 	module_put(ops->owner);
 	return ret;
 }
 
-static int of_iommu_configure_dev_id(struct device_node *master_np,
+static int of_iommu_configure_dev_id(struct device_analde *master_np,
 				     struct device *dev,
 				     const u32 *id)
 {
@@ -62,21 +62,21 @@ static int of_iommu_configure_dev_id(struct device_node *master_np,
 		return err;
 
 	err = of_iommu_xlate(dev, &iommu_spec);
-	of_node_put(iommu_spec.np);
+	of_analde_put(iommu_spec.np);
 	return err;
 }
 
-static int of_iommu_configure_dev(struct device_node *master_np,
+static int of_iommu_configure_dev(struct device_analde *master_np,
 				  struct device *dev)
 {
 	struct of_phandle_args iommu_spec;
-	int err = -ENODEV, idx = 0;
+	int err = -EANALDEV, idx = 0;
 
 	while (!of_parse_phandle_with_args(master_np, "iommus",
 					   "#iommu-cells",
 					   idx, &iommu_spec)) {
 		err = of_iommu_xlate(dev, &iommu_spec);
-		of_node_put(iommu_spec.np);
+		of_analde_put(iommu_spec.np);
 		idx++;
 		if (err)
 			break;
@@ -87,7 +87,7 @@ static int of_iommu_configure_dev(struct device_node *master_np,
 
 struct of_pci_iommu_alias_info {
 	struct device *dev;
-	struct device_node *np;
+	struct device_analde *np;
 };
 
 static int of_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
@@ -98,7 +98,7 @@ static int of_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
 	return of_iommu_configure_dev_id(info->np, info->dev, &input_id);
 }
 
-static int of_iommu_configure_device(struct device_node *master_np,
+static int of_iommu_configure_device(struct device_analde *master_np,
 				     struct device *dev, const u32 *id)
 {
 	return (id) ? of_iommu_configure_dev_id(master_np, dev, id) :
@@ -108,18 +108,18 @@ static int of_iommu_configure_device(struct device_node *master_np,
 /*
  * Returns:
  *  0 on success, an iommu was configured
- *  -ENODEV if the device does not have any IOMMU
+ *  -EANALDEV if the device does analt have any IOMMU
  *  -EPROBEDEFER if probing should be tried again
- *  -errno fatal errors
+ *  -erranal fatal errors
  */
-int of_iommu_configure(struct device *dev, struct device_node *master_np,
+int of_iommu_configure(struct device *dev, struct device_analde *master_np,
 		       const u32 *id)
 {
 	struct iommu_fwspec *fwspec;
 	int err;
 
 	if (!master_np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Serialise to make dev->iommu stable under our potential fwspec */
 	mutex_lock(&iommu_probe_device_lock);
@@ -135,7 +135,7 @@ int of_iommu_configure(struct device *dev, struct device_node *master_np,
 
 	/*
 	 * We don't currently walk up the tree looking for a parent IOMMU.
-	 * See the `Notes:' section of
+	 * See the `Analtes:' section of
 	 * Documentation/devicetree/bindings/iommu/iommu.txt
 	 */
 	if (dev_is_pci(dev)) {
@@ -152,7 +152,7 @@ int of_iommu_configure(struct device *dev, struct device_node *master_np,
 	}
 	mutex_unlock(&iommu_probe_device_lock);
 
-	if (err == -ENODEV || err == -EPROBE_DEFER)
+	if (err == -EANALDEV || err == -EPROBE_DEFER)
 		return err;
 	if (err)
 		goto err_log;
@@ -175,7 +175,7 @@ iommu_resv_region_get_type(struct device *dev,
 	phys_addr_t end = start + length - 1;
 
 	/*
-	 * IOMMU regions without an associated physical region cannot be
+	 * IOMMU regions without an associated physical region cananalt be
 	 * mapped and are simply reservations.
 	 */
 	if (phys->start >= phys->end)
@@ -185,7 +185,7 @@ iommu_resv_region_get_type(struct device *dev,
 	if (start == phys->start && end == phys->end)
 		return IOMMU_RESV_DIRECT;
 
-	dev_warn(dev, "treating non-direct mapping [%pr] -> [%pap-%pap] as reservation\n", phys,
+	dev_warn(dev, "treating analn-direct mapping [%pr] -> [%pap-%pap] as reservation\n", phys,
 		 &start, &end);
 	return IOMMU_RESV_RESERVED;
 }
@@ -196,7 +196,7 @@ iommu_resv_region_get_type(struct device *dev,
  * @list: reserved region list
  *
  * IOMMU drivers can use this to implement their .get_resv_regions() callback
- * for memory regions attached to a device tree node. See the reserved-memory
+ * for memory regions attached to a device tree analde. See the reserved-memory
  * device tree bindings on how to use these:
  *
  *   Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
@@ -207,7 +207,7 @@ void of_iommu_get_resv_regions(struct device *dev, struct list_head *list)
 	struct of_phandle_iterator it;
 	int err;
 
-	of_for_each_phandle(&it, err, dev->of_node, "memory-region", NULL, 0) {
+	of_for_each_phandle(&it, err, dev->of_analde, "memory-region", NULL, 0) {
 		const __be32 *maps, *end;
 		struct resource phys;
 		int size;
@@ -217,43 +217,43 @@ void of_iommu_get_resv_regions(struct device *dev, struct list_head *list)
 		/*
 		 * The "reg" property is optional and can be omitted by reserved-memory regions
 		 * that represent reservations in the IOVA space, which are regions that should
-		 * not be mapped.
+		 * analt be mapped.
 		 */
-		if (of_find_property(it.node, "reg", NULL)) {
-			err = of_address_to_resource(it.node, 0, &phys);
+		if (of_find_property(it.analde, "reg", NULL)) {
+			err = of_address_to_resource(it.analde, 0, &phys);
 			if (err < 0) {
 				dev_err(dev, "failed to parse memory region %pOF: %d\n",
-					it.node, err);
+					it.analde, err);
 				continue;
 			}
 		}
 
-		maps = of_get_property(it.node, "iommu-addresses", &size);
+		maps = of_get_property(it.analde, "iommu-addresses", &size);
 		if (!maps)
 			continue;
 
 		end = maps + size / sizeof(__be32);
 
 		while (maps < end) {
-			struct device_node *np;
+			struct device_analde *np;
 			u32 phandle;
 
 			phandle = be32_to_cpup(maps++);
-			np = of_find_node_by_phandle(phandle);
+			np = of_find_analde_by_phandle(phandle);
 
-			if (np == dev->of_node) {
+			if (np == dev->of_analde) {
 				int prot = IOMMU_READ | IOMMU_WRITE;
 				struct iommu_resv_region *region;
 				enum iommu_resv_type type;
 				phys_addr_t iova;
 				size_t length;
 
-				if (of_dma_is_coherent(dev->of_node))
+				if (of_dma_is_coherent(dev->of_analde))
 					prot |= IOMMU_CACHE;
 
 				maps = of_translate_dma_region(np, maps, &iova, &length);
 				if (length == 0) {
-					dev_warn(dev, "Cannot reserve IOVA region of 0 size\n");
+					dev_warn(dev, "Cananalt reserve IOVA region of 0 size\n");
 					continue;
 				}
 				type = iommu_resv_region_get_type(dev, &phys, iova, length);

@@ -15,7 +15,7 @@
 #include <linux/numa.h>
 #include <linux/init.h>
 #include <linux/seqlock.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/pageblock-flags.h>
 #include <linux/page-flags-layout.h>
 #include <linux/atomic.h>
@@ -41,7 +41,7 @@
  * PAGE_ALLOC_COSTLY_ORDER is the order at which allocations are deemed
  * costly to service.  That is between allocation orders which should
  * coalesce naturally under reasonable reclaim pressure and those which
- * will not.
+ * will analt.
  */
 #define PAGE_ALLOC_COSTLY_ORDER 3
 
@@ -87,7 +87,7 @@ static inline bool is_migrate_movable(int mt)
 }
 
 /*
- * Check whether a migratetype can be merged with another migratetype.
+ * Check whether a migratetype can be merged with aanalther migratetype.
  *
  * It is only mergeable when it can fall back to other migratetypes for
  * allocation. See fallbacks[MIGRATE_TYPES][3] in page_alloc.c.
@@ -120,12 +120,12 @@ struct pglist_data;
 
 #ifdef CONFIG_NUMA
 enum numa_stat_item {
-	NUMA_HIT,		/* allocated in intended node */
-	NUMA_MISS,		/* allocated in non intended node */
+	NUMA_HIT,		/* allocated in intended analde */
+	NUMA_MISS,		/* allocated in analn intended analde */
 	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
 	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
-	NUMA_LOCAL,		/* allocation from local node */
-	NUMA_OTHER,		/* allocation from other node */
+	NUMA_LOCAL,		/* allocation from local analde */
+	NUMA_OTHER,		/* allocation from other analde */
 	NR_VM_NUMA_EVENT_ITEMS
 };
 #else
@@ -136,8 +136,8 @@ enum zone_stat_item {
 	/* First 128 byte cacheline (assuming 64 bit words) */
 	NR_FREE_PAGES,
 	NR_ZONE_LRU_BASE, /* Used only for compaction and reclaim retry */
-	NR_ZONE_INACTIVE_ANON = NR_ZONE_LRU_BASE,
-	NR_ZONE_ACTIVE_ANON,
+	NR_ZONE_INACTIVE_AANALN = NR_ZONE_LRU_BASE,
+	NR_ZONE_ACTIVE_AANALN,
 	NR_ZONE_INACTIVE_FILE,
 	NR_ZONE_ACTIVE_FILE,
 	NR_ZONE_UNEVICTABLE,
@@ -154,29 +154,29 @@ enum zone_stat_item {
 #endif
 	NR_VM_ZONE_STAT_ITEMS };
 
-enum node_stat_item {
+enum analde_stat_item {
 	NR_LRU_BASE,
-	NR_INACTIVE_ANON = NR_LRU_BASE, /* must match order of LRU_[IN]ACTIVE */
-	NR_ACTIVE_ANON,		/*  "     "     "   "       "         */
+	NR_INACTIVE_AANALN = NR_LRU_BASE, /* must match order of LRU_[IN]ACTIVE */
+	NR_ACTIVE_AANALN,		/*  "     "     "   "       "         */
 	NR_INACTIVE_FILE,	/*  "     "     "   "       "         */
 	NR_ACTIVE_FILE,		/*  "     "     "   "       "         */
 	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
 	NR_SLAB_RECLAIMABLE_B,
 	NR_SLAB_UNRECLAIMABLE_B,
-	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+	NR_ISOLATED_AANALN,	/* Temporary isolated pages from aanaln lru */
 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
-	WORKINGSET_NODES,
+	WORKINGSET_ANALDES,
 	WORKINGSET_REFAULT_BASE,
-	WORKINGSET_REFAULT_ANON = WORKINGSET_REFAULT_BASE,
+	WORKINGSET_REFAULT_AANALN = WORKINGSET_REFAULT_BASE,
 	WORKINGSET_REFAULT_FILE,
 	WORKINGSET_ACTIVATE_BASE,
-	WORKINGSET_ACTIVATE_ANON = WORKINGSET_ACTIVATE_BASE,
+	WORKINGSET_ACTIVATE_AANALN = WORKINGSET_ACTIVATE_BASE,
 	WORKINGSET_ACTIVATE_FILE,
 	WORKINGSET_RESTORE_BASE,
-	WORKINGSET_RESTORE_ANON = WORKINGSET_RESTORE_BASE,
+	WORKINGSET_RESTORE_AANALN = WORKINGSET_RESTORE_BASE,
 	WORKINGSET_RESTORE_FILE,
-	WORKINGSET_NODERECLAIM,
-	NR_ANON_MAPPED,	/* Mapped anonymous pages */
+	WORKINGSET_ANALDERECLAIM,
+	NR_AANALN_MAPPED,	/* Mapped aanalnymous pages */
 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
 			   only modified from process context */
 	NR_FILE_PAGES,
@@ -188,13 +188,13 @@ enum node_stat_item {
 	NR_SHMEM_PMDMAPPED,
 	NR_FILE_THPS,
 	NR_FILE_PMDMAPPED,
-	NR_ANON_THPS,
+	NR_AANALN_THPS,
 	NR_VMSCAN_WRITE,
 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
 	NR_DIRTIED,		/* page dirtyings since bootup */
 	NR_WRITTEN,		/* page writings since bootup */
 	NR_THROTTLED_WRITTEN,	/* NR_WRITTEN while reclaim throttled */
-	NR_KERNEL_MISC_RECLAIMABLE,	/* reclaimable non-slab kernel pages */
+	NR_KERNEL_MISC_RECLAIMABLE,	/* reclaimable analn-slab kernel pages */
 	NR_FOLL_PIN_ACQUIRED,	/* via: pin_user_page(), gup flag: FOLL_PIN */
 	NR_FOLL_PIN_RELEASED,	/* pages returned via unpin_user_page() */
 	NR_KERNEL_STACK_KB,	/* measured in KiB */
@@ -214,20 +214,20 @@ enum node_stat_item {
 	PGDEMOTE_KSWAPD,
 	PGDEMOTE_DIRECT,
 	PGDEMOTE_KHUGEPAGED,
-	NR_VM_NODE_STAT_ITEMS
+	NR_VM_ANALDE_STAT_ITEMS
 };
 
 /*
  * Returns true if the item should be printed in THPs (/proc/vmstat
- * currently prints number of anon, file and shmem THPs. But the item
+ * currently prints number of aanaln, file and shmem THPs. But the item
  * is charged in pages).
  */
-static __always_inline bool vmstat_item_print_in_thp(enum node_stat_item item)
+static __always_inline bool vmstat_item_print_in_thp(enum analde_stat_item item)
 {
 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
 		return false;
 
-	return item == NR_ANON_THPS ||
+	return item == NR_AANALN_THPS ||
 	       item == NR_FILE_THPS ||
 	       item == NR_SHMEM_THPS ||
 	       item == NR_SHMEM_PMDMAPPED ||
@@ -242,7 +242,7 @@ static __always_inline bool vmstat_item_print_in_thp(enum node_stat_item item)
 static __always_inline bool vmstat_item_in_bytes(int idx)
 {
 	/*
-	 * Global and per-node slab counters track slab pages.
+	 * Global and per-analde slab counters track slab pages.
 	 * It's expected that changes are multiples of PAGE_SIZE.
 	 * Internally values are stored in pages.
 	 *
@@ -258,7 +258,7 @@ static __always_inline bool vmstat_item_in_bytes(int idx)
  * We do arithmetic on the LRU lists in various places in the code,
  * so it is important to keep the active lists LRU_ACTIVE higher in
  * the array than the corresponding inactive lists, and to keep
- * the *_FILE lists LRU_FILE higher than the corresponding _ANON lists.
+ * the *_FILE lists LRU_FILE higher than the corresponding _AANALN lists.
  *
  * This has to be kept in sync with the statistics in zone_stat_item
  * above and the descriptions in vmstat_text in mm/vmstat.c
@@ -268,8 +268,8 @@ static __always_inline bool vmstat_item_in_bytes(int idx)
 #define LRU_FILE 2
 
 enum lru_list {
-	LRU_INACTIVE_ANON = LRU_BASE,
-	LRU_ACTIVE_ANON = LRU_BASE + LRU_ACTIVE,
+	LRU_INACTIVE_AANALN = LRU_BASE,
+	LRU_ACTIVE_AANALN = LRU_BASE + LRU_ACTIVE,
 	LRU_INACTIVE_FILE = LRU_BASE + LRU_FILE,
 	LRU_ACTIVE_FILE = LRU_BASE + LRU_FILE + LRU_ACTIVE,
 	LRU_UNEVICTABLE,
@@ -279,7 +279,7 @@ enum lru_list {
 enum vmscan_throttle_state {
 	VMSCAN_THROTTLE_WRITEBACK,
 	VMSCAN_THROTTLE_ISOLATED,
-	VMSCAN_THROTTLE_NOPROGRESS,
+	VMSCAN_THROTTLE_ANALPROGRESS,
 	VMSCAN_THROTTLE_CONGESTED,
 	NR_VMSCAN_THROTTLE,
 };
@@ -295,36 +295,36 @@ static inline bool is_file_lru(enum lru_list lru)
 
 static inline bool is_active_lru(enum lru_list lru)
 {
-	return (lru == LRU_ACTIVE_ANON || lru == LRU_ACTIVE_FILE);
+	return (lru == LRU_ACTIVE_AANALN || lru == LRU_ACTIVE_FILE);
 }
 
-#define WORKINGSET_ANON 0
+#define WORKINGSET_AANALN 0
 #define WORKINGSET_FILE 1
-#define ANON_AND_FILE 2
+#define AANALN_AND_FILE 2
 
 enum lruvec_flags {
 	/*
 	 * An lruvec has many dirty pages backed by a congested BDI:
 	 * 1. LRUVEC_CGROUP_CONGESTED is set by cgroup-level reclaim.
 	 *    It can be cleared by cgroup reclaim or kswapd.
-	 * 2. LRUVEC_NODE_CONGESTED is set by kswapd node-level reclaim.
+	 * 2. LRUVEC_ANALDE_CONGESTED is set by kswapd analde-level reclaim.
 	 *    It can only be cleared by kswapd.
 	 *
 	 * Essentially, kswapd can unthrottle an lruvec throttled by cgroup
-	 * reclaim, but not vice versa. This only applies to the root cgroup.
+	 * reclaim, but analt vice versa. This only applies to the root cgroup.
 	 * The goal is to prevent cgroup reclaim on the root cgroup (e.g.
-	 * memory.reclaim) to unthrottle an unbalanced node (that was throttled
+	 * memory.reclaim) to unthrottle an unbalanced analde (that was throttled
 	 * by kswapd).
 	 */
 	LRUVEC_CGROUP_CONGESTED,
-	LRUVEC_NODE_CONGESTED,
+	LRUVEC_ANALDE_CONGESTED,
 };
 
 #endif /* !__GENERATING_BOUNDS_H */
 
 /*
  * Evictable pages are divided into multiple generations. The youngest and the
- * oldest generation numbers, max_seq and min_seq, are monotonically increasing.
+ * oldest generation numbers, max_seq and min_seq, are moanaltonically increasing.
  * They form a sliding window of a variable size [MIN_NR_GENS, MAX_NR_GENS]. An
  * offset within MAX_NR_GENS, i.e., gen, indexes the LRU list of the
  * corresponding generation. The gen counter in folio->flags stores gen+1 while
@@ -341,8 +341,8 @@ enum lruvec_flags {
  * lru_gen_is_active().
  *
  * PG_active is always cleared while a page is on one of lrugen->folios[] so
- * that the aging needs not to worry about it. And it's set again when a page
- * considered active is isolated for non-reclaiming purposes, e.g., migration.
+ * that the aging needs analt to worry about it. And it's set again when a page
+ * considered active is isolated for analn-reclaiming purposes, e.g., migration.
  * See lru_gen_add_folio() and lru_gen_del_folio().
  *
  * MAX_NR_GENS is set to 4 so that the multi-gen LRU can support twice the
@@ -386,14 +386,14 @@ struct page_vma_mapped_walk;
 #ifdef CONFIG_LRU_GEN
 
 enum {
-	LRU_GEN_ANON,
+	LRU_GEN_AANALN,
 	LRU_GEN_FILE,
 };
 
 enum {
 	LRU_GEN_CORE,
 	LRU_GEN_MM_WALK,
-	LRU_GEN_NONLEAF_YOUNG,
+	LRU_GEN_ANALNLEAF_YOUNG,
 	NR_LRU_GEN_CAPS
 };
 
@@ -408,13 +408,13 @@ enum {
 #endif
 
 /*
- * The youngest generation number is stored in max_seq for both anon and file
+ * The youngest generation number is stored in max_seq for both aanaln and file
  * types as they are aged on an equal footing. The oldest generation numbers are
- * stored in min_seq[] separately for anon and file types as clean file pages
+ * stored in min_seq[] separately for aanaln and file types as clean file pages
  * can be evicted regardless of swap constraints.
  *
- * Normally anon and file min_seq are in sync. But if swapping is constrained,
- * e.g., out of swap space, file min_seq is allowed to advance and leave anon
+ * Analrmally aanaln and file min_seq are in sync. But if swapping is constrained,
+ * e.g., out of swap space, file min_seq is allowed to advance and leave aanaln
  * min_seq behind.
  *
  * The number of pages in each generation is eventually consistent and therefore
@@ -424,39 +424,39 @@ struct lru_gen_folio {
 	/* the aging increments the youngest generation number */
 	unsigned long max_seq;
 	/* the eviction increments the oldest generation numbers */
-	unsigned long min_seq[ANON_AND_FILE];
+	unsigned long min_seq[AANALN_AND_FILE];
 	/* the birth time of each generation in jiffies */
 	unsigned long timestamps[MAX_NR_GENS];
 	/* the multi-gen LRU lists, lazily sorted on eviction */
-	struct list_head folios[MAX_NR_GENS][ANON_AND_FILE][MAX_NR_ZONES];
+	struct list_head folios[MAX_NR_GENS][AANALN_AND_FILE][MAX_NR_ZONES];
 	/* the multi-gen LRU sizes, eventually consistent */
-	long nr_pages[MAX_NR_GENS][ANON_AND_FILE][MAX_NR_ZONES];
+	long nr_pages[MAX_NR_GENS][AANALN_AND_FILE][MAX_NR_ZONES];
 	/* the exponential moving average of refaulted */
-	unsigned long avg_refaulted[ANON_AND_FILE][MAX_NR_TIERS];
+	unsigned long avg_refaulted[AANALN_AND_FILE][MAX_NR_TIERS];
 	/* the exponential moving average of evicted+protected */
-	unsigned long avg_total[ANON_AND_FILE][MAX_NR_TIERS];
+	unsigned long avg_total[AANALN_AND_FILE][MAX_NR_TIERS];
 	/* the first tier doesn't need protection, hence the minus one */
-	unsigned long protected[NR_HIST_GENS][ANON_AND_FILE][MAX_NR_TIERS - 1];
+	unsigned long protected[NR_HIST_GENS][AANALN_AND_FILE][MAX_NR_TIERS - 1];
 	/* can be modified without holding the LRU lock */
-	atomic_long_t evicted[NR_HIST_GENS][ANON_AND_FILE][MAX_NR_TIERS];
-	atomic_long_t refaulted[NR_HIST_GENS][ANON_AND_FILE][MAX_NR_TIERS];
+	atomic_long_t evicted[NR_HIST_GENS][AANALN_AND_FILE][MAX_NR_TIERS];
+	atomic_long_t refaulted[NR_HIST_GENS][AANALN_AND_FILE][MAX_NR_TIERS];
 	/* whether the multi-gen LRU is enabled */
 	bool enabled;
 	/* the memcg generation this lru_gen_folio belongs to */
 	u8 gen;
 	/* the list segment this lru_gen_folio belongs to */
 	u8 seg;
-	/* per-node lru_gen_folio list for global reclaim */
-	struct hlist_nulls_node list;
+	/* per-analde lru_gen_folio list for global reclaim */
+	struct hlist_nulls_analde list;
 };
 
 enum {
 	MM_LEAF_TOTAL,		/* total leaf entries */
 	MM_LEAF_OLD,		/* old leaf entries */
 	MM_LEAF_YOUNG,		/* young leaf entries */
-	MM_NONLEAF_TOTAL,	/* total non-leaf entries */
-	MM_NONLEAF_FOUND,	/* non-leaf entries found in Bloom filters */
-	MM_NONLEAF_ADDED,	/* non-leaf entries added to Bloom filters */
+	MM_ANALNLEAF_TOTAL,	/* total analn-leaf entries */
+	MM_ANALNLEAF_FOUND,	/* analn-leaf entries found in Bloom filters */
+	MM_ANALNLEAF_ADDED,	/* analn-leaf entries added to Bloom filters */
 	NR_MM_STATS
 };
 
@@ -484,7 +484,7 @@ struct lru_gen_mm_walk {
 	/* the next address within an mm to scan */
 	unsigned long next_addr;
 	/* to batch promoted pages */
-	int nr_pages[MAX_NR_GENS][ANON_AND_FILE][MAX_NR_ZONES];
+	int nr_pages[MAX_NR_GENS][AANALN_AND_FILE][MAX_NR_ZONES];
 	/* to batch the mm stats */
 	int mm_stats[NR_MM_STATS];
 	/* total batched items */
@@ -494,14 +494,14 @@ struct lru_gen_mm_walk {
 };
 
 /*
- * For each node, memcgs are divided into two generations: the old and the
+ * For each analde, memcgs are divided into two generations: the old and the
  * young. For each generation, memcgs are randomly sharded into multiple bins
  * to improve scalability. For each bin, the hlist_nulls is virtually divided
  * into three segments: the head, the tail and the default.
  *
  * An onlining memcg is added to the tail of a random bin in the old generation.
  * The eviction starts at the head of a random bin in the old generation. The
- * per-node memcg generation counter, whose reminder (mod MEMCG_NR_GENS) indexes
+ * per-analde memcg generation counter, whose reminder (mod MEMCG_NR_GENS) indexes
  * the old generation, is incremented when all its bins become empty.
  *
  * There are four operations:
@@ -527,23 +527,23 @@ struct lru_gen_mm_walk {
  * 6. Finishing the aging on the eviction path, which triggers MEMCG_LRU_YOUNG;
  * 7. Offlining a memcg, which triggers MEMCG_LRU_OLD.
  *
- * Notes:
+ * Analtes:
  * 1. Memcg LRU only applies to global reclaim, and the round-robin incrementing
  *    of their max_seq counters ensures the eventual fairness to all eligible
  *    memcgs. For memcg reclaim, it still relies on mem_cgroup_iter().
  * 2. There are only two valid generations: old (seq) and young (seq+1).
  *    MEMCG_NR_GENS is set to three so that when reading the generation counter
- *    locklessly, a stale value (seq-1) does not wraparound to young.
+ *    locklessly, a stale value (seq-1) does analt wraparound to young.
  */
 #define MEMCG_NR_GENS	3
 #define MEMCG_NR_BINS	8
 
 struct lru_gen_memcg {
-	/* the per-node memcg generation counter */
+	/* the per-analde memcg generation counter */
 	unsigned long seq;
-	/* each memcg has one lru_gen_folio per node */
+	/* each memcg has one lru_gen_folio per analde */
 	unsigned long nr_memcgs[MEMCG_NR_GENS];
-	/* per-node lru_gen_folio list for global reclaim */
+	/* per-analde lru_gen_folio list for global reclaim */
 	struct hlist_nulls_head	fifo[MEMCG_NR_GENS][MEMCG_NR_BINS];
 	/* protects the above */
 	spinlock_t lock;
@@ -605,16 +605,16 @@ struct lruvec {
 	/* per lruvec lru_lock for memcg */
 	spinlock_t			lru_lock;
 	/*
-	 * These track the cost of reclaiming one LRU - file or anon -
+	 * These track the cost of reclaiming one LRU - file or aanaln -
 	 * over the other. As the observed cost of reclaiming one LRU
 	 * increases, the reclaim scan balance tips toward the other.
 	 */
-	unsigned long			anon_cost;
+	unsigned long			aanaln_cost;
 	unsigned long			file_cost;
-	/* Non-resident age, driven by LRU movement */
-	atomic_long_t			nonresident_age;
+	/* Analn-resident age, driven by LRU movement */
+	atomic_long_t			analnresident_age;
 	/* Refaults at the time of last reclaim cycle */
-	unsigned long			refaults[ANON_AND_FILE];
+	unsigned long			refaults[AANALN_AND_FILE];
 	/* Various lruvec state flags (enum lruvec_flags) */
 	unsigned long			flags;
 #ifdef CONFIG_LRU_GEN
@@ -631,7 +631,7 @@ struct lruvec {
 	struct zswap_lruvec_state zswap_lruvec_state;
 };
 
-/* Isolate for asynchronous migration */
+/* Isolate for asynchroanalus migration */
 #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x4)
 /* Isolate unevictable pages */
 #define ISOLATE_UNEVICTABLE	((__force isolate_mode_t)0x8)
@@ -649,8 +649,8 @@ enum zone_watermarks {
 
 /*
  * One per migratetype for each PAGE_ALLOC_COSTLY_ORDER. One additional list
- * for THP which will usually be GFP_MOVABLE. Even if it is another type,
- * it should not contribute to serious fragmentation causing THP allocation
+ * for THP which will usually be GFP_MOVABLE. Even if it is aanalther type,
+ * it should analt contribute to serious fragmentation causing THP allocation
  * failures.
  */
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -675,7 +675,7 @@ enum zone_watermarks {
  *
  * PCPF_FREE_HIGH_BATCH: preserve "pcp->batch" pages in PCP before
  * draining PCP for consecutive high-order pages freeing without
- * allocation if data cache slice of CPU is large enough.  To reduce
+ * allocation if data cache slice of CPU is large eanalugh.  To reduce
  * zone lock contention and keep cache-hot pages reusing.
  */
 #define	PCPF_PREV_FREE_HIGH_ORDER	BIT(0)
@@ -714,17 +714,17 @@ struct per_cpu_zonestat {
 #endif
 };
 
-struct per_cpu_nodestat {
+struct per_cpu_analdestat {
 	s8 stat_threshold;
-	s8 vm_node_stat_diff[NR_VM_NODE_STAT_ITEMS];
+	s8 vm_analde_stat_diff[NR_VM_ANALDE_STAT_ITEMS];
 };
 
 #endif /* !__GENERATING_BOUNDS.H */
 
 enum zone_type {
 	/*
-	 * ZONE_DMA and ZONE_DMA32 are used when there are peripherals not able
-	 * to DMA to all of the addressable memory (ZONE_NORMAL).
+	 * ZONE_DMA and ZONE_DMA32 are used when there are peripherals analt able
+	 * to DMA to all of the addressable memory (ZONE_ANALRMAL).
 	 * On architectures where this area covers the whole 32 bit address
 	 * space ZONE_DMA32 is used. ZONE_DMA is left for the ones with smaller
 	 * DMA addressing constraints. This distinction is important as a 32bit
@@ -739,11 +739,11 @@ enum zone_type {
 	ZONE_DMA32,
 #endif
 	/*
-	 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
-	 * performed on pages in ZONE_NORMAL if the DMA devices support
+	 * Analrmal addressable memory is in ZONE_ANALRMAL. DMA operations can be
+	 * performed on pages in ZONE_ANALRMAL if the DMA devices support
 	 * transfers to all addressable memory.
 	 */
-	ZONE_NORMAL,
+	ZONE_ANALRMAL,
 #ifdef CONFIG_HIGHMEM
 	/*
 	 * A memory area that is only addressable by the kernel through
@@ -756,14 +756,14 @@ enum zone_type {
 	ZONE_HIGHMEM,
 #endif
 	/*
-	 * ZONE_MOVABLE is similar to ZONE_NORMAL, except that it contains
+	 * ZONE_MOVABLE is similar to ZONE_ANALRMAL, except that it contains
 	 * movable pages with few exceptional cases described below. Main use
 	 * cases for ZONE_MOVABLE are to make memory offlining/unplug more
 	 * likely to succeed, and to locally limit unmovable allocations - e.g.,
-	 * to increase the number of THP/huge pages. Notable special cases are:
+	 * to increase the number of THP/huge pages. Analtable special cases are:
 	 *
 	 * 1. Pinned pages: (long-term) pinning of movable pages might
-	 *    essentially turn such pages unmovable. Therefore, we do not allow
+	 *    essentially turn such pages unmovable. Therefore, we do analt allow
 	 *    pinning long-term pages in ZONE_MOVABLE. When pages are pinned and
 	 *    faulted, they come from the right zone right away. However, it is
 	 *    still possible that address space already has pages in
@@ -778,30 +778,30 @@ enum zone_type {
 	 *    for example, if we have sections that are only partially
 	 *    populated. Memory offlining and allocations fail early.
 	 * 4. PG_hwpoison pages: while poisoned pages can be skipped during
-	 *    memory offlining, such pages cannot be allocated.
+	 *    memory offlining, such pages cananalt be allocated.
 	 * 5. Unmovable PG_offline pages: in paravirtualized environments,
 	 *    hotplugged memory blocks might only partially be managed by the
 	 *    buddy (e.g., via XEN-balloon, Hyper-V balloon, virtio-mem). The
-	 *    parts not manged by the buddy are unmovable PG_offline pages. In
+	 *    parts analt manged by the buddy are unmovable PG_offline pages. In
 	 *    some cases (virtio-mem), such pages can be skipped during
-	 *    memory offlining, however, cannot be moved/allocated. These
+	 *    memory offlining, however, cananalt be moved/allocated. These
 	 *    techniques might use alloc_contig_range() to hide previously
 	 *    exposed pages from the buddy again (e.g., to implement some sort
 	 *    of memory unplug in virtio-mem).
 	 * 6. ZERO_PAGE(0), kernelcore/movablecore setups might create
 	 *    situations where ZERO_PAGE(0) which is allocated differently
 	 *    on different platforms may end up in a movable zone. ZERO_PAGE(0)
-	 *    cannot be migrated.
+	 *    cananalt be migrated.
 	 * 7. Memory-hotplug: when using memmap_on_memory and onlining the
 	 *    memory to the MOVABLE zone, the vmemmap pages are also placed in
-	 *    such zone. Such pages cannot be really moved around as they are
+	 *    such zone. Such pages cananalt be really moved around as they are
 	 *    self-stored in the range, but they are treated as movable when
 	 *    the range they describe is about to be offlined.
 	 *
-	 * In general, no unmovable allocations that degrade memory offlining
+	 * In general, anal unmovable allocations that degrade memory offlining
 	 * should end up in ZONE_MOVABLE. Allocators (like alloc_contig_range())
 	 * have to expect that migrating pages in ZONE_MOVABLE can fail (even
-	 * if has_unmovable_pages() states that there are no unmovable pages,
+	 * if has_unmovable_pages() states that there are anal unmovable pages,
 	 * there can be false negatives).
 	 */
 	ZONE_MOVABLE,
@@ -826,7 +826,7 @@ struct zone {
 	unsigned long nr_reserved_highatomic;
 
 	/*
-	 * We don't know if the memory that we're going to allocate will be
+	 * We don't kanalw if the memory that we're going to allocate will be
 	 * freeable or/and it will be released eventually, so to avoid totally
 	 * wasting several GB of ram we must reserve some of the lower zone
 	 * memory (otherwise we risk to run OOM on the lower zones despite
@@ -837,7 +837,7 @@ struct zone {
 	long lowmem_reserve[MAX_NR_ZONES];
 
 #ifdef CONFIG_NUMA
-	int node;
+	int analde;
 #endif
 	struct pglist_data	*zone_pgdat;
 	struct per_cpu_pages	__percpu *per_cpu_pageset;
@@ -990,7 +990,7 @@ struct zone {
 	/* Zone statistics */
 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
 	atomic_long_t		vm_numa_event[NR_VM_NUMA_EVENT_ITEMS];
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 enum pgdat_flags {
 	PGDAT_DIRTY,			/* reclaim scanning has recently found
@@ -1048,44 +1048,44 @@ static inline bool zone_is_empty(struct zone *zone)
 #ifndef BUILD_VDSO32_64
 /*
  * The zone field is never updated after free_area_init_core()
- * sets it, so none of the operations on it need to be atomic.
+ * sets it, so analne of the operations on it need to be atomic.
  */
 
-/* Page flags: | [SECTION] | [NODE] | ZONE | [LAST_CPUPID] | ... | FLAGS | */
+/* Page flags: | [SECTION] | [ANALDE] | ZONE | [LAST_CPUPID] | ... | FLAGS | */
 #define SECTIONS_PGOFF		((sizeof(unsigned long)*8) - SECTIONS_WIDTH)
-#define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
-#define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
+#define ANALDES_PGOFF		(SECTIONS_PGOFF - ANALDES_WIDTH)
+#define ZONES_PGOFF		(ANALDES_PGOFF - ZONES_WIDTH)
 #define LAST_CPUPID_PGOFF	(ZONES_PGOFF - LAST_CPUPID_WIDTH)
 #define KASAN_TAG_PGOFF		(LAST_CPUPID_PGOFF - KASAN_TAG_WIDTH)
 #define LRU_GEN_PGOFF		(KASAN_TAG_PGOFF - LRU_GEN_WIDTH)
 #define LRU_REFS_PGOFF		(LRU_GEN_PGOFF - LRU_REFS_WIDTH)
 
 /*
- * Define the bit shifts to access each section.  For non-existent
+ * Define the bit shifts to access each section.  For analn-existent
  * sections we define the shift as 0; that plus a 0 mask ensures
  * the compiler will optimise away reference to them.
  */
 #define SECTIONS_PGSHIFT	(SECTIONS_PGOFF * (SECTIONS_WIDTH != 0))
-#define NODES_PGSHIFT		(NODES_PGOFF * (NODES_WIDTH != 0))
+#define ANALDES_PGSHIFT		(ANALDES_PGOFF * (ANALDES_WIDTH != 0))
 #define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_WIDTH != 0))
 #define LAST_CPUPID_PGSHIFT	(LAST_CPUPID_PGOFF * (LAST_CPUPID_WIDTH != 0))
 #define KASAN_TAG_PGSHIFT	(KASAN_TAG_PGOFF * (KASAN_TAG_WIDTH != 0))
 
-/* NODE:ZONE or SECTION:ZONE is used to ID a zone for the buddy allocator */
-#ifdef NODE_NOT_IN_PAGE_FLAGS
+/* ANALDE:ZONE or SECTION:ZONE is used to ID a zone for the buddy allocator */
+#ifdef ANALDE_ANALT_IN_PAGE_FLAGS
 #define ZONEID_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
 #define ZONEID_PGOFF		((SECTIONS_PGOFF < ZONES_PGOFF) ? \
 						SECTIONS_PGOFF : ZONES_PGOFF)
 #else
-#define ZONEID_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
-#define ZONEID_PGOFF		((NODES_PGOFF < ZONES_PGOFF) ? \
-						NODES_PGOFF : ZONES_PGOFF)
+#define ZONEID_SHIFT		(ANALDES_SHIFT + ZONES_SHIFT)
+#define ZONEID_PGOFF		((ANALDES_PGOFF < ZONES_PGOFF) ? \
+						ANALDES_PGOFF : ZONES_PGOFF)
 #endif
 
 #define ZONEID_PGSHIFT		(ZONEID_PGOFF * (ZONEID_SHIFT != 0))
 
 #define ZONES_MASK		((1UL << ZONES_WIDTH) - 1)
-#define NODES_MASK		((1UL << NODES_WIDTH) - 1)
+#define ANALDES_MASK		((1UL << ANALDES_WIDTH) - 1)
 #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
 #define LAST_CPUPID_MASK	((1UL << LAST_CPUPID_SHIFT) - 1)
 #define KASAN_TAG_MASK		((1UL << KASAN_TAG_WIDTH) - 1)
@@ -1109,11 +1109,11 @@ static inline bool is_zone_device_page(const struct page *page)
 }
 
 /*
- * Consecutive zone device pages should not be merged into the same sgl
+ * Consecutive zone device pages should analt be merged into the same sgl
  * or bvec segment with other types of pages or if they belong to different
- * pgmaps. Otherwise getting the pgmap of a given segment is not possible
+ * pgmaps. Otherwise getting the pgmap of a given segment is analt possible
  * without scanning the entire segment. This helper returns true either if
- * both pages are not zone device pages or both pages are zone device pages
+ * both pages are analt zone device pages or both pages are zone device pages
  * with the same pgmap.
  */
 static inline bool zone_device_pages_have_same_pgmap(const struct page *a,
@@ -1157,7 +1157,7 @@ static inline bool folio_is_zone_movable(const struct folio *folio)
 #endif
 
 /*
- * Return true if [start_pfn, start_pfn + nr_pages) range has a non-empty
+ * Return true if [start_pfn, start_pfn + nr_pages) range has a analn-empty
  * intersection with the given zone
  */
 static inline bool zone_intersects(struct zone *zone,
@@ -1180,16 +1180,16 @@ static inline bool zone_intersects(struct zone *zone,
 #define DEF_PRIORITY 12
 
 /* Maximum number of zones on a zonelist */
-#define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
+#define MAX_ZONES_PER_ZONELIST (MAX_NUMANALDES * MAX_NR_ZONES)
 
 enum {
 	ZONELIST_FALLBACK,	/* zonelist with fallback */
 #ifdef CONFIG_NUMA
 	/*
 	 * The NUMA zonelists are doubled because we need zonelists that
-	 * restrict the allocations to a single node for __GFP_THISNODE.
+	 * restrict the allocations to a single analde for __GFP_THISANALDE.
 	 */
-	ZONELIST_NOFALLBACK,	/* zonelist without fallback (__GFP_THISNODE) */
+	ZONELIST_ANALFALLBACK,	/* zonelist without fallback (__GFP_THISANALDE) */
 #endif
 	MAX_ZONELISTS
 };
@@ -1215,7 +1215,7 @@ struct zoneref {
  *
  * zonelist_zone()	- Return the struct zone * for an entry in _zonerefs
  * zonelist_zone_idx()	- Return the index of the zone for an entry
- * zonelist_node_idx()	- Return the index of the node for an entry
+ * zonelist_analde_idx()	- Return the index of the analde for an entry
  */
 struct zonelist {
 	struct zoneref _zonerefs[MAX_ZONES_PER_ZONELIST + 1];
@@ -1238,12 +1238,12 @@ struct deferred_split {
 
 #ifdef CONFIG_MEMORY_FAILURE
 /*
- * Per NUMA node memory failure handling statistics.
+ * Per NUMA analde memory failure handling statistics.
  */
 struct memory_failure_stats {
 	/*
 	 * Number of raw pages poisoned.
-	 * Cases not accounted: memory outside kernel control, offline page,
+	 * Cases analt accounted: memory outside kernel control, offline page,
 	 * arch-specific memory_failure (SGX), hwpoison_filter() filtered
 	 * error events, and unpoison actions from hwpoison_unpoison.
 	 */
@@ -1251,10 +1251,10 @@ struct memory_failure_stats {
 	/*
 	 * Recovery results of poisoned raw pages handled by memory_failure,
 	 * in sync with mf_result.
-	 * total = ignored + failed + delayed + recovered.
-	 * total * PAGE_SIZE * #nodes = /proc/meminfo/HardwareCorrupted.
+	 * total = iganalred + failed + delayed + recovered.
+	 * total * PAGE_SIZE * #analdes = /proc/meminfo/HardwareCorrupted.
 	 */
-	unsigned long ignored;
+	unsigned long iganalred;
 	unsigned long failed;
 	unsigned long delayed;
 	unsigned long recovered;
@@ -1262,7 +1262,7 @@ struct memory_failure_stats {
 #endif
 
 /*
- * On NUMA machines, each NUMA node would have a pg_data_t to describe
+ * On NUMA machines, each NUMA analde would have a pg_data_t to describe
  * it's memory layout. On UMA machines there is a single pglist_data which
  * describes the whole memory.
  *
@@ -1271,46 +1271,46 @@ struct memory_failure_stats {
  */
 typedef struct pglist_data {
 	/*
-	 * node_zones contains just the zones for THIS node. Not all of the
+	 * analde_zones contains just the zones for THIS analde. Analt all of the
 	 * zones may be populated, but it is the full list. It is referenced by
-	 * this node's node_zonelists as well as other node's node_zonelists.
+	 * this analde's analde_zonelists as well as other analde's analde_zonelists.
 	 */
-	struct zone node_zones[MAX_NR_ZONES];
+	struct zone analde_zones[MAX_NR_ZONES];
 
 	/*
-	 * node_zonelists contains references to all zones in all nodes.
-	 * Generally the first zones will be references to this node's
-	 * node_zones.
+	 * analde_zonelists contains references to all zones in all analdes.
+	 * Generally the first zones will be references to this analde's
+	 * analde_zones.
 	 */
-	struct zonelist node_zonelists[MAX_ZONELISTS];
+	struct zonelist analde_zonelists[MAX_ZONELISTS];
 
-	int nr_zones; /* number of populated zones in this node */
+	int nr_zones; /* number of populated zones in this analde */
 #ifdef CONFIG_FLATMEM	/* means !SPARSEMEM */
-	struct page *node_mem_map;
+	struct page *analde_mem_map;
 #ifdef CONFIG_PAGE_EXTENSION
-	struct page_ext *node_page_ext;
+	struct page_ext *analde_page_ext;
 #endif
 #endif
 #if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
 	/*
-	 * Must be held any time you expect node_start_pfn,
-	 * node_present_pages, node_spanned_pages or nr_zones to stay constant.
+	 * Must be held any time you expect analde_start_pfn,
+	 * analde_present_pages, analde_spanned_pages or nr_zones to stay constant.
 	 * Also synchronizes pgdat->first_deferred_pfn during deferred page
 	 * init.
 	 *
 	 * pgdat_resize_lock() and pgdat_resize_unlock() are provided to
-	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG
+	 * manipulate analde_size_lock without checking for CONFIG_MEMORY_HOTPLUG
 	 * or CONFIG_DEFERRED_STRUCT_PAGE_INIT.
 	 *
 	 * Nests above zone->lock and zone->span_seqlock
 	 */
-	spinlock_t node_size_lock;
+	spinlock_t analde_size_lock;
 #endif
-	unsigned long node_start_pfn;
-	unsigned long node_present_pages; /* total number of physical pages */
-	unsigned long node_spanned_pages; /* total size of physical page
+	unsigned long analde_start_pfn;
+	unsigned long analde_present_pages; /* total number of physical pages */
+	unsigned long analde_spanned_pages; /* total size of physical page
 					     range, including holes */
-	int node_id;
+	int analde_id;
 	wait_queue_head_t kswapd_wait;
 	wait_queue_head_t pfmemalloc_wait;
 
@@ -1337,14 +1337,14 @@ typedef struct pglist_data {
 	bool proactive_compact_trigger;
 #endif
 	/*
-	 * This is a per-node reserve of pages that are not available
+	 * This is a per-analde reserve of pages that are analt available
 	 * to userspace allocations.
 	 */
 	unsigned long		totalreserve_pages;
 
 #ifdef CONFIG_NUMA
 	/*
-	 * node reclaim becomes active if more unmapped pages exist.
+	 * analde reclaim becomes active if more unmapped pages exist.
 	 */
 	unsigned long		min_unmapped_pages;
 	unsigned long		min_slab_pages;
@@ -1383,7 +1383,7 @@ typedef struct pglist_data {
 	/* Fields commonly accessed by the page reclaim scanner */
 
 	/*
-	 * NOTE: THIS IS UNUSED IF MEMCG IS ENABLED.
+	 * ANALTE: THIS IS UNUSED IF MEMCG IS ENABLED.
 	 *
 	 * Use mem_cgroup_lruvec() to look up lruvecs.
 	 */
@@ -1400,9 +1400,9 @@ typedef struct pglist_data {
 
 	CACHELINE_PADDING(_pad2_);
 
-	/* Per-node vmstats */
-	struct per_cpu_nodestat __percpu *per_cpu_nodestats;
-	atomic_long_t		vm_stat[NR_VM_NODE_STAT_ITEMS];
+	/* Per-analde vmstats */
+	struct per_cpu_analdestat __percpu *per_cpu_analdestats;
+	atomic_long_t		vm_stat[NR_VM_ANALDE_STAT_ITEMS];
 #ifdef CONFIG_NUMA
 	struct memory_tier __rcu *memtier;
 #endif
@@ -1411,15 +1411,15 @@ typedef struct pglist_data {
 #endif
 } pg_data_t;
 
-#define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
-#define node_spanned_pages(nid)	(NODE_DATA(nid)->node_spanned_pages)
+#define analde_present_pages(nid)	(ANALDE_DATA(nid)->analde_present_pages)
+#define analde_spanned_pages(nid)	(ANALDE_DATA(nid)->analde_spanned_pages)
 
-#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-#define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
+#define analde_start_pfn(nid)	(ANALDE_DATA(nid)->analde_start_pfn)
+#define analde_end_pfn(nid) pgdat_end_pfn(ANALDE_DATA(nid))
 
 static inline unsigned long pgdat_end_pfn(pg_data_t *pgdat)
 {
-	return pgdat->node_start_pfn + pgdat->node_spanned_pages;
+	return pgdat->analde_start_pfn + pgdat->analde_spanned_pages;
 }
 
 #include <linux/memory_hotplug.h>
@@ -1458,16 +1458,16 @@ static inline struct pglist_data *lruvec_pgdat(struct lruvec *lruvec)
 #endif
 }
 
-#ifdef CONFIG_HAVE_MEMORYLESS_NODES
-int local_memory_node(int node_id);
+#ifdef CONFIG_HAVE_MEMORYLESS_ANALDES
+int local_memory_analde(int analde_id);
 #else
-static inline int local_memory_node(int node_id) { return node_id; };
+static inline int local_memory_analde(int analde_id) { return analde_id; };
 #endif
 
 /*
- * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
+ * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_ANALRMAL zone, etc.
  */
-#define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
+#define zone_idx(zone)		((zone) - (zone)->zone_pgdat->analde_zones)
 
 #ifdef CONFIG_ZONE_DEVICE
 static inline bool zone_is_zone_device(struct zone *zone)
@@ -1501,12 +1501,12 @@ static inline bool populated_zone(struct zone *zone)
 #ifdef CONFIG_NUMA
 static inline int zone_to_nid(struct zone *zone)
 {
-	return zone->node;
+	return zone->analde;
 }
 
 static inline void zone_set_nid(struct zone *zone, int nid)
 {
-	zone->node = nid;
+	zone->analde = nid;
 }
 #else
 static inline int zone_to_nid(struct zone *zone)
@@ -1531,8 +1531,8 @@ static inline int is_highmem_idx(enum zone_type idx)
 
 /**
  * is_highmem - helper function to quickly check if a struct zone is a
- *              highmem zone or not.  This is an attempt to keep references
- *              to ZONE_{DMA/NORMAL/HIGHMEM/etc} in general code to a minimum.
+ *              highmem zone or analt.  This is an attempt to keep references
+ *              to ZONE_{DMA/ANALRMAL/HIGHMEM/etc} in general code to a minimum.
  * @zone: pointer to struct zone variable
  * Return: 1 for a highmem zone, 0 otherwise
  */
@@ -1554,7 +1554,7 @@ static inline bool has_managed_dma(void)
 #ifndef CONFIG_NUMA
 
 extern struct pglist_data contig_page_data;
-static inline struct pglist_data *NODE_DATA(int nid)
+static inline struct pglist_data *ANALDE_DATA(int nid)
 {
 	return &contig_page_data;
 }
@@ -1570,7 +1570,7 @@ extern struct pglist_data *next_online_pgdat(struct pglist_data *pgdat);
 extern struct zone *next_zone(struct zone *zone);
 
 /**
- * for_each_online_pgdat - helper macro to iterate over all online nodes
+ * for_each_online_pgdat - helper macro to iterate over all online analdes
  * @pgdat: pointer to a pg_data_t variable
  */
 #define for_each_online_pgdat(pgdat)			\
@@ -1585,16 +1585,16 @@ extern struct zone *next_zone(struct zone *zone);
  * fills it in.
  */
 #define for_each_zone(zone)			        \
-	for (zone = (first_online_pgdat())->node_zones; \
+	for (zone = (first_online_pgdat())->analde_zones; \
 	     zone;					\
 	     zone = next_zone(zone))
 
 #define for_each_populated_zone(zone)		        \
-	for (zone = (first_online_pgdat())->node_zones; \
+	for (zone = (first_online_pgdat())->analde_zones; \
 	     zone;					\
 	     zone = next_zone(zone))			\
 		if (!populated_zone(zone))		\
-			; /* do nothing */		\
+			; /* do analthing */		\
 		else
 
 static inline struct zone *zonelist_zone(struct zoneref *zoneref)
@@ -1607,85 +1607,85 @@ static inline int zonelist_zone_idx(struct zoneref *zoneref)
 	return zoneref->zone_idx;
 }
 
-static inline int zonelist_node_idx(struct zoneref *zoneref)
+static inline int zonelist_analde_idx(struct zoneref *zoneref)
 {
 	return zone_to_nid(zoneref->zone);
 }
 
 struct zoneref *__next_zones_zonelist(struct zoneref *z,
 					enum zone_type highest_zoneidx,
-					nodemask_t *nodes);
+					analdemask_t *analdes);
 
 /**
- * next_zones_zonelist - Returns the next zone at or below highest_zoneidx within the allowed nodemask using a cursor within a zonelist as a starting point
+ * next_zones_zonelist - Returns the next zone at or below highest_zoneidx within the allowed analdemask using a cursor within a zonelist as a starting point
  * @z: The cursor used as a starting point for the search
  * @highest_zoneidx: The zone index of the highest zone to return
- * @nodes: An optional nodemask to filter the zonelist with
+ * @analdes: An optional analdemask to filter the zonelist with
  *
  * This function returns the next zone at or below a given zone index that is
- * within the allowed nodemask using a cursor as the starting point for the
+ * within the allowed analdemask using a cursor as the starting point for the
  * search. The zoneref returned is a cursor that represents the current zone
  * being examined. It should be advanced by one before calling
  * next_zones_zonelist again.
  *
  * Return: the next zone at or below highest_zoneidx within the allowed
- * nodemask using a cursor within a zonelist as a starting point
+ * analdemask using a cursor within a zonelist as a starting point
  */
 static __always_inline struct zoneref *next_zones_zonelist(struct zoneref *z,
 					enum zone_type highest_zoneidx,
-					nodemask_t *nodes)
+					analdemask_t *analdes)
 {
-	if (likely(!nodes && zonelist_zone_idx(z) <= highest_zoneidx))
+	if (likely(!analdes && zonelist_zone_idx(z) <= highest_zoneidx))
 		return z;
-	return __next_zones_zonelist(z, highest_zoneidx, nodes);
+	return __next_zones_zonelist(z, highest_zoneidx, analdes);
 }
 
 /**
- * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed nodemask in a zonelist
+ * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed analdemask in a zonelist
  * @zonelist: The zonelist to search for a suitable zone
  * @highest_zoneidx: The zone index of the highest zone to return
- * @nodes: An optional nodemask to filter the zonelist with
+ * @analdes: An optional analdemask to filter the zonelist with
  *
  * This function returns the first zone at or below a given zone index that is
- * within the allowed nodemask. The zoneref returned is a cursor that can be
+ * within the allowed analdemask. The zoneref returned is a cursor that can be
  * used to iterate the zonelist with next_zones_zonelist by advancing it by
  * one before calling.
  *
- * When no eligible zone is found, zoneref->zone is NULL (zoneref itself is
- * never NULL). This may happen either genuinely, or due to concurrent nodemask
+ * When anal eligible zone is found, zoneref->zone is NULL (zoneref itself is
+ * never NULL). This may happen either genuinely, or due to concurrent analdemask
  * update due to cpuset modification.
  *
  * Return: Zoneref pointer for the first suitable zone found
  */
 static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
 					enum zone_type highest_zoneidx,
-					nodemask_t *nodes)
+					analdemask_t *analdes)
 {
 	return next_zones_zonelist(zonelist->_zonerefs,
-							highest_zoneidx, nodes);
+							highest_zoneidx, analdes);
 }
 
 /**
- * for_each_zone_zonelist_nodemask - helper macro to iterate over valid zones in a zonelist at or below a given zone index and within a nodemask
+ * for_each_zone_zonelist_analdemask - helper macro to iterate over valid zones in a zonelist at or below a given zone index and within a analdemask
  * @zone: The current zone in the iterator
  * @z: The current pointer within zonelist->_zonerefs being iterated
  * @zlist: The zonelist being iterated
  * @highidx: The zone index of the highest zone to return
- * @nodemask: Nodemask allowed by the allocator
+ * @analdemask: Analdemask allowed by the allocator
  *
  * This iterator iterates though all zones at or below a given zone index and
- * within a given nodemask
+ * within a given analdemask
  */
-#define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
-	for (z = first_zones_zonelist(zlist, highidx, nodemask), zone = zonelist_zone(z);	\
+#define for_each_zone_zonelist_analdemask(zone, z, zlist, highidx, analdemask) \
+	for (z = first_zones_zonelist(zlist, highidx, analdemask), zone = zonelist_zone(z);	\
 		zone;							\
-		z = next_zones_zonelist(++z, highidx, nodemask),	\
+		z = next_zones_zonelist(++z, highidx, analdemask),	\
 			zone = zonelist_zone(z))
 
-#define for_next_zone_zonelist_nodemask(zone, z, highidx, nodemask) \
+#define for_next_zone_zonelist_analdemask(zone, z, highidx, analdemask) \
 	for (zone = z->zone;	\
 		zone;							\
-		z = next_zones_zonelist(++z, highidx, nodemask),	\
+		z = next_zones_zonelist(++z, highidx, analdemask),	\
 			zone = zonelist_zone(z))
 
 
@@ -1699,26 +1699,26 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
  * This iterator iterates though all zones at or below a given zone index.
  */
 #define for_each_zone_zonelist(zone, z, zlist, highidx) \
-	for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, NULL)
+	for_each_zone_zonelist_analdemask(zone, z, zlist, highidx, NULL)
 
-/* Whether the 'nodes' are all movable nodes */
-static inline bool movable_only_nodes(nodemask_t *nodes)
+/* Whether the 'analdes' are all movable analdes */
+static inline bool movable_only_analdes(analdemask_t *analdes)
 {
 	struct zonelist *zonelist;
 	struct zoneref *z;
 	int nid;
 
-	if (nodes_empty(*nodes))
+	if (analdes_empty(*analdes))
 		return false;
 
 	/*
-	 * We can chose arbitrary node from the nodemask to get a
+	 * We can chose arbitrary analde from the analdemask to get a
 	 * zonelist as they are interlinked. We just need to find
 	 * at least one zone that can satisfy kernel allocations.
 	 */
-	nid = first_node(*nodes);
-	zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
-	z = first_zones_zonelist(zonelist, ZONE_NORMAL,	nodes);
+	nid = first_analde(*analdes);
+	zonelist = &ANALDE_DATA(nid)->analde_zonelists[ZONELIST_FALLBACK];
+	z = first_zones_zonelist(zonelist, ZONE_ANALRMAL,	analdes);
 	return (!z->zone) ? true : false;
 }
 
@@ -1799,7 +1799,7 @@ struct mem_section {
 	 * pages.  However, it is stored with some other magic.
 	 * (see sparse.c::sparse_init_one_section())
 	 *
-	 * Additionally during early boot we encode node id of
+	 * Additionally during early boot we encode analde id of
 	 * the location of the section here to guide allocation.
 	 * (see sparse.c::memory_present())
 	 *
@@ -1874,7 +1874,7 @@ extern size_t mem_section_usage_size(void);
  * However, we can exceed 6 bits on some other architectures except
  * powerpc (e.g. 15 bits are available on x86_64, 13 bits are available
  * with the worst case of 64K pages on arm64) if we make sure the
- * exceeded bit is not applicable to powerpc.
+ * exceeded bit is analt applicable to powerpc.
  */
 enum {
 	SECTION_MARKED_PRESENT_BIT,
@@ -1990,7 +1990,7 @@ static inline int pfn_section_valid(struct mem_section *ms, unsigned long pfn)
  * @pfn: the page frame number to check
  *
  * Check if there is a valid memory map entry aka struct page for the @pfn.
- * Note, that availability of the memory map entry does not imply that
+ * Analte, that availability of the memory map entry does analt imply that
  * there is actual usable memory at that @pfn. The struct page may
  * represent a hole or an unusable page frame.
  *

@@ -33,14 +33,14 @@ static bool nvme_tls_psk_match(const struct key *key,
 	size_t match_len;
 
 	if (!key->description) {
-		pr_debug("%s: no key description\n", __func__);
+		pr_debug("%s: anal key description\n", __func__);
 		return false;
 	}
 	match_len = strlen(key->description);
 	pr_debug("%s: id %s len %zd\n", __func__, key->description, match_len);
 
 	if (!match_data->raw_data) {
-		pr_debug("%s: no match data\n", __func__);
+		pr_debug("%s: anal match data\n", __func__);
 		return false;
 	}
 	match_id = match_data->raw_data;
@@ -80,7 +80,7 @@ static struct key *nvme_tls_psk_lookup(struct key *keyring,
 
 	identity = kzalloc(identity_len, GFP_KERNEL);
 	if (!identity)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	snprintf(identity, identity_len, "NVMe0%c%02d %s %s",
 		 generated ? 'G' : 'R', hmac, hostnqn, subnqn);
@@ -97,7 +97,7 @@ static struct key *nvme_tls_psk_lookup(struct key *keyring,
 		pr_debug("lookup tls psk '%s' failed, error %ld\n",
 			 identity, PTR_ERR(keyref));
 		kfree(identity);
-		return ERR_PTR(-ENOKEY);
+		return ERR_PTR(-EANALKEY);
 	}
 	kfree(identity);
 
@@ -160,7 +160,7 @@ static int __init nvme_keyring_init(void)
 				     current_cred(),
 				     (KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				     (KEY_USR_ALL & ~KEY_USR_SETATTR),
-				     KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
+				     KEY_ALLOC_ANALT_IN_QUOTA, NULL, NULL);
 	if (IS_ERR(nvme_keyring))
 		return PTR_ERR(nvme_keyring);
 

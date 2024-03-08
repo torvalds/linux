@@ -16,7 +16,7 @@ To select a next hop, hash-threshold algorithm first assigns a range of
 hashes to each next hop in the group, and then selects the next hop by
 comparing the SKB hash with the individual ranges. When a next hop is
 removed from the group, the ranges are recomputed, which leads to
-reassignment of parts of hash space from one next hop to another. RFC 2992
+reassignment of parts of hash space from one next hop to aanalther. RFC 2992
 illustrates it thus::
 
              +-------+-------+-------+-------+-------+
@@ -28,14 +28,14 @@ illustrates it thus::
               Before and after deletion of next hop 3
 	      under the hash-threshold algorithm.
 
-Note how next hop 2 gave up part of the hash space in favor of next hop 1,
+Analte how next hop 2 gave up part of the hash space in favor of next hop 1,
 and 4 in favor of 5. While there will usually be some overlap between the
 previous and the new distribution, some traffic flows change the next hop
 that they resolve to.
 
 If a multipath group is used for load-balancing between multiple servers,
 this hash space reassignment causes an issue that packets from a single
-flow suddenly end up arriving at a server that does not expect them. This
+flow suddenly end up arriving at a server that does analt expect them. This
 can result in TCP connections being reset.
 
 If a multipath group is used for load-balancing among available paths to
@@ -44,7 +44,7 @@ the way causes the packets to arrive in the wrong order, resulting in
 degraded application performance.
 
 To mitigate the above-mentioned flow redirection, resilient next-hop groups
-insert another layer of indirection between the hash space and its
+insert aanalther layer of indirection between the hash space and its
 constituent next hops: a hash table. The selection algorithm uses SKB hash
 to choose a hash table bucket, then reads the next hop that this bucket
 contains, and forwards traffic there.
@@ -67,7 +67,7 @@ the buckets that held it are simply reassigned to other next hops::
 	    under the resilient hashing algorithm.
 
 When weights of next hops in a group are altered, it may be possible to
-choose a subset of buckets that are currently not used for forwarding
+choose a subset of buckets that are currently analt used for forwarding
 traffic, and use those to satisfy the new next-hop distribution demands,
 keeping the "busy" buckets intact. This way, established flows are ideally
 kept being forwarded to the same endpoints through the same paths as before
@@ -84,40 +84,40 @@ cause bucket allocation change, the wants counts for individual next hops
 are updated.
 
 Next hops that have fewer buckets than their wants count, are called
-"underweight". Those that have more are "overweight". If there are no
-overweight (and therefore no underweight) next hops in the group, it is
+"underweight". Those that have more are "overweight". If there are anal
+overweight (and therefore anal underweight) next hops in the group, it is
 said to be "balanced".
 
 Each bucket maintains a last-used timer. Every time a packet is forwarded
 through a bucket, this timer is updated to current jiffies value. One
 attribute of a resilient group is then the "idle timer", which is the
-amount of time that a bucket must not be hit by traffic in order for it to
-be considered "idle". Buckets that are not idle are busy.
+amount of time that a bucket must analt be hit by traffic in order for it to
+be considered "idle". Buckets that are analt idle are busy.
 
 After assigning wants counts to next hops, an "upkeep" algorithm runs. For
 buckets:
 
-1) that have no assigned next hop, or
+1) that have anal assigned next hop, or
 2) whose next hop has been removed, or
 3) that are idle and their next hop is overweight,
 
 upkeep changes the next hop that the bucket references to one of the
 underweight next hops. If, after considering all buckets in this manner,
-there are still underweight next hops, another upkeep run is scheduled to a
+there are still underweight next hops, aanalther upkeep run is scheduled to a
 future time.
 
-There may not be enough "idle" buckets to satisfy the updated wants counts
-of all next hops. Another attribute of a resilient group is the "unbalanced
+There may analt be eanalugh "idle" buckets to satisfy the updated wants counts
+of all next hops. Aanalther attribute of a resilient group is the "unbalanced
 timer". This timer can be set to 0, in which case the table will stay out
 of balance until idle buckets do appear, possibly never. If set to a
-non-zero value, the value represents the period of time that the table is
+analn-zero value, the value represents the period of time that the table is
 permitted to stay out of balance.
 
 With this in mind, we update the above list of conditions with one more
 item. Thus buckets:
 
 4) whose next hop is overweight, and the amount of time that the table has
-   been out of balance exceeds the unbalanced timer, if that is non-zero,
+   been out of balance exceeds the unbalanced timer, if that is analn-zero,
 
 \... are migrated as well.
 
@@ -125,28 +125,28 @@ Offloading & Driver Feedback
 ----------------------------
 
 When offloading resilient groups, the algorithm that distributes buckets
-among next hops is still the one in SW. Drivers are notified of updates to
+among next hops is still the one in SW. Drivers are analtified of updates to
 next hop groups in the following three ways:
 
-- Full group notification with the type
-  ``NH_NOTIFIER_INFO_TYPE_RES_TABLE``. This is used just after the group is
+- Full group analtification with the type
+  ``NH_ANALTIFIER_INFO_TYPE_RES_TABLE``. This is used just after the group is
   created and buckets populated for the first time.
 
-- Single-bucket notifications of the type
-  ``NH_NOTIFIER_INFO_TYPE_RES_BUCKET``, which is used for notifications of
+- Single-bucket analtifications of the type
+  ``NH_ANALTIFIER_INFO_TYPE_RES_BUCKET``, which is used for analtifications of
   individual migrations within an already-established group.
 
-- Pre-replace notification, ``NEXTHOP_EVENT_RES_TABLE_PRE_REPLACE``. This
+- Pre-replace analtification, ``NEXTHOP_EVENT_RES_TABLE_PRE_REPLACE``. This
   is sent before the group is replaced, and is a way for the driver to veto
   the group before committing anything to the HW.
 
-Some single-bucket notifications are forced, as indicated by the "force"
-flag in the notification. Those are used for the cases where e.g. the next
+Some single-bucket analtifications are forced, as indicated by the "force"
+flag in the analtification. Those are used for the cases where e.g. the next
 hop associated with the bucket was removed, and the bucket really must be
 migrated.
 
-Non-forced notifications can be overridden by the driver by returning an
-error code. The use case for this is that the driver notifies the HW that a
+Analn-forced analtifications can be overridden by the driver by returning an
+error code. The use case for this is that the driver analtifies the HW that a
 bucket should be migrated, but the HW discovers that the bucket has in fact
 been hit by traffic.
 
@@ -248,7 +248,7 @@ To illustrate the usage, consider the following commands::
 
 The last command creates a resilient next-hop group. It will have 8 buckets
 (which is unusually low number, and used here for demonstration purposes
-only), each bucket will be considered idle when no traffic hits it for at
+only), each bucket will be considered idle when anal traffic hits it for at
 least 60 seconds, and if the table remains out of balance for 300 seconds,
 it will be forcefully brought into balance.
 
@@ -268,7 +268,7 @@ This can be confirmed by looking at individual buckets::
 	id 10 index 6 idle_time 8.74 nhid 1
 	id 10 index 7 idle_time 8.74 nhid 1
 
-Note the two buckets that have a shorter idle time. Those are the ones that
+Analte the two buckets that have a shorter idle time. Those are the ones that
 were migrated after the next-hop replace command to satisfy the new demand
 that next hop 1 be given 6 buckets instead of 4.
 
@@ -282,7 +282,7 @@ active::
 
 	# echo 10 23 > /sys/kernel/debug/netdevsim/netdevsim10/fib/nexthop_bucket_activity
 
-In addition, another debugfs interface can be used to configure that the
+In addition, aanalther debugfs interface can be used to configure that the
 next attempt to migrate a bucket should fail::
 
 	# echo 1 > /sys/kernel/debug/netdevsim/netdevsim10/fib/fail_nexthop_bucket_replace

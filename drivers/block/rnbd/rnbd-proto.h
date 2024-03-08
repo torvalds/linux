@@ -3,8 +3,8 @@
  * RDMA Network Block Driver
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 #ifndef RNBD_PROTO_H
 #define RNBD_PROTO_H
@@ -18,7 +18,7 @@
 #include <rdma/ib.h>
 
 #define RNBD_PROTO_VER_MAJOR 2
-#define RNBD_PROTO_VER_MINOR 0
+#define RNBD_PROTO_VER_MIANALR 0
 
 /* The default port number the RTRS server is listening on. */
 #define RTRS_PORT 1234
@@ -51,7 +51,7 @@ struct rnbd_msg_hdr {
 };
 
 /**
- * We allow to map RO many times and RW only once. We allow to map yet another
+ * We allow to map RO many times and RW only once. We allow to map yet aanalther
  * time RW, if MIGRATION is provided (second RW export can be required for
  * example for VM migration)
  */
@@ -137,7 +137,7 @@ enum rnbd_cache_policy {
  * @logical_block_size: logical block size device supports in bytes
  * @max_segments:	max segments hardware support in one transfer
  * @secure_discard:	supports secure discard
- * @obsolete_rotational: obsolete, not in used.
+ * @obsolete_rotational: obsolete, analt in used.
  * @cache_policy: 	support write-back caching or FUA?
  */
 struct rnbd_msg_open_rsp {
@@ -240,7 +240,7 @@ static inline blk_opf_t rnbd_to_bio_flags(u32 rnbd_opf)
 		bio_opf = REQ_OP_WRITE_ZEROES;
 		break;
 	default:
-		WARN(1, "Unknown RNBD type: %d (flags %d)\n",
+		WARN(1, "Unkanalwn RNBD type: %d (flags %d)\n",
 		     rnbd_op(rnbd_opf), rnbd_opf);
 		bio_opf = 0;
 	}
@@ -278,7 +278,7 @@ static inline u32 rq_to_rnbd_flags(struct request *rq)
 		rnbd_opf = RNBD_OP_FLUSH;
 		break;
 	default:
-		WARN(1, "Unknown request type %d (flags %llu)\n",
+		WARN(1, "Unkanalwn request type %d (flags %llu)\n",
 		     (__force u32)req_op(rq),
 		     (__force unsigned long long)rq->cmd_flags);
 		rnbd_opf = 0;

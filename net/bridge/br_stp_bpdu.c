@@ -142,7 +142,7 @@ void br_send_tcn_bpdu(struct net_bridge_port *p)
 /*
  * Called from llc.
  *
- * NO locks, but rcu_read_lock
+ * ANAL locks, but rcu_read_lock
  */
 void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 		struct net_device *dev)
@@ -179,8 +179,8 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 		goto out;
 
 	if (p->flags & BR_BPDU_GUARD) {
-		br_notice(br, "BPDU received on blocked port %u(%s)\n",
-			  (unsigned int) p->port_no, p->dev->name);
+		br_analtice(br, "BPDU received on blocked port %u(%s)\n",
+			  (unsigned int) p->port_anal, p->dev->name);
 		br_stp_disable_port(p);
 		goto out;
 	}
@@ -227,10 +227,10 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 
 		if (bpdu.message_age > bpdu.max_age) {
 			if (net_ratelimit())
-				br_notice(p->br,
+				br_analtice(p->br,
 					  "port %u config from %pM"
 					  " (message_age %ul > max_age %ul)\n",
-					  p->port_no,
+					  p->port_anal,
 					  eth_hdr(skb)->h_source,
 					  bpdu.message_age, bpdu.max_age);
 			goto out;

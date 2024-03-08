@@ -11,20 +11,20 @@
  */
 
 /*
- * Copyright 1993 by OpenVision Technologies, Inc.
+ * Copyright 1993 by OpenVision Techanallogies, Inc.
  *
  * Permission to use, copy, modify, distribute, and sell this software
  * and its documentation for any purpose is hereby granted without fee,
- * provided that the above copyright notice appears in all copies and
- * that both that copyright notice and this permission notice appear in
- * supporting documentation, and that the name of OpenVision not be used
+ * provided that the above copyright analtice appears in all copies and
+ * that both that copyright analtice and this permission analtice appear in
+ * supporting documentation, and that the name of OpenVision analt be used
  * in advertising or publicity pertaining to distribution of the software
- * without specific, written prior permission. OpenVision makes no
+ * without specific, written prior permission. OpenVision makes anal
  * representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied warranty.
  *
  * OPENVISION DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL OPENVISION BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
  * USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
@@ -45,11 +45,11 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of FundsXpress. not be used in advertising or publicity pertaining
+ * analtice appear in all copies and that both that copyright analtice and
+ * this permission analtice appear in supporting documentation, and that
+ * the name of FundsXpress. analt be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
- * permission.  FundsXpress makes no representations about the suitability of
+ * permission.  FundsXpress makes anal representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
@@ -83,7 +83,7 @@ setup_token_v2(struct krb5_ctx *ctx, struct xdr_netobj *token)
 	if (ctx->flags & KRB5_CTX_FLAG_ACCEPTOR_SUBKEY)
 		flags |= 0x04;
 
-	/* Per rfc 4121, sec 4.2.6.1, there is no header,
+	/* Per rfc 4121, sec 4.2.6.1, there is anal header,
 	 * just start the token.
 	 */
 	krb5_hdr = (u16 *)token->data;
@@ -112,13 +112,13 @@ gss_krb5_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 	};
 	__be64 seq_send_be64;
 	void *krb5_hdr;
-	time64_t now;
+	time64_t analw;
 
 	dprintk("RPC:       %s\n", __func__);
 
 	krb5_hdr = setup_token_v2(ctx, token);
 
-	/* Set up the sequence number. Now 64-bits in clear
+	/* Set up the sequence number. Analw 64-bits in clear
 	 * text and w/o direction indicator */
 	seq_send_be64 = cpu_to_be64(atomic64_fetch_inc(&ctx->seq_send64));
 	memcpy(krb5_hdr + 8, (char *) &seq_send_be64, 8);
@@ -128,6 +128,6 @@ gss_krb5_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 			      text, 0, &cksumobj))
 		return GSS_S_FAILURE;
 
-	now = ktime_get_real_seconds();
-	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
+	analw = ktime_get_real_seconds();
+	return (ctx->endtime < analw) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }

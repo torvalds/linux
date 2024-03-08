@@ -121,7 +121,7 @@ int atomisp_tpg_register_entities(struct atomisp_tpg_device *tpg,
 				  struct v4l2_device *vdev)
 {
 	int ret;
-	/* Register the subdev and video nodes. */
+	/* Register the subdev and video analdes. */
 	ret = v4l2_device_register_subdev(vdev, &tpg->sd);
 	if (ret < 0)
 		goto error;
@@ -147,7 +147,7 @@ int atomisp_tpg_init(struct atomisp_device *isp)
 
 	tpg->isp = isp;
 	v4l2_subdev_init(sd, &tpg_ops);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	strscpy(sd->name, "tpg_subdev", sizeof(sd->name));
 	v4l2_set_subdevdata(sd, tpg);
 

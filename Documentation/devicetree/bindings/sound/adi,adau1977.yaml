@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/sound/adi,adau1977.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices ADAU1977/ADAU1978/ADAU1979 Quad ADC with Diagnostics
+title: Analog Devices ADAU1977/ADAU1978/ADAU1979 Quad ADC with Diaganalstics
 
 maintainers:
   - Lars-Peter Clausen <lars@metafoo.de>
   - Bogdan Togorean <bogdan.togorean@analog.com>
 
 description: |
-  Analog Devices ADAU1977 and similar quad ADC with Diagnostics
+  Analog Devices ADAU1977 and similar quad ADC with Diaganalstics
   https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1977.pdf
   https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1978.pdf
   https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1979.pdf

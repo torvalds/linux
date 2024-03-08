@@ -32,10 +32,10 @@ int mv88e6xxx_phy_read(struct mv88e6xxx_chip *chip, int phy, int reg, u16 *val)
 
 	bus = mv88e6xxx_default_mdio_bus(chip);
 	if (!bus)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!chip->info->ops->phy_read)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->phy_read(chip, bus, addr, reg, val);
 }
@@ -47,10 +47,10 @@ int mv88e6xxx_phy_write(struct mv88e6xxx_chip *chip, int phy, int reg, u16 val)
 
 	bus = mv88e6xxx_default_mdio_bus(chip);
 	if (!bus)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!chip->info->ops->phy_write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->phy_write(chip, bus, addr, reg, val);
 }
@@ -63,10 +63,10 @@ int mv88e6xxx_phy_read_c45(struct mv88e6xxx_chip *chip, int phy, int devad,
 
 	bus = mv88e6xxx_default_mdio_bus(chip);
 	if (!bus)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!chip->info->ops->phy_read_c45)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->phy_read_c45(chip, bus, addr, devad, reg, val);
 }
@@ -79,10 +79,10 @@ int mv88e6xxx_phy_write_c45(struct mv88e6xxx_chip *chip, int phy, int devad,
 
 	bus = mv88e6xxx_default_mdio_bus(chip);
 	if (!bus)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!chip->info->ops->phy_write_c45)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->phy_write_c45(chip, bus, addr, devad, reg, val);
 }
@@ -113,7 +113,7 @@ int mv88e6xxx_phy_page_read(struct mv88e6xxx_chip *chip, int phy,
 {
 	int err;
 
-	/* There is no paging for registers 22 */
+	/* There is anal paging for registers 22 */
 	if (reg == MV88E6XXX_PHY_PAGE)
 		return -EINVAL;
 
@@ -131,7 +131,7 @@ int mv88e6xxx_phy_page_write(struct mv88e6xxx_chip *chip, int phy,
 {
 	int err;
 
-	/* There is no paging for registers 22 */
+	/* There is anal paging for registers 22 */
 	if (reg == MV88E6XXX_PHY_PAGE)
 		return -EINVAL;
 

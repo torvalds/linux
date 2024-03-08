@@ -95,6 +95,6 @@ void __init lkdtm_usercopy_init(void);
 void __exit lkdtm_usercopy_exit(void);
 
 /* Special declaration for function-in-rodata. */
-void lkdtm_rodata_do_nothing(void);
+void lkdtm_rodata_do_analthing(void);
 
 #endif

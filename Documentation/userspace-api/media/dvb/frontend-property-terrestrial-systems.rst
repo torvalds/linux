@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _frontend-property-terrestrial-systems:
 
@@ -99,10 +99,10 @@ This ISDB-T/ISDB-Tsb API extension should reflect all information needed
 to tune any ISDB-T/ISDB-Tsb hardware. Of course it is possible that some
 very sophisticated devices won't need certain parameters to tune.
 
-The information given here should help application writers to know how
+The information given here should help application writers to kanalw how
 to handle ISDB-T and ISDB-Tsb hardware using the Linux Digital TV API.
 
-The details given here about ISDB-T and ISDB-Tsb are just enough to
+The details given here about ISDB-T and ISDB-Tsb are just eanalugh to
 basically show the dependencies between the needed parameter values, but
 surely some information is left out. For more detailed information see
 the following documents:
@@ -114,8 +114,8 @@ ARIB TR-B14 - "Operational Guidelines for Digital Terrestrial Television
 Broadcasting".
 
 In order to understand the ISDB specific parameters, one has to have
-some knowledge the channel structure in ISDB-T and ISDB-Tsb. I.e. it has
-to be known to the reader that an ISDB-T channel consists of 13
+some kanalwledge the channel structure in ISDB-T and ISDB-Tsb. I.e. it has
+to be kanalwn to the reader that an ISDB-T channel consists of 13
 segments, that it can have up to 3 layer sharing those segments, and
 things like that.
 
@@ -227,9 +227,9 @@ The following parameters are valid for ATSC-MH:
 
 -  :ref:`DTV_ATSCMH_PARADE_ID <DTV-ATSCMH-PARADE-ID>`
 
--  :ref:`DTV_ATSCMH_NOG <DTV-ATSCMH-NOG>`
+-  :ref:`DTV_ATSCMH_ANALG <DTV-ATSCMH-ANALG>`
 
--  :ref:`DTV_ATSCMH_TNOG <DTV-ATSCMH-TNOG>`
+-  :ref:`DTV_ATSCMH_TANALG <DTV-ATSCMH-TANALG>`
 
 -  :ref:`DTV_ATSCMH_SGN <DTV-ATSCMH-SGN>`
 

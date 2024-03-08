@@ -4,14 +4,14 @@
 
 #ifndef __ASSEMBLY__
 
-struct ino_blob {
+struct ianal_blob {
 	u64			intr;
-	u64			ino;
+	u64			ianal;
 };
 
 struct spu_mdesc_info {
 	u64			cfg_handle;
-	struct ino_blob		*ino_table;
+	struct ianal_blob		*ianal_table;
 	int			num_intrs;
 };
 
@@ -71,7 +71,7 @@ struct cwq_final_entry {
 #define CONTROL_ENC_TYPE		0x00000000ff000000ULL
 #define CONTROL_ENC_TYPE_SHIFT		24
 #define  ENC_TYPE_ALG_RC4_STREAM	0x00ULL
-#define  ENC_TYPE_ALG_RC4_NOSTREAM	0x04ULL
+#define  ENC_TYPE_ALG_RC4_ANALSTREAM	0x04ULL
 #define  ENC_TYPE_ALG_DES		0x08ULL
 #define  ENC_TYPE_ALG_3DES		0x0cULL
 #define  ENC_TYPE_ALG_AES128		0x10ULL
@@ -190,14 +190,14 @@ struct cwq_final_entry {
  */
 #define HV_FAST_NCS_SETTAIL		0x115
 
-/* ncs_qhandle_to_devino()
+/* ncs_qhandle_to_devianal()
  * TRAP:	HV_FAST_TRAP
- * FUNCTION:	HV_FAST_NCS_QHANDLE_TO_DEVINO
+ * FUNCTION:	HV_FAST_NCS_QHANDLE_TO_DEVIANAL
  * ARG0:	Queue handle
  * RET0:	status
- * RET1:	devino
+ * RET1:	devianal
  */
-#define HV_FAST_NCS_QHANDLE_TO_DEVINO	0x116
+#define HV_FAST_NCS_QHANDLE_TO_DEVIANAL	0x116
 
 /* ncs_sethead_marker()
  * TRAP:	HV_FAST_TRAP
@@ -223,8 +223,8 @@ extern unsigned long sun4v_ncs_gettail(unsigned long qhandle,
 				       unsigned long *tail);
 extern unsigned long sun4v_ncs_settail(unsigned long qhandle,
 				       unsigned long tail);
-extern unsigned long sun4v_ncs_qhandle_to_devino(unsigned long qhandle,
-						 unsigned long *devino);
+extern unsigned long sun4v_ncs_qhandle_to_devianal(unsigned long qhandle,
+						 unsigned long *devianal);
 extern unsigned long sun4v_ncs_sethead_marker(unsigned long qhandle,
 					      unsigned long head);
 #endif /* !(__ASSEMBLY__) */

@@ -264,8 +264,8 @@ static struct ctl_table sctp_net_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "addip_noauth_enable",
-		.data		= &init_net.sctp.addip_noauth,
+		.procname	= "addip_analauth_enable",
+		.data		= &init_net.sctp.addip_analauth,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -394,7 +394,7 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 	struct net *net = current->nsproxy->net_ns;
 	struct ctl_table tbl;
 	bool changed = false;
-	char *none = "none";
+	char *analne = "analne";
 	char tmp[8] = {0};
 	int ret;
 
@@ -404,7 +404,7 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 		tbl.data = tmp;
 		tbl.maxlen = sizeof(tmp);
 	} else {
-		tbl.data = net->sctp.sctp_hmac_alg ? : none;
+		tbl.data = net->sctp.sctp_hmac_alg ? : analne;
 		tbl.maxlen = strlen(tbl.data);
 	}
 
@@ -422,7 +422,7 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 			changed = true;
 		}
 #endif
-		if (!strncmp(tmp, "none", 4)) {
+		if (!strncmp(tmp, "analne", 4)) {
 			net->sctp.sctp_hmac_alg = NULL;
 			changed = true;
 		}
@@ -602,7 +602,7 @@ int sctp_sysctl_net_register(struct net *net)
 
 	table = kmemdup(sctp_net_table, sizeof(sctp_net_table), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; table[i].data; i++)
 		table[i].data += (char *)(&net->sctp) - (char *)&init_net.sctp;
@@ -617,7 +617,7 @@ int sctp_sysctl_net_register(struct net *net)
 							 ARRAY_SIZE(sctp_net_table));
 	if (net->sctp.sysctl_header == NULL) {
 		kfree(table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }

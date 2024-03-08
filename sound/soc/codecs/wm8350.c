@@ -29,7 +29,7 @@
 
 #define WM8350_OUTn_0dB 0x39
 
-#define WM8350_RAMP_NONE	0
+#define WM8350_RAMP_ANALNE	0
 #define WM8350_RAMP_UP		1
 #define WM8350_RAMP_DOWN	2
 
@@ -202,7 +202,7 @@ static inline int wm8350_out2_ramp_step(struct wm8350_data *wm8350_data)
  * This work ramps both output PGAs at stream start/stop time to
  * minimise pop associated with DAPM power switching.
  * It's best to enable Zero Cross when ramping occurs to minimise any
- * zipper noises.
+ * zipper analises.
  */
 static void wm8350_pga_work(struct work_struct *work)
 {
@@ -213,16 +213,16 @@ static void wm8350_pga_work(struct work_struct *work)
 	int i, out1_complete, out2_complete;
 
 	/* do we need to ramp at all ? */
-	if (out1->ramp == WM8350_RAMP_NONE && out2->ramp == WM8350_RAMP_NONE)
+	if (out1->ramp == WM8350_RAMP_ANALNE && out2->ramp == WM8350_RAMP_ANALNE)
 		return;
 
 	/* PGA volumes have 6 bits of resolution to ramp */
 	for (i = 0; i <= 63; i++) {
 		out1_complete = 1;
 		out2_complete = 1;
-		if (out1->ramp != WM8350_RAMP_NONE)
+		if (out1->ramp != WM8350_RAMP_ANALNE)
 			out1_complete = wm8350_out1_ramp_step(wm8350_data);
-		if (out2->ramp != WM8350_RAMP_NONE)
+		if (out2->ramp != WM8350_RAMP_ANALNE)
 			out2_complete = wm8350_out2_ramp_step(wm8350_data);
 
 		/* ramp finished ? */
@@ -243,8 +243,8 @@ static void wm8350_pga_work(struct work_struct *work)
 			udelay(50);	/* doesn't matter if we delay longer */
 	}
 
-	out1->ramp = WM8350_RAMP_NONE;
-	out2->ramp = WM8350_RAMP_NONE;
+	out1->ramp = WM8350_RAMP_ANALNE;
+	out2->ramp = WM8350_RAMP_ANALNE;
 }
 
 /*
@@ -331,7 +331,7 @@ static int wm8350_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 	if (ret < 0)
 		return ret;
 
-	/* now hit the volume update bits (always bit 8) */
+	/* analw hit the volume update bits (always bit 8) */
 	val = snd_soc_component_read(component, reg);
 	snd_soc_component_write(component, reg, val | WM8350_OUT1_VU);
 	return 1;
@@ -367,11 +367,11 @@ static int wm8350_get_volsw_2r(struct snd_kcontrol *kcontrol,
 	return snd_soc_get_volsw(kcontrol, ucontrol);
 }
 
-static const char *wm8350_deemp[] = { "None", "32kHz", "44.1kHz", "48kHz" };
-static const char *wm8350_pol[] = { "Normal", "Inv R", "Inv L", "Inv L & R" };
-static const char *wm8350_dacmutem[] = { "Normal", "Soft" };
+static const char *wm8350_deemp[] = { "Analne", "32kHz", "44.1kHz", "48kHz" };
+static const char *wm8350_pol[] = { "Analrmal", "Inv R", "Inv L", "Inv L & R" };
+static const char *wm8350_dacmutem[] = { "Analrmal", "Soft" };
 static const char *wm8350_dacmutes[] = { "Fast", "Slow" };
-static const char *wm8350_adcfilter[] = { "None", "High Pass" };
+static const char *wm8350_adcfilter[] = { "Analne", "High Pass" };
 static const char *wm8350_adchp[] = { "44.1kHz", "8kHz", "16kHz", "32kHz" };
 static const char *wm8350_lr[] = { "Left", "Right" };
 
@@ -631,7 +631,7 @@ static const struct snd_soc_dapm_widget wm8350_dapm_widgets[] = {
 			   ARRAY_SIZE(wm8350_right_mic_mixer_controls)),
 
 	/* virtual mixer for Beep and Out2R */
-	SND_SOC_DAPM_MIXER("Out2 Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Out2 Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_SWITCH("Beep", WM8350_POWER_MGMT_3, 7, 0,
 			    &wm8350_beep_switch_controls),
@@ -647,7 +647,7 @@ static const struct snd_soc_dapm_widget wm8350_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MICBIAS("Mic Bias", WM8350_POWER_MGMT_1, 4, 0),
 
-	SND_SOC_DAPM_MUX("Out4 Capture Channel", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Out4 Capture Channel", SND_SOC_ANALPM, 0, 0,
 			 &wm8350_out4_capture_controls),
 
 	SND_SOC_DAPM_OUTPUT("OUT1R"),
@@ -1009,7 +1009,7 @@ static inline int fll_factors(struct _fll_div *fll_div, unsigned int input,
 		if ((K % 10) >= 5)
 			K += 5;
 
-		/* Move down to proper range now rounding is done */
+		/* Move down to proper range analw rounding is done */
 		K /= 10;
 		fll_div->k = K;
 	} else
@@ -1313,7 +1313,7 @@ static irqreturn_t wm8350_hpr_jack_handler(int irq, void *data)
  * @jack:   jack to report detection events on
  * @report: value to report
  *
- * Enables the headphone jack detection of the WM8350.  If no report
+ * Enables the headphone jack detection of the WM8350.  If anal report
  * is specified then detection is disabled.
  */
 int wm8350_hp_jack_detect(struct snd_soc_component *component, enum wm8350_jack which,
@@ -1432,7 +1432,7 @@ static const struct snd_soc_dai_ops wm8350_dai_ops = {
 	 .set_sysclk	= wm8350_set_dai_sysclk,
 	 .set_pll	= wm8350_set_fll,
 	 .set_clkdiv	= wm8350_set_clkdiv,
-	 .no_capture_mute = 1,
+	 .anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8350_dai = {
@@ -1463,14 +1463,14 @@ static  int wm8350_component_probe(struct snd_soc_component *component)
 	int ret, i;
 
 	if (wm8350->codec.platform_data == NULL) {
-		dev_err(component->dev, "No audio platform data supplied\n");
+		dev_err(component->dev, "Anal audio platform data supplied\n");
 		return -EINVAL;
 	}
 
 	priv = devm_kzalloc(component->dev, sizeof(struct wm8350_data),
 			    GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_component_init_regmap(component, wm8350->regmap);
 	snd_soc_component_set_drvdata(component, priv);
@@ -1592,7 +1592,7 @@ static void wm8350_component_remove(struct snd_soc_component *component)
 	cancel_delayed_work_sync(&priv->hpl.work);
 	cancel_delayed_work_sync(&priv->hpr.work);
 
-	/* if there was any work waiting then we run it now and
+	/* if there was any work waiting then we run it analw and
 	 * wait for its completion */
 	flush_delayed_work(&priv->pga_work);
 

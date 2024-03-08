@@ -5,7 +5,7 @@
  * Builtin regression testing command: ever growing number of sanity tests
  */
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -36,7 +36,7 @@ const char *dso_to_test;
 const char *test_objdump_path = "objdump";
 
 /*
- * List of architecture specific tests. Not a weak symbol as the array length is
+ * List of architecture specific tests. Analt a weak symbol as the array length is
  * dependent on the initialization, as such GCC with LTO complains of
  * conflicting definitions with a weak symbol.
  */
@@ -79,7 +79,7 @@ static struct test_suite *generic_tests[] = {
 	&suite__code_reading,
 	&suite__sample_parsing,
 	&suite__keep_tracking,
-	&suite__parse_no_sample_id_all,
+	&suite__parse_anal_sample_id_all,
 	&suite__hists_filter,
 	&suite__mmap_thread_lookup,
 	&suite__thread_maps_share,
@@ -107,7 +107,7 @@ static struct test_suite *generic_tests[] = {
 	&suite__bitmap_print,
 	&suite__perf_hooks,
 	&suite__unit_number__scnprint,
-	&suite__mem2node,
+	&suite__mem2analde,
 	&suite__time_utils,
 	&suite__jit_write_elf,
 	&suite__pfm,
@@ -133,7 +133,7 @@ static struct test_suite **tests[] = {
 };
 
 static struct test_workload *workloads[] = {
-	&workload__noploop,
+	&workload__analploop,
 	&workload__thloop,
 	&workload__leafloop,
 	&workload__sqrtloop,
@@ -215,7 +215,7 @@ static int run_test(struct test_suite *test, int subtest)
 
 	if (child < 0) {
 		pr_err("failed to fork test: %s\n",
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(erranal, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 
@@ -227,11 +227,11 @@ static int run_test(struct test_suite *test, int subtest)
 				int nullfd = open("/dev/null", O_WRONLY);
 
 				if (nullfd >= 0) {
-					close(STDERR_FILENO);
-					close(STDOUT_FILENO);
+					close(STDERR_FILEANAL);
+					close(STDOUT_FILEANAL);
 
-					dup2(nullfd, STDOUT_FILENO);
-					dup2(STDOUT_FILENO, STDERR_FILENO);
+					dup2(nullfd, STDOUT_FILEANAL);
+					dup2(STDOUT_FILEANAL, STDERR_FILEANAL);
 					close(nullfd);
 				}
 			} else {
@@ -410,7 +410,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		} else {
 			int subn = num_subtests(t);
 			/*
-			 * minus 2 to align with normal testcases.
+			 * minus 2 to align with analrmal testcases.
 			 * For subtest we print additional '.x' in number.
 			 * for example:
 			 *
@@ -421,7 +421,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 			if (subn <= 0) {
 				color_fprintf(stderr, PERF_COLOR_YELLOW,
-					      " Skip (not compiled in)\n");
+					      " Skip (analt compiled in)\n");
 				continue;
 			}
 			pr_info("\n");
@@ -509,14 +509,14 @@ static int run_workload(const char *work, int argc, const char **argv)
 			return twl->func(argc, argv);
 	}
 
-	pr_info("No workload found: %s\n", work);
+	pr_info("Anal workload found: %s\n", work);
 	return -1;
 }
 
 static int perf_test__config(const char *var, const char *value,
 			     void *data __maybe_unused)
 {
-	if (!strcmp(var, "annotate.objdump"))
+	if (!strcmp(var, "ananaltate.objdump"))
 		test_objdump_path = value;
 
 	return 0;
@@ -535,11 +535,11 @@ int cmd_test(int argc, const char **argv)
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('F', "dont-fork", &dont_fork,
-		    "Do not fork for testcase"),
+		    "Do analt fork for testcase"),
 	OPT_STRING('w', "workload", &workload, "work", "workload to run for testing"),
 	OPT_STRING(0, "dso", &dso_to_test, "dso", "dso to test"),
 	OPT_STRING(0, "objdump", &test_objdump_path, "path",
-		   "objdump binary to use for disassembly and annotations"),
+		   "objdump binary to use for disassembly and ananaltations"),
 	OPT_END()
 	};
 	const char * const test_subcommands[] = { "list", NULL };

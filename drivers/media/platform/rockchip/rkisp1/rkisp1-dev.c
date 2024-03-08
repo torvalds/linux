@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 
 #include "rkisp1-common.h"
@@ -121,12 +121,12 @@ struct rkisp1_isr_data {
  * Sensor DT bindings
  */
 
-static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
+static int rkisp1_subdev_analtifier_bound(struct v4l2_async_analtifier *analtifier,
 					struct v4l2_subdev *sd,
 					struct v4l2_async_connection *asc)
 {
 	struct rkisp1_device *rkisp1 =
-		container_of(notifier, struct rkisp1_device, notifier);
+		container_of(analtifier, struct rkisp1_device, analtifier);
 	struct rkisp1_sensor_async *s_asd =
 		container_of(asc, struct rkisp1_sensor_async, asd);
 	int source_pad;
@@ -134,7 +134,7 @@ static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	s_asd->sd = sd;
 
-	source_pad = media_entity_get_fwnode_pad(&sd->entity, s_asd->source_ep,
+	source_pad = media_entity_get_fwanalde_pad(&sd->entity, s_asd->source_ep,
 						 MEDIA_PAD_FL_SOURCE);
 	if (source_pad < 0) {
 		dev_err(rkisp1->dev, "failed to find source pad for %s\n",
@@ -158,51 +158,51 @@ static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static int rkisp1_subdev_notifier_complete(struct v4l2_async_notifier *notifier)
+static int rkisp1_subdev_analtifier_complete(struct v4l2_async_analtifier *analtifier)
 {
 	struct rkisp1_device *rkisp1 =
-		container_of(notifier, struct rkisp1_device, notifier);
+		container_of(analtifier, struct rkisp1_device, analtifier);
 
-	return v4l2_device_register_subdev_nodes(&rkisp1->v4l2_dev);
+	return v4l2_device_register_subdev_analdes(&rkisp1->v4l2_dev);
 }
 
-static void rkisp1_subdev_notifier_destroy(struct v4l2_async_connection *asc)
+static void rkisp1_subdev_analtifier_destroy(struct v4l2_async_connection *asc)
 {
 	struct rkisp1_sensor_async *rk_asd =
 		container_of(asc, struct rkisp1_sensor_async, asd);
 
-	fwnode_handle_put(rk_asd->source_ep);
+	fwanalde_handle_put(rk_asd->source_ep);
 }
 
-static const struct v4l2_async_notifier_operations rkisp1_subdev_notifier_ops = {
-	.bound = rkisp1_subdev_notifier_bound,
-	.complete = rkisp1_subdev_notifier_complete,
-	.destroy = rkisp1_subdev_notifier_destroy,
+static const struct v4l2_async_analtifier_operations rkisp1_subdev_analtifier_ops = {
+	.bound = rkisp1_subdev_analtifier_bound,
+	.complete = rkisp1_subdev_analtifier_complete,
+	.destroy = rkisp1_subdev_analtifier_destroy,
 };
 
-static int rkisp1_subdev_notifier_register(struct rkisp1_device *rkisp1)
+static int rkisp1_subdev_analtifier_register(struct rkisp1_device *rkisp1)
 {
-	struct v4l2_async_notifier *ntf = &rkisp1->notifier;
-	struct fwnode_handle *fwnode = dev_fwnode(rkisp1->dev);
-	struct fwnode_handle *ep;
+	struct v4l2_async_analtifier *ntf = &rkisp1->analtifier;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(rkisp1->dev);
+	struct fwanalde_handle *ep;
 	unsigned int index = 0;
 	int ret = 0;
 
 	v4l2_async_nf_init(ntf, &rkisp1->v4l2_dev);
 
-	ntf->ops = &rkisp1_subdev_notifier_ops;
+	ntf->ops = &rkisp1_subdev_analtifier_ops;
 
-	fwnode_graph_for_each_endpoint(fwnode, ep) {
-		struct fwnode_handle *port;
-		struct v4l2_fwnode_endpoint vep = { };
+	fwanalde_graph_for_each_endpoint(fwanalde, ep) {
+		struct fwanalde_handle *port;
+		struct v4l2_fwanalde_endpoint vep = { };
 		struct rkisp1_sensor_async *rk_asd;
-		struct fwnode_handle *source;
+		struct fwanalde_handle *source;
 		u32 reg = 0;
 
 		/* Select the bus type based on the port. */
-		port = fwnode_get_parent(ep);
-		fwnode_property_read_u32(port, "reg", &reg);
-		fwnode_handle_put(port);
+		port = fwanalde_get_parent(ep);
+		fwanalde_property_read_u32(port, "reg", &reg);
+		fwanalde_handle_put(port);
 
 		switch (reg) {
 		case 0:
@@ -223,12 +223,12 @@ static int rkisp1_subdev_notifier_register(struct rkisp1_device *rkisp1)
 			 * mandatory for port 1, it will be used to determine if
 			 * it's PARALLEL or BT656.
 			 */
-			vep.bus_type = V4L2_MBUS_UNKNOWN;
+			vep.bus_type = V4L2_MBUS_UNKANALWN;
 			break;
 		}
 
 		/* Parse the endpoint and validate the bus type. */
-		ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+		ret = v4l2_fwanalde_endpoint_parse(ep, &vep);
 		if (ret) {
 			dev_err(rkisp1->dev, "failed to parse endpoint %pfw\n",
 				ep);
@@ -245,20 +245,20 @@ static int rkisp1_subdev_notifier_register(struct rkisp1_device *rkisp1)
 			}
 		}
 
-		/* Add the async subdev to the notifier. */
-		source = fwnode_graph_get_remote_endpoint(ep);
+		/* Add the async subdev to the analtifier. */
+		source = fwanalde_graph_get_remote_endpoint(ep);
 		if (!source) {
 			dev_err(rkisp1->dev,
-				"endpoint %pfw has no remote endpoint\n",
+				"endpoint %pfw has anal remote endpoint\n",
 				ep);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			break;
 		}
 
-		rk_asd = v4l2_async_nf_add_fwnode(ntf, source,
+		rk_asd = v4l2_async_nf_add_fwanalde(ntf, source,
 						  struct rkisp1_sensor_async);
 		if (IS_ERR(rk_asd)) {
-			fwnode_handle_put(source);
+			fwanalde_handle_put(source);
 			ret = PTR_ERR(rk_asd);
 			break;
 		}
@@ -280,13 +280,13 @@ static int rkisp1_subdev_notifier_register(struct rkisp1_device *rkisp1)
 	}
 
 	if (ret) {
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 		v4l2_async_nf_cleanup(ntf);
 		return ret;
 	}
 
 	if (!index)
-		dev_dbg(rkisp1->dev, "no remote subdevice found\n");
+		dev_dbg(rkisp1->dev, "anal remote subdevice found\n");
 
 	ret = v4l2_async_nf_register(ntf);
 	if (ret) {
@@ -377,7 +377,7 @@ static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 		struct media_entity *resizer =
 			&rkisp1->resizer_devs[i].sd.entity;
 		struct media_entity *capture =
-			&rkisp1->capture_devs[i].vnode.vdev.entity;
+			&rkisp1->capture_devs[i].vanalde.vdev.entity;
 
 		ret = media_create_pad_link(&rkisp1->isp.sd.entity,
 					    RKISP1_ISP_PAD_SOURCE_VIDEO,
@@ -395,7 +395,7 @@ static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 	}
 
 	/* params links */
-	ret = media_create_pad_link(&rkisp1->params.vnode.vdev.entity, 0,
+	ret = media_create_pad_link(&rkisp1->params.vanalde.vdev.entity, 0,
 				    &rkisp1->isp.sd.entity,
 				    RKISP1_ISP_PAD_SINK_PARAMS,
 				    MEDIA_LNK_FL_ENABLED |
@@ -406,7 +406,7 @@ static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 	/* 3A stats links */
 	return media_create_pad_link(&rkisp1->isp.sd.entity,
 				     RKISP1_ISP_PAD_SOURCE_STATS,
-				     &rkisp1->stats.vnode.vdev.entity, 0,
+				     &rkisp1->stats.vanalde.vdev.entity, 0,
 				     MEDIA_LNK_FL_ENABLED |
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
@@ -465,7 +465,7 @@ error:
 
 static irqreturn_t rkisp1_isr(int irq, void *ctx)
 {
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	/*
 	 * Call rkisp1_capture_isr() first to handle the frame that
@@ -552,7 +552,7 @@ static int rkisp1_probe(struct platform_device *pdev)
 
 	rkisp1 = devm_kzalloc(dev, sizeof(*rkisp1), GFP_KERNEL);
 	if (!rkisp1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = of_device_get_match_data(dev);
 	rkisp1->info = info;
@@ -639,7 +639,7 @@ static int rkisp1_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_cleanup_csi;
 
-	ret = rkisp1_subdev_notifier_register(rkisp1);
+	ret = rkisp1_subdev_analtifier_register(rkisp1);
 	if (ret)
 		goto err_unreg_entities;
 
@@ -667,8 +667,8 @@ static void rkisp1_remove(struct platform_device *pdev)
 {
 	struct rkisp1_device *rkisp1 = platform_get_drvdata(pdev);
 
-	v4l2_async_nf_unregister(&rkisp1->notifier);
-	v4l2_async_nf_cleanup(&rkisp1->notifier);
+	v4l2_async_nf_unregister(&rkisp1->analtifier);
+	v4l2_async_nf_cleanup(&rkisp1->analtifier);
 
 	rkisp1_entities_unregister(rkisp1);
 	if (rkisp1->info->features & RKISP1_FEATURE_MIPI_CSI2)

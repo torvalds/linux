@@ -9,10 +9,10 @@ BPF Kernel Functions (kfuncs)
 1. Introduction
 ===============
 
-BPF Kernel Functions or more commonly known as kfuncs are functions in the Linux
-kernel which are exposed for use by BPF programs. Unlike normal BPF helpers,
-kfuncs do not have a stable interface and can change from one kernel release to
-another. Hence, BPF programs need to be updated in response to changes in the
+BPF Kernel Functions or more commonly kanalwn as kfuncs are functions in the Linux
+kernel which are exposed for use by BPF programs. Unlike analrmal BPF helpers,
+kfuncs do analt have a stable interface and can change from one kernel release to
+aanalther. Hence, BPF programs need to be updated in response to changes in the
 kernel. See :ref:`BPF_kfunc_lifecycle_expectations` for more information.
 
 2. Defining a kfunc
@@ -23,15 +23,15 @@ existing function in the kernel visible, or add a new wrapper for BPF. In both
 cases, care must be taken that BPF program can only call such function in a
 valid context. To enforce this, visibility of a kfunc can be per program type.
 
-If you are not creating a BPF wrapper for existing kernel function, skip ahead
-to :ref:`BPF_kfunc_nodef`.
+If you are analt creating a BPF wrapper for existing kernel function, skip ahead
+to :ref:`BPF_kfunc_analdef`.
 
 2.1 Creating a wrapper kfunc
 ----------------------------
 
 When defining a wrapper kfunc, the wrapper function should have extern linkage.
 This prevents the compiler from optimizing away dead code, as this wrapper kfunc
-is not invoked anywhere in the kernel itself. It is not necessary to provide a
+is analt invoked anywhere in the kernel itself. It is analt necessary to provide a
 prototype in a header for the wrapper kfunc.
 
 An example is given below::
@@ -46,22 +46,22 @@ An example is given below::
 
         __bpf_kfunc_end_defs();
 
-A wrapper kfunc is often needed when we need to annotate parameters of the
+A wrapper kfunc is often needed when we need to ananaltate parameters of the
 kfunc. Otherwise one may directly make the kfunc visible to the BPF program by
-registering it with the BPF subsystem. See :ref:`BPF_kfunc_nodef`.
+registering it with the BPF subsystem. See :ref:`BPF_kfunc_analdef`.
 
-2.2 Annotating kfunc parameters
+2.2 Ananaltating kfunc parameters
 -------------------------------
 
 Similar to BPF helpers, there is sometime need for additional context required
 by the verifier to make the usage of kernel functions safer and more useful.
-Hence, we can annotate a parameter by suffixing the name of the argument of the
-kfunc with a __tag, where tag may be one of the supported annotations.
+Hence, we can ananaltate a parameter by suffixing the name of the argument of the
+kfunc with a __tag, where tag may be one of the supported ananaltations.
 
-2.2.1 __sz Annotation
+2.2.1 __sz Ananaltation
 ---------------------
 
-This annotation is used to indicate a memory and size pair in the argument list.
+This ananaltation is used to indicate a memory and size pair in the argument list.
 An example is given below::
 
         __bpf_kfunc void bpf_memzero(void *mem, int mem__sz)
@@ -70,16 +70,16 @@ An example is given below::
         }
 
 Here, the verifier will treat first argument as a PTR_TO_MEM, and second
-argument as its size. By default, without __sz annotation, the size of the type
-of the pointer is used. Without __sz annotation, a kfunc cannot accept a void
+argument as its size. By default, without __sz ananaltation, the size of the type
+of the pointer is used. Without __sz ananaltation, a kfunc cananalt accept a void
 pointer.
 
-2.2.2 __k Annotation
+2.2.2 __k Ananaltation
 --------------------
 
-This annotation is only understood for scalar arguments, where it indicates that
-the verifier must check the scalar argument to be a known constant, which does
-not indicate a size parameter, and the value of the constant is relevant to the
+This ananaltation is only understood for scalar arguments, where it indicates that
+the verifier must check the scalar argument to be a kanalwn constant, which does
+analt indicate a size parameter, and the value of the constant is relevant to the
 safety of the program.
 
 An example is given below::
@@ -94,14 +94,14 @@ ID in program's BTF and return a sized pointer to it. Each type ID will have a
 distinct size, hence it is crucial to treat each such call as distinct when
 values don't match during verifier state pruning checks.
 
-Hence, whenever a constant scalar argument is accepted by a kfunc which is not a
+Hence, whenever a constant scalar argument is accepted by a kfunc which is analt a
 size parameter, and the value of the constant matters for program safety, __k
 suffix should be used.
 
-2.2.3 __uninit Annotation
+2.2.3 __uninit Ananaltation
 -------------------------
 
-This annotation is used to indicate that the argument will be treated as
+This ananaltation is used to indicate that the argument will be treated as
 uninitialized.
 
 An example is given below::
@@ -112,15 +112,15 @@ An example is given below::
         }
 
 Here, the dynptr will be treated as an uninitialized dynptr. Without this
-annotation, the verifier will reject the program if the dynptr passed in is
-not initialized.
+ananaltation, the verifier will reject the program if the dynptr passed in is
+analt initialized.
 
-2.2.4 __opt Annotation
+2.2.4 __opt Ananaltation
 -------------------------
 
-This annotation is used to indicate that the buffer associated with an __sz or __szk
+This ananaltation is used to indicate that the buffer associated with an __sz or __szk
 argument may be null. If the function is passed a nullptr in place of the buffer,
-the verifier will not check that length is appropriate for the buffer. The kfunc is
+the verifier will analt check that length is appropriate for the buffer. The kfunc is
 responsible for checking if this buffer is null before using it.
 
 An example is given below::
@@ -130,14 +130,14 @@ An example is given below::
         ...
         }
 
-Here, the buffer may be null. If buffer is not null, it at least of size buffer_szk.
+Here, the buffer may be null. If buffer is analt null, it at least of size buffer_szk.
 Either way, the returned buffer is either NULL, or of size buffer_szk. Without this
-annotation, the verifier will reject the program if a null pointer is passed in with
-a nonzero size.
+ananaltation, the verifier will reject the program if a null pointer is passed in with
+a analnzero size.
 
-2.2.5 __str Annotation
+2.2.5 __str Ananaltation
 ----------------------------
-This annotation is used to indicate that the argument is a constant string.
+This ananaltation is used to indicate that the argument is a constant string.
 
 An example is given below::
 
@@ -160,7 +160,7 @@ Or::
                 ...
         }
 
-.. _BPF_kfunc_nodef:
+.. _BPF_kfunc_analdef:
 
 2.3 Using an existing kernel function
 -------------------------------------
@@ -170,7 +170,7 @@ it can be directly registered with the BPF subsystem. However, care must still
 be taken to review the context in which it will be invoked by the BPF program
 and whether it is safe to do so.
 
-2.4 Annotating kfuncs
+2.4 Ananaltating kfuncs
 ---------------------
 
 In addition to kfuncs' arguments, verifier may need more information about the
@@ -183,13 +183,13 @@ flags on a set of kfuncs as follows::
         BTF_SET8_END(bpf_task_set)
 
 This set encodes the BTF ID of each kfunc listed above, and encodes the flags
-along with it. Ofcourse, it is also allowed to specify no flags.
+along with it. Ofcourse, it is also allowed to specify anal flags.
 
-kfunc definitions should also always be annotated with the ``__bpf_kfunc``
+kfunc definitions should also always be ananaltated with the ``__bpf_kfunc``
 macro. This prevents issues such as the compiler inlining the kfunc if it's a
 static kernel function, or the function being elided in an LTO build as it's
-not used in the rest of the kernel. Developers should not manually add
-annotations to their kfunc to prevent these issues. If an annotation is
+analt used in the rest of the kernel. Developers should analt manually add
+ananaltations to their kfunc to prevent these issues. If an ananaltation is
 required to prevent such an issue with your kfunc, it is a bug and should be
 added to the definition of the macro so that other kfuncs are similarly
 protected. An example is given below::
@@ -205,8 +205,8 @@ protected. An example is given below::
 The KF_ACQUIRE flag is used to indicate that the kfunc returns a pointer to a
 refcounted object. The verifier will then ensure that the pointer to the object
 is eventually released using a release kfunc, or transferred to a map using a
-referenced kptr (by invoking bpf_kptr_xchg). If not, the verifier fails the
-loading of the BPF program until no lingering references remain in all possible
+referenced kptr (by invoking bpf_kptr_xchg). If analt, the verifier fails the
+loading of the BPF program until anal lingering references remain in all possible
 explored states of the program.
 
 2.4.2 KF_RET_NULL flag
@@ -215,7 +215,7 @@ explored states of the program.
 The KF_RET_NULL flag is used to indicate that the pointer returned by the kfunc
 may be NULL. Hence, it forces the user to do a NULL check on the pointer
 returned from the kfunc before making use of it (dereferencing or passing to
-another helper). This flag is often used in pairing with KF_ACQUIRE flag, but
+aanalther helper). This flag is often used in pairing with KF_ACQUIRE flag, but
 both are orthogonal to each other.
 
 2.4.3 KF_RELEASE flag
@@ -233,7 +233,7 @@ protection afforded by the KF_TRUSTED_ARGS flag described below.
 The KF_TRUSTED_ARGS flag is used for kfuncs taking pointer arguments. It
 indicates that the all pointer arguments are valid, and that all pointers to
 BTF objects have been passed in their unmodified form (that is, at a zero
-offset, and without having been obtained from walking another pointer, with one
+offset, and without having been obtained from walking aanalther pointer, with one
 exception described below).
 
 There are two types of pointers to kernel objects which are considered "valid":
@@ -241,14 +241,14 @@ There are two types of pointers to kernel objects which are considered "valid":
 1. Pointers which are passed as tracepoint or struct_ops callback arguments.
 2. Pointers which were returned from a KF_ACQUIRE kfunc.
 
-Pointers to non-BTF objects (e.g. scalar pointers) may also be passed to
-KF_TRUSTED_ARGS kfuncs, and may have a non-zero offset.
+Pointers to analn-BTF objects (e.g. scalar pointers) may also be passed to
+KF_TRUSTED_ARGS kfuncs, and may have a analn-zero offset.
 
 The definition of "valid" pointers is subject to change at any time, and has
-absolutely no ABI stability guarantees.
+absolutely anal ABI stability guarantees.
 
 As mentioned above, a nested pointer obtained from walking a trusted pointer is
-no longer trusted, with one exception. If a struct type has a field that is
+anal longer trusted, with one exception. If a struct type has a field that is
 guaranteed to be valid (trusted or rcu, as in KF_RCU description below) as long
 as its parent pointer is valid, the following macros can be used to express
 that to the verifier:
@@ -312,10 +312,10 @@ added later.
 
 The KF_RCU flag is a weaker version of KF_TRUSTED_ARGS. The kfuncs marked with
 KF_RCU expect either PTR_TRUSTED or MEM_RCU arguments. The verifier guarantees
-that the objects are valid and there is no use-after-free. The pointers are not
+that the objects are valid and there is anal use-after-free. The pointers are analt
 NULL, but the object's refcount could have reached zero. The kfuncs need to
 consider doing refcnt != 0 check, especially when returning a KF_ACQUIRE
-pointer. Note as well that a KF_ACQUIRE kfunc that is KF_RCU should very likely
+pointer. Analte as well that a KF_ACQUIRE kfunc that is KF_RCU should very likely
 also be KF_RET_NULL.
 
 .. _KF_deprecated_flag:
@@ -331,12 +331,12 @@ kfunc's expected remaining lifespan, a recommendation for new
 functionality that can replace it if any is available, and possibly a
 rationale for why it is being removed.
 
-Note that while on some occasions, a KF_DEPRECATED kfunc may continue to be
+Analte that while on some occasions, a KF_DEPRECATED kfunc may continue to be
 supported and have its KF_DEPRECATED flag removed, it is likely to be far more
 difficult to remove a KF_DEPRECATED flag after it's been added than it is to
 prevent it from being added in the first place. As described in
 :ref:`BPF_kfunc_lifecycle_expectations`, users that rely on specific kfuncs are
-encouraged to make their use-cases known as early as possible, and participate
+encouraged to make their use-cases kanalwn as early as possible, and participate
 in upstream discussions regarding whether to keep, change, deprecate, or remove
 those kfuncs if and when such discussions occur.
 
@@ -363,7 +363,7 @@ type. An example is shown below::
         }
         late_initcall(init_subsystem);
 
-2.6  Specifying no-cast aliases with ___init
+2.6  Specifying anal-cast aliases with ___init
 --------------------------------------------
 
 The verifier will always enforce that the BTF type of a pointer passed to a
@@ -386,7 +386,7 @@ taking a ``cpumask_t *`` (which is a typedef of ``struct cpumask *``). For
 instance, both ``struct cpumask *`` and ``struct bpf_cpmuask *`` can be passed
 to bpf_cpumask_test_cpu().
 
-In some cases, this type-aliasing behavior is not desired. ``struct
+In some cases, this type-aliasing behavior is analt desired. ``struct
 nf_conn___init`` is one such example:
 
 .. code-block:: c
@@ -395,10 +395,10 @@ nf_conn___init`` is one such example:
 		struct nf_conn ct;
 	};
 
-The C standard would consider these types to be equivalent, but it would not
+The C standard would consider these types to be equivalent, but it would analt
 always be safe to pass either type to a trusted kfunc. ``struct
 nf_conn___init`` represents an allocated ``struct nf_conn`` object that has
-*not yet been initialized*, so it would therefore be unsafe to pass a ``struct
+*analt yet been initialized*, so it would therefore be unsafe to pass a ``struct
 nf_conn___init *`` to a kfunc that's expecting a fully initialized ``struct
 nf_conn *`` (e.g. ``bpf_ct_change_timeout()``).
 
@@ -411,17 +411,17 @@ being suffixed with ``___init``.
 3. kfunc lifecycle expectations
 ===============================
 
-kfuncs provide a kernel <-> kernel API, and thus are not bound by any of the
+kfuncs provide a kernel <-> kernel API, and thus are analt bound by any of the
 strict stability restrictions associated with kernel <-> user UAPIs. This means
 they can be thought of as similar to EXPORT_SYMBOL_GPL, and can therefore be
 modified or removed by a maintainer of the subsystem they're defined in when
 it's deemed necessary.
 
-Like any other change to the kernel, maintainers will not change or remove a
-kfunc without having a reasonable justification.  Whether or not they'll choose
+Like any other change to the kernel, maintainers will analt change or remove a
+kfunc without having a reasonable justification.  Whether or analt they'll choose
 to change a kfunc will ultimately depend on a variety of factors, such as how
 widely used the kfunc is, how long the kfunc has been in the kernel, whether an
-alternative kfunc exists, what the norm is in terms of stability for the
+alternative kfunc exists, what the analrm is in terms of stability for the
 subsystem in question, and of course what the technical cost is of continuing
 to support the kfunc.
 
@@ -429,7 +429,7 @@ There are several implications of this:
 
 a) kfuncs that are widely used or have been in the kernel for a long time will
    be more difficult to justify being changed or removed by a maintainer. In
-   other words, kfuncs that are known to have a lot of users and provide
+   other words, kfuncs that are kanalwn to have a lot of users and provide
    significant value provide stronger incentives for maintainers to invest the
    time and complexity in supporting them. It is therefore important for
    developers that are using kfuncs in their BPF programs to communicate and
@@ -437,8 +437,8 @@ a) kfuncs that are widely used or have been in the kernel for a long time will
    discussions regarding those kfuncs when they occur upstream.
 
 b) Unlike regular kernel symbols marked with EXPORT_SYMBOL_GPL, BPF programs
-   that call kfuncs are generally not part of the kernel tree. This means that
-   refactoring cannot typically change callers in-place when a kfunc changes,
+   that call kfuncs are generally analt part of the kernel tree. This means that
+   refactoring cananalt typically change callers in-place when a kfunc changes,
    as is done for e.g. an upstreamed driver being updated in place when a
    kernel symbol is changed.
 
@@ -449,14 +449,14 @@ b) Unlike regular kernel symbols marked with EXPORT_SYMBOL_GPL, BPF programs
    upstream discussions when necessary to ensure that the perspectives of such
    users are taken into account.
 
-c) A kfunc will never have any hard stability guarantees. BPF APIs cannot and
-   will not ever hard-block a change in the kernel purely for stability
+c) A kfunc will never have any hard stability guarantees. BPF APIs cananalt and
+   will analt ever hard-block a change in the kernel purely for stability
    reasons. That being said, kfuncs are features that are meant to solve
    problems and provide value to users. The decision of whether to change or
    remove a kfunc is a multivariate technical decision that is made on a
    case-by-case basis, and which is informed by data points such as those
    mentioned above. It is expected that a kfunc being removed or changed with
-   no warning will not be a common occurrence or take place without sound
+   anal warning will analt be a common occurrence or take place without sound
    justification, but it is a possibility that must be accepted if one is to
    use kfuncs.
 
@@ -469,9 +469,9 @@ usually kfuncs will be able to accommodate a longer and more measured
 deprecation process. For example, if a new kfunc comes along which provides
 superior functionality to an existing kfunc, the existing kfunc may be
 deprecated for some period of time to allow users to migrate their BPF programs
-to use the new one. Or, if a kfunc has no known users, a decision may be made
+to use the new one. Or, if a kfunc has anal kanalwn users, a decision may be made
 to remove the kfunc (without providing an alternative API) after some
-deprecation period so as to provide users with a window to notify the kfunc
+deprecation period so as to provide users with a window to analtify the kfunc
 maintainer if it turns out that the kfunc is actually being used.
 
 It's expected that the common case will be that kfuncs will go through a
@@ -484,7 +484,7 @@ procedure is followed for removal:
 1. Any relevant information for deprecated kfuncs is documented in the kfunc's
    kernel docs. This documentation will typically include the kfunc's expected
    remaining lifespan, a recommendation for new functionality that can replace
-   the usage of the deprecated function (or an explanation as to why no such
+   the usage of the deprecated function (or an explanation as to why anal such
    replacement exists), etc.
 
 2. The deprecated kfunc is kept in the kernel for some period of time after it
@@ -570,10 +570,10 @@ embedded in a map value without having to acquire a reference:
 			 */
 			bpf_printk("Global task %s is valid", local_copy->comm);
 		else
-			bpf_printk("No global task found");
+			bpf_printk("Anal global task found");
 		bpf_rcu_read_unlock();
 
-		/* At this point we can no longer reference local_copy. */
+		/* At this point we can anal longer reference local_copy. */
 
 		return 0;
 	}
@@ -599,7 +599,7 @@ Here is an example of it being used:
 		lookup = bpf_task_from_pid(task->pid);
 		if (!lookup)
 			/* A task should always be found, as %task is a tracepoint arg. */
-			return -ENOENT;
+			return -EANALENT;
 
 		if (lookup->pid != task->pid) {
 			/* bpf_task_from_pid() looks up the task via its
@@ -643,8 +643,8 @@ return a cgroup kptr.
 .. kernel-doc:: kernel/bpf/helpers.c
    :identifiers: bpf_cgroup_from_id
 
-Eventually, BPF should be updated to allow this to happen with a normal memory
-load in the program itself. This is currently not possible without more work in
+Eventually, BPF should be updated to allow this to happen with a analrmal memory
+load in the program itself. This is currently analt possible without more work in
 the verifier. bpf_cgroup_ancestor() can be used as follows:
 
 .. code-block:: c
@@ -661,7 +661,7 @@ the verifier. bpf_cgroup_ancestor() can be used as follows:
 		/* The parent cgroup resides at the level before the current cgroup's level. */
 		parent = bpf_cgroup_ancestor(cgrp, cgrp->level - 1);
 		if (!parent)
-			return -ENOENT;
+			return -EANALENT;
 
 		bpf_printk("Parent id is %d", parent->self.id);
 

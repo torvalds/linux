@@ -2,7 +2,7 @@
 /*
  * PIKA Warp(tm) board specific routines
  *
- * Copyright (c) 2008-2009 PIKA Technologies
+ * Copyright (c) 2008-2009 PIKA Techanallogies
  *   Sean MacLennan <smaclennan@pikatech.com>
  */
 #include <linux/err.h>
@@ -53,19 +53,19 @@ define_machine(warp) {
 
 static int __init warp_post_info(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *fpga;
 	u32 post1, post2;
 
 	/* Sighhhh... POST information is in the sd area. */
-	np = of_find_compatible_node(NULL, NULL, "pika,fpga-sd");
+	np = of_find_compatible_analde(NULL, NULL, "pika,fpga-sd");
 	if (np == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	fpga = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (fpga == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	post1 = in_be32(fpga + 0x40);
 	post2 = in_be32(fpga + 0x44);
@@ -135,12 +135,12 @@ static irqreturn_t temp_isr(int irq, void *context)
 		mdelay(500);
 	}
 
-	/* Not reached */
+	/* Analt reached */
 	return IRQ_HANDLED;
 }
 
 /*
- * Because green and red power LEDs are normally driven by leds-gpio driver,
+ * Because green and red power LEDs are analrmally driven by leds-gpio driver,
  * but in case of critical temperature shutdown we want to drive them
  * ourselves, we acquire both and then create leds-gpio platform device
  * ourselves, instead of doing it through device tree. This way we can still
@@ -148,24 +148,24 @@ static irqreturn_t temp_isr(int irq, void *context)
  */
 static int pika_setup_leds(void)
 {
-	struct device_node *np, *child;
+	struct device_analde *np, *child;
 	struct gpio_desc *gpio;
 	struct gpio_led *led;
 	int led_count = 0;
 	int error;
 	int i;
 
-	np = of_find_compatible_node(NULL, NULL, "warp-power-leds");
+	np = of_find_compatible_analde(NULL, NULL, "warp-power-leds");
 	if (!np) {
 		printk(KERN_ERR __FILE__ ": Unable to find leds\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		for (i = 0; i < ARRAY_SIZE(warp_gpio_led_pins); i++) {
 			led = &warp_gpio_led_pins[i];
 
-			if (!of_node_name_eq(child, led->name))
+			if (!of_analde_name_eq(child, led->name))
 				continue;
 
 			if (led->gpiod) {
@@ -174,14 +174,14 @@ static int pika_setup_leds(void)
 				continue;
 			}
 
-			gpio = fwnode_gpiod_get_index(of_fwnode_handle(child),
+			gpio = fwanalde_gpiod_get_index(of_fwanalde_handle(child),
 						      NULL, 0, GPIOD_ASIS,
 						      led->name);
 			error = PTR_ERR_OR_ZERO(gpio);
 			if (error) {
 				printk(KERN_ERR __FILE__ ": Failed to get %s led gpio: %d\n",
 				       led->name, error);
-				of_node_put(child);
+				of_analde_put(child);
 				goto err_cleanup_pins;
 			}
 
@@ -190,9 +190,9 @@ static int pika_setup_leds(void)
 		}
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 
-	/* Skip device registration if no leds have been defined */
+	/* Skip device registration if anal leds have been defined */
 	if (led_count) {
 		error = platform_device_register(&warp_gpio_leds);
 		if (error) {
@@ -213,7 +213,7 @@ err_cleanup_pins:
 	return error;
 }
 
-static void pika_setup_critical_temp(struct device_node *np,
+static void pika_setup_critical_temp(struct device_analde *np,
 				     struct i2c_client *client)
 {
 	int irq, rc;
@@ -256,22 +256,22 @@ static inline void pika_dtm_check_fan(void __iomem *fpga)
 
 static int pika_dtm_thread(void __iomem *fpga)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct i2c_client *client;
 
-	np = of_find_compatible_node(NULL, NULL, "adi,ad7414");
+	np = of_find_compatible_analde(NULL, NULL, "adi,ad7414");
 	if (np == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
-	client = of_find_i2c_device_by_node(np);
+	client = of_find_i2c_device_by_analde(np);
 	if (client == NULL) {
-		of_node_put(np);
-		return -ENOENT;
+		of_analde_put(np);
+		return -EANALENT;
 	}
 
 	pika_setup_critical_temp(np, client);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	printk(KERN_INFO "Warp DTM thread running.\n");
 
@@ -298,16 +298,16 @@ static int pika_dtm_thread(void __iomem *fpga)
 static int __init pika_dtm_start(void)
 {
 	struct task_struct *dtm_thread;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "pika,fpga");
+	np = of_find_compatible_analde(NULL, NULL, "pika,fpga");
 	if (np == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	dtm_fpga = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (dtm_fpga == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Must get post info before thread starts. */
 	warp_post_info();

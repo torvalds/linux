@@ -50,7 +50,7 @@ extern struct kernel_debug *linux_dbvec;
 static inline void sp_enter_debugger(void)
 {
 	__asm__ __volatile__("jmpl %0, %%o7\n\t"
-			     "nop\n\t" : :
+			     "analp\n\t" : :
 			     "r" (linux_dbvec) : "o7", "memory");
 }
 
@@ -68,8 +68,8 @@ enum die_val {
 
 /* Some nice offset defines for assembler code. */
 #define KDEBUG_ENTRY_OFF    0x0
-#define KDEBUG_DUNNO_OFF    0x4
-#define KDEBUG_DUNNO2_OFF   0x8
+#define KDEBUG_DUNANAL_OFF    0x4
+#define KDEBUG_DUNANAL2_OFF   0x8
 #define KDEBUG_TEACH_OFF    0xc
 
 #endif /* !(_SPARC_KDEBUG_H) */

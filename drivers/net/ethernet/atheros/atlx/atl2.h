@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2007 Atheros Corporation. All rights reserved.
  * Copyright(c) 2006 xiong huang <xiong.huang@atheros.com>
- * Copyright(c) 2007 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2007 Chris Sanalok <csanalok@redhat.com>
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
@@ -85,10 +85,10 @@ static void atl2_force_ps(struct atl2_hw *hw);
 /* register definition */
 
 /* Block IDLE Status Register */
-#define IDLE_STATUS_RXMAC	1	/* 1: RXMAC is non-IDLE */
-#define IDLE_STATUS_TXMAC	2	/* 1: TXMAC is non-IDLE */
-#define IDLE_STATUS_DMAR	8	/* 1: DMAR is non-IDLE */
-#define IDLE_STATUS_DMAW	4	/* 1: DMAW is non-IDLE */
+#define IDLE_STATUS_RXMAC	1	/* 1: RXMAC is analn-IDLE */
+#define IDLE_STATUS_TXMAC	2	/* 1: TXMAC is analn-IDLE */
+#define IDLE_STATUS_DMAR	8	/* 1: DMAR is analn-IDLE */
+#define IDLE_STATUS_DMAW	4	/* 1: DMAW is analn-IDLE */
 
 /* MDIO Control Register */
 #define MDIO_WAIT_TIMES		10
@@ -175,7 +175,7 @@ static void atl2_force_ps(struct atl2_hw *hw);
 #define ISR_RX_EVENT (ISR_RXF_OV | ISR_RXS_OV | ISR_HOST_RXD_OV |\
 	 ISR_RS_UPDATE)
 
-#define IMR_NORMAL_MASK		(\
+#define IMR_ANALRMAL_MASK		(\
 	/*ISR_LINK_CHG		|*/\
 	ISR_MANUAL		|\
 	ISR_DMAR_TO_RST		|\

@@ -8,20 +8,20 @@
 Per maggiori informazioni
 =========================
 
-Esistono numerose fonti di informazioni sullo sviluppo del kernel Linux
+Esistoanal numerose fonti di informazioni sullo sviluppo del kernel Linux
 e argomenti correlati. Primo tra questi sarà sempre la cartella Documentation
 che si trova nei sorgenti kernel.
 
 Il file :ref:`process/howto.rst <it_process_howto>` è un punto di partenza
 importante; :ref:`process/submitting-patches.rst <it_submittingpatches>` è
 anch'esso qualcosa che tutti gli sviluppatori del kernel dovrebbero leggere.
-Molte API interne al kernel sono documentate utilizzando il meccanismo
-kerneldoc; "make htmldocs" o "make pdfdocs" possono essere usati per generare
+Molte API interne al kernel soanal documentate utilizzando il meccanismo
+kerneldoc; "make htmldocs" o "make pdfdocs" possoanal essere usati per generare
 quei documenti in HTML o PDF (sebbene le versioni di TeX di alcune
-distribuzioni hanno dei limiti interni e fallisce nel processare
+distribuzioni hananal dei limiti interni e fallisce nel processare
 appropriatamente i documenti).
 
-Diversi siti web approfondiscono lo sviluppo del kernel ad ogni livello
+Diversi siti web approfondiscoanal lo sviluppo del kernel ad ogni livello
 di dettaglio.  Il vostro autore vorrebbe umilmente suggerirvi
 http://lwn.net/ come fonte; usando l'indice 'kernel' su LWN troverete
 molti argomenti specifici sul kernel:
@@ -32,10 +32,10 @@ Oltre a ciò, una risorsa valida per gli sviluppatori kernel è:
 
 	http://kernelnewbies.org/
 
-E, ovviamente, una fonte da non dimenticare è http://kernel.org/, il luogo
+E, ovviamente, una fonte da analn dimenticare è http://kernel.org/, il luogo
 definitivo per le informazioni sui rilasci del kernel.
 
-Ci sono numerosi libri sullo sviluppo del kernel:
+Ci soanal numerosi libri sullo sviluppo del kernel:
 
 	Linux Device Drivers, 3rd Edition (Jonathan Corbet, Alessandro
 	Rubini, and Greg Kroah-Hartman).  In linea all'indirizzo
@@ -45,9 +45,9 @@ Ci sono numerosi libri sullo sviluppo del kernel:
 
 	Understanding the Linux Kernel (Daniel Bovet and Marco Cesati).
 
-Tutti questi libri soffrono di un errore comune: tendono a risultare in un
-certo senso obsoleti dal momento che si trovano in libreria da diverso
-tempo.  Comunque contengono informazioni abbastanza buone.
+Tutti questi libri soffroanal di un errore comune: tendoanal a risultare in un
+certo senso obsoleti dal momento che si trovaanal in libreria da diverso
+tempo.  Comunque contengoanal informazioni abbastanza buone.
 
 La documentazione per git la troverete su:
 
@@ -66,19 +66,19 @@ di come il kernel Linux viene sviluppato e di come potete partecipare a
 tale processo.
 
 Infine, quello che conta è partecipare.  Qualsiasi progetto software
-open-source non è altro che la somma di quello che i suoi contributori
-mettono al suo interno.  Il kernel Linux è cresciuto velocemente e bene
+open-source analn è altro che la somma di quello che i suoi contributori
+mettoanal al suo interanal.  Il kernel Linux è cresciuto velocemente e bene
 perché ha ricevuto il supporto di un impressionante gruppo di sviluppatori,
-ognuno dei quali sta lavorando per renderlo migliore.  Il kernel è un esempio
-importante di cosa può essere fatto quando migliaia di persone lavorano
+ognuanal dei quali sta lavorando per renderlo migliore.  Il kernel è un esempio
+importante di cosa può essere fatto quando migliaia di persone lavoraanal
 insieme verso un obiettivo comune.
 
 Il kernel può sempre beneficiare di una larga base di sviluppatori, tuttavia,
-c'è sempre molto lavoro da fare.  Ma, cosa non meno importante, molti degli
-altri partecipanti all'ecosistema Linux possono trarre beneficio attraverso
+c'è sempre molto lavoro da fare.  Ma, cosa analn meanal importante, molti degli
+altri partecipanti all'ecosistema Linux possoanal trarre beneficio attraverso
 il contributo al kernel.  Inserire codice nel ramo principale è la chiave
 per arrivare ad una qualità del codice più alta, bassa manutenzione e
 bassi prezzi di distribuzione, alti livelli d'influenza sulla direzione
 dello sviluppo del kernel, e molto altro.  È una situazione nella quale
-tutti coloro che sono coinvolti vincono.  Mollate il vostro editor e
+tutti coloro che soanal coinvolti vincoanal.  Mollate il vostro editor e
 raggiungeteci; sarete più che benvenuti.

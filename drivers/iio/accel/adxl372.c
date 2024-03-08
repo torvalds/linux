@@ -616,7 +616,7 @@ static void adxl372_arrange_axis_data(struct adxl372_state *st, __be16 *sample)
 
 static void adxl372_push_event(struct iio_dev *indio_dev, s64 timestamp, u8 status2)
 {
-	unsigned int ev_dir = IIO_EV_DIR_NONE;
+	unsigned int ev_dir = IIO_EV_DIR_ANALNE;
 
 	if (ADXL372_STATUS_2_ACT(status2))
 		ev_dir = IIO_EV_DIR_RISING;
@@ -624,7 +624,7 @@ static void adxl372_push_event(struct iio_dev *indio_dev, s64 timestamp, u8 stat
 	if (ADXL372_STATUS_2_INACT(status2))
 		ev_dir = IIO_EV_DIR_FALLING;
 
-	if (ev_dir != IIO_EV_DIR_NONE)
+	if (ev_dir != IIO_EV_DIR_ANALNE)
 		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL, 0, IIO_MOD_X_OR_Y_OR_Z,
 						  IIO_EV_TYPE_THRESH, ev_dir),
@@ -650,14 +650,14 @@ static irqreturn_t adxl372_trigger_handler(int irq, void  *p)
 	    ADXL372_STATUS_1_FIFO_FULL(status1)) {
 		/*
 		 * When reading data from multiple axes from the FIFO,
-		 * to ensure that data is not overwritten and stored out
+		 * to ensure that data is analt overwritten and stored out
 		 * of order at least one sample set must be left in the
 		 * FIFO after every read.
 		 */
 		fifo_entries -= st->fifo_set_size;
 
 		/* Read data from the FIFO */
-		ret = regmap_noinc_read(st->regmap, ADXL372_FIFO_DATA,
+		ret = regmap_analinc_read(st->regmap, ADXL372_FIFO_DATA,
 					st->fifo_buf,
 					fifo_entries * sizeof(u16));
 		if (ret < 0)
@@ -672,7 +672,7 @@ static irqreturn_t adxl372_trigger_handler(int irq, void  *p)
 		}
 	}
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -687,7 +687,7 @@ static int adxl372_setup(struct adxl372_state *st)
 
 	if (regval != ADXL372_DEVID_VAL) {
 		dev_err(st->dev, "Invalid chip id %x\n", regval);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -821,7 +821,7 @@ static int adxl372_write_raw(struct iio_dev *indio_dev,
 			return ret;
 		/*
 		 * The maximum bandwidth is constrained to at most half of
-		 * the ODR to ensure that the Nyquist criteria is not violated
+		 * the ODR to ensure that the Nyquist criteria is analt violated
 		 */
 		if (st->bw > odr_index)
 			ret = adxl372_set_bandwidth(st, odr_index);
@@ -1172,11 +1172,11 @@ static const struct iio_info adxl372_info = {
 	.hwfifo_set_watermark = adxl372_set_watermark,
 };
 
-bool adxl372_readable_noinc_reg(struct device *dev, unsigned int reg)
+bool adxl372_readable_analinc_reg(struct device *dev, unsigned int reg)
 {
 	return (reg == ADXL372_FIFO_DATA);
 }
-EXPORT_SYMBOL_NS_GPL(adxl372_readable_noinc_reg, IIO_ADXL372);
+EXPORT_SYMBOL_NS_GPL(adxl372_readable_analinc_reg, IIO_ADXL372);
 
 int adxl372_probe(struct device *dev, struct regmap *regmap,
 		  int irq, const char *name)
@@ -1187,7 +1187,7 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
@@ -1226,14 +1226,14 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 							 indio_dev->name,
 							 iio_device_id(indio_dev));
 		if (st->dready_trig == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		st->peak_datardy_trig = devm_iio_trigger_alloc(dev,
 							       "%s-dev%d-peak",
 							       indio_dev->name,
 							       iio_device_id(indio_dev));
 		if (!st->peak_datardy_trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		st->dready_trig->ops = &adxl372_trigger_ops;
 		st->peak_datardy_trig->ops = &adxl372_peak_data_trigger_ops;

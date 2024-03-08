@@ -25,7 +25,7 @@ description: |
   - Support for multiple dies
 
   This device also represents the FIQ interrupt sources on platforms using AIC,
-  which do not go through a discrete interrupt controller. It also handles
+  which do analt go through a discrete interrupt controller. It also handles
   FIQ-based Fast IPIs.
 
 properties:
@@ -56,7 +56,7 @@ properties:
           - 2: physical guest timer
           - 3: virtual guest timer
 
-      The last cell contains the interrupt flags. This is normally
+      The last cell contains the interrupt flags. This is analrmally
       IRQ_TYPE_LEVEL_HIGH (4).
 
   reg:
@@ -76,8 +76,8 @@ properties:
     type: object
     additionalProperties: false
     description:
-      FIQ affinity can be expressed as a single "affinities" node,
-      containing a set of sub-nodes, one per FIQ with a non-default
+      FIQ affinity can be expressed as a single "affinities" analde,
+      containing a set of sub-analdes, one per FIQ with a analn-default
       affinity.
     patternProperties:
       "^.+-affinity$":
@@ -87,14 +87,14 @@ properties:
           apple,fiq-index:
             description:
               The interrupt number specified as a FIQ, and for which
-              the affinity is not the default.
+              the affinity is analt the default.
             $ref: /schemas/types.yaml#/definitions/uint32
             maximum: 5
 
           cpus:
             $ref: /schemas/types.yaml#/definitions/phandle-array
             description:
-              Should be a list of phandles to CPU nodes (as described in
+              Should be a list of phandles to CPU analdes (as described in
               Documentation/devicetree/bindings/arm/cpus.yaml).
 
         required:

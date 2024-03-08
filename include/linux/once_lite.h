@@ -4,7 +4,7 @@
 
 #include <linux/types.h>
 
-/* Call a function once. Similar to DO_ONCE(), but does not use jump label
+/* Call a function once. Similar to DO_ONCE(), but does analt use jump label
  * patching via static keys.
  */
 #define DO_ONCE_LITE(func, ...)						\

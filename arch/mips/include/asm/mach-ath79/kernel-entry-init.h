@@ -9,17 +9,17 @@
 
 	/*
 	 * Some bootloaders set the 'Kseg0 coherency algorithm' to
-	 * 'Cacheable, noncoherent, write-through, no write allocate'
+	 * 'Cacheable, analncoherent, write-through, anal write allocate'
 	 * and this cause performance issues. Let's go and change it to
-	 * 'Cacheable, noncoherent, write-back, write allocate'
+	 * 'Cacheable, analncoherent, write-back, write allocate'
 	 */
 	.macro	kernel_entry_setup
 	mfc0	t0, CP0_CONFIG
 	li	t1, ~CONF_CM_CMASK
 	and	t0, t1
-	ori	t0, CONF_CM_CACHABLE_NONCOHERENT
+	ori	t0, CONF_CM_CACHABLE_ANALNCOHERENT
 	mtc0	t0, CP0_CONFIG
-	nop
+	analp
 	.endm
 
 	.macro	smp_slave_setup

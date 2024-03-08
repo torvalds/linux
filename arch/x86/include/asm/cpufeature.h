@@ -130,11 +130,11 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 
 /*
  * This macro is for detection of features which need kernel
- * infrastructure to be used.  It may *not* directly test the CPU
+ * infrastructure to be used.  It may *analt* directly test the CPU
  * itself.  Use the cpu_has() family if you want true runtime
  * testing of CPU features, like in hypervisor code where you are
  * supporting a possible guest feature where host support for it
- * is not relevant.
+ * is analt relevant.
  */
 #define cpu_feature_enabled(bit)	\
 	(__builtin_constant_p(bit) && DISABLED_MASK_BIT_SET(bit) ? 0 : static_cpu_has(bit))
@@ -157,11 +157,11 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
  * Static testing of CPU features. Used the same as boot_cpu_has(). It
  * statically patches the target code for additional performance. Use
  * static_cpu_has() only in fast paths, where every cycle counts. Which
- * means that the boot_cpu_has() variant is already fast enough for the
+ * means that the boot_cpu_has() variant is already fast eanalugh for the
  * majority of cases and you should stick to using it as it is generally
  * only two instructions: a RIP-relative MOV and a TEST.
  *
- * Do not use an "m" constraint for [cap_byte] here: gcc doesn't know
+ * Do analt use an "m" constraint for [cap_byte] here: gcc doesn't kanalw
  * that this is only used on a fallback path and will sometimes cause
  * it to manifest the address of boot_cpu_data in a register, fouling
  * the mainline (post-initialization) code.
@@ -169,20 +169,20 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 static __always_inline bool _static_cpu_has(u16 bit)
 {
 	asm goto(
-		ALTERNATIVE_TERNARY("jmp 6f", %P[feature], "", "jmp %l[t_no]")
+		ALTERNATIVE_TERNARY("jmp 6f", %P[feature], "", "jmp %l[t_anal]")
 		".pushsection .altinstr_aux,\"ax\"\n"
 		"6:\n"
 		" testb %[bitnum]," _ASM_RIP(%P[cap_byte]) "\n"
-		" jnz %l[t_yes]\n"
-		" jmp %l[t_no]\n"
+		" jnz %l[t_anal]\n"
+		" jmp %l[t_anal]\n"
 		".popsection\n"
 		 : : [feature]  "i" (bit),
 		     [bitnum]   "i" (1 << (bit & 7)),
 		     [cap_byte] "i" (&((const char *)boot_cpu_data.x86_capability)[bit >> 3])
-		 : : t_yes, t_no);
-t_yes:
+		 : : t_anal, t_anal);
+t_anal:
 	return true;
-t_no:
+t_anal:
 	return false;
 }
 

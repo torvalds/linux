@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,18 +27,18 @@
 
 #include <nvhw/class/cl907d.h>
 
-#include "nouveau_bo.h"
+#include "analuveau_bo.h"
 
 int
-core907d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
+core907d_caps_init(struct analuveau_drm *drm, struct nv50_disp *disp)
 {
 	struct nv50_core *core = disp->core;
-	struct nouveau_bo *bo = disp->sync;
+	struct analuveau_bo *bo = disp->sync;
 	s64 time;
 	int ret;
 
-	NVBO_WR32(bo, NV50_DISP_CORE_NTFY, NV907D_CORE_NOTIFIER_3, CAPABILITIES_4,
-				     NVDEF(NV907D_CORE_NOTIFIER_3, CAPABILITIES_4, DONE, FALSE));
+	NVBO_WR32(bo, NV50_DISP_CORE_NTFY, NV907D_CORE_ANALTIFIER_3, CAPABILITIES_4,
+				     NVDEF(NV907D_CORE_ANALTIFIER_3, CAPABILITIES_4, DONE, FALSE));
 
 	ret = core507d_read_caps(disp);
 	if (ret < 0)
@@ -46,12 +46,12 @@ core907d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 
 	time = nvif_msec(core->chan.base.device, 2000ULL,
 			 if (NVBO_TD32(bo, NV50_DISP_CORE_NTFY,
-				       NV907D_CORE_NOTIFIER_3, CAPABILITIES_4, DONE, ==, TRUE))
+				       NV907D_CORE_ANALTIFIER_3, CAPABILITIES_4, DONE, ==, TRUE))
 				 break;
 			 usleep_range(1, 2);
 			 );
 	if (time < 0)
-		NV_ERROR(drm, "core caps notifier timeout\n");
+		NV_ERROR(drm, "core caps analtifier timeout\n");
 
 	return 0;
 }
@@ -72,7 +72,7 @@ core907d = {
 };
 
 int
-core907d_new(struct nouveau_drm *drm, s32 oclass, struct nv50_core **pcore)
+core907d_new(struct analuveau_drm *drm, s32 oclass, struct nv50_core **pcore)
 {
 	return core507d_new_(&core907d, drm, oclass, pcore);
 }

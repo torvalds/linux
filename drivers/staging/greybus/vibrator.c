@@ -18,7 +18,7 @@
 struct gb_vibrator_device {
 	struct gb_connection	*connection;
 	struct device		*dev;
-	int			minor;		/* vibrator minor number */
+	int			mianalr;		/* vibrator mianalr number */
 	struct delayed_work     delayed_work;
 };
 
@@ -84,7 +84,7 @@ static ssize_t timeout_store(struct device *dev, struct device_attribute *attr,
 
 	retval = kstrtoul(buf, 10, &val);
 	if (retval < 0) {
-		dev_err(dev, "could not parse timeout value %d\n", retval);
+		dev_err(dev, "could analt parse timeout value %d\n", retval);
 		return retval;
 	}
 
@@ -110,7 +110,7 @@ static struct class vibrator_class = {
 	.dev_groups	= vibrator_groups,
 };
 
-static DEFINE_IDA(minors);
+static DEFINE_IDA(mianalrs);
 
 static int gb_vibrator_probe(struct gb_bundle *bundle,
 			     const struct greybus_bundle_id *id)
@@ -122,15 +122,15 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 	int retval;
 
 	if (bundle->num_cports != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cport_desc = &bundle->cport_desc[0];
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_VIBRATOR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vib = kzalloc(sizeof(*vib), GFP_KERNEL);
 	if (!vib)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
 					  NULL);
@@ -149,17 +149,17 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 		goto err_connection_destroy;
 
 	/*
-	 * For now we create a device in sysfs for the vibrator, but odds are
+	 * For analw we create a device in sysfs for the vibrator, but odds are
 	 * there is a "real" device somewhere in the kernel for this, but I
 	 * can't find it at the moment...
 	 */
-	vib->minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
-	if (vib->minor < 0) {
-		retval = vib->minor;
+	vib->mianalr = ida_simple_get(&mianalrs, 0, 0, GFP_KERNEL);
+	if (vib->mianalr < 0) {
+		retval = vib->mianalr;
 		goto err_connection_disable;
 	}
 	dev = device_create(&vibrator_class, &bundle->dev,
-			    MKDEV(0, 0), vib, "vibrator%d", vib->minor);
+			    MKDEV(0, 0), vib, "vibrator%d", vib->mianalr);
 	if (IS_ERR(dev)) {
 		retval = -EINVAL;
 		goto err_ida_remove;
@@ -173,7 +173,7 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 	return 0;
 
 err_ida_remove:
-	ida_simple_remove(&minors, vib->minor);
+	ida_simple_remove(&mianalrs, vib->mianalr);
 err_connection_disable:
 	gb_connection_disable(connection);
 err_connection_destroy:
@@ -191,13 +191,13 @@ static void gb_vibrator_disconnect(struct gb_bundle *bundle)
 
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret)
-		gb_pm_runtime_get_noresume(bundle);
+		gb_pm_runtime_get_analresume(bundle);
 
 	if (cancel_delayed_work_sync(&vib->delayed_work))
 		turn_off(vib);
 
 	device_unregister(vib->dev);
-	ida_simple_remove(&minors, vib->minor);
+	ida_simple_remove(&mianalrs, vib->mianalr);
 	gb_connection_disable(vib->connection);
 	gb_connection_destroy(vib->connection);
 	kfree(vib);
@@ -241,7 +241,7 @@ static __exit void gb_vibrator_exit(void)
 {
 	greybus_deregister(&gb_vibrator_driver);
 	class_unregister(&vibrator_class);
-	ida_destroy(&minors);
+	ida_destroy(&mianalrs);
 }
 module_exit(gb_vibrator_exit);
 

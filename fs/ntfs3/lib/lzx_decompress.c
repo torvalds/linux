@@ -21,7 +21,7 @@
 /* Number of distinct match lengths that can be represented  */
 #define LZX_NUM_LENS			(LZX_MAX_MATCH_LEN - LZX_MIN_MATCH_LEN + 1)
 
-/* Number of match lengths for which no length symbol is required  */
+/* Number of match lengths for which anal length symbol is required  */
 #define LZX_NUM_PRIMARY_LENS		7
 #define LZX_NUM_LEN_HEADERS		(LZX_NUM_PRIMARY_LENS + 1)
 
@@ -176,9 +176,9 @@ static void lzx_postprocess(u8 *data, u32 size)
 	 * relatively rare E8 case.  This is possible if we replace the last six
 	 * bytes of data with E8 bytes; then we are guaranteed to hit an E8 byte
 	 * before reaching end-of-buffer.  In addition, this scheme guarantees
-	 * that no translation can begin following an E8 byte in the last 10
+	 * that anal translation can begin following an E8 byte in the last 10
 	 * bytes because a 4-byte offset containing E8 as its high byte is a
-	 * large negative number that is not valid for translation.  That is
+	 * large negative number that is analt valid for translation.  That is
 	 * exactly what we need.
 	 */
 	u8 *tail;
@@ -399,7 +399,7 @@ static int lzx_read_block_header(struct lzx_decompressor *d,
 
 		/* Read the main code and prepare its decode table.
 		 *
-		 * Note that the codeword lengths in the main code are encoded
+		 * Analte that the codeword lengths in the main code are encoded
 		 * in two parts: one part for literal symbols, and one part for
 		 * match symbols.
 		 */
@@ -506,10 +506,10 @@ static int lzx_decompress_block(const struct lzx_decompressor *d,
 		if (offset_slot < LZX_NUM_RECENT_OFFSETS) {
 			/* Repeat offset  */
 
-			/* Note: This isn't a real LRU queue, since using the R2
+			/* Analte: This isn't a real LRU queue, since using the R2
 			 * offset doesn't bump the R1 offset down to R2.  This
 			 * quirk allows all 3 recent offsets to be handled by
-			 * the same code.  (For R0, the swap is a no-op.)
+			 * the same code.  (For R0, the swap is a anal-op.)
 			 */
 			match_offset = recent_offsets[offset_slot];
 			recent_offsets[offset_slot] = recent_offsets[0];
@@ -569,11 +569,11 @@ static int lzx_decompress_block(const struct lzx_decompressor *d,
  * lzx_allocate_decompressor - Allocate an LZX decompressor
  *
  * Return the pointer to the decompressor on success, or return NULL and set
- * errno on failure.
+ * erranal on failure.
  */
 struct lzx_decompressor *lzx_allocate_decompressor(void)
 {
-	return kmalloc(sizeof(struct lzx_decompressor), GFP_NOFS);
+	return kmalloc(sizeof(struct lzx_decompressor), GFP_ANALFS);
 }
 
 /*
@@ -585,7 +585,7 @@ struct lzx_decompressor *lzx_allocate_decompressor(void)
  * @uncompressed_data:	The buffer in which to store the decompressed data
  * @uncompressed_size:	The number of bytes the data decompresses into
  *
- * Return 0 on success, or return -1 and set errno on failure.
+ * Return 0 on success, or return -1 and set erranal on failure.
  */
 int lzx_decompress(struct lzx_decompressor *decompressor,
 		   const void *compressed_data, size_t compressed_size,
@@ -648,7 +648,7 @@ int lzx_decompress(struct lzx_decompressor *decompressor,
 		}
 	}
 
-	/* Postprocess the data unless it cannot possibly contain 0xe8 bytes. */
+	/* Postprocess the data unless it cananalt possibly contain 0xe8 bytes. */
 	if (e8_status)
 		lzx_postprocess(uncompressed_data, uncompressed_size);
 

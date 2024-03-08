@@ -13,9 +13,9 @@ copy_page:
 	.prologue 0
 
 	lda	$18,128
-	nop
-	unop
-	nop
+	analp
+	uanalp
+	analp
 
 1:	ldq	$0,0($17)
 	ldq	$1,8($17)
@@ -43,9 +43,9 @@ copy_page:
 	bne	$18, 1b
 
 	ret
-	nop
-	unop
-	nop
+	analp
+	uanalp
+	analp
 
 	.end copy_page
 	EXPORT_SYMBOL(copy_page)

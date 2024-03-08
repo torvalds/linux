@@ -12,25 +12,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/bitmap.h>
 
@@ -90,7 +90,7 @@ int mthca_alloc_init(struct mthca_alloc *alloc, u32 num, u32 mask,
 	spin_lock_init(&alloc->lock);
 	alloc->table = bitmap_zalloc(num, GFP_KERNEL);
 	if (!alloc->table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bitmap_set(alloc->table, 0, reserved);
 
@@ -129,7 +129,7 @@ int mthca_array_set(struct mthca_array *array, int index, void *value)
 		array->page_list[p].page = (void **) get_zeroed_page(GFP_ATOMIC);
 
 	if (!array->page_list[p].page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	array->page_list[p].page[index & MTHCA_ARRAY_MASK] = value;
 	++array->page_list[p].used;
@@ -160,7 +160,7 @@ int mthca_array_init(struct mthca_array *array, int nent)
 	array->page_list = kmalloc_array(npage, sizeof(*array->page_list),
 					 GFP_KERNEL);
 	if (!array->page_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < npage; ++i) {
 		array->page_list[i].page = NULL;
@@ -191,7 +191,7 @@ int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
 		    union mthca_buf *buf, int *is_direct, struct mthca_pd *pd,
 		    int hca_write, struct mthca_mr *mr)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int npages, shift;
 	u64 *dma_list = NULL;
 	dma_addr_t t;
@@ -205,7 +205,7 @@ int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
 		buf->direct.buf = dma_alloc_coherent(&dev->pdev->dev,
 						     size, &t, GFP_KERNEL);
 		if (!buf->direct.buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dma_unmap_addr_set(&buf->direct, mapping, t);
 
@@ -229,7 +229,7 @@ int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
 		dma_list = kmalloc_array(npages, sizeof(*dma_list),
 					 GFP_KERNEL);
 		if (!dma_list)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		buf->page_list = kmalloc_array(npages,
 					       sizeof(*buf->page_list),

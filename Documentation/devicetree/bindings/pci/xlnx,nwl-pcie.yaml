@@ -75,7 +75,7 @@ properties:
     description: optional, input clock specifier.
 
   legacy-interrupt-controller:
-    description: Interrupt controller node for handling legacy PCI interrupts.
+    description: Interrupt controller analde for handling legacy PCI interrupts.
     type: object
     properties:
       "#address-cells":

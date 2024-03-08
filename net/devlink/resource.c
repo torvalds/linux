@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include "devl_internal.h"
@@ -169,7 +169,7 @@ static int devlink_resource_put(struct devlink *devlink, struct sk_buff *skb,
 	struct nlattr *child_resource_attr;
 	struct nlattr *resource_attr;
 
-	resource_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_RESOURCE);
+	resource_attr = nla_nest_start_analflag(skb, DEVLINK_ATTR_RESOURCE);
 	if (!resource_attr)
 		return -EMSGSIZE;
 
@@ -194,7 +194,7 @@ static int devlink_resource_put(struct devlink *devlink, struct sk_buff *skb,
 		       resource->size_valid))
 		goto nla_put_failure;
 
-	child_resource_attr = nla_nest_start_noflag(skb,
+	child_resource_attr = nla_nest_start_analflag(skb,
 						    DEVLINK_ATTR_RESOURCE_LIST);
 	if (!child_resource_attr)
 		goto nla_put_failure;
@@ -246,7 +246,7 @@ start_again:
 	if (devlink_nl_put_handle(skb, devlink))
 		goto nla_put_failure;
 
-	resources_attr = nla_nest_start_noflag(skb,
+	resources_attr = nla_nest_start_analflag(skb,
 					       DEVLINK_ATTR_RESOURCE_LIST);
 	if (!resources_attr)
 		goto nla_put_failure;
@@ -290,7 +290,7 @@ int devlink_nl_resource_dump_doit(struct sk_buff *skb, struct genl_info *info)
 	struct devlink *devlink = info->user_ptr[0];
 
 	if (list_empty(&devlink->resource_list))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return devlink_resource_fill(info, DEVLINK_CMD_RESOURCE_DUMP, 0);
 }
@@ -352,7 +352,7 @@ int devl_resource_register(struct devlink *devlink,
 
 	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
 	if (!resource)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (top_hierarchy) {
 		resource_list = &devlink->resource_list;

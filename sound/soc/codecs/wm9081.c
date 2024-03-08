@@ -315,7 +315,7 @@ static const char *drc_qr_dcy_text[] = {
 static SOC_ENUM_SINGLE_DECL(drc_qr_dcy, WM9081_DRC_2, 4, drc_qr_dcy_text);
 
 static const char *dac_deemph_text[] = {
-	"None",
+	"Analne",
 	"32kHz",
 	"44.1kHz",
 	"48kHz",
@@ -514,7 +514,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 		return -EINVAL;
 	}
 
-	/* Now, calculate N.K */
+	/* Analw, calculate N.K */
 	Ndiv = target / Fref;
 
 	fll_div->n = Ndiv;
@@ -531,7 +531,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	fll_div->k = K / 10;
 
 	pr_debug("N=%x K=%x FLL_FRATIO=%x FLL_OUTDIV=%x FLL_CLK_REF_DIV=%x\n",
@@ -577,7 +577,7 @@ static int wm9081_set_fll(struct snd_soc_component *component, int fll_id,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown FLL ID %d\n", fll_id);
+		dev_err(component->dev, "Unkanalwn FLL ID %d\n", fll_id);
 		return -EINVAL;
 	}
 
@@ -658,7 +658,7 @@ static int configure_clock(struct snd_soc_component *component)
 		 * gives us a suitable DAC configuration, plus BCLK.
 		 * Ideally we would check to see if we can clock
 		 * directly from MCLK and only use the FLL if this is
-		 * not the case, though care must be taken with free
+		 * analt the case, though care must be taken with free
 		 * running mode.
 		 */
 		if (wm9081->master && wm9081->bclk) {
@@ -742,7 +742,7 @@ static int clk_sys_event(struct snd_soc_dapm_widget *w,
 			wm9081->mclk_rate);
 		break;
 	default:
-		dev_err(component->dev, "System clock not configured\n");
+		dev_err(component->dev, "System clock analt configured\n");
 		return -EINVAL;
 	}
 
@@ -766,7 +766,7 @@ SND_SOC_DAPM_INPUT("IN2"),
 
 SND_SOC_DAPM_DAC("DAC", NULL, WM9081_POWER_MANAGEMENT, 0, 0),
 
-SND_SOC_DAPM_MIXER_NAMED_CTL("Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER_NAMED_CTL("Mixer", SND_SOC_ANALPM, 0, 0,
 			     mixer, ARRAY_SIZE(mixer)),
 
 SND_SOC_DAPM_PGA("LINEOUT PGA", WM9081_POWER_MANAGEMENT, 4, 0, NULL, 0),
@@ -826,7 +826,7 @@ static int wm9081_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component, WM9081_VMID_CONTROL,
 				    WM9081_VMID_SEL_MASK, 0x2);
 
-		/* Normal bias current */
+		/* Analrmal bias current */
 		snd_soc_component_update_bits(component, WM9081_BIAS_CONTROL_1,
 				    WM9081_STBY_BIAS_ENA, 0);
 		break;
@@ -854,7 +854,7 @@ static int wm9081_set_bias_level(struct snd_soc_component *component,
 
 			mdelay(100);
 
-			/* Normal bias enable & soft start off */
+			/* Analrmal bias enable & soft start off */
 			snd_soc_component_update_bits(component, WM9081_VMID_CONTROL,
 					    WM9081_VMID_RAMP, 0);
 
@@ -948,7 +948,7 @@ static int wm9081_set_dai_fmt(struct snd_soc_dai *dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1234,11 +1234,11 @@ static const struct snd_soc_dai_ops wm9081_dai_ops = {
 	.set_fmt = wm9081_set_dai_fmt,
 	.mute_stream = wm9081_mute,
 	.set_tdm_slot = wm9081_set_tdm_slot,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 /* We report two channels because the CODEC processes a stereo signal, even
- * though it is only capable of handling a mono output.
+ * though it is only capable of handling a moanal output.
  */
 static struct snd_soc_dai_driver wm9081_dai = {
 	.name = "wm9081-hifi",
@@ -1264,7 +1264,7 @@ static int wm9081_probe(struct snd_soc_component *component)
 
 	if (!wm9081->pdata.num_retune_configs) {
 		dev_dbg(component->dev,
-			"No ReTune Mobile data, using normal EQ\n");
+			"Anal ReTune Mobile data, using analrmal EQ\n");
 		snd_soc_add_component_controls(component, wm9081_eq_controls,
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
@@ -1307,7 +1307,7 @@ static int wm9081_i2c_probe(struct i2c_client *i2c)
 	wm9081 = devm_kzalloc(&i2c->dev, sizeof(struct wm9081_priv),
 			      GFP_KERNEL);
 	if (wm9081 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, wm9081);
 
@@ -1324,7 +1324,7 @@ static int wm9081_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 	if (reg != 0x9081) {
-		dev_err(&i2c->dev, "Device is not a WM9081: ID=0x%x\n", reg);
+		dev_err(&i2c->dev, "Device is analt a WM9081: ID=0x%x\n", reg);
 		return -EINVAL;
 	}
 

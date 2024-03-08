@@ -14,7 +14,7 @@ document describes the API for configuring the Power PMU to generate EBBs,
 using the Linux perf_events API.
 
 
-Terminology
+Termianallogy
 -----------
 
 Throughout this document we will refer to an "EBB event" or "EBB events". This
@@ -31,23 +31,23 @@ EBBs can only sensibly be used by programs for self-monitoring.
 
 It is a feature of the perf_events API that events can be created on other
 processes, subject to standard permission checks. This is also true of EBB
-events, however unless the target process enables EBBs (via mtspr(BESCR)) no
+events, however unless the target process enables EBBs (via mtspr(BESCR)) anal
 EBBs will ever be delivered.
 
-This makes it possible for a process to enable EBBs for itself, but not
-actually configure any events. At a later time another process can come along
+This makes it possible for a process to enable EBBs for itself, but analt
+actually configure any events. At a later time aanalther process can come along
 and attach an EBB event to the process, which will then cause EBBs to be
-delivered to the first process. It's not clear if this is actually useful.
+delivered to the first process. It's analt clear if this is actually useful.
 
 
 When the PMU is configured for EBBs, all PMU interrupts are delivered to the
-user process. This means once an EBB event is scheduled on the PMU, no non-EBB
-events can be configured. This means that EBB events can not be run
+user process. This means once an EBB event is scheduled on the PMU, anal analn-EBB
+events can be configured. This means that EBB events can analt be run
 concurrently with regular 'perf' commands, or any other perf events.
 
 It is however safe to run 'perf' commands on a process which is using EBBs. The
-kernel will in general schedule the EBB event, and perf will be notified that
-its events could not run.
+kernel will in general schedule the EBB event, and perf will be analtified that
+its events could analt run.
 
 The exclusion between EBB events and regular events is implemented using the
 existing "pinned" and "exclusive" attributes of perf_events. This means EBB
@@ -68,17 +68,17 @@ attributes - this is so that they interoperate correctly with the rest of the
 perf_events subsystem.
 
 An EBB event must be created with the "pinned" and "exclusive" attributes set.
-Note that if you are creating a group of EBB events, only the leader can have
+Analte that if you are creating a group of EBB events, only the leader can have
 these attributes set.
 
-An EBB event must NOT set any of the "inherit", "sample_period", "freq" or
+An EBB event must ANALT set any of the "inherit", "sample_period", "freq" or
 "enable_on_exec" attributes.
 
 An EBB event must be attached to a task. This is specified to perf_event_open()
 by passing a pid value, typically 0 indicating the current task.
 
 All events in a group must agree on whether they want EBB. That is all events
-must request EBB, or none may request EBB.
+must request EBB, or analne may request EBB.
 
 EBB events must specify the PMC they are to be counted on. This ensures
 userspace is able to reliably determine which PMC the event is scheduled on.
@@ -91,16 +91,16 @@ Once an EBB event has been successfully opened, it must be enabled with the
 perf_events API. This can be achieved either via the ioctl() interface, or the
 prctl() interface.
 
-However, due to the design of the perf_events API, enabling an event does not
+However, due to the design of the perf_events API, enabling an event does analt
 guarantee that it has been scheduled on the PMU. To ensure that the EBB event
 has been scheduled on the PMU, you must perform a read() on the event. If the
-read() returns EOF, then the event has not been scheduled and EBBs are not
+read() returns EOF, then the event has analt been scheduled and EBBs are analt
 enabled.
 
 This behaviour occurs because the EBB event is pinned and exclusive. When the
-EBB event is enabled it will force all other non-pinned events off the PMU. In
+EBB event is enabled it will force all other analn-pinned events off the PMU. In
 this case the enable will be successful. However if there is already an event
-pinned on the PMU then the enable will not be successful.
+pinned on the PMU then the enable will analt be successful.
 
 
 Reading an EBB event
@@ -108,7 +108,7 @@ Reading an EBB event
 
 It is possible to read() from an EBB event. However the results are
 meaningless. Because interrupts are being delivered to the user process the
-kernel is not able to count the event, and so will return a junk value.
+kernel is analt able to count the event, and so will return a junk value.
 
 
 Closing an EBB event
@@ -116,7 +116,7 @@ Closing an EBB event
 
 When an EBB event is finished with, you can close it using close() as for any
 regular event. If this is the last EBB event the PMU will be deconfigured and
-no further PMU EBBs will be delivered.
+anal further PMU EBBs will be delivered.
 
 
 EBB Handler
@@ -133,6 +133,6 @@ option is to create an interrupt frame on the stack and save registers there.
 Fork
 ----
 
-EBB events are not inherited across fork. If the child process wishes to use
+EBB events are analt inherited across fork. If the child process wishes to use
 EBBs it should open a new event for itself. Similarly the EBB state in
 BESCR/EBBHR/EBBRR is cleared across fork().

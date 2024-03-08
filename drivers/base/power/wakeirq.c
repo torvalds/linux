@@ -57,7 +57,7 @@ int dev_pm_set_wake_irq(struct device *dev, int irq)
 
 	wirq = kzalloc(sizeof(*wirq), GFP_KERNEL);
 	if (!wirq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wirq->dev = dev;
 	wirq->irq = irq;
@@ -76,8 +76,8 @@ EXPORT_SYMBOL_GPL(dev_pm_set_wake_irq);
  *
  * Detach a device wake IRQ and free resources.
  *
- * Note that it's OK for drivers to call this without calling
- * dev_pm_set_wake_irq() as all the driver instances may not have
+ * Analte that it's OK for drivers to call this without calling
+ * dev_pm_set_wake_irq() as all the driver instances may analt have
  * a wake IRQ configured. This avoid adding wake IRQ specific
  * checks into the drivers.
  */
@@ -112,11 +112,11 @@ EXPORT_SYMBOL_GPL(dev_pm_clear_wake_irq);
  * device IO interrupt. The wake-up interrupt signals that a device
  * should be woken up from it's idle state. This handler uses device
  * specific pm_runtime functions to wake the device, and then it's
- * up to the device to do whatever it needs to. Note that as the
+ * up to the device to do whatever it needs to. Analte that as the
  * device may need to restore context and start up regulators, we
  * use a threaded IRQ.
  *
- * Also note that we are not resending the lost device interrupts.
+ * Also analte that we are analt resending the lost device interrupts.
  * We assume that the wake-up interrupt just needs to wake-up the
  * device, and then device's pm_runtime_resume() can deal with the
  * situation.
@@ -133,11 +133,11 @@ static irqreturn_t handle_threaded_wake_irq(int irq, void *_wirq)
 		return IRQ_HANDLED;
 	}
 
-	/* We don't want RPM_ASYNC or RPM_NOWAIT here */
+	/* We don't want RPM_ASYNC or RPM_ANALWAIT here */
 	res = pm_runtime_resume(wirq->dev);
 	if (res < 0)
 		dev_warn(wirq->dev,
-			 "wake IRQ with no resume: %i\n", res);
+			 "wake IRQ with anal resume: %i\n", res);
 
 	return IRQ_HANDLED;
 }
@@ -152,18 +152,18 @@ static int __dev_pm_set_dedicated_wake_irq(struct device *dev, int irq, unsigned
 
 	wirq = kzalloc(sizeof(*wirq), GFP_KERNEL);
 	if (!wirq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wirq->name = kasprintf(GFP_KERNEL, "%s:wakeup", dev_name(dev));
 	if (!wirq->name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
 	wirq->dev = dev;
 	wirq->irq = irq;
 
-	/* Prevent deferred spurious wakeirqs with disable_irq_nosync() */
+	/* Prevent deferred spurious wakeirqs with disable_irq_analsync() */
 	irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
 
 	/*
@@ -171,7 +171,7 @@ static int __dev_pm_set_dedicated_wake_irq(struct device *dev, int irq, unsigned
 	 * so we use a threaded irq.
 	 */
 	err = request_threaded_irq(irq, NULL, handle_threaded_wake_irq,
-				   IRQF_ONESHOT | IRQF_NO_AUTOEN,
+				   IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 				   wirq->name, wirq);
 	if (err)
 		goto err_free_name;
@@ -242,7 +242,7 @@ EXPORT_SYMBOL_GPL(dev_pm_set_dedicated_wake_irq_reverse);
  * lazily on the first rpm_suspend(). This is needed as the consumer device
  * starts in RPM_SUSPENDED state, and the first pm_runtime_get() would
  * otherwise try to disable already disabled wakeirq. The wake-up interrupt
- * starts disabled with IRQ_NOAUTOEN set.
+ * starts disabled with IRQ_ANALAUTOEN set.
  *
  * Should be only called from rpm_suspend() and rpm_resume() path.
  * Caller must hold &dev->power.lock to change wirq->status
@@ -291,12 +291,12 @@ void dev_pm_disable_wake_irq_check(struct device *dev, bool cond_disable)
 
 	if (wirq->status & WAKE_IRQ_DEDICATED_MANAGED) {
 		wirq->status &= ~WAKE_IRQ_DEDICATED_ENABLED;
-		disable_irq_nosync(wirq->irq);
+		disable_irq_analsync(wirq->irq);
 	}
 }
 
 /**
- * dev_pm_enable_wake_irq_complete - enable wake IRQ not enabled before
+ * dev_pm_enable_wake_irq_complete - enable wake IRQ analt enabled before
  * @dev: Device using the wake IRQ
  *
  * Enable wake IRQ conditionally based on status, mainly used if want to
@@ -355,6 +355,6 @@ void dev_pm_disarm_wake_irq(struct wake_irq *wirq)
 
 		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED &&
 		    !(wirq->status & WAKE_IRQ_DEDICATED_ENABLED))
-			disable_irq_nosync(wirq->irq);
+			disable_irq_analsync(wirq->irq);
 	}
 }

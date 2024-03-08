@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * This file contains vfs inode ops for the 9P2000.L protocol.
+ * This file contains vfs ianalde ops for the 9P2000.L protocol.
  *
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
@@ -29,133 +29,133 @@
 #include "acl.h"
 
 static int
-v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
+v9fs_vfs_mkanald_dotl(struct mnt_idmap *idmap, struct ianalde *dir,
 		    struct dentry *dentry, umode_t omode, dev_t rdev);
 
 /**
  * v9fs_get_fsgid_for_create - Helper function to get the gid for a new object
- * @dir_inode: The directory inode
+ * @dir_ianalde: The directory ianalde
  *
  * Helper function to get the gid for creating a
  * new file system object. This checks the S_ISGID to determine the owning
  * group of the new file system object.
  */
 
-static kgid_t v9fs_get_fsgid_for_create(struct inode *dir_inode)
+static kgid_t v9fs_get_fsgid_for_create(struct ianalde *dir_ianalde)
 {
-	BUG_ON(dir_inode == NULL);
+	BUG_ON(dir_ianalde == NULL);
 
-	if (dir_inode->i_mode & S_ISGID) {
+	if (dir_ianalde->i_mode & S_ISGID) {
 		/* set_gid bit is set.*/
-		return dir_inode->i_gid;
+		return dir_ianalde->i_gid;
 	}
 	return current_fsgid();
 }
 
-static int v9fs_test_inode_dotl(struct inode *inode, void *data)
+static int v9fs_test_ianalde_dotl(struct ianalde *ianalde, void *data)
 {
-	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct v9fs_ianalde *v9ianalde = V9FS_I(ianalde);
 	struct p9_stat_dotl *st = (struct p9_stat_dotl *)data;
 
-	/* don't match inode of different type */
-	if (inode_wrong_type(inode, st->st_mode))
+	/* don't match ianalde of different type */
+	if (ianalde_wrong_type(ianalde, st->st_mode))
 		return 0;
 
-	if (inode->i_generation != st->st_gen)
+	if (ianalde->i_generation != st->st_gen)
 		return 0;
 
 	/* compare qid details */
-	if (memcmp(&v9inode->qid.version,
-		   &st->qid.version, sizeof(v9inode->qid.version)))
+	if (memcmp(&v9ianalde->qid.version,
+		   &st->qid.version, sizeof(v9ianalde->qid.version)))
 		return 0;
 
-	if (v9inode->qid.type != st->qid.type)
+	if (v9ianalde->qid.type != st->qid.type)
 		return 0;
 
-	if (v9inode->qid.path != st->qid.path)
+	if (v9ianalde->qid.path != st->qid.path)
 		return 0;
 	return 1;
 }
 
-/* Always get a new inode */
-static int v9fs_test_new_inode_dotl(struct inode *inode, void *data)
+/* Always get a new ianalde */
+static int v9fs_test_new_ianalde_dotl(struct ianalde *ianalde, void *data)
 {
 	return 0;
 }
 
-static int v9fs_set_inode_dotl(struct inode *inode,  void *data)
+static int v9fs_set_ianalde_dotl(struct ianalde *ianalde,  void *data)
 {
-	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct v9fs_ianalde *v9ianalde = V9FS_I(ianalde);
 	struct p9_stat_dotl *st = (struct p9_stat_dotl *)data;
 
-	memcpy(&v9inode->qid, &st->qid, sizeof(st->qid));
-	inode->i_generation = st->st_gen;
+	memcpy(&v9ianalde->qid, &st->qid, sizeof(st->qid));
+	ianalde->i_generation = st->st_gen;
 	return 0;
 }
 
-static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
+static struct ianalde *v9fs_qid_iget_dotl(struct super_block *sb,
 					struct p9_qid *qid,
 					struct p9_fid *fid,
 					struct p9_stat_dotl *st,
 					int new)
 {
 	int retval;
-	unsigned long i_ino;
-	struct inode *inode;
+	unsigned long i_ianal;
+	struct ianalde *ianalde;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
-	int (*test)(struct inode *inode, void *data);
+	int (*test)(struct ianalde *ianalde, void *data);
 
 	if (new)
-		test = v9fs_test_new_inode_dotl;
+		test = v9fs_test_new_ianalde_dotl;
 	else
-		test = v9fs_test_inode_dotl;
+		test = v9fs_test_ianalde_dotl;
 
-	i_ino = v9fs_qid2ino(qid);
-	inode = iget5_locked(sb, i_ino, test, v9fs_set_inode_dotl, st);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	i_ianal = v9fs_qid2ianal(qid);
+	ianalde = iget5_locked(sb, i_ianal, test, v9fs_set_ianalde_dotl, st);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
+	if (!(ianalde->i_state & I_NEW))
+		return ianalde;
 	/*
-	 * initialize the inode with the stat info
-	 * FIXME!! we may need support for stale inodes
+	 * initialize the ianalde with the stat info
+	 * FIXME!! we may need support for stale ianaldes
 	 * later.
 	 */
-	inode->i_ino = i_ino;
-	retval = v9fs_init_inode(v9ses, inode,
+	ianalde->i_ianal = i_ianal;
+	retval = v9fs_init_ianalde(v9ses, ianalde,
 				 st->st_mode, new_decode_dev(st->st_rdev));
 	if (retval)
 		goto error;
 
-	v9fs_stat2inode_dotl(st, inode, 0);
-	v9fs_set_netfs_context(inode);
-	v9fs_cache_inode_get_cookie(inode);
-	retval = v9fs_get_acl(inode, fid);
+	v9fs_stat2ianalde_dotl(st, ianalde, 0);
+	v9fs_set_netfs_context(ianalde);
+	v9fs_cache_ianalde_get_cookie(ianalde);
+	retval = v9fs_get_acl(ianalde, fid);
 	if (retval)
 		goto error;
 
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_ianalde(ianalde);
+	return ianalde;
 error:
-	iget_failed(inode);
+	iget_failed(ianalde);
 	return ERR_PTR(retval);
 
 }
 
-struct inode *
-v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+struct ianalde *
+v9fs_ianalde_from_fid_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 			 struct super_block *sb, int new)
 {
 	struct p9_stat_dotl *st;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 
 	st = p9_client_getattr_dotl(fid, P9_STATS_BASIC | P9_STATS_GEN);
 	if (IS_ERR(st))
 		return ERR_CAST(st);
 
-	inode = v9fs_qid_iget_dotl(sb, &st->qid, fid, st, new);
+	ianalde = v9fs_qid_iget_dotl(sb, &st->qid, fid, st, new);
 	kfree(st);
-	return inode;
+	return ianalde;
 }
 
 struct dotl_openflag_map {
@@ -170,16 +170,16 @@ static int v9fs_mapped_dotl_flags(int flags)
 	struct dotl_openflag_map dotl_oflag_map[] = {
 		{ O_CREAT,	P9_DOTL_CREATE },
 		{ O_EXCL,	P9_DOTL_EXCL },
-		{ O_NOCTTY,	P9_DOTL_NOCTTY },
+		{ O_ANALCTTY,	P9_DOTL_ANALCTTY },
 		{ O_APPEND,	P9_DOTL_APPEND },
-		{ O_NONBLOCK,	P9_DOTL_NONBLOCK },
+		{ O_ANALNBLOCK,	P9_DOTL_ANALNBLOCK },
 		{ O_DSYNC,	P9_DOTL_DSYNC },
 		{ FASYNC,	P9_DOTL_FASYNC },
 		{ O_DIRECT,	P9_DOTL_DIRECT },
 		{ O_LARGEFILE,	P9_DOTL_LARGEFILE },
 		{ O_DIRECTORY,	P9_DOTL_DIRECTORY },
-		{ O_NOFOLLOW,	P9_DOTL_NOFOLLOW },
-		{ O_NOATIME,	P9_DOTL_NOATIME },
+		{ O_ANALFOLLOW,	P9_DOTL_ANALFOLLOW },
+		{ O_ANALATIME,	P9_DOTL_ANALATIME },
 		{ O_CLOEXEC,	P9_DOTL_CLOEXEC },
 		{ O_SYNC,	P9_DOTL_SYNC},
 	};
@@ -201,7 +201,7 @@ int v9fs_open_to_dotl_flags(int flags)
 
 	/*
 	 * We have same bits for P9_DOTL_READONLY, P9_DOTL_WRONLY
-	 * and P9_DOTL_NOACCESS
+	 * and P9_DOTL_ANALACCESS
 	 */
 	rflags |= flags & O_ACCMODE;
 	rflags |= v9fs_mapped_dotl_flags(flags);
@@ -212,21 +212,21 @@ int v9fs_open_to_dotl_flags(int flags)
 /**
  * v9fs_vfs_create_dotl - VFS hook to create files for 9P2000.L protocol.
  * @idmap: The user namespace of the mount
- * @dir: directory inode that is being created
+ * @dir: directory ianalde that is being created
  * @dentry:  dentry that is being deleted
  * @omode: create permissions
- * @excl: True if the file must not yet exist
+ * @excl: True if the file must analt yet exist
  *
  */
 static int
-v9fs_vfs_create_dotl(struct mnt_idmap *idmap, struct inode *dir,
+v9fs_vfs_create_dotl(struct mnt_idmap *idmap, struct ianalde *dir,
 		     struct dentry *dentry, umode_t omode, bool excl)
 {
-	return v9fs_vfs_mknod_dotl(idmap, dir, dentry, omode, 0);
+	return v9fs_vfs_mkanald_dotl(idmap, dir, dentry, omode, 0);
 }
 
 static int
-v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
+v9fs_vfs_atomic_open_dotl(struct ianalde *dir, struct dentry *dentry,
 			  struct file *file, unsigned int flags, umode_t omode)
 {
 	int err = 0;
@@ -235,7 +235,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	int p9_omode = v9fs_open_to_dotl_flags(flags);
 	const unsigned char *name = NULL;
 	struct p9_qid qid;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct p9_fid *fid = NULL;
 	struct p9_fid *dfid = NULL, *ofid = NULL;
 	struct v9fs_session_info *v9ses;
@@ -253,9 +253,9 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 
 	/* Only creates */
 	if (!(flags & O_CREAT) || d_really_is_positive(dentry))
-		return	finish_no_open(file, res);
+		return	finish_anal_open(file, res);
 
-	v9ses = v9fs_inode2v9ses(dir);
+	v9ses = v9fs_ianalde2v9ses(dir);
 
 	name = dentry->d_name.name;
 	p9_debug(P9_DEBUG_VFS, "name:%s flags:0x%x mode:0x%x\n",
@@ -298,26 +298,26 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 			 err);
 		goto out;
 	}
-	v9fs_invalidate_inode_attr(dir);
+	v9fs_invalidate_ianalde_attr(dir);
 
-	/* instantiate inode and assign the unopened fid to the dentry */
+	/* instantiate ianalde and assign the uanalpened fid to the dentry */
 	fid = p9_client_walk(dfid, 1, &name, 1);
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
 		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
 		goto out;
 	}
-	inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
-		p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n", err);
+	ianalde = v9fs_get_new_ianalde_from_fid(v9ses, fid, dir->i_sb);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
+		p9_debug(P9_DEBUG_VFS, "ianalde creation failed %d\n", err);
 		goto out;
 	}
-	/* Now set the ACL based on the default value */
-	v9fs_set_create_acl(inode, fid, dacl, pacl);
+	/* Analw set the ACL based on the default value */
+	v9fs_set_create_acl(ianalde, fid, dacl, pacl);
 
 	v9fs_fid_add(dentry, &fid);
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, ianalde);
 
 	/* Since we are opening a file, assign the open fid to the file */
 	err = finish_open(file, dentry, generic_file_open);
@@ -326,13 +326,13 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	file->private_data = ofid;
 #ifdef CONFIG_9P_FSCACHE
 	if (v9ses->cache & CACHE_FSCACHE) {
-		struct v9fs_inode *v9inode = V9FS_I(inode);
-		fscache_use_cookie(v9fs_inode_cookie(v9inode),
+		struct v9fs_ianalde *v9ianalde = V9FS_I(ianalde);
+		fscache_use_cookie(v9fs_ianalde_cookie(v9ianalde),
 				   file->f_mode & FMODE_WRITE);
 	}
 #endif
 	v9fs_fid_add_modes(ofid, v9ses->flags, v9ses->cache, flags);
-	v9fs_open_fid_add(inode, &ofid);
+	v9fs_open_fid_add(ianalde, &ofid);
 	file->f_mode |= FMODE_CREATED;
 out:
 	p9_fid_put(dfid);
@@ -346,14 +346,14 @@ out:
 /**
  * v9fs_vfs_mkdir_dotl - VFS mkdir hook to create a directory
  * @idmap: The idmap of the mount
- * @dir:  inode that is being unlinked
+ * @dir:  ianalde that is being unlinked
  * @dentry: dentry that is being unlinked
  * @omode: mode for new directory
  *
  */
 
 static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
-			       struct inode *dir, struct dentry *dentry,
+			       struct ianalde *dir, struct dentry *dentry,
 			       umode_t omode)
 {
 	int err;
@@ -362,12 +362,12 @@ static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 	kgid_t gid;
 	const unsigned char *name;
 	umode_t mode;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct p9_qid qid;
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
 	p9_debug(P9_DEBUG_VFS, "name %pd\n", dentry);
-	v9ses = v9fs_inode2v9ses(dir);
+	v9ses = v9fs_ianalde2v9ses(dir);
 
 	omode |= S_IFDIR;
 	if (dir->i_mode & S_ISGID)
@@ -401,35 +401,35 @@ static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 		goto error;
 	}
 
-	/* instantiate inode and assign the unopened fid to the dentry */
+	/* instantiate ianalde and assign the uanalpened fid to the dentry */
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE)) {
-		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
-		if (IS_ERR(inode)) {
-			err = PTR_ERR(inode);
-			p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n",
+		ianalde = v9fs_get_new_ianalde_from_fid(v9ses, fid, dir->i_sb);
+		if (IS_ERR(ianalde)) {
+			err = PTR_ERR(ianalde);
+			p9_debug(P9_DEBUG_VFS, "ianalde creation failed %d\n",
 				 err);
 			goto error;
 		}
 		v9fs_fid_add(dentry, &fid);
-		v9fs_set_create_acl(inode, fid, dacl, pacl);
-		d_instantiate(dentry, inode);
+		v9fs_set_create_acl(ianalde, fid, dacl, pacl);
+		d_instantiate(dentry, ianalde);
 		err = 0;
 	} else {
 		/*
-		 * Not in cached mode. No need to populate
-		 * inode with stat. We need to get an inode
+		 * Analt in cached mode. Anal need to populate
+		 * ianalde with stat. We need to get an ianalde
 		 * so that we can set the acl with dentry
 		 */
-		inode = v9fs_get_inode(dir->i_sb, mode, 0);
-		if (IS_ERR(inode)) {
-			err = PTR_ERR(inode);
+		ianalde = v9fs_get_ianalde(dir->i_sb, mode, 0);
+		if (IS_ERR(ianalde)) {
+			err = PTR_ERR(ianalde);
 			goto error;
 		}
-		v9fs_set_create_acl(inode, fid, dacl, pacl);
-		d_instantiate(dentry, inode);
+		v9fs_set_create_acl(ianalde, fid, dacl, pacl);
+		d_instantiate(dentry, ianalde);
 	}
 	inc_nlink(dir);
-	v9fs_invalidate_inode_attr(dir);
+	v9fs_invalidate_ianalde_attr(dir);
 error:
 	p9_fid_put(fid);
 	v9fs_put_acl(dacl, pacl);
@@ -445,17 +445,17 @@ v9fs_vfs_getattr_dotl(struct mnt_idmap *idmap,
 	struct dentry *dentry = path->dentry;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	struct p9_stat_dotl *st;
 
 	p9_debug(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE)) {
-		generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+		generic_fillattr(&analp_mnt_idmap, request_mask, ianalde, stat);
 		return 0;
 	} else if (v9ses->cache) {
-		if (S_ISREG(inode->i_mode)) {
-			int retval = filemap_fdatawrite(inode->i_mapping);
+		if (S_ISREG(ianalde->i_mode)) {
+			int retval = filemap_fdatawrite(ianalde->i_mapping);
 
 			if (retval)
 				p9_debug(P9_DEBUG_ERROR,
@@ -475,8 +475,8 @@ v9fs_vfs_getattr_dotl(struct mnt_idmap *idmap,
 	if (IS_ERR(st))
 		return PTR_ERR(st);
 
-	v9fs_stat2inode_dotl(st, d_inode(dentry), 0);
-	generic_fillattr(&nop_mnt_idmap, request_mask, d_inode(dentry), stat);
+	v9fs_stat2ianalde_dotl(st, d_ianalde(dentry), 0);
+	generic_fillattr(&analp_mnt_idmap, request_mask, d_ianalde(dentry), stat);
 	/* Change block size to what the server returned */
 	stat->blksize = st->st_blksize;
 
@@ -536,7 +536,7 @@ int v9fs_vfs_setattr_dotl(struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct iattr *iattr)
 {
 	int retval, use_dentry = 0;
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	struct v9fs_session_info __maybe_unused *v9ses;
 	struct p9_fid *fid = NULL;
 	struct p9_iattr_dotl p9attr = {
@@ -546,7 +546,7 @@ int v9fs_vfs_setattr_dotl(struct mnt_idmap *idmap,
 
 	p9_debug(P9_DEBUG_VFS, "\n");
 
-	retval = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
+	retval = setattr_prepare(&analp_mnt_idmap, dentry, iattr);
 	if (retval)
 		return retval;
 
@@ -582,8 +582,8 @@ int v9fs_vfs_setattr_dotl(struct mnt_idmap *idmap,
 		return PTR_ERR(fid);
 
 	/* Write all dirty data */
-	if (S_ISREG(inode->i_mode)) {
-		retval = filemap_fdatawrite(inode->i_mapping);
+	if (S_ISREG(ianalde->i_mode)) {
+		retval = filemap_fdatawrite(ianalde->i_mapping);
 		if (retval < 0)
 			p9_debug(P9_DEBUG_ERROR,
 			    "Flushing file prior to setattr failed: %d\n", retval);
@@ -597,23 +597,23 @@ int v9fs_vfs_setattr_dotl(struct mnt_idmap *idmap,
 	}
 
 	if ((iattr->ia_valid & ATTR_SIZE) && iattr->ia_size !=
-		 i_size_read(inode)) {
-		truncate_setsize(inode, iattr->ia_size);
-		netfs_resize_file(netfs_inode(inode), iattr->ia_size, true);
+		 i_size_read(ianalde)) {
+		truncate_setsize(ianalde, iattr->ia_size);
+		netfs_resize_file(netfs_ianalde(ianalde), iattr->ia_size, true);
 
 #ifdef CONFIG_9P_FSCACHE
 		if (v9ses->cache & CACHE_FSCACHE)
-			fscache_resize_cookie(v9fs_inode_cookie(V9FS_I(inode)),
+			fscache_resize_cookie(v9fs_ianalde_cookie(V9FS_I(ianalde)),
 				iattr->ia_size);
 #endif
 	}
 
-	v9fs_invalidate_inode_attr(inode);
-	setattr_copy(&nop_mnt_idmap, inode, iattr);
-	mark_inode_dirty(inode);
+	v9fs_invalidate_ianalde_attr(ianalde);
+	setattr_copy(&analp_mnt_idmap, ianalde, iattr);
+	mark_ianalde_dirty(ianalde);
 	if (iattr->ia_valid & ATTR_MODE) {
 		/* We also want to update ACL when we update mode bits */
-		retval = v9fs_acl_chmod(inode, fid);
+		retval = v9fs_acl_chmod(ianalde, fid);
 		if (retval < 0) {
 			if (use_dentry)
 				p9_fid_put(fid);
@@ -627,96 +627,96 @@ int v9fs_vfs_setattr_dotl(struct mnt_idmap *idmap,
 }
 
 /**
- * v9fs_stat2inode_dotl - populate an inode structure with stat info
+ * v9fs_stat2ianalde_dotl - populate an ianalde structure with stat info
  * @stat: stat structure
- * @inode: inode to populate
- * @flags: ctrl flags (e.g. V9FS_STAT2INODE_KEEP_ISIZE)
+ * @ianalde: ianalde to populate
+ * @flags: ctrl flags (e.g. V9FS_STAT2IANALDE_KEEP_ISIZE)
  *
  */
 
 void
-v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode,
+v9fs_stat2ianalde_dotl(struct p9_stat_dotl *stat, struct ianalde *ianalde,
 		      unsigned int flags)
 {
 	umode_t mode;
-	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct v9fs_ianalde *v9ianalde = V9FS_I(ianalde);
 
 	if ((stat->st_result_mask & P9_STATS_BASIC) == P9_STATS_BASIC) {
-		inode_set_atime(inode, stat->st_atime_sec,
+		ianalde_set_atime(ianalde, stat->st_atime_sec,
 				stat->st_atime_nsec);
-		inode_set_mtime(inode, stat->st_mtime_sec,
+		ianalde_set_mtime(ianalde, stat->st_mtime_sec,
 				stat->st_mtime_nsec);
-		inode_set_ctime(inode, stat->st_ctime_sec,
+		ianalde_set_ctime(ianalde, stat->st_ctime_sec,
 				stat->st_ctime_nsec);
-		inode->i_uid = stat->st_uid;
-		inode->i_gid = stat->st_gid;
-		set_nlink(inode, stat->st_nlink);
+		ianalde->i_uid = stat->st_uid;
+		ianalde->i_gid = stat->st_gid;
+		set_nlink(ianalde, stat->st_nlink);
 
 		mode = stat->st_mode & S_IALLUGO;
-		mode |= inode->i_mode & ~S_IALLUGO;
-		inode->i_mode = mode;
+		mode |= ianalde->i_mode & ~S_IALLUGO;
+		ianalde->i_mode = mode;
 
-		v9inode->netfs.remote_i_size = stat->st_size;
-		if (!(flags & V9FS_STAT2INODE_KEEP_ISIZE))
-			v9fs_i_size_write(inode, stat->st_size);
-		inode->i_blocks = stat->st_blocks;
+		v9ianalde->netfs.remote_i_size = stat->st_size;
+		if (!(flags & V9FS_STAT2IANALDE_KEEP_ISIZE))
+			v9fs_i_size_write(ianalde, stat->st_size);
+		ianalde->i_blocks = stat->st_blocks;
 	} else {
 		if (stat->st_result_mask & P9_STATS_ATIME) {
-			inode_set_atime(inode, stat->st_atime_sec,
+			ianalde_set_atime(ianalde, stat->st_atime_sec,
 					stat->st_atime_nsec);
 		}
 		if (stat->st_result_mask & P9_STATS_MTIME) {
-			inode_set_mtime(inode, stat->st_mtime_sec,
+			ianalde_set_mtime(ianalde, stat->st_mtime_sec,
 					stat->st_mtime_nsec);
 		}
 		if (stat->st_result_mask & P9_STATS_CTIME) {
-			inode_set_ctime(inode, stat->st_ctime_sec,
+			ianalde_set_ctime(ianalde, stat->st_ctime_sec,
 					stat->st_ctime_nsec);
 		}
 		if (stat->st_result_mask & P9_STATS_UID)
-			inode->i_uid = stat->st_uid;
+			ianalde->i_uid = stat->st_uid;
 		if (stat->st_result_mask & P9_STATS_GID)
-			inode->i_gid = stat->st_gid;
+			ianalde->i_gid = stat->st_gid;
 		if (stat->st_result_mask & P9_STATS_NLINK)
-			set_nlink(inode, stat->st_nlink);
+			set_nlink(ianalde, stat->st_nlink);
 		if (stat->st_result_mask & P9_STATS_MODE) {
 			mode = stat->st_mode & S_IALLUGO;
-			mode |= inode->i_mode & ~S_IALLUGO;
-			inode->i_mode = mode;
+			mode |= ianalde->i_mode & ~S_IALLUGO;
+			ianalde->i_mode = mode;
 		}
-		if (!(flags & V9FS_STAT2INODE_KEEP_ISIZE) &&
+		if (!(flags & V9FS_STAT2IANALDE_KEEP_ISIZE) &&
 		    stat->st_result_mask & P9_STATS_SIZE) {
-			v9inode->netfs.remote_i_size = stat->st_size;
-			v9fs_i_size_write(inode, stat->st_size);
+			v9ianalde->netfs.remote_i_size = stat->st_size;
+			v9fs_i_size_write(ianalde, stat->st_size);
 		}
 		if (stat->st_result_mask & P9_STATS_BLOCKS)
-			inode->i_blocks = stat->st_blocks;
+			ianalde->i_blocks = stat->st_blocks;
 	}
 	if (stat->st_result_mask & P9_STATS_GEN)
-		inode->i_generation = stat->st_gen;
+		ianalde->i_generation = stat->st_gen;
 
 	/* Currently we don't support P9_STATS_BTIME and P9_STATS_DATA_VERSION
-	 * because the inode structure does not have fields for them.
+	 * because the ianalde structure does analt have fields for them.
 	 */
-	v9inode->cache_validity &= ~V9FS_INO_INVALID_ATTR;
+	v9ianalde->cache_validity &= ~V9FS_IANAL_INVALID_ATTR;
 }
 
 static int
-v9fs_vfs_symlink_dotl(struct mnt_idmap *idmap, struct inode *dir,
+v9fs_vfs_symlink_dotl(struct mnt_idmap *idmap, struct ianalde *dir,
 		      struct dentry *dentry, const char *symname)
 {
 	int err;
 	kgid_t gid;
 	const unsigned char *name;
 	struct p9_qid qid;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct p9_fid *dfid;
 	struct p9_fid *fid = NULL;
 	struct v9fs_session_info *v9ses;
 
 	name = dentry->d_name.name;
-	p9_debug(P9_DEBUG_VFS, "%lu,%s,%s\n", dir->i_ino, name, symname);
-	v9ses = v9fs_inode2v9ses(dir);
+	p9_debug(P9_DEBUG_VFS, "%lu,%s,%s\n", dir->i_ianal, name, symname);
+	v9ses = v9fs_ianalde2v9ses(dir);
 
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
@@ -727,7 +727,7 @@ v9fs_vfs_symlink_dotl(struct mnt_idmap *idmap, struct inode *dir,
 
 	gid = v9fs_get_fsgid_for_create(dir);
 
-	/* Server doesn't alter fid on TSYMLINK. Hence no need to clone it. */
+	/* Server doesn't alter fid on TSYMLINK. Hence anal need to clone it. */
 	err = p9_client_symlink(dfid, name, symname, gid, &qid);
 
 	if (err < 0) {
@@ -735,9 +735,9 @@ v9fs_vfs_symlink_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		goto error;
 	}
 
-	v9fs_invalidate_inode_attr(dir);
+	v9fs_invalidate_ianalde_attr(dir);
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE)) {
-		/* Now walk from the parent so we can get an unopened fid. */
+		/* Analw walk from the parent so we can get an uanalpened fid. */
 		fid = p9_client_walk(dfid, 1, &name, 1);
 		if (IS_ERR(fid)) {
 			err = PTR_ERR(fid);
@@ -746,25 +746,25 @@ v9fs_vfs_symlink_dotl(struct mnt_idmap *idmap, struct inode *dir,
 			goto error;
 		}
 
-		/* instantiate inode and assign the unopened fid to dentry */
-		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
-		if (IS_ERR(inode)) {
-			err = PTR_ERR(inode);
-			p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n",
+		/* instantiate ianalde and assign the uanalpened fid to dentry */
+		ianalde = v9fs_get_new_ianalde_from_fid(v9ses, fid, dir->i_sb);
+		if (IS_ERR(ianalde)) {
+			err = PTR_ERR(ianalde);
+			p9_debug(P9_DEBUG_VFS, "ianalde creation failed %d\n",
 				 err);
 			goto error;
 		}
 		v9fs_fid_add(dentry, &fid);
-		d_instantiate(dentry, inode);
+		d_instantiate(dentry, ianalde);
 		err = 0;
 	} else {
-		/* Not in cached mode. No need to populate inode with stat */
-		inode = v9fs_get_inode(dir->i_sb, S_IFLNK, 0);
-		if (IS_ERR(inode)) {
-			err = PTR_ERR(inode);
+		/* Analt in cached mode. Anal need to populate ianalde with stat */
+		ianalde = v9fs_get_ianalde(dir->i_sb, S_IFLNK, 0);
+		if (IS_ERR(ianalde)) {
+			err = PTR_ERR(ianalde);
 			goto error;
 		}
-		d_instantiate(dentry, inode);
+		d_instantiate(dentry, ianalde);
 	}
 
 error:
@@ -776,23 +776,23 @@ error:
 /**
  * v9fs_vfs_link_dotl - create a hardlink for dotl
  * @old_dentry: dentry for file to link to
- * @dir: inode destination for new link
+ * @dir: ianalde destination for new link
  * @dentry: dentry for link
  *
  */
 
 static int
-v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
+v9fs_vfs_link_dotl(struct dentry *old_dentry, struct ianalde *dir,
 		struct dentry *dentry)
 {
 	int err;
 	struct p9_fid *dfid, *oldfid;
 	struct v9fs_session_info *v9ses;
 
-	p9_debug(P9_DEBUG_VFS, "dir ino: %lu, old_name: %pd, new_name: %pd\n",
-		 dir->i_ino, old_dentry, dentry);
+	p9_debug(P9_DEBUG_VFS, "dir ianal: %lu, old_name: %pd, new_name: %pd\n",
+		 dir->i_ianal, old_dentry, dentry);
 
-	v9ses = v9fs_inode2v9ses(dir);
+	v9ses = v9fs_ianalde2v9ses(dir);
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid))
 		return PTR_ERR(dfid);
@@ -812,7 +812,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		return err;
 	}
 
-	v9fs_invalidate_inode_attr(dir);
+	v9fs_invalidate_ianalde_attr(dir);
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE)) {
 		/* Get the latest stat info from server. */
 		struct p9_fid *fid;
@@ -821,26 +821,26 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		if (IS_ERR(fid))
 			return PTR_ERR(fid);
 
-		v9fs_refresh_inode_dotl(fid, d_inode(old_dentry));
+		v9fs_refresh_ianalde_dotl(fid, d_ianalde(old_dentry));
 		p9_fid_put(fid);
 	}
-	ihold(d_inode(old_dentry));
-	d_instantiate(dentry, d_inode(old_dentry));
+	ihold(d_ianalde(old_dentry));
+	d_instantiate(dentry, d_ianalde(old_dentry));
 
 	return err;
 }
 
 /**
- * v9fs_vfs_mknod_dotl - create a special file
+ * v9fs_vfs_mkanald_dotl - create a special file
  * @idmap: The idmap of the mount
- * @dir: inode destination for new link
+ * @dir: ianalde destination for new link
  * @dentry: dentry for file
  * @omode: mode for creation
  * @rdev: device associated with special file
  *
  */
 static int
-v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
+v9fs_vfs_mkanald_dotl(struct mnt_idmap *idmap, struct ianalde *dir,
 		    struct dentry *dentry, umode_t omode, dev_t rdev)
 {
 	int err;
@@ -849,15 +849,15 @@ v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 	umode_t mode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid = NULL, *dfid = NULL;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct p9_qid qid;
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
-	p9_debug(P9_DEBUG_VFS, " %lu,%pd mode: %x MAJOR: %u MINOR: %u\n",
-		 dir->i_ino, dentry, omode,
-		 MAJOR(rdev), MINOR(rdev));
+	p9_debug(P9_DEBUG_VFS, " %lu,%pd mode: %x MAJOR: %u MIANALR: %u\n",
+		 dir->i_ianal, dentry, omode,
+		 MAJOR(rdev), MIANALR(rdev));
 
-	v9ses = v9fs_inode2v9ses(dir);
+	v9ses = v9fs_ianalde2v9ses(dir);
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
@@ -870,17 +870,17 @@ v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 	/* Update mode based on ACL value */
 	err = v9fs_acl_mode(dir, &mode, &dacl, &pacl);
 	if (err) {
-		p9_debug(P9_DEBUG_VFS, "Failed to get acl values in mknod %d\n",
+		p9_debug(P9_DEBUG_VFS, "Failed to get acl values in mkanald %d\n",
 			 err);
 		goto error;
 	}
 	name = dentry->d_name.name;
 
-	err = p9_client_mknod_dotl(dfid, name, mode, rdev, gid, &qid);
+	err = p9_client_mkanald_dotl(dfid, name, mode, rdev, gid, &qid);
 	if (err < 0)
 		goto error;
 
-	v9fs_invalidate_inode_attr(dir);
+	v9fs_invalidate_ianalde_attr(dir);
 	fid = p9_client_walk(dfid, 1, &name, 1);
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
@@ -889,31 +889,31 @@ v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		goto error;
 	}
 
-	/* instantiate inode and assign the unopened fid to the dentry */
+	/* instantiate ianalde and assign the uanalpened fid to the dentry */
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE)) {
-		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
-		if (IS_ERR(inode)) {
-			err = PTR_ERR(inode);
-			p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n",
+		ianalde = v9fs_get_new_ianalde_from_fid(v9ses, fid, dir->i_sb);
+		if (IS_ERR(ianalde)) {
+			err = PTR_ERR(ianalde);
+			p9_debug(P9_DEBUG_VFS, "ianalde creation failed %d\n",
 				 err);
 			goto error;
 		}
-		v9fs_set_create_acl(inode, fid, dacl, pacl);
+		v9fs_set_create_acl(ianalde, fid, dacl, pacl);
 		v9fs_fid_add(dentry, &fid);
-		d_instantiate(dentry, inode);
+		d_instantiate(dentry, ianalde);
 		err = 0;
 	} else {
 		/*
-		 * Not in cached mode. No need to populate inode with stat.
+		 * Analt in cached mode. Anal need to populate ianalde with stat.
 		 * socket syscall returns a fd, so we need instantiate
 		 */
-		inode = v9fs_get_inode(dir->i_sb, mode, rdev);
-		if (IS_ERR(inode)) {
-			err = PTR_ERR(inode);
+		ianalde = v9fs_get_ianalde(dir->i_sb, mode, rdev);
+		if (IS_ERR(ianalde)) {
+			err = PTR_ERR(ianalde);
 			goto error;
 		}
-		v9fs_set_create_acl(inode, fid, dacl, pacl);
-		d_instantiate(dentry, inode);
+		v9fs_set_create_acl(ianalde, fid, dacl, pacl);
+		d_instantiate(dentry, ianalde);
 	}
 error:
 	p9_fid_put(fid);
@@ -926,13 +926,13 @@ error:
 /**
  * v9fs_vfs_get_link_dotl - follow a symlink path
  * @dentry: dentry for symlink
- * @inode: inode for symlink
+ * @ianalde: ianalde for symlink
  * @done: destructor for return value
  */
 
 static const char *
 v9fs_vfs_get_link_dotl(struct dentry *dentry,
-		       struct inode *inode,
+		       struct ianalde *ianalde,
 		       struct delayed_call *done)
 {
 	struct p9_fid *fid;
@@ -955,35 +955,35 @@ v9fs_vfs_get_link_dotl(struct dentry *dentry,
 	return target;
 }
 
-int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode)
+int v9fs_refresh_ianalde_dotl(struct p9_fid *fid, struct ianalde *ianalde)
 {
 	struct p9_stat_dotl *st;
 	struct v9fs_session_info *v9ses;
 	unsigned int flags;
 
-	v9ses = v9fs_inode2v9ses(inode);
+	v9ses = v9fs_ianalde2v9ses(ianalde);
 	st = p9_client_getattr_dotl(fid, P9_STATS_ALL);
 	if (IS_ERR(st))
 		return PTR_ERR(st);
 	/*
-	 * Don't update inode if the file type is different
+	 * Don't update ianalde if the file type is different
 	 */
-	if (inode_wrong_type(inode, st->st_mode))
+	if (ianalde_wrong_type(ianalde, st->st_mode))
 		goto out;
 
 	/*
-	 * We don't want to refresh inode->i_size,
+	 * We don't want to refresh ianalde->i_size,
 	 * because we may have cached data
 	 */
 	flags = (v9ses->cache & CACHE_LOOSE) ?
-		V9FS_STAT2INODE_KEEP_ISIZE : 0;
-	v9fs_stat2inode_dotl(st, inode, flags);
+		V9FS_STAT2IANALDE_KEEP_ISIZE : 0;
+	v9fs_stat2ianalde_dotl(st, ianalde, flags);
 out:
 	kfree(st);
 	return 0;
 }
 
-const struct inode_operations v9fs_dir_inode_operations_dotl = {
+const struct ianalde_operations v9fs_dir_ianalde_operations_dotl = {
 	.create = v9fs_vfs_create_dotl,
 	.atomic_open = v9fs_vfs_atomic_open_dotl,
 	.lookup = v9fs_vfs_lookup,
@@ -992,26 +992,26 @@ const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.unlink = v9fs_vfs_unlink,
 	.mkdir = v9fs_vfs_mkdir_dotl,
 	.rmdir = v9fs_vfs_rmdir,
-	.mknod = v9fs_vfs_mknod_dotl,
+	.mkanald = v9fs_vfs_mkanald_dotl,
 	.rename = v9fs_vfs_rename,
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
 	.listxattr = v9fs_listxattr,
-	.get_inode_acl = v9fs_iop_get_inode_acl,
+	.get_ianalde_acl = v9fs_iop_get_ianalde_acl,
 	.get_acl = v9fs_iop_get_acl,
 	.set_acl = v9fs_iop_set_acl,
 };
 
-const struct inode_operations v9fs_file_inode_operations_dotl = {
+const struct ianalde_operations v9fs_file_ianalde_operations_dotl = {
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
 	.listxattr = v9fs_listxattr,
-	.get_inode_acl = v9fs_iop_get_inode_acl,
+	.get_ianalde_acl = v9fs_iop_get_ianalde_acl,
 	.get_acl = v9fs_iop_get_acl,
 	.set_acl = v9fs_iop_set_acl,
 };
 
-const struct inode_operations v9fs_symlink_inode_operations_dotl = {
+const struct ianalde_operations v9fs_symlink_ianalde_operations_dotl = {
 	.get_link = v9fs_vfs_get_link_dotl,
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,

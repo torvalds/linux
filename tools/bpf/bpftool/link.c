@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2020 Facebook */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/err.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_arp.h>
@@ -50,7 +50,7 @@ const char *event_symbols_sw[PERF_COUNT_SW_MAX] = {
 	[PERF_COUNT_SW_PAGE_FAULTS]		= "page-faults",
 	[PERF_COUNT_SW_CONTEXT_SWITCHES]	= "context-switches",
 	[PERF_COUNT_SW_CPU_MIGRATIONS]		= "cpu-migrations",
-	[PERF_COUNT_SW_PAGE_FAULTS_MIN]		= "minor-faults",
+	[PERF_COUNT_SW_PAGE_FAULTS_MIN]		= "mianalr-faults",
 	[PERF_COUNT_SW_PAGE_FAULTS_MAJ]		= "major-faults",
 	[PERF_COUNT_SW_ALIGNMENT_FAULTS]	= "alignment-faults",
 	[PERF_COUNT_SW_EMULATION_FAULTS]	= "emulation-faults",
@@ -66,7 +66,7 @@ const char *evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX] = {
 	[PERF_COUNT_HW_CACHE_DTLB]		= "dTLB",
 	[PERF_COUNT_HW_CACHE_ITLB]		= "iTLB",
 	[PERF_COUNT_HW_CACHE_BPU]		= "branch",
-	[PERF_COUNT_HW_CACHE_NODE]		= "node",
+	[PERF_COUNT_HW_CACHE_ANALDE]		= "analde",
 };
 
 const char *evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX] = {
@@ -107,7 +107,7 @@ static int link_parse_fd(int *argc, char ***argv)
 
 		fd = bpf_link_get_fd_by_id(id);
 		if (fd < 0)
-			p_err("failed to get link with ID %d: %s", id, strerror(errno));
+			p_err("failed to get link with ID %d: %s", id, strerror(erranal));
 		return fd;
 	} else if (is_prefix(**argv, "pinned")) {
 		char *path;
@@ -152,7 +152,7 @@ static void show_link_attach_type_json(__u32 attach_type, json_writer_t *wtr)
 
 static void show_link_ifindex_json(__u32 ifindex, json_writer_t *wtr)
 {
-	char devname[IF_NAMESIZE] = "(unknown)";
+	char devname[IF_NAMESIZE] = "(unkanalwn)";
 
 	if (ifindex)
 		if_indextoname(ifindex, devname);
@@ -187,7 +187,7 @@ static const char *cgroup_order_string(__u32 order)
 	case BPF_CGROUP_ITER_ANCESTORS_UP:
 		return "ancestors_up";
 	default: /* won't happen */
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -244,7 +244,7 @@ static int get_prog_info(int prog_id, struct bpf_prog_info *info)
 	memset(info, 0, sizeof(*info));
 	err = bpf_prog_get_info_by_fd(prog_fd, info, &len);
 	if (err)
-		p_err("can't get prog info: %s", strerror(errno));
+		p_err("can't get prog info: %s", strerror(erranal));
 	close(prog_fd);
 	return err;
 }
@@ -451,7 +451,7 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 			return err;
 
 		prog_type_str = libbpf_bpf_prog_type_str(prog_info.type);
-		/* libbpf will return NULL for variants unknown to it. */
+		/* libbpf will return NULL for variants unkanalwn to it. */
 		if (prog_type_str)
 			jsonw_string_field(json_wtr, "prog_type", prog_type_str);
 		else
@@ -471,8 +471,8 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 		show_iter_json(info, json_wtr);
 		break;
 	case BPF_LINK_TYPE_NETNS:
-		jsonw_uint_field(json_wtr, "netns_ino",
-				 info->netns.netns_ino);
+		jsonw_uint_field(json_wtr, "netns_ianal",
+				 info->netns.netns_ianal);
 		show_link_attach_type_json(info->netns.attach_type, json_wtr);
 		break;
 	case BPF_LINK_TYPE_NETFILTER:
@@ -570,7 +570,7 @@ static void show_link_attach_type_plain(__u32 attach_type)
 
 static void show_link_ifindex_plain(__u32 ifindex)
 {
-	char devname[IF_NAMESIZE * 2] = "(unknown)";
+	char devname[IF_NAMESIZE * 2] = "(unkanalwn)";
 	char tmpname[IF_NAMESIZE];
 	char *ret = NULL;
 
@@ -825,7 +825,7 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 			return err;
 
 		prog_type_str = libbpf_bpf_prog_type_str(prog_info.type);
-		/* libbpf will return NULL for variants unknown to it. */
+		/* libbpf will return NULL for variants unkanalwn to it. */
 		if (prog_type_str)
 			printf("\n\tprog_type %s  ", prog_type_str);
 		else
@@ -845,7 +845,7 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		show_iter_plain(info);
 		break;
 	case BPF_LINK_TYPE_NETNS:
-		printf("\n\tnetns_ino %u  ", info->netns.netns_ino);
+		printf("\n\tnetns_ianal %u  ", info->netns.netns_ianal);
 		show_link_attach_type_plain(info->netns.attach_type);
 		break;
 	case BPF_LINK_TYPE_NETFILTER:
@@ -925,7 +925,7 @@ again:
 	err = bpf_link_get_info_by_fd(fd, &info, &len);
 	if (err) {
 		p_err("can't get link info: %s",
-		      strerror(errno));
+		      strerror(erranal));
 		close(fd);
 		return err;
 	}
@@ -949,7 +949,7 @@ again:
 			if (!addrs) {
 				p_err("mem alloc failed");
 				close(fd);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			info.kprobe_multi.addrs = ptr_to_u64(addrs);
 			goto again;
@@ -963,7 +963,7 @@ again:
 			if (!offsets) {
 				p_err("mem alloc failed");
 				close(fd);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			info.uprobe_multi.offsets = ptr_to_u64(offsets);
 			ref_ctr_offsets = calloc(count, sizeof(__u64));
@@ -971,7 +971,7 @@ again:
 				p_err("mem alloc failed");
 				free(offsets);
 				close(fd);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			info.uprobe_multi.ref_ctr_offsets = ptr_to_u64(ref_ctr_offsets);
 			cookies = calloc(count, sizeof(__u64));
@@ -980,7 +980,7 @@ again:
 				free(cookies);
 				free(offsets);
 				close(fd);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			info.uprobe_multi.cookies = ptr_to_u64(cookies);
 			info.uprobe_multi.path = ptr_to_u64(path_buf);
@@ -1063,19 +1063,19 @@ static int do_show(int argc, char **argv)
 	while (true) {
 		err = bpf_link_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				break;
-			p_err("can't get next link: %s%s", strerror(errno),
-			      errno == EINVAL ? " -- kernel too old?" : "");
+			p_err("can't get next link: %s%s", strerror(erranal),
+			      erranal == EINVAL ? " -- kernel too old?" : "");
 			break;
 		}
 
 		fd = bpf_link_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				continue;
 			p_err("can't get link by id (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erranal));
 			break;
 		}
 
@@ -1094,7 +1094,7 @@ static int do_show(int argc, char **argv)
 out:
 	if (dd.sym_count)
 		kernel_syms_destroy(&dd);
-	return errno == ENOENT ? 0 : -1;
+	return erranal == EANALENT ? 0 : -1;
 }
 
 static int do_pin(int argc, char **argv)
@@ -1122,7 +1122,7 @@ static int do_detach(int argc, char **argv)
 
 	err = bpf_link_detach(fd);
 	if (err)
-		err = -errno;
+		err = -erranal;
 	close(fd);
 	if (err) {
 		p_err("failed link detach: %s", strerror(-err));
@@ -1150,7 +1150,7 @@ static int do_help(int argc, char **argv)
 		"\n"
 		"       " HELP_SPEC_LINK "\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
-		"                    {-f|--bpffs} | {-n|--nomount} }\n"
+		"                    {-f|--bpffs} | {-n|--analmount} }\n"
 		"",
 		bin_name, argv[-2]);
 

@@ -111,7 +111,7 @@ struct hwc_work_request {
 };
 
 /* hwc_dma_buf represents the array of in-flight WQEs.
- * mem_info as know as the GDMA mapped memory is partitioned and used by
+ * mem_info as kanalw as the GDMA mapped memory is partitioned and used by
  * in-flight WQEs.
  * The number of WQEs is determined by the number of in-flight messages.
  */

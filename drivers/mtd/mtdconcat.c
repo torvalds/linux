@@ -63,7 +63,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t size, retsize;
 
 		if (from >= subdev->size) {
-			/* Not destined for this subdev */
+			/* Analt destined for this subdev */
 			size = 0;
 			from -= subdev->size;
 			continue;
@@ -84,7 +84,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 				ret = err;
 			} else if (mtd_is_bitflip(err)) {
 				mtd->ecc_stats.corrected++;
-				/* Do not overwrite -EBADMSG !! */
+				/* Do analt overwrite -EBADMSG !! */
 				if (!ret)
 					ret = err;
 			} else
@@ -123,8 +123,8 @@ concat_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 			size = len;
 
 		err = mtd_panic_write(subdev, to, size, &retsize, buf);
-		if (err == -EOPNOTSUPP) {
-			printk(KERN_ERR "mtdconcat: Cannot write from panic without panic_write\n");
+		if (err == -EOPANALTSUPP) {
+			printk(KERN_ERR "mtdconcat: Cananalt write from panic without panic_write\n");
 			return err;
 		}
 		if (err)
@@ -206,7 +206,7 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	/* make a copy of vecs */
 	vecs_copy = kmemdup(vecs, sizeof(struct kvec) * count, GFP_KERNEL);
 	if (!vecs_copy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry_low = 0;
 	for (i = 0; i < concat->num_subdev; i++) {
@@ -288,7 +288,7 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 				ret = err;
 			} else if (mtd_is_bitflip(err)) {
 				mtd->ecc_stats.corrected++;
-				/* Do not overwrite -EBADMSG !! */
+				/* Do analt overwrite -EBADMSG !! */
 				if (!ret)
 					ret = err;
 			} else
@@ -393,7 +393,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 		--i;
 
 		/*
-		 * Now erase_regions[i] is the region in which the
+		 * Analw erase_regions[i] is the region in which the
 		 * to-be-erased area begins. Verify that the starting
 		 * offset is aligned to this region's erase size:
 		 */
@@ -401,7 +401,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 			return -EINVAL;
 
 		/*
-		 * now find the erase region where the to-be-erased area ends:
+		 * analw find the erase region where the to-be-erased area ends:
 		 */
 		for (; i < concat->mtd.numeraseregions &&
 		     (instr->addr + instr->len) >= erase_regions[i].offset;
@@ -419,7 +419,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 	erase = kmalloc(sizeof (struct erase_info), GFP_KERNEL);
 
 	if (!erase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*erase = *instr;
 	length = instr->len;
@@ -441,7 +441,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 	/* must never happen since size limit has been verified above */
 	BUG_ON(i >= concat->num_subdev);
 
-	/* now do the erase: */
+	/* analw do the erase: */
 	err = 0;
 	for (; length > 0; i++) {
 		/* loop for all subdevices affected by this request */
@@ -458,14 +458,14 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 			/* sanity check: should never happen since
 			 * block alignment has been checked above */
 			BUG_ON(err == -EINVAL);
-			if (erase->fail_addr != MTD_FAIL_ADDR_UNKNOWN)
+			if (erase->fail_addr != MTD_FAIL_ADDR_UNKANALWN)
 				instr->fail_addr = erase->fail_addr + offset;
 			break;
 		}
 		/*
 		 * erase->addr specifies the offset of the area to be
 		 * erased *within the current subdevice*. It can be
-		 * non-zero only the first time through this loop, i.e.
+		 * analn-zero only the first time through this loop, i.e.
 		 * for the first subdevice where blocks need to be erased.
 		 * All the following erases must begin at the start of the
 		 * current subdevice, i.e. at offset zero.
@@ -631,7 +631,7 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
 /*
  * This function constructs a virtual MTD device by concatenating
  * num_devs MTD devices. A pointer to the new device object is
- * stored to *new_dev upon success. This function does _not_
+ * stored to *new_dev upon success. This function does _analt_
  * register any devices: this is the caller's responsibility.
  */
 struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to concatenate */
@@ -646,10 +646,10 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	int num_erase_region;
 	int max_writebufsize = 0;
 
-	printk(KERN_NOTICE "Concatenating MTD devices:\n");
+	printk(KERN_ANALTICE "Concatenating MTD devices:\n");
 	for (i = 0; i < num_devs; i++)
-		printk(KERN_NOTICE "(%d): \"%s\"\n", i, subdev[i]->name);
-	printk(KERN_NOTICE "into device \"%s\"\n", name);
+		printk(KERN_ANALTICE "(%d): \"%s\"\n", i, subdev[i]->name);
+	printk(KERN_ANALTICE "into device \"%s\"\n", name);
 
 	/* allocate the device structure */
 	size = SIZEOF_STRUCT_MTD_CONCAT(num_devs);
@@ -886,7 +886,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 				}
 			}
 		}
-		/* Now write the final entry */
+		/* Analw write the final entry */
 		erase_region_p->offset = begin;
 		erase_region_p->erasesize = curr_erasesize;
 		tmp64 = position - begin;

@@ -324,7 +324,7 @@ static int adxrs290_read_raw(struct iio_dev *indio_dev,
 			/* 1 LSB = 0.005 degrees/sec */
 			*val = 0;
 			*val2 = 87266;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_TEMP:
 			/* 1 LSB = 0.1 degrees Celsius */
 			*val = 100;
@@ -514,14 +514,14 @@ static irqreturn_t adxrs290_trigger_handler(int irq, void *p)
 	ret = spi_write_then_read(st->spi, &tx, sizeof(tx), st->buffer.channels,
 				  sizeof(st->buffer.channels));
 	if (ret < 0)
-		goto out_unlock_notify;
+		goto out_unlock_analtify;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->buffer,
 					   pf->timestamp);
 
-out_unlock_notify:
+out_unlock_analtify:
 	mutex_unlock(&st->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -584,7 +584,7 @@ static int adxrs290_probe_trigger(struct iio_dev *indio_dev)
 	int ret;
 
 	if (!st->spi->irq) {
-		dev_info(&st->spi->dev, "no irq, using polling\n");
+		dev_info(&st->spi->dev, "anal irq, using polling\n");
 		return 0;
 	}
 
@@ -592,7 +592,7 @@ static int adxrs290_probe_trigger(struct iio_dev *indio_dev)
 						 indio_dev->name,
 						 iio_device_id(indio_dev));
 	if (!st->dready_trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->dready_trig->ops = &adxrs290_trigger_ops;
 	iio_trigger_set_drvdata(st->dready_trig, indio_dev);
@@ -624,7 +624,7 @@ static int adxrs290_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->spi = spi;
@@ -641,19 +641,19 @@ static int adxrs290_probe(struct spi_device *spi)
 	val = spi_w8r8(spi, ADXRS290_READ_REG(ADXRS290_REG_ADI_ID));
 	if (val != ADXRS290_ADI_ID) {
 		dev_err(&spi->dev, "Wrong ADI ID 0x%02x\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = spi_w8r8(spi, ADXRS290_READ_REG(ADXRS290_REG_MEMS_ID));
 	if (val != ADXRS290_MEMS_ID) {
 		dev_err(&spi->dev, "Wrong MEMS ID 0x%02x\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = spi_w8r8(spi, ADXRS290_READ_REG(ADXRS290_REG_DEV_ID));
 	if (val != ADXRS290_DEV_ID) {
 		dev_err(&spi->dev, "Wrong DEV ID 0x%02x\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* default mode the gyroscope starts in */

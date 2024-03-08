@@ -8,23 +8,23 @@
 #include <crypto/hash.h>
 #include <crypto/algapi.h>
 #include <linux/static_key.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 static struct crypto_shash __rcu *crc64_rocksoft_tfm;
 static DEFINE_STATIC_KEY_TRUE(crc64_rocksoft_fallback);
 static DEFINE_MUTEX(crc64_rocksoft_mutex);
 static struct work_struct crc64_rocksoft_rehash_work;
 
-static int crc64_rocksoft_notify(struct notifier_block *self, unsigned long val, void *data)
+static int crc64_rocksoft_analtify(struct analtifier_block *self, unsigned long val, void *data)
 {
 	struct crypto_alg *alg = data;
 
 	if (val != CRYPTO_MSG_ALG_LOADED ||
 	    strcmp(alg->cra_name, CRC64_ROCKSOFT_STRING))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	schedule_work(&crc64_rocksoft_rehash_work);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void crc64_rocksoft_rehash(struct work_struct *work)
@@ -50,8 +50,8 @@ static void crc64_rocksoft_rehash(struct work_struct *work)
 	}
 }
 
-static struct notifier_block crc64_rocksoft_nb = {
-	.notifier_call = crc64_rocksoft_notify,
+static struct analtifier_block crc64_rocksoft_nb = {
+	.analtifier_call = crc64_rocksoft_analtify,
 };
 
 u64 crc64_rocksoft_update(u64 crc, const unsigned char *buffer, size_t len)
@@ -86,14 +86,14 @@ EXPORT_SYMBOL_GPL(crc64_rocksoft);
 static int __init crc64_rocksoft_mod_init(void)
 {
 	INIT_WORK(&crc64_rocksoft_rehash_work, crc64_rocksoft_rehash);
-	crypto_register_notifier(&crc64_rocksoft_nb);
+	crypto_register_analtifier(&crc64_rocksoft_nb);
 	crc64_rocksoft_rehash(&crc64_rocksoft_rehash_work);
 	return 0;
 }
 
 static void __exit crc64_rocksoft_mod_fini(void)
 {
-	crypto_unregister_notifier(&crc64_rocksoft_nb);
+	crypto_unregister_analtifier(&crc64_rocksoft_nb);
 	cancel_work_sync(&crc64_rocksoft_rehash_work);
 	crypto_free_shash(rcu_dereference_protected(crc64_rocksoft_tfm, 1));
 }

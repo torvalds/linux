@@ -4,7 +4,7 @@
  * Pinnacle/Miro DC10/DC10+/DC30/DC30+, Iomega Buz, Linux
  * Media Labs LML33/LML33R10.
  *
- * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+ * Copyright (C) 2000 Serguei Miridoanalv <mirsev@cicese.mx>
  *
  * Changes for BUZ by Wolfgang Scherr <scherr@net4you.net>
  *
@@ -201,25 +201,25 @@ static int zoran_v4l_set_format(struct zoran *zr, int width, int height,
 	return 0;
 }
 
-static int zoran_set_norm(struct zoran *zr, v4l2_std_id norm)
+static int zoran_set_analrm(struct zoran *zr, v4l2_std_id analrm)
 {
-	if (!(norm & zr->card.norms)) {
-		pci_dbg(zr->pci_dev, "%s - unsupported norm %llx\n", __func__, norm);
+	if (!(analrm & zr->card.analrms)) {
+		pci_dbg(zr->pci_dev, "%s - unsupported analrm %llx\n", __func__, analrm);
 		return -EINVAL;
 	}
 
-	if (norm & V4L2_STD_SECAM)
-		zr->timing = zr->card.tvn[ZR_NORM_SECAM];
-	else if (norm & V4L2_STD_NTSC)
-		zr->timing = zr->card.tvn[ZR_NORM_NTSC];
+	if (analrm & V4L2_STD_SECAM)
+		zr->timing = zr->card.tvn[ZR_ANALRM_SECAM];
+	else if (analrm & V4L2_STD_NTSC)
+		zr->timing = zr->card.tvn[ZR_ANALRM_NTSC];
 	else
-		zr->timing = zr->card.tvn[ZR_NORM_PAL];
+		zr->timing = zr->card.tvn[ZR_ANALRM_PAL];
 
-	decoder_call(zr, video, s_std, norm);
-	encoder_call(zr, video, s_std_output, norm);
+	decoder_call(zr, video, s_std, analrm);
+	encoder_call(zr, video, s_std_output, analrm);
 
 	/* Make sure the changes come into effect */
-	zr->norm = norm;
+	zr->analrm = analrm;
 
 	return 0;
 }
@@ -268,7 +268,7 @@ static int zoran_enum_fmt(struct zoran *zr, struct v4l2_fmtdesc *fmt, int flag)
 		if (zoran_formats[i].flags & flag && num++ == fmt->index) {
 			strscpy(fmt->description, zoran_formats[i].name,
 				sizeof(fmt->description));
-			/* fmt struct pre-zeroed, so adding '\0' not needed */
+			/* fmt struct pre-zeroed, so adding '\0' analt needed */
 			fmt->pixelformat = zoran_formats[i].fourcc;
 			if (zoran_formats[i].flags & ZORAN_FORMAT_COMPRESSED)
 				fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
@@ -340,7 +340,7 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 
 	settings = zr->jpg_settings;
 
-	/* we actually need to set 'real' parameters now */
+	/* we actually need to set 'real' parameters analw */
 	if ((fmt->fmt.pix.height * 2) > BUZ_MAX_HEIGHT)
 		settings.tmp_dcm = 1;
 	else
@@ -406,7 +406,7 @@ static int zoran_try_fmt_vid_cap(struct file *file, void *__fh,
 			break;
 
 	if (i == NUM_FORMATS) {
-		/* TODO do not return here to fix the TRY_FMT cannot handle an invalid pixelformat*/
+		/* TODO do analt return here to fix the TRY_FMT cananalt handle an invalid pixelformat*/
 		return -EINVAL;
 	}
 
@@ -447,7 +447,7 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 
 	settings = zr->jpg_settings;
 
-	/* we actually need to set 'real' parameters now */
+	/* we actually need to set 'real' parameters analw */
 	if (fmt->fmt.pix.height * 2 > BUZ_MAX_HEIGHT)
 		settings.tmp_dcm = 1;
 	else
@@ -522,9 +522,9 @@ static int zoran_s_fmt_vid_cap(struct file *file, void *__fh,
 		if (fmt->fmt.pix.pixelformat == zoran_formats[i].fourcc)
 			break;
 	if (i == NUM_FORMATS) {
-		pci_dbg(zr->pci_dev, "VIDIOC_S_FMT - unknown/unsupported format 0x%x\n",
+		pci_dbg(zr->pci_dev, "VIDIOC_S_FMT - unkanalwn/unsupported format 0x%x\n",
 			fmt->fmt.pix.pixelformat);
-		/* TODO do not return here to fix the TRY_FMT cannot handle an invalid pixelformat*/
+		/* TODO do analt return here to fix the TRY_FMT cananalt handle an invalid pixelformat*/
 		return -EINVAL;
 	}
 
@@ -560,7 +560,7 @@ static int zoran_g_std(struct file *file, void *__fh, v4l2_std_id *std)
 {
 	struct zoran *zr = video_drvdata(file);
 
-	*std = zr->norm;
+	*std = zr->analrm;
 	return 0;
 }
 
@@ -569,13 +569,13 @@ static int zoran_s_std(struct file *file, void *__fh, v4l2_std_id std)
 	struct zoran *zr = video_drvdata(file);
 	int res = 0;
 
-	if (zr->norm == std)
+	if (zr->analrm == std)
 		return 0;
 
-	if (zr->running != ZORAN_MAP_MODE_NONE)
+	if (zr->running != ZORAN_MAP_MODE_ANALNE)
 		return -EBUSY;
 
-	res = zoran_set_norm(zr, std);
+	res = zoran_set_analrm(zr, std);
 	return res;
 }
 
@@ -610,7 +610,7 @@ static int zoran_s_input(struct file *file, void *__fh, unsigned int input)
 	struct zoran *zr = video_drvdata(file);
 	int res;
 
-	if (zr->running != ZORAN_MAP_MODE_NONE)
+	if (zr->running != ZORAN_MAP_MODE_ANALNE)
 		return -EBUSY;
 
 	res = zoran_set_input(zr, input);
@@ -736,7 +736,7 @@ const struct video_device zoran_template = {
 	.fops = &zoran_fops,
 	.ioctl_ops = &zoran_ioctl_ops,
 	.release = &zoran_vdev_release,
-	.tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
+	.tvanalrms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 };
 
 static int zr_vb2_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers, unsigned int *nplanes,
@@ -799,7 +799,7 @@ int zr_set_buf(struct zoran *zr)
 	unsigned long flags;
 	u32 reg;
 
-	if (zr->running == ZORAN_MAP_MODE_NONE)
+	if (zr->running == ZORAN_MAP_MODE_ANALNE)
 		return 0;
 
 	if (zr->inuse[0]) {
@@ -912,7 +912,7 @@ static void zr_vb2_stop_streaming(struct vb2_queue *vq)
 	if (zr->map_mode != ZORAN_MAP_MODE_RAW)
 		zr36057_enable_jpg(zr, BUZ_MODE_IDLE);
 	zr36057_set_memgrab(zr, 0);
-	zr->running = ZORAN_MAP_MODE_NONE;
+	zr->running = ZORAN_MAP_MODE_ANALNE;
 
 	zoran_set_pci_master(zr, 0);
 
@@ -970,7 +970,7 @@ int zoran_queue_init(struct zoran *zr, struct vb2_queue *vq, int dir)
 	vq->ops = &zr_video_qops;
 	vq->mem_ops = &vb2_dma_contig_memops;
 	vq->gfp_flags = GFP_DMA32;
-	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vq->min_queued_buffers = 9;
 	vq->lock = &zr->lock;
 	err = vb2_queue_init(vq);

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the m68knommu kernel.
+# Makefile for the m68kanalmmu kernel.
 #
 
 #

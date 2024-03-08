@@ -14,7 +14,7 @@ const char *pptp_msg_name(u_int16_t msg);
 
 /* state of the control session */
 enum pptp_ctrlsess_state {
-	PPTP_SESSION_NONE,			/* no session present */
+	PPTP_SESSION_ANALNE,			/* anal session present */
 	PPTP_SESSION_ERROR,			/* some session error */
 	PPTP_SESSION_STOPREQ,			/* stop_sess request seen */
 	PPTP_SESSION_REQUESTED,			/* start_sess request seen */
@@ -23,7 +23,7 @@ enum pptp_ctrlsess_state {
 
 /* state of the call inside the control session */
 enum pptp_ctrlcall_state {
-	PPTP_CALL_NONE,
+	PPTP_CALL_ANALNE,
 	PPTP_CALL_ERROR,
 	PPTP_CALL_OUT_REQ,
 	PPTP_CALL_OUT_CONF,
@@ -40,7 +40,7 @@ struct nf_ct_pptp_master {
 	__be16 pac_call_id;			/* call id of PAC */
 	__be16 pns_call_id;			/* call id of PNS */
 
-	/* in pre-2.6.11 this used to be per-expect. Now it is per-conntrack
+	/* in pre-2.6.11 this used to be per-expect. Analw it is per-conntrack
 	 * and therefore imposes a fixed limit on the number of maps */
 	struct nf_ct_gre_keymap *keymap[IP_CT_DIR_MAX];
 };
@@ -76,18 +76,18 @@ struct pptp_pkt_hdr {
 #define PPTP_IN_CALL_REPLY		10
 #define PPTP_IN_CALL_CONNECT		11
 #define PPTP_CALL_CLEAR_REQUEST		12
-#define PPTP_CALL_DISCONNECT_NOTIFY	13
-#define PPTP_WAN_ERROR_NOTIFY		14
+#define PPTP_CALL_DISCONNECT_ANALTIFY	13
+#define PPTP_WAN_ERROR_ANALTIFY		14
 #define PPTP_SET_LINK_INFO		15
 
 #define PPTP_MSG_MAX			15
 
 /* PptpGeneralError values */
-#define PPTP_ERROR_CODE_NONE		0
-#define PPTP_NOT_CONNECTED		1
+#define PPTP_ERROR_CODE_ANALNE		0
+#define PPTP_ANALT_CONNECTED		1
 #define PPTP_BAD_FORMAT			2
 #define PPTP_BAD_VALUE			3
-#define PPTP_NO_RESOURCE		4
+#define PPTP_ANAL_RESOURCE		4
 #define PPTP_BAD_CALLID			5
 #define PPTP_REMOVE_DEVICE_ERROR	6
 
@@ -119,8 +119,8 @@ struct PptpStartSessionRequest {
 #define PPTP_START_OK			1
 #define PPTP_START_GENERAL_ERROR	2
 #define PPTP_START_ALREADY_CONNECTED	3
-#define PPTP_START_NOT_AUTHORIZED	4
-#define PPTP_START_UNKNOWN_PROTOCOL	5
+#define PPTP_START_ANALT_AUTHORIZED	4
+#define PPTP_START_UNKANALWN_PROTOCOL	5
 
 struct PptpStartSessionReply {
 	__be16	protocolVersion;
@@ -135,7 +135,7 @@ struct PptpStartSessionReply {
 };
 
 /* PptpStopReasons */
-#define PPTP_STOP_NONE			1
+#define PPTP_STOP_ANALNE			1
 #define PPTP_STOP_PROTOCOL		2
 #define PPTP_STOP_LOCAL_SHUTDOWN	3
 
@@ -198,9 +198,9 @@ struct PptpOutCallRequest {
 /* PptpCallResultCode */
 #define PPTP_OUTCALL_CONNECT		1
 #define PPTP_OUTCALL_GENERAL_ERROR	2
-#define PPTP_OUTCALL_NO_CARRIER		3
+#define PPTP_OUTCALL_ANAL_CARRIER		3
 #define PPTP_OUTCALL_BUSY		4
-#define PPTP_OUTCALL_NO_DIAL_TONE	5
+#define PPTP_OUTCALL_ANAL_DIAL_TONE	5
 #define PPTP_OUTCALL_TIMEOUT		6
 #define PPTP_OUTCALL_DONT_ACCEPT	7
 
@@ -257,7 +257,7 @@ struct PptpClearCallRequest {
 	__u16	reserved;
 };
 
-struct PptpCallDisconnectNotify {
+struct PptpCallDisconnectAnaltify {
 	__be16	callID;
 	__u8	resultCode;
 	__u8	generalErrorCode;
@@ -266,7 +266,7 @@ struct PptpCallDisconnectNotify {
 	__u8	callStatistics[128];
 };
 
-struct PptpWanErrorNotify {
+struct PptpWanErrorAnaltify {
 	__be16	peersCallID;
 	__u16	reserved;
 	__be32	crcErrors;
@@ -295,8 +295,8 @@ union pptp_ctrl_union {
 	struct PptpInCallReply		icack;
 	struct PptpInCallConnected	iccon;
 	struct PptpClearCallRequest	clrreq;
-	struct PptpCallDisconnectNotify disc;
-	struct PptpWanErrorNotify	wanerr;
+	struct PptpCallDisconnectAnaltify disc;
+	struct PptpWanErrorAnaltify	wanerr;
 	struct PptpSetLinkInfo		setlink;
 };
 

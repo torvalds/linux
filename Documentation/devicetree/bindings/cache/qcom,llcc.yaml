@@ -49,7 +49,7 @@ properties:
 
   nvmem-cells:
     items:
-      - description: Reference to an nvmem node for multi channel DDR
+      - description: Reference to an nvmem analde for multi channel DDR
 
   nvmem-cell-names:
     items:

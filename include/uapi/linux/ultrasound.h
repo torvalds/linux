@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ULTRASOUND_H_
 #define _ULTRASOUND_H_
 /*
  *	ultrasound.h - Macros for programming the Gravis Ultrasound
  *			These macros are extremely device dependent
- *			and not portable.
+ *			and analt portable.
  */
 /*
  * Copyright (C) by Hannu Savolainen 1993-1997
@@ -32,7 +32,7 @@
  *		_GUS_NUMVOICES	- Sets max. number of concurrent voices (P1=14-31, default 16)
  *		_GUS_VOICESAMPLE- ************ OBSOLETE *************
  *		_GUS_VOICEON	- Starts voice (P1=voice mode)
- *		_GUS_VOICEOFF	- Stops voice (no parameters)
+ *		_GUS_VOICEOFF	- Stops voice (anal parameters)
  *		_GUS_VOICEFADE	- Stops the voice smoothly.
  *		_GUS_VOICEMODE	- Alters the voice mode, don't start or stop voice (P1=voice mode)
  *		_GUS_VOICEBALA	- Sets voice balance (P1, 0=left, 7=middle and 15=right, default 7)
@@ -45,8 +45,8 @@
  *		_GUS_RAMPRANGE	- Sets limits for volume ramping (P1=low volume, P2=high volume)
  *		_GUS_RAMPRATE	- Sets the speed for volume ramping (P1=scale, P2=rate)
  *		_GUS_RAMPMODE	- Sets the volume ramping mode (P1=ramping mode)
- *		_GUS_RAMPON	- Starts volume ramping (no parameters)
- *		_GUS_RAMPOFF	- Stops volume ramping (no parameters)
+ *		_GUS_RAMPON	- Starts volume ramping (anal parameters)
+ *		_GUS_RAMPOFF	- Stops volume ramping (anal parameters)
  *		_GUS_VOLUME_SCALE - Changes the volume calculation constants
  *				  for all voices.
  */

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _DMX_REQBUFS:
@@ -14,7 +14,7 @@ DMX_REQBUFS - Initiate Memory Mapping and/or DMA buffer I/O
 
 .. warning:: this API is still experimental
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: DMX_REQBUFS
@@ -56,20 +56,20 @@ number is also possible when the driver requires more buffers to
 function correctly. The actual allocated buffer size can is returned
 at ``size``, and can be smaller than what's requested.
 
-When this I/O method is not supported, the ioctl returns an ``EOPNOTSUPP``
+When this I/O method is analt supported, the ioctl returns an ``EOPANALTSUPP``
 error code.
 
 Applications can call :ref:`DMX_REQBUFS` again to change the number of
-buffers, however this cannot succeed when any buffers are still mapped.
+buffers, however this cananalt succeed when any buffers are still mapped.
 A ``count`` value of zero frees all buffers, after aborting or finishing
 any DMA in progress.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
-EOPNOTSUPP
-    The  the requested I/O method is not supported.
+EOPANALTSUPP
+    The  the requested I/O method is analt supported.

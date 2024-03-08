@@ -21,7 +21,7 @@ int svm_hv_enable_l2_tlb_flush(struct kvm_vcpu *vcpu)
 	hpa_t partition_assist_page = hv_get_partition_assist_page(vcpu);
 
 	if (partition_assist_page == INVALID_PAGE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hve = &to_svm(vcpu)->vmcb->control.hv_enlightenments;
 

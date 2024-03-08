@@ -7,12 +7,12 @@
    Copyright (c) 2005,2006 Jim Cromie <jim.cromie@gmail.com>
 
    adapted from linux/drivers/char/scx200_gpio.c
-   Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>,
+   Copyright (c) 2001,2002 Christer Weinigel <wingel@naanal-system.com>,
 */
 
 #include <linux/fs.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/cdev.h>
@@ -47,7 +47,7 @@ static u8 pc8736x_gpio_shadow[4];
 #define SIO_CF1		0x21	/* chip config, bit0 is chip enable */
 
 #define PC8736X_GPIO_RANGE	16 /* ioaddr range */
-#define PC8736X_GPIO_CT		32 /* minors matching 4 8 bit ports */
+#define PC8736X_GPIO_CT		32 /* mianalrs matching 4 8 bit ports */
 
 #define SIO_UNIT_SEL	0x7	/* unit select reg */
 #define SIO_UNIT_ACT	0x30	/* unit enable */
@@ -68,7 +68,7 @@ static unsigned char superio_cmd = 0;
 static unsigned char selected_device = 0xFF;	/* bogus start val */
 
 /* GPIO port runtime access, functionality */
-static int port_offset[] = { 0, 4, 8, 10 };	/* non-uniform offsets ! */
+static int port_offset[] = { 0, 4, 8, 10 };	/* analn-uniform offsets ! */
 /* static int event_capable[] = { 1, 1, 0, 0 };   ports 2,3 are hobbled */
 
 #define PORT_OUT	0
@@ -114,12 +114,12 @@ static void device_select(unsigned devldn)
 	selected_device = devldn;
 }
 
-static void select_pin(unsigned iminor)
+static void select_pin(unsigned imianalr)
 {
-	/* select GPIO port/pin from device minor number */
+	/* select GPIO port/pin from device mianalr number */
 	device_select(SIO_GPIO_UNIT);
 	superio_outb(SIO_GPIO_PIN_SELECT,
-		     ((iminor << 1) & 0xF0) | (iminor & 0x7));
+		     ((imianalr << 1) & 0xF0) | (imianalr & 0x7));
 }
 
 static inline u32 pc8736x_gpio_configure_fn(unsigned index, u32 mask, u32 bits,
@@ -150,30 +150,30 @@ static u32 pc8736x_gpio_configure(unsigned index, u32 mask, u32 bits)
 					 SIO_GPIO_PIN_CONFIG);
 }
 
-static int pc8736x_gpio_get(unsigned minor)
+static int pc8736x_gpio_get(unsigned mianalr)
 {
 	int port, bit, val;
 
-	port = minor >> 3;
-	bit = minor & 7;
+	port = mianalr >> 3;
+	bit = mianalr & 7;
 	val = inb_p(pc8736x_gpio_base + port_offset[port] + PORT_IN);
 	val >>= bit;
 	val &= 1;
 
 	dev_dbg(&pdev->dev, "_gpio_get(%d from %x bit %d) == val %d\n",
-		minor, pc8736x_gpio_base + port_offset[port] + PORT_IN, bit,
+		mianalr, pc8736x_gpio_base + port_offset[port] + PORT_IN, bit,
 		val);
 
 	return val;
 }
 
-static void pc8736x_gpio_set(unsigned minor, int val)
+static void pc8736x_gpio_set(unsigned mianalr, int val)
 {
 	int port, bit, curval;
 
-	minor &= 0x1f;
-	port = minor >> 3;
-	bit = minor & 7;
+	mianalr &= 0x1f;
+	port = mianalr >> 3;
+	bit = mianalr & 7;
 	curval = inb_p(pc8736x_gpio_base + port_offset[port] + PORT_OUT);
 
 	dev_dbg(&pdev->dev, "addr:%x cur:%x bit-pos:%d cur-bit:%x + new:%d -> bit-new:%d\n",
@@ -182,8 +182,8 @@ static void pc8736x_gpio_set(unsigned minor, int val)
 
 	val = (curval & ~(1 << bit)) | (val << bit);
 
-	dev_dbg(&pdev->dev, "gpio_set(minor:%d port:%d bit:%d)"
-		" %2x -> %2x\n", minor, port, bit, curval, val);
+	dev_dbg(&pdev->dev, "gpio_set(mianalr:%d port:%d bit:%d)"
+		" %2x -> %2x\n", mianalr, port, bit, curval, val);
 
 	outb_p(val, pc8736x_gpio_base + port_offset[port] + PORT_OUT);
 
@@ -194,12 +194,12 @@ static void pc8736x_gpio_set(unsigned minor, int val)
 	pc8736x_gpio_shadow[port] = val;
 }
 
-static int pc8736x_gpio_current(unsigned minor)
+static int pc8736x_gpio_current(unsigned mianalr)
 {
 	int port, bit;
-	minor &= 0x1f;
-	port = minor >> 3;
-	bit = minor & 7;
+	mianalr &= 0x1f;
+	port = mianalr >> 3;
+	bit = mianalr & 7;
 	return ((pc8736x_gpio_shadow[port] >> bit) & 0x01);
 }
 
@@ -218,16 +218,16 @@ static struct nsc_gpio_ops pc8736x_gpio_ops = {
 	.gpio_current	= pc8736x_gpio_current
 };
 
-static int pc8736x_gpio_open(struct inode *inode, struct file *file)
+static int pc8736x_gpio_open(struct ianalde *ianalde, struct file *file)
 {
-	unsigned m = iminor(inode);
+	unsigned m = imianalr(ianalde);
 	file->private_data = &pc8736x_gpio_ops;
 
 	dev_dbg(&pdev->dev, "open %d\n", m);
 
 	if (m >= PC8736X_GPIO_CT)
 		return -EINVAL;
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 static const struct file_operations pc8736x_gpio_fileops = {
@@ -235,7 +235,7 @@ static const struct file_operations pc8736x_gpio_fileops = {
 	.open	= pc8736x_gpio_open,
 	.write	= nsc_gpio_write,
 	.read	= nsc_gpio_read,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static void __init pc8736x_init_shadow(void)
@@ -259,18 +259,18 @@ static int __init pc8736x_gpio_init(void)
 
 	pdev = platform_device_alloc(DEVNAME, 0);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = platform_device_add(pdev);
 	if (rc) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto undo_platform_dev_alloc;
 	}
 	dev_info(&pdev->dev, "NatSemi pc8736x GPIO Driver Initializing\n");
 
 	if (!pc8736x_superio_present()) {
-		rc = -ENODEV;
-		dev_err(&pdev->dev, "no device found\n");
+		rc = -EANALDEV;
+		dev_err(&pdev->dev, "anal device found\n");
 		goto undo_platform_dev_add;
 	}
 	pc8736x_gpio_ops.dev = &pdev->dev;
@@ -280,14 +280,14 @@ static int __init pc8736x_gpio_init(void)
 	 */
 	rc = superio_inb(SIO_CF1);
 	if (!(rc & 0x01)) {
-		rc = -ENODEV;
-		dev_err(&pdev->dev, "device not enabled\n");
+		rc = -EANALDEV;
+		dev_err(&pdev->dev, "device analt enabled\n");
 		goto undo_platform_dev_add;
 	}
 	device_select(SIO_GPIO_UNIT);
 	if (!superio_inb(SIO_UNIT_ACT)) {
-		rc = -ENODEV;
-		dev_err(&pdev->dev, "GPIO unit not enabled\n");
+		rc = -EANALDEV;
+		dev_err(&pdev->dev, "GPIO unit analt enabled\n");
 		goto undo_platform_dev_add;
 	}
 
@@ -296,7 +296,7 @@ static int __init pc8736x_gpio_init(void)
 			     | superio_inb(SIO_BASE_LADDR));
 
 	if (!request_region(pc8736x_gpio_base, PC8736X_GPIO_RANGE, DEVNAME)) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		dev_err(&pdev->dev, "GPIO ioport %x busy\n",
 			pc8736x_gpio_base);
 		goto undo_platform_dev_add;
@@ -322,7 +322,7 @@ static int __init pc8736x_gpio_init(void)
 
 	pc8736x_init_shadow();
 
-	/* ignore minor errs, and succeed */
+	/* iganalre mianalr errs, and succeed */
 	cdev_init(&pc8736x_gpio_cdev, &pc8736x_gpio_fileops);
 	cdev_add(&pc8736x_gpio_cdev, devid, PC8736X_GPIO_CT);
 

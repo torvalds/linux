@@ -35,7 +35,7 @@ enum {
 
 enum {
 	SEG6_LOCAL_ACTION_UNSPEC	= 0,
-	/* node segment */
+	/* analde segment */
 	SEG6_LOCAL_ACTION_END		= 1,
 	/* adjacency segment (IPv6 cross-connect) */
 	SEG6_LOCAL_ACTION_END_X		= 2,
@@ -89,15 +89,15 @@ enum {
  *
  * - SEG6_LOCAL_CNT_PACKETS: identifies a counter that counts the number of
  *   packets that have been CORRECTLY processed by an SRv6 Behavior instance
- *   (i.e., packets that generate errors or are dropped are NOT counted).
+ *   (i.e., packets that generate errors or are dropped are ANALT counted).
  *
  * - SEG6_LOCAL_CNT_BYTES: identifies a counter that counts the total amount
  *   of traffic in bytes of all packets that have been CORRECTLY processed by
  *   an SRv6 Behavior instance (i.e., packets that generate errors or are
- *   dropped are NOT counted).
+ *   dropped are ANALT counted).
  *
  * - SEG6_LOCAL_CNT_ERRORS: identifies a counter that counts the number of
- *   packets that have NOT been properly processed by an SRv6 Behavior instance
+ *   packets that have ANALT been properly processed by an SRv6 Behavior instance
  *   (i.e., packets that generate errors or are dropped).
  */
 enum {
@@ -116,7 +116,7 @@ enum {
 	SEG6_LOCAL_FLV_UNSPEC,
 	SEG6_LOCAL_FLV_OPERATION,
 	SEG6_LOCAL_FLV_LCBLOCK_BITS,
-	SEG6_LOCAL_FLV_LCNODE_FN_BITS,
+	SEG6_LOCAL_FLV_LCANALDE_FN_BITS,
 	__SEG6_LOCAL_FLV_MAX,
 };
 

@@ -38,7 +38,7 @@ static u32 debug;
 static u32 irqloops = 4;
 
 enum inf_types {
-	INF_NONE,
+	INF_ANALNE,
 	INF_DIVA20,
 	INF_DIVA20U,
 	INF_DIVA201,
@@ -57,7 +57,7 @@ enum inf_types {
 };
 
 enum addr_mode {
-	AM_NONE = 0,
+	AM_ANALNE = 0,
 	AM_IO,
 	AM_MEMIO,
 	AM_IND_IO,
@@ -176,7 +176,7 @@ MODULE_DEVICE_TABLE(pci, infineon_ids);
 #define TIGER_IPAC_ALE		0xC0
 #define TIGER_IPAC_PORT		0xC8
 
-/* ELSA (now Develo) PCI cards */
+/* ELSA (analw Develo) PCI cards */
 #define ELSA_IRQ_ADDR		0x4c
 #define ELSA_IRQ_MASK		0x04
 #define QS1000_IRQ_OFF		0x01
@@ -262,7 +262,7 @@ IOFUNC_MEMIO(ISAC, inf_hw, u32, isac.a.p)
 IOFUNC_MEMIO(IPAC, inf_hw, u32, hscx.a.p)
 
 static irqreturn_t
-diva_irq(int intno, void *dev_id)
+diva_irq(int intanal, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -271,7 +271,7 @@ diva_irq(int intno, void *dev_id)
 	val = inb((u32)hw->cfg.start + DIVA_PCI_CTRL);
 	if (!(val & DIVA_IRQ_BIT)) { /* for us or shared ? */
 		spin_unlock(&hw->lock);
-		return IRQ_NONE; /* shared */
+		return IRQ_ANALNE; /* shared */
 	}
 	hw->irqcnt++;
 	mISDNipac_irq(&hw->ipac, irqloops);
@@ -280,7 +280,7 @@ diva_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-diva20x_irq(int intno, void *dev_id)
+diva20x_irq(int intanal, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -289,7 +289,7 @@ diva20x_irq(int intno, void *dev_id)
 	val = readb(hw->cfg.p);
 	if (!(val & PITA_INT0_STATUS)) { /* for us or shared ? */
 		spin_unlock(&hw->lock);
-		return IRQ_NONE; /* shared */
+		return IRQ_ANALNE; /* shared */
 	}
 	hw->irqcnt++;
 	mISDNipac_irq(&hw->ipac, irqloops);
@@ -299,7 +299,7 @@ diva20x_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-tiger_irq(int intno, void *dev_id)
+tiger_irq(int intanal, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -308,7 +308,7 @@ tiger_irq(int intno, void *dev_id)
 	val = inb((u32)hw->cfg.start + TIGER_AUX_STATUS);
 	if (val & TIGER_IRQ_BIT) { /* for us or shared ? */
 		spin_unlock(&hw->lock);
-		return IRQ_NONE; /* shared */
+		return IRQ_ANALNE; /* shared */
 	}
 	hw->irqcnt++;
 	mISDNipac_irq(&hw->ipac, irqloops);
@@ -317,7 +317,7 @@ tiger_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-elsa_irq(int intno, void *dev_id)
+elsa_irq(int intanal, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -326,7 +326,7 @@ elsa_irq(int intno, void *dev_id)
 	val = inb((u32)hw->cfg.start + ELSA_IRQ_ADDR);
 	if (!(val & ELSA_IRQ_MASK)) {
 		spin_unlock(&hw->lock);
-		return IRQ_NONE; /* shared */
+		return IRQ_ANALNE; /* shared */
 	}
 	hw->irqcnt++;
 	mISDNipac_irq(&hw->ipac, irqloops);
@@ -335,7 +335,7 @@ elsa_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-niccy_irq(int intno, void *dev_id)
+niccy_irq(int intanal, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u32 val;
@@ -344,7 +344,7 @@ niccy_irq(int intno, void *dev_id)
 	val = inl((u32)hw->cfg.start + NICCY_IRQ_CTRL_REG);
 	if (!(val & NICCY_IRQ_BIT)) { /* for us or shared ? */
 		spin_unlock(&hw->lock);
-		return IRQ_NONE; /* shared */
+		return IRQ_ANALNE; /* shared */
 	}
 	outl(val, (u32)hw->cfg.start + NICCY_IRQ_CTRL_REG);
 	hw->irqcnt++;
@@ -354,7 +354,7 @@ niccy_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-gazel_irq(int intno, void *dev_id)
+gazel_irq(int intanal, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	irqreturn_t ret;
@@ -366,7 +366,7 @@ gazel_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-ipac_irq(int intno, void *dev_id)
+ipac_irq(int intanal, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -375,7 +375,7 @@ ipac_irq(int intno, void *dev_id)
 	val = hw->ipac.read_reg(hw, IPAC_ISTA);
 	if (!(val & 0x3f)) {
 		spin_unlock(&hw->lock);
-		return IRQ_NONE; /* shared */
+		return IRQ_ANALNE; /* shared */
 	}
 	hw->irqcnt++;
 	mISDNipac_irq(&hw->ipac, irqloops);
@@ -485,7 +485,7 @@ reset_inf(struct inf_hw *hw)
 	u32 val;
 
 	if (debug & DEBUG_HW)
-		pr_notice("%s: resetting card\n", hw->name);
+		pr_analtice("%s: resetting card\n", hw->name);
 	switch (hw->ci->typ) {
 	case INF_DIVA20:
 	case INF_DIVA20U:
@@ -580,7 +580,7 @@ inf_ctrl(struct inf_hw *hw, u32 cmd, u_long arg)
 		reset_inf(hw);
 		break;
 	default:
-		pr_info("%s: %s unknown command %x %lx\n",
+		pr_info("%s: %s unkanalwn command %x %lx\n",
 			hw->name, __func__, cmd, arg);
 		ret = -EINVAL;
 		break;
@@ -614,10 +614,10 @@ init_irq(struct inf_hw *hw)
 		spin_unlock_irqrestore(&hw->lock, flags);
 		msleep_interruptible(10);
 		if (debug & DEBUG_HW)
-			pr_notice("%s: IRQ %d count %d\n", hw->name,
+			pr_analtice("%s: IRQ %d count %d\n", hw->name,
 				  hw->irq, hw->irqcnt);
 		if (!hw->irqcnt) {
-			pr_info("%s: IRQ(%d) got no requests during init %d\n",
+			pr_info("%s: IRQ(%d) got anal requests during init %d\n",
 				hw->name, hw->irq, 3 - cnt);
 		} else
 			return 0;
@@ -636,7 +636,7 @@ release_io(struct inf_hw *hw)
 				iounmap(hw->cfg.p);
 		} else
 			release_region(hw->cfg.start, hw->cfg.size);
-		hw->cfg.mode = AM_NONE;
+		hw->cfg.mode = AM_ANALNE;
 	}
 	if (hw->addr.mode) {
 		if (hw->addr.mode == AM_MEMIO) {
@@ -645,7 +645,7 @@ release_io(struct inf_hw *hw)
 				iounmap(hw->addr.p);
 		} else
 			release_region(hw->addr.start, hw->addr.size);
-		hw->addr.mode = AM_NONE;
+		hw->addr.mode = AM_ANALNE;
 	}
 }
 
@@ -676,10 +676,10 @@ setup_io(struct inf_hw *hw)
 		if (hw->ci->cfg_mode == AM_MEMIO) {
 			hw->cfg.p = ioremap(hw->cfg.start, hw->cfg.size);
 			if (!hw->cfg.p)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		if (debug & DEBUG_HW)
-			pr_notice("%s: IO cfg %lx (%lu bytes) mode%d\n",
+			pr_analtice("%s: IO cfg %lx (%lu bytes) mode%d\n",
 				  hw->name, (ulong)hw->cfg.start,
 				  (ulong)hw->cfg.size, hw->ci->cfg_mode);
 
@@ -706,10 +706,10 @@ setup_io(struct inf_hw *hw)
 		if (hw->ci->addr_mode == AM_MEMIO) {
 			hw->addr.p = ioremap(hw->addr.start, hw->addr.size);
 			if (!hw->addr.p)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		if (debug & DEBUG_HW)
-			pr_notice("%s: IO addr %lx (%lu bytes) mode%d\n",
+			pr_analtice("%s: IO addr %lx (%lu bytes) mode%d\n",
 				  hw->name, (ulong)hw->addr.start,
 				  (ulong)hw->addr.size, hw->ci->addr_mode);
 
@@ -929,7 +929,7 @@ setup_instance(struct inf_hw *card)
 	err = init_irq(card);
 	if (!err)  {
 		inf_cnt++;
-		pr_notice("Infineon %d cards installed\n", inf_cnt);
+		pr_analtice("Infineon %d cards installed\n", inf_cnt);
 		return 0;
 	}
 	mISDN_unregister_device(&card->ipac.isac.dch.dev);
@@ -948,14 +948,14 @@ static const struct inf_cinfo inf_card_info[] = {
 		INF_DIVA20,
 		"Dialogic Diva 2.0",
 		"diva20",
-		AM_IND_IO, AM_NONE, 2, 0,
+		AM_IND_IO, AM_ANALNE, 2, 0,
 		&diva_irq
 	},
 	{
 		INF_DIVA20U,
 		"Dialogic Diva 2.0U",
 		"diva20U",
-		AM_IND_IO, AM_NONE, 2, 0,
+		AM_IND_IO, AM_ANALNE, 2, 0,
 		&diva_irq
 	},
 	{
@@ -976,14 +976,14 @@ static const struct inf_cinfo inf_card_info[] = {
 		INF_SPEEDWIN,
 		"Sedlbauer SpeedWin PCI",
 		"speedwin",
-		AM_IND_IO, AM_NONE, 0, 0,
+		AM_IND_IO, AM_ANALNE, 0, 0,
 		&tiger_irq
 	},
 	{
 		INF_SAPHIR3,
 		"HST Saphir 3",
 		"saphir",
-		AM_IND_IO, AM_NONE, 0, 0,
+		AM_IND_IO, AM_ANALNE, 0, 0,
 		&tiger_irq
 	},
 	{
@@ -1018,21 +1018,21 @@ static const struct inf_cinfo inf_card_info[] = {
 		INF_SCT_2,
 		"SciTel Quadro",
 		"p2_scitel",
-		AM_NONE, AM_IND_IO, 0, 4,
+		AM_ANALNE, AM_IND_IO, 0, 4,
 		&ipac_irq
 	},
 	{
 		INF_SCT_3,
 		"SciTel Quadro",
 		"p3_scitel",
-		AM_NONE, AM_IND_IO, 0, 3,
+		AM_ANALNE, AM_IND_IO, 0, 3,
 		&ipac_irq
 	},
 	{
 		INF_SCT_4,
 		"SciTel Quadro",
 		"p4_scitel",
-		AM_NONE, AM_IND_IO, 0, 2,
+		AM_ANALNE, AM_IND_IO, 0, 2,
 		&ipac_irq
 	},
 	{
@@ -1050,7 +1050,7 @@ static const struct inf_cinfo inf_card_info[] = {
 		&ipac_irq
 	},
 	{
-		INF_NONE,
+		INF_ANALNE,
 	}
 };
 
@@ -1059,7 +1059,7 @@ get_card_info(enum inf_types typ)
 {
 	const struct inf_cinfo *ci = inf_card_info;
 
-	while (ci->typ != INF_NONE) {
+	while (ci->typ != INF_ANALNE) {
 		if (ci->typ == typ)
 			return ci;
 		ci++;
@@ -1070,12 +1070,12 @@ get_card_info(enum inf_types typ)
 static int
 inf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct inf_hw *card;
 
 	card = kzalloc(sizeof(struct inf_hw), GFP_KERNEL);
 	if (!card) {
-		pr_info("No memory for Infineon ISDN card\n");
+		pr_info("Anal memory for Infineon ISDN card\n");
 		return err;
 	}
 	card->pdev = pdev;
@@ -1086,13 +1086,13 @@ inf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	card->ci = get_card_info(ent->driver_data);
 	if (!card->ci) {
-		pr_info("mISDN: do not have information about adapter at %s\n",
+		pr_info("mISDN: do analt have information about adapter at %s\n",
 			pci_name(pdev));
 		kfree(card);
 		pci_disable_device(pdev);
 		return -EINVAL;
 	} else
-		pr_notice("mISDN: found adapter %s at %s\n",
+		pr_analtice("mISDN: found adapter %s at %s\n",
 			  card->ci->full, pci_name(pdev));
 
 	card->irq = pdev->irq;
@@ -1111,7 +1111,7 @@ inf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			if (!sc) {
 				release_card(card);
 				pci_disable_device(pdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			sc->irq = card->irq;
 			sc->pdev = card->pdev;
@@ -1152,7 +1152,7 @@ infineon_init(void)
 {
 	int err;
 
-	pr_notice("Infineon ISDN Driver Rev. %s\n", INFINEON_REV);
+	pr_analtice("Infineon ISDN Driver Rev. %s\n", INFINEON_REV);
 	err = pci_register_driver(&infineon_driver);
 	return err;
 }

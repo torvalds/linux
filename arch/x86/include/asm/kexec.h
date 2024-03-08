@@ -32,7 +32,7 @@ struct kimage;
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
  * I.e. Maximum page that is mapped directly into kernel memory,
- * and kmap is not required.
+ * and kmap is analt required.
  *
  * So far x86_64 is limited to 40 physical address bits.
  */

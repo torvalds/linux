@@ -276,8 +276,8 @@
 			       0 0xef400000 0x40>; /* Internal registers */
 
 			/* Outbound ranges, one memory and one IO,
-			 * later cannot be changed. Chip supports a second
-			 * IO range but we don't use it for now
+			 * later cananalt be changed. Chip supports a second
+			 * IO range but we don't use it for analw
 			 */
 			ranges = <0x02000000 0 0xa0000000 0 0xa0000000 0 0x20000000
 				  0x01000000 0 0x00000000 0 0xe8000000 0 0x00010000>;

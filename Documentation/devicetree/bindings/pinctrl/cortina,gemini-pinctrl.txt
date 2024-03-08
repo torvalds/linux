@@ -4,16 +4,16 @@ This pin controller is found in the Cortina Systems Gemini SoC family,
 see further arm/gemini.txt. It is a purely group-based multiplexing pin
 controller.
 
-The pin controller node must be a subnode of the system controller node.
+The pin controller analde must be a subanalde of the system controller analde.
 
 Required properties:
 - compatible: "cortina,gemini-pinctrl"
 
-Subnodes of the pin controller contain pin control multiplexing set-up
+Subanaldes of the pin controller contain pin control multiplexing set-up
 and pin configuration of individual pins.
 
-Please refer to pinctrl-bindings.txt for generic pin multiplexing nodes
-and generic pin config nodes.
+Please refer to pinctrl-bindings.txt for generic pin multiplexing analdes
+and generic pin config analdes.
 
 Supported configurations:
 - skew-delay is supported on the Ethernet pins

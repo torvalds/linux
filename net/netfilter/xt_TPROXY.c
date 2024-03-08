@@ -57,19 +57,19 @@ tproxy_tg4(struct net *net, struct sk_buff *skb, __be32 laddr, __be16 lport,
 	if (!lport)
 		lport = hp->dest;
 
-	/* UDP has no TCP_TIME_WAIT state, so we never enter here */
+	/* UDP has anal TCP_TIME_WAIT state, so we never enter here */
 	if (sk && sk->sk_state == TCP_TIME_WAIT)
 		/* reopening a TIME_WAIT connection needs special handling */
 		sk = nf_tproxy_handle_time_wait4(net, skb, laddr, lport, sk);
 	else if (!sk)
-		/* no, there's no established connection, check if
+		/* anal, there's anal established connection, check if
 		 * there's a listener on the redirected addr/port */
 		sk = nf_tproxy_get_sock_v4(net, skb, iph->protocol,
 					   iph->saddr, laddr,
 					   hp->source, lport,
 					   skb->dev, NF_TPROXY_LOOKUP_LISTENER);
 
-	/* NOTE: assign_sock consumes our sk reference */
+	/* ANALTE: assign_sock consumes our sk reference */
 	if (sk && nf_tproxy_sk_is_transparent(sk)) {
 		/* This should be in a separate target, but we don't do multiple
 		   targets on the same rule yet */
@@ -133,7 +133,7 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 	laddr = nf_tproxy_laddr6(skb, &tgi->laddr.in6, &iph->daddr);
 	lport = tgi->lport ? tgi->lport : hp->dest;
 
-	/* UDP has no TCP_TIME_WAIT state, so we never enter here */
+	/* UDP has anal TCP_TIME_WAIT state, so we never enter here */
 	if (sk && sk->sk_state == TCP_TIME_WAIT) {
 		const struct xt_tproxy_target_info_v1 *tgi = par->targinfo;
 		/* reopening a TIME_WAIT connection needs special handling */
@@ -144,14 +144,14 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 					      sk);
 	}
 	else if (!sk)
-		/* no there's no established connection, check if
+		/* anal there's anal established connection, check if
 		 * there's a listener on the redirected addr/port */
 		sk = nf_tproxy_get_sock_v6(xt_net(par), skb, thoff,
 					   tproto, &iph->saddr, laddr,
 					   hp->source, lport,
 					   xt_in(par), NF_TPROXY_LOOKUP_LISTENER);
 
-	/* NOTE: assign_sock consumes our sk reference */
+	/* ANALTE: assign_sock consumes our sk reference */
 	if (sk && nf_tproxy_sk_is_transparent(sk)) {
 		/* This should be in a separate target, but we don't do multiple
 		   targets on the same rule yet */

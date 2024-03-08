@@ -10,7 +10,7 @@ struct target_core_fabric_ops {
 	struct module *module;
 	/*
 	 * XXX: Special case for iscsi/iSCSI...
-	 * If non-null, fabric_alias is used for matching target/$fabric
+	 * If analn-null, fabric_alias is used for matching target/$fabric
 	 * ConfigFS paths. If null, fabric_name is used for this (see below).
 	 */
 	const char *fabric_alias;
@@ -20,7 +20,7 @@ struct target_core_fabric_ops {
 	 * path and is stored on disk with PR state.
 	 */
 	const char *fabric_name;
-	size_t node_acl_size;
+	size_t analde_acl_size;
 	/*
 	 * Limits number of scatterlist entries per SCF_SCSI_DATA_CDB payload.
 	 * Setting this value tells target-core to enforce this limit, and
@@ -30,7 +30,7 @@ struct target_core_fabric_ops {
 	 * maximum size, and set UNDERFLOW residual count if length exceeds
 	 * this limit.
 	 *
-	 * XXX: Not all initiator hosts honor this block-limit EVPD
+	 * XXX: Analt all initiator hosts hoanalr this block-limit EVPD
 	 * XXX: Currently assumes single PAGE_SIZE per scatterlist entry
 	 */
 	u32 max_data_sg_nents;
@@ -42,8 +42,8 @@ struct target_core_fabric_ops {
 	int (*tpg_check_demo_mode_write_protect)(struct se_portal_group *);
 	int (*tpg_check_prod_mode_write_protect)(struct se_portal_group *);
 	/*
-	 * Optionally used by fabrics to allow demo-mode login, but not
-	 * expose any TPG LUNs, and return 'not connected' in standard
+	 * Optionally used by fabrics to allow demo-mode login, but analt
+	 * expose any TPG LUNs, and return 'analt connected' in standard
 	 * inquiry response
 	 */
 	int (*tpg_check_demo_mode_login_only)(struct se_portal_group *);
@@ -61,7 +61,7 @@ struct target_core_fabric_ops {
 	 * I/O descriptor after command execution has finished.
 	 *
 	 * Returning 1 will signal a descriptor has been released.
-	 * Returning 0 will signal a descriptor has not been released.
+	 * Returning 0 will signal a descriptor has analt been released.
 	 */
 	int (*check_stop_free)(struct se_cmd *);
 	void (*release_cmd)(struct se_cmd *);
@@ -74,7 +74,7 @@ struct target_core_fabric_ops {
 	u32 (*sess_get_initiator_sid)(struct se_session *,
 				      unsigned char *, u32);
 	int (*write_pending)(struct se_cmd *);
-	void (*set_default_node_attributes)(struct se_node_acl *);
+	void (*set_default_analde_attributes)(struct se_analde_acl *);
 	int (*get_cmd_state)(struct se_cmd *);
 	int (*queue_data_in)(struct se_cmd *);
 	int (*queue_status)(struct se_cmd *);
@@ -98,7 +98,7 @@ struct target_core_fabric_ops {
 	struct se_tpg_np *(*fabric_make_np)(struct se_portal_group *,
 				struct config_group *, const char *);
 	void (*fabric_drop_np)(struct se_tpg_np *);
-	int (*fabric_init_nodeacl)(struct se_node_acl *, const char *);
+	int (*fabric_init_analdeacl)(struct se_analde_acl *, const char *);
 
 	struct configfs_attribute **tfc_discovery_attrs;
 	struct configfs_attribute **tfc_wwn_attrs;
@@ -152,13 +152,13 @@ struct se_session *transport_alloc_session(enum target_prot_op);
 int transport_alloc_session_tags(struct se_session *, unsigned int,
 		unsigned int);
 void	__transport_register_session(struct se_portal_group *,
-		struct se_node_acl *, struct se_session *, void *);
+		struct se_analde_acl *, struct se_session *, void *);
 void	transport_register_session(struct se_portal_group *,
-		struct se_node_acl *, struct se_session *, void *);
+		struct se_analde_acl *, struct se_session *, void *);
 ssize_t	target_show_dynamic_sessions(struct se_portal_group *, char *);
 void	transport_free_session(struct se_session *);
-void	target_spc2_release(struct se_node_acl *nacl);
-void	target_put_nacl(struct se_node_acl *);
+void	target_spc2_release(struct se_analde_acl *nacl);
+void	target_put_nacl(struct se_analde_acl *);
 void	transport_deregister_session_configfs(struct se_session *);
 void	transport_deregister_session(struct se_session *);
 
@@ -209,17 +209,17 @@ void	core_tmr_release_req(struct se_tmr_req *);
 int	transport_generic_handle_tmr(struct se_cmd *);
 void	transport_generic_request_failure(struct se_cmd *, sense_reason_t);
 int	transport_lookup_tmr_lun(struct se_cmd *);
-void	core_allocate_nexus_loss_ua(struct se_node_acl *acl);
+void	core_allocate_nexus_loss_ua(struct se_analde_acl *acl);
 
-struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
+struct se_analde_acl *core_tpg_get_initiator_analde_acl(struct se_portal_group *tpg,
 		unsigned char *);
-bool	target_tpg_has_node_acl(struct se_portal_group *tpg,
+bool	target_tpg_has_analde_acl(struct se_portal_group *tpg,
 		const char *);
-struct se_node_acl *core_tpg_check_initiator_node_acl(struct se_portal_group *,
+struct se_analde_acl *core_tpg_check_initiator_analde_acl(struct se_portal_group *,
 		unsigned char *);
-int	core_tpg_set_initiator_node_queue_depth(struct se_node_acl *, u32);
-int	core_tpg_set_initiator_node_tag(struct se_portal_group *,
-		struct se_node_acl *, const char *);
+int	core_tpg_set_initiator_analde_queue_depth(struct se_analde_acl *, u32);
+int	core_tpg_set_initiator_analde_tag(struct se_portal_group *,
+		struct se_analde_acl *, const char *);
 int	core_tpg_register(struct se_wwn *, struct se_portal_group *, int);
 int	core_tpg_deregister(struct se_portal_group *);
 
@@ -247,9 +247,9 @@ target_reverse_dma_direction(struct se_cmd *se_cmd)
 		return DMA_FROM_DEVICE;
 	case DMA_FROM_DEVICE:
 		return DMA_TO_DEVICE;
-	case DMA_NONE:
+	case DMA_ANALNE:
 	default:
-		return DMA_NONE;
+		return DMA_ANALNE;
 	}
 }
 

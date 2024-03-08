@@ -28,7 +28,7 @@ struct snd_ump_endpoint {
 	u32 stream_wait_for;	/* expected stream message status */
 	bool stream_finished;	/* set when message has been processed */
 	bool parsed;		/* UMP / FB parse finished? */
-	bool no_process_stream;	/* suppress UMP stream messages handling */
+	bool anal_process_stream;	/* suppress UMP stream messages handling */
 	wait_queue_head_t stream_wait;
 	struct snd_rawmidi_file stream_rfile;
 
@@ -72,7 +72,7 @@ struct snd_ump_ops {
 struct snd_seq_ump_ops {
 	void (*input_receive)(struct snd_ump_endpoint *ump,
 			      const u32 *data, int words);
-	int (*notify_fb_change)(struct snd_ump_endpoint *ump,
+	int (*analtify_fb_change)(struct snd_ump_endpoint *ump,
 				struct snd_ump_block *fb);
 	int (*switch_protocol)(struct snd_ump_endpoint *ump);
 };
@@ -139,7 +139,7 @@ enum {
 
 /* UMP Utility Type Status (type 0x0) */
 enum {
-	UMP_UTILITY_MSG_STATUS_NOOP		= 0x00,
+	UMP_UTILITY_MSG_STATUS_ANALOP		= 0x00,
 	UMP_UTILITY_MSG_STATUS_JR_CLOCK		= 0x01,
 	UMP_UTILITY_MSG_STATUS_JR_TSTAMP	= 0x02,
 	UMP_UTILITY_MSG_STATUS_DCTPQ		= 0x03,
@@ -177,7 +177,7 @@ enum {
 	UMP_STREAM_MSG_REQUEST_FB_NAME		= (1U << 1),
 };
 
-/* UMP Endpoint Info capability bits (used for protocol request/notify, too) */
+/* UMP Endpoint Info capability bits (used for protocol request/analtify, too) */
 enum {
 	UMP_STREAM_MSG_EP_INFO_CAP_TXJR		= (1U << 0), /* Sending JRTS */
 	UMP_STREAM_MSG_EP_INFO_CAP_RXJR		= (1U << 1), /* Receiving JRTS */

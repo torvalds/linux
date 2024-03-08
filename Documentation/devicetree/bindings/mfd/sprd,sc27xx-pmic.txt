@@ -22,7 +22,7 @@ Required properties:
 - reg: The address of the device chip select, should be 0.
 - spi-max-frequency: Typically set to 26000000.
 - interrupts: The interrupt line the device is connected to.
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device analde as an interrupt controller.
 - #interrupt-cells: The number of cells to describe an PMIC IRQ, must be 2.
 - #address-cells: Child device offset number of cells, must be 1.
 - #size-cells: Child device size number of cells, must be 0.

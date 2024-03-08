@@ -53,11 +53,11 @@ Overview
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_helper.c
    :doc: overview
 
-Implementing Asynchronous Atomic Commit
+Implementing Asynchroanalus Atomic Commit
 ---------------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_helper.c
-   :doc: implementing nonblocking commit
+   :doc: implementing analnblocking commit
 
 Helper Functions Reference
 --------------------------
@@ -384,7 +384,7 @@ SCDC Helper Functions Reference
 HDMI Infoframes Helper Reference
 ================================
 
-Strictly speaking this is not a DRM helper library but generally usable
+Strictly speaking this is analt a DRM helper library but generally usable
 by any driver interfacing with HDMI outputs like v4l or alsa drivers.
 But it nicely fits into the overall topic of mode setting helper
 libraries and hence is also included here.

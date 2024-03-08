@@ -56,27 +56,27 @@ enum pincfg_type {
 /*
  * Values for the pin CON register, choosing pin function.
  * The basic set (input and output) are same between: S3C24xx, S3C64xx, S5PV210,
- * Exynos ARMv7, Exynos ARMv8, Tesla FSD.
+ * Exyanals ARMv7, Exyanals ARMv8, Tesla FSD.
  */
 #define PIN_CON_FUNC_INPUT		0x0
 #define PIN_CON_FUNC_OUTPUT		0x1
 
 /**
  * enum eint_type - possible external interrupt types.
- * @EINT_TYPE_NONE: bank does not support external interrupts
+ * @EINT_TYPE_ANALNE: bank does analt support external interrupts
  * @EINT_TYPE_GPIO: bank supportes external gpio interrupts
  * @EINT_TYPE_WKUP: bank supportes external wakeup interrupts
  * @EINT_TYPE_WKUP_MUX: bank supports multiplexed external wakeup interrupts
  *
  * Samsung GPIO controller groups all the available pins into banks. The pins
  * in a pin bank can support external gpio interrupts or external wakeup
- * interrupts or no interrupts at all. From a software perspective, the only
+ * interrupts or anal interrupts at all. From a software perspective, the only
  * difference between external gpio and external wakeup interrupts is that
  * the wakeup interrupts can additionally wakeup the system if it is in
  * suspended state.
  */
 enum eint_type {
-	EINT_TYPE_NONE,
+	EINT_TYPE_ANALNE,
 	EINT_TYPE_GPIO,
 	EINT_TYPE_WKUP,
 	EINT_TYPE_WKUP_MUX,
@@ -122,9 +122,9 @@ struct samsung_pin_bank_type {
  * @eint_type: type of the external interrupt supported by the bank.
  * @eint_mask: bit mask of pins which support EINT function.
  * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
- * @eint_con_offset: ExynosAuto SoC-specific EINT control register offset of bank.
- * @eint_mask_offset: ExynosAuto SoC-specific EINT mask register offset of bank.
- * @eint_pend_offset: ExynosAuto SoC-specific EINT pend register offset of bank.
+ * @eint_con_offset: ExyanalsAuto SoC-specific EINT control register offset of bank.
+ * @eint_mask_offset: ExyanalsAuto SoC-specific EINT mask register offset of bank.
+ * @eint_pend_offset: ExyanalsAuto SoC-specific EINT pend register offset of bank.
  * @name: name to be prefixed for each pin in this pin bank.
  */
 struct samsung_pin_bank_data {
@@ -153,14 +153,14 @@ struct samsung_pin_bank_data {
  * @eint_type: type of the external interrupt supported by the bank.
  * @eint_mask: bit mask of pins which support EINT function.
  * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
- * @eint_con_offset: ExynosAuto SoC-specific EINT register or interrupt offset of bank.
- * @eint_mask_offset: ExynosAuto SoC-specific EINT mask register offset of bank.
- * @eint_pend_offset: ExynosAuto SoC-specific EINT pend register offset of bank.
+ * @eint_con_offset: ExyanalsAuto SoC-specific EINT register or interrupt offset of bank.
+ * @eint_mask_offset: ExyanalsAuto SoC-specific EINT mask register offset of bank.
+ * @eint_pend_offset: ExyanalsAuto SoC-specific EINT pend register offset of bank.
  * @name: name to be prefixed for each pin in this pin bank.
  * @id: id of the bank, propagated to the pin range.
  * @pin_base: starting pin number of the bank.
  * @soc_priv: per-bank private data for SoC-specific code.
- * @of_node: OF node of the bank.
+ * @of_analde: OF analde of the bank.
  * @drvdata: link to controller driver data
  * @irq_domain: IRQ domain of the bank.
  * @gpio_chip: GPIO chip of the bank.
@@ -187,12 +187,12 @@ struct samsung_pin_bank {
 
 	u32		pin_base;
 	void		*soc_priv;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct samsung_pinctrl_drv_data *drvdata;
 	struct irq_domain *irq_domain;
 	struct gpio_chip gpio_chip;
 	struct pinctrl_gpio_range grange;
-	struct exynos_irq_chip *irq_chip;
+	struct exyanals_irq_chip *irq_chip;
 	raw_spinlock_t slock;
 
 	u32 pm_save[PINCFG_TYPE_NUM + 1]; /* +1 to handle double CON registers*/
@@ -267,13 +267,13 @@ struct samsung_pin_ctrl {
 
 /**
  * struct samsung_pinctrl_drv_data: wrapper for holding driver data together.
- * @node: global list node
+ * @analde: global list analde
  * @virt_base: register base address of the controller; this will be equal
  *             to each bank samsung_pin_bank->pctl_base and used on legacy
  *             platforms (like S3C24XX or S3C64XX) which has to access the base
- *             through samsung_pinctrl_drv_data, not samsung_pin_bank).
+ *             through samsung_pinctrl_drv_data, analt samsung_pin_bank).
  * @dev: device instance representing the controller.
- * @irq: interrpt number used by the controller to notify gpio interrupts.
+ * @irq: interrpt number used by the controller to analtify gpio interrupts.
  * @ctrl: pin controller instance managed by the driver.
  * @pctl: pin controller descriptor registered with the pinctrl subsystem.
  * @pctl_dev: cookie representing pinctrl device instance.
@@ -289,7 +289,7 @@ struct samsung_pin_ctrl {
  *	device suspend, see samsung_pinctrl_resume()
  */
 struct samsung_pinctrl_drv_data {
-	struct list_head		node;
+	struct list_head		analde;
 	void __iomem			*virt_base;
 	struct device			*dev;
 	int				irq;
@@ -350,19 +350,19 @@ struct samsung_pmx_func {
 };
 
 /* list of all exported SoC specific data */
-extern const struct samsung_pinctrl_of_match_data exynos3250_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos4210_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos4x12_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos5250_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos5260_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos5410_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos5420_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos5433_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos7_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos7885_of_data;
-extern const struct samsung_pinctrl_of_match_data exynos850_of_data;
-extern const struct samsung_pinctrl_of_match_data exynosautov9_of_data;
-extern const struct samsung_pinctrl_of_match_data exynosautov920_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals3250_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals4210_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals4x12_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals5250_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals5260_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals5410_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals5420_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals5433_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals7_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals7885_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanals850_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanalsautov9_of_data;
+extern const struct samsung_pinctrl_of_match_data exyanalsautov920_of_data;
 extern const struct samsung_pinctrl_of_match_data fsd_of_data;
 extern const struct samsung_pinctrl_of_match_data gs101_of_data;
 extern const struct samsung_pinctrl_of_match_data s3c64xx_of_data;

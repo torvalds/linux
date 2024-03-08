@@ -69,7 +69,7 @@
  * ...
  * GPIOAB3: 219
  *
- * Not all pins have their signals defined (yet).
+ * Analt all pins have their signals defined (yet).
  */
 
 #define D6 0
@@ -466,60 +466,60 @@ SSSF_PIN_DECL(U18, GPIOG7, FLWP, SIG_DESC_SET(SCU84, 7));
 #define UART6_DESC	SIG_DESC_SET(SCU90, 7)
 #define ROM16_DESC	SIG_DESC_SET(SCU90, 6)
 #define FLASH_WIDE	SIG_DESC_SET(HW_STRAP1, 4)
-#define BOOT_SRC_NOR	{ ASPEED_IP_SCU, HW_STRAP1, GENMASK(1, 0), 0, 0 }
+#define BOOT_SRC_ANALR	{ ASPEED_IP_SCU, HW_STRAP1, GENMASK(1, 0), 0, 0 }
 
 #define A8 56
 SIG_EXPR_DECL_SINGLE(ROMD8, ROM16, ROM16_DESC);
-SIG_EXPR_DECL_SINGLE(ROMD8, ROM16S, FLASH_WIDE, BOOT_SRC_NOR);
+SIG_EXPR_DECL_SINGLE(ROMD8, ROM16S, FLASH_WIDE, BOOT_SRC_ANALR);
 SIG_EXPR_LIST_DECL_DUAL(A8, ROMD8, ROM16, ROM16S);
 SIG_EXPR_LIST_DECL_SINGLE(A8, NCTS6, NCTS6, UART6_DESC);
 PIN_DECL_2(A8, GPIOH0, ROMD8, NCTS6);
 
 #define C7 57
 SIG_EXPR_DECL_SINGLE(ROMD9, ROM16, ROM16_DESC);
-SIG_EXPR_DECL_SINGLE(ROMD9, ROM16S, FLASH_WIDE, BOOT_SRC_NOR);
+SIG_EXPR_DECL_SINGLE(ROMD9, ROM16S, FLASH_WIDE, BOOT_SRC_ANALR);
 SIG_EXPR_LIST_DECL_DUAL(C7, ROMD9, ROM16, ROM16S);
 SIG_EXPR_LIST_DECL_SINGLE(C7, NDCD6, NDCD6, UART6_DESC);
 PIN_DECL_2(C7, GPIOH1, ROMD9, NDCD6);
 
 #define B7 58
 SIG_EXPR_DECL_SINGLE(ROMD10, ROM16, ROM16_DESC);
-SIG_EXPR_DECL_SINGLE(ROMD10, ROM16S, FLASH_WIDE, BOOT_SRC_NOR);
+SIG_EXPR_DECL_SINGLE(ROMD10, ROM16S, FLASH_WIDE, BOOT_SRC_ANALR);
 SIG_EXPR_LIST_DECL_DUAL(B7, ROMD10, ROM16, ROM16S);
 SIG_EXPR_LIST_DECL_SINGLE(B7, NDSR6, NDSR6, UART6_DESC);
 PIN_DECL_2(B7, GPIOH2, ROMD10, NDSR6);
 
 #define A7 59
 SIG_EXPR_DECL_SINGLE(ROMD11, ROM16, ROM16_DESC);
-SIG_EXPR_DECL_SINGLE(ROMD11, ROM16S, FLASH_WIDE, BOOT_SRC_NOR);
+SIG_EXPR_DECL_SINGLE(ROMD11, ROM16S, FLASH_WIDE, BOOT_SRC_ANALR);
 SIG_EXPR_LIST_DECL_DUAL(A7, ROMD11, ROM16, ROM16S);
 SIG_EXPR_LIST_DECL_SINGLE(A7, NRI6, NRI6, UART6_DESC);
 PIN_DECL_2(A7, GPIOH3, ROMD11, NRI6);
 
 #define D7 60
 SIG_EXPR_DECL_SINGLE(ROMD12, ROM16, ROM16_DESC);
-SIG_EXPR_DECL_SINGLE(ROMD12, ROM16S, FLASH_WIDE, BOOT_SRC_NOR);
+SIG_EXPR_DECL_SINGLE(ROMD12, ROM16S, FLASH_WIDE, BOOT_SRC_ANALR);
 SIG_EXPR_LIST_DECL_DUAL(D7, ROMD12, ROM16, ROM16S);
 SIG_EXPR_LIST_DECL_SINGLE(D7, NDTR6, NDTR6, UART6_DESC);
 PIN_DECL_2(D7, GPIOH4, ROMD12, NDTR6);
 
 #define B6 61
 SIG_EXPR_DECL_SINGLE(ROMD13, ROM16, ROM16_DESC);
-SIG_EXPR_DECL_SINGLE(ROMD13, ROM16S, FLASH_WIDE, BOOT_SRC_NOR);
+SIG_EXPR_DECL_SINGLE(ROMD13, ROM16S, FLASH_WIDE, BOOT_SRC_ANALR);
 SIG_EXPR_LIST_DECL_DUAL(B6, ROMD13, ROM16, ROM16S);
 SIG_EXPR_LIST_DECL_SINGLE(B6, NRTS6, NRTS6, UART6_DESC);
 PIN_DECL_2(B6, GPIOH5, ROMD13, NRTS6);
 
 #define A6 62
 SIG_EXPR_DECL_SINGLE(ROMD14, ROM16, ROM16_DESC);
-SIG_EXPR_DECL_SINGLE(ROMD14, ROM16S, FLASH_WIDE, BOOT_SRC_NOR);
+SIG_EXPR_DECL_SINGLE(ROMD14, ROM16S, FLASH_WIDE, BOOT_SRC_ANALR);
 SIG_EXPR_LIST_DECL_DUAL(A6, ROMD14, ROM16, ROM16S);
 SIG_EXPR_LIST_DECL_SINGLE(A6, TXD6, TXD6, UART6_DESC);
 PIN_DECL_2(A6, GPIOH6, ROMD14, TXD6);
 
 #define E7 63
 SIG_EXPR_DECL_SINGLE(ROMD15, ROM16, ROM16_DESC);
-SIG_EXPR_DECL_SINGLE(ROMD15, ROM16S, FLASH_WIDE, BOOT_SRC_NOR);
+SIG_EXPR_DECL_SINGLE(ROMD15, ROM16S, FLASH_WIDE, BOOT_SRC_ANALR);
 SIG_EXPR_LIST_DECL_DUAL(E7, ROMD15, ROM16, ROM16S);
 SIG_EXPR_LIST_DECL_SINGLE(E7, RXD6, RXD6, UART6_DESC);
 PIN_DECL_2(E7, GPIOH7, ROMD15, RXD6);
@@ -1091,7 +1091,7 @@ FUNC_GROUP_DECL(I2C14, H4, H3);
  * There are several opportunities to document USB port 4 in the datasheet, but
  * it is only mentioned in one location. Particularly, the Multi-function Pins
  * Mapping and Control table in the datasheet elides the signal names,
- * suggesting that port 4 may not actually be functional. As such we define the
+ * suggesting that port 4 may analt actually be functional. As such we define the
  * signal names and control bit, but don't export the capability's function or
  * group.
  */
@@ -1897,8 +1897,8 @@ PIN_DECL_(AB20, SIG_EXPR_LIST_PTR(AB20, USB2HDN1),
 FUNC_GROUP_DECL(USB2H1, AB21, AB20);
 FUNC_GROUP_DECL(USB2D1, AB21, AB20);
 
-/* Note we account for GPIOY4-GPIOY7 even though they're not valid, thus 216
- * pins becomes 220. Four additional non-GPIO-capable pins are present for USB.
+/* Analte we account for GPIOY4-GPIOY7 even though they're analt valid, thus 216
+ * pins becomes 220. Four additional analn-GPIO-capable pins are present for USB.
  */
 #define ASPEED_G4_NR_PINS 224
 
@@ -2524,9 +2524,9 @@ static const struct aspeed_pin_config aspeed_g4_configs[] = {
 
 	/*
 	 * Debounce settings for GPIOs D and E passthrough mode are in
-	 * SCUA8[27:20] and so are managed by pinctrl. Normal GPIO debounce for
+	 * SCUA8[27:20] and so are managed by pinctrl. Analrmal GPIO debounce for
 	 * banks D and E is handled by the GPIO driver - GPIO passthrough is
-	 * treated like any other non-GPIO mux function. There is a catch
+	 * treated like any other analn-GPIO mux function. There is a catch
 	 * however, in that the debounce period is configured in the GPIO
 	 * controller. Due to this tangle between GPIO and pinctrl we don't yet
 	 * fully support pass-through debounce.
@@ -2554,19 +2554,19 @@ static int aspeed_g4_sig_expr_set(struct aspeed_pinmux_data *ctx,
 		u32 val = (pattern << __ffs(desc->mask));
 
 		if (!ctx->maps[desc->ip])
-			return -ENODEV;
+			return -EANALDEV;
 
 		/*
 		 * Strap registers are configured in hardware or by early-boot
 		 * firmware. Treat them as read-only despite that we can write
-		 * them. This may mean that certain functions cannot be
+		 * them. This may mean that certain functions cananalt be
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
 		 *
 		 * We make two exceptions to the read-only rule:
 		 *
 		 * - The passthrough mode of GPIO ports D and E are commonly
-		 *   used with front-panel buttons to allow normal operation
+		 *   used with front-panel buttons to allow analrmal operation
 		 *   of the host if the BMC is powered off or fails to boot.
 		 *   Once the BMC has booted, the loopback mode must be
 		 *   disabled for the BMC to control host power-on and reset.
@@ -2641,7 +2641,7 @@ static const struct pinctrl_ops aspeed_g4_pinctrl_ops = {
 	.get_group_name = aspeed_pinctrl_get_group_name,
 	.get_group_pins = aspeed_pinctrl_get_group_pins,
 	.pin_dbg_show = aspeed_pinctrl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 

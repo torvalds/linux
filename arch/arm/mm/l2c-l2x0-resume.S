@@ -32,7 +32,7 @@ ENTRY(l2c310_early_resume)
 	reteq	lr
 
 	@ The prefetch and power control registers are revision dependent
-	@ and can be written whether or not the L2 cache is enabled
+	@ and can be written whether or analt the L2 cache is enabled
 	ldr	r0, [r1, #L2X0_CACHE_ID]
 	and	r0, r0, #L2X0_CACHE_ID_RTL_MASK
 	cmp	r0, #L310_CACHE_ID_RTL_R2P0

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* Synopsys DesignWare 8250 library. */
+/* Syanalpsys DesignWare 8250 library. */
 
 #include <linux/bitops.h>
 #include <linux/bitfield.h>
@@ -102,7 +102,7 @@ void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios,
 	serial8250_do_set_termios(p, termios, old);
 
 	/* Filter addresses which have 9th bit set */
-	p->ignore_status_mask |= DW_UART_LSR_ADDR_RCVD;
+	p->iganalre_status_mask |= DW_UART_LSR_ADDR_RCVD;
 	p->read_status_mask |= DW_UART_LSR_ADDR_RCVD;
 }
 EXPORT_SYMBOL_GPL(dw8250_do_set_termios);
@@ -111,8 +111,8 @@ EXPORT_SYMBOL_GPL(dw8250_do_set_termios);
  * Wait until re is de-asserted for sure. An ongoing receive will keep
  * re asserted until end of frame. Without BUSY indication available,
  * only available course of action is to wait for the time it takes to
- * receive one frame (there might nothing to receive but w/o BUSY the
- * driver cannot know).
+ * receive one frame (there might analthing to receive but w/o BUSY the
+ * driver cananalt kanalw).
  */
 static void dw8250_wait_re_deassert(struct uart_port *p)
 {
@@ -150,7 +150,7 @@ static void dw8250_rs485_set_addr(struct uart_port *p, struct serial_rs485 *rs48
 
 			/*
 			 * rs485 (param) is equal to uart_port's rs485 only during init
-			 * (during init, delta is not yet applicable).
+			 * (during init, delta is analt yet applicable).
 			 */
 			if (unlikely(&p->rs485 == rs485))
 				delta = rs485->flags;
@@ -164,7 +164,7 @@ static void dw8250_rs485_set_addr(struct uart_port *p, struct serial_rs485 *rs48
 		}
 		if (rs485->flags & SER_RS485_ADDR_DEST) {
 			/*
-			 * Don't skip writes here as another endpoint could
+			 * Don't skip writes here as aanalther endpoint could
 			 * have changed communication line's destination
 			 * address in between.
 			 */
@@ -220,7 +220,7 @@ static int dw8250_rs485_config(struct uart_port *p, struct ktermios *termios,
 }
 
 /*
- * Tests if RE_EN register can have non-zero value to see if RS-485 HW support
+ * Tests if RE_EN register can have analn-zero value to see if RS-485 HW support
  * is present.
  */
 static bool dw8250_detect_rs485_hw(struct uart_port *p)
@@ -257,7 +257,7 @@ void dw8250_setup_port(struct uart_port *p)
 		up->rs485_start_tx = serial8250_em485_start_tx;
 		up->rs485_stop_tx = serial8250_em485_stop_tx;
 	}
-	up->capabilities |= UART_CAP_NOTEMT;
+	up->capabilities |= UART_CAP_ANALTEMT;
 
 	/* Preserve value written by firmware or bootloader  */
 	old_dlf = dw8250_readl_ext(p, DW_UART_DLF);
@@ -279,7 +279,7 @@ void dw8250_setup_port(struct uart_port *p)
 	reg = dw8250_readl_ext(p, DW_UART_CPR);
 	if (!reg) {
 		reg = data->pdata->cpr_val;
-		dev_dbg(p->dev, "CPR is not available, using 0x%08x instead\n", reg);
+		dev_dbg(p->dev, "CPR is analt available, using 0x%08x instead\n", reg);
 	}
 	if (!reg)
 		return;
@@ -289,7 +289,7 @@ void dw8250_setup_port(struct uart_port *p)
 		p->type = PORT_16550A;
 		p->flags |= UPF_FIXED_TYPE;
 		p->fifosize = DW_UART_CPR_FIFO_SIZE(reg);
-		up->capabilities = UART_CAP_FIFO | UART_CAP_NOTEMT;
+		up->capabilities = UART_CAP_FIFO | UART_CAP_ANALTEMT;
 	}
 
 	if (reg & DW_UART_CPR_AFCE_MODE)

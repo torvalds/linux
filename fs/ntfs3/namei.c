@@ -62,27 +62,27 @@ int fill_name_de(struct ntfs_sb_info *sbi, void *buf, const struct qstr *name,
 }
 
 /*
- * ntfs_lookup - inode_operations::lookup
+ * ntfs_lookup - ianalde_operations::lookup
  */
-static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *ntfs_lookup(struct ianalde *dir, struct dentry *dentry,
 				  u32 flags)
 {
-	struct ntfs_inode *ni = ntfs_i(dir);
+	struct ntfs_ianalde *ni = ntfs_i(dir);
 	struct cpu_str *uni = __getname();
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int err;
 
 	if (!uni)
-		inode = ERR_PTR(-ENOMEM);
+		ianalde = ERR_PTR(-EANALMEM);
 	else {
 		err = ntfs_nls_to_utf16(ni->mi.sbi, dentry->d_name.name,
 					dentry->d_name.len, uni, NTFS_NAME_LEN,
 					UTF16_HOST_ENDIAN);
 		if (err < 0)
-			inode = ERR_PTR(err);
+			ianalde = ERR_PTR(err);
 		else {
 			ni_lock(ni);
-			inode = dir_search_u(dir, uni, NULL);
+			ianalde = dir_search_u(dir, uni, NULL);
 			ni_unlock(ni);
 		}
 		__putname(uni);
@@ -90,83 +90,83 @@ static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	/*
 	 * Check for a null pointer
-	 * If the MFT record of ntfs inode is not a base record, inode->i_op can be NULL.
+	 * If the MFT record of ntfs ianalde is analt a base record, ianalde->i_op can be NULL.
 	 * This causes null pointer dereference in d_splice_alias().
 	 */
-	if (!IS_ERR_OR_NULL(inode) && !inode->i_op) {
-		iput(inode);
-		inode = ERR_PTR(-EINVAL);
+	if (!IS_ERR_OR_NULL(ianalde) && !ianalde->i_op) {
+		iput(ianalde);
+		ianalde = ERR_PTR(-EINVAL);
 	}
 
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
 /*
- * ntfs_create - inode_operations::create
+ * ntfs_create - ianalde_operations::create
  */
-static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_create(struct mnt_idmap *idmap, struct ianalde *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFREG | mode, 0,
+	ianalde = ntfs_create_ianalde(idmap, dir, dentry, NULL, S_IFREG | mode, 0,
 				  NULL, 0, NULL);
 
-	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+	return IS_ERR(ianalde) ? PTR_ERR(ianalde) : 0;
 }
 
 /*
- * ntfs_mknod
+ * ntfs_mkanald
  *
- * inode_operations::mknod
+ * ianalde_operations::mkanald
  */
-static int ntfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_mkanald(struct mnt_idmap *idmap, struct ianalde *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, mode, rdev, NULL, 0,
+	ianalde = ntfs_create_ianalde(idmap, dir, dentry, NULL, mode, rdev, NULL, 0,
 				  NULL);
 
-	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+	return IS_ERR(ianalde) ? PTR_ERR(ianalde) : 0;
 }
 
 /*
- * ntfs_link - inode_operations::link
+ * ntfs_link - ianalde_operations::link
  */
-static int ntfs_link(struct dentry *ode, struct inode *dir, struct dentry *de)
+static int ntfs_link(struct dentry *ode, struct ianalde *dir, struct dentry *de)
 {
 	int err;
-	struct inode *inode = d_inode(ode);
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ianalde *ianalde = d_ianalde(ode);
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		return -EPERM;
 
-	if (inode->i_nlink >= NTFS_LINK_MAX)
+	if (ianalde->i_nlink >= NTFS_LINK_MAX)
 		return -EMLINK;
 
 	ni_lock_dir(ntfs_i(dir));
-	if (inode != dir)
+	if (ianalde != dir)
 		ni_lock(ni);
 
-	inc_nlink(inode);
-	ihold(inode);
+	inc_nlink(ianalde);
+	ihold(ianalde);
 
-	err = ntfs_link_inode(inode, de);
+	err = ntfs_link_ianalde(ianalde, de);
 
 	if (!err) {
-		inode_set_ctime_current(inode);
-		inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
-		mark_inode_dirty(inode);
-		mark_inode_dirty(dir);
-		d_instantiate(de, inode);
+		ianalde_set_ctime_current(ianalde);
+		ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
+		mark_ianalde_dirty(ianalde);
+		mark_ianalde_dirty(dir);
+		d_instantiate(de, ianalde);
 	} else {
-		drop_nlink(inode);
-		iput(inode);
+		drop_nlink(ianalde);
+		iput(ianalde);
 	}
 
-	if (inode != dir)
+	if (ianalde != dir)
 		ni_unlock(ni);
 	ni_unlock(ntfs_i(dir));
 
@@ -174,11 +174,11 @@ static int ntfs_link(struct dentry *ode, struct inode *dir, struct dentry *de)
 }
 
 /*
- * ntfs_unlink - inode_operations::unlink
+ * ntfs_unlink - ianalde_operations::unlink
  */
-static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
+static int ntfs_unlink(struct ianalde *dir, struct dentry *dentry)
 {
-	struct ntfs_inode *ni = ntfs_i(dir);
+	struct ntfs_ianalde *ni = ntfs_i(dir);
 	int err;
 
 	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
@@ -186,7 +186,7 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	ni_lock_dir(ni);
 
-	err = ntfs_unlink_inode(dir, dentry);
+	err = ntfs_unlink_ianalde(dir, dentry);
 
 	ni_unlock(ni);
 
@@ -194,43 +194,43 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 }
 
 /*
- * ntfs_symlink - inode_operations::symlink
+ * ntfs_symlink - ianalde_operations::symlink
  */
-static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_symlink(struct mnt_idmap *idmap, struct ianalde *dir,
 			struct dentry *dentry, const char *symname)
 {
 	u32 size = strlen(symname);
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
 		return -EIO;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777, 0,
+	ianalde = ntfs_create_ianalde(idmap, dir, dentry, NULL, S_IFLNK | 0777, 0,
 				  symname, size, NULL);
 
-	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+	return IS_ERR(ianalde) ? PTR_ERR(ianalde) : 0;
 }
 
 /*
- * ntfs_mkdir- inode_operations::mkdir
+ * ntfs_mkdir- ianalde_operations::mkdir
  */
-static int ntfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static int ntfs_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 		      struct dentry *dentry, umode_t mode)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFDIR | mode, 0,
+	ianalde = ntfs_create_ianalde(idmap, dir, dentry, NULL, S_IFDIR | mode, 0,
 				  NULL, 0, NULL);
 
-	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+	return IS_ERR(ianalde) ? PTR_ERR(ianalde) : 0;
 }
 
 /*
- * ntfs_rmdir - inode_operations::rmdir
+ * ntfs_rmdir - ianalde_operations::rmdir
  */
-static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
+static int ntfs_rmdir(struct ianalde *dir, struct dentry *dentry)
 {
-	struct ntfs_inode *ni = ntfs_i(dir);
+	struct ntfs_ianalde *ni = ntfs_i(dir);
 	int err;
 
 	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
@@ -238,7 +238,7 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	ni_lock_dir(ni);
 
-	err = ntfs_unlink_inode(dir, dentry);
+	err = ntfs_unlink_ianalde(dir, dentry);
 
 	ni_unlock(ni);
 
@@ -246,20 +246,20 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 /*
- * ntfs_rename - inode_operations::rename
+ * ntfs_rename - ianalde_operations::rename
  */
-static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
-		       struct dentry *dentry, struct inode *new_dir,
+static int ntfs_rename(struct mnt_idmap *idmap, struct ianalde *dir,
+		       struct dentry *dentry, struct ianalde *new_dir,
 		       struct dentry *new_dentry, u32 flags)
 {
 	int err;
 	struct super_block *sb = dir->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	struct ntfs_inode *dir_ni = ntfs_i(dir);
-	struct ntfs_inode *new_dir_ni = ntfs_i(new_dir);
-	struct inode *inode = d_inode(dentry);
-	struct ntfs_inode *ni = ntfs_i(inode);
-	struct inode *new_inode = d_inode(new_dentry);
+	struct ntfs_ianalde *dir_ni = ntfs_i(dir);
+	struct ntfs_ianalde *new_dir_ni = ntfs_i(new_dir);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
+	struct ianalde *new_ianalde = d_ianalde(new_dentry);
 	struct NTFS_DE *de, *new_de;
 	bool is_same, is_bad;
 	/*
@@ -276,7 +276,7 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	if (unlikely(ntfs3_forced_shutdown(sb)))
 		return -EIO;
 
-	if (flags & ~RENAME_NOREPLACE)
+	if (flags & ~RENAME_ANALREPLACE)
 		return -EINVAL;
 
 	is_same = dentry->d_name.len == new_dentry->d_name.len &&
@@ -284,20 +284,20 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 			  dentry->d_name.len);
 
 	if (is_same && dir == new_dir) {
-		/* Nothing to do. */
+		/* Analthing to do. */
 		return 0;
 	}
 
-	if (ntfs_is_meta_file(sbi, inode->i_ino)) {
+	if (ntfs_is_meta_file(sbi, ianalde->i_ianal)) {
 		/* Should we print an error? */
 		return -EINVAL;
 	}
 
-	if (new_inode) {
+	if (new_ianalde) {
 		/* Target name exists. Unlink it. */
 		dget(new_dentry);
 		ni_lock_dir(new_dir_ni);
-		err = ntfs_unlink_inode(new_dir, new_dentry);
+		err = ntfs_unlink_ianalde(new_dir, new_dentry);
 		ni_unlock(new_dir_ni);
 		dput(new_dentry);
 		if (err)
@@ -307,7 +307,7 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	/* Allocate PATH_MAX bytes. */
 	de = __getname();
 	if (!de)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Translate dentry->d_name into unicode form. */
 	err = fill_name_de(sbi, de, &dentry->d_name, NULL);
@@ -334,19 +334,19 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	err = ni_rename(dir_ni, new_dir_ni, ni, de, new_de, &is_bad);
 	if (is_bad) {
 		/* Restore after failed rename failed too. */
-		_ntfs_bad_inode(inode);
+		_ntfs_bad_ianalde(ianalde);
 	} else if (!err) {
 		simple_rename_timestamp(dir, dentry, new_dir, new_dentry);
-		mark_inode_dirty(inode);
-		mark_inode_dirty(dir);
+		mark_ianalde_dirty(ianalde);
+		mark_ianalde_dirty(dir);
 		if (dir != new_dir)
-			mark_inode_dirty(new_dir);
+			mark_ianalde_dirty(new_dir);
 
 		if (IS_DIRSYNC(dir))
-			ntfs_sync_inode(dir);
+			ntfs_sync_ianalde(dir);
 
 		if (IS_DIRSYNC(new_dir))
-			ntfs_sync_inode(inode);
+			ntfs_sync_ianalde(ianalde);
 	}
 
 	if (dir_ni != new_dir_ni)
@@ -361,21 +361,21 @@ out:
 /*
  * ntfs_atomic_open
  *
- * inode_operations::atomic_open
+ * ianalde_operations::atomic_open
  */
-static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
+static int ntfs_atomic_open(struct ianalde *dir, struct dentry *dentry,
 			    struct file *file, u32 flags, umode_t mode)
 {
 	int err;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct ntfs_fnd *fnd = NULL;
-	struct ntfs_inode *ni = ntfs_i(dir);
+	struct ntfs_ianalde *ni = ntfs_i(dir);
 	struct dentry *d = NULL;
 	struct cpu_str *uni = __getname();
 	bool locked = false;
 
 	if (!uni)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = ntfs_nls_to_utf16(ni->mi.sbi, dentry->d_name.name,
 				dentry->d_name.len, uni, NTFS_NAME_LEN,
@@ -387,10 +387,10 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (IS_POSIXACL(dir)) {
 		/*
 		 * Load in cache current acl to avoid ni_lock(dir):
-		 * ntfs_create_inode -> ntfs_init_acl -> posix_acl_create ->
+		 * ntfs_create_ianalde -> ntfs_init_acl -> posix_acl_create ->
 		 * ntfs_get_acl -> ntfs_get_acl_ex -> ni_lock
 		 */
-		struct posix_acl *p = get_inode_acl(dir, ACL_TYPE_DEFAULT);
+		struct posix_acl *p = get_ianalde_acl(dir, ACL_TYPE_DEFAULT);
 
 		if (IS_ERR(p)) {
 			err = PTR_ERR(p);
@@ -405,7 +405,7 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		locked = true;
 		fnd = fnd_get();
 		if (!fnd) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out1;
 		}
 
@@ -421,7 +421,7 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	}
 
 	if (!(flags & O_CREAT) || d_really_is_positive(dentry)) {
-		err = finish_no_open(file, d);
+		err = finish_anal_open(file, d);
 		goto out2;
 	}
 
@@ -429,11 +429,11 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	/*
 	 * fnd contains tree's path to insert to.
-	 * If fnd is not NULL then dir is locked.
+	 * If fnd is analt NULL then dir is locked.
 	 */
-	inode = ntfs_create_inode(mnt_idmap(file->f_path.mnt), dir, dentry, uni,
+	ianalde = ntfs_create_ianalde(mnt_idmap(file->f_path.mnt), dir, dentry, uni,
 				  mode, 0, NULL, 0, fnd);
-	err = IS_ERR(inode) ? PTR_ERR(inode) :
+	err = IS_ERR(ianalde) ? PTR_ERR(ianalde) :
 			      finish_open(file, dentry, ntfs_file_open);
 	dput(d);
 
@@ -449,8 +449,8 @@ out:
 
 struct dentry *ntfs3_get_parent(struct dentry *child)
 {
-	struct inode *inode = d_inode(child);
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ianalde *ianalde = d_ianalde(child);
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 
 	struct ATTR_LIST_ENTRY *le = NULL;
 	struct ATTRIB *attr = NULL;
@@ -463,10 +463,10 @@ struct dentry *ntfs3_get_parent(struct dentry *child)
 			continue;
 
 		return d_obtain_alias(
-			ntfs_iget5(inode->i_sb, &fname->home, NULL));
+			ntfs_iget5(ianalde->i_sb, &fname->home, NULL));
 	}
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 /*
@@ -503,7 +503,7 @@ static int ntfs_d_hash(const struct dentry *dentry, struct qstr *name)
 	 */
 	uni = __getname();
 	if (!uni)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sbi = dentry->d_sb->s_fs_info;
 
@@ -564,7 +564,7 @@ static int ntfs_d_compare(const struct dentry *dentry, unsigned int len1,
 	sbi = dentry->d_sb->s_fs_info;
 	uni1 = __getname();
 	if (!uni1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ntfs_nls_to_utf16(sbi, str, len1, uni1, NTFS_NAME_LEN,
 				UTF16_HOST_ENDIAN);
@@ -597,7 +597,7 @@ out:
 }
 
 // clang-format off
-const struct inode_operations ntfs_dir_inode_operations = {
+const struct ianalde_operations ntfs_dir_ianalde_operations = {
 	.lookup		= ntfs_lookup,
 	.create		= ntfs_create,
 	.link		= ntfs_link,
@@ -605,7 +605,7 @@ const struct inode_operations ntfs_dir_inode_operations = {
 	.symlink	= ntfs_symlink,
 	.mkdir		= ntfs_mkdir,
 	.rmdir		= ntfs_rmdir,
-	.mknod		= ntfs_mknod,
+	.mkanald		= ntfs_mkanald,
 	.rename		= ntfs_rename,
 	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
@@ -616,7 +616,7 @@ const struct inode_operations ntfs_dir_inode_operations = {
 	.fiemap		= ntfs_fiemap,
 };
 
-const struct inode_operations ntfs_special_inode_operations = {
+const struct ianalde_operations ntfs_special_ianalde_operations = {
 	.setattr	= ntfs3_setattr,
 	.getattr	= ntfs_getattr,
 	.listxattr	= ntfs_listxattr,

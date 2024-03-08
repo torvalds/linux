@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -502,7 +502,7 @@ static void mmhub_v1_8_set_fault_enable_default(struct amdgpu_device *adev, bool
 				EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
 		if (!value) {
 			tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
-					    CRASH_ON_NO_RETRY_FAULT, 1);
+					    CRASH_ON_ANAL_RETRY_FAULT, 1);
 			tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
 					    CRASH_ON_RETRY_FAULT, 1);
 		}
@@ -628,7 +628,7 @@ static void mmhub_v1_8_inst_query_ras_error_count(struct amdgpu_device *adev,
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_err_status;
 	unsigned long ue_count = 0, ce_count = 0;
 
-	/* NOTE: mmhub is converted by aid_mask and the range is 0-3,
+	/* ANALTE: mmhub is converted by aid_mask and the range is 0-3,
 	 * which can be used as die ID directly */
 	struct amdgpu_smuio_mcm_config_info mcm_info = {
 		.socket_id = adev->smuio.funcs->get_socket_id(adev),
@@ -663,7 +663,7 @@ static void mmhub_v1_8_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t i;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB)) {
-		dev_warn(adev->dev, "MMHUB RAS is not supported\n");
+		dev_warn(adev->dev, "MMHUB RAS is analt supported\n");
 		return;
 	}
 
@@ -691,7 +691,7 @@ static void mmhub_v1_8_reset_ras_error_count(struct amdgpu_device *adev)
 	uint32_t i;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB)) {
-		dev_warn(adev->dev, "MMHUB RAS is not supported\n");
+		dev_warn(adev->dev, "MMHUB RAS is analt supported\n");
 		return;
 	}
 

@@ -15,7 +15,7 @@ static void gen_btf(struct btf *btf)
 	int id, err, str_off;
 
 	str_off = btf__find_str(btf, "int");
-	ASSERT_EQ(str_off, -ENOENT, "int_str_missing_off");
+	ASSERT_EQ(str_off, -EANALENT, "int_str_missing_off");
 
 	str_off = btf__add_str(btf, "int");
 	ASSERT_EQ(str_off, 1, "int_str_off");
@@ -58,7 +58,7 @@ static void gen_btf(struct btf *btf)
 	ASSERT_EQ(btf_kind(t), BTF_KIND_PTR, "ptr_kind");
 	ASSERT_EQ(t->type, 1, "ptr_type");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 2),
-		     "[2] PTR '(anon)' type_id=1", "raw_dump");
+		     "[2] PTR '(aanaln)' type_id=1", "raw_dump");
 
 	id = btf__add_const(btf, 5); /* points forward to restrict */
 	ASSERT_EQ(id, 3, "const_id");
@@ -66,7 +66,7 @@ static void gen_btf(struct btf *btf)
 	ASSERT_EQ(btf_kind(t), BTF_KIND_CONST, "const_kind");
 	ASSERT_EQ(t->type, 5, "const_type");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 3),
-		     "[3] CONST '(anon)' type_id=5", "raw_dump");
+		     "[3] CONST '(aanaln)' type_id=5", "raw_dump");
 
 	id = btf__add_volatile(btf, 3);
 	ASSERT_EQ(id, 4, "volatile_id");
@@ -74,7 +74,7 @@ static void gen_btf(struct btf *btf)
 	ASSERT_EQ(btf_kind(t), BTF_KIND_VOLATILE, "volatile_kind");
 	ASSERT_EQ(t->type, 3, "volatile_type");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 4),
-		     "[4] VOLATILE '(anon)' type_id=3", "raw_dump");
+		     "[4] VOLATILE '(aanaln)' type_id=3", "raw_dump");
 
 	id = btf__add_restrict(btf, 4);
 	ASSERT_EQ(id, 5, "restrict_id");
@@ -82,7 +82,7 @@ static void gen_btf(struct btf *btf)
 	ASSERT_EQ(btf_kind(t), BTF_KIND_RESTRICT, "restrict_kind");
 	ASSERT_EQ(t->type, 4, "restrict_type");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 5),
-		     "[5] RESTRICT '(anon)' type_id=4", "raw_dump");
+		     "[5] RESTRICT '(aanaln)' type_id=4", "raw_dump");
 
 	/* ARRAY */
 	id = btf__add_array(btf, 1, 2, 10); /* int *[10] */
@@ -93,11 +93,11 @@ static void gen_btf(struct btf *btf)
 	ASSERT_EQ(btf_array(t)->type, 2, "array_elem_type");
 	ASSERT_EQ(btf_array(t)->nelems, 10, "array_nelems");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 6),
-		     "[6] ARRAY '(anon)' type_id=2 index_type_id=1 nr_elems=10", "raw_dump");
+		     "[6] ARRAY '(aanaln)' type_id=2 index_type_id=1 nr_elems=10", "raw_dump");
 
 	/* STRUCT */
 	err = btf__add_field(btf, "field", 1, 0, 0);
-	ASSERT_ERR(err, "no_struct_field");
+	ASSERT_ERR(err, "anal_struct_field");
 	id = btf__add_struct(btf, "s1", 8);
 	ASSERT_EQ(id, 7, "struct_id");
 	err = btf__add_field(btf, "f1", 1, 0, 0);
@@ -130,9 +130,9 @@ static void gen_btf(struct btf *btf)
 	id = btf__add_union(btf, "u1", 8);
 	ASSERT_EQ(id, 8, "union_id");
 
-	/* invalid, non-zero offset */
+	/* invalid, analn-zero offset */
 	err = btf__add_field(btf, "field", 1, 1, 0);
-	ASSERT_ERR(err, "no_struct_field");
+	ASSERT_ERR(err, "anal_struct_field");
 
 	err = btf__add_field(btf, "f1", 1, 0, 16);
 	ASSERT_OK(err, "f1_res");
@@ -244,7 +244,7 @@ static void gen_btf(struct btf *btf)
 	ASSERT_STREQ(btf__str_by_offset(btf, p->name_off), "p2", "p2_name");
 	ASSERT_EQ(p->type, 2, "p2_type");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 15),
-		     "[15] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
+		     "[15] FUNC_PROTO '(aanaln)' ret_type_id=1 vlen=2\n"
 		     "\t'p1' type_id=1\n"
 		     "\t'p2' type_id=2", "raw_dump");
 
@@ -365,11 +365,11 @@ static void test_btf_add()
 	VALIDATE_RAW_BTF(
 		btf,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=1",
-		"[3] CONST '(anon)' type_id=5",
-		"[4] VOLATILE '(anon)' type_id=3",
-		"[5] RESTRICT '(anon)' type_id=4",
-		"[6] ARRAY '(anon)' type_id=2 index_type_id=1 nr_elems=10",
+		"[2] PTR '(aanaln)' type_id=1",
+		"[3] CONST '(aanaln)' type_id=5",
+		"[4] VOLATILE '(aanaln)' type_id=3",
+		"[5] RESTRICT '(aanaln)' type_id=4",
+		"[6] ARRAY '(aanaln)' type_id=2 index_type_id=1 nr_elems=10",
 		"[7] STRUCT 's1' size=8 vlen=2\n"
 		"\t'f1' type_id=1 bits_offset=0\n"
 		"\t'f2' type_id=1 bits_offset=32 bitfield_size=16",
@@ -383,7 +383,7 @@ static void test_btf_add()
 		"[12] ENUM 'enum_fwd' encoding=UNSIGNED size=4 vlen=0",
 		"[13] TYPEDEF 'typedef1' type_id=1",
 		"[14] FUNC 'func1' type_id=15 linkage=global",
-		"[15] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
+		"[15] FUNC_PROTO '(aanaln)' ret_type_id=1 vlen=2\n"
 		"\t'p1' type_id=1\n"
 		"\t'p2' type_id=2",
 		"[16] VAR 'var1' type_id=1, linkage=global-alloc",
@@ -424,11 +424,11 @@ static void test_btf_add_btf()
 	VALIDATE_RAW_BTF(
 		btf1,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[2] PTR '(anon)' type_id=1",
-		"[3] CONST '(anon)' type_id=5",
-		"[4] VOLATILE '(anon)' type_id=3",
-		"[5] RESTRICT '(anon)' type_id=4",
-		"[6] ARRAY '(anon)' type_id=2 index_type_id=1 nr_elems=10",
+		"[2] PTR '(aanaln)' type_id=1",
+		"[3] CONST '(aanaln)' type_id=5",
+		"[4] VOLATILE '(aanaln)' type_id=3",
+		"[5] RESTRICT '(aanaln)' type_id=4",
+		"[6] ARRAY '(aanaln)' type_id=2 index_type_id=1 nr_elems=10",
 		"[7] STRUCT 's1' size=8 vlen=2\n"
 		"\t'f1' type_id=1 bits_offset=0\n"
 		"\t'f2' type_id=1 bits_offset=32 bitfield_size=16",
@@ -442,7 +442,7 @@ static void test_btf_add_btf()
 		"[12] ENUM 'enum_fwd' encoding=UNSIGNED size=4 vlen=0",
 		"[13] TYPEDEF 'typedef1' type_id=1",
 		"[14] FUNC 'func1' type_id=15 linkage=global",
-		"[15] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
+		"[15] FUNC_PROTO '(aanaln)' ret_type_id=1 vlen=2\n"
 		"\t'p1' type_id=1\n"
 		"\t'p2' type_id=2",
 		"[16] VAR 'var1' type_id=1, linkage=global-alloc",
@@ -459,11 +459,11 @@ static void test_btf_add_btf()
 
 		/* types appended from the second BTF */
 		"[23] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[24] PTR '(anon)' type_id=23",
-		"[25] CONST '(anon)' type_id=27",
-		"[26] VOLATILE '(anon)' type_id=25",
-		"[27] RESTRICT '(anon)' type_id=26",
-		"[28] ARRAY '(anon)' type_id=24 index_type_id=23 nr_elems=10",
+		"[24] PTR '(aanaln)' type_id=23",
+		"[25] CONST '(aanaln)' type_id=27",
+		"[26] VOLATILE '(aanaln)' type_id=25",
+		"[27] RESTRICT '(aanaln)' type_id=26",
+		"[28] ARRAY '(aanaln)' type_id=24 index_type_id=23 nr_elems=10",
 		"[29] STRUCT 's1' size=8 vlen=2\n"
 		"\t'f1' type_id=23 bits_offset=0\n"
 		"\t'f2' type_id=23 bits_offset=32 bitfield_size=16",
@@ -477,7 +477,7 @@ static void test_btf_add_btf()
 		"[34] ENUM 'enum_fwd' encoding=UNSIGNED size=4 vlen=0",
 		"[35] TYPEDEF 'typedef1' type_id=23",
 		"[36] FUNC 'func1' type_id=37 linkage=global",
-		"[37] FUNC_PROTO '(anon)' ret_type_id=23 vlen=2\n"
+		"[37] FUNC_PROTO '(aanaln)' ret_type_id=23 vlen=2\n"
 		"\t'p1' type_id=23\n"
 		"\t'p2' type_id=24",
 		"[38] VAR 'var1' type_id=23, linkage=global-alloc",

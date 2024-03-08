@@ -8,7 +8,7 @@ title: Qualcomm SM7150 TLMM pin controller
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Danila Tikhonov <danila@jiaxyga.com>
+  - Danila Tikhoanalv <danila@jiaxyga.com>
 
 description:
   Top Level Mode Multiplexer pin controller in Qualcomm SM7150 SoC.
@@ -26,7 +26,7 @@ properties:
   reg-names:
     items:
       - const: west
-      - const: north
+      - const: analrth
       - const: south
 
   interrupts:
@@ -52,8 +52,8 @@ $defs:
   qcom-sm7150-tlmm-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
@@ -61,7 +61,7 @@ $defs:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           oneOf:
             - pattern: "^gpio([0-9]|[1-9][0-9]|10[0-9]|11[0-8])$"
@@ -115,7 +115,7 @@ examples:
         reg = <0x03500000 0x300000>,
               <0x03900000 0x300000>,
               <0x03d00000 0x300000>;
-        reg-names = "west", "north", "south";
+        reg-names = "west", "analrth", "south";
         interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
         gpio-ranges = <&tlmm 0 0 120>;
         gpio-controller;

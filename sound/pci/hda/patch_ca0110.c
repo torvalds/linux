@@ -47,7 +47,7 @@ static int patch_ca0110(struct hda_codec *codec)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	snd_hda_gen_spec_init(spec);
 	codec->spec = spec;
 	codec->patch_ops = ca0110_patch_ops;

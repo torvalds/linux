@@ -7,7 +7,7 @@ CONTENTS
 	- QMan Portal
 	- Example
 
-QMan Portal Node
+QMan Portal Analde
 
 Portals are memory mapped interfaces to QMan that allow low-latency, lock-less
 interaction by software running on processor cores, accelerators and network
@@ -53,17 +53,17 @@ PROPERTIES
 			determined by dividing any of the channel's 8 work queue
 			IDs by 8
 
-In addition to these properties the qman-portals should have sub-nodes to
+In addition to these properties the qman-portals should have sub-analdes to
 represent the HW devices/portals that are connected to the software portal
 described here
 
-The currently supported sub-nodes are:
+The currently supported sub-analdes are:
 	* fman0
 	* fman1
 	* pme
 	* crypto
 
-These subnodes should have the following properties:
+These subanaldes should have the following properties:
 
 - fsl,liodn
 	Usage:		See pamu.txt
@@ -83,7 +83,7 @@ These subnodes should have the following properties:
 
 EXAMPLE
 
-The example below shows a (P4080) QMan portals container/bus node with two portals
+The example below shows a (P4080) QMan portals container/bus analde with two portals
 
 	qman-portals@ff4200000 {
 		#address-cells = <1>;

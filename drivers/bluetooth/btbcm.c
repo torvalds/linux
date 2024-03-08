@@ -47,7 +47,7 @@ static int btbcm_set_bdaddr_from_efi(struct hci_dev *hdev)
 	int ret;
 
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	len = sizeof(efi_bdaddr);
 	status = efi.get_variable(L"BDADDR", &guid, NULL, &len, &efi_bdaddr);
@@ -69,7 +69,7 @@ static int btbcm_set_bdaddr_from_efi(struct hci_dev *hdev)
 #else
 static int btbcm_set_bdaddr_from_efi(struct hci_dev *hdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -97,16 +97,16 @@ int btbcm_check_bdaddr(struct hci_dev *hdev)
 
 	/* Check if the address indicates a controller with either an
 	 * invalid or default address. In both cases the device needs
-	 * to be marked as not having a valid address.
+	 * to be marked as analt having a valid address.
 	 *
 	 * The address 00:20:70:02:A0:00 indicates a BCM20702A0 controller
-	 * with no configured address.
+	 * with anal configured address.
 	 *
 	 * The address 20:70:02:A0:00:00 indicates a BCM20702A1 controller
-	 * with no configured address.
+	 * with anal configured address.
 	 *
 	 * The address 20:76:A0:00:56:79 indicates a BCM2076B1 controller
-	 * with no configured address.
+	 * with anal configured address.
 	 *
 	 * The address 43:24:B3:00:00:00 indicates a BCM4324B3 controller
 	 * with waiting for configuration state.
@@ -115,10 +115,10 @@ int btbcm_check_bdaddr(struct hci_dev *hdev)
 	 * with waiting for configuration state.
 	 *
 	 * The address 43:43:A0:12:1F:AC indicates a BCM43430A0 controller
-	 * with no configured address.
+	 * with anal configured address.
 	 *
 	 * The address AA:AA:AA:AA:AA:AA indicates a BCM43430A1 controller
-	 * with no configured address.
+	 * with anal configured address.
 	 */
 	if (!bacmp(&bda->bdaddr, BDADDR_BCM20702A0) ||
 	    !bacmp(&bda->bdaddr, BDADDR_BCM20702A1) ||
@@ -540,13 +540,13 @@ static const struct bcm_subver_table bcm_usb_subver_table[] = {
 static const char *btbcm_get_board_name(struct device *dev)
 {
 #ifdef CONFIG_OF
-	struct device_node *root;
+	struct device_analde *root;
 	char *board_type;
 	const char *tmp;
 	int len;
 	int i;
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (!root)
 		return NULL;
 
@@ -561,7 +561,7 @@ static const char *btbcm_get_board_name(struct device *dev)
 		if (board_type[i] == '/')
 			board_type[i] = '-';
 	}
-	of_node_put(root);
+	of_analde_put(root);
 
 	return board_type;
 #else
@@ -649,7 +649,7 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done, bool use_autobaud
 
 	fw_name = kmalloc(BCM_FW_NAME_COUNT_MAX * BCM_FW_NAME_LEN, GFP_KERNEL);
 	if (!fw_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (hw_name) {
 		if (board_name) {
@@ -672,7 +672,7 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done, bool use_autobaud
 	fw_name_count++;
 
 	for (i = 0; i < fw_name_count; i++) {
-		err = firmware_request_nowarn(&fw, fw_name[i], &hdev->dev);
+		err = firmware_request_analwarn(&fw, fw_name[i], &hdev->dev);
 		if (err == 0) {
 			bt_dev_info(hdev, "%s '%s' Patch",
 				    hw_name ? hw_name : "BCM", fw_name[i]);
@@ -688,7 +688,7 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done, bool use_autobaud
 
 		release_firmware(fw);
 	} else {
-		bt_dev_err(hdev, "BCM: firmware Patch file not found, tried:");
+		bt_dev_err(hdev, "BCM: firmware Patch file analt found, tried:");
 		for (i = 0; i < fw_name_count; i++)
 			bt_dev_err(hdev, "BCM: '%s'", fw_name[i]);
 	}

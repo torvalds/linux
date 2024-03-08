@@ -146,7 +146,7 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_adc_state *st = NULL;
 	struct resource *res;
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 	struct iio_dev *iodev = NULL;
 	int irq;
 
@@ -158,7 +158,7 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 
 	iodev = devm_iio_device_alloc(&pdev->dev, sizeof(*st));
 	if (!iodev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(iodev);
 
@@ -190,7 +190,7 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(st->vref)) {
 		iodev->channels = lpc32xx_adc_iio_channels;
 		dev_info(&pdev->dev,
-			 "Missing vref regulator: No scaling available\n");
+			 "Missing vref regulator: Anal scaling available\n");
 	} else {
 		iodev->channels = lpc32xx_adc_iio_scale_channels;
 	}

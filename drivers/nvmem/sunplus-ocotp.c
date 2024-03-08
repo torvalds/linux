@@ -3,7 +3,7 @@
 /*
  * The OCOTP driver for Sunplus	SP7021
  *
- * Copyright (C) 2019 Sunplus Technology Inc., All rights reserved.
+ * Copyright (C) 2019 Sunplus Techanallogy Inc., All rights reserved.
  */
 
 #include <linux/bitfield.h>
@@ -164,7 +164,7 @@ static int sp_ocotp_probe(struct platform_device *pdev)
 
 	otp = devm_kzalloc(dev, sizeof(*otp), GFP_KERNEL);
 	if (!otp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otp->dev = dev;
 

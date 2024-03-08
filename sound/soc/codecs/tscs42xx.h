@@ -541,7 +541,7 @@ enum {
 #define FV_AIC1_MS_MASTER                    0x1
 #define FV_AIC1_MS_SLAVE                     0x0
 #define FV_AIC1_LRP_INVERT                   0x1
-#define FV_AIC1_LRP_NORMAL                   0x0
+#define FV_AIC1_LRP_ANALRMAL                   0x0
 #define FV_AIC1_WL_16                        0x0
 #define FV_AIC1_WL_20                        0x1
 #define FV_AIC1_WL_24                        0x2
@@ -571,8 +571,8 @@ enum {
 #define RV_AIC1_LRP_INVERT \
 	 RV(FV_AIC1_LRP_INVERT, FB_AIC1_LRP)
 
-#define RV_AIC1_LRP_NORMAL \
-	 RV(FV_AIC1_LRP_NORMAL, FB_AIC1_LRP)
+#define RV_AIC1_LRP_ANALRMAL \
+	 RV(FV_AIC1_LRP_ANALRMAL, FB_AIC1_LRP)
 
 #define RV_AIC1_WL_16                        RV(FV_AIC1_WL_16, FB_AIC1_WL)
 #define RV_AIC1_WL_20                        RV(FV_AIC1_WL_20, FB_AIC1_WL)
@@ -629,7 +629,7 @@ enum {
 /* Field Offsets */
 #define FB_CNVRTR0_ADCPOLR                   7
 #define FB_CNVRTR0_ADCPOLL                   6
-#define FB_CNVRTR0_AMONOMIX                  4
+#define FB_CNVRTR0_AMOANALMIX                  4
 #define FB_CNVRTR0_ADCMU                     3
 #define FB_CNVRTR0_HPOR                      2
 #define FB_CNVRTR0_ADCHPDR                   1
@@ -638,7 +638,7 @@ enum {
 /* Field Masks */
 #define FM_CNVRTR0_ADCPOLR                   0X1
 #define FM_CNVRTR0_ADCPOLL                   0X1
-#define FM_CNVRTR0_AMONOMIX                  0X3
+#define FM_CNVRTR0_AMOANALMIX                  0X3
 #define FM_CNVRTR0_ADCMU                     0X1
 #define FM_CNVRTR0_HPOR                      0X1
 #define FM_CNVRTR0_ADCHPDR                   0X1
@@ -646,9 +646,9 @@ enum {
 
 /* Field Values */
 #define FV_CNVRTR0_ADCPOLR_INVERT            0x1
-#define FV_CNVRTR0_ADCPOLR_NORMAL            0x0
+#define FV_CNVRTR0_ADCPOLR_ANALRMAL            0x0
 #define FV_CNVRTR0_ADCPOLL_INVERT            0x1
-#define FV_CNVRTR0_ADCPOLL_NORMAL            0x0
+#define FV_CNVRTR0_ADCPOLL_ANALRMAL            0x0
 #define FV_CNVRTR0_ADCMU_ENABLE              0x1
 #define FV_CNVRTR0_ADCMU_DISABLE             0x0
 #define FV_CNVRTR0_ADCHPDR_ENABLE            0x1
@@ -663,8 +663,8 @@ enum {
 #define RM_CNVRTR0_ADCPOLL \
 	 RM(FM_CNVRTR0_ADCPOLL, FB_CNVRTR0_ADCPOLL)
 
-#define RM_CNVRTR0_AMONOMIX \
-	 RM(FM_CNVRTR0_AMONOMIX, FB_CNVRTR0_AMONOMIX)
+#define RM_CNVRTR0_AMOANALMIX \
+	 RM(FM_CNVRTR0_AMOANALMIX, FB_CNVRTR0_AMOANALMIX)
 
 #define RM_CNVRTR0_ADCMU \
 	 RM(FM_CNVRTR0_ADCMU, FB_CNVRTR0_ADCMU)
@@ -683,14 +683,14 @@ enum {
 #define RV_CNVRTR0_ADCPOLR_INVERT \
 	 RV(FV_CNVRTR0_ADCPOLR_INVERT, FB_CNVRTR0_ADCPOLR)
 
-#define RV_CNVRTR0_ADCPOLR_NORMAL \
-	 RV(FV_CNVRTR0_ADCPOLR_NORMAL, FB_CNVRTR0_ADCPOLR)
+#define RV_CNVRTR0_ADCPOLR_ANALRMAL \
+	 RV(FV_CNVRTR0_ADCPOLR_ANALRMAL, FB_CNVRTR0_ADCPOLR)
 
 #define RV_CNVRTR0_ADCPOLL_INVERT \
 	 RV(FV_CNVRTR0_ADCPOLL_INVERT, FB_CNVRTR0_ADCPOLL)
 
-#define RV_CNVRTR0_ADCPOLL_NORMAL \
-	 RV(FV_CNVRTR0_ADCPOLL_NORMAL, FB_CNVRTR0_ADCPOLL)
+#define RV_CNVRTR0_ADCPOLL_ANALRMAL \
+	 RV(FV_CNVRTR0_ADCPOLL_ANALRMAL, FB_CNVRTR0_ADCPOLL)
 
 #define RV_CNVRTR0_ADCMU_ENABLE \
 	 RV(FV_CNVRTR0_ADCMU_ENABLE, FB_CNVRTR0_ADCMU)
@@ -776,7 +776,7 @@ enum {
 /* Field Offsets */
 #define FB_CNVRTR1_DACPOLR                   7
 #define FB_CNVRTR1_DACPOLL                   6
-#define FB_CNVRTR1_DMONOMIX                  4
+#define FB_CNVRTR1_DMOANALMIX                  4
 #define FB_CNVRTR1_DACMU                     3
 #define FB_CNVRTR1_DEEMPH                    2
 #define FB_CNVRTR1_DACDITH                   0
@@ -784,18 +784,18 @@ enum {
 /* Field Masks */
 #define FM_CNVRTR1_DACPOLR                   0X1
 #define FM_CNVRTR1_DACPOLL                   0X1
-#define FM_CNVRTR1_DMONOMIX                  0X3
+#define FM_CNVRTR1_DMOANALMIX                  0X3
 #define FM_CNVRTR1_DACMU                     0X1
 #define FM_CNVRTR1_DEEMPH                    0X1
 #define FM_CNVRTR1_DACDITH                   0X3
 
 /* Field Values */
 #define FV_CNVRTR1_DACPOLR_INVERT            0x1
-#define FV_CNVRTR1_DACPOLR_NORMAL            0x0
+#define FV_CNVRTR1_DACPOLR_ANALRMAL            0x0
 #define FV_CNVRTR1_DACPOLL_INVERT            0x1
-#define FV_CNVRTR1_DACPOLL_NORMAL            0x0
-#define FV_CNVRTR1_DMONOMIX_ENABLE           0x1
-#define FV_CNVRTR1_DMONOMIX_DISABLE          0x0
+#define FV_CNVRTR1_DACPOLL_ANALRMAL            0x0
+#define FV_CNVRTR1_DMOANALMIX_ENABLE           0x1
+#define FV_CNVRTR1_DMOANALMIX_DISABLE          0x0
 #define FV_CNVRTR1_DACMU_ENABLE              0x1
 #define FV_CNVRTR1_DACMU_DISABLE             0x0
 
@@ -806,8 +806,8 @@ enum {
 #define RM_CNVRTR1_DACPOLL \
 	 RM(FM_CNVRTR1_DACPOLL, FB_CNVRTR1_DACPOLL)
 
-#define RM_CNVRTR1_DMONOMIX \
-	 RM(FM_CNVRTR1_DMONOMIX, FB_CNVRTR1_DMONOMIX)
+#define RM_CNVRTR1_DMOANALMIX \
+	 RM(FM_CNVRTR1_DMOANALMIX, FB_CNVRTR1_DMOANALMIX)
 
 #define RM_CNVRTR1_DACMU \
 	 RM(FM_CNVRTR1_DACMU, FB_CNVRTR1_DACMU)
@@ -823,20 +823,20 @@ enum {
 #define RV_CNVRTR1_DACPOLR_INVERT \
 	 RV(FV_CNVRTR1_DACPOLR_INVERT, FB_CNVRTR1_DACPOLR)
 
-#define RV_CNVRTR1_DACPOLR_NORMAL \
-	 RV(FV_CNVRTR1_DACPOLR_NORMAL, FB_CNVRTR1_DACPOLR)
+#define RV_CNVRTR1_DACPOLR_ANALRMAL \
+	 RV(FV_CNVRTR1_DACPOLR_ANALRMAL, FB_CNVRTR1_DACPOLR)
 
 #define RV_CNVRTR1_DACPOLL_INVERT \
 	 RV(FV_CNVRTR1_DACPOLL_INVERT, FB_CNVRTR1_DACPOLL)
 
-#define RV_CNVRTR1_DACPOLL_NORMAL \
-	 RV(FV_CNVRTR1_DACPOLL_NORMAL, FB_CNVRTR1_DACPOLL)
+#define RV_CNVRTR1_DACPOLL_ANALRMAL \
+	 RV(FV_CNVRTR1_DACPOLL_ANALRMAL, FB_CNVRTR1_DACPOLL)
 
-#define RV_CNVRTR1_DMONOMIX_ENABLE \
-	 RV(FV_CNVRTR1_DMONOMIX_ENABLE, FB_CNVRTR1_DMONOMIX)
+#define RV_CNVRTR1_DMOANALMIX_ENABLE \
+	 RV(FV_CNVRTR1_DMOANALMIX_ENABLE, FB_CNVRTR1_DMOANALMIX)
 
-#define RV_CNVRTR1_DMONOMIX_DISABLE \
-	 RV(FV_CNVRTR1_DMONOMIX_DISABLE, FB_CNVRTR1_DMONOMIX)
+#define RV_CNVRTR1_DMOANALMIX_DISABLE \
+	 RV(FV_CNVRTR1_DMOANALMIX_DISABLE, FB_CNVRTR1_DMOANALMIX)
 
 #define RV_CNVRTR1_DACMU_ENABLE \
 	 RV(FV_CNVRTR1_DACMU_ENABLE, FB_CNVRTR1_DACMU)
@@ -1305,28 +1305,28 @@ enum {
 
 /* Field Offsets */
 #define FB_DMICCTL_DMICEN                    7
-#define FB_DMICCTL_DMONO                     4
+#define FB_DMICCTL_DMOANAL                     4
 #define FB_DMICCTL_DMPHADJ                   2
 #define FB_DMICCTL_DMRATE                    0
 
 /* Field Masks */
 #define FM_DMICCTL_DMICEN                    0X1
-#define FM_DMICCTL_DMONO                     0X1
+#define FM_DMICCTL_DMOANAL                     0X1
 #define FM_DMICCTL_DMPHADJ                   0X3
 #define FM_DMICCTL_DMRATE                    0X3
 
 /* Field Values */
 #define FV_DMICCTL_DMICEN_ENABLE             0x1
 #define FV_DMICCTL_DMICEN_DISABLE            0x0
-#define FV_DMICCTL_DMONO_STEREO              0x0
-#define FV_DMICCTL_DMONO_MONO                0x1
+#define FV_DMICCTL_DMOANAL_STEREO              0x0
+#define FV_DMICCTL_DMOANAL_MOANAL                0x1
 
 /* Register Masks */
 #define RM_DMICCTL_DMICEN \
 	 RM(FM_DMICCTL_DMICEN, FB_DMICCTL_DMICEN)
 
-#define RM_DMICCTL_DMONO \
-	 RM(FM_DMICCTL_DMONO, FB_DMICCTL_DMONO)
+#define RM_DMICCTL_DMOANAL \
+	 RM(FM_DMICCTL_DMOANAL, FB_DMICCTL_DMOANAL)
 
 #define RM_DMICCTL_DMPHADJ \
 	 RM(FM_DMICCTL_DMPHADJ, FB_DMICCTL_DMPHADJ)
@@ -1342,11 +1342,11 @@ enum {
 #define RV_DMICCTL_DMICEN_DISABLE \
 	 RV(FV_DMICCTL_DMICEN_DISABLE, FB_DMICCTL_DMICEN)
 
-#define RV_DMICCTL_DMONO_STEREO \
-	 RV(FV_DMICCTL_DMONO_STEREO, FB_DMICCTL_DMONO)
+#define RV_DMICCTL_DMOANAL_STEREO \
+	 RV(FV_DMICCTL_DMOANAL_STEREO, FB_DMICCTL_DMOANAL)
 
-#define RV_DMICCTL_DMONO_MONO \
-	 RV(FV_DMICCTL_DMONO_MONO, FB_DMICCTL_DMONO)
+#define RV_DMICCTL_DMOANAL_MOANAL \
+	 RV(FV_DMICCTL_DMOANAL_MOANAL, FB_DMICCTL_DMOANAL)
 
 
 /*****************************

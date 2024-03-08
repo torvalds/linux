@@ -17,8 +17,8 @@ Required properties:
 	3 - YCbCr 8 Bit Interface.
 	4 - YCbCr 16 Bit Interface.
 
-VPFE supports a single port node with parallel bus. It should contain one
-'port' child node with child 'endpoint' node. Please refer to the bindings
+VPFE supports a single port analde with parallel bus. It should contain one
+'port' child analde with child 'endpoint' analde. Please refer to the bindings
 defined in Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 Example:

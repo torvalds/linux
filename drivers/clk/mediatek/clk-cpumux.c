@@ -53,7 +53,7 @@ static int clk_cpumux_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops clk_cpumux_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = clk_cpumux_get_parent,
 	.set_parent = clk_cpumux_set_parent,
 };
@@ -68,7 +68,7 @@ mtk_clk_register_cpumux(struct device *dev, const struct mtk_composite *mux,
 
 	cpumux = kzalloc(sizeof(*cpumux), GFP_KERNEL);
 	if (!cpumux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = mux->name;
 	init.ops = &clk_cpumux_ops;
@@ -103,7 +103,7 @@ static void mtk_clk_unregister_cpumux(struct clk_hw *hw)
 	kfree(cpumux);
 }
 
-int mtk_clk_register_cpumuxes(struct device *dev, struct device_node *node,
+int mtk_clk_register_cpumuxes(struct device *dev, struct device_analde *analde,
 			      const struct mtk_composite *clks, int num,
 			      struct clk_hw_onecell_data *clk_data)
 {
@@ -111,9 +111,9 @@ int mtk_clk_register_cpumuxes(struct device *dev, struct device_node *node,
 	struct clk_hw *hw;
 	struct regmap *regmap;
 
-	regmap = device_node_to_regmap(node);
+	regmap = device_analde_to_regmap(analde);
 	if (IS_ERR(regmap)) {
-		pr_err("Cannot find regmap for %pOF: %pe\n", node, regmap);
+		pr_err("Cananalt find regmap for %pOF: %pe\n", analde, regmap);
 		return PTR_ERR(regmap);
 	}
 
@@ -122,7 +122,7 @@ int mtk_clk_register_cpumuxes(struct device *dev, struct device_node *node,
 
 		if (!IS_ERR_OR_NULL(clk_data->hws[mux->id])) {
 			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
-				node, mux->id);
+				analde, mux->id);
 			continue;
 		}
 
@@ -146,7 +146,7 @@ err:
 			continue;
 
 		mtk_clk_unregister_cpumux(clk_data->hws[mux->id]);
-		clk_data->hws[mux->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[mux->id] = ERR_PTR(-EANALENT);
 	}
 
 	return PTR_ERR(hw);
@@ -165,7 +165,7 @@ void mtk_clk_unregister_cpumuxes(const struct mtk_composite *clks, int num,
 			continue;
 
 		mtk_clk_unregister_cpumux(clk_data->hws[mux->id]);
-		clk_data->hws[mux->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[mux->id] = ERR_PTR(-EANALENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_cpumuxes);

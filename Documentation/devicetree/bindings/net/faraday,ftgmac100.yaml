@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/faraday,ftgmac100.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Faraday Technology FTGMAC100 gigabit ethernet controller
+title: Faraday Techanallogy FTGMAC100 gigabit ethernet controller
 
 allOf:
   - $ref: ethernet-controller.yaml#
@@ -55,10 +55,10 @@ properties:
       for a gigabit link.
     type: boolean
 
-  no-hw-checksum:
+  anal-hw-checksum:
     description:
       Used to disable HW checksum support. Here for backward
-      compatibility as the driver now should have correct defaults based on
+      compatibility as the driver analw should have correct defaults based on
       the SoC.
     type: boolean
     deprecated: true

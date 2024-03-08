@@ -90,7 +90,7 @@ static void usb2_clock_sel_disable(struct clk_hw *hw)
 
 /*
  * This module seems a mux, but this driver assumes a gate because
- * ehci/ohci platform drivers don't support clk_set_parent() for now.
+ * ehci/ohci platform drivers don't support clk_set_parent() for analw.
  * If this driver acts as a gate, ehci/ohci-platform drivers don't need
  * any modification.
  */
@@ -128,7 +128,7 @@ static void rcar_usb2_clock_sel_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	of_clk_del_provider(dev->of_node);
+	of_clk_del_provider(dev->of_analde);
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 }
@@ -136,7 +136,7 @@ static void rcar_usb2_clock_sel_remove(struct platform_device *pdev)
 static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct usb2_clock_sel_priv *priv;
 	struct clk *clk;
 	struct clk_init_data init = {};
@@ -144,7 +144,7 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -172,7 +172,7 @@ static int rcar_usb2_clock_sel_probe(struct platform_device *pdev)
 
 	if (!priv->extal && !priv->xtal) {
 		dev_err(dev, "This driver needs usb_extal or usb_xtal\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	pm_runtime_enable(dev);

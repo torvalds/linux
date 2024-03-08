@@ -547,7 +547,7 @@ static int tpm_tis_send_main(struct tpm_chip *chip, const u8 *buf, size_t len)
 			/* Data transfer done successfully */
 			break;
 		else if (rc != -EIO)
-			/* Data transfer failed, not recoverable */
+			/* Data transfer failed, analt recoverable */
 			return rc;
 	}
 
@@ -654,12 +654,12 @@ static void tpm_tis_update_durations(struct tpm_chip *chip,
 
 		if ((version->major ==
 		     vendor_dur_overrides[i].version.major) &&
-		    (version->minor ==
-		     vendor_dur_overrides[i].version.minor) &&
+		    (version->mianalr ==
+		     vendor_dur_overrides[i].version.mianalr) &&
 		    (version->rev_major ==
 		     vendor_dur_overrides[i].version.rev_major) &&
-		    (version->rev_minor ==
-		     vendor_dur_overrides[i].version.rev_minor)) {
+		    (version->rev_mianalr ==
+		     vendor_dur_overrides[i].version.rev_mianalr)) {
 
 			memcpy(duration_cap,
 			       vendor_dur_overrides[i].durations,
@@ -812,7 +812,7 @@ static irqreturn_t tpm_tis_revert_interrupts(struct tpm_chip *chip)
 	}
 
 	if (tpm_tis_request_locality(chip, 0) != 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	__tpm_tis_disable_interrupts(chip);
 	tpm_tis_relinquish_locality(chip, 0);
@@ -983,7 +983,7 @@ restore_irqs:
 }
 
 /* Try to find the IRQ the TPM is using. This is for legacy x86 systems that
- * do not have ACPI/etc. We typically expect the interrupt to be declared if
+ * do analt have ACPI/etc. We typically expect the interrupt to be declared if
  * present.
  */
 static void tpm_tis_probe_irq(struct tpm_chip *chip, u32 intmask)
@@ -1151,10 +1151,10 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		priv->ilb_base_addr = ioremap(INTEL_LEGACY_BLK_BASE_ADDR,
 					ILB_REMAP_SIZE);
 		if (!priv->ilb_base_addr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		clkrun_val = ioread32(priv->ilb_base_addr + LPC_CNTRL_OFFSET);
-		/* Check if CLKRUN# is already not enabled in the LPC bus */
+		/* Check if CLKRUN# is already analt enabled in the LPC bus */
 		if (!(clkrun_val & LPC_CLKRUN_EN)) {
 			iounmap(priv->ilb_base_addr);
 			priv->ilb_base_addr = NULL;
@@ -1165,7 +1165,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		chip->ops->clk_enable(chip, true);
 
 	if (wait_startup(chip, 0) != 0) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_err;
 	}
 
@@ -1212,7 +1212,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 
 	rc = tpm_tis_request_locality(chip, 0);
 	if (rc < 0) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_err;
 	}
 
@@ -1237,7 +1237,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 
 	probe = probe_itpm(chip);
 	if (probe < 0) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_err;
 	}
 
@@ -1265,8 +1265,8 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		tpm_tis_relinquish_locality(chip, 0);
 
 		if (rc) {
-			dev_err(dev, "Could not get TPM timeouts and durations\n");
-			rc = -ENODEV;
+			dev_err(dev, "Could analt get TPM timeouts and durations\n");
+			rc = -EANALDEV;
 			goto out_err;
 		}
 
@@ -1280,7 +1280,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 			priv->int_mask = intmask;
 		} else {
 			dev_err(&chip->dev, FW_BUG
-					"TPM interrupt not working, polling instead\n");
+					"TPM interrupt analt working, polling instead\n");
 
 			rc = tpm_tis_request_locality(chip, 0);
 			if (rc < 0)
@@ -1345,7 +1345,7 @@ int tpm_tis_resume(struct device *dev)
 
 	/*
 	 * TPM 1.2 requires self-test on resume. This function actually returns
-	 * an error code but for unknown reason it isn't handled.
+	 * an error code but for unkanalwn reason it isn't handled.
 	 */
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
 		tpm1_do_selftest(chip);

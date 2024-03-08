@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -189,7 +189,7 @@ init:
 	nv_iord($r2, NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(1), 0)
 	clear b32 $r3		// track GPC context size here
 
-	// set mmctx base addresses now so we don't have to do it later,
+	// set mmctx base addresses analw so we don't have to do it later,
 	// they don't currently ever change
 	shr b32 $r5 $r2 8
 	nv_iowr(NV_PGRAPH_GPCX_GPCCS_MMCTX_SAVE_SWBASE, 0, $r5)
@@ -301,11 +301,11 @@ main:
 
 	// 0x0000-0x0003 are all context transfers
 	cmpu b32 $r14 0x04
-	bra nc #main_not_ctx_xfer
+	bra nc #main_analt_ctx_xfer
 		// fetch $flags and mask off $p1/$p2
 		mov $r1 $flags
 		mov $r2 0x0006
-		not b32 $r2
+		analt b32 $r2
 		and $r1 $r2
 		// set $p1/$p2 according to transfer type
 		shl b32 $r14 1
@@ -315,7 +315,7 @@ main:
 		call(ctx_xfer)
 		bra #main
 
-	main_not_ctx_xfer:
+	main_analt_ctx_xfer:
 	shl b32 $r15 $r14 16
 	or $r15 E_BAD_COMMAND
 	call(error)
@@ -338,7 +338,7 @@ ih:
 	// incoming fifo command?
 	nv_iord($r10, NV_PGRAPH_GPCX_GPCCS_INTR, 0)
 	and $r11 $r10 NV_PGRAPH_GPCX_GPCCS_INTR_FIFO
-	bra e #ih_no_fifo
+	bra e #ih_anal_fifo
 		// queue incoming fifo command for later processing
 		mov $r13 #cmd_queue
 		nv_iord($r14, NV_PGRAPH_GPCX_GPCCS_FIFO_CMD, 0)
@@ -348,7 +348,7 @@ ih:
 		nv_iowr(NV_PGRAPH_GPCX_GPCCS_FIFO_ACK, 0, $r14)
 
 	// ack, and wake up main()
-	ih_no_fifo:
+	ih_anal_fifo:
 	nv_iowr(NV_PGRAPH_GPCX_GPCCS_INTR_ACK, 0, $r10)
 
 	pop $r15
@@ -376,7 +376,7 @@ hub_barrier_done:
 
 // Disables various things, waits a bit, and re-enables them..
 //
-// Not sure how exactly this helps, perhaps "ENABLE" is not such a
+// Analt sure how exactly this helps, perhaps "ENABLE" is analt such a
 // good description for the bits we turn off?  Anyways, without this,
 // funny things happen.
 //
@@ -406,9 +406,9 @@ ctx_xfer:
 #if CHIPSET >= GM107
 	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_MEM_BASE, $r15)
 #endif
-	bra not $p1 #ctx_xfer_not_load
+	bra analt $p1 #ctx_xfer_analt_load
 		call(ctx_redswitch)
-	ctx_xfer_not_load:
+	ctx_xfer_analt_load:
 
 	// strands
 	call(strand_pre)
@@ -435,7 +435,7 @@ ctx_xfer:
 	add b32 $r11 $r12	// base = NV_PGRAPH_GPCn
 	ld b32 $r12 D[$r0 + #gpc_mmio_list_head]
 	ld b32 $r13 D[$r0 + #gpc_mmio_list_tail]
-	mov $r14 0		// not multi
+	mov $r14 0		// analt multi
 	call(mmctx_xfer)
 
 	// per-TPC mmio context
@@ -475,10 +475,10 @@ ctx_xfer:
 #endif
 
 	// if load, or a save without a load following, do some
-	// unknown stuff that's done after finishing a block of
+	// unkanalwn stuff that's done after finishing a block of
 	// strand commands
 	bra $p1 #ctx_xfer_post
-	bra not $p2 #ctx_xfer_done
+	bra analt $p2 #ctx_xfer_done
 	ctx_xfer_post:
 		call(strand_post)
 #if CHIPSET >= GM107

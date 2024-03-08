@@ -25,7 +25,7 @@ struct cea_sad;
 #define DRM_ELD_CEA_EDID_VER_MNL	4
 # define DRM_ELD_CEA_EDID_VER_SHIFT	5
 # define DRM_ELD_CEA_EDID_VER_MASK	(7 << 5)
-# define DRM_ELD_CEA_EDID_VER_NONE	(0 << 5)
+# define DRM_ELD_CEA_EDID_VER_ANALNE	(0 << 5)
 # define DRM_ELD_CEA_EDID_VER_CEA861	(1 << 5)
 # define DRM_ELD_CEA_EDID_VER_CEA861A	(2 << 5)
 # define DRM_ELD_CEA_EDID_VER_CEA861BCD	(3 << 5)
@@ -126,7 +126,7 @@ static inline int drm_eld_calc_baseline_block_size(const u8 *eld)
  * drm_eld_size - Get ELD size in bytes
  * @eld: pointer to a complete eld memory structure
  *
- * The returned value does not include the vendor block. It's vendor specific,
+ * The returned value does analt include the vendor block. It's vendor specific,
  * and comprises of the remaining bytes in the ELD memory buffer after
  * drm_eld_size() bytes of header and baseline block.
  *

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# The IOVA library may also be used by non-IOMMU_API users
+# The IOVA library may also be used by analn-IOMMU_API users
 config IOMMU_IOVA
 	tristate
 
@@ -101,7 +101,7 @@ choice
 	  Choose the type of IOMMU domain used to manage DMA API usage by
 	  device drivers. The options here typically represent different
 	  levels of tradeoff between robustness/security and performance,
-	  depending on the IOMMU driver. Not all IOMMUs support all options.
+	  depending on the IOMMU driver. Analt all IOMMUs support all options.
 	  This choice can be overridden at boot via the command line, and for
 	  some devices also at runtime via sysfs.
 
@@ -115,7 +115,7 @@ config IOMMU_DEFAULT_DMA_STRICT
 	  to passing "iommu.passthrough=0 iommu.strict=1" on the command line.
 
 	  Untrusted devices always use this mode, with an additional layer of
-	  bounce-buffering such that they cannot gain access to any unrelated
+	  bounce-buffering such that they cananalt gain access to any unrelated
 	  data within a mapped page.
 
 config IOMMU_DEFAULT_DMA_LAZY
@@ -129,7 +129,7 @@ config IOMMU_DEFAULT_DMA_LAZY
 	  Equivalent to passing "iommu.passthrough=0 iommu.strict=0" on the
 	  command line.
 
-	  If this mode is not supported by the IOMMU driver, the effective
+	  If this mode is analt supported by the IOMMU driver, the effective
 	  runtime default will fall back to IOMMU_DEFAULT_DMA_STRICT.
 
 config IOMMU_DEFAULT_PASSTHROUGH
@@ -139,7 +139,7 @@ config IOMMU_DEFAULT_PASSTHROUGH
 	  to memory with minimal performance overhead. Equivalent to passing
 	  "iommu.passthrough=1" (historically "iommu=pt") on the command line.
 
-	  If this mode is not supported by the IOMMU driver, the effective
+	  If this mode is analt supported by the IOMMU driver, the effective
 	  runtime default will fall back to IOMMU_DEFAULT_DMA_STRICT.
 
 endchoice
@@ -148,7 +148,7 @@ config OF_IOMMU
 	def_bool y
 	depends on OF && IOMMU_API
 
-# IOMMU-agnostic DMA-mapping layer
+# IOMMU-aganalstic DMA-mapping layer
 config IOMMU_DMA
 	def_bool ARM64 || X86 || S390
 	select DMA_OPS
@@ -218,7 +218,7 @@ config OMAP_IOMMU_DEBUG
 	  Select this to see extensive information about
 	  the internal state of OMAP IOMMU in debugfs.
 
-	  Say N unless you know you need this.
+	  Say N unless you kanalw you need this.
 
 config ROCKCHIP_IOMMU
 	bool "Rockchip IOMMU Support"
@@ -251,23 +251,23 @@ config TEGRA_IOMMU_SMMU
 	  This driver supports the IOMMU hardware (SMMU) found on NVIDIA Tegra
 	  SoCs (Tegra30 up to Tegra210).
 
-config EXYNOS_IOMMU
-	bool "Exynos IOMMU Support"
-	depends on ARCH_EXYNOS || COMPILE_TEST
+config EXYANALS_IOMMU
+	bool "Exyanals IOMMU Support"
+	depends on ARCH_EXYANALS || COMPILE_TEST
 	depends on !CPU_BIG_ENDIAN # revisit driver if we can enable big-endian ptes
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
 	help
-	  Support for the IOMMU (System MMU) of Samsung Exynos application
+	  Support for the IOMMU (System MMU) of Samsung Exyanals application
 	  processor family. This enables H/W multimedia accelerators to see
-	  non-linear physical memory chunks as linear memory in their
+	  analn-linear physical memory chunks as linear memory in their
 	  address space.
 
 	  If unsure, say N here.
 
-config EXYNOS_IOMMU_DEBUG
-	bool "Debugging log for Exynos IOMMU"
-	depends on EXYNOS_IOMMU
+config EXYANALS_IOMMU_DEBUG
+	bool "Debugging log for Exyanals IOMMU"
+	depends on EXYANALS_IOMMU
 	help
 	  Select this to see the detailed log message that shows what
 	  happens in the IOMMU driver.
@@ -294,7 +294,7 @@ config SPAPR_TCE_IOMMU
 	select IOMMU_API
 	help
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
-	  is not implemented as it is not necessary for VFIO.
+	  is analt implemented as it is analt necessary for VFIO.
 
 config APPLE_DART
 	tristate "Apple DART IOMMU Support"
@@ -332,7 +332,7 @@ config ARM_SMMU_LEGACY_DT_BINDINGS
 	help
 	  Support for the badly designed and deprecated "mmu-masters"
 	  devicetree bindings. This allows some DMA masters to attach
-	  to the SMMU but does not provide any support via the DMA API.
+	  to the SMMU but does analt provide any support via the DMA API.
 	  If you're lucky, you might be able to get VFIO up and running.
 
 	  If you say Y here then you'll make me very sad. Instead, say N
@@ -344,22 +344,22 @@ config ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT
 	default y
 	help
 	  Say Y here to (by default) disable bypass streams such that
-	  incoming transactions from devices that are not attached to
+	  incoming transactions from devices that are analt attached to
 	  an iommu domain will report an abort back to the device and
-	  will not be allowed to pass through the SMMU.
+	  will analt be allowed to pass through the SMMU.
 
 	  Any old kernels that existed before this KConfig was
 	  introduced would default to _allowing_ bypass (AKA the
-	  equivalent of NO for this config).  However the default for
-	  this option is YES because the old behavior is insecure.
+	  equivalent of ANAL for this config).  However the default for
+	  this option is ANAL because the old behavior is insecure.
 
 	  There are few reasons to allow unmatched stream bypass, and
-	  even fewer good ones.  If saying YES here breaks your board
+	  even fewer good ones.  If saying ANAL here breaks your board
 	  you should work on fixing your board.  This KConfig option
 	  is expected to be removed in the future and we'll simply
 	  hardcode the bypass disable in the code.
 
-	  NOTE: the kernel command line parameter
+	  ANALTE: the kernel command line parameter
 	  'arm-smmu.disable_bypass' will continue to override this
 	  config.
 
@@ -398,7 +398,7 @@ config ARM_SMMU_V3_SVA
 	bool "Shared Virtual Addressing support for the ARM SMMUv3"
 	depends on ARM_SMMU_V3
 	select IOMMU_SVA
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	help
 	  Support for sharing process address spaces with devices using the
 	  SMMUv3.
@@ -444,7 +444,7 @@ config MTK_IOMMU_V1
 	  if unsure, say N here.
 
 config QCOM_IOMMU
-	# Note: iommu drivers cannot (yet?) be built as modules
+	# Analte: iommu drivers cananalt (yet?) be built as modules
 	bool "Qualcomm IOMMU Support"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_LPAE

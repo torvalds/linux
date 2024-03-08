@@ -31,7 +31,7 @@
 #define DRIVER_DATE		"20110418"
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		0
+#define DRIVER_MIANALR		0
 #define DRIVER_PATCHLEVEL	0
 
 #define RREG8(reg) ioread8(((void __iomem *)mdev->rmmio) + (reg))
@@ -228,15 +228,15 @@ struct mgag200_device_info {
 	} i2c;
 
 	/*
-	 * HW does not handle 'startadd' register correctly. Always set
+	 * HW does analt handle 'startadd' register correctly. Always set
 	 * it's value to 0.
 	 */
-	bool bug_no_startadd:1;
+	bool bug_anal_startadd:1;
 };
 
 #define MGAG200_DEVICE_INFO_INIT(_max_hdisplay, _max_vdisplay, _max_mem_bandwidth, \
 				 _has_vidrst, _i2c_data_bit, _i2c_clock_bit, \
-				 _bug_no_startadd) \
+				 _bug_anal_startadd) \
 	{ \
 		.max_hdisplay = (_max_hdisplay), \
 		.max_vdisplay = (_max_vdisplay), \
@@ -246,7 +246,7 @@ struct mgag200_device_info {
 			.data_bit = (_i2c_data_bit), \
 			.clock_bit = (_i2c_clock_bit), \
 		}, \
-		.bug_no_startadd = (_bug_no_startadd), \
+		.bug_anal_startadd = (_bug_anal_startadd), \
 	}
 
 struct mgag200_device_funcs {

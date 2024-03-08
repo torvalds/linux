@@ -5,7 +5,7 @@ config SMC
 	depends on m || ISM != m
 	help
 	  SMC-R provides a "sockets over RDMA" solution making use of
-	  RDMA over Converged Ethernet (RoCE) technology to upgrade
+	  RDMA over Converged Ethernet (RoCE) techanallogy to upgrade
 	  AF_INET TCP connections transparently.
 	  The Linux implementation of the SMC-R solution is designed as
 	  a separate socket family SMC.

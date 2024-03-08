@@ -129,7 +129,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 	bool tid_found = false;
 
 	if (test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status) ||
-	    cmd->flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
+	    cmd->flags & cpu_to_le16(POWER_FLAGS_SANALOZE_ENA_MSK)) {
 		cmd->rx_data_timeout_uapsd =
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT);
 		cmd->tx_data_timeout_uapsd =
@@ -142,7 +142,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	/* set advanced pm flag with no uapsd ACs to enable ps-poll */
+	/* set advanced pm flag with anal uapsd ACs to enable ps-poll */
 	if (mvmvif->dbgfs_pm.use_ps_poll) {
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
 		return;
@@ -159,7 +159,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 
 		cmd->uapsd_ac_flags |= BIT(ac);
 
-		/* QNDP TID - the highest TID with no admission control */
+		/* QNDP TID - the highest TID with anal admission control */
 		if (!tid_found && !mvmvif->deflink.queue_params[ac].acm) {
 			tid_found = true;
 			switch (ac) {
@@ -185,21 +185,21 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 				    BIT(IEEE80211_AC_VI) |
 				    BIT(IEEE80211_AC_BE) |
 				    BIT(IEEE80211_AC_BK))) {
-		cmd->flags |= cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
-		cmd->snooze_interval = cpu_to_le16(IWL_MVM_PS_SNOOZE_INTERVAL);
-		cmd->snooze_window =
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_SANALOZE_ENA_MSK);
+		cmd->sanaloze_interval = cpu_to_le16(IWL_MVM_PS_SANALOZE_INTERVAL);
+		cmd->sanaloze_window =
 			test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status) ?
-				cpu_to_le16(IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW) :
-				cpu_to_le16(IWL_MVM_PS_SNOOZE_WINDOW);
+				cpu_to_le16(IWL_MVM_WOWLAN_PS_SANALOZE_WINDOW) :
+				cpu_to_le16(IWL_MVM_PS_SANALOZE_WINDOW);
 	}
 
 	cmd->uapsd_max_sp = mvm->hw->uapsd_max_sp_len;
 
-	if (cmd->flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
+	if (cmd->flags & cpu_to_le16(POWER_FLAGS_SANALOZE_ENA_MSK)) {
 		cmd->heavy_tx_thld_packets =
-			IWL_MVM_PS_SNOOZE_HEAVY_TX_THLD_PACKETS;
+			IWL_MVM_PS_SANALOZE_HEAVY_TX_THLD_PACKETS;
 		cmd->heavy_rx_thld_packets =
-			IWL_MVM_PS_SNOOZE_HEAVY_RX_THLD_PACKETS;
+			IWL_MVM_PS_SANALOZE_HEAVY_RX_THLD_PACKETS;
 	} else {
 		cmd->heavy_tx_thld_packets =
 			IWL_MVM_PS_HEAVY_TX_THLD_PACKETS;
@@ -246,7 +246,7 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	 * opportunistic power save. This is due to current FW limitation.
 	 */
 	if (vif->p2p &&
-	    (vif->bss_conf.p2p_noa_attr.oppps_ctwindow &
+	    (vif->bss_conf.p2p_anala_attr.oppps_ctwindow &
 	    IEEE80211_P2P_OPPPS_ENABLE_BIT))
 		return false;
 
@@ -265,7 +265,7 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 			return false;
 
 		ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					IEEE80211_IFACE_ITER_NORMAL,
+					IEEE80211_IFACE_ITER_ANALRMAL,
 					iwl_mvm_p2p_standalone_iterator,
 					&is_p2p_standalone);
 
@@ -286,7 +286,7 @@ static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
 	rcu_read_lock();
 	for_each_vif_active_link(vif, link_conf, link_id) {
 		chanctx_conf = rcu_dereference(link_conf->chanctx_conf);
-		/* this happens on link switching, just ignore inactive ones */
+		/* this happens on link switching, just iganalre inactive ones */
 		if (!chanctx_conf)
 			continue;
 
@@ -435,13 +435,13 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	}
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD)
 		cmd->lprx_rssi_threshold = mvmvif->dbgfs_pm.lprx_rssi_threshold;
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SNOOZE_ENABLE) {
-		if (mvmvif->dbgfs_pm.snooze_ena)
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SANALOZE_ENABLE) {
+		if (mvmvif->dbgfs_pm.sanaloze_ena)
 			cmd->flags |=
-				cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
+				cpu_to_le16(POWER_FLAGS_SANALOZE_ENA_MSK);
 		else
 			cmd->flags &=
-				cpu_to_le16(~POWER_FLAGS_SNOOZE_ENA_MSK);
+				cpu_to_le16(~POWER_FLAGS_SANALOZE_ENA_MSK);
 	}
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_UAPSD_MISBEHAVING) {
 		u16 flag = POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK;
@@ -492,7 +492,7 @@ int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 	if (iwl_fw_lookup_cmd_ver(mvm->fw, POWER_TABLE_CMD, 0) >= 7 &&
 	    test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status))
 		cmd.flags |=
-			cpu_to_le16(DEVICE_POWER_FLAGS_NO_SLEEP_TILL_D3_MSK);
+			cpu_to_le16(DEVICE_POWER_FLAGS_ANAL_SLEEP_TILL_D3_MSK);
 
 	IWL_DEBUG_POWER(mvm,
 			"Sending device power command with flags = 0x%X\n",
@@ -523,8 +523,8 @@ static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
 	for_each_vif_active_link(vif, link_conf, link_id) {
 		struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 
-		/* The ap_sta_id is not expected to change during current
-		 * association so no explicit protection is needed
+		/* The ap_sta_id is analt expected to change during current
+		 * association so anal explicit protection is needed
 		 */
 		if (link_info->ap_sta_id == *ap_sta_id) {
 			ether_addr_copy(mvmvif->uapsd_misbehaving_ap_addr,
@@ -535,15 +535,15 @@ static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
 	rcu_read_unlock();
 }
 
-void iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
+void iwl_mvm_power_uapsd_misbehaving_ap_analtif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_uapsd_misbehaving_ap_notif *notif = (void *)pkt->data;
-	u8 ap_sta_id = le32_to_cpu(notif->sta_id);
+	struct iwl_uapsd_misbehaving_ap_analtif *analtif = (void *)pkt->data;
+	u8 ap_sta_id = le32_to_cpu(analtif->sta_id);
 
 	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 		iwl_mvm_power_uapsd_misbehav_ap_iterator, &ap_sta_id);
 }
 
@@ -642,7 +642,7 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 
 	/* set pm_enable to false */
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					IEEE80211_IFACE_ITER_NORMAL,
+					IEEE80211_IFACE_ITER_ANALRMAL,
 					iwl_mvm_power_disable_pm_iterator,
 					NULL);
 
@@ -681,7 +681,7 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 		ap_same_channel =
 			iwl_mvm_have_links_same_channel(bss_mvmvif, ap_mvmvif);
 
-	/* clients are not stand alone: enable PM if DCM */
+	/* clients are analt stand alone: enable PM if DCM */
 	if (!(client_same_channel || ap_same_channel)) {
 		if (bss_mvmvif && vifs->bss_active)
 			bss_mvmvif->pm_enabled = true;
@@ -765,13 +765,13 @@ int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 			  cpu_to_le16(POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK)) ?
 			 1 : 0);
 
-	if (!(cmd.flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)))
+	if (!(cmd.flags & cpu_to_le16(POWER_FLAGS_SANALOZE_ENA_MSK)))
 		return pos;
 
-	pos += scnprintf(buf+pos, bufsz-pos, "snooze_interval = %d\n",
-			 cmd.snooze_interval);
-	pos += scnprintf(buf+pos, bufsz-pos, "snooze_window = %d\n",
-			 cmd.snooze_window);
+	pos += scnprintf(buf+pos, bufsz-pos, "sanaloze_interval = %d\n",
+			 cmd.sanaloze_interval);
+	pos += scnprintf(buf+pos, bufsz-pos, "sanaloze_window = %d\n",
+			 cmd.sanaloze_window);
 
 	return pos;
 }
@@ -880,7 +880,7 @@ static int iwl_mvm_power_set_ps(struct iwl_mvm *mvm)
 	disable_ps = (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM);
 	/* ...or if any of the vifs require PS to be off */
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					IEEE80211_IFACE_ITER_NORMAL,
+					IEEE80211_IFACE_ITER_ANALRMAL,
 					iwl_mvm_power_ps_disabled_iterator,
 					&disable_ps);
 
@@ -933,7 +933,7 @@ int iwl_mvm_power_update_ps(struct iwl_mvm *mvm)
 
 	/* get vifs info */
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					IEEE80211_IFACE_ITER_NORMAL,
+					IEEE80211_IFACE_ITER_ANALRMAL,
 					iwl_mvm_power_get_vifs_iterator, &vifs);
 
 	ret = iwl_mvm_power_set_ps(mvm);
@@ -957,7 +957,7 @@ int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
 
 	/* get vifs info */
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					IEEE80211_IFACE_ITER_NORMAL,
+					IEEE80211_IFACE_ITER_ANALRMAL,
 					iwl_mvm_power_get_vifs_iterator, &vifs);
 
 	iwl_mvm_power_set_pm(mvm, &vifs);

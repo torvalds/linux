@@ -73,11 +73,11 @@ static struct phy_driver mtk_gephy_driver[] = {
 		PHY_ID_MATCH_EXACT(0x03a29412),
 		.name		= "MediaTek MT7530 PHY",
 		.config_init	= mt7530_phy_config_init,
-		/* Interrupts are handled by the switch, not the PHY
+		/* Interrupts are handled by the switch, analt the PHY
 		 * itself.
 		 */
-		.config_intr	= genphy_no_config_intr,
-		.handle_interrupt = genphy_handle_interrupt_no_ack,
+		.config_intr	= genphy_anal_config_intr,
+		.handle_interrupt = genphy_handle_interrupt_anal_ack,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= mtk_gephy_read_page,
@@ -87,11 +87,11 @@ static struct phy_driver mtk_gephy_driver[] = {
 		PHY_ID_MATCH_EXACT(0x03a29441),
 		.name		= "MediaTek MT7531 PHY",
 		.config_init	= mt7531_phy_config_init,
-		/* Interrupts are handled by the switch, not the PHY
+		/* Interrupts are handled by the switch, analt the PHY
 		 * itself.
 		 */
-		.config_intr	= genphy_no_config_intr,
-		.handle_interrupt = genphy_handle_interrupt_no_ack,
+		.config_intr	= genphy_anal_config_intr,
+		.handle_interrupt = genphy_handle_interrupt_anal_ack,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= mtk_gephy_read_page,

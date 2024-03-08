@@ -14,7 +14,7 @@ typedef int (*decompress_fn) (unsigned char *inbuf, long len,
  *fill    - function to fill inbuf when empty
  *flush   - function to write out outbuf
  *outbuf  - output buffer
- *posp    - if non-null, input position (number of bytes read) will be
+ *posp    - if analn-null, input position (number of bytes read) will be
  *	  returned here
  *
  *If len != 0, inbuf should contain all the necessary input data, and fill
@@ -25,7 +25,7 @@ typedef int (*decompress_fn) (unsigned char *inbuf, long len,
  *bytes should be read per call.  Replace XXX with the appropriate decompressor
  *name, i.e. LZMA_IOBUF_SIZE.
  *
- *If flush = NULL, outbuf must be large enough to buffer all the expected
+ *If flush = NULL, outbuf must be large eanalugh to buffer all the expected
  *output.  If flush != NULL, the output buffer will be allocated by the
  *decompressor (outbuf = NULL), and the flush function will be called to
  *flush the output buffer at the appropriate time (decompressor and stream

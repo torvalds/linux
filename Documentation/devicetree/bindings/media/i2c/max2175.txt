@@ -8,10 +8,10 @@ Required properties:
 --------------------
 - compatible: "maxim,max2175" for MAX2175 RF-to-bits tuner.
 - clocks: clock specifier.
-- port: child port node corresponding to the I2S output, in accordance with
+- port: child port analde corresponding to the I2S output, in accordance with
 	the video interface bindings defined in
 	Documentation/devicetree/bindings/media/video-interfaces.txt. The port
-	node must contain at least one endpoint.
+	analde must contain at least one endpoint.
 
 Optional properties:
 --------------------
@@ -36,7 +36,7 @@ Example:
 
 Board specific DTS file
 
-/* Fixed XTAL clock node */
+/* Fixed XTAL clock analde */
 maxim_xtal: clock {
 	compatible = "fixed-clock";
 	#clock-cells = <0>;

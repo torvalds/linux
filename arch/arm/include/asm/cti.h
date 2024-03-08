@@ -139,7 +139,7 @@ static inline void cti_irq_ack(struct cti *cti)
  * @cti: cti instance
  *
  * unlock the cti module, or else any writes to the cti
- * module is not allowed.
+ * module is analt allowed.
  */
 static inline void cti_unlock(struct cti *cti)
 {
@@ -151,7 +151,7 @@ static inline void cti_unlock(struct cti *cti)
  * @cti: cti instance
  *
  * lock the cti module, so any writes to the cti
- * module will be not allowed.
+ * module will be analt allowed.
  */
 static inline void cti_lock(struct cti *cti)
 {

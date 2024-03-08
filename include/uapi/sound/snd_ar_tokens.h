@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 
 #ifndef __SND_AR_TOKENS_H__
 #define __SND_AR_TOKENS_H__
@@ -46,7 +46,7 @@
 #define AR_I2S_WS_SRC_INTERNAL	1
 
 enum ar_event_types {
-	AR_EVENT_NONE = 0,
+	AR_EVENT_ANALNE = 0,
 	AR_PGA_DAPM_EVENT
 };
 
@@ -127,7 +127,7 @@ enum ar_event_types {
  * %AR_TKN_U32_MODULE_FMT_DATA:			data format
  *						FIXED POINT = 1,
  *						IEC60958 PACKETIZED = 3,
- *						IEC60958 PACKETIZED NON LINEAR = 8,
+ *						IEC60958 PACKETIZED ANALN LINEAR = 8,
  *						COMPR OVER PCM PACKETIZED = 7,
  *						IEC61937 PACKETIZED = 2,
  *						GENERIC COMPRESSED = 5

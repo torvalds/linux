@@ -89,7 +89,7 @@ struct cfg80211_registered_device {
 	struct delayed_work background_cac_done_wk;
 	struct work_struct background_cac_abort_wk;
 
-	/* netlink port which started critical protocol (0 means not started) */
+	/* netlink port which started critical protocol (0 means analt started) */
 	u32 crit_proto_nlportid;
 
 	struct cfg80211_coalesce *coalesce;
@@ -173,7 +173,7 @@ static inline int for_each_rdev_check_rtnl(void)
 struct cfg80211_internal_bss {
 	struct list_head list;
 	struct list_head hidden_list;
-	struct rb_node rbn;
+	struct rb_analde rbn;
 	u64 ts_boottime;
 	unsigned long ts;
 	unsigned long refcount;
@@ -298,7 +298,7 @@ struct cfg80211_cqm_config {
 	s32 rssi_thresholds[] __counted_by(n_rssi_thresholds);
 };
 
-void cfg80211_cqm_rssi_notify_work(struct wiphy *wiphy,
+void cfg80211_cqm_rssi_analtify_work(struct wiphy *wiphy,
 				   struct wiphy_work *work);
 
 void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev);
@@ -323,9 +323,9 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
 			 struct cfg80211_ibss_params *params,
 			 struct cfg80211_cached_keys *connkeys);
-void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
+void cfg80211_clear_ibss(struct net_device *dev, bool analwext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
-			struct net_device *dev, bool nowext);
+			struct net_device *dev, bool analwext);
 void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 			    struct ieee80211_channel *channel);
 int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
@@ -354,7 +354,7 @@ int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
 /* AP */
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev, int link,
-		     bool notify);
+		     bool analtify);
 
 /* MLME */
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
@@ -458,7 +458,7 @@ int cfg80211_scan(struct cfg80211_registered_device *rdev);
 
 extern struct work_struct cfg80211_disconnect_work;
 
-#define NL80211_BSS_USE_FOR_ALL	(NL80211_BSS_USE_FOR_NORMAL | \
+#define NL80211_BSS_USE_FOR_ALL	(NL80211_BSS_USE_FOR_ANALRMAL | \
 				 NL80211_BSS_USE_FOR_MLD_LINK)
 
 void cfg80211_set_dfs_state(struct wiphy *wiphy,
@@ -533,8 +533,8 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 #else
 /*
  * Trick to enable using it as a condition,
- * and also not give a warning when it's
- * not used that way.
+ * and also analt give a warning when it's
+ * analt used that way.
  */
 #define CFG80211_DEV_WARN_ON(cond)	({bool __r = (cond); __r; })
 #endif

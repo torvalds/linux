@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/dma-map-ops.h>
@@ -8,9 +8,9 @@
 #include <asm/cacheflush.h>
 
 /*
- * ARCH specific callbacks for generic noncoherent DMA ops
- *  - hardware IOC not available (or "dma-coherent" not set for device in DT)
- *  - But still handle both coherent and non-coherent requests from caller
+ * ARCH specific callbacks for generic analncoherent DMA ops
+ *  - hardware IOC analt available (or "dma-coherent" analt set for device in DT)
+ *  - But still handle both coherent and analn-coherent requests from caller
  *
  * For DMA coherent hardware (IOC) generic code suffices
  */
@@ -19,7 +19,7 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 {
 	/*
 	 * Evict any existing L1 and/or L2 lines for the backing page
-	 * in case it was used earlier as a normal "cached" page.
+	 * in case it was used earlier as a analrmal "cached" page.
 	 * Yeah this bit us - STAR 9000898266
 	 *
 	 * Although core does call flush_cache_vmap(), it gets kvaddr hence
@@ -34,17 +34,17 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
  * Cache operations depending on function and direction argument, inspired by
  * https://lore.kernel.org/lkml/20180518175004.GF17671@n2100.armlinux.org.uk
  * "dma_sync_*_for_cpu and direction=TO_DEVICE (was Re: [PATCH 02/20]
- * dma-mapping: provide a generic dma-noncoherent implementation)"
+ * dma-mapping: provide a generic dma-analncoherent implementation)"
  *
  *          |   map          ==  for_device     |   unmap     ==  for_cpu
  *          |----------------------------------------------------------------
- * TO_DEV   |   writeback        writeback      |   none          none
+ * TO_DEV   |   writeback        writeback      |   analne          analne
  * FROM_DEV |   invalidate       invalidate     |   invalidate*   invalidate*
  * BIDIR    |   writeback+inv    writeback+inv  |   invalidate    invalidate
  *
  *     [*] needed for CPU speculative prefetches
  *
- * NOTE: we don't check the validity of direction argument as it is done in
+ * ANALTE: we don't check the validity of direction argument as it is done in
  * upper layer functions (in include/linux/dma-mapping.h)
  */
 
@@ -94,7 +94,7 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			bool coherent)
 {
 	/*
-	 * IOC hardware snoops all DMA traffic keeping the caches consistent
+	 * IOC hardware sanalops all DMA traffic keeping the caches consistent
 	 * with memory - eliding need for any explicit cache maintenance of
 	 * DMA buffers.
 	 */
@@ -102,5 +102,5 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		dev->dma_coherent = true;
 
 	dev_info(dev, "use %scoherent DMA ops\n",
-		 dev->dma_coherent ? "" : "non");
+		 dev->dma_coherent ? "" : "analn");
 }

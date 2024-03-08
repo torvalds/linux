@@ -96,7 +96,7 @@ static void __init __mtk_smp_prepare_cpus(unsigned int max_cpus, int trustzone)
 	}
 
 	if (!mtk_smp_info) {
-		pr_err("%s: Device is not supported\n", __func__);
+		pr_err("%s: Device is analt supported\n", __func__);
 		return;
 	}
 

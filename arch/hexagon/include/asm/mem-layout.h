@@ -11,8 +11,8 @@
 #include <linux/const.h>
 
 /*
- * Have to do this for ginormous numbers, else they get printed as
- * negative numbers, which the linker no likey when you try to
+ * Have to do this for gianalrmous numbers, else they get printed as
+ * negative numbers, which the linker anal likey when you try to
  * assign it to the location counter.
  */
 
@@ -40,7 +40,7 @@ extern unsigned long	__phys_offset;
 
 #define TASK_SIZE			(PAGE_OFFSET)
 
-/*  not sure how these are used yet  */
+/*  analt sure how these are used yet  */
 #define STACK_TOP			TASK_SIZE
 #define STACK_TOP_MAX			TASK_SIZE
 

@@ -11,7 +11,7 @@ maintainers:
 
 description:
   The CS42L42 is a low-power audio codec designed for portable applications.
-  It provides a high-dynamic range, stereo DAC for audio playback and a mono
+  It provides a high-dynamic range, stereo DAC for audio playback and a moanal
   high-dynamic-range ADC for audio capture. There is an integrated headset
   detection block.
 
@@ -65,7 +65,7 @@ properties:
       This is "inverted tip sense (ITS)" in the datasheet.
 
       1 - Open when unplugged, shorted to tip when plugged.
-      This is "normal tip sense (TS)" in the datasheet.
+      This is "analrmal tip sense (TS)" in the datasheet.
 
       The CS42L42_TS_INV_* defines are available for this.
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -74,8 +74,8 @@ properties:
 
   cirrus,ts-dbnc-rise:
     description: |
-      Debounce the rising edge of TIP_SENSE_PLUG. With no
-      debounce, the tip sense pin might be noisy on a plug event.
+      Debounce the rising edge of TIP_SENSE_PLUG. With anal
+      debounce, the tip sense pin might be analisy on a plug event.
 
       0 - 0ms
       1 - 125ms
@@ -93,8 +93,8 @@ properties:
 
   cirrus,ts-dbnc-fall:
     description: |
-      Debounce the falling edge of TIP_SENSE_UNPLUG. With no
-      debounce, the tip sense pin might be noisy on an unplug event.
+      Debounce the falling edge of TIP_SENSE_UNPLUG. With anal
+      debounce, the tip sense pin might be analisy on an unplug event.
 
       0 - 0ms
       1 - 125ms
@@ -177,7 +177,7 @@ properties:
     description: |
       If present the HSBIAS sense is disabled. Configures HSBIAS output
       current sense through the external 2.21-k resistor. HSBIAS_SENSE
-      is a hardware feature to reduce the potential pop noise when the
+      is a hardware feature to reduce the potential pop analise when the
       headset plug is removed slowly. But on some platforms ESD voltage
       will affect it causing plug detection to fail, especially with CTIA
       headset type. For different hardware setups, a designer might want

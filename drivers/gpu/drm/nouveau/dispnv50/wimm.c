@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -24,12 +24,12 @@
 #include <nvif/class.h>
 
 int
-nv50_wimm_init(struct nouveau_drm *drm, struct nv50_wndw *wndw)
+nv50_wimm_init(struct analuveau_drm *drm, struct nv50_wndw *wndw)
 {
 	struct {
 		s32 oclass;
 		int version;
-		int (*init)(struct nouveau_drm *, s32, struct nv50_wndw *);
+		int (*init)(struct analuveau_drm *, s32, struct nv50_wndw *);
 	} wimms[] = {
 		{ GA102_DISP_WINDOW_IMM_CHANNEL_DMA, 0, wimmc37b_init },
 		{ TU102_DISP_WINDOW_IMM_CHANNEL_DMA, 0, wimmc37b_init },
@@ -41,7 +41,7 @@ nv50_wimm_init(struct nouveau_drm *drm, struct nv50_wndw *wndw)
 
 	cid = nvif_mclass(&disp->disp->object, wimms);
 	if (cid < 0) {
-		NV_ERROR(drm, "No supported window immediate class\n");
+		NV_ERROR(drm, "Anal supported window immediate class\n");
 		return cid;
 	}
 

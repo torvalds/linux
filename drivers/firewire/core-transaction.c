@@ -8,7 +8,7 @@
 #include <linux/bug.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/fs.h>
@@ -58,7 +58,7 @@
 #define PHY_PACKET_SELF_ID	0x2
 
 #define PHY_CONFIG_GAP_COUNT(gap_count)	(((gap_count) << 16) | (1 << 22))
-#define PHY_CONFIG_ROOT_ID(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
+#define PHY_CONFIG_ROOT_ID(analde_id)	((((analde_id) & 0x3f) << 24) | (1 << 23))
 #define PHY_IDENTIFIER(id)		((id) << 30)
 
 /* returns 0 if the split timeout handler is already running */
@@ -102,7 +102,7 @@ static int close_transaction(struct fw_transaction *transaction, struct fw_card 
 	}
 
  timed_out:
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
@@ -129,7 +129,7 @@ int fw_cancel_transaction(struct fw_card *card,
 	 */
 
 	if (transaction->packet.ack == 0) {
-		// The timestamp is reused since it was just read now.
+		// The timestamp is reused since it was just read analw.
 		tstamp = transaction->packet.timestamp;
 	} else {
 		u32 curr_cycle_time = 0;
@@ -321,35 +321,35 @@ static int allocate_tlabel(struct fw_card *card)
  * @card:		interface to send the request at
  * @t:			transaction instance to which the request belongs
  * @tcode:		transaction code
- * @destination_id:	destination node ID, consisting of bus_ID and phy_ID
+ * @destination_id:	destination analde ID, consisting of bus_ID and phy_ID
  * @generation:		bus generation in which request and response are valid
  * @speed:		transmission speed
  * @offset:		48bit wide offset into destination's address space
  * @payload:		data payload for the request subaction
  * @length:		length of the payload, in bytes
- * @callback:		union of two functions whether to receive time stamp or not for response
+ * @callback:		union of two functions whether to receive time stamp or analt for response
  *			subaction.
- * @with_tstamp:	Whether to receive time stamp or not for response subaction.
+ * @with_tstamp:	Whether to receive time stamp or analt for response subaction.
  * @callback_data:	data to be passed to the transaction completion callback
  *
- * Submit a request packet into the asynchronous request transmission queue.
+ * Submit a request packet into the asynchroanalus request transmission queue.
  * Can be called from atomic context.  If you prefer a blocking API, use
  * fw_run_transaction() in a context that can sleep.
  *
  * In case of lock requests, specify one of the firewire-core specific %TCODE_
  * constants instead of %TCODE_LOCK_REQUEST in @tcode.
  *
- * Make sure that the value in @destination_id is not older than the one in
- * @generation.  Otherwise the request is in danger to be sent to a wrong node.
+ * Make sure that the value in @destination_id is analt older than the one in
+ * @generation.  Otherwise the request is in danger to be sent to a wrong analde.
  *
- * In case of asynchronous stream packets i.e. %TCODE_STREAM_DATA, the caller
+ * In case of asynchroanalus stream packets i.e. %TCODE_STREAM_DATA, the caller
  * needs to synthesize @destination_id with fw_stream_packet_destination_id().
- * It will contain tag, channel, and sy data instead of a node ID then.
+ * It will contain tag, channel, and sy data instead of a analde ID then.
  *
  * The payload buffer at @data is going to be DMA-mapped except in case of
  * @length <= 8 or of local (loopback) requests.  Hence make sure that the
  * buffer complies with the restrictions of the streaming DMA mapping API.
- * @payload must not be freed before the @callback is called.
+ * @payload must analt be freed before the @callback is called.
  *
  * In case of request types without payload, @data is NULL and @length is 0.
  *
@@ -358,10 +358,10 @@ static int allocate_tlabel(struct fw_card *card)
  * is either one of the rcodes per IEEE 1394 or, in case of internal errors,
  * the firewire-core specific %RCODE_SEND_ERROR.  The other firewire-core
  * specific rcodes (%RCODE_CANCELLED, %RCODE_BUSY, %RCODE_GENERATION,
- * %RCODE_NO_ACK) denote transaction timeout, busy responder, stale request
+ * %RCODE_ANAL_ACK) deanalte transaction timeout, busy responder, stale request
  * generation, or missing ACK respectively.
  *
- * Note some timing corner cases:  fw_send_request() may complete much earlier
+ * Analte some timing corner cases:  fw_send_request() may complete much earlier
  * than when the request packet actually hits the wire.  On the other hand,
  * transaction completion and hence execution of @callback may happen even
  * before fw_send_request() returns.
@@ -400,7 +400,7 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 		return;
 	}
 
-	t->node_id = destination_id;
+	t->analde_id = destination_id;
 	t->tlabel = tlabel;
 	t->card = card;
 	t->is_split_transaction = false;
@@ -409,7 +409,7 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 	t->with_tstamp = with_tstamp;
 	t->callback_data = callback_data;
 
-	fw_fill_request(&t->packet, tcode, t->tlabel, destination_id, card->node_id, generation,
+	fw_fill_request(&t->packet, tcode, t->tlabel, destination_id, card->analde_id, generation,
 			speed, offset, payload, length);
 	t->packet.callback = transmit_complete_callback;
 
@@ -442,7 +442,7 @@ static void transaction_callback(struct fw_card *card, int rcode,
  * fw_run_transaction() - send request and sleep until transaction is completed
  * @card:		card interface for this request
  * @tcode:		transaction code
- * @destination_id:	destination node ID, consisting of bus_ID and phy_ID
+ * @destination_id:	destination analde ID, consisting of bus_ID and phy_ID
  * @generation:		bus generation in which request and response are valid
  * @speed:		transmission speed
  * @offset:		48bit wide offset into destination's address space
@@ -452,7 +452,7 @@ static void transaction_callback(struct fw_card *card, int rcode,
  * Returns the RCODE.  See fw_send_request() for parameter documentation.
  * Unlike fw_send_request(), @data points to the payload of the request or/and
  * to the payload of the response.  DMA mapping restrictions apply to outbound
- * request payloads of >= 8 bytes but not to inbound response payloads.
+ * request payloads of >= 8 bytes but analt to inbound response payloads.
  */
 int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 		       int generation, int speed, unsigned long long offset,
@@ -491,13 +491,13 @@ static struct fw_packet phy_config_packet = {
 };
 
 void fw_send_phy_config(struct fw_card *card,
-			int node_id, int generation, int gap_count)
+			int analde_id, int generation, int gap_count)
 {
 	long timeout = DIV_ROUND_UP(HZ, 10);
 	u32 data = PHY_IDENTIFIER(PHY_PACKET_CONFIG);
 
-	if (node_id != FW_PHY_CONFIG_NO_NODE_ID)
-		data |= PHY_CONFIG_ROOT_ID(node_id);
+	if (analde_id != FW_PHY_CONFIG_ANAL_ANALDE_ID)
+		data |= PHY_CONFIG_ROOT_ID(analde_id);
 
 	if (gap_count == FW_PHY_CONFIG_CURRENT_GAP_COUNT) {
 		gap_count = card->driver->read_phy_reg(card, 1);
@@ -580,7 +580,7 @@ const struct fw_address_region fw_unit_space_region =
 /**
  * fw_core_add_address_handler() - register for incoming requests
  * @handler:	callback
- * @region:	region in the IEEE 1212 node space address range
+ * @region:	region in the IEEE 1212 analde space address range
  *
  * region->start, ->end, and handler->length have to be quadlet-aligned.
  *
@@ -589,7 +589,7 @@ const struct fw_address_region fw_unit_space_region =
  * give the details of the particular request.
  *
  * To be called in process context.
- * Return value:  0 on success, non-zero otherwise.
+ * Return value:  0 on success, analn-zero otherwise.
  *
  * The start offset of the handler's address region is determined by
  * fw_core_add_address_handler() and is returned in handler->offset.
@@ -641,7 +641,7 @@ EXPORT_SYMBOL(fw_core_add_address_handler);
  * To be called in process context.
  *
  * When fw_core_remove_address_handler() returns, @handler->callback() is
- * guaranteed to not run on any CPU anymore.
+ * guaranteed to analt run on any CPU anymore.
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
@@ -684,7 +684,7 @@ static void free_response_callback(struct fw_packet *packet,
 {
 	struct fw_request *request = container_of(packet, struct fw_request, response);
 
-	// Decrease the reference count since not at in-flight.
+	// Decrease the reference count since analt at in-flight.
 	fw_request_put(request);
 
 	// Decrease the reference count to release the object.
@@ -831,7 +831,7 @@ static struct fw_request *allocate_request(struct fw_card *card,
 		break;
 
 	default:
-		fw_notice(card, "ERROR - corrupt request received - %08x %08x %08x\n",
+		fw_analtice(card, "ERROR - corrupt request received - %08x %08x %08x\n",
 			 p->header[0], p->header[1], p->header[2]);
 		return NULL;
 	}
@@ -859,12 +859,12 @@ static struct fw_request *allocate_request(struct fw_card *card,
 }
 
 /**
- * fw_send_response: - send response packet for asynchronous transaction.
+ * fw_send_response: - send response packet for asynchroanalus transaction.
  * @card:	interface to send the response at.
  * @request:	firewire request data for the transaction.
  * @rcode:	response code to send.
  *
- * Submit a response packet into the asynchronous response transmission queue. The @request
+ * Submit a response packet into the asynchroanalus response transmission queue. The @request
  * is going to be released when the transmission successfully finishes later.
  */
 void fw_send_response(struct fw_card *card,
@@ -906,9 +906,9 @@ EXPORT_SYMBOL(fw_get_request_speed);
  * fw_request_get_timestamp: Get timestamp of the request.
  * @request: The opaque pointer to request structure.
  *
- * Get timestamp when 1394 OHCI controller receives the asynchronous request subaction. The
+ * Get timestamp when 1394 OHCI controller receives the asynchroanalus request subaction. The
  * timestamp consists of the low order 3 bits of second field and the full 13 bits of count
- * field of isochronous cycle time register.
+ * field of isochroanalus cycle time register.
  *
  * Returns: timestamp of the request.
  */
@@ -1034,7 +1034,7 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(iter, &card->transaction_list, link) {
-		if (iter->node_id == source && iter->tlabel == tlabel) {
+		if (iter->analde_id == source && iter->tlabel == tlabel) {
 			if (!try_cancel_split_timeout(iter)) {
 				spin_unlock_irqrestore(&card->lock, flags);
 				goto timed_out;
@@ -1049,7 +1049,7 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 
 	if (!t) {
  timed_out:
-		fw_notice(card, "unsolicited response (source %x, tlabel %x)\n",
+		fw_analtice(card, "unsolicited response (source %x, tlabel %x)\n",
 			  source, tlabel);
 		return;
 	}
@@ -1105,7 +1105,7 @@ EXPORT_SYMBOL(fw_core_handle_response);
 const char *fw_rcode_string(int rcode)
 {
 	static const char *const names[] = {
-		[RCODE_COMPLETE]       = "no error",
+		[RCODE_COMPLETE]       = "anal error",
 		[RCODE_CONFLICT_ERROR] = "conflict error",
 		[RCODE_DATA_ERROR]     = "data error",
 		[RCODE_TYPE_ERROR]     = "type error",
@@ -1114,13 +1114,13 @@ const char *fw_rcode_string(int rcode)
 		[RCODE_CANCELLED]      = "timeout",
 		[RCODE_BUSY]           = "busy",
 		[RCODE_GENERATION]     = "bus reset",
-		[RCODE_NO_ACK]         = "no ack",
+		[RCODE_ANAL_ACK]         = "anal ack",
 	};
 
 	if ((unsigned int)rcode < ARRAY_SIZE(names) && names[rcode])
 		return names[rcode];
 	else
-		return "unknown";
+		return "unkanalwn";
 }
 EXPORT_SYMBOL(fw_rcode_string);
 
@@ -1191,9 +1191,9 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		}
 		fallthrough;
 
-	case CSR_NODE_IDS:
+	case CSR_ANALDE_IDS:
 		/*
-		 * per IEEE 1394-2008 8.3.22.3, not IEEE 1394.1-2004 3.2.8
+		 * per IEEE 1394-2008 8.3.22.3, analt IEEE 1394.1-2004 3.2.8
 		 * and 9.6, but interoperable with IEEE 1394.1-2004 bridges
 		 */
 		fallthrough;
@@ -1299,8 +1299,8 @@ static void handle_low_memory(struct fw_card *card, struct fw_request *request,
 		void *callback_data)
 {
 	/*
-	 * This catches requests not handled by the physical DMA unit,
-	 * i.e., wrong transaction types or unauthorized source nodes.
+	 * This catches requests analt handled by the physical DMA unit,
+	 * i.e., wrong transaction types or unauthorized source analdes.
 	 */
 	fw_send_response(card, request, RCODE_TYPE_ERROR);
 }
@@ -1353,7 +1353,7 @@ static int __init fw_core_init(void)
 
 	fw_workqueue = alloc_workqueue("firewire", WQ_MEM_RECLAIM, 0);
 	if (!fw_workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = bus_register(&fw_bus_type);
 	if (ret < 0) {

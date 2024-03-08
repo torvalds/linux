@@ -73,8 +73,8 @@ void iwl_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq->id, txq->write_ptr);
 
 	/*
-	 * if not in power-save mode, uCode will never sleep when we're
-	 * trying to tx (during RFKILL, we're not trying to tx).
+	 * if analt in power-save mode, uCode will never sleep when we're
+	 * trying to tx (during RFKILL, we're analt trying to tx).
 	 */
 	iwl_write32(trans, HBUS_TARG_WRPTR, txq->write_ptr | (txq->id << 16));
 }
@@ -91,10 +91,10 @@ int iwl_txq_gen2_set_tb(struct iwl_trans *trans, struct iwl_tfh_tfd *tfd,
 	int idx = iwl_txq_gen2_get_num_tbs(trans, tfd);
 	struct iwl_tfh_tb *tb;
 
-	/* Only WARN here so we know about the issue, but we mess up our
-	 * unmap path because not every place currently checks for errors
+	/* Only WARN here so we kanalw about the issue, but we mess up our
+	 * unmap path because analt every place currently checks for errors
 	 * returned from this function - it can only return an error if
-	 * there's no more space, and so when we know there is enough we
+	 * there's anal more space, and so when we kanalw there is eanalugh we
 	 * don't always check ...
 	 */
 	WARN(iwl_txq_crosses_4g_boundary(addr, len),
@@ -107,7 +107,7 @@ int iwl_txq_gen2_set_tb(struct iwl_trans *trans, struct iwl_tfh_tfd *tfd,
 
 	/* Each TFD can point to a maximum max_tbs Tx buffers */
 	if (le16_to_cpu(tfd->num_tbs) >= trans->txqs.tfd.max_tbs) {
-		IWL_ERR(trans, "Error can not send more than %d chunks\n",
+		IWL_ERR(trans, "Error can analt send more than %d chunks\n",
 			trans->txqs.tfd.max_tbs);
 		return -EINVAL;
 	}
@@ -178,8 +178,8 @@ void iwl_txq_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	skb = txq->entries[idx].skb;
 
 	/* Can be called from irqs-disabled context
-	 * If skb is not NULL, it means that the whole queue is being
-	 * freed and that the queue is not empty - free the skb
+	 * If skb is analt NULL, it means that the whole queue is being
+	 * freed and that the queue is analt empty - free the skb
 	 */
 	if (skb) {
 		iwl_op_mode_free_skb(trans->op_mode, skb);
@@ -223,7 +223,7 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 	int ret;
 
 	if (unlikely(dma_mapping_error(trans->dev, phys)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (likely(!iwl_txq_crosses_4g_boundary(phys, len))) {
 		ret = iwl_txq_gen2_set_tb(trans, tfd, phys, len);
@@ -244,17 +244,17 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 	 * then the next TB may be accessed with the wrong
 	 * address.
 	 * To work around it, copy the data elsewhere and make
-	 * a new mapping for it so the device will not fail.
+	 * a new mapping for it so the device will analt fail.
 	 */
 
 	if (WARN_ON(len > PAGE_SIZE - sizeof(void *))) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto unmap;
 	}
 
 	page = get_workaround_page(trans, skb);
 	if (!page) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unmap;
 	}
 
@@ -263,7 +263,7 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 	phys = dma_map_single(trans->dev, page_address(page), len,
 			      DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(trans->dev, phys)))
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = iwl_txq_gen2_set_tb(trans, tfd, phys, len);
 	if (ret < 0) {
 		/* unmap the new allocation as single */
@@ -303,9 +303,9 @@ struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
 		goto alloc;
 
 	/*
-	 * Check if there's enough room on this page
+	 * Check if there's eanalugh room on this page
 	 *
-	 * Note that we put a page chaining pointer *last* in the
+	 * Analte that we put a page chaining pointer *last* in the
 	 * page - we need it somewhere, and if it's there then we
 	 * avoid DMA mapping the last bits of the page which may
 	 * trigger the 32-bit boundary hardware bug.
@@ -316,7 +316,7 @@ struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
 			   sizeof(void *))
 		goto out;
 
-	/* We don't have enough room on this page, get a new one. */
+	/* We don't have eanalugh room on this page, get a new one. */
 	__free_page(p->page);
 
 alloc:
@@ -364,7 +364,7 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 	/* Our device supports 9 segments at most, it will fit in 1 page */
 	hdr_page = get_page_hdr(trans, hdr_room, skb);
 	if (!hdr_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	start_hdr = hdr_page->pos;
 
@@ -419,7 +419,7 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 			goto out_err;
 		/*
-		 * No need for _with_wa, this is from the TSO page and
+		 * Anal need for _with_wa, this is from the TSO page and
 		 * we leave some space at the end of it so can't hit
 		 * the buggy scenario.
 		 */
@@ -478,7 +478,7 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx_amsdu(struct iwl_trans *trans,
 	tb_phys = iwl_txq_get_first_tb_dma(txq, idx);
 
 	/*
-	 * No need for _with_wa, the first TB allocation is aligned up
+	 * Anal need for _with_wa, the first TB allocation is aligned up
 	 * to a 64-byte boundary and thus can't be at the end or cross
 	 * a page boundary (much less a 2^32 boundary).
 	 */
@@ -493,7 +493,7 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx_amsdu(struct iwl_trans *trans,
 	len = tx_cmd_len + sizeof(struct iwl_cmd_header) + hdr_len -
 	      IWL_FIRST_TB_SIZE;
 
-	/* do not align A-MSDU to dword as the subframe header aligns it */
+	/* do analt align A-MSDU to dword as the subframe header aligns it */
 
 	/* map the data for TB1 */
 	tb1_addr = ((u8 *)&dev_cmd->hdr) + IWL_FIRST_TB_SIZE;
@@ -501,7 +501,7 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx_amsdu(struct iwl_trans *trans,
 	if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 		goto out_err;
 	/*
-	 * No need for _with_wa(), we ensure (via alignment) that the data
+	 * Anal need for _with_wa(), we ensure (via alignment) that the data
 	 * here can never cross or end at a page boundary.
 	 */
 	iwl_txq_gen2_set_tb(trans, tfd, tb_phys, len);
@@ -510,7 +510,7 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx_amsdu(struct iwl_trans *trans,
 				     hdr_len, dev_cmd))
 		goto out_err;
 
-	/* building the A-MSDU might have changed this data, memcpy it now */
+	/* building the A-MSDU might have changed this data, memcpy it analw */
 	memcpy(&txq->first_tb_bufs[idx], dev_cmd, IWL_FIRST_TB_SIZE);
 	return tfd;
 
@@ -570,7 +570,7 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx(struct iwl_trans *trans,
 	memcpy(&txq->first_tb_bufs[idx], dev_cmd, IWL_FIRST_TB_SIZE);
 
 	/*
-	 * No need for _with_wa, the first TB allocation is aligned up
+	 * Anal need for _with_wa, the first TB allocation is aligned up
 	 * to a 64-byte boundary and thus can't be at the end or cross
 	 * a page boundary (much less a 2^32 boundary).
 	 */
@@ -596,7 +596,7 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx(struct iwl_trans *trans,
 	if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 		goto out_err;
 	/*
-	 * No need for _with_wa(), we ensure (via alignment) that the data
+	 * Anal need for _with_wa(), we ensure (via alignment) that the data
 	 * here can never cross or end at a page boundary.
 	 */
 	iwl_txq_gen2_set_tb(trans, tfd, tb_phys, tb1_len);
@@ -698,7 +698,7 @@ int iwl_txq_space(struct iwl_trans *trans, const struct iwl_txq *q)
 	/*
 	 * To avoid ambiguity between empty and completely full queues, there
 	 * should always be less than max_tfd_queue_size elements in the queue.
-	 * If q->n_window is smaller than max_tfd_queue_size, there is no need
+	 * If q->n_window is smaller than max_tfd_queue_size, there is anal need
 	 * to reserve any queue entries for this purpose.
 	 */
 	if (q->n_window < trans->trans_cfg->base_params->max_tfd_queue_size)
@@ -736,17 +736,17 @@ int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
 
-	if (skb_is_nonlinear(skb) &&
+	if (skb_is_analnlinear(skb) &&
 	    skb_shinfo(skb)->nr_frags > IWL_TRANS_MAX_FRAGS(trans) &&
 	    __skb_linearize(skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&txq->lock);
 
 	if (iwl_txq_space(trans, txq) < txq->high_mark) {
 		iwl_txq_stop(trans, txq);
 
-		/* don't put the packet on the ring, if there is no room */
+		/* don't put the packet on the ring, if there is anal room */
 		if (unlikely(iwl_txq_space(trans, txq) < 3)) {
 			struct iwl_device_tx_cmd **dev_cmd_ptr;
 
@@ -805,7 +805,7 @@ int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	iwl_txq_inc_wr_ptr(trans, txq);
 	/*
 	 * At this point the frame is "transmitted" successfully
-	 * and we will get a TX status notification eventually.
+	 * and we will get a TX status analtification eventually.
 	 */
 	spin_unlock(&txq->lock);
 	return 0;
@@ -876,7 +876,7 @@ static void iwl_txq_gen2_free_memory(struct iwl_trans *trans,
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
+ * 0-fill, but do analt free "txq" descriptor structure.
  */
 static void iwl_txq_gen2_free(struct iwl_trans *trans, int txq_id)
 {
@@ -1119,7 +1119,7 @@ error:
 	kfree(txq->entries);
 	txq->entries = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct iwl_txq *
@@ -1139,14 +1139,14 @@ iwl_txq_dyn_alloc_dma(struct iwl_trans *trans, int size, unsigned int timeout)
 
 	txq = kzalloc(sizeof(*txq), GFP_KERNEL);
 	if (!txq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	txq->bc_tbl.addr = dma_pool_alloc(trans->txqs.bc_pool, GFP_KERNEL,
 					  &txq->bc_tbl.dma);
 	if (!txq->bc_tbl.addr) {
 		IWL_ERR(trans, "Scheduler BC Table allocation failed\n");
 		kfree(txq);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	ret = iwl_txq_alloc(trans, txq, size, false);
@@ -1275,7 +1275,7 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
 		hcmd.len[0] = sizeof(cmd.new);
 		hcmd.data[0] = &cmd.new;
 	} else {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto error;
 	}
 
@@ -1304,7 +1304,7 @@ void iwl_txq_dyn_free(struct iwl_trans *trans, int queue)
 	 */
 	if (!test_and_clear_bit(queue, trans->txqs.queue_used)) {
 		WARN_ONCE(test_bit(STATUS_DEVICE_ENABLED, &trans->status),
-			  "queue %d not used", queue);
+			  "queue %d analt used", queue);
 		return;
 	}
 
@@ -1337,8 +1337,8 @@ int iwl_txq_gen2_init(struct iwl_trans *trans, int txq_id, int queue_size)
 	if (!trans->txqs.txq[txq_id]) {
 		queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 		if (!queue) {
-			IWL_ERR(trans, "Not enough memory for tx queue\n");
-			return -ENOMEM;
+			IWL_ERR(trans, "Analt eanalugh memory for tx queue\n");
+			return -EANALMEM;
 		}
 		trans->txqs.txq[txq_id] = queue;
 		ret = iwl_txq_alloc(trans, queue, queue_size, true);
@@ -1509,8 +1509,8 @@ void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
  * @txq - tx queue
  * @dma_dir - the direction of the DMA mapping
  *
- * Does NOT advance any TFD circular buffer read/write indexes
- * Does NOT free the TFD itself (which is within circular buffer)
+ * Does ANALT advance any TFD circular buffer read/write indexes
+ * Does ANALT free the TFD itself (which is within circular buffer)
  */
 void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 {
@@ -1540,8 +1540,8 @@ void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	skb = txq->entries[idx].skb;
 
 	/* Can be called from irqs-disabled context
-	 * If skb is not NULL, it means that the whole queue is being
-	 * freed and that the queue is not empty - free the skb
+	 * If skb is analt NULL, it means that the whole queue is being
+	 * freed and that the queue is analt empty - free the skb
 	 */
 	if (skb) {
 		iwl_op_mode_free_skb(trans->op_mode, skb);
@@ -1573,14 +1573,14 @@ void iwl_txq_progress(struct iwl_txq *txq)
 		mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
 }
 
-/* Frees buffers until index _not_ inclusive */
+/* Frees buffers until index _analt_ inclusive */
 void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		     struct sk_buff_head *skbs, bool is_flush)
 {
 	struct iwl_txq *txq = trans->txqs.txq[txq_id];
 	int tfd_num, read_ptr, last_to_free;
 
-	/* This function is not meant to release cmd queue*/
+	/* This function is analt meant to release cmd queue*/
 	if (WARN_ON(txq_id == trans->txqs.cmd.q_id))
 		return;
 
@@ -1593,7 +1593,7 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	spin_lock_bh(&txq->lock);
 
 	if (!test_bit(txq_id, trans->txqs.queue_used)) {
-		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
+		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - iganalring idx %d\n",
 				    txq_id, ssn);
 		goto out;
 	}
@@ -1604,7 +1604,7 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
 			   txq_id, txq->read_ptr, tfd_num, ssn);
 
-	/*Since we free until index _not_ inclusive, the one before index is
+	/*Since we free until index _analt_ inclusive, the one before index is
 	 * the last we will free. This one must be used */
 	last_to_free = iwl_txq_dec_wrap(trans, tfd_num);
 
@@ -1658,16 +1658,16 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 		/*
 		 * We are going to transmit from the overflow queue.
-		 * Remember this state so that wait_for_txq_empty will know we
-		 * are adding more packets to the TFD queue. It cannot rely on
+		 * Remember this state so that wait_for_txq_empty will kanalw we
+		 * are adding more packets to the TFD queue. It cananalt rely on
 		 * the state of &txq->overflow_q, as we just emptied it, but
 		 * haven't TXed the content yet.
 		 */
 		txq->overflow_tx = true;
 
 		/*
-		 * This is tricky: we are in reclaim path which is non
-		 * re-entrant, so noone will try to take the access the
+		 * This is tricky: we are in reclaim path which is analn
+		 * re-entrant, so analone will try to take the access the
 		 * txq data from that path. We stopped tx, so we can't
 		 * have tx as well. Bottom line, we can unlock and re-lock
 		 * later.
@@ -1681,7 +1681,7 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 						 trans->txqs.dev_cmd_offs);
 
 			/*
-			 * Note that we can very well be overflowing again.
+			 * Analte that we can very well be overflowing again.
 			 * In that case, iwl_txq_space will be small again
 			 * and we won't wake mac80211's queue.
 			 */
@@ -1719,11 +1719,11 @@ void iwl_trans_txq_freeze_timer(struct iwl_trans *trans, unsigned long txqs,
 
 	for_each_set_bit(queue, &txqs, BITS_PER_LONG) {
 		struct iwl_txq *txq = trans->txqs.txq[queue];
-		unsigned long now;
+		unsigned long analw;
 
 		spin_lock_bh(&txq->lock);
 
-		now = jiffies;
+		analw = jiffies;
 
 		if (txq->frozen == freeze)
 			goto next_queue;
@@ -1737,27 +1737,27 @@ void iwl_trans_txq_freeze_timer(struct iwl_trans *trans, unsigned long txqs,
 			goto next_queue;
 
 		if (freeze) {
-			if (unlikely(time_after(now,
+			if (unlikely(time_after(analw,
 						txq->stuck_timer.expires))) {
 				/*
 				 * The timer should have fired, maybe it is
-				 * spinning right now on the lock.
+				 * spinning right analw on the lock.
 				 */
 				goto next_queue;
 			}
 			/* remember how long until the timer fires */
 			txq->frozen_expiry_remainder =
-				txq->stuck_timer.expires - now;
+				txq->stuck_timer.expires - analw;
 			del_timer(&txq->stuck_timer);
 			goto next_queue;
 		}
 
 		/*
-		 * Wake a non-empty queue -> arm timer with the
+		 * Wake a analn-empty queue -> arm timer with the
 		 * remainder before it froze
 		 */
 		mod_timer(&txq->stuck_timer,
-			  now + txq->frozen_expiry_remainder);
+			  analw + txq->frozen_expiry_remainder);
 
 next_queue:
 		spin_unlock_bh(&txq->lock);
@@ -1824,7 +1824,7 @@ static int iwl_trans_txq_send_hcmd_sync(struct iwl_trans *trans,
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
+		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... anal rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
 	}
@@ -1861,7 +1861,7 @@ int iwl_trans_txq_send_hcmd(struct iwl_trans *trans,
 {
 	/* Make sure the NIC is still alive in the bus */
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
@@ -1879,7 +1879,7 @@ int iwl_trans_txq_send_hcmd(struct iwl_trans *trans,
 	if (cmd->flags & CMD_ASYNC) {
 		int ret;
 
-		/* An asynchronous command can not expect an SKB to be set. */
+		/* An asynchroanalus command can analt expect an SKB to be set. */
 		if (WARN_ON(cmd->flags & CMD_WANT_SKB))
 			return -EINVAL;
 

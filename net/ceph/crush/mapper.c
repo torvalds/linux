@@ -108,7 +108,7 @@ static int bucket_perm_choose(const struct crush_bucket *bucket,
 		dprintk(" perm_choose have %d: %d\n", i, work->perm[i]);
 	while (work->perm_n <= pr) {
 		unsigned int p = work->perm_n;
-		/* no point in swapping the final entry */
+		/* anal point in swapping the final entry */
 		if (p < bucket->size - 1) {
 			i = crush_hash32_3(bucket->hash, x, bucket->id, p) %
 				(bucket->size - p);
@@ -201,19 +201,19 @@ static int bucket_tree_choose(const struct crush_bucket_tree *bucket,
 	__u64 t;
 
 	/* start at root */
-	n = bucket->num_nodes >> 1;
+	n = bucket->num_analdes >> 1;
 
 	while (!terminal(n)) {
 		int l;
 		/* pick point in [0, w) */
-		w = bucket->node_weights[n];
+		w = bucket->analde_weights[n];
 		t = (__u64)crush_hash32_4(bucket->h.hash, x, n, r,
 					  bucket->h.id) * (__u64)w;
 		t = t >> 32;
 
 		/* descend to the left or right? */
 		l = left(n);
-		if (t < bucket->node_weights[l])
+		if (t < bucket->analde_weights[l])
 			n = l;
 		else
 			n = right(n);
@@ -254,7 +254,7 @@ static __u64 crush_ln(unsigned int xin)
 
 	x++;
 
-	/* normalize input */
+	/* analrmalize input */
 	iexpon = 15;
 
 	/*
@@ -353,7 +353,7 @@ static int bucket_straw2_choose(const struct crush_bucket_straw2 *bucket,
 			ln = crush_ln(u) - 0x1000000000000ll;
 
 			/*
-			 * divide by 16.16 fixed-point weight.  note
+			 * divide by 16.16 fixed-point weight.  analte
 			 * that the ln value is negative, so a larger
 			 * weight means a larger (less negative) value
 			 * for draw.
@@ -401,7 +401,7 @@ static int crush_bucket_choose(const struct crush_bucket *in,
 			(const struct crush_bucket_straw2 *)in,
 			x, r, arg, position);
 	default:
-		dprintk("unknown bucket %d alg %d\n", in->id, in->alg);
+		dprintk("unkanalwn bucket %d alg %d\n", in->id, in->alg);
 		return in->items[0];
 	}
 }
@@ -482,7 +482,7 @@ static int crush_choose_firstn(const struct crush_map *map,
 		parent_r, stable);
 
 	for (rep = stable ? 0 : outpos; rep < numrep && count > 0 ; rep++) {
-		/* keep trying until we get a non-out, non-colliding item */
+		/* keep trying until we get a analn-out, analn-colliding item */
 		ftotal = 0;
 		skip_rep = 0;
 		do {
@@ -696,7 +696,7 @@ static void crush_choose_indep(const struct crush_map *map,
 
 			/* choose through intervening buckets */
 			for (;;) {
-				/* note: we base the choice on the position
+				/* analte: we base the choice on the position
 				 * even in the nested call.  that means that
 				 * if the first layer chooses the same bucket
 				 * in a different position, we will tend to
@@ -729,9 +729,9 @@ static void crush_choose_indep(const struct crush_map *map,
 					outpos);
 				if (item >= map->max_devices) {
 					dprintk("   bad item %d\n", item);
-					out[rep] = CRUSH_ITEM_NONE;
+					out[rep] = CRUSH_ITEM_ANALNE;
 					if (out2)
-						out2[rep] = CRUSH_ITEM_NONE;
+						out2[rep] = CRUSH_ITEM_ANALNE;
 					left--;
 					break;
 				}
@@ -748,10 +748,10 @@ static void crush_choose_indep(const struct crush_map *map,
 					if (item >= 0 ||
 					    (-1-item) >= map->max_buckets) {
 						dprintk("   bad item type %d\n", type);
-						out[rep] = CRUSH_ITEM_NONE;
+						out[rep] = CRUSH_ITEM_ANALNE;
 						if (out2)
 							out2[rep] =
-								CRUSH_ITEM_NONE;
+								CRUSH_ITEM_ANALNE;
 						left--;
 						break;
 					}
@@ -782,8 +782,8 @@ static void crush_choose_indep(const struct crush_map *map,
 							recurse_tries, 0,
 							0, NULL, r,
 							choose_args);
-						if (out2[rep] == CRUSH_ITEM_NONE) {
-							/* placed nothing; no leaf */
+						if (out2[rep] == CRUSH_ITEM_ANALNE) {
+							/* placed analthing; anal leaf */
 							break;
 						}
 					} else {
@@ -806,10 +806,10 @@ static void crush_choose_indep(const struct crush_map *map,
 	}
 	for (rep = outpos; rep < endpos; rep++) {
 		if (out[rep] == CRUSH_ITEM_UNDEF) {
-			out[rep] = CRUSH_ITEM_NONE;
+			out[rep] = CRUSH_ITEM_ANALNE;
 		}
 		if (out2 && out2[rep] == CRUSH_ITEM_UNDEF) {
-			out2[rep] = CRUSH_ITEM_NONE;
+			out2[rep] = CRUSH_ITEM_ANALNE;
 		}
 	}
 #ifndef __KERNEL__
@@ -838,8 +838,8 @@ static void crush_choose_indep(const struct crush_map *map,
  * working area for a CRUSH placement computation. It must be called
  * on any newly allocated memory before passing it in to
  * crush_do_rule. It may be used repeatedly after that, so long as the
- * map has not changed. If the map /has/ changed, you must make sure
- * the working size is no smaller than what was allocated and re-run
+ * map has analt changed. If the map /has/ changed, you must make sure
+ * the working size is anal smaller than what was allocated and re-run
  * crush_init_workspace.
  *
  * If you do retain the working space between calls to crush, make it
@@ -882,17 +882,17 @@ void crush_init_workspace(const struct crush_map *map, void *v)
 /**
  * crush_do_rule - calculate a mapping with the given input and rule
  * @map: the crush_map
- * @ruleno: the rule id
+ * @ruleanal: the rule id
  * @x: hash input
  * @result: pointer to result vector
  * @result_max: maximum result size
  * @weight: weight vector (for map leaves)
  * @weight_max: size of weight vector
  * @cwin: pointer to at least crush_work_size() bytes of memory
- * @choose_args: weights and ids for each known bucket
+ * @choose_args: weights and ids for each kanalwn bucket
  */
 int crush_do_rule(const struct crush_map *map,
-		  int ruleno, int x, int *result, int result_max,
+		  int ruleanal, int x, int *result, int result_max,
 		  const __u32 *weight, int weight_max,
 		  void *cwin, const struct crush_choose_arg *choose_args)
 {
@@ -913,13 +913,13 @@ int crush_do_rule(const struct crush_map *map,
 	int out_size;
 	/*
 	 * the original choose_total_tries value was off by one (it
-	 * counted "retries" and not "tries").  add one.
+	 * counted "retries" and analt "tries").  add one.
 	 */
 	int choose_tries = map->choose_total_tries + 1;
 	int choose_leaf_tries = 0;
 	/*
 	 * the local tries values were counted as "retries", though,
-	 * and need no adjustment
+	 * and need anal adjustment
 	 */
 	int choose_local_retries = map->choose_local_tries;
 	int choose_local_fallback_retries = map->choose_local_fallback_tries;
@@ -927,12 +927,12 @@ int crush_do_rule(const struct crush_map *map,
 	int vary_r = map->chooseleaf_vary_r;
 	int stable = map->chooseleaf_stable;
 
-	if ((__u32)ruleno >= map->max_rules) {
-		dprintk(" bad ruleno %d\n", ruleno);
+	if ((__u32)ruleanal >= map->max_rules) {
+		dprintk(" bad ruleanal %d\n", ruleanal);
 		return 0;
 	}
 
-	rule = map->rules[ruleno];
+	rule = map->rules[ruleanal];
 	result_len = 0;
 
 	for (step = 0; step < rule->len; step++) {
@@ -1002,7 +1002,7 @@ int crush_do_rule(const struct crush_map *map,
 			osize = 0;
 
 			for (i = 0; i < wsize; i++) {
-				int bno;
+				int banal;
 				numrep = curstep->arg1;
 				if (numrep <= 0) {
 					numrep += result_max;
@@ -1011,9 +1011,9 @@ int crush_do_rule(const struct crush_map *map,
 				}
 				j = 0;
 				/* make sure bucket id is valid */
-				bno = -1 - w[i];
-				if (bno < 0 || bno >= map->max_buckets) {
-					/* w[i] is probably CRUSH_ITEM_NONE */
+				banal = -1 - w[i];
+				if (banal < 0 || banal >= map->max_buckets) {
+					/* w[i] is probably CRUSH_ITEM_ANALNE */
 					dprintk("  bad w[i] %d\n", w[i]);
 					continue;
 				}
@@ -1029,7 +1029,7 @@ int crush_do_rule(const struct crush_map *map,
 					osize += crush_choose_firstn(
 						map,
 						cw,
-						map->buckets[bno],
+						map->buckets[banal],
 						weight, weight_max,
 						x, numrep,
 						curstep->arg2,
@@ -1051,7 +1051,7 @@ int crush_do_rule(const struct crush_map *map,
 					crush_choose_indep(
 						map,
 						cw,
-						map->buckets[bno],
+						map->buckets[banal],
 						weight, weight_max,
 						x, out_size, numrep,
 						curstep->arg2,
@@ -1086,7 +1086,7 @@ int crush_do_rule(const struct crush_map *map,
 			break;
 
 		default:
-			dprintk(" unknown op %d at step %d\n",
+			dprintk(" unkanalwn op %d at step %d\n",
 				curstep->op, step);
 			break;
 		}

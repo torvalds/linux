@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -553,7 +553,7 @@ bool atomctrl_is_voltage_controlled_by_gpio_v3(
 	bool ret;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_info),
-			"Could not find Voltage Table in BIOS.", return false;);
+			"Could analt find Voltage Table in BIOS.", return false;);
 
 	ret = (NULL != atomctrl_lookup_voltage_type_v3
 			(voltage_info, voltage_type, voltage_mode)) ? true : false;
@@ -573,7 +573,7 @@ int atomctrl_get_voltage_table_v3(
 	unsigned int i;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_info),
-			"Could not find Voltage Table in BIOS.", return -1;);
+			"Could analt find Voltage Table in BIOS.", return -1;);
 
 	voltage_object = atomctrl_lookup_voltage_type_v3
 		(voltage_info, voltage_type, voltage_mode);
@@ -668,7 +668,7 @@ bool atomctrl_get_pp_assign_pin(
 		get_gpio_lookup_table(hwmgr->adev);
 
 	PP_ASSERT_WITH_CODE((NULL != gpio_lookup_table),
-			"Could not find GPIO lookup Table in BIOS.", return false);
+			"Could analt find GPIO lookup Table in BIOS.", return false);
 
 	bRet = atomctrl_lookup_gpio_pin(gpio_lookup_table, pinId,
 		gpio_pin_assignment);
@@ -702,10 +702,10 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 	fInt fLkg_FT, repeat;
 	fInt fMicro_FMAX, fMicro_CR, fSigma_FMAX, fSigma_CR, fSigma_DC, fDC_SCLK, fSquared_Sigma_DC, fSquared_Sigma_CR, fSquared_Sigma_FMAX;
 	fInt fRLL_LoadLine, fDerateTDP, fVDDC_base, fA_Term, fC_Term, fB_Term, fRO_DC_margin;
-	fInt fRO_fused, fCACm_fused, fCACb_fused, fKv_m_fused, fKv_b_fused, fKt_Beta_fused, fFT_Lkg_V0NORM;
+	fInt fRO_fused, fCACm_fused, fCACb_fused, fKv_m_fused, fKv_b_fused, fKt_Beta_fused, fFT_Lkg_V0ANALRM;
 	fInt fSclk_margin, fSclk, fEVV_V;
 	fInt fV_min, fV_max, fT_prod, fLKG_Factor, fT_FT, fV_FT, fV_x, fTDP_Power, fTDP_Power_right, fTDP_Power_left, fTDP_Current, fV_NL;
-	uint32_t ul_FT_Lkg_V0NORM;
+	uint32_t ul_FT_Lkg_V0ANALRM;
 	fInt fLn_MaxDivMin, fMin, fAverage, fRange;
 	fInt fRoots[2];
 	fInt fStepSize = GetScaledFraction(625, 100000);
@@ -754,7 +754,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM7), 1000);
 		break;
 	default:
-		pr_err("DPM Level not supported\n");
+		pr_err("DPM Level analt supported\n");
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM0), 1000);
 	}
 
@@ -890,7 +890,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 	fKv_b_fused = fDecodeLogisticFuse(ul_Kv_b_fused,
 			fAverage, fRange, sKv_b_fuse.ucEfuseLength);
 
-	/* Decoding the Leakage - No special struct container */
+	/* Decoding the Leakage - Anal special struct container */
 	/*
 	 * usLkgEuseIndex=56
 	 * ucLkgEfuseBitLSB=6
@@ -914,13 +914,13 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 	if (result)
 		return result;
 
-	ul_FT_Lkg_V0NORM = le32_to_cpu(sOutput_FuseValues.ulEfuseValue);
+	ul_FT_Lkg_V0ANALRM = le32_to_cpu(sOutput_FuseValues.ulEfuseValue);
 	fLn_MaxDivMin = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulLkgEncodeLn_MaxDivMin), 10000);
 	fMin = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulLkgEncodeMin), 10000);
 
-	fFT_Lkg_V0NORM = fDecodeLeakageID(ul_FT_Lkg_V0NORM,
+	fFT_Lkg_V0ANALRM = fDecodeLeakageID(ul_FT_Lkg_V0ANALRM,
 			fLn_MaxDivMin, fMin, getASICProfilingInfo->ucLkgEfuseLength);
-	fLkg_FT = fFT_Lkg_V0NORM;
+	fLkg_FT = fFT_Lkg_V0ANALRM;
 
 	/*-------------------------------------------
 	 * PART 2 - Grabbing all required values
@@ -1070,7 +1070,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 				fMultiply(fCACm_fused, fV_x), fCACb_fused), fSclk),
 				fGetSquare(fV_x)), fDerateTDP);
 
-		fTDP_Power_right = fMultiply(fFT_Lkg_V0NORM, fMultiply(fLKG_Factor,
+		fTDP_Power_right = fMultiply(fFT_Lkg_V0ANALRM, fMultiply(fLKG_Factor,
 				fMultiply(fExponential(fMultiply(fAdd(fMultiply(fKv_m_fused,
 				fT_prod), fKv_b_fused), fV_x)), fV_x)));
 		fTDP_Power_right = fMultiply(fTDP_Power_right, fExponential(fMultiply(
@@ -1290,7 +1290,7 @@ static int asic_internal_ss_get_ss_asignment(struct pp_hwmgr *hwmgr,
 		ssEntry->speed_spectrum_rate = le16_to_cpu(ssInfo->usSpreadRateInKhz);
 
 		if (((GET_DATA_TABLE_MAJOR_REVISION(table) == 2) &&
-			(GET_DATA_TABLE_MINOR_REVISION(table) >= 2)) ||
+			(GET_DATA_TABLE_MIANALR_REVISION(table) >= 2)) ||
 			(GET_DATA_TABLE_MAJOR_REVISION(table) == 3)) {
 			ssEntry->speed_spectrum_rate /= 100;
 		}
@@ -1502,7 +1502,7 @@ int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 	const ATOM_VOLTAGE_OBJECT_V3 *voltage_object;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_info),
-			"Could not find Voltage Table in BIOS.", return -EINVAL);
+			"Could analt find Voltage Table in BIOS.", return -EINVAL);
 
 	voltage_object = atomctrl_lookup_voltage_type_v3
 		(voltage_info, voltage_type,  VOLTAGE_OBJ_SVID2);
@@ -1632,7 +1632,7 @@ int atomctrl_get_edc_hilo_leakage_offset_table(struct pp_hwmgr *hwmgr,
 					GetIndexIntoMasterTable(DATA, GFX_Info),
 					NULL, NULL, NULL);
 	if (!gfxinfo)
-		return -ENOENT;
+		return -EANALENT;
 
 	table->usHiLoLeakageThreshold = gfxinfo->usHiLoLeakageThreshold;
 	table->usEdcDidtLoDpm7TableOffset = gfxinfo->usEdcDidtLoDpm7TableOffset;
@@ -1668,7 +1668,7 @@ int atomctrl_get_edc_leakage_table(struct pp_hwmgr *hwmgr,
 		get_edc_leakage_table(hwmgr, offset);
 
 	if (!leakage_table)
-		return -ENOENT;
+		return -EANALENT;
 
 	length = sizeof(leakage_table->DIDT_REG) /
 		 sizeof(leakage_table->DIDT_REG[0]);

@@ -16,7 +16,7 @@
  * More on how to debug BPF opcodes see Documentation/networking/filter.rst
  * which is the main document on BPF. Mini howto for getting started:
  *
- *  1) `./bpf_dbg` to enter the shell (shell cmds denoted with '>'):
+ *  1) `./bpf_dbg` to enter the shell (shell cmds deanalted with '>'):
  *  2) > load bpf 6,40 0 0 12,21 0 3 20... (output from `bpf_asm` or
  *     `tcpdump -iem1 -ddd port 22 | tr '\n' ','` to load as filter)
  *  3) > load pcap foo.pcap
@@ -47,7 +47,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
@@ -101,7 +101,7 @@ struct shell_cmd {
 struct pcap_filehdr {
 	uint32_t magic;
 	uint16_t version_major;
-	uint16_t version_minor;
+	uint16_t version_mianalr;
 	int32_t  thiszone;
 	uint32_t sigfigs;
 	uint32_t snaplen;
@@ -208,7 +208,7 @@ static void hex_dump(const uint8_t *buf, size_t len)
 static bool bpf_prog_loaded(void)
 {
 	if (bpf_prog_len == 0)
-		rl_printf("no bpf program loaded!\n");
+		rl_printf("anal bpf program loaded!\n");
 
 	return bpf_prog_len > 0;
 }
@@ -418,7 +418,7 @@ static void bpf_disasm(const struct sock_filter f, unsigned int i)
 		fmt = "#%#x";
 		break;
 	default:
-		op = "nosup";
+		op = "analsup";
 		fmt = "%#x";
 		val = f.code;
 		break;
@@ -505,19 +505,19 @@ static bool bpf_runnable(struct sock_filter *f, unsigned int len)
 
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock < 0) {
-		rl_printf("cannot open socket!\n");
+		rl_printf("cananalt open socket!\n");
 		return false;
 	}
 	ret = setsockopt(sock, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
 	close(sock);
 	if (ret < 0) {
-		rl_printf("program not allowed to run by kernel!\n");
+		rl_printf("program analt allowed to run by kernel!\n");
 		return false;
 	}
 	for (i = 0; i < len; i++) {
 		if (BPF_CLASS(f[i].code) == BPF_LD &&
 		    f[i].k > SKF_AD_OFF) {
-			rl_printf("extensions currently not supported!\n");
+			rl_printf("extensions currently analt supported!\n");
 			return false;
 		}
 	}
@@ -908,7 +908,7 @@ static int bpf_run_stepping(struct sock_filter *f, uint16_t bpf_len,
 static bool pcap_loaded(void)
 {
 	if (pcap_fd < 0)
-		rl_printf("no pcap file loaded!\n");
+		rl_printf("anal pcap file loaded!\n");
 
 	return pcap_fd >= 0;
 }
@@ -948,18 +948,18 @@ static int try_load_pcap(const char *file)
 
 	pcap_fd = open(file, O_RDONLY);
 	if (pcap_fd < 0) {
-		rl_printf("cannot open pcap [%s]!\n", strerror(errno));
+		rl_printf("cananalt open pcap [%s]!\n", strerror(erranal));
 		return CMD_ERR;
 	}
 
 	ret = fstat(pcap_fd, &sb);
 	if (ret < 0) {
-		rl_printf("cannot fstat pcap file!\n");
+		rl_printf("cananalt fstat pcap file!\n");
 		return CMD_ERR;
 	}
 
 	if (!S_ISREG(sb.st_mode)) {
-		rl_printf("not a regular pcap file, duh!\n");
+		rl_printf("analt a regular pcap file, duh!\n");
 		return CMD_ERR;
 	}
 
@@ -1142,9 +1142,9 @@ static int cmd_select(char *num)
 	bpf_reset();
 
 	for (i = 0; i < which && (have_next = pcap_next_pkt()); i++)
-		/* noop */;
+		/* analop */;
 	if (!have_next || pcap_curr_pkt() == NULL) {
-		rl_printf("no packet #%u available!\n", which);
+		rl_printf("anal packet #%u available!\n", which);
 		pcap_reset_pkt();
 		return CMD_ERR;
 	}

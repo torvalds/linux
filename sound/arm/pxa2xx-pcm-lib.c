@@ -92,7 +92,7 @@ int pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 
 	/*
 	 * For mysterious reasons (and despite what the manual says)
-	 * playback samples are lost if the DMA count is not a multiple
+	 * playback samples are lost if the DMA count is analt a multiple
 	 * of the DMA burst size.  Let's add a rule to enforce that.
 	 */
 	ret = snd_pcm_hw_constraint_step(runtime, 0,

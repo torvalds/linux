@@ -94,7 +94,7 @@ const struct pmc_bit_map adl_ltr_show_map[] = {
 	{"THC1",		TGL_PMC_LTR_THC1},
 	{"SOUTHPORT_G",		CNP_PMC_LTR_RESERVED},
 
-	/* Below two cannot be used for LTR_IGNORE */
+	/* Below two cananalt be used for LTR_IGANALRE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
 	{}
@@ -289,13 +289,13 @@ const struct pmc_reg_map adl_reg_map = {
 	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
 	.ltr_show_sts = adl_ltr_show_map,
 	.msr_sts = msr_map,
-	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.ltr_iganalre_offset = CNP_PMC_LTR_IGANALRE_OFFSET,
 	.regmap_length = CNP_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
 	.ppfear_buckets = CNP_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
-	.ltr_ignore_max = ADL_NUM_IP_IGN_ALLOWED,
+	.ltr_iganalre_max = ADL_NUM_IP_IGN_ALLOWED,
 	.lpm_num_modes = ADL_LPM_NUM_MODES,
 	.lpm_num_maps = ADL_LPM_NUM_MAPS,
 	.lpm_res_counter_step_x2 = TGL_PMC_LPM_RES_COUNTER_STEP_X2,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/uaccess.h>
 
 #include <asm/sfp-machine.h>
@@ -32,7 +32,7 @@ stfs(void *frS, void *ea)
 	printk("R: %ld %lu %ld (%ld)\n", R_s, R_f, R_e, R_c);
 #endif
 
-	_FP_PACK_CANONICAL(S, 1, R);
+	_FP_PACK_CAANALNICAL(S, 1, R);
 	if (!FP_CUR_EXCEPTIONS || !__FPU_TRAP_P(FP_CUR_EXCEPTIONS)) {
 		_FP_PACK_RAW_1_P(S, &f, R);
 		if (copy_to_user(ea, &f, sizeof(float)))

@@ -11,7 +11,7 @@ Required Properties:
 			"ti,dm816-intc"
 			"ti,am33xx-intc"
 
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the analde as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode interrupt
 		     source, should be 1 for intc
 - interrupts: interrupt reference to primary interrupt controller

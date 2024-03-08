@@ -74,7 +74,7 @@ struct mox_rwtm {
 #ifdef CONFIG_DEBUG_FS
 	/*
 	 * Signature process. This is currently done via debugfs, because it
-	 * does not conform to the sysfs standard "one file per attribute".
+	 * does analt conform to the sysfs standard "one file per attribute".
 	 * It should be rewritten via crypto API once akcipher API is available
 	 * from userspace.
 	 */
@@ -113,7 +113,7 @@ static int mox_kobj_create(struct mox_rwtm *rwtm)
 {
 	rwtm->kobj = kzalloc(sizeof(*rwtm->kobj), GFP_KERNEL);
 	if (!rwtm->kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kobject_init(rwtm_to_kobj(rwtm), &mox_kobj_ktype);
 	if (kobject_add(rwtm_to_kobj(rwtm), firmware_kobj, "turris-mox-rwtm")) {
@@ -133,7 +133,7 @@ name##_show(struct kobject *kobj, struct kobj_attribute *a,	\
 {								\
 	struct mox_rwtm *rwtm = to_rwtm(kobj);	\
 	if (!rwtm->has_##cat)					\
-		return -ENODATA;				\
+		return -EANALDATA;				\
 	return sprintf(buf, format, rwtm->name);		\
 }								\
 static struct kobj_attribute mox_attr_##name = __ATTR_RO(name)
@@ -152,7 +152,7 @@ static int mox_get_status(enum mbox_cmd cmd, u32 retval)
 	else if (MBOX_STS_ERROR(retval) == MBOX_STS_FAIL)
 		return -(int)MBOX_STS_VALUE(retval);
 	else if (MBOX_STS_ERROR(retval) == MBOX_STS_BADCMD)
-		return -ENOSYS;
+		return -EANALSYS;
 	else if (MBOX_STS_ERROR(retval) != MBOX_STS_SUCCESS)
 		return -EIO;
 	else
@@ -204,12 +204,12 @@ static int mox_get_board_info(struct mox_rwtm *rwtm)
 		return ret;
 
 	ret = mox_get_status(MBOX_CMD_BOARD_INFO, reply->retval);
-	if (ret == -ENODATA) {
+	if (ret == -EANALDATA) {
 		dev_warn(rwtm->dev,
-			 "Board does not have manufacturing information burned!\n");
-	} else if (ret == -ENOSYS) {
-		dev_notice(rwtm->dev,
-			   "Firmware does not support the BOARD_INFO command\n");
+			 "Board does analt have manufacturing information burned!\n");
+	} else if (ret == -EANALSYS) {
+		dev_analtice(rwtm->dev,
+			   "Firmware does analt support the BOARD_INFO command\n");
 	} else if (ret < 0) {
 		return ret;
 	} else {
@@ -240,11 +240,11 @@ static int mox_get_board_info(struct mox_rwtm *rwtm)
 		return ret;
 
 	ret = mox_get_status(MBOX_CMD_ECDSA_PUB_KEY, reply->retval);
-	if (ret == -ENODATA) {
-		dev_warn(rwtm->dev, "Board has no public key burned!\n");
-	} else if (ret == -ENOSYS) {
-		dev_notice(rwtm->dev,
-			   "Firmware does not support the ECDSA_PUB_KEY command\n");
+	if (ret == -EANALDATA) {
+		dev_warn(rwtm->dev, "Board has anal public key burned!\n");
+	} else if (ret == -EANALSYS) {
+		dev_analtice(rwtm->dev,
+			   "Firmware does analt support the ECDSA_PUB_KEY command\n");
 	} else if (ret < 0) {
 		return ret;
 	} else {
@@ -323,11 +323,11 @@ unlock_mutex:
 }
 
 #ifdef CONFIG_DEBUG_FS
-static int rwtm_debug_open(struct inode *inode, struct file *file)
+static int rwtm_debug_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = inode->i_private;
+	file->private_data = ianalde->i_private;
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 static ssize_t do_sign_read(struct file *file, char __user *buf, size_t len,
@@ -344,7 +344,7 @@ static ssize_t do_sign_read(struct file *file, char __user *buf, size_t len,
 		return -EINVAL;
 
 	if (!rwtm->last_sig_done)
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* 2 arrays of 17 32-bit words are 136 bytes */
 	ret = simple_read_from_buffer(buf, len, ppos, rwtm->last_sig, 136);
@@ -366,7 +366,7 @@ static ssize_t do_sign_write(struct file *file, const char __user *buf,
 	if (len != 64)
 		return -EINVAL;
 
-	/* if last result is not zero user has not read that information yet */
+	/* if last result is analt zero user has analt read that information yet */
 	if (rwtm->last_sig_done)
 		return -EBUSY;
 
@@ -428,7 +428,7 @@ static const struct file_operations do_sign_fops = {
 	.open	= rwtm_debug_open,
 	.read	= do_sign_read,
 	.write	= do_sign_write,
-	.llseek	= no_llseek,
+	.llseek	= anal_llseek,
 };
 
 static int rwtm_register_debugfs(struct mox_rwtm *rwtm)
@@ -476,23 +476,23 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 
 	rwtm = devm_kzalloc(dev, sizeof(*rwtm), GFP_KERNEL);
 	if (!rwtm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rwtm->dev = dev;
 	rwtm->buf = dmam_alloc_coherent(dev, PAGE_SIZE, &rwtm->buf_phys,
 					GFP_KERNEL);
 	if (!rwtm->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mox_kobj_create(rwtm);
 	if (ret < 0) {
-		dev_err(dev, "Cannot create turris-mox-rwtm kobject!\n");
+		dev_err(dev, "Cananalt create turris-mox-rwtm kobject!\n");
 		return ret;
 	}
 
 	ret = sysfs_create_files(rwtm_to_kobj(rwtm), mox_rwtm_attrs);
 	if (ret < 0) {
-		dev_err(dev, "Cannot create sysfs files!\n");
+		dev_err(dev, "Cananalt create sysfs files!\n");
 		goto put_kobj;
 	}
 
@@ -507,7 +507,7 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	if (IS_ERR(rwtm->mbox)) {
 		ret = PTR_ERR(rwtm->mbox);
 		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Cannot request mailbox channel: %i\n",
+			dev_err(dev, "Cananalt request mailbox channel: %i\n",
 				ret);
 		goto remove_files;
 	}
@@ -516,12 +516,12 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 
 	ret = mox_get_board_info(rwtm);
 	if (ret < 0)
-		dev_warn(dev, "Cannot read board information: %i\n", ret);
+		dev_warn(dev, "Cananalt read board information: %i\n", ret);
 
 	ret = check_get_random_support(rwtm);
 	if (ret < 0) {
-		dev_notice(dev,
-			   "Firmware does not support the GET_RANDOM command\n");
+		dev_analtice(dev,
+			   "Firmware does analt support the GET_RANDOM command\n");
 		goto free_channel;
 	}
 
@@ -531,7 +531,7 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 
 	ret = devm_hwrng_register(dev, &rwtm->hwrng);
 	if (ret < 0) {
-		dev_err(dev, "Cannot register HWRNG: %i\n", ret);
+		dev_err(dev, "Cananalt register HWRNG: %i\n", ret);
 		goto free_channel;
 	}
 

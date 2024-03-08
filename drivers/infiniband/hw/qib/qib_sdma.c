@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -94,7 +94,7 @@ static void sdma_finalput(struct qib_sdma_state *ss)
  * order, and with appropriate processing.   Called when cleaning up
  * after sdma shutdown, and when new sdma requests are submitted for
  * a link that is down.   This matches what is done for requests
- * that complete normally, it's just the full list.
+ * that complete analrmally, it's just the full list.
  *
  * Must be called with sdma_lock held
  */
@@ -129,8 +129,8 @@ static void sdma_sw_clean_up_task(struct tasklet_struct *t)
 
 	/*
 	 * At this point, the following should always be true:
-	 * - We are halted, so no more descriptors are getting retired.
-	 * - We are not running, so no one is submitting new work.
+	 * - We are halted, so anal more descriptors are getting retired.
+	 * - We are analt running, so anal one is submitting new work.
 	 * - Only we can send the e40_sw_cleaned, so we can't start
 	 *   running again until we say so.  So, the active list and
 	 *   descq are ours to play with.
@@ -148,8 +148,8 @@ static void sdma_sw_clean_up_task(struct tasklet_struct *t)
 	ppd->sdma_descq_removed = ppd->sdma_descq_added;
 
 	/*
-	 * Reset our notion of head and tail.
-	 * Note that the HW registers will be reset when switching states
+	 * Reset our analtion of head and tail.
+	 * Analte that the HW registers will be reset when switching states
 	 * due to calling __qib_sdma_process_event() below.
 	 */
 	ppd->sdma_descq_tail = 0;
@@ -170,10 +170,10 @@ static void sdma_sw_clean_up_task(struct tasklet_struct *t)
 static void sdma_hw_start_up(struct qib_pportdata *ppd)
 {
 	struct qib_sdma_state *ss = &ppd->sdma_state;
-	unsigned bufno;
+	unsigned bufanal;
 
-	for (bufno = ss->first_sendbuf; bufno < ss->last_sendbuf; ++bufno)
-		ppd->dd->f_sendctrl(ppd, QIB_SENDCTRL_DISARM_BUF(bufno));
+	for (bufanal = ss->first_sendbuf; bufanal < ss->last_sendbuf; ++bufanal)
+		ppd->dd->f_sendctrl(ppd, QIB_SENDCTRL_DISARM_BUF(bufanal));
 
 	ppd->dd->f_sdma_hw_start_up(ppd);
 }
@@ -278,7 +278,7 @@ cleanup_descq:
 	ppd->sdma_descq_phys = 0;
 bail:
 	ppd->sdma_descq_cnt = 0;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void free_sdma(struct qib_pportdata *ppd)
@@ -334,7 +334,7 @@ int qib_sdma_make_progress(struct qib_pportdata *ppd)
 	hwhead = dd->f_sdma_gethead(ppd);
 
 	/* The reason for some of the complexity of this code is that
-	 * not all descriptors have corresponding txps.  So, we have to
+	 * analt all descriptors have corresponding txps.  So, we have to
 	 * be able to skip over descs until we wander into the range of
 	 * the next txp on the list.
 	 */
@@ -361,13 +361,13 @@ int qib_sdma_make_progress(struct qib_pportdata *ppd)
 		if (++ppd->sdma_descq_head == ppd->sdma_descq_cnt)
 			ppd->sdma_descq_head = 0;
 
-		/* if now past this txp's descs, do the callback */
+		/* if analw past this txp's descs, do the callback */
 		if (txp && txp->next_descq_idx == ppd->sdma_descq_head) {
 			/* remove from active list */
 			list_del_init(&txp->list);
 			if (txp->callback)
 				(*txp->callback)(txp, QIB_SDMA_TXREQ_S_OK);
-			/* see if there is another txp */
+			/* see if there is aanalther txp */
 			if (list_empty(&ppd->sdma_activelist))
 				txp = NULL;
 			else {
@@ -458,9 +458,9 @@ void qib_teardown_sdma(struct qib_pportdata *ppd)
 	qib_sdma_process_event(ppd, qib_sdma_event_e00_go_hw_down);
 
 	/*
-	 * This waits for the state machine to exit so it is not
+	 * This waits for the state machine to exit so it is analt
 	 * necessary to kill the sdma_sw_clean_up_task to make sure
-	 * it is not running.
+	 * it is analt running.
 	 */
 	sdma_finalput(&ppd->sdma_state);
 
@@ -480,7 +480,7 @@ int qib_sdma_running(struct qib_pportdata *ppd)
 }
 
 /*
- * Complete a request when sdma not running; likely only request
+ * Complete a request when sdma analt running; likely only request
  * but to simplify the code, always queue it, then process the full
  * activelist.  We process the entire list to ensure that this particular
  * request does get it's callback, but in the correct order.
@@ -492,7 +492,7 @@ static void complete_sdma_err_req(struct qib_pportdata *ppd,
 	struct qib_qp_priv *priv = tx->qp->priv;
 
 	atomic_inc(&priv->s_dma_busy);
-	/* no sdma descriptors, so no unmap_desc */
+	/* anal sdma descriptors, so anal unmap_desc */
 	tx->txreq.start_idx = 0;
 	tx->txreq.next_descq_idx = 0;
 	list_add_tail(&tx->txreq.list, &ppd->sdma_activelist);
@@ -571,7 +571,7 @@ retry:
 		addr = dma_map_single(&ppd->dd->pcidev->dev, sge->vaddr,
 				      dw << 2, DMA_TO_DEVICE);
 		if (dma_mapping_error(&ppd->dd->pcidev->dev, addr)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unmap;
 		}
 		sdmadesc[0] = 0;

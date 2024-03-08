@@ -57,7 +57,7 @@ struct rmi_i2c_xport {
  *
  * The page_mutex lock must be held when this function is entered.
  *
- * Returns zero on success, non-zero on failure.
+ * Returns zero on success, analn-zero on failure.
  */
 static int rmi_set_page(struct rmi_i2c_xport *rmi_i2c, u8 page)
 {
@@ -96,7 +96,7 @@ static int rmi_i2c_write_block(struct rmi_transport_dev *xport, u16 addr,
 					       GFP_KERNEL);
 		if (!rmi_i2c->tx_buf) {
 			rmi_i2c->tx_buf_size = 0;
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto exit;
 		}
 	}
@@ -209,11 +209,11 @@ static int rmi_i2c_probe(struct i2c_client *client)
 	rmi_i2c = devm_kzalloc(&client->dev, sizeof(struct rmi_i2c_xport),
 				GFP_KERNEL);
 	if (!rmi_i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = &rmi_i2c->xport.pdata;
 
-	if (!client->dev.of_node && client_pdata)
+	if (!client->dev.of_analde && client_pdata)
 		*pdata = *client_pdata;
 
 	pdata->irq = client->irq;
@@ -223,8 +223,8 @@ static int rmi_i2c_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev,
-			"adapter does not support required functionality\n");
-		return -ENODEV;
+			"adapter does analt support required functionality\n");
+		return -EANALDEV;
 	}
 
 	rmi_i2c->supplies[0].supply = "vdd";
@@ -246,7 +246,7 @@ static int rmi_i2c_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
-	of_property_read_u32(client->dev.of_node, "syna,startup-delay-ms",
+	of_property_read_u32(client->dev.of_analde, "syna,startup-delay-ms",
 			     &rmi_i2c->startup_delay);
 
 	msleep(rmi_i2c->startup_delay);
@@ -262,7 +262,7 @@ static int rmi_i2c_probe(struct i2c_client *client)
 
 	/*
 	 * Setting the page to zero will (a) make sure the PSR is in a
-	 * known state, and (b) make sure we can talk to the device.
+	 * kanalwn state, and (b) make sure we can talk to the device.
 	 */
 	error = rmi_set_page(rmi_i2c, 0);
 	if (error) {

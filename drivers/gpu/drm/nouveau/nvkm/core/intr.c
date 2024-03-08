@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -59,7 +59,7 @@ nvkm_intr_xlat(struct nvkm_subdev *subdev, struct nvkm_intr *intr,
 				data++;
 			}
 		} else {
-			return -ENOSYS;
+			return -EANALSYS;
 		}
 	} else {
 		if (type < intr->leaves * sizeof(*intr->stat) * 8) {
@@ -166,7 +166,7 @@ nvkm_intr(int irq, void *arg)
 	struct nvkm_device *device = arg;
 	struct nvkm_intr *intr;
 	struct nvkm_inth *inth;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	bool pending = false;
 	int prio, leaf;
 
@@ -207,8 +207,8 @@ nvkm_intr(int irq, void *arg)
 		}
 	}
 
-	/* Nothing handled?  Some debugging/protection from IRQ storms is in order... */
-	if (ret == IRQ_NONE) {
+	/* Analthing handled?  Some debugging/protection from IRQ storms is in order... */
+	if (ret == IRQ_ANALNE) {
 		list_for_each_entry(intr, &device->intr.intr, head) {
 			for (leaf = 0; leaf < intr->leaves; leaf++) {
 				if (intr->stat[leaf]) {
@@ -243,7 +243,7 @@ nvkm_intr_add(const struct nvkm_intr_func *func, const struct nvkm_intr_data *da
 	intr->mask = kcalloc(leaves, sizeof(*intr->mask), GFP_KERNEL);
 	if (!intr->stat || !intr->mask) {
 		kfree(intr->stat);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (intr->subdev->debug >= NV_DBG_DEBUG) {
@@ -280,7 +280,7 @@ nvkm_intr_subdev_add_dev(struct nvkm_intr *intr, enum nvkm_subdev_type type, int
 	if (type == NVKM_ENGINE_DISP)
 		prio = NVKM_INTR_PRIO_VBLANK;
 	else
-		prio = NVKM_INTR_PRIO_NORMAL;
+		prio = NVKM_INTR_PRIO_ANALRMAL;
 
 	ret = nvkm_inth_add(intr, NVKM_INTR_SUBDEV, prio, subdev, nvkm_intr_subdev, &subdev->inth);
 	if (WARN_ON(ret))

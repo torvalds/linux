@@ -18,11 +18,11 @@
 #include <linux/ima.h>
 #include <linux/bpf-cgroup.h>
 
-/* For every LSM hook that allows attachment of BPF programs, declare a nop
+/* For every LSM hook that allows attachment of BPF programs, declare a analp
  * function where a BPF program can be attached.
  */
 #define LSM_HOOK(RET, DEFAULT, NAME, ...)	\
-noinline RET bpf_lsm_##NAME(__VA_ARGS__)	\
+analinline RET bpf_lsm_##NAME(__VA_ARGS__)	\
 {						\
 	return DEFAULT;				\
 }
@@ -57,7 +57,7 @@ BTF_ID(func, bpf_lsm_inet_conn_established)
 #endif
 BTF_SET_END(bpf_lsm_locked_sockopt_hooks)
 
-/* List of LSM hooks that trigger while the socket is _not_ locked,
+/* List of LSM hooks that trigger while the socket is _analt_ locked,
  * but it's ok to call bpf_{g,s}etsockopt because the socket is still
  * in the early init phase.
  */
@@ -135,28 +135,28 @@ static const struct bpf_func_proto bpf_bprm_opts_set_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_3(bpf_ima_inode_hash, struct inode *, inode, void *, dst, u32, size)
+BPF_CALL_3(bpf_ima_ianalde_hash, struct ianalde *, ianalde, void *, dst, u32, size)
 {
-	return ima_inode_hash(inode, dst, size);
+	return ima_ianalde_hash(ianalde, dst, size);
 }
 
-static bool bpf_ima_inode_hash_allowed(const struct bpf_prog *prog)
+static bool bpf_ima_ianalde_hash_allowed(const struct bpf_prog *prog)
 {
 	return bpf_lsm_is_sleepable_hook(prog->aux->attach_btf_id);
 }
 
-BTF_ID_LIST_SINGLE(bpf_ima_inode_hash_btf_ids, struct, inode)
+BTF_ID_LIST_SINGLE(bpf_ima_ianalde_hash_btf_ids, struct, ianalde)
 
-static const struct bpf_func_proto bpf_ima_inode_hash_proto = {
-	.func		= bpf_ima_inode_hash,
+static const struct bpf_func_proto bpf_ima_ianalde_hash_proto = {
+	.func		= bpf_ima_ianalde_hash,
 	.gpl_only	= false,
 	.might_sleep	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
-	.arg1_btf_id	= &bpf_ima_inode_hash_btf_ids[0],
+	.arg1_btf_id	= &bpf_ima_ianalde_hash_btf_ids[0],
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg3_type	= ARG_CONST_SIZE,
-	.allowed	= bpf_ima_inode_hash_allowed,
+	.allowed	= bpf_ima_ianalde_hash_allowed,
 };
 
 BPF_CALL_3(bpf_ima_file_hash, struct file *, file, void *, dst, u32, size)
@@ -175,7 +175,7 @@ static const struct bpf_func_proto bpf_ima_file_hash_proto = {
 	.arg1_btf_id	= &bpf_ima_file_hash_btf_ids[0],
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg3_type	= ARG_CONST_SIZE,
-	.allowed	= bpf_ima_inode_hash_allowed,
+	.allowed	= bpf_ima_ianalde_hash_allowed,
 };
 
 BPF_CALL_1(bpf_get_attach_cookie, void *, ctx)
@@ -205,10 +205,10 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	}
 
 	switch (func_id) {
-	case BPF_FUNC_inode_storage_get:
-		return &bpf_inode_storage_get_proto;
-	case BPF_FUNC_inode_storage_delete:
-		return &bpf_inode_storage_delete_proto;
+	case BPF_FUNC_ianalde_storage_get:
+		return &bpf_ianalde_storage_get_proto;
+	case BPF_FUNC_ianalde_storage_delete:
+		return &bpf_ianalde_storage_delete_proto;
 #ifdef CONFIG_NET
 	case BPF_FUNC_sk_storage_get:
 		return &bpf_sk_storage_get_proto;
@@ -221,8 +221,8 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_spin_unlock_proto;
 	case BPF_FUNC_bprm_opts_set:
 		return &bpf_bprm_opts_set_proto;
-	case BPF_FUNC_ima_inode_hash:
-		return &bpf_ima_inode_hash_proto;
+	case BPF_FUNC_ima_ianalde_hash:
+		return &bpf_ima_ianalde_hash_proto;
 	case BPF_FUNC_ima_file_hash:
 		return &bpf_ima_file_hash_proto;
 	case BPF_FUNC_get_attach_cookie:
@@ -280,20 +280,20 @@ BTF_ID(func, bpf_lsm_file_receive)
 BTF_ID(func, bpf_lsm_inet_conn_established)
 #endif /* CONFIG_SECURITY_NETWORK */
 
-BTF_ID(func, bpf_lsm_inode_create)
-BTF_ID(func, bpf_lsm_inode_free_security)
-BTF_ID(func, bpf_lsm_inode_getattr)
-BTF_ID(func, bpf_lsm_inode_getxattr)
-BTF_ID(func, bpf_lsm_inode_mknod)
-BTF_ID(func, bpf_lsm_inode_need_killpriv)
-BTF_ID(func, bpf_lsm_inode_post_setxattr)
-BTF_ID(func, bpf_lsm_inode_readlink)
-BTF_ID(func, bpf_lsm_inode_rename)
-BTF_ID(func, bpf_lsm_inode_rmdir)
-BTF_ID(func, bpf_lsm_inode_setattr)
-BTF_ID(func, bpf_lsm_inode_setxattr)
-BTF_ID(func, bpf_lsm_inode_symlink)
-BTF_ID(func, bpf_lsm_inode_unlink)
+BTF_ID(func, bpf_lsm_ianalde_create)
+BTF_ID(func, bpf_lsm_ianalde_free_security)
+BTF_ID(func, bpf_lsm_ianalde_getattr)
+BTF_ID(func, bpf_lsm_ianalde_getxattr)
+BTF_ID(func, bpf_lsm_ianalde_mkanald)
+BTF_ID(func, bpf_lsm_ianalde_need_killpriv)
+BTF_ID(func, bpf_lsm_ianalde_post_setxattr)
+BTF_ID(func, bpf_lsm_ianalde_readlink)
+BTF_ID(func, bpf_lsm_ianalde_rename)
+BTF_ID(func, bpf_lsm_ianalde_rmdir)
+BTF_ID(func, bpf_lsm_ianalde_setattr)
+BTF_ID(func, bpf_lsm_ianalde_setxattr)
+BTF_ID(func, bpf_lsm_ianalde_symlink)
+BTF_ID(func, bpf_lsm_ianalde_unlink)
 BTF_ID(func, bpf_lsm_kernel_module_request)
 BTF_ID(func, bpf_lsm_kernel_read_file)
 BTF_ID(func, bpf_lsm_kernfs_init_security)
@@ -316,7 +316,7 @@ BTF_ID(func, bpf_lsm_key_free)
 
 BTF_ID(func, bpf_lsm_mmap_file)
 BTF_ID(func, bpf_lsm_netlink_send)
-BTF_ID(func, bpf_lsm_path_notify)
+BTF_ID(func, bpf_lsm_path_analtify)
 BTF_ID(func, bpf_lsm_release_secctx)
 BTF_ID(func, bpf_lsm_sb_alloc_security)
 BTF_ID(func, bpf_lsm_sb_eat_lsm_opts)
@@ -352,7 +352,7 @@ BTF_ID(func, bpf_lsm_current_getsecid_subj)
 BTF_ID(func, bpf_lsm_task_getsecid_obj)
 BTF_ID(func, bpf_lsm_task_prctl)
 BTF_ID(func, bpf_lsm_task_setscheduler)
-BTF_ID(func, bpf_lsm_task_to_inode)
+BTF_ID(func, bpf_lsm_task_to_ianalde)
 BTF_ID(func, bpf_lsm_userns_create)
 BTF_SET_END(sleepable_lsm_hooks)
 

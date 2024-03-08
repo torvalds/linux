@@ -14,9 +14,9 @@ replacement for the MSDOS style partitions.  It stores its information in a
 partitions is limited only by disk space.  The maximum number of partitions is
 nearly 2000.
 
-Any partitions created under the LDM are called "Dynamic Disks".  There are no
-longer any primary or extended partitions.  Normal MSDOS style partitions are
-now known as Basic Disks.
+Any partitions created under the LDM are called "Dynamic Disks".  There are anal
+longer any primary or extended partitions.  Analrmal MSDOS style partitions are
+analw kanalwn as Basic Disks.
 
 If you wish to use Spanned, Striped, Mirrored or RAID 5 Volumes, you must use
 Dynamic Disks.  The journalling allows Windows to make changes to these
@@ -30,7 +30,7 @@ dummy MSDOS partition containing one disk-sized partition.  This is what is
 supported with the Linux LDM driver.
 
 A newer approach that has been implemented with Vista is to put LDM on top of a
-GPT label disk.  This is not supported by the Linux LDM driver yet.
+GPT label disk.  This is analt supported by the Linux LDM driver yet.
 
 
 Example
@@ -38,7 +38,7 @@ Example
 
 Below we have a 50MiB disk, divided into seven partitions.
 
-.. note::
+.. analte::
 
    The missing 1MiB at the end of the disk is where the LDM database is
    stored.
@@ -63,7 +63,7 @@ Below we have a 50MiB disk, divided into seven partitions.
 |hda7   ||     37404672 |   73056 |  35 ||     13959168 |   27264 |  13|
 +-------++--------------+---------+-----++--------------+---------+----+
 
-The LDM Database may not store the partitions in the order that they appear on
+The LDM Database may analt store the partitions in the order that they appear on
 disk, but the driver will sort them.
 
 When Linux boots, you will see something like::
@@ -85,10 +85,10 @@ debugging code.  This will produce a LOT of output.  The option is:
 
   - "Windows LDM extra logging" CONFIG_LDM_DEBUG
 
-N.B. The partition code cannot be compiled as a module.
+N.B. The partition code cananalt be compiled as a module.
 
 As with all the partition code, if the driver doesn't see signs of its type of
-partition, it will pass control to another driver, so there is no harm in
+partition, it will pass control to aanalther driver, so there is anal harm in
 enabling it.
 
 If you have Dynamic Disks but don't enable the driver, then all you will see
@@ -100,8 +100,8 @@ Booting
 -------
 
 If you enable LDM support, then lilo is capable of booting from any of the
-discovered partitions.  However, grub does not understand the LDM partitioning
-and cannot boot from a Dynamic Disk.
+discovered partitions.  However, grub does analt understand the LDM partitioning
+and cananalt boot from a Dynamic Disk.
 
 
 More Documentation

@@ -51,13 +51,13 @@ static DEFINE_MUTEX(links_list_lock);
  * the AFU how many actags the AFU is really allowed to use (which can
  * be less than what the AFU desires).
  *
- * When a PCI function is probed by the driver, it has no visibility
+ * When a PCI function is probed by the driver, it has anal visibility
  * about the other PCI functions and how many actags they'd like,
  * which makes it impossible to distribute actags fairly among AFUs.
  *
- * Unfortunately, the only way to know how many actags a function
+ * Unfortunately, the only way to kanalw how many actags a function
  * desires is by looking at the data for each AFU in the config space
- * and add them up. Similarly, the only way to know how many actags
+ * and add them up. Similarly, the only way to kanalw how many actags
  * all the functions of the physical device desire is by adding the
  * previously computed function counts. Then we can match that against
  * what the hardware supports.
@@ -257,9 +257,9 @@ int pnv_ocxl_get_actag(struct pci_dev *dev, u16 *base, u16 *enabled,
 
 	link = find_link(dev);
 	if (!link) {
-		dev_err(&dev->dev, "actag information not found\n");
+		dev_err(&dev->dev, "actag information analt found\n");
 		mutex_unlock(&links_list_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/*
 	 * On p9, we only have 64 actags per link, so they must be
@@ -287,19 +287,19 @@ int pnv_ocxl_get_pasid_count(struct pci_dev *dev, int *count)
 	/*
 	 * The number of PASIDs (process address space ID) which can
 	 * be used by a function depends on how many functions exist
-	 * on the device. The NPU needs to be configured to know how
+	 * on the device. The NPU needs to be configured to kanalw how
 	 * many bits are available to PASIDs and how many are to be
 	 * used by the function BDF identifier.
 	 *
-	 * We only support one AFU-carrying function for now.
+	 * We only support one AFU-carrying function for analw.
 	 */
 	mutex_lock(&links_list_lock);
 
 	link = find_link(dev);
 	if (!link) {
-		dev_err(&dev->dev, "actag information not found\n");
+		dev_err(&dev->dev, "actag information analt found\n");
 		mutex_unlock(&links_list_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < 8; i++)
@@ -373,7 +373,7 @@ int pnv_ocxl_get_xsl_irq(struct pci_dev *dev, int *hwirq)
 {
 	int rc;
 
-	rc = of_property_read_u32(dev->dev.of_node, "ibm,opal-xsl-irq", hwirq);
+	rc = of_property_read_u32(dev->dev.of_analde, "ibm,opal-xsl-irq", hwirq);
 	if (rc) {
 		dev_err(&dev->dev,
 			"Can't get translation interrupt for device\n");
@@ -407,7 +407,7 @@ int pnv_ocxl_map_xsl_regs(struct pci_dev *dev, void __iomem **dsisr,
 	 * order
 	 */
 	for (i = 0; i < 4; i++) {
-		rc = of_property_read_u64_index(dev->dev.of_node,
+		rc = of_property_read_u64_index(dev->dev.of_analde,
 						"ibm,opal-xsl-mmio", i, &reg);
 		if (rc)
 			break;
@@ -447,7 +447,7 @@ int pnv_ocxl_spa_setup(struct pci_dev *dev, void *spa_mem, int PE_mask,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bdfn = pci_dev_id(dev);
 	rc = opal_npu_spa_setup(phb->opal_id, bdfn, virt_to_phys(spa_mem),
@@ -498,7 +498,7 @@ int pnv_ocxl_map_lpar(struct pci_dev *dev, uint64_t lparid,
 	rc = of_property_read_u64_index(hose->dn, "ibm,mmio-atsd",
 					0, &mmio_atsd);
 	if (rc) {
-		dev_info(&dev->dev, "No available ATSD found\n");
+		dev_info(&dev->dev, "Anal available ATSD found\n");
 		return rc;
 	}
 
@@ -515,7 +515,7 @@ int pnv_ocxl_map_lpar(struct pci_dev *dev, uint64_t lparid,
 	*arva = ioremap(mmio_atsd, 24);
 	if (!(*arva)) {
 		dev_warn(&dev->dev, "ioremap failed - mmio_atsd: %#llx\n", mmio_atsd);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 	}
 
 	return rc;

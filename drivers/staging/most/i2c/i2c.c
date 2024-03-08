@@ -2,7 +2,7 @@
 /*
  * i2c.c - Hardware Dependent Module for I2C Interface
  *
- * Copyright (C) 2013-2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2015, Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -87,7 +87,7 @@ static int configure_channel(struct most_interface *most_iface,
 		if (!polling_rate) {
 			if (dev->client->irq <= 0) {
 				pr_err("bad irq: %d\n", dev->client->irq);
-				return -ENOENT;
+				return -EANALENT;
 			}
 			dev->rx.int_disabled = false;
 			ret = request_irq(dev->client->irq, most_irq_handler, 0,
@@ -263,7 +263,7 @@ static void pending_rx_work(struct work_struct *work)
  * to avoid ISR being called repeatedly. Re-enable the interrupt in workqueue,
  * after reading the message.
  *
- * Note: If we use the interrupt line in Falling edge mode, there is a
+ * Analte: If we use the interrupt line in Falling edge mode, there is a
  * possibility to miss interrupts when ISR is getting executed.
  *
  */
@@ -271,7 +271,7 @@ static irqreturn_t most_irq_handler(int irq, void *_dev)
 {
 	struct hdm_i2c *dev = _dev;
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	dev->rx.int_disabled = true;
 	schedule_delayed_work(&dev->rx.dwork, 0);
 
@@ -294,7 +294,7 @@ static int i2c_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ID format: i2c-<bus>-<address> */
 	snprintf(dev->name, sizeof(dev->name), "i2c-%d-%04x",

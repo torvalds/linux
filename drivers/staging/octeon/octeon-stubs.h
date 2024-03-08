@@ -64,7 +64,7 @@ union cvmx_pip_wqe_word2 {
 		uint64_t IP_exc:1;
 		uint64_t is_bcast:1;
 		uint64_t is_mcast:1;
-		uint64_t not_IP:1;
+		uint64_t analt_IP:1;
 		uint64_t rcv_error:1;
 		uint64_t err_code:8;
 	} s;
@@ -87,7 +87,7 @@ union cvmx_pip_wqe_word2 {
 		uint64_t IP_exc:1;
 		uint64_t is_bcast:1;
 		uint64_t is_mcast:1;
-		uint64_t not_IP:1;
+		uint64_t analt_IP:1;
 		uint64_t rcv_error:1;
 		uint64_t err_code:8;
 	} s_cn68xx;
@@ -113,10 +113,10 @@ union cvmx_pip_wqe_word2 {
 		uint64_t is_arp:1;
 		uint64_t is_bcast:1;
 		uint64_t is_mcast:1;
-		uint64_t not_IP:1;
+		uint64_t analt_IP:1;
 		uint64_t rcv_error:1;
 		uint64_t err_code:8;
-	} snoip;
+	} sanalip;
 
 };
 
@@ -214,7 +214,7 @@ enum cvmx_fau_op_size {
 };
 
 typedef enum {
-	CVMX_SPI_MODE_UNKNOWN = 0,
+	CVMX_SPI_MODE_UNKANALWN = 0,
 	CVMX_SPI_MODE_TX_HALFPLEX = 1,
 	CVMX_SPI_MODE_RX_HALFPLEX = 2,
 	CVMX_SPI_MODE_DUPLEX = 3
@@ -235,11 +235,11 @@ typedef enum {
 
 typedef enum {
 	CVMX_POW_WAIT = 1,
-	CVMX_POW_NO_WAIT = 0,
+	CVMX_POW_ANAL_WAIT = 0,
 } cvmx_pow_wait_t;
 
 typedef enum {
-	CVMX_PKO_LOCK_NONE = 0,
+	CVMX_PKO_LOCK_ANALNE = 0,
 	CVMX_PKO_LOCK_ATOMIC_TAG = 1,
 	CVMX_PKO_LOCK_CMD_QUEUE = 2,
 } cvmx_pko_lock_t;
@@ -249,7 +249,7 @@ typedef enum {
 	CVMX_PKO_INVALID_PORT,
 	CVMX_PKO_INVALID_QUEUE,
 	CVMX_PKO_INVALID_PRIORITY,
-	CVMX_PKO_NO_MEMORY,
+	CVMX_PKO_ANAL_MEMORY,
 	CVMX_PKO_PORT_ALREADY_SETUP,
 	CVMX_PKO_CMD_QUEUE_INIT_ERROR
 } cvmx_pko_status_t;
@@ -268,7 +268,7 @@ union cvmx_ipd_ctl_status {
 		uint64_t use_sop:1;
 		uint64_t rst_done:1;
 		uint64_t clken:1;
-		uint64_t no_wptr:1;
+		uint64_t anal_wptr:1;
 		uint64_t pq_apkt:1;
 		uint64_t pq_nabuf:1;
 		uint64_t ipd_full:1;
@@ -308,7 +308,7 @@ union cvmx_ipd_ctl_status {
 	} cn38xxp2;
 	struct cvmx_ipd_ctl_status_cn50xx {
 		uint64_t reserved_15_63:49;
-		uint64_t no_wptr:1;
+		uint64_t anal_wptr:1;
 		uint64_t pq_apkt:1;
 		uint64_t pq_nabuf:1;
 		uint64_t ipd_full:1;
@@ -340,7 +340,7 @@ union cvmx_ipd_ctl_status {
 	struct cvmx_ipd_ctl_status_cn63xxp1 {
 		uint64_t reserved_16_63:48;
 		uint64_t clken:1;
-		uint64_t no_wptr:1;
+		uint64_t anal_wptr:1;
 		uint64_t pq_apkt:1;
 		uint64_t pq_nabuf:1;
 		uint64_t ipd_full:1;
@@ -791,7 +791,7 @@ union cvmx_pip_prt_tagx {
 		uint64_t tcp4_tag_type:2;
 		uint64_t ip6_tag_type:2;
 		uint64_t ip4_tag_type:2;
-		uint64_t non_tag_type:2;
+		uint64_t analn_tag_type:2;
 		uint64_t grp:4;
 	} s;
 	struct cvmx_pip_prt_tagx_cn30xx {
@@ -818,7 +818,7 @@ union cvmx_pip_prt_tagx {
 		uint64_t tcp4_tag_type:2;
 		uint64_t ip6_tag_type:2;
 		uint64_t ip4_tag_type:2;
-		uint64_t non_tag_type:2;
+		uint64_t analn_tag_type:2;
 		uint64_t grp:4;
 	} cn30xx;
 	struct cvmx_pip_prt_tagx_cn50xx {
@@ -845,7 +845,7 @@ union cvmx_pip_prt_tagx {
 		uint64_t tcp4_tag_type:2;
 		uint64_t ip6_tag_type:2;
 		uint64_t ip4_tag_type:2;
-		uint64_t non_tag_type:2;
+		uint64_t analn_tag_type:2;
 		uint64_t grp:4;
 	} cn50xx;
 };
@@ -865,7 +865,7 @@ union cvmx_spxx_int_reg {
 		uint64_t clserr:1;
 		uint64_t spiovr:1;
 		uint64_t reserved_2_3:2;
-		uint64_t abnorm:1;
+		uint64_t abanalrm:1;
 		uint64_t prtnxa:1;
 	} s;
 };
@@ -883,7 +883,7 @@ union cvmx_spxx_int_msk {
 		uint64_t clserr:1;
 		uint64_t spiovr:1;
 		uint64_t reserved_2_3:2;
-		uint64_t abnorm:1;
+		uint64_t abanalrm:1;
 		uint64_t prtnxa:1;
 	} s;
 };
@@ -917,7 +917,7 @@ union cvmx_stxx_int_reg {
 		uint64_t syncerr:1;
 		uint64_t frmerr:1;
 		uint64_t unxfrm:1;
-		uint64_t nosync:1;
+		uint64_t analsync:1;
 		uint64_t diperr:1;
 		uint64_t datovr:1;
 		uint64_t ovrbst:1;
@@ -932,7 +932,7 @@ union cvmx_stxx_int_msk {
 		uint64_t reserved_8_63:56;
 		uint64_t frmerr:1;
 		uint64_t unxfrm:1;
-		uint64_t nosync:1;
+		uint64_t analsync:1;
 		uint64_t diperr:1;
 		uint64_t datovr:1;
 		uint64_t ovrbst:1;
@@ -1145,7 +1145,7 @@ union cvmx_pko_command_word0 {
 		uint64_t total_bytes:16;
 		uint64_t segs:6;
 		uint64_t dontfree:1;
-		uint64_t ignore_i:1;
+		uint64_t iganalre_i:1;
 		uint64_t ipoffp1:7;
 		uint64_t gather:1;
 		uint64_t rsp:1;
@@ -1341,7 +1341,7 @@ static inline unsigned int cvmx_get_core_num(void)
 	return 0;
 }
 
-static inline void cvmx_pow_work_request_async_nocheck(int scr_addr,
+static inline void cvmx_pow_work_request_async_analcheck(int scr_addr,
 						       cvmx_pow_wait_t wait)
 { }
 

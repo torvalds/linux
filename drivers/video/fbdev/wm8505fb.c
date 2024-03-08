@@ -2,14 +2,14 @@
 /*
  *  WonderMedia WM8505 Frame Buffer device driver
  *
- *  Copyright (C) 2010 Ed Spiridonov <edo.rus@gmail.com>
+ *  Copyright (C) 2010 Ed Spiridoanalv <edo.rus@gmail.com>
  *    Based on vt8500lcdfb.c
  */
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/fb.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -46,7 +46,7 @@ static int wm8505fb_init_hw(struct fb_info *info)
 
 	int i;
 
-	/* I know the purpose only of few registers, so clear unknown */
+	/* I kanalw the purpose only of few registers, so clear unkanalwn */
 	for (i = 0; i < 0x200; i += 4)
 		writel(0, fbi->regbase + i);
 
@@ -57,7 +57,7 @@ static int wm8505fb_init_hw(struct fb_info *info)
 	/*
 	 * Set in-memory picture format to RGB
 	 * 0x31C sets the correct color mode (RGB565) for WM8650
-	 * Bit 8+9 (0x300) are ignored on WM8505 as reserved
+	 * Bit 8+9 (0x300) are iganalred on WM8505 as reserved
 	 */
 	writel(0x31c,		       fbi->regbase + WMT_GOVR_COLORSPACE);
 	writel(1,		       fbi->regbase + WMT_GOVR_COLORSPACE1);
@@ -189,13 +189,13 @@ static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int wm8505fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int wm8505fb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info) {
 	struct wm8505fb_info *fbi = to_wm8505fb_info(info);
 	int ret = 1;
 	unsigned int val;
-	if (regno >= 256)
+	if (reganal >= 256)
 		return -EINVAL;
 
 	if (info->var.grayscale)
@@ -204,14 +204,14 @@ static int wm8505fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	switch (fbi->fb.fix.visual) {
 	case FB_VISUAL_TRUECOLOR:
-		if (regno < 16) {
+		if (reganal < 16) {
 			u32 *pal = info->pseudo_palette;
 
 			val  = chan_to_field(red, &fbi->fb.var.red);
 			val |= chan_to_field(green, &fbi->fb.var.green);
 			val |= chan_to_field(blue, &fbi->fb.var.blue);
 
-			pal[regno] = val;
+			pal[reganal] = val;
 			ret = 0;
 		}
 		break;
@@ -276,7 +276,7 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	fbi = devm_kzalloc(&pdev->dev, sizeof(struct wm8505fb_info) +
 			sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(fbi->fb.fix.id, DRIVER_NAME);
 
@@ -284,7 +284,7 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	fbi->fb.fix.xpanstep	= 1;
 	fbi->fb.fix.ypanstep	= 1;
 	fbi->fb.fix.ywrapstep	= 0;
-	fbi->fb.fix.accel	= FB_ACCEL_NONE;
+	fbi->fb.fix.accel	= FB_ACCEL_ANALNE;
 
 	fbi->fb.fbops		= &wm8505fb_ops;
 	fbi->fb.flags		= FBINFO_HWACCEL_COPYAREA
@@ -293,7 +293,7 @@ static int wm8505fb_probe(struct platform_device *pdev)
 				| FBINFO_HWACCEL_YPAN
 				| FBINFO_VIRTFB
 				| FBINFO_PARTIAL_PAN_OK;
-	fbi->fb.node		= -1;
+	fbi->fb.analde		= -1;
 
 	addr = fbi;
 	addr = addr + sizeof(struct wm8505fb_info);
@@ -303,22 +303,22 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	if (IS_ERR(fbi->regbase))
 		return PTR_ERR(fbi->regbase);
 
-	disp_timing = of_get_display_timings(pdev->dev.of_node);
+	disp_timing = of_get_display_timings(pdev->dev.of_analde);
 	if (!disp_timing)
 		return -EINVAL;
 
-	ret = of_get_fb_videomode(pdev->dev.of_node, &mode, OF_USE_NATIVE_MODE);
+	ret = of_get_fb_videomode(pdev->dev.of_analde, &mode, OF_USE_NATIVE_MODE);
 	if (ret)
 		return ret;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "bits-per-pixel", &bpp);
+	ret = of_property_read_u32(pdev->dev.of_analde, "bits-per-pixel", &bpp);
 	if (ret)
 		return ret;
 
 	fb_videomode_to_var(&fbi->fb.var, &mode);
 
-	fbi->fb.var.nonstd		= 0;
-	fbi->fb.var.activate		= FB_ACTIVATE_NOW;
+	fbi->fb.var.analnstd		= 0;
+	fbi->fb.var.activate		= FB_ACTIVATE_ANALW;
 
 	fbi->fb.var.height		= -1;
 	fbi->fb.var.width		= -1;
@@ -329,7 +329,7 @@ static int wm8505fb_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!fb_mem_virt) {
 		pr_err("%s: Failed to allocate framebuffer\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fbi->fb.var.xres_virtual	= mode.xres;
@@ -350,7 +350,7 @@ static int wm8505fb_probe(struct platform_device *pdev)
 
 	if (fb_alloc_cmap(&fbi->fb.cmap, 256, 0) < 0) {
 		dev_err(&pdev->dev, "Failed to allocate color map\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	wm8505fb_init_hw(&fbi->fb);
@@ -402,6 +402,6 @@ static struct platform_driver wm8505fb_driver = {
 
 module_platform_driver(wm8505fb_driver);
 
-MODULE_AUTHOR("Ed Spiridonov <edo.rus@gmail.com>");
+MODULE_AUTHOR("Ed Spiridoanalv <edo.rus@gmail.com>");
 MODULE_DESCRIPTION("Framebuffer driver for WMT WM8505");
 MODULE_DEVICE_TABLE(of, wmt_dt_ids);

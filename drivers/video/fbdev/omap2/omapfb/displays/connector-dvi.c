@@ -76,7 +76,7 @@ static int dvic_enable(struct omap_dss_device *dssdev)
 	int r;
 
 	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
@@ -172,7 +172,7 @@ static int dvic_read_edid(struct omap_dss_device *dssdev,
 	int r, l, bytes_read;
 
 	if (!ddata->i2c_adapter)
-		return -ENODEV;
+		return -EANALDEV;
 
 	l = min(EDID_LENGTH, len);
 	r = dvic_ddc_read(ddata->i2c_adapter, edid, l, 0);
@@ -230,12 +230,12 @@ static struct omap_dss_driver dvic_driver = {
 static int dvic_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct omap_dss_device *in;
-	struct device_node *adapter_node;
+	struct device_analde *adapter_analde;
 	struct i2c_adapter *adapter;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(analde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -243,10 +243,10 @@ static int dvic_probe_of(struct platform_device *pdev)
 
 	ddata->in = in;
 
-	adapter_node = of_parse_phandle(node, "ddc-i2c-bus", 0);
-	if (adapter_node) {
-		adapter = of_get_i2c_adapter_by_node(adapter_node);
-		of_node_put(adapter_node);
+	adapter_analde = of_parse_phandle(analde, "ddc-i2c-bus", 0);
+	if (adapter_analde) {
+		adapter = of_get_i2c_adapter_by_analde(adapter_analde);
+		of_analde_put(adapter_analde);
 		if (adapter == NULL) {
 			dev_err(&pdev->dev, "failed to parse ddc-i2c-bus\n");
 			omap_dss_put_device(ddata->in);
@@ -265,12 +265,12 @@ static int dvic_probe(struct platform_device *pdev)
 	struct omap_dss_device *dssdev;
 	int r;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ddata);
 

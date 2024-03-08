@@ -5,7 +5,7 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -164,7 +164,7 @@ static int sifive_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 	struct sifive_gpio *chip = gpiochip_get_data(gc);
 	struct irq_data *d = irq_get_irq_data(chip->irq_number[child]);
 
-	*parent_type = IRQ_TYPE_NONE;
+	*parent_type = IRQ_TYPE_ANALNE;
 	*parent = irqd_to_hwirq(d);
 
 	return 0;
@@ -188,7 +188,7 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->base)) {
@@ -208,8 +208,8 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 		chip->irq_number[ngpio] = ret;
 	}
 	if (!ngpio) {
-		dev_err(dev, "no IRQ found\n");
-		return -ENODEV;
+		dev_err(dev, "anal IRQ found\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -244,11 +244,11 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 	chip->gc.owner = THIS_MODULE;
 	girq = &chip->gc.irq;
 	gpio_irq_chip_set_chip(girq, &sifive_gpio_irqchip);
-	girq->fwnode = dev_fwnode(dev);
+	girq->fwanalde = dev_fwanalde(dev);
 	girq->parent_domain = parent;
 	girq->child_to_parent_hwirq = sifive_gpio_child_to_parent_hwirq;
 	girq->handler = handle_bad_irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 
 	return gpiochip_add_data(&chip->gc, chip);
 }

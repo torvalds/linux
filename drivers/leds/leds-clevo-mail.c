@@ -20,9 +20,9 @@ MODULE_AUTHOR("Márton Németh <nm127@freemail.hu>");
 MODULE_DESCRIPTION("Clevo mail LED driver");
 MODULE_LICENSE("GPL");
 
-static bool nodetect;
-module_param_named(nodetect, nodetect, bool, 0);
-MODULE_PARM_DESC(nodetect, "Skip DMI hardware detection");
+static bool analdetect;
+module_param_named(analdetect, analdetect, bool, 0);
+MODULE_PARM_DESC(analdetect, "Skip DMI hardware detection");
 
 static struct platform_device *pdev;
 
@@ -33,12 +33,12 @@ static int __init clevo_mail_led_dmi_callback(const struct dmi_system_id *id)
 }
 
 /*
- * struct clevo_mail_led_dmi_table - List of known good models
+ * struct clevo_mail_led_dmi_table - List of kanalwn good models
  *
- * Contains the known good models this driver is compatible with.
+ * Contains the kanalwn good models this driver is compatible with.
  * When adding a new model try to be as strict as possible. This
  * makes it possible to keep the false positives (the model is
- * detected as working, but in reality it is not) as low as
+ * detected as working, but in reality it is analt) as low as
  * possible.
  */
 static const struct dmi_system_id clevo_mail_led_dmi_table[] __initconst = {
@@ -177,7 +177,7 @@ static int __init clevo_mail_led_init(void)
 	int count = 0;
 
 	/* Check with the help of DMI if we are running on supported hardware */
-	if (!nodetect) {
+	if (!analdetect) {
 		count = dmi_check_system(clevo_mail_led_dmi_table);
 	} else {
 		count = 1;
@@ -188,7 +188,7 @@ static int __init clevo_mail_led_init(void)
 	}
 
 	if (!count)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = platform_device_register_simple(KBUILD_MODNAME, -1, NULL, 0);
 	if (!IS_ERR(pdev)) {

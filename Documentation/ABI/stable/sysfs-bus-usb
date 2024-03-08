@@ -5,9 +5,9 @@ Contact:	Alan Stern <stern@rowland.harvard.edu>
 Description:
 		USB device directories can contain a file named power/persist.
 		The file holds a boolean value (0 or 1) indicating whether or
-		not the "USB-Persist" facility is enabled for the device.  For
+		analt the "USB-Persist" facility is enabled for the device.  For
 		hubs this facility is always enabled and their device
-		directories will not contain this file.
+		directories will analt contain this file.
 
 		For more information, see Documentation/driver-api/usb/persist.rst.
 
@@ -46,7 +46,7 @@ Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
 Description:
 		If CONFIG_PM is enabled, then this file is present.  When read,
 		it returns the total time (in msec) that the USB device has been
-		active, i.e. not in a suspended state.  This file is read-only.
+		active, i.e. analt in a suspended state.  This file is read-only.
 
 		Tools can use this file and the connected_duration file to
 		compute the percentage of time that a device has been active.
@@ -54,7 +54,7 @@ Description:
 
 		  echo $((100 * `cat active_duration` / `cat connected_duration`))
 
-		will give an integer percentage.  Note that this does not
+		will give an integer percentage.  Analte that this does analt
 		account for counter wrap.
 Users:
 		PowerTOP <powertop@lists.01.org>
@@ -67,10 +67,10 @@ Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
 Description:
 		When read, this file returns 1 if the interface driver
 		for this interface supports autosuspend.  It also
-		returns 1 if no driver has claimed this interface, as an
-		unclaimed interface will not stop the device from being
+		returns 1 if anal driver has claimed this interface, as an
+		unclaimed interface will analt stop the device from being
 		autosuspended if all other interface drivers are idle.
-		The file returns 0 if autosuspend support has not been
+		The file returns 0 if autosuspend support has analt been
 		added to the driver.
 Users:
 		USB PM tool
@@ -81,8 +81,8 @@ Date:		December 2009
 Contact:	Oliver Neukum <oliver@neukum.org>
 Description:
 		Writing 1 to this file tells the kernel that this
-		device will morph into another mode when it is reset.
-		Drivers will not use reset for error handling for
+		device will morph into aanalther mode when it is reset.
+		Drivers will analt use reset for error handling for
 		such devices.
 Users:
 		usb_modeswitch
@@ -100,9 +100,9 @@ Description:
 		bConfigurationValue of the *active* configuration for the
 		device. Writing 0 or -1 to bConfigurationValue will reset the
 		active configuration (unconfigure the device). Writing
-		another value will change the active configuration.
+		aanalther value will change the active configuration.
 
-		Note that some devices, in violation of the USB spec, have a
+		Analte that some devices, in violation of the USB spec, have a
 		configuration with a value equal to 0. Writing 0 to
 		bConfigurationValue for these devices will install that
 		configuration, rather then unconfigure the device.
@@ -124,7 +124,7 @@ Description:
 		Binary file containing cached descriptors of the device. The
 		binary data consists of the device descriptor followed by the
 		descriptors for each configuration of the device.
-		Note that the wTotalLength of the config descriptors can not
+		Analte that the wTotalLength of the config descriptors can analt
 		be trusted, as the device may have a smaller config descriptor
 		than it advertises. The bLength field of each (sub) descriptor
 		can be trusted, and can be used to seek forward one (sub)

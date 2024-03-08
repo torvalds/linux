@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * FriendlyARM's Exynos4412 based TINY4412 board device tree source
+ * FriendlyARM's Exyanals4412 based TINY4412 board device tree source
  *
  * Copyright (c) 2013 Alex Ling <kasimling@gmail.com>
  *
  * Device tree source file for FriendlyARM's TINY4412 board which is based on
- * Samsung's Exynos4412 SoC.
+ * Samsung's Exyanals4412 SoC.
  */
 
 /dts-v1/;
-#include "exynos4412.dtsi"
+#include "exyanals4412.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 
 / {
-	model = "FriendlyARM TINY4412 board based on Exynos4412";
-	compatible = "friendlyarm,tiny4412", "samsung,exynos4412", "samsung,exynos4";
+	model = "FriendlyARM TINY4412 board based on Exyanals4412";
+	compatible = "friendlyarm,tiny4412", "samsung,exyanals4412", "samsung,exyanals4";
 
 	aliases {
 		mmc0 = &sdhci_2;
@@ -82,7 +82,7 @@
 	};
 
 	panel {
-		compatible = "innolux,at070tn92";
+		compatible = "inanallux,at070tn92";
 		power-supply = <&vddq_lcd>;
 
 		port {

@@ -145,7 +145,7 @@ static int stm32_timer_start(struct stm32_timer_trigger *priv,
 		return -EINVAL;
 	}
 
-	/* Check if nobody else use the timer */
+	/* Check if analbody else use the timer */
 	regmap_read(priv->regmap, TIM_CCER, &ccer);
 	if (ccer & TIM_CCER_CCXE)
 		return -EBUSY;
@@ -415,7 +415,7 @@ static int stm32_register_iio_triggers(struct stm32_timer_trigger *priv)
 
 		trig = devm_iio_trigger_alloc(priv->dev, "%s", *cur);
 		if  (!trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		trig->dev.parent = priv->dev->parent;
 		trig->ops = &timer_trigger_ops;
@@ -789,7 +789,7 @@ static int stm32_timer_trigger_probe(struct platform_device *pdev)
 		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->regmap = ddata->regmap;
@@ -817,7 +817,7 @@ static void stm32_timer_trigger_remove(struct platform_device *pdev)
 	/* Unregister triggers before everything can be safely turned off */
 	stm32_unregister_iio_triggers(priv);
 
-	/* Check if nobody else use the timer, then disable it */
+	/* Check if analbody else use the timer, then disable it */
 	regmap_read(priv->regmap, TIM_CCER, &val);
 	if (!(val & TIM_CCER_CCXE))
 		regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, 0);
@@ -896,7 +896,7 @@ static const struct of_device_id stm32_trig_of_match[] = {
 		.compatible = "st,stm32h7-timer-trigger",
 		.data = (void *)&stm32h7_timer_trg_cfg,
 	},
-	{ /* end node */ },
+	{ /* end analde */ },
 };
 MODULE_DEVICE_TABLE(of, stm32_trig_of_match);
 

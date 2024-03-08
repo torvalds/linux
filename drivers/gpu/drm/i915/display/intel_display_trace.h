@@ -231,9 +231,9 @@ TRACE_EVENT(g4x_wm,
 		      __get_str(dev), pipe_name(__entry->pipe),
 		      __entry->frame, __entry->scanline,
 		      __entry->primary, __entry->sprite, __entry->cursor,
-		      str_yes_no(__entry->cxsr), __entry->sr_plane, __entry->sr_cursor, __entry->sr_fbc,
-		      str_yes_no(__entry->hpll), __entry->hpll_plane, __entry->hpll_cursor, __entry->hpll_fbc,
-		      str_yes_no(__entry->fbc))
+		      str_anal_anal(__entry->cxsr), __entry->sr_plane, __entry->sr_cursor, __entry->sr_fbc,
+		      str_anal_anal(__entry->hpll), __entry->hpll_plane, __entry->hpll_cursor, __entry->hpll_fbc,
+		      str_anal_anal(__entry->fbc))
 );
 
 TRACE_EVENT(vlv_wm,
@@ -308,7 +308,7 @@ TRACE_EVENT(vlv_fifo_size,
 		      __entry->sprite0_start, __entry->sprite1_start, __entry->fifo_size)
 );
 
-TRACE_EVENT(intel_plane_update_noarm,
+TRACE_EVENT(intel_plane_update_analarm,
 	    TP_PROTO(struct intel_plane *plane, struct intel_crtc *crtc),
 	    TP_ARGS(plane, crtc),
 

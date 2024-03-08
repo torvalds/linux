@@ -17,10 +17,10 @@
 #define __IA_CSS_CNR2_TYPES_H
 
 /* @file
-* CSS-API header file for Chroma Noise Reduction (CNR) parameters
+* CSS-API header file for Chroma Analise Reduction (CNR) parameters
 */
 
-/* Chroma Noise Reduction configuration.
+/* Chroma Analise Reduction configuration.
  *
  *  Small sensitivity of edge means strong smoothness and NR performance.
  *  If you see blurred color on vertical edges,

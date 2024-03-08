@@ -29,8 +29,8 @@ static const struct ata_port_info ahci_port_info = {
 	.port_ops	= &ahci_platform_ops,
 };
 
-static const struct ata_port_info ahci_port_info_nolpm = {
-	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NO_LPM,
+static const struct ata_port_info ahci_port_info_anallpm = {
+	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_ANAL_LPM,
 	.pio_mask	= ATA_PIO4,
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &ahci_platform_ops,
@@ -57,7 +57,7 @@ static int ahci_probe(struct platform_device *pdev)
 		return rc;
 
 	if (device_is_compatible(dev, "hisilicon,hisi-ahci"))
-		hpriv->flags |= AHCI_HFLAG_NO_FBS | AHCI_HFLAG_NO_NCQ;
+		hpriv->flags |= AHCI_HFLAG_ANAL_FBS | AHCI_HFLAG_ANAL_NCQ;
 
 	port = device_get_match_data(dev);
 	if (!port)
@@ -88,7 +88,7 @@ static const struct of_device_id ahci_of_match[] = {
 MODULE_DEVICE_TABLE(of, ahci_of_match);
 
 static const struct acpi_device_id ahci_acpi_match[] = {
-	{ "APMC0D33", (unsigned long)&ahci_port_info_nolpm },
+	{ "APMC0D33", (unsigned long)&ahci_port_info_anallpm },
 	{ ACPI_DEVICE_CLASS(PCI_CLASS_STORAGE_SATA_AHCI, 0xffffff) },
 	{},
 };

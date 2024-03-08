@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
@@ -37,9 +37,9 @@ struct test_clock {
 static struct test_clock clocks[] = {
 	ct(CLOCK_BOOTTIME, -1),
 	ct(CLOCK_BOOTTIME_ALARM, 1),
-	ct(CLOCK_MONOTONIC, -1),
-	ct(CLOCK_MONOTONIC_COARSE, 1),
-	ct(CLOCK_MONOTONIC_RAW, 1),
+	ct(CLOCK_MOANALTONIC, -1),
+	ct(CLOCK_MOANALTONIC_COARSE, 1),
+	ct(CLOCK_MOANALTONIC_RAW, 1),
 };
 #undef ct
 
@@ -79,7 +79,7 @@ static int init_namespaces(void)
 	if (fstat(child_ns, &st2))
 		return pr_perror("Unable to stat the timens");
 
-	if (st1.st_ino == st2.st_ino)
+	if (st1.st_ianal == st2.st_ianal)
 		return pr_perror("The same child_ns after CLONE_NEWTIME");
 
 	return 0;
@@ -95,8 +95,8 @@ static int test_gettime(clockid_t clock_index, bool raw_syscall, time_t offset)
 		return 0;
 
 	switch (clocks[clock_index].id) {
-	case CLOCK_MONOTONIC_COARSE:
-	case CLOCK_MONOTONIC_RAW:
+	case CLOCK_MOANALTONIC_COARSE:
+	case CLOCK_MOANALTONIC_RAW:
 		precision = -2.0;
 		break;
 	}
@@ -118,7 +118,7 @@ static int test_gettime(clockid_t clock_index, bool raw_syscall, time_t offset)
 
 	if (difftime(cur_ts.tv_sec, child_ts_new.tv_sec) < precision) {
 		ksft_test_result_fail(
-			"Child's %s (%s) time has not changed: %lu -> %lu [%lu]\n",
+			"Child's %s (%s) time has analt changed: %lu -> %lu [%lu]\n",
 			clocks[clock_index].name, entry, parent_ts_old.tv_sec,
 			child_ts_new.tv_sec, cur_ts.tv_sec);
 		return -1;

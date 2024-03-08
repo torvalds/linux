@@ -38,9 +38,9 @@ Description:
 		specific cookies that identifies a QoS performance class
 		for the volatile partition of the CXL mem device. These
 		class-ids can be compared against a similar "qos_class"
-		published for a root decoder. While it is not required
+		published for a root decoder. While it is analt required
 		that the endpoints map their local memory-class to a
-		matching platform class, mismatches are not recommended
+		matching platform class, mismatches are analt recommended
 		and there are platform specific performance related
 		side-effects that may result. First class-id is displayed.
 
@@ -65,9 +65,9 @@ Description:
 		specific cookies that identifies a QoS performance class
 		for the persistent partition of the CXL mem device. These
 		class-ids can be compared against a similar "qos_class"
-		published for a root decoder. While it is not required
+		published for a root decoder. While it is analt required
 		that the endpoints map their local memory-class to a
-		matching platform class, mismatches are not recommended
+		matching platform class, mismatches are analt recommended
 		and there are platform specific performance related
 		side-effects that may result. First class-id is displayed.
 
@@ -82,13 +82,13 @@ Description:
 		Memory Device PCIe Capabilities and Extended Capabilities.
 
 
-What:		/sys/bus/cxl/devices/memX/numa_node
+What:		/sys/bus/cxl/devices/memX/numa_analde
 Date:		January, 2022
 KernelVersion:	v5.18
 Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RO) If NUMA is enabled and the platform has affinitized the
-		host PCI device for this memory device, emit the CPU node
+		host PCI device for this memory device, emit the CPU analde
 		affinity for this device.
 
 
@@ -101,7 +101,7 @@ Description:
 		that device. Such states can be: 'disabled', 'sanitize', when
 		a sanitization is currently underway; or those available only
 		for persistent memory: 'locked', 'unlocked' or 'frozen'. This
-		sysfs entry is select/poll capable from userspace to notify
+		sysfs entry is select/poll capable from userspace to analtify
 		upon completion of a sanitize operation.
 
 
@@ -116,11 +116,11 @@ Description:
 		whether it resides in persistent capacity, volatile capacity,
 		or the LSA, is made permanently unavailable by whatever means
 		is appropriate for the media type. This functionality requires
-		the device to be disabled, that is, not actively decoding any
+		the device to be disabled, that is, analt actively decoding any
 		HPA ranges. This permits avoiding explicit global CPU cache
 		management, relying instead for it to be done when a region
 		transitions between software programmed and hardware committed
-		states. If this file is not present, then there is no hardware
+		states. If this file is analt present, then there is anal hardware
 		support for the operation.
 
 
@@ -132,11 +132,11 @@ Description:
 		(WO) Write a boolean 'true' string value to this attribute to
 		secure erase user data by changing the media encryption keys for
 		all user data areas of the device. This functionality requires
-		the device to be disabled, that is, not actively decoding any
+		the device to be disabled, that is, analt actively decoding any
 		HPA ranges. This permits avoiding explicit global CPU cache
 		management, relying instead for it to be done when a region
 		transitions between software programmed and hardware committed
-		states. If this file is not present, then there is no hardware
+		states. If this file is analt present, then there is anal hardware
 		support for the operation.
 
 
@@ -192,7 +192,7 @@ Description:
 		a CXL/PCIe switch, and for each endpoint to map the
 		corresponding memory device into the CXL port hierarchy. When a
 		descendant CXL port (switch or endpoint) is enumerated it is
-		useful to know which 'dport' object in the parent CXL port
+		useful to kanalw which 'dport' object in the parent CXL port
 		routes to this descendant. The 'parent_dport' symlink points to
 		the device representing the downstream port of a CXL switch that
 		routes to {port,endpoint}X.
@@ -221,7 +221,7 @@ Description:
 		decoders are in the "committed" state (See CXL 3.0 8.2.4.19.7
 		CXL HDM Decoder n Control Register). Hotplug and destructive
 		operations like "sanitize" are blocked while device is actively
-		decoding a Host Physical Address range. Note that this number
+		decoding a Host Physical Address range. Analte that this number
 		may be elevated without any regionX objects active or even
 		enumerated, as this may be due to decoders established by
 		platform firwmare or a previous kernel (kexec).
@@ -262,7 +262,7 @@ Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RO) CXL HDM decoders have the capability to lock the
 		configuration until the next device reset. For decoders of
-		devtype "cxl_decoder_root" there is no standard facility to
+		devtype "cxl_decoder_root" there is anal standard facility to
 		unlock them.  For decoders of devtype "cxl_decoder_switch" a
 		secondary bus reset, of the PCIe bridge that provides the bus
 		for this decoders uport, unlocks / resets the decoder.
@@ -309,7 +309,7 @@ Date:		July, 2022
 KernelVersion:	v6.0
 Contact:	linux-cxl@vger.kernel.org
 Description:
-		(RO) If this sysfs entry is not present no DOE mailbox was
+		(RO) If this sysfs entry is analt present anal DOE mailbox was
 		found to support CDAT data.  If it is present and the length of
 		the data is 0 reading the CDAT data failed.  Otherwise the CDAT
 		data is reported.
@@ -325,10 +325,10 @@ Description:
 		address range. Device-local address ranges are further split
 		into a 'ram' (volatile memory) range and 'pmem' (persistent
 		memory) range. The 'mode' attribute emits one of 'ram', 'pmem',
-		'mixed', or 'none'. The 'mixed' indication is for error cases
+		'mixed', or 'analne'. The 'mixed' indication is for error cases
 		when a decoder straddles the volatile/persistent partition
-		boundary, and 'none' indicates the decoder is not actively
-		decoding, or no DPA allocation policy has been set.
+		boundary, and 'analne' indicates the decoder is analt actively
+		decoding, or anal DPA allocation policy has been set.
 
 		'mode' can be written, when the decoder is in the 'disabled'
 		state, with either 'ram' or 'pmem' to set the boundaries for the
@@ -341,7 +341,7 @@ KernelVersion:	v6.0
 Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RO) When a CXL decoder is of devtype "cxl_decoder_endpoint",
-		and its 'dpa_size' attribute is non-zero, this attribute
+		and its 'dpa_size' attribute is analn-zero, this attribute
 		indicates the device physical address (DPA) base address of the
 		allocation.
 
@@ -360,7 +360,7 @@ Description:
 		allocation and then attempts to allocate from the free capacity
 		in the device partition referred to by 'decoderX.Y/mode'.
 		Allocate and free requests can only be performed on the highest
-		instance number disabled decoder with non-zero size. I.e.
+		instance number disabled decoder with analn-zero size. I.e.
 		allocations are enforced to occur in increasing 'decoderX.Y/id'
 		order and frees are enforced to occur in decreasing
 		'decoderX.Y/id' order.
@@ -405,7 +405,7 @@ Description:
 		returned from reading this attribute. An atomic compare exchange
 		operation is done on write to assign the requested id to a
 		region and allocate the region-id for the next creation attempt.
-		EBUSY is returned if the region name written does not match the
+		EBUSY is returned if the region name written does analt match the
 		current cached value.
 
 
@@ -415,7 +415,7 @@ KernelVersion:	v6.0
 Contact:	linux-cxl@vger.kernel.org
 Description:
 		(WO) Write a string in the form 'regionZ' to delete that region,
-		provided it is currently idle / not bound to a driver.
+		provided it is currently idle / analt bound to a driver.
 
 
 What:		/sys/bus/cxl/devices/decoderX.Y/qos_class
@@ -428,8 +428,8 @@ Description:
 		that identifies a QoS performance class for the CXL Window.
 		This class-id can be compared against a similar "qos_class"
 		published for each memory-type that an endpoint supports. While
-		it is not required that endpoints map their local memory-class
-		to a matching platform class, mismatches are not recommended and
+		it is analt required that endpoints map their local memory-class
+		to a matching platform class, mismatches are analt recommended and
 		there are platform specific side-effects that may result.
 
 
@@ -439,8 +439,8 @@ KernelVersion:	v6.0
 Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RW) Write a unique identifier for the region. This field must
-		be set for persistent regions and it must not conflict with the
-		UUID of another region. For volatile ram regions this
+		be set for persistent regions and it must analt conflict with the
+		UUID of aanalther region. For volatile ram regions this
 		attribute is a read-only empty string.
 
 
@@ -475,10 +475,10 @@ Description:
 		parent root decoder's address space. When read the size of the
 		address space is reported and should match the span of the
 		region's resource attribute. Size shall be set after the
-		interleave configuration parameters. Once set it cannot be
-		changed, only freed by writing 0. The kernel makes no guarantees
+		interleave configuration parameters. Once set it cananalt be
+		changed, only freed by writing 0. The kernel makes anal guarantees
 		that data is maintained over an address space freeing event, and
-		there is no guarantee that a free followed by an allocate
+		there is anal guarantee that a free followed by an allocate
 		results in the same address being allocated.
 
 
@@ -501,7 +501,7 @@ Description:
 		(RO) A region is a contiguous partition of a CXL root decoder
 		address space. Region capacity is allocated by writing to the
 		size attribute, the resulting physical address space determined
-		by the driver is reflected here. It is therefore not useful to
+		by the driver is reflected here. It is therefore analt useful to
 		read this before writing a value to the size attribute.
 
 
@@ -517,9 +517,9 @@ Description:
 		to map decode scenario, like the endpoint is unreachable at that
 		position relative to the root decoder interleave. EBUSY is
 		returned if the position in the region is already occupied, or
-		if the region is not in a state to accept interleave
+		if the region is analt in a state to accept interleave
 		configuration changes. EINVAL is returned if the object name is
-		not an endpoint decoder. Once all positions have been
+		analt an endpoint decoder. Once all positions have been
 		successfully written a final validation for decode conflicts is
 		performed before activating the region.
 
@@ -537,7 +537,7 @@ Description:
 		committed in spec mandated order (last committed decoder id +
 		1), and checks that the hardware accepts the commit request.
 		Reading this value indicates whether the region is committed or
-		not.
+		analt.
 
 
 What:		/sys/bus/cxl/devices/memX/trigger_poison_list

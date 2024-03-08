@@ -10,7 +10,7 @@ maintainers:
   - Daniel Palmer <daniel@thingy.jp>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

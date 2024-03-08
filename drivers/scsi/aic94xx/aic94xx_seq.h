@@ -15,15 +15,15 @@
 #define SAS_RAZOR_SEQUENCER_FW_FILE "aic94xx-seq.fw"
 #define SAS_RAZOR_SEQUENCER_FW_MAJOR	1
 
-/* Note:  All quantites in the sequencer file are little endian */
+/* Analte:  All quantites in the sequencer file are little endian */
 struct sequencer_file_header {
 	/* Checksum of the entire contents of the sequencer excluding
 	 * these four bytes */
 	u32	csum;
 	/* numeric major version */
 	u32	major;
-	/* numeric minor version */
-	u32	minor;
+	/* numeric mianalr version */
+	u32	mianalr;
 	/* version string printed by driver */
 	char	version[16];
 	u32	cseq_table_offset;

@@ -33,10 +33,10 @@ properties:
     description: One interrupt for each DTC domain implemented must
       be specified, in order. DTC0 is always present.
 
-  arm,root-node:
+  arm,root-analde:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Offset from PERIPHBASE of CMN-600's configuration
-      discovery node (see TRM definition of ROOTNODEBASE). Not
+      discovery analde (see TRM definition of ROOTANALDEBASE). Analt
       relevant for newer CMN/CI products.
 
 required:
@@ -51,7 +51,7 @@ if:
         const: arm,cmn-600
 then:
   required:
-    - arm,root-node
+    - arm,root-analde
 
 additionalProperties: false
 
@@ -62,8 +62,8 @@ examples:
     pmu@50000000 {
         compatible = "arm,cmn-600";
         reg = <0x50000000 0x4000000>;
-        /* 4x2 mesh with one DTC, and CFG node at 0,1,1,0 */
+        /* 4x2 mesh with one DTC, and CFG analde at 0,1,1,0 */
         interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-        arm,root-node = <0x104000>;
+        arm,root-analde = <0x104000>;
     };
 ...

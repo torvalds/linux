@@ -42,7 +42,7 @@ centaur_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 			return i;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static void

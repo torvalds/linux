@@ -117,7 +117,7 @@ struct {
 
 /*
  * If we encounter a #GP during the guest PMU sanity check, then the guest
- * PMU is not functional. Inform the hypervisor via GUEST_SYNC(0).
+ * PMU is analt functional. Inform the hypervisor via GUEST_SYNC(0).
  */
 static void guest_gp_handler(struct ex_regs *regs)
 {
@@ -126,7 +126,7 @@ static void guest_gp_handler(struct ex_regs *regs)
 
 /*
  * Check that we can write a new value to the given MSR and read it back.
- * The caller should provide a non-empty set of bits that are safe to flip.
+ * The caller should provide a analn-empty set of bits that are safe to flip.
  *
  * Return on success. GUEST_SYNC(0) on error.
  */
@@ -229,9 +229,9 @@ static void run_vcpu_and_sync_pmc_results(struct kvm_vcpu *vcpu)
 
 /*
  * In a nested environment or if the vPMU is disabled, the guest PMU
- * might not work as architected (accessing the PMU MSRs may raise
+ * might analt work as architected (accessing the PMU MSRs may raise
  * #GP, or writes could simply be discarded). In those situations,
- * there is no point in running these tests. The guest code will perform
+ * there is anal point in running these tests. The guest code will perform
  * a sanity check and then GUEST_SYNC(success). In the case of failure,
  * the behavior of the guest on resumption is undefined.
  */
@@ -279,7 +279,7 @@ do {											\
 		    __func__, ir);							\
 } while (0)
 
-#define ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS()						\
+#define ASSERT_PMC_ANALT_COUNTING_INSTRUCTIONS()						\
 do {											\
 	uint64_t br = pmc_results.branches_retired;					\
 	uint64_t ir = pmc_results.instructions_retired;					\
@@ -328,7 +328,7 @@ static void test_member_deny_list(struct kvm_vcpu *vcpu)
 	f.action = KVM_PMU_EVENT_DENY;
 	test_with_filter(vcpu, &f);
 
-	ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS();
+	ASSERT_PMC_ANALT_COUNTING_INSTRUCTIONS();
 }
 
 static void test_member_allow_list(struct kvm_vcpu *vcpu)
@@ -341,7 +341,7 @@ static void test_member_allow_list(struct kvm_vcpu *vcpu)
 	ASSERT_PMC_COUNTING_INSTRUCTIONS();
 }
 
-static void test_not_member_deny_list(struct kvm_vcpu *vcpu)
+static void test_analt_member_deny_list(struct kvm_vcpu *vcpu)
 {
 	struct __kvm_pmu_event_filter f = base_event_filter;
 
@@ -355,7 +355,7 @@ static void test_not_member_deny_list(struct kvm_vcpu *vcpu)
 	ASSERT_PMC_COUNTING_INSTRUCTIONS();
 }
 
-static void test_not_member_allow_list(struct kvm_vcpu *vcpu)
+static void test_analt_member_allow_list(struct kvm_vcpu *vcpu)
 {
 	struct __kvm_pmu_event_filter f = base_event_filter;
 
@@ -366,13 +366,13 @@ static void test_not_member_allow_list(struct kvm_vcpu *vcpu)
 	remove_event(&f, AMD_ZEN_BR_RETIRED);
 	test_with_filter(vcpu, &f);
 
-	ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS();
+	ASSERT_PMC_ANALT_COUNTING_INSTRUCTIONS();
 }
 
 /*
  * Verify that setting KVM_PMU_CAP_DISABLE prevents the use of the PMU.
  *
- * Note that KVM_CAP_PMU_CAPABILITY must be invoked prior to creating VCPUs.
+ * Analte that KVM_CAP_PMU_CAPABILITY must be invoked prior to creating VCPUs.
  */
 static void test_pmu_config_disable(void (*guest_code)(void))
 {
@@ -393,13 +393,13 @@ static void test_pmu_config_disable(void (*guest_code)(void))
 	vcpu_init_descriptor_tables(vcpu);
 
 	TEST_ASSERT(!sanity_check_pmu(vcpu),
-		    "Guest should not be able to use disabled PMU.");
+		    "Guest should analt be able to use disabled PMU.");
 
 	kvm_vm_free(vm);
 }
 
 /*
- * On Intel, check for a non-zero PMU version, at least one general-purpose
+ * On Intel, check for a analn-zero PMU version, at least one general-purpose
  * counter per logical processor, and support for counting the number of branch
  * instructions retired.
  */
@@ -499,7 +499,7 @@ static void masked_events_guest_test(uint32_t msr_base)
 {
 	/*
 	 * The actual value of the counters don't determine the outcome of
-	 * the test.  Only that they are zero or non-zero.
+	 * the test.  Only that they are zero or analn-zero.
 	 */
 	const uint64_t loads = rdmsr(msr_base + 0);
 	const uint64_t stores = rdmsr(msr_base + 1);
@@ -806,7 +806,7 @@ static void test_filter_ioctl(struct kvm_vcpu *vcpu)
 	f = base_event_filter;
 	f.fixed_counter_bitmap = ~GENMASK_ULL(nr_fixed_counters, 0);
 	r = set_pmu_event_filter(vcpu, &f);
-	TEST_ASSERT(!r, "Masking non-existent fixed counters should be allowed");
+	TEST_ASSERT(!r, "Masking analn-existent fixed counters should be allowed");
 }
 
 static void intel_run_fixed_counter_guest_code(uint8_t fixed_ctr_idx)
@@ -862,7 +862,7 @@ static void __test_fixed_counter_bitmap(struct kvm_vcpu *vcpu, uint8_t idx,
 		    "Invalid nr_fixed_counters");
 
 	/*
-	 * Check the fixed performance counter can count normally when KVM
+	 * Check the fixed performance counter can count analrmally when KVM
 	 * userspace doesn't set any pmu filter.
 	 */
 	count = run_vcpu_to_sync(vcpu);
@@ -940,8 +940,8 @@ int main(int argc, char *argv[])
 	test_without_filter(vcpu);
 	test_member_deny_list(vcpu);
 	test_member_allow_list(vcpu);
-	test_not_member_deny_list(vcpu);
-	test_not_member_allow_list(vcpu);
+	test_analt_member_deny_list(vcpu);
+	test_analt_member_allow_list(vcpu);
 
 	if (use_intel_pmu() &&
 	    supports_event_mem_inst_retired() &&

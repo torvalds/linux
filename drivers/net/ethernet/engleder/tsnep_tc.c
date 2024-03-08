@@ -125,7 +125,7 @@ static void tsnep_write_gcl(struct tsnep_gcl *gcl,
 		cut = max(cut, tsnep_change_duration(gcl, i));
 
 	/* use maximum, because the actual case (extend or cut) can be
-	 * determined only after limit is known (chicken-and-egg problem)
+	 * determined only after limit is kanalwn (chicken-and-egg problem)
 	 */
 	gcl->change_limit = max(extend, cut);
 }
@@ -236,11 +236,11 @@ static u64 tsnep_cut_gcl(struct tsnep_gcl *gcl, u64 start, u64 cycle_time)
 		u64 sum_tmp = sum + gcl->operation[i].interval;
 		u64 interval;
 
-		/* sum up operations as long as cycle time is not exceeded */
+		/* sum up operations as long as cycle time is analt exceeded */
 		if (sum_tmp > cycle_time)
 			break;
 
-		/* remaining interval must be big enough for hardware */
+		/* remaining interval must be big eanalugh for hardware */
 		interval = cycle_time - sum_tmp;
 		if (interval > 0 && interval < TSNEP_GCL_MIN_INTERVAL)
 			break;
@@ -248,7 +248,7 @@ static u64 tsnep_cut_gcl(struct tsnep_gcl *gcl, u64 start, u64 cycle_time)
 		sum = sum_tmp;
 	}
 	if (sum == cycle_time) {
-		/* no need to cut operation itself or whole cycle
+		/* anal need to cut operation itself or whole cycle
 		 * => change exactly at operation
 		 */
 		return tsnep_set_gcl_change(gcl, i, start + sum, false);
@@ -278,7 +278,7 @@ static int tsnep_enable_gcl(struct tsnep_adapter *adapter,
 	gcl->start_time = tsnep_gcl_start_after(gcl, limit);
 
 	/* gate control time register is only 32bit => time shall be in the near
-	 * future (no driver support for far future implemented)
+	 * future (anal driver support for far future implemented)
 	 */
 	if ((gcl->start_time - system_time) >= U32_MAX)
 		return -EAGAIN;
@@ -323,7 +323,7 @@ static int tsnep_taprio(struct tsnep_adapter *adapter,
 	int retval;
 
 	if (!adapter->gate_control)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qopt->cmd == TAPRIO_CMD_DESTROY) {
 		/* disable gate control if active */
@@ -338,7 +338,7 @@ static int tsnep_taprio(struct tsnep_adapter *adapter,
 
 		return 0;
 	} else if (qopt->cmd != TAPRIO_CMD_REPLACE) {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	retval = tsnep_validate_gcl(qopt);
@@ -379,12 +379,12 @@ static int tsnep_taprio(struct tsnep_adapter *adapter,
 		else
 			iowrite8(TSNEP_GC_ENABLE_B, adapter->addr + TSNEP_GC);
 
-		/* done if timeout did not happen */
+		/* done if timeout did analt happen */
 		if (!(ioread32(adapter->addr + TSNEP_GC) &
 		      TSNEP_GC_TIMEOUT_SIGNAL))
 			break;
 
-		/* timeout is acknowledged with any enable */
+		/* timeout is ackanalwledged with any enable */
 		iowrite8(TSNEP_GC_ENABLE_A, adapter->addr + TSNEP_GC);
 
 		if (curr)
@@ -413,14 +413,14 @@ static int tsnep_tc_query_caps(struct tsnep_adapter *adapter,
 		struct tc_taprio_caps *caps = base->caps;
 
 		if (!adapter->gate_control)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		caps->gate_mask_per_txq = true;
 
 		return 0;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -435,7 +435,7 @@ int tsnep_tc_setup(struct net_device *netdev, enum tc_setup_type type,
 	case TC_SETUP_QDISC_TAPRIO:
 		return tsnep_taprio(adapter, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

@@ -169,7 +169,7 @@ qla2x00_chk_ms_status(scsi_qla_host_t *vha, ms_iocb_entry_t *ms_pkt,
 				ql_dbg(ql_dbg_async, vha, 0x502b,
 					"%s failed, Name server has logged out",
 					routine);
-				rval = QLA_NOT_LOGGED_IN;
+				rval = QLA_ANALT_LOGGED_IN;
 				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 				set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 			}
@@ -243,7 +243,7 @@ qla2x00_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 		/* Populate fc_port_t entry. */
 		fcport->d_id = be_to_port_id(ct_rsp->rsp.ga_nxt.port_id);
 
-		memcpy(fcport->node_name, ct_rsp->rsp.ga_nxt.node_name,
+		memcpy(fcport->analde_name, ct_rsp->rsp.ga_nxt.analde_name,
 		    WWN_SIZE);
 		memcpy(fcport->port_name, ct_rsp->rsp.ga_nxt.port_name,
 		    WWN_SIZE);
@@ -258,7 +258,7 @@ qla2x00_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 		ql_dbg(ql_dbg_disc, vha, 0x2063,
 		    "GA_NXT entry - nn %8phN pn %8phN "
 		    "port_id=%02x%02x%02x.\n",
-		    fcport->node_name, fcport->port_name,
+		    fcport->analde_name, fcport->port_name,
 		    fcport->d_id.b.domain, fcport->d_id.b.area,
 		    fcport->d_id.b.al_pa);
 	}
@@ -277,7 +277,7 @@ qla2x00_gid_pt_rsp_size(scsi_qla_host_t *vha)
  * @vha: HA context
  * @list: switch info entries to populate
  *
- * NOTE: Non-Nx_Ports are not requested.
+ * ANALTE: Analn-Nx_Ports are analt requested.
  *
  * Returns 0 on success.
  */
@@ -336,7 +336,7 @@ qla2x00_gid_pt(scsi_qla_host_t *vha, sw_info_t *list)
 			gid_data = &ct_rsp->rsp.gid_pt.entries[i];
 			list[i].d_id = be_to_port_id(gid_data->port_id);
 			memset(list[i].fabric_port_name, 0, WWN_SIZE);
-			list[i].fp_speed = PORT_SPEED_UNKNOWN;
+			list[i].fp_speed = PORT_SPEED_UNKANALWN;
 
 			/* Last one exit. */
 			if (gid_data->control_byte & BIT_7) {
@@ -427,7 +427,7 @@ qla2x00_gpn_id(scsi_qla_host_t *vha, sw_info_t *list)
 }
 
 /**
- * qla2x00_gnn_id() - SNS Get Node Name (GNN_ID) query.
+ * qla2x00_gnn_id() - SNS Get Analde Name (GNN_ID) query.
  * @vha: HA context
  * @list: switch info entries to populate
  *
@@ -480,14 +480,14 @@ qla2x00_gnn_id(scsi_qla_host_t *vha, sw_info_t *list)
 			rval = QLA_FUNCTION_FAILED;
 			break;
 		} else {
-			/* Save nodename */
-			memcpy(list[i].node_name,
-			    ct_rsp->rsp.gnn_id.node_name, WWN_SIZE);
+			/* Save analdename */
+			memcpy(list[i].analde_name,
+			    ct_rsp->rsp.gnn_id.analde_name, WWN_SIZE);
 
 			ql_dbg(ql_dbg_disc, vha, 0x2058,
 			    "GID_PT entry - nn %8phN pn %8phN "
 			    "portid=%02x%02x%02x.\n",
-			    list[i].node_name, list[i].port_name,
+			    list[i].analde_name, list[i].port_name,
 			    list[i].d_id.b.domain, list[i].d_id.b.area,
 			    list[i].d_id.b.al_pa);
 		}
@@ -509,7 +509,7 @@ static void qla2x00_async_sns_sp_done(srb_t *sp, int rc)
 	sp->rc = rc;
 	if (rc == QLA_SUCCESS) {
 		ql_dbg(ql_dbg_disc, vha, 0x204f,
-		    "Async done-%s exiting normally.\n",
+		    "Async done-%s exiting analrmally.\n",
 		    sp->name);
 	} else if (rc == QLA_FUNCTION_TIMEOUT) {
 		ql_dbg(ql_dbg_disc, vha, 0x204f,
@@ -538,7 +538,7 @@ err:
 	e = qla2x00_alloc_work(vha, QLA_EVT_UNMAP);
 err2:
 	if (!e) {
-		/* please ignore kernel warning. otherwise, we have mem leak. */
+		/* please iganalre kernel warning. otherwise, we have mem leak. */
 		if (sp->u.iocb_cmd.u.ctarg.req) {
 			dma_free_coherent(&vha->hw->pdev->dev,
 			    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
@@ -661,7 +661,7 @@ done:
 /**
  * qla2x00_rff_id() - SNS Register FC-4 Features (RFF_ID) supported by the HBA.
  * @vha: HA context
- * @type: not used
+ * @type: analt used
  *
  * Returns 0 on success.
  */
@@ -672,7 +672,7 @@ qla2x00_rff_id(scsi_qla_host_t *vha, u8 type)
 
 	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
 		ql_dbg(ql_dbg_disc, vha, 0x2046,
-		    "RFF_ID call not supported on ISP2100/ISP2200.\n");
+		    "RFF_ID call analt supported on ISP2100/ISP2200.\n");
 		return (QLA_SUCCESS);
 	}
 
@@ -755,7 +755,7 @@ done:
 }
 
 /**
- * qla2x00_rnn_id() - SNS Register Node Name (RNN_ID) of the HBA.
+ * qla2x00_rnn_id() - SNS Register Analde Name (RNN_ID) of the HBA.
  * @vha: HA context
  *
  * Returns 0 on success.
@@ -768,11 +768,11 @@ qla2x00_rnn_id(scsi_qla_host_t *vha)
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
 		return qla2x00_sns_rnn_id(vha);
 
-	return  qla_async_rnnid(vha, &vha->d_id, vha->node_name);
+	return  qla_async_rnnid(vha, &vha->d_id, vha->analde_name);
 }
 
 static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
-	u8 *node_name)
+	u8 *analde_name)
 {
 	int rval = QLA_MEMORY_ALLOC_FAILED;
 	struct ct_sns_req *ct_req;
@@ -817,9 +817,9 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_req(ct_sns, RNN_ID_CMD, RNN_ID_RSP_SIZE);
 
-	/* Prepare CT arguments -- port_id, node_name */
+	/* Prepare CT arguments -- port_id, analde_name */
 	ct_req->req.rnn_id.port_id = port_id_to_be_id(vha->d_id);
-	memcpy(ct_req->req.rnn_id.node_name, vha->node_name, WWN_SIZE);
+	memcpy(ct_req->req.rnn_id.analde_name, vha->analde_name, WWN_SIZE);
 
 	sp->u.iocb_cmd.u.ctarg.req_size = RNN_ID_REQ_SIZE;
 	sp->u.iocb_cmd.u.ctarg.rsp_size = RNN_ID_RSP_SIZE;
@@ -846,7 +846,7 @@ done:
 }
 
 size_t
-qla2x00_get_sym_node_name(scsi_qla_host_t *vha, uint8_t *snn, size_t size)
+qla2x00_get_sym_analde_name(scsi_qla_host_t *vha, uint8_t *snn, size_t size)
 {
 	struct qla_hw_data *ha = vha->hw;
 
@@ -855,12 +855,12 @@ qla2x00_get_sym_node_name(scsi_qla_host_t *vha, uint8_t *snn, size_t size)
 		    ha->model_number, ha->mr.fw_version, qla2x00_version_str);
 
 	return scnprintf(snn, size, "%s FW:v%d.%02d.%02d DVR:v%s",
-	    ha->model_number, ha->fw_major_version, ha->fw_minor_version,
-	    ha->fw_subminor_version, qla2x00_version_str);
+	    ha->model_number, ha->fw_major_version, ha->fw_mianalr_version,
+	    ha->fw_submianalr_version, qla2x00_version_str);
 }
 
 /**
- * qla2x00_rsnn_nn() - SNS Register Symbolic Node Name (RSNN_NN) of the HBA.
+ * qla2x00_rsnn_nn() - SNS Register Symbolic Analde Name (RSNN_NN) of the HBA.
  * @vha: HA context
  *
  * Returns 0 on success.
@@ -924,14 +924,14 @@ static int qla_async_rsnn_nn(scsi_qla_host_t *vha)
 	/* Prepare CT request */
 	ct_req = qla2x00_prep_ct_req(ct_sns, RSNN_NN_CMD, RSNN_NN_RSP_SIZE);
 
-	/* Prepare CT arguments -- node_name, symbolic node_name, size */
-	memcpy(ct_req->req.rsnn_nn.node_name, vha->node_name, WWN_SIZE);
+	/* Prepare CT arguments -- analde_name, symbolic analde_name, size */
+	memcpy(ct_req->req.rsnn_nn.analde_name, vha->analde_name, WWN_SIZE);
 
-	/* Prepare the Symbolic Node Name */
-	qla2x00_get_sym_node_name(vha, ct_req->req.rsnn_nn.sym_node_name,
-	    sizeof(ct_req->req.rsnn_nn.sym_node_name));
+	/* Prepare the Symbolic Analde Name */
+	qla2x00_get_sym_analde_name(vha, ct_req->req.rsnn_nn.sym_analde_name,
+	    sizeof(ct_req->req.rsnn_nn.sym_analde_name));
 	ct_req->req.rsnn_nn.name_len =
-	    (uint8_t)strlen(ct_req->req.rsnn_nn.sym_node_name);
+	    (uint8_t)strlen(ct_req->req.rsnn_nn.sym_analde_name);
 
 
 	sp->u.iocb_cmd.u.ctarg.req_size = 24 + 1 + ct_req->req.rsnn_nn.name_len;
@@ -1036,7 +1036,7 @@ qla2x00_sns_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 		fcport->d_id.b.area = sns_cmd->p.gan_data[18];
 		fcport->d_id.b.al_pa = sns_cmd->p.gan_data[19];
 
-		memcpy(fcport->node_name, &sns_cmd->p.gan_data[284], WWN_SIZE);
+		memcpy(fcport->analde_name, &sns_cmd->p.gan_data[284], WWN_SIZE);
 		memcpy(fcport->port_name, &sns_cmd->p.gan_data[20], WWN_SIZE);
 
 		if (sns_cmd->p.gan_data[16] != NS_N_PORT_TYPE &&
@@ -1046,7 +1046,7 @@ qla2x00_sns_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 		ql_dbg(ql_dbg_disc, vha, 0x2061,
 		    "GA_NXT entry - nn %8phN pn %8phN "
 		    "port_id=%02x%02x%02x.\n",
-		    fcport->node_name, fcport->port_name,
+		    fcport->analde_name, fcport->port_name,
 		    fcport->d_id.b.domain, fcport->d_id.b.area,
 		    fcport->d_id.b.al_pa);
 	}
@@ -1061,7 +1061,7 @@ qla2x00_sns_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
  *
  * This command uses the old Exectute SNS Command mailbox routine.
  *
- * NOTE: Non-Nx_Ports are not requested.
+ * ANALTE: Analn-Nx_Ports are analt requested.
  *
  * Returns 0 on success.
  */
@@ -1184,7 +1184,7 @@ qla2x00_sns_gpn_id(scsi_qla_host_t *vha, sw_info_t *list)
 }
 
 /**
- * qla2x00_sns_gnn_id() - SNS Get Node Name (GNN_ID) query.
+ * qla2x00_sns_gnn_id() - SNS Get Analde Name (GNN_ID) query.
  * @vha: HA context
  * @list: switch info entries to populate
  *
@@ -1226,14 +1226,14 @@ qla2x00_sns_gnn_id(scsi_qla_host_t *vha, sw_info_t *list)
 			    sns_cmd->p.gnn_data, 16);
 			rval = QLA_FUNCTION_FAILED;
 		} else {
-			/* Save nodename */
-			memcpy(list[i].node_name, &sns_cmd->p.gnn_data[16],
+			/* Save analdename */
+			memcpy(list[i].analde_name, &sns_cmd->p.gnn_data[16],
 			    WWN_SIZE);
 
 			ql_dbg(ql_dbg_disc, vha, 0x206e,
 			    "GID_PT entry - nn %8phN pn %8phN "
 			    "port_id=%02x%02x%02x.\n",
-			    list[i].node_name, list[i].port_name,
+			    list[i].analde_name, list[i].port_name,
 			    list[i].d_id.b.domain, list[i].d_id.b.area,
 			    list[i].d_id.b.al_pa);
 		}
@@ -1289,14 +1289,14 @@ qla2x00_sns_rft_id(scsi_qla_host_t *vha)
 		rval = QLA_FUNCTION_FAILED;
 	} else {
 		ql_dbg(ql_dbg_disc, vha, 0x2073,
-		    "RFT_ID exiting normally.\n");
+		    "RFT_ID exiting analrmally.\n");
 	}
 
 	return (rval);
 }
 
 /**
- * qla2x00_sns_rnn_id() - SNS Register Node Name (RNN_ID) of the HBA.
+ * qla2x00_sns_rnn_id() - SNS Register Analde Name (RNN_ID) of the HBA.
  * @vha: HA context
  *
  * This command uses the old Exectute SNS Command mailbox routine.
@@ -1315,19 +1315,19 @@ qla2x00_sns_rnn_id(scsi_qla_host_t *vha)
 	sns_cmd = qla2x00_prep_sns_cmd(vha, RNN_ID_CMD, RNN_ID_SNS_SCMD_LEN,
 	    RNN_ID_SNS_DATA_SIZE);
 
-	/* Prepare SNS command arguments -- port_id, nodename. */
+	/* Prepare SNS command arguments -- port_id, analdename. */
 	sns_cmd->p.cmd.param[0] = vha->d_id.b.al_pa;
 	sns_cmd->p.cmd.param[1] = vha->d_id.b.area;
 	sns_cmd->p.cmd.param[2] = vha->d_id.b.domain;
 
-	sns_cmd->p.cmd.param[4] = vha->node_name[7];
-	sns_cmd->p.cmd.param[5] = vha->node_name[6];
-	sns_cmd->p.cmd.param[6] = vha->node_name[5];
-	sns_cmd->p.cmd.param[7] = vha->node_name[4];
-	sns_cmd->p.cmd.param[8] = vha->node_name[3];
-	sns_cmd->p.cmd.param[9] = vha->node_name[2];
-	sns_cmd->p.cmd.param[10] = vha->node_name[1];
-	sns_cmd->p.cmd.param[11] = vha->node_name[0];
+	sns_cmd->p.cmd.param[4] = vha->analde_name[7];
+	sns_cmd->p.cmd.param[5] = vha->analde_name[6];
+	sns_cmd->p.cmd.param[6] = vha->analde_name[5];
+	sns_cmd->p.cmd.param[7] = vha->analde_name[4];
+	sns_cmd->p.cmd.param[8] = vha->analde_name[3];
+	sns_cmd->p.cmd.param[9] = vha->analde_name[2];
+	sns_cmd->p.cmd.param[10] = vha->analde_name[1];
+	sns_cmd->p.cmd.param[11] = vha->analde_name[0];
 
 	/* Execute SNS command. */
 	rval = qla2x00_send_sns(vha, ha->sns_cmd_dma, RNN_ID_SNS_CMD_SIZE / 2,
@@ -1345,7 +1345,7 @@ qla2x00_sns_rnn_id(scsi_qla_host_t *vha)
 		rval = QLA_FUNCTION_FAILED;
 	} else {
 		ql_dbg(ql_dbg_disc, vha, 0x204c,
-		    "RNN_ID exiting normally.\n");
+		    "RNN_ID exiting analrmally.\n");
 	}
 
 	return (rval);
@@ -1578,7 +1578,7 @@ qla25xx_fdmi_port_speed_currently(struct qla_hw_data *ha)
 	case PORT_SPEED_64GB:
 		return FDMI_PORT_SPEED_64GB;
 	default:
-		return FDMI_PORT_SPEED_UNKNOWN;
+		return FDMI_PORT_SPEED_UNKANALWN;
 	}
 }
 
@@ -1601,16 +1601,16 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	uint16_t alen;
 	unsigned long size = 0;
 
-	/* Nodename. */
+	/* Analdename. */
 	eiter = entries + size;
-	eiter->type = cpu_to_be16(FDMI_HBA_NODE_NAME);
-	memcpy(eiter->a.node_name, vha->node_name, sizeof(eiter->a.node_name));
-	alen = sizeof(eiter->a.node_name);
+	eiter->type = cpu_to_be16(FDMI_HBA_ANALDE_NAME);
+	memcpy(eiter->a.analde_name, vha->analde_name, sizeof(eiter->a.analde_name));
+	alen = sizeof(eiter->a.analde_name);
 	alen += FDMI_ATTR_TYPELEN(eiter);
 	eiter->len = cpu_to_be16(alen);
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20a0,
-	    "NODENAME = %016llx.\n", wwn_to_u64(eiter->a.node_name));
+	    "ANALDENAME = %016llx.\n", wwn_to_u64(eiter->a.analde_name));
 	/* Manufacturer. */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_MANUFACTURER);
@@ -1765,10 +1765,10 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20aa,
 	    "CT PAYLOAD LENGTH = 0x%x.\n", be32_to_cpu(eiter->a.max_ct_len));
-	/* Node Symbolic Name */
+	/* Analde Symbolic Name */
 	eiter = entries + size;
-	eiter->type = cpu_to_be16(FDMI_HBA_NODE_SYMBOLIC_NAME);
-	alen = qla2x00_get_sym_node_name(vha, eiter->a.sym_name,
+	eiter->type = cpu_to_be16(FDMI_HBA_ANALDE_SYMBOLIC_NAME);
+	alen = qla2x00_get_sym_analde_name(vha, eiter->a.sym_name,
 	    sizeof(eiter->a.sym_name));
 	alen += FDMI_ATTR_ALIGNMENT(alen);
 	alen += FDMI_ATTR_TYPELEN(eiter);
@@ -1800,7 +1800,7 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	/* Fabric Name */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_FABRIC_NAME);
-	memcpy(eiter->a.fabric_name, vha->fabric_node_name,
+	memcpy(eiter->a.fabric_name, vha->fabric_analde_name,
 	    sizeof(eiter->a.fabric_name));
 	alen = sizeof(eiter->a.fabric_name);
 	alen += FDMI_ATTR_TYPELEN(eiter);
@@ -1852,7 +1852,7 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	struct qla_hw_data *ha = vha->hw;
 	struct new_utsname *p_sysid = utsname();
 	char *hostname = p_sysid ?
-		p_sysid->nodename : fc_host_system_hostname(vha->host);
+		p_sysid->analdename : fc_host_system_hostname(vha->host);
 	struct ct_fdmi_port_attr *eiter;
 	uint16_t alen;
 	unsigned long size = 0;
@@ -1913,7 +1913,7 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	eiter->type = cpu_to_be16(FDMI_PORT_OS_DEVICE_NAME);
 	alen = scnprintf(
 		eiter->a.os_dev_name, sizeof(eiter->a.os_dev_name),
-		"%s:host%lu", QLA2XXX_DRIVER_NAME, vha->host_no);
+		"%s:host%lu", QLA2XXX_DRIVER_NAME, vha->host_anal);
 	alen += FDMI_ATTR_ALIGNMENT(alen);
 	alen += FDMI_ATTR_TYPELEN(eiter);
 	eiter->len = cpu_to_be16(alen);
@@ -1923,7 +1923,7 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	/* Hostname. */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_PORT_HOST_NAME);
-	if (!*hostname || !strncmp(hostname, "(none)", 6))
+	if (!*hostname || !strncmp(hostname, "(analne)", 6))
 		hostname = "Linux-default";
 	alen = scnprintf(
 		eiter->a.host_name, sizeof(eiter->a.host_name),
@@ -1938,16 +1938,16 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	if (callopt == CALLOPT_FDMI1)
 		goto done;
 
-	/* Node Name */
+	/* Analde Name */
 	eiter = entries + size;
-	eiter->type = cpu_to_be16(FDMI_PORT_NODE_NAME);
-	memcpy(eiter->a.node_name, vha->node_name, sizeof(eiter->a.node_name));
-	alen = sizeof(eiter->a.node_name);
+	eiter->type = cpu_to_be16(FDMI_PORT_ANALDE_NAME);
+	memcpy(eiter->a.analde_name, vha->analde_name, sizeof(eiter->a.analde_name));
+	alen = sizeof(eiter->a.analde_name);
 	alen += FDMI_ATTR_TYPELEN(eiter);
 	eiter->len = cpu_to_be16(alen);
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20c6,
-	    "NODENAME = %016llx.\n", wwn_to_u64(eiter->a.node_name));
+	    "ANALDENAME = %016llx.\n", wwn_to_u64(eiter->a.analde_name));
 
 	/* Port Name */
 	eiter = entries + size;
@@ -1963,7 +1963,7 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	/* Port Symbolic Name */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_PORT_SYM_NAME);
-	alen = qla2x00_get_sym_node_name(vha, eiter->a.port_sym_name,
+	alen = qla2x00_get_sym_analde_name(vha, eiter->a.port_sym_name,
 	    sizeof(eiter->a.port_sym_name));
 	alen += FDMI_ATTR_ALIGNMENT(alen);
 	alen += FDMI_ATTR_TYPELEN(eiter);
@@ -1997,7 +1997,7 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	/* Port Fabric Name */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_PORT_FABRIC_NAME);
-	memcpy(eiter->a.fabric_name, vha->fabric_node_name,
+	memcpy(eiter->a.fabric_name, vha->fabric_analde_name,
 	    sizeof(eiter->a.fabric_name));
 	alen = sizeof(eiter->a.fabric_name);
 	alen += FDMI_ATTR_TYPELEN(eiter);
@@ -2073,7 +2073,7 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	/* Smart SAN GUID (NWWN+PWWN) */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_SMARTSAN_GUID);
-	memcpy(eiter->a.smartsan_guid, vha->node_name, WWN_SIZE);
+	memcpy(eiter->a.smartsan_guid, vha->analde_name, WWN_SIZE);
 	memcpy(eiter->a.smartsan_guid + WWN_SIZE, vha->port_name, WWN_SIZE);
 	alen = sizeof(eiter->a.smartsan_guid);
 	alen += FDMI_ATTR_TYPELEN(eiter);
@@ -2097,7 +2097,7 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	ql_dbg(ql_dbg_disc, vha, 0x20d2,
 	    "SMARTSAN VERSION = %s\n", eiter->a.smartsan_version);
 
-	/* Smart SAN Product Name (Specify Adapter Model No) */
+	/* Smart SAN Product Name (Specify Adapter Model Anal) */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_SMARTSAN_PROD_NAME);
 	alen = scnprintf(eiter->a.smartsan_prod_name,
@@ -2213,7 +2213,7 @@ qla2x00_fdmi_rhba(scsi_qla_host_t *vha, unsigned int callopt)
 
 	rval = qla2x00_chk_ms_status(vha, ms_pkt, ct_rsp, "RHBA");
 	if (rval) {
-		if (ct_rsp->header.reason_code == CT_REASON_CANNOT_PERFORM &&
+		if (ct_rsp->header.reason_code == CT_REASON_CANANALT_PERFORM &&
 		    ct_rsp->header.explanation_code ==
 		    CT_EXPL_ALREADY_REGISTERED) {
 			ql_dbg(ql_dbg_disc, vha, 0x20e4,
@@ -2228,7 +2228,7 @@ qla2x00_fdmi_rhba(scsi_qla_host_t *vha, unsigned int callopt)
 		return rval;
 	}
 
-	ql_dbg(ql_dbg_disc, vha, 0x20e6, "RHBA exiting normally.\n");
+	ql_dbg(ql_dbg_disc, vha, 0x20e6, "RHBA exiting analrmally.\n");
 	return rval;
 }
 
@@ -2264,7 +2264,7 @@ qla2x00_fdmi_dhba(scsi_qla_host_t *vha)
 		rval = QLA_FUNCTION_FAILED;
 	} else {
 		ql_dbg(ql_dbg_disc, vha, 0x2038,
-		    "DHBA exiting normally.\n");
+		    "DHBA exiting analrmally.\n");
 	}
 	return rval;
 }
@@ -2332,7 +2332,7 @@ qla2x00_fdmi_rprt(scsi_qla_host_t *vha, int callopt)
 	}
 	rval = qla2x00_chk_ms_status(vha, ms_pkt, ct_rsp, "RPRT");
 	if (rval) {
-		if (ct_rsp->header.reason_code == CT_REASON_CANNOT_PERFORM &&
+		if (ct_rsp->header.reason_code == CT_REASON_CANANALT_PERFORM &&
 		    ct_rsp->header.explanation_code ==
 		    CT_EXPL_ALREADY_REGISTERED) {
 			ql_dbg(ql_dbg_disc, vha, 0x20ec,
@@ -2346,7 +2346,7 @@ qla2x00_fdmi_rprt(scsi_qla_host_t *vha, int callopt)
 		    ct_rsp->header.explanation_code);
 		return rval;
 	}
-	ql_dbg(ql_dbg_disc, vha, 0x20ee, "RPRT exiting normally.\n");
+	ql_dbg(ql_dbg_disc, vha, 0x20ee, "RPRT exiting analrmally.\n");
 	return rval;
 }
 
@@ -2422,7 +2422,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *vha, uint callopt)
 
 	rval = qla2x00_chk_ms_status(vha, ms_pkt, ct_rsp, "RPA");
 	if (rval) {
-		if (ct_rsp->header.reason_code == CT_REASON_CANNOT_PERFORM &&
+		if (ct_rsp->header.reason_code == CT_REASON_CANANALT_PERFORM &&
 		    ct_rsp->header.explanation_code ==
 		    CT_EXPL_ALREADY_REGISTERED) {
 			ql_dbg(ql_dbg_disc, vha, 0x20f4,
@@ -2437,7 +2437,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *vha, uint callopt)
 		return rval;
 	}
 
-	ql_dbg(ql_dbg_disc, vha, 0x20f6, "RPA exiting normally.\n");
+	ql_dbg(ql_dbg_disc, vha, 0x20f6, "RPA exiting analrmally.\n");
 	return rval;
 }
 
@@ -2621,7 +2621,7 @@ qla2x00_port_speed_capability(uint16_t speed)
 	case BIT_7:
 		return PORT_SPEED_64GB;
 	default:
-		return PORT_SPEED_UNKNOWN;
+		return PORT_SPEED_UNKANALWN;
 	}
 }
 
@@ -2736,11 +2736,11 @@ qla2x00_gff_id(scsi_qla_host_t *vha, sw_info_t *list)
 	struct ct_arg arg;
 
 	for (i = 0; i < ha->max_fibre_devices; i++) {
-		/* Set default FC4 Type as UNKNOWN so the default is to
+		/* Set default FC4 Type as UNKANALWN so the default is to
 		 * Process this port */
 		list[i].fc4_type = 0;
 
-		/* Do not attempt GFF_ID if we are not FWI_2 capable */
+		/* Do analt attempt GFF_ID if we are analt FWI_2 capable */
 		if (!IS_FWI2_CAPABLE(ha))
 			continue;
 
@@ -3038,7 +3038,7 @@ void qla24xx_async_gffid_sp_done(srb_t *sp, int res)
 
 		/* ref: INIT */
 		kref_put(&sp->cmd_kref, qla2x00_sp_release);
-		/* we should not be here */
+		/* we should analt be here */
 		dump_stack();
 	}
 }
@@ -3051,7 +3051,7 @@ int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport, bool wait)
 	srb_t *sp;
 	DECLARE_COMPLETION_ONSTACK(comp);
 
-	/* this routine does not have handling for no wait */
+	/* this routine does analt have handling for anal wait */
 	if (!vha->flags.online || !wait)
 		return rval;
 
@@ -3206,7 +3206,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			list_for_each_entry(fcport, &vha->vp_fcports, list) {
 				if ((fcport->flags & FCF_FABRIC_DEVICE) != 0) {
 					fcport->scan_state = QLA_FCPORT_SCAN;
-					if (fcport->loop_id == FC_NO_LOOP_ID)
+					if (fcport->loop_id == FC_ANAL_LOOP_ID)
 						fcport->logout_on_delete = 0;
 					else
 						fcport->logout_on_delete = 1;
@@ -3272,7 +3272,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			}
 
 			/*
-			 * If device was not a fabric device before.
+			 * If device was analt a fabric device before.
 			 */
 			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0) {
 				qla2x00_clear_loop_id(fcport);
@@ -3293,7 +3293,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			    "%s %d %8phC post new sess\n",
 			    __func__, __LINE__, rp->port_name);
 			qla24xx_post_newsess_work(vha, &rp->id, rp->port_name,
-			    rp->node_name, NULL, rp->fc4type);
+			    rp->analde_name, NULL, rp->fc4type);
 		}
 	}
 
@@ -3330,7 +3330,7 @@ login_logout:
 			      qla_ini_mode_enabled(vha)) &&
 			    atomic_read(&fcport->state) == FCS_ONLINE) ||
 				do_delete) {
-				if (fcport->loop_id != FC_NO_LOOP_ID) {
+				if (fcport->loop_id != FC_ANAL_LOOP_ID) {
 					if (fcport->flags & FCF_FCP2_DEVICE)
 						continue;
 
@@ -3456,7 +3456,7 @@ static void qla2x00_find_free_fcp_nvme_slot(struct scsi_qla_host *vha,
 				for (k = 0; k < num_fibre_dev; k++) {
 					rp = &vha->scan.l[k];
 					if (id.b24 == rp->id.b24) {
-						memcpy(rp->node_name,
+						memcpy(rp->analde_name,
 						    d->port_name, 8);
 						break;
 					}
@@ -3500,7 +3500,7 @@ static void qla2x00_find_free_fcp_nvme_slot(struct scsi_qla_host *vha,
 				for (k = 0; k < num_fibre_dev; k++) {
 					rp = &vha->scan.l[k];
 					if (id.b24 == rp->id.b24) {
-						memcpy(rp->node_name,
+						memcpy(rp->analde_name,
 						    d->port_name, 8);
 						break;
 					}
@@ -3531,7 +3531,7 @@ static void qla2x00_async_gpnft_gnnft_sp_done(srb_t *sp, int res)
 		const char *name = sp->name;
 
 		if (res == QLA_OS_TIMER_EXPIRED) {
-			/* switch is ignoring all commands.
+			/* switch is iganalring all commands.
 			 * This might be a zone disable behavior.
 			 * This means we hit 64s timeout.
 			 * 22s GPNFT + 44s Abort = 64s
@@ -3628,7 +3628,7 @@ static int qla24xx_async_gnnft(scsi_qla_host_t *vha, struct srb *sp,
 
 	if (!sp->u.iocb_cmd.u.ctarg.req || !sp->u.iocb_cmd.u.ctarg.rsp) {
 		ql_log(ql_log_warn, vha, 0xffff,
-		    "%s: req %p rsp %p are not setup\n",
+		    "%s: req %p rsp %p are analt setup\n",
 		    __func__, sp->u.iocb_cmd.u.ctarg.req,
 		    sp->u.iocb_cmd.u.ctarg.rsp);
 		spin_lock_irqsave(&vha->work_lock, flags);
@@ -3807,7 +3807,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 		memset(vha->scan.l, 0, vha->scan.size);
 	} else if (!sp) {
 		ql_dbg(ql_dbg_disc, vha, 0xffff,
-		    "NVME scan did not provide SP\n");
+		    "NVME scan did analt provide SP\n");
 		return rval;
 	}
 

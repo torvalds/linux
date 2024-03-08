@@ -67,7 +67,7 @@ u8 HalPwrSeqCmdParsing(
 				offset = GET_PWR_CFG_OFFSET(PwrCfgCmd);
 
 				/*  */
-				/*  <Roger_Notes> We should deal with interface specific address mapping for some interfaces, e.g., SDIO interface */
+				/*  <Roger_Analtes> We should deal with interface specific address mapping for some interfaces, e.g., SDIO interface */
 				/*  2011.07.07. */
 				/*  */
 				if (GET_PWR_CFG_BASE(PwrCfgCmd) == PWR_BASEADDR_SDIO) {

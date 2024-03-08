@@ -61,7 +61,7 @@ static struct cs8409_spec *cs8409_alloc_spec(struct hda_codec *codec)
 		return NULL;
 	codec->spec = spec;
 	spec->codec = codec;
-	codec->power_save_node = 1;
+	codec->power_save_analde = 1;
 	mutex_init(&spec->i2c_mux);
 	INIT_DELAYED_WORK(&spec->i2c_clk_work, cs8409_disable_i2c_clock_worker);
 	snd_hda_gen_spec_init(&spec->gen);
@@ -121,7 +121,7 @@ static void cs8409_enable_i2c_clock(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec = codec->spec;
 
-	/* Cancel the disable timer, but do not wait for any running disable functions to finish.
+	/* Cancel the disable timer, but do analt wait for any running disable functions to finish.
 	 * If the disable timer runs out before cancel, the delayed work thread will be blocked,
 	 * waiting for the mutex to become unlocked. This mutex will be locked for the duration of
 	 * any i2c transaction, so the disable function will run to completion immediately
@@ -404,12 +404,12 @@ static void cs8409_fix_caps(struct hda_codec *codec, unsigned int nid)
 	/* CS8409 is simple HDA bridge and intended to be used with a remote
 	 * companion codec. Most of input/output PIN(s) have only basic
 	 * capabilities. Receive and Transmit NID(s) have only OUTC and INC
-	 * capabilities and no presence detect capable (PDC) and call to
-	 * snd_hda_gen_build_controls() will mark them as non detectable
+	 * capabilities and anal presence detect capable (PDC) and call to
+	 * snd_hda_gen_build_controls() will mark them as analn detectable
 	 * phantom jacks. However, a companion codec may be
 	 * connected to these pins which supports jack detect
 	 * capabilities. We have to override pin capabilities,
-	 * otherwise they will not be created as input devices.
+	 * otherwise they will analt be created as input devices.
 	 */
 	caps = snd_hdac_read_parm(&codec->core, nid, AC_PAR_PIN_CAP);
 	if (caps >= 0)
@@ -447,7 +447,7 @@ static int cs8409_spk_sw_gpio_put(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new cs8409_spk_sw_ctrl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moanal_info,
 	.get = cs8409_spk_sw_gpio_get,
 	.put = cs8409_spk_sw_gpio_put,
 };
@@ -768,7 +768,7 @@ static int cs42l42_handle_tip_sense(struct sub_codec *cs42l42, unsigned int reg_
 	/* TIP_SENSE INSERT/REMOVE */
 	switch (reg_ts_status) {
 	case CS42L42_TS_PLUG:
-		if (cs42l42->no_type_dect) {
+		if (cs42l42->anal_type_dect) {
 			status_changed = 1;
 			cs42l42->hp_jack_in = 1;
 			cs42l42->mic_jack_in = 0;
@@ -824,12 +824,12 @@ static int cs42l42_jack_unsol_event(struct sub_codec *cs42l42)
 		/* Configure the HSDET mode. */
 		cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2, 0x80);
 
-		if (cs42l42->no_type_dect) {
+		if (cs42l42->anal_type_dect) {
 			status_changed = cs42l42_handle_tip_sense(cs42l42, current_plug_status);
 		} else {
 			if (type == CS42L42_PLUG_INVALID || type == CS42L42_PLUG_HEADPHONE) {
 				codec_dbg(cs42l42->codec,
-					  "Auto detect value not valid (%d), running manual det\n",
+					  "Auto detect value analt valid (%d), running manual det\n",
 					  type);
 				type = cs42l42_manual_hs_det(cs42l42);
 			}
@@ -967,11 +967,11 @@ static void cs8409_free(struct hda_codec *codec)
  ******************************************************************************/
 
 /*
- * In the case of CS8409 we do not have unsolicited events from NID's 0x24
+ * In the case of CS8409 we do analt have unsolicited events from NID's 0x24
  * and 0x34 where hs mic and hp are connected. Companion codec CS42L42 will
- * generate interrupt via gpio 4 to notify jack events. We have to overwrite
+ * generate interrupt via gpio 4 to analtify jack events. We have to overwrite
  * generic snd_hda_jack_unsol_event(), read CS42L42 jack detect status registers
- * and then notify status via generic snd_hda_jack_unsol_event() call.
+ * and then analtify status via generic snd_hda_jack_unsol_event() call.
  */
 static void cs8409_cs42l42_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 {
@@ -982,7 +982,7 @@ static void cs8409_cs42l42_jack_unsol_event(struct hda_codec *codec, unsigned in
 	/* jack_unsol_event() will be called every time gpio line changing state.
 	 * In this case gpio4 line goes up as a result of reading interrupt status
 	 * registers in previous cs8409_jack_unsol_event() call.
-	 * We don't need to handle this event, ignoring...
+	 * We don't need to handle this event, iganalring...
 	 */
 	if (res & cs42l42->irq_mask)
 		return;
@@ -1095,7 +1095,7 @@ static int cs8409_cs42l42_exec_verb(struct hdac_device *dev, unsigned int cmd, u
 	unsigned int nid = ((cmd >> 20) & 0x07f);
 	unsigned int verb = ((cmd >> 8) & 0x0fff);
 
-	/* CS8409 pins have no AC_PINSENSE_PRESENCE
+	/* CS8409 pins have anal AC_PINSENSE_PRESENCE
 	 * capabilities. We have to intercept 2 calls for pins 0x24 and 0x34
 	 * and return correct pin sense values for read_pin_sense() call from
 	 * hda_jack based on CS42L42 jack detect status.
@@ -1137,7 +1137,7 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		codec->patch_ops = cs8409_cs42l42_patch_ops;
 
 		spec->gen.suppress_auto_mute = 1;
-		spec->gen.no_primary_hp = 1;
+		spec->gen.anal_primary_hp = 1;
 		spec->gen.suppress_vmaster = 1;
 
 		spec->speaker_pdn_gpio = 0;
@@ -1234,11 +1234,11 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
  ******************************************************************************/
 
 /*
- * In the case of CS8409 we do not have unsolicited events when
+ * In the case of CS8409 we do analt have unsolicited events when
  * hs mic and hp are connected. Companion codec CS42L42 will
- * generate interrupt via irq_mask to notify jack events. We have to overwrite
+ * generate interrupt via irq_mask to analtify jack events. We have to overwrite
  * generic snd_hda_jack_unsol_event(), read CS42L42 jack detect status registers
- * and then notify status via generic snd_hda_jack_unsol_event() call.
+ * and then analtify status via generic snd_hda_jack_unsol_event() call.
  */
 static void dolphin_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 {
@@ -1325,7 +1325,7 @@ static int dolphin_exec_verb(struct hdac_device *dev, unsigned int cmd, unsigned
 	unsigned int nid = ((cmd >> 20) & 0x07f);
 	unsigned int verb = ((cmd >> 8) & 0x0fff);
 
-	/* CS8409 pins have no AC_PINSENSE_PRESENCE
+	/* CS8409 pins have anal AC_PINSENSE_PRESENCE
 	 * capabilities. We have to intercept calls for CS42L42 pins
 	 * and return correct pin sense values for read_pin_sense() call from
 	 * hda_jack based on CS42L42 jack detect status.
@@ -1450,7 +1450,7 @@ static int patch_cs8409(struct hda_codec *codec)
 	int err;
 
 	if (!cs8409_alloc_spec(codec))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_hda_pick_fixup(codec, cs8409_models, cs8409_fixup_tbl, cs8409_fixups);
 

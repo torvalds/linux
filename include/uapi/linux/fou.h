@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
-/* Do not edit directly, auto-generated from: */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/fou.yaml */
 /* YNL-GEN uapi header */
 
@@ -21,7 +21,7 @@ enum {
 	FOU_ATTR_AF,
 	FOU_ATTR_IPPROTO,
 	FOU_ATTR_TYPE,
-	FOU_ATTR_REMCSUM_NOPARTIAL,
+	FOU_ATTR_REMCSUM_ANALPARTIAL,
 	FOU_ATTR_LOCAL_V4,
 	FOU_ATTR_LOCAL_V6,
 	FOU_ATTR_PEER_V4,

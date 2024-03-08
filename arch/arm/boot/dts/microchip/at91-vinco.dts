@@ -45,12 +45,12 @@
 					     &pinctrl_mmc0_dat4_7>;
 				vqmmc-supply = <&vcc_3v3_reg>;
 				vmmc-supply = <&vcc_3v3_reg>;
-				no-1-8-v;
+				anal-1-8-v;
 				status = "okay";
 				slot@0 {
 					reg = <0>;
 					bus-width = <8>;
-					non-removable;
+					analn-removable;
 					broken-cd;
 					status = "okay";
 				};
@@ -60,7 +60,7 @@
 				cs-gpios = <&pioC 3 0>, <0>, <0>, <0>;
 				status = "okay";
 				flash@0 {
-					compatible = "n25q32b", "jedec,spi-nor";
+					compatible = "n25q32b", "jedec,spi-analr";
 					spi-max-frequency = <50000000>;
 					reg = <0>;
 				};

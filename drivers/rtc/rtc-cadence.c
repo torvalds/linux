@@ -103,7 +103,7 @@ static irqreturn_t cdns_rtc_irq_handler(int irq, void *id)
 
 	/* Reading the register clears it */
 	if (!(readl(crtc->regs + CDNS_RTC_EFLR) & CDNS_RTC_AEI_ALRM))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	rtc_update_irq(crtc->rtc_dev, 1, RTC_IRQF | RTC_AF);
 	return IRQ_HANDLED;
@@ -260,7 +260,7 @@ static int cdns_rtc_probe(struct platform_device *pdev)
 
 	crtc = devm_kzalloc(&pdev->dev, sizeof(*crtc), GFP_KERNEL);
 	if (!crtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crtc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(crtc->regs))

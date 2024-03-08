@@ -25,7 +25,7 @@ unres() { #msg
     exit_unresolved
 }
 
-modprobe $MOD || unres "$MOD module not available"
+modprobe $MOD || unres "$MOD module analt available"
 rmmod $MOD
 
 reset_tracer

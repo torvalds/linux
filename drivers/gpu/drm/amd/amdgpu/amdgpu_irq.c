@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,10 +35,10 @@
  * interrupt requires calling kernel functions that may sleep processing is
  * dispatched to work handlers.
  *
- * If MSI functionality is not disabled by module parameter then MSI
+ * If MSI functionality is analt disabled by module parameter then MSI
  * support will be enabled.
  *
- * For GPU interrupt sources that may be driven by another driver, IRQ domain
+ * For GPU interrupt sources that may be driven by aanalther driver, IRQ domain
  * support is used (with mapping between virtual and hardware IRQs).
  */
 
@@ -99,19 +99,19 @@ const char *soc15_ih_clientid_name[] = {
 	"MP1"
 };
 
-const int node_id_to_phys_map[NODEID_MAX] = {
-	[AID0_NODEID] = 0,
-	[XCD0_NODEID] = 0,
-	[XCD1_NODEID] = 1,
-	[AID1_NODEID] = 1,
-	[XCD2_NODEID] = 2,
-	[XCD3_NODEID] = 3,
-	[AID2_NODEID] = 2,
-	[XCD4_NODEID] = 4,
-	[XCD5_NODEID] = 5,
-	[AID3_NODEID] = 3,
-	[XCD6_NODEID] = 6,
-	[XCD7_NODEID] = 7,
+const int analde_id_to_phys_map[ANALDEID_MAX] = {
+	[AID0_ANALDEID] = 0,
+	[XCD0_ANALDEID] = 0,
+	[XCD1_ANALDEID] = 1,
+	[AID1_ANALDEID] = 1,
+	[XCD2_ANALDEID] = 2,
+	[XCD3_ANALDEID] = 3,
+	[AID2_ANALDEID] = 2,
+	[XCD4_ANALDEID] = 4,
+	[XCD5_ANALDEID] = 5,
+	[AID3_ANALDEID] = 3,
+	[XCD6_ANALDEID] = 6,
+	[XCD7_ANALDEID] = 7,
 };
 
 /**
@@ -275,7 +275,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 
 	spin_lock_init(&adev->irq.lock);
 
-	/* Enable MSI if not disabled by module parameter */
+	/* Enable MSI if analt disabled by module parameter */
 	adev->irq.msi_enabled = false;
 
 	if (!amdgpu_msi_ok(adev))
@@ -404,7 +404,7 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
 				sizeof(struct amdgpu_irq_src *),
 				GFP_KERNEL);
 		if (!adev->irq.client[client_id].sources)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (adev->irq.client[client_id].sources[src_id] != NULL)
@@ -416,7 +416,7 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
 		types = kcalloc(source->num_types, sizeof(atomic_t),
 				GFP_KERNEL);
 		if (!types)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		source->enabled_types = types;
 	}
@@ -581,7 +581,7 @@ int amdgpu_irq_get(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		   unsigned int type)
 {
 	if (!adev->irq.installed)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (type >= src->num_types)
 		return -EINVAL;
@@ -611,7 +611,7 @@ int amdgpu_irq_put(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		   unsigned int type)
 {
 	if (!adev->irq.installed)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (type >= src->num_types)
 		return -EINVAL;
@@ -629,7 +629,7 @@ int amdgpu_irq_put(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 }
 
 /**
- * amdgpu_irq_enabled - check whether interrupt is enabled or not
+ * amdgpu_irq_enabled - check whether interrupt is enabled or analt
  *
  * @adev: amdgpu device pointer
  * @src: interrupt source pointer
@@ -709,7 +709,7 @@ static const struct irq_domain_ops amdgpu_hw_irqdomain_ops = {
  * @adev: amdgpu device pointer
  *
  * Creates an IRQ domain for GPU interrupt sources
- * that may be driven by another driver (e.g., ACP).
+ * that may be driven by aanalther driver (e.g., ACP).
  *
  * Returns:
  * 0 on success or error code otherwise
@@ -720,7 +720,7 @@ int amdgpu_irq_add_domain(struct amdgpu_device *adev)
 						 &amdgpu_hw_irqdomain_ops, adev);
 	if (!adev->irq.domain) {
 		DRM_ERROR("GPU irq add domain failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -732,7 +732,7 @@ int amdgpu_irq_add_domain(struct amdgpu_device *adev)
  * @adev: amdgpu device pointer
  *
  * Removes the IRQ domain for GPU interrupt sources
- * that may be driven by another driver (e.g., ACP).
+ * that may be driven by aanalther driver (e.g., ACP).
  */
 void amdgpu_irq_remove_domain(struct amdgpu_device *adev)
 {

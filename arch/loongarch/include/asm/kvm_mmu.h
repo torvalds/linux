@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef __ASM_LOONGARCH_KVM_MMU_H__
@@ -117,7 +117,7 @@ static inline int kvm_pte_present(kvm_ptw_ctx *ctx, kvm_pte_t *entry)
 	return *entry != ctx->invalid_entry;
 }
 
-static inline int kvm_pte_none(kvm_ptw_ctx *ctx, kvm_pte_t *entry)
+static inline int kvm_pte_analne(kvm_ptw_ctx *ctx, kvm_pte_t *entry)
 {
 	return *entry == ctx->invalid_entry;
 }

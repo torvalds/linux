@@ -17,7 +17,7 @@
 
 enum max2175_region {
 	MAX2175_REGION_EU = 0,	/* Europe */
-	MAX2175_REGION_NA,	/* North America */
+	MAX2175_REGION_NA,	/* Analrth America */
 };
 
 enum max2175_band {
@@ -95,7 +95,7 @@ enum max2175_csm_mode {
 	MAX2175_BUFFER_PLUS_JUMP_FAST_TUNE,
 	MAX2175_BUFFER_PLUS_CHECK,
 	MAX2175_BUFFER_PLUS_LOAD_AND_SWAP,
-	MAX2175_NO_ACTION
+	MAX2175_ANAL_ACTION
 };
 
 #endif /* __MAX2175_H__ */

@@ -37,7 +37,7 @@
 #define PKEY_REG_BITS (sizeof(u64) * 8)
 #define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey + 1) * AMR_BITS_PER_PKEY))
 
-#define CORE_FILE_LIMIT	(5 * 1024 * 1024)	/* 5 MB should be enough */
+#define CORE_FILE_LIMIT	(5 * 1024 * 1024)	/* 5 MB should be eanalugh */
 
 static const char core_pattern_file[] = "/proc/sys/kernel/core_pattern";
 
@@ -170,7 +170,7 @@ static int child(struct shared_info *info)
 	return TEST_FAIL;
 }
 
-/* Return file size if filename exists and pass sanity check, or zero if not. */
+/* Return file size if filename exists and pass sanity check, or zero if analt. */
 static off_t try_core_file(const char *filename, struct shared_info *info,
 			   pid_t pid)
 {
@@ -181,11 +181,11 @@ static off_t try_core_file(const char *filename, struct shared_info *info,
 	if (ret == -1)
 		return TEST_FAIL;
 
-	/* Make sure we're not using a stale core file. */
+	/* Make sure we're analt using a stale core file. */
 	return buf.st_mtime >= info->core_time ? buf.st_size : TEST_FAIL;
 }
 
-static Elf64_Nhdr *next_note(Elf64_Nhdr *nhdr)
+static Elf64_Nhdr *next_analte(Elf64_Nhdr *nhdr)
 {
 	return (void *) nhdr + sizeof(*nhdr) +
 		__ALIGN_KERNEL(nhdr->n_namesz, 4) +
@@ -199,7 +199,7 @@ static int check_core_file(struct shared_info *info, Elf64_Ehdr *ehdr,
 	Elf64_Phdr *phdr;
 	Elf64_Nhdr *nhdr;
 	size_t phdr_size;
-	void *p = ehdr, *note;
+	void *p = ehdr, *analte;
 	int ret;
 
 	ret = memcmp(ehdr->e_ident, ELFMAG, SELFMAG);
@@ -211,7 +211,7 @@ static int check_core_file(struct shared_info *info, Elf64_Ehdr *ehdr,
 
 	/*
 	 * e_phnum is at most 65535 so calculating the size of the
-	 * program header cannot overflow.
+	 * program header cananalt overflow.
 	 */
 	phdr_size = sizeof(*phdr) * ehdr->e_phnum;
 
@@ -219,19 +219,19 @@ static int check_core_file(struct shared_info *info, Elf64_Ehdr *ehdr,
 	FAIL_IF(ehdr->e_phoff + phdr_size < ehdr->e_phoff);
 	FAIL_IF(ehdr->e_phoff + phdr_size > core_size);
 
-	/* Find the PT_NOTE segment. */
+	/* Find the PT_ANALTE segment. */
 	for (phdr = p + ehdr->e_phoff;
 	     (void *) phdr < p + ehdr->e_phoff + phdr_size;
 	     phdr += ehdr->e_phentsize)
-		if (phdr->p_type == PT_NOTE)
+		if (phdr->p_type == PT_ANALTE)
 			break;
 
 	FAIL_IF((void *) phdr >= p + ehdr->e_phoff + phdr_size);
 
-	/* Find the NT_PPC_PKEY note. */
+	/* Find the NT_PPC_PKEY analte. */
 	for (nhdr = p + phdr->p_offset;
 	     (void *) nhdr < p + phdr->p_offset + phdr->p_filesz;
-	     nhdr = next_note(nhdr))
+	     nhdr = next_analte(nhdr))
 		if (nhdr->n_type == NT_PPC_PKEY)
 			break;
 
@@ -239,9 +239,9 @@ static int check_core_file(struct shared_info *info, Elf64_Ehdr *ehdr,
 	FAIL_IF(nhdr->n_descsz == 0);
 
 	p = nhdr;
-	note = p + sizeof(*nhdr) + __ALIGN_KERNEL(nhdr->n_namesz, 4);
+	analte = p + sizeof(*nhdr) + __ALIGN_KERNEL(nhdr->n_namesz, 4);
 
-	regs = (unsigned long *) note;
+	regs = (unsigned long *) analte;
 
 	printf("%-30s AMR: %016lx IAMR: %016lx UAMOR: %016lx\n",
 	       core_read_running, regs[0], regs[1], regs[2]);
@@ -266,7 +266,7 @@ static int parent(struct shared_info *info, pid_t pid)
 	 * to the child.
 	 */
 	ret = ptrace_read_regs(pid, NT_PPC_PKEY, regs, 3);
-	PARENT_SKIP_IF_UNSUPPORTED(ret, &info->child_sync, "PKEYs not supported");
+	PARENT_SKIP_IF_UNSUPPORTED(ret, &info->child_sync, "PKEYs analt supported");
 	PARENT_FAIL_IF(ret, &info->child_sync);
 
 	info->amr = regs[0];
@@ -279,7 +279,7 @@ static int parent(struct shared_info *info, pid_t pid)
 
 	ret = wait(&status);
 	if (ret != pid) {
-		printf("Child's exit status not captured\n");
+		printf("Child's exit status analt captured\n");
 		return TEST_FAIL;
 	} else if (!WIFSIGNALED(status) || !WCOREDUMP(status)) {
 		printf("Child didn't dump core\n");

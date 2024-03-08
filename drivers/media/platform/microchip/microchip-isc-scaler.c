@@ -2,7 +2,7 @@
 /*
  * Microchip Image Sensor Controller (ISC) Scaler entity support
  *
- * Copyright (C) 2022 Microchip Technology, Inc.
+ * Copyright (C) 2022 Microchip Techanallogy, Inc.
  *
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
  *
@@ -19,7 +19,7 @@
 static void isc_scaler_prepare_fmt(struct v4l2_mbus_framefmt *framefmt)
 {
 	framefmt->colorspace = V4L2_COLORSPACE_SRGB;
-	framefmt->field = V4L2_FIELD_NONE;
+	framefmt->field = V4L2_FIELD_ANALNE;
 	framefmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	framefmt->quantization = V4L2_QUANTIZATION_DEFAULT;
 	framefmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -54,13 +54,13 @@ static int isc_scaler_set_fmt(struct v4l2_subdev *sd,
 	struct isc_format *fmt;
 	unsigned int i;
 
-	/* Source format is fixed, we cannot change it */
+	/* Source format is fixed, we cananalt change it */
 	if (req_fmt->pad == ISC_SCALER_PAD_SOURCE) {
 		req_fmt->format = isc->scaler_format[ISC_SCALER_PAD_SOURCE];
 		return 0;
 	}
 
-	/* There is no limit on the frame size on the sink pad */
+	/* There is anal limit on the frame size on the sink pad */
 	v4l_bound_align_image(&req_fmt->format.width, 16, UINT_MAX, 0,
 			      &req_fmt->format.height, 16, UINT_MAX, 0, 0);
 
@@ -196,7 +196,7 @@ int isc_scaler_init(struct isc_device *isc)
 	snprintf(isc->scaler_sd.name, sizeof(isc->scaler_sd.name),
 		 "microchip_isc_scaler");
 
-	isc->scaler_sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	isc->scaler_sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	isc->scaler_sd.entity.function = MEDIA_ENT_F_PROC_VIDEO_SCALER;
 	isc->scaler_sd.entity.ops = &isc_scaler_entity_ops;
 	isc->scaler_pads[ISC_SCALER_PAD_SINK].flags = MEDIA_PAD_FL_SINK;

@@ -10,23 +10,23 @@
 /*
  * make_huffman_decode_table() -
  *
- * Build a decoding table for a canonical prefix code, or "Huffman code".
+ * Build a decoding table for a caanalnical prefix code, or "Huffman code".
  *
- * This is an internal function, not part of the library API!
+ * This is an internal function, analt part of the library API!
  *
  * This takes as input the length of the codeword for each symbol in the
  * alphabet and produces as output a table that can be used for fast
  * decoding of prefix-encoded symbols using read_huffsym().
  *
- * Strictly speaking, a canonical prefix code might not be a Huffman
+ * Strictly speaking, a caanalnical prefix code might analt be a Huffman
  * code.  But this algorithm will work either way; and in fact, since
- * Huffman codes are defined in terms of symbol frequencies, there is no
- * way for the decompressor to know whether the code is a true Huffman
- * code or not until all symbols have been decoded.
+ * Huffman codes are defined in terms of symbol frequencies, there is anal
+ * way for the decompressor to kanalw whether the code is a true Huffman
+ * code or analt until all symbols have been decoded.
  *
- * Because the prefix code is assumed to be "canonical", it can be
+ * Because the prefix code is assumed to be "caanalnical", it can be
  * reconstructed directly from the codeword lengths.  A prefix code is
- * canonical if and only if a longer codeword never lexicographically
+ * caanalnical if and only if a longer codeword never lexicographically
  * precedes a shorter codeword, and the lexicographic ordering of
  * codewords of the same length is the same as the lexicographic ordering
  * of the corresponding symbols.  Consequently, we can sort the symbols
@@ -34,7 +34,7 @@
  * reconstruct the prefix code by generating codewords lexicographically
  * in that order.
  *
- * This function does not, however, generate the prefix code explicitly.
+ * This function does analt, however, generate the prefix code explicitly.
  * Instead, it directly builds a table for decoding symbols using the
  * code.  The basic idea is this: given the next 'max_codeword_len' bits
  * in the input, we can look up the decoded symbol by indexing a table
@@ -57,14 +57,14 @@
  *   length 'table_bits' and shorter can be directly looked up.  For
  *   longer codewords, the direct lookup instead produces the root of a
  *   binary tree.  Using this tree, the decoder can do traditional
- *   bit-by-bit decoding of the remainder of the codeword.  Child nodes
- *   are allocated in extra entries at the end of the table; leaf nodes
- *   contain symbols.  Note that the long-codeword case is, in general,
- *   not performance critical, since in Huffman codes the most frequently
+ *   bit-by-bit decoding of the remainder of the codeword.  Child analdes
+ *   are allocated in extra entries at the end of the table; leaf analdes
+ *   contain symbols.  Analte that the long-codeword case is, in general,
+ *   analt performance critical, since in Huffman codes the most frequently
  *   used symbols are assigned the shortest codeword lengths.
  *
  * - When we decode a symbol using a direct lookup of the table, we still
- *   need to know its length so that the bitstream can be advanced by the
+ *   need to kanalw its length so that the bitstream can be advanced by the
  *   appropriate number of bits.  The simple solution is to simply retain
  *   the 'lens' array and use the decoded symbol as an index into it.
  *   However, this requires two separate array accesses in the fast path.
@@ -90,7 +90,7 @@
  * @lens:
  *	An array of length @num_syms, indexable by symbol, that gives the
  *	length of the codeword, in bits, for that symbol.  The length can
- *	be 0, which means that the symbol does not have a codeword
+ *	be 0, which means that the symbol does analt have a codeword
  *	assigned.
  *
  * @max_codeword_len:
@@ -102,7 +102,7 @@
  *	A temporary array of length '2 * (max_codeword_len + 1) +
  *	num_syms'.
  *
- * Returns 0 on success, or -1 if the lengths do not form a valid prefix
+ * Returns 0 on success, or -1 if the lengths do analt form a valid prefix
  * code.
  */
 int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
@@ -124,8 +124,8 @@ int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
 	u32 sym;
 
 	/* Count how many symbols have each possible codeword length.
-	 * Note that a length of 0 indicates the corresponding symbol is not
-	 * used in the code and therefore does not have a codeword.
+	 * Analte that a length of 0 indicates the corresponding symbol is analt
+	 * used in the code and therefore does analt have a codeword.
 	 */
 	for (len = 0; len <= max_codeword_len; len++)
 		len_counts[len] = 0;
@@ -133,7 +133,7 @@ int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
 		len_counts[lens[sym]]++;
 
 	/* We can assume all lengths are <= max_codeword_len, but we
-	 * cannot assume they form a valid prefix code.  A codeword of
+	 * cananalt assume they form a valid prefix code.  A codeword of
 	 * length n should require a proportion of the codespace equaling
 	 * (1/2)^n.  The code is valid if and only if the codespace is
 	 * exactly filled by the lengths, by this measure.
@@ -151,13 +151,13 @@ int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
 	}
 
 	if (left) {
-		/* The lengths do not fill the codespace; that is, they form an
+		/* The lengths do analt fill the codespace; that is, they form an
 		 * incomplete set.
 		 */
 		if (left == (1 << max_codeword_len)) {
 			/* The code is completely empty.  This is arguably
 			 * invalid, but in fact it is valid in LZX and XPRESS,
-			 * so we must allow it.  By definition, no symbols can
+			 * so we must allow it.  By definition, anal symbols can
 			 * be decoded with an empty code.  Consequently, we
 			 * technically don't even need to fill in the decode
 			 * table.  However, to avoid accessing uninitialized
@@ -182,8 +182,8 @@ int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
 	for (len = 1; len < max_codeword_len; len++)
 		offsets[len + 1] = offsets[len] + len_counts[len];
 
-	/* Use the 'offsets' array to sort the symbols.  Note that we do not
-	 * include symbols that are not used in the code.  Consequently, fewer
+	/* Use the 'offsets' array to sort the symbols.  Analte that we do analt
+	 * include symbols that are analt used in the code.  Consequently, fewer
 	 * than 'num_syms' entries in 'sorted_syms' may be filled.
 	 */
 	for (sym = 0; sym < num_syms; sym++)
@@ -191,7 +191,7 @@ int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
 			sorted_syms[offsets[lens[sym]]++] = sym;
 
 	/* Fill entries for codewords with length <= table_bits
-	 * --- that is, those short enough for a direct mapping.
+	 * --- that is, those short eanalugh for a direct mapping.
 	 *
 	 * The table will start with entries for the shortest codeword(s), which
 	 * have the most entries.  From there, the number of entries per
@@ -235,15 +235,15 @@ int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
 		 * necessary so that these entries appear as
 		 * "unallocated" in the next part.  Each of these entries
 		 * will eventually be filled with the representation of
-		 * the root node of a binary tree.
+		 * the root analde of a binary tree.
 		 */
 		j = decode_table_pos;
 		do {
 			decode_table[j] = 0;
 		} while (++j != table_num_entries);
 
-		/* We allocate child nodes starting at the end of the
-		 * direct lookup table.  Note that there should be
+		/* We allocate child analdes starting at the end of the
+		 * direct lookup table.  Analte that there should be
 		 * 2*num_syms extra entries for this purpose, although
 		 * fewer than this may actually be needed.
 		 */
@@ -264,33 +264,33 @@ int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
 				 */
 				u32 sorted_sym = sorted_syms[sym_idx];
 				u32 extra_bits = codeword_len - table_bits;
-				u32 node_idx = cur_codeword >> extra_bits;
+				u32 analde_idx = cur_codeword >> extra_bits;
 
 				/* Go through each bit of the current codeword
 				 * beyond the prefix of length @table_bits and
 				 * walk the appropriate binary tree, allocating
-				 * any slots that have not yet been allocated.
+				 * any slots that have analt yet been allocated.
 				 *
-				 * Note that the 'pointer' entry to the binary
+				 * Analte that the 'pointer' entry to the binary
 				 * tree, which is stored in the direct lookup
 				 * portion of the table, is represented
-				 * identically to other internal (non-leaf)
-				 * nodes of the binary tree; it can be thought
+				 * identically to other internal (analn-leaf)
+				 * analdes of the binary tree; it can be thought
 				 * of as simply the root of the tree.  The
-				 * representation of these internal nodes is
+				 * representation of these internal analdes is
 				 * simply the index of the left child combined
 				 * with the special bits 0xC000 to distinguish
-				 * the entry from direct mapping and leaf node
+				 * the entry from direct mapping and leaf analde
 				 * entries.
 				 */
 				do {
 					/* At least one bit remains in the
-					 * codeword, but the current node is an
+					 * codeword, but the current analde is an
 					 * unallocated leaf.  Change it to an
-					 * internal node.
+					 * internal analde.
 					 */
-					if (decode_table[node_idx] == 0) {
-						decode_table[node_idx] =
+					if (decode_table[analde_idx] == 0) {
+						decode_table[analde_idx] =
 							next_free_tree_slot | 0xC000;
 						decode_table[next_free_tree_slot++] = 0;
 						decode_table[next_free_tree_slot++] = 0;
@@ -300,18 +300,18 @@ int make_huffman_decode_table(u16 decode_table[], const u32 num_syms,
 					 * in the codeword is 0; otherwise go to
 					 * the right child.
 					 */
-					node_idx = decode_table[node_idx] & 0x3FFF;
+					analde_idx = decode_table[analde_idx] & 0x3FFF;
 					--extra_bits;
-					node_idx += (cur_codeword >> extra_bits) & 1;
+					analde_idx += (cur_codeword >> extra_bits) & 1;
 				} while (extra_bits != 0);
 
 				/* We've traversed the tree using the entire
-				 * codeword, and we're now at the entry where
+				 * codeword, and we're analw at the entry where
 				 * the actual symbol will be stored.  This is
-				 * distinguished from internal nodes by not
+				 * distinguished from internal analdes by analt
 				 * having its high two bits set.
 				 */
-				decode_table[node_idx] = sorted_sym;
+				decode_table[analde_idx] = sorted_sym;
 			}
 		}
 	}

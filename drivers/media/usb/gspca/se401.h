@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * GSPCA Endpoints (formerly known as AOX) se401 USB Camera sub Driver
+ * GSPCA Endpoints (formerly kanalwn as AOX) se401 USB Camera sub Driver
  *
  * Copyright (C) 2011 Hans de Goede <hdegoede@redhat.com>
  *
@@ -67,10 +67,10 @@
 #define HV7131_REG_OFSG		0x51
 #define HV7131_REG_OFSB		0x52
 /* REset level statistics registers: */
-#define HV7131_REG_LOREFNOH	0x57
-#define HV7131_REG_LOREFNOL	0x58
-#define HV7131_REG_HIREFNOH	0x59
-#define HV7131_REG_HIREFNOL	0x5a
+#define HV7131_REG_LOREFANALH	0x57
+#define HV7131_REG_LOREFANALL	0x58
+#define HV7131_REG_HIREFANALH	0x59
+#define HV7131_REG_HIREFANALL	0x5a
 
 /* se401 registers */
 #define SE401_OPERATINGMODE	0x2000

@@ -133,20 +133,20 @@ struct msm_gpio_wakeirq_map {
  * @groups:	    An array describing all pin groups the pin SoC supports.
  * @ngroups:	    The numbmer of entries in @groups.
  * @ngpio:	    The number of pingroups the driver should expose as GPIOs.
- * @pull_no_keeper: The SoC does not support keeper bias.
+ * @pull_anal_keeper: The SoC does analt support keeper bias.
  * @wakeirq_map:    The map of wakeup capable GPIOs and the pin at PDC/MPM
  * @nwakeirq_map:   The number of entries in @wakeirq_map
  * @wakeirq_dual_edge_errata: If true then GPIOs using the wakeirq_map need
  *                            to be aware that their parent can't handle dual
  *                            edge interrupts.
  * @gpio_func: Which function number is GPIO (usually 0).
- * @egpio_func: If non-zero then this SoC supports eGPIO. Even though in
+ * @egpio_func: If analn-zero then this SoC supports eGPIO. Even though in
  *              hardware this is a mux 1-level above the TLMM, we'll treat
- *              it as if this is just another mux state of the TLMM. Since
+ *              it as if this is just aanalther mux state of the TLMM. Since
  *              it doesn't really map to hardware, we'll allocate a virtual
  *              function number for eGPIO and any time we see that function
  *              number used we'll treat it as a request to mux away from
- *              our TLMM towards another owner.
+ *              our TLMM towards aanalther owner.
  */
 struct msm_pinctrl_soc_data {
 	const struct pinctrl_pin_desc *pins;
@@ -156,7 +156,7 @@ struct msm_pinctrl_soc_data {
 	const struct msm_pingroup *groups;
 	unsigned ngroups;
 	unsigned ngpios;
-	bool pull_no_keeper;
+	bool pull_anal_keeper;
 	const char *const *tiles;
 	unsigned int ntiles;
 	const int *reserved_gpios;

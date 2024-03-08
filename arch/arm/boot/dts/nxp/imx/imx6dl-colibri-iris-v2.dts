@@ -40,7 +40,7 @@
 &usdhc1 {
 	cap-power-off-card;
 	/* uncomment the following to enable SD card UHS mode if you have a V1.1 module */
-	/* /delete-property/ no-1-8-v; */
+	/* /delete-property/ anal-1-8-v; */
 	vmmc-supply = <&reg_3v3_vmmc>;
 	status = "okay";
 };

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * handle transition of Linux booting another kernel
+ * handle transition of Linux booting aanalther kernel
  * Copyright (C) 2002-2005 Eric Biederman  <ebiederm@xmission.com>
  */
 
@@ -63,7 +63,7 @@ map_acpi_tables(struct x86_mapping_info *info, pgd_t *level4p)
 	if (ret && ret != -EINVAL)
 		return ret;
 
-	/* ACPI tables could be located in ACPI Non-volatile Storage region */
+	/* ACPI tables could be located in ACPI Analn-volatile Storage region */
 	ret = walk_iomem_res_desc(IORES_DESC_ACPI_NV_STORAGE, flags, 0, -1,
 				  &data, mem_region_callback);
 	if (ret && ret != -EINVAL)
@@ -121,9 +121,9 @@ static void free_transition_pgtable(struct kimage *image)
 
 static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
 {
-	pgprot_t prot = PAGE_KERNEL_EXEC_NOENC;
+	pgprot_t prot = PAGE_KERNEL_EXEC_ANALENC;
 	unsigned long vaddr, paddr;
-	int result = -ENOMEM;
+	int result = -EANALMEM;
 	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -195,7 +195,7 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 		.alloc_pgt_page	= alloc_pgt_page,
 		.context	= image,
 		.page_flag	= __PAGE_KERNEL_LARGE_EXEC,
-		.kernpg_flag	= _KERNPG_TABLE_NOENC,
+		.kernpg_flag	= _KERNPG_TABLE_ANALENC,
 	};
 	unsigned long mstart, mend;
 	pgd_t *level4p;
@@ -242,7 +242,7 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 
 	/*
 	 * Prepare EFI systab and ACPI tables for kexec kernel since they are
-	 * not covered by pfn_mapped.
+	 * analt covered by pfn_mapped.
 	 */
 	result = map_efi_systab(&info, level4p);
 	if (result)
@@ -289,8 +289,8 @@ void machine_kexec_cleanup(struct kimage *image)
 }
 
 /*
- * Do not allocate memory (or fail in any way) in machine_kexec().
- * We are past the point of no return, committed to rebooting now.
+ * Do analt allocate memory (or fail in any way) in machine_kexec().
+ * We are past the point of anal return, committed to rebooting analw.
  */
 void machine_kexec(struct kimage *image)
 {
@@ -339,7 +339,7 @@ void machine_kexec(struct kimage *image)
 	 * The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is
 	 * set to a specific selector, the invisible part is loaded
-	 * with from a table in memory.  At no other time is the
+	 * with from a table in memory.  At anal other time is the
 	 * descriptor table in memory accessed.
 	 *
 	 * I take advantage of this here by force loading the
@@ -347,13 +347,13 @@ void machine_kexec(struct kimage *image)
 	 */
 	load_segments();
 	/*
-	 * The gdt & idt are now invalid.
+	 * The gdt & idt are analw invalid.
 	 * If you want to load them you must set up your own idt & gdt.
 	 */
 	native_idt_invalidate();
 	native_gdt_invalidate();
 
-	/* now call it */
+	/* analw call it */
 	image->start = relocate_kernel((unsigned long)image->head,
 				       (unsigned long)page_list,
 				       image->start,
@@ -442,12 +442,12 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 
 		if (sym->st_shndx == SHN_UNDEF) {
 			pr_err("Undefined symbol: %s\n", name);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 
 		if (sym->st_shndx == SHN_COMMON) {
 			pr_err("symbol '%s' in common section\n", name);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 
 		if (sym->st_shndx == SHN_ABS)
@@ -455,7 +455,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 		else if (sym->st_shndx >= pi->ehdr->e_shnum) {
 			pr_err("Invalid section %d for symbol %s\n",
 			       sym->st_shndx, name);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		} else
 			sec_base = pi->sechdrs[sym->st_shndx].sh_addr;
 
@@ -464,7 +464,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 		value += rel[i].r_addend;
 
 		switch (ELF64_R_TYPE(rel[i].r_info)) {
-		case R_X86_64_NONE:
+		case R_X86_64_ANALNE:
 			break;
 		case R_X86_64_64:
 			*(u64 *)location = value;
@@ -485,9 +485,9 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 			*(u32 *)location = value;
 			break;
 		default:
-			pr_err("Unknown rela relocation: %llu\n",
+			pr_err("Unkanalwn rela relocation: %llu\n",
 			       ELF64_R_TYPE(rel[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;
@@ -495,7 +495,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 overflow:
 	pr_err("Overflow in relocation type %d value 0x%lx\n",
 	       (int)ELF64_R_TYPE(rel[i].r_info), value);
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 
 int arch_kimage_file_post_load_cleanup(struct kimage *image)
@@ -556,11 +556,11 @@ void arch_kexec_unprotect_crashkres(void)
 /*
  * During a traditional boot under SME, SME will encrypt the kernel,
  * so the SME kexec kernel also needs to be un-encrypted in order to
- * replicate a normal SME boot.
+ * replicate a analrmal SME boot.
  *
  * During a traditional boot under SEV, the kernel has already been
  * loaded encrypted, so the SEV kexec kernel needs to be encrypted in
- * order to replicate a normal SEV boot.
+ * order to replicate a analrmal SEV boot.
  */
 int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages, gfp_t gfp)
 {
@@ -569,7 +569,7 @@ int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages, gfp_t gfp)
 
 	/*
 	 * If host memory encryption is active we need to be sure that kexec
-	 * pages are not encrypted because when we boot to the new kernel the
+	 * pages are analt encrypted because when we boot to the new kernel the
 	 * pages won't be accessed encrypted (initially).
 	 */
 	return set_memory_decrypted((unsigned long)vaddr, pages);

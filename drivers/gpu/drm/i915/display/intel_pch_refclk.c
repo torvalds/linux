@@ -143,7 +143,7 @@ static void lpt_compute_iclkip(struct iclkip_params *p, int clock)
 
 	/* The iCLK virtual clock root frequency is in MHz,
 	 * but the adjusted_mode->crtc_clock in KHz. To get the
-	 * divisors, it is necessary to divide one by another, so we
+	 * divisors, it is necessary to divide one by aanalther, so we
 	 * convert the virtual clock precision to KHz here for higher
 	 * precision.
 	 */
@@ -185,7 +185,7 @@ void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 	lpt_compute_iclkip(&p, clock);
 	drm_WARN_ON(&dev_priv->drm, lpt_iclkip_freq(&p) != clock);
 
-	/* This should not happen with any sane values */
+	/* This should analt happen with any sane values */
 	drm_WARN_ON(&dev_priv->drm, SBI_SSCDIVINTPHASE_DIVSEL(p.divsel) &
 		    ~SBI_SSCDIVINTPHASE_DIVSEL_MASK);
 	drm_WARN_ON(&dev_priv->drm, SBI_SSCDIVINTPHASE_DIR(p.phasedir) &
@@ -360,7 +360,7 @@ static const u16 sscdivintphase[] = {
 /*
  * Bend CLKOUT_DP
  * steps -50 to 50 inclusive, in steps of 5
- * < 0 slow down the clock, > 0 speed up the clock, 0 == no bend (135MHz)
+ * < 0 slow down the clock, > 0 speed up the clock, 0 == anal bend (135MHz)
  * change in clock period = -(steps / 10) * 5.787 ps
  */
 static void lpt_bend_clkout_dp(struct drm_i915_private *dev_priv, int steps)
@@ -448,7 +448,7 @@ static void lpt_init_pch_refclk(struct drm_i915_private *dev_priv)
 
 	/*
 	 * The BIOS may have decided to use the PCH SSC
-	 * reference so we must not disable it until the
+	 * reference so we must analt disable it until the
 	 * relevant PLLs have stopped relying on it. We'll
 	 * just leave the PCH SSC reference enabled in case
 	 * any active PLL is using it. It will get disabled
@@ -550,7 +550,7 @@ static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 	/* Ironlake: try to setup display ref clock before DPLL
 	 * enabling. This is only under driver's control after
 	 * PCH B stepping, previous chipset stepping should be
-	 * ignoring this setting.
+	 * iganalring this setting.
 	 */
 	val = intel_de_read(dev_priv, PCH_DREF_CONTROL);
 
@@ -559,11 +559,11 @@ static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 	 * make any changes at all.
 	 */
 	final = val;
-	final &= ~DREF_NONSPREAD_SOURCE_MASK;
+	final &= ~DREF_ANALNSPREAD_SOURCE_MASK;
 	if (has_ck505)
-		final |= DREF_NONSPREAD_CK505_ENABLE;
+		final |= DREF_ANALNSPREAD_CK505_ENABLE;
 	else
-		final |= DREF_NONSPREAD_SOURCE_ENABLE;
+		final |= DREF_ANALNSPREAD_SOURCE_ENABLE;
 
 	final &= ~DREF_SSC_SOURCE_MASK;
 	final &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
@@ -579,7 +579,7 @@ static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 			if (intel_panel_use_ssc(dev_priv) && can_ssc)
 				final |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
 			else
-				final |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+				final |= DREF_CPU_SOURCE_OUTPUT_ANALNSPREAD;
 		} else {
 			final |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
 		}
@@ -591,13 +591,13 @@ static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 	if (final == val)
 		return;
 
-	/* Always enable nonspread source */
-	val &= ~DREF_NONSPREAD_SOURCE_MASK;
+	/* Always enable analnspread source */
+	val &= ~DREF_ANALNSPREAD_SOURCE_MASK;
 
 	if (has_ck505)
-		val |= DREF_NONSPREAD_CK505_ENABLE;
+		val |= DREF_ANALNSPREAD_CK505_ENABLE;
 	else
-		val |= DREF_NONSPREAD_SOURCE_ENABLE;
+		val |= DREF_ANALNSPREAD_SOURCE_ENABLE;
 
 	if (has_panel) {
 		val &= ~DREF_SSC_SOURCE_MASK;
@@ -625,7 +625,7 @@ static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 					    "Using SSC on eDP\n");
 				val |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
 			} else {
-				val |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+				val |= DREF_CPU_SOURCE_OUTPUT_ANALNSPREAD;
 			}
 		} else {
 			val |= DREF_CPU_SOURCE_OUTPUT_DISABLE;

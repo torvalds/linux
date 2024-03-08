@@ -6,7 +6,7 @@
  * GNU General Public License.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Authors: David Howells <dhowells@redhat.com>
@@ -31,9 +31,9 @@
 
 static void afs_i_init_once(void *foo);
 static void afs_kill_super(struct super_block *sb);
-static struct inode *afs_alloc_inode(struct super_block *sb);
-static void afs_destroy_inode(struct inode *inode);
-static void afs_free_inode(struct inode *inode);
+static struct ianalde *afs_alloc_ianalde(struct super_block *sb);
+static void afs_destroy_ianalde(struct ianalde *ianalde);
+static void afs_free_ianalde(struct ianalde *ianalde);
 static int afs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int afs_show_devname(struct seq_file *m, struct dentry *root);
 static int afs_show_options(struct seq_file *m, struct dentry *root);
@@ -54,18 +54,18 @@ int afs_net_id;
 
 static const struct super_operations afs_super_ops = {
 	.statfs		= afs_statfs,
-	.alloc_inode	= afs_alloc_inode,
-	.write_inode	= netfs_unpin_writeback,
-	.drop_inode	= afs_drop_inode,
-	.destroy_inode	= afs_destroy_inode,
-	.free_inode	= afs_free_inode,
-	.evict_inode	= afs_evict_inode,
+	.alloc_ianalde	= afs_alloc_ianalde,
+	.write_ianalde	= netfs_unpin_writeback,
+	.drop_ianalde	= afs_drop_ianalde,
+	.destroy_ianalde	= afs_destroy_ianalde,
+	.free_ianalde	= afs_free_ianalde,
+	.evict_ianalde	= afs_evict_ianalde,
 	.show_devname	= afs_show_devname,
 	.show_options	= afs_show_options,
 };
 
-static struct kmem_cache *afs_inode_cachep;
-static atomic_t afs_count_active_inodes;
+static struct kmem_cache *afs_ianalde_cachep;
+static atomic_t afs_count_active_ianaldes;
 
 enum afs_param {
 	Opt_autocell,
@@ -99,24 +99,24 @@ int __init afs_fs_init(void)
 
 	_enter("");
 
-	/* create ourselves an inode cache */
-	atomic_set(&afs_count_active_inodes, 0);
+	/* create ourselves an ianalde cache */
+	atomic_set(&afs_count_active_ianaldes, 0);
 
-	ret = -ENOMEM;
-	afs_inode_cachep = kmem_cache_create("afs_inode_cache",
-					     sizeof(struct afs_vnode),
+	ret = -EANALMEM;
+	afs_ianalde_cachep = kmem_cache_create("afs_ianalde_cache",
+					     sizeof(struct afs_vanalde),
 					     0,
 					     SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
 					     afs_i_init_once);
-	if (!afs_inode_cachep) {
-		printk(KERN_NOTICE "kAFS: Failed to allocate inode cache\n");
+	if (!afs_ianalde_cachep) {
+		printk(KERN_ANALTICE "kAFS: Failed to allocate ianalde cache\n");
 		return ret;
 	}
 
-	/* now export our filesystem to lesser mortals */
+	/* analw export our filesystem to lesser mortals */
 	ret = register_filesystem(&afs_fs_type);
 	if (ret < 0) {
-		kmem_cache_destroy(afs_inode_cachep);
+		kmem_cache_destroy(afs_ianalde_cachep);
 		_leave(" = %d", ret);
 		return ret;
 	}
@@ -135,18 +135,18 @@ void afs_fs_exit(void)
 	afs_mntpt_kill_timer();
 	unregister_filesystem(&afs_fs_type);
 
-	if (atomic_read(&afs_count_active_inodes) != 0) {
-		printk("kAFS: %d active inode objects still present\n",
-		       atomic_read(&afs_count_active_inodes));
+	if (atomic_read(&afs_count_active_ianaldes) != 0) {
+		printk("kAFS: %d active ianalde objects still present\n",
+		       atomic_read(&afs_count_active_ianaldes));
 		BUG();
 	}
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(afs_inode_cachep);
+	kmem_cache_destroy(afs_ianalde_cachep);
 	_leave("");
 }
 
@@ -162,7 +162,7 @@ static int afs_show_devname(struct seq_file *m, struct dentry *root)
 	char pref = '%';
 
 	if (as->dyn_root) {
-		seq_puts(m, "none");
+		seq_puts(m, "analne");
 		return 0;
 	}
 
@@ -194,7 +194,7 @@ static int afs_show_options(struct seq_file *m, struct dentry *root)
 
 	if (as->dyn_root)
 		seq_puts(m, ",dyn");
-	if (test_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(d_inode(root))->flags))
+	if (test_bit(AFS_VANALDE_AUTOCELL, &AFS_FS_I(d_ianalde(root))->flags))
 		seq_puts(m, ",autocell");
 	switch (as->flock_mode) {
 	case afs_flock_mode_unset:	break;
@@ -232,17 +232,17 @@ static int afs_parse_source(struct fs_context *fc, struct fs_parameter *param)
 	_enter(",%s", name);
 
 	if (fc->source)
-		return invalf(fc, "kAFS: Multiple sources not supported");
+		return invalf(fc, "kAFS: Multiple sources analt supported");
 
 	if (!name) {
-		printk(KERN_ERR "kAFS: no volume name specified\n");
+		printk(KERN_ERR "kAFS: anal volume name specified\n");
 		return -EINVAL;
 	}
 
 	if ((name[0] != '%' && name[0] != '#') || !name[1]) {
 		/* To use dynroot, we don't want to have to provide a source */
-		if (strcmp(name, "none") == 0) {
-			ctx->no_cell = true;
+		if (strcmp(name, "analne") == 0) {
+			ctx->anal_cell = true;
 			return 0;
 		}
 		printk(KERN_ERR "kAFS: unparsable volume name\n");
@@ -362,13 +362,13 @@ static int afs_validate_fc(struct fs_context *fc)
 	int ret;
 
 	if (!ctx->dyn_root) {
-		if (ctx->no_cell) {
-			pr_warn("kAFS: Can only specify source 'none' with -o dyn\n");
+		if (ctx->anal_cell) {
+			pr_warn("kAFS: Can only specify source 'analne' with -o dyn\n");
 			return -EINVAL;
 		}
 
 		if (!ctx->cell) {
-			pr_warn("kAFS: No cell specified\n");
+			pr_warn("kAFS: Anal cell specified\n");
 			return -EDESTADDRREQ;
 		}
 
@@ -440,7 +440,7 @@ static int afs_dynroot_test_super(struct super_block *sb, struct fs_context *fc)
 
 static int afs_set_super(struct super_block *sb, struct fs_context *fc)
 {
-	return set_anon_super(sb, NULL);
+	return set_aanaln_super(sb, NULL);
 }
 
 /*
@@ -449,7 +449,7 @@ static int afs_set_super(struct super_block *sb, struct fs_context *fc)
 static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	int ret;
 
 	_enter("");
@@ -466,23 +466,23 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 	if (ret)
 		return ret;
 
-	/* allocate the root inode and dentry */
+	/* allocate the root ianalde and dentry */
 	if (as->dyn_root) {
-		inode = afs_iget_pseudo_dir(sb, true);
+		ianalde = afs_iget_pseudo_dir(sb, true);
 	} else {
 		sprintf(sb->s_id, "%llu", as->volume->vid);
 		afs_activate_volume(as->volume);
-		inode = afs_root_iget(sb, ctx->key);
+		ianalde = afs_root_iget(sb, ctx->key);
 	}
 
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	if (IS_ERR(ianalde))
+		return PTR_ERR(ianalde);
 
 	if (ctx->autocell || as->dyn_root)
-		set_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(inode)->flags);
+		set_bit(AFS_VANALDE_AUTOCELL, &AFS_FS_I(ianalde)->flags);
 
-	ret = -ENOMEM;
-	sb->s_root = d_make_root(inode);
+	ret = -EANALMEM;
+	sb->s_root = d_make_root(ianalde);
 	if (!sb->s_root)
 		goto error;
 
@@ -547,7 +547,7 @@ static void afs_kill_super(struct super_block *sb)
 	 */
 	if (as->volume)
 		rcu_assign_pointer(as->volume->sb, NULL);
-	kill_anon_super(sb);
+	kill_aanaln_super(sb);
 	if (as->volume)
 		afs_deactivate_volume(as->volume);
 	afs_destroy_sbi(as);
@@ -570,7 +570,7 @@ static int afs_get_tree(struct fs_context *fc)
 	_enter("");
 
 	/* allocate a superblock info record */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	as = afs_alloc_sbi(fc);
 	if (!as)
 		goto error;
@@ -636,7 +636,7 @@ static int afs_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct afs_fs_context), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->type = AFSVL_ROVOL;
 	ctx->net = afs_net(fc->net_ns);
@@ -653,77 +653,77 @@ static int afs_init_fs_context(struct fs_context *fc)
 }
 
 /*
- * Initialise an inode cache slab element prior to any use.  Note that
- * afs_alloc_inode() *must* reset anything that could incorrectly leak from one
- * inode to another.
+ * Initialise an ianalde cache slab element prior to any use.  Analte that
+ * afs_alloc_ianalde() *must* reset anything that could incorrectly leak from one
+ * ianalde to aanalther.
  */
-static void afs_i_init_once(void *_vnode)
+static void afs_i_init_once(void *_vanalde)
 {
-	struct afs_vnode *vnode = _vnode;
+	struct afs_vanalde *vanalde = _vanalde;
 
-	memset(vnode, 0, sizeof(*vnode));
-	inode_init_once(&vnode->netfs.inode);
-	mutex_init(&vnode->io_lock);
-	init_rwsem(&vnode->validate_lock);
-	spin_lock_init(&vnode->wb_lock);
-	spin_lock_init(&vnode->lock);
-	INIT_LIST_HEAD(&vnode->wb_keys);
-	INIT_LIST_HEAD(&vnode->pending_locks);
-	INIT_LIST_HEAD(&vnode->granted_locks);
-	INIT_DELAYED_WORK(&vnode->lock_work, afs_lock_work);
-	INIT_LIST_HEAD(&vnode->cb_mmap_link);
-	seqlock_init(&vnode->cb_lock);
+	memset(vanalde, 0, sizeof(*vanalde));
+	ianalde_init_once(&vanalde->netfs.ianalde);
+	mutex_init(&vanalde->io_lock);
+	init_rwsem(&vanalde->validate_lock);
+	spin_lock_init(&vanalde->wb_lock);
+	spin_lock_init(&vanalde->lock);
+	INIT_LIST_HEAD(&vanalde->wb_keys);
+	INIT_LIST_HEAD(&vanalde->pending_locks);
+	INIT_LIST_HEAD(&vanalde->granted_locks);
+	INIT_DELAYED_WORK(&vanalde->lock_work, afs_lock_work);
+	INIT_LIST_HEAD(&vanalde->cb_mmap_link);
+	seqlock_init(&vanalde->cb_lock);
 }
 
 /*
- * allocate an AFS inode struct from our slab cache
+ * allocate an AFS ianalde struct from our slab cache
  */
-static struct inode *afs_alloc_inode(struct super_block *sb)
+static struct ianalde *afs_alloc_ianalde(struct super_block *sb)
 {
-	struct afs_vnode *vnode;
+	struct afs_vanalde *vanalde;
 
-	vnode = alloc_inode_sb(sb, afs_inode_cachep, GFP_KERNEL);
-	if (!vnode)
+	vanalde = alloc_ianalde_sb(sb, afs_ianalde_cachep, GFP_KERNEL);
+	if (!vanalde)
 		return NULL;
 
-	atomic_inc(&afs_count_active_inodes);
+	atomic_inc(&afs_count_active_ianaldes);
 
-	/* Reset anything that shouldn't leak from one inode to the next. */
-	memset(&vnode->fid, 0, sizeof(vnode->fid));
-	memset(&vnode->status, 0, sizeof(vnode->status));
-	afs_vnode_set_cache(vnode, NULL);
+	/* Reset anything that shouldn't leak from one ianalde to the next. */
+	memset(&vanalde->fid, 0, sizeof(vanalde->fid));
+	memset(&vanalde->status, 0, sizeof(vanalde->status));
+	afs_vanalde_set_cache(vanalde, NULL);
 
-	vnode->volume		= NULL;
-	vnode->lock_key		= NULL;
-	vnode->permit_cache	= NULL;
+	vanalde->volume		= NULL;
+	vanalde->lock_key		= NULL;
+	vanalde->permit_cache	= NULL;
 
-	vnode->flags		= 1 << AFS_VNODE_UNSET;
-	vnode->lock_state	= AFS_VNODE_LOCK_NONE;
+	vanalde->flags		= 1 << AFS_VANALDE_UNSET;
+	vanalde->lock_state	= AFS_VANALDE_LOCK_ANALNE;
 
-	init_rwsem(&vnode->rmdir_lock);
-	INIT_WORK(&vnode->cb_work, afs_invalidate_mmap_work);
+	init_rwsem(&vanalde->rmdir_lock);
+	INIT_WORK(&vanalde->cb_work, afs_invalidate_mmap_work);
 
-	_leave(" = %p", &vnode->netfs.inode);
-	return &vnode->netfs.inode;
+	_leave(" = %p", &vanalde->netfs.ianalde);
+	return &vanalde->netfs.ianalde;
 }
 
-static void afs_free_inode(struct inode *inode)
+static void afs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(afs_inode_cachep, AFS_FS_I(inode));
+	kmem_cache_free(afs_ianalde_cachep, AFS_FS_I(ianalde));
 }
 
 /*
- * destroy an AFS inode struct
+ * destroy an AFS ianalde struct
  */
-static void afs_destroy_inode(struct inode *inode)
+static void afs_destroy_ianalde(struct ianalde *ianalde)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 
-	_enter("%p{%llx:%llu}", inode, vnode->fid.vid, vnode->fid.vnode);
+	_enter("%p{%llx:%llu}", ianalde, vanalde->fid.vid, vanalde->fid.vanalde);
 
-	_debug("DESTROY INODE %p", inode);
+	_debug("DESTROY IANALDE %p", ianalde);
 
-	atomic_dec(&afs_count_active_inodes);
+	atomic_dec(&afs_count_active_ianaldes);
 }
 
 static void afs_get_volume_status_success(struct afs_operation *op)
@@ -754,7 +754,7 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct afs_super_info *as = AFS_FS_S(dentry->d_sb);
 	struct afs_operation *op;
-	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
+	struct afs_vanalde *vanalde = AFS_FS_I(d_ianalde(dentry));
 
 	buf->f_type	= dentry->d_sb->s_magic;
 	buf->f_bsize	= AFS_BLOCK_SIZE;
@@ -771,7 +771,7 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (IS_ERR(op))
 		return PTR_ERR(op);
 
-	afs_op_set_vnode(op, 0, vnode);
+	afs_op_set_vanalde(op, 0, vanalde);
 	op->nr_files		= 1;
 	op->volstatus.buf	= buf;
 	op->ops			= &afs_get_volume_status_operation;

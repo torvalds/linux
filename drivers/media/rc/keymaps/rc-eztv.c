@@ -70,7 +70,7 @@ static struct rc_map_list eztv_map = {
 	.map = {
 		.scan     = eztv,
 		.size     = ARRAY_SIZE(eztv),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_EZTV,
 	}
 };

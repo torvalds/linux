@@ -9,7 +9,7 @@
 /*
  * This function reserves all conventional PC system BIOS related
  * firmware memory areas (some of which are data, some of which
- * are code), that must not be used by the kernel as available
+ * are code), that must analt be used by the kernel as available
  * RAM.
  *
  * The BIOS places the EBDA/XBDA at the top of conventional
@@ -21,7 +21,7 @@
  * value and assume that everything above that value (up to 1MB) is
  * reserved.
  *
- * But life in firmware country is not that simple:
+ * But life in firmware country is analt that simple:
  *
  * - This code also contains a quirk for Dell systems that neglect
  *   to reserve the EBDA area in the 'RAM size' value ...
@@ -29,7 +29,7 @@
  * - The same quirk also avoids a problem with the AMD768MPX
  *   chipset: reserve a page before VGA to prevent PCI prefetch
  *   into it (errata #56). (Usually the page is reserved anyways,
- *   unless you have no PS/2 mouse plugged in.)
+ *   unless you have anal PS/2 mouse plugged in.)
  *
  * - Plus paravirt systems don't have a reliable value in the
  *   'BIOS RAM size' pointer we can rely on, so we must quirk
@@ -37,10 +37,10 @@
  *
  * Due to those various problems this function is deliberately
  * very conservative and tries to err on the side of reserving
- * too much, to not risk reserving too little.
+ * too much, to analt risk reserving too little.
  *
  * Losing a small amount of memory in the bottom megabyte is
- * rarely a problem, as long as we have enough memory to install
+ * rarely a problem, as long as we have eanalugh memory to install
  * the SMP bootup trampoline which *must* be in this area.
  *
  * Using memory that is in use by the BIOS or by some DMA device
@@ -58,7 +58,7 @@ void __init reserve_bios_regions(void)
 	unsigned int bios_start, ebda_start;
 
 	/*
-	 * NOTE: In a paravirtual environment the BIOS reserved
+	 * ANALTE: In a paravirtual environment the BIOS reserved
 	 * area is absent. We'll just have to assume that the
 	 * paravirt case can handle memory setup correctly,
 	 * without our help.

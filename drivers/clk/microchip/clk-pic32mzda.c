@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Purna Chandra Mandal,<purna.mandal@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techanallogy Inc.  All rights reserved.
  */
 #include <dt-bindings/clock/microchip,pic32-clock.h>
 #include <linux/clk.h>
@@ -68,17 +68,17 @@ static const struct pic32_ref_osc_data ref_clks[] = {
 
 static const struct pic32_periph_clk_data periph_clocks[] = {
 	DECLARE_PERIPHERAL_CLOCK("pb1_clk", 0x140, 0),
-	DECLARE_PERIPHERAL_CLOCK("pb2_clk", 0x150, CLK_IGNORE_UNUSED),
+	DECLARE_PERIPHERAL_CLOCK("pb2_clk", 0x150, CLK_IGANALRE_UNUSED),
 	DECLARE_PERIPHERAL_CLOCK("pb3_clk", 0x160, 0),
 	DECLARE_PERIPHERAL_CLOCK("pb4_clk", 0x170, 0),
 	DECLARE_PERIPHERAL_CLOCK("pb5_clk", 0x180, 0),
 	DECLARE_PERIPHERAL_CLOCK("pb6_clk", 0x190, 0),
-	DECLARE_PERIPHERAL_CLOCK("cpu_clk", 0x1a0, CLK_IGNORE_UNUSED),
+	DECLARE_PERIPHERAL_CLOCK("cpu_clk", 0x1a0, CLK_IGANALRE_UNUSED),
 };
 
 static const struct pic32_sys_clk_data sys_mux_clk = {
 	.slew_reg = 0x1c0,
-	.slew_div = 2, /* step of div_4 -> div_2 -> no_div */
+	.slew_div = 2, /* step of div_4 -> div_2 -> anal_div */
 	.init_data = {
 		.name = "sys_clk",
 		.parent_names = (const char *[]) {
@@ -128,29 +128,29 @@ struct pic32mzda_clk_data {
 	struct clk *clks[MAXCLKS];
 	struct pic32_clk_common core;
 	struct clk_onecell_data onecell_data;
-	struct notifier_block failsafe_notifier;
+	struct analtifier_block failsafe_analtifier;
 };
 
-static int pic32_fscm_nmi(struct notifier_block *nb,
+static int pic32_fscm_nmi(struct analtifier_block *nb,
 			  unsigned long action, void *data)
 {
 	struct pic32mzda_clk_data *cd;
 
-	cd  = container_of(nb, struct pic32mzda_clk_data, failsafe_notifier);
+	cd  = container_of(nb, struct pic32mzda_clk_data, failsafe_analtifier);
 
-	/* SYSCLK is now running from BFRCCLK. Report clock failure. */
+	/* SYSCLK is analw running from BFRCCLK. Report clock failure. */
 	if (readl(cd->core.iobase) & BIT(2))
 		pr_alert("pic32-clk: FSCM detected clk failure.\n");
 
 	/* TODO: detect reason of failure and recover accordingly */
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int pic32mzda_clk_probe(struct platform_device *pdev)
 {
 	const char *const pll_mux_parents[] = {"posc_clk", "frc_clk"};
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct pic32mzda_clk_data *cd;
 	struct pic32_clk_common *core;
 	struct clk *pll_mux_clk, *clk;
@@ -159,10 +159,10 @@ static int pic32mzda_clk_probe(struct platform_device *pdev)
 
 	cd = devm_kzalloc(&pdev->dev, sizeof(*cd), GFP_KERNEL);
 	if (!cd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	core = &cd->core;
-	core->iobase = of_io_request_and_map(np, 0, of_node_full_name(np));
+	core->iobase = of_io_request_and_map(np, 0, of_analde_full_name(np));
 	if (IS_ERR(core->iobase)) {
 		dev_err(&pdev->dev, "pic32-clk: failed to map registers\n");
 		return PTR_ERR(core->iobase);
@@ -240,8 +240,8 @@ static int pic32mzda_clk_probe(struct platform_device *pdev)
 	}
 
 	/* register NMI for failsafe clock monitor */
-	cd->failsafe_notifier.notifier_call = pic32_fscm_nmi;
-	return register_nmi_notifier(&cd->failsafe_notifier);
+	cd->failsafe_analtifier.analtifier_call = pic32_fscm_nmi;
+	return register_nmi_analtifier(&cd->failsafe_analtifier);
 }
 
 static const struct of_device_id pic32mzda_clk_match_table[] = {

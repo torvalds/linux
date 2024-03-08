@@ -33,13 +33,13 @@
  *
  * Which makes it an interesting test for BTF-enabled verifier.
  */
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 int test_pkt_access_subprog1(volatile struct __sk_buff *skb)
 {
 	return skb->len * 2;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((analinline))
 int test_pkt_access_subprog2(int val, volatile struct __sk_buff *skb)
 {
 	return skb->len * val;
@@ -47,7 +47,7 @@ int test_pkt_access_subprog2(int val, volatile struct __sk_buff *skb)
 
 #define MAX_STACK (512 - 2 * 32)
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 int get_skb_len(struct __sk_buff *skb)
 {
 	volatile char buf[MAX_STACK] = {};
@@ -57,7 +57,7 @@ int get_skb_len(struct __sk_buff *skb)
 	return skb->len;
 }
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 int get_constant(long val)
 {
 	return val - 122;
@@ -65,13 +65,13 @@ int get_constant(long val)
 
 int get_skb_ifindex(int, struct __sk_buff *skb, int);
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 int test_pkt_access_subprog3(int val, struct __sk_buff *skb)
 {
 	return get_skb_len(skb) * get_skb_ifindex(val, skb, get_constant(123));
 }
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 int get_skb_ifindex(int val, struct __sk_buff *skb, int var)
 {
 	volatile char buf[MAX_STACK] = {};
@@ -81,7 +81,7 @@ int get_skb_ifindex(int val, struct __sk_buff *skb, int var)
 	return skb->ifindex * val * var;
 }
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 int test_pkt_write_access_subprog(struct __sk_buff *skb, __u32 off)
 {
 	void *data = (void *)(long)skb->data;

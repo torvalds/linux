@@ -74,10 +74,10 @@
 
 /* Options for efct_hw_command() */
 enum efct_cmd_opts {
-	/* command executes synchronously and busy-waits for completion */
+	/* command executes synchroanalusly and busy-waits for completion */
 	EFCT_CMD_POLL,
-	/* command executes asynchronously. Uses callback */
-	EFCT_CMD_NOWAIT,
+	/* command executes asynchroanalusly. Uses callback */
+	EFCT_CMD_ANALWAIT,
 };
 
 enum efct_hw_reset {
@@ -90,7 +90,7 @@ enum efct_hw_topo {
 	EFCT_HW_TOPOLOGY_AUTO,
 	EFCT_HW_TOPOLOGY_NPORT,
 	EFCT_HW_TOPOLOGY_LOOP,
-	EFCT_HW_TOPOLOGY_NONE,
+	EFCT_HW_TOPOLOGY_ANALNE,
 	EFCT_HW_TOPOLOGY_MAX
 };
 
@@ -130,7 +130,7 @@ struct efct_io;
 #define EFCT_CMD_CTX_POOL_SZ	32
 /**
  * HW command context.
- * Stores the state for the asynchronous commands sent to the hardware.
+ * Stores the state for the asynchroanalus commands sent to the hardware.
  */
 struct efct_command_ctx {
 	struct list_head	list_entry;
@@ -257,7 +257,7 @@ enum efct_hw_port {
 	EFCT_HW_PORT_SHUTDOWN,
 };
 
-/* Node group rpi reference */
+/* Analde group rpi reference */
 struct efct_hw_rpi_ref {
 	atomic_t rpi_count;
 	atomic_t rpi_attached;
@@ -281,9 +281,9 @@ enum efct_hw_link_stat {
 	EFCT_HW_LINK_STAT_RCV_EOFDTI_COUNT,
 	EFCT_HW_LINK_STAT_RCV_EOFNI_COUNT,
 	EFCT_HW_LINK_STAT_RCV_SOFF_COUNT,
-	EFCT_HW_LINK_STAT_RCV_DROPPED_NO_AER_COUNT,
-	EFCT_HW_LINK_STAT_RCV_DROPPED_NO_RPI_COUNT,
-	EFCT_HW_LINK_STAT_RCV_DROPPED_NO_XRI_COUNT,
+	EFCT_HW_LINK_STAT_RCV_DROPPED_ANAL_AER_COUNT,
+	EFCT_HW_LINK_STAT_RCV_DROPPED_ANAL_RPI_COUNT,
+	EFCT_HW_LINK_STAT_RCV_DROPPED_ANAL_XRI_COUNT,
 	EFCT_HW_LINK_STAT_MAX,
 };
 
@@ -298,9 +298,9 @@ enum efct_hw_host_stat {
 	EFCT_HW_HOST_STAT_TOTAL_EXCH_RESP,
 	EFCT_HW_HOSY_STAT_RX_P_BSY_COUNT,
 	EFCT_HW_HOST_STAT_RX_F_BSY_COUNT,
-	EFCT_HW_HOST_STAT_DROP_FRM_DUE_TO_NO_RQ_BUF_COUNT,
+	EFCT_HW_HOST_STAT_DROP_FRM_DUE_TO_ANAL_RQ_BUF_COUNT,
 	EFCT_HW_HOST_STAT_EMPTY_RQ_TIMEOUT_COUNT,
-	EFCT_HW_HOST_STAT_DROP_FRM_DUE_TO_NO_XRI_COUNT,
+	EFCT_HW_HOST_STAT_DROP_FRM_DUE_TO_ANAL_XRI_COUNT,
 	EFCT_HW_HOST_STAT_EMPTY_XRI_POOL_COUNT,
 	EFCT_HW_HOST_STAT_MAX,
 };
@@ -445,7 +445,7 @@ struct efct_hw {
 
 	struct efc_dma		xfer_rdy;
 
-	struct efc_dma		rnode_mem;
+	struct efc_dma		ranalde_mem;
 
 	atomic_t		io_alloc_failed_count;
 

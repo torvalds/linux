@@ -13,9 +13,9 @@ description:
   The PCF857x-compatible chips have "quasi-bidirectional" I/O lines that can be
   driven high by a pull-up current source or driven low to ground. This
   combines the direction and output level into a single bit per line, which
-  can't be read back. We can't actually know at initialization time whether a
+  can't be read back. We can't actually kanalw at initialization time whether a
   line is configured (a) as output and driving the signal low/high, or (b) as
-  input and reporting a low/high value, without knowing the last value written
+  input and reporting a low/high value, without kanalwing the last value written
   since the chip came out of reset (if any). The only reliable solution for
   setting up line direction is thus to do it explicitly.
 
@@ -60,7 +60,7 @@ properties:
       the input (pulled-up) state.
       When the  bit is set to one, the line will be initialized to the
       low-level output state.
-      If the property is not specified all lines will be initialized to the
+      If the property is analt specified all lines will be initialized to the
       input state.
 
   interrupts:

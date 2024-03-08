@@ -49,7 +49,7 @@ enum tsx_ctrl_states {
 	TSX_CTRL_ENABLE,
 	TSX_CTRL_DISABLE,
 	TSX_CTRL_RTM_ALWAYS_ABORT,
-	TSX_CTRL_NOT_SUPPORTED,
+	TSX_CTRL_ANALT_SUPPORTED,
 };
 
 extern __ro_after_init enum tsx_ctrl_states tsx_ctrl_state;

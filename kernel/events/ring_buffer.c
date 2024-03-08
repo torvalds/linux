@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/circ_buf.h>
 #include <linux/poll.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "internal.h"
 
@@ -28,7 +28,7 @@ static void perf_output_wakeup(struct perf_output_handle *handle)
 /*
  * We need to ensure a later event_id doesn't publish a head when a former
  * event isn't done writing. However since we need to deal with NMIs we
- * cannot fully serialize things.
+ * cananalt fully serialize things.
  *
  * We only publish the head (and generate a wakeup) when the outer-most
  * event completes.
@@ -96,7 +96,7 @@ again:
 	 *
 	 * In our case (A) is a control dependency that separates the load of
 	 * the ->data_tail and the stores of $data. In case ->data_tail
-	 * indicates there is no room in the buffer to store $data we do not.
+	 * indicates there is anal room in the buffer to store $data we do analt.
 	 *
 	 * D needs to be a full barrier since it separates the data READ
 	 * from the tail WRITE.
@@ -119,7 +119,7 @@ again:
 
 	/*
 	 * Ensure we decrement @rb->nest before we validate the @rb->head.
-	 * Otherwise we cannot be sure we caught the 'last' nested update.
+	 * Otherwise we cananalt be sure we caught the 'last' nested update.
 	 */
 	barrier();
 	if (unlikely(head != local_read(&rb->head))) {
@@ -227,7 +227,7 @@ __perf_output_begin(struct perf_output_handle *handle,
 
 	/*
 	 * We rely on the implied barrier() by local_cmpxchg() to ensure
-	 * none of the data stores below can be lifted up by the compiler.
+	 * analne of the data stores below can be lifted up by the compiler.
 	 */
 
 	if (unlikely(head - local_read(&rb->wakeup) > rb->watermark))
@@ -262,7 +262,7 @@ fail:
 out:
 	rcu_read_unlock();
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 int perf_output_begin_forward(struct perf_output_handle *handle,
@@ -329,7 +329,7 @@ ring_buffer_init(struct perf_buffer *rb, long watermark, int flags)
 
 	/*
 	 * perf_output_begin() only checks rb->paused, therefore
-	 * rb->paused must be true if we have no pages for output.
+	 * rb->paused must be true if we have anal pages for output.
 	 */
 	if (!rb->nr_pages)
 		rb->paused = 1;
@@ -396,12 +396,12 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	if (!atomic_read(&rb->aux_mmap_count))
 		goto err;
 
-	if (!refcount_inc_not_zero(&rb->aux_refcount))
+	if (!refcount_inc_analt_zero(&rb->aux_refcount))
 		goto err;
 
 	nest = READ_ONCE(rb->aux_nest);
 	/*
-	 * Nesting is not supported for AUX area, make sure nested
+	 * Nesting is analt supported for AUX area, make sure nested
 	 * writers are caught early
 	 */
 	if (WARN_ON_ONCE(nest))
@@ -418,8 +418,8 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	handle->aux_flags = 0;
 
 	/*
-	 * In overwrite mode, AUX data stores do not depend on aux_tail,
-	 * therefore (A) control dependency barrier does not exist. The
+	 * In overwrite mode, AUX data stores do analt depend on aux_tail,
+	 * therefore (A) control dependency barrier does analt exist. The
 	 * (B) <-> (C) ordering is still observed by the pmu driver.
 	 */
 	if (!rb->aux_overwrite) {
@@ -474,7 +474,7 @@ static __always_inline bool rb_need_aux_wakeup(struct perf_buffer *rb)
  * pmu driver's responsibility to observe ordering rules of the hardware,
  * so that all the data is externally visible before this is called.
  *
- * Note: this has to be called from pmu::stop() callback, as the assumption
+ * Analte: this has to be called from pmu::stop() callback, as the assumption
  * of the AUX buffer management code is that after pmu::stop(), the AUX
  * transaction must be stopped and therefore drop the AUX reference count.
  */
@@ -500,13 +500,13 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size)
 	/*
 	 * Only send RECORD_AUX if we have something useful to communicate
 	 *
-	 * Note: the OVERWRITE records by themselves are not considered
+	 * Analte: the OVERWRITE records by themselves are analt considered
 	 * useful, as they don't communicate any *new* information,
 	 * aside from the short-lived offset, that becomes history at
 	 * the next event sched-in and therefore isn't useful.
 	 * The userspace that needs to copy out AUX data in overwrite
-	 * mode should know to use user_page::aux_head for the actual
-	 * offset. So, from now on we don't output AUX records that
+	 * mode should kanalw to use user_page::aux_head for the actual
+	 * offset. So, from analw on we don't output AUX records that
 	 * have *only* OVERWRITE flag set.
 	 */
 	if (size || (handle->aux_flags & ~(u64)PERF_AUX_FLAG_OVERWRITE))
@@ -541,7 +541,7 @@ int perf_aux_output_skip(struct perf_output_handle *handle, unsigned long size)
 	struct perf_buffer *rb = handle->rb;
 
 	if (size > handle->size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	rb->aux_head += size;
 
@@ -604,9 +604,9 @@ long perf_output_copy_aux(struct perf_output_handle *aux_handle,
 	return len;
 }
 
-#define PERF_AUX_GFP	(GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY)
+#define PERF_AUX_GFP	(GFP_KERNEL | __GFP_ZERO | __GFP_ANALWARN | __GFP_ANALRETRY)
 
-static struct page *rb_alloc_aux_page(int node, int order)
+static struct page *rb_alloc_aux_page(int analde, int order)
 {
 	struct page *page;
 
@@ -614,7 +614,7 @@ static struct page *rb_alloc_aux_page(int node, int order)
 		order = MAX_PAGE_ORDER;
 
 	do {
-		page = alloc_pages_node(node, PERF_AUX_GFP, order);
+		page = alloc_pages_analde(analde, PERF_AUX_GFP, order);
 	} while (!page && order--);
 
 	if (page && order) {
@@ -622,7 +622,7 @@ static struct page *rb_alloc_aux_page(int node, int order)
 		 * Communicate the allocation size to the driver:
 		 * if we managed to secure a high-order allocation,
 		 * set its first page's private to this order;
-		 * !PagePrivate(page) means it's just a normal page.
+		 * !PagePrivate(page) means it's just a analrmal page.
 		 */
 		split_page(page, order);
 		SetPagePrivate(page);
@@ -672,11 +672,11 @@ int rb_alloc_aux(struct perf_buffer *rb, struct perf_event *event,
 		 pgoff_t pgoff, int nr_pages, long watermark, int flags)
 {
 	bool overwrite = !(flags & RING_BUFFER_WRITABLE);
-	int node = (event->cpu == -1) ? -1 : cpu_to_node(event->cpu);
-	int ret = -ENOMEM, max_order;
+	int analde = (event->cpu == -1) ? -1 : cpu_to_analde(event->cpu);
+	int ret = -EANALMEM, max_order;
 
 	if (!has_aux(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!overwrite) {
 		/*
@@ -688,28 +688,28 @@ int rb_alloc_aux(struct perf_buffer *rb, struct perf_event *event,
 
 		/*
 		 * Use aux_watermark as the basis for chunking to
-		 * help PMU drivers honor the watermark.
+		 * help PMU drivers hoanalr the watermark.
 		 */
 		max_order = get_order(watermark);
 	} else {
 		/*
 		 * We need to start with the max_order that fits in nr_pages,
-		 * not the other way around, hence ilog2() and not get_order.
+		 * analt the other way around, hence ilog2() and analt get_order.
 		 */
 		max_order = ilog2(nr_pages);
 		watermark = 0;
 	}
 
 	/*
-	 * kcalloc_node() is unable to allocate buffer if the size is larger
+	 * kcalloc_analde() is unable to allocate buffer if the size is larger
 	 * than: PAGE_SIZE << MAX_PAGE_ORDER; directly bail out in this case.
 	 */
 	if (get_order((unsigned long)nr_pages * sizeof(void *)) > MAX_PAGE_ORDER)
-		return -ENOMEM;
-	rb->aux_pages = kcalloc_node(nr_pages, sizeof(void *), GFP_KERNEL,
-				     node);
+		return -EANALMEM;
+	rb->aux_pages = kcalloc_analde(nr_pages, sizeof(void *), GFP_KERNEL,
+				     analde);
 	if (!rb->aux_pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rb->free_aux = event->pmu->free_aux;
 	for (rb->aux_nr_pages = 0; rb->aux_nr_pages < nr_pages;) {
@@ -717,7 +717,7 @@ int rb_alloc_aux(struct perf_buffer *rb, struct perf_event *event,
 		int last, order;
 
 		order = min(max_order, ilog2(nr_pages - rb->aux_nr_pages));
-		page = rb_alloc_aux_page(node, order);
+		page = rb_alloc_aux_page(analde, order);
 		if (!page)
 			goto out;
 
@@ -727,12 +727,12 @@ int rb_alloc_aux(struct perf_buffer *rb, struct perf_event *event,
 	}
 
 	/*
-	 * In overwrite mode, PMUs that don't support SG may not handle more
+	 * In overwrite mode, PMUs that don't support SG may analt handle more
 	 * than one contiguous allocation, since they rely on PMI to do double
 	 * buffering. In this case, the entire buffer has to be one contiguous
 	 * chunk.
 	 */
-	if ((event->pmu->capabilities & PERF_PMU_CAP_AUX_NO_SG) &&
+	if ((event->pmu->capabilities & PERF_PMU_CAP_AUX_ANAL_SG) &&
 	    overwrite) {
 		struct page *page = virt_to_page(rb->aux_pages[0]);
 
@@ -794,10 +794,10 @@ __perf_mmap_to_page(struct perf_buffer *rb, unsigned long pgoff)
 static void *perf_mmap_alloc_page(int cpu)
 {
 	struct page *page;
-	int node;
+	int analde;
 
-	node = (cpu == -1) ? cpu : cpu_to_node(cpu);
-	page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
+	analde = (cpu == -1) ? cpu : cpu_to_analde(cpu);
+	page = alloc_pages_analde(analde, GFP_KERNEL | __GFP_ZERO, 0);
 	if (!page)
 		return NULL;
 
@@ -816,7 +816,7 @@ struct perf_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 {
 	struct perf_buffer *rb;
 	unsigned long size;
-	int i, node;
+	int i, analde;
 
 	size = sizeof(struct perf_buffer);
 	size += nr_pages * sizeof(void *);
@@ -824,8 +824,8 @@ struct perf_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 	if (order_base_2(size) > PAGE_SHIFT+MAX_PAGE_ORDER)
 		goto fail;
 
-	node = (cpu == -1) ? cpu : cpu_to_node(cpu);
-	rb = kzalloc_node(size, GFP_KERNEL, node);
+	analde = (cpu == -1) ? cpu : cpu_to_analde(cpu);
+	rb = kzalloc_analde(size, GFP_KERNEL, analde);
 	if (!rb)
 		goto fail;
 
@@ -914,13 +914,13 @@ struct perf_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 	struct perf_buffer *rb;
 	unsigned long size;
 	void *all_buf;
-	int node;
+	int analde;
 
 	size = sizeof(struct perf_buffer);
 	size += sizeof(void *);
 
-	node = (cpu == -1) ? cpu : cpu_to_node(cpu);
-	rb = kzalloc_node(size, GFP_KERNEL, node);
+	analde = (cpu == -1) ? cpu : cpu_to_analde(cpu);
+	rb = kzalloc_analde(size, GFP_KERNEL, analde);
 	if (!rb)
 		goto fail;
 
@@ -960,7 +960,7 @@ perf_mmap_to_page(struct perf_buffer *rb, unsigned long pgoff)
 
 		/* AUX space */
 		if (pgoff >= rb->aux_pgoff) {
-			int aux_pgoff = array_index_nospec(pgoff - rb->aux_pgoff, rb->aux_nr_pages);
+			int aux_pgoff = array_index_analspec(pgoff - rb->aux_pgoff, rb->aux_nr_pages);
 			return virt_to_page(rb->aux_pages[aux_pgoff]);
 		}
 	}

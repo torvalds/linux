@@ -4,11 +4,11 @@
 # This file contains a list of functions which are
 # meant to be skipped in the callgraph trace. It reduces
 # the callgraph html file size by treating these functions
-# as leaves with no child calls. It can be editted by
+# as leaves with anal child calls. It can be editted by
 # adding or removing function symbol names.
 #
 # The sleepgraph tool automatically pulls this file in when
-# it is found in the config folder. It can be ignored if
+# it is found in the config folder. It can be iganalred if
 # the tool is called with "-cgskip off".
 # -----------------------------------------------
 
@@ -51,7 +51,7 @@ debugfs_remove_recursive
 debugfs_create_dir
 debugfs_create_files
 debugfs_create_dir
-debugfs_get_inode
+debugfs_get_ianalde
 sysfs_add_file_mode_ns
 sysfs_add_file
 sysfs_create_dir_ns

@@ -4,7 +4,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #ifndef futex_atomic_cmpxchg_inatomic
 #ifndef CONFIG_SMP
@@ -23,7 +23,7 @@
 /**
  * futex_atomic_op_inuser_local() - Atomic arithmetic operation with constant
  *			  argument and comparison of the previous
- *			  futex value with another constant.
+ *			  futex value with aanalther constant.
  *
  * @encoded_op:	encoded operation to execute
  * @uaddr:	pointer to user space address
@@ -32,7 +32,7 @@
  * 0 - On success
  * -EFAULT - User access resulted in a page fault
  * -EAGAIN - Atomic operation was unable to complete due to contention
- * -ENOSYS - Operation not supported
+ * -EANALSYS - Operation analt supported
  */
 static inline int
 futex_atomic_op_inuser_local(int op, u32 oparg, int *oval, u32 __user *uaddr)
@@ -66,7 +66,7 @@ futex_atomic_op_inuser_local(int op, u32 oparg, int *oval, u32 __user *uaddr)
 		tmp ^= oparg;
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	if (ret == 0 && unlikely(put_user(tmp, uaddr) != 0))

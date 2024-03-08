@@ -47,8 +47,8 @@ static const struct reg_default max98926_reg[] = {
 	{ 0x19, 0x00 }, /* Map8 */
 	{ 0x1A, 0x04 }, /* DAI Clock Mode 1 */
 	{ 0x1B, 0x00 }, /* DAI Clock Mode 2 */
-	{ 0x1C, 0x00 }, /* DAI Clock Divider Denominator MSBs */
-	{ 0x1D, 0x00 }, /* DAI Clock Divider Denominator LSBs */
+	{ 0x1C, 0x00 }, /* DAI Clock Divider Deanalminator MSBs */
+	{ 0x1D, 0x00 }, /* DAI Clock Divider Deanalminator LSBs */
 	{ 0x1E, 0xF0 }, /* DAI Clock Divider Numerator MSBs */
 	{ 0x1F, 0x00 }, /* DAI Clock Divider Numerator LSBs */
 	{ 0x20, 0x50 }, /* Format */
@@ -118,7 +118,7 @@ static const struct snd_kcontrol_new max98926_dai_controls[] = {
 
 static const struct snd_soc_dapm_widget max98926_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("DAI_OUT", "HiFi Playback", 0,
-		SND_SOC_NOPM, 0, 0),
+		SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_DAC("Amp Enable", NULL, MAX98926_BLOCK_ENABLE,
 		MAX98926_SPK_EN_SHIFT, 0),
 	SND_SOC_DAPM_SUPPLY("Global Enable", MAX98926_GLOBAL_ENABLE,
@@ -518,7 +518,7 @@ static int max98926_i2c_probe(struct i2c_client *i2c)
 	max98926 = devm_kzalloc(&i2c->dev,
 			sizeof(*max98926), GFP_KERNEL);
 	if (!max98926)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, max98926);
 	max98926->regmap = devm_regmap_init_i2c(i2c, &max98926_regmap);
@@ -528,18 +528,18 @@ static int max98926_i2c_probe(struct i2c_client *i2c)
 				"Failed to allocate regmap: %d\n", ret);
 		goto err_out;
 	}
-	if (of_property_read_bool(i2c->dev.of_node, "maxim,interleave-mode") ||
-	    of_property_read_bool(i2c->dev.of_node, "interleave-mode"))
+	if (of_property_read_bool(i2c->dev.of_analde, "maxim,interleave-mode") ||
+	    of_property_read_bool(i2c->dev.of_analde, "interleave-mode"))
 		max98926->interleave_mode = true;
 
-	if (!of_property_read_u32(i2c->dev.of_node, "vmon-slot-no", &value)) {
+	if (!of_property_read_u32(i2c->dev.of_analde, "vmon-slot-anal", &value)) {
 		if (value > MAX98926_DAI_VMON_SLOT_1E_1F) {
 			dev_err(&i2c->dev, "vmon slot number is wrong:\n");
 			return -EINVAL;
 		}
 		max98926->v_slot = value;
 	}
-	if (!of_property_read_u32(i2c->dev.of_node, "imon-slot-no", &value)) {
+	if (!of_property_read_u32(i2c->dev.of_analde, "imon-slot-anal", &value)) {
 		if (value > MAX98926_DAI_IMON_SLOT_1E_1F) {
 			dev_err(&i2c->dev, "imon slot number is wrong:\n");
 			return -EINVAL;

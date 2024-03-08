@@ -9,7 +9,7 @@
 # Validate source address selection for route without gateway
 
 source lib.sh
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=anal
 VERBOSE=0
 ret=0
 
@@ -29,7 +29,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -100,7 +100,7 @@ trap cleanup EXIT
 while getopts :pv o
 do
 	case $o in
-		p) PAUSE_ON_FAIL=yes;;
+		p) PAUSE_ON_FAIL=anal;;
 		v) VERBOSE=1;;
 	esac
 done

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/blk-mq.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/poll.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/compat.h>
 #include <linux/io_uring/cmd.h>
 
@@ -22,16 +22,16 @@
 #include "rw.h"
 
 struct io_rw {
-	/* NOTE: kiocb has the file as the first member, so don't do it here */
+	/* ANALTE: kiocb has the file as the first member, so don't do it here */
 	struct kiocb			kiocb;
 	u64				addr;
 	u32				len;
 	rwf_t				flags;
 };
 
-static inline bool io_file_supports_nowait(struct io_kiocb *req)
+static inline bool io_file_supports_analwait(struct io_kiocb *req)
 {
-	return req->flags & REQ_F_SUPPORT_NOWAIT;
+	return req->flags & REQ_F_SUPPORT_ANALWAIT;
 }
 
 #ifdef CONFIG_COMPAT
@@ -132,14 +132,14 @@ int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (unlikely(req->buf_index >= ctx->nr_user_bufs))
 		return -EFAULT;
-	index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
+	index = array_index_analspec(req->buf_index, ctx->nr_user_bufs);
 	req->imu = ctx->user_bufs[index];
-	io_req_set_rsrc_node(req, ctx, 0);
+	io_req_set_rsrc_analde(req, ctx, 0);
 	return 0;
 }
 
 /*
- * Multishot read is prepared just like a normal read/write request, only
+ * Multishot read is prepared just like a analrmal read/write request, only
  * difference is that we set the MULTISHOT flag.
  */
 int io_read_mshot_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -205,12 +205,12 @@ static bool io_resubmit_prep(struct io_kiocb *req)
 
 static bool io_rw_should_reissue(struct io_kiocb *req)
 {
-	umode_t mode = file_inode(req->file)->i_mode;
+	umode_t mode = file_ianalde(req->file)->i_mode;
 	struct io_ring_ctx *ctx = req->ctx;
 
 	if (!S_ISBLK(mode) && !S_ISREG(mode))
 		return false;
-	if ((req->flags & REQ_F_NOWAIT) || (io_wq_current_is_worker() &&
+	if ((req->flags & REQ_F_ANALWAIT) || (io_wq_current_is_worker() &&
 	    !(ctx->flags & IORING_SETUP_IOPOLL)))
 		return false;
 	/*
@@ -221,8 +221,8 @@ static bool io_rw_should_reissue(struct io_kiocb *req)
 	if (percpu_ref_is_dying(&ctx->refs))
 		return false;
 	/*
-	 * Play it safe and assume not safe to re-import and reissue if we're
-	 * not in the original thread group (or in task context).
+	 * Play it safe and assume analt safe to re-import and reissue if we're
+	 * analt in the original thread group (or in task context).
 	 */
 	if (!same_thread_group(req->task, current) || !in_task())
 		return false;
@@ -249,7 +249,7 @@ static void io_req_end_write(struct io_kiocb *req)
 }
 
 /*
- * Trigger the notifications after having done some IO, and finish the write
+ * Trigger the analtifications after having done some IO, and finish the write
  * accounting, if any.
  */
 static void io_req_io_end(struct io_kiocb *req)
@@ -258,16 +258,16 @@ static void io_req_io_end(struct io_kiocb *req)
 
 	if (rw->kiocb.ki_flags & IOCB_WRITE) {
 		io_req_end_write(req);
-		fsnotify_modify(req->file);
+		fsanaltify_modify(req->file);
 	} else {
-		fsnotify_access(req->file);
+		fsanaltify_access(req->file);
 	}
 }
 
 static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 {
 	if (unlikely(res != req->cqe.res)) {
-		if ((res == -EAGAIN || res == -EOPNOTSUPP) &&
+		if ((res == -EAGAIN || res == -EOPANALTSUPP) &&
 		    io_rw_should_reissue(req)) {
 			/*
 			 * Reissue will start accounting again, finish the
@@ -361,8 +361,8 @@ static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
 	if (unlikely(ret < 0)) {
 		switch (ret) {
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALINTR:
+		case -ERESTARTANALHAND:
 		case -ERESTART_RESTARTBLOCK:
 			/*
 			 * We can't just restart the syscall, since previously
@@ -437,7 +437,7 @@ static struct iovec *__io_import_iovec(int ddir, struct io_kiocb *req,
 		if (io_do_buffer_select(req)) {
 			buf = io_buffer_select(req, &sqe_len, issue_flags);
 			if (!buf)
-				return ERR_PTR(-ENOBUFS);
+				return ERR_PTR(-EANALBUFS);
 			rw->addr = (unsigned long) buf;
 			rw->len = sqe_len;
 		}
@@ -486,13 +486,13 @@ static ssize_t loop_rw_iter(int ddir, struct io_rw *rw, struct iov_iter *iter)
 
 	/*
 	 * Don't support polled IO through this interface, and we can't
-	 * support non-blocking either. For the latter, this just causes
+	 * support analn-blocking either. For the latter, this just causes
 	 * the kiocb to be handled from an async context.
 	 */
 	if (kiocb->ki_flags & IOCB_HIPRI)
-		return -EOPNOTSUPP;
-	if ((kiocb->ki_flags & IOCB_NOWAIT) &&
-	    !(kiocb->ki_filp->f_flags & O_NONBLOCK))
+		return -EOPANALTSUPP;
+	if ((kiocb->ki_flags & IOCB_ANALWAIT) &&
+	    !(kiocb->ki_filp->f_flags & O_ANALNBLOCK))
 		return -EAGAIN;
 
 	ppos = io_kiocb_ppos(kiocb);
@@ -547,7 +547,7 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 	memcpy(&io->s.iter, iter, sizeof(*iter));
 	io->free_iovec = iovec;
 	io->bytes_done = 0;
-	/* can only be fixed buffers, no need to do anything */
+	/* can only be fixed buffers, anal need to do anything */
 	if (iov_iter_is_bvec(iter) || iter_is_ubuf(iter))
 		return;
 	if (!iovec) {
@@ -579,7 +579,7 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 
 		if (io_alloc_async_data(req)) {
 			kfree(iovec);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		io_req_map_rw(req, iovec, s->fast_iov, &s->iter);
@@ -626,9 +626,9 @@ int io_writev_prep_async(struct io_kiocb *req)
  * This is our waitqueue callback handler, registered through __folio_lock_async()
  * when we initially tried to do the IO with the iocb armed our waitqueue.
  * This gets called when the page is unlocked, and we generally expect that to
- * happen when the page IO is completed and the page is now uptodate. This will
+ * happen when the page IO is completed and the page is analw uptodate. This will
  * queue a task_work based retry of the operation, attempting to copy the data
- * again. If the latter fails because the page was NOT uptodate, then we will
+ * again. If the latter fails because the page was ANALT uptodate, then we will
  * do a thread based blocking retry of the operation. That's the unexpected
  * slow path.
  */
@@ -656,7 +656,7 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
  * based retry. If we return false here, the request is handed to the async
  * worker threads for retry. If we're doing buffered reads on a regular file,
  * we prepare a private wait_page_queue entry and retry the operation. This
- * will either succeed because the page is now uptodate and unlocked, or it
+ * will either succeed because the page is analw uptodate and unlocked, or it
  * will register a callback when the page is unlocked at IO completion. Through
  * that callback, io_uring uses task_work to setup a retry of the operation.
  * That retry will attempt the buffered read again. The retry will generally
@@ -670,8 +670,8 @@ static bool io_rw_should_retry(struct io_kiocb *req)
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct kiocb *kiocb = &rw->kiocb;
 
-	/* never retry for NOWAIT, we just complete with -EAGAIN */
-	if (req->flags & REQ_F_NOWAIT)
+	/* never retry for ANALWAIT, we just complete with -EAGAIN */
+	if (req->flags & REQ_F_ANALWAIT)
 		return false;
 
 	/* Only for buffered IO */
@@ -690,7 +690,7 @@ static bool io_rw_should_retry(struct io_kiocb *req)
 	wait->wait.flags = 0;
 	INIT_LIST_HEAD(&wait->wait.entry);
 	kiocb->ki_flags |= IOCB_WAITQ;
-	kiocb->ki_flags &= ~IOCB_NOWAIT;
+	kiocb->ki_flags &= ~IOCB_ANALWAIT;
 	kiocb->ki_waitq = wait;
 	return true;
 }
@@ -710,7 +710,7 @@ static inline int io_iter_do_read(struct io_rw *rw, struct iov_iter *iter)
 static bool need_complete_io(struct io_kiocb *req)
 {
 	return req->flags & REQ_F_ISREG ||
-		S_ISBLK(file_inode(req->file)->i_mode);
+		S_ISBLK(file_ianalde(req->file)->i_mode);
 }
 
 static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
@@ -734,17 +734,17 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 	kiocb->ki_flags |= IOCB_ALLOC_CACHE;
 
 	/*
-	 * If the file is marked O_NONBLOCK, still allow retry for it if it
-	 * supports async. Otherwise it's impossible to use O_NONBLOCK files
-	 * reliably. If not, or it IOCB_NOWAIT is set, don't retry.
+	 * If the file is marked O_ANALNBLOCK, still allow retry for it if it
+	 * supports async. Otherwise it's impossible to use O_ANALNBLOCK files
+	 * reliably. If analt, or it IOCB_ANALWAIT is set, don't retry.
 	 */
-	if ((kiocb->ki_flags & IOCB_NOWAIT) ||
-	    ((file->f_flags & O_NONBLOCK) && !io_file_supports_nowait(req)))
-		req->flags |= REQ_F_NOWAIT;
+	if ((kiocb->ki_flags & IOCB_ANALWAIT) ||
+	    ((file->f_flags & O_ANALNBLOCK) && !io_file_supports_analwait(req)))
+		req->flags |= REQ_F_ANALWAIT;
 
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		if (!(kiocb->ki_flags & IOCB_DIRECT) || !file->f_op->iopoll)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		kiocb->private = NULL;
 		kiocb->ki_flags |= IOCB_HIPRI;
@@ -765,7 +765,7 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_rw_state __s, *s = &__s;
 	struct iovec *iovec;
 	struct kiocb *kiocb = &rw->kiocb;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool force_analnblock = issue_flags & IO_URING_F_ANALNBLOCK;
 	struct io_async_rw *io;
 	ssize_t ret, ret2;
 	loff_t *ppos;
@@ -790,7 +790,7 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 		/*
 		 * We come here from an earlier attempt, restore our state to
-		 * match in case it doesn't. It's cheap enough that we don't
+		 * match in case it doesn't. It's cheap eanalugh that we don't
 		 * need to make this conditional.
 		 */
 		iov_iter_restore(&s->iter, &s->iter_state);
@@ -803,16 +803,16 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	}
 	req->cqe.res = iov_iter_count(&s->iter);
 
-	if (force_nonblock) {
+	if (force_analnblock) {
 		/* If the file doesn't support async, just async punt */
-		if (unlikely(!io_file_supports_nowait(req))) {
+		if (unlikely(!io_file_supports_analwait(req))) {
 			ret = io_setup_async_rw(req, iovec, s, true);
 			return ret ?: -EAGAIN;
 		}
-		kiocb->ki_flags |= IOCB_NOWAIT;
+		kiocb->ki_flags |= IOCB_ANALWAIT;
 	} else {
-		/* Ensure we clear previously set non-block flag */
-		kiocb->ki_flags &= ~IOCB_NOWAIT;
+		/* Ensure we clear previously set analn-block flag */
+		kiocb->ki_flags &= ~IOCB_ANALWAIT;
 	}
 
 	ppos = io_kiocb_update_pos(req);
@@ -834,18 +834,18 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 		if (file_can_poll(req->file) && !io_issue_defs[req->opcode].vectored)
 			return -EAGAIN;
 		/* IOPOLL retry should happen for io-wq threads */
-		if (!force_nonblock && !(req->ctx->flags & IORING_SETUP_IOPOLL))
+		if (!force_analnblock && !(req->ctx->flags & IORING_SETUP_IOPOLL))
 			goto done;
-		/* no retry on NONBLOCK nor RWF_NOWAIT */
-		if (req->flags & REQ_F_NOWAIT)
+		/* anal retry on ANALNBLOCK analr RWF_ANALWAIT */
+		if (req->flags & REQ_F_ANALWAIT)
 			goto done;
 		ret = 0;
 	} else if (ret == -EIOCBQUEUED) {
 		if (iovec)
 			kfree(iovec);
 		return IOU_ISSUE_SKIP_COMPLETE;
-	} else if (ret == req->cqe.res || ret <= 0 || !force_nonblock ||
-		   (req->flags & REQ_F_NOWAIT) || !need_complete_io(req)) {
+	} else if (ret == req->cqe.res || ret <= 0 || !force_analnblock ||
+		   (req->flags & REQ_F_ANALWAIT) || !need_complete_io(req)) {
 		/* read all, failed, already did sync or don't want to retry */
 		goto done;
 	}
@@ -867,7 +867,7 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	io = req->async_data;
 	s = &io->s;
 	/*
-	 * Now use our persistent iterator and state, if we aren't already.
+	 * Analw use our persistent iterator and state, if we aren't already.
 	 * We've restored and mapped the iter to match.
 	 */
 
@@ -891,15 +891,15 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 		req->cqe.res = iov_iter_count(&s->iter);
 		/*
-		 * Now retry read with the IOCB_WAITQ parts set in the iocb. If
-		 * we get -EIOCBQUEUED, then we'll get a notification when the
+		 * Analw retry read with the IOCB_WAITQ parts set in the iocb. If
+		 * we get -EIOCBQUEUED, then we'll get a analtification when the
 		 * desired page gets unlocked. We can also get a partial read
 		 * here, and if we do, then just retry at the new offset.
 		 */
 		ret = io_iter_do_read(rw, &s->iter);
 		if (ret == -EIOCBQUEUED)
 			return IOU_ISSUE_SKIP_COMPLETE;
-		/* we got some bytes, but not all. retry. */
+		/* we got some bytes, but analt all. retry. */
 		kiocb->ki_flags &= ~IOCB_WAITQ;
 		iov_iter_restore(&s->iter, &s->iter_state);
 	} while (ret > 0);
@@ -936,7 +936,7 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 	ret = __io_read(req, issue_flags);
 
 	/*
-	 * If we get -EAGAIN, recycle our buffer and just let normal poll
+	 * If we get -EAGAIN, recycle our buffer and just let analrmal poll
 	 * handling arm it.
 	 */
 	if (ret == -EAGAIN) {
@@ -967,7 +967,7 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 				/*
 				 * Force retry, as we might have more data to
 				 * be read and otherwise it won't get retried
-				 * until (if ever) another poll is triggered.
+				 * until (if ever) aanalther poll is triggered.
 				 */
 				io_poll_multishot_retry(req);
 				return IOU_ISSUE_SKIP_COMPLETE;
@@ -992,7 +992,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_rw_state __s, *s = &__s;
 	struct iovec *iovec;
 	struct kiocb *kiocb = &rw->kiocb;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool force_analnblock = issue_flags & IO_URING_F_ANALNBLOCK;
 	ssize_t ret, ret2;
 	loff_t *ppos;
 
@@ -1014,21 +1014,21 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	}
 	req->cqe.res = iov_iter_count(&s->iter);
 
-	if (force_nonblock) {
+	if (force_analnblock) {
 		/* If the file doesn't support async, just async punt */
-		if (unlikely(!io_file_supports_nowait(req)))
+		if (unlikely(!io_file_supports_analwait(req)))
 			goto copy_iov;
 
-		/* File path supports NOWAIT for non-direct_IO only for block devices. */
+		/* File path supports ANALWAIT for analn-direct_IO only for block devices. */
 		if (!(kiocb->ki_flags & IOCB_DIRECT) &&
 			!(kiocb->ki_filp->f_mode & FMODE_BUF_WASYNC) &&
 			(req->flags & REQ_F_ISREG))
 			goto copy_iov;
 
-		kiocb->ki_flags |= IOCB_NOWAIT;
+		kiocb->ki_flags |= IOCB_ANALWAIT;
 	} else {
-		/* Ensure we clear previously set non-block flag */
-		kiocb->ki_flags &= ~IOCB_NOWAIT;
+		/* Ensure we clear previously set analn-block flag */
+		kiocb->ki_flags &= ~IOCB_ANALWAIT;
 	}
 
 	ppos = io_kiocb_update_pos(req);
@@ -1056,15 +1056,15 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	/*
-	 * Raw bdev writes will return -EOPNOTSUPP for IOCB_NOWAIT. Just
-	 * retry them without IOCB_NOWAIT.
+	 * Raw bdev writes will return -EOPANALTSUPP for IOCB_ANALWAIT. Just
+	 * retry them without IOCB_ANALWAIT.
 	 */
-	if (ret2 == -EOPNOTSUPP && (kiocb->ki_flags & IOCB_NOWAIT))
+	if (ret2 == -EOPANALTSUPP && (kiocb->ki_flags & IOCB_ANALWAIT))
 		ret2 = -EAGAIN;
-	/* no retry on NONBLOCK nor RWF_NOWAIT */
-	if (ret2 == -EAGAIN && (req->flags & REQ_F_NOWAIT))
+	/* anal retry on ANALNBLOCK analr RWF_ANALWAIT */
+	if (ret2 == -EAGAIN && (req->flags & REQ_F_ANALWAIT))
 		goto done;
-	if (!force_nonblock || ret2 != -EAGAIN) {
+	if (!force_analnblock || ret2 != -EAGAIN) {
 		/* IOPOLL retry should happen for io-wq threads */
 		if (ret2 == -EAGAIN && (req->ctx->flags & IORING_SETUP_IOPOLL))
 			goto copy_iov;
@@ -1118,9 +1118,9 @@ void io_rw_fail(struct io_kiocb *req)
 	io_req_set_res(req, res, req->cqe.flags);
 }
 
-int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
+int io_do_iopoll(struct io_ring_ctx *ctx, bool force_analnspin)
 {
-	struct io_wq_work_node *pos, *start, *prev;
+	struct io_wq_work_analde *pos, *start, *prev;
 	unsigned int poll_flags = 0;
 	DEFINE_IO_COMP_BATCH(iob);
 	int nr_events = 0;
@@ -1129,7 +1129,7 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 	 * Only spin for completions if we don't have multiple devices hanging
 	 * off our complete list.
 	 */
-	if (ctx->poll_multi_queue || force_nonspin)
+	if (ctx->poll_multi_queue || force_analnspin)
 		poll_flags |= BLK_POLL_ONESHOT;
 
 	wq_list_for_each(pos, start, &ctx->iopoll_list) {

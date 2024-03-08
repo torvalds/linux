@@ -22,12 +22,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -97,7 +97,7 @@ MODULE_PARM_DESC(persistent_grant_unused_seconds,
 
 /*
  * Maximum number of rings/queues blkback supports, allow as many queues as there
- * are CPUs if user has not specified a value.
+ * are CPUs if user has analt specified a value.
  */
 unsigned int xenblk_max_queues;
 module_param_named(max_queues, xenblk_max_queues, uint, 0644);
@@ -147,12 +147,12 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 static void make_response(struct xen_blkif_ring *ring, u64 id,
 			  unsigned short op, int st);
 
-#define foreach_grant_safe(pos, n, rbtree, node) \
-	for ((pos) = container_of(rb_first((rbtree)), typeof(*(pos)), node), \
-	     (n) = (&(pos)->node != NULL) ? rb_next(&(pos)->node) : NULL; \
-	     &(pos)->node != NULL; \
-	     (pos) = container_of(n, typeof(*(pos)), node), \
-	     (n) = (&(pos)->node != NULL) ? rb_next(&(pos)->node) : NULL)
+#define foreach_grant_safe(pos, n, rbtree, analde) \
+	for ((pos) = container_of(rb_first((rbtree)), typeof(*(pos)), analde), \
+	     (n) = (&(pos)->analde != NULL) ? rb_next(&(pos)->analde) : NULL; \
+	     &(pos)->analde != NULL; \
+	     (pos) = container_of(n, typeof(*(pos)), analde), \
+	     (n) = (&(pos)->analde != NULL) ? rb_next(&(pos)->analde) : NULL)
 
 
 /*
@@ -168,7 +168,7 @@ static void make_response(struct xen_blkif_ring *ring, u64 id,
 static int add_persistent_gnt(struct xen_blkif_ring *ring,
 			       struct persistent_gnt *persistent_gnt)
 {
-	struct rb_node **new = NULL, *parent = NULL;
+	struct rb_analde **new = NULL, *parent = NULL;
 	struct persistent_gnt *this;
 	struct xen_blkif *blkif = ring->blkif;
 
@@ -177,10 +177,10 @@ static int add_persistent_gnt(struct xen_blkif_ring *ring,
 			blkif->vbd.overflow_max_grants = 1;
 		return -EBUSY;
 	}
-	/* Figure out where to put new node */
-	new = &ring->persistent_gnts.rb_node;
+	/* Figure out where to put new analde */
+	new = &ring->persistent_gnts.rb_analde;
 	while (*new) {
-		this = container_of(*new, struct persistent_gnt, node);
+		this = container_of(*new, struct persistent_gnt, analde);
 
 		parent = *new;
 		if (persistent_gnt->gnt < this->gnt)
@@ -194,9 +194,9 @@ static int add_persistent_gnt(struct xen_blkif_ring *ring,
 	}
 
 	persistent_gnt->active = true;
-	/* Add new node and rebalance tree. */
-	rb_link_node(&(persistent_gnt->node), parent, new);
-	rb_insert_color(&(persistent_gnt->node), &ring->persistent_gnts);
+	/* Add new analde and rebalance tree. */
+	rb_link_analde(&(persistent_gnt->analde), parent, new);
+	rb_insert_color(&(persistent_gnt->analde), &ring->persistent_gnts);
 	ring->persistent_gnt_c++;
 	atomic_inc(&ring->persistent_gnt_in_use);
 	return 0;
@@ -206,16 +206,16 @@ static struct persistent_gnt *get_persistent_gnt(struct xen_blkif_ring *ring,
 						 grant_ref_t gref)
 {
 	struct persistent_gnt *data;
-	struct rb_node *node = NULL;
+	struct rb_analde *analde = NULL;
 
-	node = ring->persistent_gnts.rb_node;
-	while (node) {
-		data = container_of(node, struct persistent_gnt, node);
+	analde = ring->persistent_gnts.rb_analde;
+	while (analde) {
+		data = container_of(analde, struct persistent_gnt, analde);
 
 		if (gref < data->gnt)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (gref > data->gnt)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else {
 			if (data->active) {
 				pr_alert_ratelimited("requesting a grant already in use\n");
@@ -245,7 +245,7 @@ static void free_persistent_gnts(struct xen_blkif_ring *ring)
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct persistent_gnt *persistent_gnt;
-	struct rb_node *n;
+	struct rb_analde *n;
 	int segs_to_unmap = 0;
 	struct gntab_unmap_queue_data unmap_data;
 
@@ -256,7 +256,7 @@ static void free_persistent_gnts(struct xen_blkif_ring *ring)
 	unmap_data.unmap_ops = unmap;
 	unmap_data.kunmap_ops = NULL;
 
-	foreach_grant_safe(persistent_gnt, n, root, node) {
+	foreach_grant_safe(persistent_gnt, n, root, analde) {
 		BUG_ON(persistent_gnt->handle ==
 			BLKBACK_INVALID_HANDLE);
 		gnttab_set_unmap_op(&unmap[segs_to_unmap],
@@ -268,7 +268,7 @@ static void free_persistent_gnts(struct xen_blkif_ring *ring)
 		pages[segs_to_unmap] = persistent_gnt->page;
 
 		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST ||
-			!rb_next(&persistent_gnt->node)) {
+			!rb_next(&persistent_gnt->analde)) {
 
 			unmap_data.count = segs_to_unmap;
 			BUG_ON(gnttab_unmap_refs_sync(&unmap_data));
@@ -278,7 +278,7 @@ static void free_persistent_gnts(struct xen_blkif_ring *ring)
 			segs_to_unmap = 0;
 		}
 
-		rb_erase(&persistent_gnt->node, root);
+		rb_erase(&persistent_gnt->analde, root);
 		kfree(persistent_gnt);
 		ring->persistent_gnt_c--;
 	}
@@ -303,8 +303,8 @@ void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 	while(!list_empty(&ring->persistent_purge_list)) {
 		persistent_gnt = list_first_entry(&ring->persistent_purge_list,
 		                                  struct persistent_gnt,
-		                                  remove_node);
-		list_del(&persistent_gnt->remove_node);
+		                                  remove_analde);
+		list_del(&persistent_gnt->remove_analde);
 
 		gnttab_set_unmap_op(&unmap[segs_to_unmap],
 			vaddr(persistent_gnt->page),
@@ -332,13 +332,13 @@ void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 static void purge_persistent_gnt(struct xen_blkif_ring *ring)
 {
 	struct persistent_gnt *persistent_gnt;
-	struct rb_node *n;
+	struct rb_analde *n;
 	unsigned int num_clean, total;
 	bool scan_used = false;
 	struct rb_root *root;
 
 	if (work_busy(&ring->persistent_purge_work)) {
-		pr_alert_ratelimited("Scheduled work from previous purge is still busy, cannot purge list\n");
+		pr_alert_ratelimited("Scheduled work from previous purge is still busy, cananalt purge list\n");
 		goto out;
 	}
 
@@ -355,7 +355,7 @@ static void purge_persistent_gnt(struct xen_blkif_ring *ring)
 	}
 
 	/*
-	 * At this point, we can assure that there will be no calls
+	 * At this point, we can assure that there will be anal calls
          * to get_persistent_grant (because we are executing this code from
          * xen_blkif_schedule), there can only be calls to put_persistent_gnt,
          * which means that the number of currently used grants will go down,
@@ -368,7 +368,7 @@ static void purge_persistent_gnt(struct xen_blkif_ring *ring)
 	BUG_ON(!list_empty(&ring->persistent_purge_list));
 	root = &ring->persistent_gnts;
 purge_list:
-	foreach_grant_safe(persistent_gnt, n, root, node) {
+	foreach_grant_safe(persistent_gnt, n, root, analde) {
 		BUG_ON(persistent_gnt->handle ==
 			BLKBACK_INVALID_HANDLE);
 
@@ -379,8 +379,8 @@ purge_list:
 		if (scan_used && total >= num_clean)
 			continue;
 
-		rb_erase(&persistent_gnt->node, root);
-		list_add(&persistent_gnt->remove_node,
+		rb_erase(&persistent_gnt->analde, root);
+		list_add(&persistent_gnt->remove_analde,
 			 &ring->persistent_purge_list);
 		total++;
 	}
@@ -481,7 +481,7 @@ static void xen_vbd_resize(struct xen_blkif *blkif)
 	unsigned long long new_size = vbd_sz(vbd);
 
 	pr_info("VBD Resize: Domid: %d, Device: (%d, %d)\n",
-		blkif->domid, MAJOR(vbd->pdevice), MINOR(vbd->pdevice));
+		blkif->domid, MAJOR(vbd->pdevice), MIANALR(vbd->pdevice));
 	pr_info("VBD Resize: new size %llu\n", new_size);
 	vbd->size = new_size;
 again:
@@ -490,7 +490,7 @@ again:
 		pr_warn("Error starting transaction\n");
 		return;
 	}
-	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
+	err = xenbus_printf(xbt, dev->analdename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(vbd));
 	if (err) {
 		pr_warn("Error writing new size\n");
@@ -501,7 +501,7 @@ again:
 	 * the front-end. If the current state is "connected" the
 	 * front-end will get the new size information online.
 	 */
-	err = xenbus_printf(xbt, dev->nodename, "state", "%d", dev->state);
+	err = xenbus_printf(xbt, dev->analdename, "state", "%d", dev->state);
 	if (err) {
 		pr_warn("Error writing the state\n");
 		goto abort;
@@ -518,9 +518,9 @@ abort:
 }
 
 /*
- * Notification from the guest OS.
+ * Analtification from the guest OS.
  */
-static void blkif_notify_work(struct xen_blkif_ring *ring)
+static void blkif_analtify_work(struct xen_blkif_ring *ring)
 {
 	ring->waiting_reqs = 1;
 	wake_up(&ring->wq);
@@ -528,7 +528,7 @@ static void blkif_notify_work(struct xen_blkif_ring *ring)
 
 irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 {
-	blkif_notify_work(dev_id);
+	blkif_analtify_work(dev_id);
 	return IRQ_HANDLED;
 }
 
@@ -689,8 +689,8 @@ static void xen_blkbk_unmap_and_respond_callback(int result, struct gntab_unmap_
 	 *
 	 * NB: The fact that we might try to wake up pending_free_wq
 	 * before drain_complete (in case there's a drain going on)
-	 * it's not a problem with our current implementation
-	 * because we can assure there's no thread waiting on
+	 * it's analt a problem with our current implementation
+	 * because we can assure there's anal thread waiting on
 	 * pending_free_wq if there's a drain going on, but it has
 	 * to be taken into account if the current model is changed.
 	 */
@@ -726,7 +726,7 @@ static void xen_blkbk_unmap_and_respond(struct pending_req *req)
  *
  * This could accumulate ops up to the batch size to reduce the number
  * of hypercalls, but since this is only used in error paths there's
- * no real need.
+ * anal real need.
  */
 static void xen_blkbk_unmap(struct xen_blkif_ring *ring,
                             struct grant_page *pages[],
@@ -798,7 +798,7 @@ again:
 				gnttab_page_cache_put(&ring->free_pages,
 						      pages_to_gnt,
 						      segs_to_map);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			addr = vaddr(pages[i]->page);
@@ -820,7 +820,7 @@ again:
 		ret = gnttab_map_refs(map, NULL, pages_to_gnt, segs_to_map);
 
 	/*
-	 * Now swizzle the MFN in our domain with the MFN from the other domain
+	 * Analw swizzle the MFN in our domain with the MFN from the other domain
 	 * so that when we access vaddr(pending_req,i) it has the contents of
 	 * the page from the other domain.
 	 */
@@ -829,7 +829,7 @@ again:
 			/* This is a newly mapped grant */
 			BUG_ON(new_map_idx >= segs_to_map);
 			if (unlikely(map[new_map_idx].status != 0)) {
-				pr_debug("invalid buffer -- could not remap it\n");
+				pr_debug("invalid buffer -- could analt remap it\n");
 				gnttab_page_cache_put(&ring->free_pages,
 						      &pages[seg_idx]->page, 1);
 				pages[seg_idx]->handle = BLKBACK_INVALID_HANDLE;
@@ -844,15 +844,15 @@ again:
 		    ring->persistent_gnt_c < max_pgrants) {
 			/*
 			 * We are using persistent grants, the grant is
-			 * not mapped but we might have room for it.
+			 * analt mapped but we might have room for it.
 			 */
 			persistent_gnt = kmalloc(sizeof(struct persistent_gnt),
 				                 GFP_KERNEL);
 			if (!persistent_gnt) {
 				/*
-				 * If we don't have enough memory to
+				 * If we don't have eanalugh memory to
 				 * allocate the persistent_gnt struct
-				 * map this grant non-persistenly
+				 * map this grant analn-persistenly
 				 */
 				goto next;
 			}
@@ -877,8 +877,8 @@ again:
 			         blkif->domid, blkif->vbd.handle);
 		}
 		/*
-		 * We could not map this grant persistently, so use it as
-		 * a non-persistent grant.
+		 * We could analt map this grant persistently, so use it as
+		 * a analn-persistent grant.
 		 */
 next:
 		new_map_idx++;
@@ -996,9 +996,9 @@ static int dispatch_discard_io(struct xen_blkif_ring *ring,
 				req->u.discard.nr_sectors, GFP_KERNEL);
 
 fail_response:
-	if (err == -EOPNOTSUPP) {
-		pr_debug("discard op failed, not supported\n");
-		status = BLKIF_RSP_EOPNOTSUPP;
+	if (err == -EOPANALTSUPP) {
+		pr_debug("discard op failed, analt supported\n");
+		status = BLKIF_RSP_EOPANALTSUPP;
 	} else if (err)
 		status = BLKIF_RSP_ERROR;
 
@@ -1013,7 +1013,7 @@ static int dispatch_other_io(struct xen_blkif_ring *ring,
 {
 	free_req(ring, pending_req);
 	make_response(ring, req->u.other.id, req->operation,
-		      BLKIF_RSP_EOPNOTSUPP);
+		      BLKIF_RSP_EOPANALTSUPP);
 	return -EIO;
 }
 
@@ -1039,17 +1039,17 @@ static void __end_block_io_op(struct pending_req *pending_req,
 {
 	/* An error fails the entire request. */
 	if (pending_req->operation == BLKIF_OP_FLUSH_DISKCACHE &&
-	    error == BLK_STS_NOTSUPP) {
-		pr_debug("flush diskcache op failed, not supported\n");
+	    error == BLK_STS_ANALTSUPP) {
+		pr_debug("flush diskcache op failed, analt supported\n");
 		xen_blkbk_flush_diskcache(XBT_NIL, pending_req->ring->blkif->be, 0);
-		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
+		pending_req->status = BLKIF_RSP_EOPANALTSUPP;
 	} else if (pending_req->operation == BLKIF_OP_WRITE_BARRIER &&
-		   error == BLK_STS_NOTSUPP) {
-		pr_debug("write barrier op failed, not supported\n");
+		   error == BLK_STS_ANALTSUPP) {
+		pr_debug("write barrier op failed, analt supported\n");
 		xen_blkbk_barrier(XBT_NIL, pending_req->ring->blkif->be, 0);
-		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
+		pending_req->status = BLKIF_RSP_EOPANALTSUPP;
 	} else if (error) {
-		pr_debug("Buffer not up-to-date at end of operation,"
+		pr_debug("Buffer analt up-to-date at end of operation,"
 			 " error=%d\n", error);
 		pending_req->status = BLKIF_RSP_ERROR;
 	}
@@ -1117,7 +1117,7 @@ static void blkif_get_x86_32_req(struct blkif_request *dst,
 
 	default:
 		/*
-		 * Don't know how to translate this op. Only get the
+		 * Don't kanalw how to translate this op. Only get the
 		 * ID so failure can be reported to the frontend.
 		 */
 		dst->u.other.id = src->u.other.id;
@@ -1170,7 +1170,7 @@ static void blkif_get_x86_64_req(struct blkif_request *dst,
 
 	default:
 		/*
-		 * Don't know how to translate this op. Only get the
+		 * Don't kanalw how to translate this op. Only get the
 		 * ID so failure can be reported to the frontend.
 		 */
 		dst->u.other.id = src->u.other.id;
@@ -1492,7 +1492,7 @@ static void make_response(struct xen_blkif_ring *ring, u64 id,
 	struct blkif_response *resp;
 	unsigned long     flags;
 	union blkif_back_rings *blk_rings;
-	int notify;
+	int analtify;
 
 	spin_lock_irqsave(&ring->blk_ring_lock, flags);
 	blk_rings = &ring->blk_rings;
@@ -1519,10 +1519,10 @@ static void make_response(struct xen_blkif_ring *ring, u64 id,
 	resp->status    = st;
 
 	blk_rings->common.rsp_prod_pvt++;
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&blk_rings->common, notify);
+	RING_PUSH_RESPONSES_AND_CHECK_ANALTIFY(&blk_rings->common, analtify);
 	spin_unlock_irqrestore(&ring->blk_ring_lock, flags);
-	if (notify)
-		notify_remote_via_irq(ring->irq);
+	if (analtify)
+		analtify_remote_via_irq(ring->irq);
 }
 
 static int __init xen_blkif_init(void)
@@ -1530,7 +1530,7 @@ static int __init xen_blkif_init(void)
 	int rc = 0;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (xen_blkif_max_ring_order > XENBUS_MAX_RING_GRANT_ORDER) {
 		pr_info("Invalid max_ring_order (%d), will use default max: %d.\n",

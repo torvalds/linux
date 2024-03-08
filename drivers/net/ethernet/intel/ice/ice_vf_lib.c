@@ -15,7 +15,7 @@
  * @vf_id: the VF ID to locate
  *
  * Locate and return a pointer to the VF structure associated with a given ID.
- * Returns NULL if the ID does not have a valid VF structure associated with
+ * Returns NULL if the ID does analt have a valid VF structure associated with
  * it.
  *
  * This function takes a reference to the VF, which must be released by
@@ -65,11 +65,11 @@ static void ice_release_vf(struct kref *ref)
  * ice_put_vf - Release a reference to a VF
  * @vf: the VF structure to decrease reference count on
  *
- * Decrease the reference count for a VF, and free the entry if it is no
+ * Decrease the reference count for a VF, and free the entry if it is anal
  * longer in use.
  *
  * This must be called after ice_get_vf_by_id() once the reference to the VF
- * structure is no longer used. Otherwise, the VF structure will never be
+ * structure is anal longer used. Otherwise, the VF structure will never be
  * freed.
  */
 void ice_put_vf(struct ice_vf *vf)
@@ -81,14 +81,14 @@ void ice_put_vf(struct ice_vf *vf)
  * ice_has_vfs - Return true if the PF has any associated VFs
  * @pf: the PF private structure
  *
- * Return whether or not the PF has any allocated VFs.
+ * Return whether or analt the PF has any allocated VFs.
  *
- * Note that this function only guarantees that there are no VFs at the point
- * of calling it. It does not guarantee that no more VFs will be added.
+ * Analte that this function only guarantees that there are anal VFs at the point
+ * of calling it. It does analt guarantee that anal more VFs will be added.
  */
 bool ice_has_vfs(struct ice_pf *pf)
 {
-	/* A simple check that the hash table is not empty does not require
+	/* A simple check that the hash table is analt empty does analt require
 	 * the mutex or rcu_read_lock.
 	 */
 	return !hash_empty(pf->vfs.table);
@@ -98,8 +98,8 @@ bool ice_has_vfs(struct ice_pf *pf)
  * ice_get_num_vfs - Get number of allocated VFs
  * @pf: the PF private structure
  *
- * Return the total number of allocated VFs. NOTE: VF IDs are not guaranteed
- * to be contiguous. Do not assume that a VF ID is guaranteed to be less than
+ * Return the total number of allocated VFs. ANALTE: VF IDs are analt guaranteed
+ * to be contiguous. Do analt assume that a VF ID is guaranteed to be less than
  * the output of this function.
  */
 u16 ice_get_num_vfs(struct ice_pf *pf)
@@ -122,7 +122,7 @@ u16 ice_get_num_vfs(struct ice_pf *pf)
  */
 struct ice_vsi *ice_get_vf_vsi(struct ice_vf *vf)
 {
-	if (vf->lan_vsi_idx == ICE_NO_VSI)
+	if (vf->lan_vsi_idx == ICE_ANAL_VSI)
 		return NULL;
 
 	return vf->pf->vsi[vf->lan_vsi_idx];
@@ -132,7 +132,7 @@ struct ice_vsi *ice_get_vf_vsi(struct ice_vf *vf)
  * ice_is_vf_disabled
  * @vf: pointer to the VF info
  *
- * If the PF has been disabled, there is no need resetting VF until PF is
+ * If the PF has been disabled, there is anal need resetting VF until PF is
  * active again. Similarly, if the VF has been disabled, this means something
  * else is resetting the VF, so we shouldn't continue.
  *
@@ -170,7 +170,7 @@ static void ice_wait_on_vf_reset(struct ice_vf *vf)
  * ice_check_vf_ready_for_cfg - check if VF is ready to be configured/queried
  * @vf: VF to check if it's ready to be configured/queried
  *
- * The purpose of this function is to make sure the VF is not in reset, not
+ * The purpose of this function is to make sure the VF is analt in reset, analt
  * disabled, and initialized so it can be configured and/or queried by a host
  * administrator.
  */
@@ -190,7 +190,7 @@ int ice_check_vf_ready_for_cfg(struct ice_vf *vf)
 /**
  * ice_trigger_vf_reset - Reset a VF on HW
  * @vf: pointer to the VF structure
- * @is_vflr: true if VFLR was issued, false if not
+ * @is_vflr: true if VFLR was issued, false if analt
  * @is_pfr: true if the reset was triggered due to a previous PFR
  *
  * Trigger hardware to start a reset for a particular VF. Expects the caller
@@ -199,7 +199,7 @@ int ice_check_vf_ready_for_cfg(struct ice_vf *vf)
  */
 static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr, bool is_pfr)
 {
-	/* Inform VF that it is no longer active, as a warning */
+	/* Inform VF that it is anal longer active, as a warning */
 	clear_bit(ICE_VF_STATE_ACTIVE, vf->vf_states);
 
 	/* Disable VF's configuration API during reset. The flag is re-enabled
@@ -239,7 +239,7 @@ static void ice_vf_clear_counters(struct ice_vf *vf)
  */
 static void ice_vf_pre_vsi_rebuild(struct ice_vf *vf)
 {
-	/* Close any IRQ mapping now */
+	/* Close any IRQ mapping analw */
 	if (vf->vf_ops->irq_close)
 		vf->vf_ops->irq_close(vf);
 
@@ -267,7 +267,7 @@ int ice_vf_reconfig_vsi(struct ice_vf *vf)
 		return -EINVAL;
 
 	params = ice_vsi_to_params(vsi);
-	params.flags = ICE_VSI_FLAG_NO_INIT;
+	params.flags = ICE_VSI_FLAG_ANAL_INIT;
 
 	ice_vsi_decfg(vsi);
 	ice_fltr_remove_all(vsi);
@@ -456,36 +456,36 @@ static int ice_vf_rebuild_host_mac_cfg(struct ice_vf *vf)
 }
 
 /**
- * ice_vf_rebuild_aggregator_node_cfg - rebuild aggregator node config
+ * ice_vf_rebuild_aggregator_analde_cfg - rebuild aggregator analde config
  * @vsi: Pointer to VSI
  *
- * This function moves VSI into corresponding scheduler aggregator node
- * based on cached value of "aggregator node info" per VSI
+ * This function moves VSI into corresponding scheduler aggregator analde
+ * based on cached value of "aggregator analde info" per VSI
  */
-static void ice_vf_rebuild_aggregator_node_cfg(struct ice_vsi *vsi)
+static void ice_vf_rebuild_aggregator_analde_cfg(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	struct device *dev;
 	int status;
 
-	if (!vsi->agg_node)
+	if (!vsi->agg_analde)
 		return;
 
 	dev = ice_pf_to_dev(pf);
-	if (vsi->agg_node->num_vsis == ICE_MAX_VSIS_IN_AGG_NODE) {
+	if (vsi->agg_analde->num_vsis == ICE_MAX_VSIS_IN_AGG_ANALDE) {
 		dev_dbg(dev,
 			"agg_id %u already has reached max_num_vsis %u\n",
-			vsi->agg_node->agg_id, vsi->agg_node->num_vsis);
+			vsi->agg_analde->agg_id, vsi->agg_analde->num_vsis);
 		return;
 	}
 
-	status = ice_move_vsi_to_agg(pf->hw.port_info, vsi->agg_node->agg_id,
+	status = ice_move_vsi_to_agg(pf->hw.port_info, vsi->agg_analde->agg_id,
 				     vsi->idx, vsi->tc_cfg.ena_tc);
 	if (status)
-		dev_dbg(dev, "unable to move VSI idx %u into aggregator %u node",
-			vsi->idx, vsi->agg_node->agg_id);
+		dev_dbg(dev, "unable to move VSI idx %u into aggregator %u analde",
+			vsi->idx, vsi->agg_analde->agg_id);
 	else
-		vsi->agg_node->num_vsis++;
+		vsi->agg_analde->num_vsis++;
 }
 
 /**
@@ -518,8 +518,8 @@ static void ice_vf_rebuild_host_cfg(struct ice_vf *vf)
 		dev_err(dev, "failed to rebuild spoofchk configuration for VF %d\n",
 			vf->vf_id);
 
-	/* rebuild aggregator node config for main VF VSI */
-	ice_vf_rebuild_aggregator_node_cfg(vsi);
+	/* rebuild aggregator analde config for main VF VSI */
+	ice_vf_rebuild_aggregator_analde_cfg(vsi);
 }
 
 /**
@@ -571,7 +571,7 @@ static void ice_vf_post_vsi_rebuild(struct ice_vf *vf)
  * are in unicast promiscuous mode
  * @pf: PF structure for accessing VF(s)
  *
- * Return false if no VF(s) are in unicast promiscuous mode,
+ * Return false if anal VF(s) are in unicast promiscuous mode,
  * else return true
  */
 bool ice_is_any_vf_in_unicast_promisc(struct ice_pf *pf)
@@ -608,7 +608,7 @@ ice_vf_get_promisc_masks(struct ice_vf *vf, struct ice_vsi *vsi,
 			 u8 *ucast_m, u8 *mcast_m)
 {
 	if (ice_vf_is_port_vlan_ena(vf) ||
-	    ice_vsi_has_non_zero_vlans(vsi)) {
+	    ice_vsi_has_analn_zero_vlans(vsi)) {
 		*mcast_m = ICE_MCAST_VLAN_PROMISC_BITS;
 		*ucast_m = ICE_UCAST_VLAN_PROMISC_BITS;
 	} else {
@@ -675,7 +675,7 @@ ice_vf_set_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 	if (ice_vf_is_port_vlan_ena(vf))
 		status = ice_fltr_set_vsi_promisc(hw, vsi->idx, promisc_m,
 						  ice_vf_get_port_vlan_id(vf));
-	else if (ice_vsi_has_non_zero_vlans(vsi))
+	else if (ice_vsi_has_analn_zero_vlans(vsi))
 		status = ice_fltr_set_vlan_vsi_promisc(hw, vsi, promisc_m);
 	else
 		status = ice_fltr_set_vsi_promisc(hw, vsi->idx, promisc_m, 0);
@@ -704,12 +704,12 @@ ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 	if (ice_vf_is_port_vlan_ena(vf))
 		status = ice_fltr_clear_vsi_promisc(hw, vsi->idx, promisc_m,
 						    ice_vf_get_port_vlan_id(vf));
-	else if (ice_vsi_has_non_zero_vlans(vsi))
+	else if (ice_vsi_has_analn_zero_vlans(vsi))
 		status = ice_fltr_clear_vlan_vsi_promisc(hw, vsi, promisc_m);
 	else
 		status = ice_fltr_clear_vsi_promisc(hw, vsi->idx, promisc_m, 0);
 
-	if (status && status != -ENOENT) {
+	if (status && status != -EANALENT) {
 		dev_err(ice_pf_to_dev(vsi->back), "disable Tx/Rx filter promiscuous mode on VF-%u failed, error: %d\n",
 			vf->vf_id, status);
 		return status;
@@ -736,7 +736,7 @@ void ice_reset_all_vfs(struct ice_pf *pf)
 	struct ice_vf *vf;
 	unsigned int bkt;
 
-	/* If we don't have any VFs, then there is nothing to reset */
+	/* If we don't have any VFs, then there is analthing to reset */
 	if (!ice_has_vfs(pf))
 		return;
 
@@ -746,7 +746,7 @@ void ice_reset_all_vfs(struct ice_pf *pf)
 	ice_for_each_vf(pf, bkt, vf)
 		ice_mbx_clear_malvf(&vf->mbx_info);
 
-	/* If VFs have been disabled, there is no need to reset */
+	/* If VFs have been disabled, there is anal need to reset */
 	if (test_and_set_bit(ICE_VF_DIS, pf->state)) {
 		mutex_unlock(&pf->vfs.table_lock);
 		return;
@@ -757,7 +757,7 @@ void ice_reset_all_vfs(struct ice_pf *pf)
 		ice_trigger_vf_reset(vf, true, true);
 
 	/* HW requires some time to make sure it can flush the FIFO for a VF
-	 * when it resets it. Now that we've triggered all of the VFs, iterate
+	 * when it resets it. Analw that we've triggered all of the VFs, iterate
 	 * the table again and wait for each VF to complete.
 	 */
 	ice_for_each_vf(pf, bkt, vf) {
@@ -784,7 +784,7 @@ void ice_reset_all_vfs(struct ice_pf *pf)
 		/* clean VF control VSI when resetting VFs since it should be
 		 * setup only when VF creates its first FDIR rule.
 		 */
-		if (vf->ctrl_vsi_idx != ICE_NO_VSI)
+		if (vf->ctrl_vsi_idx != ICE_ANAL_VSI)
 			ice_vf_ctrl_invalidate_vsi(vf);
 
 		ice_vf_pre_vsi_rebuild(vf);
@@ -803,16 +803,16 @@ void ice_reset_all_vfs(struct ice_pf *pf)
 }
 
 /**
- * ice_notify_vf_reset - Notify VF of a reset event
+ * ice_analtify_vf_reset - Analtify VF of a reset event
  * @vf: pointer to the VF structure
  */
-static void ice_notify_vf_reset(struct ice_vf *vf)
+static void ice_analtify_vf_reset(struct ice_vf *vf)
 {
 	struct ice_hw *hw = &vf->pf->hw;
 	struct virtchnl_pf_event pfe;
 
-	/* Bail out if VF is in disabled state, neither initialized, nor active
-	 * state - otherwise proceed with notifications
+	/* Bail out if VF is in disabled state, neither initialized, analr active
+	 * state - otherwise proceed with analtifications
 	 */
 	if ((!test_bit(ICE_VF_STATE_INIT, vf->vf_states) &&
 	     !test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states)) ||
@@ -833,7 +833,7 @@ static void ice_notify_vf_reset(struct ice_vf *vf)
  *
  * Flags:
  *   ICE_VF_RESET_VFLR - Indicates a reset is due to VFLR event
- *   ICE_VF_RESET_NOTIFY - Send VF a notification prior to reset
+ *   ICE_VF_RESET_ANALTIFY - Send VF a analtification prior to reset
  *   ICE_VF_RESET_LOCK - Acquire VF cfg_lock before resetting
  *
  * Returns 0 if the VF is currently in reset, if resets are disabled, or if
@@ -854,8 +854,8 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	act_prt = ICE_LAG_INVALID_PORT;
 	pri_prt = pf->hw.port_info->lport;
 
-	if (flags & ICE_VF_RESET_NOTIFY)
-		ice_notify_vf_reset(vf);
+	if (flags & ICE_VF_RESET_ANALTIFY)
+		ice_analtify_vf_reset(vf);
 
 	if (test_bit(ICE_VF_RESETS_DISABLED, pf->state)) {
 		dev_dbg(dev, "Trying to reset VF %d, but all VF resets are disabled\n",
@@ -869,7 +869,7 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 		act_prt = lag->active_port;
 		if (act_prt != pri_prt && act_prt != ICE_LAG_INVALID_PORT &&
 		    lag->upper_netdev)
-			ice_lag_move_vf_nodes_cfg(lag, act_prt, pri_prt);
+			ice_lag_move_vf_analdes_cfg(lag, act_prt, pri_prt);
 		else
 			act_prt = ICE_LAG_INVALID_PORT;
 	}
@@ -886,12 +886,12 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 			err = -EINVAL;
 			goto out_unlock;
 		}
-		ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, vf->vf_id);
+		ice_vsi_stop_lan_tx_rings(vsi, ICE_ANAL_RESET, vf->vf_id);
 
 		if (ice_vsi_is_rx_queue_active(vsi))
 			ice_vsi_stop_all_rx_rings(vsi);
 
-		dev_dbg(dev, "VF is already disabled, there is no need for resetting it, telling VM, all is fine %d\n",
+		dev_dbg(dev, "VF is already disabled, there is anal need for resetting it, telling VM, all is fine %d\n",
 			vf->vf_id);
 		goto out_unlock;
 	}
@@ -908,7 +908,7 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 
 	ice_dis_vf_qs(vf);
 
-	/* Call Disable LAN Tx queue AQ whether or not queues are
+	/* Call Disable LAN Tx queue AQ whether or analt queues are
 	 * enabled. This is needed for successful completion of VFR.
 	 */
 	ice_dis_vsi_txq(vsi->port_info, vsi->idx, 0, 0, NULL, NULL,
@@ -929,7 +929,7 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	ice_vc_set_default_allowlist(vf);
 
 	/* disable promiscuous modes in case they were enabled
-	 * ignore any error if disabling process failed
+	 * iganalre any error if disabling process failed
 	 */
 	ice_vf_clear_all_promisc_modes(vf, vsi);
 
@@ -938,7 +938,7 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	/* clean VF control VSI when resetting VF since it should be setup
 	 * only when VF creates its first FDIR rule.
 	 */
-	if (vf->ctrl_vsi_idx != ICE_NO_VSI)
+	if (vf->ctrl_vsi_idx != ICE_ANAL_VSI)
 		ice_vf_ctrl_vsi_release(vf);
 
 	ice_vf_pre_vsi_rebuild(vf);
@@ -968,7 +968,7 @@ out_unlock:
 
 	if (lag && lag->bonded && lag->primary &&
 	    act_prt != ICE_LAG_INVALID_PORT)
-		ice_lag_move_vf_nodes_cfg(lag, pri_prt, act_prt);
+		ice_lag_move_vf_analdes_cfg(lag, pri_prt, act_prt);
 	mutex_unlock(&pf->lag_mutex);
 
 	return err;
@@ -1026,7 +1026,7 @@ void ice_dis_vf_qs(struct ice_vf *vf)
 	if (WARN_ON(!vsi))
 		return;
 
-	ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, vf->vf_id);
+	ice_vsi_stop_lan_tx_rings(vsi, ICE_ANAL_RESET, vf->vf_id);
 	ice_vsi_stop_all_rx_rings(vsi);
 	ice_set_vf_state_qs_dis(vf);
 }
@@ -1041,17 +1041,17 @@ enum virtchnl_status_code ice_err_to_virt_err(int err)
 	case 0:
 		return VIRTCHNL_STATUS_SUCCESS;
 	case -EINVAL:
-	case -ENODEV:
+	case -EANALDEV:
 		return VIRTCHNL_STATUS_ERR_PARAM;
-	case -ENOMEM:
-		return VIRTCHNL_STATUS_ERR_NO_MEMORY;
+	case -EANALMEM:
+		return VIRTCHNL_STATUS_ERR_ANAL_MEMORY;
 	case -EALREADY:
 	case -EBUSY:
 	case -EIO:
-	case -ENOSPC:
+	case -EANALSPC:
 		return VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
 	default:
-		return VIRTCHNL_STATUS_ERR_NOT_SUPPORTED;
+		return VIRTCHNL_STATUS_ERR_ANALT_SUPPORTED;
 	}
 }
 
@@ -1094,7 +1094,7 @@ static int ice_cfg_mac_antispoof(struct ice_vsi *vsi, bool enable)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->info.sec_flags = vsi->info.sec_flags;
 	ctx->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
@@ -1128,7 +1128,7 @@ static int ice_vsi_ena_spoofchk(struct ice_vsi *vsi)
 	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
 
 	/* Allow VF with VLAN 0 only to send all tagged traffic */
-	if (vsi->type != ICE_VSI_VF || ice_vsi_has_non_zero_vlans(vsi)) {
+	if (vsi->type != ICE_VSI_VF || ice_vsi_has_analn_zero_vlans(vsi)) {
 		err = vlan_ops->ena_tx_filtering(vsi);
 		if (err)
 			return err;
@@ -1182,13 +1182,13 @@ bool ice_is_vf_trusted(struct ice_vf *vf)
 }
 
 /**
- * ice_vf_has_no_qs_ena - check if the VF has any Rx or Tx queues enabled
+ * ice_vf_has_anal_qs_ena - check if the VF has any Rx or Tx queues enabled
  * @vf: the VF to check
  *
- * Returns true if the VF has no Rx and no Tx queues enabled and returns false
+ * Returns true if the VF has anal Rx and anal Tx queues enabled and returns false
  * otherwise
  */
-bool ice_vf_has_no_qs_ena(struct ice_vf *vf)
+bool ice_vf_has_anal_qs_ena(struct ice_vf *vf)
 {
 	return (!bitmap_weight(vf->rxq_ena, ICE_MAX_RSS_QS_PER_VF) &&
 		!bitmap_weight(vf->txq_ena, ICE_MAX_RSS_QS_PER_VF));
@@ -1205,7 +1205,7 @@ bool ice_is_vf_link_up(struct ice_vf *vf)
 	if (ice_check_vf_init(vf))
 		return false;
 
-	if (ice_vf_has_no_qs_ena(vf))
+	if (ice_vf_has_anal_qs_ena(vf))
 		return false;
 	else if (vf->link_forced)
 		return vf->link_up;
@@ -1220,7 +1220,7 @@ bool ice_is_vf_link_up(struct ice_vf *vf)
  */
 void ice_vf_ctrl_invalidate_vsi(struct ice_vf *vf)
 {
-	vf->ctrl_vsi_idx = ICE_NO_VSI;
+	vf->ctrl_vsi_idx = ICE_ANAL_VSI;
 }
 
 /**
@@ -1320,8 +1320,8 @@ int ice_vf_init_host_cfg(struct ice_vf *vf, struct ice_vsi *vsi)
  */
 void ice_vf_invalidate_vsi(struct ice_vf *vf)
 {
-	vf->lan_vsi_idx = ICE_NO_VSI;
-	vf->lan_vsi_num = ICE_NO_VSI;
+	vf->lan_vsi_idx = ICE_ANAL_VSI;
+	vf->lan_vsi_num = ICE_ANAL_VSI;
 }
 
 /**
@@ -1364,7 +1364,7 @@ struct ice_vsi *ice_get_vf_ctrl_vsi(struct ice_pf *pf, struct ice_vsi *vsi)
 
 	rcu_read_lock();
 	ice_for_each_vf_rcu(pf, bkt, vf) {
-		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_NO_VSI) {
+		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_ANAL_VSI) {
 			ctrl_vsi = pf->vsi[vf->ctrl_vsi_idx];
 			break;
 		}

@@ -55,7 +55,7 @@ static void __init up_prepare_cpus(unsigned int max_cpus)
 #ifdef CONFIG_HOTPLUG_CPU
 static int up_cpu_disable(void)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void up_cpu_die(unsigned int cpu)

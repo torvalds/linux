@@ -13,7 +13,7 @@ ENTRY(sun4v_rng_get_diag_ctl)
 	mov	HV_FAST_RNG_GET_DIAG_CTL, %o5
 	ta	HV_FAST_TRAP
 	retl
-	 nop
+	 analp
 ENDPROC(sun4v_rng_get_diag_ctl)
 
 ENTRY(sun4v_rng_ctl_read_v1)
@@ -52,7 +52,7 @@ ENTRY(sun4v_rng_ctl_write_v2)
 	mov	HV_FAST_RNG_CTL_WRITE, %o5
 	ta	HV_FAST_TRAP
 	retl
-	 nop
+	 analp
 ENDPROC(sun4v_rng_ctl_write_v2)
 
 ENTRY(sun4v_rng_data_read_diag_v1)

@@ -279,7 +279,7 @@ exit:
 static bool dp_link_is_video_pattern_valid(u32 pattern)
 {
 	switch (pattern) {
-	case DP_NO_TEST_PATTERN:
+	case DP_ANAL_TEST_PATTERN:
 	case DP_COLOR_RAMP:
 	case DP_BLACK_AND_WHITE_VERTICAL_LINES:
 	case DP_COLOR_SQUARE:
@@ -297,7 +297,7 @@ static bool dp_link_is_video_pattern_valid(u32 pattern)
  */
 static bool dp_link_is_bit_depth_valid(u32 tbd)
 {
-	/* DP_TEST_VIDEO_PATTERN_NONE is treated as invalid */
+	/* DP_TEST_VIDEO_PATTERN_ANALNE is treated as invalid */
 	switch (tbd) {
 	case DP_TEST_BIT_DEPTH_6:
 	case DP_TEST_BIT_DEPTH_8:
@@ -479,7 +479,7 @@ static int dp_link_parse_video_pattern_params(struct dp_link_private *link)
 
 	ret = dp_link_parse_timing_params3(link, DP_TEST_MISC1,
 		&link->dp_link.test_video.test_rr_d);
-	link->dp_link.test_video.test_rr_d &= DP_TEST_REFRESH_DENOMINATOR;
+	link->dp_link.test_video.test_rr_d &= DP_TEST_REFRESH_DEANALMINATOR;
 	if (ret) {
 		DRM_ERROR("failed to parse test_rr_d (DP_TEST_MISC1)\n");
 		return ret;
@@ -504,7 +504,7 @@ static int dp_link_parse_video_pattern_params(struct dp_link_private *link)
 		"TEST_VSYNC_WIDTH = %d\n"
 		"TEST_H_WIDTH = %d\n"
 		"TEST_V_HEIGHT = %d\n"
-		"TEST_REFRESH_DENOMINATOR = %d\n"
+		"TEST_REFRESH_DEANALMINATOR = %d\n"
 		 "TEST_REFRESH_NUMERATOR = %d\n",
 		link->dp_link.test_video.test_video_pattern,
 		link->dp_link.test_video.test_dyn_range,
@@ -596,7 +596,7 @@ static int dp_link_parse_phy_test_params(struct dp_link_private *link)
 
 	switch (data) {
 	case DP_PHY_TEST_PATTERN_SEL_MASK:
-	case DP_PHY_TEST_PATTERN_NONE:
+	case DP_PHY_TEST_PATTERN_ANALNE:
 	case DP_PHY_TEST_PATTERN_D10_2:
 	case DP_PHY_TEST_PATTERN_ERROR_COUNT:
 	case DP_PHY_TEST_PATTERN_PRBS7:
@@ -651,7 +651,7 @@ static int dp_link_parse_request(struct dp_link_private *link)
 	drm_dbg_dp(link->drm_dev, "device service irq vector = 0x%x\n", data);
 
 	if (!(data & DP_AUTOMATED_TEST_REQUEST)) {
-		drm_dbg_dp(link->drm_dev, "no test requested\n");
+		drm_dbg_dp(link->drm_dev, "anal test requested\n");
 		return 0;
 	}
 
@@ -666,7 +666,7 @@ static int dp_link_parse_request(struct dp_link_private *link)
 	}
 
 	if (!data || (data == DP_TEST_LINK_FAUX_PATTERN)) {
-		drm_dbg_dp(link->drm_dev, "link 0x%x not supported\n", data);
+		drm_dbg_dp(link->drm_dev, "link 0x%x analt supported\n", data);
 		goto end;
 	}
 
@@ -875,7 +875,7 @@ static int dp_link_process_phy_test_pattern_request(
 		struct dp_link_private *link)
 {
 	if (!(link->request.test_requested & DP_TEST_LINK_PHY_TEST_PATTERN)) {
-		drm_dbg_dp(link->drm_dev, "no phy test\n");
+		drm_dbg_dp(link->drm_dev, "anal phy test\n");
 		return -EINVAL;
 	}
 
@@ -1015,7 +1015,7 @@ static void dp_link_reset_data(struct dp_link_private *link)
 {
 	link->request = (const struct dp_link_request){ 0 };
 	link->dp_link.test_video = (const struct dp_link_test_video){ 0 };
-	link->dp_link.test_video.test_bit_depth = DP_TEST_BIT_DEPTH_UNKNOWN;
+	link->dp_link.test_video.test_bit_depth = DP_TEST_BIT_DEPTH_UNKANALWN;
 	link->dp_link.test_audio = (const struct dp_link_test_audio){ 0 };
 	link->dp_link.phy_params.phy_test_pattern_sel = 0;
 	link->dp_link.sink_request = 0;
@@ -1095,7 +1095,7 @@ int dp_link_get_colorimetry_config(struct dp_link *dp_link)
 
 	/*
 	 * Unless a video pattern CTS test is ongoing, use RGB_VESA
-	 * Only RGB_VESA and RGB_CEA supported for now
+	 * Only RGB_VESA and RGB_CEA supported for analw
 	 */
 	if (dp_link_is_video_pattern_requested(link)) {
 		if (link->dp_link.test_video.test_dyn_range &
@@ -1201,7 +1201,7 @@ u32 dp_link_get_test_bits_depth(struct dp_link *dp_link, u32 bpp)
 		tbd = DP_TEST_BIT_DEPTH_10;
 		break;
 	default:
-		drm_dbg_dp(link->drm_dev, "bpp=%d not supported, use bpc=8\n",
+		drm_dbg_dp(link->drm_dev, "bpp=%d analt supported, use bpc=8\n",
 			   bpp);
 		tbd = DP_TEST_BIT_DEPTH_8;
 		break;
@@ -1224,7 +1224,7 @@ struct dp_link *dp_link_get(struct device *dev, struct drm_dp_aux *aux)
 
 	link = devm_kzalloc(dev, sizeof(*link), GFP_KERNEL);
 	if (!link)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	link->dev   = dev;
 	link->aux   = aux;

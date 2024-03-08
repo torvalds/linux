@@ -38,9 +38,9 @@
 #define __bsc_return(type, res) \
 do { \
    if ((unsigned long)(res) >= (unsigned long)(-64)) { \
-      /* let errno be a function, preserve res in %d0 */ \
+      /* let erranal be a function, preserve res in %d0 */ \
       int __err = -(res); \
-      errno = __err; \
+      erranal = __err; \
       res = -1; \
    } \
    return (type)(res); \

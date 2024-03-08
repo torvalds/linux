@@ -8,17 +8,17 @@ Required properties:
 
 Optional properties:
 - port-id: Ethernet port number. Should be '0','1' or '2'.
-- #address-cells: must be 1 when using sub-nodes.
-- #size-cells: must be 0 when using sub-nodes.
+- #address-cells: must be 1 when using sub-analdes.
+- #size-cells: must be 0 when using sub-analdes.
 - phy-handle: see ethernet.txt file in the same directory.
 
 The MAC address will be determined using the optional properties
 defined in ethernet.txt.
 
-Sub-nodes:
-Each PHY can be represented as a sub-node. This is not mandatory.
+Sub-analdes:
+Each PHY can be represented as a sub-analde. This is analt mandatory.
 
-Sub-nodes required properties:
+Sub-analdes required properties:
 - reg: the MDIO address of the PHY.
 
 Example:

@@ -115,7 +115,7 @@ static void vortex_wt_connect(vortex_t * vortex, int en)
 	for (i = 0; i < NR_WTBLOCKS; i++) {
 		for (ii = 0; ii < NR_WTROUTES; ii++) {
 			mix =
-			    vortex_adb_checkinout(vortex,
+			    vortex_adb_checkianalut(vortex,
 						  vortex->fixed_res, en,
 						  VORTEX_RESOURCE_MIXIN);
 			vortex->mixwt[(i * NR_WTROUTES) + ii] = mix;

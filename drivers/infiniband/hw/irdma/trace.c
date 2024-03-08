@@ -34,7 +34,7 @@ const char *parse_iw_event_type(enum iw_cm_event_type iw_type)
 		return "IwClose";
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 const char *parse_cm_event_type(enum irdma_cm_event_type cm_type)
@@ -58,17 +58,17 @@ const char *parse_cm_event_type(enum irdma_cm_event_type cm_type)
 		return "CmReset";
 	case IRDMA_CM_EVENT_ABORTED:
 		return "CmAborted";
-	case IRDMA_CM_EVENT_UNKNOWN:
-		return "none";
+	case IRDMA_CM_EVENT_UNKANALWN:
+		return "analne";
 	}
-	return "Unknown";
+	return "Unkanalwn";
 }
 
-const char *parse_cm_state(enum irdma_cm_node_state state)
+const char *parse_cm_state(enum irdma_cm_analde_state state)
 {
 	switch (state) {
-	case IRDMA_CM_STATE_UNKNOWN:
-		return "UNKNOWN";
+	case IRDMA_CM_STATE_UNKANALWN:
+		return "UNKANALWN";
 	case IRDMA_CM_STATE_INITED:
 		return "INITED";
 	case IRDMA_CM_STATE_LISTENING:

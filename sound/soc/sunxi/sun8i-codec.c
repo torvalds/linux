@@ -4,7 +4,7 @@
  * found in Allwinner's A33 SoCs.
  *
  * (C) Copyright 2010-2016
- * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
+ * Reuuimlla Techanallogy Co., Ltd. <www.reuuimllatech.com>
  * huangxin <huangxin@Reuuimllatech.com>
  * Mylène Josserand <mylene.josserand@free-electrons.com>
  */
@@ -158,7 +158,7 @@
 				 SNDRV_PCM_RATE_96000     |\
 				 SNDRV_PCM_RATE_176400    |\
 				 SNDRV_PCM_RATE_192000    |\
-				 SNDRV_PCM_RATE_KNOT)
+				 SNDRV_PCM_RATE_KANALT)
 
 enum {
 	SUN8I_CODEC_AIF1,
@@ -265,7 +265,7 @@ static int sun8i_codec_update_sample_rate(struct sun8i_codec *scodec)
 			max_rate = max(max_rate, aif->sample_rate);
 	}
 
-	/* Set the sample rate for ADC->DAC passthrough when no AIF is active. */
+	/* Set the sample rate for ADC->DAC passthrough when anal AIF is active. */
 	if (!max_rate)
 		max_rate = SUN8I_CODEC_PASSTHROUGH_SAMPLE_RATE;
 
@@ -347,7 +347,7 @@ static int sun8i_codec_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	/* clock inversion */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_NF: /* Normal */
+	case SND_SOC_DAIFMT_NB_NF: /* Analrmal */
 		invert = 0x0;
 		break;
 	case SND_SOC_DAIFMT_NB_IF: /* Inverted LRCK */
@@ -364,7 +364,7 @@ static int sun8i_codec_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	if (format == 0x3) {
-		/* Inverted LRCK is not available in DSP mode. */
+		/* Inverted LRCK is analt available in DSP mode. */
 		if (invert & BIT(0))
 			return -EINVAL;
 
@@ -374,7 +374,7 @@ static int sun8i_codec_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		/*
 		 * It appears that the DAI and the codec in the A33 SoC don't
 		 * share the same polarity for the LRCK signal when they mean
-		 * 'normal' and 'inverted' in the datasheet.
+		 * 'analrmal' and 'inverted' in the datasheet.
 		 *
 		 * Since the DAI here is our regular i2s driver that have been
 		 * tested with way more codecs than just this one, it means
@@ -435,7 +435,7 @@ static int sun8i_codec_startup(struct snd_pcm_substream *substream,
 	struct sun8i_codec *scodec = snd_soc_dai_get_drvdata(dai);
 	const struct snd_pcm_hw_constraint_list *list;
 
-	/* hw_constraints is not relevant for codec2codec DAIs. */
+	/* hw_constraints is analt relevant for codec2codec DAIs. */
 	if (dai->id != SUN8I_CODEC_AIF1)
 		return 0;
 
@@ -767,7 +767,7 @@ static int sun8i_codec_aif_event(struct snd_soc_dapm_widget *w,
 }
 
 static const char *const sun8i_aif_stereo_mux_enum_values[] = {
-	"Stereo", "Reverse Stereo", "Sum Mono", "Mix Mono"
+	"Stereo", "Reverse Stereo", "Sum Moanal", "Mix Moanal"
 };
 
 static SOC_ENUM_DOUBLE_DECL(sun8i_aif1_ad0_stereo_mux_enum,
@@ -791,7 +791,7 @@ static const struct snd_kcontrol_new sun8i_aif2_adc_stereo_mux_control =
 		      sun8i_aif2_adc_stereo_mux_enum);
 
 static const char *const sun8i_aif3_adc_mux_enum_values[] = {
-	"None", "AIF2 ADCL", "AIF2 ADCR"
+	"Analne", "AIF2 ADCL", "AIF2 ADCR"
 };
 
 static SOC_ENUM_SINGLE_DECL(sun8i_aif3_adc_mux_enum,
@@ -967,51 +967,51 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			     SUN8I_AIF2_ADCDAT_CTRL_AIF2_ADCR_ENA, 0),
 
 	SND_SOC_DAPM_AIF_OUT_E("AIF3 ADC", "AIF3 Capture", 0,
-			       SND_SOC_NOPM, 0, 0,
+			       SND_SOC_ANALPM, 0, 0,
 			       sun8i_codec_aif_event,
 			       SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	/* AIF "ADC" Mono/Stereo Muxes */
-	SND_SOC_DAPM_MUX("AIF1 AD0L Stereo Mux", SND_SOC_NOPM, 0, 0,
+	/* AIF "ADC" Moanal/Stereo Muxes */
+	SND_SOC_DAPM_MUX("AIF1 AD0L Stereo Mux", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif1_ad0_stereo_mux_control),
-	SND_SOC_DAPM_MUX("AIF1 AD0R Stereo Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF1 AD0R Stereo Mux", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif1_ad0_stereo_mux_control),
 
-	SND_SOC_DAPM_MUX("AIF2 ADCL Stereo Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF2 ADCL Stereo Mux", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif2_adc_stereo_mux_control),
-	SND_SOC_DAPM_MUX("AIF2 ADCR Stereo Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF2 ADCR Stereo Mux", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif2_adc_stereo_mux_control),
 
 	/* AIF "ADC" Output Muxes */
-	SND_SOC_DAPM_MUX("AIF3 ADC Source Capture Route", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF3 ADC Source Capture Route", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif3_adc_mux_control),
 
 	/* AIF "ADC" Mixers */
-	SOC_MIXER_ARRAY("AIF1 AD0L Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("AIF1 AD0L Mixer", SND_SOC_ANALPM, 0, 0,
 			sun8i_aif1_ad0_mixer_controls),
-	SOC_MIXER_ARRAY("AIF1 AD0R Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("AIF1 AD0R Mixer", SND_SOC_ANALPM, 0, 0,
 			sun8i_aif1_ad0_mixer_controls),
 
-	SOC_MIXER_ARRAY("AIF2 ADCL Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("AIF2 ADCL Mixer", SND_SOC_ANALPM, 0, 0,
 			sun8i_aif2_adc_mixer_controls),
-	SOC_MIXER_ARRAY("AIF2 ADCR Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("AIF2 ADCR Mixer", SND_SOC_ANALPM, 0, 0,
 			sun8i_aif2_adc_mixer_controls),
 
 	/* AIF "DAC" Input Muxes */
-	SND_SOC_DAPM_MUX("AIF2 DACL Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF2 DACL Source", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif2_dac_mux_control),
-	SND_SOC_DAPM_MUX("AIF2 DACR Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF2 DACR Source", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif2_dac_mux_control),
 
-	/* AIF "DAC" Mono/Stereo Muxes */
-	SND_SOC_DAPM_MUX("AIF1 DA0L Stereo Mux", SND_SOC_NOPM, 0, 0,
+	/* AIF "DAC" Moanal/Stereo Muxes */
+	SND_SOC_DAPM_MUX("AIF1 DA0L Stereo Mux", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif1_da0_stereo_mux_control),
-	SND_SOC_DAPM_MUX("AIF1 DA0R Stereo Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF1 DA0R Stereo Mux", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif1_da0_stereo_mux_control),
 
-	SND_SOC_DAPM_MUX("AIF2 DACL Stereo Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF2 DACL Stereo Mux", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif2_dac_stereo_mux_control),
-	SND_SOC_DAPM_MUX("AIF2 DACR Stereo Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AIF2 DACR Stereo Mux", SND_SOC_ANALPM, 0, 0,
 			 &sun8i_aif2_dac_stereo_mux_control),
 
 	/* AIF "DAC" Inputs */
@@ -1034,22 +1034,22 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			    SUN8I_AIF2_DACDAT_CTRL_AIF2_DACR_ENA, 0),
 
 	SND_SOC_DAPM_AIF_IN_E("AIF3 DAC", "AIF3 Playback", 0,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      sun8i_codec_aif_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* ADC Inputs (connected to analog codec DAPM context) */
-	SND_SOC_DAPM_ADC("ADCL", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADCR", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADCL", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADCR", NULL, SND_SOC_ANALPM, 0, 0),
 
 	/* DAC Outputs (connected to analog codec DAPM context) */
-	SND_SOC_DAPM_DAC("DACL", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DACR", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACL", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACR", NULL, SND_SOC_ANALPM, 0, 0),
 
 	/* DAC Mixers */
-	SOC_MIXER_ARRAY("DACL Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("DACL Mixer", SND_SOC_ANALPM, 0, 0,
 			sun8i_dac_mixer_controls),
-	SOC_MIXER_ARRAY("DACR Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("DACR Mixer", SND_SOC_ANALPM, 0, 0,
 			sun8i_dac_mixer_controls),
 };
 
@@ -1102,34 +1102,34 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 
 	{ "AIF3 ADC", NULL, "AIF3 ADC Source Capture Route" },
 
-	/* AIF "ADC" Mono/Stereo Mux Routes */
+	/* AIF "ADC" Moanal/Stereo Mux Routes */
 	{ "AIF1 AD0L Stereo Mux", "Stereo", "AIF1 AD0L Mixer" },
 	{ "AIF1 AD0L Stereo Mux", "Reverse Stereo", "AIF1 AD0R Mixer" },
-	{ "AIF1 AD0L Stereo Mux", "Sum Mono", "AIF1 AD0L Mixer" },
-	{ "AIF1 AD0L Stereo Mux", "Sum Mono", "AIF1 AD0R Mixer" },
-	{ "AIF1 AD0L Stereo Mux", "Mix Mono", "AIF1 AD0L Mixer" },
-	{ "AIF1 AD0L Stereo Mux", "Mix Mono", "AIF1 AD0R Mixer" },
+	{ "AIF1 AD0L Stereo Mux", "Sum Moanal", "AIF1 AD0L Mixer" },
+	{ "AIF1 AD0L Stereo Mux", "Sum Moanal", "AIF1 AD0R Mixer" },
+	{ "AIF1 AD0L Stereo Mux", "Mix Moanal", "AIF1 AD0L Mixer" },
+	{ "AIF1 AD0L Stereo Mux", "Mix Moanal", "AIF1 AD0R Mixer" },
 
 	{ "AIF1 AD0R Stereo Mux", "Stereo", "AIF1 AD0R Mixer" },
 	{ "AIF1 AD0R Stereo Mux", "Reverse Stereo", "AIF1 AD0L Mixer" },
-	{ "AIF1 AD0R Stereo Mux", "Sum Mono", "AIF1 AD0L Mixer" },
-	{ "AIF1 AD0R Stereo Mux", "Sum Mono", "AIF1 AD0R Mixer" },
-	{ "AIF1 AD0R Stereo Mux", "Mix Mono", "AIF1 AD0L Mixer" },
-	{ "AIF1 AD0R Stereo Mux", "Mix Mono", "AIF1 AD0R Mixer" },
+	{ "AIF1 AD0R Stereo Mux", "Sum Moanal", "AIF1 AD0L Mixer" },
+	{ "AIF1 AD0R Stereo Mux", "Sum Moanal", "AIF1 AD0R Mixer" },
+	{ "AIF1 AD0R Stereo Mux", "Mix Moanal", "AIF1 AD0L Mixer" },
+	{ "AIF1 AD0R Stereo Mux", "Mix Moanal", "AIF1 AD0R Mixer" },
 
 	{ "AIF2 ADCL Stereo Mux", "Stereo", "AIF2 ADCL Mixer" },
 	{ "AIF2 ADCL Stereo Mux", "Reverse Stereo", "AIF2 ADCR Mixer" },
-	{ "AIF2 ADCL Stereo Mux", "Sum Mono", "AIF2 ADCL Mixer" },
-	{ "AIF2 ADCL Stereo Mux", "Sum Mono", "AIF2 ADCR Mixer" },
-	{ "AIF2 ADCL Stereo Mux", "Mix Mono", "AIF2 ADCL Mixer" },
-	{ "AIF2 ADCL Stereo Mux", "Mix Mono", "AIF2 ADCR Mixer" },
+	{ "AIF2 ADCL Stereo Mux", "Sum Moanal", "AIF2 ADCL Mixer" },
+	{ "AIF2 ADCL Stereo Mux", "Sum Moanal", "AIF2 ADCR Mixer" },
+	{ "AIF2 ADCL Stereo Mux", "Mix Moanal", "AIF2 ADCL Mixer" },
+	{ "AIF2 ADCL Stereo Mux", "Mix Moanal", "AIF2 ADCR Mixer" },
 
 	{ "AIF2 ADCR Stereo Mux", "Stereo", "AIF2 ADCR Mixer" },
 	{ "AIF2 ADCR Stereo Mux", "Reverse Stereo", "AIF2 ADCL Mixer" },
-	{ "AIF2 ADCR Stereo Mux", "Sum Mono", "AIF2 ADCL Mixer" },
-	{ "AIF2 ADCR Stereo Mux", "Sum Mono", "AIF2 ADCR Mixer" },
-	{ "AIF2 ADCR Stereo Mux", "Mix Mono", "AIF2 ADCL Mixer" },
-	{ "AIF2 ADCR Stereo Mux", "Mix Mono", "AIF2 ADCR Mixer" },
+	{ "AIF2 ADCR Stereo Mux", "Sum Moanal", "AIF2 ADCL Mixer" },
+	{ "AIF2 ADCR Stereo Mux", "Sum Moanal", "AIF2 ADCR Mixer" },
+	{ "AIF2 ADCR Stereo Mux", "Mix Moanal", "AIF2 ADCL Mixer" },
+	{ "AIF2 ADCR Stereo Mux", "Mix Moanal", "AIF2 ADCR Mixer" },
 
 	/* AIF "ADC" Output Mux Routes */
 	{ "AIF3 ADC Source Capture Route", "AIF2 ADCL", "AIF2 ADCL Mixer" },
@@ -1163,34 +1163,34 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 	{ "AIF2 DACR Source", "AIF3+2", "AIF2 DACR Stereo Mux" },
 	{ "AIF2 DACR Source", "AIF2+3", "AIF3 DAC" },
 
-	/* AIF "DAC" Mono/Stereo Mux Routes */
+	/* AIF "DAC" Moanal/Stereo Mux Routes */
 	{ "AIF1 DA0L Stereo Mux", "Stereo", "AIF1 DA0L" },
 	{ "AIF1 DA0L Stereo Mux", "Reverse Stereo", "AIF1 DA0R" },
-	{ "AIF1 DA0L Stereo Mux", "Sum Mono", "AIF1 DA0L" },
-	{ "AIF1 DA0L Stereo Mux", "Sum Mono", "AIF1 DA0R" },
-	{ "AIF1 DA0L Stereo Mux", "Mix Mono", "AIF1 DA0L" },
-	{ "AIF1 DA0L Stereo Mux", "Mix Mono", "AIF1 DA0R" },
+	{ "AIF1 DA0L Stereo Mux", "Sum Moanal", "AIF1 DA0L" },
+	{ "AIF1 DA0L Stereo Mux", "Sum Moanal", "AIF1 DA0R" },
+	{ "AIF1 DA0L Stereo Mux", "Mix Moanal", "AIF1 DA0L" },
+	{ "AIF1 DA0L Stereo Mux", "Mix Moanal", "AIF1 DA0R" },
 
 	{ "AIF1 DA0R Stereo Mux", "Stereo", "AIF1 DA0R" },
 	{ "AIF1 DA0R Stereo Mux", "Reverse Stereo", "AIF1 DA0L" },
-	{ "AIF1 DA0R Stereo Mux", "Sum Mono", "AIF1 DA0L" },
-	{ "AIF1 DA0R Stereo Mux", "Sum Mono", "AIF1 DA0R" },
-	{ "AIF1 DA0R Stereo Mux", "Mix Mono", "AIF1 DA0L" },
-	{ "AIF1 DA0R Stereo Mux", "Mix Mono", "AIF1 DA0R" },
+	{ "AIF1 DA0R Stereo Mux", "Sum Moanal", "AIF1 DA0L" },
+	{ "AIF1 DA0R Stereo Mux", "Sum Moanal", "AIF1 DA0R" },
+	{ "AIF1 DA0R Stereo Mux", "Mix Moanal", "AIF1 DA0L" },
+	{ "AIF1 DA0R Stereo Mux", "Mix Moanal", "AIF1 DA0R" },
 
 	{ "AIF2 DACL Stereo Mux", "Stereo", "AIF2 DACL" },
 	{ "AIF2 DACL Stereo Mux", "Reverse Stereo", "AIF2 DACR" },
-	{ "AIF2 DACL Stereo Mux", "Sum Mono", "AIF2 DACL" },
-	{ "AIF2 DACL Stereo Mux", "Sum Mono", "AIF2 DACR" },
-	{ "AIF2 DACL Stereo Mux", "Mix Mono", "AIF2 DACL" },
-	{ "AIF2 DACL Stereo Mux", "Mix Mono", "AIF2 DACR" },
+	{ "AIF2 DACL Stereo Mux", "Sum Moanal", "AIF2 DACL" },
+	{ "AIF2 DACL Stereo Mux", "Sum Moanal", "AIF2 DACR" },
+	{ "AIF2 DACL Stereo Mux", "Mix Moanal", "AIF2 DACL" },
+	{ "AIF2 DACL Stereo Mux", "Mix Moanal", "AIF2 DACR" },
 
 	{ "AIF2 DACR Stereo Mux", "Stereo", "AIF2 DACR" },
 	{ "AIF2 DACR Stereo Mux", "Reverse Stereo", "AIF2 DACL" },
-	{ "AIF2 DACR Stereo Mux", "Sum Mono", "AIF2 DACL" },
-	{ "AIF2 DACR Stereo Mux", "Sum Mono", "AIF2 DACR" },
-	{ "AIF2 DACR Stereo Mux", "Mix Mono", "AIF2 DACL" },
-	{ "AIF2 DACR Stereo Mux", "Mix Mono", "AIF2 DACR" },
+	{ "AIF2 DACR Stereo Mux", "Sum Moanal", "AIF2 DACL" },
+	{ "AIF2 DACR Stereo Mux", "Sum Moanal", "AIF2 DACR" },
+	{ "AIF2 DACR Stereo Mux", "Mix Moanal", "AIF2 DACL" },
+	{ "AIF2 DACR Stereo Mux", "Mix Moanal", "AIF2 DACR" },
 
 	/* DAC Output Routes */
 	{ "DACL", NULL, "DACL Mixer" },
@@ -1208,12 +1208,12 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 
 static const struct snd_soc_dapm_widget sun8i_codec_legacy_widgets[] = {
 	/* Legacy ADC Inputs (connected to analog codec DAPM context) */
-	SND_SOC_DAPM_ADC("AIF1 Slot 0 Left ADC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("AIF1 Slot 0 Right ADC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("AIF1 Slot 0 Left ADC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("AIF1 Slot 0 Right ADC", NULL, SND_SOC_ANALPM, 0, 0),
 
 	/* Legacy DAC Outputs (connected to analog codec DAPM context) */
-	SND_SOC_DAPM_DAC("AIF1 Slot 0 Left", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("AIF1 Slot 0 Right", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("AIF1 Slot 0 Left", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("AIF1 Slot 0 Right", NULL, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route sun8i_codec_legacy_routes[] = {
@@ -1248,7 +1248,7 @@ static int sun8i_codec_component_probe(struct snd_soc_component *component)
 	/*
 	 * AIF1CLK and AIF2CLK share a pair of clock parents: PLL_AUDIO ("mod")
 	 * and MCLK (from the CPU DAI connected to AIF1). MCLK's parent is also
-	 * PLL_AUDIO, so using it adds no additional flexibility. Use PLL_AUDIO
+	 * PLL_AUDIO, so using it adds anal additional flexibility. Use PLL_AUDIO
 	 * directly to simplify the clock tree.
 	 */
 	regmap_update_bits(scodec->regmap, SUN8I_SYSCLK_CTL,
@@ -1297,7 +1297,7 @@ static int sun8i_codec_probe(struct platform_device *pdev)
 
 	scodec = devm_kzalloc(&pdev->dev, sizeof(*scodec), GFP_KERNEL);
 	if (!scodec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scodec->clk_module = devm_clk_get(&pdev->dev, "mod");
 	if (IS_ERR(scodec->clk_module)) {

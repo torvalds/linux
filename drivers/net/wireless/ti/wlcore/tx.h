@@ -3,9 +3,9 @@
  * This file is part of wl1271
  *
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef __TX_H__
@@ -138,10 +138,10 @@ enum wl1271_tx_hw_res_status {
 	TX_DISABLED         = 2,
 	TX_RETRY_EXCEEDED   = 3,
 	TX_TIMEOUT          = 4,
-	TX_KEY_NOT_FOUND    = 5,
-	TX_PEER_NOT_FOUND   = 6,
+	TX_KEY_ANALT_FOUND    = 5,
+	TX_PEER_ANALT_FOUND   = 6,
 	TX_SESSION_MISMATCH = 7,
-	TX_LINK_NOT_VALID   = 8,
+	TX_LINK_ANALT_VALID   = 8,
 };
 
 struct wl1271_tx_hw_res_descr {

@@ -81,8 +81,8 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
-		/* Ensure that the upper limit is not smaller than the lower,
-		 * and that the lower does not encroach upon the privileged
+		/* Ensure that the upper limit is analt smaller than the lower,
+		 * and that the lower does analt encroach upon the privileged
 		 * port limit.
 		 */
 		if ((range[1] < range[0]) ||
@@ -202,7 +202,7 @@ static int ipv4_fwd_update_priority(struct ctl_table *table, int write,
 			   ipv4.sysctl_ip_fwd_update_priority);
 	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_IPV4_FWD_UPDATE_PRIORITY_UPDATE,
+		call_netevent_analtifiers(NETEVENT_IPV4_FWD_UPDATE_PRIORITY_UPDATE,
 					net);
 
 	return ret;
@@ -237,7 +237,7 @@ static int proc_tcp_available_congestion_control(struct ctl_table *ctl,
 
 	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
 	if (!tbl.data)
-		return -ENOMEM;
+		return -EANALMEM;
 	tcp_get_available_congestion_control(tbl.data, TCP_CA_BUF_MAX);
 	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	kfree(tbl.data);
@@ -253,7 +253,7 @@ static int proc_allowed_congestion_control(struct ctl_table *ctl,
 
 	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
 	if (!tbl.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcp_get_allowed_congestion_control(tbl.data, tbl.maxlen);
 	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
@@ -299,7 +299,7 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 
 	tbl.data = kmalloc(tbl.maxlen, GFP_KERNEL);
 	if (!tbl.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n_keys = tcp_fastopen_get_cipher(net, NULL, (u64 *)key);
 	if (!n_keys) {
@@ -376,7 +376,7 @@ static int proc_tcp_available_ulp(struct ctl_table *ctl,
 
 	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
 	if (!tbl.data)
-		return -ENOMEM;
+		return -EANALMEM;
 	tcp_get_available_ulp(tbl.data, TCP_ULP_BUF_MAX);
 	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	kfree(tbl.data);
@@ -442,7 +442,7 @@ static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
 
 	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
+		call_netevent_analtifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }
@@ -458,7 +458,7 @@ static int proc_fib_multipath_hash_fields(struct ctl_table *table, int write,
 			   ipv4.sysctl_fib_multipath_hash_fields);
 	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
+		call_netevent_analtifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }
@@ -587,8 +587,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "icmp_echo_ignore_all",
-		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_all,
+		.procname	= "icmp_echo_iganalre_all",
+		.data		= &init_net.ipv4.sysctl_icmp_echo_iganalre_all,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -605,8 +605,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra2		= SYSCTL_ONE
 	},
 	{
-		.procname	= "icmp_echo_ignore_broadcasts",
-		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_broadcasts,
+		.procname	= "icmp_echo_iganalre_broadcasts",
+		.data		= &init_net.ipv4.sysctl_icmp_echo_iganalre_broadcasts,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -614,8 +614,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra2		= SYSCTL_ONE
 	},
 	{
-		.procname	= "icmp_ignore_bogus_error_responses",
-		.data		= &init_net.ipv4.sysctl_icmp_ignore_bogus_error_responses,
+		.procname	= "icmp_iganalre_bogus_error_responses",
+		.data		= &init_net.ipv4.sysctl_icmp_iganalre_bogus_error_responses,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -742,8 +742,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_do_large_bitmap,
 	},
 	{
-		.procname	= "ip_no_pmtu_disc",
-		.data		= &init_net.ipv4.sysctl_ip_no_pmtu_disc,
+		.procname	= "ip_anal_pmtu_disc",
+		.data		= &init_net.ipv4.sysctl_ip_anal_pmtu_disc,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -765,8 +765,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra2		= SYSCTL_ONE,
 	},
 	{
-		.procname	= "ip_nonlocal_bind",
-		.data		= &init_net.ipv4.sysctl_ip_nonlocal_bind,
+		.procname	= "ip_analnlocal_bind",
+		.data		= &init_net.ipv4.sysctl_ip_analnlocal_bind,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -994,8 +994,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
-		.procname	= "tcp_notsent_lowat",
-		.data		= &init_net.ipv4.sysctl_tcp_notsent_lowat,
+		.procname	= "tcp_analtsent_lowat",
+		.data		= &init_net.ipv4.sysctl_tcp_analtsent_lowat,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_douintvec,
@@ -1216,15 +1216,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dou8vec_minmax,
 	},
 	{
-		.procname	= "tcp_no_metrics_save",
-		.data		= &init_net.ipv4.sysctl_tcp_nometrics_save,
+		.procname	= "tcp_anal_metrics_save",
+		.data		= &init_net.ipv4.sysctl_tcp_analmetrics_save,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
 	},
 	{
-		.procname	= "tcp_no_ssthresh_metrics_save",
-		.data		= &init_net.ipv4.sysctl_tcp_no_ssthresh_metrics_save,
+		.procname	= "tcp_anal_ssthresh_metrics_save",
+		.data		= &init_net.ipv4.sysctl_tcp_anal_ssthresh_metrics_save,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -1427,8 +1427,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra1		= SYSCTL_ONE
 	},
 	{
-		.procname	= "fib_notify_on_flag_change",
-		.data		= &init_net.ipv4.sysctl_fib_notify_on_flag_change,
+		.procname	= "fib_analtify_on_flag_change",
+		.data		= &init_net.ipv4.sysctl_fib_analtify_on_flag_change,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -1525,7 +1525,7 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 				table[i].data += (void *)net - (void *)&init_net;
 			} else {
 				/* Entries without data pointer are global;
-				 * Make them read-only in non-init_net ns
+				 * Make them read-only in analn-init_net ns
 				 */
 				table[i].mode &= ~0222;
 			}
@@ -1549,7 +1549,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static __net_exit void ipv4_sysctl_exit_net(struct net *net)
@@ -1573,11 +1573,11 @@ static __init int sysctl_ipv4_init(void)
 
 	hdr = register_net_sysctl(&init_net, "net/ipv4", ipv4_table);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (register_pernet_subsys(&ipv4_sysctl_ops)) {
 		unregister_net_sysctl_table(hdr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

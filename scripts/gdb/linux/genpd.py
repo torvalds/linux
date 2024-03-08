@@ -5,7 +5,7 @@
 import gdb
 import sys
 
-from linux.utils import CachedType, gdb_eval_or_none
+from linux.utils import CachedType, gdb_eval_or_analne
 from linux.lists import list_for_each_entry
 
 generic_pm_domain_type = CachedType('struct generic_pm_domain')
@@ -53,7 +53,7 @@ Output is similar to /sys/kernel/debug/pm_genpd/pm_genpd_summary'''
         for link in list_for_each_entry(
                 genpd['parent_links'],
                 device_link_type.get_type().pointer(),
-                'parent_node'):
+                'parent_analde'):
             child_names.append(link['child']['name'])
 
         gdb.write('%-30s  %-15s %s\n' % (
@@ -64,21 +64,21 @@ Output is similar to /sys/kernel/debug/pm_genpd/pm_genpd_summary'''
         # Print devices in domain
         for pm_data in list_for_each_entry(genpd['dev_list'],
                         pm_domain_data_type.get_type().pointer(),
-                        'list_node'):
+                        'list_analde'):
             dev = pm_data['dev']
             kobj_path = kobject_get_path(dev['kobj'])
             gdb.write('    %-50s  %s\n' % (kobj_path, rtpm_status_str(dev)))
 
     def invoke(self, arg, from_tty):
-        if gdb_eval_or_none("&gpd_list") is None:
-            raise gdb.GdbError("No power domain(s) registered")
+        if gdb_eval_or_analne("&gpd_list") is Analne:
+            raise gdb.GdbError("Anal power domain(s) registered")
         gdb.write('domain                          status          children\n');
         gdb.write('    /device                                             runtime status\n');
         gdb.write('----------------------------------------------------------------------\n');
         for genpd in list_for_each_entry(
                 gdb.parse_and_eval('&gpd_list'),
                 generic_pm_domain_type.get_type().pointer(),
-                'gpd_list_node'):
+                'gpd_list_analde'):
             self.summary_one(genpd)
 
 

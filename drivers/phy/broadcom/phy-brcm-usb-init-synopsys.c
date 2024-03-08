@@ -3,7 +3,7 @@
 
 /*
  * This module contains USB PHY initialization for power up and S3 resume
- * for newer Synopsys based USB hardware first used on the bcm7216.
+ * for newer Syanalpsys based USB hardware first used on the bcm7216.
  */
 
 #include <linux/delay.h>
@@ -60,7 +60,7 @@
 #define USB_CTRL_CTLR_CSHCR		0x50
 #define   USB_CTRL_CTLR_CSHCR_ctl_pme_en_MASK		BIT(18)
 #define USB_CTRL_P0_U2PHY_CFG1		0x68
-#define   USB_CTRL_P0_U2PHY_CFG1_COMMONONN_MASK		BIT(10)
+#define   USB_CTRL_P0_U2PHY_CFG1_COMMOANALNN_MASK		BIT(10)
 
 /* Register definitions for the USB_PHY block in 7211b0 */
 #define USB_PHY_PLL_CTL			0x00
@@ -81,8 +81,8 @@
 
 /* Register definitions for the MDIO registers in the DWC2 block of
  * the 7211b0.
- * NOTE: The PHY's MDIO registers are only accessible through the
- * legacy DesignWare USB controller even though it's not being used.
+ * ANALTE: The PHY's MDIO registers are only accessible through the
+ * legacy DesignWare USB controller even though it's analt being used.
  */
 #define USB_GMDIOCSR	0
 #define USB_GMDIOGEN	4
@@ -152,7 +152,7 @@ static void xhci_soft_reset(struct brcm_usb_init_params *params,
 	/* De-assert reset */
 	} else {
 		USB_CTRL_SET(ctrl, USB_PM, XHC_SOFT_RESETB);
-		/* Required for COMMONONN to be set */
+		/* Required for COMMOANALNN to be set */
 		USB_XHCI_GBL_UNSET(xhci_gbl, GUSB2PHYCFG, U2_FREECLK_EXISTS);
 	}
 }
@@ -179,7 +179,7 @@ static void usb_init_ipp(struct brcm_usb_init_params *params)
 	brcm_usb_writel(reg, USB_CTRL_REG(ctrl, SETUP));
 
 	/*
-	 * If we're changing IPP, make sure power is off long enough
+	 * If we're changing IPP, make sure power is off long eanalugh
 	 * to turn off any connected devices.
 	 */
 	if ((reg ^ orig_reg) & USB_CTRL_MASK(SETUP, IPP))
@@ -308,7 +308,7 @@ static void usb_init_common_7211b0(struct brcm_usb_init_params *params)
 	}
 
 	/*
-	 * Disable FSM, otherwise the PHY will auto suspend when no
+	 * Disable FSM, otherwise the PHY will auto suspend when anal
 	 * device is connected and will be reset on resume.
 	 */
 	reg = brcm_usb_readl(usb_phy + USB_PHY_UTMI_CTL_1);
@@ -329,7 +329,7 @@ static void usb_init_common_7216(struct brcm_usb_init_params *params)
 	usleep_range(1000, 2000);
 
 	/* Disable PHY when port is suspended */
-	USB_CTRL_SET(ctrl, P0_U2PHY_CFG1, COMMONONN);
+	USB_CTRL_SET(ctrl, P0_U2PHY_CFG1, COMMOANALNN);
 
 	usb_wake_enable_7216(params, false);
 	usb_init_common(params);

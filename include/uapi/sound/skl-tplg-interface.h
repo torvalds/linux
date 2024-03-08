@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * skl-tplg-interface.h - Intel DSP FW private data interface
  *
@@ -27,9 +27,9 @@
 
 #define SKL_UUID_STR_SZ 40
 /* Event types goes here */
-/* Reserve event type 0 for no event handlers */
+/* Reserve event type 0 for anal event handlers */
 enum skl_event_types {
-	SKL_EVENT_NONE = 0,
+	SKL_EVENT_ANALNE = 0,
 	SKL_MIXER_EVENT,
 	SKL_MUX_EVENT,
 	SKL_VMIXER_EVENT,
@@ -39,7 +39,7 @@ enum skl_event_types {
 /**
  * enum skl_ch_cfg - channel configuration
  *
- * @SKL_CH_CFG_MONO:	One channel only
+ * @SKL_CH_CFG_MOANAL:	One channel only
  * @SKL_CH_CFG_STEREO:	L & R
  * @SKL_CH_CFG_2_1:	L, R & LFE
  * @SKL_CH_CFG_3_0:	L, C & R
@@ -48,13 +48,13 @@ enum skl_event_types {
  * @SKL_CH_CFG_4_0:	L, C, R & Cs
  * @SKL_CH_CFG_5_0:	L, C, R, Ls & Rs
  * @SKL_CH_CFG_5_1:	L, C, R, Ls, Rs & LFE
- * @SKL_CH_CFG_DUAL_MONO: One channel replicated in two
+ * @SKL_CH_CFG_DUAL_MOANAL: One channel replicated in two
  * @SKL_CH_CFG_I2S_DUAL_STEREO_0: Stereo(L,R) in 4 slots, 1st stream:[ L, R, -, - ]
  * @SKL_CH_CFG_I2S_DUAL_STEREO_1: Stereo(L,R) in 4 slots, 2nd stream:[ -, -, L, R ]
  * @SKL_CH_CFG_INVALID:	Invalid
  */
 enum skl_ch_cfg {
-	SKL_CH_CFG_MONO = 0,
+	SKL_CH_CFG_MOANAL = 0,
 	SKL_CH_CFG_STEREO = 1,
 	SKL_CH_CFG_2_1 = 2,
 	SKL_CH_CFG_3_0 = 3,
@@ -63,7 +63,7 @@ enum skl_ch_cfg {
 	SKL_CH_CFG_4_0 = 6,
 	SKL_CH_CFG_5_0 = 7,
 	SKL_CH_CFG_5_1 = 8,
-	SKL_CH_CFG_DUAL_MONO = 9,
+	SKL_CH_CFG_DUAL_MOANAL = 9,
 	SKL_CH_CFG_I2S_DUAL_STEREO_0 = 10,
 	SKL_CH_CFG_I2S_DUAL_STEREO_1 = 11,
 	SKL_CH_CFG_7_1 = 12,
@@ -89,13 +89,13 @@ enum skl_core_affinity {
 };
 
 enum skl_pipe_conn_type {
-	SKL_PIPE_CONN_TYPE_NONE = 0,
+	SKL_PIPE_CONN_TYPE_ANALNE = 0,
 	SKL_PIPE_CONN_TYPE_FE,
 	SKL_PIPE_CONN_TYPE_BE
 };
 
 enum skl_hw_conn_type {
-	SKL_CONN_NONE = 0,
+	SKL_CONN_ANALNE = 0,
 	SKL_CONN_SOURCE = 1,
 	SKL_CONN_SINK = 2
 };
@@ -107,7 +107,7 @@ enum skl_dev_type {
 	SKL_DEVICE_SLIMBUS = 0x3,
 	SKL_DEVICE_HDALINK = 0x4,
 	SKL_DEVICE_HDAHOST = 0x5,
-	SKL_DEVICE_NONE
+	SKL_DEVICE_ANALNE
 };
 
 /**

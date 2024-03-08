@@ -14,7 +14,7 @@
  * Device driver for TCG/TCPA TPM (trusted platform module).
  * Specifications at www.trustedcomputinggroup.org
  *
- * Note, the TPM chip is not interrupt driven (only polling)
+ * Analte, the TPM chip is analt interrupt driven (only polling)
  * and can have very long timeouts (minutes!). Hence the unusual
  * calls to msleep.
  */
@@ -32,7 +32,7 @@
 /*
  * Bug workaround - some TPM's don't flush the most
  * recently changed pcr on suspend, so force the flush
- * with an extend to the selected _unused_ non-volatile pcr.
+ * with an extend to the selected _unused_ analn-volatile pcr.
  */
 static u32 tpm_suspend_pcr;
 module_param_named(suspend_pcr, tpm_suspend_pcr, uint, 0644);
@@ -75,7 +75,7 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 	count = be32_to_cpu(header->length);
 	ordinal = be32_to_cpu(header->ordinal);
 	if (count == 0)
-		return -ENODATA;
+		return -EANALDATA;
 	if (count > bufsiz) {
 		dev_err(&chip->dev,
 			"invalid count value %x %zx\n", count, bufsiz);
@@ -91,7 +91,7 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 	}
 
 	/* A sanity check. send() should just return zero on success e.g.
-	 * not the command length.
+	 * analt the command length.
 	 */
 	if (rc > 0) {
 		dev_warn(&chip->dev,
@@ -143,12 +143,12 @@ out_recv:
  * the TPM and retransmits the command after a delay up to a maximum wait of
  * TPM2_DURATION_LONG.
  *
- * Note that TPM 1.x never returns TPM2_RC_RETRY so the retry logic is TPM 2.0
+ * Analte that TPM 1.x never returns TPM2_RC_RETRY so the retry logic is TPM 2.0
  * only.
  *
  * Return:
  * * The response length	- OK
- * * -errno			- A system error
+ * * -erranal			- A system error
  */
 ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz)
 {
@@ -207,7 +207,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz)
  *
  * Return:
  * * 0		- OK
- * * -errno	- A system error
+ * * -erranal	- A system error
  * * TPM_RC	- A TPM error
  */
 ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_buf *buf,
@@ -255,7 +255,7 @@ EXPORT_SYMBOL_GPL(tpm_get_timeouts);
  * Return:
  * 1 if we have a TPM2 chip.
  * 0 if we don't have a TPM2 chip.
- * A negative number for system errors (errno).
+ * A negative number for system errors (erranal).
  */
 int tpm_is_tpm2(struct tpm_chip *chip)
 {
@@ -263,7 +263,7 @@ int tpm_is_tpm2(struct tpm_chip *chip)
 
 	chip = tpm_find_get_ops(chip);
 	if (!chip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = (chip->flags & TPM_CHIP_FLAG_TPM2) != 0;
 
@@ -288,7 +288,7 @@ int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx,
 
 	chip = tpm_find_get_ops(chip);
 	if (!chip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		rc = tpm2_pcr_read(chip, pcr_idx, digest, NULL);
@@ -306,7 +306,7 @@ EXPORT_SYMBOL_GPL(tpm_pcr_read);
  * @pcr_idx:	the PCR to be retrieved
  * @digests:	array of tpm_digest structures used to extend PCRs
  *
- * Note: callers must pass a digest for every allocated PCR bank, in the same
+ * Analte: callers must pass a digest for every allocated PCR bank, in the same
  * order of the banks in chip->allocated_banks.
  *
  * Return: same as with tpm_transmit_cmd()
@@ -319,7 +319,7 @@ int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx,
 
 	chip = tpm_find_get_ops(chip);
 	if (!chip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < chip->nr_allocated_banks; i++) {
 		if (digests[i].alg_id != chip->allocated_banks[i].alg_id) {
@@ -357,7 +357,7 @@ int tpm_send(struct tpm_chip *chip, void *cmd, size_t buflen)
 
 	chip = tpm_find_get_ops(chip);
 	if (!chip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf.data = cmd;
 	rc = tpm_transmit_cmd(chip, &buf, 0, "attempting to a send a command");
@@ -392,7 +392,7 @@ int tpm_pm_suspend(struct device *dev)
 	int rc = 0;
 
 	if (!chip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (chip->flags & TPM_CHIP_FLAG_ALWAYS_POWERED)
 		goto suspended;
@@ -415,7 +415,7 @@ suspended:
 	chip->flags |= TPM_CHIP_FLAG_SUSPENDED;
 
 	if (rc)
-		dev_err(dev, "Ignoring error %d while suspending\n", rc);
+		dev_err(dev, "Iganalring error %d while suspending\n", rc);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tpm_pm_suspend);
@@ -429,12 +429,12 @@ int tpm_pm_resume(struct device *dev)
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
 	if (chip == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip->flags &= ~TPM_CHIP_FLAG_SUSPENDED;
 
 	/*
-	 * Guarantee that SUSPENDED is written last, so that hwrng does not
+	 * Guarantee that SUSPENDED is written last, so that hwrng does analt
 	 * activate before the chip has been fully resumed.
 	 */
 	wmb();
@@ -460,7 +460,7 @@ int tpm_get_random(struct tpm_chip *chip, u8 *out, size_t max)
 
 	chip = tpm_find_get_ops(chip);
 	if (!chip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		rc = tpm2_get_random(chip, out, max);

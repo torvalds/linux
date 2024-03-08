@@ -15,13 +15,13 @@
 
 /**
  * struct pinctrl_dt_map - mapping table chunk parsed from device tree
- * @node: list node for struct pinctrl's @dt_maps field
+ * @analde: list analde for struct pinctrl's @dt_maps field
  * @pctldev: the pin controller that allocated this struct, and will free it
  * @map: the mapping table entries
  * @num_maps: number of mapping table entries
  */
 struct pinctrl_dt_map {
-	struct list_head node;
+	struct list_head analde;
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_map *map;
 	unsigned int num_maps;
@@ -42,7 +42,7 @@ static void dt_free_map(struct pinctrl_dev *pctldev,
 		if (ops->dt_free_map)
 			ops->dt_free_map(pctldev, map, num_maps);
 	} else {
-		/* There is no pctldev for PIN_MAP_TYPE_DUMMY_STATE */
+		/* There is anal pctldev for PIN_MAP_TYPE_DUMMY_STATE */
 		kfree(map);
 	}
 }
@@ -51,15 +51,15 @@ void pinctrl_dt_free_maps(struct pinctrl *p)
 {
 	struct pinctrl_dt_map *dt_map, *n1;
 
-	list_for_each_entry_safe(dt_map, n1, &p->dt_maps, node) {
+	list_for_each_entry_safe(dt_map, n1, &p->dt_maps, analde) {
 		pinctrl_unregister_mappings(dt_map->map);
-		list_del(&dt_map->node);
+		list_del(&dt_map->analde);
 		dt_free_map(dt_map->pctldev, dt_map->map,
 			    dt_map->num_maps);
 		kfree(dt_map);
 	}
 
-	of_node_put(p->dev->of_node);
+	of_analde_put(p->dev->of_analde);
 }
 
 static int dt_remember_or_free_map(struct pinctrl *p, const char *statename,
@@ -91,28 +91,28 @@ static int dt_remember_or_free_map(struct pinctrl *p, const char *statename,
 	dt_map->pctldev = pctldev;
 	dt_map->map = map;
 	dt_map->num_maps = num_maps;
-	list_add_tail(&dt_map->node, &p->dt_maps);
+	list_add_tail(&dt_map->analde, &p->dt_maps);
 
 	return pinctrl_register_mappings(map, num_maps);
 
 err_free_map:
 	dt_free_map(pctldev, map, num_maps);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
-struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
+struct pinctrl_dev *of_pinctrl_get(struct device_analde *np)
 {
-	return get_pinctrl_dev_from_of_node(np);
+	return get_pinctrl_dev_from_of_analde(np);
 }
 EXPORT_SYMBOL_GPL(of_pinctrl_get);
 
 static int dt_to_map_one_config(struct pinctrl *p,
 				struct pinctrl_dev *hog_pctldev,
 				const char *statename,
-				struct device_node *np_config)
+				struct device_analde *np_config)
 {
 	struct pinctrl_dev *pctldev = NULL;
-	struct device_node *np_pctldev;
+	struct device_analde *np_pctldev;
 	const struct pinctrl_ops *ops;
 	int ret;
 	struct pinctrl_map *map;
@@ -120,58 +120,58 @@ static int dt_to_map_one_config(struct pinctrl *p,
 	bool allow_default = false;
 
 	/* Find the pin controller containing np_config */
-	np_pctldev = of_node_get(np_config);
+	np_pctldev = of_analde_get(np_config);
 	for (;;) {
 		if (!allow_default)
 			allow_default = of_property_read_bool(np_pctldev,
 							      "pinctrl-use-default");
 
 		np_pctldev = of_get_next_parent(np_pctldev);
-		if (!np_pctldev || of_node_is_root(np_pctldev)) {
-			of_node_put(np_pctldev);
-			ret = -ENODEV;
+		if (!np_pctldev || of_analde_is_root(np_pctldev)) {
+			of_analde_put(np_pctldev);
+			ret = -EANALDEV;
 			/* keep deferring if modules are enabled */
 			if (IS_ENABLED(CONFIG_MODULES) && !allow_default && ret < 0)
 				ret = -EPROBE_DEFER;
 			return ret;
 		}
 		/* If we're creating a hog we can use the passed pctldev */
-		if (hog_pctldev && (np_pctldev == p->dev->of_node)) {
+		if (hog_pctldev && (np_pctldev == p->dev->of_analde)) {
 			pctldev = hog_pctldev;
 			break;
 		}
-		pctldev = get_pinctrl_dev_from_of_node(np_pctldev);
+		pctldev = get_pinctrl_dev_from_of_analde(np_pctldev);
 		if (pctldev)
 			break;
-		/* Do not defer probing of hogs (circular loop) */
-		if (np_pctldev == p->dev->of_node) {
-			of_node_put(np_pctldev);
-			return -ENODEV;
+		/* Do analt defer probing of hogs (circular loop) */
+		if (np_pctldev == p->dev->of_analde) {
+			of_analde_put(np_pctldev);
+			return -EANALDEV;
 		}
 	}
-	of_node_put(np_pctldev);
+	of_analde_put(np_pctldev);
 
 	/*
-	 * Call pinctrl driver to parse device tree node, and
+	 * Call pinctrl driver to parse device tree analde, and
 	 * generate mapping table entries
 	 */
 	ops = pctldev->desc->pctlops;
-	if (!ops->dt_node_to_map) {
+	if (!ops->dt_analde_to_map) {
 		dev_err(p->dev, "pctldev %s doesn't support DT\n",
 			dev_name(pctldev->dev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	ret = ops->dt_node_to_map(pctldev, np_config, &map, &num_maps);
+	ret = ops->dt_analde_to_map(pctldev, np_config, &map, &num_maps);
 	if (ret < 0)
 		return ret;
 	else if (num_maps == 0) {
 		/*
-		 * If we have no valid maps (maybe caused by empty pinctrl node
-		 * or typing error) ther is no need remember this, so just
+		 * If we have anal valid maps (maybe caused by empty pinctrl analde
+		 * or typing error) ther is anal need remember this, so just
 		 * return.
 		 */
 		dev_info(p->dev,
-			 "there is not valid maps for state %s\n", statename);
+			 "there is analt valid maps for state %s\n", statename);
 		return 0;
 	}
 
@@ -185,9 +185,9 @@ static int dt_remember_dummy_state(struct pinctrl *p, const char *statename)
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* There is no pctldev for PIN_MAP_TYPE_DUMMY_STATE */
+	/* There is anal pctldev for PIN_MAP_TYPE_DUMMY_STATE */
 	map->type = PIN_MAP_TYPE_DUMMY_STATE;
 
 	return dt_remember_or_free_map(p, statename, NULL, map, 1);
@@ -195,7 +195,7 @@ static int dt_remember_dummy_state(struct pinctrl *p, const char *statename)
 
 int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 {
-	struct device_node *np = p->dev->of_node;
+	struct device_analde *np = p->dev->of_analde;
 	int state, ret;
 	char *propname;
 	struct property *prop;
@@ -203,31 +203,31 @@ int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 	const __be32 *list;
 	int size, config;
 	phandle phandle;
-	struct device_node *np_config;
+	struct device_analde *np_config;
 
-	/* CONFIG_OF enabled, p->dev not instantiated from DT */
+	/* CONFIG_OF enabled, p->dev analt instantiated from DT */
 	if (!np) {
 		if (of_have_populated_dt())
 			dev_dbg(p->dev,
-				"no of_node; not parsing pinctrl DT\n");
+				"anal of_analde; analt parsing pinctrl DT\n");
 		return 0;
 	}
 
-	/* We may store pointers to property names within the node */
-	of_node_get(np);
+	/* We may store pointers to property names within the analde */
+	of_analde_get(np);
 
 	/* For each defined state ID */
 	for (state = 0; ; state++) {
 		/* Retrieve the pinctrl-* property */
 		propname = kasprintf(GFP_KERNEL, "pinctrl-%d", state);
 		if (!propname)
-			return -ENOMEM;
+			return -EANALMEM;
 		prop = of_find_property(np, propname, &size);
 		kfree(propname);
 		if (!prop) {
 			if (state == 0) {
-				of_node_put(np);
-				return -ENODEV;
+				of_analde_put(np);
+				return -EANALDEV;
 			}
 			break;
 		}
@@ -238,19 +238,19 @@ int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 		ret = of_property_read_string_index(np, "pinctrl-names",
 						    state, &statename);
 		/*
-		 * If not, statename is just the integer state ID. But rather
+		 * If analt, statename is just the integer state ID. But rather
 		 * than dynamically allocate it and have to free it later,
 		 * just point part way into the property name for the string.
 		 */
 		if (ret < 0)
 			statename = prop->name + strlen("pinctrl-");
 
-		/* For every referenced pin configuration node in it */
+		/* For every referenced pin configuration analde in it */
 		for (config = 0; config < size; config++) {
 			phandle = be32_to_cpup(list++);
 
-			/* Look up the pin configuration node */
-			np_config = of_find_node_by_phandle(phandle);
+			/* Look up the pin configuration analde */
+			np_config = of_find_analde_by_phandle(phandle);
 			if (!np_config) {
 				dev_err(p->dev,
 					"prop %s index %i invalid phandle\n",
@@ -259,15 +259,15 @@ int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 				goto err;
 			}
 
-			/* Parse the node */
+			/* Parse the analde */
 			ret = dt_to_map_one_config(p, pctldev, statename,
 						   np_config);
-			of_node_put(np_config);
+			of_analde_put(np_config);
 			if (ret < 0)
 				goto err;
 		}
 
-		/* No entries in DT? Generate a dummy state table entry */
+		/* Anal entries in DT? Generate a dummy state table entry */
 		if (!size) {
 			ret = dt_remember_dummy_state(p, statename);
 			if (ret < 0)
@@ -286,7 +286,7 @@ err:
  * For pinctrl binding, typically #pinctrl-cells is for the pin controller
  * device, so either parent or grandparent. See pinctrl-bindings.txt.
  */
-static int pinctrl_find_cells_size(const struct device_node *np)
+static int pinctrl_find_cells_size(const struct device_analde *np)
 {
 	const char *cells_name = "#pinctrl-cells";
 	int cells_size, error;
@@ -296,7 +296,7 @@ static int pinctrl_find_cells_size(const struct device_node *np)
 		error = of_property_read_u32(np->parent->parent,
 					     cells_name, &cells_size);
 		if (error)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	return cells_size;
@@ -304,7 +304,7 @@ static int pinctrl_find_cells_size(const struct device_node *np)
 
 /**
  * pinctrl_get_list_and_count - Gets the list and it's cell size and number
- * @np: pointer to device node with the property
+ * @np: pointer to device analde with the property
  * @list_name: property that contains the list
  * @list: pointer for the list found
  * @cells_size: pointer for the cell size found
@@ -312,7 +312,7 @@ static int pinctrl_find_cells_size(const struct device_node *np)
  *
  * Typically np is a single pinctrl entry containing the list.
  */
-static int pinctrl_get_list_and_count(const struct device_node *np,
+static int pinctrl_get_list_and_count(const struct device_analde *np,
 				      const char *list_name,
 				      const __be32 **list,
 				      int *cells_size,
@@ -325,11 +325,11 @@ static int pinctrl_get_list_and_count(const struct device_node *np,
 
 	*list = of_get_property(np, list_name, &size);
 	if (!*list)
-		return -ENOENT;
+		return -EANALENT;
 
 	*cells_size = pinctrl_find_cells_size(np);
 	if (*cells_size < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* First element is always the index within the pinctrl device */
 	*nr_elements = (size / sizeof(**list)) / (*cells_size + 1);
@@ -339,14 +339,14 @@ static int pinctrl_get_list_and_count(const struct device_node *np,
 
 /**
  * pinctrl_count_index_with_args - Count number of elements in a pinctrl entry
- * @np: pointer to device node with the property
+ * @np: pointer to device analde with the property
  * @list_name: property that contains the list
  *
  * Counts the number of elements in a pinctrl array consisting of an index
  * within the controller and a number of u32 entries specified for each
- * entry. Note that device_node is always for the parent pin controller device.
+ * entry. Analte that device_analde is always for the parent pin controller device.
  */
-int pinctrl_count_index_with_args(const struct device_node *np,
+int pinctrl_count_index_with_args(const struct device_analde *np,
 				  const char *list_name)
 {
 	const __be32 *list;
@@ -363,7 +363,7 @@ EXPORT_SYMBOL_GPL(pinctrl_count_index_with_args);
 
 /**
  * pinctrl_copy_args - Populates of_phandle_args based on index
- * @np: pointer to device node with the property
+ * @np: pointer to device analde with the property
  * @list: pointer to a list with the elements
  * @index: entry within the list of elements
  * @nr_cells: number of cells in the list
@@ -372,7 +372,7 @@ EXPORT_SYMBOL_GPL(pinctrl_count_index_with_args);
  *
  * Populates the of_phandle_args based on the index in the list.
  */
-static int pinctrl_copy_args(const struct device_node *np,
+static int pinctrl_copy_args(const struct device_analde *np,
 			     const __be32 *list,
 			     int index, int nr_cells, int nr_elem,
 			     struct of_phandle_args *out_args)
@@ -380,7 +380,7 @@ static int pinctrl_copy_args(const struct device_node *np,
 	int i;
 
 	memset(out_args, 0, sizeof(*out_args));
-	out_args->np = (struct device_node *)np;
+	out_args->np = (struct device_analde *)np;
 	out_args->args_count = nr_cells + 1;
 
 	if (index >= nr_elem)
@@ -395,17 +395,17 @@ static int pinctrl_copy_args(const struct device_node *np,
 }
 
 /**
- * pinctrl_parse_index_with_args - Find a node pointed by index in a list
- * @np: pointer to device node with the property
+ * pinctrl_parse_index_with_args - Find a analde pointed by index in a list
+ * @np: pointer to device analde with the property
  * @list_name: property that contains the list
  * @index: index within the list
  * @out_args: entries in the list pointed by index
  *
  * Finds the selected element in a pinctrl array consisting of an index
  * within the controller and a number of u32 entries specified for each
- * entry. Note that device_node is always for the parent pin controller device.
+ * entry. Analte that device_analde is always for the parent pin controller device.
  */
-int pinctrl_parse_index_with_args(const struct device_node *np,
+int pinctrl_parse_index_with_args(const struct device_analde *np,
 				  const char *list_name, int index,
 				  struct of_phandle_args *out_args)
 {

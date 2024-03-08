@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
  * Copyright (C) 2022 Red Hat, Inc.
- * Author: Vladis Dronov <vdronoff@gmail.com>
+ * Author: Vladis Droanalv <vdroanalff@gmail.com>
  */
 
 #include <asm/elf.h>
@@ -134,14 +134,14 @@ static int test_skcipher(char *name, u8 *revert, u8 *cipher, u8 *plain)
 
 	skcipher = crypto_alloc_skcipher(name, 0, 0);
 	if (IS_ERR(skcipher)) {
-		pr_info("could not allocate skcipher %s handle\n", name);
+		pr_info("could analt allocate skcipher %s handle\n", name);
 		return PTR_ERR(skcipher);
 	}
 
 	req = skcipher_request_alloc(skcipher, GFP_KERNEL);
 	if (!req) {
-		pr_info("could not allocate skcipher request\n");
-		ret = -ENOMEM;
+		pr_info("could analt allocate skcipher request\n");
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -153,7 +153,7 @@ static int test_skcipher(char *name, u8 *revert, u8 *cipher, u8 *plain)
 	memset(iv, 'I', sizeof(iv));
 
 	if (crypto_skcipher_setkey(skcipher, key, 32)) {
-		pr_info("key could not be set\n");
+		pr_info("key could analt be set\n");
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -245,7 +245,7 @@ static int __init chacha_s390_test_init(void)
 	/* Allocate and fill buffers */
 	plain = vmalloc(data_size);
 	if (!plain) {
-		pr_info("could not allocate plain buffer\n");
+		pr_info("could analt allocate plain buffer\n");
 		ret = -2;
 		goto out;
 	}
@@ -254,21 +254,21 @@ static int __init chacha_s390_test_init(void)
 
 	cipher_generic = vzalloc(data_size);
 	if (!cipher_generic) {
-		pr_info("could not allocate cipher_generic buffer\n");
+		pr_info("could analt allocate cipher_generic buffer\n");
 		ret = -2;
 		goto out;
 	}
 
 	cipher_s390 = vzalloc(data_size);
 	if (!cipher_s390) {
-		pr_info("could not allocate cipher_s390 buffer\n");
+		pr_info("could analt allocate cipher_s390 buffer\n");
 		ret = -2;
 		goto out;
 	}
 
 	revert = vzalloc(data_size);
 	if (!revert) {
-		pr_info("could not allocate revert buffer\n");
+		pr_info("could analt allocate revert buffer\n");
 		ret = -2;
 		goto out;
 	}
@@ -365,5 +365,5 @@ module_init(chacha_s390_test_init);
 module_exit(chacha_s390_test_exit);
 
 MODULE_DESCRIPTION("s390 ChaCha20 self-test");
-MODULE_AUTHOR("Vladis Dronov <vdronoff@gmail.com>");
+MODULE_AUTHOR("Vladis Droanalv <vdroanalff@gmail.com>");
 MODULE_LICENSE("GPL v2");

@@ -3,7 +3,7 @@
  * Generic MMIO clocksource support
  */
 #include <linux/clocksource.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 
@@ -57,7 +57,7 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
 
 	cs = kzalloc(sizeof(struct clocksource_mmio), GFP_KERNEL);
 	if (!cs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs->reg = base;
 	cs->clksrc.name = name;

@@ -395,8 +395,8 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 		struct of_regulator_match **tps6586x_reg_matches)
 {
 	const unsigned int num = ARRAY_SIZE(tps6586x_matches);
-	struct device_node *np = pdev->dev.parent->of_node;
-	struct device_node *regs;
+	struct device_analde *np = pdev->dev.parent->of_analde;
+	struct device_analde *regs;
 	const char *sys_rail = NULL;
 	unsigned int i;
 	struct tps6586x_platform_data *pdata;
@@ -404,12 +404,12 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 
 	regs = of_get_child_by_name(np, "regulators");
 	if (!regs) {
-		dev_err(&pdev->dev, "regulator node not found\n");
+		dev_err(&pdev->dev, "regulator analde analt found\n");
 		return NULL;
 	}
 
 	err = of_regulator_match(&pdev->dev, regs, tps6586x_matches, num);
-	of_node_put(regs);
+	of_analde_put(regs);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Regulator match failed, e %d\n", err);
 		return NULL;
@@ -460,13 +460,13 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Probing regulator\n");
 
 	pdata = dev_get_platdata(pdev->dev.parent);
-	if ((!pdata) && (pdev->dev.parent->of_node))
+	if ((!pdata) && (pdev->dev.parent->of_analde))
 		pdata = tps6586x_parse_regulator_dt(pdev,
 					&tps6586x_reg_matches);
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "Platform data not available, exiting\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Platform data analt available, exiting\n");
+		return -EANALDEV;
 	}
 
 	version = tps6586x_get_version(pdev->dev.parent);
@@ -493,7 +493,7 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 		config.driver_data = ri;
 
 		if (tps6586x_reg_matches)
-			config.of_node = tps6586x_reg_matches[id].of_node;
+			config.of_analde = tps6586x_reg_matches[id].of_analde;
 
 		rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
 		if (IS_ERR(rdev)) {
@@ -520,7 +520,7 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps6586x_regulator_driver = {
 	.driver	= {
 		.name	= "tps6586x-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= tps6586x_regulator_probe,
 };

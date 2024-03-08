@@ -20,7 +20,7 @@ enum {
 	TEST_ALLOC_ROOT,
 	TEST_ALLOC_EXTENT_BUFFER,
 	TEST_ALLOC_PATH,
-	TEST_ALLOC_INODE,
+	TEST_ALLOC_IANALDE,
 	TEST_ALLOC_BLOCK_GROUP,
 	TEST_ALLOC_EXTENT_MAP,
 	TEST_ALLOC_CHUNK_MAP,
@@ -31,15 +31,15 @@ extern const char *test_error[];
 struct btrfs_root;
 struct btrfs_trans_handle;
 
-int btrfs_test_extent_buffer_operations(u32 sectorsize, u32 nodesize);
-int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize);
-int btrfs_test_extent_io(u32 sectorsize, u32 nodesize);
-int btrfs_test_inodes(u32 sectorsize, u32 nodesize);
-int btrfs_test_qgroups(u32 sectorsize, u32 nodesize);
-int btrfs_test_free_space_tree(u32 sectorsize, u32 nodesize);
+int btrfs_test_extent_buffer_operations(u32 sectorsize, u32 analdesize);
+int btrfs_test_free_space_cache(u32 sectorsize, u32 analdesize);
+int btrfs_test_extent_io(u32 sectorsize, u32 analdesize);
+int btrfs_test_ianaldes(u32 sectorsize, u32 analdesize);
+int btrfs_test_qgroups(u32 sectorsize, u32 analdesize);
+int btrfs_test_free_space_tree(u32 sectorsize, u32 analdesize);
 int btrfs_test_extent_map(void);
-struct inode *btrfs_new_test_inode(void);
-struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize);
+struct ianalde *btrfs_new_test_ianalde(void);
+struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 analdesize, u32 sectorsize);
 void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info);
 void btrfs_free_dummy_root(struct btrfs_root *root);
 struct btrfs_block_group *

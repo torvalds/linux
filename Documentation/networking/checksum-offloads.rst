@@ -11,7 +11,7 @@ Introduction
 This document describes a set of techniques in the Linux networking stack to
 take advantage of checksum offload capabilities of various NICs.
 
-The following technologies are described:
+The following techanallogies are described:
 
 * TX Checksum Offload
 * LCO: Local Checksum Offload
@@ -35,21 +35,21 @@ The device should compute the 16-bit ones-complement checksum (i.e. the
 'IP-style' checksum) from csum_start to the end of the packet, and fill in the
 result at (csum_start + csum_offset).
 
-Because csum_offset cannot be negative, this ensures that the previous value of
+Because csum_offset cananalt be negative, this ensures that the previous value of
 the checksum field is included in the checksum computation, thus it can be used
 to supply any needed corrections to the checksum (such as the sum of the
 pseudo-header for UDP or TCP).
 
 This interface only allows a single checksum to be offloaded.  Where
 encapsulation is used, the packet may have multiple checksum fields in
-different header layers, and the rest will have to be handled by another
+different header layers, and the rest will have to be handled by aanalther
 mechanism such as LCO or RCO.
 
 CRC32c can also be offloaded using this interface, by means of filling
 skb->csum_start and skb->csum_offset as described above, and setting
-skb->csum_not_inet: see skbuff.h comment (section 'D') for more details.
+skb->csum_analt_inet: see skbuff.h comment (section 'D') for more details.
 
-No offloading of the IP header checksum is performed; it is always done in
+Anal offloading of the IP header checksum is performed; it is always done in
 software.  This is OK because when we build the IP header, we obviously have it
 in cache, so summing it isn't expensive.  It's also rather short.
 
@@ -59,11 +59,11 @@ recomputed for each resulting segment.  See the skbuff.h comment (section 'E')
 for more details.
 
 A driver declares its offload capabilities in netdev->hw_features; see
-Documentation/networking/netdev-features.rst for more.  Note that a device
+Documentation/networking/netdev-features.rst for more.  Analte that a device
 which only advertises NETIF_F_IP[V6]_CSUM must still obey the csum_start and
 csum_offset given in the SKB; if it tries to deduce these itself in hardware
 (as some NICs do) the driver should check that the values in the SKB match
-those which the hardware will deduce, and if not, fall back to checksumming in
+those which the hardware will deduce, and if analt, fall back to checksumming in
 software instead (with skb_csum_hwoffload_help() or one of the
 skb_checksum_help() / skb_crc32c_csum_help functions, as mentioned in
 include/linux/skbuff.h).
@@ -72,7 +72,7 @@ The stack should, for the most part, assume that checksum offload is supported
 by the underlying device.  The only place that should check is
 validate_xmit_skb(), and the functions it calls directly or indirectly.  That
 function compares the offload features requested by the SKB (which may include
-other offloads besides TX Checksum Offload) and, if they are not supported or
+other offloads besides TX Checksum Offload) and, if they are analt supported or
 enabled on the device (determined by netdev->features), performs the
 corresponding offload in software.  In the case of TX Checksum Offload, that
 means calling skb_csum_hwoffload_help(skb, features).
@@ -93,7 +93,7 @@ More generally, this holds in any case where the 'IP-style' ones complement
 checksum is used, and thus any checksum that TX Checksum Offload supports.
 
 That is, if we have set up TX Checksum Offload with a start/offset pair, we
-know that after the device has filled in that checksum, the ones complement sum
+kanalw that after the device has filled in that checksum, the ones complement sum
 from csum_start to the end of the packet will be equal to the complement of
 whatever value we put in the checksum field beforehand.  This allows us to
 compute the outer checksum without looking at the payload: we simply stop
@@ -109,7 +109,7 @@ encapsulation such as VXLAN or GENEVE, in udp_set_csum().  Similarly for the
 IPv6 equivalents, in udp6_set_csum().
 
 It is also performed when constructing an IPv4 GRE header, in
-net/ipv4/ip_gre.c:build_header().  It is *not* currently performed when
+net/ipv4/ip_gre.c:build_header().  It is *analt* currently performed when
 constructing an IPv6 GRE header; the GRE checksum is computed over the whole
 packet in net/ipv6/ip6_gre.c:ip6gre_xmit2(), but it should be possible to use
 LCO here as IPv6 GRE still uses an IP-style checksum.

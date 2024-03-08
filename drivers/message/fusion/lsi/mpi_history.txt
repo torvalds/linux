@@ -33,7 +33,7 @@
 mpi.h
  *  05-08-00  00.10.01  Original release for 0.10 spec dated 4/26/2000.
  *  05-24-00  00.10.02  Added MPI_IOCSTATUS_SCSI_RESIDUAL_MISMATCH definition.
- *  06-06-00  01.00.01  Update MPI_VERSION_MAJOR and MPI_VERSION_MINOR.
+ *  06-06-00  01.00.01  Update MPI_VERSION_MAJOR and MPI_VERSION_MIANALR.
  *  06-22-00  01.00.02  Added MPI_IOCSTATUS_LAN_ definitions.
  *                      Removed LAN_SUSPEND function definition.
  *                      Added MPI_MSGFLAGS_CONTINUATION_REPLY definition.
@@ -46,8 +46,8 @@ mpi.h
  *  11-02-00  01.01.01  Original release for post 1.0 work
  *  12-04-00  01.01.02  Added new function codes.
  *  01-09-01  01.01.03  Added more definitions to the system interface section
- *                      Added MPI_IOCSTATUS_TARGET_STS_DATA_NOT_SENT.
- *  01-25-01  01.01.04  Changed MPI_VERSION_MINOR from 0x00 to 0x01.
+ *                      Added MPI_IOCSTATUS_TARGET_STS_DATA_ANALT_SENT.
+ *  01-25-01  01.01.04  Changed MPI_VERSION_MIANALR from 0x00 to 0x01.
  *  02-20-01  01.01.05  Started using MPI_POINTER.
  *                      Added defines for MPI_DIAG_PREVENT_IOC_BOOT and
  *                      MPI_DIAG_CLEAR_FLASH_BAD_SIG.
@@ -57,7 +57,7 @@ mpi.h
  *  04-09-01  01.01.07  Added alternate define for MPI_DOORBELL_ACTIVE,
  *                      MPI_DOORBELL_USED, to better match the spec.
  *  08-08-01  01.02.01  Original release for v1.2 work.
- *                      Changed MPI_VERSION_MINOR from 0x01 to 0x02.
+ *                      Changed MPI_VERSION_MIANALR from 0x01 to 0x02.
  *                      Added define MPI_FUNCTION_TOOLBOX.
  *  09-28-01  01.02.02  New function code MPI_SCSI_ENCLOSURE_PROCESSOR.
  *  11-01-01  01.02.03  Changed name to MPI_FUNCTION_SCSI_ENCLOSURE_PROCESSOR.
@@ -72,9 +72,9 @@ mpi.h
  *  01-16-04  01.02.11  Added define for MPI_IOCLOGINFO_TYPE_SHIFT.
  *  04-29-04  01.02.12  Added function codes for MPI_FUNCTION_DIAG_BUFFER_POST
  *                      and MPI_FUNCTION_DIAG_RELEASE.
- *                      Added MPI_IOCSTATUS_DIAGNOSTIC_RELEASED define.
+ *                      Added MPI_IOCSTATUS_DIAGANALSTIC_RELEASED define.
  *                      Bumped MPI_HEADER_VERSION_UNIT value.
- *  05-11-04  01.03.01  Bumped MPI_VERSION_MINOR for MPI v1.3.
+ *  05-11-04  01.03.01  Bumped MPI_VERSION_MIANALR for MPI v1.3.
  *                      Added codes for Inband.
  *  08-19-04  01.05.01  Added defines for Host Buffer Access Control doorbell.
  *                      Added define for offset of High Priority Request Queue.
@@ -190,12 +190,12 @@ mpi_ioc.h
  *  10-11-06  01.05.12  Added MPI_IOCFACTS_EXCEPT_METADATA_UNSUPPORTED.
  *                      Added MaxInitiators field to PortFacts reply.
  *                      Added SAS Device Status Change ReasonCode for
- *                      asynchronous notification.
+ *                      asynchroanalus analtification.
  *                      Added MPI_EVENT_SAS_EXPANDER_STATUS_CHANGE and event
  *                      data structure.
  *                      Added new ImageType values for FWDownload and FWUpload
  *                      requests.
- *  02-28-07  01.05.13  Added MPI_EVENT_PRIMITIVE_ASYNCHRONOUS_EVENT for SAS
+ *  02-28-07  01.05.13  Added MPI_EVENT_PRIMITIVE_ASYNCHROANALUS_EVENT for SAS
  *                      Broadcast Event Data (replacing _RESERVED2).
  *                      For Discovery Error Event Data DiscoveryStatus field,
  *                      replaced _MULTPL_PATHS with _UNSUPPORTED_DEVICE and
@@ -244,7 +244,7 @@ mpi_cnfg.h
  *  12-04-00  01.01.03  Config page changes to match MPI rev 1.00.01.
  *  12-05-00  01.01.04  Modified config page actions.
  *  01-09-01  01.01.05  Added defines for page address formats.
- *                      Data size for Manufacturing pages 2 and 3 no longer
+ *                      Data size for Manufacturing pages 2 and 3 anal longer
  *                      defined here.
  *                      Io Unit Page 2 size is fixed at 4 adapters and some
  *                      flags were changed.
@@ -262,7 +262,7 @@ mpi_cnfg.h
  *                      Added definitions and structures for IOC Page 2 and
  *                      RAID Volume Page 2.
  *  03-27-01  01.01.10  Added CONFIG_PAGE_FC_PORT_8 and CONFIG_PAGE_FC_PORT_9.
- *                      CONFIG_PAGE_FC_PORT_3 now supports persistent by DID.
+ *                      CONFIG_PAGE_FC_PORT_3 analw supports persistent by DID.
  *                      Added VendorId and ProductRevLevel fields to
  *                      RAIDVOL2_IM_PHYS_ID struct.
  *                      Modified values for MPI_FCPORTPAGE0_FLAGS_ATTACH_
@@ -484,15 +484,15 @@ mpi_cnfg.h
  *                      CapabilitiesFlags field of IOC Page 6.
  *                      Added defines for metadata size bits in VolumeSettings
  *                      field of RAID Volume Page 0.
- *                      Added SATA Link Reset settings, Enable SATA Asynchronous
- *                      Notification bit, and HideNonZeroAttachedPhyIdentifiers
+ *                      Added SATA Link Reset settings, Enable SATA Asynchroanalus
+ *                      Analtification bit, and HideAnalnZeroAttachedPhyIdentifiers
  *                      bit to AdditionalControlFlags field of SAS IO Unit
  *                      Page 1.
  *                      Added defines for Enclosure Devices Unmapped and
  *                      Device Limit Exceeded bits in Status field of SAS IO
  *                      Unit Page 2.
  *                      Added more AccessStatus values for SAS Device Page 0.
- *                      Added bit for SATA Asynchronous Notification Support in
+ *                      Added bit for SATA Asynchroanalus Analtification Support in
  *                      Flags field of SAS Device Page 0.
  *  02-28-07  01.05.14  Added ExtFlags field to Manufacturing Page 4.
  *                      Added Disable SMART Polling for CapabilitiesFlags of
@@ -503,7 +503,7 @@ mpi_cnfg.h
  *                      of SAS IO Unit Page.
  *                      Added Multi-Port Domain Illegal flag for SAS IO Unit
  *                      Page 1 AdditionalControlFlags field.
- *  05-24-07  01.05.15  Added Hide Physical Disks with Non-Integrated RAID
+ *  05-24-07  01.05.15  Added Hide Physical Disks with Analn-Integrated RAID
  *                      Metadata bit to Manufacturing Page 4 ExtFlags field.
  *                      Added Internal Connector to End Device Present bit to
  *                      Expander Page 0 Flags field.
@@ -531,7 +531,7 @@ mpi_init.h
  *  06-06-00  01.00.01  Update version number for 1.0 release.
  *  06-08-00  01.00.02  Added MPI_SCSI_RSP_INFO_ definitions.
  *  11-02-00  01.01.01  Original release for post 1.0 work
- *  12-04-00  01.01.02  Added MPI_SCSIIO_CONTROL_NO_DISCONNECT.
+ *  12-04-00  01.01.02  Added MPI_SCSIIO_CONTROL_ANAL_DISCONNECT.
  *  02-20-01  01.01.03  Started using MPI_POINTER.
  *  03-27-01  01.01.04  Added structure offset comments.
  *  04-10-01  01.01.05  Added new MsgFlag for MSG_SCSI_TASK_MGMT.
@@ -568,7 +568,7 @@ mpi_init.h
  *  03-27-06  01.05.07  Added Task Management type of Clear ACA.
  *  10-11-06  01.05.08  Shortened define for Task Management type of Clear ACA.
  *  02-28-07  01.05.09  Defined two new MsgFlags bits for SCSI Task Management
- *                      Request: Do Not Send Task IU and Soft Reset Option.
+ *                      Request: Do Analt Send Task IU and Soft Reset Option.
  *  --------------------------------------------------------------------------
 
 mpi_targ.h
@@ -632,7 +632,7 @@ mpi_fc.h
  *                      Added MPI_FC_PRIM_SEND_FLAGS_STOP_SEND.
  *  02-20-01  01.01.05  Started using MPI_POINTER.
  *  03-27-01  01.01.06  Added Flags field to MSG_LINK_SERVICE_BUFFER_POST_REPLY
- *                      and defined MPI_LS_BUF_POST_REPLY_FLAG_NO_RSP_NEEDED.
+ *                      and defined MPI_LS_BUF_POST_REPLY_FLAG_ANAL_RSP_NEEDED.
  *                      Added MPI_FC_PRIM_SEND_FLAGS_RESET_LINK define.
  *                      Added structure offset comments.
  *  04-09-01  01.01.07  Added RspLength field to MSG_LINK_SERVICE_RSP_REQUEST.
@@ -673,7 +673,7 @@ mpi_raid.h
  *  09-28-01  01.02.02  Major rework for MPI v1.2 Integrated RAID changes.
  *  10-04-01  01.02.03  Added ActionData defines for
  *                      MPI_RAID_ACTION_DELETE_VOLUME action.
- *  11-01-01  01.02.04  Added define for MPI_RAID_ACTION_ADATA_DO_NOT_SYNC.
+ *  11-01-01  01.02.04  Added define for MPI_RAID_ACTION_ADATA_DO_ANALT_SYNC.
  *  03-14-02  01.02.05  Added define for MPI_RAID_ACTION_ADATA_LOW_LEVEL_INIT.
  *  05-07-02  01.02.06  Added define for MPI_RAID_ACTION_ACTIVATE_VOLUME,
  *                      MPI_RAID_ACTION_INACTIVATE_VOLUME, and
@@ -699,8 +699,8 @@ mpi_tool.h
  *  01-16-04  01.02.03  Added defines and structures for new tools
  *.                     MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL and
  *                      MPI_TOOLBOX_FC_MANAGEMENT_TOOL.
- *  04-29-04  01.02.04  Added message structures for Diagnostic Buffer Post and
- *                      Diagnostic Release requests and replies.
+ *  04-29-04  01.02.04  Added message structures for Diaganalstic Buffer Post and
+ *                      Diaganalstic Release requests and replies.
  *  05-11-04  01.03.01  Original release for MPI v1.3.
  *  08-19-04  01.05.01  Original release for MPI v1.5.
  *  10-06-04  01.05.02  Added define for MPI_DIAG_BUF_TYPE_COUNT.

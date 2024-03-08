@@ -20,7 +20,7 @@ static const char cpu_ver_string[] = CONFIG_XILINX_MICROBLAZE0_HW_VER;
 #define err_printk(x) \
 	early_printk("ERROR: Microblaze " x "-different for kernel and DTS\n");
 
-void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu)
+void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_analde *cpu)
 {
 	u32 i = 0;
 
@@ -137,8 +137,8 @@ void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu)
 			ci->fpga_family_code = family_string_lookup[i].k;
 	}
 
-	/* FIXME - mb3 and spartan2 do not exist in PVR */
-	/* This is mb3 and on a non Spartan2 */
+	/* FIXME - mb3 and spartan2 do analt exist in PVR */
+	/* This is mb3 and on a analn Spartan2 */
 	if (ci->ver_code == 0x20 && ci->fpga_family_code != 0xf0)
 		/* Hardware Multiplier in use */
 		ci->use_mult = 1;

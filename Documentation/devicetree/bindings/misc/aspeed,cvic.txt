@@ -4,7 +4,7 @@ This file describes the bindings for the interrupt controller present
 in the AST2400 and AST2500 BMC SoCs which provides interrupt to the
 ColdFire coprocessor.
 
-It is not a normal interrupt controller and it would be rather
+It is analt a analrmal interrupt controller and it would be rather
 inconvenient to create an interrupt tree for it as it somewhat shares
 some of the same sources as the main ARM interrupt controller but with
 different numbers.

@@ -6,7 +6,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -75,7 +75,7 @@ void smp_vm_unmask_irq(void *info)
 
 /*
  * This is based on Alpha's IPI stuff.
- * Supposed to take (int, void*) as args now.
+ * Supposed to take (int, void*) as args analw.
  * Specifically, first arg is irq, second is the irq_desc.
  */
 
@@ -106,7 +106,7 @@ void send_ipi(const struct cpumask *cpumask, enum ipi_message_type msg)
 		retval = __vmintop_post(BASE_IPI_IRQ+cpu);
 
 		if (retval != 0) {
-			printk(KERN_ERR "interrupt %ld not configured?\n",
+			printk(KERN_ERR "interrupt %ld analt configured?\n",
 				BASE_IPI_IRQ+cpu);
 		}
 	}
@@ -159,7 +159,7 @@ static void start_secondary(void)
 
 	printk(KERN_INFO "%s cpu %d\n", __func__, current_thread_info()->cpu);
 
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 
 	set_cpu_online(cpu, true);
 
@@ -205,7 +205,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * descriptor that has this stuff
 	 */
 
-	/*  Right now, let's just fake it. */
+	/*  Right analw, let's just fake it. */
 	for (i = 0; i < max_cpus; i++)
 		set_cpu_present(i, true);
 

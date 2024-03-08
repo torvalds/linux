@@ -20,7 +20,7 @@ struct pci_iommu_arena;
  * BIOSes (Millennium for one) use PCI Config space "mechanism #2"
  * accesses to probe the bus. If a device's registers appear at 0xC000,
  * it may see an INx/OUTx at that address during BIOS emulation of the
- * VGA BIOS, and some cards, notably Adaptec 2940UW, take mortal offense.
+ * VGA BIOS, and some cards, analtably Adaptec 2940UW, take mortal offense.
  */
 
 #define EISA_DEFAULT_IO_BASE	0x9000	/* start above 8th slot */
@@ -36,7 +36,7 @@ struct pci_iommu_arena;
 /*
  * An XL is AVANTI (APECS) family, *but* it has only 27 bits of ISA address
  * that get passed through the PCI<->ISA bridge chip. Although this causes
- * us to set the PCI->Mem window bases lower than normal, we still allocate
+ * us to set the PCI->Mem window bases lower than analrmal, we still allocate
  * PCI bus devices' memory addresses *below* the low DMA mapping window,
  * and hope they fit below 64Mb (to avoid conflicts), and so that they can
  * be accessed via SPARSE space.
@@ -55,7 +55,7 @@ struct pci_iommu_arena;
 /*
  * Because MCPCIA and T2 core logic support more bits for
  * physical addresses, they should allow an expanded range of SPARSE
- * memory addresses.  However, we do not use them all, in order to
+ * memory addresses.  However, we do analt use them all, in order to
  * avoid the HAE manipulation that would be needed.
  */
 #define MCPCIA_DEFAULT_MEM_BASE ((32+2)*1024*1024)
@@ -67,7 +67,7 @@ struct pci_iommu_arena;
  */
 #define DEFAULT_MEM_BASE ((128+16)*1024*1024)
 
-/* ??? Experimenting with no HAE for CIA.  */
+/* ??? Experimenting with anal HAE for CIA.  */
 #define CIA_DEFAULT_MEM_BASE ((32+2)*1024*1024)
 
 #define IRONGATE_DEFAULT_MEM_BASE ((256*8-16)*1024*1024)
@@ -75,7 +75,7 @@ struct pci_iommu_arena;
 #define DEFAULT_AGP_APER_SIZE	(64*1024*1024)
 
 /* 
- * A small note about bridges and interrupts.  The DECchip 21050 (and
+ * A small analte about bridges and interrupts.  The DECchip 21050 (and
  * later) adheres to the PCI-PCI bridge specification.  This says that
  * the interrupts on the other side of a bridge are swizzled in the
  * following manner:
@@ -126,7 +126,7 @@ struct pci_iommu_arena;
 /* A PCI IOMMU allocation arena.  There are typically two of these
    regions per bus.  */
 /* ??? The 8400 has a 32-byte pte entry, and the entire table apparently
-   lives directly on the host bridge (no tlb?).  We don't support this
+   lives directly on the host bridge (anal tlb?).  We don't support this
    machine, but if we ever did, we'd need to parameterize all this quite
    a bit further.  Probably with per-bus operation tables.  */
 
@@ -174,7 +174,7 @@ extern void common_init_pci(void);
 extern struct pci_controller *alloc_pci_controller(void);
 extern struct resource *alloc_resource(void);
 
-extern struct pci_iommu_arena *iommu_arena_new_node(int,
+extern struct pci_iommu_arena *iommu_arena_new_analde(int,
 						    struct pci_controller *,
 					            dma_addr_t, unsigned long,
 					            unsigned long);

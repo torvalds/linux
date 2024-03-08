@@ -26,6 +26,6 @@ MODULE_LICENSE(license);
 + MODULE_IMPORT_NS(ns);
 
 // Dummy rule for report mode that would otherwise be empty and make spatch
-// fail ("No rules apply.")
+// fail ("Anal rules apply.")
 @script:python depends on report@
 @@

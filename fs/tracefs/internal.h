@@ -3,16 +3,16 @@
 #define _TRACEFS_INTERNAL_H
 
 enum {
-	TRACEFS_EVENT_INODE		= BIT(1),
-	TRACEFS_EVENT_TOP_INODE		= BIT(2),
+	TRACEFS_EVENT_IANALDE		= BIT(1),
+	TRACEFS_EVENT_TOP_IANALDE		= BIT(2),
 	TRACEFS_GID_PERM_SET		= BIT(3),
 	TRACEFS_UID_PERM_SET		= BIT(4),
-	TRACEFS_INSTANCE_INODE		= BIT(5),
+	TRACEFS_INSTANCE_IANALDE		= BIT(5),
 };
 
-struct tracefs_inode {
-	struct inode            vfs_inode;
-	/* The below gets initialized with memset_after(ti, 0, vfs_inode) */
+struct tracefs_ianalde {
+	struct ianalde            vfs_ianalde;
+	/* The below gets initialized with memset_after(ti, 0, vfs_ianalde) */
 	unsigned long           flags;
 	void                    *private;
 };
@@ -30,23 +30,23 @@ struct eventfs_attr {
 };
 
 /*
- * struct eventfs_inode - hold the properties of the eventfs directories.
+ * struct eventfs_ianalde - hold the properties of the eventfs directories.
  * @list:	link list into the parent directory
  * @rcu:	Union with @list for freeing
- * @children:	link list into the child eventfs_inode
+ * @children:	link list into the child eventfs_ianalde
  * @entries:	the array of entries representing the files in the directory
  * @name:	the name of the directory to create
  * @events_dir: the dentry of the events directory
  * @entry_attrs: Saved mode and ownership of the @d_children
  * @data:	The private data to pass to the callbacks
- * @attr:	Saved mode and ownership of eventfs_inode itself
+ * @attr:	Saved mode and ownership of eventfs_ianalde itself
  * @is_freed:	Flag set if the eventfs is on its way to be freed
- *                Note if is_freed is set, then dentry is corrupted.
+ *                Analte if is_freed is set, then dentry is corrupted.
  * @is_events:	Flag set for only the top level "events" directory
  * @nr_entries: The number of items in @entries
- * @ino:	The saved inode number
+ * @ianal:	The saved ianalde number
  */
-struct eventfs_inode {
+struct eventfs_ianalde {
 	union {
 		struct list_head	list;
 		struct rcu_head		rcu;
@@ -62,18 +62,18 @@ struct eventfs_inode {
 	unsigned int			is_freed:1;
 	unsigned int			is_events:1;
 	unsigned int			nr_entries:30;
-	unsigned int			ino;
+	unsigned int			ianal;
 };
 
-static inline struct tracefs_inode *get_tracefs(const struct inode *inode)
+static inline struct tracefs_ianalde *get_tracefs(const struct ianalde *ianalde)
 {
-	return container_of(inode, struct tracefs_inode, vfs_inode);
+	return container_of(ianalde, struct tracefs_ianalde, vfs_ianalde);
 }
 
 struct dentry *tracefs_start_creating(const char *name, struct dentry *parent);
 struct dentry *tracefs_end_creating(struct dentry *dentry);
 struct dentry *tracefs_failed_creating(struct dentry *dentry);
-struct inode *tracefs_get_inode(struct super_block *sb);
+struct ianalde *tracefs_get_ianalde(struct super_block *sb);
 
 void eventfs_d_release(struct dentry *dentry);
 

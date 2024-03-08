@@ -31,7 +31,7 @@
 /*
  * If the HW version only supports a 48-bit counter, then
  * bits [63:48] are reserved, which are Read-As-Zero and
- * Writes-Ignored.
+ * Writes-Iganalred.
  */
 #define HHA_CNT0_LOWER		0x1F00
 
@@ -47,7 +47,7 @@
 #define HHA_SRCID_CMD		GENMASK(16, 6)
 #define HHA_SRCID_MSK		GENMASK(30, 20)
 #define HHA_DATSRC_SKT_EN	BIT(23)
-#define HHA_EVTYPE_NONE		0xff
+#define HHA_EVTYPE_ANALNE		0xff
 #define HHA_V1_NR_EVENT		0x65
 #define HHA_V2_NR_EVENT		0xCE
 
@@ -197,7 +197,7 @@ static void hisi_hha_pmu_write_evtype(struct hisi_pmu *hha_pmu, int idx,
 
 	/* Write event code to HHA_EVENT_TYPEx register */
 	val = readl(hha_pmu->base + reg);
-	val &= ~(HHA_EVTYPE_NONE << shift);
+	val &= ~(HHA_EVTYPE_ANALNE << shift);
 	val |= (type << shift);
 	writel(val, hha_pmu->base + reg);
 }
@@ -301,7 +301,7 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &hha_pmu->sccl_id)) {
-		dev_err(&pdev->dev, "Can not read hha sccl-id!\n");
+		dev_err(&pdev->dev, "Can analt read hha sccl-id!\n");
 		return -EINVAL;
 	}
 
@@ -314,7 +314,7 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 		status = acpi_evaluate_integer(ACPI_HANDLE(&pdev->dev),
 					       "_UID", NULL, &id);
 		if (ACPI_FAILURE(status)) {
-			dev_err(&pdev->dev, "Cannot read idx-id!\n");
+			dev_err(&pdev->dev, "Cananalt read idx-id!\n");
 			return -EINVAL;
 		}
 
@@ -502,7 +502,7 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 
 	hha_pmu = devm_kzalloc(&pdev->dev, sizeof(*hha_pmu), GFP_KERNEL);
 	if (!hha_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, hha_pmu);
 
@@ -513,10 +513,10 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_hha%u",
 			      hha_pmu->sccl_id, hha_pmu->index_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
-				       &hha_pmu->node);
+				       &hha_pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		return ret;
@@ -527,8 +527,8 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 	ret = perf_pmu_register(&hha_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(hha_pmu->dev, "HHA PMU register failed!\n");
-		cpuhp_state_remove_instance_nocalls(
-			CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE, &hha_pmu->node);
+		cpuhp_state_remove_instance_analcalls(
+			CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE, &hha_pmu->analde);
 	}
 
 	return ret;
@@ -539,8 +539,8 @@ static int hisi_hha_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *hha_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&hha_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
-					    &hha_pmu->node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
+					    &hha_pmu->analde);
 	return 0;
 }
 

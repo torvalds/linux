@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #include <linux/rtnetlink.h>
 #include "core.h"
@@ -10,9 +10,9 @@
 /* World regdom to be used in case default regd from fw is unavailable */
 #define ATH12K_2GHZ_CH01_11      REG_RULE(2412 - 10, 2462 + 10, 40, 0, 20, 0)
 #define ATH12K_5GHZ_5150_5350    REG_RULE(5150 - 10, 5350 + 10, 80, 0, 30,\
-					  NL80211_RRF_NO_IR)
+					  NL80211_RRF_ANAL_IR)
 #define ATH12K_5GHZ_5725_5850    REG_RULE(5725 - 10, 5850 + 10, 80, 0, 30,\
-					  NL80211_RRF_NO_IR)
+					  NL80211_RRF_ANAL_IR)
 
 #define ETSI_WEATHER_RADAR_BAND_LOW		5590
 #define ETSI_WEATHER_RADAR_BAND_HIGH		5650
@@ -44,7 +44,7 @@ static bool ath12k_regdom_changes(struct ieee80211_hw *hw, char *alpha2)
 }
 
 static void
-ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+ath12k_reg_analtifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath12k_wmi_init_country_arg arg;
@@ -52,11 +52,11 @@ ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	int ret;
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_REG,
-		   "Regulatory Notification received for %s\n", wiphy_name(wiphy));
+		   "Regulatory Analtification received for %s\n", wiphy_name(wiphy));
 
 	/* Currently supporting only General User Hints. Cell base user
 	 * hints to be handled later.
-	 * Hints from other sources like Core, Beacons are not expected for
+	 * Hints from other sources like Core, Beacons are analt expected for
 	 * self managed wiphy's
 	 */
 	if (!(request->initiator == NL80211_REGDOM_SET_BY_USER &&
@@ -67,7 +67,7 @@ ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 
 	if (!IS_ENABLED(CONFIG_ATH_REG_DYNAMIC_USER_REG_HINTS)) {
 		ath12k_dbg(ar->ab, ATH12K_DBG_REG,
-			   "Country Setting is not allowed\n");
+			   "Country Setting is analt allowed\n");
 		return;
 	}
 
@@ -121,7 +121,7 @@ int ath12k_reg_update_chan_list(struct ath12k *ar)
 	arg = kzalloc(struct_size(arg, channel, num_channels), GFP_KERNEL);
 
 	if (!arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	arg->pdev_id = ar->pdev->pdev_id;
 	arg->nallchans = num_channels;
@@ -146,7 +146,7 @@ int ath12k_reg_update_chan_list(struct ath12k *ar)
 			ch->dfs_set =
 				!!(channel->flags & IEEE80211_CHAN_RADAR);
 			ch->is_chan_passive = !!(channel->flags &
-						IEEE80211_CHAN_NO_IR);
+						IEEE80211_CHAN_ANAL_IR);
 			ch->is_chan_passive |= ch->dfs_set;
 			ch->mhz = channel->center_freq;
 			ch->cfreq1 = channel->center_freq;
@@ -242,7 +242,7 @@ int ath12k_regd_update(struct ath12k *ar, bool init)
 	spin_unlock_bh(&ab->base_lock);
 
 	if (!regd_copy) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -291,26 +291,26 @@ static u32 ath12k_map_fw_reg_flags(u16 reg_flags)
 {
 	u32 flags = 0;
 
-	if (reg_flags & REGULATORY_CHAN_NO_IR)
-		flags = NL80211_RRF_NO_IR;
+	if (reg_flags & REGULATORY_CHAN_ANAL_IR)
+		flags = NL80211_RRF_ANAL_IR;
 
 	if (reg_flags & REGULATORY_CHAN_RADAR)
 		flags |= NL80211_RRF_DFS;
 
-	if (reg_flags & REGULATORY_CHAN_NO_OFDM)
-		flags |= NL80211_RRF_NO_OFDM;
+	if (reg_flags & REGULATORY_CHAN_ANAL_OFDM)
+		flags |= NL80211_RRF_ANAL_OFDM;
 
 	if (reg_flags & REGULATORY_CHAN_INDOOR_ONLY)
-		flags |= NL80211_RRF_NO_OUTDOOR;
+		flags |= NL80211_RRF_ANAL_OUTDOOR;
 
-	if (reg_flags & REGULATORY_CHAN_NO_HT40)
-		flags |= NL80211_RRF_NO_HT40;
+	if (reg_flags & REGULATORY_CHAN_ANAL_HT40)
+		flags |= NL80211_RRF_ANAL_HT40;
 
-	if (reg_flags & REGULATORY_CHAN_NO_80MHZ)
-		flags |= NL80211_RRF_NO_80MHZ;
+	if (reg_flags & REGULATORY_CHAN_ANAL_80MHZ)
+		flags |= NL80211_RRF_ANAL_80MHZ;
 
-	if (reg_flags & REGULATORY_CHAN_NO_160MHZ)
-		flags |= NL80211_RRF_NO_160MHZ;
+	if (reg_flags & REGULATORY_CHAN_ANAL_160MHZ)
+		flags |= NL80211_RRF_ANAL_160MHZ;
 
 	return flags;
 }
@@ -319,11 +319,11 @@ static u32 ath12k_map_fw_phy_flags(u32 phy_flags)
 {
 	u32 flags = 0;
 
-	if (phy_flags & ATH12K_REG_PHY_BITMAP_NO11AX)
-		flags |= NL80211_RRF_NO_HE;
+	if (phy_flags & ATH12K_REG_PHY_BITMAP_ANAL11AX)
+		flags |= NL80211_RRF_ANAL_HE;
 
-	if (phy_flags & ATH12K_REG_PHY_BITMAP_NO11BE)
-		flags |= NL80211_RRF_NO_EHT;
+	if (phy_flags & ATH12K_REG_PHY_BITMAP_ANAL11BE)
+		flags |= NL80211_RRF_ANAL_EHT;
 
 	return flags;
 }
@@ -662,7 +662,7 @@ ath12k_reg_build_regd(struct ath12k_base *ab,
 
 		/* Update dfs cac timeout if the dfs domain is ETSI and the
 		 * new rule covers weather radar band.
-		 * Default value of '0' corresponds to 60s timeout, so no
+		 * Default value of '0' corresponds to 60s timeout, so anal
 		 * need to update that for other rules.
 		 */
 		if (flags & NL80211_RRF_DFS &&
@@ -733,7 +733,7 @@ void ath12k_regd_update_work(struct work_struct *work)
 void ath12k_reg_init(struct ieee80211_hw *hw)
 {
 	hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
-	hw->wiphy->reg_notifier = ath12k_reg_notifier;
+	hw->wiphy->reg_analtifier = ath12k_reg_analtifier;
 }
 
 void ath12k_reg_free(struct ath12k_base *ab)

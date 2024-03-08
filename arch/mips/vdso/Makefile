@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Objects to go into the VDSO.
 
-# Sanitizer runtimes are unavailable and cannot be linked here.
+# Sanitizer runtimes are unavailable and cananalt be linked here.
  KCSAN_SANITIZE			:= n
 
 # Include the generic Makefile to check the built vdso.
@@ -16,7 +16,7 @@ ccflags-vdso := \
 	$(filter -mmicromips,$(KBUILD_CFLAGS)) \
 	$(filter -march=%,$(KBUILD_CFLAGS)) \
 	$(filter -m%-float,$(KBUILD_CFLAGS)) \
-	$(filter -mno-loongson-%,$(KBUILD_CFLAGS)) \
+	$(filter -manal-loongson-%,$(KBUILD_CFLAGS)) \
 	$(CLANG_FLAGS) \
 	-D__VDSO__
 
@@ -25,15 +25,15 @@ ccflags-vdso += -DBUILD_VDSO32
 endif
 
 #
-# The -fno-jump-tables flag only prevents the compiler from generating
-# jump tables but does not prevent the compiler from emitting absolute
+# The -fanal-jump-tables flag only prevents the compiler from generating
+# jump tables but does analt prevent the compiler from emitting absolute
 # offsets.
 cflags-vdso := $(ccflags-vdso) \
 	$(filter -W%,$(filter-out -Wa$(comma)%,$(KBUILD_CFLAGS))) \
-	-O3 -g -fPIC -fno-strict-aliasing -fno-common -fno-builtin -G 0 \
+	-O3 -g -fPIC -fanal-strict-aliasing -fanal-common -fanal-builtin -G 0 \
 	-mrelax-pic-calls $(call cc-option, -mexplicit-relocs) \
-	-fno-stack-protector -fno-jump-tables -DDISABLE_BRANCH_PROFILING \
-	$(call cc-option, -fno-asynchronous-unwind-tables)
+	-fanal-stack-protector -fanal-jump-tables -DDISABLE_BRANCH_PROFILING \
+	$(call cc-option, -fanal-asynchroanalus-unwind-tables)
 aflags-vdso := $(ccflags-vdso) \
 	-D__ASSEMBLY__ -Wa,-gdwarf-2
 
@@ -42,7 +42,7 @@ CFLAGS_vgettimeofday.o = -include $(c-gettimeofday-y)
 
 # config-n32-o32-env.c prepares the environment to build a 32bit vDSO
 # library on a 64bit kernel.
-# Note: Needs to be included before than the generic library.
+# Analte: Needs to be included before than the generic library.
 CFLAGS_vgettimeofday-o32.o = -include $(srctree)/$(src)/config-n32-o32-env.c -include $(c-gettimeofday-y)
 CFLAGS_vgettimeofday-n32.o = -include $(srctree)/$(src)/config-n32-o32-env.c -include $(c-gettimeofday-y)
 endif
@@ -54,7 +54,7 @@ ifdef CONFIG_MIPS_DISABLE_VDSO
 endif
 
 # VDSO linker flags.
-ldflags-y := -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
+ldflags-y := -Bsymbolic --anal-undefined -soname=linux-vdso.so.1 \
 	$(filter -E%,$(KBUILD_CFLAGS)) -shared \
 	-G 0 --eh-frame-hdr --hash-style=sysv --build-id=sha1 -T
 
@@ -67,7 +67,7 @@ KCOV_INSTRUMENT := n
 # Check that we don't have PIC 'jalr t9' calls left
 quiet_cmd_vdso_mips_check = VDSOCHK $@
       cmd_vdso_mips_check = if $(OBJDUMP) --disassemble $@ | grep -E -h "jalr.*t9" > /dev/null; \
-		       then (echo >&2 "$@: PIC 'jalr t9' calls are not supported"; \
+		       then (echo >&2 "$@: PIC 'jalr t9' calls are analt supported"; \
 			     rm -f $@; /bin/false); fi
 
 #

@@ -104,7 +104,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		       union acpi_parse_object **out_op)
 {
 	union acpi_parse_object *op;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 	acpi_object_type object_type;
 	char *path;
@@ -126,7 +126,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 
 		/* Check if this object has already been installed in the namespace */
 
-		if (op->common.node) {
+		if (op->common.analde) {
 			*out_op = op;
 			return_ACPI_STATUS(AE_OK);
 		}
@@ -152,12 +152,12 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		status =
 		    acpi_ns_lookup(walk_state->scope_info, path, object_type,
 				   ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
-				   walk_state, &(node));
+				   walk_state, &(analde));
 #ifdef ACPI_ASL_COMPILER
-		if (status == AE_NOT_FOUND) {
+		if (status == AE_ANALT_FOUND) {
 			/*
 			 * Table disassembly:
-			 * Target of Scope() not found. Generate an External for it, and
+			 * Target of Scope() analt found. Generate an External for it, and
 			 * insert the name into the namespace.
 			 */
 			acpi_dm_add_op_to_external_list(op, path,
@@ -166,7 +166,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 			    acpi_ns_lookup(walk_state->scope_info, path,
 					   object_type, ACPI_IMODE_LOAD_PASS1,
 					   ACPI_NS_SEARCH_PARENT, walk_state,
-					   &node);
+					   &analde);
 		}
 #endif
 		if (ACPI_FAILURE(status)) {
@@ -179,7 +179,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		 * Check to make sure that the target is
 		 * one of the opcodes that actually opens a scope
 		 */
-		switch (node->type) {
+		switch (analde->type) {
 		case ACPI_TYPE_ANY:
 		case ACPI_TYPE_LOCAL_SCOPE:	/* Scope  */
 		case ACPI_TYPE_DEVICE:
@@ -200,16 +200,16 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 			 *  Name (DEB, 0)
 			 *  Scope (DEB) { ... }
 			 *
-			 * Note: silently change the type here. On the second pass,
+			 * Analte: silently change the type here. On the second pass,
 			 * we will report a warning
 			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Type override - [%4.4s] had invalid type (%s) "
 					  "for Scope operator, changed to type ANY\n",
-					  acpi_ut_get_node_name(node),
-					  acpi_ut_get_type_name(node->type)));
+					  acpi_ut_get_analde_name(analde),
+					  acpi_ut_get_type_name(analde->type)));
 
-			node->type = ACPI_TYPE_ANY;
+			analde->type = ACPI_TYPE_ANY;
 			walk_state->scope_info->common.value = ACPI_TYPE_ANY;
 			break;
 
@@ -218,7 +218,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 			 * Allow scope change to root during execution of module-level
 			 * code. Root is typed METHOD during this time.
 			 */
-			if ((node == acpi_gbl_root_node) &&
+			if ((analde == acpi_gbl_root_analde) &&
 			    (walk_state->
 			     parse_flags & ACPI_PARSE_MODULE_LEVEL)) {
 				break;
@@ -232,9 +232,9 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 
 			ACPI_ERROR((AE_INFO,
 				    "Invalid type (%s) for target of "
-				    "Scope operator [%4.4s] (Cannot override)",
-				    acpi_ut_get_type_name(node->type),
-				    acpi_ut_get_node_name(node)));
+				    "Scope operator [%4.4s] (Cananalt override)",
+				    acpi_ut_get_type_name(analde->type),
+				    acpi_ut_get_analde_name(analde)));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -246,7 +246,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		 * the namespace.
 		 *
 		 * Setup the search flags.
-		 * Since we are entering a name into the namespace, we do not want to
+		 * Since we are entering a name into the namespace, we do analt want to
 		 * enable the search-to-root upsearch.
 		 *
 		 * There are only two conditions where it is acceptable that the name
@@ -257,26 +257,26 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		 *       buffer_field, or Package), the name of the object is already
 		 *       in the namespace.
 		 */
-		if (walk_state->deferred_node) {
+		if (walk_state->deferred_analde) {
 
-			/* This name is already in the namespace, get the node */
+			/* This name is already in the namespace, get the analde */
 
-			node = walk_state->deferred_node;
+			analde = walk_state->deferred_analde;
 			status = AE_OK;
 			break;
 		}
 
 		/*
-		 * If we are executing a method, do not create any namespace objects
+		 * If we are executing a method, do analt create any namespace objects
 		 * during the load phase, only during execution.
 		 */
-		if (walk_state->method_node) {
-			node = NULL;
+		if (walk_state->method_analde) {
+			analde = NULL;
 			status = AE_OK;
 			break;
 		}
 
-		flags = ACPI_NS_NO_UPSEARCH;
+		flags = ACPI_NS_ANAL_UPSEARCH;
 		if ((walk_state->opcode != AML_SCOPE_OP) &&
 		    (!(walk_state->parse_flags & ACPI_PARSE_DEFERRED_OP))) {
 			if (walk_state->namespace_override) {
@@ -288,7 +288,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 			} else {
 				flags |= ACPI_NS_ERROR_IF_FOUND;
 				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-						  "[%s] Cannot already exist\n",
+						  "[%s] Cananalt already exist\n",
 						  acpi_ut_get_type_name
 						  (object_type)));
 			}
@@ -307,26 +307,26 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		status =
 		    acpi_ns_lookup(walk_state->scope_info, path, object_type,
 				   ACPI_IMODE_LOAD_PASS1, flags, walk_state,
-				   &node);
+				   &analde);
 		if (ACPI_FAILURE(status)) {
 			if (status == AE_ALREADY_EXISTS) {
 
 				/* The name already exists in this scope */
 
-				if (node->flags & ANOBJ_IS_EXTERNAL) {
+				if (analde->flags & AANALBJ_IS_EXTERNAL) {
 					/*
 					 * Allow one create on an object or segment that was
 					 * previously declared External
 					 */
-					node->flags &= ~ANOBJ_IS_EXTERNAL;
-					node->type = (u8) object_type;
+					analde->flags &= ~AANALBJ_IS_EXTERNAL;
+					analde->type = (u8) object_type;
 
-					/* Just retyped a node, probably will need to open a scope */
+					/* Just retyped a analde, probably will need to open a scope */
 
 					if (acpi_ns_opens_scope(object_type)) {
 						status =
 						    acpi_ds_scope_stack_push
-						    (node, object_type,
+						    (analde, object_type,
 						     walk_state);
 						if (ACPI_FAILURE(status)) {
 							return_ACPI_STATUS
@@ -355,7 +355,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 
 		op = acpi_ps_alloc_op(walk_state->opcode, walk_state->aml);
 		if (!op) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 	}
 
@@ -365,13 +365,13 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 	op->named.path = path;
 #endif
 
-	if (node) {
+	if (analde) {
 		/*
-		 * Put the Node in the "op" object that the parser uses, so we
+		 * Put the Analde in the "op" object that the parser uses, so we
 		 * can get it again quickly when this scope is closed
 		 */
-		op->common.node = node;
-		op->named.name = node->name.integer;
+		op->common.analde = analde;
+		op->named.name = analde->name.integer;
 	}
 
 	acpi_ps_append_arg(acpi_ps_get_parent_scope(&walk_state->parser_state),
@@ -441,10 +441,10 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 
 	if (walk_state->op_info->flags & AML_FIELD) {
 		/*
-		 * If we are executing a method, do not create any namespace objects
+		 * If we are executing a method, do analt create any namespace objects
 		 * during the load phase, only during execution.
 		 */
-		if (!walk_state->method_node) {
+		if (!walk_state->method_analde) {
 			if (walk_state->opcode == AML_FIELD_OP ||
 			    walk_state->opcode == AML_BANK_FIELD_OP ||
 			    walk_state->opcode == AML_INDEX_FIELD_OP) {
@@ -456,10 +456,10 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 	}
 
 	/*
-	 * If we are executing a method, do not create any namespace objects
+	 * If we are executing a method, do analt create any namespace objects
 	 * during the load phase, only during execution.
 	 */
-	if (!walk_state->method_node) {
+	if (!walk_state->method_analde) {
 		if (op->common.aml_opcode == AML_REGION_OP) {
 			status =
 			    acpi_ex_create_region(op->named.data,
@@ -494,10 +494,10 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 							       aml_opcode))->
 			    object_type;
 
-			/* Set node type if we have a namespace node */
+			/* Set analde type if we have a namespace analde */
 
-			if (op->common.node) {
-				op->common.node->type = (u8) object_type;
+			if (op->common.analde) {
+				op->common.analde->type = (u8) object_type;
 			}
 		}
 	}
@@ -507,20 +507,20 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 	 * get the parameter count from the argument's next.
 	 */
 	if (acpi_gbl_disasm_flag &&
-	    op->common.node && op->common.aml_opcode == AML_EXTERNAL_OP) {
+	    op->common.analde && op->common.aml_opcode == AML_EXTERNAL_OP) {
 		/*
-		 * Note, if this external is not a method
+		 * Analte, if this external is analt a method
 		 * Op->Common.Value.Arg->Common.Next->Common.Value.Integer == 0
 		 * Therefore, param_count will be 0.
 		 */
 		param_count =
 		    (u8)op->common.value.arg->common.next->common.value.integer;
 		object_type = (u8)op->common.value.arg->common.value.integer;
-		op->common.node->flags |= ANOBJ_IS_EXTERNAL;
-		op->common.node->type = (u8)object_type;
+		op->common.analde->flags |= AANALBJ_IS_EXTERNAL;
+		op->common.analde->type = (u8)object_type;
 
 		acpi_dm_create_subobject_for_external((u8)object_type,
-						      &op->common.node,
+						      &op->common.analde,
 						      param_count);
 
 		/*
@@ -535,26 +535,26 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 #endif
 
 	/*
-	 * If we are executing a method, do not create any namespace objects
+	 * If we are executing a method, do analt create any namespace objects
 	 * during the load phase, only during execution.
 	 */
-	if (!walk_state->method_node) {
+	if (!walk_state->method_analde) {
 		if (op->common.aml_opcode == AML_METHOD_OP) {
 			/*
 			 * method_op pkg_length name_string method_flags term_list
 			 *
-			 * Note: We must create the method node/object pair as soon as we
+			 * Analte: We must create the method analde/object pair as soon as we
 			 * see the method declaration. This allows later pass1 parsing
-			 * of invocations of the method (need to know the number of
+			 * of invocations of the method (need to kanalw the number of
 			 * arguments.)
 			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 					  "LOADING-Method: State=%p Op=%p NamedObj=%p\n",
-					  walk_state, op, op->named.node));
+					  walk_state, op, op->named.analde));
 
-			if (!acpi_ns_get_attached_object(op->named.node)) {
+			if (!acpi_ns_get_attached_object(op->named.analde)) {
 				walk_state->operands[0] =
-				    ACPI_CAST_PTR(void, op->named.node);
+				    ACPI_CAST_PTR(void, op->named.analde);
 				walk_state->num_operands = 1;
 
 				status =
@@ -582,7 +582,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 
 	/* Pop the scope stack (only if loading a table) */
 
-	if (!walk_state->method_node &&
+	if (!walk_state->method_analde &&
 	    op->common.aml_opcode != AML_EXTERNAL_OP &&
 	    acpi_ns_opens_scope(object_type)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,

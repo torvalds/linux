@@ -153,16 +153,16 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 	struct rk808_clkout *rk808_clkout;
 	int ret;
 
-	dev->of_node = pdev->dev.parent->of_node;
+	dev->of_analde = pdev->dev.parent->of_analde;
 
 	rk808_clkout = devm_kzalloc(dev,
 				    sizeof(*rk808_clkout), GFP_KERNEL);
 	if (!rk808_clkout)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rk808_clkout->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!rk808_clkout->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	init.parent_names = NULL;
 	init.num_parents = 0;
@@ -171,7 +171,7 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 	rk808_clkout->clkout1_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string_index(dev->of_node, "clock-output-names",
+	of_property_read_string_index(dev->of_analde, "clock-output-names",
 				      0, &init.name);
 
 	ret = devm_clk_hw_register(dev, &rk808_clkout->clkout1_hw);
@@ -183,7 +183,7 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 	rk808_clkout->clkout2_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string_index(dev->of_node, "clock-output-names",
+	of_property_read_string_index(dev->of_analde, "clock-output-names",
 				      1, &init.name);
 
 	ret = devm_clk_hw_register(dev, &rk808_clkout->clkout2_hw);

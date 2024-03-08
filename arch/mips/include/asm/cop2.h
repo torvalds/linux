@@ -9,7 +9,7 @@
 #ifndef __ASM_COP2_H
 #define __ASM_COP2_H
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #if defined(CONFIG_CPU_CAVIUM_OCTEON)
 
@@ -45,17 +45,17 @@ enum cu2_ops {
 	CU2_SDC2_OP,
 };
 
-extern int register_cu2_notifier(struct notifier_block *nb);
-extern int cu2_notifier_call_chain(unsigned long val, void *v);
+extern int register_cu2_analtifier(struct analtifier_block *nb);
+extern int cu2_analtifier_call_chain(unsigned long val, void *v);
 
-#define cu2_notifier(fn, pri)						\
+#define cu2_analtifier(fn, pri)						\
 ({									\
-	static struct notifier_block fn##_nb = {			\
-		.notifier_call = fn,					\
+	static struct analtifier_block fn##_nb = {			\
+		.analtifier_call = fn,					\
 		.priority = pri						\
 	};								\
 									\
-	register_cu2_notifier(&fn##_nb);				\
+	register_cu2_analtifier(&fn##_nb);				\
 })
 
 #endif /* __ASM_COP2_H */

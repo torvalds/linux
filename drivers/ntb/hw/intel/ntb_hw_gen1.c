@@ -23,21 +23,21 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       analtice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation analr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -63,7 +63,7 @@
 #include "ntb_hw_gen4.h"
 
 #define NTB_NAME	"ntb_hw_intel"
-#define NTB_DESC	"Intel(R) PCI-E Non-Transparent Bridge Driver"
+#define NTB_DESC	"Intel(R) PCI-E Analn-Transparent Bridge Driver"
 #define NTB_VER		"2.0"
 
 MODULE_DESCRIPTION(NTB_DESC);
@@ -94,7 +94,7 @@ MODULE_PARM_DESC(b2b_mw_idx, "Use this mw idx to access the peer ntb.  A "
 
 static unsigned int b2b_mw_share;
 module_param(b2b_mw_share, uint, 0644);
-MODULE_PARM_DESC(b2b_mw_share, "If the b2b mw is large enough, configure the "
+MODULE_PARM_DESC(b2b_mw_share, "If the b2b mw is large eanalugh, configure the "
 		 "ntb so that the peer ntb only occupies the first half of "
 		 "the mw, so the second half can still be used as a mw.  Both "
 		 "sides MUST set the same value here!");
@@ -145,14 +145,14 @@ static int xeon_init_isr(struct intel_ntb_dev *ndev);
 static inline void ndev_reset_unsafe_flags(struct intel_ntb_dev *ndev)
 {
 	ndev->unsafe_flags = 0;
-	ndev->unsafe_flags_ignore = 0;
+	ndev->unsafe_flags_iganalre = 0;
 
 	/* Only B2B has a workaround to avoid SDOORBELL */
 	if (ndev->hwerr_flags & NTB_HWERR_SDOORBELL_LOCKUP)
 		if (!ntb_topo_is_b2b(ndev->ntb.topo))
 			ndev->unsafe_flags |= NTB_UNSAFE_DB;
 
-	/* No low level workaround to avoid SB01BASE */
+	/* Anal low level workaround to avoid SB01BASE */
 	if (ndev->hwerr_flags & NTB_HWERR_SB01BASE_LOCKUP) {
 		ndev->unsafe_flags |= NTB_UNSAFE_DB;
 		ndev->unsafe_flags |= NTB_UNSAFE_SPAD;
@@ -162,14 +162,14 @@ static inline void ndev_reset_unsafe_flags(struct intel_ntb_dev *ndev)
 static inline int ndev_is_unsafe(struct intel_ntb_dev *ndev,
 				 unsigned long flag)
 {
-	return !!(flag & ndev->unsafe_flags & ~ndev->unsafe_flags_ignore);
+	return !!(flag & ndev->unsafe_flags & ~ndev->unsafe_flags_iganalre);
 }
 
-static inline int ndev_ignore_unsafe(struct intel_ntb_dev *ndev,
+static inline int ndev_iganalre_unsafe(struct intel_ntb_dev *ndev,
 				     unsigned long flag)
 {
 	flag &= ndev->unsafe_flags;
-	ndev->unsafe_flags_ignore |= flag;
+	ndev->unsafe_flags_iganalre |= flag;
 
 	return !!flag;
 }
@@ -365,11 +365,11 @@ int ndev_init_isr(struct intel_ntb_dev *ndev,
 			 int msix_shift, int total_shift)
 {
 	struct pci_dev *pdev;
-	int rc, i, msix_count, node;
+	int rc, i, msix_count, analde;
 
 	pdev = ndev->ntb.pdev;
 
-	node = dev_to_node(&pdev->dev);
+	analde = dev_to_analde(&pdev->dev);
 
 	/* Mask all doorbell interrupts */
 	ndev->db_mask = ndev->db_valid_mask;
@@ -379,13 +379,13 @@ int ndev_init_isr(struct intel_ntb_dev *ndev,
 
 	/* Try to set up msix irq */
 
-	ndev->vec = kcalloc_node(msix_max, sizeof(*ndev->vec),
-				 GFP_KERNEL, node);
+	ndev->vec = kcalloc_analde(msix_max, sizeof(*ndev->vec),
+				 GFP_KERNEL, analde);
 	if (!ndev->vec)
 		goto err_msix_vec_alloc;
 
-	ndev->msix = kcalloc_node(msix_max, sizeof(*ndev->msix),
-				  GFP_KERNEL, node);
+	ndev->msix = kcalloc_analde(msix_max, sizeof(*ndev->msix),
+				  GFP_KERNEL, analde);
 	if (!ndev->msix)
 		goto err_msix_alloc;
 
@@ -507,7 +507,7 @@ static ssize_t ndev_ntb_debugfs_read(struct file *filp, char __user *ubuf,
 
 	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	off = 0;
 
@@ -527,7 +527,7 @@ static ssize_t ndev_ntb_debugfs_read(struct file *filp, char __user *ubuf,
 
 	off += scnprintf(buf + off, buf_size - off,
 			 "BAR4 Split -\t\t%s\n",
-			 ndev->bar4_split ? "yes" : "no");
+			 ndev->bar4_split ? "anal" : "anal");
 
 	off += scnprintf(buf + off, buf_size - off,
 			 "NTB CTL -\t\t%#06x\n", ndev->ntb_ctl);
@@ -882,7 +882,7 @@ static int intel_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 	if (bar < 4 || !ndev->bar4_split) {
 		base = ioread64(mmio + base_reg) & NTB_BAR_MASK_64;
 
-		/* Set the limit if supported, if size is not mw_size */
+		/* Set the limit if supported, if size is analt mw_size */
 		if (limit_reg && size != mw_size)
 			limit = base + size;
 		else
@@ -913,7 +913,7 @@ static int intel_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 
 		base = ioread32(mmio + base_reg) & NTB_BAR_MASK_32;
 
-		/* Set the limit if supported, if size is not mw_size */
+		/* Set the limit if supported, if size is analt mw_size */
 		if (limit_reg && size != mw_size)
 			limit = base + size;
 		else
@@ -955,9 +955,9 @@ u64 intel_ntb_link_is_up(struct ntb_dev *ntb, enum ntb_speed *speed,
 		/* TODO MAYBE: is it possible to observe the link speed and
 		 * width while link is training? */
 		if (speed)
-			*speed = NTB_SPEED_NONE;
+			*speed = NTB_SPEED_ANALNE;
 		if (width)
-			*width = NTB_WIDTH_NONE;
+			*width = NTB_WIDTH_ANALNE;
 		return 0;
 	}
 }
@@ -978,16 +978,16 @@ static int intel_ntb_link_enable(struct ntb_dev *ntb,
 		"Enabling link with max_speed %d max_width %d\n",
 		max_speed, max_width);
 	if (max_speed != NTB_SPEED_AUTO)
-		dev_dbg(&ntb->pdev->dev, "ignoring max_speed %d\n", max_speed);
+		dev_dbg(&ntb->pdev->dev, "iganalring max_speed %d\n", max_speed);
 	if (max_width != NTB_WIDTH_AUTO)
-		dev_dbg(&ntb->pdev->dev, "ignoring max_width %d\n", max_width);
+		dev_dbg(&ntb->pdev->dev, "iganalring max_width %d\n", max_width);
 
 	ntb_ctl = ioread32(ndev->self_mmio + ndev->reg->ntb_ctl);
 	ntb_ctl &= ~(NTB_CTL_DISABLE | NTB_CTL_CFG_LOCK);
-	ntb_ctl |= NTB_CTL_P2S_BAR2_SNOOP | NTB_CTL_S2P_BAR2_SNOOP;
-	ntb_ctl |= NTB_CTL_P2S_BAR4_SNOOP | NTB_CTL_S2P_BAR4_SNOOP;
+	ntb_ctl |= NTB_CTL_P2S_BAR2_SANALOP | NTB_CTL_S2P_BAR2_SANALOP;
+	ntb_ctl |= NTB_CTL_P2S_BAR4_SANALOP | NTB_CTL_S2P_BAR4_SANALOP;
 	if (ndev->bar4_split)
-		ntb_ctl |= NTB_CTL_P2S_BAR5_SNOOP | NTB_CTL_S2P_BAR5_SNOOP;
+		ntb_ctl |= NTB_CTL_P2S_BAR5_SANALOP | NTB_CTL_S2P_BAR5_SANALOP;
 	iowrite32(ntb_ctl, ndev->self_mmio + ndev->reg->ntb_ctl);
 
 	return 0;
@@ -1007,10 +1007,10 @@ int intel_ntb_link_disable(struct ntb_dev *ntb)
 
 	/* Bring NTB link down */
 	ntb_cntl = ioread32(ndev->self_mmio + ndev->reg->ntb_ctl);
-	ntb_cntl &= ~(NTB_CTL_P2S_BAR2_SNOOP | NTB_CTL_S2P_BAR2_SNOOP);
-	ntb_cntl &= ~(NTB_CTL_P2S_BAR4_SNOOP | NTB_CTL_S2P_BAR4_SNOOP);
+	ntb_cntl &= ~(NTB_CTL_P2S_BAR2_SANALOP | NTB_CTL_S2P_BAR2_SANALOP);
+	ntb_cntl &= ~(NTB_CTL_P2S_BAR4_SANALOP | NTB_CTL_S2P_BAR4_SANALOP);
 	if (ndev->bar4_split)
-		ntb_cntl &= ~(NTB_CTL_P2S_BAR5_SNOOP | NTB_CTL_S2P_BAR5_SNOOP);
+		ntb_cntl &= ~(NTB_CTL_P2S_BAR5_SANALOP | NTB_CTL_S2P_BAR5_SANALOP);
 	ntb_cntl |= NTB_CTL_DISABLE | NTB_CTL_CFG_LOCK;
 	iowrite32(ntb_cntl, ndev->self_mmio + ndev->reg->ntb_ctl);
 
@@ -1049,7 +1049,7 @@ int intel_ntb_peer_mw_get_addr(struct ntb_dev *ntb, int idx,
 
 static int intel_ntb_db_is_unsafe(struct ntb_dev *ntb)
 {
-	return ndev_ignore_unsafe(ntb_ndev(ntb), NTB_UNSAFE_DB);
+	return ndev_iganalre_unsafe(ntb_ndev(ntb), NTB_UNSAFE_DB);
 }
 
 u64 intel_ntb_db_valid_mask(struct ntb_dev *ntb)
@@ -1147,7 +1147,7 @@ static int intel_ntb_peer_db_set(struct ntb_dev *ntb, u64 db_bits)
 
 int intel_ntb_spad_is_unsafe(struct ntb_dev *ntb)
 {
-	return ndev_ignore_unsafe(ntb_ndev(ntb), NTB_UNSAFE_SPAD);
+	return ndev_iganalre_unsafe(ntb_ndev(ntb), NTB_UNSAFE_SPAD);
 }
 
 int intel_ntb_spad_count(struct ntb_dev *ntb)
@@ -1263,7 +1263,7 @@ enum ntb_topo xeon_ppd_topo(struct intel_ntb_dev *ndev, u8 ppd)
 		return NTB_TOPO_SEC;
 	}
 
-	return NTB_TOPO_NONE;
+	return NTB_TOPO_ANALNE;
 }
 
 static inline int xeon_ppd_bar4_split(struct intel_ntb_dev *ndev, u8 ppd)
@@ -1303,7 +1303,7 @@ static int xeon_setup_b2b_mw(struct intel_ntb_dev *ndev,
 	mmio = ndev->self_mmio;
 
 	if (ndev->b2b_idx == UINT_MAX) {
-		dev_dbg(&pdev->dev, "not using b2b mw\n");
+		dev_dbg(&pdev->dev, "analt using b2b mw\n");
 		b2b_bar = 0;
 		ndev->b2b_off = 0;
 	} else {
@@ -1333,8 +1333,8 @@ static int xeon_setup_b2b_mw(struct intel_ntb_dev *ndev,
 	/* Reset the secondary bar sizes to match the primary bar sizes,
 	 * except disable or halve the size of the b2b secondary bar.
 	 *
-	 * Note: code for each specific bar size register, because the register
-	 * offsets are not in a consistent order (bar5sz comes after ppd, odd).
+	 * Analte: code for each specific bar size register, because the register
+	 * offsets are analt in a consistent order (bar5sz comes after ppd, odd).
 	 */
 	pci_read_config_byte(pdev, XEON_PBAR23SZ_OFFSET, &bar_sz);
 	dev_dbg(&pdev->dev, "PBAR23SZ %#x\n", bar_sz);
@@ -1403,7 +1403,7 @@ static int xeon_setup_b2b_mw(struct intel_ntb_dev *ndev,
 	dev_dbg(&pdev->dev, "SBAR01 %#018llx\n", bar_addr);
 	iowrite64(bar_addr, mmio + XEON_SBAR0BASE_OFFSET);
 
-	/* Other SBAR are normally hit by the PBAR xlat, except for b2b bar.
+	/* Other SBAR are analrmally hit by the PBAR xlat, except for b2b bar.
 	 * The b2b bar is either disabled above, or configured half-size, and
 	 * it starts at the PBAR xlat + offset.
 	 */
@@ -1692,7 +1692,7 @@ static int xeon_init_dev(struct intel_ntb_dev *ndev)
 	}
 
 	switch (pdev->device) {
-	/* HW Errata on bit 14 of b2bdoorbell register.  Writes will not be
+	/* HW Errata on bit 14 of b2bdoorbell register.  Writes will analt be
 	 * mirrored to the remote system.  Shrink the number of bits by one,
 	 * since bit 14 is the last bit.
 	 */
@@ -1724,7 +1724,7 @@ static int xeon_init_dev(struct intel_ntb_dev *ndev)
 	ndev->ntb.topo = xeon_ppd_topo(ndev, ppd);
 	dev_dbg(&pdev->dev, "ppd %#x topo %s\n", ppd,
 		ntb_topo_string(ndev->ntb.topo));
-	if (ndev->ntb.topo == NTB_TOPO_NONE)
+	if (ndev->ntb.topo == NTB_TOPO_ANALNE)
 		return -EINVAL;
 
 	if (ndev->ntb.topo != NTB_TOPO_SEC) {
@@ -1733,8 +1733,8 @@ static int xeon_init_dev(struct intel_ntb_dev *ndev)
 			ppd, ndev->bar4_split);
 	} else {
 		/* This is a way for transparent BAR to figure out if we are
-		 * doing split BAR or not. There is no way for the hw on the
-		 * transparent side to know and set the PPD.
+		 * doing split BAR or analt. There is anal way for the hw on the
+		 * transparent side to kanalw and set the PPD.
 		 */
 		mem = pci_select_bars(pdev, IORESOURCE_MEM);
 		ndev->bar4_split = hweight32(mem) ==
@@ -1776,7 +1776,7 @@ static int intel_ntb_init_pci(struct intel_ntb_dev *ndev, struct pci_dev *pdev)
 		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (rc)
 			goto err_dma_mask;
-		dev_warn(&pdev->dev, "Cannot DMA highmem\n");
+		dev_warn(&pdev->dev, "Cananalt DMA highmem\n");
 	}
 
 	ndev->self_mmio = pci_iomap(pdev, 0, 0);
@@ -1816,7 +1816,7 @@ static inline void ndev_init_struct(struct intel_ntb_dev *ndev,
 				    struct pci_dev *pdev)
 {
 	ndev->ntb.pdev = pdev;
-	ndev->ntb.topo = NTB_TOPO_NONE;
+	ndev->ntb.topo = NTB_TOPO_ANALNE;
 	ndev->ntb.ops = &intel_ntb_ops;
 
 	ndev->b2b_off = 0;
@@ -1844,12 +1844,12 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
 {
 	struct intel_ntb_dev *ndev;
-	int rc, node;
+	int rc, analde;
 
-	node = dev_to_node(&pdev->dev);
-	ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
+	analde = dev_to_analde(&pdev->dev);
+	ndev = kzalloc_analde(sizeof(*ndev), GFP_KERNEL, analde);
 	if (!ndev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_ndev;
 	}
 
@@ -1955,14 +1955,14 @@ static const struct intel_ntb_alt_reg xeon_b2b_reg = {
 };
 
 static const struct intel_ntb_xlat_reg xeon_pri_xlat = {
-	/* Note: no primary .bar0_base visible to the secondary side.
+	/* Analte: anal primary .bar0_base visible to the secondary side.
 	 *
-	 * The secondary side cannot get the base address stored in primary
+	 * The secondary side cananalt get the base address stored in primary
 	 * bars.  The base address is necessary to set the limit register to
 	 * any value other than zero, or unlimited.
 	 *
-	 * WITHOUT THE BASE ADDRESS, THE SECONDARY SIDE CANNOT DISABLE the
-	 * window by setting the limit equal to base, nor can it limit the size
+	 * WITHOUT THE BASE ADDRESS, THE SECONDARY SIDE CANANALT DISABLE the
+	 * window by setting the limit equal to base, analr can it limit the size
 	 * of the memory window by setting the limit to base + size.
 	 */
 	.bar2_limit		= XEON_PBAR23LMT_OFFSET,

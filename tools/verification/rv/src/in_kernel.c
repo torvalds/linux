@@ -7,7 +7,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 
 #include <trace.h>
@@ -24,10 +24,10 @@ static char *config_reactor;
 /*
  * __ikm_read_enable - reads monitor's enable status
  *
- * __does not log errors.
+ * __does analt log errors.
  *
- * Returns the current status, or -1 if the monitor does not exist,
- * __hence not logging errors.
+ * Returns the current status, or -1 if the monitor does analt exist,
+ * __hence analt logging errors.
  */
 static int __ikm_read_enable(char *monitor_name)
 {
@@ -147,7 +147,7 @@ static int ikm_fill_monitor_definition(char *name, struct monitor *ikm)
 
 	desc = ikm_read_desc(name);
 	if (!desc) {
-		err_msg("ikm: monitor %s does not have desc file, bug?\n", name);
+		err_msg("ikm: monitor %s does analt have desc file, bug?\n", name);
 		return -1;
 	}
 
@@ -258,7 +258,7 @@ static int ikm_has_id(char *monitor_name)
 	/* print fmt: "%d: %s x %s -> %s %s", REC->id, ... */
 	has_id = !!strstr(format, "REC->id");
 
-	debug_msg("ikm: monitor %s has id: %s\n", monitor_name, has_id ? "yes" : "no");
+	debug_msg("ikm: monitor %s has id: %s\n", monitor_name, has_id ? "anal" : "anal");
 
 	free(format);
 
@@ -280,7 +280,7 @@ int ikm_list_monitors(void)
 	available_monitors = tracefs_instance_file_read(NULL, "rv/available_monitors", NULL);
 
 	if (!available_monitors) {
-		err_msg("ikm: available monitors is not available, is CONFIG_RV enabled?\n");
+		err_msg("ikm: available monitors is analt available, is CONFIG_RV enabled?\n");
 		return -1;
 	}
 
@@ -570,11 +570,11 @@ static int parse_arguments(char *monitor_name, int argc, char **argv)
 
 	while (1) {
 		static struct option long_options[] = {
-			{"help",		no_argument,		0, 'h'},
+			{"help",		anal_argument,		0, 'h'},
 			{"reactor",		required_argument,	0, 'r'},
-			{"self",		no_argument,		0, 's'},
-			{"trace",		no_argument,		0, 't'},
-			{"verbose",		no_argument,		0, 'v'},
+			{"self",		anal_argument,		0, 's'},
+			{"trace",		anal_argument,		0, 't'},
+			{"verbose",		anal_argument,		0, 'v'},
 			{0, 0, 0, 0}
 		};
 
@@ -627,7 +627,7 @@ static int parse_arguments(char *monitor_name, int argc, char **argv)
 /**
  * ikm_run_monitor - apply configs and run the monitor
  *
- * Returns 1 if a monitor was found an executed, 0 if no
+ * Returns 1 if a monitor was found an executed, 0 if anal
  * monitors were found, or -1 on error.
  */
 int ikm_run_monitor(char *monitor_name, int argc, char **argv)

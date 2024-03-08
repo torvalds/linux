@@ -93,7 +93,7 @@ static int tegra186_bpmp_ring_doorbell(struct tegra_bpmp *bpmp)
 	return 0;
 }
 
-static void tegra186_bpmp_ivc_notify(struct tegra_ivc *ivc, void *data)
+static void tegra186_bpmp_ivc_analtify(struct tegra_ivc *ivc, void *data)
 {
 	struct tegra_bpmp *bpmp = data;
 	struct tegra186_bpmp *priv = bpmp->priv;
@@ -117,7 +117,7 @@ static int tegra186_bpmp_channel_init(struct tegra_bpmp_channel *channel,
 	channel->ivc = devm_kzalloc(bpmp->dev, sizeof(*channel->ivc),
 				    GFP_KERNEL);
 	if (!channel->ivc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	message_size = tegra_ivc_align(MSG_MIN_SZ);
 	queue_size = tegra_ivc_total_queue_size(message_size);
@@ -132,7 +132,7 @@ static int tegra186_bpmp_channel_init(struct tegra_bpmp_channel *channel,
 	}
 
 	err = tegra_ivc_init(channel->ivc, NULL, &rx, priv->rx.phys + offset, &tx,
-			     priv->tx.phys + offset, 1, message_size, tegra186_bpmp_ivc_notify,
+			     priv->tx.phys + offset, 1, message_size, tegra186_bpmp_ivc_analtify,
 			     bpmp);
 	if (err < 0) {
 		dev_err(bpmp->dev, "failed to setup IVC for channel %u: %d\n",
@@ -152,7 +152,7 @@ static void tegra186_bpmp_channel_reset(struct tegra_bpmp_channel *channel)
 	tegra_ivc_reset(channel->ivc);
 
 	/* sync the channel state with BPMP */
-	while (tegra_ivc_notified(channel->ivc))
+	while (tegra_ivc_analtified(channel->ivc))
 		;
 }
 
@@ -192,14 +192,14 @@ static void tegra186_bpmp_teardown_channels(struct tegra_bpmp *bpmp)
 static int tegra186_bpmp_dram_init(struct tegra_bpmp *bpmp)
 {
 	struct tegra186_bpmp *priv = bpmp->priv;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 	size_t size;
 	int err;
 
-	np = of_parse_phandle(bpmp->dev->of_node, "memory-region", 0);
+	np = of_parse_phandle(bpmp->dev->of_analde, "memory-region", 0);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = of_address_to_resource(np, 0, &res);
 	if (err < 0) {
@@ -235,9 +235,9 @@ static int tegra186_bpmp_sram_init(struct tegra_bpmp *bpmp)
 	struct tegra186_bpmp *priv = bpmp->priv;
 	int err;
 
-	priv->tx.pool = of_gen_pool_get(bpmp->dev->of_node, "shmem", 0);
+	priv->tx.pool = of_gen_pool_get(bpmp->dev->of_analde, "shmem", 0);
 	if (!priv->tx.pool) {
-		dev_err(bpmp->dev, "TX shmem pool not found\n");
+		dev_err(bpmp->dev, "TX shmem pool analt found\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -245,12 +245,12 @@ static int tegra186_bpmp_sram_init(struct tegra_bpmp *bpmp)
 							   &priv->tx.phys);
 	if (!priv->tx.sram) {
 		dev_err(bpmp->dev, "failed to allocate from TX pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	priv->rx.pool = of_gen_pool_get(bpmp->dev->of_node, "shmem", 1);
+	priv->rx.pool = of_gen_pool_get(bpmp->dev->of_analde, "shmem", 1);
 	if (!priv->rx.pool) {
-		dev_err(bpmp->dev, "RX shmem pool not found\n");
+		dev_err(bpmp->dev, "RX shmem pool analt found\n");
 		err = -EPROBE_DEFER;
 		goto free_tx;
 	}
@@ -259,7 +259,7 @@ static int tegra186_bpmp_sram_init(struct tegra_bpmp *bpmp)
 							   &priv->rx.phys);
 	if (!priv->rx.sram) {
 		dev_err(bpmp->dev, "failed to allocate from RX pool\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_tx;
 	}
 
@@ -277,7 +277,7 @@ static int tegra186_bpmp_setup_channels(struct tegra_bpmp *bpmp)
 	int err;
 
 	err = tegra186_bpmp_dram_init(bpmp);
-	if (err == -ENODEV) {
+	if (err == -EANALDEV) {
 		err = tegra186_bpmp_sram_init(bpmp);
 		if (err < 0)
 			return err;
@@ -329,7 +329,7 @@ static int tegra186_bpmp_init(struct tegra_bpmp *bpmp)
 
 	priv = devm_kzalloc(bpmp->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->parent = bpmp;
 	bpmp->priv = priv;
@@ -342,7 +342,7 @@ static int tegra186_bpmp_init(struct tegra_bpmp *bpmp)
 	priv->mbox.client.dev = bpmp->dev;
 	priv->mbox.client.rx_callback = mbox_handle_rx;
 	priv->mbox.client.tx_block = false;
-	priv->mbox.client.knows_txdone = false;
+	priv->mbox.client.kanalws_txdone = false;
 
 	priv->mbox.channel = mbox_request_channel(&priv->mbox.client, 0);
 	if (IS_ERR(priv->mbox.channel)) {

@@ -2,7 +2,7 @@
 /*
  * Driver for Zarlink zl10036 DVB-S silicon tuner
  *
- * Copyright (C) 2006 Tino Reichardt
+ * Copyright (C) 2006 Tianal Reichardt
  * Copyright (C) 2007-2009 Matthias Schwarzott <zzam@gentoo.de>
  *
  **
@@ -347,7 +347,7 @@ static int zl10036_set_params(struct dvb_frontend *fe)
 	if (ret < 0)
 		goto error;
 
-	/* wait for tuner lock - no idea if this is really needed */
+	/* wait for tuner lock - anal idea if this is really needed */
 	for (i = 0; i < 20; i++) {
 		ret = zl10036_read_status_reg(state);
 		if (ret < 0)
@@ -453,7 +453,7 @@ struct dvb_frontend *zl10036_attach(struct dvb_frontend *fe,
 	int ret;
 
 	if (!config) {
-		printk(KERN_ERR "%s: no config specified", __func__);
+		printk(KERN_ERR "%s: anal config specified", __func__);
 		return NULL;
 	}
 
@@ -469,7 +469,7 @@ struct dvb_frontend *zl10036_attach(struct dvb_frontend *fe,
 
 	ret = zl10036_read_status_reg(state);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: No zl10036 found\n", __func__);
+		printk(KERN_ERR "%s: Anal zl10036 found\n", __func__);
 		goto error;
 	}
 
@@ -501,6 +501,6 @@ EXPORT_SYMBOL_GPL(zl10036_attach);
 module_param_named(debug, zl10036_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 MODULE_DESCRIPTION("DVB ZL10036 driver");
-MODULE_AUTHOR("Tino Reichardt");
+MODULE_AUTHOR("Tianal Reichardt");
 MODULE_AUTHOR("Matthias Schwarzott");
 MODULE_LICENSE("GPL");

@@ -10,7 +10,7 @@ maintainers:
   - Andreas Färber <afaerber@suse.de>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -24,7 +24,7 @@ properties:
       # RTD1293 SoC based boards
       - items:
           - enum:
-              - synology,ds418j # Synology DiskStation DS418j
+              - syanallogy,ds418j # Syanallogy DiskStation DS418j
           - const: realtek,rtd1293
 
       # RTD1295 SoC based boards
@@ -32,14 +32,14 @@ properties:
           - enum:
               - mele,v9 # MeLE V9
               - probox2,ava # ProBox2 AVA
-              - xnano,x5 # Xnano X5
+              - xnaanal,x5 # Xnaanal X5
               - zidoo,x9s # Zidoo X9S
           - const: realtek,rtd1295
 
       # RTD1296 SoC based boards
       - items:
           - enum:
-              - synology,ds418 # Synology DiskStation DS418
+              - syanallogy,ds418 # Syanallogy DiskStation DS418
           - const: realtek,rtd1296
 
       # RTD1395 SoC based boards

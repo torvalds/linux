@@ -12,16 +12,16 @@ cpupower frequency\-set allows you to modify cpufreq settings without having to 
 .LP 
 .TP 
 \fB\-d\fR \fB\-\-min\fR <FREQ>
-new minimum CPU frequency the governor may select.
+new minimum CPU frequency the goveranalr may select.
 .TP 
 \fB\-u\fR \fB\-\-max\fR <FREQ>
-new maximum CPU frequency the governor may select.
+new maximum CPU frequency the goveranalr may select.
 .TP 
-\fB\-g\fR \fB\-\-governor\fR <GOV>
-new cpufreq governor.
+\fB\-g\fR \fB\-\-goveranalr\fR <GOV>
+new cpufreq goveranalr.
 .TP 
 \fB\-f\fR \fB\-\-freq\fR <FREQ>
-specific frequency to be set. Requires userspace governor to be available and loaded.
+specific frequency to be set. Requires userspace goveranalr to be available and loaded.
 .TP 
 \fB\-r\fR \fB\-\-related\fR
 modify all hardware-related CPUs at the same time
@@ -31,11 +31,11 @@ modify all hardware-related CPUs at the same time
 By default values are applied on all cores. How to modify single core
 configurations is described in the cpupower(1) manpage in the \-\-cpu option section.
 .LP 
-The \-f FREQ, \-\-freq FREQ parameter cannot be combined with any other parameter.
+The \-f FREQ, \-\-freq FREQ parameter cananalt be combined with any other parameter.
 .LP 
 FREQuencies can be passed in Hz, kHz (default), MHz, GHz, or THz by postfixing the value with the wanted unit name, without any space (frequency in kHz =^ Hz * 0.001 =^ MHz * 1000 =^ GHz * 1000000).
 .LP 
-On Linux kernels up to 2.6.29, the \-r or \-\-related parameter is ignored.
+On Linux kernels up to 2.6.29, the \-r or \-\-related parameter is iganalred.
 .SH "FILES" 
 .nf
 \fI/sys/devices/system/cpu/cpu*/cpufreq/\fP  

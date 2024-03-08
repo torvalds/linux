@@ -162,7 +162,7 @@ static int hub_master_init(struct fsi_master_hub *hub)
 	if (rc)
 		return rc;
 
-	/* Leave enabled long enough for master logic to set up */
+	/* Leave enabled long eanalugh for master logic to set up */
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
 
 	rc = fsi_device_write(dev, FSI_MCENP0, &reg, sizeof(reg));
@@ -217,7 +217,7 @@ static int hub_master_probe(struct device *dev)
 
 	hub = kzalloc(sizeof(*hub), GFP_KERNEL);
 	if (!hub) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_release;
 	}
 
@@ -227,7 +227,7 @@ static int hub_master_probe(struct device *dev)
 
 	hub->master.dev.parent = dev;
 	hub->master.dev.release = hub_master_release;
-	hub->master.dev.of_node = of_node_get(dev_of_node(dev));
+	hub->master.dev.of_analde = of_analde_get(dev_of_analde(dev));
 
 	hub->master.n_links = links;
 	hub->master.read = hub_master_read;
@@ -265,7 +265,7 @@ static int hub_master_remove(struct device *dev)
 
 	fsi_master_unregister(&hub->master);
 	fsi_slave_release_range(hub->upstream->slave, hub->addr, hub->size);
-	of_node_put(hub->master.dev.of_node);
+	of_analde_put(hub->master.dev.of_analde);
 
 	/*
 	 * master.dev will likely be ->release()ed after this, which free()s

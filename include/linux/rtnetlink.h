@@ -18,7 +18,7 @@ static inline int rtnetlink_maybe_send(struct sk_buff *skb, struct net *net,
 }
 
 extern int rtnl_unicast(struct sk_buff *skb, struct net *net, u32 pid);
-extern void rtnl_notify(struct sk_buff *skb, struct net *net, u32 pid,
+extern void rtnl_analtify(struct sk_buff *skb, struct net *net, u32 pid,
 			u32 group, const struct nlmsghdr *nlh, gfp_t flags);
 extern void rtnl_set_sk_err(struct net *net, u32 group, int error);
 extern int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics);
@@ -64,7 +64,7 @@ static inline bool lockdep_rtnl_is_held(void)
  * @p: The pointer to read, prior to dereferencing
  *
  * Do an rcu_dereference(p), but check caller either holds rcu_read_lock()
- * or RTNL. Note : Please prefer rtnl_dereference() or rcu_dereference()
+ * or RTNL. Analte : Please prefer rtnl_dereference() or rcu_dereference()
  */
 #define rcu_dereference_rtnl(p)					\
 	rcu_dereference_check(p, lockdep_rtnl_is_held())
@@ -85,7 +85,7 @@ static inline bool lockdep_rtnl_is_held(void)
  * @rp: RCU pointer, whose value is returned
  * @p: regular pointer
  *
- * Perform a replacement under rtnl_lock, where @rp is an RCU-annotated
+ * Perform a replacement under rtnl_lock, where @rp is an RCU-ananaltated
  * pointer. The old value of @rp is returned, and @rp is set to @p
  */
 #define rcu_replace_pointer_rtnl(rp, p)			\
@@ -147,7 +147,7 @@ extern int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 						    struct net_device *dev,
 						    u32 filter_mask));
 
-extern void rtnl_offload_xstats_notify(struct net_device *dev);
+extern void rtnl_offload_xstats_analtify(struct net_device *dev);
 
 static inline int rtnl_has_listeners(const struct net *net, u32 group)
 {
@@ -157,16 +157,16 @@ static inline int rtnl_has_listeners(const struct net *net, u32 group)
 }
 
 /**
- * rtnl_notify_needed - check if notification is needed
+ * rtnl_analtify_needed - check if analtification is needed
  * @net: Pointer to the net namespace
  * @nlflags: netlink ingress message flags
  * @group: rtnl group
  *
  * Based on the ingress message flags and rtnl group, returns true
- * if a notification is needed, false otherwise.
+ * if a analtification is needed, false otherwise.
  */
 static inline bool
-rtnl_notify_needed(const struct net *net, u16 nlflags, u32 group)
+rtnl_analtify_needed(const struct net *net, u16 nlflags, u32 group)
 {
 	return (nlflags & NLM_F_ECHO) || rtnl_has_listeners(net, group);
 }

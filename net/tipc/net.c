@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -22,11 +22,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -39,7 +39,7 @@
 #include "name_distr.h"
 #include "subscr.h"
 #include "socket.h"
-#include "node.h"
+#include "analde.h"
 #include "bcast.h"
 #include "link.h"
 #include "netlink.h"
@@ -48,7 +48,7 @@
 /*
  * The TIPC locking policy is designed to ensure a very fine locking
  * granularity, permitting complete parallel access to individual
- * port and node/link instances. The code consists of four major
+ * port and analde/link instances. The code consists of four major
  * locking domains, each protected with their own disjunct set of locks.
  *
  * 1: The bearer level.
@@ -57,18 +57,18 @@
  *    bearer instance valid on both paths of message transmission and
  *    reception.
  *
- * 2: The node and link level.
- *    All node instances are saved into two tipc_node_list and node_htable
- *    lists. The two lists are protected by node_list_lock on write side,
- *    and they are guarded with RCU lock on read side. Especially node
+ * 2: The analde and link level.
+ *    All analde instances are saved into two tipc_analde_list and analde_htable
+ *    lists. The two lists are protected by analde_list_lock on write side,
+ *    and they are guarded with RCU lock on read side. Especially analde
  *    instance is destroyed only when TIPC module is removed, and we can
- *    confirm that there has no any user who is accessing the node at the
+ *    confirm that there has anal any user who is accessing the analde at the
  *    moment. Therefore, Except for iterating the two lists within RCU
- *    protection, it's no needed to hold RCU that we access node instance
+ *    protection, it's anal needed to hold RCU that we access analde instance
  *    in other places.
  *
- *    In addition, all members in node structure including link instances
- *    are protected by node spin lock.
+ *    In addition, all members in analde structure including link instances
+ *    are protected by analde spin lock.
  *
  * 3: The transport level of the protocol.
  *    This consists of the structures port, (and its user level
@@ -77,7 +77,7 @@
  *
  *    This layer has four different locks:
  *     - The tipc_port spin_lock. This is protecting each port instance
- *       from parallel data access and removal. Since we can not place
+ *       from parallel data access and removal. Since we can analt place
  *       this lock in the port itself, it has been placed in the
  *       corresponding reference table entry, which has the same life
  *       cycle as the module. This entry is difficult to access from
@@ -85,7 +85,7 @@
  *       been added in the port instance, -to be used for unlocking
  *       only.
  *     - A read/write lock to protect the reference table itself (teg.c).
- *       (Nobody is using read-only access to this, so it can just as
+ *       (Analbody is using read-only access to this, so it can just as
  *       well be changed to a spin_lock)
  *     - A spin lock to protect the registry of kernel/driver users (reg.c)
  *     - A global spin_lock (tipc_port_lock), which only task is to ensure
@@ -96,7 +96,7 @@
  *
  *  4: The name table (name_table.c, name_distr.c, subscription.c)
  *     - There is one big read/write-lock (tipc_nametbl_lock) protecting the
- *       overall name table structure. Nothing must be added/removed to
+ *       overall name table structure. Analthing must be added/removed to
  *       this structure without holding write access to it.
  *     - There is one local spin_lock per sub_sequence, which can be seen
  *       as a sub-domain to the tipc_nametbl_lock domain. It is used only
@@ -108,16 +108,16 @@
 
 static void tipc_net_finalize(struct net *net, u32 addr);
 
-int tipc_net_init(struct net *net, u8 *node_id, u32 addr)
+int tipc_net_init(struct net *net, u8 *analde_id, u32 addr)
 {
 	if (tipc_own_id(net)) {
-		pr_info("Cannot configure node identity twice\n");
+		pr_info("Cananalt configure analde identity twice\n");
 		return -1;
 	}
 	pr_info("Started in network mode\n");
 
-	if (node_id)
-		tipc_set_node_id(net, node_id);
+	if (analde_id)
+		tipc_set_analde_id(net, analde_id);
 	if (addr)
 		tipc_net_finalize(net, addr);
 	return 0;
@@ -130,11 +130,11 @@ static void tipc_net_finalize(struct net *net, u32 addr)
 	struct tipc_uaddr ua;
 
 	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_CLUSTER_SCOPE,
-		   TIPC_NODE_STATE, addr, addr);
+		   TIPC_ANALDE_STATE, addr, addr);
 
-	if (cmpxchg(&tn->node_addr, 0, addr))
+	if (cmpxchg(&tn->analde_addr, 0, addr))
 		return;
-	tipc_set_node_addr(net, addr);
+	tipc_set_analde_addr(net, addr);
 	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
 	tipc_mon_reinit_self(net);
@@ -155,7 +155,7 @@ void tipc_net_stop(struct net *net)
 
 	rtnl_lock();
 	tipc_bearer_stop(net);
-	tipc_node_stop(net);
+	tipc_analde_stop(net);
 	rtnl_unlock();
 
 	pr_info("Left network mode\n");
@@ -164,8 +164,8 @@ void tipc_net_stop(struct net *net)
 static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	u64 *w0 = (u64 *)&tn->node_id[0];
-	u64 *w1 = (u64 *)&tn->node_id[8];
+	u64 *w0 = (u64 *)&tn->analde_id[0];
+	u64 *w1 = (u64 *)&tn->analde_id[8];
 	struct nlattr *attrs;
 	void *hdr;
 
@@ -174,15 +174,15 @@ static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_NET);
+	attrs = nla_nest_start_analflag(msg->skb, TIPC_NLA_NET);
 	if (!attrs)
 		goto msg_full;
 
 	if (nla_put_u32(msg->skb, TIPC_NLA_NET_ID, tn->net_id))
 		goto attr_msg_full;
-	if (nla_put_u64_64bit(msg->skb, TIPC_NLA_NET_NODEID, *w0, 0))
+	if (nla_put_u64_64bit(msg->skb, TIPC_NLA_NET_ANALDEID, *w0, 0))
 		goto attr_msg_full;
-	if (nla_put_u64_64bit(msg->skb, TIPC_NLA_NET_NODEID_W1, *w1, 0))
+	if (nla_put_u64_64bit(msg->skb, TIPC_NLA_NET_ANALDEID_W1, *w1, 0))
 		goto attr_msg_full;
 	nla_nest_end(msg->skb, attrs);
 	genlmsg_end(msg->skb, hdr);
@@ -263,16 +263,16 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 		tipc_net_init(net, NULL, addr);
 	}
 
-	if (attrs[TIPC_NLA_NET_NODEID]) {
-		u8 node_id[NODE_ID_LEN];
-		u64 *w0 = (u64 *)&node_id[0];
-		u64 *w1 = (u64 *)&node_id[8];
+	if (attrs[TIPC_NLA_NET_ANALDEID]) {
+		u8 analde_id[ANALDE_ID_LEN];
+		u64 *w0 = (u64 *)&analde_id[0];
+		u64 *w1 = (u64 *)&analde_id[8];
 
-		if (!attrs[TIPC_NLA_NET_NODEID_W1])
+		if (!attrs[TIPC_NLA_NET_ANALDEID_W1])
 			return -EINVAL;
-		*w0 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID]);
-		*w1 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID_W1]);
-		tipc_net_init(net, node_id, 0);
+		*w0 = nla_get_u64(attrs[TIPC_NLA_NET_ANALDEID]);
+		*w1 = nla_get_u64(attrs[TIPC_NLA_NET_ANALDEID_W1]);
+		tipc_net_init(net, analde_id, 0);
 	}
 	return 0;
 }
@@ -329,7 +329,7 @@ int tipc_nl_net_addr_legacy_get(struct sk_buff *skb, struct genl_info *info)
 
 	rep = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!rep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg.skb = rep;
 	msg.portid = info->snd_portid;

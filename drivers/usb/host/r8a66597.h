@@ -23,7 +23,7 @@
 #define R8A66597_MAX_SAMPLING		5
 #define R8A66597_RH_POLL_TIME		10
 #define R8A66597_MAX_DMA_CHANNEL	2
-#define R8A66597_PIPE_NO_DMA		R8A66597_MAX_DMA_CHANNEL
+#define R8A66597_PIPE_ANAL_DMA		R8A66597_MAX_DMA_CHANNEL
 #define check_bulk_or_isoc(pipenum)	((pipenum >= 1 && pipenum <= 5))
 #define check_interrupt(pipenum)	((pipenum >= 6 && pipenum <= 9))
 #define make_devsel(addr)		(addr << 12)

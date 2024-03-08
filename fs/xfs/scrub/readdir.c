@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_trace.h"
@@ -24,7 +24,7 @@
 STATIC int
 xchk_dir_walk_sf(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	xchk_dirent_fn		dirent_fn,
 	void			*priv)
 {
@@ -37,7 +37,7 @@ xchk_dir_walk_sf(
 	struct xfs_da_geometry	*geo = mp->m_dir_geo;
 	struct xfs_dir2_sf_entry *sfep;
 	struct xfs_dir2_sf_hdr	*sfp = dp->i_df.if_data;
-	xfs_ino_t		ino;
+	xfs_ianal_t		ianal;
 	xfs_dir2_dataptr_t	dapos;
 	unsigned int		i;
 	int			error;
@@ -49,7 +49,7 @@ xchk_dir_walk_sf(
 	dapos = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
 			geo->data_entry_offset);
 
-	error = dirent_fn(sc, dp, dapos, &name, dp->i_ino, priv);
+	error = dirent_fn(sc, dp, dapos, &name, dp->i_ianal, priv);
 	if (error)
 		return error;
 
@@ -57,11 +57,11 @@ xchk_dir_walk_sf(
 	dapos = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
 			geo->data_entry_offset +
 			xfs_dir2_data_entsize(mp, sizeof(".") - 1));
-	ino = xfs_dir2_sf_get_parent_ino(sfp);
+	ianal = xfs_dir2_sf_get_parent_ianal(sfp);
 	name.name = "..";
 	name.len = 2;
 
-	error = dirent_fn(sc, dp, dapos, &name, ino, priv);
+	error = dirent_fn(sc, dp, dapos, &name, ianal, priv);
 	if (error)
 		return error;
 
@@ -70,12 +70,12 @@ xchk_dir_walk_sf(
 	for (i = 0; i < sfp->count; i++) {
 		dapos = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
 				xfs_dir2_sf_get_offset(sfep));
-		ino = xfs_dir2_sf_get_ino(mp, sfp, sfep);
+		ianal = xfs_dir2_sf_get_ianal(mp, sfp, sfep);
 		name.name = sfep->name;
 		name.len = sfep->namelen;
 		name.type = xfs_dir2_sf_get_ftype(mp, sfep);
 
-		error = dirent_fn(sc, dp, dapos, &name, ino, priv);
+		error = dirent_fn(sc, dp, dapos, &name, ianal, priv);
 		if (error)
 			return error;
 
@@ -89,7 +89,7 @@ xchk_dir_walk_sf(
 STATIC int
 xchk_dir_walk_block(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	xchk_dirent_fn		dirent_fn,
 	void			*priv)
 {
@@ -109,7 +109,7 @@ xchk_dir_walk_block(
 		struct xfs_name			name = { };
 		struct xfs_dir2_data_unused	*dup = bp->b_addr + off;
 		struct xfs_dir2_data_entry	*dep = bp->b_addr + off;
-		xfs_ino_t			ino;
+		xfs_ianal_t			ianal;
 		xfs_dir2_dataptr_t		dapos;
 
 		/* Skip an empty entry. */
@@ -124,12 +124,12 @@ xchk_dir_walk_block(
 			break;
 
 		dapos = xfs_dir2_db_off_to_dataptr(geo, geo->datablk, off);
-		ino = be64_to_cpu(dep->inumber);
+		ianal = be64_to_cpu(dep->inumber);
 		name.name = dep->name;
 		name.len = dep->namelen;
 		name.type = xfs_dir2_data_get_ftype(mp, dep);
 
-		error = dirent_fn(sc, dp, dapos, &name, ino, priv);
+		error = dirent_fn(sc, dp, dapos, &name, ianal, priv);
 		if (error)
 			break;
 	}
@@ -142,7 +142,7 @@ xchk_dir_walk_block(
 STATIC int
 xchk_read_leaf_dir_buf(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	struct xfs_da_geometry	*geo,
 	xfs_dir2_off_t		*curoff,
 	struct xfs_buf		**bpp)
@@ -182,7 +182,7 @@ xchk_read_leaf_dir_buf(
 STATIC int
 xchk_dir_walk_leaf(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	xchk_dirent_fn		dirent_fn,
 	void			*priv)
 {
@@ -198,13 +198,13 @@ xchk_dir_walk_leaf(
 		struct xfs_name			name = { };
 		struct xfs_dir2_data_unused	*dup;
 		struct xfs_dir2_data_entry	*dep;
-		xfs_ino_t			ino;
+		xfs_ianal_t			ianal;
 		unsigned int			length;
 		xfs_dir2_dataptr_t		dapos;
 
 		/*
-		 * If we have no buffer, or we're off the end of the
-		 * current buffer, need to get another one.
+		 * If we have anal buffer, or we're off the end of the
+		 * current buffer, need to get aanalther one.
 		 */
 		if (!bp || offset >= geo->blksize) {
 			if (bp) {
@@ -238,12 +238,12 @@ xchk_dir_walk_leaf(
 		length = xfs_dir2_data_entsize(mp, dep->namelen);
 
 		dapos = xfs_dir2_byte_to_dataptr(curoff) & 0x7fffffff;
-		ino = be64_to_cpu(dep->inumber);
+		ianal = be64_to_cpu(dep->inumber);
 		name.name = dep->name;
 		name.len = dep->namelen;
 		name.type = xfs_dir2_data_get_ftype(mp, dep);
 
-		error = dirent_fn(sc, dp, dapos, &name, ino, priv);
+		error = dirent_fn(sc, dp, dapos, &name, ianal, priv);
 		if (error)
 			break;
 
@@ -265,7 +265,7 @@ xchk_dir_walk_leaf(
 int
 xchk_dir_walk(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	xchk_dirent_fn		dirent_fn,
 	void			*priv)
 {
@@ -283,7 +283,7 @@ xchk_dir_walk(
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	ASSERT(xfs_isilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
 
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
+	if (dp->i_df.if_format == XFS_DIANALDE_FMT_LOCAL)
 		return xchk_dir_walk_sf(sc, dp, dirent_fn, priv);
 
 	/* dir2 functions require that the data fork is loaded */
@@ -302,17 +302,17 @@ xchk_dir_walk(
 }
 
 /*
- * Look up the inode number for an exact name in a directory.
+ * Look up the ianalde number for an exact name in a directory.
  *
- * Callers must hold the ILOCK.  File types are XFS_DIR3_FT_*.  Names are not
+ * Callers must hold the ILOCK.  File types are XFS_DIR3_FT_*.  Names are analt
  * checked for correctness.
  */
 int
 xchk_dir_lookup(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	const struct xfs_name	*name,
-	xfs_ino_t		*ino)
+	xfs_ianal_t		*ianal)
 {
 	struct xfs_da_args	args = {
 		.dp		= dp,
@@ -323,7 +323,7 @@ xchk_dir_lookup(
 		.filetype	= name->type,
 		.hashval	= xfs_dir2_hashname(dp->i_mount, name),
 		.whichfork	= XFS_DATA_FORK,
-		.op_flags	= XFS_DA_OP_OKNOENT,
+		.op_flags	= XFS_DA_OP_OKANALENT,
 	};
 	bool			isblock, isleaf;
 	int			error;
@@ -334,7 +334,7 @@ xchk_dir_lookup(
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	ASSERT(xfs_isilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
 
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
+	if (dp->i_df.if_format == XFS_DIANALDE_FMT_LOCAL) {
 		error = xfs_dir2_sf_lookup(&args);
 		goto out_check_rval;
 	}
@@ -362,12 +362,12 @@ xchk_dir_lookup(
 		goto out_check_rval;
 	}
 
-	error = xfs_dir2_node_lookup(&args);
+	error = xfs_dir2_analde_lookup(&args);
 
 out_check_rval:
 	if (error == -EEXIST)
 		error = 0;
 	if (!error)
-		*ino = args.inumber;
+		*ianal = args.inumber;
 	return error;
 }

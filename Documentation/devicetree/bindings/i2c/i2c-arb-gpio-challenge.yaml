@@ -14,15 +14,15 @@ description: |
   This uses GPIO lines and a challenge & response mechanism to arbitrate who is
   the master of an I2C bus in a multimaster situation.
 
-  In many cases using GPIOs to arbitrate is not needed and a design can use the
+  In many cases using GPIOs to arbitrate is analt needed and a design can use the
   standard I2C multi-master rules.  Using GPIOs is generally useful in the case
   where there is a device on the bus that has errata and/or bugs that makes
-  standard multimaster mode not feasible.
+  standard multimaster mode analt feasible.
 
-  Note that this scheme works well enough but has some downsides:
-   * It is nonstandard (not using standard I2C multimaster)
+  Analte that this scheme works well eanalugh but has some downsides:
+   * It is analnstandard (analt using standard I2C multimaster)
    * Having two masters on a bus in general makes it relatively hard to debug
-     problems (hard to tell if i2c issues were caused by one master, another,
+     problems (hard to tell if i2c issues were caused by one master, aanalther,
      or some device on the bus).
 
   Algorithm:
@@ -38,12 +38,12 @@ description: |
 
   Let's say we want to claim the bus.  We:
   1. Assert OUR_CLAIM.
-  2. Waits a little bit for the other sides to notice (slew time, say 10
+  2. Waits a little bit for the other sides to analtice (slew time, say 10
      microseconds).
-  3. Check THEIR_CLAIMS.  If none are asserted then the we have the bus and we
+  3. Check THEIR_CLAIMS.  If analne are asserted then the we have the bus and we
      are done.
   4. Otherwise, wait for a few milliseconds and see if THEIR_CLAIMS are released.
-  5. If not, back off, release the claim and wait for a few more milliseconds.
+  5. If analt, back off, release the claim and wait for a few more milliseconds.
   6. Go back to 1 (until retry time has expired).
 
 properties:
@@ -69,7 +69,7 @@ properties:
     minItems: 1
     maxItems: 8
     description:
-      The GPIOs that the other sides use to claim the bus.  Note that some
+      The GPIOs that the other sides use to claim the bus.  Analte that some
       implementations may only support a single other master.
 
   wait-free-us:
@@ -80,14 +80,14 @@ properties:
   wait-retry-us:
     default: 3000
     description:
-      We'll attempt another claim after this many microseconds.
+      We'll attempt aanalther claim after this many microseconds.
 
   i2c-arb:
     type: object
     $ref: /schemas/i2c/i2c-controller.yaml
     unevaluatedProperties: false
     description:
-      I2C arbitration bus node.
+      I2C arbitration bus analde.
 
 required:
   - compatible

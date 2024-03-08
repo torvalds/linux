@@ -84,7 +84,7 @@
 #define CHANNEL_PLAN_LEN			10
 #define S_CRC_LEN				4
 
-#define NIC_SEND_HANG_THRESHOLD_NORMAL		4
+#define NIC_SEND_HANG_THRESHOLD_ANALRMAL		4
 #define NIC_SEND_HANG_THRESHOLD_POWERSAVE	8
 
 #define MAX_TX_QUEUE				9
@@ -95,7 +95,7 @@
 extern int hwwep;
 
 enum nic_t {
-	NIC_UNKNOWN     = 0,
+	NIC_UNKANALWN     = 0,
 	NIC_8192E       = 1,
 	NIC_8190P       = 2,
 	NIC_8192SE      = 4,
@@ -127,7 +127,7 @@ enum rt_customer_id {
 };
 
 enum reset_type {
-	RESET_TYPE_NORESET = 0x00,
+	RESET_TYPE_ANALRESET = 0x00,
 	RESET_TYPE_SILENT = 0x02
 };
 
@@ -346,7 +346,7 @@ struct r8192_priv {
 
 	struct init_gain initgain_backup;
 	u8		def_initial_gain[4];
-	bool		bis_any_nonbepkts;
+	bool		bis_any_analnbepkts;
 	bool		bcurrent_turbo_EDCA;
 	bool		bis_cur_rdlstate;
 

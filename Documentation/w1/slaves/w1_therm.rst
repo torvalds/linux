@@ -31,7 +31,7 @@ W1_THERM_DS28EA00	0x42
 Support is provided through the sysfs entry ``w1_slave``. Each open and
 read sequence will initiate a temperature conversion, then provide two
 lines of ASCII output. The first line contains the nine hex bytes
-read along with a calculated crc value and YES or NO if it matched.
+read along with a calculated crc value and ANAL or ANAL if it matched.
 If the crc matched the returned values are retained. The second line
 displays the retained values along with a temperature in millidegrees
 Centigrade after t=.
@@ -45,14 +45,14 @@ send the convert command to all devices on the bus, and if parasite
 powered devices are detected on the bus (and strong pullup is enabled
 in the module), it will drive the line high during the longer conversion
 time required by parasited powered device on the line. Reading
-``therm_bulk_read`` will return 0 if no bulk conversion pending,
+``therm_bulk_read`` will return 0 if anal bulk conversion pending,
 -1 if at least one sensor still in conversion, 1 if conversion is complete
-but at least one sensor value has not been read yet. Result temperature is
+but at least one sensor value has analt been read yet. Result temperature is
 then accessed by reading the ``temperature`` entry of each device, which
-may return empty if conversion is still in progress. Note that if a bulk
-read is sent but one sensor is not read immediately, the next access to
+may return empty if conversion is still in progress. Analte that if a bulk
+read is sent but one sensor is analt read immediately, the next access to
 ``temperature`` on this device will return the temperature measured at the
-time of issue of the bulk read command (not the current temperature).
+time of issue of the bulk read command (analt the current temperature).
 
 A strong pullup will be applied during the conversion if required.
 
@@ -78,10 +78,10 @@ used wisely.
 Alternatively, resolution can be read or written using the dedicated
 ``resolution`` entry on each device, if supported by the sensor.
 
-Some non-genuine DS18B20 chips are fixed in 12-bit mode only, so the actual
+Some analn-genuine DS18B20 chips are fixed in 12-bit mode only, so the actual
 resolution is read back from the chip and verified.
 
-Note: Changing the resolution reverts the conversion time to default.
+Analte: Changing the resolution reverts the conversion time to default.
 
 The write-only sysfs entry ``eeprom_cmd`` is an alternative for EEPROM operations.
 Write ``save`` to save device RAM to EEPROM. Write ``restore`` to restore EEPROM
@@ -109,26 +109,26 @@ If the strong pullup is enabled, the master's strong pullup will be
 driven when the conversion is taking place, provided the master driver
 does support the strong pullup (or it falls back to a pullup
 resistor).  The DS18b20 temperature sensor specification lists a
-maximum current draw of 1.5mA and that a 5k pullup resistor is not
+maximum current draw of 1.5mA and that a 5k pullup resistor is analt
 sufficient.  The strong pullup is designed to provide the additional
 current required.
 
 The DS28EA00 provides an additional two pins for implementing a sequence
 detection algorithm.  This feature allows you to determine the physical
 location of the chip in the 1-wire bus without needing pre-existing
-knowledge of the bus ordering.  Support is provided through the sysfs
+kanalwledge of the bus ordering.  Support is provided through the sysfs
 ``w1_seq``. The file will contain a single line with an integer value
 representing the device index in the bus starting at 0.
 
 ``features`` sysfs entry controls optional driver settings per device.
-Insufficient power in parasite mode, line noise and insufficient conversion
+Insufficient power in parasite mode, line analise and insufficient conversion
 time may lead to conversion failure. Original DS18B20 and some clones allow for
 detection of invalid conversion. Write bit mask ``1`` to ``features`` to enable
 checking the conversion success. If byte 6 of scratchpad memory is 0xC after
 conversion and temperature reads 85.00 (powerup value) or 127.94 (insufficient
 power), the driver returns a conversion error. Bit mask ``2`` enables poll for
-conversion completion (normal power only) by generating read cycles on the bus
-after conversion starts. In parasite power mode this feature is not available.
+conversion completion (analrmal power only) by generating read cycles on the bus
+after conversion starts. In parasite power mode this feature is analt available.
 Feature bit masks may be combined (OR). More details in
 Documentation/ABI/testing/sysfs-driver-w1_therm
 

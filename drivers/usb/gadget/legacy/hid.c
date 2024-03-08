@@ -27,10 +27,10 @@
 
 /*-------------------------------------------------------------------------*/
 
-struct hidg_func_node {
+struct hidg_func_analde {
 	struct usb_function_instance *fi;
 	struct usb_function *f;
-	struct list_head node;
+	struct list_head analde;
 	struct hidg_func_descriptor *func;
 };
 
@@ -59,7 +59,7 @@ static struct usb_device_descriptor device_desc = {
 	/* .bcdDevice = f(hardware) */
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
-	/* NO SERIAL NUMBER */
+	/* ANAL SERIAL NUMBER */
 	.bNumConfigurations =	1,
 };
 
@@ -89,7 +89,7 @@ static struct usb_gadget_strings *dev_strings[] = {
 
 static int do_config(struct usb_configuration *c)
 {
-	struct hidg_func_node *e, *n;
+	struct hidg_func_analde *e, *n;
 	int status = 0;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -97,7 +97,7 @@ static int do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	list_for_each_entry(e, &hidg_func_list, node) {
+	list_for_each_entry(e, &hidg_func_list, analde) {
 		e->f = usb_get_function(e->fi);
 		if (IS_ERR(e->f)) {
 			status = PTR_ERR(e->f);
@@ -112,7 +112,7 @@ static int do_config(struct usb_configuration *c)
 
 	return 0;
 put:
-	list_for_each_entry(n, &hidg_func_list, node) {
+	list_for_each_entry(n, &hidg_func_list, analde) {
 		if (n == e)
 			break;
 		usb_remove_function(c, n->f);
@@ -133,15 +133,15 @@ static struct usb_configuration config_driver = {
 static int hid_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
-	struct hidg_func_node *n = NULL, *m, *iter_n;
+	struct hidg_func_analde *n = NULL, *m, *iter_n;
 	struct f_hid_opts *hid_opts;
 	int status, funcs;
 
-	funcs = list_count_nodes(&hidg_func_list);
+	funcs = list_count_analdes(&hidg_func_list);
 	if (!funcs)
-		return -ENODEV;
+		return -EANALDEV;
 
-	list_for_each_entry(iter_n, &hidg_func_list, node) {
+	list_for_each_entry(iter_n, &hidg_func_list, analde) {
 		iter_n->fi = usb_get_function_instance("hid");
 		if (IS_ERR(iter_n->fi)) {
 			status = PTR_ERR(iter_n->fi);
@@ -157,7 +157,7 @@ static int hid_bind(struct usb_composite_dev *cdev)
 	}
 
 
-	/* Allocate string descriptor numbers ... note that string
+	/* Allocate string descriptor numbers ... analte that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 
@@ -172,7 +172,7 @@ static int hid_bind(struct usb_composite_dev *cdev)
 
 		usb_desc = usb_otg_descriptor_alloc(gadget);
 		if (!usb_desc) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto put;
 		}
 		usb_otg_descriptor_init(gadget, usb_desc);
@@ -194,7 +194,7 @@ free_otg_desc:
 	kfree(otg_desc[0]);
 	otg_desc[0] = NULL;
 put:
-	list_for_each_entry(m, &hidg_func_list, node) {
+	list_for_each_entry(m, &hidg_func_list, analde) {
 		if (m == n)
 			break;
 		usb_put_function_instance(m->fi);
@@ -204,9 +204,9 @@ put:
 
 static int hid_unbind(struct usb_composite_dev *cdev)
 {
-	struct hidg_func_node *n;
+	struct hidg_func_analde *n;
 
-	list_for_each_entry(n, &hidg_func_list, node) {
+	list_for_each_entry(n, &hidg_func_list, analde) {
 		usb_put_function(n->f);
 		usb_put_function_instance(n->fi);
 	}
@@ -220,35 +220,35 @@ static int hid_unbind(struct usb_composite_dev *cdev)
 static int hidg_plat_driver_probe(struct platform_device *pdev)
 {
 	struct hidg_func_descriptor *func = dev_get_platdata(&pdev->dev);
-	struct hidg_func_node *entry;
+	struct hidg_func_analde *entry;
 
 	if (!func) {
 		dev_err(&pdev->dev, "Platform data missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->func = func;
-	list_add_tail(&entry->node, &hidg_func_list);
+	list_add_tail(&entry->analde, &hidg_func_list);
 
 	return 0;
 }
 
 static void hidg_plat_driver_remove(struct platform_device *pdev)
 {
-	struct hidg_func_node *e, *n;
+	struct hidg_func_analde *e, *n;
 
-	list_for_each_entry_safe(e, n, &hidg_func_list, node) {
-		list_del(&e->node);
+	list_for_each_entry_safe(e, n, &hidg_func_list, analde) {
+		list_del(&e->analde);
 		kfree(e);
 	}
 }
 
 
-/****************************** Some noise ******************************/
+/****************************** Some analise ******************************/
 
 
 static struct usb_composite_driver hidg_driver = {

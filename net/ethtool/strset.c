@@ -209,8 +209,8 @@ static int strset_parse_request(struct ethnl_req_info *req_base,
 			return ret;
 		if (id >= ETH_SS_COUNT) {
 			NL_SET_ERR_MSG_ATTR(extack, attr,
-					    "unknown string set id");
-			return -EOPNOTSUPP;
+					    "unkanalwn string set id");
+			return -EOPANALTSUPP;
 		}
 
 		req_info->req_ids |= (1U << id);
@@ -247,7 +247,7 @@ static int strset_prepare_set(struct strset_info *info, struct net_device *dev,
 	else if (ops->get_sset_count && ops->get_strings)
 		ret = ops->get_sset_count(dev, id);
 	else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	if (ret <= 0) {
 		info->count = 0;
 		return 0;
@@ -257,7 +257,7 @@ static int strset_prepare_set(struct strset_info *info, struct net_device *dev,
 	if (!counts_only) {
 		strings = kcalloc(count, ETH_GSTRING_LEN, GFP_KERNEL);
 		if (!strings)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (id == ETH_SS_PHY_STATS && dev->phydev &&
 		    !ops->get_ethtool_phy_stats && phy_ops &&
 		    phy_ops->get_strings)
@@ -403,7 +403,7 @@ static int strset_fill_set(struct sk_buff *skb,
 	unsigned int i;
 
 	if (!set_info->per_dev && !set_info->strings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (set_info->count == 0)
 		return 0;
 	stringset_attr = nla_nest_start(skb, ETHTOOL_A_STRINGSETS_STRINGSET);
@@ -470,7 +470,7 @@ const struct ethnl_request_ops ethnl_strset_request_ops = {
 	.hdr_attr		= ETHTOOL_A_STRSET_HEADER,
 	.req_info_size		= sizeof(struct strset_req_info),
 	.reply_data_size	= sizeof(struct strset_reply_data),
-	.allow_nodev_do		= true,
+	.allow_analdev_do		= true,
 
 	.parse_request		= strset_parse_request,
 	.prepare_data		= strset_prepare_data,

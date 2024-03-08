@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-TEST_GEN_PROGS := fpu_syscall fpu_preempt fpu_signal fpu_denormal vmx_syscall vmx_preempt vmx_signal vsx_preempt mma
+TEST_GEN_PROGS := fpu_syscall fpu_preempt fpu_signal fpu_deanalrmal vmx_syscall vmx_preempt vmx_signal vsx_preempt mma
 
 top_srcdir = ../../../../..
 include ../../lib.mk

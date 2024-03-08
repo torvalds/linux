@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HTC_H
@@ -90,10 +90,10 @@ enum ath12k_htc_conn_flag_threshold_level {
 
 enum ath12k_htc_conn_svc_status {
 	ATH12K_HTC_CONN_SVC_STATUS_SUCCESS      = 0,
-	ATH12K_HTC_CONN_SVC_STATUS_NOT_FOUND    = 1,
+	ATH12K_HTC_CONN_SVC_STATUS_ANALT_FOUND    = 1,
 	ATH12K_HTC_CONN_SVC_STATUS_FAILED       = 2,
-	ATH12K_HTC_CONN_SVC_STATUS_NO_RESOURCES = 3,
-	ATH12K_HTC_CONN_SVC_STATUS_NO_MORE_EP   = 4
+	ATH12K_HTC_CONN_SVC_STATUS_ANAL_RESOURCES = 3,
+	ATH12K_HTC_CONN_SVC_STATUS_ANAL_MORE_EP   = 4
 };
 
 struct ath12k_htc_ready {
@@ -154,7 +154,7 @@ struct ath12k_htc_record {
 
 /* HTC FRAME structure layout draft
  *
- * note: the trailer offset is dynamic depending
+ * analte: the trailer offset is dynamic depending
  * on payload length. this is only a struct layout draft
  *
  *=======================================================
@@ -189,7 +189,7 @@ enum ath12k_htc_svc_gid {
 	(int)(((int)(group) << 8) | (int)(idx))
 
 enum ath12k_htc_svc_id {
-	/* NOTE: service ID of 0x0000 is reserved and should never be used */
+	/* ANALTE: service ID of 0x0000 is reserved and should never be used */
 	ATH12K_HTC_SVC_ID_RESERVED	= 0x0000,
 	ATH12K_HTC_SVC_ID_UNUSED	= ATH12K_HTC_SVC_ID_RESERVED,
 
@@ -272,7 +272,7 @@ struct ath12k_htc_ep {
 	u8 ul_pipe_id;
 	u8 dl_pipe_id;
 
-	u8 seq_no; /* for debugging */
+	u8 seq_anal; /* for debugging */
 	int tx_credits;
 	bool tx_credit_flow_enabled;
 };

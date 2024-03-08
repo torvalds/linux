@@ -55,10 +55,10 @@ TC_INDIRECT_SCOPE int tcf_vlan_act(struct sk_buff *skb,
 			goto drop;
 		break;
 	case TCA_VLAN_ACT_MODIFY:
-		/* No-op if no vlan tag (either hw-accel or in-payload) */
+		/* Anal-op if anal vlan tag (either hw-accel or in-payload) */
 		if (!skb_vlan_tagged(skb))
 			goto out;
-		/* extract existing tag (and guarantee no hw-accel tag) */
+		/* extract existing tag (and guarantee anal hw-accel tag) */
 		if (skb_vlan_tag_present(skb)) {
 			tci = skb_vlan_tag_get(skb);
 			__vlan_hwaccel_clear_tag(skb);
@@ -185,7 +185,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 					tcf_idr_release(*a, bind);
 				else
 					tcf_idr_cleanup(tn, index);
-				return -EPROTONOSUPPORT;
+				return -EPROTOANALSUPPORT;
 			}
 		} else {
 			push_proto = htons(ETH_P_8021Q);
@@ -237,7 +237,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_chain;
 	}
 
@@ -384,7 +384,7 @@ static int tcf_vlan_offload_act_setup(struct tc_action *act, void *entry_data,
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported vlan action mode offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		*index_inc = 1;
 	} else {
@@ -407,7 +407,7 @@ static int tcf_vlan_offload_act_setup(struct tc_action *act, void *entry_data,
 			fl_action->id = FLOW_ACTION_VLAN_PUSH_ETH;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 

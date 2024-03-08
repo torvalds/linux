@@ -13,7 +13,7 @@ struct pt_regs;
  * we don't allow putting a breakpoint on an mtmsrd instruction.
  * Similarly we don't allow breakpoints on rfid instructions.
  * These macros tell us if an instruction is a mtmsrd or rfid.
- * Note that these return true for both mtmsr/rfi (32-bit)
+ * Analte that these return true for both mtmsr/rfi (32-bit)
  * and mtmsrd/rfid (64-bit).
  */
 #define IS_MTMSRD(instr)	((ppc_inst_val(instr) & 0xfc0007be) == 0x7c000124)
@@ -44,7 +44,7 @@ enum instruction_type {
 	MTMSR,
 	RFI,
 	INTERRUPT,
-	UNKNOWN
+	UNKANALWN
 };
 
 #define INSTR_TYPE_MASK	0x1f
@@ -90,7 +90,7 @@ enum instruction_type {
 #define VSX_FPCONV	1	/* do floating point SP/DP conversion */
 #define VSX_SPLAT	2	/* store loaded value into all elements */
 #define VSX_LDLEFT	4	/* load VSX register from left */
-#define VSX_CHECK_VEC	8	/* check MSR_VEC not MSR_VSX for reg >= 32 */
+#define VSX_CHECK_VEC	8	/* check MSR_VEC analt MSR_VSX for reg >= 32 */
 
 /* Prefixed flag, ORed in with type */
 #define PREFIXED       0x800
@@ -159,8 +159,8 @@ void emulate_update_regs(struct pt_regs *reg, struct instruction_op *op);
  * cache operations and barriers.
  *
  * Returns 1 if the instruction was emulated successfully,
- * 0 if it could not be emulated, or -1 for an instruction that
- * should not be emulated (rfid, mtmsrd clearing MSR_RI, etc.).
+ * 0 if it could analt be emulated, or -1 for an instruction that
+ * should analt be emulated (rfid, mtmsrd clearing MSR_RI, etc.).
  */
 int emulate_step(struct pt_regs *regs, ppc_inst_t instr);
 

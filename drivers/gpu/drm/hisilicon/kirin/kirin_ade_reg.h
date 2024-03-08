@@ -188,11 +188,11 @@ enum ldi_output_format {
 
 enum ldi_work_mode {
 	TEST_MODE = 0,
-	NORMAL_MODE
+	ANALRMAL_MODE
 };
 
 enum ldi_input_source {
-	DISP_SRC_NONE = 0,
+	DISP_SRC_ANALNE = 0,
 	DISP_SRC_OVLY2,
 	DISP_SRC_DISP,
 	DISP_SRC_ROT,

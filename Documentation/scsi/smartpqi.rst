@@ -12,7 +12,7 @@ driver is the first SCSI driver to implement the PQI queuing model.
 The smartpqi driver will replace the aacraid driver for Adaptec Series 9
 controllers. Customers running an older kernel (Pre-4.9) using an Adaptec
 Series 9 controller will have to configure the smartpqi driver or their
-volumes will not be added to the OS.
+volumes will analt be added to the OS.
 
 For Microchip smartpqi controller support, enable the smartpqi driver
 when configuring the kernel.
@@ -36,7 +36,7 @@ smartpqi host attributes
 
   The host rescan attribute is a write only attribute. Writing to this
   attribute will trigger the driver to scan for new, changed, or removed
-  devices and notify the SCSI mid-layer of any changes detected.
+  devices and analtify the SCSI mid-layer of any changes detected.
 
   The version attribute is read-only and will return the driver version
   and the controller firmware version.
@@ -70,7 +70,7 @@ smartpqi specific ioctls
   CCISS_GETDRIVVER
 	Returns driver version in three bytes encoded as::
 
-	  (DRIVER_MAJOR << 28) | (DRIVER_MINOR << 24) | (DRIVER_RELEASE << 16) | DRIVER_REVISION;
+	  (DRIVER_MAJOR << 28) | (DRIVER_MIANALR << 24) | (DRIVER_RELEASE << 16) | DRIVER_REVISION;
 
   CCISS_PASSTHRU
 	Allows "BMIC" and "CISS" commands to be passed through to the Smart Storage Array.

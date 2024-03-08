@@ -107,7 +107,7 @@ struct qed_iwarp_ep_memory {
 };
 
 /* Endpoint structure represents a TCP connection. This connection can be
- * associated with a QP or not (in which case QP==NULL)
+ * associated with a QP or analt (in which case QP==NULL)
  */
 struct qed_iwarp_ep {
 	struct list_head list_entry;
@@ -132,7 +132,7 @@ struct qed_iwarp_ep {
 	struct qed_iwarp_ll2_buff *syn;
 	dma_addr_t syn_phy_addr;
 
-	/* The event_cb function is called for asynchrounous events associated
+	/* The event_cb function is called for asynchrouanalus events associated
 	 * with the ep. It is initialized at different entry points depending
 	 * on whether the ep is the tcp connection active side or passive side
 	 * The cb_context is passed to the event_cb function.

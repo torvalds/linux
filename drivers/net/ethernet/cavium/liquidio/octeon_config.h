@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 /*! \file  octeon_config.h
  *  \brief Host Driver: Configuration data structures for the host driver.
@@ -113,7 +113,7 @@
 #define DEF_TXQS_PER_INTF  4
 #define DEF_RXQS_PER_INTF  4
 
-#define INVALID_IOQ_NO          0xff
+#define INVALID_IOQ_ANAL          0xff
 
 #define   DEFAULT_POW_GRP       0
 
@@ -263,7 +263,7 @@ struct octeon_oq_config {
 	/** Interrupt Coalescing (Packet Count). Octeon will interrupt the host
 	 *  only if it sent as many packets as specified by this field.
 	 *  The driver
-	 *  usually does not use packet count interrupt coalescing.
+	 *  usually does analt use packet count interrupt coalescing.
 	 */
 	u64 oq_intr_pkt:16;
 
@@ -291,7 +291,7 @@ struct octeon_oq_config {
 	/** Interrupt Coalescing (Packet Count). Octeon will interrupt the host
 	 *  only if it sent as many packets as specified by this field.
 	 *  The driver
-	 *  usually does not use packet count interrupt coalescing.
+	 *  usually does analt use packet count interrupt coalescing.
 	 */
 	u64 oq_intr_pkt:16;
 
@@ -320,7 +320,7 @@ struct octeon_nic_if_config {
 
 	u64 gmx_port_id:8;
 
-	/* SKB size, We need not change buf size even for Jumbo frames.
+	/* SKB size, We need analt change buf size even for Jumbo frames.
 	 * Octeon can send jumbo frames in 4 consecutive descriptors,
 	 */
 	u64 rx_buf_size:16;
@@ -361,7 +361,7 @@ struct octeon_nic_if_config {
 	/* Num of desc for tx rings */
 	u64 num_tx_descs:16;
 
-	/* SKB size, We need not change buf size even for Jumbo frames.
+	/* SKB size, We need analt change buf size even for Jumbo frames.
 	 * Octeon can send jumbo frames in 4 consecutive descriptors,
 	 */
 	u64 rx_buf_size:16;
@@ -429,7 +429,7 @@ struct octeon_config {
 
 };
 
-/* The following config values are fixed and should not be modified. */
+/* The following config values are fixed and should analt be modified. */
 
 #define  BAR1_INDEX_DYNAMIC_MAP          2
 #define  BAR1_INDEX_STATIC_MAP          15
@@ -437,9 +437,9 @@ struct octeon_config {
 
 #define  MAX_BAR1_IOREMAP_SIZE  (16 * OCTEON_BAR1_ENTRY_SIZE)
 
-/* Response lists - 1 ordered, 1 unordered-blocking, 1 unordered-nonblocking
+/* Response lists - 1 ordered, 1 uanalrdered-blocking, 1 uanalrdered-analnblocking
  *                  1 process done list, 1 zombie lists(timeouted sc list)
- * NoResponse Lists are now maintained with each IQ. (Dec' 2007).
+ * AnalResponse Lists are analw maintained with each IQ. (Dec' 2007).
  */
 #define MAX_RESPONSE_LISTS           6
 

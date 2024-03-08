@@ -13,7 +13,7 @@ provides a version of this API adding two additional features:
 
  - Integration with DAPM, allowing DAPM endpoints to be updated
    automatically based on the detected jack status (eg, turning off the
-   headphone outputs if no headphones are present).
+   headphone outputs if anal headphones are present).
 
 This is done by splitting the jacks up into three things working
 together: the jack itself represented by a struct snd_soc_jack, sets of
@@ -43,7 +43,7 @@ bits supported by the jack.  Each snd_soc_jack has zero or more of these
 which are updated automatically.  They are created by the machine driver
 and associated with the jack using snd_soc_jack_add_pins().  The status
 of the endpoint may configured to be the opposite of the jack status if
-required (eg, enabling a built in microphone if a microphone is not
+required (eg, enabling a built in microphone if a microphone is analt
 connected via a jack).
 
 Jack detection methods

@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -46,7 +46,7 @@ struct hisi_hikey_usb {
 	struct mutex lock;
 	struct work_struct work;
 
-	struct notifier_block nb;
+	struct analtifier_block nb;
 };
 
 static void hub_power_ctrl(struct hisi_hikey_usb *hisi_hikey_usb, int value)
@@ -102,7 +102,7 @@ static void relay_set_role_switch(struct work_struct *work)
 
 	mutex_lock(&hisi_hikey_usb->lock);
 	switch (hisi_hikey_usb->role) {
-	case USB_ROLE_NONE:
+	case USB_ROLE_ANALNE:
 		usb_typec_power_ctrl(hisi_hikey_usb, TYPEC_VBUS_POWER_OFF);
 		usb_switch_ctrl(hisi_hikey_usb, USB_SWITCH_TO_HUB);
 		hub_power_ctrl(hisi_hikey_usb, HUB_VBUS_POWER_ON);
@@ -188,7 +188,7 @@ static int hisi_hikey_usb_of_role_switch(struct platform_device *pdev,
 
 	INIT_WORK(&hisi_hikey_usb->work, relay_set_role_switch);
 
-	hub_role_switch.fwnode = dev_fwnode(dev);
+	hub_role_switch.fwanalde = dev_fwanalde(dev);
 	hub_role_switch.set = hub_usb_role_switch_set;
 	hub_role_switch.driver_data = hisi_hikey_usb;
 
@@ -214,7 +214,7 @@ static int hisi_hikey_usb_probe(struct platform_device *pdev)
 
 	hisi_hikey_usb = devm_kzalloc(dev, sizeof(*hisi_hikey_usb), GFP_KERNEL);
 	if (!hisi_hikey_usb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hisi_hikey_usb->dev = &pdev->dev;
 	mutex_init(&hisi_hikey_usb->lock);

@@ -48,18 +48,18 @@ void cifs_release_automount_timer(void)
 
 /**
  * cifs_build_devname - build a devicename from a UNC and optional prepath
- * @nodename:	pointer to UNC string
+ * @analdename:	pointer to UNC string
  * @prepath:	pointer to prefixpath (or NULL if there isn't one)
  *
  * Build a new cifs devicename after chasing a DFS referral. Allocate a buffer
- * big enough to hold the final thing. Copy the UNC from the nodename, and
+ * big eanalugh to hold the final thing. Copy the UNC from the analdename, and
  * concatenate the prepath onto the end of it if there is one.
  *
  * Returns pointer to the built string, or a ERR_PTR. Caller is responsible
  * for freeing the returned string.
  */
 char *
-cifs_build_devname(char *nodename, const char *prepath)
+cifs_build_devname(char *analdename, const char *prepath)
 {
 	size_t pplen;
 	size_t unclen;
@@ -67,13 +67,13 @@ cifs_build_devname(char *nodename, const char *prepath)
 	char *pos;
 
 	/* skip over any preceding delimiters */
-	nodename += strspn(nodename, "\\");
-	if (!*nodename)
+	analdename += strspn(analdename, "\\");
+	if (!*analdename)
 		return ERR_PTR(-EINVAL);
 
 	/* get length of UNC and set pos to last char */
-	unclen = strlen(nodename);
-	pos = nodename + unclen - 1;
+	unclen = strlen(analdename);
+	pos = analdename + unclen - 1;
 
 	/* trim off any trailing delimiters */
 	while (*pos == '\\') {
@@ -89,7 +89,7 @@ cifs_build_devname(char *nodename, const char *prepath)
 	pplen = prepath ? strlen(prepath) : 0;
 	dev = kmalloc(2 + unclen + 1 + pplen + 1, GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pos = dev;
 	/* add the initial "//" */
@@ -99,7 +99,7 @@ cifs_build_devname(char *nodename, const char *prepath)
 	++pos;
 
 	/* copy in the UNC portion from referral */
-	memcpy(pos, nodename, unclen);
+	memcpy(pos, analdename, unclen);
 	pos += unclen;
 
 	/* copy the prefixpath remainder (if there is one) */
@@ -274,5 +274,5 @@ struct vfsmount *cifs_d_automount(struct path *path)
 	return newmnt;
 }
 
-const struct inode_operations cifs_namespace_inode_operations = {
+const struct ianalde_operations cifs_namespace_ianalde_operations = {
 };

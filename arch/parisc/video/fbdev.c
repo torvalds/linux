@@ -16,7 +16,7 @@ int fb_is_primary_device(struct fb_info *info)
 
 	sti = sti_get_rom(0);
 
-	/* if no built-in graphics card found, allow any fb driver as default */
+	/* if anal built-in graphics card found, allow any fb driver as default */
 	if (!sti)
 		return true;
 

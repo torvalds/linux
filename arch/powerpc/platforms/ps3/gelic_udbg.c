@@ -32,12 +32,12 @@
 #define GELIC_DESCR_DMA_CARDOWNED 0xa0000000
 
 #define GELIC_DESCR_TX_DMA_IKE 0x00080000
-#define GELIC_DESCR_TX_DMA_NO_CHKSUM 0x00000000
+#define GELIC_DESCR_TX_DMA_ANAL_CHKSUM 0x00000000
 #define GELIC_DESCR_TX_DMA_FRAME_TAIL 0x00040000
 
-#define GELIC_DESCR_DMA_CMD_NO_CHKSUM (GELIC_DESCR_DMA_CARDOWNED | \
+#define GELIC_DESCR_DMA_CMD_ANAL_CHKSUM (GELIC_DESCR_DMA_CARDOWNED | \
 				       GELIC_DESCR_TX_DMA_IKE | \
-				       GELIC_DESCR_TX_DMA_NO_CHKSUM)
+				       GELIC_DESCR_TX_DMA_ANAL_CHKSUM)
 
 static u64 bus_addr;
 
@@ -208,7 +208,7 @@ static void gelic_sendbuf(int msgsize)
 		sum += *p++;
 	h_ip->check = ~(sum + (sum >> 16));
 
-	dbg.descr.dmac_cmd_status = GELIC_DESCR_DMA_CMD_NO_CHKSUM |
+	dbg.descr.dmac_cmd_status = GELIC_DESCR_DMA_CMD_ANAL_CHKSUM |
 				    GELIC_DESCR_TX_DMA_FRAME_TAIL;
 	dbg.descr.result_size = 0;
 	dbg.descr.data_status = 0;

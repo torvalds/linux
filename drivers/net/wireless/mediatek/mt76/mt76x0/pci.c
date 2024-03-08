@@ -33,14 +33,14 @@ static void mt76x0e_stop_hw(struct mt76x02_dev *dev)
 
 	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY,
 		       0, 1000))
-		dev_warn(dev->mt76.dev, "TX DMA did not stop\n");
+		dev_warn(dev->mt76.dev, "TX DMA did analt stop\n");
 	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_EN);
 
 	mt76x0_mac_stop(dev);
 
 	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_RX_DMA_BUSY,
 		       0, 1000))
-		dev_warn(dev->mt76.dev, "TX DMA did not stop\n");
+		dev_warn(dev->mt76.dev, "TX DMA did analt stop\n");
 	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_RX_DMA_EN);
 }
 
@@ -92,7 +92,7 @@ static int mt76x0e_init_hardware(struct mt76x02_dev *dev, bool resume)
 {
 	int err;
 
-	mt76x0_chip_onoff(dev, true, false);
+	mt76x0_chip_oanalff(dev, true, false);
 	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
@@ -186,7 +186,7 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mdev = mt76_alloc_device(&pdev->dev, sizeof(*dev), &mt76x0e_ops,
 				 &drv_ops);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = container_of(mdev, struct mt76x02_dev, mt76);
 	mutex_init(&dev->phy_mutex);
@@ -219,7 +219,7 @@ static void mt76x0e_cleanup(struct mt76x02_dev *dev)
 {
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
-	mt76x0_chip_onoff(dev, false, false);
+	mt76x0_chip_oanalff(dev, false, false);
 	mt76x0e_stop_hw(dev);
 	mt76_dma_cleanup(&dev->mt76);
 	mt76x02_mcu_cleanup(dev);
@@ -255,7 +255,7 @@ static int mt76x0e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	mt76x02_dma_disable(dev);
 	mt76x02_mcu_cleanup(dev);
-	mt76x0_chip_onoff(dev, false, false);
+	mt76x0_chip_oanalff(dev, false, false);
 
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), true);
 	pci_save_state(pdev);

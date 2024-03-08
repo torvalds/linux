@@ -28,8 +28,8 @@
  *    Reboot on 3rd timeout.
  *
  * Driver will use hardware in mode-3 above so that system can reboot in case
- * a hardware hang. Also h/w is configured not to generate SCP interrupt, so
- * effectively 2nd timeout is ignored within hardware.
+ * a hardware hang. Also h/w is configured analt to generate SCP interrupt, so
+ * effectively 2nd timeout is iganalred within hardware.
  *
  * First timeout is effectively watchdog pretimeout.
  */
@@ -90,7 +90,7 @@ static irqreturn_t gti_wdt_interrupt(int irq, void *data)
 	writeq(GTI_CWD_INT_PENDING_STATUS(priv->wdt_timer_idx),
 	       priv->base + GTI_CWD_INT);
 
-	watchdog_notify_pretimeout(wdev);
+	watchdog_analtify_pretimeout(wdev);
 
 	return IRQ_HANDLED;
 }
@@ -257,29 +257,29 @@ static int gti_wdt_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return dev_err_probe(&pdev->dev, PTR_ERR(priv->base),
-			      "reg property not valid/found\n");
+			      "reg property analt valid/found\n");
 
 	err = gti_wdt_get_cntfrq(pdev, priv);
 	if (err)
 		return dev_err_probe(&pdev->dev, err,
-				     "GTI clock frequency not valid/found");
+				     "GTI clock frequency analt valid/found");
 
 	priv->data = of_device_get_match_data(dev);
 
 	/* default use last timer for watchdog */
 	priv->wdt_timer_idx = priv->data->gti_num_timers - 1;
 
-	err = of_property_read_u32(dev->of_node, "marvell,wdt-timer-index",
+	err = of_property_read_u32(dev->of_analde, "marvell,wdt-timer-index",
 				   &wdt_idx);
 	if (!err) {
 		if (wdt_idx >= priv->data->gti_num_timers)
 			return dev_err_probe(&pdev->dev, -EINVAL,
-				"GTI wdog timer index not valid");
+				"GTI wdog timer index analt valid");
 
 		priv->wdt_timer_idx = wdt_idx;
 	}

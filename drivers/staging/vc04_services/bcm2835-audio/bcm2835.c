@@ -35,7 +35,7 @@ static int bcm2835_devm_add_vchi_ctx(struct device *dev)
 	vchi_ctx = devres_alloc(bcm2835_devm_free_vchi_ctx, sizeof(*vchi_ctx),
 				GFP_KERNEL);
 	if (!vchi_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = bcm2835_new_vchi_ctx(dev, vchi_ctx);
 	if (ret) {
@@ -156,7 +156,7 @@ static int snd_add_child_device(struct device *dev,
 	chip->vchi_ctx = devres_find(dev,
 				     bcm2835_devm_free_vchi_ctx, NULL, NULL);
 	if (!chip->vchi_ctx) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto error;
 	}
 

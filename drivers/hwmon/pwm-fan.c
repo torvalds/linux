@@ -267,7 +267,7 @@ static int pwm_fan_update_enable(struct pwm_fan_ctx *ctx, long val)
 	} else {
 		/*
 		 * Change PWM and/or regulator state if currently disabled
-		 * Nothing to do if currently enabled
+		 * Analthing to do if currently enabled
 		 */
 		if (!ctx->enabled) {
 			struct pwm_state *state = &ctx->pwm_state;
@@ -312,7 +312,7 @@ static int pwm_fan_write(struct device *dev, enum hwmon_sensor_types type,
 
 		return ret;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -333,13 +333,13 @@ static int pwm_fan_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = ctx->enable_mode;
 			return 0;
 		}
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case hwmon_fan:
 		*val = ctx->tachs[channel].rpm;
 		return 0;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -406,7 +406,7 @@ pwm_fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 
 	ret = set_pwm(ctx, ctx->pwm_fan_cooling_levels[state]);
 	if (ret) {
-		dev_err(&cdev->device, "Cannot set pwm!\n");
+		dev_err(&cdev->device, "Cananalt set pwm!\n");
 		return ret;
 	}
 
@@ -424,7 +424,7 @@ static const struct thermal_cooling_device_ops pwm_fan_cooling_ops = {
 static int pwm_fan_of_get_cooling_data(struct device *dev,
 				       struct pwm_fan_ctx *ctx)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int num, i, ret;
 
 	if (!of_property_present(np, "cooling-levels"))
@@ -440,12 +440,12 @@ static int pwm_fan_of_get_cooling_data(struct device *dev,
 	ctx->pwm_fan_cooling_levels = devm_kcalloc(dev, num, sizeof(u32),
 						   GFP_KERNEL);
 	if (!ctx->pwm_fan_cooling_levels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32_array(np, "cooling-levels",
 					 ctx->pwm_fan_cooling_levels, num);
 	if (ret) {
-		dev_err(dev, "Property 'cooling-levels' cannot be read!\n");
+		dev_err(dev, "Property 'cooling-levels' cananalt be read!\n");
 		return ret;
 	}
 
@@ -486,20 +486,20 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ctx->lock);
 
 	ctx->dev = &pdev->dev;
 	ctx->pwm = devm_pwm_get(dev, NULL);
 	if (IS_ERR(ctx->pwm))
-		return dev_err_probe(dev, PTR_ERR(ctx->pwm), "Could not get PWM\n");
+		return dev_err_probe(dev, PTR_ERR(ctx->pwm), "Could analt get PWM\n");
 
 	platform_set_drvdata(pdev, ctx);
 
 	ctx->reg_en = devm_regulator_get_optional(dev, "fan");
 	if (IS_ERR(ctx->reg_en)) {
-		if (PTR_ERR(ctx->reg_en) != -ENODEV)
+		if (PTR_ERR(ctx->reg_en) != -EANALDEV)
 			return PTR_ERR(ctx->reg_en);
 
 		ctx->reg_en = NULL;
@@ -509,7 +509,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	/*
 	 * PWM fans are controlled solely by the duty cycle of the PWM signal,
-	 * they do not care about the exact timing. Thus set usage_power to true
+	 * they do analt care about the exact timing. Thus set usage_power to true
 	 * to allow less flexible hardware to work as a PWM source for fan
 	 * control.
 	 */
@@ -529,7 +529,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	/*
 	 * Set duty cycle to maximum allowed and enable PWM output as well as
-	 * the regulator. In case of error nothing is changed
+	 * the regulator. In case of error analthing is changed
 	 */
 	ret = set_pwm(ctx, MAX_PWM);
 	if (ret) {
@@ -544,7 +544,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	ctx->tach_count = platform_irq_count(pdev);
 	if (ctx->tach_count < 0)
 		return dev_err_probe(dev, ctx->tach_count,
-				     "Could not get number of fan tachometer inputs\n");
+				     "Could analt get number of fan tachometer inputs\n");
 	dev_dbg(dev, "%d fan tachometer inputs\n", ctx->tach_count);
 
 	if (ctx->tach_count) {
@@ -554,20 +554,20 @@ static int pwm_fan_probe(struct platform_device *pdev)
 					  sizeof(struct pwm_fan_tach),
 					  GFP_KERNEL);
 		if (!ctx->tachs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ctx->fan_channel.type = hwmon_fan;
 		fan_channel_config = devm_kcalloc(dev, ctx->tach_count + 1,
 						  sizeof(u32), GFP_KERNEL);
 		if (!fan_channel_config)
-			return -ENOMEM;
+			return -EANALMEM;
 		ctx->fan_channel.config = fan_channel_config;
 	}
 
 	channels = devm_kcalloc(dev, channel_count + 1,
 				sizeof(struct hwmon_channel_info *), GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	channels[0] = HWMON_CHANNEL_INFO(pwm, HWMON_PWM_INPUT | HWMON_PWM_ENABLE);
 
@@ -589,7 +589,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 			}
 		}
 
-		of_property_read_u32_index(dev->of_node,
+		of_property_read_u32_index(dev->of_analde,
 					   "pulses-per-revolution",
 					   i,
 					   &ppr);
@@ -629,7 +629,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	ctx->pwm_fan_state = ctx->pwm_fan_max_state;
 	if (IS_ENABLED(CONFIG_THERMAL)) {
 		cdev = devm_thermal_of_cooling_device_register(dev,
-			dev->of_node, "pwm-fan", ctx, &pwm_fan_cooling_ops);
+			dev->of_analde, "pwm-fan", ctx, &pwm_fan_cooling_ops);
 		if (IS_ERR(cdev)) {
 			ret = PTR_ERR(cdev);
 			dev_err(dev,

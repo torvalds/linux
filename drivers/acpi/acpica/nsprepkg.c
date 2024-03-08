@@ -92,8 +92,8 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 		}
 
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
-				      "Return Package has no elements (empty)"));
+				      info->analde_flags,
+				      "Return Package has anal elements (empty)"));
 
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
@@ -101,7 +101,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 	/*
 	 * Decode the type of the expected package contents
 	 *
-	 * PTYPE1 packages contain no subpackages
+	 * PTYPE1 packages contain anal subpackages
 	 * PTYPE2 packages contain subpackages
 	 */
 	switch (package->ret_info.type) {
@@ -112,7 +112,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 
 	case ACPI_PTYPE1_FIXED:
 		/*
-		 * The package count is fixed and there are no subpackages
+		 * The package count is fixed and there are anal subpackages
 		 *
 		 * If package is too small, exit.
 		 * If package is larger than expected, issue warning but continue
@@ -144,7 +144,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 
 	case ACPI_PTYPE1_VAR:
 		/*
-		 * The package count is variable, there are no subpackages, and all
+		 * The package count is variable, there are anal subpackages, and all
 		 * elements must be of the same type
 		 */
 		for (i = 0; i < count; i++) {
@@ -161,7 +161,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 
 	case ACPI_PTYPE1_OPTION:
 		/*
-		 * The package count is variable, there are no subpackages. There are
+		 * The package count is variable, there are anal subpackages. There are
 		 * a fixed number of required elements, and a variable number of
 		 * optional elements.
 		 *
@@ -238,7 +238,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 		}
 
 		/*
-		 * Count cannot be larger than the parent package length, but allow it
+		 * Count cananalt be larger than the parent package length, but allow it
 		 * to be smaller. The >= accounts for the Integer above.
 		 */
 		expected_count = (u32)(*elements)->integer.value;
@@ -264,7 +264,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 		 * These types all return a single Package that consists of a
 		 * variable number of subpackages.
 		 *
-		 * First, ensure that the first element is a subpackage. If not,
+		 * First, ensure that the first element is a subpackage. If analt,
 		 * the BIOS may have incorrectly returned the object as a single
 		 * package instead of a Package of Packages (a common error if
 		 * there is only one entry). We may be able to repair this by
@@ -324,7 +324,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 			if ((*elements)->buffer.length != 16) {
 				ACPI_WARN_PREDEFINED((AE_INFO,
 						      info->full_pathname,
-						      info->node_flags,
+						      info->analde_flags,
 						      "Invalid length for UUID Buffer"));
 				return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 			}
@@ -343,10 +343,10 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 
 	default:
 
-		/* Should not get here if predefined info table is correct */
+		/* Should analt get here if predefined info table is correct */
 
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
+				      info->analde_flags,
 				      "Invalid internal return type in table entry: %X",
 				      package->ret_info.type));
 
@@ -359,7 +359,7 @@ package_too_small:
 
 	/* Error exit for the case with an incorrect package count */
 
-	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->node_flags,
+	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->analde_flags,
 			      "Return Package is too small - found %u elements, expected %u",
 			      count, expected_count));
 
@@ -397,7 +397,7 @@ acpi_ns_check_package_list(struct acpi_evaluate_info *info,
 	/*
 	 * Validate each subpackage in the parent Package
 	 *
-	 * NOTE: assumes list of subpackages contains no NULL elements.
+	 * ANALTE: assumes list of subpackages contains anal NULL elements.
 	 * Any NULL elements should have been removed by earlier call
 	 * to acpi_ns_remove_null_elements.
 	 */
@@ -539,7 +539,7 @@ acpi_ns_check_package_list(struct acpi_evaluate_info *info,
 			}
 
 			/*
-			 * Make sure package is large enough for the Count and is
+			 * Make sure package is large eanalugh for the Count and is
 			 * is as large as the minimum size
 			 */
 			expected_count = (u32)(*sub_elements)->integer.value;
@@ -578,7 +578,7 @@ acpi_ns_check_package_list(struct acpi_evaluate_info *info,
 			}
 			break;
 
-		default:	/* Should not get here, type was validated by caller */
+		default:	/* Should analt get here, type was validated by caller */
 
 			ACPI_ERROR((AE_INFO, "Invalid Package type: %X",
 				    package->ret_info.type));
@@ -594,7 +594,7 @@ package_too_small:
 
 	/* The subpackage count was smaller than required */
 
-	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->node_flags,
+	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->analde_flags,
 			      "Return SubPackage[%u] is too small - found %u elements, expected %u",
 			      i, sub_package->package.count, expected_count));
 
@@ -614,7 +614,7 @@ package_too_small:
  * DESCRIPTION: Check a returned package object for the correct count and
  *              correct type of all sub-objects.
  *
- * NOTE: Currently used for the _BIX method only. When needed for two or more
+ * ANALTE: Currently used for the _BIX method only. When needed for two or more
  * methods, probably a detect/dispatch mechanism will be required.
  *
  ******************************************************************************/
@@ -633,7 +633,7 @@ acpi_ns_custom_package(struct acpi_evaluate_info *info,
 
 	if ((*elements)->common.type != ACPI_TYPE_INTEGER) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
+				      info->analde_flags,
 				      "Return Package has invalid object type for version number"));
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
@@ -647,7 +647,7 @@ acpi_ns_custom_package(struct acpi_evaluate_info *info,
 
 	if (count < expected_count) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
+				      info->analde_flags,
 				      "Return Package is too small - found %u elements, expected %u",
 				      count, expected_count));
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);

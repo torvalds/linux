@@ -70,7 +70,7 @@ static int coalesced_mmio_write(struct kvm_vcpu *vcpu,
 	__u32 insert;
 
 	if (!coalesced_mmio_in_range(dev, addr, len))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	spin_lock(&dev->kvm->ring_lock);
 
@@ -78,7 +78,7 @@ static int coalesced_mmio_write(struct kvm_vcpu *vcpu,
 	if (!coalesced_mmio_has_room(dev, insert) ||
 	    insert >= KVM_COALESCED_MMIO_MAX) {
 		spin_unlock(&dev->kvm->ring_lock);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* copy data in first free entry of the ring */
@@ -113,7 +113,7 @@ int kvm_coalesced_mmio_init(struct kvm *kvm)
 
 	page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kvm->coalesced_mmio_ring = page_address(page);
 
@@ -146,7 +146,7 @@ int kvm_vm_ioctl_register_coalesced_mmio(struct kvm *kvm,
 	dev = kzalloc(sizeof(struct kvm_coalesced_mmio_dev),
 		      GFP_KERNEL_ACCOUNT);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kvm_iodevice_init(&dev->dev, &coalesced_mmio_ops);
 	dev->kvm = kvm;
@@ -188,7 +188,7 @@ int kvm_vm_ioctl_unregister_coalesced_mmio(struct kvm *kvm,
 				zone->pio ? KVM_PIO_BUS : KVM_MMIO_BUS, &dev->dev);
 			/*
 			 * On failure, unregister destroys all devices on the
-			 * bus, including the target device. There's no need
+			 * bus, including the target device. There's anal need
 			 * to restart the walk as there aren't any zones left.
 			 */
 			if (r)
@@ -199,7 +199,7 @@ int kvm_vm_ioctl_unregister_coalesced_mmio(struct kvm *kvm,
 	mutex_unlock(&kvm->slots_lock);
 
 	/*
-	 * Ignore the result of kvm_io_bus_unregister_dev(), from userspace's
+	 * Iganalre the result of kvm_io_bus_unregister_dev(), from userspace's
 	 * perspective, the coalesced MMIO is most definitely unregistered.
 	 */
 	return 0;

@@ -13,7 +13,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mman.h>
@@ -101,7 +101,7 @@ int main(void)
 	OFFSET(KSP, thread_struct, ksp);
 	OFFSET(PT_REGS, thread_struct, regs);
 #ifdef CONFIG_BOOKE
-	OFFSET(THREAD_NORMSAVES, thread_struct, normsave[0]);
+	OFFSET(THREAD_ANALRMSAVES, thread_struct, analrmsave[0]);
 #endif
 #ifdef CONFIG_PPC_FPU
 	OFFSET(THREAD_FPEXC_MODE, thread_struct, fpexc_mode);
@@ -278,7 +278,7 @@ int main(void)
 	STACK_PT_REGS_OFFSET(GPR12, gpr[12]);
 	STACK_PT_REGS_OFFSET(GPR13, gpr[13]);
 	/*
-	 * Note: these symbols include _ because they overlap with special
+	 * Analte: these symbols include _ because they overlap with special
 	 * register names
 	 */
 	STACK_PT_REGS_OFFSET(_NIP, nip);

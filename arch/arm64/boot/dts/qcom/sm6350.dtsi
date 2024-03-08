@@ -55,7 +55,7 @@
 			next-level-cache = <&L2_0>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
+			interconnects = <&gem_analc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
 					 &clk_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ACTIVE_ONLY>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD0>;
@@ -85,7 +85,7 @@
 			next-level-cache = <&L2_100>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
+			interconnects = <&gem_analc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
 					 &clk_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ACTIVE_ONLY>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD1>;
@@ -110,7 +110,7 @@
 			next-level-cache = <&L2_200>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
+			interconnects = <&gem_analc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
 					 &clk_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ACTIVE_ONLY>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD2>;
@@ -135,7 +135,7 @@
 			next-level-cache = <&L2_300>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
+			interconnects = <&gem_analc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
 					 &clk_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ACTIVE_ONLY>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD3>;
@@ -160,7 +160,7 @@
 			next-level-cache = <&L2_400>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
+			interconnects = <&gem_analc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
 					 &clk_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ACTIVE_ONLY>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD4>;
@@ -185,7 +185,7 @@
 			next-level-cache = <&L2_500>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
+			interconnects = <&gem_analc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
 					 &clk_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ACTIVE_ONLY>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD5>;
@@ -210,7 +210,7 @@
 			next-level-cache = <&L2_600>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu6_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
+			interconnects = <&gem_analc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
 					 &clk_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ACTIVE_ONLY>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD6>;
@@ -235,7 +235,7 @@
 			next-level-cache = <&L2_700>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu6_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
+			interconnects = <&gem_analc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
 					 &clk_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ACTIVE_ONLY>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD7>;
@@ -490,7 +490,7 @@
 
 		opp-128000000 {
 			opp-hz = /bits/ 64 <128000000>;
-			required-opps = <&rpmhpd_opp_nom>;
+			required-opps = <&rpmhpd_opp_analm>;
 		};
 	};
 
@@ -566,108 +566,108 @@
 
 		hyp_mem: memory@80000000 {
 			reg = <0 0x80000000 0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_aop_mem: memory@80700000 {
 			reg = <0 0x80700000 0 0x160000>;
-			no-map;
+			anal-map;
 		};
 
 		cmd_db: memory@80860000 {
 			compatible = "qcom,cmd-db";
 			reg = <0 0x80860000 0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		sec_apps_mem: memory@808ff000 {
 			reg = <0 0x808ff000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: memory@80900000 {
 			reg = <0 0x80900000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_sec_mem: memory@80b00000 {
 			reg = <0 0x80b00000 0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_camera_mem: memory@86000000 {
 			reg = <0 0x86000000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_npu_mem: memory@86500000 {
 			reg = <0 0x86500000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_video_mem: memory@86a00000 {
 			reg = <0 0x86a00000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_cdsp_mem: memory@86f00000 {
 			reg = <0 0x86f00000 0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_adsp_mem: memory@88d00000 {
 			reg = <0 0x88d00000 0 0x2800000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_fw_mem: memory@8b500000 {
 			reg = <0 0x8b500000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_ipa_fw_mem: memory@8b700000 {
 			reg = <0 0x8b700000 0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_ipa_gsi_mem: memory@8b710000 {
 			reg = <0 0x8b710000 0 0x5400>;
-			no-map;
+			anal-map;
 		};
 
 		pil_modem_mem: memory@8b800000 {
 			reg = <0 0x8b800000 0 0xf800000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_memory: memory@a0000000 {
 			reg = <0 0xa0000000 0 0x2300000>;
-			no-map;
+			anal-map;
 		};
 
 		dfps_data_memory: memory@a2300000 {
 			reg = <0 0xa2300000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		removed_region: memory@c0000000 {
 			reg = <0 0xc0000000 0 0x3900000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_gpu_mem: memory@f0d00000 {
 			reg = <0 0xf0d00000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		debug_region: memory@ffb00000 {
 			reg = <0 0xffb00000 0 0xc0000>;
-			no-map;
+			anal-map;
 		};
 
 		last_log_region: memory@ffbc0000 {
 			reg = <0 0xffbc0000 0 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops: ramoops@ffc00000 {
@@ -677,12 +677,12 @@
 			console-size = <0x40000>;
 			pmsg-size = <0x20000>;
 			ecc-size = <16>;
-			no-map;
+			anal-map;
 		};
 
 		cmdline_region: memory@ffd00000 {
 			reg = <0 0xffd00000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -847,7 +847,7 @@
 			power-domains = <&rpmhpd SM6350_CX>;
 			operating-points-v2 = <&sdhc1_opp_table>;
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 			supports-cqe;
 
 			status = "disabled";
@@ -918,8 +918,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 0 &clk_virt SLAVE_QUP_CORE_0 0>,
-						<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_QUP_0 0>,
-						<&aggre1_noc MASTER_QUP_0 0 &clk_virt SLAVE_EBI_CH0 0>;
+						<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_QUP_0 0>,
+						<&aggre1_analc MASTER_QUP_0 0 &clk_virt SLAVE_EBI_CH0 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				status = "disabled";
 			};
@@ -935,7 +935,7 @@
 				power-domains = <&rpmhpd SM6350_CX>;
 				operating-points-v2 = <&qup_opp_table>;
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 0 &clk_virt SLAVE_QUP_CORE_0 0>,
-						<&aggre1_noc MASTER_QUP_0 0 &clk_virt SLAVE_EBI_CH0 0>;
+						<&aggre1_analc MASTER_QUP_0 0 &clk_virt SLAVE_EBI_CH0 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -954,8 +954,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 0 &clk_virt SLAVE_QUP_CORE_0 0>,
-						<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_QUP_0 0>,
-						<&aggre1_noc MASTER_QUP_0 0 &clk_virt SLAVE_EBI_CH0 0>;
+						<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_QUP_0 0>,
+						<&aggre1_analc MASTER_QUP_0 0 &clk_virt SLAVE_EBI_CH0 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				status = "disabled";
 			};
@@ -1007,8 +1007,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 0 &clk_virt SLAVE_QUP_CORE_1 0>,
-						<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_QUP_1 0>,
-						<&aggre2_noc MASTER_QUP_1 0 &clk_virt SLAVE_EBI_CH0 0>;
+						<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_QUP_1 0>,
+						<&aggre2_analc MASTER_QUP_1 0 &clk_virt SLAVE_EBI_CH0 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				status = "disabled";
 			};
@@ -1027,8 +1027,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 0 &clk_virt SLAVE_QUP_CORE_1 0>,
-						<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_QUP_1 0>,
-						<&aggre2_noc MASTER_QUP_1 0 &clk_virt SLAVE_EBI_CH0 0>;
+						<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_QUP_1 0>,
+						<&aggre2_analc MASTER_QUP_1 0 &clk_virt SLAVE_EBI_CH0 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				status = "disabled";
 			};
@@ -1047,8 +1047,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 0 &clk_virt SLAVE_QUP_CORE_1 0>,
-						<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_QUP_1 0>,
-						<&aggre2_noc MASTER_QUP_1 0 &clk_virt SLAVE_EBI_CH0 0>;
+						<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_QUP_1 0>,
+						<&aggre2_analc MASTER_QUP_1 0 &clk_virt SLAVE_EBI_CH0 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				status = "disabled";
 			};
@@ -1062,7 +1062,7 @@
 				pinctrl-0 = <&qup_uart9_default>;
 				interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 0 &clk_virt SLAVE_QUP_CORE_1 0>,
-						<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_QUP_1 0>;
+						<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_QUP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1081,22 +1081,22 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 0 &clk_virt SLAVE_QUP_CORE_1 0>,
-						<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_QUP_1 0>,
-						<&aggre2_noc MASTER_QUP_1 0 &clk_virt SLAVE_EBI_CH0 0>;
+						<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_QUP_1 0>,
+						<&aggre2_analc MASTER_QUP_1 0 &clk_virt SLAVE_EBI_CH0 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				status = "disabled";
 			};
 		};
 
-		config_noc: interconnect@1500000 {
-			compatible = "qcom,sm6350-config-noc";
+		config_analc: interconnect@1500000 {
+			compatible = "qcom,sm6350-config-analc";
 			reg = <0 0x01500000 0 0x28000>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		system_noc: interconnect@1620000 {
-			compatible = "qcom,sm6350-system-noc";
+		system_analc: interconnect@1620000 {
+			compatible = "qcom,sm6350-system-analc";
 			reg = <0 0x01620000 0 0x17080>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -1108,28 +1108,28 @@
 			};
 		};
 
-		aggre1_noc: interconnect@16e0000 {
-			compatible = "qcom,sm6350-aggre1-noc";
+		aggre1_analc: interconnect@16e0000 {
+			compatible = "qcom,sm6350-aggre1-analc";
 			reg = <0 0x016e0000 0 0x15080>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		aggre2_noc: interconnect@1700000 {
-			compatible = "qcom,sm6350-aggre2-noc";
+		aggre2_analc: interconnect@1700000 {
+			compatible = "qcom,sm6350-aggre2-analc";
 			reg = <0 0x01700000 0 0x1f880>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
-			compute_noc: interconnect-compute-noc {
-				compatible = "qcom,sm6350-compute-noc";
+			compute_analc: interconnect-compute-analc {
+				compatible = "qcom,sm6350-compute-analc";
 				#interconnect-cells = <2>;
 				qcom,bcm-voters = <&apps_bcm_voter>;
 			};
 		};
 
-		mmss_noc: interconnect@1740000 {
-			compatible = "qcom,sm6350-mmss-noc";
+		mmss_analc: interconnect@1740000 {
+			compatible = "qcom,sm6350-mmss-analc";
 			reg = <0 0x01740000 0 0x1c100>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -1226,9 +1226,9 @@
 			clocks = <&rpmhcc RPMH_IPA_CLK>;
 			clock-names = "core";
 
-			interconnects = <&aggre2_noc MASTER_IPA 0 &clk_virt SLAVE_EBI_CH0 0>,
-					<&aggre2_noc MASTER_IPA 0 &system_noc SLAVE_OCIMEM 0>,
-					<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_IPA_CFG 0>;
+			interconnects = <&aggre2_analc MASTER_IPA 0 &clk_virt SLAVE_EBI_CH0 0>,
+					<&aggre2_analc MASTER_IPA 0 &system_analc SLAVE_OCIMEM 0>,
+					<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_IPA_CFG 0>;
 			interconnect-names = "memory", "imem", "config";
 
 			qcom,smem-states = <&ipa_smp2p_out 0>,
@@ -1313,14 +1313,14 @@
 		};
 
 		gpu: gpu@3d00000 {
-			compatible = "qcom,adreno-619.0", "qcom,adreno";
+			compatible = "qcom,adreanal-619.0", "qcom,adreanal";
 			reg = <0 0x03d00000 0 0x40000>,
 			      <0 0x03d9e000 0 0x1000>;
 			reg-names = "kgsl_3d0_reg_memory",
 				    "cx_mem";
 			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
 
-			iommus = <&adreno_smmu 0>;
+			iommus = <&adreanal_smmu 0>;
 			operating-points-v2 = <&gpu_opp_table>;
 			qcom,gmu = <&gmu>;
 			nvmem-cells = <&gpu_speed_bin>;
@@ -1349,13 +1349,13 @@
 
 				opp-650000000 {
 					opp-hz = /bits/ 64 <650000000>;
-					opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					opp-supported-hw = <0x08>;
 				};
 
 				opp-565000000 {
 					opp-hz = /bits/ 64 <565000000>;
-					opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					opp-supported-hw = <0x10>;
 				};
 
@@ -1379,8 +1379,8 @@
 			};
 		};
 
-		adreno_smmu: iommu@3d40000 {
-			compatible = "qcom,sm6350-smmu-v2", "qcom,adreno-smmu", "qcom,smmu-v2";
+		adreanal_smmu: iommu@3d40000 {
+			compatible = "qcom,sm6350-smmu-v2", "qcom,adreanal-smmu", "qcom,smmu-v2";
 			reg = <0 0x03d40000 0 0x10000>;
 			#iommu-cells = <1>;
 			#global-interrupts = <2>;
@@ -1396,8 +1396,8 @@
 				     <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gpucc GPU_CC_AHB_CLK>,
-				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
-				 <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>;
+				 <&gcc GCC_GPU_MEMANALC_GFX_CLK>,
+				 <&gcc GCC_GPU_SANALC_DVM_GFX_CLK>;
 			clock-names = "ahb",
 				      "bus",
 				      "iface";
@@ -1406,7 +1406,7 @@
 		};
 
 		gmu: gmu@3d6a000 {
-			compatible = "qcom,adreno-gmu-619.0", "qcom,adreno-gmu";
+			compatible = "qcom,adreanal-gmu-619.0", "qcom,adreanal-gmu";
 			reg = <0 0x03d6a000 0 0x31000>,
 			      <0 0x0b290000 0 0x10000>,
 			      <0 0x0b490000 0 0x10000>;
@@ -1423,19 +1423,19 @@
 				 <&gpucc GPU_CC_CX_GMU_CLK>,
 				 <&gpucc GPU_CC_CXO_CLK>,
 				 <&gcc GCC_DDRSS_GPU_AXI_CLK>,
-				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>;
+				 <&gcc GCC_GPU_MEMANALC_GFX_CLK>;
 			clock-names = "ahb",
 				      "gmu",
 				      "cxo",
 				      "axi",
-				      "memnoc";
+				      "memanalc";
 
 			power-domains = <&gpucc GPU_CX_GDSC>,
 					<&gpucc GPU_GX_GDSC>;
 			power-domain-names = "cx",
 					     "gx";
 
-			iommus = <&adreno_smmu 5>;
+			iommus = <&adreanal_smmu 5>;
 
 			operating-points-v2 = <&gmu_opp_table>;
 
@@ -1598,7 +1598,7 @@
 						iommus = <&apps_smmu 0x1408 0x20>;
 					};
 
-					/* note: secure cb9 in downstream */
+					/* analte: secure cb9 in downstream */
 				};
 			};
 		};
@@ -1617,8 +1617,8 @@
 				 <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "iface", "core", "xo";
 			resets = <&gcc GCC_SDCC2_BCR>;
-			interconnects = <&aggre2_noc MASTER_SDCC_2 0 &clk_virt SLAVE_EBI_CH0 0>,
-					<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_SDCC_2 0>;
+			interconnects = <&aggre2_analc MASTER_SDCC_2 0 &clk_virt SLAVE_EBI_CH0 0>,
+					<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_SDCC_2 0>;
 			interconnect-names = "sdhc-ddr", "cpu-sdhc";
 
 			pinctrl-0 = <&sdc2_on_state>;
@@ -1645,7 +1645,7 @@
 
 				opp-202000000 {
 					opp-hz = /bits/ 64 <202000000>;
-					required-opps = <&rpmhpd_opp_nom>;
+					required-opps = <&rpmhpd_opp_analm>;
 					opp-peak-kBps = <3190000 294000>;
 					opp-avg-kBps = <261438 300000>;
 				};
@@ -1686,8 +1686,8 @@
 			status = "disabled";
 		};
 
-		dc_noc: interconnect@9160000 {
-			compatible = "qcom,sm6350-dc-noc";
+		dc_analc: interconnect@9160000 {
+			compatible = "qcom,sm6350-dc-analc";
 			reg = <0 0x09160000 0 0x3200>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -1699,15 +1699,15 @@
 			reg-names = "llcc0_base", "llcc_broadcast_base";
 		};
 
-		gem_noc: interconnect@9680000 {
-			compatible = "qcom,sm6350-gem-noc";
+		gem_analc: interconnect@9680000 {
+			compatible = "qcom,sm6350-gem-analc";
 			reg = <0 0x09680000 0 0x3e200>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		npu_noc: interconnect@9990000 {
-			compatible = "qcom,sm6350-npu-noc";
+		npu_analc: interconnect@9990000 {
+			compatible = "qcom,sm6350-npu-analc";
 			reg = <0 0x09990000 0 0x1600>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -1758,7 +1758,7 @@
 			interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
 
 			operating-points-v2 = <&cpu_bwmon_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
+			interconnects = <&gem_analc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
 					 &clk_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ACTIVE_ONLY>;
 
 			cpu_bwmon_opp_table: opp-table {
@@ -1818,12 +1818,12 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
 				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -1841,8 +1841,8 @@
 
 			resets = <&gcc GCC_USB30_PRIM_BCR>;
 
-			interconnects = <&aggre2_noc MASTER_USB3 0 &clk_virt SLAVE_EBI_CH0 0>,
-					<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_USB3 0>;
+			interconnects = <&aggre2_analc MASTER_USB3 0 &clk_virt SLAVE_EBI_CH0 0>,
+					<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_USB3 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
 			usb_1_dwc3: usb@a600000 {
@@ -1865,20 +1865,20 @@
 			interrupts = <GIC_SPI 468 IRQ_TYPE_EDGE_RISING>;
 			power-domains = <&camcc TITAN_TOP_GDSC>;
 
-			clocks = <&camcc CAMCC_CAMNOC_AXI_CLK>,
+			clocks = <&camcc CAMCC_CAMANALC_AXI_CLK>,
 				 <&camcc CAMCC_SOC_AHB_CLK>,
 				 <&camcc CAMCC_SLOW_AHB_CLK_SRC>,
 				 <&camcc CAMCC_CPAS_AHB_CLK>,
 				 <&camcc CAMCC_CCI_0_CLK>,
 				 <&camcc CAMCC_CCI_0_CLK_SRC>;
-			clock-names = "camnoc_axi",
+			clock-names = "camanalc_axi",
 				      "soc_ahb",
 				      "slow_ahb_src",
 				      "cpas_ahb",
 				      "cci",
 				      "cci_src";
 
-			assigned-clocks = <&camcc CAMCC_CAMNOC_AXI_CLK>,
+			assigned-clocks = <&camcc CAMCC_CAMANALC_AXI_CLK>,
 					  <&camcc CAMCC_CCI_0_CLK>;
 			assigned-clock-rates = <80000000>, <37500000>;
 
@@ -1912,20 +1912,20 @@
 			interrupts = <GIC_SPI 462 IRQ_TYPE_EDGE_RISING>;
 			power-domains = <&camcc TITAN_TOP_GDSC>;
 
-			clocks = <&camcc CAMCC_CAMNOC_AXI_CLK>,
+			clocks = <&camcc CAMCC_CAMANALC_AXI_CLK>,
 				 <&camcc CAMCC_SOC_AHB_CLK>,
 				 <&camcc CAMCC_SLOW_AHB_CLK_SRC>,
 				 <&camcc CAMCC_CPAS_AHB_CLK>,
 				 <&camcc CAMCC_CCI_1_CLK>,
 				 <&camcc CAMCC_CCI_1_CLK_SRC>;
-			clock-names = "camnoc_axi",
+			clock-names = "camanalc_axi",
 				      "soc_ahb",
 				      "slow_ahb_src",
 				      "cpas_ahb",
 				      "cci",
 				      "cci_src";
 
-			assigned-clocks = <&camcc CAMCC_CAMNOC_AXI_CLK>,
+			assigned-clocks = <&camcc CAMCC_CAMANALC_AXI_CLK>,
 					  <&camcc CAMCC_CCI_1_CLK>;
 			assigned-clock-rates = <80000000>, <37500000>;
 
@@ -2048,7 +2048,7 @@
 
 					opp-448000000 {
 						opp-hz = /bits/ 64 <448000000>;
-						required-opps = <&rpmhpd_opp_nom>;
+						required-opps = <&rpmhpd_opp_analm>;
 					};
 
 					opp-560000000 {
@@ -2627,16 +2627,16 @@
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 					};
 
-					rpmhpd_opp_nom: opp6 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					rpmhpd_opp_analm: opp6 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					};
 
-					rpmhpd_opp_nom_l1: opp7 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					rpmhpd_opp_analm_l1: opp7 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					};
 
-					rpmhpd_opp_nom_l2: opp8 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+					rpmhpd_opp_analm_l2: opp8 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L2>;
 					};
 
 					rpmhpd_opp_turbo: opp9 {

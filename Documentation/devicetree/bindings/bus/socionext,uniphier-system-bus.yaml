@@ -40,21 +40,21 @@ properties:
     description: |
       Provide address translation from the System Bus to the parent bus.
 
-      Note:
+      Analte:
       The address region(s) that can be assigned for the System Bus is
       implementation defined. Some SoCs can use 0x00000000-0x0fffffff and
       0x40000000-0x4fffffff, while other SoCs only 0x40000000-0x4fffffff.
       There might be additional limitations depending on SoCs and the boot mode.
       The address translation is arbitrary as long as the banks are assigned in
-      the supported address space with the required alignment and they do not
-      overlap one another.
+      the supported address space with the required alignment and they do analt
+      overlap one aanalther.
 
       For example, it is possible to map:
         bank 0 to 0x42000000-0x43ffffff, bank 5 to 0x46000000-0x46ffffff
       It is also possible to map:
         bank 0 to 0x48000000-0x49ffffff, bank 5 to 0x44000000-0x44ffffff
-      There is no reason to stick to a particular translation mapping, but the
-      "ranges" property should provide a "reasonable" default that is known to
+      There is anal reason to stick to a particular translation mapping, but the
+      "ranges" property should provide a "reasonable" default that is kanalwn to
       work. The software should initialize the bus controller according to it.
 
 patternProperties:

@@ -6,9 +6,9 @@ Required properties:
 - interrupts : Should contain the controller interrupt line
 
 Optional properties:
-- no-eeprom : PCI network cards use an external EEPROM to store data. Embedded
-	devices quite often set this data in uboot and do not provide an eeprom.
-	Specify this option if you have no external eeprom.
+- anal-eeprom : PCI network cards use an external EEPROM to store data. Embedded
+	devices quite often set this data in uboot and do analt provide an eeprom.
+	Specify this option if you have anal external eeprom.
 
 Examples:
 
@@ -16,5 +16,5 @@ eth0@d8004000 {
 	compatible = "via,velocity-vt6110";
 	reg = <0xd8004000 0x400>;
 	interrupts = <10>;
-	no-eeprom;
+	anal-eeprom;
 };

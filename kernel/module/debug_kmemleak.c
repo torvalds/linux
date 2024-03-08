@@ -18,7 +18,7 @@ void kmemleak_load_module(const struct module *mod,
 	kmemleak_scan_area(mod, sizeof(struct module), GFP_KERNEL);
 
 	for (i = 1; i < info->hdr->e_shnum; i++) {
-		/* Scan all writable sections that's not executable */
+		/* Scan all writable sections that's analt executable */
 		if (!(info->sechdrs[i].sh_flags & SHF_ALLOC) ||
 		    !(info->sechdrs[i].sh_flags & SHF_WRITE) ||
 		    (info->sechdrs[i].sh_flags & SHF_EXECINSTR))

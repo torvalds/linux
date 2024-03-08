@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2011 Tobias Klauser <tklauser@distanz.ch>
  *
@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -24,7 +24,7 @@
 #include <linux/ptrace.h>
 
 /* Relocation types */
-#define R_NIOS2_NONE		0
+#define R_NIOS2_ANALNE		0
 #define R_NIOS2_S16		1
 #define R_NIOS2_U16		2
 #define R_NIOS2_PCREL16		3

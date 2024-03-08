@@ -225,14 +225,14 @@ struct wiz_clk_divider {
 
 struct wiz_clk_mux_sel {
 	u32			table[WIZ_MAX_INPUT_CLOCKS];
-	const char		*node_name;
+	const char		*analde_name;
 	u32			num_parents;
 	u32			parents[WIZ_MAX_INPUT_CLOCKS];
 };
 
 struct wiz_clk_div_sel {
 	const struct clk_div_table *table;
-	const char		*node_name;
+	const char		*analde_name;
 };
 
 struct wiz_phy_en_refclk {
@@ -250,15 +250,15 @@ static const struct wiz_clk_mux_sel clk_mux_sel_16g[] = {
 		 * in the order populated in device tree
 		 */
 		.table = { 1, 0 },
-		.node_name = "pll0-refclk",
+		.analde_name = "pll0-refclk",
 	},
 	{
 		.table = { 1, 0 },
-		.node_name = "pll1-refclk",
+		.analde_name = "pll1-refclk",
 	},
 	{
 		.table = { 1, 3, 0, 2 },
-		.node_name = "refclk-dig",
+		.analde_name = "refclk-dig",
 	},
 };
 
@@ -271,19 +271,19 @@ static const struct wiz_clk_mux_sel clk_mux_sel_10g[] = {
 		.num_parents = 2,
 		.parents = { WIZ_CORE_REFCLK, WIZ_EXT_REFCLK },
 		.table = { 1, 0 },
-		.node_name = "pll0-refclk",
+		.analde_name = "pll0-refclk",
 	},
 	{
 		.num_parents = 2,
 		.parents = { WIZ_CORE_REFCLK, WIZ_EXT_REFCLK },
 		.table = { 1, 0 },
-		.node_name = "pll1-refclk",
+		.analde_name = "pll1-refclk",
 	},
 	{
 		.num_parents = 2,
 		.parents = { WIZ_CORE_REFCLK, WIZ_EXT_REFCLK },
 		.table = { 1, 0 },
-		.node_name = "refclk-dig",
+		.analde_name = "refclk-dig",
 	},
 };
 
@@ -292,19 +292,19 @@ static const struct wiz_clk_mux_sel clk_mux_sel_10g_2_refclk[] = {
 		.num_parents = 3,
 		.parents = { WIZ_CORE_REFCLK, WIZ_CORE_REFCLK1, WIZ_EXT_REFCLK },
 		.table = { 2, 3, 0 },
-		.node_name = "pll0-refclk",
+		.analde_name = "pll0-refclk",
 	},
 	{
 		.num_parents = 3,
 		.parents = { WIZ_CORE_REFCLK, WIZ_CORE_REFCLK1, WIZ_EXT_REFCLK },
 		.table = { 2, 3, 0 },
-		.node_name = "pll1-refclk",
+		.analde_name = "pll1-refclk",
 	},
 	{
 		.num_parents = 3,
 		.parents = { WIZ_CORE_REFCLK, WIZ_CORE_REFCLK1, WIZ_EXT_REFCLK },
 		.table = { 2, 3, 0 },
-		.node_name = "refclk-dig",
+		.analde_name = "refclk-dig",
 	},
 };
 
@@ -319,11 +319,11 @@ static const struct clk_div_table clk_div_table[] = {
 static const struct wiz_clk_div_sel clk_div_sel[] = {
 	{
 		.table = clk_div_table,
-		.node_name = "cmn-refclk-dig-div",
+		.analde_name = "cmn-refclk-dig-div",
 	},
 	{
 		.table = clk_div_table,
-		.node_name = "cmn-refclk1-dig-div",
+		.analde_name = "cmn-refclk1-dig-div",
 	},
 };
 
@@ -749,7 +749,7 @@ static int wiz_phy_en_refclk_register(struct wiz *wiz)
 
 	wiz_phy_en_refclk = devm_kzalloc(dev, sizeof(*wiz_phy_en_refclk), GFP_KERNEL);
 	if (!wiz_phy_en_refclk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init = &wiz_phy_en_refclk->clk_data;
 
@@ -760,7 +760,7 @@ static int wiz_phy_en_refclk_register(struct wiz *wiz)
 
 	clk_name = kzalloc(sz, GFP_KERNEL);
 	if (!clk_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(clk_name, sz, "%s_%s", dev_name(dev), output_clk_names[TI_WIZ_PHY_EN_REFCLK]);
 	init->name = clk_name;
@@ -820,13 +820,13 @@ static int wiz_mux_clk_register(struct wiz *wiz, struct regmap_field *field,
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_parents = mux_sel->num_parents;
 
 	parent_names = kzalloc((sizeof(char *) * num_parents), GFP_KERNEL);
 	if (!parent_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_parents; i++) {
 		clk = wiz->input_clks[mux_sel->parents[i]];
@@ -844,7 +844,7 @@ static int wiz_mux_clk_register(struct wiz *wiz, struct regmap_field *field,
 	init = &mux->clk_data;
 
 	init->ops = &wiz_clk_mux_ops;
-	init->flags = CLK_SET_RATE_NO_REPARENT;
+	init->flags = CLK_SET_RATE_ANAL_REPARENT;
 	init->parent_names = parent_names;
 	init->num_parents = num_parents;
 	init->name = clk_name;
@@ -867,7 +867,7 @@ err:
 	return ret;
 }
 
-static int wiz_mux_of_clk_register(struct wiz *wiz, struct device_node *node,
+static int wiz_mux_of_clk_register(struct wiz *wiz, struct device_analde *analde,
 				   struct regmap_field *field, const u32 *table)
 {
 	struct device *dev = wiz->dev;
@@ -881,9 +881,9 @@ static int wiz_mux_of_clk_register(struct wiz *wiz, struct device_node *node,
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(analde);
 	if (num_parents < 2) {
 		dev_err(dev, "SERDES clock must have parents\n");
 		return -EINVAL;
@@ -892,17 +892,17 @@ static int wiz_mux_of_clk_register(struct wiz *wiz, struct device_node *node,
 	parent_names = devm_kzalloc(dev, (sizeof(char *) * num_parents),
 				    GFP_KERNEL);
 	if (!parent_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	of_clk_parent_fill(node, parent_names, num_parents);
+	of_clk_parent_fill(analde, parent_names, num_parents);
 
 	snprintf(clk_name, sizeof(clk_name), "%s_%s", dev_name(dev),
-		 node->name);
+		 analde->name);
 
 	init = &mux->clk_data;
 
 	init->ops = &wiz_clk_mux_ops;
-	init->flags = CLK_SET_RATE_NO_REPARENT;
+	init->flags = CLK_SET_RATE_ANAL_REPARENT;
 	init->parent_names = parent_names;
 	init->num_parents = num_parents;
 	init->name = clk_name;
@@ -915,7 +915,7 @@ static int wiz_mux_of_clk_register(struct wiz *wiz, struct device_node *node,
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 	if (ret)
 		dev_err(dev, "Failed to add clock provider: %s\n", clk_name);
 
@@ -962,7 +962,7 @@ static const struct clk_ops wiz_clk_div_ops = {
 	.set_rate = wiz_clk_div_set_rate,
 };
 
-static int wiz_div_clk_register(struct wiz *wiz, struct device_node *node,
+static int wiz_div_clk_register(struct wiz *wiz, struct device_analde *analde,
 				struct regmap_field *field,
 				const struct clk_div_table *table)
 {
@@ -976,16 +976,16 @@ static int wiz_div_clk_register(struct wiz *wiz, struct device_node *node,
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(clk_name, sizeof(clk_name), "%s_%s", dev_name(dev),
-		 node->name);
+		 analde->name);
 
 	parent_names = devm_kzalloc(dev, sizeof(char *), GFP_KERNEL);
 	if (!parent_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	of_clk_parent_fill(node, parent_names, 1);
+	of_clk_parent_fill(analde, parent_names, 1);
 
 	init = &div->clk_data;
 
@@ -1003,18 +1003,18 @@ static int wiz_div_clk_register(struct wiz *wiz, struct device_node *node,
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 	if (ret)
 		dev_err(dev, "Failed to add clock provider: %s\n", clk_name);
 
 	return ret;
 }
 
-static void wiz_clock_cleanup(struct wiz *wiz, struct device_node *node)
+static void wiz_clock_cleanup(struct wiz *wiz, struct device_analde *analde)
 {
 	const struct wiz_clk_mux_sel *clk_mux_sel = wiz->clk_mux_sel;
 	struct device *dev = wiz->dev;
-	struct device_node *clk_node;
+	struct device_analde *clk_analde;
 	int i;
 
 	switch (wiz->type) {
@@ -1022,32 +1022,32 @@ static void wiz_clock_cleanup(struct wiz *wiz, struct device_node *node)
 	case J7200_WIZ_10G:
 	case J784S4_WIZ_10G:
 	case J721S2_WIZ_10G:
-		of_clk_del_provider(dev->of_node);
+		of_clk_del_provider(dev->of_analde);
 		return;
 	default:
 		break;
 	}
 
 	for (i = 0; i < WIZ_MUX_NUM_CLOCKS; i++) {
-		clk_node = of_get_child_by_name(node, clk_mux_sel[i].node_name);
-		of_clk_del_provider(clk_node);
-		of_node_put(clk_node);
+		clk_analde = of_get_child_by_name(analde, clk_mux_sel[i].analde_name);
+		of_clk_del_provider(clk_analde);
+		of_analde_put(clk_analde);
 	}
 
 	for (i = 0; i < wiz->clk_div_sel_num; i++) {
-		clk_node = of_get_child_by_name(node, clk_div_sel[i].node_name);
-		of_clk_del_provider(clk_node);
-		of_node_put(clk_node);
+		clk_analde = of_get_child_by_name(analde, clk_div_sel[i].analde_name);
+		of_clk_del_provider(clk_analde);
+		of_analde_put(clk_analde);
 	}
 
-	of_clk_del_provider(wiz->dev->of_node);
+	of_clk_del_provider(wiz->dev->of_analde);
 }
 
 static int wiz_clock_register(struct wiz *wiz)
 {
 	const struct wiz_clk_mux_sel *clk_mux_sel = wiz->clk_mux_sel;
 	struct device *dev = wiz->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	int clk_index;
 	int ret;
 	int i;
@@ -1069,19 +1069,19 @@ static int wiz_clock_register(struct wiz *wiz)
 
 	wiz->clk_data.clks = wiz->output_clks;
 	wiz->clk_data.clk_num = WIZ_MAX_OUTPUT_CLOCKS;
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &wiz->clk_data);
+	ret = of_clk_add_provider(analde, of_clk_src_onecell_get, &wiz->clk_data);
 	if (ret)
-		dev_err(dev, "Failed to add clock provider: %s\n", node->name);
+		dev_err(dev, "Failed to add clock provider: %s\n", analde->name);
 
 	return ret;
 }
 
-static int wiz_clock_init(struct wiz *wiz, struct device_node *node)
+static int wiz_clock_init(struct wiz *wiz, struct device_analde *analde)
 {
 	const struct wiz_clk_mux_sel *clk_mux_sel = wiz->clk_mux_sel;
 	struct device *dev = wiz->dev;
-	struct device_node *clk_node;
-	const char *node_name;
+	struct device_analde *clk_analde;
+	const char *analde_name;
 	unsigned long rate;
 	struct clk *clk;
 	int ret;
@@ -1089,7 +1089,7 @@ static int wiz_clock_init(struct wiz *wiz, struct device_node *node)
 
 	clk = devm_clk_get(dev, "core_ref_clk");
 	if (IS_ERR(clk)) {
-		dev_err(dev, "core_ref_clk clock not found\n");
+		dev_err(dev, "core_ref_clk clock analt found\n");
 		ret = PTR_ERR(clk);
 		return ret;
 	}
@@ -1123,7 +1123,7 @@ static int wiz_clock_init(struct wiz *wiz, struct device_node *node)
 	if (wiz->data->pma_cmn_refclk1_int_mode) {
 		clk = devm_clk_get(dev, "core_ref1_clk");
 		if (IS_ERR(clk)) {
-			dev_err(dev, "core_ref1_clk clock not found\n");
+			dev_err(dev, "core_ref1_clk clock analt found\n");
 			ret = PTR_ERR(clk);
 			return ret;
 		}
@@ -1138,7 +1138,7 @@ static int wiz_clock_init(struct wiz *wiz, struct device_node *node)
 
 	clk = devm_clk_get(dev, "ext_ref_clk");
 	if (IS_ERR(clk)) {
-		dev_err(dev, "ext_ref_clk clock not found\n");
+		dev_err(dev, "ext_ref_clk clock analt found\n");
 		ret = PTR_ERR(clk);
 		return ret;
 	}
@@ -1164,50 +1164,50 @@ static int wiz_clock_init(struct wiz *wiz, struct device_node *node)
 	}
 
 	for (i = 0; i < WIZ_MUX_NUM_CLOCKS; i++) {
-		node_name = clk_mux_sel[i].node_name;
-		clk_node = of_get_child_by_name(node, node_name);
-		if (!clk_node) {
-			dev_err(dev, "Unable to get %s node\n", node_name);
+		analde_name = clk_mux_sel[i].analde_name;
+		clk_analde = of_get_child_by_name(analde, analde_name);
+		if (!clk_analde) {
+			dev_err(dev, "Unable to get %s analde\n", analde_name);
 			ret = -EINVAL;
 			goto err;
 		}
 
-		ret = wiz_mux_of_clk_register(wiz, clk_node, wiz->mux_sel_field[i],
+		ret = wiz_mux_of_clk_register(wiz, clk_analde, wiz->mux_sel_field[i],
 					      clk_mux_sel[i].table);
 		if (ret) {
 			dev_err(dev, "Failed to register %s clock\n",
-				node_name);
-			of_node_put(clk_node);
+				analde_name);
+			of_analde_put(clk_analde);
 			goto err;
 		}
 
-		of_node_put(clk_node);
+		of_analde_put(clk_analde);
 	}
 
 	for (i = 0; i < wiz->clk_div_sel_num; i++) {
-		node_name = clk_div_sel[i].node_name;
-		clk_node = of_get_child_by_name(node, node_name);
-		if (!clk_node) {
-			dev_err(dev, "Unable to get %s node\n", node_name);
+		analde_name = clk_div_sel[i].analde_name;
+		clk_analde = of_get_child_by_name(analde, analde_name);
+		if (!clk_analde) {
+			dev_err(dev, "Unable to get %s analde\n", analde_name);
 			ret = -EINVAL;
 			goto err;
 		}
 
-		ret = wiz_div_clk_register(wiz, clk_node, wiz->div_sel_field[i],
+		ret = wiz_div_clk_register(wiz, clk_analde, wiz->div_sel_field[i],
 					   clk_div_sel[i].table);
 		if (ret) {
 			dev_err(dev, "Failed to register %s clock\n",
-				node_name);
-			of_node_put(clk_node);
+				analde_name);
+			of_analde_put(clk_analde);
 			goto err;
 		}
 
-		of_node_put(clk_node);
+		of_analde_put(clk_analde);
 	}
 
 	return 0;
 err:
-	wiz_clock_cleanup(wiz, node);
+	wiz_clock_cleanup(wiz, analde);
 
 	return ret;
 }
@@ -1268,7 +1268,7 @@ static int wiz_phy_reset_deassert(struct reset_controller_dev *rcdev,
 			else
 				regmap_field_write(wiz->typec_ln10_swap, 0);
 		} else {
-			/* if no typec-dir gpio is specified and PHY type is USB3
+			/* if anal typec-dir gpio is specified and PHY type is USB3
 			 * with master lane number is '0' or '2', then set LN10 or
 			 * LN23 SWAP bit to '1' respectively.
 			 */
@@ -1403,32 +1403,32 @@ MODULE_DEVICE_TABLE(of, wiz_id_table);
 
 static int wiz_get_lane_phy_types(struct device *dev, struct wiz *wiz)
 {
-	struct device_node *serdes, *subnode;
+	struct device_analde *serdes, *subanalde;
 
-	serdes = of_get_child_by_name(dev->of_node, "serdes");
+	serdes = of_get_child_by_name(dev->of_analde, "serdes");
 	if (!serdes) {
-		dev_err(dev, "%s: Getting \"serdes\"-node failed\n", __func__);
+		dev_err(dev, "%s: Getting \"serdes\"-analde failed\n", __func__);
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(serdes, subnode) {
-		u32 reg, num_lanes = 1, phy_type = PHY_NONE;
+	for_each_child_of_analde(serdes, subanalde) {
+		u32 reg, num_lanes = 1, phy_type = PHY_ANALNE;
 		int ret, i;
 
-		if (!(of_node_name_eq(subnode, "phy") ||
-		      of_node_name_eq(subnode, "link")))
+		if (!(of_analde_name_eq(subanalde, "phy") ||
+		      of_analde_name_eq(subanalde, "link")))
 			continue;
 
-		ret = of_property_read_u32(subnode, "reg", &reg);
+		ret = of_property_read_u32(subanalde, "reg", &reg);
 		if (ret) {
-			of_node_put(subnode);
+			of_analde_put(subanalde);
 			dev_err(dev,
 				"%s: Reading \"reg\" from \"%s\" failed: %d\n",
-				__func__, subnode->name, ret);
+				__func__, subanalde->name, ret);
 			return ret;
 		}
-		of_property_read_u32(subnode, "cdns,num-lanes", &num_lanes);
-		of_property_read_u32(subnode, "cdns,phy-type", &phy_type);
+		of_property_read_u32(subanalde, "cdns,num-lanes", &num_lanes);
+		of_property_read_u32(subanalde, "cdns,phy-type", &phy_type);
 
 		dev_dbg(dev, "%s: Lanes %u-%u have phy-type %u\n", __func__,
 			reg, reg + num_lanes - 1, phy_type);
@@ -1446,10 +1446,10 @@ static int wiz_probe(struct platform_device *pdev)
 {
 	struct reset_controller_dev *phy_reset_dev;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct platform_device *serdes_pdev;
 	bool already_configured = false;
-	struct device_node *child_node;
+	struct device_analde *child_analde;
 	struct regmap *regmap;
 	struct resource res;
 	void __iomem *base;
@@ -1460,7 +1460,7 @@ static int wiz_probe(struct platform_device *pdev)
 
 	wiz = devm_kzalloc(dev, sizeof(*wiz), GFP_KERNEL);
 	if (!wiz)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = of_device_get_match_data(dev);
 	if (!data) {
@@ -1471,13 +1471,13 @@ static int wiz_probe(struct platform_device *pdev)
 	wiz->data = data;
 	wiz->type = data->type;
 
-	child_node = of_get_child_by_name(node, "serdes");
-	if (!child_node) {
-		dev_err(dev, "Failed to get SERDES child DT node\n");
-		return -ENODEV;
+	child_analde = of_get_child_by_name(analde, "serdes");
+	if (!child_analde) {
+		dev_err(dev, "Failed to get SERDES child DT analde\n");
+		return -EANALDEV;
 	}
 
-	ret = of_address_to_resource(child_node, 0, &res);
+	ret = of_address_to_resource(child_analde, 0, &res);
 	if (ret) {
 		dev_err(dev, "Failed to get memory resource\n");
 		goto err_addr_to_resource;
@@ -1485,7 +1485,7 @@ static int wiz_probe(struct platform_device *pdev)
 
 	base = devm_ioremap(dev, res.start, resource_size(&res));
 	if (!base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_addr_to_resource;
 	}
 
@@ -1496,26 +1496,26 @@ static int wiz_probe(struct platform_device *pdev)
 		goto err_addr_to_resource;
 	}
 
-	wiz->scm_regmap = syscon_regmap_lookup_by_phandle(node, "ti,scm");
+	wiz->scm_regmap = syscon_regmap_lookup_by_phandle(analde, "ti,scm");
 	if (IS_ERR(wiz->scm_regmap)) {
 		if (wiz->type == J7200_WIZ_10G) {
 			dev_err(dev, "Couldn't get ti,scm regmap\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_addr_to_resource;
 		}
 
 		wiz->scm_regmap = NULL;
 	}
 
-	ret = of_property_read_u32(node, "num-lanes", &num_lanes);
+	ret = of_property_read_u32(analde, "num-lanes", &num_lanes);
 	if (ret) {
 		dev_err(dev, "Failed to read num-lanes property\n");
 		goto err_addr_to_resource;
 	}
 
 	if (num_lanes > WIZ_MAX_LANES) {
-		dev_err(dev, "Cannot support %d lanes\n", num_lanes);
-		ret = -ENODEV;
+		dev_err(dev, "Cananalt support %d lanes\n", num_lanes);
+		ret = -EANALDEV;
 		goto err_addr_to_resource;
 	}
 
@@ -1530,14 +1530,14 @@ static int wiz_probe(struct platform_device *pdev)
 	}
 
 	if (wiz->gpio_typec_dir) {
-		ret = of_property_read_u32(node, "typec-dir-debounce-ms",
+		ret = of_property_read_u32(analde, "typec-dir-debounce-ms",
 					   &wiz->typec_dir_delay);
 		if (ret && ret != -EINVAL) {
 			dev_err(dev, "Invalid typec-dir-debounce property\n");
 			goto err_addr_to_resource;
 		}
 
-		/* use min. debounce from Type-C spec if not provided in DT  */
+		/* use min. debounce from Type-C spec if analt provided in DT  */
 		if (ret == -EINVAL)
 			wiz->typec_dir_delay = WIZ_TYPEC_DIR_DEBOUNCE_MIN;
 
@@ -1576,7 +1576,7 @@ static int wiz_probe(struct platform_device *pdev)
 	phy_reset_dev->dev = dev;
 	phy_reset_dev->ops = &wiz_phy_reset_ops,
 	phy_reset_dev->owner = THIS_MODULE,
-	phy_reset_dev->of_node = node;
+	phy_reset_dev->of_analde = analde;
 	/* Reset for each of the lane and one for the entire SERDES */
 	phy_reset_dev->nr_resets = num_lanes + 1;
 
@@ -1593,7 +1593,7 @@ static int wiz_probe(struct platform_device *pdev)
 		goto err_get_sync;
 	}
 
-	ret = wiz_clock_init(wiz, node);
+	ret = wiz_clock_init(wiz, analde);
 	if (ret < 0) {
 		dev_warn(dev, "Failed to initialize clocks\n");
 		goto err_get_sync;
@@ -1615,26 +1615,26 @@ static int wiz_probe(struct platform_device *pdev)
 		}
 	}
 
-	serdes_pdev = of_platform_device_create(child_node, NULL, dev);
+	serdes_pdev = of_platform_device_create(child_analde, NULL, dev);
 	if (!serdes_pdev) {
 		dev_WARN(dev, "Unable to create SERDES platform device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_wiz_init;
 	}
 	wiz->serdes_pdev = serdes_pdev;
 
-	of_node_put(child_node);
+	of_analde_put(child_analde);
 	return 0;
 
 err_wiz_init:
-	wiz_clock_cleanup(wiz, node);
+	wiz_clock_cleanup(wiz, analde);
 
 err_get_sync:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 
 err_addr_to_resource:
-	of_node_put(child_node);
+	of_analde_put(child_analde);
 
 	return ret;
 }
@@ -1642,7 +1642,7 @@ err_addr_to_resource:
 static void wiz_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct platform_device *serdes_pdev;
 	struct wiz *wiz;
 
@@ -1650,7 +1650,7 @@ static void wiz_remove(struct platform_device *pdev)
 	serdes_pdev = wiz->serdes_pdev;
 
 	of_platform_device_destroy(&serdes_pdev->dev, NULL);
-	wiz_clock_cleanup(wiz, node);
+	wiz_clock_cleanup(wiz, analde);
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 }

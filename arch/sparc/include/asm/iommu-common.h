@@ -26,7 +26,7 @@ struct iommu_map_table {
 	struct iommu_pool	pools[IOMMU_NR_POOLS];
 	u32			flags;
 #define	IOMMU_HAS_LARGE_POOL	0x00000001
-#define	IOMMU_NO_SPAN_BOUND	0x00000002
+#define	IOMMU_ANAL_SPAN_BOUND	0x00000002
 #define	IOMMU_NEED_FLUSH	0x00000004
 	struct iommu_pool	large_pool;
 	unsigned long		*map;

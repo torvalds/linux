@@ -6,7 +6,7 @@
  * vice versa for read.
  *
  * A few limitations:
- * - Provided for not all verbs but only subset standard non-volatile verbs.
+ * - Provided for analt all verbs but only subset standard analn-volatile verbs.
  * - For reading, only AC_VERB_GET_* variants can be used.
  * - For writing, mapped to the *corresponding* AC_VERB_SET_* variants,
  *   so can't handle asymmetric verbs for read and write
@@ -98,10 +98,10 @@ static bool hda_writeable_reg(struct device *dev, unsigned int reg)
 	case AC_VERB_GET_EAPD_BTLENABLE:
 	case AC_VERB_GET_DIGI_CONVERT_1:
 	case AC_VERB_GET_DIGI_CONVERT_2: /* only for beep control */
-	case AC_VERB_GET_VOLUME_KNOB_CONTROL:
+	case AC_VERB_GET_VOLUME_KANALB_CONTROL:
 	case AC_VERB_GET_GPIO_MASK:
 	case AC_VERB_GET_GPIO_DIRECTION:
-	case AC_VERB_GET_GPIO_DATA: /* not for volatile read */
+	case AC_VERB_GET_GPIO_DATA: /* analt for volatile read */
 	case AC_VERB_GET_GPIO_WAKE_MASK:
 	case AC_VERB_GET_GPIO_UNSOLICITED_RSP_MASK:
 	case AC_VERB_GET_GPIO_STICKY_MASK:
@@ -411,7 +411,7 @@ int snd_hdac_regmap_add_vendor_verb(struct hdac_device *codec,
 	unsigned int *p = snd_array_new(&codec->vendor_verbs);
 
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	*p = verb | 0x800; /* set GET bit */
 	return 0;
 }

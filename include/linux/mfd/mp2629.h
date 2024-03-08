@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2020 Monolithic Power Systems, Inc
+ * Copyright 2020 Moanallithic Power Systems, Inc
  */
 
 #ifndef __MP2629_H__

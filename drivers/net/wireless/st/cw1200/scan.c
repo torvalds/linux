@@ -3,7 +3,7 @@
  * Scan implementation for ST-Ericsson CW1200 mac80211 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #include <linux/sched.h>
@@ -64,7 +64,7 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 
 	/* Scan when P2P_GO corrupt firmware MiniAP mode */
 	if (priv->join_status == CW1200_JOIN_STATUS_AP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (req->n_ssids == 1 && !req->ssids[0].ssid_len)
 		req->n_ssids = 0;
@@ -78,7 +78,7 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 	frame.skb = ieee80211_probereq_get(hw, priv->vif->addr, NULL, 0,
 		req->ie_len);
 	if (!frame.skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (req->ie_len)
 		skb_put_data(frame.skb, req->ie, req->ie_len);
@@ -138,7 +138,7 @@ void cw1200_scan_work(struct work_struct *work)
 
 	if (first_run) {
 		/* Firmware gets crazy if scan request is sent
-		 * when STA is joined but not yet associated.
+		 * when STA is joined but analt yet associated.
 		 * Force unjoin in this case.
 		 */
 		if (cancel_delayed_work_sync(&priv->join_timeout) > 0)
@@ -198,27 +198,27 @@ void cw1200_scan_work(struct work_struct *work)
 			if ((*it)->band != first->band)
 				break;
 			if (((*it)->flags ^ first->flags) &
-					IEEE80211_CHAN_NO_IR)
+					IEEE80211_CHAN_ANAL_IR)
 				break;
-			if (!(first->flags & IEEE80211_CHAN_NO_IR) &&
+			if (!(first->flags & IEEE80211_CHAN_ANAL_IR) &&
 			    (*it)->max_power != first->max_power)
 				break;
 		}
 		scan.band = first->band;
 
-		if (priv->scan.req->no_cck)
+		if (priv->scan.req->anal_cck)
 			scan.max_tx_rate = WSM_TRANSMIT_RATE_6;
 		else
 			scan.max_tx_rate = WSM_TRANSMIT_RATE_1;
 		scan.num_probes =
-			(first->flags & IEEE80211_CHAN_NO_IR) ? 0 : 2;
+			(first->flags & IEEE80211_CHAN_ANAL_IR) ? 0 : 2;
 		scan.num_ssids = priv->scan.n_ssids;
 		scan.ssids = &priv->scan.ssids[0];
 		scan.num_channels = it - priv->scan.curr;
 		/* TODO: Is it optimal? */
 		scan.probe_delay = 100;
-		/* It is not stated in WSM specification, however
-		 * FW team says that driver may not use FG scan
+		/* It is analt stated in WSM specification, however
+		 * FW team says that driver may analt use FG scan
 		 * when joined.
 		 */
 		if (priv->join_status == CW1200_JOIN_STATUS_STA) {
@@ -229,12 +229,12 @@ void cw1200_scan_work(struct work_struct *work)
 				  sizeof(struct wsm_scan_ch),
 				  GFP_KERNEL);
 		if (!scan.ch) {
-			priv->scan.status = -ENOMEM;
+			priv->scan.status = -EANALMEM;
 			goto fail;
 		}
 		for (i = 0; i < scan.num_channels; ++i) {
 			scan.ch[i].number = priv->scan.curr[i]->hw_value;
-			if (priv->scan.curr[i]->flags & IEEE80211_CHAN_NO_IR) {
+			if (priv->scan.curr[i]->flags & IEEE80211_CHAN_ANAL_IR) {
 				scan.ch[i].min_chan_time = 50;
 				scan.ch[i].max_chan_time = 100;
 			} else {
@@ -242,7 +242,7 @@ void cw1200_scan_work(struct work_struct *work)
 				scan.ch[i].max_chan_time = 25;
 			}
 		}
-		if (!(first->flags & IEEE80211_CHAN_NO_IR) &&
+		if (!(first->flags & IEEE80211_CHAN_ANAL_IR) &&
 		    priv->scan.output_power != first->max_power) {
 			priv->scan.output_power = first->max_power;
 			wsm_set_output_power(priv,
@@ -340,7 +340,7 @@ void cw1200_scan_timeout(struct work_struct *work)
 			priv->scan.status = 0;
 		} else if (!priv->scan.status) {
 			wiphy_warn(priv->hw->wiphy,
-				   "Timeout waiting for scan complete notification.\n");
+				   "Timeout waiting for scan complete analtification.\n");
 			priv->scan.status = -ETIMEDOUT;
 			priv->scan.curr = priv->scan.end;
 			wsm_stop_scan(priv);

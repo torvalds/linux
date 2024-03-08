@@ -1,5 +1,5 @@
 /*
- * Synopsys DW APB ICTL irqchip driver.
+ * Syanalpsys DW APB ICTL irqchip driver.
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  *
@@ -76,7 +76,7 @@ static int dw_apb_ictl_irq_domain_alloc(struct irq_domain *domain, unsigned int 
 {
 	int i, ret;
 	irq_hw_number_t hwirq;
-	unsigned int type = IRQ_TYPE_NONE;
+	unsigned int type = IRQ_TYPE_ANALNE;
 	struct irq_fwspec *fwspec = arg;
 
 	ret = irq_domain_translate_onecell(domain, fwspec, &hwirq, &type);
@@ -110,11 +110,11 @@ static void dw_apb_ictl_resume(struct irq_data *d)
 #define dw_apb_ictl_resume	NULL
 #endif /* CONFIG_PM */
 
-static int __init dw_apb_ictl_init(struct device_node *np,
-				   struct device_node *parent)
+static int __init dw_apb_ictl_init(struct device_analde *np,
+				   struct device_analde *parent)
 {
 	const struct irq_domain_ops *domain_ops;
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	unsigned int clr = IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_ANALAUTOEN;
 	struct resource r;
 	struct irq_domain *domain;
 	struct irq_chip_generic *gc;
@@ -144,20 +144,20 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 
 	if (!request_mem_region(r.start, resource_size(&r), np->full_name)) {
 		pr_err("%pOF: unable to request mem region\n", np);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	iobase = ioremap(r.start, resource_size(&r));
 	if (!iobase) {
 		pr_err("%pOF: unable to map resource\n", np);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release;
 	}
 
 	/*
 	 * DW IP can be configured to allow 2-64 irqs. We can determine
 	 * the number of irqs supported by writing into enable register
-	 * and look for bits not set, as corresponding flip-flops will
+	 * and look for bits analt set, as corresponding flip-flops will
 	 * have been removed by synthesis tool.
 	 */
 
@@ -176,7 +176,7 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 	domain = irq_domain_add_linear(np, nrirqs, domain_ops, NULL);
 	if (!domain) {
 		pr_err("%pOF: unable to add irq domain\n", np);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap;
 	}
 

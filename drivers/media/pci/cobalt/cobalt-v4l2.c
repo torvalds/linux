@@ -65,7 +65,7 @@ static int cobalt_buf_init(struct vb2_buffer *vb)
 
 	size = s->stride * s->height;
 	if (vb2_plane_size(vb, 0) < size) {
-		cobalt_info("data will not fit into plane (%lu < %u)\n",
+		cobalt_info("data will analt fit into plane (%lu < %u)\n",
 					vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -75,7 +75,7 @@ static int cobalt_buf_init(struct vb2_buffer *vb)
 		descriptor_list_allocate(desc,
 			s->is_audio ? audio_bytes : bytes);
 		if (desc->virt == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	ret = descriptor_list_create(cobalt, sg_desc->sgl,
 			!s->is_output, sg_desc->nents, size,
@@ -99,7 +99,7 @@ static int cobalt_buf_prepare(struct vb2_buffer *vb)
 	struct cobalt_stream *s = vb->vb2_queue->drv_priv;
 
 	vb2_set_plane_payload(vb, 0, s->stride * s->height);
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 
@@ -518,9 +518,9 @@ static void cobalt_video_input_status_show(struct cobalt_stream *s)
 			"VSync- " : "VSync+ ");
 	cobalt_info("rx%d: cvi status: %s%s\n", rx,
 		(cvi_stat & M00389_STATUS_BITMAP_LOCK_MSK) ?
-			"lock " : "no-lock ",
+			"lock " : "anal-lock ",
 		(cvi_stat & M00389_STATUS_BITMAP_ERROR_MSK) ?
-			"error " : "no-error ");
+			"error " : "anal-error ");
 
 	cobalt_info("rx%d: Measurements: %s%s%s%s%s%s%s\n", rx,
 		(vmr_ctrl & M00233_CONTROL_BITMAP_HSYNC_POLARITY_LOW_MSK) ?
@@ -590,8 +590,8 @@ static int cobalt_log_status(struct file *file, void *priv_fh)
 	stat = ioread32(&vo->rd_status);
 
 	cobalt_info("tx: status: %s%s\n",
-		(stat & M00514_RD_STATUS_BITMAP_FLOW_CTRL_NO_DATA_ERROR_MSK) ?
-			"no_data " : "",
+		(stat & M00514_RD_STATUS_BITMAP_FLOW_CTRL_ANAL_DATA_ERROR_MSK) ?
+			"anal_data " : "",
 		(stat & M00514_RD_STATUS_BITMAP_READY_BUFFER_FULL_MSK) ?
 			"ready_buffer_full " : "");
 	cobalt_info("tx: evcnt: %d\n", ioread32(&vo->rd_evcnt_count));
@@ -708,7 +708,7 @@ static int cobalt_g_fmt_vid_cap(struct file *file, void *priv_fh,
 	pix->width = s->width;
 	pix->height = s->height;
 	pix->bytesperline = s->stride;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	if (s->input == 1) {
 		pix->colorspace = V4L2_COLORSPACE_SRGB;
@@ -784,7 +784,7 @@ static int cobalt_try_fmt_vid_cap(struct file *file, void *priv_fh,
 	}
 
 	pix->sizeimage = pix->bytesperline * pix->height;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -859,7 +859,7 @@ static int cobalt_try_fmt_vid_out(struct file *file, void *priv_fh,
 	}
 
 	pix->sizeimage = pix->bytesperline * pix->height;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -873,7 +873,7 @@ static int cobalt_g_fmt_vid_out(struct file *file, void *priv_fh,
 	pix->width = s->width;
 	pix->height = s->height;
 	pix->bytesperline = s->stride;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 	pix->pixelformat = s->pixfmt;
 	pix->colorspace = s->colorspace;
 	pix->xfer_func = s->xfer_func;
@@ -1062,7 +1062,7 @@ static int cobalt_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 
 	fps = v4l2_calc_timeperframe(&s->timings);
 	a->parm.capture.timeperframe.numerator = fps.numerator;
-	a->parm.capture.timeperframe.denominator = fps.denominator;
+	a->parm.capture.timeperframe.deanalminator = fps.deanalminator;
 	a->parm.capture.readbuffers = 3;
 	return 0;
 }
@@ -1168,7 +1168,7 @@ static const struct v4l2_ioctl_ops cobalt_ioctl_empty_ops = {
 #endif
 };
 
-/* Register device nodes */
+/* Register device analdes */
 
 static const struct v4l2_file_operations cobalt_fops = {
 	.owner = THIS_MODULE,
@@ -1197,11 +1197,11 @@ static const struct v4l2_file_operations cobalt_empty_fops = {
 	.release = v4l2_fh_release,
 };
 
-static int cobalt_node_register(struct cobalt *cobalt, int node)
+static int cobalt_analde_register(struct cobalt *cobalt, int analde)
 {
 	static const struct v4l2_dv_timings dv1080p60 =
 		V4L2_DV_BT_CEA_1920X1080P60;
-	struct cobalt_stream *s = cobalt->streams + node;
+	struct cobalt_stream *s = cobalt->streams + analde;
 	struct video_device *vdev = &s->vdev;
 	struct vb2_queue *q = &s->q;
 	int ret;
@@ -1210,7 +1210,7 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 	spin_lock_init(&s->irqlock);
 
 	snprintf(vdev->name, sizeof(vdev->name),
-			"%s-%d", cobalt->v4l2_dev.name, node);
+			"%s-%d", cobalt->v4l2_dev.name, analde);
 	s->width = 1920;
 	/* Audio frames are just 4 lines of 1920 bytes */
 	s->height = s->is_audio ? 4 : 1080;
@@ -1230,7 +1230,7 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 
 	if (!s->is_audio) {
 		if (s->is_dummy)
-			cobalt_warn("Setting up dummy video node %d\n", node);
+			cobalt_warn("Setting up dummy video analde %d\n", analde);
 		vdev->v4l2_dev = &cobalt->v4l2_dev;
 		if (s->is_dummy)
 			vdev->fops = &cobalt_empty_fops;
@@ -1259,7 +1259,7 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 	q->buf_struct_size = sizeof(struct cobalt_buffer);
 	q->ops = &cobalt_qops;
 	q->mem_ops = &vb2_dma_sg_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 2;
 	q->lock = &s->lock;
 	q->dev = &cobalt->pci_dev->dev;
@@ -1279,22 +1279,22 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 
 	if (ret < 0) {
 		if (!s->is_audio)
-			cobalt_err("couldn't register v4l2 device node %d\n",
-					node);
+			cobalt_err("couldn't register v4l2 device analde %d\n",
+					analde);
 		return ret;
 	}
-	cobalt_info("registered node %d\n", node);
+	cobalt_info("registered analde %d\n", analde);
 	return 0;
 }
 
 /* Initialize v4l2 variables and register v4l2 devices */
-int cobalt_nodes_register(struct cobalt *cobalt)
+int cobalt_analdes_register(struct cobalt *cobalt)
 {
-	int node, ret;
+	int analde, ret;
 
 	/* Setup V4L2 Devices */
-	for (node = 0; node < COBALT_NUM_STREAMS; node++) {
-		ret = cobalt_node_register(cobalt, node);
+	for (analde = 0; analde < COBALT_NUM_STREAMS; analde++) {
+		ret = cobalt_analde_register(cobalt, analde);
 		if (ret)
 			return ret;
 	}
@@ -1302,13 +1302,13 @@ int cobalt_nodes_register(struct cobalt *cobalt)
 }
 
 /* Unregister v4l2 devices */
-void cobalt_nodes_unregister(struct cobalt *cobalt)
+void cobalt_analdes_unregister(struct cobalt *cobalt)
 {
-	int node;
+	int analde;
 
 	/* Teardown all streams */
-	for (node = 0; node < COBALT_NUM_STREAMS; node++) {
-		struct cobalt_stream *s = cobalt->streams + node;
+	for (analde = 0; analde < COBALT_NUM_STREAMS; analde++) {
+		struct cobalt_stream *s = cobalt->streams + analde;
 		struct video_device *vdev = &s->vdev;
 
 		if (!s->is_audio)

@@ -16,7 +16,7 @@ struct journal_iter {
 
 struct btree_and_journal_iter {
 	struct btree		*b;
-	struct btree_node_iter	node_iter;
+	struct btree_analde_iter	analde_iter;
 	struct bkey		unpacked;
 
 	struct journal_iter	journal;
@@ -42,10 +42,10 @@ void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *);
 struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *);
 
 void bch2_btree_and_journal_iter_exit(struct btree_and_journal_iter *);
-void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *,
+void __bch2_btree_and_journal_iter_init_analde_iter(struct btree_and_journal_iter *,
 				struct bch_fs *, struct btree *,
-				struct btree_node_iter, struct bpos);
-void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *,
+				struct btree_analde_iter, struct bpos);
+void bch2_btree_and_journal_iter_init_analde_iter(struct btree_and_journal_iter *,
 						struct bch_fs *,
 						struct btree *);
 

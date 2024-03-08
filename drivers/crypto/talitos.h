@@ -123,7 +123,7 @@ struct talitos_private {
 	/* SEC global registers lock  */
 	spinlock_t reg_lock ____cacheline_aligned;
 
-	/* SEC version geometry (from device tree node) */
+	/* SEC version geometry (from device tree analde) */
 	unsigned int num_channels;
 	unsigned int chfifo_len;
 	unsigned int exec_units;
@@ -234,7 +234,7 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 #define   TALITOS_CCCR_LO_EAE		0x20   /* extended address enable */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
 #define   TALITOS_CCCR_LO_NE		0x8    /* fetch next descriptor enab. */
-#define   TALITOS_CCCR_LO_NT		0x4    /* notification type */
+#define   TALITOS_CCCR_LO_NT		0x4    /* analtification type */
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
 #define   TALITOS1_CCCR_LO_RESET	0x1    /* channel reset on SEC1 */
 
@@ -399,14 +399,14 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 /* direction of overall data flow (DIR) */
 #define	DESC_HDR_DIR_INBOUND		cpu_to_be32(0x00000002)
 
-/* request done notification (DN) */
-#define	DESC_HDR_DONE_NOTIFY		cpu_to_be32(0x00000001)
+/* request done analtification (DN) */
+#define	DESC_HDR_DONE_ANALTIFY		cpu_to_be32(0x00000001)
 
 /* descriptor types */
-#define DESC_HDR_TYPE_AESU_CTR_NONSNOOP		cpu_to_be32(0 << 3)
+#define DESC_HDR_TYPE_AESU_CTR_ANALNSANALOP		cpu_to_be32(0 << 3)
 #define DESC_HDR_TYPE_IPSEC_ESP			cpu_to_be32(1 << 3)
-#define DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU	cpu_to_be32(2 << 3)
-#define DESC_HDR_TYPE_HMAC_SNOOP_NO_AFEU	cpu_to_be32(4 << 3)
+#define DESC_HDR_TYPE_COMMON_ANALNSANALOP_ANAL_AFEU	cpu_to_be32(2 << 3)
+#define DESC_HDR_TYPE_HMAC_SANALOP_ANAL_AFEU	cpu_to_be32(4 << 3)
 
 /* link table extent field bits */
 #define DESC_PTR_LNKTBL_JUMP			0x80

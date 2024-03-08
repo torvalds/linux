@@ -34,8 +34,8 @@
 #define KPIOR_OFFSET			0x00000084
 #define KPIOR_ROWOCONTRL_SHIFT		24
 #define KPIOR_ROWOCONTRL_MASK		0xFF000000
-#define KPIOR_COLUMNOCONTRL_SHIFT	16
-#define KPIOR_COLUMNOCONTRL_MASK	0x00FF0000
+#define KPIOR_COLUMANALCONTRL_SHIFT	16
+#define KPIOR_COLUMANALCONTRL_MASK	0x00FF0000
 #define KPIOR_COLUMN_IO_DATA_SHIFT	0
 
 #define KPEMR0_OFFSET			0x00000090
@@ -193,7 +193,7 @@ static void bcm_kp_close(struct input_dev *dev)
 static int bcm_kp_matrix_key_parse_dt(struct bcm_kp *kp)
 {
 	struct device *dev = kp->input_dev->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int error;
 	unsigned int dt_val;
 	unsigned int i;
@@ -286,7 +286,7 @@ static int bcm_kp_matrix_key_parse_dt(struct bcm_kp *kp)
 				KPIOR_ROWOCONTRL_SHIFT;
 	} else {
 		kp->kpior = ((1 << kp->n_cols) - 1) <<
-				KPIOR_COLUMNOCONTRL_SHIFT;
+				KPIOR_COLUMANALCONTRL_SHIFT;
 	}
 
 	/*
@@ -311,18 +311,18 @@ static int bcm_kp_probe(struct platform_device *pdev)
 
 	kp = devm_kzalloc(&pdev->dev, sizeof(*kp), GFP_KERNEL);
 	if (!kp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev) {
 		dev_err(&pdev->dev, "failed to allocate the input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	__set_bit(EV_KEY, input_dev->evbit);
 
 	/* Enable auto repeat feature of Linux input subsystem */
-	if (of_property_read_bool(pdev->dev.of_node, "autorepeat"))
+	if (of_property_read_bool(pdev->dev.of_analde, "autorepeat"))
 		__set_bit(EV_REP, input_dev->evbit);
 
 	input_dev->name = pdev->name;
@@ -361,12 +361,12 @@ static int bcm_kp_probe(struct platform_device *pdev)
 	if (IS_ERR(kp->clk)) {
 		return dev_err_probe(&pdev->dev, PTR_ERR(kp->clk), "Failed to get clock\n");
 	} else if (!kp->clk) {
-		dev_dbg(&pdev->dev, "No clock specified. Assuming it's enabled\n");
+		dev_dbg(&pdev->dev, "Anal clock specified. Assuming it's enabled\n");
 	} else {
 		unsigned int desired_rate;
 		long actual_rate;
 
-		error = of_property_read_u32(pdev->dev.of_node,
+		error = of_property_read_u32(pdev->dev.of_analde,
 					     "clock-frequency", &desired_rate);
 		if (error < 0)
 			desired_rate = DEFAULT_CLK_HZ;
@@ -384,7 +384,7 @@ static int bcm_kp_probe(struct platform_device *pdev)
 			return error;
 	}
 
-	/* Put the kp into a known sane state */
+	/* Put the kp into a kanalwn sane state */
 	bcm_kp_stop(kp);
 
 	kp->irq = platform_get_irq(pdev, 0);

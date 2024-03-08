@@ -790,14 +790,14 @@ static struct clk_branch cam_cc_bps_clk = {
 	},
 };
 
-static struct clk_branch cam_cc_camnoc_axi_clk = {
+static struct clk_branch cam_cc_camanalc_axi_clk = {
 	.halt_reg = 0xb124,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xb124,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "cam_cc_camnoc_axi_clk",
+			.name = "cam_cc_camanalc_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1537,7 +1537,7 @@ static struct clk_regmap *cam_cc_sc7180_clocks[] = {
 	[CAM_CC_BPS_AXI_CLK] = &cam_cc_bps_axi_clk.clkr,
 	[CAM_CC_BPS_CLK] = &cam_cc_bps_clk.clkr,
 	[CAM_CC_BPS_CLK_SRC] = &cam_cc_bps_clk_src.clkr,
-	[CAM_CC_CAMNOC_AXI_CLK] = &cam_cc_camnoc_axi_clk.clkr,
+	[CAM_CC_CAMANALC_AXI_CLK] = &cam_cc_camanalc_axi_clk.clkr,
 	[CAM_CC_CCI_0_CLK] = &cam_cc_cci_0_clk.clkr,
 	[CAM_CC_CCI_0_CLK_SRC] = &cam_cc_cci_0_clk_src.clkr,
 	[CAM_CC_CCI_1_CLK] = &cam_cc_cci_1_clk.clkr,

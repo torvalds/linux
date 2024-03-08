@@ -507,7 +507,7 @@ static int fxas21002c_lpf_set(struct fxas21002c_data *data, int bw)
 
 	/*
 	 * From table 33 of the device spec, for ODR = 25Hz and 12.5 value 0.08
-	 * is not allowed and for ODR = 12.5 value 0.16 is also not allowed
+	 * is analt allowed and for ODR = 12.5 value 0.16 is also analt allowed
 	 */
 	ret = fxas21002c_odr_get(data, &odr);
 	if (ret < 0)
@@ -741,7 +741,7 @@ static irqreturn_t fxas21002c_trigger_handler(int irq, void *p)
 out_unlock:
 	mutex_unlock(&data->lock);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -758,7 +758,7 @@ static int fxas21002c_chip_init(struct fxas21002c_data *data)
 
 	if (chip_id != FXAS21002C_CHIP_ID_1 &&
 	    chip_id != FXAS21002C_CHIP_ID_2) {
-		dev_err(dev, "chip id 0x%02x is not supported\n", chip_id);
+		dev_err(dev, "chip id 0x%02x is analt supported\n", chip_id);
 		return -EINVAL;
 	}
 
@@ -808,10 +808,10 @@ static irqreturn_t fxas21002c_data_rdy_thread(int irq, void *private)
 
 	ret = regmap_field_read(data->regmap_fields[F_SRC_DRDY], &data_ready);
 	if (ret < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!data_ready)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iio_trigger_poll_nested(data->dready_trig);
 
@@ -830,7 +830,7 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 	if (!data->irq)
 		return 0;
 
-	irq1 = fwnode_irq_get_byname(dev_fwnode(dev), "INT1");
+	irq1 = fwanalde_irq_get_byname(dev_fwanalde(dev), "INT1");
 	if (irq1 == data->irq) {
 		dev_info(dev, "using interrupt line INT1\n");
 		ret = regmap_field_write(data->regmap_fields[F_INT_CFG_DRDY],
@@ -847,7 +847,7 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 						   indio_dev->name,
 						   iio_device_id(indio_dev));
 	if (!data->dready_trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_trig = irqd_get_trigger_type(irq_get_irq_data(data->irq));
 
@@ -928,7 +928,7 @@ int fxas21002c_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);

@@ -7,7 +7,7 @@
 
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <sound/opl3.h>
 #include <sound/asound_fm.h>
 #include "opl3_voice.h"
@@ -22,7 +22,7 @@
  *      The first OP is the modulator and 2nd is the carrier.
  *
  *      The first three voices in the both sides may be connected
- *      with another voice to a 4 OP voice. For example voice 0
+ *      with aanalther voice to a 4 OP voice. For example voice 0
  *      can be connected with voice 3. The operators of voice 3 are
  *      used as operators 3 and 4 of the new 4 OP voice.
  *      In this case the 2 OP voice number 0 is the 'first half' and
@@ -57,7 +57,7 @@ EXPORT_SYMBOL(snd_opl3_regmap);
 /*
  * prototypes
  */
-static int snd_opl3_play_note(struct snd_opl3 * opl3, struct snd_dm_fm_note * note);
+static int snd_opl3_play_analte(struct snd_opl3 * opl3, struct snd_dm_fm_analte * analte);
 static int snd_opl3_set_voice(struct snd_opl3 * opl3, struct snd_dm_fm_voice * voice);
 static int snd_opl3_set_params(struct snd_opl3 * opl3, struct snd_dm_fm_params * params);
 static int snd_opl3_set_mode(struct snd_opl3 * opl3, int mode);
@@ -107,15 +107,15 @@ int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 		snd_opl3_reset(opl3);
 		return 0;
 
-	case SNDRV_DM_FM_IOCTL_PLAY_NOTE:
+	case SNDRV_DM_FM_IOCTL_PLAY_ANALTE:
 #ifdef CONFIG_SND_OSSEMUL
-	case SNDRV_DM_FM_OSS_IOCTL_PLAY_NOTE:
+	case SNDRV_DM_FM_OSS_IOCTL_PLAY_ANALTE:
 #endif
 		{
-			struct snd_dm_fm_note note;
-			if (copy_from_user(&note, argp, sizeof(struct snd_dm_fm_note)))
+			struct snd_dm_fm_analte analte;
+			if (copy_from_user(&analte, argp, sizeof(struct snd_dm_fm_analte)))
 				return -EFAULT;
-			return snd_opl3_play_note(opl3, &note);
+			return snd_opl3_play_analte(opl3, &analte);
 		}
 
 	case SNDRV_DM_FM_IOCTL_SET_VOICE:
@@ -160,10 +160,10 @@ int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 
 #ifdef CONFIG_SND_DEBUG
 	default:
-		snd_printk(KERN_WARNING "unknown IOCTL: 0x%x\n", cmd);
+		snd_printk(KERN_WARNING "unkanalwn IOCTL: 0x%x\n", cmd);
 #endif
 	}
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 /*
@@ -249,7 +249,7 @@ int snd_opl3_load_patch(struct snd_opl3 *opl3,
 
 	patch = snd_opl3_find_patch(opl3, prog, bank, 1);
 	if (!patch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	patch->type = type;
 
@@ -298,7 +298,7 @@ EXPORT_SYMBOL(snd_opl3_load_patch);
 
 /*
  * find a patch with the given program and bank numbers, returns its pointer
- * if no matching patch is found and create_patch is set, it creates a
+ * if anal matching patch is found and create_patch is set, it creates a
  * new patch object.
  */
 struct fm_patch *snd_opl3_find_patch(struct snd_opl3 *opl3, int prog, int bank,
@@ -374,7 +374,7 @@ void snd_opl3_reset(struct snd_opl3 * opl3)
 		opl3->command(opl3, opl3_reg, OPL3_TOTAL_LEVEL_MASK); /* Operator 2 volume */
 
 		opl3_reg = reg_side | (OPL3_REG_KEYON_BLOCK + voice_offset);
-		opl3->command(opl3, opl3_reg, 0x00);	/* Note off */
+		opl3->command(opl3, opl3_reg, 0x00);	/* Analte off */
 	}
 
 	opl3->max_voices = MAX_OPL2_VOICES;
@@ -387,7 +387,7 @@ void snd_opl3_reset(struct snd_opl3 * opl3)
 
 EXPORT_SYMBOL(snd_opl3_reset);
 
-static int snd_opl3_play_note(struct snd_opl3 * opl3, struct snd_dm_fm_note * note)
+static int snd_opl3_play_analte(struct snd_opl3 * opl3, struct snd_dm_fm_analte * analte)
 {
 	unsigned short reg_side;
 	unsigned char voice_offset;
@@ -397,34 +397,34 @@ static int snd_opl3_play_note(struct snd_opl3 * opl3, struct snd_dm_fm_note * no
 
 	/* Voices 0 -  8 in OPL2 mode */
 	/* Voices 0 - 17 in OPL3 mode */
-	if (note->voice >= ((opl3->fm_mode == SNDRV_DM_FM_MODE_OPL3) ?
+	if (analte->voice >= ((opl3->fm_mode == SNDRV_DM_FM_MODE_OPL3) ?
 			    MAX_OPL3_VOICES : MAX_OPL2_VOICES))
 		return -EINVAL;
 
 	/* Get register array side and offset of voice */
-	if (note->voice < MAX_OPL2_VOICES) {
+	if (analte->voice < MAX_OPL2_VOICES) {
 		/* Left register block for voices 0 .. 8 */
 		reg_side = OPL3_LEFT;
-		voice_offset = note->voice;
+		voice_offset = analte->voice;
 	} else {
 		/* Right register block for voices 9 .. 17 */
 		reg_side = OPL3_RIGHT;
-		voice_offset = note->voice - MAX_OPL2_VOICES;
+		voice_offset = analte->voice - MAX_OPL2_VOICES;
 	}
 
-	/* Set lower 8 bits of note frequency */
-	reg_val = (unsigned char) note->fnum;
+	/* Set lower 8 bits of analte frequency */
+	reg_val = (unsigned char) analte->fnum;
 	opl3_reg = reg_side | (OPL3_REG_FNUM_LOW + voice_offset);
 	opl3->command(opl3, opl3_reg, reg_val);
 	
 	reg_val = 0x00;
 	/* Set output sound flag */
-	if (note->key_on)
+	if (analte->key_on)
 		reg_val |= OPL3_KEYON_BIT;
 	/* Set octave */
-	reg_val |= (note->octave << 2) & OPL3_BLOCKNUM_MASK;
-	/* Set higher 2 bits of note frequency */
-	reg_val |= (unsigned char) (note->fnum >> 8) & OPL3_FNUM_HIGH_MASK;
+	reg_val |= (analte->octave << 2) & OPL3_BLOCKNUM_MASK;
+	/* Set higher 2 bits of analte frequency */
+	reg_val |= (unsigned char) (analte->fnum >> 8) & OPL3_FNUM_HIGH_MASK;
 
 	/* Set OPL3 KEYON_BLOCK register of requested voice */ 
 	opl3_reg = reg_side | (OPL3_REG_KEYON_BLOCK + voice_offset);
@@ -463,8 +463,8 @@ static int snd_opl3_set_voice(struct snd_opl3 * opl3, struct snd_dm_fm_voice * v
 		voice_offset = voice->voice - MAX_OPL2_VOICES;
 	}
 	/* Get register offset of operator */
-	voice_offset = array_index_nospec(voice_offset, MAX_OPL2_VOICES);
-	voice_op = array_index_nospec(voice->op, 4);
+	voice_offset = array_index_analspec(voice_offset, MAX_OPL2_VOICES);
+	voice_op = array_index_analspec(voice->op, 4);
 	op_offset = snd_opl3_regmap[voice_offset][voice_op];
 
 	reg_val = 0x00;
@@ -487,7 +487,7 @@ static int snd_opl3_set_voice(struct snd_opl3 * opl3, struct snd_dm_fm_voice * v
 	opl3_reg = reg_side | (OPL3_REG_AM_VIB + op_offset);
 	opl3->command(opl3, opl3_reg, reg_val);
 
-	/* Set decreasing volume of higher notes */
+	/* Set decreasing volume of higher analtes */
 	reg_val = (voice->scale_level << 6) & OPL3_KSL_MASK;
 	/* Set output volume */
 	reg_val |= ~voice->volume & OPL3_TOTAL_LEVEL_MASK;

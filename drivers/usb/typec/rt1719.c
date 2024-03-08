@@ -118,9 +118,9 @@ static const enum power_supply_usb_type rt1719_psy_usb_types[] = {
 static const enum power_supply_property rt1719_psy_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_USB_TYPE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
-	POWER_SUPPLY_PROP_CURRENT_NOW
+	POWER_SUPPLY_PROP_CURRENT_ANALW
 };
 
 static int rt1719_read16(struct rt1719_data *data, unsigned int reg, u16 *val)
@@ -198,7 +198,7 @@ static void rt1719_set_data_role(struct rt1719_data *data,
 				 enum typec_data_role data_role,
 				 bool attached)
 {
-	enum usb_role usb_role = USB_ROLE_NONE;
+	enum usb_role usb_role = USB_ROLE_ANALNE;
 
 	if (attached) {
 		if (data_role == TYPEC_HOST)
@@ -251,7 +251,7 @@ static void rt1719_register_partner(struct rt1719_data *data)
 	if (data->conn_info & RT1719_ATTACH_DBG)
 		data->partner_desc.accessory = TYPEC_ACCESSORY_DEBUG;
 	else
-		data->partner_desc.accessory = TYPEC_ACCESSORY_NONE;
+		data->partner_desc.accessory = TYPEC_ACCESSORY_ANALNE;
 
 	data->partner = typec_register_partner(data->port, &data->partner_desc);
 }
@@ -403,7 +403,7 @@ static int rt1719_dr_set(struct typec_port *port, enum typec_data_role role)
 	int ret;
 
 	if (!data->attached || !data->pd_capable || !data->drswap_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (data->spdo_num > 0 && !(data->spdos[0] & PDO_FIXED_DATA_SWAP))
 		return -EINVAL;
@@ -485,7 +485,7 @@ static int rt1719_usbpd_request_voltage(struct rt1719_data *data)
 	}
 
 	if (src_sel == -1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = regmap_update_bits(data->regmap, RT1719_REG_TXCTRL1,
 				 RT1719_EVALMODE_MASK | RT1719_REQSRCPDO_MASK,
@@ -510,7 +510,7 @@ static int rt1719_psy_set_property(struct power_supply *psy,
 {
 	struct rt1719_data *data = power_supply_get_drvdata(psy);
 
-	if (psp == POWER_SUPPLY_PROP_VOLTAGE_NOW) {
+	if (psp == POWER_SUPPLY_PROP_VOLTAGE_ANALW) {
 		data->req_voltage = val->intval / 1000;
 		return rt1719_usbpd_request_voltage(data);
 	}
@@ -532,13 +532,13 @@ static int rt1719_psy_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		val->intval = data->usb_type;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = data->voltage;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		val->intval = data->max_current;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		val->intval = data->op_current;
 		break;
 	default:
@@ -552,7 +552,7 @@ static int rt1719_psy_get_property(struct power_supply *psy,
 static int rt1719_psy_property_is_writeable(struct power_supply *psy,
 					    enum power_supply_property psp)
 {
-	if (psp == POWER_SUPPLY_PROP_VOLTAGE_NOW)
+	if (psp == POWER_SUPPLY_PROP_VOLTAGE_ANALW)
 		return 1;
 	return 0;
 }
@@ -562,13 +562,13 @@ static int devm_rt1719_psy_register(struct rt1719_data *data)
 	struct power_supply_config psy_cfg = { };
 	char *psy_name;
 
-	psy_cfg.fwnode = dev_fwnode(data->dev);
+	psy_cfg.fwanalde = dev_fwanalde(data->dev);
 	psy_cfg.drv_data = data;
 
 	psy_name = devm_kasprintf(data->dev, GFP_KERNEL, "rt1719-source-psy-%s",
 				  dev_name(data->dev));
 	if (!psy_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->psy_desc.name = psy_name;
 	data->psy_desc.type = POWER_SUPPLY_TYPE_USB;
@@ -599,7 +599,7 @@ static irqreturn_t rt1719_irq_handler(int irq, void *priv)
 	ret |= rt1719_read32(data, RT1719_REG_POLICYINFO, &conn_info);
 	ret |= rt1719_read16(data, RT1719_REG_STATS, &conn_stat);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	data->conn_info = conn_info;
 	data->conn_stat = conn_stat;
@@ -828,7 +828,7 @@ static int rt1719_check_exist(struct rt1719_data *data)
 
 	if (pid != RT1719_UNIQUE_PID) {
 		dev_err(data->dev, "Incorrect PID 0x%04x\n", pid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -843,13 +843,13 @@ static const struct regmap_config rt1719_regmap_config = {
 static int rt1719_probe(struct i2c_client *i2c)
 {
 	struct rt1719_data *data;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct typec_capability typec_cap = { };
 	int ret;
 
 	data = devm_kzalloc(&i2c->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &i2c->dev;
 	init_completion(&data->req_completion);
@@ -869,15 +869,15 @@ static int rt1719_probe(struct i2c_client *i2c)
 	if (ret)
 		return ret;
 
-	fwnode = device_get_named_child_node(&i2c->dev, "connector");
-	if (!fwnode)
-		return -ENODEV;
+	fwanalde = device_get_named_child_analde(&i2c->dev, "connector");
+	if (!fwanalde)
+		return -EANALDEV;
 
-	data->role_sw = fwnode_usb_role_switch_get(fwnode);
+	data->role_sw = fwanalde_usb_role_switch_get(fwanalde);
 	if (IS_ERR(data->role_sw)) {
 		ret = PTR_ERR(data->role_sw);
 		dev_err(&i2c->dev, "Failed to get usb role switch (%d)\n", ret);
-		goto err_fwnode_put;
+		goto err_fwanalde_put;
 	}
 
 	ret = devm_rt1719_psy_register(data);
@@ -891,7 +891,7 @@ static int rt1719_probe(struct i2c_client *i2c)
 	typec_cap.type = TYPEC_PORT_SNK;
 	typec_cap.data = TYPEC_PORT_DRD;
 	typec_cap.ops = &rt1719_port_ops;
-	typec_cap.fwnode = fwnode;
+	typec_cap.fwanalde = fwanalde;
 	typec_cap.driver_data = data;
 	typec_cap.accessory[0] = TYPEC_ACCESSORY_DEBUG;
 
@@ -916,7 +916,7 @@ static int rt1719_probe(struct i2c_client *i2c)
 		goto err_role_put;
 	}
 
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 
 	i2c_set_clientdata(i2c, data);
 
@@ -924,8 +924,8 @@ static int rt1719_probe(struct i2c_client *i2c)
 
 err_role_put:
 	usb_role_switch_put(data->role_sw);
-err_fwnode_put:
-	fwnode_handle_put(fwnode);
+err_fwanalde_put:
+	fwanalde_handle_put(fwanalde);
 
 	return ret;
 }

@@ -28,7 +28,7 @@ ENDPROC(c_backtrace)
 
 
 /*
- * Clang does not store pc or sp in function prologues so we don't know exactly
+ * Clang does analt store pc or sp in function prologues so we don't kanalw exactly
  * where the function starts.
  *
  * We can treat the current frame's lr as the saved pc and the preceding
@@ -38,9 +38,9 @@ ENDPROC(c_backtrace)
  *
  * If the call instruction was a bl we can look at the callers branch
  * instruction to calculate the saved pc.  We can recover the pc in most cases,
- * but in cases such as calling function pointers we cannot. In this case,
+ * but in cases such as calling function pointers we cananalt. In this case,
  * default to using the lr. This will be some address in the function, but will
- * not be the function start.
+ * analt be the function start.
  *
  * Unfortunately due to the stack frame layout we can't dump r0 - r3, but these
  * are less frequently saved.
@@ -74,7 +74,7 @@ ENDPROC(c_backtrace)
  * to fully print dump_stack's frame we need both the frame for dump_stack (for
  * locals) and the frame that was called by dump_stack (for pc).
  *
- * To print locals we must know where the function start is. If we read the
+ * To print locals we must kanalw where the function start is. If we read the
  * function prologue opcodes we can determine which variables are stored in the
  * stack frame.
  *
@@ -99,7 +99,7 @@ ENDPROC(c_backtrace)
 		stmfd	sp!, {r4 - r9, fp, lr}	@ Save an extra register
 						@ to ensure 8 byte alignment
 		movs	frame, r0		@ if frame pointer is zero
-		beq	no_frame		@ we have no stack frames
+		beq	anal_frame		@ we have anal stack frames
 		mov	loglvl, r2
 		tst	r1, #0x10		@ 26 or 32-bit mode?
 		moveq	mask, #0xfc000003
@@ -110,14 +110,14 @@ ENDPROC(c_backtrace)
  */
 		add	frame, sp, #24		@ switch to false frame
 for_each_frame:	tst	frame, mask		@ Check for address exceptions
-		bne	no_frame
+		bne	anal_frame
 
 /*
  * sv_fp is the stack frame with the locals for the current considered
  * function.
  *
  * sv_pc is the saved lr frame the frame above. This is a pointer to a code
- * address within the current considered function, but it is not the function
+ * address within the current considered function, but it is analt the function
  * start. This value gets updated to be the function start later if it is
  * possible.
  */
@@ -125,7 +125,7 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 1002:		ldr	sv_fp, [frame, #0]	@ get saved fp
 
 		teq	sv_fp, mask		@ make sure next frame exists
-		beq	no_frame
+		beq	anal_frame
 
 /*
  * sv_lr is the lr from the function that called the current function. This is
@@ -136,9 +136,9 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
  * called using a bl instruction. If the function start can be recovered sv_pc
  * is overwritten with the function start.
  *
- * If the current function was called using a function pointer we cannot
+ * If the current function was called using a function pointer we cananalt
  * recover the function start and instead continue with sv_pc as an arbitrary
- * value within the current function. If this is the case we cannot print
+ * value within the current function. If this is the case we cananalt print
  * registers for the current function, but the stacktrace is still printed
  * properly.
  */
@@ -148,7 +148,7 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 		ldr	r3, .Lopcode+4
 		and	r2, r3, r0		@ is this a bl call
 		teq	r2, r3
-		bne	finished_setup		@ give up if it's not
+		bne	finished_setup		@ give up if it's analt
 		and	r0, #0xffffff		@ get call offset 24-bit int
 		lsl	r0, r0, #8		@ sign extend offset
 		asr	r0, r0, #8
@@ -176,9 +176,9 @@ finished_setup:
  * Test if the function start is a stmfd instruction to determine which
  * registers were stored in the function prologue.
  *
- * If we could not recover the sv_pc because we were called through a function
- * pointer the comparison will fail and no registers will print. Unwinding will
- * continue as if there had been no registers stored in this frame.
+ * If we could analt recover the sv_pc because we were called through a function
+ * pointer the comparison will fail and anal registers will print. Unwinding will
+ * continue as if there had been anal registers stored in this frame.
  */
 1005:		ldr	r1, [sv_pc, #0]		@ if stmfd sp!, {..., fp, lr}
 		ldr	r3, .Lopcode		@ instruction exists,
@@ -193,7 +193,7 @@ finished_setup:
  * If we are out of frames or if the next frame is invalid.
  */
 		teq	sv_fp, #0		@ zero saved fp means
-		beq	no_frame		@ no further frames
+		beq	anal_frame		@ anal further frames
 
 		cmp	sv_fp, frame		@ next frame must be
 		mov	frame, sv_fp		@ above the current frame
@@ -211,7 +211,7 @@ finished_setup:
 		mov	r1, loglvl
 		mov	r2, frame
 		bl	_printk
-no_frame:	ldmfd	sp!, {r4 - r9, fp, pc}
+anal_frame:	ldmfd	sp!, {r4 - r9, fp, pc}
 ENDPROC(c_backtrace)
 		.pushsection __ex_table,"a"
 		.align	3

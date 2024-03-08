@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -67,7 +67,7 @@
 #define MAX_FCLK_DPM_LEVEL    (NUM_FCLK_DPM_LEVELS    - 1)
 
 //Gemini Modes
-#define PPSMC_GeminiModeNone   0  //Single GPU board
+#define PPSMC_GeminiModeAnalne   0  //Single GPU board
 #define PPSMC_GeminiModeMaster 1  //Master GPU on a Gemini board
 #define PPSMC_GeminiModeSlave  2  //Slave GPU on a Gemini board
 
@@ -228,7 +228,7 @@ typedef enum {
 #define FW_DSTATE_MEM_PLL_PWRDN_BIT         9   
 #define FW_DSTATE_OPTIMIZE_MALL_REFRESH_BIT 10
 #define FW_DSTATE_MEM_PSI_BIT               11
-#define FW_DSTATE_HSR_NON_STROBE_BIT        12
+#define FW_DSTATE_HSR_ANALN_STROBE_BIT        12
 #define FW_DSTATE_MP0_ENTER_WFI_BIT         13
 
 #define FW_DSTATE_SOC_ULV_MASK                    (1 << FW_DSTATE_SOC_ULV_BIT          )
@@ -243,7 +243,7 @@ typedef enum {
 #define FW_DSTATE_MEM_PLL_PWRDN_MASK              (1 << FW_DSTATE_MEM_PLL_PWRDN_BIT    )
 #define FW_DSTATE_OPTIMIZE_MALL_REFRESH_MASK      (1 << FW_DSTATE_OPTIMIZE_MALL_REFRESH_BIT    )
 #define FW_DSTATE_MEM_PSI_MASK                    (1 << FW_DSTATE_MEM_PSI_BIT    )
-#define FW_DSTATE_HSR_NON_STROBE_MASK             (1 << FW_DSTATE_HSR_NON_STROBE_BIT    )
+#define FW_DSTATE_HSR_ANALN_STROBE_MASK             (1 << FW_DSTATE_HSR_ANALN_STROBE_BIT    )
 #define FW_DSTATE_MP0_ENTER_WFI_MASK              (1 << FW_DSTATE_MP0_ENTER_WFI_BIT    )
 
 // GFX GPO Feature Contains PACE and DEM sub features
@@ -286,7 +286,7 @@ typedef enum {
   DRAM_BIT_WIDTH_X_8,
   DRAM_BIT_WIDTH_X_16,
   DRAM_BIT_WIDTH_X_32,
-  DRAM_BIT_WIDTH_X_64, // NOT USED.
+  DRAM_BIT_WIDTH_X_64, // ANALT USED.
   DRAM_BIT_WIDTH_X_128,
   DRAM_BIT_WIDTH_COUNT,
 } DRAM_BIT_WIDTH_TYPE_e;
@@ -319,7 +319,7 @@ typedef enum {
 } I2cControllerName_e;
 
 typedef enum {
-  I2C_CONTROLLER_THROTTLER_TYPE_NONE = 0,
+  I2C_CONTROLLER_THROTTLER_TYPE_ANALNE = 0,
   I2C_CONTROLLER_THROTTLER_VR_GFX,
   I2C_CONTROLLER_THROTTLER_VR_SOC,
   I2C_CONTROLLER_THROTTLER_VR_VDDCI,
@@ -954,7 +954,7 @@ typedef struct {
 
   // SECTION: Structure Padding
 
-  // Padding for MMHUB - do not modify this
+  // Padding for MMHUB - do analt modify this
   uint32_t     MmHubPadding[8]; // SMU internal use
 
 } PPTable_t;
@@ -1010,7 +1010,7 @@ typedef struct {
   uint16_t     MinVoltageUlvSoc; // In mV(Q2)  Minimum Voltage ("Vmin") of VDD_SOC in ULV mode
 
   uint16_t     SocLIVmin;
-  uint16_t     SocLIVminoffset;
+  uint16_t     SocLIVmianalffset;
 
   uint8_t   GceaLinkMgrIdleThreshold;        //Set by SMU FW during enablment of GFXOFF. Controls delay for GFX SDP port disconnection during idle events
   uint8_t   paddingRlcUlvParams[3];
@@ -1315,7 +1315,7 @@ typedef struct {
 
   // SECTION: Structure Padding
 
-  // Padding for MMHUB - do not modify this
+  // Padding for MMHUB - do analt modify this
   uint32_t     MmHubPadding[8]; // SMU internal use
 
 
@@ -1337,7 +1337,7 @@ typedef struct {
   DriverSmuConfig_t DriverSmuConfig;
 
   uint32_t     Spare[7];  
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } DriverSmuConfigExternal_t;
 
@@ -1613,7 +1613,7 @@ typedef struct {
   };
   uint32_t Spare[1];
 
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use  
 } SmuMetricsExternal_t;
 

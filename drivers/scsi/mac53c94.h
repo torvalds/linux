@@ -64,7 +64,7 @@ struct mac53c94_regs {
 #define CMD_MODE_TARG	0x20
 #define CMD_MODE_DISC	0x40
 
-#define CMD_NOP		0
+#define CMD_ANALP		0
 #define CMD_FLUSH	1
 #define CMD_RESET	2
 #define CMD_SCSI_RESET	3
@@ -134,7 +134,7 @@ struct mac53c94_regs {
 #define SS_MASK		7
 #define SS_ARB_SEL	0	/* Selection & arbitration complete */
 #define SS_MSG_SENT	1	/* One message byte sent */
-#define SS_NOT_CMD	2	/* Not in command phase */
+#define SS_ANALT_CMD	2	/* Analt in command phase */
 #define SS_PHASE_CHG	3	/* Early phase change, cmd bytes lost */
 #define SS_DONE		4	/* Command was sent OK */
 
@@ -162,7 +162,7 @@ struct mac53c94_regs {
  * Bits in config1 register.
  */
 #define CF1_SLOW_CABLE	0x80	/* Slow cable mode */
-#define CF1_NO_RES_REP	0x40	/* Disable SCSI reset reports */
+#define CF1_ANAL_RES_REP	0x40	/* Disable SCSI reset reports */
 #define CF1_PAR_TEST	0x20	/* Parity test mode enable */
 #define CF1_PAR_ENABLE	0x10	/* Enable parity checks */
 #define CF1_TEST	0x08	/* Chip tests */

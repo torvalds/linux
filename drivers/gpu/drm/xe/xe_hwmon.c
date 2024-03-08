@@ -105,7 +105,7 @@ static u32 xe_hwmon_get_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg hwmon_reg)
 			reg = PVC_GT0_PLATFORM_ENERGY_STATUS;
 		break;
 	default:
-		drm_warn(&xe->drm, "Unknown xe hwmon reg id: %d\n", hwmon_reg);
+		drm_warn(&xe->drm, "Unkanalwn xe hwmon reg id: %d\n", hwmon_reg);
 		break;
 	}
 
@@ -144,7 +144,7 @@ static void xe_hwmon_process_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg hwmon
 
 /*
  * HW allows arbitrary PL1 limits to be set but silently clamps these values to
- * "typical but not guaranteed" min/max values in REG_PKG_POWER_SKU. Follow the
+ * "typical but analt guaranteed" min/max values in REG_PKG_POWER_SKU. Follow the
  * same pattern for sysfs, allow arbitrary PL1 limits to be set but display
  * clamped values when read.
  */
@@ -183,7 +183,7 @@ static int xe_hwmon_power_max_write(struct xe_hwmon *hwmon, long value)
 
 	mutex_lock(&hwmon->hwmon_lock);
 
-	/* Disable PL1 limit and verify, as limit cannot be disabled on all platforms */
+	/* Disable PL1 limit and verify, as limit cananalt be disabled on all platforms */
 	if (value == PL1_DISABLE) {
 		xe_hwmon_process_reg(hwmon, REG_PKG_RAPL_LIMIT, REG_RMW32, &reg_val,
 				     PKG_PWR_LIM_1_EN, 0);
@@ -191,7 +191,7 @@ static int xe_hwmon_power_max_write(struct xe_hwmon *hwmon, long value)
 				     PKG_PWR_LIM_1_EN, 0);
 
 		if (reg_val & PKG_PWR_LIM_1_EN) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto unlock;
 		}
 	}
@@ -315,7 +315,7 @@ xe_hwmon_power1_max_interval_store(struct device *dev, struct device_attribute *
 	 * The hwmon->scl_shift_time default of 0xa results in a max tau of 256 seconds.
 	 *
 	 * The ideal scenario is for PKG_MAX_WIN to be read from the PKG_PWR_SKU register.
-	 * However, it is observed that existing discrete GPUs does not provide correct
+	 * However, it is observed that existing discrete GPUs does analt provide correct
 	 * PKG_MAX_WIN value, therefore a using default constant value. For future discrete GPUs
 	 * this may get resolved, in which case PKG_MAX_WIN should be obtained from PKG_PWR_SKU.
 	 */
@@ -502,7 +502,7 @@ xe_hwmon_power_read(struct xe_hwmon *hwmon, u32 attr, int chan, long *val)
 	case hwmon_power_crit:
 		return xe_hwmon_power_curr_crit_read(hwmon, val, SF_POWER);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -515,7 +515,7 @@ xe_hwmon_power_write(struct xe_hwmon *hwmon, u32 attr, int chan, long val)
 	case hwmon_power_crit:
 		return xe_hwmon_power_curr_crit_write(hwmon, val, SF_POWER);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -540,7 +540,7 @@ xe_hwmon_curr_read(struct xe_hwmon *hwmon, u32 attr, long *val)
 	case hwmon_curr_crit:
 		return xe_hwmon_power_curr_crit_read(hwmon, val, SF_CURR);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -551,7 +551,7 @@ xe_hwmon_curr_write(struct xe_hwmon *hwmon, u32 attr, long val)
 	case hwmon_curr_crit:
 		return xe_hwmon_power_curr_crit_write(hwmon, val, SF_CURR);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -574,7 +574,7 @@ xe_hwmon_in_read(struct xe_hwmon *hwmon, u32 attr, long *val)
 		xe_hwmon_get_voltage(hwmon, val);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -597,7 +597,7 @@ xe_hwmon_energy_read(struct xe_hwmon *hwmon, u32 attr, long *val)
 		xe_hwmon_energy_get(hwmon, val);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -656,7 +656,7 @@ xe_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		ret = xe_hwmon_energy_read(hwmon, attr, val);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -682,7 +682,7 @@ xe_hwmon_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		ret = xe_hwmon_curr_write(hwmon, attr, val);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -710,7 +710,7 @@ xe_hwmon_get_preregistration_info(struct xe_device *xe)
 	u64 val_sku_unit = 0;
 
 	/*
-	 * The contents of register PKG_POWER_SKU_UNIT do not change,
+	 * The contents of register PKG_POWER_SKU_UNIT do analt change,
 	 * so read it once and store the shift values.
 	 */
 	if (xe_hwmon_get_reg(hwmon, REG_PKG_POWER_SKU_UNIT)) {

@@ -6,7 +6,7 @@
  * Copyright (C) 2004, 2005, 2006, 2008	 Thiemo Seufer
  * Copyright (C) 2005  Maciej W. Rozycki
  * Copyright (C) 2006  Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2012, 2013  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012, 2013  MIPS Techanallogies, Inc.  All rights reserved.
  */
 
 #ifndef __ASM_UASM_H
@@ -146,7 +146,7 @@ Ip_u3u1u2(_mul);
 Ip_u1u2(_multu);
 Ip_u3u1u2(_mulu);
 Ip_u3u1u2(_muhu);
-Ip_u3u1u2(_nor);
+Ip_u3u1u2(_analr);
 Ip_u3u1u2(_or);
 Ip_u2u1u3(_ori);
 Ip_u2s3u1(_pref);
@@ -247,12 +247,12 @@ static inline void uasm_l##lb(struct uasm_label **lab, u32 *addr)	\
 #define uasm_i_bnezl(buf, rs, off) uasm_i_bnel(buf, rs, 0, off)
 #define uasm_i_ehb(buf) uasm_i_sll(buf, 0, 0, 3)
 #define uasm_i_move(buf, a, b) UASM_i_ADDU(buf, a, 0, b)
-#ifdef CONFIG_CPU_NOP_WORKAROUNDS
-#define uasm_i_nop(buf) uasm_i_or(buf, 1, 1, 0)
+#ifdef CONFIG_CPU_ANALP_WORKAROUNDS
+#define uasm_i_analp(buf) uasm_i_or(buf, 1, 1, 0)
 #else
-#define uasm_i_nop(buf) uasm_i_sll(buf, 0, 0, 0)
+#define uasm_i_analp(buf) uasm_i_sll(buf, 0, 0, 0)
 #endif
-#define uasm_i_ssnop(buf) uasm_i_sll(buf, 0, 0, 1)
+#define uasm_i_ssanalp(buf) uasm_i_sll(buf, 0, 0, 1)
 
 static inline void uasm_i_drotr_safe(u32 **p, unsigned int a1,
 				     unsigned int a2, unsigned int a3)

@@ -10,11 +10,11 @@ description: |
   This GPIO controller is found in the Intel IXP4xx
   processors. It supports 16 GPIO lines.
   The interrupt portions of the GPIO controller is hierarchical.
-  The synchronous edge detector is part of the GPIO block, but the
+  The synchroanalus edge detector is part of the GPIO block, but the
   actual enabling/disabling of the interrupt line is done in the
   main IXP4xx interrupt controller which has a 1-to-1 mapping for
   the first 12 GPIO lines to 12 system interrupts.
-  The remaining 4 GPIO lines can not be used for receiving
+  The remaining 4 GPIO lines can analt be used for receiving
   interrupts.
   The interrupt parent of this GPIO controller must be the
   IXP4xx interrupt controller.

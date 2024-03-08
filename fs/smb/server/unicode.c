@@ -22,7 +22,7 @@
  *
  * This function handles the conversion of a single character. It is the
  * responsibility of the caller to ensure that the target buffer is large
- * enough to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
+ * eanalugh to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
  *
  * Return:	string length after conversion
  */
@@ -39,7 +39,7 @@ cifs_mapchar(char *target, const __u16 *from, const struct nls_table *cp,
 		goto cp_convert;
 
 	/*
-	 * BB: Cannot handle remapping UNI_SLASH until all the calls to
+	 * BB: Cananalt handle remapping UNI_SLASH until all the calls to
 	 *     build_path_from_dentry are modified, as they use slash as
 	 *     separator.
 	 */
@@ -79,13 +79,13 @@ cp_convert:
 surrogate_pair:
 	/* convert SURROGATE_PAIR and IVS */
 	if (strcmp(cp->charset, "utf8"))
-		goto unknown;
+		goto unkanalwn;
 	len = utf16s_to_utf8s(from, 3, UTF16_LITTLE_ENDIAN, target, 6);
 	if (len <= 0)
-		goto unknown;
+		goto unkanalwn;
 	return len;
 
-unknown:
+unkanalwn:
 	*target = '?';
 	len = 1;
 	goto out;
@@ -98,7 +98,7 @@ unknown:
  * @codepage:	destination codepage
  *
  * Walk a utf16le string and return the number of bytes that the string will
- * be after being converted to the given charset, not including any null
+ * be after being converted to the given charset, analt including any null
  * termination required. Don't walk past maxbytes in the source buffer.
  *
  * Return:	string length after conversion
@@ -150,7 +150,7 @@ static int smb_utf16_bytes(const __le16 *from, int maxbytes,
  * buffer. Returns the length of the destination string in bytes (including
  * null terminator).
  *
- * Note that some windows versions actually send multiword UTF-16 characters
+ * Analte that some windows versions actually send multiword UTF-16 characters
  * instead of straight UTF16-2. The linux nls routines however aren't able to
  * deal with those characters properly. In the event that we get some of
  * those characters, they won't be translated properly.
@@ -169,7 +169,7 @@ static int smb_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
 
 	/*
 	 * because the chars can be of varying widths, we need to take care
-	 * not to overflow the destination buffer when we get close to the
+	 * analt to overflow the destination buffer when we get close to the
 	 * end of it. Until we get to this offset, we don't need to check
 	 * for overflow however.
 	 */
@@ -237,11 +237,11 @@ int smb_strtoUTF16(__le16 *to, const char *from, int len,
 	int i;
 	wchar_t wchar_to; /* needed to quiet sparse */
 
-	/* special case for utf8 to handle no plane0 chars */
+	/* special case for utf8 to handle anal plane0 chars */
 	if (!strcmp(codepage->charset, "utf8")) {
 		/*
-		 * convert utf8 -> utf16, we assume we have enough space
-		 * as caller should have assumed conversion does not overflow
+		 * convert utf8 -> utf16, we assume we have eanalugh space
+		 * as caller should have assumed conversion does analt overflow
 		 * in destination len is length in wchar_t units (16bits)
 		 */
 		i  = utf8s_to_utf16s(from, len, UTF16_LITTLE_ENDIAN,
@@ -252,7 +252,7 @@ int smb_strtoUTF16(__le16 *to, const char *from, int len,
 			goto success;
 		/*
 		 * if fails fall back to UCS encoding as this
-		 * function should not return negative values
+		 * function should analt return negative values
 		 * currently can fail only if source contains
 		 * invalid encoded characters
 		 */
@@ -299,7 +299,7 @@ char *smb_strndup_from_utf16(const char *src, const int maxlen,
 		len += nls_nullsize(codepage);
 		dst = kmalloc(len, GFP_KERNEL);
 		if (!dst)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		ret = smb_from_utf16(dst, (__le16 *)src, len, maxlen, codepage,
 				     false);
 		if (ret < 0) {
@@ -311,7 +311,7 @@ char *smb_strndup_from_utf16(const char *src, const int maxlen,
 		len++;
 		dst = kmalloc(len, GFP_KERNEL);
 		if (!dst)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		strscpy(dst, src, len);
 	}
 
@@ -379,7 +379,7 @@ int smbConvertToUTF16(__le16 *target, const char *source, int srclen,
 			dst_char = cpu_to_le16(UNI_PIPE);
 			break;
 		/*
-		 * FIXME: We can not handle remapping backslash (UNI_SLASH)
+		 * FIXME: We can analt handle remapping backslash (UNI_SLASH)
 		 * until all the calls to build_path_from_dentry are modified,
 		 * as they use backslash as separator.
 		 */
@@ -388,7 +388,7 @@ int smbConvertToUTF16(__le16 *target, const char *source, int srclen,
 			dst_char = cpu_to_le16(tmp);
 
 			/*
-			 * if no match, use question mark, which at least in
+			 * if anal match, use question mark, which at least in
 			 * some cases serves as wild card
 			 */
 			if (charlen > 0)
@@ -396,18 +396,18 @@ int smbConvertToUTF16(__le16 *target, const char *source, int srclen,
 
 			/* convert SURROGATE_PAIR */
 			if (strcmp(cp->charset, "utf8"))
-				goto unknown;
+				goto unkanalwn;
 			if (*(source + i) & 0x80) {
 				charlen = utf8_to_utf32(source + i, 6, &u);
 				if (charlen < 0)
-					goto unknown;
+					goto unkanalwn;
 			} else
-				goto unknown;
+				goto unkanalwn;
 			ret  = utf8s_to_utf16s(source + i, charlen,
 					UTF16_LITTLE_ENDIAN,
 					wchar_to, 6);
 			if (ret < 0)
-				goto unknown;
+				goto unkanalwn;
 
 			i += charlen;
 			dst_char = cpu_to_le16(*wchar_to);
@@ -436,7 +436,7 @@ int smbConvertToUTF16(__le16 *target, const char *source, int srclen,
 			}
 			continue;
 
-unknown:
+unkanalwn:
 			dst_char = cpu_to_le16(0x003f);
 			charlen = 1;
 		}

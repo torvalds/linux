@@ -6,7 +6,7 @@
  * including the CE2, CE IIps, RE-10, CEM28, CEM33, CE33, CEM56,
  * CE3-100, CE3B, RE-100, REM10BT, and REM56G-100.
  *
- * 2000-09-24 <psheer@icon.co.za> The Xircom CE3B-100 may not
+ * 2000-09-24 <psheer@icon.co.za> The Xircom CE3B-100 may analt
  * autodetect the media properly. In this case use the
  * if_port=1 (for 10BaseT) or if_port=4 (for 100BaseT) options
  * to force the media type.
@@ -27,7 +27,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if analt, see <http://www.gnu.org/licenses/>.
  *
  *
  * ALTERNATIVELY, this driver may be distributed under the terms of
@@ -40,21 +40,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -145,7 +145,7 @@ enum xirc_rsr {
     PhyPkt = 0x01,	/* set:physical packet, clear: multicast packet */
     BrdcstPkt = 0x02,	/* set if it is a broadcast packet */
     PktTooLong = 0x04,	/* set if packet length > 1518 */
-    AlignErr = 0x10,	/* incorrect CRC and last octet not complete */
+    AlignErr = 0x10,	/* incorrect CRC and last octet analt complete */
     CRCErr = 0x20,	/* incorrect CRC and last octet is complete */
     PktRxOk = 0x80	/* received ok */
 };
@@ -164,7 +164,7 @@ enum xirc_ecr {
 /* values for the leds:    Bits 2-0 for led 1
  *  0 disabled		   Bits 5-3 for led 2
  *  1 collision
- *  2 noncollision
+ *  2 analncollision
  *  3 link_detected
  *  4 incor_polarity
  *  5 jabber
@@ -210,21 +210,21 @@ enum xirc_cmd { 	    /* Commands */
 static const char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
 
 /* card types */
-#define XIR_UNKNOWN  0	/* unknown: not supported */
-#define XIR_CE	     1	/* (prodid 1) different hardware: not supported */
+#define XIR_UNKANALWN  0	/* unkanalwn: analt supported */
+#define XIR_CE	     1	/* (prodid 1) different hardware: analt supported */
 #define XIR_CE2      2	/* (prodid 2) */
 #define XIR_CE3      3	/* (prodid 3) */
-#define XIR_CEM      4	/* (prodid 1) different hardware: not supported */
+#define XIR_CEM      4	/* (prodid 1) different hardware: analt supported */
 #define XIR_CEM2     5	/* (prodid 2) */
 #define XIR_CEM3     6	/* (prodid 3) */
 #define XIR_CEM33    7	/* (prodid 4) */
 #define XIR_CEM56M   8	/* (prodid 5) */
 #define XIR_CEM56    9	/* (prodid 6) */
-#define XIR_CM28    10	/* (prodid 3) modem only: not supported here */
-#define XIR_CM33    11	/* (prodid 4) modem only: not supported here */
-#define XIR_CM56    12	/* (prodid 5) modem only: not supported here */
-#define XIR_CG	    13	/* (prodid 1) GSM modem only: not supported */
-#define XIR_CBE     14	/* (prodid 1) cardbus ethernet: not supported */
+#define XIR_CM28    10	/* (prodid 3) modem only: analt supported here */
+#define XIR_CM33    11	/* (prodid 4) modem only: analt supported here */
+#define XIR_CM56    12	/* (prodid 5) modem only: analt supported here */
+#define XIR_CG	    13	/* (prodid 1) GSM modem only: analt supported */
+#define XIR_CBE     14	/* (prodid 1) cardbus ethernet: analt supported */
 /*====================================================================*/
 
 /* Module parameters */
@@ -241,8 +241,8 @@ INT_MODULE_PARM(lockup_hack,	0);  /* anti lockup hack */
 
 /*====================================================================*/
 
-/* We do not process more than these number of bytes during one
- * interrupt. (Of course we receive complete packets, so this is not
+/* We do analt process more than these number of bytes during one
+ * interrupt. (Of course we receive complete packets, so this is analt
  * an exact value).
  * Something between 2000..22000; first value gives best interrupt latency,
  * the second enables the usage of the complete on-chip buffer. We use the
@@ -481,7 +481,7 @@ xirc2ps_probe(struct pcmcia_device *link)
     /* Allocate the device structure */
     dev = alloc_etherdev(sizeof(struct local_info));
     if (!dev)
-	    return -ENOMEM;
+	    return -EANALMEM;
     local = netdev_priv(dev);
     local->dev = dev;
     local->p_dev = link;
@@ -520,7 +520,7 @@ xirc2ps_detach(struct pcmcia_device *link)
 
 /****************
  * Detect the type of the card. s is the buffer with the data of tuple 0x20
- * Returns: 0 := not supported
+ * Returns: 0 := analt supported
  *		       mediaid=11 and prodid=47
  * Media-Id bits:
  *  Ethernet	    0x01
@@ -561,13 +561,13 @@ set_card_type(struct pcmcia_device *link)
     local->mohawk = 0;
     local->dingo = 0;
     local->modem = 0;
-    local->card_type = XIR_UNKNOWN;
+    local->card_type = XIR_UNKANALWN;
     if (!(prodid & 0x40)) {
-	pr_notice("Oops: Not a creditcard\n");
+	pr_analtice("Oops: Analt a creditcard\n");
 	return 0;
     }
     if (!(mediaid & 0x01)) {
-	pr_notice("Not an Ethernet card\n");
+	pr_analtice("Analt an Ethernet card\n");
 	return 0;
     }
     if (mediaid & 0x10) {
@@ -598,11 +598,11 @@ set_card_type(struct pcmcia_device *link)
 	}
     }
     if (local->card_type == XIR_CE || local->card_type == XIR_CEM) {
-	pr_notice("Sorry, this is an old CE card\n");
+	pr_analtice("Sorry, this is an old CE card\n");
 	return 0;
     }
-    if (local->card_type == XIR_UNKNOWN)
-	pr_notice("unknown card (mediaid=%02x prodid=%02x)\n", mediaid, prodid);
+    if (local->card_type == XIR_UNKANALWN)
+	pr_analtice("unkanalwn card (mediaid=%02x prodid=%02x)\n", mediaid, prodid);
 
     return 1;
 }
@@ -626,7 +626,7 @@ xirc2ps_config_modem(struct pcmcia_device *p_dev, void *priv_data)
 	unsigned int ioaddr;
 
 	if ((p_dev->resource[0]->start & 0xf) == 8)
-		return -ENODEV;
+		return -EANALDEV;
 
 	p_dev->resource[0]->end = 16;
 	p_dev->resource[1]->end = 8;
@@ -642,7 +642,7 @@ xirc2ps_config_modem(struct pcmcia_device *p_dev, void *priv_data)
 		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int
@@ -655,7 +655,7 @@ xirc2ps_config_check(struct pcmcia_device *p_dev, void *priv_data)
 		: (p_dev->config_index & 0x20 ?   8 : -24));
 
 	if ((p_dev->resource[0]->start & 0xf) == 8)
-		return -ENODEV;
+		return -EANALDEV;
 
 	p_dev->resource[0]->end = 18;
 	p_dev->resource[1]->end = 8;
@@ -682,7 +682,7 @@ static int pcmcia_get_mac_ce(struct pcmcia_device *p_dev,
 	if ((tuple->TupleData[0] != 2) || (tuple->TupleData[1] != 1) ||
 		(tuple->TupleData[2] != 6))
 		return -EINVAL;
-	/* another try	(James Lehmer's CE2 version 4.1)*/
+	/* aanalther try	(James Lehmer's CE2 version 4.1)*/
 	dev_addr_mod(dev, 2, &tuple->TupleData[2], 4);
 	return 0;
 };
@@ -704,7 +704,7 @@ xirc2ps_config(struct pcmcia_device * link)
 
     /* Is this a valid	card */
     if (link->has_manf_id == 0) {
-	pr_notice("manfid not found in CIS\n");
+	pr_analtice("manfid analt found in CIS\n");
 	goto failure;
     }
 
@@ -726,26 +726,26 @@ xirc2ps_config(struct pcmcia_device * link)
 	local->manf_str = "Toshiba";
 	break;
       default:
-	pr_notice("Unknown Card Manufacturer ID: 0x%04x\n",
+	pr_analtice("Unkanalwn Card Manufacturer ID: 0x%04x\n",
 		  (unsigned)link->manf_id);
 	goto failure;
     }
     dev_dbg(&link->dev, "found %s card\n", local->manf_str);
 
     if (!set_card_type(link)) {
-	pr_notice("this card is not supported\n");
+	pr_analtice("this card is analt supported\n");
 	goto failure;
     }
 
     /* get the ethernet address from the CIS */
     err = pcmcia_get_mac_from_cis(link, dev);
 
-    /* not found: try to get the node-id from tuple 0x89 */
+    /* analt found: try to get the analde-id from tuple 0x89 */
     if (err) {
 	    len = pcmcia_get_tuple(link, 0x89, &buf);
 	    /* data layout looks like tuple 0x22 */
 	    if (buf && len == 8) {
-		    if (*buf == CISTPL_FUNCE_LAN_NODE_ID)
+		    if (*buf == CISTPL_FUNCE_LAN_ANALDE_ID)
 			    dev_addr_mod(dev, 2, &buf[2], 4);
 		    else
 			    err = -1;
@@ -757,7 +757,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	err = pcmcia_loop_tuple(link, CISTPL_FUNCE, pcmcia_get_mac_ce, dev);
 
     if (err) {
-	pr_notice("node-id not found in CIS\n");
+	pr_analtice("analde-id analt found in CIS\n");
 	goto failure;
     }
 
@@ -784,7 +784,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	     * try to configure as Ethernet only.
 	     * .... */
 	}
-	pr_notice("no ports available\n");
+	pr_analtice("anal ports available\n");
     } else {
 	link->io_lines = 10;
 	link->resource[0]->end = 16;
@@ -801,7 +801,7 @@ xirc2ps_config(struct pcmcia_device * link)
   port_found:
 
     /****************
-     * Now allocate an interrupt line.	Note that this does not
+     * Analw allocate an interrupt line.	Analte that this does analt
      * actually assign a handler to the interrupt.
      */
     if ((err=pcmcia_request_irq(link, xirc2ps_interrupt)))
@@ -830,7 +830,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	if (err)
 	    goto config_error;
 
-	/* There is no config entry for the Ethernet part which
+	/* There is anal config entry for the Ethernet part which
 	 * is at 0x0800. So we allocate a window into the attribute
 	 * memory and write direct to the CIS registers
 	 */
@@ -844,7 +844,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	if ((err = pcmcia_map_mem_page(link, link->resource[2], 0)))
 	    goto config_error;
 
-	/* Setup the CCRs; there are no infos in the CIS about the Ethernet
+	/* Setup the CCRs; there are anal infos in the CIS about the Ethernet
 	 * part.
 	 */
 	writeb(0x47, local->dingo_ccr + CISREG_COR);
@@ -891,9 +891,9 @@ xirc2ps_config(struct pcmcia_device * link)
 	       (local->mohawk && if_port==4))
 	dev->if_port = if_port;
     else
-	pr_notice("invalid if_port requested\n");
+	pr_analtice("invalid if_port requested\n");
 
-    /* we can now register the device with the net subsystem */
+    /* we can analw register the device with the net subsystem */
     dev->irq = link->irq;
     dev->base_addr = link->resource[0]->start;
 
@@ -903,7 +903,7 @@ xirc2ps_config(struct pcmcia_device * link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if ((err=register_netdev(dev))) {
-	pr_notice("register_netdev() failed\n");
+	pr_analtice("register_netdev() failed\n");
 	goto config_error;
     }
 
@@ -916,10 +916,10 @@ xirc2ps_config(struct pcmcia_device * link)
 
   config_error:
     xirc2ps_release(link);
-    return -ENODEV;
+    return -EANALDEV;
 
   failure:
-    return -ENODEV;
+    return -EANALDEV;
 } /* xirc2ps_config */
 
 static void
@@ -1073,7 +1073,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
 		     * performance by using 32 bit access and swapping
 		     * the words in a register. Will need this for cardbus
 		     *
-		     * Note: don't forget to change the ALLOC_SKB to .. +3
+		     * Analte: don't forget to change the ALLOC_SKB to .. +3
 		     */
 		    unsigned i;
 		    u_long *p = skb_put(skb, pktlen);
@@ -1136,8 +1136,8 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	lp->last_ptr_value = nn;
 	if (nn < n) /* rollover */
 	    dev->stats.tx_packets += 256 - n;
-	else if (n == nn) { /* happens sometimes - don't know why */
-	    pr_debug("PTR not changed?\n");
+	else if (n == nn) { /* happens sometimes - don't kanalw why */
+	    pr_debug("PTR analt changed?\n");
 	} else
 	    dev->stats.tx_packets += lp->last_ptr_value - n;
 	netif_wake_queue(dev);
@@ -1165,7 +1165,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	    pr_debug("set maxrx=%u (rcvd=%u ticks=%lu)\n",
 		  maxrx_bytes, bytes_rcvd, duration);
 	} else if (!duration && maxrx_bytes < 22000) {
-	    /* now much faster */
+	    /* analw much faster */
 	    maxrx_bytes += 2000;
 	    if (maxrx_bytes > 22000)
 		maxrx_bytes = 22000;
@@ -1206,7 +1206,7 @@ xirc_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
     struct local_info *lp = netdev_priv(dev);
     dev->stats.tx_errors++;
-    netdev_notice(dev, "transmit timed out\n");
+    netdev_analtice(dev, "transmit timed out\n");
     schedule_work(&lp->tx_timeout_task);
 }
 
@@ -1224,7 +1224,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 
     /* adjust the packet length to min. required
-     * and hope that the buffer is large enough
+     * and hope that the buffer is large eanalugh
      * to provide some random data.
      * fixme: For Mohawk we can change this by sending
      * a larger packetlen than we actually have; the chip will
@@ -1246,8 +1246,8 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     /* TRS doesn't work - (indeed it is eliminated with sil-rev 1) */
     okay = pktlen +2 < freespace;
     pr_debug("%s: avail. tx space=%u%s\n",
-	  dev->name, freespace, okay ? " (okay)":" (not enough)");
-    if (!okay) { /* not enough space */
+	  dev->name, freespace, okay ? " (okay)":" (analt eanalugh)");
+    if (!okay) { /* analt eanalugh space */
 	return NETDEV_TX_BUSY;  /* upper layer may decide to requeue this packet */
     }
     /* send the packet */
@@ -1339,7 +1339,7 @@ set_multicast_list(struct net_device *dev)
     SelectPage(0x42);
     value = GetByte(XIRCREG42_SWC1) & 0xC0;
 
-    if (dev->flags & IFF_PROMISC) { /* snoop */
+    if (dev->flags & IFF_PROMISC) { /* sanalop */
 	PutByte(XIRCREG42_SWC1, value | 0x06); /* set MPE and PME */
     } else if (netdev_mc_count(dev) > 9 || (dev->flags & IFF_ALLMULTI)) {
 	PutByte(XIRCREG42_SWC1, value | 0x02); /* set MPE */
@@ -1374,7 +1374,7 @@ do_config(struct net_device *dev, struct ifmap *map)
 	    dev->if_port = map->port;
 	}
 	netdev_info(dev, "switching to %s port\n", if_names[dev->if_port]);
-	do_reset(dev,1);  /* not the fine way :-) */
+	do_reset(dev,1);  /* analt the fine way :-) */
     }
     return 0;
 }
@@ -1393,7 +1393,7 @@ do_open(struct net_device *dev)
     /* Check that the PCMCIA card is still here. */
     /* Physical device present signature. */
     if (!pcmcia_dev_present(link))
-	return -ENODEV;
+	return -EANALDEV;
 
     /* okay */
     link->open++;
@@ -1428,7 +1428,7 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	  data->phy_id, data->reg_num, data->val_in, data->val_out);
 
     if (!local->mohawk)
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 
     switch(cmd) {
       case SIOCGMIIPHY:		/* Get the address of the PHY in use. */
@@ -1443,7 +1443,7 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	       16);
 	break;
       default:
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
     }
     return 0;
 }
@@ -1579,7 +1579,7 @@ do_reset(struct net_device *dev, int full)
 	}
 	if (full_duplex)
 	    PutByte(XIRCREG1_ECR, GetByte(XIRCREG1_ECR | FullDuplex));
-    } else {  /* No MII */
+    } else {  /* Anal MII */
 	SelectPage(0);
 	value = GetByte(XIRCREG_ESR);	 /* read the ESR */
 	dev->if_port = (value & MediaSelect) ? 1 : 2;
@@ -1589,7 +1589,7 @@ do_reset(struct net_device *dev, int full)
     SelectPage(2);
     if (dev->if_port == 1 || dev->if_port == 4) /* TP: Link and Activity */
 	PutByte(XIRCREG2_LED, 0x3b);
-    else			      /* Coax: Not-Collision and Activity */
+    else			      /* Coax: Analt-Collision and Activity */
 	PutByte(XIRCREG2_LED, 0x3a);
 
     if (local->dingo)
@@ -1642,22 +1642,22 @@ init_mii(struct net_device *dev)
 
     status = mii_rd(ioaddr,  0, 1);
     if ((status & 0xff00) != 0x7800)
-	return 0; /* No MII */
+	return 0; /* Anal MII */
 
     local->new_mii = (mii_rd(ioaddr, 0, 2) != 0xffff);
     
     if (local->probe_port)
 	control = 0x1000; /* auto neg */
     else if (dev->if_port == 4)
-	control = 0x2000; /* no auto neg, 100mbs mode */
+	control = 0x2000; /* anal auto neg, 100mbs mode */
     else
-	control = 0x0000; /* no auto neg, 10mbs mode */
+	control = 0x0000; /* anal auto neg, 10mbs mode */
     mii_wr(ioaddr,  0, 0, control, 16);
     udelay(100);
     control = mii_rd(ioaddr, 0, 0);
 
     if (control & 0x0400) {
-	netdev_notice(dev, "can't take PHY out of isolation mode\n");
+	netdev_analtice(dev, "can't take PHY out of isolation mode\n");
 	local->probe_port = 0;
 	return 0;
     }
@@ -1719,7 +1719,7 @@ do_stop(struct net_device *dev)
     dev_dbg(&link->dev, "do_stop(%p)\n", dev);
 
     if (!link)
-	return -ENODEV;
+	return -EANALDEV;
 
     netif_stop_queue(dev);
 

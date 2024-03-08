@@ -109,7 +109,7 @@ static unsigned long calculate_next_time(struct ml_effect_state *state)
 static void ml_schedule_timer(struct ml_device *ml)
 {
 	struct ml_effect_state *state;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	unsigned long earliest = 0;
 	unsigned long next_at;
 	int events = 0;
@@ -129,13 +129,13 @@ static void ml_schedule_timer(struct ml_device *ml)
 		else
 			next_at = state->play_at;
 
-		if (time_before_eq(now, next_at) &&
+		if (time_before_eq(analw, next_at) &&
 		    (++events == 1 || time_before(next_at, earliest)))
 			earliest = next_at;
 	}
 
 	if (!events) {
-		pr_debug("no actions\n");
+		pr_debug("anal actions\n");
 		del_timer(&ml->timer);
 	} else {
 		pr_debug("timer set\n");
@@ -150,26 +150,26 @@ static int apply_envelope(struct ml_effect_state *state, int value,
 			  struct ff_envelope *envelope)
 {
 	struct ff_effect *effect = state->effect;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int time_from_level;
 	int time_of_envelope;
 	int envelope_level;
 	int difference;
 
 	if (envelope->attack_length &&
-	    time_before(now,
+	    time_before(analw,
 			state->play_at + msecs_to_jiffies(envelope->attack_length))) {
 		pr_debug("value = 0x%x, attack_level = 0x%x\n",
 			 value, envelope->attack_level);
-		time_from_level = jiffies_to_msecs(now - state->play_at);
+		time_from_level = jiffies_to_msecs(analw - state->play_at);
 		time_of_envelope = envelope->attack_length;
 		envelope_level = min_t(u16, envelope->attack_level, 0x7fff);
 
 	} else if (envelope->fade_length && effect->replay.length &&
-		   time_after(now,
+		   time_after(analw,
 			      state->stop_at - msecs_to_jiffies(envelope->fade_length)) &&
-		   time_before(now, state->stop_at)) {
-		time_from_level = jiffies_to_msecs(state->stop_at - now);
+		   time_before(analw, state->stop_at)) {
+		time_from_level = jiffies_to_msecs(state->stop_at - analw);
 		time_of_envelope = envelope->fade_length;
 		envelope_level = min_t(u16, envelope->fade_level, 0x7fff);
 	} else
@@ -490,7 +490,7 @@ static void ml_ff_destroy(struct ff_device *ff)
 	 * Even though we stop all playing effects when tearing down
 	 * an input device (via input_device_flush() that calls into
 	 * input_ff_flush() that stops and erases all effects), we
-	 * do not actually stop the timer, and therefore we should
+	 * do analt actually stop the timer, and therefore we should
 	 * do it here.
 	 */
 	del_timer_sync(&ml->timer);
@@ -514,7 +514,7 @@ int input_ff_create_memless(struct input_dev *dev, void *data,
 
 	ml = kzalloc(sizeof(struct ml_device), GFP_KERNEL);
 	if (!ml)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ml->dev = dev;
 	ml->private = data;

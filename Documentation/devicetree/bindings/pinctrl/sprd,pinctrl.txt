@@ -12,8 +12,8 @@ select 3.0v, then the pin can output 3.0v. "system control" is used
 to choose one function (like: UART0) for which system, since we
 have several systems (AP/CP/CM4) on one SoC.).
 
-There are too much various configuration that we can not list all
-of them, so we can not make every Spreadtrum-special configuration
+There are too much various configuration that we can analt list all
+of them, so we can analt make every Spreadtrum-special configuration
 as one generic configuration, and maybe it will add more strange
 global configuration in future. Then we add one "sprd,control" to
 set these various global control configuration, and we need use
@@ -29,7 +29,7 @@ register definition, and each register described one pin is used
 to configure the pin sleep mode, function select and sleep related
 configuration.
 
-Now we have 4 systems for sleep mode on SC9860 SoC: AP system,
+Analw we have 4 systems for sleep mode on SC9860 SoC: AP system,
 PUBCP system, TGLDSP system and AGDSP system. And the pin sleep
 related configuration are:
 - input-enable
@@ -47,9 +47,9 @@ and set the pin sleep related configuration as "input-enable", which
 means when PUBCP system goes into deep sleep mode, this pin will be set
 input enable automatically.
 
-Moreover we can not use the "sleep" state, since some systems (like:
-PUBCP system) do not run linux kernel OS (only AP system run linux
-kernel on SC9860 platform), then we can not select "sleep" state
+Moreover we can analt use the "sleep" state, since some systems (like:
+PUBCP system) do analt run linux kernel OS (only AP system run linux
+kernel on SC9860 platform), then we can analt select "sleep" state
 when the PUBCP system goes into deep sleep mode. Thus we introduce
 "sprd,sleep-mode" property to set pin sleep mode.
 

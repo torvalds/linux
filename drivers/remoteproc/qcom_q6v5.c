@@ -40,7 +40,7 @@ static int q6v5_load_state_toggle(struct qcom_q6v5 *q6v5, bool enable)
  * qcom_q6v5_prepare() - reinitialize the qcom_q6v5 context before start
  * @q6v5:	reference to qcom_q6v5 context to be reinitialized
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erranal on failure
  */
 int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5)
 {
@@ -147,7 +147,7 @@ static irqreturn_t q6v5_ready_interrupt(int irq, void *data)
  * @q6v5:	reference to qcom_q6v5 context
  * @timeout:	timeout to wait for the event, in jiffies
  *
- * qcom_q6v5_unprepare() should not be called when this function fails.
+ * qcom_q6v5_unprepare() should analt be called when this function fails.
  *
  * Return: 0 on success, -ETIMEDOUT on timeout
  */
@@ -191,7 +191,7 @@ static irqreturn_t q6v5_stop_interrupt(int irq, void *data)
  * @q6v5:	reference to qcom_q6v5 context
  * @sysmon:	reference to the remote's sysmon instance, or NULL
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erranal on failure
  */
 int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5, struct qcom_sysmon *sysmon)
 {
@@ -237,11 +237,11 @@ EXPORT_SYMBOL_GPL(qcom_q6v5_panic);
  * @q6v5:	handle to be initialized
  * @pdev:	platform_device reference for acquiring resources
  * @rproc:	associated remoteproc instance
- * @crash_reason: SMEM id for crash reason string, or 0 if none
+ * @crash_reason: SMEM id for crash reason string, or 0 if analne
  * @load_state: load state resource string
  * @handover:	function to be called when proxy resources should be released
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erranal on failure
  */
 int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 		   struct rproc *rproc, int crash_reason, const char *load_state,
@@ -332,7 +332,7 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 	q6v5->load_state = devm_kstrdup_const(&pdev->dev, load_state, GFP_KERNEL);
 	q6v5->qmp = qmp_get(&pdev->dev);
 	if (IS_ERR(q6v5->qmp)) {
-		if (PTR_ERR(q6v5->qmp) != -ENODEV)
+		if (PTR_ERR(q6v5->qmp) != -EANALDEV)
 			return dev_err_probe(&pdev->dev, PTR_ERR(q6v5->qmp),
 					     "failed to acquire load state\n");
 		q6v5->qmp = NULL;
@@ -341,7 +341,7 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 			dev_err(&pdev->dev, "load state resource string empty\n");
 
 		qmp_put(q6v5->qmp);
-		return load_state ? -ENOMEM : -EINVAL;
+		return load_state ? -EANALMEM : -EINVAL;
 	}
 
 	q6v5->path = devm_of_icc_get(&pdev->dev, NULL);

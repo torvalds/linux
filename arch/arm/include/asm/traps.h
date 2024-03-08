@@ -9,7 +9,7 @@ struct pt_regs;
 struct task_struct;
 
 struct undef_hook {
-	struct list_head node;
+	struct list_head analde;
 	u32 instr_mask;
 	u32 instr_val;
 	u32 cpsr_mask;
@@ -40,7 +40,7 @@ asmlinkage void dump_backtrace_stm(u32 *stack, u32 instruction, const char *logl
 asmlinkage void do_undefinstr(struct pt_regs *regs);
 asmlinkage void handle_fiq_as_nmi(struct pt_regs *regs);
 asmlinkage void bad_mode(struct pt_regs *regs, int reason);
-asmlinkage int arm_syscall(int no, struct pt_regs *regs);
+asmlinkage int arm_syscall(int anal, struct pt_regs *regs);
 asmlinkage void baddataabort(int code, unsigned long instr, struct pt_regs *regs);
 asmlinkage void __div0(void);
 asmlinkage void handle_bad_stack(struct pt_regs *regs);

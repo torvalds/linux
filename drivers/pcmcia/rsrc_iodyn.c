@@ -88,7 +88,7 @@ static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
 	int i, ret = 0;
 
 	/* Check for an already-allocated window that must conflict with
-	 * what was asked for.  It is a hack because it does not catch all
+	 * what was asked for.  It is a hack because it does analt catch all
 	 * potential conflicts, just the most obvious ones.
 	 */
 	for (i = 0; i < MAX_IO_WIN; i++) {

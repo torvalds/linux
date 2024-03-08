@@ -176,8 +176,8 @@ static int ifcvf_request_per_vq_irq(struct ifcvf_hw *vf)
 
 		vf->vring[i].irq = irq;
 		ret = ifcvf_set_vq_vector(vf, i, vector);
-		if (ret == VIRTIO_MSI_NO_VECTOR) {
-			IFCVF_ERR(pdev, "No msix vector for vq %u\n", i);
+		if (ret == VIRTIO_MSI_ANAL_VECTOR) {
+			IFCVF_ERR(pdev, "Anal msix vector for vq %u\n", i);
 			goto err;
 		}
 	}
@@ -209,8 +209,8 @@ static int ifcvf_request_vqs_reused_irq(struct ifcvf_hw *vf)
 	for (i = 0; i < vf->nr_vring; i++) {
 		vf->vring[i].irq = -EINVAL;
 		ret = ifcvf_set_vq_vector(vf, i, vector);
-		if (ret == VIRTIO_MSI_NO_VECTOR) {
-			IFCVF_ERR(pdev, "No msix vector for vq %u\n", i);
+		if (ret == VIRTIO_MSI_ANAL_VECTOR) {
+			IFCVF_ERR(pdev, "Anal msix vector for vq %u\n", i);
 			goto err;
 		}
 	}
@@ -242,16 +242,16 @@ static int ifcvf_request_dev_irq(struct ifcvf_hw *vf)
 	for (i = 0; i < vf->nr_vring; i++) {
 		vf->vring[i].irq = -EINVAL;
 		ret = ifcvf_set_vq_vector(vf, i, vector);
-		if (ret == VIRTIO_MSI_NO_VECTOR) {
-			IFCVF_ERR(pdev, "No msix vector for vq %u\n", i);
+		if (ret == VIRTIO_MSI_ANAL_VECTOR) {
+			IFCVF_ERR(pdev, "Anal msix vector for vq %u\n", i);
 			goto err;
 		}
 	}
 
 	vf->config_irq = irq;
 	ret = ifcvf_set_config_vector(vf, vector);
-	if (ret == VIRTIO_MSI_NO_VECTOR) {
-		IFCVF_ERR(pdev, "No msix vector for device config\n");
+	if (ret == VIRTIO_MSI_ANAL_VECTOR) {
+		IFCVF_ERR(pdev, "Anal msix vector for device config\n");
 		goto err;
 	}
 
@@ -303,8 +303,8 @@ static int ifcvf_request_config_irq(struct ifcvf_hw *vf)
 	}
 
 	ret = ifcvf_set_config_vector(vf, config_vector);
-	if (ret == VIRTIO_MSI_NO_VECTOR) {
-		IFCVF_ERR(pdev, "No msix vector for device config\n");
+	if (ret == VIRTIO_MSI_ANAL_VECTOR) {
+		IFCVF_ERR(pdev, "Anal msix vector for device config\n");
 		goto err;
 	}
 
@@ -373,7 +373,7 @@ static u64 ifcvf_vdpa_get_device_features(struct vdpa_device *vdpa_dev)
 		features = ifcvf_get_dev_features(vf);
 	else {
 		features = 0;
-		IFCVF_ERR(pdev, "VIRTIO ID %u not supported\n", vf->dev_type);
+		IFCVF_ERR(pdev, "VIRTIO ID %u analt supported\n", vf->dev_type);
 	}
 
 	return features;
@@ -517,7 +517,7 @@ static void ifcvf_vdpa_kick_vq(struct vdpa_device *vdpa_dev, u16 qid)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	ifcvf_notify_queue(vf, qid);
+	ifcvf_analtify_queue(vf, qid);
 }
 
 static u32 ifcvf_vdpa_get_generation(struct vdpa_device *vdpa_dev)
@@ -597,23 +597,23 @@ static int ifcvf_vdpa_get_vq_irq(struct vdpa_device *vdpa_dev,
 		return -EINVAL;
 }
 
-static struct vdpa_notification_area ifcvf_get_vq_notification(struct vdpa_device *vdpa_dev,
+static struct vdpa_analtification_area ifcvf_get_vq_analtification(struct vdpa_device *vdpa_dev,
 							       u16 idx)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
-	struct vdpa_notification_area area;
+	struct vdpa_analtification_area area;
 
-	area.addr = vf->vring[idx].notify_pa;
-	if (!vf->notify_off_multiplier)
+	area.addr = vf->vring[idx].analtify_pa;
+	if (!vf->analtify_off_multiplier)
 		area.size = PAGE_SIZE;
 	else
-		area.size = vf->notify_off_multiplier;
+		area.size = vf->analtify_off_multiplier;
 
 	return area;
 }
 
 /*
- * IFCVF currently doesn't have on-chip IOMMU, so not
+ * IFCVF currently doesn't have on-chip IOMMU, so analt
  * implemented set_map()/dma_map()/dma_unmap()
  */
 static const struct vdpa_config_ops ifc_vdpa_ops = {
@@ -642,7 +642,7 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.get_config	= ifcvf_vdpa_get_config,
 	.set_config	= ifcvf_vdpa_set_config,
 	.set_config_cb  = ifcvf_vdpa_set_config_cb,
-	.get_vq_notification = ifcvf_get_vq_notification,
+	.get_vq_analtification = ifcvf_get_vq_analtification,
 };
 
 static struct virtio_device_id id_table_net[] = {
@@ -663,7 +663,7 @@ static u32 get_dev_type(struct pci_dev *pdev)
 	 * devices in modern mode.
 	 * vDPA requires feature bit VIRTIO_F_ACCESS_PLATFORM,
 	 * so legacy devices and transitional devices in legacy
-	 * mode will not work for vDPA, this driver will not
+	 * mode will analt work for vDPA, this driver will analt
 	 * drive devices with legacy interface.
 	 */
 
@@ -706,7 +706,7 @@ static int ifcvf_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	device_features = vf->hw_features;
 	if (config->mask & BIT_ULL(VDPA_ATTR_DEV_FEATURES)) {
 		if (config->device_features & ~device_features) {
-			IFCVF_ERR(pdev, "The provisioned features 0x%llx are not supported by this device with features 0x%llx\n",
+			IFCVF_ERR(pdev, "The provisioned features 0x%llx are analt supported by this device with features 0x%llx\n",
 				  config->device_features, device_features);
 			return -EINVAL;
 		}
@@ -765,7 +765,7 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret) {
-		IFCVF_ERR(pdev, "No usable DMA configuration\n");
+		IFCVF_ERR(pdev, "Anal usable DMA configuration\n");
 		return ret;
 	}
 
@@ -780,7 +780,7 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ifcvf_mgmt_dev = kzalloc(sizeof(struct ifcvf_vdpa_mgmt_dev), GFP_KERNEL);
 	if (!ifcvf_mgmt_dev) {
 		IFCVF_ERR(pdev, "Failed to alloc memory for the vDPA management device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vf = &ifcvf_mgmt_dev->vf;
@@ -809,8 +809,8 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ifcvf_mgmt_dev->mdev.id_table = id_table_blk;
 		break;
 	default:
-		IFCVF_ERR(pdev, "VIRTIO ID %u not supported\n", dev_type);
-		ret = -EOPNOTSUPP;
+		IFCVF_ERR(pdev, "VIRTIO ID %u analt supported\n", dev_type);
+		ret = -EOPANALTSUPP;
 		goto err;
 	}
 

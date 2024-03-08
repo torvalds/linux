@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_SPECTRUM_NVE_H
 #define _MLXSW_SPECTRUM_NVE_H
@@ -24,7 +24,7 @@ struct mlxsw_sp_nve {
 	struct mlxsw_sp_nve_config config;
 	struct rhashtable mc_list_ht;
 	struct rhashtable ipv6_ht;
-	struct list_head ipv6_addr_list; /* Saves hash table nodes. */
+	struct list_head ipv6_addr_list; /* Saves hash table analdes. */
 	struct mlxsw_sp *mlxsw_sp;
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
 	unsigned int num_nve_tunnels;	/* Protected by RTNL */

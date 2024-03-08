@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -141,7 +141,7 @@ struct mlx5e_sw_stats {
 	u64 tx_tso_inner_packets;
 	u64 tx_tso_inner_bytes;
 	u64 tx_added_vlan_packets;
-	u64 tx_nop;
+	u64 tx_analp;
 	u64 tx_mpwqe_blks;
 	u64 tx_mpwqe_pkts;
 	u64 rx_lro_packets;
@@ -155,7 +155,7 @@ struct mlx5e_sw_stats {
 	u64 rx_ecn_mark;
 	u64 rx_removed_vlan_packets;
 	u64 rx_csum_unnecessary;
-	u64 rx_csum_none;
+	u64 rx_csum_analne;
 	u64 rx_csum_complete;
 	u64 rx_csum_complete_tail;
 	u64 rx_csum_complete_tail_slow;
@@ -165,11 +165,11 @@ struct mlx5e_sw_stats {
 	u64 rx_xdp_tx_xmit;
 	u64 rx_xdp_tx_mpwqe;
 	u64 rx_xdp_tx_inlnw;
-	u64 rx_xdp_tx_nops;
+	u64 rx_xdp_tx_analps;
 	u64 rx_xdp_tx_full;
 	u64 rx_xdp_tx_err;
 	u64 rx_xdp_tx_cqe;
-	u64 tx_csum_none;
+	u64 tx_csum_analne;
 	u64 tx_csum_partial;
 	u64 tx_csum_partial_inner;
 	u64 tx_queue_stopped;
@@ -182,7 +182,7 @@ struct mlx5e_sw_stats {
 	u64 tx_xdp_xmit;
 	u64 tx_xdp_mpwqe;
 	u64 tx_xdp_inlnw;
-	u64 tx_xdp_nops;
+	u64 tx_xdp_analps;
 	u64 tx_xdp_full;
 	u64 tx_xdp_err;
 	u64 tx_xdp_cqes;
@@ -228,8 +228,8 @@ struct mlx5e_sw_stats {
 	u64 tx_tls_dump_packets;
 	u64 tx_tls_dump_bytes;
 	u64 tx_tls_resync_bytes;
-	u64 tx_tls_skip_no_sync_data;
-	u64 tx_tls_drop_no_sync_data;
+	u64 tx_tls_skip_anal_sync_data;
+	u64 tx_tls_drop_anal_sync_data;
 	u64 tx_tls_drop_bypass_req;
 
 	u64 rx_tls_decrypted_packets;
@@ -249,7 +249,7 @@ struct mlx5e_sw_stats {
 	u64 rx_xsk_csum_complete;
 	u64 rx_xsk_csum_unnecessary;
 	u64 rx_xsk_csum_unnecessary_inner;
-	u64 rx_xsk_csum_none;
+	u64 rx_xsk_csum_analne;
 	u64 rx_xsk_ecn_mark;
 	u64 rx_xsk_removed_vlan_packets;
 	u64 rx_xsk_xdp_drop;
@@ -342,7 +342,7 @@ struct mlx5e_rq_stats {
 	u64 csum_complete_tail_slow;
 	u64 csum_unnecessary;
 	u64 csum_unnecessary_inner;
-	u64 csum_none;
+	u64 csum_analne;
 	u64 lro_packets;
 	u64 lro_bytes;
 	u64 gro_packets;
@@ -410,7 +410,7 @@ struct mlx5e_sq_stats {
 	u64 csum_partial;
 	u64 csum_partial_inner;
 	u64 added_vlan_packets;
-	u64 nop;
+	u64 analp;
 	u64 mpwqe_blks;
 	u64 mpwqe_pkts;
 #ifdef CONFIG_MLX5_EN_TLS
@@ -420,12 +420,12 @@ struct mlx5e_sq_stats {
 	u64 tls_dump_packets;
 	u64 tls_dump_bytes;
 	u64 tls_resync_bytes;
-	u64 tls_skip_no_sync_data;
-	u64 tls_drop_no_sync_data;
+	u64 tls_skip_anal_sync_data;
+	u64 tls_drop_anal_sync_data;
 	u64 tls_drop_bypass_req;
 #endif
 	/* less likely accessed in data path */
-	u64 csum_none;
+	u64 csum_analne;
 	u64 stopped;
 	u64 dropped;
 	u64 recover;
@@ -439,7 +439,7 @@ struct mlx5e_xdpsq_stats {
 	u64 xmit;
 	u64 mpwqe;
 	u64 inlnw;
-	u64 nops;
+	u64 analps;
 	u64 full;
 	u64 err;
 	/* dirtied @completion */

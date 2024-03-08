@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,12 +42,12 @@ typedef enum {
 } I2cControllerPort_e;
 
 typedef enum {
-  UNSUPPORTED_1,              //50  Kbits/s not supported anymore!
+  UNSUPPORTED_1,              //50  Kbits/s analt supported anymore!
   I2C_SPEED_STANDARD_100K,    //100 Kbits/s
   I2C_SPEED_FAST_400K,        //400 Kbits/s
   I2C_SPEED_FAST_PLUS_1M,     //1   Mbits/s (in fast mode)
-  UNSUPPORTED_2,              //1   Mbits/s (in high speed mode)  not supported anymore!
-  UNSUPPORTED_3,              //2.3 Mbits/s  not supported anymore!
+  UNSUPPORTED_2,              //1   Mbits/s (in high speed mode)  analt supported anymore!
+  UNSUPPORTED_3,              //2.3 Mbits/s  analt supported anymore!
   I2C_SPEED_COUNT,
 } I2cSpeed_e;
 
@@ -112,7 +112,7 @@ typedef enum {
   CODE_SMN_SLVERR = 40,
   CODE_WDT,
 
-  CODE_UNKNOWN = 42,
+  CODE_UNKANALWN = 42,
   CODE_COUNT,
 } ERR_CODE_e;
 
@@ -149,7 +149,7 @@ typedef enum {
 
   // SOC error codes 40-42 are common with ERR_CODE_e
   MP5_CODE_SMN_SLVERR = 40,
-  MP5_CODE_UNKNOWN = 42,
+  MP5_CODE_UNKANALWN = 42,
 } GC_ERROR_CODE_e;
 
 

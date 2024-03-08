@@ -34,15 +34,15 @@
 #ifdef CONFIG_FS_DAX
 static ssize_t ext2_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct inode *inode = iocb->ki_filp->f_mapping->host;
+	struct ianalde *ianalde = iocb->ki_filp->f_mapping->host;
 	ssize_t ret;
 
 	if (!iov_iter_count(to))
 		return 0; /* skip atime */
 
-	inode_lock_shared(inode);
+	ianalde_lock_shared(ianalde);
 	ret = dax_iomap_rw(iocb, to, &ext2_iomap_ops);
-	inode_unlock_shared(inode);
+	ianalde_unlock_shared(ianalde);
 
 	file_accessed(iocb->ki_filp);
 	return ret;
@@ -51,10 +51,10 @@ static ssize_t ext2_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 static ssize_t ext2_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	ssize_t ret;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0)
 		goto out_unlock;
@@ -66,13 +66,13 @@ static ssize_t ext2_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out_unlock;
 
 	ret = dax_iomap_rw(iocb, from, &ext2_iomap_ops);
-	if (ret > 0 && iocb->ki_pos > i_size_read(inode)) {
-		i_size_write(inode, iocb->ki_pos);
-		mark_inode_dirty(inode);
+	if (ret > 0 && iocb->ki_pos > i_size_read(ianalde)) {
+		i_size_write(ianalde, iocb->ki_pos);
+		mark_ianalde_dirty(ianalde);
 	}
 
 out_unlock:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
 	return ret;
@@ -85,37 +85,37 @@ out_unlock:
  *   sb_start_pagefault (vfs, freeze)
  *     address_space->invalidate_lock
  *       address_space->i_mmap_rwsem or page_lock (mutually exclusive in DAX)
- *         ext2_inode_info->truncate_mutex
+ *         ext2_ianalde_info->truncate_mutex
  *
- * The default page_lock and i_size verification done by non-DAX fault paths
+ * The default page_lock and i_size verification done by analn-DAX fault paths
  * is sufficient because ext2 doesn't support hole punching.
  */
 static vm_fault_t ext2_dax_fault(struct vm_fault *vmf)
 {
-	struct inode *inode = file_inode(vmf->vma->vm_file);
+	struct ianalde *ianalde = file_ianalde(vmf->vma->vm_file);
 	vm_fault_t ret;
 	bool write = (vmf->flags & FAULT_FLAG_WRITE) &&
 		(vmf->vma->vm_flags & VM_SHARED);
 
 	if (write) {
-		sb_start_pagefault(inode->i_sb);
+		sb_start_pagefault(ianalde->i_sb);
 		file_update_time(vmf->vma->vm_file);
 	}
-	filemap_invalidate_lock_shared(inode->i_mapping);
+	filemap_invalidate_lock_shared(ianalde->i_mapping);
 
 	ret = dax_iomap_fault(vmf, 0, NULL, NULL, &ext2_iomap_ops);
 
-	filemap_invalidate_unlock_shared(inode->i_mapping);
+	filemap_invalidate_unlock_shared(ianalde->i_mapping);
 	if (write)
-		sb_end_pagefault(inode->i_sb);
+		sb_end_pagefault(ianalde->i_sb);
 	return ret;
 }
 
 static const struct vm_operations_struct ext2_dax_vm_ops = {
 	.fault		= ext2_dax_fault,
 	/*
-	 * .huge_fault is not supported for DAX because allocation in ext2
-	 * cannot be reliably aligned to huge page sizes and so pmd faults
+	 * .huge_fault is analt supported for DAX because allocation in ext2
+	 * cananalt be reliably aligned to huge page sizes and so pmd faults
 	 * will always fail and fail back to regular faults.
 	 */
 	.page_mkwrite	= ext2_dax_fault,
@@ -124,7 +124,7 @@ static const struct vm_operations_struct ext2_dax_vm_ops = {
 
 static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	if (!IS_DAX(file_inode(file)))
+	if (!IS_DAX(file_ianalde(file)))
 		return generic_file_mmap(file, vma);
 
 	file_accessed(file);
@@ -137,15 +137,15 @@ static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 /*
  * Called when filp is released. This happens when all file descriptors
- * for a single struct file are closed. Note that different open() calls
+ * for a single struct file are closed. Analte that different open() calls
  * for the same file yield different struct file structures.
  */
-static int ext2_release_file (struct inode * inode, struct file * filp)
+static int ext2_release_file (struct ianalde * ianalde, struct file * filp)
 {
 	if (filp->f_mode & FMODE_WRITE) {
-		mutex_lock(&EXT2_I(inode)->truncate_mutex);
-		ext2_discard_reservation(inode);
-		mutex_unlock(&EXT2_I(inode)->truncate_mutex);
+		mutex_lock(&EXT2_I(ianalde)->truncate_mutex);
+		ext2_discard_reservation(ianalde);
+		mutex_unlock(&EXT2_I(ianalde)->truncate_mutex);
 	}
 	return 0;
 }
@@ -157,7 +157,7 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	ret = generic_buffers_fsync(file, start, end, datasync);
 	if (ret == -EIO)
-		/* We don't really know where the IO error happened... */
+		/* We don't really kanalw where the IO error happened... */
 		ext2_error(sb, __func__,
 			   "detected IO error when writing metadata buffers");
 	return ret;
@@ -166,13 +166,13 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 static ssize_t ext2_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	ssize_t ret;
 
 	trace_ext2_dio_read_begin(iocb, to, 0);
-	inode_lock_shared(inode);
+	ianalde_lock_shared(ianalde);
 	ret = iomap_dio_rw(iocb, to, &ext2_iomap_ops, NULL, 0, NULL, 0);
-	inode_unlock_shared(inode);
+	ianalde_unlock_shared(ianalde);
 	trace_ext2_dio_read_end(iocb, to, ret);
 
 	return ret;
@@ -182,7 +182,7 @@ static int ext2_dio_write_end_io(struct kiocb *iocb, ssize_t size,
 				 int error, unsigned int flags)
 {
 	loff_t pos = iocb->ki_pos;
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 
 	if (error)
 		goto out;
@@ -191,14 +191,14 @@ static int ext2_dio_write_end_io(struct kiocb *iocb, ssize_t size,
 	 * If we are extending the file, we have to update i_size here before
 	 * page cache gets invalidated in iomap_dio_rw(). This prevents racing
 	 * buffered reads from zeroing out too much from page cache pages.
-	 * Note that all extending writes always happens synchronously with
-	 * inode lock held by ext2_dio_write_iter(). So it is safe to update
-	 * inode size here for extending file writes.
+	 * Analte that all extending writes always happens synchroanalusly with
+	 * ianalde lock held by ext2_dio_write_iter(). So it is safe to update
+	 * ianalde size here for extending file writes.
 	 */
 	pos += size;
-	if (pos > i_size_read(inode)) {
-		i_size_write(inode, pos);
-		mark_inode_dirty(inode);
+	if (pos > i_size_read(ianalde)) {
+		i_size_write(ianalde, pos);
+		mark_ianalde_dirty(ianalde);
 	}
 out:
 	trace_ext2_dio_write_endio(iocb, size, error);
@@ -212,16 +212,16 @@ static const struct iomap_dio_ops ext2_dio_write_ops = {
 static ssize_t ext2_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	ssize_t ret;
 	unsigned int flags = 0;
-	unsigned long blocksize = inode->i_sb->s_blocksize;
+	unsigned long blocksize = ianalde->i_sb->s_blocksize;
 	loff_t offset = iocb->ki_pos;
 	loff_t count = iov_iter_count(from);
 	ssize_t status = 0;
 
 	trace_ext2_dio_write_begin(iocb, from, 0);
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0)
 		goto out_unlock;
@@ -231,19 +231,19 @@ static ssize_t ext2_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out_unlock;
 
 	/* use IOMAP_DIO_FORCE_WAIT for unaligned or extending writes */
-	if (iocb->ki_pos + iov_iter_count(from) > i_size_read(inode) ||
+	if (iocb->ki_pos + iov_iter_count(from) > i_size_read(ianalde) ||
 	   (!IS_ALIGNED(iocb->ki_pos | iov_iter_alignment(from), blocksize)))
 		flags |= IOMAP_DIO_FORCE_WAIT;
 
 	ret = iomap_dio_rw(iocb, from, &ext2_iomap_ops, &ext2_dio_write_ops,
 			   flags, NULL, 0);
 
-	/* ENOTBLK is magic return value for fallback to buffered-io */
-	if (ret == -ENOTBLK)
+	/* EANALTBLK is magic return value for fallback to buffered-io */
+	if (ret == -EANALTBLK)
 		ret = 0;
 
 	if (ret < 0 && ret != -EIOCBQUEUED)
-		ext2_write_failed(inode->i_mapping, offset + count);
+		ext2_write_failed(ianalde->i_mapping, offset + count);
 
 	/* handle case for partial write and for fallback to buffered write */
 	if (ret >= 0 && iov_iter_count(from)) {
@@ -260,10 +260,10 @@ static ssize_t ext2_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 		ret += status;
 		endbyte = pos + status - 1;
-		ret2 = filemap_write_and_wait_range(inode->i_mapping, pos,
+		ret2 = filemap_write_and_wait_range(ianalde->i_mapping, pos,
 						    endbyte);
 		if (!ret2)
-			invalidate_mapping_pages(inode->i_mapping,
+			invalidate_mapping_pages(ianalde->i_mapping,
 						 pos >> PAGE_SHIFT,
 						 endbyte >> PAGE_SHIFT);
 		if (ret > 0)
@@ -271,7 +271,7 @@ static ssize_t ext2_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 out_unlock:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	if (status)
 		trace_ext2_dio_write_buff_end(iocb, from, status);
 	trace_ext2_dio_write_end(iocb, from, ret);
@@ -319,11 +319,11 @@ const struct file_operations ext2_file_operations = {
 	.splice_write	= iter_file_splice_write,
 };
 
-const struct inode_operations ext2_file_inode_operations = {
+const struct ianalde_operations ext2_file_ianalde_operations = {
 	.listxattr	= ext2_listxattr,
 	.getattr	= ext2_getattr,
 	.setattr	= ext2_setattr,
-	.get_inode_acl	= ext2_get_acl,
+	.get_ianalde_acl	= ext2_get_acl,
 	.set_acl	= ext2_set_acl,
 	.fiemap		= ext2_fiemap,
 	.fileattr_get	= ext2_fileattr_get,

@@ -34,9 +34,9 @@ void signal_usr1(int signum, siginfo_t *info, void *uc)
 {
 	ucontext_t *ucp = uc;
 
-	/* Link tm checkpointed context to normal context */
+	/* Link tm checkpointed context to analrmal context */
 	ucp->uc_link = ucp;
-	/* Set all TM bits so that the context is now invalid */
+	/* Set all TM bits so that the context is analw invalid */
 #ifdef __powerpc64__
 	ucp->uc_mcontext.gp_regs[PT_MSR] |= (7ULL << 32);
 #else

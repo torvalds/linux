@@ -3,7 +3,7 @@
  * Driver for the s5k83a sensor
  *
  * Copyright (C) 2008 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilanal Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -28,7 +28,7 @@ static struct v4l2_pix_format s5k83a_modes[] = {
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			640 * 480,
 		.bytesperline = 640,
@@ -129,7 +129,7 @@ static const unsigned char init_s5k83a[][4] = {
 	{SENSOR, 0x1a, 0x98, 0x00}, /* 152 */
 	{SENSOR, 0x0f, 0x02, 0x00},
 	{SENSOR, 0x10, 0xe5, 0x00}, /* 741 */
-	/* normal colors
+	/* analrmal colors
 	(this is value after boot, but after tries can be different) */
 	{SENSOR, 0x00, 0x06, 0x00},
 };
@@ -178,9 +178,9 @@ int s5k83a_probe(struct sd *sd)
 			pr_info("Forcing a %s sensor\n", s5k83a.name);
 			goto sensor_found;
 		}
-		/* If we want to force another sensor, don't try to probe this
+		/* If we want to force aanalther sensor, don't try to probe this
 		 * one */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gspca_dbg(gspca_dev, D_PROBE, "Probing for a s5k83a sensor\n");
@@ -196,17 +196,17 @@ int s5k83a_probe(struct sd *sd)
 				data[0]);
 	}
 
-	/* We don't know what register (if any) that contain the product id
+	/* We don't kanalw what register (if any) that contain the product id
 	 * Just pick the first addresses that seem to produce the same results
 	 * on multiple machines */
 	if (m5602_read_sensor(sd, 0x00, &prod_id, 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (m5602_read_sensor(sd, 0x01, &ver_id, 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((prod_id == 0xff) || (ver_id == 0xff))
-		return -ENODEV;
+		return -EANALDEV;
 	else
 		pr_info("Detected a s5k83a sensor\n");
 
@@ -214,7 +214,7 @@ sensor_found:
 	sd->gspca_dev.cam.cam_mode = s5k83a_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(s5k83a_modes);
 
-	/* null the pointer! thread is't running now */
+	/* null the pointer! thread is't running analw */
 	sd->rotation_thread = NULL;
 
 	return 0;
@@ -281,7 +281,7 @@ int s5k83a_init_controls(struct sd *sd)
 				      0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 
@@ -336,9 +336,9 @@ int s5k83a_start(struct sd *sd)
 {
 	int i, err = 0;
 
-	/* Create another thread, polling the GPIO ports of the camera to check
+	/* Create aanalther thread, polling the GPIO ports of the camera to check
 	   if it got rotated. This is how the windows driver does it so we have
-	   to assume that there is no better way of accomplishing this */
+	   to assume that there is anal better way of accomplishing this */
 	sd->rotation_thread = kthread_run(rotation_thread_function,
 					  sd, "rotation thread");
 	if (IS_ERR(sd->rotation_thread)) {
@@ -396,7 +396,7 @@ static int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
-	/* FIXME: This is not sane, we need to figure out the composition
+	/* FIXME: This is analt sane, we need to figure out the composition
 		  of these registers */
 	data[0] = val >> 3; /* gain, high 5 bits */
 	data[1] = val >> 1; /* gain, high 7 bits */
@@ -523,7 +523,7 @@ static int s5k83a_set_led_indication(struct sd *sd, u8 val)
 	return err;
 }
 
-/* Get camera rotation on Acer notebooks */
+/* Get camera rotation on Acer analtebooks */
 static int s5k83a_get_rotation(struct sd *sd, u8 *reg_data)
 {
 	int err = m5602_read_bridge(sd, M5602_XB_GPIO_DAT, reg_data);

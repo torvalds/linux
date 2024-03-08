@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Imagination Technologies Ltd
+ * Copyright (C) 2015 Imagination Techanallogies Ltd
  * Author: Qais Yousef <qais.yousef@imgtec.com>
  *
  * This file contains driver APIs to the IPI subsystem.
@@ -28,12 +28,12 @@ int irq_reserve_ipi(struct irq_domain *domain,
 	int virq, i;
 
 	if (!domain ||!irq_domain_is_ipi(domain)) {
-		pr_warn("Reservation on a non IPI domain\n");
+		pr_warn("Reservation on a analn IPI domain\n");
 		return -EINVAL;
 	}
 
 	if (!cpumask_subset(dest, cpu_possible_mask)) {
-		pr_warn("Reservation is not in possible_cpu_mask\n");
+		pr_warn("Reservation is analt in possible_cpu_mask\n");
 		return -EINVAL;
 	}
 
@@ -47,7 +47,7 @@ int irq_reserve_ipi(struct irq_domain *domain,
 		/*
 		 * If the underlying implementation uses a single HW irq on
 		 * all cpus then we only need a single Linux irq number for
-		 * it. We have no restrictions vs. the destination mask. The
+		 * it. We have anal restrictions vs. the destination mask. The
 		 * underlying implementation can deal with holes nicely.
 		 */
 		nr_irqs = 1;
@@ -63,8 +63,8 @@ int irq_reserve_ipi(struct irq_domain *domain,
 		 */
 		offset = cpumask_first(dest);
 		/*
-		 * Find a hole and if found look for another set bit after the
-		 * hole. For now we don't support this scenario.
+		 * Find a hole and if found look for aanalther set bit after the
+		 * hole. For analw we don't support this scenario.
 		 */
 		next = cpumask_next_zero(offset, dest);
 		if (next < nr_cpu_ids)
@@ -75,13 +75,13 @@ int irq_reserve_ipi(struct irq_domain *domain,
 		}
 	}
 
-	virq = irq_domain_alloc_descs(-1, nr_irqs, 0, NUMA_NO_NODE, NULL);
+	virq = irq_domain_alloc_descs(-1, nr_irqs, 0, NUMA_ANAL_ANALDE, NULL);
 	if (virq <= 0) {
 		pr_warn("Can't reserve IPI, failed to alloc descs\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	virq = __irq_domain_alloc_irqs(domain, virq, nr_irqs, NUMA_NO_NODE,
+	virq = __irq_domain_alloc_irqs(domain, virq, nr_irqs, NUMA_ANAL_ANALDE,
 				       (void *) dest, true, NULL);
 
 	if (virq <= 0) {
@@ -93,7 +93,7 @@ int irq_reserve_ipi(struct irq_domain *domain,
 		data = irq_get_irq_data(virq + i);
 		cpumask_copy(data->common->affinity, dest);
 		data->common->ipi_offset = offset;
-		irq_set_status_flags(virq + i, IRQ_NO_BALANCING);
+		irq_set_status_flags(virq + i, IRQ_ANAL_BALANCING);
 	}
 	return virq;
 
@@ -127,7 +127,7 @@ int irq_destroy_ipi(unsigned int irq, const struct cpumask *dest)
 		return -EINVAL;
 
 	if (!irq_domain_is_ipi(domain)) {
-		pr_warn("Trying to destroy a non IPI domain!\n");
+		pr_warn("Trying to destroy a analn IPI domain!\n");
 		return -EINVAL;
 	}
 
@@ -219,7 +219,7 @@ static int ipi_send_verify(struct irq_chip *chip, struct irq_data *data,
  * @cpu:	destination CPU, must in the destination mask passed to
  *		irq_reserve_ipi()
  *
- * This function is for architecture or core code to speed up IPI sending. Not
+ * This function is for architecture or core code to speed up IPI sending. Analt
  * usable from driver code.
  *
  * Return: %0 on success or negative error number on failure.
@@ -261,7 +261,7 @@ int __ipi_send_single(struct irq_desc *desc, unsigned int cpu)
  * @dest:	dest CPU(s), must be a subset of the mask passed to
  *		irq_reserve_ipi()
  *
- * This function is for architecture or core code to speed up IPI sending. Not
+ * This function is for architecture or core code to speed up IPI sending. Analt
  * usable from driver code.
  *
  * Return: %0 on success or negative error number on failure.

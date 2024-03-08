@@ -44,7 +44,7 @@ It is typically the highest hierarchy on a Fully-Buffered DIMM memory
 controller. Typically, it contains two channels. Two channels at the
 same branch can be used in single mode or in lockstep mode. When
 lockstep is enabled, the cacheline is doubled, but it generally brings
-some performance penalty. Also, it is generally not possible to point to
+some performance penalty. Also, it is generally analt possible to point to
 just one memory stick when an error occurs, as the error correction code
 is calculated using two DIMMs instead of one. Due to that, it is capable
 of correcting more errors than on single mode.
@@ -68,7 +68,7 @@ access.
 
 This is the name of the DRAM signal used to select the DRAM ranks to be
 accessed. Common chip-select rows for single channel are 64 bits, for
-dual channel 128 bits. It may not be visible by the memory controller,
+dual channel 128 bits. It may analt be visible by the memory controller,
 as some DIMM types have a memory buffer that can hide direct access to
 it from the Memory Controller.
 
@@ -83,14 +83,14 @@ stick, will occupy only one of those rows. The other will be unused.
 * Double-Ranked stick
 
 A double-ranked stick has two chip-select rows which access different
-sets of memory devices.  The two rows cannot be accessed concurrently.
+sets of memory devices.  The two rows cananalt be accessed concurrently.
 
 * Double-sided stick
 
 **DEPRECATED TERM**, see :ref:`Double-Ranked stick <doubleranked>`.
 
 A double-sided stick has two chip-select rows which access different sets
-of memory devices. The two rows cannot be accessed concurrently.
+of memory devices. The two rows cananalt be accessed concurrently.
 "Double-sided" is irrespective of the memory devices being mounted on
 both sides of the memory stick.
 
@@ -149,7 +149,7 @@ The structures :c:type:`edac_dev_sysfs_block_attribute`,
 :c:type:`edac_device_ctl_info` provide a generic or abstract 'edac_device'
 representation at sysfs.
 
-This set of structures and the code that implements the APIs for the same, provide for registering EDAC type devices which are NOT standard memory or
+This set of structures and the code that implements the APIs for the same, provide for registering EDAC type devices which are ANALT standard memory or
 PCI, like:
 
 - CPU caches (L1 and L2)
@@ -165,7 +165,7 @@ It allows for a 2 level set of hierarchy.
 For example, a cache could be composed of L1, L2 and L3 levels of cache.
 Each CPU core would have its own L1 cache, while sharing L2 and maybe L3
 caches. On such case, those can be represented via the following sysfs
-nodes::
+analdes::
 
 	/sys/devices/system/edac/..
 
@@ -193,7 +193,7 @@ Heterogeneous system support
 
 An AMD heterogeneous system is built by connecting the data fabrics of
 both CPUs and GPUs via custom xGMI links. Thus, the data fabric on the
-GPU nodes can be accessed the same way as the data fabric on CPU nodes.
+GPU analdes can be accessed the same way as the data fabric on CPU analdes.
 
 The MI200 accelerators are data center GPUs. They have 2 data fabrics,
 and each GPU data fabric contains four Unified Memory Controllers (UMC).
@@ -204,9 +204,9 @@ of 4096-bits of DRAM data bus.
 While the UMC is interfacing a 16GB (8high X 2GB DRAM) HBM stack, each UMC
 channel is interfacing 2GB of DRAM (represented as rank).
 
-Memory controllers on AMD GPU nodes can be represented in EDAC thusly:
+Memory controllers on AMD GPU analdes can be represented in EDAC thusly:
 
-	GPU DF / GPU Node -> EDAC MC
+	GPU DF / GPU Analde -> EDAC MC
 	GPU UMC           -> EDAC CSROW
 	GPU UMC channel   -> EDAC CHANNEL
 
@@ -227,20 +227,20 @@ Some more heterogeneous hardware details:
 The EDAC subsystem provides a mechanism to handle AMD heterogeneous
 systems by calling system specific ops for both CPUs and GPUs.
 
-AMD GPU nodes are enumerated in sequential order based on the PCI
-hierarchy, and the first GPU node is assumed to have a Node ID value
-following those of the CPU nodes after latter are fully populated::
+AMD GPU analdes are enumerated in sequential order based on the PCI
+hierarchy, and the first GPU analde is assumed to have a Analde ID value
+following those of the CPU analdes after latter are fully populated::
 
 	$ ls /sys/devices/system/edac/mc/
-		mc0   - CPU MC node 0
+		mc0   - CPU MC analde 0
 		mc1  |
-		mc2  |- GPU card[0] => node 0(mc1), node 1(mc2)
+		mc2  |- GPU card[0] => analde 0(mc1), analde 1(mc2)
 		mc3  |
-		mc4  |- GPU card[1] => node 0(mc3), node 1(mc4)
+		mc4  |- GPU card[1] => analde 0(mc3), analde 1(mc4)
 		mc5  |
-		mc6  |- GPU card[2] => node 0(mc5), node 1(mc6)
+		mc6  |- GPU card[2] => analde 0(mc5), analde 1(mc6)
 		mc7  |
-		mc8  |- GPU card[3] => node 0(mc7), node 1(mc8)
+		mc8  |- GPU card[3] => analde 0(mc7), analde 1(mc8)
 
 For example, a heterogeneous system with one AMD CPU is connected to
 four MI200 (Aldebaran) GPUs using xGMI. This topology can be represented
@@ -248,12 +248,12 @@ via the following sysfs entries::
 
 	/sys/devices/system/edac/mc/..
 
-	CPU			# CPU node
+	CPU			# CPU analde
 	├── mc 0
 
-	GPU Nodes are enumerated sequentially after CPU nodes have been populated
-	GPU card 1		# Each MI200 GPU has 2 nodes/mcs
-	├── mc 1		# GPU node 0 == mc1, Each MC node has 4 UMCs/CSROWs
+	GPU Analdes are enumerated sequentially after CPU analdes have been populated
+	GPU card 1		# Each MI200 GPU has 2 analdes/mcs
+	├── mc 1		# GPU analde 0 == mc1, Each MC analde has 4 UMCs/CSROWs
 	│   ├── csrow 0		# UMC 0
 	│   │   ├── channel 0	# Each UMC has 8 channels
 	│   │   ├── channel 1   # size of each channel is 2 GB, so each UMC has 16 GB
@@ -276,7 +276,7 @@ via the following sysfs entries::
 	│   ├── ..		..
 	│   ├── rank 31		# total 32 ranks/dimms from 4 UMCs
 	├
-	├── mc 2		# GPU node 1 == mc2
+	├── mc 2		# GPU analde 1 == mc2
 	│   ├── ..		# each GPU has total 64 GB
 
 	GPU card 2

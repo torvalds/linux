@@ -17,11 +17,11 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/coredump.h>
 #include <linux/export.h>
-#include <linux/rmap.h>		/* anon_vma_prepare */
-#include <linux/mmu_notifier.h>	/* set_pte_at_notify */
+#include <linux/rmap.h>		/* aanaln_vma_prepare */
+#include <linux/mmu_analtifier.h>	/* set_pte_at_analtify */
 #include <linux/swap.h>		/* folio_free_swap */
 #include <linux/ptrace.h>	/* user_enable_single_step */
-#include <linux/kdebug.h>	/* notifier mechanism */
+#include <linux/kdebug.h>	/* analtifier mechanism */
 #include <linux/percpu-rwsem.h>
 #include <linux/task_work.h>
 #include <linux/shmem_fs.h>
@@ -34,10 +34,10 @@
 
 static struct rb_root uprobes_tree = RB_ROOT;
 /*
- * allows us to skip the uprobe_mmap if there are no uprobe events active
- * at this time.  Probably a fine grained per inode count is better?
+ * allows us to skip the uprobe_mmap if there are anal uprobe events active
+ * at this time.  Probably a fine grained per ianalde count is better?
  */
-#define no_uprobe_events()	RB_EMPTY_ROOT(&uprobes_tree)
+#define anal_uprobe_events()	RB_EMPTY_ROOT(&uprobes_tree)
 
 static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
 
@@ -52,19 +52,19 @@ DEFINE_STATIC_PERCPU_RWSEM(dup_mmap_sem);
 #define UPROBE_COPY_INSN	0
 
 struct uprobe {
-	struct rb_node		rb_node;	/* node in the rb tree */
+	struct rb_analde		rb_analde;	/* analde in the rb tree */
 	refcount_t		ref;
 	struct rw_semaphore	register_rwsem;
 	struct rw_semaphore	consumer_rwsem;
 	struct list_head	pending_list;
 	struct uprobe_consumer	*consumers;
-	struct inode		*inode;		/* Also hold a ref to inode */
+	struct ianalde		*ianalde;		/* Also hold a ref to ianalde */
 	loff_t			offset;
 	loff_t			ref_ctr_offset;
 	unsigned long		flags;
 
 	/*
-	 * The generic code assumes that it has two members of unknown type
+	 * The generic code assumes that it has two members of unkanalwn type
 	 * owned by the arch-specific code:
 	 *
 	 * 	insn -	copy_insn() saves the original instruction here for
@@ -86,7 +86,7 @@ static DEFINE_MUTEX(delayed_uprobe_lock);
 static LIST_HEAD(delayed_uprobe_list);
 
 /*
- * Execute out of line area: anonymous executable mapping installed
+ * Execute out of line area: aanalnymous executable mapping installed
  * by the probed task to execute the copy of the original instruction
  * mangled by set_swbp().
  *
@@ -158,9 +158,9 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	struct mm_struct *mm = vma->vm_mm;
 	DEFINE_FOLIO_VMA_WALK(pvmw, old_folio, vma, addr, 0);
 	int err;
-	struct mmu_notifier_range range;
+	struct mmu_analtifier_range range;
 
-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, mm, addr,
+	mmu_analtifier_range_init(&range, MMU_ANALTIFY_CLEAR, 0, mm, addr,
 				addr + PAGE_SIZE);
 
 	if (new_page) {
@@ -173,7 +173,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	/* For folio_free_swap() below */
 	folio_lock(old_folio);
 
-	mmu_notifier_invalidate_range_start(&range);
+	mmu_analtifier_invalidate_range_start(&range);
 	err = -EAGAIN;
 	if (!page_vma_mapped_walk(&pvmw))
 		goto unlock;
@@ -181,21 +181,21 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	if (new_page) {
 		folio_get(new_folio);
-		folio_add_new_anon_rmap(new_folio, vma, addr);
+		folio_add_new_aanaln_rmap(new_folio, vma, addr);
 		folio_add_lru_vma(new_folio, vma);
 	} else
-		/* no new page, just dec_mm_counter for old_page */
-		dec_mm_counter(mm, MM_ANONPAGES);
+		/* anal new page, just dec_mm_counter for old_page */
+		dec_mm_counter(mm, MM_AANALNPAGES);
 
-	if (!folio_test_anon(old_folio)) {
+	if (!folio_test_aanaln(old_folio)) {
 		dec_mm_counter(mm, mm_counter_file(old_page));
-		inc_mm_counter(mm, MM_ANONPAGES);
+		inc_mm_counter(mm, MM_AANALNPAGES);
 	}
 
 	flush_cache_page(vma, addr, pte_pfn(ptep_get(pvmw.pte)));
 	ptep_clear_flush(vma, addr, pvmw.pte);
 	if (new_page)
-		set_pte_at_notify(mm, addr, pvmw.pte,
+		set_pte_at_analtify(mm, addr, pvmw.pte,
 				  mk_pte(new_page, vma->vm_page_prot));
 
 	folio_remove_rmap_pte(old_folio, old_page, vma);
@@ -206,7 +206,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	err = 0;
  unlock:
-	mmu_notifier_invalidate_range_end(&range);
+	mmu_analtifier_invalidate_range_end(&range);
 	folio_unlock(old_folio);
 	return err;
 }
@@ -256,11 +256,11 @@ static int verify_opcode(struct page *page, unsigned long vaddr, uprobe_opcode_t
 	bool is_swbp;
 
 	/*
-	 * Note: We only check if the old_opcode is UPROBE_SWBP_INSN here.
-	 * We do not check if it is any other 'trap variant' which could
+	 * Analte: We only check if the old_opcode is UPROBE_SWBP_INSN here.
+	 * We do analt check if it is any other 'trap variant' which could
 	 * be conditional trap instruction such as the one powerpc supports.
 	 *
-	 * The logic is that we do not care if the underlying instruction
+	 * The logic is that we do analt care if the underlying instruction
 	 * is a trap variant; uprobes always wins over any other (gdb)
 	 * breakpoint.
 	 */
@@ -298,7 +298,7 @@ static int delayed_uprobe_add(struct uprobe *uprobe, struct mm_struct *mm)
 
 	du  = kzalloc(sizeof(*du), GFP_KERNEL);
 	if (!du)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	du->uprobe = uprobe;
 	du->mm = mm;
@@ -341,7 +341,7 @@ static bool valid_ref_ctr_vma(struct uprobe *uprobe,
 
 	return uprobe->ref_ctr_offset &&
 		vma->vm_file &&
-		file_inode(vma->vm_file) == uprobe->inode &&
+		file_ianalde(vma->vm_file) == uprobe->ianalde &&
 		(vma->vm_flags & (VM_WRITE|VM_SHARED)) == VM_WRITE &&
 		vma->vm_start <= vaddr &&
 		vma->vm_end > vaddr;
@@ -402,9 +402,9 @@ out:
 static void update_ref_ctr_warn(struct uprobe *uprobe,
 				struct mm_struct *mm, short d)
 {
-	pr_warn("ref_ctr %s failed for inode: 0x%lx offset: "
+	pr_warn("ref_ctr %s failed for ianalde: 0x%lx offset: "
 		"0x%llx ref_ctr_offset: 0x%llx of mm: 0x%pK\n",
-		d > 0 ? "increment" : "decrement", uprobe->inode->i_ino,
+		d > 0 ? "increment" : "decrement", uprobe->ianalde->i_ianal,
 		(unsigned long long) uprobe->offset,
 		(unsigned long long) uprobe->ref_ctr_offset, mm);
 }
@@ -439,10 +439,10 @@ static int update_ref_ctr(struct uprobe *uprobe, struct mm_struct *mm,
 }
 
 /*
- * NOTE:
+ * ANALTE:
  * Expect the breakpoint instruction to be the smallest size instruction for
  * the architecture. If an arch has variable length instruction and the
- * breakpoint instruction is not of the smallest length instruction
+ * breakpoint instruction is analt of the smallest length instruction
  * supported by that architecture then we need to modify is_trap_at_addr and
  * uprobe_write_opcode accordingly. This would never be a problem for archs
  * that have fixed length instructions.
@@ -454,7 +454,7 @@ static int update_ref_ctr(struct uprobe *uprobe, struct mm_struct *mm,
  * @opcode: opcode to be written at @vaddr.
  *
  * Called with mm->mmap_lock held for write.
- * Return 0 (success) or a negative errno.
+ * Return 0 (success) or a negative erranal.
  */
 int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 			unsigned long vaddr, uprobe_opcode_t opcode)
@@ -497,14 +497,14 @@ retry:
 	}
 
 	ret = 0;
-	if (!is_register && !PageAnon(old_page))
+	if (!is_register && !PageAanaln(old_page))
 		goto put_old;
 
-	ret = anon_vma_prepare(vma);
+	ret = aanaln_vma_prepare(vma);
 	if (ret)
 		goto put_old;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
 	if (!new_page)
 		goto put_old;
@@ -517,10 +517,10 @@ retry:
 		struct page *orig_page;
 		pgoff_t index;
 
-		VM_BUG_ON_PAGE(!PageAnon(old_page), old_page);
+		VM_BUG_ON_PAGE(!PageAanaln(old_page), old_page);
 
 		index = vaddr_to_offset(vma, vaddr & PAGE_MASK) >> PAGE_SHIFT;
-		orig_page = find_get_page(vma->vm_file->f_inode->i_mapping,
+		orig_page = find_get_page(vma->vm_file->f_ianalde->i_mapping,
 					  index);
 
 		if (orig_page) {
@@ -564,7 +564,7 @@ put_old:
  * @vaddr: the virtual address to insert the opcode.
  *
  * For mm @mm, store the breakpoint instruction at @vaddr.
- * Return 0 (success) or a negative errno.
+ * Return 0 (success) or a negative erranal.
  */
 int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
 {
@@ -578,7 +578,7 @@ int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned 
  * @vaddr: the virtual address to insert the opcode.
  *
  * For mm @mm, restore the original opcode (opcode) at @vaddr.
- * Return 0 (success) or a negative errno.
+ * Return 0 (success) or a negative erranal.
  */
 int __weak
 set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
@@ -609,13 +609,13 @@ static void put_uprobe(struct uprobe *uprobe)
 }
 
 static __always_inline
-int uprobe_cmp(const struct inode *l_inode, const loff_t l_offset,
+int uprobe_cmp(const struct ianalde *l_ianalde, const loff_t l_offset,
 	       const struct uprobe *r)
 {
-	if (l_inode < r->inode)
+	if (l_ianalde < r->ianalde)
 		return -1;
 
-	if (l_inode > r->inode)
+	if (l_ianalde > r->ianalde)
 		return 1;
 
 	if (l_offset < r->offset)
@@ -627,50 +627,50 @@ int uprobe_cmp(const struct inode *l_inode, const loff_t l_offset,
 	return 0;
 }
 
-#define __node_2_uprobe(node) \
-	rb_entry((node), struct uprobe, rb_node)
+#define __analde_2_uprobe(analde) \
+	rb_entry((analde), struct uprobe, rb_analde)
 
 struct __uprobe_key {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	loff_t offset;
 };
 
-static inline int __uprobe_cmp_key(const void *key, const struct rb_node *b)
+static inline int __uprobe_cmp_key(const void *key, const struct rb_analde *b)
 {
 	const struct __uprobe_key *a = key;
-	return uprobe_cmp(a->inode, a->offset, __node_2_uprobe(b));
+	return uprobe_cmp(a->ianalde, a->offset, __analde_2_uprobe(b));
 }
 
-static inline int __uprobe_cmp(struct rb_node *a, const struct rb_node *b)
+static inline int __uprobe_cmp(struct rb_analde *a, const struct rb_analde *b)
 {
-	struct uprobe *u = __node_2_uprobe(a);
-	return uprobe_cmp(u->inode, u->offset, __node_2_uprobe(b));
+	struct uprobe *u = __analde_2_uprobe(a);
+	return uprobe_cmp(u->ianalde, u->offset, __analde_2_uprobe(b));
 }
 
-static struct uprobe *__find_uprobe(struct inode *inode, loff_t offset)
+static struct uprobe *__find_uprobe(struct ianalde *ianalde, loff_t offset)
 {
 	struct __uprobe_key key = {
-		.inode = inode,
+		.ianalde = ianalde,
 		.offset = offset,
 	};
-	struct rb_node *node = rb_find(&key, &uprobes_tree, __uprobe_cmp_key);
+	struct rb_analde *analde = rb_find(&key, &uprobes_tree, __uprobe_cmp_key);
 
-	if (node)
-		return get_uprobe(__node_2_uprobe(node));
+	if (analde)
+		return get_uprobe(__analde_2_uprobe(analde));
 
 	return NULL;
 }
 
 /*
- * Find a uprobe corresponding to a given inode:offset
+ * Find a uprobe corresponding to a given ianalde:offset
  * Acquires uprobes_treelock
  */
-static struct uprobe *find_uprobe(struct inode *inode, loff_t offset)
+static struct uprobe *find_uprobe(struct ianalde *ianalde, loff_t offset)
 {
 	struct uprobe *uprobe;
 
 	spin_lock(&uprobes_treelock);
-	uprobe = __find_uprobe(inode, offset);
+	uprobe = __find_uprobe(ianalde, offset);
 	spin_unlock(&uprobes_treelock);
 
 	return uprobe;
@@ -678,11 +678,11 @@ static struct uprobe *find_uprobe(struct inode *inode, loff_t offset)
 
 static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	node = rb_find_add(&uprobe->rb_node, &uprobes_tree, __uprobe_cmp);
-	if (node)
-		return get_uprobe(__node_2_uprobe(node));
+	analde = rb_find_add(&uprobe->rb_analde, &uprobes_tree, __uprobe_cmp);
+	if (analde)
+		return get_uprobe(__analde_2_uprobe(analde));
 
 	/* get access + creation ref */
 	refcount_set(&uprobe->ref, 2);
@@ -694,7 +694,7 @@ static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
  * Matching uprobe already exists in rbtree;
  *	increment (access refcount) and return the matching uprobe.
  *
- * No matching uprobe; insert the uprobe in rb_tree;
+ * Anal matching uprobe; insert the uprobe in rb_tree;
  *	get a double refcount (access + creation) and return NULL.
  */
 static struct uprobe *insert_uprobe(struct uprobe *uprobe)
@@ -711,14 +711,14 @@ static struct uprobe *insert_uprobe(struct uprobe *uprobe)
 static void
 ref_ctr_mismatch_warn(struct uprobe *cur_uprobe, struct uprobe *uprobe)
 {
-	pr_warn("ref_ctr_offset mismatch. inode: 0x%lx offset: 0x%llx "
+	pr_warn("ref_ctr_offset mismatch. ianalde: 0x%lx offset: 0x%llx "
 		"ref_ctr_offset(old): 0x%llx ref_ctr_offset(new): 0x%llx\n",
-		uprobe->inode->i_ino, (unsigned long long) uprobe->offset,
+		uprobe->ianalde->i_ianal, (unsigned long long) uprobe->offset,
 		(unsigned long long) cur_uprobe->ref_ctr_offset,
 		(unsigned long long) uprobe->ref_ctr_offset);
 }
 
-static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset,
+static struct uprobe *alloc_uprobe(struct ianalde *ianalde, loff_t offset,
 				   loff_t ref_ctr_offset)
 {
 	struct uprobe *uprobe, *cur_uprobe;
@@ -727,15 +727,15 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset,
 	if (!uprobe)
 		return NULL;
 
-	uprobe->inode = inode;
+	uprobe->ianalde = ianalde;
 	uprobe->offset = offset;
 	uprobe->ref_ctr_offset = ref_ctr_offset;
 	init_rwsem(&uprobe->register_rwsem);
 	init_rwsem(&uprobe->consumer_rwsem);
 
-	/* add to uprobes_tree, sorted on inode:offset */
+	/* add to uprobes_tree, sorted on ianalde:offset */
 	cur_uprobe = insert_uprobe(uprobe);
-	/* a uprobe exists for this inode:offset combination */
+	/* a uprobe exists for this ianalde:offset combination */
 	if (cur_uprobe) {
 		if (cur_uprobe->ref_ctr_offset != uprobe->ref_ctr_offset) {
 			ref_ctr_mismatch_warn(cur_uprobe, uprobe);
@@ -805,15 +805,15 @@ static int __copy_insn(struct address_space *mapping, struct file *filp,
 
 static int copy_insn(struct uprobe *uprobe, struct file *filp)
 {
-	struct address_space *mapping = uprobe->inode->i_mapping;
+	struct address_space *mapping = uprobe->ianalde->i_mapping;
 	loff_t offs = uprobe->offset;
 	void *insn = &uprobe->arch.insn;
 	int size = sizeof(uprobe->arch.insn);
 	int len, err = -EIO;
 
-	/* Copy only available bytes, -EIO if nothing was read */
+	/* Copy only available bytes, -EIO if analthing was read */
 	do {
-		if (offs >= i_size_read(uprobe->inode))
+		if (offs >= i_size_read(uprobe->ianalde))
 			break;
 
 		len = min_t(int, size, PAGE_SIZE - (offs & ~PAGE_MASK));
@@ -846,7 +846,7 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 	if (ret)
 		goto out;
 
-	ret = -ENOTSUPP;
+	ret = -EANALTSUPP;
 	if (is_trap_insn((uprobe_opcode_t *)&uprobe->arch.insn))
 		goto out;
 
@@ -898,7 +898,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 		return ret;
 
 	/*
-	 * set MMF_HAS_UPROBES in advance for uprobe_pre_sstep_notifier(),
+	 * set MMF_HAS_UPROBES in advance for uprobe_pre_sstep_analtifier(),
 	 * the task can hit this breakpoint right after __replace_page().
 	 */
 	first_uprobe = !test_bit(MMF_HAS_UPROBES, &mm->flags);
@@ -923,7 +923,7 @@ remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vad
 
 static inline bool uprobe_is_active(struct uprobe *uprobe)
 {
-	return !RB_EMPTY_NODE(&uprobe->rb_node);
+	return !RB_EMPTY_ANALDE(&uprobe->rb_analde);
 }
 /*
  * There could be threads that have already hit the breakpoint. They
@@ -936,9 +936,9 @@ static void delete_uprobe(struct uprobe *uprobe)
 		return;
 
 	spin_lock(&uprobes_treelock);
-	rb_erase(&uprobe->rb_node, &uprobes_tree);
+	rb_erase(&uprobe->rb_analde, &uprobes_tree);
 	spin_unlock(&uprobes_treelock);
-	RB_CLEAR_NODE(&uprobe->rb_node); /* for uprobe_is_active() */
+	RB_CLEAR_ANALDE(&uprobe->rb_analde); /* for uprobe_is_active() */
 	put_uprobe(uprobe);
 }
 
@@ -973,11 +973,11 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 
 		if (!prev && !more) {
 			/*
-			 * Needs GFP_NOWAIT to avoid i_mmap_rwsem recursion through
-			 * reclaim. This is optimistic, no harm done if it fails.
+			 * Needs GFP_ANALWAIT to avoid i_mmap_rwsem recursion through
+			 * reclaim. This is optimistic, anal harm done if it fails.
 			 */
 			prev = kmalloc(sizeof(struct map_info),
-					GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN);
+					GFP_ANALWAIT | __GFP_ANALMEMALLOC | __GFP_ANALWARN);
 			if (prev)
 				prev->next = NULL;
 		}
@@ -986,7 +986,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 			continue;
 		}
 
-		if (!mmget_not_zero(vma->vm_mm))
+		if (!mmget_analt_zero(vma->vm_mm))
 			continue;
 
 		info = prev;
@@ -1011,7 +1011,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 	do {
 		info = kmalloc(sizeof(struct map_info), GFP_KERNEL);
 		if (!info) {
-			curr = ERR_PTR(-ENOMEM);
+			curr = ERR_PTR(-EANALMEM);
 			goto out;
 		}
 		info->next = prev;
@@ -1033,7 +1033,7 @@ register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
 	int err = 0;
 
 	percpu_down_write(&dup_mmap_sem);
-	info = build_map_info(uprobe->inode->i_mapping,
+	info = build_map_info(uprobe->ianalde->i_mapping,
 					uprobe->offset, is_register);
 	if (IS_ERR(info)) {
 		err = PTR_ERR(info);
@@ -1050,7 +1050,7 @@ register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
 		mmap_write_lock(mm);
 		vma = find_vma(mm, info->vaddr);
 		if (!vma || !valid_vma(vma, is_register) ||
-		    file_inode(vma->vm_file) != uprobe->inode)
+		    file_ianalde(vma->vm_file) != uprobe->ianalde)
 			goto unlock;
 
 		if (vma->vm_start > info->vaddr ||
@@ -1095,15 +1095,15 @@ __uprobe_unregister(struct uprobe *uprobe, struct uprobe_consumer *uc)
 
 /*
  * uprobe_unregister - unregister an already registered probe.
- * @inode: the file in which the probe has to be removed.
+ * @ianalde: the file in which the probe has to be removed.
  * @offset: offset from the start of the file.
  * @uc: identify which probe if multiple probes are colocated.
  */
-void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
+void uprobe_unregister(struct ianalde *ianalde, loff_t offset, struct uprobe_consumer *uc)
 {
 	struct uprobe *uprobe;
 
-	uprobe = find_uprobe(inode, offset);
+	uprobe = find_uprobe(ianalde, offset);
 	if (WARN_ON(!uprobe))
 		return;
 
@@ -1116,23 +1116,23 @@ EXPORT_SYMBOL_GPL(uprobe_unregister);
 
 /*
  * __uprobe_register - register a probe
- * @inode: the file in which the probe has to be placed.
+ * @ianalde: the file in which the probe has to be placed.
  * @offset: offset from the start of the file.
  * @uc: information on howto handle the probe..
  *
  * Apart from the access refcount, __uprobe_register() takes a creation
  * refcount (thro alloc_uprobe) if and only if this @uprobe is getting
- * inserted into the rbtree (i.e first consumer for a @inode:@offset
+ * inserted into the rbtree (i.e first consumer for a @ianalde:@offset
  * tuple).  Creation refcount stops uprobe_unregister from freeing the
  * @uprobe even before the register operation is complete. Creation
  * refcount is released when the last @uc for the @uprobe
- * unregisters. Caller of __uprobe_register() is required to keep @inode
+ * unregisters. Caller of __uprobe_register() is required to keep @ianalde
  * (and the containing mount) referenced.
  *
- * Return errno if it cannot successully install probes
+ * Return erranal if it cananalt successully install probes
  * else return 0 (success)
  */
-static int __uprobe_register(struct inode *inode, loff_t offset,
+static int __uprobe_register(struct ianalde *ianalde, loff_t offset,
 			     loff_t ref_ctr_offset, struct uprobe_consumer *uc)
 {
 	struct uprobe *uprobe;
@@ -1143,11 +1143,11 @@ static int __uprobe_register(struct inode *inode, loff_t offset,
 		return -EINVAL;
 
 	/* copy_insn() uses read_mapping_page() or shmem_read_mapping_page() */
-	if (!inode->i_mapping->a_ops->read_folio &&
-	    !shmem_mapping(inode->i_mapping))
+	if (!ianalde->i_mapping->a_ops->read_folio &&
+	    !shmem_mapping(ianalde->i_mapping))
 		return -EIO;
 	/* Racy, just to catch the obvious mistakes */
-	if (offset > i_size_read(inode))
+	if (offset > i_size_read(ianalde))
 		return -EINVAL;
 
 	/*
@@ -1160,9 +1160,9 @@ static int __uprobe_register(struct inode *inode, loff_t offset,
 		return -EINVAL;
 
  retry:
-	uprobe = alloc_uprobe(inode, offset, ref_ctr_offset);
+	uprobe = alloc_uprobe(ianalde, offset, ref_ctr_offset);
 	if (!uprobe)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (IS_ERR(uprobe))
 		return PTR_ERR(uprobe);
 
@@ -1186,35 +1186,35 @@ static int __uprobe_register(struct inode *inode, loff_t offset,
 	return ret;
 }
 
-int uprobe_register(struct inode *inode, loff_t offset,
+int uprobe_register(struct ianalde *ianalde, loff_t offset,
 		    struct uprobe_consumer *uc)
 {
-	return __uprobe_register(inode, offset, 0, uc);
+	return __uprobe_register(ianalde, offset, 0, uc);
 }
 EXPORT_SYMBOL_GPL(uprobe_register);
 
-int uprobe_register_refctr(struct inode *inode, loff_t offset,
+int uprobe_register_refctr(struct ianalde *ianalde, loff_t offset,
 			   loff_t ref_ctr_offset, struct uprobe_consumer *uc)
 {
-	return __uprobe_register(inode, offset, ref_ctr_offset, uc);
+	return __uprobe_register(ianalde, offset, ref_ctr_offset, uc);
 }
 EXPORT_SYMBOL_GPL(uprobe_register_refctr);
 
 /*
  * uprobe_apply - unregister an already registered probe.
- * @inode: the file in which the probe has to be removed.
+ * @ianalde: the file in which the probe has to be removed.
  * @offset: offset from the start of the file.
  * @uc: consumer which wants to add more or remove some breakpoints
  * @add: add or remove the breakpoints
  */
-int uprobe_apply(struct inode *inode, loff_t offset,
+int uprobe_apply(struct ianalde *ianalde, loff_t offset,
 			struct uprobe_consumer *uc, bool add)
 {
 	struct uprobe *uprobe;
 	struct uprobe_consumer *con;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
-	uprobe = find_uprobe(inode, offset);
+	uprobe = find_uprobe(ianalde, offset);
 	if (WARN_ON(!uprobe))
 		return ret;
 
@@ -1241,7 +1241,7 @@ static int unapply_uprobe(struct uprobe *uprobe, struct mm_struct *mm)
 		loff_t offset;
 
 		if (!valid_vma(vma, false) ||
-		    file_inode(vma->vm_file) != uprobe->inode)
+		    file_ianalde(vma->vm_file) != uprobe->ianalde)
 			continue;
 
 		offset = (loff_t)vma->vm_pgoff << PAGE_SHIFT;
@@ -1257,17 +1257,17 @@ static int unapply_uprobe(struct uprobe *uprobe, struct mm_struct *mm)
 	return err;
 }
 
-static struct rb_node *
-find_node_in_range(struct inode *inode, loff_t min, loff_t max)
+static struct rb_analde *
+find_analde_in_range(struct ianalde *ianalde, loff_t min, loff_t max)
 {
-	struct rb_node *n = uprobes_tree.rb_node;
+	struct rb_analde *n = uprobes_tree.rb_analde;
 
 	while (n) {
-		struct uprobe *u = rb_entry(n, struct uprobe, rb_node);
+		struct uprobe *u = rb_entry(n, struct uprobe, rb_analde);
 
-		if (inode < u->inode) {
+		if (ianalde < u->ianalde) {
 			n = n->rb_left;
-		} else if (inode > u->inode) {
+		} else if (ianalde > u->ianalde) {
 			n = n->rb_right;
 		} else {
 			if (max < u->offset)
@@ -1285,13 +1285,13 @@ find_node_in_range(struct inode *inode, loff_t min, loff_t max)
 /*
  * For a given range in vma, build a list of probes that need to be inserted.
  */
-static void build_probe_list(struct inode *inode,
+static void build_probe_list(struct ianalde *ianalde,
 				struct vm_area_struct *vma,
 				unsigned long start, unsigned long end,
 				struct list_head *head)
 {
 	loff_t min, max;
-	struct rb_node *n, *t;
+	struct rb_analde *n, *t;
 	struct uprobe *u;
 
 	INIT_LIST_HEAD(head);
@@ -1299,18 +1299,18 @@ static void build_probe_list(struct inode *inode,
 	max = min + (end - start) - 1;
 
 	spin_lock(&uprobes_treelock);
-	n = find_node_in_range(inode, min, max);
+	n = find_analde_in_range(ianalde, min, max);
 	if (n) {
 		for (t = n; t; t = rb_prev(t)) {
-			u = rb_entry(t, struct uprobe, rb_node);
-			if (u->inode != inode || u->offset < min)
+			u = rb_entry(t, struct uprobe, rb_analde);
+			if (u->ianalde != ianalde || u->offset < min)
 				break;
 			list_add(&u->pending_list, head);
 			get_uprobe(u);
 		}
 		for (t = n; (t = rb_next(t)); ) {
-			u = rb_entry(t, struct uprobe, rb_node);
-			if (u->inode != inode || u->offset > max)
+			u = rb_entry(t, struct uprobe, rb_analde);
+			if (u->ianalde != ianalde || u->offset > max)
 				break;
 			list_add(&u->pending_list, head);
 			get_uprobe(u);
@@ -1319,7 +1319,7 @@ static void build_probe_list(struct inode *inode,
 	spin_unlock(&uprobes_treelock);
 }
 
-/* @vma contains reference counter, not the probed instruction. */
+/* @vma contains reference counter, analt the probed instruction. */
 static int delayed_ref_ctr_inc(struct vm_area_struct *vma)
 {
 	struct list_head *pos, *q;
@@ -1351,16 +1351,16 @@ static int delayed_ref_ctr_inc(struct vm_area_struct *vma)
 /*
  * Called from mmap_region/vma_merge with mm->mmap_lock acquired.
  *
- * Currently we ignore all errors and always return 0, the callers
+ * Currently we iganalre all errors and always return 0, the callers
  * can't handle the failure anyway.
  */
 int uprobe_mmap(struct vm_area_struct *vma)
 {
 	struct list_head tmp_list;
 	struct uprobe *uprobe, *u;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	if (no_uprobe_events())
+	if (anal_uprobe_events())
 		return 0;
 
 	if (vma->vm_file &&
@@ -1371,12 +1371,12 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	if (!valid_vma(vma, true))
 		return 0;
 
-	inode = file_inode(vma->vm_file);
-	if (!inode)
+	ianalde = file_ianalde(vma->vm_file);
+	if (!ianalde)
 		return 0;
 
-	mutex_lock(uprobes_mmap_hash(inode));
-	build_probe_list(inode, vma, vma->vm_start, vma->vm_end, &tmp_list);
+	mutex_lock(uprobes_mmap_hash(ianalde));
+	build_probe_list(ianalde, vma, vma->vm_start, vma->vm_end, &tmp_list);
 	/*
 	 * We can race with uprobe_unregister(), this uprobe can be already
 	 * removed. But in this case filter_chain() must return false, all
@@ -1390,7 +1390,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 		}
 		put_uprobe(uprobe);
 	}
-	mutex_unlock(uprobes_mmap_hash(inode));
+	mutex_unlock(uprobes_mmap_hash(ianalde));
 
 	return 0;
 }
@@ -1399,16 +1399,16 @@ static bool
 vma_has_uprobes(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
 	loff_t min, max;
-	struct inode *inode;
-	struct rb_node *n;
+	struct ianalde *ianalde;
+	struct rb_analde *n;
 
-	inode = file_inode(vma->vm_file);
+	ianalde = file_ianalde(vma->vm_file);
 
 	min = vaddr_to_offset(vma, start);
 	max = min + (end - start) - 1;
 
 	spin_lock(&uprobes_treelock);
-	n = find_node_in_range(inode, min, max);
+	n = find_analde_in_range(ianalde, min, max);
 	spin_unlock(&uprobes_treelock);
 
 	return !!n;
@@ -1419,7 +1419,7 @@ vma_has_uprobes(struct vm_area_struct *vma, unsigned long start, unsigned long e
  */
 void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
-	if (no_uprobe_events() || !valid_vma(vma, false))
+	if (anal_uprobe_events() || !valid_vma(vma, false))
 		return;
 
 	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
@@ -1706,7 +1706,7 @@ static struct return_instance *free_ret_instance(struct return_instance *ri)
 }
 
 /*
- * Called with no locks held.
+ * Called with anal locks held.
  * Called in context of an exiting or an exec-ing thread.
  */
 void uprobe_free_utask(struct task_struct *t)
@@ -1751,14 +1751,14 @@ static int dup_utask(struct task_struct *t, struct uprobe_task *o_utask)
 
 	n_utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
 	if (!n_utask)
-		return -ENOMEM;
+		return -EANALMEM;
 	t->utask = n_utask;
 
 	p = &n_utask->return_instances;
 	for (o = o_utask->return_instances; o; o = o->next) {
 		n = kmalloc(sizeof(struct return_instance), GFP_KERNEL);
 		if (!n)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		*n = *o;
 		get_uprobe(n->uprobe);
@@ -1822,10 +1822,10 @@ void uprobe_copy_process(struct task_struct *t, unsigned long flags)
 }
 
 /*
- * Current area->vaddr notion assume the trampoline address is always
+ * Current area->vaddr analtion assume the trampoline address is always
  * equal area->vaddr.
  *
- * Returns -1 in case the xol_area is not allocated.
+ * Returns -1 in case the xol_area is analt allocated.
  */
 static unsigned long get_trampoline_vaddr(void)
 {
@@ -1895,7 +1895,7 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 	if (chained) {
 		if (!utask->return_instances) {
 			/*
-			 * This situation is not possible. Likely we have an
+			 * This situation is analt possible. Likely we have an
 			 * attack from user-space.
 			 */
 			uprobe_warn(current, "handle tail call");
@@ -1929,11 +1929,11 @@ pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 
 	utask = get_utask();
 	if (!utask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xol_vaddr = xol_get_insn_slot(uprobe);
 	if (!xol_vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	utask->xol_vaddr = xol_vaddr;
 	utask->vaddr = bp_vaddr;
@@ -1950,8 +1950,8 @@ pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 }
 
 /*
- * If we are singlestepping, then ensure this thread is not connected to
- * non-fatal signals until completion of singlestep.  When xol insn itself
+ * If we are singlestepping, then ensure this thread is analt connected to
+ * analn-fatal signals until completion of singlestep.  When xol insn itself
  * triggers the signal,  restart the original insn even if the task is
  * already SIGKILL'ed (since coredump should report the correct ip).  This
  * is even more important if the task has a handler for SIGSEGV/etc, The
@@ -1991,9 +1991,9 @@ static void mmf_recalc_uprobes(struct mm_struct *mm)
 		if (!valid_vma(vma, false))
 			continue;
 		/*
-		 * This is not strictly accurate, we can race with
+		 * This is analt strictly accurate, we can race with
 		 * uprobe_unregister() and see the already removed
-		 * uprobe if delete_uprobe() was not yet called.
+		 * uprobe if delete_uprobe() was analt yet called.
 		 * Or this uprobe can be filtered out.
 		 */
 		if (vma_has_uprobes(vma, vma->vm_start, vma->vm_end))
@@ -2021,7 +2021,7 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 
 	/*
 	 * The NULL 'tsk' here ensures that any faults that occur here
-	 * will not be accounted to the task.  'mm' *is* current->mm,
+	 * will analt be accounted to the task.  'mm' *is* current->mm,
 	 * but we treat this as a 'remote' access since it is
 	 * essentially a kernel access to the memory.
 	 */
@@ -2046,10 +2046,10 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	vma = vma_lookup(mm, bp_vaddr);
 	if (vma) {
 		if (valid_vma(vma, false)) {
-			struct inode *inode = file_inode(vma->vm_file);
+			struct ianalde *ianalde = file_ianalde(vma->vm_file);
 			loff_t offset = vaddr_to_offset(vma, bp_vaddr);
 
-			uprobe = find_uprobe(inode, offset);
+			uprobe = find_uprobe(ianalde, offset);
 		}
 
 		if (!uprobe)
@@ -2141,7 +2141,7 @@ static void handle_trampoline(struct pt_regs *regs)
 		/*
 		 * We should throw out the frames invalidated by longjmp().
 		 * If this chain is valid, then the next one should be alive
-		 * or NULL; the latter case means that nobody but ri->func
+		 * or NULL; the latter case means that analbody but ri->func
 		 * could hit this trampoline on return. TODO: sigaltstack().
 		 */
 		next = find_next_ret_chain(ri);
@@ -2165,7 +2165,7 @@ static void handle_trampoline(struct pt_regs *regs)
 
 }
 
-bool __weak arch_uprobe_ignore(struct arch_uprobe *aup, struct pt_regs *regs)
+bool __weak arch_uprobe_iganalre(struct arch_uprobe *aup, struct pt_regs *regs)
 {
 	return false;
 }
@@ -2178,7 +2178,7 @@ bool __weak arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check c
 
 /*
  * Run handler and ask thread to singlestep.
- * Ensure all non-fatal signals cannot interrupt thread while it singlesteps.
+ * Ensure all analn-fatal signals cananalt interrupt thread while it singlesteps.
  */
 static void handle_swbp(struct pt_regs *regs)
 {
@@ -2193,15 +2193,15 @@ static void handle_swbp(struct pt_regs *regs)
 	uprobe = find_active_uprobe(bp_vaddr, &is_swbp);
 	if (!uprobe) {
 		if (is_swbp > 0) {
-			/* No matching uprobe; signal SIGTRAP. */
+			/* Anal matching uprobe; signal SIGTRAP. */
 			force_sig(SIGTRAP);
 		} else {
 			/*
 			 * Either we raced with uprobe_unregister() or we can't
 			 * access this memory. The latter is only possible if
-			 * another thread plays with our ->mm. In both cases
+			 * aanalther thread plays with our ->mm. In both cases
 			 * we can simply restart. If this vma was unmapped we
-			 * can pretend this insn was not executed yet and get
+			 * can pretend this insn was analt executed yet and get
 			 * the (correct) SIGSEGV after restart.
 			 */
 			instruction_pointer_set(regs, bp_vaddr);
@@ -2215,7 +2215,7 @@ static void handle_swbp(struct pt_regs *regs)
 	/*
 	 * TODO: move copy_insn/etc into _register and remove this hack.
 	 * After we hit the bp, _unregister + _register can install the
-	 * new and not-yet-analyzed uprobe at the same address, restart.
+	 * new and analt-yet-analyzed uprobe at the same address, restart.
 	 */
 	if (unlikely(!test_bit(UPROBE_COPY_INSN, &uprobe->flags)))
 		goto out;
@@ -2233,7 +2233,7 @@ static void handle_swbp(struct pt_regs *regs)
 	if (!get_utask())
 		goto out;
 
-	if (arch_uprobe_ignore(&uprobe->arch, regs))
+	if (arch_uprobe_iganalre(&uprobe->arch, regs))
 		goto out;
 
 	handler_chain(uprobe, regs);
@@ -2282,17 +2282,17 @@ static void handle_singlestep(struct uprobe_task *utask, struct pt_regs *regs)
 }
 
 /*
- * On breakpoint hit, breakpoint notifier sets the TIF_UPROBE flag and
+ * On breakpoint hit, breakpoint analtifier sets the TIF_UPROBE flag and
  * allows the thread to return from interrupt. After that handle_swbp()
  * sets utask->active_uprobe.
  *
- * On singlestep exception, singlestep notifier sets the TIF_UPROBE flag
+ * On singlestep exception, singlestep analtifier sets the TIF_UPROBE flag
  * and allows the thread to return from interrupt.
  *
- * While returning to userspace, thread notices the TIF_UPROBE flag and calls
- * uprobe_notify_resume().
+ * While returning to userspace, thread analtices the TIF_UPROBE flag and calls
+ * uprobe_analtify_resume().
  */
-void uprobe_notify_resume(struct pt_regs *regs)
+void uprobe_analtify_resume(struct pt_regs *regs)
 {
 	struct uprobe_task *utask;
 
@@ -2306,10 +2306,10 @@ void uprobe_notify_resume(struct pt_regs *regs)
 }
 
 /*
- * uprobe_pre_sstep_notifier gets called from interrupt context as part of
- * notifier mechanism. Set TIF_UPROBE flag and indicate breakpoint hit.
+ * uprobe_pre_sstep_analtifier gets called from interrupt context as part of
+ * analtifier mechanism. Set TIF_UPROBE flag and indicate breakpoint hit.
  */
-int uprobe_pre_sstep_notifier(struct pt_regs *regs)
+int uprobe_pre_sstep_analtifier(struct pt_regs *regs)
 {
 	if (!current->mm)
 		return 0;
@@ -2323,15 +2323,15 @@ int uprobe_pre_sstep_notifier(struct pt_regs *regs)
 }
 
 /*
- * uprobe_post_sstep_notifier gets called in interrupt context as part of notifier
+ * uprobe_post_sstep_analtifier gets called in interrupt context as part of analtifier
  * mechanism. Set TIF_UPROBE flag and indicate completion of singlestep.
  */
-int uprobe_post_sstep_notifier(struct pt_regs *regs)
+int uprobe_post_sstep_analtifier(struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
 
 	if (!current->mm || !utask || !utask->active_uprobe)
-		/* task is currently not uprobed */
+		/* task is currently analt uprobed */
 		return 0;
 
 	utask->state = UTASK_SSTEP_ACK;
@@ -2339,9 +2339,9 @@ int uprobe_post_sstep_notifier(struct pt_regs *regs)
 	return 1;
 }
 
-static struct notifier_block uprobe_exception_nb = {
-	.notifier_call		= arch_uprobe_exception_notify,
-	.priority		= INT_MAX-1,	/* notified after kprobes, kgdb */
+static struct analtifier_block uprobe_exception_nb = {
+	.analtifier_call		= arch_uprobe_exception_analtify,
+	.priority		= INT_MAX-1,	/* analtified after kprobes, kgdb */
 };
 
 void __init uprobes_init(void)
@@ -2351,5 +2351,5 @@ void __init uprobes_init(void)
 	for (i = 0; i < UPROBES_HASH_SZ; i++)
 		mutex_init(&uprobes_mmap_mutex[i]);
 
-	BUG_ON(register_die_notifier(&uprobe_exception_nb));
+	BUG_ON(register_die_analtifier(&uprobe_exception_nb));
 }

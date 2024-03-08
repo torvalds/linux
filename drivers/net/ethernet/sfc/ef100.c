@@ -231,7 +231,7 @@ static int ef100_pci_walk_xilinx_table(struct efx_nic *efx, u64 offset,
 				return rc;
 			break;
 		default:
-			/* Ignore unknown table entries. */
+			/* Iganalre unkanalwn table entries. */
 			break;
 		}
 
@@ -408,7 +408,7 @@ static int ef100_pci_find_func_ctrl_window(struct efx_nic *efx,
 
 	if (num_xilinx_caps && !result->valid) {
 		netif_err(efx, probe, efx->net_dev,
-			  "Seen %d Xilinx tables, but no EF100 entry.\n",
+			  "Seen %d Xilinx tables, but anal EF100 entry.\n",
 			  num_xilinx_caps);
 		return -EINVAL;
 	}
@@ -455,7 +455,7 @@ static int ef100_pci_probe(struct pci_dev *pci_dev,
 	/* Allocate probe data and struct efx_nic */
 	probe_data = kzalloc(sizeof(*probe_data), GFP_KERNEL);
 	if (!probe_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	probe_data->pci_dev = pci_dev;
 	efx = &probe_data->efx;
 
@@ -479,7 +479,7 @@ static int ef100_pci_probe(struct pci_dev *pci_dev,
 	}
 
 	if (!fcw.valid) {
-		/* Extended capability not found - use defaults. */
+		/* Extended capability analt found - use defaults. */
 		fcw.bar = EFX_EF100_PCI_DEFAULT_BAR;
 		fcw.offset = 0;
 		fcw.valid = true;
@@ -531,7 +531,7 @@ static int ef100_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 		else
 			return num_vfs;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif
 

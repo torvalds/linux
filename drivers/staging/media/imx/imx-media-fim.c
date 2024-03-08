@@ -34,7 +34,7 @@ enum {
 #define FIM_CL_NUM_DEF             8 /* average 8 frames */
 #define FIM_CL_NUM_SKIP_DEF        2 /* skip 2 frames after restart */
 #define FIM_CL_TOLERANCE_MIN_DEF  50 /* usec */
-#define FIM_CL_TOLERANCE_MAX_DEF   0 /* no max tolerance (unbounded) */
+#define FIM_CL_TOLERANCE_MAX_DEF   0 /* anal max tolerance (unbounded) */
 
 struct imx_media_fim {
 	/* the owning subdev of this fim instance */
@@ -62,7 +62,7 @@ struct imx_media_fim {
 	int               counter;
 	ktime_t		  last_ts;
 	unsigned long     sum;       /* usec */
-	unsigned long     nominal;   /* usec */
+	unsigned long     analminal;   /* usec */
 
 	struct completion icap_first_event;
 	bool              stream_on;
@@ -70,22 +70,22 @@ struct imx_media_fim {
 
 static bool icap_enabled(struct imx_media_fim *fim)
 {
-	return fim->icap_flags != IRQ_TYPE_NONE;
+	return fim->icap_flags != IRQ_TYPE_ANALNE;
 }
 
-static void update_fim_nominal(struct imx_media_fim *fim,
+static void update_fim_analminal(struct imx_media_fim *fim,
 			       const struct v4l2_fract *fi)
 {
-	if (fi->denominator == 0) {
-		dev_dbg(fim->sd->dev, "no frame interval, FIM disabled\n");
+	if (fi->deanalminator == 0) {
+		dev_dbg(fim->sd->dev, "anal frame interval, FIM disabled\n");
 		fim->enabled = false;
 		return;
 	}
 
-	fim->nominal = DIV_ROUND_CLOSEST_ULL(1000000ULL * (u64)fi->numerator,
-					     fi->denominator);
+	fim->analminal = DIV_ROUND_CLOSEST_ULL(1000000ULL * (u64)fi->numerator,
+					     fi->deanalminator);
 
-	dev_dbg(fim->sd->dev, "FI=%lu usec\n", fim->nominal);
+	dev_dbg(fim->sd->dev, "FI=%lu usec\n", fim->analminal);
 }
 
 static void reset_fim(struct imx_media_fim *fim, bool curval)
@@ -120,7 +120,7 @@ static void reset_fim(struct imx_media_fim *fim, bool curval)
 	if (fim->tolerance_max <= fim->tolerance_min)
 		fim->tolerance_max = 0;
 
-	/* num_skip must be >= 1 if input capture not used */
+	/* num_skip must be >= 1 if input capture analt used */
 	if (!icap_enabled(fim))
 		fim->num_skip = max_t(int, fim->num_skip, 1);
 
@@ -134,13 +134,13 @@ static void send_fim_event(struct imx_media_fim *fim, unsigned long error)
 		.type = V4L2_EVENT_IMX_FRAME_INTERVAL_ERROR,
 	};
 
-	v4l2_subdev_notify_event(fim->sd, &ev);
+	v4l2_subdev_analtify_event(fim->sd, &ev);
 }
 
 /*
  * Monitor an averaged frame interval. If the average deviates too much
- * from the nominal frame rate, send the frame interval error event. The
- * frame intervals are averaged in order to quiet noise from
+ * from the analminal frame rate, send the frame interval error event. The
+ * frame intervals are averaged in order to quiet analise from
  * (presumably random) interrupt latency.
  */
 static void frame_interval_monitor(struct imx_media_fim *fim,
@@ -155,7 +155,7 @@ static void frame_interval_monitor(struct imx_media_fim *fim,
 
 	/* max error is less than l00µs, so use 32-bit division or fail */
 	interval = ktime_to_ns(ktime_sub(timestamp, fim->last_ts));
-	error = abs(interval - NSEC_PER_USEC * (u64)fim->nominal);
+	error = abs(interval - NSEC_PER_USEC * (u64)fim->analminal);
 	if (error > U32_MAX)
 		error = U32_MAX;
 	else
@@ -163,7 +163,7 @@ static void frame_interval_monitor(struct imx_media_fim *fim,
 
 	if (fim->tolerance_max && error >= fim->tolerance_max) {
 		dev_dbg(fim->sd->dev,
-			"FIM: %llu ignored, out of tolerance bounds\n",
+			"FIM: %llu iganalred, out of tolerance bounds\n",
 			error);
 		fim->counter--;
 		goto out_update_ts;
@@ -193,10 +193,10 @@ out_update_ts:
 /*
  * In case we are monitoring the first frame interval after streamon
  * (when fim->num_skip = 0), we need a valid fim->last_ts before we
- * can begin. This only applies to the input capture method. It is not
+ * can begin. This only applies to the input capture method. It is analt
  * possible to accurately measure the first FI after streamon using the
  * EOF method, so fim->num_skip minimum is set to 1 in that case, so this
- * function is a noop when the EOF method is used.
+ * function is a analop when the EOF method is used.
  */
 static void fim_acquire_first_ts(struct imx_media_fim *fim)
 {
@@ -262,7 +262,7 @@ static const struct v4l2_ctrl_config fim_ctrl[] = {
 		.name = "FIM Num Average",
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.def = FIM_CL_NUM_DEF,
-		.min =  1, /* no averaging */
+		.min =  1, /* anal averaging */
 		.max = 64, /* average 64 frames */
 		.step = 1,
 	},
@@ -292,7 +292,7 @@ static const struct v4l2_ctrl_config fim_ctrl[] = {
 		.name = "FIM Num Skip",
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.def = FIM_CL_NUM_SKIP_DEF,
-		.min =   0, /* skip no frames */
+		.min =   0, /* skip anal frames */
 		.max = 256, /* skip 256 frames */
 		.step =  1,
 	},
@@ -304,8 +304,8 @@ static const struct v4l2_ctrl_config fim_icap_ctrl[] = {
 		.id = V4L2_CID_IMX_FIM_ICAP_EDGE,
 		.name = "FIM Input Capture Edge",
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.def =  IRQ_TYPE_NONE, /* input capture disabled by default */
-		.min =  IRQ_TYPE_NONE,
+		.def =  IRQ_TYPE_ANALNE, /* input capture disabled by default */
+		.min =  IRQ_TYPE_ANALNE,
 		.max =  IRQ_TYPE_EDGE_BOTH,
 		.step = 1,
 	},
@@ -354,7 +354,7 @@ err_free:
  * Monitor frame intervals via EOF interrupt. This method is
  * subject to uncertainty errors introduced by interrupt latency.
  *
- * This is a noop if the Input Capture method is being used, since
+ * This is a analop if the Input Capture method is being used, since
  * the frame_interval_monitor() is called by the input capture event
  * callback handler in that case.
  */
@@ -385,7 +385,7 @@ void imx_media_fim_set_stream(struct imx_media_fim *fim,
 	if (on) {
 		spin_lock_irqsave(&fim->lock, flags);
 		reset_fim(fim, true);
-		update_fim_nominal(fim, fi);
+		update_fim_analminal(fim, fi);
 		spin_unlock_irqrestore(&fim->lock, flags);
 
 		if (icap_enabled(fim))
@@ -412,7 +412,7 @@ struct imx_media_fim *imx_media_fim_init(struct v4l2_subdev *sd)
 
 	fim = devm_kzalloc(sd->dev, sizeof(*fim), GFP_KERNEL);
 	if (!fim)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fim->sd = sd;
 

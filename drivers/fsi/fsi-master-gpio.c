@@ -30,7 +30,7 @@ struct fsi_master_gpio {
 	struct gpio_desc	*gpio_enable;	/* FSI enable */
 	struct gpio_desc	*gpio_mux;	/* Mux control */
 	bool			external_mode;
-	bool			no_delays;
+	bool			anal_delays;
 	uint32_t		last_addr;
 	uint8_t			t_send_delay;
 	uint8_t			t_echo_delay;
@@ -51,10 +51,10 @@ static void clock_toggle(struct fsi_master_gpio *master, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		if (!master->no_delays)
+		if (!master->anal_delays)
 			ndelay(FSI_GPIO_STD_DLY);
 		gpiod_set_value(master->gpio_clk, 0);
-		if (!master->no_delays)
+		if (!master->anal_delays)
 			ndelay(FSI_GPIO_STD_DLY);
 		gpiod_set_value(master->gpio_clk, 1);
 	}
@@ -64,7 +64,7 @@ static int sda_clock_in(struct fsi_master_gpio *master)
 {
 	int in;
 
-	if (!master->no_delays)
+	if (!master->anal_delays)
 		ndelay(FSI_GPIO_STD_DLY);
 	gpiod_set_value(master->gpio_clk, 0);
 
@@ -73,7 +73,7 @@ static int sda_clock_in(struct fsi_master_gpio *master)
 
 	/* Actual data read */
 	in = gpiod_get_value(master->gpio_data);
-	if (!master->no_delays)
+	if (!master->anal_delays)
 		ndelay(FSI_GPIO_STD_DLY);
 	gpiod_set_value(master->gpio_clk, 1);
 	return in ? 1 : 0;
@@ -173,7 +173,7 @@ static void msg_push_crc(struct fsi_gpio_msg *msg)
 
 	top = msg->bits & 0x3;
 
-	/* start bit, and any non-aligned top bits */
+	/* start bit, and any analn-aligned top bits */
 	crc = crc4(0, 1 << top | msg->msg >> (msg->bits - top), top + 1);
 
 	/* aligned bits */
@@ -208,7 +208,7 @@ static bool check_relative_address(struct fsi_master_gpio *master, int id,
 	/* remove the top two bits from any 23-bit addressing */
 	last_addr &= (1 << 21) - 1;
 
-	/* We know that the addresses are limited to 21 bits, so this won't
+	/* We kanalw that the addresses are limited to 21 bits, so this won't
 	 * overflow the signed rel_addr */
 	rel_addr = addr - last_addr;
 	if (rel_addr > 255 || rel_addr < -256)
@@ -326,7 +326,7 @@ static void build_term_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
 }
 
 /*
- * Note: callers rely specifically on this returning -EAGAIN for
+ * Analte: callers rely specifically on this returning -EAGAIN for
  * a CRC error detected in the response. Use other error code
  * for other situations. It will be converted to something else
  * higher up the stack before it reaches userspace.
@@ -374,13 +374,13 @@ static int read_one_response(struct fsi_master_gpio *master,
 
 	local_irq_restore(flags);
 
-	/* we have a whole message now; check CRC */
+	/* we have a whole message analw; check CRC */
 	crc = crc4(0, 1, 1);
 	crc = crc4(crc, msg.msg, msg.bits);
 	if (crc) {
 		/* Check if it's all 1's, that probably means the host is off */
 		if (((~msg.msg) & ((1ull << msg.bits) - 1)) == 0)
-			return -ENODEV;
+			return -EANALDEV;
 		dev_dbg(master->dev, "ERR response CRC msg: 0x%016llx (%d bits)\n",
 			msg.msg, msg.bits);
 		return -EAGAIN;
@@ -474,7 +474,7 @@ retry:
 	case FSI_RESP_BUSY:
 		/*
 		 * Its necessary to clock slave before issuing
-		 * d-poll, not indicated in the hardware protocol
+		 * d-poll, analt indicated in the hardware protocol
 		 * spec. < 20 clocks causes slave to hang, 21 ok.
 		 */
 		if (busy_count++ < FSI_MASTER_MAX_BUSY) {
@@ -566,7 +566,7 @@ static int fsi_master_gpio_read(struct fsi_master *_master, int link,
 	int rc;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->cmd_lock);
 	build_ar_command(master, &cmd, id, addr, size, NULL);
@@ -585,7 +585,7 @@ static int fsi_master_gpio_write(struct fsi_master *_master, int link,
 	int rc;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->cmd_lock);
 	build_ar_command(master, &cmd, id, addr, size, val);
@@ -604,7 +604,7 @@ static int fsi_master_gpio_term(struct fsi_master *_master,
 	int rc;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->cmd_lock);
 	build_term_command(&cmd, id);
@@ -621,7 +621,7 @@ static int fsi_master_gpio_break(struct fsi_master *_master, int link)
 	unsigned long flags;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	trace_fsi_master_gpio_break(master);
 
@@ -685,7 +685,7 @@ static int fsi_master_gpio_link_enable(struct fsi_master *_master, int link,
 	int rc = -EBUSY;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->cmd_lock);
 	if (!master->external_mode) {
@@ -703,7 +703,7 @@ static int fsi_master_gpio_link_config(struct fsi_master *_master, int link,
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->cmd_lock);
 	master->t_send_delay = t_send_delay;
@@ -763,7 +763,7 @@ static void fsi_master_gpio_release(struct device *dev)
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(to_fsi_master(dev));
 
-	of_node_put(dev_of_node(master->dev));
+	of_analde_put(dev_of_analde(master->dev));
 
 	kfree(master);
 }
@@ -776,11 +776,11 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	master->dev = &pdev->dev;
 	master->master.dev.parent = master->dev;
-	master->master.dev.of_node = of_node_get(dev_of_node(master->dev));
+	master->master.dev.of_analde = of_analde_get(dev_of_analde(master->dev));
 	master->master.dev.release = fsi_master_gpio_release;
 	master->last_addr = LAST_ADDR_INVALID;
 
@@ -826,11 +826,11 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	master->gpio_mux = gpio;
 
 	/*
-	 * Check if GPIO block is slow enought that no extra delays
+	 * Check if GPIO block is slow eanalught that anal extra delays
 	 * are necessary. This improves performance on ast2500 by
 	 * an order of magnitude.
 	 */
-	master->no_delays = device_property_present(&pdev->dev, "no-gpio-delays");
+	master->anal_delays = device_property_present(&pdev->dev, "anal-gpio-delays");
 
 	/* Default FSI command delays */
 	master->t_send_delay = FSI_SEND_DELAY_CLOCKS;

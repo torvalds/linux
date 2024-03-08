@@ -182,7 +182,7 @@
 						     <16 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-names = "MAIN_CH_UNPLUG_DET",
 							  "MAIN_CHARGE_PLUG_DET",
-							  "MAIN_EXT_CH_NOT_OK",
+							  "MAIN_EXT_CH_ANALT_OK",
 							  "MAIN_CH_TH_PROT_R",
 							  "MAIN_CH_TH_PROT_F",
 							  "VBUS_DET_F",
@@ -190,7 +190,7 @@
 							  "USB_LINK_STATUS",
 							  "USB_CH_TH_PROT_R",
 							  "USB_CH_TH_PROT_F",
-							  "USB_CHARGER_NOT_OKR",
+							  "USB_CHARGER_ANALT_OKR",
 							  "VBUS_OVV",
 							  "CH_WD_EXP",
 							  "VBUS_CH_DROP_END";

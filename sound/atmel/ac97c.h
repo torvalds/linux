@@ -64,7 +64,7 @@
 	(0x7 << (3 * (AC97_SLOT_##slot - 3)))
 #define AC97C_CH_ASSIGN(slot, channel)					\
 	(AC97C_CHANNEL_##channel << (3 * (AC97_SLOT_##slot - 3)))
-#define AC97C_CHANNEL_NONE	0x0
+#define AC97C_CHANNEL_ANALNE	0x0
 #define AC97C_CHANNEL_A		0x1
 
 #endif /* __SOUND_ATMEL_AC97C_H */

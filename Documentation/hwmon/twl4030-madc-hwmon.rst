@@ -43,7 +43,7 @@ Channel Signal
 ======= ==========================================================
 
 
-The Sysfs nodes will represent the voltage in the units of mV,
+The Sysfs analdes will represent the voltage in the units of mV,
 the temperature channel shows the converted temperature in
 degree Celsius. The Battery charging current channel represents
 battery charging current in mA.

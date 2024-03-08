@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroanalme Systems, Inc. */
 
 #define pr_fmt(fmt)	"NFP net bpf: " fmt
 
@@ -17,7 +17,7 @@
 
 /* --- NFP prog --- */
 /* Foreach "multiple" entries macros provide pos and next<n> pointers.
- * It's safe to modify the next pointers (but not pos).
+ * It's safe to modify the next pointers (but analt pos).
  */
 #define nfp_for_each_insn_walk2(nfp_prog, pos, next)			\
 	for (pos = list_first_entry(&(nfp_prog)->insns, typeof(*pos), l), \
@@ -49,7 +49,7 @@ static void nfp_prog_push(struct nfp_prog *nfp_prog, u64 insn)
 	if (nfp_prog->__prog_alloc_len / sizeof(u64) == nfp_prog->prog_len) {
 		pr_warn("instruction limit reached (%u NFP instructions)\n",
 			nfp_prog->prog_len);
-		nfp_prog->error = -ENOSPC;
+		nfp_prog->error = -EANALSPC;
 		return;
 	}
 
@@ -88,7 +88,7 @@ __emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 		FIELD_PREP(OP_CMD_TOKEN, cmd_tgt_act[op].token) |
 		FIELD_PREP(OP_CMD_XFER, xfer) |
 		FIELD_PREP(OP_CMD_CNT, size) |
-		FIELD_PREP(OP_CMD_SIG, ctx != CMD_CTX_NO_SWAP) |
+		FIELD_PREP(OP_CMD_SIG, ctx != CMD_CTX_ANAL_SWAP) |
 		FIELD_PREP(OP_CMD_TGT_CMD, cmd_tgt_act[op].tgt_cmd) |
 		FIELD_PREP(OP_CMD_INDIR, indir) |
 		FIELD_PREP(OP_CMD_MODE, mode);
@@ -103,7 +103,7 @@ emit_cmd_any(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
 	struct nfp_insn_re_regs reg;
 	int err;
 
-	err = swreg_to_restricted(reg_none(), lreg, rreg, &reg, false);
+	err = swreg_to_restricted(reg_analne(), lreg, rreg, &reg, false);
 	if (err) {
 		nfp_prog->error = err;
 		return;
@@ -170,7 +170,7 @@ emit_br_relo(struct nfp_prog *nfp_prog, enum br_mask mask, u16 addr, u8 defer,
 
 	__emit_br(nfp_prog, mask,
 		  mask != BR_UNC ? BR_EV_PIP_COND : BR_EV_PIP_UNCOND,
-		  BR_CSS_NONE, addr, defer);
+		  BR_CSS_ANALNE, addr, defer);
 
 	nfp_prog->prog[nfp_prog->prog_len - 1] |=
 		FIELD_PREP(OP_RELO_TYPE, relo);
@@ -211,13 +211,13 @@ emit_br_bit_relo(struct nfp_prog *nfp_prog, swreg src, u8 bit, u16 addr,
 	struct nfp_insn_re_regs reg;
 	int err;
 
-	/* NOTE: The bit to test is specified as an rotation amount, such that
+	/* ANALTE: The bit to test is specified as an rotation amount, such that
 	 *	 the bit to test will be placed on the MSB of the result when
 	 *	 doing a rotate right. For bit X, we need right rotate X + 1.
 	 */
 	bit += 1;
 
-	err = swreg_to_restricted(reg_none(), src, reg_imm(bit), &reg, false);
+	err = swreg_to_restricted(reg_analne(), src, reg_imm(bit), &reg, false);
 	if (err) {
 		nfp_prog->error = err;
 		return;
@@ -258,7 +258,7 @@ static void emit_rtn(struct nfp_prog *nfp_prog, swreg base, u8 defer)
 	struct nfp_insn_ur_regs reg;
 	int err;
 
-	err = swreg_to_unrestricted(reg_none(), base, reg_imm(0), &reg);
+	err = swreg_to_unrestricted(reg_analne(), base, reg_imm(0), &reg);
 	if (err) {
 		nfp_prog->error = err;
 		return;
@@ -308,9 +308,9 @@ emit_immed(struct nfp_prog *nfp_prog, swreg dst, u16 imm,
 		return;
 	}
 
-	/* Use reg.dst when destination is No-Dest. */
+	/* Use reg.dst when destination is Anal-Dest. */
 	__emit_immed(nfp_prog,
-		     swreg_type(dst) == NN_REG_NONE ? reg.dst : reg.areg,
+		     swreg_type(dst) == NN_REG_ANALNE ? reg.dst : reg.areg,
 		     reg.breg, imm >> 8, width, invert, shift,
 		     reg.wr_both, reg.dst_lmextn, reg.src_lmextn);
 }
@@ -332,7 +332,7 @@ __emit_shf(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 	 * left then shift amount of 1 to 31 is specified as 32 minus the amount
 	 * to shift.
 	 *
-	 * But no need to do this for indirect shift which has shift amount be
+	 * But anal need to do this for indirect shift which has shift amount be
 	 * 0. Even after we do this subtraction, shift amount 0 will be turned
 	 * into 32 which will eventually be encoded the same as 0 because only
 	 * low 5 bits are encoded, but shift amount be 32 will fail the
@@ -382,7 +382,7 @@ emit_shf_indir(struct nfp_prog *nfp_prog, swreg dst,
 	       swreg lreg, enum shf_op op, swreg rreg, enum shf_sc sc)
 {
 	if (sc == SHF_SC_R_ROT) {
-		pr_err("indirect shift is not allowed on rotation\n");
+		pr_err("indirect shift is analt allowed on rotation\n");
 		nfp_prog->error = -EFAULT;
 		return;
 	}
@@ -458,7 +458,7 @@ emit_mul(struct nfp_prog *nfp_prog, swreg lreg, enum mul_type type,
 	u16 areg;
 	int err;
 
-	if (type == MUL_TYPE_START && step != MUL_STEP_NONE) {
+	if (type == MUL_TYPE_START && step != MUL_STEP_ANALNE) {
 		nfp_prog->error = -EINVAL;
 		return;
 	}
@@ -467,10 +467,10 @@ emit_mul(struct nfp_prog *nfp_prog, swreg lreg, enum mul_type type,
 		/* When type is step and step Number is LAST or LAST2, left
 		 * source is used as destination.
 		 */
-		err = swreg_to_unrestricted(lreg, reg_none(), rreg, &reg);
+		err = swreg_to_unrestricted(lreg, reg_analne(), rreg, &reg);
 		areg = reg.dst;
 	} else {
-		err = swreg_to_unrestricted(reg_none(), lreg, rreg, &reg);
+		err = swreg_to_unrestricted(reg_analne(), lreg, rreg, &reg);
 		areg = reg.areg;
 	}
 
@@ -514,7 +514,7 @@ emit_ld_field_any(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
 	struct nfp_insn_re_regs reg;
 	int err;
 
-	/* Note: ld_field is special as it uses one of the src regs as dst */
+	/* Analte: ld_field is special as it uses one of the src regs as dst */
 	err = swreg_to_restricted(dst, dst, src, &reg, true);
 	if (err) {
 		nfp_prog->error = err;
@@ -555,16 +555,16 @@ static void emit_csr_wr(struct nfp_prog *nfp_prog, swreg src, u16 addr)
 	struct nfp_insn_ur_regs reg;
 	int err;
 
-	/* This instruction takes immeds instead of reg_none() for the ignored
-	 * operand, but we can't encode 2 immeds in one instr with our normal
-	 * swreg infra so if param is an immed, we encode as reg_none() and
+	/* This instruction takes immeds instead of reg_analne() for the iganalred
+	 * operand, but we can't encode 2 immeds in one instr with our analrmal
+	 * swreg infra so if param is an immed, we encode as reg_analne() and
 	 * copy the immed to both operands.
 	 */
 	if (swreg_type(src) == NN_REG_IMM) {
-		err = swreg_to_unrestricted(reg_none(), src, reg_none(), &reg);
+		err = swreg_to_unrestricted(reg_analne(), src, reg_analne(), &reg);
 		reg.breg = reg.areg;
 	} else {
-		err = swreg_to_unrestricted(reg_none(), src, reg_imm(0), &reg);
+		err = swreg_to_unrestricted(reg_analne(), src, reg_imm(0), &reg);
 	}
 	if (err) {
 		nfp_prog->error = err;
@@ -581,7 +581,7 @@ static void __emit_csr_rd(struct nfp_prog *nfp_prog, u16 addr)
 	__emit_lcsr(nfp_prog, 0, 0, false, addr, false, false);
 }
 
-static void emit_nop(struct nfp_prog *nfp_prog)
+static void emit_analp(struct nfp_prog *nfp_prog)
 {
 	__emit_immed(nfp_prog, UR_REG_IMM, UR_REG_IMM, 0, 0, 0, 0, 0, 0, 0);
 }
@@ -645,7 +645,7 @@ wrp_immed_relo(struct nfp_prog *nfp_prog, swreg dst, u32 imm,
 }
 
 /* ur_load_imm_any() - encode immediate or use tmp register (unrestricted)
- * If the @imm is small enough encode it directly in operand and return
+ * If the @imm is small eanalugh encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
  */
 static swreg ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
@@ -658,7 +658,7 @@ static swreg ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 }
 
 /* re_load_imm_any() - encode immediate or use tmp register (restricted)
- * If the @imm is small enough encode it directly in operand and return
+ * If the @imm is small eanalugh encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
  */
 static swreg re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
@@ -670,15 +670,15 @@ static swreg re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 	return tmp_reg;
 }
 
-static void wrp_nops(struct nfp_prog *nfp_prog, unsigned int count)
+static void wrp_analps(struct nfp_prog *nfp_prog, unsigned int count)
 {
 	while (count--)
-		emit_nop(nfp_prog);
+		emit_analp(nfp_prog);
 }
 
 static void wrp_mov(struct nfp_prog *nfp_prog, swreg dst, swreg src)
 {
-	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, src);
+	emit_alu(nfp_prog, dst, reg_analne(), ALU_OP_ANALNE, src);
 }
 
 static void wrp_reg_mov(struct nfp_prog *nfp_prog, u16 dst, u16 src)
@@ -693,20 +693,20 @@ static void
 wrp_reg_subpart(struct nfp_prog *nfp_prog, swreg dst, swreg src, u8 field_len,
 		u8 offset)
 {
-	enum shf_sc sc = offset ? SHF_SC_R_SHF : SHF_SC_NONE;
+	enum shf_sc sc = offset ? SHF_SC_R_SHF : SHF_SC_ANALNE;
 	u8 mask = (1 << field_len) - 1;
 
 	emit_ld_field_any(nfp_prog, dst, mask, src, sc, offset * 8, true);
 }
 
 /* wrp_reg_or_subpart() - load @field_len bytes from low end of @src, or the
- * result to @dst from offset, there is no change on the other bits of @dst.
+ * result to @dst from offset, there is anal change on the other bits of @dst.
  */
 static void
 wrp_reg_or_subpart(struct nfp_prog *nfp_prog, swreg dst, swreg src,
 		   u8 field_len, u8 offset)
 {
-	enum shf_sc sc = offset ? SHF_SC_L_SHF : SHF_SC_NONE;
+	enum shf_sc sc = offset ? SHF_SC_L_SHF : SHF_SC_ANALNE;
 	u8 mask = ((1 << field_len) - 1) << offset;
 
 	emit_ld_field(nfp_prog, dst, mask, src, sc, 32 - offset * 8);
@@ -750,7 +750,7 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	/* Setup PREV_ALU fields to override memory read length. */
 	if (len > 32)
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_analne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
 
 	/* Memory read from source addr into transfer-in registers. */
@@ -776,21 +776,21 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			 CMD_CTX_SWAP);
 	} else if (len <= 32) {
 		/* Use single indirect_ref write8. */
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_analne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, len - 1));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
 			       len - 1, CMD_CTX_SWAP);
 	} else if (IS_ALIGNED(len, 4)) {
 		/* Use single indirect_ref write32. */
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_analne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
 			       xfer_num - 1, CMD_CTX_SWAP);
 	} else if (len <= 40) {
 		/* Use one direct_ref write32 to write the first 32-bytes, then
-		 * another direct_ref write8 to write the remaining bytes.
+		 * aanalther direct_ref write8 to write the remaining bytes.
 		 */
 		emit_cmd(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			 reg_a(meta->paired_st->dst_reg * 2), off, 7,
@@ -803,11 +803,11 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			 CMD_CTX_SWAP);
 	} else {
 		/* Use one indirect_ref write32 to write 4-bytes aligned length,
-		 * then another direct_ref write8 to write the remaining bytes.
+		 * then aanalther direct_ref write8 to write the remaining bytes.
 		 */
 		u8 new_off;
 
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_analne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 2));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
@@ -822,7 +822,7 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	/* TODO: The following extra load is to make sure data flow be identical
 	 *  before and after we do memory copy optimization.
 	 *
-	 *  The load destination register is not guaranteed to be dead, so we
+	 *  The load destination register is analt guaranteed to be dead, so we
 	 *  need to make sure it is loaded with the value the same as before
 	 *  this transformation.
 	 *
@@ -872,7 +872,7 @@ data_ld(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, swreg offset,
 	u16 shift, sz;
 
 	/* We load the value from the address indicated in @offset and then
-	 * shift out the data we don't need.  Note: this is big endian!
+	 * shift out the data we don't need.  Analte: this is big endian!
 	 */
 	sz = max(size, 4);
 	shift = size < 4 ? 4 - size : 0;
@@ -882,7 +882,7 @@ data_ld(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, swreg offset,
 
 	i = 0;
 	if (shift)
-		emit_shf(nfp_prog, reg_both(dst_gpr), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst_gpr), reg_analne(), SHF_OP_ANALNE,
 			 reg_xfer(0), SHF_SC_R_SHF, shift * 8);
 	else
 		for (; i * 4 < size; i++)
@@ -903,7 +903,7 @@ data_ld_host_order(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	u8 mask, sz;
 
 	/* We load the value from the address indicated in rreg + lreg and then
-	 * mask out the data we don't need.  Note: this is little endian!
+	 * mask out the data we don't need.  Analte: this is little endian!
 	 */
 	sz = max(size, 4);
 	mask = size < 4 ? GENMASK(size - 1, 0) : 0;
@@ -914,7 +914,7 @@ data_ld_host_order(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	i = 0;
 	if (mask)
 		emit_ld_field_any(nfp_prog, reg_both(dst_gpr), mask,
-				  reg_xfer(0), SHF_SC_NONE, 0, true);
+				  reg_xfer(0), SHF_SC_ANALNE, 0, true);
 	else
 		for (; i * 4 < size; i++)
 			wrp_mov(nfp_prog, reg_both(dst_gpr + i), reg_xfer(i));
@@ -958,7 +958,7 @@ construct_data_ind_ld(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	/* Check packet length (size guaranteed to fit b/c it's u8) */
 	emit_alu(nfp_prog, imm_a(nfp_prog),
 		 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_analne(),
 		 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
 	emit_br_relo(nfp_prog, BR_BLO, BR_OFF_RELO, 0, RELO_BR_GO_ABORT);
 
@@ -974,7 +974,7 @@ construct_data_ld(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	/* Check packet length */
 	tmp_reg = ur_load_imm_any(nfp_prog, offset + size, imm_a(nfp_prog));
-	emit_alu(nfp_prog, reg_none(), plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
+	emit_alu(nfp_prog, reg_analne(), plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
 	emit_br_relo(nfp_prog, BR_BLO, BR_OFF_RELO, 0, RELO_BR_GO_ABORT);
 
 	/* Load data */
@@ -1029,7 +1029,7 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 	u8 mask;
 
 	if (WARN_ON_ONCE(dst_byte + size > 4 || off % 4 + size > 4))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	idx = off / 4;
 
@@ -1041,7 +1041,7 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 	}
 
 	if (WARN_ON_ONCE(lm3 && idx > RE_REG_LM_IDX_MAX))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	src_byte = off % 4;
 
@@ -1049,11 +1049,11 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 	mask <<= dst_byte;
 
 	if (WARN_ON_ONCE(mask > 0xf))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	shf = abs(src_byte - dst_byte) * 8;
 	if (src_byte == dst_byte) {
-		sc = SHF_SC_NONE;
+		sc = SHF_SC_ANALNE;
 	} else if (src_byte < dst_byte) {
 		shf = 32 - shf;
 		sc = SHF_SC_L_SHF;
@@ -1068,7 +1068,7 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 		reg = reg_lm(lm3 ? 3 : 0, idx);
 	} else {
 		reg = imm_a(nfp_prog);
-		/* If it's not the first part of the load and we start a new GPR
+		/* If it's analt the first part of the load and we start a new GPR
 		 * that means we are loading a second part of the LMEM word into
 		 * a new GPR.  IOW we've already looked that LMEM word and
 		 * therefore it has been loaded into imm_a().
@@ -1080,7 +1080,7 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 	emit_ld_field_any(nfp_prog, reg_both(dst), mask, reg, sc, shf, new_gpr);
 
 	if (should_inc)
-		wrp_mov(nfp_prog, reg_none(), reg_lm_inc(3));
+		wrp_mov(nfp_prog, reg_analne(), reg_lm_inc(3));
 
 	return 0;
 }
@@ -1098,7 +1098,7 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 	u8 mask;
 
 	if (WARN_ON_ONCE(src_byte + size > 4 || off % 4 + size > 4))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	idx = off / 4;
 
@@ -1111,7 +1111,7 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 	}
 
 	if (WARN_ON_ONCE(lm3 && idx > RE_REG_LM_IDX_MAX))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dst_byte = off % 4;
 
@@ -1119,11 +1119,11 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 	mask <<= dst_byte;
 
 	if (WARN_ON_ONCE(mask > 0xf))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	shf = abs(src_byte - dst_byte) * 8;
 	if (src_byte == dst_byte) {
-		sc = SHF_SC_NONE;
+		sc = SHF_SC_ANALNE;
 	} else if (src_byte < dst_byte) {
 		shf = 32 - shf;
 		sc = SHF_SC_L_SHF;
@@ -1151,7 +1151,7 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 		if (idx > RE_REG_LM_IDX_MAX)
 			wrp_mov(nfp_prog, reg_lm(0, idx), reg);
 		if (should_inc)
-			wrp_mov(nfp_prog, reg_none(), reg_lm_inc(3));
+			wrp_mov(nfp_prog, reg_analne(), reg_lm_inc(3));
 	}
 
 	return 0;
@@ -1171,7 +1171,7 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	bool lm3 = true;
 	int ret;
 
-	if (meta->ptr_not_const ||
+	if (meta->ptr_analt_const ||
 	    meta->flags & FLAG_INSN_PTR_CALLER_STACK_FRAME) {
 		/* Use of the last encountered ptr_off is OK, they all have
 		 * the same alignment.  Depend on low bits of value being
@@ -1188,11 +1188,11 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		/* We can reach bottom 64B with LMaddr0 */
 		lm3 = false;
 	} else if (round_down(off, 32) == round_down(off + size - 1, 32)) {
-		/* We have to set up a new pointer.  If we know the offset
+		/* We have to set up a new pointer.  If we kanalw the offset
 		 * and the entire access falls into a single 32 byte aligned
 		 * window we won't have to increment the LM pointer.
 		 * The 32 byte alignment is imporant because offset is ORed in
-		 * not added when doing *l$indexN[off].
+		 * analt added when doing *l$indexN[off].
 		 */
 		stack_off_reg = ur_load_imm_any(nfp_prog, round_down(off, 32),
 						stack_imm(nfp_prog));
@@ -1213,15 +1213,15 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	narrow_ld = clr_gpr && size < 8;
 
 	if (lm3) {
-		unsigned int nop_cnt;
+		unsigned int analp_cnt;
 
 		emit_csr_wr(nfp_prog, imm_b(nfp_prog), NFP_CSR_ACT_LM_ADDR3);
 		/* For size < 4 one slot will be filled by zeroing of upper,
 		 * but be careful, that zeroing could be eliminated by zext
 		 * optimization.
 		 */
-		nop_cnt = narrow_ld && meta->flags & FLAG_INSN_DO_ZEXT ? 2 : 3;
-		wrp_nops(nfp_prog, nop_cnt);
+		analp_cnt = narrow_ld && meta->flags & FLAG_INSN_DO_ZEXT ? 2 : 3;
+		wrp_analps(nfp_prog, analp_cnt);
 	}
 
 	if (narrow_ld)
@@ -1280,8 +1280,8 @@ wrp_alu_imm(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u32 imm)
 	}
 	if (alu_op == ALU_OP_XOR) {
 		if (!~imm)
-			emit_alu(nfp_prog, reg_both(dst), reg_none(),
-				 ALU_OP_NOT, reg_b(dst));
+			emit_alu(nfp_prog, reg_both(dst), reg_analne(),
+				 ALU_OP_ANALT, reg_b(dst));
 		if (!imm || !~imm)
 			return;
 	}
@@ -1298,7 +1298,7 @@ wrp_alu64_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	u64 imm = insn->imm; /* sign extend */
 
 	if (skip) {
-		meta->flags |= FLAG_INSN_SKIP_NOOP;
+		meta->flags |= FLAG_INSN_SKIP_ANALOP;
 		return 0;
 	}
 
@@ -1350,7 +1350,7 @@ static void
 wrp_test_reg_one(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u8 src,
 		 enum br_mask br_mask, u16 off)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(dst), alu_op, reg_b(src));
+	emit_alu(nfp_prog, reg_analne(), reg_a(dst), alu_op, reg_b(src));
 	emit_br(nfp_prog, br_mask, off, 0);
 }
 
@@ -1391,7 +1391,7 @@ static const struct jmp_code_map *nfp_jmp_code_get(struct nfp_insn_meta *meta)
 	/* br_mask of 0 is BR_BEQ which we don't use in jump code table */
 	if (WARN_ONCE(op >= ARRAY_SIZE(jmp_code_map) ||
 		      !jmp_code_map[op].br_mask,
-		      "no code found for jump instruction"))
+		      "anal code found for jump instruction"))
 		return NULL;
 
 	return &jmp_code_map[op];
@@ -1415,17 +1415,17 @@ static int cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
 	if (!code->swap)
-		emit_alu(nfp_prog, reg_none(), reg_a(reg), alu_op, tmp_reg);
+		emit_alu(nfp_prog, reg_analne(), reg_a(reg), alu_op, tmp_reg);
 	else
-		emit_alu(nfp_prog, reg_none(), tmp_reg, alu_op, reg_a(reg));
+		emit_alu(nfp_prog, reg_analne(), tmp_reg, alu_op, reg_a(reg));
 
 	if (is_mbpf_jmp64(meta)) {
 		tmp_reg = ur_load_imm_any(nfp_prog, imm >> 32, imm_b(nfp_prog));
 		if (!code->swap)
-			emit_alu(nfp_prog, reg_none(),
+			emit_alu(nfp_prog, reg_analne(),
 				 reg_a(reg + 1), carry_op, tmp_reg);
 		else
-			emit_alu(nfp_prog, reg_none(),
+			emit_alu(nfp_prog, reg_analne(),
 				 tmp_reg, carry_op, reg_a(reg + 1));
 	}
 
@@ -1453,9 +1453,9 @@ static int cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		areg ^= breg;
 	}
 
-	emit_alu(nfp_prog, reg_none(), reg_a(areg), ALU_OP_SUB, reg_b(breg));
+	emit_alu(nfp_prog, reg_analne(), reg_a(areg), ALU_OP_SUB, reg_b(breg));
 	if (is_mbpf_jmp64(meta))
-		emit_alu(nfp_prog, reg_none(),
+		emit_alu(nfp_prog, reg_analne(),
 			 reg_a(areg + 1), ALU_OP_SUB_C, reg_b(breg + 1));
 	emit_br(nfp_prog, code->br_mask, insn->off, 0);
 
@@ -1474,15 +1474,15 @@ static void
 wrp_mul_u32(struct nfp_prog *nfp_prog, swreg dst_hi, swreg dst_lo, swreg lreg,
 	    swreg rreg, bool gen_high_half)
 {
-	emit_mul(nfp_prog, lreg, MUL_TYPE_START, MUL_STEP_NONE, rreg);
+	emit_mul(nfp_prog, lreg, MUL_TYPE_START, MUL_STEP_ANALNE, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_32x32, MUL_STEP_1, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_32x32, MUL_STEP_2, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_32x32, MUL_STEP_3, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_32x32, MUL_STEP_4, rreg);
-	emit_mul(nfp_prog, dst_lo, MUL_TYPE_STEP_32x32, MUL_LAST, reg_none());
+	emit_mul(nfp_prog, dst_lo, MUL_TYPE_STEP_32x32, MUL_LAST, reg_analne());
 	if (gen_high_half)
 		emit_mul(nfp_prog, dst_hi, MUL_TYPE_STEP_32x32, MUL_LAST_2,
-			 reg_none());
+			 reg_analne());
 	else
 		wrp_immed(nfp_prog, dst_hi, 0);
 }
@@ -1491,10 +1491,10 @@ static void
 wrp_mul_u16(struct nfp_prog *nfp_prog, swreg dst_hi, swreg dst_lo, swreg lreg,
 	    swreg rreg)
 {
-	emit_mul(nfp_prog, lreg, MUL_TYPE_START, MUL_STEP_NONE, rreg);
+	emit_mul(nfp_prog, lreg, MUL_TYPE_START, MUL_STEP_ANALNE, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_16x16, MUL_STEP_1, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_16x16, MUL_STEP_2, rreg);
-	emit_mul(nfp_prog, dst_lo, MUL_TYPE_STEP_16x16, MUL_LAST, reg_none());
+	emit_mul(nfp_prog, dst_lo, MUL_TYPE_STEP_16x16, MUL_LAST, reg_analne());
 }
 
 static int
@@ -1541,7 +1541,7 @@ static int wrp_div_imm(struct nfp_prog *nfp_prog, u8 dst, u64 imm)
 		return 0;
 	}
 
-	/* NOTE: because we are using "reciprocal_value_adv" which doesn't
+	/* ANALTE: because we are using "reciprocal_value_adv" which doesn't
 	 * support "divisor > (1u << 31)", we need to JIT separate NFP sequence
 	 * to handle such case which actually equals to the result of unsigned
 	 * comparison "dst >= imm" which could be calculated using the following
@@ -1555,7 +1555,7 @@ static int wrp_div_imm(struct nfp_prog *nfp_prog, u8 dst, u64 imm)
 	if (imm > 1U << 31) {
 		swreg tmp_b = ur_load_imm_any(nfp_prog, imm, imm_b(nfp_prog));
 
-		emit_alu(nfp_prog, reg_none(), dst_a, ALU_OP_SUB, tmp_b);
+		emit_alu(nfp_prog, reg_analne(), dst_a, ALU_OP_SUB, tmp_b);
 		wrp_immed(nfp_prog, imm_a(nfp_prog), 0);
 		emit_alu(nfp_prog, dst_both, imm_a(nfp_prog), ALU_OP_ADD_C,
 			 reg_imm(0));
@@ -1572,25 +1572,25 @@ static int wrp_div_imm(struct nfp_prog *nfp_prog, u8 dst, u64 imm)
 	}
 	magic = ur_load_imm_any(nfp_prog, rvalue.m, imm_b(nfp_prog));
 	if (imm == 1U << exp) {
-		emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE, dst_b,
+		emit_shf(nfp_prog, dst_both, reg_analne(), SHF_OP_ANALNE, dst_b,
 			 SHF_SC_R_SHF, exp);
 	} else if (rvalue.is_wide_m) {
-		wrp_mul_u32(nfp_prog, imm_both(nfp_prog), reg_none(), dst_a,
+		wrp_mul_u32(nfp_prog, imm_both(nfp_prog), reg_analne(), dst_a,
 			    magic, true);
 		emit_alu(nfp_prog, dst_both, dst_a, ALU_OP_SUB,
 			 imm_b(nfp_prog));
-		emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE, dst_b,
+		emit_shf(nfp_prog, dst_both, reg_analne(), SHF_OP_ANALNE, dst_b,
 			 SHF_SC_R_SHF, 1);
 		emit_alu(nfp_prog, dst_both, dst_a, ALU_OP_ADD,
 			 imm_b(nfp_prog));
-		emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE, dst_b,
+		emit_shf(nfp_prog, dst_both, reg_analne(), SHF_OP_ANALNE, dst_b,
 			 SHF_SC_R_SHF, rvalue.sh - 1);
 	} else {
 		if (pre_shift)
-			emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE,
+			emit_shf(nfp_prog, dst_both, reg_analne(), SHF_OP_ANALNE,
 				 dst_b, SHF_SC_R_SHF, pre_shift);
-		wrp_mul_u32(nfp_prog, dst_both, reg_none(), dst_a, magic, true);
-		emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE,
+		wrp_mul_u32(nfp_prog, dst_both, reg_analne(), dst_a, magic, true);
+		emit_shf(nfp_prog, dst_both, reg_analne(), SHF_OP_ANALNE,
 			 dst_b, SHF_SC_R_SHF, rvalue.sh);
 	}
 
@@ -1635,17 +1635,17 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		 reg_a(2 * 2), ALU_OP_ADD_2B, pptr_reg(nfp_prog));
 
 	/* Validate result will fit within FW datapath constraints */
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_analne(),
 		 tmp, ALU_OP_SUB, reg_imm(adjust_head->off_min));
 	emit_br(nfp_prog, BR_BLO, ret_einval, 0);
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_analne(),
 		 reg_imm(adjust_head->off_max), ALU_OP_SUB, tmp);
 	emit_br(nfp_prog, BR_BLO, ret_einval, 0);
 
 	/* Validate the length is at least ETH_HLEN */
 	emit_alu(nfp_prog, tmp_len,
 		 plen_reg(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_analne(),
 		 tmp_len, ALU_OP_SUB, reg_imm(ETH_HLEN));
 	emit_br(nfp_prog, BR_BMI, ret_einval, 0);
 
@@ -1654,7 +1654,7 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	wrp_immed(nfp_prog, reg_both(1), 0);
 
 	/* Modify the packet metadata */
-	emit_ld_field(nfp_prog, pptr_reg(nfp_prog), 0x3, tmp, SHF_SC_NONE, 0);
+	emit_ld_field(nfp_prog, pptr_reg(nfp_prog), 0x3, tmp, SHF_SC_ANALNE, 0);
 
 	/* Skip over the -EINVAL ret code (defer 2) */
 	emit_br(nfp_prog, BR_UNC, end, 2);
@@ -1692,13 +1692,13 @@ static int adjust_tail(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	/* Calculate resulting length */
 	emit_alu(nfp_prog, plen, plen_reg(nfp_prog), ALU_OP_ADD, delta);
-	/* delta == 0 is not allowed by the kernel, add must overflow to make
+	/* delta == 0 is analt allowed by the kernel, add must overflow to make
 	 * length smaller.
 	 */
 	emit_br(nfp_prog, BR_BCC, ret_einval, 0);
 
 	/* if (new_len < 14) then -EINVAL */
-	emit_alu(nfp_prog, reg_none(), plen, ALU_OP_SUB, reg_imm(ETH_HLEN));
+	emit_alu(nfp_prog, reg_analne(), plen, ALU_OP_SUB, reg_imm(ETH_HLEN));
 	emit_br(nfp_prog, BR_BMI, ret_einval, 0);
 
 	emit_alu(nfp_prog, plen_reg(nfp_prog),
@@ -1729,7 +1729,7 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	u32 ret_tgt;
 	s64 lm_off;
 
-	/* We only have to reload LM0 if the key is not at start of stack */
+	/* We only have to reload LM0 if the key is analt at start of stack */
 	lm_off = nfp_prog->stack_frame_depth;
 	lm_off += meta->arg2.reg.var_off.value + meta->arg2.reg.off;
 	load_lm_ptr = meta->arg2.var_off || lm_off;
@@ -1758,7 +1758,7 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return 0;
 
 	emit_csr_wr(nfp_prog, stack_reg(nfp_prog), NFP_CSR_ACT_LM_ADDR0);
-	wrp_nops(nfp_prog, 3);
+	wrp_analps(nfp_prog, 3);
 
 	return 0;
 }
@@ -1808,8 +1808,8 @@ nfp_queue_select(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	jmp_tgt = nfp_prog_current_offset(nfp_prog) + 5;
 
 	/* Make sure the queue id fits into FW field */
-	emit_alu(nfp_prog, reg_none(), reg_a(meta->insn.src_reg * 2),
-		 ALU_OP_AND_NOT_B, reg_imm(0xff));
+	emit_alu(nfp_prog, reg_analne(), reg_a(meta->insn.src_reg * 2),
+		 ALU_OP_AND_ANALT_B, reg_imm(0xff));
 	emit_br(nfp_prog, BR_BEQ, jmp_tgt, 2);
 
 	/* Set the 'queue selected' bit and the queue value */
@@ -1818,13 +1818,13 @@ nfp_queue_select(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		 SHF_SC_L_SHF, PKT_VEL_QSEL_SET_BIT);
 	emit_ld_field(nfp_prog,
 		      pv_qsel_val(nfp_prog), 0x1, reg_b(meta->insn.src_reg * 2),
-		      SHF_SC_NONE, 0);
+		      SHF_SC_ANALNE, 0);
 	/* Delay slots end here, we will jump over next instruction if queue
 	 * value fits into the field.
 	 */
 	emit_ld_field(nfp_prog,
 		      pv_qsel_val(nfp_prog), 0x1, reg_imm(NFP_NET_RXR_MAX),
-		      SHF_SC_NONE, 0);
+		      SHF_SC_ANALNE, 0);
 
 	if (!nfp_prog_confirm_current_offset(nfp_prog, jmp_tgt))
 		return -EINVAL;
@@ -1965,8 +1965,8 @@ static int div_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int div_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	/* NOTE: verifier hook has rejected cases for which verifier doesn't
-	 * know whether the source operand is constant or not.
+	/* ANALTE: verifier hook has rejected cases for which verifier doesn't
+	 * kanalw whether the source operand is constant or analt.
 	 */
 	return wrp_div_imm(nfp_prog, meta->insn.dst_reg * 2, meta->umin_src);
 }
@@ -2000,15 +2000,15 @@ static int __shl_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 
 	if (shift_amt < 32) {
 		emit_shf(nfp_prog, reg_both(dst + 1), reg_a(dst + 1),
-			 SHF_OP_NONE, reg_b(dst), SHF_SC_R_DSHF,
+			 SHF_OP_ANALNE, reg_b(dst), SHF_SC_R_DSHF,
 			 32 - shift_amt);
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ANALNE,
 			 reg_b(dst), SHF_SC_L_SHF, shift_amt);
 	} else if (shift_amt == 32) {
 		wrp_reg_mov(nfp_prog, dst + 1, dst);
 		wrp_immed(nfp_prog, reg_both(dst), 0);
 	} else if (shift_amt > 32) {
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_analne(), SHF_OP_ANALNE,
 			 reg_b(dst), SHF_SC_L_SHF, shift_amt - 32);
 		wrp_immed(nfp_prog, reg_both(dst), 0);
 	}
@@ -2028,16 +2028,16 @@ static void shl_reg64_lt32_high(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
 	emit_alu(nfp_prog, imm_both(nfp_prog), reg_imm(32), ALU_OP_SUB,
 		 reg_b(src));
-	emit_alu(nfp_prog, reg_none(), imm_a(nfp_prog), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_a(dst + 1), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_analne(), imm_a(nfp_prog), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_a(dst + 1), SHF_OP_ANALNE,
 		       reg_b(dst), SHF_SC_R_DSHF);
 }
 
-/* NOTE: for indirect left shift, HIGH part should be calculated first. */
+/* ANALTE: for indirect left shift, HIGH part should be calculated first. */
 static void shl_reg64_lt32_low(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_analne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ANALNE,
 		       reg_b(dst), SHF_SC_L_SHF);
 }
 
@@ -2049,8 +2049,8 @@ static void shl_reg64_lt32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 
 static void shl_reg64_ge32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_analne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_analne(), SHF_OP_ANALNE,
 		       reg_b(dst), SHF_SC_L_SHF);
 	wrp_immed(nfp_prog, reg_both(dst), 0);
 }
@@ -2114,15 +2114,15 @@ static int __shr_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 		return 0;
 
 	if (shift_amt < 32) {
-		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_ANALNE,
 			 reg_b(dst), SHF_SC_R_DSHF, shift_amt);
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_analne(), SHF_OP_ANALNE,
 			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt);
 	} else if (shift_amt == 32) {
 		wrp_reg_mov(nfp_prog, dst, dst + 1);
 		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 	} else if (shift_amt > 32) {
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ANALNE,
 			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt - 32);
 		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 	}
@@ -2138,18 +2138,18 @@ static int shr_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return __shr_imm64(nfp_prog, dst, insn->imm);
 }
 
-/* NOTE: for indirect right shift, LOW part should be calculated first. */
+/* ANALTE: for indirect right shift, LOW part should be calculated first. */
 static void shr_reg64_lt32_high(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_analne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_analne(), SHF_OP_ANALNE,
 		       reg_b(dst + 1), SHF_SC_R_SHF);
 }
 
 static void shr_reg64_lt32_low(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_analne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_ANALNE,
 		       reg_b(dst), SHF_SC_R_DSHF);
 }
 
@@ -2161,8 +2161,8 @@ static void shr_reg64_lt32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 
 static void shr_reg64_ge32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_analne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ANALNE,
 		       reg_b(dst + 1), SHF_SC_R_SHF);
 	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 }
@@ -2218,24 +2218,24 @@ static int __ashr_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 		return 0;
 
 	if (shift_amt < 32) {
-		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_ANALNE,
 			 reg_b(dst), SHF_SC_R_DSHF, shift_amt);
 		/* Set signedness bit. */
-		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
+		emit_alu(nfp_prog, reg_analne(), reg_a(dst + 1), ALU_OP_OR,
 			 reg_imm(0));
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_analne(), SHF_OP_ASHR,
 			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt);
 	} else if (shift_amt == 32) {
-		/* NOTE: this also helps setting signedness bit. */
+		/* ANALTE: this also helps setting signedness bit. */
 		wrp_reg_mov(nfp_prog, dst, dst + 1);
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_analne(), SHF_OP_ASHR,
 			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
 	} else if (shift_amt > 32) {
-		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
+		emit_alu(nfp_prog, reg_analne(), reg_a(dst + 1), ALU_OP_OR,
 			 reg_imm(0));
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ASHR,
 			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt - 32);
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_analne(), SHF_OP_ASHR,
 			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
 	}
 
@@ -2252,17 +2252,17 @@ static int ashr_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static void ashr_reg64_lt32_high(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	/* NOTE: the first insn will set both indirect shift amount (source A)
+	/* ANALTE: the first insn will set both indirect shift amount (source A)
 	 * and signedness bit (MSB of result).
 	 */
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
-	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+	emit_alu(nfp_prog, reg_analne(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
+	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_analne(), SHF_OP_ASHR,
 		       reg_b(dst + 1), SHF_SC_R_SHF);
 }
 
 static void ashr_reg64_lt32_low(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	/* NOTE: it is the same as logic shift because we don't need to shift in
+	/* ANALTE: it is the same as logic shift because we don't need to shift in
 	 * signedness bit when the shift amount is less than 32.
 	 */
 	return shr_reg64_lt32_low(nfp_prog, dst, src);
@@ -2276,10 +2276,10 @@ static void ashr_reg64_lt32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 
 static void ashr_reg64_ge32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+	emit_alu(nfp_prog, reg_analne(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ASHR,
 		       reg_b(dst + 1), SHF_SC_R_SHF);
-	emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+	emit_shf(nfp_prog, reg_both(dst + 1), reg_analne(), SHF_OP_ASHR,
 		 reg_b(dst + 1), SHF_SC_R_SHF, 31);
 }
 
@@ -2429,9 +2429,9 @@ __ashr_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, u8 dst,
 {
 	if (shift_amt) {
 		/* Set signedness bit (MSB of result). */
-		emit_alu(nfp_prog, reg_none(), reg_a(dst), ALU_OP_OR,
+		emit_alu(nfp_prog, reg_analne(), reg_a(dst), ALU_OP_OR,
 			 reg_imm(0));
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ASHR,
 			 reg_b(dst), SHF_SC_R_SHF, shift_amt);
 	}
 	wrp_zext(nfp_prog, meta, dst);
@@ -2452,11 +2452,11 @@ static int ashr_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return __ashr_imm(nfp_prog, meta, dst, umin);
 
 	src = insn->src_reg * 2;
-	/* NOTE: the first insn will set both indirect shift amount (source A)
+	/* ANALTE: the first insn will set both indirect shift amount (source A)
 	 * and signedness bit (MSB of result).
 	 */
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+	emit_alu(nfp_prog, reg_analne(), reg_a(src), ALU_OP_OR, reg_b(dst));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ASHR,
 		       reg_b(dst), SHF_SC_R_SHF);
 	wrp_zext(nfp_prog, meta, dst);
 
@@ -2476,7 +2476,7 @@ __shr_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, u8 dst,
 	  u8 shift_amt)
 {
 	if (shift_amt)
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ANALNE,
 			 reg_b(dst), SHF_SC_R_SHF, shift_amt);
 	wrp_zext(nfp_prog, meta, dst);
 	return 0;
@@ -2503,8 +2503,8 @@ static int shr_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return __shr_imm(nfp_prog, meta, dst, umin);
 
 	src = insn->src_reg * 2;
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_analne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ANALNE,
 		       reg_b(dst), SHF_SC_R_SHF);
 	wrp_zext(nfp_prog, meta, dst);
 	return 0;
@@ -2515,7 +2515,7 @@ __shl_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, u8 dst,
 	  u8 shift_amt)
 {
 	if (shift_amt)
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_analne(), SHF_OP_ANALNE,
 			 reg_b(dst), SHF_SC_L_SHF, shift_amt);
 	wrp_zext(nfp_prog, meta, dst);
 	return 0;
@@ -2653,22 +2653,22 @@ static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	switch (meta->insn.off) {
 	case offsetof(struct __sk_buff, len):
 		if (size != sizeof_field(struct __sk_buff, len))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		wrp_mov(nfp_prog, dst, plen_reg(nfp_prog));
 		break;
 	case offsetof(struct __sk_buff, data):
 		if (size != sizeof_field(struct __sk_buff, data))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
 		break;
 	case offsetof(struct __sk_buff, data_end):
 		if (size != sizeof_field(struct __sk_buff, data_end))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		emit_alu(nfp_prog, dst,
 			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
@@ -2684,17 +2684,17 @@ static int mem_ldx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	switch (meta->insn.off) {
 	case offsetof(struct xdp_md, data):
 		if (size != sizeof_field(struct xdp_md, data))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
 		break;
 	case offsetof(struct xdp_md, data_end):
 		if (size != sizeof_field(struct xdp_md, data_end))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		emit_alu(nfp_prog, dst,
 			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
@@ -2744,7 +2744,7 @@ mem_ldx_data_init_pktcache(struct nfp_prog *nfp_prog,
 	indir = len > 8 * REG_WIDTH;
 	/* Setup PREV_ALU for indirect mode. */
 	if (indir)
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_analne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
 
 	/* Cache memory into transfer-in registers. */
@@ -2880,7 +2880,7 @@ mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	if (meta->ptr.type == PTR_TO_MAP_VALUE)
 		return mem_ldx_emem(nfp_prog, meta, size);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mem_ldx1(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -2922,7 +2922,7 @@ static int mem_st(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	if (meta->ptr.type == PTR_TO_PACKET)
 		return mem_st_data(nfp_prog, meta, size);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mem_st1(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -2974,7 +2974,7 @@ static int mem_stx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	}
 
 	WARN_ON_ONCE(1); /* verifier should have rejected bad accesses */
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -2988,7 +2988,7 @@ mem_stx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		return mem_stx_stack(nfp_prog, meta, size,
 				     meta->ptr.off + meta->ptr.var_off.value);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mem_stx1(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -3024,7 +3024,7 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 
 	off = ur_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
 
-	/* We can fit 16 bits into command immediate, if we know the immediate
+	/* We can fit 16 bits into command immediate, if we kanalw the immediate
 	 * is guaranteed to either always or never fit into 16 bit we only
 	 * generate code to handle that particular case, otherwise generate
 	 * code for both.
@@ -3052,9 +3052,9 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 		swreg max_imm = imm_a(nfp_prog);
 
 		wrp_immed(nfp_prog, max_imm, 0xffff);
-		emit_alu(nfp_prog, reg_none(),
+		emit_alu(nfp_prog, reg_analne(),
 			 max_imm, ALU_OP_SUB, reg_b(src_gpr));
-		emit_alu(nfp_prog, reg_none(),
+		emit_alu(nfp_prog, reg_analne(),
 			 reg_imm(0), ALU_OP_SUB_C, reg_b(src_gpr + 1));
 		emit_br(nfp_prog, BR_BLO, full_add, meta->insn.off ? 2 : 0);
 		/* defer for add */
@@ -3083,7 +3083,7 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 			  FIELD_PREP(CMD_OV_LEN, 0x8 | is64 << 2));
 		wrp_reg_or_subpart(nfp_prog, prev_alu, reg_b(src_gpr), 2, 2);
 		emit_cmd_indir(nfp_prog, CMD_TGT_ADD_IMM, CMD_MODE_40b_BA, 0,
-			       addra, addrb, 0, CMD_CTX_NO_SWAP);
+			       addra, addrb, 0, CMD_CTX_ANAL_SWAP);
 
 		if (meta->xadd_over_16bit)
 			emit_br(nfp_prog, BR_UNC, out, 0);
@@ -3092,7 +3092,7 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 	if (!nfp_prog_confirm_current_offset(nfp_prog, full_add))
 		return -EINVAL;
 
-	/* Generate the add if 16 bits are not guaranteed */
+	/* Generate the add if 16 bits are analt guaranteed */
 	if (meta->xadd_over_16bit) {
 		emit_cmd(nfp_prog, CMD_TGT_ADD, CMD_MODE_40b_BA, 0,
 			 addra, addrb, is64 << 2,
@@ -3112,7 +3112,7 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 static int mem_atomic4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	if (meta->insn.imm != BPF_ADD)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mem_xadd(nfp_prog, meta, false);
 }
@@ -3120,7 +3120,7 @@ static int mem_atomic4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int mem_atomic8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	if (meta->insn.imm != BPF_ADD)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mem_xadd(nfp_prog, meta, true);
 }
@@ -3155,7 +3155,7 @@ static int jeq_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		or2 = imm_b(nfp_prog);
 	}
 
-	emit_alu(nfp_prog, reg_none(), or1, ALU_OP_OR, or2);
+	emit_alu(nfp_prog, reg_analne(), or1, ALU_OP_OR, or2);
 	emit_br(nfp_prog, BR_BEQ, insn->off, 0);
 
 	return 0;
@@ -3167,7 +3167,7 @@ static int jeq32_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	swreg tmp_reg;
 
 	tmp_reg = ur_load_imm_any(nfp_prog, insn->imm, imm_b(nfp_prog));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_analne(),
 		 reg_a(insn->dst_reg * 2), ALU_OP_XOR, tmp_reg);
 	emit_br(nfp_prog, BR_BEQ, insn->off, 0);
 
@@ -3185,10 +3185,10 @@ static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	emit_alu(nfp_prog, imm_b(nfp_prog),
 		 reg_a(dst_gpr), ALU_OP_AND, tmp_reg);
 	/* Upper word of the mask can only be 0 or ~0 from sign extension,
-	 * so either ignore it or OR the whole thing in.
+	 * so either iganalre it or OR the whole thing in.
 	 */
 	if (is_mbpf_jmp64(meta) && imm >> 32) {
-		emit_alu(nfp_prog, reg_none(),
+		emit_alu(nfp_prog, reg_analne(),
 			 reg_a(dst_gpr + 1), ALU_OP_OR, imm_b(nfp_prog));
 	}
 	emit_br(nfp_prog, BR_BNE, insn->off, 0);
@@ -3205,17 +3205,17 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	if (!imm) {
 		if (is_jmp32)
-			emit_alu(nfp_prog, reg_none(), reg_none(), ALU_OP_NONE,
+			emit_alu(nfp_prog, reg_analne(), reg_analne(), ALU_OP_ANALNE,
 				 reg_b(insn->dst_reg * 2));
 		else
-			emit_alu(nfp_prog, reg_none(), reg_a(insn->dst_reg * 2),
+			emit_alu(nfp_prog, reg_analne(), reg_a(insn->dst_reg * 2),
 				 ALU_OP_OR, reg_b(insn->dst_reg * 2 + 1));
 		emit_br(nfp_prog, BR_BNE, insn->off, 0);
 		return 0;
 	}
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_analne(),
 		 reg_a(insn->dst_reg * 2), ALU_OP_XOR, tmp_reg);
 	emit_br(nfp_prog, BR_BNE, insn->off, 0);
 
@@ -3223,7 +3223,7 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return 0;
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm >> 32, imm_b(nfp_prog));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_analne(),
 		 reg_a(insn->dst_reg * 2 + 1), ALU_OP_XOR, tmp_reg);
 	emit_br(nfp_prog, BR_BNE, insn->off, 0);
 
@@ -3240,7 +3240,7 @@ static int jeq_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		emit_alu(nfp_prog, imm_b(nfp_prog),
 			 reg_a(insn->dst_reg * 2 + 1), ALU_OP_XOR,
 			 reg_b(insn->src_reg * 2 + 1));
-		emit_alu(nfp_prog, reg_none(), imm_a(nfp_prog), ALU_OP_OR,
+		emit_alu(nfp_prog, reg_analne(), imm_a(nfp_prog), ALU_OP_OR,
 			 imm_b(nfp_prog));
 	}
 	emit_br(nfp_prog, BR_BEQ, insn->off, 0);
@@ -3281,7 +3281,7 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	 *
 	 * - If callee uses and needs to save R6~R9 then:
 	 *     1. Put the start offset of the callee into imm_b(). This will
-	 *        require a fixup step, as we do not necessarily know this
+	 *        require a fixup step, as we do analt necessarily kanalw this
 	 *        address yet.
 	 *     2. Put the return address from the callee to the caller into
 	 *        register ret_reg().
@@ -3290,7 +3290,7 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	 *   The subroutine acts as a trampoline, and returns to the address in
 	 *   imm_b(), i.e. jumps to the callee.
 	 *
-	 * - If callee does not need to save R6~R9 then just load return
+	 * - If callee does analt need to save R6~R9 then just load return
 	 *   address to the caller in ret_reg(), and jump to the callee
 	 *   directly.
 	 *
@@ -3302,14 +3302,14 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	 * - It looks cleaner.
 	 * - If the called function is called multiple time, we get a lower
 	 *   program size.
-	 * - We save two no-op instructions that should be added just before
-	 *   the emit_br() when stack depth is not null otherwise.
+	 * - We save two anal-op instructions that should be added just before
+	 *   the emit_br() when stack depth is analt null otherwise.
 	 * - If we ever find a register to hold the return address during whole
-	 *   execution of the callee, we will not have to push the return
+	 *   execution of the callee, we will analt have to push the return
 	 *   address to the stack for leaf functions.
 	 */
 	if (!meta->jmp_dst) {
-		pr_err("BUG: BPF-to-BPF call has no destination recorded\n");
+		pr_err("BUG: BPF-to-BPF call has anal destination recorded\n");
 		return -ELOOP;
 	}
 	if (nfp_prog->subprog[meta->jmp_dst->subprog_idx].needs_reg_push) {
@@ -3335,7 +3335,7 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			 stack_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
 		emit_csr_wr(nfp_prog, stack_reg(nfp_prog),
 			    NFP_CSR_ACT_LM_ADDR0);
-		wrp_nops(nfp_prog, 3);
+		wrp_analps(nfp_prog, 3);
 	}
 
 	meta->num_insns_after_br = nfp_prog_current_offset(nfp_prog);
@@ -3361,7 +3361,7 @@ static int helper_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return nfp_perf_event_output(nfp_prog, meta);
 	default:
 		WARN_ONCE(1, "verifier allowed unsupported function\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3391,7 +3391,7 @@ nfp_subprog_epilogue(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	if (nfp_prog->subprog[meta->subprog_idx].needs_reg_push) {
 		/* Pop R6~R9 to the stack via related subroutine.
 		 * We loaded the return address to the caller into ret_reg().
-		 * This means that the subroutine does not come back here, we
+		 * This means that the subroutine does analt come back here, we
 		 * make it jump back to the subprogram caller directly!
 		 */
 		emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 1,
@@ -3401,7 +3401,7 @@ nfp_subprog_epilogue(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	} else {
 		/* Pop return address from the stack. */
 		wrp_mov(nfp_prog, ret_reg(nfp_prog), reg_lm(0, 0));
-		/* Jump back to caller if no callee-saved registers were used
+		/* Jump back to caller if anal callee-saved registers were used
 		 * by the subprogram.
 		 */
 		emit_rtn(nfp_prog, ret_reg(nfp_prog), 0);
@@ -3582,7 +3582,7 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 			br_idx -= meta->num_insns_after_br;
 
 		if (!nfp_is_br(nfp_prog->prog[br_idx])) {
-			pr_err("Fixup found block not ending in branch %d %02x %016llx!!\n",
+			pr_err("Fixup found block analt ending in branch %d %02x %016llx!!\n",
 			       br_idx, meta->insn.code, nfp_prog->prog[br_idx]);
 			return -ELOOP;
 		}
@@ -3596,7 +3596,7 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 			continue;
 
 		if (!meta->jmp_dst) {
-			pr_err("Non-exit jump doesn't have destination info recorded!!\n");
+			pr_err("Analn-exit jump doesn't have destination info recorded!!\n");
 			return -ELOOP;
 		}
 
@@ -3660,7 +3660,7 @@ bool nfp_is_subprog_start(struct nfp_insn_meta *meta)
 static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 {
 	/* TC direct-action mode:
-	 *   0,1   ok        NOT SUPPORTED[1]
+	 *   0,1   ok        ANALT SUPPORTED[1]
 	 *   2   drop  0x22 -> drop,  count as stat1
 	 *   4,5 nuke  0x02 -> drop
 	 *   7  redir  0x44 -> redir, count as stat2
@@ -3679,11 +3679,11 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x11), SHF_SC_L_SHF, 16);
 
-	/* Target for normal exits */
+	/* Target for analrmal exits */
 	nfp_prog->tgt_out = nfp_prog_current_offset(nfp_prog);
 
 	/* if R0 > 7 jump to abort */
-	emit_alu(nfp_prog, reg_none(), reg_imm(7), ALU_OP_SUB, reg_b(0));
+	emit_alu(nfp_prog, reg_analne(), reg_imm(7), ALU_OP_SUB, reg_b(0));
 	emit_br(nfp_prog, BR_BLO, nfp_prog->tgt_abort, 0);
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 
@@ -3691,13 +3691,13 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	wrp_immed(nfp_prog, reg_b(3), 0x41001211);
 
 	emit_shf(nfp_prog, reg_a(1),
-		 reg_none(), SHF_OP_NONE, reg_b(0), SHF_SC_L_SHF, 2);
+		 reg_analne(), SHF_OP_ANALNE, reg_b(0), SHF_SC_L_SHF, 2);
 
-	emit_alu(nfp_prog, reg_none(), reg_a(1), ALU_OP_OR, reg_imm(0));
+	emit_alu(nfp_prog, reg_analne(), reg_a(1), ALU_OP_OR, reg_imm(0));
 	emit_shf(nfp_prog, reg_a(2),
 		 reg_imm(0xf), SHF_OP_AND, reg_b(2), SHF_SC_R_SHF, 0);
 
-	emit_alu(nfp_prog, reg_none(), reg_a(1), ALU_OP_OR, reg_imm(0));
+	emit_alu(nfp_prog, reg_analne(), reg_a(1), ALU_OP_OR, reg_imm(0));
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_imm(0xf), SHF_OP_AND, reg_b(3), SHF_SC_R_SHF, 0);
 
@@ -3715,7 +3715,7 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 	 *   1    drop  0x22 -> drop,  count as stat1
 	 *   2    pass  0x11 -> pass,  count as stat0
 	 *   3      tx  0x44 -> redir, count as stat2
-	 *   * unknown  0x82 -> drop,  count as stat3
+	 *   * unkanalwn  0x82 -> drop,  count as stat3
 	 */
 	/* Target for aborts */
 	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
@@ -3725,19 +3725,19 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x82), SHF_SC_L_SHF, 16);
 
-	/* Target for normal exits */
+	/* Target for analrmal exits */
 	nfp_prog->tgt_out = nfp_prog_current_offset(nfp_prog);
 
 	/* if R0 > 3 jump to abort */
-	emit_alu(nfp_prog, reg_none(), reg_imm(3), ALU_OP_SUB, reg_b(0));
+	emit_alu(nfp_prog, reg_analne(), reg_imm(3), ALU_OP_SUB, reg_b(0));
 	emit_br(nfp_prog, BR_BLO, nfp_prog->tgt_abort, 0);
 
 	wrp_immed(nfp_prog, reg_b(2), 0x44112282);
 
 	emit_shf(nfp_prog, reg_a(1),
-		 reg_none(), SHF_OP_NONE, reg_b(0), SHF_SC_L_SHF, 3);
+		 reg_analne(), SHF_OP_ANALNE, reg_b(0), SHF_SC_L_SHF, 3);
 
-	emit_alu(nfp_prog, reg_none(), reg_a(1), ALU_OP_OR, reg_imm(0));
+	emit_alu(nfp_prog, reg_analne(), reg_a(1), ALU_OP_OR, reg_imm(0));
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_imm(0xff), SHF_OP_AND, reg_b(2), SHF_SC_R_SHF, 0);
 
@@ -3861,7 +3861,7 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 		    nfp_meta_prev(meta)->double_cb)
 			cb = nfp_meta_prev(meta)->double_cb;
 		if (!cb)
-			return -ENOENT;
+			return -EANALENT;
 		err = cb(nfp_prog, meta);
 		if (err)
 			return err;
@@ -3877,7 +3877,7 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
-	wrp_nops(nfp_prog, NFP_USTORE_PREFETCH_WINDOW);
+	wrp_analps(nfp_prog, NFP_USTORE_PREFETCH_WINDOW);
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
@@ -3897,7 +3897,7 @@ static void nfp_bpf_opt_reg_init(struct nfp_prog *nfp_prog)
 		    insn.src_reg == insn.dst_reg)
 			continue;
 
-		/* Programs start with R6 = R1 but we ignore the skb pointer */
+		/* Programs start with R6 = R1 but we iganalre the skb pointer */
 		if (insn.code == (BPF_ALU64 | BPF_MOV | BPF_X) &&
 		    insn.src_reg == 1 && insn.dst_reg == 6)
 			meta->flags |= FLAG_INSN_SKIP_PREC_DEPENDENT;
@@ -3954,7 +3954,7 @@ static void nfp_bpf_opt_neg_add_sub(struct nfp_prog *nfp_prog)
 	}
 }
 
-/* Remove masking after load since our load guarantees this is not needed */
+/* Remove masking after load since our load guarantees this is analt needed */
 static void nfp_bpf_opt_ld_mask(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta1, *meta2;
@@ -4080,7 +4080,7 @@ curr_pair_is_memcpy(struct nfp_insn_meta *ld_meta,
  *  - Their address base registers are the same.
  *  - Their address offsets are in the same order.
  *  - They operate at the same memory width.
- *  - There is no jump into the middle of them.
+ *  - There is anal jump into the middle of them.
  */
 static bool
 curr_pair_chain_with_previous(struct nfp_insn_meta *ld_meta,
@@ -4142,7 +4142,7 @@ cross_mem_access(struct bpf_insn *ld, struct nfp_insn_meta *head_ld_meta,
 {
 	s16 head_ld_off, head_st_off, ld_off;
 
-	/* Different pointer types does not overlap. */
+	/* Different pointer types does analt overlap. */
 	if (head_ld_meta->ptr.type != head_st_meta->ptr.type)
 		return false;
 
@@ -4150,7 +4150,7 @@ cross_mem_access(struct bpf_insn *ld, struct nfp_insn_meta *head_ld_meta,
 	if (head_ld_meta->ptr.id != head_st_meta->ptr.id)
 		return true;
 
-	/* Canonicalize the offsets. Turn all of them against the original
+	/* Caanalnicalize the offsets. Turn all of them against the original
 	 * base register.
 	 */
 	head_ld_off = head_ld_meta->insn.off + head_ld_meta->ptr.off;
@@ -4197,7 +4197,7 @@ static void nfp_bpf_opt_ldst_gather(struct nfp_prog *nfp_prog)
 		struct bpf_insn *st = &meta2->insn;
 
 		/* Reset record status if any of the following if true:
-		 *   - The current insn pair is not load/store.
+		 *   - The current insn pair is analt load/store.
 		 *   - The load/store pair doesn't chain with previous one.
 		 *   - The chained load/store pair crossed with previous pair.
 		 *   - The chained load/store pair has a total size of memory
@@ -4275,7 +4275,7 @@ static void nfp_bpf_opt_ldst_gather(struct nfp_prog *nfp_prog)
 
 static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
 {
-	struct nfp_insn_meta *meta, *range_node = NULL;
+	struct nfp_insn_meta *meta, *range_analde = NULL;
 	s16 range_start = 0, range_end = 0;
 	bool cache_avail = false;
 	struct bpf_insn *insn;
@@ -4309,7 +4309,7 @@ static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
 
 		if (!cache_avail) {
 			cache_avail = true;
-			if (range_node)
+			if (range_analde)
 				goto end_current_then_start_new;
 			goto start_new;
 		}
@@ -4321,7 +4321,7 @@ static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
 		 *
 		 * OFFs don't really need to be the same, because they
 		 * are the constant offsets against PTR_TO_PACKET, so
-		 * for different OFFs, we could canonicalize them to
+		 * for different OFFs, we could caanalnicalize them to
 		 * offsets against original packet pointer. We don't
 		 * support this.
 		 */
@@ -4355,20 +4355,20 @@ static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
 		}
 
 end_current_then_start_new:
-		range_node->pkt_cache.range_start = range_start;
-		range_node->pkt_cache.range_end = range_end;
+		range_analde->pkt_cache.range_start = range_start;
+		range_analde->pkt_cache.range_end = range_end;
 start_new:
-		range_node = meta;
-		range_node->pkt_cache.do_init = true;
-		range_ptr_id = range_node->ptr.id;
-		range_ptr_off = range_node->ptr.off;
+		range_analde = meta;
+		range_analde->pkt_cache.do_init = true;
+		range_ptr_id = range_analde->ptr.id;
+		range_ptr_off = range_analde->ptr.off;
 		range_start = insn->off;
 		range_end = insn->off + BPF_LDST_BYTES(insn);
 	}
 
-	if (range_node) {
-		range_node->pkt_cache.range_start = range_start;
-		range_node->pkt_cache.range_end = range_end;
+	if (range_analde) {
+		range_analde->pkt_cache.range_start = range_start;
+		range_analde->pkt_cache.range_end = range_end;
 	}
 
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
@@ -4440,7 +4440,7 @@ static int nfp_bpf_ustore_calc(u64 *prog, unsigned int len)
 	for (i = 0; i < len; i++) {
 		int err;
 
-		err = nfp_ustore_check_valid_no_ecc(prog[i]);
+		err = nfp_ustore_check_valid_anal_ecc(prog[i]);
 		if (err)
 			return err;
 
@@ -4492,7 +4492,7 @@ void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta;
 
-	/* Another pass to record jump information. */
+	/* Aanalther pass to record jump information. */
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
 		struct nfp_insn_meta *dst_meta;
 		u64 code = meta->insn.code;
@@ -4540,7 +4540,7 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 	prog = kmemdup(nfp_prog->prog, nfp_prog->prog_len * sizeof(u64),
 		       GFP_KERNEL);
 	if (!prog)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < nfp_prog->prog_len; i++) {
 		enum nfp_relo_type special;
@@ -4549,7 +4549,7 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 
 		special = FIELD_GET(OP_RELO_TYPE, prog[i]);
 		switch (special) {
-		case RELO_NONE:
+		case RELO_ANALNE:
 			continue;
 		case RELO_BR_REL:
 			br_add_offset(&prog[i], bv->start_off);
@@ -4600,7 +4600,7 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 				val = nfp_prog->bpf->helpers.perf_event_output;
 				break;
 			default:
-				pr_err("relocation of unknown helper %d\n",
+				pr_err("relocation of unkanalwn helper %d\n",
 				       val);
 				err = -EINVAL;
 				goto err_free_prog;

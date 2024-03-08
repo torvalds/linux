@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/pkt_sched.h>
 #include <net/sch_generic.h>
@@ -74,7 +74,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (tb[TCA_DRR_QUANTUM]) {
 		quantum = nla_get_u32(tb[TCA_DRR_QUANTUM]);
 		if (quantum == 0) {
-			NL_SET_ERR_MSG(extack, "Specified DRR quantum cannot be zero");
+			NL_SET_ERR_MSG(extack, "Specified DRR quantum cananalt be zero");
 			return -EINVAL;
 		}
 	} else
@@ -102,7 +102,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 
 	cl = kzalloc(sizeof(struct drr_class), GFP_KERNEL);
 	if (cl == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	gnet_stats_basic_sync_init(&cl->bstats);
 	cl->common.classid = classid;
@@ -111,7 +111,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 					       &pfifo_qdisc_ops, classid,
 					       NULL);
 	if (cl->qdisc == NULL)
-		cl->qdisc = &noop_qdisc;
+		cl->qdisc = &analop_qdisc;
 	else
 		qdisc_hash_add(cl->qdisc, true);
 
@@ -211,7 +211,7 @@ static int drr_graft_class(struct Qdisc *sch, unsigned long arg,
 		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					cl->common.classid, NULL);
 		if (new == NULL)
-			new = &noop_qdisc;
+			new = &analop_qdisc;
 	}
 
 	*old = qdisc_replace(sch, new, &cl->qdisc);
@@ -225,7 +225,7 @@ static struct Qdisc *drr_class_leaf(struct Qdisc *sch, unsigned long arg)
 	return cl->qdisc;
 }
 
-static void drr_qlen_notify(struct Qdisc *csh, unsigned long arg)
+static void drr_qlen_analtify(struct Qdisc *csh, unsigned long arg)
 {
 	struct drr_class *cl = (struct drr_class *)arg;
 
@@ -242,7 +242,7 @@ static int drr_dump_class(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle	= cl->common.classid;
 	tcm->tcm_info	= cl->qdisc->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put_u32(skb, TCA_DRR_QUANTUM, cl->quantum))
@@ -284,7 +284,7 @@ static void drr_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 		return;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hanalde) {
 			if (!tc_qdisc_stats_dump(sch, (unsigned long)cl, arg))
 				return;
 		}
@@ -379,7 +379,7 @@ static struct sk_buff *drr_dequeue(struct Qdisc *sch)
 		cl = list_first_entry(&q->active, struct drr_class, alist);
 		skb = cl->qdisc->ops->peek(cl->qdisc);
 		if (skb == NULL) {
-			qdisc_warn_nonwc(__func__, cl->qdisc);
+			qdisc_warn_analnwc(__func__, cl->qdisc);
 			goto out;
 		}
 
@@ -429,7 +429,7 @@ static void drr_reset_qdisc(struct Qdisc *sch)
 	unsigned int i;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hanalde) {
 			if (cl->qdisc->q.qlen)
 				list_del(&cl->alist);
 			qdisc_reset(cl->qdisc);
@@ -441,14 +441,14 @@ static void drr_destroy_qdisc(struct Qdisc *sch)
 {
 	struct drr_sched *q = qdisc_priv(sch);
 	struct drr_class *cl;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	unsigned int i;
 
 	tcf_block_put(q->block);
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[i],
-					  common.hnode)
+					  common.hanalde)
 			drr_destroy_class(sch, cl);
 	}
 	qdisc_class_hash_destroy(&q->clhash);
@@ -463,7 +463,7 @@ static const struct Qdisc_class_ops drr_class_ops = {
 	.unbind_tcf	= drr_unbind_tcf,
 	.graft		= drr_graft_class,
 	.leaf		= drr_class_leaf,
-	.qlen_notify	= drr_qlen_notify,
+	.qlen_analtify	= drr_qlen_analtify,
 	.dump		= drr_dump_class,
 	.dump_stats	= drr_dump_class_stats,
 	.walk		= drr_walk,

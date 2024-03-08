@@ -18,7 +18,7 @@
 	};
 
 	lcd0: display {
-		compatible = "innolux,at070tn83", "panel-dpi";
+		compatible = "inanallux,at070tn83", "panel-dpi";
 		label = "lcd";
 		panel-timing {
 			clock-frequency = <33333333>;

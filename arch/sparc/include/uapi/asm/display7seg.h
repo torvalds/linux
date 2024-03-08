@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *
  * display7seg - Driver interface for the 7-segment display
@@ -22,7 +22,7 @@
  *
  * POINT	- Toggle decimal point	(0=absent 1=present)
  * ALARM	- Toggle alarm LED 		(0=green  1=red)
- * FLIP		- Toggle inverted mode 	(0=normal 1=flipped)
+ * FLIP		- Toggle inverted mode 	(0=analrmal 1=flipped)
  * bits 0-4	- Character displayed	(see definitions below)
  *
  * Display segments are defined as follows,

@@ -17,9 +17,9 @@
 #define NBUGINTS			2	   /* N 32-bit bug flags */
 
 /*
- * Note: If the comment begins with a quoted string, that string is used
+ * Analte: If the comment begins with a quoted string, that string is used
  * in /proc/cpuinfo instead of the macro name.  If the string is "",
- * this feature bit is not displayed in /proc/cpuinfo at all.
+ * this feature bit is analt displayed in /proc/cpuinfo at all.
  *
  * When adding new features here that depend on other features,
  * please update the table in kernel/cpu/cpuid-deps.c as well.
@@ -51,7 +51,7 @@
 #define X86_FEATURE_FXSR		( 0*32+24) /* FXSAVE/FXRSTOR, CR4.OSFXSR */
 #define X86_FEATURE_XMM			( 0*32+25) /* "sse" */
 #define X86_FEATURE_XMM2		( 0*32+26) /* "sse2" */
-#define X86_FEATURE_SELFSNOOP		( 0*32+27) /* "ss" CPU self snoop */
+#define X86_FEATURE_SELFSANALOP		( 0*32+27) /* "ss" CPU self sanalop */
 #define X86_FEATURE_HT			( 0*32+28) /* Hyper-Threading */
 #define X86_FEATURE_ACC			( 0*32+29) /* "tm" Automatic clock control */
 #define X86_FEATURE_IA64		( 0*32+30) /* IA-64 processor */
@@ -67,8 +67,8 @@
 #define X86_FEATURE_GBPAGES		( 1*32+26) /* "pdpe1gb" GB pages */
 #define X86_FEATURE_RDTSCP		( 1*32+27) /* RDTSCP */
 #define X86_FEATURE_LM			( 1*32+29) /* Long Mode (x86-64, 64-bit support) */
-#define X86_FEATURE_3DNOWEXT		( 1*32+30) /* AMD 3DNow extensions */
-#define X86_FEATURE_3DNOW		( 1*32+31) /* 3DNow */
+#define X86_FEATURE_3DANALWEXT		( 1*32+30) /* AMD 3DAnalw extensions */
+#define X86_FEATURE_3DANALW		( 1*32+31) /* 3DAnalw */
 
 /* Transmeta-defined CPU features, CPUID level 0x80860001, word 2 */
 #define X86_FEATURE_RECOVERY		( 2*32+ 0) /* CPU in recovery mode */
@@ -78,7 +78,7 @@
 /* Other features, Linux-defined mapping, word 3 */
 /* This range is used for feature bits which conflict or are synthesized */
 #define X86_FEATURE_CXMMX		( 3*32+ 0) /* Cyrix MMX extensions */
-#define X86_FEATURE_K6_MTRR		( 3*32+ 1) /* AMD K6 nonstandard MTRRs */
+#define X86_FEATURE_K6_MTRR		( 3*32+ 1) /* AMD K6 analnstandard MTRRs */
 #define X86_FEATURE_CYRIX_ARR		( 3*32+ 2) /* Cyrix ARRs (= MTRRs) */
 #define X86_FEATURE_CENTAUR_MCR		( 3*32+ 3) /* Centaur MCRs (= MTRRs) */
 
@@ -99,18 +99,18 @@
 #define X86_FEATURE_AMD_LBR_V2		( 3*32+17) /* AMD Last Branch Record Extension Version 2 */
 /* FREE, was #define X86_FEATURE_LFENCE_RDTSC		( 3*32+18) "" LFENCE synchronizes RDTSC */
 #define X86_FEATURE_ACC_POWER		( 3*32+19) /* AMD Accumulated Power Mechanism */
-#define X86_FEATURE_NOPL		( 3*32+20) /* The NOPL (0F 1F) instructions */
+#define X86_FEATURE_ANALPL		( 3*32+20) /* The ANALPL (0F 1F) instructions */
 #define X86_FEATURE_ALWAYS		( 3*32+21) /* "" Always-present feature */
 #define X86_FEATURE_XTOPOLOGY		( 3*32+22) /* CPU topology enum extensions */
-#define X86_FEATURE_TSC_RELIABLE	( 3*32+23) /* TSC is known to be reliable */
-#define X86_FEATURE_NONSTOP_TSC		( 3*32+24) /* TSC does not stop in C states */
+#define X86_FEATURE_TSC_RELIABLE	( 3*32+23) /* TSC is kanalwn to be reliable */
+#define X86_FEATURE_ANALNSTOP_TSC		( 3*32+24) /* TSC does analt stop in C states */
 #define X86_FEATURE_CPUID		( 3*32+25) /* CPU has CPUID instruction itself */
 #define X86_FEATURE_EXTD_APICID		( 3*32+26) /* Extended APICID (8 bits) */
-#define X86_FEATURE_AMD_DCM		( 3*32+27) /* AMD multi-node processor */
+#define X86_FEATURE_AMD_DCM		( 3*32+27) /* AMD multi-analde processor */
 #define X86_FEATURE_APERFMPERF		( 3*32+28) /* P-State hardware coordination feedback capability (APERF/MPERF MSRs) */
 #define X86_FEATURE_RAPL		( 3*32+29) /* AMD/Hygon RAPL interface */
-#define X86_FEATURE_NONSTOP_TSC_S3	( 3*32+30) /* TSC doesn't stop in S3 state */
-#define X86_FEATURE_TSC_KNOWN_FREQ	( 3*32+31) /* TSC has known frequency */
+#define X86_FEATURE_ANALNSTOP_TSC_S3	( 3*32+30) /* TSC doesn't stop in S3 state */
+#define X86_FEATURE_TSC_KANALWN_FREQ	( 3*32+31) /* TSC has kanalwn frequency */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ECX), word 4 */
 #define X86_FEATURE_XMM3		( 4*32+ 0) /* "pni" SSE-3 */
@@ -159,14 +159,14 @@
 
 /* More extended AMD flags: CPUID level 0x80000001, ECX, word 6 */
 #define X86_FEATURE_LAHF_LM		( 6*32+ 0) /* LAHF/SAHF in long mode */
-#define X86_FEATURE_CMP_LEGACY		( 6*32+ 1) /* If yes HyperThreading not valid */
+#define X86_FEATURE_CMP_LEGACY		( 6*32+ 1) /* If anal HyperThreading analt valid */
 #define X86_FEATURE_SVM			( 6*32+ 2) /* Secure Virtual Machine */
 #define X86_FEATURE_EXTAPIC		( 6*32+ 3) /* Extended APIC space */
 #define X86_FEATURE_CR8_LEGACY		( 6*32+ 4) /* CR8 in 32-bit mode */
 #define X86_FEATURE_ABM			( 6*32+ 5) /* Advanced bit manipulation */
 #define X86_FEATURE_SSE4A		( 6*32+ 6) /* SSE-4A */
 #define X86_FEATURE_MISALIGNSSE		( 6*32+ 7) /* Misaligned SSE mode */
-#define X86_FEATURE_3DNOWPREFETCH	( 6*32+ 8) /* 3DNow prefetch instructions */
+#define X86_FEATURE_3DANALWPREFETCH	( 6*32+ 8) /* 3DAnalw prefetch instructions */
 #define X86_FEATURE_OSVW		( 6*32+ 9) /* OS Visible Workaround */
 #define X86_FEATURE_IBS			( 6*32+10) /* Instruction Based Sampling */
 #define X86_FEATURE_XOP			( 6*32+11) /* extended AVX instructions */
@@ -175,7 +175,7 @@
 #define X86_FEATURE_LWP			( 6*32+15) /* Light Weight Profiling */
 #define X86_FEATURE_FMA4		( 6*32+16) /* 4 operands MAC instructions */
 #define X86_FEATURE_TCE			( 6*32+17) /* Translation Cache Extension */
-#define X86_FEATURE_NODEID_MSR		( 6*32+19) /* NodeId MSR */
+#define X86_FEATURE_ANALDEID_MSR		( 6*32+19) /* AnaldeId MSR */
 #define X86_FEATURE_TBM			( 6*32+21) /* Trailing Bit Manipulations */
 #define X86_FEATURE_TOPOEXT		( 6*32+22) /* Topology extensions CPUID leafs */
 #define X86_FEATURE_PERFCTR_CORE	( 6*32+23) /* Core performance counter extensions */
@@ -195,8 +195,8 @@
 #define X86_FEATURE_CPUID_FAULT		( 7*32+ 1) /* Intel CPUID faulting */
 #define X86_FEATURE_CPB			( 7*32+ 2) /* AMD Core Performance Boost */
 #define X86_FEATURE_EPB			( 7*32+ 3) /* IA32_ENERGY_PERF_BIAS support */
-#define X86_FEATURE_CAT_L3		( 7*32+ 4) /* Cache Allocation Technology L3 */
-#define X86_FEATURE_CAT_L2		( 7*32+ 5) /* Cache Allocation Technology L2 */
+#define X86_FEATURE_CAT_L3		( 7*32+ 4) /* Cache Allocation Techanallogy L3 */
+#define X86_FEATURE_CAT_L2		( 7*32+ 5) /* Cache Allocation Techanallogy L2 */
 #define X86_FEATURE_CDP_L3		( 7*32+ 6) /* Code and Data Prioritization L3 */
 #define X86_FEATURE_TDX_HOST_PLATFORM	( 7*32+ 7) /* Platform supports being a TDX host */
 #define X86_FEATURE_HW_PSTATE		( 7*32+ 8) /* AMD HW-PState */
@@ -255,7 +255,7 @@
 #define X86_FEATURE_CQM			( 9*32+12) /* Cache QoS Monitoring */
 #define X86_FEATURE_ZERO_FCS_FDS	( 9*32+13) /* "" Zero out FPU CS and FPU DS */
 #define X86_FEATURE_MPX			( 9*32+14) /* Memory Protection Extension */
-#define X86_FEATURE_RDT_A		( 9*32+15) /* Resource Director Technology Allocation */
+#define X86_FEATURE_RDT_A		( 9*32+15) /* Resource Director Techanallogy Allocation */
 #define X86_FEATURE_AVX512F		( 9*32+16) /* AVX-512 Foundation */
 #define X86_FEATURE_AVX512DQ		( 9*32+17) /* AVX-512 DQ (Double/Quad granular) Instructions */
 #define X86_FEATURE_RDSEED		( 9*32+18) /* RDSEED instruction */
@@ -336,7 +336,7 @@
 #define X86_FEATURE_IRPERF		(13*32+ 1) /* Instructions Retired Count */
 #define X86_FEATURE_XSAVEERPTR		(13*32+ 2) /* Always save/restore FP error pointers */
 #define X86_FEATURE_RDPRU		(13*32+ 4) /* Read processor register at user level */
-#define X86_FEATURE_WBNOINVD		(13*32+ 9) /* WBNOINVD instruction */
+#define X86_FEATURE_WBANALINVD		(13*32+ 9) /* WBANALINVD instruction */
 #define X86_FEATURE_AMD_IBPB		(13*32+12) /* "" Indirect Branch Prediction Barrier */
 #define X86_FEATURE_AMD_IBRS		(13*32+14) /* "" Indirect Branch Restricted Speculation */
 #define X86_FEATURE_AMD_STIBP		(13*32+15) /* "" Single Thread Indirect Branch Predictors */
@@ -344,20 +344,20 @@
 #define X86_FEATURE_AMD_PPIN		(13*32+23) /* Protected Processor Inventory Number */
 #define X86_FEATURE_AMD_SSBD		(13*32+24) /* "" Speculative Store Bypass Disable */
 #define X86_FEATURE_VIRT_SSBD		(13*32+25) /* Virtualized Speculative Store Bypass Disable */
-#define X86_FEATURE_AMD_SSB_NO		(13*32+26) /* "" Speculative Store Bypass is fixed in hardware. */
+#define X86_FEATURE_AMD_SSB_ANAL		(13*32+26) /* "" Speculative Store Bypass is fixed in hardware. */
 #define X86_FEATURE_CPPC		(13*32+27) /* Collaborative Processor Performance Control */
 #define X86_FEATURE_AMD_PSFD            (13*32+28) /* "" Predictive Store Forwarding Disable */
-#define X86_FEATURE_BTC_NO		(13*32+29) /* "" Not vulnerable to Branch Type Confusion */
+#define X86_FEATURE_BTC_ANAL		(13*32+29) /* "" Analt vulnerable to Branch Type Confusion */
 #define X86_FEATURE_BRS			(13*32+31) /* Branch Sampling available */
 
 /* Thermal and Power Management Leaf, CPUID level 0x00000006 (EAX), word 14 */
 #define X86_FEATURE_DTHERM		(14*32+ 0) /* Digital Thermal Sensor */
 #define X86_FEATURE_IDA			(14*32+ 1) /* Intel Dynamic Acceleration */
 #define X86_FEATURE_ARAT		(14*32+ 2) /* Always Running APIC Timer */
-#define X86_FEATURE_PLN			(14*32+ 4) /* Intel Power Limit Notification */
+#define X86_FEATURE_PLN			(14*32+ 4) /* Intel Power Limit Analtification */
 #define X86_FEATURE_PTS			(14*32+ 6) /* Intel Package Thermal Status */
 #define X86_FEATURE_HWP			(14*32+ 7) /* Intel Hardware P-states */
-#define X86_FEATURE_HWP_NOTIFY		(14*32+ 8) /* HWP Notification */
+#define X86_FEATURE_HWP_ANALTIFY		(14*32+ 8) /* HWP Analtification */
 #define X86_FEATURE_HWP_ACT_WINDOW	(14*32+ 9) /* HWP Activity Window */
 #define X86_FEATURE_HWP_EPP		(14*32+10) /* HWP Energy Perf. Preference */
 #define X86_FEATURE_HWP_PKG_REQ		(14*32+11) /* HWP Package Level Request */
@@ -447,16 +447,16 @@
 #define X86_FEATURE_DEBUG_SWAP		(19*32+14) /* AMD SEV-ES full debug state swap support */
 
 /* AMD-defined Extended Feature 2 EAX, CPUID level 0x80000021 (EAX), word 20 */
-#define X86_FEATURE_NO_NESTED_DATA_BP	(20*32+ 0) /* "" No Nested Data Breakpoints */
-#define X86_FEATURE_WRMSR_XX_BASE_NS	(20*32+ 1) /* "" WRMSR to {FS,GS,KERNEL_GS}_BASE is non-serializing */
+#define X86_FEATURE_ANAL_NESTED_DATA_BP	(20*32+ 0) /* "" Anal Nested Data Breakpoints */
+#define X86_FEATURE_WRMSR_XX_BASE_NS	(20*32+ 1) /* "" WRMSR to {FS,GS,KERNEL_GS}_BASE is analn-serializing */
 #define X86_FEATURE_LFENCE_RDTSC	(20*32+ 2) /* "" LFENCE always serializing / synchronizes RDTSC */
 #define X86_FEATURE_NULL_SEL_CLR_BASE	(20*32+ 6) /* "" Null Selector Clears Base */
 #define X86_FEATURE_AUTOIBRS		(20*32+ 8) /* "" Automatic IBRS */
-#define X86_FEATURE_NO_SMM_CTL_MSR	(20*32+ 9) /* "" SMM_CTL MSR is not present */
+#define X86_FEATURE_ANAL_SMM_CTL_MSR	(20*32+ 9) /* "" SMM_CTL MSR is analt present */
 
 #define X86_FEATURE_SBPB		(20*32+27) /* "" Selective Branch Prediction Barrier */
 #define X86_FEATURE_IBPB_BRTYPE		(20*32+28) /* "" MSR_PRED_CMD[IBPB] flushes all branch type predictions */
-#define X86_FEATURE_SRSO_NO		(20*32+29) /* "" CPU is not affected by SRSO */
+#define X86_FEATURE_SRSO_ANAL		(20*32+29) /* "" CPU is analt affected by SRSO */
 
 /*
  * BUG word(s)
@@ -493,14 +493,14 @@
 #define X86_BUG_SWAPGS			X86_BUG(21) /* CPU is affected by speculation through SWAPGS */
 #define X86_BUG_TAA			X86_BUG(22) /* CPU is affected by TSX Async Abort(TAA) */
 #define X86_BUG_ITLB_MULTIHIT		X86_BUG(23) /* CPU may incur MCE during certain page attribute changes */
-#define X86_BUG_SRBDS			X86_BUG(24) /* CPU may leak RNG bits if not mitigated */
+#define X86_BUG_SRBDS			X86_BUG(24) /* CPU may leak RNG bits if analt mitigated */
 #define X86_BUG_MMIO_STALE_DATA		X86_BUG(25) /* CPU is affected by Processor MMIO Stale Data vulnerabilities */
-#define X86_BUG_MMIO_UNKNOWN		X86_BUG(26) /* CPU is too old and its MMIO Stale Data status is unknown */
+#define X86_BUG_MMIO_UNKANALWN		X86_BUG(26) /* CPU is too old and its MMIO Stale Data status is unkanalwn */
 #define X86_BUG_RETBLEED		X86_BUG(27) /* CPU is affected by RETBleed */
 #define X86_BUG_EIBRS_PBRSB		X86_BUG(28) /* EIBRS is vulnerable to Post Barrier RSB Predictions */
 #define X86_BUG_SMT_RSB			X86_BUG(29) /* CPU is vulnerable to Cross-Thread Return Address Predictions */
 #define X86_BUG_GDS			X86_BUG(30) /* CPU is affected by Gather Data Sampling */
-#define X86_BUG_TDX_PW_MCE		X86_BUG(31) /* CPU may incur #MC if non-TD software does partial write to TDX private memory */
+#define X86_BUG_TDX_PW_MCE		X86_BUG(31) /* CPU may incur #MC if analn-TD software does partial write to TDX private memory */
 
 /* BUG word 2 */
 #define X86_BUG_SRSO			X86_BUG(1*32 + 0) /* AMD SRSO bug */

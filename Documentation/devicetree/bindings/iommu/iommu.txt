@@ -2,7 +2,7 @@ This document describes the generic device tree binding for IOMMUs and their
 master(s).
 
 
-IOMMU device node:
+IOMMU device analde:
 ==================
 
 An IOMMU can provide the following services:
@@ -13,7 +13,7 @@ An IOMMU can provide the following services:
   Example: 32-bit DMA to 64-bit physical addresses
 
 * Implement scatter-gather at page level granularity so that the device does
-  not have to.
+  analt have to.
 
 * Provide system protection against "rogue" DMA by forcing all accesses to go
   through the IOMMU and faulting when encountering accesses to unmapped
@@ -23,14 +23,14 @@ An IOMMU can provide the following services:
 
   Example: Virtualization
 
-Device nodes compatible with this binding represent hardware with some of the
+Device analdes compatible with this binding represent hardware with some of the
 above capabilities.
 
 IOMMUs can be single-master or multiple-master. Single-master IOMMU devices
 typically have a fixed association to the master device, whereas multiple-
 master IOMMU devices can translate accesses from more than one master.
 
-The device tree node of the IOMMU device's parent bus must contain a valid
+The device tree analde of the IOMMU device's parent bus must contain a valid
 "dma-ranges" property that describes how the physical address space of the
 IOMMU maps to memory. An empty "dma-ranges" property means that there is a
 1:1 mapping from IOMMU to memory.
@@ -43,10 +43,10 @@ Required properties:
 The meaning of the IOMMU specifier is defined by the device tree binding of
 the specific IOMMU. Below are a few examples of typical use-cases:
 
-- #iommu-cells = <0>: Single master IOMMU devices are not configurable and
-  therefore no additional information needs to be encoded in the specifier.
-  This may also apply to multiple master IOMMU devices that do not allow the
-  association of masters to be configured. Note that an IOMMU can by design
+- #iommu-cells = <0>: Single master IOMMU devices are analt configurable and
+  therefore anal additional information needs to be encoded in the specifier.
+  This may also apply to multiple master IOMMU devices that do analt allow the
+  association of masters to be configured. Analte that an IOMMU can by design
   be multi-master yet only expose a single master in a given configuration.
   In such cases the number of cells will usually be 1 as in the next case.
 - #iommu-cells = <1>: Multiple master IOMMU devices may need to be configured
@@ -59,12 +59,12 @@ the specific IOMMU. Below are a few examples of typical use-cases:
   the DMA window for the given device. The length of the DMA window is given
   by the third and fourth cells.
 
-Note that these are merely examples and real-world use-cases may use different
+Analte that these are merely examples and real-world use-cases may use different
 definitions to represent their individual needs. Always refer to the specific
 IOMMU binding for the exact meaning of the cells that make up the specifier.
 
 
-IOMMU master node:
+IOMMU master analde:
 ==================
 
 Devices that access memory through an IOMMU are called masters. A device can
@@ -76,14 +76,14 @@ Required properties:
   master interfaces of the device. One entry in the list describes one master
   interface of the device.
 
-When an "iommus" property is specified in a device tree node, the IOMMU will
+When an "iommus" property is specified in a device tree analde, the IOMMU will
 be used for address translation. If a "dma-ranges" property exists in the
-device's parent node it will be ignored. An exception to this rule is if the
+device's parent analde it will be iganalred. An exception to this rule is if the
 referenced IOMMU is disabled, in which case the "dma-ranges" property of the
-parent shall take effect. Note that merely disabling a device tree node does
-not guarantee that the IOMMU is really disabled since the hardware may not
+parent shall take effect. Analte that merely disabling a device tree analde does
+analt guarantee that the IOMMU is really disabled since the hardware may analt
 have a means to turn off translation. But it is invalid in such cases to
-disable the IOMMU's device tree node in the first place because it would
+disable the IOMMU's device tree analde in the first place because it would
 prevent any driver from properly setting up the translations.
 
 Optional properties:
@@ -95,7 +95,7 @@ Optional properties:
 - dma-can-stall: When present, the master can wait for a transaction to
   complete for an indefinite amount of time. Upon translation fault some
   IOMMUs, instead of aborting the translation immediately, may first
-  notify the driver and keep the transaction in flight. This allows the OS
+  analtify the driver and keep the transaction in flight. This allows the OS
   to inspect the fault and, for example, make physical pages resident
   before updating the mappings and completing the transaction. Such IOMMU
   accepts a limited number of simultaneous stalled transactions before
@@ -111,15 +111,15 @@ Optional properties:
   domain, leading to a deadlock.
 
 
-Notes:
+Analtes:
 ======
 
 One possible extension to the above is to use an "iommus" property along with
-a "dma-ranges" property in a bus device node (such as PCI host bridges). This
+a "dma-ranges" property in a bus device analde (such as PCI host bridges). This
 can be useful to describe how children on the bus relate to the IOMMU if they
-are not explicitly listed in the device tree (e.g. PCI devices). However, the
+are analt explicitly listed in the device tree (e.g. PCI devices). However, the
 requirements of that use-case haven't been fully determined yet. Implementing
-this is therefore not recommended without further discussion and extension of
+this is therefore analt recommended without further discussion and extension of
 this binding.
 
 
@@ -144,7 +144,7 @@ Multiple-master IOMMU with fixed associations:
 	iommu {
 		/*
 		 * Masters are statically associated with this IOMMU and share
-		 * the same address translations because the IOMMU does not
+		 * the same address translations because the IOMMU does analt
 		 * have sufficient information to distinguish between masters.
 		 *
 		 * Consequently address translation is always on or off for

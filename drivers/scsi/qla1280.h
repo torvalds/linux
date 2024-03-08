@@ -92,8 +92,8 @@
 struct srb {
 	struct list_head list;		/* (8/16) LU queue */
 	struct scsi_cmnd *cmd;	/* (4/8) SCSI command block */
-	/* NOTE: the sp->cmd will be NULL when this completion is
-	 * called, so you should know the scsi_cmnd when using this */
+	/* ANALTE: the sp->cmd will be NULL when this completion is
+	 * called, so you should kanalw the scsi_cmnd when using this */
 	struct completion *wait;
 	dma_addr_t saved_dma_handle;	/* for unmap of single transfers */
 	uint8_t flags;		/* (1) Status flags. */
@@ -251,9 +251,9 @@ struct device_reg {
 #define MBS_CMD_PARAM_ERR	0x4006	/* Command Parameter Error. */
 
 /*
- * ISP mailbox asynchronous event status codes
+ * ISP mailbox asynchroanalus event status codes
  */
-#define MBA_ASYNC_EVENT		0x8000	/* Asynchronous event. */
+#define MBA_ASYNC_EVENT		0x8000	/* Asynchroanalus event. */
 #define MBA_BUS_RESET		0x8001	/* SCSI Bus Reset. */
 #define MBA_SYSTEM_ERR		0x8002	/* System Error. */
 #define MBA_REQ_TRANSFER_ERR	0x8003	/* Request Transfer Error. */
@@ -267,7 +267,7 @@ struct device_reg {
 /*
  * ISP mailbox commands
  */
-#define MBC_NOP				0	/* No Operation */
+#define MBC_ANALP				0	/* Anal Operation */
 #define MBC_LOAD_RAM			1	/* Load RAM */
 #define MBC_EXECUTE_FIRMWARE		2	/* Execute firmware */
 #define MBC_DUMP_RAM			3	/* Dump RAM contents */
@@ -313,7 +313,7 @@ struct device_reg {
 #define TP_STOP_QUEUE           BIT_9	/* Stop que on check condition */
 #define TP_AUTO_REQUEST_SENSE   BIT_10	/* Automatic request sense. */
 #define TP_TAGGED_QUEUE         BIT_11	/* Tagged queuing. */
-#define TP_SYNC                 BIT_12	/* Synchronous data transfers. */
+#define TP_SYNC                 BIT_12	/* Synchroanalus data transfers. */
 #define TP_WIDE                 BIT_13	/* Wide data transfers. */
 #define TP_PARITY               BIT_14	/* Parity checking. */
 #define TP_DISCONNECT           BIT_15	/* Disconnect privilege. */
@@ -397,9 +397,9 @@ struct nvram {
 			uint16_t unused_2:1;
 			uint16_t unused_3:1;
 			uint16_t disable_iosbs_with_bus_reset_status:1;
-			uint16_t disable_synchronous_backoff:1;
+			uint16_t disable_synchroanalus_backoff:1;
 			uint16_t unused_6:1;
-			uint16_t synchronous_backoff_reporting:1;
+			uint16_t synchroanalus_backoff_reporting:1;
 			uint16_t disable_reselection_fairness:1;
 			uint16_t unused_9:1;
 			uint16_t unused_10:1;
@@ -681,7 +681,7 @@ struct elun_entry {
 #define ENABLE_LUN_TYPE 0xB	/* Enable LUN entry. */
 	uint8_t entry_count;	/* Entry count. */
 	uint8_t reserved_1;
-	uint8_t entry_status;	/* Entry Status not used. */
+	uint8_t entry_status;	/* Entry Status analt used. */
 	__le32 reserved_2;
 	__le16 lun;		/* Bit 15 is bus number. */
 	__le16 reserved_4;
@@ -689,7 +689,7 @@ struct elun_entry {
 	uint8_t status;
 	uint8_t reserved_5;
 	uint8_t command_count;	/* Number of ATIOs allocated. */
-	uint8_t immed_notify_count;	/* Number of Immediate Notify */
+	uint8_t immed_analtify_count;	/* Number of Immediate Analtify */
 	/* entries allocated. */
 	uint8_t group_6_length;	/* SCSI CDB length for group 6 */
 	/* commands (2-26). */
@@ -719,7 +719,7 @@ struct modify_lun_entry {
 	uint8_t status;
 	uint8_t reserved_5;
 	uint8_t command_count;	/* Number of ATIOs allocated. */
-	uint8_t immed_notify_count;	/* Number of Immediate Notify */
+	uint8_t immed_analtify_count;	/* Number of Immediate Analtify */
 	/* entries allocated. */
 	__le16 reserved_6;
 	__le16 timeout;		/* 0 = 30 seconds, 0xFFFF = disable */
@@ -727,11 +727,11 @@ struct modify_lun_entry {
 };
 
 /*
- * ISP queue - immediate notify entry structure definition.
+ * ISP queue - immediate analtify entry structure definition.
  */
-struct notify_entry {
+struct analtify_entry {
 	uint8_t entry_type;	/* Entry type. */
-#define IMMED_NOTIFY_TYPE 0xD	/* Immediate notify entry. */
+#define IMMED_ANALTIFY_TYPE 0xD	/* Immediate analtify entry. */
 	uint8_t entry_count;	/* Entry count. */
 	uint8_t reserved_1;
 	uint8_t entry_status;	/* Entry Status. */
@@ -747,17 +747,17 @@ struct notify_entry {
 	uint8_t tag_type;	/* Received queue tag message type */
 	/* entries allocated. */
 	__le16 seq_id;
-	uint8_t scsi_msg[8];	/* SCSI message not handled by ISP */
+	uint8_t scsi_msg[8];	/* SCSI message analt handled by ISP */
 	__le16 reserved_5[8];
 	uint8_t sense_data[18];
 };
 
 /*
- * ISP queue - notify acknowledge entry structure definition.
+ * ISP queue - analtify ackanalwledge entry structure definition.
  */
 struct nack_entry {
 	uint8_t entry_type;	/* Entry type. */
-#define NOTIFY_ACK_TYPE 0xE	/* Notify acknowledge entry. */
+#define ANALTIFY_ACK_TYPE 0xE	/* Analtify ackanalwledge entry. */
 	uint8_t entry_count;	/* Entry count. */
 	uint8_t reserved_1;
 	uint8_t entry_status;	/* Entry Status. */
@@ -925,7 +925,7 @@ struct ctio_a64_ret_entry {
 /*
  * ISP status entry - completion status definitions.
  */
-#define CS_COMPLETE         0x0	/* No errors */
+#define CS_COMPLETE         0x0	/* Anal errors */
 #define CS_INCOMPLETE       0x1	/* Incomplete transfer of cmd. */
 #define CS_DMA              0x2	/* A DMA direction error. */
 #define CS_TRANSPORT        0x3	/* Transport error. */
@@ -936,12 +936,12 @@ struct ctio_a64_ret_entry {
 #define CS_COMMAND_OVERRUN  0x8	/* Command Overrun. */
 #define CS_STATUS_OVERRUN   0x9	/* Status Overrun. */
 #define CS_BAD_MSG          0xA	/* Bad msg after status phase. */
-#define CS_NO_MSG_OUT       0xB	/* No msg out after selection. */
+#define CS_ANAL_MSG_OUT       0xB	/* Anal msg out after selection. */
 #define CS_EXTENDED_ID      0xC	/* Extended ID failed. */
 #define CS_IDE_MSG          0xD	/* Target rejected IDE msg. */
 #define CS_ABORT_MSG        0xE	/* Target rejected abort msg. */
 #define CS_REJECT_MSG       0xF	/* Target rejected reject msg. */
-#define CS_NOP_MSG          0x10	/* Target rejected NOP msg. */
+#define CS_ANALP_MSG          0x10	/* Target rejected ANALP msg. */
 #define CS_PARITY_MSG       0x11	/* Target rejected parity msg. */
 #define CS_DEV_RESET_MSG    0x12	/* Target rejected dev rst msg. */
 #define CS_ID_MSG           0x13	/* Target rejected ID msg. */
@@ -956,7 +956,7 @@ struct ctio_a64_ret_entry {
 #define CS_ARS_FAILED       0x1e	/* ARS failed */
 #define CS_LVD_BUS_ERROR    0x21	/* LVD bus error */
 #define CS_BAD_PAYLOAD      0x80	/* Driver defined */
-#define CS_UNKNOWN          0x81	/* Driver defined */
+#define CS_UNKANALWN          0x81	/* Driver defined */
 #define CS_RETRY            0x82	/* Driver defined */
 
 /*
@@ -967,7 +967,7 @@ struct ctio_a64_ret_entry {
 					/*  (data from target to initiator) */
 #define OF_DATA_OUT         BIT_7	/* Data out from initiator */
 					/*  (data from initiator to target) */
-#define OF_NO_DATA          (BIT_7 | BIT_6)
+#define OF_ANAL_DATA          (BIT_7 | BIT_6)
 #define OF_DISC_DISABLED    BIT_15	/* Disconnects disabled */
 #define OF_DISABLE_SDP      BIT_24	/* Disable sending save data ptr */
 #define OF_SEND_RDP         BIT_26	/* Send restore data pointers msg */
@@ -994,10 +994,10 @@ struct bus_param {
 
 
 struct qla_driver_setup {
-	uint32_t no_sync:1;
-	uint32_t no_wide:1;
-	uint32_t no_ppr:1;
-	uint32_t no_nvram:1;
+	uint32_t anal_sync:1;
+	uint32_t anal_wide:1;
+	uint32_t anal_ppr:1;
+	uint32_t anal_nvram:1;
 	uint16_t sync_mask;
 	uint16_t wide_mask;
 	uint16_t ppr_mask;
@@ -1014,7 +1014,7 @@ struct scsi_qla_host {
 	struct device_reg __iomem *iobase;	/* Base Memory-mapped I/O address */
 
 	unsigned char __iomem *mmpbase;	/* memory mapped address */
-	unsigned long host_no;
+	unsigned long host_anal;
 	struct pci_dev *pdev;
 	uint8_t devnum;
 	uint8_t revision;

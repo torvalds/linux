@@ -43,7 +43,7 @@ static int tpd12s015_attach(struct drm_bridge *bridge,
 	struct tpd12s015_device *tpd = to_tpd12s015(bridge);
 	int ret;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
 	ret = drm_bridge_attach(bridge->encoder, tpd->next_bridge,
@@ -103,7 +103,7 @@ static irqreturn_t tpd12s015_hpd_isr(int irq, void *data)
 	struct tpd12s015_device *tpd = data;
 	struct drm_bridge *bridge = &tpd->bridge;
 
-	drm_bridge_hpd_notify(bridge, tpd12s015_detect(bridge));
+	drm_bridge_hpd_analtify(bridge, tpd12s015_detect(bridge));
 
 	return IRQ_HANDLED;
 }
@@ -111,28 +111,28 @@ static irqreturn_t tpd12s015_hpd_isr(int irq, void *data)
 static int tpd12s015_probe(struct platform_device *pdev)
 {
 	struct tpd12s015_device *tpd;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct gpio_desc *gpio;
 	int ret;
 
 	tpd = devm_kzalloc(&pdev->dev, sizeof(*tpd), GFP_KERNEL);
 	if (!tpd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, tpd);
 
 	tpd->bridge.funcs = &tpd12s015_bridge_funcs;
-	tpd->bridge.of_node = pdev->dev.of_node;
+	tpd->bridge.of_analde = pdev->dev.of_analde;
 	tpd->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 	tpd->bridge.ops = DRM_BRIDGE_OP_DETECT;
 
 	/* Get the next bridge, connected to port@1. */
-	node = of_graph_get_remote_node(pdev->dev.of_node, 1, -1);
-	if (!node)
-		return -ENODEV;
+	analde = of_graph_get_remote_analde(pdev->dev.of_analde, 1, -1);
+	if (!analde)
+		return -EANALDEV;
 
-	tpd->next_bridge = of_drm_find_bridge(node);
-	of_node_put(node);
+	tpd->next_bridge = of_drm_find_bridge(analde);
+	of_analde_put(analde);
 
 	if (!tpd->next_bridge)
 		return -EPROBE_DEFER;

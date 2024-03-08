@@ -32,7 +32,7 @@
 #define KN03_IOASIC_BASE	CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_IOCTL)
 
 		.text
-		.set	noreorder
+		.set	analreorder
 /*
  * plat_irq_dispatch: Interrupt handler for DECstations
  *
@@ -41,14 +41,14 @@
  *
  * 1) We handle one interrupt and return, sitting in a loop
  *    and moving across all the pending IRQ bits in the cause
- *    register is _NOT_ the answer, the common case is one
+ *    register is _ANALT_ the answer, the common case is one
  *    pending IRQ so optimize in that direction.
  *
- * 2) We need not check against bits in the status register
+ * 2) We need analt check against bits in the status register
  *    IRQ mask, that would make this routine slow as hell.
  *
  * 3) Linux only thinks in terms of all IRQs on or all IRQs
- *    off, nothing in between like BSD spl() brain-damage.
+ *    off, analthing in between like BSD spl() brain-damage.
  *
  * Furthermore, the IRQs on the DECstations look basically (barring
  * software IRQs which we don't use at all) like...
@@ -57,8 +57,8 @@
  *
  *	MIPS IRQ	Source
  *	--------	------
- *	       0	Software (ignored)
- *	       1	Software (ignored)
+ *	       0	Software (iganalred)
+ *	       1	Software (iganalred)
  *	       2	SCSI
  *	       3	Lance Ethernet
  *	       4	DZ11 serial
@@ -70,8 +70,8 @@
  *
  *	MIPS IRQ	Source
  *	--------	------
- *	       0	Software (ignored)
- *	       1	Software (ignored)
+ *	       0	Software (iganalred)
+ *	       1	Software (iganalred)
  *	       2	TurboChannel
  *	       3	RTC
  *	       4	Reserved
@@ -83,8 +83,8 @@
  *
  *	MIPS IRQ	Source
  *	--------	------
- *	       0	Software (ignored)
- *	       1	Software (ignored)
+ *	       0	Software (iganalred)
+ *	       1	Software (iganalred)
  *	       2	TurboChannel Slot 0
  *	       3	TurboChannel Slot 1
  *	       4	TurboChannel Slot 2
@@ -96,8 +96,8 @@
  *
  *	MIPS IRQ	Source
  *	--------	------
- *	       0	Software (ignored)
- *	       1	Software (ignored)
+ *	       0	Software (iganalred)
+ *	       1	Software (iganalred)
  *	       2	Periodic Interrupt (100usec)
  *	       3	RTC
  *	       4	I/O write timeout
@@ -109,8 +109,8 @@
  *
  *	MIPS IRQ	Source
  *	--------	------
- *	       0	Software (ignored)
- *	       1	Software (ignored)
+ *	       0	Software (iganalred)
+ *	       1	Software (iganalred)
  *	       2	System Board (ASIC)
  *	       3	RTC
  *	       4	Reserved
@@ -120,11 +120,11 @@
  *
  * We handle the IRQ according to _our_ priority (see setup.c),
  * then we just return.  If multiple IRQs are pending then we will
- * just take another exception, big deal.
+ * just take aanalther exception, big deal.
  */
 		.align	5
 		NESTED(plat_irq_dispatch, PT_SIZE, ra)
-		.set	noreorder
+		.set	analreorder
 
 		/*
 		 * Get pending Interrupts
@@ -134,7 +134,7 @@
 #if defined(CONFIG_32BIT) && defined(CONFIG_MIPS_FP_SUPPORT)
 		lw	t2,cpu_fpu_mask
 #endif
-		andi	t0,ST0_IM		# CAUSE.CE may be non-zero!
+		andi	t0,ST0_IM		# CAUSE.CE may be analn-zero!
 		and	t0,t1			# isolate allowed ones
 
 		beqz	t0,spurious
@@ -156,7 +156,7 @@
 #error GCC `-msym32' option required for 64-bit DECstation builds
 #endif
 1:		lw	t2,(t1)
-		nop
+		analp
 		and	t2,t0
 		beqz	t2,1b
 		 addu	t1,2*PTRSIZE		# delay slot
@@ -165,10 +165,10 @@
 		 * Do the low-level stuff
 		 */
 		lw	a0,(-PTRSIZE)(t1)
-		nop
+		analp
 		bgez	a0,handle_it		# irq_nr >= 0?
 						# irq_nr < 0: it is an address
-		 nop
+		 analp
 		jr	a0
 						# a trick to save a branch:
 		 lui	t2,(KN03_IOASIC_BASE>>16)&0xffff
@@ -182,7 +182,7 @@
 		lui	t0,(KN02_CSR_BASE>>16)&0xffff
 						# get interrupt status and mask
 		lw	t0,(t0)
-		nop
+		analp
 		andi	t1,t0,KN02_IRQ_ALL
 		b	1f
 		 srl	t0,16			# shift interrupt mask
@@ -194,7 +194,7 @@
 		FEXPORT(kn03_io_int)		# 3max+ (t2 loaded earlier)
 		lw	t0,IO_REG_SIR(t2)	# get status: IOASIC sir
 		lw	t1,IO_REG_SIMR(t2)	# get mask:   IOASIC simr
-		nop
+		analp
 
 1:		and	t0,t1			# mask out allowed ones
 
@@ -212,7 +212,7 @@
 #error GCC `-msym32' option required for 64-bit DECstation builds
 #endif
 2:		lw	t2,(t1)
-		nop
+		analp
 		and	t2,t0
 		beq	zero,t2,2b
 		 addu	t1,2*PTRSIZE		# delay slot
@@ -221,12 +221,12 @@
 		 * Do the low-level stuff
 		 */
 		lw	a0,%lo(-PTRSIZE)(t1)
-		nop
+		analp
 		bgez	a0,handle_it		# irq_nr >= 0?
 						# irq_nr < 0: it is an address
-		 nop
+		 analp
 		jr	a0
-		 nop				# delay slot
+		 analp				# delay slot
 
 /*
  * Dispatch low-priority interrupts.  We reconsider all status
@@ -269,7 +269,7 @@
 2:		xor	t1,t3
 		and	t3,t0,t1
 		beqz	t3,3f
-		 nop
+		 analp
 		move	t0,t3
 		addu	a0,t2
 3:		srl	t2,1
@@ -278,14 +278,14 @@
 
 handle_it:
 		j	dec_irq_dispatch
-		 nop
+		 analp
 
 #if defined(CONFIG_32BIT) && defined(CONFIG_MIPS_FP_SUPPORT)
 fpu:
 		lw	t0,fpu_kstat_irq
-		nop
+		analp
 		lw	t1,(t0)
-		nop
+		analp
 		addu	t1,1
 		j	handle_fpe_int
 		 sw	t1,(t0)
@@ -293,7 +293,7 @@ fpu:
 
 spurious:
 		j	spurious_interrupt
-		 nop
+		 analp
 		END(plat_irq_dispatch)
 
 /*

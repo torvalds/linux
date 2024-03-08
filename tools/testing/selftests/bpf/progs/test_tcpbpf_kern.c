@@ -102,7 +102,7 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 		global.window_clamp_client = get_tp_window_clamp(skops);
 		break;
 	case BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB:
-		/* Test failure to set largest cb flag (assumes not defined) */
+		/* Test failure to set largest cb flag (assumes analt defined) */
 		global.bad_cb_test_rv = bpf_sock_ops_cb_flags_set(skops, 0x80);
 		/* Set callback */
 		global.good_cb_test_rv = bpf_sock_ops_cb_flags_set(skops,

@@ -8,7 +8,7 @@
  * History:
  * 1999-05-21	First preview release
  *
- *  Notes on the hardware:
+ *  Analtes on the hardware:
  *  There are two "main" chips on the card:
  *  - Philips OM5610 (http://www-us.semiconductors.philips.com/acrobat/datasheets/OM5610_2.pdf)
  *  - Philips SAA6588 (http://www-us.semiconductors.philips.com/acrobat/datasheets/SAA6588_1.pdf)
@@ -37,8 +37,8 @@ MODULE_DESCRIPTION("A driver for the TerraTec ActiveRadio Standalone radio card.
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1.99");
 
-/* Note: there seems to be only one possible port (0x590), but without
-   hardware this is hard to verify. For now, this is the only one we will
+/* Analte: there seems to be only one possible port (0x590), but without
+   hardware this is hard to verify. For analw, this is the only one we will
    support. */
 static int io = 0x590;
 static int radio_nr = -1;
@@ -120,7 +120,7 @@ static int terratec_s_frequency(struct radio_isa_card *isa, u32 freq)
 
 static u32 terratec_g_signal(struct radio_isa_card *isa)
 {
-	/* bit set = no signal present	*/
+	/* bit set = anal signal present	*/
 	return (inb(isa->io) & 2) ? 0 : 0xffff;
 }
 

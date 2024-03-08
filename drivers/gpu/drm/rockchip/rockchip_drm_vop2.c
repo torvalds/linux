@@ -289,12 +289,12 @@ static bool vop2_cluster_window(const struct vop2_win *win)
 }
 
 /*
- * Note:
+ * Analte:
  * The write mask function is documented but missing on rk3566/8, writes
- * to these bits have no effect. For newer soc(rk3588 and following) the
+ * to these bits have anal effect. For newer soc(rk3588 and following) the
  * write mask is needed for register writes.
  *
- * GLB_CFG_DONE_EN has no write mask bit.
+ * GLB_CFG_DONE_EN has anal write mask bit.
  *
  */
 static void vop2_cfg_done(struct vop2_video_port *vp)
@@ -476,7 +476,7 @@ static bool vop2_output_uv_swap(u32 bus_format, u32 output_mode)
 	/*
 	 * FIXME:
 	 *
-	 * There is no media type for YUV444 output,
+	 * There is anal media type for YUV444 output,
 	 * so when out_mode is AAAA or P888, assume output is YUV444 on
 	 * yuv format.
 	 *
@@ -1016,7 +1016,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	 * if dsp hold valid irq happen, it means standby complete.
 	 *
 	 * we must wait standby complete when we want to disable aclk,
-	 * if not, memory bus maybe dead.
+	 * if analt, memory bus maybe dead.
 	 */
 	reinit_completion(&vp->dsp_hold_completion);
 
@@ -1114,7 +1114,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 	 * need align with 2 pixel.
 	 */
 	if (fb->format->is_yuv && ((pstate->src.x1 >> 16) % 2)) {
-		drm_err(vop2->drm, "Invalid Source: Yuv format not support odd xpos\n");
+		drm_err(vop2->drm, "Invalid Source: Yuv format analt support odd xpos\n");
 		return -EINVAL;
 	}
 
@@ -1301,7 +1301,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 	}
 
 	if (afbc_en && actual_w % 4) {
-		drm_err(vop2->drm, "vp%d %s actual_w[%d] not 4 pixel aligned\n",
+		drm_err(vop2->drm, "vp%d %s actual_w[%d] analt 4 pixel aligned\n",
 			vp->id, win->data->name, actual_w);
 		actual_w = ALIGN_DOWN(actual_w, 4);
 	}
@@ -1339,7 +1339,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 		 */
 		stride = (fb->pitches[0] << 3) / bpp;
 		if ((stride & 0x3f) && (xmirror || rotate_90 || rotate_270))
-			drm_err(vop2->drm, "vp%d %s stride[%d] not 64 pixel aligned\n",
+			drm_err(vop2->drm, "vp%d %s stride[%d] analt 64 pixel aligned\n",
 				vp->id, win->data->name, stride);
 
 		uv_swap = vop2_afbc_uv_swap(fb->format->format);
@@ -1361,7 +1361,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 		vop2_win_write(win, VOP2_WIN_AFBC_UV_SWAP, uv_swap);
 		/*
 		 * On rk3566/8, this bit is auto gating enable,
-		 * but this function is not work well so we need
+		 * but this function is analt work well so we need
 		 * to disable it for these two platform.
 		 * On rk3588, and the following new soc(rk3528/rk3576),
 		 * this bit is gating disable, we should write 1 to
@@ -2088,9 +2088,9 @@ static void vop2_parse_alpha(struct vop2_alpha_config *alpha_config,
 	int src_glb_alpha_en = is_opaque(alpha_config->src_glb_alpha_value) ? 0 : 1;
 	int dst_glb_alpha_en = is_opaque(alpha_config->dst_glb_alpha_value) ? 0 : 1;
 	int src_color_mode = alpha_config->src_premulti_en ?
-				ALPHA_SRC_PRE_MUL : ALPHA_SRC_NO_PRE_MUL;
+				ALPHA_SRC_PRE_MUL : ALPHA_SRC_ANAL_PRE_MUL;
 	int dst_color_mode = alpha_config->dst_premulti_en ?
-				ALPHA_SRC_PRE_MUL : ALPHA_SRC_NO_PRE_MUL;
+				ALPHA_SRC_PRE_MUL : ALPHA_SRC_ANAL_PRE_MUL;
 
 	alpha->src_color_ctrl.val = 0;
 	alpha->dst_color_ctrl.val = 0;
@@ -2137,7 +2137,7 @@ static void vop2_parse_alpha(struct vop2_alpha_config *alpha_config,
 		alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_PER_PIX;
 	else
 		alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_PER_PIX_GLOBAL;
-	alpha->dst_alpha_ctrl.bits.alpha_cal_mode = ALPHA_NO_SATURATION;
+	alpha->dst_alpha_ctrl.bits.alpha_cal_mode = ALPHA_ANAL_SATURATION;
 	alpha->dst_alpha_ctrl.bits.factor_mode = ALPHA_SRC_INVERSE;
 }
 
@@ -2213,7 +2213,7 @@ static void vop2_setup_alpha(struct vop2_video_port *vp)
 	drm_atomic_crtc_for_each_plane(plane, &vp->crtc) {
 		struct vop2_win *win = to_vop2_win(plane);
 
-		if (plane->state->normalized_zpos == 0 &&
+		if (plane->state->analrmalized_zpos == 0 &&
 		    !is_opaque(plane->state->alpha) &&
 		    !vop2_cluster_window(win)) {
 			/*
@@ -2228,7 +2228,7 @@ static void vop2_setup_alpha(struct vop2_video_port *vp)
 
 	drm_atomic_crtc_for_each_plane(plane, &vp->crtc) {
 		struct vop2_win *win = to_vop2_win(plane);
-		int zpos = plane->state->normalized_zpos;
+		int zpos = plane->state->analrmalized_zpos;
 
 		if (plane->state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
 			premulti_en = 1;
@@ -2397,9 +2397,9 @@ static void vop2_setup_layer_mixer(struct vop2_video_port *vp)
 			break;
 		}
 
-		layer_sel &= ~RK3568_OVL_LAYER_SEL__LAYER(plane->state->normalized_zpos + ofs,
+		layer_sel &= ~RK3568_OVL_LAYER_SEL__LAYER(plane->state->analrmalized_zpos + ofs,
 							  0x7);
-		layer_sel |= RK3568_OVL_LAYER_SEL__LAYER(plane->state->normalized_zpos + ofs,
+		layer_sel |= RK3568_OVL_LAYER_SEL__LAYER(plane->state->analrmalized_zpos + ofs,
 							 win->data->layer_sel_id);
 		nlayer++;
 	}
@@ -2567,7 +2567,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 	struct vop2 *vop2 = data;
 	const struct vop2_data *vop2_data = vop2->data;
 	u32 axi_irqs[VOP2_SYS_AXI_BUS_NUM];
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 	int i;
 
 	/*
@@ -2575,7 +2575,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 	 * vop2-device is disabled the irq has to be targeted at the iommu.
 	 */
 	if (!pm_runtime_get_if_in_use(vop2->dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < vop2_data->nr_vps; i++) {
 		struct vop2_video_port *vp = &vop2->vps[i];
@@ -2636,7 +2636,7 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win,
 			   unsigned long possible_crtcs)
 {
 	const struct vop2_win_data *win_data = win->data;
-	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 				  BIT(DRM_MODE_BLEND_PREMULTI) |
 				  BIT(DRM_MODE_BLEND_COVERAGE);
 	int ret;
@@ -2689,14 +2689,14 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 	struct drm_device *drm = vop2->drm;
 	struct device *dev = vop2->dev;
 	struct drm_plane *plane;
-	struct device_node *port;
+	struct device_analde *port;
 	struct vop2_video_port *vp;
 	int i, nvp, nvps = 0;
 	int ret;
 
 	for (i = 0; i < vop2_data->nr_vps; i++) {
 		const struct vop2_video_port_data *vp_data;
-		struct device_node *np;
+		struct device_analde *np;
 		char dclk_name[9];
 
 		vp_data = &vop2_data->vp[i];
@@ -2712,17 +2712,17 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 			return PTR_ERR(vp->dclk);
 		}
 
-		np = of_graph_get_remote_node(dev->of_node, i, -1);
+		np = of_graph_get_remote_analde(dev->of_analde, i, -1);
 		if (!np) {
-			drm_dbg(vop2->drm, "%s: No remote for vp%d\n", __func__, i);
+			drm_dbg(vop2->drm, "%s: Anal remote for vp%d\n", __func__, i);
 			continue;
 		}
-		of_node_put(np);
+		of_analde_put(np);
 
-		port = of_graph_get_port_by_id(dev->of_node, i);
+		port = of_graph_get_port_by_id(dev->of_analde, i);
 		if (!port) {
-			drm_err(vop2->drm, "no port node found for video_port%d\n", i);
-			return -ENOENT;
+			drm_err(vop2->drm, "anal port analde found for video_port%d\n", i);
+			return -EANALENT;
 		}
 
 		vp->crtc.port = port;
@@ -2823,28 +2823,28 @@ static void vop2_destroy_crtcs(struct vop2 *vop2)
 	 * references the CRTC.
 	 */
 	list_for_each_entry_safe(crtc, tmpc, crtc_list, head) {
-		of_node_put(crtc->port);
+		of_analde_put(crtc->port);
 		drm_crtc_cleanup(crtc);
 	}
 }
 
 static int vop2_find_rgb_encoder(struct vop2 *vop2)
 {
-	struct device_node *node = vop2->dev->of_node;
-	struct device_node *endpoint;
+	struct device_analde *analde = vop2->dev->of_analde;
+	struct device_analde *endpoint;
 	int i;
 
 	for (i = 0; i < vop2->data->nr_vps; i++) {
-		endpoint = of_graph_get_endpoint_by_regs(node, i,
+		endpoint = of_graph_get_endpoint_by_regs(analde, i,
 							 ROCKCHIP_VOP2_EP_RGB0);
 		if (!endpoint)
 			continue;
 
-		of_node_put(endpoint);
+		of_analde_put(endpoint);
 		return i;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static struct reg_field vop2_cluster_regs[VOP2_WIN_MAX_REG] = {
@@ -2920,7 +2920,7 @@ static int vop2_cluster_init(struct vop2_win *win)
 	cluster_regs = kmemdup(vop2_cluster_regs, sizeof(vop2_cluster_regs),
 			       GFP_KERNEL);
 	if (!cluster_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(vop2_cluster_regs); i++)
 		if (cluster_regs[i].reg != 0xffffffff)
@@ -3004,7 +3004,7 @@ static int vop2_esmart_init(struct vop2_win *win)
 	esmart_regs = kmemdup(vop2_esmart_regs, sizeof(vop2_esmart_regs),
 			      GFP_KERNEL);
 	if (!esmart_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(vop2_esmart_regs); i++)
 		if (esmart_regs[i].reg != 0xffffffff)
@@ -3050,16 +3050,16 @@ static int vop2_win_init(struct vop2 *vop2)
 /*
  * The window registers are only updated when config done is written.
  * Until that they read back the old value. As we read-modify-write
- * these registers mark them as non-volatile. This makes sure we read
+ * these registers mark them as analn-volatile. This makes sure we read
  * the new values from the regmap register cache.
  */
-static const struct regmap_range vop2_nonvolatile_range[] = {
+static const struct regmap_range vop2_analnvolatile_range[] = {
 	regmap_reg_range(0x1000, 0x23ff),
 };
 
 static const struct regmap_access_table vop2_volatile_table = {
-	.no_ranges = vop2_nonvolatile_range,
-	.n_no_ranges = ARRAY_SIZE(vop2_nonvolatile_range),
+	.anal_ranges = vop2_analnvolatile_range,
+	.n_anal_ranges = ARRAY_SIZE(vop2_analnvolatile_range),
 };
 
 static const struct regmap_config vop2_regmap_config = {
@@ -3084,13 +3084,13 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 	vop2_data = of_device_get_match_data(dev);
 	if (!vop2_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Allocate vop2 struct and its vop2_win array */
 	alloc_size = struct_size(vop2, win, vop2_data->win_size);
 	vop2 = devm_kzalloc(dev, alloc_size, GFP_KERNEL);
 	if (!vop2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vop2->dev = dev;
 	vop2->data = vop2_data;
@@ -3124,27 +3124,27 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 			return PTR_ERR(vop2->lut_regs);
 	}
 	if (vop2_data->feature & VOP2_FEATURE_HAS_SYS_GRF) {
-		vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
+		vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_analde, "rockchip,grf");
 		if (IS_ERR(vop2->sys_grf))
-			return dev_err_probe(dev, PTR_ERR(vop2->sys_grf), "cannot get sys_grf");
+			return dev_err_probe(dev, PTR_ERR(vop2->sys_grf), "cananalt get sys_grf");
 	}
 
 	if (vop2_data->feature & VOP2_FEATURE_HAS_VOP_GRF) {
-		vop2->vop_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vop-grf");
+		vop2->vop_grf = syscon_regmap_lookup_by_phandle(dev->of_analde, "rockchip,vop-grf");
 		if (IS_ERR(vop2->vop_grf))
-			return dev_err_probe(dev, PTR_ERR(vop2->vop_grf), "cannot get vop_grf");
+			return dev_err_probe(dev, PTR_ERR(vop2->vop_grf), "cananalt get vop_grf");
 	}
 
 	if (vop2_data->feature & VOP2_FEATURE_HAS_VO1_GRF) {
-		vop2->vo1_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo1-grf");
+		vop2->vo1_grf = syscon_regmap_lookup_by_phandle(dev->of_analde, "rockchip,vo1-grf");
 		if (IS_ERR(vop2->vo1_grf))
-			return dev_err_probe(dev, PTR_ERR(vop2->vo1_grf), "cannot get vo1_grf");
+			return dev_err_probe(dev, PTR_ERR(vop2->vo1_grf), "cananalt get vo1_grf");
 	}
 
 	if (vop2_data->feature & VOP2_FEATURE_HAS_SYS_PMU) {
-		vop2->sys_pmu = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pmu");
+		vop2->sys_pmu = syscon_regmap_lookup_by_phandle(dev->of_analde, "rockchip,pmu");
 		if (IS_ERR(vop2->sys_pmu))
-			return dev_err_probe(dev, PTR_ERR(vop2->sys_pmu), "cannot get sys_pmu");
+			return dev_err_probe(dev, PTR_ERR(vop2->sys_pmu), "cananalt get sys_pmu");
 	}
 
 	vop2->hclk = devm_clk_get(vop2->dev, "hclk");
@@ -3167,7 +3167,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 	vop2->irq = platform_get_irq(pdev, 0);
 	if (vop2->irq < 0) {
-		drm_err(vop2->drm, "cannot find irq for vop2\n");
+		drm_err(vop2->drm, "cananalt find irq for vop2\n");
 		return vop2->irq;
 	}
 

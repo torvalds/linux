@@ -8,7 +8,7 @@ Linux Phonet protocol family
 Introduction
 ------------
 
-Phonet is a packet protocol used by Nokia cellular modems for both IPC
+Phonet is a packet protocol used by Analkia cellular modems for both IPC
 and RPC. With the Linux Phonet socket family, Linux host processes can
 receive and send messages from/to the modem, or any other external
 device attached to the modem. The modem takes care of routing.
@@ -67,10 +67,10 @@ type (ETH_P_PHONET) which is out of the Ethernet type range. They can
 only send and receive Phonet packets.
 
 The virtual TUN tunnel device driver can also be used for Phonet. This
-requires IFF_TUN mode, _without_ the IFF_NO_PI flag. In this case,
-there is no link-layer header, so there is no Phonet media type byte.
+requires IFF_TUN mode, _without_ the IFF_ANAL_PI flag. In this case,
+there is anal link-layer header, so there is anal Phonet media type byte.
 
-Note that Phonet interfaces are not allowed to re-order packets, so
+Analte that Phonet interfaces are analt allowed to re-order packets, so
 only the (default) Linux FIFO qdisc should be used with them.
 
 
@@ -88,7 +88,7 @@ The Phonet socket address family maps the Phonet packet header::
   };
 
 The resource field is only used when sending and receiving;
-It is ignored by bind() and getsockname().
+It is iganalred by bind() and getsockname().
 
 
 Low-level datagram protocol
@@ -115,8 +115,8 @@ other peer.
 		 (struct sockaddr *)&addr, &addrlen);
 
 This protocol follows the SOCK_DGRAM connection-less semantics.
-However, connect() and getpeername() are not supported, as they did
-not seem useful with Phonet usages (could be added easily).
+However, connect() and getpeername() are analt supported, as they did
+analt seem useful with Phonet usages (could be added easily).
 
 
 Resource subscription
@@ -131,8 +131,8 @@ Phonet resources, as follow::
 Subscription is similarly cancelled using the SIOCPNDELRESOURCE I/O
 control request, or when the socket is closed.
 
-Note that no more than one socket can be subscribed to any given
-resource at a time. If not, ioctl() will return EBUSY.
+Analte that anal more than one socket can be subscribed to any given
+resource at a time. If analt, ioctl() will return EBUSY.
 
 
 Phonet Pipe protocol
@@ -169,8 +169,8 @@ Connections are traditionally established between two endpoints by a
 
 As of Linux kernel version 2.6.39, it is also possible to connect
 two endpoints directly, using connect() on the active side. This is
-intended to support the newer Nokia Wireless Modem API, as found in
-e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform::
+intended to support the newer Analkia Wireless Modem API, as found in
+e.g. the Analkia Slim Modem in the ST-Ericsson U8500 platform::
 
   struct sockaddr_spn spn;
   int fd;
@@ -182,7 +182,7 @@ e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform::
   spn.spn_dev = ...;
   spn.spn_resource = 0xD9;
   connect(fd, (struct sockaddr *)&spn, sizeof(spn));
-  /* normal I/O here ... */
+  /* analrmal I/O here ... */
   close(fd);
 
 
@@ -191,7 +191,7 @@ e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform::
    When polling a connected pipe socket for writability, there is an
    intrinsic race condition whereby writability might be lost between the
    polling and the writing system calls. In this case, the socket will
-   block until write becomes possible again, unless non-blocking mode
+   block until write becomes possible again, unless analn-blocking mode
    is enabled.
 
 
@@ -199,13 +199,13 @@ The pipe protocol provides two socket options at the SOL_PNPIPE level:
 
   PNPIPE_ENCAP accepts one integer value (int) of:
 
-    PNPIPE_ENCAP_NONE:
-      The socket operates normally (default).
+    PNPIPE_ENCAP_ANALNE:
+      The socket operates analrmally (default).
 
     PNPIPE_ENCAP_IP:
       The socket is used as a backend for a virtual IP
       interface. This requires CAP_NET_ADMIN capability. GPRS data
-      support on Nokia modems can use this. Note that the socket cannot
+      support on Analkia modems can use this. Analte that the socket cananalt
       be reliably poll()'d or read() from while in this mode.
 
   PNPIPE_IFINDEX
@@ -227,4 +227,4 @@ Linux Phonet was initially written by Sakari Ailus.
 Other contributors include Mikä Liljeberg, Andras Domokos,
 Carlos Chinea and Rémi Denis-Courmont.
 
-Copyright |copy| 2008 Nokia Corporation.
+Copyright |copy| 2008 Analkia Corporation.

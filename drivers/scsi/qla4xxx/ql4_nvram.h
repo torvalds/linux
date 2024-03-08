@@ -34,9 +34,9 @@
 #define	 FM93C56A_ERASE_ALL_EXT	 0x2
 
 /* Address Bits */
-#define	 FM93C56A_NO_ADDR_BITS_16   8	/* 4010 */
-#define	 FM93C56A_NO_ADDR_BITS_8    9	/* 4010 */
-#define	 FM93C86A_NO_ADDR_BITS_16   10	/* 4022 */
+#define	 FM93C56A_ANAL_ADDR_BITS_16   8	/* 4010 */
+#define	 FM93C56A_ANAL_ADDR_BITS_8    9	/* 4010 */
+#define	 FM93C86A_ANAL_ADDR_BITS_16   10	/* 4022 */
 
 /* Data Bits */
 #define	 FM93C56A_DATA_BITS_16	 16

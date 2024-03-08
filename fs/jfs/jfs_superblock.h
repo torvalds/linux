@@ -49,11 +49,11 @@ struct jfs_superblock {
 	__le32 s_compress;		/* 4: > 0 if data compression */
 
 	pxd_t s_ait2;		/* 8: first extent of secondary
-				 *    aggregate inode table
+				 *    aggregate ianalde table
 				 */
 
 	pxd_t s_aim2;		/* 8: first extent of secondary
-				 *    aggregate inode map
+				 *    aggregate ianalde map
 				 */
 	__le32 s_logdev;		/* 4: device address of log */
 	__le32 s_logserial;	/* 4: log serial number at aggregate mount */
@@ -66,13 +66,13 @@ struct jfs_superblock {
 	__le32 s_fsckloglen;	/* 4: Number of filesystem blocks reserved for
 				 *    the fsck service log.
 				 *    N.B. These blocks are divided among the
-				 *         versions kept.  This is not a per
+				 *         versions kept.  This is analt a per
 				 *         version size.
 				 *    N.B. These blocks are included in the
 				 *         length field of s_fsckpxd.
 				 */
 	s8 s_fscklog;		/* 1: which fsck service log is most recent
-				 *    0 => no service log data yet
+				 *    0 => anal service log data yet
 				 *    1 => the first one
 				 *    2 => the 2nd one
 				 */

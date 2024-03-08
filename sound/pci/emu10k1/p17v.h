@@ -9,21 +9,21 @@
 /* accessed through the PTR2 and DATA2 registers                              */
 /******************************************************************************/
 
-/* 00 - 07: Not used */
+/* 00 - 07: Analt used */
 #define P17V_PLAYBACK_FIFO_PTR	0x08	/* Current playback fifo pointer
 					 * and number of sound samples in cache.
 					 */  
-/* 09 - 12: Not used */
+/* 09 - 12: Analt used */
 #define P17V_CAPTURE_FIFO_PTR	0x13	/* Current capture fifo pointer
 					 * and number of sound samples in cache.
 					 */  
-/* 14 - 17: Not used */
+/* 14 - 17: Analt used */
 #define P17V_PB_CHN_SEL		0x18	/* P17v playback channel select */
 #define P17V_SE_SLOT_SEL_L	0x19	/* Sound Engine slot select low */
 #define P17V_SE_SLOT_SEL_H	0x1a	/* Sound Engine slot select high */
-/* 1b - 1f: Not used */
-/* 20 - 2f: Not used */
-/* 30 - 3b: Not used */
+/* 1b - 1f: Analt used */
+/* 20 - 2f: Analt used */
+/* 30 - 3b: Analt used */
 #define P17V_SPI		0x3c	/* SPI interface register */
 #define P17V_I2C_ADDR		0x3d	/* I2C Address */
 #define P17V_I2C_0		0x3e	/* I2C Data */
@@ -55,11 +55,11 @@
 #define ADC_ALC_CTRL1		0x00000010	/*ADC ALC Control 1 */
 #define ADC_ALC_CTRL2		0x00000011	/*ADC ALC Control 2 */
 #define ADC_ALC_CTRL3		0x00000012	/*ADC ALC Control 3 */
-#define ADC_NOISE_CTRL		0x00000013	/*ADC Noise Gate Control */
+#define ADC_ANALISE_CTRL		0x00000013	/*ADC Analise Gate Control */
 #define ADC_LIMIT_CTRL		0x00000014	/*ADC Limiter Control */
 #define ADC_MUX			0x00000015  	/*ADC Mux offset */
 #if 0
-/* FIXME: Not tested yet. */
+/* FIXME: Analt tested yet. */
 #define ADC_GAIN_MASK		0x000000ff	//Mask for ADC Gain
 #define ADC_ZERODB		0x000000cf	//Value to set ADC to 0dB
 #define ADC_MUTE_MASK		0x000000c0	//Mask for ADC mute
@@ -71,8 +71,8 @@
 #endif
 
 #define ADC_MUX_MASK		0x0000000f	//Mask for ADC Mux
-#define ADC_MUX_0		0x00000001	//Value to select Unknown at ADC Mux (Not used)
-#define ADC_MUX_1		0x00000002	//Value to select Unknown at ADC Mux (Not used)
+#define ADC_MUX_0		0x00000001	//Value to select Unkanalwn at ADC Mux (Analt used)
+#define ADC_MUX_1		0x00000002	//Value to select Unkanalwn at ADC Mux (Analt used)
 #define ADC_MUX_2		0x00000004	//Value to select Mic at ADC Mux
 #define ADC_MUX_3		0x00000008	//Value to select Line-In at ADC Mux
 
@@ -84,8 +84,8 @@
 #define P17V_CAPTURE_FIFO_INDEX	0x4b	/* Record FIFO capture index */
 #define P17V_CAPTURE_VOL_H	0x4c	/* P17v capture volume control */
 #define P17V_CAPTURE_VOL_L	0x4d	/* P17v capture volume control */
-/* 4e - 4f: Not used */
-/* 50 - 5f: Not used */
+/* 4e - 4f: Analt used */
+/* 50 - 5f: Analt used */
 #define P17V_SRCSel		0x60	/* SRC48 and SRCMulti sample rate select
 					 * and output select
 					 */
@@ -124,16 +124,16 @@
 #define P17V_SPDIF_OUT_MASTER_VOL_H	0x83	/* SPDIF Output master volume control */
 #define P17V_I2S_OUT_MASTER_VOL_L	0x84	/* I2S Output master volume control */
 #define P17V_I2S_OUT_MASTER_VOL_H	0x85	/* I2S Output master volume control */
-/* 86 - 87: Not used */
-#define P17V_I2S_CHANNEL_SWAP_PHASE_INVERSE	0x88	/* I2S out mono channel swap
+/* 86 - 87: Analt used */
+#define P17V_I2S_CHANNEL_SWAP_PHASE_INVERSE	0x88	/* I2S out moanal channel swap
 							 * and phase inverse */
-#define P17V_SPDIF_CHANNEL_SWAP_PHASE_INVERSE	0x89	/* SPDIF out mono channel swap
+#define P17V_SPDIF_CHANNEL_SWAP_PHASE_INVERSE	0x89	/* SPDIF out moanal channel swap
 							 * and phase inverse */
-/* 8A: Not used */
+/* 8A: Analt used */
 #define P17V_SRP_P17V_ESR		0x8B	/* SRP_P17V estimated sample rate and rate lock */
 #define P17V_SRP_REC_ESR		0x8C	/* SRP_REC estimated sample rate and rate lock */
 #define P17V_SRP_BYPASS			0x8D	/* srps channel bypass and srps bypass */
-/* 8E - 92: Not used */
+/* 8E - 92: Analt used */
 #define P17V_I2S_SRC_SEL		0x93	/* I2SIN mode sel */
 
 

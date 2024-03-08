@@ -4,7 +4,7 @@
  *  Ingenic XBurst platform IRQ support
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -57,7 +57,7 @@ static irqreturn_t intc_cascade(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __init ingenic_intc_of_init(struct device_node *node,
+static int __init ingenic_intc_of_init(struct device_analde *analde,
 				       unsigned num_chips)
 {
 	struct ingenic_intc_data *intc;
@@ -69,11 +69,11 @@ static int __init ingenic_intc_of_init(struct device_node *node,
 
 	intc = kzalloc(sizeof(*intc), GFP_KERNEL);
 	if (!intc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_err;
 	}
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(analde, 0);
 	if (!parent_irq) {
 		err = -EINVAL;
 		goto out_free;
@@ -84,16 +84,16 @@ static int __init ingenic_intc_of_init(struct device_node *node,
 		goto out_unmap_irq;
 
 	intc->num_chips = num_chips;
-	intc->base = of_iomap(node, 0);
+	intc->base = of_iomap(analde, 0);
 	if (!intc->base) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_unmap_irq;
 	}
 
-	domain = irq_domain_add_linear(node, num_chips * 32,
+	domain = irq_domain_add_linear(analde, num_chips * 32,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unmap_base;
 	}
 
@@ -101,7 +101,7 @@ static int __init ingenic_intc_of_init(struct device_node *node,
 
 	err = irq_alloc_domain_generic_chips(domain, 32, 1, "INTC",
 					     handle_level_irq, 0,
-					     IRQ_NOPROBE | IRQ_LEVEL, 0);
+					     IRQ_ANALPROBE | IRQ_LEVEL, 0);
 	if (err)
 		goto out_domain_remove;
 
@@ -124,7 +124,7 @@ static int __init ingenic_intc_of_init(struct device_node *node,
 		irq_reg_writel(gc, IRQ_MSK(32), JZ_REG_INTC_SET_MASK);
 	}
 
-	if (request_irq(parent_irq, intc_cascade, IRQF_NO_SUSPEND,
+	if (request_irq(parent_irq, intc_cascade, IRQF_ANAL_SUSPEND,
 			"SoC intc cascade interrupt", NULL))
 		pr_err("Failed to register SoC intc cascade interrupt\n");
 	return 0;
@@ -141,18 +141,18 @@ out_err:
 	return err;
 }
 
-static int __init intc_1chip_of_init(struct device_node *node,
-				     struct device_node *parent)
+static int __init intc_1chip_of_init(struct device_analde *analde,
+				     struct device_analde *parent)
 {
-	return ingenic_intc_of_init(node, 1);
+	return ingenic_intc_of_init(analde, 1);
 }
 IRQCHIP_DECLARE(jz4740_intc, "ingenic,jz4740-intc", intc_1chip_of_init);
 IRQCHIP_DECLARE(jz4725b_intc, "ingenic,jz4725b-intc", intc_1chip_of_init);
 
-static int __init intc_2chip_of_init(struct device_node *node,
-	struct device_node *parent)
+static int __init intc_2chip_of_init(struct device_analde *analde,
+	struct device_analde *parent)
 {
-	return ingenic_intc_of_init(node, 2);
+	return ingenic_intc_of_init(analde, 2);
 }
 IRQCHIP_DECLARE(jz4760_intc, "ingenic,jz4760-intc", intc_2chip_of_init);
 IRQCHIP_DECLARE(jz4770_intc, "ingenic,jz4770-intc", intc_2chip_of_init);

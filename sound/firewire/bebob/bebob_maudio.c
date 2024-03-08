@@ -21,10 +21,10 @@
  *
  * For streaming, both of output and input streams are needed for Firewire 410
  * and Ozonic. The single stream is OK for the other devices even if the clock
- * source is not SYT-Match (I note no devices use SYT-Match).
+ * source is analt SYT-Match (I analte anal devices use SYT-Match).
  *
  * Without streaming, the devices except for Firewire Audiophile can mix any
- * input and output. For this reason, Audiophile cannot be used as standalone
+ * input and output. For this reason, Audiophile cananalt be used as standalone
  * mixer.
  *
  * Firewire 1814 and ProjectMix I/O uses special firmware. It will be freezed
@@ -73,7 +73,7 @@
 #define AUX_OUT		"Aux Out"
 #define HP_OUT		"HP Out"
 /* for NRV */
-#define UNKNOWN_METER	"Unknown"
+#define UNKANALWN_METER	"Unkanalwn"
 
 struct special_params {
 	bool is1814;
@@ -104,7 +104,7 @@ int snd_bebob_maudio_load_firmware(struct fw_unit *unit)
 		return err;
 	/*
 	 * firmware version 5058 or later has date later than "20070401", but
-	 * 'date' is not null-terminated.
+	 * 'date' is analt null-terminated.
 	 */
 	if (date < 0x3230303730343031LL) {
 		dev_err(&unit->device,
@@ -114,14 +114,14 @@ int snd_bebob_maudio_load_firmware(struct fw_unit *unit)
 
 	cues = kmalloc_array(3, sizeof(*cues), GFP_KERNEL);
 	if (!cues)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cues[0] = cpu_to_le32(MAUDIO_BOOTLOADER_CUE1);
 	cues[1] = cpu_to_le32(MAUDIO_BOOTLOADER_CUE2);
 	cues[2] = cpu_to_le32(MAUDIO_BOOTLOADER_CUE3);
 
 	rcode = fw_run_transaction(device->card, TCODE_WRITE_BLOCK_REQUEST,
-				   device->node_id, device->generation,
+				   device->analde_id, device->generation,
 				   device->max_speed, BEBOB_ADDR_REG_REQ,
 				   cues, 3 * sizeof(*cues));
 	kfree(cues);
@@ -150,7 +150,7 @@ check_clk_sync(struct snd_bebob *bebob, unsigned int size, bool *sync)
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = get_meter(bebob, buf, size);
 	if (err < 0)
@@ -182,7 +182,7 @@ avc_maudio_set_special_clk(struct snd_bebob *bebob, unsigned int clk_src,
 
 	buf = kmalloc(12, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0]  = 0x00;		/* CONTROL */
 	buf[1]  = 0xff;		/* UNIT */
@@ -203,8 +203,8 @@ avc_maudio_set_special_clk(struct snd_bebob *bebob, unsigned int clk_src,
 				  BIT(9));
 	if ((err > 0) && (err < 10))
 		err = -EIO;
-	else if (buf[0] == 0x08) /* NOT IMPLEMENTED */
-		err = -ENOSYS;
+	else if (buf[0] == 0x08) /* ANALT IMPLEMENTED */
+		err = -EANALSYS;
 	else if (buf[0] == 0x0a) /* REJECTED */
 		err = -EINVAL;
 	if (err < 0)
@@ -216,7 +216,7 @@ avc_maudio_set_special_clk(struct snd_bebob *bebob, unsigned int clk_src,
 	params->clk_lock	= buf[9];
 
 	if (params->ctl_id_sync)
-		snd_ctl_notify(bebob->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(bebob->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       params->ctl_id_sync);
 
 	err = 0;
@@ -263,14 +263,14 @@ snd_bebob_maudio_special_discover(struct snd_bebob *bebob, bool is1814)
 	params = devm_kzalloc(&bebob->card->card_dev,
 			      sizeof(struct special_params), GFP_KERNEL);
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&bebob->mutex);
 
 	bebob->maudio_special_quirk = (void *)params;
 	params->is1814 = is1814;
 
-	/* initialize these parameters because driver is not allowed to ask */
+	/* initialize these parameters because driver is analt allowed to ask */
 	bebob->rx_stream.context = ERR_PTR(-1);
 	bebob->tx_stream.context = ERR_PTR(-1);
 	err = avc_maudio_set_special_clk(bebob, 0x03, 0x00, 0x00, 0x00);
@@ -333,7 +333,7 @@ static int special_set_rate(struct snd_bebob *bebob, unsigned int rate)
 		goto end;
 
 	if (params->ctl_id_sync)
-		snd_ctl_notify(bebob->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(bebob->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       params->ctl_id_sync);
 end:
 	return err;
@@ -639,13 +639,13 @@ special_meter_get(struct snd_bebob *bebob, u32 *target, unsigned int size)
 	/* omit last 4 bytes because it's clock info. */
 	buf = kmalloc(METER_SIZE_SPECIAL - 4, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = get_meter(bebob, (void *)buf, METER_SIZE_SPECIAL - 4);
 	if (err < 0)
 		goto end;
 
-	/* Its format is u16 and some channels are unknown. */
+	/* Its format is u16 and some channels are unkanalwn. */
 	i = 0;
 	for (c = 2; c < channels + 2; c++)
 		target[i++] = be16_to_cpu(buf[c]) << 16;
@@ -671,7 +671,7 @@ static const char *const solo_meter_labels[] = {
 	ANA_OUT, DIG_OUT
 };
 
-/* no clock info */
+/* anal clock info */
 static const char *const ozonic_meter_labels[] = {
 	ANA_IN, ANA_IN,
 	STRM_IN, STRM_IN,
@@ -685,7 +685,7 @@ static const char *const nrv10_meter_labels[] = {
 	DIG_IN
 };
 static int
-normal_meter_get(struct snd_bebob *bebob, u32 *buf, unsigned int size)
+analrmal_meter_get(struct snd_bebob *bebob, u32 *buf, unsigned int size)
 {
 	const struct snd_bebob_meter_spec *spec = bebob->spec->meter;
 	unsigned int c, channels;
@@ -740,7 +740,7 @@ static const struct snd_bebob_rate_spec usual_rate_spec = {
 static const struct snd_bebob_meter_spec fw410_meter_spec = {
 	.num	= ARRAY_SIZE(fw410_meter_labels),
 	.labels	= fw410_meter_labels,
-	.get	= &normal_meter_get
+	.get	= &analrmal_meter_get
 };
 const struct snd_bebob_spec maudio_fw410_spec = {
 	.clock	= NULL,
@@ -752,7 +752,7 @@ const struct snd_bebob_spec maudio_fw410_spec = {
 static const struct snd_bebob_meter_spec audiophile_meter_spec = {
 	.num	= ARRAY_SIZE(audiophile_meter_labels),
 	.labels	= audiophile_meter_labels,
-	.get	= &normal_meter_get
+	.get	= &analrmal_meter_get
 };
 const struct snd_bebob_spec maudio_audiophile_spec = {
 	.clock	= NULL,
@@ -764,7 +764,7 @@ const struct snd_bebob_spec maudio_audiophile_spec = {
 static const struct snd_bebob_meter_spec solo_meter_spec = {
 	.num	= ARRAY_SIZE(solo_meter_labels),
 	.labels	= solo_meter_labels,
-	.get	= &normal_meter_get
+	.get	= &analrmal_meter_get
 };
 const struct snd_bebob_spec maudio_solo_spec = {
 	.clock	= NULL,
@@ -776,7 +776,7 @@ const struct snd_bebob_spec maudio_solo_spec = {
 static const struct snd_bebob_meter_spec ozonic_meter_spec = {
 	.num	= ARRAY_SIZE(ozonic_meter_labels),
 	.labels	= ozonic_meter_labels,
-	.get	= &normal_meter_get
+	.get	= &analrmal_meter_get
 };
 const struct snd_bebob_spec maudio_ozonic_spec = {
 	.clock	= NULL,
@@ -788,7 +788,7 @@ const struct snd_bebob_spec maudio_ozonic_spec = {
 static const struct snd_bebob_meter_spec nrv10_meter_spec = {
 	.num	= ARRAY_SIZE(nrv10_meter_labels),
 	.labels	= nrv10_meter_labels,
-	.get	= &normal_meter_get
+	.get	= &analrmal_meter_get
 };
 const struct snd_bebob_spec maudio_nrv10_spec = {
 	.clock	= NULL,

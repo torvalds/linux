@@ -157,7 +157,7 @@ struct intel_modifier_desc {
 					 INTEL_PLANE_CAP_TILING_Y | \
 					 INTEL_PLANE_CAP_TILING_Yf | \
 					 INTEL_PLANE_CAP_TILING_4)
-#define INTEL_PLANE_CAP_TILING_NONE	0
+#define INTEL_PLANE_CAP_TILING_ANALNE	0
 
 static const struct intel_modifier_desc intel_modifiers[] = {
 	{
@@ -308,7 +308,7 @@ unsigned int intel_fb_modifier_to_tiling(u64 fb_modifier)
 
 	md = lookup_modifier_or_null(fb_modifier);
 	if (!md)
-		return I915_TILING_NONE;
+		return I915_TILING_ANALNE;
 
 	tiling_caps = lookup_modifier_or_null(fb_modifier)->plane_caps &
 			 INTEL_PLANE_CAP_TILING_MASK;
@@ -320,11 +320,11 @@ unsigned int intel_fb_modifier_to_tiling(u64 fb_modifier)
 		return I915_TILING_X;
 	case INTEL_PLANE_CAP_TILING_4:
 	case INTEL_PLANE_CAP_TILING_Yf:
-	case INTEL_PLANE_CAP_TILING_NONE:
-		return I915_TILING_NONE;
+	case INTEL_PLANE_CAP_TILING_ANALNE:
+		return I915_TILING_ANALNE;
 	default:
 		MISSING_CASE(tiling_caps);
-		return I915_TILING_NONE;
+		return I915_TILING_ANALNE;
 	}
 }
 
@@ -563,7 +563,7 @@ static bool intel_fb_is_gen12_ccs_aux_plane(const struct drm_framebuffer *fb, in
  * @fb: Framebuffer
  *
  * Returns:
- * Returns the index of the color clear plane for @fb, or -1 if @fb is not a
+ * Returns the index of the color clear plane for @fb, or -1 if @fb is analt a
  * framebuffer using a render compression/color clear modifier.
  */
 int intel_fb_rc_ccs_cc_plane(const struct drm_framebuffer *fb)
@@ -1020,7 +1020,7 @@ u32 intel_plane_adjust_aligned_offset(int *x, int *y,
  *
  * This function is used when computing the derived information
  * under intel_framebuffer, so using any of that information
- * here is not allowed. Anything under drm_framebuffer can be
+ * here is analt allowed. Anything under drm_framebuffer can be
  * used. This is why the user has to pass in the pitch since it
  * is specified in the rotated orientation.
  */
@@ -1176,8 +1176,8 @@ static int intel_fb_check_ccs_xy(const struct drm_framebuffer *fb, int ccs_plane
 	ccs_y = (y * vsub) % tile_height;
 
 	main_plane = skl_ccs_to_main_plane(fb, ccs_plane);
-	main_x = intel_fb->normal_view.color_plane[main_plane].x % tile_width;
-	main_y = intel_fb->normal_view.color_plane[main_plane].y % tile_height;
+	main_x = intel_fb->analrmal_view.color_plane[main_plane].x % tile_width;
+	main_y = intel_fb->analrmal_view.color_plane[main_plane].y % tile_height;
 
 	/*
 	 * CCS doesn't have its own x/y offset register, so the intra CCS tile
@@ -1188,8 +1188,8 @@ static int intel_fb_check_ccs_xy(const struct drm_framebuffer *fb, int ccs_plane
 			      "Bad CCS x/y (main %d,%d ccs %d,%d) full (main %d,%d ccs %d,%d)\n",
 			      main_x, main_y,
 			      ccs_x, ccs_y,
-			      intel_fb->normal_view.color_plane[main_plane].x,
-			      intel_fb->normal_view.color_plane[main_plane].y,
+			      intel_fb->analrmal_view.color_plane[main_plane].x,
+			      intel_fb->analrmal_view.color_plane[main_plane].y,
 			      x, y);
 		return -EINVAL;
 	}
@@ -1210,7 +1210,7 @@ static bool intel_plane_can_remap(const struct intel_plane_state *plane_state)
 
 	/*
 	 * The display engine limits already match/exceed the
-	 * render engine limits, so not much point in remapping.
+	 * render engine limits, so analt much point in remapping.
 	 * Would also need to deal with the fence POT alignment
 	 * and gen2 2KiB GTT tile size.
 	 */
@@ -1252,7 +1252,7 @@ static int intel_fb_pitch(const struct intel_framebuffer *fb, int color_plane, u
 	else if (intel_fb_needs_pot_stride_remap(fb))
 		return fb->remapped_view.color_plane[color_plane].mapping_stride;
 	else
-		return fb->normal_view.color_plane[color_plane].mapping_stride;
+		return fb->analrmal_view.color_plane[color_plane].mapping_stride;
 }
 
 static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
@@ -1263,7 +1263,7 @@ static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
 	u32 stride, max_stride;
 
 	/*
-	 * No remapping for invisible planes since we don't have
+	 * Anal remapping for invisible planes since we don't have
 	 * an actual source viewport to remap.
 	 */
 	if (!plane_state->uapi.visible)
@@ -1274,7 +1274,7 @@ static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
 
 	/*
 	 * FIXME: aux plane limits on gen9+ are
-	 * unclear in Bspec, for now no checking.
+	 * unclear in Bspec, for analw anal checking.
 	 */
 	stride = intel_fb_pitch(fb, 0, rotation);
 	max_stride = plane->max_stride(plane, fb->base.format->format,
@@ -1304,8 +1304,8 @@ static int convert_plane_offset_to_xy(const struct intel_framebuffer *fb, int co
 	/*
 	 * The fence (if used) is aligned to the start of the object
 	 * so having the framebuffer wrap around across the edge of the
-	 * fenced region doesn't really work. We have no API to configure
-	 * the fence start offset within the object (nor could we probably
+	 * fenced region doesn't really work. We have anal API to configure
+	 * the fence start offset within the object (analr could we probably
 	 * on gen2/3). So it's just easier if we just require that the
 	 * fb layout agrees with the fence layout. We already check that the
 	 * fb stride matches the fence stride elsewhere.
@@ -1374,7 +1374,7 @@ plane_view_dst_stride_tiles(const struct intel_framebuffer *fb, int color_plane,
 }
 
 static unsigned int
-plane_view_scanout_stride(const struct intel_framebuffer *fb, int color_plane,
+plane_view_scaanalut_stride(const struct intel_framebuffer *fb, int color_plane,
 			  unsigned int tile_width,
 			  unsigned int src_stride_tiles, unsigned int dst_stride_tiles)
 {
@@ -1481,7 +1481,7 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 		color_plane_info->y = r.y1;
 
 		color_plane_info->mapping_stride = remap_info->dst_stride * tile_height;
-		color_plane_info->scanout_stride = color_plane_info->mapping_stride;
+		color_plane_info->scaanalut_stride = color_plane_info->mapping_stride;
 
 		size += remap_info->dst_stride * remap_info->width;
 
@@ -1505,7 +1505,7 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 
 		if (remap_info->linear) {
 			color_plane_info->mapping_stride = fb->base.pitches[color_plane];
-			color_plane_info->scanout_stride = color_plane_info->mapping_stride;
+			color_plane_info->scaanalut_stride = color_plane_info->mapping_stride;
 
 			size += remap_info->size;
 		} else {
@@ -1528,8 +1528,8 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 			color_plane_info->mapping_stride = dst_stride *
 							   tile_width *
 							   fb->base.format->cpp[color_plane];
-			color_plane_info->scanout_stride =
-				plane_view_scanout_stride(fb, color_plane, tile_width,
+			color_plane_info->scaanalut_stride =
+				plane_view_scaanalut_stride(fb, color_plane, tile_width,
 							  remap_info->src_stride,
 							  dst_stride);
 
@@ -1560,7 +1560,7 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 
 /* Return number of tiles @color_plane needs. */
 static unsigned int
-calc_plane_normal_size(const struct intel_framebuffer *fb, int color_plane,
+calc_plane_analrmal_size(const struct intel_framebuffer *fb, int color_plane,
 		       const struct fb_plane_view_dims *dims,
 		       int x, int y)
 {
@@ -1611,7 +1611,7 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 	int i, num_planes = fb->base.format->num_planes;
 	unsigned int tile_size = intel_tile_size(i915);
 
-	intel_fb_view_init(i915, &fb->normal_view, I915_GTT_VIEW_NORMAL);
+	intel_fb_view_init(i915, &fb->analrmal_view, I915_GTT_VIEW_ANALRMAL);
 
 	drm_WARN_ON(&i915->drm,
 		    intel_fb_supports_90_270_rotation(fb) &&
@@ -1632,7 +1632,7 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 
 		/*
 		 * Plane 2 of Render Compression with Clear Color fb modifier
-		 * is consumed by the driver and not passed to DE. Skip the
+		 * is consumed by the driver and analt passed to DE. Skip the
 		 * arithmetic related to alignment and offset calculation.
 		 */
 		if (is_gen12_ccs_cc_plane(&fb->base, i)) {
@@ -1652,13 +1652,13 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 
 		/*
 		 * First pixel of the framebuffer from
-		 * the start of the normal gtt mapping.
+		 * the start of the analrmal gtt mapping.
 		 */
-		fb->normal_view.color_plane[i].x = x;
-		fb->normal_view.color_plane[i].y = y;
-		fb->normal_view.color_plane[i].mapping_stride = fb->base.pitches[i];
-		fb->normal_view.color_plane[i].scanout_stride =
-			fb->normal_view.color_plane[i].mapping_stride;
+		fb->analrmal_view.color_plane[i].x = x;
+		fb->analrmal_view.color_plane[i].y = y;
+		fb->analrmal_view.color_plane[i].mapping_stride = fb->base.pitches[i];
+		fb->analrmal_view.color_plane[i].scaanalut_stride =
+			fb->analrmal_view.color_plane[i].mapping_stride;
 
 		offset = calc_plane_aligned_offset(fb, i, &x, &y);
 
@@ -1672,7 +1672,7 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 								     offset, gtt_offset_remapped, x, y,
 								     &fb->remapped_view);
 
-		size = calc_plane_normal_size(fb, i, &view_dims, x, y);
+		size = calc_plane_analrmal_size(fb, i, &view_dims, x, y);
 		/* how many tiles in total needed in the bo */
 		max_size = max(max_size, offset + size);
 	}
@@ -1737,10 +1737,10 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 
 		/*
 		 * First pixel of the src viewport from the
-		 * start of the normal gtt mapping.
+		 * start of the analrmal gtt mapping.
 		 */
-		x += intel_fb->normal_view.color_plane[i].x;
-		y += intel_fb->normal_view.color_plane[i].y;
+		x += intel_fb->analrmal_view.color_plane[i].x;
+		y += intel_fb->analrmal_view.color_plane[i].y;
 
 		offset = calc_plane_aligned_offset(intel_fb, i, &x, &y);
 
@@ -1758,7 +1758,7 @@ void intel_fb_fill_view(const struct intel_framebuffer *fb, unsigned int rotatio
 	else if (intel_fb_needs_pot_stride_remap(fb))
 		*view = fb->remapped_view;
 	else
-		*view = fb->normal_view;
+		*view = fb->analrmal_view;
 }
 
 static
@@ -1834,7 +1834,7 @@ static int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 	u32 stride, max_stride;
 
 	/*
-	 * We ignore stride for all invisible planes that
+	 * We iganalre stride for all invisible planes that
 	 * can be remapped. Otherwise we could end up
 	 * with a false positive when the remapping didn't
 	 * kick in due the plane being invisible.
@@ -1963,7 +1963,7 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	cb = kmalloc(sizeof(*cb), GFP_KERNEL);
 	if (!cb) {
 		dma_fence_put(fence);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto flush;
 	}
 
@@ -1975,7 +1975,7 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 				     intel_user_framebuffer_fence_wake);
 	if (ret) {
 		intel_user_framebuffer_fence_wake(fence, &cb->base);
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			ret = 0;
 	}
 
@@ -2009,7 +2009,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 	intel_fb->frontbuffer = intel_frontbuffer_get(obj);
 	if (!intel_fb->frontbuffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -2034,7 +2034,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		goto err_frontbuffer_put;
 	}
 
-	/* FIXME need to adjust LINOFF/TILEOFF accordingly. */
+	/* FIXME need to adjust LIANALFF/TILEOFF accordingly. */
 	if (mode_cmd->offsets[0] != 0) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "plane 0 offset (0x%08x) must be 0\n",
@@ -2140,7 +2140,7 @@ intel_framebuffer_create(struct drm_i915_gem_object *obj,
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = intel_framebuffer_init(intel_fb, obj, mode_cmd);
 	if (ret)

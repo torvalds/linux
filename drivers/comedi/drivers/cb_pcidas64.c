@@ -11,7 +11,7 @@
  *
  * Steve Rosenbluth, for providing the source code for
  * his pci-das6402 driver, and source code for working QNX pci-6402
- * drivers by Greg Laird and Mariusz Bogacz.  None of the code was
+ * drivers by Greg Laird and Mariusz Bogacz.  Analne of the code was
  * used directly here, but it was useful as an additional source of
  * documentation on how to program the boards.
  *
@@ -27,7 +27,7 @@
  *   with the PLX 9080 PCI controller
  * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works
- * Updated: Fri, 02 Nov 2012 18:58:55 +0000
+ * Updated: Fri, 02 Analv 2012 18:58:55 +0000
  * Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
  *   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
  *   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
@@ -39,21 +39,21 @@
  *   PCI-DAS6070, PCI-DAS6071, PCI-DAS4020/12
  *
  * Configuration options:
- *   None.
+ *   Analne.
  *
- * Manual attachment of PCI cards with the comedi_config utility is not
+ * Manual attachment of PCI cards with the comedi_config utility is analt
  * supported by this driver; they are attached automatically.
  *
  * These boards may be autocalibrated with the comedi_calibrate utility.
  *
  * To select the bnc trigger input on the 4020 (instead of the dio input),
- * specify a nonzero channel in the chanspec.  If you wish to use an external
+ * specify a analnzero channel in the chanspec.  If you wish to use an external
  * master clock on the 4020, you may do so by setting the scan_begin_src
  * to TRIG_OTHER, and using an INSN_CONFIG_TIMER_1 configuration insn
  * to configure the divisor to use for the external clock.
  *
- * Some devices are not identified because the PCI device IDs are not yet
- * known. If you have such a board, please let the maintainers know.
+ * Some devices are analt identified because the PCI device IDs are analt yet
+ * kanalwn. If you have such a board, please let the maintainers kanalw.
  */
 
 /*
@@ -61,10 +61,10 @@
  * make it return error if user attempts an ai command that uses the
  * external queue, and an ao command simultaneously user counter subdevice
  * there are a number of boards this driver will support when they are
- * fully released, but does not yet since the pci device id numbers
- * are not yet available.
+ * fully released, but does analt yet since the pci device id numbers
+ * are analt yet available.
  *
- * support prescaled 100khz clock for slow pacing (not available on 6000
+ * support prescaled 100khz clock for slow pacing (analt available on 6000
  * series?)
  *
  * make ao fifo size adjustable like ai fifo
@@ -205,10 +205,10 @@ enum hw_config_contents {
 	BNC_CLOCK_4020_BITS = 0x2,	/* use BNC input for master clock */
 	EXT_CLOCK_4020_BITS = 0x3,	/* use dio input for master clock */
 	EXT_QUEUE_BIT = 0x200,		/* use external channel/gain queue */
-	/* use 225 nanosec strobe when loading dac instead of 50 nanosec */
+	/* use 225 naanalsec strobe when loading dac instead of 50 naanalsec */
 	SLOW_DAC_BIT = 0x400,
 	/*
-	 * bit with unknown function yet given as default value in pci-das64
+	 * bit with unkanalwn function yet given as default value in pci-das64
 	 * manual
 	 */
 	HW_CONFIG_DUMMY_BITS = 0x2000,
@@ -255,7 +255,7 @@ enum adc_control1_contents {
 	CONVERT_POLARITY_BIT = 0x10,
 	EOC_POLARITY_BIT = 0x20,
 	ADC_SW_GATE_BIT = 0x40,		/* software gate of adc */
-	ADC_DITHER_BIT = 0x200,		/* turn on extra noise for dithering */
+	ADC_DITHER_BIT = 0x200,		/* turn on extra analise for dithering */
 	RETRIGGER_BIT = 0x800,
 	ADC_LO_CHANNEL_4020_MASK = 0x300,
 	ADC_HI_CHANNEL_4020_MASK = 0xc00,
@@ -316,7 +316,7 @@ static inline u16 adc_convert_chan_4020_bits(unsigned int channel)
 enum adc_queue_load_contents {
 	UNIP_BIT = 0x800,		/* unipolar/bipolar bit */
 	ADC_SE_DIFF_BIT = 0x1000,	/* single-ended/ differential bit */
-	/* non-referenced single-ended (common-mode input) */
+	/* analn-referenced single-ended (common-mode input) */
 	ADC_COMMON_BIT = 0x2000,
 	QUEUE_EOSEQ_BIT = 0x4000,	/* queue end of sequence */
 	QUEUE_EOSCAN_BIT = 0x8000,	/* queue end of scan */
@@ -984,7 +984,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.ai_speed	= 50,
 		.ao_bits	= 12,
 		.ao_nchan	= 2,
-		.ao_scan_speed	= 0,	/* no hardware pacing on ao */
+		.ao_scan_speed	= 0,	/* anal hardware pacing on ao */
 		.layout		= LAYOUT_4020,
 		.ai_range_table	= &ai_ranges_4020,
 		.ao_range_table	= &ao_ranges_4020,
@@ -993,7 +993,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.has_8255	= 1,
 	},
 #if 0
-	/* The device id for these boards is unknown */
+	/* The device id for these boards is unkanalwn */
 
 	[BOARD_PCIDAS6402_16_JR] = {
 		.name		= "pci-das6402/16/jr",
@@ -1297,9 +1297,9 @@ static void init_plx9080(struct comedi_device *dev)
 
 	/* configure dma0 mode */
 	bits = 0;
-	/* enable ready input, not sure if this is necessary */
+	/* enable ready input, analt sure if this is necessary */
 	bits |= PLX_DMAMODE_READYIEN;
-	/* enable bterm, not sure if this is necessary */
+	/* enable bterm, analt sure if this is necessary */
 	bits |= PLX_DMAMODE_BTERMIEN;
 	/* enable dma chaining */
 	bits |= PLX_DMAMODE_CHAINEN;
@@ -1477,7 +1477,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 					   &devpriv->ai_buffer_bus_addr[i],
 					   GFP_KERNEL);
 		if (!devpriv->ai_buffer[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (ao_cmd_is_supported(board)) {
@@ -1487,7 +1487,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 					       &devpriv->ao_buffer_bus_addr[i],
 					       GFP_KERNEL);
 			if (!devpriv->ao_buffer[i])
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 	/* allocate dma descriptors */
@@ -1496,7 +1496,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 				   ai_dma_ring_count(board),
 				   &devpriv->ai_dma_desc_bus_addr, GFP_KERNEL);
 	if (!devpriv->ai_dma_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ao_cmd_is_supported(board)) {
 		devpriv->ao_dma_desc =
@@ -1506,7 +1506,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 					   &devpriv->ao_dma_desc_bus_addr,
 					   GFP_KERNEL);
 		if (!devpriv->ao_dma_desc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	/* initialize dma descriptors */
 	for (i = 0; i < ai_dma_ring_count(board); i++) {
@@ -1590,7 +1590,7 @@ static void cb_pcidas64_free_dma(struct comedi_device *dev)
 static inline void warn_external_queue(struct comedi_device *dev)
 {
 	dev_err(dev->class_dev,
-		"AO command and AI external channel queue cannot be used simultaneously\n");
+		"AO command and AI external channel queue cananalt be used simultaneously\n");
 	dev_err(dev->class_dev,
 		"Use internal AI channel queue (channels must be consecutive and use same range/aref)\n");
 }
@@ -1661,7 +1661,7 @@ static int i2c_read_ack(struct comedi_device *dev)
 	i2c_set_sda(dev, 1);
 	i2c_set_scl(dev, 1);
 
-	return 0;		/* return fake acknowledge bit */
+	return 0;		/* return fake ackanalwledge bit */
 }
 
 /* send start bit */
@@ -1704,9 +1704,9 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	bitstream = (address << 1) & ~read_bit;
 	i2c_write_byte(dev, bitstream);
 
-	/* get acknowledge */
+	/* get ackanalwledge */
 	if (i2c_read_ack(dev) != 0) {
-		dev_err(dev->class_dev, "failed: no acknowledge\n");
+		dev_err(dev->class_dev, "failed: anal ackanalwledge\n");
 		i2c_stop(dev);
 		return;
 	}
@@ -1714,7 +1714,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	for (i = 0; i < length; i++) {
 		i2c_write_byte(dev, data[i]);
 		if (i2c_read_ack(dev) != 0) {
-			dev_err(dev->class_dev, "failed: no acknowledge\n");
+			dev_err(dev->class_dev, "failed: anal ackanalwledge\n");
 			i2c_stop(dev);
 			return;
 		}
@@ -1979,7 +1979,7 @@ static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /*
- * Gets nearest achievable timing given master clock speed, does not
+ * Gets nearest achievable timing given master clock speed, does analt
  * take into account possible minimum/maximum divisor values.  Used
  * by other timing checking functions.
  */
@@ -2031,7 +2031,7 @@ static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 				convert_divisor = min_convert_divisor;
 			cmd->convert_arg = convert_divisor * TIMER_BASE;
 		}
-	} else if (cmd->convert_src == TRIG_NOW) {
+	} else if (cmd->convert_src == TRIG_ANALW) {
 		cmd->convert_arg = 0;
 	}
 
@@ -2086,7 +2086,7 @@ static int cb_pcidas64_ai_check_chanlist(struct comedi_device *dev,
 		}
 		if (cmd->chanlist_len == 3) {
 			dev_dbg(dev->class_dev,
-				"chanlist cannot be 3 channels long, use 1, 2, or 4 channels\n");
+				"chanlist cananalt be 3 channels long, use 1, 2, or 4 channels\n");
 			return -EINVAL;
 		}
 	}
@@ -2104,7 +2104,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_EXT);
 
 	triggers = TRIG_TIMER;
 	if (board->layout == LAYOUT_4020)
@@ -2115,13 +2115,13 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	triggers = TRIG_TIMER;
 	if (board->layout == LAYOUT_4020)
-		triggers |= TRIG_NOW;
+		triggers |= TRIG_ANALW;
 	else
 		triggers |= TRIG_EXT;
 	err |= comedi_check_trigger_src(&cmd->convert_src, triggers);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= comedi_check_trigger_src(&cmd->stop_src,
-					TRIG_COUNT | TRIG_EXT | TRIG_NONE);
+					TRIG_COUNT | TRIG_EXT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -2144,7 +2144,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* Step 3: check if arguments are trivially valid */
 
 	switch (cmd->start_src) {
-	case TRIG_NOW:
+	case TRIG_ANALW:
 		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	case TRIG_EXT:
@@ -2185,7 +2185,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	case TRIG_COUNT:
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 		break;
-	case TRIG_NONE:
+	case TRIG_ANALNE:
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 		break;
 	default:
@@ -2222,7 +2222,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int use_hw_sample_counter(struct comedi_cmd *cmd)
 {
-/* disable for now until I work out a race */
+/* disable for analw until I work out a race */
 	return 0;
 
 	if (cmd->stop_src == TRIG_COUNT && cmd->stop_arg <= max_counter_value)
@@ -2482,7 +2482,7 @@ static int setup_channel_queue(struct comedi_device *dev,
 				       ADC_QUEUE_FIFO_REG);
 			}
 			/*
-			 * doing a queue clear is not specified in board docs,
+			 * doing a queue clear is analt specified in board docs,
 			 * but required for reliable operation
 			 */
 			writew(0, devpriv->main_iobase + ADC_QUEUE_CLEAR_REG);
@@ -2650,7 +2650,7 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		bits |= ADC_START_TRIG_EXT_BITS;
 		if (cmd->start_arg & CR_INVERT)
 			bits |= ADC_START_TRIG_FALLING_BIT;
-	} else if (cmd->start_src == TRIG_NOW) {
+	} else if (cmd->start_src == TRIG_ANALW) {
 		bits |= ADC_START_TRIG_SOFT_BITS;
 	}
 	if (use_hw_sample_counter(cmd))
@@ -2662,7 +2662,7 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* start acquisition */
-	if (cmd->start_src == TRIG_NOW)
+	if (cmd->start_src == TRIG_ANALW)
 		writew(0, devpriv->main_iobase + ADC_START_REG);
 
 	return 0;
@@ -2694,7 +2694,7 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 		prepost_bits = readw(devpriv->main_iobase + PREPOST_REG);
 
 		/*
-		 * if read and write pointers are not on the same fifo segment,
+		 * if read and write pointers are analt on the same fifo segment,
 		 * read to the end of the read segment
 		 */
 		read_segment = adc_upper_read_ptr_code(prepost_bits);
@@ -2822,7 +2822,7 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 		dev_err(dev->class_dev, "fifo overrun\n");
 		async->events |= COMEDI_CB_ERROR;
 	}
-	/* spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure anal one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR1);
 	if (plx_status & PLX_INTCSR_DMA1IA) {	/* dma chan 1 interrupt */
@@ -2950,7 +2950,7 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	next_bits |= PLX_DMADPR_CHAINEND;
 	devpriv->ao_dma_desc[buffer_index].next = cpu_to_le32(next_bits);
 	/*
-	 * clear end of chain bit on previous buffer now that we have set it
+	 * clear end of chain bit on previous buffer analw that we have set it
 	 * for the last buffer
 	 */
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[prev_buffer_index].next);
@@ -2994,13 +2994,13 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 	u8 dma0_status;
 	unsigned long flags;
 
-	/* board might not support ao, in which case write_subdev is NULL */
+	/* board might analt support ao, in which case write_subdev is NULL */
 	if (!s)
 		return;
 	async = s->async;
 	cmd = &async->cmd;
 
-	/* spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure anal one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR0);
 	if (plx_status & PLX_INTCSR_DMA0IA) {	/*  dma chan 0 interrupt */
@@ -3342,9 +3342,9 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_INT | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_EXT);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -3359,7 +3359,7 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (cmd->convert_src == TRIG_EXT && cmd->scan_begin_src == TRIG_TIMER)
 		err |= -EINVAL;
 	if (cmd->stop_src != TRIG_COUNT &&
-	    cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
+	    cmd->stop_src != TRIG_ANALNE && cmd->stop_src != TRIG_EXT)
 		err |= -EINVAL;
 
 	if (err)
@@ -3555,7 +3555,7 @@ static int caldac_i2c_write(struct comedi_device *dev,
 		GAIN_1_3 = 0x8,
 	};
 	enum data_bits {
-		NOT_CLEAR_REGISTERS = 0x20,
+		ANALT_CLEAR_REGISTERS = 0x20,
 	};
 
 	switch (caldac_channel) {
@@ -3595,7 +3595,7 @@ static int caldac_i2c_write(struct comedi_device *dev,
 		dev_err(dev->class_dev, "invalid caldac channel\n");
 		return -1;
 	}
-	serial_bytes[1] = NOT_CLEAR_REGISTERS | ((value >> 8) & 0xf);
+	serial_bytes[1] = ANALT_CLEAR_REGISTERS | ((value >> 8) & 0xf);
 	serial_bytes[2] = value & 0xff;
 	i2c_write(dev, i2c_addr, serial_bytes, 3);
 	return 0;
@@ -3766,7 +3766,7 @@ static int eeprom_read_insn(struct comedi_device *dev,
 	unsigned int i;
 
 	if (insn->n) {
-		/* No point reading the same EEPROM location more than once. */
+		/* Anal point reading the same EEPROM location more than once. */
 		val = read_eeprom(dev, CR_CHAN(insn->chanspec));
 		for (i = 0; i < insn->n; i++)
 			data[i] = val;
@@ -3797,7 +3797,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
 	else if (board->layout == LAYOUT_64XX)
 		s->subdev_flags |= SDF_DIFF;
-	/* XXX Number of inputs in differential mode is ignored */
+	/* XXX Number of inputs in differential mode is iganalred */
 	s->n_chan = board->ai_se_chans;
 	s->len_chanlist = 0x2000;
 	s->maxdata = (1 << board->ai_bits) - 1;
@@ -3811,7 +3811,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		u8 data;
 		/*
 		 * set adc to read from inputs
-		 * (not internal calibration sources)
+		 * (analt internal calibration sources)
 		 */
 		devpriv->i2c_cal_range_bits = adc_src_4020_bits(4);
 		/* set channels to +-5 volt input ranges */
@@ -3975,12 +3975,12 @@ static int auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(pcidas64_boards))
 		board = &pcidas64_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = comedi_pci_enable(dev);
 	if (retval)
@@ -3999,7 +3999,7 @@ static int auto_attach(struct comedi_device *dev,
 
 	if (!devpriv->plx9080_iobase || !devpriv->main_iobase || !dev->mmio) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* figure out what local addresses are */

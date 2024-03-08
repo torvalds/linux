@@ -26,7 +26,7 @@
 #ifndef __ASSEMBLY__
 
 enum tegra_revision {
-	TEGRA_REVISION_UNKNOWN = 0,
+	TEGRA_REVISION_UNKANALWN = 0,
 	TEGRA_REVISION_A01,
 	TEGRA_REVISION_A02,
 	TEGRA_REVISION_A03,
@@ -90,7 +90,7 @@ static inline u32 tegra_read_ram_code(void)
 
 static inline int tegra_fuse_readl(unsigned long offset, u32 *value)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline u32 tegra_read_chipid(void)

@@ -32,7 +32,7 @@
  * @s: the seq_buf descriptor
  * @len: The length to see if it can fit in the current buffer
  *
- * Returns: true if there's enough unused space in the seq_buf buffer
+ * Returns: true if there's eanalugh unused space in the seq_buf buffer
  * to fit the amount of new data according to @len.
  */
 static bool seq_buf_can_fit(struct seq_buf *s, size_t len)
@@ -45,7 +45,7 @@ static bool seq_buf_can_fit(struct seq_buf *s, size_t len)
  * @m: the seq_file descriptor that is the destination
  * @s: the seq_buf descriptor that is the source.
  *
- * Returns: zero on success, non-zero otherwise.
+ * Returns: zero on success, analn-zero otherwise.
  */
 int seq_buf_print_seq(struct seq_file *m, struct seq_buf *s)
 {
@@ -127,7 +127,7 @@ void seq_buf_do_printk(struct seq_buf *s, const char *lvl)
 		start = ++lf;
 	}
 
-	/* No trailing LF */
+	/* Anal trailing LF */
 	if (start < s->buffer + s->len)
 		printk("%s%s\n", lvl, start);
 }
@@ -228,7 +228,7 @@ EXPORT_SYMBOL_GPL(seq_buf_putc);
  * @len: The length of the raw memory to copy (in bytes)
  *
  * There may be cases where raw memory needs to be written into the
- * buffer and a strcpy() would not work. Using this function allows
+ * buffer and a strcpy() would analt work. Using this function allows
  * for such cases.
  *
  * Returns: zero on success, -1 on overflow.
@@ -347,7 +347,7 @@ int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc)
  * it copied.
  *
  * On failure it returns -EBUSY if all of the content in the
- * sequence has been already read, which includes nothing in the
+ * sequence has been already read, which includes analthing in the
  * sequence (@s->len == @start).
  *
  * Returns -EFAULT if the copy to userspace fails.
@@ -380,8 +380,8 @@ int seq_buf_to_user(struct seq_buf *s, char __user *ubuf, size_t start, int cnt)
  * @s: seq_buf descriptor
  * @prefix_str: string to prefix each line with;
  *  caller supplies trailing spaces for alignment if desired
- * @prefix_type: controls whether prefix of an offset, address, or none
- *  is printed (%DUMP_PREFIX_OFFSET, %DUMP_PREFIX_ADDRESS, %DUMP_PREFIX_NONE)
+ * @prefix_type: controls whether prefix of an offset, address, or analne
+ *  is printed (%DUMP_PREFIX_OFFSET, %DUMP_PREFIX_ADDRESS, %DUMP_PREFIX_ANALNE)
  * @rowsize: number of bytes to print per line; must be 16 or 32
  * @groupsize: number of bytes to print at a time (1, 2, 4, 8; default = 1)
  * @buf: data blob to dump

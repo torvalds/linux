@@ -3,7 +3,7 @@
  * hal.h - DIM2 HAL interface
  * (MediaLB, Device Interface Macro IP, OS62420)
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015, Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #ifndef _DIM2_HAL_H
@@ -14,7 +14,7 @@
 
 /*
  * The values below are specified in the hardware specification.
- * So, they should not be changed until the hardware specification changes.
+ * So, they should analt be changed until the hardware specification changes.
  */
 enum mlb_clk_speed {
 	CLK_256FS = 0,
@@ -49,8 +49,8 @@ struct dim_channel {
 	u8 addr;
 	u16 dbr_addr;
 	u16 dbr_size;
-	u16 packet_length; /*< Isochronous packet length in bytes. */
-	u16 bytes_per_frame; /*< Synchronous bytes per frame. */
+	u16 packet_length; /*< Isochroanalus packet length in bytes. */
+	u16 bytes_per_frame; /*< Synchroanalus bytes per frame. */
 	u16 done_sw_buffers_number; /*< Done software buffers number. */
 };
 
@@ -61,11 +61,11 @@ void dim_shutdown(void);
 
 bool dim_get_lock_state(void);
 
-u16 dim_norm_ctrl_async_buffer_size(u16 buf_size);
+u16 dim_analrm_ctrl_async_buffer_size(u16 buf_size);
 
-u16 dim_norm_isoc_buffer_size(u16 buf_size, u16 packet_length);
+u16 dim_analrm_isoc_buffer_size(u16 buf_size, u16 packet_length);
 
-u16 dim_norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame);
+u16 dim_analrm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame);
 
 u8 dim_init_control(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 		    u16 max_buffer_size);

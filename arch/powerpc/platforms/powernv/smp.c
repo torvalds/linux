@@ -74,7 +74,7 @@ static int pnv_smp_kick_cpu(int nr)
 
 	pcpu = get_hard_smp_processor_id(nr);
 	/*
-	 * If we already started or OPAL is not supported, we just
+	 * If we already started or OPAL is analt supported, we just
 	 * kick the CPU via the PACA
 	 */
 	if (paca_ptrs[nr]->cpu_start || !firmware_has_feature(FW_FEATURE_OPAL))
@@ -83,13 +83,13 @@ static int pnv_smp_kick_cpu(int nr)
 	/*
 	 * At this point, the CPU can either be spinning on the way in
 	 * from kexec or be inside OPAL waiting to be started for the
-	 * first time. OPAL v3 allows us to query OPAL to know if it
+	 * first time. OPAL v3 allows us to query OPAL to kanalw if it
 	 * has the CPUs, so we do that
 	 */
 	rc = opal_query_cpu_status(pcpu, &status);
 	if (rc != OPAL_SUCCESS) {
 		pr_warn("OPAL Error %ld querying CPU %d state\n", rc, nr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -107,18 +107,18 @@ static int pnv_smp_kick_cpu(int nr)
 		rc = opal_start_cpu(pcpu, start_here);
 		if (rc != OPAL_SUCCESS) {
 			pr_warn("OPAL Error %ld starting CPU %d\n", rc, nr);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else {
 		/*
-		 * An unavailable CPU (or any other unknown status)
+		 * An unavailable CPU (or any other unkanalwn status)
 		 * shouldn't be started. It should also
-		 * not be in the possible map but currently it can
+		 * analt be in the possible map but currently it can
 		 * happen
 		 */
 		pr_devel("OPAL: CPU %d (HW 0x%x) is unavailable"
 			 " (status %d)...\n", nr, pcpu, status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 kick:
@@ -183,8 +183,8 @@ static void pnv_cpu_offline_self(void)
 	 * This turns the irq soft-disabled state we're called with, into a
 	 * hard-disabled state with pending irq_happened interrupts cleared.
 	 *
-	 * PACA_IRQ_DEC   - Decrementer should be ignored.
-	 * PACA_IRQ_HMI   - Can be ignored, processing is done in real mode.
+	 * PACA_IRQ_DEC   - Decrementer should be iganalred.
+	 * PACA_IRQ_HMI   - Can be iganalred, processing is done in real mode.
 	 * PACA_IRQ_DBELL, EE, PMI - Unexpected.
 	 */
 	hard_irq_disable();
@@ -233,7 +233,7 @@ static void pnv_cpu_offline_self(void)
 		 * an external interrupt, then clear the interrupt.
 		 * We clear the interrupt before checking for the
 		 * reason, so as to avoid a race where we wake up for
-		 * some other reason, find nothing and clear the interrupt
+		 * some other reason, find analthing and clear the interrupt
 		 * just as some other cpu is sending us an interrupt.
 		 * If we returned from power7_nap as a result of
 		 * having finished executing in a KVM guest, then srr1
@@ -247,7 +247,7 @@ static void pnv_cpu_offline_self(void)
 			asm volatile(PPC_MSGCLR(%0) : : "r" (msg));
 		} else if ((srr1 & wmask) == SRR1_WAKERESET) {
 			irq_set_pending_from_srr1(srr1);
-			/* Does not return */
+			/* Does analt return */
 		}
 
 		smp_mb();
@@ -258,7 +258,7 @@ static void pnv_cpu_offline_self(void)
 		 */
 		if (kdump_in_progress()) {
 			/*
-			 * If we got to this point, we've not used
+			 * If we got to this point, we've analt used
 			 * NMI's, otherwise we would have gone
 			 * via the SRR1_WAKERESET path. We are
 			 * using regular IPI's for waking up offline
@@ -268,7 +268,7 @@ static void pnv_cpu_offline_self(void)
 
 			ppc_save_regs(&regs);
 			crash_ipi_callback(&regs);
-			/* Does not return */
+			/* Does analt return */
 		}
 
 		if (cpu_core_split_required())
@@ -284,7 +284,7 @@ static void pnv_cpu_offline_self(void)
 	 * Re-enable decrementer interrupts in LPCR.
 	 *
 	 * Further, we want stop states to be woken up by decrementer
-	 * for non-hotplug cases. So program the LPCR via stop api as
+	 * for analn-hotplug cases. So program the LPCR via stop api as
 	 * well.
 	 */
 	lpcr_val = mfspr(SPRN_LPCR) | (u64)LPCR_PECE1;
@@ -300,7 +300,7 @@ static int pnv_cpu_bootable(unsigned int nr)
 	/*
 	 * Starting with POWER8, the subcore logic relies on all threads of a
 	 * core being booted so that they can participate in split mode
-	 * switches. So on those machines we ignore the smt_enabled_at_boot
+	 * switches. So on those machines we iganalre the smt_enabled_at_boot
 	 * setting (smt-enabled on the kernel command line).
 	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
@@ -345,7 +345,7 @@ static void __init pnv_smp_probe(void)
 	}
 }
 
-noinstr static int pnv_system_reset_exception(struct pt_regs *regs)
+analinstr static int pnv_system_reset_exception(struct pt_regs *regs)
 {
 	if (smp_handle_nmi_ipi(regs))
 		return 1;
@@ -379,7 +379,7 @@ static int pnv_cause_nmi_ipi(int cpu)
 			opal_quiesce(QUIESCE_HOLD, -1);
 
 		/*
-		 * We do not use broadcasts (yet), because it's not clear
+		 * We do analt use broadcasts (yet), because it's analt clear
 		 * exactly what semantics Linux wants or the firmware should
 		 * provide.
 		 */

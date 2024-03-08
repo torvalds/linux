@@ -78,7 +78,7 @@ EXPORT_SYMBOL_GPL(xen_unmap_domain_gfn_range);
 static void xen_read_wallclock(struct timespec64 *ts)
 {
 	u32 version;
-	struct timespec64 now, ts_monotonic;
+	struct timespec64 analw, ts_moanaltonic;
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct pvclock_wall_clock *wall_clock = &(s->wc);
 
@@ -86,41 +86,41 @@ static void xen_read_wallclock(struct timespec64 *ts)
 	do {
 		version = wall_clock->version;
 		rmb();		/* fetch version before time */
-		now.tv_sec  = ((uint64_t)wall_clock->sec_hi << 32) | wall_clock->sec;
-		now.tv_nsec = wall_clock->nsec;
+		analw.tv_sec  = ((uint64_t)wall_clock->sec_hi << 32) | wall_clock->sec;
+		analw.tv_nsec = wall_clock->nsec;
 		rmb();		/* fetch time before checking version */
 	} while ((wall_clock->version & 1) || (version != wall_clock->version));
 
 	/* time since system boot */
-	ktime_get_ts64(&ts_monotonic);
-	*ts = timespec64_add(now, ts_monotonic);
+	ktime_get_ts64(&ts_moanaltonic);
+	*ts = timespec64_add(analw, ts_moanaltonic);
 }
 
-static int xen_pvclock_gtod_notify(struct notifier_block *nb,
+static int xen_pvclock_gtod_analtify(struct analtifier_block *nb,
 				   unsigned long was_set, void *priv)
 {
 	/* Protected by the calling core code serialization */
 	static struct timespec64 next_sync;
 
 	struct xen_platform_op op;
-	struct timespec64 now, system_time;
+	struct timespec64 analw, system_time;
 	struct timekeeper *tk = priv;
 
-	now.tv_sec = tk->xtime_sec;
-	now.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
-	system_time = timespec64_add(now, tk->wall_to_monotonic);
+	analw.tv_sec = tk->xtime_sec;
+	analw.tv_nsec = (long)(tk->tkr_moanal.xtime_nsec >> tk->tkr_moanal.shift);
+	system_time = timespec64_add(analw, tk->wall_to_moanaltonic);
 
 	/*
 	 * We only take the expensive HV call when the clock was set
 	 * or when the 11 minutes RTC synchronization time elapsed.
 	 */
-	if (!was_set && timespec64_compare(&now, &next_sync) < 0)
-		return NOTIFY_OK;
+	if (!was_set && timespec64_compare(&analw, &next_sync) < 0)
+		return ANALTIFY_OK;
 
 	op.cmd = XENPF_settime64;
 	op.u.settime64.mbz = 0;
-	op.u.settime64.secs = now.tv_sec;
-	op.u.settime64.nsecs = now.tv_nsec;
+	op.u.settime64.secs = analw.tv_sec;
+	op.u.settime64.nsecs = analw.tv_nsec;
 	op.u.settime64.system_time = timespec64_to_ns(&system_time);
 	(void)HYPERVISOR_platform_op(&op);
 
@@ -129,14 +129,14 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 	 * ahead. That's emulating the sync_cmos_clock() update for
 	 * the hardware RTC.
 	 */
-	next_sync = now;
+	next_sync = analw;
 	next_sync.tv_sec += 11 * 60;
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block xen_pvclock_gtod_notifier = {
-	.notifier_call = xen_pvclock_gtod_notify,
+static struct analtifier_block xen_pvclock_gtod_analtifier = {
+	.analtifier_call = xen_pvclock_gtod_analtify,
 };
 
 static int xen_starting_cpu(unsigned int cpu)
@@ -146,7 +146,7 @@ static int xen_starting_cpu(unsigned int cpu)
 	int err;
 
 	/* 
-	 * VCPUOP_register_vcpu_info cannot be called twice for the same
+	 * VCPUOP_register_vcpu_info cananalt be called twice for the same
 	 * vcpu, so if vcpu_info is already registered, just get out. This
 	 * can happen with cpu-hotplug.
 	 */
@@ -184,16 +184,16 @@ void xen_reboot(int reason)
 	BUG_ON(rc);
 }
 
-static int xen_restart(struct notifier_block *nb, unsigned long action,
+static int xen_restart(struct analtifier_block *nb, unsigned long action,
 		       void *data)
 {
 	xen_reboot(SHUTDOWN_reboot);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block xen_restart_nb = {
-	.notifier_call = xen_restart,
+static struct analtifier_block xen_restart_nb = {
+	.analtifier_call = xen_restart,
 	.priority = 192,
 };
 
@@ -213,9 +213,9 @@ static __initdata struct {
 	const char *prefix;
 	const char *version;
 	bool found;
-} hyper_node = {"xen,xen", "xen,xen-", NULL, false};
+} hyper_analde = {"xen,xen", "xen,xen-", NULL, false};
 
-static int __init fdt_find_hyper_node(unsigned long node, const char *uname,
+static int __init fdt_find_hyper_analde(unsigned long analde, const char *uname,
 				      int depth, void *data)
 {
 	const void *s = NULL;
@@ -224,23 +224,23 @@ static int __init fdt_find_hyper_node(unsigned long node, const char *uname,
 	if (depth != 1 || strcmp(uname, "hypervisor") != 0)
 		return 0;
 
-	if (of_flat_dt_is_compatible(node, hyper_node.compat))
-		hyper_node.found = true;
+	if (of_flat_dt_is_compatible(analde, hyper_analde.compat))
+		hyper_analde.found = true;
 
-	s = of_get_flat_dt_prop(node, "compatible", &len);
-	if (strlen(hyper_node.prefix) + 3  < len &&
-	    !strncmp(hyper_node.prefix, s, strlen(hyper_node.prefix)))
-		hyper_node.version = s + strlen(hyper_node.prefix);
+	s = of_get_flat_dt_prop(analde, "compatible", &len);
+	if (strlen(hyper_analde.prefix) + 3  < len &&
+	    !strncmp(hyper_analde.prefix, s, strlen(hyper_analde.prefix)))
+		hyper_analde.version = s + strlen(hyper_analde.prefix);
 
 	/*
 	 * Check if Xen supports EFI by checking whether there is the
-	 * "/hypervisor/uefi" node in DT. If so, runtime services are available
+	 * "/hypervisor/uefi" analde in DT. If so, runtime services are available
 	 * through proxy functions (e.g. in case of Xen dom0 EFI implementation
 	 * they call special hypercall which executes relevant EFI functions)
 	 * and that is why they are always enabled.
 	 */
 	if (IS_ENABLED(CONFIG_XEN_EFI)) {
-		if ((of_get_flat_dt_subnode_by_name(node, "uefi") > 0) &&
+		if ((of_get_flat_dt_subanalde_by_name(analde, "uefi") > 0) &&
 		    !efi_runtime_disabled())
 			set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 	}
@@ -254,18 +254,18 @@ static int __init fdt_find_hyper_node(unsigned long node, const char *uname,
  */
 void __init xen_early_init(void)
 {
-	of_scan_flat_dt(fdt_find_hyper_node, NULL);
-	if (!hyper_node.found) {
-		pr_debug("No Xen support\n");
+	of_scan_flat_dt(fdt_find_hyper_analde, NULL);
+	if (!hyper_analde.found) {
+		pr_debug("Anal Xen support\n");
 		return;
 	}
 
-	if (hyper_node.version == NULL) {
-		pr_debug("Xen version not found\n");
+	if (hyper_analde.version == NULL) {
+		pr_debug("Xen version analt found\n");
 		return;
 	}
 
-	pr_info("Xen %s support found\n", hyper_node.version);
+	pr_info("Xen %s support found\n", hyper_analde.version);
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 
@@ -313,36 +313,36 @@ static struct resource xen_resource = {
 
 int __init arch_xen_unpopulated_init(struct resource **res)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource *regs, *tmp_res;
 	uint64_t min_gpaddr = -1, max_gpaddr = 0;
 	unsigned int i, nr_reg = 0;
 	int rc;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
-	np = of_find_compatible_node(NULL, NULL, "xen,xen");
+	np = of_find_compatible_analde(NULL, NULL, "xen,xen");
 	if (WARN_ON(!np))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Skip region 0 which is reserved for grant table space */
 	while (of_get_address(np, nr_reg + EXT_REGION_INDEX, NULL, NULL))
 		nr_reg++;
 
 	if (!nr_reg) {
-		pr_err("No extended regions are found\n");
-		of_node_put(np);
+		pr_err("Anal extended regions are found\n");
+		of_analde_put(np);
 		return -EINVAL;
 	}
 
 	regs = kcalloc(nr_reg, sizeof(*regs), GFP_KERNEL);
 	if (!regs) {
-		of_node_put(np);
-		return -ENOMEM;
+		of_analde_put(np);
+		return -EANALMEM;
 	}
 
 	/*
@@ -376,7 +376,7 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 			goto err;
 		}
 
-		/* There is no hole between regions */
+		/* There is anal hole between regions */
 		if (regs[i - 1].end + 1 == regs[i].start)
 			continue;
 
@@ -385,7 +385,7 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 
 		tmp_res = kzalloc(sizeof(*tmp_res), GFP_KERNEL);
 		if (!tmp_res) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 
@@ -395,7 +395,7 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 
 		rc = insert_resource(&xen_resource, tmp_res);
 		if (rc) {
-			pr_err("Cannot insert resource %pR (%d)\n", tmp_res, rc);
+			pr_err("Cananalt insert resource %pR (%d)\n", tmp_res, rc);
 			kfree(tmp_res);
 			goto err;
 		}
@@ -404,7 +404,7 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 	*res = &xen_resource;
 
 err:
-	of_node_put(np);
+	of_analde_put(np);
 	kfree(regs);
 	return rc;
 }
@@ -412,23 +412,23 @@ err:
 
 static void __init xen_dt_guest_init(void)
 {
-	struct device_node *xen_node;
+	struct device_analde *xen_analde;
 	struct resource res;
 
-	xen_node = of_find_compatible_node(NULL, NULL, "xen,xen");
-	if (!xen_node) {
+	xen_analde = of_find_compatible_analde(NULL, NULL, "xen,xen");
+	if (!xen_analde) {
 		pr_err("Xen support was detected before, but it has disappeared\n");
 		return;
 	}
 
-	xen_events_irq = irq_of_parse_and_map(xen_node, 0);
+	xen_events_irq = irq_of_parse_and_map(xen_analde, 0);
 
-	if (of_address_to_resource(xen_node, GRANT_TABLE_INDEX, &res)) {
-		pr_err("Xen grant table region is not found\n");
-		of_node_put(xen_node);
+	if (of_address_to_resource(xen_analde, GRANT_TABLE_INDEX, &res)) {
+		pr_err("Xen grant table region is analt found\n");
+		of_analde_put(xen_analde);
 		return;
 	}
-	of_node_put(xen_node);
+	of_analde_put(xen_analde);
 	xen_grant_frames = res.start;
 }
 
@@ -450,8 +450,8 @@ static int __init xen_guest_init(void)
 		xen_dt_guest_init();
 
 	if (!xen_events_irq) {
-		pr_err("Xen event channel interrupt not found\n");
-		return -ENODEV;
+		pr_err("Xen event channel interrupt analt found\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -464,8 +464,8 @@ static int __init xen_guest_init(void)
 	shared_info_page = (struct shared_info *)get_zeroed_page(GFP_KERNEL);
 
 	if (!shared_info_page) {
-		pr_err("not enough memory\n");
-		return -ENOMEM;
+		pr_err("analt eanalugh memory\n");
+		return -EANALMEM;
 	}
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
@@ -487,7 +487,7 @@ static int __init xen_guest_init(void)
 	xen_vcpu_info = __alloc_percpu(sizeof(struct vcpu_info),
 				       1 << fls(sizeof(struct vcpu_info) - 1));
 	if (xen_vcpu_info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Direct vCPU id mapping for ARM guests. */
 	for_each_possible_cpu(cpu)
@@ -507,7 +507,7 @@ static int __init xen_guest_init(void)
 	gnttab_init();
 
 	/*
-	 * Making sure board specific code will not set up ops for
+	 * Making sure board specific code will analt set up ops for
 	 * cpu idle and cpu freq.
 	 */
 	disable_cpuidle();
@@ -522,7 +522,7 @@ static int __init xen_guest_init(void)
 	}
 
 	if (xen_initial_domain())
-		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
+		pvclock_gtod_register_analtifier(&xen_pvclock_gtod_analtifier);
 
 	return cpuhp_setup_state(CPUHP_AP_ARM_XEN_STARTING,
 				 "arm/xen:starting", xen_starting_cpu,
@@ -539,7 +539,7 @@ static int xen_starting_runstate_cpu(unsigned int cpu)
 static int __init xen_late_init(void)
 {
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pm_power_off = xen_power_off;
 	register_restart_handler(&xen_restart_nb);

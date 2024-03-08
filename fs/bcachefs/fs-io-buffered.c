@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef NO_BCACHEFS_FS
+#ifndef ANAL_BCACHEFS_FS
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
@@ -62,7 +62,7 @@ static int readpages_iter_init(struct readpages_iter *iter,
 			bch2_folio_release(folio);
 			ractl->_nr_pages += folio_nr_pages(folio);
 			ractl->_index -= folio_nr_pages(folio);
-			return iter->folios.nr ? 0 : -ENOMEM;
+			return iter->folios.nr ? 0 : -EANALMEM;
 		}
 
 		folio_put(folio);
@@ -249,7 +249,7 @@ err:
 
 	if (ret) {
 		bch_err_inum_offset_ratelimited(c,
-				iter.pos.inode,
+				iter.pos.ianalde,
 				iter.pos.offset << 9,
 				"read error %i from btree lookup", ret);
 		rbio->bio.bi_status = BLK_STS_IOERR;
@@ -261,20 +261,20 @@ err:
 
 void bch2_readahead(struct readahead_control *ractl)
 {
-	struct bch_inode_info *inode = to_bch_ei(ractl->mapping->host);
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_ianalde_info *ianalde = to_bch_ei(ractl->mapping->host);
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct bch_io_opts opts;
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct folio *folio;
 	struct readpages_iter readpages_iter;
 
-	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
+	bch2_ianalde_opts_get(&opts, c, &ianalde->ei_ianalde);
 
 	int ret = readpages_iter_init(&readpages_iter, ractl);
 	if (ret)
 		return;
 
-	bch2_pagecache_add_get(inode);
+	bch2_pagecache_add_get(ianalde);
 
 	while ((folio = readpage_iter_peek(&readpages_iter))) {
 		unsigned n = min_t(unsigned,
@@ -292,12 +292,12 @@ void bch2_readahead(struct readahead_control *ractl)
 		rbio->bio.bi_end_io = bch2_readpages_end_io;
 		BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 
-		bchfs_read(trans, rbio, inode_inum(inode),
+		bchfs_read(trans, rbio, ianalde_inum(ianalde),
 			   &readpages_iter);
 		bch2_trans_unlock(trans);
 	}
 
-	bch2_pagecache_add_put(inode);
+	bch2_pagecache_add_put(ianalde);
 
 	bch2_trans_put(trans);
 	darray_exit(&readpages_iter.folios);
@@ -310,17 +310,17 @@ static void bch2_read_single_folio_end_io(struct bio *bio)
 
 int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 {
-	struct bch_inode_info *inode = to_bch_ei(mapping->host);
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_ianalde_info *ianalde = to_bch_ei(mapping->host);
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct bch_read_bio *rbio;
 	struct bch_io_opts opts;
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(done);
 
 	if (!bch2_folio_create(folio, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
+	bch2_ianalde_opts_get(&opts, c, &ianalde->ei_ianalde);
 
 	rbio = rbio_init(bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_KERNEL, &c->bio_read),
 			 opts);
@@ -331,10 +331,10 @@ int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 	rbio->bio.bi_iter.bi_sector = folio_sector(folio);
 	BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 
-	bch2_trans_run(c, (bchfs_read(trans, rbio, inode_inum(inode), NULL), 0));
+	bch2_trans_run(c, (bchfs_read(trans, rbio, ianalde_inum(ianalde), NULL), 0));
 	wait_for_completion(&done);
 
-	ret = blk_status_to_errno(rbio->bio.bi_status);
+	ret = blk_status_to_erranal(rbio->bio.bi_status);
 	bio_put(&rbio->bio);
 
 	if (ret < 0)
@@ -356,7 +356,7 @@ int bch2_read_folio(struct file *file, struct folio *folio)
 /* writepages: */
 
 struct bch_writepage_io {
-	struct bch_inode_info		*inode;
+	struct bch_ianalde_info		*ianalde;
 
 	/* must be last: */
 	struct bch_write_op		op;
@@ -370,11 +370,11 @@ struct bch_writepage_state {
 };
 
 static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs *c,
-								  struct bch_inode_info *inode)
+								  struct bch_ianalde_info *ianalde)
 {
 	struct bch_writepage_state ret = { 0 };
 
-	bch2_inode_opts_get(&ret.opts, c, &inode->ei_inode);
+	bch2_ianalde_opts_get(&ret.opts, c, &ianalde->ei_ianalde);
 	return ret;
 }
 
@@ -382,7 +382,7 @@ static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs 
  * Determine when a writepage io is full. We have to limit writepage bios to a
  * single page per bvec (i.e. 1MB with 4k pages) because that is the limit to
  * what the bounce path in bch2_write_extent() can handle. In theory we could
- * loosen this restriction for non-bounce I/O, but we don't have that context
+ * loosen this restriction for analn-bounce I/O, but we don't have that context
  * here. Ideally, we can up this limit and make it configurable in the future
  * when the bounce path can be enhanced to accommodate larger source bios.
  */
@@ -403,7 +403,7 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 	unsigned i;
 
 	if (io->op.error) {
-		set_bit(EI_INODE_ERROR, &io->inode->ei_flags);
+		set_bit(EI_IANALDE_ERROR, &io->ianalde->ei_flags);
 
 		bio_for_each_folio_all(fi, bio) {
 			struct bch_folio *s;
@@ -445,10 +445,10 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 	 */
 
 	/*
-	 * PageWriteback is effectively our ref on the inode - fixup i_blocks
+	 * PageWriteback is effectively our ref on the ianalde - fixup i_blocks
 	 * before calling end_page_writeback:
 	 */
-	bch2_i_sectors_acct(c, io->inode, NULL, io->op.i_sectors_delta);
+	bch2_i_sectors_acct(c, io->ianalde, NULL, io->op.i_sectors_delta);
 
 	bio_for_each_folio_all(fi, bio) {
 		struct bch_folio *s = __bch2_folio(fi.folio);
@@ -475,7 +475,7 @@ static void bch2_writepage_do_io(struct bch_writepage_state *w)
 static void bch2_writepage_io_alloc(struct bch_fs *c,
 				    struct writeback_control *wbc,
 				    struct bch_writepage_state *w,
-				    struct bch_inode_info *inode,
+				    struct bch_ianalde_info *ianalde,
 				    u64 sector,
 				    unsigned nr_replicas)
 {
@@ -487,17 +487,17 @@ static void bch2_writepage_io_alloc(struct bch_fs *c,
 					      &c->writepage_bioset),
 			     struct bch_writepage_io, op.wbio.bio);
 
-	w->io->inode		= inode;
+	w->io->ianalde		= ianalde;
 	op			= &w->io->op;
 	bch2_write_op_init(op, c, w->opts);
 	op->target		= w->opts.foreground_target;
 	op->nr_replicas		= nr_replicas;
 	op->res.nr_replicas	= nr_replicas;
-	op->write_point		= writepoint_hashed(inode->ei_last_dirtied);
-	op->subvol		= inode->ei_subvol;
-	op->pos			= POS(inode->v.i_ino, sector);
+	op->write_point		= writepoint_hashed(ianalde->ei_last_dirtied);
+	op->subvol		= ianalde->ei_subvol;
+	op->pos			= POS(ianalde->v.i_ianal, sector);
 	op->end_io		= bch2_writepage_io_done;
-	op->devs_need_flush	= &inode->ei_devs_need_flush;
+	op->devs_need_flush	= &ianalde->ei_devs_need_flush;
 	op->wbio.bio.bi_iter.bi_sector = sector;
 	op->wbio.bio.bi_opf	= wbc_to_write_flags(wbc);
 }
@@ -506,12 +506,12 @@ static int __bch2_writepage(struct folio *folio,
 			    struct writeback_control *wbc,
 			    void *data)
 {
-	struct bch_inode_info *inode = to_bch_ei(folio->mapping->host);
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_ianalde_info *ianalde = to_bch_ei(folio->mapping->host);
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct bch_writepage_state *w = data;
 	struct bch_folio *s;
 	unsigned i, offset, f_sectors, nr_replicas_this_write = U32_MAX;
-	loff_t i_size = i_size_read(&inode->v);
+	loff_t i_size = i_size_read(&ianalde->v);
 	int ret;
 
 	EBUG_ON(!folio_test_uptodate(folio));
@@ -529,9 +529,9 @@ static int __bch2_writepage(struct folio *folio,
 	/*
 	 * The folio straddles i_size.  It must be zeroed out on each and every
 	 * writepage invocation because it may be mmapped.  "A file is mapped
-	 * in multiples of the folio size.  For a file that is not a multiple of
+	 * in multiples of the folio size.  For a file that is analt a multiple of
 	 * the  folio size, the remaining memory is zeroed when mapped, and
-	 * writes to that region are not written out to the file."
+	 * writes to that region are analt written out to the file."
 	 */
 	folio_zero_segment(folio,
 			   i_size - folio_pos(folio),
@@ -542,14 +542,14 @@ do_io:
 
 	if (f_sectors > w->tmp_sectors) {
 		kfree(w->tmp);
-		w->tmp = kcalloc(f_sectors, sizeof(struct bch_folio_sector), __GFP_NOFAIL);
+		w->tmp = kcalloc(f_sectors, sizeof(struct bch_folio_sector), __GFP_ANALFAIL);
 		w->tmp_sectors = f_sectors;
 	}
 
 	/*
 	 * Things get really hairy with errors during writeback:
 	 */
-	ret = bch2_get_folio_disk_reservation(c, inode, folio, false);
+	ret = bch2_get_folio_disk_reservation(c, ianalde, folio, false);
 	BUG_ON(ret);
 
 	/* Before unlocking the page, get copy of reservations: */
@@ -615,12 +615,12 @@ do_io:
 			bch2_writepage_do_io(w);
 
 		if (!w->io)
-			bch2_writepage_io_alloc(c, wbc, w, inode, sector,
+			bch2_writepage_io_alloc(c, wbc, w, ianalde, sector,
 						nr_replicas_this_write);
 
 		atomic_inc(&s->write_count);
 
-		BUG_ON(inode != w->io->inode);
+		BUG_ON(ianalde != w->io->ianalde);
 		BUG_ON(!bio_add_folio(&w->io->op.wbio.bio, folio,
 				     sectors << 9, offset << 9));
 
@@ -669,21 +669,21 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 		     loff_t pos, unsigned len,
 		     struct page **pagep, void **fsdata)
 {
-	struct bch_inode_info *inode = to_bch_ei(mapping->host);
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_ianalde_info *ianalde = to_bch_ei(mapping->host);
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation *res;
 	struct folio *folio;
 	unsigned offset;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	res = kmalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	bch2_folio_reservation_init(c, inode, res);
+	bch2_folio_reservation_init(c, ianalde, res);
 	*fsdata = res;
 
-	bch2_pagecache_add_get(inode);
+	bch2_pagecache_add_get(ianalde);
 
 	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT,
 				FGP_LOCK|FGP_WRITE|FGP_CREAT|FGP_STABLE,
@@ -701,13 +701,13 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 	if (!offset && len == folio_size(folio))
 		goto out;
 
-	if (!offset && pos + len >= inode->v.i_size) {
+	if (!offset && pos + len >= ianalde->v.i_size) {
 		folio_zero_segment(folio, len, folio_size(folio));
 		flush_dcache_folio(folio);
 		goto out;
 	}
 
-	if (folio_pos(folio) >= inode->v.i_size) {
+	if (folio_pos(folio) >= ianalde->v.i_size) {
 		folio_zero_segments(folio, 0, offset, offset + len, folio_size(folio));
 		flush_dcache_folio(folio);
 		goto out;
@@ -717,15 +717,15 @@ readpage:
 	if (ret)
 		goto err;
 out:
-	ret = bch2_folio_set(c, inode_inum(inode), &folio, 1);
+	ret = bch2_folio_set(c, ianalde_inum(ianalde), &folio, 1);
 	if (ret)
 		goto err;
 
-	ret = bch2_folio_reservation_get(c, inode, folio, res, offset, len);
+	ret = bch2_folio_reservation_get(c, ianalde, folio, res, offset, len);
 	if (ret) {
 		if (!folio_test_uptodate(folio)) {
 			/*
-			 * If the folio hasn't been read in, we won't know if we
+			 * If the folio hasn't been read in, we won't kanalw if we
 			 * actually need a reservation - we don't actually need
 			 * to read here, we just need to check if the folio is
 			 * fully backed by uncompressed data:
@@ -743,7 +743,7 @@ err:
 	folio_put(folio);
 	*pagep = NULL;
 err_unlock:
-	bch2_pagecache_add_put(inode);
+	bch2_pagecache_add_put(ianalde);
 	kfree(res);
 	*fsdata = NULL;
 	return bch2_err_class(ret);
@@ -753,13 +753,13 @@ int bch2_write_end(struct file *file, struct address_space *mapping,
 		   loff_t pos, unsigned len, unsigned copied,
 		   struct page *page, void *fsdata)
 {
-	struct bch_inode_info *inode = to_bch_ei(mapping->host);
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_ianalde_info *ianalde = to_bch_ei(mapping->host);
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation *res = fsdata;
 	struct folio *folio = page_folio(page);
 	unsigned offset = pos - folio_pos(folio);
 
-	lockdep_assert_held(&inode->v.i_rwsem);
+	lockdep_assert_held(&ianalde->v.i_rwsem);
 	BUG_ON(offset + copied > folio_size(folio));
 
 	if (unlikely(copied < len && !folio_test_uptodate(folio))) {
@@ -773,31 +773,31 @@ int bch2_write_end(struct file *file, struct address_space *mapping,
 		copied = 0;
 	}
 
-	spin_lock(&inode->v.i_lock);
-	if (pos + copied > inode->v.i_size)
-		i_size_write(&inode->v, pos + copied);
-	spin_unlock(&inode->v.i_lock);
+	spin_lock(&ianalde->v.i_lock);
+	if (pos + copied > ianalde->v.i_size)
+		i_size_write(&ianalde->v, pos + copied);
+	spin_unlock(&ianalde->v.i_lock);
 
 	if (copied) {
 		if (!folio_test_uptodate(folio))
 			folio_mark_uptodate(folio);
 
-		bch2_set_folio_dirty(c, inode, folio, res, offset, copied);
+		bch2_set_folio_dirty(c, ianalde, folio, res, offset, copied);
 
-		inode->ei_last_dirtied = (unsigned long) current;
+		ianalde->ei_last_dirtied = (unsigned long) current;
 	}
 
 	folio_unlock(folio);
 	folio_put(folio);
-	bch2_pagecache_add_put(inode);
+	bch2_pagecache_add_put(ianalde);
 
-	bch2_folio_reservation_put(c, inode, res);
+	bch2_folio_reservation_put(c, ianalde, res);
 	kfree(res);
 
 	return copied;
 }
 
-static noinline void folios_trunc(folios *fs, struct folio **fi)
+static analinline void folios_trunc(folios *fs, struct folio **fi)
 {
 	while (fs->data + fs->nr > fi) {
 		struct folio *f = darray_pop(fs);
@@ -807,23 +807,23 @@ static noinline void folios_trunc(folios *fs, struct folio **fi)
 	}
 }
 
-static int __bch2_buffered_write(struct bch_inode_info *inode,
+static int __bch2_buffered_write(struct bch_ianalde_info *ianalde,
 				 struct address_space *mapping,
 				 struct iov_iter *iter,
 				 loff_t pos, unsigned len)
 {
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation res;
 	folios fs;
 	struct folio *f;
 	unsigned copied = 0, f_offset, f_copied;
 	u64 end = pos + len, f_pos, f_len;
-	loff_t last_folio_pos = inode->v.i_size;
+	loff_t last_folio_pos = ianalde->v.i_size;
 	int ret = 0;
 
 	BUG_ON(!len);
 
-	bch2_folio_reservation_init(c, inode, &res);
+	bch2_folio_reservation_init(c, ianalde, &res);
 	darray_init(&fs);
 
 	ret = bch2_filemap_get_contig_folios_d(mapping, pos, end,
@@ -846,7 +846,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	end = min(end, folio_end_pos(f));
 	last_folio_pos = folio_pos(f);
 	if (end != folio_end_pos(f) && !folio_test_uptodate(f)) {
-		if (end >= inode->v.i_size) {
+		if (end >= ianalde->v.i_size) {
 			folio_zero_range(f, 0, folio_size(f));
 		} else {
 			ret = bch2_read_single_folio(f, mapping);
@@ -855,7 +855,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		}
 	}
 
-	ret = bch2_folio_set(c, inode_inum(inode), fs.data, fs.nr);
+	ret = bch2_folio_set(c, ianalde_inum(ianalde), fs.data, fs.nr);
 	if (ret)
 		goto out;
 
@@ -866,14 +866,14 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		f_len = min(end, folio_end_pos(f)) - f_pos;
 
 		/*
-		 * XXX: per POSIX and fstests generic/275, on -ENOSPC we're
+		 * XXX: per POSIX and fstests generic/275, on -EANALSPC we're
 		 * supposed to write as much as we have disk space for.
 		 *
 		 * On failure here we should still write out a partial page if
 		 * we aren't completely out of disk space - we don't do that
 		 * yet:
 		 */
-		ret = bch2_folio_reservation_get(c, inode, f, &res, f_offset, f_len);
+		ret = bch2_folio_reservation_get(c, ianalde, f, &res, f_offset, f_len);
 		if (unlikely(ret)) {
 			folios_trunc(&fs, fi);
 			if (!fs.nr)
@@ -904,7 +904,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 
 		if (!folio_test_uptodate(f) &&
 		    f_copied != folio_size(f) &&
-		    pos + copied + f_copied < inode->v.i_size) {
+		    pos + copied + f_copied < ianalde->v.i_size) {
 			iov_iter_revert(iter, f_copied);
 			folio_zero_range(f, 0, folio_size(f));
 			folios_trunc(&fs, fi);
@@ -928,10 +928,10 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 
 	end = pos + copied;
 
-	spin_lock(&inode->v.i_lock);
-	if (end > inode->v.i_size)
-		i_size_write(&inode->v, end);
-	spin_unlock(&inode->v.i_lock);
+	spin_lock(&ianalde->v.i_lock);
+	if (end > ianalde->v.i_size)
+		i_size_write(&ianalde->v, end);
+	spin_unlock(&ianalde->v.i_lock);
 
 	f_pos = pos;
 	f_offset = pos - folio_pos(darray_first(fs));
@@ -942,13 +942,13 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		if (!folio_test_uptodate(f))
 			folio_mark_uptodate(f);
 
-		bch2_set_folio_dirty(c, inode, f, &res, f_offset, f_len);
+		bch2_set_folio_dirty(c, ianalde, f, &res, f_offset, f_len);
 
 		f_pos = folio_end_pos(f);
 		f_offset = 0;
 	}
 
-	inode->ei_last_dirtied = (unsigned long) current;
+	ianalde->ei_last_dirtied = (unsigned long) current;
 out:
 	darray_for_each(fs, fi) {
 		folio_unlock(*fi);
@@ -960,11 +960,11 @@ out:
 	 * performed a short write but left around at least one post-EOF folio.
 	 * Clean up the mapping before we return.
 	 */
-	if (last_folio_pos >= inode->v.i_size)
-		truncate_pagecache(&inode->v, inode->v.i_size);
+	if (last_folio_pos >= ianalde->v.i_size)
+		truncate_pagecache(&ianalde->v, ianalde->v.i_size);
 
 	darray_exit(&fs);
-	bch2_folio_reservation_put(c, inode, &res);
+	bch2_folio_reservation_put(c, ianalde, &res);
 
 	return copied ?: ret;
 }
@@ -973,12 +973,12 @@ static ssize_t bch2_buffered_write(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct bch_inode_info *inode = file_bch_inode(file);
+	struct bch_ianalde_info *ianalde = file_bch_ianalde(file);
 	loff_t pos = iocb->ki_pos;
 	ssize_t written = 0;
 	int ret = 0;
 
-	bch2_pagecache_add_get(inode);
+	bch2_pagecache_add_get(ianalde);
 
 	do {
 		unsigned offset = pos & (PAGE_SIZE - 1);
@@ -990,7 +990,7 @@ again:
 		 * same page as we're writing to, without it being marked
 		 * up-to-date.
 		 *
-		 * Not only is this an optimisation, but it is also required
+		 * Analt only is this an optimisation, but it is also required
 		 * to check that the address is actually valid, when atomic
 		 * usercopies are used, below.
 		 */
@@ -1009,7 +1009,7 @@ again:
 			break;
 		}
 
-		ret = __bch2_buffered_write(inode, mapping, iter, pos, bytes);
+		ret = __bch2_buffered_write(ianalde, mapping, iter, pos, bytes);
 		if (unlikely(ret < 0))
 			break;
 
@@ -1021,7 +1021,7 @@ again:
 			 * fall back to a single segment length write.
 			 *
 			 * If we didn't fallback here, we could livelock
-			 * because not all segments in the iov can be copied at
+			 * because analt all segments in the iov can be copied at
 			 * once without a pagefault.
 			 */
 			bytes = min_t(unsigned long, PAGE_SIZE - offset,
@@ -1035,7 +1035,7 @@ again:
 		balance_dirty_pages_ratelimited(mapping);
 	} while (iov_iter_count(iter));
 
-	bch2_pagecache_add_put(inode);
+	bch2_pagecache_add_put(ianalde);
 
 	return written ? written : ret;
 }
@@ -1043,7 +1043,7 @@ again:
 ssize_t bch2_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct bch_inode_info *inode = file_bch_inode(file);
+	struct bch_ianalde_info *ianalde = file_bch_ianalde(file);
 	ssize_t ret;
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
@@ -1051,7 +1051,7 @@ ssize_t bch2_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 	}
 
-	inode_lock(&inode->v);
+	ianalde_lock(&ianalde->v);
 
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0)
@@ -1069,7 +1069,7 @@ ssize_t bch2_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (likely(ret > 0))
 		iocb->ki_pos += ret;
 unlock:
-	inode_unlock(&inode->v);
+	ianalde_unlock(&ianalde->v);
 
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
@@ -1087,9 +1087,9 @@ int bch2_fs_fs_io_buffered_init(struct bch_fs *c)
 	if (bioset_init(&c->writepage_bioset,
 			4, offsetof(struct bch_writepage_io, op.wbio.bio),
 			BIOSET_NEED_BVECS))
-		return -BCH_ERR_ENOMEM_writepage_bioset_init;
+		return -BCH_ERR_EANALMEM_writepage_bioset_init;
 
 	return 0;
 }
 
-#endif /* NO_BCACHEFS_FS */
+#endif /* ANAL_BCACHEFS_FS */

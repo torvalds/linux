@@ -11,16 +11,16 @@ maintainers:
 
 description: |+
   An i2c bus multiplexer/switch will have several child busses that are numbered
-  uniquely in a device dependent manner.  The nodes for an i2c bus
-  multiplexer/switch will have one child node for each child bus.
+  uniquely in a device dependent manner.  The analdes for an i2c bus
+  multiplexer/switch will have one child analde for each child bus.
 
-  For i2c multiplexers/switches that have child nodes that are a mixture of both
-  i2c child busses and other child nodes, the 'i2c-mux' subnode can be used for
-  populating the i2c child busses.  If an 'i2c-mux' subnode is present, only
-  subnodes of this will be considered as i2c child busses.
+  For i2c multiplexers/switches that have child analdes that are a mixture of both
+  i2c child busses and other child analdes, the 'i2c-mux' subanalde can be used for
+  populating the i2c child busses.  If an 'i2c-mux' subanalde is present, only
+  subanaldes of this will be considered as i2c child busses.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^(i2c-?)?mux'
 
   '#address-cells':

@@ -165,7 +165,7 @@ at91_clk_register_main_osc(struct regmap *regmap,
 
 	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
 	if (!osc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &main_osc_ops;
@@ -174,7 +174,7 @@ at91_clk_register_main_osc(struct regmap *regmap,
 	else
 		init.parent_names = &parent_name;
 	init.num_parents = 1;
-	init.flags = CLK_IGNORE_UNUSED;
+	init.flags = CLK_IGANALRE_UNUSED;
 
 	osc->hw.init = &init;
 	osc->regmap = regmap;
@@ -308,13 +308,13 @@ at91_clk_register_main_rc_osc(struct regmap *regmap,
 
 	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
 	if (!osc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &main_rc_osc_ops;
 	init.parent_names = NULL;
 	init.num_parents = 0;
-	init.flags = CLK_IGNORE_UNUSED;
+	init.flags = CLK_IGANALRE_UNUSED;
 
 	osc->hw.init = &init;
 	osc->regmap = regmap;
@@ -359,7 +359,7 @@ static unsigned long clk_main_recalc_rate(struct regmap *regmap,
 	if (parent_rate)
 		return parent_rate;
 
-	pr_warn("Main crystal frequency not set, using approximate value\n");
+	pr_warn("Main crystal frequency analt set, using approximate value\n");
 	regmap_read(regmap, AT91_CKGR_MCFR, &mcfr);
 	if (!(mcfr & AT91_PMC_MAINRDY))
 		return 0;
@@ -417,7 +417,7 @@ at91_clk_register_rm9200_main(struct regmap *regmap,
 
 	clkmain = kzalloc(sizeof(*clkmain), GFP_KERNEL);
 	if (!clkmain)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &rm9200_main_ops;
@@ -541,7 +541,7 @@ static const struct clk_ops sam9x5_main_ops = {
 	.prepare = clk_sam9x5_main_prepare,
 	.is_prepared = clk_sam9x5_main_is_prepared,
 	.recalc_rate = clk_sam9x5_main_recalc_rate,
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent = clk_sam9x5_main_set_parent,
 	.get_parent = clk_sam9x5_main_get_parent,
 	.save_context = clk_sam9x5_main_save_context,
@@ -569,7 +569,7 @@ at91_clk_register_sam9x5_main(struct regmap *regmap,
 
 	clkmain = kzalloc(sizeof(*clkmain), GFP_KERNEL);
 	if (!clkmain)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &sam9x5_main_ops;

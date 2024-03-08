@@ -8,8 +8,8 @@
 /*
  * This codes have five functionalities.
  *
- * 1.get information about firewire node
- * 2.get notification about starting/stopping stream
+ * 1.get information about firewire analde
+ * 2.get analtification about starting/stopping stream
  * 3.lock/unlock streaming
  * 4.transmit command of EFW transaction
  * 5.receive response of EFW transaction
@@ -28,7 +28,7 @@ hwdep_read_resp_buf(struct snd_efw *efw, char __user *buf, long remained,
 	long count = 0;
 
 	if (remained < sizeof(type) + sizeof(struct snd_efw_transaction))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* data type is SNDRV_FIREWIRE_EVENT_EFW_RESPONSE */
 	type = SNDRV_FIREWIRE_EVENT_EFW_RESPONSE;
@@ -42,7 +42,7 @@ hwdep_read_resp_buf(struct snd_efw *efw, char __user *buf, long remained,
 	spin_lock_irq(&efw->lock);
 
 	/*
-	 * When another task reaches here during this task's access to user
+	 * When aanalther task reaches here during this task's access to user
 	 * space, it picks up current position in buffer and can read the same
 	 * series of responses.
 	 */
@@ -52,7 +52,7 @@ hwdep_read_resp_buf(struct snd_efw *efw, char __user *buf, long remained,
 		t = (struct snd_efw_transaction *)(pull_ptr);
 		length = be32_to_cpu(t->length) * sizeof(__be32);
 
-		/* confirm enough space for this response */
+		/* confirm eanalugh space for this response */
 		if (remained < length)
 			break;
 
@@ -170,7 +170,7 @@ hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	/* check seqnum is not for kernel-land */
+	/* check seqnum is analt for kernel-land */
 	seqnum = be32_to_cpu(((struct snd_efw_transaction *)buf)->seqnum);
 	if (seqnum > SND_EFW_TRANSACTION_USER_SEQNUM_MAX) {
 		count = -EINVAL;
@@ -194,7 +194,7 @@ hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
 
 	spin_lock_irq(&efw->lock);
 	if (efw->dev_lock_changed || efw->pull_ptr != efw->push_ptr)
-		events = EPOLLIN | EPOLLRDNORM;
+		events = EPOLLIN | EPOLLRDANALRM;
 	else
 		events = 0;
 	spin_unlock_irq(&efw->lock);
@@ -287,7 +287,7 @@ hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 	case SNDRV_FIREWIRE_IOCTL_UNLOCK:
 		return hwdep_unlock(efw);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 

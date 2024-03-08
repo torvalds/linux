@@ -36,7 +36,7 @@ static	u32 phy_CalculateBitShift(u32 BitMask)
  *
  * Return:	The readback register value
  *
- * .. Note::	This function is equal to "GetRegSetting" in PHY programming
+ * .. Analte::	This function is equal to "GetRegSetting" in PHY programming
  *			guide
  */
 u32 PHY_QueryBBReg_8723B(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
@@ -60,7 +60,7 @@ u32 PHY_QueryBBReg_8723B(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
  * @Data:		The new register value in the target bit position
  *				of the target address
  *
- * .. Note::	This function is equal to "PutRegSetting" in PHY programming
+ * .. Analte::	This function is equal to "PutRegSetting" in PHY programming
  *			guide
  */
 
@@ -74,7 +74,7 @@ void PHY_SetBBReg_8723B(
 	/* u16 BBWaitCounter	= 0; */
 	u32 OriginalValue, BitShift;
 
-	if (BitMask != bMaskDWord) { /* if not "double word" write */
+	if (BitMask != bMaskDWord) { /* if analt "double word" write */
 		OriginalValue = rtw_read32(Adapter, RegAddr);
 		BitShift = phy_CalculateBitShift(BitMask);
 		Data = ((OriginalValue & (~BitMask)) | ((Data << BitShift) & BitMask));
@@ -153,21 +153,21 @@ static u32 phy_RFSerialRead_8723B(
  * @Data:	The new register Data in the target bit position
  *			of the target to be read
  *
- * .. Note::	There are three types of serial operations:
+ * .. Analte::	There are three types of serial operations:
  *		1. Software serial write
  *		2. Hardware LSSI-Low Speed Serial Interface
  *		3. Hardware HSSI-High speed
  *		serial write. Driver need to implement (1) and (2).
  *		This function is equal to the combination of RF_ReadReg() and  RFLSSIRead()
  *
- * .. Note::		  For RF8256 only
+ * .. Analte::		  For RF8256 only
  *		 The total count of RTL8256(Zebra4) register is around 36 bit it only employs
  *		 4-bit RF address. RTL8256 uses "register mode control bit" (Reg00[12], Reg00[10])
  *		 to access register address bigger than 0xf. See "Appendix-4 in PHY Configuration
  *		 programming guide" for more details.
  *		 Thus, we define a sub-finction for RTL8526 register address conversion
  *	       ===========================================================
- *		 Register Mode		RegCTL[1]		RegCTL[0]		Note
+ *		 Register Mode		RegCTL[1]		RegCTL[0]		Analte
  *							(Reg00[12])		(Reg00[10])
  *	       ===========================================================
  *		 Reg_Mode0				0				x			Reg 0 ~15(0x0 ~ 0xf)
@@ -222,7 +222,7 @@ static void phy_RFSerialWrite_8723B(
  *
  * Return:	Readback value
  *
- * .. Note::	This function is equal to "GetRFRegSetting" in PHY
+ * .. Analte::	This function is equal to "GetRFRegSetting" in PHY
  *			programming guide
  */
 u32 PHY_QueryRFReg_8723B(
@@ -250,7 +250,7 @@ u32 PHY_QueryRFReg_8723B(
  * @Data:	The new register Data in the target bit position
  *								of the target address
  *
- * .. Note::	This function is equal to "PutRFRegSetting" in PHY
+ * .. Analte::	This function is equal to "PutRFRegSetting" in PHY
  *			programming guide.
  */
 void PHY_SetRFReg_8723B(
@@ -301,7 +301,7 @@ s32 PHY_MACConfig8723B(struct adapter *Adapter)
  *									Radio Path A/B/C/D
  * @Adapter:
  *
- * .. Note::		The initialization value is constant and it should never be changes
+ * .. Analte::		The initialization value is constant and it should never be changes
  */
 static void phy_InitBBRFRegisterDefinition(struct adapter *Adapter)
 {
@@ -441,7 +441,7 @@ int PHY_RFConfig8723B(struct adapter *Adapter)
 
 /**************************************************************************************************************
  *   Description:
- *       The low-level interface to set TxAGC , called by both MP and Normal Driver.
+ *       The low-level interface to set TxAGC , called by both MP and Analrmal Driver.
  *
  *                                                                                    <20120830, Kordan>
  **************************************************************************************************************/
@@ -640,7 +640,7 @@ static void phy_PostSetBwMode8723B(struct adapter *Adapter)
 
 		PHY_SetBBReg(Adapter, rFPGA1_RFMOD, bRFMOD, 0x0);
 
-		PHY_SetBBReg(Adapter, rOFDM0_TxPseudoNoiseWgt, (BIT31|BIT30), 0x0);
+		PHY_SetBBReg(Adapter, rOFDM0_TxPseudoAnaliseWgt, (BIT31|BIT30), 0x0);
 		break;
 
 	/* 40 MHz channel*/

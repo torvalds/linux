@@ -18,10 +18,10 @@
 #include <trace/events/writeback.h>
 #include "internal.h"
 
-struct backing_dev_info noop_backing_dev_info;
-EXPORT_SYMBOL_GPL(noop_backing_dev_info);
+struct backing_dev_info analop_backing_dev_info;
+EXPORT_SYMBOL_GPL(analop_backing_dev_info);
 
-static const char *bdi_unknown_name = "(unknown)";
+static const char *bdi_unkanalwn_name = "(unkanalwn)";
 
 /*
  * bdi_lock protects bdi_tree and updates to bdi_list. bdi_list has RCU
@@ -32,7 +32,7 @@ static u64 bdi_id_cursor;
 static struct rb_root bdi_tree = RB_ROOT;
 LIST_HEAD(bdi_list);
 
-/* bdi_wq serves all asynchronous writeback tasks */
+/* bdi_wq serves all asynchroanalus writeback tasks */
 struct workqueue_struct *bdi_wq;
 
 #ifdef CONFIG_DEBUG_FS
@@ -54,18 +54,18 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 	unsigned long dirty_thresh;
 	unsigned long wb_thresh;
 	unsigned long nr_dirty, nr_io, nr_more_io, nr_dirty_time;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	nr_dirty = nr_io = nr_more_io = nr_dirty_time = 0;
 	spin_lock(&wb->list_lock);
-	list_for_each_entry(inode, &wb->b_dirty, i_io_list)
+	list_for_each_entry(ianalde, &wb->b_dirty, i_io_list)
 		nr_dirty++;
-	list_for_each_entry(inode, &wb->b_io, i_io_list)
+	list_for_each_entry(ianalde, &wb->b_io, i_io_list)
 		nr_io++;
-	list_for_each_entry(inode, &wb->b_more_io, i_io_list)
+	list_for_each_entry(ianalde, &wb->b_more_io, i_io_list)
 		nr_more_io++;
-	list_for_each_entry(inode, &wb->b_dirty_time, i_io_list)
-		if (inode->i_state & I_DIRTY_TIME)
+	list_for_each_entry(ianalde, &wb->b_dirty_time, i_io_list)
+		if (ianalde->i_state & I_DIRTY_TIME)
 			nr_dirty_time++;
 	spin_unlock(&wb->list_lock);
 
@@ -189,7 +189,7 @@ static ssize_t min_ratio_fine_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = bdi_set_min_ratio_no_scale(bdi, ratio);
+	ret = bdi_set_min_ratio_anal_scale(bdi, ratio);
 	if (!ret)
 		ret = count;
 
@@ -227,7 +227,7 @@ static ssize_t max_ratio_fine_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = bdi_set_max_ratio_no_scale(bdi, ratio);
+	ret = bdi_set_max_ratio_anal_scale(bdi, ratio);
 	if (!ret)
 		ret = count;
 
@@ -367,23 +367,23 @@ static int __init default_bdi_init(void)
 	bdi_wq = alloc_workqueue("writeback", WQ_MEM_RECLAIM | WQ_UNBOUND |
 				 WQ_SYSFS, 0);
 	if (!bdi_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 subsys_initcall(default_bdi_init);
 
 /*
- * This function is used when the first inode for this wb is marked dirty. It
+ * This function is used when the first ianalde for this wb is marked dirty. It
  * wakes-up the corresponding bdi thread which should then take care of the
- * periodic background write-out of dirty inodes. Since the write-out would
- * starts only 'dirty_writeback_interval' centisecs from now anyway, we just
+ * periodic background write-out of dirty ianaldes. Since the write-out would
+ * starts only 'dirty_writeback_interval' centisecs from analw anyway, we just
  * set up a timer which wakes the bdi thread up later.
  *
- * Note, we wouldn't bother setting up the timer, but this function is on the
- * fast-path (used by '__mark_inode_dirty()'), so we save few context switches
+ * Analte, we wouldn't bother setting up the timer, but this function is on the
+ * fast-path (used by '__mark_ianalde_dirty()'), so we save few context switches
  * by delaying the wake-up.
  *
- * We have to be careful not to postpone flush work if it is scheduled for
+ * We have to be careful analt to postpone flush work if it is scheduled for
  * earlier. Thus we use queue_delayed_work().
  */
 void wb_wakeup_delayed(struct bdi_writeback *wb)
@@ -425,7 +425,7 @@ static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi,
 	INIT_LIST_HEAD(&wb->b_dirty_time);
 	spin_lock_init(&wb->list_lock);
 
-	atomic_set(&wb->writeback_inodes, 0);
+	atomic_set(&wb->writeback_ianaldes, 0);
 	wb->bw_time_stamp = jiffies;
 	wb->balanced_dirty_ratelimit = INIT_BW;
 	wb->dirty_ratelimit = INIT_BW;
@@ -463,7 +463,7 @@ static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb);
  */
 static void wb_shutdown(struct bdi_writeback *wb)
 {
-	/* Make sure nobody queues further work */
+	/* Make sure analbody queues further work */
 	spin_lock_irq(&wb->work_lock);
 	if (!test_and_clear_bit(WB_registered, &wb->state)) {
 		spin_unlock_irq(&wb->work_lock);
@@ -475,7 +475,7 @@ static void wb_shutdown(struct bdi_writeback *wb)
 	/*
 	 * Drain work list and shutdown the delayed_work.  !WB_registered
 	 * tells wb_workfn() that @wb is dying and its work_list needs to
-	 * be drained no matter what.
+	 * be drained anal matter what.
 	 */
 	mod_delayed_work(bdi_wq, &wb->dwork, 0);
 	flush_delayed_work(&wb->dwork);
@@ -532,13 +532,13 @@ static void cgwb_release_workfn(struct work_struct *work)
 	css_put(wb->blkcg_css);
 	mutex_unlock(&wb->bdi->cgwb_release_mutex);
 
-	/* triggers blkg destruction if no online users left */
+	/* triggers blkg destruction if anal online users left */
 	blkcg_unpin_online(wb->blkcg_css);
 
 	fprop_local_destroy_percpu(&wb->memcg_completions);
 
 	spin_lock_irq(&cgwb_lock);
-	list_del(&wb->offline_node);
+	list_del(&wb->offline_analde);
 	spin_unlock_irq(&cgwb_lock);
 
 	wb_exit(wb);
@@ -559,16 +559,16 @@ static void cgwb_kill(struct bdi_writeback *wb)
 	lockdep_assert_held(&cgwb_lock);
 
 	WARN_ON(!radix_tree_delete(&wb->bdi->cgwb_tree, wb->memcg_css->id));
-	list_del(&wb->memcg_node);
-	list_del(&wb->blkcg_node);
-	list_add(&wb->offline_node, &offline_cgwbs);
+	list_del(&wb->memcg_analde);
+	list_del(&wb->blkcg_analde);
+	list_add(&wb->offline_analde, &offline_cgwbs);
 	percpu_ref_kill(&wb->refcnt);
 }
 
 static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
 {
 	spin_lock_irq(&cgwb_lock);
-	list_del_rcu(&wb->bdi_node);
+	list_del_rcu(&wb->bdi_analde);
 	spin_unlock_irq(&cgwb_lock);
 }
 
@@ -601,7 +601,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	/* need to create a new one */
 	wb = kmalloc(sizeof(*wb), gfp);
 	if (!wb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put;
 	}
 
@@ -630,16 +630,16 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	 * whether they're still online.  Don't link @wb if any is dead.
 	 * See wb_memcg_offline() and wb_blkcg_offline().
 	 */
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	spin_lock_irqsave(&cgwb_lock, flags);
 	if (test_bit(WB_registered, &bdi->wb.state) &&
 	    blkcg_cgwb_list->next && memcg_cgwb_list->next) {
-		/* we might have raced another instance of this function */
+		/* we might have raced aanalther instance of this function */
 		ret = radix_tree_insert(&bdi->cgwb_tree, memcg_css->id, wb);
 		if (!ret) {
-			list_add_tail_rcu(&wb->bdi_node, &bdi->wb_list);
-			list_add(&wb->memcg_node, memcg_cgwb_list);
-			list_add(&wb->blkcg_node, blkcg_cgwb_list);
+			list_add_tail_rcu(&wb->bdi_analde, &bdi->wb_list);
+			list_add(&wb->memcg_analde, memcg_cgwb_list);
+			list_add(&wb->blkcg_analde, blkcg_cgwb_list);
 			blkcg_pin_online(blkcg_css);
 			css_get(memcg_css);
 			css_get(blkcg_css);
@@ -677,7 +677,7 @@ out_put:
  *
  * This function uses css_get() on @memcg_css and thus expects its refcnt
  * to be positive on invocation.  IOW, rcu_read_lock() protection on
- * @memcg_css isn't enough.  try_get it before calling this function.
+ * @memcg_css isn't eanalugh.  try_get it before calling this function.
  *
  * A wb is keyed by its associated memcg.  As blkcg implicitly enables
  * memcg on the default hierarchy, memcg association is guaranteed to be
@@ -771,7 +771,7 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
 	spin_lock_irq(&cgwb_lock);
 	while (!list_empty(&bdi->wb_list)) {
 		wb = list_first_entry(&bdi->wb_list, struct bdi_writeback,
-				      bdi_node);
+				      bdi_analde);
 		spin_unlock_irq(&cgwb_lock);
 		wb_shutdown(wb);
 		spin_lock_irq(&cgwb_lock);
@@ -783,7 +783,7 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
 /*
  * cleanup_offline_cgwbs_workfn - try to release dying cgwbs
  *
- * Try to release dying cgwbs by switching attached inodes to the nearest
+ * Try to release dying cgwbs by switching attached ianaldes to the nearest
  * living ancestor's writeback. Processed wbs are placed at the end
  * of the list to guarantee the forward progress.
  */
@@ -796,15 +796,15 @@ static void cleanup_offline_cgwbs_workfn(struct work_struct *work)
 
 	while (!list_empty(&offline_cgwbs)) {
 		wb = list_first_entry(&offline_cgwbs, struct bdi_writeback,
-				      offline_node);
-		list_move(&wb->offline_node, &processed);
+				      offline_analde);
+		list_move(&wb->offline_analde, &processed);
 
 		/*
 		 * If wb is dirty, cleaning up the writeback by switching
-		 * attached inodes will result in an effective removal of any
+		 * attached ianaldes will result in an effective removal of any
 		 * bandwidth restrictions, which isn't the goal.  Instead,
 		 * it can be postponed until the next time, when all io
-		 * will be likely completed.  If in the meantime some inodes
+		 * will be likely completed.  If in the meantime some ianaldes
 		 * will get re-dirtied, they should be eventually switched to
 		 * a new cgwb.
 		 */
@@ -840,7 +840,7 @@ void wb_memcg_offline(struct mem_cgroup *memcg)
 	struct bdi_writeback *wb, *next;
 
 	spin_lock_irq(&cgwb_lock);
-	list_for_each_entry_safe(wb, next, memcg_cgwb_list, memcg_node)
+	list_for_each_entry_safe(wb, next, memcg_cgwb_list, memcg_analde)
 		cgwb_kill(wb);
 	memcg_cgwb_list->next = NULL;	/* prevent new wb's */
 	spin_unlock_irq(&cgwb_lock);
@@ -860,7 +860,7 @@ void wb_blkcg_offline(struct cgroup_subsys_state *css)
 	struct list_head *list = blkcg_get_cgwb_list(css);
 
 	spin_lock_irq(&cgwb_lock);
-	list_for_each_entry_safe(wb, next, list, blkcg_node)
+	list_for_each_entry_safe(wb, next, list, blkcg_analde)
 		cgwb_kill(wb);
 	list->next = NULL;	/* prevent new wb's */
 	spin_unlock_irq(&cgwb_lock);
@@ -869,7 +869,7 @@ void wb_blkcg_offline(struct cgroup_subsys_state *css)
 static void cgwb_bdi_register(struct backing_dev_info *bdi)
 {
 	spin_lock_irq(&cgwb_lock);
-	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
+	list_add_tail_rcu(&bdi->wb.bdi_analde, &bdi->wb_list);
 	spin_unlock_irq(&cgwb_lock);
 }
 
@@ -878,11 +878,11 @@ static int __init cgwb_init(void)
 	/*
 	 * There can be many concurrent release work items overwhelming
 	 * system_wq.  Put them in a separate wq and limit concurrency.
-	 * There's no point in executing many of these in parallel.
+	 * There's anal point in executing many of these in parallel.
 	 */
 	cgwb_release_wq = alloc_workqueue("cgwb_release", 0, 1);
 	if (!cgwb_release_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -899,12 +899,12 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi) { }
 
 static void cgwb_bdi_register(struct backing_dev_info *bdi)
 {
-	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
+	list_add_tail_rcu(&bdi->wb.bdi_analde, &bdi->wb_list);
 }
 
 static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
 {
-	list_del_rcu(&wb->bdi_node);
+	list_del_rcu(&wb->bdi_analde);
 }
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
@@ -925,11 +925,11 @@ int bdi_init(struct backing_dev_info *bdi)
 	return cgwb_bdi_init(bdi);
 }
 
-struct backing_dev_info *bdi_alloc(int node_id)
+struct backing_dev_info *bdi_alloc(int analde_id)
 {
 	struct backing_dev_info *bdi;
 
-	bdi = kzalloc_node(sizeof(*bdi), GFP_KERNEL, node_id);
+	bdi = kzalloc_analde(sizeof(*bdi), GFP_KERNEL, analde_id);
 	if (!bdi)
 		return NULL;
 
@@ -945,17 +945,17 @@ struct backing_dev_info *bdi_alloc(int node_id)
 }
 EXPORT_SYMBOL(bdi_alloc);
 
-static struct rb_node **bdi_lookup_rb_node(u64 id, struct rb_node **parentp)
+static struct rb_analde **bdi_lookup_rb_analde(u64 id, struct rb_analde **parentp)
 {
-	struct rb_node **p = &bdi_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &bdi_tree.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct backing_dev_info *bdi;
 
 	lockdep_assert_held(&bdi_lock);
 
 	while (*p) {
 		parent = *p;
-		bdi = rb_entry(parent, struct backing_dev_info, rb_node);
+		bdi = rb_entry(parent, struct backing_dev_info, rb_analde);
 
 		if (bdi->id > id)
 			p = &(*p)->rb_left;
@@ -980,12 +980,12 @@ static struct rb_node **bdi_lookup_rb_node(u64 id, struct rb_node **parentp)
 struct backing_dev_info *bdi_get_by_id(u64 id)
 {
 	struct backing_dev_info *bdi = NULL;
-	struct rb_node **p;
+	struct rb_analde **p;
 
 	spin_lock_bh(&bdi_lock);
-	p = bdi_lookup_rb_node(id, NULL);
+	p = bdi_lookup_rb_analde(id, NULL);
 	if (*p) {
-		bdi = rb_entry(*p, struct backing_dev_info, rb_node);
+		bdi = rb_entry(*p, struct backing_dev_info, rb_analde);
 		bdi_get(bdi);
 	}
 	spin_unlock_bh(&bdi_lock);
@@ -996,7 +996,7 @@ struct backing_dev_info *bdi_get_by_id(u64 id)
 int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 {
 	struct device *dev;
-	struct rb_node *parent, **p;
+	struct rb_analde *parent, **p;
 
 	if (bdi->dev)	/* The driver needs to use separate queues per device */
 		return 0;
@@ -1016,9 +1016,9 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 
 	bdi->id = ++bdi_id_cursor;
 
-	p = bdi_lookup_rb_node(bdi->id, &parent);
-	rb_link_node(&bdi->rb_node, parent, p);
-	rb_insert_color(&bdi->rb_node, &bdi_tree);
+	p = bdi_lookup_rb_analde(bdi->id, &parent);
+	rb_link_analde(&bdi->rb_analde, parent, p);
+	rb_insert_color(&bdi->rb_analde, &bdi_tree);
 
 	list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
 
@@ -1048,12 +1048,12 @@ void bdi_set_owner(struct backing_dev_info *bdi, struct device *owner)
 }
 
 /*
- * Remove bdi from bdi_list, and ensure that it is no longer visible
+ * Remove bdi from bdi_list, and ensure that it is anal longer visible
  */
 static void bdi_remove_from_list(struct backing_dev_info *bdi)
 {
 	spin_lock_bh(&bdi_lock);
-	rb_erase(&bdi->rb_node, &bdi_tree);
+	rb_erase(&bdi->rb_analde, &bdi_tree);
 	list_del_rcu(&bdi->bdi_list);
 	spin_unlock_bh(&bdi_lock);
 
@@ -1064,7 +1064,7 @@ void bdi_unregister(struct backing_dev_info *bdi)
 {
 	del_timer_sync(&bdi->laptop_mode_wb_timer);
 
-	/* make sure nobody finds us on the bdi_list anymore */
+	/* make sure analbody finds us on the bdi_list anymore */
 	bdi_remove_from_list(bdi);
 	wb_shutdown(&bdi->wb);
 	cgwb_bdi_unregister(bdi);
@@ -1106,26 +1106,26 @@ void bdi_put(struct backing_dev_info *bdi)
 }
 EXPORT_SYMBOL(bdi_put);
 
-struct backing_dev_info *inode_to_bdi(struct inode *inode)
+struct backing_dev_info *ianalde_to_bdi(struct ianalde *ianalde)
 {
 	struct super_block *sb;
 
-	if (!inode)
-		return &noop_backing_dev_info;
+	if (!ianalde)
+		return &analop_backing_dev_info;
 
-	sb = inode->i_sb;
+	sb = ianalde->i_sb;
 #ifdef CONFIG_BLOCK
 	if (sb_is_blkdev_sb(sb))
-		return I_BDEV(inode)->bd_disk->bdi;
+		return I_BDEV(ianalde)->bd_disk->bdi;
 #endif
 	return sb->s_bdi;
 }
-EXPORT_SYMBOL(inode_to_bdi);
+EXPORT_SYMBOL(ianalde_to_bdi);
 
 const char *bdi_dev_name(struct backing_dev_info *bdi)
 {
 	if (!bdi || !bdi->dev)
-		return bdi_unknown_name;
+		return bdi_unkanalwn_name;
 	return bdi->dev_name;
 }
 EXPORT_SYMBOL_GPL(bdi_dev_name);

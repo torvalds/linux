@@ -31,8 +31,8 @@ void smc_tx_pending(struct smc_connection *conn);
 void smc_tx_work(struct work_struct *work);
 void smc_tx_init(struct smc_sock *smc);
 int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len);
-int smc_tx_sndbuf_nonempty(struct smc_connection *conn);
-void smc_tx_sndbuf_nonfull(struct smc_sock *smc);
+int smc_tx_sndbuf_analnempty(struct smc_connection *conn);
+void smc_tx_sndbuf_analnfull(struct smc_sock *smc);
 void smc_tx_consumer_update(struct smc_connection *conn, bool force);
 int smcd_tx_ism_write(struct smc_connection *conn, void *data, size_t len,
 		      u32 offset, int signal);

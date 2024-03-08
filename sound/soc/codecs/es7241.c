@@ -42,7 +42,7 @@ static void es7241_set_mode(struct es7241_data *priv,  int m0, int m1)
 	gpiod_set_value_cansleep(priv->m0, m0);
 	gpiod_set_value_cansleep(priv->m1, m1);
 
-	/* take the device out of reset - datasheet does not specify a delay */
+	/* take the device out of reset - datasheet does analt specify a delay */
 	gpiod_set_value_cansleep(priv->reset, 1);
 }
 
@@ -104,7 +104,7 @@ static int es7241_hw_params(struct snd_pcm_substream *substream,
 			return es7241_set_provider_mode(priv, mode, mfs);
 	}
 
-	/* should not happen */
+	/* should analt happen */
 	dev_err(dai->dev, "unsupported rate: %u\n", rate);
 	return -EINVAL;
 }
@@ -119,7 +119,7 @@ static int es7241_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int es7241_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -211,7 +211,7 @@ static const struct es7241_chip es7241_chip __maybe_unused = {
 static const struct snd_soc_dapm_widget es7241_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AINL"),
 	SND_SOC_DAPM_INPUT("AINR"),
-	SND_SOC_DAPM_DAC("ADC", "Capture", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("ADC", "Capture", SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDDP", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDDD", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDDA", 0, 0),
@@ -242,7 +242,7 @@ static void es7241_parse_fmt(struct device *dev, struct es7241_data *priv)
 	 * The format is given by a pull resistor on the SDOUT pin:
 	 * pull-up for i2s, pull-down for left justified.
 	 */
-	is_leftj = of_property_read_bool(dev->of_node,
+	is_leftj = of_property_read_bool(dev->of_analde,
 					 "everest,sdout-pull-down");
 	if (is_leftj)
 		priv->fmt = SND_SOC_DAIFMT_LEFT_J;
@@ -257,13 +257,13 @@ static int es7241_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 
 	priv->chip = of_device_get_match_data(dev);
 	if (!priv->chip) {
 		dev_err(dev, "failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	es7241_parse_fmt(dev, priv);

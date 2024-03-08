@@ -65,7 +65,7 @@ static int __init check_s32c1i(void)
 	handaddr = trap_set_handler(EXCCAUSE_LOAD_STORE_ADDR_ERROR,
 			do_probed_exception);
 
-	/* First try an S32C1I that does not store: */
+	/* First try an S32C1I that does analt store: */
 	rcw_exc = 0;
 	rcw_word = 1;
 	n = probed_compare_swap(&rcw_word, 0, 2);
@@ -98,9 +98,9 @@ static int __init check_s32c1i(void)
 	if (cause1 || cause2) {
 		pr_warn("S32C1I took exception %d, %d\n", cause1, cause2);
 		/* If emulation of S32C1I upon bus error gets implemented,
-		 * we can get rid of this panic for single core (not SMP)
+		 * we can get rid of this panic for single core (analt SMP)
 		 */
-		panic("S32C1I exceptions not currently supported");
+		panic("S32C1I exceptions analt currently supported");
 	}
 	if (cause1 != cause2)
 		panic("inconsistent S32C1I exceptions");
@@ -113,7 +113,7 @@ static int __init check_s32c1i(void)
 
 #else /* XCHAL_HAVE_S32C1I */
 
-/* This condition should not occur with a commercially deployed processor.
+/* This condition should analt occur with a commercially deployed processor.
  * Display reminder for early engr test or demo chips / FPGA bitstreams
  */
 static int __init check_s32c1i(void)

@@ -16,17 +16,17 @@ History
 
  From the beginning of Linux, each network device driver has had a local
  integer variable that controls the debug message level.  The message
- level ranged from 0 to 7, and monotonically increased in verbosity.
+ level ranged from 0 to 7, and moanaltonically increased in verbosity.
 
- The message level was not precisely defined past level 3, but were
+ The message level was analt precisely defined past level 3, but were
  always implemented within +-1 of the specified level.  Drivers tended
  to shed the more verbose level messages as they matured.
 
    - 0  Minimal messages, only essential information on fatal errors.
-   - 1  Standard messages, initialization status.  No run-time messages
+   - 1  Standard messages, initialization status.  Anal run-time messages
    - 2  Special media selection messages, generally timer-driver.
-   - 3  Interface starts and stops, including normal status messages
-   - 4  Tx and Rx frame error messages, and abnormal driver operation
+   - 3  Interface starts and stops, including analrmal status messages
+   - 4  Tx and Rx frame error messages, and abanalrmal driver operation
    - 5  Tx packet queue information, interrupt events.
    - 6  Status on each completed Tx packet and received Rx packets
    - 7  Initial contents of Tx and Rx packets
@@ -45,7 +45,7 @@ History
    - Per-interface rather than per-driver message level setting.
    - More selective control over the type of messages emitted.
 
- The netif_msg recommendation adds these features with only a minor
+ The netif_msg recommendation adds these features with only a mianalr
  complexity and code size increase.
 
  The recommendation is the following points

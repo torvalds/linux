@@ -3,7 +3,7 @@
  * WSM host interface (HI) interface for ST-Ericsson CW1200 mac80211 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  *
  * Based on CW1200 UMAC WSM API, which is
  * Copyright (C) ST-Ericsson SA 2010
@@ -37,10 +37,10 @@ struct cw1200_common;
 /* 11  Mbps            ERP-CCK */
 #define WSM_TRANSMIT_RATE_11		(3)
 
-/* 22  Mbps            ERP-PBCC (Not supported) */
+/* 22  Mbps            ERP-PBCC (Analt supported) */
 /* #define WSM_TRANSMIT_RATE_22		(4) */
 
-/* 33  Mbps            ERP-PBCC (Not supported) */
+/* 33  Mbps            ERP-PBCC (Analt supported) */
 /* #define WSM_TRANSMIT_RATE_33		(5) */
 
 /* 6   Mbps   (3 Mbps) ERP-OFDM, BPSK coding rate 1/2 */
@@ -102,7 +102,7 @@ struct cw1200_common;
 #define WSM_SCAN_TYPE_AUTO		(2)
 
 /* Scan flags */
-/* Forced background scan means if the station cannot */
+/* Forced background scan means if the station cananalt */
 /* enter the power-save mode, it shall force to perform a */
 /* background scan. Only valid when ScanType is */
 /* background scan. */
@@ -112,10 +112,10 @@ struct cw1200_common;
 /* that disturbance to the data traffic is minimized. */
 #define WSM_SCAN_FLAG_SPLIT_METHOD	(BIT(1))
 
-/* Preamble Type. Long if not set. */
+/* Preamble Type. Long if analt set. */
 #define WSM_SCAN_FLAG_SHORT_PREAMBLE	(BIT(2))
 
-/* 11n Tx Mode. Mixed if not set. */
+/* 11n Tx Mode. Mixed if analt set. */
 #define WSM_SCAN_FLAG_11N_GREENFIELD	(BIT(3))
 
 /* Scan constraints */
@@ -139,10 +139,10 @@ struct cw1200_common;
 #define WSM_PSM_FAST_PS			(BIT(0) | BIT(7))
 
 /* Undetermined */
-/* Note : Undetermined status is reported when the */
+/* Analte : Undetermined status is reported when the */
 /* NULL data frame used to advertise the PM mode to */
-/* the AP at Pre or Post Background Scan is not Acknowledged */
-#define WSM_PSM_UNKNOWN			BIT(1)
+/* the AP at Pre or Post Background Scan is analt Ackanalwledged */
+#define WSM_PSM_UNKANALWN			BIT(1)
 
 /* Queue IDs */
 /* best effort/legacy */
@@ -158,8 +158,8 @@ struct cw1200_common;
 #define WSM_QUEUE_VOICE			(3)
 
 /* HT TX parameters */
-/* Non-HT */
-#define WSM_HT_TX_NON_HT		(0)
+/* Analn-HT */
+#define WSM_HT_TX_ANALN_HT		(0)
 
 /* Mixed format */
 #define WSM_HT_TX_MIXED			(1)
@@ -173,7 +173,7 @@ struct cw1200_common;
 /* EPTA prioirty flags for BT Coex */
 /* default epta priority */
 #define WSM_EPTA_PRIORITY_DEFAULT	4
-/* use for normal data */
+/* use for analrmal data */
 #define WSM_EPTA_PRIORITY_DATA		4
 /* use for connect/disconnect/roaming*/
 #define WSM_EPTA_PRIORITY_MGT		5
@@ -195,14 +195,14 @@ struct cw1200_common;
 /* Valid only when status is WSM_REQUEUE. */
 #define WSM_TX_STATUS_REQUEUE		(BIT(1))
 
-/* Normal Ack */
-#define WSM_TX_STATUS_NORMAL_ACK	(0<<2)
+/* Analrmal Ack */
+#define WSM_TX_STATUS_ANALRMAL_ACK	(0<<2)
 
-/* No Ack */
-#define WSM_TX_STATUS_NO_ACK		(1<<2)
+/* Anal Ack */
+#define WSM_TX_STATUS_ANAL_ACK		(1<<2)
 
-/* No explicit acknowledgement */
-#define WSM_TX_STATUS_NO_EXPLICIT_ACK	(2<<2)
+/* Anal explicit ackanalwledgement */
+#define WSM_TX_STATUS_ANAL_EXPLICIT_ACK	(2<<2)
 
 /* Block Ack */
 /* Only valid for WSM_SUCCESS status. */
@@ -311,7 +311,7 @@ struct cw1200_common;
 #define WSM_JOIN_FLAGS_P2P_GO		BIT(1)
 /* Force to join BSS with the BSSID and the
  * SSID specified without waiting for beacons. The
- * ProbeForJoin parameter is ignored.
+ * ProbeForJoin parameter is iganalred.
  */
 #define WSM_JOIN_FLAGS_FORCE		BIT(2)
 /* Give probe request/response higher
@@ -319,7 +319,7 @@ struct cw1200_common;
  */
 #define WSM_JOIN_FLAGS_PRIO		BIT(3)
 /* Issue immediate join confirmation and use
- * join complete to notify about completion
+ * join complete to analtify about completion
  */
 #define WSM_JOIN_FLAGS_FORCE_WITH_COMPLETE_IND BIT(5)
 
@@ -337,8 +337,8 @@ struct cw1200_common;
 #define WSM_KEY_MAX_INDEX		(10)
 
 /* ACK policy */
-#define WSM_ACK_POLICY_NORMAL		(0)
-#define WSM_ACK_POLICY_NO_ACK		(1)
+#define WSM_ACK_POLICY_ANALRMAL		(0)
+#define WSM_ACK_POLICY_ANAL_ACK		(1)
 
 /* Start modes */
 #define WSM_START_MODE_AP		(0)	/* Mini AP */
@@ -350,7 +350,7 @@ struct cw1200_common;
 #define WSM_ASSOCIATION_MODE_USE_HT_MODE		(BIT(1))
 #define WSM_ASSOCIATION_MODE_USE_BASIC_RATE_SET		(BIT(2))
 #define WSM_ASSOCIATION_MODE_USE_MPDU_START_SPACING	(BIT(3))
-#define WSM_ASSOCIATION_MODE_SNOOP_ASSOC_FRAMES		(BIT(4))
+#define WSM_ASSOCIATION_MODE_SANALOP_ASSOC_FRAMES		(BIT(4))
 
 /* RcpiRssiThreshold MIB flags */
 #define WSM_RCPI_RSSI_THRESHOLD_ENABLE	(BIT(0))
@@ -411,8 +411,8 @@ struct cw1200_common;
 /* 4.8  dot11RTSThreshold */
 #define WSM_MIB_ID_DOT11_RTS_THRESHOLD		0x0007
 
-/* 4.9  NonErpProtection */
-#define WSM_MIB_ID_NON_ERP_PROTECTION		0x1000
+/* 4.9  AnalnErpProtection */
+#define WSM_MIB_ID_ANALN_ERP_PROTECTION		0x1000
 
 /* 4.10 ArpIpAddressesTable */
 #define WSM_MIB_ID_ARP_IP_ADDRESSES_TABLE	0x1001
@@ -539,13 +539,13 @@ struct cw1200_common;
 #define WSM_STATUS_SUCCESS              (0)
 
 /* This is a generic failure code if other error codes do */
-/* not apply. */
+/* analt apply. */
 #define WSM_STATUS_FAILURE              (1)
 
 /* A request contains one or more invalid parameters. */
 #define WSM_INVALID_PARAMETER           (2)
 
-/* The request cannot perform because the device is in */
+/* The request cananalt perform because the device is in */
 /* an inappropriate mode. */
 #define WSM_ACCESS_DENIED               (3)
 
@@ -566,8 +566,8 @@ struct cw1200_common;
 /* The link to the AP is lost. */
 #define WSM_STATUS_LINK_LOST            (8)
 
-/* No key was found for the encrypted frame */
-#define WSM_STATUS_NO_KEY_FOUND         (9)
+/* Anal key was found for the encrypted frame */
+#define WSM_STATUS_ANAL_KEY_FOUND         (9)
 
 /* Jammer was detected when transmitting this frame */
 #define WSM_STATUS_JAMMER_DETECTED      (10)
@@ -579,7 +579,7 @@ struct cw1200_common;
 /* Advanced filtering options */
 #define WSM_MAX_FILTER_ELEMENTS		(4)
 
-#define WSM_FILTER_ACTION_IGNORE	(0)
+#define WSM_FILTER_ACTION_IGANALRE	(0)
 #define WSM_FILTER_ACTION_FILTER_IN	(1)
 #define WSM_FILTER_ACTION_FILTER_OUT	(2)
 
@@ -708,7 +708,7 @@ struct wsm_scan {
 	u32 auto_scan_interval;
 
 	/* Number of probe requests (per SSID) sent to one (1) */
-	/* channel. Zero (0) means that none is send, which */
+	/* channel. Zero (0) means that analne is send, which */
 	/* means that a passive scan is to be done. Value */
 	/* greater than zero (0) means that an active scan is to */
 	/* be done. */
@@ -769,7 +769,7 @@ struct wsm_tx_confirm {
 	u8 tx_rate;
 
 	/* The number of times the frame was transmitted */
-	/* without receiving an acknowledgement. */
+	/* without receiving an ackanalwledgement. */
 	u8 ack_failures;
 
 	/* WSM_TX_STATUS_... */
@@ -786,8 +786,8 @@ struct wsm_tx_confirm {
 
 /* 3.15 */
 
-/* Note that ideology of wsm_tx struct is different against the rest of
- * WSM API. wsm_hdr is /not/ a caller-adapted struct to be used as an input
+/* Analte that ideology of wsm_tx struct is different against the rest of
+ * WSM API. wsm_hdr is /analt/ a caller-adapted struct to be used as an input
  * argument for WSM call, but a prepared bytestream to be sent to firmware.
  * It is filled partly in cw1200_tx, partly in low-level WSM code.
  * Please pay attention once again: ideology is different.
@@ -801,7 +801,7 @@ struct wsm_tx {
 	struct wsm_hdr hdr;
 
 	/* Packet identifier that meant to be used in completion. */
-	u32 packet_id;  /* Note this is actually a cookie */
+	u32 packet_id;  /* Analte this is actually a cookie */
 
 	/* WSM_TRANSMIT_RATE_... */
 	u8 max_tx_rate;
@@ -809,7 +809,7 @@ struct wsm_tx {
 	/* WSM_QUEUE_... */
 	u8 queue_id;
 
-	/* True: another packet is pending on the host for transmission. */
+	/* True: aanalther packet is pending on the host for transmission. */
 	u8 more;
 
 	/* Bit 0 = 0 - Start expiry time from first Tx attempt (default) */
@@ -878,7 +878,7 @@ struct cw1200_wsm_event {
 };
 
 /* 3.18 - 3.22 */
-/* Measurement. Skipped for now. Irrelevent. */
+/* Measurement. Skipped for analw. Irrelevent. */
 
 typedef void (*wsm_event_cb) (struct cw1200_common *priv,
 			      struct wsm_event *arg);
@@ -905,7 +905,7 @@ struct wsm_join {
 
 	/* ATIM window of IBSS */
 	/* When ATIM window is zero the initiated IBSS does */
-	/* not support power saving. */
+	/* analt support power saving. */
 	u16 atim_window;
 
 	/* WSM_JOIN_PREAMBLE_... */
@@ -1086,7 +1086,7 @@ struct wsm_set_tx_queue_params {
 };
 
 struct wsm_tx_queue_params {
-	/* NOTE: index is a linux queue id. */
+	/* ANALTE: index is a linux queue id. */
 	struct wsm_set_tx_queue_params params[4];
 };
 
@@ -1126,7 +1126,7 @@ struct wsm_edca_queue_params {
 };
 
 struct wsm_edca_params {
-	/* NOTE: index is a linux queue id. */
+	/* ANALTE: index is a linux queue id. */
 	struct wsm_edca_queue_params params[4];
 	bool uapsd_enable[4];
 };
@@ -1151,14 +1151,14 @@ int wsm_set_uapsd_param(struct cw1200_common *priv,
 			const struct wsm_edca_params *arg);
 
 /* 3.38 */
-/* Set-System info. Skipped for now. Irrelevent. */
+/* Set-System info. Skipped for analw. Irrelevent. */
 
 /* 3.40 */
 #define WSM_SWITCH_CHANNEL_REQ_ID 0x0016
 #define WSM_SWITCH_CHANNEL_RESP_ID 0x0416
 
 struct wsm_switch_channel {
-	/* 1 - means the STA shall not transmit any further */
+	/* 1 - means the STA shall analt transmit any further */
 	/* frames until the channel switch has completed */
 	u8 mode;
 
@@ -1168,7 +1168,7 @@ struct wsm_switch_channel {
 	u8 switch_count;
 
 	/* The new channel number to switch to. */
-	/* Note this is defined as per section 2.7. */
+	/* Analte this is defined as per section 2.7. */
 	u16 channel_number;
 };
 
@@ -1209,7 +1209,7 @@ struct wsm_start {
 	/* Length of the SSID */
 	/* [in] */ u8 ssid_len;
 
-	/* SSID of the BSS or P2P_GO to be started now. */
+	/* SSID of the BSS or P2P_GO to be started analw. */
 	/* [in] */ u8 ssid[32];
 
 	/* The basic supported rates for the MiniAP. */
@@ -1320,7 +1320,7 @@ struct wsm_mib_counters_table {
 	__le32 rx_packet_errors;
 	__le32 rx_decryption_failures;
 	__le32 rx_mic_failures;
-	__le32 rx_no_key_failures;
+	__le32 rx_anal_key_failures;
 	__le32 tx_multicast_frames;
 	__le32 tx_frames_success;
 	__le32 tx_frame_failures;
@@ -1374,7 +1374,7 @@ static inline int wsm_set_rx_filter(struct cw1200_common *priv,
 int wsm_set_probe_responder(struct cw1200_common *priv, bool enable);
 
 #define WSM_BEACON_FILTER_IE_HAS_CHANGED	BIT(0)
-#define WSM_BEACON_FILTER_IE_NO_LONGER_PRESENT	BIT(1)
+#define WSM_BEACON_FILTER_IE_ANAL_LONGER_PRESENT	BIT(1)
 #define WSM_BEACON_FILTER_IE_HAS_APPEARED	BIT(2)
 
 struct wsm_beacon_filter_table_entry {
@@ -1529,7 +1529,7 @@ struct wsm_tx_rate_retry_policy {
 	/* BIT(2) - Terminate retries when Tx rate retry policy
 	 *          finishes.
 	 * BIT(3) - Count initial frame transmission as part of
-	 *          rate retry counting but not as a retry
+	 *          rate retry counting but analt as a retry
 	 *          attempt
 	 */
 	u8 flags;
@@ -1629,11 +1629,11 @@ struct wsm_group_tx_seq {
 
 /* 4.39 SetHtProtection - WO */
 #define WSM_DUAL_CTS_PROT_ENB		(1 << 0)
-#define WSM_NON_GREENFIELD_STA_PRESENT  (1 << 1)
-#define WSM_HT_PROT_MODE__NO_PROT	(0 << 2)
-#define WSM_HT_PROT_MODE__NON_MEMBER	(1 << 2)
+#define WSM_ANALN_GREENFIELD_STA_PRESENT  (1 << 1)
+#define WSM_HT_PROT_MODE__ANAL_PROT	(0 << 2)
+#define WSM_HT_PROT_MODE__ANALN_MEMBER	(1 << 2)
 #define WSM_HT_PROT_MODE__20_MHZ	(2 << 2)
-#define WSM_HT_PROT_MODE__NON_HT_MIXED	(3 << 2)
+#define WSM_HT_PROT_MODE__ANALN_HT_MIXED	(3 << 2)
 #define WSM_LSIG_TXOP_PROT_FULL		(1 << 4)
 #define WSM_LARGE_L_LENGTH_PROT		(1 << 5)
 
@@ -1773,7 +1773,7 @@ static inline int wsm_set_uapsd_info(struct cw1200_common *priv,
 /* 4.22 OverrideInternalTxRate */
 struct wsm_override_internal_txrate {
 	u8 internalTxRate;
-	u8 nonErpInternalTxRate;
+	u8 analnErpInternalTxRate;
 	u8 reserved[2];
 } __packed;
 

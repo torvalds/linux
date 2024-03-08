@@ -39,7 +39,7 @@ static int enetc_pf_set_mac_addr(struct net_device *ndev, void *addr)
 	struct sockaddr *saddr = addr;
 
 	if (!is_valid_ether_addr(saddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(ndev, saddr->sa_data);
 	enetc_pf_set_primary_mac_addr(&priv->si->hw, 0, saddr->sa_data);
@@ -349,7 +349,7 @@ static int enetc_pf_set_vf_mac(struct net_device *ndev, int vf, u8 *mac)
 		return -EINVAL;
 
 	if (!is_valid_ether_addr(mac))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	vf_state = &pf->vf_state[vf];
 	vf_state->flags |= ENETC_VF_FLAG_PF_SET_MAC;
@@ -364,14 +364,14 @@ static int enetc_pf_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan,
 	struct enetc_pf *pf = enetc_si_priv(priv->si);
 
 	if (priv->si->errata & ENETC_ERR_VLAN_ISOL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vf >= pf->total_vfs)
 		return -EINVAL;
 
 	if (proto != htons(ETH_P_8021Q))
-		/* only C-tags supported for now */
-		return -EPROTONOSUPPORT;
+		/* only C-tags supported for analw */
+		return -EPROTOANALSUPPORT;
 
 	enetc_set_isol_vlan(&priv->si->hw, vf + 1, vlan, qos);
 	return 0;
@@ -393,7 +393,7 @@ static int enetc_pf_set_vf_spoofchk(struct net_device *ndev, int vf, bool en)
 	return 0;
 }
 
-static int enetc_setup_mac_address(struct device_node *np, struct enetc_pf *pf,
+static int enetc_setup_mac_address(struct device_analde *np, struct enetc_pf *pf,
 				   int si)
 {
 	struct device *dev = &pf->si->pdev->dev;
@@ -415,7 +415,7 @@ static int enetc_setup_mac_address(struct device_node *np, struct enetc_pf *pf,
 	/* (3) choose a random one */
 	if (is_zero_ether_addr(mac_addr)) {
 		eth_random_addr(mac_addr);
-		dev_info(dev, "no MAC address specified for SI%d, using %pM\n",
+		dev_info(dev, "anal MAC address specified for SI%d, using %pM\n",
 			 si, mac_addr);
 	}
 
@@ -424,7 +424,7 @@ static int enetc_setup_mac_address(struct device_node *np, struct enetc_pf *pf,
 	return 0;
 }
 
-static int enetc_setup_mac_addresses(struct device_node *np,
+static int enetc_setup_mac_addresses(struct device_analde *np,
 				     struct enetc_pf *pf)
 {
 	int err, i;
@@ -651,7 +651,7 @@ void enetc_msg_handle_rxmsg(struct enetc_pf *pf, int vf_id, u16 *status)
 		*status = enetc_msg_pf_set_vf_primary_mac_addr(pf, vf_id);
 		break;
 	default:
-		dev_err(dev, "command not supported (cmd_type: 0x%x)\n",
+		dev_err(dev, "command analt supported (cmd_type: 0x%x)\n",
 			cmd_type);
 	}
 }
@@ -675,7 +675,7 @@ static int enetc_sriov_configure(struct pci_dev *pdev, int num_vfs)
 				       GFP_KERNEL);
 		if (!pf->vf_state) {
 			pf->num_vfs = 0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = enetc_msg_psi_init(pf);
@@ -752,7 +752,7 @@ static int enetc_pf_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 	case TC_SETUP_BLOCK:
 		return enetc_setup_tc_psfp(ndev, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -821,7 +821,7 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 	enetc_load_primary_mac_addr(&si->hw, ndev);
 }
 
-static int enetc_mdio_probe(struct enetc_pf *pf, struct device_node *np)
+static int enetc_mdio_probe(struct enetc_pf *pf, struct device_analde *np)
 {
 	struct device *dev = &pf->si->pdev->dev;
 	struct enetc_mdio_priv *mdio_priv;
@@ -830,7 +830,7 @@ static int enetc_mdio_probe(struct enetc_pf *pf, struct device_node *np)
 
 	bus = devm_mdiobus_alloc_size(dev, sizeof(*mdio_priv));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->name = "Freescale ENETC MDIO Bus";
 	bus->read = enetc_mdio_read_c22;
@@ -845,7 +845,7 @@ static int enetc_mdio_probe(struct enetc_pf *pf, struct device_node *np)
 
 	err = of_mdiobus_register(bus, np);
 	if (err)
-		return dev_err_probe(dev, err, "cannot register MDIO bus\n");
+		return dev_err_probe(dev, err, "cananalt register MDIO bus\n");
 
 	pf->mdio = bus;
 
@@ -868,7 +868,7 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 
 	bus = mdiobus_alloc_size(sizeof(*mdio_priv));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->name = "Freescale ENETC internal MDIO Bus";
 	bus->read = enetc_mdio_read_c22;
@@ -884,14 +884,14 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 
 	err = mdiobus_register(bus);
 	if (err) {
-		dev_err(dev, "cannot register internal MDIO bus (%d)\n", err);
+		dev_err(dev, "cananalt register internal MDIO bus (%d)\n", err);
 		goto free_mdio_bus;
 	}
 
 	phylink_pcs = lynx_pcs_create_mdiodev(bus, 0);
 	if (IS_ERR(phylink_pcs)) {
 		err = PTR_ERR(phylink_pcs);
-		dev_err(dev, "cannot create lynx pcs (%d)\n", err);
+		dev_err(dev, "cananalt create lynx pcs (%d)\n", err);
 		goto unregister_mdiobus;
 	}
 
@@ -925,16 +925,16 @@ static bool enetc_port_has_pcs(struct enetc_pf *pf)
 		pf->if_mode == PHY_INTERFACE_MODE_USXGMII);
 }
 
-static int enetc_mdiobus_create(struct enetc_pf *pf, struct device_node *node)
+static int enetc_mdiobus_create(struct enetc_pf *pf, struct device_analde *analde)
 {
-	struct device_node *mdio_np;
+	struct device_analde *mdio_np;
 	int err;
 
-	mdio_np = of_get_child_by_name(node, "mdio");
+	mdio_np = of_get_child_by_name(analde, "mdio");
 	if (mdio_np) {
 		err = enetc_mdio_probe(pf, mdio_np);
 
-		of_node_put(mdio_np);
+		of_analde_put(mdio_np);
 		if (err)
 			return err;
 	}
@@ -1102,7 +1102,7 @@ static const struct phylink_mac_ops enetc_mac_phylink_ops = {
 };
 
 static int enetc_phylink_create(struct enetc_ndev_priv *priv,
-				struct device_node *node)
+				struct device_analde *analde)
 {
 	struct enetc_pf *pf = enetc_si_priv(priv->si);
 	struct phylink *phylink;
@@ -1125,7 +1125,7 @@ static int enetc_phylink_create(struct enetc_ndev_priv *priv,
 		  pf->phylink_config.supported_interfaces);
 	phy_interface_set_rgmii(pf->phylink_config.supported_interfaces);
 
-	phylink = phylink_create(&pf->phylink_config, of_fwnode_handle(node),
+	phylink = phylink_create(&pf->phylink_config, of_fwanalde_handle(analde),
 				 pf->if_mode, &enetc_mac_phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
@@ -1178,7 +1178,7 @@ static int enetc_init_port_rss_memory(struct enetc_si *si)
 
 	rss_table = kcalloc(num_rss, sizeof(*rss_table), GFP_KERNEL);
 	if (!rss_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = enetc_set_rss_table(si, rss_table, num_rss);
 
@@ -1190,15 +1190,15 @@ static int enetc_init_port_rss_memory(struct enetc_si *si)
 static int enetc_pf_register_with_ierb(struct pci_dev *pdev)
 {
 	struct platform_device *ierb_pdev;
-	struct device_node *ierb_node;
+	struct device_analde *ierb_analde;
 
-	ierb_node = of_find_compatible_node(NULL, NULL,
+	ierb_analde = of_find_compatible_analde(NULL, NULL,
 					    "fsl,ls1028a-enetc-ierb");
-	if (!ierb_node || !of_device_is_available(ierb_node))
-		return -ENODEV;
+	if (!ierb_analde || !of_device_is_available(ierb_analde))
+		return -EANALDEV;
 
-	ierb_pdev = of_find_device_by_node(ierb_node);
-	of_node_put(ierb_node);
+	ierb_pdev = of_find_device_by_analde(ierb_analde);
+	of_analde_put(ierb_analde);
 
 	if (!ierb_pdev)
 		return -EPROBE_DEFER;
@@ -1219,8 +1219,8 @@ static struct enetc_si *enetc_psi_create(struct pci_dev *pdev)
 
 	si = pci_get_drvdata(pdev);
 	if (!si->hw.port || !si->hw.global) {
-		err = -ENODEV;
-		dev_err(&pdev->dev, "could not map PF space, probing a VF?\n");
+		err = -EANALDEV;
+		dev_err(&pdev->dev, "could analt map PF space, probing a VF?\n");
 		goto out_pci_remove;
 	}
 
@@ -1262,7 +1262,7 @@ static void enetc_psi_destroy(struct pci_dev *pdev)
 static int enetc_pf_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *ent)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct enetc_ndev_priv *priv;
 	struct net_device *ndev;
 	struct enetc_si *si;
@@ -1274,7 +1274,7 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		return err;
 	if (err)
 		dev_warn(&pdev->dev,
-			 "Could not register with IERB driver: %pe, please update the device tree\n",
+			 "Could analt register with IERB driver: %pe, please update the device tree\n",
 			 ERR_PTR(err));
 
 	si = enetc_psi_create(pdev);
@@ -1287,7 +1287,7 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	pf->si = si;
 	pf->total_vfs = pci_sriov_get_totalvfs(pdev);
 
-	err = enetc_setup_mac_addresses(node, pf);
+	err = enetc_setup_mac_addresses(analde, pf);
 	if (err)
 		goto err_setup_mac_addresses;
 
@@ -1297,7 +1297,7 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 
 	ndev = alloc_etherdev_mq(sizeof(*priv), ENETC_MAX_NUM_TXQS);
 	if (!ndev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&pdev->dev, "netdev creation failed\n");
 		goto err_alloc_netdev;
 	}
@@ -1328,17 +1328,17 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		goto err_alloc_msix;
 	}
 
-	err = of_get_phy_mode(node, &pf->if_mode);
+	err = of_get_phy_mode(analde, &pf->if_mode);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to read PHY mode\n");
 		goto err_phy_mode;
 	}
 
-	err = enetc_mdiobus_create(pf, node);
+	err = enetc_mdiobus_create(pf, analde);
 	if (err)
 		goto err_mdiobus_create;
 
-	err = enetc_phylink_create(priv, node);
+	err = enetc_phylink_create(priv, analde);
 	if (err)
 		goto err_phylink_create;
 
@@ -1395,13 +1395,13 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 
 static void enetc_fixup_clear_rss_rfs(struct pci_dev *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct enetc_si *si;
 
 	/* Only apply quirk for disabled functions. For the ones
 	 * that are enabled, enetc_pf_probe() will apply it.
 	 */
-	if (node && of_device_is_available(node))
+	if (analde && of_device_is_available(analde))
 		return;
 
 	si = enetc_psi_create(pdev);

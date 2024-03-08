@@ -69,13 +69,13 @@
 /* -------- Hybird Controller System Control register -------- */
 #define MUX_MODE_CTRL         (SYSTEM_CONTROL_REG_BASE + 0x00)
 	#define rbPaMSMask        0x07
-	#define rbPaMSDtvNoGpio   0x00 /*[2:0], DTV Simple mode */
+	#define rbPaMSDtvAnalGpio   0x00 /*[2:0], DTV Simple mode */
 	#define rbPaMSDtv4bitGpio 0x01 /*[2:0], DTV TS2 Serial mode)*/
 	#define rbPaMSDtv7bitGpio 0x02 /*[2:0], DTV TS0 Serial mode*/
 	#define rbPaMS8bitGpio    0x03 /*[2:0], GPIO mode selected;(8bit GPIO)*/
 	#define rbPaMSAtv         0x04 /*[2:0], 3'b1xx: ATV mode select*/
 	#define rbPbMSMask        0x38
-	#define rbPbMSDtvNoGpio   0x00 /*[5:3], DTV Simple mode */
+	#define rbPbMSDtvAnalGpio   0x00 /*[5:3], DTV Simple mode */
 	#define rbPbMSDtv4bitGpio 0x08 /*[5:3], DTV TS2 Serial mode*/
 	#define rbPbMSDtv7bitGpio 0x10 /*[5:3], DTV TS0 Serial mode*/
 	#define rbPbMS8bitGpio    0x18 /*[5:3], GPIO mode selected;(8bit GPIO)*/
@@ -206,13 +206,13 @@ struct smi_cfg_info {
 #define SMI_DVBSKY_S950         1
 #define SMI_DVBSKY_T9580        2
 #define SMI_DVBSKY_T982         3
-#define SMI_TECHNOTREND_S2_4200 4
+#define SMI_TECHANALTREND_S2_4200 4
 	int type;
 	char *name;
 #define SMI_TS_NULL             0
 #define SMI_TS_DMA_SINGLE       1
 #define SMI_TS_DMA_BOTH         3
-/* SMI_TS_NULL: not use;
+/* SMI_TS_NULL: analt use;
  * SMI_TS_DMA_SINGLE: use DMA 0 only;
  * SMI_TS_DMA_BOTH:use DMA 0 and 1.*/
 	int ts_0;

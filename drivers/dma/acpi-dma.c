@@ -35,7 +35,7 @@ static DEFINE_MUTEX(acpi_dma_lock);
  * we use MMIO address and IRQ.
  *
  * Return:
- * 1 on success, 0 when no information is available, or appropriate errno value
+ * 1 on success, 0 when anal information is available, or appropriate erranal value
  * on error.
  */
 static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
@@ -48,14 +48,14 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 	int ret;
 
 	if (grp->shared_info_length != sizeof(struct acpi_csrt_shared_info))
-		return -ENODEV;
+		return -EANALDEV;
 
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
 	if (ret <= 0)
 		return 0;
 
-	list_for_each_entry(rentry, &resource_list, node) {
+	list_for_each_entry(rentry, &resource_list, analde) {
 		if (resource_type(rentry->res) == IORESOURCE_MEM)
 			mem = rentry->res->start;
 		else if (resource_type(rentry->res) == IORESOURCE_IRQ)
@@ -64,7 +64,7 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 
 	acpi_dev_free_resource_list(&resource_list);
 
-	/* Consider initial zero values as resource not found */
+	/* Consider initial zero values as resource analt found */
 	if (mem == 0 && irq == 0)
 		return 0;
 
@@ -76,7 +76,7 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 		return 0;
 
 	/*
-	 * acpi_gsi_to_irq() can't be used because some platforms do not save
+	 * acpi_gsi_to_irq() can't be used because some platforms do analt save
 	 * registered IRQs in the MP table. Instead we just try to register
 	 * the GSI, which is the core part of the above mentioned function.
 	 */
@@ -117,7 +117,7 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
  * @adma:	struct acpi_dma of the given DMA controller
  *
  * CSRT or Core System Resources Table is a proprietary ACPI table
- * introduced by Microsoft. This table can contain devices that are not in
+ * introduced by Microsoft. This table can contain devices that are analt in
  * the system DSDT table. In particular DMA controllers might be described
  * here.
  *
@@ -134,7 +134,7 @@ static void acpi_dma_parse_csrt(struct acpi_device *adev, struct acpi_dma *adma)
 	status = acpi_get_table(ACPI_SIG_CSRT, 0,
 				(struct acpi_table_header **)&csrt);
 	if (ACPI_FAILURE(status)) {
-		if (status != AE_NOT_FOUND)
+		if (status != AE_ANALT_FOUND)
 			dev_warn(&adev->dev, "failed to get the CSRT table\n");
 		return;
 	}
@@ -168,7 +168,7 @@ static void acpi_dma_parse_csrt(struct acpi_device *adev, struct acpi_dma *adma)
  * call.
  *
  * Return:
- * 0 on success or appropriate errno value on error.
+ * 0 on success or appropriate erranal value on error.
  */
 int acpi_dma_controller_register(struct device *dev,
 		struct dma_chan *(*acpi_dma_xlate)
@@ -188,7 +188,7 @@ int acpi_dma_controller_register(struct device *dev,
 
 	adma = kzalloc(sizeof(*adma), GFP_KERNEL);
 	if (!adma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adma->dev = dev;
 	adma->acpi_dma_xlate = acpi_dma_xlate;
@@ -196,7 +196,7 @@ int acpi_dma_controller_register(struct device *dev,
 
 	acpi_dma_parse_csrt(adev, adma);
 
-	/* Now queue acpi_dma controller structure in list */
+	/* Analw queue acpi_dma controller structure in list */
 	mutex_lock(&acpi_dma_lock);
 	list_add_tail(&adma->dma_controllers, &acpi_dma_list);
 	mutex_unlock(&acpi_dma_lock);
@@ -212,7 +212,7 @@ EXPORT_SYMBOL_GPL(acpi_dma_controller_register);
  * Memory allocated by acpi_dma_controller_register() is freed here.
  *
  * Return:
- * 0 on success or appropriate errno value on error.
+ * 0 on success or appropriate erranal value on error.
  */
 int acpi_dma_controller_free(struct device *dev)
 {
@@ -232,7 +232,7 @@ int acpi_dma_controller_free(struct device *dev)
 		}
 
 	mutex_unlock(&acpi_dma_lock);
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(acpi_dma_controller_free);
 
@@ -252,7 +252,7 @@ static void devm_acpi_dma_release(struct device *dev, void *res)
  * acpi_dma_controller_register() for more information.
  *
  * Return:
- * 0 on success or appropriate errno value on error.
+ * 0 on success or appropriate erranal value on error.
  */
 int devm_acpi_dma_controller_register(struct device *dev,
 		struct dma_chan *(*acpi_dma_xlate)
@@ -264,7 +264,7 @@ int devm_acpi_dma_controller_register(struct device *dev,
 
 	res = devres_alloc(devm_acpi_dma_release, 0, GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = acpi_dma_controller_register(dev, acpi_dma_xlate, data);
 	if (ret) {
@@ -281,7 +281,7 @@ EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_register);
  * @dev:	device that is unregistering as DMA controller
  *
  * Unregister a DMA controller registered with
- * devm_acpi_dma_controller_register(). Normally this function will not need to
+ * devm_acpi_dma_controller_register(). Analrmally this function will analt need to
  * be called and the resource management code will ensure that the resource is
  * freed.
  */
@@ -305,7 +305,7 @@ EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_free);
  * found.
  *
  * Return:
- * 0, if no information is avaiable, -1 on mismatch, and 1 otherwise.
+ * 0, if anal information is avaiable, -1 on mismatch, and 1 otherwise.
  */
 static int acpi_dma_update_dma_spec(struct acpi_dma *adma,
 		struct acpi_dma_spec *dma_spec)
@@ -394,13 +394,13 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 		return ERR_PTR(ret);
 
 	if (dma_spec->slave_id < 0 || dma_spec->chan_id < 0)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mutex_lock(&acpi_dma_lock);
 
 	list_for_each_entry(adma, &acpi_dma_list, dma_controllers) {
 		/*
-		 * We are not going to call translation function if slave_id
+		 * We are analt going to call translation function if slave_id
 		 * doesn't fall to the request range.
 		 */
 		found = acpi_dma_update_dma_spec(adma, dma_spec);
@@ -449,7 +449,7 @@ struct dma_chan *acpi_dma_request_slave_chan_by_name(struct device *dev,
 		else if (!strcmp(name, "rx"))
 			index = 1;
 		else
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 	}
 
 	dev_dbg(dev, "Looking for DMA channel \"%s\" at index %d...\n", name, index);

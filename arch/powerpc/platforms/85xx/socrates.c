@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2008 Emcraft Systems
- * Sergei Poselenov <sposelenov@emcraft.com>
+ * Sergei Poseleanalv <sposeleanalv@emcraft.com>
  *
  * Based on MPC8560 ADS and arch/ppc tqm85xx ports
  *
@@ -40,20 +40,20 @@
 
 static void __init socrates_pic_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
 			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
 	mpic_init(mpic);
 
-	np = of_find_compatible_node(NULL, NULL, "abb,socrates-fpga-pic");
+	np = of_find_compatible_analde(NULL, NULL, "abb,socrates-fpga-pic");
 	if (!np) {
-		printk(KERN_ERR "Could not find socrates-fpga-pic node\n");
+		printk(KERN_ERR "Could analt find socrates-fpga-pic analde\n");
 		return;
 	}
 	socrates_fpga_pic_init(np);
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 /*

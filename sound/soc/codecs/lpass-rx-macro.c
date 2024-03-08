@@ -646,7 +646,7 @@ static const char * const iir_inp_mux_text[] = {
 };
 
 static const char * const rx_int_dem_inp_mux_text[] = {
-	"NORMAL_DSM_OUT", "CLSH_DSM_OUT",
+	"ANALRMAL_DSM_OUT", "CLSH_DSM_OUT",
 };
 
 static const char * const rx_int0_1_interp_mux_text[] = {
@@ -743,29 +743,29 @@ static SOC_ENUM_SINGLE_DECL(iir1_inp2_enum, CDC_RX_IIR_INP_MUX_IIR1_MIX_CFG2, 0,
 static SOC_ENUM_SINGLE_DECL(iir1_inp3_enum, CDC_RX_IIR_INP_MUX_IIR1_MIX_CFG3, 0,
 			    iir_inp_mux_text);
 
-static SOC_ENUM_SINGLE_DECL(rx_int0_1_interp_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(rx_int0_1_interp_enum, SND_SOC_ANALPM, 0,
 			    rx_int0_1_interp_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_int1_1_interp_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(rx_int1_1_interp_enum, SND_SOC_ANALPM, 0,
 			    rx_int1_1_interp_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_int2_1_interp_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(rx_int2_1_interp_enum, SND_SOC_ANALPM, 0,
 			    rx_int2_1_interp_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_int0_2_interp_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(rx_int0_2_interp_enum, SND_SOC_ANALPM, 0,
 			    rx_int0_2_interp_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_int1_2_interp_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(rx_int1_2_interp_enum, SND_SOC_ANALPM, 0,
 			    rx_int1_2_interp_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_int2_2_interp_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(rx_int2_2_interp_enum, SND_SOC_ANALPM, 0,
 			    rx_int2_2_interp_mux_text);
 static SOC_ENUM_SINGLE_DECL(rx_int0_dem_inp_enum, CDC_RX_RX0_RX_PATH_CFG1, 0,
 			    rx_int_dem_inp_mux_text);
 static SOC_ENUM_SINGLE_DECL(rx_int1_dem_inp_enum, CDC_RX_RX1_RX_PATH_CFG1, 0,
 			    rx_int_dem_inp_mux_text);
 
-static SOC_ENUM_SINGLE_DECL(rx_macro_rx0_enum, SND_SOC_NOPM, 0, rx_macro_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_macro_rx1_enum, SND_SOC_NOPM, 0, rx_macro_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_macro_rx2_enum, SND_SOC_NOPM, 0, rx_macro_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_macro_rx3_enum, SND_SOC_NOPM, 0, rx_macro_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_macro_rx4_enum, SND_SOC_NOPM, 0, rx_macro_mux_text);
-static SOC_ENUM_SINGLE_DECL(rx_macro_rx5_enum, SND_SOC_NOPM, 0, rx_macro_mux_text);
+static SOC_ENUM_SINGLE_DECL(rx_macro_rx0_enum, SND_SOC_ANALPM, 0, rx_macro_mux_text);
+static SOC_ENUM_SINGLE_DECL(rx_macro_rx1_enum, SND_SOC_ANALPM, 0, rx_macro_mux_text);
+static SOC_ENUM_SINGLE_DECL(rx_macro_rx2_enum, SND_SOC_ANALPM, 0, rx_macro_mux_text);
+static SOC_ENUM_SINGLE_DECL(rx_macro_rx3_enum, SND_SOC_ANALPM, 0, rx_macro_mux_text);
+static SOC_ENUM_SINGLE_DECL(rx_macro_rx4_enum, SND_SOC_ANALPM, 0, rx_macro_mux_text);
+static SOC_ENUM_SINGLE_DECL(rx_macro_rx5_enum, SND_SOC_ANALPM, 0, rx_macro_mux_text);
 
 static const struct snd_kcontrol_new rx_mix_tx1_mux =
 		SOC_DAPM_ENUM("RX MIX TX1_MUX Mux", rx_mix_tx1_mux_enum);
@@ -1642,7 +1642,7 @@ static int rx_macro_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_STREAM_PLAYBACK:
 		ret = rx_macro_set_interpolator_rate(dai, params_rate(params));
 		if (ret) {
-			dev_err(component->dev, "%s: cannot set sample rate: %u\n",
+			dev_err(component->dev, "%s: cananalt set sample rate: %u\n",
 				__func__, params_rate(params));
 			return ret;
 		}
@@ -1987,7 +1987,7 @@ static int rx_macro_config_compander(struct snd_soc_component *component,
 {
 	u8 pcm_rate, val;
 
-	/* AUX does not have compander */
+	/* AUX does analt have compander */
 	if (comp == INTERP_AUX)
 		return 0;
 
@@ -2045,7 +2045,7 @@ static int rx_macro_load_compander_coeff(struct snd_soc_component *component,
 	int i;
 	int hph_pwr_mode;
 
-	/* AUX does not have compander */
+	/* AUX does analt have compander */
 	if (comp == INTERP_AUX)
 		return 0;
 
@@ -2163,7 +2163,7 @@ static int rx_macro_config_classh(struct snd_soc_component *component,
 		interp_n == INTERP_HPHR) {
 		/*
 		 * These K1 values depend on the Headphone Impedance
-		 * For now it is assumed to be 16 ohm
+		 * For analw it is assumed to be 16 ohm
 		 */
 		snd_soc_component_write(component, CDC_RX_CLSH_K1_LSB, 0xc0);
 		snd_soc_component_write_field(component, CDC_RX_CLSH_K1_MSB,
@@ -2695,7 +2695,7 @@ static uint32_t get_iir_band_coeff(struct snd_soc_component *component,
 	u32 value;
 	int reg, b2_reg;
 
-	/* Address does not automatically update if reading */
+	/* Address does analt automatically update if reading */
 	reg = CDC_RX_SIDETONE_IIR0_IIR_COEF_B1_CTL + 0x80 * iir_idx;
 	b2_reg = CDC_RX_SIDETONE_IIR0_IIR_COEF_B2_CTL + 0x80 * iir_idx;
 
@@ -2815,24 +2815,24 @@ static const struct snd_kcontrol_new rx_macro_snd_controls[] = {
 	SOC_SINGLE_S8_TLV("RX_RX2 Mix Digital Volume", CDC_RX_RX2_RX_VOL_MIX_CTL,
 			  -84, 40, digital_gain),
 
-	SOC_SINGLE_EXT("RX_COMP1 Switch", SND_SOC_NOPM, RX_MACRO_COMP1, 1, 0,
+	SOC_SINGLE_EXT("RX_COMP1 Switch", SND_SOC_ANALPM, RX_MACRO_COMP1, 1, 0,
 		rx_macro_get_compander, rx_macro_set_compander),
-	SOC_SINGLE_EXT("RX_COMP2 Switch", SND_SOC_NOPM, RX_MACRO_COMP2, 1, 0,
+	SOC_SINGLE_EXT("RX_COMP2 Switch", SND_SOC_ANALPM, RX_MACRO_COMP2, 1, 0,
 		rx_macro_get_compander, rx_macro_set_compander),
 
-	SOC_SINGLE_EXT("RX_EAR Mode Switch", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("RX_EAR Mode Switch", SND_SOC_ANALPM, 0, 1, 0,
 		rx_macro_get_ear_mode, rx_macro_put_ear_mode),
 
-	SOC_SINGLE_EXT("RX_HPH HD2 Mode Switch", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("RX_HPH HD2 Mode Switch", SND_SOC_ANALPM, 0, 1, 0,
 		rx_macro_get_hph_hd2_mode, rx_macro_put_hph_hd2_mode),
 
 	SOC_ENUM_EXT("RX_HPH PWR Mode", rx_macro_hph_pwr_mode_enum,
 		rx_macro_get_hph_pwr_mode, rx_macro_put_hph_pwr_mode),
 
-	SOC_SINGLE_EXT("RX_Softclip Switch", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("RX_Softclip Switch", SND_SOC_ANALPM, 0, 1, 0,
 		     rx_macro_soft_clip_enable_get,
 		     rx_macro_soft_clip_enable_put),
-	SOC_SINGLE_EXT("AUX_HPF Switch", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("AUX_HPF Switch", SND_SOC_ANALPM, 0, 1, 0,
 			rx_macro_aux_hpf_mode_get,
 			rx_macro_aux_hpf_mode_put),
 
@@ -2917,7 +2917,7 @@ static int rx_macro_enable_echo(struct snd_soc_dapm_widget *w,
 		ec_tx = (val & 0x0f) - 1;
 
 	if (ec_tx < 0 || (ec_tx >= RX_MACRO_EC_MUX_MAX)) {
-		dev_err(component->dev, "%s: EC mix control not set correctly\n",
+		dev_err(component->dev, "%s: EC mix control analt set correctly\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -2934,58 +2934,58 @@ static int rx_macro_enable_echo(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget rx_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("RX AIF1 PB", "RX_MACRO_AIF1 Playback", 0,
-		SND_SOC_NOPM, 0, 0),
+		SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_AIF_IN("RX AIF2 PB", "RX_MACRO_AIF2 Playback", 0,
-		SND_SOC_NOPM, 0, 0),
+		SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_AIF_IN("RX AIF3 PB", "RX_MACRO_AIF3 Playback", 0,
-		SND_SOC_NOPM, 0, 0),
+		SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_AIF_IN("RX AIF4 PB", "RX_MACRO_AIF4 Playback", 0,
-		SND_SOC_NOPM, 0, 0),
+		SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_AIF_OUT("RX AIF_ECHO", "RX_AIF_ECHO Capture", 0,
-		SND_SOC_NOPM, 0, 0),
+		SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_MUX("RX_MACRO RX0 MUX", SND_SOC_NOPM, RX_MACRO_RX0, 0,
+	SND_SOC_DAPM_MUX("RX_MACRO RX0 MUX", SND_SOC_ANALPM, RX_MACRO_RX0, 0,
 			 &rx_macro_rx0_mux),
-	SND_SOC_DAPM_MUX("RX_MACRO RX1 MUX", SND_SOC_NOPM, RX_MACRO_RX1, 0,
+	SND_SOC_DAPM_MUX("RX_MACRO RX1 MUX", SND_SOC_ANALPM, RX_MACRO_RX1, 0,
 			 &rx_macro_rx1_mux),
-	SND_SOC_DAPM_MUX("RX_MACRO RX2 MUX", SND_SOC_NOPM, RX_MACRO_RX2, 0,
+	SND_SOC_DAPM_MUX("RX_MACRO RX2 MUX", SND_SOC_ANALPM, RX_MACRO_RX2, 0,
 			 &rx_macro_rx2_mux),
-	SND_SOC_DAPM_MUX("RX_MACRO RX3 MUX", SND_SOC_NOPM, RX_MACRO_RX3, 0,
+	SND_SOC_DAPM_MUX("RX_MACRO RX3 MUX", SND_SOC_ANALPM, RX_MACRO_RX3, 0,
 			 &rx_macro_rx3_mux),
-	SND_SOC_DAPM_MUX("RX_MACRO RX4 MUX", SND_SOC_NOPM, RX_MACRO_RX4, 0,
+	SND_SOC_DAPM_MUX("RX_MACRO RX4 MUX", SND_SOC_ANALPM, RX_MACRO_RX4, 0,
 			 &rx_macro_rx4_mux),
-	SND_SOC_DAPM_MUX("RX_MACRO RX5 MUX", SND_SOC_NOPM, RX_MACRO_RX5, 0,
+	SND_SOC_DAPM_MUX("RX_MACRO RX5 MUX", SND_SOC_ANALPM, RX_MACRO_RX5, 0,
 			 &rx_macro_rx5_mux),
 
-	SND_SOC_DAPM_MIXER("RX_RX0", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX_RX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX_RX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX_RX3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX_RX4", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX_RX5", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX_RX0", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX_RX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX_RX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX_RX3", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX_RX4", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX_RX5", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("IIR0 INP0 MUX", SND_SOC_NOPM, 0, 0, &iir0_inp0_mux),
-	SND_SOC_DAPM_MUX("IIR0 INP1 MUX", SND_SOC_NOPM, 0, 0, &iir0_inp1_mux),
-	SND_SOC_DAPM_MUX("IIR0 INP2 MUX", SND_SOC_NOPM, 0, 0, &iir0_inp2_mux),
-	SND_SOC_DAPM_MUX("IIR0 INP3 MUX", SND_SOC_NOPM, 0, 0, &iir0_inp3_mux),
-	SND_SOC_DAPM_MUX("IIR1 INP0 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp0_mux),
-	SND_SOC_DAPM_MUX("IIR1 INP1 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp1_mux),
-	SND_SOC_DAPM_MUX("IIR1 INP2 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp2_mux),
-	SND_SOC_DAPM_MUX("IIR1 INP3 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp3_mux),
+	SND_SOC_DAPM_MUX("IIR0 INP0 MUX", SND_SOC_ANALPM, 0, 0, &iir0_inp0_mux),
+	SND_SOC_DAPM_MUX("IIR0 INP1 MUX", SND_SOC_ANALPM, 0, 0, &iir0_inp1_mux),
+	SND_SOC_DAPM_MUX("IIR0 INP2 MUX", SND_SOC_ANALPM, 0, 0, &iir0_inp2_mux),
+	SND_SOC_DAPM_MUX("IIR0 INP3 MUX", SND_SOC_ANALPM, 0, 0, &iir0_inp3_mux),
+	SND_SOC_DAPM_MUX("IIR1 INP0 MUX", SND_SOC_ANALPM, 0, 0, &iir1_inp0_mux),
+	SND_SOC_DAPM_MUX("IIR1 INP1 MUX", SND_SOC_ANALPM, 0, 0, &iir1_inp1_mux),
+	SND_SOC_DAPM_MUX("IIR1 INP2 MUX", SND_SOC_ANALPM, 0, 0, &iir1_inp2_mux),
+	SND_SOC_DAPM_MUX("IIR1 INP3 MUX", SND_SOC_ANALPM, 0, 0, &iir1_inp3_mux),
 
-	SND_SOC_DAPM_MUX_E("RX MIX TX0 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("RX MIX TX0 MUX", SND_SOC_ANALPM,
 			   RX_MACRO_EC0_MUX, 0,
 			   &rx_mix_tx0_mux, rx_macro_enable_echo,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX MIX TX1 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("RX MIX TX1 MUX", SND_SOC_ANALPM,
 			   RX_MACRO_EC1_MUX, 0,
 			   &rx_mix_tx1_mux, rx_macro_enable_echo,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX MIX TX2 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("RX MIX TX2 MUX", SND_SOC_ANALPM,
 			   RX_MACRO_EC2_MUX, 0,
 			   &rx_mix_tx2_mux, rx_macro_enable_echo,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
@@ -3001,74 +3001,74 @@ static const struct snd_soc_dapm_widget rx_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("SRC1", CDC_RX_SIDETONE_SRC1_ST_SRC_PATH_CTL,
 		4, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("RX INT0 DEM MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT0 DEM MUX", SND_SOC_ANALPM, 0, 0,
 			 &rx_int0_dem_inp_mux),
-	SND_SOC_DAPM_MUX("RX INT1 DEM MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT1 DEM MUX", SND_SOC_ANALPM, 0, 0,
 			 &rx_int1_dem_inp_mux),
 
-	SND_SOC_DAPM_MUX_E("RX INT0_2 MUX", SND_SOC_NOPM, INTERP_HPHL, 0,
+	SND_SOC_DAPM_MUX_E("RX INT0_2 MUX", SND_SOC_ANALPM, INTERP_HPHL, 0,
 		&rx_int0_2_mux, rx_macro_enable_mix_path,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT1_2 MUX", SND_SOC_NOPM, INTERP_HPHR, 0,
+	SND_SOC_DAPM_MUX_E("RX INT1_2 MUX", SND_SOC_ANALPM, INTERP_HPHR, 0,
 		&rx_int1_2_mux, rx_macro_enable_mix_path,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT2_2 MUX", SND_SOC_NOPM, INTERP_AUX, 0,
+	SND_SOC_DAPM_MUX_E("RX INT2_2 MUX", SND_SOC_ANALPM, INTERP_AUX, 0,
 		&rx_int2_2_mux, rx_macro_enable_mix_path,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP0", SND_SOC_NOPM, 0, 0, &rx_int0_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP1", SND_SOC_NOPM, 0, 0, &rx_int0_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP2", SND_SOC_NOPM, 0, 0, &rx_int0_1_mix_inp2_mux),
-	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP0", SND_SOC_NOPM, 0, 0, &rx_int1_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP1", SND_SOC_NOPM, 0, 0, &rx_int1_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP2", SND_SOC_NOPM, 0, 0, &rx_int1_1_mix_inp2_mux),
-	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP0", SND_SOC_NOPM, 0, 0, &rx_int2_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP1", SND_SOC_NOPM, 0, 0, &rx_int2_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP2", SND_SOC_NOPM, 0, 0, &rx_int2_1_mix_inp2_mux),
+	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0, &rx_int0_1_mix_inp0_mux),
+	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0, &rx_int0_1_mix_inp1_mux),
+	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0, &rx_int0_1_mix_inp2_mux),
+	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0, &rx_int1_1_mix_inp0_mux),
+	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0, &rx_int1_1_mix_inp1_mux),
+	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0, &rx_int1_1_mix_inp2_mux),
+	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0, &rx_int2_1_mix_inp0_mux),
+	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0, &rx_int2_1_mix_inp1_mux),
+	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0, &rx_int2_1_mix_inp2_mux),
 
-	SND_SOC_DAPM_MUX_E("RX INT0_1 INTERP", SND_SOC_NOPM, INTERP_HPHL, 0,
+	SND_SOC_DAPM_MUX_E("RX INT0_1 INTERP", SND_SOC_ANALPM, INTERP_HPHL, 0,
 		&rx_int0_1_interp_mux, rx_macro_enable_main_path,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT1_1 INTERP", SND_SOC_NOPM, INTERP_HPHR, 0,
+	SND_SOC_DAPM_MUX_E("RX INT1_1 INTERP", SND_SOC_ANALPM, INTERP_HPHR, 0,
 		&rx_int1_1_interp_mux, rx_macro_enable_main_path,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT2_1 INTERP", SND_SOC_NOPM, INTERP_AUX, 0,
+	SND_SOC_DAPM_MUX_E("RX INT2_1 INTERP", SND_SOC_ANALPM, INTERP_AUX, 0,
 		&rx_int2_1_interp_mux, rx_macro_enable_main_path,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX("RX INT0_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT0_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int0_2_interp_mux),
-	SND_SOC_DAPM_MUX("RX INT1_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT1_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int1_2_interp_mux),
-	SND_SOC_DAPM_MUX("RX INT2_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT2_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int2_2_interp_mux),
 
-	SND_SOC_DAPM_MIXER("RX INT0_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT0 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT1_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT1 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT2_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT2 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT0_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT0 SEC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT1_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT1 SEC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT2_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT2 SEC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX_E("RX INT0 MIX2 INP", SND_SOC_NOPM, INTERP_HPHL,
+	SND_SOC_DAPM_MUX_E("RX INT0 MIX2 INP", SND_SOC_ANALPM, INTERP_HPHL,
 		0, &rx_int0_mix2_inp_mux, rx_macro_enable_rx_path_clk,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT1 MIX2 INP", SND_SOC_NOPM, INTERP_HPHR,
+	SND_SOC_DAPM_MUX_E("RX INT1 MIX2 INP", SND_SOC_ANALPM, INTERP_HPHR,
 		0, &rx_int1_mix2_inp_mux, rx_macro_enable_rx_path_clk,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT2 MIX2 INP", SND_SOC_NOPM, INTERP_AUX,
+	SND_SOC_DAPM_MUX_E("RX INT2 MIX2 INP", SND_SOC_ANALPM, INTERP_AUX,
 		0, &rx_int2_mix2_inp_mux, rx_macro_enable_rx_path_clk,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER("RX INT0 MIX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT1 MIX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT2 MIX2", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT0 MIX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT1 MIX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT2 MIX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_OUTPUT("HPHL_OUT"),
 	SND_SOC_DAPM_OUTPUT("HPHR_OUT"),
@@ -3079,7 +3079,7 @@ static const struct snd_soc_dapm_widget rx_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("RX_TX DEC2_INP"),
 	SND_SOC_DAPM_INPUT("RX_TX DEC3_INP"),
 
-	SND_SOC_DAPM_SUPPLY_S("RX_MCLK", 0, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY_S("RX_MCLK", 0, SND_SOC_ANALPM, 0, 0,
 	rx_macro_mclk_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
@@ -3533,7 +3533,7 @@ static int rx_macro_probe(struct platform_device *pdev)
 
 	rx = devm_kzalloc(dev, sizeof(*rx), GFP_KERNEL);
 	if (!rx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx->macro = devm_clk_get_optional(dev, "macro");
 	if (IS_ERR(rx->macro))

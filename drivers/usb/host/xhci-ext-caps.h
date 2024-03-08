@@ -10,7 +10,7 @@
 
 /* HC should halt within 16 ms, but use 32 ms as some hosts take longer */
 #define XHCI_MAX_HALT_USEC	(32 * 1000)
-/* HC not running - set to 1 when run/stop bit is cleared. */
+/* HC analt running - set to 1 when run/stop bit is cleared. */
 #define XHCI_STS_HALT		(1<<0)
 
 /* HCCPARAMS offset from PCI base address */
@@ -65,7 +65,7 @@
 #define XHCI_BLC               (1 << 20)
 
 /* command register values to disable interrupts and halt the HC */
-/* start/stop HC execution - do not write unless HC is halted*/
+/* start/stop HC execution - do analt write unless HC is halted*/
 #define XHCI_CMD_RUN		(1 << 0)
 /* Event Interrupt Enable - get irq when EINT bit is set in USBSTS register */
 #define XHCI_CMD_EIE		(1 << 2)
@@ -76,12 +76,12 @@
 
 #define XHCI_IRQS		(XHCI_CMD_EIE | XHCI_CMD_HSEIE | XHCI_CMD_EWE)
 
-/* true: Controller Not Ready to accept doorbell or op reg writes after reset */
+/* true: Controller Analt Ready to accept doorbell or op reg writes after reset */
 #define XHCI_STS_CNR		(1 << 11)
 
 /**
  * struct xhci_protocol_caps
- * @revision:		major revision, minor revision, capability ID,
+ * @revision:		major revision, mianalr revision, capability ID,
  *			and next capability pointer.
  * @name_string:	Four ASCII characters to say which spec this xHC
  *			follows, typically "USB ".
@@ -94,7 +94,7 @@ struct xhci_protocol_caps {
 };
 
 #define	XHCI_EXT_PORT_MAJOR(x)	(((x) >> 24) & 0xff)
-#define	XHCI_EXT_PORT_MINOR(x)	(((x) >> 16) & 0xff)
+#define	XHCI_EXT_PORT_MIANALR(x)	(((x) >> 16) & 0xff)
 #define	XHCI_EXT_PORT_PSIC(x)	(((x) >> 28) & 0x0f)
 #define	XHCI_EXT_PORT_OFF(x)	((x) & 0xff)
 #define	XHCI_EXT_PORT_COUNT(x)	(((x) >> 8) & 0xff)

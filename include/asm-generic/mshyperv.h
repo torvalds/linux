@@ -7,7 +7,7 @@
  * that are specific to architecture <arch>.
  *
  * Definitions that are specified in the Hyper-V Top Level Functional
- * Spec (TLFS) should not go in this file, but should instead go in
+ * Spec (TLFS) should analt go in this file, but should instead go in
  * hyperv-tlfs.h.
  *
  * Copyright (C) 2019, Microsoft, Inc.
@@ -140,21 +140,21 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 	 * on crash.
 	 */
 	if (cmpxchg(&msg->header.message_type, old_msg_type,
-		    HVMSG_NONE) != old_msg_type)
+		    HVMSG_ANALNE) != old_msg_type)
 		return;
 
 	/*
 	 * The cmxchg() above does an implicit memory barrier to
 	 * ensure the write to MessageType (ie set to
-	 * HVMSG_NONE) happens before we read the
+	 * HVMSG_ANALNE) happens before we read the
 	 * MessagePending and EOMing. Otherwise, the EOMing
-	 * will not deliver any more messages since there is
-	 * no empty slot
+	 * will analt deliver any more messages since there is
+	 * anal empty slot
 	 */
 	if (msg->header.message_flags.msg_pending) {
 		/*
 		 * This will cause message queue rescan to
-		 * possibly deliver another msg from the
+		 * possibly deliver aanalther msg from the
 		 * hypervisor
 		 */
 		hv_set_register(HV_REGISTER_EOM, 0);
@@ -178,8 +178,8 @@ extern bool hv_root_partition;
 
 #if IS_ENABLED(CONFIG_HYPERV)
 /*
- * Hypervisor's notion of virtual processor ID is different from
- * Linux' notion of CPU ID. This information can only be retrieved
+ * Hypervisor's analtion of virtual processor ID is different from
+ * Linux' analtion of CPU ID. This information can only be retrieved
  * in the context of the calling CPU. Setup a map for easy access
  * to this information.
  */
@@ -229,7 +229,7 @@ static inline int __cpumask_to_vpset(struct hv_vpset *vpset,
 
 	/*
 	 * Clear all banks up to the maximum possible bank as hv_tlb_flush_ex
-	 * structs are not cleared between calls, we risk flushing unneeded
+	 * structs are analt cleared between calls, we risk flushing unneeded
 	 * vCPUs otherwise.
 	 */
 	for (vcpu_bank = 0; vcpu_bank <= max_vcpu_bank; vcpu_bank++)
@@ -258,8 +258,8 @@ static inline int __cpumask_to_vpset(struct hv_vpset *vpset,
 /*
  * Convert a Linux cpumask into a Hyper-V VPset. In the _skip variant,
  * 'func' is called for each CPU present in cpumask.  If 'func' returns
- * true, that CPU is skipped -- i.e., that CPU from cpumask is *not*
- * added to the Hyper-V VPset. If 'func' is NULL, no CPUs are
+ * true, that CPU is skipped -- i.e., that CPU from cpumask is *analt*
+ * added to the Hyper-V VPset. If 'func' is NULL, anal CPUs are
  * skipped.
  */
 static inline int cpumask_to_vpset(struct hv_vpset *vpset,
@@ -293,7 +293,7 @@ static inline void hyperv_cleanup(void) {}
 static inline bool hv_is_isolation_supported(void) { return false; }
 static inline enum hv_isolation_type hv_get_isolation_type(void)
 {
-	return HV_ISOLATION_TYPE_NONE;
+	return HV_ISOLATION_TYPE_ANALNE;
 }
 #endif /* CONFIG_HYPERV */
 

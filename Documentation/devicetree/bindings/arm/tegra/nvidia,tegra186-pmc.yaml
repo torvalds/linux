@@ -67,7 +67,7 @@ patternProperties:
       type: object
     then:
       description: |
-        These are pad configuration nodes. On Tegra SoCs a pad is a set of
+        These are pad configuration analdes. On Tegra SoCs a pad is a set of
         pins which are configured as a group. The pin grouping is a fixed
         attribute of the hardware. The PMC can be used to set pad power
         state and signaling voltage. A pad can be either in active or
@@ -76,8 +76,8 @@ patternProperties:
         1.8 V signaling voltages are supported on pins where software
         controllable signaling voltage switching is available.
 
-        Pad configurations are described with pin configuration nodes
-        which are placed under the pmc node and they are referred to by
+        Pad configurations are described with pin configuration analdes
+        which are placed under the pmc analde and they are referred to by
         the pinctrl client properties. For more information see
 
           Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt

@@ -87,11 +87,11 @@ void restore_fpu(struct task_struct *tsk)
 }
 
 /*
- *	Emulate arithmetic ops on denormalized number for some FPU insns.
+ *	Emulate arithmetic ops on deanalrmalized number for some FPU insns.
  */
 
-/* denormalized float * float */
-static int denormal_mulf(int hx, int hy)
+/* deanalrmalized float * float */
+static int deanalrmal_mulf(int hx, int hy)
 {
 	unsigned int ix, iy;
 	unsigned long long m, n;
@@ -123,7 +123,7 @@ static int denormal_mulf(int hx, int hy)
 	return ix;
 }
 
-/* denormalized double * double */
+/* deanalrmalized double * double */
 static void mult64(unsigned long long x, unsigned long long y,
 		unsigned long long *highp, unsigned long long *lowp)
 {
@@ -158,7 +158,7 @@ static inline long long rshift64(unsigned long long mh,
 	return (mh << (64 - n)) | (ml >> n);
 }
 
-static long long denormal_muld(long long hx, long long hy)
+static long long deanalrmal_muld(long long hx, long long hy)
 {
 	unsigned long long ix, iy;
 	unsigned long long mh, ml, nh, nl;
@@ -196,8 +196,8 @@ static long long denormal_muld(long long hx, long long hy)
 	return ix;
 }
 
-/* ix - iy where iy: denormal and ix, iy >= 0 */
-static int denormal_subf1(unsigned int ix, unsigned int iy)
+/* ix - iy where iy: deanalrmal and ix, iy >= 0 */
+static int deanalrmal_subf1(unsigned int ix, unsigned int iy)
 {
 	int frac;
 	int exp;
@@ -223,8 +223,8 @@ static int denormal_subf1(unsigned int ix, unsigned int iy)
 	return (exp << 23) | (frac & 0x007fffff);
 }
 
-/* ix + iy where iy: denormal and ix, iy >= 0 */
-static int denormal_addf1(unsigned int ix, unsigned int iy)
+/* ix + iy where iy: deanalrmal and ix, iy >= 0 */
+static int deanalrmal_addf1(unsigned int ix, unsigned int iy)
 {
 	int frac;
 	int exp;
@@ -249,7 +249,7 @@ static int denormal_addf1(unsigned int ix, unsigned int iy)
 	return (exp << 23) | (frac & 0x007fffff);
 }
 
-static int denormal_addf(int hx, int hy)
+static int deanalrmal_addf(int hx, int hy)
 {
 	unsigned int ix, iy;
 	int sign;
@@ -259,13 +259,13 @@ static int denormal_addf(int hx, int hy)
 		ix = hx & 0x7fffffff;
 		iy = hy & 0x7fffffff;
 		if (iy < 0x00800000) {
-			ix = denormal_subf1(ix, iy);
+			ix = deanalrmal_subf1(ix, iy);
 			if ((int) ix < 0) {
 				ix = -ix;
 				sign ^= 0x80000000;
 			}
 		} else {
-			ix = denormal_subf1(iy, ix);
+			ix = deanalrmal_subf1(iy, ix);
 			sign ^= 0x80000000;
 		}
 	} else {
@@ -273,16 +273,16 @@ static int denormal_addf(int hx, int hy)
 		ix = hx & 0x7fffffff;
 		iy = hy & 0x7fffffff;
 		if (iy < 0x00800000)
-			ix = denormal_addf1(ix, iy);
+			ix = deanalrmal_addf1(ix, iy);
 		else
-			ix = denormal_addf1(iy, ix);
+			ix = deanalrmal_addf1(iy, ix);
 	}
 
 	return sign | ix;
 }
 
-/* ix - iy where iy: denormal and ix, iy >= 0 */
-static long long denormal_subd1(unsigned long long ix, unsigned long long iy)
+/* ix - iy where iy: deanalrmal and ix, iy >= 0 */
+static long long deanalrmal_subd1(unsigned long long ix, unsigned long long iy)
 {
 	long long frac;
 	int exp;
@@ -308,8 +308,8 @@ static long long denormal_subd1(unsigned long long ix, unsigned long long iy)
 	return ((long long)exp << 52) | (frac & 0x000fffffffffffffLL);
 }
 
-/* ix + iy where iy: denormal and ix, iy >= 0 */
-static long long denormal_addd1(unsigned long long ix, unsigned long long iy)
+/* ix + iy where iy: deanalrmal and ix, iy >= 0 */
+static long long deanalrmal_addd1(unsigned long long ix, unsigned long long iy)
 {
 	long long frac;
 	long long exp;
@@ -334,7 +334,7 @@ static long long denormal_addd1(unsigned long long ix, unsigned long long iy)
 	return (exp << 52) | (frac & 0x000fffffffffffffLL);
 }
 
-static long long denormal_addd(long long hx, long long hy)
+static long long deanalrmal_addd(long long hx, long long hy)
 {
 	unsigned long long ix, iy;
 	long long sign;
@@ -344,13 +344,13 @@ static long long denormal_addd(long long hx, long long hy)
 		ix = hx & 0x7fffffffffffffffLL;
 		iy = hy & 0x7fffffffffffffffLL;
 		if (iy < 0x0010000000000000LL) {
-			ix = denormal_subd1(ix, iy);
+			ix = deanalrmal_subd1(ix, iy);
 			if ((int) ix < 0) {
 				ix = -ix;
 				sign ^= 0x8000000000000000LL;
 			}
 		} else {
-			ix = denormal_subd1(iy, ix);
+			ix = deanalrmal_subd1(iy, ix);
 			sign ^= 0x8000000000000000LL;
 		}
 	} else {
@@ -358,23 +358,23 @@ static long long denormal_addd(long long hx, long long hy)
 		ix = hx & 0x7fffffffffffffffLL;
 		iy = hy & 0x7fffffffffffffffLL;
 		if (iy < 0x0010000000000000LL)
-			ix = denormal_addd1(ix, iy);
+			ix = deanalrmal_addd1(ix, iy);
 		else
-			ix = denormal_addd1(iy, ix);
+			ix = deanalrmal_addd1(iy, ix);
 	}
 
 	return sign | ix;
 }
 
 /**
- *	denormal_to_double - Given denormalized float number,
+ *	deanalrmal_to_double - Given deanalrmalized float number,
  *	                     store double float
  *
  *	@fpu: Pointer to sh_fpu_hard structure
  *	@n: Index to FP register
  */
 static void
-denormal_to_double (struct sh_fpu_hard_struct *fpu, int n)
+deanalrmal_to_double (struct sh_fpu_hard_struct *fpu, int n)
 {
 	unsigned long du, dl;
 	unsigned long x = fpu->fpul;
@@ -396,11 +396,11 @@ denormal_to_double (struct sh_fpu_hard_struct *fpu, int n)
 }
 
 /**
- *	ieee_fpe_handler - Handle denormalized number exception
+ *	ieee_fpe_handler - Handle deanalrmalized number exception
  *
  *	@regs: Pointer to register structure
  *
- *	Returns 1 when it's handled (should not cause exception).
+ *	Returns 1 when it's handled (should analt cause exception).
  */
 static int
 ieee_fpe_handler (struct pt_regs *regs)
@@ -455,7 +455,7 @@ ieee_fpe_handler (struct pt_regs *regs)
 
 		if ((tsk->thread.xstate->hardfpu.fpscr & FPSCR_FPU_ERROR)) {
 			/* FPU error */
-			denormal_to_double (&tsk->thread.xstate->hardfpu,
+			deanalrmal_to_double (&tsk->thread.xstate->hardfpu,
 					    (finsn >> 8) & 0xf);
 		} else
 			return 0;
@@ -480,25 +480,25 @@ ieee_fpe_handler (struct pt_regs *regs)
 				   || (hy & 0x7fffffff) < 0x00100000))) {
 			long long llx, lly;
 
-			/* FPU error because of denormal */
+			/* FPU error because of deanalrmal */
 			llx = ((long long) hx << 32)
 			       | tsk->thread.xstate->hardfpu.fp_regs[n+1];
 			lly = ((long long) hy << 32)
 			       | tsk->thread.xstate->hardfpu.fp_regs[m+1];
 			if ((hx & 0x7fffffff) >= 0x00100000)
-				llx = denormal_muld(lly, llx);
+				llx = deanalrmal_muld(lly, llx);
 			else
-				llx = denormal_muld(llx, lly);
+				llx = deanalrmal_muld(llx, lly);
 			tsk->thread.xstate->hardfpu.fp_regs[n] = llx >> 32;
 			tsk->thread.xstate->hardfpu.fp_regs[n+1] = llx & 0xffffffff;
 		} else if ((fpscr & FPSCR_FPU_ERROR)
 		     && (!prec && ((hx & 0x7fffffff) < 0x00800000
 				   || (hy & 0x7fffffff) < 0x00800000))) {
-			/* FPU error because of denormal */
+			/* FPU error because of deanalrmal */
 			if ((hx & 0x7fffffff) >= 0x00800000)
-				hx = denormal_mulf(hy, hx);
+				hx = deanalrmal_mulf(hy, hx);
 			else
-				hx = denormal_mulf(hx, hy);
+				hx = deanalrmal_mulf(hx, hy);
 			tsk->thread.xstate->hardfpu.fp_regs[n] = hx;
 		} else
 			return 0;
@@ -523,25 +523,25 @@ ieee_fpe_handler (struct pt_regs *regs)
 				   || (hy & 0x7fffffff) < 0x00100000))) {
 			long long llx, lly;
 
-			/* FPU error because of denormal */
+			/* FPU error because of deanalrmal */
 			llx = ((long long) hx << 32)
 			       | tsk->thread.xstate->hardfpu.fp_regs[n+1];
 			lly = ((long long) hy << 32)
 			       | tsk->thread.xstate->hardfpu.fp_regs[m+1];
 			if ((finsn & 0xf00f) == 0xf000)
-				llx = denormal_addd(llx, lly);
+				llx = deanalrmal_addd(llx, lly);
 			else
-				llx = denormal_addd(llx, lly ^ (1LL << 63));
+				llx = deanalrmal_addd(llx, lly ^ (1LL << 63));
 			tsk->thread.xstate->hardfpu.fp_regs[n] = llx >> 32;
 			tsk->thread.xstate->hardfpu.fp_regs[n+1] = llx & 0xffffffff;
 		} else if ((fpscr & FPSCR_FPU_ERROR)
 		     && (!prec && ((hx & 0x7fffffff) < 0x00800000
 				   || (hy & 0x7fffffff) < 0x00800000))) {
-			/* FPU error because of denormal */
+			/* FPU error because of deanalrmal */
 			if ((finsn & 0xf00f) == 0xf000)
-				hx = denormal_addf(hx, hy);
+				hx = deanalrmal_addf(hx, hy);
 			else
-				hx = denormal_addf(hx, hy ^ 0x80000000);
+				hx = deanalrmal_addf(hx, hy ^ 0x80000000);
 			tsk->thread.xstate->hardfpu.fp_regs[n] = hx;
 		} else
 			return 0;

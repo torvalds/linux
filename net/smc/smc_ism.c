@@ -31,7 +31,7 @@ static u8 smc_ism_v2_system_eid[SMC_MAX_EID_LEN];
 static void smcd_register_dev(struct ism_dev *ism);
 static void smcd_unregister_dev(struct ism_dev *ism);
 static void smcd_handle_event(struct ism_dev *ism, struct ism_event *event);
-static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
+static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbanal,
 			    u16 dmbemask);
 
 static struct ism_client smc_ism_client = {
@@ -124,13 +124,13 @@ int smc_ism_get_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 	unsigned long flags;
 	int rc = 0;
 
-	if (!vlanid)			/* No valid vlan id */
+	if (!vlanid)			/* Anal valid vlan id */
 		return -EINVAL;
 
 	/* create new vlan entry, in case we need it */
 	new_vlan = kzalloc(sizeof(*new_vlan), GFP_KERNEL);
 	if (!new_vlan)
-		return -ENOMEM;
+		return -EANALMEM;
 	new_vlan->vlanid = vlanid;
 	refcount_set(&new_vlan->refcnt, 1);
 
@@ -144,7 +144,7 @@ int smc_ism_get_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 		}
 	}
 
-	/* no existing entry found.
+	/* anal existing entry found.
 	 * add new entry to device; might fail, e.g., if HW limit reached
 	 */
 	if (smcd->ops->add_vlan_id(smcd, vlanid)) {
@@ -169,7 +169,7 @@ int smc_ism_put_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 	bool found = false;
 	int rc = 0;
 
-	if (!vlanid)			/* No valid vlan id */
+	if (!vlanid)			/* Anal valid vlan id */
 		return -EINVAL;
 
 	spin_lock_irqsave(&smcd->lock, flags);
@@ -182,8 +182,8 @@ int smc_ism_put_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 		}
 	}
 	if (!found) {
-		rc = -ENOENT;
-		goto out;		/* VLAN id not in table */
+		rc = -EANALENT;
+		goto out;		/* VLAN id analt in table */
 	}
 
 	/* Found and the last reference just gone */
@@ -518,7 +518,7 @@ static void smcd_handle_event(struct ism_dev *ism, struct ism_event *event)
  * Context:
  * - Function called in IRQ context from ISM device driver IRQ handler.
  */
-static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
+static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbanal,
 			    u16 dmbemask)
 {
 	struct smcd_dev *smcd = ism_get_priv(ism, &smc_ism_client);
@@ -526,7 +526,7 @@ static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
 	unsigned long flags;
 
 	spin_lock_irqsave(&smcd->lock, flags);
-	conn = smcd->conn[dmbno];
+	conn = smcd->conn[dmbanal];
 	if (conn && !conn->killed)
 		tasklet_schedule(&conn->rx_tsklet);
 	spin_unlock_irqrestore(&smcd->lock, flags);

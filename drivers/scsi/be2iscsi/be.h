@@ -48,7 +48,7 @@ static inline void index_inc(u16 *index, u16 limit)
 	*index = MODULO((*index + 1), limit);
 }
 
-static inline void *queue_head_node(struct be_queue_info *q)
+static inline void *queue_head_analde(struct be_queue_info *q)
 {
 	return q->dma_mem.va + q->head * q->entry_size;
 }
@@ -58,7 +58,7 @@ static inline void *queue_get_wrb(struct be_queue_info *q, unsigned int wrb_num)
 	return q->dma_mem.va + wrb_num * q->entry_size;
 }
 
-static inline void *queue_tail_node(struct be_queue_info *q)
+static inline void *queue_tail_analde(struct be_queue_info *q)
 {
 	return q->dma_mem.va + q->tail * q->entry_size;
 }
@@ -103,7 +103,7 @@ struct beiscsi_mcc_tag_state {
 #define MCC_TAG_STATE_RUNNING	0
 #define MCC_TAG_STATE_TIMEOUT	1
 #define MCC_TAG_STATE_ASYNC	2
-#define MCC_TAG_STATE_IGNORE	3
+#define MCC_TAG_STATE_IGANALRE	3
 	void (*cbfn)(struct beiscsi_hba *, unsigned int);
 	struct be_dma_mem tag_mem_state;
 };
@@ -155,7 +155,7 @@ struct be_ctrl_info {
 #define AMAP_BIT_OFFSET(_struct, field)					\
 		(((size_t)&(((_struct *)0)->field))%32)
 
-/* Returns the bit mask of the field that is NOT shifted into location. */
+/* Returns the bit mask of the field that is ANALT shifted into location. */
 static inline u32 amap_mask(u32 bitsize)
 {
 	return (bitsize == 32 ? 0xFFFFFFFF : (1 << bitsize) - 1);

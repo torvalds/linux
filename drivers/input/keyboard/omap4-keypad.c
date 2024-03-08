@@ -12,7 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/input.h>
@@ -35,7 +35,7 @@
 #define OMAP4_KBD_TIMEOUT		0x34
 #define OMAP4_KBD_STATEMACHINE		0x38
 #define OMAP4_KBD_ROWINPUTS		0x3C
-#define OMAP4_KBD_COLUMNOUTPUTS		0x40
+#define OMAP4_KBD_COLUMANALUTPUTS		0x40
 #define OMAP4_KBD_FULLCODE31_0		0x44
 #define OMAP4_KBD_FULLCODE63_32		0x48
 
@@ -44,7 +44,7 @@
 #define OMAP4_DEF_IRQENABLE_LONGKEY	BIT(1)
 #define OMAP4_DEF_WUP_EVENT_ENA		BIT(0)
 #define OMAP4_DEF_WUP_LONG_KEY_ENA	BIT(1)
-#define OMAP4_DEF_CTRL_NOSOFTMODE	BIT(1)
+#define OMAP4_DEF_CTRL_ANALSOFTMODE	BIT(1)
 #define OMAP4_DEF_CTRL_PTV_SHIFT	2
 
 /* OMAP4 values */
@@ -81,7 +81,7 @@ struct omap4_keypad {
 	u32 reg_offset;
 	u32 irqreg_offset;
 	unsigned int row_shift;
-	bool no_autorepeat;
+	bool anal_autorepeat;
 	u64 keys;
 	unsigned short *keymap;
 	struct clk *fck;
@@ -150,7 +150,7 @@ static void omap4_keypad_scan_keys(struct omap4_keypad *keypad_data, u64 keys)
 
 	/*
 	 * Report key up events separately and first. This matters in case we
-	 * lost key-up interrupt and just now catching up.
+	 * lost key-up interrupt and just analw catching up.
 	 */
 	omap4_keypad_report_keys(keypad_data, changed & ~keys, false);
 
@@ -170,7 +170,7 @@ static irqreturn_t omap4_keypad_irq_handler(int irq, void *dev_id)
 	if (kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS))
 		return IRQ_WAKE_THREAD;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t omap4_keypad_irq_thread_fn(int irq, void *dev_id)
@@ -183,7 +183,7 @@ static irqreturn_t omap4_keypad_irq_thread_fn(int irq, void *dev_id)
 
 	error = pm_runtime_resume_and_get(dev);
 	if (error)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	low = kbd_readl(keypad_data, OMAP4_KBD_FULLCODE31_0);
 	high = kbd_readl(keypad_data, OMAP4_KBD_FULLCODE63_32);
@@ -218,7 +218,7 @@ static int omap4_keypad_open(struct input_dev *input)
 	disable_irq(keypad_data->irq);
 
 	kbd_writel(keypad_data, OMAP4_KBD_CTRL,
-			OMAP4_DEF_CTRL_NOSOFTMODE |
+			OMAP4_DEF_CTRL_ANALSOFTMODE |
 			(OMAP4_KEYPAD_PTV_DIV_128 << OMAP4_DEF_CTRL_PTV_SHIFT));
 	kbd_writel(keypad_data, OMAP4_KBD_DEBOUNCINGTIME,
 			OMAP4_VAL_DEBOUNCINGTIME_16MS);
@@ -274,7 +274,7 @@ static void omap4_keypad_close(struct input_dev *input)
 static int omap4_keypad_parse_dt(struct device *dev,
 				 struct omap4_keypad *keypad_data)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int err;
 
 	err = matrix_keypad_parse_properties(dev, &keypad_data->rows,
@@ -282,7 +282,7 @@ static int omap4_keypad_parse_dt(struct device *dev,
 	if (err)
 		return err;
 
-	keypad_data->no_autorepeat = of_property_read_bool(np, "linux,input-no-autorepeat");
+	keypad_data->anal_autorepeat = of_property_read_bool(np, "linux,input-anal-autorepeat");
 
 	return 0;
 }
@@ -314,7 +314,7 @@ static int omap4_keypad_check_revision(struct device *dev,
 
 /*
  * Errata ID i689 "1.32 Keyboard Key Up Event Can Be Missed".
- * Interrupt may not happen for key-up events. We must clear stuck
+ * Interrupt may analt happen for key-up events. We must clear stuck
  * key-up events after the keyboard hardware has auto-idled.
  */
 static int omap4_keypad_runtime_suspend(struct device *dev)
@@ -360,7 +360,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	keypad_data = devm_kzalloc(dev, sizeof(*keypad_data), GFP_KERNEL);
 	if (!keypad_data) {
 		dev_err(dev, "keypad_data memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	keypad_data->irq = irq;
@@ -402,7 +402,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 
 	error = omap4_keypad_check_revision(dev, keypad_data);
 	if (!error) {
-		/* Ensure device does not raise interrupts */
+		/* Ensure device does analt raise interrupts */
 		omap4_keypad_stop(keypad_data);
 	}
 
@@ -414,7 +414,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	/* input device allocation */
 	keypad_data->input = input_dev = devm_input_allocate_device(dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name = pdev->name;
 	input_dev->id.bustype = BUS_HOST;
@@ -426,7 +426,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	input_dev->close = omap4_keypad_close;
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
-	if (!keypad_data->no_autorepeat)
+	if (!keypad_data->anal_autorepeat)
 		__set_bit(EV_REP, input_dev->evbit);
 
 	input_set_drvdata(input_dev, keypad_data);
@@ -438,8 +438,8 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 					   sizeof(keypad_data->keymap[0]),
 					   GFP_KERNEL);
 	if (!keypad_data->keymap) {
-		dev_err(dev, "Not enough memory for keymap\n");
-		return -ENOMEM;
+		dev_err(dev, "Analt eanalugh memory for keymap\n");
+		return -EANALMEM;
 	}
 
 	error = matrix_keypad_build_keymap(NULL, NULL,

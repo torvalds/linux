@@ -10,18 +10,18 @@
  * option) any later version.
  *
  * THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR   IMPLIED
- * WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- * NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT,  INDIRECT,
+ * ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT,  INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ * ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  * USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if analt, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *******************************************************************/
@@ -484,7 +484,7 @@ struct idt77252_dev
 #define SAR_REG_FBQWP1	(card->membase + 0xAC)
 #define SAR_REG_FBQWP2	(card->membase + 0xB0)
 #define SAR_REG_FBQWP3	(card->membase + 0xB4)
-#define SAR_REG_NOW	(card->membase + 0xB8)
+#define SAR_REG_ANALW	(card->membase + 0xB8)
 
 
 /*****************************************************************************/
@@ -493,7 +493,7 @@ struct idt77252_dev
 /*                                                                           */
 /*****************************************************************************/
 
-#define SAR_CMD_NO_OPERATION         0x00000000
+#define SAR_CMD_ANAL_OPERATION         0x00000000
 #define SAR_CMD_OPENCLOSE_CONNECTION 0x20000000
 #define SAR_CMD_WRITE_SRAM           0x40000000
 #define SAR_CMD_READ_SRAM            0x50000000
@@ -518,14 +518,14 @@ struct idt77252_dev
 #define SAR_CFG_TX_FIFO_SIZE_2 0x08000000  /* TX FIFO Size = 2 cells         */
 #define SAR_CFG_TX_FIFO_SIZE_4 0x0C000000  /* TX FIFO Size = 4 cells         */
 #define SAR_CFG_TX_FIFO_SIZE_9 0x00000000  /* TX FIFO Size = 9 cells (full)  */
-#define SAR_CFG_NO_IDLE        0x02000000  /* SAR sends no Null Cells        */
+#define SAR_CFG_ANAL_IDLE        0x02000000  /* SAR sends anal Null Cells        */
 #define SAR_CFG_RSVD1          0x01000000  /* Reserved                       */
 #define SAR_CFG_RXSTQ_SIZE_2k  0x00000000  /* RX Stat Queue Size = 2048 byte */
 #define SAR_CFG_RXSTQ_SIZE_4k  0x00400000  /* RX Stat Queue Size = 4096 byte */
 #define SAR_CFG_RXSTQ_SIZE_8k  0x00800000  /* RX Stat Queue Size = 8192 byte */
 #define SAR_CFG_RXSTQ_SIZE_R   0x00C00000  /* RX Stat Queue Size = reserved  */
 #define SAR_CFG_ICAPT          0x00200000  /* accept Invalid Cells           */
-#define SAR_CFG_IGGFC          0x00100000  /* Ignore GFC                     */
+#define SAR_CFG_IGGFC          0x00100000  /* Iganalre GFC                     */
 #define SAR_CFG_VPVCS_0        0x00000000  /* VPI/VCI Select bit range       */
 #define SAR_CFG_VPVCS_1        0x00040000  /* VPI/VCI Select bit range       */
 #define SAR_CFG_VPVCS_2        0x00080000  /* VPI/VCI Select bit range       */
@@ -535,8 +535,8 @@ struct idt77252_dev
 #define SAR_CFG_CNTBL_16k      0x00020000  /* Connection Table Size          */
 #define SAR_CFG_CNTBL_512      0x00030000  /* Connection Table Size          */
 #define SAR_CFG_VPECA          0x00008000  /* VPI/VCI Error Cell Accept      */
-#define SAR_CFG_RXINT_NOINT    0x00000000  /* No Interrupt on PDU received   */
-#define SAR_CFG_RXINT_NODELAY  0x00001000  /* Interrupt without delay to host*/
+#define SAR_CFG_RXINT_ANALINT    0x00000000  /* Anal Interrupt on PDU received   */
+#define SAR_CFG_RXINT_ANALDELAY  0x00001000  /* Interrupt without delay to host*/
 #define SAR_CFG_RXINT_256US    0x00002000  /* Interrupt with delay 256 usec  */
 #define SAR_CFG_RXINT_505US    0x00003000  /* Interrupt with delay 505 usec  */
 #define SAR_CFG_RXINT_742US    0x00004000  /* Interrupt with delay 742 usec  */
@@ -596,7 +596,7 @@ struct idt77252_dev
 #define SAR_GP_TXNCC_MASK   0xff000000  /* Transmit Negative Credit Count   */
 #define SAR_GP_EEDI         0x00010000  /* EEPROM Data In                   */
 #define SAR_GP_BIGE         0x00008000  /* Big Endian Operation             */
-#define SAR_GP_RM_NORMAL    0x00000000  /* Normal handling of RM cells      */
+#define SAR_GP_RM_ANALRMAL    0x00000000  /* Analrmal handling of RM cells      */
 #define SAR_GP_RM_TO_RCQ    0x00002000  /* put RM cells into Raw Cell Queue */
 #define SAR_GP_RM_RSVD      0x00004000  /* Reserved                         */
 #define SAR_GP_RM_INHIBIT   0x00006000  /* Inhibit update of Connection tab */
@@ -761,7 +761,7 @@ struct idt77252_dev
 #define SAR_RCTE_FBP_1         0x00200000  /* use FBQ 1 for all cells        */
 #define SAR_RCTE_FBP_2         0x00400000  /* use FBQ 2 for all cells        */
 #define SAR_RCTE_FBP_3         0x00600000  /* use FBQ 3 for all cells        */
-#define SAR_RCTE_NZ_GFC        0x00100000  /* non zero GFC in all cell of VC */
+#define SAR_RCTE_NZ_GFC        0x00100000  /* analn zero GFC in all cell of VC */
 #define SAR_RCTE_CONNECTOPEN   0x00080000  /* VC is open                     */
 #define SAR_RCTE_AAL_MASK      0x00070000  /* mask for AAL type field s.b.   */
 #define SAR_RCTE_RAWCELLINTEN  0x00008000  /* raw cell interrupt enable      */

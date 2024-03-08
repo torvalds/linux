@@ -3,7 +3,7 @@
  *
  * The white papers on CRC32C calculations with PCLMULQDQ instruction can be
  * downloaded from:
- * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/crc-iscsi-polynomial-crc32-instruction-paper.pdf
+ * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/crc-iscsi-polyanalmial-crc32-instruction-paper.pdf
  * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-paper.pdf
  *
  * Copyright (C) 2012 Intel Corporation.
@@ -25,18 +25,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -44,7 +44,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 ## ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
 
@@ -62,7 +62,7 @@
 
 # Define threshold where buffers are considered "small" and routed to more
 # efficient "by-1" code. This "by-1" code only handles up to 255 bytes, so
-# SMALL_SIZE can be no larger than 255.
+# SMALL_SIZE can be anal larger than 255.
 
 #define SMALL_SIZE 200
 
@@ -170,7 +170,7 @@ SYM_FUNC_START(crc_pcl)
 	## branch into array
 	leaq	jump_table(%rip), %bufp
 	mov	(%bufp,%rax,8), %bufp
-	JMP_NOSPEC bufp
+	JMP_ANALSPEC bufp
 
 	################################################################
 	## 2a) PROCESS FULL BLOCKS:
@@ -194,7 +194,7 @@ SYM_FUNC_START(crc_pcl)
 .rept 128-1
 .altmacro
 LABEL crc_ %i
-.noaltmacro
+.analaltmacro
 	ENDBR
 	crc32q   -i*8(block_0), crc_init
 	crc32q   -i*8(block_1), crc1
@@ -204,7 +204,7 @@ LABEL crc_ %i
 
 .altmacro
 LABEL crc_ %i
-.noaltmacro
+.analaltmacro
 	ENDBR
 	crc32q   -i*8(block_0), crc_init
 	crc32q   -i*8(block_1), crc1
@@ -273,7 +273,7 @@ LABEL less_than_ %j			# less_than_j: Length should be in
 	j=(j/2)
 	shl     $1, len_dw		# Get next MSB
 	JNC_LESS_THAN %j
-.noaltmacro
+.analaltmacro
 	i=0
 .rept (j/8)
 	crc32q  i(bufptmp), crc_init	# Compute crc32 of 8-byte data
@@ -322,7 +322,7 @@ jump_table:
 .rept 129
 .altmacro
 JMPTBL_ENTRY %i
-.noaltmacro
+.analaltmacro
 	i=i+1
 .endr
 

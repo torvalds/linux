@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/tty.h>
 #include <linux/serial_core.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/device.h>
@@ -46,7 +46,7 @@ serial_card_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	info = kzalloc(sizeof(struct serial_card_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->num_ports = type->num_ports;
 
@@ -54,7 +54,7 @@ serial_card_probe(struct expansion_card *ec, const struct ecard_id *id)
 	info->vaddr = ecardm_iomap(ec, type->type, 0, 0);
 	if (!info->vaddr) {
 		kfree(info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ecard_set_drvdata(ec, info);

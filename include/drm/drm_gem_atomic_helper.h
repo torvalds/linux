@@ -59,7 +59,7 @@ struct drm_shadow_plane_state {
 	 */
 	struct drm_format_conv_state fmtcnv_state;
 
-	/* Transitional state - do not export or duplicate */
+	/* Transitional state - do analt export or duplicate */
 
 	/**
 	 * @map: Mappings of the plane's framebuffer BOs in to kernel address space
@@ -73,7 +73,7 @@ struct drm_shadow_plane_state {
 	 * @data: Address of each framebuffer BO's data
 	 *
 	 * The address of the data stored in each mapping. This is different
-	 * for framebuffers with non-zero offset fields.
+	 * for framebuffers with analn-zero offset fields.
 	 */
 	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
 };

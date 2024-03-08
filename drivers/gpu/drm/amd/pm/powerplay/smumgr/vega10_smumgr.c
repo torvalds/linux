@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -77,7 +77,7 @@ static int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	/* under sriov, vbios or hypervisor driver
 	 * has already copy table to smc so here only skip it
 	 */
-	if (!hwmgr->not_vf)
+	if (!hwmgr->analt_vf)
 		return 0;
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
@@ -114,12 +114,12 @@ int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
 	int msg = enable ? PPSMC_MSG_EnableSmuFeatures :
 			PPSMC_MSG_DisableSmuFeatures;
 
-	/* VF has no permission to change smu feature due
+	/* VF has anal permission to change smu feature due
 	 * to security concern even under pp one vf mode
 	 * it still can't do it. For vega10, the smu in
 	 * vbios will enable the appropriate features.
 	 * */
-	if (!hwmgr->not_vf)
+	if (!hwmgr->analt_vf)
 		return 0;
 
 	return smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -217,7 +217,7 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	priv = kzalloc(sizeof(struct vega10_smumgr), GFP_KERNEL);
 
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->smu_backend = priv;
 

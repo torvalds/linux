@@ -4,7 +4,7 @@
 #define _LINUX_GPIO_REGMAP_H
 
 struct device;
-struct fwnode_handle;
+struct fwanalde_handle;
 struct gpio_regmap;
 struct irq_domain;
 struct regmap;
@@ -17,10 +17,10 @@ struct regmap;
  * @parent:		The parent device
  * @regmap:		The regmap used to access the registers
  *			given, the name of the device is used
- * @fwnode:		(Optional) The firmware node.
- *			If not given, the fwnode of the parent is used.
+ * @fwanalde:		(Optional) The firmware analde.
+ *			If analt given, the fwanalde of the parent is used.
  * @label:		(Optional) Descriptive name for GPIO controller.
- *			If not given, the name of the device is used.
+ *			If analt given, the name of the device is used.
  * @ngpio:		Number of GPIOs
  * @names:		(Optional) Array of names for gpios
  * @reg_dat_base:	(Optional) (in) register base address
@@ -29,16 +29,16 @@ struct regmap;
  * @reg_dir_in_base:	(Optional) in setting register base address
  * @reg_dir_out_base:	(Optional) out setting register base address
  * @reg_stride:		(Optional) May be set if the registers (of the
- *			same type, dat, set, etc) are not consecutive.
+ *			same type, dat, set, etc) are analt consecutive.
  * @ngpio_per_reg:	Number of GPIOs per register
  * @irq_domain:		(Optional) IRQ domain if the controller is
  *			interrupt-capable
  * @reg_mask_xlate:     (Optional) Translates base address and GPIO
- *			offset to a register/bitmask pair. If not
+ *			offset to a register/bitmask pair. If analt
  *			given the default gpio_regmap_simple_xlate()
  *			is used.
  * @drvdata:		(Optional) Pointer to driver specific data which is
- *			not used by gpio-remap but is provided "as is" to the
+ *			analt used by gpio-remap but is provided "as is" to the
  *			driver callback(s).
  *
  * The ->reg_mask_xlate translates a given base address and GPIO offset to
@@ -57,13 +57,13 @@ struct regmap;
  *     5. @reg_dir_in_base and @reg_dir_out_base are exclusive; is there really
  *        hardware which has redundant registers?
  *
- * Note: All base addresses may have the special value %GPIO_REGMAP_ADDR_ZERO
+ * Analte: All base addresses may have the special value %GPIO_REGMAP_ADDR_ZERO
  * which forces the address to the value 0.
  */
 struct gpio_regmap_config {
 	struct device *parent;
 	struct regmap *regmap;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 
 	const char *label;
 	int ngpio;

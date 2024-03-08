@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies */
+/* Copyright (c) 2019 Mellaanalx Techanallogies */
 
 #include <linux/mlx5/vport.h>
 #include <rdma/ib_verbs.h>
@@ -36,21 +36,21 @@ static int mlx5_rdma_enable_roce_steering(struct mlx5_core_dev *dev)
 
 	if (!(MLX5_CAP_FLOWTABLE_RDMA_RX(dev, ft_support) &&
 	      MLX5_CAP_FLOWTABLE_RDMA_RX(dev, table_miss_action_domain)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
-		return -ENOMEM;
+		return -EANALMEM;
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
 		kvfree(flow_group_in);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_RDMA_RX_KERNEL);
 	if (!ns) {
 		mlx5_core_err(dev, "Failed to get RDMA RX namespace");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto free;
 	}
 

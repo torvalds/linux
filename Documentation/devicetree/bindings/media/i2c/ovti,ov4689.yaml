@@ -56,7 +56,7 @@ properties:
     $ref: /schemas/graph.yaml#/$defs/port-base
     additionalProperties: false
     description:
-      Output port node, single endpoint describing the CSI-2 transmitter
+      Output port analde, single endpoint describing the CSI-2 transmitter
 
     properties:
       endpoint:

@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -45,12 +45,12 @@
  *
  * Radeon GPUs support both an internal GART, as described above,
  * and AGP.  AGP works similarly, but the GART table is configured
- * and maintained by the northbridge rather than the driver.
+ * and maintained by the analrthbridge rather than the driver.
  * Radeon hw has a separate AGP aperture that is programmed to
- * point to the AGP aperture provided by the northbridge and the
- * requests are passed through to the northbridge aperture.
+ * point to the AGP aperture provided by the analrthbridge and the
+ * requests are passed through to the analrthbridge aperture.
  * Both AGP and internal GART can be used at the same time, however
- * that is not currently supported by the driver.
+ * that is analt currently supported by the driver.
  *
  * This file handles the common internal GART management.
  */
@@ -64,9 +64,9 @@
  * @rdev: radeon_device pointer
  *
  * Allocate system memory for GART page table
- * (r1xx-r3xx, non-pcie r4xx, rs400).  These asics require the
+ * (r1xx-r3xx, analn-pcie r4xx, rs400).  These asics require the
  * gart table to be in system memory.
- * Returns 0 for success, -ENOMEM for failure.
+ * Returns 0 for success, -EANALMEM for failure.
  */
 int radeon_gart_table_ram_alloc(struct radeon_device *rdev)
 {
@@ -75,7 +75,7 @@ int radeon_gart_table_ram_alloc(struct radeon_device *rdev)
 	ptr = dma_alloc_coherent(&rdev->pdev->dev, rdev->gart.table_size,
 				 &rdev->gart.table_addr, GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef CONFIG_X86
 	if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480 ||
@@ -94,7 +94,7 @@ int radeon_gart_table_ram_alloc(struct radeon_device *rdev)
  * @rdev: radeon_device pointer
  *
  * Free system memory for GART page table
- * (r1xx-r3xx, non-pcie r4xx, rs400).  These asics require the
+ * (r1xx-r3xx, analn-pcie r4xx, rs400).  These asics require the
  * gart table to be in system memory.
  */
 void radeon_gart_table_ram_free(struct radeon_device *rdev)
@@ -144,7 +144,7 @@ int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
  *
  * @rdev: radeon_device pointer
  *
- * Pin the GART page table in vram so it will not be moved
+ * Pin the GART page table in vram so it will analt be moved
  * by the memory manager (pcie r4xx, r5xx+).  These asics require the
  * gart table to be in video memory.
  * Returns 0 for success, error for failure.
@@ -350,13 +350,13 @@ int radeon_gart_init(struct radeon_device *rdev)
 				   rdev->gart.num_cpu_pages));
 	if (rdev->gart.pages == NULL) {
 		radeon_gart_fini(rdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rdev->gart.pages_entry = vmalloc(array_size(sizeof(uint64_t),
 						    rdev->gart.num_gpu_pages));
 	if (rdev->gart.pages_entry == NULL) {
 		radeon_gart_fini(rdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* set GART entry to point to the dummy page by default */
 	for (i = 0; i < rdev->gart.num_gpu_pages; i++)

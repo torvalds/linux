@@ -130,7 +130,7 @@ enum  {
  *       A sample period is the period in millisecs during which events are counted.
  *       This is applicable for all the VFs.
  *
- *      :0: adverse events are not counted (default)
+ *      :0: adverse events are analt counted (default)
  *      :n: sample period in milliseconds
  *
  * _`GUC_KLV_VGT_POLICY_RESET_AFTER_VF_SWITCH` : 0x8D00
@@ -170,7 +170,7 @@ enum  {
  * _`GUC_KLV_VF_CFG_NUM_CONTEXTS` : 0x0004
  *      Refers to the number of contexts allocated to this VF.
  *
- *      :0: no contexts (default)
+ *      :0: anal contexts (default)
  *      :1-65535: number of contexts (Gen12)
  *
  * _`GUC_KLV_VF_CFG_TILE_MASK` : 0x0005
@@ -179,18 +179,18 @@ enum  {
  *      Bit-31-set means VF has access to Tile-31, and etc.
  *      At least one tile will always be allocated.
  *      If all bits are zero, VF KMD should treat this as a fatal error.
- *      For, single-tile products this KLV config is ignored.
+ *      For, single-tile products this KLV config is iganalred.
  *
  * _`GUC_KLV_VF_CFG_NUM_DOORBELLS` : 0x0006
  *      Refers to the number of doorbells allocated to this VF.
  *
- *      :0: no doorbells (default)
+ *      :0: anal doorbells (default)
  *      :1-255: number of doorbells (Gen12)
  *
  * _`GUC_KLV_VF_CFG_EXEC_QUANTUM` : 0x8A01
  *      This config sets the VFs-execution-quantum in milliseconds.
  *      GUC will attempt to obey the maximum values as much as HW is capable
- *      of and this will never be perfectly-exact (accumulated nano-second
+ *      of and this will never be perfectly-exact (accumulated naanal-second
  *      granularity) since the GPUs clock time runs off a different crystal
  *      from the CPUs clock. Changing this KLV on a VF that is currently
  *      running a context wont take effect until a new context is scheduled in.
@@ -207,7 +207,7 @@ enum  {
  *      This config sets the VF-preemption-timeout in microseconds.
  *      GUC will attempt to obey the minimum and maximum values as much as
  *      HW is capable and this will never be perfectly-exact (accumulated
- *      nano-second granularity) since the GPUs clock time runs off a
+ *      naanal-second granularity) since the GPUs clock time runs off a
  *      different crystal from the CPUs clock. Changing this KLV on a VF
  *      that is currently running a context wont take effect until a new
  *      context is scheduled in.
@@ -219,43 +219,43 @@ enum  {
  *      on a 1PF+1VF Virtualization config enabled for heavier workloads like
  *      AI/ML.
  *
- *      :0: no preemption timeout (default)
+ *      :0: anal preemption timeout (default)
  *
  * _`GUC_KLV_VF_CFG_THRESHOLD_CAT_ERR` : 0x8A03
  *      This config sets threshold for CAT errors caused by the VF.
  *
- *      :0: adverse events or error will not be reported (default)
+ *      :0: adverse events or error will analt be reported (default)
  *      :n: event occurrence count per sampling interval
  *
  * _`GUC_KLV_VF_CFG_THRESHOLD_ENGINE_RESET` : 0x8A04
  *      This config sets threshold for engine reset caused by the VF.
  *
- *      :0: adverse events or error will not be reported (default)
+ *      :0: adverse events or error will analt be reported (default)
  *      :n: event occurrence count per sampling interval
  *
  * _`GUC_KLV_VF_CFG_THRESHOLD_PAGE_FAULT` : 0x8A05
  *      This config sets threshold for page fault errors caused by the VF.
  *
- *      :0: adverse events or error will not be reported (default)
+ *      :0: adverse events or error will analt be reported (default)
  *      :n: event occurrence count per sampling interval
  *
  * _`GUC_KLV_VF_CFG_THRESHOLD_H2G_STORM` : 0x8A06
  *      This config sets threshold for H2G interrupts triggered by the VF.
  *
- *      :0: adverse events or error will not be reported (default)
+ *      :0: adverse events or error will analt be reported (default)
  *      :n: time (us) per sampling interval
  *
  * _`GUC_KLV_VF_CFG_THRESHOLD_IRQ_STORM` : 0x8A07
  *      This config sets threshold for GT interrupts triggered by the VF's
  *      workloads.
  *
- *      :0: adverse events or error will not be reported (default)
+ *      :0: adverse events or error will analt be reported (default)
  *      :n: time (us) per sampling interval
  *
  * _`GUC_KLV_VF_CFG_THRESHOLD_DOORBELL_STORM` : 0x8A08
  *      This config sets threshold for doorbell's ring triggered by the VF.
  *
- *      :0: adverse events or error will not be reported (default)
+ *      :0: adverse events or error will analt be reported (default)
  *      :n: time (us) per sampling interval
  *
  * _`GUC_KLV_VF_CFG_BEGIN_DOORBELL_ID` : 0x8A0A

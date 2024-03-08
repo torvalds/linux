@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose:The header file of descriptor
@@ -21,7 +21,7 @@
 #include <linux/mm.h>
 
 /* max transmit or receive buffer size */
-#define CB_MAX_BUF_SIZE     2900U       /* NOTE: must be multiple of 4 */
+#define CB_MAX_BUF_SIZE     2900U       /* ANALTE: must be multiple of 4 */
 
 #define MAX_TOTAL_SIZE_WITH_ALL_HEADERS CB_MAX_BUF_SIZE
 
@@ -82,10 +82,10 @@
 #define FRAGCTL_AES         0x0300
 #define FRAGCTL_TKIP        0x0200
 #define FRAGCTL_LEGACY      0x0100
-#define FRAGCTL_NONENCRYPT  0x0000
+#define FRAGCTL_ANALNENCRYPT  0x0000
 #define FRAGCTL_ENDFRAG     0x0003
 #define FRAGCTL_MIDFRAG     0x0002
 #define FRAGCTL_STAFRAG     0x0001
-#define FRAGCTL_NONFRAG     0x0000
+#define FRAGCTL_ANALNFRAG     0x0000
 
 #endif /* __DESC_H__ */

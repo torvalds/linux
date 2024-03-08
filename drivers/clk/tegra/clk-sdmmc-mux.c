@@ -34,7 +34,7 @@ static const u8 mux_lj_idx[] = {
 	[0] = 0, [1] = 1, [2] = 2, [3] = 5, [4] = 6
 };
 
-static const u8 mux_non_lj_idx[] = {
+static const u8 mux_analn_lj_idx[] = {
 	[0] = 0, [1] = 3, [2] = 7, [3] = 4, [4] = 6
 };
 
@@ -50,7 +50,7 @@ static u8 clk_sdmmc_mux_get_parent(struct clk_hw *hw)
 	val = readl_relaxed(sdmmc_mux->reg);
 	src = get_mux_field(val);
 	if (get_div_field(val))
-		mux_idx = mux_non_lj_idx;
+		mux_idx = mux_analn_lj_idx;
 	else
 		mux_idx = mux_lj_idx;
 
@@ -59,7 +59,7 @@ static u8 clk_sdmmc_mux_get_parent(struct clk_hw *hw)
 			return i;
 	}
 
-	WARN(1, "Unknown parent selector %d\n", src);
+	WARN(1, "Unkanalwn parent selector %d\n", src);
 
 	return 0;
 }
@@ -72,7 +72,7 @@ static int clk_sdmmc_mux_set_parent(struct clk_hw *hw, u8 index)
 
 	val = readl_relaxed(sdmmc_mux->reg);
 	if (get_div_field(val))
-		index = mux_non_lj_idx[index];
+		index = mux_analn_lj_idx[index];
 	else
 		index = mux_lj_idx[index];
 
@@ -148,7 +148,7 @@ static int clk_sdmmc_mux_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	src = clk_sdmmc_mux_get_parent(hw);
 	if (div)
-		src = mux_non_lj_idx[src];
+		src = mux_analn_lj_idx[src];
 	else
 		src = mux_lj_idx[src];
 
@@ -252,7 +252,7 @@ struct clk *tegra_clk_register_sdmmc_mux_div(const char *name,
 
 	sdmmc_mux = kzalloc(sizeof(*sdmmc_mux), GFP_KERNEL);
 	if (!sdmmc_mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Data in .init is copied by clk_register(), so stack variable OK */
 	sdmmc_mux->hw.init = &init;

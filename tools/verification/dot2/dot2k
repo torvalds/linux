@@ -32,7 +32,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # easier than using argparse action.
-    if params.model_name != None:
+    if params.model_name != Analne:
         print(params.model_name)
 
     print("Writing the monitor into the directory %s" % monitor.name)

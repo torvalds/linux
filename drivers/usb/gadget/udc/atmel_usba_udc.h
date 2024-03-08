@@ -146,7 +146,7 @@
 #define USBA_DMA_DESC_LOAD_ST			(1 <<  6)
 
 /* Constants for SPEED_CFG */
-#define USBA_SPEED_CFG_NORMAL			0
+#define USBA_SPEED_CFG_ANALRMAL			0
 #define USBA_SPEED_CFG_FORCE_HIGH		2
 #define USBA_SPEED_CFG_FORCE_FULL		3
 
@@ -223,7 +223,7 @@
 #define DBG_DMA		0x0080  /* debug DMA handling */
 #define DBG_REQ		0x0100	/* print out queued request length */
 #define DBG_ALL		0xffff
-#define DBG_NONE	0x0000
+#define DBG_ANALNE	0x0000
 
 #define DEBUG_LEVEL	(DBG_ERR)
 

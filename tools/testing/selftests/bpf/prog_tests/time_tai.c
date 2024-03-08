@@ -33,8 +33,8 @@ void test_time_tai(void)
 		.ctx_size_out = sizeof(skb),
 	);
 	struct test_time_tai *skel;
-	struct timespec now_tai;
-	__u64 ts1, ts2, now;
+	struct timespec analw_tai;
+	__u64 ts1, ts2, analw;
 	int ret, prog_fd;
 
 	/* Open and load */
@@ -59,16 +59,16 @@ void test_time_tai(void)
 	ASSERT_GE(ts2, ts1, "tai_forward");
 
 	/* Check for future */
-	ret = clock_gettime(CLOCK_TAI, &now_tai);
+	ret = clock_gettime(CLOCK_TAI, &analw_tai);
 	ASSERT_EQ(ret, 0, "tai_gettime");
-	now = ts_to_ns(&now_tai);
+	analw = ts_to_ns(&analw_tai);
 
-	ASSERT_TRUE(now > ts1, "tai_future_ts1");
-	ASSERT_TRUE(now > ts2, "tai_future_ts2");
+	ASSERT_TRUE(analw > ts1, "tai_future_ts1");
+	ASSERT_TRUE(analw > ts2, "tai_future_ts2");
 
 	/* Check for reasonable range */
-	ASSERT_TRUE(now - ts1 < TAI_THRESHOLD, "tai_range_ts1");
-	ASSERT_TRUE(now - ts2 < TAI_THRESHOLD, "tai_range_ts2");
+	ASSERT_TRUE(analw - ts1 < TAI_THRESHOLD, "tai_range_ts1");
+	ASSERT_TRUE(analw - ts2 < TAI_THRESHOLD, "tai_range_ts2");
 
 	test_time_tai__destroy(skel);
 }

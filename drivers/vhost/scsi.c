@@ -6,7 +6,7 @@
  * (C) Copyright 2010-2012 IBM Corp.
  *
  * Authors: Nicholas A. Bellinger <nab@daterainc.com>
- *          Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+ *          Stefan Hajanalczi <stefanha@linux.vnet.ibm.com>
  ****************************************************************************/
 
 #include <linux/module.h>
@@ -99,7 +99,7 @@ struct vhost_scsi_cmd {
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char tvc_sense_buf[TRANSPORT_SENSE_BUFFER];
 	/* Completed commands list, serviced from vhost worker thread */
-	struct llist_node tvc_completion_list;
+	struct llist_analde tvc_completion_list;
 	/* Used to track inflight cmd */
 	struct vhost_scsi_inflight *inflight;
 };
@@ -147,7 +147,7 @@ struct vhost_scsi_evt {
 	/* event to be sent to guest */
 	struct virtio_scsi_event event;
 	/* event list, serviced from vhost worker thread */
-	struct llist_node list;
+	struct llist_analde list;
 };
 
 enum {
@@ -156,7 +156,7 @@ enum {
 	VHOST_SCSI_VQ_IO = 2,
 };
 
-/* Note: can't set VIRTIO_F_VERSION_1 yet, since that implies ANY_LAYOUT. */
+/* Analte: can't set VIRTIO_F_VERSION_1 yet, since that implies ANY_LAYOUT. */
 enum {
 	VHOST_SCSI_FEATURES = VHOST_FEATURES | (1ULL << VIRTIO_SCSI_F_HOTPLUG) |
 					       (1ULL << VIRTIO_SCSI_F_T10_PI)
@@ -176,7 +176,7 @@ struct vhost_scsi_virtqueue {
 	/*
 	 * Reference counting for inflight reqs, used for flush operation. At
 	 * each time, one reference tracks new commands submitted, while we
-	 * wait for another one to reach 0.
+	 * wait for aanalther one to reach 0.
 	 */
 	struct vhost_scsi_inflight inflights[2];
 	/*
@@ -462,7 +462,7 @@ vhost_scsi_do_evt_work(struct vhost_scsi *vs, struct vhost_scsi_evt *evt)
 	}
 
 again:
-	vhost_disable_notify(&vs->dev, vq);
+	vhost_disable_analtify(&vs->dev, vq);
 	head = vhost_get_vq_desc(vq, vq->iov,
 			ARRAY_SIZE(vq->iov), &out, &in,
 			NULL, NULL);
@@ -471,7 +471,7 @@ again:
 		return;
 	}
 	if (head == vq->num) {
-		if (vhost_enable_notify(&vs->dev, vq))
+		if (vhost_enable_analtify(&vs->dev, vq))
 			goto again;
 		vs->vs_events_missed = true;
 		return;
@@ -503,11 +503,11 @@ static void vhost_scsi_evt_work(struct vhost_work *work)
 					vs_event_work);
 	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	struct vhost_scsi_evt *evt, *t;
-	struct llist_node *llnode;
+	struct llist_analde *llanalde;
 
 	mutex_lock(&vq->mutex);
-	llnode = llist_del_all(&vs->vs_event_list);
-	llist_for_each_entry_safe(evt, t, llnode, list) {
+	llanalde = llist_del_all(&vs->vs_event_list);
+	llist_for_each_entry_safe(evt, t, llanalde, list) {
 		vhost_scsi_do_evt_work(vs, evt);
 		vhost_scsi_free_evt(vs, evt);
 	}
@@ -527,7 +527,7 @@ static int vhost_scsi_copy_sgl_to_iov(struct vhost_scsi_cmd *cmd)
 		len = sg[i].length;
 
 		if (copy_page_to_iter(page, 0, len, iter) != len) {
-			pr_err("Could not copy data while handling misaligned cmd. Error %zu\n",
+			pr_err("Could analt copy data while handling misaligned cmd. Error %zu\n",
 			       len);
 			return -1;
 		}
@@ -547,14 +547,14 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 				struct vhost_scsi_virtqueue, completion_work);
 	struct virtio_scsi_cmd_resp v_rsp;
 	struct vhost_scsi_cmd *cmd, *t;
-	struct llist_node *llnode;
+	struct llist_analde *llanalde;
 	struct se_cmd *se_cmd;
 	struct iov_iter iov_iter;
 	bool signal = false;
 	int ret;
 
-	llnode = llist_del_all(&svq->completion_list);
-	llist_for_each_entry_safe(cmd, t, llnode, tvc_completion_list) {
+	llanalde = llist_del_all(&svq->completion_list);
+	llist_for_each_entry_safe(cmd, t, llanalde, tvc_completion_list) {
 		se_cmd = &cmd->tvc_se_cmd;
 
 		pr_debug("%s tv_cmd %p resid %u status %#02x\n", __func__,
@@ -614,7 +614,7 @@ vhost_scsi_get_cmd(struct vhost_virtqueue *vq, struct vhost_scsi_tpg *tpg,
 	tag = sbitmap_get(&svq->scsi_tags);
 	if (tag < 0) {
 		pr_err("Unable to obtain tag for vhost_scsi_cmd\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	cmd = &svq->scsi_cmds[tag];
@@ -644,7 +644,7 @@ vhost_scsi_get_cmd(struct vhost_virtqueue *vq, struct vhost_scsi_tpg *tpg,
 /*
  * Map a user memory range into a scatterlist
  *
- * Returns the number of scatterlist entries used or -errno on error.
+ * Returns the number of scatterlist entries used or -erranal on error.
  */
 static int
 vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
@@ -660,7 +660,7 @@ vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
 
 	bytes = iov_iter_get_pages2(iter, pages, LONG_MAX,
 				VHOST_SCSI_PREALLOC_UPAGES, &offset);
-	/* No pages were pinned */
+	/* Anal pages were pinned */
 	if (bytes <= 0)
 		return bytes < 0 ? bytes : -EFAULT;
 
@@ -746,7 +746,7 @@ vhost_scsi_copy_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
 		cmd->saved_iter_addr = dup_iter(&cmd->saved_iter, iter,
 						GFP_KERNEL);
 		if (!cmd->saved_iter_addr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for (i = 0; i < sg_count; i++) {
@@ -770,13 +770,13 @@ vhost_scsi_copy_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
 	return 0;
 
 err:
-	pr_err("Could not read %u bytes while handling misaligned cmd\n",
+	pr_err("Could analt read %u bytes while handling misaligned cmd\n",
 	       nbytes);
 
 	for (; i >= 0; i--)
 		__free_page(sg_page(&sg[i]));
 	kfree(cmd->saved_iter_addr);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int
@@ -948,10 +948,10 @@ vhost_scsi_get_desc(struct vhost_scsi *vs, struct vhost_virtqueue *vq,
 	if (unlikely(vc->head < 0))
 		goto done;
 
-	/* Nothing new?  Wait for eventfd to tell us they refilled. */
+	/* Analthing new?  Wait for eventfd to tell us they refilled. */
 	if (vc->head == vq->num) {
-		if (unlikely(vhost_enable_notify(&vs->dev, vq))) {
-			vhost_disable_notify(&vs->dev, vq);
+		if (unlikely(vhost_enable_analtify(&vs->dev, vq))) {
+			vhost_disable_analtify(&vs->dev, vq);
 			ret = -EAGAIN;
 		}
 		goto done;
@@ -959,7 +959,7 @@ vhost_scsi_get_desc(struct vhost_scsi *vs, struct vhost_virtqueue *vq,
 
 	/*
 	 * Get the size of request and response buffers.
-	 * FIXME: Not correct for BIDI operation
+	 * FIXME: Analt correct for BIDI operation
 	 */
 	vc->out_size = iov_length(vq->iov, vc->out);
 	vc->in_size = iov_length(&vq->iov[vc->out], vc->in);
@@ -1018,7 +1018,7 @@ vhost_scsi_get_req(struct vhost_virtqueue *vq, struct vhost_scsi_ctx *vc,
 
 		tpg = READ_ONCE(vs_tpg[*vc->target]);
 		if (unlikely(!tpg)) {
-			vq_err(vq, "Target 0x%x does not exist\n", *vc->target);
+			vq_err(vq, "Target 0x%x does analt exist\n", *vc->target);
 		} else {
 			if (tpgp)
 				*tpgp = tpg;
@@ -1063,7 +1063,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	memset(&vc, 0, sizeof(vc));
 	vc.rsp_size = sizeof(struct virtio_scsi_cmd_resp);
 
-	vhost_disable_notify(&vs->dev, vq);
+	vhost_disable_analtify(&vs->dev, vq);
 
 	do {
 		ret = vhost_scsi_get_desc(vs, vq, &vc);
@@ -1131,7 +1131,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			iov_iter_advance(&in_iter, vc.rsp_size);
 			data_iter = in_iter;
 		} else {
-			data_direction = DMA_NONE;
+			data_direction = DMA_ANALNE;
 			exp_data_len = 0;
 		}
 		/*
@@ -1142,14 +1142,14 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		if (t10_pi) {
 			if (v_req_pi.pi_bytesout) {
 				if (data_direction != DMA_TO_DEVICE) {
-					vq_err(vq, "Received non zero pi_bytesout,"
+					vq_err(vq, "Received analn zero pi_bytesout,"
 						" but wrong data_direction\n");
 					goto err;
 				}
 				prot_bytes = vhost32_to_cpu(vq, v_req_pi.pi_bytesout);
 			} else if (v_req_pi.pi_bytesin) {
 				if (data_direction != DMA_FROM_DEVICE) {
-					vq_err(vq, "Received non zero pi_bytesin,"
+					vq_err(vq, "Received analn zero pi_bytesin,"
 						" but wrong data_direction\n");
 					goto err;
 				}
@@ -1180,7 +1180,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			lun = vhost_buf_to_lun(v_req.lun);
 		}
 		/*
-		 * Check that the received CDB size does not exceeded our
+		 * Check that the received CDB size does analt exceeded our
 		 * hardcoded max for vhost-scsi, then get a pre-allocated
 		 * cmd descriptor for the new virtio-scsi tag.
 		 *
@@ -1211,7 +1211,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		pr_debug("cmd: %p exp_data_len: %d, prot_bytes: %d data_direction:"
 			 " %d\n", cmd, exp_data_len, prot_bytes, data_direction);
 
-		if (data_direction != DMA_NONE) {
+		if (data_direction != DMA_ANALNE) {
 			if (unlikely(vhost_scsi_mapal(cmd, prot_bytes,
 						      &prot_iter, exp_data_len,
 						      &data_iter))) {
@@ -1230,7 +1230,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		ret = 0;
 err:
 		/*
-		 * ENXIO:  No more requests, or read error, wait for next kick
+		 * ENXIO:  Anal more requests, or read error, wait for next kick
 		 * EINVAL: Invalid response buffer, drop the request
 		 * EIO:    Respond with bad target
 		 * EAGAIN: Pending request
@@ -1388,7 +1388,7 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 
 	memset(&vc, 0, sizeof(vc));
 
-	vhost_disable_notify(&vs->dev, vq);
+	vhost_disable_analtify(&vs->dev, vq);
 
 	do {
 		ret = vhost_scsi_get_desc(vs, vq, &vc);
@@ -1408,7 +1408,7 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			/*
 			 * The size of the response buffer depends on the
 			 * request type and must be validated against it.
-			 * Since the request type is not known, don't send
+			 * Since the request type is analt kanalwn, don't send
 			 * a response.
 			 */
 			continue;
@@ -1431,7 +1431,7 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			vc.target = NULL;
 			break;
 		default:
-			vq_err(vq, "Unknown control request %d", v_req.type);
+			vq_err(vq, "Unkanalwn control request %d", v_req.type);
 			continue;
 		}
 
@@ -1445,7 +1445,7 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			goto err;
 
 		/*
-		 * Get the rest of the request now that its size is known.
+		 * Get the rest of the request analw that its size is kanalwn.
 		 */
 		vc.req += typ_size;
 		vc.req_size -= typ_size;
@@ -1460,7 +1460,7 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			vhost_scsi_send_an_resp(vs, vq, &vc);
 err:
 		/*
-		 * ENXIO:  No more requests, or read error, wait for next kick
+		 * ENXIO:  Anal more requests, or read error, wait for next kick
 		 * EINVAL: Invalid response buffer, drop the request
 		 * EIO:    Respond with bad target
 		 * EAGAIN: Pending request
@@ -1498,7 +1498,7 @@ vhost_scsi_send_evt(struct vhost_scsi *vs, struct vhost_virtqueue *vq,
 	if (tpg && lun) {
 		/* TODO: share lun setup code with virtio-scsi.ko */
 		/*
-		 * Note: evt->event is zeroed when we allocate it and
+		 * Analte: evt->event is zeroed when we allocate it and
 		 * lun[4-7] need to be zero according to virtio-scsi spec.
 		 */
 		evt->event.lun[0] = 0x01;
@@ -1523,7 +1523,7 @@ static void vhost_scsi_evt_handle_kick(struct vhost_work *work)
 		goto out;
 
 	if (vs->vs_events_missed)
-		vhost_scsi_send_evt(vs, vq, NULL, NULL, VIRTIO_SCSI_T_NO_EVENT,
+		vhost_scsi_send_evt(vs, vq, NULL, NULL, VIRTIO_SCSI_T_ANAL_EVENT,
 				    0);
 out:
 	mutex_unlock(&vq->mutex);
@@ -1596,15 +1596,15 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 	if (svq->scsi_cmds)
 		return 0;
 
-	if (sbitmap_init_node(&svq->scsi_tags, max_cmds, -1, GFP_KERNEL,
-			      NUMA_NO_NODE, false, true))
-		return -ENOMEM;
+	if (sbitmap_init_analde(&svq->scsi_tags, max_cmds, -1, GFP_KERNEL,
+			      NUMA_ANAL_ANALDE, false, true))
+		return -EANALMEM;
 	svq->max_cmds = max_cmds;
 
 	svq->scsi_cmds = kcalloc(max_cmds, sizeof(*tv_cmd), GFP_KERNEL);
 	if (!svq->scsi_cmds) {
 		sbitmap_free(&svq->scsi_tags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < max_cmds; i++) {
@@ -1645,7 +1645,7 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 	return 0;
 out:
 	vhost_scsi_destroy_vq_cmds(vq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -1681,7 +1681,7 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 	len = sizeof(vs_tpg[0]) * VHOST_SCSI_MAX_TARGET;
 	vs_tpg = kzalloc(len, GFP_KERNEL);
 	if (!vs_tpg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	if (vs->vs_tpg)
@@ -1709,9 +1709,9 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 			}
 			/*
 			 * In order to ensure individual vhost-scsi configfs
-			 * groups cannot be removed while in use by vhost ioctl,
+			 * groups cananalt be removed while in use by vhost ioctl,
 			 * go ahead and take an explicit se_tpg->tpg_group.cg_item
-			 * dependency now.
+			 * dependency analw.
 			 */
 			se_tpg = &tpg->se_tpg;
 			ret = target_depend_item(&se_tpg->tpg_group.cg_item);
@@ -1821,13 +1821,13 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 
 		tv_tport = tpg->tport;
 		if (!tv_tport) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_dev;
 		}
 
 		if (strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
 			pr_warn("tv_tport->tport_name: %s, tpg->tport_tpgt: %hu"
-				" does not match t->vhost_wwpn: %s, t->vhost_tpgt: %hu\n",
+				" does analt match t->vhost_wwpn: %s, t->vhost_tpgt: %hu\n",
 				tv_tport->tport_name, tpg->tport_tpgt,
 				t->vhost_wwpn, t->vhost_tpgt);
 			ret = -EINVAL;
@@ -1845,7 +1845,7 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 		vhost_vq_set_backend(vq, NULL);
 		mutex_unlock(&vq->mutex);
 	}
-	/* Make sure cmds are not running before tearing them down. */
+	/* Make sure cmds are analt running before tearing them down. */
 	vhost_scsi_flush(vs);
 
 	for (i = 0; i < vs->dev.nvqs; i++) {
@@ -1854,7 +1854,7 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 	}
 
 	/*
-	 * We can now release our hold on the tpg and sessions and userspace
+	 * We can analw release our hold on the tpg and sessions and userspace
 	 * can free them after this point.
 	 */
 	for (i = 0; i < VHOST_SCSI_MAX_TARGET; i++) {
@@ -1898,7 +1898,7 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 	int i;
 
 	if (features & ~VHOST_SCSI_FEATURES)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&vs->dev.mutex);
 	if ((features & (1 << VHOST_F_LOG_ALL)) &&
@@ -1917,12 +1917,12 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 	return 0;
 }
 
-static int vhost_scsi_open(struct inode *inode, struct file *f)
+static int vhost_scsi_open(struct ianalde *ianalde, struct file *f)
 {
 	struct vhost_scsi_virtqueue *svq;
 	struct vhost_scsi *vs;
 	struct vhost_virtqueue **vqs;
-	int r = -ENOMEM, i, nvqs = vhost_scsi_max_io_vqs;
+	int r = -EANALMEM, i, nvqs = vhost_scsi_max_io_vqs;
 
 	vs = kvzalloc(sizeof(*vs), GFP_KERNEL);
 	if (!vs)
@@ -1989,7 +1989,7 @@ err_vs:
 	return r;
 }
 
-static int vhost_scsi_release(struct inode *inode, struct file *f)
+static int vhost_scsi_release(struct ianalde *ianalde, struct file *f)
 {
 	struct vhost_scsi *vs = f->private_data;
 	struct vhost_scsi_target t;
@@ -2027,14 +2027,14 @@ vhost_scsi_ioctl(struct file *f,
 		if (copy_from_user(&backend, argp, sizeof backend))
 			return -EFAULT;
 		if (backend.reserved != 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		return vhost_scsi_set_endpoint(vs, &backend);
 	case VHOST_SCSI_CLEAR_ENDPOINT:
 		if (copy_from_user(&backend, argp, sizeof backend))
 			return -EFAULT;
 		if (backend.reserved != 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		return vhost_scsi_clear_endpoint(vs, &backend);
 	case VHOST_SCSI_GET_ABI_VERSION:
@@ -2076,7 +2076,7 @@ vhost_scsi_ioctl(struct file *f,
 		mutex_lock(&vs->dev.mutex);
 		r = vhost_dev_ioctl(&vs->dev, ioctl, argp);
 		/* TODO: flush backend after dev ioctl. */
-		if (r == -ENOIOCTLCMD)
+		if (r == -EANALIOCTLCMD)
 			r = vhost_vring_ioctl(&vs->dev, ioctl, argp);
 		mutex_unlock(&vs->dev.mutex);
 		return r;
@@ -2089,11 +2089,11 @@ static const struct file_operations vhost_scsi_fops = {
 	.unlocked_ioctl = vhost_scsi_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open           = vhost_scsi_open,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice vhost_scsi_misc = {
-	MISC_DYNAMIC_MINOR,
+	MISC_DYNAMIC_MIANALR,
 	"vhost-scsi",
 	&vhost_scsi_fops,
 };
@@ -2121,7 +2121,7 @@ static char *vhost_scsi_dump_proto_id(struct vhost_scsi_tport *tport)
 		break;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static void
@@ -2248,11 +2248,11 @@ static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 	if (!tv_nexus) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		pr_err("Unable to allocate struct vhost_scsi_nexus\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/*
 	 * Since we are running in 'demo mode' this call with generate a
-	 * struct se_node_acl for the vhost_scsi struct se_portal_group with
+	 * struct se_analde_acl for the vhost_scsi struct se_portal_group with
 	 * the SCSI Initiator port name of the passed configfs group 'name'.
 	 */
 	tv_nexus->tvn_se_sess = target_setup_session(&tpg->se_tpg, 0, 0,
@@ -2261,7 +2261,7 @@ static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		kfree(tv_nexus);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	tpg->tpg_nexus = tv_nexus;
 
@@ -2278,13 +2278,13 @@ static int vhost_scsi_drop_nexus(struct vhost_scsi_tpg *tpg)
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	se_sess = tv_nexus->tvn_se_sess;
 	if (!se_sess) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (tpg->tv_tpg_port_count != 0) {
@@ -2305,7 +2305,7 @@ static int vhost_scsi_drop_nexus(struct vhost_scsi_tpg *tpg)
 
 	pr_debug("TCM_vhost_ConfigFS: Removing I_T Nexus to emulated"
 		" %s Initiator Port: %s\n", vhost_scsi_dump_proto_id(tpg->tport),
-		tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+		tv_nexus->tvn_se_sess->se_analde_acl->initiatorname);
 
 	/*
 	 * Release the SCSI I_T Nexus to the emulated vhost Target Port
@@ -2330,10 +2330,10 @@ static ssize_t vhost_scsi_tpg_nexus_show(struct config_item *item, char *page)
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ret = sysfs_emit(page, "%s\n",
-			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+			tv_nexus->tvn_se_sess->se_analde_acl->initiatorname);
 	mutex_unlock(&tpg->tv_tpg_mutex);
 
 	return ret;
@@ -2370,7 +2370,7 @@ static ssize_t vhost_scsi_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "naa.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_SAS) {
-			pr_err("Passed SAS Initiator Port %s does not"
+			pr_err("Passed SAS Initiator Port %s does analt"
 				" match target port protoid: %s\n", i_port,
 				vhost_scsi_dump_proto_id(tport_wwn));
 			return -EINVAL;
@@ -2381,7 +2381,7 @@ static ssize_t vhost_scsi_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "fc.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_FCP) {
-			pr_err("Passed FCP Initiator Port %s does not"
+			pr_err("Passed FCP Initiator Port %s does analt"
 				" match target port protoid: %s\n", i_port,
 				vhost_scsi_dump_proto_id(tport_wwn));
 			return -EINVAL;
@@ -2392,7 +2392,7 @@ static ssize_t vhost_scsi_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "iqn.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_ISCSI) {
-			pr_err("Passed iSCSI Initiator Port %s does not"
+			pr_err("Passed iSCSI Initiator Port %s does analt"
 				" match target port protoid: %s\n", i_port,
 				vhost_scsi_dump_proto_id(tport_wwn));
 			return -EINVAL;
@@ -2442,7 +2442,7 @@ vhost_scsi_make_tpg(struct se_wwn *wwn, const char *name)
 	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
 	if (!tpg) {
 		pr_err("Unable to allocate struct vhost_scsi_tpg");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	mutex_init(&tpg->tv_tpg_mutex);
 	INIT_LIST_HEAD(&tpg->tv_tpg_list);
@@ -2496,7 +2496,7 @@ vhost_scsi_make_tport(struct target_fabric_configfs *tf,
 	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
 	if (!tport) {
 		pr_err("Unable to allocate struct vhost_scsi_tport");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	tport->tport_wwpn = wwpn;
 	/*
@@ -2605,7 +2605,7 @@ static const struct target_core_fabric_ops vhost_scsi_ops = {
 
 static int __init vhost_scsi_init(void)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	pr_debug("TCM_VHOST fabric module %s on %s/%s"
 		" on "UTS_RELEASE"\n", VHOST_SCSI_VERSION, utsname()->sysname,

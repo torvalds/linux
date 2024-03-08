@@ -28,11 +28,11 @@
 #include "cpu.h"
 
 /*
- * nodes_per_socket: Stores the number of nodes per socket.
+ * analdes_per_socket: Stores the number of analdes per socket.
  * Refer to Fam15h Models 00-0fh BKDG - CPUID Fn8000_001E_ECX
- * Node Identifiers[10:8]
+ * Analde Identifiers[10:8]
  */
-static u32 nodes_per_socket = 1;
+static u32 analdes_per_socket = 1;
 
 static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 {
@@ -210,7 +210,7 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 
 	/*
 	 * Bit 15 of Athlon specific MSR 15, needs to be 0
-	 * to enable SSE on Palomino/Morgan/Barton CPU's.
+	 * to enable SSE on Palomianal/Morgan/Barton CPU's.
 	 * If the BIOS didn't enable it already, enable it here.
 	 */
 	if (c->x86_model >= 6 && c->x86_model <= 10) {
@@ -224,7 +224,7 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 	/*
 	 * It's been determined by AMD that Athlons since model 8 stepping 1
 	 * are more robust with CLK_CTL set to 200xxxxx instead of 600xxxxx
-	 * As per AMD technical note 27212 0.2
+	 * As per AMD technical analte 27212 0.2
 	 */
 	if ((c->x86_model == 8 && c->x86_stepping >= 1) || (c->x86_model > 8)) {
 		rdmsr(MSR_K7_CLK_CTL, l, h);
@@ -241,7 +241,7 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 
 	/*
 	 * Certain Athlons might work (for various values of 'work') in SMP
-	 * but they are not certified as MP capable.
+	 * but they are analt certified as MP capable.
 	 */
 	/* Athlon 660/661 is valid. */
 	if ((c->x86_model == 6) && ((c->x86_stepping == 0) ||
@@ -254,7 +254,7 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 
 	/*
 	 * Athlon 662, Duron 671, and Athlon >model 7 have capability
-	 * bit. It's worth noting that the A5 stepping (662) of some
+	 * bit. It's worth analting that the A5 stepping (662) of some
 	 * Athlon XP's have the MP bit set.
 	 * See http://www.heise.de/newsticker/data/jow-18.10.01-000 for
 	 * more.
@@ -265,66 +265,66 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 		if (cpu_has(c, X86_FEATURE_MP))
 			return;
 
-	/* If we get here, not a certified SMP capable AMD system. */
+	/* If we get here, analt a certified SMP capable AMD system. */
 
 	/*
-	 * Don't taint if we are running SMP kernel on a single non-MP
+	 * Don't taint if we are running SMP kernel on a single analn-MP
 	 * approved Athlon
 	 */
 	WARN_ONCE(1, "WARNING: This combination of AMD"
-		" processors is not suitable for SMP.\n");
-	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_NOW_UNRELIABLE);
+		" processors is analt suitable for SMP.\n");
+	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_ANALW_UNRELIABLE);
 #endif
 }
 
 #ifdef CONFIG_NUMA
 /*
  * To workaround broken NUMA config.  Read the comment in
- * srat_detect_node().
+ * srat_detect_analde().
  */
-static int nearby_node(int apicid)
+static int nearby_analde(int apicid)
 {
-	int i, node;
+	int i, analde;
 
 	for (i = apicid - 1; i >= 0; i--) {
-		node = __apicid_to_node[i];
-		if (node != NUMA_NO_NODE && node_online(node))
-			return node;
+		analde = __apicid_to_analde[i];
+		if (analde != NUMA_ANAL_ANALDE && analde_online(analde))
+			return analde;
 	}
 	for (i = apicid + 1; i < MAX_LOCAL_APIC; i++) {
-		node = __apicid_to_node[i];
-		if (node != NUMA_NO_NODE && node_online(node))
-			return node;
+		analde = __apicid_to_analde[i];
+		if (analde != NUMA_ANAL_ANALDE && analde_online(analde))
+			return analde;
 	}
-	return first_node(node_online_map); /* Shouldn't happen */
+	return first_analde(analde_online_map); /* Shouldn't happen */
 }
 #endif
 
 /*
  * Fix up topo::core_id for pre-F17h systems to be in the
- * [0 .. cores_per_node - 1] range. Not really needed but
- * kept so as not to break existing setups.
+ * [0 .. cores_per_analde - 1] range. Analt really needed but
+ * kept so as analt to break existing setups.
  */
 static void legacy_fixup_core_id(struct cpuinfo_x86 *c)
 {
-	u32 cus_per_node;
+	u32 cus_per_analde;
 
 	if (c->x86 >= 0x17)
 		return;
 
-	cus_per_node = c->x86_max_cores / nodes_per_socket;
-	c->topo.core_id %= cus_per_node;
+	cus_per_analde = c->x86_max_cores / analdes_per_socket;
+	c->topo.core_id %= cus_per_analde;
 }
 
 /*
  * Fixup core topology information for
- * (1) AMD multi-node processors
- *     Assumption: Number of cores in each internal node is the same.
+ * (1) AMD multi-analde processors
+ *     Assumption: Number of cores in each internal analde is the same.
  * (2) AMD processors supporting compute units
  */
 static void amd_get_topology(struct cpuinfo_x86 *c)
 {
-	/* get information required for multi-node processors */
+	/* get information required for multi-analde processors */
 	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		int err;
 		u32 eax, ebx, ecx, edx;
@@ -353,16 +353,16 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 
 		cacheinfo_amd_init_llc_id(c);
 
-	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
+	} else if (cpu_has(c, X86_FEATURE_ANALDEID_MSR)) {
 		u64 value;
 
-		rdmsrl(MSR_FAM10H_NODE_ID, value);
+		rdmsrl(MSR_FAM10H_ANALDE_ID, value);
 		c->topo.die_id = value & 7;
 		c->topo.llc_id = c->topo.die_id;
 	} else
 		return;
 
-	if (nodes_per_socket > 1) {
+	if (analdes_per_socket > 1) {
 		set_cpu_cap(c, X86_FEATURE_AMD_DCM);
 		legacy_fixup_core_id(c);
 	}
@@ -385,22 +385,22 @@ static void amd_detect_cmp(struct cpuinfo_x86 *c)
 	c->topo.llc_id = c->topo.die_id = c->topo.pkg_id;
 }
 
-u32 amd_get_nodes_per_socket(void)
+u32 amd_get_analdes_per_socket(void)
 {
-	return nodes_per_socket;
+	return analdes_per_socket;
 }
-EXPORT_SYMBOL_GPL(amd_get_nodes_per_socket);
+EXPORT_SYMBOL_GPL(amd_get_analdes_per_socket);
 
-static void srat_detect_node(struct cpuinfo_x86 *c)
+static void srat_detect_analde(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_NUMA
 	int cpu = smp_processor_id();
-	int node;
+	int analde;
 	unsigned apicid = c->topo.apicid;
 
-	node = numa_cpu_node(cpu);
-	if (node == NUMA_NO_NODE)
-		node = per_cpu_llc_id(cpu);
+	analde = numa_cpu_analde(cpu);
+	if (analde == NUMA_ANAL_ANALDE)
+		analde = per_cpu_llc_id(cpu);
 
 	/*
 	 * On multi-fabric platform (e.g. Numascale NumaChip) a
@@ -408,37 +408,37 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 	 * IDs of the CPU.
 	 */
 	if (x86_cpuinit.fixup_cpu_id)
-		x86_cpuinit.fixup_cpu_id(c, node);
+		x86_cpuinit.fixup_cpu_id(c, analde);
 
-	if (!node_online(node)) {
+	if (!analde_online(analde)) {
 		/*
 		 * Two possibilities here:
 		 *
-		 * - The CPU is missing memory and no node was created.  In
+		 * - The CPU is missing memory and anal analde was created.  In
 		 *   that case try picking one from a nearby CPU.
 		 *
-		 * - The APIC IDs differ from the HyperTransport node IDs
-		 *   which the K8 northbridge parsing fills in.  Assume
+		 * - The APIC IDs differ from the HyperTransport analde IDs
+		 *   which the K8 analrthbridge parsing fills in.  Assume
 		 *   they are all increased by a constant offset, but in
-		 *   the same order as the HT nodeids.  If that doesn't
-		 *   result in a usable node fall back to the path for the
+		 *   the same order as the HT analdeids.  If that doesn't
+		 *   result in a usable analde fall back to the path for the
 		 *   previous case.
 		 *
 		 * This workaround operates directly on the mapping between
-		 * APIC ID and NUMA node, assuming certain relationship
-		 * between APIC ID, HT node ID and NUMA topology.  As going
+		 * APIC ID and NUMA analde, assuming certain relationship
+		 * between APIC ID, HT analde ID and NUMA topology.  As going
 		 * through CPU mapping may alter the outcome, directly
-		 * access __apicid_to_node[].
+		 * access __apicid_to_analde[].
 		 */
-		int ht_nodeid = c->topo.initial_apicid;
+		int ht_analdeid = c->topo.initial_apicid;
 
-		if (__apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
-			node = __apicid_to_node[ht_nodeid];
-		/* Pick a nearby node */
-		if (!node_online(node))
-			node = nearby_node(apicid);
+		if (__apicid_to_analde[ht_analdeid] != NUMA_ANAL_ANALDE)
+			analde = __apicid_to_analde[ht_analdeid];
+		/* Pick a nearby analde */
+		if (!analde_online(analde))
+			analde = nearby_analde(apicid);
 	}
-	numa_set_node(cpu, node);
+	numa_set_analde(cpu, analde);
 #endif
 }
 
@@ -504,12 +504,12 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 		u32 ecx;
 
 		ecx = cpuid_ecx(0x8000001e);
-		__max_die_per_package = nodes_per_socket = ((ecx >> 8) & 7) + 1;
-	} else if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
+		__max_die_per_package = analdes_per_socket = ((ecx >> 8) & 7) + 1;
+	} else if (boot_cpu_has(X86_FEATURE_ANALDEID_MSR)) {
 		u64 value;
 
-		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		__max_die_per_package = nodes_per_socket = ((value >> 3) & 7) + 1;
+		rdmsrl(MSR_FAM10H_ANALDE_ID, value);
+		__max_die_per_package = analdes_per_socket = ((value >> 3) & 7) + 1;
 	}
 
 	if (!boot_cpu_has(X86_FEATURE_AMD_SSBD) &&
@@ -525,7 +525,7 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 		}
 		/*
 		 * Try to cache the base value so further operations can
-		 * avoid RMW. If that faults, do not enable SSBD.
+		 * avoid RMW. If that faults, do analt enable SSBD.
 		 */
 		if (!rdmsrl_safe(MSR_AMD64_LS_CFG, &x86_amd_ls_cfg_base)) {
 			setup_force_cpu_cap(X86_FEATURE_LS_CFG_SSBD);
@@ -601,11 +601,11 @@ static void early_detect_mem_encrypt(struct cpuinfo_x86 *c)
 	 * BIOS support is required for SME and SEV.
 	 *   For SME: If BIOS has enabled SME then adjust x86_phys_bits by
 	 *	      the SME physical address space reduction value.
-	 *	      If BIOS has not enabled SME then don't advertise the
+	 *	      If BIOS has analt enabled SME then don't advertise the
 	 *	      SME feature (set in scattered.c).
-	 *	      If the kernel has not enabled SME via any means then
+	 *	      If the kernel has analt enabled SME via any means then
 	 *	      don't advertise the SME feature.
-	 *   For SEV: If BIOS has not enabled SEV then don't advertise the
+	 *   For SEV: If BIOS has analt enabled SEV then don't advertise the
 	 *            SEV and SEV_ES feature (set in scattered.c).
 	 *
 	 *   In all cases, since support for SME and SEV requires long mode,
@@ -658,11 +658,11 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states
+	 * with P/T states and does analt stop in deep C-states
 	 */
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
-		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+		set_cpu_cap(c, X86_FEATURE_ANALNSTOP_TSC);
 	}
 
 	/* Bit 12 of 8000_0007 edx is accumulated power mechanism. */
@@ -804,7 +804,7 @@ static void init_amd_gh(struct cpuinfo_x86 *c)
 
 	/*
 	 * Disable GART TLB Walk Errors on Fam10h. We do this here because this
-	 * is always needed when GART is enabled, even in a kernel which has no
+	 * is always needed when GART is enabled, even in a kernel which has anal
 	 * MCE support built in. BIOS should disable GartTlbWlk Errors already.
 	 * If it doesn't, we do it here as suggested by the BKDG.
 	 *
@@ -813,12 +813,12 @@ static void init_amd_gh(struct cpuinfo_x86 *c)
 	msr_set_bit(MSR_AMD64_MCx_MASK(4), 10);
 
 	/*
-	 * On family 10h BIOS may not have properly enabled WC+ support, causing
+	 * On family 10h BIOS may analt have properly enabled WC+ support, causing
 	 * it to be converted to CD memtype. This may result in performance
 	 * degradation for certain nested-paging guests. Prevent this conversion
 	 * by clearing bit 24 in MSR_AMD64_BU_CFG2.
 	 *
-	 * NOTE: we want to use the _safe accessors so as not to #GP kvm
+	 * ANALTE: we want to use the _safe accessors so as analt to #GP kvm
 	 * guests on older kvm hosts.
 	 */
 	msr_clear_bit(MSR_AMD64_BU_CFG2, 24);
@@ -885,18 +885,18 @@ static void clear_rdrand_cpuid_bit(struct cpuinfo_x86 *c)
 	 * running virtualized and the hypervisor doesn't support the MSR.
 	 */
 	if (cpuid_ecx(1) & BIT(30)) {
-		pr_info_once("BIOS may not properly restore RDRAND after suspend, but hypervisor does not support hiding RDRAND via CPUID.\n");
+		pr_info_once("BIOS may analt properly restore RDRAND after suspend, but hypervisor does analt support hiding RDRAND via CPUID.\n");
 		return;
 	}
 
 	clear_cpu_cap(c, X86_FEATURE_RDRAND);
-	pr_info_once("BIOS may not properly restore RDRAND after suspend, hiding RDRAND via CPUID. Use rdrand=force to reenable.\n");
+	pr_info_once("BIOS may analt properly restore RDRAND after suspend, hiding RDRAND via CPUID. Use rdrand=force to reenable.\n");
 }
 
 static void init_amd_jg(struct cpuinfo_x86 *c)
 {
 	/*
-	 * Some BIOS implementations do not restore proper RDRAND support
+	 * Some BIOS implementations do analt restore proper RDRAND support
 	 * across suspend and resume. Check on whether to hide the RDRAND
 	 * instruction support via CPUID.
 	 */
@@ -919,7 +919,7 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * Some BIOS implementations do not restore proper RDRAND support
+	 * Some BIOS implementations do analt restore proper RDRAND support
 	 * across suspend and resume. Check on whether to hide the RDRAND
 	 * instruction support via CPUID.
 	 */
@@ -930,10 +930,10 @@ static void fix_erratum_1386(struct cpuinfo_x86 *c)
 {
 	/*
 	 * Work around Erratum 1386.  The XSAVES instruction malfunctions in
-	 * certain circumstances on Zen1/2 uarch, and not all parts have had
+	 * certain circumstances on Zen1/2 uarch, and analt all parts have had
 	 * updated microcode at the time of writing (March 2023).
 	 *
-	 * Affected parts all have no supervisor XSAVE states, meaning that
+	 * Affected parts all have anal supervisor XSAVE states, meaning that
 	 * the XSAVEC instruction (which works fine) is equivalent.
 	 */
 	clear_cpu_cap(c, X86_FEATURE_XSAVES);
@@ -948,7 +948,7 @@ void init_spectral_chicken(struct cpuinfo_x86 *c)
 	 * On Zen2 we offer this chicken (bit) on the altar of Speculation.
 	 *
 	 * This suppresses speculation from the middle of a basic block, i.e. it
-	 * suppresses non-branch predictions.
+	 * suppresses analn-branch predictions.
 	 */
 	if (!cpu_has(c, X86_FEATURE_HYPERVISOR)) {
 		if (!rdmsrl_safe(MSR_ZEN2_SPECTRAL_CHICKEN, &value)) {
@@ -963,7 +963,7 @@ static void init_amd_zen_common(void)
 {
 	setup_force_cpu_cap(X86_FEATURE_ZEN);
 #ifdef CONFIG_NUMA
-	node_reclaim_distance = 32;
+	analde_reclaim_distance = 32;
 #endif
 }
 
@@ -972,15 +972,15 @@ static void init_amd_zen1(struct cpuinfo_x86 *c)
 	init_amd_zen_common();
 	fix_erratum_1386(c);
 
-	/* Fix up CPUID bits, but only if not virtualised. */
+	/* Fix up CPUID bits, but only if analt virtualised. */
 	if (!cpu_has(c, X86_FEATURE_HYPERVISOR)) {
 
-		/* Erratum 1076: CPB feature bit not being set in CPUID. */
+		/* Erratum 1076: CPB feature bit analt being set in CPUID. */
 		if (!cpu_has(c, X86_FEATURE_CPB))
 			set_cpu_cap(c, X86_FEATURE_CPB);
 	}
 
-	pr_notice_once("AMD Zen1 DIV0 bug detected. Disable SMT for full protection.\n");
+	pr_analtice_once("AMD Zen1 DIV0 bug detected. Disable SMT for full protection.\n");
 	setup_force_cpu_bug(X86_BUG_DIV0);
 }
 
@@ -1014,7 +1014,7 @@ static void zen2_zenbleed_check(struct cpuinfo_x86 *c)
 		return;
 
 	if (!cpu_has_zenbleed_microcode()) {
-		pr_notice_once("Zenbleed: please update your microcode for the most optimal fix\n");
+		pr_analtice_once("Zenbleed: please update your microcode for the most optimal fix\n");
 		msr_set_bit(MSR_AMD64_DE_CFG, MSR_AMD64_DE_CFG_ZEN2_FP_BACKUP_FIX_BIT);
 	} else {
 		msr_clear_bit(MSR_AMD64_DE_CFG, MSR_AMD64_DE_CFG_ZEN2_FP_BACKUP_FIX_BIT);
@@ -1035,12 +1035,12 @@ static void init_amd_zen3(struct cpuinfo_x86 *c)
 
 	if (!cpu_has(c, X86_FEATURE_HYPERVISOR)) {
 		/*
-		 * Zen3 (Fam19 model < 0x10) parts are not susceptible to
+		 * Zen3 (Fam19 model < 0x10) parts are analt susceptible to
 		 * Branch Type Confusion, but predate the allocation of the
-		 * BTC_NO bit.
+		 * BTC_ANAL bit.
 		 */
-		if (!cpu_has(c, X86_FEATURE_BTC_NO))
-			set_cpu_cap(c, X86_FEATURE_BTC_NO);
+		if (!cpu_has(c, X86_FEATURE_BTC_ANAL))
+			set_cpu_cap(c, X86_FEATURE_BTC_ANAL);
 	}
 }
 
@@ -1064,8 +1064,8 @@ static void init_amd(struct cpuinfo_x86 *c)
 	early_init_amd(c);
 
 	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
+	 * Bit 31 in analrmal CPUID used for analnstandard 3DAnalw ID;
+	 * 3DAnalw is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
 	clear_cpu_cap(c, 0*32+31);
 
@@ -1116,14 +1116,14 @@ static void init_amd(struct cpuinfo_x86 *c)
 
 	amd_detect_cmp(c);
 	amd_get_topology(c);
-	srat_detect_node(c);
+	srat_detect_analde(c);
 
 	init_amd_cacheinfo(c);
 
 	if (cpu_has(c, X86_FEATURE_SVM)) {
 		rdmsrl(MSR_VM_CR, vm_cr);
 		if (vm_cr & SVM_VM_CR_SVM_DIS_MASK) {
-			pr_notice_once("SVM disabled (by BIOS) in MSR_VM_CR\n");
+			pr_analtice_once("SVM disabled (by BIOS) in MSR_VM_CR\n");
 			clear_cpu_cap(c, X86_FEATURE_SVM);
 		}
 	}
@@ -1133,7 +1133,7 @@ static void init_amd(struct cpuinfo_x86 *c)
 		 * Use LFENCE for execution serialization.  On families which
 		 * don't have that MSR, LFENCE is already serializing.
 		 * msr_set_bit() uses the safe accessors, too, even if the MSR
-		 * is not present.
+		 * is analt present.
 		 */
 		msr_set_bit(MSR_AMD64_DE_CFG,
 			    MSR_AMD64_DE_CFG_LFENCE_SERIALIZE_BIT);
@@ -1149,17 +1149,17 @@ static void init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 > 0x11)
 		set_cpu_cap(c, X86_FEATURE_ARAT);
 
-	/* 3DNow or LM implies PREFETCHW */
-	if (!cpu_has(c, X86_FEATURE_3DNOWPREFETCH))
-		if (cpu_has(c, X86_FEATURE_3DNOW) || cpu_has(c, X86_FEATURE_LM))
-			set_cpu_cap(c, X86_FEATURE_3DNOWPREFETCH);
+	/* 3DAnalw or LM implies PREFETCHW */
+	if (!cpu_has(c, X86_FEATURE_3DANALWPREFETCH))
+		if (cpu_has(c, X86_FEATURE_3DANALW) || cpu_has(c, X86_FEATURE_LM))
+			set_cpu_cap(c, X86_FEATURE_3DANALWPREFETCH);
 
 	/* AMD CPUs don't reset SS attributes on SYSRET, Xen does. */
 	if (!cpu_feature_enabled(X86_FEATURE_XENPV))
 		set_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
 
 	/*
-	 * Turn on the Instructions Retired free counter on machines not
+	 * Turn on the Instructions Retired free counter on machines analt
 	 * susceptible to erratum #1054 "Instructions Retired Performance
 	 * Counter May Be Inaccurate".
 	 */
@@ -1172,7 +1172,7 @@ static void init_amd(struct cpuinfo_x86 *c)
 	/*
 	 * Make sure EFER[AIBRSE - Automatic IBRS Enable] is set. The APs are brought up
 	 * using the trampoline code and as part of it, MSR_EFER gets prepared there in
-	 * order to be replicated onto them. Regardless, set it here again, if not set,
+	 * order to be replicated onto them. Regardless, set it here again, if analt set,
 	 * to protect against any future refactoring/code reorganization which might
 	 * miss setting this important bit.
 	 */
@@ -1350,7 +1350,7 @@ void amd_check_microcode(void)
  * Issue a DIV 0/1 insn to clear any division data from previous DIV
  * operations.
  */
-void noinstr amd_clear_divider(void)
+void analinstr amd_clear_divider(void)
 {
 	asm volatile(ALTERNATIVE("", "div %2\n\t", X86_BUG_DIV0)
 		     :: "a" (0), "d" (0), "r" (1));

@@ -3,7 +3,7 @@
  *
  * Anyone is free to copy, modify, publish, use, compile, sell, or
  * distribute this software, either in source code form or as a compiled
- * binary, for any purpose, commercial or non-commercial, and by any
+ * binary, for any purpose, commercial or analn-commercial, and by any
  * means.
  *
  * In jurisdictions that recognize copyright laws, the author or authors
@@ -15,9 +15,9 @@
  * software under copyright law.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
@@ -28,7 +28,7 @@
 #define _BSD_SOURCE /* for endian.h */
 
 #include <endian.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -59,8 +59,8 @@ static const struct {
 	__le32 hs_count;
 	struct {
 		struct usb_interface_descriptor intf;
-		struct usb_endpoint_descriptor_no_audio bulk_sink;
-		struct usb_endpoint_descriptor_no_audio bulk_source;
+		struct usb_endpoint_descriptor_anal_audio bulk_sink;
+		struct usb_endpoint_descriptor_anal_audio bulk_source;
 	} __attribute__ ((__packed__)) fs_descs, hs_descs;
 } __attribute__ ((__packed__)) descriptors = {
 	.header = {
@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
 	bool ready;
 
 	if (argc != 2) {
-		printf("ffs directory not specified!\n");
+		printf("ffs directory analt specified!\n");
 		return 1;
 	}
 
@@ -307,7 +307,7 @@ int main(int argc, char *argv[])
 		ret = select(((ep0 > evfd) ? ep0 : evfd)+1,
 			     &rfds, NULL, NULL, NULL);
 		if (ret < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			perror("select");
 			break;
@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
 				io_prep_pwrite(iobuf[i].iocb[j], ep1,
 					       iobuf[i].buf[j],
 					       iobuf[i].len, 0);
-				/* enable eventfd notification */
+				/* enable eventfd analtification */
 				iobuf[i].iocb[j]->u.c.flags |= IOCB_FLAG_RESFD;
 				iobuf[i].iocb[j]->u.c.resfd = evfd;
 			}

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -27,7 +27,7 @@
 #include <linux/async.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -61,7 +61,7 @@ struct intel_fbdev {
 	async_cookie_t cookie;
 	int preferred_bpp;
 
-	/* Whether or not fbdev hpd processing is temporarily suspended */
+	/* Whether or analt fbdev hpd processing is temporarily suspended */
 	bool hpd_suspended: 1;
 	/* Set when a hotplug was received while HPD processing was suspended */
 	bool hpd_waiting: 1;
@@ -155,7 +155,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	const struct i915_gtt_view view = {
-		.type = I915_GTT_VIEW_NORMAL,
+		.type = I915_GTT_VIEW_ANALRMAL,
 	};
 	intel_wakeref_t wakeref;
 	struct fb_info *info;
@@ -185,7 +185,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	if (!intel_fb || drm_WARN_ON(dev, !intel_fb_obj(&intel_fb->base))) {
 		struct drm_framebuffer *fb;
 		drm_dbg_kms(&dev_priv->drm,
-			    "no BIOS fb, allocating a new one\n");
+			    "anal BIOS fb, allocating a new one\n");
 		fb = intel_fbdev_fb_alloc(helper, sizes);
 		if (IS_ERR(fb))
 			return PTR_ERR(fb);
@@ -296,7 +296,7 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
  * so we use that to figure out if there's an object for us to use as the
  * fb, and if so, we re-use it for the fbdev configuration.
  *
- * Note we only support a single fb shared across pipes for boot (mostly for
+ * Analte we only support a single fb shared across pipes for boot (mostly for
  * fbcon), so we just find the biggest and use that.
  */
 static bool intel_fbdev_init_bios(struct drm_device *dev,
@@ -320,14 +320,14 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 		if (!crtc_state->uapi.active) {
 			drm_dbg_kms(&i915->drm,
-				    "[CRTC:%d:%s] not active, skipping\n",
+				    "[CRTC:%d:%s] analt active, skipping\n",
 				    crtc->base.base.id, crtc->base.name);
 			continue;
 		}
 
 		if (!obj) {
 			drm_dbg_kms(&i915->drm,
-				    "[PLANE:%d:%s] no fb, skipping\n",
+				    "[PLANE:%d:%s] anal fb, skipping\n",
 				    plane->base.base.id, plane->base.name);
 			continue;
 		}
@@ -343,11 +343,11 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 	if (!fb) {
 		drm_dbg_kms(&i915->drm,
-			    "no active fbs found, not using BIOS config\n");
+			    "anal active fbs found, analt using BIOS config\n");
 		goto out;
 	}
 
-	/* Now make sure all the pipes will fit into it */
+	/* Analw make sure all the pipes will fit into it */
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
@@ -357,7 +357,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 		if (!crtc_state->uapi.active) {
 			drm_dbg_kms(&i915->drm,
-				    "[CRTC:%d:%s] not active, skipping\n",
+				    "[CRTC:%d:%s] analt active, skipping\n",
 				    crtc->base.base.id, crtc->base.name);
 			continue;
 		}
@@ -367,14 +367,14 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 		/*
 		 * See if the plane fb we found above will fit on this
-		 * pipe.  Note we need to use the selected fb's pitch and bpp
+		 * pipe.  Analte we need to use the selected fb's pitch and bpp
 		 * rather than the current pipe's, since they differ.
 		 */
 		cur_size = crtc_state->uapi.adjusted_mode.crtc_hdisplay;
 		cur_size = cur_size * fb->base.format->cpp[0];
 		if (fb->base.pitches[0] < cur_size) {
 			drm_dbg_kms(&i915->drm,
-				    "fb not wide enough for [PLANE:%d:%s] (%d vs %d)\n",
+				    "fb analt wide eanalugh for [PLANE:%d:%s] (%d vs %d)\n",
 				    plane->base.base.id, plane->base.name,
 				    cur_size, fb->base.pitches[0]);
 			fb = NULL;
@@ -394,7 +394,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 		if (cur_size > max_size) {
 			drm_dbg_kms(&i915->drm,
-				    "fb not big enough for [PLANE:%d:%s] (%d vs %d)\n",
+				    "fb analt big eanalugh for [PLANE:%d:%s] (%d vs %d)\n",
 				    plane->base.base.id, plane->base.name,
 				    cur_size, max_size);
 			fb = NULL;
@@ -402,14 +402,14 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		}
 
 		drm_dbg_kms(&i915->drm,
-			    "fb big enough [PLANE:%d:%s] (%d >= %d)\n",
+			    "fb big eanalugh [PLANE:%d:%s] (%d >= %d)\n",
 			    plane->base.base.id, plane->base.name,
 			    max_size, cur_size);
 	}
 
 	if (!fb) {
 		drm_dbg_kms(&i915->drm,
-			    "BIOS fb not suitable for all pipes, not using\n");
+			    "BIOS fb analt suitable for all pipes, analt using\n");
 		goto out;
 	}
 
@@ -460,11 +460,11 @@ int intel_fbdev_init(struct drm_device *dev)
 	int ret;
 
 	if (drm_WARN_ON(dev, !HAS_DISPLAY(dev_priv)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);
 	if (ifbdev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ifbdev->hpd_lock);
 	drm_fb_helper_prepare(dev, &ifbdev->helper, 32, &intel_fb_helper_funcs);
@@ -561,7 +561,7 @@ static void intel_fbdev_hpd_set_suspend(struct drm_i915_private *i915, int state
 	}
 }
 
-void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
+void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchroanalus)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->display.fbdev.fbdev;
@@ -578,12 +578,12 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 
 	info = ifbdev->helper.info;
 
-	if (synchronous) {
+	if (synchroanalus) {
 		/* Flush any pending work to turn the console on, and then
-		 * wait to turn it off. It must be synchronous as we are
+		 * wait to turn it off. It must be synchroanalus as we are
 		 * about to suspend or unload the driver.
 		 *
-		 * Note that from within the work-handler, we cannot flush
+		 * Analte that from within the work-handler, we cananalt flush
 		 * ourselves, so only flush outstanding work upon suspend!
 		 */
 		if (state != FBINFO_STATE_RUNNING)
@@ -601,7 +601,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 			/* Don't block our own workqueue as this can
 			 * be run in parallel with other i915.ko tasks.
 			 */
-			queue_work(dev_priv->unordered_wq,
+			queue_work(dev_priv->uanalrdered_wq,
 				   &dev_priv->display.fbdev.suspend_work);
 			return;
 		}

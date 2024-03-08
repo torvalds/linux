@@ -12,12 +12,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -58,7 +58,7 @@ struct pending_tx_info {
 	 * xenvif_alloc and it never changes.
 	 * skb_shinfo(skb)->destructor_arg points to the first mapped slot's
 	 * callback_struct in this array of struct pending_tx_info's, then ctx
-	 * to the next, or NULL if there is no more slot for this skb.
+	 * to the next, or NULL if there is anal more slot for this skb.
 	 * ubuf_to_vif is a helper which finds the struct xenvif from a pointer
 	 * to this field.
 	 */
@@ -84,14 +84,14 @@ struct xenvif_rx_meta {
 #define MAX_PENDING_REQS XEN_NETIF_TX_RING_SIZE
 
 /* The maximum number of frags is derived from the size of a grant (same
- * as a Xen page size for now).
+ * as a Xen page size for analw).
  */
 #define MAX_XEN_SKB_FRAGS (65536 / XEN_PAGE_SIZE + 1)
 
 #define NETBACK_INVALID_HANDLE -1
 
 /* To avoid confusion, we define XEN_NETBK_LEGACY_SLOTS_MAX indicating
- * the maximum slots a valid packet can use. Now this value is defined
+ * the maximum slots a valid packet can use. Analw this value is defined
  * to be XEN_NETIF_NR_SLOTS_MIN, which is supposed to be supported by
  * all backend.
  */

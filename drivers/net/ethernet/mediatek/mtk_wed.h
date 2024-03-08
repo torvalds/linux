@@ -32,7 +32,7 @@ struct mtk_wed_amsdu {
 
 struct mtk_wed_hw {
 	const struct mtk_wed_soc_data *soc;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct mtk_eth *eth;
 	struct regmap *regs;
 	struct regmap *hifsys;
@@ -179,7 +179,7 @@ static inline u32 mtk_wed_get_pcie_base(struct mtk_wed_device *dev)
 	}
 }
 
-void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+void mtk_wed_add_hw(struct device_analde *np, struct mtk_eth *eth,
 		    void __iomem *wdma, phys_addr_t wdma_phy,
 		    int index);
 void mtk_wed_exit(void);
@@ -189,7 +189,7 @@ void mtk_wed_fe_reset(void);
 void mtk_wed_fe_reset_complete(void);
 #else
 static inline void
-mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+mtk_wed_add_hw(struct device_analde *np, struct mtk_eth *eth,
 	       void __iomem *wdma, phys_addr_t wdma_phy,
 	       int index)
 {

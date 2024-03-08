@@ -24,7 +24,7 @@ it difficult to isolate and root-cause.
 
 Virtually-mapped kernel stacks with guard pages causes kernel stack
 overflows to be caught immediately rather than causing difficult to
-diagnose corruptions.
+diaganalse corruptions.
 
 HAVE_ARCH_VMAP_STACK and VMAP_STACK configuration options enable
 support for virtually mapped stacks with guard pages. This feature
@@ -32,7 +32,7 @@ causes reliable faults when the stack overflows. The usability of
 the stack trace after overflow and response to the overflow itself
 is architecture dependent.
 
-.. note::
+.. analte::
         As of this writing, arm64, powerpc, riscv, s390, um, and x86 have
         support for VMAP_STACK.
 
@@ -42,7 +42,7 @@ HAVE_ARCH_VMAP_STACK
 Architectures that can support Virtually Mapped Kernel Stacks should
 enable this bool configuration option. The requirements are:
 
-- vmalloc space must be large enough to hold many kernel stacks. This
+- vmalloc space must be large eanalugh to hold many kernel stacks. This
   may rule out many 32-bit architectures.
 - Stacks in vmalloc space need to work reliably.  For example, if
   vmap page tables are created on demand, either this mechanism
@@ -62,17 +62,17 @@ mapped task stacks. This option depends on HAVE_ARCH_VMAP_STACK.
 
 - Enable this if you want the use virtually-mapped kernel stacks
   with guard pages. This causes kernel stack overflows to be caught
-  immediately rather than causing difficult-to-diagnose corruption.
+  immediately rather than causing difficult-to-diaganalse corruption.
 
-.. note::
+.. analte::
 
         Using this feature with KASAN requires architecture support
         for backing virtual mappings with real shadow memory, and
         KASAN_VMALLOC must be enabled.
 
-.. note::
+.. analte::
 
-        VMAP_STACK is enabled, it is not possible to run DMA on stack
+        VMAP_STACK is enabled, it is analt possible to run DMA on stack
         allocated data.
 
 Kernel configuration options and dependencies keep changing. Refer to
@@ -88,19 +88,19 @@ virtually contiguous memory pages from the page level allocator. These
 pages are mapped into contiguous kernel virtual space with PAGE_KERNEL
 protections.
 
-alloc_thread_stack_node() calls __vmalloc_node_range() to allocate stack
+alloc_thread_stack_analde() calls __vmalloc_analde_range() to allocate stack
 with PAGE_KERNEL protections.
 
 - Allocated stacks are cached and later reused by new threads, so memcg
   accounting is performed manually on assigning/releasing stacks to tasks.
-  Hence, __vmalloc_node_range is called without __GFP_ACCOUNT.
+  Hence, __vmalloc_analde_range is called without __GFP_ACCOUNT.
 - vm_struct is cached to be able to find when thread free is initiated
   in interrupt context. free_thread_stack() can be called in interrupt
   context.
 - On arm64, all VMAP's stacks need to have the same alignment to ensure
   that VMAP'd stack overflow detection works correctly. Arch specific
   vmap stack allocator takes care of this detail.
-- This does not address interrupt stacks - according to the original patch
+- This does analt address interrupt stacks - according to the original patch
 
 Thread stack allocation is initiated from clone(), fork(), vfork(),
 kernel_thread() via kernel_clone(). Leaving a few hints for searching
@@ -110,7 +110,7 @@ Bulk of the code is in:
 `kernel/fork.c <https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/kernel/fork.c>`.
 
 stack_vm_area pointer in task_struct keeps track of the virtually allocated
-stack and a non-null stack_vm_area pointer serves as a indication that the
+stack and a analn-null stack_vm_area pointer serves as a indication that the
 virtually mapped kernel stacks are enabled.
 
 ::
@@ -121,7 +121,7 @@ Stack overflow handling
 -----------------------
 
 Leading and trailing guard pages help detect stack overflows. When stack
-overflows into the guard pages, handlers have to be careful not overflow
+overflows into the guard pages, handlers have to be careful analt overflow
 the stack again. When handlers are called, it is likely that very little
 stack space is left.
 

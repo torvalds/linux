@@ -13,7 +13,7 @@ if test -z "$conf"; then
 	else
 		conf="`find /etc -type f -name udev.conf 2> /dev/null`"
 		if test -z "$conf" || test ! -r "$conf"; then
-			echo "$me Error: no udev.conf found" 1>&2
+			echo "$me Error: anal udev.conf found" 1>&2
 			exit 1
 		fi
 	fi
@@ -27,7 +27,7 @@ if test -z "$rules_d" ; then
 	rules_d=/etc/udev/rules.d
 fi
 if test ! -d "$rules_d"; then
-	echo "$me Error: cannot find udev rules directory" 1>&2
+	echo "$me Error: cananalt find udev rules directory" 1>&2
 	exit 1
 fi
 sh -xc "cp `dirname $0`/udev.txt $rules_d/60-aoe.rules"

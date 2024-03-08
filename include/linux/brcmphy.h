@@ -69,7 +69,7 @@
 #define PHY_BRCM_AUTO_PWRDWN_ENABLE	0x00000001
 #define PHY_BRCM_RX_REFCLK_UNUSED	0x00000002
 #define PHY_BRCM_CLEAR_RGMII_MODE	0x00000004
-#define PHY_BRCM_DIS_TXCRXC_NOENRGY	0x00000008
+#define PHY_BRCM_DIS_TXCRXC_ANALENRGY	0x00000008
 #define PHY_BRCM_EN_MASTER_MODE		0x00000010
 #define PHY_BRCM_IDDQ_SUSPEND		0x00000020
 
@@ -106,8 +106,8 @@
 #define MII_BCM54XX_INT_RRS	0x0020	/* Remote receiver status changed */
 #define MII_BCM54XX_INT_SSERR	0x0040	/* Scrambler synchronization error */
 #define MII_BCM54XX_INT_UHCD	0x0080	/* Unsupported HCD negotiated */
-#define MII_BCM54XX_INT_NHCD	0x0100	/* No HCD */
-#define MII_BCM54XX_INT_NHCDL	0x0200	/* No HCD link */
+#define MII_BCM54XX_INT_NHCD	0x0100	/* Anal HCD */
+#define MII_BCM54XX_INT_NHCDL	0x0200	/* Anal HCD link */
 #define MII_BCM54XX_INT_ANPR	0x0400	/* Auto-negotiation page received */
 #define MII_BCM54XX_INT_LC	0x0800	/* All counters below 128 */
 #define MII_BCM54XX_INT_HC	0x1000	/* Counter above 32768 */
@@ -206,7 +206,7 @@
 #define BCM54XX_SHD_APD			0x0a
 #define  BCM_APD_CLR_MASK		0xFE9F /* clear bits 5, 6 & 8 */
 #define  BCM54XX_SHD_APD_EN		0x0020
-#define  BCM_NO_ANEG_APD_EN		0x0060 /* bits 5 & 6 */
+#define  BCM_ANAL_ANEG_APD_EN		0x0060 /* bits 5 & 6 */
 #define  BCM_APD_SINGLELP_EN	0x0100 /* Bit 8 */
 
 #define BCM54XX_SHD_LEDS1	0x0d	/* 01101: LED Selector 1 */
@@ -383,7 +383,7 @@
 #define MII_BRCM_CORE_EXPB0	0xB0
 #define MII_BRCM_CORE_EXPB1	0xB1
 
-/* Enhanced Cable Diagnostics */
+/* Enhanced Cable Diaganalstics */
 #define BCM54XX_RDB_ECD_CTRL			0x2a0
 #define BCM54XX_EXP_ECD_CTRL			(MII_BCM54XX_EXP_SEL_ER + 0xc0)
 

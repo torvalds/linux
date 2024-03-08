@@ -89,7 +89,7 @@ struct iio_hw_consumer *iio_hw_consumer_alloc(struct device *dev)
 
 	hwc = kzalloc(sizeof(*hwc), GFP_KERNEL);
 	if (!hwc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&hwc->buffers);
 
@@ -103,7 +103,7 @@ struct iio_hw_consumer *iio_hw_consumer_alloc(struct device *dev)
 	while (chan->indio_dev) {
 		buf = iio_hw_consumer_get_buffer(hwc, chan->indio_dev);
 		if (!buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_put_buffers;
 		}
 		set_bit(chan->channel->scan_index, buf->buffer.scan_mask);

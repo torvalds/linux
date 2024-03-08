@@ -93,7 +93,7 @@ MODULE_PARM_DESC(joystick, "Enable joystick.");
 #endif /* SUPPORT_JOYSTICK */
 #ifdef CHIP1371
 module_param_array(spdif, int, NULL, 0444);
-MODULE_PARM_DESC(spdif, "S/PDIF output (-1 = none, 0 = auto, 1 = force).");
+MODULE_PARM_DESC(spdif, "S/PDIF output (-1 = analne, 0 = auto, 1 = force).");
 module_param_array(lineio, int, NULL, 0444);
 MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
 #endif
@@ -102,7 +102,7 @@ MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
 /* This is a little confusing because all ES1371 compatible chips have the
    same DEVICE_ID, the only thing differentiating them is the REV_ID field.
    This is only significant if you want to enable features on the later parts.
-   Yes, I know it's stupid and why didn't we use the sub IDs?
+   Anal, I kanalw it's stupid and why didn't we use the sub IDs?
 */
 #define ES1371REV_ES1373_A  0x04
 #define ES1371REV_ES1373_B  0x06
@@ -126,7 +126,7 @@ MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
 #define   ES_1373_BYPASS_P1	(1<<31)		/* bypass SRC for PB1 */
 #define   ES_1373_BYPASS_P2	(1<<30)		/* bypass SRC for PB2 */
 #define   ES_1373_BYPASS_R	(1<<29)		/* bypass SRC for REC */
-#define   ES_1373_TEST_BIT	(1<<28)		/* should be set to 0 for normal operation */
+#define   ES_1373_TEST_BIT	(1<<28)		/* should be set to 0 for analrmal operation */
 #define   ES_1373_RECEN_B	(1<<27)		/* mix record with playback for I2S/SPDIF out */
 #define   ES_1373_SPDIF_THRU	(1<<26)		/* 0 = SPDIF thru mode, 1 = SPDIF == dig out */
 #define   ES_1371_JOY_ASEL(o)	(((o)&0x03)<<24)/* joystick port mapping */
@@ -145,7 +145,7 @@ MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
 #define   ES_1370_WTSRSELM	(0x03<<12)	/* mask for above */
 #define   ES_1371_ADC_STOP	(1<<13)		/* disable CCB transfer capture information */
 #define   ES_1371_PWR_INTRM	(1<<12)		/* power level change interrupts enable */
-#define   ES_1370_DAC_SYNC	(1<<11)		/* DAC's are synchronous */
+#define   ES_1370_DAC_SYNC	(1<<11)		/* DAC's are synchroanalus */
 #define   ES_1371_M_CB		(1<<11)		/* capture clock source; 0 = AC'97 ADC; 1 = I2S */
 #define   ES_CCB_INTRM		(1<<10)		/* CCB voice interrupts enable */
 #define   ES_1370_M_CB		(1<<9)		/* capture clock source; 0 = ADC; 1 = MPEG */
@@ -193,7 +193,7 @@ MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
 #define   ES_RXRDY		(1<<0)		/* receiver ready */
 #define ES_REG_UART_CONTROL 0x09	/* W/O: UART control register */
 #define   ES_RXINTEN		(1<<7)		/* RX interrupt enable */
-#define   ES_TXINTENO(o)	(((o)&0x03)<<5)	/* TX interrupt enable */
+#define   ES_TXINTEANAL(o)	(((o)&0x03)<<5)	/* TX interrupt enable */
 #define   ES_TXINTENM		(0x03<<5)	/* mask for above */
 #define   ES_TXINTENI(i)	(((i)>>5)&0x03)
 #define   ES_CNTRL(o)		(((o)&0x03)<<0)	/* control */
@@ -273,7 +273,7 @@ MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
 #define   ES_P1_INT_EN		(1<<8)		/* DAC1 interrupt enable */
 #define   ES_P1_SCT_RLD		(1<<7)		/* force sample counter reload for DAC1 */
 #define   ES_P2_DAC_SEN		(1<<6)		/* when stop mode: 0 - DAC2 play back zeros; 1 = DAC2 play back last sample */
-#define   ES_R1_MODEO(o)	(((o)&0x03)<<4)	/* ADC mode; 0 = 8-bit mono; 1 = 8-bit stereo; 2 = 16-bit mono; 3 = 16-bit stereo */
+#define   ES_R1_MODEO(o)	(((o)&0x03)<<4)	/* ADC mode; 0 = 8-bit moanal; 1 = 8-bit stereo; 2 = 16-bit moanal; 3 = 16-bit stereo */
 #define   ES_R1_MODEM		(0x03<<4)	/* mask for above */
 #define   ES_R1_MODEI(i)	(((i)>>4)&0x03)
 #define   ES_P2_MODEO(o)	(((o)&0x03)<<2)	/* DAC2 mode; -- '' -- */
@@ -521,7 +521,7 @@ static unsigned int snd_es1371_src_read(struct ensoniq * ensoniq, unsigned short
 	r |= ES_1371_SRC_RAM_ADDRO(reg) | 0x10000;
 	outl(r, ES_REG(ensoniq, 1371_SMPRATE));
 
-	/* now, wait for busy and the correct time to read */
+	/* analw, wait for busy and the correct time to read */
 	temp = snd_es1371_wait_src_ready(ensoniq);
 	
 	if ((temp & 0x00870000) != 0x00010000) {
@@ -604,7 +604,7 @@ static void snd_es1371_codec_write(struct snd_ac97 *ac97,
 			outl((x & (ES_1371_SRC_DISABLE | ES_1371_DIS_P1 |
 			           ES_1371_DIS_P2 | ES_1371_DIS_R1)) | 0x00010000,
 			     ES_REG(ensoniq, 1371_SMPRATE));
-			/* wait for not busy (state 0) first to avoid
+			/* wait for analt busy (state 0) first to avoid
 			   transition states */
 			for (t = 0; t < POLL_COUNT; t++) {
 				if ((inl(ES_REG(ensoniq, 1371_SMPRATE)) & 0x00870000) ==
@@ -647,7 +647,7 @@ static unsigned short snd_es1371_codec_read(struct snd_ac97 *ac97,
 			outl((x & (ES_1371_SRC_DISABLE | ES_1371_DIS_P1 |
 			           ES_1371_DIS_P2 | ES_1371_DIS_R1)) | 0x00010000,
 			     ES_REG(ensoniq, 1371_SMPRATE));
-			/* wait for not busy (state 0) first to avoid
+			/* wait for analt busy (state 0) first to avoid
 			   transition states */
 			for (t = 0; t < POLL_COUNT; t++) {
 				if ((inl(ES_REG(ensoniq, 1371_SMPRATE)) & 0x00870000) ==
@@ -670,7 +670,7 @@ static unsigned short snd_es1371_codec_read(struct snd_ac97 *ac97,
 				if (!(inl(ES_REG(ensoniq, 1371_CODEC)) & ES_1371_CODEC_WIP))
 					break;		
 			}
-			/* now wait for the stinkin' data (RDY) */
+			/* analw wait for the stinkin' data (RDY) */
 			for (t = 0; t < POLL_COUNT; t++) {
 				x = inl(ES_REG(ensoniq, 1371_CODEC));
 				if (x & ES_1371_CODEC_RDY) {
@@ -1037,7 +1037,7 @@ static const struct snd_pcm_hardware snd_ensoniq_playback1 =
 #ifndef CHIP1370
 				SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
 #else
-				(SNDRV_PCM_RATE_KNOT | 	/* 5512Hz rate */
+				(SNDRV_PCM_RATE_KANALT | 	/* 5512Hz rate */
 				 SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_22050 | 
 				 SNDRV_PCM_RATE_44100),
 #endif
@@ -1220,7 +1220,7 @@ static const struct snd_pcm_ops snd_ensoniq_capture_ops = {
 
 static const struct snd_pcm_chmap_elem surround_map[] = {
 	{ .channels = 1,
-	  .map = { SNDRV_CHMAP_MONO } },
+	  .map = { SNDRV_CHMAP_MOANAL } },
 	{ .channels = 2,
 	  .map = { SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
 	{ }
@@ -1390,7 +1390,7 @@ static int snd_ens1373_spdif_stream_put(struct snd_kcontrol *kcontrol,
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .info = snd_es1371_spdif_info, \
   .get = snd_es1371_spdif_get, .put = snd_es1371_spdif_put }
 
-#define snd_es1371_spdif_info		snd_ctl_boolean_mono_info
+#define snd_es1371_spdif_info		snd_ctl_boolean_moanal_info
 
 static int snd_es1371_spdif_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -1452,7 +1452,7 @@ static const struct snd_kcontrol_new snd_es1371_mixer_spdif[] = {
 };
 
 
-#define snd_es1373_rear_info		snd_ctl_boolean_mono_info
+#define snd_es1373_rear_info		snd_ctl_boolean_moanal_info
 
 static int snd_es1373_rear_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
@@ -1497,7 +1497,7 @@ static const struct snd_kcontrol_new snd_ens1373_rear =
 	.put =		snd_es1373_rear_put,
 };
 
-#define snd_es1373_line_info		snd_ctl_boolean_mono_info
+#define snd_es1373_line_info		snd_ctl_boolean_moanal_info
 
 static int snd_es1373_line_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
@@ -1622,7 +1622,7 @@ static int snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
 		for (i = 0; i < ARRAY_SIZE(snd_es1371_mixer_spdif); i++) {
 			kctl = snd_ctl_new1(&snd_es1371_mixer_spdif[i], ensoniq);
 			if (!kctl)
-				return -ENOMEM;
+				return -EANALMEM;
 			kctl->id.index = is_spdif;
 			err = snd_ctl_add(card, kctl);
 			if (err < 0)
@@ -1657,7 +1657,7 @@ static int snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
   .get = snd_ensoniq_control_get, .put = snd_ensoniq_control_put, \
   .private_value = mask }
 
-#define snd_ensoniq_control_info	snd_ctl_boolean_mono_info
+#define snd_ensoniq_control_info	snd_ctl_boolean_moanal_info
 
 static int snd_ensoniq_control_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
@@ -1774,7 +1774,7 @@ static int snd_ensoniq_create_gameport(struct ensoniq *ensoniq, int dev)
 
 	switch (io_port) {
 	case 0:
-		return -ENOSYS;
+		return -EANALSYS;
 
 	case 1: /* auto_detect */
 		for (io_port = 0x200; io_port <= 0x218; io_port += 8)
@@ -1782,7 +1782,7 @@ static int snd_ensoniq_create_gameport(struct ensoniq *ensoniq, int dev)
 				break;
 		if (io_port > 0x218) {
 			dev_warn(ensoniq->card->dev,
-				 "no gameport ports available\n");
+				 "anal gameport ports available\n");
 			return -EBUSY;
 		}
 		break;
@@ -1800,9 +1800,9 @@ static int snd_ensoniq_create_gameport(struct ensoniq *ensoniq, int dev)
 	ensoniq->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(ensoniq->card->dev,
-			"cannot allocate memory for gameport\n");
+			"cananalt allocate memory for gameport\n");
 		release_region(io_port, 8);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gameport_set_name(gp, "ES137x");
@@ -1835,7 +1835,7 @@ static void snd_ensoniq_free_gameport(struct ensoniq *ensoniq)
 	}
 }
 #else
-static inline int snd_ensoniq_create_gameport(struct ensoniq *ensoniq, long port) { return -ENOSYS; }
+static inline int snd_ensoniq_create_gameport(struct ensoniq *ensoniq, long port) { return -EANALSYS; }
 static inline void snd_ensoniq_free_gameport(struct ensoniq *ensoniq) { }
 #endif /* SUPPORT_JOYSTICK */
 
@@ -1891,7 +1891,7 @@ static const struct snd_pci_quirk es1371_amplifier_hack[] = {
 	SND_PCI_QUIRK_ID(0x107b, 0x2150),	/* Gateway Solo 2150 */
 	SND_PCI_QUIRK_ID(0x13bd, 0x100c),	/* EV1938 on Mebius PC-MJ100V */
 	SND_PCI_QUIRK_ID(0x1102, 0x5938),	/* Targa Xtender300 */
-	SND_PCI_QUIRK_ID(0x1102, 0x8938),	/* IPC Topnote G notebook */
+	SND_PCI_QUIRK_ID(0x1102, 0x8938),	/* IPC Topanalte G analtebook */
 	{ } /* end */
 };
 
@@ -1926,7 +1926,7 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 	if (es1371_quirk_lookup(ensoniq, es1371_ac97_reset_hack)) {
 	    outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
 	    /* need to delay around 20ms(bleech) to give
-	       some CODECs enough time to wakeup */
+	       some CODECs eanalugh time to wakeup */
 	    msleep(20);
 	}
 	/* AC'97 warm reset to start the bitclk */
@@ -1955,7 +1955,7 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 	/* WARNING:
 	 * enabling the sample rate converter without properly programming
 	 * its parameters causes the chip to lock up (the SRC busy bit will
-	 * be stuck high, and I've found no way to rectify this other than
+	 * be stuck high, and I've found anal way to rectify this other than
 	 * power cycle) - Thomas Sailer
 	 */
 	snd_es1371_wait_src_ready(ensoniq);
@@ -2042,7 +2042,7 @@ static int snd_ensoniq_create(struct snd_card *card,
 	ensoniq->dma_bug =
 		snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV, 16);
 	if (!ensoniq->dma_bug)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 	pci_set_master(pci);
 	ensoniq->rev = pci->revision;
@@ -2212,7 +2212,7 @@ static void snd_ensoniq_midi_output_trigger(struct snd_rawmidi_substream *substr
 	spin_lock_irqsave(&ensoniq->reg_lock, flags);
 	if (up) {
 		if (ES_TXINTENI(ensoniq->uartc) == 0) {
-			ensoniq->uartc |= ES_TXINTENO(1);
+			ensoniq->uartc |= ES_TXINTEANAL(1);
 			/* fill UART FIFO buffer at first, and turn Tx interrupts only if necessary */
 			while (ES_TXINTENI(ensoniq->uartc) == 1 &&
 			       (inb(ES_REG(ensoniq, UART_STATUS)) & ES_TXRDY)) {
@@ -2275,11 +2275,11 @@ static irqreturn_t snd_audiopci_interrupt(int irq, void *dev_id)
 	unsigned int status, sctrl;
 
 	if (ensoniq == NULL)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = inl(ES_REG(ensoniq, STATUS));
 	if (!(status & ES_INTR))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&ensoniq->reg_lock);
 	sctrl = ensoniq->sctrl;
@@ -2313,10 +2313,10 @@ static int __snd_audiopci_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

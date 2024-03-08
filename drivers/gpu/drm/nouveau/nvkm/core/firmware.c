@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -53,7 +53,7 @@ nvkm_firmware_load_blob(const struct nvkm_subdev *subdev, const char *base,
 		blob->size = fw->size;
 		nvkm_firmware_put(fw);
 		if (!blob->data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return ret;
@@ -91,14 +91,14 @@ nvkm_firmware_get(const struct nvkm_subdev *subdev, const char *fwname, int ver,
 	else
 		snprintf(f, sizeof(f), "nvidia/%s/%s.bin", cname, fwname);
 
-	if (!firmware_request_nowarn(fw, f, device->dev)) {
+	if (!firmware_request_analwarn(fw, f, device->dev)) {
 		nvkm_debug(subdev, "firmware \"%s\" loaded - %zu byte(s)\n",
 			   f, (*fw)->size);
 		return 0;
 	}
 
 	nvkm_debug(subdev, "firmware \"%s\" unavailable\n", f);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
@@ -140,7 +140,7 @@ nvkm_firmware_mem_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *v
 	};
 
 	if (!map.sgl)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return nvkm_vmm_map(vmm, vma, argv, argc, &map);
 }
@@ -299,7 +299,7 @@ nvkm_firmware_ctor(const struct nvkm_firmware_func *func, const char *name,
 	}
 
 	if (!fw->img)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_memory_ctor(&nvkm_firmware_mem, &fw->mem.memory);
 	return 0;

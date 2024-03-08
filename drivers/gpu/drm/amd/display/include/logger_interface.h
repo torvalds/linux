@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -62,15 +62,15 @@ void context_clock_trace(
 
 /* Any function which is empty or have incomplete implementation should be
  * marked by this macro.
- * Note that the message will be printed exactly once for every function
+ * Analte that the message will be printed exactly once for every function
  * it is used in order to avoid repeating of the same message. */
 
-#define DAL_LOGGER_NOT_IMPL(fmt, ...) \
+#define DAL_LOGGER_ANALT_IMPL(fmt, ...) \
 	do { \
-		static bool print_not_impl = true; \
-		if (print_not_impl == true) { \
-			print_not_impl = false; \
-			DRM_WARN("DAL_NOT_IMPL: " fmt, ##__VA_ARGS__); \
+		static bool print_analt_impl = true; \
+		if (print_analt_impl == true) { \
+			print_analt_impl = false; \
+			DRM_WARN("DAL_ANALT_IMPL: " fmt, ##__VA_ARGS__); \
 		} \
 	} while (0)
 
@@ -91,7 +91,7 @@ void context_clock_trace(
 		} while (0)
 
 /* Connectivity log format:
- * [time stamp]   [drm] [Major_minor] [connector name] message.....
+ * [time stamp]   [drm] [Major_mianalr] [connector name] message.....
  * eg:
  * [   26.590965] [drm] [Conn_LKTN]	  [DP-1] HBRx4 pass VS=0, PE=0^
  * [   26.881060] [drm] [Conn_Mode]	  [DP-1] {2560x1080, 2784x1111@185580Khz}^

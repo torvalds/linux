@@ -212,7 +212,7 @@ static void dp83822_get_wol(struct phy_device *phydev,
 		wol->wolopts |= WAKE_MAGICSECURE;
 	}
 
-	/* WoL is not enabled so set wolopts to 0 */
+	/* WoL is analt enabled so set wolopts to 0 */
 	if (!(value & DP83822_WOL_EN))
 		wol->wolopts = 0;
 }
@@ -297,13 +297,13 @@ static irqreturn_t dp83822_handle_interrupt(struct phy_device *phydev)
 	 * the upper half (15:8), while the lower half (7:0) is used for
 	 * controlling the interrupt enable state of those individual interrupt
 	 * sources. To determine the possible interrupt sources, just read the
-	 * MISR* register and use it directly to know which interrupts have
-	 * been enabled previously or not.
+	 * MISR* register and use it directly to kanalw which interrupts have
+	 * been enabled previously or analt.
 	 */
 	irq_status = phy_read(phydev, MII_DP83822_MISR1);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
 		trigger_machine = true;
@@ -311,13 +311,13 @@ static irqreturn_t dp83822_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_DP83822_MISR2);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
 		trigger_machine = true;
 
 	if (!trigger_machine)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -340,8 +340,8 @@ static int dp83822_read_status(struct phy_device *phydev)
 
 	if (dp83822->fx_enabled) {
 		if (status & DP83822_PHYSTS_LINK) {
-			phydev->speed = SPEED_UNKNOWN;
-			phydev->duplex = DUPLEX_UNKNOWN;
+			phydev->speed = SPEED_UNKANALWN;
+			phydev->duplex = DUPLEX_UNKANALWN;
 		} else {
 			ctrl2 = phy_read(phydev, MII_DP83822_CTRL_2);
 			if (ctrl2 < 0)
@@ -439,7 +439,7 @@ static int dp83822_config_init(struct phy_device *phydev)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
 				 phydev->advertising);
 
-		/* Auto neg is not supported in fiber mode */
+		/* Auto neg is analt supported in fiber mode */
 		bmcr = phy_read(phydev, MII_BMCR);
 		if (bmcr < 0)
 			return bmcr;
@@ -551,7 +551,7 @@ static int dp83822_probe(struct phy_device *phydev)
 	dp83822 = devm_kzalloc(&phydev->mdio.dev, sizeof(*dp83822),
 			       GFP_KERNEL);
 	if (!dp83822)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = dp83822;
 

@@ -22,9 +22,9 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	CHANNEL_SWITCH_TIME_EVENT_CMD = 0x4,
 	/**
-	 * @MISSED_VAP_NOTIF: &struct iwl_missed_vap_notif
+	 * @MISSED_VAP_ANALTIF: &struct iwl_missed_vap_analtif
 	 */
-	MISSED_VAP_NOTIF = 0xFA,
+	MISSED_VAP_ANALTIF = 0xFA,
 	/**
 	 * @SESSION_PROTECTION_CMD: &struct iwl_mvm_session_prot_cmd
 	 */
@@ -62,81 +62,81 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	ROC_CMD = 0xE,
 	/**
-	 * @ROC_NOTIF: &struct iwl_roc_notif
+	 * @ROC_ANALTIF: &struct iwl_roc_analtif
 	 */
-	ROC_NOTIF = 0xF8,
+	ROC_ANALTIF = 0xF8,
 	/**
-	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
+	 * @SESSION_PROTECTION_ANALTIF: &struct iwl_mvm_session_prot_analtif
 	 */
-	SESSION_PROTECTION_NOTIF = 0xFB,
+	SESSION_PROTECTION_ANALTIF = 0xFB,
 
 	/**
-	 * @PROBE_RESPONSE_DATA_NOTIF: &struct iwl_probe_resp_data_notif
+	 * @PROBE_RESPONSE_DATA_ANALTIF: &struct iwl_probe_resp_data_analtif
 	 */
-	PROBE_RESPONSE_DATA_NOTIF = 0xFC,
+	PROBE_RESPONSE_DATA_ANALTIF = 0xFC,
 
 	/**
-	 * @CHANNEL_SWITCH_START_NOTIF: &struct iwl_channel_switch_start_notif
+	 * @CHANNEL_SWITCH_START_ANALTIF: &struct iwl_channel_switch_start_analtif
 	 */
-	CHANNEL_SWITCH_START_NOTIF = 0xFF,
+	CHANNEL_SWITCH_START_ANALTIF = 0xFF,
 
 	/**
-	 *@CHANNEL_SWITCH_ERROR_NOTIF: &struct iwl_channel_switch_error_notif
+	 *@CHANNEL_SWITCH_ERROR_ANALTIF: &struct iwl_channel_switch_error_analtif
 	 */
-	CHANNEL_SWITCH_ERROR_NOTIF = 0xF9,
+	CHANNEL_SWITCH_ERROR_ANALTIF = 0xF9,
 };
 
-#define IWL_P2P_NOA_DESC_COUNT	(2)
+#define IWL_P2P_ANALA_DESC_COUNT	(2)
 
 /**
- * struct iwl_p2p_noa_attr - NOA attr contained in probe resp FW notification
+ * struct iwl_p2p_anala_attr - ANALA attr contained in probe resp FW analtification
  *
  * @id: attribute id
  * @len_low: length low half
  * @len_high: length high half
- * @idx: instance of NoA timing
+ * @idx: instance of AnalA timing
  * @ctwin: GO's ct window and pwer save capability
- * @desc: NoA descriptor
+ * @desc: AnalA descriptor
  * @reserved: reserved for alignment purposes
  */
-struct iwl_p2p_noa_attr {
+struct iwl_p2p_anala_attr {
 	u8 id;
 	u8 len_low;
 	u8 len_high;
 	u8 idx;
 	u8 ctwin;
-	struct ieee80211_p2p_noa_desc desc[IWL_P2P_NOA_DESC_COUNT];
+	struct ieee80211_p2p_anala_desc desc[IWL_P2P_ANALA_DESC_COUNT];
 	u8 reserved;
 } __packed;
 
-#define IWL_PROBE_RESP_DATA_NO_CSA (0xff)
+#define IWL_PROBE_RESP_DATA_ANAL_CSA (0xff)
 
 /**
- * struct iwl_probe_resp_data_notif - notification with NOA and CSA counter
+ * struct iwl_probe_resp_data_analtif - analtification with ANALA and CSA counter
  *
  * @mac_id: the mac which should send the probe response
- * @noa_active: notifies if the noa attribute should be handled
- * @noa_attr: P2P NOA attribute
+ * @anala_active: analtifies if the anala attribute should be handled
+ * @anala_attr: P2P ANALA attribute
  * @csa_counter: current csa counter
  * @reserved: reserved for alignment purposes
  */
-struct iwl_probe_resp_data_notif {
+struct iwl_probe_resp_data_analtif {
 	__le32 mac_id;
-	__le32 noa_active;
-	struct iwl_p2p_noa_attr noa_attr;
+	__le32 anala_active;
+	struct iwl_p2p_anala_attr anala_attr;
 	u8 csa_counter;
 	u8 reserved[3];
 } __packed; /* PROBE_RESPONSE_DATA_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_missed_vap_notif - notification of missing vap detection
+ * struct iwl_missed_vap_analtif - analtification of missing vap detection
  *
- * @mac_id: the mac for which the ucode sends the notification for
- * @num_beacon_intervals_elapsed: beacons elpased with no vap profile inside
+ * @mac_id: the mac for which the ucode sends the analtification for
+ * @num_beacon_intervals_elapsed: beacons elpased with anal vap profile inside
  * @profile_periodicity: beacons period to have our profile inside
  * @reserved: reserved for alignment purposes
  */
-struct iwl_missed_vap_notif {
+struct iwl_missed_vap_analtif {
 	__le32 mac_id;
 	u8 num_beacon_intervals_elapsed;
 	u8 profile_periodicity;
@@ -144,20 +144,20 @@ struct iwl_missed_vap_notif {
 } __packed; /* MISSED_VAP_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_channel_switch_start_notif - Channel switch start notification
+ * struct iwl_channel_switch_start_analtif - Channel switch start analtification
  *
  * @id_and_color: ID and color of the MAC
  */
-struct iwl_channel_switch_start_notif_v1 {
+struct iwl_channel_switch_start_analtif_v1 {
 	__le32 id_and_color;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_channel_switch_start_notif - Channel switch start notification
+ * struct iwl_channel_switch_start_analtif - Channel switch start analtification
  *
  * @link_id: FW link id
  */
-struct iwl_channel_switch_start_notif {
+struct iwl_channel_switch_start_analtif {
 	__le32 link_id;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_3 */
 
@@ -167,23 +167,23 @@ struct iwl_channel_switch_start_notif {
 #define CS_ERR_TX_BLOCK_TIMER_EXPIRED BIT(3)
 
 /**
- * struct iwl_channel_switch_error_notif_v1 - Channel switch error notification
+ * struct iwl_channel_switch_error_analtif_v1 - Channel switch error analtification
  *
- * @mac_id: the mac for which the ucode sends the notification for
+ * @mac_id: the mac for which the ucode sends the analtification for
  * @csa_err_mask: mask of channel switch error that can occur
  */
-struct iwl_channel_switch_error_notif_v1 {
+struct iwl_channel_switch_error_analtif_v1 {
 	__le32 mac_id;
 	__le32 csa_err_mask;
 } __packed; /* CHANNEL_SWITCH_ERROR_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_channel_switch_error_notif - Channel switch error notification
+ * struct iwl_channel_switch_error_analtif - Channel switch error analtification
  *
  * @link_id: FW link id
  * @csa_err_mask: mask of channel switch error that can occur
  */
-struct iwl_channel_switch_error_notif {
+struct iwl_channel_switch_error_analtif {
 	__le32 link_id;
 	__le32 csa_err_mask;
 } __packed; /* CHANNEL_SWITCH_ERROR_NTFY_API_S_VER_2 */
@@ -250,7 +250,7 @@ struct iwl_mac_low_latency_cmd {
  * @data_policy: see &enum iwl_mac_data_policy
  * @reserved2: alignment
  * @ctwin: client traffic window in TU (period after TBTT when GO is present).
- *	0 indicates that there is no CT window.
+ *	0 indicates that there is anal CT window.
  */
 struct iwl_mac_client_data {
 	u8 is_assoc;
@@ -269,8 +269,8 @@ struct iwl_mac_client_data {
  *
  * @is_disc_extended: if set to true, P2P Device discoverability is enabled on
  *	other channels as well. This should be to true only in case that the
- *	device is discoverable and there is an active GO. Note that setting this
- *	field when not needed, will increase the number of interrupts and have
+ *	device is discoverable and there is an active GO. Analte that setting this
+ *	field when analt needed, will increase the number of interrupts and have
  *	effect on the platform power, as this setting opens the Rx filters on
  *	all macs.
  */
@@ -310,11 +310,11 @@ enum iwl_mac_config_filter_flags {
  * @reserved_for_local_mld_addr: reserved
  * @filter_flags: combination of &enum iwl_mac_config_filter_flags
  * @he_support: does this MAC support HE
- * @he_ap_support: HE AP enabled, "pseudo HE", no trigger frame handling
+ * @he_ap_support: HE AP enabled, "pseudo HE", anal trigger frame handling
  * @eht_support: does this MAC support EHT. Requires he_support
- * @nic_not_ack_enabled: mark that the NIC doesn't support receiving
- *	ACK-enabled AGG, (i.e. both BACK and non-BACK frames in single AGG).
- *	If the NIC is not ACK_ENABLED it may use the EOF-bit in first non-0
+ * @nic_analt_ack_enabled: mark that the NIC doesn't support receiving
+ *	ACK-enabled AGG, (i.e. both BACK and analn-BACK frames in single AGG).
+ *	If the NIC is analt ACK_ENABLED it may use the EOF-bit in first analn-0
  *	len delim to determine if AGG or single.
  * @client: client mac data
  * @go_ibss: mac data for go or ibss
@@ -332,7 +332,7 @@ struct iwl_mac_config_cmd {
 	__le16 he_support;
 	__le16 he_ap_support;
 	__le32 eht_support;
-	__le32 nic_not_ack_enabled;
+	__le32 nic_analt_ack_enabled;
 	/* MAC_CONTEXT_CONFIG_SPECIFIC_DATA_API_U_VER_2 */
 	union {
 		struct iwl_mac_client_data client;
@@ -410,11 +410,11 @@ enum iwl_link_ctx_protection_flags {
  *
  * @LINK_FLG_BSS_COLOR_DIS: BSS color disable, don't use the BSS
  *	color for RX filter but use MAC header
- *	enabled AGG, i.e. both BACK and non-BACK frames in a single AGG
+ *	enabled AGG, i.e. both BACK and analn-BACK frames in a single AGG
  * @LINK_FLG_MU_EDCA_CW: indicates that there is an element of MU EDCA
  *	parameter set, i.e. the backoff counters for trig-based ACs
  * @LINK_FLG_RU_2MHZ_BLOCK: indicates that 26-tone RU OFDMA transmission are
- *      not allowed (as there are OBSS that might classify such transmissions as
+ *      analt allowed (as there are OBSS that might classify such transmissions as
  *      radar pulses).
  * @LINK_FLG_NDP_FEEDBACK_ENABLED: mark support for NDP feedback and change
  *	of threshold
@@ -436,16 +436,16 @@ enum iwl_link_ctx_flags {
  * @mac_id: interface ID. Relevant only if action is FW_CTXT_ACTION_ADD
  * @phy_id: PHY index. Can be changed only if the link was inactive
  *	(and stays inactive). If the link is active (or becomes active),
- *	this field is ignored.
+ *	this field is iganalred.
  * @local_link_addr: the links MAC address. Can be changed only if the link was
  *	inactive (and stays inactive). If the link is active
- *	(or becomes active), this field is ignored.
+ *	(or becomes active), this field is iganalred.
  * @reserved_for_local_link_addr: reserved
  * @modify_mask: from &enum iwl_link_ctx_modify_flags, selects what to change.
  *	Relevant only if action is FW_CTXT_ACTION_MODIFY
- * @active: indicates whether the link is active or not
+ * @active: indicates whether the link is active or analt
  * @listen_lmac: indicates whether the link should be allocated on the Listen
- *	Lmac or on the Main Lmac. Cannot be changed on an active Link.
+ *	Lmac or on the Main Lmac. Cananalt be changed on an active Link.
  *	Relevant only for eSR.
  * @cck_rates: basic rates available for CCK
  * @ofdm_rates: basic rates available for OFDM
@@ -471,7 +471,7 @@ enum iwl_link_ctx_flags {
  * @reserved_for_ref_bssid_addr: reserved
  * @bssid_index: index of the associated VAP
  * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
- * @spec_link_id: link_id as the AP knows it
+ * @spec_link_id: link_id as the AP kanalws it
  * @reserved: alignment
  * @ibss_bssid_addr: bssid for ibss
  * @reserved_for_ibss_bssid_addr: reserved
@@ -533,7 +533,7 @@ struct iwl_link_config_cmd {
  * @STATION_TYPE_MCAST: the station used for BCAST / MCAST in GO. Will be
  *	suspended / resumed at the right timing depending on the clients'
  *	power save state and the DTIM timing
- * @STATION_TYPE_AUX: aux sta. In the FW there is no need for a special type
+ * @STATION_TYPE_AUX: aux sta. In the FW there is anal need for a special type
  *	for the aux sta, so this type is only for driver - internal use.
  */
 enum iwl_fw_sta_type {
@@ -558,11 +558,11 @@ enum iwl_fw_sta_type {
  * @station_type: type of this station. See &enum iwl_fw_sta_type
  * @assoc_id: for GO only
  * @beamform_flags: beam forming controls
- * @mfp: indicates whether the STA uses management frame protection or not.
- * @mimo: indicates whether the sta uses mimo or not
- * @mimo_protection: indicates whether the sta uses mimo protection or not
+ * @mfp: indicates whether the STA uses management frame protection or analt.
+ * @mimo: indicates whether the sta uses mimo or analt
+ * @mimo_protection: indicates whether the sta uses mimo protection or analt
  * @ack_enabled: indicates that the AP supports receiving ACK-
- *	enabled AGG, i.e. both BACK and non-BACK frames in a single AGG
+ *	enabled AGG, i.e. both BACK and analn-BACK frames in a single AGG
  * @trig_rnd_alloc: indicates that trigger based random allocation
  *	is enabled according to UORA element existence
  * @tx_ampdu_spacing: minimum A-MPDU spacing:

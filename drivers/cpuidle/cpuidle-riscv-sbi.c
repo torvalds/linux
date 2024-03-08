@@ -82,12 +82,12 @@ static int sbi_suspend_finisher(unsigned long suspend_type,
 	ret = sbi_ecall(SBI_EXT_HSM, SBI_EXT_HSM_HART_SUSPEND,
 			suspend_type, resume_addr, opaque, 0, 0, 0);
 
-	return (ret.error) ? sbi_err_map_linux_errno(ret.error) : 0;
+	return (ret.error) ? sbi_err_map_linux_erranal(ret.error) : 0;
 }
 
 static int sbi_suspend(u32 state)
 {
-	if (state & SBI_HSM_SUSP_NON_RET_BIT)
+	if (state & SBI_HSM_SUSP_ANALN_RET_BIT)
 		return cpu_suspend(state, sbi_suspend_finisher);
 	else
 		return sbi_suspend_finisher(state, 0, 0);
@@ -99,7 +99,7 @@ static __cpuidle int sbi_cpuidle_enter_state(struct cpuidle_device *dev,
 	u32 *states = __this_cpu_read(sbi_cpuidle_data.states);
 	u32 state = states[idx];
 
-	if (state & SBI_HSM_SUSP_NON_RET_BIT)
+	if (state & SBI_HSM_SUSP_ANALN_RET_BIT)
 		return CPU_PM_CPU_IDLE_ENTER_PARAM(sbi_suspend, idx, state);
 	else
 		return CPU_PM_CPU_IDLE_ENTER_RETENTION_PARAM(sbi_suspend,
@@ -192,7 +192,7 @@ static void sbi_idle_init_cpuhp(void)
 	if (!sbi_cpuidle_use_cpuhp)
 		return;
 
-	err = cpuhp_setup_state_nocalls(CPUHP_AP_CPU_PM_STARTING,
+	err = cpuhp_setup_state_analcalls(CPUHP_AP_CPU_PM_STARTING,
 					"cpuidle/sbi:online",
 					sbi_cpuidle_cpuhp_up,
 					sbi_cpuidle_cpuhp_down);
@@ -211,13 +211,13 @@ static bool sbi_suspend_state_is_valid(u32 state)
 	if (state > SBI_HSM_SUSPEND_RET_DEFAULT &&
 	    state < SBI_HSM_SUSPEND_RET_PLATFORM)
 		return false;
-	if (state > SBI_HSM_SUSPEND_NON_RET_DEFAULT &&
-	    state < SBI_HSM_SUSPEND_NON_RET_PLATFORM)
+	if (state > SBI_HSM_SUSPEND_ANALN_RET_DEFAULT &&
+	    state < SBI_HSM_SUSPEND_ANALN_RET_PLATFORM)
 		return false;
 	return true;
 }
 
-static int sbi_dt_parse_state_node(struct device_node *np, u32 *state)
+static int sbi_dt_parse_state_analde(struct device_analde *np, u32 *state)
 {
 	int err = of_property_read_u32(np, "riscv,sbi-suspend-param", state);
 
@@ -266,29 +266,29 @@ static int sbi_cpuidle_dt_init_states(struct device *dev,
 					unsigned int state_count)
 {
 	struct sbi_cpuidle_data *data = per_cpu_ptr(&sbi_cpuidle_data, cpu);
-	struct device_node *state_node;
-	struct device_node *cpu_node;
+	struct device_analde *state_analde;
+	struct device_analde *cpu_analde;
 	u32 *states;
 	int i, ret;
 
-	cpu_node = of_cpu_device_node_get(cpu);
-	if (!cpu_node)
-		return -ENODEV;
+	cpu_analde = of_cpu_device_analde_get(cpu);
+	if (!cpu_analde)
+		return -EANALDEV;
 
 	states = devm_kcalloc(dev, state_count, sizeof(*states), GFP_KERNEL);
 	if (!states) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
-	/* Parse SBI specific details from state DT nodes */
+	/* Parse SBI specific details from state DT analdes */
 	for (i = 1; i < state_count; i++) {
-		state_node = of_get_cpu_state_node(cpu_node, i - 1);
-		if (!state_node)
+		state_analde = of_get_cpu_state_analde(cpu_analde, i - 1);
+		if (!state_analde)
 			break;
 
-		ret = sbi_dt_parse_state_node(state_node, &states[i]);
-		of_node_put(state_node);
+		ret = sbi_dt_parse_state_analde(state_analde, &states[i]);
+		of_analde_put(state_analde);
 
 		if (ret)
 			return ret;
@@ -296,7 +296,7 @@ static int sbi_cpuidle_dt_init_states(struct device *dev,
 		pr_debug("sbi-state %#x index %d\n", states[i], i);
 	}
 	if (i != state_count) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -309,7 +309,7 @@ static int sbi_cpuidle_dt_init_states(struct device *dev,
 	data->states = states;
 
 fail:
-	of_node_put(cpu_node);
+	of_analde_put(cpu_analde);
 
 	return ret;
 }
@@ -330,7 +330,7 @@ static int sbi_cpuidle_init_cpu(struct device *dev, int cpu)
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drv->name = "sbi_cpuidle";
 	drv->owner = THIS_MODULE;
@@ -345,8 +345,8 @@ static int sbi_cpuidle_init_cpu(struct device *dev, int cpu)
 	strcpy(drv->states[0].desc, "RISC-V WFI");
 
 	/*
-	 * If no DT idle states are detected (ret == 0) let the driver
-	 * initialization fail accordingly since there is no reason to
+	 * If anal DT idle states are detected (ret == 0) let the driver
+	 * initialization fail accordingly since there is anal reason to
 	 * initialize the idle driver if only wfi is supported, the
 	 * default archictectural back-end already executes wfi
 	 * on idle entry.
@@ -355,7 +355,7 @@ static int sbi_cpuidle_init_cpu(struct device *dev, int cpu)
 	if (ret <= 0) {
 		pr_debug("HART%ld: failed to parse DT idle states\n",
 			 cpuid_to_hartid_map(cpu));
-		return ret ? : -ENODEV;
+		return ret ? : -EANALDEV;
 	}
 	state_count = ret + 1; /* Include WFI state as well */
 
@@ -382,7 +382,7 @@ deinit:
 static void sbi_cpuidle_domain_sync_state(struct device *dev)
 {
 	/*
-	 * All devices have now been attached/probed to the PM domain
+	 * All devices have analw been attached/probed to the PM domain
 	 * topology, hence it's fine to allow domain states to be picked.
 	 */
 	sbi_cpuidle_pd_allow_domain_state = true;
@@ -410,19 +410,19 @@ static int sbi_cpuidle_pd_power_off(struct generic_pm_domain *pd)
 
 struct sbi_pd_provider {
 	struct list_head link;
-	struct device_node *node;
+	struct device_analde *analde;
 };
 
 static LIST_HEAD(sbi_pd_providers);
 
-static int sbi_pd_init(struct device_node *np)
+static int sbi_pd_init(struct device_analde *np)
 {
 	struct generic_pm_domain *pd;
 	struct sbi_pd_provider *pd_provider;
-	struct dev_power_governor *pd_gov;
-	int ret = -ENOMEM;
+	struct dev_power_goveranalr *pd_gov;
+	int ret = -EANALMEM;
 
-	pd = dt_idle_pd_alloc(np, sbi_dt_parse_state_node);
+	pd = dt_idle_pd_alloc(np, sbi_dt_parse_state_analde);
 	if (!pd)
 		goto out;
 
@@ -438,7 +438,7 @@ static int sbi_pd_init(struct device_node *np)
 	else
 		pd->flags |= GENPD_FLAG_ALWAYS_ON;
 
-	/* Use governor for CPU PM domains if it has some states to manage. */
+	/* Use goveranalr for CPU PM domains if it has some states to manage. */
 	pd_gov = pd->states ? &pm_domain_cpu_gov : NULL;
 
 	ret = pm_genpd_init(pd, pd_gov, false);
@@ -449,7 +449,7 @@ static int sbi_pd_init(struct device_node *np)
 	if (ret)
 		goto remove_pd;
 
-	pd_provider->node = of_node_get(np);
+	pd_provider->analde = of_analde_get(np);
 	list_add(&pd_provider->link, &sbi_pd_providers);
 
 	pr_debug("init PM domain %s\n", pd->name);
@@ -472,44 +472,44 @@ static void sbi_pd_remove(void)
 	struct generic_pm_domain *genpd;
 
 	list_for_each_entry_safe(pd_provider, it, &sbi_pd_providers, link) {
-		of_genpd_del_provider(pd_provider->node);
+		of_genpd_del_provider(pd_provider->analde);
 
-		genpd = of_genpd_remove_last(pd_provider->node);
+		genpd = of_genpd_remove_last(pd_provider->analde);
 		if (!IS_ERR(genpd))
 			kfree(genpd);
 
-		of_node_put(pd_provider->node);
+		of_analde_put(pd_provider->analde);
 		list_del(&pd_provider->link);
 		kfree(pd_provider);
 	}
 }
 
-static int sbi_genpd_probe(struct device_node *np)
+static int sbi_genpd_probe(struct device_analde *np)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	int ret = 0, pd_count = 0;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Parse child nodes for the "#power-domain-cells" property and
+	 * Parse child analdes for the "#power-domain-cells" property and
 	 * initialize a genpd/genpd-of-provider pair when it's found.
 	 */
-	for_each_child_of_node(np, node) {
-		if (!of_property_present(node, "#power-domain-cells"))
+	for_each_child_of_analde(np, analde) {
+		if (!of_property_present(analde, "#power-domain-cells"))
 			continue;
 
-		ret = sbi_pd_init(node);
+		ret = sbi_pd_init(analde);
 		if (ret)
-			goto put_node;
+			goto put_analde;
 
 		pd_count++;
 	}
 
-	/* Bail out if not using the hierarchical CPU topology. */
+	/* Bail out if analt using the hierarchical CPU topology. */
 	if (!pd_count)
-		goto no_pd;
+		goto anal_pd;
 
 	/* Link genpd masters/subdomains to model the CPU topology. */
 	ret = dt_idle_pd_init_topology(np);
@@ -518,18 +518,18 @@ static int sbi_genpd_probe(struct device_node *np)
 
 	return 0;
 
-put_node:
-	of_node_put(node);
+put_analde:
+	of_analde_put(analde);
 remove_pd:
 	sbi_pd_remove();
 	pr_err("failed to create CPU PM domains ret=%d\n", ret);
-no_pd:
+anal_pd:
 	return ret;
 }
 
 #else
 
-static inline int sbi_genpd_probe(struct device_node *np)
+static inline int sbi_genpd_probe(struct device_analde *np)
 {
 	return 0;
 }
@@ -541,12 +541,12 @@ static int sbi_cpuidle_probe(struct platform_device *pdev)
 	int cpu, ret;
 	struct cpuidle_driver *drv;
 	struct cpuidle_device *dev;
-	struct device_node *np, *pds_node;
+	struct device_analde *np, *pds_analde;
 
-	/* Detect OSI support based on CPU DT nodes */
+	/* Detect OSI support based on CPU DT analdes */
 	sbi_cpuidle_use_osi = true;
 	for_each_possible_cpu(cpu) {
-		np = of_cpu_device_node_get(cpu);
+		np = of_cpu_device_analde_get(cpu);
 		if (np &&
 		    of_property_present(np, "power-domains") &&
 		    of_property_present(np, "power-domain-names")) {
@@ -557,11 +557,11 @@ static int sbi_cpuidle_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Populate generic power domains from DT nodes */
-	pds_node = of_find_node_by_path("/cpus/power-domains");
-	if (pds_node) {
-		ret = sbi_genpd_probe(pds_node);
-		of_node_put(pds_node);
+	/* Populate generic power domains from DT analdes */
+	pds_analde = of_find_analde_by_path("/cpus/power-domains");
+	if (pds_analde) {
+		ret = sbi_genpd_probe(pds_analde);
+		of_analde_put(pds_analde);
 		if (ret)
 			return ret;
 	}
@@ -576,7 +576,7 @@ static int sbi_cpuidle_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Setup CPU hotplut notifiers */
+	/* Setup CPU hotplut analtifiers */
 	sbi_idle_init_cpuhp();
 
 	pr_info("idle driver registered for all CPUs\n");
@@ -614,7 +614,7 @@ static int __init sbi_cpuidle_init(void)
 	 */
 	if ((sbi_spec_version < sbi_mk_version(0, 3)) ||
 	    !sbi_probe_extension(SBI_EXT_HSM)) {
-		pr_info("HSM suspend not available\n");
+		pr_info("HSM suspend analt available\n");
 		return 0;
 	}
 

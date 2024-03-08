@@ -2,7 +2,7 @@
 /*
  * bits.h - register bits of the ChipIdea USB IP core
  *
- * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2008 Chipidea - MIPS Techanallogies, Inc. All rights reserved.
  *
  * Author: David Lopo
  */
@@ -55,7 +55,7 @@
 
 /* TTCTRL */
 #define TTCTRL_TTHA_MASK	(0x7fUL << 24)
-/* Set non-zero value for internal TT Hub address representation */
+/* Set analn-zero value for internal TT Hub address representation */
 #define TTCTRL_TTHA		(0x7fUL << 24)
 
 /* BURSTSIZE */
@@ -74,7 +74,7 @@
 #define PORTSC_PTC            (0x0FUL << 16)
 #define PORTSC_WKCN           BIT(20)
 #define PORTSC_PHCD(d)	      ((d) ? BIT(22) : BIT(23))
-/* PTS and PTW for non lpm version only */
+/* PTS and PTW for analn lpm version only */
 #define PORTSC_PFSC           BIT(24)
 #define PORTSC_PTS(d)						\
 	(u32)((((d) & 0x3) << 30) | (((d) & 0x4) ? BIT(25) : 0))

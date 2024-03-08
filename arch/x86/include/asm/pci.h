@@ -14,7 +14,7 @@
 
 struct pci_sysdata {
 	int		domain;		/* PCI domain */
-	int		node;		/* NUMA node */
+	int		analde;		/* NUMA analde */
 #ifdef CONFIG_ACPI
 	struct acpi_device *companion;	/* ACPI companion device */
 #endif
@@ -22,7 +22,7 @@ struct pci_sysdata {
 	void		*iommu;		/* IOMMU private data */
 #endif
 #ifdef CONFIG_PCI_MSI
-	void		*fwnode;	/* IRQ domain for MSI assignment */
+	void		*fwanalde;	/* IRQ domain for MSI assignment */
 #endif
 #if IS_ENABLED(CONFIG_VMD)
 	struct pci_dev	*vmd_dev;	/* VMD Device if in Intel VMD domain */
@@ -30,8 +30,8 @@ struct pci_sysdata {
 };
 
 extern int pci_routeirq;
-extern int noioapicquirk;
-extern int noioapicreroute;
+extern int analioapicquirk;
+extern int analioapicreroute;
 
 static inline struct pci_sysdata *to_pci_sysdata(const struct pci_bus *bus)
 {
@@ -53,12 +53,12 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 #endif
 
 #ifdef CONFIG_PCI_MSI
-static inline void *_pci_root_bus_fwnode(struct pci_bus *bus)
+static inline void *_pci_root_bus_fwanalde(struct pci_bus *bus)
 {
-	return to_pci_sysdata(bus)->fwnode;
+	return to_pci_sysdata(bus)->fwanalde;
 }
 
-#define pci_root_bus_fwnode	_pci_root_bus_fwnode
+#define pci_root_bus_fwanalde	_pci_root_bus_fwanalde
 #endif
 
 #if IS_ENABLED(CONFIG_VMD)
@@ -107,20 +107,20 @@ static inline void early_quirks(void) { }
 extern void pci_iommu_alloc(void);
 
 #ifdef CONFIG_NUMA
-/* Returns the node based on pci bus */
-static inline int __pcibus_to_node(const struct pci_bus *bus)
+/* Returns the analde based on pci bus */
+static inline int __pcibus_to_analde(const struct pci_bus *bus)
 {
-	return to_pci_sysdata(bus)->node;
+	return to_pci_sysdata(bus)->analde;
 }
 
 static inline const struct cpumask *
 cpumask_of_pcibus(const struct pci_bus *bus)
 {
-	int node;
+	int analde;
 
-	node = __pcibus_to_node(bus);
-	return (node == NUMA_NO_NODE) ? cpu_online_mask :
-			      cpumask_of_node(node);
+	analde = __pcibus_to_analde(bus);
+	return (analde == NUMA_ANAL_ANALDE) ? cpu_online_mask :
+			      cpumask_of_analde(analde);
 }
 #endif
 

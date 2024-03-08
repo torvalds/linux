@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) International Business Machines Corp., 2006
- * Copyright (c) Nokia Corporation, 2007
+ * Copyright (c) Analkia Corporation, 2007
  *
  * Author: Artem Bityutskiy (Битюцкий Артём),
  *         Frank Haverkamp
@@ -12,7 +12,7 @@
  *
  * When UBI is initialized, it attaches all the MTD devices specified as the
  * module load parameters or the kernel boot parameters. If MTD devices were
- * specified, UBI does not attach any MTD device, but it is possible to do
+ * specified, UBI does analt attach any MTD device, but it is possible to do
  * later using the "UBI control device".
  */
 
@@ -48,13 +48,13 @@
 
 /**
  * struct mtd_dev_param - MTD device parameter description data structure.
- * @name: MTD character device node path, MTD device name, or MTD device number
+ * @name: MTD character device analde path, MTD device name, or MTD device number
  *        string
  * @ubi_num: UBI number
  * @vid_hdr_offs: VID header offset
  * @max_beb_per1024: maximum expected number of bad PEBs per 1024 PEBs
- * @enable_fm: enable fastmap when value is non-zero
- * @need_resv_pool: reserve pool->max_size pebs when value is none-zero
+ * @enable_fm: enable fastmap when value is analn-zero
+ * @need_resv_pool: reserve pool->max_size pebs when value is analne-zero
  */
 struct mtd_dev_param {
 	char name[MTD_PARAM_LEN_MAX];
@@ -71,7 +71,7 @@ static int mtd_devs;
 /* MTD devices specification parameters */
 static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
 #ifdef CONFIG_MTD_UBI_FASTMAP
-/* UBI module parameter to enable fastmap automatically on non-fastmap images */
+/* UBI module parameter to enable fastmap automatically on analn-fastmap images */
 static bool fm_autoconvert;
 static bool fm_debug;
 #endif
@@ -81,7 +81,7 @@ struct kmem_cache *ubi_wl_entry_slab;
 
 /* UBI control character device */
 static struct miscdevice ubi_ctrl_cdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "ubi_ctrl",
 	.fops = &ubi_ctrl_cdev_operations,
 };
@@ -146,19 +146,19 @@ static struct device_attribute dev_ro_mode =
 	__ATTR(ro_mode, S_IRUGO, dev_attribute_show, NULL);
 
 /**
- * ubi_volume_notify - send a volume change notification.
+ * ubi_volume_analtify - send a volume change analtification.
  * @ubi: UBI device description object
  * @vol: volume description object of the changed volume
- * @ntype: notification type to send (%UBI_VOLUME_ADDED, etc)
+ * @ntype: analtification type to send (%UBI_VOLUME_ADDED, etc)
  *
- * This is a helper function which notifies all subscribers about a volume
+ * This is a helper function which analtifies all subscribers about a volume
  * change event (creation, removal, re-sizing, re-naming, updating). Returns
  * zero in case of success and a negative error code in case of failure.
  */
-int ubi_volume_notify(struct ubi_device *ubi, struct ubi_volume *vol, int ntype)
+int ubi_volume_analtify(struct ubi_device *ubi, struct ubi_volume *vol, int ntype)
 {
 	int ret;
-	struct ubi_notification nt;
+	struct ubi_analtification nt;
 
 	ubi_do_get_device_info(ubi, &nt.di);
 	ubi_do_get_volume_info(ubi, vol, &nt.vi);
@@ -173,23 +173,23 @@ int ubi_volume_notify(struct ubi_device *ubi, struct ubi_volume *vol, int ntype)
 			ubi_msg(ubi, "Unable to write a new fastmap: %i", ret);
 	}
 
-	return blocking_notifier_call_chain(&ubi_notifiers, ntype, &nt);
+	return blocking_analtifier_call_chain(&ubi_analtifiers, ntype, &nt);
 }
 
 /**
- * ubi_notify_all - send a notification to all volumes.
+ * ubi_analtify_all - send a analtification to all volumes.
  * @ubi: UBI device description object
- * @ntype: notification type to send (%UBI_VOLUME_ADDED, etc)
- * @nb: the notifier to call
+ * @ntype: analtification type to send (%UBI_VOLUME_ADDED, etc)
+ * @nb: the analtifier to call
  *
  * This function walks all volumes of UBI device @ubi and sends the @ntype
- * notification for each volume. If @nb is %NULL, then all registered notifiers
- * are called, otherwise only the @nb notifier is called. Returns the number of
- * sent notifications.
+ * analtification for each volume. If @nb is %NULL, then all registered analtifiers
+ * are called, otherwise only the @nb analtifier is called. Returns the number of
+ * sent analtifications.
  */
-int ubi_notify_all(struct ubi_device *ubi, int ntype, struct notifier_block *nb)
+int ubi_analtify_all(struct ubi_device *ubi, int ntype, struct analtifier_block *nb)
 {
-	struct ubi_notification nt;
+	struct ubi_analtification nt;
 	int i, count = 0;
 
 	ubi_do_get_device_info(ubi, &nt.di);
@@ -197,8 +197,8 @@ int ubi_notify_all(struct ubi_device *ubi, int ntype, struct notifier_block *nb)
 	mutex_lock(&ubi->device_mutex);
 	for (i = 0; i < ubi->vtbl_slots; i++) {
 		/*
-		 * Since the @ubi->device is locked, and we are not going to
-		 * change @ubi->volumes, we do not have to lock
+		 * Since the @ubi->device is locked, and we are analt going to
+		 * change @ubi->volumes, we do analt have to lock
 		 * @ubi->volumes_lock.
 		 */
 		if (!ubi->volumes[i])
@@ -206,9 +206,9 @@ int ubi_notify_all(struct ubi_device *ubi, int ntype, struct notifier_block *nb)
 
 		ubi_do_get_volume_info(ubi, ubi->volumes[i], &nt.vi);
 		if (nb)
-			nb->notifier_call(nb, ntype, &nt);
+			nb->analtifier_call(nb, ntype, &nt);
 		else
-			blocking_notifier_call_chain(&ubi_notifiers, ntype,
+			blocking_analtifier_call_chain(&ubi_analtifiers, ntype,
 						     &nt);
 		count += 1;
 	}
@@ -218,28 +218,28 @@ int ubi_notify_all(struct ubi_device *ubi, int ntype, struct notifier_block *nb)
 }
 
 /**
- * ubi_enumerate_volumes - send "add" notification for all existing volumes.
- * @nb: the notifier to call
+ * ubi_enumerate_volumes - send "add" analtification for all existing volumes.
+ * @nb: the analtifier to call
  *
  * This function walks all UBI devices and volumes and sends the
- * %UBI_VOLUME_ADDED notification for each volume. If @nb is %NULL, then all
- * registered notifiers are called, otherwise only the @nb notifier is called.
- * Returns the number of sent notifications.
+ * %UBI_VOLUME_ADDED analtification for each volume. If @nb is %NULL, then all
+ * registered analtifiers are called, otherwise only the @nb analtifier is called.
+ * Returns the number of sent analtifications.
  */
-int ubi_enumerate_volumes(struct notifier_block *nb)
+int ubi_enumerate_volumes(struct analtifier_block *nb)
 {
 	int i, count = 0;
 
 	/*
-	 * Since the @ubi_devices_mutex is locked, and we are not going to
-	 * change @ubi_devices, we do not have to lock @ubi_devices_lock.
+	 * Since the @ubi_devices_mutex is locked, and we are analt going to
+	 * change @ubi_devices, we do analt have to lock @ubi_devices_lock.
 	 */
 	for (i = 0; i < UBI_MAX_DEVICES; i++) {
 		struct ubi_device *ubi = ubi_devices[i];
 
 		if (!ubi)
 			continue;
-		count += ubi_notify_all(ubi, UBI_VOLUME_ADDED, nb);
+		count += ubi_analtify_all(ubi, UBI_VOLUME_ADDED, nb);
 	}
 
 	return count;
@@ -250,9 +250,9 @@ int ubi_enumerate_volumes(struct notifier_block *nb)
  * @ubi_num: UBI device number
  *
  * This function returns UBI device description object for UBI device number
- * @ubi_num, or %NULL if the device does not exist. This function increases the
+ * @ubi_num, or %NULL if the device does analt exist. This function increases the
  * device reference count to prevent removal of the device. In other words, the
- * device cannot be removed if its reference count is not zero.
+ * device cananalt be removed if its reference count is analt zero.
  */
 struct ubi_device *ubi_get_device(int ubi_num)
 {
@@ -315,12 +315,12 @@ struct ubi_device *ubi_get_by_major(int major)
  * @major: major number
  *
  * This function searches UBI device number object by its major number. If UBI
- * device was not found, this function returns -ENODEV, otherwise the UBI device
+ * device was analt found, this function returns -EANALDEV, otherwise the UBI device
  * number is returned.
  */
 int ubi_major2num(int major)
 {
-	int i, ubi_num = -ENODEV;
+	int i, ubi_num = -EANALDEV;
 
 	spin_lock(&ubi_devices_lock);
 	for (i = 0; i < UBI_MAX_DEVICES; i++) {
@@ -346,9 +346,9 @@ static ssize_t dev_attribute_show(struct device *dev,
 	/*
 	 * The below code looks weird, but it actually makes sense. We get the
 	 * UBI device reference from the contained 'struct ubi_device'. But it
-	 * is unclear if the device was removed or not yet. Indeed, if the
+	 * is unclear if the device was removed or analt yet. Indeed, if the
 	 * device was removed before we increased its reference count,
-	 * 'ubi_get_device()' will return -ENODEV and we fail.
+	 * 'ubi_get_device()' will return -EANALDEV and we fail.
 	 *
 	 * Remember, 'struct ubi_device' is freed in the release function, so
 	 * we still can use 'ubi->ubi_num'.
@@ -443,20 +443,20 @@ static int uif_init(struct ubi_device *ubi)
 	/*
 	 * Major numbers for the UBI character devices are allocated
 	 * dynamically. Major numbers of volume character devices are
-	 * equivalent to ones of the corresponding UBI character device. Minor
-	 * numbers of UBI character devices are 0, while minor numbers of
+	 * equivalent to ones of the corresponding UBI character device. Mianalr
+	 * numbers of UBI character devices are 0, while mianalr numbers of
 	 * volume character devices start from 1. Thus, we allocate one major
-	 * number and ubi->vtbl_slots + 1 minor numbers.
+	 * number and ubi->vtbl_slots + 1 mianalr numbers.
 	 */
 	err = alloc_chrdev_region(&dev, 0, ubi->vtbl_slots + 1, ubi->ubi_name);
 	if (err) {
-		ubi_err(ubi, "cannot register UBI character devices");
+		ubi_err(ubi, "cananalt register UBI character devices");
 		return err;
 	}
 
 	ubi->dev.devt = dev;
 
-	ubi_assert(MINOR(dev) == 0);
+	ubi_assert(MIANALR(dev) == 0);
 	cdev_init(&ubi->cdev, &ubi_cdev_operations);
 	dbg_gen("%s major is %u", ubi->ubi_name, MAJOR(dev));
 	ubi->cdev.owner = THIS_MODULE;
@@ -470,7 +470,7 @@ static int uif_init(struct ubi_device *ubi)
 		if (ubi->volumes[i]) {
 			err = ubi_add_volume(ubi, ubi->volumes[i]);
 			if (err) {
-				ubi_err(ubi, "cannot add volume %d", i);
+				ubi_err(ubi, "cananalt add volume %d", i);
 				ubi->volumes[i] = NULL;
 				goto out_volumes;
 			}
@@ -483,7 +483,7 @@ out_volumes:
 	cdev_device_del(&ubi->cdev, &ubi->dev);
 out_unreg:
 	unregister_chrdev_region(ubi->cdev.dev, ubi->vtbl_slots + 1);
-	ubi_err(ubi, "cannot initialize UBI %s, error %d",
+	ubi_err(ubi, "cananalt initialize UBI %s, error %d",
 		ubi->ubi_name, err);
 	return err;
 }
@@ -492,7 +492,7 @@ out_unreg:
  * uif_close - close user interfaces for an UBI device.
  * @ubi: UBI device description object
  *
- * Note, since this function un-registers UBI volume device objects (@vol->dev),
+ * Analte, since this function un-registers UBI volume device objects (@vol->dev),
  * the memory allocated voe the volumes is freed as well (in the release
  * function).
  */
@@ -547,7 +547,7 @@ static int get_bad_peb_limit(const struct ubi_device *ubi, int max_beb_per1024)
 
 	if (!max_beb_per1024) {
 		/*
-		 * Since max_beb_per1024 has not been set by the user in either
+		 * Since max_beb_per1024 has analt been set by the user in either
 		 * the cmdline or Kconfig, use mtd_max_bad_blocks to set the
 		 * limit if it is supported by the device.
 		 */
@@ -559,9 +559,9 @@ static int get_bad_peb_limit(const struct ubi_device *ubi, int max_beb_per1024)
 
 	/*
 	 * Here we are using size of the entire flash chip and
-	 * not just the MTD partition size because the maximum
+	 * analt just the MTD partition size because the maximum
 	 * number of bad eraseblocks is a percentage of the
-	 * whole device and bad eraseblocks are not fairly
+	 * whole device and bad eraseblocks are analt fairly
 	 * distributed over the flash chip. So the worst case
 	 * is that all the bad eraseblocks of the chip are in
 	 * the MTD partition we are attaching (ubi->mtd).
@@ -584,7 +584,7 @@ static int get_bad_peb_limit(const struct ubi_device *ubi, int max_beb_per1024)
  *
  * If @ubi->vid_hdr_offset or @ubi->leb_start is zero, default offsets are
  * assumed:
- *   o EC header is always at offset zero - this cannot be changed;
+ *   o EC header is always at offset zero - this cananalt be changed;
  *   o VID header starts just after the EC header at the closest address
  *     aligned to @io->hdrs_min_io_size;
  *   o data starts just after the VID header at the closest address aligned to
@@ -606,9 +606,9 @@ static int io_init(struct ubi_device *ubi, int max_beb_per1024)
 		 * have one "main" region and one or more small regions to
 		 * store boot loader code or boot parameters or whatever. I
 		 * guess we should just pick the largest region. But this is
-		 * not implemented.
+		 * analt implemented.
 		 */
-		ubi_err(ubi, "multiple regions, not implemented");
+		ubi_err(ubi, "multiple regions, analt implemented");
 		return -EINVAL;
 	}
 
@@ -616,7 +616,7 @@ static int io_init(struct ubi_device *ubi, int max_beb_per1024)
 		return -EINVAL;
 
 	/*
-	 * Note, in this implementation we support MTD devices with 0x7FFFFFFF
+	 * Analte, in this implementation we support MTD devices with 0x7FFFFFFF
 	 * physical eraseblocks maximum.
 	 */
 
@@ -629,19 +629,19 @@ static int io_init(struct ubi_device *ubi, int max_beb_per1024)
 		ubi->bad_peb_limit = get_bad_peb_limit(ubi, max_beb_per1024);
 	}
 
-	if (ubi->mtd->type == MTD_NORFLASH)
-		ubi->nor_flash = 1;
+	if (ubi->mtd->type == MTD_ANALRFLASH)
+		ubi->analr_flash = 1;
 
 	ubi->min_io_size = ubi->mtd->writesize;
 	ubi->hdrs_min_io_size = ubi->mtd->writesize >> ubi->mtd->subpage_sft;
 
 	/*
-	 * Make sure minimal I/O unit is power of 2. Note, there is no
+	 * Make sure minimal I/O unit is power of 2. Analte, there is anal
 	 * fundamental reason for this assumption. It is just an optimization
 	 * which allows us to avoid costly division operations.
 	 */
 	if (!is_power_of_2(ubi->min_io_size)) {
-		ubi_err(ubi, "min. I/O unit (%d) is not power of 2",
+		ubi_err(ubi, "min. I/O unit (%d) is analt power of 2",
 			ubi->min_io_size);
 		return -EINVAL;
 	}
@@ -687,7 +687,7 @@ static int io_init(struct ubi_device *ubi, int max_beb_per1024)
 	/*
 	 * Memory allocation for VID header is ubi->vid_hdr_alsize
 	 * which is described in comments in io.c.
-	 * Make sure VID header shift + UBI_VID_HDR_SIZE not exceeds
+	 * Make sure VID header shift + UBI_VID_HDR_SIZE analt exceeds
 	 * ubi->vid_hdr_alsize, so that all vid header operations
 	 * won't access memory out of bounds.
 	 */
@@ -753,8 +753,8 @@ static int io_init(struct ubi_device *ubi, int max_beb_per1024)
 	}
 
 	/*
-	 * Note, ideally, we have to initialize @ubi->bad_peb_count here. But
-	 * unfortunately, MTD does not provide this information. We should loop
+	 * Analte, ideally, we have to initialize @ubi->bad_peb_count here. But
+	 * unfortunately, MTD does analt provide this information. We should loop
 	 * over all physical eraseblocks and invoke mtd->block_is_bad() for
 	 * each physical eraseblock. So, we leave @ubi->bad_peb_count
 	 * uninitialized so far.
@@ -795,20 +795,20 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
 		struct ubi_vtbl_record vtbl_rec;
 
 		/*
-		 * No available PEBs to re-size the volume, clear the flag on
+		 * Anal available PEBs to re-size the volume, clear the flag on
 		 * flash and exit.
 		 */
 		vtbl_rec = ubi->vtbl[vol_id];
 		err = ubi_change_vtbl_record(ubi, vol_id, &vtbl_rec);
 		if (err)
-			ubi_err(ubi, "cannot clean auto-resize flag for volume %d",
+			ubi_err(ubi, "cananalt clean auto-resize flag for volume %d",
 				vol_id);
 	} else {
 		desc.vol = vol;
 		err = ubi_resize_volume(&desc,
 					old_reserved_pebs + ubi->avail_pebs);
 		if (err)
-			ubi_err(ubi, "cannot auto-resize volume %d",
+			ubi_err(ubi, "cananalt auto-resize volume %d",
 				vol_id);
 	}
 
@@ -839,7 +839,7 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
  * 'fm_autoconvert' is set, and existed old fastmap will be destroyed after
  * doing full scanning.
  *
- * Note, the invocations of this function has to be serialized by the
+ * Analte, the invocations of this function has to be serialized by the
  * @ubi_devices_mutex.
  */
 int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
@@ -858,8 +858,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	/*
 	 * Check if we already have the same MTD device attached.
 	 *
-	 * Note, this function assumes that UBI devices creations and deletions
-	 * are serialized, so it does not take the &ubi_devices_lock.
+	 * Analte, this function assumes that UBI devices creations and deletions
+	 * are serialized, so it does analt take the &ubi_devices_lock.
 	 */
 	for (i = 0; i < UBI_MAX_DEVICES; i++) {
 		ubi = ubi_devices[i];
@@ -871,12 +871,12 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	}
 
 	/*
-	 * Make sure this MTD device is not emulated on top of an UBI volume
+	 * Make sure this MTD device is analt emulated on top of an UBI volume
 	 * already. Well, generally this recursion works fine, but there are
 	 * different problems like the UBI module takes a reference to itself
 	 * by attaching (and thus, opening) the emulated MTD device. This
 	 * results in inability to unload the module. And in general it makes
-	 * no sense to attach emulated MTD devices, so we prohibit this.
+	 * anal sense to attach emulated MTD devices, so we prohibit this.
 	 */
 	if (mtd->type == MTD_UBIVOLUME) {
 		pr_err("ubi: refuse attaching mtd%d - it is already emulated on top of UBI\n",
@@ -885,7 +885,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	}
 
 	/*
-	 * Both UBI and UBIFS have been designed for SLC NAND and NOR flashes.
+	 * Both UBI and UBIFS have been designed for SLC NAND and ANALR flashes.
 	 * MLC NAND is different and needs special care, otherwise UBI or UBIFS
 	 * will die soon and you will lose all your data.
 	 * Relax this rule if the partition we're attaching to operates in SLC
@@ -893,14 +893,14 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	 */
 	if (mtd->type == MTD_MLCNANDFLASH &&
 	    !(mtd->flags & MTD_SLC_ON_MLC_EMULATION)) {
-		pr_err("ubi: refuse attaching mtd%d - MLC NAND is not supported\n",
+		pr_err("ubi: refuse attaching mtd%d - MLC NAND is analt supported\n",
 			mtd->index);
 		return -EINVAL;
 	}
 
-	/* UBI cannot work on flashes with zero erasesize. */
+	/* UBI cananalt work on flashes with zero erasesize. */
 	if (!mtd->erasesize) {
-		pr_err("ubi: refuse attaching mtd%d - zero erasesize flash is not supported\n",
+		pr_err("ubi: refuse attaching mtd%d - zero erasesize flash is analt supported\n",
 			mtd->index);
 		return -EINVAL;
 	}
@@ -919,7 +919,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 		if (ubi_num >= UBI_MAX_DEVICES)
 			return -EINVAL;
 
-		/* Make sure ubi_num is not busy */
+		/* Make sure ubi_num is analt busy */
 		if (ubi_devices[ubi_num]) {
 			pr_err("ubi: ubi%i already exists\n", ubi_num);
 			return -EEXIST;
@@ -928,7 +928,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 
 	ubi = kzalloc(sizeof(struct ubi_device), GFP_KERNEL);
 	if (!ubi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_initialize(&ubi->dev);
 	ubi->dev.release = dev_release;
@@ -986,7 +986,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	if (err)
 		goto out_free;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ubi->peb_buf = vmalloc(ubi->peb_size);
 	if (!ubi->peb_buf)
 		goto out_free;
@@ -1021,7 +1021,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	ubi->bgt_thread = kthread_create(ubi_thread, ubi, "%s", ubi->bgt_name);
 	if (IS_ERR(ubi->bgt_thread)) {
 		err = PTR_ERR(ubi->bgt_thread);
-		ubi_err(ubi, "cannot spawn \"%s\", error %d",
+		ubi_err(ubi, "cananalt spawn \"%s\", error %d",
 			ubi->bgt_name, err);
 		goto out_debugfs;
 	}
@@ -1046,7 +1046,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 		ubi->avail_pebs, ubi->rsvd_pebs, ubi->beb_rsvd_pebs);
 
 	/*
-	 * The below lock makes sure we do not race with 'ubi_thread()' which
+	 * The below lock makes sure we do analt race with 'ubi_thread()' which
 	 * checks @ubi->thread_enabled. Otherwise we may fail to wake it up.
 	 */
 	spin_lock(&ubi->wl_lock);
@@ -1055,7 +1055,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	spin_unlock(&ubi->wl_lock);
 
 	ubi_devices[ubi_num] = ubi;
-	ubi_notify_all(ubi, UBI_VOLUME_ADDED, NULL);
+	ubi_analtify_all(ubi, UBI_VOLUME_ADDED, NULL);
 	return ubi_num;
 
 out_debugfs:
@@ -1076,14 +1076,14 @@ out_free:
 /**
  * ubi_detach_mtd_dev - detach an MTD device.
  * @ubi_num: UBI device number to detach from
- * @anyway: detach MTD even if device reference count is not zero
+ * @anyway: detach MTD even if device reference count is analt zero
  *
  * This function destroys an UBI device number @ubi_num and detaches the
  * underlying MTD device. Returns zero in case of success and %-EBUSY if the
- * UBI device is busy and cannot be destroyed, and %-EINVAL if it does not
+ * UBI device is busy and cananalt be destroyed, and %-EINVAL if it does analt
  * exist.
  *
- * Note, the invocations of this function has to be serialized by the
+ * Analte, the invocations of this function has to be serialized by the
  * @ubi_devices_mutex.
  */
 int ubi_detach_mtd_dev(int ubi_num, int anyway)
@@ -1113,7 +1113,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	spin_unlock(&ubi_devices_lock);
 
 	ubi_assert(ubi_num == ubi->ubi_num);
-	ubi_notify_all(ubi, UBI_VOLUME_REMOVED, NULL);
+	ubi_analtify_all(ubi, UBI_VOLUME_REMOVED, NULL);
 	ubi_msg(ubi, "detaching mtd%d", ubi->mtd->index);
 #ifdef CONFIG_MTD_UBI_FASTMAP
 	/* If we don't write a new fastmap at detach time we lose all
@@ -1148,20 +1148,20 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 }
 
 /**
- * open_mtd_by_chdev - open an MTD device by its character device node path.
- * @mtd_dev: MTD character device node path
+ * open_mtd_by_chdev - open an MTD device by its character device analde path.
+ * @mtd_dev: MTD character device analde path
  *
- * This helper function opens an MTD device by its character node device path.
+ * This helper function opens an MTD device by its character analde device path.
  * Returns MTD device description object in case of success and a negative
  * error code in case of failure.
  */
 static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 {
-	int err, minor;
+	int err, mianalr;
 	struct path path;
 	struct kstat stat;
 
-	/* Probably this is an MTD character device node path */
+	/* Probably this is an MTD character device analde path */
 	err = kern_path(mtd_dev, LOOKUP_FOLLOW, &path);
 	if (err)
 		return ERR_PTR(err);
@@ -1171,30 +1171,30 @@ static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 	if (err)
 		return ERR_PTR(err);
 
-	/* MTD device number is defined by the major / minor numbers */
+	/* MTD device number is defined by the major / mianalr numbers */
 	if (MAJOR(stat.rdev) != MTD_CHAR_MAJOR || !S_ISCHR(stat.mode))
 		return ERR_PTR(-EINVAL);
 
-	minor = MINOR(stat.rdev);
+	mianalr = MIANALR(stat.rdev);
 
-	if (minor & 1)
+	if (mianalr & 1)
 		/*
-		 * Just do not think the "/dev/mtdrX" devices support is need,
-		 * so do not support them to avoid doing extra work.
+		 * Just do analt think the "/dev/mtdrX" devices support is need,
+		 * so do analt support them to avoid doing extra work.
 		 */
 		return ERR_PTR(-EINVAL);
 
-	return get_mtd_device(NULL, minor / 2);
+	return get_mtd_device(NULL, mianalr / 2);
 }
 
 /**
  * open_mtd_device - open MTD device by name, character device path, or number.
- * @mtd_dev: name, character device node path, or MTD device device number
+ * @mtd_dev: name, character device analde path, or MTD device device number
  *
  * This function tries to open and MTD device described by @mtd_dev string,
- * which is first treated as ASCII MTD device number, and if it is not true, it
- * is treated as MTD device name, and if that is also not true, it is treated
- * as MTD character device node path. Returns MTD device description object in
+ * which is first treated as ASCII MTD device number, and if it is analt true, it
+ * is treated as MTD device name, and if that is also analt true, it is treated
+ * as MTD character device analde path. Returns MTD device description object in
  * case of success and a negative error code in case of failure.
  */
 static struct mtd_info * __init open_mtd_device(const char *mtd_dev)
@@ -1206,12 +1206,12 @@ static struct mtd_info * __init open_mtd_device(const char *mtd_dev)
 	mtd_num = simple_strtoul(mtd_dev, &endp, 0);
 	if (*endp != '\0' || mtd_dev == endp) {
 		/*
-		 * This does not look like an ASCII integer, probably this is
+		 * This does analt look like an ASCII integer, probably this is
 		 * MTD device name.
 		 */
 		mtd = get_mtd_device_nm(mtd_dev);
-		if (PTR_ERR(mtd) == -ENODEV)
-			/* Probably this is an MTD character device node path */
+		if (PTR_ERR(mtd) == -EANALDEV)
+			/* Probably this is an MTD character device analde path */
 			mtd = open_mtd_by_chdev(mtd_dev);
 	} else
 		mtd = get_mtd_device(NULL, mtd_num);
@@ -1240,7 +1240,7 @@ static int __init ubi_init(void)
 
 	err = misc_register(&ubi_ctrl_cdev);
 	if (err) {
-		pr_err("UBI error: cannot register device\n");
+		pr_err("UBI error: cananalt register device\n");
 		goto out;
 	}
 
@@ -1248,7 +1248,7 @@ static int __init ubi_init(void)
 					      sizeof(struct ubi_wl_entry),
 					      0, 0, NULL);
 	if (!ubi_wl_entry_slab) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_dev_unreg;
 	}
 
@@ -1267,7 +1267,7 @@ static int __init ubi_init(void)
 		mtd = open_mtd_device(p->name);
 		if (IS_ERR(mtd)) {
 			err = PTR_ERR(mtd);
-			pr_err("UBI error: cannot open mtd %s, error %d\n",
+			pr_err("UBI error: cananalt open mtd %s, error %d\n",
 			       p->name, err);
 			/* See comment below re-ubi_is_module(). */
 			if (ubi_is_module())
@@ -1282,20 +1282,20 @@ static int __init ubi_init(void)
 					 p->need_resv_pool != 0);
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0) {
-			pr_err("UBI error: cannot attach mtd%d\n",
+			pr_err("UBI error: cananalt attach mtd%d\n",
 			       mtd->index);
 			put_mtd_device(mtd);
 
 			/*
 			 * Originally UBI stopped initializing on any error.
 			 * However, later on it was found out that this
-			 * behavior is not very good when UBI is compiled into
+			 * behavior is analt very good when UBI is compiled into
 			 * the kernel and the MTD devices to attach are passed
 			 * through the command line. Indeed, UBI failure
 			 * stopped whole boot sequence.
 			 *
 			 * To fix this, we changed the behavior for the
-			 * non-module case, but preserved the old behavior for
+			 * analn-module case, but preserved the old behavior for
 			 * the module case, just for compatibility. This is a
 			 * little inconsistent, though.
 			 */
@@ -1306,7 +1306,7 @@ static int __init ubi_init(void)
 
 	err = ubiblock_init();
 	if (err) {
-		pr_err("UBI error: block: cannot initialize, error %d\n", err);
+		pr_err("UBI error: block: cananalt initialize, error %d\n", err);
 
 		/* See comment above re-ubi_is_module(). */
 		if (ubi_is_module())
@@ -1329,7 +1329,7 @@ out_dev_unreg:
 	misc_deregister(&ubi_ctrl_cdev);
 out:
 	class_unregister(&ubi_class);
-	pr_err("UBI error: cannot initialize UBI, error %d\n", err);
+	pr_err("UBI error: cananalt initialize UBI, error %d\n", err);
 	return err;
 }
 late_initcall(ubi_init);
@@ -1394,7 +1394,7 @@ static int bytes_str_to_int(const char *str)
 /**
  * ubi_mtd_param_parse - parse the 'mtd=' UBI parameter.
  * @val: the parameter value to parse
- * @kp: not used
+ * @kp: analt used
  *
  * This function returns zero in case of success and a negative error code in
  * case of error.
@@ -1424,7 +1424,7 @@ static int ubi_mtd_param_parse(const char *val, const struct kernel_param *kp)
 	}
 
 	if (len == 0) {
-		pr_warn("UBI warning: empty 'mtd=' parameter - ignored\n");
+		pr_warn("UBI warning: empty 'mtd=' parameter - iganalred\n");
 		return 0;
 	}
 
@@ -1507,13 +1507,13 @@ static int ubi_mtd_param_parse(const char *val, const struct kernel_param *kp)
 module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 0400);
 MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|path>[,<vid_hdr_offs>[,max_beb_per1024[,ubi_num]]].\n"
 		      "Multiple \"mtd\" parameters may be specified.\n"
-		      "MTD devices may be specified by their number, name, or path to the MTD character device node.\n"
+		      "MTD devices may be specified by their number, name, or path to the MTD character device analde.\n"
 		      "Optional \"vid_hdr_offs\" parameter specifies UBI VID header position to be used by UBI. (default value if 0)\n"
 		      "Optional \"max_beb_per1024\" parameter specifies the maximum expected bad eraseblock per 1024 eraseblocks. (default value ("
 		      __stringify(CONFIG_MTD_UBI_BEB_LIMIT) ") if 0)\n"
 		      "Optional \"ubi_num\" parameter specifies UBI device number which have to be assigned to the newly created UBI device (assigned automatically by default)\n"
-		      "Optional \"enable_fm\" parameter determines whether to enable fastmap during attach. If the value is non-zero, fastmap is enabled. Default value is 0.\n"
-		      "Optional \"need_resv_pool\" parameter determines whether to reserve pool->max_size pebs during attach. If the value is non-zero, peb reservation is enabled. Default value is 0.\n"
+		      "Optional \"enable_fm\" parameter determines whether to enable fastmap during attach. If the value is analn-zero, fastmap is enabled. Default value is 0.\n"
+		      "Optional \"need_resv_pool\" parameter determines whether to reserve pool->max_size pebs during attach. If the value is analn-zero, peb reservation is enabled. Default value is 0.\n"
 		      "\n"
 		      "Example 1: mtd=/dev/mtd0 - attach MTD device /dev/mtd0.\n"
 		      "Example 2: mtd=content,1984 mtd=4 - attach MTD device with name \"content\" using VID header offset 1984, and MTD device number 4 with default VID header offset.\n"

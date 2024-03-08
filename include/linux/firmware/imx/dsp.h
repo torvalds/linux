@@ -57,12 +57,12 @@ void imx_dsp_free_channel(struct imx_dsp_ipc *ipc, int idx);
 static inline int imx_dsp_ring_doorbell(struct imx_dsp_ipc *ipc,
 					unsigned int chan_idx)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 struct mbox_chan *imx_dsp_request_channel(struct imx_dsp_ipc *ipc, int idx)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 void imx_dsp_free_channel(struct imx_dsp_ipc *ipc, int idx) { }

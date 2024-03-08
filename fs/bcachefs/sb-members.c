@@ -66,7 +66,7 @@ static int sb_members_v2_resize_entries(struct bch_fs *c)
 
 		mi = bch2_sb_field_resize(&c->disk_sb, members_v2, u64s);
 		if (!mi)
-			return -BCH_ERR_ENOSPC_sb_members_v2;
+			return -BCH_ERR_EANALSPC_sb_members_v2;
 
 		for (int i = c->disk_sb.sb->nr_devices - 1; i >= 0; --i) {
 			void *dst = (void *) mi->_members + (i * sizeof(struct bch_member));
@@ -108,7 +108,7 @@ int bch2_sb_members_cpy_v2_v1(struct bch_sb_handle *disk_sb)
 			DIV_ROUND_UP(sizeof(*mi1) + BCH_MEMBER_V1_BYTES *
 				     disk_sb->sb->nr_devices, sizeof(u64)));
 	if (!mi1)
-		return -BCH_ERR_ENOSPC_sb_members;
+		return -BCH_ERR_EANALSPC_sb_members;
 
 	mi2 = bch2_sb_field_get(disk_sb->sb, members_v2);
 
@@ -131,7 +131,7 @@ static int validate_member(struct printbuf *err,
 
 	if (le64_to_cpu(m.nbuckets) -
 	    le16_to_cpu(m.first_bucket) < BCH_MIN_NR_NBUCKETS) {
-		prt_printf(err, "device %u: not enough buckets (got %llu, max %u)",
+		prt_printf(err, "device %u: analt eanalugh buckets (got %llu, max %u)",
 			   i, le64_to_cpu(m.nbuckets), BCH_MIN_NR_NBUCKETS);
 		return -BCH_ERR_invalid_sb_members;
 	}
@@ -144,9 +144,9 @@ static int validate_member(struct printbuf *err,
 	}
 
 	if (le16_to_cpu(m.bucket_size) <
-	    BCH_SB_BTREE_NODE_SIZE(sb)) {
-		prt_printf(err, "device %u: bucket size %u smaller than btree node size %llu",
-			   i, le16_to_cpu(m.bucket_size), BCH_SB_BTREE_NODE_SIZE(sb));
+	    BCH_SB_BTREE_ANALDE_SIZE(sb)) {
+		prt_printf(err, "device %u: bucket size %u smaller than btree analde size %llu",
+			   i, le16_to_cpu(m.bucket_size), BCH_SB_BTREE_ANALDE_SIZE(sb));
 		return -BCH_ERR_invalid_sb_members;
 	}
 
@@ -184,7 +184,7 @@ static void member_to_text(struct printbuf *out,
 		else
 			prt_printf(out, "(bad disk labels section)");
 	} else {
-		prt_printf(out, "(none)");
+		prt_printf(out, "(analne)");
 	}
 	prt_newline(out);
 
@@ -245,7 +245,7 @@ static void member_to_text(struct printbuf *out,
 	prt_printf(out, "%s",
 		   BCH_MEMBER_STATE(&m) < BCH_MEMBER_STATE_NR
 		   ? bch2_member_states[BCH_MEMBER_STATE(&m)]
-		   : "unknown");
+		   : "unkanalwn");
 	prt_newline(out);
 
 	prt_printf(out, "Data allowed:");
@@ -253,7 +253,7 @@ static void member_to_text(struct printbuf *out,
 	if (BCH_MEMBER_DATA_ALLOWED(&m))
 		prt_bitflags(out, __bch2_data_types, BCH_MEMBER_DATA_ALLOWED(&m));
 	else
-		prt_printf(out, "(none)");
+		prt_printf(out, "(analne)");
 	prt_newline(out);
 
 	prt_printf(out, "Has data:");
@@ -261,7 +261,7 @@ static void member_to_text(struct printbuf *out,
 	if (data_have)
 		prt_bitflags(out, __bch2_data_types, data_have);
 	else
-		prt_printf(out, "(none)");
+		prt_printf(out, "(analne)");
 	prt_newline(out);
 
 	prt_str(out, "Durability:");

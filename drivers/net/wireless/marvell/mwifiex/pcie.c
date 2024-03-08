@@ -180,7 +180,7 @@ static const struct of_device_id mwifiex_pcie_of_match_table[] __maybe_unused = 
 
 static int mwifiex_pcie_probe_of(struct device *dev)
 {
-	if (!of_match_node(mwifiex_pcie_of_match_table, dev->of_node)) {
+	if (!of_match_analde(mwifiex_pcie_of_match_table, dev->of_analde)) {
 		dev_err(dev, "required compatible string missing\n");
 		return -EINVAL;
 	}
@@ -230,7 +230,7 @@ mwifiex_write_reg(struct mwifiex_adapter *adapter, int reg, u32 data)
 	iowrite32(data, card->pci_mmap1 + reg);
 }
 
-/* Non-void wrapper needed for read_poll_timeout(). */
+/* Analn-void wrapper needed for read_poll_timeout(). */
 static inline int
 mwifiex_write_reg_rpt(struct mwifiex_adapter *adapter, int reg, u32 data)
 {
@@ -292,7 +292,7 @@ static bool mwifiex_pcie_ok_to_access_hw(struct mwifiex_adapter *adapter)
  * registered functions must have drivers with suspend and resume
  * methods. Failing that the kernel simply removes the whole card.
  *
- * If already not suspended, this function allocates and sends a host
+ * If already analt suspended, this function allocates and sends a host
  * sleep activate request to the firmware and turns off the traffic.
  */
 static int mwifiex_pcie_suspend(struct device *dev)
@@ -306,7 +306,7 @@ static int mwifiex_pcie_suspend(struct device *dev)
 
 	adapter = card->adapter;
 	if (!adapter) {
-		dev_err(dev, "adapter is not valid\n");
+		dev_err(dev, "adapter is analt valid\n");
 		return 0;
 	}
 
@@ -335,7 +335,7 @@ static int mwifiex_pcie_suspend(struct device *dev)
  * registered functions must have drivers with suspend and resume
  * methods. Failing that the kernel simply removes the whole card.
  *
- * If already not resumed, this function turns on the traffic and
+ * If already analt resumed, this function turns on the traffic and
  * sends a host sleep cancel request to the firmware.
  */
 static int mwifiex_pcie_resume(struct device *dev)
@@ -345,7 +345,7 @@ static int mwifiex_pcie_resume(struct device *dev)
 
 
 	if (!card->adapter) {
-		dev_err(dev, "adapter structure is not valid\n");
+		dev_err(dev, "adapter structure is analt valid\n");
 		return 0;
 	}
 
@@ -384,7 +384,7 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 
 	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&card->fw_done);
 
@@ -402,8 +402,8 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		INIT_WORK(&card->work, mwifiex_pcie_work);
 	}
 
-	/* device tree node parsing and platform specific configuration*/
-	if (pdev->dev.of_node) {
+	/* device tree analde parsing and platform specific configuration*/
+	if (pdev->dev.of_analde) {
 		ret = mwifiex_pcie_probe_of(&pdev->dev);
 		if (ret)
 			return ret;
@@ -514,7 +514,7 @@ static void mwifiex_pcie_reset_prepare(struct pci_dev *pdev)
 	struct mwifiex_adapter *adapter = card->adapter;
 
 	if (!adapter) {
-		dev_err(&pdev->dev, "%s: adapter structure is not valid\n",
+		dev_err(&pdev->dev, "%s: adapter structure is analt valid\n",
 			__func__);
 		return;
 	}
@@ -550,7 +550,7 @@ static void mwifiex_pcie_reset_done(struct pci_dev *pdev)
 	int ret;
 
 	if (!adapter) {
-		dev_err(&pdev->dev, "%s: adapter structure is not valid\n",
+		dev_err(&pdev->dev, "%s: adapter structure is analt valid\n",
 			__func__);
 		return;
 	}
@@ -662,7 +662,7 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 		mwifiex_pcie_dev_wakeup_delay(adapter);
 
 	/* The 88W8897 PCIe+USB firmware (latest version 15.68.19.p21) sometimes
-	 * appears to ignore or miss our wakeup request, so we continue trying
+	 * appears to iganalre or miss our wakeup request, so we continue trying
 	 * until we receive an interrupt from the card.
 	 */
 	if (read_poll_timeout(mwifiex_write_reg_rpt, retval,
@@ -783,14 +783,14 @@ static int mwifiex_init_rxq_ring(struct mwifiex_adapter *adapter)
 		if (!skb) {
 			mwifiex_dbg(adapter, ERROR,
 				    "Unable to allocate skb for RX ring.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (mwifiex_map_pci_memory(adapter, skb,
 					   MWIFIEX_RX_DATA_BUF_SIZE,
 					   DMA_FROM_DEVICE)) {
 			kfree_skb(skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		buf_pa = MWIFIEX_SKB_DMA_ADDR(skb);
@@ -841,14 +841,14 @@ static int mwifiex_pcie_init_evt_ring(struct mwifiex_adapter *adapter)
 		if (!skb) {
 			mwifiex_dbg(adapter, ERROR,
 				    "Unable to allocate skb for EVENT buf.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		skb_put(skb, MAX_EVENT_SIZE);
 
 		if (mwifiex_map_pci_memory(adapter, skb, MAX_EVENT_SIZE,
 					   DMA_FROM_DEVICE)) {
 			kfree_skb(skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		buf_pa = MWIFIEX_SKB_DMA_ADDR(skb);
@@ -1011,7 +1011,7 @@ static int mwifiex_pcie_create_txbd_ring(struct mwifiex_adapter *adapter)
 		mwifiex_dbg(adapter, ERROR,
 			    "allocate coherent memory (%d bytes) failed!\n",
 			    card->txbd_ring_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mwifiex_dbg(adapter, DATA,
@@ -1078,7 +1078,7 @@ static int mwifiex_pcie_create_rxbd_ring(struct mwifiex_adapter *adapter)
 		mwifiex_dbg(adapter, ERROR,
 			    "allocate coherent memory (%d bytes) failed!\n",
 			    card->rxbd_ring_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mwifiex_dbg(adapter, DATA,
@@ -1147,7 +1147,7 @@ static int mwifiex_pcie_create_evtbd_ring(struct mwifiex_adapter *adapter)
 		mwifiex_dbg(adapter, ERROR,
 			    "allocate coherent memory (%d bytes) failed!\n",
 			    card->evtbd_ring_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mwifiex_dbg(adapter, EVENT,
@@ -1198,7 +1198,7 @@ static int mwifiex_pcie_alloc_cmdrsp_buf(struct mwifiex_adapter *adapter)
 	if (!skb) {
 		mwifiex_dbg(adapter, ERROR,
 			    "Unable to allocate skb for command response data.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	skb_put(skb, MWIFIEX_UPLD_SIZE);
 	if (mwifiex_map_pci_memory(adapter, skb, MWIFIEX_UPLD_SIZE,
@@ -1255,7 +1255,7 @@ static int mwifiex_pcie_alloc_sleep_cookie_buf(struct mwifiex_adapter *adapter)
 	if (!card->sleep_cookie_vbase) {
 		mwifiex_dbg(adapter, ERROR,
 			    "dma_alloc_coherent failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	cookie = (u32 *)card->sleep_cookie_vbase;
 	/* Init val of Sleep Cookie */
@@ -1402,9 +1402,9 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 /* This function sends data buffer to device. First 4 bytes of payload
  * are filled with payload length and payload type. Then this payload
  * is mapped to PCI device memory. Tx ring pointers are advanced accordingly.
- * Download ready interrupt to FW is deffered if Tx ring is not full and
+ * Download ready interrupt to FW is deffered if Tx ring is analt full and
  * additional payload can be accomodated.
- * Caller must ensure tx_param parameter to this function is not NULL.
+ * Caller must ensure tx_param parameter to this function is analt NULL.
  */
 static int
 mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
@@ -1431,7 +1431,7 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 	mwifiex_dbg(adapter, DATA,
 		    "info: SEND DATA: <Rd: %#x, Wr: %#x>\n",
 		card->txbd_rdptr, card->txbd_wrptr);
-	if (mwifiex_pcie_txbd_not_full(card)) {
+	if (mwifiex_pcie_txbd_analt_full(card)) {
 		u8 *payload;
 
 		adapter->data_sent = true;
@@ -1491,7 +1491,7 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		 */
 		mwifiex_read_reg(adapter, PCI_VENDOR_ID, &rx_val);
 
-		if ((mwifiex_pcie_txbd_not_full(card)) &&
+		if ((mwifiex_pcie_txbd_analt_full(card)) &&
 		    tx_param->next_pkt_len) {
 			/* have more packets and TxBD still can hold more */
 			mwifiex_dbg(adapter, DATA,
@@ -1560,7 +1560,7 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 		 * rx_buf_list[rd_index] would have been left with a NULL.
 		 */
 		if (!skb_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mwifiex_unmap_pci_memory(adapter, skb_data, DMA_FROM_DEVICE);
 		card->rx_buf_list[rd_index] = NULL;
@@ -1595,7 +1595,7 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 		if (!skb_tmp) {
 			mwifiex_dbg(adapter, ERROR,
 				    "Unable to allocate skb.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (mwifiex_map_pci_memory(adapter, skb_tmp,
@@ -1729,7 +1729,7 @@ mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 	/* Make sure a command response buffer is available */
 	if (!card->cmdrsp_buf) {
 		mwifiex_dbg(adapter, ERROR,
-			    "No response buffer available, send command failed\n");
+			    "Anal response buffer available, send command failed\n");
 		return -EBUSY;
 	}
 
@@ -1847,7 +1847,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 							   skb->len);
 		} else {
 			mwifiex_dbg(adapter, ERROR,
-				    "There is no command but got cmdrsp\n");
+				    "There is anal command but got cmdrsp\n");
 		}
 		memcpy(adapter->upld_buf, skb->data,
 		       min_t(u32, MWIFIEX_SIZE_OF_CMD_BUFFER, skb->len));
@@ -1859,7 +1859,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 		skb_pull(skb, adapter->intf_hdr_len);
 		adapter->curr_cmd->resp_skb = skb;
 		adapter->cmd_resp_received = true;
-		/* Take the pointer and set it to CMD node and will
+		/* Take the pointer and set it to CMD analde and will
 		   return in the response complete callback */
 		card->cmdrsp_buf = NULL;
 
@@ -1912,7 +1912,7 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 	if (adapter->event_received) {
 		mwifiex_dbg(adapter, EVENT,
 			    "info: Event being processed,\t"
-			    "do not process this interrupt just yet\n");
+			    "do analt process this interrupt just yet\n");
 		return 0;
 	}
 
@@ -1972,7 +1972,7 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		adapter->event_received = true;
 		adapter->event_skb = skb_cmd;
 
-		/* Do not update the event read pointer here, wait till the
+		/* Do analt update the event read pointer here, wait till the
 		   buffer is released. This is just to make things simpler,
 		   we need to find a better method of managing these buffers.
 		*/
@@ -2101,7 +2101,7 @@ static int mwifiex_extract_wifi_fw(struct mwifiex_adapter *adapter,
 
 			if (!cmd7_before) {
 				mwifiex_dbg(adapter, ERROR,
-					    "no cmd7 before cmd1!\n");
+					    "anal cmd7 before cmd1!\n");
 				ret = -1;
 				goto done;
 			}
@@ -2139,7 +2139,7 @@ static int mwifiex_extract_wifi_fw(struct mwifiex_adapter *adapter,
 			cmd7_before = true;
 			break;
 		default:
-			mwifiex_dbg(adapter, ERROR, "unknown dnld_cmd %d\n",
+			mwifiex_dbg(adapter, ERROR, "unkanalwn dnld_cmd %d\n",
 				    dnld_cmd);
 			ret = -1;
 			goto done;
@@ -2172,7 +2172,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 	if (!firmware || !firmware_len) {
 		mwifiex_dbg(adapter, ERROR,
-			    "No firmware image found! Terminating download\n");
+			    "Anal firmware image found! Terminating download\n");
 		return -1;
 	}
 
@@ -2184,7 +2184,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 	skb = dev_alloc_skb(MWIFIEX_UPLD_SIZE);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -2383,7 +2383,7 @@ mwifiex_check_winner_status(struct mwifiex_adapter *adapter)
 		adapter->winner = 1;
 	} else {
 		mwifiex_dbg(adapter, ERROR,
-			    "PCI-E is not the winner <%#x>", winner);
+			    "PCI-E is analt the winner <%#x>", winner);
 	}
 
 	return ret;
@@ -2774,7 +2774,7 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 					continue;
 				}
 				mwifiex_dbg(adapter, ERROR,
-					    "pre-allocated buf not enough\n");
+					    "pre-allocated buf analt eanalugh\n");
 				tmp_ptr =
 					vzalloc(memory_size + MWIFIEX_SIZE_4K);
 				if (!tmp_ptr)
@@ -2820,7 +2820,7 @@ static void mwifiex_pcie_card_reset_work(struct mwifiex_adapter *adapter)
 	struct pcie_service_card *card = adapter->card;
 
 	/* We can't afford to wait here; remove() might be waiting on us. If we
-	 * can't grab the device lock, maybe we'll get another chance later.
+	 * can't grab the device lock, maybe we'll get aanalther chance later.
 	 */
 	pci_try_reset_function(card->dev);
 }
@@ -2971,7 +2971,7 @@ static int mwifiex_init_pcie(struct mwifiex_adapter *adapter)
 		goto err_iomap2;
 	}
 
-	pr_notice("PCI memory map Virt0: %pK PCI memory map Virt2: %pK\n",
+	pr_analtice("PCI memory map Virt0: %pK PCI memory map Virt2: %pK\n",
 		  card->pci_mmap, card->pci_mmap1);
 
 	ret = mwifiex_pcie_alloc_buffers(adapter);
@@ -2979,7 +2979,7 @@ static int mwifiex_init_pcie(struct mwifiex_adapter *adapter)
 		goto err_alloc_buffers;
 
 	if (pdev->device == PCIE_DEVICE_ID_MARVELL_88W8897)
-		adapter->ignore_btcoex_events = true;
+		adapter->iganalre_btcoex_events = true;
 
 	return 0;
 
@@ -3008,7 +3008,7 @@ static void mwifiex_cleanup_pcie(struct mwifiex_adapter *adapter)
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	u32 fw_status;
 
-	/* Perform the cancel_work_sync() only when we're not resetting
+	/* Perform the cancel_work_sync() only when we're analt resetting
 	 * the card. It's because that function never returns if we're
 	 * in reset path. If we're here when resetting the card, it means
 	 * that we failed to reset the card (reset failure path).

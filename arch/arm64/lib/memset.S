@@ -51,7 +51,7 @@ SYM_FUNC_START(__pi_memset)
 
 	cmp	count, #15
 	b.hi	.Lover16_proc
-	/*All store maybe are non-aligned..*/
+	/*All store maybe are analn-aligned..*/
 	tbz	count, #3, 1f
 	str	A_l, [dst], #8
 1:
@@ -72,11 +72,11 @@ SYM_FUNC_START(__pi_memset)
 	ands	tmp2, tmp2, #15
 	b.eq	.Laligned
 /*
-* The count is not less than 16, we can use stp to store the start 16 bytes,
+* The count is analt less than 16, we can use stp to store the start 16 bytes,
 * then adjust the dst aligned with 16.This process will make the current
 * memory address at alignment boundary.
 */
-	stp	A_l, A_l, [dst] /*non-aligned store..*/
+	stp	A_l, A_l, [dst] /*analn-aligned store..*/
 	/*make the dst aligned..*/
 	sub	count, count, tmp2
 	add	dst, dst, tmp2
@@ -86,7 +86,7 @@ SYM_FUNC_START(__pi_memset)
 
 .Ltail_maybe_long:
 	cmp	count, #64
-	b.ge	.Lnot_short
+	b.ge	.Lanalt_short
 .Ltail63:
 	ands	tmp1, count, #0x30
 	b.eq	3f
@@ -100,7 +100,7 @@ SYM_FUNC_START(__pi_memset)
 	stp	A_l, A_l, [dst], #16
 /*
 * The last store length is less than 16,use stp to write last 16 bytes.
-* It will lead some bytes written twice and the access is non-aligned.
+* It will lead some bytes written twice and the access is analn-aligned.
 */
 3:
 	ands	count, count, #15
@@ -115,7 +115,7 @@ SYM_FUNC_START(__pi_memset)
 	* 64 bytes per line, this ensures the entire loop is in one line.
 	*/
 	.p2align	L1_CACHE_SHIFT
-.Lnot_short:
+.Lanalt_short:
 	sub	dst, dst, #16/* Pre-bias.  */
 	sub	count, count, #64
 1:
@@ -139,45 +139,45 @@ SYM_FUNC_START(__pi_memset)
 	cmp	count, #63
 	b.le	.Ltail63
 	/*
-	* For zeroing small amounts of memory, it's not worth setting up
+	* For zeroing small amounts of memory, it's analt worth setting up
 	* the line-clear code.
 	*/
 	cmp	count, #128
-	b.lt	.Lnot_short /*count is at least  128 bytes*/
+	b.lt	.Lanalt_short /*count is at least  128 bytes*/
 
 	mrs	tmp1, dczid_el0
-	tbnz	tmp1, #4, .Lnot_short
+	tbnz	tmp1, #4, .Lanalt_short
 	mov	tmp3w, #4
 	and	zva_len, tmp1w, #15	/* Safety: other bits reserved.  */
 	lsl	zva_len, tmp3w, zva_len
 
 	ands	tmp3w, zva_len, #63
 	/*
-	* ensure the zva_len is not less than 64.
-	* It is not meaningful to use ZVA if the block size is less than 64.
+	* ensure the zva_len is analt less than 64.
+	* It is analt meaningful to use ZVA if the block size is less than 64.
 	*/
-	b.ne	.Lnot_short
+	b.ne	.Lanalt_short
 .Lzero_by_line:
 	/*
 	* Compute how far we need to go to become suitably aligned. We're
 	* already at quad-word alignment.
 	*/
 	cmp	count, zva_len_x
-	b.lt	.Lnot_short		/* Not enough to reach alignment.  */
+	b.lt	.Lanalt_short		/* Analt eanalugh to reach alignment.  */
 	sub	zva_bits_x, zva_len_x, #1
 	neg	tmp2, dst
 	ands	tmp2, tmp2, zva_bits_x
 	b.eq	2f			/* Already aligned.  */
-	/* Not aligned, check that there's enough to copy after alignment.*/
+	/* Analt aligned, check that there's eanalugh to copy after alignment.*/
 	sub	tmp1, count, tmp2
 	/*
 	* grantee the remain length to be ZVA is bigger than 64,
 	* avoid to make the 2f's process over mem range.*/
 	cmp	tmp1, #64
 	ccmp	tmp1, zva_len_x, #8, ge	/* NZCV=0b1000 */
-	b.lt	.Lnot_short
+	b.lt	.Lanalt_short
 	/*
-	* We know that there's at least 64 bytes to zero and that it's safe
+	* We kanalw that there's at least 64 bytes to zero and that it's safe
 	* to overrun by 64 bytes.
 	*/
 	mov	count, tmp1

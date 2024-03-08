@@ -42,7 +42,7 @@ static inline int m920x_read(struct usb_device *udev, u8 request, u16 value,
 	}
 
 	if (ret != size) {
-		deb("m920x_read = no data\n");
+		deb("m920x_read = anal data\n");
 		return -EIO;
 	}
 
@@ -126,8 +126,8 @@ static int m920x_init_ep(struct usb_interface *intf)
 	struct usb_host_interface *alt;
 
 	if ((alt = usb_altnum_to_altsetting(intf, 1)) == NULL) {
-		deb("No alt found!\n");
-		return -ENODEV;
+		deb("Anal alt found!\n");
+		return -EANALDEV;
 	}
 
 	return usb_set_interface(udev, alt->desc.bInterfaceNumber,
@@ -141,14 +141,14 @@ static inline void m920x_parse_rc_state(struct dvb_usb_device *d, u8 rc_state,
 
 	switch (rc_state) {
 	case 0x80:
-		*state = REMOTE_NO_KEY_PRESSED;
+		*state = REMOTE_ANAL_KEY_PRESSED;
 		break;
 
 	case 0x88: /* framing error or "invalid code" */
 	case 0x99:
 	case 0xc0:
 	case 0xd8:
-		*state = REMOTE_NO_KEY_PRESSED;
+		*state = REMOTE_ANAL_KEY_PRESSED;
 		m->rep_count = 0;
 		break;
 
@@ -166,12 +166,12 @@ static inline void m920x_parse_rc_state(struct dvb_usb_device *d, u8 rc_state,
 		if (++m->rep_count > 2)
 			*state = REMOTE_KEY_REPEAT;
 		else
-			*state = REMOTE_NO_KEY_PRESSED;
+			*state = REMOTE_ANAL_KEY_PRESSED;
 		break;
 
 	default:
 		deb("Unexpected rc state %02x\n", rc_state);
-		*state = REMOTE_NO_KEY_PRESSED;
+		*state = REMOTE_ANAL_KEY_PRESSED;
 		break;
 	}
 }
@@ -183,7 +183,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	rc_state = kmalloc(2, GFP_KERNEL);
 	if (!rc_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE,
 			 rc_state, 1);
@@ -204,9 +204,9 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		}
 
 	if (rc_state[1] != 0)
-		deb("Unknown rc key %02x\n", rc_state[1]);
+		deb("Unkanalwn rc key %02x\n", rc_state[1]);
 
-	*state = REMOTE_NO_KEY_PRESSED;
+	*state = REMOTE_ANAL_KEY_PRESSED;
 
  out:
 	kfree(rc_state);
@@ -221,7 +221,7 @@ static int m920x_rc_core_query(struct dvb_usb_device *d)
 
 	rc_state = kmalloc(2, GFP_KERNEL);
 	if (!rc_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, &rc_state[0], 1)) != 0)
 		goto out;
@@ -233,12 +233,12 @@ static int m920x_rc_core_query(struct dvb_usb_device *d)
 
 	m920x_parse_rc_state(d, rc_state[0], &state);
 
-	if (state == REMOTE_NO_KEY_PRESSED)
+	if (state == REMOTE_ANAL_KEY_PRESSED)
 		rc_keyup(d->rc_dev);
 	else if (state == REMOTE_KEY_REPEAT)
 		rc_repeat(d->rc_dev);
 	else
-		rc_keydown(d->rc_dev, RC_PROTO_UNKNOWN, rc_state[1], 0);
+		rc_keydown(d->rc_dev, RC_PROTO_UNKANALWN, rc_state[1], 0);
 
 out:
 	kfree(rc_state);
@@ -256,17 +256,17 @@ static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 		return -EAGAIN;
 
 	for (i = 0; i < num; i++) {
-		if (msg[i].flags & (I2C_M_NO_RD_ACK | I2C_M_IGNORE_NAK | I2C_M_TEN) || msg[i].len == 0) {
+		if (msg[i].flags & (I2C_M_ANAL_RD_ACK | I2C_M_IGANALRE_NAK | I2C_M_TEN) || msg[i].len == 0) {
 			/* For a 0 byte message, I think sending the address
 			 * to index 0x80|0x40 would be the correct thing to
 			 * do.  However, zero byte messages are only used for
-			 * probing, and since we don't know how to get the
+			 * probing, and since we don't kanalw how to get the
 			 * slave's ack, we can't probe. */
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 			goto unlock;
 		}
 		/* Send START & address/RW bit */
-		if (!(msg[i].flags & I2C_M_NOSTART)) {
+		if (!(msg[i].flags & I2C_M_ANALSTART)) {
 			if ((ret = m920x_write(d->udev, M9206_I2C,
 					(msg[i].addr << 1) |
 					(msg[i].flags & I2C_M_RD ? 0x01 : 0), 0x80)) != 0)
@@ -276,7 +276,7 @@ static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 		if (msg[i].flags & I2C_M_RD) {
 			char *read = kmalloc(1, GFP_KERNEL);
 			if (!read) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto unlock;
 			}
 
@@ -378,20 +378,20 @@ static int m920x_update_filters(struct dvb_usb_adapter *adap)
 	return ret;
 }
 
-static int m920x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int m920x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int oanalff)
 {
 	struct m920x_state *m = adap->dev->priv;
 
-	m->filtering_enabled[adap->id] = onoff ? 1 : 0;
+	m->filtering_enabled[adap->id] = oanalff ? 1 : 0;
 
 	return m920x_update_filters(adap);
 }
 
-static int m920x_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
+static int m920x_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int oanalff)
 {
 	struct m920x_state *m = adap->dev->priv;
 
-	m->filters[adap->id][index] = onoff ? pid : 0;
+	m->filters[adap->id][index] = oanalff ? pid : 0;
 
 	return m920x_update_filters(adap);
 }
@@ -404,12 +404,12 @@ static int m920x_firmware_download(struct usb_device *udev, const struct firmwar
 
 	buff = kmalloc(65536, GFP_KERNEL);
 	if (buff == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	read = kmalloc(4, GFP_KERNEL);
 	if (!read) {
 		kfree(buff);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if ((ret = m920x_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
@@ -519,7 +519,7 @@ static int m920x_mt352_demod_init(struct dvb_frontend *fe)
 
 static struct mt352_config m920x_mt352_config = {
 	.demod_address = 0x0f,
-	.no_tuner = 1,
+	.anal_tuner = 1,
 	.demod_init = m920x_mt352_demod_init,
 };
 
@@ -575,7 +575,7 @@ static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 static int m920x_mt352_frontend_attach_vp7049(struct dvb_usb_adapter *adap)
 {
 	struct m920x_inits vp7049_fe_init_seq[] = {
-		/* XXX without these commands the frontend cannot be detected,
+		/* XXX without these commands the frontend cananalt be detected,
 		 * they must be sent BEFORE the frontend is attached */
 		{ 0xff28,         0x00 },
 		{ 0xff23,         0x00 },
@@ -634,7 +634,7 @@ static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 	deb("%s\n",__func__);
 
 	if (dvb_attach(qt1010_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap, &m920x_qt1010_config) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -644,7 +644,7 @@ static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 	deb("%s\n",__func__);
 
 	if (dvb_attach(tda827x_attach, adap->fe_adap[0].fe, 0x60, &adap->dev->i2c_adap, NULL) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -654,7 +654,7 @@ static int m920x_tda8275_61_tuner_attach(struct dvb_usb_adapter *adap)
 	deb("%s\n",__func__);
 
 	if (dvb_attach(tda827x_attach, adap->fe_adap[0].fe, 0x61, &adap->dev->i2c_adap, NULL) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -673,7 +673,7 @@ static int m920x_mt2060_tuner_attach(struct dvb_usb_adapter *adap)
 
 	if (dvb_attach(mt2060_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap,
 		       &m920x_mt2060_config, 1220) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -845,7 +845,7 @@ static int m920x_probe(struct usb_interface *intf,
 		ret = dvb_usb_device_init(intf, &digivox_mini_ii_properties,
 					  THIS_MODULE, &d, adapter_nr);
 		if (ret == 0) {
-			/* No remote control, so no rc_init_seq */
+			/* Anal remote control, so anal rc_init_seq */
 			goto found;
 		}
 
@@ -860,7 +860,7 @@ static int m920x_probe(struct usb_interface *intf,
 		ret = dvb_usb_device_init(intf, &dposh_properties,
 					  THIS_MODULE, &d, adapter_nr);
 		if (ret == 0) {
-			/* Remote controller not supported yet. */
+			/* Remote controller analt supported yet. */
 			goto found;
 		}
 
@@ -880,11 +880,11 @@ static int m920x_probe(struct usb_interface *intf,
 
 		return ret;
 	} else {
-		/* Another interface on a multi-tuner device */
+		/* Aanalther interface on a multi-tuner device */
 
 		/* The LifeView TV Walker Twin gets here, but struct
 		 * tvwalkertwin_properties already configured both
-		 * tuners, so there is nothing for us to do here
+		 * tuners, so there is analthing for us to do here
 		 */
 	}
 
@@ -1222,7 +1222,7 @@ static struct dvb_usb_device_properties vp7049_properties = {
 		.rc_interval    = 150,
 		.rc_codes       = RC_MAP_TWINHAN_VP1027_DVBS,
 		.rc_query       = m920x_rc_core_query,
-		.allowed_protos = RC_PROTO_BIT_UNKNOWN,
+		.allowed_protos = RC_PROTO_BIT_UNKANALWN,
 	},
 
 	.size_of_priv     = sizeof(struct m920x_state),

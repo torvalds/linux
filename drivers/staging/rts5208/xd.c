@@ -20,7 +20,7 @@
 #include "rtsx_card.h"
 #include "xd.h"
 
-static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no);
+static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_anal);
 static int xd_init_page(struct rtsx_chip *chip, u32 phy_blk, u16 logoff,
 			u8 start_page, u8 end_page);
 
@@ -109,7 +109,7 @@ static void xd_assign_phy_addr(struct rtsx_chip *chip, u32 addr, u8 mode)
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CFG, 0xFF,
 			     xd_card->addr_cycle |
 			     XD_CALC_ECC |
-			     XD_BA_NO_TRANSFORM);
+			     XD_BA_ANAL_TRANSFORM);
 		break;
 
 	case XD_ERASE_ADDR:
@@ -120,7 +120,7 @@ static void xd_assign_phy_addr(struct rtsx_chip *chip, u32 addr, u8 mode)
 			     0xFF, (u8)(addr >> 16));
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CFG, 0xFF,
 			     (xd_card->addr_cycle - 1) | XD_CALC_ECC |
-			XD_BA_NO_TRANSFORM);
+			XD_BA_ANAL_TRANSFORM);
 		break;
 
 	default:
@@ -442,7 +442,7 @@ static int reset_xd(struct rtsx_chip *chip)
 	rtsx_init_cmd(chip);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CHK_DATA_STATUS, 0xFF,
-		     XD_PGSTS_NOT_FF);
+		     XD_PGSTS_ANALT_FF);
 	if (chip->asic_code) {
 		if (!CHECK_PID(chip, 0x5288))
 			xd_fill_pull_ctl_disable(chip);
@@ -456,7 +456,7 @@ static int reset_xd(struct rtsx_chip *chip)
 
 	if (!chip->ft2_fast_mode)
 		rtsx_add_cmd(chip, WRITE_REG_CMD, XD_INIT,
-			     XD_NO_AUTO_PWR_OFF, 0);
+			     XD_ANAL_AUTO_PWR_OFF, 0);
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_OE, XD_OUTPUT_EN, 0);
 
@@ -492,7 +492,7 @@ static int reset_xd(struct rtsx_chip *chip)
 
 #ifdef SUPPORT_OCP
 		wait_timeout(50);
-		if (chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
+		if (chip->ocp_stat & (SD_OC_ANALW | SD_OC_EVER)) {
 			dev_dbg(rtsx_dev(chip), "Over current, OCPSTAT is 0x%x\n",
 				chip->ocp_stat);
 			return STATUS_FAIL;
@@ -825,18 +825,18 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 {
 	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
-	int zone_no;
+	int zone_anal;
 
-	zone_no = (int)phy_blk >> 10;
-	if (zone_no >= xd_card->zone_cnt) {
-		dev_dbg(rtsx_dev(chip), "Set unused block to invalid zone (zone_no = %d, zone_cnt = %d)\n",
-			zone_no, xd_card->zone_cnt);
+	zone_anal = (int)phy_blk >> 10;
+	if (zone_anal >= xd_card->zone_cnt) {
+		dev_dbg(rtsx_dev(chip), "Set unused block to invalid zone (zone_anal = %d, zone_cnt = %d)\n",
+			zone_anal, xd_card->zone_cnt);
 		return;
 	}
-	zone = &xd_card->zone[zone_no];
+	zone = &xd_card->zone[zone_anal];
 
 	if (!zone->free_table) {
-		if (xd_build_l2p_tbl(chip, zone_no) != STATUS_SUCCESS)
+		if (xd_build_l2p_tbl(chip, zone_anal) != STATUS_SUCCESS)
 			return;
 	}
 
@@ -856,29 +856,29 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 	zone->unused_blk_cnt++;
 }
 
-static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
+static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_anal)
 {
 	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
 	u32 phy_blk;
 
-	if (zone_no >= xd_card->zone_cnt) {
-		dev_dbg(rtsx_dev(chip), "Get unused block from invalid zone (zone_no = %d, zone_cnt = %d)\n",
-			zone_no, xd_card->zone_cnt);
-		return BLK_NOT_FOUND;
+	if (zone_anal >= xd_card->zone_cnt) {
+		dev_dbg(rtsx_dev(chip), "Get unused block from invalid zone (zone_anal = %d, zone_cnt = %d)\n",
+			zone_anal, xd_card->zone_cnt);
+		return BLK_ANALT_FOUND;
 	}
-	zone = &xd_card->zone[zone_no];
+	zone = &xd_card->zone[zone_anal];
 
 	if (zone->unused_blk_cnt == 0 ||
 	    zone->set_index == zone->get_index) {
 		free_zone(zone);
-		dev_dbg(rtsx_dev(chip), "Get unused block fail, no unused block available\n");
-		return BLK_NOT_FOUND;
+		dev_dbg(rtsx_dev(chip), "Get unused block fail, anal unused block available\n");
+		return BLK_ANALT_FOUND;
 	}
 	if (zone->get_index >= XD_FREE_TABLE_CNT || zone->get_index < 0) {
 		free_zone(zone);
 		dev_dbg(rtsx_dev(chip), "Get unused block fail, invalid get_index\n");
-		return BLK_NOT_FOUND;
+		return BLK_ANALT_FOUND;
 	}
 
 	dev_dbg(rtsx_dev(chip), "Get unused block from index %d\n",
@@ -890,27 +890,27 @@ static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
 		zone->get_index = 0;
 	zone->unused_blk_cnt--;
 
-	phy_blk += ((u32)(zone_no) << 10);
+	phy_blk += ((u32)(zone_anal) << 10);
 	return phy_blk;
 }
 
 static void xd_set_l2p_tbl(struct rtsx_chip *chip,
-			   int zone_no, u16 log_off, u16 phy_off)
+			   int zone_anal, u16 log_off, u16 phy_off)
 {
 	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
 
-	zone = &xd_card->zone[zone_no];
+	zone = &xd_card->zone[zone_anal];
 	zone->l2p_table[log_off] = phy_off;
 }
 
-static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_no, u16 log_off)
+static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_anal, u16 log_off)
 {
 	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
 	int retval;
 
-	zone = &xd_card->zone[zone_no];
+	zone = &xd_card->zone[zone_anal];
 	if (zone->l2p_table[log_off] == 0xFFFF) {
 		u32 phy_blk = 0;
 		int i;
@@ -920,20 +920,20 @@ static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_no, u16 log_off)
 		if (retval != STATUS_SUCCESS) {
 			dev_dbg(rtsx_dev(chip), "In %s, delay write fail!\n",
 				__func__);
-			return BLK_NOT_FOUND;
+			return BLK_ANALT_FOUND;
 		}
 #endif
 
 		if (zone->unused_blk_cnt <= 0) {
-			dev_dbg(rtsx_dev(chip), "No unused block!\n");
-			return BLK_NOT_FOUND;
+			dev_dbg(rtsx_dev(chip), "Anal unused block!\n");
+			return BLK_ANALT_FOUND;
 		}
 
 		for (i = 0; i < zone->unused_blk_cnt; i++) {
-			phy_blk = xd_get_unused_block(chip, zone_no);
-			if (phy_blk == BLK_NOT_FOUND) {
-				dev_dbg(rtsx_dev(chip), "No unused block available!\n");
-				return BLK_NOT_FOUND;
+			phy_blk = xd_get_unused_block(chip, zone_anal);
+			if (phy_blk == BLK_ANALT_FOUND) {
+				dev_dbg(rtsx_dev(chip), "Anal unused block available!\n");
+				return BLK_ANALT_FOUND;
 			}
 
 			retval = xd_init_page(chip, phy_blk, log_off,
@@ -942,15 +942,15 @@ static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_no, u16 log_off)
 				break;
 		}
 		if (i >= zone->unused_blk_cnt) {
-			dev_dbg(rtsx_dev(chip), "No good unused block available!\n");
-			return BLK_NOT_FOUND;
+			dev_dbg(rtsx_dev(chip), "Anal good unused block available!\n");
+			return BLK_ANALT_FOUND;
 		}
 
-		xd_set_l2p_tbl(chip, zone_no, log_off, (u16)(phy_blk & 0x3FF));
+		xd_set_l2p_tbl(chip, zone_anal, log_off, (u16)(phy_blk & 0x3FF));
 		return phy_blk;
 	}
 
-	return (u32)zone->l2p_table[log_off] + ((u32)(zone_no) << 10);
+	return (u32)zone->l2p_table[log_off] + ((u32)(zone_anal) << 10);
 }
 
 int reset_xd_card(struct rtsx_chip *chip)
@@ -992,7 +992,7 @@ static int xd_mark_bad_block(struct rtsx_chip *chip, u32 phy_blk)
 
 	dev_dbg(rtsx_dev(chip), "mark block 0x%x as bad block\n", phy_blk);
 
-	if (phy_blk == BLK_NOT_FOUND)
+	if (phy_blk == BLK_ANALT_FOUND)
 		return STATUS_FAIL;
 
 	rtsx_init_cmd(chip);
@@ -1046,7 +1046,7 @@ static int xd_init_page(struct rtsx_chip *chip, u32 phy_blk,
 
 	if (start_page > end_page)
 		return STATUS_FAIL;
-	if (phy_blk == BLK_NOT_FOUND)
+	if (phy_blk == BLK_ANALT_FOUND)
 		return STATUS_FAIL;
 
 	rtsx_init_cmd(chip);
@@ -1102,7 +1102,7 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 	if (start_page > end_page)
 		return STATUS_FAIL;
 
-	if (old_blk == BLK_NOT_FOUND || new_blk == BLK_NOT_FOUND)
+	if (old_blk == BLK_ANALT_FOUND || new_blk == BLK_ANALT_FOUND)
 		return STATUS_FAIL;
 
 	old_page = (old_blk << xd_card->block_shift) + start_page;
@@ -1118,7 +1118,7 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 	for (i = start_page; i < end_page; i++) {
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 			rtsx_clear_xd_error(chip);
-			xd_set_err_code(chip, XD_NO_CARD);
+			xd_set_err_code(chip, XD_ANAL_CARD);
 			return STATUS_FAIL;
 		}
 
@@ -1144,7 +1144,7 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 
 				if (detect_card_cd(chip,
 						   XD_CARD) != STATUS_SUCCESS) {
-					xd_set_err_code(chip, XD_NO_CARD);
+					xd_set_err_code(chip, XD_ANAL_CARD);
 					return STATUS_FAIL;
 				}
 
@@ -1236,7 +1236,7 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 	u8 reg = 0, *ptr;
 	int i, retval;
 
-	if (phy_blk == BLK_NOT_FOUND)
+	if (phy_blk == BLK_ANALT_FOUND)
 		return STATUS_FAIL;
 
 	page_addr = phy_blk << xd_card->block_shift;
@@ -1283,7 +1283,7 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 	return STATUS_FAIL;
 }
 
-static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
+static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_anal)
 {
 	struct xd_info *xd_card = &chip->xd_card;
 	struct zone_entry *zone;
@@ -1293,7 +1293,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 	u16 cur_lst_page_logoff, ent_lst_page_logoff;
 	u8 redunt[11];
 
-	dev_dbg(rtsx_dev(chip), "%s: %d\n", __func__, zone_no);
+	dev_dbg(rtsx_dev(chip), "%s: %d\n", __func__, zone_anal);
 
 	if (!xd_card->zone) {
 		retval = xd_init_l2p_tbl(chip);
@@ -1301,13 +1301,13 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 			return retval;
 	}
 
-	if (xd_card->zone[zone_no].build_flag) {
+	if (xd_card->zone[zone_anal].build_flag) {
 		dev_dbg(rtsx_dev(chip), "l2p table of zone %d has been built\n",
-			zone_no);
+			zone_anal);
 		return STATUS_SUCCESS;
 	}
 
-	zone = &xd_card->zone[zone_no];
+	zone = &xd_card->zone[zone_anal];
 
 	if (!zone->l2p_table) {
 		zone->l2p_table = vmalloc(2000);
@@ -1323,7 +1323,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 	}
 	memset((u8 *)(zone->free_table), 0xff, XD_FREE_TABLE_CNT * 2);
 
-	if (zone_no == 0) {
+	if (zone_anal == 0) {
 		if (xd_card->cis_block == 0xFFFF)
 			start = 0;
 		else
@@ -1336,8 +1336,8 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 			max_logoff = 999;
 		}
 	} else {
-		start = (u32)(zone_no) << 10;
-		end = (u32)(zone_no + 1) << 10;
+		start = (u32)(zone_anal) << 10;
+		end = (u32)(zone_anal + 1) << 10;
 		max_logoff = 999;
 	}
 
@@ -1376,7 +1376,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 			continue;
 		}
 
-		if (zone_no == 0 && cur_fst_page_logoff == 0 &&
+		if (zone_anal == 0 && cur_fst_page_logoff == 0 &&
 		    redunt[PAGE_STATUS] != XD_GPG)
 			XD_SET_MBR_FAIL(xd_card);
 
@@ -1386,7 +1386,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 		}
 
 		phy_block = zone->l2p_table[cur_fst_page_logoff] +
-			((u32)((zone_no) << 10));
+			((u32)((zone_anal) << 10));
 
 		page_addr = ((i + 1) << xd_card->block_shift) - 1;
 
@@ -1497,13 +1497,13 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 	u32 page_addr, new_blk;
 	u16 log_off;
 	u8 reg_val, page_cnt;
-	int zone_no, retval, i;
+	int zone_anal, retval, i;
 
 	if (start_page > end_page)
 		goto status_fail;
 
 	page_cnt = end_page - start_page;
-	zone_no = (int)(log_blk / 1000);
+	zone_anal = (int)(log_blk / 1000);
 	log_off = (u16)(log_blk % 1000);
 
 	if ((phy_blk & 0x3FF) == 0x3FF) {
@@ -1515,7 +1515,7 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 				break;
 
 			if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
-				xd_set_err_code(chip, XD_NO_CARD);
+				xd_set_err_code(chip, XD_ANAL_CARD);
 				goto status_fail;
 			}
 		}
@@ -1541,7 +1541,7 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 		     XD_TRANSFER_END | XD_PPB_EMPTY,
 		     XD_TRANSFER_END | XD_PPB_EMPTY);
 
-	rtsx_send_cmd_no_wait(chip);
+	rtsx_send_cmd_anal_wait(chip);
 
 	retval = rtsx_transfer_data_partial(chip, XD_CARD, buf, page_cnt * 512,
 					    scsi_sg_count(chip->srb),
@@ -1579,14 +1579,14 @@ fail:
 		wait_timeout(100);
 
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
-			xd_set_err_code(chip, XD_NO_CARD);
+			xd_set_err_code(chip, XD_ANAL_CARD);
 			goto status_fail;
 		}
 
 		xd_set_err_code(chip, XD_ECC_ERROR);
 
-		new_blk = xd_get_unused_block(chip, zone_no);
-		if (new_blk == NO_NEW_BLK) {
+		new_blk = xd_get_unused_block(chip, zone_anal);
+		if (new_blk == ANAL_NEW_BLK) {
 			XD_CLR_BAD_OLDBLK(xd_card);
 			goto status_fail;
 		}
@@ -1604,7 +1604,7 @@ fail:
 			XD_CLR_BAD_OLDBLK(xd_card);
 			goto status_fail;
 		}
-		xd_set_l2p_tbl(chip, zone_no, log_off, (u16)(new_blk & 0x3FF));
+		xd_set_l2p_tbl(chip, zone_anal, log_off, (u16)(new_blk & 0x3FF));
 		xd_erase_block(chip, phy_blk);
 		xd_mark_bad_block(chip, phy_blk);
 		XD_CLR_BAD_OLDBLK(xd_card);
@@ -1618,7 +1618,7 @@ static int xd_finish_write(struct rtsx_chip *chip,
 			   u32 old_blk, u32 new_blk, u32 log_blk, u8 page_off)
 {
 	struct xd_info *xd_card = &chip->xd_card;
-	int retval, zone_no;
+	int retval, zone_anal;
 	u16 log_off;
 
 	dev_dbg(rtsx_dev(chip), "old_blk = 0x%x, ", old_blk);
@@ -1628,10 +1628,10 @@ static int xd_finish_write(struct rtsx_chip *chip,
 	if (page_off > xd_card->page_off)
 		return STATUS_FAIL;
 
-	zone_no = (int)(log_blk / 1000);
+	zone_anal = (int)(log_blk / 1000);
 	log_off = (u16)(log_blk % 1000);
 
-	if (old_blk == BLK_NOT_FOUND) {
+	if (old_blk == BLK_ANALT_FOUND) {
 		retval = xd_init_page(chip, new_blk, log_off,
 				      page_off, xd_card->page_off + 1);
 		if (retval != STATUS_SUCCESS) {
@@ -1662,12 +1662,12 @@ static int xd_finish_write(struct rtsx_chip *chip,
 				xd_set_unused_block(chip, old_blk);
 			}
 		} else {
-			xd_set_err_code(chip, XD_NO_ERROR);
+			xd_set_err_code(chip, XD_ANAL_ERROR);
 			XD_CLR_BAD_OLDBLK(xd_card);
 		}
 	}
 
-	xd_set_l2p_tbl(chip, zone_no, log_off, (u16)(new_blk & 0x3FF));
+	xd_set_l2p_tbl(chip, zone_anal, log_off, (u16)(new_blk & 0x3FF));
 
 	return STATUS_SUCCESS;
 }
@@ -1696,7 +1696,7 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 {
 	struct xd_info *xd_card = &chip->xd_card;
 	u32 page_addr;
-	int zone_no, retval;
+	int zone_anal, retval;
 	u16 log_off;
 	u8 page_cnt, reg_val;
 
@@ -1707,7 +1707,7 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 		goto status_fail;
 
 	page_cnt = end_page - start_page;
-	zone_no = (int)(log_blk / 1000);
+	zone_anal = (int)(log_blk / 1000);
 	log_off = (u16)(log_blk % 1000);
 
 	page_addr = (new_blk << xd_card->block_shift) + start_page;
@@ -1739,7 +1739,7 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 	rtsx_add_cmd(chip, CHECK_REG_CMD, XD_TRANSFER,
 		     XD_TRANSFER_END, XD_TRANSFER_END);
 
-	rtsx_send_cmd_no_wait(chip);
+	rtsx_send_cmd_anal_wait(chip);
 
 	retval = rtsx_transfer_data_partial(chip, XD_CARD, buf, page_cnt * 512,
 					    scsi_sg_count(chip->srb),
@@ -1758,7 +1758,7 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 	if (end_page == (xd_card->page_off + 1)) {
 		xd_card->delay_write.delay_write_flag = 0;
 
-		if (old_blk != BLK_NOT_FOUND) {
+		if (old_blk != BLK_ANALT_FOUND) {
 			retval = xd_erase_block(chip, old_blk);
 			if (retval == STATUS_SUCCESS) {
 				if (XD_CHK_BAD_OLDBLK(xd_card)) {
@@ -1768,11 +1768,11 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 					xd_set_unused_block(chip, old_blk);
 				}
 			} else {
-				xd_set_err_code(chip, XD_NO_ERROR);
+				xd_set_err_code(chip, XD_ANAL_ERROR);
 				XD_CLR_BAD_OLDBLK(xd_card);
 			}
 		}
-		xd_set_l2p_tbl(chip, zone_no, log_off, (u16)(new_blk & 0x3FF));
+		xd_set_l2p_tbl(chip, zone_anal, log_off, (u16)(new_blk & 0x3FF));
 	}
 
 	return STATUS_SUCCESS;
@@ -1824,14 +1824,14 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 #ifdef XD_DELAY_WRITE
 	struct xd_delay_write_tag *delay_write = &xd_card->delay_write;
 #endif
-	int retval, zone_no;
+	int retval, zone_anal;
 	unsigned int index = 0, offset = 0;
 	u32 log_blk, old_blk = 0, new_blk = 0;
 	u16 log_off, total_sec_cnt = sector_cnt;
 	u8 start_page, end_page = 0, page_cnt;
 	u8 *ptr;
 
-	xd_set_err_code(chip, XD_NO_ERROR);
+	xd_set_err_code(chip, XD_ANAL_ERROR);
 
 	xd_card->cleanup_counter = 0;
 
@@ -1846,20 +1846,20 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 
 	if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 		chip->card_fail |= XD_CARD;
-		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
+		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_ANALT_PRESENT);
 		return STATUS_FAIL;
 	}
 
 	log_blk = start_sector >> xd_card->block_shift;
 	start_page = (u8)start_sector & xd_card->page_off;
-	zone_no = (int)(log_blk / 1000);
+	zone_anal = (int)(log_blk / 1000);
 	log_off = (u16)(log_blk % 1000);
 
-	if (xd_card->zone[zone_no].build_flag == 0) {
-		retval = xd_build_l2p_tbl(chip, zone_no);
+	if (xd_card->zone[zone_anal].build_flag == 0) {
+		retval = xd_build_l2p_tbl(chip, zone_anal);
 		if (retval != STATUS_SUCCESS) {
 			chip->card_fail |= XD_CARD;
-			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
+			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_ANALT_PRESENT);
 			return STATUS_FAIL;
 		}
 	}
@@ -1870,7 +1870,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		    delay_write->logblock == log_blk &&
 		    start_page > delay_write->pageoff) {
 			delay_write->delay_write_flag = 0;
-			if (delay_write->old_phyblock != BLK_NOT_FOUND) {
+			if (delay_write->old_phyblock != BLK_ANALT_FOUND) {
 				retval = xd_copy_page(chip,
 						      delay_write->old_phyblock,
 						      delay_write->new_phyblock,
@@ -1898,10 +1898,10 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 				return STATUS_FAIL;
 			}
 #endif
-			old_blk = xd_get_l2p_tbl(chip, zone_no, log_off);
-			new_blk  = xd_get_unused_block(chip, zone_no);
-			if (old_blk == BLK_NOT_FOUND ||
-			    new_blk == BLK_NOT_FOUND) {
+			old_blk = xd_get_l2p_tbl(chip, zone_anal, log_off);
+			new_blk  = xd_get_unused_block(chip, zone_anal);
+			if (old_blk == BLK_ANALT_FOUND ||
+			    new_blk == BLK_ANALT_FOUND) {
 				set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				return STATUS_FAIL;
@@ -1913,7 +1913,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 				if (detect_card_cd(chip, XD_CARD) !=
 					STATUS_SUCCESS) {
 					set_sense_type(chip, lun,
-						       SENSE_TYPE_MEDIA_NOT_PRESENT);
+						       SENSE_TYPE_MEDIA_ANALT_PRESENT);
 					return STATUS_FAIL;
 				}
 				set_sense_type(chip, lun,
@@ -1929,7 +1929,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		if (retval != STATUS_SUCCESS) {
 			if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
-					       SENSE_TYPE_MEDIA_NOT_PRESENT);
+					       SENSE_TYPE_MEDIA_ANALT_PRESENT);
 				return STATUS_FAIL;
 			}
 			set_sense_type(chip, lun,
@@ -1938,8 +1938,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		}
 #endif
 
-		old_blk = xd_get_l2p_tbl(chip, zone_no, log_off);
-		if (old_blk == BLK_NOT_FOUND) {
+		old_blk = xd_get_l2p_tbl(chip, zone_anal, log_off);
+		if (old_blk == BLK_ANALT_FOUND) {
 			set_sense_type(chip, lun,
 				       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 			return STATUS_FAIL;
@@ -1951,7 +1951,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	while (total_sec_cnt) {
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 			chip->card_fail |= XD_CARD;
-			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
+			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_ANALT_PRESENT);
 			return STATUS_FAIL;
 		}
 
@@ -1990,21 +1990,21 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			break;
 
 		log_blk++;
-		zone_no = (int)(log_blk / 1000);
+		zone_anal = (int)(log_blk / 1000);
 		log_off = (u16)(log_blk % 1000);
 
-		if (xd_card->zone[zone_no].build_flag == 0) {
-			retval = xd_build_l2p_tbl(chip, zone_no);
+		if (xd_card->zone[zone_anal].build_flag == 0) {
+			retval = xd_build_l2p_tbl(chip, zone_anal);
 			if (retval != STATUS_SUCCESS) {
 				chip->card_fail |= XD_CARD;
 				set_sense_type(chip, lun,
-					       SENSE_TYPE_MEDIA_NOT_PRESENT);
+					       SENSE_TYPE_MEDIA_ANALT_PRESENT);
 				return STATUS_FAIL;
 			}
 		}
 
-		old_blk = xd_get_l2p_tbl(chip, zone_no, log_off);
-		if (old_blk == BLK_NOT_FOUND) {
+		old_blk = xd_get_l2p_tbl(chip, zone_anal, log_off);
+		if (old_blk == BLK_ANALT_FOUND) {
 			if (srb->sc_data_direction == DMA_FROM_DEVICE)
 				set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
@@ -2016,8 +2016,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		}
 
 		if (srb->sc_data_direction == DMA_TO_DEVICE) {
-			new_blk = xd_get_unused_block(chip, zone_no);
-			if (new_blk == BLK_NOT_FOUND) {
+			new_blk = xd_get_unused_block(chip, zone_anal);
+			if (new_blk == BLK_ANALT_FOUND) {
 				set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				return STATUS_FAIL;
@@ -2038,7 +2038,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 #else
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 			chip->card_fail |= XD_CARD;
-			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
+			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_ANALT_PRESENT);
 			return STATUS_FAIL;
 		}
 
@@ -2047,7 +2047,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		if (retval != STATUS_SUCCESS) {
 			if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
-					       SENSE_TYPE_MEDIA_NOT_PRESENT);
+					       SENSE_TYPE_MEDIA_ANALT_PRESENT);
 				return STATUS_FAIL;
 			}
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_WRITE_ERR);

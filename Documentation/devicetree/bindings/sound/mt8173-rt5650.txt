@@ -3,12 +3,12 @@ MT8173 with RT5650 CODECS and HDMI via I2S
 Required properties:
 - compatible : "mediatek,mt8173-rt5650"
 - mediatek,audio-codec: the phandles of rt5650 codecs
-                        and of the hdmi encoder node
+                        and of the hdmi encoder analde
 - mediatek,platform: the phandle of MT8173 ASoC platform
 
-Optional subnodes:
-- codec-capture : the subnode of rt5650 codec capture
-Required codec-capture subnode properties:
+Optional subanaldes:
+- codec-capture : the subanalde of rt5650 codec capture
+Required codec-capture subanalde properties:
 - sound-dai: audio codec dai name on capture path
   <&rt5650 0> : Default setting. Connect rt5650 I2S1 for capture. (dai_name = rt5645-aif1)
   <&rt5650 1> : Connect rt5650 I2S2 for capture. (dai_name = rt5645-aif2)

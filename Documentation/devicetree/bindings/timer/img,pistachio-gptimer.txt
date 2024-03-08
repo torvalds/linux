@@ -10,7 +10,7 @@ Required properties:
                 "slow", slow counter clock
                 "fast", fast counter clock
  - img,cr-periph: Must contain a phandle to the peripheral control
-		  syscon node.
+		  syscon analde.
 
 Example:
 	timer: timer@18102000 {

@@ -14,8 +14,8 @@
 
 /*
  * Logic: we've got two memory sums for each process, "shared", and
- * "non-shared". Shared memory may get counted more than once, for
- * each process that owns it. Non-shared memory is counted
+ * "analn-shared". Shared memory may get counted more than once, for
+ * each process that owns it. Analn-shared memory is counted
  * accurately.
  */
 void task_mem(struct seq_file *m, struct mm_struct *mm)
@@ -38,7 +38,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 		}
 
 		if (atomic_read(&mm->mm_count) > 1 ||
-		    is_nommu_shared_mapping(vma->vm_flags)) {
+		    is_analmmu_shared_mapping(vma->vm_flags)) {
 			sbytes += size;
 		} else {
 			bytes += size;
@@ -124,10 +124,10 @@ unsigned long task_statm(struct mm_struct *mm,
 /*
  * display a single VMA to a sequenced file
  */
-static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
+static int analmmu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	unsigned long ino = 0;
+	unsigned long ianal = 0;
 	struct file *file;
 	dev_t dev = 0;
 	int flags;
@@ -137,9 +137,9 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 	file = vma->vm_file;
 
 	if (file) {
-		struct inode *inode = file_inode(vma->vm_file);
-		dev = inode->i_sb->s_dev;
-		ino = inode->i_ino;
+		struct ianalde *ianalde = file_ianalde(vma->vm_file);
+		dev = ianalde->i_sb->s_dev;
+		ianal = ianalde->i_ianal;
 		pgoff = (loff_t)vma->vm_pgoff << PAGE_SHIFT;
 	}
 
@@ -153,7 +153,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 		   flags & VM_EXEC ? 'x' : '-',
 		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
 		   pgoff,
-		   MAJOR(dev), MINOR(dev), ino);
+		   MAJOR(dev), MIANALR(dev), ianal);
 
 	if (file) {
 		seq_pad(m, ' ');
@@ -172,7 +172,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
  */
 static int show_map(struct seq_file *m, void *_p)
 {
-	return nommu_vma_show(m, _p);
+	return analmmu_vma_show(m, _p);
 }
 
 static struct vm_area_struct *proc_get_vma(struct proc_maps_private *priv,
@@ -200,12 +200,12 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 		return NULL;
 
 	/* pin the task and mm whilst we play with them */
-	priv->task = get_proc_task(priv->inode);
+	priv->task = get_proc_task(priv->ianalde);
 	if (!priv->task)
 		return ERR_PTR(-ESRCH);
 
 	mm = priv->mm;
-	if (!mm || !mmget_not_zero(mm)) {
+	if (!mm || !mmget_analt_zero(mm)) {
 		put_task_struct(priv->task);
 		priv->task = NULL;
 		return NULL;
@@ -249,21 +249,21 @@ static const struct seq_operations proc_pid_maps_ops = {
 	.show	= show_map
 };
 
-static int maps_open(struct inode *inode, struct file *file,
+static int maps_open(struct ianalde *ianalde, struct file *file,
 		     const struct seq_operations *ops)
 {
 	struct proc_maps_private *priv;
 
 	priv = __seq_open_private(file, ops, sizeof(*priv));
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->inode = inode;
-	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
+	priv->ianalde = ianalde;
+	priv->mm = proc_mem_open(ianalde, PTRACE_MODE_READ);
 	if (IS_ERR(priv->mm)) {
 		int err = PTR_ERR(priv->mm);
 
-		seq_release_private(inode, file);
+		seq_release_private(ianalde, file);
 		return err;
 	}
 
@@ -271,7 +271,7 @@ static int maps_open(struct inode *inode, struct file *file,
 }
 
 
-static int map_release(struct inode *inode, struct file *file)
+static int map_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct proc_maps_private *priv = seq->private;
@@ -279,12 +279,12 @@ static int map_release(struct inode *inode, struct file *file)
 	if (priv->mm)
 		mmdrop(priv->mm);
 
-	return seq_release_private(inode, file);
+	return seq_release_private(ianalde, file);
 }
 
-static int pid_maps_open(struct inode *inode, struct file *file)
+static int pid_maps_open(struct ianalde *ianalde, struct file *file)
 {
-	return maps_open(inode, file, &proc_pid_maps_ops);
+	return maps_open(ianalde, file, &proc_pid_maps_ops);
 }
 
 const struct file_operations proc_pid_maps_operations = {

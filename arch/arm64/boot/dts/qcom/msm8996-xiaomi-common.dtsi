@@ -62,45 +62,45 @@
 	reserved-memory {
 		memory@88800000 {
 			reg = <0x0 0x88800000 0x0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		/* This platform has all PIL regions offset by 0x1400000 */
-		/delete-node/ mpss@88800000;
+		/delete-analde/ mpss@88800000;
 		mpss_mem: mpss@89c00000 {
 			reg = <0x0 0x89c00000 0x0 0x6200000>;
-			no-map;
+			anal-map;
 		};
 
-		/delete-node/ adsp@8ea00000;
+		/delete-analde/ adsp@8ea00000;
 		adsp_mem: adsp@8fe00000 {
 			reg = <0x0 0x8fe00000 0x0 0x1b00000>;
-			no-map;
+			anal-map;
 		};
 
-		/delete-node/ slpi@90500000;
+		/delete-analde/ slpi@90500000;
 		slpi_mem: slpi@91900000 {
 			reg = <0x0 0x91900000 0x0 0xa00000>;
-			no-map;
+			anal-map;
 		};
 
-		/delete-node/ gpu@90f00000;
+		/delete-analde/ gpu@90f00000;
 		gpu_mem: gpu@92300000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x92300000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
-		/delete-node/ venus@91000000;
+		/delete-analde/ venus@91000000;
 		venus_mem: venus@92400000 {
 			reg = <0x0 0x92400000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@92900000 {
 			compatible = "ramoops";
 			reg = <0x0 0x92900000 0x0 0x100000>;
-			no-map;
+			anal-map;
 
 			record-size = <0x8000>;
 			console-size = <0x80000>;
@@ -108,20 +108,20 @@
 			pmsg-size = <0x40000>;
 		};
 
-		/delete-node/ rmtfs;
+		/delete-analde/ rmtfs;
 		rmtfs@f6c00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0 0xf6c00000 0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
 		};
 
-		/delete-node/ mba@91500000;
+		/delete-analde/ mba@91500000;
 		mba_mem: mba@f6f00000 {
 			reg = <0x0 0xf6f00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -393,7 +393,7 @@
 &usb3_dwc3 {
 	extcon = <&typec>;
 
-	/* usb3-phy is not used on this device */
+	/* usb3-phy is analt used on this device */
 	phys = <&hsusb_phy1>;
 	phy-names = "usb2-phy";
 
@@ -685,7 +685,7 @@
 
 	wlan_en_default: wlan-en-state {
 		pins = "gpio8";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		output-low;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 		power-source = <PM8994_GPIO_S4>;
@@ -694,7 +694,7 @@
 
 	rome_enable_default: rome-enable-state {
 		pins = "gpio9";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		output-high;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 		power-source = <PM8994_GPIO_VPH>;

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -42,7 +42,7 @@
  * Streams representing a single context are accessible to applications with a
  * corresponding drm file descriptor, such that OpenGL can use the interface
  * without special privileges. Access to system-wide metrics requires root
- * privileges by default, unless changed via the dev.i915.perf_event_paranoid
+ * privileges by default, unless changed via the dev.i915.perf_event_paraanalid
  * sysctl option.
  *
  */
@@ -51,7 +51,7 @@
  * DOC: i915 Perf History and Comparison with Core Perf
  *
  * The interface was initially inspired by the core Perf infrastructure but
- * some notable differences are:
+ * some analtable differences are:
  *
  * i915 perf file descriptors represent a "stream" instead of an "event"; where
  * a perf event primarily corresponds to a single 64bit value, while a stream
@@ -96,7 +96,7 @@
  * side-band OA data captured via MI_REPORT_PERF_COUNT commands; we're
  * expecting the interface to be used by a platform specific userspace such as
  * OpenGL or tools. This is to say; we aren't inherently missing out on having
- * a standard vendor/architecture agnostic interface by not using perf.
+ * a standard vendor/architecture aganalstic interface by analt using perf.
  *
  *
  * For posterity, in case we might re-visit trying to adapt core perf to be
@@ -127,19 +127,19 @@
  *   Related to being report based; the OA counters are configured in HW as a
  *   set while perf generally expects counter configurations to be orthogonal.
  *   Although counters can be associated with a group leader as they are
- *   opened, there's no clear precedent for being able to provide group-wide
+ *   opened, there's anal clear precedent for being able to provide group-wide
  *   configuration attributes (for example we want to let userspace choose the
  *   OA unit report format used to capture all counters in a set, or specify a
  *   GPU context to filter metrics on). We avoided using perf's grouping
  *   feature and forwarded OA reports to userspace via perf's 'raw' sample
  *   field. This suited our userspace well considering how coupled the counters
- *   are when dealing with normalizing. It would be inconvenient to split
+ *   are when dealing with analrmalizing. It would be inconvenient to split
  *   counters up into separate events, only to require userspace to recombine
  *   them. For Mesa it's also convenient to be forwarded raw, periodic reports
  *   for combining with the side-band raw reports it captures using
  *   MI_REPORT_PERF_COUNT commands.
  *
- *   - As a side note on perf's grouping feature; there was also some concern
+ *   - As a side analte on perf's grouping feature; there was also some concern
  *     that using PERF_FORMAT_GROUP as a way to pack together counter values
  *     would quite drastically inflate our sample sizes, which would likely
  *     lower the effective sampling resolutions we could use when the available
@@ -155,7 +155,7 @@
  *   Related to counter orthogonality; we can't time share the OA unit, while
  *   event scheduling is a central design idea within perf for allowing
  *   userspace to open + enable more events than can be configured in HW at any
- *   one time.  The OA unit is not designed to allow re-configuration while in
+ *   one time.  The OA unit is analt designed to allow re-configuration while in
  *   use. We can't reconfigure the OA unit without losing internal OA unit
  *   state which we can't access explicitly to save and restore. Reconfiguring
  *   the OA unit is also relatively slow, involving ~100 register writes. From
@@ -181,7 +181,7 @@
  *   perf_event_open() requires events to either relate to a pid or a specific
  *   cpu core, while our device pmu related to neither.  Events opened with a
  *   pid will be automatically enabled/disabled according to the scheduling of
- *   that process - so not appropriate for us. When an event is related to a
+ *   that process - so analt appropriate for us. When an event is related to a
  *   cpu id, perf ensures pmu methods will be invoked via an inter process
  *   interrupt on that core. To avoid invasive changes our userspace opened OA
  *   perf events for a specific cpu. This was workable but it meant the
@@ -191,8 +191,8 @@
  *   with the rest of the i915 driver.
  */
 
-#include <linux/anon_inodes.h>
-#include <linux/nospec.h>
+#include <linux/aanaln_ianaldes.h>
+#include <linux/analspec.h>
 #include <linux/sizes.h>
 #include <linux/uuid.h>
 
@@ -222,7 +222,7 @@
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
- * that the overflow cases are unlikely in normal operation.
+ * that the overflow cases are unlikely in analrmal operation.
  */
 #define OA_BUFFER_SIZE		SZ_16M
 
@@ -243,7 +243,7 @@
  *
  * We workaround this issue in oa_buffer_check_unlocked() by reading the reports
  * in the OA buffer, starting from the tail reported by the HW until we find a
- * report with its first 2 dwords not 0 meaning its previous report is
+ * report with its first 2 dwords analt 0 meaning its previous report is
  * completely in memory and ready to be read. Those dwords are also set to 0
  * once read and the whole buffer is cleared upon OA buffer initialization. The
  * first dword is the reason for this report while the second is the timestamp,
@@ -253,11 +253,11 @@
  * Most of the implementation details for this workaround are in
  * oa_buffer_check_unlocked() and _append_oa_reports()
  *
- * Note for posterity: previously the driver used to define an effective tail
+ * Analte for posterity: previously the driver used to define an effective tail
  * pointer that lagged the real pointer by a 'tail margin' measured in bytes
  * derived from %OA_TAIL_MARGIN_NSEC and the configured sampling frequency.
  * This was flawed considering that the OA unit may also automatically generate
- * non-periodic reports (such as on context switch) or the OA unit may be
+ * analn-periodic reports (such as on context switch) or the OA unit may be
  * enabled without any periodic sampling.
  */
 #define OA_TAIL_MARGIN_NSEC	100000ULL
@@ -269,12 +269,12 @@
 #define DEFAULT_POLL_FREQUENCY_HZ 200
 #define DEFAULT_POLL_PERIOD_NS (NSEC_PER_SEC / DEFAULT_POLL_FREQUENCY_HZ)
 
-/* for sysctl proc_dointvec_minmax of dev.i915.perf_stream_paranoid */
-static u32 i915_perf_stream_paranoid = true;
+/* for sysctl proc_dointvec_minmax of dev.i915.perf_stream_paraanalid */
+static u32 i915_perf_stream_paraanalid = true;
 
 /* The maximum exponent the hardware accepts is 63 (essentially it selects one
  * of the 64bit timestamp bits to trigger reports from) but there's currently
- * no known use case for sampling as infrequently as once per 47 thousand years.
+ * anal kanalwn use case for sampling as infrequently as once per 47 thousand years.
  *
  * Since the timestamps included in OA reports are only 32bits it seems
  * reasonable to limit the OA exponent where it's still possible to account for
@@ -355,7 +355,7 @@ static const u32 mtl_oa_base[] = {
  * @sseu: internal SSEU configuration computed either from the userspace
  *        specified configuration in the opening parameters or a default value
  *        (see get_default_sseu_config())
- * @poll_oa_period: The period in nanoseconds at which the CPU will check for OA
+ * @poll_oa_period: The period in naanalseconds at which the CPU will check for OA
  * data availability
  *
  * As read_properties_unlocked() enumerates and validates the properties given
@@ -384,7 +384,7 @@ struct perf_open_properties {
 };
 
 struct i915_oa_config_bo {
-	struct llist_node node;
+	struct llist_analde analde;
 
 	struct i915_oa_config *oa_config;
 	struct i915_vma *vma;
@@ -533,7 +533,7 @@ static void oa_context_id_squash(struct i915_perf_stream *stream, u32 *report)
  * Besides returning true when there is data available to read() this function
  * also updates the tail in the oa_buffer object.
  *
- * Note: It's safe to read OA config state here unlocked, assuming that this is
+ * Analte: It's safe to read OA config state here unlocked, assuming that this is
  * only called while the stream is enabled, while the global OA configuration
  * can't be modified.
  *
@@ -557,8 +557,8 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	hw_tail = stream->perf->ops.oa_hw_tail_read(stream);
 	hw_tail -= gtt_offset;
 
-	/* The tail pointer increases in 64 byte increments, not in report_size
-	 * steps. Also the report size may not be a power of 2. Compute
+	/* The tail pointer increases in 64 byte increments, analt in report_size
+	 * steps. Also the report size may analt be a power of 2. Compute
 	 * potentially partially landed report in the OA buffer
 	 */
 	partial_report_size = OA_TAKEN(hw_tail, stream->oa_buffer.tail);
@@ -570,7 +570,7 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	tail = hw_tail;
 
 	/* Walk the stream backward until we find a report with report
-	 * id and timestmap not at 0. Since the circular buffer pointers
+	 * id and timestmap analt at 0. Since the circular buffer pointers
 	 * progress by increments of 64 bytes and that reports can be up
 	 * to 256 bytes long, we can't tell whether a report has fully
 	 * landed in memory before the report id and timestamp of the
@@ -578,7 +578,7 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	 *
 	 * This is assuming that the writes of the OA unit land in
 	 * memory in the order they were written to.
-	 * If not : (╯°□°）╯︵ ┻━┻
+	 * If analt : (╯°□°）╯︵ ┻━┻
 	 */
 	while (OA_TAKEN(tail, stream->oa_buffer.tail) >= report_size) {
 		void *report = stream->oa_buffer.vaddr + tail;
@@ -592,7 +592,7 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 
 	if (OA_TAKEN(hw_tail, tail) > report_size &&
 	    __ratelimit(&stream->perf->tail_pointer_race))
-		drm_notice(&stream->uncore->i915->drm,
+		drm_analtice(&stream->uncore->i915->drm,
 			   "unlanded report(s) head=0x%x tail=0x%x hw_tail=0x%x\n",
 		 stream->oa_buffer.head, tail, hw_tail);
 
@@ -611,7 +611,7 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
  * @stream: An i915-perf stream opened for OA metrics
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
- * @offset: (inout): the current position for writing into @buf
+ * @offset: (ianalut): the current position for writing into @buf
  * @type: The kind of status to report to userspace
  *
  * Writes a status record (such as `DRM_I915_PERF_RECORD_OA_REPORT_LOST`)
@@ -630,7 +630,7 @@ static int append_oa_status(struct i915_perf_stream *stream,
 	struct drm_i915_perf_record_header header = { type, 0, sizeof(header) };
 
 	if ((count - *offset) < header.size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_to_user(buf + *offset, &header, sizeof(header)))
 		return -EFAULT;
@@ -645,7 +645,7 @@ static int append_oa_status(struct i915_perf_stream *stream,
  * @stream: An i915-perf stream opened for OA metrics
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
- * @offset: (inout): the current position for writing into @buf
+ * @offset: (ianalut): the current position for writing into @buf
  * @report: A single OA report to (optionally) include as part of the sample
  *
  * The contents of a sample are configured through `DRM_I915_PERF_PROP_SAMPLE_*`
@@ -673,7 +673,7 @@ static int append_oa_sample(struct i915_perf_stream *stream,
 	header.size = stream->sample_size;
 
 	if ((count - *offset) < header.size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	buf += *offset;
 	if (copy_to_user(buf, &header, sizeof(header)))
@@ -706,17 +706,17 @@ static int append_oa_sample(struct i915_perf_stream *stream,
  * @stream: An i915-perf stream opened for OA metrics
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
- * @offset: (inout): the current position for writing into @buf
+ * @offset: (ianalut): the current position for writing into @buf
  *
- * Notably any error condition resulting in a short read (-%ENOSPC or
+ * Analtably any error condition resulting in a short read (-%EANALSPC or
  * -%EFAULT) will be returned even though one or more records may
  * have been successfully copied. In this case it's up to the caller
  * to decide if the error should be squashed before returning to
  * userspace.
  *
- * Note: reports are consumed from the head, and appended to the
+ * Analte: reports are consumed from the head, and appended to the
  * tail, so the tail chases the head?... If you think that's mad
- * and back-to-front you're not alone, but this follows the
+ * and back-to-front you're analt alone, but this follows the
  * Gen PRM naming convention.
  *
  * Returns: 0 on success, negative error code on failure.
@@ -760,7 +760,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		return -EIO;
 
 
-	for (/* none */;
+	for (/* analne */;
 	     OA_TAKEN(tail, head);
 	     head = (head + report_size) & mask) {
 		u8 *report = oa_buf_base + head;
@@ -781,7 +781,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 * invalid to be sure we avoid false-positive, single-context
 		 * filtering below...
 		 *
-		 * Note: that we don't clear the valid_ctx_bit so userspace can
+		 * Analte: that we don't clear the valid_ctx_bit so userspace can
 		 * understand that the ID has been squashed by the kernel.
 		 *
 		 * Update:
@@ -811,7 +811,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 * reports. MMIO triggered reports have the markers in the
 		 * context ID field and the context-valid-bit is 0. The logic
 		 * below to squash the context ID would render the report
-		 * useless since the user will not be able to find it in the OA
+		 * useless since the user will analt be able to find it in the OA
 		 * buffer. Since MMIO triggered reports exist only on XEHP,
 		 * we should avoid squashing these for XEHP platforms.
 		 */
@@ -823,24 +823,24 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		}
 
 		/*
-		 * NB: For Gen 8 the OA unit no longer supports clock gating
+		 * NB: For Gen 8 the OA unit anal longer supports clock gating
 		 * off for a specific context and the kernel can't securely
 		 * stop the counters from updating as system-wide / global
 		 * values.
 		 *
-		 * Automatic reports now include a context ID so reports can be
-		 * filtered on the cpu but it's not worth trying to
+		 * Automatic reports analw include a context ID so reports can be
+		 * filtered on the cpu but it's analt worth trying to
 		 * automatically subtract/hide counter progress for other
 		 * contexts while filtering since we can't stop userspace
 		 * issuing MI_REPORT_PERF_COUNT commands which would still
 		 * provide a side-band view of the real values.
 		 *
 		 * To allow userspace (such as Mesa/GL_INTEL_performance_query)
-		 * to normalize counters for a single filtered context then it
+		 * to analrmalize counters for a single filtered context then it
 		 * needs be forwarded bookend context-switch reports so that it
 		 * can track switches in between MI_REPORT_PERF_COUNT commands
-		 * and can itself subtract/ignore the progress of counters
-		 * associated with other contexts. Note that the hardware
+		 * and can itself subtract/iganalre the progress of counters
+		 * associated with other contexts. Analte that the hardware
 		 * automatically triggers reports when switching to a new
 		 * context which are tagged with the ID of the newly active
 		 * context. To avoid the complexity (and likely fragility) of
@@ -850,7 +850,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 * all.
 		 *
 		 * We don't rely solely on the reason field to identify context
-		 * switches since it's not-uncommon for periodic samples to
+		 * switches since it's analt-uncommon for periodic samples to
 		 * identify a switch before any 'context switch' report.
 		 */
 		if (!stream->ctx ||
@@ -925,7 +925,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
  * @stream: An i915-perf stream opened for OA metrics
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
- * @offset: (inout): the current position for writing into @buf
+ * @offset: (ianalut): the current position for writing into @buf
  *
  * Checks OA unit status registers and if necessary appends corresponding
  * status records for userspace (such as for a buffer full condition) and then
@@ -965,7 +965,7 @@ static int gen8_oa_read(struct i915_perf_stream *stream,
 	 * Although theoretically we could handle this more gracefully
 	 * sometimes, some Gens don't correctly suppress certain
 	 * automatically triggered reports in this condition and so we
-	 * have to assume that old reports are now being trampled
+	 * have to assume that old reports are analw being trampled
 	 * over.
 	 *
 	 * Considering how we don't currently give userspace control
@@ -987,7 +987,7 @@ static int gen8_oa_read(struct i915_perf_stream *stream,
 		stream->perf->ops.oa_enable(stream);
 
 		/*
-		 * Note: .oa_enable() is expected to re-init the oabuffer and
+		 * Analte: .oa_enable() is expected to re-init the oabuffer and
 		 * reset GEN8_OASTATUS for us
 		 */
 		oastatus = intel_uncore_read(uncore, oastatus_reg);
@@ -1016,17 +1016,17 @@ static int gen8_oa_read(struct i915_perf_stream *stream,
  * @stream: An i915-perf stream opened for OA metrics
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
- * @offset: (inout): the current position for writing into @buf
+ * @offset: (ianalut): the current position for writing into @buf
  *
- * Notably any error condition resulting in a short read (-%ENOSPC or
+ * Analtably any error condition resulting in a short read (-%EANALSPC or
  * -%EFAULT) will be returned even though one or more records may
  * have been successfully copied. In this case it's up to the caller
  * to decide if the error should be squashed before returning to
  * userspace.
  *
- * Note: reports are consumed from the head, and appended to the
+ * Analte: reports are consumed from the head, and appended to the
  * tail, so the tail chases the head?... If you think that's mad
- * and back-to-front you're not alone, but this follows the
+ * and back-to-front you're analt alone, but this follows the
  * Gen PRM naming convention.
  *
  * Returns: 0 on success, negative error code on failure.
@@ -1059,7 +1059,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 	/* An out of bounds or misaligned head or tail pointer implies a driver
 	 * bug since we validate + align the tail pointers we read from the
 	 * hardware and we are in full control of the head pointer which should
-	 * only be incremented by multiples of the report size (notably also
+	 * only be incremented by multiples of the report size (analtably also
 	 * all a power of two).
 	 */
 	if (drm_WARN_ONCE(&uncore->i915->drm,
@@ -1070,7 +1070,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		return -EIO;
 
 
-	for (/* none */;
+	for (/* analne */;
 	     OA_TAKEN(tail, head);
 	     head = (head + report_size) & mask) {
 		u8 *report = oa_buf_base + head;
@@ -1087,7 +1087,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		if (drm_WARN_ON(&uncore->i915->drm,
 				(OA_BUFFER_SIZE - head) < report_size)) {
 			drm_err(&uncore->i915->drm,
-				"Spurious OA head ptr: non-integral report offset\n");
+				"Spurious OA head ptr: analn-integral report offset\n");
 			break;
 		}
 
@@ -1099,7 +1099,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		 */
 		if (report32[0] == 0) {
 			if (__ratelimit(&stream->perf->spurious_report_rs))
-				drm_notice(&uncore->i915->drm,
+				drm_analtice(&uncore->i915->drm,
 					   "Skipping spurious, invalid OA report\n");
 			continue;
 		}
@@ -1134,7 +1134,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
  * @stream: An i915-perf stream opened for OA metrics
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
- * @offset: (inout): the current position for writing into @buf
+ * @offset: (ianalut): the current position for writing into @buf
  *
  * Checks Gen 7 specific OA unit status registers and if necessary appends
  * corresponding status records for userspace (such as for a buffer full
@@ -1161,7 +1161,7 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 
 	/* XXX: On Haswell we don't have a safe way to clear oastatus1
 	 * bits while the OA unit is enabled (while the tail pointer
-	 * may be updated asynchronously) so we ignore status bits
+	 * may be updated asynchroanalusly) so we iganalre status bits
 	 * that have already been reported to userspace.
 	 */
 	oastatus1 &= ~stream->perf->gen7_latched_oastatus1;
@@ -1184,7 +1184,7 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 	 *   mode where the driver will automatically maintain a safe
 	 *   guard band between head/tail, avoiding this overflow
 	 *   condition, but we avoid the added driver complexity for
-	 *   now.
+	 *   analw.
 	 */
 	if (unlikely(oastatus1 & GEN7_OASTATUS1_OABUFFER_OVERFLOW)) {
 		ret = append_oa_status(stream, buf, count, offset,
@@ -1219,10 +1219,10 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
  * @stream: An i915-perf stream opened for OA metrics
  *
  * Called when userspace tries to read() from a blocking stream FD opened
- * for OA metrics. It waits until the hrtimer callback finds a non-empty
+ * for OA metrics. It waits until the hrtimer callback finds a analn-empty
  * OA buffer and wakes us.
  *
- * Note: it's acceptable to have this return with some false positives
+ * Analte: it's acceptable to have this return with some false positives
  * since any subsequent read handling will return -EAGAIN if there isn't
  * really data ready for userspace yet.
  *
@@ -1230,7 +1230,7 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
  */
 static int i915_oa_wait_unlocked(struct i915_perf_stream *stream)
 {
-	/* We would wait indefinitely if periodic sampling is not enabled */
+	/* We would wait indefinitely if periodic sampling is analt enabled */
 	if (!stream->periodic)
 		return -EIO;
 
@@ -1260,7 +1260,7 @@ static void i915_oa_poll_wait(struct i915_perf_stream *stream,
  * @stream: An i915-perf stream opened for OA metrics
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
- * @offset: (inout): the current position for writing into @buf
+ * @offset: (ianalut): the current position for writing into @buf
  *
  * Updates @offset according to the number of bytes successfully copied into
  * the userspace buffer.
@@ -1281,7 +1281,7 @@ static struct intel_context *oa_pin_context(struct i915_perf_stream *stream)
 	struct i915_gem_context *ctx = stream->ctx;
 	struct intel_context *ce;
 	struct i915_gem_ww_ctx ww;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		if (ce->engine != stream->engine) /* first match! */
@@ -1402,7 +1402,7 @@ err_scratch:
  * XXX_MAX_CONTEXT_HW_ID is used by idle context
  *
  * For GuC mode of submission read context id from the upper dword of the
- * EXECLIST_STATUS register. Note that we read this value only once and expect
+ * EXECLIST_STATUS register. Analte that we read this value only once and expect
  * that the value stays fixed for the entire OA use case. There are cases where
  * GuC KMD implementation may deregister a context to reuse it's context id, but
  * we prevent that from happening to the OA context by pinning it.
@@ -1468,7 +1468,7 @@ static u32 oa_context_image_offset(struct intel_context *ce, u32 reg)
 		if (IS_MI_LRI_CMD(state[offset])) {
 			/*
 			 * We expect reg-value pairs in MI_LRI command, so
-			 * MI_LRI_LEN() should be even, if not, issue a warning.
+			 * MI_LRI_LEN() should be even, if analt, issue a warning.
 			 */
 			drm_WARN_ON(&ce->engine->i915->drm,
 				    MI_LRI_LEN(state[offset]) & 0x1);
@@ -1501,7 +1501,7 @@ static int set_oa_ctx_ctrl_offset(struct intel_context *ce)
 		ce->engine->name, offset);
 
 exit:
-	return offset && offset != U32_MAX ? 0 : -ENODEV;
+	return offset && offset != U32_MAX ? 0 : -EANALDEV;
 }
 
 static bool engine_supports_mi_query(struct intel_engine_cs *engine)
@@ -1572,7 +1572,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 
 			/*
 			 * GuC uses the top bit to signal proxy submission, so
-			 * ignore that bit.
+			 * iganalre that bit.
 			 */
 			stream->specific_ctx_id_mask =
 				(1U << (GEN8_CTX_ID_WIDTH - 1)) - 1;
@@ -1638,14 +1638,14 @@ free_oa_configs(struct i915_perf_stream *stream)
 	struct i915_oa_config_bo *oa_bo, *tmp;
 
 	i915_oa_config_put(stream->oa_config);
-	llist_for_each_entry_safe(oa_bo, tmp, stream->oa_config_bos.first, node)
+	llist_for_each_entry_safe(oa_bo, tmp, stream->oa_config_bos.first, analde)
 		free_oa_config_bo(oa_bo);
 }
 
 static void
-free_noa_wait(struct i915_perf_stream *stream)
+free_anala_wait(struct i915_perf_stream *stream)
 {
-	i915_vma_unpin_and_release(&stream->noa_wait, 0);
+	i915_vma_unpin_and_release(&stream->anala_wait, 0);
 }
 
 static bool engine_supports_oa(const struct intel_engine_cs *engine)
@@ -1685,10 +1685,10 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 		oa_put_render_ctx_id(stream);
 
 	free_oa_configs(stream);
-	free_noa_wait(stream);
+	free_anala_wait(stream);
 
 	if (perf->spurious_report_rs.missed) {
-		gt_notice(gt, "%d spurious OA report notices suppressed due to ratelimiting\n",
+		gt_analtice(gt, "%d spurious OA report analtices suppressed due to ratelimiting\n",
 			  perf->spurious_report_rs.missed);
 	}
 }
@@ -1731,7 +1731,7 @@ static void gen7_init_oa_buffer(struct i915_perf_stream *stream)
 	 *
 	 * The reason we clear the buffer for each re-init is for the
 	 * sanity check in gen7_append_oa_reports() that looks at the
-	 * report-id field to make sure it's non-zero which relies on
+	 * report-id field to make sure it's analn-zero which relies on
 	 * the assumption that new reports are being written to zeroed
 	 * memory...
 	 */
@@ -1784,7 +1784,7 @@ static void gen8_init_oa_buffer(struct i915_perf_stream *stream)
 	 *
 	 * The reason we clear the buffer for each re-init is for the
 	 * sanity check in gen8_append_oa_reports() that looks at the
-	 * reason field to make sure it's non-zero which relies on
+	 * reason field to make sure it's analn-zero which relies on
 	 * the assumption that new reports are being written to zeroed
 	 * memory...
 	 */
@@ -1837,7 +1837,7 @@ static void gen12_init_oa_buffer(struct i915_perf_stream *stream)
 	 *
 	 * The reason we clear the buffer for each re-init is for the
 	 * sanity check in gen8_append_oa_reports() that looks at the
-	 * reason field to make sure it's non-zero which relies on
+	 * reason field to make sure it's analn-zero which relies on
 	 * the assumption that new reports are being written to zeroed
 	 * memory...
 	 */
@@ -1854,9 +1854,9 @@ static int alloc_oa_buffer(struct i915_perf_stream *stream)
 	int ret;
 
 	if (drm_WARN_ON(&i915->drm, stream->oa_buffer.vma))
-		return -ENODEV;
+		return -EANALDEV;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(OA_BUFFER_SIZE);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(OA_BUFFER_SIZE);
 	BUILD_BUG_ON(OA_BUFFER_SIZE < SZ_128K || OA_BUFFER_SIZE > SZ_16M);
 
 	bo = i915_gem_object_create_shmem(stream->perf->i915, OA_BUFFER_SIZE);
@@ -1922,14 +1922,14 @@ static u32 *save_restore_register(struct i915_perf_stream *stream, u32 *cs,
 	for (d = 0; d < dword_count; d++) {
 		*cs++ = cmd;
 		*cs++ = i915_mmio_reg_offset(reg) + 4 * d;
-		*cs++ = i915_ggtt_offset(stream->noa_wait) + offset + 4 * d;
+		*cs++ = i915_ggtt_offset(stream->anala_wait) + offset + 4 * d;
 		*cs++ = 0;
 	}
 
 	return cs;
 }
 
-static int alloc_noa_wait(struct i915_perf_stream *stream)
+static int alloc_anala_wait(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *i915 = stream->perf->i915;
 	struct intel_gt *gt = stream->engine->gt;
@@ -1937,7 +1937,7 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 	struct i915_vma *vma;
 	const u64 delay_ticks = 0xffffffffffffffff -
 		intel_gt_ns_to_clock_interval(to_gt(stream->perf->i915),
-		atomic64_read(&stream->perf->noa_programming_delay));
+		atomic64_read(&stream->perf->anala_programming_delay));
 	const u32 base = stream->engine->mmio_base;
 #define CS_GPR(x) GEN8_RING_CS_GPR(base, x)
 	u32 *batch, *ts0, *cs, *jump;
@@ -1945,7 +1945,7 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 	int ret, i;
 	enum {
 		START_TS,
-		NOW_TS,
+		ANALW_TS,
 		DELTA_TS,
 		JUMP_PREDICATE,
 		DELTA_TARGET,
@@ -1964,7 +1964,7 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 	bo = i915_gem_object_create_internal(i915, 8192);
 	if (IS_ERR(bo)) {
 		drm_err(&i915->drm,
-			"Failed to allocate NOA wait batchbuffer\n");
+			"Failed to allocate ANALA wait batchbuffer\n");
 		return PTR_ERR(bo);
 	}
 
@@ -1975,7 +1975,7 @@ retry:
 		goto out_ww;
 
 	/*
-	 * We pin in GGTT because we jump into this buffer now because
+	 * We pin in GGTT because we jump into this buffer analw because
 	 * multiple OA config BOs will have a jump to this address and it
 	 * needs to be fixed during the lifetime of the i915/perf stream.
 	 */
@@ -1995,7 +1995,7 @@ retry:
 		goto err_unpin;
 	}
 
-	stream->noa_wait = vma;
+	stream->anala_wait = vma;
 
 #define GPR_SAVE_OFFSET 4096
 #define PREDICATE_SAVE_OFFSET 4160
@@ -2031,23 +2031,23 @@ retry:
 	jump = cs;
 
 	/*
-	 * Take another snapshot of the timestamp register. Take care to clear
+	 * Take aanalther snapshot of the timestamp register. Take care to clear
 	 * up the top 32bits of CS_GPR(1) as we're using it for other
 	 * operations below.
 	 */
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
-	*cs++ = i915_mmio_reg_offset(CS_GPR(NOW_TS)) + 4;
+	*cs++ = i915_mmio_reg_offset(CS_GPR(ANALW_TS)) + 4;
 	*cs++ = 0;
 	*cs++ = MI_LOAD_REGISTER_REG | (3 - 2);
 	*cs++ = i915_mmio_reg_offset(RING_TIMESTAMP(base));
-	*cs++ = i915_mmio_reg_offset(CS_GPR(NOW_TS));
+	*cs++ = i915_mmio_reg_offset(CS_GPR(ANALW_TS));
 
 	/*
 	 * Do a diff between the 2 timestamps and store the result back into
 	 * CS_GPR(1).
 	 */
 	*cs++ = MI_MATH(5);
-	*cs++ = MI_MATH_LOAD(MI_MATH_REG_SRCA, MI_MATH_REG(NOW_TS));
+	*cs++ = MI_MATH_LOAD(MI_MATH_REG_SRCA, MI_MATH_REG(ANALW_TS));
 	*cs++ = MI_MATH_LOAD(MI_MATH_REG_SRCB, MI_MATH_REG(START_TS));
 	*cs++ = MI_MATH_SUB;
 	*cs++ = MI_MATH_STORE(MI_MATH_REG(DELTA_TS), MI_MATH_REG_ACCU);
@@ -2077,7 +2077,7 @@ retry:
 		*cs++ = MI_SET_PREDICATE;
 
 	/*
-	 * Now add the diff between to previous timestamps and add it to :
+	 * Analw add the diff between to previous timestamps and add it to :
 	 *      (((1 * << 64) - 1) - delay_ns)
 	 *
 	 * When the Carry Flag contains 1 this means the elapsed time is
@@ -2198,7 +2198,7 @@ alloc_oa_config_buffer(struct i915_perf_stream *stream,
 
 	oa_bo = kzalloc(sizeof(*oa_bo), GFP_KERNEL);
 	if (!oa_bo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config_length += num_lri_dwords(oa_config->mux_regs_len);
 	config_length += num_lri_dwords(oa_config->b_counter_regs_len);
@@ -2238,7 +2238,7 @@ retry:
 	*cs++ = (GRAPHICS_VER(stream->perf->i915) < 8 ?
 		 MI_BATCH_BUFFER_START :
 		 MI_BATCH_BUFFER_START_GEN8);
-	*cs++ = i915_ggtt_offset(stream->noa_wait);
+	*cs++ = i915_ggtt_offset(stream->anala_wait);
 	*cs++ = 0;
 
 	i915_gem_object_flush_map(obj);
@@ -2253,7 +2253,7 @@ retry:
 	}
 
 	oa_bo->oa_config = i915_oa_config_get(oa_config);
-	llist_add(&oa_bo->node, &stream->oa_config_bos);
+	llist_add(&oa_bo->analde, &stream->oa_config_bos);
 
 out_ww:
 	if (err == -EDEADLK) {
@@ -2282,7 +2282,7 @@ get_oa_vma(struct i915_perf_stream *stream, struct i915_oa_config *oa_config)
 	 * Look for the buffer in the already allocated BOs attached
 	 * to the stream.
 	 */
-	llist_for_each_entry(oa_bo, stream->oa_config_bos.first, node) {
+	llist_for_each_entry(oa_bo, stream->oa_config_bos.first, analde) {
 		if (oa_bo->oa_config == oa_config &&
 		    memcmp(oa_bo->oa_config->uuid,
 			   oa_config->uuid,
@@ -2385,9 +2385,9 @@ hsw_enable_metric_set(struct i915_perf_stream *stream,
 	 *
 	 * OA unit is using “crclk” for its functionality. When trunk
 	 * level clock gating takes place, OA clock would be gated,
-	 * unable to count the events from non-render clock domain.
+	 * unable to count the events from analn-render clock domain.
 	 * Render clock gating must be disabled when OA is enabled to
-	 * count the events from non-render domain. Unit level clock
+	 * count the events from analn-render domain. Unit level clock
 	 * gating for RCS should also be disabled.
 	 */
 	intel_uncore_rmw(uncore, GEN7_MISCCPCTL,
@@ -2409,7 +2409,7 @@ static void hsw_disable_metric_set(struct i915_perf_stream *stream)
 	intel_uncore_rmw(uncore, GEN7_MISCCPCTL,
 			 0, GEN7_DOP_CLOCK_GATE_ENABLE);
 
-	intel_uncore_rmw(uncore, GDT_CHICKEN_BITS, GT_NOA_ENABLE, 0);
+	intel_uncore_rmw(uncore, GDT_CHICKEN_BITS, GT_ANALA_ENABLE, 0);
 }
 
 static u32 oa_config_flex_reg(const struct i915_oa_config *oa_config,
@@ -2421,7 +2421,7 @@ static u32 oa_config_flex_reg(const struct i915_oa_config *oa_config,
 	/*
 	 * This arbitrary default will select the 'EU FPU0 Pipeline
 	 * Active' event. In the future it's anticipated that there
-	 * will be an explicit 'No Event' we can select, but not yet...
+	 * will be an explicit 'Anal Event' we can select, but analt yet...
 	 */
 	if (!oa_config)
 		return 0;
@@ -2518,7 +2518,7 @@ gen8_load_flex(struct i915_request *rq,
 		*cs++ = i915_mmio_reg_offset(flex->reg);
 		*cs++ = flex->value;
 	} while (flex++, --count);
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	intel_ring_advance(rq, cs);
 
@@ -2617,7 +2617,7 @@ static int gen12_configure_oar_context(struct i915_perf_stream *stream,
 			active ? GEN8_OA_COUNTER_RESUME : 0,
 		},
 	};
-	/* Offsets in regs_lri are not used since this configuration is only
+	/* Offsets in regs_lri are analt used since this configuration is only
 	 * applied using LRI. Initialize the correct offsets for posterity.
 	 */
 #define GEN12_OAR_OACONTROL_OFFSET 0x5B0
@@ -2675,8 +2675,8 @@ static int gen12_configure_oar_context(struct i915_perf_stream *stream,
  * - Ensure any new contexts will be initialized with the correct
  *   per-context OA state.
  *
- * Note: it's only the RCS/Render context that has any OA state.
- * Note: the first flex register passed must always be R_PWR_CLK_STATE
+ * Analte: it's only the RCS/Render context that has any OA state.
+ * Analte: the first flex register passed must always be R_PWR_CLK_STATE
  */
 static int
 oa_configure_all_contexts(struct i915_perf_stream *stream,
@@ -2702,10 +2702,10 @@ oa_configure_all_contexts(struct i915_perf_stream *stream,
 	 * this might leave small interval of time where the OA unit is
 	 * configured at an invalid sampling period.
 	 *
-	 * Note that since we emit all requests from a single ring, there
+	 * Analte that since we emit all requests from a single ring, there
 	 * is still an implicit global barrier here that may cause a high
 	 * priority context to wait for an otherwise independent low priority
-	 * context. Contexts idle at the time of reconfiguration are not
+	 * context. Contexts idle at the time of reconfiguration are analt
 	 * trapped behind the barrier.
 	 */
 	spin_lock(&i915->gem.contexts.lock);
@@ -2729,7 +2729,7 @@ oa_configure_all_contexts(struct i915_perf_stream *stream,
 
 	/*
 	 * After updating all other contexts, we need to modify ourselves.
-	 * If we don't modify the kernel_context, we do not get events while
+	 * If we don't modify the kernel_context, we do analt get events while
 	 * idle.
 	 */
 	for_each_uabi_engine(engine, i915) {
@@ -2820,20 +2820,20 @@ gen8_enable_metric_set(struct i915_perf_stream *stream,
 
 	/*
 	 * We disable slice/unslice clock ratio change reports on SKL since
-	 * they are too noisy. The HW generates a lot of redundant reports
+	 * they are too analisy. The HW generates a lot of redundant reports
 	 * where the ratio hasn't really changed causing a lot of redundant
 	 * work to processes and increasing the chances we'll hit buffer
 	 * overruns.
 	 *
 	 * Although we don't currently use the 'disable overrun' OABUFFER
-	 * feature it's worth noting that clock ratio reports have to be
+	 * feature it's worth analting that clock ratio reports have to be
 	 * disabled before considering to use that feature since the HW doesn't
 	 * correctly block these reports.
 	 *
-	 * Currently none of the high-level metrics we have depend on knowing
-	 * this ratio to normalize.
+	 * Currently analne of the high-level metrics we have depend on kanalwing
+	 * this ratio to analrmalize.
 	 *
-	 * Note: This register is not power context saved and restored, but
+	 * Analte: This register is analt power context saved and restored, but
 	 * that's OK considering that we disable RC6 while the OA unit is
 	 * enabled.
 	 *
@@ -2849,7 +2849,7 @@ gen8_enable_metric_set(struct i915_perf_stream *stream,
 
 	/*
 	 * Update all contexts prior writing the mux configurations as we need
-	 * to make sure all slices/subslices are ON before writing to NOA
+	 * to make sure all slices/subslices are ON before writing to ANALA
 	 * registers.
 	 */
 	ret = lrc_configure_all_contexts(stream, oa_config, active);
@@ -2882,7 +2882,7 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 
 	/*
 	 * Wa_1508761755:xehpsdv, dg2
-	 * EU NOA signals behave incorrectly if EU clock gating is enabled.
+	 * EU ANALA signals behave incorrectly if EU clock gating is enabled.
 	 * Disable thread stall DOP gating and EU DOP gating.
 	 */
 	if (IS_XEHPSDV(i915) || IS_DG2(i915)) {
@@ -2898,7 +2898,7 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 					      GEN12_OAG_OA_DEBUG_INCLUDE_CLK_RATIO) |
 			   /*
 			    * If the user didn't require OA reports, instruct
-			    * the hardware not to emit ctx switch reports.
+			    * the hardware analt to emit ctx switch reports.
 			    */
 			   oag_report_ctx_switches(stream));
 
@@ -2920,7 +2920,7 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 
 	/*
 	 * Update all contexts prior writing the mux configurations as we need
-	 * to make sure all slices/subslices are ON before writing to NOA
+	 * to make sure all slices/subslices are ON before writing to ANALA
 	 * registers.
 	 */
 	ret = gen12_configure_all_contexts(stream, oa_config, active);
@@ -2950,7 +2950,7 @@ static void gen8_disable_metric_set(struct i915_perf_stream *stream)
 	/* Reset all contexts' slices/subslices configurations. */
 	lrc_configure_all_contexts(stream, NULL, NULL);
 
-	intel_uncore_rmw(uncore, GDT_CHICKEN_BITS, GT_NOA_ENABLE, 0);
+	intel_uncore_rmw(uncore, GDT_CHICKEN_BITS, GT_ANALA_ENABLE, 0);
 }
 
 static void gen11_disable_metric_set(struct i915_perf_stream *stream)
@@ -2960,8 +2960,8 @@ static void gen11_disable_metric_set(struct i915_perf_stream *stream)
 	/* Reset all contexts' slices/subslices configurations. */
 	lrc_configure_all_contexts(stream, NULL, NULL);
 
-	/* Make sure we disable noa to save power. */
-	intel_uncore_rmw(uncore, RPM_CONFIG1, GEN10_GT_NOA_ENABLE, 0);
+	/* Make sure we disable anala to save power. */
+	intel_uncore_rmw(uncore, RPM_CONFIG1, GEN10_GT_ANALA_ENABLE, 0);
 }
 
 static void gen12_disable_metric_set(struct i915_perf_stream *stream)
@@ -2988,8 +2988,8 @@ static void gen12_disable_metric_set(struct i915_perf_stream *stream)
 	if (stream->ctx)
 		gen12_configure_oar_context(stream, NULL);
 
-	/* Make sure we disable noa to save power. */
-	intel_uncore_rmw(uncore, RPM_CONFIG1, GEN10_GT_NOA_ENABLE, 0);
+	/* Make sure we disable anala to save power. */
+	intel_uncore_rmw(uncore, RPM_CONFIG1, GEN10_GT_ANALA_ENABLE, 0);
 
 	sqcnt1 = GEN12_SQCNT1_PMON_ENABLE |
 		 (HAS_OA_BPC_REPORTING(i915) ? GEN12_SQCNT1_OABPC : 0);
@@ -3008,7 +3008,7 @@ static void gen7_oa_enable(struct i915_perf_stream *stream)
 	u32 report_format = stream->oa_buffer.format->format;
 
 	/*
-	 * Reset buf pointers so we don't forward reports from before now.
+	 * Reset buf pointers so we don't forward reports from before analw.
 	 *
 	 * Think carefully if considering trying to avoid this, since it
 	 * also ensures status flags and the buffer itself are cleared
@@ -3034,7 +3034,7 @@ static void gen8_oa_enable(struct i915_perf_stream *stream)
 	u32 report_format = stream->oa_buffer.format->format;
 
 	/*
-	 * Reset buf pointers so we don't forward reports from before now.
+	 * Reset buf pointers so we don't forward reports from before analw.
 	 *
 	 * Think carefully if considering trying to avoid this, since it
 	 * also ensures status flags and the buffer itself are cleared
@@ -3045,7 +3045,7 @@ static void gen8_oa_enable(struct i915_perf_stream *stream)
 	gen8_init_oa_buffer(stream);
 
 	/*
-	 * Note: we don't rely on the hardware to perform single context
+	 * Analte: we don't rely on the hardware to perform single context
 	 * filtering and instead filter on the cpu based on the context-id
 	 * field of reports
 	 */
@@ -3081,7 +3081,7 @@ static void gen12_oa_enable(struct i915_perf_stream *stream)
  *
  * [Re]enables hardware periodic sampling according to the period configured
  * when opening the stream. This also starts a hrtimer that will periodically
- * check for data in the circular OA buffer for notifying userspace (e.g.
+ * check for data in the circular OA buffer for analtifying userspace (e.g.
  * during a read() or poll()).
  */
 static void i915_oa_stream_enable(struct i915_perf_stream *stream)
@@ -3147,7 +3147,7 @@ static void gen12_oa_disable(struct i915_perf_stream *stream)
  *
  * Stops the OA unit from periodically writing counter reports into the
  * circular OA buffer. This also stops the hrtimer that periodically checks for
- * data in the circular OA buffer, for notifying userspace.
+ * data in the circular OA buffer, for analtifying userspace.
  */
 static void i915_oa_stream_disable(struct i915_perf_stream *stream)
 {
@@ -3173,7 +3173,7 @@ static int i915_perf_stream_enable_sync(struct i915_perf_stream *stream)
 
 	active = i915_active_create();
 	if (!active)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = stream->perf->ops.enable_metric_set(stream, active);
 	if (err == 0)
@@ -3217,7 +3217,7 @@ get_sseu_config(struct intel_sseu *out_sseu,
 
 /*
  * OA timestamp frequency = CS timestamp frequency in most platforms. On some
- * platforms OA unit ignores the CTC_SHIFT and the 2 timestamps differ. In such
+ * platforms OA unit iganalres the CTC_SHIFT and the 2 timestamps differ. In such
  * cases, return the adjusted CS timestamp frequency to the user.
  */
 u32 i915_perf_oa_timestamp_frequency(struct drm_i915_private *i915)
@@ -3270,7 +3270,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	if (!props->engine) {
 		drm_dbg(&stream->perf->i915->drm,
-			"OA engine not specified\n");
+			"OA engine analt specified\n");
 		return -EINVAL;
 	}
 	g = props->engine->oa_group;
@@ -3295,8 +3295,8 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	if (!perf->ops.enable_metric_set) {
 		drm_dbg(&stream->perf->i915->drm,
-			"OA unit not supported\n");
-		return -ENODEV;
+			"OA unit analt supported\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -3312,7 +3312,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	if (!props->oa_format) {
 		drm_dbg(&stream->perf->i915->drm,
-			"OA report format not specified\n");
+			"OA report format analt specified\n");
 		return -EINVAL;
 	}
 
@@ -3343,11 +3343,11 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		}
 	}
 
-	ret = alloc_noa_wait(stream);
+	ret = alloc_anala_wait(stream);
 	if (ret) {
 		drm_dbg(&stream->perf->i915->drm,
-			"Unable to allocate NOA wait batch buffer\n");
-		goto err_noa_wait_alloc;
+			"Unable to allocate ANALA wait batch buffer\n");
+		goto err_anala_wait_alloc;
 	}
 
 	stream->oa_config = i915_perf_get_oa_config(perf, props->metrics_set);
@@ -3360,7 +3360,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	/* PRM - observability performance counters:
 	 *
-	 *   OACONTROL, performance counter enable, note:
+	 *   OACONTROL, performance counter enable, analte:
 	 *
 	 *   "When this bit is set, in order to have coherent counts,
 	 *   RC6 power state and trunk clock gating must be disabled.
@@ -3394,7 +3394,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		  stream->oa_config->uuid);
 
 	hrtimer_init(&stream->poll_check_timer,
-		     CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		     CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	stream->poll_check_timer.function = oa_poll_check_timer_cb;
 	init_waitqueue_head(&stream->poll_wq);
 	spin_lock_init(&stream->oa_buffer.ptr_lock);
@@ -3415,9 +3415,9 @@ err_oa_buf_alloc:
 	free_oa_configs(stream);
 
 err_config:
-	free_noa_wait(stream);
+	free_anala_wait(stream);
 
-err_noa_wait_alloc:
+err_anala_wait_alloc:
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
 
@@ -3443,7 +3443,7 @@ void i915_oa_init_reg_state(const struct intel_context *ce,
  * @file: An i915 perf stream file
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
- * @ppos: (inout) file seek position (unused)
+ * @ppos: (ianalut) file seek position (unused)
  *
  * The entry point for handling a read() on a stream file descriptor from
  * userspace. Most of the work is left to the i915_perf_read_locked() and
@@ -3472,12 +3472,12 @@ static ssize_t i915_perf_read(struct file *file,
 	if (!stream->enabled || !(stream->sample_flags & SAMPLE_OA_REPORT))
 		return -EIO;
 
-	if (!(file->f_flags & O_NONBLOCK)) {
+	if (!(file->f_flags & O_ANALNBLOCK)) {
 		/* There's the small chance of false positives from
 		 * stream->ops->wait_unlocked.
 		 *
 		 * E.g. with single context filtering since we only wait until
-		 * oabuffer has >= 1 report we don't immediately know whether
+		 * oabuffer has >= 1 report we don't immediately kanalw whether
 		 * any reports really belong to the current context
 		 */
 		do {
@@ -3497,19 +3497,19 @@ static ssize_t i915_perf_read(struct file *file,
 
 	/* We allow the poll checking to sometimes report false positive EPOLLIN
 	 * events where we might actually report EAGAIN on read() if there's
-	 * not really any data available. In this situation though we don't
+	 * analt really any data available. In this situation though we don't
 	 * want to enter a busy loop between poll() reporting a EPOLLIN event
 	 * and read() returning -EAGAIN. Clearing the oa.pollin state here
 	 * effectively ensures we back off until the next hrtimer callback
-	 * before reporting another EPOLLIN event.
-	 * The exception to this is if ops->read() returned -ENOSPC which means
+	 * before reporting aanalther EPOLLIN event.
+	 * The exception to this is if ops->read() returned -EANALSPC which means
 	 * that more OA data is available than could fit in the user provided
-	 * buffer. In this case we want the next poll() call to not block.
+	 * buffer. In this case we want the next poll() call to analt block.
 	 */
-	if (ret != -ENOSPC)
+	if (ret != -EANALSPC)
 		stream->pollin = false;
 
-	/* Possible values for ret are 0, -EFAULT, -ENOSPC, -EIO, ... */
+	/* Possible values for ret are 0, -EFAULT, -EANALSPC, -EIO, ... */
 	return offset ?: (ret ?: -EAGAIN);
 }
 
@@ -3523,7 +3523,7 @@ static enum hrtimer_restart oa_poll_check_timer_cb(struct hrtimer *hrtimer)
 		wake_up(&stream->poll_wq);
 	}
 
-	hrtimer_forward_now(hrtimer,
+	hrtimer_forward_analw(hrtimer,
 			    ns_to_ktime(stream->poll_oa_period));
 
 	return HRTIMER_RESTART;
@@ -3549,10 +3549,10 @@ static __poll_t i915_perf_poll_locked(struct i915_perf_stream *stream,
 
 	stream->ops->poll_wait(stream, file, wait);
 
-	/* Note: we don't explicitly check whether there's something to read
+	/* Analte: we don't explicitly check whether there's something to read
 	 * here since this path may be very hot depending on what else
 	 * userspace is polling, or on the timeout in use. We rely solely on
-	 * the hrtimer/oa_poll_check_timer_cb to notify us when there are
+	 * the hrtimer/oa_poll_check_timer_cb to analtify us when there are
 	 * samples to read.
 	 */
 	if (stream->pollin)
@@ -3570,7 +3570,7 @@ static __poll_t i915_perf_poll_locked(struct i915_perf_stream *stream,
  * poll_wait() gets called with a wait queue that will be woken for new stream
  * data.
  *
- * Note: Implementation deferred to i915_perf_poll_locked()
+ * Analte: Implementation deferred to i915_perf_poll_locked()
  *
  * Returns: any poll events that are ready without sleeping
  */
@@ -3592,7 +3592,7 @@ static __poll_t i915_perf_poll(struct file *file, poll_table *wait)
  *
  * [Re]enables the associated capture of data for this stream.
  *
- * If a stream was previously enabled then there's currently no intention
+ * If a stream was previously enabled then there's currently anal intention
  * to provide userspace any guarantee about the preservation of previously
  * buffered data.
  */
@@ -3608,7 +3608,7 @@ static void i915_perf_enable_locked(struct i915_perf_stream *stream)
 		stream->ops->enable(stream);
 
 	if (stream->hold_preemption)
-		intel_context_set_nopreempt(stream->pinned_ctx);
+		intel_context_set_analpreempt(stream->pinned_ctx);
 }
 
 /**
@@ -3619,10 +3619,10 @@ static void i915_perf_enable_locked(struct i915_perf_stream *stream)
  *
  * The intention is that disabling an re-enabling a stream will ideally be
  * cheaper than destroying and re-opening a stream with the same configuration,
- * though there are no formal guarantees about what state or buffered data
+ * though there are anal formal guarantees about what state or buffered data
  * must be retained between disabling and re-enabling a stream.
  *
- * Note: while a stream is disabled it's considered an error for userspace
+ * Analte: while a stream is disabled it's considered an error for userspace
  * to attempt to read from the stream (-EIO).
  */
 static void i915_perf_disable_locked(struct i915_perf_stream *stream)
@@ -3634,7 +3634,7 @@ static void i915_perf_disable_locked(struct i915_perf_stream *stream)
 	stream->enabled = false;
 
 	if (stream->hold_preemption)
-		intel_context_clear_nopreempt(stream->pinned_ctx);
+		intel_context_clear_analpreempt(stream->pinned_ctx);
 
 	if (stream->ops->disable)
 		stream->ops->disable(stream);
@@ -3681,7 +3681,7 @@ static long i915_perf_config_locked(struct i915_perf_stream *stream,
  * @arg: the ioctl data
  *
  * Returns: zero on success or a negative error code. Returns -EINVAL for
- * an unknown ioctl request.
+ * an unkanalwn ioctl request.
  */
 static long i915_perf_ioctl_locked(struct i915_perf_stream *stream,
 				   unsigned int cmd,
@@ -3710,7 +3710,7 @@ static long i915_perf_ioctl_locked(struct i915_perf_stream *stream,
  * Implementation deferred to i915_perf_ioctl_locked().
  *
  * Returns: zero on success or a negative error code. Returns -EINVAL for
- * an unknown ioctl request.
+ * an unkanalwn ioctl request.
  */
 static long i915_perf_ioctl(struct file *file,
 			    unsigned int cmd,
@@ -3733,8 +3733,8 @@ static long i915_perf_ioctl(struct file *file,
  * Frees all resources associated with the given i915 perf @stream, disabling
  * any associated data capture in the process.
  *
- * Note: The &gt->perf.lock mutex has been taken to serialize
- * with any non-file-operation driver hooks.
+ * Analte: The &gt->perf.lock mutex has been taken to serialize
+ * with any analn-file-operation driver hooks.
  */
 static void i915_perf_destroy_locked(struct i915_perf_stream *stream)
 {
@@ -3752,7 +3752,7 @@ static void i915_perf_destroy_locked(struct i915_perf_stream *stream)
 
 /**
  * i915_perf_release - handles userspace close() of a stream file
- * @inode: anonymous inode associated with file
+ * @ianalde: aanalnymous ianalde associated with file
  * @file: An i915 perf stream file
  *
  * Cleans up any resources associated with an open i915 perf stream file.
@@ -3761,14 +3761,14 @@ static void i915_perf_destroy_locked(struct i915_perf_stream *stream)
  *
  * Returns: zero on success or a negative error code.
  */
-static int i915_perf_release(struct inode *inode, struct file *file)
+static int i915_perf_release(struct ianalde *ianalde, struct file *file)
 {
 	struct i915_perf_stream *stream = file->private_data;
 	struct i915_perf *perf = stream->perf;
 	struct intel_gt *gt = stream->engine->gt;
 
 	/*
-	 * Within this call, we know that the fd is being closed and we have no
+	 * Within this call, we kanalw that the fd is being closed and we have anal
 	 * other user of stream->lock. Use the perf lock to destroy the stream
 	 * here.
 	 */
@@ -3785,12 +3785,12 @@ static int i915_perf_release(struct inode *inode, struct file *file)
 
 static const struct file_operations fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.release	= i915_perf_release,
 	.poll		= i915_perf_poll,
 	.read		= i915_perf_read,
 	.unlocked_ioctl	= i915_perf_ioctl,
-	/* Our ioctl have no arguments, so it's safe to use the same function
+	/* Our ioctl have anal arguments, so it's safe to use the same function
 	 * to handle 32bits compatibility.
 	 */
 	.compat_ioctl   = i915_perf_ioctl,
@@ -3808,9 +3808,9 @@ static const struct file_operations fops = {
  *
  * Implements further stream config validation and stream initialization on
  * behalf of i915_perf_open_ioctl() with the &gt->perf.lock mutex
- * taken to serialize with any non-file-operation driver hooks.
+ * taken to serialize with any analn-file-operation driver hooks.
  *
- * Note: at this point the @props have only been validated in isolation and
+ * Analte: at this point the @props have only been validated in isolation and
  * it's still necessary to validate that the combination of properties makes
  * sense.
  *
@@ -3850,11 +3850,11 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 
 	/*
 	 * On Haswell the OA unit supports clock gating off for a specific
-	 * context and in this mode there's no visibility of metrics for the
+	 * context and in this mode there's anal visibility of metrics for the
 	 * rest of the system, which we consider acceptable for a
-	 * non-privileged client.
+	 * analn-privileged client.
 	 *
-	 * For Gen8->11 the OA unit no longer supports clock gating off for a
+	 * For Gen8->11 the OA unit anal longer supports clock gating off for a
 	 * specific context and the kernel can't securely stop the counters
 	 * from updating as system-wide / global values. Even though we can
 	 * filter reports based on the included context ID we can't block
@@ -3876,7 +3876,7 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	if (props->hold_preemption) {
 		if (!props->single_context) {
 			drm_dbg(&perf->i915->drm,
-				"preemption disable with no context\n");
+				"preemption disable with anal context\n");
 			ret = -EINVAL;
 			goto err;
 		}
@@ -3891,13 +3891,13 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	else
 		get_default_sseu_config(&props->sseu, props->engine);
 
-	/* Similar to perf's kernel.perf_paranoid_cpu sysctl option
-	 * we check a dev.i915.perf_stream_paranoid sysctl option
+	/* Similar to perf's kernel.perf_paraanalid_cpu sysctl option
+	 * we check a dev.i915.perf_stream_paraanalid sysctl option
 	 * to determine if it's ok to access system wide OA counters
 	 * without CAP_PERFMON or CAP_SYS_ADMIN privileges.
 	 */
 	if (privileged_op &&
-	    i915_perf_stream_paranoid && !perfmon_capable()) {
+	    i915_perf_stream_paraanalid && !perfmon_capable()) {
 		drm_dbg(&perf->i915->drm,
 			"Insufficient privileges to open i915 perf stream\n");
 		ret = -EACCES;
@@ -3906,7 +3906,7 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ctx;
 	}
 
@@ -3923,16 +3923,16 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	 * thoroughly, but still this is the expected result at this point.
 	 */
 	if (WARN_ON(stream->sample_flags != props->sample_flags)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_flags;
 	}
 
 	if (param->flags & I915_PERF_FLAG_FD_CLOEXEC)
 		f_flags |= O_CLOEXEC;
-	if (param->flags & I915_PERF_FLAG_FD_NONBLOCK)
-		f_flags |= O_NONBLOCK;
+	if (param->flags & I915_PERF_FLAG_FD_ANALNBLOCK)
+		f_flags |= O_ANALNBLOCK;
 
-	stream_fd = anon_inode_getfd("[i915_perf]", &fops, stream, f_flags);
+	stream_fd = aanaln_ianalde_getfd("[i915_perf]", &fops, stream, f_flags);
 	if (stream_fd < 0) {
 		ret = stream_fd;
 		goto err_flags;
@@ -3962,10 +3962,10 @@ err:
 
 static u64 oa_exponent_to_ns(struct i915_perf *perf, int exponent)
 {
-	u64 nom = (2ULL << exponent) * NSEC_PER_SEC;
+	u64 analm = (2ULL << exponent) * NSEC_PER_SEC;
 	u32 den = i915_perf_oa_timestamp_frequency(perf->i915);
 
-	return div_u64(nom + den - 1, den);
+	return div_u64(analm + den - 1, den);
 }
 
 static __always_inline bool
@@ -3987,11 +3987,11 @@ oa_format_add(struct i915_perf *perf, enum drm_i915_oa_format format)
  * @n_props: The number of key value pairs expected in @uprops
  * @props: The stream configuration built up while validating properties
  *
- * Note this function only validates properties in isolation it doesn't
+ * Analte this function only validates properties in isolation it doesn't
  * validate that the combination of properties makes sense or that all
  * properties necessary for a particular kind of stream have been set.
  *
- * Note that there currently aren't any ordering requirements for properties so
+ * Analte that there currently aren't any ordering requirements for properties so
  * we shouldn't validate or assume anything about ordering here. This doesn't
  * rule out defining new properties with ordering requirements in the future.
  */
@@ -4025,7 +4025,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 		return -EINVAL;
 	}
 
-	/* Defaults when class:instance is not passed */
+	/* Defaults when class:instance is analt passed */
 	class = I915_ENGINE_CLASS_RENDER;
 	instance = 0;
 
@@ -4043,7 +4043,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 
 		if (id == 0 || id >= DRM_I915_PERF_PROP_MAX) {
 			drm_dbg(&perf->i915->drm,
-				"Unknown i915 perf property ID\n");
+				"Unkanalwn i915 perf property ID\n");
 			return -EINVAL;
 		}
 
@@ -4059,7 +4059,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 		case DRM_I915_PERF_PROP_OA_METRICS_SET:
 			if (value == 0) {
 				drm_dbg(&perf->i915->drm,
-					"Unknown OA metric set ID\n");
+					"Unkanalwn OA metric set ID\n");
 				return -EINVAL;
 			}
 			props->metrics_set = value;
@@ -4098,7 +4098,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 
 			/* This check is primarily to ensure that oa_period <=
 			 * UINT32_MAX (before passing to do_div which only
-			 * accepts a u32 denominator), but we can also skip
+			 * accepts a u32 deanalminator), but we can also skip
 			 * checking anything < 1Hz which implicitly can't be
 			 * limited via an integer oa_max_sample_rate.
 			 */
@@ -4125,9 +4125,9 @@ static int read_properties_unlocked(struct i915_perf *perf,
 		case DRM_I915_PERF_PROP_GLOBAL_SSEU: {
 			if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 50)) {
 				drm_dbg(&perf->i915->drm,
-					"SSEU config not supported on gfx %x\n",
+					"SSEU config analt supported on gfx %x\n",
 					GRAPHICS_VER_FULL(perf->i915));
-				return -ENODEV;
+				return -EANALDEV;
 			}
 
 			if (copy_from_user(&user_sseu,
@@ -4182,7 +4182,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 
 	if (!engine_supports_oa(props->engine)) {
 		drm_dbg(&perf->i915->drm,
-			"Engine not supported by OA %d:%d\n",
+			"Engine analt supported by OA %d:%d\n",
 			class, instance);
 		return -EINVAL;
 	}
@@ -4190,7 +4190,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 	/*
 	 * Wa_14017512683: mtl[a0..c0): Use of OAM must be preceded with Media
 	 * C6 disable in BIOS. Fail if Media C6 is enabled on steppings where OAM
-	 * does not work as expected.
+	 * does analt work as expected.
 	 */
 	if (IS_MEDIA_GT_IP_STEP(props->engine->gt, IP_VER(13, 0), STEP_A0, STEP_C0) &&
 	    props->engine->oa_group->type == TYPE_OAM &&
@@ -4200,7 +4200,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 		return -EINVAL;
 	}
 
-	i = array_index_nospec(props->oa_format, I915_OA_FORMAT_MAX);
+	i = array_index_analspec(props->oa_format, I915_OA_FORMAT_MAX);
 	f = &perf->oa_formats[i];
 	if (!engine_supports_oa_format(props->engine, f->type)) {
 		drm_dbg(&perf->i915->drm,
@@ -4236,12 +4236,12 @@ static int read_properties_unlocked(struct i915_perf *perf,
  * i915-perf stream is expected to be a suitable interface for other forms of
  * buffered data written by the GPU besides periodic OA metrics.
  *
- * Note we copy the properties from userspace outside of the i915 perf
+ * Analte we copy the properties from userspace outside of the i915 perf
  * mutex to avoid an awkward lockdep with mmap_lock.
  *
  * Most of the implementation details are handled by
  * i915_perf_open_ioctl_locked() after taking the &gt->perf.lock
- * mutex for serializing with any non-file-operation driver hooks.
+ * mutex for serializing with any analn-file-operation driver hooks.
  *
  * Return: A newly opened i915 Perf stream file descriptor or negative
  * error code on failure.
@@ -4253,18 +4253,18 @@ int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_perf_open_param *param = data;
 	struct intel_gt *gt;
 	struct perf_open_properties props;
-	u32 known_open_flags;
+	u32 kanalwn_open_flags;
 	int ret;
 
 	if (!perf->i915)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	known_open_flags = I915_PERF_FLAG_FD_CLOEXEC |
-			   I915_PERF_FLAG_FD_NONBLOCK |
+	kanalwn_open_flags = I915_PERF_FLAG_FD_CLOEXEC |
+			   I915_PERF_FLAG_FD_ANALNBLOCK |
 			   I915_PERF_FLAG_DISABLED;
-	if (param->flags & ~known_open_flags) {
+	if (param->flags & ~kanalwn_open_flags) {
 		drm_dbg(&perf->i915->drm,
-			"Unknown drm_i915_perf_open_param flag\n");
+			"Unkanalwn drm_i915_perf_open_param flag\n");
 		return -EINVAL;
 	}
 
@@ -4402,13 +4402,13 @@ static const struct i915_range xehp_oa_b_counters[] = {
 
 static const struct i915_range gen7_oa_mux_regs[] = {
 	{ .start = 0x91b8, .end = 0x91cc },	/* OA_PERFCNT[1-2], OA_PERFMATRIX */
-	{ .start = 0x9800, .end = 0x9888 },	/* MICRO_BP0_0 - NOA_WRITE */
+	{ .start = 0x9800, .end = 0x9888 },	/* MICRO_BP0_0 - ANALA_WRITE */
 	{ .start = 0xe180, .end = 0xe180 },	/* HALF_SLICE_CHICKEN2 */
 	{}
 };
 
 static const struct i915_range hsw_oa_mux_regs[] = {
-	{ .start = 0x09e80, .end = 0x09ea4 }, /* HSW_MBVID2_NOA[0-9] */
+	{ .start = 0x09e80, .end = 0x09ea4 }, /* HSW_MBVID2_ANALA[0-9] */
 	{ .start = 0x09ec0, .end = 0x09ec0 }, /* HSW_MBVID2_MISR0 */
 	{ .start = 0x25100, .end = 0x2ff90 },
 	{}
@@ -4420,7 +4420,7 @@ static const struct i915_range chv_oa_mux_regs[] = {
 };
 
 static const struct i915_range gen8_oa_mux_regs[] = {
-	{ .start = 0x0d00, .end = 0x0d2c },	/* RPM_CONFIG[0-1], NOA_CONFIG[0-8] */
+	{ .start = 0x0d00, .end = 0x0d2c },	/* RPM_CONFIG[0-1], ANALA_CONFIG[0-8] */
 	{ .start = 0x20cc, .end = 0x20cc },	/* WAIT_FOR_RC6_EXIT */
 	{}
 };
@@ -4432,9 +4432,9 @@ static const struct i915_range gen11_oa_mux_regs[] = {
 
 static const struct i915_range gen12_oa_mux_regs[] = {
 	{ .start = 0x0d00, .end = 0x0d04 },     /* RPM_CONFIG[0-1] */
-	{ .start = 0x0d0c, .end = 0x0d2c },     /* NOA_CONFIG[0-8] */
+	{ .start = 0x0d0c, .end = 0x0d2c },     /* ANALA_CONFIG[0-8] */
 	{ .start = 0x9840, .end = 0x9840 },	/* GDT_CHICKEN_BITS */
-	{ .start = 0x9884, .end = 0x9888 },	/* NOA_WRITE */
+	{ .start = 0x9884, .end = 0x9888 },	/* ANALA_WRITE */
 	{ .start = 0x20cc, .end = 0x20cc },	/* WAIT_FOR_RC6_EXIT */
 	{}
 };
@@ -4445,9 +4445,9 @@ static const struct i915_range gen12_oa_mux_regs[] = {
  */
 static const struct i915_range mtl_oa_mux_regs[] = {
 	{ .start = 0x0d00, .end = 0x0d04 },	/* RPM_CONFIG[0-1] */
-	{ .start = 0x0d0c, .end = 0x0d2c },	/* NOA_CONFIG[0-8] */
+	{ .start = 0x0d0c, .end = 0x0d2c },	/* ANALA_CONFIG[0-8] */
 	{ .start = 0x9840, .end = 0x9840 },	/* GDT_CHICKEN_BITS */
-	{ .start = 0x9884, .end = 0x9888 },	/* NOA_WRITE */
+	{ .start = 0x9884, .end = 0x9888 },	/* ANALA_WRITE */
 	{ .start = 0x38d100, .end = 0x38d114},	/* VISACTL */
 	{}
 };
@@ -4542,14 +4542,14 @@ static struct i915_oa_reg *alloc_oa_regs(struct i915_perf *perf,
 	if (!n_regs)
 		return NULL;
 
-	/* No is_valid function means we're not allowing any register to be programmed. */
+	/* Anal is_valid function means we're analt allowing any register to be programmed. */
 	GEM_BUG_ON(!is_valid);
 	if (!is_valid)
 		return ERR_PTR(-EINVAL);
 
 	oa_regs = kmalloc_array(n_regs, sizeof(*oa_regs), GFP_KERNEL);
 	if (!oa_regs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < n_regs; i++) {
 		u32 addr, value;
@@ -4619,7 +4619,7 @@ static int create_dynamic_oa_sysfs_entry(struct i915_perf *perf,
  * @file: drm file
  *
  * Validates the submitted OA register to be saved into a new OA config that
- * can then be used for programming the OA unit and its NOA network.
+ * can then be used for programming the OA unit and its ANALA network.
  *
  * Returns: A new allocated config number to be used with the perf open ioctl
  * or a negative error code on failure.
@@ -4634,7 +4634,7 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 	int err, id;
 
 	if (!perf->i915)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!perf->metrics_kobj) {
 		drm_dbg(&perf->i915->drm,
@@ -4642,7 +4642,7 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (i915_perf_stream_paranoid && !perfmon_capable()) {
+	if (i915_perf_stream_paraanalid && !perfmon_capable()) {
 		drm_dbg(&perf->i915->drm,
 			"Insufficient privileges to add i915 OA config\n");
 		return -EACCES;
@@ -4652,7 +4652,7 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 	    (!args->boolean_regs_ptr || !args->n_boolean_regs) &&
 	    (!args->flex_regs_ptr || !args->n_flex_regs)) {
 		drm_dbg(&perf->i915->drm,
-			"No OA registers given\n");
+			"Anal OA registers given\n");
 		return -EINVAL;
 	}
 
@@ -4660,7 +4660,7 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 	if (!oa_config) {
 		drm_dbg(&perf->i915->drm,
 			"Failed to allocate memory for the OA config\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	oa_config->perf = perf;
@@ -4797,9 +4797,9 @@ int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!perf->i915)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	if (i915_perf_stream_paranoid && !perfmon_capable()) {
+	if (i915_perf_stream_paraanalid && !perfmon_capable()) {
 		drm_dbg(&perf->i915->drm,
 			"Insufficient privileges to remove i915 OA config\n");
 		return -EACCES;
@@ -4812,8 +4812,8 @@ int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 	oa_config = idr_find(&perf->metrics_idr, *arg);
 	if (!oa_config) {
 		drm_dbg(&perf->i915->drm,
-			"Failed to remove unknown OA config\n");
-		ret = -ENOENT;
+			"Failed to remove unkanalwn OA config\n");
+		ret = -EANALENT;
 		goto err_unlock;
 	}
 
@@ -4839,9 +4839,9 @@ err_unlock:
 
 static struct ctl_table oa_table[] = {
 	{
-	 .procname = "perf_stream_paranoid",
-	 .data = &i915_perf_stream_paranoid,
-	 .maxlen = sizeof(i915_perf_stream_paranoid),
+	 .procname = "perf_stream_paraanalid",
+	 .data = &i915_perf_stream_paraanalid,
+	 .maxlen = sizeof(i915_perf_stream_paraanalid),
 	 .mode = 0644,
 	 .proc_handler = proc_dointvec_minmax,
 	 .extra1 = SYSCTL_ZERO,
@@ -4954,7 +4954,7 @@ static int oa_init_gt(struct intel_gt *gt)
 
 	g = kcalloc(num_groups, sizeof(*g), GFP_KERNEL);
 	if (!g)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_engine_masked(engine, gt, ALL_ENGINES, tmp) {
 		u32 index = __oa_engine_group(engine);
@@ -5082,7 +5082,7 @@ static void i915_perf_init_info(struct drm_i915_private *i915)
  *
  * Initializes i915-perf state without exposing anything to userspace.
  *
- * Note: i915-perf initialization is split into an 'init' and 'register'
+ * Analte: i915-perf initialization is split into an 'init' and 'register'
  * phase with the i915_perf_register() exposing state to userspace.
  */
 int i915_perf_init(struct drm_i915_private *i915)
@@ -5101,10 +5101,10 @@ int i915_perf_init(struct drm_i915_private *i915)
 		perf->ops.read = gen7_oa_read;
 		perf->ops.oa_hw_tail_read = gen7_oa_hw_tail_read;
 	} else if (HAS_LOGICAL_RING_CONTEXTS(i915)) {
-		/* Note: that although we could theoretically also support the
+		/* Analte: that although we could theoretically also support the
 		 * legacy ringbuffer mode on BDW (and earlier iterations of
 		 * this driver, before upstreaming did this) it didn't seem
-		 * worth the complexity to maintain now that BDW+ enable
+		 * worth the complexity to maintain analw that BDW+ enable
 		 * execlist mode by default.
 		 */
 		perf->ops.read = gen8_oa_read;
@@ -5173,17 +5173,17 @@ int i915_perf_init(struct drm_i915_private *i915)
 		idr_init_base(&perf->metrics_idr, 1);
 
 		/* We set up some ratelimit state to potentially throttle any
-		 * _NOTES about spurious, invalid OA reports which we don't
+		 * _ANALTES about spurious, invalid OA reports which we don't
 		 * forward to userspace.
 		 *
-		 * We print a _NOTE about any throttling when closing the
-		 * stream instead of waiting until driver _fini which no one
+		 * We print a _ANALTE about any throttling when closing the
+		 * stream instead of waiting until driver _fini which anal one
 		 * would ever see.
 		 *
 		 * Using the same limiting factors as printk_ratelimit()
 		 */
 		ratelimit_state_init(&perf->spurious_report_rs, 5 * HZ, 10);
-		/* Since we use a DRM_NOTE for spurious reports it would be
+		/* Since we use a DRM_ANALTE for spurious reports it would be
 		 * inconsistent to let __ratelimit() automatically print a
 		 * warning for throttling.
 		 */
@@ -5195,7 +5195,7 @@ int i915_perf_init(struct drm_i915_private *i915)
 		ratelimit_set_flags(&perf->tail_pointer_race,
 				    RATELIMIT_MSG_ON_RELEASE);
 
-		atomic64_set(&perf->noa_programming_delay,
+		atomic64_set(&perf->anala_programming_delay,
 			     500 * 1000 /* 500us */);
 
 		perf->i915 = i915;
@@ -5290,7 +5290,7 @@ int i915_perf_ioctl_version(struct drm_i915_private *i915)
 	/*
 	 * Wa_14017512683: mtl[a0..c0): Use of OAM must be preceded with Media
 	 * C6 disable in BIOS. If Media C6 is enabled in BIOS, return version 6
-	 * to indicate that OA media is not supported.
+	 * to indicate that OA media is analt supported.
 	 */
 	if (IS_MEDIA_GT_IP_STEP(i915->media_gt, IP_VER(13, 0), STEP_A0, STEP_C0) &&
 	    intel_check_bios_c6_setup(&i915->media_gt->rc6))

@@ -66,7 +66,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 		uuid->clock_seq_hi_and_reserved	= (u8)ntohl(xdr->clock_seq_hi_and_reserved);
 		uuid->clock_seq_low		= (u8)ntohl(xdr->clock_seq_low);
 		for (j = 0; j < 6; j++)
-			uuid->node[j] = (u8)ntohl(xdr->node[j]);
+			uuid->analde[j] = (u8)ntohl(xdr->analde[j]);
 
 		entry->vlsf_flags[n] = tmp;
 		entry->addr_version[n] = ntohl(uvldb->serverUnique[i]);
@@ -84,7 +84,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 		__set_bit(AFS_VLDB_HAS_BAK, &entry->flags);
 
 	if (!(vlflags & (AFS_VLF_RWEXISTS | AFS_VLF_ROEXISTS | AFS_VLF_BACKEXISTS))) {
-		entry->error = -ENOMEDIUM;
+		entry->error = -EANALMEDIUM;
 		__set_bit(AFS_VLDB_QUERY_ERROR, &entry->flags);
 	}
 
@@ -105,7 +105,7 @@ static const struct afs_call_type afs_RXVLGetEntryByNameU = {
 
 /*
  * Dispatch a get volume entry by name or ID operation (uuid variant).  If the
- * volname is a decimal number then it's a volume ID not a volume name.
+ * volname is a decimal number then it's a volume ID analt a volume name.
  */
 struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 						  const char *volname,
@@ -124,13 +124,13 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 
 	entry = kzalloc(sizeof(struct afs_vldb_entry), GFP_KERNEL);
 	if (!entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	call = afs_alloc_flat_call(net, &afs_RXVLGetEntryByNameU, reqsz,
 				   sizeof(struct afs_uvldbentry__xdr));
 	if (!call) {
 		kfree(entry);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	call->key = vc->key;
@@ -202,7 +202,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		nentries = min(nentries, count);
 		alist = afs_alloc_addrlist(nentries);
 		if (!alist)
-			return -ENOMEM;
+			return -EANALMEM;
 		alist->version = uniquifier;
 		call->ret_alist = alist;
 		call->count = count;
@@ -253,7 +253,7 @@ static const struct afs_call_type afs_RXVLGetAddrsU = {
 
 /*
  * Dispatch an operation to get the addresses for a server, where the server is
- * nominated by UUID.
+ * analminated by UUID.
  */
 struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 					 const uuid_t *uuid)
@@ -272,7 +272,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 				   sizeof(__be32) + sizeof(struct afs_ListAddrByAttributes__xdr),
 				   sizeof(struct afs_uuid__xdr) + 3 * sizeof(__be32));
 	if (!call)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	call->key = vc->key;
 	call->ret_alist = NULL;
@@ -294,7 +294,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 	r->uuid.clock_seq_hi_and_reserved 	= htonl(u->clock_seq_hi_and_reserved);
 	r->uuid.clock_seq_low			= htonl(u->clock_seq_low);
 	for (i = 0; i < 6; i++)
-		r->uuid.node[i] = htonl(u->node[i]);
+		r->uuid.analde[i] = htonl(u->analde[i]);
 
 	trace_afs_make_vl_call(call);
 	afs_make_call(call, GFP_KERNEL);
@@ -395,7 +395,7 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 
 	call = afs_alloc_flat_call(net, &afs_RXVLGetCapabilities, 1 * 4, 16 * 4);
 	if (!call)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	call->key = key;
 	call->vlserver = afs_get_vlserver(server);
@@ -444,7 +444,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 
 		/* Extract the returned uuid, uniquifier, fsEndpoints count and
 		 * either the first fsEndpoint type or the volEndpoints
-		 * count if there are no fsEndpoints. */
+		 * count if there are anal fsEndpoints. */
 		fallthrough;
 	case 1:
 		ret = afs_extract_data(call, true);
@@ -461,7 +461,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 
 		alist = afs_alloc_addrlist(call->count);
 		if (!alist)
-			return -ENOMEM;
+			return -EANALMEM;
 		alist->version = uniquifier;
 		call->ret_alist = alist;
 
@@ -516,7 +516,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		}
 
 		/* Got either the type of the next entry or the count of
-		 * volEndpoints if no more fsEndpoints.
+		 * volEndpoints if anal more fsEndpoints.
 		 */
 		call->count2 = ntohl(*bp++);
 
@@ -535,7 +535,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		afs_extract_to_buf(call, 1 * sizeof(__be32));
 		call->unmarshall = 3;
 
-		/* Extract the type of volEndpoints[0].  Normally we would
+		/* Extract the type of volEndpoints[0].  Analrmally we would
 		 * extract the type of the next endpoint when we extract the
 		 * data of the current one, but this is the first...
 		 */
@@ -590,7 +590,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		}
 
 		/* Got either the type of the next entry or the count of
-		 * volEndpoints if no more fsEndpoints.
+		 * volEndpoints if anal more fsEndpoints.
 		 */
 		call->count--;
 		if (call->count > 0)
@@ -628,7 +628,7 @@ static const struct afs_call_type afs_YFSVLGetEndpoints = {
 
 /*
  * Dispatch an operation to get the addresses for a server, where the server is
- * nominated by UUID.
+ * analminated by UUID.
  */
 struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 					      const uuid_t *uuid)
@@ -644,7 +644,7 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 				   sizeof(__be32) * 2 + sizeof(*uuid),
 				   sizeof(struct in6_addr) + sizeof(__be32) * 3);
 	if (!call)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	call->key = vc->key;
 	call->ret_alist = NULL;
@@ -705,7 +705,7 @@ static int afs_deliver_yfsvl_get_cell_name(struct afs_call *call)
 
 		cell_name = kmalloc(namesz + 1, GFP_KERNEL);
 		if (!cell_name)
-			return -ENOMEM;
+			return -EANALMEM;
 		cell_name[namesz] = 0;
 		call->ret_str = cell_name;
 
@@ -763,7 +763,7 @@ char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *vc)
 
 	call = afs_alloc_flat_call(net, &afs_YFSVLGetCellName, 1 * 4, 0);
 	if (!call)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	call->key = vc->key;
 	call->ret_str = NULL;

@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   analt, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef _SFP_MACHINE_H
@@ -37,7 +37,7 @@
   _FP_MUL_MEAT_2_wide(_FP_WFRACBITS_Q,R,X,Y,umul_ppmm)
 
 #define _FP_DIV_MEAT_S(R,X,Y)	_FP_DIV_MEAT_1_imm(S,R,X,Y,_FP_DIV_HELP_imm)
-#define _FP_DIV_MEAT_D(R,X,Y)	_FP_DIV_MEAT_1_udiv_norm(D,R,X,Y)
+#define _FP_DIV_MEAT_D(R,X,Y)	_FP_DIV_MEAT_1_udiv_analrm(D,R,X,Y)
 #define _FP_DIV_MEAT_Q(R,X,Y)	_FP_DIV_MEAT_2_udiv(Q,R,X,Y)
 
 #define _FP_NANFRAC_S		((_FP_QNANBIT_S << 1) - 1)
@@ -49,7 +49,7 @@
 
 #define _FP_KEEPNANFRACP 1
 
-/* If one NaN is signaling and the other is not,
+/* If one NaN is signaling and the other is analt,
  * we choose that one, otherwise we choose X.
  */
 /* For _Qp_* and _Q_*, this should prefer X, for

@@ -8,9 +8,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -66,9 +66,9 @@ static int req_run(struct hci_request *req, hci_req_complete_t complete,
 		return req->err;
 	}
 
-	/* Do not allow empty requests */
+	/* Do analt allow empty requests */
 	if (skb_queue_empty(&req->cmd_q))
-		return -ENODATA;
+		return -EANALDATA;
 
 	skb = skb_peek_tail(&req->cmd_q);
 	if (complete) {
@@ -136,12 +136,12 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 	if (err < 0) {
 		hdev->req_status = 0;
 
-		/* ENODATA means the HCI request command queue is empty.
+		/* EANALDATA means the HCI request command queue is empty.
 		 * This can happen when a request with conditionals doesn't
-		 * trigger any commands to be sent. This is normal behavior
-		 * and should not trigger an error return.
+		 * trigger any commands to be sent. This is analrmal behavior
+		 * and should analt trigger an error return.
 		 */
-		if (err == -ENODATA) {
+		if (err == -EANALDATA) {
 			if (hci_status)
 				*hci_status = 0;
 			return 0;
@@ -161,7 +161,7 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 
 	switch (hdev->req_status) {
 	case HCI_REQ_DONE:
-		err = -bt_to_errno(hdev->req_result);
+		err = -bt_to_erranal(hdev->req_result);
 		if (hci_status)
 			*hci_status = hdev->req_result;
 		break;
@@ -235,7 +235,7 @@ struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 	return skb;
 }
 
-/* Queue a command to an asynchronous HCI request */
+/* Queue a command to an asynchroanalus HCI request */
 void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 		    const void *param, u8 event)
 {
@@ -244,7 +244,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 
 	bt_dev_dbg(hdev, "opcode 0x%4.4x plen %d", opcode, plen);
 
-	/* If an error occurred during request building, there is no point in
+	/* If an error occurred during request building, there is anal point in
 	 * queueing the HCI command. We can simply return.
 	 */
 	if (req->err)
@@ -252,9 +252,9 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
-		bt_dev_err(hdev, "no memory for command (opcode 0x%4.4x)",
+		bt_dev_err(hdev, "anal memory for command (opcode 0x%4.4x)",
 			   opcode);
-		req->err = -ENOMEM;
+		req->err = -EANALMEM;
 		return;
 	}
 
@@ -275,14 +275,14 @@ void hci_req_add(struct hci_request *req, u16 opcode, u32 plen,
 
 static void start_interleave_scan(struct hci_dev *hdev)
 {
-	hdev->interleave_scan_state = INTERLEAVE_SCAN_NO_FILTER;
+	hdev->interleave_scan_state = INTERLEAVE_SCAN_ANAL_FILTER;
 	queue_delayed_work(hdev->req_workqueue,
 			   &hdev->interleave_scan, 0);
 }
 
 static bool is_interleave_scanning(struct hci_dev *hdev)
 {
-	return hdev->interleave_scan_state != INTERLEAVE_SCAN_NONE;
+	return hdev->interleave_scan_state != INTERLEAVE_SCAN_ANALNE;
 }
 
 static void cancel_interleave_scan(struct hci_dev *hdev)
@@ -291,7 +291,7 @@ static void cancel_interleave_scan(struct hci_dev *hdev)
 
 	cancel_delayed_work_sync(&hdev->interleave_scan);
 
-	hdev->interleave_scan_state = INTERLEAVE_SCAN_NONE;
+	hdev->interleave_scan_state = INTERLEAVE_SCAN_ANALNE;
 }
 
 /* Return true if interleave_scan wasn't started until exiting this function,
@@ -302,7 +302,7 @@ static bool __hci_update_interleaved_scan(struct hci_dev *hdev)
 	/* Do interleaved scan only if all of the following are true:
 	 * - There is at least one ADV monitor
 	 * - At least one pending LE connection or one device to be scanned for
-	 * - Monitor offloading is not supported
+	 * - Monitor offloading is analt supported
 	 * If so, we should alternate between allowlist scan and one without
 	 * any filters to save power.
 	 */
@@ -310,7 +310,7 @@ static bool __hci_update_interleaved_scan(struct hci_dev *hdev)
 				!(list_empty(&hdev->pend_le_conns) &&
 				  list_empty(&hdev->pend_le_reports)) &&
 				hci_get_adv_monitor_offload_ext(hdev) ==
-				    HCI_ADV_MONITOR_EXT_NONE;
+				    HCI_ADV_MONITOR_EXT_ANALNE;
 	bool is_interleaving = is_interleave_scanning(hdev);
 
 	if (use_interleaving && !is_interleaving) {
@@ -402,7 +402,7 @@ static int add_to_accept_list(struct hci_request *req,
 	if (*num_entries >= hdev->le_accept_list_size)
 		return -1;
 
-	/* Accept list can not be used with RPAs */
+	/* Accept list can analt be used with RPAs */
 	if (!allow_rpa &&
 	    !hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY) &&
 	    hci_find_irk_by_addr(hdev, &params->addr, params->addr_type)) {
@@ -467,7 +467,7 @@ static u8 update_accept_list(struct hci_request *req)
 	/* Go through the current accept list programmed into the
 	 * controller one by one and check if that address is still
 	 * in the list of pending connections or list of devices to
-	 * report. If not present in either list, then queue the
+	 * report. If analt present in either list, then queue the
 	 * command to remove it from the controller.
 	 */
 	list_for_each_entry(b, &hdev->le_accept_list, list) {
@@ -478,7 +478,7 @@ static u8 update_accept_list(struct hci_request *req)
 							&b->bdaddr,
 							b->bdaddr_type);
 
-		/* If the device is not likely to connect or report,
+		/* If the device is analt likely to connect or report,
 		 * remove it from the accept list.
 		 */
 		if (!pend_conn && !pend_report) {
@@ -486,7 +486,7 @@ static u8 update_accept_list(struct hci_request *req)
 			continue;
 		}
 
-		/* Accept list can not be used with RPAs */
+		/* Accept list can analt be used with RPAs */
 		if (!allow_rpa &&
 		    !hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY) &&
 		    hci_find_irk_by_addr(hdev, &b->bdaddr, b->bdaddr_type)) {
@@ -496,14 +496,14 @@ static u8 update_accept_list(struct hci_request *req)
 		num_entries++;
 	}
 
-	/* Since all no longer valid accept list entries have been
+	/* Since all anal longer valid accept list entries have been
 	 * removed, walk through the list of pending connections
 	 * and ensure that any new device gets programmed into
 	 * the controller.
 	 *
 	 * If the list of the devices is larger than the list of
 	 * available accept list entries in the controller, then
-	 * just abort and return filer policy value to not use the
+	 * just abort and return filer policy value to analt use the
 	 * accept list.
 	 */
 	list_for_each_entry(params, &hdev->pend_le_conns, action) {
@@ -521,12 +521,12 @@ static u8 update_accept_list(struct hci_request *req)
 	}
 
 	/* Use the allowlist unless the following conditions are all true:
-	 * - We are not currently suspending
-	 * - There are 1 or more ADV monitors registered and it's not offloaded
-	 * - Interleaved scanning is not currently using the allowlist
+	 * - We are analt currently suspending
+	 * - There are 1 or more ADV monitors registered and it's analt offloaded
+	 * - Interleaved scanning is analt currently using the allowlist
 	 */
 	if (!idr_is_empty(&hdev->adv_monitors_idr) && !hdev->suspended &&
-	    hci_get_adv_monitor_offload_ext(hdev) == HCI_ADV_MONITOR_EXT_NONE &&
+	    hci_get_adv_monitor_offload_ext(hdev) == HCI_ADV_MONITOR_EXT_ANALNE &&
 	    hdev->interleave_scan_state != INTERLEAVE_SCAN_ALLOWLIST)
 		return 0x00;
 
@@ -665,21 +665,21 @@ static int hci_update_random_address(struct hci_request *req,
 	}
 
 	/* In case of required privacy without resolvable private address,
-	 * use an non-resolvable private address. This is useful for active
-	 * scanning and non-connectable advertising.
+	 * use an analn-resolvable private address. This is useful for active
+	 * scanning and analn-connectable advertising.
 	 */
 	if (require_privacy) {
 		bdaddr_t nrpa;
 
 		while (true) {
-			/* The non-resolvable private address is generated
+			/* The analn-resolvable private address is generated
 			 * from random six bytes with the two most significant
 			 * bits cleared.
 			 */
 			get_random_bytes(&nrpa, 6);
 			nrpa.b[5] &= 0x3f;
 
-			/* The non-resolvable private address shall not be
+			/* The analn-resolvable private address shall analt be
 			 * equal to the public address.
 			 */
 			if (bacmp(&hdev->bdaddr, &nrpa))
@@ -691,7 +691,7 @@ static int hci_update_random_address(struct hci_request *req,
 		return 0;
 	}
 
-	/* If forcing static address is in use or there is no public
+	/* If forcing static address is in use or there is anal public
 	 * address use the static address as random address (but skip
 	 * the HCI command if the current random address is already the
 	 * static one.
@@ -711,7 +711,7 @@ static int hci_update_random_address(struct hci_request *req,
 		return 0;
 	}
 
-	/* Neither privacy nor static address is being used so use a
+	/* Neither privacy analr static address is being used so use a
 	 * public address.
 	 */
 	*own_addr_type = ADDR_LE_DEV_PUBLIC;
@@ -739,8 +739,8 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 		return;
 	}
 
-	/* Set require_privacy to false since no SCAN_REQ are send
-	 * during passive scanning. Not using an non-resolvable address
+	/* Set require_privacy to false since anal SCAN_REQ are send
+	 * during passive scanning. Analt using an analn-resolvable address
 	 * here is important so that peer devices using direct
 	 * advertising with our address will be correctly reported
 	 * by the controller.
@@ -756,18 +756,18 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	bt_dev_dbg(hdev, "interleave state %d", hdev->interleave_scan_state);
 	/* Adding or removing entries from the accept list must
 	 * happen before enabling scanning. The controller does
-	 * not allow accept list modification while scanning.
+	 * analt allow accept list modification while scanning.
 	 */
 	filter_policy = update_accept_list(req);
 
 	/* When the controller is using random resolvable addresses and
 	 * with that having LE privacy enabled, then controllers with
-	 * Extended Scanner Filter Policies support can now enable support
+	 * Extended Scanner Filter Policies support can analw enable support
 	 * for handling directed advertising.
 	 *
-	 * So instead of using filter polices 0x00 (no accept list)
+	 * So instead of using filter polices 0x00 (anal accept list)
 	 * and 0x01 (accept list enabled) use the new filter policies
-	 * 0x02 (no accept list) and 0x03 (accept list enabled).
+	 * 0x02 (anal accept list) and 0x03 (accept list enabled).
 	 */
 	if (hci_dev_test_flag(hdev, HCI_PRIVACY) &&
 	    (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY))
@@ -787,13 +787,13 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 		 * monitor for the following reasons.
 		 *
 		 * For HW pattern filtering (ex. MSFT), Realtek and Qualcomm
-		 * controllers ignore RSSI_Sampling_Period when the duplicates
+		 * controllers iganalre RSSI_Sampling_Period when the duplicates
 		 * filter is enabled.
 		 *
-		 * For SW pattern filtering, when we're not doing interleaved
+		 * For SW pattern filtering, when we're analt doing interleaved
 		 * scanning, it is necessary to disable duplicates filter,
 		 * otherwise hosts can only receive one advertisement and it's
-		 * impossible to know if a peer is still in range.
+		 * impossible to kanalw if a peer is still in range.
 		 */
 		filter_dup = LE_SCAN_FILTER_DUP_DISABLE;
 	} else {
@@ -823,13 +823,13 @@ static int hci_req_add_le_interleaved_scan(struct hci_request *req,
 	switch (hdev->interleave_scan_state) {
 	case INTERLEAVE_SCAN_ALLOWLIST:
 		bt_dev_dbg(hdev, "next state: allowlist");
-		hdev->interleave_scan_state = INTERLEAVE_SCAN_NO_FILTER;
+		hdev->interleave_scan_state = INTERLEAVE_SCAN_ANAL_FILTER;
 		break;
-	case INTERLEAVE_SCAN_NO_FILTER:
-		bt_dev_dbg(hdev, "next state: no filter");
+	case INTERLEAVE_SCAN_ANAL_FILTER:
+		bt_dev_dbg(hdev, "next state: anal filter");
 		hdev->interleave_scan_state = INTERLEAVE_SCAN_ALLOWLIST;
 		break;
-	case INTERLEAVE_SCAN_NONE:
+	case INTERLEAVE_SCAN_ANALNE:
 		BT_ERR("unexpected error");
 		ret = -1;
 	}
@@ -848,8 +848,8 @@ static void interleave_scan_work(struct work_struct *work)
 
 	if (hdev->interleave_scan_state == INTERLEAVE_SCAN_ALLOWLIST) {
 		timeout = msecs_to_jiffies(hdev->advmon_allowlist_duration);
-	} else if (hdev->interleave_scan_state == INTERLEAVE_SCAN_NO_FILTER) {
-		timeout = msecs_to_jiffies(hdev->advmon_no_filter_duration);
+	} else if (hdev->interleave_scan_state == INTERLEAVE_SCAN_ANAL_FILTER) {
+		timeout = msecs_to_jiffies(hdev->advmon_anal_filter_duration);
 	} else {
 		bt_dev_err(hdev, "unexpected error");
 		return;
@@ -895,7 +895,7 @@ void hci_request_setup(struct hci_dev *hdev)
 
 void hci_request_cancel_all(struct hci_dev *hdev)
 {
-	__hci_cmd_sync_cancel(hdev, ENODEV);
+	__hci_cmd_sync_cancel(hdev, EANALDEV);
 
 	cancel_interleave_scan(hdev);
 }

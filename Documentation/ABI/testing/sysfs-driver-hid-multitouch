@@ -1,5 +1,5 @@
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/quirks
-Date:		November 2011
+Date:		Analvember 2011
 Contact:	Benjamin Tissoires <benjamin.tissoires@gmail.com>
 Description:	The integer value of this attribute corresponds to the
 		quirks actually in place to handle the device's protocol.

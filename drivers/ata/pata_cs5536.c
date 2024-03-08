@@ -8,9 +8,9 @@
  *	Available from AMD web site.
  *
  * The IDE timing registers for the CS5536 live in the Geode Machine
- * Specific Register file and not PCI config space.  Most BIOSes
+ * Specific Register file and analt PCI config space.  Most BIOSes
  * virtualize the PCI registers so the chip looks like a standard IDE
- * controller.	Unfortunately not all implementations get this right.
+ * controller.	Unfortunately analt all implementations get this right.
  * In particular some have problems with unaligned accesses to the
  * virtualized PCI registers.  This driver always does full dword
  * writes to work around the issue.  Also, in case of a bad BIOS this
@@ -68,7 +68,7 @@ enum {
 	IDE_ETC_UDMA_MASK	= 0xc0,
 };
 
-/* Some Bachmann OT200 devices have a non working UDMA support due a
+/* Some Bachmann OT200 devices have a analn working UDMA support due a
  * missing resistor.
  */
 static const struct dmi_system_id udma_quirk_dmi_table[] = {
@@ -108,7 +108,7 @@ static int cs5536_write(struct pci_dev *pdev, int reg, int val)
 static void cs5536_program_dtc(struct ata_device *adev, u8 tim)
 {
 	struct pci_dev *pdev = to_pci_dev(adev->link->ap->host->dev);
-	int dshift = adev->devno ? IDE_D1_SHIFT : IDE_D0_SHIFT;
+	int dshift = adev->devanal ? IDE_D1_SHIFT : IDE_D0_SHIFT;
 	u32 dtc;
 
 	cs5536_read(pdev, DTC, &dtc);
@@ -163,7 +163,7 @@ static void cs5536_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	struct ata_device *pair = ata_dev_pair(adev);
 	int mode = adev->pio_mode - XFER_PIO_0;
 	int cmdmode = mode;
-	int cshift = adev->devno ? IDE_CAST_D1_SHIFT : IDE_CAST_D0_SHIFT;
+	int cshift = adev->devanal ? IDE_CAST_D1_SHIFT : IDE_CAST_D0_SHIFT;
 	u32 cast;
 
 	if (pair)
@@ -202,7 +202,7 @@ static void cs5536_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 etc;
 	int mode = adev->dma_mode;
-	int dshift = adev->devno ? IDE_D1_SHIFT : IDE_D0_SHIFT;
+	int dshift = adev->devanal ? IDE_D1_SHIFT : IDE_D0_SHIFT;
 
 	cs5536_read(pdev, ETC, &etc);
 
@@ -245,7 +245,7 @@ static int cs5536_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &cs5536_port_ops,
 	};
 
-	static const struct ata_port_info no_udma_info = {
+	static const struct ata_port_info anal_udma_info = {
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
 		.port_ops = &cs5536_port_ops,
@@ -256,7 +256,7 @@ static int cs5536_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	u32 cfg;
 
 	if (dmi_check_system(udma_quirk_dmi_table))
-		ppi[0] = &no_udma_info;
+		ppi[0] = &anal_udma_info;
 	else
 		ppi[0] = &info;
 
@@ -269,7 +269,7 @@ static int cs5536_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if ((cfg & IDE_CFG_CHANEN) == 0) {
 		dev_err(&dev->dev, DRV_NAME ": disabled by BIOS\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return ata_pci_bmdma_init_one(dev, ppi, &cs5536_sht, NULL, 0);

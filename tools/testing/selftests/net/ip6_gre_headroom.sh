@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 #
-# Test that enough headroom is reserved for the first packet passing through an
+# Test that eanalugh headroom is reserved for the first packet passing through an
 # IPv6 GRE-like netdevice.
 
 setup_prepare()

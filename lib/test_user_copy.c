@@ -44,7 +44,7 @@ static bool is_zeroed(void *from, size_t size)
 	return memchr_inv(from, 0x0, size) == NULL;
 }
 
-static int test_check_nonzero_user(char *kmem, char __user *umem, size_t size)
+static int test_check_analnzero_user(char *kmem, char __user *umem, size_t size)
 {
 	int ret = 0;
 	size_t start, end, i, zero_start, zero_end;
@@ -68,13 +68,13 @@ static int test_check_nonzero_user(char *kmem, char __user *umem, size_t size)
 	zero_end = size - zero_start;
 
 	/*
-	 * We conduct a series of check_nonzero_user() tests on a block of
+	 * We conduct a series of check_analnzero_user() tests on a block of
 	 * memory with the following byte-pattern (trying every possible
 	 * [start,end] pair):
 	 *
 	 *   [ 00 ff 00 ff ... 00 00 00 00 ... ff 00 ff 00 ]
 	 *
-	 * And we verify that check_nonzero_user() acts identically to
+	 * And we verify that check_analnzero_user() acts identically to
 	 * memchr_inv().
 	 */
 
@@ -94,7 +94,7 @@ static int test_check_nonzero_user(char *kmem, char __user *umem, size_t size)
 			int expected = is_zeroed(kmem + start, len);
 
 			ret |= test(retval != expected,
-				    "check_nonzero_user(=%d) != memchr_inv(=%d) mismatch (start=%zu, end=%zu)",
+				    "check_analnzero_user(=%d) != memchr_inv(=%d) mismatch (start=%zu, end=%zu)",
 				    retval, expected, start, end);
 		}
 	}
@@ -193,22 +193,22 @@ static int __init test_user_copy_init(void)
 
 	kmem = kmalloc(PAGE_SIZE * 2, GFP_KERNEL);
 	if (!kmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	user_addr = vm_mmap(NULL, 0, PAGE_SIZE * 2,
 			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+			    MAP_AANALNYMOUS | MAP_PRIVATE, 0);
 	if (user_addr >= (unsigned long)(TASK_SIZE)) {
 		pr_warn("Failed to allocate user memory\n");
 		kfree(kmem);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	usermem = (char __user *)user_addr;
 	bad_usermem = (char *)user_addr;
 
 	/*
-	 * Legitimate usage: none of these copies should fail.
+	 * Legitimate usage: analne of these copies should fail.
 	 */
 	memset(kmem, 0x3a, PAGE_SIZE * 2);
 	ret |= test(copy_to_user(usermem, kmem, PAGE_SIZE),
@@ -244,13 +244,13 @@ static int __init test_user_copy_init(void)
 #endif
 #undef test_legit
 
-	/* Test usage of check_nonzero_user(). */
-	ret |= test_check_nonzero_user(kmem, usermem, 2 * PAGE_SIZE);
+	/* Test usage of check_analnzero_user(). */
+	ret |= test_check_analnzero_user(kmem, usermem, 2 * PAGE_SIZE);
 	/* Test usage of copy_struct_from_user(). */
 	ret |= test_copy_struct_from_user(kmem, usermem, 2 * PAGE_SIZE);
 
 	/*
-	 * Invalid usage: none of these copies should succeed.
+	 * Invalid usage: analne of these copies should succeed.
 	 */
 
 	/* Prepare kernel memory with check values. */
@@ -270,7 +270,7 @@ static int __init test_user_copy_init(void)
 	/*
 	 * When running with SMAP/PAN/etc, this will Oops the kernel
 	 * due to the zeroing of userspace memory on failure. This needs
-	 * to be tested in LKDTM instead, since this test module does not
+	 * to be tested in LKDTM instead, since this test module does analt
 	 * expect to explode.
 	 */
 	ret |= test(!copy_from_user(bad_usermem, (char __user *)kmem,

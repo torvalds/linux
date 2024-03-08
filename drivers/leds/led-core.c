@@ -47,7 +47,7 @@ EXPORT_SYMBOL_GPL(led_colors);
 static int __led_set_brightness(struct led_classdev *led_cdev, unsigned int value)
 {
 	if (!led_cdev->brightness_set)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	led_cdev->brightness_set(led_cdev, value);
 
@@ -57,7 +57,7 @@ static int __led_set_brightness(struct led_classdev *led_cdev, unsigned int valu
 static int __led_set_brightness_blocking(struct led_classdev *led_cdev, unsigned int value)
 {
 	if (!led_cdev->brightness_set_blocking)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return led_cdev->brightness_set_blocking(led_cdev, value);
 }
@@ -69,7 +69,7 @@ static void led_timer_function(struct timer_list *t)
 	unsigned long delay;
 
 	if (!led_cdev->blink_delay_on || !led_cdev->blink_delay_off) {
-		led_set_brightness_nosleep(led_cdev, LED_OFF);
+		led_set_brightness_analsleep(led_cdev, LED_OFF);
 		clear_bit(LED_BLINK_SW, &led_cdev->work_flags);
 		return;
 	}
@@ -98,7 +98,7 @@ static void led_timer_function(struct timer_list *t)
 		delay = led_cdev->blink_delay_off;
 	}
 
-	led_set_brightness_nosleep(led_cdev, brightness);
+	led_set_brightness_analsleep(led_cdev, brightness);
 
 	/* Return in next iteration if led is in one-shot mode and we are in
 	 * the final blink state so that the led is toggled each delay_on +
@@ -125,11 +125,11 @@ static void set_brightness_delayed_set_brightness(struct led_classdev *led_cdev,
 	int ret = 0;
 
 	ret = __led_set_brightness(led_cdev, value);
-	if (ret == -ENOTSUPP)
+	if (ret == -EANALTSUPP)
 		ret = __led_set_brightness_blocking(led_cdev, value);
 	if (ret < 0 &&
 	    /* LED HW might have been unplugged, therefore don't warn */
-	    !(ret == -ENODEV && (led_cdev->flags & LED_UNREGISTERING) &&
+	    !(ret == -EANALDEV && (led_cdev->flags & LED_UNREGISTERING) &&
 	    (led_cdev->flags & LED_HW_PLUGGABLE)))
 		dev_err(led_cdev->dev,
 			"Setting an LED's brightness failed (%d)\n", ret);
@@ -183,13 +183,13 @@ static void led_set_software_blink(struct led_classdev *led_cdev,
 
 	/* never on - just set to off */
 	if (!delay_on) {
-		led_set_brightness_nosleep(led_cdev, LED_OFF);
+		led_set_brightness_analsleep(led_cdev, LED_OFF);
 		return;
 	}
 
 	/* never off - just set to brightness */
 	if (!delay_off) {
-		led_set_brightness_nosleep(led_cdev,
+		led_set_brightness_analsleep(led_cdev,
 					   led_cdev->blink_brightness);
 		return;
 	}
@@ -208,7 +208,7 @@ static void led_blink_setup(struct led_classdev *led_cdev,
 	    !led_cdev->blink_set(led_cdev, delay_on, delay_off))
 		return;
 
-	/* blink with 1 Hz as default if nothing specified */
+	/* blink with 1 Hz as default if analthing specified */
 	if (!*delay_on && !*delay_off)
 		*delay_on = *delay_off = 500;
 
@@ -258,7 +258,7 @@ void led_blink_set_oneshot(struct led_classdev *led_cdev,
 }
 EXPORT_SYMBOL_GPL(led_blink_set_oneshot);
 
-void led_blink_set_nosleep(struct led_classdev *led_cdev, unsigned long delay_on,
+void led_blink_set_analsleep(struct led_classdev *led_cdev, unsigned long delay_on,
 			   unsigned long delay_off)
 {
 	/* If necessary delegate to a work queue task. */
@@ -272,7 +272,7 @@ void led_blink_set_nosleep(struct led_classdev *led_cdev, unsigned long delay_on
 
 	led_blink_set(led_cdev, &delay_on, &delay_off);
 }
-EXPORT_SYMBOL_GPL(led_blink_set_nosleep);
+EXPORT_SYMBOL_GPL(led_blink_set_analsleep);
 
 void led_stop_software_blink(struct led_classdev *led_cdev)
 {
@@ -306,13 +306,13 @@ void led_set_brightness(struct led_classdev *led_cdev, unsigned int brightness)
 		return;
 	}
 
-	led_set_brightness_nosleep(led_cdev, brightness);
+	led_set_brightness_analsleep(led_cdev, brightness);
 }
 EXPORT_SYMBOL_GPL(led_set_brightness);
 
-void led_set_brightness_nopm(struct led_classdev *led_cdev, unsigned int value)
+void led_set_brightness_analpm(struct led_classdev *led_cdev, unsigned int value)
 {
-	/* Use brightness_set op if available, it is guaranteed not to sleep */
+	/* Use brightness_set op if available, it is guaranteed analt to sleep */
 	if (!__led_set_brightness(led_cdev, value))
 		return;
 
@@ -335,18 +335,18 @@ void led_set_brightness_nopm(struct led_classdev *led_cdev, unsigned int value)
 
 	schedule_work(&led_cdev->set_brightness_work);
 }
-EXPORT_SYMBOL_GPL(led_set_brightness_nopm);
+EXPORT_SYMBOL_GPL(led_set_brightness_analpm);
 
-void led_set_brightness_nosleep(struct led_classdev *led_cdev, unsigned int value)
+void led_set_brightness_analsleep(struct led_classdev *led_cdev, unsigned int value)
 {
 	led_cdev->brightness = min(value, led_cdev->max_brightness);
 
 	if (led_cdev->flags & LED_SUSPENDED)
 		return;
 
-	led_set_brightness_nopm(led_cdev, led_cdev->brightness);
+	led_set_brightness_analpm(led_cdev, led_cdev->brightness);
 }
-EXPORT_SYMBOL_GPL(led_set_brightness_nosleep);
+EXPORT_SYMBOL_GPL(led_set_brightness_analsleep);
 
 int led_set_brightness_sync(struct led_classdev *led_cdev, unsigned int value)
 {
@@ -380,11 +380,11 @@ EXPORT_SYMBOL_GPL(led_update_brightness);
 
 u32 *led_get_default_pattern(struct led_classdev *led_cdev, unsigned int *size)
 {
-	struct fwnode_handle *fwnode = led_cdev->dev->fwnode;
+	struct fwanalde_handle *fwanalde = led_cdev->dev->fwanalde;
 	u32 *pattern;
 	int count;
 
-	count = fwnode_property_count_u32(fwnode, "led-pattern");
+	count = fwanalde_property_count_u32(fwanalde, "led-pattern");
 	if (count < 0)
 		return NULL;
 
@@ -392,7 +392,7 @@ u32 *led_get_default_pattern(struct led_classdev *led_cdev, unsigned int *size)
 	if (!pattern)
 		return NULL;
 
-	if (fwnode_property_read_u32_array(fwnode, "led-pattern", pattern, count)) {
+	if (fwanalde_property_read_u32_array(fwanalde, "led-pattern", pattern, count)) {
 		kfree(pattern);
 		return NULL;
 	}
@@ -421,24 +421,24 @@ void led_sysfs_enable(struct led_classdev *led_cdev)
 }
 EXPORT_SYMBOL_GPL(led_sysfs_enable);
 
-static void led_parse_fwnode_props(struct device *dev,
-				   struct fwnode_handle *fwnode,
+static void led_parse_fwanalde_props(struct device *dev,
+				   struct fwanalde_handle *fwanalde,
 				   struct led_properties *props)
 {
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return;
 
-	if (fwnode_property_present(fwnode, "label")) {
-		ret = fwnode_property_read_string(fwnode, "label", &props->label);
+	if (fwanalde_property_present(fwanalde, "label")) {
+		ret = fwanalde_property_read_string(fwanalde, "label", &props->label);
 		if (ret)
 			dev_err(dev, "Error parsing 'label' property (%d)\n", ret);
 		return;
 	}
 
-	if (fwnode_property_present(fwnode, "color")) {
-		ret = fwnode_property_read_u32(fwnode, "color", &props->color);
+	if (fwanalde_property_present(fwanalde, "color")) {
+		ret = fwanalde_property_read_u32(fwanalde, "color", &props->color);
 		if (ret)
 			dev_err(dev, "Error parsing 'color' property (%d)\n", ret);
 		else if (props->color >= LED_COLOR_ID_MAX)
@@ -448,20 +448,20 @@ static void led_parse_fwnode_props(struct device *dev,
 	}
 
 
-	if (!fwnode_property_present(fwnode, "function"))
+	if (!fwanalde_property_present(fwanalde, "function"))
 		return;
 
-	ret = fwnode_property_read_string(fwnode, "function", &props->function);
+	ret = fwanalde_property_read_string(fwanalde, "function", &props->function);
 	if (ret) {
 		dev_err(dev,
 			"Error parsing 'function' property (%d)\n",
 			ret);
 	}
 
-	if (!fwnode_property_present(fwnode, "function-enumerator"))
+	if (!fwanalde_property_present(fwanalde, "function-enumerator"))
 		return;
 
-	ret = fwnode_property_read_u32(fwnode, "function-enumerator",
+	ret = fwanalde_property_read_u32(fwanalde, "function-enumerator",
 				       &props->func_enum);
 	if (ret) {
 		dev_err(dev,
@@ -476,13 +476,13 @@ int led_compose_name(struct device *dev, struct led_init_data *init_data,
 		     char *led_classdev_name)
 {
 	struct led_properties props = {};
-	struct fwnode_handle *fwnode = init_data->fwnode;
+	struct fwanalde_handle *fwanalde = init_data->fwanalde;
 	const char *devicename = init_data->devicename;
 
 	if (!led_classdev_name)
 		return -EINVAL;
 
-	led_parse_fwnode_props(dev, fwnode, &props);
+	led_parse_fwanalde_props(dev, fwanalde, &props);
 
 	if (props.label) {
 		/*
@@ -524,8 +524,8 @@ int led_compose_name(struct device *dev, struct led_init_data *init_data,
 		}
 		snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s:%s",
 			 devicename, init_data->default_label);
-	} else if (is_of_node(fwnode)) {
-		strscpy(led_classdev_name, to_of_node(fwnode)->name,
+	} else if (is_of_analde(fwanalde)) {
+		strscpy(led_classdev_name, to_of_analde(fwanalde)->name,
 			LED_MAX_NAME_SIZE);
 	} else
 		return -EINVAL;
@@ -534,11 +534,11 @@ int led_compose_name(struct device *dev, struct led_init_data *init_data,
 }
 EXPORT_SYMBOL_GPL(led_compose_name);
 
-enum led_default_state led_init_default_state_get(struct fwnode_handle *fwnode)
+enum led_default_state led_init_default_state_get(struct fwanalde_handle *fwanalde)
 {
 	const char *state = NULL;
 
-	if (!fwnode_property_read_string(fwnode, "default-state", &state)) {
+	if (!fwanalde_property_read_string(fwanalde, "default-state", &state)) {
 		if (!strcmp(state, "keep"))
 			return LEDS_DEFSTATE_KEEP;
 		if (!strcmp(state, "on"))

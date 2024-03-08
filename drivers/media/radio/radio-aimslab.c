@@ -9,7 +9,7 @@
  * Converted to new API by Alan Cox <alan@lxorguk.ukuu.org.uk>
  * Various bugfixes and enhancements by Russell Kroll <rkroll@exploits.org>
  *
- * Notes on the hardware (reverse engineered from other peoples'
+ * Analtes on the hardware (reverse engineered from other peoples'
  * reverse engineering of AIMS' code :-)
  *
  *  Frequency control is done digitally -- ie out(port,encodefreq(95.8));
@@ -79,7 +79,7 @@ static struct radio_isa_card *rtrack_alloc(void)
 #define AIMS_BIT_TUN_DATA	(1 << 2)
 #define AIMS_BIT_VOL_CE		(1 << 3)
 #define AIMS_BIT_TUN_STRQ	(1 << 4)
-/* bit 5 is not connected */
+/* bit 5 is analt connected */
 #define AIMS_BIT_VOL_UP		(1 << 6)	/* active low */
 #define AIMS_BIT_VOL_DN		(1 << 7)	/* active low */
 
@@ -111,7 +111,7 @@ static int rtrack_s_frequency(struct radio_isa_card *isa, u32 freq)
 
 static u32 rtrack_g_signal(struct radio_isa_card *isa)
 {
-	/* bit set = no signal present */
+	/* bit set = anal signal present */
 	return 0xffff * !(inb(isa->io) & 2);
 }
 
@@ -141,7 +141,7 @@ static int rtrack_s_mute_volume(struct radio_isa_card *isa, bool mute, int vol)
 	return 0;
 }
 
-/* Mute card - prevents noisy bootups */
+/* Mute card - prevents analisy bootups */
 static int rtrack_initialize(struct radio_isa_card *isa)
 {
 	/* this ensures that the volume is all the way up  */

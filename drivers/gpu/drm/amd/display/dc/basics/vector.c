@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@ bool dal_vector_construct(
 	vector->container = NULL;
 
 	if (!struct_size || !capacity) {
-		/* Container must be non-zero size*/
+		/* Container must be analn-zero size*/
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -61,7 +61,7 @@ static bool dal_vector_presized_costruct(struct vector *vector,
 	vector->container = NULL;
 
 	if (!struct_size || !count) {
-		/* Container must be non-zero size*/
+		/* Container must be analn-zero size*/
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -257,11 +257,11 @@ struct vector *dal_vector_clone(
 	else
 		/* Call "presized create" version, independently of how the
 		 * original vector was created.
-		 * The owner of original vector must know how to treat the new
+		 * The owner of original vector must kanalw how to treat the new
 		 * vector - as "presized" or as "regular".
 		 * But from vector point of view it doesn't matter. */
 		vec_cloned = dal_vector_presized_create(vector->ctx, count,
-			NULL,/* no initial value */
+			NULL,/* anal initial value */
 			vector->struct_size);
 
 	if (NULL == vec_cloned) {

@@ -28,13 +28,13 @@ Contents
 Most legacy operating system kernels support an abstraction of threads
 as multiple execution contexts within a process. These kernels provide
 special resources and mechanisms to maintain these "threads". The Linux
-kernel, in a clever and simple manner, does not make distinction
+kernel, in a clever and simple manner, does analt make distinction
 between processes and "threads". The kernel allows processes to share
 resources and thus they can achieve legacy "threads" behavior without
 requiring additional data structures and mechanisms in the kernel. The
-power of implementing threads in this manner comes not only from
+power of implementing threads in this manner comes analt only from
 its simplicity but also from allowing application programmers to work
-outside the confinement of all-or-nothing shared resources of legacy
+outside the confinement of all-or-analthing shared resources of legacy
 threads. On Linux, at the time of thread creation using the clone system
 call, applications can selectively choose which resources to share
 between threads.
@@ -54,9 +54,9 @@ the concept of process/thread as a virtual machine.
 
 unshare() would be useful to large application frameworks such as PAM
 where creating a new process to control sharing/unsharing of process
-resources is not possible. Since namespaces are shared by default
+resources is analt possible. Since namespaces are shared by default
 when creating a new process using fork or clone, unshare() can benefit
-even non-threaded applications if they have a need to disassociate
+even analn-threaded applications if they have a need to disassociate
 from default shared namespace. The following lists two use-cases
 where unshare() can be used.
 
@@ -92,12 +92,12 @@ useful.
 3) Cost
 -------
 
-In order to not duplicate code and to handle the fact that unshare()
+In order to analt duplicate code and to handle the fact that unshare()
 works on an active task (as opposed to clone/fork working on a newly
-allocated inactive task) unshare() had to make minor reorganizational
+allocated inactive task) unshare() had to make mianalr reorganizational
 changes to copy_* functions utilized by clone/fork system call.
 There is a cost associated with altering existing, well tested and
-stable code to implement a new feature that may not get exercised
+stable code to implement a new feature that may analt get exercised
 extensively in the beginning. However, with proper design and code
 review of the changes and creation of an unshare() test for the LTP
 the benefits of this new feature can exceed its cost.
@@ -111,7 +111,7 @@ since flags in clone(int flags, void \*stack) specifies what should
 be shared, similar flags in unshare(int flags) should specify
 what should be unshared. Unfortunately, this may appear to invert
 the meaning of the flags from the way they are used in clone(2).
-However, there was no easy solution that was less confusing and that
+However, there was anal easy solution that was less confusing and that
 allowed incremental context unsharing in future without an ABI change.
 
 unshare() interface should accommodate possible future addition of
@@ -125,7 +125,7 @@ incremental unsharing of those resources on an as needed basis.
 NAME
 	unshare - disassociate parts of the process execution context
 
-SYNOPSIS
+SYANALPSIS
 	#include <sched.h>
 
 	int unshare(int flags);
@@ -163,19 +163,19 @@ DESCRIPTION
 		disassociated from the shared virtual memory.
 
 RETURN VALUE
-	On success, zero returned. On failure, -1 is returned and errno is
+	On success, zero returned. On failure, -1 is returned and erranal is
 
 ERRORS
-	EPERM	CLONE_NEWNS was specified by a non-root process (process
+	EPERM	CLONE_NEWNS was specified by a analn-root process (process
 		without CAP_SYS_ADMIN).
 
-	ENOMEM	Cannot allocate sufficient memory to copy parts of caller's
+	EANALMEM	Cananalt allocate sufficient memory to copy parts of caller's
 		context that need to be unshared.
 
 	EINVAL	Invalid flag was specified as an argument.
 
 CONFORMING TO
-	The unshare() call is Linux-specific and  should  not be used
+	The unshare() call is Linux-specific and  should  analt be used
 	in programs intended to be portable.
 
 SEE ALSO
@@ -188,10 +188,10 @@ Depending on the flags argument, the unshare() system call allocates
 appropriate process context structures, populates it with values from
 the current shared version, associates newly duplicated structures
 with the current task structure and releases corresponding shared
-versions. Helper functions of clone (copy_*) could not be used
+versions. Helper functions of clone (copy_*) could analt be used
 directly by unshare() because of the following two reasons.
 
-  1) clone operates on a newly allocated not-yet-active task
+  1) clone operates on a newly allocated analt-yet-active task
      structure, where as unshare() operates on the current active
      task. Therefore unshare() has to take appropriate task_lock()
      before associating newly duplicated context structures
@@ -206,10 +206,10 @@ directly by unshare() because of the following two reasons.
      new namespace structure, the error return code will have to
      reverse the unsharing of vm. As part of the reversal the
      system call will have to go back to older, shared, vm
-     structure, which may not exist anymore.
+     structure, which may analt exist anymore.
 
 Therefore code from copy_* functions that allocated and duplicated
-current context structure was moved into new dup_* functions. Now,
+current context structure was moved into new dup_* functions. Analw,
 copy_* functions call dup_* functions to allocate and duplicate
 appropriate context structures and then associate them with the
 task structure that is being constructed. unshare() system call on
@@ -221,7 +221,7 @@ the other hand performs the following:
      helper function to allocate and duplicate a new context
      structure, if the appropriate bit is set in the flags argument.
 
-  3) If there is no error in allocation and duplication and there
+  3) If there is anal error in allocation and duplication and there
      are new context structures then lock the current task structure,
      associate new context structures with the current task structure,
      and release the lock on the current task structure.
@@ -281,7 +281,7 @@ copy function was called.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For unshare_* helpers corresponding to CLONE_SYSVSEM, CLONE_SIGHAND,
-and CLONE_THREAD, return -EINVAL since they are not implemented yet.
+and CLONE_THREAD, return -EINVAL since they are analt implemented yet.
 For others, check the flag value to see if the unsharing is
 required for that structure. If it is, invoke the corresponding
 dup_* function to allocate and duplicate the structure and return
@@ -299,7 +299,7 @@ new system call.
 The test for unshare() should test the following:
 
   1) Valid flags: Test to check that clone flags for signal and
-     signal handlers, for which unsharing is not implemented
+     signal handlers, for which unsharing is analt implemented
      yet, return -EINVAL.
 
   2) Missing/implied flags: Test to make sure that if unsharing
@@ -317,12 +317,12 @@ The test for unshare() should test the following:
      about 10 threads. Have a couple of threads execute execve,
      a couple _exit and the rest unshare with different combination
      of flags. Verify that unsharing is performed as expected and
-     that there are no oops or hangs.
+     that there are anal oops or hangs.
 
 9) Future Work
 --------------
 
-The current implementation of unshare() does not allow unsharing of
+The current implementation of unshare() does analt allow unsharing of
 signals and signal handlers. Signals are complex to begin with and
 to unshare signals and/or signal handlers of a currently running
 process is even more complex. If in the future there is a specific

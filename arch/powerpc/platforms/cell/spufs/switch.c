@@ -13,13 +13,13 @@
  * of time and system resources.  SPE Book IV indicates that SPE
  * allocation should follow a "serially reusable device" model,
  * in which the SPE is assigned a task until it completes.  When
- * this is not possible, this sequence may be used to premptively
+ * this is analt possible, this sequence may be used to premptively
  * save, and then later (optionally) restore the context of a
  * program executing on an SPE.
  */
 
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hardirq.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -86,7 +86,7 @@ static inline int check_spu_isolate(struct spu_state *csa, struct spu *spu)
 	/* Save, Step 2:
 	 * Save, Step 6:
 	 *     If SPU_Status[E,L,IS] any field is '1', this
-	 *     SPU is in isolate state and cannot be context
+	 *     SPU is in isolate state and cananalt be context
 	 *     saved at this time.
 	 */
 	isolate_state = SPU_STATUS_ISOLATED_STATE |
@@ -105,7 +105,7 @@ static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 	 *     Save INT_Mask_class2 in CSA.
 	 *     Write INT_MASK_class2 with value of 0.
 	 *     Synchronize all three interrupts to be sure
-	 *     we no longer execute a handler on another CPU.
+	 *     we anal longer execute a handler on aanalther CPU.
 	 */
 	spin_lock_irq(&spu->register_lock);
 	if (csa) {
@@ -138,7 +138,7 @@ static inline void set_watchdog_timer(struct spu_state *csa, struct spu *spu)
 	 *    Set a software watchdog timer, which specifies the
 	 *    maximum allowable time for a context save sequence.
 	 *
-	 *    For present, this implementation will not set a global
+	 *    For present, this implementation will analt set a global
 	 *    watchdog timer, as virtualization & variable system load
 	 *    may cause unpredictable execution times.
 	 */
@@ -184,7 +184,7 @@ static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
 				in_be64(&priv2->mfc_control_RW) |
 				MFC_CNTL_SUSPEND_DMA_QUEUE;
 		break;
-	case MFC_CNTL_NORMAL_DMA_QUEUE_OPERATION:
+	case MFC_CNTL_ANALRMAL_DMA_QUEUE_OPERATION:
 		out_be64(&priv2->mfc_control_RW, MFC_CNTL_SUSPEND_DMA_QUEUE);
 		POLL_WHILE_FALSE((in_be64(&priv2->mfc_control_RW) &
 				  MFC_CNTL_SUSPEND_DMA_STATUS_MASK) ==
@@ -326,7 +326,7 @@ static inline void handle_pending_interrupts(struct spu_state *csa,
 	 *     pending interrupts, with the interrupt handlers
 	 *     recognizing the software Context Switch Pending
 	 *     flag, to ensure the SPU execution or MFC command
-	 *     queue is not restarted.  TBD.
+	 *     queue is analt restarted.  TBD.
 	 */
 }
 
@@ -488,9 +488,9 @@ static inline void setup_mfc_sr1(struct spu_state *csa, struct spu *spu)
 	 *     MFC_SR1[TL,R,Pr,T] set correctly for the
 	 *     OS specific environment.
 	 *
-	 *     Implementation note: The SPU-side code
+	 *     Implementation analte: The SPU-side code
 	 *     for save/restore is privileged, so the
-	 *     MFC_SR1[Pr] bit is not set.
+	 *     MFC_SR1[Pr] bit is analt set.
 	 *
 	 */
 	spu_mfc_sr1_set(spu, (MFC_STATE1_MASTER_RUN_CONTROL_MASK |
@@ -566,7 +566,7 @@ static inline void save_pm_trace(struct spu_state *csa, struct spu *spu)
 {
 	/* Save, Step 37:
 	 *     Save PM_Trace_Tag_Wait_Mask in the CSA.
-	 *     Not performed by this implementation.
+	 *     Analt performed by this implementation.
 	 */
 }
 
@@ -727,9 +727,9 @@ static inline void set_switch_active(struct spu_state *csa, struct spu *spu)
 	 * Restore, Step 23.
 	 *     Change the software context switch pending flag
 	 *     to context switch active.  This implementation does
-	 *     not uses a switch active flag.
+	 *     analt uses a switch active flag.
 	 *
-	 * Now that we have saved the mfc in the csa, we can add in the
+	 * Analw that we have saved the mfc in the csa, we can add in the
 	 * restart command if an exception occurred.
 	 */
 	if (test_bit(SPU_CONTEXT_FAULT_PENDING, &spu->flags))
@@ -828,7 +828,7 @@ static inline void set_spu_npc(struct spu_state *csa, struct spu *spu)
 	eieio();
 }
 
-static inline void set_signot1(struct spu_state *csa, struct spu *spu)
+static inline void set_siganalt1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_problem __iomem *prob = spu->problem;
 	union {
@@ -838,15 +838,15 @@ static inline void set_signot1(struct spu_state *csa, struct spu *spu)
 
 	/* Save, Step 52:
 	 * Restore, Step 32:
-	 *    Write SPU_Sig_Notify_1 register with upper 32-bits
+	 *    Write SPU_Sig_Analtify_1 register with upper 32-bits
 	 *    of the CSA.LSCSA effective address.
 	 */
 	addr64.ull = (u64) csa->lscsa;
-	out_be32(&prob->signal_notify1, addr64.ui[0]);
+	out_be32(&prob->signal_analtify1, addr64.ui[0]);
 	eieio();
 }
 
-static inline void set_signot2(struct spu_state *csa, struct spu *spu)
+static inline void set_siganalt2(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_problem __iomem *prob = spu->problem;
 	union {
@@ -856,11 +856,11 @@ static inline void set_signot2(struct spu_state *csa, struct spu *spu)
 
 	/* Save, Step 53:
 	 * Restore, Step 33:
-	 *    Write SPU_Sig_Notify_2 register with lower 32-bits
+	 *    Write SPU_Sig_Analtify_2 register with lower 32-bits
 	 *    of the CSA.LSCSA effective address.
 	 */
 	addr64.ull = (u64) csa->lscsa;
-	out_be32(&prob->signal_notify2, addr64.ui[1]);
+	out_be32(&prob->signal_analtify2, addr64.ui[1]);
 	eieio();
 }
 
@@ -953,7 +953,7 @@ static inline int check_save_status(struct spu_state *csa, struct spu *spu)
 static inline void terminate_spu_app(struct spu_state *csa, struct spu *spu)
 {
 	/* Restore, Step 4:
-	 *    If required, notify the "using application" that
+	 *    If required, analtify the "using application" that
 	 *    the SPU task has been terminated.  TBD.
 	 */
 }
@@ -1126,7 +1126,7 @@ static inline void setup_spu_status_part1(struct spu_state *csa,
 	 *     code (after the "context restored" stop and signal) to
 	 *     restore the correct SPU status.
 	 *
-	 *     NOTE: Rather than modifying the SPU executable, we
+	 *     ANALTE: Rather than modifying the SPU executable, we
 	 *     instead add a new 'stopped_status' field to the
 	 *     LSCSA.  The SPU-side restore reads this field and
 	 *     takes the appropriate action when exiting.
@@ -1185,7 +1185,7 @@ static inline void setup_spu_status_part1(struct spu_state *csa,
 
 	} else if ((csa->prob.spu_status_R & status_S) == status_S) {
 
-		/* SPU_Status[S]=1 - Two nop instructions.
+		/* SPU_Status[S]=1 - Two analp instructions.
 		 */
 		csa->lscsa->stopped_status.slot[0] = SPU_STOPPED_STATUS_S;
 
@@ -1209,7 +1209,7 @@ static inline void setup_spu_status_part2(struct spu_state *csa,
 	 *     add a 'br *' instruction to the end of
 	 *     the SPU based restore code.
 	 *
-	 *     NOTE: Rather than modifying the SPU executable, we
+	 *     ANALTE: Rather than modifying the SPU executable, we
 	 *     instead add a new 'stopped_status' field to the
 	 *     LSCSA.  The SPU-side restore reads this field and
 	 *     takes the appropriate action when exiting.
@@ -1622,7 +1622,7 @@ static inline void restore_pm_trace(struct spu_state *csa, struct spu *spu)
 {
 	/* Restore, Step 63:
 	 *     Restore PM_Trace_Tag_Wait_Mask from CSA.
-	 *     Not performed by this implementation.
+	 *     Analt performed by this implementation.
 	 */
 }
 
@@ -1737,7 +1737,7 @@ static inline void restore_mfc_cntl(struct spu_state *csa, struct spu *spu)
 	 * the context switch. The suspend flag is added to the saved state in
 	 * the csa, if the operational state was suspending or suspended. In
 	 * this case, the code that suspended the mfc is responsible for
-	 * continuing it. Note that SPE faults do not change the operational
+	 * continuing it. Analte that SPE faults do analt change the operational
 	 * state of the spu.
 	 */
 }
@@ -1756,7 +1756,7 @@ static inline void reset_switch_active(struct spu_state *csa, struct spu *spu)
 {
 	/* Restore, Step 74:
 	 *     Reset the "context switch active" flag.
-	 *     Not performed by this implementation.
+	 *     Analt performed by this implementation.
 	 */
 }
 
@@ -1860,8 +1860,8 @@ static void save_lscsa(struct spu_state *prev, struct spu *spu)
 	enable_interrupts(prev, spu);	/* Step 49. */
 	save_ls_16kb(prev, spu);	/* Step 50. */
 	set_spu_npc(prev, spu);	        /* Step 51. */
-	set_signot1(prev, spu);		/* Step 52. */
-	set_signot2(prev, spu);		/* Step 53. */
+	set_siganalt1(prev, spu);		/* Step 52. */
+	set_siganalt2(prev, spu);		/* Step 53. */
 	send_save_code(prev, spu);	/* Step 54. */
 	set_ppu_querymask(prev, spu);	/* Step 55. */
 	wait_tag_complete(prev, spu);	/* Step 56. */
@@ -1890,8 +1890,8 @@ static void force_spu_isolate_exit(struct spu *spu)
 	POLL_WHILE_FALSE((in_be32(&prob->spu_status_R)
 				& SPU_STATUS_STOPPED_BY_STOP));
 
-	/* Reset load request to normal. */
-	out_be64(&priv2->spu_privcntl_RW, SPU_PRIVCNT_LOAD_REQUEST_NORMAL);
+	/* Reset load request to analrmal. */
+	out_be64(&priv2->spu_privcntl_RW, SPU_PRIVCNT_LOAD_REQUEST_ANALRMAL);
 	iobarrier_w();
 }
 
@@ -1963,8 +1963,8 @@ static void restore_lscsa(struct spu_state *next, struct spu *spu)
 	/* Step 30. */
 	setup_mfc_slbs(next, spu, spu_restore_code, sizeof(spu_restore_code));
 	set_spu_npc(next, spu);	                /* Step 31. */
-	set_signot1(next, spu);	                /* Step 32. */
-	set_signot2(next, spu);	                /* Step 33. */
+	set_siganalt1(next, spu);	                /* Step 32. */
+	set_siganalt2(next, spu);	                /* Step 33. */
 	setup_decr(next, spu);	                /* Step 34. */
 	setup_ppu_mb(next, spu);	        /* Step 35. */
 	setup_ppuint_mb(next, spu);	        /* Step 36. */
@@ -2062,7 +2062,7 @@ static int __do_spu_restore(struct spu_state *next, struct spu *spu)
 	 *    (b) restore LSCSA [steps 25-40], mostly performed by SPU.
 	 *    (c) restore CSA [steps 41-76], performed by PPE.
 	 *
-	 * The 'harvest' step is not performed here, but rather
+	 * The 'harvest' step is analt performed here, but rather
 	 * as needed below.
 	 */
 
@@ -2070,7 +2070,7 @@ static int __do_spu_restore(struct spu_state *next, struct spu *spu)
 	rc = check_restore_status(next, spu);	/* Step 40.     */
 	switch (rc) {
 	default:
-		/* Failed. Return now. */
+		/* Failed. Return analw. */
 		return rc;
 		break;
 	case 0:
@@ -2109,9 +2109,9 @@ EXPORT_SYMBOL_GPL(spu_save);
  * @new: pointer to SPU context save area, to be restored.
  * @spu: pointer to SPU iomem structure.
  *
- * Perform harvest + restore, as we may not be coming
+ * Perform harvest + restore, as we may analt be coming
  * from a previous successful save operation, and the
- * hardware state is unknown.
+ * hardware state is unkanalwn.
  */
 int spu_restore(struct spu_state *new, struct spu *spu)
 {
@@ -2164,7 +2164,7 @@ static void init_priv2(struct spu_state *csa)
 {
 	csa->priv2.spu_lslr_RW = LS_ADDR_MASK;
 	csa->priv2.mfc_control_RW = MFC_CNTL_RESUME_DMA_QUEUE |
-	    MFC_CNTL_NORMAL_DMA_QUEUE_OPERATION |
+	    MFC_CNTL_ANALRMAL_DMA_QUEUE_OPERATION |
 	    MFC_CNTL_DMA_QUEUES_EMPTY_MASK;
 }
 
@@ -2175,7 +2175,7 @@ static void init_priv2(struct spu_state *csa)
  * This includes enabling address translation, interrupt masks, etc.,
  * as appropriate for the given OS environment.
  *
- * Note that storage for the 'lscsa' is allocated separately,
+ * Analte that storage for the 'lscsa' is allocated separately,
  * as it is by far the largest of the context save regions,
  * and may need to be pinned or otherwise specially aligned.
  */

@@ -180,14 +180,14 @@ static void twl6040_init_chip(struct snd_soc_component *component)
 	twl6040_read(component, TWL6040_REG_HFOTRIM);
 
 	/* Change chip defaults */
-	/* No imput selected for microphone amplifiers */
+	/* Anal imput selected for microphone amplifiers */
 	twl6040_write(component, TWL6040_REG_MICLCTL, 0x18);
 	twl6040_write(component, TWL6040_REG_MICRCTL, 0x18);
 
 	/*
 	 * We need to lower the default gain values, so the ramp code
 	 * can work correctly for the first playback.
-	 * This reduces the pop noise heard at the first playback.
+	 * This reduces the pop analise heard at the first playback.
 	 */
 	twl6040_write(component, TWL6040_REG_HSGAIN, 0xff);
 	twl6040_write(component, TWL6040_REG_EARCTL, 0x1e);
@@ -226,7 +226,7 @@ static int twl6040_hs_dac_event(struct snd_soc_dapm_widget *w,
 	u8 hslctl, hsrctl;
 
 	/*
-	 * Workaround for Headset DC offset caused pop noise:
+	 * Workaround for Headset DC offset caused pop analise:
 	 * Both HS DAC need to be turned on (before the HS driver) and off at
 	 * the same time.
 	 */
@@ -327,7 +327,7 @@ static int twl6040_soc_dapm_put_vibra_enum(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int val;
 
-	/* Do not allow changes while Input/FF efect is running */
+	/* Do analt allow changes while Input/FF efect is running */
 	val = twl6040_read(component, e->reg);
 	if (val & TWL6040_VIBENA && !(val & TWL6040_VIBSEL))
 		return -EBUSY;
@@ -595,11 +595,11 @@ static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 		twl6040_headset_power_put_enum),
 
 	/* Left HS PDM data routed to Right HSDAC */
-	SOC_SINGLE("Headset Mono to Stereo Playback Switch",
+	SOC_SINGLE("Headset Moanal to Stereo Playback Switch",
 		TWL6040_REG_HSRCTL, 7, 1, 0),
 
 	/* Left HF PDM data routed to Right HFDAC */
-	SOC_SINGLE("Handsfree Mono to Stereo Playback Switch",
+	SOC_SINGLE("Handsfree Moanal to Stereo Playback Switch",
 		TWL6040_REG_HFRCTL, 5, 1, 0),
 
 	SOC_ENUM_EXT("PLL Selection", twl6040_power_mode_enum,
@@ -627,9 +627,9 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 
 	/* Analog input muxes for the capture amplifiers */
 	SND_SOC_DAPM_MUX("Analog Left Capture Route",
-			SND_SOC_NOPM, 0, 0, &amicl_control),
+			SND_SOC_ANALPM, 0, 0, &amicl_control),
 	SND_SOC_DAPM_MUX("Analog Right Capture Route",
-			SND_SOC_NOPM, 0, 0, &amicr_control),
+			SND_SOC_ANALPM, 0, 0, &amicr_control),
 
 	/* Analog capture PGAs */
 	SND_SOC_DAPM_PGA("MicAmpL",
@@ -658,33 +658,33 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			    TWL6040_REG_DMICBCTL, 4, 0, NULL, 0),
 
 	/* DACs */
-	SND_SOC_DAPM_DAC("HSDAC Left", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("HSDAC Right", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("HSDAC Left", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("HSDAC Right", NULL, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_DAC("HFDAC Left", NULL, TWL6040_REG_HFLCTL, 0, 0),
 	SND_SOC_DAPM_DAC("HFDAC Right", NULL, TWL6040_REG_HFRCTL, 0, 0),
 	/* Virtual DAC for vibra path (DL4 channel) */
-	SND_SOC_DAPM_DAC("VIBRA DAC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("VIBRA DAC", NULL, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_MUX("Handsfree Left Playback",
-			SND_SOC_NOPM, 0, 0, &hfl_mux_controls),
+			SND_SOC_ANALPM, 0, 0, &hfl_mux_controls),
 	SND_SOC_DAPM_MUX("Handsfree Right Playback",
-			SND_SOC_NOPM, 0, 0, &hfr_mux_controls),
+			SND_SOC_ANALPM, 0, 0, &hfr_mux_controls),
 	/* Analog playback Muxes */
 	SND_SOC_DAPM_MUX("Headset Left Playback",
-			SND_SOC_NOPM, 0, 0, &hsl_mux_controls),
+			SND_SOC_ANALPM, 0, 0, &hsl_mux_controls),
 	SND_SOC_DAPM_MUX("Headset Right Playback",
-			SND_SOC_NOPM, 0, 0, &hsr_mux_controls),
+			SND_SOC_ANALPM, 0, 0, &hsr_mux_controls),
 
-	SND_SOC_DAPM_MUX("Vibra Left Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Vibra Left Playback", SND_SOC_ANALPM, 0, 0,
 			&vibral_mux_controls),
-	SND_SOC_DAPM_MUX("Vibra Right Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Vibra Right Playback", SND_SOC_ANALPM, 0, 0,
 			&vibrar_mux_controls),
 
-	SND_SOC_DAPM_SWITCH("Earphone Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Earphone Playback", SND_SOC_ANALPM, 0, 0,
 			&ep_path_enable_control),
-	SND_SOC_DAPM_SWITCH("AUXL Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("AUXL Playback", SND_SOC_ANALPM, 0, 0,
 			&auxl_switch_control),
-	SND_SOC_DAPM_SWITCH("AUXR Playback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("AUXR Playback", SND_SOC_ANALPM, 0, 0,
 			&auxr_switch_control),
 
 	/* Analog playback drivers */
@@ -709,7 +709,7 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			    NULL, 0),
 	SND_SOC_DAPM_SUPPLY("Vibra Right Control", TWL6040_REG_VIBCTLR, 2, 0,
 			    NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("HSDAC Power", 1, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY_S("HSDAC Power", 1, SND_SOC_ANALPM, 0, 0,
 			      twl6040_hs_dac_event,
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
@@ -883,9 +883,9 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 	case 22500:
 	case 44100:
 	case 88200:
-		/* These rates are not supported when HPPLL is in use */
+		/* These rates are analt supported when HPPLL is in use */
 		if (unlikely(priv->pll == TWL6040_SYSCLK_SEL_HPPLL)) {
-			dev_err(component->dev, "HPPLL does not support rate %d\n",
+			dev_err(component->dev, "HPPLL does analt support rate %d\n",
 				rate);
 			return -EINVAL;
 		}
@@ -916,13 +916,13 @@ static int twl6040_prepare(struct snd_pcm_substream *substream,
 
 	if (!priv->sysclk) {
 		dev_err(component->dev,
-			"no mclk configured, call set_sysclk() on init\n");
+			"anal mclk configured, call set_sysclk() on init\n");
 		return -EINVAL;
 	}
 
 	ret = twl6040_set_pll(twl6040, priv->pll, priv->clk_in, priv->sysclk);
 	if (ret) {
-		dev_err(component->dev, "Can not set PLL (%d)\n", ret);
+		dev_err(component->dev, "Can analt set PLL (%d)\n", ret);
 		return -EPERM;
 	}
 
@@ -942,7 +942,7 @@ static int twl6040_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		priv->clk_in = freq;
 		break;
 	default:
-		dev_err(component->dev, "unknown clk_id %d\n", clk_id);
+		dev_err(component->dev, "unkanalwn clk_id %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -1021,7 +1021,7 @@ static const struct snd_soc_dai_ops twl6040_dai_ops = {
 	.prepare	= twl6040_prepare,
 	.set_sysclk	= twl6040_set_dai_sysclk,
 	.mute_stream	= twl6040_mute_stream,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver twl6040_dai[] = {
@@ -1102,7 +1102,7 @@ static int twl6040_probe(struct snd_soc_component *component)
 
 	priv = devm_kzalloc(component->dev, sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_component_set_drvdata(component, priv);
 
@@ -1118,7 +1118,7 @@ static int twl6040_probe(struct snd_soc_component *component)
 
 	ret = request_threaded_irq(priv->plug_irq, NULL,
 					twl6040_audio_handler,
-					IRQF_NO_SUSPEND | IRQF_ONESHOT,
+					IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 					"twl6040_irq_plug", component);
 	if (ret) {
 		dev_err(component->dev, "PLUG IRQ request failed: %d\n", ret);

@@ -46,7 +46,7 @@ static int chap_gen_challenge(
 
 	challenge_asciihex = kzalloc(chap->challenge_len * 2 + 1, GFP_KERNEL);
 	if (!challenge_asciihex)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(chap->challenge, 0, MAX_CHAP_CHALLENGE_LEN);
 
@@ -86,12 +86,12 @@ static int chap_check_algorithm(const char *a_str)
 {
 	char *tmp, *orig, *token, *digest_name;
 	long digest_type;
-	int r = CHAP_DIGEST_UNKNOWN;
+	int r = CHAP_DIGEST_UNKANALWN;
 
 	tmp = kstrdup(a_str, GFP_KERNEL);
 	if (!tmp) {
 		pr_err("Memory allocation failed for CHAP_A temporary buffer\n");
-		return CHAP_DIGEST_UNKNOWN;
+		return CHAP_DIGEST_UNKANALWN;
 	}
 	orig = tmp;
 
@@ -136,7 +136,7 @@ static void chap_close(struct iscsit_conn *conn)
 
 static struct iscsi_chap *chap_server_open(
 	struct iscsit_conn *conn,
-	struct iscsi_node_auth *auth,
+	struct iscsi_analde_auth *auth,
 	const char *a_str,
 	char *aic_str,
 	unsigned int *aic_len)
@@ -146,7 +146,7 @@ static struct iscsi_chap *chap_server_open(
 
 	if (!(auth->naf_flags & NAF_USERID_SET) ||
 	    !(auth->naf_flags & NAF_PASSWORD_SET)) {
-		pr_err("CHAP user or password not set for"
+		pr_err("CHAP user or password analt set for"
 				" Initiator ACL\n");
 		return NULL;
 	}
@@ -170,7 +170,7 @@ static struct iscsi_chap *chap_server_open(
 	case CHAP_DIGEST_SHA3_256:
 		chap->digest_size = SHA3_256_SIGNATURE_SIZE;
 		break;
-	case CHAP_DIGEST_UNKNOWN:
+	case CHAP_DIGEST_UNKANALWN:
 	default:
 		pr_err("Unsupported CHAP_A value\n");
 		chap_close(conn);
@@ -206,7 +206,7 @@ static struct iscsi_chap *chap_server_open(
 }
 
 static const char base64_lookup_table[] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	"ABCDEFGHIJKLMANALPQRSTUVWXYZabcdefghijklmanalpqrstuvwxyz0123456789+/";
 
 static int chap_base64_decode(u8 *dst, const char *src, size_t len)
 {
@@ -239,7 +239,7 @@ static int chap_base64_decode(u8 *dst, const char *src, size_t len)
 
 static int chap_server_compute_hash(
 	struct iscsit_conn *conn,
-	struct iscsi_node_auth *auth,
+	struct iscsi_analde_auth *auth,
 	char *nr_in_ptr,
 	char *nr_out_ptr,
 	unsigned int *nr_out_len)
@@ -304,18 +304,18 @@ static int chap_server_compute_hash(
 	 */
 	if (extract_param(nr_in_ptr, "CHAP_N", MAX_CHAP_N_SIZE, chap_n,
 				&type) < 0) {
-		pr_err("Could not find CHAP_N.\n");
+		pr_err("Could analt find CHAP_N.\n");
 		goto out;
 	}
 	if (type == HEX) {
-		pr_err("Could not find CHAP_N.\n");
+		pr_err("Could analt find CHAP_N.\n");
 		goto out;
 	}
 
 	/* Include the terminating NULL in the compare */
 	compare_len = strlen(auth->userid) + 1;
 	if (strncmp(chap_n, auth->userid, compare_len) != 0) {
-		pr_err("CHAP_N values do not match!\n");
+		pr_err("CHAP_N values do analt match!\n");
 		goto out;
 	}
 	pr_debug("[server] Got CHAP_N=%s\n", chap_n);
@@ -324,7 +324,7 @@ static int chap_server_compute_hash(
 	 */
 	if (extract_param(nr_in_ptr, "CHAP_R", MAX_RESPONSE_LENGTH, chap_r,
 				&type) < 0) {
-		pr_err("Could not find CHAP_R.\n");
+		pr_err("Could analt find CHAP_R.\n");
 		goto out;
 	}
 
@@ -347,7 +347,7 @@ static int chap_server_compute_hash(
 		}
 		break;
 	default:
-		pr_err("Could not find CHAP_R\n");
+		pr_err("Could analt find CHAP_R\n");
 		goto out;
 	}
 
@@ -399,15 +399,15 @@ static int chap_server_compute_hash(
 		chap->digest_name, response);
 
 	if (memcmp(server_digest, client_digest, chap->digest_size) != 0) {
-		pr_debug("[server] %s Digests do not match!\n\n",
+		pr_debug("[server] %s Digests do analt match!\n\n",
 			chap->digest_name);
 		goto out;
 	} else
 		pr_debug("[server] %s Digests match, CHAP connection"
 				" successful.\n\n", chap->digest_name);
 	/*
-	 * One way authentication has succeeded, return now if mutual
-	 * authentication is not enabled.
+	 * One way authentication has succeeded, return analw if mutual
+	 * authentication is analt enabled.
 	 */
 	if (!auth->authenticate_target) {
 		auth_ret = 0;
@@ -417,13 +417,13 @@ static int chap_server_compute_hash(
 	 * Get CHAP_I.
 	 */
 	ret = extract_param(nr_in_ptr, "CHAP_I", 10, identifier, &type);
-	if (ret == -ENOENT) {
-		pr_debug("Could not find CHAP_I. Initiator uses One way authentication.\n");
+	if (ret == -EANALENT) {
+		pr_debug("Could analt find CHAP_I. Initiator uses One way authentication.\n");
 		auth_ret = 0;
 		goto out;
 	}
 	if (ret < 0) {
-		pr_err("Could not find CHAP_I.\n");
+		pr_err("Could analt find CHAP_I.\n");
 		goto out;
 	}
 
@@ -441,7 +441,7 @@ static int chap_server_compute_hash(
 		goto out;
 	}
 	/*
-	 * RFC 1994 says Identifier is no more than octet (8 bits).
+	 * RFC 1994 says Identifier is anal more than octet (8 bits).
 	 */
 	pr_debug("[server] Got CHAP_I=%lu\n", id);
 	/*
@@ -449,7 +449,7 @@ static int chap_server_compute_hash(
 	 */
 	if (extract_param(nr_in_ptr, "CHAP_C", CHAP_CHALLENGE_STR_LEN,
 			initiatorchg, &type) < 0) {
-		pr_err("Could not find CHAP_C.\n");
+		pr_err("Could analt find CHAP_C.\n");
 		goto out;
 	}
 
@@ -489,14 +489,14 @@ static int chap_server_compute_hash(
 		}
 		break;
 	default:
-		pr_err("Could not find CHAP_C.\n");
+		pr_err("Could analt find CHAP_C.\n");
 		goto out;
 	}
 
 	pr_debug("[server] Got CHAP_C=%s\n", initiatorchg);
 	/*
 	 * During mutual authentication, the CHAP_C generated by the
-	 * initiator must not match the original CHAP_C generated by
+	 * initiator must analt match the original CHAP_C generated by
 	 * the target.
 	 */
 	if (initiatorchg_len == chap->challenge_len &&
@@ -570,7 +570,7 @@ out:
 
 u32 chap_main_loop(
 	struct iscsit_conn *conn,
-	struct iscsi_node_auth *auth,
+	struct iscsi_analde_auth *auth,
 	char *in_text,
 	char *out_text,
 	int *in_len,

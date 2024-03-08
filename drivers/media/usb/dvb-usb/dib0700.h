@@ -62,7 +62,7 @@ int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx,
 int dib0700_download_firmware(struct usb_device *d,
 			      const struct firmware *fw);
 int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf);
-int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff);
+int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int oanalff);
 int dib0700_identify_state(struct usb_device *d,
 			   const struct dvb_usb_device_properties *props,
 			   const struct dvb_usb_device_description **desc,

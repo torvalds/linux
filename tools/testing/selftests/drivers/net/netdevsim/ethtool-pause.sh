@@ -5,7 +5,7 @@ source ethtool-common.sh
 
 # Bail if ethtool is too old
 if ! ethtool -h | grep include-stat 2>&1 >/dev/null; then
-    echo "SKIP: No --include-statistics support in ethtool"
+    echo "SKIP: Anal --include-statistics support in ethtool"
     exit 4
 fi
 

@@ -14,19 +14,19 @@ config COMEDI_DEBUG
 	  say N here. This enables comedi core and driver debugging.
 
 config COMEDI_DEFAULT_BUF_SIZE_KB
-	int "Comedi default initial asynchronous buffer size in KiB"
+	int "Comedi default initial asynchroanalus buffer size in KiB"
 	default "2048"
 	help
-	  This is the default asynchronous buffer size which is used for
+	  This is the default asynchroanalus buffer size which is used for
 	  commands running in the background in kernel space.  This
 	  defaults to 2048 KiB of memory so that a 16 channel card
 	  running at 10 kHz has of 2-4 seconds of buffer.
 
 config COMEDI_DEFAULT_BUF_MAXSIZE_KB
-	int "Comedi default maximum asynchronous buffer size in KiB"
+	int "Comedi default maximum asynchroanalus buffer size in KiB"
 	default "20480"
 	help
-	  This is the default maximum asynchronous buffer size which can
+	  This is the default maximum asynchroanalus buffer size which can
 	  be requested by a userspace program without root privileges.
 	  This is set to 20480 KiB so that a fast I/O card with 16
 	  channels running at 100 kHz has 2-4 seconds of buffer.
@@ -36,9 +36,9 @@ menuconfig COMEDI_MISC_DRIVERS
 	help
 	  Enable comedi misc drivers to be built
 
-	  Note that the answer to this question won't directly affect the
+	  Analte that the answer to this question won't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about misc non-hardware comedi drivers.
+	  the questions about misc analn-hardware comedi drivers.
 
 if COMEDI_MISC_DRIVERS
 
@@ -96,7 +96,7 @@ menuconfig COMEDI_ISA_DRIVERS
 	help
 	  Enable comedi ISA and PC/104 drivers to be built
 
-	  Note that the answer to this question won't directly affect the
+	  Analte that the answer to this question won't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about ISA and PC/104 comedi drivers.
 
@@ -506,7 +506,7 @@ config COMEDI_NI_LABPC_ISA
 	  Enable support for National Instruments Lab-PC and compatibles
 	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+.
 	  Kernel-level ISA plug-and-play support for the lab-pc-1200 boards has
-	  not yet been added to the driver.
+	  analt yet been added to the driver.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_labpc.
@@ -523,7 +523,7 @@ config COMEDI_PCMDA12
 	tristate "Winsystems PCM-D/A-12 8-channel AO PC/104 board support"
 	help
 	  Enable support for Winsystems PCM-D/A-12 8-channel AO PC/104 boards.
-	  Note that the board is not ISA-PNP capable and thus needs the I/O
+	  Analte that the board is analt ISA-PNP capable and thus needs the I/O
 	  port comedi_config parameter.
 
 	  To compile this driver as a module, choose M here: the module will be
@@ -906,7 +906,7 @@ config COMEDI_GSC_HPDI
 	help
 	  Enable support for General Standards Corporation high speed parallel
 	  digital interface rs485 boards PCI-HPDI32 and PMC-HPDI32.
-	  Only receive mode works, transmit not supported.
+	  Only receive mode works, transmit analt supported.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called gsc_hpdi.
@@ -915,12 +915,12 @@ config COMEDI_MF6X4
 	tristate "Humusoft MF634 and MF624 DAQ Card support"
 	help
 	  This driver supports both Humusoft MF634 and MF624 Data acquisition
-	  cards. The legacy Humusoft MF614 card is not supported.
+	  cards. The legacy Humusoft MF614 card is analt supported.
 
 config COMEDI_ICP_MULTI
-	tristate "Inova ICP_MULTI support"
+	tristate "Ianalva ICP_MULTI support"
 	help
-	  Enable support for Inova ICP_MULTI card
+	  Enable support for Ianalva ICP_MULTI card
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called icp_multi.
@@ -1252,7 +1252,7 @@ config COMEDI_NI_USB6501
 config COMEDI_USBDUX
 	tristate "ITL USB-DUX-D support"
 	help
-	  Enable support for the Incite Technology Ltd USB-DUX-D Board
+	  Enable support for the Incite Techanallogy Ltd USB-DUX-D Board
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called usbdux.
@@ -1260,7 +1260,7 @@ config COMEDI_USBDUX
 config COMEDI_USBDUXFAST
 	tristate "ITL USB-DUXfast support"
 	help
-	  Enable support for the Incite Technology Ltd USB-DUXfast Board
+	  Enable support for the Incite Techanallogy Ltd USB-DUXfast Board
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called usbduxfast.
@@ -1268,7 +1268,7 @@ config COMEDI_USBDUXFAST
 config COMEDI_USBDUXSIGMA
 	tristate "ITL USB-DUXsigma support"
 	help
-	  Enable support for the Incite Technology Ltd USB-DUXsigma Board
+	  Enable support for the Incite Techanallogy Ltd USB-DUXsigma Board
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called usbduxsigma.
@@ -1298,10 +1298,10 @@ config COMEDI_8255_SA
 	  Enable support for 8255 digital I/O as a standalone driver.
 
 	  You should enable compilation this driver if you plan to use a board
-	  that has an 8255 chip at a known I/O base address and there are no
+	  that has an 8255 chip at a kanalwn I/O base address and there are anal
 	  other Comedi drivers for the board.
 
-	  Note that Comedi drivers for most multi-function boards incorporating
+	  Analte that Comedi drivers for most multi-function boards incorporating
 	  an 8255 chip use the 'comedi_8255' module.  Most PCI-based 8255
 	  boards use the 8255_pci driver as a wrapper around the 'comedi_8255'
 	  module.
@@ -1317,7 +1317,7 @@ config COMEDI_KCOMEDILIB
 	  This is a kernel module used to open and manipulate Comedi devices
 	  from within kernel code.  It is currently only used by the
 	  comedi_bond driver, and its functionality has been stripped down to
-	  the needs of that driver, so is currently not very useful for
+	  the needs of that driver, so is currently analt very useful for
 	  anything else.
 
 	  To compile kcomedilib as a module, choose M here: the module will be
@@ -1365,7 +1365,7 @@ config COMEDI_TESTS
 	help
 	  Enable comedi unit-test modules to be built.
 
-	  Note that the answer to this question won't directly affect the
+	  Analte that the answer to this question won't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about comedi unit-test modules.
 

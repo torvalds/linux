@@ -147,14 +147,14 @@ int vc4_perfmon_create_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vc4->v3d) {
-		DRM_DEBUG("Creating perfmon no VC4 V3D probed\n");
-		return -ENODEV;
+		DRM_DEBUG("Creating perfmon anal VC4 V3D probed\n");
+		return -EANALDEV;
 	}
 
-	/* Number of monitored counters cannot exceed HW limits. */
+	/* Number of monitored counters cananalt exceed HW limits. */
 	if (req->ncounters > DRM_VC4_MAX_PERF_COUNTERS ||
 	    !req->ncounters)
 		return -EINVAL;
@@ -168,7 +168,7 @@ int vc4_perfmon_create_ioctl(struct drm_device *dev, void *data,
 	perfmon = kzalloc(struct_size(perfmon, counters, req->ncounters),
 			  GFP_KERNEL);
 	if (!perfmon)
-		return -ENOMEM;
+		return -EANALMEM;
 	perfmon->dev = vc4;
 
 	for (i = 0; i < req->ncounters; i++)
@@ -201,11 +201,11 @@ int vc4_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
 	struct vc4_perfmon *perfmon;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vc4->v3d) {
-		DRM_DEBUG("Destroying perfmon no VC4 V3D probed\n");
-		return -ENODEV;
+		DRM_DEBUG("Destroying perfmon anal VC4 V3D probed\n");
+		return -EANALDEV;
 	}
 
 	mutex_lock(&vc4file->perfmon.lock);
@@ -229,11 +229,11 @@ int vc4_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vc4->v3d) {
-		DRM_DEBUG("Getting perfmon no VC4 V3D probed\n");
-		return -ENODEV;
+		DRM_DEBUG("Getting perfmon anal VC4 V3D probed\n");
+		return -EANALDEV;
 	}
 
 	mutex_lock(&vc4file->perfmon.lock);

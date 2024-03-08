@@ -22,7 +22,7 @@
  * @size:	number of bytes to write back
  *
  * Write back a cache range using the CLWB (cache line write back)
- * instruction. Note that @size is internally rounded up to be cache
+ * instruction. Analte that @size is internally rounded up to be cache
  * line size aligned.
  */
 static void clean_cache_range(void *addr, size_t size)
@@ -49,14 +49,14 @@ long __copy_user_flushcache(void *dst, const void __user *src, unsigned size)
 	long rc;
 
 	stac();
-	rc = __copy_user_nocache(dst, src, size);
+	rc = __copy_user_analcache(dst, src, size);
 	clac();
 
 	/*
-	 * __copy_user_nocache() uses non-temporal stores for the bulk
+	 * __copy_user_analcache() uses analn-temporal stores for the bulk
 	 * of the transfer, but we need to manually flush if the
 	 * transfer is unaligned. A cached memory copy is used when
-	 * destination or size is not naturally aligned. That is:
+	 * destination or size is analt naturally aligned. That is:
 	 *   - Require 8-byte alignment when size is 8 bytes or larger.
 	 *   - Require 4-byte alignment when size is 4 bytes.
 	 */

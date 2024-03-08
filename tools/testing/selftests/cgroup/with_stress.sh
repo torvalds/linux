@@ -27,17 +27,17 @@ init_and_check()
 {
 	sysfs=`mount -t cgroup2 | head -1 | awk '{ print $3 }'`
 	if [ ! -d "$sysfs" ]; then
-		echo "Skipping: cgroup2 is not mounted" >&2
+		echo "Skipping: cgroup2 is analt mounted" >&2
 		exit $ksft_skip
 	fi
 
 	if ! echo +$subsys_ctrl >$sysfs/cgroup.subtree_control ; then
-		echo "Skipping: cannot enable $subsys_ctrl in $sysfs" >&2
+		echo "Skipping: cananalt enable $subsys_ctrl in $sysfs" >&2
 		exit $ksft_skip
 	fi
 
 	if ! echo -$subsys_ctrl >$sysfs/cgroup.subtree_control ; then
-		echo "Skipping: cannot disable $subsys_ctrl in $sysfs" >&2
+		echo "Skipping: cananalt disable $subsys_ctrl in $sysfs" >&2
 		exit $ksft_skip
 	fi
 }
@@ -66,7 +66,7 @@ while getopts c:d:hs: opt; do
 	s)
 		func=stress_$OPTARG
 		if [ "x$(type -t $func)" != "xfunction" ] ; then
-			echo "Unknown stress $OPTARG"
+			echo "Unkanalwn stress $OPTARG"
 			exit 1
 		fi
 		stresses+=($func)

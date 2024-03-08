@@ -58,7 +58,7 @@ extern struct arm_delay_ops {
 #define __delay(n)		arm_delay_ops.delay(n)
 
 /*
- * This function intentionally does not exist; if you see references to
+ * This function intentionally does analt exist; if you see references to
  * it, it means that you're calling udelay() with an out of range value.
  *
  * With currently imposed limits, this means that we support a max delay

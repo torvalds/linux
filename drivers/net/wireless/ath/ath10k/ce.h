@@ -77,7 +77,7 @@ struct ath10k_ce_ring {
 	/* cached copy */
 	unsigned int write_index;
 	/*
-	 * For src ring, this is the next index not yet processed by HW.
+	 * For src ring, this is the next index analt yet processed by HW.
 	 * This is a cached copy of the real HW index (read index), used
 	 * for avoiding reading the HW index register more often than
 	 * necessary.
@@ -159,7 +159,7 @@ struct ath10k_ce {
 #define CE_SEND_FLAG_BYTE_SWAP 1
 
 /*
- * Queue a source buffer to be sent to an anonymous destination buffer.
+ * Queue a source buffer to be sent to an aanalnymous destination buffer.
  *   ce         - which copy engine to use
  *   buffer          - address of buffer
  *   nbytes          - number of bytes to send
@@ -167,9 +167,9 @@ struct ath10k_ce {
  *   flags           - CE_SEND_FLAG_* values
  * Returns 0 on success; otherwise an error status.
  *
- * Note: If no flags are specified, use CE's default data swap mode.
+ * Analte: If anal flags are specified, use CE's default data swap mode.
  *
- * Implementation note: pushes 1 buffer to Source ring
+ * Implementation analte: pushes 1 buffer to Source ring
  */
 int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_send_context,
@@ -179,7 +179,7 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   unsigned int transfer_id,
 		   unsigned int flags);
 
-int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
+int ath10k_ce_send_anallock(struct ath10k_ce_pipe *ce_state,
 			  void *per_transfer_context,
 			  dma_addr_t buffer,
 			  unsigned int nbytes,
@@ -215,7 +215,7 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp);
 
-int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
+int ath10k_ce_completed_send_next_anallock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp);
 
 /*==================CE Engine Initialization=======================*/
@@ -237,7 +237,7 @@ int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       dma_addr_t *bufferp);
 
-int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
+int ath10k_ce_completed_recv_next_anallock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp,
 					 unsigned int *nbytesp);
 
@@ -266,8 +266,8 @@ void ath10k_ce_alloc_rri(struct ath10k *ar);
 void ath10k_ce_free_rri(struct ath10k *ar);
 
 /* ce_attr.flags values */
-/* Use NonSnooping PCIe accesses? */
-#define CE_ATTR_NO_SNOOP		BIT(0)
+/* Use AnalnSanaloping PCIe accesses? */
+#define CE_ATTR_ANAL_SANALOP		BIT(0)
 
 /* Byte swap data words */
 #define CE_ATTR_BYTE_SWAP_DATA		BIT(1)
@@ -275,10 +275,10 @@ void ath10k_ce_free_rri(struct ath10k *ar);
 /* Swizzle descriptors? */
 #define CE_ATTR_SWIZZLE_DESCRIPTORS	BIT(2)
 
-/* no interrupt on copy completion */
+/* anal interrupt on copy completion */
 #define CE_ATTR_DIS_INTR		BIT(3)
 
-/* no interrupt, only polling */
+/* anal interrupt, only polling */
 #define CE_ATTR_POLL			BIT(4)
 
 /* Attributes of an instance of a Copy Engine */
@@ -311,7 +311,7 @@ struct ath10k_ce_ops {
 						    const struct ce_attr *attr);
 	int (*ce_rx_post_buf)(struct ath10k_ce_pipe *pipe, void *ctx,
 			      dma_addr_t paddr);
-	int (*ce_completed_recv_next_nolock)(struct ath10k_ce_pipe *ce_state,
+	int (*ce_completed_recv_next_anallock)(struct ath10k_ce_pipe *ce_state,
 					     void **per_transfer_contextp,
 					     u32 *nbytesp);
 	int (*ce_revoke_recv_next)(struct ath10k_ce_pipe *ce_state,
@@ -322,7 +322,7 @@ struct ath10k_ce_ops {
 				     u32 sw_index, dma_addr_t *bufferp,
 				     u32 *nbytesp, u32 *transfer_idp);
 	void (*ce_free_pipe)(struct ath10k *ar, int ce_id);
-	int (*ce_send_nolock)(struct ath10k_ce_pipe *pipe,
+	int (*ce_send_anallock)(struct ath10k_ce_pipe *pipe,
 			      void *per_transfer_context,
 			      dma_addr_t buffer, u32 nbytes,
 			      u32 transfer_id, u32 flags);
@@ -332,7 +332,7 @@ struct ath10k_ce_ops {
 	void (*ce_set_dest_ring_base_addr_hi)(struct ath10k *ar,
 					      u32 ce_ctrl_addr,
 					      u64 addr);
-	int (*ce_completed_send_next_nolock)(struct ath10k_ce_pipe *ce_state,
+	int (*ce_completed_send_next_anallock)(struct ath10k_ce_pipe *ce_state,
 					     void **per_transfer_contextp);
 };
 
@@ -389,7 +389,7 @@ static inline u32 ath10k_ce_interrupt_summary(struct ath10k *ar)
  * Configuration information for a Copy Engine pipe.
  * Passed from Host to Target during startup (one per CE).
  *
- * NOTE: Structure is shared between Host software and Target firmware!
+ * ANALTE: Structure is shared between Host software and Target firmware!
  */
 struct ce_pipe_config {
 	__le32 pipenum;
@@ -412,10 +412,10 @@ struct ce_pipe_config {
  * Target since things that are "PIPEDIR_OUT" are coming IN to the Target
  * over the interconnect.
  */
-#define PIPEDIR_NONE    0
+#define PIPEDIR_ANALNE    0
 #define PIPEDIR_IN      1  /* Target-->Host, WiFi Rx direction */
 #define PIPEDIR_OUT     2  /* Host->Target, WiFi Tx direction */
-#define PIPEDIR_INOUT   3  /* bidirectional */
+#define PIPEDIR_IANALUT   3  /* bidirectional */
 
 /* Establish a mapping between a service/direction and a pipe. */
 struct ce_service_to_pipe {

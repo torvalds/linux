@@ -31,7 +31,7 @@
 #include <asm/intel-family.h>
 #endif
 
-#define TPM_MINOR		224	/* officially assigned */
+#define TPM_MIANALR		224	/* officially assigned */
 #define TPM_BUFSIZE		4096
 #define TPM_NUM_DEVICES		65536
 #define TPM_RETRY		50
@@ -74,9 +74,9 @@ struct	stclear_flags_t {
 
 struct tpm1_version {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 rev_major;
-	u8 rev_minor;
+	u8 rev_mianalr;
 } __packed;
 
 struct tpm1_version2 {
@@ -151,7 +151,7 @@ enum tpm_sub_capabilities {
 };
 
 enum tpm2_pt_props {
-	TPM2_PT_NONE = 0x00000000,
+	TPM2_PT_ANALNE = 0x00000000,
 	TPM2_PT_GROUP = 0x00000100,
 	TPM2_PT_FIXED = TPM2_PT_GROUP * 1,
 	TPM2_PT_FAMILY_INDICATOR = TPM2_PT_FIXED + 0,

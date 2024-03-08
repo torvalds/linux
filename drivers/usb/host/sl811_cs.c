@@ -103,7 +103,7 @@ static int sl811_hc_init(struct device *parent, resource_size_t base_addr,
 	resources[2].start = base_addr + 1;
 	resources[2].end   = base_addr + 1;
 
-	/* The driver core will probe for us.  We know sl811-hcd has been
+	/* The driver core will probe for us.  We kanalw sl811-hcd has been
 	 * initialized already because of the link order dependency created
 	 * by referencing "sl811h_driver".
 	 */
@@ -169,7 +169,7 @@ static int sl811_cs_config(struct pcmcia_device *link)
 failed:
 		printk(KERN_WARNING "sl811_cs_config failed\n");
 		sl811_cs_release(link);
-		return  -ENODEV;
+		return  -EANALDEV;
 	}
 	return 0;
 }
@@ -180,7 +180,7 @@ static int sl811_cs_probe(struct pcmcia_device *link)
 
 	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local)
-		return -ENOMEM;
+		return -EANALMEM;
 	local->p_dev = link;
 	link->priv = local;
 

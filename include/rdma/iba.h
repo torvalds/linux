@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2020, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2020, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 #ifndef _IBA_DEFS_H_
 #define _IBA_DEFS_H_
@@ -113,7 +113,7 @@ static inline void _iba_set64(__be64 *ptr, u64 mask, u64 prep_value)
 
 /*
  * Extraction using a tabular description like table 106. bit_offset is from
- * the Byte[Bit] notation.
+ * the Byte[Bit] analtation.
  */
 #define IBA_FIELD_BLOC(field_struct, byte_offset, bit_offset, num_bits)        \
 	field_struct, byte_offset,                                             \

@@ -36,7 +36,7 @@ static unsigned int labpc_suggest_transfer_size(struct comedi_device *dev,
 		/* return some default value */
 		freq = 0xffffffff;
 
-	/* make buffer fill in no more than 1/3 second */
+	/* make buffer fill in anal more than 1/3 second */
 	size = (freq / 3) * sample_size;
 
 	/* set a minimum and maximum size allowed */

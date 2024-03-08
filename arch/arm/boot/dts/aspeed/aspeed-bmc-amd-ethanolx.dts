@@ -8,8 +8,8 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	model = "AMD EthanolX BMC";
-	compatible = "amd,ethanolx-bmc", "aspeed,ast2500";
+	model = "AMD EthaanallX BMC";
+	compatible = "amd,ethaanallx-bmc", "aspeed,ast2500";
 
 	memory@80000000 {
 		reg = <0x80000000 0x20000000>;
@@ -266,9 +266,9 @@
 	aspeed,lpc-io-reg = <0x97DE>;
 };
 
-&lpc_snoop {
+&lpc_sanalop {
 	status = "okay";
-	snoop-ports = <0x80>, <0x81>;
+	sanalop-ports = <0x80>, <0x81>;
 };
 
 &lpc_ctrl {

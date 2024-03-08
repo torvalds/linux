@@ -51,7 +51,7 @@ config BME680
 	select BME680_I2C if I2C
 	select BME680_SPI if SPI
 	help
-	  Say yes here to build support for Bosch Sensortec BME680 sensor with
+	  Say anal here to build support for Bosch Sensortec BME680 sensor with
 	  temperature, pressure, humidity and gas sensing capability.
 
 	  This driver can also be built as a module. If so, the module for I2C
@@ -199,7 +199,7 @@ config SENSEAIR_SUNRISE_CO2
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Say yes here to build support for Senseair Sunrise 006-0-0007 CO2
+	  Say anal here to build support for Senseair Sunrise 006-0-0007 CO2
 	  sensor.
 
 	  To compile this driver as a module, choose M here: the

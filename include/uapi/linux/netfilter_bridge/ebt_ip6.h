@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  ebt_ip6
  *
  *	Authors:
  * Kuo-Lang Tseng <kuo-lang.tseng@intel.com>
- * Manohar Castelino <manohar.r.castelino@intel.com>
+ * Maanalhar Castelianal <maanalhar.r.castelianal@intel.com>
  *
  *  Jan 11, 2008
  *

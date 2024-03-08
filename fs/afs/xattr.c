@@ -16,7 +16,7 @@
  */
 static void afs_acl_success(struct afs_operation *op)
 {
-	afs_vnode_commit_status(op, &op->file[0]);
+	afs_vanalde_commit_status(op, &op->file[0]);
 }
 
 static void afs_acl_put(struct afs_operation *op)
@@ -35,22 +35,22 @@ static const struct afs_operation_ops afs_fetch_acl_operation = {
  */
 static int afs_xattr_get_acl(const struct xattr_handler *handler,
 			     struct dentry *dentry,
-			     struct inode *inode, const char *name,
+			     struct ianalde *ianalde, const char *name,
 			     void *buffer, size_t size)
 {
 	struct afs_operation *op;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct afs_acl *acl = NULL;
 	int ret;
 
-	op = afs_alloc_operation(NULL, vnode->volume);
+	op = afs_alloc_operation(NULL, vanalde->volume);
 	if (IS_ERR(op))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	afs_op_set_vnode(op, 0, vnode);
+	afs_op_set_vanalde(op, 0, vanalde);
 	op->ops = &afs_fetch_acl_operation;
 
-	afs_begin_vnode_operation(op);
+	afs_begin_vanalde_operation(op);
 	afs_wait_for_operation(op);
 	acl = op->acl;
 	op->acl = NULL;
@@ -77,7 +77,7 @@ static bool afs_make_acl(struct afs_operation *op,
 
 	acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
 	if (!acl) {
-		afs_op_nomem(op);
+		afs_op_analmem(op);
 		return false;
 	}
 
@@ -99,20 +99,20 @@ static const struct afs_operation_ops afs_store_acl_operation = {
 static int afs_xattr_set_acl(const struct xattr_handler *handler,
 			     struct mnt_idmap *idmap,
                              struct dentry *dentry,
-                             struct inode *inode, const char *name,
+                             struct ianalde *ianalde, const char *name,
                              const void *buffer, size_t size, int flags)
 {
 	struct afs_operation *op;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 
 	if (flags == XATTR_CREATE)
 		return -EINVAL;
 
-	op = afs_alloc_operation(NULL, vnode->volume);
+	op = afs_alloc_operation(NULL, vanalde->volume);
 	if (IS_ERR(op))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	afs_op_set_vnode(op, 0, vnode);
+	afs_op_set_vanalde(op, 0, vanalde);
 	if (!afs_make_acl(op, buffer, size))
 		return afs_put_operation(op);
 
@@ -137,14 +137,14 @@ static const struct afs_operation_ops yfs_fetch_opaque_acl_operation = {
  */
 static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 			     struct dentry *dentry,
-			     struct inode *inode, const char *name,
+			     struct ianalde *ianalde, const char *name,
 			     void *buffer, size_t size)
 {
 	struct afs_operation *op;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct yfs_acl *yacl = NULL;
 	char buf[16], *data;
-	int which = 0, dsize, ret = -ENOMEM;
+	int which = 0, dsize, ret = -EANALMEM;
 
 	if (strcmp(name, "acl") == 0)
 		which = 0;
@@ -155,7 +155,7 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 	else if (strcmp(name, "vol_acl") == 0)
 		which = 3;
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	yacl = kzalloc(sizeof(struct yfs_acl), GFP_KERNEL);
 	if (!yacl)
@@ -166,15 +166,15 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 	else if (which == 3)
 		yacl->flags |= YFS_ACL_WANT_VOL_ACL;
 
-	op = afs_alloc_operation(NULL, vnode->volume);
+	op = afs_alloc_operation(NULL, vanalde->volume);
 	if (IS_ERR(op))
 		goto error_yacl;
 
-	afs_op_set_vnode(op, 0, vnode);
+	afs_op_set_vanalde(op, 0, vanalde);
 	op->yacl = yacl;
 	op->ops = &yfs_fetch_opaque_acl_operation;
 
-	afs_begin_vnode_operation(op);
+	afs_begin_vanalde_operation(op);
 	afs_wait_for_operation(op);
 	ret = afs_put_operation(op);
 
@@ -197,7 +197,7 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 			dsize = yacl->vol_acl->size;
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto error_yacl;
 		}
 
@@ -208,8 +208,8 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 			else
 				ret = -ERANGE;
 		}
-	} else if (ret == -ENOTSUPP) {
-		ret = -ENODATA;
+	} else if (ret == -EANALTSUPP) {
+		ret = -EANALDATA;
 	}
 
 error_yacl:
@@ -230,29 +230,29 @@ static const struct afs_operation_ops yfs_store_opaque_acl2_operation = {
 static int afs_xattr_set_yfs(const struct xattr_handler *handler,
 			     struct mnt_idmap *idmap,
                              struct dentry *dentry,
-                             struct inode *inode, const char *name,
+                             struct ianalde *ianalde, const char *name,
                              const void *buffer, size_t size, int flags)
 {
 	struct afs_operation *op;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	int ret;
 
 	if (flags == XATTR_CREATE ||
 	    strcmp(name, "acl") != 0)
 		return -EINVAL;
 
-	op = afs_alloc_operation(NULL, vnode->volume);
+	op = afs_alloc_operation(NULL, vanalde->volume);
 	if (IS_ERR(op))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	afs_op_set_vnode(op, 0, vnode);
+	afs_op_set_vanalde(op, 0, vanalde);
 	if (!afs_make_acl(op, buffer, size))
 		return afs_put_operation(op);
 
 	op->ops = &yfs_store_opaque_acl2_operation;
 	ret = afs_do_sync_operation(op);
-	if (ret == -ENOTSUPP)
-		ret = -ENODATA;
+	if (ret == -EANALTSUPP)
+		ret = -EANALDATA;
 	return ret;
 }
 
@@ -267,11 +267,11 @@ static const struct xattr_handler afs_xattr_yfs_handler = {
  */
 static int afs_xattr_get_cell(const struct xattr_handler *handler,
 			      struct dentry *dentry,
-			      struct inode *inode, const char *name,
+			      struct ianalde *ianalde, const char *name,
 			      void *buffer, size_t size)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
-	struct afs_cell *cell = vnode->volume->cell;
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
+	struct afs_cell *cell = vanalde->volume->cell;
 	size_t namelen;
 
 	namelen = cell->name_len;
@@ -289,30 +289,30 @@ static const struct xattr_handler afs_xattr_afs_cell_handler = {
 };
 
 /*
- * Get the volume ID, vnode ID and vnode uniquifier of a file as a sequence of
+ * Get the volume ID, vanalde ID and vanalde uniquifier of a file as a sequence of
  * hex numbers separated by colons.
  */
 static int afs_xattr_get_fid(const struct xattr_handler *handler,
 			     struct dentry *dentry,
-			     struct inode *inode, const char *name,
+			     struct ianalde *ianalde, const char *name,
 			     void *buffer, size_t size)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	char text[16 + 1 + 24 + 1 + 8 + 1];
 	size_t len;
 
-	/* The volume ID is 64-bit, the vnode ID is 96-bit and the
+	/* The volume ID is 64-bit, the vanalde ID is 96-bit and the
 	 * uniquifier is 32-bit.
 	 */
-	len = scnprintf(text, sizeof(text), "%llx:", vnode->fid.vid);
-	if (vnode->fid.vnode_hi)
+	len = scnprintf(text, sizeof(text), "%llx:", vanalde->fid.vid);
+	if (vanalde->fid.vanalde_hi)
 		len += scnprintf(text + len, sizeof(text) - len, "%x%016llx",
-				vnode->fid.vnode_hi, vnode->fid.vnode);
+				vanalde->fid.vanalde_hi, vanalde->fid.vanalde);
 	else
 		len += scnprintf(text + len, sizeof(text) - len, "%llx",
-				 vnode->fid.vnode);
+				 vanalde->fid.vanalde);
 	len += scnprintf(text + len, sizeof(text) - len, ":%x",
-			 vnode->fid.unique);
+			 vanalde->fid.unique);
 
 	if (size == 0)
 		return len;
@@ -332,11 +332,11 @@ static const struct xattr_handler afs_xattr_afs_fid_handler = {
  */
 static int afs_xattr_get_volume(const struct xattr_handler *handler,
 			      struct dentry *dentry,
-			      struct inode *inode, const char *name,
+			      struct ianalde *ianalde, const char *name,
 			      void *buffer, size_t size)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
-	const char *volname = vnode->volume->name;
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
+	const char *volname = vanalde->volume->name;
 	size_t namelen;
 
 	namelen = strlen(volname);

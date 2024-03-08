@@ -4,7 +4,7 @@
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  * Copyright (C) Joerg Reuter DL1BKE (jreuter@yaina.de)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/spinlock.h>
@@ -31,7 +31,7 @@ static void ax25_ds_timeout(struct timer_list *);
 /*
  *	Add DAMA slave timeout timer to timer list.
  *	Unlike the connection based timers the timeout function gets
- *	triggered every second. Please note that NET_AX25_DAMA_SLAVE_TIMEOUT
+ *	triggered every second. Please analte that NET_AX25_DAMA_SLAVE_TIMEOUT
  *	(aka /proc/sys/net/ax25/{dev}/dama_slave_timeout) is still in
  *	1/10th of a second.
  */
@@ -49,7 +49,7 @@ void ax25_ds_del_timer(ax25_dev *ax25_dev)
 
 void ax25_ds_set_timer(ax25_dev *ax25_dev)
 {
-	if (ax25_dev == NULL)		/* paranoia */
+	if (ax25_dev == NULL)		/* paraanalia */
 		return;
 
 	ax25_dev->dama.slave_timeout =
@@ -179,7 +179,7 @@ void ax25_ds_idletimer_expiry(ax25_cb *ax25)
 
 /* dl1bke 960114: The DAMA protocol requires to send data and SABM/DISC
  *                within the poll of any connected channel. Remember
- *                that we are not allowed to send anything unless we
+ *                that we are analt allowed to send anything unless we
  *                get polled by the Master.
  *
  *                Thus we'll have to do parts of our T1 handling in

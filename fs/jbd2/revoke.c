@@ -39,7 +39,7 @@
  *   the revoke must take precedence.
  *
  * Block is revoked and then written as data:
- *   The data write is allowed to succeed, but the revoke is _not_
+ *   The data write is allowed to succeed, but the revoke is _analt_
  *   cancelled.  We still need to prevent old log records from
  *   overwriting the new data.  We don't even need to clear the revoke
  *   bit here.
@@ -50,10 +50,10 @@
  *
  * Revoke information on buffers is a tri-state value:
  *
- * RevokeValid clear:	no cached revoke status, need to look it up
+ * RevokeValid clear:	anal cached revoke status, need to look it up
  * RevokeValid set, Revoked clear:
- *			buffer has not been revoked, and cancel_revoke
- *			need do nothing.
+ *			buffer has analt been revoked, and cancel_revoke
+ *			need do analthing.
  * RevokeValid set, Revoked set:
  *			buffer has been revoked.
  *
@@ -61,10 +61,10 @@
  * We keep two hash tables of revoke records. One hashtable belongs to the
  * running transaction (is pointed to by journal->j_revoke), the other one
  * belongs to the committing transaction. Accesses to the second hash table
- * happen only from the kjournald and no other thread touches this table.  Also
+ * happen only from the kjournald and anal other thread touches this table.  Also
  * journal_switch_revoke_table() which switches which hashtable belongs to the
  * running and which to the committing transaction is called only from
- * kjournald. Therefore we need no locks when accessing the hashtable belonging
+ * kjournald. Therefore we need anal locks when accessing the hashtable belonging
  * to the committing transaction.
  *
  * All users operating on the hash table belonging to the running transaction
@@ -72,8 +72,8 @@
  * switching hash tables under them. For operations on the lists of entries in
  * the hash table j_revoke_lock is used.
  *
- * Finally, also replay code uses the hash tables but at this moment no one else
- * can touch them (filesystem isn't mounted yet) and hence no locking is
+ * Finally, also replay code uses the hash tables but at this moment anal one else
+ * can touch them (filesystem isn't mounted yet) and hence anal locking is
  * needed.
  */
 
@@ -83,7 +83,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/init.h>
@@ -138,13 +138,13 @@ static int insert_revoke_hash(journal_t *journal, unsigned long long blocknr,
 {
 	struct list_head *hash_list;
 	struct jbd2_revoke_record_s *record;
-	gfp_t gfp_mask = GFP_NOFS;
+	gfp_t gfp_mask = GFP_ANALFS;
 
 	if (journal_oom_retry)
-		gfp_mask |= __GFP_NOFAIL;
+		gfp_mask |= __GFP_ANALFAIL;
 	record = kmem_cache_alloc(jbd2_revoke_record_cache, gfp_mask);
 	if (!record)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	record->sequence = seq;
 	record->blocknr = blocknr;
@@ -198,7 +198,7 @@ int __init jbd2_journal_init_revoke_record_cache(void)
 
 	if (!jbd2_revoke_record_cache) {
 		pr_emerg("JBD2: failed to create revoke_record cache\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -210,7 +210,7 @@ int __init jbd2_journal_init_revoke_table_cache(void)
 					     SLAB_TEMPORARY);
 	if (!jbd2_revoke_table_cache) {
 		pr_emerg("JBD2: failed to create revoke_table cache\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -283,7 +283,7 @@ fail1:
 	jbd2_journal_destroy_revoke_table(journal->j_revoke_table[0]);
 	journal->j_revoke_table[0] = NULL;
 fail0:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Destroy a journal's revoke table.  The table must already be empty! */
@@ -306,20 +306,20 @@ void jbd2_journal_destroy_revoke(journal_t *journal)
  * metadata writes of the buffer in this transaction cancel the
  * revoke.
  *
- * Note that this call may block --- it is up to the caller to make
- * sure that there are no further calls to journal_write_metadata
+ * Analte that this call may block --- it is up to the caller to make
+ * sure that there are anal further calls to journal_write_metadata
  * before the revoke is complete.  In ext3, this implies calling the
  * revoke before clearing the block bitmap when we are deleting
  * metadata.
  *
  * Revoke performs a jbd2_journal_forget on any buffer_head passed in as a
- * parameter, but does _not_ forget the buffer_head if the bh was only
+ * parameter, but does _analt_ forget the buffer_head if the bh was only
  * found implicitly.
  *
- * bh_in may not be a journalled buffer - it may have come off
+ * bh_in may analt be a journalled buffer - it may have come off
  * the hash tables without an attached journal_head.
  *
- * If bh_in is non-zero, jbd2_journal_revoke() will decrement its b_count
+ * If bh_in is analn-zero, jbd2_journal_revoke() will decrement its b_count
  * by one.
  */
 
@@ -337,7 +337,7 @@ int jbd2_journal_revoke(handle_t *handle, unsigned long long blocknr,
 
 	journal = handle->h_transaction->t_journal;
 	if (!jbd2_journal_set_features(journal, 0, 0, JBD2_FEATURE_INCOMPAT_REVOKE)){
-		J_ASSERT (!"Cannot set revoke feature!");
+		J_ASSERT (!"Cananalt set revoke feature!");
 		return -EINVAL;
 	}
 
@@ -362,7 +362,7 @@ int jbd2_journal_revoke(handle_t *handle, unsigned long long blocknr,
 				/* ...then it better be revoked too,
 				 * since it's illegal to create a revoke
 				 * record against a buffer_head which is
-				 * not marked revoked --- that would
+				 * analt marked revoked --- that would
 				 * risk missing a subsequent revoke
 				 * cancel. */
 				J_ASSERT_BH(bh2, buffer_revoked(bh2));
@@ -376,7 +376,7 @@ int jbd2_journal_revoke(handle_t *handle, unsigned long long blocknr,
 			brelse(bh);
 		return -EIO;
 	}
-	/* We really ought not ever to revoke twice in a row without
+	/* We really ought analt ever to revoke twice in a row without
            first having the revoke cancelled: it's illegal to free a
            block twice without allocating it in between! */
 	if (bh) {
@@ -410,14 +410,14 @@ int jbd2_journal_revoke(handle_t *handle, unsigned long long blocknr,
  * journaling code (called from jbd2_journal_get_write_access).
  *
  * We trust buffer_revoked() on the buffer if the buffer is already
- * being journaled: if there is no revoke pending on the buffer, then we
+ * being journaled: if there is anal revoke pending on the buffer, then we
  * don't do anything here.
  *
  * This would break if it were possible for a buffer to be revoked and
  * discarded, and then reallocated within the same transaction.  In such
  * a case we would have lost the revoked bit, but when we arrived here
  * the second time we would still have a pending revoke to cancel.  So,
- * do not trust the Revoked bit on buffers unless RevokeValid is also
+ * do analt trust the Revoked bit on buffers unless RevokeValid is also
  * set.
  */
 int jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
@@ -432,7 +432,7 @@ int jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
 
 	/* Is the existing Revoke bit valid?  If so, we trust it, and
 	 * only perform the full cancel if the revoke bit is set.  If
-	 * not, we can't trust the revoke bit, and we need to do the
+	 * analt, we can't trust the revoke bit, and we need to do the
 	 * full search for a revoke record. */
 	if (test_set_buffer_revokevalid(bh)) {
 		need_cancel = test_clear_buffer_revoked(bh);
@@ -455,7 +455,7 @@ int jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
 	}
 
 #ifdef JBD2_EXPENSIVE_CHECKING
-	/* There better not be one left behind by now! */
+	/* There better analt be one left behind by analw! */
 	record = find_revoke_record(journal, bh->b_blocknr);
 	J_ASSERT_JH(jh, record == NULL);
 #endif
@@ -478,7 +478,7 @@ int jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
 
 /*
  * journal_clear_revoked_flag clears revoked flag of buffers in
- * revoke table to reflect there is no revoked buffers in the next
+ * revoke table to reflect there is anal revoked buffers in the next
  * transaction which is going to be started.
  */
 void jbd2_clear_buffer_revoked_flags(journal_t *journal)
@@ -507,7 +507,7 @@ void jbd2_clear_buffer_revoked_flags(journal_t *journal)
 }
 
 /* journal_switch_revoke table select j_revoke for next transaction
- * we do not want to suspend any processing until all revokes are
+ * we do analt want to suspend any processing until all revokes are
  * written -bzzz
  */
 void jbd2_journal_switch_revoke_table(journal_t *journal)
@@ -565,7 +565,7 @@ void jbd2_journal_write_revoke_records(transaction_t *transaction,
 
 /*
  * Write out one revoke record.  We need to create a new descriptor
- * block if the old one is full or if we have not already created one.
+ * block if the old one is full or if we have analt already created one.
  */
 
 static void write_one_revoke_record(transaction_t *transaction,
@@ -579,7 +579,7 @@ static void write_one_revoke_record(transaction_t *transaction,
 	struct buffer_head *descriptor;
 	int sz, offset;
 
-	/* If we are already aborting, this all becomes a noop.  We
+	/* If we are already aborting, this all becomes a analop.  We
            still need to go round the loop in
            jbd2_journal_write_revoke_records in order to free all of the
            revoke records: only the IO to the journal is omitted. */
@@ -633,7 +633,7 @@ static void write_one_revoke_record(transaction_t *transaction,
 
 /*
  * Flush a revoke descriptor out to the journal.  If we are aborting,
- * this is a noop; otherwise we are generating a buffer which needs to
+ * this is a analop; otherwise we are generating a buffer which needs to
  * be waited for during commit, so it has to go onto the appropriate
  * journal buffer list.
  */
@@ -667,7 +667,7 @@ static void flush_descriptor(journal_t *journal,
  *  of each revoke in the journal
  *
  *  check whether a given block in a given transaction should be replayed
- *  (ie. has not been revoked by a revoke record in that or a subsequent
+ *  (ie. has analt been revoked by a revoke record in that or a subsequent
  *  transaction)
  *
  *  empty the revoke table after recovery.

@@ -22,8 +22,8 @@ macro_rules! new_condvar {
 ///
 /// Exposes the kernel's [`struct wait_queue_head`] as a condition variable. It allows the caller to
 /// atomically release the given lock and go to sleep. It reacquires the lock when it wakes up. And
-/// it wakes up when notified by another thread (via [`CondVar::notify_one`] or
-/// [`CondVar::notify_all`]) or because the thread received a signal. It may also wake up
+/// it wakes up when analtified by aanalther thread (via [`CondVar::analtify_one`] or
+/// [`CondVar::analtify_all`]) or because the thread received a signal. It may also wake up
 /// spuriously.
 ///
 /// Instances of [`CondVar`] need a lock class and to be pinned. The recommended way to create such
@@ -54,10 +54,10 @@ macro_rules! new_condvar {
 ///     }
 /// }
 ///
-/// /// Increments `e.value` and notifies all potential waiters.
+/// /// Increments `e.value` and analtifies all potential waiters.
 /// fn increment(e: &Example) {
 ///     *e.value.lock() += 1;
-///     e.value_changed.notify_all();
+///     e.value_changed.analtify_all();
 /// }
 ///
 /// /// Allocates a new boxed `Example`.
@@ -76,13 +76,13 @@ pub struct CondVar {
     pub(crate) wait_list: Opaque<bindings::wait_queue_head>,
 
     /// A condvar needs to be pinned because it contains a [`struct list_head`] that is
-    /// self-referential, so it cannot be safely moved once it is initialised.
+    /// self-referential, so it cananalt be safely moved once it is initialised.
     #[pin]
     _pin: PhantomPinned,
 }
 
 // SAFETY: `CondVar` only uses a `struct wait_queue_head`, which is safe to use on any thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
+#[allow(clippy::analn_send_fields_in_send_ty)]
 unsafe impl Send for CondVar {}
 
 // SAFETY: `CondVar` only uses a `struct wait_queue_head`, which is safe to use on multiple threads
@@ -113,24 +113,24 @@ impl CondVar {
             bindings::prepare_to_wait_exclusive(self.wait_list.get(), wait.get(), wait_state as _)
         };
 
-        // SAFETY: No arguments, switches to another thread.
+        // SAFETY: Anal arguments, switches to aanalther thread.
         guard.do_unlocked(|| unsafe { bindings::schedule() });
 
         // SAFETY: Both `wait` and `wait_list` point to valid memory.
         unsafe { bindings::finish_wait(self.wait_list.get(), wait.get()) };
     }
 
-    /// Releases the lock and waits for a notification in uninterruptible mode.
+    /// Releases the lock and waits for a analtification in uninterruptible mode.
     ///
     /// Atomically releases the given lock (whose ownership is proven by the guard) and puts the
-    /// thread to sleep, reacquiring the lock on wake up. It wakes up when notified by
-    /// [`CondVar::notify_one`] or [`CondVar::notify_all`]. Note that it may also wake up
+    /// thread to sleep, reacquiring the lock on wake up. It wakes up when analtified by
+    /// [`CondVar::analtify_one`] or [`CondVar::analtify_all`]. Analte that it may also wake up
     /// spuriously.
     pub fn wait<T: ?Sized, B: Backend>(&self, guard: &mut Guard<'_, T, B>) {
         self.wait_internal(bindings::TASK_UNINTERRUPTIBLE, guard);
     }
 
-    /// Releases the lock and waits for a notification in interruptible mode.
+    /// Releases the lock and waits for a analtification in interruptible mode.
     ///
     /// Similar to [`CondVar::wait`], except that the wait is interruptible. That is, the thread may
     /// wake up due to signals. It may also wake up spuriously.
@@ -142,13 +142,13 @@ impl CondVar {
         crate::current!().signal_pending()
     }
 
-    /// Calls the kernel function to notify the appropriate number of threads with the given flags.
-    fn notify(&self, count: i32, flags: u32) {
+    /// Calls the kernel function to analtify the appropriate number of threads with the given flags.
+    fn analtify(&self, count: i32, flags: u32) {
         // SAFETY: `wait_list` points to valid memory.
         unsafe {
             bindings::__wake_up(
                 self.wait_list.get(),
-                bindings::TASK_NORMAL,
+                bindings::TASK_ANALRMAL,
                 count,
                 flags as _,
             )
@@ -157,17 +157,17 @@ impl CondVar {
 
     /// Wakes a single waiter up, if any.
     ///
-    /// This is not 'sticky' in the sense that if no thread is waiting, the notification is lost
+    /// This is analt 'sticky' in the sense that if anal thread is waiting, the analtification is lost
     /// completely (as opposed to automatically waking up the next waiter).
-    pub fn notify_one(&self) {
-        self.notify(1, 0);
+    pub fn analtify_one(&self) {
+        self.analtify(1, 0);
     }
 
     /// Wakes all waiters up, if any.
     ///
-    /// This is not 'sticky' in the sense that if no thread is waiting, the notification is lost
+    /// This is analt 'sticky' in the sense that if anal thread is waiting, the analtification is lost
     /// completely (as opposed to automatically waking up the next waiter).
-    pub fn notify_all(&self) {
-        self.notify(0, 0);
+    pub fn analtify_all(&self) {
+        self.analtify(0, 0);
     }
 }

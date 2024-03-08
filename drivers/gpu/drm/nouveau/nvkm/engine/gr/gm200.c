@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,10 +32,10 @@
 #include <nvif/class.h>
 
 int
-gm200_gr_nofw(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+gm200_gr_analfw(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 {
 	nvkm_warn(&gr->base.engine.subdev, "firmware unavailable\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*******************************************************************************
@@ -63,8 +63,8 @@ gm200_gr_acr_bld_write(struct nvkm_acr *acr, u32 bld,
 	const struct flcn_bl_dmem_desc_v1 hdr = {
 		.ctx_dma = FALCON_DMAIDX_UCODE,
 		.code_dma_base = code,
-		.non_sec_code_off = lsfw->app_resident_code_offset,
-		.non_sec_code_size = lsfw->app_resident_code_size,
+		.analn_sec_code_off = lsfw->app_resident_code_offset,
+		.analn_sec_code_size = lsfw->app_resident_code_size,
 		.code_entry_point = lsfw->app_imem_entry,
 		.data_dma_base = data,
 		.data_size = lsfw->app_resident_data_size,
@@ -151,18 +151,18 @@ gm200_gr_tile_map_2_8[] = {
 int
 gm200_gr_oneinit_sm_id(struct gf100_gr *gr)
 {
-	/*XXX: There's a different algorithm here I've not yet figured out. */
+	/*XXX: There's a different algorithm here I've analt yet figured out. */
 	return gf100_gr_oneinit_sm_id(gr);
 }
 
 void
 gm200_gr_oneinit_tiles(struct gf100_gr *gr)
 {
-	/*XXX: Not sure what this is about.  The algorithm from NVGPU
+	/*XXX: Analt sure what this is about.  The algorithm from NVGPU
 	 *     seems to work for all boards I tried from earlier (and
 	 *     later) GPUs except in these specific configurations.
 	 *
-	 *     Let's just hardcode them for now.
+	 *     Let's just hardcode them for analw.
 	 */
 	if (gr->gpc_nr == 2 && gr->tpc_total == 8) {
 		memcpy(gr->tile, gm200_gr_tile_map_2_8, gr->tpc_total);
@@ -252,7 +252,7 @@ MODULE_FIRMWARE("nvidia/gm200/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gm200/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/sw_method_init.bin");
 
@@ -265,7 +265,7 @@ MODULE_FIRMWARE("nvidia/gm204/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gm204/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/sw_method_init.bin");
 
@@ -278,14 +278,14 @@ MODULE_FIRMWARE("nvidia/gm206/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gm206/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/sw_method_init.bin");
 
 static const struct gf100_gr_fwif
 gm200_gr_fwif[] = {
 	{  0, gm200_gr_load, &gm200_gr, &gm200_gr_fecs_acr, &gm200_gr_gpccs_acr },
-	{ -1, gm200_gr_nofw },
+	{ -1, gm200_gr_analfw },
 	{}
 };
 

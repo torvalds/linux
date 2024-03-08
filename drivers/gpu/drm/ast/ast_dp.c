@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2021, ASPEED Technology Inc.
+// Copyright (c) 2021, ASPEED Techanallogy Inc.
 // Authors: KuoHsiang Chou <kuohsiang_chou@aspeedtech.com>
 
 #include <linux/firmware.h>
@@ -34,7 +34,7 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD) &&
 		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
 								ASTDP_HOST_EDID_READ_DONE_MASK))) {
-		goto err_astdp_edid_not_ready;
+		goto err_astdp_edid_analt_ready;
 	}
 
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
@@ -94,7 +94,7 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			 *		equal 0	(mod 256).
 			 * 2. Modify Bytes-126 to be 0.
 			 *		The Bytes-126 indicates the Number of extensions to
-			 *		follow. 0 represents noextensions.
+			 *		follow. 0 represents analextensions.
 			 */
 			*(ediddata + 3) = *(ediddata + 3) + *(ediddata + 2);
 			*(ediddata + 2) = 0;
@@ -114,7 +114,7 @@ err_astdp_jump_out_loop_of_edid:
 							ASTDP_HOST_EDID_READ_DONE);
 	return (~(j+256) + 1);
 
-err_astdp_edid_not_ready:
+err_astdp_edid_analt_ready:
 	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING)))
 		return (~0xD1 + 1);
 	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS)))
@@ -144,7 +144,7 @@ void ast_dp_launch(struct drm_device *dev)
 		msleep(100);
 
 		if (i >= 10) {
-			// DP would not be ready.
+			// DP would analt be ready.
 			bDPExecute = 0;
 			break;
 		}

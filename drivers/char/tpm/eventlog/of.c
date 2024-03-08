@@ -24,23 +24,23 @@
 
 static int tpm_read_log_memory_region(struct tpm_chip *chip)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct resource res;
 	int rc;
 
-	node = of_parse_phandle(chip->dev.parent->of_node, "memory-region", 0);
-	if (!node)
-		return -ENODEV;
+	analde = of_parse_phandle(chip->dev.parent->of_analde, "memory-region", 0);
+	if (!analde)
+		return -EANALDEV;
 
-	rc = of_address_to_resource(node, 0, &res);
-	of_node_put(node);
+	rc = of_address_to_resource(analde, 0, &res);
+	of_analde_put(analde);
 	if (rc)
 		return rc;
 
 	chip->log.bios_event_log = devm_memremap(&chip->dev, res.start, resource_size(&res),
 						 MEMREMAP_WB);
 	if (IS_ERR(chip->log.bios_event_log))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->log.bios_event_log_end = chip->log.bios_event_log + resource_size(&res);
 
@@ -50,7 +50,7 @@ static int tpm_read_log_memory_region(struct tpm_chip *chip)
 
 int tpm_read_log_of(struct tpm_chip *chip)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const u32 *sizep;
 	const u64 *basep;
 	struct tpm_bios_log *log;
@@ -58,10 +58,10 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	u64 base;
 
 	log = &chip->log;
-	if (chip->dev.parent && chip->dev.parent->of_node)
-		np = chip->dev.parent->of_node;
+	if (chip->dev.parent && chip->dev.parent->of_analde)
+		np = chip->dev.parent->of_analde;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (of_property_read_bool(np, "powered-while-suspended"))
 		chip->flags |= TPM_CHIP_FLAG_ALWAYS_POWERED;
@@ -98,7 +98,7 @@ int tpm_read_log_of(struct tpm_chip *chip)
 
 	log->bios_event_log = devm_kmemdup(&chip->dev, __va(base), size, GFP_KERNEL);
 	if (!log->bios_event_log)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	log->bios_event_log_end = log->bios_event_log + size;
 

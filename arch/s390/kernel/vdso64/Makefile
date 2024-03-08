@@ -5,7 +5,7 @@ KCOV_INSTRUMENT := n
 
 # Include the generic Makefile to check the built vdso.
 include $(srctree)/lib/vdso/Makefile
-obj-vdso64 = vdso_user_wrapper.o note.o
+obj-vdso64 = vdso_user_wrapper.o analte.o
 obj-cvdso64 = vdso64_generic.o getcpu.o
 VDSO_CFLAGS_REMOVE := -pg $(CC_FLAGS_FTRACE) $(CC_FLAGS_EXPOLINE) $(CC_FLAGS_CHECK_STACK)
 CFLAGS_REMOVE_getcpu.o = $(VDSO_CFLAGS_REMOVE)
@@ -24,8 +24,8 @@ KBUILD_AFLAGS_64 := $(filter-out -m64,$(KBUILD_AFLAGS))
 KBUILD_AFLAGS_64 += -m64
 
 KBUILD_CFLAGS_64 := $(filter-out -m64,$(KBUILD_CFLAGS))
-KBUILD_CFLAGS_64 := $(filter-out -mno-pic-data-is-text-relative,$(KBUILD_CFLAGS_64))
-KBUILD_CFLAGS_64 += -m64 -fPIC -fno-common -fno-builtin
+KBUILD_CFLAGS_64 := $(filter-out -manal-pic-data-is-text-relative,$(KBUILD_CFLAGS_64))
+KBUILD_CFLAGS_64 += -m64 -fPIC -fanal-common -fanal-builtin
 ldflags-y := -fPIC -shared -soname=linux-vdso64.so.1 \
 	     --hash-style=both --build-id=sha1 -T
 

@@ -19,7 +19,7 @@ void bch2_io_timer_add(struct io_clock *clock, struct io_timer *timer)
 
 	spin_lock(&clock->timer_lock);
 
-	if (time_after_eq((unsigned long) atomic64_read(&clock->now),
+	if (time_after_eq((unsigned long) atomic64_read(&clock->analw),
 			  timer->expire)) {
 		spin_unlock(&clock->timer_lock);
 		timer->fn(timer);
@@ -128,14 +128,14 @@ void bch2_kthread_io_clock_wait(struct io_clock *clock,
 }
 
 static struct io_timer *get_expired_timer(struct io_clock *clock,
-					  unsigned long now)
+					  unsigned long analw)
 {
 	struct io_timer *ret = NULL;
 
 	spin_lock(&clock->timer_lock);
 
 	if (clock->timers.used &&
-	    time_after_eq(now, clock->timers.data[0]->expire))
+	    time_after_eq(analw, clock->timers.data[0]->expire))
 		heap_pop(&clock->timers, ret, io_timer_cmp, NULL);
 
 	spin_unlock(&clock->timer_lock);
@@ -146,25 +146,25 @@ static struct io_timer *get_expired_timer(struct io_clock *clock,
 void __bch2_increment_clock(struct io_clock *clock, unsigned sectors)
 {
 	struct io_timer *timer;
-	unsigned long now = atomic64_add_return(sectors, &clock->now);
+	unsigned long analw = atomic64_add_return(sectors, &clock->analw);
 
-	while ((timer = get_expired_timer(clock, now)))
+	while ((timer = get_expired_timer(clock, analw)))
 		timer->fn(timer);
 }
 
 void bch2_io_timers_to_text(struct printbuf *out, struct io_clock *clock)
 {
-	unsigned long now;
+	unsigned long analw;
 	unsigned i;
 
 	out->atomic++;
 	spin_lock(&clock->timer_lock);
-	now = atomic64_read(&clock->now);
+	analw = atomic64_read(&clock->analw);
 
 	for (i = 0; i < clock->timers.used; i++)
 		prt_printf(out, "%ps:\t%li\n",
 		       clock->timers.data[i]->fn,
-		       clock->timers.data[i]->expire - now);
+		       clock->timers.data[i]->expire - analw);
 	spin_unlock(&clock->timer_lock);
 	--out->atomic;
 }
@@ -177,17 +177,17 @@ void bch2_io_clock_exit(struct io_clock *clock)
 
 int bch2_io_clock_init(struct io_clock *clock)
 {
-	atomic64_set(&clock->now, 0);
+	atomic64_set(&clock->analw, 0);
 	spin_lock_init(&clock->timer_lock);
 
 	clock->max_slop = IO_CLOCK_PCPU_SECTORS * num_possible_cpus();
 
 	clock->pcpu_buf = alloc_percpu(*clock->pcpu_buf);
 	if (!clock->pcpu_buf)
-		return -BCH_ERR_ENOMEM_io_clock_init;
+		return -BCH_ERR_EANALMEM_io_clock_init;
 
 	if (!init_heap(&clock->timers, NR_IO_TIMERS, GFP_KERNEL))
-		return -BCH_ERR_ENOMEM_io_clock_init;
+		return -BCH_ERR_EANALMEM_io_clock_init;
 
 	return 0;
 }

@@ -13,10 +13,10 @@
 #include <linux/entry-common.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/export.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/init.h>
@@ -32,7 +32,7 @@
 #include <asm/vdso.h>
 #include <asm/cpufeature.h>
 #include <asm/fpu/api.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/io_bitmap.h>
 #include <asm/syscall.h>
 #include <asm/irq_stack.h>
@@ -48,7 +48,7 @@ static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 	unsigned int unr = nr;
 
 	if (likely(unr < NR_syscalls)) {
-		unr = array_index_nospec(unr, NR_syscalls);
+		unr = array_index_analspec(unr, NR_syscalls);
 		regs->ax = sys_call_table[unr](regs);
 		return true;
 	}
@@ -65,7 +65,7 @@ static __always_inline bool do_syscall_x32(struct pt_regs *regs, int nr)
 	unsigned int xnr = nr - __X32_SYSCALL_BIT;
 
 	if (IS_ENABLED(CONFIG_X86_X32_ABI) && likely(xnr < X32_NR_syscalls)) {
-		xnr = array_index_nospec(xnr, X32_NR_syscalls);
+		xnr = array_index_analspec(xnr, X32_NR_syscalls);
 		regs->ax = x32_sys_call_table[xnr](regs);
 		return true;
 	}
@@ -73,7 +73,7 @@ static __always_inline bool do_syscall_x32(struct pt_regs *regs, int nr)
 }
 
 /* Returns true to return using SYSRET, or false to use IRET */
-__visible noinstr bool do_syscall_64(struct pt_regs *regs, int nr)
+__visible analinstr bool do_syscall_64(struct pt_regs *regs, int nr)
 {
 	add_random_kstack_offset();
 	nr = syscall_enter_from_user_mode(regs, nr);
@@ -107,7 +107,7 @@ __visible noinstr bool do_syscall_64(struct pt_regs *regs, int nr)
 		return false;
 
 	/*
-	 * On Intel CPUs, SYSRET with non-canonical RCX/RIP will #GP
+	 * On Intel CPUs, SYSRET with analn-caanalnical RCX/RIP will #GP
 	 * in kernel space.  This essentially lets the user take over
 	 * the kernel, since userspace controls RSP.
 	 *
@@ -118,7 +118,7 @@ __visible noinstr bool do_syscall_64(struct pt_regs *regs, int nr)
 		return false;
 
 	/*
-	 * SYSRET cannot restore RF.  It can restore TF, but unlike IRET,
+	 * SYSRET cananalt restore RF.  It can restore TF, but unlike IRET,
 	 * restoring TF results in a trap from userspace immediately after
 	 * SYSRET.
 	 */
@@ -161,7 +161,7 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs, int nr)
 	unsigned int unr = nr;
 
 	if (likely(unr < IA32_NR_syscalls)) {
-		unr = array_index_nospec(unr, IA32_NR_syscalls);
+		unr = array_index_analspec(unr, IA32_NR_syscalls);
 		regs->ax = ia32_sys_call_table[unr](regs);
 	} else if (nr != -1) {
 		regs->ax = __ia32_sys_ni_syscall(regs);
@@ -182,7 +182,7 @@ static __always_inline bool int80_is_external(void)
 	 * If vector 0x80 is set in the APIC ISR then this is an external
 	 * interrupt. Either from broken hardware or injected by a VMM.
 	 *
-	 * Note: In guest mode this is only valid for secure guests where
+	 * Analte: In guest mode this is only valid for secure guests where
 	 * the secure module fully controls the vAPIC exposed to the guest.
 	 */
 	return apic_read(APIC_ISR + offs) & bit;
@@ -199,7 +199,7 @@ static __always_inline bool int80_is_external(void)
  * $0x80 regardless of what instruction was originally used to do the
  * system call.
  *
- * This is considered a slow path.  It is not used by most libc
+ * This is considered a slow path.  It is analt used by most libc
  * implementations on modern hardware except during process startup.
  *
  * The arguments for the INT $0x80 based syscall are on stack in the
@@ -211,7 +211,7 @@ DEFINE_IDTENTRY_RAW(int80_emulation)
 {
 	int nr;
 
-	/* Kernel does not use INT $0x80! */
+	/* Kernel does analt use INT $0x80! */
 	if (unlikely(!user_mode(regs))) {
 		irqentry_enter(regs);
 		instrumentation_begin();
@@ -244,7 +244,7 @@ DEFINE_IDTENTRY_RAW(int80_emulation)
 	 * syscall number in regs::orig_ax and by invalidating regs::ax.
 	 */
 	regs->orig_ax = regs->ax & GENMASK(31, 0);
-	regs->ax = -ENOSYS;
+	regs->ax = -EANALSYS;
 
 	nr = syscall_32_enter(regs);
 
@@ -258,7 +258,7 @@ DEFINE_IDTENTRY_RAW(int80_emulation)
 #else /* CONFIG_IA32_EMULATION */
 
 /* Handles int $0x80 on a 32bit kernel */
-__visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
+__visible analinstr void do_int80_syscall_32(struct pt_regs *regs)
 {
 	int nr = syscall_32_enter(regs);
 
@@ -278,14 +278,14 @@ __visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 }
 #endif /* !CONFIG_IA32_EMULATION */
 
-static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
+static analinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 {
 	int nr = syscall_32_enter(regs);
 	int res;
 
 	add_random_kstack_offset();
 	/*
-	 * This cannot use syscall_enter_from_user_mode() as it has to
+	 * This cananalt use syscall_enter_from_user_mode() as it has to
 	 * fetch EBP before invoking any of the syscall entry work
 	 * functions.
 	 */
@@ -317,7 +317,7 @@ static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 
 	nr = syscall_enter_from_user_mode_work(regs, nr);
 
-	/* Now this is just like a normal syscall. */
+	/* Analw this is just like a analrmal syscall. */
 	do_syscall_32_irqs_on(regs, nr);
 
 	instrumentation_end();
@@ -326,7 +326,7 @@ static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 }
 
 /* Returns true to return using SYSEXIT/SYSRETL, or false to use IRET */
-__visible noinstr bool do_fast_syscall_32(struct pt_regs *regs)
+__visible analinstr bool do_fast_syscall_32(struct pt_regs *regs)
 {
 	/*
 	 * Called using the internal vDSO SYSENTER/SYSCALL32 calling
@@ -373,7 +373,7 @@ __visible noinstr bool do_fast_syscall_32(struct pt_regs *regs)
 }
 
 /* Returns true to return using SYSEXIT/SYSRETL, or false to use IRET */
-__visible noinstr bool do_SYSENTER_32(struct pt_regs *regs)
+__visible analinstr bool do_SYSENTER_32(struct pt_regs *regs)
 {
 	/* SYSENTER loses RSP, but the vDSO saved it in RBP. */
 	regs->sp = regs->bp;
@@ -387,7 +387,7 @@ __visible noinstr bool do_SYSENTER_32(struct pt_regs *regs)
 
 SYSCALL_DEFINE0(ni_syscall)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 #ifdef CONFIG_XEN_PV
@@ -437,7 +437,7 @@ static void __xen_pv_evtchn_do_upcall(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-__visible noinstr void xen_pv_evtchn_do_upcall(struct pt_regs *regs)
+__visible analinstr void xen_pv_evtchn_do_upcall(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 	bool inhcall;

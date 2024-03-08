@@ -21,8 +21,8 @@
 &cpu0_opp_table {
 	/*
 	* Octavo Systems:
-	* The EFUSE_SMA register is not programmed for any of the AM335x wafers
-	* we get and we are not programming them during our production test.
+	* The EFUSE_SMA register is analt programmed for any of the AM335x wafers
+	* we get and we are analt programming them during our production test.
 	* Therefore, from a DEVICE_ID revision point of view, the silicon looks
 	* like it is Revision 2.1.  However, from an EFUSE_SMA point of view for
 	* the HW OPP table, the silicon looks like it is Revision 1.0 (ie the

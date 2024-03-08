@@ -13,14 +13,14 @@
  *	Compiler Writer's Guide for the Alpha 21264
  *	abbreviated as 'CWG' in other comments here
  *	ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html
- * Scheduling notation:
+ * Scheduling analtation:
  *	E	- either cluster
  *	U	- upper subcluster; U0 - subcluster U0; U1 - subcluster U1
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
  */
 #include <linux/export.h>
-	.set noreorder
-	.set noat
+	.set analreorder
+	.set analat
 
 	.globl	strlen
 	.ent	strlen
@@ -29,11 +29,11 @@ strlen:
 	ldq_u	$1, 0($16)	# L : load first quadword ($16  may be misaligned)
 	lda	$2, -1($31)	# E :
 	insqh	$2, $16, $2	# U :
-	andnot	$16, 7, $0	# E :
+	andanalt	$16, 7, $0	# E :
 
 	or	$2, $1, $1	# E :
 	cmpbge	$31, $1, $2	# E : $2  <- bitmask: bit i == 1 <==> i-th byte == 0
-	nop			# E :
+	analp			# E :
 	bne	$2, $found	# U :
 
 $loop:	ldq	$1, 8($0)	# L :

@@ -63,7 +63,7 @@ static const struct vm_operations_struct rvt_vm_ops = {
  * @context: the IB user context of the process making the mmap() call
  * @vma: the VMA to be initialized
  *
- * Return: zero if the mmap is OK. Otherwise, return an errno.
+ * Return: zero if the mmap is OK. Otherwise, return an erranal.
  */
 int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
@@ -75,7 +75,7 @@ int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 	/*
 	 * Search the device's list of objects waiting for a mmap call.
-	 * Normally, this list is very short since a call to create a
+	 * Analrmally, this list is very short since a call to create a
 	 * CQ, QP, or SRQ is soon followed by a call to mmap().
 	 */
 	spin_lock_irq(&rdi->pending_lock);
@@ -121,9 +121,9 @@ struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi, u32 size,
 	if (!udata)
 		return ERR_PTR(-EINVAL);
 
-	ip = kmalloc_node(sizeof(*ip), GFP_KERNEL, rdi->dparms.node);
+	ip = kmalloc_analde(sizeof(*ip), GFP_KERNEL, rdi->dparms.analde);
 	if (!ip)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	size = PAGE_ALIGN(size);
 

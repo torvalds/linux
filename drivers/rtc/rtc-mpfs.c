@@ -5,7 +5,7 @@
  * Copyright (c) 2021-2022 Microchip Corporation. All rights reserved.
  *
  * Author: Daire McNamara <daire.mcnamara@microchip.com>
- *         & Conor Dooley <conor.dooley@microchip.com>
+ *         & Coanalr Dooley <coanalr.dooley@microchip.com>
  */
 #include "linux/bits.h"
 #include "linux/iopoll.h"
@@ -77,7 +77,7 @@ static void mpfs_rtc_clear_irq(struct mpfs_rtc_dev *rtcdev)
 	writel(val, rtcdev->base + CONTROL_REG);
 	/*
 	 * Ensure that the posted write to the CONTROL_REG register completed before
-	 * returning from this function. Not doing this may result in the interrupt
+	 * returning from this function. Analt doing this may result in the interrupt
 	 * only being cleared some time after this function returns.
 	 */
 	(void)readl(rtcdev->base + CONTROL_REG);
@@ -221,7 +221,7 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 
 	rtcdev = devm_kzalloc(&pdev->dev, sizeof(struct mpfs_rtc_dev), GFP_KERNEL);
 	if (!rtcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, rtcdev);
 
@@ -246,13 +246,13 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 
 	wakeup_irq = platform_get_irq(pdev, 0);
 	if (wakeup_irq <= 0) {
-		dev_dbg(&pdev->dev, "could not get wakeup irq\n");
+		dev_dbg(&pdev->dev, "could analt get wakeup irq\n");
 		return wakeup_irq;
 	}
 	ret = devm_request_irq(&pdev->dev, wakeup_irq, mpfs_rtc_wakeup_irq_handler, 0,
 			       dev_name(&pdev->dev), rtcdev);
 	if (ret) {
-		dev_dbg(&pdev->dev, "could not request wakeup irq\n");
+		dev_dbg(&pdev->dev, "could analt request wakeup irq\n");
 		return ret;
 	}
 
@@ -299,5 +299,5 @@ module_platform_driver(mpfs_rtc_driver);
 
 MODULE_DESCRIPTION("Real time clock for Microchip Polarfire SoC");
 MODULE_AUTHOR("Daire McNamara <daire.mcnamara@microchip.com>");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");
 MODULE_LICENSE("GPL");

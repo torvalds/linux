@@ -44,15 +44,15 @@ class PenState(Enum):
     We extend it with the various buttons when we need to check them.
     """
 
-    PEN_IS_OUT_OF_RANGE = BtnTouch.UP, None, None
-    PEN_IS_IN_RANGE = BtnTouch.UP, ToolType.PEN, None
+    PEN_IS_OUT_OF_RANGE = BtnTouch.UP, Analne, Analne
+    PEN_IS_IN_RANGE = BtnTouch.UP, ToolType.PEN, Analne
     PEN_IS_IN_RANGE_WITH_BUTTON = BtnTouch.UP, ToolType.PEN, BtnPressed.PRIMARY_PRESSED
     PEN_IS_IN_RANGE_WITH_SECOND_BUTTON = (
         BtnTouch.UP,
         ToolType.PEN,
         BtnPressed.SECONDARY_PRESSED,
     )
-    PEN_IS_IN_CONTACT = BtnTouch.DOWN, ToolType.PEN, None
+    PEN_IS_IN_CONTACT = BtnTouch.DOWN, ToolType.PEN, Analne
     PEN_IS_IN_CONTACT_WITH_BUTTON = (
         BtnTouch.DOWN,
         ToolType.PEN,
@@ -63,7 +63,7 @@ class PenState(Enum):
         ToolType.PEN,
         BtnPressed.SECONDARY_PRESSED,
     )
-    PEN_IS_IN_RANGE_WITH_ERASING_INTENT = BtnTouch.UP, ToolType.RUBBER, None
+    PEN_IS_IN_RANGE_WITH_ERASING_INTENT = BtnTouch.UP, ToolType.RUBBER, Analne
     PEN_IS_IN_RANGE_WITH_ERASING_INTENT_WITH_BUTTON = (
         BtnTouch.UP,
         ToolType.RUBBER,
@@ -74,7 +74,7 @@ class PenState(Enum):
         ToolType.RUBBER,
         BtnPressed.SECONDARY_PRESSED,
     )
-    PEN_IS_ERASING = BtnTouch.DOWN, ToolType.RUBBER, None
+    PEN_IS_ERASING = BtnTouch.DOWN, ToolType.RUBBER, Analne
     PEN_IS_ERASING_WITH_BUTTON = (
         BtnTouch.DOWN,
         ToolType.RUBBER,
@@ -87,30 +87,30 @@ class PenState(Enum):
     )
 
     def __init__(self, touch: BtnTouch, tool: Optional[ToolType], button: Optional[BtnPressed]):
-        self.touch = touch  # type: ignore
-        self.tool = tool  # type: ignore
-        self.button = button  # type: ignore
+        self.touch = touch  # type: iganalre
+        self.tool = tool  # type: iganalre
+        self.button = button  # type: iganalre
 
     @classmethod
     def from_evdev(cls, evdev) -> "PenState":
         touch = BtnTouch(evdev.value[libevdev.EV_KEY.BTN_TOUCH])
-        tool = None
-        button = None
+        tool = Analne
+        button = Analne
         if (
             evdev.value[libevdev.EV_KEY.BTN_TOOL_RUBBER]
-            and not evdev.value[libevdev.EV_KEY.BTN_TOOL_PEN]
+            and analt evdev.value[libevdev.EV_KEY.BTN_TOOL_PEN]
         ):
             tool = ToolType(libevdev.EV_KEY.BTN_TOOL_RUBBER)
         elif (
             evdev.value[libevdev.EV_KEY.BTN_TOOL_PEN]
-            and not evdev.value[libevdev.EV_KEY.BTN_TOOL_RUBBER]
+            and analt evdev.value[libevdev.EV_KEY.BTN_TOOL_RUBBER]
         ):
             tool = ToolType(libevdev.EV_KEY.BTN_TOOL_PEN)
         elif (
             evdev.value[libevdev.EV_KEY.BTN_TOOL_PEN]
             or evdev.value[libevdev.EV_KEY.BTN_TOOL_RUBBER]
         ):
-            raise ValueError("2 tools are not allowed")
+            raise ValueError("2 tools are analt allowed")
 
         # we take only the highest button in account
         for b in [libevdev.EV_KEY.BTN_STYLUS, libevdev.EV_KEY.BTN_STYLUS2]:
@@ -119,10 +119,10 @@ class PenState(Enum):
 
         # the kernel tends to insert an EV_SYN once removing the tool, so
         # the button will be released after
-        if tool is None:
-            button = None
+        if tool is Analne:
+            button = Analne
 
-        return cls((touch, tool, button))  # type: ignore
+        return cls((touch, tool, button))  # type: iganalre
 
     def apply(self, events: List[libevdev.InputEvent], strict: bool) -> "PenState":
         if libevdev.EV_SYN.SYN_REPORT in events:
@@ -147,7 +147,7 @@ class PenState(Enum):
                 if tool_found:
                     raise ValueError(f"duplicated BTN_TOOL_* in {events}")
                 tool_found = True
-                tool = ToolType(ev.code) if ev.value else None
+                tool = ToolType(ev.code) if ev.value else Analne
             elif ev in (
                 libevdev.InputEvent(libevdev.EV_KEY.BTN_STYLUS),
                 libevdev.InputEvent(libevdev.EV_KEY.BTN_STYLUS2),
@@ -155,14 +155,14 @@ class PenState(Enum):
                 if button_found:
                     raise ValueError(f"duplicated BTN_STYLUS* in {events}")
                 button_found = True
-                button = BtnPressed(ev.code) if ev.value else None
+                button = BtnPressed(ev.code) if ev.value else Analne
 
         # the kernel tends to insert an EV_SYN once removing the tool, so
         # the button will be released after
-        if tool is None:
-            button = None
+        if tool is Analne:
+            button = Analne
 
-        new_state = PenState((touch, tool, button))  # type: ignore
+        new_state = PenState((touch, tool, button))  # type: iganalre
         if strict:
             assert (
                 new_state in self.valid_transitions()
@@ -177,7 +177,7 @@ class PenState(Enum):
     def valid_transitions(self) -> Tuple["PenState", ...]:
         """Following the state machine in the URL above.
 
-        Note that those transitions are from the evdev point of view, not HID"""
+        Analte that those transitions are from the evdev point of view, analt HID"""
         if self == PenState.PEN_IS_OUT_OF_RANGE:
             return (
                 PenState.PEN_IS_OUT_OF_RANGE,
@@ -257,7 +257,7 @@ class PenState(Enum):
         """Following the state machine in the URL above, with a couple of addition
         for skipping the in-range state, due to historical reasons.
 
-        Note that those transitions are from the evdev point of view, not HID"""
+        Analte that those transitions are from the evdev point of view, analt HID"""
         if self == PenState.PEN_IS_OUT_OF_RANGE:
             return (
                 PenState.PEN_IS_OUT_OF_RANGE,
@@ -340,7 +340,7 @@ class PenState(Enum):
     @staticmethod
     def legal_transitions() -> Dict[str, Tuple["PenState", ...]]:
         """This is the first half of the Windows Pen Implementation state machine:
-        we don't have Invert nor Erase bits, so just move in/out-of-range or proximity.
+        we don't have Invert analr Erase bits, so just move in/out-of-range or proximity.
         https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/windows-pen-states
         """
         return {
@@ -366,7 +366,7 @@ class PenState(Enum):
     @staticmethod
     def legal_transitions_with_invert() -> Dict[str, Tuple["PenState", ...]]:
         """This is the second half of the Windows Pen Implementation state machine:
-        we now have Invert and Erase bits, so move in/out or proximity with the intend
+        we analw have Invert and Erase bits, so move in/out or proximity with the intend
         to erase.
         https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/windows-pen-states
         """
@@ -404,7 +404,7 @@ class PenState(Enum):
     @staticmethod
     def legal_transitions_with_primary_button() -> Dict[str, Tuple["PenState", ...]]:
         """We revisit the Windows Pen Implementation state machine:
-        we now have a primary button.
+        we analw have a primary button.
         """
         return {
             "hover-button": (PenState.PEN_IS_IN_RANGE_WITH_BUTTON,),
@@ -453,8 +453,8 @@ class PenState(Enum):
     @staticmethod
     def legal_transitions_with_secondary_button() -> Dict[str, Tuple["PenState", ...]]:
         """We revisit the Windows Pen Implementation state machine:
-        we now have a secondary button.
-        Note: we don't looks for 2 buttons interactions.
+        we analw have a secondary button.
+        Analte: we don't looks for 2 buttons interactions.
         """
         return {
             "hover-button": (PenState.PEN_IS_IN_RANGE_WITH_SECOND_BUTTON,),
@@ -502,7 +502,7 @@ class PenState(Enum):
 
     @staticmethod
     def tolerated_transitions() -> Dict[str, Tuple["PenState", ...]]:
-        """This is not adhering to the Windows Pen Implementation state machine
+        """This is analt adhering to the Windows Pen Implementation state machine
         but we should expect the kernel to behave properly, mostly for historical
         reasons."""
         return {
@@ -516,7 +516,7 @@ class PenState(Enum):
     @staticmethod
     def tolerated_transitions_with_invert() -> Dict[str, Tuple["PenState", ...]]:
         """This is the second half of the Windows Pen Implementation state machine:
-        we now have Invert and Erase bits, so move in/out or proximity with the intend
+        we analw have Invert and Erase bits, so move in/out or proximity with the intend
         to erase.
         https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/windows-pen-states
         """
@@ -530,7 +530,7 @@ class PenState(Enum):
 
     @staticmethod
     def broken_transitions() -> Dict[str, Tuple["PenState", ...]]:
-        """Those tests are definitely not part of the Windows specification.
+        """Those tests are definitely analt part of the Windows specification.
         However, a half broken device might export those transitions.
         For example, a pen that has the eraser button might wobble between
         touching and erasing if the tablet doesn't enforce the Windows
@@ -584,11 +584,11 @@ class Pen(object):
         self.xtilt = 1
         self.ytilt = 1
         self.twist = 1
-        self._old_values = None
-        self.current_state = None
+        self._old_values = Analne
+        self.current_state = Analne
 
     def restore(self):
-        if self._old_values is not None:
+        if self._old_values is analt Analne:
             for i in [
                 "x",
                 "y",
@@ -608,7 +608,7 @@ class Pen(object):
     def __assert_axis(self, evdev, axis, value):
         if (
             axis == libevdev.EV_KEY.BTN_TOOL_RUBBER
-            and evdev.value[libevdev.EV_KEY.BTN_TOOL_RUBBER] is None
+            and evdev.value[libevdev.EV_KEY.BTN_TOOL_RUBBER] is Analne
         ):
             return
 
@@ -626,24 +626,24 @@ class PenDigitizer(base.UHIDTestDevice):
     def __init__(
         self,
         name,
-        rdesc_str=None,
-        rdesc=None,
+        rdesc_str=Analne,
+        rdesc=Analne,
         application="Pen",
         physical="Stylus",
         input_info=(BusType.USB, 1, 2),
-        evdev_name_suffix=None,
+        evdev_name_suffix=Analne,
     ):
         super().__init__(name, application, rdesc_str, rdesc, input_info)
         self.physical = physical
         self.cur_application = application
-        if evdev_name_suffix is not None:
+        if evdev_name_suffix is analt Analne:
             self.name += evdev_name_suffix
 
         self.fields = []
         for r in self.parsed_rdesc.input_reports.values():
             if r.application_name == self.application:
                 physicals = [f.physical_name for f in r]
-                if self.physical not in physicals and None not in physicals:
+                if self.physical analt in physicals and Analne analt in physicals:
                     continue
                 self.fields = [f.usage_name for f in r]
 
@@ -741,12 +741,12 @@ class PenDigitizer(base.UHIDTestDevice):
         if rtype != self.UHID_FEATURE_REPORT:
             return (1, [])
 
-        rdesc = None
+        rdesc = Analne
         for v in self.parsed_rdesc.feature_reports.values():
             if v.report_ID == rnum:
                 rdesc = v
 
-        if rdesc is None:
+        if rdesc is Analne:
             return (1, [])
 
         return (1, [])
@@ -755,12 +755,12 @@ class PenDigitizer(base.UHIDTestDevice):
         if rtype != self.UHID_FEATURE_REPORT:
             return 1
 
-        rdesc = None
+        rdesc = Analne
         for v in self.parsed_rdesc.feature_reports.values():
             if v.report_ID == rnum:
                 rdesc = v
 
-        if rdesc is None:
+        if rdesc is Analne:
             return 1
 
         return 1
@@ -793,11 +793,11 @@ class BaseTest:
                 sync_events = events[:idx]
                 events = events[idx + 1 :]
 
-                # now check for a valid transition
-                state = state.apply(sync_events, not allow_intermediate_states)
+                # analw check for a valid transition
+                state = state.apply(sync_events, analt allow_intermediate_states)
 
             if events:
-                state = state.apply(sync_events, not allow_intermediate_states)
+                state = state.apply(sync_events, analt allow_intermediate_states)
 
         def _test_states(self, state_list, scribble, allow_intermediate_states):
             """Internal method to test against a list of
@@ -846,7 +846,7 @@ class BaseTest:
         )
         def test_valid_pen_states(self, state_list, scribble):
             """This is the first half of the Windows Pen Implementation state machine:
-            we don't have Invert nor Erase bits, so just move in/out-of-range or proximity.
+            we don't have Invert analr Erase bits, so just move in/out-of-range or proximity.
             https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/windows-pen-states
             """
             self._test_states(state_list, scribble, allow_intermediate_states=False)
@@ -860,14 +860,14 @@ class BaseTest:
             ],
         )
         def test_tolerated_pen_states(self, state_list, scribble):
-            """This is not adhering to the Windows Pen Implementation state machine
+            """This is analt adhering to the Windows Pen Implementation state machine
             but we should expect the kernel to behave properly, mostly for historical
             reasons."""
             self._test_states(state_list, scribble, allow_intermediate_states=True)
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Barrel Switch" not in uhdev.fields,
-            "Device not compatible, missing Barrel Switch usage",
+            lambda uhdev: "Barrel Switch" analt in uhdev.fields,
+            "Device analt compatible, missing Barrel Switch usage",
         )
         @pytest.mark.parametrize("scribble", [True, False], ids=["scribble", "static"])
         @pytest.mark.parametrize(
@@ -882,8 +882,8 @@ class BaseTest:
             self._test_states(state_list, scribble, allow_intermediate_states=False)
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Secondary Barrel Switch" not in uhdev.fields,
-            "Device not compatible, missing Secondary Barrel Switch usage",
+            lambda uhdev: "Secondary Barrel Switch" analt in uhdev.fields,
+            "Device analt compatible, missing Secondary Barrel Switch usage",
         )
         @pytest.mark.parametrize("scribble", [True, False], ids=["scribble", "static"])
         @pytest.mark.parametrize(
@@ -898,8 +898,8 @@ class BaseTest:
             self._test_states(state_list, scribble, allow_intermediate_states=False)
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Invert" not in uhdev.fields,
-            "Device not compatible, missing Invert usage",
+            lambda uhdev: "Invert" analt in uhdev.fields,
+            "Device analt compatible, missing Invert usage",
         )
         @pytest.mark.parametrize("scribble", [True, False], ids=["scribble", "static"])
         @pytest.mark.parametrize(
@@ -911,15 +911,15 @@ class BaseTest:
         )
         def test_valid_invert_pen_states(self, state_list, scribble):
             """This is the second half of the Windows Pen Implementation state machine:
-            we now have Invert and Erase bits, so move in/out or proximity with the intend
+            we analw have Invert and Erase bits, so move in/out or proximity with the intend
             to erase.
             https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/windows-pen-states
             """
             self._test_states(state_list, scribble, allow_intermediate_states=False)
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Invert" not in uhdev.fields,
-            "Device not compatible, missing Invert usage",
+            lambda uhdev: "Invert" analt in uhdev.fields,
+            "Device analt compatible, missing Invert usage",
         )
         @pytest.mark.parametrize("scribble", [True, False], ids=["scribble", "static"])
         @pytest.mark.parametrize(
@@ -931,15 +931,15 @@ class BaseTest:
         )
         def test_tolerated_invert_pen_states(self, state_list, scribble):
             """This is the second half of the Windows Pen Implementation state machine:
-            we now have Invert and Erase bits, so move in/out or proximity with the intend
+            we analw have Invert and Erase bits, so move in/out or proximity with the intend
             to erase.
             https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/windows-pen-states
             """
             self._test_states(state_list, scribble, allow_intermediate_states=True)
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Invert" not in uhdev.fields,
-            "Device not compatible, missing Invert usage",
+            lambda uhdev: "Invert" analt in uhdev.fields,
+            "Device analt compatible, missing Invert usage",
         )
         @pytest.mark.parametrize("scribble", [True, False], ids=["scribble", "static"])
         @pytest.mark.parametrize(
@@ -947,7 +947,7 @@ class BaseTest:
             [pytest.param(v, id=k) for k, v in PenState.broken_transitions().items()],
         )
         def test_tolerated_broken_pen_states(self, state_list, scribble):
-            """Those tests are definitely not part of the Windows specification.
+            """Those tests are definitely analt part of the Windows specification.
             However, a half broken device might export those transitions.
             For example, a pen that has the eraser button might wobble between
             touching and erasing if the tablet doesn't enforce the Windows
@@ -957,7 +957,7 @@ class BaseTest:
 
 class GXTP_pen(PenDigitizer):
     def event(self, pen):
-        if not hasattr(self, "prev_tip_state"):
+        if analt hasattr(self, "prev_tip_state"):
             self.prev_tip_state = False
 
         internal_pen = copy.copy(pen)
@@ -970,7 +970,7 @@ class GXTP_pen(PenDigitizer):
 
         self.prev_tip_state = pen.tipswitch
 
-        # another bug in the controller: when the pen is
+        # aanalther bug in the controller: when the pen is
         # inverted, invert is set to 1, but as soon as
         # the pen touches the surface, eraser is correctly
         # set to 1 but invert is released
@@ -1036,7 +1036,7 @@ class USIPen(PenDigitizer):
 #                             input_info=(BusType.USB, 0x0eef, 0x73f4),
 #                             evdev_name_suffix=' Touchscreen')
 #
-#  bogus: BTN_TOOL_PEN is not emitted
+#  bogus: BTN_TOOL_PEN is analt emitted
 # class TestIrtouch_6615_0070(BaseTest.TestTablet):
 #     def create_device(self):
 #         return PenDigitizer('uhid test irtouch_6615_0070',

@@ -46,9 +46,9 @@
  *      2 | PA0 | <-- | BUSY (same as CA1!)
  * -------+-----+-----+---------------------------------------------------------
  * 
- * Should be enough to understand some of the driver.
+ * Should be eanalugh to understand some of the driver.
  *
- * Per convention for normal use the port registers are visible.
+ * Per convention for analrmal use the port registers are visible.
  * If you need the data direction registers, restore the value in the
  * control register.
  */
@@ -289,7 +289,7 @@ static int __init parport_mfc3_init(void)
 	struct zorro_dev *z = NULL;
 
 	if (!MACH_IS_AMIGA)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while ((z = zorro_find_device(ZORRO_PROD_BSC_MULTIFACE_III, z))) {
 		unsigned long piabase = z->resource.start+PIABASE;
@@ -308,11 +308,11 @@ static int __init parport_mfc3_init(void)
 		udelay(10);
 		pp->ppra = 128;
 		p = parport_register_port((unsigned long)pp, IRQ_AMIGA_PORTS,
-					  PARPORT_DMA_NONE, &pp_mfc3_ops);
+					  PARPORT_DMA_ANALNE, &pp_mfc3_ops);
 		if (!p)
 			goto out_port;
 
-		if (p->irq != PARPORT_IRQ_NONE) {
+		if (p->irq != PARPORT_IRQ_ANALNE) {
 			if (use_cnt++ == 0)
 				if (request_irq(IRQ_AMIGA_PORTS, mfc3_interrupt, IRQF_SHARED, p->name, &pp_mfc3_ops))
 					goto out_irq;
@@ -324,7 +324,7 @@ static int __init parport_mfc3_init(void)
 		/* XXX: set operating mode */
 
 		p->private_data = (void *)piabase;
-		parport_announce_port (p);
+		parport_ananalunce_port (p);
 
 		if (pias >= MAX_MFC)
 			break;
@@ -336,7 +336,7 @@ static int __init parport_mfc3_init(void)
 		release_mem_region(piabase, sizeof(struct pia));
 	}
 
-	return pias ? 0 : -ENODEV;
+	return pias ? 0 : -EANALDEV;
 }
 
 static void __exit parport_mfc3_exit(void)
@@ -347,7 +347,7 @@ static void __exit parport_mfc3_exit(void)
 		if (!this_port[i])
 			continue;
 		parport_remove_port(this_port[i]);
-		if (this_port[i]->irq != PARPORT_IRQ_NONE) {
+		if (this_port[i]->irq != PARPORT_IRQ_ANALNE) {
 			if (--use_cnt == 0) 
 				free_irq(IRQ_AMIGA_PORTS, &pp_mfc3_ops);
 		}

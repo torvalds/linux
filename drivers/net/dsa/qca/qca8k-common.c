@@ -97,8 +97,8 @@ static const struct regmap_range qca8k_readable_ranges[] = {
 };
 
 const struct regmap_access_table qca8k_readable_table = {
-	.yes_ranges = qca8k_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(qca8k_readable_ranges),
+	.anal_ranges = qca8k_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(qca8k_readable_ranges),
 };
 
 static int qca8k_busy_wait(struct qca8k_priv *priv, u32 reg, u32 mask)
@@ -349,7 +349,7 @@ static int qca8k_vlan_access(struct qca8k_priv *priv,
 		if (ret < 0)
 			return ret;
 		if (reg & QCA8K_VTU_FUNC1_FULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -408,12 +408,12 @@ static int qca8k_vlan_del(struct qca8k_priv *priv, u8 port, u16 vid)
 	if (ret < 0)
 		goto out;
 	reg &= ~QCA8K_VTU_FUNC0_EG_MODE_PORT_MASK(port);
-	reg |= QCA8K_VTU_FUNC0_EG_MODE_PORT_NOT(port);
+	reg |= QCA8K_VTU_FUNC0_EG_MODE_PORT_ANALT(port);
 
 	/* Check if we're the last member to be removed */
 	del = true;
 	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
-		mask = QCA8K_VTU_FUNC0_EG_MODE_PORT_NOT(i);
+		mask = QCA8K_VTU_FUNC0_EG_MODE_PORT_ANALT(i);
 
 		if ((reg & mask) != mask) {
 			del = false;
@@ -467,7 +467,7 @@ void qca8k_port_set_status(struct qca8k_priv *priv, int port, int enable)
 {
 	u32 mask = QCA8K_PORT_STATUS_TXMAC | QCA8K_PORT_STATUS_RXMAC;
 
-	/* Port 0 and 6 have no internal PHY */
+	/* Port 0 and 6 have anal internal PHY */
 	if (port > 0 && port < 6)
 		mask |= QCA8K_PORT_STATUS_LINK_AUTO;
 
@@ -560,7 +560,7 @@ exit:
 int qca8k_get_mac_eee(struct dsa_switch *ds, int port,
 		      struct ethtool_eee *e)
 {
-	/* Nothing to do on the port's MAC */
+	/* Analthing to do on the port's MAC */
 	return 0;
 }
 
@@ -722,7 +722,7 @@ int qca8k_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
 	/* AGE_TIME reg is set in 7s step */
 	val = secs / 7;
 
-	/* Handle case with 0 as val to NOT disable
+	/* Handle case with 0 as val to ANALT disable
 	 * learning
 	 */
 	if (!val)
@@ -801,7 +801,7 @@ int qca8k_port_max_mtu(struct dsa_switch *ds, int port)
 int qca8k_port_fdb_insert(struct qca8k_priv *priv, const u8 *addr,
 			  u16 port_mask, u16 vid)
 {
-	/* Set the vid to the port vlan id if no vid is set */
+	/* Set the vid to the port vlan id if anal vid is set */
 	if (!vid)
 		vid = QCA8K_PORT_VID_DEF;
 
@@ -902,7 +902,7 @@ int qca8k_port_mirror_add(struct dsa_switch *ds, int port,
 
 	/* QCA83xx can have only one port set to mirror mode.
 	 * Check that the correct port is requested and return error otherwise.
-	 * When no mirror port is set, the values is set to 0xF
+	 * When anal mirror port is set, the values is set to 0xF
 	 */
 	monitor_port = FIELD_GET(QCA8K_GLOBAL_FW_CTRL0_MIRROR_PORT_NUM, val);
 	if (monitor_port != 0xF && monitor_port != mirror->to_local_port)
@@ -963,7 +963,7 @@ void qca8k_port_mirror_del(struct dsa_switch *ds, int port,
 	else
 		priv->mirror_tx &= ~BIT(port);
 
-	/* No port set to send packet to mirror port. Disable mirror port */
+	/* Anal port set to send packet to mirror port. Disable mirror port */
 	if (!priv->mirror_rx && !priv->mirror_tx) {
 		val = FIELD_PREP(QCA8K_GLOBAL_FW_CTRL0_MIRROR_PORT_NUM, 0xF);
 		ret = regmap_update_bits(priv->regmap, QCA8K_REG_GLOBAL_FW_CTRL0,
@@ -989,7 +989,7 @@ int qca8k_port_vlan_filtering(struct dsa_switch *ds, int port,
 	} else {
 		ret = qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),
 				QCA8K_PORT_LOOKUP_VLAN_MODE_MASK,
-				QCA8K_PORT_LOOKUP_VLAN_MODE_NONE);
+				QCA8K_PORT_LOOKUP_VLAN_MODE_ANALNE);
 	}
 
 	return ret;
@@ -1055,7 +1055,7 @@ static bool qca8k_lag_can_offload(struct dsa_switch *ds,
 
 	if (members > QCA8K_NUM_PORTS_FOR_LAG) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot offload more than 4 LAG ports");
+				   "Cananalt offload more than 4 LAG ports");
 		return false;
 	}
 
@@ -1095,7 +1095,7 @@ static int qca8k_lag_setup_hash(struct dsa_switch *ds,
 		hash |= QCA8K_TRUNK_HASH_DA_EN;
 		break;
 	default: /* We should NEVER reach this */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Check if we are the unique configured LAG */
@@ -1115,8 +1115,8 @@ static int qca8k_lag_setup_hash(struct dsa_switch *ds,
 	if (unique_lag) {
 		priv->lag_hash_mode = hash;
 	} else if (priv->lag_hash_mode != hash) {
-		netdev_err(lag_dev, "Error: Mismatched Hash Mode across different lag is not supported\n");
-		return -EOPNOTSUPP;
+		netdev_err(lag_dev, "Error: Mismatched Hash Mode across different lag is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	return regmap_update_bits(priv->regmap, QCA8K_TRUNK_HASH_EN_CTRL,
@@ -1199,7 +1199,7 @@ int qca8k_port_lag_join(struct dsa_switch *ds, int port, struct dsa_lag lag,
 	int ret;
 
 	if (!qca8k_lag_can_offload(ds, lag, info, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = qca8k_lag_setup_hash(ds, lag, info);
 	if (ret)
@@ -1221,18 +1221,18 @@ int qca8k_read_switch_id(struct qca8k_priv *priv)
 	int ret;
 
 	if (!priv->info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = qca8k_read(priv, QCA8K_REG_MASK_CTRL, &val);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = QCA8K_MASK_CTRL_DEVICE_ID(val);
 	if (id != priv->info->id) {
 		dev_err(priv->dev,
 			"Switch id detected %x but expected %x",
 			id, priv->info->id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv->switch_id = id;

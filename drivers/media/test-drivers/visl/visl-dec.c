@@ -55,7 +55,7 @@ static void visl_get_ref_frames(struct visl_ctx *ctx, u8 *buf,
 	buflen -= len;
 
 	switch (ctx->current_codec) {
-	case VISL_CODEC_NONE:
+	case VISL_CODEC_ANALNE:
 		break;
 
 	case VISL_CODEC_FWHT: {
@@ -267,7 +267,7 @@ static void visl_tpg_fill_sequence(struct visl_ctx *ctx,
 		  run->dst->vb2_buf.timestamp,
 		  (run->dst->field == V4L2_FIELD_ALTERNATE) ?
 		  (run->dst->field == V4L2_FIELD_TOP ?
-		  " top" : " bottom") : "none");
+		  " top" : " bottom") : "analne");
 }
 
 static void visl_tpg_fill(struct visl_ctx *ctx, struct visl_run *run)
@@ -433,7 +433,7 @@ static void visl_trace_ctrls(struct visl_ctx *ctx, struct visl_run *run)
 
 	switch (ctx->current_codec) {
 	default:
-	case VISL_CODEC_NONE:
+	case VISL_CODEC_ANALNE:
 		break;
 	case VISL_CODEC_FWHT:
 		trace_v4l2_ctrl_fwht_params(run->fwht.params);
@@ -514,7 +514,7 @@ void visl_device_run(void *priv)
 
 	switch (ctx->current_codec) {
 	default:
-	case VISL_CODEC_NONE:
+	case VISL_CODEC_ANALNE:
 		break;
 	case VISL_CODEC_FWHT:
 		run.fwht.params = visl_find_control_data(ctx, V4L2_CID_STATELESS_FWHT_PARAMS);

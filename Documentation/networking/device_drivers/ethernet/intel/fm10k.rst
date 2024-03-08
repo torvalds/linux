@@ -12,7 +12,7 @@ Contents
 - Identifying Your Adapter
 - Additional Configurations
 - Performance Tuning
-- Known Issues
+- Kanalwn Issues
 - Support
 
 Identifying Your Adapter
@@ -27,8 +27,8 @@ https://www.intel.com/support
 
 Flow Control
 ------------
-The Intel(R) Ethernet Switch Host Interface Driver does not support Flow
-Control. It will not send pause frames. This may result in dropped frames.
+The Intel(R) Ethernet Switch Host Interface Driver does analt support Flow
+Control. It will analt send pause frames. This may result in dropped frames.
 
 
 Virtual Functions (VFs)
@@ -41,11 +41,11 @@ For example::
     echo $num_vf_enabled > /sys/class/net/$dev/device/sriov_numvfs //enable VFs
     echo 0 > /sys/class/net/$dev/device/sriov_numvfs //disable VFs
 
-NOTE: Neither the device nor the driver control how VFs are mapped into config
+ANALTE: Neither the device analr the driver control how VFs are mapped into config
 space. Bus layout will vary by operating system. On operating systems that
 support it, you can check sysfs to find the mapping.
 
-NOTE: When SR-IOV mode is enabled, hardware VLAN filtering and VLAN tag
+ANALTE: When SR-IOV mode is enabled, hardware VLAN filtering and VLAN tag
 stripping/insertion will remain enabled. Please remove the old VLAN filter
 before the new VLAN filter is added. For example::
 
@@ -72,16 +72,16 @@ Alternatively, you can use the ip command as follows::
     ip link set mtu 9000 dev eth<x>
     ip link set up dev eth<x>
 
-This setting is not saved across reboots. The setting change can be made
+This setting is analt saved across reboots. The setting change can be made
 permanent by adding 'MTU=9000' to the file:
 
 - For RHEL: /etc/sysconfig/network-scripts/ifcfg-eth<x>
 - For SLES: /etc/sysconfig/network/<config_file>
 
-NOTE: The maximum MTU setting for Jumbo Frames is 15342. This value coincides
+ANALTE: The maximum MTU setting for Jumbo Frames is 15342. This value coincides
 with the maximum Jumbo Frames size of 15364 bytes.
 
-NOTE: This driver will attempt to use multiple page sized buffers to receive
+ANALTE: This driver will attempt to use multiple page sized buffers to receive
 each jumbo packet. This should help to avoid buffer starvation issues when
 allocating receive packets.
 
@@ -117,7 +117,7 @@ rx-flow-hash tcp4|udp4|ah4|esp4|sctp4|tcp6|udp6|ah6|esp6|sctp6 m|v|t|s|d|f|n|r
 - n Hash on bytes 2 and 3 of the Layer 4 header of the rx packet.
 
 
-Known Issues/Troubleshooting
+Kanalwn Issues/Troubleshooting
 ============================
 
 Enabling SR-IOV in a 64-bit Microsoft Windows Server 2012/R2 guest OS under Linux KVM

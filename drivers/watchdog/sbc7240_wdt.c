@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	NANO7240 SBC Watchdog device driver
+ *	NAANAL7240 SBC Watchdog device driver
  *
  *	Based on w83877f.c by Scott Jennings,
  *
@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/miscdevice.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
@@ -37,9 +37,9 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. (1<=timeout<="
 		 __MODULE_STRING(SBC7240_MAX_TIMEOUT) ", default="
 		 __MODULE_STRING(SBC7240_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Disable watchdog when closing device file");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Disable watchdog when closing device file");
 
 #define SBC7240_OPEN_STATUS_BIT		0
 #define SBC7240_ENABLED_STATUS_BIT	1
@@ -55,7 +55,7 @@ static void wdt_disable(void)
 	/* disable the watchdog */
 	if (test_and_clear_bit(SBC7240_ENABLED_STATUS_BIT, &wdt_status)) {
 		inb_p(SBC7240_DISABLE_PORT);
-		pr_info("Watchdog timer is now disabled\n");
+		pr_info("Watchdog timer is analw disabled\n");
 	}
 }
 
@@ -64,7 +64,7 @@ static void wdt_enable(void)
 	/* enable the watchdog */
 	if (!test_and_set_bit(SBC7240_ENABLED_STATUS_BIT, &wdt_status)) {
 		inb_p(SBC7240_ENABLE_PORT);
-		pr_info("Watchdog timer is now enabled\n");
+		pr_info("Watchdog timer is analw enabled\n");
 	}
 }
 
@@ -98,7 +98,7 @@ static ssize_t fop_write(struct file *file, const char __user *buf,
 	char c;
 
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			clear_bit(SBC7240_EXPECT_CLOSE_STATUS_BIT,
 				&wdt_status);
 
@@ -120,23 +120,23 @@ static ssize_t fop_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int fop_open(struct inode *inode, struct file *file)
+static int fop_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(SBC7240_OPEN_STATUS_BIT, &wdt_status))
 		return -EBUSY;
 
 	wdt_enable();
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int fop_close(struct inode *inode, struct file *file)
+static int fop_close(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_clear_bit(SBC7240_EXPECT_CLOSE_STATUS_BIT, &wdt_status)
-	    || !nowayout) {
+	    || !analwayout) {
 		wdt_disable();
 	} else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, analt stopping watchdog!\n");
 		wdt_keepalive();
 	}
 
@@ -199,13 +199,13 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, (int __user *)arg);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
 static const struct file_operations wdt_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.write = fop_write,
 	.open = fop_open,
 	.release = fop_close,
@@ -214,25 +214,25 @@ static const struct file_operations wdt_fops = {
 };
 
 static struct miscdevice wdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.mianalr = WATCHDOG_MIANALR,
 	.name = "watchdog",
 	.fops = &wdt_fops,
 };
 
 /*
- *	Notifier for system down
+ *	Analtifier for system down
  */
 
-static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
+static int wdt_analtify_sys(struct analtifier_block *this, unsigned long code,
 			  void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		wdt_disable();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block wdt_notifier = {
-	.notifier_call = wdt_notify_sys,
+static struct analtifier_block wdt_analtifier = {
+	.analtifier_call = wdt_analtify_sys,
 };
 
 static void __exit sbc7240_wdt_unload(void)
@@ -240,7 +240,7 @@ static void __exit sbc7240_wdt_unload(void)
 	pr_info("Removing watchdog\n");
 	misc_deregister(&wdt_miscdev);
 
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_analtifier(&wdt_analtifier);
 	release_region(SBC7240_ENABLE_PORT, 1);
 }
 
@@ -267,26 +267,26 @@ static int __init sbc7240_wdt_init(void)
 	wdt_set_timeout(timeout);
 	wdt_disable();
 
-	rc = register_reboot_notifier(&wdt_notifier);
+	rc = register_reboot_analtifier(&wdt_analtifier);
 	if (rc) {
-		pr_err("cannot register reboot notifier (err=%d)\n", rc);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", rc);
 		goto err_out_region;
 	}
 
 	rc = misc_register(&wdt_miscdev);
 	if (rc) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       wdt_miscdev.minor, rc);
-		goto err_out_reboot_notifier;
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       wdt_miscdev.mianalr, rc);
+		goto err_out_reboot_analtifier;
 	}
 
-	pr_info("Watchdog driver for SBC7240 initialised (nowayout=%d)\n",
-		nowayout);
+	pr_info("Watchdog driver for SBC7240 initialised (analwayout=%d)\n",
+		analwayout);
 
 	return 0;
 
-err_out_reboot_notifier:
-	unregister_reboot_notifier(&wdt_notifier);
+err_out_reboot_analtifier:
+	unregister_reboot_analtifier(&wdt_analtifier);
 err_out_region:
 	release_region(SBC7240_ENABLE_PORT, 1);
 err_out:
@@ -298,5 +298,5 @@ module_exit(sbc7240_wdt_unload);
 
 MODULE_AUTHOR("Gilles Gigan");
 MODULE_DESCRIPTION("Watchdog device driver for single board"
-		   " computers EPIC Nano 7240 from iEi");
+		   " computers EPIC Naanal 7240 from iEi");
 MODULE_LICENSE("GPL");

@@ -2,7 +2,7 @@
 /*
  * TPA6130A2 driver platform header
  *
- * Copyright (C) Nokia Corporation
+ * Copyright (C) Analkia Corporation
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  */

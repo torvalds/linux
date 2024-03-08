@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -110,7 +110,7 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 
 	dev_dbg(&socket->dev, "pcmcia_register_socket(0x%p)\n", socket->ops);
 
-	/* try to obtain a socket number [yes, it gets ugly if we
+	/* try to obtain a socket number [anal, it gets ugly if we
 	 * register more than 2^sizeof(unsigned int) pcmcia
 	 * sockets... but the socket number is deprecated
 	 * anyways, so I don't care] */
@@ -135,7 +135,7 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 
 #ifndef CONFIG_CARDBUS
 	/*
-	 * If we do not support Cardbus, ensure that
+	 * If we do analt support Cardbus, ensure that
 	 * the Cardbus socket capability is disabled.
 	 */
 	socket->features &= ~SS_CAP_CARDBUS;
@@ -175,7 +175,7 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	wait_for_completion(&socket->thread_done);
 	if (!socket->thread) {
 		dev_warn(&socket->dev,
-			 "PCMCIA: warning: socket thread did not start\n");
+			 "PCMCIA: warning: socket thread did analt start\n");
 		return -EIO;
 	}
 
@@ -184,9 +184,9 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	/*
 	 * Let's try to get the PCMCIA module for 16-bit PCMCIA support.
 	 * If it fails, it doesn't matter -- we still have 32-bit CardBus
-	 * support to offer, so this is not a failure mode.
+	 * support to offer, so this is analt a failure mode.
 	 */
-	request_module_nowait("pcmcia");
+	request_module_analwait("pcmcia");
 
 	return 0;
 
@@ -264,7 +264,7 @@ static int socket_reset(struct pcmcia_socket *skt)
 		skt->ops->get_status(skt, &status);
 
 		if (!(status & SS_DETECT))
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (status & SS_READY)
 			return 0;
@@ -337,14 +337,14 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 
 	skt->ops->get_status(skt, &status);
 	if (!(status & SS_DETECT))
-		return -ENODEV;
+		return -EANALDEV;
 
 	msleep(initial_delay * 10);
 
 	for (i = 0; i < 100; i++) {
 		skt->ops->get_status(skt, &status);
 		if (!(status & SS_DETECT))
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (!(status & SS_PENDING))
 			break;
@@ -359,7 +359,7 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 
 	if (status & SS_CARDBUS) {
 		if (!(skt->features & SS_CAP_CARDBUS)) {
-			dev_err(&skt->dev, "cardbus cards are not supported\n");
+			dev_err(&skt->dev, "cardbus cards are analt supported\n");
 			return -EINVAL;
 		}
 		skt->state |= SOCKET_CARDBUS;
@@ -424,7 +424,7 @@ static int socket_insert(struct pcmcia_socket *skt)
 	if (ret == 0) {
 		skt->state |= SOCKET_PRESENT;
 
-		dev_notice(&skt->dev, "pccard: %s card inserted into slot %d\n",
+		dev_analtice(&skt->dev, "pccard: %s card inserted into slot %d\n",
 			   (skt->state & SOCKET_CARDBUS) ? "CardBus" : "PCMCIA",
 			   skt->sock);
 
@@ -453,7 +453,7 @@ static int socket_suspend(struct pcmcia_socket *skt)
 		return -EBUSY;
 
 	mutex_lock(&skt->ops_mutex);
-	/* store state on first suspend, but not after spurious wakeups */
+	/* store state on first suspend, but analt after spurious wakeups */
 	if (!(skt->state & SOCKET_IN_RESUME))
 		skt->suspended_state = skt->state;
 
@@ -490,7 +490,7 @@ static int socket_late_resume(struct pcmcia_socket *skt)
 
 	if (!(skt->state & SOCKET_PRESENT)) {
 		ret = socket_insert(skt);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			ret = 0;
 		return ret;
 	}
@@ -517,7 +517,7 @@ static int socket_late_resume(struct pcmcia_socket *skt)
 /*
  * Finalize the resume. In case of a cardbus socket, we have
  * to rebind the devices as we can't be certain that it has been
- * replaced, or not.
+ * replaced, or analt.
  */
 static int socket_complete_resume(struct pcmcia_socket *skt)
 {
@@ -556,7 +556,7 @@ static int socket_resume(struct pcmcia_socket *skt)
 
 static void socket_remove(struct pcmcia_socket *skt)
 {
-	dev_notice(&skt->dev, "pccard: card ejected from slot %d\n", skt->sock);
+	dev_analtice(&skt->dev, "pccard: card ejected from slot %d\n", skt->sock);
 	socket_shutdown(skt);
 }
 
@@ -765,8 +765,8 @@ int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c)
 EXPORT_SYMBOL(pccard_register_pcmcia);
 
 
-/* I'm not sure which "reset" function this is supposed to use,
- * but for now, it uses the low-level interface's reset, not the
+/* I'm analt sure which "reset" function this is supposed to use,
+ * but for analw, it uses the low-level interface's reset, analt the
  * CIS register.
  */
 
@@ -779,8 +779,8 @@ int pcmcia_reset_card(struct pcmcia_socket *skt)
 	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
-			dev_dbg(&skt->dev, "can't reset, not present\n");
-			ret = -ENODEV;
+			dev_dbg(&skt->dev, "can't reset, analt present\n");
+			ret = -EANALDEV;
 			break;
 		}
 		if (skt->state & SOCKET_SUSPEND) {
@@ -816,8 +816,8 @@ static int pcmcia_socket_uevent(const struct device *dev,
 {
 	const struct pcmcia_socket *s = container_of(dev, struct pcmcia_socket, dev);
 
-	if (add_uevent_var(env, "SOCKET_NO=%u", s->sock))
-		return -ENOMEM;
+	if (add_uevent_var(env, "SOCKET_ANAL=%u", s->sock))
+		return -EANALMEM;
 
 	return 0;
 }
@@ -846,12 +846,12 @@ static int __pcmcia_pm_op(struct device *dev,
 	return ret;
 }
 
-static int pcmcia_socket_dev_suspend_noirq(struct device *dev)
+static int pcmcia_socket_dev_suspend_analirq(struct device *dev)
 {
 	return __pcmcia_pm_op(dev, socket_suspend);
 }
 
-static int pcmcia_socket_dev_resume_noirq(struct device *dev)
+static int pcmcia_socket_dev_resume_analirq(struct device *dev)
 {
 	return __pcmcia_pm_op(dev, socket_early_resume);
 }
@@ -873,14 +873,14 @@ static const struct dev_pm_ops pcmcia_socket_pm_ops = {
 				pcmcia_socket_dev_resume)
 
 	/* late suspend must be called with IRQs disabled */
-	.suspend_noirq = pcmcia_socket_dev_suspend_noirq,
-	.freeze_noirq = pcmcia_socket_dev_suspend_noirq,
-	.poweroff_noirq = pcmcia_socket_dev_suspend_noirq,
+	.suspend_analirq = pcmcia_socket_dev_suspend_analirq,
+	.freeze_analirq = pcmcia_socket_dev_suspend_analirq,
+	.poweroff_analirq = pcmcia_socket_dev_suspend_analirq,
 
 	/* early resume must be called with IRQs disabled */
-	.resume_noirq = pcmcia_socket_dev_resume_noirq,
-	.thaw_noirq = pcmcia_socket_dev_resume_noirq,
-	.restore_noirq = pcmcia_socket_dev_resume_noirq,
+	.resume_analirq = pcmcia_socket_dev_resume_analirq,
+	.thaw_analirq = pcmcia_socket_dev_resume_analirq,
+	.restore_analirq = pcmcia_socket_dev_resume_analirq,
 	.complete = pcmcia_socket_dev_complete,
 };
 

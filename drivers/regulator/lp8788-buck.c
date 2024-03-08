@@ -313,7 +313,7 @@ static int lp8788_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_FAST:
 		val = LP8788_FORCE_PWM << BUCK_FPWM_SHIFT(id);
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = LP8788_AUTO_PWM << BUCK_FPWM_SHIFT(id);
 		break;
 	default:
@@ -335,7 +335,7 @@ static unsigned int lp8788_buck_get_mode(struct regulator_dev *rdev)
 		return ret;
 
 	return val & BUCK_FPWM_MASK(id) ?
-				REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
+				REGULATOR_MODE_FAST : REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct regulator_ops lp8788_buck12_ops = {
@@ -463,11 +463,11 @@ static int lp8788_init_dvs(struct platform_device *pdev,
 	u8 val[]  = { LP8788_BUCK1_DVS_PIN, LP8788_BUCK2_DVS_PIN };
 	u8 default_dvs_mode[] = { LP8788_BUCK1_DVS_I2C, LP8788_BUCK2_DVS_I2C };
 
-	/* no dvs for buck3, 4 */
+	/* anal dvs for buck3, 4 */
 	if (id > BUCK2)
 		return 0;
 
-	/* no dvs platform data, then dvs will be selected by I2C registers */
+	/* anal dvs platform data, then dvs will be selected by I2C registers */
 	if (!pdata)
 		goto set_default_dvs_mode;
 
@@ -500,7 +500,7 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 
 	buck = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_buck), GFP_KERNEL);
 	if (!buck)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buck->lp = lp;
 
@@ -531,7 +531,7 @@ static struct platform_driver lp8788_buck_driver = {
 	.probe = lp8788_buck_probe,
 	.driver = {
 		.name = LP8788_DEV_BUCK,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

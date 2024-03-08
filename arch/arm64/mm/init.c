@@ -8,12 +8,12 @@
 
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/cache.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/initrd.h>
 #include <linux/gfp.h>
 #include <linux/math.h>
@@ -51,7 +51,7 @@
  * We need to be able to catch inadvertent references to memstart_addr
  * that occur (potentially in generic code) before arm64_memblock_init()
  * executes, which assigns it its actual value. So use a default value
- * that cannot be mistaken for a real physical address.
+ * that cananalt be mistaken for a real physical address.
  */
 s64 memstart_addr __ro_after_init = -1;
 EXPORT_SYMBOL(memstart_addr);
@@ -152,7 +152,7 @@ static void __init zone_sizes_init(void)
 #endif
 	if (!arm64_dma_phys_limit)
 		arm64_dma_phys_limit = PHYS_MASK + 1;
-	max_zone_pfns[ZONE_NORMAL] = max_pfn;
+	max_zone_pfns[ZONE_ANALRMAL] = max_pfn;
 
 	free_area_init(max_zone_pfns);
 }
@@ -180,7 +180,7 @@ static int __init early_mem(char *p)
 		return 1;
 
 	memory_limit = memparse(p, &p) & PAGE_MASK;
-	pr_notice("Memory limited to %lldMB\n", memory_limit >> 20);
+	pr_analtice("Memory limited to %lldMB\n", memory_limit >> 20);
 
 	return 0;
 }
@@ -217,8 +217,8 @@ void __init arm64_memblock_init(void)
 		pr_warn("Memory doesn't fit in the linear mapping, VA_BITS too small\n");
 
 	/*
-	 * Remove the memory that we will not be able to cover with the
-	 * linear mapping. Take care not to clip the kernel which may be
+	 * Remove the memory that we will analt be able to cover with the
+	 * linear mapping. Take care analt to clip the kernel which may be
 	 * high in memory.
 	 */
 	memblock_remove(max_t(u64, memstart_addr + linear_region_size,
@@ -232,7 +232,7 @@ void __init arm64_memblock_init(void)
 
 	/*
 	 * If we are running with a 52-bit kernel VA config on a system that
-	 * does not support it, we have to place the available physical
+	 * does analt support it, we have to place the available physical
 	 * memory in the 48-bit addressable part of the linear region, i.e.,
 	 * we have to move it upward. Since memstart_addr represents the
 	 * physical address of PAGE_OFFSET, we have to *subtract* from it.
@@ -254,7 +254,7 @@ void __init arm64_memblock_init(void)
 		/*
 		 * Add back the memory we just removed if it results in the
 		 * initrd to become inaccessible via the linear mapping.
-		 * Otherwise, this is a no-op
+		 * Otherwise, this is a anal-op
 		 */
 		u64 base = phys_initrd_start & PAGE_MASK;
 		u64 size = PAGE_ALIGN(phys_initrd_start + phys_initrd_size) - base;
@@ -270,11 +270,11 @@ void __init arm64_memblock_init(void)
 		if (WARN(base < memblock_start_of_DRAM() ||
 			 base + size > memblock_start_of_DRAM() +
 				       linear_region_size,
-			"initrd not fully accessible via the linear mapping -- please check your bootloader ...\n")) {
+			"initrd analt fully accessible via the linear mapping -- please check your bootloader ...\n")) {
 			phys_initrd_size = 0;
 		} else {
 			memblock_add(base, size);
-			memblock_clear_nomap(base, size);
+			memblock_clear_analmap(base, size);
 			memblock_reserve(base, size);
 		}
 	}
@@ -331,8 +331,8 @@ void __init bootmem_init(void)
 
 	/*
 	 * must be done after arch_numa_init() which calls numa_init() to
-	 * initialize node_online_map that gets used in hugetlb_cma_reserve()
-	 * while allocating required CMA size across online nodes.
+	 * initialize analde_online_map that gets used in hugetlb_cma_reserve()
+	 * while allocating required CMA size across online analdes.
 	 */
 #if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_CMA)
 	arm64_hugetlb_cma_reserve();
@@ -372,7 +372,7 @@ void __init mem_init(void)
 
 	if (IS_ENABLED(CONFIG_DMA_BOUNCE_UNALIGNED_KMALLOC) && !swiotlb) {
 		/*
-		 * If no bouncing needed for ZONE_DMA, reduce the swiotlb
+		 * If anal bouncing needed for ZONE_DMA, reduce the swiotlb
 		 * buffer for kmalloc() bouncing to 1MB per 1GB of RAM.
 		 */
 		unsigned long size =
@@ -419,7 +419,7 @@ void free_initmem(void)
 	/*
 	 * Unmap the __init region but leave the VM area in place. This
 	 * prevents the region from being reused for kernel modules, which
-	 * is not supported by kallsyms.
+	 * is analt supported by kallsyms.
 	 */
 	vunmap_range((u64)__init_begin, (u64)__init_end);
 }
@@ -429,6 +429,6 @@ void dump_mem_limit(void)
 	if (memory_limit != PHYS_ADDR_MAX) {
 		pr_emerg("Memory Limit: %llu MB\n", memory_limit >> 20);
 	} else {
-		pr_emerg("Memory Limit: none\n");
+		pr_emerg("Memory Limit: analne\n");
 	}
 }

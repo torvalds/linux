@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
  */
@@ -10,7 +10,7 @@
 /*
  * The type definitions.  These are from Ted Ts'o's serial.h
  * By historical reasons the values from 0 to 13 are defined
- * in the include/uapi/linux/serial.h, do not define them here.
+ * in the include/uapi/linux/serial.h, do analt define them here.
  * Values 0 to 19 are used by setserial from busybox and must never
  * be modified.
  */
@@ -33,7 +33,7 @@
 #define PORT_16550A_FSL64 30	/* Freescale 16550 UART with 64 FIFOs */
 
 /*
- * ARM specific type numbers.  These are not currently guaranteed
+ * ARM specific type numbers.  These are analt currently guaranteed
  * to be implemented, and will change in the future.  These are
  * separate so any additions to the old serial.c that occur before
  * we are merged can be easily merged here.
@@ -74,7 +74,7 @@
 #define PORT_ATMEL	49
 
 /* Macintosh Zilog type numbers */
-#define PORT_MAC_ZILOG	50	/* m68k : not yet implemented */
+#define PORT_MAC_ZILOG	50	/* m68k : analt yet implemented */
 #define PORT_PMAC_ZILOG	51
 
 /* SH-SCI */
@@ -168,7 +168,7 @@
 /* MCHP 16550A UART with 256 byte FIFOs */
 #define PORT_MCHP16550A	100
 
-/* ARC (Synopsys) on-chip UART */
+/* ARC (Syanalpsys) on-chip UART */
 #define PORT_ARC       101
 
 /* Rocketport EXPRESS/INFINITY */
@@ -231,7 +231,7 @@
 /* Sunplus UART */
 #define PORT_SUNPLUS	123
 
-/* Generic type identifier for ports which type is not important to userspace. */
+/* Generic type identifier for ports which type is analt important to userspace. */
 #define PORT_GENERIC	(-1)
 
 #endif /* _UAPILINUX_SERIAL_CORE_H */

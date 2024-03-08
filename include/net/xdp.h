@@ -23,13 +23,13 @@
  * data-path read-access to RX-info for both kernel and bpf-side
  * (limited subset).
  *
- * For now, direct access is only safe while running in NAPI/softirq
- * context.  Contents are read-mostly and must not be updated during
+ * For analw, direct access is only safe while running in NAPI/softirq
+ * context.  Contents are read-mostly and must analt be updated during
  * driver NAPI/softirq poll.
  *
  * The driver usage API is a register and unregister API.
  *
- * The struct is not directly tied to the XDP prog.  A new XDP prog
+ * The struct is analt directly tied to the XDP prog.  A new XDP prog
  * can be attached as long as it doesn't change the underlying
  * RX-ring.  If the RX-ring does change significantly, the NIC driver
  * naturally needs to stop the RX-ring before purging and reallocating
@@ -51,7 +51,7 @@ enum xdp_mem_type {
 #define XDP_XMIT_FLAGS_MASK	XDP_XMIT_FLUSH
 
 struct xdp_mem_info {
-	u32 type; /* enum xdp_mem_type, but known size type */
+	u32 type; /* enum xdp_mem_type, but kanalwn size type */
 	u32 id;
 };
 
@@ -71,7 +71,7 @@ struct xdp_txq_info {
 };
 
 enum xdp_buff_flags {
-	XDP_FLAGS_HAS_FRAGS		= BIT(0), /* non-linear xdp buff */
+	XDP_FLAGS_HAS_FRAGS		= BIT(0), /* analn-linear xdp buff */
 	XDP_FLAGS_FRAGS_PF_MEMALLOC	= BIT(1), /* xdp paged memory is under
 						   * pressure
 						   */
@@ -136,7 +136,7 @@ xdp_prepare_buff(struct xdp_buff *xdp, unsigned char *hard_start,
 /* Reserve memory area at end-of data area.
  *
  * This macro reserves tailroom in the XDP buffer by limiting the
- * XDP/BPF data access to data_hard_end.  Notice same area (and size)
+ * XDP/BPF data access to data_hard_end.  Analtice same area (and size)
  * is used for XDP_PASS, when constructing the SKB via build_skb().
  */
 #define xdp_data_hard_end(xdp)				\
@@ -270,12 +270,12 @@ int xdp_update_frame_from_buff(struct xdp_buff *xdp,
 	metasize = xdp->data - xdp->data_meta;
 	metasize = metasize > 0 ? metasize : 0;
 	if (unlikely((headroom - metasize) < sizeof(*xdp_frame)))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Catch if driver didn't reserve tailroom for skb_shared_info */
 	if (unlikely(xdp->data_end > xdp_data_hard_end(xdp))) {
 		XDP_WARN("Driver BUG: missing reserved tailroom");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	xdp_frame->data = xdp->data;
@@ -352,7 +352,7 @@ int xdp_reg_mem_model(struct xdp_mem_info *mem,
 		      enum xdp_mem_type type, void *allocator);
 void xdp_unreg_mem_model(struct xdp_mem_info *mem);
 
-/* Drivers not supporting XDP metadata can use this helper, which
+/* Drivers analt supporting XDP metadata can use this helper, which
  * rejects any room expansion for metadata as a result.
  */
 static __always_inline void
@@ -431,7 +431,7 @@ enum xdp_rss_hash_type {
 	 * addition to the protocol specific bit.  This ease interaction with
 	 * SKBs and avoids reserving a fixed mask for future L4 protocol bits.
 	 */
-	XDP_RSS_L4		= BIT(3), /* L4 based hash, proto can be unknown */
+	XDP_RSS_L4		= BIT(3), /* L4 based hash, proto can be unkanalwn */
 	XDP_RSS_L4_TCP		= BIT(4),
 	XDP_RSS_L4_UDP		= BIT(5),
 	XDP_RSS_L4_SCTP		= BIT(6),
@@ -439,8 +439,8 @@ enum xdp_rss_hash_type {
 	XDP_RSS_L4_ICMP		= BIT(8),
 
 	/* Second part: RSS hash type combinations used for driver HW mapping */
-	XDP_RSS_TYPE_NONE            = 0,
-	XDP_RSS_TYPE_L2              = XDP_RSS_TYPE_NONE,
+	XDP_RSS_TYPE_ANALNE            = 0,
+	XDP_RSS_TYPE_L2              = XDP_RSS_TYPE_ANALNE,
 
 	XDP_RSS_TYPE_L3_IPV4         = XDP_RSS_L3_IPV4,
 	XDP_RSS_TYPE_L3_IPV6         = XDP_RSS_L3_IPV6,

@@ -5,7 +5,7 @@
 #define _GNU_SOURCE
 #endif
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/err.h>
 #include <stdbool.h>
@@ -151,7 +151,7 @@ static int codegen_datasec_def(struct bpf_object *obj,
 		int need_off = sec_var->offset, align_off, align;
 		__u32 var_type_id = var->type;
 
-		/* static variables are not exposed through BPF skeleton */
+		/* static variables are analt exposed through BPF skeleton */
 		if (btf_var(var)->linkage == BTF_VAR_STATIC)
 			continue;
 
@@ -168,13 +168,13 @@ static int codegen_datasec_def(struct bpf_object *obj,
 			return -EINVAL;
 		}
 		/* Assume 32-bit architectures when generating data section
-		 * struct memory layout. Given bpftool can't know which target
+		 * struct memory layout. Given bpftool can't kanalw which target
 		 * host architecture it's emitting skeleton for, we need to be
-		 * conservative and assume 32-bit one to ensure enough padding
+		 * conservative and assume 32-bit one to ensure eanalugh padding
 		 * bytes are generated for pointer and long types. This will
 		 * still work correctly for 64-bit architectures, because in
 		 * the worst case we'll generate unnecessary padding field,
-		 * which on 64-bit architectures is not strictly necessary and
+		 * which on 64-bit architectures is analt strictly necessary and
 		 * would be handled by natural 8-byte alignment. But it still
 		 * will be a correct memory layout, based on recorded offsets
 		 * in BTF.
@@ -253,7 +253,7 @@ static int codegen_datasecs(struct bpf_object *obj, const char *obj_name)
 
 	d = btf_dump__new(btf, codegen_btf_dump_printf, NULL, NULL);
 	if (!d)
-		return -errno;
+		return -erranal;
 
 	bpf_object__for_each_map(map, obj) {
 		/* only generate definitions for memory-mapped internal maps */
@@ -264,7 +264,7 @@ static int codegen_datasecs(struct bpf_object *obj, const char *obj_name)
 
 		/* In some cases (e.g., sections like .rodata.cst16 containing
 		 * compiler allocated string constants only) there will be
-		 * special internal maps with no corresponding DATASEC BTF
+		 * special internal maps with anal corresponding DATASEC BTF
 		 * type. In such case, generate empty structs for each such
 		 * map. It will still be memory-mapped and its contents
 		 * accessible from user-space through BPF skeleton.
@@ -306,7 +306,7 @@ static int codegen_subskel_datasecs(struct bpf_object *obj, const char *obj_name
 
 	d = btf_dump__new(btf, codegen_btf_dump_printf, NULL, NULL);
 	if (!d)
-		return -errno;
+		return -erranal;
 
 	bpf_object__for_each_map(map, obj) {
 		/* only generate definitions for memory-mapped internal maps */
@@ -338,7 +338,7 @@ static int codegen_subskel_datasecs(struct bpf_object *obj, const char *obj_name
 			var_name = btf__name_by_offset(btf, var->name_off);
 			var_type_id = var->type;
 
-			/* static variables are not exposed through BPF skeleton */
+			/* static variables are analt exposed through BPF skeleton */
 			if (btf_var(var)->linkage == BTF_VAR_STATIC)
 				continue;
 
@@ -352,7 +352,7 @@ static int codegen_subskel_datasecs(struct bpf_object *obj, const char *obj_name
 			 * Instead of producing `typename *var`, they produce
 			 * `typeof(typename) *var`. This allows us to keep a
 			 * similar syntax where the identifier is just prefixed
-			 * by *, allowing us to ignore C declaration minutiae.
+			 * by *, allowing us to iganalre C declaration minutiae.
 			 */
 			needs_typeof = btf_is_array(var) || btf_is_ptr_to_func_proto(btf, var);
 			if (needs_typeof)
@@ -408,7 +408,7 @@ static void codegen(const char *template, ...)
 		/* skip baseline indentation tabs */
 		for (n = skip_tabs; n > 0; n--, src++) {
 			if (*src != '\t') {
-				p_err("not enough tabs at pos %td in template '%s'",
+				p_err("analt eanalugh tabs at pos %td in template '%s'",
 				      src - template - 1, template);
 				free(s);
 				exit(-1);
@@ -504,7 +504,7 @@ static void codegen_asserts(struct bpf_object *obj, const char *obj_name)
 			const char *var_name = btf__name_by_offset(btf, var->name_off);
 			long var_size;
 
-			/* static variables are not exposed through BPF skeleton */
+			/* static variables are analt exposed through BPF skeleton */
 			if (btf_var(var)->linkage == BTF_VAR_STATIC)
 				continue;
 
@@ -558,7 +558,7 @@ static void codegen_attach_detach(struct bpf_object *obj, const char *obj_name)
 				printf("\tint fd = skel_raw_tracepoint_open(NULL, prog_fd);\n");
 			break;
 		default:
-			printf("\tint fd = ((void)prog_fd, 0); /* auto-attach not supported */\n");
+			printf("\tint fd = ((void)prog_fd, 0); /* auto-attach analt supported */\n");
 			break;
 		}
 		codegen("\
@@ -671,7 +671,7 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 		p_err("failed to load object file");
 		goto out;
 	}
-	/* If there was no error during load then gen_loader_opts
+	/* If there was anal error during load then gen_loader_opts
 	 * are populated with the loader program.
 	 */
 
@@ -778,7 +778,7 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 			skel->%1$s = skel_finalize_map_data(&skel->maps.%1$s.initial_value,  \n\
 							%2$zd, %3$s, skel->maps.%1$s.map_fd);\n\
 			if (!skel->%1$s)				    \n\
-				return -ENOMEM;				    \n\
+				return -EANALMEM;				    \n\
 			",
 		       ident, bpf_map_mmap_sz(map), mmap_flags);
 	}
@@ -835,7 +835,7 @@ codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped)
 			s->map_skel_sz = sizeof(*s->maps);	    \n\
 			s->maps = (struct bpf_map_skeleton *)calloc(s->map_cnt, s->map_skel_sz);\n\
 			if (!s->maps) {				    \n\
-				err = -ENOMEM;			    \n\
+				err = -EANALMEM;			    \n\
 				goto err;			    \n\
 			}					    \n\
 		",
@@ -879,7 +879,7 @@ codegen_progs_skeleton(struct bpf_object *obj, size_t prog_cnt, bool populate_li
 			s->prog_skel_sz = sizeof(*s->progs);	    \n\
 			s->progs = (struct bpf_prog_skeleton *)calloc(s->prog_cnt, s->prog_skel_sz);\n\
 			if (!s->progs) {			    \n\
-				err = -ENOMEM;			    \n\
+				err = -EANALMEM;			    \n\
 				goto err;			    \n\
 			}					    \n\
 		",
@@ -942,7 +942,7 @@ static int do_skeleton(int argc, char **argv)
 			strncpy(obj_name, *argv, MAX_OBJ_NAME_LEN - 1);
 			obj_name[MAX_OBJ_NAME_LEN - 1] = '\0';
 		} else {
-			p_err("unknown arg %s", *argv);
+			p_err("unkanalwn arg %s", *argv);
 			return -1;
 		}
 
@@ -950,38 +950,38 @@ static int do_skeleton(int argc, char **argv)
 	}
 
 	if (argc) {
-		p_err("extra unknown arguments");
+		p_err("extra unkanalwn arguments");
 		return -1;
 	}
 
 	if (stat(file, &st)) {
-		p_err("failed to stat() %s: %s", file, strerror(errno));
+		p_err("failed to stat() %s: %s", file, strerror(erranal));
 		return -1;
 	}
 	file_sz = st.st_size;
 	mmap_sz = roundup(file_sz, sysconf(_SC_PAGE_SIZE));
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
-		p_err("failed to open() %s: %s", file, strerror(errno));
+		p_err("failed to open() %s: %s", file, strerror(erranal));
 		return -1;
 	}
 	obj_data = mmap(NULL, mmap_sz, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (obj_data == MAP_FAILED) {
 		obj_data = NULL;
-		p_err("failed to mmap() %s: %s", file, strerror(errno));
+		p_err("failed to mmap() %s: %s", file, strerror(erranal));
 		goto out;
 	}
 	if (obj_name[0] == '\0')
 		get_obj_name(obj_name, file);
 	opts.object_name = obj_name;
 	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		/* log_level1 + log_level2 + stats, but analt stable UAPI */
 		opts.kernel_log_level = 1 + 2 + 4;
 	obj = bpf_object__open_mem(obj_data, file_sz, &opts);
 	if (!obj) {
 		char err_buf[256];
 
-		err = -errno;
+		err = -erranal;
 		libbpf_strerror(err, err_buf, sizeof(err_buf));
 		p_err("failed to open BPF object file: %s", err_buf);
 		goto out;
@@ -989,7 +989,7 @@ static int do_skeleton(int argc, char **argv)
 
 	bpf_object__for_each_map(map, obj) {
 		if (!get_map_ident(map, ident, sizeof(ident))) {
-			p_err("ignoring unrecognized internal map '%s'...",
+			p_err("iganalring unrecognized internal map '%s'...",
 			      bpf_map__name(map));
 			continue;
 		}
@@ -1024,7 +1024,7 @@ static int do_skeleton(int argc, char **argv)
 		#ifndef %2$s						    \n\
 		#define %2$s						    \n\
 									    \n\
-		#include <errno.h>					    \n\
+		#include <erranal.h>					    \n\
 		#include <stdlib.h>					    \n\
 		#include <bpf/libbpf.h>					    \n\
 									    \n\
@@ -1118,7 +1118,7 @@ static int do_skeleton(int argc, char **argv)
 									    \n\
 			obj = (struct %1$s *)calloc(1, sizeof(*obj));	    \n\
 			if (!obj) {					    \n\
-				errno = ENOMEM;				    \n\
+				erranal = EANALMEM;				    \n\
 				return NULL;				    \n\
 			}						    \n\
 									    \n\
@@ -1133,7 +1133,7 @@ static int do_skeleton(int argc, char **argv)
 			return obj;					    \n\
 		err_out:						    \n\
 			%1$s__destroy(obj);				    \n\
-			errno = -err;					    \n\
+			erranal = -err;					    \n\
 			return NULL;					    \n\
 		}							    \n\
 									    \n\
@@ -1161,7 +1161,7 @@ static int do_skeleton(int argc, char **argv)
 			err = %1$s__load(obj);				    \n\
 			if (err) {					    \n\
 				%1$s__destroy(obj);			    \n\
-				errno = -err;				    \n\
+				erranal = -err;				    \n\
 				return NULL;				    \n\
 			}						    \n\
 			return obj;					    \n\
@@ -1195,7 +1195,7 @@ static int do_skeleton(int argc, char **argv)
 									    \n\
 			s = (struct bpf_object_skeleton *)calloc(1, sizeof(*s));\n\
 			if (!s)	{					    \n\
-				err = -ENOMEM;				    \n\
+				err = -EANALMEM;				    \n\
 				goto err;				    \n\
 			}						    \n\
 									    \n\
@@ -1270,12 +1270,12 @@ out:
 }
 
 /* Subskeletons are like skeletons, except they don't own the bpf_object,
- * associated maps, links, etc. Instead, they know about the existence of
+ * associated maps, links, etc. Instead, they kanalw about the existence of
  * variables, maps, programs and are able to find their locations
  * _at runtime_ from an already loaded bpf_object.
  *
  * This allows for library-like BPF objects to have userspace counterparts
- * with access to their own items without having to know anything about the
+ * with access to their own items without having to kanalw anything about the
  * final BPF object that the library was linked into.
  */
 static int do_subskeleton(int argc, char **argv)
@@ -1316,7 +1316,7 @@ static int do_subskeleton(int argc, char **argv)
 			strncpy(obj_name, *argv, MAX_OBJ_NAME_LEN - 1);
 			obj_name[MAX_OBJ_NAME_LEN - 1] = '\0';
 		} else {
-			p_err("unknown arg %s", *argv);
+			p_err("unkanalwn arg %s", *argv);
 			return -1;
 		}
 
@@ -1324,30 +1324,30 @@ static int do_subskeleton(int argc, char **argv)
 	}
 
 	if (argc) {
-		p_err("extra unknown arguments");
+		p_err("extra unkanalwn arguments");
 		return -1;
 	}
 
 	if (use_loader) {
-		p_err("cannot use loader for subskeletons");
+		p_err("cananalt use loader for subskeletons");
 		return -1;
 	}
 
 	if (stat(file, &st)) {
-		p_err("failed to stat() %s: %s", file, strerror(errno));
+		p_err("failed to stat() %s: %s", file, strerror(erranal));
 		return -1;
 	}
 	file_sz = st.st_size;
 	mmap_sz = roundup(file_sz, sysconf(_SC_PAGE_SIZE));
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
-		p_err("failed to open() %s: %s", file, strerror(errno));
+		p_err("failed to open() %s: %s", file, strerror(erranal));
 		return -1;
 	}
 	obj_data = mmap(NULL, mmap_sz, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (obj_data == MAP_FAILED) {
 		obj_data = NULL;
-		p_err("failed to mmap() %s: %s", file, strerror(errno));
+		p_err("failed to mmap() %s: %s", file, strerror(erranal));
 		goto out;
 	}
 	if (obj_name[0] == '\0')
@@ -1361,7 +1361,7 @@ static int do_subskeleton(int argc, char **argv)
 	if (!obj) {
 		char err_buf[256];
 
-		libbpf_strerror(errno, err_buf, sizeof(err_buf));
+		libbpf_strerror(erranal, err_buf, sizeof(err_buf));
 		p_err("failed to open BPF object file: %s", err_buf);
 		obj = NULL;
 		goto out;
@@ -1420,7 +1420,7 @@ static int do_subskeleton(int argc, char **argv)
 	#ifndef %2$s							    \n\
 	#define %2$s							    \n\
 									    \n\
-	#include <errno.h>						    \n\
+	#include <erranal.h>						    \n\
 	#include <stdlib.h>						    \n\
 	#include <bpf/libbpf.h>						    \n\
 									    \n\
@@ -1452,7 +1452,7 @@ static int do_subskeleton(int argc, char **argv)
 	if (err)
 		goto out;
 
-	/* emit code that will allocate enough storage for all symbols */
+	/* emit code that will allocate eanalugh storage for all symbols */
 	codegen("\
 		\n\
 									    \n\
@@ -1481,12 +1481,12 @@ static int do_subskeleton(int argc, char **argv)
 									    \n\
 			obj = (struct %1$s *)calloc(1, sizeof(*obj));	    \n\
 			if (!obj) {					    \n\
-				err = -ENOMEM;				    \n\
+				err = -EANALMEM;				    \n\
 				goto err;				    \n\
 			}						    \n\
 			s = (struct bpf_object_subskeleton *)calloc(1, sizeof(*s));\n\
 			if (!s) {					    \n\
-				err = -ENOMEM;				    \n\
+				err = -EANALMEM;				    \n\
 				goto err;				    \n\
 			}						    \n\
 			s->sz = sizeof(*s);				    \n\
@@ -1498,7 +1498,7 @@ static int do_subskeleton(int argc, char **argv)
 			s->var_cnt = %2$d;				    \n\
 			s->vars = (struct bpf_var_skeleton *)calloc(%2$d, sizeof(*s->vars));\n\
 			if (!s->vars) {					    \n\
-				err = -ENOMEM;				    \n\
+				err = -EANALMEM;				    \n\
 				goto err;				    \n\
 			}						    \n\
 		",
@@ -1512,7 +1512,7 @@ static int do_subskeleton(int argc, char **argv)
 
 		map_type_id = bpf_map__btf_value_type_id(map);
 		if (map_type_id <= 0)
-			/* skip over internal maps with no type*/
+			/* skip over internal maps with anal type*/
 			continue;
 
 		map_type = btf__type_by_id(btf, map_type_id);
@@ -1525,7 +1525,7 @@ static int do_subskeleton(int argc, char **argv)
 			if (btf_var(var_type)->linkage == BTF_VAR_STATIC)
 				continue;
 
-			/* Note that we use the dot prefix in .data as the
+			/* Analte that we use the dot prefix in .data as the
 			 * field access operator i.e. maps%s becomes maps.data
 			 */
 			codegen("\
@@ -1553,7 +1553,7 @@ static int do_subskeleton(int argc, char **argv)
 			return obj;					    \n\
 		err:							    \n\
 			%1$s__destroy(obj);				    \n\
-			errno = -err;					    \n\
+			erranal = -err;					    \n\
 			return NULL;					    \n\
 		}							    \n\
 									    \n\
@@ -1598,14 +1598,14 @@ static int do_object(int argc, char **argv)
 
 		err = bpf_linker__add_file(linker, file, NULL);
 		if (err) {
-			p_err("failed to link '%s': %s (%d)", file, strerror(errno), errno);
+			p_err("failed to link '%s': %s (%d)", file, strerror(erranal), erranal);
 			goto out;
 		}
 	}
 
 	err = bpf_linker__finalize(linker);
 	if (err) {
-		p_err("failed to finalize ELF file: %s (%d)", strerror(errno), errno);
+		p_err("failed to finalize ELF file: %s (%d)", strerror(erranal), erranal);
 		goto out;
 	}
 
@@ -1646,14 +1646,14 @@ static int btf_save_raw(const struct btf *btf, const char *path)
 
 	data = btf__raw_data(btf, &data_sz);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f = fopen(path, "wb");
 	if (!f)
-		return -errno;
+		return -erranal;
 
 	if (fwrite(data, 1, data_sz, f) != data_sz)
-		err = -errno;
+		err = -erranal;
 
 	fclose(f);
 	return err;
@@ -1697,15 +1697,15 @@ btfgen_new_info(const char *targ_btf_path)
 
 	info->src_btf = btf__parse(targ_btf_path, NULL);
 	if (!info->src_btf) {
-		err = -errno;
-		p_err("failed parsing '%s' BTF file: %s", targ_btf_path, strerror(errno));
+		err = -erranal;
+		p_err("failed parsing '%s' BTF file: %s", targ_btf_path, strerror(erranal));
 		goto err_out;
 	}
 
 	info->marked_btf = btf__parse(targ_btf_path, NULL);
 	if (!info->marked_btf) {
-		err = -errno;
-		p_err("failed parsing '%s' BTF file: %s", targ_btf_path, strerror(errno));
+		err = -erranal;
+		p_err("failed parsing '%s' BTF file: %s", targ_btf_path, strerror(erranal));
 		goto err_out;
 	}
 
@@ -1713,7 +1713,7 @@ btfgen_new_info(const char *targ_btf_path)
 
 err_out:
 	btfgen_free_info(info);
-	errno = -err;
+	erranal = -err;
 	return NULL;
 }
 
@@ -1857,7 +1857,7 @@ static int btfgen_record_field_relo(struct btfgen_info *info, struct bpf_core_sp
 }
 
 /* Mark types, members, and member types. Compared to btfgen_record_field_relo,
- * this function does not rely on the target spec for inferring members, but
+ * this function does analt rely on the target spec for inferring members, but
  * uses the associated BTF.
  *
  * The `behind_ptr` argument is used to stop marking of composite types reached
@@ -1954,7 +1954,7 @@ static int btfgen_mark_type_match(struct btfgen_info *info, __u32 type_id, bool 
 }
 
 /* Mark types, members, and member types. Compared to btfgen_record_field_relo,
- * this function does not rely on the target spec for inferring members, but
+ * this function does analt rely on the target spec for inferring members, but
  * uses the associated BTF.
  */
 static int btfgen_record_type_match_relo(struct btfgen_info *info, struct bpf_core_spec *targ_spec)
@@ -2036,7 +2036,7 @@ btfgen_find_cands(const struct btf *local_btf, const struct btf *targ_btf, __u32
 
 err_out:
 	bpf_core_free_cands(cands);
-	errno = -err;
+	erranal = -err;
 	return NULL;
 }
 
@@ -2056,13 +2056,13 @@ static int btfgen_record_obj(struct btfgen_info *info, const char *obj_path)
 
 	btf = btf__parse(obj_path, &btf_ext);
 	if (!btf) {
-		err = -errno;
-		p_err("failed to parse BPF object '%s': %s", obj_path, strerror(errno));
+		err = -erranal;
+		p_err("failed to parse BPF object '%s': %s", obj_path, strerror(erranal));
 		return err;
 	}
 
 	if (!btf_ext) {
-		p_err("failed to parse BPF object '%s': section %s not found",
+		p_err("failed to parse BPF object '%s': section %s analt found",
 		      obj_path, BTF_EXT_ELF_SEC);
 		err = -EINVAL;
 		goto out;
@@ -2091,7 +2091,7 @@ static int btfgen_record_obj(struct btfgen_info *info, const char *obj_path)
 			    !hashmap__find(cand_cache, relo->type_id, &cands)) {
 				cands = btfgen_find_cands(btf, info->src_btf, relo->type_id);
 				if (!cands) {
-					err = -errno;
+					err = -erranal;
 					goto out;
 				}
 
@@ -2146,13 +2146,13 @@ static struct btf *btfgen_get_btf(struct btfgen_info *info)
 
 	btf_new = btf__new_empty();
 	if (!btf_new) {
-		err = -errno;
+		err = -erranal;
 		goto err_out;
 	}
 
 	ids = calloc(n, sizeof(*ids));
 	if (!ids) {
-		err = -errno;
+		err = -erranal;
 		goto err_out;
 	}
 
@@ -2227,7 +2227,7 @@ static struct btf *btfgen_get_btf(struct btfgen_info *info)
 err_out:
 	btf__free(btf_new);
 	free(ids);
-	errno = -err;
+	erranal = -err;
 	return NULL;
 }
 
@@ -2262,8 +2262,8 @@ static int minimize_btf(const char *src_btf, const char *dst_btf, const char *ob
 
 	info = btfgen_new_info(src_btf);
 	if (!info) {
-		err = -errno;
-		p_err("failed to allocate info structure: %s", strerror(errno));
+		err = -erranal;
+		p_err("failed to allocate info structure: %s", strerror(erranal));
 		goto out;
 	}
 
@@ -2271,21 +2271,21 @@ static int minimize_btf(const char *src_btf, const char *dst_btf, const char *ob
 		err = btfgen_record_obj(info, objspaths[i]);
 		if (err) {
 			p_err("error recording relocations for %s: %s", objspaths[i],
-			      strerror(errno));
+			      strerror(erranal));
 			goto out;
 		}
 	}
 
 	btf_new = btfgen_get_btf(info);
 	if (!btf_new) {
-		err = -errno;
-		p_err("error generating BTF: %s", strerror(errno));
+		err = -erranal;
+		p_err("error generating BTF: %s", strerror(erranal));
 		goto out;
 	}
 
 	err = btf_save_raw(btf_new, dst_btf);
 	if (err) {
-		p_err("error saving btf file: %s", strerror(errno));
+		p_err("error saving btf file: %s", strerror(erranal));
 		goto out;
 	}
 
@@ -2312,7 +2312,7 @@ static int do_min_core_btf(int argc, char **argv)
 	objs = (const char **) calloc(argc + 1, sizeof(*objs));
 	if (!objs) {
 		p_err("failed to allocate array for object names");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	i = 0;

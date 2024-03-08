@@ -130,7 +130,7 @@ enum m_can_reg {
 #define CCCR_WMM		BIT(11)
 #define CCCR_UTSU		BIT(10)
 
-/* Nominal Bit Timing & Prescaler Register (NBTP) */
+/* Analminal Bit Timing & Prescaler Register (NBTP) */
 #define NBTP_NSJW_MASK		GENMASK(31, 25)
 #define NBTP_NBRP_MASK		GENMASK(24, 16)
 #define NBTP_NTSEG1_MASK	GENMASK(15, 8)
@@ -263,7 +263,7 @@ enum m_can_reg {
 #define TXEFS_EFGI_MASK		GENMASK(12, 8)
 #define TXEFS_EFFL_MASK		GENMASK(5, 0)
 
-/* Tx Event FIFO Acknowledge (TXEFA) */
+/* Tx Event FIFO Ackanalwledge (TXEFA) */
 #define TXEFA_EFAI_MASK		GENMASK(4, 0)
 
 /* Message RAM Configuration (in bytes) */
@@ -357,7 +357,7 @@ m_can_fifo_write(struct m_can_classdev *cdev,
 	return cdev->ops->write_fifo(cdev, addr_offset, val, val_count);
 }
 
-static inline int m_can_fifo_write_no_off(struct m_can_classdev *cdev,
+static inline int m_can_fifo_write_anal_off(struct m_can_classdev *cdev,
 					  u32 fpi, u32 val)
 {
 	return cdev->ops->write_fifo(cdev, fpi, &val, 1);
@@ -459,9 +459,9 @@ static void m_can_clean(struct net_device *net)
 }
 
 /* For peripherals, pass skb to rx-offload, which will push skb from
- * napi. For non-peripherals, RX is done in napi already, so push
+ * napi. For analn-peripherals, RX is done in napi already, so push
  * directly. timestamp is used to ensure good skb ordering in
- * rx-offload and is ignored for non-peripherals.
+ * rx-offload and is iganalred for analn-peripherals.
  */
 static void m_can_receive_skb(struct m_can_classdev *cdev,
 			      struct sk_buff *skb,
@@ -559,7 +559,7 @@ static int m_can_do_rx_poll(struct net_device *dev, int quota)
 
 	rxfs = m_can_read(cdev, M_CAN_RXF0S);
 	if (!(rxfs & RXFS_FFL_MASK)) {
-		netdev_dbg(dev, "no messages in fifo0\n");
+		netdev_dbg(dev, "anal messages in fifo0\n");
 		return 0;
 	}
 
@@ -835,7 +835,7 @@ static void m_can_handle_other_err(struct net_device *dev, u32 irqstatus)
 
 static inline bool is_lec_err(u8 lec)
 {
-	return lec != LEC_NO_ERROR && lec != LEC_NO_CHANGE;
+	return lec != LEC_ANAL_ERROR && lec != LEC_ANAL_CHANGE;
 }
 
 static inline bool m_can_is_protocol_err(u32 irqstatus)
@@ -928,12 +928,12 @@ static int m_can_rx_handler(struct net_device *dev, int quota, u32 irqstatus)
 	/* Errata workaround for issue "Needless activation of MRAF irq"
 	 * During frame reception while the MCAN is in Error Passive state
 	 * and the Receive Error Counter has the value MCAN_ECR.REC = 127,
-	 * it may happen that MCAN_IR.MRAF is set although there was no
+	 * it may happen that MCAN_IR.MRAF is set although there was anal
 	 * Message RAM access failure.
 	 * If MCAN_IR.MRAF is enabled, an interrupt to the Host CPU is generated
 	 * The Message RAM Access Failure interrupt routine needs to check
 	 * whether MCAN_ECR.RP = ’1’ and MCAN_ECR.REC = 127.
-	 * In this case, reset MCAN_IR.MRAF. No further action is required.
+	 * In this case, reset MCAN_IR.MRAF. Anal further action is required.
 	 */
 	if (cdev->version <= 31 && irqstatus & IR_MRAF &&
 	    m_can_read(cdev, M_CAN_ECR) & ECR_RP) {
@@ -1005,7 +1005,7 @@ static int m_can_poll(struct napi_struct *napi, int quota)
 
 /* Echo tx skb and update net stats. Peripherals use rx-offload for
  * echo. timestamp is used for peripherals to ensure correct ordering
- * by rx-offload, and is ignored for non-peripherals.
+ * by rx-offload, and is iganalred for analn-peripherals.
  */
 static void m_can_tx_update_stats(struct m_can_classdev *cdev,
 				  unsigned int msg_mark,
@@ -1080,10 +1080,10 @@ static irqreturn_t m_can_isr(int irq, void *dev_id)
 	u32 ir;
 
 	if (pm_runtime_suspended(cdev->dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	ir = m_can_read(cdev, M_CAN_IR);
 	if (!ir)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* ACK all irqs */
 	m_can_write(cdev, M_CAN_IR, ir);
@@ -1255,7 +1255,7 @@ static int m_can_set_bittiming(struct net_device *dev)
 /* Configure M_CAN chip:
  * - set rx buffer/fifo element size
  * - configure rx fifo
- * - accept non-matching frame into fifo 0
+ * - accept analn-matching frame into fifo 0
  * - configure tx buffer
  *		- >= v3.1.x: TX FIFO is used
  * - configure mode
@@ -1288,7 +1288,7 @@ static int m_can_chip_config(struct net_device *dev)
 		    FIELD_PREP(RXESC_F1DS_MASK, RXESC_64B) |
 		    FIELD_PREP(RXESC_F0DS_MASK, RXESC_64B));
 
-	/* Accept Non-matching Frames Into FIFO 0 */
+	/* Accept Analn-matching Frames Into FIFO 0 */
 	m_can_write(cdev, M_CAN_GFC, 0x0);
 
 	if (cdev->version == 30) {
@@ -1348,7 +1348,7 @@ static int m_can_chip_config(struct net_device *dev)
 			  CCCR_NISO | CCCR_DAR);
 
 		/* Only 3.2.x has NISO Bit implemented */
-		if (cdev->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO)
+		if (cdev->can.ctrlmode & CAN_CTRLMODE_FD_ANALN_ISO)
 			cccr |= CCCR_NISO;
 
 		if (cdev->can.ctrlmode & CAN_CTRLMODE_FD)
@@ -1362,7 +1362,7 @@ static int m_can_chip_config(struct net_device *dev)
 	}
 
 	/* Enable Monitoring (all versions) */
-	if (cdev->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (cdev->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		cccr |= CCCR_MON;
 
 	/* Disable Auto Retransmission (all versions) */
@@ -1389,7 +1389,7 @@ static int m_can_chip_config(struct net_device *dev)
 	m_can_set_bittiming(dev);
 
 	/* enable internal timestamp generation, with a prescaler of 16. The
-	 * prescaler is applied to the nominal bit timing
+	 * prescaler is applied to the analminal bit timing
 	 */
 	m_can_write(cdev, M_CAN_TSCC,
 		    FIELD_PREP(TSCC_TCP_MASK, 0xf) |
@@ -1435,7 +1435,7 @@ static int m_can_set_mode(struct net_device *dev, enum can_mode mode)
 		netif_wake_queue(dev);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1471,7 +1471,7 @@ static int m_can_check_core_release(struct m_can_classdev *cdev)
 	return res;
 }
 
-/* Selectable Non ISO support only in version 3.2.x
+/* Selectable Analn ISO support only in version 3.2.x
  * This function checks if the bit is writable.
  */
 static bool m_can_niso_supported(struct m_can_classdev *cdev)
@@ -1528,7 +1528,7 @@ static int m_can_dev_setup(struct m_can_classdev *cdev)
 
 	/* Set M_CAN supported operations */
 	cdev->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
-		CAN_CTRLMODE_LISTENONLY |
+		CAN_CTRLMODE_LISTEANALNLY |
 		CAN_CTRLMODE_BERR_REPORTING |
 		CAN_CTRLMODE_FD |
 		CAN_CTRLMODE_ONE_SHOT;
@@ -1536,16 +1536,16 @@ static int m_can_dev_setup(struct m_can_classdev *cdev)
 	/* Set properties depending on M_CAN version */
 	switch (cdev->version) {
 	case 30:
-		/* CAN_CTRLMODE_FD_NON_ISO is fixed with M_CAN IP v3.0.x */
-		err = can_set_static_ctrlmode(dev, CAN_CTRLMODE_FD_NON_ISO);
+		/* CAN_CTRLMODE_FD_ANALN_ISO is fixed with M_CAN IP v3.0.x */
+		err = can_set_static_ctrlmode(dev, CAN_CTRLMODE_FD_ANALN_ISO);
 		if (err)
 			return err;
 		cdev->can.bittiming_const = &m_can_bittiming_const_30X;
 		cdev->can.data_bittiming_const = &m_can_data_bittiming_const_30X;
 		break;
 	case 31:
-		/* CAN_CTRLMODE_FD_NON_ISO is fixed with M_CAN IP v3.1.x */
-		err = can_set_static_ctrlmode(dev, CAN_CTRLMODE_FD_NON_ISO);
+		/* CAN_CTRLMODE_FD_ANALN_ISO is fixed with M_CAN IP v3.1.x */
+		err = can_set_static_ctrlmode(dev, CAN_CTRLMODE_FD_ANALN_ISO);
 		if (err)
 			return err;
 		cdev->can.bittiming_const = &m_can_bittiming_const_31X;
@@ -1559,7 +1559,7 @@ static int m_can_dev_setup(struct m_can_classdev *cdev)
 
 		cdev->can.ctrlmode_supported |=
 			(m_can_niso_supported(cdev) ?
-			 CAN_CTRLMODE_FD_NON_ISO : 0);
+			 CAN_CTRLMODE_FD_ANALN_ISO : 0);
 		break;
 	default:
 		dev_err(cdev->dev, "Unsupported version number: %2d",
@@ -1814,7 +1814,7 @@ static enum hrtimer_restart hrtimer_callback(struct hrtimer *timer)
 
 	m_can_isr(0, cdev->net);
 
-	hrtimer_forward_now(timer, ms_to_ktime(HRTIMER_POLL_INTERVAL_MS));
+	hrtimer_forward_analw(timer, ms_to_ktime(HRTIMER_POLL_INTERVAL_MS));
 
 	return HRTIMER_RESTART;
 }
@@ -1848,7 +1848,7 @@ static int m_can_open(struct net_device *dev)
 		cdev->tx_wq = alloc_workqueue("mcan_wq",
 					      WQ_FREEZABLE | WQ_MEM_RECLAIM, 0);
 		if (!cdev->tx_wq) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_wq_fail;
 		}
 
@@ -1980,7 +1980,7 @@ int m_can_init_ram(struct m_can_classdev *cdev)
 		cdev->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
 
 	for (i = start; i < end; i += 4) {
-		err = m_can_fifo_write_no_off(cdev, i, 0x0);
+		err = m_can_fifo_write_anal_off(cdev, i, 0x0);
 		if (err)
 			break;
 	}
@@ -1997,8 +1997,8 @@ int m_can_class_get_clocks(struct m_can_classdev *cdev)
 	cdev->cclk = devm_clk_get(cdev->dev, "cclk");
 
 	if (IS_ERR(cdev->hclk) || IS_ERR(cdev->cclk)) {
-		dev_err(cdev->dev, "no clock found\n");
-		ret = -ENODEV;
+		dev_err(cdev->dev, "anal clock found\n");
+		ret = -EANALDEV;
 	}
 
 	return ret;
@@ -2014,12 +2014,12 @@ struct m_can_classdev *m_can_class_allocate_dev(struct device *dev,
 	u32 tx_fifo_size;
 	int ret;
 
-	ret = fwnode_property_read_u32_array(dev_fwnode(dev),
+	ret = fwanalde_property_read_u32_array(dev_fwanalde(dev),
 					     "bosch,mram-cfg",
 					     mram_config_vals,
 					     sizeof(mram_config_vals) / 4);
 	if (ret) {
-		dev_err(dev, "Could not get Message RAM configuration.");
+		dev_err(dev, "Could analt get Message RAM configuration.");
 		goto out;
 	}
 

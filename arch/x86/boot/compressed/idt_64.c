@@ -54,7 +54,7 @@ void load_stage1_idt(void)
  * initialize_identity_maps(). And there's the catch 22: the boot #VC
  * handler do_boot_stage2_vc() needs to call early_setup_ghcb() itself
  * (and, especially set_page_decrypted()) because the SEV-ES setup code
- * cannot initialize a GHCB as there's no #PF handler yet...
+ * cananalt initialize a GHCB as there's anal #PF handler yet...
  */
 void load_stage2_idt(void)
 {
@@ -66,7 +66,7 @@ void load_stage2_idt(void)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	/*
 	 * Clear the second stage #VC handler in case guest types
-	 * needing #VC have not been detected.
+	 * needing #VC have analt been detected.
 	 */
 	if (sev_status & BIT(1))
 		set_idt_entry(X86_TRAP_VC, boot_stage2_vc);

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -90,11 +90,11 @@ static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 	 * put_page() on a TTM allocated page is illegal.
 	 */
 	if (order)
-		gfp_flags |= __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN |
+		gfp_flags |= __GFP_ANALMEMALLOC | __GFP_ANALRETRY | __GFP_ANALWARN |
 			__GFP_KSWAPD_RECLAIM;
 
 	if (!pool->use_dma_alloc) {
-		p = alloc_pages_node(pool->nid, gfp_flags, order);
+		p = alloc_pages_analde(pool->nid, gfp_flags, order);
 		if (p)
 			p->private = order;
 		return p;
@@ -105,7 +105,7 @@ static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 		return NULL;
 
 	if (order)
-		attr |= DMA_ATTR_NO_WARN;
+		attr |= DMA_ATTR_ANAL_WARN;
 
 	vaddr = dma_alloc_attrs(pool->dev, (1ULL << order) * PAGE_SIZE,
 				&dma->addr, gfp_flags, attr);
@@ -151,7 +151,7 @@ static void ttm_pool_free_page(struct ttm_pool *pool, enum ttm_caching caching,
 	}
 
 	if (order)
-		attr |= DMA_ATTR_NO_WARN;
+		attr |= DMA_ATTR_ANAL_WARN;
 
 	dma = (void *)p->private;
 	vaddr = (void *)(dma->vaddr & PAGE_MASK);
@@ -239,7 +239,7 @@ static void ttm_pool_type_give(struct ttm_pool_type *pt, struct page *p)
 	atomic_long_add(1 << pt->order, &allocated_pages);
 }
 
-/* Take pages from a specific pool_type, return NULL when nothing available */
+/* Take pages from a specific pool_type, return NULL when analthing available */
 static struct page *ttm_pool_type_take(struct ttm_pool_type *pt)
 {
 	struct page *p;
@@ -288,7 +288,7 @@ static struct ttm_pool_type *ttm_pool_select_type(struct ttm_pool *pool,
 						  enum ttm_caching caching,
 						  unsigned int order)
 {
-	if (pool->use_dma_alloc || pool->nid != NUMA_NO_NODE)
+	if (pool->use_dma_alloc || pool->nid != NUMA_ANAL_ANALDE)
 		return &pool->caching[caching].orders[order];
 
 #ifdef CONFIG_X86
@@ -502,7 +502,7 @@ int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 				--order;
 				continue;
 			}
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto error_free_all;
 		}
 	}
@@ -548,7 +548,7 @@ EXPORT_SYMBOL(ttm_pool_free);
  *
  * @pool: the pool to initialize
  * @dev: device for DMA allocations and mappings
- * @nid: NUMA node to use for allocations
+ * @nid: NUMA analde to use for allocations
  * @use_dma_alloc: true if coherent DMA alloc should be used
  * @use_dma32: true if GFP_DMA32 should be used
  *
@@ -566,7 +566,7 @@ void ttm_pool_init(struct ttm_pool *pool, struct device *dev,
 	pool->use_dma_alloc = use_dma_alloc;
 	pool->use_dma32 = use_dma32;
 
-	if (use_dma_alloc || nid != NUMA_NO_NODE) {
+	if (use_dma_alloc || nid != NUMA_ANAL_ANALDE) {
 		for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i)
 			for (j = 0; j < NR_PAGE_ORDERS; ++j)
 				ttm_pool_type_init(&pool->caching[i].orders[j],
@@ -599,14 +599,14 @@ void ttm_pool_fini(struct ttm_pool *pool)
 {
 	unsigned int i, j;
 
-	if (pool->use_dma_alloc || pool->nid != NUMA_NO_NODE) {
+	if (pool->use_dma_alloc || pool->nid != NUMA_ANAL_ANALDE) {
 		for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i)
 			for (j = 0; j < NR_PAGE_ORDERS; ++j)
 				ttm_pool_type_fini(&pool->caching[i].orders[j]);
 	}
 
 	/* We removed the pool types from the LRU, but we need to also make sure
-	 * that no shrinker is concurrently freeing pages from the pool.
+	 * that anal shrinker is concurrently freeing pages from the pool.
 	 */
 	ttm_pool_synchronize_shrinkers();
 }
@@ -625,7 +625,7 @@ static unsigned long ttm_pool_shrinker_scan(struct shrinker *shrink,
 	return num_freed;
 }
 
-/* Return the number of pages available or SHRINK_EMPTY if we have none */
+/* Return the number of pages available or SHRINK_EMPTY if we have analne */
 static unsigned long ttm_pool_shrinker_count(struct shrinker *shrink,
 					     struct shrink_control *sc)
 {
@@ -746,7 +746,7 @@ EXPORT_SYMBOL(ttm_pool_debugfs);
 /* Test the shrinker functions and dump the result */
 static int ttm_pool_debugfs_shrink_show(struct seq_file *m, void *data)
 {
-	struct shrink_control sc = { .gfp_mask = GFP_NOFS };
+	struct shrink_control sc = { .gfp_mask = GFP_ANALFS };
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	seq_printf(m, "%lu/%lu\n", ttm_pool_shrinker_count(mm_shrinker, &sc),
@@ -796,7 +796,7 @@ int ttm_pool_mgr_init(unsigned long num_pages)
 
 	mm_shrinker = shrinker_alloc(0, "drm-ttm_pool");
 	if (!mm_shrinker)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mm_shrinker->count_objects = ttm_pool_shrinker_count;
 	mm_shrinker->scan_objects = ttm_pool_shrinker_scan;

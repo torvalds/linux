@@ -18,18 +18,18 @@
  * batadv_test_bit() - check if bit is set in the current window
  *
  * @seq_bits: pointer to the sequence number receive packet
- * @last_seqno: latest sequence number in seq_bits
- * @curr_seqno: sequence number to test for
+ * @last_seqanal: latest sequence number in seq_bits
+ * @curr_seqanal: sequence number to test for
  *
  * Return: true if the corresponding bit in the given seq_bits indicates true
- * and curr_seqno is within range of last_seqno. Otherwise returns false.
+ * and curr_seqanal is within range of last_seqanal. Otherwise returns false.
  */
 static inline bool batadv_test_bit(const unsigned long *seq_bits,
-				   u32 last_seqno, u32 curr_seqno)
+				   u32 last_seqanal, u32 curr_seqanal)
 {
 	s32 diff;
 
-	diff = last_seqno - curr_seqno;
+	diff = last_seqanal - curr_seqanal;
 	if (diff < 0 || diff >= BATADV_TQ_LOCAL_WINDOW_SIZE)
 		return false;
 	return test_bit(diff, seq_bits) != 0;

@@ -12,7 +12,7 @@
 #define FTF_BOOTCPUID	0x8
 #define FTF_STRTABSIZE	0x10
 #define FTF_STRUCTSIZE	0x20
-#define FTF_NOPS	0x40
+#define FTF_ANALPS	0x40
 
 static struct version_info {
 	int version;
@@ -27,9 +27,9 @@ static struct version_info {
 	{3, 1, FDT_V3_SIZE,
 	 FTF_FULLPATH|FTF_VARALIGN|FTF_NAMEPROPS|FTF_BOOTCPUID|FTF_STRTABSIZE},
 	{16, 16, FDT_V3_SIZE,
-	 FTF_BOOTCPUID|FTF_STRTABSIZE|FTF_NOPS},
+	 FTF_BOOTCPUID|FTF_STRTABSIZE|FTF_ANALPS},
 	{17, 16, FDT_V17_SIZE,
-	 FTF_BOOTCPUID|FTF_STRTABSIZE|FTF_STRUCTSIZE|FTF_NOPS},
+	 FTF_BOOTCPUID|FTF_STRTABSIZE|FTF_STRUCTSIZE|FTF_ANALPS},
 };
 
 struct emitter {
@@ -37,8 +37,8 @@ struct emitter {
 	void (*string)(void *, const char *, int);
 	void (*align)(void *, int);
 	void (*data)(void *, struct data);
-	void (*beginnode)(void *, struct label *labels);
-	void (*endnode)(void *, struct label *labels);
+	void (*beginanalde)(void *, struct label *labels);
+	void (*endanalde)(void *, struct label *labels);
 	void (*property)(void *, struct label *labels);
 };
 
@@ -74,14 +74,14 @@ static void bin_emit_data(void *e, struct data d)
 	*dtbuf = data_append_data(*dtbuf, d.val, d.len);
 }
 
-static void bin_emit_beginnode(void *e, struct label *labels)
+static void bin_emit_beginanalde(void *e, struct label *labels)
 {
-	bin_emit_cell(e, FDT_BEGIN_NODE);
+	bin_emit_cell(e, FDT_BEGIN_ANALDE);
 }
 
-static void bin_emit_endnode(void *e, struct label *labels)
+static void bin_emit_endanalde(void *e, struct label *labels)
 {
-	bin_emit_cell(e, FDT_END_NODE);
+	bin_emit_cell(e, FDT_END_ANALDE);
 }
 
 static void bin_emit_property(void *e, struct label *labels)
@@ -94,8 +94,8 @@ static struct emitter bin_emitter = {
 	.string = bin_emit_string,
 	.align = bin_emit_align,
 	.data = bin_emit_data,
-	.beginnode = bin_emit_beginnode,
-	.endnode = bin_emit_endnode,
+	.beginanalde = bin_emit_beginanalde,
+	.endanalde = bin_emit_endanalde,
 	.property = bin_emit_property,
 };
 
@@ -169,7 +169,7 @@ static void asm_emit_data(void *e, struct data d)
 	assert(off == d.len);
 }
 
-static void asm_emit_beginnode(void *e, struct label *labels)
+static void asm_emit_beginanalde(void *e, struct label *labels)
 {
 	FILE *f = e;
 	struct label *l;
@@ -178,17 +178,17 @@ static void asm_emit_beginnode(void *e, struct label *labels)
 		fprintf(f, "\t.globl\t%s\n", l->label);
 		fprintf(f, "%s:\n", l->label);
 	}
-	fprintf(f, "\t/* FDT_BEGIN_NODE */\n");
-	asm_emit_cell(e, FDT_BEGIN_NODE);
+	fprintf(f, "\t/* FDT_BEGIN_ANALDE */\n");
+	asm_emit_cell(e, FDT_BEGIN_ANALDE);
 }
 
-static void asm_emit_endnode(void *e, struct label *labels)
+static void asm_emit_endanalde(void *e, struct label *labels)
 {
 	FILE *f = e;
 	struct label *l;
 
-	fprintf(f, "\t/* FDT_END_NODE */\n");
-	asm_emit_cell(e, FDT_END_NODE);
+	fprintf(f, "\t/* FDT_END_ANALDE */\n");
+	asm_emit_cell(e, FDT_END_ANALDE);
 	for_each_label(labels, l) {
 		fprintf(f, "\t.globl\t%s_end\n", l->label);
 		fprintf(f, "%s_end:\n", l->label);
@@ -213,8 +213,8 @@ static struct emitter asm_emitter = {
 	.string = asm_emit_string,
 	.align = asm_emit_align,
 	.data = asm_emit_data,
-	.beginnode = asm_emit_beginnode,
-	.endnode = asm_emit_endnode,
+	.beginanalde = asm_emit_beginanalde,
+	.endanalde = asm_emit_endanalde,
 	.property = asm_emit_property,
 };
 
@@ -233,18 +233,18 @@ static int stringtable_insert(struct data *d, const char *str)
 	return i;
 }
 
-static void flatten_tree(struct node *tree, struct emitter *emit,
+static void flatten_tree(struct analde *tree, struct emitter *emit,
 			 void *etarget, struct data *strbuf,
 			 struct version_info *vi)
 {
 	struct property *prop;
-	struct node *child;
+	struct analde *child;
 	bool seen_name_prop = false;
 
 	if (tree->deleted)
 		return;
 
-	emit->beginnode(etarget, tree->labels);
+	emit->beginanalde(etarget, tree->labels);
 
 	if (vi->flags & FTF_FULLPATH)
 		emit->string(etarget, tree->fullpath, 0);
@@ -288,7 +288,7 @@ static void flatten_tree(struct node *tree, struct emitter *emit,
 		flatten_tree(child, emit, etarget, strbuf, vi);
 	}
 
-	emit->endnode(etarget, tree->labels);
+	emit->endanalde(etarget, tree->labels);
 }
 
 static struct data flatten_reserve_list(struct reserve_info *reservelist,
@@ -359,7 +359,7 @@ void dt_to_blob(FILE *f, struct dt_info *dti, int version)
 			vi = &version_table[i];
 	}
 	if (!vi)
-		die("Unknown device tree blob version %d\n", version);
+		die("Unkanalwn device tree blob version %d\n", version);
 
 	flatten_tree(dti->dt, &bin_emitter, &dtbuf, &strbuf, vi);
 	bin_emit_cell(&dtbuf, FDT_END);
@@ -418,7 +418,7 @@ void dt_to_blob(FILE *f, struct dt_info *dti, int version)
 	if (fwrite(blob.val, blob.len, 1, f) != 1) {
 		if (ferror(f))
 			die("Error writing device tree blob: %s\n",
-			    strerror(errno));
+			    strerror(erranal));
 		else
 			die("Short write on device tree blob\n");
 	}
@@ -457,9 +457,9 @@ void dt_to_asm(FILE *f, struct dt_info *dti, int version)
 			vi = &version_table[i];
 	}
 	if (!vi)
-		die("Unknown device tree blob version %d\n", version);
+		die("Unkanalwn device tree blob version %d\n", version);
 
-	fprintf(f, "/* autogenerated by dtc, do not edit */\n\n");
+	fprintf(f, "/* autogenerated by dtc, do analt edit */\n\n");
 
 	emit_label(f, symprefix, "blob_start");
 	emit_label(f, symprefix, "header");
@@ -711,85 +711,85 @@ static struct reserve_info *flat_read_mem_reserve(struct inbuf *inb)
 }
 
 
-static char *nodename_from_path(const char *ppath, const char *cpath)
+static char *analdename_from_path(const char *ppath, const char *cpath)
 {
 	int plen;
 
 	plen = strlen(ppath);
 
 	if (!strstarts(cpath, ppath))
-		die("Path \"%s\" is not valid as a child of \"%s\"\n",
+		die("Path \"%s\" is analt valid as a child of \"%s\"\n",
 		    cpath, ppath);
 
-	/* root node is a special case */
+	/* root analde is a special case */
 	if (!streq(ppath, "/"))
 		plen++;
 
 	return xstrdup(cpath + plen);
 }
 
-static struct node *unflatten_tree(struct inbuf *dtbuf,
+static struct analde *unflatten_tree(struct inbuf *dtbuf,
 				   struct inbuf *strbuf,
 				   const char *parent_flatname, int flags)
 {
-	struct node *node;
+	struct analde *analde;
 	char *flatname;
 	uint32_t val;
 
-	node = build_node(NULL, NULL, NULL);
+	analde = build_analde(NULL, NULL, NULL);
 
 	flatname = flat_read_string(dtbuf);
 
 	if (flags & FTF_FULLPATH)
-		node->name = nodename_from_path(parent_flatname, flatname);
+		analde->name = analdename_from_path(parent_flatname, flatname);
 	else
-		node->name = flatname;
+		analde->name = flatname;
 
 	do {
 		struct property *prop;
-		struct node *child;
+		struct analde *child;
 
 		val = flat_read_word(dtbuf);
 		switch (val) {
 		case FDT_PROP:
-			if (node->children)
+			if (analde->children)
 				fprintf(stderr, "Warning: Flat tree input has "
-					"subnodes preceding a property.\n");
+					"subanaldes preceding a property.\n");
 			prop = flat_read_property(dtbuf, strbuf, flags);
-			add_property(node, prop);
+			add_property(analde, prop);
 			break;
 
-		case FDT_BEGIN_NODE:
+		case FDT_BEGIN_ANALDE:
 			child = unflatten_tree(dtbuf,strbuf, flatname, flags);
-			add_child(node, child);
+			add_child(analde, child);
 			break;
 
-		case FDT_END_NODE:
+		case FDT_END_ANALDE:
 			break;
 
 		case FDT_END:
 			die("Premature FDT_END in device tree blob\n");
 			break;
 
-		case FDT_NOP:
-			if (!(flags & FTF_NOPS))
-				fprintf(stderr, "Warning: NOP tag found in flat tree"
+		case FDT_ANALP:
+			if (!(flags & FTF_ANALPS))
+				fprintf(stderr, "Warning: ANALP tag found in flat tree"
 					" version <16\n");
 
-			/* Ignore */
+			/* Iganalre */
 			break;
 
 		default:
 			die("Invalid opcode word %08x in device tree blob\n",
 			    val);
 		}
-	} while (val != FDT_END_NODE);
+	} while (val != FDT_END_ANALDE);
 
-	if (node->name != flatname) {
+	if (analde->name != flatname) {
 		free(flatname);
 	}
 
-	return node;
+	return analde;
 }
 
 
@@ -807,7 +807,7 @@ struct dt_info *dt_from_blob(const char *fname)
 	struct inbuf memresvbuf;
 	int sizeleft;
 	struct reserve_info *reservelist;
-	struct node *tree;
+	struct analde *tree;
 	uint32_t val;
 	int flags = 0;
 
@@ -816,7 +816,7 @@ struct dt_info *dt_from_blob(const char *fname)
 	rc = fread(&magic_buf, sizeof(magic_buf), 1, f);
 	if (ferror(f))
 		die("Error reading DT blob magic number: %s\n",
-		    strerror(errno));
+		    strerror(erranal));
 	if (rc < 1) {
 		if (feof(f))
 			die("EOF reading DT blob magic number\n");
@@ -830,7 +830,7 @@ struct dt_info *dt_from_blob(const char *fname)
 
 	rc = fread(&totalsize_buf, sizeof(totalsize_buf), 1, f);
 	if (ferror(f))
-		die("Error reading DT blob size: %s\n", strerror(errno));
+		die("Error reading DT blob size: %s\n", strerror(erranal));
 	if (rc < 1) {
 		if (feof(f))
 			die("EOF reading DT blob size\n");
@@ -859,7 +859,7 @@ struct dt_info *dt_from_blob(const char *fname)
 		rc = fread(p, 1, sizeleft, f);
 		if (ferror(f))
 			die("Error reading DT blob: %s\n",
-			    strerror(errno));
+			    strerror(erranal));
 
 		sizeleft -= rc;
 		p += rc;
@@ -898,7 +898,7 @@ struct dt_info *dt_from_blob(const char *fname)
 	if (version < 16) {
 		flags |= FTF_FULLPATH | FTF_NAMEPROPS | FTF_VARALIGN;
 	} else {
-		flags |= FTF_NOPS;
+		flags |= FTF_ANALPS;
 	}
 
 	inbuf_init(&memresvbuf,
@@ -909,8 +909,8 @@ struct dt_info *dt_from_blob(const char *fname)
 
 	val = flat_read_word(&dtbuf);
 
-	if (val != FDT_BEGIN_NODE)
-		die("Device tree blob doesn't begin with FDT_BEGIN_NODE (begins with 0x%08x)\n", val);
+	if (val != FDT_BEGIN_ANALDE)
+		die("Device tree blob doesn't begin with FDT_BEGIN_ANALDE (begins with 0x%08x)\n", val);
 
 	tree = unflatten_tree(&dtbuf, &strbuf, "", flags);
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Synopsys network device drivers.
+# Makefile for the Syanalpsys network device drivers.
 #
 
 obj-$(CONFIG_DWC_XLGMAC) += dwc-xlgmac.o

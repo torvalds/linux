@@ -31,7 +31,7 @@ struct drbd_connection;
 #define susp_MASK 1
 #define user_isp_MASK 1
 #define aftr_isp_MASK 1
-#define susp_nod_MASK 1
+#define susp_anald_MASK 1
 #define susp_fen_MASK 1
 
 #define NS(T, S) \
@@ -63,7 +63,7 @@ enum chg_state_flags {
 	CS_WAIT_COMPLETE = 1 << 2,
 	CS_SERIALIZE     = 1 << 3,
 	CS_ORDERED       = CS_WAIT_COMPLETE + CS_SERIALIZE,
-	CS_LOCAL_ONLY    = 1 << 4, /* Do not consider a device pair wide state change */
+	CS_LOCAL_ONLY    = 1 << 4, /* Do analt consider a device pair wide state change */
 	CS_DC_ROLE       = 1 << 5, /* DC = display as connection state change */
 	CS_DC_PEER       = 1 << 6,
 	CS_DC_CONN       = 1 << 7,
@@ -73,19 +73,19 @@ enum chg_state_flags {
 	CS_DC_MASK       = CS_DC_ROLE + CS_DC_PEER + CS_DC_CONN + CS_DC_DISK + CS_DC_PDSK,
 	CS_IGN_OUTD_FAIL = 1 << 11,
 
-	/* Make sure no meta data IO is in flight, by calling
+	/* Make sure anal meta data IO is in flight, by calling
 	 * drbd_md_get_buffer().  Used for graceful detach. */
 	CS_INHIBIT_MD_IO = 1 << 12,
 };
 
 /* drbd_dev_state and drbd_state are different types. This is to stress the
-   small difference. There is no suspended flag (.susp), and no suspended
+   small difference. There is anal suspended flag (.susp), and anal suspended
    while fence handler runs flas (susp_fen). */
 union drbd_dev_state {
 	struct {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned role:2 ;   /* 3/4	 primary/secondary/unknown */
-		unsigned peer:2 ;   /* 3/4	 primary/secondary/unknown */
+		unsigned role:2 ;   /* 3/4	 primary/secondary/unkanalwn */
+		unsigned peer:2 ;   /* 3/4	 primary/secondary/unkanalwn */
 		unsigned conn:5 ;   /* 17/32	 cstates */
 		unsigned disk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned pdsk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
@@ -103,10 +103,10 @@ union drbd_dev_state {
 		unsigned pdsk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned disk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned conn:5 ;   /* 17/32	 cstates */
-		unsigned peer:2 ;   /* 3/4	 primary/secondary/unknown */
-		unsigned role:2 ;   /* 3/4	 primary/secondary/unknown */
+		unsigned peer:2 ;   /* 3/4	 primary/secondary/unkanalwn */
+		unsigned role:2 ;   /* 3/4	 primary/secondary/unkanalwn */
 #else
-# error "this endianess is not supported"
+# error "this endianess is analt supported"
 #endif
 	};
 	unsigned int i;
@@ -151,7 +151,7 @@ extern bool conn_all_vols_unconf(struct drbd_connection *connection);
  * @val:	value of new state bits.
  *
  * This is the most graceful way of requesting a state change. It is verbose
- * quite verbose in case the state change is not possible, and all those
+ * quite verbose in case the state change is analt possible, and all those
  * state changes are globally serialized.
  */
 static inline int drbd_request_state(struct drbd_device *device,

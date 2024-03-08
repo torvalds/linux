@@ -275,7 +275,7 @@ u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
  * @p_hwfn: HW device data.
  * @b_is_pf: True iff we want a SB belonging to a PF.
  *
- * Return: Point to an igu_block, NULL if none is available.
+ * Return: Point to an igu_block, NULL if analne is available.
  */
 struct qed_igu_block *qed_get_igu_free_sb(struct qed_hwfn *p_hwfn,
 					  bool b_is_pf);
@@ -290,7 +290,7 @@ void qed_int_igu_init_rt(struct qed_hwfn *p_hwfn);
 /**
  * qed_int_igu_read_cam():  Reads the IGU CAM.
  *	This function needs to be called during hardware
- *	prepare. It reads the info from igu cam to know which
+ *	prepare. It reads the info from igu cam to kanalw which
  *	status block is the default / base status block etc.
  *
  * @p_hwfn: HW device data.
@@ -336,7 +336,7 @@ int qed_int_register_cb(struct qed_hwfn *p_hwfn,
  * Return: Int.
  *
  * Partner of qed_int_register_cb -> should be called
- * when no longer required.
+ * when anal longer required.
  */
 int qed_int_unregister_cb(struct qed_hwfn *p_hwfn,
 			  u8 pi);
@@ -377,7 +377,7 @@ void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
  * @sb_phys: SB Physical.
  * @igu_sb_id: IGU status block id.
  * @vf_number: VF number
- * @vf_valid: VF valid or not.
+ * @vf_valid: VF valid or analt.
  *
  * Return: Void.
  */
@@ -438,7 +438,7 @@ int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
  * @p_sb_entry: Pointer SB entry.
  * @pf_id: PF number
  * @vf_number: VF number
- * @vf_valid: VF valid or not.
+ * @vf_valid: VF valid or analt.
  *
  * Return: Void.
  */

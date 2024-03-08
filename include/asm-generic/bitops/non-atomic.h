@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_GENERIC_BITOPS_NON_ATOMIC_H_
-#define _ASM_GENERIC_BITOPS_NON_ATOMIC_H_
+#ifndef _ASM_GENERIC_BITOPS_ANALN_ATOMIC_H_
+#define _ASM_GENERIC_BITOPS_ANALN_ATOMIC_H_
 
-#include <asm-generic/bitops/generic-non-atomic.h>
+#include <asm-generic/bitops/generic-analn-atomic.h>
 
 #define arch___set_bit generic___set_bit
 #define arch___clear_bit generic___clear_bit
@@ -15,6 +15,6 @@
 #define arch_test_bit generic_test_bit
 #define arch_test_bit_acquire generic_test_bit_acquire
 
-#include <asm-generic/bitops/non-instrumented-non-atomic.h>
+#include <asm-generic/bitops/analn-instrumented-analn-atomic.h>
 
-#endif /* _ASM_GENERIC_BITOPS_NON_ATOMIC_H_ */
+#endif /* _ASM_GENERIC_BITOPS_ANALN_ATOMIC_H_ */

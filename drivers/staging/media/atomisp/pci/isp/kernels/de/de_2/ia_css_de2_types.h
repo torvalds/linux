@@ -34,7 +34,7 @@ struct ia_css_ecd_config {
 				u0.13, [0,8191],
 				default 8191(almost 1.0), ineffective 0 */
 	u16 fc_debias;	/** Prevent color change
-				     on noise or Gr/Gb imbalance.
+				     on analise or Gr/Gb imbalance.
 				u0.13, [0,8191],
 				default 0, ineffective 0 */
 };

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2014 Imagination Technologies
+ * Copyright (C) 2014 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -32,7 +32,7 @@ enum {
  *		single precision instructions meaning that it can execute in
  *		either FR0 or FR1.
  * @soft:	The soft(-float) requirement means that the program being
- *		loaded needs has no FPU dependency at all (i.e. it has no
+ *		loaded needs has anal FPU dependency at all (i.e. it has anal
  *		FPU instructions).
  * @fr1:	The program being loaded depends on FPU being in FR=1 mode.
  * @frdefault:	The program being loaded depends on the default FPU mode.
@@ -68,10 +68,10 @@ static const struct mode_req fpu_reqs[] = {
 };
 
 /*
- * Mode requirements when .MIPS.abiflags is not present in the ELF.
- * Not present means that everything is acceptable except FR1.
+ * Mode requirements when .MIPS.abiflags is analt present in the ELF.
+ * Analt present means that everything is acceptable except FR1.
  */
-static struct mode_req none_req = { true, true, false, true, true };
+static struct mode_req analne_req = { true, true, false, true, true };
 
 int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 		     bool is_interp, struct arch_elf_state *state)
@@ -152,19 +152,19 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 	flags = elf32 ? ehdr->e32.e_flags : ehdr->e64.e_flags;
 
 	/*
-	 * Determine the NaN personality, reject the binary if not allowed.
+	 * Determine the NaN personality, reject the binary if analt allowed.
 	 * Also ensure that any interpreter matches the executable.
 	 */
 	if (flags & EF_MIPS_NAN2008) {
 		if (mips_use_nan_2008)
 			state->nan_2008 = 1;
 		else
-			return -ENOEXEC;
+			return -EANALEXEC;
 	} else {
 		if (mips_use_nan_legacy)
 			state->nan_2008 = 0;
 		else
-			return -ENOEXEC;
+			return -EANALEXEC;
 	}
 	if (has_interpreter) {
 		bool ielf32;
@@ -195,7 +195,7 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 		/* Default to a mode capable of running code expecting FR=0 */
 		state->overall_fp_mode = cpu_has_mips_r6 ? FP_FRE : FP_FR0;
 
-		/* Allow all ABIs we know about */
+		/* Allow all ABIs we kanalw about */
 		max_abi = MIPS_ABI_FP_64A;
 	} else {
 		/* MIPS64 code always uses FR=1, thus the default is easy */
@@ -205,13 +205,13 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 		max_abi = MIPS_ABI_FP_SOFT;
 	}
 
-	if ((abi0 > max_abi && abi0 != MIPS_ABI_FP_UNKNOWN) ||
-	    (abi1 > max_abi && abi1 != MIPS_ABI_FP_UNKNOWN))
+	if ((abi0 > max_abi && abi0 != MIPS_ABI_FP_UNKANALWN) ||
+	    (abi1 > max_abi && abi1 != MIPS_ABI_FP_UNKANALWN))
 		return -ELIBBAD;
 
 	/* It's time to determine the FPU mode requirements */
-	prog_req = (abi0 == MIPS_ABI_FP_UNKNOWN) ? none_req : fpu_reqs[abi0];
-	interp_req = (abi1 == MIPS_ABI_FP_UNKNOWN) ? none_req : fpu_reqs[abi1];
+	prog_req = (abi0 == MIPS_ABI_FP_UNKANALWN) ? analne_req : fpu_reqs[abi0];
+	interp_req = (abi1 == MIPS_ABI_FP_UNKANALWN) ? analne_req : fpu_reqs[abi1];
 
 	/*
 	 * Check whether the program's and interp's ABIs have a matching FPU
@@ -232,26 +232,26 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 	 *   means that we have a combination of program and interpreter
 	 *   that inherently require the hybrid FP mode.
 	 * - If FR1 and FRDEFAULT is true, that means we hit the any-abi or
-	 *   fpxx case. This is because, in any-ABI (or no-ABI) we have no FPU
+	 *   fpxx case. This is because, in any-ABI (or anal-ABI) we have anal FPU
 	 *   instructions so we don't care about the mode. We will simply use
 	 *   the one preferred by the hardware. In fpxx case, that ABI can
 	 *   handle both FR=1 and FR=0, so, again, we simply choose the one
 	 *   preferred by the hardware. Next, if we only use single-precision
-	 *   FPU instructions, and the default ABI FPU mode is not good
+	 *   FPU instructions, and the default ABI FPU mode is analt good
 	 *   (ie single + any ABI combination), we set again the FPU mode to the
-	 *   one is preferred by the hardware. Next, if we know that the code
+	 *   one is preferred by the hardware. Next, if we kanalw that the code
 	 *   will only use single-precision instructions, shown by single being
 	 *   true but frdefault being false, then we again set the FPU mode to
 	 *   the one that is preferred by the hardware.
 	 * - We want FP_FR1 if that's the only matching mode and the default one
-	 *   is not good.
+	 *   is analt good.
 	 * - Return with -ELIBADD if we can't find a matching FPU mode.
 	 */
 	if (prog_req.fre && !prog_req.frdefault && !prog_req.fr1)
 		state->overall_fp_mode = FP_FRE;
 	else if ((prog_req.fr1 && prog_req.frdefault) ||
 		 (prog_req.single && !prog_req.frdefault))
-		/* Make sure 64-bit MIPS III/IV/64R1 will not pick FR1 */
+		/* Make sure 64-bit MIPS III/IV/64R1 will analt pick FR1 */
 		state->overall_fp_mode = ((raw_current_cpu_data.fpu_id & MIPS_FPIR_F64) &&
 					  cpu_has_mips_r2_r6) ?
 					  FP_FR1 : FP_FR0;
@@ -280,7 +280,7 @@ void mips_set_personality_fp(struct arch_elf_state *state)
 {
 	/*
 	 * This function is only ever called for O32 ELFs so we should
-	 * not be worried about N32/N64 binaries.
+	 * analt be worried about N32/N64 binaries.
 	 */
 
 	if (!IS_ENABLED(CONFIG_MIPS_O32_FP64_SUPPORT))
@@ -335,8 +335,8 @@ void mips_set_personality_nan(struct arch_elf_state *state)
 int mips_elf_read_implies_exec(void *elf_ex, int exstack)
 {
 	/*
-	 * Set READ_IMPLIES_EXEC only on non-NX systems that
-	 * do not request a specific state via PT_GNU_STACK.
+	 * Set READ_IMPLIES_EXEC only on analn-NX systems that
+	 * do analt request a specific state via PT_GNU_STACK.
 	 */
 	return (!cpu_has_rixi && exstack == EXSTACK_DEFAULT);
 }

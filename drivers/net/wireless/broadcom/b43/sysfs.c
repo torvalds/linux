@@ -48,19 +48,19 @@ static ssize_t b43_attr_interfmode_show(struct device *dev,
 
 	if (wldev->phy.type != B43_PHYTYPE_G) {
 		mutex_unlock(&wldev->wl->mutex);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	switch (wldev->phy.g->interfmode) {
-	case B43_INTERFMODE_NONE:
+	case B43_INTERFMODE_ANALNE:
 		count =
 		    snprintf(buf, PAGE_SIZE,
-			     "0 (No Interference Mitigation)\n");
+			     "0 (Anal Interference Mitigation)\n");
 		break;
-	case B43_INTERFMODE_NONWLAN:
+	case B43_INTERFMODE_ANALNWLAN:
 		count =
 		    snprintf(buf, PAGE_SIZE,
-			     "1 (Non-WLAN Interference Mitigation)\n");
+			     "1 (Analn-WLAN Interference Mitigation)\n");
 		break;
 	case B43_INTERFMODE_MANUALWLAN:
 		count =
@@ -90,10 +90,10 @@ static ssize_t b43_attr_interfmode_store(struct device *dev,
 	mode = get_integer(buf, count);
 	switch (mode) {
 	case 0:
-		mode = B43_INTERFMODE_NONE;
+		mode = B43_INTERFMODE_ANALNE;
 		break;
 	case 1:
-		mode = B43_INTERFMODE_NONWLAN;
+		mode = B43_INTERFMODE_ANALNWLAN;
 		break;
 	case 2:
 		mode = B43_INTERFMODE_MANUALWLAN;
@@ -110,11 +110,11 @@ static ssize_t b43_attr_interfmode_store(struct device *dev,
 	if (wldev->phy.ops->interf_mitigation) {
 		err = wldev->phy.ops->interf_mitigation(wldev, mode);
 		if (err) {
-			b43err(wldev->wl, "Interference Mitigation not "
+			b43err(wldev->wl, "Interference Mitigation analt "
 			       "supported by device\n");
 		}
 	} else
-		err = -ENOSYS;
+		err = -EANALSYS;
 
 	mutex_unlock(&wldev->wl->mutex);
 

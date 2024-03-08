@@ -14,7 +14,7 @@ description: |
   which gates and enables all peripheral clocks.
 
   This device tree binding describes 33 gate clocks.  Clocks are referenced by
-  user nodes by the CLKCFG node phandle and the clock index in the group, from
+  user analdes by the CLKCFG analde phandle and the clock index in the group, from
   0 to 32.
 
 properties:
@@ -65,7 +65,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Clock Config node:
+  # Clock Config analde:
   - |
     #include <dt-bindings/clock/microchip,mpfs-clock.h>
     soc {

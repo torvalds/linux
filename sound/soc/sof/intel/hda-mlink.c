@@ -181,7 +181,7 @@ static int hdaml_lnk_enum(struct device *dev, struct hdac_ext2_link *h2link,
 /*
  * Hardware recommendations are to wait ~10us before checking any hardware transition
  * reported by bits changing status.
- * This value does not need to be super-precise, a slack of 5us is perfectly acceptable.
+ * This value does analt need to be super-precise, a slack of 5us is perfectly acceptable.
  * The worst-case is about 1ms before reporting an issue
  */
 #define HDAML_POLL_DELAY_MIN_US 10
@@ -289,7 +289,7 @@ static void hdaml_link_set_syncprd(u32 __iomem *lsync, u32 syncprd)
 	val |= (syncprd & AZX_REG_ML_LSYNC_SYNCPRD);
 
 	/*
-	 * set SYNCPU but do not wait. The bit is cleared by hardware when
+	 * set SYNCPU but do analt wait. The bit is cleared by hardware when
 	 * the link becomes active.
 	 */
 	val |= AZX_REG_ML_LSYNC_SYNCPU;
@@ -383,7 +383,7 @@ static int hda_ml_alloc_h2link(struct hdac_bus *bus, int index)
 
 	h2link  = kzalloc(sizeof(*h2link), GFP_KERNEL);
 	if (!h2link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* basic initialization */
 	hlink = &h2link->hext_link;
@@ -659,7 +659,7 @@ static int hdac_bus_eml_power_up_base(struct hdac_bus *bus, bool alt, int elid, 
 
 	h2link = find_ext2_link(bus, alt, elid);
 	if (!h2link)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (sublink >= h2link->slcount)
 		return -EINVAL;
@@ -707,7 +707,7 @@ static int hdac_bus_eml_power_down_base(struct hdac_bus *bus, bool alt, int elid
 
 	h2link = find_ext2_link(bus, alt, elid);
 	if (!h2link)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (sublink >= h2link->slcount)
 		return -EINVAL;
@@ -764,7 +764,7 @@ int hdac_bus_eml_sdw_get_lsdiid_unlocked(struct hdac_bus *bus, int sublink, u16 
 
 	h2link = find_ext2_link(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
 	if (!h2link)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hlink = &h2link->hext_link;
 
@@ -780,7 +780,7 @@ int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num)
 
 	h2link = find_ext2_link(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
 	if (!h2link)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hlink = &h2link->hext_link;
 
@@ -808,7 +808,7 @@ int hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
 
 	h2link = find_ext2_link(bus, true, AZX_REG_ML_LEPTR_ID_SDW);
 	if (!h2link)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcmsycm = h2link->base_ptr + h2link->shim_offset +
 		h2link->instance_offset * sublink +
@@ -952,7 +952,7 @@ int hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool e
 
 	h2link = find_ext2_link(bus, alt, elid);
 	if (!h2link)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!h2link->ofls)
 		return 0;

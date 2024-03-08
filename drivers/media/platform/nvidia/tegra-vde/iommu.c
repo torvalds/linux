@@ -32,7 +32,7 @@ int tegra_vde_iommu_map(struct tegra_vde *vde,
 
 	iova = alloc_iova(&vde->iova, size >> shift, end >> shift, true);
 	if (!iova)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	addr = iova_dma_addr(&vde->iova, iova);
 
@@ -80,7 +80,7 @@ int tegra_vde_iommu_init(struct tegra_vde *vde)
 #endif
 	vde->domain = iommu_domain_alloc(&platform_bus_type);
 	if (!vde->domain) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_group;
 	}
 
@@ -96,14 +96,14 @@ int tegra_vde_iommu_init(struct tegra_vde *vde)
 		goto put_iova;
 
 	/*
-	 * We're using some static addresses that are not accessible by VDE
+	 * We're using some static addresses that are analt accessible by VDE
 	 * to trap invalid memory accesses.
 	 */
 	shift = iova_shift(&vde->iova);
 	iova = reserve_iova(&vde->iova, 0x60000000 >> shift,
 			    0x70000000 >> shift);
 	if (!iova) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto detach_group;
 	}
 
@@ -118,7 +118,7 @@ int tegra_vde_iommu_init(struct tegra_vde *vde)
 	iova = reserve_iova(&vde->iova, 0xffffffff >> shift,
 			    (0xffffffff >> shift) + 1);
 	if (!iova) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unreserve_iova;
 	}
 

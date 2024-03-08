@@ -319,7 +319,7 @@ static int lan966x_get_sset_count(struct net_device *dev, int sset)
 	struct lan966x *lan966x = port->lan966x;
 
 	if (sset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return lan966x->num_stats;
 }
@@ -345,7 +345,7 @@ static void lan966x_get_ethtool_stats(struct net_device *dev,
 	struct lan966x *lan966x = port->lan966x;
 	int i;
 
-	/* check and update now */
+	/* check and update analw */
 	lan966x_stats_update(lan966x);
 
 	/* Copy all counters */
@@ -572,7 +572,7 @@ static int lan966x_get_ts_info(struct net_device *dev,
 				 SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON) |
 			 BIT(HWTSTAMP_TX_ONESTEP_SYNC);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
@@ -709,7 +709,7 @@ int lan966x_stats_init(struct lan966x *lan966x)
 				      lan966x->num_stats,
 				      sizeof(u64), GFP_KERNEL);
 	if (!lan966x->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Init stats worker */
 	mutex_init(&lan966x->stats_lock);
@@ -717,7 +717,7 @@ int lan966x_stats_init(struct lan966x *lan966x)
 		 dev_name(lan966x->dev));
 	lan966x->stats_queue = create_singlethread_workqueue(queue_name);
 	if (!lan966x->stats_queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&lan966x->stats_work, lan966x_check_stats_work);
 	queue_delayed_work(lan966x->stats_queue, &lan966x->stats_work,

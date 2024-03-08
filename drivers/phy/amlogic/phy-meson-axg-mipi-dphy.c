@@ -141,7 +141,7 @@
  */
 #define MIPI_DSI_LPOK_TIM				0x24
 
-/* Watchdog for RX low power state no finished. */
+/* Watchdog for RX low power state anal finished. */
 #define MIPI_DSI_LP_WCHDOG				0x28
 
 /* tMBIAS,  after send power up signals to analog,
@@ -342,7 +342,7 @@ static int phy_meson_axg_mipi_dphy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	platform_set_drvdata(pdev, priv);

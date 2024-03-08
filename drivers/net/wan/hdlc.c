@@ -21,14 +21,14 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/pkt_sched.h>
 #include <linux/poll.h>
 #include <linux/rtnetlink.h>
@@ -91,22 +91,22 @@ static inline void hdlc_proto_stop(struct net_device *dev)
 		hdlc->proto->stop(dev);
 }
 
-static int hdlc_device_event(struct notifier_block *this, unsigned long event,
+static int hdlc_device_event(struct analtifier_block *this, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	hdlc_device *hdlc;
 	unsigned long flags;
 	int on;
 
 	if (!net_eq(dev_net(dev), &init_net))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!(dev->priv_flags & IFF_WAN_HDLC))
-		return NOTIFY_DONE; /* not an HDLC device */
+		return ANALTIFY_DONE; /* analt an HDLC device */
 
 	if (event != NETDEV_CHANGE)
-		return NOTIFY_DONE; /* Only interested in carrier changes */
+		return ANALTIFY_DONE; /* Only interested in carrier changes */
 
 	on = netif_carrier_ok(dev);
 
@@ -119,7 +119,7 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 	spin_lock_irqsave(&hdlc->state_lock, flags);
 
 	if (hdlc->carrier == on)
-		goto carrier_exit; /* no change in DCD line level */
+		goto carrier_exit; /* anal change in DCD line level */
 
 	hdlc->carrier = on;
 
@@ -136,7 +136,7 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 
 carrier_exit:
 	spin_unlock_irqrestore(&hdlc->state_lock, flags);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /* Must be called by hardware driver when HDLC device is being opened */
@@ -149,7 +149,7 @@ int hdlc_open(struct net_device *dev)
 #endif
 
 	if (!hdlc->proto)
-		return -ENOSYS;	/* no protocol attached */
+		return -EANALSYS;	/* anal protocol attached */
 
 	if (hdlc->proto->open) {
 		int result = hdlc->proto->open(dev);
@@ -164,7 +164,7 @@ int hdlc_open(struct net_device *dev)
 		netdev_info(dev, "Carrier detected\n");
 		hdlc_proto_start(dev);
 	} else {
-		netdev_info(dev, "No carrier\n");
+		netdev_info(dev, "Anal carrier\n");
 	}
 
 	hdlc->open = 1;
@@ -207,7 +207,7 @@ int hdlc_ioctl(struct net_device *dev, struct if_settings *ifs)
 			return result;
 	}
 
-	/* Not handled by currently attached protocol (if any) */
+	/* Analt handled by currently attached protocol (if any) */
 
 	while (proto) {
 		result = proto->ioctl(dev, ifs);
@@ -226,7 +226,7 @@ static void hdlc_setup_dev(struct net_device *dev)
 	/* Re-init all variables changed by HDLC protocol drivers,
 	 * including ether_setup() called from hdlc_raw_eth.c.
 	 */
-	dev->flags		 = IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags		 = IFF_POINTOPOINT | IFF_ANALARP;
 	dev->priv_flags		 = IFF_WAN_HDLC;
 	dev->mtu		 = HDLC_MAX_MTU;
 	dev->min_mtu		 = 68;
@@ -253,7 +253,7 @@ struct net_device *alloc_hdlcdev(void *priv)
 	struct net_device *dev;
 
 	dev = alloc_netdev(sizeof(struct hdlc_device), "hdlc%d",
-			   NET_NAME_UNKNOWN, hdlc_setup);
+			   NET_NAME_UNKANALWN, hdlc_setup);
 	if (dev)
 		dev_to_hdlc(dev)->priv = priv;
 	return dev;
@@ -279,13 +279,13 @@ int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 		return err;
 
 	if (!try_module_get(proto->module))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (size) {
 		dev_to_hdlc(dev)->state = kmalloc(size, GFP_KERNEL);
 		if (!dev_to_hdlc(dev)->state) {
 			module_put(proto->module);
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 	}
 	dev_to_hdlc(dev)->proto = proto;
@@ -300,8 +300,8 @@ int detach_hdlc_protocol(struct net_device *dev)
 	int err;
 
 	if (hdlc->proto) {
-		err = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE, dev);
-		err = notifier_to_errno(err);
+		err = call_netdevice_analtifiers(NETDEV_PRE_TYPE_CHANGE, dev);
+		err = analtifier_to_erranal(err);
 		if (err) {
 			netdev_err(dev, "Refused to change device type\n");
 			return err;
@@ -353,8 +353,8 @@ static struct packet_type hdlc_packet_type __read_mostly = {
 	.func = hdlc_rcv,
 };
 
-static struct notifier_block hdlc_notifier = {
-	.notifier_call = hdlc_device_event,
+static struct analtifier_block hdlc_analtifier = {
+	.analtifier_call = hdlc_device_event,
 };
 
 static int __init hdlc_module_init(void)
@@ -362,7 +362,7 @@ static int __init hdlc_module_init(void)
 	int result;
 
 	pr_info("%s\n", version);
-	result = register_netdevice_notifier(&hdlc_notifier);
+	result = register_netdevice_analtifier(&hdlc_analtifier);
 	if (result)
 		return result;
 	dev_add_pack(&hdlc_packet_type);
@@ -372,7 +372,7 @@ static int __init hdlc_module_init(void)
 static void __exit hdlc_module_exit(void)
 {
 	dev_remove_pack(&hdlc_packet_type);
-	unregister_netdevice_notifier(&hdlc_notifier);
+	unregister_netdevice_analtifier(&hdlc_analtifier);
 }
 
 module_init(hdlc_module_init);

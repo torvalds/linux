@@ -41,13 +41,13 @@ static void mdscr_write(u32 mdscr)
 	write_sysreg(mdscr, mdscr_el1);
 	local_daif_restore(flags);
 }
-NOKPROBE_SYMBOL(mdscr_write);
+ANALKPROBE_SYMBOL(mdscr_write);
 
 static u32 mdscr_read(void)
 {
 	return read_sysreg(mdscr_el1);
 }
-NOKPROBE_SYMBOL(mdscr_read);
+ANALKPROBE_SYMBOL(mdscr_read);
 
 /*
  * Allow root to disable self-hosted debug from userspace.
@@ -68,7 +68,7 @@ static int __init early_debug_disable(char *buf)
 	return 0;
 }
 
-early_param("nodebugmon", early_debug_disable);
+early_param("analdebugmon", early_debug_disable);
 
 /*
  * Keep track of debug users on each core.
@@ -96,7 +96,7 @@ void enable_debug_monitors(enum dbg_active_el el)
 		mdscr_write(mdscr);
 	}
 }
-NOKPROBE_SYMBOL(enable_debug_monitors);
+ANALKPROBE_SYMBOL(enable_debug_monitors);
 
 void disable_debug_monitors(enum dbg_active_el el)
 {
@@ -117,7 +117,7 @@ void disable_debug_monitors(enum dbg_active_el el)
 		mdscr_write(mdscr);
 	}
 }
-NOKPROBE_SYMBOL(disable_debug_monitors);
+ANALKPROBE_SYMBOL(disable_debug_monitors);
 
 /*
  * OS lock clearing.
@@ -145,13 +145,13 @@ static void set_user_regs_spsr_ss(struct user_pt_regs *regs)
 {
 	regs->pstate |= DBG_SPSR_SS;
 }
-NOKPROBE_SYMBOL(set_user_regs_spsr_ss);
+ANALKPROBE_SYMBOL(set_user_regs_spsr_ss);
 
 static void clear_user_regs_spsr_ss(struct user_pt_regs *regs)
 {
 	regs->pstate &= ~DBG_SPSR_SS;
 }
-NOKPROBE_SYMBOL(clear_user_regs_spsr_ss);
+ANALKPROBE_SYMBOL(clear_user_regs_spsr_ss);
 
 #define set_regs_spsr_ss(r)	set_user_regs_spsr_ss(&(r)->user_regs)
 #define clear_regs_spsr_ss(r)	clear_user_regs_spsr_ss(&(r)->user_regs)
@@ -160,45 +160,45 @@ static DEFINE_SPINLOCK(debug_hook_lock);
 static LIST_HEAD(user_step_hook);
 static LIST_HEAD(kernel_step_hook);
 
-static void register_debug_hook(struct list_head *node, struct list_head *list)
+static void register_debug_hook(struct list_head *analde, struct list_head *list)
 {
 	spin_lock(&debug_hook_lock);
-	list_add_rcu(node, list);
+	list_add_rcu(analde, list);
 	spin_unlock(&debug_hook_lock);
 
 }
 
-static void unregister_debug_hook(struct list_head *node)
+static void unregister_debug_hook(struct list_head *analde)
 {
 	spin_lock(&debug_hook_lock);
-	list_del_rcu(node);
+	list_del_rcu(analde);
 	spin_unlock(&debug_hook_lock);
 	synchronize_rcu();
 }
 
 void register_user_step_hook(struct step_hook *hook)
 {
-	register_debug_hook(&hook->node, &user_step_hook);
+	register_debug_hook(&hook->analde, &user_step_hook);
 }
 
 void unregister_user_step_hook(struct step_hook *hook)
 {
-	unregister_debug_hook(&hook->node);
+	unregister_debug_hook(&hook->analde);
 }
 
 void register_kernel_step_hook(struct step_hook *hook)
 {
-	register_debug_hook(&hook->node, &kernel_step_hook);
+	register_debug_hook(&hook->analde, &kernel_step_hook);
 }
 
 void unregister_kernel_step_hook(struct step_hook *hook)
 {
-	unregister_debug_hook(&hook->node);
+	unregister_debug_hook(&hook->analde);
 }
 
 /*
  * Call registered single step handlers
- * There is no Syndrome info to check for determining the handler.
+ * There is anal Syndrome info to check for determining the handler.
  * So we call all the registered handlers, until the right handler is
  * found which returns zero.
  */
@@ -212,9 +212,9 @@ static int call_step_hook(struct pt_regs *regs, unsigned long esr)
 
 	/*
 	 * Since single-step exception disables interrupt, this function is
-	 * entirely not preemptible, and we can use rcu list safely here.
+	 * entirely analt preemptible, and we can use rcu list safely here.
 	 */
-	list_for_each_entry_rcu(hook, list, node)	{
+	list_for_each_entry_rcu(hook, list, analde)	{
 		retval = hook->fn(regs, esr);
 		if (retval == DBG_HOOK_HANDLED)
 			break;
@@ -222,7 +222,7 @@ static int call_step_hook(struct pt_regs *regs, unsigned long esr)
 
 	return retval;
 }
-NOKPROBE_SYMBOL(call_step_hook);
+ANALKPROBE_SYMBOL(call_step_hook);
 
 static void send_user_sigtrap(int si_code)
 {
@@ -260,13 +260,13 @@ static int single_step_handler(unsigned long unused, unsigned long esr,
 		 * ptrace will disable single step unless explicitly
 		 * asked to re-enable it. For other clients, it makes
 		 * sense to leave it enabled (i.e. rewind the controls
-		 * to the active-not-pending state).
+		 * to the active-analt-pending state).
 		 */
 		user_rewind_single_step(current);
 	} else if (!handler_found) {
 		pr_warn("Unexpected kernel single-step exception at EL1\n");
 		/*
-		 * Re-enable stepping since we know that we will be
+		 * Re-enable stepping since we kanalw that we will be
 		 * returning to regs.
 		 */
 		set_regs_spsr_ss(regs);
@@ -274,29 +274,29 @@ static int single_step_handler(unsigned long unused, unsigned long esr,
 
 	return 0;
 }
-NOKPROBE_SYMBOL(single_step_handler);
+ANALKPROBE_SYMBOL(single_step_handler);
 
 static LIST_HEAD(user_break_hook);
 static LIST_HEAD(kernel_break_hook);
 
 void register_user_break_hook(struct break_hook *hook)
 {
-	register_debug_hook(&hook->node, &user_break_hook);
+	register_debug_hook(&hook->analde, &user_break_hook);
 }
 
 void unregister_user_break_hook(struct break_hook *hook)
 {
-	unregister_debug_hook(&hook->node);
+	unregister_debug_hook(&hook->analde);
 }
 
 void register_kernel_break_hook(struct break_hook *hook)
 {
-	register_debug_hook(&hook->node, &kernel_break_hook);
+	register_debug_hook(&hook->analde, &kernel_break_hook);
 }
 
 void unregister_kernel_break_hook(struct break_hook *hook)
 {
-	unregister_debug_hook(&hook->node);
+	unregister_debug_hook(&hook->analde);
 }
 
 static int call_break_hook(struct pt_regs *regs, unsigned long esr)
@@ -309,9 +309,9 @@ static int call_break_hook(struct pt_regs *regs, unsigned long esr)
 
 	/*
 	 * Since brk exception disables interrupt, this function is
-	 * entirely not preemptible, and we can use rcu list safely here.
+	 * entirely analt preemptible, and we can use rcu list safely here.
 	 */
-	list_for_each_entry_rcu(hook, list, node) {
+	list_for_each_entry_rcu(hook, list, analde) {
 		unsigned long comment = esr & ESR_ELx_BRK64_ISS_COMMENT_MASK;
 
 		if ((comment & ~hook->mask) == hook->imm)
@@ -320,7 +320,7 @@ static int call_break_hook(struct pt_regs *regs, unsigned long esr)
 
 	return fn ? fn(regs, esr) : DBG_HOOK_ERROR;
 }
-NOKPROBE_SYMBOL(call_break_hook);
+ANALKPROBE_SYMBOL(call_break_hook);
 
 static int brk_handler(unsigned long unused, unsigned long esr,
 		       struct pt_regs *regs)
@@ -337,7 +337,7 @@ static int brk_handler(unsigned long unused, unsigned long esr,
 
 	return 0;
 }
-NOKPROBE_SYMBOL(brk_handler);
+ANALKPROBE_SYMBOL(brk_handler);
 
 int aarch32_break_handler(struct pt_regs *regs)
 {
@@ -376,7 +376,7 @@ int aarch32_break_handler(struct pt_regs *regs)
 	send_user_sigtrap(TRAP_BRKPT);
 	return 0;
 }
-NOKPROBE_SYMBOL(aarch32_break_handler);
+ANALKPROBE_SYMBOL(aarch32_break_handler);
 
 void __init debug_traps_init(void)
 {
@@ -396,7 +396,7 @@ void user_rewind_single_step(struct task_struct *task)
 	if (test_tsk_thread_flag(task, TIF_SINGLESTEP))
 		set_regs_spsr_ss(task_pt_regs(task));
 }
-NOKPROBE_SYMBOL(user_rewind_single_step);
+ANALKPROBE_SYMBOL(user_rewind_single_step);
 
 void user_fastforward_single_step(struct task_struct *task)
 {
@@ -421,7 +421,7 @@ void kernel_enable_single_step(struct pt_regs *regs)
 	mdscr_write(mdscr_read() | DBG_MDSCR_SS);
 	enable_debug_monitors(DBG_ACTIVE_EL1);
 }
-NOKPROBE_SYMBOL(kernel_enable_single_step);
+ANALKPROBE_SYMBOL(kernel_enable_single_step);
 
 void kernel_disable_single_step(void)
 {
@@ -429,14 +429,14 @@ void kernel_disable_single_step(void)
 	mdscr_write(mdscr_read() & ~DBG_MDSCR_SS);
 	disable_debug_monitors(DBG_ACTIVE_EL1);
 }
-NOKPROBE_SYMBOL(kernel_disable_single_step);
+ANALKPROBE_SYMBOL(kernel_disable_single_step);
 
 int kernel_active_single_step(void)
 {
 	WARN_ON(!irqs_disabled());
 	return mdscr_read() & DBG_MDSCR_SS;
 }
-NOKPROBE_SYMBOL(kernel_active_single_step);
+ANALKPROBE_SYMBOL(kernel_active_single_step);
 
 void kernel_rewind_single_step(struct pt_regs *regs)
 {
@@ -451,10 +451,10 @@ void user_enable_single_step(struct task_struct *task)
 	if (!test_and_set_ti_thread_flag(ti, TIF_SINGLESTEP))
 		set_regs_spsr_ss(task_pt_regs(task));
 }
-NOKPROBE_SYMBOL(user_enable_single_step);
+ANALKPROBE_SYMBOL(user_enable_single_step);
 
 void user_disable_single_step(struct task_struct *task)
 {
 	clear_ti_thread_flag(task_thread_info(task), TIF_SINGLESTEP);
 }
-NOKPROBE_SYMBOL(user_disable_single_step);
+ANALKPROBE_SYMBOL(user_disable_single_step);

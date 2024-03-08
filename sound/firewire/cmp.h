@@ -14,13 +14,13 @@ enum cmp_direction {
 };
 
 /**
- * struct cmp_connection - manages an isochronous connection to a device
+ * struct cmp_connection - manages an isochroanalus connection to a device
  * @speed: the connection's actual speed
  *
- * This structure manages (using CMP) an isochronous stream between the local
+ * This structure manages (using CMP) an isochroanalus stream between the local
  * computer and a device's input plug (iPCR) and output plug (oPCR).
  *
- * There is no corresponding oPCR created on the local computer, so it is not
+ * There is anal corresponding oPCR created on the local computer, so it is analt
  * possible to overlay connections on top of this one.
  */
 struct cmp_connection {

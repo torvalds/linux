@@ -8,9 +8,9 @@ Required properties:
 - reg: I2C slave address
 - regulators: list of regulators provided by this controller, must be named
   after their hardware counterparts: VDCDC[1-3] and LDO[1-2]
-- regulators: This is the list of child nodes that specify the regulator
+- regulators: This is the list of child analdes that specify the regulator
   initialization data for defined regulators. The definition for each of
-  these nodes is defined using the standard binding for regulators found at
+  these analdes is defined using the standard binding for regulators found at
   Documentation/devicetree/bindings/regulator/regulator.txt.
 
 Each regulator is defined using the standard binding for regulators.

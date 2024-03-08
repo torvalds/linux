@@ -104,7 +104,7 @@ static u32 guc_ctl_log_params_flags(struct xe_guc *guc)
 			(GUC_LOG_CAPTURE_MASK >> GUC_LOG_CAPTURE_SHIFT));
 
 	flags = GUC_LOG_VALID |
-		GUC_LOG_NOTIFY_ON_HALF_FULL |
+		GUC_LOG_ANALTIFY_ON_HALF_FULL |
 		CAPTURE_FLAG |
 		LOG_FLAG |
 		((CRASH_BUFFER_SIZE / LOG_UNIT - 1) << GUC_LOG_CRASH_SHIFT) |
@@ -221,7 +221,7 @@ static void guc_init_params_post_hwconfig(struct xe_guc *guc)
 /*
  * Initialize the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
- * and cannot be changed thereafter.
+ * and cananalt be changed thereafter.
  */
 static void guc_write_params(struct xe_guc *guc)
 {
@@ -283,9 +283,9 @@ int xe_guc_init(struct xe_guc *guc)
 	guc_init_params(guc);
 
 	if (xe_gt_is_media_type(gt))
-		guc->notify_reg = MED_GUC_HOST_INTERRUPT;
+		guc->analtify_reg = MED_GUC_HOST_INTERRUPT;
 	else
-		guc->notify_reg = GUC_HOST_INTERRUPT;
+		guc->analtify_reg = GUC_HOST_INTERRUPT;
 
 	xe_uc_fw_change_status(&guc->fw, XE_UC_FIRMWARE_LOADABLE);
 
@@ -392,7 +392,7 @@ static int guc_xfer_rsa(struct xe_guc *guc)
 
 	copied = xe_uc_fw_copy_rsa(&guc->fw, rsa, sizeof(rsa));
 	if (copied < sizeof(rsa))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
 		xe_mmio_write32(gt, UOS_RSA_SCRATCH(i), rsa[i]);
@@ -408,20 +408,20 @@ static int guc_wait_ucode(struct xe_guc *guc)
 
 	/*
 	 * Wait for the GuC to start up.
-	 * NB: Docs recommend not using the interrupt for completion.
-	 * Measurements indicate this should take no more than 20ms
+	 * NB: Docs recommend analt using the interrupt for completion.
+	 * Measurements indicate this should take anal more than 20ms
 	 * (assuming the GT clock is at maximum frequency). So, a
 	 * timeout here indicates that the GuC has failed and is unusable.
 	 * (Higher levels of the driver may decide to reset the GuC and
 	 * attempt the ucode load again if this happens.)
 	 *
-	 * FIXME: There is a known (but exceedingly unlikely) race condition
-	 * where the asynchronous frequency management code could reduce
+	 * FIXME: There is a kanalwn (but exceedingly unlikely) race condition
+	 * where the asynchroanalus frequency management code could reduce
 	 * the GT clock while a GuC reload is in progress (during a full
 	 * GT reset). A fix is in progress but there are complex locking
 	 * issues to be resolved. In the meantime bump the timeout to
 	 * 200ms. Even at slowest clock, this should be sufficient. And
-	 * in the working case, a larger timeout makes no difference.
+	 * in the working case, a larger timeout makes anal difference.
 	 */
 	ret = xe_mmio_wait32(guc_to_gt(guc), GUC_STATUS, GS_UKERNEL_MASK,
 			     FIELD_PREP(GS_UKERNEL_MASK, XE_GUC_LOAD_STATUS_READY),
@@ -441,7 +441,7 @@ static int guc_wait_ucode(struct xe_guc *guc)
 
 		if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED) {
 			drm_info(drm, "GuC firmware signature verification failed\n");
-			ret = -ENOEXEC;
+			ret = -EANALEXEC;
 		}
 
 		if (REG_FIELD_GET(GS_UKERNEL_MASK, status) ==
@@ -468,7 +468,7 @@ static int __xe_guc_upload(struct xe_guc *guc)
 	guc_prepare_xfer(guc);
 
 	/*
-	 * Note that GuC needs the CSS header plus uKernel code to be copied
+	 * Analte that GuC needs the CSS header plus uKernel code to be copied
 	 * by the DMA engine in one operation, whereas the RSA signature is
 	 * loaded separately, either by copying it to the UOS_RSA_SCRATCH
 	 * register (if key size <= 256) or through a ggtt-pinned vma (if key
@@ -503,7 +503,7 @@ out:
  * xe_guc_min_load_for_hwconfig - load minimal GuC and read hwconfig table
  * @guc: The GuC object
  *
- * This function uploads a minimal GuC that does not support submissions but
+ * This function uploads a minimal GuC that does analt support submissions but
  * in a state where the hwconfig table can be read. Next, it reads and parses
  * the hwconfig table so it can be used for subsequent steps in the driver load.
  * Lastly, it enables CT communication (XXX: this is needed for PFs/VFs only).
@@ -552,11 +552,11 @@ static void guc_handle_mmio_msg(struct xe_guc *guc)
 
 	if (msg & XE_GUC_RECV_MSG_CRASH_DUMP_POSTED)
 		drm_err(&guc_to_xe(guc)->drm,
-			"Received early GuC crash dump notification!\n");
+			"Received early GuC crash dump analtification!\n");
 
 	if (msg & XE_GUC_RECV_MSG_EXCEPTION)
 		drm_err(&guc_to_xe(guc)->drm,
-			"Received early GuC exception notification!\n");
+			"Received early GuC exception analtification!\n");
 }
 
 static void guc_enable_irq(struct xe_guc *guc)
@@ -613,17 +613,17 @@ int xe_guc_suspend(struct xe_guc *guc)
 	return 0;
 }
 
-void xe_guc_notify(struct xe_guc *guc)
+void xe_guc_analtify(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
-	const u32 default_notify_data = 0;
+	const u32 default_analtify_data = 0;
 
 	/*
 	 * Both GUC_HOST_INTERRUPT and MED_GUC_HOST_INTERRUPT can pass
-	 * additional payload data to the GuC but this capability is not
+	 * additional payload data to the GuC but this capability is analt
 	 * used by the firmware yet. Use default value in the meantime.
 	 */
-	xe_mmio_write32(gt, guc->notify_reg, default_notify_data);
+	xe_mmio_write32(gt, guc->analtify_reg, default_analtify_data);
 }
 
 int xe_guc_auth_huc(struct xe_guc *guc, u32 rsa_addr)
@@ -660,7 +660,7 @@ int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 		  GUC_HXG_TYPE_REQUEST);
 
 retry:
-	/* Not in critical data-path, just do if else for GT type */
+	/* Analt in critical data-path, just do if else for GT type */
 	if (xe_gt_is_media_type(gt)) {
 		for (i = 0; i < len; ++i)
 			xe_mmio_write32(gt, MED_VF_SW_FLAG(i),
@@ -673,21 +673,21 @@ retry:
 		xe_mmio_read32(gt, VF_SW_FLAG(LAST_INDEX));
 	}
 
-	xe_guc_notify(guc);
+	xe_guc_analtify(guc);
 
 	ret = xe_mmio_wait32(gt, reply_reg, GUC_HXG_MSG_0_ORIGIN,
 			     FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_GUC),
 			     50000, &reply, false);
 	if (ret) {
 timeout:
-		drm_err(&xe->drm, "mmio request %#x: no reply %#x\n",
+		drm_err(&xe->drm, "mmio request %#x: anal reply %#x\n",
 			request[0], reply);
 		return ret;
 	}
 
 	header = xe_mmio_read32(gt, reply_reg);
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
-	    GUC_HXG_TYPE_NO_RESPONSE_BUSY) {
+	    GUC_HXG_TYPE_ANAL_RESPONSE_BUSY) {
 		/*
 		 * Once we got a BUSY reply we must wait again for the final
 		 * response but this time we can't use ORIGIN mask anymore.
@@ -712,7 +712,7 @@ timeout:
 	}
 
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
-	    GUC_HXG_TYPE_NO_RESPONSE_RETRY) {
+	    GUC_HXG_TYPE_ANAL_RESPONSE_RETRY) {
 		u32 reason = FIELD_GET(GUC_HXG_RETRY_MSG_0_REASON, header);
 
 		drm_dbg(&xe->drm, "mmio request %#x: retrying, reason %#x\n",
@@ -785,7 +785,7 @@ static int guc_self_cfg(struct xe_guc *guc, u16 key, u16 len, u64 val)
 	if (unlikely(ret > 1))
 		return -EPROTO;
 	if (unlikely(!ret))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	return 0;
 }

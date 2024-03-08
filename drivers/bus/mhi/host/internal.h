@@ -19,7 +19,7 @@ extern struct bus_type mhi_bus_type;
 #define SOC_HW_VERSION_FAM_NUM_BMSK			GENMASK(31, 28)
 #define SOC_HW_VERSION_DEV_NUM_BMSK			GENMASK(27, 16)
 #define SOC_HW_VERSION_MAJOR_VER_BMSK			GENMASK(15, 8)
-#define SOC_HW_VERSION_MINOR_VER_BMSK			GENMASK(7, 0)
+#define SOC_HW_VERSION_MIANALR_VER_BMSK			GENMASK(7, 0)
 
 struct mhi_ctxt {
 	struct mhi_event_ctxt *er_ctxt;
@@ -105,7 +105,7 @@ enum mhi_pm_state {
 #define MHI_PM_SYS_ERR_DETECT				BIT(8)
 #define MHI_PM_SYS_ERR_PROCESS				BIT(9)
 #define MHI_PM_SHUTDOWN_PROCESS				BIT(10)
-/* link not accessible */
+/* link analt accessible */
 #define MHI_PM_LD_ERR_FATAL_DETECT			BIT(11)
 
 #define MHI_REG_ACCESS_VALID(pm_state)			((pm_state & (MHI_PM_POR | MHI_PM_M0 | \
@@ -129,7 +129,7 @@ enum mhi_pm_state {
 #define PRIMARY_CMD_RING				0
 #define MHI_DEV_WAKE_DB					127
 #define MHI_MAX_MTU					0xffff
-#define MHI_RANDOM_U32_NONZERO(bmsk)			(get_random_u32_inclusive(1, bmsk))
+#define MHI_RANDOM_U32_ANALNZERO(bmsk)			(get_random_u32_inclusive(1, bmsk))
 
 enum mhi_er_type {
 	MHI_ER_TYPE_INVALID = 0x0,
@@ -153,7 +153,7 @@ struct mhi_pm_transitions {
 };
 
 struct state_transition {
-	struct list_head node;
+	struct list_head analde;
 	enum dev_st_transition state;
 };
 
@@ -185,7 +185,7 @@ struct mhi_buf_info {
 	dma_addr_t p_addr;
 	size_t len;
 	enum dma_data_direction dir;
-	bool used; /* Indicates whether the buffer is used or not */
+	bool used; /* Indicates whether the buffer is used or analt */
 	bool pre_mapped; /* Already pre-mapped by client */
 };
 
@@ -215,7 +215,7 @@ struct mhi_chan {
 	/*
 	 * Important: When consuming, increment tre_ring first and when
 	 * releasing, decrement buf_ring first. If tre_ring has space, buf_ring
-	 * is guranteed to have space so we do not need to check both rings.
+	 * is guranteed to have space so we do analt need to check both rings.
 	 */
 	struct mhi_ring buf_ring;
 	struct mhi_ring tre_ring;
@@ -233,8 +233,8 @@ struct mhi_chan {
 	struct mutex mutex;
 	struct completion completion;
 	rwlock_t lock;
-	struct list_head node;
-	bool lpm_notify;
+	struct list_head analde;
+	bool lpm_analtify;
 	bool configured;
 	bool offload_ch;
 	bool pre_alloc;
@@ -371,11 +371,11 @@ irqreturn_t mhi_intvec_handler(int irq_number, void *dev);
 
 int mhi_gen_tre(struct mhi_controller *mhi_cntrl, struct mhi_chan *mhi_chan,
 		struct mhi_buf_info *info, enum mhi_flags flags);
-int mhi_map_single_no_bb(struct mhi_controller *mhi_cntrl,
+int mhi_map_single_anal_bb(struct mhi_controller *mhi_cntrl,
 			 struct mhi_buf_info *buf_info);
 int mhi_map_single_use_bb(struct mhi_controller *mhi_cntrl,
 			  struct mhi_buf_info *buf_info);
-void mhi_unmap_single_no_bb(struct mhi_controller *mhi_cntrl,
+void mhi_unmap_single_anal_bb(struct mhi_controller *mhi_cntrl,
 			    struct mhi_buf_info *buf_info);
 void mhi_unmap_single_use_bb(struct mhi_controller *mhi_cntrl,
 			     struct mhi_buf_info *buf_info);

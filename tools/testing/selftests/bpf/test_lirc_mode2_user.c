@@ -29,7 +29,7 @@
 
 #include <linux/bpf.h>
 #include <linux/input.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	lircfd = open(argv[1], O_RDWR | O_NONBLOCK);
+	lircfd = open(argv[1], O_RDWR | O_ANALNBLOCK);
 	if (lircfd == -1) {
 		printf("failed to open lirc device %s: %m\n", argv[1]);
 		return 1;
@@ -74,12 +74,12 @@ int main(int argc, char **argv)
 
 	/* Let's try detach it before it was ever attached */
 	ret = bpf_prog_detach2(progfd, lircfd, BPF_LIRC_MODE2);
-	if (ret != -1 || errno != ENOENT) {
-		printf("bpf_prog_detach2 not attached should fail: %m\n");
+	if (ret != -1 || erranal != EANALENT) {
+		printf("bpf_prog_detach2 analt attached should fail: %m\n");
 		return 1;
 	}
 
-	inputfd = open(argv[2], O_RDONLY | O_NONBLOCK);
+	inputfd = open(argv[2], O_RDONLY | O_ANALNBLOCK);
 	if (inputfd == -1) {
 		printf("failed to open input device %s: %m\n", argv[1]);
 		return 1;
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 	}
 
 	if (prog_cnt != 0) {
-		printf("Expected nothing to be attached\n");
+		printf("Expected analthing to be attached\n");
 		return 1;
 	}
 
@@ -166,7 +166,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	/* Let's try detaching it now it is actually attached */
+	/* Let's try detaching it analw it is actually attached */
 	ret = bpf_prog_detach2(progfd, lircfd, BPF_LIRC_MODE2);
 	if (ret) {
 		printf("bpf_prog_detach2: returned %m\n");

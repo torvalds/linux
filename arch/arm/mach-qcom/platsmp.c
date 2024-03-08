@@ -7,7 +7,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/of.h>
@@ -53,19 +53,19 @@ static void qcom_cpu_die(unsigned int cpu)
 
 static int scss_release_secondary(unsigned int cpu)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	void __iomem *base;
 
-	node = of_find_compatible_node(NULL, NULL, "qcom,gcc-msm8660");
-	if (!node) {
-		pr_err("%s: can't find node\n", __func__);
+	analde = of_find_compatible_analde(NULL, NULL, "qcom,gcc-msm8660");
+	if (!analde) {
+		pr_err("%s: can't find analde\n", __func__);
 		return -ENXIO;
 	}
 
-	base = of_iomap(node, 0);
-	of_node_put(node);
+	base = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	writel_relaxed(0, base + VDD_SC1_ARRAY_CLAMP_GFS_CTL);
 	writel_relaxed(0, base + SCSS_CPU1CORE_RESET);
@@ -80,22 +80,22 @@ static int cortex_a7_release_secondary(unsigned int cpu)
 {
 	int ret = 0;
 	void __iomem *reg;
-	struct device_node *cpu_node, *acc_node;
+	struct device_analde *cpu_analde, *acc_analde;
 	u32 reg_val;
 
-	cpu_node = of_get_cpu_node(cpu, NULL);
-	if (!cpu_node)
-		return -ENODEV;
+	cpu_analde = of_get_cpu_analde(cpu, NULL);
+	if (!cpu_analde)
+		return -EANALDEV;
 
-	acc_node = of_parse_phandle(cpu_node, "qcom,acc", 0);
-	if (!acc_node) {
-		ret = -ENODEV;
+	acc_analde = of_parse_phandle(cpu_analde, "qcom,acc", 0);
+	if (!acc_analde) {
+		ret = -EANALDEV;
 		goto out_acc;
 	}
 
-	reg = of_iomap(acc_node, 0);
+	reg = of_iomap(acc_analde, 0);
 	if (!reg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_acc_map;
 	}
 
@@ -126,9 +126,9 @@ static int cortex_a7_release_secondary(unsigned int cpu)
 
 	iounmap(reg);
 out_acc_map:
-	of_node_put(acc_node);
+	of_analde_put(acc_analde);
 out_acc:
-	of_node_put(cpu_node);
+	of_analde_put(cpu_analde);
 	return ret;
 }
 
@@ -136,34 +136,34 @@ static int kpssv1_release_secondary(unsigned int cpu)
 {
 	int ret = 0;
 	void __iomem *reg, *saw_reg;
-	struct device_node *cpu_node, *acc_node, *saw_node;
+	struct device_analde *cpu_analde, *acc_analde, *saw_analde;
 	u32 val;
 
-	cpu_node = of_get_cpu_node(cpu, NULL);
-	if (!cpu_node)
-		return -ENODEV;
+	cpu_analde = of_get_cpu_analde(cpu, NULL);
+	if (!cpu_analde)
+		return -EANALDEV;
 
-	acc_node = of_parse_phandle(cpu_node, "qcom,acc", 0);
-	if (!acc_node) {
-		ret = -ENODEV;
+	acc_analde = of_parse_phandle(cpu_analde, "qcom,acc", 0);
+	if (!acc_analde) {
+		ret = -EANALDEV;
 		goto out_acc;
 	}
 
-	saw_node = of_parse_phandle(cpu_node, "qcom,saw", 0);
-	if (!saw_node) {
-		ret = -ENODEV;
+	saw_analde = of_parse_phandle(cpu_analde, "qcom,saw", 0);
+	if (!saw_analde) {
+		ret = -EANALDEV;
 		goto out_saw;
 	}
 
-	reg = of_iomap(acc_node, 0);
+	reg = of_iomap(acc_analde, 0);
 	if (!reg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_acc_map;
 	}
 
-	saw_reg = of_iomap(saw_node, 0);
+	saw_reg = of_iomap(saw_analde, 0);
 	if (!saw_reg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_saw_map;
 	}
 
@@ -203,53 +203,53 @@ static int kpssv1_release_secondary(unsigned int cpu)
 out_saw_map:
 	iounmap(reg);
 out_acc_map:
-	of_node_put(saw_node);
+	of_analde_put(saw_analde);
 out_saw:
-	of_node_put(acc_node);
+	of_analde_put(acc_analde);
 out_acc:
-	of_node_put(cpu_node);
+	of_analde_put(cpu_analde);
 	return ret;
 }
 
 static int kpssv2_release_secondary(unsigned int cpu)
 {
 	void __iomem *reg;
-	struct device_node *cpu_node, *l2_node, *acc_node, *saw_node;
+	struct device_analde *cpu_analde, *l2_analde, *acc_analde, *saw_analde;
 	void __iomem *l2_saw_base;
 	unsigned reg_val;
 	int ret;
 
-	cpu_node = of_get_cpu_node(cpu, NULL);
-	if (!cpu_node)
-		return -ENODEV;
+	cpu_analde = of_get_cpu_analde(cpu, NULL);
+	if (!cpu_analde)
+		return -EANALDEV;
 
-	acc_node = of_parse_phandle(cpu_node, "qcom,acc", 0);
-	if (!acc_node) {
-		ret = -ENODEV;
+	acc_analde = of_parse_phandle(cpu_analde, "qcom,acc", 0);
+	if (!acc_analde) {
+		ret = -EANALDEV;
 		goto out_acc;
 	}
 
-	l2_node = of_parse_phandle(cpu_node, "next-level-cache", 0);
-	if (!l2_node) {
-		ret = -ENODEV;
+	l2_analde = of_parse_phandle(cpu_analde, "next-level-cache", 0);
+	if (!l2_analde) {
+		ret = -EANALDEV;
 		goto out_l2;
 	}
 
-	saw_node = of_parse_phandle(l2_node, "qcom,saw", 0);
-	if (!saw_node) {
-		ret = -ENODEV;
+	saw_analde = of_parse_phandle(l2_analde, "qcom,saw", 0);
+	if (!saw_analde) {
+		ret = -EANALDEV;
 		goto out_saw;
 	}
 
-	reg = of_iomap(acc_node, 0);
+	reg = of_iomap(acc_analde, 0);
 	if (!reg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_map;
 	}
 
-	l2_saw_base = of_iomap(saw_node, 0);
+	l2_saw_base = of_iomap(saw_analde, 0);
 	if (!l2_saw_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_saw_map;
 	}
 
@@ -300,13 +300,13 @@ static int kpssv2_release_secondary(unsigned int cpu)
 out_saw_map:
 	iounmap(reg);
 out_map:
-	of_node_put(saw_node);
+	of_analde_put(saw_analde);
 out_saw:
-	of_node_put(l2_node);
+	of_analde_put(l2_analde);
 out_l2:
-	of_node_put(acc_node);
+	of_analde_put(acc_analde);
 out_acc:
-	of_node_put(cpu_node);
+	of_analde_put(cpu_analde);
 
 	return ret;
 }

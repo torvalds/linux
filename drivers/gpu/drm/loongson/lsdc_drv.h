@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef __LSDC_DRV_H__
@@ -27,7 +27,7 @@
 #define LSDC_NUM_CRTC           2
 
 /*
- * LS7A1000/LS7A2000 chipsets function as the south & north bridges of the
+ * LS7A1000/LS7A2000 chipsets function as the south & analrth bridges of the
  * Loongson 3 series processors, they are equipped with on-board video RAM
  * typically. While Loongson LS2K series are low cost SoCs which share the
  * system RAM as video RAM, they don't has a dedicated VRAM.
@@ -313,21 +313,21 @@ to_lsdc_crtc_state(struct drm_crtc_state *base)
 	return container_of(base, struct lsdc_crtc_state, base);
 }
 
-void lsdc_debugfs_init(struct drm_minor *minor);
+void lsdc_debugfs_init(struct drm_mianalr *mianalr);
 
 int ls7a1000_crtc_init(struct drm_device *ddev,
 		       struct drm_crtc *crtc,
 		       struct drm_plane *primary,
 		       struct drm_plane *cursor,
 		       unsigned int index,
-		       bool no_vblank);
+		       bool anal_vblank);
 
 int ls7a2000_crtc_init(struct drm_device *ddev,
 		       struct drm_crtc *crtc,
 		       struct drm_plane *primary,
 		       struct drm_plane *cursor,
 		       unsigned int index,
-		       bool no_vblank);
+		       bool anal_vblank);
 
 int lsdc_primary_plane_init(struct drm_device *ddev,
 			    struct drm_plane *plane,

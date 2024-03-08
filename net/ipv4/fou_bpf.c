@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Unstable Fou Helpers for TC-BPF hook
  *
- * These are called from SCHED_CLS BPF programs. Note that it is
+ * These are called from SCHED_CLS BPF programs. Analte that it is
  * allowed to break compatibility for these functions since the interface they
  * are exposed through to BPF programs is explicitly unstable.
  */
@@ -33,11 +33,11 @@ __bpf_kfunc_start_defs();
  * bpf_skb_set_tunnel_key helper, responsible for setting IP addresses.
  *
  * Parameters:
- * @skb_ctx	Pointer to ctx (__sk_buff) in TC program. Cannot be NULL
+ * @skb_ctx	Pointer to ctx (__sk_buff) in TC program. Cananalt be NULL
  * @encap	Pointer to a `struct bpf_fou_encap` storing UDP src and
  * 		dst ports. If sport is set to 0 the kernel will auto-assign a
  * 		port. This is similar to using `encap-sport auto`.
- * 		Cannot be NULL
+ * 		Cananalt be NULL
  * @type	Encapsulation type for the packet. Their definitions are
  * 		specified in `enum bpf_fou_encap_type`
  */
@@ -61,7 +61,7 @@ __bpf_kfunc int bpf_skb_set_fou_encap(struct __sk_buff *skb_ctx,
 		info->encap.type = TUNNEL_ENCAP_GUE;
 		break;
 	default:
-		info->encap.type = TUNNEL_ENCAP_NONE;
+		info->encap.type = TUNNEL_ENCAP_ANALNE;
 	}
 
 	if (info->key.tun_flags & TUNNEL_CSUM)
@@ -79,9 +79,9 @@ __bpf_kfunc int bpf_skb_set_fou_encap(struct __sk_buff *skb_ctx,
  * on an ipip device in collect-metadata mode.
  *
  * Parameters:
- * @skb_ctx	Pointer to ctx (__sk_buff) in TC program. Cannot be NULL
+ * @skb_ctx	Pointer to ctx (__sk_buff) in TC program. Cananalt be NULL
  * @encap	Pointer to a struct bpf_fou_encap storing UDP source and
- * 		destination port. Cannot be NULL
+ * 		destination port. Cananalt be NULL
  */
 __bpf_kfunc int bpf_skb_get_fou_encap(struct __sk_buff *skb_ctx,
 				      struct bpf_fou_encap *encap)

@@ -41,7 +41,7 @@ static struct rc_map_table pv951[] = {
 	{ 0x19, KEY_MODE },		/* FUNC */
 	{ 0x0c, KEY_SEARCH },		/* AUTOSCAN */
 
-	/* Not sure what to do with these ones! */
+	/* Analt sure what to do with these ones! */
 	{ 0x0f, KEY_VIDEO },		/* SOURCE */
 	{ 0x0a, KEY_KPPLUS },		/* +100 */
 	{ 0x14, KEY_EQUAL },		/* SYNC */
@@ -52,7 +52,7 @@ static struct rc_map_list pv951_map = {
 	.map = {
 		.scan     = pv951,
 		.size     = ARRAY_SIZE(pv951),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_PV951,
 	}
 };

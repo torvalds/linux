@@ -43,7 +43,7 @@ static int __init sh7760_ac97_init(void)
 	ipsel = __raw_readw(IPSEL);
 	__raw_writew(ipsel | (3 << 10), IPSEL);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	sh7760_ac97_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!sh7760_ac97_snd_device)
 		goto out;
@@ -69,4 +69,4 @@ module_exit(sh7760_ac97_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Generic SH7760 AC97 sound machine");
-MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");
+MODULE_AUTHOR("Manuel Lauss <maanal@roarinelk.homelinux.net>");

@@ -34,7 +34,7 @@
 #define CMDAT_STREAM		(1 << 4)	/* 1 = stream */
 #define CMDAT_WRITE		(1 << 3)	/* 1 = write */
 #define CMDAT_DATAEN		(1 << 2)
-#define CMDAT_RESP_NONE		(0 << 0)
+#define CMDAT_RESP_ANALNE		(0 << 0)
 #define CMDAT_RESP_SHORT	(1 << 0)
 #define CMDAT_RESP_R2		(2 << 0)
 #define CMDAT_RESP_R3		(3 << 0)
@@ -45,7 +45,7 @@
 
 #define MMC_BLKLEN	0x001c	/* 10 bit */
 
-#define MMC_NOB		0x0020	/* 16 bit */
+#define MMC_ANALB		0x0020	/* 16 bit */
 
 #define MMC_PRTBUF	0x0024
 #define BUF_PART_FULL		(1 << 0)

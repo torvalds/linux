@@ -113,7 +113,7 @@ void __drmm_mutex_release(struct drm_device *dev, void *res);
  * @lock: lock to be initialized
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise.
+ * 0 on success, or a negative erranal code otherwise.
  *
  * This is a &drm_device-managed version of mutex_init(). The initialized
  * lock is automatically destroyed on the final drm_dev_put().

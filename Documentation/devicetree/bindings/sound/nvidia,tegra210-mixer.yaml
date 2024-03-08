@@ -20,7 +20,7 @@ allOf:
   - $ref: dai-common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^amixer@[0-9a-f]*$"
 
   compatible:
@@ -43,7 +43,7 @@ properties:
     $ref: /schemas/graph.yaml#/properties/ports
     description: |
       Mixer has ten inputs and five outputs. Accordingly ACIF (Audio
-      Client Interfaces) port nodes are defined to represent Mixer
+      Client Interfaces) port analdes are defined to represent Mixer
       inputs (port 0 to 9) and outputs (port 10 to 14). These are
       connected to corresponding ports on AHUB (Audio Hub).
 

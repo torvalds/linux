@@ -135,12 +135,12 @@ struct affs_data_head
 
 #define FIBF_HIDDEN		0x0080
 #define FIBF_SCRIPT		0x0040
-#define FIBF_PURE		0x0020		/* no use under linux */
+#define FIBF_PURE		0x0020		/* anal use under linux */
 #define FIBF_ARCHIVED		0x0010		/* never set, always cleared on write */
-#define FIBF_NOREAD		0x0008		/* 0 means allowed */
-#define FIBF_NOWRITE		0x0004		/* 0 means allowed */
-#define FIBF_NOEXECUTE		0x0002		/* 0 means allowed, ignored under linux */
-#define FIBF_NODELETE		0x0001		/* 0 means allowed */
+#define FIBF_ANALREAD		0x0008		/* 0 means allowed */
+#define FIBF_ANALWRITE		0x0004		/* 0 means allowed */
+#define FIBF_ANALEXECUTE		0x0002		/* 0 means allowed, iganalred under linux */
+#define FIBF_ANALDELETE		0x0001		/* 0 means allowed */
 
 #define FIBF_OWNER		0x000F		/* Bits pertaining to owner */
 #define FIBF_MASK		0xEE0E		/* Bits modified by Linux */

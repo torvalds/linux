@@ -77,47 +77,47 @@ static int lan966x_police_validate(struct lan966x_port *port,
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+	if (act->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is analt pipe or ok");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	if (act->police.analtexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, act)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is ok, but action is not last");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is ok, but action is analt last");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.peakrate_bytes_ps ||
 	    act->police.avrate || act->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.rate_pkt_ps) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "QoS offload not support packets per second");
-		return -EOPNOTSUPP;
+				   "QoS offload analt support packets per second");
+		return -EOPANALTSUPP;
 	}
 
 	if (!ingress) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Policer is not supported on egress");
-		return -EOPNOTSUPP;
+				   "Policer is analt supported on egress");
+		return -EOPANALTSUPP;
 	}
 
 	if (port->tc.ingress_shared_block) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Policer is not supported on shared ingress blocks");
-		return -EOPNOTSUPP;
+				   "Policer is analt supported on shared ingress blocks");
+		return -EOPANALTSUPP;
 	}
 
 	if (port->tc.police_id && port->tc.police_id != police_id) {

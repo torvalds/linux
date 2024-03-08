@@ -3,7 +3,7 @@
  * StarFive DWMAC platform driver
  *
  * Copyright (C) 2021 Emil Renner Berthing <kernel@esmil.dk>
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  *
  */
 
@@ -76,7 +76,7 @@ static int starfive_dwmac_set_mode(struct plat_stmmacenet_data *plat_dat)
 		return -EINVAL;
 	}
 
-	regmap = syscon_regmap_lookup_by_phandle_args(dwmac->dev->of_node,
+	regmap = syscon_regmap_lookup_by_phandle_args(dwmac->dev->of_analde,
 						      "starfive,syscon",
 						      2, args);
 	if (IS_ERR(regmap))
@@ -112,7 +112,7 @@ static int starfive_dwmac_probe(struct platform_device *pdev)
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwmac->clk_tx = devm_clk_get_enabled(&pdev->dev, "tx");
 	if (IS_ERR(dwmac->clk_tx))
@@ -127,7 +127,7 @@ static int starfive_dwmac_probe(struct platform_device *pdev)
 	/* Generally, the rgmii_tx clock is provided by the internal clock,
 	 * which needs to match the corresponding clock frequency according
 	 * to different speeds. If the rgmii_tx clock is provided by the
-	 * external rgmii_rxin, there is no need to configure the clock
+	 * external rgmii_rxin, there is anal need to configure the clock
 	 * internally, because rgmii_rxin will be adaptively adjusted.
 	 */
 	if (!device_property_read_bool(&pdev->dev, "starfive,tx-use-rgmii-clk"))

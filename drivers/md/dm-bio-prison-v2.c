@@ -110,7 +110,7 @@ static int cmp_keys(struct dm_cell_key_v2 *lhs,
 }
 
 /*
- * Returns true if node found, otherwise it inserts a new one.
+ * Returns true if analde found, otherwise it inserts a new one.
  */
 static bool __find_or_insert(struct dm_bio_prison_v2 *prison,
 			     struct dm_cell_key_v2 *key,
@@ -118,11 +118,11 @@ static bool __find_or_insert(struct dm_bio_prison_v2 *prison,
 			     struct dm_bio_prison_cell_v2 **result)
 {
 	int r;
-	struct rb_node **new = &prison->cells.rb_node, *parent = NULL;
+	struct rb_analde **new = &prison->cells.rb_analde, *parent = NULL;
 
 	while (*new) {
 		struct dm_bio_prison_cell_v2 *cell =
-			rb_entry(*new, struct dm_bio_prison_cell_v2, node);
+			rb_entry(*new, struct dm_bio_prison_cell_v2, analde);
 
 		r = cmp_keys(key, &cell->key);
 
@@ -141,8 +141,8 @@ static bool __find_or_insert(struct dm_bio_prison_v2 *prison,
 
 	__setup_new_cell(key, cell_prealloc);
 	*result = cell_prealloc;
-	rb_link_node(&cell_prealloc->node, parent, new);
-	rb_insert_color(&cell_prealloc->node, &prison->cells);
+	rb_link_analde(&cell_prealloc->analde, parent, new);
+	rb_insert_color(&cell_prealloc->analde, &prison->cells);
 
 	return false;
 }
@@ -201,7 +201,7 @@ static bool __put(struct dm_bio_prison_v2 *prison,
 				cell->quiesce_continuation = NULL;
 			}
 		} else {
-			rb_erase(&cell->node, &prison->cells);
+			rb_erase(&cell->analde, &prison->cells);
 			return true;
 		}
 	}
@@ -239,7 +239,7 @@ static int __lock(struct dm_bio_prison_v2 *prison,
 		cell->exclusive_level = lock_level;
 		*cell_result = cell;
 
-		// FIXME: we don't yet know what level these shared locks
+		// FIXME: we don't yet kanalw what level these shared locks
 		// were taken at, so have to quiesce them all.
 		return cell->shared_count > 0;
 
@@ -329,7 +329,7 @@ static bool __unlock(struct dm_bio_prison_v2 *prison,
 		return false;
 	}
 
-	rb_erase(&cell->node, &prison->cells);
+	rb_erase(&cell->analde, &prison->cells);
 	return true;
 }
 
@@ -353,7 +353,7 @@ int __init dm_bio_prison_init_v2(void)
 {
 	_cell_cache = KMEM_CACHE(dm_bio_prison_cell_v2, 0);
 	if (!_cell_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

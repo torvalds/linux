@@ -41,7 +41,7 @@ similar to the ones used in a network device:
     :identifiers: struct vring_desc
 
 All the buffers the descriptors point to are allocated by the guest and
-used by the host either for reading or for writing but not for both.
+used by the host either for reading or for writing but analt for both.
 
 Refer to Chapter 2.5 ("Virtqueues") of the virtio spec (`[1]`_) for the
 reference definitions of virtqueues and "Virtqueues and virtio ring: How
@@ -102,14 +102,14 @@ device is registered to the virtio bus::
 
 		if (force_legacy) {
 			rc = virtio_pci_legacy_probe(vp_dev);
-			/* Also try modern mode if we can't map BAR0 (no IO space). */
-			if (rc == -ENODEV || rc == -ENOMEM)
+			/* Also try modern mode if we can't map BAR0 (anal IO space). */
+			if (rc == -EANALDEV || rc == -EANALMEM)
 				rc = virtio_pci_modern_probe(vp_dev);
 			if (rc)
 				goto err_probe;
 		} else {
 			rc = virtio_pci_modern_probe(vp_dev);
-			if (rc == -ENODEV)
+			if (rc == -EANALDEV)
 				rc = virtio_pci_legacy_probe(vp_dev);
 			if (rc)
 				goto err_probe;
@@ -140,6 +140,6 @@ https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html
 _`[2]` Virtqueues and virtio ring: How the data travels
 https://www.redhat.com/en/blog/virtqueues-and-virtio-ring-how-data-travels
 
-.. rubric:: Footnotes
+.. rubric:: Footanaltes
 
 .. [#f1] that's why they may be also referred to as virtrings.

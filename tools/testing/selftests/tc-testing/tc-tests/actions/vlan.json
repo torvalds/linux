@@ -939,7 +939,7 @@
     },
     {
         "id": "1a3d",
-        "name": "Add vlan pop action with no_percpu flag",
+        "name": "Add vlan pop action with anal_percpu flag",
         "category": [
             "actions",
             "vlan"
@@ -955,10 +955,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action vlan pop no_percpu",
+        "cmdUnderTest": "$TC actions add action vlan pop anal_percpu",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action vlan",
-        "matchPattern": "action order [0-9]+: vlan.*pop.*no_percpu",
+        "matchPattern": "action order [0-9]+: vlan.*pop.*anal_percpu",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action vlan"

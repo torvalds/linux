@@ -17,8 +17,8 @@
 #define CTRL_MBOX_MAX_PF	128
 #define CTRL_MBOX_SZ		((size_t)(0x400000 / CTRL_MBOX_MAX_PF))
 
-/* Names of Hardware non-queue generic interrupts */
-static char *cnxk_non_ioq_msix_names[] = {
+/* Names of Hardware analn-queue generic interrupts */
+static char *cnxk_analn_ioq_msix_names[] = {
 	"epf_ire_rint",
 	"epf_ore_rint",
 	"epf_vfire_rint",
@@ -57,119 +57,119 @@ static char *cnxk_non_ioq_msix_names[] = {
 };
 
 /* Dump useful hardware CSRs for debug purpose */
-static void cnxk_dump_regs(struct octep_device *oct, int qno)
+static void cnxk_dump_regs(struct octep_device *oct, int qanal)
 {
 	struct device *dev = &oct->pdev->dev;
 
-	dev_info(dev, "IQ-%d register dump\n", qno);
+	dev_info(dev, "IQ-%d register dump\n", qanal);
 	dev_info(dev, "R[%d]_IN_INSTR_DBELL[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_IN_INSTR_DBELL(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_IN_INSTR_DBELL(qno)));
+		 qanal, CNXK_SDP_R_IN_INSTR_DBELL(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_IN_INSTR_DBELL(qanal)));
 	dev_info(dev, "R[%d]_IN_CONTROL[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_IN_CONTROL(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_IN_CONTROL(qno)));
+		 qanal, CNXK_SDP_R_IN_CONTROL(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_IN_CONTROL(qanal)));
 	dev_info(dev, "R[%d]_IN_ENABLE[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_IN_ENABLE(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_IN_ENABLE(qno)));
+		 qanal, CNXK_SDP_R_IN_ENABLE(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_IN_ENABLE(qanal)));
 	dev_info(dev, "R[%d]_IN_INSTR_BADDR[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_IN_INSTR_BADDR(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_IN_INSTR_BADDR(qno)));
+		 qanal, CNXK_SDP_R_IN_INSTR_BADDR(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_IN_INSTR_BADDR(qanal)));
 	dev_info(dev, "R[%d]_IN_INSTR_RSIZE[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_IN_INSTR_RSIZE(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_IN_INSTR_RSIZE(qno)));
+		 qanal, CNXK_SDP_R_IN_INSTR_RSIZE(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_IN_INSTR_RSIZE(qanal)));
 	dev_info(dev, "R[%d]_IN_CNTS[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_IN_CNTS(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_IN_CNTS(qno)));
+		 qanal, CNXK_SDP_R_IN_CNTS(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_IN_CNTS(qanal)));
 	dev_info(dev, "R[%d]_IN_INT_LEVELS[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_IN_INT_LEVELS(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_IN_INT_LEVELS(qno)));
+		 qanal, CNXK_SDP_R_IN_INT_LEVELS(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_IN_INT_LEVELS(qanal)));
 	dev_info(dev, "R[%d]_IN_PKT_CNT[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_IN_PKT_CNT(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_IN_PKT_CNT(qno)));
+		 qanal, CNXK_SDP_R_IN_PKT_CNT(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_IN_PKT_CNT(qanal)));
 	dev_info(dev, "R[%d]_IN_BYTE_CNT[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_IN_BYTE_CNT(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_IN_BYTE_CNT(qno)));
+		 qanal, CNXK_SDP_R_IN_BYTE_CNT(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_IN_BYTE_CNT(qanal)));
 
-	dev_info(dev, "OQ-%d register dump\n", qno);
+	dev_info(dev, "OQ-%d register dump\n", qanal);
 	dev_info(dev, "R[%d]_OUT_SLIST_DBELL[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_OUT_SLIST_DBELL(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_OUT_SLIST_DBELL(qno)));
+		 qanal, CNXK_SDP_R_OUT_SLIST_DBELL(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_OUT_SLIST_DBELL(qanal)));
 	dev_info(dev, "R[%d]_OUT_CONTROL[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_OUT_CONTROL(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_OUT_CONTROL(qno)));
+		 qanal, CNXK_SDP_R_OUT_CONTROL(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_OUT_CONTROL(qanal)));
 	dev_info(dev, "R[%d]_OUT_ENABLE[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_OUT_ENABLE(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_OUT_ENABLE(qno)));
+		 qanal, CNXK_SDP_R_OUT_ENABLE(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_OUT_ENABLE(qanal)));
 	dev_info(dev, "R[%d]_OUT_SLIST_BADDR[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_OUT_SLIST_BADDR(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_OUT_SLIST_BADDR(qno)));
+		 qanal, CNXK_SDP_R_OUT_SLIST_BADDR(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_OUT_SLIST_BADDR(qanal)));
 	dev_info(dev, "R[%d]_OUT_SLIST_RSIZE[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_OUT_SLIST_RSIZE(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_OUT_SLIST_RSIZE(qno)));
+		 qanal, CNXK_SDP_R_OUT_SLIST_RSIZE(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_OUT_SLIST_RSIZE(qanal)));
 	dev_info(dev, "R[%d]_OUT_CNTS[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_OUT_CNTS(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_OUT_CNTS(qno)));
+		 qanal, CNXK_SDP_R_OUT_CNTS(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_OUT_CNTS(qanal)));
 	dev_info(dev, "R[%d]_OUT_INT_LEVELS[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_OUT_INT_LEVELS(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_OUT_INT_LEVELS(qno)));
+		 qanal, CNXK_SDP_R_OUT_INT_LEVELS(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_OUT_INT_LEVELS(qanal)));
 	dev_info(dev, "R[%d]_OUT_PKT_CNT[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_OUT_PKT_CNT(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_OUT_PKT_CNT(qno)));
+		 qanal, CNXK_SDP_R_OUT_PKT_CNT(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_OUT_PKT_CNT(qanal)));
 	dev_info(dev, "R[%d]_OUT_BYTE_CNT[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_OUT_BYTE_CNT(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_OUT_BYTE_CNT(qno)));
+		 qanal, CNXK_SDP_R_OUT_BYTE_CNT(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_OUT_BYTE_CNT(qanal)));
 	dev_info(dev, "R[%d]_ERR_TYPE[0x%llx]: 0x%016llx\n",
-		 qno, CNXK_SDP_R_ERR_TYPE(qno),
-		 octep_read_csr64(oct, CNXK_SDP_R_ERR_TYPE(qno)));
+		 qanal, CNXK_SDP_R_ERR_TYPE(qanal),
+		 octep_read_csr64(oct, CNXK_SDP_R_ERR_TYPE(qanal)));
 }
 
 /* Reset Hardware Tx queue */
-static int cnxk_reset_iq(struct octep_device *oct, int q_no)
+static int cnxk_reset_iq(struct octep_device *oct, int q_anal)
 {
 	struct octep_config *conf = oct->conf;
 	u64 val = 0ULL;
 
-	dev_dbg(&oct->pdev->dev, "Reset PF IQ-%d\n", q_no);
+	dev_dbg(&oct->pdev->dev, "Reset PF IQ-%d\n", q_anal);
 
 	/* Get absolute queue number */
-	q_no += conf->pf_ring_cfg.srn;
+	q_anal += conf->pf_ring_cfg.srn;
 
 	/* Disable the Tx/Instruction Ring */
-	octep_write_csr64(oct, CNXK_SDP_R_IN_ENABLE(q_no), val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_ENABLE(q_anal), val);
 
 	/* clear the Instruction Ring packet/byte counts and doorbell CSRs */
-	octep_write_csr64(oct, CNXK_SDP_R_IN_CNTS(q_no), val);
-	octep_write_csr64(oct, CNXK_SDP_R_IN_INT_LEVELS(q_no), val);
-	octep_write_csr64(oct, CNXK_SDP_R_IN_PKT_CNT(q_no), val);
-	octep_write_csr64(oct, CNXK_SDP_R_IN_BYTE_CNT(q_no), val);
-	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_BADDR(q_no), val);
-	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_RSIZE(q_no), val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_CNTS(q_anal), val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_INT_LEVELS(q_anal), val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_PKT_CNT(q_anal), val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_BYTE_CNT(q_anal), val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_BADDR(q_anal), val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_RSIZE(q_anal), val);
 
 	val = 0xFFFFFFFF;
-	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_DBELL(q_no), val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_DBELL(q_anal), val);
 
 	return 0;
 }
 
 /* Reset Hardware Rx queue */
-static void cnxk_reset_oq(struct octep_device *oct, int q_no)
+static void cnxk_reset_oq(struct octep_device *oct, int q_anal)
 {
 	u64 val = 0ULL;
 
-	q_no += CFG_GET_PORTS_PF_SRN(oct->conf);
+	q_anal += CFG_GET_PORTS_PF_SRN(oct->conf);
 
 	/* Disable Output (Rx) Ring */
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_ENABLE(q_no), val);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_BADDR(q_no), val);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_RSIZE(q_no), val);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_INT_LEVELS(q_no), val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_ENABLE(q_anal), val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_BADDR(q_anal), val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_RSIZE(q_anal), val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_INT_LEVELS(q_anal), val);
 
 	/* Clear count CSRs */
-	val = octep_read_csr(oct, CNXK_SDP_R_OUT_CNTS(q_no));
-	octep_write_csr(oct, CNXK_SDP_R_OUT_CNTS(q_no), val);
+	val = octep_read_csr(oct, CNXK_SDP_R_OUT_CNTS(q_anal));
+	octep_write_csr(oct, CNXK_SDP_R_OUT_CNTS(q_anal), val);
 
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_PKT_CNT(q_no), 0xFFFFFFFFFULL);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_DBELL(q_no), 0xFFFFFFFF);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_PKT_CNT(q_anal), 0xFFFFFFFFFULL);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_DBELL(q_anal), 0xFFFFFFFF);
 }
 
 /* Reset all hardware Tx/Rx queues */
@@ -260,9 +260,9 @@ static void octep_init_config_cnxk_pf(struct octep_device *oct)
 	conf->oq.oq_intr_time = OCTEP_OQ_INTR_TIME_THRESHOLD;
 	conf->oq.wmark = OCTEP_OQ_WMARK_MIN;
 
-	conf->msix_cfg.non_ioq_msix = CNXK_NUM_NON_IOQ_INTR;
+	conf->msix_cfg.analn_ioq_msix = CNXK_NUM_ANALN_IOQ_INTR;
 	conf->msix_cfg.ioq_msix = conf->pf_ring_cfg.active_io_rings;
-	conf->msix_cfg.non_ioq_msix_names = cnxk_non_ioq_msix_names;
+	conf->msix_cfg.analn_ioq_msix_names = cnxk_analn_ioq_msix_names;
 
 	pos = pci_find_ext_capability(oct->pdev, PCI_EXT_CAP_ID_SRIOV);
 	if (pos) {
@@ -280,42 +280,42 @@ static void octep_init_config_cnxk_pf(struct octep_device *oct)
 }
 
 /* Setup registers for a hardware Tx Queue  */
-static void octep_setup_iq_regs_cnxk_pf(struct octep_device *oct, int iq_no)
+static void octep_setup_iq_regs_cnxk_pf(struct octep_device *oct, int iq_anal)
 {
-	struct octep_iq *iq = oct->iq[iq_no];
+	struct octep_iq *iq = oct->iq[iq_anal];
 	u32 reset_instr_cnt;
 	u64 reg_val;
 
-	iq_no += CFG_GET_PORTS_PF_SRN(oct->conf);
-	reg_val = octep_read_csr64(oct, CNXK_SDP_R_IN_CONTROL(iq_no));
+	iq_anal += CFG_GET_PORTS_PF_SRN(oct->conf);
+	reg_val = octep_read_csr64(oct, CNXK_SDP_R_IN_CONTROL(iq_anal));
 
 	/* wait for IDLE to set to 1 */
 	if (!(reg_val & CNXK_R_IN_CTL_IDLE)) {
 		do {
-			reg_val = octep_read_csr64(oct, CNXK_SDP_R_IN_CONTROL(iq_no));
+			reg_val = octep_read_csr64(oct, CNXK_SDP_R_IN_CONTROL(iq_anal));
 		} while (!(reg_val & CNXK_R_IN_CTL_IDLE));
 	}
 
 	reg_val |= CNXK_R_IN_CTL_RDSIZE;
 	reg_val |= CNXK_R_IN_CTL_IS_64B;
 	reg_val |= CNXK_R_IN_CTL_ESR;
-	octep_write_csr64(oct, CNXK_SDP_R_IN_CONTROL(iq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_CONTROL(iq_anal), reg_val);
 
 	/* Write the start of the input queue's ring and its size  */
-	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_BADDR(iq_no),
+	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_BADDR(iq_anal),
 			  iq->desc_ring_dma);
-	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_RSIZE(iq_no),
+	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_RSIZE(iq_anal),
 			  iq->max_count);
 
 	/* Remember the doorbell & instruction count register addr
 	 * for this queue
 	 */
 	iq->doorbell_reg = oct->mmio[0].hw_addr +
-			   CNXK_SDP_R_IN_INSTR_DBELL(iq_no);
+			   CNXK_SDP_R_IN_INSTR_DBELL(iq_anal);
 	iq->inst_cnt_reg = oct->mmio[0].hw_addr +
-			   CNXK_SDP_R_IN_CNTS(iq_no);
+			   CNXK_SDP_R_IN_CNTS(iq_anal);
 	iq->intr_lvl_reg = oct->mmio[0].hw_addr +
-			   CNXK_SDP_R_IN_INT_LEVELS(iq_no);
+			   CNXK_SDP_R_IN_INT_LEVELS(iq_anal);
 
 	/* Store the current instruction counter (used in flush_iq calculation) */
 	reset_instr_cnt = readl(iq->inst_cnt_reg);
@@ -323,24 +323,24 @@ static void octep_setup_iq_regs_cnxk_pf(struct octep_device *oct, int iq_no)
 
 	/* INTR_THRESHOLD is set to max(FFFFFFFF) to disable the INTR */
 	reg_val = CFG_GET_IQ_INTR_THRESHOLD(oct->conf) & 0xffffffff;
-	octep_write_csr64(oct, CNXK_SDP_R_IN_INT_LEVELS(iq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_INT_LEVELS(iq_anal), reg_val);
 }
 
 /* Setup registers for a hardware Rx Queue  */
-static void octep_setup_oq_regs_cnxk_pf(struct octep_device *oct, int oq_no)
+static void octep_setup_oq_regs_cnxk_pf(struct octep_device *oct, int oq_anal)
 {
 	u64 reg_val;
 	u64 oq_ctl = 0ULL;
 	u32 time_threshold = 0;
-	struct octep_oq *oq = oct->oq[oq_no];
+	struct octep_oq *oq = oct->oq[oq_anal];
 
-	oq_no += CFG_GET_PORTS_PF_SRN(oct->conf);
-	reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_no));
+	oq_anal += CFG_GET_PORTS_PF_SRN(oct->conf);
+	reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_anal));
 
 	/* wait for IDLE to set to 1 */
 	if (!(reg_val & CNXK_R_OUT_CTL_IDLE)) {
 		do {
-			reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_no));
+			reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_anal));
 		} while (!(reg_val & CNXK_R_OUT_CTL_IDLE));
 	}
 
@@ -355,48 +355,48 @@ static void octep_setup_oq_regs_cnxk_pf(struct octep_device *oct, int oq_no)
 	reg_val &= ~(CNXK_R_OUT_CTL_ES_D);
 	reg_val |= (CNXK_R_OUT_CTL_ES_P);
 
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_no), reg_val);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_BADDR(oq_no),
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_anal), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_BADDR(oq_anal),
 			  oq->desc_ring_dma);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_RSIZE(oq_no),
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_RSIZE(oq_anal),
 			  oq->max_count);
 
-	oq_ctl = octep_read_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_no));
+	oq_ctl = octep_read_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_anal));
 
 	/* Clear the ISIZE and BSIZE (22-0) */
 	oq_ctl &= ~0x7fffffULL;
 
 	/* Populate the BSIZE (15-0) */
 	oq_ctl |= (oq->buffer_size & 0xffff);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_no), oq_ctl);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_CONTROL(oq_anal), oq_ctl);
 
 	/* Get the mapped address of the pkt_sent and pkts_credit regs */
-	oq->pkts_sent_reg = oct->mmio[0].hw_addr + CNXK_SDP_R_OUT_CNTS(oq_no);
+	oq->pkts_sent_reg = oct->mmio[0].hw_addr + CNXK_SDP_R_OUT_CNTS(oq_anal);
 	oq->pkts_credit_reg = oct->mmio[0].hw_addr +
-			      CNXK_SDP_R_OUT_SLIST_DBELL(oq_no);
+			      CNXK_SDP_R_OUT_SLIST_DBELL(oq_anal);
 
 	time_threshold = CFG_GET_OQ_INTR_TIME(oct->conf);
 	reg_val = ((u64)time_threshold << 32) |
 		  CFG_GET_OQ_INTR_PKT(oct->conf);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_INT_LEVELS(oq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_INT_LEVELS(oq_anal), reg_val);
 
 	/* set watermark for backpressure */
-	reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_WMARK(oq_no));
+	reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_WMARK(oq_anal));
 	reg_val &= ~0xFFFFFFFFULL;
 	reg_val |= CFG_GET_OQ_WMARK(oct->conf);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_WMARK(oq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_WMARK(oq_anal), reg_val);
 }
 
 /* Setup registers for a PF mailbox */
-static void octep_setup_mbox_regs_cnxk_pf(struct octep_device *oct, int q_no)
+static void octep_setup_mbox_regs_cnxk_pf(struct octep_device *oct, int q_anal)
 {
-	struct octep_mbox *mbox = oct->mbox[q_no];
+	struct octep_mbox *mbox = oct->mbox[q_anal];
 
 	/* PF to VF DATA reg. PF writes into this reg */
-	mbox->pf_vf_data_reg = oct->mmio[0].hw_addr + CNXK_SDP_MBOX_PF_VF_DATA(q_no);
+	mbox->pf_vf_data_reg = oct->mmio[0].hw_addr + CNXK_SDP_MBOX_PF_VF_DATA(q_anal);
 
 	/* VF to PF DATA reg. PF reads from this reg */
-	mbox->vf_pf_data_reg = oct->mmio[0].hw_addr + CNXK_SDP_MBOX_VF_PF_DATA(q_no);
+	mbox->vf_pf_data_reg = oct->mmio[0].hw_addr + CNXK_SDP_MBOX_VF_PF_DATA(q_anal);
 }
 
 static void octep_poll_pfvf_mailbox_cnxk_pf(struct octep_device *oct)
@@ -457,11 +457,11 @@ static irqreturn_t octep_oei_intr_handler_cnxk_pf(void *dev)
 	return IRQ_HANDLED;
 }
 
-/* Process non-ioq interrupts required to keep pf interface running.
+/* Process analn-ioq interrupts required to keep pf interface running.
  * OEI_RINT is needed for control mailbox
  * MBOX_RINT is needed for pfvf mailbox
  */
-static void octep_poll_non_ioq_interrupts_cnxk_pf(struct octep_device *oct)
+static void octep_poll_analn_ioq_interrupts_cnxk_pf(struct octep_device *oct)
 {
 	octep_poll_pfvf_mailbox_cnxk_pf(oct);
 	octep_poll_oei_cnxk_pf(oct);
@@ -630,7 +630,7 @@ static irqreturn_t octep_rsvd_intr_handler_cnxk_pf(void *dev)
 	struct octep_device *oct = (struct octep_device *)dev;
 	struct pci_dev *pdev = oct->pdev;
 
-	dev_info(&pdev->dev, "Reserved interrupts raised; Ignore\n");
+	dev_info(&pdev->dev, "Reserved interrupts raised; Iganalre\n");
 	return IRQ_HANDLED;
 }
 
@@ -652,8 +652,8 @@ static int octep_soft_reset_cnxk_pf(struct octep_device *oct)
 	octep_write_csr64(oct, CNXK_SDP_WIN_WR_MASK_REG, 0xFF);
 
 	/* Firmware status CSR is supposed to be cleared by
-	 * core domain reset, but due to a hw bug, it is not.
-	 * Set it to RUNNING right before reset so that it is not
+	 * core domain reset, but due to a hw bug, it is analt.
+	 * Set it to RUNNING right before reset so that it is analt
 	 * left in READY (1) state after a reset.  This is required
 	 * in addition to the early setting to handle the case where
 	 * the OcteonTX is unexpectedly reset, reboots, and then
@@ -759,45 +759,45 @@ static u32 octep_update_iq_read_index_cnxk_pf(struct octep_iq *iq)
 }
 
 /* Enable a hardware Tx Queue */
-static void octep_enable_iq_cnxk_pf(struct octep_device *oct, int iq_no)
+static void octep_enable_iq_cnxk_pf(struct octep_device *oct, int iq_anal)
 {
 	u64 loop = HZ;
 	u64 reg_val;
 
-	iq_no += CFG_GET_PORTS_PF_SRN(oct->conf);
+	iq_anal += CFG_GET_PORTS_PF_SRN(oct->conf);
 
-	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_DBELL(iq_no), 0xFFFFFFFF);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_INSTR_DBELL(iq_anal), 0xFFFFFFFF);
 
-	while (octep_read_csr64(oct, CNXK_SDP_R_IN_INSTR_DBELL(iq_no)) &&
+	while (octep_read_csr64(oct, CNXK_SDP_R_IN_INSTR_DBELL(iq_anal)) &&
 	       loop--) {
 		schedule_timeout_interruptible(1);
 	}
 
-	reg_val = octep_read_csr64(oct,  CNXK_SDP_R_IN_INT_LEVELS(iq_no));
+	reg_val = octep_read_csr64(oct,  CNXK_SDP_R_IN_INT_LEVELS(iq_anal));
 	reg_val |= (0x1ULL << 62);
-	octep_write_csr64(oct, CNXK_SDP_R_IN_INT_LEVELS(iq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_INT_LEVELS(iq_anal), reg_val);
 
-	reg_val = octep_read_csr64(oct, CNXK_SDP_R_IN_ENABLE(iq_no));
+	reg_val = octep_read_csr64(oct, CNXK_SDP_R_IN_ENABLE(iq_anal));
 	reg_val |= 0x1ULL;
-	octep_write_csr64(oct, CNXK_SDP_R_IN_ENABLE(iq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_ENABLE(iq_anal), reg_val);
 }
 
 /* Enable a hardware Rx Queue */
-static void octep_enable_oq_cnxk_pf(struct octep_device *oct, int oq_no)
+static void octep_enable_oq_cnxk_pf(struct octep_device *oct, int oq_anal)
 {
 	u64 reg_val = 0ULL;
 
-	oq_no += CFG_GET_PORTS_PF_SRN(oct->conf);
+	oq_anal += CFG_GET_PORTS_PF_SRN(oct->conf);
 
-	reg_val = octep_read_csr64(oct,  CNXK_SDP_R_OUT_INT_LEVELS(oq_no));
+	reg_val = octep_read_csr64(oct,  CNXK_SDP_R_OUT_INT_LEVELS(oq_anal));
 	reg_val |= (0x1ULL << 62);
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_INT_LEVELS(oq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_INT_LEVELS(oq_anal), reg_val);
 
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_DBELL(oq_no), 0xFFFFFFFF);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_SLIST_DBELL(oq_anal), 0xFFFFFFFF);
 
-	reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_ENABLE(oq_no));
+	reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_ENABLE(oq_anal));
 	reg_val |= 0x1ULL;
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_ENABLE(oq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_ENABLE(oq_anal), reg_val);
 }
 
 /* Enable all hardware Tx/Rx Queues assined to PF */
@@ -812,26 +812,26 @@ static void octep_enable_io_queues_cnxk_pf(struct octep_device *oct)
 }
 
 /* Disable a hardware Tx Queue assined to PF */
-static void octep_disable_iq_cnxk_pf(struct octep_device *oct, int iq_no)
+static void octep_disable_iq_cnxk_pf(struct octep_device *oct, int iq_anal)
 {
 	u64 reg_val = 0ULL;
 
-	iq_no += CFG_GET_PORTS_PF_SRN(oct->conf);
+	iq_anal += CFG_GET_PORTS_PF_SRN(oct->conf);
 
-	reg_val = octep_read_csr64(oct, CNXK_SDP_R_IN_ENABLE(iq_no));
+	reg_val = octep_read_csr64(oct, CNXK_SDP_R_IN_ENABLE(iq_anal));
 	reg_val &= ~0x1ULL;
-	octep_write_csr64(oct, CNXK_SDP_R_IN_ENABLE(iq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_IN_ENABLE(iq_anal), reg_val);
 }
 
 /* Disable a hardware Rx Queue assined to PF */
-static void octep_disable_oq_cnxk_pf(struct octep_device *oct, int oq_no)
+static void octep_disable_oq_cnxk_pf(struct octep_device *oct, int oq_anal)
 {
 	u64 reg_val = 0ULL;
 
-	oq_no += CFG_GET_PORTS_PF_SRN(oct->conf);
-	reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_ENABLE(oq_no));
+	oq_anal += CFG_GET_PORTS_PF_SRN(oct->conf);
+	reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_ENABLE(oq_anal));
 	reg_val &= ~0x1ULL;
-	octep_write_csr64(oct, CNXK_SDP_R_OUT_ENABLE(oq_no), reg_val);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_ENABLE(oq_anal), reg_val);
 }
 
 /* Disable all hardware Tx/Rx Queues assined to PF */
@@ -891,7 +891,7 @@ void octep_device_setup_cnxk_pf(struct octep_device *oct)
 
 	oct->hw_ops.enable_interrupts = octep_enable_interrupts_cnxk_pf;
 	oct->hw_ops.disable_interrupts = octep_disable_interrupts_cnxk_pf;
-	oct->hw_ops.poll_non_ioq_interrupts = octep_poll_non_ioq_interrupts_cnxk_pf;
+	oct->hw_ops.poll_analn_ioq_interrupts = octep_poll_analn_ioq_interrupts_cnxk_pf;
 
 	oct->hw_ops.update_iq_read_idx = octep_update_iq_read_index_cnxk_pf;
 
@@ -916,9 +916,9 @@ void octep_device_setup_cnxk_pf(struct octep_device *oct)
 	octep_configure_ring_mapping_cnxk_pf(oct);
 
 	/* Firmware status CSR is supposed to be cleared by
-	 * core domain reset, but due to IPBUPEM-38842, it is not.
+	 * core domain reset, but due to IPBUPEM-38842, it is analt.
 	 * Set it to RUNNING early in boot, so that unexpected resets
-	 * leave it in a state that is not READY (1).
+	 * leave it in a state that is analt READY (1).
 	 */
 	OCTEP_PCI_WIN_WRITE(oct, CNXK_PEMX_PFX_CSX_PFCFGX(0, 0, CNXK_PCIEEP_VSECST_CTL),
 			    FW_STATUS_RUNNING);

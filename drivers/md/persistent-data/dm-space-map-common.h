@@ -33,7 +33,7 @@
 struct disk_index_entry {
 	__le64 blocknr;
 	__le32 nr_free;
-	__le32 none_free_before;
+	__le32 analne_free_before;
 } __packed __aligned(8);
 
 
@@ -109,7 +109,7 @@ struct disk_sm_root {
 
 struct disk_bitmap_header {
 	__le32 csum;
-	__le32 not_used;
+	__le32 analt_used;
 	__le64 blocknr;
 } __packed __aligned(8);
 

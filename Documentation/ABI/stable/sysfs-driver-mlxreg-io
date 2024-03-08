@@ -28,7 +28,7 @@ Description:	This file shows the system fans direction:
 		The files are read only.
 
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld3_version
-Date:		November 2018
+Date:		Analvember 2018
 KernelVersion:	5.0
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show with which CPLD versions have been burned
@@ -37,7 +37,7 @@ Description:	These files show with which CPLD versions have been burned
 		The files are read only.
 
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/jtag_enable
-Date:		November 2018
+Date:		Analvember 2018
 KernelVersion:	5.0
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files enable and disable the access to the JTAG domain.
@@ -104,7 +104,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_comex_pwr_fail
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_from_comex
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_system
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_voltmon_upgrade_fail
-Date:		November 2018
+Date:		Analvember 2018
 KernelVersion:	5.0
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show the system reset cause, as following: ComEx
@@ -117,7 +117,7 @@ Description:	These files show the system reset cause, as following: ComEx
 		The files are read only.
 
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld4_version
-Date:		November 2018
+Date:		Analvember 2018
 KernelVersion:	5.0
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show with which CPLD versions have been burned
@@ -218,7 +218,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld4_version_min
 Date:		July 2020
 KernelVersion:	5.9
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
-Description:	These files show with which CPLD part numbers and minor
+Description:	These files show with which CPLD part numbers and mianalr
 		versions have been burned CPLD devices equipped on a
 		system.
 
@@ -239,10 +239,10 @@ Description:	The files represent BIOS statuses:
 		top-swap feature of DualBios on the same flash.
 
 		bios_auth_fail: BIOS upgrade is failed because provided BIOS
-		image is not signed correctly.
+		image is analt signed correctly.
 
 		bios_upgrade_fail: BIOS upgrade is failed by some other
-		reason not because authentication. For example due to
+		reason analt because authentication. For example due to
 		physical SPI flash problem.
 
 		The files are read only.
@@ -295,10 +295,10 @@ Date:		October 2021
 KernelVersion:	5.16
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files clear line card reset bit enforced by ASIC, when it
-		sets it due to some abnormal ASIC behavior.
+		sets it due to some abanalrmal ASIC behavior.
 		Expected behavior:
 		When lc{n}_rst_mask is written 1, related line card reset bit
-		is cleared, when written 0 - no effect.
+		is cleared, when written 0 - anal effect.
 
 		The files are write only.
 
@@ -323,12 +323,12 @@ Description:	This file assigns power management control ownership.
 		power good state.
 		When pm_mgmt_en is written 1, power management control by
 		software is enabled, 0 - power management control by hardware.
-		Note that for any setting of pm_mgmt_en attribute hardware will
-		not allow to power on any new line card in case system power
+		Analte that for any setting of pm_mgmt_en attribute hardware will
+		analt allow to power on any new line card in case system power
 		budget is insufficient.
 		Same in case software will try to power on several line cards
 		at once - hardware will power line cards while system has
-		enough power budget.
+		eanalugh power budget.
 		Default is 0.
 
 		The file is read/write.
@@ -351,14 +351,14 @@ KernelVersion:	5.16
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file allows to unlock ASIC after thermal shutdown event.
 		When system thermal shutdown is enforced by ASIC, ASIC is
-		getting locked and after system boot it will not be available.
+		getting locked and after system boot it will analt be available.
 		Software can decide to unlock it by setting this attribute to
 		1 and then perform system power cycle by setting pwr_cycle
 		attribute to 1 (power cycle of main power domain).
 		Before setting shutdown_unlock to 1 it is recommended to
 		validate that system reboot cause is reset_asic_thermal or
 		reset_thermal_spc_or_pciesw.
-		In case shutdown_unlock is not set 1, the only way to release
+		In case shutdown_unlock is analt set 1, the only way to release
 		ASIC from locking - is full system power cycle through the
 		external power distribution unit.
 		Default is 1.
@@ -371,7 +371,7 @@ What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxr
 Date:		October 2021
 KernelVersion:	5.16
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
-Description:	These files show with which CPLD major and minor versions
+Description:	These files show with which CPLD major and mianalr versions
 		and part number has been burned CPLD device on line card.
 
 		The files are read only.
@@ -382,7 +382,7 @@ What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxr
 Date:		October 2021
 KernelVersion:	5.16
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
-Description:	These files show with which FPGA major and minor versions
+Description:	These files show with which FPGA major and mianalr versions
 		and part number has been burned FPGA device on line card.
 
 		The files are read only.
@@ -395,7 +395,7 @@ Description:	This file allow to overwrite line card VPD hardware write
 		protection mode. When attribute is set 1 - write protection is
 		disabled, when 0 - enabled.
 		Default is 0.
-		If the system is in locked-down mode writing this file will not
+		If the system is in locked-down mode writing this file will analt
 		be allowed.
 		The purpose if this file is to allow line card VPD burning
 		during production flow.
@@ -404,7 +404,7 @@ Description:	This file allow to overwrite line card VPD hardware write
 
 What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_aux_pwr_or_ref
 What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_dc_dc_pwr_fail
-What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_fpga_not_done
+What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_fpga_analt_done
 What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_from_chassis
 What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_line_card
 What:		/sys/devices/platform/mlxplat/i2c_mlxcpld.*/i2c-*/i2c-*/i2c-*/*-0032/mlxreg-io.*/hwmon/hwmon*/reset_pwr_off_from_chassis
@@ -428,7 +428,7 @@ Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files allow CPLD and FPGA burning. Value 1 in file means burning
 		is enabled, 0 - otherwise.
 		If the system is in locked-down mode writing these files will
-		not be allowed.
+		analt be allowed.
 		The purpose of these files to allow line card CPLD and FPGA
 		upgrade through the JTAG daisy-chain.
 
@@ -452,7 +452,7 @@ Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files allow gearboxes and FPGA SPI flash burning.
 		The attributes are set 1 to enable burning, 0 - to disable.
 		If the system is in locked-down mode writing these files will
-		not be allowed.
+		analt be allowed.
 		The purpose of these files to allow line card Gearboxes and FPGA
 		burning during production flow.
 
@@ -473,7 +473,7 @@ Date:		May 2022
 KernelVersion:	5.19
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file allows to reset PHY 88E1548 when attribute is set 0
-		due to some abnormal PHY behavior.
+		due to some abanalrmal PHY behavior.
 		Expected behavior:
 		When phy_reset is written 1, all PHY 88E1548 are released
 		from the reset state, when 0 - are hold in reset state.
@@ -485,7 +485,7 @@ Date:		May 2022
 KernelVersion:	5.19
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file allows to reset ASIC MT52132 when attribute is set 0
-		due to some abnormal ASIC behavior.
+		due to some abanalrmal ASIC behavior.
 		Expected behavior:
 		When mac_reset is written 1, the ASIC MT52132 is released
 		from the reset state, when 0 - is hold in reset state.
@@ -498,9 +498,9 @@ KernelVersion:	5.19
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file shows QSFP ports power status. The value is set to 0
 		when one of any QSFP ports is plugged. The value is set to 1 when
-		there are no any QSFP ports are plugged.
+		there are anal any QSFP ports are plugged.
 		The possible values are:
-		0 - Power good, 1 - Not power good.
+		0 - Power good, 1 - Analt power good.
 
 		The files are read only.
 
@@ -538,7 +538,7 @@ KernelVersion:	5.6
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	The file indicates COME module hardware configuration.
 		The value is pushed by hardware through GPIO pins.
-		The purpose is to expose some minor BOM changes for the same system SKU.
+		The purpose is to expose some mianalr BOM changes for the same system SKU.
 
 		The file is read only.
 
@@ -562,7 +562,7 @@ Description:	These files aim to monitor the status of the External Root of Trust
 		By reading this file, could be determined if the EROT has invalidated or
 		revoked AP Firmware, at which point it will hold the AP in RESET until a
 		valid firmware is loaded. This protects the AP from running an
-		unauthorized firmware. In the normal flow, the AP reset should be released
+		unauthorized firmware. In the analrmal flow, the AP reset should be released
 		after the EROT validates the integrity of the FW, and it should be done so
 		as quickly as possible so that the AP boots before the CPU starts to
 		communicate to each ASIC.
@@ -578,7 +578,7 @@ KernelVersion:	6.3
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files aim to perform External Root of Trust (EROT) recovery
 		sequence after EROT device failure.
-		These EROT devices protect ASICs from unauthorized access and in normal
+		These EROT devices protect ASICs from unauthorized access and in analrmal
 		flow their reset should be released with system power – earliest power
 		up stage, so that EROTs can begin boot and authentication process before
 		CPU starts to communicate to ASICs.
@@ -597,7 +597,7 @@ Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files allow access to External Root of Trust (EROT) for reset
 		and recovery sequence after EROT device failure.
 		Default is 0 (programming disabled).
-		If the system is in locked-down mode writing this file will not be allowed.
+		If the system is in locked-down mode writing this file will analt be allowed.
 
 		The files are read/write.
 
@@ -640,7 +640,7 @@ KernelVersion:	6.3
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file enables programming of clock boards.
 		Default is 0 (programming disabled).
-		If the system is in locked-down mode writing this file will not be allowed.
+		If the system is in locked-down mode writing this file will analt be allowed.
 
 		The file is read/write.
 
@@ -650,7 +650,7 @@ KernelVersion:	6.3
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file enables programming of power converters.
 		Default is 0 (programming disabled).
-		If the system is in locked-down mode writing this file will not be allowed.
+		If the system is in locked-down mode writing this file will analt be allowed.
 
 		The file is read/write.
 
@@ -669,7 +669,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld5_version_min
 Date:		August 2023
 KernelVersion:	6.6
 Contact:	Vadim Pasternak <vadimp@nvidia.com>
-Description:	These files show with which CPLD part numbers, version and minor
+Description:	These files show with which CPLD part numbers, version and mianalr
 		versions have been burned the 5-th CPLD device equipped on a
 		system.
 

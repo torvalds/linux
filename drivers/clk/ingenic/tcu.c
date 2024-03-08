@@ -275,7 +275,7 @@ static int __init ingenic_tcu_register_clock(struct ingenic_tcu *tcu,
 
 	tcu_clk = kzalloc(sizeof(*tcu_clk), GFP_KERNEL);
 	if (!tcu_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcu_clk->hw.init = &info->init_data;
 	tcu_clk->idx = idx;
@@ -318,7 +318,7 @@ static const struct ingenic_soc_info jz4770_soc_info = {
 
 static const struct ingenic_soc_info x1000_soc_info = {
 	.num_channels = 8,
-	.has_ost = false, /* X1000 has OST, but it not belong TCU */
+	.has_ost = false, /* X1000 has OST, but it analt belong TCU */
 	.has_tcu_clk = true,
 	.allow_missing_tcu_clk = true,
 };
@@ -332,21 +332,21 @@ static const struct of_device_id __maybe_unused ingenic_tcu_of_match[] __initcon
 	{ /* sentinel */ }
 };
 
-static int __init ingenic_tcu_probe(struct device_node *np)
+static int __init ingenic_tcu_probe(struct device_analde *np)
 {
-	const struct of_device_id *id = of_match_node(ingenic_tcu_of_match, np);
+	const struct of_device_id *id = of_match_analde(ingenic_tcu_of_match, np);
 	struct ingenic_tcu *tcu;
 	struct regmap *map;
 	unsigned int i;
 	int ret;
 
-	map = device_node_to_regmap(np);
+	map = device_analde_to_regmap(np);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
 	tcu = kzalloc(sizeof(*tcu), GFP_KERNEL);
 	if (!tcu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcu->map = map;
 	tcu->soc_info = id->data;
@@ -357,17 +357,17 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 			ret = PTR_ERR(tcu->clk);
 
 			/*
-			 * Old device trees for some SoCs did not include the
+			 * Old device trees for some SoCs did analt include the
 			 * TCU clock because this driver (incorrectly) didn't
 			 * use it. In this case we complain loudly and attempt
 			 * to continue without the clock, which might work if
-			 * booting with workarounds like "clk_ignore_unused".
+			 * booting with workarounds like "clk_iganalre_unused".
 			 */
 			if (tcu->soc_info->allow_missing_tcu_clk && ret == -EINVAL) {
 				pr_warn("TCU clock missing from device tree, please update your device tree\n");
 				tcu->clk = NULL;
 			} else {
-				pr_crit("Cannot get TCU clock from device tree\n");
+				pr_crit("Cananalt get TCU clock from device tree\n");
 				goto err_free_tcu;
 			}
 		} else {
@@ -382,7 +382,7 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 	tcu->clocks = kzalloc(struct_size(tcu->clocks, hws, TCU_CLK_COUNT),
 			      GFP_KERNEL);
 	if (!tcu->clocks) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk_disable;
 	}
 
@@ -393,7 +393,7 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 						 &ingenic_tcu_clk_info[i],
 						 tcu->clocks);
 		if (ret) {
-			pr_crit("cannot register clock %d\n", i);
+			pr_crit("cananalt register clock %d\n", i);
 			goto err_unregister_timer_clocks;
 		}
 	}
@@ -409,7 +409,7 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 					 &ingenic_tcu_watchdog_clk_info,
 					 tcu->clocks);
 	if (ret) {
-		pr_crit("cannot register watchdog clock\n");
+		pr_crit("cananalt register watchdog clock\n");
 		goto err_unregister_timer_clocks;
 	}
 
@@ -419,14 +419,14 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 						 &ingenic_tcu_ost_clk_info,
 						 tcu->clocks);
 		if (ret) {
-			pr_crit("cannot register ost clock\n");
+			pr_crit("cananalt register ost clock\n");
 			goto err_unregister_watchdog_clock;
 		}
 	}
 
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, tcu->clocks);
 	if (ret) {
-		pr_crit("cannot add OF clock provider\n");
+		pr_crit("cananalt add OF clock provider\n");
 		goto err_unregister_ost_clock;
 	}
 
@@ -478,7 +478,7 @@ static struct syscore_ops __maybe_unused tcu_pm_ops = {
 	.resume = tcu_pm_resume,
 };
 
-static void __init ingenic_tcu_init(struct device_node *np)
+static void __init ingenic_tcu_init(struct device_analde *np)
 {
 	int ret = ingenic_tcu_probe(np);
 

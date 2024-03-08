@@ -75,7 +75,7 @@ int3406_thermal_get_cur_state(struct thermal_cooling_device *cooling_dev,
 	acpi_level = RAW_TO_ACPI(d->raw_bd->props.brightness, d);
 
 	/*
-	 * There is no 1:1 mapping between the firmware interface level
+	 * There is anal 1:1 mapping between the firmware interface level
 	 * with the raw interface level, we will have to find one that is
 	 * right above it.
 	 */
@@ -102,7 +102,7 @@ static int int3406_thermal_get_index(int *array, int nr, int value)
 		if (array[i] == value)
 			break;
 	}
-	return i == nr ? -ENOENT : i;
+	return i == nr ? -EANALENT : i;
 }
 
 static void int3406_thermal_get_limit(struct int3406_thermal_data *d)
@@ -125,7 +125,7 @@ static void int3406_thermal_get_limit(struct int3406_thermal_data *d)
 	d->upper_limit = d->upper_limit > 0 ? d->upper_limit : d->br->count - 1;
 }
 
-static void int3406_notify(acpi_handle handle, u32 event, void *data)
+static void int3406_analtify(acpi_handle handle, u32 event, void *data)
 {
 	if (event == INT3406_BRIGHTNESS_LIMITS_CHANGED)
 		int3406_thermal_get_limit(data);
@@ -139,16 +139,16 @@ static int int3406_thermal_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!ACPI_HANDLE(&pdev->dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	d = devm_kzalloc(&pdev->dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 	d->handle = ACPI_HANDLE(&pdev->dev);
 
 	bd = backlight_device_get_by_type(BACKLIGHT_RAW);
 	if (!bd)
-		return -ENODEV;
+		return -EANALDEV;
 	d->raw_bd = bd;
 
 	ret = acpi_video_get_levels(ACPI_COMPANION(&pdev->dev), &d->br, NULL);
@@ -162,8 +162,8 @@ static int int3406_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(d->cooling_dev))
 		goto err;
 
-	ret = acpi_install_notify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
-					  int3406_notify, d);
+	ret = acpi_install_analtify_handler(adev->handle, ACPI_DEVICE_ANALTIFY,
+					  int3406_analtify, d);
 	if (ret)
 		goto err_cdev;
 
@@ -175,7 +175,7 @@ err_cdev:
 	thermal_cooling_device_unregister(d->cooling_dev);
 err:
 	kfree(d->br);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void int3406_thermal_remove(struct platform_device *pdev)

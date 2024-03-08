@@ -51,7 +51,7 @@ examples:
                 pvdd-supply = <&audiopwr>;
                 pdn-gpios = <&tlmm 160 0>;
 
-                ti,dsp-config-name = "mono_pbtl_48khz";
+                ti,dsp-config-name = "moanal_pbtl_48khz";
         };
     };
 ...

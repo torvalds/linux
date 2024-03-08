@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -95,7 +95,7 @@ struct mcast_member;
 
 struct mcast_group {
 	struct ib_sa_mcmember_rec rec;
-	struct rb_node		node;
+	struct rb_analde		analde;
 	struct mcast_port	*port;
 	spinlock_t		lock;
 	struct work_struct	work;
@@ -129,20 +129,20 @@ static void leave_handler(int status, struct ib_sa_mcmember_rec *rec,
 static struct mcast_group *mcast_find(struct mcast_port *port,
 				      union ib_gid *mgid)
 {
-	struct rb_node *node = port->table.rb_node;
+	struct rb_analde *analde = port->table.rb_analde;
 	struct mcast_group *group;
 	int ret;
 
-	while (node) {
-		group = rb_entry(node, struct mcast_group, node);
+	while (analde) {
+		group = rb_entry(analde, struct mcast_group, analde);
 		ret = memcmp(mgid->raw, group->rec.mgid.raw, sizeof *mgid);
 		if (!ret)
 			return group;
 
 		if (ret < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else
-			node = node->rb_right;
+			analde = analde->rb_right;
 	}
 	return NULL;
 }
@@ -151,14 +151,14 @@ static struct mcast_group *mcast_insert(struct mcast_port *port,
 					struct mcast_group *group,
 					int allow_duplicates)
 {
-	struct rb_node **link = &port->table.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **link = &port->table.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct mcast_group *cur_group;
 	int ret;
 
 	while (*link) {
 		parent = *link;
-		cur_group = rb_entry(parent, struct mcast_group, node);
+		cur_group = rb_entry(parent, struct mcast_group, analde);
 
 		ret = memcmp(group->rec.mgid.raw, cur_group->rec.mgid.raw,
 			     sizeof group->rec.mgid);
@@ -171,8 +171,8 @@ static struct mcast_group *mcast_insert(struct mcast_port *port,
 		else
 			return cur_group;
 	}
-	rb_link_node(&group->node, parent, link);
-	rb_insert_color(&group->node, &port->table);
+	rb_link_analde(&group->analde, parent, link);
+	rb_insert_color(&group->analde, &port->table);
 	return NULL;
 }
 
@@ -189,7 +189,7 @@ static void release_group(struct mcast_group *group)
 
 	spin_lock_irqsave(&port->lock, flags);
 	if (atomic_dec_and_test(&group->refcount)) {
-		rb_erase(&group->node, &port->table);
+		rb_erase(&group->analde, &port->table);
 		spin_unlock_irqrestore(&port->lock, flags);
 		kfree(group);
 		deref_port(port);
@@ -219,8 +219,8 @@ static void queue_join(struct mcast_member *member)
 }
 
 /*
- * A multicast group has four types of members: full member, non member,
- * sendonly non member and sendonly full member.
+ * A multicast group has four types of members: full member, analn member,
+ * sendonly analn member and sendonly full member.
  * We need to keep track of the number of members of each
  * type based on their join state.  Adjust the number of members the belong to
  * the specified join states.
@@ -237,7 +237,7 @@ static void adjust_membership(struct mcast_group *group, u8 join_state, int inc)
 /*
  * If a multicast group has zero members left for a particular join state, but
  * the group is still a member with the SA, we need to leave that join state.
- * Determine which join states we still belong to, but that do not have any
+ * Determine which join states we still belong to, but that do analt have any
  * active members.
  */
 static u8 get_leave_state(struct mcast_group *group)
@@ -322,7 +322,7 @@ static int cmp_rec(struct ib_sa_mcmember_rec *src,
 	if (comp_mask & IB_SA_MCMEMBER_REC_SCOPE && src->scope != dst->scope)
 		return -EINVAL;
 
-	/* join_state checked separately, proxy_join ignored */
+	/* join_state checked separately, proxy_join iganalred */
 
 	return 0;
 }
@@ -532,7 +532,7 @@ static void join_handler(int status, struct ib_sa_mcmember_rec *rec,
 				       sizeof(group->rec.mgid));
 		group->rec = *rec;
 		if (mgids_changed) {
-			rb_erase(&group->node, &group->port->table);
+			rb_erase(&group->analde, &group->port->table);
 			is_mgid0 = !memcmp(&mgid0, &group->rec.mgid,
 					   sizeof(mgid0));
 			mcast_insert(group->port, group, is_mgid0);
@@ -619,11 +619,11 @@ ib_sa_join_multicast(struct ib_sa_client *client,
 
 	dev = ib_get_client_data(device, &mcast_client);
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	member = kmalloc(sizeof *member, gfp_mask);
 	if (!member)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ib_sa_client_get(client);
 	member->client = client;
@@ -638,7 +638,7 @@ ib_sa_join_multicast(struct ib_sa_client *client,
 	member->group = acquire_group(&dev->port[port_num - dev->start_port],
 				      &rec->mgid, gfp_mask);
 	if (!member->group) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -701,7 +701,7 @@ int ib_sa_get_mcmember_rec(struct ib_device *device, u32 port_num,
 
 	dev = ib_get_client_data(device, &mcast_client);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = &dev->port[port_num - dev->start_port];
 	spin_lock_irqsave(&port->lock, flags);
@@ -709,7 +709,7 @@ int ib_sa_get_mcmember_rec(struct ib_device *device, u32 port_num,
 	if (group)
 		*rec = group->rec;
 	else
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	return ret;
@@ -740,8 +740,8 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u32 port_num,
 {
 	const struct ib_gid_attr *sgid_attr;
 
-	/* GID table is not based on the netdevice for IB link layer,
-	 * so ignore ndev during search.
+	/* GID table is analt based on the netdevice for IB link layer,
+	 * so iganalre ndev during search.
 	 */
 	if (rdma_protocol_ib(device, port_num))
 		ndev = NULL;
@@ -772,12 +772,12 @@ static void mcast_groups_event(struct mcast_port *port,
 			       enum mcast_group_state state)
 {
 	struct mcast_group *group;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	for (node = rb_first(&port->table); node; node = rb_next(node)) {
-		group = rb_entry(node, struct mcast_group, node);
+	for (analde = rb_first(&port->table); analde; analde = rb_next(analde)) {
+		group = rb_entry(analde, struct mcast_group, analde);
 		spin_lock(&group->lock);
 		if (group->state == MCAST_IDLE) {
 			atomic_inc(&group->refcount);
@@ -826,7 +826,7 @@ static int mcast_add_one(struct ib_device *device)
 	dev = kmalloc(struct_size(dev, port, device->phys_port_cnt),
 		      GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->start_port = rdma_start_port(device);
 	dev->end_port = rdma_end_port(device);
@@ -846,7 +846,7 @@ static int mcast_add_one(struct ib_device *device)
 
 	if (!count) {
 		kfree(dev);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dev->device = device;
@@ -883,7 +883,7 @@ int mcast_init(void)
 
 	mcast_wq = alloc_ordered_workqueue("ib_mcast", WQ_MEM_RECLAIM);
 	if (!mcast_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ib_sa_register_client(&sa_client);
 

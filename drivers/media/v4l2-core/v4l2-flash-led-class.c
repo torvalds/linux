@@ -64,11 +64,11 @@ static s32 __led_brightness_to_intensity(struct v4l2_ctrl *ctrl,
 	/*
 	 * Indicator LEDs, unlike torch LEDs, are turned on/off basing on
 	 * the state of V4L2_CID_FLASH_INDICATOR_INTENSITY control only.
-	 * Do not decrement brightness read from the LED subsystem for
+	 * Do analt decrement brightness read from the LED subsystem for
 	 * indicator LED as it may equal 0. For torch LEDs this function
 	 * is called only when V4L2_FLASH_LED_MODE_TORCH is set and the
 	 * brightness read is guaranteed to be greater than 0. In the mode
-	 * V4L2_FLASH_LED_MODE_NONE the cached torch intensity value is used.
+	 * V4L2_FLASH_LED_MODE_ANALNE the cached torch intensity value is used.
 	 */
 	if (ctrl->id != V4L2_CID_FLASH_INDICATOR_INTENSITY)
 		--brightness;
@@ -184,7 +184,7 @@ static int v4l2_flash_g_volatile_ctrl(struct v4l2_ctrl *c)
 		if (ret < 0)
 			return ret;
 		/*
-		 * No conversion is needed as LED Flash class also uses
+		 * Anal conversion is needed as LED Flash class also uses
 		 * microamperes for flash intensity units.
 		 */
 		c->val = fled_cdev->brightness.val;
@@ -233,7 +233,7 @@ static int v4l2_flash_s_ctrl(struct v4l2_ctrl *c)
 	switch (c->id) {
 	case V4L2_CID_FLASH_LED_MODE:
 		switch (c->val) {
-		case V4L2_FLASH_LED_MODE_NONE:
+		case V4L2_FLASH_LED_MODE_ANALNE:
 			led_set_brightness_sync(led_cdev, LED_OFF);
 			return led_set_flash_strobe(fled_cdev, false);
 		case V4L2_FLASH_LED_MODE_FLASH:
@@ -269,7 +269,7 @@ static int v4l2_flash_s_ctrl(struct v4l2_ctrl *c)
 		external_strobe = (c->val == V4L2_FLASH_STROBE_SOURCE_EXTERNAL);
 		/*
 		 * For some hardware arrangements setting strobe source may
-		 * affect torch mode. Therefore, if not in the flash mode,
+		 * affect torch mode. Therefore, if analt in the flash mode,
 		 * cache only this setting. It will be applied upon switching
 		 * to flash mode.
 		 */
@@ -288,13 +288,13 @@ static int v4l2_flash_s_ctrl(struct v4l2_ctrl *c)
 		return led_set_flash_strobe(fled_cdev, false);
 	case V4L2_CID_FLASH_TIMEOUT:
 		/*
-		 * No conversion is needed as LED Flash class also uses
+		 * Anal conversion is needed as LED Flash class also uses
 		 * microseconds for flash timeout units.
 		 */
 		return led_set_flash_timeout(fled_cdev, c->val);
 	case V4L2_CID_FLASH_INTENSITY:
 		/*
-		 * No conversion is needed as LED Flash class also uses
+		 * Anal conversion is needed as LED Flash class also uses
 		 * microamperes for flash intensity units.
 		 */
 		return led_set_flash_brightness(fled_cdev, c->val);
@@ -353,7 +353,7 @@ static void __fill_ctrl_init_data(struct v4l2_flash *v4l2_flash,
 	}
 
 	/* Init FLASH_LED_MODE ctrl data */
-	mask = 1 << V4L2_FLASH_LED_MODE_NONE |
+	mask = 1 << V4L2_FLASH_LED_MODE_ANALNE |
 	       1 << V4L2_FLASH_LED_MODE_TORCH;
 	if (led_cdev->flags & LED_DEV_CAP_FLASH)
 		mask |= 1 << V4L2_FLASH_LED_MODE_FLASH;
@@ -363,7 +363,7 @@ static void __fill_ctrl_init_data(struct v4l2_flash *v4l2_flash,
 	ctrl_cfg->id = V4L2_CID_FLASH_LED_MODE;
 	ctrl_cfg->max = V4L2_FLASH_LED_MODE_TORCH;
 	ctrl_cfg->menu_skip_mask = ~mask;
-	ctrl_cfg->def = V4L2_FLASH_LED_MODE_NONE;
+	ctrl_cfg->def = V4L2_FLASH_LED_MODE_ANALNE;
 	ctrl_cfg->flags = 0;
 
 	/* Init TORCH_INTENSITY ctrl data */
@@ -440,13 +440,13 @@ static int v4l2_flash_init_controls(struct v4l2_flash *v4l2_flash,
 					sizeof(*v4l2_flash->ctrls),
 					GFP_KERNEL);
 	if (!v4l2_flash->ctrls)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* allocate memory dynamically so as not to exceed stack frame size */
+	/* allocate memory dynamically so as analt to exceed stack frame size */
 	ctrl_init_data = kcalloc(NUM_FLASH_CTRLS, sizeof(*ctrl_init_data),
 					GFP_KERNEL);
 	if (!ctrl_init_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__fill_ctrl_init_data(v4l2_flash, flash_cfg, ctrl_init_data);
 
@@ -545,7 +545,7 @@ static int __sync_device_with_v4l2_controls(struct v4l2_flash *v4l2_flash)
 
 	/*
 	 * For some hardware arrangements setting strobe source may affect
-	 * torch mode. Synchronize strobe source setting only if not in torch
+	 * torch mode. Synchronize strobe source setting only if analt in torch
 	 * mode. For torch mode case it will get synchronized upon switching
 	 * to flash mode.
 	 */
@@ -651,7 +651,7 @@ static const struct v4l2_subdev_internal_ops v4l2_flash_subdev_internal_ops = {
 static const struct v4l2_subdev_ops v4l2_flash_subdev_ops;
 
 static struct v4l2_flash *__v4l2_flash_init(
-	struct device *dev, struct fwnode_handle *fwn,
+	struct device *dev, struct fwanalde_handle *fwn,
 	struct led_classdev_flash *fled_cdev, struct led_classdev *iled_cdev,
 	const struct v4l2_flash_ops *ops, struct v4l2_flash_config *config)
 {
@@ -664,17 +664,17 @@ static struct v4l2_flash *__v4l2_flash_init(
 
 	v4l2_flash = devm_kzalloc(dev, sizeof(*v4l2_flash), GFP_KERNEL);
 	if (!v4l2_flash)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sd = &v4l2_flash->sd;
 	v4l2_flash->fled_cdev = fled_cdev;
 	v4l2_flash->iled_cdev = iled_cdev;
 	v4l2_flash->ops = ops;
 	sd->dev = dev;
-	sd->fwnode = fwn ? fwn : dev_fwnode(dev);
+	sd->fwanalde = fwn ? fwn : dev_fwanalde(dev);
 	v4l2_subdev_init(sd, &v4l2_flash_subdev_ops);
 	sd->internal_ops = &v4l2_flash_subdev_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	strscpy(sd->name, config->dev_name, sizeof(sd->name));
 
 	ret = media_entity_pads_init(&sd->entity, 0, NULL);
@@ -687,7 +687,7 @@ static struct v4l2_flash *__v4l2_flash_init(
 	if (ret < 0)
 		goto err_init_controls;
 
-	fwnode_handle_get(sd->fwnode);
+	fwanalde_handle_get(sd->fwanalde);
 
 	ret = v4l2_async_register_subdev(sd);
 	if (ret < 0)
@@ -696,7 +696,7 @@ static struct v4l2_flash *__v4l2_flash_init(
 	return v4l2_flash;
 
 err_async_register_sd:
-	fwnode_handle_put(sd->fwnode);
+	fwanalde_handle_put(sd->fwanalde);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 err_init_controls:
 	media_entity_cleanup(&sd->entity);
@@ -705,7 +705,7 @@ err_init_controls:
 }
 
 struct v4l2_flash *v4l2_flash_init(
-	struct device *dev, struct fwnode_handle *fwn,
+	struct device *dev, struct fwanalde_handle *fwn,
 	struct led_classdev_flash *fled_cdev,
 	const struct v4l2_flash_ops *ops,
 	struct v4l2_flash_config *config)
@@ -715,7 +715,7 @@ struct v4l2_flash *v4l2_flash_init(
 EXPORT_SYMBOL_GPL(v4l2_flash_init);
 
 struct v4l2_flash *v4l2_flash_indicator_init(
-	struct device *dev, struct fwnode_handle *fwn,
+	struct device *dev, struct fwanalde_handle *fwn,
 	struct led_classdev *iled_cdev,
 	struct v4l2_flash_config *config)
 {
@@ -734,7 +734,7 @@ void v4l2_flash_release(struct v4l2_flash *v4l2_flash)
 
 	v4l2_async_unregister_subdev(sd);
 
-	fwnode_handle_put(sd->fwnode);
+	fwanalde_handle_put(sd->fwanalde);
 
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	media_entity_cleanup(&sd->entity);

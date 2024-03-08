@@ -15,7 +15,7 @@ main(int argc, char **argv)
 		return 1;
 	}
 	if (memcmp(ei, ELFMAG, SELFMAG) != 0) {
-		fprintf(stderr, "Error: not ELF\n");
+		fprintf(stderr, "Error: analt ELF\n");
 		return 1;
 	}
 	switch (ei[EI_CLASS]) {

@@ -66,7 +66,7 @@ static void unwind_dump(struct unwind_state *state)
 
 		for (; sp < stack_info.end; sp++) {
 
-			word = READ_ONCE_NOCHECK(*sp);
+			word = READ_ONCE_ANALCHECK(*sp);
 
 			printk_deferred("%0*lx: %0*lx (%pB)\n", BITS_PER_LONG/4,
 					(unsigned long)sp, BITS_PER_LONG/4,
@@ -93,8 +93,8 @@ static struct orc_entry *__orc_find(int *ip_table, struct orc_entry *u_table,
 	/*
 	 * Do a binary range search to find the rightmost duplicate of a given
 	 * starting address.  Some entries are section terminators which are
-	 * "weak" entries for ensuring there are no gaps.  They should be
-	 * ignored when they conflict with a real entry.
+	 * "weak" entries for ensuring there are anal gaps.  They should be
+	 * iganalred when they conflict with a real entry.
 	 */
 	while (first <= last) {
 		mid = first + ((last - first) / 2);
@@ -131,7 +131,7 @@ static struct orc_entry *orc_module_find(unsigned long ip)
 static struct orc_entry *orc_find(unsigned long ip);
 
 /*
- * Ftrace dynamic trampolines do not have orc entries of their own.
+ * Ftrace dynamic trampolines do analt have orc entries of their own.
  * But they are copies of the ftrace entries that are static and
  * defined in ftrace_*.S, which do have orc entries.
  *
@@ -155,7 +155,7 @@ static struct orc_entry *orc_ftrace_find(unsigned long ip)
 	else
 		tramp_addr = (unsigned long)ftrace_caller;
 
-	/* Now place tramp_addr to the location within the trampoline ip is at */
+	/* Analw place tramp_addr to the location within the trampoline ip is at */
 	offset = ip - ops->trampoline;
 	tramp_addr += offset;
 
@@ -177,7 +177,7 @@ static struct orc_entry *orc_ftrace_find(unsigned long ip)
  * was probably an indirect function call with a NULL function pointer,
  * and we don't have unwind information for NULL.
  * This hardcoded ORC entry for IP==0 allows us to unwind from a NULL function
- * pointer into its parent and then continue normally from there.
+ * pointer into its parent and then continue analrmally from there.
  */
 static struct orc_entry null_orc_entry = {
 	.sp_offset = sizeof(long),
@@ -202,7 +202,7 @@ static struct orc_entry *orc_find(unsigned long ip)
 	if (ip == 0)
 		return &null_orc_entry;
 
-	/* For non-init vmlinux addresses, use the fast lookup table: */
+	/* For analn-init vmlinux addresses, use the fast lookup table: */
 	if (ip >= LOOKUP_START_IP && ip < LOOKUP_STOP_IP) {
 		unsigned int idx, start, stop;
 
@@ -330,9 +330,9 @@ void __init unwind_init(void)
 	}
 
 	/*
-	 * Note, the orc_unwind and orc_unwind_ip tables were already
+	 * Analte, the orc_unwind and orc_unwind_ip tables were already
 	 * sorted at build time via the 'sorttable' tool.
-	 * It's ready for binary search straight away, no need to sort it.
+	 * It's ready for binary search straight away, anal need to sort it.
 	 */
 
 	/* Initialize the fast lookup table: */
@@ -403,7 +403,7 @@ static bool deref_stack_reg(struct unwind_state *state, unsigned long addr,
 	if (!stack_access_ok(state, addr, sizeof(long)))
 		return false;
 
-	*val = READ_ONCE_NOCHECK(*(unsigned long *)addr);
+	*val = READ_ONCE_ANALCHECK(*(unsigned long *)addr);
 	return true;
 }
 
@@ -418,8 +418,8 @@ static bool deref_stack_regs(struct unwind_state *state, unsigned long addr,
 	if (!stack_access_ok(state, addr, sizeof(struct pt_regs)))
 		return false;
 
-	*ip = READ_ONCE_NOCHECK(regs->ip);
-	*sp = READ_ONCE_NOCHECK(regs->sp);
+	*ip = READ_ONCE_ANALCHECK(regs->ip);
+	*sp = READ_ONCE_ANALCHECK(regs->sp);
 	return true;
 }
 
@@ -431,13 +431,13 @@ static bool deref_stack_iret_regs(struct unwind_state *state, unsigned long addr
 	if (!stack_access_ok(state, addr, IRET_FRAME_SIZE))
 		return false;
 
-	*ip = READ_ONCE_NOCHECK(regs->ip);
-	*sp = READ_ONCE_NOCHECK(regs->sp);
+	*ip = READ_ONCE_ANALCHECK(regs->ip);
+	*sp = READ_ONCE_ANALCHECK(regs->sp);
 	return true;
 }
 
 /*
- * If state->regs is non-NULL, and points to a full pt_regs, just get the reg
+ * If state->regs is analn-NULL, and points to a full pt_regs, just get the reg
  * value from state->regs.
  *
  * Otherwise, if state->regs just points to IRET regs, and the previous frame
@@ -453,12 +453,12 @@ static bool get_reg(struct unwind_state *state, unsigned int reg_off,
 		return false;
 
 	if (state->full_regs) {
-		*val = READ_ONCE_NOCHECK(((unsigned long *)state->regs)[reg]);
+		*val = READ_ONCE_ANALCHECK(((unsigned long *)state->regs)[reg]);
 		return true;
 	}
 
 	if (state->prev_regs) {
-		*val = READ_ONCE_NOCHECK(((unsigned long *)state->prev_regs)[reg]);
+		*val = READ_ONCE_ANALCHECK(((unsigned long *)state->prev_regs)[reg]);
 		return true;
 	}
 
@@ -488,7 +488,7 @@ bool unwind_next_frame(struct unwind_state *state)
 	 * For a call frame (as opposed to a signal frame), state->ip points to
 	 * the instruction after the call.  That instruction's stack layout
 	 * could be different from the call instruction's layout, for example
-	 * if the call was to a noreturn function.  So get the ORC data for the
+	 * if the call was to a analreturn function.  So get the ORC data for the
 	 * call instruction itself.
 	 */
 	orc = orc_find(state->signal ? state->ip : state->ip - 1);
@@ -496,8 +496,8 @@ bool unwind_next_frame(struct unwind_state *state)
 		/*
 		 * As a fallback, try to assume this code uses a frame pointer.
 		 * This is useful for generated code, like BPF, which ORC
-		 * doesn't know about.  This is just a guess, so the rest of
-		 * the unwind is no longer considered reliable.
+		 * doesn't kanalw about.  This is just a guess, so the rest of
+		 * the unwind is anal longer considered reliable.
 		 */
 		orc = &orc_fp_entry;
 		state->error = true;
@@ -564,7 +564,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		break;
 
 	default:
-		orc_warn("unknown SP base reg %d at %pB\n",
+		orc_warn("unkanalwn SP base reg %d at %pB\n",
 			 orc->sp_reg, (void *)state->ip);
 		goto err;
 	}
@@ -632,7 +632,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		break;
 
 	default:
-		orc_warn("unknown .orc_unwind entry type %d at %pB\n",
+		orc_warn("unkanalwn .orc_unwind entry type %d at %pB\n",
 			 orc->type, (void *)orig_ip);
 		goto err;
 	}
@@ -655,7 +655,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		break;
 
 	default:
-		orc_warn("unknown BP base reg %d for ip %pB\n",
+		orc_warn("unkanalwn BP base reg %d for ip %pB\n",
 			 orc->bp_reg, (void *)orig_ip);
 		goto err;
 	}
@@ -677,7 +677,7 @@ err:
 
 the_end:
 	preempt_enable();
-	state->stack_info.type = STACK_TYPE_UNKNOWN;
+	state->stack_info.type = STACK_TYPE_UNKANALWN;
 	return false;
 }
 EXPORT_SYMBOL_GPL(unwind_next_frame);
@@ -692,11 +692,11 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		goto err;
 
 	/*
-	 * Refuse to unwind the stack of a task while it's executing on another
+	 * Refuse to unwind the stack of a task while it's executing on aanalther
 	 * CPU.  This check is racy, but that's ok: the unwinder has other
 	 * checks to prevent it from going off the rails.
 	 */
-	if (task_on_another_cpu(task))
+	if (task_on_aanalther_cpu(task))
 		goto err;
 
 	if (regs) {
@@ -721,8 +721,8 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		struct inactive_task_frame *frame = (void *)task->thread.sp;
 
 		state->sp = task->thread.sp + sizeof(*frame);
-		state->bp = READ_ONCE_NOCHECK(frame->bp);
-		state->ip = READ_ONCE_NOCHECK(frame->ret_addr);
+		state->bp = READ_ONCE_ANALCHECK(frame->bp);
+		state->ip = READ_ONCE_ANALCHECK(frame->ret_addr);
 		state->signal = (void *)state->ip == ret_from_fork;
 	}
 
@@ -764,6 +764,6 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 err:
 	state->error = true;
 the_end:
-	state->stack_info.type = STACK_TYPE_UNKNOWN;
+	state->stack_info.type = STACK_TYPE_UNKANALWN;
 }
 EXPORT_SYMBOL_GPL(__unwind_start);

@@ -50,14 +50,14 @@
  * event fields, one for each of the two counters.  It's thus nearly
  * impossible to have one counter going while keeping the other one
  * stopped.  Therefore it is possible to get overflow interrupts for
- * counters not currently "in use" and that condition must be checked
+ * counters analt currently "in use" and that condition must be checked
  * in the overflow interrupt handler.
  *
  * So we use a hack, in that we program inactive counters with the
  * "sw_count0" and "sw_count1" events.  These count how many times
  * the instruction "sethi %hi(0xfc000), %g0" is executed.  It's an
- * unusual way to encode a NOP and therefore will not trigger in
- * normal code.
+ * unusual way to encode a ANALP and therefore will analt trigger in
+ * analrmal code.
  *
  * Starting with SPARC-T4 we have one control register per counter.
  * And the counters are stored in individual registers.  The registers
@@ -73,7 +73,7 @@
 
 #define PIC_UPPER_INDEX			0
 #define PIC_LOWER_INDEX			1
-#define PIC_NO_INDEX			-1
+#define PIC_ANAL_INDEX			-1
 
 struct cpu_hw_events {
 	/* Number of events currently scheduled onto this cpu.
@@ -99,7 +99,7 @@ struct cpu_hw_events {
 
 	/* The current counter index assigned to an event.  When the
 	 * event hasn't been programmed into the cpu yet, this will
-	 * hold PIC_NO_INDEX.  The event->hw.idx value tells us where
+	 * hold PIC_ANAL_INDEX.  The event->hw.idx value tells us where
 	 * we ought to schedule the event.
 	 */
 	int			current_idx[MAX_HWEVENTS];
@@ -123,7 +123,7 @@ static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = { .enabled = 1, };
 struct perf_event_map {
 	u16	encoding;
 	u8	pic_mask;
-#define PIC_NONE	0x00
+#define PIC_ANALNE	0x00
 #define PIC_UPPER	0x01
 #define PIC_LOWER	0x02
 };
@@ -147,7 +147,7 @@ static u64 perf_event_get_enc(unsigned long val)
 #define C(x) PERF_COUNT_HW_CACHE_##x
 
 #define CACHE_OP_UNSUPPORTED	0xfffe
-#define CACHE_OP_NONSENSE	0xffff
+#define CACHE_OP_ANALNSENSE	0xffff
 
 typedef struct perf_event_map cache_map_t
 				[PERF_COUNT_HW_CACHE_MAX]
@@ -167,8 +167,8 @@ struct sparc_pmu {
 	int				priv_bit;
 	int				hv_bit;
 	int				irq_bit;
-	int				upper_nop;
-	int				lower_nop;
+	int				upper_analp;
+	int				lower_analp;
 	unsigned int			flags;
 #define SPARC_PMU_ALL_EXCLUDES_SAME	0x00000001
 #define SPARC_PMU_HAS_CONFLICTS		0x00000002
@@ -238,8 +238,8 @@ static const cache_map_t ultra3_cache_map = {
 		[C(RESULT_MISS)] = { 0x09, PIC_UPPER, },
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = { CACHE_OP_NONSENSE },
-		[ C(RESULT_MISS)   ] = { CACHE_OP_NONSENSE },
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_ANALNSENSE },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_ANALNSENSE },
 	},
 	[ C(OP_PREFETCH) ] = {
 		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
@@ -302,7 +302,7 @@ static const cache_map_t ultra3_cache_map = {
 		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
 	},
 },
-[C(NODE)] = {
+[C(ANALDE)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
 		[C(RESULT_MISS)  ] = { CACHE_OP_UNSUPPORTED },
@@ -329,8 +329,8 @@ static const struct sparc_pmu ultra3_pmu = {
 	.event_mask	= 0x3f,
 	.user_bit	= PCR_UTRACE,
 	.priv_bit	= PCR_STRACE,
-	.upper_nop	= 0x1c,
-	.lower_nop	= 0x14,
+	.upper_analp	= 0x1c,
+	.lower_analp	= 0x14,
 	.flags		= (SPARC_PMU_ALL_EXCLUDES_SAME |
 			   SPARC_PMU_HAS_CONFLICTS),
 	.max_hw_events	= 2,
@@ -346,7 +346,7 @@ static const struct sparc_pmu ultra3_pmu = {
 static const struct perf_event_map niagara1_perfmon_event_map[] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = { 0x00, PIC_UPPER },
 	[PERF_COUNT_HW_INSTRUCTIONS] = { 0x00, PIC_UPPER },
-	[PERF_COUNT_HW_CACHE_REFERENCES] = { 0, PIC_NONE },
+	[PERF_COUNT_HW_CACHE_REFERENCES] = { 0, PIC_ANALNE },
 	[PERF_COUNT_HW_CACHE_MISSES] = { 0x03, PIC_LOWER },
 };
 
@@ -376,8 +376,8 @@ static const cache_map_t niagara1_cache_map = {
 		[C(RESULT_MISS)] = { 0x02, PIC_LOWER, },
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = { CACHE_OP_NONSENSE },
-		[ C(RESULT_MISS)   ] = { CACHE_OP_NONSENSE },
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_ANALNSENSE },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_ANALNSENSE },
 	},
 	[ C(OP_PREFETCH) ] = {
 		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
@@ -440,7 +440,7 @@ static const cache_map_t niagara1_cache_map = {
 		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
 	},
 },
-[C(NODE)] = {
+[C(ANALDE)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
 		[C(RESULT_MISS)  ] = { CACHE_OP_UNSUPPORTED },
@@ -467,8 +467,8 @@ static const struct sparc_pmu niagara1_pmu = {
 	.event_mask	= 0x7,
 	.user_bit	= PCR_UTRACE,
 	.priv_bit	= PCR_STRACE,
-	.upper_nop	= 0x0,
-	.lower_nop	= 0x0,
+	.upper_analp	= 0x0,
+	.lower_analp	= 0x0,
 	.flags		= (SPARC_PMU_ALL_EXCLUDES_SAME |
 			   SPARC_PMU_HAS_CONFLICTS),
 	.max_hw_events	= 2,
@@ -511,8 +511,8 @@ static const cache_map_t niagara2_cache_map = {
 		[C(RESULT_MISS)] = { 0x0301, PIC_UPPER | PIC_LOWER, },
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = { CACHE_OP_NONSENSE },
-		[ C(RESULT_MISS)   ] = { CACHE_OP_NONSENSE },
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_ANALNSENSE },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_ANALNSENSE },
 	},
 	[ C(OP_PREFETCH) ] = {
 		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
@@ -575,7 +575,7 @@ static const cache_map_t niagara2_cache_map = {
 		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
 	},
 },
-[C(NODE)] = {
+[C(ANALDE)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
 		[C(RESULT_MISS)  ] = { CACHE_OP_UNSUPPORTED },
@@ -604,8 +604,8 @@ static const struct sparc_pmu niagara2_pmu = {
 	.priv_bit	= PCR_STRACE,
 	.hv_bit		= PCR_N2_HTRACE,
 	.irq_bit	= 0x30,
-	.upper_nop	= 0x220,
-	.lower_nop	= 0x220,
+	.upper_analp	= 0x220,
+	.lower_analp	= 0x220,
 	.flags		= (SPARC_PMU_ALL_EXCLUDES_SAME |
 			   SPARC_PMU_HAS_CONFLICTS),
 	.max_hw_events	= 2,
@@ -648,8 +648,8 @@ static const cache_map_t niagara4_cache_map = {
 		[C(RESULT_MISS)] = { (11 << 6) | 0x03 },
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = { CACHE_OP_NONSENSE },
-		[ C(RESULT_MISS)   ] = { CACHE_OP_NONSENSE },
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_ANALNSENSE },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_ANALNSENSE },
 	},
 	[ C(OP_PREFETCH) ] = {
 		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
@@ -712,7 +712,7 @@ static const cache_map_t niagara4_cache_map = {
 		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
 	},
 },
-[C(NODE)] = {
+[C(ANALDE)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
 		[C(RESULT_MISS)  ] = { CACHE_OP_UNSUPPORTED },
@@ -762,7 +762,7 @@ static const struct sparc_pmu niagara4_pmu = {
 
 	/* We explicitly don't support hypervisor tracing.  The T4
 	 * generates the overflow event for precise events via a trap
-	 * which will not be generated (ie. it's completely lost) if
+	 * which will analt be generated (ie. it's completely lost) if
 	 * we happen to be in the hypervisor when the event triggers.
 	 * Essentially, the overflow event reporting is completely
 	 * unusable when you have hypervisor mode tracing enabled.
@@ -770,8 +770,8 @@ static const struct sparc_pmu niagara4_pmu = {
 	.hv_bit		= 0,
 
 	.irq_bit	= PCR_N4_TOE,
-	.upper_nop	= 0,
-	.lower_nop	= 0,
+	.upper_analp	= 0,
+	.lower_analp	= 0,
 	.flags		= 0,
 	.max_hw_events	= 4,
 	.num_pcrs	= 4,
@@ -794,8 +794,8 @@ static const struct sparc_pmu sparc_m7_pmu = {
 	.hv_bit		= 0,
 
 	.irq_bit	= PCR_N4_TOE,
-	.upper_nop	= 0,
-	.lower_nop	= 0,
+	.upper_analp	= 0,
+	.lower_analp	= 0,
 	.flags		= 0,
 	.max_hw_events	= 4,
 	.num_pcrs	= 4,
@@ -817,11 +817,11 @@ static u64 mask_for_index(int idx)
 	return event_encoding(sparc_pmu->event_mask, idx);
 }
 
-static u64 nop_for_index(int idx)
+static u64 analp_for_index(int idx)
 {
 	return event_encoding(idx == PIC_UPPER_INDEX ?
-			      sparc_pmu->upper_nop :
-			      sparc_pmu->lower_nop, idx);
+			      sparc_pmu->upper_analp :
+			      sparc_pmu->lower_analp, idx);
 }
 
 static inline void sparc_pmu_enable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
@@ -845,7 +845,7 @@ static inline void sparc_pmu_enable_event(struct cpu_hw_events *cpuc, struct hw_
 static inline void sparc_pmu_disable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
 {
 	u64 mask = mask_for_index(idx);
-	u64 nop = nop_for_index(idx);
+	u64 analp = analp_for_index(idx);
 	int pcr_index = 0;
 	u64 val;
 
@@ -854,7 +854,7 @@ static inline void sparc_pmu_disable_event(struct cpu_hw_events *cpuc, struct hw
 
 	val = cpuc->pcr[pcr_index];
 	val &= ~mask;
-	val |= nop;
+	val |= analp;
 	cpuc->pcr[pcr_index] = val;
 
 	pcr_ops->write_pcr(pcr_index, cpuc->pcr[pcr_index]);
@@ -927,11 +927,11 @@ static void read_in_all_counters(struct cpu_hw_events *cpuc)
 	for (i = 0; i < cpuc->n_events; i++) {
 		struct perf_event *cp = cpuc->event[i];
 
-		if (cpuc->current_idx[i] != PIC_NO_INDEX &&
+		if (cpuc->current_idx[i] != PIC_ANAL_INDEX &&
 		    cpuc->current_idx[i] != cp->hw.idx) {
 			sparc_perf_event_update(cp, &cp->hw,
 						cpuc->current_idx[i]);
-			cpuc->current_idx[i] = PIC_NO_INDEX;
+			cpuc->current_idx[i] = PIC_ANAL_INDEX;
 			if (cp->hw.state & PERF_HES_STOPPED)
 				cp->hw.state |= PERF_HES_ARCH;
 		}
@@ -958,7 +958,7 @@ static void calculate_single_pcr(struct cpu_hw_events *cpuc)
 		int idx = hwc->idx;
 		u64 enc;
 
-		if (cpuc->current_idx[i] != PIC_NO_INDEX)
+		if (cpuc->current_idx[i] != PIC_ANAL_INDEX)
 			continue;
 
 		sparc_perf_event_set_period(cp, hwc, idx);
@@ -967,7 +967,7 @@ static void calculate_single_pcr(struct cpu_hw_events *cpuc)
 		enc = perf_event_get_enc(cpuc->events[i]);
 		cpuc->pcr[0] &= ~mask_for_index(idx);
 		if (hwc->state & PERF_HES_ARCH) {
-			cpuc->pcr[0] |= nop_for_index(idx);
+			cpuc->pcr[0] |= analp_for_index(idx);
 		} else {
 			cpuc->pcr[0] |= event_encoding(enc, idx);
 			hwc->state = 0;
@@ -992,7 +992,7 @@ static void calculate_multiple_pcrs(struct cpu_hw_events *cpuc)
 		struct hw_perf_event *hwc = &cp->hw;
 		int idx = hwc->idx;
 
-		if (cpuc->current_idx[i] != PIC_NO_INDEX)
+		if (cpuc->current_idx[i] != PIC_ANAL_INDEX)
 			continue;
 
 		cpuc->current_idx[i] = idx;
@@ -1170,7 +1170,7 @@ static void perf_stop_nmi_watchdog(void *unused)
 
 static void perf_event_grab_pmc(void)
 {
-	if (atomic_inc_not_zero(&active_events))
+	if (atomic_inc_analt_zero(&active_events))
 		return;
 
 	mutex_lock(&pmc_grab_mutex);
@@ -1199,7 +1199,7 @@ static const struct perf_event_map *sparc_map_cache_event(u64 config)
 	const struct perf_event_map *pmap;
 
 	if (!sparc_pmu->cache_map)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	cache_type = (config >>  0) & 0xff;
 	if (cache_type >= PERF_COUNT_HW_CACHE_MAX)
@@ -1216,9 +1216,9 @@ static const struct perf_event_map *sparc_map_cache_event(u64 config)
 	pmap = &((*sparc_pmu->cache_map)[cache_type][cache_op][cache_result]);
 
 	if (pmap->encoding == CACHE_OP_UNSUPPORTED)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	if (pmap->encoding == CACHE_OP_NONSENSE)
+	if (pmap->encoding == CACHE_OP_ANALNSENSE)
 		return ERR_PTR(-EINVAL);
 
 	return pmap;
@@ -1354,7 +1354,7 @@ static int collect_events(struct perf_event *group, int max_count,
 			return -1;
 		evts[n] = group;
 		events[n] = group->hw.event_base;
-		current_idx[n++] = PIC_NO_INDEX;
+		current_idx[n++] = PIC_ANAL_INDEX;
 	}
 	for_each_sibling_event(event, group) {
 		if (!is_software_event(event) &&
@@ -1363,7 +1363,7 @@ static int collect_events(struct perf_event *group, int max_count,
 				return -1;
 			evts[n] = event;
 			events[n] = event->hw.event_base;
-			current_idx[n++] = PIC_NO_INDEX;
+			current_idx[n++] = PIC_ANAL_INDEX;
 		}
 	}
 	return n;
@@ -1383,7 +1383,7 @@ static int sparc_pmu_add(struct perf_event *event, int ef_flags)
 
 	cpuc->event[n0] = event;
 	cpuc->events[n0] = event->hw.event_base;
-	cpuc->current_idx[n0] = PIC_NO_INDEX;
+	cpuc->current_idx[n0] = PIC_ANAL_INDEX;
 
 	event->hw.state = PERF_HES_UPTODATE | PERF_HES_STOPPED;
 	if (!(ef_flags & PERF_EF_START))
@@ -1395,14 +1395,14 @@ static int sparc_pmu_add(struct perf_event *event, int ef_flags)
 	 * at commit time(->commit_txn) as a whole
 	 */
 	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
-		goto nocheck;
+		goto analcheck;
 
 	if (check_excludes(cpuc->event, n0, 1))
 		goto out;
 	if (sparc_check_constraints(cpuc->event, cpuc->events, n0 + 1))
 		goto out;
 
-nocheck:
+analcheck:
 	cpuc->n_events++;
 	cpuc->n_added++;
 
@@ -1423,11 +1423,11 @@ static int sparc_pmu_event_init(struct perf_event *event)
 	int n;
 
 	if (atomic_read(&nmi_active) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* does not support taken branch sampling */
+	/* does analt support taken branch sampling */
 	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attr->type) {
 	case PERF_TYPE_HARDWARE:
@@ -1447,7 +1447,7 @@ static int sparc_pmu_event_init(struct perf_event *event)
 		break;
 
 	default:
-		return -ENOENT;
+		return -EANALENT;
 
 	}
 
@@ -1487,7 +1487,7 @@ static int sparc_pmu_event_init(struct perf_event *event)
 	if (sparc_check_constraints(evts, events, n + 1))
 		return -EINVAL;
 
-	hwc->idx = PIC_NO_INDEX;
+	hwc->idx = PIC_ANAL_INDEX;
 
 	/* Try to do all error checking before this point, as unwinding
 	 * state after grabbing the PMC is difficult.
@@ -1506,7 +1506,7 @@ static int sparc_pmu_event_init(struct perf_event *event)
 
 /*
  * Start group events scheduling transaction
- * Set the flag to make pmu::enable() not perform the
+ * Set the flag to make pmu::enable() analt perform the
  * schedulability test, it will be performed at commit time
  */
 static void sparc_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
@@ -1532,7 +1532,7 @@ static void sparc_pmu_cancel_txn(struct pmu *pmu)
 	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
 	unsigned int txn_flags;
 
-	WARN_ON_ONCE(!cpuhw->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuhw->txn_flags);	/* anal txn in flight */
 
 	txn_flags = cpuhw->txn_flags;
 	cpuhw->txn_flags = 0;
@@ -1555,7 +1555,7 @@ static int sparc_pmu_commit_txn(struct pmu *pmu)
 	if (!sparc_pmu)
 		return -EINVAL;
 
-	WARN_ON_ONCE(!cpuc->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuc->txn_flags);	/* anal txn in flight */
 
 	if (cpuc->txn_flags & ~PERF_PMU_TXN_ADD) {
 		cpuc->txn_flags = 0;
@@ -1610,7 +1610,7 @@ void perf_event_print_debug(void)
 	local_irq_restore(flags);
 }
 
-static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
+static int __kprobes perf_event_nmi_handler(struct analtifier_block *self,
 					    unsigned long cmd, void *__args)
 {
 	struct die_args *args = __args;
@@ -1622,14 +1622,14 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 	int i;
 
 	if (!atomic_read(&active_events))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (cmd) {
 	case DIE_NMI:
 		break;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	start_clock = sched_clock();
@@ -1676,11 +1676,11 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 
 	perf_sample_event_took(finish_clock - start_clock);
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
-static __read_mostly struct notifier_block perf_event_nmi_notifier = {
-	.notifier_call		= perf_event_nmi_handler,
+static __read_mostly struct analtifier_block perf_event_nmi_analtifier = {
+	.analtifier_call		= perf_event_nmi_handler,
 };
 
 static bool __init supported_pmu(void)
@@ -1721,14 +1721,14 @@ static int __init init_hw_perf_events(void)
 
 	err = pcr_arch_init();
 	if (err || !supported_pmu()) {
-		pr_cont("No support for PMU type '%s'\n", sparc_pmu_type);
+		pr_cont("Anal support for PMU type '%s'\n", sparc_pmu_type);
 		return 0;
 	}
 
 	pr_cont("Supported PMU type is '%s'\n", sparc_pmu_type);
 
 	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
-	register_die_notifier(&perf_event_nmi_notifier);
+	register_die_analtifier(&perf_event_nmi_analtifier);
 
 	return 0;
 }
@@ -1791,7 +1791,7 @@ valid_user_frame(const void __user *fp, unsigned long size)
 	if (((unsigned long) fp) & 3)
 		return 0;
 
-	return (__range_not_ok(fp, size, TASK_SIZE) == 0);
+	return (__range_analt_ok(fp, size, TASK_SIZE) == 0);
 }
 
 static void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,

@@ -2,7 +2,7 @@
 /*
  *  Copyright (c) 2009, Citrix Systems, Inc.
  *  Copyright (c) 2010, Microsoft Corporation.
- *  Copyright (c) 2011, Novell Inc.
+ *  Copyright (c) 2011, Analvell Inc.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -30,8 +30,8 @@ struct hv_input_dev_info {
  * RC > 2008/1/22              2,0
  */
 #define SYNTHHID_INPUT_VERSION_MAJOR	2
-#define SYNTHHID_INPUT_VERSION_MINOR	0
-#define SYNTHHID_INPUT_VERSION		(SYNTHHID_INPUT_VERSION_MINOR | \
+#define SYNTHHID_INPUT_VERSION_MIANALR	0
+#define SYNTHHID_INPUT_VERSION		(SYNTHHID_INPUT_VERSION_MIANALR | \
 					 (SYNTHHID_INPUT_VERSION_MAJOR << 16))
 
 
@@ -58,7 +58,7 @@ struct synthhid_msg_hdr {
 
 union synthhid_version {
 	struct {
-		u16 minor_version;
+		u16 mianalr_version;
 		u16 major_version;
 	};
 	u32 version;
@@ -177,14 +177,14 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	struct hid_descriptor *desc;
 	struct mousevsc_prt_msg ack;
 
-	input_device->dev_info_status = -ENOMEM;
+	input_device->dev_info_status = -EANALMEM;
 
 	input_device->hid_dev_info = device_info->hid_dev_info;
 	desc = &device_info->hid_descriptor;
 	if (desc->bLength == 0)
 		goto cleanup;
 
-	/* The pointer is not NULL when we resume from hibernation */
+	/* The pointer is analt NULL when we resume from hibernation */
 	kfree(input_device->hid_desc);
 	input_device->hid_desc = kmemdup(desc, desc->bLength, GFP_ATOMIC);
 
@@ -198,13 +198,13 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 		goto cleanup;
 	}
 
-	/* The pointer is not NULL when we resume from hibernation */
+	/* The pointer is analt NULL when we resume from hibernation */
 	kfree(input_device->report_desc);
 	input_device->report_desc = kzalloc(input_device->report_desc_size,
 					  GFP_ATOMIC);
 
 	if (!input_device->report_desc) {
-		input_device->dev_info_status = -ENOMEM;
+		input_device->dev_info_status = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -366,7 +366,7 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 	if (!response->response.approved) {
 		pr_err("synthhid protocol request failed (version %d)\n",
 		       SYNTHHID_INPUT_VERSION);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto cleanup;
 	}
 
@@ -443,7 +443,7 @@ static int mousevsc_probe(struct hv_device *device,
 	input_dev = mousevsc_alloc_device(device);
 
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = vmbus_open(device->channel,
 		INPUTVSC_SEND_RING_BUFFER_SIZE,
@@ -573,7 +573,7 @@ static struct  hv_driver mousevsc_drv = {
 	.suspend = mousevsc_suspend,
 	.resume = mousevsc_resume,
 	.driver = {
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

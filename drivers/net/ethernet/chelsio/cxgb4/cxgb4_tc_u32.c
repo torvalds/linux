@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -52,18 +52,18 @@ static int fill_match_fields(struct adapter *adap,
 	int off, err;
 	bool found;
 
-	for (i = 0; i < cls->knode.sel->nkeys; i++) {
-		off = cls->knode.sel->keys[i].off;
-		val = cls->knode.sel->keys[i].val;
-		mask = cls->knode.sel->keys[i].mask;
+	for (i = 0; i < cls->kanalde.sel->nkeys; i++) {
+		off = cls->kanalde.sel->keys[i].off;
+		val = cls->kanalde.sel->keys[i].val;
+		mask = cls->kanalde.sel->keys[i].mask;
 
 		if (next_header) {
 			/* For next headers, parse only keys with offmask */
-			if (!cls->knode.sel->keys[i].offmask)
+			if (!cls->kanalde.sel->keys[i].offmask)
 				continue;
 		} else {
 			/* For the remaining, parse only keys without offmask */
-			if (cls->knode.sel->keys[i].offmask)
+			if (cls->kanalde.sel->keys[i].offmask)
 				continue;
 		}
 
@@ -96,7 +96,7 @@ static int fill_action_fields(struct adapter *adap,
 	struct tcf_exts *exts;
 	int i;
 
-	exts = cls->knode.exts;
+	exts = cls->kanalde.exts;
 	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 
@@ -146,7 +146,7 @@ static int fill_action_fields(struct adapter *adap,
 	return 0;
 }
 
-int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
+int cxgb4_config_kanalde(struct net_device *dev, struct tc_cls_u32_offload *cls)
 {
 	const struct cxgb4_match_field *start, *link_start = NULL;
 	struct netlink_ext_ack *extack = cls->common.extack;
@@ -162,10 +162,10 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	int ret;
 
 	if (!can_tc_u32_offload(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (protocol != htons(ETH_P_IP) && protocol != htons(ETH_P_IPV6))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	inet_family = (protocol == htons(ETH_P_IPV6)) ? PF_INET6 : PF_INET;
 
@@ -174,16 +174,16 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	 * existing rules.
 	 */
 	filter_id = cxgb4_get_free_ftid(dev, inet_family, false,
-					TC_U32_NODE(cls->knode.handle));
+					TC_U32_ANALDE(cls->kanalde.handle));
 	if (filter_id < 0) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "No free LETCAM index available");
-		return -ENOMEM;
+				   "Anal free LETCAM index available");
+		return -EANALMEM;
 	}
 
 	t = adapter->tc_u32;
-	uhtid = TC_U32_USERHTID(cls->knode.handle);
-	link_uhtid = TC_U32_USERHTID(cls->knode.link_handle);
+	uhtid = TC_U32_USERHTID(cls->kanalde.handle);
+	link_uhtid = TC_U32_USERHTID(cls->kanalde.link_handle);
 
 	/* Ensure that uhtid is either root u32 (i.e. 0x800)
 	 * or a a valid linked bucket.
@@ -200,7 +200,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	if (filter_id < adapter->tids.nhpftids)
 		fs.prio = 1;
 	fs.tc_prio = cls->common.prio;
-	fs.tc_cookie = cls->knode.handle;
+	fs.tc_cookie = cls->kanalde.handle;
 
 	if (protocol == htons(ETH_P_IPV6)) {
 		start = cxgb4_ipv6_fields;
@@ -211,7 +211,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	}
 
 	if (uhtid != 0x800) {
-		/* Link must exist from root node before insertion. */
+		/* Link must exist from root analde before insertion. */
 		if (!t->table[uhtid - 1].link_handle)
 			return -EINVAL;
 
@@ -242,20 +242,20 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 
 		/* Try to find matches that allow jumps to next header. */
 		for (i = 0; next[i].jump; i++) {
-			if (next[i].sel.offoff != cls->knode.sel->offoff ||
-			    next[i].sel.offshift != cls->knode.sel->offshift ||
-			    next[i].sel.offmask != cls->knode.sel->offmask ||
-			    next[i].sel.off != cls->knode.sel->off)
+			if (next[i].sel.offoff != cls->kanalde.sel->offoff ||
+			    next[i].sel.offshift != cls->kanalde.sel->offshift ||
+			    next[i].sel.offmask != cls->kanalde.sel->offmask ||
+			    next[i].sel.off != cls->kanalde.sel->off)
 				continue;
 
 			/* Found a possible candidate.  Find a key that
 			 * matches the corresponding offset, value, and
 			 * mask to jump to next header.
 			 */
-			for (j = 0; j < cls->knode.sel->nkeys; j++) {
-				off = cls->knode.sel->keys[j].off;
-				val = cls->knode.sel->keys[j].val;
-				mask = cls->knode.sel->keys[j].mask;
+			for (j = 0; j < cls->kanalde.sel->nkeys; j++) {
+				off = cls->kanalde.sel->keys[j].off;
+				val = cls->kanalde.sel->keys[j].val;
+				mask = cls->kanalde.sel->keys[j].mask;
 
 				if (next[i].key.off == off &&
 				    next[i].key.val == val &&
@@ -280,12 +280,12 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 
 			link = &t->table[link_uhtid - 1];
 			link->match_field = next[i].jump;
-			link->link_handle = cls->knode.handle;
+			link->link_handle = cls->kanalde.handle;
 			memcpy(&link->fs, &fs, sizeof(fs));
 			break;
 		}
 
-		/* No candidate found to jump to next header. */
+		/* Anal candidate found to jump to next header. */
 		if (!found)
 			return -EINVAL;
 
@@ -317,7 +317,7 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		goto out;
 
 	/* The filter spec has been completely built from the info
-	 * provided from u32.  We now set some default fields in the
+	 * provided from u32.  We analw set some default fields in the
 	 * spec for sanity.
 	 */
 
@@ -349,7 +349,7 @@ out:
 	return ret;
 }
 
-int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
+int cxgb4_delete_kanalde(struct net_device *dev, struct tc_cls_u32_offload *cls)
 {
 	struct adapter *adapter = netdev2adap(dev);
 	unsigned int filter_id, max_tids, i, j;
@@ -362,7 +362,7 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	int ret;
 
 	if (!can_tc_u32_offload(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Fetch the location to delete the filter. */
 	max_tids = adapter->tids.nhpftids + adapter->tids.nftids;
@@ -373,7 +373,7 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		if (filter_id < adapter->tids.nhpftids) {
 			i = filter_id;
 			f = &adapter->tids.hpftid_tab[i];
-			if (f->valid && f->fs.tc_cookie == cls->knode.handle) {
+			if (f->valid && f->fs.tc_cookie == cls->kanalde.handle) {
 				found = true;
 				break;
 			}
@@ -389,7 +389,7 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		} else {
 			i = filter_id - adapter->tids.nhpftids;
 			f = &adapter->tids.ftid_tab[i];
-			if (f->valid && f->fs.tc_cookie == cls->knode.handle) {
+			if (f->valid && f->fs.tc_cookie == cls->kanalde.handle) {
 				found = true;
 				break;
 			}
@@ -418,8 +418,8 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		return -ERANGE;
 
 	t = adapter->tc_u32;
-	handle = cls->knode.handle;
-	uhtid = TC_U32_USERHTID(cls->knode.handle);
+	handle = cls->kanalde.handle;
+	uhtid = TC_U32_USERHTID(cls->kanalde.handle);
 
 	/* Ensure that uhtid is either root u32 (i.e. 0x800)
 	 * or a a valid linked bucket.
@@ -515,13 +515,13 @@ struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
 		link->tid_map = kvcalloc(bmap_size, sizeof(unsigned long),
 					 GFP_KERNEL);
 		if (!link->tid_map)
-			goto out_no_mem;
+			goto out_anal_mem;
 		bitmap_zero(link->tid_map, max_tids);
 	}
 
 	return t;
 
-out_no_mem:
+out_anal_mem:
 	for (i = 0; i < t->size; i++) {
 		struct cxgb4_link *link = &t->table[i];
 		kvfree(link->tid_map);

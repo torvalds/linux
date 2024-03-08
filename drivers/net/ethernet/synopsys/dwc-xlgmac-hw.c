@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syanalpsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syanalpsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syanalpsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syanalpsys and you. The Software IS ANALT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syanalpsys or any supplement thereto.
+ * Syanalpsys is a registered trademark of Syanalpsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -29,8 +29,8 @@
 static int xlgmac_tx_complete(struct xlgmac_dma_desc *dma_desc)
 {
 	return !XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				TX_NORMAL_DESC3_OWN_POS,
-				TX_NORMAL_DESC3_OWN_LEN);
+				TX_ANALRMAL_DESC3_OWN_POS,
+				TX_ANALRMAL_DESC3_OWN_LEN);
 }
 
 static int xlgmac_disable_rx_csum(struct xlgmac_pdata *pdata)
@@ -165,7 +165,7 @@ static int xlgmac_enable_rx_vlan_filtering(struct xlgmac_pdata *pdata)
 	regval = XLGMAC_SET_REG_BITS(regval, MAC_VLANTR_ETV_POS,
 				     MAC_VLANTR_ETV_LEN, 1);
 	/* In order for the VLAN Hash Table filtering to be effective,
-	 * the VLAN tag identifier in the VLAN Tag Register must not
+	 * the VLAN tag identifier in the VLAN Tag Register must analt
 	 * be zero.  Set the VLAN tag identifier to "1" to enable the
 	 * VLAN Hash Table filtering.  This implies that a VLAN tag of
 	 * 1 will always pass filtering.
@@ -472,7 +472,7 @@ static void xlgmac_prepare_tx_stop(struct xlgmac_pdata *pdata,
 			 DMA_DSRX_TPS_START;
 	}
 
-	/* The Tx engine cannot be stopped if it is actively processing
+	/* The Tx engine cananalt be stopped if it is actively processing
 	 * descriptors. Wait for the Tx engine to enter the stopped or
 	 * suspended state.  Don't wait forever though...
 	 */
@@ -576,7 +576,7 @@ static void xlgmac_prepare_rx_stop(struct xlgmac_pdata *pdata,
 	unsigned int rx_status, prxq, rxqsts;
 	unsigned long rx_timeout;
 
-	/* The Rx engine cannot be stopped if it is actively processing
+	/* The Rx engine cananalt be stopped if it is actively processing
 	 * packets. Wait for the Rx queue to empty the Rx fifo.  Don't
 	 * wait forever though...
 	 */
@@ -739,10 +739,10 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 	 *     - Tx frame count exceeds the frame count setting
 	 *     - Addition of Tx frame count to the frame count since the
 	 *       last interrupt was set exceeds the frame count setting
-	 *   No interrupt:
-	 *     - No frame count setting specified (ethtool -C ethX tx-frames 0)
+	 *   Anal interrupt:
+	 *     - Anal frame count setting specified (ethtool -C ethX tx-frames 0)
 	 *     - Addition of Tx frame count to the frame count since the
-	 *       last interrupt was set does not exceed the frame count setting
+	 *       last interrupt was set does analt exceed the frame count setting
 	 */
 	ring->coalesce_count += pkt_info->tx_packets;
 	if (!pdata->tx_frames)
@@ -830,17 +830,17 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 	/* Update the buffer length */
 	dma_desc->desc2 = XLGMAC_SET_REG_BITS_LE(
 				dma_desc->desc2,
-				TX_NORMAL_DESC2_HL_B1L_POS,
-				TX_NORMAL_DESC2_HL_B1L_LEN,
+				TX_ANALRMAL_DESC2_HL_B1L_POS,
+				TX_ANALRMAL_DESC2_HL_B1L_LEN,
 				desc_data->skb_dma_len);
 
 	/* VLAN tag insertion check */
 	if (vlan) {
 		dma_desc->desc2 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc2,
-					TX_NORMAL_DESC2_VTIR_POS,
-					TX_NORMAL_DESC2_VTIR_LEN,
-					TX_NORMAL_DESC2_VLAN_INSERT);
+					TX_ANALRMAL_DESC2_VTIR_POS,
+					TX_ANALRMAL_DESC2_VTIR_LEN,
+					TX_ANALRMAL_DESC2_VLAN_INSERT);
 		pdata->stats.tx_vlan_packets++;
 	}
 
@@ -850,47 +850,47 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 				TX_PACKET_ATTRIBUTES_PTP_LEN))
 		dma_desc->desc2 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc2,
-					TX_NORMAL_DESC2_TTSE_POS,
-					TX_NORMAL_DESC2_TTSE_LEN,
+					TX_ANALRMAL_DESC2_TTSE_POS,
+					TX_ANALRMAL_DESC2_TTSE_LEN,
 					1);
 
 	/* Mark it as First Descriptor */
 	dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 				dma_desc->desc3,
-				TX_NORMAL_DESC3_FD_POS,
-				TX_NORMAL_DESC3_FD_LEN,
+				TX_ANALRMAL_DESC3_FD_POS,
+				TX_ANALRMAL_DESC3_FD_LEN,
 				1);
 
-	/* Mark it as a NORMAL descriptor */
+	/* Mark it as a ANALRMAL descriptor */
 	dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 				dma_desc->desc3,
-				TX_NORMAL_DESC3_CTXT_POS,
-				TX_NORMAL_DESC3_CTXT_LEN,
+				TX_ANALRMAL_DESC3_CTXT_POS,
+				TX_ANALRMAL_DESC3_CTXT_LEN,
 				0);
 
-	/* Set OWN bit if not the first descriptor */
+	/* Set OWN bit if analt the first descriptor */
 	if (cur_index != start_index)
 		dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc3,
-					TX_NORMAL_DESC3_OWN_POS,
-					TX_NORMAL_DESC3_OWN_LEN,
+					TX_ANALRMAL_DESC3_OWN_POS,
+					TX_ANALRMAL_DESC3_OWN_LEN,
 					1);
 
 	if (tso) {
 		/* Enable TSO */
 		dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc3,
-					TX_NORMAL_DESC3_TSE_POS,
-					TX_NORMAL_DESC3_TSE_LEN, 1);
+					TX_ANALRMAL_DESC3_TSE_POS,
+					TX_ANALRMAL_DESC3_TSE_LEN, 1);
 		dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc3,
-					TX_NORMAL_DESC3_TCPPL_POS,
-					TX_NORMAL_DESC3_TCPPL_LEN,
+					TX_ANALRMAL_DESC3_TCPPL_POS,
+					TX_ANALRMAL_DESC3_TCPPL_LEN,
 					pkt_info->tcp_payload_len);
 		dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc3,
-					TX_NORMAL_DESC3_TCPHDRLEN_POS,
-					TX_NORMAL_DESC3_TCPHDRLEN_LEN,
+					TX_ANALRMAL_DESC3_TCPHDRLEN_POS,
+					TX_ANALRMAL_DESC3_TCPHDRLEN_LEN,
 					pkt_info->tcp_header_len / 4);
 
 		pdata->stats.tx_tso_packets++;
@@ -898,22 +898,22 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 		/* Enable CRC and Pad Insertion */
 		dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc3,
-					TX_NORMAL_DESC3_CPC_POS,
-					TX_NORMAL_DESC3_CPC_LEN, 0);
+					TX_ANALRMAL_DESC3_CPC_POS,
+					TX_ANALRMAL_DESC3_CPC_LEN, 0);
 
 		/* Enable HW CSUM */
 		if (csum)
 			dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 						dma_desc->desc3,
-						TX_NORMAL_DESC3_CIC_POS,
-						TX_NORMAL_DESC3_CIC_LEN,
+						TX_ANALRMAL_DESC3_CIC_POS,
+						TX_ANALRMAL_DESC3_CIC_LEN,
 						0x3);
 
 		/* Set the total length to be transmitted */
 		dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc3,
-					TX_NORMAL_DESC3_FL_POS,
-					TX_NORMAL_DESC3_FL_LEN,
+					TX_ANALRMAL_DESC3_FL_POS,
+					TX_ANALRMAL_DESC3_FL_LEN,
 					pkt_info->length);
 	}
 
@@ -931,43 +931,43 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 		/* Update the buffer length */
 		dma_desc->desc2 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc2,
-					TX_NORMAL_DESC2_HL_B1L_POS,
-					TX_NORMAL_DESC2_HL_B1L_LEN,
+					TX_ANALRMAL_DESC2_HL_B1L_POS,
+					TX_ANALRMAL_DESC2_HL_B1L_LEN,
 					desc_data->skb_dma_len);
 
 		/* Set OWN bit */
 		dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc3,
-					TX_NORMAL_DESC3_OWN_POS,
-					TX_NORMAL_DESC3_OWN_LEN, 1);
+					TX_ANALRMAL_DESC3_OWN_POS,
+					TX_ANALRMAL_DESC3_OWN_LEN, 1);
 
-		/* Mark it as NORMAL descriptor */
+		/* Mark it as ANALRMAL descriptor */
 		dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc3,
-					TX_NORMAL_DESC3_CTXT_POS,
-					TX_NORMAL_DESC3_CTXT_LEN, 0);
+					TX_ANALRMAL_DESC3_CTXT_POS,
+					TX_ANALRMAL_DESC3_CTXT_LEN, 0);
 
 		/* Enable HW CSUM */
 		if (csum)
 			dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 						dma_desc->desc3,
-						TX_NORMAL_DESC3_CIC_POS,
-						TX_NORMAL_DESC3_CIC_LEN,
+						TX_ANALRMAL_DESC3_CIC_POS,
+						TX_ANALRMAL_DESC3_CIC_LEN,
 						0x3);
 	}
 
 	/* Set LAST bit for the last descriptor */
 	dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 				dma_desc->desc3,
-				TX_NORMAL_DESC3_LD_POS,
-				TX_NORMAL_DESC3_LD_LEN, 1);
+				TX_ANALRMAL_DESC3_LD_POS,
+				TX_ANALRMAL_DESC3_LD_LEN, 1);
 
 	/* Set IC bit based on Tx coalescing settings */
 	if (tx_set_ic)
 		dma_desc->desc2 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc2,
-					TX_NORMAL_DESC2_IC_POS,
-					TX_NORMAL_DESC2_IC_LEN, 1);
+					TX_ANALRMAL_DESC2_IC_POS,
+					TX_ANALRMAL_DESC2_IC_LEN, 1);
 
 	/* Save the Tx info to report back during cleanup */
 	desc_data->tx.packets = pkt_info->tx_packets;
@@ -984,8 +984,8 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 	dma_desc = desc_data->dma_desc;
 	dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 				dma_desc->desc3,
-				TX_NORMAL_DESC3_OWN_POS,
-				TX_NORMAL_DESC3_OWN_LEN, 1);
+				TX_ANALRMAL_DESC3_OWN_POS,
+				TX_ANALRMAL_DESC3_OWN_LEN, 1);
 
 	if (netif_msg_tx_queued(pdata))
 		xlgmac_dump_tx_desc(pdata, ring, start_index,
@@ -1090,7 +1090,7 @@ static void xlgmac_rx_desc_reset(struct xlgmac_pdata *pdata,
 	unsigned int inte;
 
 	if (!rx_usecs && !rx_frames) {
-		/* No coalescing, interrupt for every descriptor */
+		/* Anal coalescing, interrupt for every descriptor */
 		inte = 1;
 	} else {
 		/* Set interrupt based on Rx frame coalescing setting */
@@ -1116,8 +1116,8 @@ static void xlgmac_rx_desc_reset(struct xlgmac_pdata *pdata,
 
 	dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 				dma_desc->desc3,
-				RX_NORMAL_DESC3_INTE_POS,
-				RX_NORMAL_DESC3_INTE_LEN,
+				RX_ANALRMAL_DESC3_INTE_POS,
+				RX_ANALRMAL_DESC3_INTE_LEN,
 				inte);
 
 	/* Since the Rx DMA engine is likely running, make sure everything
@@ -1128,8 +1128,8 @@ static void xlgmac_rx_desc_reset(struct xlgmac_pdata *pdata,
 
 	dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 				dma_desc->desc3,
-				RX_NORMAL_DESC3_OWN_POS,
-				RX_NORMAL_DESC3_OWN_LEN,
+				RX_ANALRMAL_DESC3_OWN_POS,
+				RX_ANALRMAL_DESC3_OWN_LEN,
 				1);
 
 	/* Make sure ownership is written to the descriptor */
@@ -1173,16 +1173,16 @@ static int xlgmac_is_context_desc(struct xlgmac_dma_desc *dma_desc)
 {
 	/* Rx and Tx share CTXT bit, so check TDES3.CTXT bit */
 	return XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				TX_NORMAL_DESC3_CTXT_POS,
-				TX_NORMAL_DESC3_CTXT_LEN);
+				TX_ANALRMAL_DESC3_CTXT_POS,
+				TX_ANALRMAL_DESC3_CTXT_LEN);
 }
 
 static int xlgmac_is_last_desc(struct xlgmac_dma_desc *dma_desc)
 {
 	/* Rx and Tx share LD bit, so check TDES3.LD bit */
 	return XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				TX_NORMAL_DESC3_LD_POS,
-				TX_NORMAL_DESC3_LD_LEN);
+				TX_ANALRMAL_DESC3_LD_POS,
+				TX_ANALRMAL_DESC3_LD_LEN);
 }
 
 static int xlgmac_disable_tx_flow_control(struct xlgmac_pdata *pdata)
@@ -1510,7 +1510,7 @@ static void xlgmac_config_queue_mapping(struct xlgmac_pdata *pdata)
 	unsigned int i, j;
 
 	/* Map the MTL Tx Queues to Traffic Classes
-	 *   Note: Tx Queues >= Traffic Classes
+	 *   Analte: Tx Queues >= Traffic Classes
 	 */
 	qptc = pdata->tx_q_count / pdata->hw_feat.tc_cnt;
 	qptc_extra = pdata->tx_q_count % pdata->hw_feat.tc_cnt;
@@ -1611,7 +1611,7 @@ static unsigned int xlgmac_calculate_per_queue_fifo(
 	/* Calculate the configured fifo size */
 	q_fifo_size = 1 << (fifo_size + 7);
 
-	/* The configured value may not be the actual amount of fifo RAM */
+	/* The configured value may analt be the actual amount of fifo RAM */
 	q_fifo_size = min_t(unsigned int, XLGMAC_MAX_FIFO, q_fifo_size);
 
 	q_fifo_size = q_fifo_size / queue_count;
@@ -2387,7 +2387,7 @@ static int xlgmac_enable_rss(struct xlgmac_pdata *pdata)
 	int ret;
 
 	if (!pdata->hw_feat.rss)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Program the hash key */
 	ret = xlgmac_write_rss_hash_key(pdata);
@@ -2416,7 +2416,7 @@ static int xlgmac_disable_rss(struct xlgmac_pdata *pdata)
 	u32 regval;
 
 	if (!pdata->hw_feat.rss)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	regval = readl(pdata->mac_regs + MAC_RSSCR);
 	regval = XLGMAC_SET_REG_BITS(regval, MAC_RSSCR_RSSE_POS,
@@ -2459,8 +2459,8 @@ static void xlgmac_enable_dma_interrupts(struct xlgmac_pdata *pdata)
 		dma_ch_ier = 0;
 
 		/* Enable following interrupts
-		 *   NIE  - Normal Interrupt Summary Enable
-		 *   AIE  - Abnormal Interrupt Summary Enable
+		 *   NIE  - Analrmal Interrupt Summary Enable
+		 *   AIE  - Abanalrmal Interrupt Summary Enable
 		 *   FBEE - Fatal Bus Error Enable
 		 */
 		dma_ch_ier = XLGMAC_SET_REG_BITS(dma_ch_ier,
@@ -2519,7 +2519,7 @@ static void xlgmac_enable_mtl_interrupts(struct xlgmac_pdata *pdata)
 		mtl_q_isr = readl(XLGMAC_MTL_REG(pdata, i, MTL_Q_ISR));
 		writel(mtl_q_isr, XLGMAC_MTL_REG(pdata, i, MTL_Q_ISR));
 
-		/* No MTL interrupts to be enabled */
+		/* Anal MTL interrupts to be enabled */
 		writel(0, XLGMAC_MTL_REG(pdata, i, MTL_Q_IER));
 	}
 }
@@ -2651,8 +2651,8 @@ static int xlgmac_dev_read(struct xlgmac_channel *channel)
 
 	/* Check for data availability */
 	if (XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				   RX_NORMAL_DESC3_OWN_POS,
-				   RX_NORMAL_DESC3_OWN_LEN))
+				   RX_ANALRMAL_DESC3_OWN_POS,
+				   RX_ANALRMAL_DESC3_OWN_LEN))
 		return 1;
 
 	/* Make sure descriptor fields are read after reading the OWN bit */
@@ -2662,8 +2662,8 @@ static int xlgmac_dev_read(struct xlgmac_channel *channel)
 		xlgmac_dump_rx_desc(pdata, ring, ring->cur);
 
 	if (XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				   RX_NORMAL_DESC3_CTXT_POS,
-				   RX_NORMAL_DESC3_CTXT_LEN)) {
+				   RX_ANALRMAL_DESC3_CTXT_POS,
+				   RX_ANALRMAL_DESC3_CTXT_LEN)) {
 		/* Timestamp Context Descriptor */
 		xlgmac_get_rx_tstamp(pkt_info, dma_desc);
 
@@ -2680,7 +2680,7 @@ static int xlgmac_dev_read(struct xlgmac_channel *channel)
 		return 0;
 	}
 
-	/* Normal Descriptor, be sure Context Descriptor bit is off */
+	/* Analrmal Descriptor, be sure Context Descriptor bit is off */
 	pkt_info->attributes = XLGMAC_SET_REG_BITS(
 				pkt_info->attributes,
 				RX_PACKET_ATTRIBUTES_CONTEXT_POS,
@@ -2689,8 +2689,8 @@ static int xlgmac_dev_read(struct xlgmac_channel *channel)
 
 	/* Indicate if a Context Descriptor is next */
 	if (XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				   RX_NORMAL_DESC3_CDA_POS,
-				   RX_NORMAL_DESC3_CDA_LEN))
+				   RX_ANALRMAL_DESC3_CDA_POS,
+				   RX_ANALRMAL_DESC3_CDA_LEN))
 		pkt_info->attributes = XLGMAC_SET_REG_BITS(
 				pkt_info->attributes,
 				RX_PACKET_ATTRIBUTES_CONTEXT_NEXT_POS,
@@ -2699,19 +2699,19 @@ static int xlgmac_dev_read(struct xlgmac_channel *channel)
 
 	/* Get the header length */
 	if (XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				   RX_NORMAL_DESC3_FD_POS,
-				   RX_NORMAL_DESC3_FD_LEN)) {
+				   RX_ANALRMAL_DESC3_FD_POS,
+				   RX_ANALRMAL_DESC3_FD_LEN)) {
 		desc_data->rx.hdr_len = XLGMAC_GET_REG_BITS_LE(dma_desc->desc2,
-							RX_NORMAL_DESC2_HL_POS,
-							RX_NORMAL_DESC2_HL_LEN);
+							RX_ANALRMAL_DESC2_HL_POS,
+							RX_ANALRMAL_DESC2_HL_LEN);
 		if (desc_data->rx.hdr_len)
 			pdata->stats.rx_split_header_packets++;
 	}
 
 	/* Get the RSS hash */
 	if (XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				   RX_NORMAL_DESC3_RSV_POS,
-				   RX_NORMAL_DESC3_RSV_LEN)) {
+				   RX_ANALRMAL_DESC3_RSV_POS,
+				   RX_ANALRMAL_DESC3_RSV_LEN)) {
 		pkt_info->attributes = XLGMAC_SET_REG_BITS(
 				pkt_info->attributes,
 				RX_PACKET_ATTRIBUTES_RSS_HASH_POS,
@@ -2721,8 +2721,8 @@ static int xlgmac_dev_read(struct xlgmac_channel *channel)
 		pkt_info->rss_hash = le32_to_cpu(dma_desc->desc1);
 
 		l34t = XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-					      RX_NORMAL_DESC3_L34T_POS,
-					  RX_NORMAL_DESC3_L34T_LEN);
+					      RX_ANALRMAL_DESC3_L34T_POS,
+					  RX_ANALRMAL_DESC3_L34T_LEN);
 		switch (l34t) {
 		case RX_DESC3_L34T_IPV4_TCP:
 		case RX_DESC3_L34T_IPV4_UDP:
@@ -2737,13 +2737,13 @@ static int xlgmac_dev_read(struct xlgmac_channel *channel)
 
 	/* Get the pkt_info length */
 	desc_data->rx.len = XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-					RX_NORMAL_DESC3_PL_POS,
-					RX_NORMAL_DESC3_PL_LEN);
+					RX_ANALRMAL_DESC3_PL_POS,
+					RX_ANALRMAL_DESC3_PL_LEN);
 
 	if (!XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				    RX_NORMAL_DESC3_LD_POS,
-				    RX_NORMAL_DESC3_LD_LEN)) {
-		/* Not all the data has been transferred for this pkt_info */
+				    RX_ANALRMAL_DESC3_LD_POS,
+				    RX_ANALRMAL_DESC3_LD_LEN)) {
+		/* Analt all the data has been transferred for this pkt_info */
 		pkt_info->attributes = XLGMAC_SET_REG_BITS(
 				pkt_info->attributes,
 				RX_PACKET_ATTRIBUTES_INCOMPLETE_POS,
@@ -2769,15 +2769,15 @@ static int xlgmac_dev_read(struct xlgmac_channel *channel)
 
 	/* Check for errors (only valid in last descriptor) */
 	err = XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				     RX_NORMAL_DESC3_ES_POS,
-				     RX_NORMAL_DESC3_ES_LEN);
+				     RX_ANALRMAL_DESC3_ES_POS,
+				     RX_ANALRMAL_DESC3_ES_LEN);
 	etlt = XLGMAC_GET_REG_BITS_LE(dma_desc->desc3,
-				      RX_NORMAL_DESC3_ETLT_POS,
-				      RX_NORMAL_DESC3_ETLT_LEN);
+				      RX_ANALRMAL_DESC3_ETLT_POS,
+				      RX_ANALRMAL_DESC3_ETLT_LEN);
 	netif_dbg(pdata, rx_status, netdev, "err=%u, etlt=%#x\n", err, etlt);
 
 	if (!err || !etlt) {
-		/* No error if err is 0 or etlt is 0 */
+		/* Anal error if err is 0 or etlt is 0 */
 		if ((etlt == 0x09) &&
 		    (netdev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
 			pkt_info->attributes = XLGMAC_SET_REG_BITS(
@@ -2787,8 +2787,8 @@ static int xlgmac_dev_read(struct xlgmac_channel *channel)
 					1);
 			pkt_info->vlan_ctag =
 				XLGMAC_GET_REG_BITS_LE(dma_desc->desc0,
-						       RX_NORMAL_DESC0_OVT_POS,
-						   RX_NORMAL_DESC0_OVT_LEN);
+						       RX_ANALRMAL_DESC0_OVT_POS,
+						   RX_ANALRMAL_DESC0_OVT_LEN);
 			netif_dbg(pdata, rx_status, netdev, "vlan-ctag=%#06x\n",
 				  pkt_info->vlan_ctag);
 		}

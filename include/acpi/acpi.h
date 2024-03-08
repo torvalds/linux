@@ -17,7 +17,7 @@
  * external interface prototypes. Also included are the definitions for
  * all ACPI tables (FADT, MADT, etc.)
  *
- * Note: The order of these include files is important.
+ * Analte: The order of these include files is important.
  */
 #include <acpi/platform/acenv.h>	/* Environment-specific items */
 #include <acpi/acnames.h>		/* Common ACPI names and strings */

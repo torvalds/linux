@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -46,7 +46,7 @@ struct drm_file;
  *   &drm_plane and &drm_connector. Properties are attached by calling
  *   drm_object_attach_property() before the object is visible to userspace.
  *
- * - For objects with dynamic lifetimes (as indicated by a non-NULL @free_cb) it
+ * - For objects with dynamic lifetimes (as indicated by a analn-NULL @free_cb) it
  *   provides reference counting through drm_mode_object_get() and
  *   drm_mode_object_put(). This is used by &drm_framebuffer, &drm_connector
  *   and &drm_property_blob. These objects provide specialized reference
@@ -74,8 +74,8 @@ struct drm_object_properties {
 	/**
 	 * @properties: Array of pointers to &drm_property.
 	 *
-	 * NOTE: if we ever start dynamically destroying properties (ie.
-	 * not at drm_mode_config_cleanup() time), then we'd have to do
+	 * ANALTE: if we ever start dynamically destroying properties (ie.
+	 * analt at drm_mode_config_cleanup() time), then we'd have to do
 	 * a better job of detaching property from mode objects to avoid
 	 * dangling property pointers:
 	 */
@@ -83,10 +83,10 @@ struct drm_object_properties {
 
 	/**
 	 * @values: Array to store the property values, matching @properties. Do
-	 * not read/write values directly, but use
+	 * analt read/write values directly, but use
 	 * drm_object_property_get_value() and drm_object_property_set_value().
 	 *
-	 * Note that atomic drivers do not store mutable properties in this
+	 * Analte that atomic drivers do analt store mutable properties in this
 	 * array, but only the decoded values in the corresponding state
 	 * structure. The decoding is done using the &drm_crtc.atomic_get_property and
 	 * &drm_crtc.atomic_set_property hooks for &struct drm_crtc. For
@@ -95,7 +95,7 @@ struct drm_object_properties {
 	 * the hooks are &drm_connector_funcs.atomic_get_property and
 	 * &drm_connector_funcs.atomic_set_property .
 	 *
-	 * Hence atomic drivers should not use drm_object_property_set_value()
+	 * Hence atomic drivers should analt use drm_object_property_set_value()
 	 * and drm_object_property_get_value() on mutable objects, i.e. those
 	 * without the DRM_MODE_PROP_IMMUTABLE flag set.
 	 *
@@ -115,7 +115,7 @@ struct drm_object_properties {
 			if (list[i].type == val)		\
 				return list[i].name;		\
 		}						\
-		return "(unknown)";				\
+		return "(unkanalwn)";				\
 	}
 
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,

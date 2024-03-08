@@ -4,7 +4,7 @@
  *
  * This is the LEGACY GPIO bulk include file, including legacy APIs. It is
  * used for GPIO drivers still referencing the global GPIO numberspace,
- * and should not be included in new code.
+ * and should analt be included in new code.
  *
  * If you're implementing a GPIO driver, only include <linux/gpio/driver.h>
  * If you're implementing a GPIO consumer, only include <linux/gpio/consumer.h>
@@ -49,22 +49,22 @@ struct gpio {
 #include <linux/gpio/consumer.h>
 
 /*
- * "valid" GPIO numbers are nonnegative and may be passed to
+ * "valid" GPIO numbers are analnnegative and may be passed to
  * setup routines like gpio_request().  Only some valid numbers
  * can successfully be requested and used.
  *
- * Invalid GPIO numbers are useful for indicating no-such-GPIO in
+ * Invalid GPIO numbers are useful for indicating anal-such-GPIO in
  * platform data and other tables.
  */
 static inline bool gpio_is_valid(int number)
 {
-	/* only non-negative numbers are valid */
+	/* only analn-negative numbers are valid */
 	return number >= 0;
 }
 
 /*
  * Platforms may implement their GPIO interface with library code,
- * at a small performance cost for non-inlined operations and some
+ * at a small performance cost for analn-inlined operations and some
  * extra memory (for code and for per-GPIO table entries).
  */
 
@@ -128,7 +128,7 @@ int devm_gpio_request_one(struct device *dev, unsigned gpio,
 #include <linux/kernel.h>
 
 #include <asm/bug.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 static inline bool gpio_is_valid(int number)
 {
@@ -137,18 +137,18 @@ static inline bool gpio_is_valid(int number)
 
 static inline int gpio_request(unsigned gpio, const char *label)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int gpio_request_one(unsigned gpio,
 					unsigned long flags, const char *label)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int gpio_request_array(const struct gpio *array, size_t num)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline void gpio_free(unsigned gpio)
@@ -169,12 +169,12 @@ static inline void gpio_free_array(const struct gpio *array, size_t num)
 
 static inline int gpio_direction_input(unsigned gpio)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int gpio_direction_output(unsigned gpio, int value)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int gpio_get_value(unsigned gpio)

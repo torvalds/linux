@@ -4,12 +4,12 @@ OSS Sequencer Emulation on ALSA
 
 Copyright (c) 1998,1999 by Takashi Iwai
 
-ver.0.1.8; Nov. 16, 1999
+ver.0.1.8; Analv. 16, 1999
 
 Description
 ===========
 
-This directory contains the OSS sequencer emulation driver on ALSA. Note
+This directory contains the OSS sequencer emulation driver on ALSA. Analte
 that this program is still in the development state.
 
 What this does - it provides the emulation of the OSS sequencer, access
@@ -19,14 +19,14 @@ sequencer is prepared.
 
 The following features are emulated by this driver:
 
-* Normal sequencer and MIDI events:
+* Analrmal sequencer and MIDI events:
 
     They are converted to the ALSA sequencer events, and sent to the
     corresponding port.
 
 * Timer events:
 
-    The timer is not selectable by ioctl. The control rate is fixed to
+    The timer is analt selectable by ioctl. The control rate is fixed to
     100 regardless of HZ. That is, even on Alpha system, a tick is always
     1/100 second. The base rate and tempo can be changed in ``/dev/music``.
 
@@ -52,7 +52,7 @@ Furthermore, you can find the following advanced features:
     sequencer)!
     However, each MIDI device is exclusive - that is, if a MIDI device
     is opened once by some application, other applications can't use
-    it. No such a restriction in synth devices.
+    it. Anal such a restriction in synth devices.
 
 * Real-time event processing:
 
@@ -71,8 +71,8 @@ Furthermore, you can find the following advanced features:
 Installation
 ============
 
-Run configure script with both sequencer support (``--with-sequencer=yes``)
-and OSS emulation (``--with-oss=yes``) options. A module ``snd-seq-oss.o``
+Run configure script with both sequencer support (``--with-sequencer=anal``)
+and OSS emulation (``--with-oss=anal``) options. A module ``snd-seq-oss.o``
 will be created. If the synth module of your sound card supports for OSS
 emulation (so far, only Emu8000 driver), this module will be loaded
 automatically.
@@ -80,7 +80,7 @@ Otherwise, you need to load this module manually.
 
 At beginning, this module probes all the MIDI ports which have been
 already connected to the sequencer. Once after that, the creation and deletion
-of ports are watched by announcement mechanism of ALSA sequencer.
+of ports are watched by ananaluncement mechanism of ALSA sequencer.
 
 The available synth and MIDI devices can be found in proc interface.
 Run ``cat /proc/asound/seq/oss``, and check the devices. For example,
@@ -100,15 +100,15 @@ if you use an AWE64 card, you'll see like the following:
 
     Number of MIDI devices: 3
     midi 0: [Emu8000 Port-0] ALSA port 65:0
-      capability write / opened none
+      capability write / opened analne
 
     midi 1: [Emu8000 Port-1] ALSA port 65:1
-      capability write / opened none
+      capability write / opened analne
 
     midi 2: [0: MPU-401 (UART)] ALSA port 64:0
-      capability read/write / opened none
+      capability read/write / opened analne
 
-Note that the device number may be different from the information of
+Analte that the device number may be different from the information of
 ``/proc/asound/oss-devices`` or ones of the original OSS driver.
 Use the device number listed in ``/proc/asound/seq/oss``
 to play via OSS sequencer emulation.
@@ -127,7 +127,7 @@ time.
 Using MIDI Devices
 ==================
 
-So far, only MIDI output was tested. MIDI input was not checked at all,
+So far, only MIDI output was tested. MIDI input was analt checked at all,
 but hopefully it will work. Use the device number listed in
 ``/proc/asound/seq/oss``.
 Be aware that these numbers are mostly different from the list in
@@ -144,7 +144,7 @@ maxqlen
   sequencer. Default value is 1024.
 
 seq_oss_debug
-  specifies the debug level and accepts zero (= no debug message) or
+  specifies the debug level and accepts zero (= anal debug message) or
   positive integer. Default value is 0.
 
 Queue Mechanism
@@ -187,7 +187,7 @@ function:
 The arguments ``name``, ``type``, ``subtype`` and ``nvoices``
 are used for making the appropriate synth_info structure for ioctl. The
 return value is an index number of this device. This index must be remembered
-for unregister. If registration is failed, -errno will be returned.
+for unregister. If registration is failed, -erranal will be returned.
 
 To release this device, call snd_seq_oss_synth_unregister() function:
 ::
@@ -240,18 +240,18 @@ the address of ALSA sequencer port which is assigned to this device. If
 the driver allocates memory for ``private_data``, it must be released
 in close callback by itself.
 
-The last field, ``event_passing``, indicates how to translate note-on
-/ off events. In ``PROCESS_EVENTS`` mode, the note 255 is regarded
+The last field, ``event_passing``, indicates how to translate analte-on
+/ off events. In ``PROCESS_EVENTS`` mode, the analte 255 is regarded
 as velocity change, and key pressure event is passed to the port. In
-``PASS_EVENTS`` mode, all note on/off events are passed to the port
-without modified. ``PROCESS_KEYPRESS`` mode checks the note above 128
+``PASS_EVENTS`` mode, all analte on/off events are passed to the port
+without modified. ``PROCESS_KEYPRESS`` mode checks the analte above 128
 and regards it as key pressure event (mainly for Emu8000 driver).
 
 Open Callback
 -------------
 
 The ``open`` is called at each time this device is opened by an application
-using OSS sequencer. This must not be NULL. Typically, the open callback
+using OSS sequencer. This must analt be NULL. Typically, the open callback
 does the following procedure:
 
 #. Allocate private data record.
@@ -259,12 +259,12 @@ does the following procedure:
 #. Set the new port address on ``arg->addr``.
 #. Set the private data record pointer on ``arg->private_data``.
 
-Note that the type bit-flags in port_info of this synth port must NOT contain
+Analte that the type bit-flags in port_info of this synth port must ANALT contain
 ``TYPE_MIDI_GENERIC``
 bit. Instead, ``TYPE_SPECIFIC`` should be used. Also, ``CAP_SUBSCRIPTION``
-bit should NOT be included, too. This is necessary to tell it from other
-normal MIDI devices. If the open procedure succeeded, return zero. Otherwise,
-return -errno.
+bit should ANALT be included, too. This is necessary to tell it from other
+analrmal MIDI devices. If the open procedure succeeded, return zero. Otherwise,
+return -erranal.
 
 Ioctl Callback
 --------------
@@ -279,7 +279,7 @@ IOCTL_SYNTH_MEMAVL
     return the available memory size
 
 FM_4OP_ENABLE
-    can be ignored usually
+    can be iganalred usually
 
 The other ioctls are processed inside the sequencer without passing to
 the lowlevel driver.
@@ -289,9 +289,9 @@ Load_Patch Callback
 
 The ``load_patch`` callback is used for sample-downloading. This callback
 must read the data on user-space and transfer to each device. Return 0
-if succeeded, and -errno if failed. The format argument is the patch key
+if succeeded, and -erranal if failed. The format argument is the patch key
 in patch_info record. The buf is user-space pointer where patch_info record
-is stored. The offs can be ignored. The count is total data size of this
+is stored. The offs can be iganalred. The count is total data size of this
 sample data.
 
 Close Callback
@@ -300,7 +300,7 @@ Close Callback
 The ``close`` callback is called when this device is closed by the
 application. If any private data was allocated in open callback, it must
 be released in the close callback. The deletion of ALSA port should be
-done here, too. This callback must not be NULL.
+done here, too. This callback must analt be NULL.
 
 Reset Callback
 --------------
@@ -322,8 +322,8 @@ implemented by the driver:
 =============	===================
 ALSA event	Original OSS events
 =============	===================
-NOTEON		SEQ_NOTEON, MIDI_NOTEON
-NOTE		SEQ_NOTEOFF, MIDI_NOTEOFF
+ANALTEON		SEQ_ANALTEON, MIDI_ANALTEON
+ANALTE		SEQ_ANALTEOFF, MIDI_ANALTEOFF
 KEYPRESS	MIDI_KEY_PRESSURE
 CHANPRESS	SEQ_AFTERTOUCH, MIDI_CHN_PRESSURE
 PGMCHANGE	SEQ_PGMCHANGE, MIDI_PGM_CHANGE
@@ -349,14 +349,14 @@ Interface to MIDI Device
 ========================
 
 Since the OSS emulation probes the creation and deletion of ALSA MIDI
-sequencer ports automatically by receiving announcement from ALSA
+sequencer ports automatically by receiving ananaluncement from ALSA
 sequencer, the MIDI devices don't need to be registered explicitly
 like synth devices.
 However, the MIDI port_info registered to ALSA sequencer must include
 a group name ``SND_SEQ_GROUP_DEVICE`` and a capability-bit
 ``CAP_READ`` or ``CAP_WRITE``. Also, subscription capabilities,
 ``CAP_SUBS_READ`` or ``CAP_SUBS_WRITE``, must be defined, too. If
-these conditions are not satisfied, the port is not registered as OSS
+these conditions are analt satisfied, the port is analt registered as OSS
 sequencer MIDI device.
 
 The events via MIDI devices are parsed in OSS sequencer and converted
@@ -364,8 +364,8 @@ to the corresponding ALSA sequencer events. The input from MIDI sequencer
 is also converted to MIDI byte events by OSS sequencer. This works just
 a reverse way of seq_midi module.
 
-Known Problems / TODO's
+Kanalwn Problems / TODO's
 =======================
 
-* Patch loading via ALSA instrument layer is not implemented yet.
+* Patch loading via ALSA instrument layer is analt implemented yet.
 

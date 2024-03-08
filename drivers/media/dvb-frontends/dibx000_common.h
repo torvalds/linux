@@ -203,7 +203,7 @@ enum frontend_tune_state {
 };
 
 struct dvb_frontend_parametersContext {
-#define CHANNEL_STATUS_PARAMETERS_UNKNOWN   0x01
+#define CHANNEL_STATUS_PARAMETERS_UNKANALWN   0x01
 #define CHANNEL_STATUS_PARAMETERS_SET       0x02
 	u8 status;
 	u32 tune_time_estimation[2];
@@ -225,7 +225,7 @@ struct dvb_frontend_parametersContext {
 
 #define DATA_BUS_ACCESS_MODE_8BIT                 0x01
 #define DATA_BUS_ACCESS_MODE_16BIT                0x02
-#define DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT 0x10
+#define DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT 0x10
 
 struct dibGPIOFunction {
 #define BOARD_GPIO_COMPONENT_BUS_ADAPTER 1
@@ -244,7 +244,7 @@ struct dibGPIOFunction {
  * is LSB and possible GPIO31 is MSB.  The same bit-position as in the
  * mask is used for the direction and the value. Direction == 1 is OUT,
  * 0 == IN. For direction "OUT" value is either 1 or 0, for direction IN
- * value has no meaning.
+ * value has anal meaning.
  *
  * In case of BOARD_GPIO_FUNCTION_PWM mask is giving the GPIO to be
  * used to do the PWM. Direction gives the PWModulator to be used.

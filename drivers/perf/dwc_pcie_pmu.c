@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Synopsys DesignWare PCIe PMU driver
+ * Syanalpsys DesignWare PCIe PMU driver
  *
  * Copyright (C) 2021-2023 Alibaba Inc.
  */
@@ -10,7 +10,7 @@
 #include <linux/cpuhotplug.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/perf_event.h>
@@ -82,8 +82,8 @@ struct dwc_pcie_pmu {
 	u16			ras_des_offset;
 	u32			nr_lanes;
 
-	struct list_head	pmu_node;
-	struct hlist_node	cpuhp_node;
+	struct list_head	pmu_analde;
+	struct hlist_analde	cpuhp_analde;
 	struct perf_event	*event[DWC_PCIE_EVENT_TYPE_MAX];
 	int			on_cpu;
 };
@@ -93,12 +93,12 @@ struct dwc_pcie_pmu {
 static int dwc_pcie_pmu_hp_state;
 static struct list_head dwc_pcie_dev_info_head =
 				LIST_HEAD_INIT(dwc_pcie_dev_info_head);
-static bool notify;
+static bool analtify;
 
 struct dwc_pcie_dev_info {
 	struct platform_device *plat_dev;
 	struct pci_dev *pdev;
-	struct list_head dev_node;
+	struct list_head dev_analde;
 };
 
 struct dwc_pcie_vendor_id {
@@ -305,7 +305,7 @@ static u64 dwc_pcie_pmu_read_time_based_counter(struct perf_event *event)
 
 	/*
 	 * The 64-bit value of the data counter is spread across two
-	 * registers that are not synchronized. In order to read them
+	 * registers that are analt synchronized. In order to read them
 	 * atomically, ensure that the high 32 bits match before and after
 	 * reading the low 32 bits.
 	 */
@@ -339,19 +339,19 @@ static void dwc_pcie_pmu_event_update(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	enum dwc_pcie_event_type type = DWC_PCIE_EVENT_TYPE(event);
-	u64 delta, prev, now = 0;
+	u64 delta, prev, analw = 0;
 
 	do {
 		prev = local64_read(&hwc->prev_count);
 
 		if (type == DWC_PCIE_LANE_EVENT)
-			now = dwc_pcie_pmu_read_lane_event_counter(event);
+			analw = dwc_pcie_pmu_read_lane_event_counter(event);
 		else if (type == DWC_PCIE_TIME_BASE_EVENT)
-			now = dwc_pcie_pmu_read_time_based_counter(event);
+			analw = dwc_pcie_pmu_read_time_based_counter(event);
 
-	} while (local64_cmpxchg(&hwc->prev_count, prev, now) != prev);
+	} while (local64_cmpxchg(&hwc->prev_count, prev, analw) != prev);
 
-	delta = (now - prev) & DWC_PCIE_MAX_PERIOD;
+	delta = (analw - prev) & DWC_PCIE_MAX_PERIOD;
 	/* 32-bit counter for Lane Event Counting */
 	if (type == DWC_PCIE_LANE_EVENT)
 		delta &= DWC_PCIE_LANE_EVENT_MAX_PERIOD;
@@ -367,13 +367,13 @@ static int dwc_pcie_pmu_event_init(struct perf_event *event)
 	u32 lane;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* We don't support sampling */
 	if (is_sampling_event(event))
 		return -EINVAL;
 
-	/* We cannot support task bound events */
+	/* We cananalt support task bound events */
 	if (event->cpu < 0 || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
 
@@ -446,7 +446,7 @@ static int dwc_pcie_pmu_event_add(struct perf_event *event, int flags)
 
 	/* one counter for each type and it is in use */
 	if (pcie_pmu->event[type])
-		return -ENOSPC;
+		return -EANALSPC;
 
 	pcie_pmu->event[type] = event;
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
@@ -491,9 +491,9 @@ static void dwc_pcie_pmu_event_del(struct perf_event *event, int flags)
 	pcie_pmu->event[type] = NULL;
 }
 
-static void dwc_pcie_pmu_remove_cpuhp_instance(void *hotplug_node)
+static void dwc_pcie_pmu_remove_cpuhp_instance(void *hotplug_analde)
 {
-	cpuhp_state_remove_instance_nocalls(dwc_pcie_pmu_hp_state, hotplug_node);
+	cpuhp_state_remove_instance_analcalls(dwc_pcie_pmu_hp_state, hotplug_analde);
 }
 
 /*
@@ -504,7 +504,7 @@ static struct dwc_pcie_dev_info *dwc_pcie_find_dev_info(struct pci_dev *pdev)
 {
 	struct dwc_pcie_dev_info *dev_info;
 
-	list_for_each_entry(dev_info, &dwc_pcie_dev_info_head, dev_node)
+	list_for_each_entry(dev_info, &dwc_pcie_dev_info_head, dev_analde)
 		if (dev_info->pdev == pdev)
 			return dev_info;
 
@@ -548,7 +548,7 @@ static bool dwc_pcie_match_des_cap(struct pci_dev *pdev)
 static void dwc_pcie_unregister_dev(struct dwc_pcie_dev_info *dev_info)
 {
 	platform_device_unregister(dev_info->plat_dev);
-	list_del(&dev_info->dev_node);
+	list_del(&dev_info->dev_analde);
 	kfree(dev_info);
 }
 
@@ -567,17 +567,17 @@ static int dwc_pcie_register_dev(struct pci_dev *pdev)
 
 	dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
 	if (!dev_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Cache platform device to handle pci device hotplug */
 	dev_info->plat_dev = plat_dev;
 	dev_info->pdev = pdev;
-	list_add(&dev_info->dev_node, &dwc_pcie_dev_info_head);
+	list_add(&dev_info->dev_analde, &dwc_pcie_dev_info_head);
 
 	return 0;
 }
 
-static int dwc_pcie_pmu_notifier(struct notifier_block *nb,
+static int dwc_pcie_pmu_analtifier(struct analtifier_block *nb,
 				     unsigned long action, void *data)
 {
 	struct device *dev = data;
@@ -585,25 +585,25 @@ static int dwc_pcie_pmu_notifier(struct notifier_block *nb,
 	struct dwc_pcie_dev_info *dev_info;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		if (!dwc_pcie_match_des_cap(pdev))
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		if (dwc_pcie_register_dev(pdev))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_ANALTIFY_DEL_DEVICE:
 		dev_info = dwc_pcie_find_dev_info(pdev);
 		if (!dev_info)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		dwc_pcie_unregister_dev(dev_info);
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block dwc_pcie_pmu_nb = {
-	.notifier_call = dwc_pcie_pmu_notifier,
+static struct analtifier_block dwc_pcie_pmu_nb = {
+	.analtifier_call = dwc_pcie_pmu_analtifier,
 };
 
 static int dwc_pcie_pmu_probe(struct platform_device *plat_dev)
@@ -621,11 +621,11 @@ static int dwc_pcie_pmu_probe(struct platform_device *plat_dev)
 	bdf = PCI_DEVID(pdev->bus->number, pdev->devfn);
 	name = devm_kasprintf(&plat_dev->dev, GFP_KERNEL, "dwc_rootport_%x", bdf);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie_pmu = devm_kzalloc(&plat_dev->dev, sizeof(*pcie_pmu), GFP_KERNEL);
 	if (!pcie_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie_pmu->pdev = pdev;
 	pcie_pmu->ras_des_offset = vsec;
@@ -636,7 +636,7 @@ static int dwc_pcie_pmu_probe(struct platform_device *plat_dev)
 		.parent		= &pdev->dev,
 		.module		= THIS_MODULE,
 		.attr_groups	= dwc_pcie_attr_groups,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= dwc_pcie_pmu_event_init,
 		.add		= dwc_pcie_pmu_event_add,
@@ -648,7 +648,7 @@ static int dwc_pcie_pmu_probe(struct platform_device *plat_dev)
 
 	/* Add this instance to the list used by the offline callback */
 	ret = cpuhp_state_add_instance(dwc_pcie_pmu_hp_state,
-				       &pcie_pmu->cpuhp_node);
+				       &pcie_pmu->cpuhp_analde);
 	if (ret) {
 		pci_err(pdev, "Error %d registering hotplug @%x\n", ret, bdf);
 		return ret;
@@ -657,7 +657,7 @@ static int dwc_pcie_pmu_probe(struct platform_device *plat_dev)
 	/* Unwind when platform driver removes */
 	ret = devm_add_action_or_reset(&plat_dev->dev,
 				       dwc_pcie_pmu_remove_cpuhp_instance,
-				       &pcie_pmu->cpuhp_node);
+				       &pcie_pmu->cpuhp_analde);
 	if (ret)
 		return ret;
 
@@ -674,46 +674,46 @@ static int dwc_pcie_pmu_probe(struct platform_device *plat_dev)
 	return 0;
 }
 
-static int dwc_pcie_pmu_online_cpu(unsigned int cpu, struct hlist_node *cpuhp_node)
+static int dwc_pcie_pmu_online_cpu(unsigned int cpu, struct hlist_analde *cpuhp_analde)
 {
 	struct dwc_pcie_pmu *pcie_pmu;
 
-	pcie_pmu = hlist_entry_safe(cpuhp_node, struct dwc_pcie_pmu, cpuhp_node);
+	pcie_pmu = hlist_entry_safe(cpuhp_analde, struct dwc_pcie_pmu, cpuhp_analde);
 	if (pcie_pmu->on_cpu == -1)
 		pcie_pmu->on_cpu = cpumask_local_spread(
-			0, dev_to_node(&pcie_pmu->pdev->dev));
+			0, dev_to_analde(&pcie_pmu->pdev->dev));
 
 	return 0;
 }
 
-static int dwc_pcie_pmu_offline_cpu(unsigned int cpu, struct hlist_node *cpuhp_node)
+static int dwc_pcie_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *cpuhp_analde)
 {
 	struct dwc_pcie_pmu *pcie_pmu;
 	struct pci_dev *pdev;
-	int node;
+	int analde;
 	cpumask_t mask;
 	unsigned int target;
 
-	pcie_pmu = hlist_entry_safe(cpuhp_node, struct dwc_pcie_pmu, cpuhp_node);
-	/* Nothing to do if this CPU doesn't own the PMU */
+	pcie_pmu = hlist_entry_safe(cpuhp_analde, struct dwc_pcie_pmu, cpuhp_analde);
+	/* Analthing to do if this CPU doesn't own the PMU */
 	if (cpu != pcie_pmu->on_cpu)
 		return 0;
 
 	pcie_pmu->on_cpu = -1;
 	pdev = pcie_pmu->pdev;
-	node = dev_to_node(&pdev->dev);
-	if (cpumask_and(&mask, cpumask_of_node(node), cpu_online_mask) &&
-	    cpumask_andnot(&mask, &mask, cpumask_of(cpu)))
+	analde = dev_to_analde(&pdev->dev);
+	if (cpumask_and(&mask, cpumask_of_analde(analde), cpu_online_mask) &&
+	    cpumask_andanalt(&mask, &mask, cpumask_of(cpu)))
 		target = cpumask_any(&mask);
 	else
 		target = cpumask_any_but(cpu_online_mask, cpu);
 
 	if (target >= nr_cpu_ids) {
-		pci_err(pdev, "There is no CPU to set\n");
+		pci_err(pdev, "There is anal CPU to set\n");
 		return 0;
 	}
 
-	/* This PMU does NOT support interrupt, just migrate context. */
+	/* This PMU does ANALT support interrupt, just migrate context. */
 	perf_pmu_migrate_context(&pcie_pmu->pmu, cpu, target);
 	pcie_pmu->on_cpu = target;
 
@@ -744,7 +744,7 @@ static int __init dwc_pcie_pmu_init(void)
 		found = true;
 	}
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
 				      "perf/dwc_pcie_pmu:online",
@@ -759,10 +759,10 @@ static int __init dwc_pcie_pmu_init(void)
 	if (ret)
 		goto platform_driver_register_err;
 
-	ret = bus_register_notifier(&pci_bus_type, &dwc_pcie_pmu_nb);
+	ret = bus_register_analtifier(&pci_bus_type, &dwc_pcie_pmu_nb);
 	if (ret)
 		goto platform_driver_register_err;
-	notify = true;
+	analtify = true;
 
 	return 0;
 
@@ -776,9 +776,9 @@ static void __exit dwc_pcie_pmu_exit(void)
 {
 	struct dwc_pcie_dev_info *dev_info, *tmp;
 
-	if (notify)
-		bus_unregister_notifier(&pci_bus_type, &dwc_pcie_pmu_nb);
-	list_for_each_entry_safe(dev_info, tmp, &dwc_pcie_dev_info_head, dev_node)
+	if (analtify)
+		bus_unregister_analtifier(&pci_bus_type, &dwc_pcie_pmu_nb);
+	list_for_each_entry_safe(dev_info, tmp, &dwc_pcie_dev_info_head, dev_analde)
 		dwc_pcie_unregister_dev(dev_info);
 	platform_driver_unregister(&dwc_pcie_pmu_driver);
 	cpuhp_remove_multi_state(dwc_pcie_pmu_hp_state);

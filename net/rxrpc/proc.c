@@ -71,7 +71,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	if (local)
 		sprintf(lbuff, "%pISpc", &local->srx.transport);
 	else
-		strcpy(lbuff, "no_local");
+		strcpy(lbuff, "anal_local");
 
 	sprintf(rbuff, "%pISpc", &call->dest_srx.transport);
 
@@ -158,8 +158,8 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 
 	conn = list_entry(v, struct rxrpc_connection, proc_link);
 	if (conn->state == RXRPC_CONN_SERVICE_PREALLOC) {
-		strcpy(lbuff, "no_local");
-		strcpy(rbuff, "no_connection");
+		strcpy(lbuff, "anal_local");
+		strcpy(rbuff, "anal_connection");
 		goto print;
 	}
 
@@ -280,7 +280,7 @@ const struct seq_operations rxrpc_bundle_seq_ops = {
 static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 {
 	struct rxrpc_peer *peer;
-	time64_t now;
+	time64_t analw;
 	char lbuff[50], rbuff[50];
 
 	if (v == SEQ_START_TOKEN) {
@@ -298,7 +298,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 
 	sprintf(rbuff, "%pISpc", &peer->srx.transport);
 
-	now = ktime_get_seconds();
+	analw = ktime_get_seconds();
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %3u"
 		   " %3u %5u %6llus %8u %8u\n",
@@ -307,7 +307,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		   refcount_read(&peer->ref),
 		   peer->cong_ssthresh,
 		   peer->mtu,
-		   now - peer->last_tx_at,
+		   analw - peer->last_tx_at,
 		   peer->srtt_us >> 3,
 		   jiffies_to_usecs(peer->rto_j));
 
@@ -499,23 +499,23 @@ int rxrpc_stats_show(struct seq_file *seq, void *v)
 		   atomic_read(&rxnet->stat_tx_ack_send),
 		   atomic_read(&rxnet->stat_tx_ack_skip));
 	seq_printf(seq,
-		   "Ack-Tx   : req=%u dup=%u oos=%u exw=%u nos=%u png=%u prs=%u dly=%u idl=%u\n",
+		   "Ack-Tx   : req=%u dup=%u oos=%u exw=%u anals=%u png=%u prs=%u dly=%u idl=%u\n",
 		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_REQUESTED]),
 		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_DUPLICATE]),
 		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_OUT_OF_SEQUENCE]),
 		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_EXCEEDS_WINDOW]),
-		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_NOSPACE]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_ANALSPACE]),
 		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_PING]),
 		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_PING_RESPONSE]),
 		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_DELAY]),
 		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_IDLE]));
 	seq_printf(seq,
-		   "Ack-Rx   : req=%u dup=%u oos=%u exw=%u nos=%u png=%u prs=%u dly=%u idl=%u\n",
+		   "Ack-Rx   : req=%u dup=%u oos=%u exw=%u anals=%u png=%u prs=%u dly=%u idl=%u\n",
 		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_REQUESTED]),
 		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_DUPLICATE]),
 		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_OUT_OF_SEQUENCE]),
 		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_EXCEEDS_WINDOW]),
-		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_NOSPACE]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_ANALSPACE]),
 		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_PING]),
 		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_PING_RESPONSE]),
 		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_DELAY]),
@@ -527,8 +527,8 @@ int rxrpc_stats_show(struct seq_file *seq, void *v)
 		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_more_rtt]),
 		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_old_rtt]));
 	seq_printf(seq,
-		   "Why-Req-A: nolast=%u retx=%u slows=%u smtxw=%u\n",
-		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_no_srv_last]),
+		   "Why-Req-A: anallast=%u retx=%u slows=%u smtxw=%u\n",
+		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_anal_srv_last]),
 		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_retrans]),
 		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_slow_start]),
 		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_small_txwin]));

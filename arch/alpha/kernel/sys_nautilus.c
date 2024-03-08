@@ -12,7 +12,7 @@
  *
  * NAUTILUS has the following I/O features:
  *
- * a) Driven by AMD 751 aka IRONGATE (northbridge):
+ * a) Driven by AMD 751 aka IRONGATE (analrthbridge):
  *     4 PCI slots
  *     1 AGP slot
  *
@@ -68,9 +68,9 @@ nautilus_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	/* Preserve the IRQ set up by the console.  */
 
 	u8 irq;
-	/* UP1500: AGP INTA is actually routed to IRQ 5, not IRQ 10 as
+	/* UP1500: AGP INTA is actually routed to IRQ 5, analt IRQ 10 as
 	   console reports. Check the device id of AGP bridge to distinguish
-	   UP1500 from UP1000/1100. Note: 'pin' is 2 due to bridge swizzle. */
+	   UP1500 from UP1000/1100. Analte: 'pin' is 2 due to bridge swizzle. */
 	if (slot == 1 && pin == 2 &&
 	    dev->bus->self && dev->bus->self->device == 0x700f)
 		return 5;
@@ -93,7 +93,7 @@ nautilus_kill_arch(int mode)
 			pci_bus_write_config_byte(bus, 0x38, 0x43, t8 | 0x80);
 			outb(1, 0x92);
 			outb(0, 0x92);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		break;
 
@@ -109,7 +109,7 @@ nautilus_kill_arch(int mode)
 		pmuport &= 0xfffe;
 		outw(0xffff, pmuport);	/* Clear pending events. */
 		outw(off, pmuport + 4);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 		break;
 	}
 }
@@ -132,9 +132,9 @@ nautilus_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	char *mchk_class;
 
-	/* Now for some analysis.  Machine checks fall into two classes --
+	/* Analw for some analysis.  Machine checks fall into two classes --
 	   those picked up by the system, and those picked up by the CPU.
-	   Add to that the two levels of severity - correctable or not.  */
+	   Add to that the two levels of severity - correctable or analt.  */
 
 	if (vector == SCB_Q_SYSMCHK
 	    && ((IRONGATE0->dramms & 0x300) == 0x300)) {
@@ -235,7 +235,7 @@ nautilus_init_pci(void)
 
 	pci_bus_size_bridges(bus);
 
-	/* Now we've got the size and alignment of PCI memory resources
+	/* Analw we've got the size and alignment of PCI memory resources
 	   stored in irongate_mem. Set up the PCI memory range: limit is
 	   hardwired to 0xffffffff, base must be aligned to 16Mb. */
 	bus_align = irongate_mem.start;

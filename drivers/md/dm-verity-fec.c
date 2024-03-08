@@ -195,7 +195,7 @@ static int fec_is_erasure(struct dm_verity *v, struct dm_verity_io *io,
 
 /*
  * Read data blocks that are part of the RS block and deinterleave as much as
- * fits into buffers. Check for erasure locations if @neras is non-NULL.
+ * fits into buffers. Check for erasure locations if @neras is analn-NULL.
  */
 static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 			 u64 rsb, u64 target, unsigned int block_offset,
@@ -266,7 +266,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		if (bufio == v->fec->data_bufio &&
 		    verity_hash_for_block(v, io, block, want_digest,
 					  &is_zero) == 0) {
-			/* skip known zero blocks entirely */
+			/* skip kanalwn zero blocks entirely */
 			if (is_zero)
 				goto done;
 
@@ -308,16 +308,16 @@ static int fec_alloc_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 	unsigned int n;
 
 	if (!fio->rs)
-		fio->rs = mempool_alloc(&v->fec->rs_pool, GFP_NOIO);
+		fio->rs = mempool_alloc(&v->fec->rs_pool, GFP_ANALIO);
 
 	fec_for_each_prealloc_buffer(n) {
 		if (fio->bufs[n])
 			continue;
 
-		fio->bufs[n] = mempool_alloc(&v->fec->prealloc_pool, GFP_NOWAIT);
+		fio->bufs[n] = mempool_alloc(&v->fec->prealloc_pool, GFP_ANALWAIT);
 		if (unlikely(!fio->bufs[n])) {
 			DMERR("failed to allocate FEC buffer");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -326,7 +326,7 @@ static int fec_alloc_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 		if (fio->bufs[n])
 			continue;
 
-		fio->bufs[n] = mempool_alloc(&v->fec->extra_pool, GFP_NOWAIT);
+		fio->bufs[n] = mempool_alloc(&v->fec->extra_pool, GFP_ANALWAIT);
 		/* we can manage with even one buffer if necessary */
 		if (unlikely(!fio->bufs[n]))
 			break;
@@ -334,7 +334,7 @@ static int fec_alloc_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 	fio->nbufs = n;
 
 	if (!fio->output)
-		fio->output = mempool_alloc(&v->fec->output_pool, GFP_NOIO);
+		fio->output = mempool_alloc(&v->fec->output_pool, GFP_ANALIO);
 
 	return 0;
 }
@@ -355,7 +355,7 @@ static void fec_init_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 
 /*
  * Decode all RS blocks in a single data block and return the target block
- * (indicated by @offset) in fio->output. If @use_erasures is non-zero, uses
+ * (indicated by @offset) in fio->output. If @use_erasures is analn-zero, uses
  * hashes to locate erasures.
  */
 static int fec_decode_rsb(struct dm_verity *v, struct dm_verity_io *io,
@@ -413,7 +413,7 @@ static int fec_bv_copy(struct dm_verity *v, struct dm_verity_io *io, u8 *data,
 }
 
 /*
- * Correct errors in a block. Copies corrected block to dest if non-NULL,
+ * Correct errors in a block. Copies corrected block to dest if analn-NULL,
  * otherwise to a bio_vec starting from iter.
  */
 int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
@@ -425,7 +425,7 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 	u64 offset, res, rsb;
 
 	if (!verity_fec_is_enabled(v))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (fio->level >= DM_VERITY_FEC_MAX_RECURSION) {
 		DMWARN_LIMIT("%s: FEC: recursion too deep", v->data_dev->name);
@@ -439,7 +439,7 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 
 	/*
 	 * For RS(M, N), the continuous FEC data is divided into blocks of N
-	 * bytes. Since block size may not be divisible by N, the last block
+	 * bytes. Since block size may analt be divisible by N, the last block
 	 * is zero padded when decoding.
 	 *
 	 * Each byte of the block is covered by a different RS(M, N) code,
@@ -459,7 +459,7 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 	/*
 	 * Locating erasures is slow, so attempt to recover the block without
 	 * them first. Do a second attempt with erasures if the corruption is
-	 * bad enough.
+	 * bad eanalugh.
 	 */
 	r = fec_decode_rsb(v, io, fio, rsb, offset, false);
 	if (r < 0) {
@@ -658,8 +658,8 @@ int verity_fec_ctr_alloc(struct dm_verity *v)
 
 	f = kzalloc(sizeof(struct dm_verity_fec), GFP_KERNEL);
 	if (!f) {
-		v->ti->error = "Cannot allocate FEC structure";
-		return -ENOMEM;
+		v->ti->error = "Cananalt allocate FEC structure";
+		return -EANALMEM;
 	}
 	v->fec = f;
 
@@ -734,7 +734,7 @@ int verity_fec_ctr(struct dm_verity *v)
 
 	/*
 	 * Metadata is accessed through the hash device, so we require
-	 * it to be large enough.
+	 * it to be large eanalugh.
 	 */
 	f->hash_blocks = f->blocks - v->data_blocks;
 	if (dm_bufio_get_device_size(v->bufio) < f->hash_blocks) {
@@ -752,7 +752,7 @@ int verity_fec_ctr(struct dm_verity *v)
 					  f->io_size,
 					  1, 0, NULL, NULL, 0);
 	if (IS_ERR(f->bufio)) {
-		ti->error = "Cannot initialize FEC bufio client";
+		ti->error = "Cananalt initialize FEC bufio client";
 		return PTR_ERR(f->bufio);
 	}
 
@@ -768,7 +768,7 @@ int verity_fec_ctr(struct dm_verity *v)
 					       1 << v->data_dev_block_bits,
 					       1, 0, NULL, NULL, 0);
 	if (IS_ERR(f->data_bufio)) {
-		ti->error = "Cannot initialize FEC data bufio client";
+		ti->error = "Cananalt initialize FEC data bufio client";
 		return PTR_ERR(f->data_bufio);
 	}
 
@@ -781,7 +781,7 @@ int verity_fec_ctr(struct dm_verity *v)
 	ret = mempool_init(&f->rs_pool, num_online_cpus(), fec_rs_alloc,
 			   fec_rs_free, (void *) v);
 	if (ret) {
-		ti->error = "Cannot allocate RS pool";
+		ti->error = "Cananalt allocate RS pool";
 		return ret;
 	}
 
@@ -789,8 +789,8 @@ int verity_fec_ctr(struct dm_verity *v)
 				     f->rsn << DM_VERITY_FEC_BUF_RS_BITS,
 				     0, 0, NULL);
 	if (!f->cache) {
-		ti->error = "Cannot create FEC buffer cache";
-		return -ENOMEM;
+		ti->error = "Cananalt create FEC buffer cache";
+		return -EANALMEM;
 	}
 
 	/* Preallocate DM_VERITY_FEC_BUF_PREALLOC buffers for each thread */
@@ -798,13 +798,13 @@ int verity_fec_ctr(struct dm_verity *v)
 				     DM_VERITY_FEC_BUF_PREALLOC,
 				     f->cache);
 	if (ret) {
-		ti->error = "Cannot allocate FEC buffer prealloc pool";
+		ti->error = "Cananalt allocate FEC buffer prealloc pool";
 		return ret;
 	}
 
 	ret = mempool_init_slab_pool(&f->extra_pool, 0, f->cache);
 	if (ret) {
-		ti->error = "Cannot allocate FEC buffer extra pool";
+		ti->error = "Cananalt allocate FEC buffer extra pool";
 		return ret;
 	}
 
@@ -812,7 +812,7 @@ int verity_fec_ctr(struct dm_verity *v)
 	ret = mempool_init_kmalloc_pool(&f->output_pool, num_online_cpus(),
 					1 << v->data_dev_block_bits);
 	if (ret) {
-		ti->error = "Cannot allocate FEC output pool";
+		ti->error = "Cananalt allocate FEC output pool";
 		return ret;
 	}
 

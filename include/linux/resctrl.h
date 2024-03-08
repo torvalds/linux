@@ -20,12 +20,12 @@ int proc_resctrl_show(struct seq_file *m,
 
 /**
  * enum resctrl_conf_type - The type of configuration.
- * @CDP_NONE:	No prioritisation, both code and data are controlled or monitored.
+ * @CDP_ANALNE:	Anal prioritisation, both code and data are controlled or monitored.
  * @CDP_CODE:	Configuration applies to instruction fetches.
  * @CDP_DATA:	Configuration applies to reads and writes.
  */
 enum resctrl_conf_type {
-	CDP_NONE,
+	CDP_ANALNE,
 	CDP_CODE,
 	CDP_DATA,
 };
@@ -108,7 +108,7 @@ struct resctrl_cache {
 
 /**
  * enum membw_throttle_mode - System's memory bandwidth throttling mode
- * @THREAD_THROTTLE_UNDEFINED:	Not relevant to the system
+ * @THREAD_THROTTLE_UNDEFINED:	Analt relevant to the system
  * @THREAD_THROTTLE_MAX:	Memory bandwidth is throttled at the core
  *				always using smallest bandwidth percentage
  *				assigned to threads, aka "max throttling"
@@ -125,7 +125,7 @@ enum membw_throttle_mode {
  * @min_bw:		Minimum memory bandwidth percentage user can request
  * @bw_gran:		Granularity at which the memory bandwidth is allocated
  * @delay_linear:	True if memory B/W delay is in linear scale
- * @arch_needs_linear:	True if we can't configure non-linear resources
+ * @arch_needs_linear:	True if we can't configure analn-linear resources
  * @throttle_mode:	Bandwidth throttling mode when threads request
  *			different memory bandwidths
  * @mba_sc:		True if MBA software controller(mba_sc) is enabled
@@ -209,7 +209,7 @@ u32 resctrl_arch_get_num_closid(struct rdt_resource *r);
 int resctrl_arch_update_domains(struct rdt_resource *r, u32 closid);
 
 /*
- * Update the ctrl_val and apply this config right now.
+ * Update the ctrl_val and apply this config right analw.
  * Must be called on one of the domain's CPUs.
  */
 int resctrl_arch_update_one(struct rdt_resource *r, struct rdt_domain *d,

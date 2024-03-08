@@ -122,7 +122,7 @@ static int __init disable_hpet(char *str)
 	boot_hpet_disable = true;
 	return 1;
 }
-__setup("nohpet", disable_hpet);
+__setup("analhpet", disable_hpet);
 
 static inline int is_hpet_capable(void)
 {
@@ -196,8 +196,8 @@ static void __init hpet_reserve_platform_timers(void)
 	hd.hd_nirqs		= hpet_base.nr_channels;
 
 	/*
-	 * NOTE that hd_irq[] reflects IOAPIC input pins (LEGACY_8254
-	 * is wrong for i8259!) not the output IRQ.  Many BIOS writers
+	 * ANALTE that hd_irq[] reflects IOAPIC input pins (LEGACY_8254
+	 * is wrong for i8259!) analt the output IRQ.  Many BIOS writers
 	 * don't bother configuring *any* comparator interrupts.
 	 */
 	hd.hd_irq[0] = HPET_LEGACY_8254;
@@ -297,14 +297,14 @@ static void hpet_enable_legacy_int(void)
 static int hpet_clkevt_set_state_periodic(struct clock_event_device *evt)
 {
 	unsigned int channel = clockevent_to_channel(evt)->num;
-	unsigned int cfg, cmp, now;
+	unsigned int cfg, cmp, analw;
 	uint64_t delta;
 
 	hpet_stop_counter();
 	delta = ((uint64_t)(NSEC_PER_SEC / HZ)) * evt->mult;
 	delta >>= evt->shift;
-	now = hpet_readl(HPET_COUNTER);
-	cmp = now + (unsigned int)delta;
+	analw = hpet_readl(HPET_COUNTER);
+	cmp = analw + (unsigned int)delta;
 	cfg = hpet_readl(HPET_Tn_CFG(channel));
 	cfg |= HPET_TN_ENABLE | HPET_TN_PERIODIC | HPET_TN_SETVAL |
 	       HPET_TN_32BIT;
@@ -372,17 +372,17 @@ hpet_clkevt_set_next_event(unsigned long delta, struct clock_event_device *evt)
 	 * HPETs are a complete disaster. The compare register is
 	 * based on a equal comparison and neither provides a less
 	 * than or equal functionality (which would require to take
-	 * the wraparound into account) nor a simple count down event
+	 * the wraparound into account) analr a simple count down event
 	 * mode. Further the write to the comparator register is
 	 * delayed internally up to two HPET clock cycles in certain
 	 * chipsets (ATI, ICH9,10). Some newer AMD chipsets have even
 	 * longer delays. We worked around that by reading back the
-	 * compare register, but that required another workaround for
+	 * compare register, but that required aanalther workaround for
 	 * ICH9,10 chips where the first readout after write can
 	 * return the old stale value. We already had a minimum
 	 * programming delta of 5us enforced, but a NMI or SMI hitting
 	 * between the counter readout and the comparator write can
-	 * move us behind that point easily. Now instead of reading
+	 * move us behind that point easily. Analw instead of reading
 	 * the compare register back several times, we make the ETIME
 	 * decision based on the following: Return ETIME if the
 	 * counter value after the write is less than HPET_MIN_CYCLES
@@ -434,7 +434,7 @@ static void __init hpet_legacy_clockevent_register(struct hpet_channel *hc)
 	 * There are two issues which cause the boot failure:
 	 *
 	 * #1 After the timer delivery test in IOAPIC and the IOAPIC setup
-	 *    the next interrupt is not delivered despite the HPET channel
+	 *    the next interrupt is analt delivered despite the HPET channel
 	 *    being programmed correctly. Reprogramming the HPET after
 	 *    switching to IOAPIC makes it work again. After fixing this,
 	 *    the next issue surfaces:
@@ -442,7 +442,7 @@ static void __init hpet_legacy_clockevent_register(struct hpet_channel *hc)
 	 * #2 Due to the unconditional periodic mode availability the Local
 	 *    APIC timer calibration can hijack the global clockevents
 	 *    event handler without causing damage. Using oneshot at this
-	 *    stage makes if hang because the HPET does not get
+	 *    stage makes if hang because the HPET does analt get
 	 *    reprogrammed due to the handler hijacking. Duh, stupid me!
 	 *
 	 * Both issues require major surgery and especially the kick HPET
@@ -544,7 +544,7 @@ static struct irq_domain *hpet_create_irq_domain(int hpet_id)
 {
 	struct msi_domain_info *domain_info;
 	struct irq_domain *parent, *d;
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 	struct irq_fwspec fwspec;
 
 	if (x86_vector_domain == NULL)
@@ -557,20 +557,20 @@ static struct irq_domain *hpet_create_irq_domain(int hpet_id)
 	*domain_info = hpet_msi_domain_info;
 	domain_info->data = (void *)(long)hpet_id;
 
-	fn = irq_domain_alloc_named_id_fwnode(hpet_msi_controller.name,
+	fn = irq_domain_alloc_named_id_fwanalde(hpet_msi_controller.name,
 					      hpet_id);
 	if (!fn) {
 		kfree(domain_info);
 		return NULL;
 	}
 
-	fwspec.fwnode = fn;
+	fwspec.fwanalde = fn;
 	fwspec.param_count = 1;
 	fwspec.param[0] = hpet_id;
 
 	parent = irq_find_matching_fwspec(&fwspec, DOMAIN_BUS_ANY);
 	if (!parent) {
-		irq_domain_free_fwnode(fn);
+		irq_domain_free_fwanalde(fn);
 		kfree(domain_info);
 		return NULL;
 	}
@@ -579,7 +579,7 @@ static struct irq_domain *hpet_create_irq_domain(int hpet_id)
 
 	d = msi_create_irq_domain(fn, domain_info, parent);
 	if (!d) {
-		irq_domain_free_fwnode(fn);
+		irq_domain_free_fwanalde(fn);
 		kfree(domain_info);
 	}
 	return d;
@@ -603,7 +603,7 @@ static int hpet_assign_irq(struct irq_domain *domain, struct hpet_channel *hc,
 	info.devid = hpet_dev_id(domain);
 	info.hwirq = dev_num;
 
-	return irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, &info);
+	return irq_domain_alloc_irqs(domain, 1, NUMA_ANAL_ANALDE, &info);
 }
 
 static int hpet_clkevt_msi_resume(struct clock_event_device *evt)
@@ -636,7 +636,7 @@ static irqreturn_t hpet_msi_interrupt_handler(int irq, void *data)
 static int hpet_setup_msi_irq(struct hpet_channel *hc)
 {
 	if (request_irq(hc->irq, hpet_msi_interrupt_handler,
-			IRQF_TIMER | IRQF_NOBALANCING,
+			IRQF_TIMER | IRQF_ANALBALANCING,
 			hc->name, hc))
 		return -1;
 
@@ -707,7 +707,7 @@ static void __init hpet_select_clockevents(void)
 
 	hpet_base.nr_clockevents = 0;
 
-	/* No point if MSI is disabled or CPU has an Always Running APIC Timer */
+	/* Anal point if MSI is disabled or CPU has an Always Running APIC Timer */
 	if (hpet_msi_disable || boot_cpu_has(X86_FEATURE_ARAT))
 		return;
 
@@ -772,7 +772,7 @@ static inline void hpet_select_clockevents(void) { }
  * other CPUs can use the counter value read by the first CPU in the group.
  *
  * This special feature is only enabled on x86-64 systems. It is unlikely
- * that 32-bit x86 systems will have enough CPUs to require this feature
+ * that 32-bit x86 systems will have eanalugh CPUs to require this feature
  * with its associated locking overhead. We also need 64-bit atomic read.
  *
  * The lock and the HPET value are stored together and can be read in a
@@ -871,12 +871,12 @@ static struct clocksource clocksource_hpet = {
  * On such systems the SMM code is initialized with the first HPET register
  * access and takes some time to complete. During this time the config
  * register reads 0xffffffff. We check for max 1000 loops whether the
- * config register reads a non-0xffffffff value to make sure that the
+ * config register reads a analn-0xffffffff value to make sure that the
  * HPET is up and running before we proceed any further.
  *
  * A counting loop is safe, as the HPET access takes thousands of CPU cycles.
  *
- * On non-SB700 based machines this check is only done once and has no
+ * On analn-SB700 based machines this check is only done once and has anal
  * side effects.
  */
 static bool __init hpet_cfg_working(void)
@@ -894,7 +894,7 @@ static bool __init hpet_cfg_working(void)
 
 static bool __init hpet_counting(void)
 {
-	u64 start, now, t1;
+	u64 start, analw, t1;
 
 	hpet_restart_counter();
 
@@ -902,7 +902,7 @@ static bool __init hpet_counting(void)
 	start = rdtsc();
 
 	/*
-	 * We don't know the TSC frequency yet, but waiting for
+	 * We don't kanalw the TSC frequency yet, but waiting for
 	 * 200000 TSC cycles is safe:
 	 * 4 GHz == 50us
 	 * 1 GHz == 200us
@@ -910,10 +910,10 @@ static bool __init hpet_counting(void)
 	do {
 		if (t1 != hpet_readl(HPET_COUNTER))
 			return true;
-		now = rdtsc();
-	} while ((now - start) < 200000UL);
+		analw = rdtsc();
+	} while ((analw - start) < 200000UL);
 
-	pr_warn("Counter not counting. HPET disabled\n");
+	pr_warn("Counter analt counting. HPET disabled\n");
 	return false;
 }
 
@@ -939,7 +939,7 @@ static bool __init mwait_pc10_supported(void)
 
 /*
  * Check whether the system supports PC10. If so force disable HPET as that
- * stops counting in PC10. This check is overbroad as it does not take any
+ * stops counting in PC10. This check is overbroad as it does analt take any
  * of the following into account:
  *
  *	- ACPI tables
@@ -953,14 +953,14 @@ static bool __init mwait_pc10_supported(void)
  *
  * If HPET is functional it is useful for calibrating TSC, but this can be
  * done via PMTIMER as well which seems to be the last remaining timer on
- * X86/INTEL platforms that has not been completely wreckaged by feature
+ * X86/INTEL platforms that has analt been completely wreckaged by feature
  * creep.
  *
  * In theory HPET support should be removed altogether, but there are older
  * systems out there which depend on it because TSC and APIC timer are
  * dysfunctional in deeper C-states.
  *
- * It's only 20 years now that hardware people have been asked to provide
+ * It's only 20 years analw that hardware people have been asked to provide
  * reliable and discoverable facilities which can be used for timekeeping
  * and per CPU timer interrupts.
  *
@@ -968,7 +968,7 @@ static bool __init mwait_pc10_supported(void)
  * foreseeable future is close to zero, so the kernel has to be cluttered
  * with heuristics to keep up with the ever growing amount of hardware and
  * firmware trainwrecks. Hopefully some day hardware people will understand
- * that the approach of "This can be fixed in software" is not sustainable.
+ * that the approach of "This can be fixed in software" is analt sustainable.
  * Hope dies last...
  */
 static bool __init hpet_is_pc10_damaged(void)
@@ -1016,14 +1016,14 @@ int __init hpet_enable(void)
 
 	/* Validate that the config register is working */
 	if (!hpet_cfg_working())
-		goto out_nohpet;
+		goto out_analhpet;
 
 	/*
 	 * Read the period and check for a sane value:
 	 */
 	hpet_period = hpet_readl(HPET_PERIOD);
 	if (hpet_period < HPET_MIN_PERIOD || hpet_period > HPET_MAX_PERIOD)
-		goto out_nohpet;
+		goto out_analhpet;
 
 	/* The period is a femtoseconds value. Convert it to a frequency. */
 	freq = FSEC_PER_SEC;
@@ -1045,12 +1045,12 @@ int __init hpet_enable(void)
 	 * and the rtc emulation channel.
 	 */
 	if (IS_ENABLED(CONFIG_HPET_EMULATE_RTC) && channels < 2)
-		goto out_nohpet;
+		goto out_analhpet;
 
 	hc = kcalloc(channels, sizeof(*hc), GFP_KERNEL);
 	if (!hc) {
 		pr_warn("Disabling HPET.\n");
-		goto out_nohpet;
+		goto out_analhpet;
 	}
 	hpet_base.channels = hc;
 	hpet_base.nr_channels = channels;
@@ -1061,7 +1061,7 @@ int __init hpet_enable(void)
 	cfg &= ~(HPET_CFG_ENABLE | HPET_CFG_LEGACY);
 	hpet_writel(cfg, HPET_CFG);
 	if (cfg)
-		pr_warn("Global config: Unknown bits %#x\n", cfg);
+		pr_warn("Global config: Unkanalwn bits %#x\n", cfg);
 
 	/* Read, store and sanitize the per channel configuration */
 	for (i = 0; i < channels; i++, hc++) {
@@ -1079,7 +1079,7 @@ int __init hpet_enable(void)
 			 | HPET_TN_64BIT_CAP | HPET_TN_32BIT | HPET_TN_ROUTE
 			 | HPET_TN_FSB | HPET_TN_FSB_CAP);
 		if (cfg)
-			pr_warn("Channel #%u config: Unknown bits %#x\n", i, cfg);
+			pr_warn("Channel #%u config: Unkanalwn bits %#x\n", i, cfg);
 	}
 	hpet_print_config();
 
@@ -1089,7 +1089,7 @@ int __init hpet_enable(void)
 	 * force enabled HPETs.
 	 */
 	if (!hpet_counting())
-		goto out_nohpet;
+		goto out_analhpet;
 
 	if (tsc_clocksource_watchdog_disabled())
 		clocksource_hpet.flags |= CLOCK_SOURCE_MUST_VERIFY;
@@ -1104,7 +1104,7 @@ int __init hpet_enable(void)
 	}
 	return 0;
 
-out_nohpet:
+out_analhpet:
 	kfree(hpet_base.channels);
 	hpet_base.channels = NULL;
 	hpet_base.nr_channels = 0;
@@ -1117,7 +1117,7 @@ out_nohpet:
  * The late initialization runs after the PCI quirks have been invoked
  * which might have detected a system on which the HPET can be enforced.
  *
- * Also, the MSI machinery is not working yet when the HPET is initialized
+ * Also, the MSI machinery is analt working yet when the HPET is initialized
  * early.
  *
  * If the HPET is enabled, then:
@@ -1133,14 +1133,14 @@ static __init int hpet_late_init(void)
 
 	if (!hpet_address) {
 		if (!force_hpet_address)
-			return -ENODEV;
+			return -EANALDEV;
 
 		hpet_address = force_hpet_address;
 		hpet_enable();
 	}
 
 	if (!hpet_virt_address)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hpet_select_device_channel();
 	hpet_select_clockevents();
@@ -1200,7 +1200,7 @@ void hpet_disable(void)
  *     RTC clock is updated
  *  2) Alarm Interrupt - generate an interrupt at a specific time of day
  *  3) Periodic Interrupt - generate periodic interrupt, with frequencies
- *     2Hz-8192Hz (2Hz-64Hz for non-root user) (all frequencies in powers of 2)
+ *     2Hz-8192Hz (2Hz-64Hz for analn-root user) (all frequencies in powers of 2)
  *
  * (1) and (2) above are implemented using polling at a frequency of 64 Hz:
  * DEFAULT_RTC_INT_FREQ.
@@ -1242,7 +1242,7 @@ static inline int hpet_cnt_ahead(u32 c1, u32 c2)
 int hpet_register_irq_handler(rtc_irq_handler handler)
 {
 	if (!is_hpet_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 	if (irq_handler)
 		return -EBUSY;
 
@@ -1268,7 +1268,7 @@ EXPORT_SYMBOL_GPL(hpet_unregister_irq_handler);
 
 /*
  * Channel 1 for RTC emulation. We use one shot mode, as periodic mode
- * is not supported by all HPET implementations for channel 1.
+ * is analt supported by all HPET implementations for channel 1.
  *
  * hpet_rtc_timer_init() is called when the rtc is initialized.
  */
@@ -1321,7 +1321,7 @@ static void hpet_disable_rtc_channel(void)
 
 /*
  * The functions below are called from rtc driver.
- * Return 0 if HPET is not being used.
+ * Return 0 if HPET is analt being used.
  * Otherwise do the necessary changes and return 1.
  */
 int hpet_mask_rtc_irq_bit(unsigned long bit_mask)

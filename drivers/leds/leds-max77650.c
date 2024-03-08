@@ -62,7 +62,7 @@ static int max77650_led_brightness_set(struct led_classdev *cdev,
 
 static int max77650_led_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct max77650_led *leds, *led;
 	struct device *dev;
 	struct regmap *map;
@@ -74,23 +74,23 @@ static int max77650_led_probe(struct platform_device *pdev)
 	leds = devm_kcalloc(dev, sizeof(*leds),
 			    MAX77650_LED_NUM_LEDS, GFP_KERNEL);
 	if (!leds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map = dev_get_regmap(dev->parent, NULL);
 	if (!map)
-		return -ENODEV;
+		return -EANALDEV;
 
-	num_leds = device_get_child_node_count(dev);
+	num_leds = device_get_child_analde_count(dev);
 	if (!num_leds || num_leds > MAX77650_LED_NUM_LEDS)
-		return -ENODEV;
+		return -EANALDEV;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		struct led_init_data init_data = {};
 
-		rv = fwnode_property_read_u32(child, "reg", &reg);
+		rv = fwanalde_property_read_u32(child, "reg", &reg);
 		if (rv || reg >= MAX77650_LED_NUM_LEDS) {
 			rv = -EINVAL;
-			goto err_node_put;
+			goto err_analde_put;
 		}
 
 		led = &leds[reg];
@@ -100,30 +100,30 @@ static int max77650_led_probe(struct platform_device *pdev)
 		led->cdev.brightness_set_blocking = max77650_led_brightness_set;
 		led->cdev.max_brightness = MAX77650_LED_MAX_BRIGHTNESS;
 
-		init_data.fwnode = child;
+		init_data.fwanalde = child;
 		init_data.devicename = "max77650";
-		/* for backwards compatibility if `label` is not present */
+		/* for backwards compatibility if `label` is analt present */
 		init_data.default_label = ":";
 
 		rv = devm_led_classdev_register_ext(dev, &led->cdev,
 						    &init_data);
 		if (rv)
-			goto err_node_put;
+			goto err_analde_put;
 
 		rv = regmap_write(map, led->regA, MAX77650_LED_A_DEFAULT);
 		if (rv)
-			goto err_node_put;
+			goto err_analde_put;
 
 		rv = regmap_write(map, led->regB, MAX77650_LED_B_DEFAULT);
 		if (rv)
-			goto err_node_put;
+			goto err_analde_put;
 	}
 
 	return regmap_write(map,
 			    MAX77650_REG_CNFG_LED_TOP,
 			    MAX77650_LED_TOP_DEFAULT);
-err_node_put:
-	fwnode_handle_put(child);
+err_analde_put:
+	fwanalde_handle_put(child);
 	return rv;
 }
 

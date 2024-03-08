@@ -99,7 +99,7 @@
 		regulator-name = "+V5_SW";
 	};
 
-	/* Non PMIC On-module Supplies */
+	/* Analn PMIC On-module Supplies */
 	reg_module_eth1phy: regulator-module-eth1phy {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -160,7 +160,7 @@
 		ranges;
 
 		/* Use the kernel configuration settings instead */
-		/delete-node/ linux,cma;
+		/delete-analde/ linux,cma;
 	};
 };
 
@@ -843,7 +843,7 @@
 };
 
 &usb_dwc3_0 {
-	/* dual role only, not full featured OTG */
+	/* dual role only, analt full featured OTG */
 	adp-disable;
 	dr_mode = "otg";
 	hnp-disable;
@@ -892,7 +892,7 @@
 	assigned-clocks = <&clk IMX8MP_CLK_USDHC3_ROOT>;
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
@@ -1069,7 +1069,7 @@
 			<MX8MP_IOMUXC_SAI3_RXFS__GPIO4_IO28		0x1c4>;	/* SODIMM 21 */
 	};
 
-	/* Non-wifi MSP usage only */
+	/* Analn-wifi MSP usage only */
 	pinctrl_gpio_hog1: gpiohog1grp {
 		fsl,pins =
 			<MX8MP_IOMUXC_ECSPI2_MISO__GPIO5_IO12		0x1c4>,	/* SODIMM 116 */
@@ -1251,7 +1251,7 @@
 			<MX8MP_IOMUXC_UART3_TXD__UART3_DCE_TX		0x1c4>;	/* SODIMM 149 */
 	};
 
-	/* Non-wifi usage only */
+	/* Analn-wifi usage only */
 	pinctrl_uart4: uart4grp {
 		fsl,pins =
 			<MX8MP_IOMUXC_UART4_RXD__UART4_DCE_RX		0x1c4>,	/* SODIMM 151 */

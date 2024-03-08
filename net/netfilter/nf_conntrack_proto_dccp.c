@@ -36,7 +36,7 @@
  *   8.1.3. Server Response
  *
  *   It MAY also leave the RESPOND state for CLOSED after a timeout of
- *   not less than 4MSL (8 minutes);
+ *   analt less than 4MSL (8 minutes);
  *
  * - PARTOPEN:
  *
@@ -56,7 +56,7 @@
  *   8.3. Termination
  *
  *   The retransmission timer should initially be set to go off in two
- *   round-trip times and should back off to not less than once every
+ *   round-trip times and should back off to analt less than once every
  *   64 seconds ...
  *
  * - TIMEWAIT:
@@ -71,7 +71,7 @@
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 static const char * const dccp_state_names[] = {
-	[CT_DCCP_NONE]		= "NONE",
+	[CT_DCCP_ANALNE]		= "ANALNE",
 	[CT_DCCP_REQUEST]	= "REQUEST",
 	[CT_DCCP_RESPOND]	= "RESPOND",
 	[CT_DCCP_PARTOPEN]	= "PARTOPEN",
@@ -79,12 +79,12 @@ static const char * const dccp_state_names[] = {
 	[CT_DCCP_CLOSEREQ]	= "CLOSEREQ",
 	[CT_DCCP_CLOSING]	= "CLOSING",
 	[CT_DCCP_TIMEWAIT]	= "TIMEWAIT",
-	[CT_DCCP_IGNORE]	= "IGNORE",
+	[CT_DCCP_IGANALRE]	= "IGANALRE",
 	[CT_DCCP_INVALID]	= "INVALID",
 };
 #endif
 
-#define sNO	CT_DCCP_NONE
+#define sANAL	CT_DCCP_ANALNE
 #define sRQ	CT_DCCP_REQUEST
 #define sRS	CT_DCCP_RESPOND
 #define sPO	CT_DCCP_PARTOPEN
@@ -92,7 +92,7 @@ static const char * const dccp_state_names[] = {
 #define sCR	CT_DCCP_CLOSEREQ
 #define sCG	CT_DCCP_CLOSING
 #define sTW	CT_DCCP_TIMEWAIT
-#define sIG	CT_DCCP_IGNORE
+#define sIG	CT_DCCP_IGANALRE
 #define sIV	CT_DCCP_INVALID
 
 /*
@@ -106,7 +106,7 @@ static const char * const dccp_state_names[] = {
  *
  * The following states exist:
  *
- * NONE:	Initial state, expecting Request
+ * ANALNE:	Initial state, expecting Request
  * REQUEST:	Request seen, waiting for Response from server
  * RESPOND:	Response from server seen, waiting for Ack from client
  * PARTOPEN:	Ack after Response seen, waiting for packet other than Response,
@@ -115,14 +115,14 @@ static const char * const dccp_state_names[] = {
  * CLOSEREQ:	CloseReq from server seen, expecting Close from client
  * CLOSING:	Close seen, expecting Reset
  * TIMEWAIT:	Reset seen
- * IGNORE:	Not determinable whether packet is valid
+ * IGANALRE:	Analt determinable whether packet is valid
  *
  * Some states exist only on one side of the connection: REQUEST, RESPOND,
  * PARTOPEN, CLOSEREQ. For the other side these states are equivalent to
  * the one it was in before.
  *
- * Packets are marked as ignored (sIG) if we don't know if they're valid
- * (for example a reincarnation of a connection we didn't notice is dead
+ * Packets are marked as iganalred (sIG) if we don't kanalw if they're valid
+ * (for example a reincarnation of a connection we didn't analtice is dead
  * already) and the server may send back a connection closing Reset or a
  * Response. They're also used for Sync/SyncAck packets, which we don't
  * care about.
@@ -132,38 +132,38 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 	[CT_DCCP_ROLE_CLIENT] = {
 		[DCCP_PKT_REQUEST] = {
 		/*
-		 * sNO -> sRQ		Regular Request
+		 * sANAL -> sRQ		Regular Request
 		 * sRQ -> sRQ		Retransmitted Request or reincarnation
 		 * sRS -> sRS		Retransmitted Request (apparently Response
 		 * 			got lost after we saw it) or reincarnation
-		 * sPO -> sIG		Ignore, conntrack might be out of sync
-		 * sOP -> sIG		Ignore, conntrack might be out of sync
-		 * sCR -> sIG		Ignore, conntrack might be out of sync
-		 * sCG -> sIG		Ignore, conntrack might be out of sync
+		 * sPO -> sIG		Iganalre, conntrack might be out of sync
+		 * sOP -> sIG		Iganalre, conntrack might be out of sync
+		 * sCR -> sIG		Iganalre, conntrack might be out of sync
+		 * sCG -> sIG		Iganalre, conntrack might be out of sync
 		 * sTW -> sRQ		Reincarnation
 		 *
-		 *	sNO, sRQ, sRS, sPO. sOP, sCR, sCG, sTW, */
+		 *	sANAL, sRQ, sRS, sPO. sOP, sCR, sCG, sTW, */
 			sRQ, sRQ, sRS, sIG, sIG, sIG, sIG, sRQ,
 		},
 		[DCCP_PKT_RESPONSE] = {
 		/*
-		 * sNO -> sIV		Invalid
-		 * sRQ -> sIG		Ignore, might be response to ignored Request
-		 * sRS -> sIG		Ignore, might be response to ignored Request
-		 * sPO -> sIG		Ignore, might be response to ignored Request
-		 * sOP -> sIG		Ignore, might be response to ignored Request
-		 * sCR -> sIG		Ignore, might be response to ignored Request
-		 * sCG -> sIG		Ignore, might be response to ignored Request
+		 * sANAL -> sIV		Invalid
+		 * sRQ -> sIG		Iganalre, might be response to iganalred Request
+		 * sRS -> sIG		Iganalre, might be response to iganalred Request
+		 * sPO -> sIG		Iganalre, might be response to iganalred Request
+		 * sOP -> sIG		Iganalre, might be response to iganalred Request
+		 * sCR -> sIG		Iganalre, might be response to iganalred Request
+		 * sCG -> sIG		Iganalre, might be response to iganalred Request
 		 * sTW -> sIV		Invalid, reincarnation in reverse direction
 		 *			goes through sRQ
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIV,
 		},
 		[DCCP_PKT_ACK] = {
 		/*
-		 * sNO -> sIV		No connection
-		 * sRQ -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
+		 * sRQ -> sIV		Anal connection
 		 * sRS -> sPO		Ack for Response, move to PARTOPEN (8.1.5.)
 		 * sPO -> sPO		Retransmitted Ack for Response, remain in PARTOPEN
 		 * sOP -> sOP		Regular ACK, remain in OPEN
@@ -171,27 +171,27 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 		 * sCG -> sCG		Ack in CLOSING MAY be processed (8.3.)
 		 * sTW -> sIV
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sPO, sPO, sOP, sCR, sCG, sIV
 		},
 		[DCCP_PKT_DATA] = {
 		/*
-		 * sNO -> sIV		No connection
-		 * sRQ -> sIV		No connection
-		 * sRS -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
+		 * sRQ -> sIV		Anal connection
+		 * sRS -> sIV		Anal connection
 		 * sPO -> sIV		MUST use DataAck in PARTOPEN state (8.1.5.)
 		 * sOP -> sOP		Regular Data packet
 		 * sCR -> sCR		Data in CLOSEREQ MAY be processed (8.3.)
 		 * sCG -> sCG		Data in CLOSING MAY be processed (8.3.)
 		 * sTW -> sIV
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sIV, sIV, sOP, sCR, sCG, sIV,
 		},
 		[DCCP_PKT_DATAACK] = {
 		/*
-		 * sNO -> sIV		No connection
-		 * sRQ -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
+		 * sRQ -> sIV		Anal connection
 		 * sRS -> sPO		Ack for Response, move to PARTOPEN (8.1.5.)
 		 * sPO -> sPO		Remain in PARTOPEN state
 		 * sOP -> sOP		Regular DataAck packet in OPEN state
@@ -199,190 +199,190 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 		 * sCG -> sCG		DataAck in CLOSING MAY be processed (8.3.)
 		 * sTW -> sIV
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sPO, sPO, sOP, sCR, sCG, sIV
 		},
 		[DCCP_PKT_CLOSEREQ] = {
 		/*
 		 * CLOSEREQ may only be sent by the server.
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV
 		},
 		[DCCP_PKT_CLOSE] = {
 		/*
-		 * sNO -> sIV		No connection
-		 * sRQ -> sIV		No connection
-		 * sRS -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
+		 * sRQ -> sIV		Anal connection
+		 * sRS -> sIV		Anal connection
 		 * sPO -> sCG		Client-initiated close
 		 * sOP -> sCG		Client-initiated close
 		 * sCR -> sCG		Close in response to CloseReq (8.3.)
 		 * sCG -> sCG		Retransmit
 		 * sTW -> sIV		Late retransmit, already in TIME_WAIT
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sIV, sCG, sCG, sCG, sIV, sIV
 		},
 		[DCCP_PKT_RESET] = {
 		/*
-		 * sNO -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
 		 * sRQ -> sTW		Sync received or timeout, SHOULD send Reset (8.1.1.)
 		 * sRS -> sTW		Response received without Request
 		 * sPO -> sTW		Timeout, SHOULD send Reset (8.1.5.)
 		 * sOP -> sTW		Connection reset
 		 * sCR -> sTW		Connection reset
 		 * sCG -> sTW		Connection reset
-		 * sTW -> sIG		Ignore (don't refresh timer)
+		 * sTW -> sIG		Iganalre (don't refresh timer)
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sTW, sTW, sTW, sTW, sTW, sTW, sIG
 		},
 		[DCCP_PKT_SYNC] = {
 		/*
-		 * We currently ignore Sync packets
+		 * We currently iganalre Sync packets
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIG,
 		},
 		[DCCP_PKT_SYNCACK] = {
 		/*
-		 * We currently ignore SyncAck packets
+		 * We currently iganalre SyncAck packets
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIG,
 		},
 	},
 	[CT_DCCP_ROLE_SERVER] = {
 		[DCCP_PKT_REQUEST] = {
 		/*
-		 * sNO -> sIV		Invalid
-		 * sRQ -> sIG		Ignore, conntrack might be out of sync
-		 * sRS -> sIG		Ignore, conntrack might be out of sync
-		 * sPO -> sIG		Ignore, conntrack might be out of sync
-		 * sOP -> sIG		Ignore, conntrack might be out of sync
-		 * sCR -> sIG		Ignore, conntrack might be out of sync
-		 * sCG -> sIG		Ignore, conntrack might be out of sync
+		 * sANAL -> sIV		Invalid
+		 * sRQ -> sIG		Iganalre, conntrack might be out of sync
+		 * sRS -> sIG		Iganalre, conntrack might be out of sync
+		 * sPO -> sIG		Iganalre, conntrack might be out of sync
+		 * sOP -> sIG		Iganalre, conntrack might be out of sync
+		 * sCR -> sIG		Iganalre, conntrack might be out of sync
+		 * sCG -> sIG		Iganalre, conntrack might be out of sync
 		 * sTW -> sRQ		Reincarnation, must reverse roles
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sRQ
 		},
 		[DCCP_PKT_RESPONSE] = {
 		/*
-		 * sNO -> sIV		Response without Request
+		 * sANAL -> sIV		Response without Request
 		 * sRQ -> sRS		Response to clients Request
-		 * sRS -> sRS		Retransmitted Response (8.1.3. SHOULD NOT)
-		 * sPO -> sIG		Response to an ignored Request or late retransmit
-		 * sOP -> sIG		Ignore, might be response to ignored Request
-		 * sCR -> sIG		Ignore, might be response to ignored Request
-		 * sCG -> sIG		Ignore, might be response to ignored Request
+		 * sRS -> sRS		Retransmitted Response (8.1.3. SHOULD ANALT)
+		 * sPO -> sIG		Response to an iganalred Request or late retransmit
+		 * sOP -> sIG		Iganalre, might be response to iganalred Request
+		 * sCR -> sIG		Iganalre, might be response to iganalred Request
+		 * sCG -> sIG		Iganalre, might be response to iganalred Request
 		 * sTW -> sIV		Invalid, Request from client in sTW moves to sRQ
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sRS, sRS, sIG, sIG, sIG, sIG, sIV
 		},
 		[DCCP_PKT_ACK] = {
 		/*
-		 * sNO -> sIV		No connection
-		 * sRQ -> sIV		No connection
-		 * sRS -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
+		 * sRQ -> sIV		Anal connection
+		 * sRS -> sIV		Anal connection
 		 * sPO -> sOP		Enter OPEN state (8.1.5.)
 		 * sOP -> sOP		Regular Ack in OPEN state
 		 * sCR -> sIV		Waiting for Close from client
 		 * sCG -> sCG		Ack in CLOSING MAY be processed (8.3.)
 		 * sTW -> sIV
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sIV, sOP, sOP, sIV, sCG, sIV
 		},
 		[DCCP_PKT_DATA] = {
 		/*
-		 * sNO -> sIV		No connection
-		 * sRQ -> sIV		No connection
-		 * sRS -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
+		 * sRQ -> sIV		Anal connection
+		 * sRS -> sIV		Anal connection
 		 * sPO -> sOP		Enter OPEN state (8.1.5.)
 		 * sOP -> sOP		Regular Data packet in OPEN state
 		 * sCR -> sIV		Waiting for Close from client
 		 * sCG -> sCG		Data in CLOSING MAY be processed (8.3.)
 		 * sTW -> sIV
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sIV, sOP, sOP, sIV, sCG, sIV
 		},
 		[DCCP_PKT_DATAACK] = {
 		/*
-		 * sNO -> sIV		No connection
-		 * sRQ -> sIV		No connection
-		 * sRS -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
+		 * sRQ -> sIV		Anal connection
+		 * sRS -> sIV		Anal connection
 		 * sPO -> sOP		Enter OPEN state (8.1.5.)
 		 * sOP -> sOP		Regular DataAck in OPEN state
 		 * sCR -> sIV		Waiting for Close from client
 		 * sCG -> sCG		Data in CLOSING MAY be processed (8.3.)
 		 * sTW -> sIV
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sIV, sOP, sOP, sIV, sCG, sIV
 		},
 		[DCCP_PKT_CLOSEREQ] = {
 		/*
-		 * sNO -> sIV		No connection
-		 * sRQ -> sIV		No connection
-		 * sRS -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
+		 * sRQ -> sIV		Anal connection
+		 * sRS -> sIV		Anal connection
 		 * sPO -> sOP -> sCR	Move directly to CLOSEREQ (8.1.5.)
 		 * sOP -> sCR		CloseReq in OPEN state
 		 * sCR -> sCR		Retransmit
-		 * sCG -> sCR		Simultaneous close, client sends another Close
+		 * sCG -> sCR		Simultaneous close, client sends aanalther Close
 		 * sTW -> sIV		Already closed
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sIV, sCR, sCR, sCR, sCR, sIV
 		},
 		[DCCP_PKT_CLOSE] = {
 		/*
-		 * sNO -> sIV		No connection
-		 * sRQ -> sIV		No connection
-		 * sRS -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
+		 * sRQ -> sIV		Anal connection
+		 * sRS -> sIV		Anal connection
 		 * sPO -> sOP -> sCG	Move direcly to CLOSING
 		 * sOP -> sCG		Move to CLOSING
 		 * sCR -> sIV		Close after CloseReq is invalid
 		 * sCG -> sCG		Retransmit
 		 * sTW -> sIV		Already closed
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIV, sIV, sCG, sCG, sIV, sCG, sIV
 		},
 		[DCCP_PKT_RESET] = {
 		/*
-		 * sNO -> sIV		No connection
+		 * sANAL -> sIV		Anal connection
 		 * sRQ -> sTW		Reset in response to Request
 		 * sRS -> sTW		Timeout, SHOULD send Reset (8.1.3.)
 		 * sPO -> sTW		Timeout, SHOULD send Reset (8.1.3.)
 		 * sOP -> sTW
 		 * sCR -> sTW
 		 * sCG -> sTW
-		 * sTW -> sIG		Ignore (don't refresh timer)
+		 * sTW -> sIG		Iganalre (don't refresh timer)
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW, sTW */
 			sIV, sTW, sTW, sTW, sTW, sTW, sTW, sTW, sIG
 		},
 		[DCCP_PKT_SYNC] = {
 		/*
-		 * We currently ignore Sync packets
+		 * We currently iganalre Sync packets
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIG,
 		},
 		[DCCP_PKT_SYNCACK] = {
 		/*
-		 * We currently ignore SyncAck packets
+		 * We currently iganalre SyncAck packets
 		 *
-		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
+		 *	sANAL, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIG,
 		},
 	},
 };
 
-static noinline bool
+static analinline bool
 dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	 const struct dccp_hdr *dh,
 	 const struct nf_hook_state *hook_state)
@@ -392,12 +392,12 @@ dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	const char *msg;
 	u_int8_t state;
 
-	state = dccp_state_table[CT_DCCP_ROLE_CLIENT][dh->dccph_type][CT_DCCP_NONE];
+	state = dccp_state_table[CT_DCCP_ROLE_CLIENT][dh->dccph_type][CT_DCCP_ANALNE];
 	switch (state) {
 	default:
 		dn = nf_dccp_pernet(net);
 		if (dn->dccp_loose == 0) {
-			msg = "not picking up existing connection ";
+			msg = "analt picking up existing connection ";
 			goto out_invalid;
 		}
 		break;
@@ -410,7 +410,7 @@ dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 	ct->proto.dccp.role[IP_CT_DIR_ORIGINAL] = CT_DCCP_ROLE_CLIENT;
 	ct->proto.dccp.role[IP_CT_DIR_REPLY] = CT_DCCP_ROLE_SERVER;
-	ct->proto.dccp.state = CT_DCCP_NONE;
+	ct->proto.dccp.state = CT_DCCP_ANALNE;
 	ct->proto.dccp.last_pkt = DCCP_PKT_REQUEST;
 	ct->proto.dccp.last_dir = IP_CT_DIR_ORIGINAL;
 	ct->proto.dccp.handshake_seq = 0;
@@ -572,9 +572,9 @@ int nf_conntrack_dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 		    dccp_ack_seq(dh) == ct->proto.dccp.handshake_seq)
 			set_bit(IPS_ASSURED_BIT, &ct->status);
 		break;
-	case CT_DCCP_IGNORE:
+	case CT_DCCP_IGANALRE:
 		/*
-		 * Connection tracking might be out of sync, so we ignore
+		 * Connection tracking might be out of sync, so we iganalre
 		 * packets that might establish a new connection and resync
 		 * if the server responds with a valid Response.
 		 */
@@ -699,7 +699,7 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 	if (!tb[CTA_PROTOINFO_DCCP_STATE] ||
 	    !tb[CTA_PROTOINFO_DCCP_ROLE] ||
 	    nla_get_u8(tb[CTA_PROTOINFO_DCCP_ROLE]) > CT_DCCP_ROLE_MAX ||
-	    nla_get_u8(tb[CTA_PROTOINFO_DCCP_STATE]) >= CT_DCCP_IGNORE) {
+	    nla_get_u8(tb[CTA_PROTOINFO_DCCP_STATE]) >= CT_DCCP_IGANALRE) {
 		return -EINVAL;
 	}
 
@@ -764,7 +764,7 @@ dccp_timeout_obj_to_nlattr(struct sk_buff *skb, const void *data)
 	return 0;
 
 nla_put_failure:
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static const struct nla_policy
@@ -796,7 +796,7 @@ void nf_conntrack_dccp_init_net(struct net *net)
 	/* timeouts[0] is unused, make it same as SYN_SENT so
 	 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
 	 */
-	dn->dccp_timeout[CT_DCCP_NONE] = dn->dccp_timeout[CT_DCCP_REQUEST];
+	dn->dccp_timeout[CT_DCCP_ANALNE] = dn->dccp_timeout[CT_DCCP_REQUEST];
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp = {

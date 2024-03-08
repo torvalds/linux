@@ -24,7 +24,7 @@
  * Output:
  * rcx uncopied bytes or 0 if successful.
  *
- * NOTE! The calling convention is very intentionally the same as
+ * ANALTE! The calling convention is very intentionally the same as
  * for 'rep movs', so that we can rewrite the function call with
  * just a plain 'rep movs' on machines that have FSRM.  But to make
  * it simpler for us, we can clobber rsi/rdi and rax freely.

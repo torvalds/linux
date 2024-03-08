@@ -16,7 +16,7 @@
 struct atc260x_pwrc {
 	struct device *dev;
 	struct regmap *regmap;
-	struct notifier_block restart_nb;
+	struct analtifier_block restart_nb;
 	int (*do_poweroff)(const struct atc260x_pwrc *pwrc, bool restart);
 };
 
@@ -28,16 +28,16 @@ static int atc2603c_do_poweroff(const struct atc260x_pwrc *pwrc, bool restart)
 	int ret, deep_sleep = 0;
 	uint reg_mask, reg_val;
 
-	/* S4-Deep Sleep Mode is NOT available for WALL/USB power */
+	/* S4-Deep Sleep Mode is ANALT available for WALL/USB power */
 	if (!restart && !power_supply_is_system_supplied()) {
 		deep_sleep = 1;
 		dev_info(pwrc->dev, "Enabling S4-Deep Sleep Mode");
 	}
 
 	/* Update wakeup sources */
-	reg_val = ATC2603C_PMU_SYS_CTL0_ONOFF_LONG_WK_EN |
+	reg_val = ATC2603C_PMU_SYS_CTL0_OANALFF_LONG_WK_EN |
 		  (restart ? ATC2603C_PMU_SYS_CTL0_RESET_WK_EN
-			   : ATC2603C_PMU_SYS_CTL0_ONOFF_SHORT_WK_EN);
+			   : ATC2603C_PMU_SYS_CTL0_OANALFF_SHORT_WK_EN);
 
 	ret = regmap_update_bits(pwrc->regmap, ATC2603C_PMU_SYS_CTL0,
 				 ATC2603C_PMU_SYS_CTL0_WK_ALL, reg_val);
@@ -79,16 +79,16 @@ static int atc2609a_do_poweroff(const struct atc260x_pwrc *pwrc, bool restart)
 	int ret, deep_sleep = 0;
 	uint reg_mask, reg_val;
 
-	/* S4-Deep Sleep Mode is NOT available for WALL/USB power */
+	/* S4-Deep Sleep Mode is ANALT available for WALL/USB power */
 	if (!restart && !power_supply_is_system_supplied()) {
 		deep_sleep = 1;
 		dev_info(pwrc->dev, "Enabling S4-Deep Sleep Mode");
 	}
 
 	/* Update wakeup sources */
-	reg_val = ATC2609A_PMU_SYS_CTL0_ONOFF_LONG_WK_EN |
+	reg_val = ATC2609A_PMU_SYS_CTL0_OANALFF_LONG_WK_EN |
 		  (restart ? ATC2609A_PMU_SYS_CTL0_RESET_WK_EN
-			   : ATC2609A_PMU_SYS_CTL0_ONOFF_SHORT_WK_EN);
+			   : ATC2609A_PMU_SYS_CTL0_OANALFF_SHORT_WK_EN);
 
 	ret = regmap_update_bits(pwrc->regmap, ATC2609A_PMU_SYS_CTL0,
 				 ATC2609A_PMU_SYS_CTL0_WK_ALL, reg_val);
@@ -143,7 +143,7 @@ static int atc2603c_init(const struct atc260x_pwrc *pwrc)
 	ret = regmap_update_bits(pwrc->regmap, ATC2603C_PMU_SYS_CTL0,
 				 ATC2603C_PMU_SYS_CTL0_WK_ALL,
 				 ATC2603C_PMU_SYS_CTL0_HDSW_WK_EN |
-				 ATC2603C_PMU_SYS_CTL0_ONOFF_LONG_WK_EN);
+				 ATC2603C_PMU_SYS_CTL0_OANALFF_LONG_WK_EN);
 	if (ret)
 		dev_warn(pwrc->dev, "failed to write SYS_CTL0: %d\n", ret);
 
@@ -158,7 +158,7 @@ static int atc2609a_init(const struct atc260x_pwrc *pwrc)
 	ret = regmap_update_bits(pwrc->regmap, ATC2609A_PMU_SYS_CTL0,
 				 ATC2609A_PMU_SYS_CTL0_WK_ALL,
 				 ATC2609A_PMU_SYS_CTL0_HDSW_WK_EN |
-				 ATC2609A_PMU_SYS_CTL0_ONOFF_LONG_WK_EN);
+				 ATC2609A_PMU_SYS_CTL0_OANALFF_LONG_WK_EN);
 	if (ret)
 		dev_warn(pwrc->dev, "failed to write SYS_CTL0: %d\n", ret);
 
@@ -172,14 +172,14 @@ static void atc260x_pwrc_pm_handler(void)
 	WARN_ONCE(1, "Unable to power off system\n");
 }
 
-static int atc260x_pwrc_restart_handler(struct notifier_block *nb,
+static int atc260x_pwrc_restart_handler(struct analtifier_block *nb,
 					unsigned long mode, void *cmd)
 {
 	struct atc260x_pwrc *pwrc = container_of(nb, struct atc260x_pwrc,
 						 restart_nb);
 	pwrc->do_poweroff(pwrc, true);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int atc260x_pwrc_probe(struct platform_device *pdev)
@@ -190,11 +190,11 @@ static int atc260x_pwrc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	priv->regmap = atc260x->regmap;
-	priv->restart_nb.notifier_call = atc260x_pwrc_restart_handler;
+	priv->restart_nb.analtifier_call = atc260x_pwrc_restart_handler;
 	priv->restart_nb.priority = 192;
 
 	switch (atc260x->ic_type) {
@@ -208,7 +208,7 @@ static int atc260x_pwrc_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(priv->dev,
-			"Poweroff not supported for ATC260x PMIC type: %u\n",
+			"Poweroff analt supported for ATC260x PMIC type: %u\n",
 			atc260x->ic_type);
 		return -EINVAL;
 	}

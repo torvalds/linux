@@ -46,7 +46,7 @@ typedef enum {
 } ZSTD_cwksp_alloc_phase_e;
 
 /*
- * Used to describe whether the workspace is statically allocated (and will not
+ * Used to describe whether the workspace is statically allocated (and will analt
  * necessarily ever be freed), or if it's dynamically allocated and we can
  * expect a well-formed caller to free this.
  */
@@ -58,7 +58,7 @@ typedef enum {
 /*
  * Zstd fits all its internal datastructures into a single continuous buffer,
  * so that it only needs to perform a single OS allocation (or so that a buffer
- * can be provided to it and it can perform no allocations at all). This buffer
+ * can be provided to it and it can perform anal allocations at all). This buffer
  * is called the workspace.
  *
  * Several optimizations complicate that process of allocating memory ranges
@@ -102,13 +102,13 @@ typedef enum {
  * following categories, and are allocated separately:
  *
  * - Static objects: this is optionally the enclosing ZSTD_CCtx or ZSTD_CDict,
- *   so that literally everything fits in a single buffer. Note: if present,
+ *   so that literally everything fits in a single buffer. Analte: if present,
  *   this must be the first object in the workspace, since ZSTD_customFree{CCtx,
  *   CDict}() rely on a pointer comparison to see whether one or two frees are
  *   required.
  *
  * - Fixed size objects: these are fixed-size, fixed-count objects that are
- *   nonetheless "dynamically" allocated in the workspace so that we can
+ *   analnetheless "dynamically" allocated in the workspace so that we can
  *   control how they're initialized separately from the broader ZSTD_CCtx.
  *   Examples:
  *   - Entropy Workspace
@@ -126,7 +126,7 @@ typedef enum {
  *
  * - Buffers: these buffers are used for various purposes that don't require
  *   any alignment or initialization before they're used. This means they can
- *   be moved around at no cost for a new compression.
+ *   be moved around at anal cost for a new compression.
  *
  * Allocating Memory:
  *
@@ -181,7 +181,7 @@ MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t const align) {
 
 /*
  * Use this to determine how much space in the workspace we will consume to
- * allocate this object. (Normally it should be exactly the size of the object,
+ * allocate this object. (Analrmally it should be exactly the size of the object,
  * but under special conditions, like ASAN, where we pad each object, it might
  * be larger.)
  *
@@ -189,7 +189,7 @@ MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t const align) {
  * to figure out how much space you need for the matchState tables. Everything
  * else is though.
  *
- * Do not use for sizing aligned buffers. Instead, use ZSTD_cwksp_aligned_alloc_size().
+ * Do analt use for sizing aligned buffers. Instead, use ZSTD_cwksp_aligned_alloc_size().
  */
 MEM_STATIC size_t ZSTD_cwksp_alloc_size(size_t size) {
     if (size == 0)
@@ -211,7 +211,7 @@ MEM_STATIC size_t ZSTD_cwksp_aligned_alloc_size(size_t size) {
  */
 MEM_STATIC size_t ZSTD_cwksp_slack_space_required(void) {
     /* For alignment, the wksp will always allocate an additional n_1=[1, 64] bytes
-     * to align the beginning of tables section, as well as another n_2=[0, 63] bytes
+     * to align the beginning of tables section, as well as aanalther n_2=[0, 63] bytes
      * to align the beginning of the aligned section.
      *
      * n_1 + n_2 == 64 bytes if the cwksp is freshly allocated, due to tables and
@@ -235,7 +235,7 @@ MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_ptr(void* ptr, const size_t alignByt
 }
 
 /*
- * Internal function. Do not use directly.
+ * Internal function. Do analt use directly.
  * Reserves the given number of bytes within the aligned/buffer segment of the wksp,
  * which counts from the end of the wksp (as opposed to the object/table segment).
  *
@@ -318,7 +318,7 @@ MEM_STATIC int ZSTD_cwksp_owns_buffer(const ZSTD_cwksp* ws, const void* ptr)
 }
 
 /*
- * Internal function. Do not use directly.
+ * Internal function. Do analt use directly.
  */
 MEM_STATIC void*
 ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase_e phase)
@@ -393,7 +393,7 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes)
 
 /*
  * Aligned on sizeof(void*).
- * Note : should happen only once, at workspace first initialization
+ * Analte : should happen only once, at workspace first initialization
  */
 MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes)
 {
@@ -405,10 +405,10 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes)
     DEBUGLOG(4,
         "cwksp: reserving %p object %zd bytes (rounded to %zd), %zd bytes remaining",
         alloc, bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
-    assert((size_t)alloc % ZSTD_ALIGNOF(void*) == 0);
-    assert(bytes % ZSTD_ALIGNOF(void*) == 0);
+    assert((size_t)alloc % ZSTD_ALIGANALF(void*) == 0);
+    assert(bytes % ZSTD_ALIGANALF(void*) == 0);
     ZSTD_cwksp_assert_internal_consistency(ws);
-    /* we must be in the first phase, no advance is possible */
+    /* we must be in the first phase, anal advance is possible */
     if (ws->phase != ZSTD_cwksp_alloc_objects || end > ws->workspaceEnd) {
         DEBUGLOG(3, "cwksp: object alloc failed!");
         ws->allocFailed = 1;
@@ -444,7 +444,7 @@ MEM_STATIC void ZSTD_cwksp_mark_tables_clean(ZSTD_cwksp* ws) {
 }
 
 /*
- * Zero the part of the allocated tables not already marked clean.
+ * Zero the part of the allocated tables analt already marked clean.
  */
 MEM_STATIC void ZSTD_cwksp_clean_tables(ZSTD_cwksp* ws) {
     DEBUGLOG(4, "cwksp: ZSTD_cwksp_clean_tables");
@@ -488,7 +488,7 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
 
 /*
  * The provided workspace takes ownership of the buffer [start, start+size).
- * Any existing values in the workspace are ignored (the previously managed
+ * Any existing values in the workspace are iganalred (the previously managed
  * buffer, if present, must be separately freed).
  */
 MEM_STATIC void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size, ZSTD_cwksp_static_alloc_e isStatic) {
@@ -521,7 +521,7 @@ MEM_STATIC void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
 }
 
 /*
- * Moves the management of a workspace from one cwksp to another. The src cwksp
+ * Moves the management of a workspace from one cwksp to aanalther. The src cwksp
  * is left in an invalid state (src must be re-init()'ed before it's used again).
  */
 MEM_STATIC void ZSTD_cwksp_move(ZSTD_cwksp* dst, ZSTD_cwksp* src) {

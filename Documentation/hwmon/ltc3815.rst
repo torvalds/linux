@@ -3,7 +3,7 @@ Kernel driver ltc3815
 
 Supported chips:
 
-  * Linear Technology LTC3815
+  * Linear Techanallogy LTC3815
 
     Prefix: 'ltc3815'
 
@@ -17,13 +17,13 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-LTC3815 is a Monolithic Synchronous DC/DC Step-Down Converter.
+LTC3815 is a Moanallithic Synchroanalus DC/DC Step-Down Converter.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Example: the following commands will load the driver for an LTC3815

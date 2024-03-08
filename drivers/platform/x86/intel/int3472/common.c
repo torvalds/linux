@@ -15,14 +15,14 @@ union acpi_object *skl_int3472_get_acpi_buffer(struct acpi_device *adev, char *i
 
 	status = acpi_evaluate_object(handle, id, NULL, &buffer);
 	if (ACPI_FAILURE(status))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	obj = buffer.pointer;
 	if (!obj)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (obj->type != ACPI_TYPE_BUFFER) {
-		acpi_handle_err(handle, "%s object is not an ACPI buffer\n", id);
+		acpi_handle_err(handle, "%s object is analt an ACPI buffer\n", id);
 		kfree(obj);
 		return ERR_PTR(-EINVAL);
 	}
@@ -53,7 +53,7 @@ out_free_obj:
 	return ret;
 }
 
-/* sensor_adev_ret may be NULL, name_ret must not be NULL */
+/* sensor_adev_ret may be NULL, name_ret must analt be NULL */
 int skl_int3472_get_sensor_adev_and_name(struct device *dev,
 					 struct acpi_device **sensor_adev_ret,
 					 const char **name_ret)
@@ -64,14 +64,14 @@ int skl_int3472_get_sensor_adev_and_name(struct device *dev,
 
 	sensor = acpi_dev_get_next_consumer_dev(adev, NULL);
 	if (!sensor) {
-		dev_err(dev, "INT3472 seems to have no dependents.\n");
-		return -ENODEV;
+		dev_err(dev, "INT3472 seems to have anal dependents.\n");
+		return -EANALDEV;
 	}
 
 	*name_ret = devm_kasprintf(dev, GFP_KERNEL, I2C_DEV_NAME_FORMAT,
 				   acpi_dev_name(sensor));
 	if (!*name_ret)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	if (ret == 0 && sensor_adev_ret)
 		*sensor_adev_ret = sensor;

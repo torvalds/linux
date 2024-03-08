@@ -24,7 +24,7 @@ static int ice_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	int ret;
 
 	if (type != hwmon_temp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = ice_aq_get_sensor_reading(&pf->hw, &resp);
 	if (ret) {
@@ -51,7 +51,7 @@ static int ice_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	default:
 		dev_dbg(dev, "%s unsupported attribute (%d)\n",
 			__func__, attr);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -88,7 +88,7 @@ static const struct hwmon_chip_info ice_chip_info = {
 static bool ice_is_internal_reading_supported(struct ice_pf *pf)
 {
 	/* Only the first PF will report temperature for a chip.
-	 * Note that internal temp reading is not supported
+	 * Analte that internal temp reading is analt supported
 	 * for older FW (< v4.30).
 	 */
 	if (pf->hw.pf_id)

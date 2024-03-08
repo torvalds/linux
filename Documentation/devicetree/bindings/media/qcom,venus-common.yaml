@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm SoC Venus Video Encode and Decode Accelerators Common Properties
 
 maintainers:
-  - Stanimir Varbanov <stanimir.k.varbanov@gmail.com>
+  - Stanimir Varbaanalv <stanimir.k.varbaanalv@gmail.com>
   - Vikash Garodia <quic_vgarodia@quicinc.com>
 
 description: |
@@ -52,7 +52,7 @@ properties:
     additionalProperties: false
 
     description: |
-      Firmware subnode is needed when the platform does not
+      Firmware subanalde is needed when the platform does analt
       have TrustZone.
 
     properties:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Symlink inode operations for Coda filesystem
+ * Symlink ianalde operations for Coda filesystem
  * Original version: (C) 1996 P. Braam and M. Callahan
  * Rewritten for Linux 2.1. (C) 1997 Carnegie Mellon University
  * 
@@ -13,7 +13,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pagemap.h>
 
 #include <linux/coda.h>
@@ -22,15 +22,15 @@
 
 static int coda_symlink_filler(struct file *file, struct folio *folio)
 {
-	struct inode *inode = folio->mapping->host;
+	struct ianalde *ianalde = folio->mapping->host;
 	int error;
-	struct coda_inode_info *cii;
+	struct coda_ianalde_info *cii;
 	unsigned int len = PAGE_SIZE;
 	char *p = folio_address(folio);
 
-	cii = ITOC(inode);
+	cii = ITOC(ianalde);
 
-	error = venus_readlink(inode->i_sb, &cii->c_fid, p, &len);
+	error = venus_readlink(ianalde->i_sb, &cii->c_fid, p, &len);
 	if (error)
 		goto fail;
 	folio_mark_uptodate(folio);

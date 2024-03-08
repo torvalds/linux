@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include <linux/ieee80211.h>
@@ -178,14 +178,14 @@ wlcore_scan_get_channels(struct wl1271 *wl,
 		flags = req_channels[i]->flags;
 
 		if (force_passive)
-			flags |= IEEE80211_CHAN_NO_IR;
+			flags |= IEEE80211_CHAN_ANAL_IR;
 
 		if ((req_channels[i]->band == band) &&
 		    !(flags & IEEE80211_CHAN_DISABLED) &&
 		    (!!(flags & IEEE80211_CHAN_RADAR) == radar) &&
-		    /* if radar is set, we ignore the passive flag */
+		    /* if radar is set, we iganalre the passive flag */
 		    (radar ||
-		     !!(flags & IEEE80211_CHAN_NO_IR) == passive)) {
+		     !!(flags & IEEE80211_CHAN_ANAL_IR) == passive)) {
 			if (flags & IEEE80211_CHAN_RADAR) {
 				channels[j].flags |= SCAN_CHANNEL_FLAGS_DFS;
 
@@ -208,7 +208,7 @@ wlcore_scan_get_channels(struct wl1271 *wl,
 			    (band == NL80211_BAND_2GHZ) &&
 			    (channels[j].channel >= 12) &&
 			    (channels[j].channel <= 14) &&
-			    (flags & IEEE80211_CHAN_NO_IR) &&
+			    (flags & IEEE80211_CHAN_ANAL_IR) &&
 			    !force_passive) {
 				/* pactive channels treated as DFS */
 				channels[j].flags = SCAN_CHANNEL_FLAGS_DFS;
@@ -231,8 +231,8 @@ wlcore_scan_get_channels(struct wl1271 *wl,
 				     max_dwell_time_active,
 				     flags & IEEE80211_CHAN_RADAR ?
 					", DFS" : "",
-				     flags & IEEE80211_CHAN_NO_IR ?
-					", NO-IR" : "");
+				     flags & IEEE80211_CHAN_ANAL_IR ?
+					", ANAL-IR" : "");
 			j++;
 		}
 	}
@@ -309,7 +309,7 @@ wlcore_set_scan_chan_params(struct wl1271 *wl,
 					 &n_pactive_ch,
 					 scan_type);
 
-	/* 802.11j channels are not supported yet */
+	/* 802.11j channels are analt supported yet */
 	cfg->passive[2] = 0;
 	cfg->active[2] = 0;
 
@@ -382,7 +382,7 @@ wlcore_scan_sched_scan_ssid_list(struct wl1271 *wl,
 		if (sets[i].ssid.ssid_len > 0)
 			n_match_ssids++;
 
-	/* No filter, no ssids or only bcast ssid */
+	/* Anal filter, anal ssids or only bcast ssid */
 	if (!n_match_ssids &&
 	    (!req->n_ssids ||
 	     (req->n_ssids == 1 && req->ssids[0].ssid_len == 0))) {
@@ -392,13 +392,13 @@ wlcore_scan_sched_scan_ssid_list(struct wl1271 *wl,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	cmd->role_id = wlvif->role_id;
 	if (!n_match_ssids) {
-		/* No filter, with ssids */
+		/* Anal filter, with ssids */
 		type = SCAN_SSID_FILTER_DISABLED;
 
 		for (i = 0; i < req->n_ssids; i++) {
@@ -414,7 +414,7 @@ wlcore_scan_sched_scan_ssid_list(struct wl1271 *wl,
 
 		/* Add all SSIDs from the filters */
 		for (i = 0; i < req->n_match_sets; i++) {
-			/* ignore sets without SSIDs */
+			/* iganalre sets without SSIDs */
 			if (!sets[i].ssid.ssid_len)
 				continue;
 

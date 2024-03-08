@@ -37,7 +37,7 @@
  *	- Add code for scanning and smooth tuning
  *	- Add code for sensitivity value
  *	- Correct mistakes
- *	- In Japan another FREQ_MIN and FREQ_MAX
+ *	- In Japan aanalther FREQ_MIN and FREQ_MAX
  */
 
 /* kernel includes */
@@ -98,13 +98,13 @@ devices, that would be 76 and 91.  */
 #define AMRADIO_SET_MUTE	0xab
 #define AMRADIO_SET_RIGHT_MUTE	0xac
 #define AMRADIO_SET_LEFT_MUTE	0xad
-#define AMRADIO_SET_MONO	0xae
+#define AMRADIO_SET_MOANAL	0xae
 #define AMRADIO_SET_SEARCH_LVL	0xb0
 #define AMRADIO_STOP_SEARCH	0xb1
 
 /* Comfortable defines for amradio_set_stereo */
 #define WANT_STEREO		0x00
-#define WANT_MONO		0x01
+#define WANT_MOANAL		0x01
 
 /* module parameter */
 static int radio_nr = -1;
@@ -214,7 +214,7 @@ static int amradio_set_freq(struct amradio_device *radio, int freq)
 static int amradio_set_stereo(struct amradio_device *radio, bool stereo)
 {
 	int ret = amradio_send_cmd(radio,
-			AMRADIO_SET_MONO, !stereo, NULL, 0, false);
+			AMRADIO_SET_MOANAL, !stereo, NULL, 0, false);
 
 	if (!ret)
 		radio->stereo = stereo;
@@ -285,9 +285,9 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 		V4L2_TUNER_CAP_HWSEEK_WRAP;
-	v->rxsubchans = is_stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
+	v->rxsubchans = is_stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MOANAL;
 	v->audmode = radio->stereo ?
-		V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
+		V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MOANAL;
 	return 0;
 }
 
@@ -300,10 +300,10 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	if (v->index > 0)
 		return -EINVAL;
 
-	/* mono/stereo selector */
+	/* moanal/stereo selector */
 	switch (v->audmode) {
-	case V4L2_TUNER_MODE_MONO:
-		return amradio_set_stereo(radio, WANT_MONO);
+	case V4L2_TUNER_MODE_MOANAL:
+		return amradio_set_stereo(radio, WANT_MOANAL);
 	default:
 		return amradio_set_stereo(radio, WANT_STEREO);
 	}
@@ -347,7 +347,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *priv,
 	if (seek->tuner != 0 || !seek->wrap_around)
 		return -EINVAL;
 
-	if (file->f_flags & O_NONBLOCK)
+	if (file->f_flags & O_ANALNBLOCK)
 		return -EWOULDBLOCK;
 
 	retval = amradio_send_cmd(radio,
@@ -363,7 +363,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *priv,
 	timeout = jiffies + msecs_to_jiffies(30000);
 	for (;;) {
 		if (time_after(jiffies, timeout)) {
-			retval = -ENODATA;
+			retval = -EANALDATA;
 			break;
 		}
 		if (schedule_timeout_interruptible(msecs_to_jiffies(10))) {
@@ -505,7 +505,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 
 	if (!radio) {
 		dev_err(&intf->dev, "kmalloc for amradio_device failed\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err;
 	}
 
@@ -513,8 +513,8 @@ static int usb_amradio_probe(struct usb_interface *intf,
 
 	if (!radio->buffer) {
 		dev_err(&intf->dev, "kmalloc for radio->buffer failed\n");
-		retval = -ENOMEM;
-		goto err_nobuf;
+		retval = -EANALMEM;
+		goto err_analbuf;
 	}
 
 	retval = v4l2_device_register(&intf->dev, &radio->v4l2_dev);
@@ -558,7 +558,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	retval = video_register_device(&radio->vdev, VFL_TYPE_RADIO,
 					radio_nr);
 	if (retval < 0) {
-		dev_err(&intf->dev, "could not register video device\n");
+		dev_err(&intf->dev, "could analt register video device\n");
 		goto err_vdev;
 	}
 
@@ -570,7 +570,7 @@ err_ctrl:
 	v4l2_device_unregister(&radio->v4l2_dev);
 err_v4l2:
 	kfree(radio->buffer);
-err_nobuf:
+err_analbuf:
 	kfree(radio);
 err:
 	return retval;

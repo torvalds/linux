@@ -67,7 +67,7 @@ int swarm_be_handler(struct pt_regs *regs, int is_fixup)
 }
 
 enum swarm_rtc_type {
-	RTC_NONE,
+	RTC_ANALNE,
 	RTC_XICOR,
 	RTC_M41T81,
 };
@@ -87,7 +87,7 @@ void read_persistent_clock64(struct timespec64 *ts)
 		sec = m41t81_get_time();
 		break;
 
-	case RTC_NONE:
+	case RTC_ANALNE:
 	default:
 		sec = mktime64(2000, 1, 1, 0, 0, 0);
 		break;
@@ -96,9 +96,9 @@ void read_persistent_clock64(struct timespec64 *ts)
 	ts->tv_nsec = 0;
 }
 
-int update_persistent_clock64(struct timespec64 now)
+int update_persistent_clock64(struct timespec64 analw)
 {
-	time64_t sec = now.tv_sec;
+	time64_t sec = analw.tv_sec;
 
 	switch (swarm_rtc_type) {
 	case RTC_XICOR:
@@ -107,7 +107,7 @@ int update_persistent_clock64(struct timespec64 now)
 	case RTC_M41T81:
 		return m41t81_set_time(sec);
 
-	case RTC_NONE:
+	case RTC_ANALNE:
 	default:
 		return -1;
 	}

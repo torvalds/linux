@@ -147,7 +147,7 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 
 	arb = devm_kzalloc(dev, sizeof(*arb), GFP_KERNEL);
 	if (!arb)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, arb);
 
 	arb->clk = devm_clk_get(dev, NULL);
@@ -162,7 +162,7 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 	arb->reset_bits = data->reset_bits;
 	arb->rstc.nr_resets = data->reset_num;
 	arb->rstc.ops = &meson_audio_arb_rstc_ops;
-	arb->rstc.of_node = dev->of_node;
+	arb->rstc.of_analde = dev->of_analde;
 	arb->rstc.owner = THIS_MODULE;
 
 	/*

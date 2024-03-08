@@ -10,13 +10,13 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright analtice and this permission analtice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -118,10 +118,10 @@ int vmw_gem_object_create(struct vmw_private *vmw,
 	int ret = vmw_bo_create(vmw, params, p_vbo);
 
 	if (ret != 0)
-		goto out_no_bo;
+		goto out_anal_bo;
 
 	(*p_vbo)->tbo.base.funcs = &vmw_gem_object_funcs;
-out_no_bo:
+out_anal_bo:
 	return ret;
 }
 
@@ -142,10 +142,10 @@ int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 
 	ret = vmw_gem_object_create(dev_priv, &params, p_vbo);
 	if (ret != 0)
-		goto out_no_bo;
+		goto out_anal_bo;
 
 	ret = drm_gem_handle_create(filp, &(*p_vbo)->tbo.base, handle);
-out_no_bo:
+out_anal_bo:
 	return ret;
 }
 
@@ -165,15 +165,15 @@ int vmw_gem_object_create_ioctl(struct drm_device *dev, void *data,
 	ret = vmw_gem_object_create_with_handle(dev_priv, filp,
 						req->size, &handle, &vbo);
 	if (ret)
-		goto out_no_bo;
+		goto out_anal_bo;
 
 	rep->handle = handle;
-	rep->map_handle = drm_vma_node_offset_addr(&vbo->tbo.base.vma_node);
+	rep->map_handle = drm_vma_analde_offset_addr(&vbo->tbo.base.vma_analde);
 	rep->cur_gmr_id = handle;
 	rep->cur_gmr_offset = 0;
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(&vbo->tbo.base);
-out_no_bo:
+out_anal_bo:
 	return ret;
 }
 
@@ -201,7 +201,7 @@ static void vmw_bo_print_info(int id, struct vmw_bo *bo, struct seq_file *m)
 		placement = "VRAM";
 		break;
 	default:
-		placement = "None";
+		placement = "Analne";
 		break;
 	}
 
@@ -216,7 +216,7 @@ static void vmw_bo_print_info(int id, struct vmw_bo *bo, struct seq_file *m)
 		type = "sg    ";
 		break;
 	default:
-		type = "none  ";
+		type = "analne  ";
 		break;
 	}
 
@@ -249,7 +249,7 @@ static int vmw_debugfs_gem_info_show(struct seq_file *m, void *unused)
 
 		/*
 		 * Although we have a valid reference on file->pid, that does
-		 * not guarantee that the task_struct who called get_pid() is
+		 * analt guarantee that the task_struct who called get_pid() is
 		 * still alive (e.g. get_pid(current) => fork() => exit()).
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
@@ -257,7 +257,7 @@ static int vmw_debugfs_gem_info_show(struct seq_file *m, void *unused)
 		pid = rcu_dereference(file->pid);
 		task = pid_task(pid, PIDTYPE_TGID);
 		seq_printf(m, "pid %8d command %s:\n", pid_nr(pid),
-			   task ? task->comm : "<unknown>");
+			   task ? task->comm : "<unkanalwn>");
 		rcu_read_unlock();
 
 		spin_lock(&file->table_lock);
@@ -280,8 +280,8 @@ DEFINE_SHOW_ATTRIBUTE(vmw_debugfs_gem_info);
 void vmw_debugfs_gem_init(struct vmw_private *vdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = vdev->drm.primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = vdev->drm.primary;
+	struct dentry *root = mianalr->debugfs_root;
 
 	debugfs_create_file("vmwgfx_gem_info", 0444, root, vdev,
 			    &vmw_debugfs_gem_info_fops);

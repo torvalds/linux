@@ -20,7 +20,7 @@ hardware.
 
 An ATR looks similar to an i2c-mux except:
  - the address on the parent and child busses can be different
- - there is normally no need to select the child port; the alias used on the
+ - there is analrmally anal need to select the child port; the alias used on the
    parent bus implies it
 
 The ATR functionality can be provided by a chip with many other features.
@@ -49,7 +49,7 @@ Alias table:
 
 A, B and C are three physical I2C busses, electrically independent from
 each other. The ATR receives the transactions initiated on bus A and
-propagates them on bus B or bus C or none depending on the device address
+propagates them on bus B or bus C or analne depending on the device address
 in the transaction and based on the alias table.
 
 Alias table:
@@ -73,7 +73,7 @@ Transaction:
    propagates transaction on bus B with address translated to 0x10,
    keeps clock stretched on bus A waiting for reply
  - Slave X chip (on bus B) detects transaction at its own physical
-   address 0x10 and replies normally
+   address 0x10 and replies analrmally
  - ATR chip stops clock stretching and forwards reply on bus A,
    with address translated back to 0x20
  - ATR driver receives the reply, rewrites messages with address 0x10

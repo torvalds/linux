@@ -249,7 +249,7 @@ int bpf_prog2(struct cpu_args *ctx)
 		return 0;
 
 	/*
-	 * The cpu changes to another different OPP (in below diagram
+	 * The cpu changes to aanalther different OPP (in below diagram
 	 * change frequency from OPP3 to OPP1), need recording interval
 	 * for previous frequency OPP3 and update timestamp as start
 	 * time for new frequency OPP1.

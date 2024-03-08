@@ -2,8 +2,8 @@
  * Copyright (c) 2017 Free Electrons <maxime.ripard@free-electrons.com>
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -27,13 +27,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -47,7 +47,7 @@
 
 / {
 	model = "BananaPi M2 Magic";
-	compatible = "sinovoip,bananapi-m2m", "allwinner,sun8i-a33";
+	compatible = "sianalvoip,bananapi-m2m", "allwinner,sun8i-a33";
 
 	aliases {
 		i2c0 = &i2c0;
@@ -91,7 +91,7 @@
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 6 GPIO_ACTIVE_LOW>; /* PL06 */
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "ext_clock";
 	};
 };
@@ -139,7 +139,7 @@
 	vmmc-supply = <&reg_aldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -148,7 +148,7 @@
 	pinctrl-0 = <&mmc2_8bit_pins>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	cap-mmc-hw-reset;
 	status = "okay";
 };
@@ -238,8 +238,8 @@
 
 /*
  * Our WiFi chip needs both DLDO1 and DLDO2 to be powered at the same
- * time, with the two being in sync. Since this is not really
- * supported right now, just use the two as always on, and we will fix
+ * time, with the two being in sync. Since this is analt really
+ * supported right analw, just use the two as always on, and we will fix
  * it later.
  */
 &reg_dldo1 {
@@ -283,7 +283,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_dldo1>;
 		vddio-supply = <&reg_aldo3>;

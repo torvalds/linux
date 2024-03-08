@@ -16,7 +16,7 @@
 #include "type_support.h"
 #include "ia_css_bnlm.host.h"
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 #include "ia_css_debug.h" /* ia_css_debug_dtrace() */
 #endif
 #include <assert_support.h>
@@ -62,7 +62,7 @@ bnlm_lut_encode(struct bnlm_lut *lut, const int32_t *lut_thr,
 	assert((lut_size >= 2) && (lut_size <= block_size));
 	/* array lut_thr has (lut_size-1) entries */
 	for (i = 0; i < lut_size - 2; i++) {
-		/* Check if the lut_thr is monotonically increasing */
+		/* Check if the lut_thr is moanaltonically increasing */
 		assert(lut_thr[i] <= lut_thr[i + 1]);
 	}
 
@@ -106,8 +106,8 @@ ia_css_bnlm_vmem_encode(
 	/* Initialize LUTs in VMEM parameters */
 	bnlm_lut_encode(&to->mu_root_lut, from->mu_root_lut_thr, from->mu_root_lut_val,
 			16);
-	bnlm_lut_encode(&to->sad_norm_lut, from->sad_norm_lut_thr,
-			from->sad_norm_lut_val, 16);
+	bnlm_lut_encode(&to->sad_analrm_lut, from->sad_analrm_lut_thr,
+			from->sad_analrm_lut_val, 16);
 	bnlm_lut_encode(&to->sig_detail_lut, from->sig_detail_lut_thr,
 			from->sig_detail_lut_val, 16);
 	bnlm_lut_encode(&to->sig_rad_lut, from->sig_rad_lut_thr, from->sig_rad_lut_val,
@@ -173,7 +173,7 @@ ia_css_bnlm_debug_trace(
 	if (!config)
 		return;
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 	ia_css_debug_dtrace(level, "BNLM:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n", "rad_enable", config->rad_enable);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n", "rad_x_origin",
@@ -193,5 +193,5 @@ ia_css_bnlm_debug_trace(
 			    config->exp_exponent);
 
 	/* ToDo: print traces for LUTs */
-#endif /* IA_CSS_NO_DEBUG */
+#endif /* IA_CSS_ANAL_DEBUG */
 }

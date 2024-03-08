@@ -14,7 +14,7 @@ struct panfrost_gem_object {
 	struct sg_table *sgts;
 
 	/*
-	 * Use a list for now. If searching a mapping ever becomes the
+	 * Use a list for analw. If searching a mapping ever becomes the
 	 * bottleneck, we should consider using an RB-tree, or even better,
 	 * let the core store drm_gem_object_mapping entries (where we
 	 * could place driver specific data) instead of drm_gem_object ones
@@ -41,15 +41,15 @@ struct panfrost_gem_object {
 	 */
 	size_t heap_rss_size;
 
-	bool noexec		:1;
+	bool analexec		:1;
 	bool is_heap		:1;
 };
 
 struct panfrost_gem_mapping {
-	struct list_head node;
+	struct list_head analde;
 	struct kref refcount;
 	struct panfrost_gem_object *obj;
-	struct drm_mm_node mmnode;
+	struct drm_mm_analde mmanalde;
 	struct panfrost_mmu *mmu;
 	bool active		:1;
 };
@@ -61,9 +61,9 @@ struct  panfrost_gem_object *to_panfrost_bo(struct drm_gem_object *obj)
 }
 
 static inline struct panfrost_gem_mapping *
-drm_mm_node_to_panfrost_mapping(struct drm_mm_node *node)
+drm_mm_analde_to_panfrost_mapping(struct drm_mm_analde *analde)
 {
-	return container_of(node, struct panfrost_gem_mapping, mmnode);
+	return container_of(analde, struct panfrost_gem_mapping, mmanalde);
 }
 
 struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t size);

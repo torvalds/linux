@@ -10,15 +10,15 @@
  * utilities in mm/pagewalk.c. The main difference is that we distinguish
  * the various levels of a page-table tree with an unsigned integer rather
  * than by name. 0 is the lowest level, and page-tables with level 0 can
- * not be directories pointing to lower levels, whereas all other levels
+ * analt be directories pointing to lower levels, whereas all other levels
  * can. The user of the utilities determines the highest level.
  *
- * Nomenclature:
+ * Analmenclature:
  * Each struct xe_ptw, regardless of level is referred to as a page table, and
  * multiple page tables typically form a page table tree with page tables at
  * intermediate levels being page directories pointing at page tables at lower
  * levels. A shared page table for a given address range is a page-table which
- * is neither fully within nor fully outside the address range and that can
+ * is neither fully within analr fully outside the address range and that can
  * thus be shared by two or more address ranges.
  *
  * Please keep this code generic so that it can used as a drm-wide page-
@@ -94,7 +94,7 @@ again:
 		if (err)
 			break;
 
-		/* Probably not needed yet for gpu pagetable walk. */
+		/* Probably analt needed yet for gpu pagetable walk. */
 		if (unlikely(action == ACTION_AGAIN))
 			goto again;
 

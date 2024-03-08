@@ -92,9 +92,9 @@ enum myrb_cmd_opcode {
 	MYRB_CMD_LOAD_IMAGE =		0x20,
 	MYRB_CMD_STORE_IMAGE =		0x21,
 	MYRB_CMD_PROGRAM_IMAGE =	0x22,
-	/* Diagnostic Commands */
-	MYRB_CMD_SET_DIAGNOSTIC_MODE =	0x31,
-	MYRB_CMD_RUN_DIAGNOSTIC =	0x32,
+	/* Diaganalstic Commands */
+	MYRB_CMD_SET_DIAGANALSTIC_MODE =	0x31,
+	MYRB_CMD_RUN_DIAGANALSTIC =	0x32,
 	/* Subsystem Service Commands */
 	MYRB_CMD_GET_SUBSYS_DATA =	0x70,
 	MYRB_CMD_SET_SUBSYS_PARAM =	0x71,
@@ -112,46 +112,46 @@ enum myrb_cmd_opcode {
  */
 #define MYRB_STATUS_SUCCESS			0x0000	/* Common */
 #define MYRB_STATUS_CHECK_CONDITION		0x0002	/* Common */
-#define MYRB_STATUS_NO_DEVICE			0x0102	/* Common */
+#define MYRB_STATUS_ANAL_DEVICE			0x0102	/* Common */
 #define MYRB_STATUS_INVALID_ADDRESS		0x0105	/* Common */
 #define MYRB_STATUS_INVALID_PARAM		0x0105	/* Common */
 #define MYRB_STATUS_IRRECOVERABLE_DATA_ERROR	0x0001	/* I/O */
-#define MYRB_STATUS_LDRV_NONEXISTENT_OR_OFFLINE 0x0002	/* I/O */
+#define MYRB_STATUS_LDRV_ANALNEXISTENT_OR_OFFLINE 0x0002	/* I/O */
 #define MYRB_STATUS_ACCESS_BEYOND_END_OF_LDRV	0x0105	/* I/O */
 #define MYRB_STATUS_BAD_DATA			0x010C	/* I/O */
 #define MYRB_STATUS_DEVICE_BUSY			0x0008	/* DCDB */
-#define MYRB_STATUS_DEVICE_NONRESPONSIVE	0x000E	/* DCDB */
+#define MYRB_STATUS_DEVICE_ANALNRESPONSIVE	0x000E	/* DCDB */
 #define MYRB_STATUS_COMMAND_TERMINATED		0x000F	/* DCDB */
 #define MYRB_STATUS_START_DEVICE_FAILED		0x0002	/* Device */
 #define MYRB_STATUS_INVALID_CHANNEL_OR_TARGET	0x0105	/* Device */
 #define MYRB_STATUS_CHANNEL_BUSY		0x0106	/* Device */
 #define MYRB_STATUS_OUT_OF_MEMORY		0x0107	/* Device */
-#define MYRB_STATUS_CHANNEL_NOT_STOPPED		0x0002	/* Device */
+#define MYRB_STATUS_CHANNEL_ANALT_STOPPED		0x0002	/* Device */
 #define MYRB_STATUS_ATTEMPT_TO_RBLD_ONLINE_DRIVE 0x0002	/* Consistency */
 #define MYRB_STATUS_RBLD_BADBLOCKS		0x0003	/* Consistency */
 #define MYRB_STATUS_RBLD_NEW_DISK_FAILED	0x0004	/* Consistency */
 #define MYRB_STATUS_RBLD_OR_CHECK_INPROGRESS	0x0106	/* Consistency */
 #define MYRB_STATUS_DEPENDENT_DISK_DEAD		0x0002	/* Consistency */
 #define MYRB_STATUS_INCONSISTENT_BLOCKS		0x0003	/* Consistency */
-#define MYRB_STATUS_INVALID_OR_NONREDUNDANT_LDRV 0x0105 /* Consistency */
-#define MYRB_STATUS_NO_RBLD_OR_CHECK_INPROGRESS	0x0105	/* Consistency */
+#define MYRB_STATUS_INVALID_OR_ANALNREDUNDANT_LDRV 0x0105 /* Consistency */
+#define MYRB_STATUS_ANAL_RBLD_OR_CHECK_INPROGRESS	0x0105	/* Consistency */
 #define MYRB_STATUS_RBLD_IN_PROGRESS_DATA_VALID	0x0000	/* Consistency */
 #define MYRB_STATUS_RBLD_FAILED_LDEV_FAILURE	0x0002	/* Consistency */
 #define MYRB_STATUS_RBLD_FAILED_BADBLOCKS	0x0003	/* Consistency */
 #define MYRB_STATUS_RBLD_FAILED_NEW_DRIVE_FAILED 0x0004	/* Consistency */
 #define MYRB_STATUS_RBLD_SUCCESS		0x0100	/* Consistency */
 #define MYRB_STATUS_RBLD_SUCCESS_TERMINATED	0x0107	/* Consistency */
-#define MYRB_STATUS_RBLD_NOT_CHECKED		0x0108	/* Consistency */
+#define MYRB_STATUS_RBLD_ANALT_CHECKED		0x0108	/* Consistency */
 #define MYRB_STATUS_BGI_SUCCESS			0x0100	/* Consistency */
 #define MYRB_STATUS_BGI_ABORTED			0x0005	/* Consistency */
-#define MYRB_STATUS_NO_BGI_INPROGRESS		0x0105	/* Consistency */
+#define MYRB_STATUS_ANAL_BGI_INPROGRESS		0x0105	/* Consistency */
 #define MYRB_STATUS_ADD_CAPACITY_INPROGRESS	0x0004	/* Consistency */
 #define MYRB_STATUS_ADD_CAPACITY_FAILED_OR_SUSPENDED 0x00F4 /* Consistency */
 #define MYRB_STATUS_CONFIG2_CSUM_ERROR		0x0002	/* Configuration */
 #define MYRB_STATUS_CONFIGURATION_SUSPENDED	0x0106	/* Configuration */
 #define MYRB_STATUS_FAILED_TO_CONFIGURE_NVRAM	0x0105	/* Configuration */
-#define MYRB_STATUS_CONFIGURATION_NOT_SAVED	0x0106	/* Configuration */
-#define MYRB_STATUS_SUBSYS_NOTINSTALLED		0x0001	/* Subsystem */
+#define MYRB_STATUS_CONFIGURATION_ANALT_SAVED	0x0106	/* Configuration */
+#define MYRB_STATUS_SUBSYS_ANALTINSTALLED		0x0001	/* Subsystem */
 #define MYRB_STATUS_SUBSYS_FAILED		0x0002	/* Subsystem */
 #define MYRB_STATUS_SUBSYS_BUSY			0x0106	/* Subsystem */
 #define MYRB_STATUS_SUBSYS_TIMEOUT		0x0108	/* Subsystem */
@@ -170,10 +170,10 @@ struct myrb_enquiry {
 		unsigned char rsvd2:6;			/* Byte 134 Bits 2-7 */
 	} status;
 	unsigned char rsvd3:8;				/* Byte 135 */
-	unsigned char fw_minor_version;			/* Byte 136 */
+	unsigned char fw_mianalr_version;			/* Byte 136 */
 	unsigned char fw_major_version;			/* Byte 137 */
 	enum {
-		MYRB_NO_STDBY_RBLD_OR_CHECK_IN_PROGRESS =	0x00,
+		MYRB_ANAL_STDBY_RBLD_OR_CHECK_IN_PROGRESS =	0x00,
 		MYRB_STDBY_RBLD_IN_PROGRESS =			0x01,
 		MYRB_BG_RBLD_IN_PROGRESS =			0x02,
 		MYRB_BG_CHECK_IN_PROGRESS =			0x03,
@@ -235,10 +235,10 @@ struct myrb_enquiry2 {
 			MYRB_SCSI_TO_SCSI =		0x08
 		} __packed controller;	/* Byte 3 */
 	} hw;						/* Bytes 0-3 */
-	/* MajorVersion.MinorVersion-FirmwareType-TurnID */
+	/* MajorVersion.MianalrVersion-FirmwareType-TurnID */
 	struct {
 		unsigned char major_version;		/* Byte 4 */
-		unsigned char minor_version;		/* Byte 5 */
+		unsigned char mianalr_version;		/* Byte 5 */
 		unsigned char turn_id;			/* Byte 6 */
 		char firmware_type;			/* Byte 7 */
 	} fw;						/* Bytes 4-7 */
@@ -264,7 +264,7 @@ struct myrb_enquiry2 {
 			MYRB_RAM_TYPE_Last =		0x7
 		} __packed ram:3;	/* Byte 40 Bits 0-2 */
 		enum {
-			MYRB_ERR_CORR_None =	0x0,
+			MYRB_ERR_CORR_Analne =	0x0,
 			MYRB_ERR_CORR_Parity =	0x1,
 			MYRB_ERR_CORR_ECC =		0x2,
 			MYRB_ERR_CORR_Last =	0x7
@@ -458,10 +458,10 @@ struct myrb_config2 {
 	unsigned rsvd1:1;				/* Byte 0 Bit 0 */
 	unsigned active_negation:1;			/* Byte 0 Bit 1 */
 	unsigned rsvd2:5;				/* Byte 0 Bits 2-6 */
-	unsigned no_rescan_on_reset_during_scan:1;	/* Byte 0 Bit 7 */
+	unsigned anal_rescan_on_reset_during_scan:1;	/* Byte 0 Bit 7 */
 	unsigned StorageWorks_support:1;		/* Byte 1 Bit 0 */
 	unsigned HewlettPackard_support:1;		/* Byte 1 Bit 1 */
-	unsigned no_disconnect_on_first_command:1;	/* Byte 1 Bit 2 */
+	unsigned anal_disconnect_on_first_command:1;	/* Byte 1 Bit 2 */
 	unsigned rsvd3:2;				/* Byte 1 Bits 3-4 */
 	unsigned AEMI_ARM:1;				/* Byte 1 Bit 5 */
 	unsigned AEMI_OFM:1;				/* Byte 1 Bit 6 */
@@ -531,7 +531,7 @@ struct myrb_dcdb {
 	unsigned target:4;				 /* Byte 0 Bits 0-3 */
 	unsigned channel:4;				 /* Byte 0 Bits 4-7 */
 	enum {
-		MYRB_DCDB_XFER_NONE =		0,
+		MYRB_DCDB_XFER_ANALNE =		0,
 		MYRB_DCDB_XFER_DEVICE_TO_SYSTEM = 1,
 		MYRB_DCDB_XFER_SYSTEM_TO_DEVICE = 2,
 		MYRB_DCDB_XFER_ILLEGAL =	3
@@ -544,7 +544,7 @@ struct myrb_dcdb {
 		MYRB_DCDB_TMO_60_SECS =	2,
 		MYRB_DCDB_TMO_10_MINS =	3
 	} __packed timeout:2;				/* Byte 1 Bits 4-5 */
-	unsigned no_autosense:1;			/* Byte 1 Bit 6 */
+	unsigned anal_autosense:1;			/* Byte 1 Bit 6 */
 	unsigned allow_disconnect:1;			/* Byte 1 Bit 7 */
 	unsigned short xfer_len_lo;			/* Bytes 2-3 */
 	u32 dma_addr;					/* Bytes 4-7 */
@@ -568,7 +568,7 @@ struct myrb_sge {
 
 /*
  * 13 Byte DAC960 V1 Firmware Command Mailbox structure.
- * Bytes 13-15 are not used.  The structure is padded to 16 bytes for
+ * Bytes 13-15 are analt used.  The structure is padded to 16 bytes for
  * efficient access.
  */
 union myrb_cmd_mbox {

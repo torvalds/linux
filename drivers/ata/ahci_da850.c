@@ -57,7 +57,7 @@ static u32 ahci_da850_calculate_mpy(unsigned long refclk_rate)
 	needed = pll_output / (refclk_rate / 10);
 
 	/*
-	 * What we have now is (multiplier * 10).
+	 * What we have analw is (multiplier * 10).
 	 *
 	 * Let's determine the actual register value we need to write.
 	 */
@@ -83,7 +83,7 @@ static u32 ahci_da850_calculate_mpy(unsigned long refclk_rate)
 		return 0xa;
 	default:
 		/*
-		 * We should have divided evenly - if not, return an invalid
+		 * We should have divided evenly - if analt, return an invalid
 		 * value.
 		 */
 		return 0;
@@ -123,7 +123,7 @@ static int ahci_da850_hardreset(struct ata_link *link,
 	 * we increased the PLL0 frequency to 456MHz from the default 300MHz.
 	 *
 	 * This made the SATA controller unstable and the hardreset operation
-	 * does not always succeed the first time. Before really giving up to
+	 * does analt always succeed the first time. Before really giving up to
 	 * bring up the link, retry the reset a couple times.
 	 */
 	do {
@@ -139,7 +139,7 @@ static struct ata_port_operations ahci_da850_port_ops = {
 	.inherits = &ahci_platform_ops,
 	.softreset = ahci_da850_softreset,
 	/*
-	 * No need to override .pmp_softreset - it's only used for actual
+	 * Anal need to override .pmp_softreset - it's only used for actual
 	 * PMP-enabled ports.
 	 */
 	.hardreset = ahci_da850_hardreset,
@@ -181,7 +181,7 @@ static int ahci_da850_probe(struct platform_device *pdev)
 	if (hpriv->n_clks < 2) {
 		hpriv->clks = devm_kcalloc(dev, 2, sizeof(*hpriv->clks), GFP_KERNEL);
 		if (!hpriv->clks)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		hpriv->clks[0].id = "fck";
 		hpriv->clks[1].id = "refclk";
@@ -204,13 +204,13 @@ static int ahci_da850_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto disable_resources;
 	}
 
 	pwrdn_reg = devm_ioremap(dev, res->start, resource_size(res));
 	if (!pwrdn_reg) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto disable_resources;
 	}
 

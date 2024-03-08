@@ -21,8 +21,8 @@
 #include <linux/fs_struct.h>
 #include "internal.h"
 
-static int cachefiles_daemon_open(struct inode *, struct file *);
-static int cachefiles_daemon_release(struct inode *, struct file *);
+static int cachefiles_daemon_open(struct ianalde *, struct file *);
+static int cachefiles_daemon_release(struct ianalde *, struct file *);
 static ssize_t cachefiles_daemon_read(struct file *, char __user *, size_t,
 				      loff_t *);
 static ssize_t cachefiles_daemon_write(struct file *, const char __user *,
@@ -53,7 +53,7 @@ const struct file_operations cachefiles_daemon_fops = {
 	.read		= cachefiles_daemon_read,
 	.write		= cachefiles_daemon_write,
 	.poll		= cachefiles_daemon_poll,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 struct cachefiles_daemon_cmd {
@@ -86,7 +86,7 @@ static const struct cachefiles_daemon_cmd cachefiles_daemon_cmds[] = {
 /*
  * Prepare a cache for caching.
  */
-static int cachefiles_daemon_open(struct inode *inode, struct file *file)
+static int cachefiles_daemon_open(struct ianalde *ianalde, struct file *file)
 {
 	struct cachefiles_cache *cache;
 
@@ -104,7 +104,7 @@ static int cachefiles_daemon_open(struct inode *inode, struct file *file)
 	cache = kzalloc(sizeof(struct cachefiles_cache), GFP_KERNEL);
 	if (!cache) {
 		cachefiles_open = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&cache->daemon_mutex);
@@ -183,7 +183,7 @@ void cachefiles_get_unbind_pincount(struct cachefiles_cache *cache)
 /*
  * Release a cache.
  */
-static int cachefiles_daemon_release(struct inode *inode, struct file *file)
+static int cachefiles_daemon_release(struct ianalde *ianalde, struct file *file)
 {
 	struct cachefiles_cache *cache = file->private_data;
 
@@ -291,7 +291,7 @@ static ssize_t cachefiles_daemon_write(struct file *file,
 		return -EIO;
 
 	if (datalen > PAGE_SIZE - 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* drag the command string into the kernel so we can parse it */
 	data = memdup_user_nul(_data, datalen);
@@ -312,7 +312,7 @@ static ssize_t cachefiles_daemon_write(struct file *file,
 	}
 
 	/* parse the command */
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 
 	for (args = data; *args; args++)
 		if (isspace(*args))
@@ -563,7 +563,7 @@ static int cachefiles_daemon_dir(struct cachefiles_cache *cache, char *args)
 
 	dir = kstrdup(args, GFP_KERNEL);
 	if (!dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cache->rootdirname = dir;
 	return 0;
@@ -591,7 +591,7 @@ static int cachefiles_daemon_secctx(struct cachefiles_cache *cache, char *args)
 
 	secctx = kstrdup(args, GFP_KERNEL);
 	if (!secctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cache->secctx = secctx;
 	return 0;
@@ -617,14 +617,14 @@ static int cachefiles_daemon_tag(struct cachefiles_cache *cache, char *args)
 
 	tag = kstrdup(args, GFP_KERNEL);
 	if (!tag)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cache->tag = tag;
 	return 0;
 }
 
 /*
- * Request a node in the cache be culled from the current working directory
+ * Request a analde in the cache be culled from the current working directory
  * - command: "cull <name>"
  */
 static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
@@ -651,7 +651,7 @@ static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 	get_fs_pwd(current->fs, &path);
 
 	if (!d_can_lookup(path.dentry))
-		goto notdir;
+		goto analtdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);
 	ret = cachefiles_cull(cache, path.dentry, args);
@@ -661,10 +661,10 @@ static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 	_leave(" = %d", ret);
 	return ret;
 
-notdir:
+analtdir:
 	path_put(&path);
 	pr_err("cull command requires dirfd to be a directory\n");
-	return -ENOTDIR;
+	return -EANALTDIR;
 
 inval:
 	pr_err("cull command requires dirfd and filename\n");
@@ -695,7 +695,7 @@ inval:
 }
 
 /*
- * Find out whether an object in the current working directory is in use or not
+ * Find out whether an object in the current working directory is in use or analt
  * - command: "inuse <name>"
  */
 static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
@@ -722,7 +722,7 @@ static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 	get_fs_pwd(current->fs, &path);
 
 	if (!d_can_lookup(path.dentry))
-		goto notdir;
+		goto analtdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);
 	ret = cachefiles_check_in_use(cache, path.dentry, args);
@@ -732,10 +732,10 @@ static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 	//_leave(" = %d", ret);
 	return ret;
 
-notdir:
+analtdir:
 	path_put(&path);
 	pr_err("inuse command requires dirfd to be a directory\n");
-	return -ENOTDIR;
+	return -EANALTDIR;
 
 inval:
 	pr_err("inuse command requires dirfd and filename\n");
@@ -767,7 +767,7 @@ static int cachefiles_daemon_bind(struct cachefiles_cache *cache, char *args)
 		return -ERANGE;
 
 	if (!cache->rootdirname) {
-		pr_err("No cache directory specified\n");
+		pr_err("Anal cache directory specified\n");
 		return -EINVAL;
 	}
 
@@ -797,7 +797,7 @@ static int cachefiles_daemon_bind(struct cachefiles_cache *cache, char *args)
 		 */
 		cache->tag = kstrdup("CacheFiles", GFP_KERNEL);
 		if (!cache->tag)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return cachefiles_add_cache(cache);

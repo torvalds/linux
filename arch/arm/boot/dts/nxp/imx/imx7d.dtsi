@@ -71,8 +71,8 @@
 		};
 	};
 
-	usbphynop2: usbphynop2 {
-		compatible = "usb-nop-xceiv";
+	usbphyanalp2: usbphyanalp2 {
+		compatible = "usb-analp-xceiv";
 		clocks = <&clks IMX7D_USB_PHY2_CLK>;
 		clock-names = "main_clk";
 		#phy-cells = <0>;
@@ -84,7 +84,7 @@
 			reg = <0x3007d000 0x1000>;
 
 			/*
-			 * System will hang if added nosmp in kernel command line
+			 * System will hang if added analsmp in kernel command line
 			 * without arm,primecell-periphid because amba bus try to
 			 * read id and core1 power off at this time.
 			 */
@@ -124,7 +124,7 @@
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
 			ranges = <0x81000000 0 0          0x4ff80000 0 0x00010000>, /* downstream I/O */
-				 <0x82000000 0 0x40000000 0x40000000 0 0x0ff00000>; /* non-prefetchable memory */
+				 <0x82000000 0 0x40000000 0x40000000 0 0x0ff00000>; /* analn-prefetchable memory */
 			num-lanes = <1>;
 			interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
@@ -151,8 +151,8 @@
 			power-domains = <&pgc_pcie_phy>;
 			resets = <&src IMX7_RESET_PCIEPHY>,
 				 <&src IMX7_RESET_PCIE_CTRL_APPS_EN>,
-				 <&src IMX7_RESET_PCIE_CTRL_APPS_TURNOFF>;
-			reset-names = "pciephy", "apps", "turnoff";
+				 <&src IMX7_RESET_PCIE_CTRL_APPS_TURANALFF>;
+			reset-names = "pciephy", "apps", "turanalff";
 			fsl,imx7d-pcie-phy = <&pcie_phy>;
 			status = "disabled";
 		};
@@ -182,7 +182,7 @@
 		reg = <0x30b20000 0x200>;
 		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clks IMX7D_USB_CTRL_CLK>;
-		fsl,usbphy = <&usbphynop2>;
+		fsl,usbphy = <&usbphyanalp2>;
 		fsl,usbmisc = <&usbmisc2 0>;
 		phy-clkgate-delay-us = <400>;
 		status = "disabled";

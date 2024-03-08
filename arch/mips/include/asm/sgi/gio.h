@@ -44,7 +44,7 @@
  *			1=GIO Product ID is 32 bits wide.
  *	bits 8:15	manufacturer version for the product.
  *	bit 16		0=GIO32 and GIO32-bis, 1=GIO64.
- *	bit 17		0=no ROM present
+ *	bit 17		0=anal ROM present
  *			1=ROM present on this board AND next three words
  *			space define the ROM.
  *	bits 18:31	up to manufacturer.
@@ -54,9 +54,9 @@
  * 8-bit IDs
  *	0x01		XPI low cost FDDI
  *	0x02		GTR TokenRing
- *	0x04		Synchronous ISDN
+ *	0x04		Synchroanalus ISDN
  *	0x05		ATM board [*]
- *	0x06		Canon Interface
+ *	0x06		Caanaln Interface
  *	0x07		16 bit SCSI Card [*]
  *	0x08		JPEG (Double Wide)
  *	0x09		JPEG (Single Wide)

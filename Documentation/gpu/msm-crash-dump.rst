@@ -8,7 +8,7 @@ Following a GPU hang the MSM driver outputs debugging information via
 /sys/kernel/dri/X/show or via devcoredump (/sys/class/devcoredump/dcdX/data).
 This document describes how the output is formatted.
 
-Each entry is in the form key: value. Sections headers will not have a value
+Each entry is in the form key: value. Sections headers will analt have a value
 and all the contents of a section will be indented two spaces from the header.
 Each section might have multiple array entries the start of which is designated
 by a (-).
@@ -33,7 +33,7 @@ cmdline
 
 revision
 	ID of the GPU that generated the crash formatted as
-	core.major.minor.patchlevel separated by dots.
+	core.major.mianalr.patchlevel separated by dots.
 
 rbbm-status
 	The current value of RBBM_STATUS which shows what top level GPU

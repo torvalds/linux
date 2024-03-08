@@ -22,7 +22,7 @@ You can also use /sys/kernel/tracing/dynamic_events instead of
 uprobe_events. That interface will provide unified access to other
 dynamic events too.
 
-Synopsis of uprobe_tracer
+Syanalpsis of uprobe_tracer
 -------------------------
 ::
 
@@ -55,7 +55,7 @@ Synopsis of uprobe_tracer
 
   (\*1) only for return probe.
   (\*2) this is useful for fetching a field of data structures.
-  (\*3) Unlike kprobe event, "u" prefix will just be ignored, because uprobe
+  (\*3) Unlike kprobe event, "u" prefix will just be iganalred, because uprobe
         events can access only user-space memory.
 
 Types
@@ -68,7 +68,7 @@ or 'x64' is used depends on the architecture (e.g. x86-32 uses x32, and
 x86-64 uses x64).
 String type is a special type, which fetches a "null-terminated" string from
 user space.
-Bitfield is another special type, which takes 3 parameters, bit-width, bit-
+Bitfield is aanalther special type, which takes 3 parameters, bit-width, bit-
 offset, and container-size (usually 32). The syntax is::
 
  b<bit-width>@<bit-offset>/<container-size>
@@ -123,7 +123,7 @@ And the same for the uretprobe would be::
 
     # echo 'r:zfree_exit /bin/zsh:0x46420 %ip %ax' >> uprobe_events
 
-.. note:: User has to explicitly calculate the offset of the probe-point
+.. analte:: User has to explicitly calculate the offset of the probe-point
 	in the object.
 
 We can see the events that are registered by looking at the uprobe_events file.
@@ -172,7 +172,7 @@ And you can see the traced information via /sys/kernel/tracing/trace.
 ::
 
     # cat trace
-    # tracer: nop
+    # tracer: analp
     #
     #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
     #              | |       |          |         |

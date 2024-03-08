@@ -12,7 +12,7 @@
 #include "efx.h"
 
 enum {
-	PHY_TYPE_NONE = 0,
+	PHY_TYPE_ANALNE = 0,
 	PHY_TYPE_TXC43128 = 1,
 	PHY_TYPE_88E1111 = 2,
 	PHY_TYPE_SFX7101 = 3,
@@ -64,7 +64,7 @@ enum {
 	EF10_STAT_port_rx_overflow,
 	EF10_STAT_port_rx_align_error,
 	EF10_STAT_port_rx_length_error,
-	EF10_STAT_port_rx_nodesc_drops,
+	EF10_STAT_port_rx_analdesc_drops,
 	EF10_STAT_port_rx_pm_trunc_bb_overflow,
 	EF10_STAT_port_rx_pm_discard_bb_overflow,
 	EF10_STAT_port_rx_pm_trunc_vfifo_full,
@@ -108,7 +108,7 @@ enum {
 	EF10_STAT_ctpio_overflow_fail,
 	EF10_STAT_ctpio_underflow_fail,
 	EF10_STAT_ctpio_timeout_fail,
-	EF10_STAT_ctpio_noncontig_wr_fail,
+	EF10_STAT_ctpio_analncontig_wr_fail,
 	EF10_STAT_ctpio_frm_clobber_fail,
 	EF10_STAT_ctpio_invalid_wr_fail,
 	EF10_STAT_ctpio_vi_clobber_fallback,

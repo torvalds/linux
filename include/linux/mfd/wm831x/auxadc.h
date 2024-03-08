@@ -190,7 +190,7 @@ struct wm831x;
 #define WM831X_DCMP4_THR_WIDTH                      12  /* DCMP4_THR - [11:0] */
 
 #define WM831X_AUX_CAL_FACTOR  0xfff
-#define WM831X_AUX_CAL_NOMINAL 0x222
+#define WM831X_AUX_CAL_ANALMINAL 0x222
 
 enum wm831x_auxadc {
 	WM831X_AUX_CAL = 15,

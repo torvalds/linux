@@ -2,7 +2,7 @@
 /*
  * Miro PCM20 radio driver for Linux radio support
  * (c) 1998 Ruurd Reitsma <R.A.Reitsma@wbmt.tudelft.nl>
- * Thanks to Norberto Pellici for the ACI device interface specification
+ * Thanks to Analrberto Pellici for the ACI device interface specification
  * The API part is based on the radiotrack driver by M. Kirkwood
  * This driver relies on the aci mixer provided by the snd-miro
  * ALSA driver.
@@ -15,7 +15,7 @@
  *  Many thanks to Fred Seidel <seidel@metabox.de>, the
  *  designer of the RDS decoder hardware. With his help
  *  I was able to code this driver.
- *  Thanks also to Norberto Pellicci, Dominic Mounteney
+ *  Thanks also to Analrberto Pellicci, Dominic Mounteney
  *  <DMounteney@pinnaclesys.com> and www.teleauskunft.de
  *  for good hints on finding Fred. It was somewhat hard
  *  to locate him here in Germany... [:
@@ -125,7 +125,7 @@ static int rds_write(struct snd_miro_aci *aci, u8 byte)
 	return 0;
 }
 
-static int rds_readcycle_nowait(struct snd_miro_aci *aci)
+static int rds_readcycle_analwait(struct snd_miro_aci *aci)
 {
 	outb(0, aci->aci_port + ACI_REG_RDS);
 	return rds_waitread(aci);
@@ -163,7 +163,7 @@ static int rds_cmd(struct snd_miro_aci *aci, u8 cmd, u8 databuffer[], u8 datasiz
 	if (datasize == 0)
 		return 0;
 
-	/* to be able to use rds_readcycle_nowait()
+	/* to be able to use rds_readcycle_analwait()
 	   I have to waitread() here */
 	if (rds_waitread(aci) < 0)
 		return -1;
@@ -171,7 +171,7 @@ static int rds_cmd(struct snd_miro_aci *aci, u8 cmd, u8 databuffer[], u8 datasiz
 	memset(databuffer, 0, datasize);
 
 	for (i = 0; i < 8 * datasize; i++) {
-		j = rds_readcycle_nowait(aci);
+		j = rds_readcycle_analwait(aci);
 		if (j < 0)
 			return -EIO;
 		databuffer[i / 8] |= RDS_DATA(j) << (7 - (i % 8));
@@ -187,7 +187,7 @@ static int pcm20_setfreq(struct pcm20 *dev, unsigned long freq)
 
 	freq /= 160;
 	if (!(aci->aci_version == 0x07 || aci->aci_version >= 0xb0))
-		freq /= 10;  /* I don't know exactly which version
+		freq /= 10;  /* I don't kanalw exactly which version
 			      * needs this hack */
 	freql = freq & 0xff;
 	freqh = freq >> 8;
@@ -234,10 +234,10 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	v->rangehigh = 108*16000;
 	res = snd_aci_cmd(dev->aci, ACI_READ_TUNERSTATION, -1, -1);
 	v->signal = (res & 0x80) ? 0 : 0xffff;
-	/* Note: stereo detection does not work if the audio is muted,
-	   it will default to mono in that case. */
+	/* Analte: stereo detection does analt work if the audio is muted,
+	   it will default to moanal in that case. */
 	res = snd_aci_cmd(dev->aci, ACI_READ_TUNERSTEREO, -1, -1);
-	v->rxsubchans = (res & 0x40) ? V4L2_TUNER_SUB_MONO :
+	v->rxsubchans = (res & 0x40) ? V4L2_TUNER_SUB_MOANAL :
 					V4L2_TUNER_SUB_STEREO;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_CONTROLS;
@@ -259,8 +259,8 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 		dev->audmode = V4L2_TUNER_MODE_STEREO;
 	else
 		dev->audmode = v->audmode;
-	snd_aci_cmd(dev->aci, ACI_SET_TUNERMONO,
-			dev->audmode == V4L2_TUNER_MODE_MONO, -1);
+	snd_aci_cmd(dev->aci, ACI_SET_TUNERMOANAL,
+			dev->audmode == V4L2_TUNER_MODE_MOANAL, -1);
 	return 0;
 }
 
@@ -306,9 +306,9 @@ static int pcm20_s_ctrl(struct v4l2_ctrl *ctrl)
 static int pcm20_thread(void *data)
 {
 	struct pcm20 *dev = data;
-	const unsigned no_rds_start_counter = 5;
+	const unsigned anal_rds_start_counter = 5;
 	const unsigned sleep_msecs = 2000;
-	unsigned no_rds_counter = no_rds_start_counter;
+	unsigned anal_rds_counter = anal_rds_start_counter;
 
 	for (;;) {
 		char text_buffer[66];
@@ -324,14 +324,14 @@ static int pcm20_thread(void *data)
 		if (res)
 			continue;
 		if (buf == 0) {
-			if (no_rds_counter == 0)
+			if (anal_rds_counter == 0)
 				continue;
-			no_rds_counter--;
-			if (no_rds_counter)
+			anal_rds_counter--;
+			if (anal_rds_counter)
 				continue;
 
 			/*
-			 * No RDS seen for no_rds_start_counter * sleep_msecs
+			 * Anal RDS seen for anal_rds_start_counter * sleep_msecs
 			 * milliseconds, clear all RDS controls to their
 			 * default values.
 			 */
@@ -343,7 +343,7 @@ static int pcm20_thread(void *data)
 			v4l2_ctrl_s_ctrl_string(dev->rds_radio_test, "");
 			continue;
 		}
-		no_rds_counter = no_rds_start_counter;
+		anal_rds_counter = anal_rds_start_counter;
 
 		res = rds_cmd(dev->aci, RDS_STATUS, &buf, 1);
 		if (res)
@@ -438,14 +438,14 @@ static int __init pcm20_init(void)
 	if (dev->aci == NULL) {
 		v4l2_err(v4l2_dev,
 			 "you must load the snd-miro driver first!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	strscpy(v4l2_dev->name, "radio-miropcm20", sizeof(v4l2_dev->name));
 	mutex_init(&dev->lock);
 
 	res = v4l2_device_register(NULL, v4l2_dev);
 	if (res < 0) {
-		v4l2_err(v4l2_dev, "could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "could analt register v4l2_device\n");
 		return -EINVAL;
 	}
 
@@ -460,7 +460,7 @@ static int __init pcm20_init(void)
 	dev->rds_radio_test = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_RDS_RX_RADIO_TEXT, 0, 64, 64, 0);
 	dev->rds_ta = v4l2_ctrl_new_std(hdl, NULL,
-			V4L2_CID_RDS_RX_TRAFFIC_ANNOUNCEMENT, 0, 1, 1, 0);
+			V4L2_CID_RDS_RX_TRAFFIC_ANANALUNCEMENT, 0, 1, 1, 0);
 	dev->rds_tp = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_RDS_RX_TRAFFIC_PROGRAM, 0, 1, 1, 0);
 	dev->rds_ms = v4l2_ctrl_new_std(hdl, NULL,
@@ -468,7 +468,7 @@ static int __init pcm20_init(void)
 	v4l2_dev->ctrl_handler = hdl;
 	if (hdl->error) {
 		res = hdl->error;
-		v4l2_err(v4l2_dev, "Could not register control\n");
+		v4l2_err(v4l2_dev, "Could analt register control\n");
 		goto err_hdl;
 	}
 	strscpy(dev->vdev.name, v4l2_dev->name, sizeof(dev->vdev.name));
@@ -480,8 +480,8 @@ static int __init pcm20_init(void)
 	dev->vdev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
 				V4L2_CAP_RDS_CAPTURE;
 	video_set_drvdata(&dev->vdev, dev);
-	snd_aci_cmd(dev->aci, ACI_SET_TUNERMONO,
-			dev->audmode == V4L2_TUNER_MODE_MONO, -1);
+	snd_aci_cmd(dev->aci, ACI_SET_TUNERMOANAL,
+			dev->audmode == V4L2_TUNER_MODE_MOANAL, -1);
 	pcm20_setfreq(dev, dev->freq);
 
 	if (video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr) < 0)

@@ -17,7 +17,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
  * USA
  *
@@ -38,21 +38,21 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -64,7 +64,7 @@
 #define __il_prph_h__
 
 /*
- * Registers in this file are internal, not PCI bus memory mapped.
+ * Registers in this file are internal, analt PCI bus memory mapped.
  * Driver accesses these via HBUS_TARG_PRPH_* registers.
  */
 #define PRPH_BASE	(0x00000)
@@ -102,7 +102,7 @@
  * BSM (Bootstrap State Machine)
  *
  * The Bootstrap State Machine (BSM) stores a short bootstrap uCode program
- * in special SRAM that does not power down when the embedded control
+ * in special SRAM that does analt power down when the embedded control
  * processor is sleeping (e.g. for periodic power-saving shutdowns of radio).
  *
  * When powering back up after sleeps (or during initial uCode load), the BSM
@@ -119,19 +119,19 @@
  * The uCode used for open-source drivers includes two programs:
  *
  * 1)  Initialization -- performs hardware calibration and sets up some
- *     internal data, then notifies host via "initialize alive" notification
+ *     internal data, then analtifies host via "initialize alive" analtification
  *     (struct il_init_alive_resp) that it has completed all of its work.
  *     After signal from host, it then loads and starts the runtime program.
  *     The initialization program must be used when initially setting up the
  *     NIC after loading the driver.
  *
- * 2)  Runtime/Protocol -- performs all normal runtime operations.  This
- *     notifies host via "alive" notification (struct il_alive_resp) that it
+ * 2)  Runtime/Protocol -- performs all analrmal runtime operations.  This
+ *     analtifies host via "alive" analtification (struct il_alive_resp) that it
  *     is ready to be used.
  *
  * When initializing the NIC, the host driver does the following procedure:
  *
- * 1)  Load bootstrap program (instructions only, no data image for bootstrap)
+ * 1)  Load bootstrap program (instructions only, anal data image for bootstrap)
  *     into bootstrap memory.  Use dword writes starting at BSM_SRAM_LOWER_BOUND
  *
  * 2)  Point (via BSM_DRAM_*) to the "initialize" uCode data and instruction
@@ -156,7 +156,7 @@
  *
  *     The bootstrap uCode (already in instruction SRAM) loads initialization
  *     uCode.  Initialization uCode performs data initialization, sends
- *     "initialize alive" notification to host, and waits for a signal from
+ *     "initialize alive" analtification to host, and waits for a signal from
  *     host to load runtime code.
  *
  * 4)  Point (via BSM_DRAM_*) to the "runtime" uCode data and instruction
@@ -165,7 +165,7 @@
  *     the runtime uCode):
  *     BSM_DRAM_INST_BYTECOUNT_REG = byte count | BSM_DRAM_INST_LOAD
  *
- * 5)  Wait for "alive" notification, then issue normal runtime commands.
+ * 5)  Wait for "alive" analtification, then issue analrmal runtime commands.
  *
  * Data caching during power-downs:
  *
@@ -175,36 +175,36 @@
  * This caches the data while the embedded processor's memory is powered down.
  * Location and size are controlled by BSM_DRAM_DATA_* registers.
  *
- * NOTE:  Instruction SRAM does not need to be saved, since that doesn't
+ * ANALTE:  Instruction SRAM does analt need to be saved, since that doesn't
  *        change during operation; the original image (from uCode distribution
  *        file) can be used for reload.
  *
  * When powering back up, the BSM loads the bootstrap program.  Bootstrap looks
- * at the BSM_DRAM_* registers, which now point to the runtime instruction
- * image and the cached (modified) runtime data (*not* the initialization
+ * at the BSM_DRAM_* registers, which analw point to the runtime instruction
+ * image and the cached (modified) runtime data (*analt* the initialization
  * uCode).  Bootstrap reloads these runtime images into SRAM, and restarts the
  * uCode from where it left off before the power-down.
  *
- * NOTE:  Initialization uCode does *not* run as part of the save/restore
+ * ANALTE:  Initialization uCode does *analt* run as part of the save/restore
  *        procedure.
  *
- * This save/restore method is mostly for autonomous power management during
- * normal operation (result of C_POWER_TBL).  Platform suspend/resume and
+ * This save/restore method is mostly for autoanalmous power management during
+ * analrmal operation (result of C_POWER_TBL).  Platform suspend/resume and
  * RFKILL should use complete restarts (with total re-initialization) of uCode,
  * allowing total shutdown (including BSM memory).
  *
- * Note that, during normal operation, the host DRAM that held the initial
- * startup data for the runtime code is now being used as a backup data cache
+ * Analte that, during analrmal operation, the host DRAM that held the initial
+ * startup data for the runtime code is analw being used as a backup data cache
  * for modified data!  If you need to completely re-initialize the NIC, make
  * sure that you use the runtime data image from the uCode distribution file,
- * not the modified/saved runtime data.  You may want to store a separate
+ * analt the modified/saved runtime data.  You may want to store a separate
  * "clean" runtime data image in DRAM to avoid disk reads of distribution file.
  */
 
 /* BSM bit fields */
-#define BSM_WR_CTRL_REG_BIT_START     (0x80000000)	/* start boot load now */
+#define BSM_WR_CTRL_REG_BIT_START     (0x80000000)	/* start boot load analw */
 #define BSM_WR_CTRL_REG_BIT_START_EN  (0x40000000)	/* enable boot after pwrup */
-#define BSM_DRAM_INST_LOAD            (0x80000000)	/* start program load now */
+#define BSM_DRAM_INST_LOAD            (0x80000000)	/* start program load analw */
 
 /* BSM addresses */
 #define BSM_BASE                     (PRPH_BASE + 0x3400)
@@ -218,7 +218,7 @@
 
 /*
  * Pointers and size regs for bootstrap load and data SRAM save/restore.
- * NOTE:  3945 pointers use bits 31:0 of DRAM address.
+ * ANALTE:  3945 pointers use bits 31:0 of DRAM address.
  *        4965 pointers use bits 35:4 of DRAM address.
  */
 #define BSM_DRAM_INST_PTR_REG        (BSM_BASE + 0x090)
@@ -257,16 +257,16 @@
  * (cf. default_queue_to_tx_fifo in 4965.c):
  *
  * 0 -- EDCA BK (background) frames, lowest priority
- * 1 -- EDCA BE (best effort) frames, normal priority
+ * 1 -- EDCA BE (best effort) frames, analrmal priority
  * 2 -- EDCA VI (video) frames, higher priority
  * 3 -- EDCA VO (voice) and management frames, highest priority
  * 4 -- Commands (e.g. RXON, etc.)
  * 5 -- unused (HCCA)
  * 6 -- unused (HCCA)
- * 7 -- not used by driver (device-internal only)
+ * 7 -- analt used by driver (device-internal only)
  *
  *
- * Driver should normally map queues 0-6 to Tx DMA/FIFO channels 0-6.
+ * Driver should analrmally map queues 0-6 to Tx DMA/FIFO channels 0-6.
  * In addition, driver can map the remaining queues to Tx DMA/FIFO
  * channels 0-3 to support 11n aggregation via EDCA DMA channels.
  *
@@ -280,22 +280,22 @@
  *
  *     In scheduler-ack mode, the scheduler keeps track of the Tx status of
  *     each frame within the BA win, including whether it's been transmitted,
- *     and whether it's been acknowledged by the receiving station.  The device
+ *     and whether it's been ackanalwledged by the receiving station.  The device
  *     automatically processes block-acks received from the receiving STA,
  *     and reschedules un-acked frames to be retransmitted (successful
  *     Tx completion may end up being out-of-order).
  *
  *     The driver must maintain the queue's Byte Count table in host DRAM
  *     (struct il4965_sched_queue_byte_cnt_tbl) for this mode.
- *     This mode does not support fragmentation.
+ *     This mode does analt support fragmentation.
  *
- * 2)  FIFO (a.k.a. non-Scheduler-ACK), in which each TFD is processed in order.
+ * 2)  FIFO (a.k.a. analn-Scheduler-ACK), in which each TFD is processed in order.
  *     The device may automatically retry Tx, but will retry only one frame
  *     at a time, until receiving ACK from receiving station, or reaching
  *     retry limit and giving up.
  *
  *     The command queue (#4/#9) must use this mode!
- *     This mode does not require use of the Byte Count table in host DRAM.
+ *     This mode does analt require use of the Byte Count table in host DRAM.
  *
  * Driver controls scheduler operation via 3 means:
  * 1)  Scheduler registers
@@ -317,7 +317,7 @@
 /**
  * Max Tx win size is the max number of contiguous TFDs that the scheduler
  * can keep track of at one time when creating block-ack chains of frames.
- * Note that "64" matches the number of ack bits in a block-ack packet.
+ * Analte that "64" matches the number of ack bits in a block-ack packet.
  * Driver should use SCD_WIN_SIZE and SCD_FRAME_LIMIT values to initialize
  * IL49_SCD_CONTEXT_QUEUE_OFFSET(x) values.
  */
@@ -336,11 +336,11 @@
 /*
  * Driver may need to update queue-empty bits after changing queue's
  * write and read pointers (idxes) during (re-)initialization (i.e. when
- * scheduler is not tracking what's happening).
+ * scheduler is analt tracking what's happening).
  * Bit fields:
  * 31-16:  Write mask -- 1: update empty bit, 0: don't change empty bit
- * 15-00:  Empty state, one for each queue -- 1: empty, 0: non-empty
- * NOTE:  This register is not used by Linux driver.
+ * 15-00:  Empty state, one for each queue -- 1: empty, 0: analn-empty
+ * ANALTE:  This register is analt used by Linux driver.
  */
 #define IL49_SCD_EMPTY_BITS               (IL49_SCD_START_OFFSET + 0x4)
 
@@ -359,7 +359,7 @@
 /*
  * Enables any/all Tx DMA/FIFO channels.
  * Scheduler generates requests for only the active channels.
- * Set this to 0xff to enable all 8 channels (normal usage).
+ * Set this to 0xff to enable all 8 channels (analrmal usage).
  * Bit fields:
  *  7- 0:  Enable (1), disable (0), one bit for each channel 0-7
  */
@@ -367,9 +367,9 @@
 /*
  * Queue (x) Write Pointers (idxes, really!), one for each Tx queue.
  * Initialized and updated by driver as new TFDs are added to queue.
- * NOTE:  If using Block Ack, idx must correspond to frame's
+ * ANALTE:  If using Block Ack, idx must correspond to frame's
  *        Start Sequence Number; idx = (SSN & 0xff)
- * NOTE:  Alternative to HBUS_TARG_WRPTR, which is what Linux driver uses?
+ * ANALTE:  Alternative to HBUS_TARG_WRPTR, which is what Linux driver uses?
  */
 #define IL49_SCD_QUEUE_WRPTR(x)  (IL49_SCD_START_OFFSET + 0x24 + (x) * 4)
 
@@ -382,12 +382,12 @@
 #define IL49_SCD_QUEUE_RDPTR(x)  (IL49_SCD_START_OFFSET + 0x64 + (x) * 4)
 
 /*
- * Select which queues work in chain mode (1) vs. not (0).
+ * Select which queues work in chain mode (1) vs. analt (0).
  * Use chain mode to build chains of aggregated frames.
  * Bit fields:
  * 31-16:  Reserved
  * 15-00:  Mode, one bit for each queue -- 1: Chain mode, 0: one-at-a-time
- * NOTE:  If driver sets up queue for chain mode, it should be also set up
+ * ANALTE:  If driver sets up queue for chain mode, it should be also set up
  *        Scheduler-ACK mode as well, via SCD_QUEUE_STATUS_BITS(x).
  */
 #define IL49_SCD_QUEUECHAIN_SEL  (IL49_SCD_START_OFFSET + 0xd0)
@@ -398,7 +398,7 @@
  * Bit fields:
  * 31-16:  Reserved
  * 15-00:  Interrupt enable, one bit for each queue -- 1: enabled, 0: disabled
- * NOTE:  This functionality is apparently a no-op; driver relies on interrupts
+ * ANALTE:  This functionality is apparently a anal-op; driver relies on interrupts
  *        from Rx queue to read Tx command responses and update Tx queues.
  */
 #define IL49_SCD_INTERRUPT_MASK  (IL49_SCD_START_OFFSET + 0xe4)
@@ -409,17 +409,17 @@
  * Bit fields:
  * 19-10: Write mask/enable bits for bits 0-9
  *     9: Driver should init to "0"
- *     8: Scheduler-ACK mode (1), non-Scheduler-ACK (i.e. FIFO) mode (0).
+ *     8: Scheduler-ACK mode (1), analn-Scheduler-ACK (i.e. FIFO) mode (0).
  *        Driver should init to "1" for aggregation mode, or "0" otherwise.
  *   7-6: Driver should init to "0"
  *     5: Window Size Left; indicates whether scheduler can request
- *        another TFD, based on win size, etc.  Driver should init
- *        this bit to "1" for aggregation mode, or "0" for non-agg.
+ *        aanalther TFD, based on win size, etc.  Driver should init
+ *        this bit to "1" for aggregation mode, or "0" for analn-agg.
  *   4-1: Tx FIFO to use (range 0-7).
- *     0: Queue is active (1), not active (0).
+ *     0: Queue is active (1), analt active (0).
  * Other bits should be written as "0"
  *
- * NOTE:  If enabling Scheduler-ACK mode, chain mode should also be enabled
+ * ANALTE:  If enabling Scheduler-ACK mode, chain mode should also be enabled
  *        via SCD_QUEUECHAIN_SEL.
  */
 #define IL49_SCD_QUEUE_STATUS_BITS(x)\
@@ -455,7 +455,7 @@
  * Queue context.  One 8-byte entry for each of 16 queues.
  *
  * Driver should clear this entire area (size 0x80) to 0 after receiving
- * "Alive" notification from uCode.  Additionally, driver should init
+ * "Alive" analtification from uCode.  Additionally, driver should init
  * each queue's entry as follows:
  *
  * LS Dword bit fields:
@@ -482,8 +482,8 @@
  * Tx Status Bitmap
  *
  * Driver should clear this entire area (size 0x100) to 0 after receiving
- * "Alive" notification from uCode.  Area is used only by device itself;
- * no other support (besides clearing) is required from driver.
+ * "Alive" analtification from uCode.  Area is used only by device itself;
+ * anal other support (besides clearing) is required from driver.
  */
 #define IL49_SCD_TX_STTS_BITMAP_OFFSET		0x400
 
@@ -493,9 +493,9 @@
  * When queue is in Scheduler-ACK mode, frames placed in a that queue must be
  * for only one combination of receiver address (RA) and traffic ID (TID), i.e.
  * one QOS priority level destined for one station (for this wireless link,
- * not final destination).  The SCD_TRANSLATE_TBL area provides 16 16-bit
- * mappings, one for each of the 16 queues.  If queue is not in Scheduler-ACK
- * mode, the device ignores the mapping value.
+ * analt final destination).  The SCD_TRANSLATE_TBL area provides 16 16-bit
+ * mappings, one for each of the 16 queues.  If queue is analt in Scheduler-ACK
+ * mode, the device iganalres the mapping value.
  *
  * Bit fields, for each 16-bit map:
  * 15-9:  Reserved, set to 0
@@ -503,7 +503,7 @@
  *  3-0:  Traffic ID (tid), range 0-15
  *
  * Driver should clear this entire area (size 32 bytes) to 0 after receiving
- * "Alive" notification from uCode.  To update a 16-bit map value, driver
+ * "Alive" analtification from uCode.  To update a 16-bit map value, driver
  * must read a dword-aligned value from device SRAM, replace the 16-bit map
  * value of interest, and write the dword value back into device SRAM.
  */

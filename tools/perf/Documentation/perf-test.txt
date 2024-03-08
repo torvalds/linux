@@ -5,7 +5,7 @@ NAME
 ----
 perf-test - Runs sanity tests.
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]'
@@ -33,7 +33,7 @@ OPTIONS
 
 -F::
 --dont-fork::
-	Do not fork child for each test, run all tests within single process.
+	Do analt fork child for each test, run all tests within single process.
 
 --dso::
 	Specify a DSO for the "Symbols" test.

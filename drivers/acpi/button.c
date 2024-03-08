@@ -23,8 +23,8 @@
 
 #define ACPI_BUTTON_CLASS		"button"
 #define ACPI_BUTTON_FILE_STATE		"state"
-#define ACPI_BUTTON_TYPE_UNKNOWN	0x00
-#define ACPI_BUTTON_NOTIFY_STATUS	0x80
+#define ACPI_BUTTON_TYPE_UNKANALWN	0x00
+#define ACPI_BUTTON_ANALTIFY_STATUS	0x80
 
 #define ACPI_BUTTON_SUBCLASS_POWER	"power"
 #define ACPI_BUTTON_DEVICE_NAME_POWER	"Power Button"
@@ -39,14 +39,14 @@
 #define ACPI_BUTTON_TYPE_LID		0x05
 
 enum {
-	ACPI_BUTTON_LID_INIT_IGNORE,
+	ACPI_BUTTON_LID_INIT_IGANALRE,
 	ACPI_BUTTON_LID_INIT_OPEN,
 	ACPI_BUTTON_LID_INIT_METHOD,
 	ACPI_BUTTON_LID_INIT_DISABLED,
 };
 
 static const char * const lid_init_state_str[] = {
-	[ACPI_BUTTON_LID_INIT_IGNORE]		= "ignore",
+	[ACPI_BUTTON_LID_INIT_IGANALRE]		= "iganalre",
 	[ACPI_BUTTON_LID_INIT_OPEN]		= "open",
 	[ACPI_BUTTON_LID_INIT_METHOD]		= "method",
 	[ACPI_BUTTON_LID_INIT_DISABLED]		= "disabled",
@@ -88,19 +88,19 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 	},
 	{
 		/*
-		 * Lenovo Yoga 9 14ITL5, initial notification of the LID device
+		 * Leanalvo Yoga 9 14ITL5, initial analtification of the LID device
 		 * never happens.
 		 */
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82BG"),
 		},
 		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_OPEN,
 	},
 	{
 		/*
-		 * Medion Akoya E2215T, notification of the LID device only
-		 * happens on close, not on open and _LID always returns closed.
+		 * Medion Akoya E2215T, analtification of the LID device only
+		 * happens on close, analt on open and _LID always returns closed.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
@@ -110,8 +110,8 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 	},
 	{
 		/*
-		 * Medion Akoya E2228T, notification of the LID device only
-		 * happens on close, not on open and _LID always returns closed.
+		 * Medion Akoya E2228T, analtification of the LID device only
+		 * happens on close, analt on open and _LID always returns closed.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
@@ -121,8 +121,8 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 	},
 	{
 		/*
-		 * Razer Blade Stealth 13 late 2019, notification of the LID device
-		 * only happens on close, not on open and _LID always returns closed.
+		 * Razer Blade Stealth 13 late 2019, analtification of the LID device
+		 * only happens on close, analt on open and _LID always returns closed.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Razer"),
@@ -185,25 +185,25 @@ static int acpi_lid_evaluate_state(struct acpi_device *device)
 
 	status = acpi_evaluate_integer(device->handle, "_LID", NULL, &lid_state);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return lid_state ? 1 : 0;
 }
 
-static int acpi_lid_notify_state(struct acpi_device *device, int state)
+static int acpi_lid_analtify_state(struct acpi_device *device, int state)
 {
 	struct acpi_button *button = acpi_driver_data(device);
 	ktime_t next_report;
 	bool do_update;
 
 	/*
-	 * In lid_init_state=ignore mode, if user opens/closes lid
+	 * In lid_init_state=iganalre mode, if user opens/closes lid
 	 * frequently with "open" missing, and "last_time" is also updated
-	 * frequently, "close" cannot be delivered to the userspace.
+	 * frequently, "close" cananalt be delivered to the userspace.
 	 * So "last_time" is only updated after a timeout or an actual
 	 * switch.
 	 */
-	if (lid_init_state != ACPI_BUTTON_LID_INIT_IGNORE ||
+	if (lid_init_state != ACPI_BUTTON_LID_INIT_IGANALRE ||
 	    button->last_state != !!state)
 		do_update = true;
 	else
@@ -214,7 +214,7 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	if (button->last_state == !!state &&
 	    ktime_after(ktime_get(), next_report)) {
 		/* Complain the buggy firmware */
-		pr_warn_once("The lid device is not compliant to SW_LID.\n");
+		pr_warn_once("The lid device is analt compliant to SW_LID.\n");
 
 		/*
 		 * Send the unreliable complement switch event:
@@ -229,27 +229,27 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 		 *     https://bugzilla.kernel.org/show_bug.cgi?id=106941
 		 * On these buggy platforms, the usage model of the ACPI
 		 * lid device actually is:
-		 * 1. The initial returning value of _LID may not be
+		 * 1. The initial returning value of _LID may analt be
 		 *    reliable.
-		 * 2. The open event may not be reliable.
+		 * 2. The open event may analt be reliable.
 		 * 3. The close event is reliable.
 		 *
 		 * But SW_LID is typed as input switch event, the input
 		 * layer checks if the event is redundant. Hence if the
-		 * state is not switched, the userspace cannot see this
+		 * state is analt switched, the userspace cananalt see this
 		 * platform triggered reliable event. By inserting a
 		 * complement switch event, it then is guaranteed that the
 		 * platform triggered reliable one can always be seen by
 		 * the userspace.
 		 */
-		if (lid_init_state == ACPI_BUTTON_LID_INIT_IGNORE) {
+		if (lid_init_state == ACPI_BUTTON_LID_INIT_IGANALRE) {
 			do_update = true;
 			/*
 			 * Do generate complement switch event for "close"
 			 * as "close" is reliable and wrong "open" won't
 			 * trigger unexpected behaviors.
-			 * Do not generate complement switch event for
-			 * "open" as "open" is not reliable and wrong
+			 * Do analt generate complement switch event for
+			 * "open" as "open" is analt reliable and wrong
 			 * "close" will trigger unexpected behaviors.
 			 */
 			if (!state) {
@@ -302,19 +302,19 @@ static int acpi_button_add_fs(struct acpi_device *device)
 	/* create /proc/acpi/button */
 	acpi_button_dir = proc_mkdir(ACPI_BUTTON_CLASS, acpi_root_dir);
 	if (!acpi_button_dir)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* create /proc/acpi/button/lid */
 	acpi_lid_dir = proc_mkdir(ACPI_BUTTON_SUBCLASS_LID, acpi_button_dir);
 	if (!acpi_lid_dir) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto remove_button_dir;
 	}
 
 	/* create /proc/acpi/button/lid/LID/ */
 	acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device), acpi_lid_dir);
 	if (!acpi_device_dir(device)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto remove_lid_dir;
 	}
 
@@ -323,7 +323,7 @@ static int acpi_button_add_fs(struct acpi_device *device)
 			acpi_device_dir(device), acpi_button_state_seq_show,
 			device);
 	if (!entry) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto remove_dev_dir;
 	}
 
@@ -367,7 +367,7 @@ static int acpi_button_remove_fs(struct acpi_device *device)
 int acpi_lid_open(void)
 {
 	if (!lid_device)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return acpi_lid_evaluate_state(lid_device);
 }
@@ -385,7 +385,7 @@ static int acpi_lid_update_state(struct acpi_device *device,
 	if (state && signal_wakeup)
 		acpi_pm_wakeup_event(&device->dev);
 
-	return acpi_lid_notify_state(device, state);
+	return acpi_lid_analtify_state(device, state);
 }
 
 static void acpi_lid_initialize_state(struct acpi_device *device)
@@ -394,12 +394,12 @@ static void acpi_lid_initialize_state(struct acpi_device *device)
 
 	switch (lid_init_state) {
 	case ACPI_BUTTON_LID_INIT_OPEN:
-		(void)acpi_lid_notify_state(device, 1);
+		(void)acpi_lid_analtify_state(device, 1);
 		break;
 	case ACPI_BUTTON_LID_INIT_METHOD:
 		(void)acpi_lid_update_state(device, false);
 		break;
-	case ACPI_BUTTON_LID_INIT_IGNORE:
+	case ACPI_BUTTON_LID_INIT_IGANALRE:
 	default:
 		break;
 	}
@@ -407,12 +407,12 @@ static void acpi_lid_initialize_state(struct acpi_device *device)
 	button->lid_state_initialized = true;
 }
 
-static void acpi_lid_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_lid_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
 	struct acpi_button *button;
 
-	if (event != ACPI_BUTTON_NOTIFY_STATUS) {
+	if (event != ACPI_BUTTON_ANALTIFY_STATUS) {
 		acpi_handle_debug(device->handle, "Unsupported event [0x%x]\n",
 				  event);
 		return;
@@ -425,14 +425,14 @@ static void acpi_lid_notify(acpi_handle handle, u32 event, void *data)
 	acpi_lid_update_state(device, true);
 }
 
-static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_button_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
 	struct acpi_button *button;
 	struct input_dev *input;
 	int keycode;
 
-	if (event != ACPI_BUTTON_NOTIFY_STATUS) {
+	if (event != ACPI_BUTTON_ANALTIFY_STATUS) {
 		acpi_handle_debug(device->handle, "Unsupported event [0x%x]\n",
 				  event);
 		return;
@@ -457,14 +457,14 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 					event, ++button->pushed);
 }
 
-static void acpi_button_notify_run(void *data)
+static void acpi_button_analtify_run(void *data)
 {
-	acpi_button_notify(NULL, ACPI_BUTTON_NOTIFY_STATUS, data);
+	acpi_button_analtify(NULL, ACPI_BUTTON_ANALTIFY_STATUS, data);
 }
 
 static u32 acpi_button_event(void *data)
 {
-	acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_button_notify_run, data);
+	acpi_os_execute(OSL_ANALTIFY_HANDLER, acpi_button_analtify_run, data);
 	return ACPI_INTERRUPT_HANDLED;
 }
 
@@ -516,7 +516,7 @@ static int acpi_lid_input_open(struct input_dev *input)
 
 static int acpi_button_add(struct acpi_device *device)
 {
-	acpi_notify_handler handler;
+	acpi_analtify_handler handler;
 	struct acpi_button *button;
 	struct input_dev *input;
 	const char *hid = acpi_device_hid(device);
@@ -526,17 +526,17 @@ static int acpi_button_add(struct acpi_device *device)
 
 	if (!strcmp(hid, ACPI_BUTTON_HID_LID) &&
 	     lid_init_state == ACPI_BUTTON_LID_INIT_DISABLED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	button = kzalloc(sizeof(struct acpi_button), GFP_KERNEL);
 	if (!button)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device->driver_data = button;
 
 	button->input = input = input_allocate_device();
 	if (!input) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_button;
 	}
 
@@ -546,27 +546,27 @@ static int acpi_button_add(struct acpi_device *device)
 	if (!strcmp(hid, ACPI_BUTTON_HID_POWER) ||
 	    !strcmp(hid, ACPI_BUTTON_HID_POWERF)) {
 		button->type = ACPI_BUTTON_TYPE_POWER;
-		handler = acpi_button_notify;
+		handler = acpi_button_analtify;
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_POWER);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_POWER);
 	} else if (!strcmp(hid, ACPI_BUTTON_HID_SLEEP) ||
 		   !strcmp(hid, ACPI_BUTTON_HID_SLEEPF)) {
 		button->type = ACPI_BUTTON_TYPE_SLEEP;
-		handler = acpi_button_notify;
+		handler = acpi_button_analtify;
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_SLEEP);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_SLEEP);
 	} else if (!strcmp(hid, ACPI_BUTTON_HID_LID)) {
 		button->type = ACPI_BUTTON_TYPE_LID;
-		handler = acpi_lid_notify;
+		handler = acpi_lid_analtify;
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_LID);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_LID);
 		input->open = acpi_lid_input_open;
 	} else {
 		pr_info("Unsupported hid [%s]\n", hid);
-		error = -ENODEV;
+		error = -EANALDEV;
 	}
 
 	if (!error)
@@ -617,13 +617,13 @@ static int acpi_button_add(struct acpi_device *device)
 							  device);
 		break;
 	default:
-		status = acpi_install_notify_handler(device->handle,
-						     ACPI_DEVICE_NOTIFY, handler,
+		status = acpi_install_analtify_handler(device->handle,
+						     ACPI_DEVICE_ANALTIFY, handler,
 						     device);
 		break;
 	}
 	if (ACPI_FAILURE(status)) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_input_unregister;
 	}
 
@@ -662,10 +662,10 @@ static void acpi_button_remove(struct acpi_device *device)
 						acpi_button_event);
 		break;
 	default:
-		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+		acpi_remove_analtify_handler(device->handle, ACPI_DEVICE_ANALTIFY,
 					   button->type == ACPI_BUTTON_TYPE_LID ?
-						acpi_lid_notify :
-						acpi_button_notify);
+						acpi_lid_analtify :
+						acpi_button_analtify);
 		break;
 	}
 	acpi_os_wait_events_complete();
@@ -722,9 +722,9 @@ static int acpi_button_register_driver(struct acpi_driver *driver)
 	}
 
 	/*
-	 * Modules such as nouveau.ko and i915.ko have a link time dependency
-	 * on acpi_lid_open(), and would therefore not be loadable on ACPI
-	 * capable kernels booted in non-ACPI mode if the return value of
+	 * Modules such as analuveau.ko and i915.ko have a link time dependency
+	 * on acpi_lid_open(), and would therefore analt be loadable on ACPI
+	 * capable kernels booted in analn-ACPI mode if the return value of
 	 * acpi_bus_register_driver() is returned from here with ACPI disabled
 	 * when this driver is built as a module.
 	 */

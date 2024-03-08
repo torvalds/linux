@@ -27,7 +27,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 
 	pm_runtime_get_sync(dev);
 
-	/* Magic unknown register writes:
+	/* Magic unkanalwn register writes:
 	 *
 	 *    W VBIF:0x004 00000001      (mdss_mdp.c:839)
 	 *    W MDP5:0x2e0 0xe9          (mdss_mdp.c:839)
@@ -40,11 +40,11 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	 *    W MDP5:0x4b8 0xccccc000    (mdss_mdp.c:839)
 	 *
 	 * Downstream fbdev driver gets these register offsets/values
-	 * from DT.. not really sure what these registers are or if
+	 * from DT.. analt really sure what these registers are or if
 	 * different values for different boards/SoC's, etc.  I guess
 	 * they are the golden registers.
 	 *
-	 * Not setting these does not seem to cause any problem.  But
+	 * Analt setting these does analt seem to cause any problem.  But
 	 * we may be getting lucky with the bootloader initializing
 	 * them for us.  OTOH, if we can always count on the bootloader
 	 * setting the golden registers, then perhaps we don't need to
@@ -66,7 +66,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 
 /*
  * This is a helper that returns the private state currently in operation.
- * Note that this would return the "old_state" if called in the atomic check
+ * Analte that this would return the "old_state" if called in the atomic check
  * path, and the "new_state" after the atomic swap has been done.
  */
 struct mdp5_global_state *
@@ -132,7 +132,7 @@ static int mdp5_global_obj_init(struct mdp5_kms *mdp5_kms)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->mdp5_kms = mdp5_kms;
 
@@ -222,14 +222,14 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 #ifdef CONFIG_DEBUG_FS
 static int smp_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	if (!mdp5_kms->smp) {
-		drm_printf(&p, "no SMP pool\n");
+		drm_printf(&p, "anal SMP pool\n");
 		return 0;
 	}
 
@@ -242,11 +242,11 @@ static struct drm_info_list mdp5_debugfs_list[] = {
 		{"smp", smp_show },
 };
 
-static int mdp5_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
+static int mdp5_kms_debugfs_init(struct msm_kms *kms, struct drm_mianalr *mianalr)
 {
 	drm_debugfs_create_files(mdp5_debugfs_list,
 				 ARRAY_SIZE(mdp5_debugfs_list),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 
 	return 0;
 }
@@ -411,7 +411,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms,
 		break;
 	}
 	default:
-		DRM_DEV_ERROR(dev->dev, "unknown intf: %d\n", intf->type);
+		DRM_DEV_ERROR(dev->dev, "unkanalwn intf: %d\n", intf->type);
 		ret = -EINVAL;
 		break;
 	}
@@ -494,7 +494,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	}
 
 	/*
-	 * Now that we know the number of crtcs we've created, set the possible
+	 * Analw that we kanalw the number of crtcs we've created, set the possible
 	 * crtcs for the encoders
 	 */
 	drm_for_each_encoder(encoder, dev)
@@ -507,7 +507,7 @@ fail:
 }
 
 static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
-				 u32 *major, u32 *minor)
+				 u32 *major, u32 *mianalr)
 {
 	struct device *dev = &mdp5_kms->pdev->dev;
 	u32 version;
@@ -517,9 +517,9 @@ static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
 	pm_runtime_put_sync(dev);
 
 	*major = FIELD(version, MDP5_HW_VERSION_MAJOR);
-	*minor = FIELD(version, MDP5_HW_VERSION_MINOR);
+	*mianalr = FIELD(version, MDP5_HW_VERSION_MIANALR);
 
-	DRM_DEV_INFO(dev, "MDP5 version v%d.%d", *major, *minor);
+	DRM_DEV_INFO(dev, "MDP5 version v%d.%d", *major, *mianalr);
 }
 
 static int get_clk(struct platform_device *pdev, struct clk **clkp,
@@ -739,12 +739,12 @@ static int interface_init(struct mdp5_kms *mdp5_kms)
 		intf = devm_kzalloc(dev->dev, sizeof(*intf), GFP_KERNEL);
 		if (!intf) {
 			DRM_DEV_ERROR(dev->dev, "failed to construct INTF%d\n", i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		intf->num = i;
 		intf->type = intf_types[i];
-		intf->mode = MDP5_INTF_MODE_NONE;
+		intf->mode = MDP5_INTF_MODE_ANALNE;
 		intf->idx = mdp5_kms->num_intfs;
 		mdp5_kms->intfs[mdp5_kms->num_intfs++] = intf;
 	}
@@ -757,7 +757,7 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
 	struct mdp5_cfg *config;
-	u32 major, minor;
+	u32 major, mianalr;
 	int ret;
 
 	mdp5_kms->dev = dev;
@@ -775,9 +775,9 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	pm_runtime_enable(&pdev->dev);
 	mdp5_kms->rpm_enabled = true;
 
-	read_mdp_hw_revision(mdp5_kms, &major, &minor);
+	read_mdp_hw_revision(mdp5_kms, &major, &mianalr);
 
-	mdp5_kms->cfg = mdp5_cfg_init(mdp5_kms, major, minor);
+	mdp5_kms->cfg = mdp5_cfg_init(mdp5_kms, major, mianalr);
 	if (IS_ERR(mdp5_kms->cfg)) {
 		ret = PTR_ERR(mdp5_kms->cfg);
 		mdp5_kms->cfg = NULL;
@@ -839,13 +839,13 @@ static int mdp5_setup_interconnect(struct platform_device *pdev)
 		return PTR_ERR(path0);
 
 	if (!path0) {
-		/* no interconnect support is not necessarily a fatal
-		 * condition, the platform may simply not have an
+		/* anal interconnect support is analt necessarily a fatal
+		 * condition, the platform may simply analt have an
 		 * interconnect driver yet.  But warn about it in case
-		 * bootloader didn't setup bus clocks high enough for
-		 * scanout.
+		 * bootloader didn't setup bus clocks high eanalugh for
+		 * scaanalut.
 		 */
-		dev_warn(&pdev->dev, "No interconnect support may cause display underflows!\n");
+		dev_warn(&pdev->dev, "Anal interconnect support may cause display underflows!\n");
 		return 0;
 	}
 
@@ -868,7 +868,7 @@ static int mdp5_dev_probe(struct platform_device *pdev)
 
 	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mdp5_setup_interconnect(pdev);
 	if (ret)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -1581,12 +1581,12 @@
 #define DAGB0_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB0_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB0_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB0_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB0_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB0_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
-//DAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
+//DAGB0_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB0_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB0_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
+//DAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
 //DAGB0_WRCLI_ASK_PENDING
 #define DAGB0_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB0_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -1703,7 +1703,7 @@
 #define DAGB0_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x6
 #define DAGB0_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x10
 #define DAGB0_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x11
-#define DAGB0_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x12
+#define DAGB0_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x12
 #define DAGB0_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x13
 #define DAGB0_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x14
 #define DAGB0_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x16
@@ -1712,7 +1712,7 @@
 #define DAGB0_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00001FC0L
 #define DAGB0_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00010000L
 #define DAGB0_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00020000L
-#define DAGB0_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00040000L
+#define DAGB0_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00040000L
 #define DAGB0_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00080000L
 #define DAGB0_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00300000L
 #define DAGB0_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00400000L
@@ -3368,12 +3368,12 @@
 #define DAGB1_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB1_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB1_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB1_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB1_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB1_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
-//DAGB1_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB1_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB1_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
+//DAGB1_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB1_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB1_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
+//DAGB1_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB1_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB1_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
 //DAGB1_WRCLI_ASK_PENDING
 #define DAGB1_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB1_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -3490,7 +3490,7 @@
 #define DAGB1_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x6
 #define DAGB1_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x10
 #define DAGB1_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x11
-#define DAGB1_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x12
+#define DAGB1_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x12
 #define DAGB1_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x13
 #define DAGB1_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x14
 #define DAGB1_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x16
@@ -3499,7 +3499,7 @@
 #define DAGB1_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00001FC0L
 #define DAGB1_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00010000L
 #define DAGB1_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00020000L
-#define DAGB1_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00040000L
+#define DAGB1_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00040000L
 #define DAGB1_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00080000L
 #define DAGB1_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00300000L
 #define DAGB1_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00400000L
@@ -5155,12 +5155,12 @@
 #define DAGB2_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB2_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB2_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB2_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB2_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB2_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
-//DAGB2_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB2_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB2_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
+//DAGB2_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB2_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB2_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
+//DAGB2_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB2_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB2_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
 //DAGB2_WRCLI_ASK_PENDING
 #define DAGB2_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB2_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -5277,7 +5277,7 @@
 #define DAGB2_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x6
 #define DAGB2_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x10
 #define DAGB2_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x11
-#define DAGB2_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x12
+#define DAGB2_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x12
 #define DAGB2_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x13
 #define DAGB2_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x14
 #define DAGB2_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x16
@@ -5286,7 +5286,7 @@
 #define DAGB2_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00001FC0L
 #define DAGB2_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00010000L
 #define DAGB2_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00020000L
-#define DAGB2_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00040000L
+#define DAGB2_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00040000L
 #define DAGB2_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00080000L
 #define DAGB2_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00300000L
 #define DAGB2_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00400000L
@@ -6942,12 +6942,12 @@
 #define DAGB3_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB3_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB3_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB3_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB3_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB3_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
-//DAGB3_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB3_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB3_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
+//DAGB3_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB3_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB3_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
+//DAGB3_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB3_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB3_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
 //DAGB3_WRCLI_ASK_PENDING
 #define DAGB3_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB3_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -7064,7 +7064,7 @@
 #define DAGB3_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x6
 #define DAGB3_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x10
 #define DAGB3_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x11
-#define DAGB3_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x12
+#define DAGB3_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x12
 #define DAGB3_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x13
 #define DAGB3_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x14
 #define DAGB3_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x16
@@ -7073,7 +7073,7 @@
 #define DAGB3_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00001FC0L
 #define DAGB3_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00010000L
 #define DAGB3_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00020000L
-#define DAGB3_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00040000L
+#define DAGB3_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00040000L
 #define DAGB3_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00080000L
 #define DAGB3_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00300000L
 #define DAGB3_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00400000L
@@ -8729,12 +8729,12 @@
 #define DAGB4_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB4_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB4_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB4_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB4_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB4_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
-//DAGB4_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB4_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB4_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
+//DAGB4_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB4_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB4_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
+//DAGB4_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB4_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB4_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
 //DAGB4_WRCLI_ASK_PENDING
 #define DAGB4_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB4_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -8851,7 +8851,7 @@
 #define DAGB4_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x6
 #define DAGB4_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x10
 #define DAGB4_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x11
-#define DAGB4_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x12
+#define DAGB4_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x12
 #define DAGB4_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x13
 #define DAGB4_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x14
 #define DAGB4_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x16
@@ -8860,7 +8860,7 @@
 #define DAGB4_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00001FC0L
 #define DAGB4_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00010000L
 #define DAGB4_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00020000L
-#define DAGB4_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00040000L
+#define DAGB4_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00040000L
 #define DAGB4_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00080000L
 #define DAGB4_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00300000L
 #define DAGB4_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00400000L
@@ -10516,12 +10516,12 @@
 #define DAGB5_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB5_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB5_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB5_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB5_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB5_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
-//DAGB5_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB5_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB5_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
+//DAGB5_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB5_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB5_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0xFFFFFFFFL
+//DAGB5_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB5_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB5_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0xFFFFFFFFL
 //DAGB5_WRCLI_ASK_PENDING
 #define DAGB5_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB5_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -10638,7 +10638,7 @@
 #define DAGB5_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x6
 #define DAGB5_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x10
 #define DAGB5_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x11
-#define DAGB5_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x12
+#define DAGB5_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x12
 #define DAGB5_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x13
 #define DAGB5_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x14
 #define DAGB5_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x16
@@ -10647,7 +10647,7 @@
 #define DAGB5_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00001FC0L
 #define DAGB5_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00010000L
 #define DAGB5_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00020000L
-#define DAGB5_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00040000L
+#define DAGB5_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00040000L
 #define DAGB5_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00080000L
 #define DAGB5_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00300000L
 #define DAGB5_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00400000L
@@ -11651,156 +11651,156 @@
 #define MMEA0_GMI_WR_PRI_QUANT_PRI3__GROUP1_THRESHOLD_MASK                                                    0x0000FF00L
 #define MMEA0_GMI_WR_PRI_QUANT_PRI3__GROUP2_THRESHOLD_MASK                                                    0x00FF0000L
 #define MMEA0_GMI_WR_PRI_QUANT_PRI3__GROUP3_THRESHOLD_MASK                                                    0xFF000000L
-//MMEA0_ADDRNORM_BASE_ADDR0
-#define MMEA0_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA0_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA0_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA0_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA0_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA0_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA0_ADDRNORM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA0_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA0_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA0_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA0_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA0_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA0_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA0_ADDRNORM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA0_ADDRNORM_LIMIT_ADDR0
-#define MMEA0_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA0_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA0_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA0_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA0_ADDRNORM_BASE_ADDR1
-#define MMEA0_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA0_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA0_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA0_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA0_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA0_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA0_ADDRNORM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA0_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA0_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA0_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA0_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA0_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA0_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA0_ADDRNORM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA0_ADDRNORM_LIMIT_ADDR1
-#define MMEA0_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA0_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA0_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA0_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA0_ADDRNORM_OFFSET_ADDR1
-#define MMEA0_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA0_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA0_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA0_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA0_ADDRNORM_BASE_ADDR2
-#define MMEA0_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA0_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA0_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA0_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA0_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA0_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA0_ADDRNORM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA0_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA0_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA0_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA0_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA0_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA0_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA0_ADDRNORM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA0_ADDRNORM_LIMIT_ADDR2
-#define MMEA0_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA0_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA0_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA0_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA0_ADDRNORM_BASE_ADDR3
-#define MMEA0_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA0_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA0_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA0_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA0_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA0_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA0_ADDRNORM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA0_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA0_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA0_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA0_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA0_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA0_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA0_ADDRNORM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA0_ADDRNORM_LIMIT_ADDR3
-#define MMEA0_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA0_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA0_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA0_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA0_ADDRNORM_OFFSET_ADDR3
-#define MMEA0_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA0_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA0_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA0_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA0_ADDRNORM_MEGABASE_ADDR0
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA0_ADDRNORM_MEGALIMIT_ADDR0
-#define MMEA0_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA0_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA0_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA0_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA0_ADDRNORM_MEGABASE_ADDR1
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA0_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA0_ADDRNORM_MEGALIMIT_ADDR1
-#define MMEA0_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA0_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA0_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA0_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA0_ADDRNORMDRAM_HOLE_CNTL
-#define MMEA0_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
-#define MMEA0_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
-#define MMEA0_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
-#define MMEA0_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
-//MMEA0_ADDRNORMGMI_HOLE_CNTL
-#define MMEA0_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
-#define MMEA0_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
-#define MMEA0_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
-#define MMEA0_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
-//MMEA0_ADDRNORMDRAM_NP2_CHANNEL_CFG
-#define MMEA0_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
-#define MMEA0_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
-#define MMEA0_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
-#define MMEA0_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
-//MMEA0_ADDRNORMGMI_NP2_CHANNEL_CFG
-#define MMEA0_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
-#define MMEA0_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
-#define MMEA0_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
-#define MMEA0_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
+//MMEA0_ADDRANALRM_BASE_ADDR0
+#define MMEA0_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA0_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA0_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA0_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA0_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA0_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA0_ADDRANALRM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA0_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA0_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA0_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA0_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA0_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA0_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA0_ADDRANALRM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA0_ADDRANALRM_LIMIT_ADDR0
+#define MMEA0_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA0_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA0_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA0_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA0_ADDRANALRM_BASE_ADDR1
+#define MMEA0_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA0_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA0_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA0_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA0_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA0_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA0_ADDRANALRM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA0_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA0_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA0_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA0_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA0_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA0_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA0_ADDRANALRM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA0_ADDRANALRM_LIMIT_ADDR1
+#define MMEA0_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA0_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA0_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA0_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA0_ADDRANALRM_OFFSET_ADDR1
+#define MMEA0_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA0_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA0_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA0_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA0_ADDRANALRM_BASE_ADDR2
+#define MMEA0_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA0_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA0_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA0_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA0_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA0_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA0_ADDRANALRM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA0_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA0_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA0_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA0_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA0_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA0_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA0_ADDRANALRM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA0_ADDRANALRM_LIMIT_ADDR2
+#define MMEA0_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA0_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA0_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA0_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA0_ADDRANALRM_BASE_ADDR3
+#define MMEA0_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA0_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA0_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA0_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA0_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA0_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA0_ADDRANALRM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA0_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA0_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA0_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA0_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA0_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA0_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA0_ADDRANALRM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA0_ADDRANALRM_LIMIT_ADDR3
+#define MMEA0_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA0_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA0_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA0_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA0_ADDRANALRM_OFFSET_ADDR3
+#define MMEA0_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA0_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA0_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA0_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA0_ADDRANALRM_MEGABASE_ADDR0
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA0_ADDRANALRM_MEGALIMIT_ADDR0
+#define MMEA0_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA0_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA0_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA0_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA0_ADDRANALRM_MEGABASE_ADDR1
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA0_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA0_ADDRANALRM_MEGALIMIT_ADDR1
+#define MMEA0_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA0_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA0_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA0_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA0_ADDRANALRMDRAM_HOLE_CNTL
+#define MMEA0_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
+#define MMEA0_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
+#define MMEA0_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
+#define MMEA0_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
+//MMEA0_ADDRANALRMGMI_HOLE_CNTL
+#define MMEA0_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
+#define MMEA0_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
+#define MMEA0_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
+#define MMEA0_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
+//MMEA0_ADDRANALRMDRAM_NP2_CHANNEL_CFG
+#define MMEA0_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
+#define MMEA0_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
+#define MMEA0_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
+#define MMEA0_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
+//MMEA0_ADDRANALRMGMI_NP2_CHANNEL_CFG
+#define MMEA0_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
+#define MMEA0_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
+#define MMEA0_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
+#define MMEA0_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
 //MMEA0_ADDRDEC_BANK_CFG
 #define MMEA0_ADDRDEC_BANK_CFG__BANK_MASK_DRAM__SHIFT                                                         0x0
 #define MMEA0_ADDRDEC_BANK_CFG__BANK_MASK_GMI__SHIFT                                                          0x6
@@ -12589,20 +12589,20 @@
 #define MMEA0_ADDRDEC2_RM_SEL_SECCS23__CHAN_BIT_MASK                                                          0x0000F000L
 #define MMEA0_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_EVEN_MASK                                              0x00030000L
 #define MMEA0_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_ODD_MASK                                               0x000C0000L
-//MMEA0_ADDRNORMDRAM_GLOBAL_CNTL
-//MMEA0_ADDRNORMGMI_GLOBAL_CNTL
-//MMEA0_ADDRNORM_MEGACONTROL_ADDR0
-#define MMEA0_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA0_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA0_ADDRNORM_MEGACONTROL_ADDR1
-#define MMEA0_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA0_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA0_ADDRNORMDRAM_MASKING
-#define MMEA0_ADDRNORMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
-#define MMEA0_ADDRNORMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
-//MMEA0_ADDRNORMGMI_MASKING
-#define MMEA0_ADDRNORMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
-#define MMEA0_ADDRNORMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
+//MMEA0_ADDRANALRMDRAM_GLOBAL_CNTL
+//MMEA0_ADDRANALRMGMI_GLOBAL_CNTL
+//MMEA0_ADDRANALRM_MEGACONTROL_ADDR0
+#define MMEA0_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA0_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA0_ADDRANALRM_MEGACONTROL_ADDR1
+#define MMEA0_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA0_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA0_ADDRANALRMDRAM_MASKING
+#define MMEA0_ADDRANALRMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
+#define MMEA0_ADDRANALRMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
+//MMEA0_ADDRANALRMGMI_MASKING
+#define MMEA0_ADDRANALRMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
+#define MMEA0_ADDRANALRMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
 //MMEA0_IO_RD_CLI2GRP_MAP0
 #define MMEA0_IO_RD_CLI2GRP_MAP0__CID0_GROUP__SHIFT                                                           0x0
 #define MMEA0_IO_RD_CLI2GRP_MAP0__CID1_GROUP__SHIFT                                                           0x2
@@ -13328,8 +13328,8 @@
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -13344,8 +13344,8 @@
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA0_PERFCOUNTER_LO
@@ -13629,9 +13629,9 @@
 #define MMEA0_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA0_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA0_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA0_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA0_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA0_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA0_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA0_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA0_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA0_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA0_ERR_STATUS__SDP_RDRSP_STATUS_MASK                                                               0x0000000FL
@@ -13641,9 +13641,9 @@
 #define MMEA0_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA0_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA0_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA0_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA0_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA0_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA0_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA0_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA0_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA0_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 //MMEA0_MISC2
@@ -14597,156 +14597,156 @@
 #define MMEA1_GMI_WR_PRI_QUANT_PRI3__GROUP1_THRESHOLD_MASK                                                    0x0000FF00L
 #define MMEA1_GMI_WR_PRI_QUANT_PRI3__GROUP2_THRESHOLD_MASK                                                    0x00FF0000L
 #define MMEA1_GMI_WR_PRI_QUANT_PRI3__GROUP3_THRESHOLD_MASK                                                    0xFF000000L
-//MMEA1_ADDRNORM_BASE_ADDR0
-#define MMEA1_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA1_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA1_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA1_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA1_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA1_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA1_ADDRNORM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA1_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA1_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA1_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA1_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA1_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA1_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA1_ADDRNORM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA1_ADDRNORM_LIMIT_ADDR0
-#define MMEA1_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA1_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA1_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA1_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA1_ADDRNORM_BASE_ADDR1
-#define MMEA1_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA1_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA1_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA1_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA1_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA1_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA1_ADDRNORM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA1_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA1_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA1_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA1_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA1_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA1_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA1_ADDRNORM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA1_ADDRNORM_LIMIT_ADDR1
-#define MMEA1_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA1_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA1_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA1_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA1_ADDRNORM_OFFSET_ADDR1
-#define MMEA1_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA1_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA1_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA1_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA1_ADDRNORM_BASE_ADDR2
-#define MMEA1_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA1_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA1_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA1_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA1_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA1_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA1_ADDRNORM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA1_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA1_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA1_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA1_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA1_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA1_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA1_ADDRNORM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA1_ADDRNORM_LIMIT_ADDR2
-#define MMEA1_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA1_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA1_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA1_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA1_ADDRNORM_BASE_ADDR3
-#define MMEA1_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA1_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA1_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA1_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA1_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA1_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA1_ADDRNORM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA1_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA1_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA1_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA1_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA1_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA1_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA1_ADDRNORM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA1_ADDRNORM_LIMIT_ADDR3
-#define MMEA1_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA1_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA1_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA1_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA1_ADDRNORM_OFFSET_ADDR3
-#define MMEA1_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA1_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA1_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA1_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA1_ADDRNORM_MEGABASE_ADDR0
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA1_ADDRNORM_MEGALIMIT_ADDR0
-#define MMEA1_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA1_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA1_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA1_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA1_ADDRNORM_MEGABASE_ADDR1
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA1_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA1_ADDRNORM_MEGALIMIT_ADDR1
-#define MMEA1_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA1_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA1_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA1_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA1_ADDRNORMDRAM_HOLE_CNTL
-#define MMEA1_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
-#define MMEA1_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
-#define MMEA1_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
-#define MMEA1_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
-//MMEA1_ADDRNORMGMI_HOLE_CNTL
-#define MMEA1_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
-#define MMEA1_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
-#define MMEA1_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
-#define MMEA1_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
-//MMEA1_ADDRNORMDRAM_NP2_CHANNEL_CFG
-#define MMEA1_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
-#define MMEA1_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
-#define MMEA1_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
-#define MMEA1_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
-//MMEA1_ADDRNORMGMI_NP2_CHANNEL_CFG
-#define MMEA1_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
-#define MMEA1_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
-#define MMEA1_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
-#define MMEA1_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
+//MMEA1_ADDRANALRM_BASE_ADDR0
+#define MMEA1_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA1_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA1_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA1_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA1_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA1_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA1_ADDRANALRM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA1_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA1_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA1_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA1_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA1_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA1_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA1_ADDRANALRM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA1_ADDRANALRM_LIMIT_ADDR0
+#define MMEA1_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA1_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA1_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA1_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA1_ADDRANALRM_BASE_ADDR1
+#define MMEA1_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA1_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA1_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA1_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA1_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA1_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA1_ADDRANALRM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA1_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA1_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA1_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA1_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA1_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA1_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA1_ADDRANALRM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA1_ADDRANALRM_LIMIT_ADDR1
+#define MMEA1_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA1_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA1_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA1_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA1_ADDRANALRM_OFFSET_ADDR1
+#define MMEA1_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA1_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA1_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA1_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA1_ADDRANALRM_BASE_ADDR2
+#define MMEA1_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA1_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA1_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA1_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA1_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA1_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA1_ADDRANALRM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA1_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA1_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA1_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA1_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA1_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA1_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA1_ADDRANALRM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA1_ADDRANALRM_LIMIT_ADDR2
+#define MMEA1_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA1_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA1_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA1_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA1_ADDRANALRM_BASE_ADDR3
+#define MMEA1_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA1_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA1_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA1_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA1_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA1_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA1_ADDRANALRM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA1_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA1_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA1_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA1_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA1_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA1_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA1_ADDRANALRM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA1_ADDRANALRM_LIMIT_ADDR3
+#define MMEA1_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA1_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA1_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA1_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA1_ADDRANALRM_OFFSET_ADDR3
+#define MMEA1_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA1_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA1_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA1_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA1_ADDRANALRM_MEGABASE_ADDR0
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA1_ADDRANALRM_MEGALIMIT_ADDR0
+#define MMEA1_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA1_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA1_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA1_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA1_ADDRANALRM_MEGABASE_ADDR1
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA1_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA1_ADDRANALRM_MEGALIMIT_ADDR1
+#define MMEA1_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA1_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA1_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA1_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA1_ADDRANALRMDRAM_HOLE_CNTL
+#define MMEA1_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
+#define MMEA1_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
+#define MMEA1_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
+#define MMEA1_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
+//MMEA1_ADDRANALRMGMI_HOLE_CNTL
+#define MMEA1_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
+#define MMEA1_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
+#define MMEA1_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
+#define MMEA1_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
+//MMEA1_ADDRANALRMDRAM_NP2_CHANNEL_CFG
+#define MMEA1_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
+#define MMEA1_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
+#define MMEA1_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
+#define MMEA1_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
+//MMEA1_ADDRANALRMGMI_NP2_CHANNEL_CFG
+#define MMEA1_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
+#define MMEA1_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
+#define MMEA1_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
+#define MMEA1_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
 //MMEA1_ADDRDEC_BANK_CFG
 #define MMEA1_ADDRDEC_BANK_CFG__BANK_MASK_DRAM__SHIFT                                                         0x0
 #define MMEA1_ADDRDEC_BANK_CFG__BANK_MASK_GMI__SHIFT                                                          0x6
@@ -15535,20 +15535,20 @@
 #define MMEA1_ADDRDEC2_RM_SEL_SECCS23__CHAN_BIT_MASK                                                          0x0000F000L
 #define MMEA1_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_EVEN_MASK                                              0x00030000L
 #define MMEA1_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_ODD_MASK                                               0x000C0000L
-//MMEA1_ADDRNORMDRAM_GLOBAL_CNTL
-//MMEA1_ADDRNORMGMI_GLOBAL_CNTL
-//MMEA1_ADDRNORM_MEGACONTROL_ADDR0
-#define MMEA1_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA1_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA1_ADDRNORM_MEGACONTROL_ADDR1
-#define MMEA1_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA1_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA1_ADDRNORMDRAM_MASKING
-#define MMEA1_ADDRNORMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
-#define MMEA1_ADDRNORMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
-//MMEA1_ADDRNORMGMI_MASKING
-#define MMEA1_ADDRNORMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
-#define MMEA1_ADDRNORMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
+//MMEA1_ADDRANALRMDRAM_GLOBAL_CNTL
+//MMEA1_ADDRANALRMGMI_GLOBAL_CNTL
+//MMEA1_ADDRANALRM_MEGACONTROL_ADDR0
+#define MMEA1_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA1_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA1_ADDRANALRM_MEGACONTROL_ADDR1
+#define MMEA1_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA1_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA1_ADDRANALRMDRAM_MASKING
+#define MMEA1_ADDRANALRMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
+#define MMEA1_ADDRANALRMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
+//MMEA1_ADDRANALRMGMI_MASKING
+#define MMEA1_ADDRANALRMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
+#define MMEA1_ADDRANALRMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
 //MMEA1_IO_RD_CLI2GRP_MAP0
 #define MMEA1_IO_RD_CLI2GRP_MAP0__CID0_GROUP__SHIFT                                                           0x0
 #define MMEA1_IO_RD_CLI2GRP_MAP0__CID1_GROUP__SHIFT                                                           0x2
@@ -16274,8 +16274,8 @@
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -16290,8 +16290,8 @@
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA1_PERFCOUNTER_LO
@@ -16575,9 +16575,9 @@
 #define MMEA1_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA1_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA1_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA1_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA1_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA1_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA1_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA1_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA1_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA1_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA1_ERR_STATUS__SDP_RDRSP_STATUS_MASK                                                               0x0000000FL
@@ -16587,9 +16587,9 @@
 #define MMEA1_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA1_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA1_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA1_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA1_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA1_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA1_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA1_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA1_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA1_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 //MMEA1_MISC2
@@ -17543,156 +17543,156 @@
 #define MMEA2_GMI_WR_PRI_QUANT_PRI3__GROUP1_THRESHOLD_MASK                                                    0x0000FF00L
 #define MMEA2_GMI_WR_PRI_QUANT_PRI3__GROUP2_THRESHOLD_MASK                                                    0x00FF0000L
 #define MMEA2_GMI_WR_PRI_QUANT_PRI3__GROUP3_THRESHOLD_MASK                                                    0xFF000000L
-//MMEA2_ADDRNORM_BASE_ADDR0
-#define MMEA2_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA2_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA2_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA2_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA2_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA2_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA2_ADDRNORM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA2_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA2_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA2_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA2_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA2_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA2_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA2_ADDRNORM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA2_ADDRNORM_LIMIT_ADDR0
-#define MMEA2_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA2_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA2_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA2_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA2_ADDRNORM_BASE_ADDR1
-#define MMEA2_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA2_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA2_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA2_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA2_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA2_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA2_ADDRNORM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA2_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA2_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA2_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA2_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA2_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA2_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA2_ADDRNORM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA2_ADDRNORM_LIMIT_ADDR1
-#define MMEA2_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA2_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA2_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA2_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA2_ADDRNORM_OFFSET_ADDR1
-#define MMEA2_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA2_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA2_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA2_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA2_ADDRNORM_BASE_ADDR2
-#define MMEA2_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA2_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA2_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA2_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA2_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA2_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA2_ADDRNORM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA2_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA2_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA2_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA2_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA2_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA2_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA2_ADDRNORM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA2_ADDRNORM_LIMIT_ADDR2
-#define MMEA2_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA2_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA2_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA2_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA2_ADDRNORM_BASE_ADDR3
-#define MMEA2_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA2_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA2_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA2_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA2_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA2_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA2_ADDRNORM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA2_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA2_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA2_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA2_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA2_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA2_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA2_ADDRNORM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA2_ADDRNORM_LIMIT_ADDR3
-#define MMEA2_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA2_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA2_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA2_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA2_ADDRNORM_OFFSET_ADDR3
-#define MMEA2_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA2_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA2_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA2_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA2_ADDRNORM_MEGABASE_ADDR0
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA2_ADDRNORM_MEGALIMIT_ADDR0
-#define MMEA2_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA2_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA2_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA2_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA2_ADDRNORM_MEGABASE_ADDR1
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA2_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA2_ADDRNORM_MEGALIMIT_ADDR1
-#define MMEA2_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA2_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA2_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA2_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA2_ADDRNORMDRAM_HOLE_CNTL
-#define MMEA2_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
-#define MMEA2_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
-#define MMEA2_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
-#define MMEA2_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
-//MMEA2_ADDRNORMGMI_HOLE_CNTL
-#define MMEA2_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
-#define MMEA2_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
-#define MMEA2_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
-#define MMEA2_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
-//MMEA2_ADDRNORMDRAM_NP2_CHANNEL_CFG
-#define MMEA2_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
-#define MMEA2_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
-#define MMEA2_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
-#define MMEA2_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
-//MMEA2_ADDRNORMGMI_NP2_CHANNEL_CFG
-#define MMEA2_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
-#define MMEA2_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
-#define MMEA2_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
-#define MMEA2_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
+//MMEA2_ADDRANALRM_BASE_ADDR0
+#define MMEA2_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA2_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA2_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA2_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA2_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA2_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA2_ADDRANALRM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA2_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA2_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA2_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA2_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA2_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA2_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA2_ADDRANALRM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA2_ADDRANALRM_LIMIT_ADDR0
+#define MMEA2_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA2_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA2_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA2_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA2_ADDRANALRM_BASE_ADDR1
+#define MMEA2_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA2_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA2_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA2_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA2_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA2_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA2_ADDRANALRM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA2_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA2_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA2_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA2_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA2_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA2_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA2_ADDRANALRM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA2_ADDRANALRM_LIMIT_ADDR1
+#define MMEA2_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA2_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA2_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA2_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA2_ADDRANALRM_OFFSET_ADDR1
+#define MMEA2_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA2_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA2_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA2_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA2_ADDRANALRM_BASE_ADDR2
+#define MMEA2_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA2_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA2_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA2_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA2_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA2_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA2_ADDRANALRM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA2_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA2_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA2_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA2_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA2_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA2_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA2_ADDRANALRM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA2_ADDRANALRM_LIMIT_ADDR2
+#define MMEA2_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA2_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA2_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA2_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA2_ADDRANALRM_BASE_ADDR3
+#define MMEA2_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA2_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA2_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA2_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA2_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA2_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA2_ADDRANALRM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA2_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA2_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA2_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA2_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA2_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA2_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA2_ADDRANALRM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA2_ADDRANALRM_LIMIT_ADDR3
+#define MMEA2_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA2_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA2_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA2_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA2_ADDRANALRM_OFFSET_ADDR3
+#define MMEA2_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA2_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA2_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA2_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA2_ADDRANALRM_MEGABASE_ADDR0
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA2_ADDRANALRM_MEGALIMIT_ADDR0
+#define MMEA2_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA2_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA2_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA2_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA2_ADDRANALRM_MEGABASE_ADDR1
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA2_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA2_ADDRANALRM_MEGALIMIT_ADDR1
+#define MMEA2_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA2_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA2_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA2_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA2_ADDRANALRMDRAM_HOLE_CNTL
+#define MMEA2_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
+#define MMEA2_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
+#define MMEA2_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
+#define MMEA2_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
+//MMEA2_ADDRANALRMGMI_HOLE_CNTL
+#define MMEA2_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
+#define MMEA2_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
+#define MMEA2_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
+#define MMEA2_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
+//MMEA2_ADDRANALRMDRAM_NP2_CHANNEL_CFG
+#define MMEA2_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
+#define MMEA2_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
+#define MMEA2_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
+#define MMEA2_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
+//MMEA2_ADDRANALRMGMI_NP2_CHANNEL_CFG
+#define MMEA2_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
+#define MMEA2_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
+#define MMEA2_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
+#define MMEA2_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
 //MMEA2_ADDRDEC_BANK_CFG
 #define MMEA2_ADDRDEC_BANK_CFG__BANK_MASK_DRAM__SHIFT                                                         0x0
 #define MMEA2_ADDRDEC_BANK_CFG__BANK_MASK_GMI__SHIFT                                                          0x6
@@ -18481,20 +18481,20 @@
 #define MMEA2_ADDRDEC2_RM_SEL_SECCS23__CHAN_BIT_MASK                                                          0x0000F000L
 #define MMEA2_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_EVEN_MASK                                              0x00030000L
 #define MMEA2_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_ODD_MASK                                               0x000C0000L
-//MMEA2_ADDRNORMDRAM_GLOBAL_CNTL
-//MMEA2_ADDRNORMGMI_GLOBAL_CNTL
-//MMEA2_ADDRNORM_MEGACONTROL_ADDR0
-#define MMEA2_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA2_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA2_ADDRNORM_MEGACONTROL_ADDR1
-#define MMEA2_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA2_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA2_ADDRNORMDRAM_MASKING
-#define MMEA2_ADDRNORMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
-#define MMEA2_ADDRNORMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
-//MMEA2_ADDRNORMGMI_MASKING
-#define MMEA2_ADDRNORMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
-#define MMEA2_ADDRNORMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
+//MMEA2_ADDRANALRMDRAM_GLOBAL_CNTL
+//MMEA2_ADDRANALRMGMI_GLOBAL_CNTL
+//MMEA2_ADDRANALRM_MEGACONTROL_ADDR0
+#define MMEA2_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA2_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA2_ADDRANALRM_MEGACONTROL_ADDR1
+#define MMEA2_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA2_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA2_ADDRANALRMDRAM_MASKING
+#define MMEA2_ADDRANALRMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
+#define MMEA2_ADDRANALRMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
+//MMEA2_ADDRANALRMGMI_MASKING
+#define MMEA2_ADDRANALRMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
+#define MMEA2_ADDRANALRMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
 //MMEA2_IO_RD_CLI2GRP_MAP0
 #define MMEA2_IO_RD_CLI2GRP_MAP0__CID0_GROUP__SHIFT                                                           0x0
 #define MMEA2_IO_RD_CLI2GRP_MAP0__CID1_GROUP__SHIFT                                                           0x2
@@ -19220,8 +19220,8 @@
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -19236,8 +19236,8 @@
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA2_PERFCOUNTER_LO
@@ -19521,9 +19521,9 @@
 #define MMEA2_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA2_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA2_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA2_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA2_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA2_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA2_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA2_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA2_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA2_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA2_ERR_STATUS__SDP_RDRSP_STATUS_MASK                                                               0x0000000FL
@@ -19533,9 +19533,9 @@
 #define MMEA2_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA2_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA2_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA2_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA2_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA2_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA2_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA2_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA2_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA2_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 //MMEA2_MISC2
@@ -20489,156 +20489,156 @@
 #define MMEA3_GMI_WR_PRI_QUANT_PRI3__GROUP1_THRESHOLD_MASK                                                    0x0000FF00L
 #define MMEA3_GMI_WR_PRI_QUANT_PRI3__GROUP2_THRESHOLD_MASK                                                    0x00FF0000L
 #define MMEA3_GMI_WR_PRI_QUANT_PRI3__GROUP3_THRESHOLD_MASK                                                    0xFF000000L
-//MMEA3_ADDRNORM_BASE_ADDR0
-#define MMEA3_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA3_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA3_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA3_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA3_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA3_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA3_ADDRNORM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA3_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA3_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA3_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA3_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA3_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA3_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA3_ADDRNORM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA3_ADDRNORM_LIMIT_ADDR0
-#define MMEA3_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA3_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA3_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA3_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA3_ADDRNORM_BASE_ADDR1
-#define MMEA3_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA3_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA3_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA3_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA3_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA3_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA3_ADDRNORM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA3_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA3_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA3_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA3_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA3_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA3_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA3_ADDRNORM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA3_ADDRNORM_LIMIT_ADDR1
-#define MMEA3_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA3_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA3_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA3_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA3_ADDRNORM_OFFSET_ADDR1
-#define MMEA3_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA3_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA3_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA3_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA3_ADDRNORM_BASE_ADDR2
-#define MMEA3_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA3_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA3_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA3_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA3_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA3_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA3_ADDRNORM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA3_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA3_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA3_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA3_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA3_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA3_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA3_ADDRNORM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA3_ADDRNORM_LIMIT_ADDR2
-#define MMEA3_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA3_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA3_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA3_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA3_ADDRNORM_BASE_ADDR3
-#define MMEA3_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA3_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA3_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA3_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA3_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA3_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA3_ADDRNORM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA3_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA3_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA3_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA3_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA3_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA3_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA3_ADDRNORM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA3_ADDRNORM_LIMIT_ADDR3
-#define MMEA3_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA3_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA3_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA3_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA3_ADDRNORM_OFFSET_ADDR3
-#define MMEA3_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA3_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA3_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA3_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA3_ADDRNORM_MEGABASE_ADDR0
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA3_ADDRNORM_MEGALIMIT_ADDR0
-#define MMEA3_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA3_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA3_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA3_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA3_ADDRNORM_MEGABASE_ADDR1
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA3_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA3_ADDRNORM_MEGALIMIT_ADDR1
-#define MMEA3_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA3_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA3_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA3_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA3_ADDRNORMDRAM_HOLE_CNTL
-#define MMEA3_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
-#define MMEA3_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
-#define MMEA3_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
-#define MMEA3_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
-//MMEA3_ADDRNORMGMI_HOLE_CNTL
-#define MMEA3_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
-#define MMEA3_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
-#define MMEA3_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
-#define MMEA3_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
-//MMEA3_ADDRNORMDRAM_NP2_CHANNEL_CFG
-#define MMEA3_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
-#define MMEA3_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
-#define MMEA3_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
-#define MMEA3_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
-//MMEA3_ADDRNORMGMI_NP2_CHANNEL_CFG
-#define MMEA3_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
-#define MMEA3_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
-#define MMEA3_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
-#define MMEA3_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
+//MMEA3_ADDRANALRM_BASE_ADDR0
+#define MMEA3_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA3_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA3_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA3_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA3_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA3_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA3_ADDRANALRM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA3_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA3_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA3_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA3_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA3_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA3_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA3_ADDRANALRM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA3_ADDRANALRM_LIMIT_ADDR0
+#define MMEA3_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA3_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA3_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA3_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA3_ADDRANALRM_BASE_ADDR1
+#define MMEA3_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA3_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA3_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA3_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA3_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA3_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA3_ADDRANALRM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA3_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA3_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA3_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA3_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA3_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA3_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA3_ADDRANALRM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA3_ADDRANALRM_LIMIT_ADDR1
+#define MMEA3_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA3_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA3_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA3_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA3_ADDRANALRM_OFFSET_ADDR1
+#define MMEA3_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA3_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA3_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA3_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA3_ADDRANALRM_BASE_ADDR2
+#define MMEA3_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA3_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA3_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA3_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA3_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA3_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA3_ADDRANALRM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA3_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA3_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA3_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA3_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA3_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA3_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA3_ADDRANALRM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA3_ADDRANALRM_LIMIT_ADDR2
+#define MMEA3_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA3_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA3_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA3_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA3_ADDRANALRM_BASE_ADDR3
+#define MMEA3_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA3_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA3_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA3_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA3_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA3_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA3_ADDRANALRM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA3_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA3_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA3_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA3_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA3_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA3_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA3_ADDRANALRM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA3_ADDRANALRM_LIMIT_ADDR3
+#define MMEA3_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA3_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA3_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA3_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA3_ADDRANALRM_OFFSET_ADDR3
+#define MMEA3_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA3_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA3_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA3_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA3_ADDRANALRM_MEGABASE_ADDR0
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA3_ADDRANALRM_MEGALIMIT_ADDR0
+#define MMEA3_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA3_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA3_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA3_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA3_ADDRANALRM_MEGABASE_ADDR1
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA3_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA3_ADDRANALRM_MEGALIMIT_ADDR1
+#define MMEA3_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA3_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA3_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA3_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA3_ADDRANALRMDRAM_HOLE_CNTL
+#define MMEA3_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
+#define MMEA3_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
+#define MMEA3_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
+#define MMEA3_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
+//MMEA3_ADDRANALRMGMI_HOLE_CNTL
+#define MMEA3_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
+#define MMEA3_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
+#define MMEA3_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
+#define MMEA3_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
+//MMEA3_ADDRANALRMDRAM_NP2_CHANNEL_CFG
+#define MMEA3_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
+#define MMEA3_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
+#define MMEA3_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
+#define MMEA3_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
+//MMEA3_ADDRANALRMGMI_NP2_CHANNEL_CFG
+#define MMEA3_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
+#define MMEA3_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
+#define MMEA3_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
+#define MMEA3_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
 //MMEA3_ADDRDEC_BANK_CFG
 #define MMEA3_ADDRDEC_BANK_CFG__BANK_MASK_DRAM__SHIFT                                                         0x0
 #define MMEA3_ADDRDEC_BANK_CFG__BANK_MASK_GMI__SHIFT                                                          0x6
@@ -21427,20 +21427,20 @@
 #define MMEA3_ADDRDEC2_RM_SEL_SECCS23__CHAN_BIT_MASK                                                          0x0000F000L
 #define MMEA3_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_EVEN_MASK                                              0x00030000L
 #define MMEA3_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_ODD_MASK                                               0x000C0000L
-//MMEA3_ADDRNORMDRAM_GLOBAL_CNTL
-//MMEA3_ADDRNORMGMI_GLOBAL_CNTL
-//MMEA3_ADDRNORM_MEGACONTROL_ADDR0
-#define MMEA3_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA3_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA3_ADDRNORM_MEGACONTROL_ADDR1
-#define MMEA3_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA3_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA3_ADDRNORMDRAM_MASKING
-#define MMEA3_ADDRNORMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
-#define MMEA3_ADDRNORMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
-//MMEA3_ADDRNORMGMI_MASKING
-#define MMEA3_ADDRNORMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
-#define MMEA3_ADDRNORMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
+//MMEA3_ADDRANALRMDRAM_GLOBAL_CNTL
+//MMEA3_ADDRANALRMGMI_GLOBAL_CNTL
+//MMEA3_ADDRANALRM_MEGACONTROL_ADDR0
+#define MMEA3_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA3_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA3_ADDRANALRM_MEGACONTROL_ADDR1
+#define MMEA3_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA3_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA3_ADDRANALRMDRAM_MASKING
+#define MMEA3_ADDRANALRMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
+#define MMEA3_ADDRANALRMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
+//MMEA3_ADDRANALRMGMI_MASKING
+#define MMEA3_ADDRANALRMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
+#define MMEA3_ADDRANALRMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
 //MMEA3_IO_RD_CLI2GRP_MAP0
 #define MMEA3_IO_RD_CLI2GRP_MAP0__CID0_GROUP__SHIFT                                                           0x0
 #define MMEA3_IO_RD_CLI2GRP_MAP0__CID1_GROUP__SHIFT                                                           0x2
@@ -22166,8 +22166,8 @@
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -22182,8 +22182,8 @@
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA3_PERFCOUNTER_LO
@@ -22467,9 +22467,9 @@
 #define MMEA3_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA3_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA3_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA3_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA3_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA3_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA3_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA3_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA3_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA3_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA3_ERR_STATUS__SDP_RDRSP_STATUS_MASK                                                               0x0000000FL
@@ -22479,9 +22479,9 @@
 #define MMEA3_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA3_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA3_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA3_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA3_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA3_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA3_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA3_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA3_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA3_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 //MMEA3_MISC2
@@ -23435,156 +23435,156 @@
 #define MMEA4_GMI_WR_PRI_QUANT_PRI3__GROUP1_THRESHOLD_MASK                                                    0x0000FF00L
 #define MMEA4_GMI_WR_PRI_QUANT_PRI3__GROUP2_THRESHOLD_MASK                                                    0x00FF0000L
 #define MMEA4_GMI_WR_PRI_QUANT_PRI3__GROUP3_THRESHOLD_MASK                                                    0xFF000000L
-//MMEA4_ADDRNORM_BASE_ADDR0
-#define MMEA4_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA4_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA4_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA4_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA4_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA4_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA4_ADDRNORM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA4_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA4_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA4_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA4_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA4_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA4_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA4_ADDRNORM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA4_ADDRNORM_LIMIT_ADDR0
-#define MMEA4_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA4_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA4_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA4_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA4_ADDRNORM_BASE_ADDR1
-#define MMEA4_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA4_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA4_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA4_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA4_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA4_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA4_ADDRNORM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA4_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA4_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA4_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA4_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA4_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA4_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA4_ADDRNORM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA4_ADDRNORM_LIMIT_ADDR1
-#define MMEA4_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA4_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA4_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA4_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA4_ADDRNORM_OFFSET_ADDR1
-#define MMEA4_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA4_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA4_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA4_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA4_ADDRNORM_BASE_ADDR2
-#define MMEA4_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA4_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA4_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA4_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA4_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA4_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA4_ADDRNORM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA4_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA4_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA4_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA4_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA4_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA4_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA4_ADDRNORM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA4_ADDRNORM_LIMIT_ADDR2
-#define MMEA4_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA4_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA4_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA4_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA4_ADDRNORM_BASE_ADDR3
-#define MMEA4_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA4_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA4_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA4_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA4_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA4_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA4_ADDRNORM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA4_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA4_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA4_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA4_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA4_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA4_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA4_ADDRNORM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA4_ADDRNORM_LIMIT_ADDR3
-#define MMEA4_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA4_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA4_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA4_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA4_ADDRNORM_OFFSET_ADDR3
-#define MMEA4_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA4_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA4_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA4_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA4_ADDRNORM_MEGABASE_ADDR0
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA4_ADDRNORM_MEGALIMIT_ADDR0
-#define MMEA4_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA4_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA4_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA4_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA4_ADDRNORM_MEGABASE_ADDR1
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA4_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA4_ADDRNORM_MEGALIMIT_ADDR1
-#define MMEA4_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA4_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA4_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA4_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA4_ADDRNORMDRAM_HOLE_CNTL
-#define MMEA4_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
-#define MMEA4_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
-#define MMEA4_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
-#define MMEA4_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
-//MMEA4_ADDRNORMGMI_HOLE_CNTL
-#define MMEA4_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
-#define MMEA4_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
-#define MMEA4_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
-#define MMEA4_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
-//MMEA4_ADDRNORMDRAM_NP2_CHANNEL_CFG
-#define MMEA4_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
-#define MMEA4_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
-#define MMEA4_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
-#define MMEA4_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
-//MMEA4_ADDRNORMGMI_NP2_CHANNEL_CFG
-#define MMEA4_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
-#define MMEA4_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
-#define MMEA4_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
-#define MMEA4_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
+//MMEA4_ADDRANALRM_BASE_ADDR0
+#define MMEA4_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA4_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA4_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA4_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA4_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA4_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA4_ADDRANALRM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA4_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA4_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA4_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA4_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA4_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA4_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA4_ADDRANALRM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA4_ADDRANALRM_LIMIT_ADDR0
+#define MMEA4_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA4_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA4_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA4_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA4_ADDRANALRM_BASE_ADDR1
+#define MMEA4_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA4_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA4_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA4_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA4_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA4_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA4_ADDRANALRM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA4_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA4_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA4_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA4_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA4_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA4_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA4_ADDRANALRM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA4_ADDRANALRM_LIMIT_ADDR1
+#define MMEA4_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA4_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA4_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA4_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA4_ADDRANALRM_OFFSET_ADDR1
+#define MMEA4_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA4_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA4_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA4_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA4_ADDRANALRM_BASE_ADDR2
+#define MMEA4_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA4_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA4_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA4_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA4_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA4_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA4_ADDRANALRM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA4_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA4_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA4_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA4_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA4_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA4_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA4_ADDRANALRM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA4_ADDRANALRM_LIMIT_ADDR2
+#define MMEA4_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA4_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA4_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA4_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA4_ADDRANALRM_BASE_ADDR3
+#define MMEA4_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA4_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA4_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA4_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA4_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA4_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA4_ADDRANALRM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA4_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA4_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA4_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA4_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA4_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA4_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA4_ADDRANALRM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA4_ADDRANALRM_LIMIT_ADDR3
+#define MMEA4_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA4_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA4_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA4_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA4_ADDRANALRM_OFFSET_ADDR3
+#define MMEA4_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA4_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA4_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA4_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA4_ADDRANALRM_MEGABASE_ADDR0
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA4_ADDRANALRM_MEGALIMIT_ADDR0
+#define MMEA4_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA4_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA4_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA4_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA4_ADDRANALRM_MEGABASE_ADDR1
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA4_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA4_ADDRANALRM_MEGALIMIT_ADDR1
+#define MMEA4_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA4_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA4_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA4_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA4_ADDRANALRMDRAM_HOLE_CNTL
+#define MMEA4_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
+#define MMEA4_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
+#define MMEA4_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
+#define MMEA4_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
+//MMEA4_ADDRANALRMGMI_HOLE_CNTL
+#define MMEA4_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
+#define MMEA4_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
+#define MMEA4_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
+#define MMEA4_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
+//MMEA4_ADDRANALRMDRAM_NP2_CHANNEL_CFG
+#define MMEA4_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
+#define MMEA4_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
+#define MMEA4_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
+#define MMEA4_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
+//MMEA4_ADDRANALRMGMI_NP2_CHANNEL_CFG
+#define MMEA4_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
+#define MMEA4_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
+#define MMEA4_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
+#define MMEA4_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
 //MMEA4_ADDRDEC_BANK_CFG
 #define MMEA4_ADDRDEC_BANK_CFG__BANK_MASK_DRAM__SHIFT                                                         0x0
 #define MMEA4_ADDRDEC_BANK_CFG__BANK_MASK_GMI__SHIFT                                                          0x6
@@ -24373,20 +24373,20 @@
 #define MMEA4_ADDRDEC2_RM_SEL_SECCS23__CHAN_BIT_MASK                                                          0x0000F000L
 #define MMEA4_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_EVEN_MASK                                              0x00030000L
 #define MMEA4_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_ODD_MASK                                               0x000C0000L
-//MMEA4_ADDRNORMDRAM_GLOBAL_CNTL
-//MMEA4_ADDRNORMGMI_GLOBAL_CNTL
-//MMEA4_ADDRNORM_MEGACONTROL_ADDR0
-#define MMEA4_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA4_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA4_ADDRNORM_MEGACONTROL_ADDR1
-#define MMEA4_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA4_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA4_ADDRNORMDRAM_MASKING
-#define MMEA4_ADDRNORMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
-#define MMEA4_ADDRNORMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
-//MMEA4_ADDRNORMGMI_MASKING
-#define MMEA4_ADDRNORMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
-#define MMEA4_ADDRNORMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
+//MMEA4_ADDRANALRMDRAM_GLOBAL_CNTL
+//MMEA4_ADDRANALRMGMI_GLOBAL_CNTL
+//MMEA4_ADDRANALRM_MEGACONTROL_ADDR0
+#define MMEA4_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA4_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA4_ADDRANALRM_MEGACONTROL_ADDR1
+#define MMEA4_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA4_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA4_ADDRANALRMDRAM_MASKING
+#define MMEA4_ADDRANALRMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
+#define MMEA4_ADDRANALRMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
+//MMEA4_ADDRANALRMGMI_MASKING
+#define MMEA4_ADDRANALRMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
+#define MMEA4_ADDRANALRMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
 //MMEA4_IO_RD_CLI2GRP_MAP0
 #define MMEA4_IO_RD_CLI2GRP_MAP0__CID0_GROUP__SHIFT                                                           0x0
 #define MMEA4_IO_RD_CLI2GRP_MAP0__CID1_GROUP__SHIFT                                                           0x2
@@ -25112,8 +25112,8 @@
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -25128,8 +25128,8 @@
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA4_PERFCOUNTER_LO
@@ -25413,9 +25413,9 @@
 #define MMEA4_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA4_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA4_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA4_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA4_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA4_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA4_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA4_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA4_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA4_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA4_ERR_STATUS__SDP_RDRSP_STATUS_MASK                                                               0x0000000FL
@@ -25425,9 +25425,9 @@
 #define MMEA4_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA4_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA4_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA4_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA4_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA4_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA4_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA4_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA4_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA4_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 //MMEA4_MISC2
@@ -26381,156 +26381,156 @@
 #define MMEA5_GMI_WR_PRI_QUANT_PRI3__GROUP1_THRESHOLD_MASK                                                    0x0000FF00L
 #define MMEA5_GMI_WR_PRI_QUANT_PRI3__GROUP2_THRESHOLD_MASK                                                    0x00FF0000L
 #define MMEA5_GMI_WR_PRI_QUANT_PRI3__GROUP3_THRESHOLD_MASK                                                    0xFF000000L
-//MMEA5_ADDRNORM_BASE_ADDR0
-#define MMEA5_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA5_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA5_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA5_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA5_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA5_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA5_ADDRNORM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA5_ADDRNORM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA5_ADDRNORM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA5_ADDRNORM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA5_ADDRNORM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA5_ADDRNORM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA5_ADDRNORM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA5_ADDRNORM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA5_ADDRNORM_LIMIT_ADDR0
-#define MMEA5_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA5_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA5_ADDRNORM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA5_ADDRNORM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA5_ADDRNORM_BASE_ADDR1
-#define MMEA5_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA5_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA5_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA5_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA5_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA5_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA5_ADDRNORM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA5_ADDRNORM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA5_ADDRNORM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA5_ADDRNORM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA5_ADDRNORM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA5_ADDRNORM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA5_ADDRNORM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA5_ADDRNORM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA5_ADDRNORM_LIMIT_ADDR1
-#define MMEA5_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA5_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA5_ADDRNORM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA5_ADDRNORM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA5_ADDRNORM_OFFSET_ADDR1
-#define MMEA5_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA5_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA5_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA5_ADDRNORM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA5_ADDRNORM_BASE_ADDR2
-#define MMEA5_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA5_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA5_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA5_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA5_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA5_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA5_ADDRNORM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA5_ADDRNORM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA5_ADDRNORM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA5_ADDRNORM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA5_ADDRNORM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA5_ADDRNORM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA5_ADDRNORM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA5_ADDRNORM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA5_ADDRNORM_LIMIT_ADDR2
-#define MMEA5_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA5_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA5_ADDRNORM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA5_ADDRNORM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA5_ADDRNORM_BASE_ADDR3
-#define MMEA5_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
-#define MMEA5_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
-#define MMEA5_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
-#define MMEA5_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
-#define MMEA5_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
-#define MMEA5_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
-#define MMEA5_ADDRNORM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
-#define MMEA5_ADDRNORM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
-#define MMEA5_ADDRNORM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
-#define MMEA5_ADDRNORM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
-#define MMEA5_ADDRNORM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
-#define MMEA5_ADDRNORM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
-#define MMEA5_ADDRNORM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
-#define MMEA5_ADDRNORM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
-//MMEA5_ADDRNORM_LIMIT_ADDR3
-#define MMEA5_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
-#define MMEA5_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
-#define MMEA5_ADDRNORM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
-#define MMEA5_ADDRNORM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
-//MMEA5_ADDRNORM_OFFSET_ADDR3
-#define MMEA5_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
-#define MMEA5_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
-#define MMEA5_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
-#define MMEA5_ADDRNORM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
-//MMEA5_ADDRNORM_MEGABASE_ADDR0
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA5_ADDRNORM_MEGALIMIT_ADDR0
-#define MMEA5_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA5_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA5_ADDRNORM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA5_ADDRNORM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA5_ADDRNORM_MEGABASE_ADDR1
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
-#define MMEA5_ADDRNORM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
-//MMEA5_ADDRNORM_MEGALIMIT_ADDR1
-#define MMEA5_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
-#define MMEA5_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
-#define MMEA5_ADDRNORM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
-#define MMEA5_ADDRNORM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
-//MMEA5_ADDRNORMDRAM_HOLE_CNTL
-#define MMEA5_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
-#define MMEA5_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
-#define MMEA5_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
-#define MMEA5_ADDRNORMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
-//MMEA5_ADDRNORMGMI_HOLE_CNTL
-#define MMEA5_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
-#define MMEA5_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
-#define MMEA5_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
-#define MMEA5_ADDRNORMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
-//MMEA5_ADDRNORMDRAM_NP2_CHANNEL_CFG
-#define MMEA5_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
-#define MMEA5_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
-#define MMEA5_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
-#define MMEA5_ADDRNORMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
-//MMEA5_ADDRNORMGMI_NP2_CHANNEL_CFG
-#define MMEA5_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
-#define MMEA5_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
-#define MMEA5_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
-#define MMEA5_ADDRNORMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
+//MMEA5_ADDRANALRM_BASE_ADDR0
+#define MMEA5_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA5_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA5_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA5_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA5_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA5_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA5_ADDRANALRM_BASE_ADDR0__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA5_ADDRANALRM_BASE_ADDR0__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA5_ADDRANALRM_BASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA5_ADDRANALRM_BASE_ADDR0__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA5_ADDRANALRM_BASE_ADDR0__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA5_ADDRANALRM_BASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA5_ADDRANALRM_BASE_ADDR0__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA5_ADDRANALRM_BASE_ADDR0__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA5_ADDRANALRM_LIMIT_ADDR0
+#define MMEA5_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA5_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA5_ADDRANALRM_LIMIT_ADDR0__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA5_ADDRANALRM_LIMIT_ADDR0__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA5_ADDRANALRM_BASE_ADDR1
+#define MMEA5_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA5_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA5_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA5_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA5_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA5_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA5_ADDRANALRM_BASE_ADDR1__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA5_ADDRANALRM_BASE_ADDR1__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA5_ADDRANALRM_BASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA5_ADDRANALRM_BASE_ADDR1__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA5_ADDRANALRM_BASE_ADDR1__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA5_ADDRANALRM_BASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA5_ADDRANALRM_BASE_ADDR1__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA5_ADDRANALRM_BASE_ADDR1__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA5_ADDRANALRM_LIMIT_ADDR1
+#define MMEA5_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA5_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA5_ADDRANALRM_LIMIT_ADDR1__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA5_ADDRANALRM_LIMIT_ADDR1__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA5_ADDRANALRM_OFFSET_ADDR1
+#define MMEA5_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA5_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA5_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA5_ADDRANALRM_OFFSET_ADDR1__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA5_ADDRANALRM_BASE_ADDR2
+#define MMEA5_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA5_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA5_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA5_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA5_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA5_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA5_ADDRANALRM_BASE_ADDR2__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA5_ADDRANALRM_BASE_ADDR2__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA5_ADDRANALRM_BASE_ADDR2__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA5_ADDRANALRM_BASE_ADDR2__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA5_ADDRANALRM_BASE_ADDR2__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA5_ADDRANALRM_BASE_ADDR2__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA5_ADDRANALRM_BASE_ADDR2__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA5_ADDRANALRM_BASE_ADDR2__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA5_ADDRANALRM_LIMIT_ADDR2
+#define MMEA5_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA5_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA5_ADDRANALRM_LIMIT_ADDR2__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA5_ADDRANALRM_LIMIT_ADDR2__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA5_ADDRANALRM_BASE_ADDR3
+#define MMEA5_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL__SHIFT                                                        0x0
+#define MMEA5_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN__SHIFT                                                   0x1
+#define MMEA5_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN__SHIFT                                                      0x2
+#define MMEA5_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES__SHIFT                                                      0x7
+#define MMEA5_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS__SHIFT                                                   0x8
+#define MMEA5_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL__SHIFT                                                      0x9
+#define MMEA5_ADDRANALRM_BASE_ADDR3__BASE_ADDR__SHIFT                                                           0xc
+#define MMEA5_ADDRANALRM_BASE_ADDR3__ADDR_RNG_VAL_MASK                                                          0x00000001L
+#define MMEA5_ADDRANALRM_BASE_ADDR3__LGCY_MMIO_HOLE_EN_MASK                                                     0x00000002L
+#define MMEA5_ADDRANALRM_BASE_ADDR3__INTLV_NUM_CHAN_MASK                                                        0x0000007CL
+#define MMEA5_ADDRANALRM_BASE_ADDR3__INTLV_NUM_DIES_MASK                                                        0x00000080L
+#define MMEA5_ADDRANALRM_BASE_ADDR3__INTLV_NUM_SOCKETS_MASK                                                     0x00000100L
+#define MMEA5_ADDRANALRM_BASE_ADDR3__INTLV_ADDR_SEL_MASK                                                        0x00000E00L
+#define MMEA5_ADDRANALRM_BASE_ADDR3__BASE_ADDR_MASK                                                             0xFFFFF000L
+//MMEA5_ADDRANALRM_LIMIT_ADDR3
+#define MMEA5_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID__SHIFT                                                      0x0
+#define MMEA5_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR__SHIFT                                                         0xc
+#define MMEA5_ADDRANALRM_LIMIT_ADDR3__DST_FABRIC_ID_MASK                                                        0x0000001FL
+#define MMEA5_ADDRANALRM_LIMIT_ADDR3__LIMIT_ADDR_MASK                                                           0xFFFFF000L
+//MMEA5_ADDRANALRM_OFFSET_ADDR3
+#define MMEA5_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN__SHIFT                                                 0x0
+#define MMEA5_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET__SHIFT                                                    0xc
+#define MMEA5_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_EN_MASK                                                   0x00000001L
+#define MMEA5_ADDRANALRM_OFFSET_ADDR3__HI_ADDR_OFFSET_MASK                                                      0x00FFF000L
+//MMEA5_ADDRANALRM_MEGABASE_ADDR0
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR0__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA5_ADDRANALRM_MEGALIMIT_ADDR0
+#define MMEA5_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA5_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA5_ADDRANALRM_MEGALIMIT_ADDR0__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA5_ADDRANALRM_MEGALIMIT_ADDR0__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA5_ADDRANALRM_MEGABASE_ADDR1
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL__SHIFT                                                    0x0
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN__SHIFT                                               0x1
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN__SHIFT                                                  0x2
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES__SHIFT                                                  0x7
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS__SHIFT                                               0x8
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL__SHIFT                                                  0x9
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR__SHIFT                                                       0xc
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__ADDR_RNG_VAL_MASK                                                      0x00000001L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__LGCY_MMIO_HOLE_EN_MASK                                                 0x00000002L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_CHAN_MASK                                                    0x0000007CL
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_DIES_MASK                                                    0x00000080L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__INTLV_NUM_SOCKETS_MASK                                                 0x00000100L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__INTLV_ADDR_SEL_MASK                                                    0x00000E00L
+#define MMEA5_ADDRANALRM_MEGABASE_ADDR1__BASE_ADDR_MASK                                                         0xFFFFF000L
+//MMEA5_ADDRANALRM_MEGALIMIT_ADDR1
+#define MMEA5_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID__SHIFT                                                  0x0
+#define MMEA5_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR__SHIFT                                                     0xc
+#define MMEA5_ADDRANALRM_MEGALIMIT_ADDR1__DST_FABRIC_ID_MASK                                                    0x0000001FL
+#define MMEA5_ADDRANALRM_MEGALIMIT_ADDR1__LIMIT_ADDR_MASK                                                       0xFFFFF000L
+//MMEA5_ADDRANALRMDRAM_HOLE_CNTL
+#define MMEA5_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                  0x0
+#define MMEA5_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                 0x7
+#define MMEA5_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                    0x00000001L
+#define MMEA5_ADDRANALRMDRAM_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                   0x0000FF80L
+//MMEA5_ADDRANALRMGMI_HOLE_CNTL
+#define MMEA5_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID__SHIFT                                                   0x0
+#define MMEA5_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET__SHIFT                                                  0x7
+#define MMEA5_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_VALID_MASK                                                     0x00000001L
+#define MMEA5_ADDRANALRMGMI_HOLE_CNTL__DRAM_HOLE_OFFSET_MASK                                                    0x0000FF80L
+//MMEA5_ADDRANALRMDRAM_NP2_CHANNEL_CFG
+#define MMEA5_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0__SHIFT                                        0x0
+#define MMEA5_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1__SHIFT                                        0x6
+#define MMEA5_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE0_MASK                                          0x0000003FL
+#define MMEA5_ADDRANALRMDRAM_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE1_MASK                                          0x00000FC0L
+//MMEA5_ADDRANALRMGMI_NP2_CHANNEL_CFG
+#define MMEA5_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2__SHIFT                                         0x0
+#define MMEA5_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3__SHIFT                                         0x6
+#define MMEA5_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE2_MASK                                           0x0000003FL
+#define MMEA5_ADDRANALRMGMI_NP2_CHANNEL_CFG__LOG2_ADDR64K_SPACE3_MASK                                           0x00000FC0L
 //MMEA5_ADDRDEC_BANK_CFG
 #define MMEA5_ADDRDEC_BANK_CFG__BANK_MASK_DRAM__SHIFT                                                         0x0
 #define MMEA5_ADDRDEC_BANK_CFG__BANK_MASK_GMI__SHIFT                                                          0x6
@@ -27319,20 +27319,20 @@
 #define MMEA5_ADDRDEC2_RM_SEL_SECCS23__CHAN_BIT_MASK                                                          0x0000F000L
 #define MMEA5_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_EVEN_MASK                                              0x00030000L
 #define MMEA5_ADDRDEC2_RM_SEL_SECCS23__INVERT_ROW_MSBS_ODD_MASK                                               0x000C0000L
-//MMEA5_ADDRNORMDRAM_GLOBAL_CNTL
-//MMEA5_ADDRNORMGMI_GLOBAL_CNTL
-//MMEA5_ADDRNORM_MEGACONTROL_ADDR0
-#define MMEA5_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA5_ADDRNORM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA5_ADDRNORM_MEGACONTROL_ADDR1
-#define MMEA5_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
-#define MMEA5_ADDRNORM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
-//MMEA5_ADDRNORMDRAM_MASKING
-#define MMEA5_ADDRNORMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
-#define MMEA5_ADDRNORMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
-//MMEA5_ADDRNORMGMI_MASKING
-#define MMEA5_ADDRNORMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
-#define MMEA5_ADDRNORMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
+//MMEA5_ADDRANALRMDRAM_GLOBAL_CNTL
+//MMEA5_ADDRANALRMGMI_GLOBAL_CNTL
+//MMEA5_ADDRANALRM_MEGACONTROL_ADDR0
+#define MMEA5_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA5_ADDRANALRM_MEGACONTROL_ADDR0__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA5_ADDRANALRM_MEGACONTROL_ADDR1
+#define MMEA5_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE__SHIFT                                       0x0
+#define MMEA5_ADDRANALRM_MEGACONTROL_ADDR1__LOG2_DIE_ADDR64K_SPACE_MASK                                         0x0000003FL
+//MMEA5_ADDRANALRMDRAM_MASKING
+#define MMEA5_ADDRANALRMDRAM_MASKING__ADDRHI_MASK__SHIFT                                                        0x0
+#define MMEA5_ADDRANALRMDRAM_MASKING__ADDRHI_MASK_MASK                                                          0x00000FFFL
+//MMEA5_ADDRANALRMGMI_MASKING
+#define MMEA5_ADDRANALRMGMI_MASKING__ADDRHI_MASK__SHIFT                                                         0x0
+#define MMEA5_ADDRANALRMGMI_MASKING__ADDRHI_MASK_MASK                                                           0x00000FFFL
 //MMEA5_IO_RD_CLI2GRP_MAP0
 #define MMEA5_IO_RD_CLI2GRP_MAP0__CID0_GROUP__SHIFT                                                           0x0
 #define MMEA5_IO_RD_CLI2GRP_MAP0__CID1_GROUP__SHIFT                                                           0x2
@@ -28058,8 +28058,8 @@
 #define MMEA5_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA5_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA5_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA5_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA5_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA5_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA5_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA5_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA5_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA5_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -28074,8 +28074,8 @@
 #define MMEA5_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA5_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA5_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA5_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA5_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA5_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA5_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA5_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA5_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA5_PERFCOUNTER_LO
@@ -28359,9 +28359,9 @@
 #define MMEA5_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA5_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA5_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA5_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA5_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA5_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA5_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA5_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA5_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA5_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA5_ERR_STATUS__SDP_RDRSP_STATUS_MASK                                                               0x0000000FL
@@ -28371,9 +28371,9 @@
 #define MMEA5_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA5_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA5_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA5_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA5_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA5_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA5_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA5_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA5_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA5_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 //MMEA5_MISC2
@@ -28541,7 +28541,7 @@
 #define PCTL0_CTRL__PG_ENABLE__SHIFT                                                                          0x0
 #define PCTL0_CTRL__ALLOW_DEEP_SLEEP_MODE__SHIFT                                                              0x1
 #define PCTL0_CTRL__STCTRL_DAGB_IDLE_THRESHOLD__SHIFT                                                         0xb
-#define PCTL0_CTRL__STCTRL_IGNORE_PROTECTION_FAULT__SHIFT                                                     0x10
+#define PCTL0_CTRL__STCTRL_IGANALRE_PROTECTION_FAULT__SHIFT                                                     0x10
 #define PCTL0_CTRL__OVR_EA0_SDP_PARTACK__SHIFT                                                                0x11
 #define PCTL0_CTRL__OVR_EA1_SDP_PARTACK__SHIFT                                                                0x12
 #define PCTL0_CTRL__OVR_EA2_SDP_PARTACK__SHIFT                                                                0x13
@@ -28557,7 +28557,7 @@
 #define PCTL0_CTRL__PG_ENABLE_MASK                                                                            0x00000001L
 #define PCTL0_CTRL__ALLOW_DEEP_SLEEP_MODE_MASK                                                                0x0000000EL
 #define PCTL0_CTRL__STCTRL_DAGB_IDLE_THRESHOLD_MASK                                                           0x0000F800L
-#define PCTL0_CTRL__STCTRL_IGNORE_PROTECTION_FAULT_MASK                                                       0x00010000L
+#define PCTL0_CTRL__STCTRL_IGANALRE_PROTECTION_FAULT_MASK                                                       0x00010000L
 #define PCTL0_CTRL__OVR_EA0_SDP_PARTACK_MASK                                                                  0x00020000L
 #define PCTL0_CTRL__OVR_EA1_SDP_PARTACK_MASK                                                                  0x00040000L
 #define PCTL0_CTRL__OVR_EA2_SDP_PARTACK_MASK                                                                  0x00080000L
@@ -28679,82 +28679,82 @@
 #define PCTL0_MMHUB_DEEPSLEEP_OVERRIDE_IB__DS14_MASK                                                          0x00004000L
 #define PCTL0_MMHUB_DEEPSLEEP_OVERRIDE_IB__DS15_MASK                                                          0x00008000L
 #define PCTL0_MMHUB_DEEPSLEEP_OVERRIDE_IB__DS16_MASK                                                          0x00010000L
-//PCTL0_PG_IGNORE_DEEPSLEEP
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS0__SHIFT                                                                 0x0
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS1__SHIFT                                                                 0x1
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS2__SHIFT                                                                 0x2
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS3__SHIFT                                                                 0x3
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS4__SHIFT                                                                 0x4
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS5__SHIFT                                                                 0x5
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS6__SHIFT                                                                 0x6
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS7__SHIFT                                                                 0x7
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS8__SHIFT                                                                 0x8
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS9__SHIFT                                                                 0x9
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS10__SHIFT                                                                0xa
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS11__SHIFT                                                                0xb
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS12__SHIFT                                                                0xc
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS13__SHIFT                                                                0xd
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS14__SHIFT                                                                0xe
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS15__SHIFT                                                                0xf
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS16__SHIFT                                                                0x10
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS_ATHUB__SHIFT                                                            0x11
-#define PCTL0_PG_IGNORE_DEEPSLEEP__ALLIPS__SHIFT                                                              0x12
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS0_MASK                                                                   0x00000001L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS1_MASK                                                                   0x00000002L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS2_MASK                                                                   0x00000004L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS3_MASK                                                                   0x00000008L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS4_MASK                                                                   0x00000010L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS5_MASK                                                                   0x00000020L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS6_MASK                                                                   0x00000040L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS7_MASK                                                                   0x00000080L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS8_MASK                                                                   0x00000100L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS9_MASK                                                                   0x00000200L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS10_MASK                                                                  0x00000400L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS11_MASK                                                                  0x00000800L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS12_MASK                                                                  0x00001000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS13_MASK                                                                  0x00002000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS14_MASK                                                                  0x00004000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS15_MASK                                                                  0x00008000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS16_MASK                                                                  0x00010000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS_ATHUB_MASK                                                              0x00020000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__ALLIPS_MASK                                                                0x00040000L
-//PCTL0_PG_IGNORE_DEEPSLEEP_IB
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS0__SHIFT                                                              0x0
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS1__SHIFT                                                              0x1
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS2__SHIFT                                                              0x2
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS3__SHIFT                                                              0x3
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS4__SHIFT                                                              0x4
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS5__SHIFT                                                              0x5
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS6__SHIFT                                                              0x6
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS7__SHIFT                                                              0x7
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS8__SHIFT                                                              0x8
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS9__SHIFT                                                              0x9
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS10__SHIFT                                                             0xa
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS11__SHIFT                                                             0xb
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS12__SHIFT                                                             0xc
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS13__SHIFT                                                             0xd
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS14__SHIFT                                                             0xe
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS15__SHIFT                                                             0xf
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS16__SHIFT                                                             0x10
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__ALLIPS__SHIFT                                                           0x11
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS0_MASK                                                                0x00000001L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS1_MASK                                                                0x00000002L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS2_MASK                                                                0x00000004L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS3_MASK                                                                0x00000008L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS4_MASK                                                                0x00000010L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS5_MASK                                                                0x00000020L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS6_MASK                                                                0x00000040L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS7_MASK                                                                0x00000080L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS8_MASK                                                                0x00000100L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS9_MASK                                                                0x00000200L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS10_MASK                                                               0x00000400L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS11_MASK                                                               0x00000800L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS12_MASK                                                               0x00001000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS13_MASK                                                               0x00002000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS14_MASK                                                               0x00004000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS15_MASK                                                               0x00008000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS16_MASK                                                               0x00010000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__ALLIPS_MASK                                                             0x00020000L
+//PCTL0_PG_IGANALRE_DEEPSLEEP
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS0__SHIFT                                                                 0x0
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS1__SHIFT                                                                 0x1
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS2__SHIFT                                                                 0x2
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS3__SHIFT                                                                 0x3
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS4__SHIFT                                                                 0x4
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS5__SHIFT                                                                 0x5
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS6__SHIFT                                                                 0x6
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS7__SHIFT                                                                 0x7
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS8__SHIFT                                                                 0x8
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS9__SHIFT                                                                 0x9
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS10__SHIFT                                                                0xa
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS11__SHIFT                                                                0xb
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS12__SHIFT                                                                0xc
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS13__SHIFT                                                                0xd
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS14__SHIFT                                                                0xe
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS15__SHIFT                                                                0xf
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS16__SHIFT                                                                0x10
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS_ATHUB__SHIFT                                                            0x11
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__ALLIPS__SHIFT                                                              0x12
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS0_MASK                                                                   0x00000001L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS1_MASK                                                                   0x00000002L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS2_MASK                                                                   0x00000004L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS3_MASK                                                                   0x00000008L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS4_MASK                                                                   0x00000010L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS5_MASK                                                                   0x00000020L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS6_MASK                                                                   0x00000040L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS7_MASK                                                                   0x00000080L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS8_MASK                                                                   0x00000100L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS9_MASK                                                                   0x00000200L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS10_MASK                                                                  0x00000400L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS11_MASK                                                                  0x00000800L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS12_MASK                                                                  0x00001000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS13_MASK                                                                  0x00002000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS14_MASK                                                                  0x00004000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS15_MASK                                                                  0x00008000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS16_MASK                                                                  0x00010000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS_ATHUB_MASK                                                              0x00020000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__ALLIPS_MASK                                                                0x00040000L
+//PCTL0_PG_IGANALRE_DEEPSLEEP_IB
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS0__SHIFT                                                              0x0
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS1__SHIFT                                                              0x1
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS2__SHIFT                                                              0x2
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS3__SHIFT                                                              0x3
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS4__SHIFT                                                              0x4
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS5__SHIFT                                                              0x5
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS6__SHIFT                                                              0x6
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS7__SHIFT                                                              0x7
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS8__SHIFT                                                              0x8
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS9__SHIFT                                                              0x9
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS10__SHIFT                                                             0xa
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS11__SHIFT                                                             0xb
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS12__SHIFT                                                             0xc
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS13__SHIFT                                                             0xd
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS14__SHIFT                                                             0xe
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS15__SHIFT                                                             0xf
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS16__SHIFT                                                             0x10
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__ALLIPS__SHIFT                                                           0x11
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS0_MASK                                                                0x00000001L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS1_MASK                                                                0x00000002L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS2_MASK                                                                0x00000004L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS3_MASK                                                                0x00000008L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS4_MASK                                                                0x00000010L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS5_MASK                                                                0x00000020L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS6_MASK                                                                0x00000040L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS7_MASK                                                                0x00000080L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS8_MASK                                                                0x00000100L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS9_MASK                                                                0x00000200L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS10_MASK                                                               0x00000400L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS11_MASK                                                               0x00000800L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS12_MASK                                                               0x00001000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS13_MASK                                                               0x00002000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS14_MASK                                                               0x00004000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS15_MASK                                                               0x00008000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS16_MASK                                                               0x00010000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__ALLIPS_MASK                                                             0x00020000L
 //PCTL0_SLICE0_CFG_DAGB_BUSY
 #define PCTL0_SLICE0_CFG_DAGB_BUSY__DB_LNCFG__SHIFT                                                           0x0
 #define PCTL0_SLICE0_CFG_DAGB_BUSY__DB_LNCFG_MASK                                                             0xFFFFFFFFL
@@ -29474,9 +29474,9 @@
 #define ATC_L2_CACHE_2M_DSM_CNTL__DED_COUNT_MASK                                                              0x00018000L
 #define ATC_L2_CACHE_2M_DSM_CNTL__TEST_FUE_MASK                                                               0x00020000L
 //ATC_L2_CNTL4
-#define ATC_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                          0x0
+#define ATC_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                          0x0
 #define ATC_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                         0xa
-#define ATC_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                            0x000003FFL
+#define ATC_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                            0x000003FFL
 #define ATC_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                           0x000FFC00L
 //ATC_L2_MM_GROUP_RT_CLASSES
 #define ATC_L2_MM_GROUP_RT_CLASSES__GROUP_RT_CLASS__SHIFT                                                     0x0
@@ -29569,11 +29569,11 @@
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ADDR__SHIFT                                            0x0
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PERMS__SHIFT                                           0x4
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__FRAGMENT_SIZE__SHIFT                                   0x7
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SNOOP__SHIFT                                           0xd
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SANALOP__SHIFT                                           0xd
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SPA__SHIFT                                             0xe
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__IO__SHIFT                                              0xf
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PTE_TMZ__SHIFT                                         0x10
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NO_PTE__SHIFT                                          0x11
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ANAL_PTE__SHIFT                                          0x11
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MTYPE__SHIFT                                           0x12
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MEMLOG__SHIFT                                          0x14
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NACK__SHIFT                                            0x15
@@ -29581,11 +29581,11 @@
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ADDR_MASK                                              0x0000000FL
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PERMS_MASK                                             0x00000070L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__FRAGMENT_SIZE_MASK                                     0x00001F80L
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SNOOP_MASK                                             0x00002000L
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SANALOP_MASK                                             0x00002000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SPA_MASK                                               0x00004000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__IO_MASK                                                0x00008000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PTE_TMZ_MASK                                           0x00010000L
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NO_PTE_MASK                                            0x00020000L
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ANAL_PTE_MASK                                            0x00020000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MTYPE_MASK                                             0x000C0000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MEMLOG_MASK                                            0x00100000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NACK_MASK                                              0x00600000L
@@ -29773,9 +29773,9 @@
 #define VM_L2_PROTECTION_FAULT_CNTL__READ_PROTECTION_FAULT_ENABLE_DEFAULT__SHIFT                              0xa
 #define VM_L2_PROTECTION_FAULT_CNTL__WRITE_PROTECTION_FAULT_ENABLE_DEFAULT__SHIFT                             0xb
 #define VM_L2_PROTECTION_FAULT_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT__SHIFT                           0xc
-#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                                0xd
-#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                          0x1d
-#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_NO_RETRY_FAULT__SHIFT                                           0x1e
+#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                                0xd
+#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                          0x1d
+#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_ANAL_RETRY_FAULT__SHIFT                                           0x1e
 #define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_RETRY_FAULT__SHIFT                                              0x1f
 #define VM_L2_PROTECTION_FAULT_CNTL__CLEAR_PROTECTION_FAULT_STATUS_ADDR_MASK                                  0x00000001L
 #define VM_L2_PROTECTION_FAULT_CNTL__ALLOW_SUBSEQUENT_PROTECTION_FAULT_STATUS_ADDR_UPDATES_MASK               0x00000002L
@@ -29790,9 +29790,9 @@
 #define VM_L2_PROTECTION_FAULT_CNTL__READ_PROTECTION_FAULT_ENABLE_DEFAULT_MASK                                0x00000400L
 #define VM_L2_PROTECTION_FAULT_CNTL__WRITE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK                               0x00000800L
 #define VM_L2_PROTECTION_FAULT_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK                             0x00001000L
-#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                                  0x1FFFE000L
-#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                            0x20000000L
-#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_NO_RETRY_FAULT_MASK                                             0x40000000L
+#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                                  0x1FFFE000L
+#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                            0x20000000L
+#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_ANAL_RETRY_FAULT_MASK                                             0x40000000L
 #define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_RETRY_FAULT_MASK                                                0x80000000L
 //VM_L2_PROTECTION_FAULT_CNTL2
 #define VM_L2_PROTECTION_FAULT_CNTL2__CLIENT_ID_PRT_FAULT_INTERRUPT__SHIFT                                    0x0
@@ -29806,11 +29806,11 @@
 #define VM_L2_PROTECTION_FAULT_CNTL2__ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY_MASK                               0x00040000L
 #define VM_L2_PROTECTION_FAULT_CNTL2__ENABLE_RETRY_FAULT_INTERRUPT_MASK                                       0x00080000L
 //VM_L2_PROTECTION_FAULT_MM_CNTL3
-#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                  0x0
-#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                    0xFFFFFFFFL
+#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                  0x0
+#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                    0xFFFFFFFFL
 //VM_L2_PROTECTION_FAULT_MM_CNTL4
-#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                 0x0
-#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                   0xFFFFFFFFL
+#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                 0x0
+#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                   0xFFFFFFFFL
 //VM_L2_PROTECTION_FAULT_STATUS
 #define VM_L2_PROTECTION_FAULT_STATUS__MORE_FAULTS__SHIFT                                                     0x0
 #define VM_L2_PROTECTION_FAULT_STATUS__WALKER_ERROR__SHIFT                                                    0x1
@@ -29870,7 +29870,7 @@
 #define VM_L2_CNTL4__L2_CACHE_4K_PARTITION_COUNT__SHIFT                                                       0x0
 #define VM_L2_CNTL4__VMC_TAP_PDE_REQUEST_PHYSICAL__SHIFT                                                      0x6
 #define VM_L2_CNTL4__VMC_TAP_PTE_REQUEST_PHYSICAL__SHIFT                                                      0x7
-#define VM_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                           0x8
+#define VM_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                           0x8
 #define VM_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                          0x12
 #define VM_L2_CNTL4__BPM_CGCGLS_OVERRIDE__SHIFT                                                               0x1c
 #define VM_L2_CNTL4__GC_CH_FGCG_OFF__SHIFT                                                                    0x1d
@@ -29878,7 +29878,7 @@
 #define VM_L2_CNTL4__L2_CACHE_4K_PARTITION_COUNT_MASK                                                         0x0000003FL
 #define VM_L2_CNTL4__VMC_TAP_PDE_REQUEST_PHYSICAL_MASK                                                        0x00000040L
 #define VM_L2_CNTL4__VMC_TAP_PTE_REQUEST_PHYSICAL_MASK                                                        0x00000080L
-#define VM_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                             0x0003FF00L
+#define VM_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                             0x0003FF00L
 #define VM_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                            0x0FFC0000L
 #define VM_L2_CNTL4__BPM_CGCGLS_OVERRIDE_MASK                                                                 0x10000000L
 #define VM_L2_CNTL4__GC_CH_FGCG_OFF_MASK                                                                      0x20000000L

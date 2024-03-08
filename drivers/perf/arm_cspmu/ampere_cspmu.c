@@ -91,7 +91,7 @@ static struct attribute *ampereone_mcu_pmu_event_attrs[] = {
 	ARM_CSPMU_EVENT_ATTR(wr_fifo_full,		0x36),
 	ARM_CSPMU_EVENT_ATTR(info_fifo_full,		0x37),
 	ARM_CSPMU_EVENT_ATTR(cmd_fifo_full,		0x38),
-	ARM_CSPMU_EVENT_ATTR(dfi_nop,			0x39),
+	ARM_CSPMU_EVENT_ATTR(dfi_analp,			0x39),
 	ARM_CSPMU_EVENT_ATTR(dfi_cmd,			0x3a),
 	ARM_CSPMU_EVENT_ATTR(rd_run_len,		0x3b),
 	ARM_CSPMU_EVENT_ATTR(wr_run_len,		0x3c),
@@ -223,13 +223,13 @@ static int ampere_cspmu_init_ops(struct arm_cspmu *cspmu)
 
 	ctx = devm_kzalloc(dev, sizeof(struct ampere_cspmu_ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->event_attr	= ampereone_mcu_pmu_event_attrs;
 	ctx->format_attr = ampereone_mcu_format_attrs;
 	ctx->name = ampere_cspmu_format_name(cspmu, "ampere_mcu_pmu_%d");
 	if (IS_ERR_OR_NULL(ctx->name))
-		return ctx->name ? PTR_ERR(ctx->name) : -ENOMEM;
+		return ctx->name ? PTR_ERR(ctx->name) : -EANALMEM;
 
 	cspmu->impl.ctx = ctx;
 

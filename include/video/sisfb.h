@@ -11,7 +11,7 @@
 #include <linux/pci.h>
 #include <uapi/video/sisfb.h>
 
-#define	UNKNOWN_VGA  0
+#define	UNKANALWN_VGA  0
 #define	SIS_300_VGA  1
 #define	SIS_315_VGA  2
 

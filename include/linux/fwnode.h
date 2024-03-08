@@ -1,46 +1,46 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * fwnode.h - Firmware device node object handle type definition.
+ * fwanalde.h - Firmware device analde object handle type definition.
  *
  * Copyright (C) 2015, Intel Corporation
  * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  */
 
-#ifndef _LINUX_FWNODE_H_
-#define _LINUX_FWNODE_H_
+#ifndef _LINUX_FWANALDE_H_
+#define _LINUX_FWANALDE_H_
 
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/bits.h>
 #include <linux/err.h>
 
-struct fwnode_operations;
+struct fwanalde_operations;
 struct device;
 
 /*
- * fwnode flags
+ * fwanalde flags
  *
- * LINKS_ADDED:	The fwnode has already be parsed to add fwnode links.
- * NOT_DEVICE:	The fwnode will never be populated as a struct device.
- * INITIALIZED: The hardware corresponding to fwnode has been initialized.
- * NEEDS_CHILD_BOUND_ON_ADD: For this fwnode/device to probe successfully, its
+ * LINKS_ADDED:	The fwanalde has already be parsed to add fwanalde links.
+ * ANALT_DEVICE:	The fwanalde will never be populated as a struct device.
+ * INITIALIZED: The hardware corresponding to fwanalde has been initialized.
+ * NEEDS_CHILD_BOUND_ON_ADD: For this fwanalde/device to probe successfully, its
  *			     driver needs its child devices to be bound with
  *			     their respective drivers as soon as they are
  *			     added.
- * BEST_EFFORT: The fwnode/device needs to probe early and might be missing some
+ * BEST_EFFORT: The fwanalde/device needs to probe early and might be missing some
  *		suppliers. Only enforce ordering with suppliers that have
  *		drivers.
  */
-#define FWNODE_FLAG_LINKS_ADDED			BIT(0)
-#define FWNODE_FLAG_NOT_DEVICE			BIT(1)
-#define FWNODE_FLAG_INITIALIZED			BIT(2)
-#define FWNODE_FLAG_NEEDS_CHILD_BOUND_ON_ADD	BIT(3)
-#define FWNODE_FLAG_BEST_EFFORT			BIT(4)
-#define FWNODE_FLAG_VISITED			BIT(5)
+#define FWANALDE_FLAG_LINKS_ADDED			BIT(0)
+#define FWANALDE_FLAG_ANALT_DEVICE			BIT(1)
+#define FWANALDE_FLAG_INITIALIZED			BIT(2)
+#define FWANALDE_FLAG_NEEDS_CHILD_BOUND_ON_ADD	BIT(3)
+#define FWANALDE_FLAG_BEST_EFFORT			BIT(4)
+#define FWANALDE_FLAG_VISITED			BIT(5)
 
-struct fwnode_handle {
-	struct fwnode_handle *secondary;
-	const struct fwnode_operations *ops;
+struct fwanalde_handle {
+	struct fwanalde_handle *secondary;
+	const struct fwanalde_operations *ops;
 
 	/* The below is used solely by device links, don't use otherwise */
 	struct device *dev;
@@ -50,57 +50,57 @@ struct fwnode_handle {
 };
 
 /*
- * fwnode link flags
+ * fwanalde link flags
  *
- * CYCLE:	The fwnode link is part of a cycle. Don't defer probe.
+ * CYCLE:	The fwanalde link is part of a cycle. Don't defer probe.
  */
 #define FWLINK_FLAG_CYCLE			BIT(0)
 
-struct fwnode_link {
-	struct fwnode_handle *supplier;
+struct fwanalde_link {
+	struct fwanalde_handle *supplier;
 	struct list_head s_hook;
-	struct fwnode_handle *consumer;
+	struct fwanalde_handle *consumer;
 	struct list_head c_hook;
 	u8 flags;
 };
 
 /**
- * struct fwnode_endpoint - Fwnode graph endpoint
+ * struct fwanalde_endpoint - Fwanalde graph endpoint
  * @port: Port number
  * @id: Endpoint id
- * @local_fwnode: reference to the related fwnode
+ * @local_fwanalde: reference to the related fwanalde
  */
-struct fwnode_endpoint {
+struct fwanalde_endpoint {
 	unsigned int port;
 	unsigned int id;
-	const struct fwnode_handle *local_fwnode;
+	const struct fwanalde_handle *local_fwanalde;
 };
 
 /*
- * ports and endpoints defined as software_nodes should all follow a common
+ * ports and endpoints defined as software_analdes should all follow a common
  * naming scheme; use these macros to ensure commonality.
  */
-#define SWNODE_GRAPH_PORT_NAME_FMT		"port@%u"
-#define SWNODE_GRAPH_ENDPOINT_NAME_FMT		"endpoint@%u"
+#define SWANALDE_GRAPH_PORT_NAME_FMT		"port@%u"
+#define SWANALDE_GRAPH_ENDPOINT_NAME_FMT		"endpoint@%u"
 
-#define NR_FWNODE_REFERENCE_ARGS	8
+#define NR_FWANALDE_REFERENCE_ARGS	8
 
 /**
- * struct fwnode_reference_args - Fwnode reference with additional arguments
- * @fwnode:- A reference to the base fwnode
+ * struct fwanalde_reference_args - Fwanalde reference with additional arguments
+ * @fwanalde:- A reference to the base fwanalde
  * @nargs: Number of elements in @args array
- * @args: Integer arguments on the fwnode
+ * @args: Integer arguments on the fwanalde
  */
-struct fwnode_reference_args {
-	struct fwnode_handle *fwnode;
+struct fwanalde_reference_args {
+	struct fwanalde_handle *fwanalde;
 	unsigned int nargs;
-	u64 args[NR_FWNODE_REFERENCE_ARGS];
+	u64 args[NR_FWANALDE_REFERENCE_ARGS];
 };
 
 /**
- * struct fwnode_operations - Operations for fwnode interface
- * @get: Get a reference to an fwnode.
- * @put: Put a reference to an fwnode.
+ * struct fwanalde_operations - Operations for fwanalde interface
+ * @get: Get a reference to an fwanalde.
+ * @put: Put a reference to an fwanalde.
  * @device_is_available: Return true if the device is available.
  * @device_get_match_data: Return the device driver match data.
  * @property_present: Return true if a property is present.
@@ -108,110 +108,110 @@ struct fwnode_reference_args {
  *			     success, a negative error code otherwise.
  * @property_read_string_array: Read an array of string properties. Return zero
  *				on success, a negative error code otherwise.
- * @get_name: Return the name of an fwnode.
- * @get_name_prefix: Get a prefix for a node (for printing purposes).
- * @get_parent: Return the parent of an fwnode.
- * @get_next_child_node: Return the next child node in an iteration.
- * @get_named_child_node: Return a child node with a given name.
+ * @get_name: Return the name of an fwanalde.
+ * @get_name_prefix: Get a prefix for a analde (for printing purposes).
+ * @get_parent: Return the parent of an fwanalde.
+ * @get_next_child_analde: Return the next child analde in an iteration.
+ * @get_named_child_analde: Return a child analde with a given name.
  * @get_reference_args: Return a reference pointed to by a property, with args
- * @graph_get_next_endpoint: Return an endpoint node in an iteration.
- * @graph_get_remote_endpoint: Return the remote endpoint node of a local
- *			       endpoint node.
- * @graph_get_port_parent: Return the parent node of a port node.
+ * @graph_get_next_endpoint: Return an endpoint analde in an iteration.
+ * @graph_get_remote_endpoint: Return the remote endpoint analde of a local
+ *			       endpoint analde.
+ * @graph_get_port_parent: Return the parent analde of a port analde.
  * @graph_parse_endpoint: Parse endpoint for port and endpoint id.
- * @add_links:	Create fwnode links to all the suppliers of the fwnode. Return
+ * @add_links:	Create fwanalde links to all the suppliers of the fwanalde. Return
  *		zero on success, a negative error code otherwise.
  */
-struct fwnode_operations {
-	struct fwnode_handle *(*get)(struct fwnode_handle *fwnode);
-	void (*put)(struct fwnode_handle *fwnode);
-	bool (*device_is_available)(const struct fwnode_handle *fwnode);
-	const void *(*device_get_match_data)(const struct fwnode_handle *fwnode,
+struct fwanalde_operations {
+	struct fwanalde_handle *(*get)(struct fwanalde_handle *fwanalde);
+	void (*put)(struct fwanalde_handle *fwanalde);
+	bool (*device_is_available)(const struct fwanalde_handle *fwanalde);
+	const void *(*device_get_match_data)(const struct fwanalde_handle *fwanalde,
 					     const struct device *dev);
-	bool (*device_dma_supported)(const struct fwnode_handle *fwnode);
+	bool (*device_dma_supported)(const struct fwanalde_handle *fwanalde);
 	enum dev_dma_attr
-	(*device_get_dma_attr)(const struct fwnode_handle *fwnode);
-	bool (*property_present)(const struct fwnode_handle *fwnode,
+	(*device_get_dma_attr)(const struct fwanalde_handle *fwanalde);
+	bool (*property_present)(const struct fwanalde_handle *fwanalde,
 				 const char *propname);
-	int (*property_read_int_array)(const struct fwnode_handle *fwnode,
+	int (*property_read_int_array)(const struct fwanalde_handle *fwanalde,
 				       const char *propname,
 				       unsigned int elem_size, void *val,
 				       size_t nval);
 	int
-	(*property_read_string_array)(const struct fwnode_handle *fwnode_handle,
+	(*property_read_string_array)(const struct fwanalde_handle *fwanalde_handle,
 				      const char *propname, const char **val,
 				      size_t nval);
-	const char *(*get_name)(const struct fwnode_handle *fwnode);
-	const char *(*get_name_prefix)(const struct fwnode_handle *fwnode);
-	struct fwnode_handle *(*get_parent)(const struct fwnode_handle *fwnode);
-	struct fwnode_handle *
-	(*get_next_child_node)(const struct fwnode_handle *fwnode,
-			       struct fwnode_handle *child);
-	struct fwnode_handle *
-	(*get_named_child_node)(const struct fwnode_handle *fwnode,
+	const char *(*get_name)(const struct fwanalde_handle *fwanalde);
+	const char *(*get_name_prefix)(const struct fwanalde_handle *fwanalde);
+	struct fwanalde_handle *(*get_parent)(const struct fwanalde_handle *fwanalde);
+	struct fwanalde_handle *
+	(*get_next_child_analde)(const struct fwanalde_handle *fwanalde,
+			       struct fwanalde_handle *child);
+	struct fwanalde_handle *
+	(*get_named_child_analde)(const struct fwanalde_handle *fwanalde,
 				const char *name);
-	int (*get_reference_args)(const struct fwnode_handle *fwnode,
+	int (*get_reference_args)(const struct fwanalde_handle *fwanalde,
 				  const char *prop, const char *nargs_prop,
 				  unsigned int nargs, unsigned int index,
-				  struct fwnode_reference_args *args);
-	struct fwnode_handle *
-	(*graph_get_next_endpoint)(const struct fwnode_handle *fwnode,
-				   struct fwnode_handle *prev);
-	struct fwnode_handle *
-	(*graph_get_remote_endpoint)(const struct fwnode_handle *fwnode);
-	struct fwnode_handle *
-	(*graph_get_port_parent)(struct fwnode_handle *fwnode);
-	int (*graph_parse_endpoint)(const struct fwnode_handle *fwnode,
-				    struct fwnode_endpoint *endpoint);
-	void __iomem *(*iomap)(struct fwnode_handle *fwnode, int index);
-	int (*irq_get)(const struct fwnode_handle *fwnode, unsigned int index);
-	int (*add_links)(struct fwnode_handle *fwnode);
+				  struct fwanalde_reference_args *args);
+	struct fwanalde_handle *
+	(*graph_get_next_endpoint)(const struct fwanalde_handle *fwanalde,
+				   struct fwanalde_handle *prev);
+	struct fwanalde_handle *
+	(*graph_get_remote_endpoint)(const struct fwanalde_handle *fwanalde);
+	struct fwanalde_handle *
+	(*graph_get_port_parent)(struct fwanalde_handle *fwanalde);
+	int (*graph_parse_endpoint)(const struct fwanalde_handle *fwanalde,
+				    struct fwanalde_endpoint *endpoint);
+	void __iomem *(*iomap)(struct fwanalde_handle *fwanalde, int index);
+	int (*irq_get)(const struct fwanalde_handle *fwanalde, unsigned int index);
+	int (*add_links)(struct fwanalde_handle *fwanalde);
 };
 
-#define fwnode_has_op(fwnode, op)					\
-	(!IS_ERR_OR_NULL(fwnode) && (fwnode)->ops && (fwnode)->ops->op)
+#define fwanalde_has_op(fwanalde, op)					\
+	(!IS_ERR_OR_NULL(fwanalde) && (fwanalde)->ops && (fwanalde)->ops->op)
 
-#define fwnode_call_int_op(fwnode, op, ...)				\
-	(fwnode_has_op(fwnode, op) ?					\
-	 (fwnode)->ops->op(fwnode, ## __VA_ARGS__) : (IS_ERR_OR_NULL(fwnode) ? -EINVAL : -ENXIO))
+#define fwanalde_call_int_op(fwanalde, op, ...)				\
+	(fwanalde_has_op(fwanalde, op) ?					\
+	 (fwanalde)->ops->op(fwanalde, ## __VA_ARGS__) : (IS_ERR_OR_NULL(fwanalde) ? -EINVAL : -ENXIO))
 
-#define fwnode_call_bool_op(fwnode, op, ...)		\
-	(fwnode_has_op(fwnode, op) ?			\
-	 (fwnode)->ops->op(fwnode, ## __VA_ARGS__) : false)
+#define fwanalde_call_bool_op(fwanalde, op, ...)		\
+	(fwanalde_has_op(fwanalde, op) ?			\
+	 (fwanalde)->ops->op(fwanalde, ## __VA_ARGS__) : false)
 
-#define fwnode_call_ptr_op(fwnode, op, ...)		\
-	(fwnode_has_op(fwnode, op) ?			\
-	 (fwnode)->ops->op(fwnode, ## __VA_ARGS__) : NULL)
-#define fwnode_call_void_op(fwnode, op, ...)				\
+#define fwanalde_call_ptr_op(fwanalde, op, ...)		\
+	(fwanalde_has_op(fwanalde, op) ?			\
+	 (fwanalde)->ops->op(fwanalde, ## __VA_ARGS__) : NULL)
+#define fwanalde_call_void_op(fwanalde, op, ...)				\
 	do {								\
-		if (fwnode_has_op(fwnode, op))				\
-			(fwnode)->ops->op(fwnode, ## __VA_ARGS__);	\
+		if (fwanalde_has_op(fwanalde, op))				\
+			(fwanalde)->ops->op(fwanalde, ## __VA_ARGS__);	\
 	} while (false)
-#define get_dev_from_fwnode(fwnode)	get_device((fwnode)->dev)
+#define get_dev_from_fwanalde(fwanalde)	get_device((fwanalde)->dev)
 
-static inline void fwnode_init(struct fwnode_handle *fwnode,
-			       const struct fwnode_operations *ops)
+static inline void fwanalde_init(struct fwanalde_handle *fwanalde,
+			       const struct fwanalde_operations *ops)
 {
-	fwnode->ops = ops;
-	INIT_LIST_HEAD(&fwnode->consumers);
-	INIT_LIST_HEAD(&fwnode->suppliers);
+	fwanalde->ops = ops;
+	INIT_LIST_HEAD(&fwanalde->consumers);
+	INIT_LIST_HEAD(&fwanalde->suppliers);
 }
 
-static inline void fwnode_dev_initialized(struct fwnode_handle *fwnode,
+static inline void fwanalde_dev_initialized(struct fwanalde_handle *fwanalde,
 					  bool initialized)
 {
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(fwanalde))
 		return;
 
 	if (initialized)
-		fwnode->flags |= FWNODE_FLAG_INITIALIZED;
+		fwanalde->flags |= FWANALDE_FLAG_INITIALIZED;
 	else
-		fwnode->flags &= ~FWNODE_FLAG_INITIALIZED;
+		fwanalde->flags &= ~FWANALDE_FLAG_INITIALIZED;
 }
 
 extern bool fw_devlink_is_strict(void);
-int fwnode_link_add(struct fwnode_handle *con, struct fwnode_handle *sup);
-void fwnode_links_purge(struct fwnode_handle *fwnode);
-void fw_devlink_purge_absent_suppliers(struct fwnode_handle *fwnode);
+int fwanalde_link_add(struct fwanalde_handle *con, struct fwanalde_handle *sup);
+void fwanalde_links_purge(struct fwanalde_handle *fwanalde);
+void fw_devlink_purge_absent_suppliers(struct fwanalde_handle *fwanalde);
 
 #endif

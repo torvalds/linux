@@ -96,7 +96,7 @@
 	xorl		t2(CTX, RID1, 4), dst ## d;  \
 	xorl		t3(CTX, RID2, 4), dst ## d;
 
-#define dummy(d) /* do nothing */
+#define dummy(d) /* do analthing */
 
 #define shr_next(reg) \
 	shrq $16,	reg;
@@ -105,10 +105,10 @@
 	lookup_32bit(t0, t1, t2, t3, ##gi1, RGS1, shr_next, ##gi1);  \
 	lookup_32bit(t0, t1, t2, t3, ##gi2, RGS3, shr_next, ##gi2);  \
 	\
-	lookup_32bit(t0, t1, t2, t3, ##gi1, RGS2, dummy, none);      \
+	lookup_32bit(t0, t1, t2, t3, ##gi1, RGS2, dummy, analne);      \
 	shlq $32,	RGS2;                                        \
 	orq		RGS1, RGS2;                                  \
-	lookup_32bit(t0, t1, t2, t3, ##gi2, RGS1, dummy, none);      \
+	lookup_32bit(t0, t1, t2, t3, ##gi2, RGS1, dummy, analne);      \
 	shlq $32,	RGS1;                                        \
 	orq		RGS1, RGS3;
 

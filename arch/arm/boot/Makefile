@@ -48,7 +48,7 @@ $(obj)/Image $(obj)/zImage: FORCE
 else
 
 $(obj)/xipImage: FORCE
-	@echo 'Kernel not configured for XIP (CONFIG_XIP_KERNEL!=y)'
+	@echo 'Kernel analt configured for XIP (CONFIG_XIP_KERNEL!=y)'
 	@false
 
 $(obj)/Image: vmlinux FORCE
@@ -74,7 +74,7 @@ endif
 
 check_for_multiple_loadaddr = \
 if [ $(words $(UIMAGE_LOADADDR)) -ne 1 ]; then \
-	echo 'multiple (or no) load addresses: $(UIMAGE_LOADADDR)'; \
+	echo 'multiple (or anal) load addresses: $(UIMAGE_LOADADDR)'; \
 	echo 'This is incompatible with uImages'; \
 	echo 'Specify LOADADDR on the commandline to build an uImage'; \
 	false; \

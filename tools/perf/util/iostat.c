@@ -2,7 +2,7 @@
 #include "util/iostat.h"
 #include "util/debug.h"
 
-enum iostat_mode_t iostat_mode = IOSTAT_NONE;
+enum iostat_mode_t iostat_mode = IOSTAT_ANALNE;
 
 __weak int iostat_prepare(struct evlist *evlist __maybe_unused,
 			  struct perf_stat_config *config __maybe_unused)
@@ -14,7 +14,7 @@ __weak int iostat_parse(const struct option *opt __maybe_unused,
 			 const char *str __maybe_unused,
 			 int unset __maybe_unused)
 {
-	pr_err("iostat mode is not supported on current platform\n");
+	pr_err("iostat mode is analt supported on current platform\n");
 	return -1;
 }
 

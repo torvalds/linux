@@ -44,7 +44,7 @@ int is_hibernate_resume_dev(dev_t dev)
 	return hibernation_available() && snapshot_state.dev == dev;
 }
 
-static int snapshot_open(struct inode *inode, struct file *filp)
+static int snapshot_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct snapshot_data *data;
 	unsigned int sleep_flags;
@@ -62,10 +62,10 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 
 	if ((filp->f_flags & O_ACCMODE) == O_RDWR) {
 		hibernate_release();
-		error = -ENOSYS;
+		error = -EANALSYS;
 		goto Unlock;
 	}
-	nonseekable_open(inode, filp);
+	analnseekable_open(ianalde, filp);
 	data = &snapshot_state;
 	filp->private_data = data;
 	memset(&data->handle, 0, sizeof(struct snapshot_handle));
@@ -74,7 +74,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 		data->swap = swap_type_of(swsusp_resume_device, 0);
 		data->mode = O_RDONLY;
 		data->free_bitmaps = false;
-		error = pm_notifier_call_chain_robust(PM_HIBERNATION_PREPARE, PM_POST_HIBERNATION);
+		error = pm_analtifier_call_chain_robust(PM_HIBERNATION_PREPARE, PM_POST_HIBERNATION);
 	} else {
 		/*
 		 * Resuming.  We may need to wait for the image device to
@@ -84,7 +84,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 
 		data->swap = -1;
 		data->mode = O_WRONLY;
-		error = pm_notifier_call_chain_robust(PM_RESTORE_PREPARE, PM_POST_RESTORE);
+		error = pm_analtifier_call_chain_robust(PM_RESTORE_PREPARE, PM_POST_RESTORE);
 		if (!error) {
 			error = create_basic_memory_bitmaps();
 			data->free_bitmaps = !error;
@@ -104,7 +104,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	return error;
 }
 
-static int snapshot_release(struct inode *inode, struct file *filp)
+static int snapshot_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct snapshot_data *data;
 	unsigned int sleep_flags;
@@ -122,7 +122,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	} else if (data->free_bitmaps) {
 		free_basic_memory_bitmaps();
 	}
-	pm_notifier_call_chain(data->mode == O_RDONLY ?
+	pm_analtifier_call_chain(data->mode == O_RDONLY ?
 			PM_POST_HIBERNATION : PM_POST_RESTORE);
 	hibernate_release();
 
@@ -143,7 +143,7 @@ static ssize_t snapshot_read(struct file *filp, char __user *buf,
 
 	data = filp->private_data;
 	if (!data->ready) {
-		res = -ENODATA;
+		res = -EANALDATA;
 		goto Unlock;
 	}
 	if (!pg_offp) { /* on page boundary? */
@@ -241,7 +241,7 @@ static int snapshot_set_swap_area(struct snapshot_data *data,
 	 */
 	data->swap = swap_type_of(swdev, offset);
 	if (data->swap < 0)
-		return swdev ? -ENODEV : -EINVAL;
+		return swdev ? -EANALDEV : -EINVAL;
 	data->dev = swdev;
 	return 0;
 }
@@ -260,9 +260,9 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 	}
 
 	if (_IOC_TYPE(cmd) != SNAPSHOT_IOC_MAGIC)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (_IOC_NR(cmd) > SNAPSHOT_IOC_MAXNR)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -333,7 +333,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		/*
 		 * It is necessary to thaw kernel threads here, because
 		 * SNAPSHOT_CREATE_IMAGE may be invoked directly after
-		 * SNAPSHOT_FREE.  In that case, if kernel threads were not
+		 * SNAPSHOT_FREE.  In that case, if kernel threads were analt
 		 * thawed, the preallocation of memory carried out by
 		 * hibernation_snapshot() might run into problems (i.e. it
 		 * might fail or even deadlock).
@@ -347,7 +347,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 
 	case SNAPSHOT_GET_IMAGE_SIZE:
 		if (!data->ready) {
-			error = -ENODATA;
+			error = -EANALDATA;
 			break;
 		}
 		size = snapshot_get_image_size();
@@ -363,7 +363,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 
 	case SNAPSHOT_ALLOC_SWAP_PAGE:
 		if (data->swap < 0 || data->swap >= MAX_SWAPFILES) {
-			error = -ENODEV;
+			error = -EANALDEV;
 			break;
 		}
 		offset = alloc_swapdev_block(data->swap);
@@ -371,13 +371,13 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			offset <<= PAGE_SHIFT;
 			error = put_user(offset, (loff_t __user *)arg);
 		} else {
-			error = -ENOSPC;
+			error = -EANALSPC;
 		}
 		break;
 
 	case SNAPSHOT_FREE_SWAP_PAGES:
 		if (data->swap < 0 || data->swap >= MAX_SWAPFILES) {
-			error = -ENODEV;
+			error = -EANALDEV;
 			break;
 		}
 		free_all_swap_pages(data->swap);
@@ -389,7 +389,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			break;
 		}
 		/*
-		 * Tasks are frozen and the notifiers have been called with
+		 * Tasks are frozen and the analtifiers have been called with
 		 * PM_HIBERNATION_PREPARE
 		 */
 		error = suspend_devices_and_enter(PM_SUSPEND_MEM);
@@ -410,7 +410,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	default:
-		error = -ENOTTY;
+		error = -EANALTTY;
 
 	}
 
@@ -445,7 +445,7 @@ static const struct file_operations snapshot_fops = {
 	.release = snapshot_release,
 	.read = snapshot_read,
 	.write = snapshot_write,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.unlocked_ioctl = snapshot_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = snapshot_compat_ioctl,
@@ -453,7 +453,7 @@ static const struct file_operations snapshot_fops = {
 };
 
 static struct miscdevice snapshot_device = {
-	.minor = SNAPSHOT_MINOR,
+	.mianalr = SNAPSHOT_MIANALR,
 	.name = "snapshot",
 	.fops = &snapshot_fops,
 };

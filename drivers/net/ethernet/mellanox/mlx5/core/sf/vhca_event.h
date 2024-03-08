@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020 Mellanox Technologies Ltd */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd */
 
 #ifndef __MLX5_VHCA_EVENT_H__
 #define __MLX5_VHCA_EVENT_H__
@@ -22,8 +22,8 @@ int mlx5_vhca_event_init(struct mlx5_core_dev *dev);
 void mlx5_vhca_event_cleanup(struct mlx5_core_dev *dev);
 void mlx5_vhca_event_start(struct mlx5_core_dev *dev);
 void mlx5_vhca_event_stop(struct mlx5_core_dev *dev);
-int mlx5_vhca_event_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb);
-void mlx5_vhca_event_notifier_unregister(struct mlx5_core_dev *dev, struct notifier_block *nb);
+int mlx5_vhca_event_analtifier_register(struct mlx5_core_dev *dev, struct analtifier_block *nb);
+void mlx5_vhca_event_analtifier_unregister(struct mlx5_core_dev *dev, struct analtifier_block *nb);
 int mlx5_modify_vhca_sw_id(struct mlx5_core_dev *dev, u16 function_id, u32 sw_fn_id);
 int mlx5_vhca_event_arm(struct mlx5_core_dev *dev, u16 function_id);
 int mlx5_cmd_query_vhca_state(struct mlx5_core_dev *dev, u16 function_id,

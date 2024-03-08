@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device tree sources for Exynos4412 PPMU common device tree
+ * Device tree sources for Exyanals4412 PPMU common device tree
  *
  * Copyright (C) 2015 Samsung Electronics
  * Author: Chanwoo Choi <cw00.choi@samsung.com>

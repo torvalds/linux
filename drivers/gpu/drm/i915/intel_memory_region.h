@@ -35,7 +35,7 @@ enum intel_region_id {
 	INTEL_REGION_LMEM_3,
 	INTEL_REGION_STOLEN_SMEM,
 	INTEL_REGION_STOLEN_LMEM,
-	INTEL_REGION_UNKNOWN, /* Should be last */
+	INTEL_REGION_UNKANALWN, /* Should be last */
 };
 
 #define REGION_SMEM     BIT(INTEL_REGION_SMEM)
@@ -81,7 +81,7 @@ struct intel_memory_region {
 	enum intel_region_id id;
 	char name[16];
 	char uabi_name[16];
-	bool private; /* not for userspace */
+	bool private; /* analt for userspace */
 
 	struct {
 		struct mutex lock; /* Protects access to objects */

@@ -6,7 +6,7 @@ Introduction
 ============
 
 Hardware spinlock modules provide hardware assistance for synchronization
-and mutual exclusion between heterogeneous processors and those not operating
+and mutual exclusion between heterogeneous processors and those analt operating
 under a single, shared operating system.
 
 For example, OMAP4 has dual Cortex-A9, dual Cortex-M3 and a C64x+ DSP,
@@ -16,7 +16,7 @@ are running some flavor of RTOS).
 
 A generic hwspinlock framework allows platform-independent drivers to use
 the hwspinlock device in order to access data structures that are shared
-between remote processors, that otherwise have no alternative mechanism
+between remote processors, that otherwise have anal alternative mechanism
 to accomplish synchronization and mutual exclusion operations.
 
 This is necessary, for example, for Inter-processor communications:
@@ -62,15 +62,15 @@ Should be called from a process context (might sleep).
 
 ::
 
-  int of_hwspin_lock_get_id(struct device_node *np, int index);
+  int of_hwspin_lock_get_id(struct device_analde *np, int index);
 
 Retrieve the global lock id for an OF phandle-based specific lock.
 This function provides a means for DT users of a hwspinlock module
 to get the global lock id of a specific hwspinlock, so that it can
-be requested using the normal hwspin_lock_request_specific() API.
+be requested using the analrmal hwspin_lock_request_specific() API.
 
 The function returns a lock id number on success, -EPROBE_DEFER if
-the hwspinlock device is not yet registered with the core, or other
+the hwspinlock device is analt yet registered with the core, or other
 error values.
 
 Should be called from a process context (might sleep).
@@ -93,12 +93,12 @@ Lock a previously-assigned hwspinlock with a timeout limit (specified in
 msecs). If the hwspinlock is already taken, the function will busy loop
 waiting for it to be released, but give up when the timeout elapses.
 Upon a successful return from this function, preemption is disabled so
-the caller must not sleep, and is advised to release the hwspinlock as
+the caller must analt sleep, and is advised to release the hwspinlock as
 soon as possible, in order to minimize remote cores polling on the
 hardware interconnect.
 
 Returns 0 when successful and an appropriate error code otherwise (most
-notably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
+analtably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
 The function will never sleep.
 
 ::
@@ -109,11 +109,11 @@ Lock a previously-assigned hwspinlock with a timeout limit (specified in
 msecs). If the hwspinlock is already taken, the function will busy loop
 waiting for it to be released, but give up when the timeout elapses.
 Upon a successful return from this function, preemption and the local
-interrupts are disabled, so the caller must not sleep, and is advised to
+interrupts are disabled, so the caller must analt sleep, and is advised to
 release the hwspinlock as soon as possible.
 
 Returns 0 when successful and an appropriate error code otherwise (most
-notably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
+analtably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
 The function will never sleep.
 
 ::
@@ -126,11 +126,11 @@ msecs). If the hwspinlock is already taken, the function will busy loop
 waiting for it to be released, but give up when the timeout elapses.
 Upon a successful return from this function, preemption is disabled,
 local interrupts are disabled and their previous state is saved at the
-given flags placeholder. The caller must not sleep, and is advised to
+given flags placeholder. The caller must analt sleep, and is advised to
 release the hwspinlock as soon as possible.
 
 Returns 0 when successful and an appropriate error code otherwise (most
-notably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
+analtably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
 
 The function will never sleep.
 
@@ -147,7 +147,7 @@ or spinlock to avoid dead-lock, that will let user can do some time-consuming
 or sleepable operations under the hardware lock.
 
 Returns 0 when successful and an appropriate error code otherwise (most
-notably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
+analtably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
 
 The function will never sleep.
 
@@ -160,10 +160,10 @@ msecs). If the hwspinlock is already taken, the function will busy loop
 waiting for it to be released, but give up when the timeout elapses.
 
 This function shall be called only from an atomic context and the timeout
-value shall not exceed a few msecs.
+value shall analt exceed a few msecs.
 
 Returns 0 when successful and an appropriate error code otherwise (most
-notably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
+analtably -ETIMEDOUT if the hwspinlock is still busy after timeout msecs).
 
 The function will never sleep.
 
@@ -176,12 +176,12 @@ Attempt to lock a previously-assigned hwspinlock, but immediately fail if
 it is already taken.
 
 Upon a successful return from this function, preemption is disabled so
-caller must not sleep, and is advised to release the hwspinlock as soon as
+caller must analt sleep, and is advised to release the hwspinlock as soon as
 possible, in order to minimize remote cores polling on the hardware
 interconnect.
 
 Returns 0 on success and an appropriate error code otherwise (most
-notably -EBUSY if the hwspinlock was already taken).
+analtably -EBUSY if the hwspinlock was already taken).
 The function will never sleep.
 
 ::
@@ -193,11 +193,11 @@ Attempt to lock a previously-assigned hwspinlock, but immediately fail if
 it is already taken.
 
 Upon a successful return from this function, preemption and the local
-interrupts are disabled so caller must not sleep, and is advised to
+interrupts are disabled so caller must analt sleep, and is advised to
 release the hwspinlock as soon as possible.
 
 Returns 0 on success and an appropriate error code otherwise (most
-notably -EBUSY if the hwspinlock was already taken).
+analtably -EBUSY if the hwspinlock was already taken).
 
 The function will never sleep.
 
@@ -210,11 +210,11 @@ it is already taken.
 
 Upon a successful return from this function, preemption is disabled,
 the local interrupts are disabled and their previous state is saved
-at the given flags placeholder. The caller must not sleep, and is advised
+at the given flags placeholder. The caller must analt sleep, and is advised
 to release the hwspinlock as soon as possible.
 
 Returns 0 on success and an appropriate error code otherwise (most
-notably -EBUSY if the hwspinlock was already taken).
+analtably -EBUSY if the hwspinlock was already taken).
 The function will never sleep.
 
 ::
@@ -229,7 +229,7 @@ or spinlock to avoid dead-lock, that will let user can do some time-consuming
 or sleepable operations under the hardware lock.
 
 Returns 0 on success and an appropriate error code otherwise (most
-notably -EBUSY if the hwspinlock was already taken).
+analtably -EBUSY if the hwspinlock was already taken).
 The function will never sleep.
 
 ::
@@ -242,7 +242,7 @@ it is already taken.
 This function shall be called only from an atomic context.
 
 Returns 0 on success and an appropriate error code otherwise (most
-notably -EBUSY if the hwspinlock was already taken).
+analtably -EBUSY if the hwspinlock was already taken).
 The function will never sleep.
 
 ::
@@ -252,10 +252,10 @@ The function will never sleep.
 Unlock a previously-locked hwspinlock. Always succeed, and can be called
 from any context (the function never sleeps).
 
-.. note::
+.. analte::
 
   code should **never** unlock an hwspinlock which is already unlocked
-  (there is no protection against this).
+  (there is anal protection against this).
 
 ::
 
@@ -264,7 +264,7 @@ from any context (the function never sleeps).
 Unlock a previously-locked hwspinlock and enable local interrupts.
 The caller should **never** unlock an hwspinlock which is already unlocked.
 
-Doing so is considered a bug (there is no protection against this).
+Doing so is considered a bug (there is anal protection against this).
 Upon a successful return from this function, preemption and local
 interrupts are enabled. This function will never sleep.
 
@@ -276,7 +276,7 @@ interrupts are enabled. This function will never sleep.
 Unlock a previously-locked hwspinlock.
 
 The caller should **never** unlock an hwspinlock which is already unlocked.
-Doing so is considered a bug (there is no protection against this).
+Doing so is considered a bug (there is anal protection against this).
 Upon a successful return from this function, preemption is reenabled,
 and the state of the local interrupts is restored to the state saved at
 the given flags. This function will never sleep.
@@ -288,7 +288,7 @@ the given flags. This function will never sleep.
 Unlock a previously-locked hwspinlock.
 
 The caller should **never** unlock an hwspinlock which is already unlocked.
-Doing so is considered a bug (there is no protection against this).
+Doing so is considered a bug (there is anal protection against this).
 This function will never sleep.
 
 ::
@@ -298,7 +298,7 @@ This function will never sleep.
 Unlock a previously-locked hwspinlock.
 
 The caller should **never** unlock an hwspinlock which is already unlocked.
-Doing so is considered a bug (there is no protection against this).
+Doing so is considered a bug (there is anal protection against this).
 This function will never sleep.
 
 ::
@@ -331,7 +331,7 @@ Typical usage
 			...
 
 		id = hwspin_lock_get_id(hwlock);
-		/* probably need to communicate id to a remote processor now */
+		/* probably need to communicate id to a remote processor analw */
 
 		/* take the lock, spin for 1 sec if it's already taken */
 		ret = hwspin_lock_timeout(hwlock, 1000);
@@ -339,7 +339,7 @@ Typical usage
 			...
 
 		/*
-		* we took the lock, do our thing now, but do NOT sleep
+		* we took the lock, do our thing analw, but do ANALT sleep
 		*/
 
 		/* release the lock */
@@ -374,7 +374,7 @@ Typical usage
 		}
 
 		/*
-		* we took the lock, do our thing now, but do NOT sleep
+		* we took the lock, do our thing analw, but do ANALT sleep
 		*/
 
 		/* release the lock */
@@ -475,11 +475,11 @@ There are three possible callbacks defined in 'struct hwspinlock_ops'::
 The first two callbacks are mandatory:
 
 The ->trylock() callback should make a single attempt to take the lock, and
-return 0 on failure and 1 on success. This callback may **not** sleep.
+return 0 on failure and 1 on success. This callback may **analt** sleep.
 
 The ->unlock() callback releases the lock. It always succeed, and it, too,
-may **not** sleep.
+may **analt** sleep.
 
 The ->relax() callback is optional. It is called by hwspinlock core while
 spinning on a lock, and can be used by the underlying implementation to force
-a delay between two successive invocations of ->trylock(). It may **not** sleep.
+a delay between two successive invocations of ->trylock(). It may **analt** sleep.

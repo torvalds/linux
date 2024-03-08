@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 / {
@@ -36,7 +36,7 @@
 		clocks = <&core_clk>;
 	};
 
-	/* TIMER1 for free running clocksource: Fallback if rtc not found */
+	/* TIMER1 for free running clocksource: Fallback if rtc analt found */
 	timer1 {
 		compatible = "snps,arc-timer";
 		clocks = <&core_clk>;

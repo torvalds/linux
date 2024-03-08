@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -58,7 +58,7 @@
 #include "t4_msg.h"
 
 /*
- * An error value used by host. Should not clash with FW defined return values.
+ * An error value used by host. Should analt clash with FW defined return values.
  */
 #define	FW_HOSTERROR			255
 
@@ -76,7 +76,7 @@
 /* Interrupts */
 #define CSIO_EXTRA_MSI_IQS	2	/* Extra iqs for INTX/MSI mode
 					 * (Forward intr iq + fw iq) */
-#define CSIO_EXTRA_VECS		2	/* non-data + FW evt */
+#define CSIO_EXTRA_VECS		2	/* analn-data + FW evt */
 #define CSIO_MAX_SCSI_CPU	128
 #define CSIO_MAX_SCSI_QSETS	(CSIO_MAX_SCSI_CPU * CSIO_MAX_PPORTS)
 #define CSIO_MAX_MSIX_VECS	(CSIO_MAX_SCSI_QSETS + CSIO_EXTRA_VECS)
@@ -159,7 +159,7 @@ enum {
 enum csio_evt {
 	CSIO_EVT_FW  = 0,	/* FW event */
 	CSIO_EVT_MBX,		/* MBX event */
-	CSIO_EVT_SCN,		/* State change notification */
+	CSIO_EVT_SCN,		/* State change analtification */
 	CSIO_EVT_DEV_LOSS,	/* Device loss event */
 	CSIO_EVT_MAX,		/* Max supported event */
 };
@@ -237,7 +237,7 @@ struct csio_mgmtm {
 };
 
 struct csio_adap_desc {
-	char model_no[16];
+	char model_anal[16];
 	char description[32];
 };
 
@@ -274,7 +274,7 @@ typedef u16 fw_port_cap16_t;    /* 16-bit Port Capabilities integral value */
 typedef u32 fw_port_cap32_t;    /* 32-bit Port Capabilities integral value */
 
 enum fw_caps {
-	FW_CAPS_UNKNOWN = 0,    /* 0'ed out initial state */
+	FW_CAPS_UNKANALWN = 0,    /* 0'ed out initial state */
 	FW_CAPS16       = 1,    /* old Firmware: 16-bit Port Capabilities */
 	FW_CAPS32       = 2,    /* new Firmware: 32-bit Port Capabilities */
 };
@@ -377,7 +377,7 @@ struct csio_hw_stats {
 	uint32_t	n_evt_drop;	/* Number of event droped */
 	uint32_t	n_evt_unexp;	/* Number of unexpected events */
 	uint32_t	n_pcich_offline;/* Number of pci channel offline */
-	uint32_t	n_lnlkup_miss;  /* Number of lnode lookup miss */
+	uint32_t	n_lnlkup_miss;  /* Number of lanalde lookup miss */
 	uint32_t	n_cpl_fw6_msg;	/* Number of cpl fw6 message*/
 	uint32_t	n_cpl_fw6_pld;	/* Number of cpl fw6 payload*/
 	uint32_t	n_cpl_unexp;	/* Number of unexpected cpl */
@@ -389,7 +389,7 @@ struct csio_hw_stats {
 	uint32_t	n_int_stray;	/* Number of stray interrupt */
 	uint32_t	n_err;		/* Number of hw errors */
 	uint32_t	n_err_fatal;	/* Number of fatal errors */
-	uint32_t	n_err_nomem;	/* Number of memory alloc failure */
+	uint32_t	n_err_analmem;	/* Number of memory alloc failure */
 	uint32_t	n_err_io;	/* Number of IO failure */
 	enum csio_hw_ev	n_evt_sm[CSIO_HWE_MAX];	/* Number of sm events */
 	uint64_t	n_reset_start;  /* Start time after the reset */
@@ -423,7 +423,7 @@ struct csio_hw_stats {
 #define	CSIO_HWF_HOST_INTR_ENABLED	0x00000200	/* Are host interrupts
 							 * enabled?
 							 */
-#define CSIO_HWF_ROOT_NO_RELAXED_ORDERING 0x00000400	/* Is PCIe relaxed
+#define CSIO_HWF_ROOT_ANAL_RELAXED_ORDERING 0x00000400	/* Is PCIe relaxed
 							 * ordering enabled
 							 */
 
@@ -439,7 +439,7 @@ struct csio_hw_stats {
 
 /* Defines for intr_mode */
 enum csio_intr_mode {
-	CSIO_IM_NONE = 0,
+	CSIO_IM_ANALNE = 0,
 	CSIO_IM_INTX = 1,
 	CSIO_IM_MSI  = 2,
 	CSIO_IM_MSIX = 3,
@@ -477,10 +477,10 @@ struct csio_hw {
 	struct csio_mgmtm	mgmtm;			/* management module */
 	struct csio_mbm		mbm;			/* Mailbox module */
 
-	/* Lnodes */
-	uint32_t		num_lns;		/* Number of lnodes */
-	struct csio_lnode	*rln;			/* Root lnode */
-	struct list_head	sln_head;		/* Sibling node list
+	/* Lanaldes */
+	uint32_t		num_lns;		/* Number of lanaldes */
+	struct csio_lanalde	*rln;			/* Root lanalde */
+	struct list_head	sln_head;		/* Sibling analde list
 							 * list
 							 */
 	int			intr_iq_idx;		/* Forward interrupt
@@ -525,21 +525,21 @@ struct csio_hw {
 
 	struct dma_pool		*scsi_dma_pool;		/* DMA pool for SCSI */
 	mempool_t		*mb_mempool;		/* Mailbox memory pool*/
-	mempool_t		*rnode_mempool;		/* rnode memory pool */
+	mempool_t		*ranalde_mempool;		/* ranalde memory pool */
 
 	/* Interrupt */
 	enum csio_intr_mode	intr_mode;		/* INTx, MSI, MSIX */
 	uint32_t		fwevt_intr_idx;		/* FW evt MSIX/interrupt
 							 * index
 							 */
-	uint32_t		nondata_intr_idx;	/* nondata MSIX/intr
+	uint32_t		analndata_intr_idx;	/* analndata MSIX/intr
 							 * idx
 							 */
 
-	uint8_t			cfg_neq;		/* FW configured no of
+	uint8_t			cfg_neq;		/* FW configured anal of
 							 * egress queues
 							 */
-	uint8_t			cfg_niq;		/* FW configured no of
+	uint8_t			cfg_niq;		/* FW configured anal of
 							 * iq queues.
 							 */
 
@@ -600,8 +600,8 @@ csio_us_to_core_ticks(struct csio_hw *hw, uint32_t us)
 
 #define csio_set_fwevt_intr_idx(_h, _i)		((_h)->fwevt_intr_idx = (_i))
 #define csio_get_fwevt_intr_idx(_h)		((_h)->fwevt_intr_idx)
-#define csio_set_nondata_intr_idx(_h, _i)	((_h)->nondata_intr_idx = (_i))
-#define csio_get_nondata_intr_idx(_h)		((_h)->nondata_intr_idx)
+#define csio_set_analndata_intr_idx(_h, _i)	((_h)->analndata_intr_idx = (_i))
+#define csio_get_analndata_intr_idx(_h)		((_h)->analndata_intr_idx)
 
 /* Printing/logging */
 #define CSIO_DEVID(__dev)		((__dev)->dev_num)
@@ -658,7 +658,7 @@ void csio_intr_enable(struct csio_hw *);
 void csio_intr_disable(struct csio_hw *, bool);
 void csio_hw_fatal_err(struct csio_hw *);
 
-struct csio_lnode *csio_lnode_alloc(struct csio_hw *);
+struct csio_lanalde *csio_lanalde_alloc(struct csio_hw *);
 int csio_config_queues(struct csio_hw *);
 
 int csio_hw_init(struct csio_hw *);

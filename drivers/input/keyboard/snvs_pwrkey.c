@@ -39,7 +39,7 @@ struct pwrkey_drv_data {
 	int wakeup;
 	struct timer_list check_timer;
 	struct input_dev *input;
-	u8 minor_rev;
+	u8 mianalr_rev;
 };
 
 static void imx_imx_snvs_check_for_events(struct timer_list *t)
@@ -77,7 +77,7 @@ static irqreturn_t imx_snvs_pwrkey_interrupt(int irq, void *dev_id)
 
 	regmap_read(pdata->snvs, SNVS_LPSR_REG, &lp_status);
 	if (lp_status & SNVS_LPSR_SPO) {
-		if (pdata->minor_rev == 0) {
+		if (pdata->mianalr_rev == 0) {
 			/*
 			 * The first generation i.MX6 SoCs only sends an
 			 * interrupt on button release. To mimic power-key
@@ -116,19 +116,19 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 {
 	struct pwrkey_drv_data *pdata;
 	struct input_dev *input;
-	struct device_node *np;
+	struct device_analde *np;
 	struct clk *clk;
 	int error;
 	u32 vid;
 
 	/* Get SNVS register Page */
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->snvs = syscon_regmap_lookup_by_phandle(np, "regmap");
 	if (IS_ERR(pdata->snvs)) {
@@ -170,7 +170,7 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	regmap_read(pdata->snvs, SNVS_HPVIDR1_REG, &vid);
-	pdata->minor_rev = vid & 0xff;
+	pdata->mianalr_rev = vid & 0xff;
 
 	regmap_update_bits(pdata->snvs, SNVS_LPCR_REG, SNVS_LPCR_DEP_EN, SNVS_LPCR_DEP_EN);
 
@@ -182,7 +182,7 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
 		dev_err(&pdev->dev, "failed to allocate the input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input->name = pdev->name;
@@ -206,7 +206,7 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 			       0, pdev->name, pdev);
 
 	if (error) {
-		dev_err(&pdev->dev, "interrupt not available.\n");
+		dev_err(&pdev->dev, "interrupt analt available.\n");
 		return error;
 	}
 

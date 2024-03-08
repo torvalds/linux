@@ -5,7 +5,7 @@ int user_termio_to_kernel_termios(struct ktermios *termios,
 						struct termio __user *termio)
 {
 	struct termio v;
-	bool canon;
+	bool caanaln;
 
 	if (copy_from_user(&v, termio, sizeof(struct termio)))
 		return -EFAULT;
@@ -16,15 +16,15 @@ int user_termio_to_kernel_termios(struct ktermios *termios,
 	termios->c_lflag = (0xffff0000 & termios->c_lflag) | v.c_lflag;
 	termios->c_line = (0xffff0000 & termios->c_lflag) | v.c_line;
 
-	canon = v.c_lflag & ICANON;
+	caanaln = v.c_lflag & ICAANALN;
 	termios->c_cc[VINTR]  = v.c_cc[_VINTR];
 	termios->c_cc[VQUIT]  = v.c_cc[_VQUIT];
 	termios->c_cc[VERASE] = v.c_cc[_VERASE];
 	termios->c_cc[VKILL]  = v.c_cc[_VKILL];
 	termios->c_cc[VEOL2]  = v.c_cc[_VEOL2];
 	termios->c_cc[VSWTC]  = v.c_cc[_VSWTC];
-	termios->c_cc[canon ? VEOF : VMIN]  = v.c_cc[_VEOF];
-	termios->c_cc[canon ? VEOL : VTIME] = v.c_cc[_VEOL];
+	termios->c_cc[caanaln ? VEOF : VMIN]  = v.c_cc[_VEOF];
+	termios->c_cc[caanaln ? VEOL : VTIME] = v.c_cc[_VEOL];
 
 	return 0;
 }
@@ -33,7 +33,7 @@ int kernel_termios_to_user_termio(struct termio __user *termio,
 						struct ktermios *termios)
 {
 	struct termio v;
-	bool canon;
+	bool caanaln;
 
 	memset(&v, 0, sizeof(struct termio));
 	v.c_iflag = termios->c_iflag;
@@ -42,13 +42,13 @@ int kernel_termios_to_user_termio(struct termio __user *termio,
 	v.c_lflag = termios->c_lflag;
 	v.c_line = termios->c_line;
 
-	canon = v.c_lflag & ICANON;
+	caanaln = v.c_lflag & ICAANALN;
 	v.c_cc[_VINTR]  = termios->c_cc[VINTR];
 	v.c_cc[_VQUIT]  = termios->c_cc[VQUIT];
 	v.c_cc[_VERASE] = termios->c_cc[VERASE];
 	v.c_cc[_VKILL]  = termios->c_cc[VKILL];
-	v.c_cc[_VEOF]   = termios->c_cc[canon ? VEOF : VMIN];
-	v.c_cc[_VEOL]   = termios->c_cc[canon ? VEOL : VTIME];
+	v.c_cc[_VEOF]   = termios->c_cc[caanaln ? VEOF : VMIN];
+	v.c_cc[_VEOL]   = termios->c_cc[caanaln ? VEOL : VTIME];
 	v.c_cc[_VEOL2]  = termios->c_cc[VEOL2];
 	v.c_cc[_VSWTC]  = termios->c_cc[VSWTC];
 

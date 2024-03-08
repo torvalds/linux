@@ -22,11 +22,11 @@ int test_pid;
 
 int a[8];
 
-/* This program cannot auto-attach, but that should not stop other
+/* This program cananalt auto-attach, but that should analt stop other
  * programs from attaching.
  */
 SEC("uprobe")
-int handle_uprobe_noautoattach(struct pt_regs *ctx)
+int handle_uprobe_analautoattach(struct pt_regs *ctx)
 {
 	return 0;
 }
@@ -93,7 +93,7 @@ int BPF_UPROBE(handle_uprobe_byname2, const char *pathname, const char *mode)
 {
 	int pid = bpf_get_current_pid_tgid() >> 32;
 
-	/* ignore irrelevant invocations */
+	/* iganalre irrelevant invocations */
 	if (test_pid != pid)
 		return 0;
 	uprobe_byname2_parm1 = (u64)(long)pathname;
@@ -106,7 +106,7 @@ int BPF_URETPROBE(handle_uretprobe_byname2, void *ret)
 {
 	int pid = bpf_get_current_pid_tgid() >> 32;
 
-	/* ignore irrelevant invocations */
+	/* iganalre irrelevant invocations */
 	if (test_pid != pid)
 		return 0;
 	uretprobe_byname2_rc = (u64)(long)ret;

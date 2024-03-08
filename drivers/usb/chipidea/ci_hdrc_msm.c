@@ -76,7 +76,7 @@ static const struct reset_control_ops ci_hdrc_msm_reset_ops = {
 	.reset = ci_hdrc_msm_por_reset,
 };
 
-static int ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
+static int ci_hdrc_msm_analtify_event(struct ci_hdrc *ci, unsigned event)
 {
 	struct device *dev = ci->dev->parent;
 	struct ci_hdrc_msm *msm_ci = dev_get_drvdata(dev);
@@ -129,7 +129,7 @@ static int ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
 		phy_exit(ci->phy);
 		break;
 	default:
-		dev_dbg(dev, "unknown ci_hdrc event\n");
+		dev_dbg(dev, "unkanalwn ci_hdrc event\n");
 		break;
 	}
 
@@ -145,13 +145,13 @@ static int ci_hdrc_msm_mux_phy(struct ci_hdrc_msm *ci,
 	u32 val;
 	int ret;
 
-	ret = of_parse_phandle_with_fixed_args(dev->of_node, "phy-select", 2, 0,
+	ret = of_parse_phandle_with_fixed_args(dev->of_analde, "phy-select", 2, 0,
 					       &args);
 	if (ret)
 		return 0;
 
-	regmap = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	regmap = syscon_analde_to_regmap(args.np);
+	of_analde_put(args.np);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -176,13 +176,13 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct reset_control *reset;
 	int ret;
-	struct device_node *ulpi_node, *phy_node;
+	struct device_analde *ulpi_analde, *phy_analde;
 
 	dev_dbg(&pdev->dev, "ci_hdrc_msm_probe\n");
 
 	ci = devm_kzalloc(&pdev->dev, sizeof(*ci), GFP_KERNEL);
 	if (!ci)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, ci);
 
 	ci->pdata.name = "ci_hdrc_msm";
@@ -190,7 +190,7 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	ci->pdata.flags	= CI_HDRC_REGS_SHARED | CI_HDRC_DISABLE_STREAMING |
 			  CI_HDRC_OVERRIDE_AHB_BURST |
 			  CI_HDRC_OVERRIDE_PHY_CONTROL;
-	ci->pdata.notify_event = ci_hdrc_msm_notify_event;
+	ci->pdata.analtify_event = ci_hdrc_msm_analtify_event;
 
 	reset = devm_reset_control_get(&pdev->dev, "core");
 	if (IS_ERR(reset))
@@ -214,7 +214,7 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 
 	ci->rcdev.owner = THIS_MODULE;
 	ci->rcdev.ops = &ci_hdrc_msm_reset_ops;
-	ci->rcdev.of_node = pdev->dev.of_node;
+	ci->rcdev.of_analde = pdev->dev.of_analde;
 	ci->rcdev.nr_resets = 2;
 	ret = devm_reset_controller_register(&pdev->dev, &ci->rcdev);
 	if (ret)
@@ -242,13 +242,13 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_mux;
 
-	ulpi_node = of_get_child_by_name(pdev->dev.of_node, "ulpi");
-	if (ulpi_node) {
-		phy_node = of_get_next_available_child(ulpi_node, NULL);
-		ci->hsic = of_device_is_compatible(phy_node, "qcom,usb-hsic-phy");
-		of_node_put(phy_node);
+	ulpi_analde = of_get_child_by_name(pdev->dev.of_analde, "ulpi");
+	if (ulpi_analde) {
+		phy_analde = of_get_next_available_child(ulpi_analde, NULL);
+		ci->hsic = of_device_is_compatible(phy_analde, "qcom,usb-hsic-phy");
+		of_analde_put(phy_analde);
 	}
-	of_node_put(ulpi_node);
+	of_analde_put(ulpi_analde);
 
 	plat_ci = ci_hdrc_add_device(&pdev->dev, pdev->resource,
 				     pdev->num_resources, &ci->pdata);
@@ -262,7 +262,7 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	ci->ci = plat_ci;
 
 	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_no_callbacks(&pdev->dev);
+	pm_runtime_anal_callbacks(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;

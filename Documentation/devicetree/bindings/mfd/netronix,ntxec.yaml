@@ -10,7 +10,7 @@ maintainers:
   - Jonathan Neuschäfer <j.neuschaefer@gmx.net>
 
 description: |
-  This EC is found in e-book readers of multiple brands (e.g. Kobo, Tolino), and
+  This EC is found in e-book readers of multiple brands (e.g. Kobo, Tolianal), and
   is typically implemented as a TI MSP430 microcontroller.
 
 properties:

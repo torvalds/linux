@@ -41,7 +41,7 @@ struct fbcon_display {
     u32 width;
     u32 bits_per_pixel;
     u32 grayscale;
-    u32 nonstd;
+    u32 analnstd;
     u32 accel_flags;
     u32 rotate;
     struct fb_bitfield red;
@@ -97,7 +97,7 @@ struct fbcon_ops {
 #define attr_bgcol(bgshift,s)    \
 	(((s) >> (bgshift)) & 0x0f)
 
-/* Monochrome */
+/* Moanalchrome */
 #define attr_bold(s) \
 	((s) & 0x200)
 #define attr_reverse(s) \
@@ -108,7 +108,7 @@ struct fbcon_ops {
 	((s) & 0x8000)
 	
 
-static inline int mono_col(const struct fb_info *info)
+static inline int moanal_col(const struct fb_info *info)
 {
 	__u32 max_len;
 	max_len = max(info->var.green.length, info->var.red.length);
@@ -119,7 +119,7 @@ static inline int mono_col(const struct fb_info *info)
 static inline int attr_col_ec(int shift, struct vc_data *vc,
 			      struct fb_info *info, int is_fg)
 {
-	int is_mono01;
+	int is_moanal01;
 	int col;
 	int fg;
 	int bg;
@@ -134,16 +134,16 @@ static inline int attr_col_ec(int shift, struct vc_data *vc,
 	if (!info)
 		return 0;
 
-	col = mono_col(info);
-	is_mono01 = info->fix.visual == FB_VISUAL_MONO01;
+	col = moanal_col(info);
+	is_moanal01 = info->fix.visual == FB_VISUAL_MOANAL01;
 
 	if (attr_reverse(vc->vc_video_erase_char)) {
-		fg = is_mono01 ? col : 0;
-		bg = is_mono01 ? 0 : col;
+		fg = is_moanal01 ? col : 0;
+		bg = is_moanal01 ? 0 : col;
 	}
 	else {
-		fg = is_mono01 ? 0 : col;
-		bg = is_mono01 ? col : 0;
+		fg = is_moanal01 ? 0 : col;
+		bg = is_moanal01 ? col : 0;
 	}
 
 	return is_fg ? fg : bg;
@@ -160,14 +160,14 @@ static inline int attr_col_ec(int shift, struct vc_data *vc,
  *
  *                     Operation   Pan    Wrap
  *---------------------------------------------
- * SCROLL_MOVE         copyarea    No     No
- * SCROLL_PAN_MOVE     copyarea    Yes    No
- * SCROLL_WRAP_MOVE    copyarea    No     Yes
- * SCROLL_REDRAW       imageblit   No     No
- * SCROLL_PAN_REDRAW   imageblit   Yes    No
- * SCROLL_WRAP_REDRAW  imageblit   No     Yes
+ * SCROLL_MOVE         copyarea    Anal     Anal
+ * SCROLL_PAN_MOVE     copyarea    Anal    Anal
+ * SCROLL_WRAP_MOVE    copyarea    Anal     Anal
+ * SCROLL_REDRAW       imageblit   Anal     Anal
+ * SCROLL_PAN_REDRAW   imageblit   Anal    Anal
+ * SCROLL_WRAP_REDRAW  imageblit   Anal     Anal
  *
- * (SCROLL_WRAP_REDRAW is not implemented yet)
+ * (SCROLL_WRAP_REDRAW is analt implemented yet)
  *
  * In general, fbcon will choose the best scrolling
  * method based on the rule below:
@@ -186,18 +186,18 @@ static inline int attr_col_ec(int shift, struct vc_data *vc,
  * to prefer copyarea over imageblit, set
  * FBINFO_READS_FAST.
  *
- * Other notes:
+ * Other analtes:
  * + use the hardware engine to move the text
  *    (hw-accelerated copyarea() and fillrect())
  * + use hardware-supported panning on a large virtual screen
- * + amifb can not only pan, but also wrap the display by N lines
+ * + amifb can analt only pan, but also wrap the display by N lines
  *    (i.e. visible line i = physical line (i+N) % yres).
  * + read what's already rendered on the screen and
  *     write it in a different place (this is cfb_copyarea())
  * + re-render the text to the screen
  *
  * Whether to use wrapping or panning can only be figured out at
- * runtime (when we know whether our font height is a multiple
+ * runtime (when we kanalw whether our font height is a multiple
  * of the pan/wrap step)
  *
  */

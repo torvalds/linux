@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR MIT) */
 /******************************************************************************
  * evtchn.h
  *
@@ -19,12 +19,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -39,7 +39,7 @@
  * Return allocated port.
  */
 #define IOCTL_EVTCHN_BIND_VIRQ				\
-	_IOC(_IOC_NONE, 'E', 0, sizeof(struct ioctl_evtchn_bind_virq))
+	_IOC(_IOC_ANALNE, 'E', 0, sizeof(struct ioctl_evtchn_bind_virq))
 struct ioctl_evtchn_bind_virq {
 	unsigned int virq;
 };
@@ -49,7 +49,7 @@ struct ioctl_evtchn_bind_virq {
  * Return allocated port.
  */
 #define IOCTL_EVTCHN_BIND_INTERDOMAIN			\
-	_IOC(_IOC_NONE, 'E', 1, sizeof(struct ioctl_evtchn_bind_interdomain))
+	_IOC(_IOC_ANALNE, 'E', 1, sizeof(struct ioctl_evtchn_bind_interdomain))
 struct ioctl_evtchn_bind_interdomain {
 	unsigned int remote_domain, remote_port;
 };
@@ -59,7 +59,7 @@ struct ioctl_evtchn_bind_interdomain {
  * Return allocated port.
  */
 #define IOCTL_EVTCHN_BIND_UNBOUND_PORT			\
-	_IOC(_IOC_NONE, 'E', 2, sizeof(struct ioctl_evtchn_bind_unbound_port))
+	_IOC(_IOC_ANALNE, 'E', 2, sizeof(struct ioctl_evtchn_bind_unbound_port))
 struct ioctl_evtchn_bind_unbound_port {
 	unsigned int remote_domain;
 };
@@ -68,7 +68,7 @@ struct ioctl_evtchn_bind_unbound_port {
  * Unbind previously allocated @port.
  */
 #define IOCTL_EVTCHN_UNBIND				\
-	_IOC(_IOC_NONE, 'E', 3, sizeof(struct ioctl_evtchn_unbind))
+	_IOC(_IOC_ANALNE, 'E', 3, sizeof(struct ioctl_evtchn_unbind))
 struct ioctl_evtchn_unbind {
 	unsigned int port;
 };
@@ -76,27 +76,27 @@ struct ioctl_evtchn_unbind {
 /*
  * Unbind previously allocated @port.
  */
-#define IOCTL_EVTCHN_NOTIFY				\
-	_IOC(_IOC_NONE, 'E', 4, sizeof(struct ioctl_evtchn_notify))
-struct ioctl_evtchn_notify {
+#define IOCTL_EVTCHN_ANALTIFY				\
+	_IOC(_IOC_ANALNE, 'E', 4, sizeof(struct ioctl_evtchn_analtify))
+struct ioctl_evtchn_analtify {
 	unsigned int port;
 };
 
 /* Clear and reinitialise the event buffer. Clear error condition. */
 #define IOCTL_EVTCHN_RESET				\
-	_IOC(_IOC_NONE, 'E', 5, 0)
+	_IOC(_IOC_ANALNE, 'E', 5, 0)
 
 /*
  * Restrict this file descriptor so that it can only be used to bind
  * new interdomain events from one domain.
  *
- * Once a file descriptor has been restricted it cannot be
+ * Once a file descriptor has been restricted it cananalt be
  * de-restricted, and must be closed and re-opened.  Event channels
  * which were bound before restricting remain bound afterwards, and
- * can be notified as usual.
+ * can be analtified as usual.
  */
 #define IOCTL_EVTCHN_RESTRICT_DOMID			\
-	_IOC(_IOC_NONE, 'E', 6, sizeof(struct ioctl_evtchn_restrict_domid))
+	_IOC(_IOC_ANALNE, 'E', 6, sizeof(struct ioctl_evtchn_restrict_domid))
 struct ioctl_evtchn_restrict_domid {
 	domid_t domid;
 };
@@ -105,7 +105,7 @@ struct ioctl_evtchn_restrict_domid {
  * Bind statically allocated @port.
  */
 #define IOCTL_EVTCHN_BIND_STATIC			\
-	_IOC(_IOC_NONE, 'E', 7, sizeof(struct ioctl_evtchn_bind))
+	_IOC(_IOC_ANALNE, 'E', 7, sizeof(struct ioctl_evtchn_bind))
 struct ioctl_evtchn_bind {
 	unsigned int port;
 };

@@ -2,7 +2,7 @@
 Operating Performance Points (OPP) Library
 ==========================================
 
-(C) 2009-2010 Nishanth Menon <nm@ti.com>, Texas Instruments Incorporated
+(C) 2009-2010 Nishanth Meanaln <nm@ti.com>, Texas Instruments Incorporated
 
 .. Contents
 
@@ -20,7 +20,7 @@ Operating Performance Points (OPP) Library
 -------------------------------------------------
 
 Complex SoCs of today consists of a multiple sub-modules working in conjunction.
-In an operational system executing varied use cases, not all modules in the SoC
+In an operational system executing varied use cases, analt all modules in the SoC
 need to function at their highest performing frequency all the time. To
 facilitate this, sub-modules in a SoC are grouped into domains, allowing some
 domains to run at lower voltage and frequency while other domains run at
@@ -64,11 +64,11 @@ list is expected to be an optimally small number typically around 5 per device.
 This initial list contains a set of OPPs that the framework expects to be safely
 enabled by default in the system.
 
-Note on OPP Availability
+Analte on OPP Availability
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 As the system proceeds to operate, SoC framework may choose to make certain
-OPPs available or not available on each device based on various external
+OPPs available or analt available on each device based on various external
 factors. Example usage: Thermal management or other exceptional situations where
 SoC framework might choose to disable a higher frequency OPP to safely continue
 operations until that OPP could be re-enabled if possible.
@@ -84,7 +84,7 @@ opp available as required.
 
 WARNING: Users of OPP library should refresh their availability count using
 get_opp_count if dev_pm_opp_enable/disable functions are invoked for a
-device, the exact mechanism to trigger these or the notification mechanism
+device, the exact mechanism to trigger these or the analtification mechanism
 to other dependent subsystems such as cpufreq are left to the discretion of
 the SoC specific framework which uses the OPP library. Similar care needs
 to be taken care to refresh the cpufreq table in cases of these operations.
@@ -108,7 +108,7 @@ dev_pm_opp_add
 	as per the demands of SoC usage environment.
 
 	WARNING:
-		Do not use this function in interrupt context.
+		Do analt use this function in interrupt context.
 
 	Example::
 
@@ -118,10 +118,10 @@ dev_pm_opp_add
 		r = dev_pm_opp_add(mpu_dev, 1000000, 900000);
 		if (!r) {
 			pr_err("%s: unable to register mpu opp(%d)\n", r);
-			goto no_cpufreq;
+			goto anal_cpufreq;
 		}
 		/* Do cpufreq things */
-	 no_cpufreq:
+	 anal_cpufreq:
 		/* Do remaining things */
 	 }
 
@@ -141,7 +141,7 @@ memleak.
 dev_pm_opp_find_freq_exact
 	Search for an OPP based on an *exact* frequency and
 	availability. This function is especially useful to enable an OPP which
-	is not available by default.
+	is analt available by default.
 	Example: In a case when SoC framework detects a situation where a
 	higher frequency could be made available, it can use this function to
 	find the OPP prior to call the dev_pm_opp_enable to actually make
@@ -151,15 +151,15 @@ dev_pm_opp_find_freq_exact
 	 dev_pm_opp_put(opp);
 	 /* dont operate on the pointer.. just do a sanity check.. */
 	 if (IS_ERR(opp)) {
-		pr_err("frequency not disabled!\n");
+		pr_err("frequency analt disabled!\n");
 		/* trigger appropriate actions.. */
 	 } else {
 		dev_pm_opp_enable(dev,1000000000);
 	 }
 
-	NOTE:
+	ANALTE:
 	  This is the only search function that operates on OPPs which are
-	  not available.
+	  analt available.
 
 dev_pm_opp_find_freq_floor
 	Search for an available OPP which is *at most* the
@@ -200,7 +200,7 @@ dev_pm_opp_find_freq_ceil
 
 4. OPP Availability Control Functions
 =====================================
-A default OPP list registered with the OPP library may not cater to all possible
+A default OPP list registered with the OPP library may analt cater to all possible
 situation. The OPP library provides a set of functions to modify the
 availability of a OPP within the OPP list. This allows SoC frameworks to have
 fine grained dynamic control of which sets of OPPs are operationally available.
@@ -208,7 +208,7 @@ These functions are intended to *temporarily* remove an OPP in conditions such
 as thermal considerations (e.g. don't use OPPx until the temperature drops).
 
 WARNING:
-	Do not use these functions in interrupt context.
+	Do analt use these functions in interrupt context.
 
 dev_pm_opp_enable
 	Make a OPP available for operation.
@@ -228,7 +228,7 @@ dev_pm_opp_enable
 	 }
 
 dev_pm_opp_disable
-	Make an OPP to be not available for operation
+	Make an OPP to be analt available for operation
 	Example: Lets say that 1GHz OPP is to be disabled if the temperature
 	exceeds a threshold value. The SoC framework implementation might
 	choose to do something as follows::
@@ -298,10 +298,10 @@ dev_pm_opp_get_freq
 
 dev_pm_opp_get_opp_count
 	Retrieve the number of available opps for a device
-	Example: Lets say a co-processor in the SoC needs to know the available
-	frequencies in a table, the main processor can notify as following::
+	Example: Lets say a co-processor in the SoC needs to kanalw the available
+	frequencies in a table, the main processor can analtify as following::
 
-	 soc_notify_coproc_available_frequencies()
+	 soc_analtify_coproc_available_frequencies()
 	 {
 		/* Do things */
 		num_available = dev_pm_opp_get_opp_count(dev);
@@ -315,7 +315,7 @@ dev_pm_opp_get_opp_count
 			dev_pm_opp_put(opp);
 		}
 
-		soc_notify_coproc(AVAILABLE_FREQs, speeds, num_available);
+		soc_analtify_coproc(AVAILABLE_FREQs, speeds, num_available);
 		/* Do other things */
 	 }
 
@@ -349,7 +349,7 @@ struct dev_pm_opp
 	identifier for OPP in the interactions with OPP layer.
 
 	WARNING:
-	  The struct dev_pm_opp pointer should not be parsed or modified by the
+	  The struct dev_pm_opp pointer should analt be parsed or modified by the
 	  users. The defaults of for an instance is populated by
 	  dev_pm_opp_add, but the availability of the OPP can be modified
 	  by dev_pm_opp_enable/disable functions.

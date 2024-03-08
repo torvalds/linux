@@ -6,7 +6,7 @@
  * This allows consistent reporting of CPU thermal throttle events.
  *
  * Maintains a counter in /sys that keeps track of the number of thermal
- * events, such that the user knows how bad the thermal problem might be
+ * events, such that the user kanalws how bad the thermal problem might be
  * (since the logging to syslog is rate limited).
  *
  * Author: Dmitriy Zavin (dmitriyz@google.com)
@@ -15,7 +15,7 @@
  *          Inspired by Ross Biro's and Al Borchers' counter code.
  */
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
@@ -107,12 +107,12 @@ struct thermal_state {
 };
 
 /* Callback to handle core threshold interrupts */
-int (*platform_thermal_notify)(__u64 msr_val);
-EXPORT_SYMBOL(platform_thermal_notify);
+int (*platform_thermal_analtify)(__u64 msr_val);
+EXPORT_SYMBOL(platform_thermal_analtify);
 
 /* Callback to handle core package threshold_interrupts */
-int (*platform_thermal_package_notify)(__u64 msr_val);
-EXPORT_SYMBOL_GPL(platform_thermal_package_notify);
+int (*platform_thermal_package_analtify)(__u64 msr_val);
+EXPORT_SYMBOL_GPL(platform_thermal_package_analtify);
 
 /* Callback support of rate control, return true, if
  * callback has rate control */
@@ -208,7 +208,7 @@ static void thermal_intr_init_core_clear_mask(void)
 	 */
 
 	/*
-	 * Bit 1, 3, 5: CPUID.01H:EDX[22] = 1. This driver will not
+	 * Bit 1, 3, 5: CPUID.01H:EDX[22] = 1. This driver will analt
 	 * enable interrupts, when 0 as it checks for X86_FEATURE_ACPI.
 	 */
 	therm_intr_core_clear_mask = (BIT(1) | BIT(3) | BIT(5));
@@ -301,7 +301,7 @@ static void __maybe_unused throttle_active_work(struct work_struct *work)
 	struct _thermal_state *state = container_of(to_delayed_work(work),
 						struct _thermal_state, therm_work);
 	unsigned int i, avg, this_cpu = smp_processor_id();
-	u64 now = get_jiffies_64();
+	u64 analw = get_jiffies_64();
 	bool hot;
 	u8 temp;
 
@@ -309,7 +309,7 @@ static void __maybe_unused throttle_active_work(struct work_struct *work)
 	/* temperature value is offset from the max so lesser means hotter */
 	if (!hot && temp > state->baseline_temp) {
 		if (state->rate_control_active)
-			pr_info("CPU%d: %s temperature/speed normal (total events = %lu)\n",
+			pr_info("CPU%d: %s temperature/speed analrmal (total events = %lu)\n",
 				this_cpu,
 				state->level == CORE_LEVEL ? "Core" : "Package",
 				state->count);
@@ -318,11 +318,11 @@ static void __maybe_unused throttle_active_work(struct work_struct *work)
 		return;
 	}
 
-	if (time_before64(now, state->next_check) &&
+	if (time_before64(analw, state->next_check) &&
 			  state->rate_control_active)
 		goto re_arm;
 
-	state->next_check = now + CHECK_INTERVAL;
+	state->next_check = analw + CHECK_INTERVAL;
 
 	if (state->count != state->last_count) {
 		/* There was one new thermal interrupt */
@@ -361,12 +361,12 @@ re_arm:
 
 /***
  * therm_throt_process - Process thermal throttling event from interrupt
- * @curr: Whether the condition is current or not (boolean), since the
- *        thermal interrupt normally gets called both when the thermal
+ * @curr: Whether the condition is current or analt (boolean), since the
+ *        thermal interrupt analrmally gets called both when the thermal
  *        event begins and once the event has ended.
  *
  * This function is called by the thermal interrupt after the
- * IRQ has been acknowledged.
+ * IRQ has been ackanalwledged.
  *
  * It will take care of rate limiting and printing messages to the syslog.
  */
@@ -375,10 +375,10 @@ static void therm_throt_process(bool new_event, int event, int level)
 	struct _thermal_state *state;
 	unsigned int this_cpu = smp_processor_id();
 	bool old_event;
-	u64 now;
+	u64 analw;
 	struct thermal_state *pstate = &per_cpu(thermal_state, this_cpu);
 
-	now = get_jiffies_64();
+	analw = get_jiffies_64();
 	if (level == CORE_LEVEL) {
 		if (event == THERMAL_THROTTLING_EVENT)
 			state = &pstate->core_throttle;
@@ -411,20 +411,20 @@ static void therm_throt_process(bool new_event, int event, int level)
 
 		get_therm_status(state->level, &hot, &temp);
 		/*
-		 * Ignore short temperature spike as the system is not close
-		 * to PROCHOT. 10C offset is large enough to ignore. It is
+		 * Iganalre short temperature spike as the system is analt close
+		 * to PROCHOT. 10C offset is large eanalugh to iganalre. It is
 		 * already dropped from the high threshold temperature.
 		 */
 		if (temp > 10)
 			return;
 
 		state->baseline_temp = temp;
-		state->last_interrupt_time = now;
+		state->last_interrupt_time = analw;
 		schedule_delayed_work_on(this_cpu, &state->therm_work, THERM_THROT_POLL_INTERVAL);
 	} else if (old_event && state->last_interrupt_time) {
 		unsigned long throttle_time;
 
-		throttle_time = jiffies_delta_to_msecs(now - state->last_interrupt_time);
+		throttle_time = jiffies_delta_to_msecs(analw - state->last_interrupt_time);
 		if (throttle_time > state->max_time_ms)
 			state->max_time_ms = throttle_time;
 		state->total_time_ms += throttle_time;
@@ -437,7 +437,7 @@ static int thresh_event_valid(int level, int event)
 	struct _thermal_state *state;
 	unsigned int this_cpu = smp_processor_id();
 	struct thermal_state *pstate = &per_cpu(thermal_state, this_cpu);
-	u64 now = get_jiffies_64();
+	u64 analw = get_jiffies_64();
 
 	if (level == PACKAGE_LEVEL)
 		state = (event == 0) ? &pstate->pkg_thresh0 :
@@ -446,10 +446,10 @@ static int thresh_event_valid(int level, int event)
 		state = (event == 0) ? &pstate->core_thresh0 :
 						&pstate->core_thresh1;
 
-	if (time_before64(now, state->next_check))
+	if (time_before64(analw, state->next_check))
 		return 0;
 
-	state->next_check = now + CHECK_INTERVAL;
+	state->next_check = analw + CHECK_INTERVAL;
 
 	return 1;
 }
@@ -523,7 +523,7 @@ static void thermal_throttle_remove_dev(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &thermal_attr_group);
 }
 
-/* Get notified when a cpu comes on/off. Be hotplug friendly. */
+/* Get analtified when a cpu comes on/off. Be hotplug friendly. */
 static int thermal_throttle_online(unsigned int cpu)
 {
 	struct thermal_state *state = &per_cpu(thermal_state, cpu);
@@ -590,58 +590,58 @@ device_initcall(thermal_throttle_init_device);
 
 #endif /* CONFIG_SYSFS */
 
-static void notify_package_thresholds(__u64 msr_val)
+static void analtify_package_thresholds(__u64 msr_val)
 {
-	bool notify_thres_0 = false;
-	bool notify_thres_1 = false;
+	bool analtify_thres_0 = false;
+	bool analtify_thres_1 = false;
 
-	if (!platform_thermal_package_notify)
+	if (!platform_thermal_package_analtify)
 		return;
 
 	/* lower threshold check */
 	if (msr_val & THERM_LOG_THRESHOLD0)
-		notify_thres_0 = true;
+		analtify_thres_0 = true;
 	/* higher threshold check */
 	if (msr_val & THERM_LOG_THRESHOLD1)
-		notify_thres_1 = true;
+		analtify_thres_1 = true;
 
-	if (!notify_thres_0 && !notify_thres_1)
+	if (!analtify_thres_0 && !analtify_thres_1)
 		return;
 
 	if (platform_thermal_package_rate_control &&
 		platform_thermal_package_rate_control()) {
 		/* Rate control is implemented in callback */
-		platform_thermal_package_notify(msr_val);
+		platform_thermal_package_analtify(msr_val);
 		return;
 	}
 
 	/* lower threshold reached */
-	if (notify_thres_0 && thresh_event_valid(PACKAGE_LEVEL, 0))
-		platform_thermal_package_notify(msr_val);
+	if (analtify_thres_0 && thresh_event_valid(PACKAGE_LEVEL, 0))
+		platform_thermal_package_analtify(msr_val);
 	/* higher threshold reached */
-	if (notify_thres_1 && thresh_event_valid(PACKAGE_LEVEL, 1))
-		platform_thermal_package_notify(msr_val);
+	if (analtify_thres_1 && thresh_event_valid(PACKAGE_LEVEL, 1))
+		platform_thermal_package_analtify(msr_val);
 }
 
-static void notify_thresholds(__u64 msr_val)
+static void analtify_thresholds(__u64 msr_val)
 {
 	/* check whether the interrupt handler is defined;
 	 * otherwise simply return
 	 */
-	if (!platform_thermal_notify)
+	if (!platform_thermal_analtify)
 		return;
 
 	/* lower threshold reached */
 	if ((msr_val & THERM_LOG_THRESHOLD0) &&
 			thresh_event_valid(CORE_LEVEL, 0))
-		platform_thermal_notify(msr_val);
+		platform_thermal_analtify(msr_val);
 	/* higher threshold reached */
 	if ((msr_val & THERM_LOG_THRESHOLD1) &&
 			thresh_event_valid(CORE_LEVEL, 1))
-		platform_thermal_notify(msr_val);
+		platform_thermal_analtify(msr_val);
 }
 
-void __weak notify_hwp_interrupt(void)
+void __weak analtify_hwp_interrupt(void)
 {
 	wrmsrl_safe(MSR_HWP_STATUS, 0);
 }
@@ -652,12 +652,12 @@ void intel_thermal_interrupt(void)
 	__u64 msr_val;
 
 	if (static_cpu_has(X86_FEATURE_HWP))
-		notify_hwp_interrupt();
+		analtify_hwp_interrupt();
 
 	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
 
 	/* Check for violation of core thermal thresholds*/
-	notify_thresholds(msr_val);
+	analtify_thresholds(msr_val);
 
 	therm_throt_process(msr_val & THERM_STATUS_PROCHOT,
 			    THERMAL_THROTTLING_EVENT,
@@ -671,7 +671,7 @@ void intel_thermal_interrupt(void)
 	if (this_cpu_has(X86_FEATURE_PTS)) {
 		rdmsrl(MSR_IA32_PACKAGE_THERM_STATUS, msr_val);
 		/* check violations of package thermal thresholds */
-		notify_package_thresholds(msr_val);
+		analtify_package_thresholds(msr_val);
 		therm_throt_process(msr_val & PACKAGE_THERM_STATUS_PROCHOT,
 					THERMAL_THROTTLING_EVENT,
 					PACKAGE_LEVEL);
@@ -736,7 +736,7 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	 * sequence to them and LVT registers are reset to 0s except for
 	 * the mask bits which are set to 1s when APs receive INIT IPI.
 	 * If BIOS takes over the thermal interrupt and sets its interrupt
-	 * delivery mode to SMI (not fixed), it restores the value that the
+	 * delivery mode to SMI (analt fixed), it restores the value that the
 	 * BIOS has programmed on AP based on BSP's info we saved since BIOS
 	 * is always setting the same value for all threads/cores.
 	 */

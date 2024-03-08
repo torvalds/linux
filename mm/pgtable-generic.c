@@ -18,8 +18,8 @@
 
 /*
  * If a p?d_bad entry is found while walking page tables, report
- * the error, before resetting entry to p?d_none.  Usually (but
- * very seldom) called out from the p?d_none_or_clear_bad macros.
+ * the error, before resetting entry to p?d_analne.  Usually (but
+ * very seldom) called out from the p?d_analne_or_clear_bad macros.
  */
 
 void pgd_clear_bad(pgd_t *pgd)
@@ -45,7 +45,7 @@ void pud_clear_bad(pud_t *pud)
 #endif
 
 /*
- * Note that the pmd variant below can't be stub'ed out just as for p4d/pud
+ * Analte that the pmd variant below can't be stub'ed out just as for p4d/pud
  * above. pmd folding is special and typically pmd_* macros refer to upper
  * level even when folded
  */
@@ -58,11 +58,11 @@ void pmd_clear_bad(pmd_t *pmd)
 #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 /*
  * Only sets the access flags (dirty, accessed), as well as write
- * permission. Furthermore, we know it always gets set to a "more
+ * permission. Furthermore, we kanalw it always gets set to a "more
  * permissive" setting, which allows most architectures to optimize
  * this. We return whether the PTE actually changed, which in turn
  * instructs the caller to do things like update__mmu_cache.  This
- * used to be done in the caller, but sparc needs minor faults to
+ * used to be done in the caller, but sparc needs mianalr faults to
  * force that call on sun4c so we changed this macro slightly
  */
 int ptep_set_access_flags(struct vm_area_struct *vma,
@@ -177,7 +177,7 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 #endif
 
 #ifndef __HAVE_ARCH_PGTABLE_WITHDRAW
-/* no "address" argument so destroys page coloring of some arch */
+/* anal "address" argument so destroys page coloring of some arch */
 pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 {
 	pgtable_t pgtable;
@@ -226,7 +226,7 @@ pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
 	VM_BUG_ON(pmd_trans_huge(*pmdp));
 	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
 
-	/* collapse entails shooting down ptes not pmd */
+	/* collapse entails shooting down ptes analt pmd */
 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	return pmd;
 }
@@ -234,12 +234,12 @@ pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
 
 /* arch define pte_free_defer in asm/pgalloc.h for its own implementation */
 #ifndef pte_free_defer
-static void pte_free_now(struct rcu_head *head)
+static void pte_free_analw(struct rcu_head *head)
 {
 	struct page *page;
 
 	page = container_of(head, struct page, rcu_head);
-	pte_free(NULL /* mm not passed and not used */, (pgtable_t)page);
+	pte_free(NULL /* mm analt passed and analt used */, (pgtable_t)page);
 }
 
 void pte_free_defer(struct mm_struct *mm, pgtable_t pgtable)
@@ -247,7 +247,7 @@ void pte_free_defer(struct mm_struct *mm, pgtable_t pgtable)
 	struct page *page;
 
 	page = pgtable;
-	call_rcu(&page->rcu_head, pte_free_now);
+	call_rcu(&page->rcu_head, pte_free_analw);
 }
 #endif /* pte_free_defer */
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -256,7 +256,7 @@ void pte_free_defer(struct mm_struct *mm, pgtable_t pgtable)
 	(defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RCU))
 /*
  * See the comment above ptep_get_lockless() in include/linux/pgtable.h:
- * the barriers in pmdp_get_lockless() cannot guarantee that the value in
+ * the barriers in pmdp_get_lockless() cananalt guarantee that the value in
  * pmd_high actually belongs with the value in pmd_low; but holding interrupts
  * off blocks the TLB flush between present updates, which guarantees that a
  * successful __pte_offset_map() points to a page from matched halves.
@@ -289,21 +289,21 @@ pte_t *__pte_offset_map(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp)
 
 	if (pmdvalp)
 		*pmdvalp = pmdval;
-	if (unlikely(pmd_none(pmdval) || is_pmd_migration_entry(pmdval)))
-		goto nomap;
+	if (unlikely(pmd_analne(pmdval) || is_pmd_migration_entry(pmdval)))
+		goto analmap;
 	if (unlikely(pmd_trans_huge(pmdval) || pmd_devmap(pmdval)))
-		goto nomap;
+		goto analmap;
 	if (unlikely(pmd_bad(pmdval))) {
 		pmd_clear_bad(pmd);
-		goto nomap;
+		goto analmap;
 	}
 	return __pte_map(&pmdval, addr);
-nomap:
+analmap:
 	rcu_read_unlock();
 	return NULL;
 }
 
-pte_t *pte_offset_map_nolock(struct mm_struct *mm, pmd_t *pmd,
+pte_t *pte_offset_map_anallock(struct mm_struct *mm, pmd_t *pmd,
 			     unsigned long addr, spinlock_t **ptlp)
 {
 	pmd_t pmdval;
@@ -320,7 +320,7 @@ pte_t *pte_offset_map_nolock(struct mm_struct *mm, pmd_t *pmd,
  * __pte_offset_map_lock() below, is usually called with the pmd pointer for
  * addr, reached by walking down the mm's pgd, p4d, pud for addr: either while
  * holding mmap_lock or vma lock for read or for write; or in truncate or rmap
- * context, while holding file's i_mmap_lock or anon_vma lock for read (or for
+ * context, while holding file's i_mmap_lock or aanaln_vma lock for read (or for
  * write). In a few cases, it may be used with pmd pointing to a pmd_t already
  * copied to or constructed on the stack.
  *
@@ -330,7 +330,7 @@ pte_t *pte_offset_map_nolock(struct mm_struct *mm, pmd_t *pmd,
  * configs mm->page_table_lock, in SPLIT_PTLOCK configs a spinlock in table's
  * struct page).  pte_unmap_unlock(pte, ptl) to unlock and unmap afterwards.
  *
- * But it is unsuccessful, returning NULL with *ptlp unchanged, if there is no
+ * But it is unsuccessful, returning NULL with *ptlp unchanged, if there is anal
  * page table at *pmd: if, for example, the page table has just been removed,
  * or replaced by the huge pmd of a THP.  (When successful, *pmd is rechecked
  * after acquiring the ptlock, and retried internally if it changed: so that a
@@ -338,25 +338,25 @@ pte_t *pte_offset_map_nolock(struct mm_struct *mm, pmd_t *pmd,
  *
  * pte_offset_map(pmd, addr), and its internal helper __pte_offset_map() above,
  * just returns the pte pointer for addr, its page table kmapped if necessary;
- * or NULL if there is no page table at *pmd.  It does not attempt to lock the
- * page table, so cannot normally be used when the page table is to be updated,
+ * or NULL if there is anal page table at *pmd.  It does analt attempt to lock the
+ * page table, so cananalt analrmally be used when the page table is to be updated,
  * or when entries read must be stable.  But it does take rcu_read_lock(): so
  * that even when page table is racily removed, it remains a valid though empty
  * and disconnected table.  Until pte_unmap(pte) unmaps and rcu_read_unlock()s
  * afterwards.
  *
- * pte_offset_map_nolock(mm, pmd, addr, ptlp), above, is like pte_offset_map();
+ * pte_offset_map_anallock(mm, pmd, addr, ptlp), above, is like pte_offset_map();
  * but when successful, it also outputs a pointer to the spinlock in ptlp - as
  * pte_offset_map_lock() does, but in this case without locking it.  This helps
  * the caller to avoid a later pte_lockptr(mm, *pmd), which might by that time
- * act on a changed *pmd: pte_offset_map_nolock() provides the correct spinlock
+ * act on a changed *pmd: pte_offset_map_anallock() provides the correct spinlock
  * pointer for the page table that it returns.  In principle, the caller should
- * recheck *pmd once the lock is taken; in practice, no callsite needs that -
- * either the mmap_lock for write, or pte_same() check on contents, is enough.
+ * recheck *pmd once the lock is taken; in practice, anal callsite needs that -
+ * either the mmap_lock for write, or pte_same() check on contents, is eanalugh.
  *
- * Note that free_pgtables(), used after unmapping detached vmas, or when
- * exiting the whole mm, does not take page table lock before freeing a page
- * table, and may not use RCU at all: "outsiders" like khugepaged should avoid
+ * Analte that free_pgtables(), used after unmapping detached vmas, or when
+ * exiting the whole mm, does analt take page table lock before freeing a page
+ * table, and may analt use RCU at all: "outsiders" like khugepaged should avoid
  * pte_offset_map() and co once the vma is detached from mm or mm_users is zero.
  */
 pte_t *__pte_offset_map_lock(struct mm_struct *mm, pmd_t *pmd,

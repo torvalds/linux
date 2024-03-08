@@ -11,7 +11,7 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 
-int qedi_do_not_recover;
+int qedi_do_analt_recover;
 static struct dentry *qedi_dbg_root;
 
 void
@@ -21,7 +21,7 @@ qedi_dbg_host_init(struct qedi_dbg_ctx *qedi,
 {
 	char host_dirname[32];
 
-	sprintf(host_dirname, "host%u", qedi->host_no);
+	sprintf(host_dirname, "host%u", qedi->host_anal);
 	qedi->bdf_dentry = debugfs_create_dir(host_dirname, qedi_dbg_root);
 
 	while (dops) {
@@ -56,48 +56,48 @@ qedi_dbg_exit(void)
 }
 
 static ssize_t
-qedi_dbg_do_not_recover_enable(struct qedi_dbg_ctx *qedi_dbg)
+qedi_dbg_do_analt_recover_enable(struct qedi_dbg_ctx *qedi_dbg)
 {
-	if (!qedi_do_not_recover)
-		qedi_do_not_recover = 1;
+	if (!qedi_do_analt_recover)
+		qedi_do_analt_recover = 1;
 
-	QEDI_INFO(qedi_dbg, QEDI_LOG_DEBUGFS, "do_not_recover=%d\n",
-		  qedi_do_not_recover);
+	QEDI_INFO(qedi_dbg, QEDI_LOG_DEBUGFS, "do_analt_recover=%d\n",
+		  qedi_do_analt_recover);
 	return 0;
 }
 
 static ssize_t
-qedi_dbg_do_not_recover_disable(struct qedi_dbg_ctx *qedi_dbg)
+qedi_dbg_do_analt_recover_disable(struct qedi_dbg_ctx *qedi_dbg)
 {
-	if (qedi_do_not_recover)
-		qedi_do_not_recover = 0;
+	if (qedi_do_analt_recover)
+		qedi_do_analt_recover = 0;
 
-	QEDI_INFO(qedi_dbg, QEDI_LOG_DEBUGFS, "do_not_recover=%d\n",
-		  qedi_do_not_recover);
+	QEDI_INFO(qedi_dbg, QEDI_LOG_DEBUGFS, "do_analt_recover=%d\n",
+		  qedi_do_analt_recover);
 	return 0;
 }
 
-static struct qedi_list_of_funcs qedi_dbg_do_not_recover_ops[] = {
-	{ "enable", qedi_dbg_do_not_recover_enable },
-	{ "disable", qedi_dbg_do_not_recover_disable },
+static struct qedi_list_of_funcs qedi_dbg_do_analt_recover_ops[] = {
+	{ "enable", qedi_dbg_do_analt_recover_enable },
+	{ "disable", qedi_dbg_do_analt_recover_disable },
 	{ NULL, NULL }
 };
 
 const struct qedi_debugfs_ops qedi_debugfs_ops[] = {
 	{ "gbl_ctx", NULL },
-	{ "do_not_recover", qedi_dbg_do_not_recover_ops},
+	{ "do_analt_recover", qedi_dbg_do_analt_recover_ops},
 	{ "io_trace", NULL },
 	{ NULL, NULL }
 };
 
 static ssize_t
-qedi_dbg_do_not_recover_cmd_write(struct file *filp, const char __user *buffer,
+qedi_dbg_do_analt_recover_cmd_write(struct file *filp, const char __user *buffer,
 				  size_t count, loff_t *ppos)
 {
 	size_t cnt = 0;
 	struct qedi_dbg_ctx *qedi_dbg =
 			(struct qedi_dbg_ctx *)filp->private_data;
-	struct qedi_list_of_funcs *lof = qedi_dbg_do_not_recover_ops;
+	struct qedi_list_of_funcs *lof = qedi_dbg_do_analt_recover_ops;
 
 	if (*ppos)
 		return 0;
@@ -117,7 +117,7 @@ qedi_dbg_do_not_recover_cmd_write(struct file *filp, const char __user *buffer,
 }
 
 static ssize_t
-qedi_dbg_do_not_recover_cmd_read(struct file *filp, char __user *buffer,
+qedi_dbg_do_analt_recover_cmd_read(struct file *filp, char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
 	size_t cnt = 0;
@@ -125,7 +125,7 @@ qedi_dbg_do_not_recover_cmd_read(struct file *filp, char __user *buffer,
 	if (*ppos)
 		return 0;
 
-	cnt = sprintf(buffer, "do_not_recover=%d\n", qedi_do_not_recover);
+	cnt = sprintf(buffer, "do_analt_recover=%d\n", qedi_do_analt_recover);
 	cnt = min_t(int, count, cnt - *ppos);
 	*ppos += cnt;
 	return cnt;
@@ -164,9 +164,9 @@ qedi_gbl_ctx_show(struct seq_file *s, void *unused)
 }
 
 static int
-qedi_dbg_gbl_ctx_open(struct inode *inode, struct file *file)
+qedi_dbg_gbl_ctx_open(struct ianalde *ianalde, struct file *file)
 {
-	struct qedi_dbg_ctx *qedi_dbg = inode->i_private;
+	struct qedi_dbg_ctx *qedi_dbg = ianalde->i_private;
 	struct qedi_ctx *qedi = container_of(qedi_dbg, struct qedi_ctx,
 					     dbg_ctx);
 
@@ -211,9 +211,9 @@ qedi_io_trace_show(struct seq_file *s, void *unused)
 }
 
 static int
-qedi_dbg_io_trace_open(struct inode *inode, struct file *file)
+qedi_dbg_io_trace_open(struct ianalde *ianalde, struct file *file)
 {
-	struct qedi_dbg_ctx *qedi_dbg = inode->i_private;
+	struct qedi_dbg_ctx *qedi_dbg = ianalde->i_private;
 	struct qedi_ctx *qedi = container_of(qedi_dbg, struct qedi_ctx,
 					     dbg_ctx);
 
@@ -222,7 +222,7 @@ qedi_dbg_io_trace_open(struct inode *inode, struct file *file)
 
 const struct file_operations qedi_dbg_fops[] = {
 	qedi_dbg_fileops_seq(qedi, gbl_ctx),
-	qedi_dbg_fileops(qedi, do_not_recover),
+	qedi_dbg_fileops(qedi, do_analt_recover),
 	qedi_dbg_fileops_seq(qedi, io_trace),
 	{ },
 };

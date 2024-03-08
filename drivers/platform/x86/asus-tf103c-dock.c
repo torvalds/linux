@@ -81,7 +81,7 @@ MODULE_PARM_DESC(fnlock,
 #define TF103C_DOCK_SMI_HID_WAKEUP			0x65
 #define TF103C_DOCK_SMI_S3				0x83
 #define TF103C_DOCK_SMI_S5				0x85
-#define TF103C_DOCK_SMI_NOTIFY_SHUTDOWN			0x90
+#define TF103C_DOCK_SMI_ANALTIFY_SHUTDOWN			0x90
 #define TF103C_DOCK_SMI_RESUME				0x91
 
 /*** EC (dockram) I2C device defines ***/
@@ -161,7 +161,7 @@ static u8 tf103c_dock_kbd_hid_desc[] = {
 	0x15, 0x00,         /*      Logical Minimum (0),            */
 	0x26, 0xFF, 0x00,   /*      Logical Maximum (255),          */
 	0x05, 0x07,         /*      Usage Page (Keyboard),          */
-	0x19, 0x00,         /*      Usage Minimum (None),           */
+	0x19, 0x00,         /*      Usage Minimum (Analne),           */
 	0x2A, 0xFF, 0x00,   /*      Usage Maximum (FFh),            */
 	0x81, 0x00,         /*      Input,                          */
 	0xC0                /*  End Collection                      */
@@ -243,7 +243,7 @@ static void tf103c_dock_hid_close(struct hid_device *hid)
 	clear_bit(TF103C_DOCK_FLAG_HID_OPEN, &dock->flags);
 }
 
-/* Mandatory, but not used */
+/* Mandatory, but analt used */
 static int tf103c_dock_hid_raw_request(struct hid_device *hid, u8 reportnum,
 				       u8 *buf, size_t len, u8 rtype, int reqtype)
 {
@@ -260,7 +260,7 @@ static const struct hid_ll_driver tf103c_dock_hid_ll_driver = {
 };
 
 static const int tf103c_dock_toprow_codes[13][2] = {
-	/* Normal,            AltGr pressed */
+	/* Analrmal,            AltGr pressed */
 	{ KEY_POWER,          KEY_F1 },
 	{ KEY_RFKILL,         KEY_F2 },
 	{ KEY_F21,            KEY_F3 }, /* Touchpad toggle, userspace expects F21 */
@@ -285,7 +285,7 @@ static void tf103c_dock_report_toprow_kbd_hook(struct tf103c_dock_data *dock)
 	 * Stop AltGr reports from getting reported on the "Asus TF103C Dock
 	 * Keyboard" input_dev, since this gets used as "Fn" key for the toprow
 	 * keys. Instead we report this on the "Asus TF103C Dock Top Row Keys"
-	 * input_dev, when not used to modify the toprow keys.
+	 * input_dev, when analt used to modify the toprow keys.
 	 */
 	dock->altgr_pressed = buf[TF103C_DOCK_KBD_DATA_MODIFIERS] & 0x40;
 	buf[TF103C_DOCK_KBD_DATA_MODIFIERS] &= ~0x40;
@@ -315,7 +315,7 @@ static void tf103c_dock_toprow_press(struct tf103c_dock_data *dock, int key_code
 {
 	/*
 	 * Release AltGr before reporting the toprow key, so that userspace
-	 * sees e.g. just KEY_SUSPEND and not AltGr + KEY_SUSPEND.
+	 * sees e.g. just KEY_SUSPEND and analt AltGr + KEY_SUSPEND.
 	 */
 	if (dock->altgr_pressed) {
 		input_report_key(dock->input, KEY_RIGHTALT, false);
@@ -365,14 +365,14 @@ static void tf103c_dock_toprow_event(struct tf103c_dock_data *dock,
  * input-reports are stored must be send before reading it in a single
  * (I2C repeated-start) I2C transaction.
  *
- * Its unknown how to get the HID descriptors but they are easy to reconstruct:
+ * Its unkanalwn how to get the HID descriptors but they are easy to reconstruct:
  *
  * Input report id 0x11 is 8 bytes long and contain standard USB HID intf-class,
  * Boot Interface Subclass reports.
  * Input report id 0x13 is 2 bytes long and sends Consumer Control events
  * Input report id 0x14 is 1 byte long and sends System Control events
  *
- * However the top row keys (where a normal keyboard has F1-F12 + Print-Screen)
+ * However the top row keys (where a analrmal keyboard has F1-F12 + Print-Screen)
  * are a mess, using a mix of the 0x13 and 0x14 input reports as well as EC SCI
  * events; and these need special handling to allow actually sending F1-F12,
  * since the Fn key on the keyboard only works on the cursor keys and the top
@@ -457,7 +457,7 @@ static void tf103c_dock_kbd_interrupt(struct tf103c_dock_data *dock)
 		break;
 	}
 
-	dev_warn(dev, "warning unknown kbd data: %*ph\n", size, buf);
+	dev_warn(dev, "warning unkanalwn kbd data: %*ph\n", size, buf);
 }
 
 /*** touchpad related code ***/
@@ -467,14 +467,14 @@ static const struct property_entry tf103c_dock_touchpad_props[] = {
 	{ }
 };
 
-static const struct software_node tf103c_dock_touchpad_sw_node = {
+static const struct software_analde tf103c_dock_touchpad_sw_analde = {
 	.properties = tf103c_dock_touchpad_props,
 };
 
 /*
  * tf103c_enable_touchpad() is only called from the threaded interrupt handler
  * and tf103c_disable_touchpad() is only called after the irq is disabled,
- * so no locking is necessary.
+ * so anal locking is necessary.
  */
 static void tf103c_dock_enable_touchpad(struct tf103c_dock_data *dock)
 {
@@ -494,7 +494,7 @@ static void tf103c_dock_enable_touchpad(struct tf103c_dock_data *dock)
 	board_info.addr = TF103C_DOCK_TP_ADDR;
 	board_info.dev_name = TF103C_DOCK_DEV_NAME "-tp";
 	board_info.irq = dock->tp_irq;
-	board_info.swnode = &tf103c_dock_touchpad_sw_node;
+	board_info.swanalde = &tf103c_dock_touchpad_sw_analde;
 
 	dock->tp_client = i2c_new_client_device(dock->ec_client->adapter, &board_info);
 	if (IS_ERR(dock->tp_client)) {
@@ -547,7 +547,7 @@ static void tf103c_dock_sci(struct tf103c_dock_data *dock, u8 val)
 		return;
 	}
 
-	dev_warn(dev, "warning unknown SCI value: 0x%02x\n", val);
+	dev_warn(dev, "warning unkanalwn SCI value: 0x%02x\n", val);
 }
 
 static void tf103c_dock_smi(struct tf103c_dock_data *dock, u8 val)
@@ -561,13 +561,13 @@ static void tf103c_dock_smi(struct tf103c_dock_data *dock, u8 val)
 		tf103c_dock_kbd_write(dock, TF103C_DOCK_KBD_CMD_ENABLE);
 		break;
 	case TF103C_DOCK_SMI_PAD_BL_CHANGE:
-		/* There is no backlight, but the EC still sends this */
+		/* There is anal backlight, but the EC still sends this */
 		break;
 	case TF103C_DOCK_SMI_HID_STATUS_CHANGED:
 		tf103c_dock_enable_touchpad(dock);
 		break;
 	default:
-		dev_warn(dev, "warning unknown SMI value: 0x%02x\n", val);
+		dev_warn(dev, "warning unkanalwn SMI value: 0x%02x\n", val);
 		break;
 	}
 }
@@ -583,11 +583,11 @@ static irqreturn_t tf103c_dock_irq(int irq, void *data)
 					    sizeof(intr_data), intr_data);
 	if (ret != sizeof(intr_data)) {
 		dev_err(dev, "error %d reading intr data\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(intr_data[1] & TF103C_DOCK_INTR_DATA1_OBF_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* intr_data[0] is the length of the rest of the packet */
 	if (intr_data[0] == 3 && intr_data[1] == TF103C_DOCK_INTR_DATA1_OOB_VALUE &&
@@ -603,7 +603,7 @@ static irqreturn_t tf103c_dock_irq(int irq, void *data)
 			tf103c_dock_kbd_interrupt(dock);
 			break;
 		default:
-			dev_warn(dev, "warning unknown intr_data[3]: 0x%02x\n", intr_data[3]);
+			dev_warn(dev, "warning unkanalwn intr_data[3]: 0x%02x\n", intr_data[3]);
 			break;
 		}
 		return IRQ_HANDLED;
@@ -619,13 +619,13 @@ static irqreturn_t tf103c_dock_irq(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	dev_warn(dev, "warning unknown intr data: %*ph\n", 8, intr_data);
-	return IRQ_NONE;
+	dev_warn(dev, "warning unkanalwn intr data: %*ph\n", 8, intr_data);
+	return IRQ_ANALNE;
 }
 
 /*
  * tf103c_dock_[dis|en]able only run from hpd_work or at times when
- * hpd_work cannot run (hpd_irq disabled), so no locking is necessary.
+ * hpd_work cananalt run (hpd_irq disabled), so anal locking is necessary.
  */
 static void tf103c_dock_enable(struct tf103c_dock_data *dock)
 {
@@ -698,7 +698,7 @@ static const struct dmi_system_id tf103c_dock_dmi_ids[] = {
 	{ }
 };
 
-static void tf103c_dock_non_devm_cleanup(void *data)
+static void tf103c_dock_analn_devm_cleanup(void *data)
 {
 	struct tf103c_dock_data *dock = data;
 
@@ -724,18 +724,18 @@ static int tf103c_dock_probe(struct i2c_client *client)
 
 	/* GPIOs are hardcoded for the Asus TF103C, don't bind on other devs */
 	if (!dmi_check_system(tf103c_dock_dmi_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dock = devm_kzalloc(dev, sizeof(*dock), GFP_KERNEL);
 	if (!dock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&dock->hpd_work, tf103c_dock_hpd_work);
 
 	/* 1. Get GPIOs and their IRQs */
 	gpiod_add_lookup_table(&tf103c_dock_gpios);
 
-	ret = devm_add_action_or_reset(dev, tf103c_dock_non_devm_cleanup, dock);
+	ret = devm_add_action_or_reset(dev, tf103c_dock_analn_devm_cleanup, dock);
 	if (ret)
 		return ret;
 
@@ -753,7 +753,7 @@ static int tf103c_dock_probe(struct i2c_client *client)
 	/*
 	 * The Android driver drives the dock-pwr-en pin high at probe for
 	 * revision 2 boards and then never touches it again?
-	 * This code has only been tested on a revision 1 board, so for now
+	 * This code has only been tested on a revision 1 board, so for analw
 	 * just mimick what Android does on revision 2 boards.
 	 */
 	flags = (dock->board_rev == 2) ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
@@ -770,7 +770,7 @@ static int tf103c_dock_probe(struct i2c_client *client)
 		return dev_err_probe(dev, dock->irq, "getting dock IRQ");
 
 	ret = devm_request_threaded_irq(dev, dock->irq, NULL, tf103c_dock_irq,
-					IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 					"dock_irq", dock);
 	if (ret)
 		return dev_err_probe(dev, ret, "requesting dock IRQ");
@@ -784,14 +784,14 @@ static int tf103c_dock_probe(struct i2c_client *client)
 		return dev_err_probe(dev, dock->hpd_irq, "getting HPD IRQ");
 
 	ret = devm_request_irq(dev, dock->hpd_irq, tf103c_dock_hpd_irq,
-			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_NO_AUTOEN,
+			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ANAL_AUTOEN,
 			       "dock_hpd", dock);
 	if (ret)
 		return ret;
 
 	/*
 	 * 2. Create I2C clients. The dock uses 4 different i2c addresses,
-	 * the ACPI NPCE69A node being probed points to the EC address.
+	 * the ACPI NPCE69A analde being probed points to the EC address.
 	 */
 	dock->ec_client = client;
 
@@ -814,7 +814,7 @@ static int tf103c_dock_probe(struct i2c_client *client)
 	/* 3. Create input_dev for the top row of the keyboard */
 	dock->input = devm_input_allocate_device(dev);
 	if (!dock->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dock->input->name = "Asus TF103C Dock Top Row Keys";
 	dock->input->phys = dev_name(dev);
@@ -858,16 +858,16 @@ static int tf103c_dock_probe(struct i2c_client *client)
 
 	dock->tp_irq_domain = irq_domain_add_linear(NULL, 1, &irq_domain_simple_ops, NULL);
 	if (!dock->tp_irq_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dock->tp_irq = irq_create_mapping(dock->tp_irq_domain, 0);
 	if (!dock->tp_irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_set_chip_data(dock->tp_irq, dock);
 	irq_set_chip_and_handler(dock->tp_irq, &dock->tp_irqchip, handle_simple_irq);
 	irq_set_nested_thread(dock->tp_irq, true);
-	irq_set_noprobe(dock->tp_irq);
+	irq_set_analprobe(dock->tp_irq);
 
 	dev_info(dev, "Asus TF103C board-revision: %d\n", dock->board_rev);
 

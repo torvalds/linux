@@ -41,7 +41,7 @@ enum {
 
 	SATA_FSL_HOST_FLAGS	= (ATA_FLAG_SATA | ATA_FLAG_PIO_DMA |
 				   ATA_FLAG_PMP | ATA_FLAG_NCQ |
-				   ATA_FLAG_AN | ATA_FLAG_NO_LOG_PAGE),
+				   ATA_FLAG_AN | ATA_FLAG_ANAL_LOG_PAGE),
 
 	SATA_FSL_MAX_CMDS	= SATA_FSL_QUEUE_DEPTH,
 	SATA_FSL_CMD_HDR_SIZE	= 16,	/* 4 DWORDS */
@@ -147,11 +147,11 @@ enum {
 	INT_ON_PHYRDY_CHG = (1 << 4),
 
 	INT_ON_SIGNATURE_UPDATE = (1 << 3),
-	INT_ON_SNOTIFY_UPDATE = (1 << 2),
+	INT_ON_SANALTIFY_UPDATE = (1 << 2),
 	INT_ON_SINGL_DEVICE_ERR = (1 << 1),
 	INT_ON_CMD_COMPLETE = 1,
 
-	INT_ON_ERROR = INT_ON_FATAL_ERR | INT_ON_SNOTIFY_UPDATE |
+	INT_ON_ERROR = INT_ON_FATAL_ERR | INT_ON_SANALTIFY_UPDATE |
 	    INT_ON_PHYRDY_CHG | INT_ON_SINGL_DEVICE_ERR,
 
 	/*
@@ -162,23 +162,23 @@ enum {
 	HCONTROL_LEGACY = (1 << 28),
 	HCONTROL_PARITY_PROT_MOD = (1 << 14),
 	HCONTROL_DPATH_PARITY = (1 << 12),
-	HCONTROL_SNOOP_ENABLE = (1 << 10),
+	HCONTROL_SANALOP_ENABLE = (1 << 10),
 	HCONTROL_PMP_ATTACHED = (1 << 9),
 	HCONTROL_COPYOUT_STATFIS = (1 << 8),
 	IE_ON_FATAL_ERR = (1 << 5),
 	IE_ON_PHYRDY_CHG = (1 << 4),
 	IE_ON_SIGNATURE_UPDATE = (1 << 3),
-	IE_ON_SNOTIFY_UPDATE = (1 << 2),
+	IE_ON_SANALTIFY_UPDATE = (1 << 2),
 	IE_ON_SINGL_DEVICE_ERR = (1 << 1),
 	IE_ON_CMD_COMPLETE = 1,
 
 	DEFAULT_PORT_IRQ_ENABLE_MASK = IE_ON_FATAL_ERR | IE_ON_PHYRDY_CHG |
-	    IE_ON_SIGNATURE_UPDATE | IE_ON_SNOTIFY_UPDATE |
+	    IE_ON_SIGNATURE_UPDATE | IE_ON_SANALTIFY_UPDATE |
 	    IE_ON_SINGL_DEVICE_ERR | IE_ON_CMD_COMPLETE,
 
 	EXT_INDIRECT_SEG_PRD_FLAG = (1 << 31),
-	DATA_SNOOP_ENABLE_V1 = (1 << 22),
-	DATA_SNOOP_ENABLE_V2 = (1 << 28),
+	DATA_SANALOP_ENABLE_V1 = (1 << 22),
+	DATA_SANALOP_ENABLE_V2 = (1 << 28),
 };
 
 /*
@@ -188,7 +188,7 @@ enum {
 	SSTATUS = 0,
 	SERROR = 4,
 	SCONTROL = 8,
-	SNOTIFY = 0xC,
+	SANALTIFY = 0xC,
 };
 
 /*
@@ -233,7 +233,7 @@ struct cmdhdr_tbl_entry {
 enum {
 	CMD_DESC_RES = (1 << 11),
 	VENDOR_SPECIFIC_BIST = (1 << 10),
-	CMD_DESC_SNOOP_ENABLE = (1 << 9),
+	CMD_DESC_SANALOP_ENABLE = (1 << 9),
 	FPDMA_QUEUED_CMD = (1 << 8),
 	SRST_CMD = (1 << 7),
 	BIST = (1 << 6),
@@ -283,7 +283,7 @@ struct sata_fsl_host_priv {
 	void __iomem *ssr_base;
 	void __iomem *csr_base;
 	int irq;
-	int data_snoop;
+	int data_sanalop;
 	struct device_attribute intr_coalescing;
 	struct device_attribute rx_watermark;
 };
@@ -415,7 +415,7 @@ static void sata_fsl_setup_cmd_hdr_entry(struct ata_port *ap,
 	cmd_descriptor_address = pp->cmdentry_paddr +
 	    tag * SATA_FSL_CMD_DESC_SIZE;
 
-	/* NOTE: both data_xfer_len & fis_len are Dword counts */
+	/* ANALTE: both data_xfer_len & fis_len are Dword counts */
 
 	pp->cmdslot[tag].cda = cpu_to_le32(cmd_descriptor_address);
 	pp->cmdslot[tag].prde_fis_len =
@@ -432,14 +432,14 @@ static void sata_fsl_setup_cmd_hdr_entry(struct ata_port *ap,
 
 static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 				     u32 *ttl, dma_addr_t cmd_desc_paddr,
-				     int data_snoop)
+				     int data_sanalop)
 {
 	struct scatterlist *sg;
 	unsigned int num_prde = 0;
 	u32 ttl_dwords = 0;
 
 	/*
-	 * NOTE : direct & indirect prdt's are contiguously allocated
+	 * ANALTE : direct & indirect prdt's are contiguously allocated
 	 */
 	struct prde *prd = (struct prde *)&((struct command_desc *)
 					    cmd_desc)->prdt;
@@ -456,7 +456,7 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 		dma_addr_t sg_addr = sg_dma_address(sg);
 		u32 sg_len = sg_dma_len(sg);
 
-		/* warn if each s/g element is not dword aligned */
+		/* warn if each s/g element is analt dword aligned */
 		if (unlikely(sg_addr & 0x03))
 			ata_port_err(qc->ap, "s/g addr unaligned : 0x%llx\n",
 				     (unsigned long long)sg_addr);
@@ -475,7 +475,7 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 
 		ttl_dwords += sg_len;
 		prd->dba = cpu_to_le32(sg_addr);
-		prd->ddc_and_ext = cpu_to_le32(data_snoop | (sg_len & ~0x03));
+		prd->ddc_and_ext = cpu_to_le32(data_sanalop | (sg_len & ~0x03));
 
 		++num_prde;
 		++prd;
@@ -487,7 +487,7 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 		/* set indirect extension flag along with indirect ext. size */
 		prd_ptr_to_indirect_ext->ddc_and_ext =
 		    cpu_to_le32((EXT_INDIRECT_SEG_PRD_FLAG |
-				 data_snoop |
+				 data_sanalop |
 				 (indirect_ext_segment_sz & ~0x03)));
 	}
 
@@ -503,7 +503,7 @@ static enum ata_completion_errors sata_fsl_qc_prep(struct ata_queued_cmd *qc)
 	void __iomem *hcr_base = host_priv->hcr_base;
 	unsigned int tag = sata_fsl_tag(ap, qc->hw_tag, hcr_base);
 	struct command_desc *cd;
-	u32 desc_info = CMD_DESC_RES | CMD_DESC_SNOOP_ENABLE;
+	u32 desc_info = CMD_DESC_RES | CMD_DESC_SANALOP_ENABLE;
 	u32 num_prde = 0;
 	u32 ttl_dwords = 0;
 	dma_addr_t cd_paddr;
@@ -523,7 +523,7 @@ static enum ata_completion_errors sata_fsl_qc_prep(struct ata_queued_cmd *qc)
 	if (qc->flags & ATA_QCFLAG_DMAMAP)
 		num_prde = sata_fsl_fill_sg(qc, (void *)cd,
 					    &ttl_dwords, cd_paddr,
-					    host_priv->data_snoop);
+					    host_priv->data_sanalop);
 
 	if (qc->tf.protocol == ATA_PROT_NCQ)
 		desc_info |= FPDMA_QUEUED_CMD;
@@ -708,13 +708,13 @@ static int sata_fsl_port_start(struct ata_port *ap)
 
 	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem = dma_alloc_coherent(dev, SATA_FSL_PORT_PRIV_DMA_SZ, &mem_dma,
 				 GFP_KERNEL);
 	if (!mem) {
 		kfree(pp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pp->cmdslot = mem;
@@ -732,11 +732,11 @@ static int sata_fsl_port_start(struct ata_port *ap)
 		(unsigned long)pp->cmdslot_paddr,
 		(unsigned long)pp->cmdentry_paddr);
 
-	/* Now, update the CHBA register in host controller cmd register set */
+	/* Analw, update the CHBA register in host controller cmd register set */
 	iowrite32(pp->cmdslot_paddr & 0xffffffff, hcr_base + CHBA);
 
 	/*
-	 * Now, we can bring the controller on-line & also initiate
+	 * Analw, we can bring the controller on-line & also initiate
 	 * the COMINIT sequence, we simply return here and the boot-probing
 	 * & device discovery process is re-initiated by libATA using a
 	 * Softreset EH (dummy) session. Hence, boot probing and device
@@ -822,7 +822,7 @@ try_offline_again:
 				 1, 500);
 
 	if (temp & ONLINE) {
-		ata_port_err(ap, "Hardreset failed, not off-lined %d\n", i);
+		ata_port_err(ap, "Hardreset failed, analt off-lined %d\n", i);
 
 		/*
 		 * Try to offline controller atleast twice
@@ -847,21 +847,21 @@ try_offline_again:
 	sata_set_spd(link);
 
 	/*
-	 * Now, bring the host controller online again, this can take time
+	 * Analw, bring the host controller online again, this can take time
 	 * as PHY reset and communication establishment, 1st D2H FIS and
 	 * device signature update is done, on safe side assume 500ms
-	 * NOTE : Host online status may be indicated immediately!!
+	 * ANALTE : Host online status may be indicated immediately!!
 	 */
 
 	temp = ioread32(hcr_base + HCONTROL);
-	temp |= (HCONTROL_ONLINE_PHY_RST | HCONTROL_SNOOP_ENABLE);
+	temp |= (HCONTROL_ONLINE_PHY_RST | HCONTROL_SANALOP_ENABLE);
 	temp |= HCONTROL_PMP_ATTACHED;
 	iowrite32(temp, hcr_base + HCONTROL);
 
 	temp = ata_wait_register(ap, hcr_base + HSTATUS, ONLINE, 0, 1, 500);
 
 	if (!(temp & ONLINE)) {
-		ata_port_err(ap, "Hardreset failed, not on-lined\n");
+		ata_port_err(ap, "Hardreset failed, analt on-lined\n");
 		goto err;
 	}
 
@@ -878,22 +878,22 @@ try_offline_again:
 
 	temp = ata_wait_register(ap, hcr_base + HSTATUS, 0xFF, 0, 1, 500);
 	if ((!(temp & 0x10)) || ata_link_offline(link)) {
-		ata_port_warn(ap, "No Device OR PHYRDY change,Hstatus = 0x%x\n",
+		ata_port_warn(ap, "Anal Device OR PHYRDY change,Hstatus = 0x%x\n",
 			      ioread32(hcr_base + HSTATUS));
-		*class = ATA_DEV_NONE;
+		*class = ATA_DEV_ANALNE;
 		return 0;
 	}
 
 	/*
-	 * Wait for the first D2H from device,i.e,signature update notification
+	 * Wait for the first D2H from device,i.e,signature update analtification
 	 */
 	start_jiffies = jiffies;
 	temp = ata_wait_register(ap, hcr_base + HSTATUS, 0xFF, 0x10,
 			500, jiffies_to_msecs(deadline - start_jiffies));
 
 	if ((temp & 0xFF) != 0x18) {
-		ata_port_warn(ap, "No Signature Update\n");
-		*class = ATA_DEV_NONE;
+		ata_port_warn(ap, "Anal Signature Update\n");
+		*class = ATA_DEV_ANALNE;
 		goto do_followup_srst;
 	} else {
 		ata_port_info(ap, "Signature Update detected @ %d msecs\n",
@@ -926,7 +926,7 @@ static int sata_fsl_softreset(struct ata_link *link, unsigned int *class,
 	u32 Serror;
 
 	if (ata_link_offline(link)) {
-		*class = ATA_DEV_NONE;
+		*class = ATA_DEV_ANALNE;
 		return 0;
 	}
 
@@ -943,7 +943,7 @@ static int sata_fsl_softreset(struct ata_link *link, unsigned int *class,
 
 	/* device reset/SRST is a control register update FIS, uses tag0 */
 	sata_fsl_setup_cmd_hdr_entry(ap, pp, 0,
-		SRST_CMD | CMD_DESC_RES | CMD_DESC_SNOOP_ENABLE, 0, 0, 5);
+		SRST_CMD | CMD_DESC_RES | CMD_DESC_SANALOP_ENABLE, 0, 0, 5);
 
 	tf.ctl |= ATA_SRST;	/* setup SRST bit in taskfile control reg */
 	ata_tf_to_fis(&tf, pmp, 0, cfis);
@@ -952,7 +952,7 @@ static int sata_fsl_softreset(struct ata_link *link, unsigned int *class,
 		cfis[0], cfis[1], cfis[2], cfis[3]);
 
 	/*
-	 * Queue SRST command to the controller/device, ensure that no
+	 * Queue SRST command to the controller/device, ensure that anal
 	 * other commands are active on the controller/device
 	 */
 
@@ -986,14 +986,14 @@ static int sata_fsl_softreset(struct ata_link *link, unsigned int *class,
 
 	/*
 	 * SATA device enters reset state after receiving a Control register
-	 * FIS with SRST bit asserted and it awaits another H2D Control reg.
+	 * FIS with SRST bit asserted and it awaits aanalther H2D Control reg.
 	 * FIS with SRST bit cleared, then the device does internal diags &
 	 * initialization, followed by indicating it's initialization status
 	 * using ATA signature D2H register FIS to the host controller.
 	 */
 
 	sata_fsl_setup_cmd_hdr_entry(ap, pp, 0,
-				     CMD_DESC_RES | CMD_DESC_SNOOP_ENABLE,
+				     CMD_DESC_RES | CMD_DESC_SANALOP_ENABLE,
 				     0, 0, 5);
 
 	tf.ctl &= ~ATA_SRST;	/* 2nd H2D Ctl. register FIS */
@@ -1009,16 +1009,16 @@ static int sata_fsl_softreset(struct ata_link *link, unsigned int *class,
 	 * complete, which needs special handling, by clearing the Nth
 	 * command bit of the CCreg
 	 */
-	iowrite32(0x01, CC + hcr_base);	/* We know it will be cmd#0 always */
+	iowrite32(0x01, CC + hcr_base);	/* We kanalw it will be cmd#0 always */
 
-	*class = ATA_DEV_NONE;
+	*class = ATA_DEV_ANALNE;
 
 	/* Verify if SStatus indicates device presence */
 	if (ata_link_online(link)) {
 		/*
 		 * if we are here, device presence has been detected,
 		 * 1st D2H FIS would have been received, but sfis in
-		 * command desc. is not updated, but signature register
+		 * command desc. is analt updated, but signature register
 		 * would have been updated
 		 */
 
@@ -1088,11 +1088,11 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 		freeze = 1;
 	}
 
-	/* Handle SDB FIS receive & notify update */
-	if (hstatus & INT_ON_SNOTIFY_UPDATE)
-		sata_async_notification(ap);
+	/* Handle SDB FIS receive & analtify update */
+	if (hstatus & INT_ON_SANALTIFY_UPDATE)
+		sata_async_analtification(ap);
 
-	/* Handle PHYRDY change notification */
+	/* Handle PHYRDY change analtification */
 	if (hstatus & INT_ON_PHYRDY_CHG) {
 		ata_port_dbg(ap, "PHYRDY change indication\n");
 
@@ -1109,7 +1109,7 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 		 * in error, and we can (re)issue commands to this device.
 		 * When a device is in error all commands queued into the
 		 * host controller and at the device are considered aborted
-		 * and the queue for that device is stopped. Now, after
+		 * and the queue for that device is stopped. Analw, after
 		 * clearing the device error, we can issue commands to the
 		 * device to interrogate it to find the source of the error.
 		 */
@@ -1132,7 +1132,7 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 				ehi = &link->eh_info;
 				qc = ata_qc_from_tag(ap, link->active_tag);
 				/*
-				 * We should consider this as non fatal error,
+				 * We should consider this as analn fatal error,
                                  * and TF must be updated as done below.
 		                 */
 
@@ -1150,7 +1150,7 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 
 			qc = ata_qc_from_tag(ap, link->active_tag);
 			/*
-			 * We should consider this as non fatal error,
+			 * We should consider this as analn fatal error,
                          * and TF must be updated as done below.
 	                */
 			err_mask |= AC_ERR_DEV;
@@ -1211,7 +1211,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 				sata_fsl_scr_write(&ap->link, SCR_ERROR,
 						SError);
 
-				/* Ignore fatal error and device error */
+				/* Iganalre fatal error and device error */
 				status_mask &= ~(INT_ON_SINGL_DEVICE_ERR
 						| INT_ON_FATAL_ERR);
 				break;
@@ -1260,7 +1260,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 		iowrite32(1, hcr_base + CC);
 		qc = ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
-		ata_port_dbg(ap, "completing non-ncq cmd, CC=0x%x\n",
+		ata_port_dbg(ap, "completing analn-ncq cmd, CC=0x%x\n",
 			 ioread32(hcr_base + CC));
 
 		if (qc) {
@@ -1289,7 +1289,7 @@ static irqreturn_t sata_fsl_interrupt(int irq, void *dev_instance)
 	interrupt_enables &= 0x3F;
 
 	if (!interrupt_enables)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&host->lock);
 
@@ -1321,7 +1321,7 @@ static int sata_fsl_init_controller(struct ata_host *host)
 	u32 temp;
 
 	/*
-	 * NOTE : We cannot bring the controller online before setting
+	 * ANALTE : We cananalt bring the controller online before setting
 	 * the CHBA, hence main controller initialization is done as
 	 * part of the port_start() callback
 	 */
@@ -1435,14 +1435,14 @@ static int sata_fsl_probe(struct platform_device *ofdev)
 
 	dev_info(&ofdev->dev, "Sata FSL Platform/CSB Driver init\n");
 
-	hcr_base = of_iomap(ofdev->dev.of_node, 0);
+	hcr_base = of_iomap(ofdev->dev.of_analde, 0);
 	if (!hcr_base)
 		goto error_exit_with_cleanup;
 
 	ssr_base = hcr_base + 0x100;
 	csr_base = hcr_base + 0x140;
 
-	if (!of_device_is_compatible(ofdev->dev.of_node, "fsl,mpc8315-sata")) {
+	if (!of_device_is_compatible(ofdev->dev.of_analde, "fsl,mpc8315-sata")) {
 		temp = ioread32(csr_base + TRANSCFG);
 		temp = temp & 0xffffffe0;
 		iowrite32(temp | TRANSCFG_RX_WATER_MARK, csr_base + TRANSCFG);
@@ -1466,26 +1466,26 @@ static int sata_fsl_probe(struct platform_device *ofdev)
 	}
 	host_priv->irq = irq;
 
-	if (of_device_is_compatible(ofdev->dev.of_node, "fsl,pq-sata-v2"))
-		host_priv->data_snoop = DATA_SNOOP_ENABLE_V2;
+	if (of_device_is_compatible(ofdev->dev.of_analde, "fsl,pq-sata-v2"))
+		host_priv->data_sanalop = DATA_SANALOP_ENABLE_V2;
 	else
-		host_priv->data_snoop = DATA_SNOOP_ENABLE_V1;
+		host_priv->data_sanalop = DATA_SANALOP_ENABLE_V1;
 
 	/* allocate host structure */
 	host = ata_host_alloc_pinfo(&ofdev->dev, ppi, SATA_FSL_MAX_PORTS);
 	if (!host) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error_exit_with_cleanup;
 	}
 
-	/* host->iomap is not used currently */
+	/* host->iomap is analt used currently */
 	host->private_data = host_priv;
 
 	/* initialize host controller */
 	sata_fsl_init_controller(host);
 
 	/*
-	 * Now, register with libATA core, this will also initiate the
+	 * Analw, register with libATA core, this will also initiate the
 	 * device discovery process, invoking our port_start() handler &
 	 * error_handler() to execute a dummy Softreset EH session
 	 */
@@ -1566,7 +1566,7 @@ static int sata_fsl_resume(struct platform_device *op)
 
 	iowrite32((ioread32(hcr_base + HCONTROL)
 				| HCONTROL_ONLINE_PHY_RST
-				| HCONTROL_SNOOP_ENABLE
+				| HCONTROL_SANALOP_ENABLE
 				| HCONTROL_PMP_ATTACHED),
 			hcr_base + HCONTROL);
 

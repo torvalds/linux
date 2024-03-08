@@ -14,7 +14,7 @@
 #include <linux/sched/mm.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <uapi/linux/iommufd.h>
 
 #include "io_pagetable.h"
@@ -103,8 +103,8 @@ static bool __alloc_iova_check_used(struct interval_tree_span_iter *span,
 }
 
 /*
- * Automatically find a block of IOVA that is not being used and not reserved.
- * Does not return a 0 IOVA even if it is valid.
+ * Automatically find a block of IOVA that is analt being used and analt reserved.
+ * Does analt return a 0 IOVA even if it is valid.
  */
 static int iopt_alloc_iova(struct io_pagetable *iopt, unsigned long *iova,
 			   unsigned long uptr, unsigned long length)
@@ -158,7 +158,7 @@ static int iopt_alloc_iova(struct io_pagetable *iopt, unsigned long *iova,
 			return 0;
 		}
 	}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int iopt_check_iova(struct io_pagetable *iopt, unsigned long iova,
@@ -174,11 +174,11 @@ static int iopt_check_iova(struct io_pagetable *iopt, unsigned long iova,
 	if (check_add_overflow(iova, length - 1, &last))
 		return -EOVERFLOW;
 
-	/* No reserved IOVA intersects the range */
+	/* Anal reserved IOVA intersects the range */
 	if (iopt_reserved_iter_first(iopt, iova, last))
 		return -EINVAL;
 
-	/* Check that there is not already a mapping in the range */
+	/* Check that there is analt already a mapping in the range */
 	if (iopt_area_iter_first(iopt, iova, last))
 		return -EEXIST;
 	return 0;
@@ -202,23 +202,23 @@ static int iopt_insert_area(struct io_pagetable *iopt, struct iopt_area *area,
 	if (area->page_offset & (iopt->iova_alignment - 1))
 		return -EINVAL;
 
-	area->node.start = iova;
-	if (check_add_overflow(iova, length - 1, &area->node.last))
+	area->analde.start = iova;
+	if (check_add_overflow(iova, length - 1, &area->analde.last))
 		return -EOVERFLOW;
 
-	area->pages_node.start = start_byte / PAGE_SIZE;
-	if (check_add_overflow(start_byte, length - 1, &area->pages_node.last))
+	area->pages_analde.start = start_byte / PAGE_SIZE;
+	if (check_add_overflow(start_byte, length - 1, &area->pages_analde.last))
 		return -EOVERFLOW;
-	area->pages_node.last = area->pages_node.last / PAGE_SIZE;
-	if (WARN_ON(area->pages_node.last >= pages->npages))
+	area->pages_analde.last = area->pages_analde.last / PAGE_SIZE;
+	if (WARN_ON(area->pages_analde.last >= pages->npages))
 		return -EOVERFLOW;
 
 	/*
-	 * The area is inserted with a NULL pages indicating it is not fully
+	 * The area is inserted with a NULL pages indicating it is analt fully
 	 * initialized yet.
 	 */
 	area->iopt = iopt;
-	interval_tree_insert(&area->node, &iopt->area_itree);
+	interval_tree_insert(&area->analde, &iopt->area_itree);
 	return 0;
 }
 
@@ -229,8 +229,8 @@ static struct iopt_area *iopt_area_alloc(void)
 	area = kzalloc(sizeof(*area), GFP_KERNEL_ACCOUNT);
 	if (!area)
 		return NULL;
-	RB_CLEAR_NODE(&area->node.rb);
-	RB_CLEAR_NODE(&area->pages_node.rb);
+	RB_CLEAR_ANALDE(&area->analde.rb);
+	RB_CLEAR_ANALDE(&area->pages_analde.rb);
 	return area;
 }
 
@@ -246,7 +246,7 @@ static int iopt_alloc_area_pages(struct io_pagetable *iopt,
 	list_for_each_entry(elm, pages_list, next) {
 		elm->area = iopt_area_alloc();
 		if (!elm->area)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	down_write(&iopt->iova_rwsem);
@@ -299,7 +299,7 @@ static void iopt_abort_area(struct iopt_area *area)
 		WARN_ON(area->pages);
 	if (area->iopt) {
 		down_write(&area->iopt->iova_rwsem);
-		interval_tree_remove(&area->node, &area->iopt->area_itree);
+		interval_tree_remove(&area->analde, &area->iopt->area_itree);
 		up_write(&area->iopt->iova_rwsem);
 	}
 	kfree(area);
@@ -389,7 +389,7 @@ out_unlock_domains:
  *
  * iova, uptr, and length must be aligned to iova_alignment. For domain backed
  * page tables this will pin the pages and load them into the domain at iova.
- * For non-domain page tables this will only setup a lazy reference and the
+ * For analn-domain page tables this will only setup a lazy reference and the
  * caller must use iopt_access_pages() to touch them.
  *
  * iopt_unmap_iova() must be called to undo this before the io_pagetable can be
@@ -474,13 +474,13 @@ iommu_read_and_clear_dirty(struct iommu_domain *domain,
 	int ret = 0;
 
 	if (!ops || !ops->read_and_clear_dirty)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	iter = iova_bitmap_alloc(bitmap->iova, bitmap->length,
 				 bitmap->page_size,
 				 u64_to_user_ptr(bitmap->data));
 	if (IS_ERR(iter))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iommu_dirty_bitmap_init(&dirty, iter, &gather);
 
@@ -490,7 +490,7 @@ iommu_read_and_clear_dirty(struct iommu_domain *domain,
 	arg.dirty = &dirty;
 	iova_bitmap_for_each(iter, &arg, __iommu_read_and_clear_dirty);
 
-	if (!(flags & IOMMU_DIRTY_NO_CLEAR))
+	if (!(flags & IOMMU_DIRTY_ANAL_CLEAR))
 		iommu_iotlb_sync(domain, &gather);
 
 	iova_bitmap_free(iter);
@@ -578,7 +578,7 @@ int iopt_set_dirty_tracking(struct io_pagetable *iopt,
 	int ret = 0;
 
 	if (!ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	down_read(&iopt->iova_rwsem);
 
@@ -616,7 +616,7 @@ int iopt_get_pages(struct io_pagetable *iopt, unsigned long iova,
 
 		elm = kzalloc(sizeof(*elm), GFP_KERNEL_ACCOUNT);
 		if (!elm) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_free;
 		}
 		elm->start_byte = iopt_area_start_byte(area, iter.cur_iova);
@@ -626,7 +626,7 @@ int iopt_get_pages(struct io_pagetable *iopt, unsigned long iova,
 		list_add_tail(&elm->next, pages_list);
 	}
 	if (!iopt_area_contig_done(&iter)) {
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto err_free;
 	}
 	up_read(&iopt->iova_rwsem);
@@ -643,7 +643,7 @@ static int iopt_unmap_iova_range(struct io_pagetable *iopt, unsigned long start,
 	struct iopt_area *area;
 	unsigned long unmapped_bytes = 0;
 	unsigned int tries = 0;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	/*
 	 * The domains_rwsem must be held in read mode any time any area->pages
@@ -658,14 +658,14 @@ again:
 		unsigned long area_first = iopt_area_iova(area);
 		struct iopt_pages *pages;
 
-		/* Userspace should not race map/unmap's of the same area */
+		/* Userspace should analt race map/unmap's of the same area */
 		if (!area->pages) {
 			rc = -EBUSY;
 			goto out_unlock_iova;
 		}
 
 		if (area_first < start || area_last > last) {
-			rc = -ENOENT;
+			rc = -EANALENT;
 			goto out_unlock_iova;
 		}
 
@@ -685,8 +685,8 @@ again:
 			up_write(&iopt->iova_rwsem);
 			up_read(&iopt->domains_rwsem);
 
-			iommufd_access_notify_unmap(iopt, area_first, length);
-			/* Something is not responding to unmap requests. */
+			iommufd_access_analtify_unmap(iopt, area_first, length);
+			/* Something is analt responding to unmap requests. */
 			tries++;
 			if (WARN_ON(tries > 100))
 				return -EDEADLOCK;
@@ -724,7 +724,7 @@ out_unlock_iova:
  * @unmapped: Return number of bytes unmapped
  *
  * The requested range must be a superset of existing ranges.
- * Splitting/truncating IOVA mappings is not allowed.
+ * Splitting/truncating IOVA mappings is analt allowed.
  */
 int iopt_unmap_iova(struct io_pagetable *iopt, unsigned long iova,
 		    unsigned long length, unsigned long *unmapped)
@@ -746,12 +746,12 @@ int iopt_unmap_all(struct io_pagetable *iopt, unsigned long *unmapped)
 
 	rc = iopt_unmap_iova_range(iopt, 0, ULONG_MAX, unmapped);
 	/* If the IOVAs are empty then unmap all succeeds */
-	if (rc == -ENOENT)
+	if (rc == -EANALENT)
 		return 0;
 	return rc;
 }
 
-/* The caller must always free all the nodes in the allowed_iova rb_root. */
+/* The caller must always free all the analdes in the allowed_iova rb_root. */
 int iopt_set_allow_iova(struct io_pagetable *iopt,
 			struct rb_root_cached *allowed_iova)
 {
@@ -762,8 +762,8 @@ int iopt_set_allow_iova(struct io_pagetable *iopt,
 
 	for (allowed = iopt_allowed_iter_first(iopt, 0, ULONG_MAX); allowed;
 	     allowed = iopt_allowed_iter_next(allowed, 0, ULONG_MAX)) {
-		if (iopt_reserved_iter_first(iopt, allowed->node.start,
-					     allowed->node.last)) {
+		if (iopt_reserved_iter_first(iopt, allowed->analde.start,
+					     allowed->analde.last)) {
 			swap(*allowed_iova, iopt->allowed_itree);
 			up_write(&iopt->iova_rwsem);
 			return -EADDRINUSE;
@@ -786,11 +786,11 @@ int iopt_reserve_iova(struct io_pagetable *iopt, unsigned long start,
 
 	reserved = kzalloc(sizeof(*reserved), GFP_KERNEL_ACCOUNT);
 	if (!reserved)
-		return -ENOMEM;
-	reserved->node.start = start;
-	reserved->node.last = last;
+		return -EANALMEM;
+	reserved->analde.start = start;
+	reserved->analde.last = last;
 	reserved->owner = owner;
-	interval_tree_insert(&reserved->node, &iopt->reserved_itree);
+	interval_tree_insert(&reserved->analde, &iopt->reserved_itree);
 	return 0;
 }
 
@@ -805,7 +805,7 @@ static void __iopt_remove_reserved_iova(struct io_pagetable *iopt, void *owner)
 		next = iopt_reserved_iter_next(reserved, 0, ULONG_MAX);
 
 		if (reserved->owner == owner) {
-			interval_tree_remove(&reserved->node,
+			interval_tree_remove(&reserved->analde,
 					     &iopt->reserved_itree);
 			kfree(reserved);
 		}
@@ -831,7 +831,7 @@ void iopt_init_table(struct io_pagetable *iopt)
 
 	/*
 	 * iopt's start as SW tables that can use the entire size_t IOVA space
-	 * due to the use of size_t in the APIs. They have no alignment
+	 * due to the use of size_t in the APIs. They have anal alignment
 	 * restriction.
 	 */
 	iopt->iova_alignment = 1;
@@ -839,15 +839,15 @@ void iopt_init_table(struct io_pagetable *iopt)
 
 void iopt_destroy_table(struct io_pagetable *iopt)
 {
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
 	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
 		iopt_remove_reserved_iova(iopt, NULL);
 
-	while ((node = interval_tree_iter_first(&iopt->allowed_itree, 0,
+	while ((analde = interval_tree_iter_first(&iopt->allowed_itree, 0,
 						ULONG_MAX))) {
-		interval_tree_remove(node, &iopt->allowed_itree);
-		kfree(container_of(node, struct iopt_allowed, node));
+		interval_tree_remove(analde, &iopt->allowed_itree);
+		kfree(container_of(analde, struct iopt_allowed, analde));
 	}
 
 	WARN_ON(!RB_EMPTY_ROOT(&iopt->reserved_itree.rb_root));
@@ -909,7 +909,7 @@ static void iopt_unfill_domain(struct io_pagetable *iopt,
 			continue;
 
 		mutex_lock(&pages->mutex);
-		interval_tree_remove(&area->pages_node, &pages->domains_itree);
+		interval_tree_remove(&area->pages_analde, &pages->domains_itree);
 		WARN_ON(area->storage_domain != domain);
 		area->storage_domain = NULL;
 		iopt_area_unfill_domain(area, pages, domain);
@@ -951,7 +951,7 @@ static int iopt_fill_domain(struct io_pagetable *iopt,
 		if (!area->storage_domain) {
 			WARN_ON(iopt->next_domain_id != 0);
 			area->storage_domain = domain;
-			interval_tree_insert(&area->pages_node,
+			interval_tree_insert(&area->pages_analde,
 					     &pages->domains_itree);
 		}
 		mutex_unlock(&pages->mutex);
@@ -970,7 +970,7 @@ out_unfill:
 			continue;
 		mutex_lock(&pages->mutex);
 		if (iopt->next_domain_id == 0) {
-			interval_tree_remove(&area->pages_node,
+			interval_tree_remove(&area->pages_analde,
 					     &pages->domains_itree);
 			area->storage_domain = NULL;
 		}
@@ -1049,7 +1049,7 @@ int iopt_table_add_domain(struct io_pagetable *iopt,
 			goto out_unlock;
 	}
 
-	/* No area exists that is outside the allowed domain aperture */
+	/* Anal area exists that is outside the allowed domain aperture */
 	if (geometry->aperture_start != 0) {
 		rc = iopt_reserve_iova(iopt, 0, geometry->aperture_start - 1,
 				       domain);
@@ -1191,17 +1191,17 @@ static int iopt_area_split(struct iopt_area *area, unsigned long iova)
 
 	lhs = iopt_area_alloc();
 	if (!lhs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rhs = iopt_area_alloc();
 	if (!rhs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_free_lhs;
 	}
 
 	mutex_lock(&pages->mutex);
 	/*
-	 * Splitting is not permitted if an access exists, we don't track enough
+	 * Splitting is analt permitted if an access exists, we don't track eanalugh
 	 * information to split existing accesses.
 	 */
 	if (area->num_accesses) {
@@ -1210,7 +1210,7 @@ static int iopt_area_split(struct iopt_area *area, unsigned long iova)
 	}
 
 	/*
-	 * Splitting is not permitted if a domain could have been mapped with
+	 * Splitting is analt permitted if a domain could have been mapped with
 	 * huge pages.
 	 */
 	if (area->storage_domain && !iopt->disable_large_pages) {
@@ -1218,7 +1218,7 @@ static int iopt_area_split(struct iopt_area *area, unsigned long iova)
 		goto err_unlock;
 	}
 
-	interval_tree_remove(&area->node, &iopt->area_itree);
+	interval_tree_remove(&area->analde, &iopt->area_itree);
 	rc = iopt_insert_area(iopt, lhs, area->pages, start_iova,
 			      iopt_area_start_byte(area, start_iova),
 			      (new_start - 1) - start_iova + 1,
@@ -1237,9 +1237,9 @@ static int iopt_area_split(struct iopt_area *area, unsigned long iova)
 	 * updated.
 	 */
 	if (area->storage_domain) {
-		interval_tree_remove(&area->pages_node, &pages->domains_itree);
-		interval_tree_insert(&lhs->pages_node, &pages->domains_itree);
-		interval_tree_insert(&rhs->pages_node, &pages->domains_itree);
+		interval_tree_remove(&area->pages_analde, &pages->domains_itree);
+		interval_tree_insert(&lhs->pages_analde, &pages->domains_itree);
+		interval_tree_insert(&rhs->pages_analde, &pages->domains_itree);
 	}
 
 	lhs->storage_domain = area->storage_domain;
@@ -1251,15 +1251,15 @@ static int iopt_area_split(struct iopt_area *area, unsigned long iova)
 	mutex_unlock(&pages->mutex);
 
 	/*
-	 * No change to domains or accesses because the pages hasn't been
+	 * Anal change to domains or accesses because the pages hasn't been
 	 * changed
 	 */
 	return 0;
 
 err_remove_lhs:
-	interval_tree_remove(&lhs->node, &iopt->area_itree);
+	interval_tree_remove(&lhs->analde, &iopt->area_itree);
 err_insert:
-	interval_tree_insert(&area->node, &iopt->area_itree);
+	interval_tree_insert(&area->analde, &iopt->area_itree);
 err_unlock:
 	mutex_unlock(&pages->mutex);
 	kfree(rhs);
@@ -1381,7 +1381,7 @@ int iopt_table_enforce_dev_resv_regions(struct io_pagetable *iopt,
 		return -EINVAL;
 
 	down_write(&iopt->iova_rwsem);
-	/* FIXME: drivers allocate memory but there is no failure propogated */
+	/* FIXME: drivers allocate memory but there is anal failure propogated */
 	iommu_get_resv_regions(dev, &resv_regions);
 
 	list_for_each_entry(resv, &resv_regions, list) {

@@ -4,7 +4,7 @@ ASoC Codec Class Driver
 
 The codec class driver is generic and hardware independent code that configures
 the codec, FM, MODEM, BT or external DSP to provide audio capture and playback.
-It should contain no code that is specific to the target platform or machine.
+It should contain anal code that is specific to the target platform or machine.
 All platform and machine specific code should be added to the platform and
 machine drivers respectively.
 
@@ -148,7 +148,7 @@ DAPM event handler
 ------------------
 This function is a callback that handles codec domain PM calls and system
 domain PM calls (e.g. suspend and resume). It is used to put the codec
-to sleep when not in use.
+to sleep when analt in use.
 
 Power states:-
 ::
@@ -168,7 +168,7 @@ Power states:-
 Codec DAC digital mute control
 ------------------------------
 Most codecs have a digital mute before the DACs that can be used to
-minimise any system noise.  The mute stops any digital data from
+minimise any system analise.  The mute stops any digital data from
 entering the DAC.
 
 A callback can be created that is called by the core for each codec DAI

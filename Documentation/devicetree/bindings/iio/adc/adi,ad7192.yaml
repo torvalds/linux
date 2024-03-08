@@ -52,9 +52,9 @@ properties:
 
   adi,rejection-60-Hz-enable:
     description: |
-      This bit enables a notch at 60 Hz when the first notch of the sinc
-      filter is at 50 Hz. When REJ60 is set, a filter notch is placed at
-      60 Hz when the sinc filter first notch is at 50 Hz. This allows
+      This bit enables a analtch at 60 Hz when the first analtch of the sinc
+      filter is at 50 Hz. When REJ60 is set, a filter analtch is placed at
+      60 Hz when the sinc filter first analtch is at 50 Hz. This allows
       simultaneous 50 Hz/ 60 Hz rejection.
     type: boolean
 
@@ -72,11 +72,11 @@ properties:
       the system.
     type: boolean
 
-  adi,burnout-currents-enable:
+  adi,buranalut-currents-enable:
     description: |
       When this bit is set to 1, the 500 nA current sources in the signal
-      path are enabled. When BURN = 0, the burnout currents are disabled.
-      The burnout currents can be enabled only when the buffer is active
+      path are enabled. When BURN = 0, the buranalut currents are disabled.
+      The buranalut currents can be enabled only when the buffer is active
       and when chop is disabled.
     type: boolean
 
@@ -124,6 +124,6 @@ examples:
             adi,refin2-pins-enable;
             adi,rejection-60-Hz-enable;
             adi,buffer-enable;
-            adi,burnout-currents-enable;
+            adi,buranalut-currents-enable;
         };
     };

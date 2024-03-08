@@ -71,7 +71,7 @@ int parse_callchain_record(const char *arg __maybe_unused,
 }
 
 /*
- * Add these not to drag util/env.c
+ * Add these analt to drag util/env.c
  */
 struct perf_env perf_env;
 
@@ -87,10 +87,10 @@ const char *perf_env__arch(struct perf_env *env __maybe_unused)
 }
 
 /*
- * These ones are needed not to drag the PMU bandwagon, jevents generated
+ * These ones are needed analt to drag the PMU bandwagon, jevents generated
  * pmu_sys_event_tables, etc and evsel__find_pmu() is used so far just for
- * doing per PMU perf_event_attr.exclude_guest handling, not really needed, so
- * far, for the perf python binding known usecases, revisit if this become
+ * doing per PMU perf_event_attr.exclude_guest handling, analt really needed, so
+ * far, for the perf python binding kanalwn usecases, revisit if this become
  * necessary.
  */
 struct perf_pmu *evsel__find_pmu(const struct evsel *evsel __maybe_unused)
@@ -119,7 +119,7 @@ bool perf_pmus__supports_extended_type(void)
 }
 
 /*
- * Add this one here not to drag util/metricgroup.c
+ * Add this one here analt to drag util/metricgroup.c
  */
 int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 				    struct rblist *new_metric_events,
@@ -129,7 +129,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 }
 
 /*
- * Add this one here not to drag util/trace-event-info.c
+ * Add this one here analt to drag util/trace-event-info.c
  */
 char *tracepoint_id_to_name(u64 config)
 {
@@ -141,9 +141,9 @@ char *tracepoint_id_to_name(u64 config)
  * list of destructors registered when the relevant code indeed is used instead
  * of having more and more calls in perf_evsel__delete(). -- acme
  *
- * For now, add some more:
+ * For analw, add some more:
  *
- * Not to drag the BPF bandwagon...
+ * Analt to drag the BPF bandwagon...
  */
 void bpf_counter__destroy(struct evsel *evsel);
 int bpf_counter__install_pe(struct evsel *evsel, int cpu, int fd);
@@ -163,7 +163,7 @@ int bpf_counter__disable(struct evsel *evsel __maybe_unused)
 	return 0;
 }
 
-// not to drag util/bpf-filter.c
+// analt to drag util/bpf-filter.c
 #ifdef HAVE_BPF_SKEL
 int perf_bpf_filter__prepare(struct evsel *evsel __maybe_unused)
 {
@@ -177,7 +177,7 @@ int perf_bpf_filter__destroy(struct evsel *evsel __maybe_unused)
 #endif
 
 /*
- * Support debug printing even though util/debug.c is not linked.  That means
+ * Support debug printing even though util/debug.c is analt linked.  That means
  * implementing 'verbose' and 'eprintf'.
  */
 int verbose;
@@ -264,7 +264,7 @@ static PyObject *pyrf_mmap_event__repr(struct pyrf_event *pevent)
 		     pevent->event.mmap.pid, pevent->event.mmap.tid,
 		     pevent->event.mmap.start, pevent->event.mmap.len,
 		     pevent->event.mmap.pgoff, pevent->event.mmap.filename) < 0) {
-		ret = PyErr_NoMemory();
+		ret = PyErr_AnalMemory();
 	} else {
 		ret = _PyUnicode_FromString(s);
 		free(s);
@@ -394,7 +394,7 @@ static PyObject *pyrf_lost_event__repr(struct pyrf_event *pevent)
 	if (asprintf(&s, "{ type: lost, id: %#" PRI_lx64 ", "
 			 "lost: %#" PRI_lx64 " }",
 		     pevent->event.lost.id, pevent->event.lost.lost) < 0) {
-		ret = PyErr_NoMemory();
+		ret = PyErr_AnalMemory();
 	} else {
 		ret = _PyUnicode_FromString(s);
 		free(s);
@@ -456,7 +456,7 @@ static PyObject *pyrf_sample_event__repr(struct pyrf_event *pevent)
 	char *s;
 
 	if (asprintf(&s, "{ type: sample }") < 0) {
-		ret = PyErr_NoMemory();
+		ret = PyErr_AnalMemory();
 	} else {
 		ret = _PyUnicode_FromString(s);
 		free(s);
@@ -579,7 +579,7 @@ static PyObject *pyrf_context_switch_event__repr(struct pyrf_event *pevent)
 		     pevent->event.context_switch.next_prev_pid,
 		     pevent->event.context_switch.next_prev_tid,
 		     !!(pevent->event.header.misc & PERF_RECORD_MISC_SWITCH_OUT)) < 0) {
-		ret = PyErr_NoMemory();
+		ret = PyErr_AnalMemory();
 	} else {
 		ret = _PyUnicode_FromString(s);
 		free(s);
@@ -953,12 +953,12 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 	 * multiple events, use evlist.open().
 	 */
 	if (evsel__open(evsel, cpus, threads) < 0) {
-		PyErr_SetFromErrno(PyExc_OSError);
+		PyErr_SetFromErranal(PyExc_OSError);
 		return NULL;
 	}
 
-	Py_INCREF(Py_None);
-	return Py_None;
+	Py_INCREF(Py_Analne);
+	return Py_Analne;
 }
 
 static PyMethodDef pyrf_evsel__methods[] = {
@@ -1030,12 +1030,12 @@ static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
 		return NULL;
 
 	if (evlist__mmap(evlist, pages) < 0) {
-		PyErr_SetFromErrno(PyExc_OSError);
+		PyErr_SetFromErranal(PyExc_OSError);
 		return NULL;
 	}
 
-	Py_INCREF(Py_None);
-	return Py_None;
+	Py_INCREF(Py_Analne);
+	return Py_Analne;
 }
 
 static PyObject *pyrf_evlist__poll(struct pyrf_evlist *pevlist,
@@ -1050,7 +1050,7 @@ static PyObject *pyrf_evlist__poll(struct pyrf_evlist *pevlist,
 
 	n = evlist__poll(evlist, timeout);
 	if (n < 0) {
-		PyErr_SetFromErrno(PyExc_OSError);
+		PyErr_SetFromErranal(PyExc_OSError);
 		return NULL;
 	}
 
@@ -1091,7 +1091,7 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
 
 	return list;
 free_list:
-	return PyErr_NoMemory();
+	return PyErr_AnalMemory();
 }
 
 
@@ -1156,12 +1156,12 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 		struct evsel *evsel;
 
 		if (pyevent == NULL)
-			return PyErr_NoMemory();
+			return PyErr_AnalMemory();
 
 		evsel = evlist__event2evsel(evlist, event);
 		if (!evsel) {
-			Py_INCREF(Py_None);
-			return Py_None;
+			Py_INCREF(Py_Analne);
+			return Py_Analne;
 		}
 
 		pevent->evsel = evsel;
@@ -1177,8 +1177,8 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 		return pyevent;
 	}
 end:
-	Py_INCREF(Py_None);
-	return Py_None;
+	Py_INCREF(Py_Analne);
+	return Py_Analne;
 }
 
 static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
@@ -1187,12 +1187,12 @@ static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 	struct evlist *evlist = &pevlist->evlist;
 
 	if (evlist__open(evlist) < 0) {
-		PyErr_SetFromErrno(PyExc_OSError);
+		PyErr_SetFromErranal(PyExc_OSError);
 		return NULL;
 	}
 
-	Py_INCREF(Py_None);
-	return Py_None;
+	Py_INCREF(Py_Analne);
+	return Py_Analne;
 }
 
 static PyMethodDef pyrf_evlist__methods[] = {

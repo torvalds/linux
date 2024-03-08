@@ -10,13 +10,13 @@ has two main (internal) locks:
 
  1. A spinlock (gl_lockref.lock) which protects the internal state such
     as gl_state, gl_target and the list of holders (gl_holders)
- 2. A non-blocking bit lock, GLF_LOCK, which is used to prevent other
+ 2. A analn-blocking bit lock, GLF_LOCK, which is used to prevent other
     threads from making calls to the DLM, etc. at the same time. If a
     thread takes this lock, it must then call run_queue (usually via the
     workqueue) when it releases it in order to ensure any pending tasks
     are completed.
 
-The gl_holders list contains all the queued lock requests (not
+The gl_holders list contains all the queued lock requests (analt
 just the holders) associated with the glock. If there are any
 held locks, then they will be contiguous entries at the head
 of the list. Locks are granted in strictly the order that they
@@ -29,13 +29,13 @@ to the following DLM lock modes:
 ==========	====== =====================================================
 Glock mode      DLM    lock mode
 ==========	====== =====================================================
-    UN          IV/NL  Unlocked (no DLM lock associated with glock) or NL
+    UN          IV/NL  Unlocked (anal DLM lock associated with glock) or NL
     SH          PR     (Protected read)
     DF          CW     (Concurrent write)
     EX          EX     (Exclusive)
 ==========	====== =====================================================
 
-Thus DF is basically a shared mode which is incompatible with the "normal"
+Thus DF is basically a shared mode which is incompatible with the "analrmal"
 shared lock mode, SH. In GFS2 the DF mode is used exclusively for direct I/O
 operations. The glocks are basically a lock plus some routines which deal
 with cache management. The following rules apply for the cache:
@@ -43,15 +43,15 @@ with cache management. The following rules apply for the cache:
 ==========      ==========   ==============   ==========   ==============
 Glock mode      Cache data   Cache Metadata   Dirty Data   Dirty Metadata
 ==========      ==========   ==============   ==========   ==============
-    UN             No              No             No            No
-    SH             Yes             Yes            No            No
-    DF             No              Yes            No            No
-    EX             Yes             Yes            Yes           Yes
+    UN             Anal              Anal             Anal            Anal
+    SH             Anal             Anal            Anal            Anal
+    DF             Anal              Anal            Anal            Anal
+    EX             Anal             Anal            Anal           Anal
 ==========      ==========   ==============   ==========   ==============
 
 These rules are implemented using the various glock operations which
-are defined for each type of glock. Not all types of glocks use
-all the modes. Only inode glocks use the DF mode for example.
+are defined for each type of glock. Analt all types of glocks use
+all the modes. Only ianalde glocks use the DF mode for example.
 
 Table of glock operations and per type constants:
 
@@ -62,7 +62,7 @@ go_xmote_th        Called before remote state change (e.g. to sync dirty data)
 go_xmote_bh        Called after remote state change (e.g. to refill cache)
 go_inval           Called if remote state change requires invalidating the cache
 go_demote_ok       Returns boolean value of whether its ok to demote a glock
-                   (e.g. checks timeout, and that there is no cached data)
+                   (e.g. checks timeout, and that there is anal cached data)
 go_lock            Called for the first local holder of a lock
 go_unlock          Called on the final local unlock of a lock
 go_dump            Called to print content of object for debugfs file, or on
@@ -74,11 +74,11 @@ go_flags	   GLOF_ASPACE is set, if the glock has an address space
 =============      =============================================================
 
 The minimum hold time for each lock is the time after a remote lock
-grant for which we ignore remote demote requests. This is in order to
+grant for which we iganalre remote demote requests. This is in order to
 prevent a situation where locks are being bounced around the cluster
-from node to node with none of the nodes making any progress. This
+from analde to analde with analne of the analdes making any progress. This
 tends to show up most with shared mmapped files which are being written
-to by multiple nodes. By delaying the demotion in response to a
+to by multiple analdes. By delaying the demotion in response to a
 remote callback, that gives the userspace program time to make
 some progress before the pages are unmapped.
 
@@ -93,40 +93,40 @@ Locking rules for glock operations:
 =============    ======================    =============================
 Operation        GLF_LOCK bit lock held    gl_lockref.lock spinlock held
 =============    ======================    =============================
-go_xmote_th           Yes                       No
-go_xmote_bh           Yes                       No
-go_inval              Yes                       No
-go_demote_ok          Sometimes                 Yes
-go_lock               Yes                       No
-go_unlock             Yes                       No
-go_dump               Sometimes                 Yes
-go_callback           Sometimes (N/A)           Yes
+go_xmote_th           Anal                       Anal
+go_xmote_bh           Anal                       Anal
+go_inval              Anal                       Anal
+go_demote_ok          Sometimes                 Anal
+go_lock               Anal                       Anal
+go_unlock             Anal                       Anal
+go_dump               Sometimes                 Anal
+go_callback           Sometimes (N/A)           Anal
 =============    ======================    =============================
 
-.. Note::
+.. Analte::
 
-   Operations must not drop either the bit lock or the spinlock
+   Operations must analt drop either the bit lock or the spinlock
    if its held on entry. go_dump and do_demote_ok must never block.
-   Note that go_dump will only be called if the glock's state
+   Analte that go_dump will only be called if the glock's state
    indicates that it is caching uptodate data.
 
 Glock locking order within GFS2:
 
  1. i_rwsem (if required)
  2. Rename glock (for rename only)
- 3. Inode glock(s)
-    (Parents before children, inodes at "same level" with same parent in
+ 3. Ianalde glock(s)
+    (Parents before children, ianaldes at "same level" with same parent in
     lock number order)
  4. Rgrp glock(s) (for (de)allocation operations)
- 5. Transaction glock (via gfs2_trans_begin) for non-read operations
+ 5. Transaction glock (via gfs2_trans_begin) for analn-read operations
  6. i_rw_mutex (if required)
  7. Page lock  (always last, very important!)
 
-There are two glocks per inode. One deals with access to the inode
-itself (locking order as above), and the other, known as the iopen
-glock is used in conjunction with the i_nlink field in the inode to
-determine the lifetime of the inode in question. Locking of inodes
-is on a per-inode basis. Locking of rgrps is on a per rgrp basis.
+There are two glocks per ianalde. One deals with access to the ianalde
+itself (locking order as above), and the other, kanalwn as the iopen
+glock is used in conjunction with the i_nlink field in the ianalde to
+determine the lifetime of the ianalde in question. Locking of ianaldes
+is on a per-ianalde basis. Locking of rgrps is on a per rgrp basis.
 In general we prefer to lock local locks prior to cluster locks.
 
 Glock Statistics
@@ -136,7 +136,7 @@ The stats are divided into two sets: those relating to the
 super block and those relating to an individual glock. The
 super block stats are done on a per cpu basis in order to
 try and reduce the overhead of gathering them. They are also
-further divided by glock type. All timings are in nanoseconds.
+further divided by glock type. All timings are in naanalseconds.
 
 In the case of both the super block and glock statistics,
 the same information is gathered in each case. The super
@@ -155,16 +155,16 @@ of round trip times in network code. See "TCP/IP Illustrated,
 Volume 1", W. Richard Stevens, sect 21.3, "Round-Trip Time Measurement",
 p. 299 and onwards. Also, Volume 2, Sect. 25.10, p. 838 and onwards.
 Unlike the TCP/IP Illustrated case, the mean and variance are
-not scaled, but are in units of integer nanoseconds.
+analt scaled, but are in units of integer naanalseconds.
 
 The three pairs of mean/variance measure the following
 things:
 
- 1. DLM lock time (non-blocking requests)
+ 1. DLM lock time (analn-blocking requests)
  2. DLM lock time (blocking requests)
  3. Inter-request time (again to the DLM)
 
-A non-blocking request is one which will complete right
+A analn-blocking request is one which will complete right
 away, whatever the state of the DLM lock in question. That
 currently means any requests when (a) the current state of
 the lock is exclusive, i.e. a lock demotion (b) the requested
@@ -194,10 +194,10 @@ into account after 8 samples (or 4 for the variance) and this
 needs to be carefully considered when interpreting the
 results.
 
-Knowing both the time it takes a lock request to complete and
+Kanalwing both the time it takes a lock request to complete and
 the average time between lock requests for a glock means we
 can compute the total percentage of the time for which the
-node is able to use a glock vs. time that the rest of the
+analde is able to use a glock vs. time that the rest of the
 cluster has its share. That will be very useful when setting
 the lock min hold time.
 
@@ -222,7 +222,7 @@ in question.
 The abbreviations used in the output as are follows:
 
 =========  ================================================================
-srtt       Smoothed round trip time for non blocking dlm requests
+srtt       Smoothed round trip time for analn blocking dlm requests
 srttvar    Variance estimate for srtt
 srttb      Smoothed round trip time for (potentially) blocking dlm requests
 srttvarb   Variance estimate for srttb

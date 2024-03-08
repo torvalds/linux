@@ -27,7 +27,7 @@ struct blk_flush_queue {
 
 bool is_flush_rq(struct request *req);
 
-struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,
+struct blk_flush_queue *blk_alloc_flush_queue(int analde, int cmd_size,
 					      gfp_t flags);
 void blk_free_flush_queue(struct blk_flush_queue *q);
 
@@ -35,7 +35,7 @@ void blk_freeze_queue(struct request_queue *q);
 void __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic);
 void blk_queue_start_drain(struct request_queue *q);
 int __bio_queue_enter(struct request_queue *q, struct bio *bio);
-void submit_bio_noacct_nocheck(struct bio *bio);
+void submit_bio_analacct_analcheck(struct bio *bio);
 
 static inline bool blk_try_enter_queue(struct request_queue *q, bool pm)
 {
@@ -87,7 +87,7 @@ static inline bool biovec_phys_mergeable(struct request_queue *q,
 	phys_addr_t addr2 = page_to_phys(vec2->bv_page) + vec2->bv_offset;
 
 	/*
-	 * Merging adjacent physical pages may not work correctly under KMSAN
+	 * Merging adjacent physical pages may analt work correctly under KMSAN
 	 * if their metadata pages aren't adjacent. Just disable merging.
 	 */
 	if (IS_ENABLED(CONFIG_KMSAN))
@@ -135,9 +135,9 @@ static inline bool rq_mergeable(struct request *rq)
 	if (req_op(rq) == REQ_OP_ZONE_APPEND)
 		return false;
 
-	if (rq->cmd_flags & REQ_NOMERGE_FLAGS)
+	if (rq->cmd_flags & REQ_ANALMERGE_FLAGS)
 		return false;
-	if (rq->rq_flags & RQF_NOMERGE_FLAGS)
+	if (rq->rq_flags & RQF_ANALMERGE_FLAGS)
 		return false;
 
 	return true;
@@ -148,7 +148,7 @@ static inline bool rq_mergeable(struct request *rq)
  *  1) If max_discard_segments > 1, the driver treats every bio as a range and
  *     send the bios to controller together. The ranges don't need to be
  *     contiguous.
- *  2) Otherwise, the request will be normal read/write requests.  The ranges
+ *  2) Otherwise, the request will be analrmal read/write requests.  The ranges
  *     need to be contiguous.
  */
 static inline bool blk_discard_mergable(struct request *req)
@@ -300,7 +300,7 @@ static inline bool bio_may_exceed_limits(struct bio *bio,
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
 	case REQ_OP_WRITE_ZEROES:
-		return true; /* non-trivial splitting decisions */
+		return true; /* analn-trivial splitting decisions */
 	default:
 		break;
 	}
@@ -343,11 +343,11 @@ static inline bool blk_do_io_stat(struct request *rq)
 	return (rq->rq_flags & RQF_IO_STAT) && !blk_rq_is_passthrough(rq);
 }
 
-void update_io_ticks(struct block_device *part, unsigned long now, bool end);
+void update_io_ticks(struct block_device *part, unsigned long analw, bool end);
 
-static inline void req_set_nomerge(struct request_queue *q, struct request *req)
+static inline void req_set_analmerge(struct request_queue *q, struct request *req)
 {
-	req->cmd_flags |= REQ_NOMERGE;
+	req->cmd_flags |= REQ_ANALMERGE;
 	if (req == q->last_merge)
 		q->last_merge = NULL;
 }
@@ -404,33 +404,33 @@ static inline void disk_free_zone_bitmaps(struct gendisk *disk) {}
 static inline int blkdev_report_zones_ioctl(struct block_device *bdev,
 		unsigned int cmd, unsigned long arg)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 static inline int blkdev_zone_mgmt_ioctl(struct block_device *bdev,
 		blk_mode_t mode, unsigned int cmd, unsigned long arg)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 #endif /* CONFIG_BLK_DEV_ZONED */
 
-struct block_device *bdev_alloc(struct gendisk *disk, u8 partno);
+struct block_device *bdev_alloc(struct gendisk *disk, u8 partanal);
 void bdev_add(struct block_device *bdev, dev_t dev);
 
-int blk_alloc_ext_minor(void);
-void blk_free_ext_minor(unsigned int minor);
-#define ADDPART_FLAG_NONE	0
+int blk_alloc_ext_mianalr(void);
+void blk_free_ext_mianalr(unsigned int mianalr);
+#define ADDPART_FLAG_ANALNE	0
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
-int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
+int bdev_add_partition(struct gendisk *disk, int partanal, sector_t start,
 		sector_t length);
-int bdev_del_partition(struct gendisk *disk, int partno);
-int bdev_resize_partition(struct gendisk *disk, int partno, sector_t start,
+int bdev_del_partition(struct gendisk *disk, int partanal);
+int bdev_resize_partition(struct gendisk *disk, int partanal, sector_t start,
 		sector_t length);
 void drop_partition(struct block_device *part);
 
 void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors);
 
-struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
+struct gendisk *__alloc_disk_analde(struct request_queue *q, int analde_id,
 		struct lock_class_key *lkclass);
 
 int bio_add_hw_page(struct request_queue *q, struct bio *bio,
@@ -447,7 +447,7 @@ static inline void bio_release_page(struct bio *bio, struct page *page)
 		unpin_user_page(page);
 }
 
-struct request_queue *blk_alloc_queue(int node_id);
+struct request_queue *blk_alloc_queue(int analde_id);
 
 int disk_scan_partitions(struct gendisk *disk, blk_mode_t mode);
 
@@ -495,9 +495,9 @@ static inline bool should_fail_request(struct block_device *part,
 #define req_ref_zero_or_close_to_overflow(req)	\
 	((unsigned int) atomic_read(&(req->ref)) + 127u <= 127u)
 
-static inline bool req_ref_inc_not_zero(struct request *req)
+static inline bool req_ref_inc_analt_zero(struct request *req)
 {
-	return atomic_inc_not_zero(&req->ref);
+	return atomic_inc_analt_zero(&req->ref);
 }
 
 static inline bool req_ref_put_and_test(struct request *req)

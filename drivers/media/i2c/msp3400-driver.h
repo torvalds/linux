@@ -13,7 +13,7 @@
 /* ---------------------------------------------------------------------- */
 
 /* This macro is allowed for *constants* only, gcc must calculate it
-   at compile time.  Remember -- no floats in kernel mode */
+   at compile time.  Remember -- anal floats in kernel mode */
 #define MSP_CARRIER(freq) ((int)((float)(freq / 18.432) * (1 << 24)))
 
 #define MSP_MODE_AM_DETECT   0
@@ -32,7 +32,7 @@
 #define SCART_IN4     3
 #define SCART_IN1_DA  4
 #define SCART_IN2_DA  5
-#define SCART_MONO    6
+#define SCART_MOANAL    6
 #define SCART_MUTE    7
 
 #define SCART_DSP_IN  0

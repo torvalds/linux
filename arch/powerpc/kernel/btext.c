@@ -21,9 +21,9 @@
 #include <asm/processor.h>
 #include <asm/udbg.h>
 
-#define NO_SCROLL
+#define ANAL_SCROLL
 
-#ifndef NO_SCROLL
+#ifndef ANAL_SCROLL
 static void scrollscreen(void);
 #endif
 
@@ -75,7 +75,7 @@ static inline void rmci_maybe_off(void)
  * This mapping is temporary and will disappear as soon as the
  * setup done by MMU_Init() is applied.
  *
- * For now, we align the BAT and then map 8Mb on 601 and 16Mb
+ * For analw, we align the BAT and then map 8Mb on 601 and 16Mb
  * on other PPCs. This may cause trouble if the framebuffer
  * is really badly aligned, but I didn't encounter this case
  * yet.
@@ -94,7 +94,7 @@ void __init btext_prepare_BAT(void)
 	lowbits = addr & ~0xFF000000UL;
 	addr &= 0xFF000000UL;
 	disp_BAT[0] = vaddr | (BL_16M<<2) | 2;
-	disp_BAT[1] = addr | (_PAGE_NO_CACHE | _PAGE_GUARDED | BPP_RW);
+	disp_BAT[1] = addr | (_PAGE_ANAL_CACHE | _PAGE_GUARDED | BPP_RW);
 	logicalDisplayBase = (void *) (vaddr + lowbits);
 }
 #endif
@@ -142,7 +142,7 @@ void btext_map(void)
 	unsigned long base, offset, size;
 	unsigned char *vbase;
 
-	/* By default, we are no longer mapped */
+	/* By default, we are anal longer mapped */
 	boot_text_mapped = 0;
 	if (!dispDeviceBase)
 		return;
@@ -157,7 +157,7 @@ void btext_map(void)
 	boot_text_mapped = 1;
 }
 
-static int __init btext_initialize(struct device_node *np)
+static int __init btext_initialize(struct device_analde *np)
 {
 	unsigned int width, height, depth, pitch;
 	unsigned long address = 0;
@@ -195,7 +195,7 @@ static int __init btext_initialize(struct device_node *np)
 	if (prop)
 		address = *prop;
 
-	/* FIXME: Add support for PCI reg properties. Right now, only
+	/* FIXME: Add support for PCI reg properties. Right analw, only
 	 * reliable on macs
 	 */
 	if (address == 0)
@@ -217,28 +217,28 @@ static int __init btext_initialize(struct device_node *np)
 	return 0;
 }
 
-int __init btext_find_display(int allow_nonstdout)
+int __init btext_find_display(int allow_analnstdout)
 {
-	struct device_node *np = of_stdout;
-	int rc = -ENODEV;
+	struct device_analde *np = of_stdout;
+	int rc = -EANALDEV;
 
-	if (!of_node_is_type(np, "display")) {
+	if (!of_analde_is_type(np, "display")) {
 		printk("boot stdout isn't a display !\n");
 		np = NULL;
 	}
 	if (np)
 		rc = btext_initialize(np);
-	if (rc == 0 || !allow_nonstdout)
+	if (rc == 0 || !allow_analnstdout)
 		return rc;
 
-	for_each_node_by_type(np, "display") {
+	for_each_analde_by_type(np, "display") {
 		if (of_property_read_bool(np, "linux,opened")) {
 			printk("trying %pOF ...\n", np);
 			rc = btext_initialize(np);
 			printk("result: %d\n", rc);
 		}
 		if (rc == 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 	}
@@ -345,7 +345,7 @@ void __init btext_flushline(void)
 }
 
 
-#ifndef NO_SCROLL
+#ifndef ANAL_SCROLL
 static void scrollscreen(void)
 {
 	unsigned int *src     	= (unsigned int *)calc_base(0,16);
@@ -375,7 +375,7 @@ static void scrollscreen(void)
 
 	rmci_maybe_off();
 }
-#endif /* ndef NO_SCROLL */
+#endif /* ndef ANAL_SCROLL */
 
 static unsigned int expand_bits_8[16] = {
 	0x00000000,
@@ -459,7 +459,7 @@ static inline void draw_byte_8(const unsigned char *font, unsigned int *base, in
 	}
 }
 
-static noinline void draw_byte(unsigned char c, long locX, long locY)
+static analinline void draw_byte(unsigned char c, long locX, long locY)
 {
 	unsigned char *base	= calc_base(locX << 3, locY << 4);
 	unsigned int font_index = c * 16;
@@ -486,7 +486,7 @@ static noinline void draw_byte(unsigned char c, long locX, long locY)
 void btext_drawchar(char c)
 {
 	int cline = 0;
-#ifdef NO_SCROLL
+#ifdef ANAL_SCROLL
 	int x;
 #endif
 	if (!boot_text_mapped)
@@ -516,7 +516,7 @@ void btext_drawchar(char c)
 		g_loc_Y++;
 		cline = 1;
 	}
-#ifndef NO_SCROLL
+#ifndef ANAL_SCROLL
 	while (g_loc_Y >= g_max_loc_Y) {
 		scrollscreen();
 		g_loc_Y--;

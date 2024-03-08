@@ -3,7 +3,7 @@
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author:Mark Yao <mark.yao@rock-chips.com>
  *
- * based on exynos_drm_drv.h
+ * based on exyanals_drm_drv.h
  */
 
 #ifndef _ROCKCHIP_DRM_DRV_H
@@ -83,12 +83,12 @@ void rockchip_drm_dma_init_device(struct drm_device *drm_dev,
 				  struct device *dev);
 int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout);
 int rockchip_drm_encoder_set_crtc_endpoint_id(struct rockchip_encoder *rencoder,
-					      struct device_node *np, int port, int reg);
-int rockchip_drm_endpoint_is_subdriver(struct device_node *ep);
+					      struct device_analde *np, int port, int reg);
+int rockchip_drm_endpoint_is_subdriver(struct device_analde *ep);
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;
 extern struct platform_driver dw_mipi_dsi_rockchip_driver;
-extern struct platform_driver inno_hdmi_driver;
+extern struct platform_driver inanal_hdmi_driver;
 extern struct platform_driver rockchip_dp_driver;
 extern struct platform_driver rockchip_lvds_driver;
 extern struct platform_driver vop_platform_driver;

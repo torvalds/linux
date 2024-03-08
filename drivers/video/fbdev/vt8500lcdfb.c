@@ -9,7 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -68,7 +68,7 @@ static int vt8500lcd_set_par(struct fb_info *info)
 		info->fix.line_length = info->var.xres_virtual /
 						(8/info->var.bits_per_pixel);
 	} else {
-		/* non-palettized */
+		/* analn-palettized */
 		info->var.transp.offset = 0;
 		info->var.transp.length = 0;
 		info->var.transp.msb_right = 0;
@@ -136,13 +136,13 @@ static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int vt8500lcd_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int vt8500lcd_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info) {
 	struct vt8500lcd_info *fbi = to_vt8500lcd_info(info);
 	int ret = 1;
 	unsigned int val;
-	if (regno >= 256)
+	if (reganal >= 256)
 		return -EINVAL;
 
 	if (info->var.grayscale)
@@ -151,14 +151,14 @@ static int vt8500lcd_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	switch (fbi->fb.fix.visual) {
 	case FB_VISUAL_TRUECOLOR:
-		if (regno < 16) {
+		if (reganal < 16) {
 			u32 *pal = fbi->fb.pseudo_palette;
 
 			val  = chan_to_field(red, &fbi->fb.var.red);
 			val |= chan_to_field(green, &fbi->fb.var.green);
 			val |= chan_to_field(blue, &fbi->fb.var.blue);
 
-			pal[regno] = val;
+			pal[reganal] = val;
 			ret = 0;
 		}
 		break;
@@ -168,7 +168,7 @@ static int vt8500lcd_setcolreg(unsigned regno, unsigned red, unsigned green,
 		writew((red & 0xf800)
 		      | ((green >> 5) & 0x7e0)
 		      | ((blue >> 11) & 0x1f),
-		       fbi->palette_cpu + sizeof(u16) * regno);
+		       fbi->palette_cpu + sizeof(u16) * reganal);
 		break;
 	}
 
@@ -213,8 +213,8 @@ static int vt8500lcd_pan_display(struct fb_var_screeninfo *var,
 
 /*
  * vt8500lcd_blank():
- *	Blank the display by setting all palette values to zero.  Note,
- * 	True Color modes do not really use the palette, so this will not
+ *	Blank the display by setting all palette values to zero.  Analte,
+ * 	True Color modes do analt really use the palette, so this will analt
  *      blank the display in all modes.
  */
 static int vt8500lcd_blank(int blank, struct fb_info *info)
@@ -225,7 +225,7 @@ static int vt8500lcd_blank(int blank, struct fb_info *info)
 	case FB_BLANK_POWERDOWN:
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR ||
 		    info->fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR)
 			for (i = 0; i < 256; i++)
@@ -279,13 +279,13 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 	unsigned long fb_mem_len;
 	void *fb_mem_virt;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	fbi = NULL;
 
 	fbi = devm_kzalloc(&pdev->dev, sizeof(struct vt8500lcd_info)
 			+ sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(fbi->fb.fix.id, "VT8500 LCD");
 
@@ -293,13 +293,13 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 	fbi->fb.fix.xpanstep	= 0;
 	fbi->fb.fix.ypanstep	= 1;
 	fbi->fb.fix.ywrapstep	= 0;
-	fbi->fb.fix.accel	= FB_ACCEL_NONE;
+	fbi->fb.fix.accel	= FB_ACCEL_ANALNE;
 
-	fbi->fb.var.nonstd	= 0;
-	fbi->fb.var.activate	= FB_ACTIVATE_NOW;
+	fbi->fb.var.analnstd	= 0;
+	fbi->fb.var.activate	= FB_ACTIVATE_ANALW;
 	fbi->fb.var.height	= -1;
 	fbi->fb.var.width	= -1;
-	fbi->fb.var.vmode	= FB_VMODE_NONINTERLACED;
+	fbi->fb.var.vmode	= FB_VMODE_ANALNINTERLACED;
 
 	fbi->fb.fbops		= &vt8500lcd_ops;
 	fbi->fb.flags		= FBINFO_HWACCEL_COPYAREA
@@ -307,7 +307,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 				| FBINFO_HWACCEL_YPAN
 				| FBINFO_VIRTFB
 				| FBINFO_PARTIAL_PAN_OK;
-	fbi->fb.node		= -1;
+	fbi->fb.analde		= -1;
 
 	addr = fbi;
 	addr = addr + sizeof(struct vt8500lcd_info);
@@ -315,8 +315,8 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal I/O memory resource defined\n");
+		return -EANALDEV;
 	}
 
 	res = request_mem_region(res->start, resource_size(res), "vt8500lcd");
@@ -332,18 +332,18 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 		goto failed_free_res;
 	}
 
-	disp_timing = of_get_display_timings(pdev->dev.of_node);
+	disp_timing = of_get_display_timings(pdev->dev.of_analde);
 	if (!disp_timing) {
 		ret = -EINVAL;
 		goto failed_free_io;
 	}
 
-	ret = of_get_fb_videomode(pdev->dev.of_node, &of_mode,
+	ret = of_get_fb_videomode(pdev->dev.of_analde, &of_mode,
 							OF_USE_NATIVE_MODE);
 	if (ret)
 		goto failed_free_io;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "bits-per-pixel", &bpp);
+	ret = of_property_read_u32(pdev->dev.of_analde, "bits-per-pixel", &bpp);
 	if (ret)
 		goto failed_free_io;
 
@@ -353,7 +353,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!fb_mem_virt) {
 		pr_err("%s: Failed to allocate framebuffer\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed_free_io;
 	}
 
@@ -368,13 +368,13 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 						     GFP_KERNEL);
 	if (fbi->palette_cpu == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate palette buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed_free_io;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto failed_free_palette;
 	}
 
@@ -389,7 +389,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 
 	if (fb_alloc_cmap(&fbi->fb.cmap, 256, 0) < 0) {
 		dev_err(&pdev->dev, "Failed to allocate color map\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed_free_irq;
 	}
 
@@ -418,7 +418,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Ok, now enable the LCD controller
+	 * Ok, analw enable the LCD controller
 	 */
 	writel(readl(fbi->regbase) | 1, fbi->regbase);
 

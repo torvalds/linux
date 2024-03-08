@@ -20,7 +20,7 @@ struct intel_selftest_saved_policy {
 };
 
 enum selftest_scheduler_modify {
-	SELFTEST_SCHEDULER_MODIFY_NO_HANGCHECK = 0,
+	SELFTEST_SCHEDULER_MODIFY_ANAL_HANGCHECK = 0,
 	SELFTEST_SCHEDULER_MODIFY_FAST_RESET,
 };
 

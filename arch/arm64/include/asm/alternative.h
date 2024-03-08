@@ -31,7 +31,7 @@ void apply_alternatives_module(void *start, size_t length);
 static inline void apply_alternatives_module(void *start, size_t length) { }
 #endif
 
-void alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
+void alt_cb_patch_analps(struct alt_instr *alt, __le32 *origptr,
 		       __le32 *updptr, int nr_inst);
 
 #endif /* __ASSEMBLY__ */

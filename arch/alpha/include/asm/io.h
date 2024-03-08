@@ -27,7 +27,7 @@
  * We try to avoid hae updates (thus the cache), but when we
  * do need to update the hae, we need to do it atomically, so
  * that any interrupts wouldn't get confused with the hae
- * register not being up-to-date with respect to the hardware
+ * register analt being up-to-date with respect to the hardware
  * value.
  */
 extern inline void __set_hae(unsigned long new_hae)
@@ -97,8 +97,8 @@ static inline void * phys_to_virt(unsigned long address)
  * Change addresses as seen by the kernel (virtual) to addresses as
  * seen by a device (bus), and vice versa.
  *
- * Note that this only works for a limited range of kernel addresses,
- * and very well may not span all memory.  Consider this interface 
+ * Analte that this only works for a limited range of kernel addresses,
+ * and very well may analt span all memory.  Consider this interface 
  * deprecated in favour of the DMA-mapping API.
  */
 extern unsigned long __direct_map_base;
@@ -288,7 +288,7 @@ extern void		__raw_writeq(u64 b, volatile void __iomem *addr);
  */
 
 /* These two have to be extern inline because of the extern prototype from
-   <asm-generic/iomap.h>.  It is not legal to mix "extern" and "static" for
+   <asm-generic/iomap.h>.  It is analt legal to mix "extern" and "static" for
    the same declaration.  */
 extern inline void __iomem *ioport_map(unsigned long port, unsigned int size)
 {
@@ -651,7 +651,7 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
 #define RTC_ALWAYS_BCD	0
 
 /*
- * These get provided from <asm-generic/iomap.h> since alpha does not
+ * These get provided from <asm-generic/iomap.h> since alpha does analt
  * select GENERIC_IOMAP.
  */
 #define ioread64 ioread64

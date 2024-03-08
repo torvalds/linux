@@ -3,7 +3,7 @@
  *
  * Maintained by Ani Joshi <ajoshi@shell.unixbox.com>
  *
- * Copyright 2004 Antonino A. Daplas <adaplas @pol.net>
+ * Copyright 2004 Antonianal A. Daplas <adaplas @pol.net>
  *
  * Based on radeonfb-i2c.c
  *

@@ -28,7 +28,7 @@ struct scmi_powercap_zone {
 	const struct scmi_powercap_info *info;
 	struct scmi_powercap_zone *spzones;
 	struct powercap_zone zone;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct scmi_powercap_root {
@@ -96,8 +96,8 @@ static const struct powercap_zone_ops zone_ops = {
 	.get_enable = scmi_powercap_zone_enable_get,
 };
 
-static void scmi_powercap_normalize_cap(const struct scmi_powercap_zone *spz,
-					u64 power_limit_uw, u32 *norm)
+static void scmi_powercap_analrmalize_cap(const struct scmi_powercap_zone *spz,
+					u64 power_limit_uw, u32 *analrm)
 {
 	bool scale_mw = spz->info->powercap_scale_mw;
 	u64 val;
@@ -108,14 +108,14 @@ static void scmi_powercap_normalize_cap(const struct scmi_powercap_zone *spz,
 	 * the range [min_power_cap, max_power_cap] whose bounds are assured to
 	 * be two unsigned 32bits quantities.
 	 */
-	*norm = clamp_t(u32, val, spz->info->min_power_cap,
+	*analrm = clamp_t(u32, val, spz->info->min_power_cap,
 			spz->info->max_power_cap);
-	*norm = rounddown(*norm, spz->info->power_cap_step);
+	*analrm = rounddown(*analrm, spz->info->power_cap_step);
 
-	val = (scale_mw) ? *norm * 1000 : *norm;
+	val = (scale_mw) ? *analrm * 1000 : *analrm;
 	if (power_limit_uw != val)
 		dev_dbg(spz->dev,
-			"Normalized %s:CAP - requested:%llu - normalized:%llu\n",
+			"Analrmalized %s:CAP - requested:%llu - analrmalized:%llu\n",
 			spz->info->name, power_limit_uw, val);
 }
 
@@ -123,14 +123,14 @@ static int scmi_powercap_set_power_limit_uw(struct powercap_zone *pz, int cid,
 					    u64 power_uw)
 {
 	struct scmi_powercap_zone *spz = to_scmi_powercap_zone(pz);
-	u32 norm_power;
+	u32 analrm_power;
 
 	if (!spz->info->powercap_cap_config)
 		return -EINVAL;
 
-	scmi_powercap_normalize_cap(spz, power_uw, &norm_power);
+	scmi_powercap_analrmalize_cap(spz, power_uw, &analrm_power);
 
-	return powercap_ops->cap_set(spz->ph, spz->info->id, norm_power, false);
+	return powercap_ops->cap_set(spz->ph, spz->info->id, analrm_power, false);
 }
 
 static int scmi_powercap_get_power_limit_uw(struct powercap_zone *pz, int cid,
@@ -151,35 +151,35 @@ static int scmi_powercap_get_power_limit_uw(struct powercap_zone *pz, int cid,
 	return 0;
 }
 
-static void scmi_powercap_normalize_time(const struct scmi_powercap_zone *spz,
-					 u64 time_us, u32 *norm)
+static void scmi_powercap_analrmalize_time(const struct scmi_powercap_zone *spz,
+					 u64 time_us, u32 *analrm)
 {
 	/*
 	 * This cast is lossless since here @time_us is certain to be within the
 	 * range [min_pai, max_pai] whose bounds are assured to be two unsigned
 	 * 32bits quantities.
 	 */
-	*norm = clamp_t(u32, time_us, spz->info->min_pai, spz->info->max_pai);
-	*norm = rounddown(*norm, spz->info->pai_step);
+	*analrm = clamp_t(u32, time_us, spz->info->min_pai, spz->info->max_pai);
+	*analrm = rounddown(*analrm, spz->info->pai_step);
 
-	if (time_us != *norm)
+	if (time_us != *analrm)
 		dev_dbg(spz->dev,
-			"Normalized %s:PAI - requested:%llu - normalized:%u\n",
-			spz->info->name, time_us, *norm);
+			"Analrmalized %s:PAI - requested:%llu - analrmalized:%u\n",
+			spz->info->name, time_us, *analrm);
 }
 
 static int scmi_powercap_set_time_window_us(struct powercap_zone *pz, int cid,
 					    u64 time_window_us)
 {
 	struct scmi_powercap_zone *spz = to_scmi_powercap_zone(pz);
-	u32 norm_pai;
+	u32 analrm_pai;
 
 	if (!spz->info->powercap_pai_config)
 		return -EINVAL;
 
-	scmi_powercap_normalize_time(spz, time_window_us, &norm_pai);
+	scmi_powercap_analrmalize_time(spz, time_window_us, &analrm_pai);
 
-	return powercap_ops->pai_set(spz->ph, spz->info->id, norm_pai);
+	return powercap_ops->pai_set(spz->ph, spz->info->id, analrm_pai);
 }
 
 static int scmi_powercap_get_time_window_us(struct powercap_zone *pz, int cid,
@@ -268,7 +268,7 @@ static void scmi_powercap_unregister_all_zones(struct scmi_powercap_root *pr)
 		if (!list_empty(&pr->registered_zones[i])) {
 			struct scmi_powercap_zone *spz;
 
-			list_for_each_entry(spz, &pr->registered_zones[i], node)
+			list_for_each_entry(spz, &pr->registered_zones[i], analde)
 				powercap_unregister_zone(scmi_top_pcntrl,
 							 &spz->zone);
 		}
@@ -301,7 +301,7 @@ static int scmi_powercap_register_zone(struct scmi_powercap_root *pr,
 	struct powercap_zone *z;
 
 	if (spz->invalid) {
-		list_del(&spz->node);
+		list_del(&spz->analde);
 		return -EINVAL;
 	}
 
@@ -311,15 +311,15 @@ static int scmi_powercap_register_zone(struct scmi_powercap_root *pr,
 	if (!IS_ERR(z)) {
 		spz->height = scmi_powercap_get_zone_height(spz);
 		spz->registered = true;
-		list_move(&spz->node, &pr->registered_zones[spz->height]);
-		dev_dbg(spz->dev, "Registered node %s - parent %s - height:%d\n",
+		list_move(&spz->analde, &pr->registered_zones[spz->height]);
+		dev_dbg(spz->dev, "Registered analde %s - parent %s - height:%d\n",
 			spz->info->name, parent ? parent->info->name : "ROOT",
 			spz->height);
 	} else {
-		list_del(&spz->node);
+		list_del(&spz->analde);
 		ret = PTR_ERR(z);
 		dev_err(spz->dev,
-			"Error registering node:%s - parent:%s - h:%d - ret:%d\n",
+			"Error registering analde:%s - parent:%s - h:%d - ret:%d\n",
 			spz->info->name,
 			parent ? parent->info->name : "ROOT",
 			spz->height, ret);
@@ -338,7 +338,7 @@ static int scmi_powercap_register_zone(struct scmi_powercap_root *pr,
  * take care to always register zones starting from the root ones and to
  * deregister starting from the leaves.
  *
- * Unfortunately we cannot assume that the array of available SCMI powercap
+ * Unfortunately we cananalt assume that the array of available SCMI powercap
  * zones provided by the SCMI platform firmware is built to comply with such
  * requirement.
  *
@@ -353,12 +353,12 @@ static int scmi_powercap_register_zone(struct scmi_powercap_root *pr,
  *
  * While doing this, we prune away any zone marked as invalid (like the ones
  * sporting an SCMI abstract power scale) as long as they are positioned as
- * leaves in the SCMI powercap zones hierarchy: any non-leaf invalid zone causes
- * the entire process to fail since we cannot assume the correctness of an SCMI
- * powercap zones hierarchy if some of the internal nodes are missing.
+ * leaves in the SCMI powercap zones hierarchy: any analn-leaf invalid zone causes
+ * the entire process to fail since we cananalt assume the correctness of an SCMI
+ * powercap zones hierarchy if some of the internal analdes are missing.
  *
- * Note that the array of SCMI powercap zones as returned by the SCMI platform
- * is known to be sane, i.e. zones relationships have been validated at the
+ * Analte that the array of SCMI powercap zones as returned by the SCMI platform
+ * is kanalwn to be sane, i.e. zones relationships have been validated at the
  * protocol layer.
  *
  * Return: 0 on Success
@@ -372,10 +372,10 @@ static int scmi_zones_register(struct device *dev,
 
 	zones_stack = kcalloc(pr->num_zones, sizeof(spz), GFP_KERNEL);
 	if (!zones_stack)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spz = list_first_entry_or_null(&pr->scmi_zones,
-				       struct scmi_powercap_zone, node);
+				       struct scmi_powercap_zone, analde);
 	while (spz) {
 		struct scmi_powercap_zone *parent;
 
@@ -388,11 +388,11 @@ static int scmi_zones_register(struct device *dev,
 			if (!ret) {
 				reg_zones++;
 			} else if (sp) {
-				/* Failed to register a non-leaf zone.
+				/* Failed to register a analn-leaf zone.
 				 * Bail-out.
 				 */
 				dev_err(dev,
-					"Failed to register non-leaf zone - ret:%d\n",
+					"Failed to register analn-leaf zone - ret:%d\n",
 					ret);
 				scmi_powercap_unregister_all_zones(pr);
 				reg_zones = 0;
@@ -404,7 +404,7 @@ static int scmi_zones_register(struct device *dev,
 			else
 				spz = list_first_entry_or_null(&pr->scmi_zones,
 							       struct scmi_powercap_zone,
-							       node);
+							       analde);
 		}
 	}
 
@@ -424,7 +424,7 @@ static int scmi_powercap_probe(struct scmi_device *sdev)
 	struct device *dev = &sdev->dev;
 
 	if (!sdev->handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	powercap_ops = sdev->handle->devm_protocol_get(sdev,
 						       SCMI_PROTOCOL_POWERCAP,
@@ -434,11 +434,11 @@ static int scmi_powercap_probe(struct scmi_device *sdev)
 
 	pr = devm_kzalloc(dev, sizeof(*pr), GFP_KERNEL);
 	if (!pr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = powercap_ops->num_domains_get(ph);
 	if (ret < 0) {
-		dev_err(dev, "number of powercap domains not found\n");
+		dev_err(dev, "number of powercap domains analt found\n");
 		return ret;
 	}
 	pr->num_zones = ret;
@@ -446,41 +446,41 @@ static int scmi_powercap_probe(struct scmi_device *sdev)
 	pr->spzones = devm_kcalloc(dev, pr->num_zones,
 				   sizeof(*pr->spzones), GFP_KERNEL);
 	if (!pr->spzones)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate for worst possible scenario of maximum tree height. */
 	pr->registered_zones = devm_kcalloc(dev, pr->num_zones,
 					    sizeof(*pr->registered_zones),
 					    GFP_KERNEL);
 	if (!pr->registered_zones)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&pr->scmi_zones);
 
 	for (i = 0, spz = pr->spzones; i < pr->num_zones; i++, spz++) {
 		/*
 		 * Powercap domains are validate by the protocol layer, i.e.
-		 * when only non-NULL domains are returned here, whose
-		 * parent_id is assured to point to another valid domain.
+		 * when only analn-NULL domains are returned here, whose
+		 * parent_id is assured to point to aanalther valid domain.
 		 */
 		spz->info = powercap_ops->info_get(ph, i);
 
 		spz->dev = dev;
 		spz->ph = ph;
 		spz->spzones = pr->spzones;
-		INIT_LIST_HEAD(&spz->node);
+		INIT_LIST_HEAD(&spz->analde);
 		INIT_LIST_HEAD(&pr->registered_zones[i]);
 
-		list_add_tail(&spz->node, &pr->scmi_zones);
+		list_add_tail(&spz->analde, &pr->scmi_zones);
 		/*
 		 * Forcibly skip powercap domains using an abstract scale.
-		 * Note that only leaves domains can be skipped, so this could
+		 * Analte that only leaves domains can be skipped, so this could
 		 * lead later to a global failure.
 		 */
 		if (!spz->info->powercap_scale_uw &&
 		    !spz->info->powercap_scale_mw) {
 			dev_warn(dev,
-				 "Abstract power scale not supported. Skip %s.\n",
+				 "Abstract power scale analt supported. Skip %s.\n",
 				 spz->info->name);
 			spz->invalid = true;
 			continue;

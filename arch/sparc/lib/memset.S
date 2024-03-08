@@ -5,7 +5,7 @@
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
  *
  * Calls to memset returns initial %o0. Calls to bzero returns 0, if ok, and
- * number of bytes not yet set if exception occurs and we were called as
+ * number of bytes analt yet set if exception occurs and we were called as
  * clear_user.
  */
 
@@ -122,7 +122,7 @@ __bzero:
 	sub	%o1, 4, %o1
 	add	%o0, 4, %o0
 2:
-	andcc	%o1, 0xffffff80, %o3	! Now everything is 8 aligned and o1 is len to run
+	andcc	%o1, 0xffffff80, %o3	! Analw everything is 8 aligned and o1 is len to run
 	be	9f
 	 andcc	%o1, 0x78, %o2
 10:
@@ -165,7 +165,7 @@ __bzero:
 	 EX(stb	%g3, [%o0], and %o1, 1)
 8:
 	b	0f
-	 nop
+	 analp
 7:
 	be	13b
 	 orcc	%o1, 0, %g0
@@ -179,7 +179,7 @@ __bzero:
 0:
 	andcc	%g4, 1, %g0
 	be	5f
-	 nop
+	 analp
 	retl
 	 mov	%g1, %o0
 5:

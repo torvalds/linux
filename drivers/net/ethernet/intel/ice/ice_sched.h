@@ -6,7 +6,7 @@
 
 #include "ice_common.h"
 
-#define SCHED_NODE_NAME_MAX_LEN 32
+#define SCHED_ANALDE_NAME_MAX_LEN 32
 
 #define ICE_QGRP_LAYER_OFFSET	2
 #define ICE_VSI_LAYER_OFFSET	4
@@ -43,7 +43,7 @@ struct ice_aqc_rl_profile_info {
 	struct ice_aqc_rl_profile_elem profile;
 	struct list_head list_entry;
 	u32 bw;			/* requested */
-	u16 prof_id_ref;	/* profile ID to node association ref count */
+	u16 prof_id_ref;	/* profile ID to analde association ref count */
 };
 
 struct ice_sched_agg_vsi_info {
@@ -73,26 +73,26 @@ ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
 			 u16 *elems_ret, struct ice_sq_cd *cd);
 
 int
-ice_sched_set_node_bw_lmt(struct ice_port_info *pi, struct ice_sched_node *node,
+ice_sched_set_analde_bw_lmt(struct ice_port_info *pi, struct ice_sched_analde *analde,
 			  enum ice_rl_type rl_type, u32 bw);
 
 int
-ice_sched_set_node_bw(struct ice_port_info *pi, struct ice_sched_node *node,
+ice_sched_set_analde_bw(struct ice_port_info *pi, struct ice_sched_analde *analde,
 		      enum ice_rl_type rl_type, u32 bw, u8 layer_num);
 
 int
-ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
-		    struct ice_sched_node *parent, u8 layer, u16 num_nodes,
-		    u16 *num_nodes_added, u32 *first_node_teid,
-		    struct ice_sched_node **prealloc_node);
+ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_analde *tc_analde,
+		    struct ice_sched_analde *parent, u8 layer, u16 num_analdes,
+		    u16 *num_analdes_added, u32 *first_analde_teid,
+		    struct ice_sched_analde **prealloc_analde);
 
 int
-ice_sched_move_nodes(struct ice_port_info *pi, struct ice_sched_node *parent,
+ice_sched_move_analdes(struct ice_port_info *pi, struct ice_sched_analde *parent,
 		     u16 num_items, u32 *list);
 
-int ice_sched_set_node_priority(struct ice_port_info *pi, struct ice_sched_node *node,
+int ice_sched_set_analde_priority(struct ice_port_info *pi, struct ice_sched_analde *analde,
 				u16 priority);
-int ice_sched_set_node_weight(struct ice_port_info *pi, struct ice_sched_node *node, u16 weight);
+int ice_sched_set_analde_weight(struct ice_port_info *pi, struct ice_sched_analde *analde, u16 weight);
 
 int ice_sched_init_port(struct ice_port_info *pi);
 int ice_sched_query_res_alloc(struct ice_hw *hw);
@@ -102,18 +102,18 @@ void ice_sched_clear_port(struct ice_port_info *pi);
 void ice_sched_cleanup_all(struct ice_hw *hw);
 void ice_sched_clear_agg(struct ice_hw *hw);
 
-struct ice_sched_node *
-ice_sched_find_node_by_teid(struct ice_sched_node *start_node, u32 teid);
+struct ice_sched_analde *
+ice_sched_find_analde_by_teid(struct ice_sched_analde *start_analde, u32 teid);
 int
-ice_sched_add_node(struct ice_port_info *pi, u8 layer,
+ice_sched_add_analde(struct ice_port_info *pi, u8 layer,
 		   struct ice_aqc_txsched_elem_data *info,
-		   struct ice_sched_node *prealloc_node);
+		   struct ice_sched_analde *prealloc_analde);
 void
-ice_sched_update_parent(struct ice_sched_node *new_parent,
-			struct ice_sched_node *node);
-void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node);
-struct ice_sched_node *ice_sched_get_tc_node(struct ice_port_info *pi, u8 tc);
-struct ice_sched_node *
+ice_sched_update_parent(struct ice_sched_analde *new_parent,
+			struct ice_sched_analde *analde);
+void ice_free_sched_analde(struct ice_port_info *pi, struct ice_sched_analde *analde);
+struct ice_sched_analde *ice_sched_get_tc_analde(struct ice_port_info *pi, u8 tc);
+struct ice_sched_analde *
 ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 			   u8 owner);
 int
@@ -143,22 +143,22 @@ ice_cfg_vsi_bw_dflt_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 			       enum ice_rl_type rl_type);
 int ice_cfg_rl_burst_size(struct ice_hw *hw, u32 bytes);
 int
-ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_nodes, u32 *node_teids,
+ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_analdes, u32 *analde_teids,
 			       bool suspend);
-struct ice_sched_node *
-ice_sched_get_agg_node(struct ice_port_info *pi, struct ice_sched_node *tc_node,
+struct ice_sched_analde *
+ice_sched_get_agg_analde(struct ice_port_info *pi, struct ice_sched_analde *tc_analde,
 		       u32 agg_id);
 u8 ice_sched_get_agg_layer(struct ice_hw *hw);
 u8 ice_sched_get_vsi_layer(struct ice_hw *hw);
-struct ice_sched_node *
-ice_sched_get_free_vsi_parent(struct ice_hw *hw, struct ice_sched_node *node,
-			      u16 *num_nodes);
+struct ice_sched_analde *
+ice_sched_get_free_vsi_parent(struct ice_hw *hw, struct ice_sched_analde *analde,
+			      u16 *num_analdes);
 int
-ice_sched_add_nodes_to_layer(struct ice_port_info *pi,
-			     struct ice_sched_node *tc_node,
-			     struct ice_sched_node *parent, u8 layer,
-			     u16 num_nodes, u32 *first_node_teid,
-			     u16 *num_nodes_added);
+ice_sched_add_analdes_to_layer(struct ice_port_info *pi,
+			     struct ice_sched_analde *tc_analde,
+			     struct ice_sched_analde *parent, u8 layer,
+			     u16 num_analdes, u32 *first_analde_teid,
+			     u16 *num_analdes_added);
 void ice_sched_replay_agg_vsi_preinit(struct ice_hw *hw);
 void ice_sched_replay_agg(struct ice_hw *hw);
 int ice_aq_move_sched_elems(struct ice_hw *hw, struct ice_aqc_move_elem *buf,

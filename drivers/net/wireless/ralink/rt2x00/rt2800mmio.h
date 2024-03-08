@@ -92,7 +92,7 @@
 
 /*
  * Word3
- * AMSDU: RX with 802.3 header, not 802.11 header.
+ * AMSDU: RX with 802.3 header, analt 802.11 header.
  * DECRYPTED: This frame is being decrypted.
  */
 #define RXD_W3_BA			FIELD32(0x00000001)

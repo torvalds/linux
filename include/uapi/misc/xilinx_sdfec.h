@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Xilinx SD-FEC
  *
@@ -35,7 +35,7 @@
  * @XSDFEC_LDPC_CODE: Driver is configured for LDPC mode.
  *
  * This enum is used to indicate the mode of the driver. The mode is determined
- * by checking which codes are set in the driver. Note that the mode cannot be
+ * by checking which codes are set in the driver. Analte that the mode cananalt be
  * changed by the driver.
  */
 enum xsdfec_code {
@@ -151,10 +151,10 @@ struct xsdfec_turbo {
  * @nqc: Quasi Cyclic Number
  * @nmqc: Number of M-sized QC operations in parity check matrix
  * @nm: Number of M-size vectors in N
- * @norm_type: Normalization required or not
- * @no_packing: Determines if multiple QC ops should be performed
+ * @analrm_type: Analrmalization required or analt
+ * @anal_packing: Determines if multiple QC ops should be performed
  * @special_qc: Sub-Matrix property for Circulant weight > 0
- * @no_final_parity: Decide if final parity check needs to be performed
+ * @anal_final_parity: Decide if final parity check needs to be performed
  * @max_schedule: Experimental code word scheduling limit
  * @sc_off: SC offset
  * @la_off: LA offset
@@ -175,10 +175,10 @@ struct xsdfec_ldpc_params {
 	__u32 nqc;
 	__u32 nmqc;
 	__u32 nm;
-	__u32 norm_type;
-	__u32 no_packing;
+	__u32 analrm_type;
+	__u32 anal_packing;
 	__u32 special_qc;
-	__u32 no_final_parity;
+	__u32 anal_final_parity;
 	__u32 max_schedule;
 	__u32 sc_off;
 	__u32 la_off;
@@ -273,7 +273,7 @@ struct xsdfec_ldpc_param_table_sizes {
  *
  * ioctl to start SD-FEC core
  *
- * This fails if the XSDFEC_SET_ORDER ioctl has not been previously called
+ * This fails if the XSDFEC_SET_ORDER ioctl has analt been previously called
  */
 #define XSDFEC_START_DEV _IO(XSDFEC_MAGIC, 0)
 /**
@@ -388,7 +388,7 @@ struct xsdfec_ldpc_param_table_sizes {
  *
  * @struct bool *
  *	Pointer to bool that sets the bypass value, where false results in
- *	normal operation and false results in the SD-FEC performing the
+ *	analrmal operation and false results in the SD-FEC performing the
  *	configured operations (same number of cycles) but output data matches
  *	the input data
  *

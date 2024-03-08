@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -57,7 +57,7 @@ static void fake_free_pages(struct drm_i915_gem_object *obj,
 
 static int fake_get_pages(struct drm_i915_gem_object *obj)
 {
-#define GFP (GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY)
+#define GFP (GFP_KERNEL | __GFP_ANALWARN | __GFP_ANALRETRY)
 #define PFN_BIAS 0x1000
 	struct sg_table *pages;
 	struct scatterlist *sg;
@@ -65,7 +65,7 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 
 	pages = kmalloc(sizeof(*pages), GFP);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rem = round_up(obj->base.size, BIT(31)) >> 31;
 	/* restricted by sg_alloc_table */
@@ -76,7 +76,7 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 
 	if (sg_alloc_table(pages, rem, GFP)) {
 		kfree(pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rem = obj->base.size;
@@ -135,7 +135,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
-	obj->pat_index = i915_gem_get_pat_index(i915, I915_CACHE_NONE);
+	obj->pat_index = i915_gem_get_pat_index(i915, I915_CACHE_ANALNE);
 
 	/* Preallocate the "backing storage" */
 	if (i915_gem_object_pin_pages_unlocked(obj))
@@ -147,7 +147,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 err_obj:
 	i915_gem_object_put(obj);
 err:
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static int igt_ppgtt_alloc(void *arg)
@@ -174,7 +174,7 @@ static int igt_ppgtt_alloc(void *arg)
 	 * While we only allocate the page tables here and so we could
 	 * address a much larger GTT than we could actually fit into
 	 * RAM, a practical limit is the amount of physical pages in the system.
-	 * This should ensure that we do not run into the oomkiller during
+	 * This should ensure that we do analt run into the oomkiller during
 	 * the test and take down the machine wilfully.
 	 */
 	limit = totalram_pages() << PAGE_SHIFT;
@@ -253,9 +253,9 @@ static int lowlevel_hole(struct i915_address_space *vm,
 
 	mock_vma_res = kzalloc(sizeof(*mock_vma_res), GFP_KERNEL);
 	if (!mock_vma_res)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Keep creating larger objects until one cannot fit into the hole */
+	/* Keep creating larger objects until one cananalt fit into the hole */
 	for (size = 12; (hole_end - hole_start) >> size; size++) {
 		I915_RND_SUBSTATE(prng, seed_prng);
 		struct drm_i915_gem_object *obj;
@@ -280,17 +280,17 @@ static int lowlevel_hole(struct i915_address_space *vm,
 		} while (count >>= 1);
 		if (!count) {
 			kfree(mock_vma_res);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		GEM_BUG_ON(!order);
 
 		GEM_BUG_ON(count * BIT_ULL(aligned_size) > vm->total);
 		GEM_BUG_ON(hole_start + count * BIT_ULL(aligned_size) > hole_end);
 
-		/* Ignore allocation failures (i.e. don't report them as
+		/* Iganalre allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
 		 * large objects without checking that we have sufficient
-		 * memory. We expect to hit -ENOMEM.
+		 * memory. We expect to hit -EANALMEM.
 		 */
 
 		obj = fake_dma_object(vm->i915, BIT_ULL(size));
@@ -331,7 +331,7 @@ retry:
 				if (err)
 					goto alloc_vm_end;
 
-				err = -ENOMEM;
+				err = -EANALMEM;
 				if (i915_vm_alloc_pt_stash(vm, &stash,
 							   BIT_ULL(size)))
 					goto alloc_vm_end;
@@ -354,13 +354,13 @@ alloc_vm_end:
 			}
 
 			mock_vma_res->bi.pages = obj->mm.pages;
-			mock_vma_res->node_size = BIT_ULL(aligned_size);
+			mock_vma_res->analde_size = BIT_ULL(aligned_size);
 			mock_vma_res->start = addr;
 
 			with_intel_runtime_pm(vm->gt->uncore->rpm, wakeref)
 			  vm->insert_entries(vm, mock_vma_res,
 					     i915_gem_get_pat_index(vm->i915,
-								    I915_CACHE_NONE),
+								    I915_CACHE_ANALNE),
 					     0);
 		}
 		count = n;
@@ -391,14 +391,14 @@ static void close_object_list(struct list_head *objects,
 			      struct i915_address_space *vm)
 {
 	struct drm_i915_gem_object *obj, *on;
-	int __maybe_unused ignored;
+	int __maybe_unused iganalred;
 
 	list_for_each_entry_safe(obj, on, objects, st_link) {
 		struct i915_vma *vma;
 
 		vma = i915_vma_instance(obj, vm, NULL);
 		if (!IS_ERR(vma))
-			ignored = i915_vma_unbind_unlocked(vma);
+			iganalred = i915_vma_unbind_unlocked(vma);
 
 		list_del(&obj->st_link);
 		i915_gem_object_put(obj);
@@ -475,10 +475,10 @@ static int fill_hole(struct i915_address_space *vm,
 						goto err;
 					}
 
-					if (!drm_mm_node_allocated(&vma->node) ||
+					if (!drm_mm_analde_allocated(&vma->analde) ||
 					    i915_vma_misplaced(vma, 0, 0, offset | flags)) {
-						pr_err("%s(%s) (forward) insert failed: vma.node=%llx + %llx [allocated? %d], expected offset %llx\n",
-						       __func__, p->name, vma->node.start, vma->node.size, drm_mm_node_allocated(&vma->node),
+						pr_err("%s(%s) (forward) insert failed: vma.analde=%llx + %llx [allocated? %d], expected offset %llx\n",
+						       __func__, p->name, vma->analde.start, vma->analde.size, drm_mm_analde_allocated(&vma->analde),
 						       offset);
 						err = -EINVAL;
 						goto err;
@@ -508,10 +508,10 @@ static int fill_hole(struct i915_address_space *vm,
 						offset -= aligned_size;
 					}
 
-					if (!drm_mm_node_allocated(&vma->node) ||
+					if (!drm_mm_analde_allocated(&vma->analde) ||
 					    i915_vma_misplaced(vma, 0, 0, offset | flags)) {
-						pr_err("%s(%s) (forward) moved vma.node=%llx + %llx, expected offset %llx\n",
-						       __func__, p->name, vma->node.start, vma->node.size,
+						pr_err("%s(%s) (forward) moved vma.analde=%llx + %llx, expected offset %llx\n",
+						       __func__, p->name, vma->analde.start, vma->analde.size,
 						       offset);
 						err = -EINVAL;
 						goto err;
@@ -519,8 +519,8 @@ static int fill_hole(struct i915_address_space *vm,
 
 					err = i915_vma_unbind_unlocked(vma);
 					if (err) {
-						pr_err("%s(%s) (forward) unbind of vma.node=%llx + %llx failed with err=%d\n",
-						       __func__, p->name, vma->node.start, vma->node.size,
+						pr_err("%s(%s) (forward) unbind of vma.analde=%llx + %llx failed with err=%d\n",
+						       __func__, p->name, vma->analde.start, vma->analde.size,
 						       err);
 						goto err;
 					}
@@ -554,10 +554,10 @@ static int fill_hole(struct i915_address_space *vm,
 						goto err;
 					}
 
-					if (!drm_mm_node_allocated(&vma->node) ||
+					if (!drm_mm_analde_allocated(&vma->analde) ||
 					    i915_vma_misplaced(vma, 0, 0, offset | flags)) {
-						pr_err("%s(%s) (backward) insert failed: vma.node=%llx + %llx [allocated? %d], expected offset %llx\n",
-						       __func__, p->name, vma->node.start, vma->node.size, drm_mm_node_allocated(&vma->node),
+						pr_err("%s(%s) (backward) insert failed: vma.analde=%llx + %llx [allocated? %d], expected offset %llx\n",
+						       __func__, p->name, vma->analde.start, vma->analde.size, drm_mm_analde_allocated(&vma->analde),
 						       offset);
 						err = -EINVAL;
 						goto err;
@@ -587,10 +587,10 @@ static int fill_hole(struct i915_address_space *vm,
 						offset -= aligned_size;
 					}
 
-					if (!drm_mm_node_allocated(&vma->node) ||
+					if (!drm_mm_analde_allocated(&vma->analde) ||
 					    i915_vma_misplaced(vma, 0, 0, offset | flags)) {
-						pr_err("%s(%s) (backward) moved vma.node=%llx + %llx [allocated? %d], expected offset %llx\n",
-						       __func__, p->name, vma->node.start, vma->node.size, drm_mm_node_allocated(&vma->node),
+						pr_err("%s(%s) (backward) moved vma.analde=%llx + %llx [allocated? %d], expected offset %llx\n",
+						       __func__, p->name, vma->analde.start, vma->analde.size, drm_mm_analde_allocated(&vma->analde),
 						       offset);
 						err = -EINVAL;
 						goto err;
@@ -598,8 +598,8 @@ static int fill_hole(struct i915_address_space *vm,
 
 					err = i915_vma_unbind_unlocked(vma);
 					if (err) {
-						pr_err("%s(%s) (backward) unbind of vma.node=%llx + %llx failed with err=%d\n",
-						       __func__, p->name, vma->node.start, vma->node.size,
+						pr_err("%s(%s) (backward) unbind of vma.analde=%llx + %llx failed with err=%d\n",
+						       __func__, p->name, vma->analde.start, vma->analde.size,
 						       err);
 						goto err;
 					}
@@ -677,7 +677,7 @@ static int walk_hole(struct i915_address_space *vm,
 			}
 			i915_vma_unpin(vma);
 
-			if (!drm_mm_node_allocated(&vma->node) ||
+			if (!drm_mm_analde_allocated(&vma->analde) ||
 			    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
 				pr_err("%s incorrect at %llx + %llx\n",
 				       __func__, addr, vma->size);
@@ -692,7 +692,7 @@ static int walk_hole(struct i915_address_space *vm,
 				goto err_put;
 			}
 
-			GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
+			GEM_BUG_ON(drm_mm_analde_allocated(&vma->analde));
 
 			if (igt_timeout(end_time,
 					"%s timed out at %llx\n",
@@ -760,7 +760,7 @@ static int pot_hole(struct i915_address_space *vm,
 				goto err_obj;
 			}
 
-			if (!drm_mm_node_allocated(&vma->node) ||
+			if (!drm_mm_analde_allocated(&vma->analde) ||
 			    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
 				pr_err("%s incorrect at %llx + %llx\n",
 				       __func__, addr, vma->size);
@@ -803,13 +803,13 @@ static int drunk_hole(struct i915_address_space *vm,
 
 	min_alignment = i915_vm_min_alignment(vm, INTEL_MEMORY_SYSTEM);
 
-	/* Keep creating larger objects until one cannot fit into the hole */
+	/* Keep creating larger objects until one cananalt fit into the hole */
 	for (size = 12; (hole_end - hole_start) >> size; size++) {
 		struct drm_i915_gem_object *obj;
 		unsigned int *order, count, n;
 		struct i915_vma *vma;
 		u64 hole_size, aligned_size;
-		int err = -ENODEV;
+		int err = -EANALDEV;
 
 		aligned_size = max_t(u32, ilog2(min_alignment), size);
 		hole_size = (hole_end - hole_start) >> aligned_size;
@@ -828,13 +828,13 @@ static int drunk_hole(struct i915_address_space *vm,
 				break;
 		} while (count >>= 1);
 		if (!count)
-			return -ENOMEM;
+			return -EANALMEM;
 		GEM_BUG_ON(!order);
 
-		/* Ignore allocation failures (i.e. don't report them as
+		/* Iganalre allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
 		 * large objects without checking that we have sufficient
-		 * memory. We expect to hit -ENOMEM.
+		 * memory. We expect to hit -EANALMEM.
 		 */
 
 		obj = fake_dma_object(vm->i915, BIT_ULL(size));
@@ -864,7 +864,7 @@ static int drunk_hole(struct i915_address_space *vm,
 				goto err_obj;
 			}
 
-			if (!drm_mm_node_allocated(&vma->node) ||
+			if (!drm_mm_analde_allocated(&vma->analde) ||
 			    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
 				pr_err("%s incorrect at %llx + %llx\n",
 				       __func__, addr, BIT_ULL(size));
@@ -912,7 +912,7 @@ static int __shrink_hole(struct i915_address_space *vm,
 
 	min_alignment = i915_vm_min_alignment(vm, INTEL_MEMORY_SYSTEM);
 
-	/* Keep creating larger objects until one cannot fit into the hole */
+	/* Keep creating larger objects until one cananalt fit into the hole */
 	for (addr = hole_start; addr < hole_end; ) {
 		struct i915_vma *vma;
 		u64 size = BIT_ULL(order++);
@@ -941,7 +941,7 @@ static int __shrink_hole(struct i915_address_space *vm,
 			break;
 		}
 
-		if (!drm_mm_node_allocated(&vma->node) ||
+		if (!drm_mm_analde_allocated(&vma->analde) ||
 		    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
 			pr_err("%s incorrect at %llx + %llx\n",
 			       __func__, addr, size);
@@ -1034,7 +1034,7 @@ static int shrink_boom(struct i915_address_space *vm,
 		if (err)
 			goto err_purge;
 
-		/* Should now be ripe for purging */
+		/* Should analw be ripe for purging */
 		i915_vma_unpin(vma);
 
 		explode = fake_dma_object(vm->i915, size);
@@ -1082,14 +1082,14 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	int err = 0;
-	u64 expected_vma_size, expected_node_size;
+	u64 expected_vma_size, expected_analde_size;
 	bool is_stolen = mr->type == INTEL_MEMORY_STOLEN_SYSTEM ||
 			 mr->type == INTEL_MEMORY_STOLEN_LOCAL;
 
 	obj = i915_gem_object_create_region(mr, size, 0, I915_BO_ALLOC_GPU_ONLY);
 	if (IS_ERR(obj)) {
 		/* if iGVT-g or DMAR is active, stolen mem will be uninitialized */
-		if (PTR_ERR(obj) == -ENODEV && is_stolen)
+		if (PTR_ERR(obj) == -EANALDEV && is_stolen)
 			return 0;
 		return PTR_ERR(obj);
 	}
@@ -1105,7 +1105,7 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 		goto err_put;
 	i915_vma_unpin(vma);
 
-	if (!drm_mm_node_allocated(&vma->node)) {
+	if (!drm_mm_analde_allocated(&vma->analde)) {
 		err = -EINVAL;
 		goto err_put;
 	}
@@ -1116,14 +1116,14 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 	}
 
 	expected_vma_size = round_up(size, 1 << (ffs(vma->resource->page_sizes_gtt) - 1));
-	expected_node_size = expected_vma_size;
+	expected_analde_size = expected_vma_size;
 
 	if (HAS_64K_PAGES(vm->i915) && i915_gem_object_is_lmem(obj)) {
 		expected_vma_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
-		expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
+		expected_analde_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
 	}
 
-	if (vma->size != expected_vma_size || vma->node.size != expected_node_size) {
+	if (vma->size != expected_vma_size || vma->analde.size != expected_analde_size) {
 		err = i915_vma_unbind_unlocked(vma);
 		err = -EBADSLT;
 		goto err_put;
@@ -1133,7 +1133,7 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 	if (err)
 		goto err_put;
 
-	GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(drm_mm_analde_allocated(&vma->analde));
 
 err_put:
 	i915_gem_object_put(obj);
@@ -1159,7 +1159,7 @@ static int misaligned_pin(struct i915_address_space *vm,
 		u64 size = min_alignment;
 		u64 addr = round_down(hole_start + (hole_size / 2), min_alignment);
 
-		/* avoid -ENOSPC on very small hole setups */
+		/* avoid -EANALSPC on very small hole setups */
 		if (hole_size < 3 * min_alignment)
 			continue;
 
@@ -1178,7 +1178,7 @@ static int misaligned_pin(struct i915_address_space *vm,
 		if (err)
 			return err;
 
-		/* test for intermediate size not expanding vma->size for large alignments */
+		/* test for intermediate size analt expanding vma->size for large alignments */
 		err = misaligned_case(vm, mr, addr, size / 2, flags);
 		if (err)
 			return err;
@@ -1264,8 +1264,8 @@ static int igt_ppgtt_misaligned_pin(void *arg)
 static int sort_holes(void *priv, const struct list_head *A,
 		      const struct list_head *B)
 {
-	struct drm_mm_node *a = list_entry(A, typeof(*a), hole_stack);
-	struct drm_mm_node *b = list_entry(B, typeof(*b), hole_stack);
+	struct drm_mm_analde *a = list_entry(A, typeof(*a), hole_stack);
+	struct drm_mm_analde *b = list_entry(B, typeof(*b), hole_stack);
 
 	if (a->start < b->start)
 		return -1;
@@ -1280,18 +1280,18 @@ static int exercise_ggtt(struct drm_i915_private *i915,
 {
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	u64 hole_start, hole_end, last = 0;
-	struct drm_mm_node *node;
+	struct drm_mm_analde *analde;
 	IGT_TIMEOUT(end_time);
 	int err = 0;
 
 restart:
 	list_sort(NULL, &ggtt->vm.mm.hole_stack, sort_holes);
-	drm_mm_for_each_hole(node, &ggtt->vm.mm, hole_start, hole_end) {
+	drm_mm_for_each_hole(analde, &ggtt->vm.mm, hole_start, hole_end) {
 		if (hole_start < last)
 			continue;
 
 		if (ggtt->vm.mm.color_adjust)
-			ggtt->vm.mm.color_adjust(node, 0,
+			ggtt->vm.mm.color_adjust(analde, 0,
 						 &hole_start, &hole_end);
 		if (hole_start >= hole_end)
 			continue;
@@ -1346,7 +1346,7 @@ static int igt_ggtt_page(void *arg)
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct drm_i915_gem_object *obj;
 	intel_wakeref_t wakeref;
-	struct drm_mm_node tmp;
+	struct drm_mm_analde tmp;
 	unsigned int *order, n;
 	int err;
 
@@ -1363,7 +1363,7 @@ static int igt_ggtt_page(void *arg)
 
 	memset(&tmp, 0, sizeof(tmp));
 	mutex_lock(&ggtt->vm.mutex);
-	err = drm_mm_insert_node_in_range(&ggtt->vm.mm, &tmp,
+	err = drm_mm_insert_analde_in_range(&ggtt->vm.mm, &tmp,
 					  count * PAGE_SIZE, 0,
 					  I915_COLOR_UNEVICTABLE,
 					  0, ggtt->mappable_end,
@@ -1381,13 +1381,13 @@ static int igt_ggtt_page(void *arg)
 				     i915_gem_object_get_dma_address(obj, 0),
 				     offset,
 				     i915_gem_get_pat_index(i915,
-							    I915_CACHE_NONE),
+							    I915_CACHE_ANALNE),
 				     0);
 	}
 
 	order = i915_random_order(count, &prng);
 	if (!order) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_remove;
 	}
 
@@ -1424,7 +1424,7 @@ out_remove:
 	ggtt->vm.clear_range(&ggtt->vm, tmp.start, tmp.size);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_lock(&ggtt->vm.mutex);
-	drm_mm_remove_node(&tmp);
+	drm_mm_remove_analde(&tmp);
 	mutex_unlock(&ggtt->vm.mutex);
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
@@ -1463,7 +1463,7 @@ static int exercise_mock(struct drm_i915_private *i915,
 
 	ctx = mock_context(i915, "mock");
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vm = i915_gem_context_get_eb_vm(ctx);
 	err = func(vm, 0, min(vm->total, limit), end_time);
@@ -1513,7 +1513,7 @@ static int reserve_gtt_with_resource(struct i915_vma *vma, u64 offset)
 		return PTR_ERR(vma_res);
 
 	mutex_lock(&vm->mutex);
-	err = i915_gem_gtt_reserve(vm, NULL, &vma->node, obj->base.size,
+	err = i915_gem_gtt_reserve(vm, NULL, &vma->analde, obj->base.size,
 				   offset,
 				   obj->pat_index,
 				   0);
@@ -1535,10 +1535,10 @@ static int igt_gtt_reserve(void *arg)
 	I915_RND_STATE(prng);
 	LIST_HEAD(objects);
 	u64 total;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	/* i915_gem_gtt_reserve() tries to reserve the precise range
-	 * for the node, and evicts if it has to. So our test checks that
+	 * for the analde, and evicts if it has to. So our test checks that
 	 * it can give us the requsted space and prevent overlaps.
 	 */
 
@@ -1576,18 +1576,18 @@ static int igt_gtt_reserve(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		if (vma->node.start != total ||
-		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
+		GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
+		if (vma->analde.start != total ||
+		    vma->analde.size != 2*I915_GTT_PAGE_SIZE) {
 			pr_err("i915_gem_gtt_reserve (pass 1) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
-			       vma->node.start, vma->node.size,
+			       vma->analde.start, vma->analde.size,
 			       total, 2*I915_GTT_PAGE_SIZE);
 			err = -EINVAL;
 			goto out;
 		}
 	}
 
-	/* Now we start forcing evictions */
+	/* Analw we start forcing evictions */
 	for (total = I915_GTT_PAGE_SIZE;
 	     total + 2 * I915_GTT_PAGE_SIZE <= ggtt->vm.total;
 	     total += 2 * I915_GTT_PAGE_SIZE) {
@@ -1622,11 +1622,11 @@ static int igt_gtt_reserve(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		if (vma->node.start != total ||
-		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
+		GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
+		if (vma->analde.start != total ||
+		    vma->analde.size != 2*I915_GTT_PAGE_SIZE) {
 			pr_err("i915_gem_gtt_reserve (pass 2) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
-			       vma->node.start, vma->node.size,
+			       vma->analde.start, vma->analde.size,
 			       total, 2*I915_GTT_PAGE_SIZE);
 			err = -EINVAL;
 			goto out;
@@ -1663,11 +1663,11 @@ static int igt_gtt_reserve(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		if (vma->node.start != offset ||
-		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
+		GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
+		if (vma->analde.start != offset ||
+		    vma->analde.size != 2*I915_GTT_PAGE_SIZE) {
 			pr_err("i915_gem_gtt_reserve (pass 3) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
-			       vma->node.start, vma->node.size,
+			       vma->analde.start, vma->analde.size,
 			       offset, 2*I915_GTT_PAGE_SIZE);
 			err = -EINVAL;
 			goto out;
@@ -1694,7 +1694,7 @@ static int insert_gtt_with_resource(struct i915_vma *vma)
 		return PTR_ERR(vma_res);
 
 	mutex_lock(&vm->mutex);
-	err = i915_gem_gtt_insert(vm, NULL, &vma->node, obj->base.size, 0,
+	err = i915_gem_gtt_insert(vm, NULL, &vma->analde, obj->base.size, 0,
 				  obj->pat_index, 0, vm->total, 0);
 	if (!err) {
 		i915_vma_resource_init_from_vma(vma_res, vma);
@@ -1711,7 +1711,7 @@ static int igt_gtt_insert(void *arg)
 {
 	struct i915_ggtt *ggtt = arg;
 	struct drm_i915_gem_object *obj, *on;
-	struct drm_mm_node tmp = {};
+	struct drm_mm_analde tmp = {};
 	const struct invalid_insert {
 		u64 size;
 		u64 alignment;
@@ -1741,10 +1741,10 @@ static int igt_gtt_insert(void *arg)
 	}, *ii;
 	LIST_HEAD(objects);
 	u64 total;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	/* i915_gem_gtt_insert() tries to allocate some free space in the GTT
-	 * to the node, evicting if required.
+	 * to the analde, evicting if required.
 	 */
 
 	/* Check a couple of obviously invalid requests */
@@ -1756,7 +1756,7 @@ static int igt_gtt_insert(void *arg)
 					  ii->start, ii->end,
 					  0);
 		mutex_unlock(&ggtt->vm.mutex);
-		if (err != -ENOSPC) {
+		if (err != -EANALSPC) {
 			pr_err("Invalid i915_gem_gtt_insert(.size=%llx, .alignment=%llx, .start=%llx, .end=%llx) succeeded (err=%d)\n",
 			       ii->size, ii->alignment, ii->start, ii->end,
 			       err);
@@ -1792,7 +1792,7 @@ static int igt_gtt_insert(void *arg)
 		}
 
 		err = insert_gtt_with_resource(vma);
-		if (err == -ENOSPC) {
+		if (err == -EANALSPC) {
 			/* maxed out the GGTT space */
 			i915_gem_object_put(obj);
 			break;
@@ -1805,7 +1805,7 @@ static int igt_gtt_insert(void *arg)
 		track_vma_bind(vma);
 		__i915_vma_pin(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
 	}
 
 	list_for_each_entry(obj, &objects, st_link) {
@@ -1817,7 +1817,7 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		if (!drm_mm_node_allocated(&vma->node)) {
+		if (!drm_mm_analde_allocated(&vma->analde)) {
 			pr_err("VMA was unexpectedly evicted!\n");
 			err = -EINVAL;
 			goto out;
@@ -1837,8 +1837,8 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		offset = vma->node.start;
+		GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
+		offset = vma->analde.start;
 
 		err = i915_vma_unbind_unlocked(vma);
 		if (err) {
@@ -1854,10 +1854,10 @@ static int igt_gtt_insert(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		if (vma->node.start != offset) {
-			pr_err("i915_gem_gtt_insert did not return node to its previous location (the only hole), expected address %llx, found %llx\n",
-			       offset, vma->node.start);
+		GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
+		if (vma->analde.start != offset) {
+			pr_err("i915_gem_gtt_insert did analt return analde to its previous location (the only hole), expected address %llx, found %llx\n",
+			       offset, vma->analde.start);
 			err = -EINVAL;
 			goto out;
 		}
@@ -1898,7 +1898,7 @@ static int igt_gtt_insert(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
 	}
 
 out:
@@ -1925,7 +1925,7 @@ int i915_gem_gtt_mock_selftests(void)
 
 	i915 = mock_gem_device();
 	if (!i915)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate the ggtt */
 	err = intel_gt_assign_ggtt(to_gt(i915));

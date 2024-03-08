@@ -25,7 +25,7 @@ static void busymod_work_func(struct work_struct *work)
 
 	while (READ_ONCE(block_transition)) {
 		/*
-		 * Busy-wait until the sysfs writer has acknowledged a
+		 * Busy-wait until the sysfs writer has ackanalwledged a
 		 * blocked transition and clears the flag.
 		 */
 		msleep(20);

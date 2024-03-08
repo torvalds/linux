@@ -23,7 +23,7 @@
  * @flags: key flags
  * @create: flag indicating whether the key was created or updated
  *
- * Keys can only be measured, not appraised.
+ * Keys can only be measured, analt appraised.
  * The payload data used to instantiate or update the key is measured.
  */
 void ima_post_key_create_or_update(struct key *keyring, struct key *key,
@@ -60,7 +60,7 @@ void ima_post_key_create_or_update(struct key *keyring, struct key *key,
 	 * if the IMA policy is configured to measure a key linked
 	 * to the given keyring.
 	 */
-	process_buffer_measurement(&nop_mnt_idmap, NULL, payload, payload_len,
+	process_buffer_measurement(&analp_mnt_idmap, NULL, payload, payload_len,
 				   keyring->description, KEY_CHECK, 0,
 				   keyring->description, false, NULL, 0);
 }

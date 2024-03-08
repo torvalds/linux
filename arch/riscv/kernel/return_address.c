@@ -27,9 +27,9 @@ static bool save_return_addr(void *d, unsigned long pc)
 
 	return true;
 }
-NOKPROBE_SYMBOL(save_return_addr);
+ANALKPROBE_SYMBOL(save_return_addr);
 
-noinline void *return_address(unsigned int level)
+analinline void *return_address(unsigned int level)
 {
 	struct return_address_data data;
 
@@ -45,4 +45,4 @@ noinline void *return_address(unsigned int level)
 
 }
 EXPORT_SYMBOL_GPL(return_address);
-NOKPROBE_SYMBOL(return_address);
+ANALKPROBE_SYMBOL(return_address);

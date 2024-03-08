@@ -29,8 +29,8 @@ config X86_PKG_TEMP_THERMAL
 	help
 	  Enable this to register CPU digital sensor for package temperature as
 	  thermal zone. Each package will have its own thermal zone. There are
-	  two trip points which can be set by user to get notifications via thermal
-	  notification methods.
+	  two trip points which can be set by user to get analtifications via thermal
+	  analtification methods.
 
 config INTEL_SOC_DTS_IOSF_CORE
 	tristate
@@ -53,8 +53,8 @@ config INTEL_SOC_DTS_THERMAL
 	  temperature sensor (DTS). These SoCs have two additional DTSs in
 	  addition to DTSs on CPU cores. Each DTS will be registered as a
 	  thermal zone. There are two trip points. One of the trip point can
-	  be set by user mode programs to get notifications via Linux thermal
-	  notification methods.The other trip is a critical trip point, which
+	  be set by user mode programs to get analtifications via Linux thermal
+	  analtification methods.The other trip is a critical trip point, which
 	  was set by the driver based on the TJ MAX temperature.
 
 config INTEL_QUARK_DTS_THERMAL
@@ -79,7 +79,7 @@ config INTEL_BXT_PMIC_THERMAL
 	  Select this driver for Intel Broxton PMIC with ADC channels monitoring
 	  system temperature measurements and alerts.
 	  This driver is used for monitoring the ADC channels of PMIC and handles
-	  the alert trip point interrupts and notifies the thermal framework with
+	  the alert trip point interrupts and analtifies the thermal framework with
 	  the trip point and temperature details of the zone.
 
 config INTEL_PCH_THERMAL
@@ -99,7 +99,7 @@ config INTEL_TCC_COOLING
 	  Enable this to support system cooling by adjusting the effective TCC
 	  activation temperature via the TCC Offset register, which is widely
 	  supported on modern Intel platforms.
-	  Note that, on different platforms, the behavior might be different
+	  Analte that, on different platforms, the behavior might be different
 	  on how fast the setting takes effect, and how much the CPU frequency
 	  is reduced.
 

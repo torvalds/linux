@@ -55,8 +55,8 @@ EXPORT_SYMBOL_GPL(pci_iov_vf_id);
  * The value returned is invalid once the VF driver completes its remove()
  * callback.
  *
- * Locking is achieved by the driver core. A VF driver cannot be probed until
- * pci_enable_sriov() is called and pci_disable_sriov() does not return until
+ * Locking is achieved by the driver core. A VF driver cananalt be probed until
+ * pci_enable_sriov() is called and pci_disable_sriov() does analt return until
  * all VF drivers have completed their remove().
  *
  * The PF driver must call pci_disable_sriov() before it begins to destroy the
@@ -145,12 +145,12 @@ static void virtfn_remove_bus(struct pci_bus *physbus, struct pci_bus *virtbus)
 		pci_remove_bus(virtbus);
 }
 
-resource_size_t pci_iov_resource_size(struct pci_dev *dev, int resno)
+resource_size_t pci_iov_resource_size(struct pci_dev *dev, int resanal)
 {
 	if (!dev->is_physfn)
 		return 0;
 
-	return dev->sriov->barsz[resno - PCI_IOV_RESOURCES];
+	return dev->sriov->barsz[resanal - PCI_IOV_RESOURCES];
 }
 
 static void pci_read_vf_config_common(struct pci_dev *virtfn)
@@ -235,7 +235,7 @@ static ssize_t sriov_vf_msix_count_store(struct device *dev,
 
 	device_lock(&pdev->dev);
 	if (!pdev->driver || !pdev->driver->sriov_set_msix_vec_count) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_pdev;
 	}
 
@@ -288,7 +288,7 @@ const struct attribute_group sriov_vf_dev_attr_group = {
 int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 {
 	int i;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 	u64 size;
 	struct pci_dev *virtfn;
 	struct resource *res;
@@ -308,7 +308,7 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 	virtfn->device = iov->vf_device;
 	virtfn->is_virtfn = 1;
 	virtfn->physfn = pci_dev_get(dev);
-	virtfn->no_command_memory = 1;
+	virtfn->anal_command_memory = 1;
 
 	if (id == 0)
 		pci_read_vf_config_common(virtfn);
@@ -409,8 +409,8 @@ static ssize_t sriov_numvfs_show(struct device *dev,
  * num_vfs > 0; number of VFs to enable
  * num_vfs = 0; disable all VFs
  *
- * Note: SRIOV spec does not allow partial VF
- *	 disable, so it's all or none.
+ * Analte: SRIOV spec does analt allow partial VF
+ *	 disable, so it's all or analne.
  */
 static ssize_t sriov_numvfs_store(struct device *dev,
 				  struct device_attribute *attr,
@@ -433,15 +433,15 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 
 	/* is PF driver loaded */
 	if (!pdev->driver) {
-		pci_info(pdev, "no driver bound to device; cannot configure SR-IOV\n");
-		ret = -ENOENT;
+		pci_info(pdev, "anal driver bound to device; cananalt configure SR-IOV\n");
+		ret = -EANALENT;
 		goto exit;
 	}
 
 	/* is PF driver loaded w/callback */
 	if (!pdev->driver->sriov_configure) {
-		pci_info(pdev, "driver does not support SR-IOV configuration via sysfs\n");
-		ret = -ENOENT;
+		pci_info(pdev, "driver does analt support SR-IOV configuration via sysfs\n");
+		ret = -EANALENT;
 		goto exit;
 	}
 
@@ -578,7 +578,7 @@ static int sriov_add_vfs(struct pci_dev *dev, u16 num_vfs)
 	unsigned int i;
 	int rc;
 
-	if (dev->no_vf_scan)
+	if (dev->anal_vf_scan)
 		return 0;
 
 	for (i = 0; i < num_vfs; i++) {
@@ -629,30 +629,30 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 			nres++;
 	}
 	if (nres != iov->nres) {
-		pci_err(dev, "not enough MMIO resources for SR-IOV\n");
-		return -ENOMEM;
+		pci_err(dev, "analt eanalugh MMIO resources for SR-IOV\n");
+		return -EANALMEM;
 	}
 
 	bus = pci_iov_virtfn_bus(dev, nr_virtfn - 1);
 	if (bus > dev->bus->busn_res.end) {
 		pci_err(dev, "can't enable %d VFs (bus %02x out of range of %pR)\n",
 			nr_virtfn, bus, &dev->bus->busn_res);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (pci_enable_resources(dev, bars)) {
-		pci_err(dev, "SR-IOV: IOV BARS not allocated\n");
-		return -ENOMEM;
+		pci_err(dev, "SR-IOV: IOV BARS analt allocated\n");
+		return -EANALMEM;
 	}
 
 	if (iov->link != dev->devfn) {
 		pdev = pci_get_slot(dev->bus, iov->link);
 		if (!pdev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (!pdev->is_physfn) {
 			pci_dev_put(pdev);
-			return -ENOSYS;
+			return -EANALSYS;
 		}
 
 		rc = sysfs_create_link(&dev->dev.kobj,
@@ -781,7 +781,7 @@ found:
 
 	iov = kzalloc(sizeof(*iov), GFP_KERNEL);
 	if (!iov)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nres = 0;
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
@@ -795,7 +795,7 @@ found:
 		if (res->flags & IORESOURCE_PCI_FIXED)
 			bar64 = (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
 		else
-			bar64 = __pci_read_base(dev, pci_bar_unknown, res,
+			bar64 = __pci_read_base(dev, pci_bar_unkanalwn, res,
 						pos + PCI_SRIOV_BAR + i * 4);
 		if (!res->flags)
 			continue;
@@ -901,13 +901,13 @@ int pci_iov_init(struct pci_dev *dev)
 	int pos;
 
 	if (!pci_is_pcie(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_SRIOV);
 	if (pos)
 		return sriov_init(dev, pos);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -939,15 +939,15 @@ void pci_iov_remove(struct pci_dev *dev)
 /**
  * pci_iov_update_resource - update a VF BAR
  * @dev: the PCI device
- * @resno: the resource number
+ * @resanal: the resource number
  *
  * Update a VF BAR in the SR-IOV capability of a PF.
  */
-void pci_iov_update_resource(struct pci_dev *dev, int resno)
+void pci_iov_update_resource(struct pci_dev *dev, int resanal)
 {
 	struct pci_sriov *iov = dev->is_physfn ? dev->sriov : NULL;
-	struct resource *res = dev->resource + resno;
-	int vf_bar = resno - PCI_IOV_RESOURCES;
+	struct resource *res = dev->resource + resanal;
+	int vf_bar = resanal - PCI_IOV_RESOURCES;
 	struct pci_bus_region region;
 	u16 cmd;
 	u32 new;
@@ -955,8 +955,8 @@ void pci_iov_update_resource(struct pci_dev *dev, int resno)
 
 	/*
 	 * The generic pci_restore_bars() path calls this for all devices,
-	 * including VFs and non-SR-IOV devices.  If this is not a PF, we
-	 * have nothing to do.
+	 * including VFs and analn-SR-IOV devices.  If this is analt a PF, we
+	 * have analthing to do.
 	 */
 	if (!iov)
 		return;
@@ -969,8 +969,8 @@ void pci_iov_update_resource(struct pci_dev *dev, int resno)
 	}
 
 	/*
-	 * Ignore unimplemented BARs, unused resource slots for 64-bit
-	 * BARs, and non-movable resources, e.g., those described via
+	 * Iganalre unimplemented BARs, unused resource slots for 64-bit
+	 * BARs, and analn-movable resources, e.g., those described via
 	 * Enhanced Allocation.
 	 */
 	if (!res->flags)
@@ -995,24 +995,24 @@ void pci_iov_update_resource(struct pci_dev *dev, int resno)
 }
 
 resource_size_t __weak pcibios_iov_resource_alignment(struct pci_dev *dev,
-						      int resno)
+						      int resanal)
 {
-	return pci_iov_resource_size(dev, resno);
+	return pci_iov_resource_size(dev, resanal);
 }
 
 /**
  * pci_sriov_resource_alignment - get resource alignment for VF BAR
  * @dev: the PCI device
- * @resno: the resource number
+ * @resanal: the resource number
  *
  * Returns the alignment of the VF BAR found in the SR-IOV capability.
- * This is not the same as the resource size which is defined as
+ * This is analt the same as the resource size which is defined as
  * the VF BAR size multiplied by the number of VFs.  The alignment
  * is just the VF BAR size.
  */
-resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno)
+resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resanal)
 {
-	return pcibios_iov_resource_alignment(dev, resno);
+	return pcibios_iov_resource_alignment(dev, resanal);
 }
 
 /**
@@ -1070,7 +1070,7 @@ int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 	might_sleep();
 
 	if (!dev->is_physfn)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return sriov_enable(dev, nr_virtfn);
 }
@@ -1095,7 +1095,7 @@ EXPORT_SYMBOL_GPL(pci_disable_sriov);
  * pci_num_vf - return number of VFs associated with a PF device_release_driver
  * @dev: the PCI device
  *
- * Returns number of VFs, or 0 if SR-IOV is not enabled.
+ * Returns number of VFs, or 0 if SR-IOV is analt enabled.
  */
 int pci_num_vf(struct pci_dev *dev)
 {
@@ -1111,7 +1111,7 @@ EXPORT_SYMBOL_GPL(pci_num_vf);
  * @dev: the PCI device
  *
  * Returns number of VFs belonging to this device that are assigned to a guest.
- * If device is not a physical function returns 0.
+ * If device is analt a physical function returns 0.
  */
 int pci_vfs_assigned(struct pci_dev *dev)
 {
@@ -1125,7 +1125,7 @@ int pci_vfs_assigned(struct pci_dev *dev)
 
 	/*
 	 * determine the device ID for the VFs, the vendor ID will be the
-	 * same as the PF so there is no need to check for that one
+	 * same as the PF so there is anal need to check for that one
 	 */
 	dev_id = dev->sriov->vf_device;
 
@@ -1156,14 +1156,14 @@ EXPORT_SYMBOL_GPL(pci_vfs_assigned);
  * device's mutex held.
  *
  * Returns 0 if PF is an SRIOV-capable device and
- * value of numvfs valid. If not a PF return -ENOSYS;
+ * value of numvfs valid. If analt a PF return -EANALSYS;
  * if numvfs is invalid return -EINVAL;
  * if VFs already enabled, return -EBUSY.
  */
 int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs)
 {
 	if (!dev->is_physfn)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (numvfs > dev->sriov->total_VFs)
 		return -EINVAL;
@@ -1210,10 +1210,10 @@ int pci_sriov_configure_simple(struct pci_dev *dev, int nr_virtfn)
 	might_sleep();
 
 	if (!dev->is_physfn)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_vfs_assigned(dev)) {
-		pci_warn(dev, "Cannot modify SR-IOV while VFs are assigned\n");
+		pci_warn(dev, "Cananalt modify SR-IOV while VFs are assigned\n");
 		return -EPERM;
 	}
 

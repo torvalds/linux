@@ -26,14 +26,14 @@ description: |
 
    - Dynamic: The device may be disabled or enabled at any time.
    - System Suspend: The device may request to be disabled or remain
-     awake during system suspend, but will not be disabled until then.
+     awake during system suspend, but will analt be disabled until then.
    - Permanent: The device is disabled permanently (until the next hard
      reset).
 
   Some devices may share a clock domain with each other, such that they should
-  only be suspended when none of the devices are in use.  Where reasonable,
-  such nodes should be placed on a virtual bus, where the bus has the sleep
-  property.  If the clock domain is shared among devices that cannot be
+  only be suspended when analne of the devices are in use.  Where reasonable,
+  such analdes should be placed on a virtual bus, where the bus has the sleep
+  property.  If the clock domain is shared among devices that cananalt be
   reasonably grouped in this manner, then create a virtual sleep controller
   (similar to an interrupt nexus, except that defining a standardized
   sleep-map should wait until its necessity is demonstrated).

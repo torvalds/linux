@@ -3,9 +3,9 @@
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of MPU-401 in UART mode
  *
- *  MPU-401 supports UART mode which is not capable generate transmit
+ *  MPU-401 supports UART mode which is analt capable generate transmit
  *  interrupts thus output is done via polling. Without interrupt,
- *  input is done also via polling. Do not expect good performance.
+ *  input is done also via polling. Do analt expect good performance.
  *
  *   13-03-2003:
  *      Added support for different kind of hardware I/O. Build in choices
@@ -20,7 +20,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <sound/core.h>
 #include <sound/mpu401.h>
 
@@ -115,14 +115,14 @@ static void _snd_mpu401_uart_interrupt(struct snd_mpu401 *mpu)
  *
  * Processes the interrupt for MPU401-UART i/o.
  *
- * Return: %IRQ_HANDLED if the interrupt was handled. %IRQ_NONE otherwise.
+ * Return: %IRQ_HANDLED if the interrupt was handled. %IRQ_ANALNE otherwise.
  */
 irqreturn_t snd_mpu401_uart_interrupt(int irq, void *dev_id)
 {
 	struct snd_mpu401 *mpu = dev_id;
 	
 	if (!mpu)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	_snd_mpu401_uart_interrupt(mpu);
 	return IRQ_HANDLED;
 }
@@ -136,14 +136,14 @@ EXPORT_SYMBOL(snd_mpu401_uart_interrupt);
  *
  * Processes the interrupt for MPU401-UART output.
  *
- * Return: %IRQ_HANDLED if the interrupt was handled. %IRQ_NONE otherwise.
+ * Return: %IRQ_HANDLED if the interrupt was handled. %IRQ_ANALNE otherwise.
  */
 irqreturn_t snd_mpu401_uart_interrupt_tx(int irq, void *dev_id)
 {
 	struct snd_mpu401 *mpu = dev_id;
 	
 	if (!mpu)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	uart_interrupt_tx(mpu);
 	return IRQ_HANDLED;
 }
@@ -168,7 +168,7 @@ static void snd_mpu401_uart_timer(struct timer_list *t)
 }
 
 /*
- * initialize the timer callback if not programmed yet
+ * initialize the timer callback if analt programmed yet
  */
 static void snd_mpu401_uart_add_timer (struct snd_mpu401 *mpu, int input)
 {
@@ -203,7 +203,7 @@ static void snd_mpu401_uart_remove_timer (struct snd_mpu401 *mpu, int input)
 
 /*
  * send a UART command
- * return zero if successful, non-zero for some errors
+ * return zero if successful, analn-zero for some errors
  */
 
 static int snd_mpu401_uart_cmd(struct snd_mpu401 * mpu, unsigned char cmd,
@@ -229,7 +229,7 @@ static int snd_mpu401_uart_cmd(struct snd_mpu401 * mpu, unsigned char cmd,
 #endif
 	}
 	mpu->write(mpu, cmd, MPU401C(mpu));
-	if (ack && !(mpu->info_flags & MPU401_INFO_NO_ACK)) {
+	if (ack && !(mpu->info_flags & MPU401_INFO_ANAL_ACK)) {
 		ok = 0;
 		timeout = 10000;
 		while (!ok && timeout-- > 0) {
@@ -393,7 +393,7 @@ static void snd_mpu401_uart_input_read(struct snd_mpu401 * mpu)
 
 	while (max-- > 0) {
 		if (! snd_mpu401_input_avail(mpu))
-			break; /* input not available */
+			break; /* input analt available */
 		byte = mpu->read(mpu, MPU401D(mpu));
 		if (test_bit(MPU401_MODE_BIT_INPUT_TRIGGER, &mpu->mode))
 			snd_rawmidi_receive(mpu->substream_input, &byte, 1);
@@ -431,7 +431,7 @@ static void snd_mpu401_uart_output_write(struct snd_mpu401 * mpu)
 			snd_rawmidi_transmit_ack(mpu->substream_output, 1);
 		} else {
 			snd_mpu401_uart_remove_timer (mpu, 0);
-			break;	/* no other data - leave the tx loop */
+			break;	/* anal other data - leave the tx loop */
 		}
 	} while (--max > 0);
 }
@@ -501,13 +501,13 @@ static void snd_mpu401_uart_free(struct snd_rawmidi *rmidi)
  * @hardware: the hardware type, MPU401_HW_XXXX
  * @port: the base address of MPU401 port
  * @info_flags: bitflags MPU401_INFO_XXX
- * @irq: the ISA irq number, -1 if not to be allocated
+ * @irq: the ISA irq number, -1 if analt to be allocated
  * @rrawmidi: the pointer to store the new rawmidi instance
  *
  * Creates a new MPU-401 instance.
  *
- * Note that the rawmidi instance is returned on the rrawmidi argument,
- * not the mpu401 instance itself.  To access to the mpu401 instance,
+ * Analte that the rawmidi instance is returned on the rrawmidi argument,
+ * analt the mpu401 instance itself.  To access to the mpu401 instance,
  * cast from rawmidi->private_data (with struct snd_mpu401 magic-cast).
  *
  * Return: Zero if successful, or a negative error code.
@@ -536,7 +536,7 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 		return err;
 	mpu = kzalloc(sizeof(*mpu), GFP_KERNEL);
 	if (!mpu) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_device;
 	}
 	rmidi->private_data = mpu;

@@ -66,7 +66,7 @@ int dln2_transfer(struct platform_device *pdev, u16 cmd,
 		  void *ibuf, unsigned *ibuf_len);
 
 /**
- * dln2_transfer_rx - variant of @dln2_transfer() where TX buffer is not needed
+ * dln2_transfer_rx - variant of @dln2_transfer() where TX buffer is analt needed
  *
  * @pdev - the sub-device which is issuing this transfer
  * @cmd - the command to be sent to the device
@@ -85,7 +85,7 @@ static inline int dln2_transfer_rx(struct platform_device *pdev, u16 cmd,
 }
 
 /**
- * dln2_transfer_tx - variant of @dln2_transfer() where RX buffer is not needed
+ * dln2_transfer_tx - variant of @dln2_transfer() where RX buffer is analt needed
  *
  * @pdev - the sub-device which is issuing this transfer
  * @cmd - the command to be sent to the device

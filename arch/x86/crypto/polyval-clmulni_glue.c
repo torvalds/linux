@@ -2,7 +2,7 @@
 /*
  * Glue code for POLYVAL using PCMULQDQ-NI
  *
- * Copyright (c) 2007 Nokia Siemens Networks - Mikko Herranen <mh1@iki.fi>
+ * Copyright (c) 2007 Analkia Siemens Networks - Mikko Herranen <mh1@iki.fi>
  * Copyright (c) 2009 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
  * Copyright 2021 Google LLC
@@ -62,7 +62,7 @@ static void internal_polyval_update(const struct polyval_tfm_ctx *keys,
 		clmul_polyval_update(keys, in, nblocks, accumulator);
 		kernel_fpu_end();
 	} else {
-		polyval_update_non4k(keys->key_powers[NUM_KEY_POWERS-1], in,
+		polyval_update_analn4k(keys->key_powers[NUM_KEY_POWERS-1], in,
 			nblocks, accumulator);
 	}
 }
@@ -74,7 +74,7 @@ static void internal_polyval_mul(u8 *op1, const u8 *op2)
 		clmul_polyval_mul(op1, op2);
 		kernel_fpu_end();
 	} else {
-		polyval_mul_non4k(op1, op2);
+		polyval_mul_analn4k(op1, op2);
 	}
 }
 
@@ -190,10 +190,10 @@ MODULE_DEVICE_TABLE(x86cpu, pcmul_cpu_id);
 static int __init polyval_clmulni_mod_init(void)
 {
 	if (!x86_match_cpu(pcmul_cpu_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!boot_cpu_has(X86_FEATURE_AVX))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return crypto_register_shash(&polyval_alg);
 }

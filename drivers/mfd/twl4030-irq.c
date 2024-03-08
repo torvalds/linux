@@ -8,7 +8,7 @@
  * Copyright (C) 2006 MontaVista Software, Inc.
  *
  * Based on tlv320aic23.c:
- * Copyright (c) by Kai Svahn <kai.svahn@nokia.com>
+ * Copyright (c) by Kai Svahn <kai.svahn@analkia.com>
  *
  * Code cleanup and modifications to IRQ handler.
  * by syed khasim <x0khasim@ti.com>
@@ -67,7 +67,7 @@ struct sih {
 
 	u8	irq_lines;		/* number of supported irq lines */
 
-	/* SIR ignored -- set interrupt, for testing only */
+	/* SIR iganalred -- set interrupt, for testing only */
 	struct sih_irq_data {
 		u8	isr_offset;
 		u8	imr_offset;
@@ -114,7 +114,7 @@ static const struct sih sih_modules_twl4030[6] = {
 		.set_cor	= true,
 		.bits		= TWL4030_GPIO_MAX,
 		.bytes_ixr	= 3,
-		/* Note: *all* of these IRQs default to no-trigger */
+		/* Analte: *all* of these IRQs default to anal-trigger */
 		.edr_offset	= REG_GPIO_EDR1,
 		.bytes_edr	= 5,
 		.irq_lines	= 2,
@@ -139,7 +139,7 @@ static const struct sih sih_modules_twl4030[6] = {
 		.bits		= 12,
 		.bytes_ixr	= 2,
 		.edr_offset	= TWL4030_INTERRUPTS_BCIEDR1,
-		/* Note: most of these IRQs default to no-trigger */
+		/* Analte: most of these IRQs default to anal-trigger */
 		.bytes_edr	= 3,
 		.irq_lines	= 2,
 		.mask = { {
@@ -163,7 +163,7 @@ static const struct sih sih_modules_twl4030[6] = {
 		.set_cor	= true,
 		SIH_INITIALIZER(INT_PWR, 8)
 	},
-		/* there are no SIH modules #6 or #7 ... */
+		/* there are anal SIH modules #6 or #7 ... */
 };
 
 static const struct sih sih_modules_twl5031[8] = {
@@ -174,7 +174,7 @@ static const struct sih sih_modules_twl5031[8] = {
 		.set_cor	= true,
 		.bits		= TWL4030_GPIO_MAX,
 		.bytes_ixr	= 3,
-		/* Note: *all* of these IRQs default to no-trigger */
+		/* Analte: *all* of these IRQs default to anal-trigger */
 		.edr_offset	= REG_GPIO_EDR1,
 		.bytes_edr	= 5,
 		.irq_lines	= 2,
@@ -198,7 +198,7 @@ static const struct sih sih_modules_twl5031[8] = {
 		.bits		= 7,
 		.bytes_ixr	= 1,
 		.edr_offset	= TWL5031_INTERRUPTS_BCIEDR1,
-		/* Note: most of these IRQs default to no-trigger */
+		/* Analte: most of these IRQs default to anal-trigger */
 		.bytes_edr	= 2,
 		.irq_lines	= 2,
 		.mask = { {
@@ -247,7 +247,7 @@ static const struct sih sih_modules_twl5031[8] = {
 		.bits		= 2,
 		.bytes_ixr	= 1,
 		.edr_offset	= TWL5031_ACCEDR1,
-		/* Note: most of these IRQs default to no-trigger */
+		/* Analte: most of these IRQs default to anal-trigger */
 		.bytes_edr	= 1,
 		.irq_lines	= 2,
 		.mask = { {
@@ -270,11 +270,11 @@ static unsigned twl4030_irq_base;
 
 /*
  * handle_twl4030_pih() is the desc->handle method for the twl4030 interrupt.
- * This is a chained interrupt, so there is no desc->action method for it.
- * Now we need to query the interrupt controller in the twl4030 to determine
+ * This is a chained interrupt, so there is anal desc->action method for it.
+ * Analw we need to query the interrupt controller in the twl4030 to determine
  * which module is generating the interrupt request.  However, we can't do i2c
  * transactions in interrupt context, so we must defer that work to a kernel
- * thread.  All we do here is acknowledge and mask the interrupt and wakeup
+ * thread.  All we do here is ackanalwledge and mask the interrupt and wakeup
  * the kernel thread.
  */
 static irqreturn_t handle_twl4030_pih(int irq, void *devid)
@@ -286,7 +286,7 @@ static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 			      REG_PIH_ISR_P1);
 	if (ret) {
 		pr_warn("twl4030: I2C error %d reading PIH ISR\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	while (pih_isr) {
@@ -304,12 +304,12 @@ static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 /*----------------------------------------------------------------------*/
 
 /*
- * twl4030_init_sih_modules() ... start from a known state where no
+ * twl4030_init_sih_modules() ... start from a kanalwn state where anal
  * IRQs will be coming in, and where we can quickly enable them then
  * handle them as they arrive.  Mask all IRQs: maybe init SIH_CTRL.
  *
- * NOTE:  we don't touch EDR registers here; they stay with hardware
- * defaults or whatever the last value was.  Note that when both EDR
+ * ANALTE:  we don't touch EDR registers here; they stay with hardware
+ * defaults or whatever the last value was.  Analte that when both EDR
  * bits for an IRQ are clear, that's as if its IMR bit is set...
  */
 static int twl4030_init_sih_modules(unsigned line)
@@ -333,7 +333,7 @@ static int twl4030_init_sih_modules(unsigned line)
 		if (!sih->bytes_ixr)
 			continue;
 
-		/* Not all the SIH modules support multiple interrupt lines */
+		/* Analt all the SIH modules support multiple interrupt lines */
 		if (sih->irq_lines <= line)
 			continue;
 
@@ -347,9 +347,9 @@ static int twl4030_init_sih_modules(unsigned line)
 		 * Maybe disable "exclusive" mode; buffer second pending irq;
 		 * set Clear-On-Read (COR) bit.
 		 *
-		 * NOTE that sometimes COR polarity is documented as being
+		 * ANALTE that sometimes COR polarity is documented as being
 		 * inverted:  for MADC, COR=1 means "clear on write".
-		 * And for PWR_INT it's not documented...
+		 * And for PWR_INT it's analt documented...
 		 */
 		if (sih->set_cor) {
 			status = twl_i2c_write_u8(sih->module,
@@ -370,14 +370,14 @@ static int twl4030_init_sih_modules(unsigned line)
 		if (!sih->bytes_ixr)
 			continue;
 
-		/* Not all the SIH modules support multiple interrupt lines */
+		/* Analt all the SIH modules support multiple interrupt lines */
 		if (sih->irq_lines <= line)
 			continue;
 
 		/*
 		 * Clear pending interrupt status.  Either the read was
-		 * enough, or we need to write those bits.  Repeat, in
-		 * case an IRQ is pending (PENDDIS=0) ... that's not
+		 * eanalugh, or we need to write those bits.  Repeat, in
+		 * case an IRQ is pending (PENDDIS=0) ... that's analt
 		 * uncommon with PWR_INT.PWRON.
 		 */
 		for (j = 0; j < 2; j++) {
@@ -407,7 +407,7 @@ static int twl4030_init_sih_modules(unsigned line)
 
 static inline void activate_irq(int irq)
 {
-	irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
+	irq_clear_status_flags(irq, IRQ_ANALREQUEST | IRQ_ANALPROBE);
 }
 
 /*----------------------------------------------------------------------*/
@@ -503,7 +503,7 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 		agent->edge_change = 0;
 
 		/*
-		 * Read, reserving first byte for write scratch.  Yes, this
+		 * Read, reserving first byte for write scratch.  Anal, this
 		 * could be cached for some speedup ... but be careful about
 		 * any processor on the other IRQ line, EDR registers are
 		 * shared.
@@ -516,7 +516,7 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 			return;
 		}
 
-		/* Modify only the bits we know must change */
+		/* Modify only the bits we kanalw must change */
 		while (edge_change) {
 			int		i = fls(edge_change) - 1;
 			int		byte = i >> 2;
@@ -575,7 +575,7 @@ static inline int sih_read_isr(const struct sih *sih)
 }
 
 /*
- * Generic handler for SIH interrupts ... we "know" this is called
+ * Generic handler for SIH interrupts ... we "kanalw" this is called
  * in task context, with IRQs enabled.
  */
 static irqreturn_t handle_twl4030_sih(int irq, void *data)
@@ -608,7 +608,7 @@ static irqreturn_t handle_twl4030_sih(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* returns the first IRQ used by this SIH bank, or negative errno */
+/* returns the first IRQ used by this SIH bank, or negative erranal */
 int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 {
 	int			sih_mod;
@@ -617,7 +617,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 	int			i, irq;
 	int			status = -EINVAL;
 
-	/* only support modules with standard clear-on-read for now */
+	/* only support modules with standard clear-on-read for analw */
 	for (sih_mod = 0, sih = sih_modules; sih_mod < nr_sih_modules;
 			sih_mod++, sih++) {
 		if (sih->module == module && sih->set_cor) {
@@ -627,13 +627,13 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 	}
 
 	if (status < 0) {
-		dev_err(dev, "module to setup SIH for not found\n");
+		dev_err(dev, "module to setup SIH for analt found\n");
 		return status;
 	}
 
 	agent = kzalloc(sizeof(*agent), GFP_KERNEL);
 	if (!agent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	agent->irq_base = irq_base;
 	agent->sih = sih;
@@ -676,7 +676,7 @@ int twl4030_init_irq(struct device *dev, int irq_num)
 	static struct irq_chip	twl4030_irq_chip;
 	int			status, i;
 	int			irq_base, irq_end, nr_irqs;
-	struct			device_node *node = dev->of_node;
+	struct			device_analde *analde = dev->of_analde;
 
 	/*
 	 * TWL core and pwr interrupts must be contiguous because
@@ -691,14 +691,14 @@ int twl4030_init_irq(struct device *dev, int irq_num)
 		return irq_base;
 	}
 
-	irq_domain_add_legacy(node, nr_irqs, irq_base, 0,
+	irq_domain_add_legacy(analde, nr_irqs, irq_base, 0,
 			      &irq_domain_simple_ops, NULL);
 
 	irq_end = irq_base + TWL4030_CORE_NR_IRQS;
 
 	/*
 	 * Mask and clear all TWL4030 interrupts since initially we do
-	 * not have any TWL4030 module interrupt handlers present
+	 * analt have any TWL4030 module interrupt handlers present
 	 */
 	status = twl4030_init_sih_modules(twl_irq_line);
 	if (status < 0)
@@ -737,7 +737,7 @@ int twl4030_init_irq(struct device *dev, int irq_num)
 				      IRQF_ONESHOT,
 				      "TWL4030-PIH", NULL);
 	if (status < 0) {
-		dev_err(dev, "could not claim irq%d: %d\n", irq_num, status);
+		dev_err(dev, "could analt claim irq%d: %d\n", irq_num, status);
 		goto fail_rqirq;
 	}
 	enable_irq_wake(irq_num);

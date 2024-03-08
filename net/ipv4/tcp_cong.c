@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pluggable TCP congestion control support and newReno
+ * Pluggable TCP congestion control support and newReanal
  * congestion control.
  * Based on ideas from I/O scheduler support and Web100.
  *
@@ -62,7 +62,7 @@ static struct tcp_congestion_ops *tcp_ca_find_autoload(struct net *net,
 	return ca;
 }
 
-/* Simple linear search, not much in here. */
+/* Simple linear search, analt much in here. */
 struct tcp_congestion_ops *tcp_ca_find_key(u32 key)
 {
 	struct tcp_congestion_ops *e;
@@ -80,7 +80,7 @@ int tcp_validate_congestion_control(struct tcp_congestion_ops *ca)
 	/* all algorithms must implement these */
 	if (!ca->ssthresh || !ca->undo_cwnd ||
 	    !(ca->cong_avoid || ca->cong_control)) {
-		pr_err("%s does not implement required ops\n", ca->name);
+		pr_err("%s does analt implement required ops\n", ca->name);
 		return -EINVAL;
 	}
 
@@ -102,7 +102,7 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 
 	spin_lock(&tcp_cong_list_lock);
 	if (ca->key == TCP_CA_UNSPEC || tcp_ca_find_key(ca->key)) {
-		pr_notice("%s already registered or non-unique key\n",
+		pr_analtice("%s already registered or analn-unique key\n",
 			  ca->name);
 		ret = -EEXIST;
 	} else {
@@ -130,8 +130,8 @@ void tcp_unregister_congestion_control(struct tcp_congestion_ops *ca)
 	/* Wait for outstanding readers to complete before the
 	 * module gets removed entirely.
 	 *
-	 * A try_module_get() should fail by now as our module is
-	 * in "going" state since no refs are held anymore and
+	 * A try_module_get() should fail by analw as our module is
+	 * in "going" state since anal refs are held anymore and
 	 * module_exit() handler being called.
 	 */
 	synchronize_rcu();
@@ -157,11 +157,11 @@ int tcp_update_congestion_control(struct tcp_congestion_ops *ca, struct tcp_cong
 	spin_lock(&tcp_cong_list_lock);
 	existing = tcp_ca_find_key(old_ca->key);
 	if (ca->key == TCP_CA_UNSPEC || !existing || strcmp(existing->name, ca->name)) {
-		pr_notice("%s not registered or non-unique key\n",
+		pr_analtice("%s analt registered or analn-unique key\n",
 			  ca->name);
 		ret = -EINVAL;
 	} else if (existing != old_ca) {
-		pr_notice("invalid old congestion control algorithm to replace\n");
+		pr_analtice("invalid old congestion control algorithm to replace\n");
 		ret = -EINVAL;
 	} else {
 		/* Add the new one before removing the old one to keep
@@ -225,7 +225,7 @@ void tcp_assign_congestion_control(struct sock *sk)
 	rcu_read_lock();
 	ca = rcu_dereference(net->ipv4.tcp_congestion_control);
 	if (unlikely(!bpf_try_module_get(ca, ca->owner)))
-		ca = &tcp_reno;
+		ca = &tcp_reanal;
 	icsk->icsk_ca_ops = ca;
 	rcu_read_unlock();
 
@@ -289,11 +289,11 @@ int tcp_set_default_congestion_control(struct net *net, const char *name)
 	rcu_read_lock();
 	ca = tcp_ca_find_autoload(net, name);
 	if (!ca) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else if (!bpf_try_module_get(ca, ca->owner)) {
 		ret = -EBUSY;
 	} else if (!net_eq(net, &init_net) &&
-			!(ca->flags & TCP_CONG_NON_RESTRICTED)) {
+			!(ca->flags & TCP_CONG_ANALN_RESTRICTED)) {
 		/* Only init netns can set default to a restricted algorithm */
 		ret = -EPERM;
 	} else {
@@ -301,7 +301,7 @@ int tcp_set_default_congestion_control(struct net *net, const char *name)
 		if (prev)
 			bpf_module_put(prev, prev->owner);
 
-		ca->flags |= TCP_CONG_NON_RESTRICTED;
+		ca->flags |= TCP_CONG_ANALN_RESTRICTED;
 		ret = 0;
 	}
 	rcu_read_unlock();
@@ -346,7 +346,7 @@ void tcp_get_default_congestion_control(struct net *net, char *name)
 	rcu_read_unlock();
 }
 
-/* Built list of non-restricted congestion control values */
+/* Built list of analn-restricted congestion control values */
 void tcp_get_allowed_congestion_control(char *buf, size_t maxlen)
 {
 	struct tcp_congestion_ops *ca;
@@ -355,7 +355,7 @@ void tcp_get_allowed_congestion_control(char *buf, size_t maxlen)
 	*buf = '\0';
 	rcu_read_lock();
 	list_for_each_entry_rcu(ca, &tcp_cong_list, list) {
-		if (!(ca->flags & TCP_CONG_NON_RESTRICTED))
+		if (!(ca->flags & TCP_CONG_ANALN_RESTRICTED))
 			continue;
 		offs += snprintf(buf + offs, maxlen - offs,
 				 "%s%s",
@@ -367,7 +367,7 @@ void tcp_get_allowed_congestion_control(char *buf, size_t maxlen)
 	rcu_read_unlock();
 }
 
-/* Change list of non-restricted congestion control */
+/* Change list of analn-restricted congestion control */
 int tcp_set_allowed_congestion_control(char *val)
 {
 	struct tcp_congestion_ops *ca;
@@ -376,28 +376,28 @@ int tcp_set_allowed_congestion_control(char *val)
 
 	saved_clone = clone = kstrdup(val, GFP_USER);
 	if (!clone)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&tcp_cong_list_lock);
 	/* pass 1 check for bad entries */
 	while ((name = strsep(&clone, " ")) && *name) {
 		ca = tcp_ca_find(name);
 		if (!ca) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto out;
 		}
 	}
 
 	/* pass 2 clear old values */
 	list_for_each_entry_rcu(ca, &tcp_cong_list, list)
-		ca->flags &= ~TCP_CONG_NON_RESTRICTED;
+		ca->flags &= ~TCP_CONG_ANALN_RESTRICTED;
 
 	/* pass 3 mark as allowed */
 	while ((name = strsep(&val, " ")) && *name) {
 		ca = tcp_ca_find(name);
 		WARN_ON(!ca);
 		if (ca)
-			ca->flags |= TCP_CONG_NON_RESTRICTED;
+			ca->flags |= TCP_CONG_ANALN_RESTRICTED;
 	}
 out:
 	spin_unlock(&tcp_cong_list_lock);
@@ -427,15 +427,15 @@ int tcp_set_congestion_control(struct sock *sk, const char *name, bool load,
 	else
 		ca = tcp_ca_find_autoload(sock_net(sk), name);
 
-	/* No change asking for existing value */
+	/* Anal change asking for existing value */
 	if (ca == icsk->icsk_ca_ops) {
 		icsk->icsk_ca_setsockopt = 1;
 		goto out;
 	}
 
 	if (!ca)
-		err = -ENOENT;
-	else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) || cap_net_admin))
+		err = -EANALENT;
+	else if (!((ca->flags & TCP_CONG_ANALN_RESTRICTED) || cap_net_admin))
 		err = -EPERM;
 	else if (!bpf_try_module_get(ca, ca->owner))
 		err = -EBUSY;
@@ -446,9 +446,9 @@ int tcp_set_congestion_control(struct sock *sk, const char *name, bool load,
 	return err;
 }
 
-/* Slow start is used when congestion window is no greater than the slow start
+/* Slow start is used when congestion window is anal greater than the slow start
  * threshold. We base on RFC2581 and also handle stretch ACKs properly.
- * We do not implement RFC3465 Appropriate Byte Counting (ABC) per se but
+ * We do analt implement RFC3465 Appropriate Byte Counting (ABC) per se but
  * something better;) a packet is only considered (s)acked in its entirety to
  * defend the ACK attacks described in the RFC. Slow start processes a stretch
  * ACK of degree N as if N acks of degree 1 are received back to back except
@@ -471,7 +471,7 @@ EXPORT_SYMBOL_GPL(tcp_slow_start);
  */
 __bpf_kfunc void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked)
 {
-	/* If credits accumulated at a higher w, apply them gently now. */
+	/* If credits accumulated at a higher w, apply them gently analw. */
 	if (tp->snd_cwnd_cnt >= w) {
 		tp->snd_cwnd_cnt = 0;
 		tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) + 1);
@@ -489,13 +489,13 @@ __bpf_kfunc void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked)
 EXPORT_SYMBOL_GPL(tcp_cong_avoid_ai);
 
 /*
- * TCP Reno congestion control
+ * TCP Reanal congestion control
  * This is special case used for fallback as well.
  */
 /* This is Jacobson's slow start and congestion avoidance.
  * SIGCOMM '88, p. 328.
  */
-__bpf_kfunc void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+__bpf_kfunc void tcp_reanal_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -511,30 +511,30 @@ __bpf_kfunc void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	/* In dangerous area, increase slowly. */
 	tcp_cong_avoid_ai(tp, tcp_snd_cwnd(tp), acked);
 }
-EXPORT_SYMBOL_GPL(tcp_reno_cong_avoid);
+EXPORT_SYMBOL_GPL(tcp_reanal_cong_avoid);
 
 /* Slow start threshold is half the congestion window (min 2) */
-__bpf_kfunc u32 tcp_reno_ssthresh(struct sock *sk)
+__bpf_kfunc u32 tcp_reanal_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
 	return max(tcp_snd_cwnd(tp) >> 1U, 2U);
 }
-EXPORT_SYMBOL_GPL(tcp_reno_ssthresh);
+EXPORT_SYMBOL_GPL(tcp_reanal_ssthresh);
 
-__bpf_kfunc u32 tcp_reno_undo_cwnd(struct sock *sk)
+__bpf_kfunc u32 tcp_reanal_undo_cwnd(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
 	return max(tcp_snd_cwnd(tp), tp->prior_cwnd);
 }
-EXPORT_SYMBOL_GPL(tcp_reno_undo_cwnd);
+EXPORT_SYMBOL_GPL(tcp_reanal_undo_cwnd);
 
-struct tcp_congestion_ops tcp_reno = {
-	.flags		= TCP_CONG_NON_RESTRICTED,
-	.name		= "reno",
+struct tcp_congestion_ops tcp_reanal = {
+	.flags		= TCP_CONG_ANALN_RESTRICTED,
+	.name		= "reanal",
 	.owner		= THIS_MODULE,
-	.ssthresh	= tcp_reno_ssthresh,
-	.cong_avoid	= tcp_reno_cong_avoid,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+	.ssthresh	= tcp_reanal_ssthresh,
+	.cong_avoid	= tcp_reanal_cong_avoid,
+	.undo_cwnd	= tcp_reanal_undo_cwnd,
 };

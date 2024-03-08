@@ -74,7 +74,7 @@ static int lp8755_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		/* forced pwm mode */
 		regbval = (0x01 << id);
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		/* enable automatic pwm/pfm mode */
 		ret = regmap_update_bits(rdev->regmap, 0x08 + id, 0x20, 0x00);
 		if (ret < 0)
@@ -91,7 +91,7 @@ static int lp8755_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 			goto err_i2c;
 		break;
 	default:
-		dev_err(pchip->dev, "Not supported buck mode %s\n", __func__);
+		dev_err(pchip->dev, "Analt supported buck mode %s\n", __func__);
 		/* forced pwm mode */
 		regbval = (0x01 << id);
 	}
@@ -127,8 +127,8 @@ static unsigned int lp8755_buck_get_mode(struct regulator_dev *rdev)
 	if (regval & 0x20)
 		return REGULATOR_MODE_IDLE;
 
-	/* mode normal means automatic pwm/pfm mode */
-	return REGULATOR_MODE_NORMAL;
+	/* mode analrmal means automatic pwm/pfm mode */
+	return REGULATOR_MODE_ANALRMAL;
 
 err_i2c:
 	dev_err(&rdev->dev, "i2c access error %s\n", __func__);
@@ -253,7 +253,7 @@ static int lp8755_regulator_init(struct lp8755_chip *pchip)
 	for (icnt = 0; icnt < mphase_buck[pchip->mphase].nreg; icnt++) {
 		buck_num = mphase_buck[pchip->mphase].buck_num[icnt];
 		rconfig.init_data = pdata->buck_data[buck_num];
-		rconfig.of_node = pchip->dev->of_node;
+		rconfig.of_analde = pchip->dev->of_analde;
 		pchip->rdev[buck_num] =
 		    devm_regulator_register(pchip->dev,
 				    &lp8755_regulators[buck_num], &rconfig);
@@ -289,7 +289,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 		if ((flag0 & (0x4 << icnt))
 		    && (pchip->irqmask & (0x04 << icnt))
 		    && (pchip->rdev[icnt] != NULL)) {
-			regulator_notifier_call_chain(pchip->rdev[icnt],
+			regulator_analtifier_call_chain(pchip->rdev[icnt],
 						      LP8755_EVENT_PWR_FAULT,
 						      NULL);
 		}
@@ -307,7 +307,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 	if ((flag1 & 0x01) && (pchip->irqmask & 0x01))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 			if (pchip->rdev[icnt] != NULL) {
-				regulator_notifier_call_chain(pchip->rdev[icnt],
+				regulator_analtifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OCP,
 							      NULL);
 			}
@@ -316,7 +316,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 	if ((flag1 & 0x02) && (pchip->irqmask & 0x02))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 			if (pchip->rdev[icnt] != NULL) {
-				regulator_notifier_call_chain(pchip->rdev[icnt],
+				regulator_analtifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OVP,
 							      NULL);
 			}
@@ -324,7 +324,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 
 err_i2c:
 	dev_err(pchip->dev, "i2c access error %s\n", __func__);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int lp8755_int_config(struct lp8755_chip *pchip)
@@ -333,7 +333,7 @@ static int lp8755_int_config(struct lp8755_chip *pchip)
 	unsigned int regval;
 
 	if (pchip->irq == 0) {
-		dev_warn(pchip->dev, "not use interrupt : %s\n", __func__);
+		dev_warn(pchip->dev, "analt use interrupt : %s\n", __func__);
 		return 0;
 	}
 
@@ -364,13 +364,13 @@ static int lp8755_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c functionality check fail.\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	pchip = devm_kzalloc(&client->dev,
 			     sizeof(struct lp8755_chip), GFP_KERNEL);
 	if (!pchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pchip->dev = &client->dev;
 	pchip->regmap = devm_regmap_init_i2c(client, &lp8755_regmap);
@@ -389,7 +389,7 @@ static int lp8755_probe(struct i2c_client *client)
 					    sizeof(struct lp8755_platform_data),
 					    GFP_KERNEL);
 		if (!pchip->pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = lp8755_init_data(pchip);
 		if (ret < 0) {
 			dev_err(&client->dev, "fail to initialize chip\n");
@@ -439,7 +439,7 @@ MODULE_DEVICE_TABLE(i2c, lp8755_id);
 static struct i2c_driver lp8755_i2c_driver = {
 	.driver = {
 		   .name = LP8755_NAME,
-		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		   .probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		   },
 	.probe = lp8755_probe,
 	.remove = lp8755_remove,

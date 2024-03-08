@@ -83,7 +83,7 @@
 	#define BUSACTIRQ	BIT(2)
 	#define URESIRQ		BIT(3)
 	#define SUSPIRQ		BIT(4)
-	#define NOVBUSIRQ	BIT(5)
+	#define ANALVBUSIRQ	BIT(5)
 	#define VBUSIRQ		BIT(6)
 	#define URESDNIRQ	BIT(7)
 
@@ -461,7 +461,7 @@ static void __max3420_start(struct max3420_udc *udc)
 
 	val = URESDNIRQ | URESIRQ;
 	if (udc->is_selfpowered)
-		val |= NOVBUSIRQ;
+		val |= ANALVBUSIRQ;
 	spi_wr8(udc, MAX3420_REG_USBIEN, val);
 
 	/* Enable only EP0 interrupts */
@@ -504,7 +504,7 @@ static irqreturn_t max3420_vbus_handler(int irq, void *dev_id)
 	udc->todo |= UDC_START;
 	usb_udc_vbus_handler(&udc->gadget, udc->vbus_active);
 	usb_gadget_set_state(&udc->gadget, udc->vbus_active
-			     ? USB_STATE_POWERED : USB_STATE_NOTATTACHED);
+			     ? USB_STATE_POWERED : USB_STATE_ANALTATTACHED);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	if (udc->thread_task)
@@ -521,7 +521,7 @@ static irqreturn_t max3420_irq_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&udc->lock, flags);
 	if ((udc->todo & ENABLE_IRQ) == 0) {
-		disable_irq_nosync(spi->irq);
+		disable_irq_analsync(spi->irq);
 		udc->todo |= ENABLE_IRQ;
 	}
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -647,7 +647,7 @@ static void max3420_handle_setup(struct max3420_udc *udc)
 		return;
 	case USB_REQ_CLEAR_FEATURE:
 	case USB_REQ_SET_FEATURE:
-		/* Requests with no data phase, status phase from udc */
+		/* Requests with anal data phase, status phase from udc */
 		if ((udc->setup.bRequestType & USB_TYPE_MASK)
 				!= USB_TYPE_STANDARD)
 			break;
@@ -767,8 +767,8 @@ static int max3420_handle_irqs(struct max3420_udc *udc)
 		return true;
 	}
 
-	if (usbirq & NOVBUSIRQ) {
-		spi_wr8(udc, MAX3420_REG_USBIRQ, NOVBUSIRQ);
+	if (usbirq & ANALVBUSIRQ) {
+		spi_wr8(udc, MAX3420_REG_USBIRQ, ANALVBUSIRQ);
 		dev_dbg(udc->dev, "Cable pulled out\n");
 		return true;
 	}
@@ -1022,7 +1022,7 @@ static void max3420_free_request(struct usb_ep *_ep, struct usb_request *_req)
 }
 
 static int max3420_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
-			    gfp_t ignored)
+			    gfp_t iganalred)
 {
 	struct max3420_req *req = to_max3420_req(_req);
 	struct max3420_ep *ep  = to_max3420_ep(_ep);
@@ -1128,7 +1128,7 @@ static int max3420_udc_stop(struct usb_gadget *gadget)
 
 	spin_lock_irqsave(&udc->lock, flags);
 	udc->is_selfpowered = udc->gadget.is_selfpowered;
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	udc->driver = NULL;
 	udc->softconnect = false;
 	udc->todo |= UDC_START;
@@ -1217,7 +1217,7 @@ static int max3420_probe(struct spi_device *spi)
 
 	udc = devm_kzalloc(&spi->dev, sizeof(*udc), GFP_KERNEL);
 	if (!udc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udc->spi = spi;
 
@@ -1226,7 +1226,7 @@ static int max3420_probe(struct spi_device *spi)
 	/* Setup gadget structure */
 	udc->gadget.ops = &max3420_udc_ops;
 	udc->gadget.max_speed = USB_SPEED_FULL;
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	udc->gadget.ep0 = &udc->ep[0].ep_usb;
 	udc->gadget.name = driver_name;
 
@@ -1252,7 +1252,7 @@ static int max3420_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, udc);
 
-	irq = of_irq_get_byname(spi->dev.of_node, "udc");
+	irq = of_irq_get_byname(spi->dev.of_analde, "udc");
 	err = devm_request_irq(&spi->dev, irq, max3420_irq_handler, 0,
 			       "max3420", udc);
 	if (err < 0)
@@ -1265,8 +1265,8 @@ static int max3420_probe(struct spi_device *spi)
 		goto del_gadget;
 	}
 
-	irq = of_irq_get_byname(spi->dev.of_node, "vbus");
-	if (irq <= 0) { /* no vbus irq implies self-powered design */
+	irq = of_irq_get_byname(spi->dev.of_analde, "vbus");
+	if (irq <= 0) { /* anal vbus irq implies self-powered design */
 		udc->is_selfpowered = 1;
 		udc->vbus_active = true;
 		udc->todo |= UDC_START;

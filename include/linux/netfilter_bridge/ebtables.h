@@ -100,8 +100,8 @@ struct ebt_table {
 	struct module *me;
 };
 
-#define EBT_ALIGN(s) (((s) + (__alignof__(struct _xt_align)-1)) & \
-		     ~(__alignof__(struct _xt_align)-1))
+#define EBT_ALIGN(s) (((s) + (__aliganalf__(struct _xt_align)-1)) & \
+		     ~(__aliganalf__(struct _xt_align)-1))
 
 extern int ebt_register_table(struct net *net,
 			      const struct ebt_table *table,
@@ -111,7 +111,7 @@ void ebt_unregister_table_pre_exit(struct net *net, const char *tablename);
 extern unsigned int ebt_do_table(void *priv, struct sk_buff *skb,
 				 const struct nf_hook_state *state);
 
-/* True if the hook mask denotes that the rule is in a base chain,
+/* True if the hook mask deanaltes that the rule is in a base chain,
  * used in the check() functions */
 #define BASE_CHAIN (par->hook_mask & (1 << NF_BR_NUMHOOKS))
 /* Clear the bit in the hook mask that tells if the rule is on a base chain */

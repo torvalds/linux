@@ -39,7 +39,7 @@ struct matrix_keypad {
 };
 
 /*
- * NOTE: If drive_inactive_cols is false, then the GPIO has to be put into
+ * ANALTE: If drive_inactive_cols is false, then the GPIO has to be put into
  * HiZ when de-activated to cause minmal side effect when scanning other
  * columns. In that case it is configured here to be input, otherwise it is
  * driven with the inactive value.
@@ -102,10 +102,10 @@ static void disable_row_irqs(struct matrix_keypad *keypad)
 	int i;
 
 	if (pdata->clustered_irq > 0)
-		disable_irq_nosync(pdata->clustered_irq);
+		disable_irq_analsync(pdata->clustered_irq);
 	else {
 		for (i = 0; i < pdata->num_row_gpios; i++)
-			disable_irq_nosync(gpio_to_irq(pdata->row_gpios[i]));
+			disable_irq_analsync(gpio_to_irq(pdata->row_gpios[i]));
 	}
 }
 
@@ -181,8 +181,8 @@ static irqreturn_t matrix_keypad_interrupt(int irq, void *id)
 	spin_lock_irqsave(&keypad->lock, flags);
 
 	/*
-	 * See if another IRQ beaten us to it and scheduled the
-	 * scan already. In that case we should not try to
+	 * See if aanalther IRQ beaten us to it and scheduled the
+	 * scan already. In that case we should analt try to
 	 * disable IRQs again.
 	 */
 	if (unlikely(keypad->scan_pending || keypad->stopped))
@@ -225,7 +225,7 @@ static void matrix_keypad_stop(struct input_dev *dev)
 	flush_delayed_work(&keypad->work);
 	/*
 	 * matrix_keypad_scan() will leave IRQs enabled;
-	 * we should disable them now.
+	 * we should disable them analw.
 	 */
 	disable_row_irqs(keypad);
 }
@@ -403,29 +403,29 @@ static struct matrix_keypad_platform_data *
 matrix_keypad_parse_dt(struct device *dev)
 {
 	struct matrix_keypad_platform_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	unsigned int *gpios;
 	int ret, i, nrow, ncol;
 
 	if (!np) {
 		dev_err(dev, "device lacks DT data\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		dev_err(dev, "could not allocate memory for platform data\n");
-		return ERR_PTR(-ENOMEM);
+		dev_err(dev, "could analt allocate memory for platform data\n");
+		return ERR_PTR(-EANALMEM);
 	}
 
 	pdata->num_row_gpios = nrow = gpiod_count(dev, "row");
 	pdata->num_col_gpios = ncol = gpiod_count(dev, "col");
 	if (nrow < 0 || ncol < 0) {
-		dev_err(dev, "number of keypad rows/columns not specified\n");
+		dev_err(dev, "number of keypad rows/columns analt specified\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	pdata->no_autorepeat = of_property_read_bool(np, "linux,no-autorepeat");
+	pdata->anal_autorepeat = of_property_read_bool(np, "linux,anal-autorepeat");
 
 	pdata->wakeup = of_property_read_bool(np, "wakeup-source") ||
 			of_property_read_bool(np, "linux,wakeup"); /* legacy */
@@ -444,8 +444,8 @@ matrix_keypad_parse_dt(struct device *dev)
 			     sizeof(unsigned int),
 			     GFP_KERNEL);
 	if (!gpios) {
-		dev_err(dev, "could not allocate memory for gpios\n");
-		return ERR_PTR(-ENOMEM);
+		dev_err(dev, "could analt allocate memory for gpios\n");
+		return ERR_PTR(-EANALMEM);
 	}
 
 	for (i = 0; i < nrow; i++) {
@@ -471,7 +471,7 @@ matrix_keypad_parse_dt(struct device *dev)
 static inline struct matrix_keypad_platform_data *
 matrix_keypad_parse_dt(struct device *dev)
 {
-	dev_err(dev, "no platform data defined\n");
+	dev_err(dev, "anal platform data defined\n");
 
 	return ERR_PTR(-EINVAL);
 }
@@ -490,14 +490,14 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
 	} else if (!pdata->keymap_data) {
-		dev_err(&pdev->dev, "no keymap data defined\n");
+		dev_err(&pdev->dev, "anal keymap data defined\n");
 		return -EINVAL;
 	}
 
 	keypad = kzalloc(sizeof(struct matrix_keypad), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!keypad || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_mem;
 	}
 
@@ -523,7 +523,7 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	if (!pdata->no_autorepeat)
+	if (!pdata->anal_autorepeat)
 		__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 	input_set_drvdata(input_dev, keypad);

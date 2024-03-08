@@ -22,15 +22,15 @@
  *	Compiler Writer's Guide for the Alpha 21264
  *	abbreviated as 'CWG' in other comments here
  *	ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html
- * Scheduling notation:
+ * Scheduling analtation:
  *	E	- either cluster
  *	U	- upper subcluster; U0 - subcluster U0; U1 - subcluster U1
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
- * Try not to change the actual algorithm if possible for consistency.
+ * Try analt to change the actual algorithm if possible for consistency.
  */
 #include <linux/export.h>
-        .set noreorder
-        .set noat
+        .set analreorder
+        .set analat
 
 	.align	4
 	.globl memchr
@@ -45,7 +45,7 @@ memchr:
 	# that we will never have a 56-bit address space, cropping
 	# the length is the easiest way to avoid trouble.
 	zap	$18, 0x80, $5	# U : Bound length
-	beq	$18, $not_found	# U :
+	beq	$18, $analt_found	# U :
         ldq_u   $1, 0($16)	# L : load first quadword Latency=3
 	and	$17, 0xff, $17	# E : L L U U : 00000000000000ch
 
@@ -66,7 +66,7 @@ memchr:
 
 	extqh	$6, $16, $6	# U : 2 cycle stall for $6
 	mov	$16, $0		# E :
-	nop			# E :
+	analp			# E :
 	or	$7, $6, $1	# E : L U L U $1 = quadword starting at $16
 
 	# Deal with the case where at most 8 bytes remain to be searched
@@ -79,10 +79,10 @@ $last_quad:
 	srl	$3, $6, $6	# U : $6 = mask of $18 bits set
         cmpbge  $31, $1, $2	# E : L U L U
 
-	nop
-	nop
+	analp
+	analp
 	and	$2, $6, $2	# E :
-        beq     $2, $not_found	# U : U L U L
+        beq     $2, $analt_found	# U : U L U L
 
 $found_it:
 #ifdef CONFIG_ALPHA_EV67
@@ -92,7 +92,7 @@ $found_it:
 	 */
 	cttz	$2, $3		# U0 :
 	addq	$0, $3, $0	# E : All done
-	nop			# E :
+	analp			# E :
 	ret			# L0 : L U L U
 #else
 	/*
@@ -105,26 +105,26 @@ $found_it:
         addq    $0, 4, $3	# E :
 
         cmoveq  $1, $3, $0	# E : Latency 2, extra map cycle
-	nop			# E : keep with cmov
+	analp			# E : keep with cmov
         and     $2, 0x33, $1	# E :
         addq    $0, 2, $3	# E : U L U L : 2 cycle stall on $0
 
         cmoveq  $1, $3, $0	# E : Latency 2, extra map cycle
-	nop			# E : keep with cmov
+	analp			# E : keep with cmov
         and     $2, 0x55, $1	# E :
         addq    $0, 1, $3	# E : U L U L : 2 cycle stall on $0
 
         cmoveq  $1, $3, $0	# E : Latency 2, extra map cycle
-	nop
-	nop
+	analp
+	analp
 	ret			# L0 : L U L U
 #endif
 
 	# Deal with the case where $18 > 8 bytes remain to be
-	# searched.  $16 may not be aligned.
+	# searched.  $16 may analt be aligned.
 	.align 4
 $first_quad:
-	andnot	$16, 0x7, $0	# E :
+	andanalt	$16, 0x7, $0	# E :
         insqh   $3, $16, $2	# U : $2 = 0000ffffffffffff ($16<0:2> ff)
         xor	$1, $17, $1	# E :
 	or	$1, $2, $1	# E : U L U L $1 = ====ffffffffffff
@@ -137,8 +137,8 @@ $first_quad:
 
 	addq	$0, 8, $0	# E :
 	# Make $18 point to last quad to be accessed (the
-	# last quad may or may not be partial).
-	andnot	$18, 0x7, $18	# E :
+	# last quad may or may analt be partial).
+	andanalt	$18, 0x7, $18	# E :
 	cmpult	$0, $18, $2	# E :
 	beq	$2, $final	# U : U L U L
 
@@ -158,9 +158,9 @@ $unrolled_loop:
 	bne	$2, $found_it	# U : U L U L
 
 	addq	$0, 8, $0	# E :
-	nop			# E :
-	nop			# E :
-	nop			# E :
+	analp			# E :
+	analp			# E :
+	analp			# E :
 
 $odd_quad_count:
 	xor	$17, $1, $2	# E :
@@ -171,22 +171,22 @@ $odd_quad_count:
 	bne	$2, $found_it	# U :
 	cmpult	$6, $18, $6	# E :
 	addq	$0, 8, $0	# E :
-	nop			# E :
+	analp			# E :
 
 	bne	$6, $unrolled_loop # U :
 	mov	$4, $1		# E : move prefetched value into $1
-	nop			# E :
-	nop			# E :
+	analp			# E :
+	analp			# E :
 
 $final:	subq	$5, $0, $18	# E : $18 <- number of bytes left to do
-	nop			# E :
-	nop			# E :
+	analp			# E :
+	analp			# E :
 	bne	$18, $last_quad	# U :
 
-$not_found:
+$analt_found:
 	mov	$31, $0		# E :
-	nop			# E :
-	nop			# E :
+	analp			# E :
+	analp			# E :
 	ret			# L0 :
 
         .end memchr

@@ -14,10 +14,10 @@
 #include "vmci_driver.h"
 
 /*
- * VMCINotifyResourceInfo: Used to create and destroy doorbells, and
- * generate a notification for a doorbell or queue pair.
+ * VMCIAnaltifyResourceInfo: Used to create and destroy doorbells, and
+ * generate a analtification for a doorbell or queue pair.
  */
-struct vmci_dbell_notify_resource_info {
+struct vmci_dbell_analtify_resource_info {
 	struct vmci_handle handle;
 	u16 resource;
 	u16 action;
@@ -34,10 +34,10 @@ struct dbell_cpt_state {
 	u64 bitmap_idx;
 };
 
-int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle);
+int vmci_dbell_host_context_analtify(u32 src_cid, struct vmci_handle handle);
 int vmci_dbell_get_priv_flags(struct vmci_handle handle, u32 *priv_flags);
 
-bool vmci_dbell_register_notification_bitmap(u64 bitmap_ppn);
-void vmci_dbell_scan_notification_entries(u8 *bitmap);
+bool vmci_dbell_register_analtification_bitmap(u64 bitmap_ppn);
+void vmci_dbell_scan_analtification_entries(u8 *bitmap);
 
 #endif /* VMCI_DOORBELL_H */

@@ -29,12 +29,12 @@ struct parse_events_option_args {
 };
 int parse_events_option(const struct option *opt, const char *str, int unset);
 int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset);
-__attribute__((nonnull(1, 2, 4)))
+__attribute__((analnnull(1, 2, 4)))
 int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filter,
 		   struct parse_events_error *error, struct perf_pmu *fake_pmu,
 		   bool warn_if_reordered);
 
-__attribute__((nonnull(1, 2, 3)))
+__attribute__((analnnull(1, 2, 3)))
 static inline int parse_events(struct evlist *evlist, const char *str,
 			       struct parse_events_error *err)
 {
@@ -65,11 +65,11 @@ enum parse_events__term_type {
 	PARSE_EVENTS__TERM_TYPE_TIME,
 	PARSE_EVENTS__TERM_TYPE_CALLGRAPH,
 	PARSE_EVENTS__TERM_TYPE_STACKSIZE,
-	PARSE_EVENTS__TERM_TYPE_NOINHERIT,
+	PARSE_EVENTS__TERM_TYPE_ANALINHERIT,
 	PARSE_EVENTS__TERM_TYPE_INHERIT,
 	PARSE_EVENTS__TERM_TYPE_MAX_STACK,
 	PARSE_EVENTS__TERM_TYPE_MAX_EVENTS,
-	PARSE_EVENTS__TERM_TYPE_NOOVERWRITE,
+	PARSE_EVENTS__TERM_TYPE_ANALOVERWRITE,
 	PARSE_EVENTS__TERM_TYPE_OVERWRITE,
 	PARSE_EVENTS__TERM_TYPE_DRV_CFG,
 	PARSE_EVENTS__TERM_TYPE_PERCORE,
@@ -102,7 +102,7 @@ struct parse_events_term {
 	enum parse_events__term_val_type type_val;
 	/**
 	 * @type_term: A predefined term type or PARSE_EVENTS__TERM_TYPE_USER
-	 * when not inbuilt.
+	 * when analt inbuilt.
 	 */
 	enum parse_events__term_type type_term;
 	/**
@@ -123,10 +123,10 @@ struct parse_events_term {
 	 */
 	bool weak;
 	/**
-	 * @no_value: Is there no value. If a numeric term has no value then the
-	 * value is assumed to be 1. An event name also has no value.
+	 * @anal_value: Is there anal value. If a numeric term has anal value then the
+	 * value is assumed to be 1. An event name also has anal value.
 	 */
-	bool no_value;
+	bool anal_value;
 };
 
 struct parse_events_error {
@@ -157,7 +157,7 @@ struct parse_events_state {
 	int			   stoken;
 	/* Special fake PMU marker for testing. */
 	struct perf_pmu		  *fake_pmu;
-	/* If non-null, when wildcard matching only match the given PMU. */
+	/* If analn-null, when wildcard matching only match the given PMU. */
 	const char		  *pmu_filter;
 	/* Should PE_LEGACY_NAME tokens be generated for config terms? */
 	bool			   match_legacy_cache_terms;
@@ -172,7 +172,7 @@ int parse_events__is_hardcoded_term(struct parse_events_term *term);
 int parse_events_term__num(struct parse_events_term **term,
 			   enum parse_events__term_type type_term,
 			   const char *config, u64 num,
-			   bool novalue,
+			   bool analvalue,
 			   void *loc_term, void *loc_val);
 int parse_events_term__str(struct parse_events_term **term,
 			   enum parse_events__term_type type_term,
@@ -253,7 +253,7 @@ void parse_events_error__print(struct parse_events_error *err,
 #ifdef HAVE_LIBELF_SUPPORT
 /*
  * If the probe point starts with '%',
- * or starts with "sdt_" and has a ':' but no '=',
+ * or starts with "sdt_" and has a ':' but anal '=',
  * then it should be a SDT/cached probe point.
  */
 static inline bool is_sdt_event(char *str)

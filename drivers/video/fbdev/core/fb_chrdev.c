@@ -13,13 +13,13 @@
  * but if the current registered fb has changed, we don't
  * actually want to use it.
  *
- * So look up the fb_info using the inode minor number,
+ * So look up the fb_info using the ianalde mianalr number,
  * and just verify it against the reference we have.
  */
 static struct fb_info *file_fb_info(struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	int fbidx = iminor(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	int fbidx = imianalr(ianalde);
 	struct fb_info *info = registered_fb[fbidx];
 
 	if (info != file->private_data)
@@ -32,7 +32,7 @@ static ssize_t fb_read(struct file *file, char __user *buf, size_t count, loff_t
 	struct fb_info *info = file_fb_info(file);
 
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_WARN_ON_ONCE(info, !info->fbops->fb_read))
 		return -EINVAL;
@@ -48,7 +48,7 @@ static ssize_t fb_write(struct file *file, const char __user *buf, size_t count,
 	struct fb_info *info = file_fb_info(file);
 
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_WARN_ON_ONCE(info, !info->fbops->fb_write))
 		return -EINVAL;
@@ -154,7 +154,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		if (fb->fb_ioctl)
 			ret = fb->fb_ioctl(info, cmd, arg);
 		else
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 		unlock_fb_info(info);
 	}
 	return ret;
@@ -165,7 +165,7 @@ static long fb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct fb_info *info = file_fb_info(file);
 
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 	return do_fb_ioctl(info, cmd, arg);
 }
 
@@ -276,10 +276,10 @@ static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 {
 	struct fb_info *info = file_fb_info(file);
 	const struct fb_ops *fb;
-	long ret = -ENOIOCTLCMD;
+	long ret = -EANALIOCTLCMD;
 
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 	fb = info->fbops;
 	switch (cmd) {
 	case FBIOGET_VSCREENINFO:
@@ -317,10 +317,10 @@ static int fb_mmap(struct file *file, struct vm_area_struct *vma)
 	int res;
 
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_WARN_ON_ONCE(info, !info->fbops->fb_mmap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&info->mm_lock);
 	res = info->fbops->fb_mmap(info, vma);
@@ -329,11 +329,11 @@ static int fb_mmap(struct file *file, struct vm_area_struct *vma)
 	return res;
 }
 
-static int fb_open(struct inode *inode, struct file *file)
+static int fb_open(struct ianalde *ianalde, struct file *file)
 __acquires(&info->lock)
 __releases(&info->lock)
 {
-	int fbidx = iminor(inode);
+	int fbidx = imianalr(ianalde);
 	struct fb_info *info;
 	int res = 0;
 
@@ -342,14 +342,14 @@ __releases(&info->lock)
 		request_module("fb%d", fbidx);
 		info = get_fb_info(fbidx);
 		if (!info)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 
 	lock_fb_info(info);
 	if (!try_module_get(info->fbops->owner)) {
-		res = -ENODEV;
+		res = -EANALDEV;
 		goto out;
 	}
 	file->private_data = info;
@@ -360,7 +360,7 @@ __releases(&info->lock)
 	}
 #ifdef CONFIG_FB_DEFERRED_IO
 	if (info->fbdefio)
-		fb_deferred_io_open(info, inode, file);
+		fb_deferred_io_open(info, ianalde, file);
 #endif
 out:
 	unlock_fb_info(info);
@@ -369,7 +369,7 @@ out:
 	return res;
 }
 
-static int fb_release(struct inode *inode, struct file *file)
+static int fb_release(struct ianalde *ianalde, struct file *file)
 __acquires(&info->lock)
 __releases(&info->lock)
 {

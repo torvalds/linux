@@ -149,7 +149,7 @@ struct msm_drm_private {
 	 *
 	 * The various LRU's that a GEM object is in at various stages of
 	 * it's lifetime.  Objects start out in the unbacked LRU.  When
-	 * pinned (for scannout or permanently mapped GPU buffers, like
+	 * pinned (for scananalut or permanently mapped GPU buffers, like
 	 * ringbuffer, memptr, fw, etc) it moves to the pinned LRU.  When
 	 * unpinned, it moves into willneed or dontneed LRU depending on
 	 * madvise state.  When backing pages are evicted (willneed) or
@@ -206,18 +206,18 @@ struct msm_drm_private {
 
 	struct msm_drm_thread event_thread[MAX_CRTCS];
 
-	/* VRAM carveout, used when no IOMMU: */
+	/* VRAM carveout, used when anal IOMMU: */
 	struct {
 		unsigned long size;
 		dma_addr_t paddr;
-		/* NOTE: mm managed at the page level, size is in # of pages
-		 * and position mm_node->start is in # of pages:
+		/* ANALTE: mm managed at the page level, size is in # of pages
+		 * and position mm_analde->start is in # of pages:
 		 */
 		struct drm_mm mm;
-		spinlock_t lock; /* Protects drm_mm node allocation/removal */
+		spinlock_t lock; /* Protects drm_mm analde allocation/removal */
 	} vram;
 
-	struct notifier_block vmap_notifier;
+	struct analtifier_block vmap_analtifier;
 	struct shrinker *shrinker;
 
 	struct drm_atomic_state *pm_state;
@@ -225,7 +225,7 @@ struct msm_drm_private {
 	/**
 	 * hangcheck_period: For hang detection, in ms
 	 *
-	 * Note that in practice, a submit/job will get at least two hangcheck
+	 * Analte that in practice, a submit/job will get at least two hangcheck
 	 * periods, due to checking for progress being implemented as simply
 	 * "have the CP position registers changed since last time?"
 	 */
@@ -451,12 +451,12 @@ static inline void msm_mdss_unregister(void) {}
 #ifdef CONFIG_DEBUG_FS
 void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
 int msm_debugfs_late_init(struct drm_device *dev);
-int msm_rd_debugfs_init(struct drm_minor *minor);
+int msm_rd_debugfs_init(struct drm_mianalr *mianalr);
 void msm_rd_debugfs_cleanup(struct msm_drm_private *priv);
 __printf(3, 4)
 void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 		const char *fmt, ...);
-int msm_perf_debugfs_init(struct drm_minor *minor);
+int msm_perf_debugfs_init(struct drm_mianalr *mianalr);
 void msm_perf_debugfs_cleanup(struct msm_drm_private *priv);
 #else
 static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
@@ -518,7 +518,7 @@ void msm_hrtimer_work_init(struct msm_hrtimer_work *work,
 static inline int align_pitch(int width, int bpp)
 {
 	int bytespp = (bpp + 7) / 8;
-	/* adreno needs pitch aligned to 32 pixels: */
+	/* adreanal needs pitch aligned to 32 pixels: */
 	return bytespp * ALIGN(width, 32);
 }
 
@@ -535,13 +535,13 @@ static inline int align_pitch(int width, int bpp)
 
 static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
 {
-	ktime_t now = ktime_get();
+	ktime_t analw = ktime_get();
 	s64 remaining_jiffies;
 
-	if (ktime_compare(*timeout, now) < 0) {
+	if (ktime_compare(*timeout, analw) < 0) {
 		remaining_jiffies = 0;
 	} else {
-		ktime_t rem = ktime_sub(*timeout, now);
+		ktime_t rem = ktime_sub(*timeout, analw);
 		remaining_jiffies = ktime_divns(rem, NSEC_PER_SEC / HZ);
 	}
 

@@ -21,22 +21,22 @@
 #define RTRAP_PSTATE_AG_IRQOFF	(PSTATE_TSO|PSTATE_PEF|PSTATE_PRIV|PSTATE_AG)
 
 #define __CHEETAH_ID	0x003e0014
-#define __JALAPENO_ID	0x003e0016
-#define __SERRANO_ID	0x003e0022
+#define __JALAPEANAL_ID	0x003e0016
+#define __SERRAANAL_ID	0x003e0022
 
 #define CHEETAH_MANUF		0x003e
 #define CHEETAH_IMPL		0x0014 /* Ultra-III   */
 #define CHEETAH_PLUS_IMPL	0x0015 /* Ultra-III+  */
-#define JALAPENO_IMPL		0x0016 /* Ultra-IIIi  */
+#define JALAPEANAL_IMPL		0x0016 /* Ultra-IIIi  */
 #define JAGUAR_IMPL		0x0018 /* Ultra-IV    */
 #define PANTHER_IMPL		0x0019 /* Ultra-IV+   */
-#define SERRANO_IMPL		0x0022 /* Ultra-IIIi+ */
+#define SERRAANAL_IMPL		0x0022 /* Ultra-IIIi+ */
 
 #define BRANCH_IF_SUN4V(tmp1,label)		\
 	sethi	%hi(is_sun4v), %tmp1;		\
 	lduw	[%tmp1 + %lo(is_sun4v)], %tmp1; \
 	brnz,pn	%tmp1, label;			\
-	 nop
+	 analp
 
 #define BRANCH_IF_CHEETAH_BASE(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\
@@ -45,16 +45,16 @@
 	or	%tmp2, %lo(__CHEETAH_ID), %tmp2;\
 	cmp	%tmp1, %tmp2;			\
 	be,pn	%icc, label;			\
-	 nop;
+	 analp;
 
-#define BRANCH_IF_JALAPENO(tmp1,tmp2,label)	\
+#define BRANCH_IF_JALAPEANAL(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\
-	sethi	%hi(__JALAPENO_ID), %tmp2;	\
+	sethi	%hi(__JALAPEANAL_ID), %tmp2;	\
 	srlx	%tmp1, 32, %tmp1;		\
-	or	%tmp2, %lo(__JALAPENO_ID), %tmp2;\
+	or	%tmp2, %lo(__JALAPEANAL_ID), %tmp2;\
 	cmp	%tmp1, %tmp2;			\
 	be,pn	%icc, label;			\
-	 nop;
+	 analp;
 
 #define BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\
@@ -65,7 +65,7 @@
 	srlx	%tmp1, (32 + 16), %tmp2;	\
 	cmp	%tmp2, CHEETAH_PLUS_IMPL;	\
 	bgeu,pt	%xcc, label;			\
-99:	 nop;
+99:	 analp;
 
 #define BRANCH_IF_ANY_CHEETAH(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\
@@ -76,6 +76,6 @@
 	srlx	%tmp1, (32 + 16), %tmp2;	\
 	cmp	%tmp2, CHEETAH_IMPL;		\
 	bgeu,pt	%xcc, label;			\
-99:	 nop;
+99:	 analp;
 
 #endif /* !(_SPARC64_HEAD_H) */

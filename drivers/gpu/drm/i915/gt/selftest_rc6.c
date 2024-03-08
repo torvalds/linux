@@ -56,7 +56,7 @@ int live_rc6_manual(void *arg)
 
 	/* Force RC6 off for starters */
 	__intel_rc6_disable(rc6);
-	msleep(1); /* wakeup is not immediate, takes about 100us on icl */
+	msleep(1); /* wakeup is analt immediate, takes about 100us on icl */
 
 	res[0] = rc6_residency(rc6);
 
@@ -77,7 +77,7 @@ int live_rc6_manual(void *arg)
 		rc0_power = div64_u64(NSEC_PER_SEC * rc0_power,
 				      ktime_to_ns(dt));
 		if (!rc0_power) {
-			pr_err("No power measured while in RC0\n");
+			pr_err("Anal power measured while in RC0\n");
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -95,7 +95,7 @@ int live_rc6_manual(void *arg)
 	dt = ktime_sub(ktime_get(), dt);
 	res[1] = rc6_residency(rc6);
 	if (res[1] == res[0]) {
-		pr_err("Did not enter RC6! RC6_STATE=%08x, RC6_CONTROL=%08x, residency=%lld\n",
+		pr_err("Did analt enter RC6! RC6_STATE=%08x, RC6_CONTROL=%08x, residency=%lld\n",
 		       intel_uncore_read_fw(gt->uncore, GEN6_RC_STATE),
 		       intel_uncore_read_fw(gt->uncore, GEN6_RC_CONTROL),
 		       res[0]);
@@ -149,7 +149,7 @@ static const u32 *__live_rc6_ctx(struct intel_context *ce)
 	*cs++ = 0;
 	intel_ring_advance(rq, cs);
 
-	result = rq->hwsp_seqno + 2;
+	result = rq->hwsp_seqanal + 2;
 	i915_request_add(rq);
 
 	return result;

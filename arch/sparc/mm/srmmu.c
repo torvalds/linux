@@ -40,7 +40,7 @@
 #include <asm/smp.h>
 #include <asm/io.h>
 
-/* Now the cpu specific definitions. */
+/* Analw the cpu specific definitions. */
 #include <asm/turbosparc.h>
 #include <asm/tsunami.h>
 #include <asm/viking.h>
@@ -72,7 +72,7 @@ const struct sparc32_cachetlb_ops *local_ops;
 #define FLUSH_BEGIN(mm)
 #define FLUSH_END
 #else
-#define FLUSH_BEGIN(mm) if ((mm)->context != NO_CONTEXT) {
+#define FLUSH_BEGIN(mm) if ((mm)->context != ANAL_CONTEXT) {
 #define FLUSH_END	}
 #endif
 
@@ -90,20 +90,20 @@ static int is_hypersparc;
 
 static int srmmu_cache_pagetables;
 
-/* these will be initialized in srmmu_nocache_calcsize() */
-static unsigned long srmmu_nocache_size;
-static unsigned long srmmu_nocache_end;
+/* these will be initialized in srmmu_analcache_calcsize() */
+static unsigned long srmmu_analcache_size;
+static unsigned long srmmu_analcache_end;
 
-/* 1 bit <=> 256 bytes of nocache <=> 64 PTEs */
-#define SRMMU_NOCACHE_BITMAP_SHIFT (PAGE_SHIFT - 4)
+/* 1 bit <=> 256 bytes of analcache <=> 64 PTEs */
+#define SRMMU_ANALCACHE_BITMAP_SHIFT (PAGE_SHIFT - 4)
 
-/* The context table is a nocache user with the biggest alignment needs. */
-#define SRMMU_NOCACHE_ALIGN_MAX (sizeof(ctxd_t)*SRMMU_MAX_CONTEXTS)
+/* The context table is a analcache user with the biggest alignment needs. */
+#define SRMMU_ANALCACHE_ALIGN_MAX (sizeof(ctxd_t)*SRMMU_MAX_CONTEXTS)
 
-void *srmmu_nocache_pool;
-static struct bit_map srmmu_nocache_map;
+void *srmmu_analcache_pool;
+static struct bit_map srmmu_analcache_map;
 
-static inline int srmmu_pmd_none(pmd_t pmd)
+static inline int srmmu_pmd_analne(pmd_t pmd)
 { return !(pmd_val(pmd) & 0xFFFFFFF); }
 
 /* XXX should we hyper_flush_whole_icache here - Anton */
@@ -111,7 +111,7 @@ static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
 {
 	pte_t pte;
 
-	pte = __pte((SRMMU_ET_PTD | (__nocache_pa(pgdp) >> 4)));
+	pte = __pte((SRMMU_ET_PTD | (__analcache_pa(pgdp) >> 4)));
 	set_pte((pte_t *)ctxp, pte);
 }
 
@@ -123,7 +123,7 @@ static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
 /*
  * Useful bits in the MSI Registers.
  */
-#define MSI_ASYNC_MODE  0x80000000	/* Operate the MSI asynchronously */
+#define MSI_ASYNC_MODE  0x80000000	/* Operate the MSI asynchroanalusly */
 
 static void msi_set_sync(void)
 {
@@ -136,51 +136,51 @@ static void msi_set_sync(void)
 
 void pmd_set(pmd_t *pmdp, pte_t *ptep)
 {
-	unsigned long ptp = __nocache_pa(ptep) >> 4;
+	unsigned long ptp = __analcache_pa(ptep) >> 4;
 	set_pte((pte_t *)&pmd_val(*pmdp), __pte(SRMMU_ET_PTD | ptp));
 }
 
 /*
- * size: bytes to allocate in the nocache area.
+ * size: bytes to allocate in the analcache area.
  * align: bytes, number to align at.
  * Returns the virtual address of the allocated area.
  */
-static void *__srmmu_get_nocache(int size, int align)
+static void *__srmmu_get_analcache(int size, int align)
 {
-	int offset, minsz = 1 << SRMMU_NOCACHE_BITMAP_SHIFT;
+	int offset, minsz = 1 << SRMMU_ANALCACHE_BITMAP_SHIFT;
 	unsigned long addr;
 
 	if (size < minsz) {
-		printk(KERN_ERR "Size 0x%x too small for nocache request\n",
+		printk(KERN_ERR "Size 0x%x too small for analcache request\n",
 		       size);
 		size = minsz;
 	}
 	if (size & (minsz - 1)) {
-		printk(KERN_ERR "Size 0x%x unaligned in nocache request\n",
+		printk(KERN_ERR "Size 0x%x unaligned in analcache request\n",
 		       size);
 		size += minsz - 1;
 	}
-	BUG_ON(align > SRMMU_NOCACHE_ALIGN_MAX);
+	BUG_ON(align > SRMMU_ANALCACHE_ALIGN_MAX);
 
-	offset = bit_map_string_get(&srmmu_nocache_map,
-				    size >> SRMMU_NOCACHE_BITMAP_SHIFT,
-				    align >> SRMMU_NOCACHE_BITMAP_SHIFT);
+	offset = bit_map_string_get(&srmmu_analcache_map,
+				    size >> SRMMU_ANALCACHE_BITMAP_SHIFT,
+				    align >> SRMMU_ANALCACHE_BITMAP_SHIFT);
 	if (offset == -1) {
-		printk(KERN_ERR "srmmu: out of nocache %d: %d/%d\n",
-		       size, (int) srmmu_nocache_size,
-		       srmmu_nocache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
+		printk(KERN_ERR "srmmu: out of analcache %d: %d/%d\n",
+		       size, (int) srmmu_analcache_size,
+		       srmmu_analcache_map.used << SRMMU_ANALCACHE_BITMAP_SHIFT);
 		return NULL;
 	}
 
-	addr = SRMMU_NOCACHE_VADDR + (offset << SRMMU_NOCACHE_BITMAP_SHIFT);
+	addr = SRMMU_ANALCACHE_VADDR + (offset << SRMMU_ANALCACHE_BITMAP_SHIFT);
 	return (void *)addr;
 }
 
-void *srmmu_get_nocache(int size, int align)
+void *srmmu_get_analcache(int size, int align)
 {
 	void *tmp;
 
-	tmp = __srmmu_get_nocache(size, align);
+	tmp = __srmmu_get_analcache(size, align);
 
 	if (tmp)
 		memset(tmp, 0, size);
@@ -188,39 +188,39 @@ void *srmmu_get_nocache(int size, int align)
 	return tmp;
 }
 
-void srmmu_free_nocache(void *addr, int size)
+void srmmu_free_analcache(void *addr, int size)
 {
 	unsigned long vaddr;
 	int offset;
 
 	vaddr = (unsigned long)addr;
-	if (vaddr < SRMMU_NOCACHE_VADDR) {
-		printk("Vaddr %lx is smaller than nocache base 0x%lx\n",
-		    vaddr, (unsigned long)SRMMU_NOCACHE_VADDR);
+	if (vaddr < SRMMU_ANALCACHE_VADDR) {
+		printk("Vaddr %lx is smaller than analcache base 0x%lx\n",
+		    vaddr, (unsigned long)SRMMU_ANALCACHE_VADDR);
 		BUG();
 	}
-	if (vaddr + size > srmmu_nocache_end) {
-		printk("Vaddr %lx is bigger than nocache end 0x%lx\n",
-		    vaddr, srmmu_nocache_end);
+	if (vaddr + size > srmmu_analcache_end) {
+		printk("Vaddr %lx is bigger than analcache end 0x%lx\n",
+		    vaddr, srmmu_analcache_end);
 		BUG();
 	}
 	if (!is_power_of_2(size)) {
-		printk("Size 0x%x is not a power of 2\n", size);
+		printk("Size 0x%x is analt a power of 2\n", size);
 		BUG();
 	}
-	if (size < SRMMU_NOCACHE_BITMAP_SHIFT) {
+	if (size < SRMMU_ANALCACHE_BITMAP_SHIFT) {
 		printk("Size 0x%x is too small\n", size);
 		BUG();
 	}
 	if (vaddr & (size - 1)) {
-		printk("Vaddr %lx is not aligned to size 0x%x\n", vaddr, size);
+		printk("Vaddr %lx is analt aligned to size 0x%x\n", vaddr, size);
 		BUG();
 	}
 
-	offset = (vaddr - SRMMU_NOCACHE_VADDR) >> SRMMU_NOCACHE_BITMAP_SHIFT;
-	size = size >> SRMMU_NOCACHE_BITMAP_SHIFT;
+	offset = (vaddr - SRMMU_ANALCACHE_VADDR) >> SRMMU_ANALCACHE_BITMAP_SHIFT;
+	size = size >> SRMMU_ANALCACHE_BITMAP_SHIFT;
 
-	bit_map_clear(&srmmu_nocache_map, offset, size);
+	bit_map_clear(&srmmu_analcache_map, offset, size);
 }
 
 static void srmmu_early_allocate_ptable_skeleton(unsigned long start,
@@ -239,33 +239,33 @@ static unsigned long __init probe_memory(void)
 }
 
 /*
- * Reserve nocache dynamically proportionally to the amount of
+ * Reserve analcache dynamically proportionally to the amount of
  * system RAM. -- Tomas Szepe <szepe@pinerecords.com>, June 2002
  */
-static void __init srmmu_nocache_calcsize(void)
+static void __init srmmu_analcache_calcsize(void)
 {
 	unsigned long sysmemavail = probe_memory() / 1024;
-	int srmmu_nocache_npages;
+	int srmmu_analcache_npages;
 
-	srmmu_nocache_npages =
-		sysmemavail / SRMMU_NOCACHE_ALCRATIO / 1024 * 256;
+	srmmu_analcache_npages =
+		sysmemavail / SRMMU_ANALCACHE_ALCRATIO / 1024 * 256;
 
  /* P3 XXX The 4x overuse: corroborated by /proc/meminfo. */
-	// if (srmmu_nocache_npages < 256) srmmu_nocache_npages = 256;
-	if (srmmu_nocache_npages < SRMMU_MIN_NOCACHE_PAGES)
-		srmmu_nocache_npages = SRMMU_MIN_NOCACHE_PAGES;
+	// if (srmmu_analcache_npages < 256) srmmu_analcache_npages = 256;
+	if (srmmu_analcache_npages < SRMMU_MIN_ANALCACHE_PAGES)
+		srmmu_analcache_npages = SRMMU_MIN_ANALCACHE_PAGES;
 
 	/* anything above 1280 blows up */
-	if (srmmu_nocache_npages > SRMMU_MAX_NOCACHE_PAGES)
-		srmmu_nocache_npages = SRMMU_MAX_NOCACHE_PAGES;
+	if (srmmu_analcache_npages > SRMMU_MAX_ANALCACHE_PAGES)
+		srmmu_analcache_npages = SRMMU_MAX_ANALCACHE_PAGES;
 
-	srmmu_nocache_size = srmmu_nocache_npages * PAGE_SIZE;
-	srmmu_nocache_end = SRMMU_NOCACHE_VADDR + srmmu_nocache_size;
+	srmmu_analcache_size = srmmu_analcache_npages * PAGE_SIZE;
+	srmmu_analcache_end = SRMMU_ANALCACHE_VADDR + srmmu_analcache_size;
 }
 
-static void __init srmmu_nocache_init(void)
+static void __init srmmu_analcache_init(void)
 {
-	void *srmmu_nocache_bitmap;
+	void *srmmu_analcache_bitmap;
 	unsigned int bitmap_bits;
 	pgd_t *pgd;
 	p4d_t *p4d;
@@ -275,45 +275,45 @@ static void __init srmmu_nocache_init(void)
 	unsigned long paddr, vaddr;
 	unsigned long pteval;
 
-	bitmap_bits = srmmu_nocache_size >> SRMMU_NOCACHE_BITMAP_SHIFT;
+	bitmap_bits = srmmu_analcache_size >> SRMMU_ANALCACHE_BITMAP_SHIFT;
 
-	srmmu_nocache_pool = memblock_alloc(srmmu_nocache_size,
-					    SRMMU_NOCACHE_ALIGN_MAX);
-	if (!srmmu_nocache_pool)
+	srmmu_analcache_pool = memblock_alloc(srmmu_analcache_size,
+					    SRMMU_ANALCACHE_ALIGN_MAX);
+	if (!srmmu_analcache_pool)
 		panic("%s: Failed to allocate %lu bytes align=0x%x\n",
-		      __func__, srmmu_nocache_size, SRMMU_NOCACHE_ALIGN_MAX);
-	memset(srmmu_nocache_pool, 0, srmmu_nocache_size);
+		      __func__, srmmu_analcache_size, SRMMU_ANALCACHE_ALIGN_MAX);
+	memset(srmmu_analcache_pool, 0, srmmu_analcache_size);
 
-	srmmu_nocache_bitmap =
+	srmmu_analcache_bitmap =
 		memblock_alloc(BITS_TO_LONGS(bitmap_bits) * sizeof(long),
 			       SMP_CACHE_BYTES);
-	if (!srmmu_nocache_bitmap)
+	if (!srmmu_analcache_bitmap)
 		panic("%s: Failed to allocate %zu bytes\n", __func__,
 		      BITS_TO_LONGS(bitmap_bits) * sizeof(long));
-	bit_map_init(&srmmu_nocache_map, srmmu_nocache_bitmap, bitmap_bits);
+	bit_map_init(&srmmu_analcache_map, srmmu_analcache_bitmap, bitmap_bits);
 
-	srmmu_swapper_pg_dir = __srmmu_get_nocache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
-	memset(__nocache_fix(srmmu_swapper_pg_dir), 0, SRMMU_PGD_TABLE_SIZE);
+	srmmu_swapper_pg_dir = __srmmu_get_analcache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
+	memset(__analcache_fix(srmmu_swapper_pg_dir), 0, SRMMU_PGD_TABLE_SIZE);
 	init_mm.pgd = srmmu_swapper_pg_dir;
 
-	srmmu_early_allocate_ptable_skeleton(SRMMU_NOCACHE_VADDR, srmmu_nocache_end);
+	srmmu_early_allocate_ptable_skeleton(SRMMU_ANALCACHE_VADDR, srmmu_analcache_end);
 
-	paddr = __pa((unsigned long)srmmu_nocache_pool);
-	vaddr = SRMMU_NOCACHE_VADDR;
+	paddr = __pa((unsigned long)srmmu_analcache_pool);
+	vaddr = SRMMU_ANALCACHE_VADDR;
 
-	while (vaddr < srmmu_nocache_end) {
+	while (vaddr < srmmu_analcache_end) {
 		pgd = pgd_offset_k(vaddr);
 		p4d = p4d_offset(pgd, vaddr);
 		pud = pud_offset(p4d, vaddr);
-		pmd = pmd_offset(__nocache_fix(pud), vaddr);
-		pte = pte_offset_kernel(__nocache_fix(pmd), vaddr);
+		pmd = pmd_offset(__analcache_fix(pud), vaddr);
+		pte = pte_offset_kernel(__analcache_fix(pmd), vaddr);
 
 		pteval = ((paddr >> 4) | SRMMU_ET_PTE | SRMMU_PRIV);
 
 		if (srmmu_cache_pagetables)
 			pteval |= SRMMU_CACHE;
 
-		set_pte(__nocache_fix(pte), __pte(pteval));
+		set_pte(__analcache_fix(pte), __pte(pteval));
 
 		vaddr += PAGE_SIZE;
 		paddr += PAGE_SIZE;
@@ -327,7 +327,7 @@ pgd_t *get_pgd_fast(void)
 {
 	pgd_t *pgd = NULL;
 
-	pgd = __srmmu_get_nocache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
+	pgd = __srmmu_get_analcache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
 	if (pgd) {
 		pgd_t *init = pgd_offset_k(0);
 		memset(pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
@@ -344,7 +344,7 @@ pgd_t *get_pgd_fast(void)
  * XXX Provide actual fragmentation statistics in /proc.
  *
  * Alignments up to the page size are the same for physical and virtual
- * addresses of the nocache area.
+ * addresses of the analcache area.
  */
 pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
@@ -353,7 +353,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm)
 
 	if (!(ptep = pte_alloc_one_kernel(mm)))
 		return NULL;
-	page = pfn_to_page(__nocache_pa((unsigned long)ptep) >> PAGE_SHIFT);
+	page = pfn_to_page(__analcache_pa((unsigned long)ptep) >> PAGE_SHIFT);
 	spin_lock(&mm->page_table_lock);
 	if (page_ref_inc_return(page) == 2 &&
 			!pagetable_pte_ctor(page_ptdesc(page))) {
@@ -369,17 +369,17 @@ void pte_free(struct mm_struct *mm, pgtable_t ptep)
 {
 	struct page *page;
 
-	page = pfn_to_page(__nocache_pa((unsigned long)ptep) >> PAGE_SHIFT);
+	page = pfn_to_page(__analcache_pa((unsigned long)ptep) >> PAGE_SHIFT);
 	spin_lock(&mm->page_table_lock);
 	if (page_ref_dec_return(page) == 1)
 		pagetable_pte_dtor(page_ptdesc(page));
 	spin_unlock(&mm->page_table_lock);
 
-	srmmu_free_nocache(ptep, SRMMU_PTE_TABLE_SIZE);
+	srmmu_free_analcache(ptep, SRMMU_PTE_TABLE_SIZE);
 }
 
 /* context handling - a dynamically sized pool is used */
-#define NO_CONTEXT	-1
+#define ANAL_CONTEXT	-1
 
 struct ctx_list {
 	struct ctx_list *next;
@@ -432,7 +432,7 @@ static inline void alloc_context(struct mm_struct *old_mm, struct mm_struct *mm)
 	flush_tlb_mm(ctxp->ctx_mm);
 	remove_from_ctx_list(ctxp);
 	add_to_used_ctxlist(ctxp);
-	ctxp->ctx_mm->context = NO_CONTEXT;
+	ctxp->ctx_mm->context = ANAL_CONTEXT;
 	ctxp->ctx_mm = mm;
 	mm->context = ctxp->ctx_number;
 }
@@ -474,7 +474,7 @@ void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm,
 {
 	unsigned long flags;
 
-	if (mm->context == NO_CONTEXT) {
+	if (mm->context == ANAL_CONTEXT) {
 		spin_lock_irqsave(&srmmu_context_spinlock, flags);
 		alloc_context(old_mm, mm);
 		spin_unlock_irqrestore(&srmmu_context_spinlock, flags);
@@ -546,7 +546,7 @@ static inline void srmmu_unmapioaddr(unsigned long virt_addr)
 	pmdp = pmd_offset(pudp, virt_addr);
 	ptep = pte_offset_kernel(pmdp, virt_addr);
 
-	/* No need to flush uncacheable page. */
+	/* Anal need to flush uncacheable page. */
 	__pte_clear(ptep);
 }
 
@@ -665,7 +665,7 @@ extern void hypersparc_flush_tlb_page(struct vm_area_struct *vma, unsigned long 
 extern void hypersparc_setup_blockops(void);
 
 /*
- * NOTE: All of this startup code assumes the low 16mb (approx.) of
+ * ANALTE: All of this startup code assumes the low 16mb (approx.) of
  *       kernel mappings are done with one single contiguous chunk of
  *       ram.  On small ram machines (classics mainly) we only get
  *       around 8mb mapped for us.
@@ -673,7 +673,7 @@ extern void hypersparc_setup_blockops(void);
 
 static void __init early_pgtable_allocfail(char *type)
 {
-	prom_printf("inherit_prom_mappings: Cannot alloc kernel %s.\n", type);
+	prom_printf("inherit_prom_mappings: Cananalt alloc kernel %s.\n", type);
 	prom_halt();
 }
 
@@ -690,21 +690,21 @@ static void __init srmmu_early_allocate_ptable_skeleton(unsigned long start,
 		pgdp = pgd_offset_k(start);
 		p4dp = p4d_offset(pgdp, start);
 		pudp = pud_offset(p4dp, start);
-		if (pud_none(*__nocache_fix(pudp))) {
-			pmdp = __srmmu_get_nocache(
+		if (pud_analne(*__analcache_fix(pudp))) {
+			pmdp = __srmmu_get_analcache(
 			    SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
-			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
-			pud_set(__nocache_fix(pudp), pmdp);
+			memset(__analcache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
+			pud_set(__analcache_fix(pudp), pmdp);
 		}
-		pmdp = pmd_offset(__nocache_fix(pudp), start);
-		if (srmmu_pmd_none(*__nocache_fix(pmdp))) {
-			ptep = __srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
+		pmdp = pmd_offset(__analcache_fix(pudp), start);
+		if (srmmu_pmd_analne(*__analcache_fix(pmdp))) {
+			ptep = __srmmu_get_analcache(PTE_SIZE, PTE_SIZE);
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
-			memset(__nocache_fix(ptep), 0, PTE_SIZE);
-			pmd_set(__nocache_fix(pmdp), ptep);
+			memset(__analcache_fix(ptep), 0, PTE_SIZE);
+			pmd_set(__analcache_fix(pmdp), ptep);
 		}
 		if (start > (0xffffffffUL - PMD_SIZE))
 			break;
@@ -725,16 +725,16 @@ static void __init srmmu_allocate_ptable_skeleton(unsigned long start,
 		pgdp = pgd_offset_k(start);
 		p4dp = p4d_offset(pgdp, start);
 		pudp = pud_offset(p4dp, start);
-		if (pud_none(*pudp)) {
-			pmdp = __srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
+		if (pud_analne(*pudp)) {
+			pmdp = __srmmu_get_analcache(SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
 			memset(pmdp, 0, SRMMU_PMD_TABLE_SIZE);
 			pud_set((pud_t *)pgdp, pmdp);
 		}
 		pmdp = pmd_offset(pudp, start);
-		if (srmmu_pmd_none(*pmdp)) {
-			ptep = __srmmu_get_nocache(PTE_SIZE,
+		if (srmmu_pmd_analne(*pmdp)) {
+			ptep = __srmmu_get_analcache(PTE_SIZE,
 							     PTE_SIZE);
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
@@ -747,7 +747,7 @@ static void __init srmmu_allocate_ptable_skeleton(unsigned long start,
 	}
 }
 
-/* These flush types are not available on all chips... */
+/* These flush types are analt available on all chips... */
 static inline unsigned long srmmu_probe(unsigned long vaddr)
 {
 	unsigned long retval;
@@ -779,7 +779,7 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
-	int what; /* 0 = normal-pte, 1 = pmd-level pte, 2 = pgd-level pte */
+	int what; /* 0 = analrmal-pte, 1 = pmd-level pte, 2 = pgd-level pte */
 
 	while (start <= end) {
 		if (start == 0)
@@ -811,33 +811,33 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 		p4dp = p4d_offset(pgdp, start);
 		pudp = pud_offset(p4dp, start);
 		if (what == 2) {
-			*__nocache_fix(pgdp) = __pgd(probed);
+			*__analcache_fix(pgdp) = __pgd(probed);
 			start += PGDIR_SIZE;
 			continue;
 		}
-		if (pud_none(*__nocache_fix(pudp))) {
-			pmdp = __srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE,
+		if (pud_analne(*__analcache_fix(pudp))) {
+			pmdp = __srmmu_get_analcache(SRMMU_PMD_TABLE_SIZE,
 						   SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
-			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
-			pud_set(__nocache_fix(pudp), pmdp);
+			memset(__analcache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
+			pud_set(__analcache_fix(pudp), pmdp);
 		}
-		pmdp = pmd_offset(__nocache_fix(pudp), start);
+		pmdp = pmd_offset(__analcache_fix(pudp), start);
 		if (what == 1) {
-			*(pmd_t *)__nocache_fix(pmdp) = __pmd(probed);
+			*(pmd_t *)__analcache_fix(pmdp) = __pmd(probed);
 			start += PMD_SIZE;
 			continue;
 		}
-		if (srmmu_pmd_none(*__nocache_fix(pmdp))) {
-			ptep = __srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
+		if (srmmu_pmd_analne(*__analcache_fix(pmdp))) {
+			ptep = __srmmu_get_analcache(PTE_SIZE, PTE_SIZE);
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
-			memset(__nocache_fix(ptep), 0, PTE_SIZE);
-			pmd_set(__nocache_fix(pmdp), ptep);
+			memset(__analcache_fix(ptep), 0, PTE_SIZE);
+			pmd_set(__analcache_fix(pmdp), ptep);
 		}
-		ptep = pte_offset_kernel(__nocache_fix(pmdp), start);
-		*__nocache_fix(ptep) = __pte(probed);
+		ptep = pte_offset_kernel(__analcache_fix(pmdp), start);
+		*__analcache_fix(ptep) = __pte(probed);
 		start += PAGE_SIZE;
 	}
 }
@@ -851,7 +851,7 @@ static void __init do_large_mapping(unsigned long vaddr, unsigned long phys_base
 	unsigned long big_pte;
 
 	big_pte = KERNEL_PTE(phys_base >> 4);
-	*__nocache_fix(pgdp) = __pgd(big_pte);
+	*__analcache_fix(pgdp) = __pgd(big_pte);
 }
 
 /* Map sp_bank entry SP_ENTRY, starting at virtual address VBASE. */
@@ -895,8 +895,8 @@ void (*poke_srmmu)(void) = NULL;
 void __init srmmu_paging_init(void)
 {
 	int i;
-	phandle cpunode;
-	char node_str[128];
+	phandle cpuanalde;
+	char analde_str[128];
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
@@ -904,44 +904,44 @@ void __init srmmu_paging_init(void)
 	pte_t *pte;
 	unsigned long pages_avail;
 
-	init_mm.context = (unsigned long) NO_CONTEXT;
+	init_mm.context = (unsigned long) ANAL_CONTEXT;
 	sparc_iomap.start = SUN4M_IOBASE_VADDR;	/* 16MB of IOSPACE on all sun4m's. */
 
 	if (sparc_cpu_model == sun4d)
-		num_contexts = 65536; /* We know it is Viking */
+		num_contexts = 65536; /* We kanalw it is Viking */
 	else {
 		/* Find the number of contexts on the srmmu. */
-		cpunode = prom_getchild(prom_root_node);
+		cpuanalde = prom_getchild(prom_root_analde);
 		num_contexts = 0;
-		while (cpunode != 0) {
-			prom_getstring(cpunode, "device_type", node_str, sizeof(node_str));
-			if (!strcmp(node_str, "cpu")) {
-				num_contexts = prom_getintdefault(cpunode, "mmu-nctx", 0x8);
+		while (cpuanalde != 0) {
+			prom_getstring(cpuanalde, "device_type", analde_str, sizeof(analde_str));
+			if (!strcmp(analde_str, "cpu")) {
+				num_contexts = prom_getintdefault(cpuanalde, "mmu-nctx", 0x8);
 				break;
 			}
-			cpunode = prom_getsibling(cpunode);
+			cpuanalde = prom_getsibling(cpuanalde);
 		}
 	}
 
 	if (!num_contexts) {
-		prom_printf("Something wrong, can't find cpu node in paging_init.\n");
+		prom_printf("Something wrong, can't find cpu analde in paging_init.\n");
 		prom_halt();
 	}
 
 	pages_avail = 0;
 	last_valid_pfn = bootmem_init(&pages_avail);
 
-	srmmu_nocache_calcsize();
-	srmmu_nocache_init();
+	srmmu_analcache_calcsize();
+	srmmu_analcache_init();
 	srmmu_inherit_prom_mappings(0xfe400000, (LINUX_OPPROM_ENDVM - PAGE_SIZE));
 	map_kernel();
 
 	/* ctx table has to be physically aligned to its size */
-	srmmu_context_table = __srmmu_get_nocache(num_contexts * sizeof(ctxd_t), num_contexts * sizeof(ctxd_t));
-	srmmu_ctx_table_phys = (ctxd_t *)__nocache_pa(srmmu_context_table);
+	srmmu_context_table = __srmmu_get_analcache(num_contexts * sizeof(ctxd_t), num_contexts * sizeof(ctxd_t));
+	srmmu_ctx_table_phys = (ctxd_t *)__analcache_pa(srmmu_context_table);
 
 	for (i = 0; i < num_contexts; i++)
-		srmmu_ctxd_set(__nocache_fix(&srmmu_context_table[i]), srmmu_swapper_pg_dir);
+		srmmu_ctxd_set(__analcache_fix(&srmmu_context_table[i]), srmmu_swapper_pg_dir);
 
 	flush_cache_all();
 	srmmu_set_ctable_ptr((unsigned long)srmmu_ctx_table_phys);
@@ -976,7 +976,7 @@ void __init srmmu_paging_init(void)
 		unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
 
 		max_zone_pfn[ZONE_DMA] = max_low_pfn;
-		max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
+		max_zone_pfn[ZONE_ANALRMAL] = max_low_pfn;
 		max_zone_pfn[ZONE_HIGHMEM] = highend_pfn;
 
 		free_area_init(max_zone_pfn);
@@ -988,17 +988,17 @@ void mmu_info(struct seq_file *m)
 	seq_printf(m,
 		   "MMU type\t: %s\n"
 		   "contexts\t: %d\n"
-		   "nocache total\t: %ld\n"
-		   "nocache used\t: %d\n",
+		   "analcache total\t: %ld\n"
+		   "analcache used\t: %d\n",
 		   srmmu_name,
 		   num_contexts,
-		   srmmu_nocache_size,
-		   srmmu_nocache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
+		   srmmu_analcache_size,
+		   srmmu_analcache_map.used << SRMMU_ANALCACHE_BITMAP_SHIFT);
 }
 
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
-	mm->context = NO_CONTEXT;
+	mm->context = ANAL_CONTEXT;
 	return 0;
 }
 
@@ -1006,21 +1006,21 @@ void destroy_context(struct mm_struct *mm)
 {
 	unsigned long flags;
 
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context != ANAL_CONTEXT) {
 		flush_cache_mm(mm);
 		srmmu_ctxd_set(&srmmu_context_table[mm->context], srmmu_swapper_pg_dir);
 		flush_tlb_mm(mm);
 		spin_lock_irqsave(&srmmu_context_spinlock, flags);
 		free_context(mm->context);
 		spin_unlock_irqrestore(&srmmu_context_spinlock, flags);
-		mm->context = NO_CONTEXT;
+		mm->context = ANAL_CONTEXT;
 	}
 }
 
 /* Init various srmmu chip types. */
 static void __init srmmu_is_bad(void)
 {
-	prom_printf("Could not determine SRMMU chip type.\n");
+	prom_printf("Could analt determine SRMMU chip type.\n");
 	prom_halt();
 }
 
@@ -1028,17 +1028,17 @@ static void __init init_vac_layout(void)
 {
 	phandle nd;
 	int cache_lines;
-	char node_str[128];
+	char analde_str[128];
 #ifdef CONFIG_SMP
 	int cpu = 0;
 	unsigned long max_size = 0;
 	unsigned long min_line_size = 0x10000000;
 #endif
 
-	nd = prom_getchild(prom_root_node);
+	nd = prom_getchild(prom_root_analde);
 	while ((nd = prom_getsibling(nd)) != 0) {
-		prom_getstring(nd, "device_type", node_str, sizeof(node_str));
-		if (!strcmp(node_str, "cpu")) {
+		prom_getstring(nd, "device_type", analde_str, sizeof(analde_str));
+		if (!strcmp(analde_str, "cpu")) {
 			vac_line_size = prom_getint(nd, "cache-line-size");
 			if (vac_line_size == -1) {
 				prom_printf("can't determine cache-line-size, halting.\n");
@@ -1056,7 +1056,7 @@ static void __init init_vac_layout(void)
 				max_size = vac_cache_size;
 			if (vac_line_size < min_line_size)
 				min_line_size = vac_line_size;
-			//FIXME: cpus not contiguous!!
+			//FIXME: cpus analt contiguous!!
 			cpu++;
 			if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 				break;
@@ -1066,7 +1066,7 @@ static void __init init_vac_layout(void)
 		}
 	}
 	if (nd == 0) {
-		prom_printf("No CPU nodes found, halting.\n");
+		prom_printf("Anal CPU analdes found, halting.\n");
 		prom_halt();
 	}
 #ifdef CONFIG_SMP
@@ -1193,7 +1193,7 @@ static void __init init_swift(void)
 		 * the ACC bits in kernel ptes).  Aha, sounds pretty
 		 * horrible eh?  But wait, after extensive testing it appears
 		 * that if you use pgd_t level large kernel pte's (like the
-		 * 4MB pages on the Pentium) the bug does not get tripped
+		 * 4MB pages on the Pentium) the bug does analt get tripped
 		 * at all.  This avoids almost all of the major overhead.
 		 * Welcome to a world where your vendor tells you to,
 		 * "apply this kernel patch" instead of "sorry for the
@@ -1220,7 +1220,7 @@ static void __init init_swift(void)
 	flush_page_for_dma_global = 0;
 
 	/*
-	 * Are you now convinced that the Swift is one of the
+	 * Are you analw convinced that the Swift is one of the
 	 * biggest VLSI abortions of all time?  Bravo Fujitsu!
 	 * Fujitsu, the !#?!%$'d up processor people.  I bet if
 	 * you examined the microcode of the Swift you'd find
@@ -1261,7 +1261,7 @@ static void turbosparc_flush_cache_page(struct vm_area_struct *vma, unsigned lon
 	FLUSH_END
 }
 
-/* TurboSparc is copy-back, if we turn it on, but this does not work. */
+/* TurboSparc is copy-back, if we turn it on, but this does analt work. */
 static void turbosparc_flush_page_to_ram(unsigned long page)
 {
 #ifdef TURBOSPARC_WRITEBACK
@@ -1324,20 +1324,20 @@ static void poke_turbosparc(void)
 	ccreg = turbosparc_get_ccreg();
 
 #ifdef TURBOSPARC_WRITEBACK
-	ccreg |= (TURBOSPARC_SNENABLE);		/* Do DVMA snooping in Dcache */
+	ccreg |= (TURBOSPARC_SNENABLE);		/* Do DVMA sanaloping in Dcache */
 	ccreg &= ~(TURBOSPARC_uS2 | TURBOSPARC_WTENABLE);
 			/* Write-back D-cache, emulate VLSI
-			 * abortion number three, not number one */
+			 * abortion number three, analt number one */
 #else
-	/* For now let's play safe, optimize later */
+	/* For analw let's play safe, optimize later */
 	ccreg |= (TURBOSPARC_SNENABLE | TURBOSPARC_WTENABLE);
-			/* Do DVMA snooping in Dcache, Write-thru D-cache */
+			/* Do DVMA sanaloping in Dcache, Write-thru D-cache */
 	ccreg &= ~(TURBOSPARC_uS2);
-			/* Emulate VLSI abortion number three, not number one */
+			/* Emulate VLSI abortion number three, analt number one */
 #endif
 
 	switch (ccreg & 7) {
-	case 0: /* No SE cache */
+	case 0: /* Anal SE cache */
 	case 7: /* Test mode */
 		break;
 	default:
@@ -1346,7 +1346,7 @@ static void poke_turbosparc(void)
 	turbosparc_set_ccreg(ccreg);
 
 	mreg |= (TURBOSPARC_ICENABLE | TURBOSPARC_DCENABLE); /* I & D caches on */
-	mreg |= (TURBOSPARC_ICSNOOP);		/* Icache snooping on */
+	mreg |= (TURBOSPARC_ICSANALOP);		/* Icache sanaloping on */
 	srmmu_set_mmureg(mreg);
 }
 
@@ -1484,7 +1484,7 @@ static struct sparc32_cachetlb_ops viking_ops __ro_after_init = {
  * which guarentees we won't ever have too many pending.  It's a big
  * hammer, but a semaphore like system to make sure we only have N TLB
  * flushes going at once will require SMP locking anyways so there's
- * no real value in trying any harder than this.
+ * anal real value in trying any harder than this.
  */
 static struct sparc32_cachetlb_ops viking_sun4d_smp_ops __ro_after_init = {
 	.cache_all	= viking_flush_cache_all,
@@ -1512,9 +1512,9 @@ static void __init init_viking(void)
 		msi_set_sync();
 
 		/*
-		 * We need this to make sure old viking takes no hits
-		 * on it's cache for dma snoops to workaround the
-		 * "load from non-cacheable memory" interrupt bug.
+		 * We need this to make sure old viking takes anal hits
+		 * on it's cache for dma sanalops to workaround the
+		 * "load from analn-cacheable memory" interrupt bug.
 		 * This is only necessary because of the new way in
 		 * which we use the IOMMU.
 		 */
@@ -1577,14 +1577,14 @@ static void __init get_srmmu_type(void)
 		case 14:
 		case 15:
 		default:
-			prom_printf("Sparc-Linux Cypress support does not longer exit.\n");
+			prom_printf("Sparc-Linux Cypress support does analt longer exit.\n");
 			prom_halt();
 			break;
 		}
 		return;
 	}
 
-	/* Now Fujitsu TurboSparc. It might happen that it is
+	/* Analw Fujitsu TurboSparc. It might happen that it is
 	 * in Swift emulation mode, so we will check later...
 	 */
 	if (psr_typ == 0 && psr_vers == 5) {
@@ -1594,16 +1594,16 @@ static void __init get_srmmu_type(void)
 
 	/* Next check for Fujitsu Swift. */
 	if (psr_typ == 0 && psr_vers == 4) {
-		phandle cpunode;
-		char node_str[128];
+		phandle cpuanalde;
+		char analde_str[128];
 
-		/* Look if it is not a TurboSparc emulating Swift... */
-		cpunode = prom_getchild(prom_root_node);
-		while ((cpunode = prom_getsibling(cpunode)) != 0) {
-			prom_getstring(cpunode, "device_type", node_str, sizeof(node_str));
-			if (!strcmp(node_str, "cpu")) {
-				if (!prom_getintdefault(cpunode, "psr-implementation", 1) &&
-				    prom_getintdefault(cpunode, "psr-version", 1) == 5) {
+		/* Look if it is analt a TurboSparc emulating Swift... */
+		cpuanalde = prom_getchild(prom_root_analde);
+		while ((cpuanalde = prom_getsibling(cpuanalde)) != 0) {
+			prom_getstring(cpuanalde, "device_type", analde_str, sizeof(analde_str));
+			if (!strcmp(analde_str, "cpu")) {
+				if (!prom_getintdefault(cpuanalde, "psr-implementation", 1) &&
+				    prom_getintdefault(cpuanalde, "psr-version", 1) == 5) {
 					init_turbosparc();
 					return;
 				}
@@ -1615,7 +1615,7 @@ static void __init get_srmmu_type(void)
 		return;
 	}
 
-	/* Now the Viking family of srmmu. */
+	/* Analw the Viking family of srmmu. */
 	if (psr_typ == 4 &&
 	   ((psr_vers == 0) ||
 	    ((psr_vers == 1) && (mod_typ == 0) && (mod_rev == 0)))) {
@@ -1655,7 +1655,7 @@ static void smp_flush_tlb_all(void)
 
 static void smp_flush_cache_mm(struct mm_struct *mm)
 {
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context != ANAL_CONTEXT) {
 		cpumask_t cpu_mask;
 		cpumask_copy(&cpu_mask, mm_cpumask(mm));
 		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
@@ -1667,7 +1667,7 @@ static void smp_flush_cache_mm(struct mm_struct *mm)
 
 static void smp_flush_tlb_mm(struct mm_struct *mm)
 {
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context != ANAL_CONTEXT) {
 		cpumask_t cpu_mask;
 		cpumask_copy(&cpu_mask, mm_cpumask(mm));
 		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
@@ -1687,7 +1687,7 @@ static void smp_flush_cache_range(struct vm_area_struct *vma,
 {
 	struct mm_struct *mm = vma->vm_mm;
 
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context != ANAL_CONTEXT) {
 		cpumask_t cpu_mask;
 		cpumask_copy(&cpu_mask, mm_cpumask(mm));
 		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
@@ -1704,7 +1704,7 @@ static void smp_flush_tlb_range(struct vm_area_struct *vma,
 {
 	struct mm_struct *mm = vma->vm_mm;
 
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context != ANAL_CONTEXT) {
 		cpumask_t cpu_mask;
 		cpumask_copy(&cpu_mask, mm_cpumask(mm));
 		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
@@ -1719,7 +1719,7 @@ static void smp_flush_cache_page(struct vm_area_struct *vma, unsigned long page)
 {
 	struct mm_struct *mm = vma->vm_mm;
 
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context != ANAL_CONTEXT) {
 		cpumask_t cpu_mask;
 		cpumask_copy(&cpu_mask, mm_cpumask(mm));
 		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
@@ -1733,7 +1733,7 @@ static void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
 	struct mm_struct *mm = vma->vm_mm;
 
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context != ANAL_CONTEXT) {
 		cpumask_t cpu_mask;
 		cpumask_copy(&cpu_mask, mm_cpumask(mm));
 		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);

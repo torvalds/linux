@@ -19,7 +19,7 @@
 
 #include "i2c-core.h"
 
-int of_i2c_get_board_info(struct device *dev, struct device_node *node,
+int of_i2c_get_board_info(struct device *dev, struct device_analde *analde,
 			  struct i2c_board_info *info)
 {
 	u32 addr;
@@ -27,14 +27,14 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 
 	memset(info, 0, sizeof(*info));
 
-	if (of_alias_from_compatible(node, info->type, sizeof(info->type)) < 0) {
-		dev_err(dev, "of_i2c: modalias failure on %pOF\n", node);
+	if (of_alias_from_compatible(analde, info->type, sizeof(info->type)) < 0) {
+		dev_err(dev, "of_i2c: modalias failure on %pOF\n", analde);
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(node, "reg", &addr);
+	ret = of_property_read_u32(analde, "reg", &addr);
 	if (ret) {
-		dev_err(dev, "of_i2c: invalid reg on %pOF\n", node);
+		dev_err(dev, "of_i2c: invalid reg on %pOF\n", analde);
 		return ret;
 	}
 
@@ -49,13 +49,13 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 	}
 
 	info->addr = addr;
-	info->of_node = node;
-	info->fwnode = of_fwnode_handle(node);
+	info->of_analde = analde;
+	info->fwanalde = of_fwanalde_handle(analde);
 
-	if (of_property_read_bool(node, "host-notify"))
-		info->flags |= I2C_CLIENT_HOST_NOTIFY;
+	if (of_property_read_bool(analde, "host-analtify"))
+		info->flags |= I2C_CLIENT_HOST_ANALTIFY;
 
-	if (of_property_read_bool(node, "wakeup-source"))
+	if (of_property_read_bool(analde, "wakeup-source"))
 		info->flags |= I2C_CLIENT_WAKE;
 
 	return 0;
@@ -63,54 +63,54 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 EXPORT_SYMBOL_GPL(of_i2c_get_board_info);
 
 static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
-						 struct device_node *node)
+						 struct device_analde *analde)
 {
 	struct i2c_client *client;
 	struct i2c_board_info info;
 	int ret;
 
-	dev_dbg(&adap->dev, "of_i2c: register %pOF\n", node);
+	dev_dbg(&adap->dev, "of_i2c: register %pOF\n", analde);
 
-	ret = of_i2c_get_board_info(&adap->dev, node, &info);
+	ret = of_i2c_get_board_info(&adap->dev, analde, &info);
 	if (ret)
 		return ERR_PTR(ret);
 
 	client = i2c_new_client_device(adap, &info);
 	if (IS_ERR(client))
-		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", node);
+		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", analde);
 
 	return client;
 }
 
 void of_i2c_register_devices(struct i2c_adapter *adap)
 {
-	struct device_node *bus, *node;
+	struct device_analde *bus, *analde;
 	struct i2c_client *client;
 
-	/* Only register child devices if the adapter has a node pointer set */
-	if (!adap->dev.of_node)
+	/* Only register child devices if the adapter has a analde pointer set */
+	if (!adap->dev.of_analde)
 		return;
 
-	dev_dbg(&adap->dev, "of_i2c: walking child nodes\n");
+	dev_dbg(&adap->dev, "of_i2c: walking child analdes\n");
 
-	bus = of_get_child_by_name(adap->dev.of_node, "i2c-bus");
+	bus = of_get_child_by_name(adap->dev.of_analde, "i2c-bus");
 	if (!bus)
-		bus = of_node_get(adap->dev.of_node);
+		bus = of_analde_get(adap->dev.of_analde);
 
-	for_each_available_child_of_node(bus, node) {
-		if (of_node_test_and_set_flag(node, OF_POPULATED))
+	for_each_available_child_of_analde(bus, analde) {
+		if (of_analde_test_and_set_flag(analde, OF_POPULATED))
 			continue;
 
-		client = of_i2c_register_device(adap, node);
+		client = of_i2c_register_device(adap, analde);
 		if (IS_ERR(client)) {
 			dev_err(&adap->dev,
 				 "Failed to create I2C device for %pOF\n",
-				 node);
-			of_node_clear_flag(node, OF_POPULATED);
+				 analde);
+			of_analde_clear_flag(analde, OF_POPULATED);
 		}
 	}
 
-	of_node_put(bus);
+	of_analde_put(bus);
 }
 
 static const struct of_device_id*
@@ -123,8 +123,8 @@ i2c_of_match_device_sysfs(const struct of_device_id *matches,
 		/*
 		 * Adding devices through the i2c sysfs interface provides us
 		 * a string to match which may be compatible with the device
-		 * tree compatible strings, however with no actual of_node the
-		 * of_match_device() will not match
+		 * tree compatible strings, however with anal actual of_analde the
+		 * of_match_device() will analt match
 		 */
 		if (sysfs_streq(client->name, matches->compatible))
 			return matches;
@@ -160,7 +160,7 @@ const struct of_device_id
 EXPORT_SYMBOL_GPL(i2c_of_match_device);
 
 #if IS_ENABLED(CONFIG_OF_DYNAMIC)
-static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
+static int of_i2c_analtify(struct analtifier_block *nb, unsigned long action,
 			 void *arg)
 {
 	struct of_reconfig_data *rd = arg;
@@ -169,39 +169,39 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 
 	switch (of_reconfig_get_state_change(action, rd)) {
 	case OF_RECONFIG_CHANGE_ADD:
-		adap = of_find_i2c_adapter_by_node(rd->dn->parent);
+		adap = of_find_i2c_adapter_by_analde(rd->dn->parent);
 		if (adap == NULL)
-			return NOTIFY_OK;	/* not for us */
+			return ANALTIFY_OK;	/* analt for us */
 
-		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED)) {
+		if (of_analde_test_and_set_flag(rd->dn, OF_POPULATED)) {
 			put_device(&adap->dev);
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 		}
 
 		/*
 		 * Clear the flag before adding the device so that fw_devlink
 		 * doesn't skip adding consumers to this device.
 		 */
-		rd->dn->fwnode.flags &= ~FWNODE_FLAG_NOT_DEVICE;
+		rd->dn->fwanalde.flags &= ~FWANALDE_FLAG_ANALT_DEVICE;
 		client = of_i2c_register_device(adap, rd->dn);
 		if (IS_ERR(client)) {
 			dev_err(&adap->dev, "failed to create client for '%pOF'\n",
 				 rd->dn);
 			put_device(&adap->dev);
-			of_node_clear_flag(rd->dn, OF_POPULATED);
-			return notifier_from_errno(PTR_ERR(client));
+			of_analde_clear_flag(rd->dn, OF_POPULATED);
+			return analtifier_from_erranal(PTR_ERR(client));
 		}
 		put_device(&adap->dev);
 		break;
 	case OF_RECONFIG_CHANGE_REMOVE:
 		/* already depopulated? */
-		if (!of_node_check_flag(rd->dn, OF_POPULATED))
-			return NOTIFY_OK;
+		if (!of_analde_check_flag(rd->dn, OF_POPULATED))
+			return ANALTIFY_OK;
 
-		/* find our device by node */
-		client = of_find_i2c_device_by_node(rd->dn);
+		/* find our device by analde */
+		client = of_find_i2c_device_by_analde(rd->dn);
 		if (client == NULL)
-			return NOTIFY_OK;	/* no? not meant for us */
+			return ANALTIFY_OK;	/* anal? analt meant for us */
 
 		/* unregister takes one ref away */
 		i2c_unregister_device(client);
@@ -211,10 +211,10 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-struct notifier_block i2c_of_notifier = {
-	.notifier_call = of_i2c_notify,
+struct analtifier_block i2c_of_analtifier = {
+	.analtifier_call = of_i2c_analtify,
 };
 #endif /* CONFIG_OF_DYNAMIC */

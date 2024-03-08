@@ -32,7 +32,7 @@ static int nft_last_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	last = kzalloc(sizeof(*last), GFP_KERNEL_ACCOUNT);
 	if (!last)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (tb[NFTA_LAST_SET])
 		last->set = ntohl(nla_get_be32(tb[NFTA_LAST_SET]));
@@ -109,7 +109,7 @@ static int nft_last_clone(struct nft_expr *dst, const struct nft_expr *src)
 
 	priv_dst->last = kzalloc(sizeof(*priv_dst->last), GFP_ATOMIC);
 	if (!priv_dst->last)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv_dst->last->set = priv_src->last->set;
 	priv_dst->last->jiffies = priv_src->last->jiffies;

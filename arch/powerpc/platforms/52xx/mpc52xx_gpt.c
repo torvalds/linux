@@ -2,7 +2,7 @@
 /*
  * MPC5200 General Purpose Timer device driver
  *
- * Copyright (c) 2009 Secret Lab Technologies Ltd.
+ * Copyright (c) 2009 Secret Lab Techanallogies Ltd.
  * Copyright (c) 2008 Sascha Hauer <s.hauer@pengutronix.de>, Pengutronix
  *
  * This file is a driver for the General Purpose Timer (gpt) devices
@@ -12,17 +12,17 @@
  * output signals or measure input signals.
  *
  * This driver supports the GPIO and IRQ controller functions of the GPT
- * device.  Timer functions are not yet supported.
+ * device.  Timer functions are analt yet supported.
  *
  * The timer gpt0 can be used as watchdog (wdt).  If the wdt mode is used,
  * this prevents the use of any gpt0 gpt function (i.e. they will fail with
  * -EBUSY).  Thus, the safety wdt function always has precedence over the gpt
- * function.  If the kernel has been compiled with CONFIG_WATCHDOG_NOWAYOUT,
+ * function.  If the kernel has been compiled with CONFIG_WATCHDOG_ANALWAYOUT,
  * this means that gpt0 is locked in wdt mode until the next reboot - this
  * may be a requirement in safety applications.
  *
  * To use the GPIO function, the following two properties must be added
- * to the device tree node for the gpt device (typically in the .dts file
+ * to the device tree analde for the gpt device (typically in the .dts file
  * for the board):
  * 	gpio-controller;
  * 	#gpio-cells = < 2 >;
@@ -30,22 +30,22 @@
  * property in the device tree.
  *
  * To use the IRQ controller function, the following two properties must
- * be added to the device tree node for the gpt device:
+ * be added to the device tree analde for the gpt device:
  * 	interrupt-controller;
  * 	#interrupt-cells = < 1 >;
  * The IRQ controller binding only uses one cell to specify the interrupt,
- * and the IRQ flags are encoded in the cell.  A cell is not used to encode
+ * and the IRQ flags are encoded in the cell.  A cell is analt used to encode
  * the IRQ number because the GPT only has a single IRQ source.  For flags,
  * a value of '1' means rising edge sensitive and '2' means falling edge.
  *
  * The GPIO and the IRQ controller functions can be used at the same time,
  * but in this use case the IO line will only work as an input.  Trying to
- * use it as a GPIO output will not work.
+ * use it as a GPIO output will analt work.
  *
- * When using the GPIO line as an output, it can either be driven as normal
+ * When using the GPIO line as an output, it can either be driven as analrmal
  * IO, or it can be an Open Collector (OC) output.  At the moment it is the
  * responsibility of either the bootloader or the platform setup code to set
- * the output mode.  This driver does not change the output mode setting.
+ * the output mode.  This driver does analt change the output mode setting.
  */
 
 #include <linux/irq.h>
@@ -211,7 +211,7 @@ static int mpc52xx_gpt_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int mpc52xx_gpt_irq_xlate(struct irq_domain *h, struct device_node *ct,
+static int mpc52xx_gpt_irq_xlate(struct irq_domain *h, struct device_analde *ct,
 				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_flags)
@@ -237,17 +237,17 @@ static const struct irq_domain_ops mpc52xx_gpt_irq_ops = {
 };
 
 static void
-mpc52xx_gpt_irq_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
+mpc52xx_gpt_irq_setup(struct mpc52xx_gpt_priv *gpt, struct device_analde *analde)
 {
 	int cascade_virq;
 	unsigned long flags;
 	u32 mode;
 
-	cascade_virq = irq_of_parse_and_map(node, 0);
+	cascade_virq = irq_of_parse_and_map(analde, 0);
 	if (!cascade_virq)
 		return;
 
-	gpt->irqhost = irq_domain_add_linear(node, 1, &mpc52xx_gpt_irq_ops, gpt);
+	gpt->irqhost = irq_domain_add_linear(analde, 1, &mpc52xx_gpt_irq_ops, gpt);
 	if (!gpt->irqhost) {
 		dev_err(gpt->dev, "irq_domain_add_linear() failed\n");
 		return;
@@ -257,7 +257,7 @@ mpc52xx_gpt_irq_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 	irq_set_chained_handler(cascade_virq, mpc52xx_gpt_irq_cascade);
 
 	/* If the GPT is currently disabled, then change it to be in Input
-	 * Capture mode.  If the mode is non-zero, then the pin could be
+	 * Capture mode.  If the mode is analn-zero, then the pin could be
 	 * already in use for something. */
 	raw_spin_lock_irqsave(&gpt->lock, flags);
 	mode = in_be32(&gpt->regs->mode);
@@ -324,7 +324,7 @@ static void mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt)
 	if (!device_property_present(gpt->dev, "gpio-controller"))
 		return;
 
-	gpt->gc.label = kasprintf(GFP_KERNEL, "%pfw", dev_fwnode(gpt->dev));
+	gpt->gc.label = kasprintf(GFP_KERNEL, "%pfw", dev_fwanalde(gpt->dev));
 	if (!gpt->gc.label) {
 		dev_err(gpt->dev, "out of memory\n");
 		return;
@@ -403,7 +403,7 @@ static int mpc52xx_gpt_do_start(struct mpc52xx_gpt_priv *gpt, u64 period,
 	clocks = period * (u64)gpt->ipb_freq;
 	do_div(clocks, 1000000000); /* Scale it down to ns range */
 
-	/* This device cannot handle a clock count greater than 32 bits */
+	/* This device cananalt handle a clock count greater than 32 bits */
 	if (clocks > 0xffffffff)
 		return -EINVAL;
 
@@ -414,11 +414,11 @@ static int mpc52xx_gpt_do_start(struct mpc52xx_gpt_priv *gpt, u64 period,
 	 * down 16 bits) to obtain the smallest possible divisor for clocks
 	 * to get a 16 bit count value.
 	 *
-	 * Note: the prescale register is '1' based, not '0' based.  ie. a
+	 * Analte: the prescale register is '1' based, analt '0' based.  ie. a
 	 * value of '1' means divide the clock by one.  0xffff divides the
-	 * clock by 0xffff.  '0x0000' does not divide by zero, but wraps
+	 * clock by 0xffff.  '0x0000' does analt divide by zero, but wraps
 	 * around and divides by 0x10000.  That is why prescale must be
-	 * a u32 variable, not a u16, for this calculation. */
+	 * a u32 variable, analt a u16, for this calculation. */
 	prescale = (clocks >> 16) + 1;
 	do_div(clocks, prescale);
 	if (clocks > 0xffff) {
@@ -513,7 +513,7 @@ EXPORT_SYMBOL(mpc52xx_gpt_timer_period);
 
 #define WDT_IDENTITY	    "mpc52xx watchdog on GPT0"
 
-/* wdt_is_active stores whether or not the /dev/watchdog device is opened */
+/* wdt_is_active stores whether or analt the /dev/watchdog device is opened */
 static unsigned long wdt_is_active;
 
 /* wdt-capable gpt */
@@ -595,18 +595,18 @@ static long mpc52xx_wdt_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 	}
 	return ret;
 }
 
-static int mpc52xx_wdt_open(struct inode *inode, struct file *file)
+static int mpc52xx_wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 
 	/* sanity check */
 	if (!mpc52xx_gpt_wdt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* /dev/watchdog can only be opened once */
 	if (test_and_set_bit(0, &wdt_is_active))
@@ -621,13 +621,13 @@ static int mpc52xx_wdt_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = mpc52xx_gpt_wdt;
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int mpc52xx_wdt_release(struct inode *inode, struct file *file)
+static int mpc52xx_wdt_release(struct ianalde *ianalde, struct file *file)
 {
-	/* note: releasing the wdt in NOWAYOUT-mode does not stop it */
-#if !defined(CONFIG_WATCHDOG_NOWAYOUT)
+	/* analte: releasing the wdt in ANALWAYOUT-mode does analt stop it */
+#if !defined(CONFIG_WATCHDOG_ANALWAYOUT)
 	struct mpc52xx_gpt_priv *gpt_wdt = file->private_data;
 	unsigned long flags;
 
@@ -644,7 +644,7 @@ static int mpc52xx_wdt_release(struct inode *inode, struct file *file)
 
 static const struct file_operations mpc52xx_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= mpc52xx_wdt_write,
 	.unlocked_ioctl = mpc52xx_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -653,7 +653,7 @@ static const struct file_operations mpc52xx_wdt_fops = {
 };
 
 static struct miscdevice mpc52xx_wdt_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.mianalr		= WATCHDOG_MIANALR,
 	.name		= "watchdog",
 	.fops		= &mpc52xx_wdt_fops,
 };
@@ -665,7 +665,7 @@ static int mpc52xx_gpt_wdt_init(void)
 	/* try to register the watchdog misc device */
 	err = misc_register(&mpc52xx_wdt_miscdev);
 	if (err)
-		pr_err("%s: cannot register watchdog device\n", WDT_IDENTITY);
+		pr_err("%s: cananalt register watchdog device\n", WDT_IDENTITY);
 	else
 		pr_info("%s: watchdog device registered\n", WDT_IDENTITY);
 	return err;
@@ -715,31 +715,31 @@ static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 
 	gpt = devm_kzalloc(&ofdev->dev, sizeof *gpt, GFP_KERNEL);
 	if (!gpt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_init(&gpt->lock);
 	gpt->dev = &ofdev->dev;
 	gpt->ipb_freq = mpc5xxx_get_bus_frequency(&ofdev->dev);
-	gpt->regs = of_iomap(ofdev->dev.of_node, 0);
+	gpt->regs = of_iomap(ofdev->dev.of_analde, 0);
 	if (!gpt->regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&ofdev->dev, gpt);
 
 	mpc52xx_gpt_gpio_setup(gpt);
-	mpc52xx_gpt_irq_setup(gpt, ofdev->dev.of_node);
+	mpc52xx_gpt_irq_setup(gpt, ofdev->dev.of_analde);
 
 	mutex_lock(&mpc52xx_gpt_list_mutex);
 	list_add(&gpt->list, &mpc52xx_gpt_list);
 	mutex_unlock(&mpc52xx_gpt_list_mutex);
 
 	/* check if this device could be a watchdog */
-	if (of_property_read_bool(ofdev->dev.of_node, "fsl,has-wdt") ||
-	    of_property_read_bool(ofdev->dev.of_node, "has-wdt")) {
+	if (of_property_read_bool(ofdev->dev.of_analde, "fsl,has-wdt") ||
+	    of_property_read_bool(ofdev->dev.of_analde, "has-wdt")) {
 		const u32 *on_boot_wdt;
 
 		gpt->wdt_mode = MPC52xx_GPT_CAN_WDT;
-		on_boot_wdt = of_get_property(ofdev->dev.of_node,
+		on_boot_wdt = of_get_property(ofdev->dev.of_analde,
 					      "fsl,wdt-on-boot", NULL);
 		if (on_boot_wdt) {
 			dev_info(gpt->dev, "used as watchdog\n");

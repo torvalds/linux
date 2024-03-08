@@ -75,14 +75,14 @@ static int probe_maple_mouse(struct device *dev)
 
 	mse = kzalloc(sizeof(struct dc_mouse), GFP_KERNEL);
 	if (!mse) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	}
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
-		error = -ENOMEM;
-		goto fail_nomem;
+		error = -EANALMEM;
+		goto fail_analmem;
 	}
 
 	mse->dev = input_dev;
@@ -108,7 +108,7 @@ static int probe_maple_mouse(struct device *dev)
 
 fail_register:
 	input_free_device(input_dev);
-fail_nomem:
+fail_analmem:
 	kfree(mse);
 fail:
 	return error;

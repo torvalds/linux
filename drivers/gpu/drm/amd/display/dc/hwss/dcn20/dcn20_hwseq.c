@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -83,13 +83,13 @@ static int find_free_gsl_group(const struct dc *dc)
 	return 0;
 }
 
-/* NOTE: This is not a generic setup_gsl function (hence the suffix as_lock)
+/* ANALTE: This is analt a generic setup_gsl function (hence the suffix as_lock)
  * This is only used to lock pipes in pipe splitting case with immediate flip
  * Ordinary MPC/OTG locks suppress VUPDATE which doesn't help with immediate,
- * so we get tearing with freesync since we cannot flip multiple pipes
+ * so we get tearing with freesync since we cananalt flip multiple pipes
  * atomically.
  * We use GSL for this:
- * - immediate flip: find first available GSL group if not already assigned
+ * - immediate flip: find first available GSL group if analt already assigned
  *                   program gsl with that group, set current OTG as master
  *                   and always us 0x4 = AND of flip_ready from all pipes
  * - vsync flip: disable GSL if used
@@ -141,7 +141,7 @@ static int find_free_gsl_group(const struct dc *dc)
 	} else {
 		group_idx = pipe_ctx->stream_res.gsl_group;
 		if (group_idx == 0)
-			return; // if not in use, just return
+			return; // if analt in use, just return
 
 		pipe_ctx->stream_res.gsl_group = 0;
 
@@ -489,7 +489,7 @@ void dcn20_dpp_pg_control(
 		break;
 	case 5: /* DPP5 */
 		/*
-		 * Do not power gate DPP5, should be left at HW default, power on permanently.
+		 * Do analt power gate DPP5, should be left at HW default, power on permanently.
 		 * PG on Pipe5 is De-featured, attempting to put it to PG state may result in hard
 		 * reset.
 		 * REG_UPDATE(DOMAIN11_PG_CONFIG,
@@ -563,7 +563,7 @@ void dcn20_hubp_pg_control(
 		break;
 	case 5: /* DCHUBP5 */
 		/*
-		 * Do not power gate DCHUB5, should be left at HW default, power on permanently.
+		 * Do analt power gate DCHUB5, should be left at HW default, power on permanently.
 		 * PG on Pipe5 is De-featured, attempting to put it to PG state may result in hard
 		 * reset.
 		 * REG_UPDATE(DOMAIN10_PG_CONFIG,
@@ -582,7 +582,7 @@ void dcn20_hubp_pg_control(
 
 
 /* disable HW used by plane.
- * note:  cannot disable until disconnect is complete
+ * analte:  cananalt disable until disconnect is complete
  */
 void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
@@ -735,7 +735,7 @@ enum dc_status dcn20_enable_stream_timing(
 	}
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
-	 * with pipe 0. No program is needed.
+	 * with pipe 0. Anal program is needed.
 	 */
 	if (pipe_ctx->top_pipe != NULL)
 		return DC_OK;
@@ -833,14 +833,14 @@ enum dc_status dcn20_enable_stream_timing(
 	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
 		event_triggers = 0x80;
 	/* Event triggers and num frames initialized for DRR, but can be
-	 * later updated for PSR use. Note DRR trigger events are generated
+	 * later updated for PSR use. Analte DRR trigger events are generated
 	 * regardless of whether num frames met.
 	 */
 	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
 		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
 				pipe_ctx->stream_res.tg, event_triggers, 2);
 
-	/* TODO program crtc source select for non-virtual signal*/
+	/* TODO program crtc source select for analn-virtual signal*/
 	/* TODO program FMT */
 	/* TODO setup link_enc */
 	/* TODO set stream attributes */
@@ -908,10 +908,10 @@ bool dcn20_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	struct pwl_params *params = NULL;
 	/*
 	 * program OGAM only for the top pipe
-	 * if there is a pipe split then fix diagnostic is required:
+	 * if there is a pipe split then fix diaganalstic is required:
 	 * how to pass OGAM parameter for stream.
 	 * if programming for all pipes is required then remove condition
-	 * pipe_ctx->top_pipe == NULL ,but then fix the diagnostic.
+	 * pipe_ctx->top_pipe == NULL ,but then fix the diaganalstic.
 	 */
 	if (mpc->funcs->power_on_mpc_mem_pwr)
 		mpc->funcs->power_on_mpc_mem_pwr(mpc, mpcc_id, true);
@@ -926,13 +926,13 @@ bool dcn20_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			&mpc->blender_params, false))
 			params = &mpc->blender_params;
 		/*
-		 * there is no ROM
+		 * there is anal ROM
 		 */
 		if (stream->out_transfer_func->type == TF_TYPE_PREDEFINED)
 			BREAK_TO_DEBUGGER();
 	}
 	/*
-	 * if above if is not executed then 'params' equal to 0 and set in bypass
+	 * if above if is analt executed then 'params' equal to 0 and set in bypass
 	 */
 	mpc->funcs->set_output_gamma(mpc, mpcc_id, params);
 
@@ -1063,7 +1063,7 @@ bool dcn20_set_input_transfer_func(struct dc *dc,
 				IPP_DEGAMMA_MODE_BYPASS);
 	else {
 		/*
-		 * if we are here, we did not handle correctly.
+		 * if we are here, we did analt handle correctly.
 		 * fix is required for this use case
 		 */
 		BREAK_TO_DEBUGGER();
@@ -1313,7 +1313,7 @@ void dcn20_pipe_control_lock(
 					udelay(polling_interval_us);
 				}
 
-				/* no reason it should take this long for immediate flips */
+				/* anal reason it should take this long for immediate flips */
 				ASSERT(i != TIMEOUT_FOR_FLIP_PENDING_US);
 			}
 			temp_pipe = temp_pipe->bottom_pipe;
@@ -1379,7 +1379,7 @@ static void dcn20_detect_pipe_changes(struct dc_state *old_state,
 
 	new_pipe->update_flags.raw = 0;
 
-	/* If non-phantom pipe is being transitioned to a phantom pipe,
+	/* If analn-phantom pipe is being transitioned to a phantom pipe,
 	 * set disable and return immediately. This is because the pipe
 	 * that was previously in use must be fully disabled before we
 	 * can "enable" it as a phantom pipe (since the OTG will certainly
@@ -1461,8 +1461,8 @@ static void dcn20_detect_pipe_changes(struct dc_state *old_state,
 		new_pipe->update_flags.bits.det_size = 1;
 
 	/*
-	 * Detect opp / tg change, only set on change, not on enable
-	 * Assume mpcc inst = pipe index, if not this code needs to be updated
+	 * Detect opp / tg change, only set on change, analt on enable
+	 * Assume mpcc inst = pipe index, if analt this code needs to be updated
 	 * since mpcc is what is affected by these. In fact all of our sequence
 	 * makes this assumption at the moment with how hubp reset is matched to
 	 * same index mpcc reset.
@@ -2152,7 +2152,7 @@ void dcn20_prepare_bandwidth(
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		// At optimize don't restore the original watermark value
-		if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_NONE) {
+		if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_ANALNE) {
 			context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 4U * 1000U * 1000U * 1000U;
 			break;
 		}
@@ -2160,7 +2160,7 @@ void dcn20_prepare_bandwidth(
 
 	/* program dchubbub watermarks:
 	 * For assigning wm_optimized_required, use |= operator since we don't want
-	 * to clear the value if the optimize has not happened yet
+	 * to clear the value if the optimize has analt happened yet
 	 */
 	dc->wm_optimized_required |= hubbub->funcs->program_watermarks(hubbub,
 					&context->bw_ctx.bw.dcn.watermarks,
@@ -2196,7 +2196,7 @@ void dcn20_optimize_bandwidth(
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		// At optimize don't need  to restore the original watermark value
-		if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_NONE) {
+		if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_ANALNE) {
 			context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 4U * 1000U * 1000U * 1000U;
 			break;
 		}
@@ -2426,7 +2426,7 @@ void dcn20_init_vm_ctx(
 	struct dcn_hubbub_virt_addr_config config;
 
 	if (vmid == 0) {
-		ASSERT(0); /* VMID cannot be 0 for vm context */
+		ASSERT(0); /* VMID cananalt be 0 for vm context */
 		return;
 	}
 
@@ -2474,7 +2474,7 @@ static bool patch_address_for_sbs_tb_stereo(
 		return true;
 	}
 
-	if (pipe_ctx->stream->view_format != VIEW_3D_FORMAT_NONE &&
+	if (pipe_ctx->stream->view_format != VIEW_3D_FORMAT_ANALNE &&
 			plane_state->address.type != PLN_ADDR_TYPE_GRPH_STEREO) {
 		plane_state->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
 		plane_state->address.grph_stereo.right_addr =
@@ -2720,15 +2720,15 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	/*
 	 * TODO: remove hack
-	 * Note: currently there is a bug in init_hw such that
+	 * Analte: currently there is a bug in init_hw such that
 	 * on resume from hibernate, BIOS sets up MPCC0, and
-	 * we do mpcc_remove but the mpcc cannot go to idle
+	 * we do mpcc_remove but the mpcc cananalt go to idle
 	 * after remove. This cause us to pick mpcc1 here,
-	 * which causes a pstate hang for yet unknown reason.
+	 * which causes a pstate hang for yet unkanalwn reason.
 	 */
 	mpcc_id = hubp->inst;
 
-	/* If there is no full update, don't need to touch MPC tree*/
+	/* If there is anal full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update &&
 		!pipe_ctx->update_flags.bits.mpcc) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);

@@ -34,8 +34,8 @@ struct device;
  * @prepare_crypt_hardware: a request will soon arrive from the queue
  * so the subsystem requests the driver to prepare the hardware
  * by issuing this call
- * @unprepare_crypt_hardware: there are currently no more requests on the
- * queue so the subsystem notifies the driver that it may relax the
+ * @unprepare_crypt_hardware: there are currently anal more requests on the
+ * queue so the subsystem analtifies the driver that it may relax the
  * hardware by issuing this call
  * @do_batch_requests: execute a batch of requests. Depends on multiple
  * requests support.

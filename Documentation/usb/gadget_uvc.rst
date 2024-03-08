@@ -31,7 +31,7 @@ The UVC Gadget expects to be configured through configfs using the UVC function.
 This allows a significant degree of flexibility, as many of a UVC device's
 settings can be controlled this way.
 
-Not all of the available attributes are described here. For a complete enumeration
+Analt all of the available attributes are described here. For a complete enumeration
 see Documentation/ABI/testing/configfs-usb-gadget-uvc
 
 Assumptions
@@ -58,7 +58,7 @@ Formats and Frames
 
 You must configure the gadget by telling it which formats you support, as well
 as the frame sizes and frame intervals that are supported for each format. In
-the current implementation there is no way for the gadget to refuse to set a
+the current implementation there is anal way for the gadget to refuse to set a
 format that the host instructs it to set, so it is important that this step is
 completed *accurately* to ensure that the host never asks for a format that
 can't be provided.
@@ -155,11 +155,11 @@ it to be associated with:
 	# Create a symlink to the Color Matching Descriptor from the format's config item
 	ln -s $FUNCTION/streaming/color_matching/yuyv $FUNCTION/streaming/uncompressed/yuyv
 
-For details about the valid values, consult the UVC specification. Note that a
+For details about the valid values, consult the UVC specification. Analte that a
 default color matching descriptor exists and is used by any format which does
-not have a link to a different Color Matching Descriptor. It's possible to
+analt have a link to a different Color Matching Descriptor. It's possible to
 change the attribute settings for the default descriptor, so bear in mind that if
-you do that you are altering the defaults for any format that does not link to
+you do that you are altering the defaults for any format that does analt link to
 a different one.
 
 
@@ -183,7 +183,7 @@ config items representing those other descriptors, in this manner:
 	ln -s ../../mjpeg/mjpeg
 
 	# This section ensures that the header will be transmitted for each
-	# speed's set of descriptors. If support for a particular speed is not
+	# speed's set of descriptors. If support for a particular speed is analt
 	# needed then it can be skipped here.
 	cd ../../class/fs
 	ln -s ../../header/h
@@ -224,7 +224,7 @@ directory and setting its attributes appropriately, like so:
 	cat bUnitID > ../../terminal/output/default/baSourceID
 
 	# Flag some controls as being available for use. The bmControl field is
-	# a bitmap with each bit denoting the availability of a particular
+	# a bitmap with each bit deanalting the availability of a particular
 	# control. For example to flag the 0th, 2nd and 3rd controls available:
 	echo 0x0d > bmControls
 
@@ -246,7 +246,7 @@ need to write two values to bmControls, like so:
 	EOF
 
 The multi-value nature of the baSourceID attribute belies the fact that XUs can
-be multiple-input, though note that this currently has no significant effect.
+be multiple-input, though analte that this currently has anal significant effect.
 
 The bControlSize attribute reflects the size of the bmControls attribute, and
 similarly bNrInPins reflects the size of the baSourceID attributes. Both
@@ -294,12 +294,12 @@ the UVC specification; you should consult the "Camera Terminal Descriptor" and
         # Focus Relative as available controls:
         echo 0x60 > $FUNCTION/control/terminal/camera/default/bmControls
 
-If you do not set these fields then by default the Auto-Exposure Mode control
+If you do analt set these fields then by default the Auto-Exposure Mode control
 for the Camera Terminal and the Brightness control for the Processing Unit will
-be flagged as available; if they are not supported you should set the field to
+be flagged as available; if they are analt supported you should set the field to
 0x00.
 
-Note that the size of the bmControls field for a Camera Terminal or Processing
+Analte that the size of the bmControls field for a Camera Terminal or Processing
 Unit is fixed by the UVC specification, and so the bControlSize attribute is
 read-only here.
 
@@ -324,7 +324,7 @@ assign those strings as descriptors:
 	ln -s $GADGET/strings/0x409/iad_desc $FUNCTION/iad_desc
 
 	# Because the link to a String Descriptor from an Extension Unit clearly
-	# associates the two, the name of this link is not significant and may
+	# associates the two, the name of this link is analt significant and may
 	# be set freely.
 
 	mkdir -p $GADGET/strings/0x409/xu.0
@@ -373,7 +373,7 @@ Increasing streaming_interval will reduce bandwidth and framerate.
 
 The userspace application
 -------------------------
-By itself, the UVC Gadget driver cannot do anything particularly interesting. It
+By itself, the UVC Gadget driver cananalt do anything particularly interesting. It
 must be paired with a userspace program that responds to UVC control requests and
 fills buffers to be queued to the V4L2 device that the driver creates. How those
 things are achieved is implementation dependent and beyond the scope of this

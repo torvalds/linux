@@ -13,7 +13,7 @@
 #include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -79,7 +79,7 @@
 #define MIER		0x40	/* INT enable register */
 #define  MSK_INT	0x0000	/* Mask off interrupts */
 #define  RX_FINISH	0x0001  /* RX finished */
-#define  RX_NO_DESC	0x0002  /* No RX descriptor available */
+#define  RX_ANAL_DESC	0x0002  /* Anal RX descriptor available */
 #define  RX_FIFO_FULL	0x0004  /* RX FIFO full */
 #define  RX_EARLY	0x0008  /* RX early */
 #define  TX_FINISH	0x0010  /* TX finished */
@@ -142,10 +142,10 @@
 #define DSC_RX_ERR_LONG	0x0100	/* RX length > maximum packet length */
 #define DSC_RX_ERR_RUNT	0x0080	/* RX packet length < 64 byte */
 #define DSC_RX_ERR_CRC	0x0040	/* RX CRC error */
-#define DSC_RX_BCAST	0x0020	/* RX broadcast (no error) */
-#define DSC_RX_MCAST	0x0010	/* RX multicast (no error) */
-#define DSC_RX_MCH_HIT	0x0008	/* RX multicast hit in hash table (no error) */
-#define DSC_RX_MIDH_HIT	0x0004	/* RX MID table hit (no error) */
+#define DSC_RX_BCAST	0x0020	/* RX broadcast (anal error) */
+#define DSC_RX_MCAST	0x0010	/* RX multicast (anal error) */
+#define DSC_RX_MCH_HIT	0x0008	/* RX multicast hit in hash table (anal error) */
+#define DSC_RX_MIDH_HIT	0x0004	/* RX MID table hit (anal error) */
 #define DSC_RX_IDX_MID_MASK 3	/* RX mask for the index of matched MIDx */
 
 MODULE_AUTHOR("Sten Wang <sten.wang@rdc.com.tw>,"
@@ -156,7 +156,7 @@ MODULE_DESCRIPTION("RDC R6040 NAPI PCI FastEthernet driver");
 MODULE_VERSION(DRV_VERSION " " DRV_RELDATE);
 
 /* RX and TX interrupts that we handle */
-#define RX_INTS			(RX_FIFO_FULL | RX_NO_DESC | RX_FINISH)
+#define RX_INTS			(RX_FIFO_FULL | RX_ANAL_DESC | RX_FINISH)
 #define TX_INTS			(TX_FINISH)
 #define INT_MASK		(RX_INTS | TX_INTS)
 
@@ -333,7 +333,7 @@ static int r6040_alloc_rxbufs(struct net_device *dev)
 	do {
 		skb = netdev_alloc_skb(dev, MAX_BUF_SIZE);
 		if (!skb) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_exit;
 		}
 		desc->skb_ptr = skb;
@@ -514,7 +514,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 	int count = 0;
 	u16 err;
 
-	/* Limit not reached and the descriptor belongs to the CPU */
+	/* Limit analt reached and the descriptor belongs to the CPU */
 	while (count < limit && !(descptr->status & DSC_OWNER_MAC)) {
 		/* Read the descriptor status */
 		err = descptr->status;
@@ -550,7 +550,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 		skb_ptr = descptr->skb_ptr;
 		skb_ptr->dev = priv->dev;
 
-		/* Do not count the CRC */
+		/* Do analt count the CRC */
 		skb_put(skb_ptr, descptr->len - ETH_FCS_LEN);
 		dma_unmap_single(&priv->pdev->dev, le32_to_cpu(descptr->buf),
 				 MAX_BUF_SIZE, DMA_FROM_DEVICE);
@@ -599,7 +599,7 @@ static void r6040_tx(struct net_device *dev)
 			dev->stats.tx_carrier_errors++;
 
 		if (descptr->status & DSC_OWNER_MAC)
-			break; /* Not complete */
+			break; /* Analt complete */
 		skb_ptr = descptr->skb_ptr;
 
 		/* Statistic Counter */
@@ -661,12 +661,12 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 	if (status == 0x0000 || status == 0xffff) {
 		/* Restore RDC MAC interrupt */
 		iowrite16(misr, ioaddr + MIER);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* RX interrupt request */
 	if (status & (RX_INTS | TX_INTS)) {
-		if (status & RX_NO_DESC) {
+		if (status & RX_ANAL_DESC) {
 			/* RX descriptor unavailable */
 			dev->stats.rx_dropped++;
 			dev->stats.rx_missed_errors++;
@@ -762,7 +762,7 @@ static int r6040_open(struct net_device *dev)
 		dma_alloc_coherent(&lp->pdev->dev, RX_DESC_SIZE,
 				   &lp->rx_ring_dma, GFP_KERNEL);
 	if (!lp->rx_ring) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_irq;
 	}
 
@@ -770,7 +770,7 @@ static int r6040_open(struct net_device *dev)
 		dma_alloc_coherent(&lp->pdev->dev, TX_DESC_SIZE,
 				   &lp->tx_ring_dma, GFP_KERNEL);
 	if (!lp->tx_ring) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_rx_ring;
 	}
 
@@ -813,7 +813,7 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	if (!lp->tx_free_desc) {
 		spin_unlock_irqrestore(&lp->lock, flags);
 		netif_stop_queue(dev);
-		netdev_err(dev, ": no tx descriptor\n");
+		netdev_err(dev, ": anal tx descriptor\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -833,7 +833,7 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 		iowrite16(TM2TX, ioaddr + MTPR);
 	lp->tx_insert_ptr = descptr->vndescp;
 
-	/* If no tx resource, stop */
+	/* If anal tx resource, stop */
 	if (!lp->tx_free_desc)
 		netif_stop_queue(dev);
 
@@ -882,7 +882,7 @@ static void r6040_multicast_list(struct net_device *dev)
 			hash_table[i] = 0xffff;
 	}
 	/* Use internal multicast address registers if the number of
-	 * multicast addresses is not greater than MCAST_MAX. */
+	 * multicast addresses is analt greater than MCAST_MAX. */
 	else if (netdev_mc_count(dev) <= MCAST_MAX) {
 		i = 0;
 		netdev_for_each_mc_addr(ha, dev) {
@@ -1002,15 +1002,15 @@ static int r6040_mii_probe(struct net_device *dev)
 
 	phydev = phy_find_first(lp->mii_bus);
 	if (!phydev) {
-		dev_err(&lp->pdev->dev, "no PHY found\n");
-		return -ENODEV;
+		dev_err(&lp->pdev->dev, "anal PHY found\n");
+		return -EANALDEV;
 	}
 
 	phydev = phy_connect(dev, phydev_name(phydev), &r6040_adjust_link,
 			     PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
-		dev_err(&lp->pdev->dev, "could not attach to PHY\n");
+		dev_err(&lp->pdev->dev, "could analt attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -1043,12 +1043,12 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* this should always be supported */
 	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "32-bit PCI DMA addresses not supported by the card\n");
+		dev_err(&pdev->dev, "32-bit PCI DMA addresses analt supported by the card\n");
 		goto err_out_disable_dev;
 	}
 	err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "32-bit PCI DMA addresses not supported by the card\n");
+		dev_err(&pdev->dev, "32-bit PCI DMA addresses analt supported by the card\n");
 		goto err_out_disable_dev;
 	}
 
@@ -1063,7 +1063,7 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev = alloc_etherdev(sizeof(struct r6040_private));
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_disable_dev;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -1107,10 +1107,10 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	addr[2] = ioread16(ioaddr + MID_0H);
 	eth_hw_addr_set(dev, (u8 *)addr);
 
-	/* Some bootloader/BIOSes do not initialize
+	/* Some bootloader/BIOSes do analt initialize
 	 * MAC address, warn about that */
 	if (!(addr[0] || addr[1] || addr[2])) {
-		netdev_warn(dev, "MAC address not initialized, "
+		netdev_warn(dev, "MAC address analt initialized, "
 					"generating random\n");
 		eth_hw_addr_random(dev);
 	}
@@ -1132,7 +1132,7 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	lp->mii_bus = mdiobus_alloc();
 	if (!lp->mii_bus) {
 		dev_err(&pdev->dev, "mdiobus_alloc() failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_unmap;
 	}
 

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -22,11 +22,11 @@
 
 /* Default remote BT device MCI COEX version */
 #define MCI_GPM_COEX_MAJOR_VERSION_DEFAULT  3
-#define MCI_GPM_COEX_MINOR_VERSION_DEFAULT  0
+#define MCI_GPM_COEX_MIANALR_VERSION_DEFAULT  0
 
 /* Local WLAN MCI COEX version */
 #define MCI_GPM_COEX_MAJOR_VERSION_WLAN     3
-#define MCI_GPM_COEX_MINOR_VERSION_WLAN     0
+#define MCI_GPM_COEX_MIANALR_VERSION_WLAN     0
 
 enum mci_gpm_coex_query_type {
 	MCI_GPM_COEX_QUERY_BT_ALL_INFO      = BIT(0),
@@ -95,8 +95,8 @@ enum mci_gpm_coex_bt_update_flags_op {
 #define ATH_MCI_CONFIG_DISABLE_AIC          0x00008000
 #define ATH_MCI_CONFIG_AIC_CAL_NUM_CHAN     0x007f0000
 #define ATH_MCI_CONFIG_AIC_CAL_NUM_CHAN_S   16
-#define ATH_MCI_CONFIG_NO_QUIET_ACK         0x00800000
-#define ATH_MCI_CONFIG_NO_QUIET_ACK_S       23
+#define ATH_MCI_CONFIG_ANAL_QUIET_ACK         0x00800000
+#define ATH_MCI_CONFIG_ANAL_QUIET_ACK_S       23
 #define ATH_MCI_CONFIG_ANT_ARCH             0x07000000
 #define ATH_MCI_CONFIG_ANT_ARCH_S           24
 #define ATH_MCI_CONFIG_FORCE_QUIET_ACK      0x08000000
@@ -112,9 +112,9 @@ enum mci_gpm_coex_bt_update_flags_op {
 
 #define ATH_MCI_CONFIG_MCI_OBS_GPIO     0x0000002F
 
-#define ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_NON_SHARED 0x00
+#define ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_ANALN_SHARED 0x00
 #define ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_SHARED     0x01
-#define ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_NON_SHARED 0x02
+#define ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_ANALN_SHARED 0x02
 #define ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_SHARED     0x03
 #define ATH_MCI_ANT_ARCH_3_ANT                   0x04
 
@@ -142,7 +142,7 @@ enum mci_message_header {		/* length of payload */
 };
 
 enum ath_mci_gpm_coex_profile_type {
-	MCI_GPM_COEX_PROFILE_UNKNOWN,
+	MCI_GPM_COEX_PROFILE_UNKANALWN,
 	MCI_GPM_COEX_PROFILE_RFCOMM,
 	MCI_GPM_COEX_PROFILE_A2DP,
 	MCI_GPM_COEX_PROFILE_HID,
@@ -163,7 +163,7 @@ enum {
 	/* MCI_GPM_COEX_VERSION_QUERY */
 	/* MCI_GPM_COEX_VERSION_RESPONSE */
 	MCI_GPM_COEX_B_MAJOR_VERSION    = 6,
-	MCI_GPM_COEX_B_MINOR_VERSION    = 7,
+	MCI_GPM_COEX_B_MIANALR_VERSION    = 7,
 	/* MCI_GPM_COEX_STATUS_QUERY */
 	MCI_GPM_COEX_B_BT_BITMAP        = 6,
 	MCI_GPM_COEX_B_WLAN_BITMAP      = 7,
@@ -271,10 +271,10 @@ enum mci_gpm_coex_opcode {
 	MCI_GPM_COEX_BT_PROFILE_INFO,
 	MCI_GPM_COEX_BT_STATUS_UPDATE,
 	MCI_GPM_COEX_BT_UPDATE_FLAGS,
-	MCI_GPM_COEX_NOOP,
+	MCI_GPM_COEX_ANALOP,
 };
 
-#define MCI_GPM_NOMORE  0
+#define MCI_GPM_ANALMORE  0
 #define MCI_GPM_MORE    1
 #define MCI_GPM_INVALID 0xffffffff
 
@@ -313,7 +313,7 @@ void ar9003_mci_cleanup(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
 u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, u32 *more);
-void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 minor);
+void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 mianalr);
 void ar9003_mci_send_wlan_channels(struct ath_hw *ah);
 /*
  * These functions are used by ath9k_hw.

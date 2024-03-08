@@ -446,7 +446,7 @@ qed_cmdq_lines_rt_init(struct qed_hwfn *p_hwfn,
 
 /* Prepare runtime init values to allocate guaranteed BTB blocks for the
  * specified port. The guaranteed BTB space is divided between the TCs as
- * follows (shared space Is currently not used):
+ * follows (shared space Is currently analt used):
  * 1. Parameters:
  *    B - BTB blocks for this port
  *    C - Number of physical TCs for this port
@@ -460,8 +460,8 @@ qed_cmdq_lines_rt_init(struct qed_hwfn *p_hwfn,
  * Assumptions:
  * - MTU is up to 9700 bytes (38 blocks)
  * - All TCs are considered symmetrical (same rate and packet size)
- * - No optimization for lossy TC (all are considered lossless). Shared space
- *   is not enabled and allocated for each TC.
+ * - Anal optimization for lossy TC (all are considered lossless). Shared space
+ *   is analt enabled and allocated for each TC.
  */
 static void
 qed_btb_blocks_rt_init(struct qed_hwfn *p_hwfn,
@@ -557,7 +557,7 @@ static u32 qed_get_vport_rl_upper_bound(enum init_qm_rl_type vport_rl_type,
 					u32 link_speed)
 {
 	switch (vport_rl_type) {
-	case QM_RL_TYPE_NORMAL:
+	case QM_RL_TYPE_ANALRMAL:
 		return QM_INITIAL_VOQ_BYTE_CRD;
 	case QM_RL_TYPE_QCN:
 		return QM_GLOBAL_RL_UPPER_BOUND(link_speed);
@@ -578,7 +578,7 @@ static int qed_vport_rl_rt_init(struct qed_hwfn *p_hwfn,
 	u16 i, rl_id;
 
 	if (num_rls && start_rl + num_rls >= MAX_QM_GLOBAL_RLS) {
-		DP_NOTICE(p_hwfn, "Invalid rate limiter configuration\n");
+		DP_ANALTICE(p_hwfn, "Invalid rate limiter configuration\n");
 		return -1;
 	}
 
@@ -595,7 +595,7 @@ static int qed_vport_rl_rt_init(struct qed_hwfn *p_hwfn,
 		    QM_RL_INC_VAL(rl_params[i].vport_rl ?
 				  rl_params[i].vport_rl : link_speed);
 		if (inc_val > upper_bound) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Invalid RL rate - limit configuration\n");
 			return -1;
 		}
@@ -792,7 +792,7 @@ static int qed_pf_wfq_rt_init(struct qed_hwfn *p_hwfn,
 
 	inc_val = QM_PF_WFQ_INC_VAL(p_params->pf_wfq);
 	if (!inc_val || inc_val > QM_PF_WFQ_MAX_INC_VAL) {
-		DP_NOTICE(p_hwfn, "Invalid PF WFQ weight configuration\n");
+		DP_ANALTICE(p_hwfn, "Invalid PF WFQ weight configuration\n");
 		return -1;
 	}
 
@@ -828,7 +828,7 @@ static int qed_pf_rl_rt_init(struct qed_hwfn *p_hwfn, u8 pf_id, u32 pf_rl)
 	u32 inc_val = QM_RL_INC_VAL(pf_rl);
 
 	if (inc_val > QM_PF_RL_MAX_INC_VAL) {
-		DP_NOTICE(p_hwfn, "Invalid PF rate limit configuration\n");
+		DP_ANALTICE(p_hwfn, "Invalid PF rate limit configuration\n");
 		return -1;
 	}
 
@@ -868,7 +868,7 @@ static int qed_vp_wfq_rt_init(struct qed_hwfn *p_hwfn,
 			wfq = wfq ? wfq : vport_params[i].tc_wfq[tc];
 			inc_val = QM_VP_WFQ_INC_VAL(wfq);
 			if (inc_val > QM_VP_WFQ_MAX_INC_VAL) {
-				DP_NOTICE(p_hwfn,
+				DP_ANALTICE(p_hwfn,
 					  "Invalid VPORT WFQ weight configuration\n");
 				return -1;
 			}
@@ -1041,7 +1041,7 @@ int qed_init_pf_wfq(struct qed_hwfn *p_hwfn,
 	u32 inc_val = QM_PF_WFQ_INC_VAL(pf_wfq);
 
 	if (!inc_val || inc_val > QM_PF_WFQ_MAX_INC_VAL) {
-		DP_NOTICE(p_hwfn, "Invalid PF WFQ weight configuration\n");
+		DP_ANALTICE(p_hwfn, "Invalid PF WFQ weight configuration\n");
 		return -1;
 	}
 
@@ -1056,7 +1056,7 @@ int qed_init_pf_rl(struct qed_hwfn *p_hwfn,
 	u32 inc_val = QM_RL_INC_VAL(pf_rl);
 
 	if (inc_val > QM_PF_RL_MAX_INC_VAL) {
-		DP_NOTICE(p_hwfn, "Invalid PF rate limit configuration\n");
+		DP_ANALTICE(p_hwfn, "Invalid PF rate limit configuration\n");
 		return -1;
 	}
 
@@ -1095,7 +1095,7 @@ int qed_init_vport_tc_wfq(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	inc_val = QM_VP_WFQ_INC_VAL(wfq);
 	if (!inc_val || inc_val > QM_VP_WFQ_MAX_INC_VAL) {
-		DP_NOTICE(p_hwfn, "Invalid VPORT WFQ configuration.\n");
+		DP_ANALTICE(p_hwfn, "Invalid VPORT WFQ configuration.\n");
 		return -1;
 	}
 
@@ -1121,7 +1121,7 @@ int qed_init_global_rl(struct qed_hwfn *p_hwfn,
 	    QM_INITIAL_VOQ_BYTE_CRD;
 	inc_val = QM_RL_INC_VAL(rate_limit);
 	if (inc_val > upper_bound) {
-		DP_NOTICE(p_hwfn, "Invalid VPORT rate limit configuration.\n");
+		DP_ANALTICE(p_hwfn, "Invalid VPORT rate limit configuration.\n");
 		return -1;
 	}
 
@@ -1198,7 +1198,7 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 
 /**
  * qed_dmae_to_grc() - Internal function for writing from host to
- * wide-bus registers (split registers are not supported yet).
+ * wide-bus registers (split registers are analt supported yet).
  *
  * @p_hwfn: HW device data.
  * @p_ptt: PTT window used for writing the registers.
@@ -1227,7 +1227,7 @@ static int qed_dmae_to_grc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			       (u64)(uintptr_t)(p_data),
 			       addr, len_in_dwords, &params);
 
-	/* If not read using DMAE, read using GRC */
+	/* If analt read using DMAE, read using GRC */
 	if (rc) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_DEBUG,
@@ -1272,7 +1272,7 @@ void qed_set_vxlan_enable(struct qed_hwfn *p_hwfn,
 		reg_val =
 		    qed_rd(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0);
 
-		/* Update output  only if tunnel blocks not included. */
+		/* Update output  only if tunnel blocks analt included. */
 		if (reg_val == (u32)PRS_ETH_OUTPUT_FORMAT)
 			qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
 			       (u32)PRS_ETH_TUNN_OUTPUT_FORMAT);
@@ -1309,7 +1309,7 @@ void qed_set_gre_enable(struct qed_hwfn *p_hwfn,
 		reg_val =
 		    qed_rd(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0);
 
-		/* Update output  only if tunnel blocks not included. */
+		/* Update output  only if tunnel blocks analt included. */
 		if (reg_val == (u32)PRS_ETH_OUTPUT_FORMAT)
 			qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
 			       (u32)PRS_ETH_TUNN_OUTPUT_FORMAT);
@@ -1363,7 +1363,7 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 		reg_val =
 		    qed_rd(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0);
 
-		/* Update output  only if tunnel blocks not included. */
+		/* Update output  only if tunnel blocks analt included. */
 		if (reg_val == (u32)PRS_ETH_OUTPUT_FORMAT)
 			qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
 			       (u32)PRS_ETH_TUNN_OUTPUT_FORMAT);
@@ -1374,7 +1374,7 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	       eth_geneve_enable ? 1 : 0);
 	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_IP_ENABLE, ip_geneve_enable ? 1 : 0);
 
-	/* EDPM with geneve tunnel not supported in BB */
+	/* EDPM with geneve tunnel analt supported in BB */
 	if (QED_IS_BB_B0(p_hwfn->cdev))
 		return;
 
@@ -1389,10 +1389,10 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	       ip_geneve_enable ? 1 : 0);
 }
 
-#define PRS_ETH_VXLAN_NO_L2_ENABLE_OFFSET      3
-#define PRS_ETH_VXLAN_NO_L2_OUTPUT_FORMAT   0xC8DAB910
+#define PRS_ETH_VXLAN_ANAL_L2_ENABLE_OFFSET      3
+#define PRS_ETH_VXLAN_ANAL_L2_OUTPUT_FORMAT   0xC8DAB910
 
-void qed_set_vxlan_no_l2_enable(struct qed_hwfn *p_hwfn,
+void qed_set_vxlan_anal_l2_enable(struct qed_hwfn *p_hwfn,
 				struct qed_ptt *p_ptt, bool enable)
 {
 	u32 reg_val, cfg_mask;
@@ -1400,20 +1400,20 @@ void qed_set_vxlan_no_l2_enable(struct qed_hwfn *p_hwfn,
 	/* read PRS config register */
 	reg_val = qed_rd(p_hwfn, p_ptt, PRS_REG_MSG_INFO);
 
-	/* set VXLAN_NO_L2_ENABLE mask */
-	cfg_mask = BIT(PRS_ETH_VXLAN_NO_L2_ENABLE_OFFSET);
+	/* set VXLAN_ANAL_L2_ENABLE mask */
+	cfg_mask = BIT(PRS_ETH_VXLAN_ANAL_L2_ENABLE_OFFSET);
 
 	if (enable) {
-		/* set VXLAN_NO_L2_ENABLE flag */
+		/* set VXLAN_ANAL_L2_ENABLE flag */
 		reg_val |= cfg_mask;
 
 		/* update PRS FIC  register */
 		qed_wr(p_hwfn,
 		       p_ptt,
 		       PRS_REG_OUTPUT_FORMAT_4_0,
-		       (u32)PRS_ETH_VXLAN_NO_L2_OUTPUT_FORMAT);
+		       (u32)PRS_ETH_VXLAN_ANAL_L2_OUTPUT_FORMAT);
 	} else {
-		/* clear VXLAN_NO_L2_ENABLE flag */
+		/* clear VXLAN_ANAL_L2_ENABLE flag */
 		reg_val &= ~cfg_mask;
 	}
 
@@ -1455,18 +1455,18 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 		    bool ipv4, bool ipv6, enum gft_profile_type profile_type)
 {
 	struct regpair ram_line;
-	u32 search_non_ip_as_gft;
+	u32 search_analn_ip_as_gft;
 	u32 reg_val, cam_line;
 	u32 lo = 0, hi = 0;
 
 	if (!ipv6 && !ipv4)
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "gft_config: must accept at least on of - ipv4 or ipv6'\n");
 	if (!tcp && !udp)
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "gft_config: must accept at least on of - udp or tcp\n");
 	if (profile_type >= MAX_GFT_PROFILE_TYPE)
-		DP_NOTICE(p_hwfn, "gft_config: unsupported gft_profile_type\n");
+		DP_ANALTICE(p_hwfn, "gft_config: unsupported gft_profile_type\n");
 
 	/* Set RFS event ID to be awakened i Tstorm By Prs */
 	reg_val = T_ETH_PACKET_MATCH_RFS_EVENTID <<
@@ -1474,10 +1474,10 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 	reg_val |= PARSER_ETH_CONN_CM_HDR << PRS_REG_CM_HDR_GFT_CM_HDR_SHIFT;
 	qed_wr(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT, reg_val);
 
-	/* Do not load context only cid in PRS on match. */
+	/* Do analt load context only cid in PRS on match. */
 	qed_wr(p_hwfn, p_ptt, PRS_REG_LOAD_L2_FILTER, 0);
 
-	/* Do not use tenant ID exist bit for gft search */
+	/* Do analt use tenant ID exist bit for gft search */
 	qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_TENANT_ID, 0);
 
 	/* Set Cam */
@@ -1524,8 +1524,8 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 
 	/* Write line to RAM - compare to filter 4 tuple */
 
-	/* Search no IP as GFT */
-	search_non_ip_as_gft = 0;
+	/* Search anal IP as GFT */
+	search_analn_ip_as_gft = 0;
 
 	/* Tunnel type */
 	SET_FIELD(lo, GFT_RAM_LINE_TUNNEL_DST_PORT, 1);
@@ -1552,24 +1552,24 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 		SET_FIELD(lo, GFT_RAM_LINE_TUNNEL_ETHERTYPE, 1);
 
 		/* Allow tunneled traffic without inner IP */
-		search_non_ip_as_gft = 1;
+		search_analn_ip_as_gft = 1;
 	}
 
 	ram_line.lo = cpu_to_le32(lo);
 	ram_line.hi = cpu_to_le32(hi);
 
 	qed_wr(p_hwfn,
-	       p_ptt, PRS_REG_SEARCH_NON_IP_AS_GFT, search_non_ip_as_gft);
+	       p_ptt, PRS_REG_SEARCH_ANALN_IP_AS_GFT, search_analn_ip_as_gft);
 	qed_dmae_to_grc(p_hwfn, p_ptt, &ram_line.lo,
 			PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id,
 			sizeof(ram_line) / REG_SIZE);
 
-	/* Set default profile so that no filter match will happen */
+	/* Set default profile so that anal filter match will happen */
 	ram_line.lo = cpu_to_le32(0xffffffff);
 	ram_line.hi = cpu_to_le32(0x3ff);
 	qed_dmae_to_grc(p_hwfn, p_ptt, &ram_line.lo,
 			PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE *
-			PRS_GFT_CAM_LINES_NO_MATCH,
+			PRS_GFT_CAM_LINES_ANAL_MATCH,
 			sizeof(ram_line) / REG_SIZE);
 
 	/* Enable gft search */
@@ -1891,7 +1891,7 @@ void qed_fw_overlay_init_ram(struct qed_hwfn *p_hwfn,
 		    (struct phys_mem_desc *)fw_overlay_mem + storm_id;
 		u32 ram_addr, i;
 
-		/* Skip Storms with no FW overlays */
+		/* Skip Storms with anal FW overlays */
 		if (!storm_mem_desc->virt_addr)
 			continue;
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014 Imagination Technologies
+ * Copyright (c) 2014 Imagination Techanallogies
  * Authors:  Will Thomas, James Hartley
  *
  *	Interface structure taken from omap-sham driver
@@ -180,8 +180,8 @@ static void img_hash_start(struct img_hash_dev *hdev, bool dma)
 
 	/*
 	 * The hardware block requires two cycles between writing the control
-	 * register and writing the first word of data in non DMA mode, to
-	 * ensure the first data write is not grouped in burst with the control
+	 * register and writing the first word of data in analn DMA mode, to
+	 * ensure the first data write is analt grouped in burst with the control
 	 * register write a read is issued to 'flush' the bus.
 	 */
 	if (!dma)
@@ -374,12 +374,12 @@ static void img_hash_dma_task(unsigned long d)
 	nbytes = ctx->sg->length - ctx->offset;
 
 	/*
-	 * The hash accelerator does not support a data valid mask. This means
-	 * that if each dma (i.e. per page) is not a multiple of 4 bytes, the
+	 * The hash accelerator does analt support a data valid mask. This means
+	 * that if each dma (i.e. per page) is analt a multiple of 4 bytes, the
 	 * padding bytes in the last word written by that dma would erroneously
 	 * be included in the hash. To avoid this we round down the transfer,
-	 * and add the excess to the start of the next dma. It does not matter
-	 * that the final dma may not be a multiple of 4 bytes as the hashing
+	 * and add the excess to the start of the next dma. It does analt matter
+	 * that the final dma may analt be a multiple of 4 bytes as the hashing
 	 * block is programmed to accept the correct number of bytes.
 	 */
 
@@ -542,7 +542,7 @@ static int img_hash_handle_queue(struct img_hash_dev *hdev,
 		err = img_hash_process_data(hdev);
 
 	if (err != -EINPROGRESS) {
-		/* done_task will not finish so do it here */
+		/* done_task will analt finish so do it here */
 		img_hash_finish_req(req, err);
 	}
 	return res;
@@ -682,7 +682,7 @@ static int img_hash_cra_init(struct crypto_tfm *tfm, const char *alg_name)
 	ctx->fallback = crypto_alloc_ahash(alg_name, 0,
 					   CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->fallback)) {
-		pr_err("img_hash: Could not load fallback driver.\n");
+		pr_err("img_hash: Could analt load fallback driver.\n");
 		return PTR_ERR(ctx->fallback);
 	}
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
@@ -737,7 +737,7 @@ static irqreturn_t img_irq_handler(int irq, void *dev_id)
 			tasklet_schedule(&hdev->done_task);
 		} else {
 			dev_warn(hdev->dev,
-				 "HASH interrupt when no active requests.\n");
+				 "HASH interrupt when anal active requests.\n");
 		}
 	} else if (reg & CR_INT_RESULTS_AVAILABLE) {
 		dev_warn(hdev->dev,
@@ -943,7 +943,7 @@ static int img_hash_probe(struct platform_device *pdev)
 
 	hdev = devm_kzalloc(dev, sizeof(*hdev), GFP_KERNEL);
 	if (hdev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&hdev->lock);
 

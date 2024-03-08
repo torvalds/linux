@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_X86_SEMBUF_H
 #define _ASM_X86_SEMBUF_H
 
@@ -6,7 +6,7 @@
 
 /*
  * The semid64_ds structure for x86 architecture.
- * Note extra padding because this structure is passed back and forth
+ * Analte extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
  * Pad space is left for:
@@ -28,7 +28,7 @@ struct semid64_ds {
 	__kernel_long_t sem_ctime;	/* last change time */
 	__kernel_ulong_t __unused2;
 #endif
-	__kernel_ulong_t sem_nsems;	/* no. of semaphores in array */
+	__kernel_ulong_t sem_nsems;	/* anal. of semaphores in array */
 	__kernel_ulong_t __unused3;
 	__kernel_ulong_t __unused4;
 };

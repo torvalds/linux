@@ -78,7 +78,7 @@ static struct platform_device ep93xx_dma_m2p_device = {
  * DMA M2M channels.
  *
  * There are 2 M2M channels which support memcpy/memset and in addition simple
- * hardware requests from/to SSP and IDE. We do not implement an external
+ * hardware requests from/to SSP and IDE. We do analt implement an external
  * hardware requests.
  *
  * Registers are mapped statically in ep93xx_map_io().

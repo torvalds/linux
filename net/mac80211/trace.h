@@ -509,7 +509,7 @@ TRACE_EVENT(drv_link_info_changed,
 		__entry->qos = link_conf->qos;
 		__entry->hidden_ssid = link_conf->hidden_ssid;
 		__entry->txpower = link_conf->txpower;
-		__entry->p2p_oppps_ctwindow = link_conf->p2p_noa_attr.oppps_ctwindow;
+		__entry->p2p_oppps_ctwindow = link_conf->p2p_anala_attr.oppps_ctwindow;
 	),
 
 	TP_printk(
@@ -817,10 +817,10 @@ TRACE_EVENT(drv_set_coverage_class,
 	)
 );
 
-TRACE_EVENT(drv_sta_notify,
+TRACE_EVENT(drv_sta_analtify,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
-		 enum sta_notify_cmd cmd,
+		 enum sta_analtify_cmd cmd,
 		 struct ieee80211_sta *sta),
 
 	TP_ARGS(local, sdata, cmd, sta),
@@ -2751,7 +2751,7 @@ TRACE_EVENT(api_disconnect,
 	)
 );
 
-TRACE_EVENT(api_cqm_rssi_notify,
+TRACE_EVENT(api_cqm_rssi_analtify,
 	TP_PROTO(struct ieee80211_sub_if_data *sdata,
 		 enum nl80211_cqm_rssi_threshold_event rssi_event,
 		 s32 rssi_level),
@@ -2776,7 +2776,7 @@ TRACE_EVENT(api_cqm_rssi_notify,
 	)
 );
 
-DEFINE_EVENT(local_sdata_evt, api_cqm_beacon_loss_notify,
+DEFINE_EVENT(local_sdata_evt, api_cqm_beacon_loss_analtify,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata),
 	TP_ARGS(local, sdata)
@@ -2897,7 +2897,7 @@ DEFINE_EVENT(local_only_evt, api_remain_on_channel_expired,
 	TP_ARGS(local)
 );
 
-TRACE_EVENT(api_gtk_rekey_notify,
+TRACE_EVENT(api_gtk_rekey_analtify,
 	TP_PROTO(struct ieee80211_sub_if_data *sdata,
 		 const u8 *bssid, const u8 *replay_ctr),
 

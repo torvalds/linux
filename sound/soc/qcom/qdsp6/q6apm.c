@@ -55,11 +55,11 @@ static struct audioreach_graph *q6apm_get_audioreach_graph(struct q6apm *apm, ui
 	info = idr_find(&apm->graph_info_idr, graph_id);
 
 	if (!info)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	graph = kzalloc(sizeof(*graph), GFP_KERNEL);
 	if (!graph)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	graph->apm = apm;
 	graph->info = info;
@@ -117,7 +117,7 @@ static int audioreach_graph_mgmt_cmd(struct audioreach_graph *graph, uint32_t op
 	param_data->param_id = APM_PARAM_ID_SUB_GRAPH_LIST;
 	param_data->param_size = payload_size - APM_MODULE_PARAM_DATA_SIZE;
 
-	list_for_each_entry(sg, &info->sg_list, node)
+	list_for_each_entry(sg, &info->sg_list, analde)
 		mgmt_cmd->sub_graph_id_list[i++] = sg->sub_graph_id;
 
 	rc = q6apm_send_cmd_sync(apm, pkt, 0);
@@ -178,9 +178,9 @@ static struct audioreach_module *__q6apm_find_module_by_mid(struct q6apm *apm,
 	struct audioreach_sub_graph *sgs;
 	struct audioreach_module *module;
 
-	list_for_each_entry(sgs, &info->sg_list, node) {
-		list_for_each_entry(container, &sgs->container_list, node) {
-			list_for_each_entry(module, &container->modules_list, node) {
+	list_for_each_entry(sgs, &info->sg_list, analde) {
+		list_for_each_entry(container, &sgs->container_list, analde) {
+			list_for_each_entry(module, &container->modules_list, analde) {
 				if (mid == module->module_id)
 					return module;
 			}
@@ -201,7 +201,7 @@ int q6apm_graph_media_format_shmem(struct q6apm_graph *graph,
 		module = q6apm_find_module_by_mid(graph, MODULE_ID_WR_SHARED_MEM_EP);
 
 	if (!module)
-		return -ENODEV;
+		return -EANALDEV;
 
 	audioreach_set_media_format(graph, module, cfg);
 
@@ -233,7 +233,7 @@ int q6apm_map_memory_regions(struct q6apm_graph *graph, unsigned int dir, phys_a
 	buf = kzalloc(((sizeof(struct audio_buffer)) * periods), GFP_KERNEL);
 	if (!buf) {
 		mutex_unlock(&graph->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
@@ -304,7 +304,7 @@ int q6apm_remove_initial_silence(struct device *dev, struct q6apm_graph *graph, 
 
 	module = q6apm_find_module_by_mid(graph, MODULE_ID_PLACEHOLDER_DECODER);
 	if (!module)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return audioreach_send_u32_param(graph, module, PARAM_ID_REMOVE_INITIAL_SILENCE, samples);
 }
@@ -316,7 +316,7 @@ int q6apm_remove_trailing_silence(struct device *dev, struct q6apm_graph *graph,
 
 	module = q6apm_find_module_by_mid(graph, MODULE_ID_PLACEHOLDER_DECODER);
 	if (!module)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return audioreach_send_u32_param(graph, module, PARAM_ID_REMOVE_TRAILING_SILENCE, samples);
 }
@@ -328,7 +328,7 @@ int q6apm_enable_compress_module(struct device *dev, struct q6apm_graph *graph, 
 
 	module = q6apm_find_module_by_mid(graph, MODULE_ID_PLACEHOLDER_DECODER);
 	if (!module)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return audioreach_send_u32_param(graph, module, PARAM_ID_MODULE_ENABLE, en);
 }
@@ -342,7 +342,7 @@ int q6apm_set_real_module_id(struct device *dev, struct q6apm_graph *graph,
 
 	module = q6apm_find_module_by_mid(graph, MODULE_ID_PLACEHOLDER_DECODER);
 	if (!module)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (codec_id) {
 	case SND_AUDIOCODEC_MP3:
@@ -370,9 +370,9 @@ int q6apm_graph_media_format_pcm(struct q6apm_graph *graph, struct audioreach_mo
 	struct audioreach_container *container;
 	struct audioreach_module *module;
 
-	list_for_each_entry(sgs, &info->sg_list, node) {
-		list_for_each_entry(container, &sgs->container_list, node) {
-			list_for_each_entry(module, &container->modules_list, node) {
+	list_for_each_entry(sgs, &info->sg_list, analde) {
+		list_for_each_entry(container, &sgs->container_list, analde) {
+			list_for_each_entry(module, &container->modules_list, analde) {
 				if ((module->module_id == MODULE_ID_WR_SHARED_MEM_EP) ||
 					(module->module_id == MODULE_ID_RD_SHARED_MEM_EP))
 					continue;
@@ -393,7 +393,7 @@ static int q6apm_graph_get_tx_shmem_module_iid(struct q6apm_graph *graph)
 
 	module = q6apm_find_module_by_mid(graph, MODULE_ID_RD_SHARED_MEM_EP);
 	if (!module)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return module->instance_id;
 
@@ -405,7 +405,7 @@ int q6apm_graph_get_rx_shmem_module_iid(struct q6apm_graph *graph)
 
 	module = q6apm_find_module_by_mid(graph, MODULE_ID_WR_SHARED_MEM_EP);
 	if (!module)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return module->instance_id;
 
@@ -612,13 +612,13 @@ struct q6apm_graph *q6apm_graph_open(struct device *dev, q6apm_cb cb,
 
 	ar_graph = q6apm_get_audioreach_graph(apm, graph_id);
 	if (IS_ERR(ar_graph)) {
-		dev_err(dev, "No graph found with id %d\n", graph_id);
+		dev_err(dev, "Anal graph found with id %d\n", graph_id);
 		return ERR_CAST(ar_graph);
 	}
 
 	graph = kzalloc(sizeof(*graph), GFP_KERNEL);
 	if (!graph) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_ar_graph;
 	}
 
@@ -726,7 +726,7 @@ static int apm_probe(gpr_device_t *gdev)
 
 	apm = devm_kzalloc(dev, sizeof(*apm), GFP_KERNEL);
 	if (!apm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, apm);
 
@@ -753,7 +753,7 @@ static int apm_probe(gpr_device_t *gdev)
 		return ret;
 	}
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return of_platform_populate(dev->of_analde, NULL, NULL, dev);
 }
 
 struct audioreach_module *q6apm_find_module_by_mid(struct q6apm_graph *graph, uint32_t mid)

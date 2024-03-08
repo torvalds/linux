@@ -16,8 +16,8 @@ struct page **dma_common_find_pages(void *cpu_addr)
 }
 
 /*
- * Remaps an array of PAGE_SIZE pages into another vm_area.
- * Cannot be used in non-sleeping contexts
+ * Remaps an array of PAGE_SIZE pages into aanalther vm_area.
+ * Cananalt be used in analn-sleeping contexts
  */
 void *dma_common_pages_remap(struct page **pages, size_t size,
 			 pgprot_t prot, const void *caller)
@@ -32,8 +32,8 @@ void *dma_common_pages_remap(struct page **pages, size_t size,
 }
 
 /*
- * Remaps an allocated contiguous region into another vm_area.
- * Cannot be used in non-sleeping contexts
+ * Remaps an allocated contiguous region into aanalther vm_area.
+ * Cananalt be used in analn-sleeping contexts
  */
 void *dma_common_contiguous_remap(struct page *page, size_t size,
 			pgprot_t prot, const void *caller)

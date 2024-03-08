@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * AMD specific. Provide textual annotation for IBS raw sample data.
+ * AMD specific. Provide textual ananaltation for IBS raw sample data.
  */
 
 #include <unistd.h>
@@ -44,7 +44,7 @@ static void pr_ibs_fetch_ctl(union ibs_fetch_ctl reg)
 
 	if (cpu_family == 0x19 && cpu_model < 0x10) {
 		/*
-		 * Erratum #1238 workaround is to ignore MSRC001_1030[IbsIcMiss]
+		 * Erratum #1238 workaround is to iganalre MSRC001_1030[IbsIcMiss]
 		 * Erratum #1347 workaround is to use table provided in erratum
 		 */
 		if (reg.phy_addr_valid)
@@ -104,10 +104,10 @@ static void pr_ibs_op_data2_extended(union ibs_op_data2 reg)
 	static const char * const data_src_str[] = {
 		"",
 		" DataSrc 1=Local L3 or other L1/L2 in CCX",
-		" DataSrc 2=Another CCX cache in the same NUMA node",
+		" DataSrc 2=Aanalther CCX cache in the same NUMA analde",
 		" DataSrc 3=DRAM",
 		" DataSrc 4=(reserved)",
-		" DataSrc 5=Another CCX cache in a different NUMA node",
+		" DataSrc 5=Aanalther CCX cache in a different NUMA analde",
 		" DataSrc 6=Long-latency DIMM",
 		" DataSrc 7=MMIO/Config/PCI/APIC",
 		" DataSrc 8=Extension Memory",
@@ -119,10 +119,10 @@ static void pr_ibs_op_data2_extended(union ibs_op_data2 reg)
 	};
 	int data_src = (reg.data_src_hi << 3) | reg.data_src_lo;
 
-	printf("ibs_op_data2:\t%016llx %sRmtNode %d%s\n", reg.val,
+	printf("ibs_op_data2:\t%016llx %sRmtAnalde %d%s\n", reg.val,
 		(data_src == 1 || data_src == 2 || data_src == 5) ?
 			(reg.cache_hit_st ? "CacheHitSt 1=O-State " : "CacheHitSt 0=M-state ") : "",
-		reg.rmt_node,
+		reg.rmt_analde,
 		data_src < (int)ARRAY_SIZE(data_src_str) ? data_src_str[data_src] : "");
 }
 
@@ -131,18 +131,18 @@ static void pr_ibs_op_data2_default(union ibs_op_data2 reg)
 	static const char * const data_src_str[] = {
 		"",
 		" DataSrc 1=(reserved)",
-		" DataSrc 2=Local node cache",
+		" DataSrc 2=Local analde cache",
 		" DataSrc 3=DRAM",
-		" DataSrc 4=Remote node cache",
+		" DataSrc 4=Remote analde cache",
 		" DataSrc 5=(reserved)",
 		" DataSrc 6=(reserved)",
 		" DataSrc 7=Other"
 	};
 
-	printf("ibs_op_data2:\t%016llx %sRmtNode %d%s\n", reg.val,
+	printf("ibs_op_data2:\t%016llx %sRmtAnalde %d%s\n", reg.val,
 	       reg.data_src_lo == 2 ? (reg.cache_hit_st ? "CacheHitSt 1=O-State "
 						     : "CacheHitSt 0=M-state ") : "",
-	       reg.rmt_node, data_src_str[reg.data_src_lo]);
+	       reg.rmt_analde, data_src_str[reg.data_src_lo]);
 }
 
 static void pr_ibs_op_data2(union ibs_op_data2 reg)
@@ -160,9 +160,9 @@ static void pr_ibs_op_data3(union ibs_op_data3 reg)
 
 	/*
 	 * Erratum #1293
-	 * Ignore L2Miss and OpDcMissOpenMemReqs (and opdata2) if DcMissNoMabAlloc or SwPf set
+	 * Iganalre L2Miss and OpDcMissOpenMemReqs (and opdata2) if DcMissAnalMabAlloc or SwPf set
 	 */
-	if (!(cpu_family == 0x19 && cpu_model < 0x10 && (reg.dc_miss_no_mab_alloc || reg.sw_pf))) {
+	if (!(cpu_family == 0x19 && cpu_model < 0x10 && (reg.dc_miss_anal_mab_alloc || reg.sw_pf))) {
 		snprintf(l2_miss_str, sizeof(l2_miss_str), " L2Miss %d", reg.l2_miss);
 		snprintf(op_dc_miss_open_mem_reqs_str, sizeof(op_dc_miss_open_mem_reqs_str),
 			 " OpDcMissOpenMemReqs %2d", reg.op_dc_miss_open_mem_reqs);
@@ -174,12 +174,12 @@ static void pr_ibs_op_data3(union ibs_op_data3 reg)
 
 	printf("ibs_op_data3:\t%016llx LdOp %d StOp %d DcL1TlbMiss %d DcL2TlbMiss %d "
 		"DcL1TlbHit2M %d DcL1TlbHit1G %d DcL2TlbHit2M %d DcMiss %d DcMisAcc %d "
-		"DcWcMemAcc %d DcUcMemAcc %d DcLockedOp %d DcMissNoMabAlloc %d DcLinAddrValid %d "
+		"DcWcMemAcc %d DcUcMemAcc %d DcLockedOp %d DcMissAnalMabAlloc %d DcLinAddrValid %d "
 		"DcPhyAddrValid %d DcL2TlbHit1G %d%s SwPf %d%s%s DcMissLat %5d TlbRefillLat %5d\n",
 		reg.val, reg.ld_op, reg.st_op, reg.dc_l1tlb_miss, reg.dc_l2tlb_miss,
 		reg.dc_l1tlb_hit_2m, reg.dc_l1tlb_hit_1g, reg.dc_l2tlb_hit_2m, reg.dc_miss,
 		reg.dc_mis_acc, reg.dc_wc_mem_acc, reg.dc_uc_mem_acc, reg.dc_locked_op,
-		reg.dc_miss_no_mab_alloc, reg.dc_lin_addr_valid, reg.dc_phy_addr_valid,
+		reg.dc_miss_anal_mab_alloc, reg.dc_lin_addr_valid, reg.dc_phy_addr_valid,
 		reg.dc_l2_tlb_hit_1g, l2_miss_str, reg.sw_pf, op_mem_width_str,
 		op_dc_miss_open_mem_reqs_str, reg.dc_miss_lat, reg.tlb_refill_lat);
 }
@@ -202,10 +202,10 @@ static void amd_dump_ibs_op(struct perf_sample *sample)
 		printf("IbsOpRip:\t%016llx\n", *rip);
 	pr_ibs_op_data(*op_data);
 	/*
-	 * Erratum #1293: ignore op_data2 if DcMissNoMabAlloc or SwPf are set
+	 * Erratum #1293: iganalre op_data2 if DcMissAnalMabAlloc or SwPf are set
 	 */
 	if (!(cpu_family == 0x19 && cpu_model < 0x10 &&
-	      (op_data3->dc_miss_no_mab_alloc || op_data3->sw_pf)))
+	      (op_data3->dc_miss_anal_mab_alloc || op_data3->sw_pf)))
 		pr_ibs_op_data2(*(union ibs_op_data2 *)(rip + 2));
 	pr_ibs_op_data3(*op_data3);
 	if (op_data3->dc_lin_addr_valid)

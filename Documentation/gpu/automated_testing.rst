@@ -58,13 +58,13 @@ file, see below).
 drivers/gpu/drm/ci/${DRIVER_NAME}-${HW_REVISION}-fails.txt
 ----------------------------------------------------------
 
-Lists the known failures for a given driver on a specific hardware revision.
+Lists the kanalwn failures for a given driver on a specific hardware revision.
 
 drivers/gpu/drm/ci/${DRIVER_NAME}-${HW_REVISION}-flakes.txt
 -----------------------------------------------------------
 
 Lists the tests that for a given driver on a specific hardware revision are
-known to behave unreliably. These tests won't cause a job to fail regardless of
+kanalwn to behave unreliably. These tests won't cause a job to fail regardless of
 the result. They will still be run.
 
 Each new flake entry must be associated with a link to the email reporting the
@@ -124,7 +124,7 @@ How to expand coverage
 
 If your code changes make it possible to run more tests (by solving reliability
 issues, for example), you can remove tests from the flakes and/or skips lists,
-and then the expected results if there are any known failures.
+and then the expected results if there are any kanalwn failures.
 
 If there is a need for updating the version of IGT being used (maybe you have
 added more tests to it), update the IGT_VERSION variable at the top of the
@@ -148,7 +148,7 @@ tree under test. These fixes will be automatically merged in during the build
 jobs from a branch in the target tree that is named as
 ${TARGET_BRANCH}-external-fixes.
 
-If the pipeline is not in a merge request and a branch with the same name
+If the pipeline is analt in a merge request and a branch with the same name
 exists in the local tree, commits from that branch will be merged in as well.
 
 

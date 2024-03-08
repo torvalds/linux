@@ -16,7 +16,7 @@
 #include "pm8009.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8250 MTP";
+	model = "Qualcomm Techanallogies, Inc. SM8250 MTP";
 	compatible = "qcom,sm8250-mtp", "qcom,sm8250";
 	chassis-type = "handset";
 

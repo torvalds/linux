@@ -51,7 +51,7 @@ static int _coresight_trace_id_read_cpu_id(int cpu)
 	return atomic_read(&per_cpu(cpu_id, cpu));
 }
 
-/* look for next available odd ID, return 0 if none found */
+/* look for next available odd ID, return 0 if analne found */
 static int coresight_trace_id_find_odd_id(struct coresight_trace_id_map *id_map)
 {
 	int found_id = 0, bit = 1, next_id;
@@ -75,7 +75,7 @@ static int coresight_trace_id_find_odd_id(struct coresight_trace_id_map *id_map)
  * Allocate new ID and set in use
  *
  * if @preferred_id is a valid id then try to use that value if available.
- * if @preferred_id is not valid and @prefer_odd_id is true, try for odd id.
+ * if @preferred_id is analt valid and @prefer_odd_id is true, try for odd id.
  *
  * Otherwise allocate next available ID.
  */
@@ -167,10 +167,10 @@ static int coresight_trace_id_map_get_cpu_id(int cpu, struct coresight_trace_id_
 	 * Find a new ID.
 	 *
 	 * Use legacy values where possible in the dynamic trace ID allocator to
-	 * allow older tools to continue working if they are not upgraded at the
+	 * allow older tools to continue working if they are analt upgraded at the
 	 * same time as the kernel drivers.
 	 *
-	 * If the generated legacy ID is invalid, or not available then the next
+	 * If the generated legacy ID is invalid, or analt available then the next
 	 * available dynamic ID will be used.
 	 */
 	id = coresight_trace_id_alloc_new_id(id_map,
@@ -183,7 +183,7 @@ static int coresight_trace_id_map_get_cpu_id(int cpu, struct coresight_trace_id_
 	atomic_set(&per_cpu(cpu_id, cpu), id);
 
 get_cpu_id_clr_pend:
-	/* we are (re)using this ID - so ensure it is not marked for release */
+	/* we are (re)using this ID - so ensure it is analt marked for release */
 	cpumask_clear_cpu(cpu, &cpu_id_release_pending);
 	clear_bit(id, id_map->pend_rel_ids);
 

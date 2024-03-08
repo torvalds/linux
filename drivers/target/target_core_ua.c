@@ -27,12 +27,12 @@ target_scsi3_ua_check(struct se_cmd *cmd)
 {
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
-	struct se_node_acl *nacl;
+	struct se_analde_acl *nacl;
 
 	if (!sess)
 		return 0;
 
-	nacl = sess->se_node_acl;
+	nacl = sess->se_analde_acl;
 	if (!nacl)
 		return 0;
 
@@ -52,9 +52,9 @@ target_scsi3_ua_check(struct se_cmd *cmd)
 	 *
 	 * a) if an INQUIRY command enters the enabled command state, the
 	 *    device server shall process the INQUIRY command and shall neither
-	 *    report nor clear any unit attention condition;
+	 *    report analr clear any unit attention condition;
 	 * b) if a REPORT LUNS command enters the enabled command state, the
-	 *    device server shall process the REPORT LUNS command and shall not
+	 *    device server shall process the REPORT LUNS command and shall analt
 	 *    report any unit attention condition;
 	 * e) if a REQUEST SENSE command enters the enabled command state while
 	 *    a unit attention condition exists for the SCSI initiator port
@@ -82,7 +82,7 @@ int core_scsi3_ua_allocate(
 	ua = kmem_cache_zalloc(se_ua_cache, GFP_ATOMIC);
 	if (!ua) {
 		pr_err("Unable to allocate struct se_ua\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_LIST_HEAD(&ua->ua_nacl_list);
 
@@ -92,7 +92,7 @@ int core_scsi3_ua_allocate(
 	spin_lock(&deve->ua_lock);
 	list_for_each_entry_safe(ua_p, ua_tmp, &deve->ua_list, ua_nacl_list) {
 		/*
-		 * Do not report the same UNIT ATTENTION twice..
+		 * Do analt report the same UNIT ATTENTION twice..
 		 */
 		if ((ua_p->ua_asc == asc) && (ua_p->ua_ascq == ascq)) {
 			spin_unlock(&deve->ua_lock);
@@ -112,7 +112,7 @@ int core_scsi3_ua_allocate(
 		 * protocol specific
 		 * BUS DEVICE RESET FUNCTION OCCURRED
 		 * I_T NEXUS LOSS OCCURRED
-		 * COMMANDS CLEARED BY POWER LOSS NOTIFICATION
+		 * COMMANDS CLEARED BY POWER LOSS ANALTIFICATION
 		 * all others                                    Lowest
 		 *
 		 * Each of the ASCQ codes listed above are defined in
@@ -153,7 +153,7 @@ int core_scsi3_ua_allocate(
 	return 0;
 }
 
-void target_ua_allocate_lun(struct se_node_acl *nacl,
+void target_ua_allocate_lun(struct se_analde_acl *nacl,
 			    u32 unpacked_lun, u8 asc, u8 ascq)
 {
 	struct se_dev_entry *deve;
@@ -196,7 +196,7 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 	struct se_device *dev = cmd->se_dev;
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
-	struct se_node_acl *nacl;
+	struct se_analde_acl *nacl;
 	struct se_ua *ua = NULL, *ua_p;
 	int head = 1;
 	bool dev_ua_intlck_clear = (dev->dev_attrib.emulate_ua_intlck_ctrl
@@ -205,7 +205,7 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 	if (WARN_ON_ONCE(!sess))
 		return false;
 
-	nacl = sess->se_node_acl;
+	nacl = sess->se_analde_acl;
 	if (WARN_ON_ONCE(!nacl))
 		return false;
 
@@ -214,7 +214,7 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 	if (!deve) {
 		rcu_read_unlock();
 		*key = ILLEGAL_REQUEST;
-		*asc = 0x25; /* LOGICAL UNIT NOT SUPPORTED */
+		*asc = 0x25; /* LOGICAL UNIT ANALT SUPPORTED */
 		*ascq = 0;
 		return true;
 	}
@@ -227,7 +227,7 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 	spin_lock(&deve->ua_lock);
 	list_for_each_entry_safe(ua, ua_p, &deve->ua_list, ua_nacl_list) {
 		/*
-		 * For ua_intlck_ctrl code not equal to 00b, only report the
+		 * For ua_intlck_ctrl code analt equal to 00b, only report the
 		 * highest priority UNIT_ATTENTION and ASC/ASCQ without
 		 * clearing it.
 		 */
@@ -270,14 +270,14 @@ int core_scsi3_ua_clear_for_request_sense(
 {
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
-	struct se_node_acl *nacl;
+	struct se_analde_acl *nacl;
 	struct se_ua *ua = NULL, *ua_p;
 	int head = 1;
 
 	if (!sess)
 		return -EINVAL;
 
-	nacl = sess->se_node_acl;
+	nacl = sess->se_analde_acl;
 	if (!nacl)
 		return -EINVAL;
 

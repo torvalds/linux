@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,7 +30,7 @@
 
 #define AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS 20
 #define MAX_HW_AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS 18
-#define MULTI_CHANNEL_SPLIT_NO_ASSO_INFO 0xFFFFFFFF
+#define MULTI_CHANNEL_SPLIT_ANAL_ASSO_INFO 0xFFFFFFFF
 
 
 struct audio_crtc_info {
@@ -52,7 +52,7 @@ struct azalia_clock_info {
 };
 
 enum audio_dto_source {
-	DTO_SOURCE_UNKNOWN = 0,
+	DTO_SOURCE_UNKANALWN = 0,
 	DTO_SOURCE_ID0,
 	DTO_SOURCE_ID1,
 	DTO_SOURCE_ID2,

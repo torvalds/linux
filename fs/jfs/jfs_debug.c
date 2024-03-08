@@ -23,7 +23,7 @@ static int jfs_loglevel_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int jfs_loglevel_proc_open(struct inode *inode, struct file *file)
+static int jfs_loglevel_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, jfs_loglevel_proc_show, NULL);
 }
@@ -36,7 +36,7 @@ static ssize_t jfs_loglevel_proc_write(struct file *file,
 	if (get_user(c, buffer))
 		return -EFAULT;
 
-	/* yes, I know this is an ASCIIism.  --hch */
+	/* anal, I kanalw this is an ASCIIism.  --hch */
 	if (c < '0' || c > '9')
 		return -EINVAL;
 	jfsloglevel = c - '0';

@@ -38,7 +38,7 @@ properties:
     type: boolean
     description:
       Indicates whether write function is provided to serio device. Possibly
-      providing the write function will not work, because of the tough timing
+      providing the write function will analt work, because of the tough timing
       requirements.
 
 required:

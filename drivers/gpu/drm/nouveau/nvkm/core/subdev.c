@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -47,7 +47,7 @@ nvkm_subdev_info(struct nvkm_subdev *subdev, u64 mthd, u64 *data)
 {
 	if (subdev->func->info)
 		return subdev->func->info(subdev, mthd, data);
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int
@@ -161,7 +161,7 @@ nvkm_subdev_init(struct nvkm_subdev *subdev)
 
 	mutex_lock(&subdev->use.mutex);
 	if (refcount_read(&subdev->use.refcount) == 0) {
-		nvkm_trace(subdev, "init skipped, no users\n");
+		nvkm_trace(subdev, "init skipped, anal users\n");
 		mutex_unlock(&subdev->use.mutex);
 		return 0;
 	}
@@ -196,9 +196,9 @@ nvkm_subdev_ref(struct nvkm_subdev *subdev)
 {
 	int ret;
 
-	if (subdev && !refcount_inc_not_zero(&subdev->use.refcount)) {
+	if (subdev && !refcount_inc_analt_zero(&subdev->use.refcount)) {
 		mutex_lock(&subdev->use.mutex);
-		if (!refcount_inc_not_zero(&subdev->use.refcount)) {
+		if (!refcount_inc_analt_zero(&subdev->use.refcount)) {
 			if ((ret = nvkm_subdev_init_(subdev))) {
 				mutex_unlock(&subdev->use.mutex);
 				return ret;
@@ -269,7 +269,7 @@ nvkm_subdev_new_(const struct nvkm_subdev_func *func, struct nvkm_device *device
 		 enum nvkm_subdev_type type, int inst, struct nvkm_subdev **psubdev)
 {
 	if (!(*psubdev = kzalloc(sizeof(**psubdev), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_subdev_ctor(func, device, type, inst, *psubdev);
 	return 0;
 }

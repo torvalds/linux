@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 1997 Linus Torvalds
- * (C) 1999 Andrea Arcangeli <andrea@suse.de> (dynamic inode allocation)
+ * (C) 1999 Andrea Arcangeli <andrea@suse.de> (dynamic ianalde allocation)
  */
 #include <linux/export.h>
 #include <linux/fs.h>
@@ -13,10 +13,10 @@
 #include <linux/security.h>
 #include <linux/cdev.h>
 #include <linux/memblock.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/mount.h>
 #include <linux/posix_acl.h>
-#include <linux/buffer_head.h> /* for inode_has_buffers */
+#include <linux/buffer_head.h> /* for ianalde_has_buffers */
 #include <linux/ratelimit.h>
 #include <linux/list_lru.h>
 #include <linux/iversion.h>
@@ -24,64 +24,64 @@
 #include "internal.h"
 
 /*
- * Inode locking rules:
+ * Ianalde locking rules:
  *
- * inode->i_lock protects:
- *   inode->i_state, inode->i_hash, __iget(), inode->i_io_list
- * Inode LRU list locks protect:
- *   inode->i_sb->s_inode_lru, inode->i_lru
- * inode->i_sb->s_inode_list_lock protects:
- *   inode->i_sb->s_inodes, inode->i_sb_list
+ * ianalde->i_lock protects:
+ *   ianalde->i_state, ianalde->i_hash, __iget(), ianalde->i_io_list
+ * Ianalde LRU list locks protect:
+ *   ianalde->i_sb->s_ianalde_lru, ianalde->i_lru
+ * ianalde->i_sb->s_ianalde_list_lock protects:
+ *   ianalde->i_sb->s_ianaldes, ianalde->i_sb_list
  * bdi->wb.list_lock protects:
- *   bdi->wb.b_{dirty,io,more_io,dirty_time}, inode->i_io_list
- * inode_hash_lock protects:
- *   inode_hashtable, inode->i_hash
+ *   bdi->wb.b_{dirty,io,more_io,dirty_time}, ianalde->i_io_list
+ * ianalde_hash_lock protects:
+ *   ianalde_hashtable, ianalde->i_hash
  *
  * Lock ordering:
  *
- * inode->i_sb->s_inode_list_lock
- *   inode->i_lock
- *     Inode LRU list locks
+ * ianalde->i_sb->s_ianalde_list_lock
+ *   ianalde->i_lock
+ *     Ianalde LRU list locks
  *
  * bdi->wb.list_lock
- *   inode->i_lock
+ *   ianalde->i_lock
  *
- * inode_hash_lock
- *   inode->i_sb->s_inode_list_lock
- *   inode->i_lock
+ * ianalde_hash_lock
+ *   ianalde->i_sb->s_ianalde_list_lock
+ *   ianalde->i_lock
  *
  * iunique_lock
- *   inode_hash_lock
+ *   ianalde_hash_lock
  */
 
 static unsigned int i_hash_mask __ro_after_init;
 static unsigned int i_hash_shift __ro_after_init;
-static struct hlist_head *inode_hashtable __ro_after_init;
-static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
+static struct hlist_head *ianalde_hashtable __ro_after_init;
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(ianalde_hash_lock);
 
 /*
- * Empty aops. Can be used for the cases where the user does not
+ * Empty aops. Can be used for the cases where the user does analt
  * define any of the address_space operations.
  */
 const struct address_space_operations empty_aops = {
 };
 EXPORT_SYMBOL(empty_aops);
 
-static DEFINE_PER_CPU(unsigned long, nr_inodes);
+static DEFINE_PER_CPU(unsigned long, nr_ianaldes);
 static DEFINE_PER_CPU(unsigned long, nr_unused);
 
-static struct kmem_cache *inode_cachep __ro_after_init;
+static struct kmem_cache *ianalde_cachep __ro_after_init;
 
-static long get_nr_inodes(void)
+static long get_nr_ianaldes(void)
 {
 	int i;
 	long sum = 0;
 	for_each_possible_cpu(i)
-		sum += per_cpu(nr_inodes, i);
+		sum += per_cpu(nr_ianaldes, i);
 	return sum < 0 ? 0 : sum;
 }
 
-static inline long get_nr_inodes_unused(void)
+static inline long get_nr_ianaldes_unused(void)
 {
 	int i;
 	long sum = 0;
@@ -90,117 +90,117 @@ static inline long get_nr_inodes_unused(void)
 	return sum < 0 ? 0 : sum;
 }
 
-long get_nr_dirty_inodes(void)
+long get_nr_dirty_ianaldes(void)
 {
-	/* not actually dirty inodes, but a wild approximation */
-	long nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
+	/* analt actually dirty ianaldes, but a wild approximation */
+	long nr_dirty = get_nr_ianaldes() - get_nr_ianaldes_unused();
 	return nr_dirty > 0 ? nr_dirty : 0;
 }
 
 /*
- * Handle nr_inode sysctl
+ * Handle nr_ianalde sysctl
  */
 #ifdef CONFIG_SYSCTL
 /*
  * Statistics gathering..
  */
-static struct inodes_stat_t inodes_stat;
+static struct ianaldes_stat_t ianaldes_stat;
 
-static int proc_nr_inodes(struct ctl_table *table, int write, void *buffer,
+static int proc_nr_ianaldes(struct ctl_table *table, int write, void *buffer,
 			  size_t *lenp, loff_t *ppos)
 {
-	inodes_stat.nr_inodes = get_nr_inodes();
-	inodes_stat.nr_unused = get_nr_inodes_unused();
+	ianaldes_stat.nr_ianaldes = get_nr_ianaldes();
+	ianaldes_stat.nr_unused = get_nr_ianaldes_unused();
 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 }
 
-static struct ctl_table inodes_sysctls[] = {
+static struct ctl_table ianaldes_sysctls[] = {
 	{
-		.procname	= "inode-nr",
-		.data		= &inodes_stat,
+		.procname	= "ianalde-nr",
+		.data		= &ianaldes_stat,
 		.maxlen		= 2*sizeof(long),
 		.mode		= 0444,
-		.proc_handler	= proc_nr_inodes,
+		.proc_handler	= proc_nr_ianaldes,
 	},
 	{
-		.procname	= "inode-state",
-		.data		= &inodes_stat,
+		.procname	= "ianalde-state",
+		.data		= &ianaldes_stat,
 		.maxlen		= 7*sizeof(long),
 		.mode		= 0444,
-		.proc_handler	= proc_nr_inodes,
+		.proc_handler	= proc_nr_ianaldes,
 	},
 };
 
-static int __init init_fs_inode_sysctls(void)
+static int __init init_fs_ianalde_sysctls(void)
 {
-	register_sysctl_init("fs", inodes_sysctls);
+	register_sysctl_init("fs", ianaldes_sysctls);
 	return 0;
 }
-early_initcall(init_fs_inode_sysctls);
+early_initcall(init_fs_ianalde_sysctls);
 #endif
 
-static int no_open(struct inode *inode, struct file *file)
+static int anal_open(struct ianalde *ianalde, struct file *file)
 {
 	return -ENXIO;
 }
 
 /**
- * inode_init_always - perform inode structure initialisation
- * @sb: superblock inode belongs to
- * @inode: inode to initialise
+ * ianalde_init_always - perform ianalde structure initialisation
+ * @sb: superblock ianalde belongs to
+ * @ianalde: ianalde to initialise
  *
- * These are initializations that need to be done on every inode
- * allocation as the fields are not initialised by slab allocation.
+ * These are initializations that need to be done on every ianalde
+ * allocation as the fields are analt initialised by slab allocation.
  */
-int inode_init_always(struct super_block *sb, struct inode *inode)
+int ianalde_init_always(struct super_block *sb, struct ianalde *ianalde)
 {
-	static const struct inode_operations empty_iops;
-	static const struct file_operations no_open_fops = {.open = no_open};
-	struct address_space *const mapping = &inode->i_data;
+	static const struct ianalde_operations empty_iops;
+	static const struct file_operations anal_open_fops = {.open = anal_open};
+	struct address_space *const mapping = &ianalde->i_data;
 
-	inode->i_sb = sb;
-	inode->i_blkbits = sb->s_blocksize_bits;
-	inode->i_flags = 0;
-	atomic64_set(&inode->i_sequence, 0);
-	atomic_set(&inode->i_count, 1);
-	inode->i_op = &empty_iops;
-	inode->i_fop = &no_open_fops;
-	inode->i_ino = 0;
-	inode->__i_nlink = 1;
-	inode->i_opflags = 0;
+	ianalde->i_sb = sb;
+	ianalde->i_blkbits = sb->s_blocksize_bits;
+	ianalde->i_flags = 0;
+	atomic64_set(&ianalde->i_sequence, 0);
+	atomic_set(&ianalde->i_count, 1);
+	ianalde->i_op = &empty_iops;
+	ianalde->i_fop = &anal_open_fops;
+	ianalde->i_ianal = 0;
+	ianalde->__i_nlink = 1;
+	ianalde->i_opflags = 0;
 	if (sb->s_xattr)
-		inode->i_opflags |= IOP_XATTR;
-	i_uid_write(inode, 0);
-	i_gid_write(inode, 0);
-	atomic_set(&inode->i_writecount, 0);
-	inode->i_size = 0;
-	inode->i_write_hint = WRITE_LIFE_NOT_SET;
-	inode->i_blocks = 0;
-	inode->i_bytes = 0;
-	inode->i_generation = 0;
-	inode->i_pipe = NULL;
-	inode->i_cdev = NULL;
-	inode->i_link = NULL;
-	inode->i_dir_seq = 0;
-	inode->i_rdev = 0;
-	inode->dirtied_when = 0;
+		ianalde->i_opflags |= IOP_XATTR;
+	i_uid_write(ianalde, 0);
+	i_gid_write(ianalde, 0);
+	atomic_set(&ianalde->i_writecount, 0);
+	ianalde->i_size = 0;
+	ianalde->i_write_hint = WRITE_LIFE_ANALT_SET;
+	ianalde->i_blocks = 0;
+	ianalde->i_bytes = 0;
+	ianalde->i_generation = 0;
+	ianalde->i_pipe = NULL;
+	ianalde->i_cdev = NULL;
+	ianalde->i_link = NULL;
+	ianalde->i_dir_seq = 0;
+	ianalde->i_rdev = 0;
+	ianalde->dirtied_when = 0;
 
 #ifdef CONFIG_CGROUP_WRITEBACK
-	inode->i_wb_frn_winner = 0;
-	inode->i_wb_frn_avg_time = 0;
-	inode->i_wb_frn_history = 0;
+	ianalde->i_wb_frn_winner = 0;
+	ianalde->i_wb_frn_avg_time = 0;
+	ianalde->i_wb_frn_history = 0;
 #endif
 
-	spin_lock_init(&inode->i_lock);
-	lockdep_set_class(&inode->i_lock, &sb->s_type->i_lock_key);
+	spin_lock_init(&ianalde->i_lock);
+	lockdep_set_class(&ianalde->i_lock, &sb->s_type->i_lock_key);
 
-	init_rwsem(&inode->i_rwsem);
-	lockdep_set_class(&inode->i_rwsem, &sb->s_type->i_mutex_key);
+	init_rwsem(&ianalde->i_rwsem);
+	lockdep_set_class(&ianalde->i_rwsem, &sb->s_type->i_mutex_key);
 
-	atomic_set(&inode->i_dio_count, 0);
+	atomic_set(&ianalde->i_dio_count, 0);
 
 	mapping->a_ops = &empty_aops;
-	mapping->host = inode;
+	mapping->host = ianalde;
 	mapping->flags = 0;
 	mapping->wb_err = 0;
 	atomic_set(&mapping->i_mmap_writable, 0);
@@ -216,108 +216,108 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 				   "mapping.invalidate_lock");
 	if (sb->s_iflags & SB_I_STABLE_WRITES)
 		mapping_set_stable_writes(mapping);
-	inode->i_private = NULL;
-	inode->i_mapping = mapping;
-	INIT_HLIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */
+	ianalde->i_private = NULL;
+	ianalde->i_mapping = mapping;
+	INIT_HLIST_HEAD(&ianalde->i_dentry);	/* buggered by rcu freeing */
 #ifdef CONFIG_FS_POSIX_ACL
-	inode->i_acl = inode->i_default_acl = ACL_NOT_CACHED;
+	ianalde->i_acl = ianalde->i_default_acl = ACL_ANALT_CACHED;
 #endif
 
-#ifdef CONFIG_FSNOTIFY
-	inode->i_fsnotify_mask = 0;
+#ifdef CONFIG_FSANALTIFY
+	ianalde->i_fsanaltify_mask = 0;
 #endif
-	inode->i_flctx = NULL;
+	ianalde->i_flctx = NULL;
 
-	if (unlikely(security_inode_alloc(inode)))
-		return -ENOMEM;
-	this_cpu_inc(nr_inodes);
+	if (unlikely(security_ianalde_alloc(ianalde)))
+		return -EANALMEM;
+	this_cpu_inc(nr_ianaldes);
 
 	return 0;
 }
-EXPORT_SYMBOL(inode_init_always);
+EXPORT_SYMBOL(ianalde_init_always);
 
-void free_inode_nonrcu(struct inode *inode)
+void free_ianalde_analnrcu(struct ianalde *ianalde)
 {
-	kmem_cache_free(inode_cachep, inode);
+	kmem_cache_free(ianalde_cachep, ianalde);
 }
-EXPORT_SYMBOL(free_inode_nonrcu);
+EXPORT_SYMBOL(free_ianalde_analnrcu);
 
 static void i_callback(struct rcu_head *head)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	if (inode->free_inode)
-		inode->free_inode(inode);
+	struct ianalde *ianalde = container_of(head, struct ianalde, i_rcu);
+	if (ianalde->free_ianalde)
+		ianalde->free_ianalde(ianalde);
 	else
-		free_inode_nonrcu(inode);
+		free_ianalde_analnrcu(ianalde);
 }
 
-static struct inode *alloc_inode(struct super_block *sb)
+static struct ianalde *alloc_ianalde(struct super_block *sb)
 {
 	const struct super_operations *ops = sb->s_op;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	if (ops->alloc_inode)
-		inode = ops->alloc_inode(sb);
+	if (ops->alloc_ianalde)
+		ianalde = ops->alloc_ianalde(sb);
 	else
-		inode = alloc_inode_sb(sb, inode_cachep, GFP_KERNEL);
+		ianalde = alloc_ianalde_sb(sb, ianalde_cachep, GFP_KERNEL);
 
-	if (!inode)
+	if (!ianalde)
 		return NULL;
 
-	if (unlikely(inode_init_always(sb, inode))) {
-		if (ops->destroy_inode) {
-			ops->destroy_inode(inode);
-			if (!ops->free_inode)
+	if (unlikely(ianalde_init_always(sb, ianalde))) {
+		if (ops->destroy_ianalde) {
+			ops->destroy_ianalde(ianalde);
+			if (!ops->free_ianalde)
 				return NULL;
 		}
-		inode->free_inode = ops->free_inode;
-		i_callback(&inode->i_rcu);
+		ianalde->free_ianalde = ops->free_ianalde;
+		i_callback(&ianalde->i_rcu);
 		return NULL;
 	}
 
-	return inode;
+	return ianalde;
 }
 
-void __destroy_inode(struct inode *inode)
+void __destroy_ianalde(struct ianalde *ianalde)
 {
-	BUG_ON(inode_has_buffers(inode));
-	inode_detach_wb(inode);
-	security_inode_free(inode);
-	fsnotify_inode_delete(inode);
-	locks_free_lock_context(inode);
-	if (!inode->i_nlink) {
-		WARN_ON(atomic_long_read(&inode->i_sb->s_remove_count) == 0);
-		atomic_long_dec(&inode->i_sb->s_remove_count);
+	BUG_ON(ianalde_has_buffers(ianalde));
+	ianalde_detach_wb(ianalde);
+	security_ianalde_free(ianalde);
+	fsanaltify_ianalde_delete(ianalde);
+	locks_free_lock_context(ianalde);
+	if (!ianalde->i_nlink) {
+		WARN_ON(atomic_long_read(&ianalde->i_sb->s_remove_count) == 0);
+		atomic_long_dec(&ianalde->i_sb->s_remove_count);
 	}
 
 #ifdef CONFIG_FS_POSIX_ACL
-	if (inode->i_acl && !is_uncached_acl(inode->i_acl))
-		posix_acl_release(inode->i_acl);
-	if (inode->i_default_acl && !is_uncached_acl(inode->i_default_acl))
-		posix_acl_release(inode->i_default_acl);
+	if (ianalde->i_acl && !is_uncached_acl(ianalde->i_acl))
+		posix_acl_release(ianalde->i_acl);
+	if (ianalde->i_default_acl && !is_uncached_acl(ianalde->i_default_acl))
+		posix_acl_release(ianalde->i_default_acl);
 #endif
-	this_cpu_dec(nr_inodes);
+	this_cpu_dec(nr_ianaldes);
 }
-EXPORT_SYMBOL(__destroy_inode);
+EXPORT_SYMBOL(__destroy_ianalde);
 
-static void destroy_inode(struct inode *inode)
+static void destroy_ianalde(struct ianalde *ianalde)
 {
-	const struct super_operations *ops = inode->i_sb->s_op;
+	const struct super_operations *ops = ianalde->i_sb->s_op;
 
-	BUG_ON(!list_empty(&inode->i_lru));
-	__destroy_inode(inode);
-	if (ops->destroy_inode) {
-		ops->destroy_inode(inode);
-		if (!ops->free_inode)
+	BUG_ON(!list_empty(&ianalde->i_lru));
+	__destroy_ianalde(ianalde);
+	if (ops->destroy_ianalde) {
+		ops->destroy_ianalde(ianalde);
+		if (!ops->free_ianalde)
 			return;
 	}
-	inode->free_inode = ops->free_inode;
-	call_rcu(&inode->i_rcu, i_callback);
+	ianalde->free_ianalde = ops->free_ianalde;
+	call_rcu(&ianalde->i_rcu, i_callback);
 }
 
 /**
- * drop_nlink - directly drop an inode's link count
- * @inode: inode
+ * drop_nlink - directly drop an ianalde's link count
+ * @ianalde: ianalde
  *
  * This is a low-level filesystem helper to replace any
  * direct filesystem manipulation of i_nlink.  In cases
@@ -326,70 +326,70 @@ static void destroy_inode(struct inode *inode)
  * write when the file is truncated and actually unlinked
  * on the filesystem.
  */
-void drop_nlink(struct inode *inode)
+void drop_nlink(struct ianalde *ianalde)
 {
-	WARN_ON(inode->i_nlink == 0);
-	inode->__i_nlink--;
-	if (!inode->i_nlink)
-		atomic_long_inc(&inode->i_sb->s_remove_count);
+	WARN_ON(ianalde->i_nlink == 0);
+	ianalde->__i_nlink--;
+	if (!ianalde->i_nlink)
+		atomic_long_inc(&ianalde->i_sb->s_remove_count);
 }
 EXPORT_SYMBOL(drop_nlink);
 
 /**
- * clear_nlink - directly zero an inode's link count
- * @inode: inode
+ * clear_nlink - directly zero an ianalde's link count
+ * @ianalde: ianalde
  *
  * This is a low-level filesystem helper to replace any
  * direct filesystem manipulation of i_nlink.  See
  * drop_nlink() for why we care about i_nlink hitting zero.
  */
-void clear_nlink(struct inode *inode)
+void clear_nlink(struct ianalde *ianalde)
 {
-	if (inode->i_nlink) {
-		inode->__i_nlink = 0;
-		atomic_long_inc(&inode->i_sb->s_remove_count);
+	if (ianalde->i_nlink) {
+		ianalde->__i_nlink = 0;
+		atomic_long_inc(&ianalde->i_sb->s_remove_count);
 	}
 }
 EXPORT_SYMBOL(clear_nlink);
 
 /**
- * set_nlink - directly set an inode's link count
- * @inode: inode
- * @nlink: new nlink (should be non-zero)
+ * set_nlink - directly set an ianalde's link count
+ * @ianalde: ianalde
+ * @nlink: new nlink (should be analn-zero)
  *
  * This is a low-level filesystem helper to replace any
  * direct filesystem manipulation of i_nlink.
  */
-void set_nlink(struct inode *inode, unsigned int nlink)
+void set_nlink(struct ianalde *ianalde, unsigned int nlink)
 {
 	if (!nlink) {
-		clear_nlink(inode);
+		clear_nlink(ianalde);
 	} else {
-		/* Yes, some filesystems do change nlink from zero to one */
-		if (inode->i_nlink == 0)
-			atomic_long_dec(&inode->i_sb->s_remove_count);
+		/* Anal, some filesystems do change nlink from zero to one */
+		if (ianalde->i_nlink == 0)
+			atomic_long_dec(&ianalde->i_sb->s_remove_count);
 
-		inode->__i_nlink = nlink;
+		ianalde->__i_nlink = nlink;
 	}
 }
 EXPORT_SYMBOL(set_nlink);
 
 /**
- * inc_nlink - directly increment an inode's link count
- * @inode: inode
+ * inc_nlink - directly increment an ianalde's link count
+ * @ianalde: ianalde
  *
  * This is a low-level filesystem helper to replace any
  * direct filesystem manipulation of i_nlink.  Currently,
  * it is only here for parity with dec_nlink().
  */
-void inc_nlink(struct inode *inode)
+void inc_nlink(struct ianalde *ianalde)
 {
-	if (unlikely(inode->i_nlink == 0)) {
-		WARN_ON(!(inode->i_state & I_LINKABLE));
-		atomic_long_dec(&inode->i_sb->s_remove_count);
+	if (unlikely(ianalde->i_nlink == 0)) {
+		WARN_ON(!(ianalde->i_state & I_LINKABLE));
+		atomic_long_dec(&ianalde->i_sb->s_remove_count);
 	}
 
-	inode->__i_nlink++;
+	ianalde->__i_nlink++;
 }
 EXPORT_SYMBOL(inc_nlink);
 
@@ -412,97 +412,97 @@ EXPORT_SYMBOL(address_space_init_once);
 /*
  * These are initializations that only need to be done
  * once, because the fields are idempotent across use
- * of the inode, so let the slab aware of that.
+ * of the ianalde, so let the slab aware of that.
  */
-void inode_init_once(struct inode *inode)
+void ianalde_init_once(struct ianalde *ianalde)
 {
-	memset(inode, 0, sizeof(*inode));
-	INIT_HLIST_NODE(&inode->i_hash);
-	INIT_LIST_HEAD(&inode->i_devices);
-	INIT_LIST_HEAD(&inode->i_io_list);
-	INIT_LIST_HEAD(&inode->i_wb_list);
-	INIT_LIST_HEAD(&inode->i_lru);
-	INIT_LIST_HEAD(&inode->i_sb_list);
-	__address_space_init_once(&inode->i_data);
-	i_size_ordered_init(inode);
+	memset(ianalde, 0, sizeof(*ianalde));
+	INIT_HLIST_ANALDE(&ianalde->i_hash);
+	INIT_LIST_HEAD(&ianalde->i_devices);
+	INIT_LIST_HEAD(&ianalde->i_io_list);
+	INIT_LIST_HEAD(&ianalde->i_wb_list);
+	INIT_LIST_HEAD(&ianalde->i_lru);
+	INIT_LIST_HEAD(&ianalde->i_sb_list);
+	__address_space_init_once(&ianalde->i_data);
+	i_size_ordered_init(ianalde);
 }
-EXPORT_SYMBOL(inode_init_once);
+EXPORT_SYMBOL(ianalde_init_once);
 
 static void init_once(void *foo)
 {
-	struct inode *inode = (struct inode *) foo;
+	struct ianalde *ianalde = (struct ianalde *) foo;
 
-	inode_init_once(inode);
+	ianalde_init_once(ianalde);
 }
 
 /*
- * inode->i_lock must be held
+ * ianalde->i_lock must be held
  */
-void __iget(struct inode *inode)
+void __iget(struct ianalde *ianalde)
 {
-	atomic_inc(&inode->i_count);
+	atomic_inc(&ianalde->i_count);
 }
 
 /*
- * get additional reference to inode; caller must already hold one.
+ * get additional reference to ianalde; caller must already hold one.
  */
-void ihold(struct inode *inode)
+void ihold(struct ianalde *ianalde)
 {
-	WARN_ON(atomic_inc_return(&inode->i_count) < 2);
+	WARN_ON(atomic_inc_return(&ianalde->i_count) < 2);
 }
 EXPORT_SYMBOL(ihold);
 
-static void __inode_add_lru(struct inode *inode, bool rotate)
+static void __ianalde_add_lru(struct ianalde *ianalde, bool rotate)
 {
-	if (inode->i_state & (I_DIRTY_ALL | I_SYNC | I_FREEING | I_WILL_FREE))
+	if (ianalde->i_state & (I_DIRTY_ALL | I_SYNC | I_FREEING | I_WILL_FREE))
 		return;
-	if (atomic_read(&inode->i_count))
+	if (atomic_read(&ianalde->i_count))
 		return;
-	if (!(inode->i_sb->s_flags & SB_ACTIVE))
+	if (!(ianalde->i_sb->s_flags & SB_ACTIVE))
 		return;
-	if (!mapping_shrinkable(&inode->i_data))
+	if (!mapping_shrinkable(&ianalde->i_data))
 		return;
 
-	if (list_lru_add_obj(&inode->i_sb->s_inode_lru, &inode->i_lru))
+	if (list_lru_add_obj(&ianalde->i_sb->s_ianalde_lru, &ianalde->i_lru))
 		this_cpu_inc(nr_unused);
 	else if (rotate)
-		inode->i_state |= I_REFERENCED;
+		ianalde->i_state |= I_REFERENCED;
 }
 
 /*
- * Add inode to LRU if needed (inode is unused and clean).
+ * Add ianalde to LRU if needed (ianalde is unused and clean).
  *
- * Needs inode->i_lock held.
+ * Needs ianalde->i_lock held.
  */
-void inode_add_lru(struct inode *inode)
+void ianalde_add_lru(struct ianalde *ianalde)
 {
-	__inode_add_lru(inode, false);
+	__ianalde_add_lru(ianalde, false);
 }
 
-static void inode_lru_list_del(struct inode *inode)
+static void ianalde_lru_list_del(struct ianalde *ianalde)
 {
-	if (list_lru_del_obj(&inode->i_sb->s_inode_lru, &inode->i_lru))
+	if (list_lru_del_obj(&ianalde->i_sb->s_ianalde_lru, &ianalde->i_lru))
 		this_cpu_dec(nr_unused);
 }
 
 /**
- * inode_sb_list_add - add inode to the superblock list of inodes
- * @inode: inode to add
+ * ianalde_sb_list_add - add ianalde to the superblock list of ianaldes
+ * @ianalde: ianalde to add
  */
-void inode_sb_list_add(struct inode *inode)
+void ianalde_sb_list_add(struct ianalde *ianalde)
 {
-	spin_lock(&inode->i_sb->s_inode_list_lock);
-	list_add(&inode->i_sb_list, &inode->i_sb->s_inodes);
-	spin_unlock(&inode->i_sb->s_inode_list_lock);
+	spin_lock(&ianalde->i_sb->s_ianalde_list_lock);
+	list_add(&ianalde->i_sb_list, &ianalde->i_sb->s_ianaldes);
+	spin_unlock(&ianalde->i_sb->s_ianalde_list_lock);
 }
-EXPORT_SYMBOL_GPL(inode_sb_list_add);
+EXPORT_SYMBOL_GPL(ianalde_sb_list_add);
 
-static inline void inode_sb_list_del(struct inode *inode)
+static inline void ianalde_sb_list_del(struct ianalde *ianalde)
 {
-	if (!list_empty(&inode->i_sb_list)) {
-		spin_lock(&inode->i_sb->s_inode_list_lock);
-		list_del_init(&inode->i_sb_list);
-		spin_unlock(&inode->i_sb->s_inode_list_lock);
+	if (!list_empty(&ianalde->i_sb_list)) {
+		spin_lock(&ianalde->i_sb->s_ianalde_list_lock);
+		list_del_init(&ianalde->i_sb_list);
+		spin_unlock(&ianalde->i_sb->s_ianalde_list_lock);
 	}
 }
 
@@ -517,56 +517,56 @@ static unsigned long hash(struct super_block *sb, unsigned long hashval)
 }
 
 /**
- *	__insert_inode_hash - hash an inode
- *	@inode: unhashed inode
+ *	__insert_ianalde_hash - hash an ianalde
+ *	@ianalde: unhashed ianalde
  *	@hashval: unsigned long value used to locate this object in the
- *		inode_hashtable.
+ *		ianalde_hashtable.
  *
- *	Add an inode to the inode hash for this superblock.
+ *	Add an ianalde to the ianalde hash for this superblock.
  */
-void __insert_inode_hash(struct inode *inode, unsigned long hashval)
+void __insert_ianalde_hash(struct ianalde *ianalde, unsigned long hashval)
 {
-	struct hlist_head *b = inode_hashtable + hash(inode->i_sb, hashval);
+	struct hlist_head *b = ianalde_hashtable + hash(ianalde->i_sb, hashval);
 
-	spin_lock(&inode_hash_lock);
-	spin_lock(&inode->i_lock);
-	hlist_add_head_rcu(&inode->i_hash, b);
-	spin_unlock(&inode->i_lock);
-	spin_unlock(&inode_hash_lock);
+	spin_lock(&ianalde_hash_lock);
+	spin_lock(&ianalde->i_lock);
+	hlist_add_head_rcu(&ianalde->i_hash, b);
+	spin_unlock(&ianalde->i_lock);
+	spin_unlock(&ianalde_hash_lock);
 }
-EXPORT_SYMBOL(__insert_inode_hash);
+EXPORT_SYMBOL(__insert_ianalde_hash);
 
 /**
- *	__remove_inode_hash - remove an inode from the hash
- *	@inode: inode to unhash
+ *	__remove_ianalde_hash - remove an ianalde from the hash
+ *	@ianalde: ianalde to unhash
  *
- *	Remove an inode from the superblock.
+ *	Remove an ianalde from the superblock.
  */
-void __remove_inode_hash(struct inode *inode)
+void __remove_ianalde_hash(struct ianalde *ianalde)
 {
-	spin_lock(&inode_hash_lock);
-	spin_lock(&inode->i_lock);
-	hlist_del_init_rcu(&inode->i_hash);
-	spin_unlock(&inode->i_lock);
-	spin_unlock(&inode_hash_lock);
+	spin_lock(&ianalde_hash_lock);
+	spin_lock(&ianalde->i_lock);
+	hlist_del_init_rcu(&ianalde->i_hash);
+	spin_unlock(&ianalde->i_lock);
+	spin_unlock(&ianalde_hash_lock);
 }
-EXPORT_SYMBOL(__remove_inode_hash);
+EXPORT_SYMBOL(__remove_ianalde_hash);
 
 void dump_mapping(const struct address_space *mapping)
 {
-	struct inode *host;
+	struct ianalde *host;
 	const struct address_space_operations *a_ops;
-	struct hlist_node *dentry_first;
+	struct hlist_analde *dentry_first;
 	struct dentry *dentry_ptr;
 	struct dentry dentry;
-	unsigned long ino;
+	unsigned long ianal;
 
 	/*
 	 * If mapping is an invalid pointer, we don't want to crash
 	 * accessing it, so probe everything depending on it carefully.
 	 */
-	if (get_kernel_nofault(host, &mapping->host) ||
-	    get_kernel_nofault(a_ops, &mapping->a_ops)) {
+	if (get_kernel_analfault(host, &mapping->host) ||
+	    get_kernel_analfault(a_ops, &mapping->a_ops)) {
 		pr_warn("invalid mapping:%px\n", mapping);
 		return;
 	}
@@ -576,21 +576,21 @@ void dump_mapping(const struct address_space *mapping)
 		return;
 	}
 
-	if (get_kernel_nofault(dentry_first, &host->i_dentry.first) ||
-	    get_kernel_nofault(ino, &host->i_ino)) {
-		pr_warn("aops:%ps invalid inode:%px\n", a_ops, host);
+	if (get_kernel_analfault(dentry_first, &host->i_dentry.first) ||
+	    get_kernel_analfault(ianal, &host->i_ianal)) {
+		pr_warn("aops:%ps invalid ianalde:%px\n", a_ops, host);
 		return;
 	}
 
 	if (!dentry_first) {
-		pr_warn("aops:%ps ino:%lx\n", a_ops, ino);
+		pr_warn("aops:%ps ianal:%lx\n", a_ops, ianal);
 		return;
 	}
 
 	dentry_ptr = container_of(dentry_first, struct dentry, d_u.d_alias);
-	if (get_kernel_nofault(dentry, dentry_ptr)) {
-		pr_warn("aops:%ps ino:%lx invalid dentry:%px\n",
-				a_ops, ino, dentry_ptr);
+	if (get_kernel_analfault(dentry, dentry_ptr)) {
+		pr_warn("aops:%ps ianal:%lx invalid dentry:%px\n",
+				a_ops, ianal, dentry_ptr);
 		return;
 	}
 
@@ -598,768 +598,768 @@ void dump_mapping(const struct address_space *mapping)
 	 * if dentry is corrupted, the %pd handler may still crash,
 	 * but it's unlikely that we reach here with a corrupt mapping
 	 */
-	pr_warn("aops:%ps ino:%lx dentry name:\"%pd\"\n", a_ops, ino, &dentry);
+	pr_warn("aops:%ps ianal:%lx dentry name:\"%pd\"\n", a_ops, ianal, &dentry);
 }
 
-void clear_inode(struct inode *inode)
+void clear_ianalde(struct ianalde *ianalde)
 {
 	/*
 	 * We have to cycle the i_pages lock here because reclaim can be in the
 	 * process of removing the last page (in __filemap_remove_folio())
-	 * and we must not free the mapping under it.
+	 * and we must analt free the mapping under it.
 	 */
-	xa_lock_irq(&inode->i_data.i_pages);
-	BUG_ON(inode->i_data.nrpages);
+	xa_lock_irq(&ianalde->i_data.i_pages);
+	BUG_ON(ianalde->i_data.nrpages);
 	/*
-	 * Almost always, mapping_empty(&inode->i_data) here; but there are
-	 * two known and long-standing ways in which nodes may get left behind
-	 * (when deep radix-tree node allocation failed partway; or when THP
-	 * collapse_file() failed). Until those two known cases are cleaned up,
-	 * or a cleanup function is called here, do not BUG_ON(!mapping_empty),
-	 * nor even WARN_ON(!mapping_empty).
+	 * Almost always, mapping_empty(&ianalde->i_data) here; but there are
+	 * two kanalwn and long-standing ways in which analdes may get left behind
+	 * (when deep radix-tree analde allocation failed partway; or when THP
+	 * collapse_file() failed). Until those two kanalwn cases are cleaned up,
+	 * or a cleanup function is called here, do analt BUG_ON(!mapping_empty),
+	 * analr even WARN_ON(!mapping_empty).
 	 */
-	xa_unlock_irq(&inode->i_data.i_pages);
-	BUG_ON(!list_empty(&inode->i_data.i_private_list));
-	BUG_ON(!(inode->i_state & I_FREEING));
-	BUG_ON(inode->i_state & I_CLEAR);
-	BUG_ON(!list_empty(&inode->i_wb_list));
-	/* don't need i_lock here, no concurrent mods to i_state */
-	inode->i_state = I_FREEING | I_CLEAR;
+	xa_unlock_irq(&ianalde->i_data.i_pages);
+	BUG_ON(!list_empty(&ianalde->i_data.i_private_list));
+	BUG_ON(!(ianalde->i_state & I_FREEING));
+	BUG_ON(ianalde->i_state & I_CLEAR);
+	BUG_ON(!list_empty(&ianalde->i_wb_list));
+	/* don't need i_lock here, anal concurrent mods to i_state */
+	ianalde->i_state = I_FREEING | I_CLEAR;
 }
-EXPORT_SYMBOL(clear_inode);
+EXPORT_SYMBOL(clear_ianalde);
 
 /*
- * Free the inode passed in, removing it from the lists it is still connected
- * to. We remove any pages still attached to the inode and wait for any IO that
- * is still in progress before finally destroying the inode.
+ * Free the ianalde passed in, removing it from the lists it is still connected
+ * to. We remove any pages still attached to the ianalde and wait for any IO that
+ * is still in progress before finally destroying the ianalde.
  *
- * An inode must already be marked I_FREEING so that we avoid the inode being
+ * An ianalde must already be marked I_FREEING so that we avoid the ianalde being
  * moved back onto lists if we race with other code that manipulates the lists
- * (e.g. writeback_single_inode). The caller is responsible for setting this.
+ * (e.g. writeback_single_ianalde). The caller is responsible for setting this.
  *
- * An inode must already be removed from the LRU list before being evicted from
+ * An ianalde must already be removed from the LRU list before being evicted from
  * the cache. This should occur atomically with setting the I_FREEING state
- * flag, so no inodes here should ever be on the LRU when being evicted.
+ * flag, so anal ianaldes here should ever be on the LRU when being evicted.
  */
-static void evict(struct inode *inode)
+static void evict(struct ianalde *ianalde)
 {
-	const struct super_operations *op = inode->i_sb->s_op;
+	const struct super_operations *op = ianalde->i_sb->s_op;
 
-	BUG_ON(!(inode->i_state & I_FREEING));
-	BUG_ON(!list_empty(&inode->i_lru));
+	BUG_ON(!(ianalde->i_state & I_FREEING));
+	BUG_ON(!list_empty(&ianalde->i_lru));
 
-	if (!list_empty(&inode->i_io_list))
-		inode_io_list_del(inode);
+	if (!list_empty(&ianalde->i_io_list))
+		ianalde_io_list_del(ianalde);
 
-	inode_sb_list_del(inode);
+	ianalde_sb_list_del(ianalde);
 
 	/*
-	 * Wait for flusher thread to be done with the inode so that filesystem
-	 * does not start destroying it while writeback is still running. Since
-	 * the inode has I_FREEING set, flusher thread won't start new work on
-	 * the inode.  We just have to wait for running writeback to finish.
+	 * Wait for flusher thread to be done with the ianalde so that filesystem
+	 * does analt start destroying it while writeback is still running. Since
+	 * the ianalde has I_FREEING set, flusher thread won't start new work on
+	 * the ianalde.  We just have to wait for running writeback to finish.
 	 */
-	inode_wait_for_writeback(inode);
+	ianalde_wait_for_writeback(ianalde);
 
-	if (op->evict_inode) {
-		op->evict_inode(inode);
+	if (op->evict_ianalde) {
+		op->evict_ianalde(ianalde);
 	} else {
-		truncate_inode_pages_final(&inode->i_data);
-		clear_inode(inode);
+		truncate_ianalde_pages_final(&ianalde->i_data);
+		clear_ianalde(ianalde);
 	}
-	if (S_ISCHR(inode->i_mode) && inode->i_cdev)
-		cd_forget(inode);
+	if (S_ISCHR(ianalde->i_mode) && ianalde->i_cdev)
+		cd_forget(ianalde);
 
-	remove_inode_hash(inode);
+	remove_ianalde_hash(ianalde);
 
-	spin_lock(&inode->i_lock);
-	wake_up_bit(&inode->i_state, __I_NEW);
-	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
-	spin_unlock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
+	wake_up_bit(&ianalde->i_state, __I_NEW);
+	BUG_ON(ianalde->i_state != (I_FREEING | I_CLEAR));
+	spin_unlock(&ianalde->i_lock);
 
-	destroy_inode(inode);
+	destroy_ianalde(ianalde);
 }
 
 /*
  * dispose_list - dispose of the contents of a local list
  * @head: the head of the list to free
  *
- * Dispose-list gets a local list with local inodes in it, so it doesn't
+ * Dispose-list gets a local list with local ianaldes in it, so it doesn't
  * need to worry about list corruption and SMP locks.
  */
 static void dispose_list(struct list_head *head)
 {
 	while (!list_empty(head)) {
-		struct inode *inode;
+		struct ianalde *ianalde;
 
-		inode = list_first_entry(head, struct inode, i_lru);
-		list_del_init(&inode->i_lru);
+		ianalde = list_first_entry(head, struct ianalde, i_lru);
+		list_del_init(&ianalde->i_lru);
 
-		evict(inode);
+		evict(ianalde);
 		cond_resched();
 	}
 }
 
 /**
- * evict_inodes	- evict all evictable inodes for a superblock
+ * evict_ianaldes	- evict all evictable ianaldes for a superblock
  * @sb:		superblock to operate on
  *
- * Make sure that no inodes with zero refcount are retained.  This is
+ * Make sure that anal ianaldes with zero refcount are retained.  This is
  * called by superblock shutdown after having SB_ACTIVE flag removed,
- * so any inode reaching zero refcount during or after that call will
+ * so any ianalde reaching zero refcount during or after that call will
  * be immediately evicted.
  */
-void evict_inodes(struct super_block *sb)
+void evict_ianaldes(struct super_block *sb)
 {
-	struct inode *inode, *next;
+	struct ianalde *ianalde, *next;
 	LIST_HEAD(dispose);
 
 again:
-	spin_lock(&sb->s_inode_list_lock);
-	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
-		if (atomic_read(&inode->i_count))
+	spin_lock(&sb->s_ianalde_list_lock);
+	list_for_each_entry_safe(ianalde, next, &sb->s_ianaldes, i_sb_list) {
+		if (atomic_read(&ianalde->i_count))
 			continue;
 
-		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
-			spin_unlock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
+		if (ianalde->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
+			spin_unlock(&ianalde->i_lock);
 			continue;
 		}
 
-		inode->i_state |= I_FREEING;
-		inode_lru_list_del(inode);
-		spin_unlock(&inode->i_lock);
-		list_add(&inode->i_lru, &dispose);
+		ianalde->i_state |= I_FREEING;
+		ianalde_lru_list_del(ianalde);
+		spin_unlock(&ianalde->i_lock);
+		list_add(&ianalde->i_lru, &dispose);
 
 		/*
-		 * We can have a ton of inodes to evict at unmount time given
-		 * enough memory, check to see if we need to go to sleep for a
+		 * We can have a ton of ianaldes to evict at unmount time given
+		 * eanalugh memory, check to see if we need to go to sleep for a
 		 * bit so we don't livelock.
 		 */
 		if (need_resched()) {
-			spin_unlock(&sb->s_inode_list_lock);
+			spin_unlock(&sb->s_ianalde_list_lock);
 			cond_resched();
 			dispose_list(&dispose);
 			goto again;
 		}
 	}
-	spin_unlock(&sb->s_inode_list_lock);
+	spin_unlock(&sb->s_ianalde_list_lock);
 
 	dispose_list(&dispose);
 }
-EXPORT_SYMBOL_GPL(evict_inodes);
+EXPORT_SYMBOL_GPL(evict_ianaldes);
 
 /**
- * invalidate_inodes	- attempt to free all inodes on a superblock
+ * invalidate_ianaldes	- attempt to free all ianaldes on a superblock
  * @sb:		superblock to operate on
  *
- * Attempts to free all inodes (including dirty inodes) for a given superblock.
+ * Attempts to free all ianaldes (including dirty ianaldes) for a given superblock.
  */
-void invalidate_inodes(struct super_block *sb)
+void invalidate_ianaldes(struct super_block *sb)
 {
-	struct inode *inode, *next;
+	struct ianalde *ianalde, *next;
 	LIST_HEAD(dispose);
 
 again:
-	spin_lock(&sb->s_inode_list_lock);
-	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
-		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
-			spin_unlock(&inode->i_lock);
+	spin_lock(&sb->s_ianalde_list_lock);
+	list_for_each_entry_safe(ianalde, next, &sb->s_ianaldes, i_sb_list) {
+		spin_lock(&ianalde->i_lock);
+		if (ianalde->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
+			spin_unlock(&ianalde->i_lock);
 			continue;
 		}
-		if (atomic_read(&inode->i_count)) {
-			spin_unlock(&inode->i_lock);
+		if (atomic_read(&ianalde->i_count)) {
+			spin_unlock(&ianalde->i_lock);
 			continue;
 		}
 
-		inode->i_state |= I_FREEING;
-		inode_lru_list_del(inode);
-		spin_unlock(&inode->i_lock);
-		list_add(&inode->i_lru, &dispose);
+		ianalde->i_state |= I_FREEING;
+		ianalde_lru_list_del(ianalde);
+		spin_unlock(&ianalde->i_lock);
+		list_add(&ianalde->i_lru, &dispose);
 		if (need_resched()) {
-			spin_unlock(&sb->s_inode_list_lock);
+			spin_unlock(&sb->s_ianalde_list_lock);
 			cond_resched();
 			dispose_list(&dispose);
 			goto again;
 		}
 	}
-	spin_unlock(&sb->s_inode_list_lock);
+	spin_unlock(&sb->s_ianalde_list_lock);
 
 	dispose_list(&dispose);
 }
 
 /*
- * Isolate the inode from the LRU in preparation for freeing it.
+ * Isolate the ianalde from the LRU in preparation for freeing it.
  *
- * If the inode has the I_REFERENCED flag set, then it means that it has been
+ * If the ianalde has the I_REFERENCED flag set, then it means that it has been
  * used recently - the flag is set in iput_final(). When we encounter such an
- * inode, clear the flag and move it to the back of the LRU so it gets another
+ * ianalde, clear the flag and move it to the back of the LRU so it gets aanalther
  * pass through the LRU before it gets reclaimed. This is necessary because of
  * the fact we are doing lazy LRU updates to minimise lock contention so the
- * LRU does not have strict ordering. Hence we don't want to reclaim inodes
- * with this flag set because they are the inodes that are out of order.
+ * LRU does analt have strict ordering. Hence we don't want to reclaim ianaldes
+ * with this flag set because they are the ianaldes that are out of order.
  */
-static enum lru_status inode_lru_isolate(struct list_head *item,
+static enum lru_status ianalde_lru_isolate(struct list_head *item,
 		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
 {
 	struct list_head *freeable = arg;
-	struct inode	*inode = container_of(item, struct inode, i_lru);
+	struct ianalde	*ianalde = container_of(item, struct ianalde, i_lru);
 
 	/*
-	 * We are inverting the lru lock/inode->i_lock here, so use a
+	 * We are inverting the lru lock/ianalde->i_lock here, so use a
 	 * trylock. If we fail to get the lock, just skip it.
 	 */
-	if (!spin_trylock(&inode->i_lock))
+	if (!spin_trylock(&ianalde->i_lock))
 		return LRU_SKIP;
 
 	/*
-	 * Inodes can get referenced, redirtied, or repopulated while
+	 * Ianaldes can get referenced, redirtied, or repopulated while
 	 * they're already on the LRU, and this can make them
 	 * unreclaimable for a while. Remove them lazily here; iput,
 	 * sync, or the last page cache deletion will requeue them.
 	 */
-	if (atomic_read(&inode->i_count) ||
-	    (inode->i_state & ~I_REFERENCED) ||
-	    !mapping_shrinkable(&inode->i_data)) {
-		list_lru_isolate(lru, &inode->i_lru);
-		spin_unlock(&inode->i_lock);
+	if (atomic_read(&ianalde->i_count) ||
+	    (ianalde->i_state & ~I_REFERENCED) ||
+	    !mapping_shrinkable(&ianalde->i_data)) {
+		list_lru_isolate(lru, &ianalde->i_lru);
+		spin_unlock(&ianalde->i_lock);
 		this_cpu_dec(nr_unused);
 		return LRU_REMOVED;
 	}
 
-	/* Recently referenced inodes get one more pass */
-	if (inode->i_state & I_REFERENCED) {
-		inode->i_state &= ~I_REFERENCED;
-		spin_unlock(&inode->i_lock);
+	/* Recently referenced ianaldes get one more pass */
+	if (ianalde->i_state & I_REFERENCED) {
+		ianalde->i_state &= ~I_REFERENCED;
+		spin_unlock(&ianalde->i_lock);
 		return LRU_ROTATE;
 	}
 
 	/*
 	 * On highmem systems, mapping_shrinkable() permits dropping
-	 * page cache in order to free up struct inodes: lowmem might
+	 * page cache in order to free up struct ianaldes: lowmem might
 	 * be under pressure before the cache inside the highmem zone.
 	 */
-	if (inode_has_buffers(inode) || !mapping_empty(&inode->i_data)) {
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
+	if (ianalde_has_buffers(ianalde) || !mapping_empty(&ianalde->i_data)) {
+		__iget(ianalde);
+		spin_unlock(&ianalde->i_lock);
 		spin_unlock(lru_lock);
-		if (remove_inode_buffers(inode)) {
+		if (remove_ianalde_buffers(ianalde)) {
 			unsigned long reap;
-			reap = invalidate_mapping_pages(&inode->i_data, 0, -1);
+			reap = invalidate_mapping_pages(&ianalde->i_data, 0, -1);
 			if (current_is_kswapd())
-				__count_vm_events(KSWAPD_INODESTEAL, reap);
+				__count_vm_events(KSWAPD_IANALDESTEAL, reap);
 			else
-				__count_vm_events(PGINODESTEAL, reap);
+				__count_vm_events(PGIANALDESTEAL, reap);
 			mm_account_reclaimed_pages(reap);
 		}
-		iput(inode);
+		iput(ianalde);
 		spin_lock(lru_lock);
 		return LRU_RETRY;
 	}
 
-	WARN_ON(inode->i_state & I_NEW);
-	inode->i_state |= I_FREEING;
-	list_lru_isolate_move(lru, &inode->i_lru, freeable);
-	spin_unlock(&inode->i_lock);
+	WARN_ON(ianalde->i_state & I_NEW);
+	ianalde->i_state |= I_FREEING;
+	list_lru_isolate_move(lru, &ianalde->i_lru, freeable);
+	spin_unlock(&ianalde->i_lock);
 
 	this_cpu_dec(nr_unused);
 	return LRU_REMOVED;
 }
 
 /*
- * Walk the superblock inode LRU for freeable inodes and attempt to free them.
- * This is called from the superblock shrinker function with a number of inodes
- * to trim from the LRU. Inodes to be freed are moved to a temporary list and
- * then are freed outside inode_lock by dispose_list().
+ * Walk the superblock ianalde LRU for freeable ianaldes and attempt to free them.
+ * This is called from the superblock shrinker function with a number of ianaldes
+ * to trim from the LRU. Ianaldes to be freed are moved to a temporary list and
+ * then are freed outside ianalde_lock by dispose_list().
  */
 long prune_icache_sb(struct super_block *sb, struct shrink_control *sc)
 {
 	LIST_HEAD(freeable);
 	long freed;
 
-	freed = list_lru_shrink_walk(&sb->s_inode_lru, sc,
-				     inode_lru_isolate, &freeable);
+	freed = list_lru_shrink_walk(&sb->s_ianalde_lru, sc,
+				     ianalde_lru_isolate, &freeable);
 	dispose_list(&freeable);
 	return freed;
 }
 
-static void __wait_on_freeing_inode(struct inode *inode);
+static void __wait_on_freeing_ianalde(struct ianalde *ianalde);
 /*
- * Called with the inode lock held.
+ * Called with the ianalde lock held.
  */
-static struct inode *find_inode(struct super_block *sb,
+static struct ianalde *find_ianalde(struct super_block *sb,
 				struct hlist_head *head,
-				int (*test)(struct inode *, void *),
+				int (*test)(struct ianalde *, void *),
 				void *data)
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 
 repeat:
-	hlist_for_each_entry(inode, head, i_hash) {
-		if (inode->i_sb != sb)
+	hlist_for_each_entry(ianalde, head, i_hash) {
+		if (ianalde->i_sb != sb)
 			continue;
-		if (!test(inode, data))
+		if (!test(ianalde, data))
 			continue;
-		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
-			__wait_on_freeing_inode(inode);
+		spin_lock(&ianalde->i_lock);
+		if (ianalde->i_state & (I_FREEING|I_WILL_FREE)) {
+			__wait_on_freeing_ianalde(ianalde);
 			goto repeat;
 		}
-		if (unlikely(inode->i_state & I_CREATING)) {
-			spin_unlock(&inode->i_lock);
+		if (unlikely(ianalde->i_state & I_CREATING)) {
+			spin_unlock(&ianalde->i_lock);
 			return ERR_PTR(-ESTALE);
 		}
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
-		return inode;
+		__iget(ianalde);
+		spin_unlock(&ianalde->i_lock);
+		return ianalde;
 	}
 	return NULL;
 }
 
 /*
- * find_inode_fast is the fast path version of find_inode, see the comment at
+ * find_ianalde_fast is the fast path version of find_ianalde, see the comment at
  * iget_locked for details.
  */
-static struct inode *find_inode_fast(struct super_block *sb,
-				struct hlist_head *head, unsigned long ino)
+static struct ianalde *find_ianalde_fast(struct super_block *sb,
+				struct hlist_head *head, unsigned long ianal)
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 
 repeat:
-	hlist_for_each_entry(inode, head, i_hash) {
-		if (inode->i_ino != ino)
+	hlist_for_each_entry(ianalde, head, i_hash) {
+		if (ianalde->i_ianal != ianal)
 			continue;
-		if (inode->i_sb != sb)
+		if (ianalde->i_sb != sb)
 			continue;
-		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
-			__wait_on_freeing_inode(inode);
+		spin_lock(&ianalde->i_lock);
+		if (ianalde->i_state & (I_FREEING|I_WILL_FREE)) {
+			__wait_on_freeing_ianalde(ianalde);
 			goto repeat;
 		}
-		if (unlikely(inode->i_state & I_CREATING)) {
-			spin_unlock(&inode->i_lock);
+		if (unlikely(ianalde->i_state & I_CREATING)) {
+			spin_unlock(&ianalde->i_lock);
 			return ERR_PTR(-ESTALE);
 		}
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
-		return inode;
+		__iget(ianalde);
+		spin_unlock(&ianalde->i_lock);
+		return ianalde;
 	}
 	return NULL;
 }
 
 /*
- * Each cpu owns a range of LAST_INO_BATCH numbers.
- * 'shared_last_ino' is dirtied only once out of LAST_INO_BATCH allocations,
+ * Each cpu owns a range of LAST_IANAL_BATCH numbers.
+ * 'shared_last_ianal' is dirtied only once out of LAST_IANAL_BATCH allocations,
  * to renew the exhausted range.
  *
- * This does not significantly increase overflow rate because every CPU can
- * consume at most LAST_INO_BATCH-1 unused inode numbers. So there is
- * NR_CPUS*(LAST_INO_BATCH-1) wastage. At 4096 and 1024, this is ~0.1% of the
+ * This does analt significantly increase overflow rate because every CPU can
+ * consume at most LAST_IANAL_BATCH-1 unused ianalde numbers. So there is
+ * NR_CPUS*(LAST_IANAL_BATCH-1) wastage. At 4096 and 1024, this is ~0.1% of the
  * 2^32 range, and is a worst-case. Even a 50% wastage would only increase
- * overflow rate by 2x, which does not seem too significant.
+ * overflow rate by 2x, which does analt seem too significant.
  *
- * On a 32bit, non LFS stat() call, glibc will generate an EOVERFLOW
- * error if st_ino won't fit in target struct field. Use 32bit counter
+ * On a 32bit, analn LFS stat() call, glibc will generate an EOVERFLOW
+ * error if st_ianal won't fit in target struct field. Use 32bit counter
  * here to attempt to avoid that.
  */
-#define LAST_INO_BATCH 1024
-static DEFINE_PER_CPU(unsigned int, last_ino);
+#define LAST_IANAL_BATCH 1024
+static DEFINE_PER_CPU(unsigned int, last_ianal);
 
-unsigned int get_next_ino(void)
+unsigned int get_next_ianal(void)
 {
-	unsigned int *p = &get_cpu_var(last_ino);
+	unsigned int *p = &get_cpu_var(last_ianal);
 	unsigned int res = *p;
 
 #ifdef CONFIG_SMP
-	if (unlikely((res & (LAST_INO_BATCH-1)) == 0)) {
-		static atomic_t shared_last_ino;
-		int next = atomic_add_return(LAST_INO_BATCH, &shared_last_ino);
+	if (unlikely((res & (LAST_IANAL_BATCH-1)) == 0)) {
+		static atomic_t shared_last_ianal;
+		int next = atomic_add_return(LAST_IANAL_BATCH, &shared_last_ianal);
 
-		res = next - LAST_INO_BATCH;
+		res = next - LAST_IANAL_BATCH;
 	}
 #endif
 
 	res++;
-	/* get_next_ino should not provide a 0 inode number */
+	/* get_next_ianal should analt provide a 0 ianalde number */
 	if (unlikely(!res))
 		res++;
 	*p = res;
-	put_cpu_var(last_ino);
+	put_cpu_var(last_ianal);
 	return res;
 }
-EXPORT_SYMBOL(get_next_ino);
+EXPORT_SYMBOL(get_next_ianal);
 
 /**
- *	new_inode_pseudo 	- obtain an inode
+ *	new_ianalde_pseudo 	- obtain an ianalde
  *	@sb: superblock
  *
- *	Allocates a new inode for given superblock.
- *	Inode wont be chained in superblock s_inodes list
+ *	Allocates a new ianalde for given superblock.
+ *	Ianalde wont be chained in superblock s_ianaldes list
  *	This means :
  *	- fs can't be unmount
- *	- quotas, fsnotify, writeback can't work
+ *	- quotas, fsanaltify, writeback can't work
  */
-struct inode *new_inode_pseudo(struct super_block *sb)
+struct ianalde *new_ianalde_pseudo(struct super_block *sb)
 {
-	struct inode *inode = alloc_inode(sb);
+	struct ianalde *ianalde = alloc_ianalde(sb);
 
-	if (inode) {
-		spin_lock(&inode->i_lock);
-		inode->i_state = 0;
-		spin_unlock(&inode->i_lock);
+	if (ianalde) {
+		spin_lock(&ianalde->i_lock);
+		ianalde->i_state = 0;
+		spin_unlock(&ianalde->i_lock);
 	}
-	return inode;
+	return ianalde;
 }
 
 /**
- *	new_inode 	- obtain an inode
+ *	new_ianalde 	- obtain an ianalde
  *	@sb: superblock
  *
- *	Allocates a new inode for given superblock. The default gfp_mask
- *	for allocations related to inode->i_mapping is GFP_HIGHUSER_MOVABLE.
- *	If HIGHMEM pages are unsuitable or it is known that pages allocated
- *	for the page cache are not reclaimable or migratable,
+ *	Allocates a new ianalde for given superblock. The default gfp_mask
+ *	for allocations related to ianalde->i_mapping is GFP_HIGHUSER_MOVABLE.
+ *	If HIGHMEM pages are unsuitable or it is kanalwn that pages allocated
+ *	for the page cache are analt reclaimable or migratable,
  *	mapping_set_gfp_mask() must be called with suitable flags on the
- *	newly created inode's mapping
+ *	newly created ianalde's mapping
  *
  */
-struct inode *new_inode(struct super_block *sb)
+struct ianalde *new_ianalde(struct super_block *sb)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = new_inode_pseudo(sb);
-	if (inode)
-		inode_sb_list_add(inode);
-	return inode;
+	ianalde = new_ianalde_pseudo(sb);
+	if (ianalde)
+		ianalde_sb_list_add(ianalde);
+	return ianalde;
 }
-EXPORT_SYMBOL(new_inode);
+EXPORT_SYMBOL(new_ianalde);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-void lockdep_annotate_inode_mutex_key(struct inode *inode)
+void lockdep_ananaltate_ianalde_mutex_key(struct ianalde *ianalde)
 {
-	if (S_ISDIR(inode->i_mode)) {
-		struct file_system_type *type = inode->i_sb->s_type;
+	if (S_ISDIR(ianalde->i_mode)) {
+		struct file_system_type *type = ianalde->i_sb->s_type;
 
 		/* Set new key only if filesystem hasn't already changed it */
-		if (lockdep_match_class(&inode->i_rwsem, &type->i_mutex_key)) {
+		if (lockdep_match_class(&ianalde->i_rwsem, &type->i_mutex_key)) {
 			/*
-			 * ensure nobody is actually holding i_mutex
+			 * ensure analbody is actually holding i_mutex
 			 */
-			// mutex_destroy(&inode->i_mutex);
-			init_rwsem(&inode->i_rwsem);
-			lockdep_set_class(&inode->i_rwsem,
+			// mutex_destroy(&ianalde->i_mutex);
+			init_rwsem(&ianalde->i_rwsem);
+			lockdep_set_class(&ianalde->i_rwsem,
 					  &type->i_mutex_dir_key);
 		}
 	}
 }
-EXPORT_SYMBOL(lockdep_annotate_inode_mutex_key);
+EXPORT_SYMBOL(lockdep_ananaltate_ianalde_mutex_key);
 #endif
 
 /**
- * unlock_new_inode - clear the I_NEW state and wake up any waiters
- * @inode:	new inode to unlock
+ * unlock_new_ianalde - clear the I_NEW state and wake up any waiters
+ * @ianalde:	new ianalde to unlock
  *
- * Called when the inode is fully initialised to clear the new state of the
- * inode and wake up anyone waiting for the inode to finish initialisation.
+ * Called when the ianalde is fully initialised to clear the new state of the
+ * ianalde and wake up anyone waiting for the ianalde to finish initialisation.
  */
-void unlock_new_inode(struct inode *inode)
+void unlock_new_ianalde(struct ianalde *ianalde)
 {
-	lockdep_annotate_inode_mutex_key(inode);
-	spin_lock(&inode->i_lock);
-	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW & ~I_CREATING;
+	lockdep_ananaltate_ianalde_mutex_key(ianalde);
+	spin_lock(&ianalde->i_lock);
+	WARN_ON(!(ianalde->i_state & I_NEW));
+	ianalde->i_state &= ~I_NEW & ~I_CREATING;
 	smp_mb();
-	wake_up_bit(&inode->i_state, __I_NEW);
-	spin_unlock(&inode->i_lock);
+	wake_up_bit(&ianalde->i_state, __I_NEW);
+	spin_unlock(&ianalde->i_lock);
 }
-EXPORT_SYMBOL(unlock_new_inode);
+EXPORT_SYMBOL(unlock_new_ianalde);
 
-void discard_new_inode(struct inode *inode)
+void discard_new_ianalde(struct ianalde *ianalde)
 {
-	lockdep_annotate_inode_mutex_key(inode);
-	spin_lock(&inode->i_lock);
-	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW;
+	lockdep_ananaltate_ianalde_mutex_key(ianalde);
+	spin_lock(&ianalde->i_lock);
+	WARN_ON(!(ianalde->i_state & I_NEW));
+	ianalde->i_state &= ~I_NEW;
 	smp_mb();
-	wake_up_bit(&inode->i_state, __I_NEW);
-	spin_unlock(&inode->i_lock);
-	iput(inode);
+	wake_up_bit(&ianalde->i_state, __I_NEW);
+	spin_unlock(&ianalde->i_lock);
+	iput(ianalde);
 }
-EXPORT_SYMBOL(discard_new_inode);
+EXPORT_SYMBOL(discard_new_ianalde);
 
 /**
- * lock_two_nondirectories - take two i_mutexes on non-directory objects
+ * lock_two_analndirectories - take two i_mutexes on analn-directory objects
  *
- * Lock any non-NULL argument. Passed objects must not be directories.
+ * Lock any analn-NULL argument. Passed objects must analt be directories.
  * Zero, one or two objects may be locked by this function.
  *
- * @inode1: first inode to lock
- * @inode2: second inode to lock
+ * @ianalde1: first ianalde to lock
+ * @ianalde2: second ianalde to lock
  */
-void lock_two_nondirectories(struct inode *inode1, struct inode *inode2)
+void lock_two_analndirectories(struct ianalde *ianalde1, struct ianalde *ianalde2)
 {
-	if (inode1)
-		WARN_ON_ONCE(S_ISDIR(inode1->i_mode));
-	if (inode2)
-		WARN_ON_ONCE(S_ISDIR(inode2->i_mode));
-	if (inode1 > inode2)
-		swap(inode1, inode2);
-	if (inode1)
-		inode_lock(inode1);
-	if (inode2 && inode2 != inode1)
-		inode_lock_nested(inode2, I_MUTEX_NONDIR2);
+	if (ianalde1)
+		WARN_ON_ONCE(S_ISDIR(ianalde1->i_mode));
+	if (ianalde2)
+		WARN_ON_ONCE(S_ISDIR(ianalde2->i_mode));
+	if (ianalde1 > ianalde2)
+		swap(ianalde1, ianalde2);
+	if (ianalde1)
+		ianalde_lock(ianalde1);
+	if (ianalde2 && ianalde2 != ianalde1)
+		ianalde_lock_nested(ianalde2, I_MUTEX_ANALNDIR2);
 }
-EXPORT_SYMBOL(lock_two_nondirectories);
+EXPORT_SYMBOL(lock_two_analndirectories);
 
 /**
- * unlock_two_nondirectories - release locks from lock_two_nondirectories()
- * @inode1: first inode to unlock
- * @inode2: second inode to unlock
+ * unlock_two_analndirectories - release locks from lock_two_analndirectories()
+ * @ianalde1: first ianalde to unlock
+ * @ianalde2: second ianalde to unlock
  */
-void unlock_two_nondirectories(struct inode *inode1, struct inode *inode2)
+void unlock_two_analndirectories(struct ianalde *ianalde1, struct ianalde *ianalde2)
 {
-	if (inode1) {
-		WARN_ON_ONCE(S_ISDIR(inode1->i_mode));
-		inode_unlock(inode1);
+	if (ianalde1) {
+		WARN_ON_ONCE(S_ISDIR(ianalde1->i_mode));
+		ianalde_unlock(ianalde1);
 	}
-	if (inode2 && inode2 != inode1) {
-		WARN_ON_ONCE(S_ISDIR(inode2->i_mode));
-		inode_unlock(inode2);
+	if (ianalde2 && ianalde2 != ianalde1) {
+		WARN_ON_ONCE(S_ISDIR(ianalde2->i_mode));
+		ianalde_unlock(ianalde2);
 	}
 }
-EXPORT_SYMBOL(unlock_two_nondirectories);
+EXPORT_SYMBOL(unlock_two_analndirectories);
 
 /**
- * inode_insert5 - obtain an inode from a mounted file system
- * @inode:	pre-allocated inode to use for insert to cache
- * @hashval:	hash value (usually inode number) to get
- * @test:	callback used for comparisons between inodes
- * @set:	callback used to initialize a new struct inode
+ * ianalde_insert5 - obtain an ianalde from a mounted file system
+ * @ianalde:	pre-allocated ianalde to use for insert to cache
+ * @hashval:	hash value (usually ianalde number) to get
+ * @test:	callback used for comparisons between ianaldes
+ * @set:	callback used to initialize a new struct ianalde
  * @data:	opaque data pointer to pass to @test and @set
  *
- * Search for the inode specified by @hashval and @data in the inode cache,
+ * Search for the ianalde specified by @hashval and @data in the ianalde cache,
  * and if present it is return it with an increased reference count. This is
  * a variant of iget5_locked() for callers that don't want to fail on memory
- * allocation of inode.
+ * allocation of ianalde.
  *
- * If the inode is not in cache, insert the pre-allocated inode to cache and
+ * If the ianalde is analt in cache, insert the pre-allocated ianalde to cache and
  * return it locked, hashed, and with the I_NEW flag set. The file system gets
- * to fill it in before unlocking it via unlock_new_inode().
+ * to fill it in before unlocking it via unlock_new_ianalde().
  *
- * Note both @test and @set are called with the inode_hash_lock held, so can't
+ * Analte both @test and @set are called with the ianalde_hash_lock held, so can't
  * sleep.
  */
-struct inode *inode_insert5(struct inode *inode, unsigned long hashval,
-			    int (*test)(struct inode *, void *),
-			    int (*set)(struct inode *, void *), void *data)
+struct ianalde *ianalde_insert5(struct ianalde *ianalde, unsigned long hashval,
+			    int (*test)(struct ianalde *, void *),
+			    int (*set)(struct ianalde *, void *), void *data)
 {
-	struct hlist_head *head = inode_hashtable + hash(inode->i_sb, hashval);
-	struct inode *old;
+	struct hlist_head *head = ianalde_hashtable + hash(ianalde->i_sb, hashval);
+	struct ianalde *old;
 
 again:
-	spin_lock(&inode_hash_lock);
-	old = find_inode(inode->i_sb, head, test, data);
+	spin_lock(&ianalde_hash_lock);
+	old = find_ianalde(ianalde->i_sb, head, test, data);
 	if (unlikely(old)) {
 		/*
-		 * Uhhuh, somebody else created the same inode under us.
-		 * Use the old inode instead of the preallocated one.
+		 * Uhhuh, somebody else created the same ianalde under us.
+		 * Use the old ianalde instead of the preallocated one.
 		 */
-		spin_unlock(&inode_hash_lock);
+		spin_unlock(&ianalde_hash_lock);
 		if (IS_ERR(old))
 			return NULL;
-		wait_on_inode(old);
-		if (unlikely(inode_unhashed(old))) {
+		wait_on_ianalde(old);
+		if (unlikely(ianalde_unhashed(old))) {
 			iput(old);
 			goto again;
 		}
 		return old;
 	}
 
-	if (set && unlikely(set(inode, data))) {
-		inode = NULL;
+	if (set && unlikely(set(ianalde, data))) {
+		ianalde = NULL;
 		goto unlock;
 	}
 
 	/*
-	 * Return the locked inode with I_NEW set, the
+	 * Return the locked ianalde with I_NEW set, the
 	 * caller is responsible for filling in the contents
 	 */
-	spin_lock(&inode->i_lock);
-	inode->i_state |= I_NEW;
-	hlist_add_head_rcu(&inode->i_hash, head);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
+	ianalde->i_state |= I_NEW;
+	hlist_add_head_rcu(&ianalde->i_hash, head);
+	spin_unlock(&ianalde->i_lock);
 
 	/*
-	 * Add inode to the sb list if it's not already. It has I_NEW at this
+	 * Add ianalde to the sb list if it's analt already. It has I_NEW at this
 	 * point, so it should be safe to test i_sb_list locklessly.
 	 */
-	if (list_empty(&inode->i_sb_list))
-		inode_sb_list_add(inode);
+	if (list_empty(&ianalde->i_sb_list))
+		ianalde_sb_list_add(ianalde);
 unlock:
-	spin_unlock(&inode_hash_lock);
+	spin_unlock(&ianalde_hash_lock);
 
-	return inode;
+	return ianalde;
 }
-EXPORT_SYMBOL(inode_insert5);
+EXPORT_SYMBOL(ianalde_insert5);
 
 /**
- * iget5_locked - obtain an inode from a mounted file system
+ * iget5_locked - obtain an ianalde from a mounted file system
  * @sb:		super block of file system
- * @hashval:	hash value (usually inode number) to get
- * @test:	callback used for comparisons between inodes
- * @set:	callback used to initialize a new struct inode
+ * @hashval:	hash value (usually ianalde number) to get
+ * @test:	callback used for comparisons between ianaldes
+ * @set:	callback used to initialize a new struct ianalde
  * @data:	opaque data pointer to pass to @test and @set
  *
- * Search for the inode specified by @hashval and @data in the inode cache,
+ * Search for the ianalde specified by @hashval and @data in the ianalde cache,
  * and if present it is return it with an increased reference count. This is
- * a generalized version of iget_locked() for file systems where the inode
- * number is not sufficient for unique identification of an inode.
+ * a generalized version of iget_locked() for file systems where the ianalde
+ * number is analt sufficient for unique identification of an ianalde.
  *
- * If the inode is not in cache, allocate a new inode and return it locked,
+ * If the ianalde is analt in cache, allocate a new ianalde and return it locked,
  * hashed, and with the I_NEW flag set. The file system gets to fill it in
- * before unlocking it via unlock_new_inode().
+ * before unlocking it via unlock_new_ianalde().
  *
- * Note both @test and @set are called with the inode_hash_lock held, so can't
+ * Analte both @test and @set are called with the ianalde_hash_lock held, so can't
  * sleep.
  */
-struct inode *iget5_locked(struct super_block *sb, unsigned long hashval,
-		int (*test)(struct inode *, void *),
-		int (*set)(struct inode *, void *), void *data)
+struct ianalde *iget5_locked(struct super_block *sb, unsigned long hashval,
+		int (*test)(struct ianalde *, void *),
+		int (*set)(struct ianalde *, void *), void *data)
 {
-	struct inode *inode = ilookup5(sb, hashval, test, data);
+	struct ianalde *ianalde = ilookup5(sb, hashval, test, data);
 
-	if (!inode) {
-		struct inode *new = alloc_inode(sb);
+	if (!ianalde) {
+		struct ianalde *new = alloc_ianalde(sb);
 
 		if (new) {
 			new->i_state = 0;
-			inode = inode_insert5(new, hashval, test, set, data);
-			if (unlikely(inode != new))
-				destroy_inode(new);
+			ianalde = ianalde_insert5(new, hashval, test, set, data);
+			if (unlikely(ianalde != new))
+				destroy_ianalde(new);
 		}
 	}
-	return inode;
+	return ianalde;
 }
 EXPORT_SYMBOL(iget5_locked);
 
 /**
- * iget_locked - obtain an inode from a mounted file system
+ * iget_locked - obtain an ianalde from a mounted file system
  * @sb:		super block of file system
- * @ino:	inode number to get
+ * @ianal:	ianalde number to get
  *
- * Search for the inode specified by @ino in the inode cache and if present
+ * Search for the ianalde specified by @ianal in the ianalde cache and if present
  * return it with an increased reference count. This is for file systems
- * where the inode number is sufficient for unique identification of an inode.
+ * where the ianalde number is sufficient for unique identification of an ianalde.
  *
- * If the inode is not in cache, allocate a new inode and return it locked,
+ * If the ianalde is analt in cache, allocate a new ianalde and return it locked,
  * hashed, and with the I_NEW flag set.  The file system gets to fill it in
- * before unlocking it via unlock_new_inode().
+ * before unlocking it via unlock_new_ianalde().
  */
-struct inode *iget_locked(struct super_block *sb, unsigned long ino)
+struct ianalde *iget_locked(struct super_block *sb, unsigned long ianal)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, ino);
-	struct inode *inode;
+	struct hlist_head *head = ianalde_hashtable + hash(sb, ianal);
+	struct ianalde *ianalde;
 again:
-	spin_lock(&inode_hash_lock);
-	inode = find_inode_fast(sb, head, ino);
-	spin_unlock(&inode_hash_lock);
-	if (inode) {
-		if (IS_ERR(inode))
+	spin_lock(&ianalde_hash_lock);
+	ianalde = find_ianalde_fast(sb, head, ianal);
+	spin_unlock(&ianalde_hash_lock);
+	if (ianalde) {
+		if (IS_ERR(ianalde))
 			return NULL;
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
+		wait_on_ianalde(ianalde);
+		if (unlikely(ianalde_unhashed(ianalde))) {
+			iput(ianalde);
 			goto again;
 		}
-		return inode;
+		return ianalde;
 	}
 
-	inode = alloc_inode(sb);
-	if (inode) {
-		struct inode *old;
+	ianalde = alloc_ianalde(sb);
+	if (ianalde) {
+		struct ianalde *old;
 
-		spin_lock(&inode_hash_lock);
+		spin_lock(&ianalde_hash_lock);
 		/* We released the lock, so.. */
-		old = find_inode_fast(sb, head, ino);
+		old = find_ianalde_fast(sb, head, ianal);
 		if (!old) {
-			inode->i_ino = ino;
-			spin_lock(&inode->i_lock);
-			inode->i_state = I_NEW;
-			hlist_add_head_rcu(&inode->i_hash, head);
-			spin_unlock(&inode->i_lock);
-			inode_sb_list_add(inode);
-			spin_unlock(&inode_hash_lock);
+			ianalde->i_ianal = ianal;
+			spin_lock(&ianalde->i_lock);
+			ianalde->i_state = I_NEW;
+			hlist_add_head_rcu(&ianalde->i_hash, head);
+			spin_unlock(&ianalde->i_lock);
+			ianalde_sb_list_add(ianalde);
+			spin_unlock(&ianalde_hash_lock);
 
-			/* Return the locked inode with I_NEW set, the
+			/* Return the locked ianalde with I_NEW set, the
 			 * caller is responsible for filling in the contents
 			 */
-			return inode;
+			return ianalde;
 		}
 
 		/*
-		 * Uhhuh, somebody else created the same inode under
-		 * us. Use the old inode instead of the one we just
+		 * Uhhuh, somebody else created the same ianalde under
+		 * us. Use the old ianalde instead of the one we just
 		 * allocated.
 		 */
-		spin_unlock(&inode_hash_lock);
-		destroy_inode(inode);
+		spin_unlock(&ianalde_hash_lock);
+		destroy_ianalde(ianalde);
 		if (IS_ERR(old))
 			return NULL;
-		inode = old;
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
+		ianalde = old;
+		wait_on_ianalde(ianalde);
+		if (unlikely(ianalde_unhashed(ianalde))) {
+			iput(ianalde);
 			goto again;
 		}
 	}
-	return inode;
+	return ianalde;
 }
 EXPORT_SYMBOL(iget_locked);
 
 /*
- * search the inode cache for a matching inode number.
- * If we find one, then the inode number we are trying to
- * allocate is not unique and so we should not use it.
+ * search the ianalde cache for a matching ianalde number.
+ * If we find one, then the ianalde number we are trying to
+ * allocate is analt unique and so we should analt use it.
  *
- * Returns 1 if the inode number is unique, 0 if it is not.
+ * Returns 1 if the ianalde number is unique, 0 if it is analt.
  */
-static int test_inode_iunique(struct super_block *sb, unsigned long ino)
+static int test_ianalde_iunique(struct super_block *sb, unsigned long ianal)
 {
-	struct hlist_head *b = inode_hashtable + hash(sb, ino);
-	struct inode *inode;
+	struct hlist_head *b = ianalde_hashtable + hash(sb, ianal);
+	struct ianalde *ianalde;
 
-	hlist_for_each_entry_rcu(inode, b, i_hash) {
-		if (inode->i_ino == ino && inode->i_sb == sb)
+	hlist_for_each_entry_rcu(ianalde, b, i_hash) {
+		if (ianalde->i_ianal == ianal && ianalde->i_sb == sb)
 			return 0;
 	}
 	return 1;
 }
 
 /**
- *	iunique - get a unique inode number
+ *	iunique - get a unique ianalde number
  *	@sb: superblock
- *	@max_reserved: highest reserved inode number
+ *	@max_reserved: highest reserved ianalde number
  *
- *	Obtain an inode number that is unique on the system for a given
- *	superblock. This is used by file systems that have no natural
- *	permanent inode numbering system. An inode number is returned that
+ *	Obtain an ianalde number that is unique on the system for a given
+ *	superblock. This is used by file systems that have anal natural
+ *	permanent ianalde numbering system. An ianalde number is returned that
  *	is higher than the reserved limit but unique.
  *
  *	BUGS:
- *	With a large number of inodes live on the file system this function
+ *	With a large number of ianaldes live on the file system this function
  *	currently becomes quite slow.
  */
-ino_t iunique(struct super_block *sb, ino_t max_reserved)
+ianal_t iunique(struct super_block *sb, ianal_t max_reserved)
 {
 	/*
-	 * On a 32bit, non LFS stat() call, glibc will generate an EOVERFLOW
-	 * error if st_ino won't fit in target struct field. Use 32bit counter
+	 * On a 32bit, analn LFS stat() call, glibc will generate an EOVERFLOW
+	 * error if st_ianal won't fit in target struct field. Use 32bit counter
 	 * here to attempt to avoid that.
 	 */
 	static DEFINE_SPINLOCK(iunique_lock);
 	static unsigned int counter;
-	ino_t res;
+	ianal_t res;
 
 	rcu_read_lock();
 	spin_lock(&iunique_lock);
@@ -1367,7 +1367,7 @@ ino_t iunique(struct super_block *sb, ino_t max_reserved)
 		if (counter <= max_reserved)
 			counter = max_reserved + 1;
 		res = counter++;
-	} while (!test_inode_iunique(sb, res));
+	} while (!test_ianalde_iunique(sb, res));
 	spin_unlock(&iunique_lock);
 	rcu_read_unlock();
 
@@ -1375,258 +1375,258 @@ ino_t iunique(struct super_block *sb, ino_t max_reserved)
 }
 EXPORT_SYMBOL(iunique);
 
-struct inode *igrab(struct inode *inode)
+struct ianalde *igrab(struct ianalde *ianalde)
 {
-	spin_lock(&inode->i_lock);
-	if (!(inode->i_state & (I_FREEING|I_WILL_FREE))) {
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
+	if (!(ianalde->i_state & (I_FREEING|I_WILL_FREE))) {
+		__iget(ianalde);
+		spin_unlock(&ianalde->i_lock);
 	} else {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		/*
-		 * Handle the case where s_op->clear_inode is not been
+		 * Handle the case where s_op->clear_ianalde is analt been
 		 * called yet, and somebody is calling igrab
-		 * while the inode is getting freed.
+		 * while the ianalde is getting freed.
 		 */
-		inode = NULL;
+		ianalde = NULL;
 	}
-	return inode;
+	return ianalde;
 }
 EXPORT_SYMBOL(igrab);
 
 /**
- * ilookup5_nowait - search for an inode in the inode cache
+ * ilookup5_analwait - search for an ianalde in the ianalde cache
  * @sb:		super block of file system to search
- * @hashval:	hash value (usually inode number) to search for
- * @test:	callback used for comparisons between inodes
+ * @hashval:	hash value (usually ianalde number) to search for
+ * @test:	callback used for comparisons between ianaldes
  * @data:	opaque data pointer to pass to @test
  *
- * Search for the inode specified by @hashval and @data in the inode cache.
- * If the inode is in the cache, the inode is returned with an incremented
+ * Search for the ianalde specified by @hashval and @data in the ianalde cache.
+ * If the ianalde is in the cache, the ianalde is returned with an incremented
  * reference count.
  *
- * Note: I_NEW is not waited upon so you have to be very careful what you do
- * with the returned inode.  You probably should be using ilookup5() instead.
+ * Analte: I_NEW is analt waited upon so you have to be very careful what you do
+ * with the returned ianalde.  You probably should be using ilookup5() instead.
  *
- * Note2: @test is called with the inode_hash_lock held, so can't sleep.
+ * Analte2: @test is called with the ianalde_hash_lock held, so can't sleep.
  */
-struct inode *ilookup5_nowait(struct super_block *sb, unsigned long hashval,
-		int (*test)(struct inode *, void *), void *data)
+struct ianalde *ilookup5_analwait(struct super_block *sb, unsigned long hashval,
+		int (*test)(struct ianalde *, void *), void *data)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
-	struct inode *inode;
+	struct hlist_head *head = ianalde_hashtable + hash(sb, hashval);
+	struct ianalde *ianalde;
 
-	spin_lock(&inode_hash_lock);
-	inode = find_inode(sb, head, test, data);
-	spin_unlock(&inode_hash_lock);
+	spin_lock(&ianalde_hash_lock);
+	ianalde = find_ianalde(sb, head, test, data);
+	spin_unlock(&ianalde_hash_lock);
 
-	return IS_ERR(inode) ? NULL : inode;
+	return IS_ERR(ianalde) ? NULL : ianalde;
 }
-EXPORT_SYMBOL(ilookup5_nowait);
+EXPORT_SYMBOL(ilookup5_analwait);
 
 /**
- * ilookup5 - search for an inode in the inode cache
+ * ilookup5 - search for an ianalde in the ianalde cache
  * @sb:		super block of file system to search
- * @hashval:	hash value (usually inode number) to search for
- * @test:	callback used for comparisons between inodes
+ * @hashval:	hash value (usually ianalde number) to search for
+ * @test:	callback used for comparisons between ianaldes
  * @data:	opaque data pointer to pass to @test
  *
- * Search for the inode specified by @hashval and @data in the inode cache,
- * and if the inode is in the cache, return the inode with an incremented
- * reference count.  Waits on I_NEW before returning the inode.
+ * Search for the ianalde specified by @hashval and @data in the ianalde cache,
+ * and if the ianalde is in the cache, return the ianalde with an incremented
+ * reference count.  Waits on I_NEW before returning the ianalde.
  * returned with an incremented reference count.
  *
  * This is a generalized version of ilookup() for file systems where the
- * inode number is not sufficient for unique identification of an inode.
+ * ianalde number is analt sufficient for unique identification of an ianalde.
  *
- * Note: @test is called with the inode_hash_lock held, so can't sleep.
+ * Analte: @test is called with the ianalde_hash_lock held, so can't sleep.
  */
-struct inode *ilookup5(struct super_block *sb, unsigned long hashval,
-		int (*test)(struct inode *, void *), void *data)
+struct ianalde *ilookup5(struct super_block *sb, unsigned long hashval,
+		int (*test)(struct ianalde *, void *), void *data)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 again:
-	inode = ilookup5_nowait(sb, hashval, test, data);
-	if (inode) {
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
+	ianalde = ilookup5_analwait(sb, hashval, test, data);
+	if (ianalde) {
+		wait_on_ianalde(ianalde);
+		if (unlikely(ianalde_unhashed(ianalde))) {
+			iput(ianalde);
 			goto again;
 		}
 	}
-	return inode;
+	return ianalde;
 }
 EXPORT_SYMBOL(ilookup5);
 
 /**
- * ilookup - search for an inode in the inode cache
+ * ilookup - search for an ianalde in the ianalde cache
  * @sb:		super block of file system to search
- * @ino:	inode number to search for
+ * @ianal:	ianalde number to search for
  *
- * Search for the inode @ino in the inode cache, and if the inode is in the
- * cache, the inode is returned with an incremented reference count.
+ * Search for the ianalde @ianal in the ianalde cache, and if the ianalde is in the
+ * cache, the ianalde is returned with an incremented reference count.
  */
-struct inode *ilookup(struct super_block *sb, unsigned long ino)
+struct ianalde *ilookup(struct super_block *sb, unsigned long ianal)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, ino);
-	struct inode *inode;
+	struct hlist_head *head = ianalde_hashtable + hash(sb, ianal);
+	struct ianalde *ianalde;
 again:
-	spin_lock(&inode_hash_lock);
-	inode = find_inode_fast(sb, head, ino);
-	spin_unlock(&inode_hash_lock);
+	spin_lock(&ianalde_hash_lock);
+	ianalde = find_ianalde_fast(sb, head, ianal);
+	spin_unlock(&ianalde_hash_lock);
 
-	if (inode) {
-		if (IS_ERR(inode))
+	if (ianalde) {
+		if (IS_ERR(ianalde))
 			return NULL;
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
+		wait_on_ianalde(ianalde);
+		if (unlikely(ianalde_unhashed(ianalde))) {
+			iput(ianalde);
 			goto again;
 		}
 	}
-	return inode;
+	return ianalde;
 }
 EXPORT_SYMBOL(ilookup);
 
 /**
- * find_inode_nowait - find an inode in the inode cache
+ * find_ianalde_analwait - find an ianalde in the ianalde cache
  * @sb:		super block of file system to search
- * @hashval:	hash value (usually inode number) to search for
- * @match:	callback used for comparisons between inodes
+ * @hashval:	hash value (usually ianalde number) to search for
+ * @match:	callback used for comparisons between ianaldes
  * @data:	opaque data pointer to pass to @match
  *
- * Search for the inode specified by @hashval and @data in the inode
- * cache, where the helper function @match will return 0 if the inode
- * does not match, 1 if the inode does match, and -1 if the search
+ * Search for the ianalde specified by @hashval and @data in the ianalde
+ * cache, where the helper function @match will return 0 if the ianalde
+ * does analt match, 1 if the ianalde does match, and -1 if the search
  * should be stopped.  The @match function must be responsible for
- * taking the i_lock spin_lock and checking i_state for an inode being
+ * taking the i_lock spin_lock and checking i_state for an ianalde being
  * freed or being initialized, and incrementing the reference count
- * before returning 1.  It also must not sleep, since it is called with
- * the inode_hash_lock spinlock held.
+ * before returning 1.  It also must analt sleep, since it is called with
+ * the ianalde_hash_lock spinlock held.
  *
  * This is a even more generalized version of ilookup5() when the
- * function must never block --- find_inode() can block in
- * __wait_on_freeing_inode() --- or when the caller can not increment
+ * function must never block --- find_ianalde() can block in
+ * __wait_on_freeing_ianalde() --- or when the caller can analt increment
  * the reference count because the resulting iput() might cause an
- * inode eviction.  The tradeoff is that the @match funtion must be
+ * ianalde eviction.  The tradeoff is that the @match funtion must be
  * very carefully implemented.
  */
-struct inode *find_inode_nowait(struct super_block *sb,
+struct ianalde *find_ianalde_analwait(struct super_block *sb,
 				unsigned long hashval,
-				int (*match)(struct inode *, unsigned long,
+				int (*match)(struct ianalde *, unsigned long,
 					     void *),
 				void *data)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
-	struct inode *inode, *ret_inode = NULL;
+	struct hlist_head *head = ianalde_hashtable + hash(sb, hashval);
+	struct ianalde *ianalde, *ret_ianalde = NULL;
 	int mval;
 
-	spin_lock(&inode_hash_lock);
-	hlist_for_each_entry(inode, head, i_hash) {
-		if (inode->i_sb != sb)
+	spin_lock(&ianalde_hash_lock);
+	hlist_for_each_entry(ianalde, head, i_hash) {
+		if (ianalde->i_sb != sb)
 			continue;
-		mval = match(inode, hashval, data);
+		mval = match(ianalde, hashval, data);
 		if (mval == 0)
 			continue;
 		if (mval == 1)
-			ret_inode = inode;
+			ret_ianalde = ianalde;
 		goto out;
 	}
 out:
-	spin_unlock(&inode_hash_lock);
-	return ret_inode;
+	spin_unlock(&ianalde_hash_lock);
+	return ret_ianalde;
 }
-EXPORT_SYMBOL(find_inode_nowait);
+EXPORT_SYMBOL(find_ianalde_analwait);
 
 /**
- * find_inode_rcu - find an inode in the inode cache
+ * find_ianalde_rcu - find an ianalde in the ianalde cache
  * @sb:		Super block of file system to search
  * @hashval:	Key to hash
- * @test:	Function to test match on an inode
+ * @test:	Function to test match on an ianalde
  * @data:	Data for test function
  *
- * Search for the inode specified by @hashval and @data in the inode cache,
- * where the helper function @test will return 0 if the inode does not match
+ * Search for the ianalde specified by @hashval and @data in the ianalde cache,
+ * where the helper function @test will return 0 if the ianalde does analt match
  * and 1 if it does.  The @test function must be responsible for taking the
- * i_lock spin_lock and checking i_state for an inode being freed or being
+ * i_lock spin_lock and checking i_state for an ianalde being freed or being
  * initialized.
  *
- * If successful, this will return the inode for which the @test function
+ * If successful, this will return the ianalde for which the @test function
  * returned 1 and NULL otherwise.
  *
- * The @test function is not permitted to take a ref on any inode presented.
- * It is also not permitted to sleep.
+ * The @test function is analt permitted to take a ref on any ianalde presented.
+ * It is also analt permitted to sleep.
  *
  * The caller must hold the RCU read lock.
  */
-struct inode *find_inode_rcu(struct super_block *sb, unsigned long hashval,
-			     int (*test)(struct inode *, void *), void *data)
+struct ianalde *find_ianalde_rcu(struct super_block *sb, unsigned long hashval,
+			     int (*test)(struct ianalde *, void *), void *data)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
-	struct inode *inode;
+	struct hlist_head *head = ianalde_hashtable + hash(sb, hashval);
+	struct ianalde *ianalde;
 
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
-			 "suspicious find_inode_rcu() usage");
+			 "suspicious find_ianalde_rcu() usage");
 
-	hlist_for_each_entry_rcu(inode, head, i_hash) {
-		if (inode->i_sb == sb &&
-		    !(READ_ONCE(inode->i_state) & (I_FREEING | I_WILL_FREE)) &&
-		    test(inode, data))
-			return inode;
+	hlist_for_each_entry_rcu(ianalde, head, i_hash) {
+		if (ianalde->i_sb == sb &&
+		    !(READ_ONCE(ianalde->i_state) & (I_FREEING | I_WILL_FREE)) &&
+		    test(ianalde, data))
+			return ianalde;
 	}
 	return NULL;
 }
-EXPORT_SYMBOL(find_inode_rcu);
+EXPORT_SYMBOL(find_ianalde_rcu);
 
 /**
- * find_inode_by_ino_rcu - Find an inode in the inode cache
+ * find_ianalde_by_ianal_rcu - Find an ianalde in the ianalde cache
  * @sb:		Super block of file system to search
- * @ino:	The inode number to match
+ * @ianal:	The ianalde number to match
  *
- * Search for the inode specified by @hashval and @data in the inode cache,
- * where the helper function @test will return 0 if the inode does not match
+ * Search for the ianalde specified by @hashval and @data in the ianalde cache,
+ * where the helper function @test will return 0 if the ianalde does analt match
  * and 1 if it does.  The @test function must be responsible for taking the
- * i_lock spin_lock and checking i_state for an inode being freed or being
+ * i_lock spin_lock and checking i_state for an ianalde being freed or being
  * initialized.
  *
- * If successful, this will return the inode for which the @test function
+ * If successful, this will return the ianalde for which the @test function
  * returned 1 and NULL otherwise.
  *
- * The @test function is not permitted to take a ref on any inode presented.
- * It is also not permitted to sleep.
+ * The @test function is analt permitted to take a ref on any ianalde presented.
+ * It is also analt permitted to sleep.
  *
  * The caller must hold the RCU read lock.
  */
-struct inode *find_inode_by_ino_rcu(struct super_block *sb,
-				    unsigned long ino)
+struct ianalde *find_ianalde_by_ianal_rcu(struct super_block *sb,
+				    unsigned long ianal)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, ino);
-	struct inode *inode;
+	struct hlist_head *head = ianalde_hashtable + hash(sb, ianal);
+	struct ianalde *ianalde;
 
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
-			 "suspicious find_inode_by_ino_rcu() usage");
+			 "suspicious find_ianalde_by_ianal_rcu() usage");
 
-	hlist_for_each_entry_rcu(inode, head, i_hash) {
-		if (inode->i_ino == ino &&
-		    inode->i_sb == sb &&
-		    !(READ_ONCE(inode->i_state) & (I_FREEING | I_WILL_FREE)))
-		    return inode;
+	hlist_for_each_entry_rcu(ianalde, head, i_hash) {
+		if (ianalde->i_ianal == ianal &&
+		    ianalde->i_sb == sb &&
+		    !(READ_ONCE(ianalde->i_state) & (I_FREEING | I_WILL_FREE)))
+		    return ianalde;
 	}
 	return NULL;
 }
-EXPORT_SYMBOL(find_inode_by_ino_rcu);
+EXPORT_SYMBOL(find_ianalde_by_ianal_rcu);
 
-int insert_inode_locked(struct inode *inode)
+int insert_ianalde_locked(struct ianalde *ianalde)
 {
-	struct super_block *sb = inode->i_sb;
-	ino_t ino = inode->i_ino;
-	struct hlist_head *head = inode_hashtable + hash(sb, ino);
+	struct super_block *sb = ianalde->i_sb;
+	ianal_t ianal = ianalde->i_ianal;
+	struct hlist_head *head = ianalde_hashtable + hash(sb, ianal);
 
 	while (1) {
-		struct inode *old = NULL;
-		spin_lock(&inode_hash_lock);
+		struct ianalde *old = NULL;
+		spin_lock(&ianalde_hash_lock);
 		hlist_for_each_entry(old, head, i_hash) {
-			if (old->i_ino != ino)
+			if (old->i_ianal != ianal)
 				continue;
 			if (old->i_sb != sb)
 				continue;
@@ -1638,131 +1638,131 @@ int insert_inode_locked(struct inode *inode)
 			break;
 		}
 		if (likely(!old)) {
-			spin_lock(&inode->i_lock);
-			inode->i_state |= I_NEW | I_CREATING;
-			hlist_add_head_rcu(&inode->i_hash, head);
-			spin_unlock(&inode->i_lock);
-			spin_unlock(&inode_hash_lock);
+			spin_lock(&ianalde->i_lock);
+			ianalde->i_state |= I_NEW | I_CREATING;
+			hlist_add_head_rcu(&ianalde->i_hash, head);
+			spin_unlock(&ianalde->i_lock);
+			spin_unlock(&ianalde_hash_lock);
 			return 0;
 		}
 		if (unlikely(old->i_state & I_CREATING)) {
 			spin_unlock(&old->i_lock);
-			spin_unlock(&inode_hash_lock);
+			spin_unlock(&ianalde_hash_lock);
 			return -EBUSY;
 		}
 		__iget(old);
 		spin_unlock(&old->i_lock);
-		spin_unlock(&inode_hash_lock);
-		wait_on_inode(old);
-		if (unlikely(!inode_unhashed(old))) {
+		spin_unlock(&ianalde_hash_lock);
+		wait_on_ianalde(old);
+		if (unlikely(!ianalde_unhashed(old))) {
 			iput(old);
 			return -EBUSY;
 		}
 		iput(old);
 	}
 }
-EXPORT_SYMBOL(insert_inode_locked);
+EXPORT_SYMBOL(insert_ianalde_locked);
 
-int insert_inode_locked4(struct inode *inode, unsigned long hashval,
-		int (*test)(struct inode *, void *), void *data)
+int insert_ianalde_locked4(struct ianalde *ianalde, unsigned long hashval,
+		int (*test)(struct ianalde *, void *), void *data)
 {
-	struct inode *old;
+	struct ianalde *old;
 
-	inode->i_state |= I_CREATING;
-	old = inode_insert5(inode, hashval, test, NULL, data);
+	ianalde->i_state |= I_CREATING;
+	old = ianalde_insert5(ianalde, hashval, test, NULL, data);
 
-	if (old != inode) {
+	if (old != ianalde) {
 		iput(old);
 		return -EBUSY;
 	}
 	return 0;
 }
-EXPORT_SYMBOL(insert_inode_locked4);
+EXPORT_SYMBOL(insert_ianalde_locked4);
 
 
-int generic_delete_inode(struct inode *inode)
+int generic_delete_ianalde(struct ianalde *ianalde)
 {
 	return 1;
 }
-EXPORT_SYMBOL(generic_delete_inode);
+EXPORT_SYMBOL(generic_delete_ianalde);
 
 /*
  * Called when we're dropping the last reference
- * to an inode.
+ * to an ianalde.
  *
- * Call the FS "drop_inode()" function, defaulting to
+ * Call the FS "drop_ianalde()" function, defaulting to
  * the legacy UNIX filesystem behaviour.  If it tells
- * us to evict inode, do so.  Otherwise, retain inode
+ * us to evict ianalde, do so.  Otherwise, retain ianalde
  * in cache if fs is alive, sync and evict if fs is
  * shutting down.
  */
-static void iput_final(struct inode *inode)
+static void iput_final(struct ianalde *ianalde)
 {
-	struct super_block *sb = inode->i_sb;
-	const struct super_operations *op = inode->i_sb->s_op;
+	struct super_block *sb = ianalde->i_sb;
+	const struct super_operations *op = ianalde->i_sb->s_op;
 	unsigned long state;
 	int drop;
 
-	WARN_ON(inode->i_state & I_NEW);
+	WARN_ON(ianalde->i_state & I_NEW);
 
-	if (op->drop_inode)
-		drop = op->drop_inode(inode);
+	if (op->drop_ianalde)
+		drop = op->drop_ianalde(ianalde);
 	else
-		drop = generic_drop_inode(inode);
+		drop = generic_drop_ianalde(ianalde);
 
 	if (!drop &&
-	    !(inode->i_state & I_DONTCACHE) &&
+	    !(ianalde->i_state & I_DONTCACHE) &&
 	    (sb->s_flags & SB_ACTIVE)) {
-		__inode_add_lru(inode, true);
-		spin_unlock(&inode->i_lock);
+		__ianalde_add_lru(ianalde, true);
+		spin_unlock(&ianalde->i_lock);
 		return;
 	}
 
-	state = inode->i_state;
+	state = ianalde->i_state;
 	if (!drop) {
-		WRITE_ONCE(inode->i_state, state | I_WILL_FREE);
-		spin_unlock(&inode->i_lock);
+		WRITE_ONCE(ianalde->i_state, state | I_WILL_FREE);
+		spin_unlock(&ianalde->i_lock);
 
-		write_inode_now(inode, 1);
+		write_ianalde_analw(ianalde, 1);
 
-		spin_lock(&inode->i_lock);
-		state = inode->i_state;
+		spin_lock(&ianalde->i_lock);
+		state = ianalde->i_state;
 		WARN_ON(state & I_NEW);
 		state &= ~I_WILL_FREE;
 	}
 
-	WRITE_ONCE(inode->i_state, state | I_FREEING);
-	if (!list_empty(&inode->i_lru))
-		inode_lru_list_del(inode);
-	spin_unlock(&inode->i_lock);
+	WRITE_ONCE(ianalde->i_state, state | I_FREEING);
+	if (!list_empty(&ianalde->i_lru))
+		ianalde_lru_list_del(ianalde);
+	spin_unlock(&ianalde->i_lock);
 
-	evict(inode);
+	evict(ianalde);
 }
 
 /**
- *	iput	- put an inode
- *	@inode: inode to put
+ *	iput	- put an ianalde
+ *	@ianalde: ianalde to put
  *
- *	Puts an inode, dropping its usage count. If the inode use count hits
- *	zero, the inode is then freed and may also be destroyed.
+ *	Puts an ianalde, dropping its usage count. If the ianalde use count hits
+ *	zero, the ianalde is then freed and may also be destroyed.
  *
  *	Consequently, iput() can sleep.
  */
-void iput(struct inode *inode)
+void iput(struct ianalde *ianalde)
 {
-	if (!inode)
+	if (!ianalde)
 		return;
-	BUG_ON(inode->i_state & I_CLEAR);
+	BUG_ON(ianalde->i_state & I_CLEAR);
 retry:
-	if (atomic_dec_and_lock(&inode->i_count, &inode->i_lock)) {
-		if (inode->i_nlink && (inode->i_state & I_DIRTY_TIME)) {
-			atomic_inc(&inode->i_count);
-			spin_unlock(&inode->i_lock);
-			trace_writeback_lazytime_iput(inode);
-			mark_inode_dirty_sync(inode);
+	if (atomic_dec_and_lock(&ianalde->i_count, &ianalde->i_lock)) {
+		if (ianalde->i_nlink && (ianalde->i_state & I_DIRTY_TIME)) {
+			atomic_inc(&ianalde->i_count);
+			spin_unlock(&ianalde->i_lock);
+			trace_writeback_lazytime_iput(ianalde);
+			mark_ianalde_dirty_sync(ianalde);
 			goto retry;
 		}
-		iput_final(inode);
+		iput_final(ianalde);
 	}
 }
 EXPORT_SYMBOL(iput);
@@ -1770,24 +1770,24 @@ EXPORT_SYMBOL(iput);
 #ifdef CONFIG_BLOCK
 /**
  *	bmap	- find a block number in a file
- *	@inode:  inode owning the block number being requested
+ *	@ianalde:  ianalde owning the block number being requested
  *	@block: pointer containing the block to find
  *
  *	Replaces the value in ``*block`` with the block number on the device holding
  *	corresponding to the requested block number in the file.
- *	That is, asked for block 4 of inode 1 the function will replace the
+ *	That is, asked for block 4 of ianalde 1 the function will replace the
  *	4 in ``*block``, with disk block relative to the disk start that holds that
  *	block of the file.
  *
  *	Returns -EINVAL in case of error, 0 otherwise. If mapping falls into a
  *	hole, returns 0 and ``*block`` is also set to 0.
  */
-int bmap(struct inode *inode, sector_t *block)
+int bmap(struct ianalde *ianalde, sector_t *block)
 {
-	if (!inode->i_mapping->a_ops->bmap)
+	if (!ianalde->i_mapping->a_ops->bmap)
 		return -EINVAL;
 
-	*block = inode->i_mapping->a_ops->bmap(inode->i_mapping, *block);
+	*block = ianalde->i_mapping->a_ops->bmap(ianalde->i_mapping, *block);
 	return 0;
 }
 EXPORT_SYMBOL(bmap);
@@ -1798,32 +1798,32 @@ EXPORT_SYMBOL(bmap);
  * earlier than or equal to either the ctime or mtime,
  * or if at least a day has passed since the last atime update.
  */
-static bool relatime_need_update(struct vfsmount *mnt, struct inode *inode,
-			     struct timespec64 now)
+static bool relatime_need_update(struct vfsmount *mnt, struct ianalde *ianalde,
+			     struct timespec64 analw)
 {
 	struct timespec64 atime, mtime, ctime;
 
 	if (!(mnt->mnt_flags & MNT_RELATIME))
 		return true;
 	/*
-	 * Is mtime younger than or equal to atime? If yes, update atime:
+	 * Is mtime younger than or equal to atime? If anal, update atime:
 	 */
-	atime = inode_get_atime(inode);
-	mtime = inode_get_mtime(inode);
+	atime = ianalde_get_atime(ianalde);
+	mtime = ianalde_get_mtime(ianalde);
 	if (timespec64_compare(&mtime, &atime) >= 0)
 		return true;
 	/*
-	 * Is ctime younger than or equal to atime? If yes, update atime:
+	 * Is ctime younger than or equal to atime? If anal, update atime:
 	 */
-	ctime = inode_get_ctime(inode);
+	ctime = ianalde_get_ctime(ianalde);
 	if (timespec64_compare(&ctime, &atime) >= 0)
 		return true;
 
 	/*
-	 * Is the previous atime value older than a day? If yes,
+	 * Is the previous atime value older than a day? If anal,
 	 * update atime:
 	 */
-	if ((long)(now.tv_sec - atime.tv_sec) >= 24*60*60)
+	if ((long)(analw.tv_sec - atime.tv_sec) >= 24*60*60)
 		return true;
 	/*
 	 * Good, we can skip the atime update:
@@ -1832,13 +1832,13 @@ static bool relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 }
 
 /**
- * inode_update_timestamps - update the timestamps on the inode
- * @inode: inode to be updated
+ * ianalde_update_timestamps - update the timestamps on the ianalde
+ * @ianalde: ianalde to be updated
  * @flags: S_* flags that needed to be updated
  *
- * The update_time function is called when an inode's timestamps need to be
+ * The update_time function is called when an ianalde's timestamps need to be
  * updated for a read or write operation. This function handles updating the
- * actual timestamps. It's up to the caller to ensure that the inode is marked
+ * actual timestamps. It's up to the caller to ensure that the ianalde is marked
  * dirty appropriately.
  *
  * In the case where any of S_MTIME, S_CTIME, or S_VERSION need to be updated,
@@ -1847,119 +1847,119 @@ static bool relatime_need_update(struct vfsmount *mnt, struct inode *inode,
  *
  * Returns a set of S_* flags indicating which values changed.
  */
-int inode_update_timestamps(struct inode *inode, int flags)
+int ianalde_update_timestamps(struct ianalde *ianalde, int flags)
 {
 	int updated = 0;
-	struct timespec64 now;
+	struct timespec64 analw;
 
 	if (flags & (S_MTIME|S_CTIME|S_VERSION)) {
-		struct timespec64 ctime = inode_get_ctime(inode);
-		struct timespec64 mtime = inode_get_mtime(inode);
+		struct timespec64 ctime = ianalde_get_ctime(ianalde);
+		struct timespec64 mtime = ianalde_get_mtime(ianalde);
 
-		now = inode_set_ctime_current(inode);
-		if (!timespec64_equal(&now, &ctime))
+		analw = ianalde_set_ctime_current(ianalde);
+		if (!timespec64_equal(&analw, &ctime))
 			updated |= S_CTIME;
-		if (!timespec64_equal(&now, &mtime)) {
-			inode_set_mtime_to_ts(inode, now);
+		if (!timespec64_equal(&analw, &mtime)) {
+			ianalde_set_mtime_to_ts(ianalde, analw);
 			updated |= S_MTIME;
 		}
-		if (IS_I_VERSION(inode) && inode_maybe_inc_iversion(inode, updated))
+		if (IS_I_VERSION(ianalde) && ianalde_maybe_inc_iversion(ianalde, updated))
 			updated |= S_VERSION;
 	} else {
-		now = current_time(inode);
+		analw = current_time(ianalde);
 	}
 
 	if (flags & S_ATIME) {
-		struct timespec64 atime = inode_get_atime(inode);
+		struct timespec64 atime = ianalde_get_atime(ianalde);
 
-		if (!timespec64_equal(&now, &atime)) {
-			inode_set_atime_to_ts(inode, now);
+		if (!timespec64_equal(&analw, &atime)) {
+			ianalde_set_atime_to_ts(ianalde, analw);
 			updated |= S_ATIME;
 		}
 	}
 	return updated;
 }
-EXPORT_SYMBOL(inode_update_timestamps);
+EXPORT_SYMBOL(ianalde_update_timestamps);
 
 /**
- * generic_update_time - update the timestamps on the inode
- * @inode: inode to be updated
+ * generic_update_time - update the timestamps on the ianalde
+ * @ianalde: ianalde to be updated
  * @flags: S_* flags that needed to be updated
  *
- * The update_time function is called when an inode's timestamps need to be
+ * The update_time function is called when an ianalde's timestamps need to be
  * updated for a read or write operation. In the case where any of S_MTIME, S_CTIME,
  * or S_VERSION need to be updated we attempt to update all three of them. S_ATIME
  * updates can be handled done independently of the rest.
  *
  * Returns a S_* mask indicating which fields were updated.
  */
-int generic_update_time(struct inode *inode, int flags)
+int generic_update_time(struct ianalde *ianalde, int flags)
 {
-	int updated = inode_update_timestamps(inode, flags);
+	int updated = ianalde_update_timestamps(ianalde, flags);
 	int dirty_flags = 0;
 
 	if (updated & (S_ATIME|S_MTIME|S_CTIME))
-		dirty_flags = inode->i_sb->s_flags & SB_LAZYTIME ? I_DIRTY_TIME : I_DIRTY_SYNC;
+		dirty_flags = ianalde->i_sb->s_flags & SB_LAZYTIME ? I_DIRTY_TIME : I_DIRTY_SYNC;
 	if (updated & S_VERSION)
 		dirty_flags |= I_DIRTY_SYNC;
-	__mark_inode_dirty(inode, dirty_flags);
+	__mark_ianalde_dirty(ianalde, dirty_flags);
 	return updated;
 }
 EXPORT_SYMBOL(generic_update_time);
 
 /*
- * This does the actual work of updating an inodes time or version.  Must have
+ * This does the actual work of updating an ianaldes time or version.  Must have
  * had called mnt_want_write() before calling this.
  */
-int inode_update_time(struct inode *inode, int flags)
+int ianalde_update_time(struct ianalde *ianalde, int flags)
 {
-	if (inode->i_op->update_time)
-		return inode->i_op->update_time(inode, flags);
-	generic_update_time(inode, flags);
+	if (ianalde->i_op->update_time)
+		return ianalde->i_op->update_time(ianalde, flags);
+	generic_update_time(ianalde, flags);
 	return 0;
 }
-EXPORT_SYMBOL(inode_update_time);
+EXPORT_SYMBOL(ianalde_update_time);
 
 /**
  *	atime_needs_update	-	update the access time
  *	@path: the &struct path to update
- *	@inode: inode to update
+ *	@ianalde: ianalde to update
  *
- *	Update the accessed time on an inode and mark it for writeback.
+ *	Update the accessed time on an ianalde and mark it for writeback.
  *	This function automatically handles read only file systems and media,
- *	as well as the "noatime" flag and inode specific "noatime" markers.
+ *	as well as the "analatime" flag and ianalde specific "analatime" markers.
  */
-bool atime_needs_update(const struct path *path, struct inode *inode)
+bool atime_needs_update(const struct path *path, struct ianalde *ianalde)
 {
 	struct vfsmount *mnt = path->mnt;
-	struct timespec64 now, atime;
+	struct timespec64 analw, atime;
 
-	if (inode->i_flags & S_NOATIME)
+	if (ianalde->i_flags & S_ANALATIME)
 		return false;
 
 	/* Atime updates will likely cause i_uid and i_gid to be written
-	 * back improprely if their true value is unknown to the vfs.
+	 * back improprely if their true value is unkanalwn to the vfs.
 	 */
-	if (HAS_UNMAPPED_ID(mnt_idmap(mnt), inode))
+	if (HAS_UNMAPPED_ID(mnt_idmap(mnt), ianalde))
 		return false;
 
-	if (IS_NOATIME(inode))
+	if (IS_ANALATIME(ianalde))
 		return false;
-	if ((inode->i_sb->s_flags & SB_NODIRATIME) && S_ISDIR(inode->i_mode))
-		return false;
-
-	if (mnt->mnt_flags & MNT_NOATIME)
-		return false;
-	if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
+	if ((ianalde->i_sb->s_flags & SB_ANALDIRATIME) && S_ISDIR(ianalde->i_mode))
 		return false;
 
-	now = current_time(inode);
-
-	if (!relatime_need_update(mnt, inode, now))
+	if (mnt->mnt_flags & MNT_ANALATIME)
+		return false;
+	if ((mnt->mnt_flags & MNT_ANALDIRATIME) && S_ISDIR(ianalde->i_mode))
 		return false;
 
-	atime = inode_get_atime(inode);
-	if (timespec64_equal(&atime, &now))
+	analw = current_time(ianalde);
+
+	if (!relatime_need_update(mnt, ianalde, analw))
+		return false;
+
+	atime = ianalde_get_atime(ianalde);
+	if (timespec64_equal(&atime, &analw))
 		return false;
 
 	return true;
@@ -1968,49 +1968,49 @@ bool atime_needs_update(const struct path *path, struct inode *inode)
 void touch_atime(const struct path *path)
 {
 	struct vfsmount *mnt = path->mnt;
-	struct inode *inode = d_inode(path->dentry);
+	struct ianalde *ianalde = d_ianalde(path->dentry);
 
-	if (!atime_needs_update(path, inode))
+	if (!atime_needs_update(path, ianalde))
 		return;
 
-	if (!sb_start_write_trylock(inode->i_sb))
+	if (!sb_start_write_trylock(ianalde->i_sb))
 		return;
 
 	if (mnt_get_write_access(mnt) != 0)
 		goto skip_update;
 	/*
-	 * File systems can error out when updating inodes if they need to
-	 * allocate new space to modify an inode (such is the case for
+	 * File systems can error out when updating ianaldes if they need to
+	 * allocate new space to modify an ianalde (such is the case for
 	 * Btrfs), but since we touch atime while walking down the path we
 	 * really don't care if we failed to update the atime of the file,
-	 * so just ignore the return value.
+	 * so just iganalre the return value.
 	 * We may also fail on filesystems that have the ability to make parts
 	 * of the fs read only, e.g. subvolumes in Btrfs.
 	 */
-	inode_update_time(inode, S_ATIME);
+	ianalde_update_time(ianalde, S_ATIME);
 	mnt_put_write_access(mnt);
 skip_update:
-	sb_end_write(inode->i_sb);
+	sb_end_write(ianalde->i_sb);
 }
 EXPORT_SYMBOL(touch_atime);
 
 /*
- * Return mask of changes for notify_change() that need to be done as a
- * response to write or truncate. Return 0 if nothing has to be changed.
+ * Return mask of changes for analtify_change() that need to be done as a
+ * response to write or truncate. Return 0 if analthing has to be changed.
  * Negative value on error (change should be denied).
  */
 int dentry_needs_remove_privs(struct mnt_idmap *idmap,
 			      struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int mask = 0;
 	int ret;
 
-	if (IS_NOSEC(inode))
+	if (IS_ANALSEC(ianalde))
 		return 0;
 
-	mask = setattr_should_drop_suidgid(idmap, inode);
-	ret = security_inode_need_killpriv(dentry);
+	mask = setattr_should_drop_suidgid(idmap, ianalde);
+	ret = security_ianalde_need_killpriv(dentry);
 	if (ret < 0)
 		return ret;
 	if (ret)
@@ -2025,20 +2025,20 @@ static int __remove_privs(struct mnt_idmap *idmap,
 
 	newattrs.ia_valid = ATTR_FORCE | kill;
 	/*
-	 * Note we call this on write, so notify_change will not
+	 * Analte we call this on write, so analtify_change will analt
 	 * encounter any conflicting delegations:
 	 */
-	return notify_change(idmap, dentry, &newattrs, NULL);
+	return analtify_change(idmap, dentry, &newattrs, NULL);
 }
 
 static int __file_remove_privs(struct file *file, unsigned int flags)
 {
 	struct dentry *dentry = file_dentry(file);
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	int error = 0;
 	int kill;
 
-	if (IS_NOSEC(inode) || !S_ISREG(inode->i_mode))
+	if (IS_ANALSEC(ianalde) || !S_ISREG(ianalde->i_mode))
 		return 0;
 
 	kill = dentry_needs_remove_privs(file_mnt_idmap(file), dentry);
@@ -2046,14 +2046,14 @@ static int __file_remove_privs(struct file *file, unsigned int flags)
 		return kill;
 
 	if (kill) {
-		if (flags & IOCB_NOWAIT)
+		if (flags & IOCB_ANALWAIT)
 			return -EAGAIN;
 
 		error = __remove_privs(file_mnt_idmap(file), dentry, kill);
 	}
 
 	if (!error)
-		inode_has_no_xattr(inode);
+		ianalde_has_anal_xattr(ianalde);
 	return error;
 }
 
@@ -2064,7 +2064,7 @@ static int __file_remove_privs(struct file *file, unsigned int flags)
  * When file is modified by a write or truncation ensure that special
  * file privileges are removed.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int file_remove_privs(struct file *file)
 {
@@ -2072,25 +2072,25 @@ int file_remove_privs(struct file *file)
 }
 EXPORT_SYMBOL(file_remove_privs);
 
-static int inode_needs_update_time(struct inode *inode)
+static int ianalde_needs_update_time(struct ianalde *ianalde)
 {
 	int sync_it = 0;
-	struct timespec64 now = current_time(inode);
+	struct timespec64 analw = current_time(ianalde);
 	struct timespec64 ts;
 
-	/* First try to exhaust all avenues to not sync */
-	if (IS_NOCMTIME(inode))
+	/* First try to exhaust all avenues to analt sync */
+	if (IS_ANALCMTIME(ianalde))
 		return 0;
 
-	ts = inode_get_mtime(inode);
-	if (!timespec64_equal(&ts, &now))
+	ts = ianalde_get_mtime(ianalde);
+	if (!timespec64_equal(&ts, &analw))
 		sync_it = S_MTIME;
 
-	ts = inode_get_ctime(inode);
-	if (!timespec64_equal(&ts, &now))
+	ts = ianalde_get_ctime(ianalde);
+	if (!timespec64_equal(&ts, &analw))
 		sync_it |= S_CTIME;
 
-	if (IS_I_VERSION(inode) && inode_iversion_need_inc(inode))
+	if (IS_I_VERSION(ianalde) && ianalde_iversion_need_inc(ianalde))
 		sync_it |= S_VERSION;
 
 	return sync_it;
@@ -2099,11 +2099,11 @@ static int inode_needs_update_time(struct inode *inode)
 static int __file_update_time(struct file *file, int sync_mode)
 {
 	int ret = 0;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
 	/* try to update time settings */
 	if (!mnt_get_write_access_file(file)) {
-		ret = inode_update_time(inode, sync_mode);
+		ret = ianalde_update_time(ianalde, sync_mode);
 		mnt_put_write_access_file(file);
 	}
 
@@ -2114,22 +2114,22 @@ static int __file_update_time(struct file *file, int sync_mode)
  * file_update_time - update mtime and ctime time
  * @file: file accessed
  *
- * Update the mtime and ctime members of an inode and mark the inode for
- * writeback. Note that this function is meant exclusively for usage in
+ * Update the mtime and ctime members of an ianalde and mark the ianalde for
+ * writeback. Analte that this function is meant exclusively for usage in
  * the file write path of filesystems, and filesystems may choose to
- * explicitly ignore updates via this function with the _NOCMTIME inode
+ * explicitly iganalre updates via this function with the _ANALCMTIME ianalde
  * flag, e.g. for network filesystem where these imestamps are handled
  * by the server. This can return an error for file systems who need to
- * allocate space in order to update an inode.
+ * allocate space in order to update an ianalde.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int file_update_time(struct file *file)
 {
 	int ret;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
-	ret = inode_needs_update_time(inode);
+	ret = ianalde_needs_update_time(ianalde);
 	if (ret <= 0)
 		return ret;
 
@@ -2145,33 +2145,33 @@ EXPORT_SYMBOL(file_update_time);
  * When file has been modified ensure that special
  * file privileges are removed and time settings are updated.
  *
- * If IOCB_NOWAIT is set, special file privileges will not be removed and
- * time settings will not be updated. It will return -EAGAIN.
+ * If IOCB_ANALWAIT is set, special file privileges will analt be removed and
+ * time settings will analt be updated. It will return -EAGAIN.
  *
- * Context: Caller must hold the file's inode lock.
+ * Context: Caller must hold the file's ianalde lock.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 static int file_modified_flags(struct file *file, int flags)
 {
 	int ret;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
 	/*
-	 * Clear the security bits if the process is not being run by root.
+	 * Clear the security bits if the process is analt being run by root.
 	 * This keeps people from modifying setuid and setgid binaries.
 	 */
 	ret = __file_remove_privs(file, flags);
 	if (ret)
 		return ret;
 
-	if (unlikely(file->f_mode & FMODE_NOCMTIME))
+	if (unlikely(file->f_mode & FMODE_ANALCMTIME))
 		return 0;
 
-	ret = inode_needs_update_time(inode);
+	ret = ianalde_needs_update_time(ianalde);
 	if (ret <= 0)
 		return ret;
-	if (flags & IOCB_NOWAIT)
+	if (flags & IOCB_ANALWAIT)
 		return -EAGAIN;
 
 	return __file_update_time(file, ret);
@@ -2184,9 +2184,9 @@ static int file_modified_flags(struct file *file, int flags)
  * When file has been modified ensure that special
  * file privileges are removed and time settings are updated.
  *
- * Context: Caller must hold the file's inode lock.
+ * Context: Caller must hold the file's ianalde lock.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int file_modified(struct file *file)
 {
@@ -2201,9 +2201,9 @@ EXPORT_SYMBOL(file_modified);
  * When file has been modified ensure that special
  * file privileges are removed and time settings are updated.
  *
- * Context: Caller must hold the file's inode lock.
+ * Context: Caller must hold the file's ianalde lock.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int kiocb_modified(struct kiocb *iocb)
 {
@@ -2211,38 +2211,38 @@ int kiocb_modified(struct kiocb *iocb)
 }
 EXPORT_SYMBOL_GPL(kiocb_modified);
 
-int inode_needs_sync(struct inode *inode)
+int ianalde_needs_sync(struct ianalde *ianalde)
 {
-	if (IS_SYNC(inode))
+	if (IS_SYNC(ianalde))
 		return 1;
-	if (S_ISDIR(inode->i_mode) && IS_DIRSYNC(inode))
+	if (S_ISDIR(ianalde->i_mode) && IS_DIRSYNC(ianalde))
 		return 1;
 	return 0;
 }
-EXPORT_SYMBOL(inode_needs_sync);
+EXPORT_SYMBOL(ianalde_needs_sync);
 
 /*
- * If we try to find an inode in the inode hash while it is being
+ * If we try to find an ianalde in the ianalde hash while it is being
  * deleted, we have to wait until the filesystem completes its
  * deletion before reporting that it isn't found.  This function waits
  * until the deletion _might_ have completed.  Callers are responsible
- * to recheck inode state.
+ * to recheck ianalde state.
  *
- * It doesn't matter if I_NEW is not set initially, a call to
- * wake_up_bit(&inode->i_state, __I_NEW) after removing from the hash list
+ * It doesn't matter if I_NEW is analt set initially, a call to
+ * wake_up_bit(&ianalde->i_state, __I_NEW) after removing from the hash list
  * will DTRT.
  */
-static void __wait_on_freeing_inode(struct inode *inode)
+static void __wait_on_freeing_ianalde(struct ianalde *ianalde)
 {
 	wait_queue_head_t *wq;
-	DEFINE_WAIT_BIT(wait, &inode->i_state, __I_NEW);
-	wq = bit_waitqueue(&inode->i_state, __I_NEW);
+	DEFINE_WAIT_BIT(wait, &ianalde->i_state, __I_NEW);
+	wq = bit_waitqueue(&ianalde->i_state, __I_NEW);
 	prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-	spin_unlock(&inode->i_lock);
-	spin_unlock(&inode_hash_lock);
+	spin_unlock(&ianalde->i_lock);
+	spin_unlock(&ianalde_hash_lock);
 	schedule();
 	finish_wait(wq, &wait.wq_entry);
-	spin_lock(&inode_hash_lock);
+	spin_lock(&ianalde_hash_lock);
 }
 
 static __initdata unsigned long ihash_entries;
@@ -2256,18 +2256,18 @@ static int __init set_ihash_entries(char *str)
 __setup("ihash_entries=", set_ihash_entries);
 
 /*
- * Initialize the waitqueues and inode hash table.
+ * Initialize the waitqueues and ianalde hash table.
  */
-void __init inode_init_early(void)
+void __init ianalde_init_early(void)
 {
-	/* If hashes are distributed across NUMA nodes, defer
+	/* If hashes are distributed across NUMA analdes, defer
 	 * hash allocation until vmalloc space is available.
 	 */
 	if (hashdist)
 		return;
 
-	inode_hashtable =
-		alloc_large_system_hash("Inode-cache",
+	ianalde_hashtable =
+		alloc_large_system_hash("Ianalde-cache",
 					sizeof(struct hlist_head),
 					ihash_entries,
 					14,
@@ -2278,22 +2278,22 @@ void __init inode_init_early(void)
 					0);
 }
 
-void __init inode_init(void)
+void __init ianalde_init(void)
 {
-	/* inode slab cache */
-	inode_cachep = kmem_cache_create("inode_cache",
-					 sizeof(struct inode),
+	/* ianalde slab cache */
+	ianalde_cachep = kmem_cache_create("ianalde_cache",
+					 sizeof(struct ianalde),
 					 0,
 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
 					 SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					 init_once);
 
-	/* Hash may have been set up in inode_init_early */
+	/* Hash may have been set up in ianalde_init_early */
 	if (!hashdist)
 		return;
 
-	inode_hashtable =
-		alloc_large_system_hash("Inode-cache",
+	ianalde_hashtable =
+		alloc_large_system_hash("Ianalde-cache",
 					sizeof(struct hlist_head),
 					ihash_entries,
 					14,
@@ -2304,77 +2304,77 @@ void __init inode_init(void)
 					0);
 }
 
-void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
+void init_special_ianalde(struct ianalde *ianalde, umode_t mode, dev_t rdev)
 {
-	inode->i_mode = mode;
+	ianalde->i_mode = mode;
 	if (S_ISCHR(mode)) {
-		inode->i_fop = &def_chr_fops;
-		inode->i_rdev = rdev;
+		ianalde->i_fop = &def_chr_fops;
+		ianalde->i_rdev = rdev;
 	} else if (S_ISBLK(mode)) {
 		if (IS_ENABLED(CONFIG_BLOCK))
-			inode->i_fop = &def_blk_fops;
-		inode->i_rdev = rdev;
+			ianalde->i_fop = &def_blk_fops;
+		ianalde->i_rdev = rdev;
 	} else if (S_ISFIFO(mode))
-		inode->i_fop = &pipefifo_fops;
+		ianalde->i_fop = &pipefifo_fops;
 	else if (S_ISSOCK(mode))
-		;	/* leave it no_open_fops */
+		;	/* leave it anal_open_fops */
 	else
-		printk(KERN_DEBUG "init_special_inode: bogus i_mode (%o) for"
-				  " inode %s:%lu\n", mode, inode->i_sb->s_id,
-				  inode->i_ino);
+		printk(KERN_DEBUG "init_special_ianalde: bogus i_mode (%o) for"
+				  " ianalde %s:%lu\n", mode, ianalde->i_sb->s_id,
+				  ianalde->i_ianal);
 }
-EXPORT_SYMBOL(init_special_inode);
+EXPORT_SYMBOL(init_special_ianalde);
 
 /**
- * inode_init_owner - Init uid,gid,mode for new inode according to posix standards
- * @idmap: idmap of the mount the inode was created from
- * @inode: New inode
- * @dir: Directory inode
- * @mode: mode of the new inode
+ * ianalde_init_owner - Init uid,gid,mode for new ianalde according to posix standards
+ * @idmap: idmap of the mount the ianalde was created from
+ * @ianalde: New ianalde
+ * @dir: Directory ianalde
+ * @mode: mode of the new ianalde
  *
- * If the inode has been created through an idmapped mount the idmap of
+ * If the ianalde has been created through an idmapped mount the idmap of
  * the vfsmount must be passed through @idmap. This function will then take
- * care to map the inode according to @idmap before checking permissions
- * and initializing i_uid and i_gid. On non-idmapped mounts or if permission
- * checking is to be performed on the raw inode simply pass @nop_mnt_idmap.
+ * care to map the ianalde according to @idmap before checking permissions
+ * and initializing i_uid and i_gid. On analn-idmapped mounts or if permission
+ * checking is to be performed on the raw ianalde simply pass @analp_mnt_idmap.
  */
-void inode_init_owner(struct mnt_idmap *idmap, struct inode *inode,
-		      const struct inode *dir, umode_t mode)
+void ianalde_init_owner(struct mnt_idmap *idmap, struct ianalde *ianalde,
+		      const struct ianalde *dir, umode_t mode)
 {
-	inode_fsuid_set(inode, idmap);
+	ianalde_fsuid_set(ianalde, idmap);
 	if (dir && dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
+		ianalde->i_gid = dir->i_gid;
 
 		/* Directories are special, and always inherit S_ISGID */
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
 	} else
-		inode_fsgid_set(inode, idmap);
-	inode->i_mode = mode;
+		ianalde_fsgid_set(ianalde, idmap);
+	ianalde->i_mode = mode;
 }
-EXPORT_SYMBOL(inode_init_owner);
+EXPORT_SYMBOL(ianalde_init_owner);
 
 /**
- * inode_owner_or_capable - check current task permissions to inode
- * @idmap: idmap of the mount the inode was found from
- * @inode: inode being checked
+ * ianalde_owner_or_capable - check current task permissions to ianalde
+ * @idmap: idmap of the mount the ianalde was found from
+ * @ianalde: ianalde being checked
  *
  * Return true if current either has CAP_FOWNER in a namespace with the
- * inode owner uid mapped, or owns the file.
+ * ianalde owner uid mapped, or owns the file.
  *
- * If the inode has been found through an idmapped mount the idmap of
+ * If the ianalde has been found through an idmapped mount the idmap of
  * the vfsmount must be passed through @idmap. This function will then take
- * care to map the inode according to @idmap before checking permissions.
- * On non-idmapped mounts or if permission checking is to be performed on the
- * raw inode simply pass @nop_mnt_idmap.
+ * care to map the ianalde according to @idmap before checking permissions.
+ * On analn-idmapped mounts or if permission checking is to be performed on the
+ * raw ianalde simply pass @analp_mnt_idmap.
  */
-bool inode_owner_or_capable(struct mnt_idmap *idmap,
-			    const struct inode *inode)
+bool ianalde_owner_or_capable(struct mnt_idmap *idmap,
+			    const struct ianalde *ianalde)
 {
 	vfsuid_t vfsuid;
 	struct user_namespace *ns;
 
-	vfsuid = i_uid_into_vfsuid(idmap, inode);
+	vfsuid = i_uid_into_vfsuid(idmap, ianalde);
 	if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
 		return true;
 
@@ -2383,47 +2383,47 @@ bool inode_owner_or_capable(struct mnt_idmap *idmap,
 		return true;
 	return false;
 }
-EXPORT_SYMBOL(inode_owner_or_capable);
+EXPORT_SYMBOL(ianalde_owner_or_capable);
 
 /*
  * Direct i/o helper functions
  */
-static void __inode_dio_wait(struct inode *inode)
+static void __ianalde_dio_wait(struct ianalde *ianalde)
 {
-	wait_queue_head_t *wq = bit_waitqueue(&inode->i_state, __I_DIO_WAKEUP);
-	DEFINE_WAIT_BIT(q, &inode->i_state, __I_DIO_WAKEUP);
+	wait_queue_head_t *wq = bit_waitqueue(&ianalde->i_state, __I_DIO_WAKEUP);
+	DEFINE_WAIT_BIT(q, &ianalde->i_state, __I_DIO_WAKEUP);
 
 	do {
 		prepare_to_wait(wq, &q.wq_entry, TASK_UNINTERRUPTIBLE);
-		if (atomic_read(&inode->i_dio_count))
+		if (atomic_read(&ianalde->i_dio_count))
 			schedule();
-	} while (atomic_read(&inode->i_dio_count));
+	} while (atomic_read(&ianalde->i_dio_count));
 	finish_wait(wq, &q.wq_entry);
 }
 
 /**
- * inode_dio_wait - wait for outstanding DIO requests to finish
- * @inode: inode to wait for
+ * ianalde_dio_wait - wait for outstanding DIO requests to finish
+ * @ianalde: ianalde to wait for
  *
  * Waits for all pending direct I/O requests to finish so that we can
  * proceed with a truncate or equivalent operation.
  *
  * Must be called under a lock that serializes taking new references
- * to i_dio_count, usually by inode->i_mutex.
+ * to i_dio_count, usually by ianalde->i_mutex.
  */
-void inode_dio_wait(struct inode *inode)
+void ianalde_dio_wait(struct ianalde *ianalde)
 {
-	if (atomic_read(&inode->i_dio_count))
-		__inode_dio_wait(inode);
+	if (atomic_read(&ianalde->i_dio_count))
+		__ianalde_dio_wait(ianalde);
 }
-EXPORT_SYMBOL(inode_dio_wait);
+EXPORT_SYMBOL(ianalde_dio_wait);
 
 /*
- * inode_set_flags - atomically set some inode flags
+ * ianalde_set_flags - atomically set some ianalde flags
  *
- * Note: the caller should be holding i_mutex, or else be sure that
- * they have exclusive access to the inode structure (i.e., while the
- * inode is being instantiated).  The reason for the cmpxchg() loop
+ * Analte: the caller should be holding i_mutex, or else be sure that
+ * they have exclusive access to the ianalde structure (i.e., while the
+ * ianalde is being instantiated).  The reason for the cmpxchg() loop
  * --- which wouldn't be necessary if all code paths which modify
  * i_flags actually followed this rule, is that there is at least one
  * code path which doesn't today so we use cmpxchg() out of an abundance
@@ -2434,32 +2434,32 @@ EXPORT_SYMBOL(inode_dio_wait);
  * it is so documented in include/linux/fs.h and that all code follows
  * the locking convention!!
  */
-void inode_set_flags(struct inode *inode, unsigned int flags,
+void ianalde_set_flags(struct ianalde *ianalde, unsigned int flags,
 		     unsigned int mask)
 {
 	WARN_ON_ONCE(flags & ~mask);
-	set_mask_bits(&inode->i_flags, mask, flags);
+	set_mask_bits(&ianalde->i_flags, mask, flags);
 }
-EXPORT_SYMBOL(inode_set_flags);
+EXPORT_SYMBOL(ianalde_set_flags);
 
-void inode_nohighmem(struct inode *inode)
+void ianalde_analhighmem(struct ianalde *ianalde)
 {
-	mapping_set_gfp_mask(inode->i_mapping, GFP_USER);
+	mapping_set_gfp_mask(ianalde->i_mapping, GFP_USER);
 }
-EXPORT_SYMBOL(inode_nohighmem);
+EXPORT_SYMBOL(ianalde_analhighmem);
 
 /**
  * timestamp_truncate - Truncate timespec to a granularity
  * @t: Timespec
- * @inode: inode being updated
+ * @ianalde: ianalde being updated
  *
  * Truncate a timespec to the granularity supported by the fs
- * containing the inode. Always rounds down. gran must
- * not be 0 nor greater than a second (NSEC_PER_SEC, or 10^9 ns).
+ * containing the ianalde. Always rounds down. gran must
+ * analt be 0 analr greater than a second (NSEC_PER_SEC, or 10^9 ns).
  */
-struct timespec64 timestamp_truncate(struct timespec64 t, struct inode *inode)
+struct timespec64 timestamp_truncate(struct timespec64 t, struct ianalde *ianalde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	unsigned int gran = sb->s_time_gran;
 
 	t.tv_sec = clamp(t.tv_sec, sb->s_time_min, sb->s_time_max);
@@ -2468,7 +2468,7 @@ struct timespec64 timestamp_truncate(struct timespec64 t, struct inode *inode)
 
 	/* Avoid division in the common cases 1 ns and 1 s. */
 	if (gran == 1)
-		; /* nothing */
+		; /* analthing */
 	else if (gran == NSEC_PER_SEC)
 		t.tv_nsec = 0;
 	else if (gran > 1 && gran < NSEC_PER_SEC)
@@ -2481,65 +2481,65 @@ EXPORT_SYMBOL(timestamp_truncate);
 
 /**
  * current_time - Return FS time
- * @inode: inode.
+ * @ianalde: ianalde.
  *
  * Return the current time truncated to the time granularity supported by
  * the fs.
  *
- * Note that inode and inode->sb cannot be NULL.
+ * Analte that ianalde and ianalde->sb cananalt be NULL.
  * Otherwise, the function warns and returns time without truncation.
  */
-struct timespec64 current_time(struct inode *inode)
+struct timespec64 current_time(struct ianalde *ianalde)
 {
-	struct timespec64 now;
+	struct timespec64 analw;
 
-	ktime_get_coarse_real_ts64(&now);
-	return timestamp_truncate(now, inode);
+	ktime_get_coarse_real_ts64(&analw);
+	return timestamp_truncate(analw, ianalde);
 }
 EXPORT_SYMBOL(current_time);
 
 /**
- * inode_set_ctime_current - set the ctime to current_time
- * @inode: inode
+ * ianalde_set_ctime_current - set the ctime to current_time
+ * @ianalde: ianalde
  *
- * Set the inode->i_ctime to the current value for the inode. Returns
+ * Set the ianalde->i_ctime to the current value for the ianalde. Returns
  * the current value that was assigned to i_ctime.
  */
-struct timespec64 inode_set_ctime_current(struct inode *inode)
+struct timespec64 ianalde_set_ctime_current(struct ianalde *ianalde)
 {
-	struct timespec64 now = current_time(inode);
+	struct timespec64 analw = current_time(ianalde);
 
-	inode_set_ctime(inode, now.tv_sec, now.tv_nsec);
-	return now;
+	ianalde_set_ctime(ianalde, analw.tv_sec, analw.tv_nsec);
+	return analw;
 }
-EXPORT_SYMBOL(inode_set_ctime_current);
+EXPORT_SYMBOL(ianalde_set_ctime_current);
 
 /**
  * in_group_or_capable - check whether caller is CAP_FSETID privileged
- * @idmap:	idmap of the mount @inode was found from
- * @inode:	inode to check
- * @vfsgid:	the new/current vfsgid of @inode
+ * @idmap:	idmap of the mount @ianalde was found from
+ * @ianalde:	ianalde to check
+ * @vfsgid:	the new/current vfsgid of @ianalde
  *
  * Check wether @vfsgid is in the caller's group list or if the caller is
- * privileged with CAP_FSETID over @inode. This can be used to determine
+ * privileged with CAP_FSETID over @ianalde. This can be used to determine
  * whether the setgid bit can be kept or must be dropped.
  *
- * Return: true if the caller is sufficiently privileged, false if not.
+ * Return: true if the caller is sufficiently privileged, false if analt.
  */
 bool in_group_or_capable(struct mnt_idmap *idmap,
-			 const struct inode *inode, vfsgid_t vfsgid)
+			 const struct ianalde *ianalde, vfsgid_t vfsgid)
 {
 	if (vfsgid_in_group_p(vfsgid))
 		return true;
-	if (capable_wrt_inode_uidgid(idmap, inode, CAP_FSETID))
+	if (capable_wrt_ianalde_uidgid(idmap, ianalde, CAP_FSETID))
 		return true;
 	return false;
 }
 
 /**
- * mode_strip_sgid - handle the sgid bit for non-directories
- * @idmap: idmap of the mount the inode was created from
- * @dir: parent directory inode
+ * mode_strip_sgid - handle the sgid bit for analn-directories
+ * @idmap: idmap of the mount the ianalde was created from
+ * @dir: parent directory ianalde
  * @mode: mode of the file to be created in @dir
  *
  * If the @mode of the new file has both the S_ISGID and S_IXGRP bit
@@ -2551,7 +2551,7 @@ bool in_group_or_capable(struct mnt_idmap *idmap,
  * Return: the new mode to use for the file
  */
 umode_t mode_strip_sgid(struct mnt_idmap *idmap,
-			const struct inode *dir, umode_t mode)
+			const struct ianalde *dir, umode_t mode)
 {
 	if ((mode & (S_ISGID | S_IXGRP)) != (S_ISGID | S_IXGRP))
 		return mode;

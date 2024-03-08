@@ -2,7 +2,7 @@
 /*
  * Think LMI BIOS configuration driver
  *
- * Copyright(C) 2019-2021 Lenovo
+ * Copyright(C) 2019-2021 Leanalvo
  *
  * Original code from Thinkpad-wmi project https://github.com/iksaif/thinkpad-wmi
  * Copyright(C) 2017 Corentin Chary <corentin.chary@gmail.com>
@@ -12,7 +12,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/string_helpers.h>
@@ -33,7 +33,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Returns: "Item,Value"
  * Example: "WakeOnLAN,Enable"
  */
-#define LENOVO_BIOS_SETTING_GUID "51F5230E-9677-46CD-A1CF-C0B23EE34DB7"
+#define LEANALVO_BIOS_SETTING_GUID "51F5230E-9677-46CD-A1CF-C0B23EE34DB7"
 
 /*
  * Name: SetBiosSetting
@@ -46,7 +46,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Arguments: "Item,Value,Password,Encoding,KbdLang;"
  * Example: "WakeOnLAN,Disable,pa55w0rd,ascii,us;"
  */
-#define LENOVO_SET_BIOS_SETTINGS_GUID "98479A64-33F5-4E33-A707-8E251EBBC3A1"
+#define LEANALVO_SET_BIOS_SETTINGS_GUID "98479A64-33F5-4E33-A707-8E251EBBC3A1"
 
 /*
  * Name: SaveBiosSettings
@@ -55,7 +55,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Arguments: "Password,Encoding,KbdLang;"
  * Example: "pa55w0rd,ascii,us;"
  */
-#define LENOVO_SAVE_BIOS_SETTINGS_GUID "6A4B54EF-A5ED-4D33-9455-B0D9B48DF4B3"
+#define LEANALVO_SAVE_BIOS_SETTINGS_GUID "6A4B54EF-A5ED-4D33-9455-B0D9B48DF4B3"
 
 /*
  * Name: BiosPasswordSettings
@@ -64,22 +64,22 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Returns: PasswordMode, PasswordState, MinLength, MaxLength,
  *  SupportedEncoding, SupportedKeyboard
  */
-#define LENOVO_BIOS_PASSWORD_SETTINGS_GUID "8ADB159E-1E32-455C-BC93-308A7ED98246"
+#define LEANALVO_BIOS_PASSWORD_SETTINGS_GUID "8ADB159E-1E32-455C-BC93-308A7ED98246"
 
 /*
  * Name: SetBiosPassword
  * Description: Change a specific password.
- *  - BIOS settings cannot be changed at the same boot as power-on
+ *  - BIOS settings cananalt be changed at the same boot as power-on
  *    passwords (POP) and hard disk passwords (HDP). If you want to change
  *    BIOS settings and POP or HDP, you must reboot the system after changing
  *    one of them.
- *  - A password cannot be set using this method when one does not already
+ *  - A password cananalt be set using this method when one does analt already
  *    exist. Passwords can only be updated or cleared.
  * Type: Method
  * Arguments: "PasswordType,CurrentPassword,NewPassword,Encoding,KbdLang;"
  * Example: "pop,pa55w0rd,newpa55w0rd,ascii,us;”
  */
-#define LENOVO_SET_BIOS_PASSWORD_GUID "2651D9FD-911C-4B69-B94E-D0DED5963BD7"
+#define LEANALVO_SET_BIOS_PASSWORD_GUID "2651D9FD-911C-4B69-B94E-D0DED5963BD7"
 
 /*
  * Name: GetBiosSelections
@@ -91,13 +91,13 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  *  -> "FlashOverLAN"
  *  <- "Enabled,Disabled"
  */
-#define LENOVO_GET_BIOS_SELECTIONS_GUID	"7364651A-132F-4FE7-ADAA-40C6C7EE2E3B"
+#define LEANALVO_GET_BIOS_SELECTIONS_GUID	"7364651A-132F-4FE7-ADAA-40C6C7EE2E3B"
 
 /*
  * Name: DebugCmd
  * Description: Debug entry method for entering debug commands to the BIOS
  */
-#define LENOVO_DEBUG_CMD_GUID "7FF47003-3B6C-4E5E-A227-E979824A85D1"
+#define LEANALVO_DEBUG_CMD_GUID "7FF47003-3B6C-4E5E-A227-E979824A85D1"
 
 /*
  * Name: OpcodeIF
@@ -108,7 +108,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  *  passwords.
  *  This is currently available on ThinkCenter and ThinkStations platforms
  */
-#define LENOVO_OPCODE_IF_GUID "DFDDEF2C-57D4-48ce-B196-0FB787D90836"
+#define LEANALVO_OPCODE_IF_GUID "DFDDEF2C-57D4-48ce-B196-0FB787D90836"
 
 /*
  * Name: SetBiosCert
@@ -117,7 +117,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Arguments: "Certificate,Password"
  * You must reboot the computer before the changes will take effect.
  */
-#define LENOVO_SET_BIOS_CERT_GUID    "26861C9F-47E9-44C4-BD8B-DFE7FA2610FE"
+#define LEANALVO_SET_BIOS_CERT_GUID    "26861C9F-47E9-44C4-BD8B-DFE7FA2610FE"
 
 /*
  * Name: UpdateBiosCert
@@ -126,7 +126,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Format: "Certificate,Signature"
  * You must reboot the computer before the changes will take effect.
  */
-#define LENOVO_UPDATE_BIOS_CERT_GUID "9AA3180A-9750-41F7-B9F7-D5D3B1BAC3CE"
+#define LEANALVO_UPDATE_BIOS_CERT_GUID "9AA3180A-9750-41F7-B9F7-D5D3B1BAC3CE"
 
 /*
  * Name: ClearBiosCert
@@ -135,7 +135,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Format: "Serial,Signature"
  * You must reboot the computer before the changes will take effect.
  */
-#define LENOVO_CLEAR_BIOS_CERT_GUID  "B2BC39A7-78DD-4D71-B059-A510DEC44890"
+#define LEANALVO_CLEAR_BIOS_CERT_GUID  "B2BC39A7-78DD-4D71-B059-A510DEC44890"
 /*
  * Name: CertToPassword
  * Description: Switch from certificate to password authentication.
@@ -143,7 +143,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Format: "Password,Signature"
  * You must reboot the computer before the changes will take effect.
  */
-#define LENOVO_CERT_TO_PASSWORD_GUID "0DE8590D-5510-4044-9621-77C227F5A70D"
+#define LEANALVO_CERT_TO_PASSWORD_GUID "0DE8590D-5510-4044-9621-77C227F5A70D"
 
 /*
  * Name: SetBiosSettingCert
@@ -151,7 +151,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Type: Method
  * Format: "Item,Value,Signature"
  */
-#define LENOVO_SET_BIOS_SETTING_CERT_GUID  "34A008CC-D205-4B62-9E67-31DFA8B90003"
+#define LEANALVO_SET_BIOS_SETTING_CERT_GUID  "34A008CC-D205-4B62-9E67-31DFA8B90003"
 
 /*
  * Name: SaveBiosSettingCert
@@ -159,7 +159,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Type: Method
  * Format: "Signature"
  */
-#define LENOVO_SAVE_BIOS_SETTING_CERT_GUID "C050FB9D-DF5F-4606-B066-9EFC401B2551"
+#define LEANALVO_SAVE_BIOS_SETTING_CERT_GUID "C050FB9D-DF5F-4606-B066-9EFC401B2551"
 
 /*
  * Name: CertThumbprint
@@ -167,7 +167,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
  * Type: Query
  * Returns: MD5, SHA1 & SHA256 thumbprints
  */
-#define LENOVO_CERT_THUMBPRINT_GUID "C59119ED-1C0D-4806-A8E9-59AA318176C4"
+#define LEANALVO_CERT_THUMBPRINT_GUID "C59119ED-1C0D-4806-A8E9-59AA318176C4"
 
 #define TLMI_POP_PWD BIT(0) /* Supervisor */
 #define TLMI_PAP_PWD BIT(1) /* Power-on */
@@ -180,7 +180,7 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
 
 static const struct tlmi_err_codes tlmi_errs[] = {
 	{"Success", 0},
-	{"Not Supported", -EOPNOTSUPP},
+	{"Analt Supported", -EOPANALTSUPP},
 	{"Invalid Parameter", -EINVAL},
 	{"Access Denied", -EACCES},
 	{"System Busy", -EBUSY},
@@ -217,7 +217,7 @@ static int tlmi_extract_error(const struct acpi_buffer *output)
 
 	obj = output->pointer;
 	if (!obj)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (obj->type != ACPI_TYPE_STRING || !obj->string.pointer)
 		return -EIO;
 
@@ -263,13 +263,13 @@ static int tlmi_extract_output_string(const struct acpi_buffer *output,
 
 	obj = output->pointer;
 	if (!obj)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (obj->type != ACPI_TYPE_STRING || !obj->string.pointer)
 		return -EIO;
 
 	s = kstrdup(obj->string.pointer, GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 	*string = s;
 	return 0;
 }
@@ -285,16 +285,16 @@ static int tlmi_get_pwd_settings(struct tlmi_pwdcfg *pwdcfg)
 	int copy_size;
 
 	if (!tlmi_priv.can_get_password_settings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	status = wmi_query_block(LENOVO_BIOS_PASSWORD_SETTINGS_GUID, 0,
+	status = wmi_query_block(LEANALVO_BIOS_PASSWORD_SETTINGS_GUID, 0,
 				 &output);
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
 	obj = output.pointer;
 	if (!obj)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (obj->type != ACPI_TYPE_BUFFER || !obj->buffer.pointer) {
 		kfree(obj);
 		return -EIO;
@@ -306,7 +306,7 @@ static int tlmi_get_pwd_settings(struct tlmi_pwdcfg *pwdcfg)
 	 * Settings must have at minimum the core fields available
 	 */
 	if (obj->buffer.length < sizeof(struct tlmi_pwdcfg_core)) {
-		pr_warn("Unknown pwdcfg buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkanalwn pwdcfg buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return -EIO;
 	}
@@ -323,7 +323,7 @@ static int tlmi_get_pwd_settings(struct tlmi_pwdcfg *pwdcfg)
 
 static int tlmi_save_bios_settings(const char *password)
 {
-	return tlmi_simple_call(LENOVO_SAVE_BIOS_SETTINGS_GUID,
+	return tlmi_simple_call(LEANALVO_SAVE_BIOS_SETTINGS_GUID,
 				password);
 }
 
@@ -334,9 +334,9 @@ static int tlmi_opcode_setting(char *setting, const char *value)
 
 	opcode_str = kasprintf(GFP_KERNEL, "%s:%s;", setting, value);
 	if (!opcode_str)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = tlmi_simple_call(LENOVO_OPCODE_IF_GUID, opcode_str);
+	ret = tlmi_simple_call(LEANALVO_OPCODE_IF_GUID, opcode_str);
 	kfree(opcode_str);
 	return ret;
 }
@@ -365,7 +365,7 @@ static int tlmi_get_bios_selections(const char *item, char **value)
 	acpi_status status;
 	int ret;
 
-	status = wmi_evaluate_method(LENOVO_GET_BIOS_SELECTIONS_GUID,
+	status = wmi_evaluate_method(LEANALVO_GET_BIOS_SELECTIONS_GUID,
 				     0, 0, &input, &output);
 
 	if (ACPI_FAILURE(status)) {
@@ -422,12 +422,12 @@ static ssize_t new_password_store(struct kobject *kobj,
 		return -EPERM;
 
 	if (!tlmi_priv.can_set_bios_password)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Strip out CR if one is present, setting password won't work if it is present */
 	new_pwd = kstrdup_and_replace(buf, '\n', '\0', GFP_KERNEL);
 	if (!new_pwd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Use lock in case multiple WMI operations needed */
 	mutex_lock(&tlmi_mutex);
@@ -474,17 +474,17 @@ static ssize_t new_password_store(struct kobject *kobj,
 		ret = tlmi_opcode_setting("WmiOpcodePasswordNew01", new_pwd);
 		if (ret)
 			goto out;
-		ret = tlmi_simple_call(LENOVO_OPCODE_IF_GUID, "WmiOpcodePasswordSetUpdate;");
+		ret = tlmi_simple_call(LEANALVO_OPCODE_IF_GUID, "WmiOpcodePasswordSetUpdate;");
 	} else {
 		/* Format: 'PasswordType,CurrentPw,NewPw,Encoding,KbdLang;' */
 		auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s,%s,%s;",
 				setting->pwd_type, setting->password, new_pwd,
 				encoding_options[setting->encoding], setting->kbdlang);
 		if (!auth_str) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
-		ret = tlmi_simple_call(LENOVO_SET_BIOS_PASSWORD_GUID, auth_str);
+		ret = tlmi_simple_call(LEANALVO_SET_BIOS_PASSWORD_GUID, auth_str);
 		kfree(auth_str);
 	}
 out:
@@ -644,14 +644,14 @@ static ssize_t cert_thumbprint(char *buf, const char *arg, int count)
 	const union acpi_object *obj;
 	acpi_status status;
 
-	status = wmi_evaluate_method(LENOVO_CERT_THUMBPRINT_GUID, 0, 0, &input, &output);
+	status = wmi_evaluate_method(LEANALVO_CERT_THUMBPRINT_GUID, 0, 0, &input, &output);
 	if (ACPI_FAILURE(status)) {
 		kfree(output.pointer);
 		return -EIO;
 	}
 	obj = output.pointer;
 	if (!obj)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (obj->type != ACPI_TYPE_STRING || !obj->string.pointer) {
 		kfree(output.pointer);
 		return -EIO;
@@ -669,7 +669,7 @@ static ssize_t certificate_thumbprint_show(struct kobject *kobj, struct kobj_att
 	int count = 0;
 
 	if (!tlmi_priv.certificate_support || !setting->cert_installed)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	count += cert_thumbprint(buf, "Md5", count);
 	count += cert_thumbprint(buf, "Sha1", count);
@@ -691,7 +691,7 @@ static ssize_t cert_to_password_store(struct kobject *kobj,
 		return -EPERM;
 
 	if (!tlmi_priv.certificate_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!setting->cert_installed)
 		return -EINVAL;
@@ -702,15 +702,15 @@ static ssize_t cert_to_password_store(struct kobject *kobj,
 	/* Strip out CR if one is present */
 	passwd = kstrdup_and_replace(buf, '\n', '\0', GFP_KERNEL);
 	if (!passwd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Format: 'Password,Signature' */
 	auth_str = kasprintf(GFP_KERNEL, "%s,%s", passwd, setting->signature);
 	if (!auth_str) {
 		kfree_sensitive(passwd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
-	ret = tlmi_simple_call(LENOVO_CERT_TO_PASSWORD_GUID, auth_str);
+	ret = tlmi_simple_call(LEANALVO_CERT_TO_PASSWORD_GUID, auth_str);
 	kfree(auth_str);
 	kfree_sensitive(passwd);
 
@@ -732,7 +732,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 		return -EPERM;
 
 	if (!tlmi_priv.certificate_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* If empty then clear installed certificate */
 	if ((buf[0] == '\0') || (buf[0] == '\n')) { /* Clear installed certificate */
@@ -745,9 +745,9 @@ static ssize_t certificate_store(struct kobject *kobj,
 				dmi_get_system_info(DMI_PRODUCT_SERIAL),
 				setting->signature);
 		if (!auth_str)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		ret = tlmi_simple_call(LENOVO_CLEAR_BIOS_CERT_GUID, auth_str);
+		ret = tlmi_simple_call(LEANALVO_CLEAR_BIOS_CERT_GUID, auth_str);
 		kfree(auth_str);
 
 		return ret ?: count;
@@ -756,7 +756,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 	/* Strip out CR if one is present */
 	new_cert = kstrdup_and_replace(buf, '\n', '\0', GFP_KERNEL);
 	if (!new_cert)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (setting->cert_installed) {
 		/* Certificate is installed so this is an update */
@@ -764,7 +764,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 			kfree(new_cert);
 			return -EACCES;
 		}
-		guid = LENOVO_UPDATE_BIOS_CERT_GUID;
+		guid = LEANALVO_UPDATE_BIOS_CERT_GUID;
 		/* Format: 'Certificate,Signature' */
 		auth_str = kasprintf(GFP_KERNEL, "%s,%s",
 				new_cert, setting->signature);
@@ -774,14 +774,14 @@ static ssize_t certificate_store(struct kobject *kobj,
 			kfree(new_cert);
 			return -EACCES;
 		}
-		guid = LENOVO_SET_BIOS_CERT_GUID;
+		guid = LEANALVO_SET_BIOS_CERT_GUID;
 		/* Format: 'Certificate,Admin-password' */
 		auth_str = kasprintf(GFP_KERNEL, "%s,%s",
 				new_cert, setting->password);
 	}
 	kfree(new_cert);
 	if (!auth_str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = tlmi_simple_call(guid, auth_str);
 	kfree(auth_str);
@@ -802,12 +802,12 @@ static ssize_t signature_store(struct kobject *kobj,
 		return -EPERM;
 
 	if (!tlmi_priv.certificate_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Strip out CR if one is present */
 	new_signature = kstrdup_and_replace(buf, '\n', '\0', GFP_KERNEL);
 	if (!new_signature)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Free any previous signature */
 	kfree(setting->signature);
@@ -829,12 +829,12 @@ static ssize_t save_signature_store(struct kobject *kobj,
 		return -EPERM;
 
 	if (!tlmi_priv.certificate_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Strip out CR if one is present */
 	new_signature = kstrdup_and_replace(buf, '\n', '\0', GFP_KERNEL);
 	if (!new_signature)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Free any previous signature */
 	kfree(setting->save_signature);
@@ -916,7 +916,7 @@ static ssize_t current_value_show(struct kobject *kobj, struct kobj_attribute *a
 	char *item, *value;
 	int ret;
 
-	ret = tlmi_setting(setting->index, &item, LENOVO_BIOS_SETTING_GUID);
+	ret = tlmi_setting(setting->index, &item, LEANALVO_BIOS_SETTING_GUID);
 	if (ret)
 		return ret;
 
@@ -947,7 +947,7 @@ static ssize_t type_show(struct kobject *kobj, struct kobj_attribute *attr,
 	struct tlmi_attr_setting *setting = to_tlmi_attr_setting(kobj);
 
 	if (setting->possible_values) {
-		/* Figure out what setting type is as BIOS does not return this */
+		/* Figure out what setting type is as BIOS does analt return this */
 		if (strchr(setting->possible_values, ';'))
 			return sysfs_emit(buf, "enumeration\n");
 	}
@@ -965,7 +965,7 @@ static ssize_t current_value_store(struct kobject *kobj,
 	int ret;
 
 	if (!tlmi_priv.can_set_bios_settings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * If we are using bulk saves a reboot should be done once save has
@@ -977,7 +977,7 @@ static ssize_t current_value_store(struct kobject *kobj,
 	/* Strip out CR if one is present */
 	new_setting = kstrdup_and_replace(buf, '\n', '\0', GFP_KERNEL);
 	if (!new_setting)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Use lock in case multiple WMI operations needed */
 	mutex_lock(&tlmi_mutex);
@@ -991,22 +991,22 @@ static ssize_t current_value_store(struct kobject *kobj,
 		set_str = kasprintf(GFP_KERNEL, "%s,%s,%s", setting->display_name,
 					new_setting, tlmi_priv.pwd_admin->signature);
 		if (!set_str) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
-		ret = tlmi_simple_call(LENOVO_SET_BIOS_SETTING_CERT_GUID, set_str);
+		ret = tlmi_simple_call(LEANALVO_SET_BIOS_SETTING_CERT_GUID, set_str);
 		if (ret)
 			goto out;
 		if (tlmi_priv.save_mode == TLMI_SAVE_BULK)
 			tlmi_priv.save_required = true;
 		else
-			ret = tlmi_simple_call(LENOVO_SAVE_BIOS_SETTING_CERT_GUID,
+			ret = tlmi_simple_call(LEANALVO_SAVE_BIOS_SETTING_CERT_GUID,
 					       tlmi_priv.pwd_admin->save_signature);
 	} else if (tlmi_priv.opcode_support) {
 		/*
 		 * If opcode support is present use that interface.
-		 * Note - this sets the variable and then the password as separate
+		 * Analte - this sets the variable and then the password as separate
 		 * WMI calls. Function tlmi_save_bios_settings will error if the
 		 * password is incorrect.
 		 * Workstation's require the opcode to be set before changing the
@@ -1022,11 +1022,11 @@ static ssize_t current_value_store(struct kobject *kobj,
 		set_str = kasprintf(GFP_KERNEL, "%s,%s;", setting->display_name,
 				    new_setting);
 		if (!set_str) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
-		ret = tlmi_simple_call(LENOVO_SET_BIOS_SETTINGS_GUID, set_str);
+		ret = tlmi_simple_call(LEANALVO_SET_BIOS_SETTINGS_GUID, set_str);
 		if (ret)
 			goto out;
 
@@ -1034,14 +1034,14 @@ static ssize_t current_value_store(struct kobject *kobj,
 			tlmi_priv.save_required = true;
 		else
 			ret = tlmi_save_bios_settings("");
-	} else { /* old non-opcode based authentication method (deprecated) */
+	} else { /* old analn-opcode based authentication method (deprecated) */
 		if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
 			auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s;",
 					tlmi_priv.pwd_admin->password,
 					encoding_options[tlmi_priv.pwd_admin->encoding],
 					tlmi_priv.pwd_admin->kbdlang);
 			if (!auth_str) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 		}
@@ -1053,11 +1053,11 @@ static ssize_t current_value_store(struct kobject *kobj,
 			set_str = kasprintf(GFP_KERNEL, "%s,%s;", setting->display_name,
 					new_setting);
 		if (!set_str) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
-		ret = tlmi_simple_call(LENOVO_SET_BIOS_SETTINGS_GUID, set_str);
+		ret = tlmi_simple_call(LEANALVO_SET_BIOS_SETTINGS_GUID, set_str);
 		if (ret)
 			goto out;
 
@@ -1072,7 +1072,7 @@ static ssize_t current_value_store(struct kobject *kobj,
 	}
 	if (!ret && !tlmi_priv.pending_changes) {
 		tlmi_priv.pending_changes = true;
-		/* let userland know it may need to check reboot pending again */
+		/* let userland kanalw it may need to check reboot pending again */
 		kobject_uevent(&tlmi_priv.class_dev->kobj, KOBJ_CHANGE);
 	}
 out:
@@ -1096,7 +1096,7 @@ static umode_t attr_is_visible(struct kobject *kobj,
 {
 	struct tlmi_attr_setting *setting = to_tlmi_attr_setting(kobj);
 
-	/* We don't want to display possible_values attributes if not available */
+	/* We don't want to display possible_values attributes if analt available */
 	if ((attr == &attr_possible_values.attr) && (!setting->possible_values))
 		return 0;
 
@@ -1188,12 +1188,12 @@ static ssize_t save_settings_store(struct kobject *kobj, struct kobj_attribute *
 		/* Check if supported*/
 		if (!tlmi_priv.can_set_bios_settings ||
 		    tlmi_priv.save_mode == TLMI_SAVE_SINGLE) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto out;
 		}
 		/* Check there is actually something to save */
 		if (!tlmi_priv.save_required) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto out;
 		}
 		/* Check if certificate authentication is enabled and active */
@@ -1203,7 +1203,7 @@ static ssize_t save_settings_store(struct kobject *kobj, struct kobj_attribute *
 				ret = -EINVAL;
 				goto out;
 			}
-			ret = tlmi_simple_call(LENOVO_SAVE_BIOS_SETTING_CERT_GUID,
+			ret = tlmi_simple_call(LEANALVO_SAVE_BIOS_SETTING_CERT_GUID,
 					       tlmi_priv.pwd_admin->save_signature);
 			if (ret)
 				goto out;
@@ -1215,14 +1215,14 @@ static ssize_t save_settings_store(struct kobject *kobj, struct kobj_attribute *
 					goto out;
 			}
 			ret = tlmi_save_bios_settings("");
-		} else { /* old non-opcode based authentication method (deprecated) */
+		} else { /* old analn-opcode based authentication method (deprecated) */
 			if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
 				auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s;",
 						     tlmi_priv.pwd_admin->password,
 						     encoding_options[tlmi_priv.pwd_admin->encoding],
 						     tlmi_priv.pwd_admin->kbdlang);
 				if (!auth_str) {
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					goto out;
 				}
 			}
@@ -1237,7 +1237,7 @@ static ssize_t save_settings_store(struct kobject *kobj, struct kobj_attribute *
 
 		if (!ret && !tlmi_priv.pending_changes) {
 			tlmi_priv.pending_changes = true;
-			/* let userland know it may need to check reboot pending again */
+			/* let userland kanalw it may need to check reboot pending again */
 			kobject_uevent(&tlmi_priv.class_dev->kobj, KOBJ_CHANGE);
 		}
 		break;
@@ -1259,12 +1259,12 @@ static ssize_t debug_cmd_store(struct kobject *kobj, struct kobj_attribute *attr
 	int ret;
 
 	if (!tlmi_priv.can_debug_cmd)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Strip out CR if one is present */
 	new_setting = kstrdup_and_replace(buf, '\n', '\0', GFP_KERNEL);
 	if (!new_setting)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
 		auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s;",
@@ -1272,7 +1272,7 @@ static ssize_t debug_cmd_store(struct kobject *kobj, struct kobj_attribute *attr
 				encoding_options[tlmi_priv.pwd_admin->encoding],
 				tlmi_priv.pwd_admin->kbdlang);
 		if (!auth_str) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
@@ -1282,17 +1282,17 @@ static ssize_t debug_cmd_store(struct kobject *kobj, struct kobj_attribute *attr
 	else
 		set_str = kasprintf(GFP_KERNEL, "%s;", new_setting);
 	if (!set_str) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	ret = tlmi_simple_call(LENOVO_DEBUG_CMD_GUID, set_str);
+	ret = tlmi_simple_call(LEANALVO_DEBUG_CMD_GUID, set_str);
 	if (ret)
 		goto out;
 
 	if (!ret && !tlmi_priv.pending_changes) {
 		tlmi_priv.pending_changes = true;
-		/* let userland know it may need to check reboot pending again */
+		/* let userland kanalw it may need to check reboot pending again */
 		kobject_uevent(&tlmi_priv.class_dev->kobj, KOBJ_CHANGE);
 	}
 out:
@@ -1382,7 +1382,7 @@ static int tlmi_sysfs_init(void)
 	tlmi_priv.attribute_kset = kset_create_and_add("attributes", NULL,
 			&tlmi_priv.class_dev->kobj);
 	if (!tlmi_priv.attribute_kset) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_device_created;
 	}
 
@@ -1430,7 +1430,7 @@ static int tlmi_sysfs_init(void)
 	tlmi_priv.authentication_kset = kset_create_and_add("authentication", NULL,
 								&tlmi_priv.class_dev->kobj);
 	if (!tlmi_priv.authentication_kset) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_create_attr;
 	}
 	tlmi_priv.pwd_admin->kobj.kset = tlmi_priv.authentication_kset;
@@ -1518,28 +1518,28 @@ static int tlmi_analyze(void)
 {
 	int i, ret;
 
-	if (wmi_has_guid(LENOVO_SET_BIOS_SETTINGS_GUID) &&
-	    wmi_has_guid(LENOVO_SAVE_BIOS_SETTINGS_GUID))
+	if (wmi_has_guid(LEANALVO_SET_BIOS_SETTINGS_GUID) &&
+	    wmi_has_guid(LEANALVO_SAVE_BIOS_SETTINGS_GUID))
 		tlmi_priv.can_set_bios_settings = true;
 
-	if (wmi_has_guid(LENOVO_GET_BIOS_SELECTIONS_GUID))
+	if (wmi_has_guid(LEANALVO_GET_BIOS_SELECTIONS_GUID))
 		tlmi_priv.can_get_bios_selections = true;
 
-	if (wmi_has_guid(LENOVO_SET_BIOS_PASSWORD_GUID))
+	if (wmi_has_guid(LEANALVO_SET_BIOS_PASSWORD_GUID))
 		tlmi_priv.can_set_bios_password = true;
 
-	if (wmi_has_guid(LENOVO_BIOS_PASSWORD_SETTINGS_GUID))
+	if (wmi_has_guid(LEANALVO_BIOS_PASSWORD_SETTINGS_GUID))
 		tlmi_priv.can_get_password_settings = true;
 
-	if (wmi_has_guid(LENOVO_DEBUG_CMD_GUID))
+	if (wmi_has_guid(LEANALVO_DEBUG_CMD_GUID))
 		tlmi_priv.can_debug_cmd = true;
 
-	if (wmi_has_guid(LENOVO_OPCODE_IF_GUID))
+	if (wmi_has_guid(LEANALVO_OPCODE_IF_GUID))
 		tlmi_priv.opcode_support = true;
 
-	if (wmi_has_guid(LENOVO_SET_BIOS_CERT_GUID) &&
-		wmi_has_guid(LENOVO_SET_BIOS_SETTING_CERT_GUID) &&
-		wmi_has_guid(LENOVO_SAVE_BIOS_SETTING_CERT_GUID))
+	if (wmi_has_guid(LEANALVO_SET_BIOS_CERT_GUID) &&
+		wmi_has_guid(LEANALVO_SET_BIOS_SETTING_CERT_GUID) &&
+		wmi_has_guid(LEANALVO_SAVE_BIOS_SETTING_CERT_GUID))
 		tlmi_priv.certificate_support = true;
 
 	/*
@@ -1551,7 +1551,7 @@ static int tlmi_analyze(void)
 		char *item = NULL;
 
 		tlmi_priv.setting[i] = NULL;
-		ret = tlmi_setting(i, &item, LENOVO_BIOS_SETTING_GUID);
+		ret = tlmi_setting(i, &item, LEANALVO_BIOS_SETTING_GUID);
 		if (ret)
 			break;
 		if (!item)
@@ -1561,7 +1561,7 @@ static int tlmi_analyze(void)
 			continue;
 		}
 
-		/* It is not allowed to have '/' for file name. Convert it into '\'. */
+		/* It is analt allowed to have '/' for file name. Convert it into '\'. */
 		strreplace(item, '/', '\\');
 
 		/* Remove the value part */
@@ -1570,7 +1570,7 @@ static int tlmi_analyze(void)
 		/* Create a setting entry */
 		setting = kzalloc(sizeof(*setting), GFP_KERNEL);
 		if (!setting) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			kfree(item);
 			goto fail_clear_attr;
 		}
@@ -1592,7 +1592,7 @@ static int tlmi_analyze(void)
 			 */
 			char *optitem, *optstart, *optend;
 
-			if (!tlmi_setting(setting->index, &optitem, LENOVO_BIOS_SETTING_GUID)) {
+			if (!tlmi_setting(setting->index, &optitem, LEANALVO_BIOS_SETTING_GUID)) {
 				optstart = strstr(optitem, "[Optional:");
 				if (optstart) {
 					optstart += strlen("[Optional:");
@@ -1607,7 +1607,7 @@ static int tlmi_analyze(void)
 		}
 		/*
 		 * firmware-attributes requires that possible_values are separated by ';' but
-		 * Lenovo FW uses ','. Replace appropriately.
+		 * Leanalvo FW uses ','. Replace appropriately.
 		 */
 		if (setting->possible_values)
 			strreplace(setting->possible_values, ',', ';');
@@ -1623,7 +1623,7 @@ static int tlmi_analyze(void)
 		goto fail_clear_attr;
 
 	/* All failures below boil down to kmalloc failures */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	tlmi_priv.pwd_admin = tlmi_create_auth("pap", "bios-admin");
 	if (!tlmi_priv.pwd_admin)
@@ -1655,7 +1655,7 @@ static int tlmi_analyze(void)
 		if (!tlmi_priv.pwd_nvme)
 			goto fail_clear_attr;
 
-		/* Set default hdd/nvme index to 1 as there is no device 0 */
+		/* Set default hdd/nvme index to 1 as there is anal device 0 */
 		tlmi_priv.pwd_hdd->index = 1;
 		tlmi_priv.pwd_nvme->index = 1;
 
@@ -1724,7 +1724,7 @@ static int tlmi_probe(struct wmi_device *wdev, const void *context)
 }
 
 static const struct wmi_device_id tlmi_id_table[] = {
-	{ .guid_string = LENOVO_BIOS_SETTING_GUID },
+	{ .guid_string = LEANALVO_BIOS_SETTING_GUID },
 	{ }
 };
 MODULE_DEVICE_TABLE(wmi, tlmi_id_table);
@@ -1738,8 +1738,8 @@ static struct wmi_driver tlmi_driver = {
 	.remove = tlmi_remove,
 };
 
-MODULE_AUTHOR("Sugumaran L <slacshiminar@lenovo.com>");
-MODULE_AUTHOR("Mark Pearson <markpearson@lenovo.com>");
+MODULE_AUTHOR("Sugumaran L <slacshiminar@leanalvo.com>");
+MODULE_AUTHOR("Mark Pearson <markpearson@leanalvo.com>");
 MODULE_AUTHOR("Corentin Chary <corentin.chary@gmail.com>");
 MODULE_DESCRIPTION("ThinkLMI Driver");
 MODULE_LICENSE("GPL");

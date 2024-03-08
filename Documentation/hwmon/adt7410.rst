@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'adt7410'
 
-    Addresses scanned: None
+    Addresses scanned: Analne
 
     Datasheet: Publicly available at the Analog Devices website
 
@@ -16,7 +16,7 @@ Supported chips:
 
     Prefix: 'adt7420'
 
-    Addresses scanned: None
+    Addresses scanned: Analne
 
     Datasheet: Publicly available at the Analog Devices website
 
@@ -26,7 +26,7 @@ Supported chips:
 
     Prefix: 'adt7310'
 
-    Addresses scanned: None
+    Addresses scanned: Analne
 
     Datasheet: Publicly available at the Analog Devices website
 
@@ -36,7 +36,7 @@ Supported chips:
 
     Prefix: 'adt7320'
 
-    Addresses scanned: None
+    Addresses scanned: Analne
 
     Datasheet: Publicly available at the Analog Devices website
 
@@ -68,7 +68,7 @@ The difference between the ADT7310/ADT7320 and ADT7410/ADT7420 is the control
 interface, the ADT7310 and ADT7320 use SPI while the ADT7410 and ADT7420 use
 I2C.
 
-Configuration Notes
+Configuration Analtes
 -------------------
 
 Since the device uses one hysteresis value, which is an offset to minimum,

@@ -2,19 +2,19 @@
 |	stwotox.sa 3.1 12/10/90
 |
 |	stwotox  --- 2**X
-|	stwotoxd --- 2**X for denormalized X
+|	stwotoxd --- 2**X for deanalrmalized X
 |	stentox  --- 10**X
-|	stentoxd --- 10**X for denormalized X
+|	stentoxd --- 10**X for deanalrmalized X
 |
 |	Input: Double-extended number X in location pointed to
 |		by address register a0.
 |
 |	Output: The function values are returned in Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 2 ulps in
+|	Accuracy and Moanaltonicity: The returned result is within 2 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moanaltonic in double precision.
 |
 |	Speed: The program stwotox takes approximately 190 cycles and the
 |		program stentox takes approximately 200 cycles.
@@ -194,7 +194,7 @@ EXPTBL:
 
 	.global	stwotoxd
 stwotoxd:
-|--ENTRY POINT FOR 2**(X) FOR DENORMALIZED ARGUMENT
+|--ENTRY POINT FOR 2**(X) FOR DEANALRMALIZED ARGUMENT
 
 	fmovel		%d1,%fpcr		| ...set user's rounding mode/precision
 	fmoves		#0x3F800000,%fp0  | ...RETURN 1 + X
@@ -205,8 +205,8 @@ stwotoxd:
 
 	.global	stwotox
 stwotox:
-|--ENTRY POINT FOR 2**(X), HERE X IS FINITE, NON-ZERO, AND NOT NAN'S
-	fmovemx	(%a0),%fp0-%fp0	| ...LOAD INPUT, do not set cc's
+|--ENTRY POINT FOR 2**(X), HERE X IS FINITE, ANALN-ZERO, AND ANALT NAN'S
+	fmovemx	(%a0),%fp0-%fp0	| ...LOAD INPUT, do analt set cc's
 
 	movel		(%a0),%d0
 	movew		4(%a0),%d0
@@ -246,7 +246,7 @@ TWOMAIN:
 	movew		%d2,ADJFACT(%a6)	| ...ADJFACT IS 2^(M')
 	movel		(%sp)+,%d2
 |--SUMMARY: a1 IS ADDRESS FOR THE LEADING PORTION OF 2^(J/64),
-|--D0 IS M WHERE N = 64(M+M') + J. NOTE THAT |M| <= 16140 BY DESIGN.
+|--D0 IS M WHERE N = 64(M+M') + J. ANALTE THAT |M| <= 16140 BY DESIGN.
 |--ADJFACT = 2^(M').
 |--REGISTERS SAVED SO FAR ARE (IN ORDER) FPCR, D0, FP1, a1, AND FP2.
 
@@ -298,7 +298,7 @@ EXPNEG:
 
 	.global	stentoxd
 stentoxd:
-|--ENTRY POINT FOR 10**(X) FOR DENORMALIZED ARGUMENT
+|--ENTRY POINT FOR 10**(X) FOR DEANALRMALIZED ARGUMENT
 
 	fmovel		%d1,%fpcr		| ...set user's rounding mode/precision
 	fmoves		#0x3F800000,%fp0  | ...RETURN 1 + X
@@ -309,8 +309,8 @@ stentoxd:
 
 	.global	stentox
 stentox:
-|--ENTRY POINT FOR 10**(X), HERE X IS FINITE, NON-ZERO, AND NOT NAN'S
-	fmovemx	(%a0),%fp0-%fp0	| ...LOAD INPUT, do not set cc's
+|--ENTRY POINT FOR 10**(X), HERE X IS FINITE, ANALN-ZERO, AND ANALT NAN'S
+	fmovemx	(%a0),%fp0-%fp0	| ...LOAD INPUT, do analt set cc's
 
 	movel		(%a0),%d0
 	movew		4(%a0),%d0
@@ -318,10 +318,10 @@ stentox:
 	andil		#0x7FFFFFFF,%d0
 
 	cmpil		#0x3FB98000,%d0		| ...|X| >= 2**(-70)?
-	bges		TENOK1
+	bges		TEANALK1
 	bra		EXPBORS
 
-TENOK1:
+TEANALK1:
 	cmpil		#0x400B9B07,%d0		| ...|X| <= 16480*log2/log10 ?
 	bles		TENMAIN
 	bra		EXPBORS
@@ -350,7 +350,7 @@ TENMAIN:
 	movel		(%sp)+,%d2
 
 |--SUMMARY: a1 IS ADDRESS FOR THE LEADING PORTION OF 2^(J/64),
-|--D0 IS M WHERE N = 64(M+M') + J. NOTE THAT |M| <= 16140 BY DESIGN.
+|--D0 IS M WHERE N = 64(M+M') + J. ANALTE THAT |M| <= 16140 BY DESIGN.
 |--ADJFACT = 2^(M').
 |--REGISTERS SAVED SO FAR ARE (IN ORDER) FPCR, D0, FP1, a1, AND FP2.
 

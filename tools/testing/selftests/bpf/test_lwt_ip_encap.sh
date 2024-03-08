@@ -169,20 +169,20 @@ setup()
 	ip -netns ${NS2}    addr add ${IPv4_2}/24  dev veth2
 	ip -netns ${NS2}    addr add ${IPv4_3}/24  dev veth3
 	ip -netns ${NS3}    addr add ${IPv4_4}/24  dev veth4
-	ip -netns ${NS1} -6 addr add ${IPv6_1}/128 nodad dev veth1
-	ip -netns ${NS2} -6 addr add ${IPv6_2}/128 nodad dev veth2
-	ip -netns ${NS2} -6 addr add ${IPv6_3}/128 nodad dev veth3
-	ip -netns ${NS3} -6 addr add ${IPv6_4}/128 nodad dev veth4
+	ip -netns ${NS1} -6 addr add ${IPv6_1}/128 analdad dev veth1
+	ip -netns ${NS2} -6 addr add ${IPv6_2}/128 analdad dev veth2
+	ip -netns ${NS2} -6 addr add ${IPv6_3}/128 analdad dev veth3
+	ip -netns ${NS3} -6 addr add ${IPv6_4}/128 analdad dev veth4
 
 	# configure addresses: the bottom route (5-6-7-8)
 	ip -netns ${NS1}    addr add ${IPv4_5}/24  dev veth5
 	ip -netns ${NS2}    addr add ${IPv4_6}/24  dev veth6
 	ip -netns ${NS2}    addr add ${IPv4_7}/24  dev veth7
 	ip -netns ${NS3}    addr add ${IPv4_8}/24  dev veth8
-	ip -netns ${NS1} -6 addr add ${IPv6_5}/128 nodad dev veth5
-	ip -netns ${NS2} -6 addr add ${IPv6_6}/128 nodad dev veth6
-	ip -netns ${NS2} -6 addr add ${IPv6_7}/128 nodad dev veth7
-	ip -netns ${NS3} -6 addr add ${IPv6_8}/128 nodad dev veth8
+	ip -netns ${NS1} -6 addr add ${IPv6_5}/128 analdad dev veth5
+	ip -netns ${NS2} -6 addr add ${IPv6_6}/128 analdad dev veth6
+	ip -netns ${NS2} -6 addr add ${IPv6_7}/128 analdad dev veth7
+	ip -netns ${NS3} -6 addr add ${IPv6_8}/128 analdad dev veth8
 
 	ip -netns ${NS1} link set dev veth1 up
 	ip -netns ${NS2} link set dev veth2 up
@@ -249,7 +249,7 @@ setup()
 	# configure IPv6 GRE device in NS3, and a route to it via the "bottom" route
 	ip -netns ${NS3} -6 tunnel add name gre6_dev mode ip6gre remote ${IPv6_1} local ${IPv6_GRE} ttl 255
 	ip -netns ${NS3} link set gre6_dev up
-	ip -netns ${NS3} -6 addr add ${IPv6_GRE} nodad dev gre6_dev
+	ip -netns ${NS3} -6 addr add ${IPv6_GRE} analdad dev gre6_dev
 	ip -netns ${NS1} -6 route add ${IPv6_GRE}/128 dev veth5 via ${IPv6_6} ${VRF}
 	ip -netns ${NS2} -6 route add ${IPv6_GRE}/128 dev veth7 via ${IPv6_8} ${VRF}
 
@@ -301,7 +301,7 @@ test_ping()
 		ip netns exec ${NS1} ping6 -c 1 -W 1 -I veth1 ${IPv6_DST} 2>&1 > /dev/null
 		RET=$?
 	else
-		echo "    test_ping: unknown PROTO: ${PROTO}"
+		echo "    test_ping: unkanalwn PROTO: ${PROTO}"
 		TEST_STATUS=1
 	fi
 
@@ -324,7 +324,7 @@ test_gso()
 
 	# check that nc is present
 	command -v nc >/dev/null 2>&1 || \
-		{ echo >&2 "nc is not available: skipping TSO tests"; return; }
+		{ echo >&2 "nc is analt available: skipping TSO tests"; return; }
 
 	# listen on port 9000, capture TCP into $TMPFILE
 	if [ "${PROTO}" == "IPv4" ] ; then
@@ -337,7 +337,7 @@ test_gso()
 			"nc -6 -l -p 9000 > ${TMPFILE} &"
 		RET=$?
 	else
-		echo "    test_gso: unknown PROTO: ${PROTO}"
+		echo "    test_gso: unkanalwn PROTO: ${PROTO}"
 		TEST_STATUS=1
 	fi
 	sleep 1  # let nc start listening
@@ -383,7 +383,7 @@ test_egress()
 		ip -netns ${NS1} -6 route add ${IPv6_DST} encap bpf xmit obj \
 			${BPF_FILE} sec encap_gre6 dev veth1 ${VRF}
 	else
-		echo "    unknown encap ${ENCAP}"
+		echo "    unkanalwn encap ${ENCAP}"
 		TEST_STATUS=1
 	fi
 	test_ping IPv4 0
@@ -401,7 +401,7 @@ test_egress()
 	test_ping IPv4 1
 	test_ping IPv6 1
 
-	# another negative test
+	# aanalther negative test
 	add_unreachable_routes_to_gredev
 	test_ping IPv4 1
 	test_ping IPv6 1
@@ -441,7 +441,7 @@ test_ingress()
 		ip -netns ${NS2} -6 route add ${IPv6_DST} encap bpf in obj \
 			${BPF_FILE} sec encap_gre6 dev veth2 ${VRF}
 	else
-		echo "FAIL: unknown encap ${ENCAP}"
+		echo "FAIL: unkanalwn encap ${ENCAP}"
 		TEST_STATUS=1
 	fi
 	test_ping IPv4 0
@@ -452,7 +452,7 @@ test_ingress()
 	test_ping IPv4 1
 	test_ping IPv6 1
 
-	# another negative test
+	# aanalther negative test
 	add_unreachable_routes_to_gredev
 	test_ping IPv4 1
 	test_ping IPv6 1

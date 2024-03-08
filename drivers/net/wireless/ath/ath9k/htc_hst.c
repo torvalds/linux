@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -118,7 +118,7 @@ static void htc_process_conn_rsp(struct htc_target *target,
 		/* Check that the received epid for the endpoint to attach
 		 * a new service is valid. ENDPOINT0 can't be used here as it
 		 * is already reserved for HTC_CTRL_RSVD_SVC service and thus
-		 * should not be modified.
+		 * should analt be modified.
 		 */
 		if (epid <= ENDPOINT0 || epid >= ENDPOINT_MAX)
 			return;
@@ -161,7 +161,7 @@ static int htc_config_pipe_credits(struct htc_target *target)
 	skb = alloc_skb(50 + sizeof(struct htc_frame_hdr), GFP_ATOMIC);
 	if (!skb) {
 		dev_err(target->dev, "failed to allocate send buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	skb_reserve(skb, sizeof(struct htc_frame_hdr));
 
@@ -199,7 +199,7 @@ static int htc_setup_complete(struct htc_target *target)
 	skb = alloc_skb(50 + sizeof(struct htc_frame_hdr), GFP_ATOMIC);
 	if (!skb) {
 		dev_err(target->dev, "failed to allocate send buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	skb_reserve(skb, sizeof(struct htc_frame_hdr));
 
@@ -251,7 +251,7 @@ int htc_connect_service(struct htc_target *target,
 	/* Find an available endpoint */
 	endpoint = get_next_avail_ep(target->endpoint);
 	if (!endpoint) {
-		dev_err(target->dev, "Endpoint is not available for service %d\n",
+		dev_err(target->dev, "Endpoint is analt available for service %d\n",
 			service_connreq->service_id);
 		return -EINVAL;
 	}
@@ -267,7 +267,7 @@ int htc_connect_service(struct htc_target *target,
 	if (!skb) {
 		dev_err(target->dev, "Failed to allocate buf to send"
 			"service connect req\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_reserve(skb, sizeof(struct htc_frame_hdr));
@@ -390,7 +390,7 @@ static void ath9k_htc_fw_panic_report(struct htc_target *htc_handle,
 			"bad epid: 0x%08x\n", htc_panic->epid);
 		return;
 	}
-	dev_err(htc_handle->dev, "ath: unknown panic pattern!\n");
+	dev_err(htc_handle->dev, "ath: unkanalwn panic pattern!\n");
 }
 
 /*
@@ -455,7 +455,7 @@ invalid:
 		msg_id = (__be16 *) ((void *) htc_hdr +
 				     sizeof(struct htc_frame_hdr));
 
-		/* Now process HTC messages */
+		/* Analw process HTC messages */
 		switch (be16_to_cpu(*msg_id)) {
 		case HTC_MSG_READY_ID:
 			if (unlikely(len < sizeof(struct htc_ready_msg)))
@@ -528,7 +528,7 @@ int ath9k_htc_hw_init(struct htc_target *target,
 {
 	if (ath9k_htc_probe_device(target, dev, devid, product, drv_info)) {
 		pr_err("Failed to initialize the device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

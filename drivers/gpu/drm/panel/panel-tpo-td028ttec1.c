@@ -6,7 +6,7 @@
  *
  * Based on the omapdrm-specific panel-tpo-td028ttec1 driver
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Neo 1973 code (jbt6k74.c):
@@ -87,10 +87,10 @@ struct td028ttec1_panel {
 #define to_td028ttec1_device(p) container_of(p, struct td028ttec1_panel, panel)
 
 /*
- * noinline_for_stack so we don't get multiple copies of tx_buf
+ * analinline_for_stack so we don't get multiple copies of tx_buf
  * on the stack in case of gcc-plugin-structleak
  */
-static int noinline_for_stack
+static int analinline_for_stack
 jbt_ret_write_0(struct td028ttec1_panel *lcd, u8 reg, int *err)
 {
 	struct spi_device *spi = lcd->spi;
@@ -110,7 +110,7 @@ jbt_ret_write_0(struct td028ttec1_panel *lcd, u8 reg, int *err)
 	return ret;
 }
 
-static int noinline_for_stack
+static int analinline_for_stack
 jbt_reg_write_1(struct td028ttec1_panel *lcd,
 		u8 reg, u8 data, int *err)
 {
@@ -134,7 +134,7 @@ jbt_reg_write_1(struct td028ttec1_panel *lcd,
 	return ret;
 }
 
-static int noinline_for_stack
+static int analinline_for_stack
 jbt_reg_write_2(struct td028ttec1_panel *lcd,
 		u8 reg, u16 data, int *err)
 {
@@ -289,7 +289,7 @@ static int td028ttec1_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &td028ttec1_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 	drm_mode_probed_add(connector, mode);
@@ -324,7 +324,7 @@ static int td028ttec1_probe(struct spi_device *spi)
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, lcd);
 	lcd->spi = spi;

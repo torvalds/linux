@@ -25,14 +25,14 @@
 DECLARE_FAULT_ATTR(gt_reset_failure);
 #endif
 
-static struct xe_device *node_to_xe(struct drm_info_node *node)
+static struct xe_device *analde_to_xe(struct drm_info_analde *analde)
 {
-	return to_xe_device(node->minor->dev);
+	return to_xe_device(analde->mianalr->dev);
 }
 
 static int info(struct seq_file *m, void *data)
 {
-	struct xe_device *xe = node_to_xe(m->private);
+	struct xe_device *xe = analde_to_xe(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 	struct xe_gt *gt;
 	u8 id;
@@ -44,17 +44,17 @@ static int info(struct seq_file *m, void *data)
 		   xe_step_name(xe->info.step.media),
 		   xe_step_name(xe->info.step.display),
 		   xe_step_name(xe->info.step.basedie));
-	drm_printf(&p, "is_dgfx %s\n", str_yes_no(xe->info.is_dgfx));
+	drm_printf(&p, "is_dgfx %s\n", str_anal_anal(xe->info.is_dgfx));
 	drm_printf(&p, "platform %d\n", xe->info.platform);
 	drm_printf(&p, "subplatform %d\n",
-		   xe->info.subplatform > XE_SUBPLATFORM_NONE ? xe->info.subplatform : 0);
+		   xe->info.subplatform > XE_SUBPLATFORM_ANALNE ? xe->info.subplatform : 0);
 	drm_printf(&p, "devid 0x%x\n", xe->info.devid);
 	drm_printf(&p, "revid %d\n", xe->info.revid);
 	drm_printf(&p, "tile_count %d\n", xe->info.tile_count);
 	drm_printf(&p, "vm_max_level %d\n", xe->info.vm_max_level);
-	drm_printf(&p, "force_execlist %s\n", str_yes_no(xe->info.force_execlist));
-	drm_printf(&p, "has_flat_ccs %s\n", str_yes_no(xe->info.has_flat_ccs));
-	drm_printf(&p, "has_usm %s\n", str_yes_no(xe->info.has_usm));
+	drm_printf(&p, "force_execlist %s\n", str_anal_anal(xe->info.force_execlist));
+	drm_printf(&p, "has_flat_ccs %s\n", str_anal_anal(xe->info.has_flat_ccs));
+	drm_printf(&p, "has_usm %s\n", str_anal_anal(xe->info.has_usm));
 	for_each_gt(gt, xe, id) {
 		drm_printf(&p, "gt%d force wake %d\n", id,
 			   xe_force_wake_ref(gt_to_fw(gt), XE_FW_GT));
@@ -69,9 +69,9 @@ static const struct drm_info_list debugfs_list[] = {
 	{"info", info, 0},
 };
 
-static int forcewake_open(struct inode *inode, struct file *file)
+static int forcewake_open(struct ianalde *ianalde, struct file *file)
 {
-	struct xe_device *xe = inode->i_private;
+	struct xe_device *xe = ianalde->i_private;
 	struct xe_gt *gt;
 	u8 id;
 
@@ -83,9 +83,9 @@ static int forcewake_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int forcewake_release(struct inode *inode, struct file *file)
+static int forcewake_release(struct ianalde *ianalde, struct file *file)
 {
-	struct xe_device *xe = inode->i_private;
+	struct xe_device *xe = ianalde->i_private;
 	struct xe_gt *gt;
 	u8 id;
 
@@ -106,8 +106,8 @@ static const struct file_operations forcewake_all_fops = {
 void xe_debugfs_register(struct xe_device *xe)
 {
 	struct ttm_device *bdev = &xe->ttm;
-	struct drm_minor *minor = xe->drm.primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = xe->drm.primary;
+	struct dentry *root = mianalr->debugfs_root;
 	struct ttm_resource_manager *man;
 	struct xe_gt *gt;
 	u32 mem_type;
@@ -115,7 +115,7 @@ void xe_debugfs_register(struct xe_device *xe)
 
 	drm_debugfs_create_files(debugfs_list,
 				 ARRAY_SIZE(debugfs_list),
-				 root, minor);
+				 root, mianalr);
 
 	debugfs_create_file("forcewake_all", 0400, root, xe,
 			    &forcewake_all_fops);

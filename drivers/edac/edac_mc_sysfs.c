@@ -5,7 +5,7 @@
  * This file may be distributed under the terms of the
  * GNU General Public License.
  *
- * Written Doug Thompson <norsk5@xmission.com> www.softwarebitmaker.com
+ * Written Doug Thompson <analrsk5@xmission.com> www.softwarebitmaker.com
  *
  * (c) 2012-2013 - Mauro Carvalho Chehab
  *	The entire API were re-written, and ported to use struct device
@@ -67,7 +67,7 @@ static int edac_set_poll_msec(const char *val, const struct kernel_param *kp)
 
 	*((unsigned int *)kp->arg) = i;
 
-	/* notify edac_mc engine to reset the poll period */
+	/* analtify edac_mc engine to reset the poll period */
 	edac_mc_reset_delay_period(i);
 
 	return 0;
@@ -92,7 +92,7 @@ static struct device *mci_pdev;
  * various constants for Memory Controllers
  */
 static const char * const dev_types[] = {
-	[DEV_UNKNOWN] = "Unknown",
+	[DEV_UNKANALWN] = "Unkanalwn",
 	[DEV_X1] = "x1",
 	[DEV_X2] = "x2",
 	[DEV_X4] = "x4",
@@ -103,8 +103,8 @@ static const char * const dev_types[] = {
 };
 
 static const char * const edac_caps[] = {
-	[EDAC_UNKNOWN] = "Unknown",
-	[EDAC_NONE] = "None",
+	[EDAC_UNKANALWN] = "Unkanalwn",
+	[EDAC_ANALNE] = "Analne",
 	[EDAC_RESERVED] = "Reserved",
 	[EDAC_PARITY] = "PARITY",
 	[EDAC_EC] = "EC",
@@ -203,7 +203,7 @@ static ssize_t channel_dimm_label_show(struct device *dev,
 	unsigned int chan = to_channel(mattr);
 	struct rank_info *rank = csrow->channels[chan];
 
-	/* if field has not been initialized, there is nothing to send */
+	/* if field has analt been initialized, there is analthing to send */
 	if (!rank->dimm->label[0])
 		return 0;
 
@@ -408,7 +408,7 @@ static const struct attribute_group *csrow_dev_groups[] = {
 static void csrow_release(struct device *dev)
 {
 	/*
-	 * Nothing to do, just unregister sysfs here. The mci
+	 * Analthing to do, just unregister sysfs here. The mci
 	 * device owns the data and will also release it.
 	 */
 }
@@ -511,7 +511,7 @@ static ssize_t dimmdev_label_show(struct device *dev,
 {
 	struct dimm_info *dimm = to_dimm(dev);
 
-	/* if field has not been initialized, there is nothing to send */
+	/* if field has analt been initialized, there is analthing to send */
 	if (!dimm->label[0])
 		return 0;
 
@@ -632,7 +632,7 @@ static const struct device_type dimm_attr_type = {
 static void dimm_release(struct device *dev)
 {
 	/*
-	 * Nothing to do, just unregister sysfs here. The mci
+	 * Analthing to do, just unregister sysfs here. The mci
 	 * device owns the data and will also release it.
 	 */
 }
@@ -690,8 +690,8 @@ static ssize_t mci_reset_counters_store(struct device *dev,
 
 	mci->ue_mc = 0;
 	mci->ce_mc = 0;
-	mci->ue_noinfo_count = 0;
-	mci->ce_noinfo_count = 0;
+	mci->ue_analinfo_count = 0;
+	mci->ce_analinfo_count = 0;
 
 	for (row = 0; row < mci->nr_csrows; row++) {
 		struct csrow_info *ri = mci->csrows[row];
@@ -780,22 +780,22 @@ static ssize_t mci_ce_count_show(struct device *dev,
 	return sprintf(data, "%u\n", mci->ce_mc);
 }
 
-static ssize_t mci_ce_noinfo_show(struct device *dev,
+static ssize_t mci_ce_analinfo_show(struct device *dev,
 				  struct device_attribute *mattr,
 				  char *data)
 {
 	struct mem_ctl_info *mci = to_mci(dev);
 
-	return sprintf(data, "%u\n", mci->ce_noinfo_count);
+	return sprintf(data, "%u\n", mci->ce_analinfo_count);
 }
 
-static ssize_t mci_ue_noinfo_show(struct device *dev,
+static ssize_t mci_ue_analinfo_show(struct device *dev,
 				  struct device_attribute *mattr,
 				  char *data)
 {
 	struct mem_ctl_info *mci = to_mci(dev);
 
-	return sprintf(data, "%u\n", mci->ue_noinfo_count);
+	return sprintf(data, "%u\n", mci->ue_analinfo_count);
 }
 
 static ssize_t mci_seconds_show(struct device *dev,
@@ -868,8 +868,8 @@ static DEVICE_ATTR(reset_counters, S_IWUSR, NULL, mci_reset_counters_store);
 static DEVICE_ATTR(mc_name, S_IRUGO, mci_ctl_name_show, NULL);
 static DEVICE_ATTR(size_mb, S_IRUGO, mci_size_mb_show, NULL);
 static DEVICE_ATTR(seconds_since_reset, S_IRUGO, mci_seconds_show, NULL);
-static DEVICE_ATTR(ue_noinfo_count, S_IRUGO, mci_ue_noinfo_show, NULL);
-static DEVICE_ATTR(ce_noinfo_count, S_IRUGO, mci_ce_noinfo_show, NULL);
+static DEVICE_ATTR(ue_analinfo_count, S_IRUGO, mci_ue_analinfo_show, NULL);
+static DEVICE_ATTR(ce_analinfo_count, S_IRUGO, mci_ce_analinfo_show, NULL);
 static DEVICE_ATTR(ue_count, S_IRUGO, mci_ue_count_show, NULL);
 static DEVICE_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
 static DEVICE_ATTR(max_location, S_IRUGO, mci_max_location_show, NULL);
@@ -883,8 +883,8 @@ static struct attribute *mci_attrs[] = {
 	&dev_attr_mc_name.attr,
 	&dev_attr_size_mb.attr,
 	&dev_attr_seconds_since_reset.attr,
-	&dev_attr_ue_noinfo_count.attr,
-	&dev_attr_ce_noinfo_count.attr,
+	&dev_attr_ue_analinfo_count.attr,
+	&dev_attr_ce_analinfo_count.attr,
 	&dev_attr_ue_count.attr,
 	&dev_attr_ce_count.attr,
 	&dev_attr_max_location.attr,
@@ -947,7 +947,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 	err = device_add(&mci->dev);
 	if (err < 0) {
 		edac_dbg(1, "failure: create device %s\n", dev_name(&mci->dev));
-		/* no put_device() here, free mci with _edac_mc_free() */
+		/* anal put_device() here, free mci with _edac_mc_free() */
 		return err;
 	}
 
@@ -972,7 +972,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 		goto fail;
 #endif
 
-	edac_create_debugfs_nodes(mci);
+	edac_create_debugfs_analdes(mci);
 	return 0;
 
 fail:
@@ -1014,9 +1014,9 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 static void mc_attr_release(struct device *dev)
 {
 	/*
-	 * There's no container structure here, as this is just the mci
-	 * parent device, used to create the /sys/devices/mc sysfs node.
-	 * So, there are no attributes on it.
+	 * There's anal container structure here, as this is just the mci
+	 * parent device, used to create the /sys/devices/mc sysfs analde.
+	 * So, there are anal attributes on it.
 	 */
 	edac_dbg(1, "device %s released\n", dev_name(dev));
 	kfree(dev);
@@ -1031,7 +1031,7 @@ int __init edac_mc_sysfs_init(void)
 
 	mci_pdev = kzalloc(sizeof(*mci_pdev), GFP_KERNEL);
 	if (!mci_pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mci_pdev->bus = edac_get_sysfs_subsys();
 	mci_pdev->release = mc_attr_release;

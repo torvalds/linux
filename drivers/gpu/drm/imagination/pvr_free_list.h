@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_FREE_LIST_H
 #define PVR_FREE_LIST_H
@@ -24,20 +24,20 @@ struct pvr_gem_object;
 struct pvr_hwrt_data;
 
 /**
- * struct pvr_free_list_node - structure representing an allocation in the free
+ * struct pvr_free_list_analde - structure representing an allocation in the free
  *                             list
  */
-struct pvr_free_list_node {
-	/** @node: List node for &pvr_free_list.mem_block_list. */
-	struct list_head node;
+struct pvr_free_list_analde {
+	/** @analde: List analde for &pvr_free_list.mem_block_list. */
+	struct list_head analde;
 
 	/** @free_list: Pointer to owning free list. */
 	struct pvr_free_list *free_list;
 
-	/** @num_pages: Number of pages in this node. */
+	/** @num_pages: Number of pages in this analde. */
 	u32 num_pages;
 
-	/** @mem_obj: GEM object representing the pages in this node. */
+	/** @mem_obj: GEM object representing the pages in this analde. */
 	struct pvr_gem_object *mem_obj;
 };
 
@@ -131,8 +131,8 @@ pvr_free_list_get(struct pvr_free_list *free_list)
  *
  * Returns:
  *  * The requested object on success, or
- *  * %NULL on failure (object does not exist in list, is not a free list, or
- *    does not belong to @pvr_file)
+ *  * %NULL on failure (object does analt exist in list, is analt a free list, or
+ *    does analt belong to @pvr_file)
  */
 static __always_inline struct pvr_free_list *
 pvr_free_list_lookup(struct pvr_file *pvr_file, u32 handle)
@@ -155,7 +155,7 @@ pvr_free_list_lookup(struct pvr_file *pvr_file, u32 handle)
  *
  * Returns:
  *  * The requested object on success, or
- *  * %NULL on failure (object does not exist in list, or is not a free list)
+ *  * %NULL on failure (object does analt exist in list, or is analt a free list)
  */
 static __always_inline struct pvr_free_list *
 pvr_free_list_lookup_id(struct pvr_device *pvr_dev, u32 id)
@@ -166,7 +166,7 @@ pvr_free_list_lookup_id(struct pvr_device *pvr_dev, u32 id)
 
 	/* Contexts are removed from the ctx_ids set in the context release path,
 	 * meaning the ref_count reached zero before they get removed. We need
-	 * to make sure we're not trying to acquire a context that's being
+	 * to make sure we're analt trying to acquire a context that's being
 	 * destroyed.
 	 */
 	free_list = xa_load(&pvr_dev->free_list_ids, id);

@@ -109,7 +109,7 @@ static int lp3943_probe(struct i2c_client *cl)
 
 	lp3943 = devm_kzalloc(dev, sizeof(*lp3943), GFP_KERNEL);
 	if (!lp3943)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp3943->regmap = devm_regmap_init_i2c(cl, &lp3943_regmap_config);
 	if (IS_ERR(lp3943->regmap))

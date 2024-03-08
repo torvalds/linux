@@ -41,7 +41,7 @@
 		ranges;
 
 		vga_memory: framebuffer@47800000 {
-			no-map;
+			anal-map;
 			reg = <0x47800000 0x00800000>; /* 8MB */
 		};
 	};
@@ -102,7 +102,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "panalr";
 	};
 };
 
@@ -125,9 +125,9 @@
 	status = "okay";
 };
 
-&lpc_snoop {
+&lpc_sanalop {
 	status = "okay";
-	snoop-ports = <0x80>;
+	sanalop-ports = <0x80>;
 };
 
 &mac0 {

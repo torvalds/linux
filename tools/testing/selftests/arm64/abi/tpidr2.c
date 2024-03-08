@@ -130,10 +130,10 @@ static int write_fork_read(void)
 		waiting = waitpid(newpid, &status, 0);
 
 		if (waiting < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			putstr("# waitpid() failed: ");
-			putnum(errno);
+			putnum(erranal);
 			putstr("\n");
 			return 0;
 		}
@@ -143,7 +143,7 @@ static int write_fork_read(void)
 		}
 
 		if (!WIFEXITED(status)) {
-			putstr("# child did not exit\n");
+			putstr("# child did analt exit\n");
 			return 0;
 		}
 
@@ -158,7 +158,7 @@ static int write_fork_read(void)
 
 /*
  * sys_clone() has a lot of per architecture variation so just define
- * it here rather than adding it to nolibc, plus the raw API is a
+ * it here rather than adding it to anallibc, plus the raw API is a
  * little more convenient for this test.
  */
 static int sys_clone(unsigned long clone_flags, unsigned long newsp,
@@ -186,7 +186,7 @@ static int write_clone_read(void)
 	ret = sys_clone(CLONE_SETTLS, 0, &parent_tid, 0, &child_tid);
 	if (ret == -1) {
 		putstr("# clone() failed\n");
-		putnum(errno);
+		putnum(erranal);
 		putstr("\n");
 		return 0;
 	}
@@ -194,7 +194,7 @@ static int write_clone_read(void)
 	if (ret == 0) {
 		/* In child */
 		if (get_tpidr2() != 0) {
-			putstr("# TPIDR2 non-zero in child: ");
+			putstr("# TPIDR2 analn-zero in child: ");
 			putnum(get_tpidr2());
 			putstr("\n");
 			exit(0);
@@ -215,10 +215,10 @@ static int write_clone_read(void)
 		waiting = wait4(ret, &status, __WCLONE, NULL);
 
 		if (waiting < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			putstr("# wait4() failed: ");
-			putnum(errno);
+			putnum(erranal);
 			putstr("\n");
 			return 0;
 		}
@@ -230,7 +230,7 @@ static int write_clone_read(void)
 		}
 
 		if (!WIFEXITED(status)) {
-			putstr("# child did not exit\n");
+			putstr("# child did analt exit\n");
 			return 0;
 		}
 
@@ -248,7 +248,7 @@ static int write_clone_read(void)
 		tests_passed++;		     \
 	} else {			     \
 		tests_failed++;		     \
-		putstr("not ");		     \
+		putstr("analt ");		     \
 	}				     \
 	putstr("ok ");			     \
 	putnum(++tests_run);		     \
@@ -274,7 +274,7 @@ int main(int argc, char **argv)
 	putstr("\n");
 
 	/*
-	 * This test is run with nolibc which doesn't support hwcap and
+	 * This test is run with anallibc which doesn't support hwcap and
 	 * it's probably disproportionate to implement so instead check
 	 * for the default vector length configuration in /proc.
 	 */
@@ -287,7 +287,7 @@ int main(int argc, char **argv)
 		run_test(write_clone_read);
 
 	} else {
-		putstr("# SME support not present\n");
+		putstr("# SME support analt present\n");
 
 		skip_test(default_value);
 		skip_test(write_read);

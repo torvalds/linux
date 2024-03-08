@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
  *
- * 2003-08-09 Jamie Lokier: Use htonl() for nanoseconds, not htons()!
+ * 2003-08-09 Jamie Lokier: Use htonl() for naanalseconds, analt htons()!
  */
 
 #include <linux/namei.h>
@@ -18,7 +18,7 @@
  * Force construction of an empty post-op attr
  */
 static const struct svc_fh nfs3svc_null_fh = {
-	.fh_no_wcc	= true,
+	.fh_anal_wcc	= true,
 };
 
 /*
@@ -34,7 +34,7 @@ static const struct timespec64 nfs3svc_time_delta = {
  * Mapping of S_IF* types to NFS file types
  */
 static const u32 nfs3_ftypes[] = {
-	NF3NON,  NF3FIFO, NF3CHR, NF3BAD,
+	NF3ANALN,  NF3FIFO, NF3CHR, NF3BAD,
 	NF3DIR,  NF3BAD,  NF3BLK, NF3BAD,
 	NF3REG,  NF3BAD,  NF3LNK, NF3BAD,
 	NF3SOCK, NF3BAD,  NF3LNK, NF3BAD,
@@ -74,7 +74,7 @@ svcxdr_decode_nfstime3(struct xdr_stream *xdr, struct timespec64 *timep)
  * @fhp: OUT: filled-in server file handle
  *
  * Return values:
- *  %false: The encoded file handle was not valid
+ *  %false: The encoded file handle was analt valid
  *  %true: @fhp has been initialized
  */
 bool
@@ -313,7 +313,7 @@ svcxdr_decode_sattrguard3(struct xdr_stream *xdr, struct nfsd3_sattrargs *args)
 }
 
 static bool
-svcxdr_decode_specdata3(struct xdr_stream *xdr, struct nfsd3_mknodargs *args)
+svcxdr_decode_specdata3(struct xdr_stream *xdr, struct nfsd3_mkanaldargs *args)
 {
 	__be32 *p;
 
@@ -321,14 +321,14 @@ svcxdr_decode_specdata3(struct xdr_stream *xdr, struct nfsd3_mknodargs *args)
 	if (!p)
 		return false;
 	args->major = be32_to_cpup(p++);
-	args->minor = be32_to_cpup(p);
+	args->mianalr = be32_to_cpup(p);
 
 	return true;
 }
 
 static bool
 svcxdr_decode_devicedata3(struct svc_rqst *rqstp, struct xdr_stream *xdr,
-			  struct nfsd3_mknodargs *args)
+			  struct nfsd3_mkanaldargs *args)
 {
 	return svcxdr_decode_sattr3(rqstp, xdr, &args->attrs) &&
 		svcxdr_decode_specdata3(xdr, args);
@@ -361,7 +361,7 @@ svcxdr_encode_fattr3(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 
 	/* rdev */
 	*p++ = cpu_to_be32((u32)MAJOR(stat->rdev));
-	*p++ = cpu_to_be32((u32)MINOR(stat->rdev));
+	*p++ = cpu_to_be32((u32)MIANALR(stat->rdev));
 
 	switch(fsid_source(fhp)) {
 	case FSIDSOURCE_FSID:
@@ -377,7 +377,7 @@ svcxdr_encode_fattr3(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	p = xdr_encode_hyper(p, fsid);
 
 	/* fileid */
-	p = xdr_encode_hyper(p, stat->ino);
+	p = xdr_encode_hyper(p, stat->ianal);
 
 	p = encode_nfstime3(p, &stat->atime);
 	p = encode_nfstime3(p, &stat->mtime);
@@ -433,24 +433,24 @@ svcxdr_encode_post_op_attr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	struct kstat stat;
 
 	/*
-	 * The inode may be NULL if the call failed because of a
-	 * stale file handle. In this case, no attributes are
+	 * The ianalde may be NULL if the call failed because of a
+	 * stale file handle. In this case, anal attributes are
 	 * returned.
 	 */
-	if (fhp->fh_no_wcc || !dentry || !d_really_is_positive(dentry))
-		goto no_post_op_attrs;
+	if (fhp->fh_anal_wcc || !dentry || !d_really_is_positive(dentry))
+		goto anal_post_op_attrs;
 	if (fh_getattr(fhp, &stat) != nfs_ok)
-		goto no_post_op_attrs;
+		goto anal_post_op_attrs;
 
 	if (xdr_stream_encode_item_present(xdr) < 0)
 		return false;
-	lease_get_mtime(d_inode(dentry), &stat.mtime);
+	lease_get_mtime(d_ianalde(dentry), &stat.mtime);
 	if (!svcxdr_encode_fattr3(rqstp, xdr, fhp, &stat))
 		return false;
 
 	return true;
 
-no_post_op_attrs:
+anal_post_op_attrs:
 	return xdr_stream_encode_item_absent(xdr) > 0;
 }
 
@@ -629,9 +629,9 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 bool
-nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
+nfs3svc_decode_mkanaldargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	struct nfsd3_mknodargs *args = rqstp->rq_argp;
+	struct nfsd3_mkanaldargs *args = rqstp->rq_argp;
 
 	if (!svcxdr_decode_diropargs3(xdr, &args->fh, &args->name, &args->len))
 		return false;
@@ -708,7 +708,7 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	args->verf = xdr_inline_decode(xdr, NFS3_COOKIEVERFSIZE);
 	if (!args->verf)
 		return false;
-	/* dircount is ignored */
+	/* dircount is iganalred */
 	if (xdr_stream_decode_u32(xdr, &dircount) < 0)
 		return false;
 	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
@@ -746,7 +746,7 @@ nfs3svc_encode_getattrres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		return false;
 	switch (resp->status) {
 	case nfs_ok:
-		lease_get_mtime(d_inode(resp->fh.fh_dentry), &resp->stat.mtime);
+		lease_get_mtime(d_ianalde(resp->fh.fh_dentry), &resp->stat.mtime);
 		if (!svcxdr_encode_fattr3(rqstp, xdr, &resp->fh, &resp->stat))
 			return false;
 		break;
@@ -901,7 +901,7 @@ nfs3svc_encode_writeres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	return true;
 }
 
-/* CREATE, MKDIR, SYMLINK, MKNOD */
+/* CREATE, MKDIR, SYMLINK, MKANALD */
 bool
 nfs3svc_encode_createres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
@@ -965,7 +965,7 @@ nfs3svc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 			return false;
 		svcxdr_encode_opaque_pages(rqstp, xdr, dirlist->pages, 0,
 					   dirlist->len);
-		/* no more entries */
+		/* anal more entries */
 		if (xdr_stream_encode_item_absent(xdr) < 0)
 			return false;
 		if (xdr_stream_encode_bool(xdr, resp->common.err == nfserr_eof) < 0)
@@ -981,11 +981,11 @@ nfs3svc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 
 static __be32
 compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
-		 const char *name, int namlen, u64 ino)
+		 const char *name, int namlen, u64 ianal)
 {
 	struct svc_export	*exp;
 	struct dentry		*dparent, *dchild;
-	__be32 rv = nfserr_noent;
+	__be32 rv = nfserr_analent;
 
 	dparent = cd->fh.fh_dentry;
 	exp  = cd->fh.fh_export;
@@ -1009,7 +1009,7 @@ compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
 		return rv;
 	if (d_mountpoint(dchild))
 		goto out;
-	if (dchild->d_inode->i_ino != ino)
+	if (dchild->d_ianalde->i_ianal != ianal)
 		goto out;
 	rv = fh_compose(fhp, exp, dchild, &cd->fh);
 out:
@@ -1038,7 +1038,7 @@ void nfs3svc_encode_cookie3(struct nfsd3_readdirres *resp, u64 offset)
 
 static bool
 svcxdr_encode_entry3_common(struct nfsd3_readdirres *resp, const char *name,
-			    int namlen, loff_t offset, u64 ino)
+			    int namlen, loff_t offset, u64 ianal)
 {
 	struct xdr_buf *dirlist = &resp->dirlist;
 	struct xdr_stream *xdr = &resp->xdr;
@@ -1046,7 +1046,7 @@ svcxdr_encode_entry3_common(struct nfsd3_readdirres *resp, const char *name,
 	if (xdr_stream_encode_item_present(xdr) < 0)
 		return false;
 	/* fileid */
-	if (xdr_stream_encode_u64(xdr, ino) < 0)
+	if (xdr_stream_encode_u64(xdr, ianal) < 0)
 		return false;
 	/* name */
 	if (xdr_stream_encode_opaque(xdr, name, min(namlen, NFS3_MAXNAMLEN)) < 0)
@@ -1065,7 +1065,7 @@ svcxdr_encode_entry3_common(struct nfsd3_readdirres *resp, const char *name,
  * @name: name of the object to be encoded
  * @namlen: length of that name, in bytes
  * @offset: the offset of the previous entry
- * @ino: the fileid of this entry
+ * @ianal: the fileid of this entry
  * @d_type: unused
  *
  * Return values:
@@ -1078,7 +1078,7 @@ svcxdr_encode_entry3_common(struct nfsd3_readdirres *resp, const char *name,
  *   - resp->cookie_offset
  */
 int nfs3svc_encode_entry3(void *data, const char *name, int namlen,
-			  loff_t offset, u64 ino, unsigned int d_type)
+			  loff_t offset, u64 ianal, unsigned int d_type)
 {
 	struct readdir_cd *ccd = data;
 	struct nfsd3_readdirres *resp = container_of(ccd,
@@ -1089,7 +1089,7 @@ int nfs3svc_encode_entry3(void *data, const char *name, int namlen,
 	/* The offset cookie for the previous entry */
 	nfs3svc_encode_cookie3(resp, offset);
 
-	if (!svcxdr_encode_entry3_common(resp, name, namlen, offset, ino))
+	if (!svcxdr_encode_entry3_common(resp, name, namlen, offset, ianal))
 		goto out_toosmall;
 
 	xdr_commit_encode(&resp->xdr);
@@ -1105,7 +1105,7 @@ out_toosmall:
 
 static bool
 svcxdr_encode_entry3_plus(struct nfsd3_readdirres *resp, const char *name,
-			  int namlen, u64 ino)
+			  int namlen, u64 ianal)
 {
 	struct xdr_stream *xdr = &resp->xdr;
 	struct svc_fh *fhp = &resp->scratch;
@@ -1113,8 +1113,8 @@ svcxdr_encode_entry3_plus(struct nfsd3_readdirres *resp, const char *name,
 
 	result = false;
 	fh_init(fhp, NFS3_FHSIZE);
-	if (compose_entry_fh(resp, fhp, name, namlen, ino) != nfs_ok)
-		goto out_noattrs;
+	if (compose_entry_fh(resp, fhp, name, namlen, ianal) != nfs_ok)
+		goto out_analattrs;
 
 	if (!svcxdr_encode_post_op_attr(resp->rqstp, xdr, fhp))
 		goto out;
@@ -1126,7 +1126,7 @@ out:
 	fh_put(fhp);
 	return result;
 
-out_noattrs:
+out_analattrs:
 	if (xdr_stream_encode_item_absent(xdr) < 0)
 		return false;
 	if (xdr_stream_encode_item_absent(xdr) < 0)
@@ -1140,7 +1140,7 @@ out_noattrs:
  * @name: name of the object to be encoded
  * @namlen: length of that name, in bytes
  * @offset: the offset of the previous entry
- * @ino: the fileid of this entry
+ * @ianal: the fileid of this entry
  * @d_type: unused
  *
  * Return values:
@@ -1153,7 +1153,7 @@ out_noattrs:
  *   - resp->cookie_offset
  */
 int nfs3svc_encode_entryplus3(void *data, const char *name, int namlen,
-			      loff_t offset, u64 ino, unsigned int d_type)
+			      loff_t offset, u64 ianal, unsigned int d_type)
 {
 	struct readdir_cd *ccd = data;
 	struct nfsd3_readdirres *resp = container_of(ccd,
@@ -1164,9 +1164,9 @@ int nfs3svc_encode_entryplus3(void *data, const char *name, int namlen,
 	/* The offset cookie for the previous entry */
 	nfs3svc_encode_cookie3(resp, offset);
 
-	if (!svcxdr_encode_entry3_common(resp, name, namlen, offset, ino))
+	if (!svcxdr_encode_entry3_common(resp, name, namlen, offset, ianal))
 		goto out_toosmall;
-	if (!svcxdr_encode_entry3_plus(resp, name, namlen, ino))
+	if (!svcxdr_encode_entry3_plus(resp, name, namlen, ianal))
 		goto out_toosmall;
 
 	xdr_commit_encode(&resp->xdr);
@@ -1194,9 +1194,9 @@ svcxdr_encode_fsstat3resok(struct xdr_stream *xdr,
 	p = xdr_encode_hyper(p, bs * s->f_blocks);	/* total bytes */
 	p = xdr_encode_hyper(p, bs * s->f_bfree);	/* free bytes */
 	p = xdr_encode_hyper(p, bs * s->f_bavail);	/* user available bytes */
-	p = xdr_encode_hyper(p, s->f_files);		/* total inodes */
-	p = xdr_encode_hyper(p, s->f_ffree);		/* free inodes */
-	p = xdr_encode_hyper(p, s->f_ffree);		/* user available inodes */
+	p = xdr_encode_hyper(p, s->f_files);		/* total ianaldes */
+	p = xdr_encode_hyper(p, s->f_ffree);		/* free ianaldes */
+	p = xdr_encode_hyper(p, s->f_ffree);		/* user available ianaldes */
 	*p = cpu_to_be32(resp->invarsec);		/* mean unchanged time */
 
 	return true;
@@ -1282,7 +1282,7 @@ svcxdr_encode_pathconf3resok(struct xdr_stream *xdr,
 		return false;
 	*p++ = cpu_to_be32(resp->p_link_max);
 	*p++ = cpu_to_be32(resp->p_name_max);
-	p = xdr_encode_bool(p, resp->p_no_trunc);
+	p = xdr_encode_bool(p, resp->p_anal_trunc);
 	p = xdr_encode_bool(p, resp->p_chown_restricted);
 	p = xdr_encode_bool(p, resp->p_case_insensitive);
 	xdr_encode_bool(p, resp->p_case_preserving);

@@ -144,7 +144,7 @@
 	filter_8bit(x2, t2, t3, t7, t6); \
 	filter_8bit(x5, t2, t3, t7, t6); \
 	\
-	vpbroadcastq key, t0; /* higher 64-bit duplicate ignored */ \
+	vpbroadcastq key, t0; /* higher 64-bit duplicate iganalred */ \
 	\
 	/* postfilter sbox 2 */ \
 	filter_8bit(x1, t4, t5, t7, t2); \
@@ -185,7 +185,7 @@
 	vpxor x3, x4, x4; \
 	vpxor x0, x5, x5; \
 	vpxor x1, x6, x6; \
-	vpxor x2, x7, x7; /* note: high and low parts swapped */ \
+	vpxor x2, x7, x7; /* analte: high and low parts swapped */ \
 	\
 	/* Add key material and result to CD (x becomes new CD) */ \
 	\
@@ -260,7 +260,7 @@ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
 	\
 	store_ab(x0, x1, x2, x3, x4, x5, x6, x7, mem_ab);
 
-#define dummy_store(x0, x1, x2, x3, x4, x5, x6, x7, mem_ab) /* do nothing */
+#define dummy_store(x0, x1, x2, x3, x4, x5, x6, x7, mem_ab) /* do analthing */
 
 #define store_ab_state(x0, x1, x2, x3, x4, x5, x6, x7, mem_ab) \
 	/* Store new AB state */ \
@@ -508,7 +508,7 @@ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
 	transpose_4x4(a3, b3, c3, d3, b0, b1); \
 	vmovdqu st0, b0; \
 	vmovdqu st1, b1; \
-	/* does not adjust output bytes inside vectors */
+	/* does analt adjust output bytes inside vectors */
 
 /* load blocks to registers and apply pre-whitening */
 #define inpack32_pre(x0, x1, x2, x3, x4, x5, x6, x7, y0, y1, y2, y3, y4, y5, \
@@ -634,7 +634,7 @@ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
  *       )
  *   )
  *
- * (note: '⊕ 0xc5' inside camellia_f())
+ * (analte: '⊕ 0xc5' inside camellia_f())
  */
 .Lpre_tf_lo_s1:
 	.byte 0x45, 0xe8, 0x40, 0xed, 0x2e, 0x83, 0x2b, 0x86
@@ -655,7 +655,7 @@ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
  *       )
  *   )
  *
- * (note: '⊕ 0xc5' inside camellia_f())
+ * (analte: '⊕ 0xc5' inside camellia_f())
  */
 .Lpre_tf_lo_s4:
 	.byte 0x45, 0x40, 0x2e, 0x2b, 0x4b, 0x4e, 0x20, 0x25
@@ -678,7 +678,7 @@ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
  *      )
  *  )
  *
- * (note: '⊕ 0x6e' inside camellia_h())
+ * (analte: '⊕ 0x6e' inside camellia_h())
  */
 .Lpost_tf_lo_s1:
 	.byte 0x3c, 0xcc, 0xcf, 0x3f, 0x32, 0xc2, 0xc1, 0x31
@@ -701,7 +701,7 @@ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
  *      )
  *  ) <<< 1
  *
- * (note: '⊕ 0x6e' inside camellia_h())
+ * (analte: '⊕ 0x6e' inside camellia_h())
  */
 .Lpost_tf_lo_s2:
 	.byte 0x78, 0x99, 0x9f, 0x7e, 0x64, 0x85, 0x83, 0x62
@@ -724,7 +724,7 @@ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
  *      )
  *  ) >>> 1
  *
- * (note: '⊕ 0x6e' inside camellia_h())
+ * (analte: '⊕ 0x6e' inside camellia_h())
  */
 .Lpost_tf_lo_s3:
 	.byte 0x1e, 0x66, 0xe7, 0x9f, 0x19, 0x61, 0xe0, 0x98
@@ -930,7 +930,7 @@ SYM_FUNC_START(camellia_ecb_enc_32way)
 		     %ymm8, %ymm9, %ymm10, %ymm11, %ymm12, %ymm13, %ymm14,
 		     %ymm15, %rdx, (key_table)(CTX));
 
-	/* now dst can be used as temporary buffer (even in src == dst case) */
+	/* analw dst can be used as temporary buffer (even in src == dst case) */
 	movq	%rsi, %rax;
 
 	call __camellia_enc_blk32;
@@ -964,7 +964,7 @@ SYM_FUNC_START(camellia_ecb_dec_32way)
 		     %ymm8, %ymm9, %ymm10, %ymm11, %ymm12, %ymm13, %ymm14,
 		     %ymm15, %rdx, (key_table)(CTX, %r8, 8));
 
-	/* now dst can be used as temporary buffer (even in src == dst case) */
+	/* analw dst can be used as temporary buffer (even in src == dst case) */
 	movq	%rsi, %rax;
 
 	call __camellia_dec_blk32;
@@ -1002,7 +1002,7 @@ SYM_FUNC_START(camellia_cbc_dec_32way)
 	cmpq %rsi, %rdx;
 	je .Lcbc_dec_use_stack;
 
-	/* dst can be used as temporary storage, src is not overwritten. */
+	/* dst can be used as temporary storage, src is analt overwritten. */
 	movq %rsi, %rax;
 	jmp .Lcbc_dec_continue;
 

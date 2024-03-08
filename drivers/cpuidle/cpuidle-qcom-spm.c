@@ -34,7 +34,7 @@ static int qcom_pm_collapse(unsigned long int unused)
 	qcom_scm_cpu_power_down(QCOM_SCM_CPU_PWR_DOWN_L2_ON);
 
 	/*
-	 * Returns here only if there was a pending interrupt and we did not
+	 * Returns here only if there was a pending interrupt and we did analt
 	 * power down as a result.
 	 */
 	return -1;
@@ -48,7 +48,7 @@ static int qcom_cpu_spc(struct spm_driver_data *drv)
 	ret = cpu_suspend(0, qcom_pm_collapse);
 	/*
 	 * ARM common code executes WFI without calling into our driver and
-	 * if the SPM mode is not reset, then we may accidently power down the
+	 * if the SPM mode is analt reset, then we may accidently power down the
 	 * cpu when we intended only to gate the cpu clock.
 	 * Ensure the state is set to standby before returning.
 	 */
@@ -87,27 +87,27 @@ static const struct of_device_id qcom_idle_state_match[] = {
 static int spm_cpuidle_register(struct device *cpuidle_dev, int cpu)
 {
 	struct platform_device *pdev = NULL;
-	struct device_node *cpu_node, *saw_node;
+	struct device_analde *cpu_analde, *saw_analde;
 	struct cpuidle_qcom_spm_data *data = NULL;
 	int ret;
 
-	cpu_node = of_cpu_device_node_get(cpu);
-	if (!cpu_node)
-		return -ENODEV;
+	cpu_analde = of_cpu_device_analde_get(cpu);
+	if (!cpu_analde)
+		return -EANALDEV;
 
-	saw_node = of_parse_phandle(cpu_node, "qcom,saw", 0);
-	if (!saw_node)
-		return -ENODEV;
+	saw_analde = of_parse_phandle(cpu_analde, "qcom,saw", 0);
+	if (!saw_analde)
+		return -EANALDEV;
 
-	pdev = of_find_device_by_node(saw_node);
-	of_node_put(saw_node);
-	of_node_put(cpu_node);
+	pdev = of_find_device_by_analde(saw_analde);
+	of_analde_put(saw_analde);
+	of_analde_put(cpu_analde);
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(cpuidle_dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->spm = dev_get_drvdata(&pdev->dev);
 	if (!data->spm)
@@ -119,7 +119,7 @@ static int spm_cpuidle_register(struct device *cpuidle_dev, int cpu)
 	ret = dt_init_idle_driver(&data->cpuidle_driver,
 				  qcom_idle_state_match, 1);
 	if (ret <= 0)
-		return ret ? : -ENODEV;
+		return ret ? : -EANALDEV;
 
 	return cpuidle_register(&data->cpuidle_driver, NULL);
 }
@@ -137,9 +137,9 @@ static int spm_cpuidle_drv_probe(struct platform_device *pdev)
 
 	for_each_possible_cpu(cpu) {
 		ret = spm_cpuidle_register(&pdev->dev, cpu);
-		if (ret && ret != -ENODEV) {
+		if (ret && ret != -EANALDEV) {
 			dev_err(&pdev->dev,
-				"Cannot register for CPU%d: %d\n", cpu, ret);
+				"Cananalt register for CPU%d: %d\n", cpu, ret);
 		}
 	}
 
@@ -156,16 +156,16 @@ static struct platform_driver spm_cpuidle_driver = {
 
 static bool __init qcom_spm_find_any_cpu(void)
 {
-	struct device_node *cpu_node, *saw_node;
+	struct device_analde *cpu_analde, *saw_analde;
 
-	for_each_of_cpu_node(cpu_node) {
-		saw_node = of_parse_phandle(cpu_node, "qcom,saw", 0);
-		if (of_device_is_available(saw_node)) {
-			of_node_put(saw_node);
-			of_node_put(cpu_node);
+	for_each_of_cpu_analde(cpu_analde) {
+		saw_analde = of_parse_phandle(cpu_analde, "qcom,saw", 0);
+		if (of_device_is_available(saw_analde)) {
+			of_analde_put(saw_analde);
+			of_analde_put(cpu_analde);
 			return true;
 		}
-		of_node_put(saw_node);
+		of_analde_put(saw_analde);
 	}
 	return false;
 }

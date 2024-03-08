@@ -109,7 +109,7 @@ static int mt7921u_mac_reset(struct mt792x_dev *dev)
 	if (err)
 		goto out;
 
-	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_ANALRMAL_MODE);
 	mt76_set(dev, MT_UDMA_TX_QSEL, MT_FW_DL_EN);
 
 	err = mt7921_run_firmware(dev);
@@ -179,12 +179,12 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	ops = mt792x_get_mac80211_ops(&usb_intf->dev, &mt7921_ops,
 				      (void *)id->driver_info, &features);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ops->stop = mt792xu_stop;
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = container_of(mdev, struct mt792x_dev, mt76);
 	dev->fw_features = features;

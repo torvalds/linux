@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
-#define PU_SOC_VOLTAGE_NORMAL	1250000
+#define PU_SOC_VOLTAGE_ANALRMAL	1250000
 #define PU_SOC_VOLTAGE_HIGH	1275000
 #define FREQ_1P2_GHZ		1200000000
 
@@ -213,7 +213,7 @@ static void imx6x_disable_freq_in_opp(struct device *dev, unsigned long freq)
 {
 	int ret = dev_pm_opp_disable(dev, freq);
 
-	if (ret < 0 && ret != -ENODEV)
+	if (ret < 0 && ret != -EANALDEV)
 		dev_warn(dev, "failed to disable %ldMHz OPP\n", freq / 1000000);
 }
 
@@ -225,22 +225,22 @@ static void imx6x_disable_freq_in_opp(struct device *dev, unsigned long freq)
 
 static int imx6q_opp_check_speed_grading(struct device *dev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *base;
 	u32 val;
 	int ret;
 
-	if (of_property_present(dev->of_node, "nvmem-cells")) {
+	if (of_property_present(dev->of_analde, "nvmem-cells")) {
 		ret = nvmem_cell_read_u32(dev, "speed_grade", &val);
 		if (ret)
 			return ret;
 	} else {
-		np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-ocotp");
+		np = of_find_compatible_analde(NULL, NULL, "fsl,imx6q-ocotp");
 		if (!np)
-			return -ENOENT;
+			return -EANALENT;
 
 		base = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 		if (!base) {
 			dev_err(dev, "failed to map ocotp\n");
 			return -EFAULT;
@@ -285,23 +285,23 @@ static int imx6ul_opp_check_speed_grading(struct device *dev)
 	u32 val;
 	int ret = 0;
 
-	if (of_property_present(dev->of_node, "nvmem-cells")) {
+	if (of_property_present(dev->of_analde, "nvmem-cells")) {
 		ret = nvmem_cell_read_u32(dev, "speed_grade", &val);
 		if (ret)
 			return ret;
 	} else {
-		struct device_node *np;
+		struct device_analde *np;
 		void __iomem *base;
 
-		np = of_find_compatible_node(NULL, NULL, "fsl,imx6ul-ocotp");
+		np = of_find_compatible_analde(NULL, NULL, "fsl,imx6ul-ocotp");
 		if (!np)
-			np = of_find_compatible_node(NULL, NULL,
+			np = of_find_compatible_analde(NULL, NULL,
 						     "fsl,imx6ull-ocotp");
 		if (!np)
-			return -ENOENT;
+			return -EANALENT;
 
 		base = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 		if (!base) {
 			dev_err(dev, "failed to map ocotp\n");
 			return -EFAULT;
@@ -339,7 +339,7 @@ static int imx6ul_opp_check_speed_grading(struct device *dev)
 
 static int imx6q_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct dev_pm_opp *opp;
 	unsigned long min_volt, max_volt;
 	int num, ret;
@@ -350,13 +350,13 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev) {
 		pr_err("failed to get cpu0 device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	np = of_node_get(cpu_dev->of_node);
+	np = of_analde_get(cpu_dev->of_analde);
 	if (!np) {
-		dev_err(cpu_dev, "failed to find cpu0 node\n");
-		return -ENOENT;
+		dev_err(cpu_dev, "failed to find cpu0 analde\n");
+		return -EANALENT;
 	}
 
 	if (of_machine_is_compatible("fsl,imx6ul") ||
@@ -367,7 +367,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 
 	ret = clk_bulk_get(cpu_dev, num_clks, clks);
 	if (ret)
-		goto put_node;
+		goto put_analde;
 
 	arm_reg = regulator_get(cpu_dev, "arm");
 	pu_reg = regulator_get_optional(cpu_dev, "pu");
@@ -376,12 +376,12 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 			PTR_ERR(soc_reg) == -EPROBE_DEFER ||
 			PTR_ERR(pu_reg) == -EPROBE_DEFER) {
 		ret = -EPROBE_DEFER;
-		dev_dbg(cpu_dev, "regulators not ready, defer\n");
+		dev_dbg(cpu_dev, "regulators analt ready, defer\n");
 		goto put_reg;
 	}
 	if (IS_ERR(arm_reg) || IS_ERR(soc_reg)) {
 		dev_err(cpu_dev, "failed to get regulators\n");
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto put_reg;
 	}
 
@@ -405,7 +405,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	num = dev_pm_opp_get_opp_count(cpu_dev);
 	if (num < 0) {
 		ret = num;
-		dev_err(cpu_dev, "no OPP table is found: %d\n", ret);
+		dev_err(cpu_dev, "anal OPP table is found: %d\n", ret);
 		goto out_free_opp;
 	}
 
@@ -419,7 +419,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	imx6_soc_volt = devm_kcalloc(cpu_dev, num, sizeof(*imx6_soc_volt),
 				     GFP_KERNEL);
 	if (imx6_soc_volt == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_freq_table;
 	}
 
@@ -448,11 +448,11 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	}
 
 soc_opp_out:
-	/* use fixed soc opp volt if no valid soc opp info found in dtb */
+	/* use fixed soc opp volt if anal valid soc opp info found in dtb */
 	if (soc_opp_count != num) {
-		dev_warn(cpu_dev, "can NOT find valid fsl,soc-operating-points property in dtb, use default value!\n");
+		dev_warn(cpu_dev, "can ANALT find valid fsl,soc-operating-points property in dtb, use default value!\n");
 		for (j = 0; j < num; j++)
-			imx6_soc_volt[j] = PU_SOC_VOLTAGE_NORMAL;
+			imx6_soc_volt[j] = PU_SOC_VOLTAGE_ANALRMAL;
 		if (freq_table[num - 1].frequency * 1000 == FREQ_1P2_GHZ)
 			imx6_soc_volt[num - 1] = PU_SOC_VOLTAGE_HIGH;
 	}
@@ -497,7 +497,7 @@ soc_opp_out:
 		goto free_freq_table;
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 	return 0;
 
 free_freq_table:
@@ -513,8 +513,8 @@ put_reg:
 		regulator_put(soc_reg);
 
 	clk_bulk_put(num_clks, clks);
-put_node:
-	of_node_put(np);
+put_analde:
+	of_analde_put(np);
 
 	return ret;
 }

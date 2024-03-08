@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_fw.h"
@@ -52,7 +52,7 @@ pvr_power_send_command(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *p
 	if (err)
 		return err;
 
-	/* Wait for FW to acknowledge. */
+	/* Wait for FW to ackanalwledge. */
 	return readl_poll_timeout(pvr_dev->fw_dev.power_sync, value, value != 0, 100,
 				  POWER_SYNC_TIMEOUT_US);
 }
@@ -149,7 +149,7 @@ pvr_watchdog_kccb_stalled(struct pvr_device *pvr_dev)
 		pvr_dev->watchdog.kccb_stall_count++;
 
 		/*
-		 * If we have commands pending with no progress for 2 consecutive polls then
+		 * If we have commands pending with anal progress for 2 consecutive polls then
 		 * consider KCCB command processing stalled.
 		 */
 		if (pvr_dev->watchdog.kccb_stall_count == 2) {
@@ -220,7 +220,7 @@ out_requeue:
  *
  * Returns:
  *  * 0 on success, or
- *  * -%ENOMEM on out of memory.
+ *  * -%EANALMEM on out of memory.
  */
 int
 pvr_watchdog_init(struct pvr_device *pvr_dev)

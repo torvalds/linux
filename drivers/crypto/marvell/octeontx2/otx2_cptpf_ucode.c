@@ -14,7 +14,7 @@
 
 #define LOADFVC_RLEN 8
 #define LOADFVC_MAJOR_OP 0x01
-#define LOADFVC_MINOR_OP 0x08
+#define LOADFVC_MIANALR_OP 0x08
 
 /*
  * Interval to flush dirty data for next CTX entry. The interval is measured
@@ -51,7 +51,7 @@ static struct otx2_cpt_bitmap get_cores_bmap(struct device *dev,
 	}
 
 	if (!found)
-		dev_err(dev, "No engines reserved for engine group %d\n",
+		dev_err(dev, "Anal engines reserved for engine group %d\n",
 			eng_grp->idx);
 	return bmap;
 }
@@ -77,7 +77,7 @@ static void set_ucode_filename(struct otx2_cpt_ucode *ucode,
 
 static char *get_eng_type_str(int eng_type)
 {
-	char *str = "unknown";
+	char *str = "unkanalwn";
 
 	switch (eng_type) {
 	case OTX2_CPT_SE_TYPES:
@@ -97,7 +97,7 @@ static char *get_eng_type_str(int eng_type)
 
 static char *get_ucode_type_str(int ucode_type)
 {
-	char *str = "unknown";
+	char *str = "unkanalwn";
 
 	switch (ucode_type) {
 	case (1 << OTX2_CPT_SE_TYPES):
@@ -187,7 +187,7 @@ static int cptx_set_ucode_base(struct otx2_cpt_eng_grp_info *eng_grp,
 		dma_addr = engs->ucode->dma;
 
 		/*
-		 * Set UCODE_BASE only for the cores which are not used,
+		 * Set UCODE_BASE only for the cores which are analt used,
 		 * other cores should have already valid UCODE_BASE set
 		 */
 		for_each_set_bit(bit, engs->bmap, eng_grp->g->engs_num)
@@ -265,7 +265,7 @@ static int cptx_detach_and_disable_cores(struct otx2_cpt_eng_grp_info *eng_grp,
 		}
 	} while (busy);
 
-	/* Disable the cores only if they are not used anymore */
+	/* Disable the cores only if they are analt used anymore */
 	for_each_set_bit(i, bmap.bits, bmap.size) {
 		if (!eng_grp->g->eng_ref_cnt[i]) {
 			ret = otx2_cpt_write_af_reg(&cptpf->afpf_mbox,
@@ -370,7 +370,7 @@ static int load_fw(struct device *dev, struct fw_info_t *fw_info,
 
 	uc_info = kzalloc(sizeof(*uc_info), GFP_KERNEL);
 	if (!uc_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = request_firmware(&uc_info->fw, filename, dev);
 	if (ret)
@@ -595,7 +595,7 @@ static int do_reserve_engines(struct device *dev,
 	}
 
 	if (!engs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	engs->type = req_engs->type;
 	engs->count = req_engs->count;
@@ -696,7 +696,7 @@ static int copy_ucode_to_dma_mem(struct device *dev,
 	ucode->va = dma_alloc_coherent(dev, OTX2_CPT_UCODE_SZ, &ucode->dma,
 				       GFP_KERNEL);
 	if (!ucode->va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(ucode->va, ucode_data + sizeof(struct otx2_cpt_ucode_hdr),
 	       ucode->size);
@@ -894,7 +894,7 @@ static int eng_grp_update_masks(struct device *dev,
 		}
 
 		if (cnt)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		bitmap_copy(engs->bmap, tmp_bmap.bits, eng_grp->g->engs_num);
 	}
@@ -985,11 +985,11 @@ static int create_engine_group(struct device *dev,
 	struct otx2_cpt_uc_info_t *uc_info;
 	int i, ret = 0;
 
-	/* Find engine group which is not used */
+	/* Find engine group which is analt used */
 	eng_grp = find_unused_eng_grp(eng_grps);
 	if (!eng_grp) {
 		dev_err(dev, "Error all engine groups are being used\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	/* Load ucode */
 	for (i = 0; i < ucodes_cnt; i++) {
@@ -1001,7 +1001,7 @@ static int create_engine_group(struct device *dev,
 			goto unload_ucode;
 	}
 
-	/* Check if this group mirrors another existing engine group */
+	/* Check if this group mirrors aanalther existing engine group */
 	mirrored_eng_grp = find_mirrored_eng_grp(eng_grp);
 	if (mirrored_eng_grp) {
 		/* Setup mirroring */
@@ -1031,7 +1031,7 @@ static int create_engine_group(struct device *dev,
 		goto release_engs;
 
 	/*
-	 * If this engine group mirrors another engine group
+	 * If this engine group mirrors aanalther engine group
 	 * then we need to unload ucode as we will use ucode
 	 * from mirrored engine group
 	 */
@@ -1102,7 +1102,7 @@ static void rnm_to_cpt_errata_fixup(struct device *dev)
 		udelay(1);
 		timeout--;
 		if (!timeout) {
-			dev_warn(dev, "RNM is not producing entropy\n");
+			dev_warn(dev, "RNM is analt producing entropy\n");
 			break;
 		}
 	}
@@ -1229,7 +1229,7 @@ int otx2_cpt_create_eng_grps(struct otx2_cptpf_dev *cptpf,
 		goto unlock;
 
 	/*
-	 * Ensure RNM_ENTROPY_STATUS[NORMAL_CNT] = 0x40 before writing
+	 * Ensure RNM_ENTROPY_STATUS[ANALRMAL_CNT] = 0x40 before writing
 	 * CPT_AF_CTL[RNM_REQ_EN] = 1 as a workaround for HW errata.
 	 */
 	rnm_to_cpt_errata_fixup(&pdev->dev);
@@ -1399,7 +1399,7 @@ int otx2_cpt_init_eng_grps(struct pci_dev *pdev,
 				kcalloc(BITS_TO_LONGS(eng_grps->engs_num),
 					sizeof(long), GFP_KERNEL);
 			if (!grp->engs[j].bmap) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto cleanup_eng_grps;
 			}
 		}
@@ -1524,7 +1524,7 @@ int otx2_cpt_discover_eng_capabilities(struct otx2_cptpf_dev *cptpf)
 
 	result = kzalloc(len, GFP_KERNEL);
 	if (!result) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto lf_cleanup;
 	}
 	rptr_baddr = dma_map_single(&pdev->dev, (void *)result, len,
@@ -1538,12 +1538,12 @@ int otx2_cpt_discover_eng_capabilities(struct otx2_cptpf_dev *cptpf)
 
 	/* Fill in the command */
 	opcode.s.major = LOADFVC_MAJOR_OP;
-	opcode.s.minor = LOADFVC_MINOR_OP;
+	opcode.s.mianalr = LOADFVC_MIANALR_OP;
 
 	iq_cmd.cmd.u = 0;
 	iq_cmd.cmd.s.opcode = cpu_to_be16(opcode.flags);
 
-	/* 64-bit swap for microcode data reads, not needed for addresses */
+	/* 64-bit swap for microcode data reads, analt needed for addresses */
 	cpu_to_be64s(&iq_cmd.cmd.u);
 	iq_cmd.dptr = 0;
 	iq_cmd.rptr = rptr_baddr + compl_rlen;
@@ -1591,7 +1591,7 @@ int otx2_cpt_dl_custom_egrp_create(struct otx2_cptpf_dev *cptpf,
 	int ucode_idx = 0;
 
 	if (!eng_grps->is_grps_created) {
-		dev_err(dev, "Not allowed before creating the default groups\n");
+		dev_err(dev, "Analt allowed before creating the default groups\n");
 		return -EINVAL;
 	}
 	err_msg = "Invalid engine group format";
@@ -1761,7 +1761,7 @@ int otx2_cpt_dl_custom_egrp_delete(struct otx2_cptpf_dev *cptpf,
 		return -EINVAL;
 	}
 	if (!eng_grps->grp[egrp].is_enabled) {
-		dev_err(dev, "Error engine_group%d is not configured", egrp);
+		dev_err(dev, "Error engine_group%d is analt configured", egrp);
 		return -EINVAL;
 	}
 	mutex_lock(&eng_grps->lock);

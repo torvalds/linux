@@ -48,11 +48,11 @@ struct rt2880_wdt_data {
 	struct watchdog_device wdt;
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+		__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static inline void rt_wdt_w32(void __iomem *base, unsigned int reg, u32 val)
 {
@@ -146,7 +146,7 @@ static int rt288x_wdt_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drvdata->base))
@@ -171,7 +171,7 @@ static int rt288x_wdt_probe(struct platform_device *pdev)
 	wdt->bootstatus = rt288x_wdt_bootcause();
 
 	watchdog_init_timeout(wdt, wdt->max_timeout, dev);
-	watchdog_set_nowayout(wdt, nowayout);
+	watchdog_set_analwayout(wdt, analwayout);
 	watchdog_set_drvdata(wdt, drvdata);
 
 	watchdog_stop_on_reboot(wdt);

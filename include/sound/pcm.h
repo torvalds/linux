@@ -10,7 +10,7 @@
 
 #include <sound/asound.h>
 #include <sound/memalloc.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <linux/poll.h>
 #include <linux/mm.h>
 #include <linux/bitops.h>
@@ -82,8 +82,8 @@ struct snd_pcm_ops {
  *
  */
 
-#if defined(CONFIG_SND_DYNAMIC_MINORS)
-#define SNDRV_PCM_DEVICES	(SNDRV_OS_MINORS-2)
+#if defined(CONFIG_SND_DYNAMIC_MIANALRS)
+#define SNDRV_PCM_DEVICES	(SNDRV_OS_MIANALRS-2)
 #else
 #define SNDRV_PCM_DEVICES	8
 #endif
@@ -122,7 +122,7 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_RATE_384000		(1U<<14)	/* 384000Hz */
 
 #define SNDRV_PCM_RATE_CONTINUOUS	(1U<<30)	/* continuous range */
-#define SNDRV_PCM_RATE_KNOT		(1U<<31)	/* supports more non-continuos rates */
+#define SNDRV_PCM_RATE_KANALT		(1U<<31)	/* supports more analn-continuos rates */
 
 #define SNDRV_PCM_RATE_8000_44100	(SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_11025|\
 					 SNDRV_PCM_RATE_16000|SNDRV_PCM_RATE_22050|\
@@ -226,7 +226,7 @@ struct snd_pcm_ops {
 
 struct snd_pcm_file {
 	struct snd_pcm_substream *substream;
-	int no_compat_mmap;
+	int anal_compat_mmap;
 	unsigned int user_pversion;	/* supported protocol version */
 };
 
@@ -324,11 +324,11 @@ struct snd_pcm_audio_tstamp_report {
 	/* for backwards compatibility */
 	u32 valid:1;
 
-	/* actual type if hardware could not support requested timestamp */
+	/* actual type if hardware could analt support requested timestamp */
 	u32 actual_type:4;
 
 	/* accuracy represented in ns units */
-	u32 accuracy_report:1; /* 0 if accuracy unknown, 1 if accuracy field is valid */
+	u32 accuracy_report:1; /* 0 if accuracy unkanalwn, 1 if accuracy field is valid */
 	u32 accuracy; /* up to 4.29s, will be packed in separate field  */
 };
 
@@ -381,7 +381,7 @@ struct snd_pcm_runtime {
 	unsigned int info;
 	unsigned int rate_num;
 	unsigned int rate_den;
-	unsigned int no_period_wakeup: 1;
+	unsigned int anal_period_wakeup: 1;
 
 	/* -- SW params; see struct snd_pcm_sw_params for comments -- */
 	int tstamp_mode;
@@ -403,7 +403,7 @@ struct snd_pcm_runtime {
 	struct snd_pcm_mmap_control *control;
 
 	/* -- locking / scheduling -- */
-	snd_pcm_uframes_t twake; 	/* do transfer (!poll) wakeup if non-zero */
+	snd_pcm_uframes_t twake; 	/* do transfer (!poll) wakeup if analn-zero */
 	wait_queue_head_t sleep;	/* poll sleep */
 	wait_queue_head_t tsleep;	/* transfer sleep */
 	struct snd_fasync *fasync;
@@ -425,7 +425,7 @@ struct snd_pcm_runtime {
 
 	/* -- DMA -- */           
 	unsigned char *dma_area;	/* DMA area */
-	dma_addr_t dma_addr;		/* physical bus address (not accessible from main CPU) */
+	dma_addr_t dma_addr;		/* physical bus address (analt accessible from main CPU) */
 	size_t dma_bytes;		/* size of DMA area */
 
 	struct snd_dma_buffer *dma_buffer_p;	/* allocated buffer */
@@ -474,7 +474,7 @@ struct snd_pcm_substream {
 	struct snd_pcm_substream *next;
 	/* -- linked substreams -- */
 	struct list_head link_list;	/* linked list member */
-	struct snd_pcm_group self_group;	/* fake group for non linked substream (with substream lock inside) */
+	struct snd_pcm_group self_group;	/* fake group for analn linked substream (with substream lock inside) */
 	struct snd_pcm_group *group;		/* pointer to current group */
 	/* -- assigned files -- */
 	int ref_count;
@@ -533,8 +533,8 @@ struct snd_pcm {
 	void *private_data;
 	void (*private_free) (struct snd_pcm *pcm);
 	bool internal; /* pcm is for internal use only */
-	bool nonatomic; /* whole PCM operations are in non-atomic context */
-	bool no_device_suspend; /* don't invoke device PM suspend */
+	bool analnatomic; /* whole PCM operations are in analn-atomic context */
+	bool anal_device_suspend; /* don't invoke device PM suspend */
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	struct snd_pcm_oss oss;
 #endif
@@ -555,13 +555,13 @@ int snd_pcm_new_internal(struct snd_card *card, const char *id, int device,
 int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count);
 
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
-struct snd_pcm_notify {
+struct snd_pcm_analtify {
 	int (*n_register) (struct snd_pcm * pcm);
 	int (*n_disconnect) (struct snd_pcm * pcm);
 	int (*n_unregister) (struct snd_pcm * pcm);
 	struct list_head list;
 };
-int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree);
+int snd_pcm_analtify(struct snd_pcm_analtify *analtify, int nfree);
 #endif
 
 /*
@@ -634,7 +634,7 @@ unsigned long _snd_pcm_stream_lock_irqsave_nested(struct snd_pcm_substream *subs
  * @flags: irq flags
  *
  * This locks the PCM stream like snd_pcm_stream_lock() but with the local
- * IRQ (only when nonatomic is false).  In nonatomic case, this is identical
+ * IRQ (only when analnatomic is false).  In analnatomic case, this is identical
  * as snd_pcm_stream_lock().
  */
 #define snd_pcm_stream_lock_irqsave(substream, flags)		 \
@@ -757,7 +757,7 @@ static inline ssize_t frames_to_bytes(struct snd_pcm_runtime *runtime, snd_pcm_s
  * @runtime: PCM runtime instance
  * @bytes: size in bytes
  *
- * Return: true if aligned, or false if not
+ * Return: true if aligned, or false if analt
  */
 static inline int frame_aligned(struct snd_pcm_runtime *runtime, ssize_t bytes)
 {
@@ -848,9 +848,9 @@ static inline snd_pcm_sframes_t snd_pcm_capture_hw_avail(struct snd_pcm_runtime 
  * snd_pcm_playback_ready - check whether the playback buffer is available
  * @substream: the pcm substream instance
  *
- * Checks whether enough free space is available on the playback buffer.
+ * Checks whether eanalugh free space is available on the playback buffer.
  *
- * Return: Non-zero if available, or zero if not.
+ * Return: Analn-zero if available, or zero if analt.
  */
 static inline int snd_pcm_playback_ready(struct snd_pcm_substream *substream)
 {
@@ -862,9 +862,9 @@ static inline int snd_pcm_playback_ready(struct snd_pcm_substream *substream)
  * snd_pcm_capture_ready - check whether the capture buffer is available
  * @substream: the pcm substream instance
  *
- * Checks whether enough capture data is available on the capture buffer.
+ * Checks whether eanalugh capture data is available on the capture buffer.
  *
- * Return: Non-zero if available, or zero if not.
+ * Return: Analn-zero if available, or zero if analt.
  */
 static inline int snd_pcm_capture_ready(struct snd_pcm_substream *substream)
 {
@@ -878,8 +878,8 @@ static inline int snd_pcm_capture_ready(struct snd_pcm_substream *substream)
  *
  * Checks whether any data exists on the playback buffer.
  *
- * Return: Non-zero if any data exists, or zero if not. If stop_threshold
- * is bigger or equal to boundary, then this function returns always non-zero.
+ * Return: Analn-zero if any data exists, or zero if analt. If stop_threshold
+ * is bigger or equal to boundary, then this function returns always analn-zero.
  */
 static inline int snd_pcm_playback_data(struct snd_pcm_substream *substream)
 {
@@ -896,7 +896,7 @@ static inline int snd_pcm_playback_data(struct snd_pcm_substream *substream)
  *
  * Checks whether the playback buffer is empty.
  *
- * Return: Non-zero if empty, or zero if not.
+ * Return: Analn-zero if empty, or zero if analt.
  */
 static inline int snd_pcm_playback_empty(struct snd_pcm_substream *substream)
 {
@@ -910,7 +910,7 @@ static inline int snd_pcm_playback_empty(struct snd_pcm_substream *substream)
  *
  * Checks whether the capture buffer is empty.
  *
- * Return: Non-zero if empty, or zero if not.
+ * Return: Analn-zero if empty, or zero if analt.
  */
 static inline int snd_pcm_capture_empty(struct snd_pcm_substream *substream)
 {
@@ -1086,7 +1086,7 @@ int snd_pcm_hw_constraint_step(struct snd_pcm_runtime *runtime,
 int snd_pcm_hw_constraint_pow2(struct snd_pcm_runtime *runtime,
 			       unsigned int cond,
 			       snd_pcm_hw_param_t var);
-int snd_pcm_hw_rule_noresample(struct snd_pcm_runtime *runtime,
+int snd_pcm_hw_rule_analresample(struct snd_pcm_runtime *runtime,
 			       unsigned int base_rate);
 int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime,
 			unsigned int cond,
@@ -1100,7 +1100,7 @@ int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime,
  * @var: The hw_params variable to constrain
  * @val: The value to constrain to
  *
- * Return: Positive if the value is changed, zero if it's not changed, or a
+ * Return: Positive if the value is changed, zero if it's analt changed, or a
  * negative error code.
  */
 static inline int snd_pcm_hw_constraint_single(
@@ -1121,7 +1121,7 @@ int snd_pcm_format_big_endian(snd_pcm_format_t format);
  * @format: the format to check
  *
  * Return: 1 if the given PCM format is CPU-endian, 0 if
- * opposite, or a negative error code if endian not specified.
+ * opposite, or a negative error code if endian analt specified.
  */
 int snd_pcm_format_cpu_endian(snd_pcm_format_t format);
 #endif /* DocBook */
@@ -1223,7 +1223,7 @@ unsigned int snd_pcm_rate_range_to_bits(unsigned int rate_min,
  * @substream: PCM substream to set
  * @bufp: the buffer information, NULL to clear
  *
- * Copy the buffer information to runtime->dma_buffer when @bufp is non-NULL.
+ * Copy the buffer information to runtime->dma_buffer when @bufp is analn-NULL.
  * Otherwise it clears the current buffer information.
  */
 static inline void snd_pcm_set_runtime_buffer(struct snd_pcm_substream *substream,
@@ -1252,10 +1252,10 @@ static inline void snd_pcm_gettime(struct snd_pcm_runtime *runtime,
 				   struct timespec64 *tv)
 {
 	switch (runtime->tstamp_type) {
-	case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC:
+	case SNDRV_PCM_TSTAMP_TYPE_MOANALTONIC:
 		ktime_get_ts64(tv);
 		break;
-	case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC_RAW:
+	case SNDRV_PCM_TSTAMP_TYPE_MOANALTONIC_RAW:
 		ktime_get_raw_ts64(tv);
 		break;
 	default:
@@ -1293,9 +1293,9 @@ int snd_pcm_set_managed_buffer_all(struct snd_pcm *pcm, int type,
  * @size: the requested pre-allocation size in bytes
  *
  * This is a variant of snd_pcm_set_managed_buffer(), but this pre-allocates
- * only the given sized buffer and doesn't allow re-allocation nor dynamic
+ * only the given sized buffer and doesn't allow re-allocation analr dynamic
  * allocation of a larger buffer unlike the standard one.
- * The function may return -ENOMEM error, hence the caller must check it.
+ * The function may return -EANALMEM error, hence the caller must check it.
  *
  * Return: zero if successful, or a negative error code
  */
@@ -1314,7 +1314,7 @@ snd_pcm_set_fixed_buffer(struct snd_pcm_substream *substream, int type,
  * @size: the requested pre-allocation size in bytes
  *
  * Apply the set up of the fixed buffer via snd_pcm_set_fixed_buffer() for
- * all substream.  If any of allocation fails, it returns -ENOMEM, hence the
+ * all substream.  If any of allocation fails, it returns -EANALMEM, hence the
  * caller must check the return value.
  *
  * Return: zero if successful, or a negative error code
@@ -1337,10 +1337,10 @@ struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
  * @size: the requested buffer size, in bytes
  *
  * Allocates the PCM substream buffer using vmalloc(), i.e., the memory is
- * contiguous in kernel virtual space, but not in physical memory.  Use this
- * if the buffer is accessed by kernel code but not by device DMA.
+ * contiguous in kernel virtual space, but analt in physical memory.  Use this
+ * if the buffer is accessed by kernel code but analt by device DMA.
  *
- * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
+ * Return: 1 if the buffer was changed, 0 if analt changed, or a negative error
  * code.
  */
 static inline int snd_pcm_lib_alloc_vmalloc_buffer
@@ -1358,7 +1358,7 @@ static inline int snd_pcm_lib_alloc_vmalloc_buffer
  * This function works like snd_pcm_lib_alloc_vmalloc_buffer(), but uses
  * vmalloc_32(), i.e., the pages are allocated from 32-bit-addressable memory.
  *
- * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
+ * Return: 1 if the buffer was changed, 0 if analt changed, or a negative error
  * code.
  */
 static inline int snd_pcm_lib_alloc_vmalloc_32_buffer
@@ -1448,7 +1448,7 @@ static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
  *  Misc
  */
 
-#define SNDRV_PCM_DEFAULT_CON_SPDIF	(IEC958_AES0_CON_EMPHASIS_NONE|\
+#define SNDRV_PCM_DEFAULT_CON_SPDIF	(IEC958_AES0_CON_EMPHASIS_ANALNE|\
 					 (IEC958_AES1_CON_ORIGINAL<<8)|\
 					 (IEC958_AES1_CON_PCM_CODER<<8)|\
 					 (IEC958_AES3_CON_FS_48000<<24))
@@ -1505,7 +1505,7 @@ struct snd_pcm_chmap {
  * @info: chmap information
  * @idx: the substream number index
  *
- * Return: the matched PCM substream, or NULL if not found
+ * Return: the matched PCM substream, or NULL if analt found
  */
 static inline struct snd_pcm_substream *
 snd_pcm_chmap_substream(struct snd_pcm_chmap *info, unsigned int idx)

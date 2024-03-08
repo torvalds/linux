@@ -11,13 +11,13 @@
  * There are flags of relevance to the cache:
  *
  *  (2) DONT_REUSE - The connection should be discarded as soon as possible and
- *      should not be reused.  This is set when an exclusive connection is used
+ *      should analt be reused.  This is set when an exclusive connection is used
  *      or a call ID counter overflows.
  *
  * The caching state may only be changed if the cache lock is held.
  *
  * There are two idle client connection expiry durations.  If the total number
- * of connections is below the reap threshold, we use the normal duration; if
+ * of connections is below the reap threshold, we use the analrmal duration; if
  * it's above, we use the fast duration.
  */
 
@@ -158,12 +158,12 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle)
 
 	_enter("");
 
-	conn = rxrpc_alloc_connection(rxnet, GFP_ATOMIC | __GFP_NOWARN);
+	conn = rxrpc_alloc_connection(rxnet, GFP_ATOMIC | __GFP_ANALWARN);
 	if (!conn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	id = idr_alloc_cyclic(&local->conn_ids, conn, 1, 0x40000000,
-			      GFP_ATOMIC | __GFP_NOWARN);
+			      GFP_ATOMIC | __GFP_ANALWARN);
 	if (id < 0) {
 		kfree(conn);
 		return ERR_PTR(id);
@@ -185,7 +185,7 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle)
 	conn->state		= RXRPC_CONN_CLIENT_UNSECURED;
 	conn->service_id	= conn->orig_service_id;
 
-	if (conn->security == &rxrpc_no_security)
+	if (conn->security == &rxrpc_anal_security)
 		conn->state	= RXRPC_CONN_CLIENT;
 
 	atomic_inc(&rxnet->nr_conns);
@@ -251,7 +251,7 @@ int rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t gfp)
 {
 	struct rxrpc_bundle *bundle, *candidate;
 	struct rxrpc_local *local = call->local;
-	struct rb_node *p, **pp, *parent;
+	struct rb_analde *p, **pp, *parent;
 	long diff;
 	bool upgrade = test_bit(RXRPC_CALL_UPGRADE, &call->flags);
 
@@ -261,15 +261,15 @@ int rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t gfp)
 
 	if (test_bit(RXRPC_CALL_EXCLUSIVE, &call->flags)) {
 		call->bundle = rxrpc_alloc_bundle(call, gfp);
-		return call->bundle ? 0 : -ENOMEM;
+		return call->bundle ? 0 : -EANALMEM;
 	}
 
 	/* First, see if the bundle is already there. */
 	_debug("search 1");
 	spin_lock(&local->client_bundles_lock);
-	p = local->client_bundles.rb_node;
+	p = local->client_bundles.rb_analde;
 	while (p) {
-		bundle = rb_entry(p, struct rxrpc_bundle, local_node);
+		bundle = rb_entry(p, struct rxrpc_bundle, local_analde);
 
 #define cmp(X, Y) ((long)(X) - (long)(Y))
 		diff = (cmp(bundle->peer, call->peer) ?:
@@ -285,20 +285,20 @@ int rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t gfp)
 			goto found_bundle;
 	}
 	spin_unlock(&local->client_bundles_lock);
-	_debug("not found");
+	_debug("analt found");
 
 	/* It wasn't.  We need to add one. */
 	candidate = rxrpc_alloc_bundle(call, gfp);
 	if (!candidate)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	_debug("search 2");
 	spin_lock(&local->client_bundles_lock);
-	pp = &local->client_bundles.rb_node;
+	pp = &local->client_bundles.rb_analde;
 	parent = NULL;
 	while (*pp) {
 		parent = *pp;
-		bundle = rb_entry(parent, struct rxrpc_bundle, local_node);
+		bundle = rb_entry(parent, struct rxrpc_bundle, local_analde);
 
 #define cmp(X, Y) ((long)(X) - (long)(Y))
 		diff = (cmp(bundle->peer, call->peer) ?:
@@ -315,8 +315,8 @@ int rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t gfp)
 	}
 
 	_debug("new bundle");
-	rb_link_node(&candidate->local_node, parent, pp);
-	rb_insert_color(&candidate->local_node, &local->client_bundles);
+	rb_link_analde(&candidate->local_analde, parent, pp);
+	rb_insert_color(&candidate->local_analde, &local->client_bundles);
 	call->bundle = rxrpc_get_bundle(candidate, rxrpc_bundle_get_client_call);
 	spin_unlock(&local->client_bundles_lock);
 	_leave(" = B=%u [new]", call->bundle->debug_id);
@@ -347,7 +347,7 @@ static bool rxrpc_add_conn_to_bundle(struct rxrpc_bundle *bundle,
 		bundle->conns[slot] = NULL;
 		bundle->conn_ids[slot] = 0;
 		trace_rxrpc_client(old, -1, rxrpc_client_replace);
-		rxrpc_put_connection(old, rxrpc_conn_put_noreuse);
+		rxrpc_put_connection(old, rxrpc_conn_put_analreuse);
 	}
 
 	conn = rxrpc_alloc_client_connection(bundle);
@@ -366,7 +366,7 @@ static bool rxrpc_add_conn_to_bundle(struct rxrpc_bundle *bundle,
 }
 
 /*
- * Add a connection to a bundle if there are no usable connections or we have
+ * Add a connection to a bundle if there are anal usable connections or we have
  * connections waiting for extra capacity.
  */
 static bool rxrpc_bundle_has_space(struct rxrpc_bundle *bundle)
@@ -524,7 +524,7 @@ void rxrpc_connect_client_calls(struct rxrpc_local *local)
 }
 
 /*
- * Note that a call, and thus a connection, is about to be exposed to the
+ * Analte that a call, and thus a connection, is about to be exposed to the
  * world.
  */
 void rxrpc_expose_client_call(struct rxrpc_call *call)
@@ -556,8 +556,8 @@ void rxrpc_expose_client_call(struct rxrpc_call *call)
 static void rxrpc_set_client_reap_timer(struct rxrpc_local *local)
 {
 	if (!local->kill_all_client_conns) {
-		unsigned long now = jiffies;
-		unsigned long reap_at = now + rxrpc_conn_idle_client_expiry;
+		unsigned long analw = jiffies;
+		unsigned long reap_at = analw + rxrpc_conn_idle_client_expiry;
 
 		if (local->rxnet->live)
 			timer_reduce(&local->client_conn_reap_timer, reap_at);
@@ -621,7 +621,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 		}
 	}
 
-	/* See if we can pass the channel directly to another call. */
+	/* See if we can pass the channel directly to aanalther call. */
 	if (may_reuse && !list_empty(&bundle->waiting_calls)) {
 		trace_rxrpc_client(conn, channel, rxrpc_client_chan_pass);
 		rxrpc_activate_one_channel(conn, channel);
@@ -647,7 +647,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 	set_bit(conn->bundle_shift + channel, &conn->bundle->avail_chans);
 	conn->act_chans	&= ~(1 << channel);
 
-	/* If no channels remain active, then put the connection on the idle
+	/* If anal channels remain active, then put the connection on the idle
 	 * list for a short while.  Give it a ref to stop it going away if it
 	 * becomes unbundled.
 	 */
@@ -704,7 +704,7 @@ void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle)
 	if (atomic_dec_and_lock(&bundle->active, &local->client_bundles_lock)) {
 		if (!bundle->exclusive) {
 			_debug("erase bundle");
-			rb_erase(&bundle->local_node, &local->client_bundles);
+			rb_erase(&bundle->local_analde, &local->client_bundles);
 			need_put = true;
 		}
 
@@ -734,13 +734,13 @@ void rxrpc_kill_client_conn(struct rxrpc_connection *conn)
  * Discard expired client connections from the idle list.  Each conn in the
  * idle list has been exposed and holds an extra ref because of that.
  *
- * This may be called from conn setup or from a work item so cannot be
- * considered non-reentrant.
+ * This may be called from conn setup or from a work item so cananalt be
+ * considered analn-reentrant.
  */
 void rxrpc_discard_expired_client_conns(struct rxrpc_local *local)
 {
 	struct rxrpc_connection *conn;
-	unsigned long expiry, conn_expires_at, now;
+	unsigned long expiry, conn_expires_at, analw;
 	unsigned int nr_conns;
 
 	_enter("");
@@ -770,9 +770,9 @@ next:
 
 		conn_expires_at = conn->idle_timestamp + expiry;
 
-		now = READ_ONCE(jiffies);
-		if (time_after(conn_expires_at, now))
-			goto not_yet_expired;
+		analw = READ_ONCE(jiffies);
+		if (time_after(conn_expires_at, analw))
+			goto analt_yet_expired;
 	}
 
 	atomic_dec(&conn->active);
@@ -786,7 +786,7 @@ next:
 	nr_conns--;
 	goto next;
 
-not_yet_expired:
+analt_yet_expired:
 	/* The connection at the front of the queue hasn't yet expired, so
 	 * schedule the work item for that point if we discarded something.
 	 *
@@ -794,7 +794,7 @@ not_yet_expired:
 	 * after rescheduling itself at a later time.  We could cancel it, but
 	 * then things get messier.
 	 */
-	_debug("not yet");
+	_debug("analt yet");
 	if (!local->kill_all_client_conns)
 		timer_reduce(&local->client_conn_reap_timer, conn_expires_at);
 

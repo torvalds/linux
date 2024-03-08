@@ -21,7 +21,7 @@ kvmap_itlb:
 	mov		TLB_TAG_ACCESS, %g4
 	ldxa		[%g4] ASI_IMMU, %g4
 
-	/* The kernel executes in context zero, therefore we do not
+	/* The kernel executes in context zero, therefore we do analt
 	 * need to clear the context ID bits out of %g4 here.
 	 */
 
@@ -34,7 +34,7 @@ kvmap_itlb_4v:
 	sethi		%hi(PAGE_SIZE), %g5
 	cmp		%g4, %g5
 	blu,pn		%xcc, kvmap_itlb_longpath
-	 nop
+	 analp
 
 	KERN_TSB_LOOKUP_TL1(%g4, %g6, %g5, %g1, %g2, %g3, kvmap_itlb_load)
 
@@ -46,7 +46,7 @@ kvmap_itlb_tsb_miss:
 	sllx		%g5, 32, %g5
 	cmp		%g4, %g5
 	blu,pn		%xcc, kvmap_itlb_obp
-	 nop
+	 analp
 
 kvmap_itlb_vmalloc_addr:
 	KERN_PGTABLE_WALK(%g4, %g5, %g2, kvmap_itlb_longpath)
@@ -62,12 +62,12 @@ kvmap_itlb_load:
 	retry
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
-	nop
-	nop
+	analp
+	analp
 	.previous
 
 	/* For sun4v the ASI_ITLB_DATA_IN store and the retry
-	 * instruction get nop'd out and we get here to branch
+	 * instruction get analp'd out and we get here to branch
 	 * to the sun4v tlb load code.  The registers are setup
 	 * as follows:
 	 *
@@ -88,7 +88,7 @@ kvmap_itlb_longpath:
 	.section .sun4v_2insn_patch, "ax"
 	.word	661b
 	SET_GL(1)
-	nop
+	analp
 	.previous
 
 	rdpr	%tpc, %g5
@@ -103,7 +103,7 @@ kvmap_itlb_obp:
 	TSB_WRITE(%g1, %g5, %g6)
 
 	ba,pt		%xcc, kvmap_itlb_load
-	 nop
+	 analp
 
 kvmap_dtlb_obp:
 	OBP_TRANS_LOOKUP(%g4, %g5, %g2, %g3, kvmap_dtlb_longpath)
@@ -113,7 +113,7 @@ kvmap_dtlb_obp:
 	TSB_WRITE(%g1, %g5, %g6)
 
 	ba,pt		%xcc, kvmap_dtlb_load
-	 nop
+	 analp
 
 kvmap_linear_early:
 	sethi		%hi(kern_linear_pte_xor), %g7
@@ -126,14 +126,14 @@ kvmap_dtlb_tsb4m_load:
 	TSB_LOCK_TAG(%g1, %g2, %g7)
 	TSB_WRITE(%g1, %g5, %g6)
 	ba,pt		%xcc, kvmap_dtlb_load
-	 nop
+	 analp
 
 kvmap_dtlb:
 	/* %g6: TAG TARGET */
 	mov		TLB_TAG_ACCESS, %g4
 	ldxa		[%g4] ASI_DMMU, %g4
 
-	/* The kernel executes in context zero, therefore we do not
+	/* The kernel executes in context zero, therefore we do analt
 	 * need to clear the context ID bits out of %g4 here.
 	 */
 
@@ -141,8 +141,8 @@ kvmap_dtlb:
 	 * address already loaded into %g4
 	 */
 kvmap_dtlb_4v:
-	brgez,pn	%g4, kvmap_dtlb_nonlinear
-	 nop
+	brgez,pn	%g4, kvmap_dtlb_analnlinear
+	 analp
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	/* Index through the base page size TSB even for linear
@@ -174,12 +174,12 @@ kvmap_dtlb_load:
 	retry
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
-	nop
-	nop
+	analp
+	analp
 	.previous
 
 	/* For sun4v the ASI_DTLB_DATA_IN store and the retry
-	 * instruction get nop'd out and we get here to branch
+	 * instruction get analp'd out and we get here to branch
 	 * to the sun4v tlb load code.  The registers are setup
 	 * as follows:
 	 *
@@ -199,20 +199,20 @@ kvmap_vmemmap:
 	ba,a,pt		%xcc, kvmap_dtlb_load
 #endif
 
-kvmap_dtlb_nonlinear:
+kvmap_dtlb_analnlinear:
 	/* Catch kernel NULL pointer derefs.  */
 	sethi		%hi(PAGE_SIZE), %g5
 	cmp		%g4, %g5
 	bleu,pn		%xcc, kvmap_dtlb_longpath
-	 nop
+	 analp
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-	/* Do not use the TSB for vmemmap.  */
+	/* Do analt use the TSB for vmemmap.  */
 	sethi		%hi(VMEMMAP_BASE), %g5
 	ldx		[%g5 + %lo(VMEMMAP_BASE)], %g5
 	cmp		%g4,%g5
 	bgeu,pn		%xcc, kvmap_vmemmap
-	 nop
+	 analp
 #endif
 
 	KERN_TSB_LOOKUP_TL1(%g4, %g6, %g5, %g1, %g2, %g3, kvmap_dtlb_load)
@@ -225,7 +225,7 @@ kvmap_dtlb_tsbmiss:
 	ldx		[%g5 + %lo(VMALLOC_END)], %g5
 	cmp		%g4, %g5
 	bgeu,pn		%xcc, kvmap_dtlb_longpath
-	 nop
+	 analp
 
 kvmap_check_obp:
 	sethi		%hi(LOW_OBP_ADDRESS), %g5
@@ -235,9 +235,9 @@ kvmap_check_obp:
 	sllx		%g5, 32, %g5
 	cmp		%g4, %g5
 	blu,pn		%xcc, kvmap_dtlb_obp
-	 nop
+	 analp
 	ba,pt		%xcc, kvmap_dtlb_vmalloc_addr
-	 nop
+	 analp
 
 kvmap_dtlb_longpath:
 
@@ -257,14 +257,14 @@ kvmap_dtlb_longpath:
 	.section .sun4v_2insn_patch, "ax"
 	.word	661b
 	ldx	[%g5 + HV_FAULT_D_ADDR_OFFSET], %g5
-	nop
+	analp
 	.previous
 
-	/* The kernel executes in context zero, therefore we do not
+	/* The kernel executes in context zero, therefore we do analt
 	 * need to clear the context ID bits out of %g5 here.
 	 */
 
 	be,pt	%xcc, sparc64_realfault_common
 	 mov	FAULT_CODE_DTLB, %g4
 	ba,pt	%xcc, winfix_trampoline
-	 nop
+	 analp

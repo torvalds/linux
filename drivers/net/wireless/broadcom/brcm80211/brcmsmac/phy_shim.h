@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -23,7 +23,7 @@
 
 #include "types.h"
 
-#define RADAR_TYPE_NONE		0	/* Radar type None */
+#define RADAR_TYPE_ANALNE		0	/* Radar type Analne */
 #define RADAR_TYPE_ETSI_1	1	/* ETSI 1 Radar type */
 #define RADAR_TYPE_ETSI_2	2	/* ETSI 2 Radar type */
 #define RADAR_TYPE_ETSI_3	3	/* ETSI 3 Radar type */
@@ -45,7 +45,7 @@
 #define FRA_ERR_20MHZ	60
 #define FRA_ERR_40MHZ	120
 
-#define ANTSEL_NA		0 /* No boardlevel selection available */
+#define ANTSEL_NA		0 /* Anal boardlevel selection available */
 #define ANTSEL_2x4		1 /* 2x4 boardlevel selection available */
 #define ANTSEL_2x3		2 /* 2x3 CB2 boardlevel selection available */
 

@@ -94,7 +94,7 @@ s32  igb_check_polarity_m88(struct e1000_hw *hw);
 #define I82580_PHY_CTRL2_AUTO_MDI_MDIX    0x0400
 #define I82580_PHY_CTRL2_MDIX_CFG_MASK    0x0600
 
-/* I82580 PHY Diagnostics Status */
+/* I82580 PHY Diaganalstics Status */
 #define I82580_DSTATUS_CABLE_LENGTH       0x03FC
 #define I82580_DSTATUS_CABLE_LENGTH_SHIFT 2
 

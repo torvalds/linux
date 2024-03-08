@@ -16,7 +16,7 @@
 static inline void chained_irq_enter(struct irq_chip *chip,
 				     struct irq_desc *desc)
 {
-	/* FastEOI controllers require no action on entry. */
+	/* FastEOI controllers require anal action on entry. */
 	if (chip->irq_eoi)
 		return;
 

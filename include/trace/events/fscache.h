@@ -87,7 +87,7 @@ enum fscache_access_trace {
 	fscache_access_invalidate_cookie,
 	fscache_access_invalidate_cookie_end,
 	fscache_access_io_end,
-	fscache_access_io_not_live,
+	fscache_access_io_analt_live,
 	fscache_access_io_read,
 	fscache_access_io_resize,
 	fscache_access_io_wait,
@@ -169,7 +169,7 @@ enum fscache_access_trace {
 	EM(fscache_access_invalidate_cookie,	"BEGIN inval  ")	\
 	EM(fscache_access_invalidate_cookie_end,"END   inval  ")	\
 	EM(fscache_access_io_end,		"END   io     ")	\
-	EM(fscache_access_io_not_live,		"END   io_notl")	\
+	EM(fscache_access_io_analt_live,		"END   io_analtl")	\
 	EM(fscache_access_io_read,		"BEGIN io_read")	\
 	EM(fscache_access_io_resize,		"BEGIN io_resz")	\
 	EM(fscache_access_io_wait,		"WAIT  io     ")	\
@@ -195,7 +195,7 @@ fscache_cookie_traces;
 fscache_access_traces;
 
 /*
- * Now redefine the EM() and E_() macros to map the enums to the strings that
+ * Analw redefine the EM() and E_() macros to map the enums to the strings that
  * will be printed in the output.
  */
 #undef EM

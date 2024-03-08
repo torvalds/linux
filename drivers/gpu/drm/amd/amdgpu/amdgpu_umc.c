@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@ static int amdgpu_umc_convert_error_address(struct amdgpu_device *adev,
 		break;
 	default:
 		dev_warn(adev->dev,
-			 "UMC address to Physical address translation is not supported\n");
+			 "UMC address to Physical address translation is analt supported\n");
 		return AMDGPU_RAS_FAIL;
 	}
 
@@ -57,7 +57,7 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 			sizeof(struct eeprom_table_record), GFP_KERNEL);
 	if (!err_data.err_addr) {
 		dev_warn(adev->dev,
-			"Failed to alloc memory for umc error record in MCA notifier!\n");
+			"Failed to alloc memory for umc error record in MCA analtifier!\n");
 		ret = AMDGPU_RAS_FAIL;
 		goto out_fini_err_data;
 	}
@@ -96,7 +96,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 	ret = amdgpu_dpm_get_ecc_info(adev, (void *)&(con->umc_ecc));
-	if (ret == -EOPNOTSUPP) {
+	if (ret == -EOPANALTSUPP) {
 		if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
 		    adev->umc.ras->ras_block.hw_ops->query_ras_error_count)
 		    adev->umc.ras->ras_block.hw_ops->query_ras_error_count(adev, ras_error_status);
@@ -109,7 +109,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 					sizeof(struct eeprom_table_record), GFP_KERNEL);
 
 			/* still call query_ras_error_address to clear error status
-			 * even NOMEM error is encountered
+			 * even ANALMEM error is encountered
 			 */
 			if(!err_data->err_addr)
 				dev_warn(adev->dev, "Failed to alloc memory for "
@@ -133,7 +133,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 					sizeof(struct eeprom_table_record), GFP_KERNEL);
 
 			/* still call query_ras_error_address to clear error status
-			 * even NOMEM error is encountered
+			 * even ANALMEM error is encountered
 			 */
 			if(!err_data->err_addr)
 				dev_warn(adev->dev, "Failed to alloc memory for "
@@ -186,7 +186,7 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset)
 		adev->gmc.is_app_apu) {
 		if (reset) {
 			/* MCA poison handler is only responsible for GPU reset,
-			 * let MCA notifier do page retirement.
+			 * let MCA analtifier do page retirement.
 			 */
 			kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 			amdgpu_ras_reset_gpu(adev);
@@ -218,7 +218,7 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset)
 			adev->virt.ops->ras_poison_handler(adev);
 		else
 			dev_warn(adev->dev,
-				"No ras_poison_handler interface in SRIOV!\n");
+				"Anal ras_poison_handler interface in SRIOV!\n");
 	}
 
 	return ret;
@@ -318,7 +318,7 @@ void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 	/* page frame address is saved */
 	err_rec->retired_page = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
 	err_rec->ts = (uint64_t)ktime_get_real_seconds();
-	err_rec->err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
+	err_rec->err_type = AMDGPU_RAS_EEPROM_ERR_ANALN_RECOVERABLE;
 	err_rec->cu = 0;
 	err_rec->mem_channel = channel_index;
 	err_rec->mcumc_id = umc_inst;
@@ -329,17 +329,17 @@ void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 			umc_func func, void *data)
 {
-	uint32_t node_inst       = 0;
+	uint32_t analde_inst       = 0;
 	uint32_t umc_inst        = 0;
 	uint32_t ch_inst         = 0;
 	int ret = 0;
 
-	if (adev->umc.node_inst_num) {
-		LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
-			ret = func(adev, node_inst, umc_inst, ch_inst, data);
+	if (adev->umc.analde_inst_num) {
+		LOOP_UMC_EACH_ANALDE_INST_AND_CH(analde_inst, umc_inst, ch_inst) {
+			ret = func(adev, analde_inst, umc_inst, ch_inst, data);
 			if (ret) {
-				dev_err(adev->dev, "Node %d umc %d ch %d func returns %d\n",
-					node_inst, umc_inst, ch_inst, ret);
+				dev_err(adev->dev, "Analde %d umc %d ch %d func returns %d\n",
+					analde_inst, umc_inst, ch_inst, ret);
 				return ret;
 			}
 		}

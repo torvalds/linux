@@ -19,9 +19,9 @@ sleep 1
 echo "hello" > trace_marker
 
 grep 'hitcount: *1$' events/ftrace/print/hist > /dev/null || \
-    fail "hist trigger did not trigger correct times on trace_marker"
+    fail "hist trigger did analt trigger correct times on trace_marker"
 
 grep 'hitcount: *1$' events/synthetic/latency/hist > /dev/null || \
-    fail "hist trigger did not trigger "
+    fail "hist trigger did analt trigger "
 
 exit 0

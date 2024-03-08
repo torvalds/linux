@@ -146,16 +146,16 @@ static int zynqmp_dpsub_init_clocks(struct zynqmp_dpsub *dpsub)
 
 static int zynqmp_dpsub_parse_dt(struct zynqmp_dpsub *dpsub)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int i;
 
 	/*
 	 * For backward compatibility with old device trees that don't contain
-	 * ports, consider that only the DP output port is connected if no
-	 * ports child no exists.
+	 * ports, consider that only the DP output port is connected if anal
+	 * ports child anal exists.
 	 */
-	np = of_get_child_by_name(dpsub->dev->of_node, "ports");
-	of_node_put(np);
+	np = of_get_child_by_name(dpsub->dev->of_analde, "ports");
+	of_analde_put(np);
 	if (!np) {
 		dev_warn(dpsub->dev, "missing ports, update DT bindings\n");
 		dpsub->connected_ports = BIT(ZYNQMP_DPSUB_PORT_OUT_DP);
@@ -165,12 +165,12 @@ static int zynqmp_dpsub_parse_dt(struct zynqmp_dpsub *dpsub)
 
 	/* Check which ports are connected. */
 	for (i = 0; i < ZYNQMP_DPSUB_NUM_PORTS; ++i) {
-		struct device_node *np;
+		struct device_analde *np;
 
-		np = of_graph_get_remote_node(dpsub->dev->of_node, i, -1);
+		np = of_graph_get_remote_analde(dpsub->dev->of_analde, i, -1);
 		if (np) {
 			dpsub->connected_ports |= BIT(i);
-			of_node_put(np);
+			of_analde_put(np);
 		}
 	}
 
@@ -193,14 +193,14 @@ static int zynqmp_dpsub_parse_dt(struct zynqmp_dpsub *dpsub)
 	}
 
 	if (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_AUDIO))
-		dev_warn(dpsub->dev, "live audio unsupported, ignoring\n");
+		dev_warn(dpsub->dev, "live audio unsupported, iganalring\n");
 
 	if ((dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_OUT_VIDEO)) ||
 	    (dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_OUT_AUDIO)))
-		dev_warn(dpsub->dev, "output to PL unsupported, ignoring\n");
+		dev_warn(dpsub->dev, "output to PL unsupported, iganalring\n");
 
 	if (!(dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_OUT_DP))) {
-		dev_err(dpsub->dev, "DP output port not connected\n");
+		dev_err(dpsub->dev, "DP output port analt connected\n");
 		return -EINVAL;
 	}
 
@@ -222,7 +222,7 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	/* Allocate private data. */
 	dpsub = kzalloc(sizeof(*dpsub), GFP_KERNEL);
 	if (!dpsub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpsub->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dpsub);
@@ -231,7 +231,7 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Try the reserved memory. Proceed if there's none. */
+	/* Try the reserved memory. Proceed if there's analne. */
 	of_reserved_mem_device_init(&pdev->dev);
 
 	ret = zynqmp_dpsub_init_clocks(dpsub);

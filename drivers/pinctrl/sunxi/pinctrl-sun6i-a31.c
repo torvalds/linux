@@ -939,7 +939,7 @@ static const struct sunxi_desc_pin sun6i_a31_pins[] = {
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
 		/*
-		 * The SPDIF block is not referenced at all in the A31 user
+		 * The SPDIF block is analt referenced at all in the A31 user
 		 * manual. However it is described in the code leaked and the
 		 * configuration files supplied by vendors.
 		 */

@@ -847,7 +847,7 @@ static const int rk3588_register_offset[] = {
 	RK3588_SECURECRU_RESET_OFFSET(SRST_TRNG_S, 3, 6),
 };
 
-void rk3588_rst_init(struct device_node *np, void __iomem *reg_base)
+void rk3588_rst_init(struct device_analde *np, void __iomem *reg_base)
 {
 	rockchip_register_softrst_lut(np,
 				      rk3588_register_offset,

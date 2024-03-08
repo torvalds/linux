@@ -72,7 +72,7 @@ real_mode:
 	mtspr	SPRN_PCR, r4
 	mtspr	SPRN_HDEC, r4
 
-	/* Restore SPR values now we are split */
+	/* Restore SPR values analw we are split */
 	mtspr	SPRN_LDBAR, r6
 	mtspr	SPRN_PMMAR, r7
 	mtspr	SPRN_PMCR, r8

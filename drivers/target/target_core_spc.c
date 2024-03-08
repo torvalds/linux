@@ -62,7 +62,7 @@ spc_find_scsi_transport_vd(int proto_id)
 	case SCSI_PROTOCOL_SRP:
 		return SCSI_VERSION_DESCRIPTOR_SRP;
 	default:
-		pr_warn("Cannot find VERSION DESCRIPTOR value for unknown SCSI"
+		pr_warn("Cananalt find VERSION DESCRIPTOR value for unkanalwn SCSI"
 			" transport PROTOCOL IDENTIFIER %#x\n", proto_id);
 		return 0;
 	}
@@ -83,7 +83,7 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	buf[2] = 0x06; /* SPC-4 */
 
 	/*
-	 * NORMACA and HISUP = 0, RESPONSE DATA FORMAT = 2
+	 * ANALRMACA and HISUP = 0, RESPONSE DATA FORMAT = 2
 	 *
 	 * SPC4 says:
 	 *   A RESPONSE DATA FORMAT field set to 2h indicates that the
@@ -402,7 +402,7 @@ check_scsi_name:
 		 * NAME STRING field contains a UTF-8 format string.
 		 * The number of bytes in the SCSI NAME STRING field
 		 * (i.e., the value in the DESIGNATOR LENGTH field)
-		 * shall be no larger than 256 and shall be a multiple
+		 * shall be anal larger than 256 and shall be a multiple
 		 * of four.
 		 */
 		padding = ((-scsi_name_len) & 3);
@@ -441,7 +441,7 @@ check_scsi_name:
 		 * NAME STRING field contains a UTF-8 format string.
 		 * The number of bytes in the SCSI NAME STRING field
 		 * (i.e., the value in the DESIGNATOR LENGTH field)
-		 * shall be no larger than 256 and shall be a multiple
+		 * shall be anal larger than 256 and shall be a multiple
 		 * of four.
 		 */
 		padding = ((-scsi_target_len) & 3);
@@ -552,7 +552,7 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	io_max_blocks = mult_frac(dev->dev_attrib.hw_max_sectors,
 			dev->dev_attrib.hw_block_size,
 			dev->dev_attrib.block_size);
-	put_unaligned_be32(min_not_zero(mtl, io_max_blocks), &buf[8]);
+	put_unaligned_be32(min_analt_zero(mtl, io_max_blocks), &buf[8]);
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH
@@ -563,7 +563,7 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 		put_unaligned_be32(dev->dev_attrib.optimal_sectors, &buf[12]);
 
 	/*
-	 * Exit now if we don't support TP.
+	 * Exit analw if we don't support TP.
 	 */
 	if (!have_tp)
 		goto max_write_same;
@@ -609,7 +609,7 @@ spc_emulate_evpd_b1(struct se_cmd *cmd, unsigned char *buf)
 
 	buf[0] = dev->transport->get_device_type(dev);
 	buf[3] = 0x3c;
-	buf[5] = dev->dev_attrib.is_nonrot ? 1 : 0;
+	buf[5] = dev->dev_attrib.is_analnrot ? 1 : 0;
 
 	return 0;
 }
@@ -640,7 +640,7 @@ spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	 * LBAs as a power of 2 (i.e., the threshold set size is equal to
 	 * 2(threshold exponent)).
 	 *
-	 * Note that this is currently set to 0x00 as mkp says it will be
+	 * Analte that this is currently set to 0x00 as mkp says it will be
 	 * changing again.  We can enable this once it has settled in T10
 	 * and is actually used by Linux/SCSI ML code.
 	 */
@@ -649,7 +649,7 @@ spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * A TPU bit set to one indicates that the device server supports
 	 * the UNMAP command (see 5.25). A TPU bit set to zero indicates
-	 * that the device server does not support the UNMAP command.
+	 * that the device server does analt support the UNMAP command.
 	 */
 	if (dev->dev_attrib.emulate_tpu != 0)
 		buf[5] = 0x80;
@@ -657,7 +657,7 @@ spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * A TPWS bit set to one indicates that the device server supports
 	 * the use of the WRITE SAME (16) command (see 5.42) to unmap LBAs.
-	 * A TPWS bit set to zero indicates that the device server does not
+	 * A TPWS bit set to zero indicates that the device server does analt
 	 * support the use of the WRITE SAME (16) command to unmap LBAs.
 	 */
 	if (dev->dev_attrib.emulate_tpws != 0)
@@ -770,7 +770,7 @@ spc_emulate_inquiry(struct se_cmd *cmd)
 		}
 	}
 
-	pr_debug("Unknown VPD Code: 0x%02x\n", cdb[2]);
+	pr_debug("Unkanalwn VPD Code: 0x%02x\n", cdb[2]);
 	ret = TCM_INVALID_CDB_FIELD;
 
 out:
@@ -791,7 +791,7 @@ static int spc_modesense_rwrecovery(struct se_cmd *cmd, u8 pc, u8 *p)
 	p[0] = 0x01;
 	p[1] = 0x0a;
 
-	/* No changeable values for now */
+	/* Anal changeable values for analw */
 	if (pc == 1)
 		goto out;
 
@@ -807,11 +807,11 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	p[0] = 0x0a;
 	p[1] = 0x0a;
 
-	/* No changeable values for now */
+	/* Anal changeable values for analw */
 	if (pc == 1)
 		goto out;
 
-	/* GLTSD: No implicit save of log parameters */
+	/* GLTSD: Anal implicit save of log parameters */
 	p[2] = (1 << 1);
 	if (target_sense_desc_format(dev))
 		/* D_SENSE: Descriptor format sense data for 64bit sectors */
@@ -853,17 +853,17 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	 *
 	 * 00b: The logical unit shall clear any unit attention condition
 	 * reported in the same I_T_L_Q nexus transaction as a CHECK CONDITION
-	 * status and shall not establish a unit attention condition when a com-
+	 * status and shall analt establish a unit attention condition when a com-
 	 * mand is completed with BUSY, TASK SET FULL, or RESERVATION CONFLICT
 	 * status.
 	 *
-	 * 10b: The logical unit shall not clear any unit attention condition
+	 * 10b: The logical unit shall analt clear any unit attention condition
 	 * reported in the same I_T_L_Q nexus transaction as a CHECK CONDITION
-	 * status and shall not establish a unit attention condition when
+	 * status and shall analt establish a unit attention condition when
 	 * a command is completed with BUSY, TASK SET FULL, or RESERVATION
 	 * CONFLICT status.
 	 *
-	 * 11b a The logical unit shall not clear any unit attention condition
+	 * 11b a The logical unit shall analt clear any unit attention condition
 	 * reported in the same I_T_L_Q nexus transaction as a CHECK CONDITION
 	 * status and shall establish a unit attention condition for the
 	 * initiator port associated with the I_T nexus on which the BUSY,
@@ -879,7 +879,7 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	case TARGET_UA_INTLCK_CTRL_ESTABLISH_UA:
 		p[4] = 0x30;
 		break;
-	case TARGET_UA_INTLCK_CTRL_NO_CLEAR:
+	case TARGET_UA_INTLCK_CTRL_ANAL_CLEAR:
 		p[4] = 0x20;
 		break;
 	default:	/* TARGET_UA_INTLCK_CTRL_CLEAR */
@@ -904,9 +904,9 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	 *
 	 * Application Tag Owner (ATO) bit set to one.
 	 *
-	 * If the ATO bit is set to one the device server shall not modify the
+	 * If the ATO bit is set to one the device server shall analt modify the
 	 * LOGICAL BLOCK APPLICATION TAG field and, depending on the protection
-	 * type, shall not modify the contents of the LOGICAL BLOCK REFERENCE
+	 * type, shall analt modify the contents of the LOGICAL BLOCK REFERENCE
 	 * TAG field.
 	 */
 	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
@@ -929,7 +929,7 @@ static int spc_modesense_caching(struct se_cmd *cmd, u8 pc, u8 *p)
 	p[0] = 0x08;
 	p[1] = 0x12;
 
-	/* No changeable values for now */
+	/* Anal changeable values for analw */
 	if (pc == 1)
 		goto out;
 
@@ -946,7 +946,7 @@ static int spc_modesense_informational_exceptions(struct se_cmd *cmd, u8 pc, uns
 	p[0] = 0x1c;
 	p[1] = 0x0a;
 
-	/* No changeable values for now */
+	/* Anal changeable values for analw */
 	if (pc == 1)
 		goto out;
 
@@ -1045,7 +1045,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 
 	/*
 	 * SBC only allows us to enable FUA and DPO together.  Fortunately
-	 * DPO is explicitly specified as a hint, so a noop is a perfectly
+	 * DPO is explicitly specified as a hint, so a analop is a perfectly
 	 * valid implementation.
 	 */
 	if (target_check_fua(dev))
@@ -1056,7 +1056,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	/* BLOCK DESCRIPTOR */
 
 	/*
-	 * For now we only include a block descriptor for disk (SBC)
+	 * For analw we only include a block descriptor for disk (SBC)
 	 * devices; other command sets use a slightly different format.
 	 */
 	if (!dbd && type == TYPE_DISK) {
@@ -1122,7 +1122,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
 		       page, subpage);
 
-	return TCM_UNKNOWN_MODE_PAGE;
+	return TCM_UNKANALWN_MODE_PAGE;
 
 set_length:
 	if (ten)
@@ -1181,7 +1181,7 @@ static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 			goto check_contents;
 		}
 
-	ret = TCM_UNKNOWN_MODE_PAGE;
+	ret = TCM_UNKANALWN_MODE_PAGE;
 	goto out;
 
 check_contents:
@@ -1212,7 +1212,7 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 	memset(buf, 0, SE_SENSE_BUF);
 
 	if (cdb[1] & 0x01) {
-		pr_err("REQUEST_SENSE description emulation not"
+		pr_err("REQUEST_SENSE description emulation analt"
 			" supported\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
@@ -1225,7 +1225,7 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 		scsi_build_sense_buffer(desc_format, buf, UNIT_ATTENTION,
 					ua_asc, ua_ascq);
 	else
-		scsi_build_sense_buffer(desc_format, buf, NO_SENSE, 0x0, 0x0);
+		scsi_build_sense_buffer(desc_format, buf, ANAL_SENSE, 0x0, 0x0);
 
 	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
 	transport_kunmap_data_sg(cmd);
@@ -1238,7 +1238,7 @@ sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 {
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
-	struct se_node_acl *nacl;
+	struct se_analde_acl *nacl;
 	struct scsi_lun slun;
 	unsigned char *buf;
 	u32 lun_count = 0, offset = 8;
@@ -1249,14 +1249,14 @@ sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	/*
-	 * If no struct se_session pointer is present, this struct se_cmd is
-	 * coming via a target_core_mod PASSTHROUGH op, and not through
+	 * If anal struct se_session pointer is present, this struct se_cmd is
+	 * coming via a target_core_mod PASSTHROUGH op, and analt through
 	 * a $FABRIC_MOD.  In that case, report LUN=0 only.
 	 */
 	if (!sess)
 		goto done;
 
-	nacl = sess->se_node_acl;
+	nacl = sess->se_analde_acl;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
@@ -1281,7 +1281,7 @@ sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 	 */
 done:
 	/*
-	 * If no LUNs are accessible, report virtual LUN 0.
+	 * If anal LUNs are accessible, report virtual LUN 0.
 	 */
 	if (lun_count == 0) {
 		int_to_scsilun(0, &slun);
@@ -1804,10 +1804,10 @@ static struct target_opcode_descriptor tcm_opcode_pro_reg_ign_exist = {
 	.support = SCSI_SUPPORT_FULL,
 	.serv_action_valid = 1,
 	.opcode = PERSISTENT_RESERVE_OUT,
-	.service_action = PRO_REGISTER_AND_IGNORE_EXISTING_KEY,
+	.service_action = PRO_REGISTER_AND_IGANALRE_EXISTING_KEY,
 	.cdb_size = 10,
 	.usage_bits = {
-		PERSISTENT_RESERVE_OUT, PRO_REGISTER_AND_IGNORE_EXISTING_KEY,
+		PERSISTENT_RESERVE_OUT, PRO_REGISTER_AND_IGANALRE_EXISTING_KEY,
 		0xff, 0x00,
 		0x00, 0xff, 0xff, 0xff,
 		0xff, SCSI_CONTROL_MASK},
@@ -2060,7 +2060,7 @@ spc_rsoc_encode_command_timeouts_descriptor(unsigned char *buf, u8 ctdp,
 
 	put_unaligned_be16(0xa, buf);
 	buf[3] = descr->specific_timeout;
-	put_unaligned_be32(descr->nominal_timeout, &buf[4]);
+	put_unaligned_be32(descr->analminal_timeout, &buf[4]);
 	put_unaligned_be32(descr->recommended_timeout, &buf[8]);
 
 	return 12;
@@ -2093,7 +2093,7 @@ spc_rsoc_encode_one_command_descriptor(unsigned char *buf, u8 ctdp,
 	int td_size = 0;
 
 	if (!descr) {
-		buf[1] = (ctdp << 7) | SCSI_SUPPORT_NOT_SUPPORTED;
+		buf[1] = (ctdp << 7) | SCSI_SUPPORT_ANALT_SUPPORTED;
 		return 2;
 	}
 
@@ -2129,7 +2129,7 @@ spc_rsoc_get_descr(struct se_cmd *cmd, struct target_opcode_descriptor **opcode)
 			" with unsupported REPORTING OPTIONS %#x for 0x%08llx from %s\n",
 			cmd->se_tfo->fabric_name, opts,
 			cmd->se_lun->unpacked_lun,
-			sess->se_node_acl->initiatorname);
+			sess->se_analde_acl->initiatorname);
 		return TCM_INVALID_CDB_FIELD;
 	}
 
@@ -2157,7 +2157,7 @@ spc_rsoc_get_descr(struct se_cmd *cmd, struct target_opcode_descriptor **opcode)
 		case 0x2:
 			/*
 			 * If the REQUESTED OPERATION CODE field specifies an
-			 * operation code for which the device server does not
+			 * operation code for which the device server does analt
 			 * implement service actions, then the device server
 			 * shall terminate the command with CHECK CONDITION
 			 * status, with the sense key set to ILLEGAL REQUEST,
@@ -2325,7 +2325,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 	case RESERVE:
 	case RESERVE_10:
 		/*
-		 * The SPC-2 RESERVE does not contain a size in the SCSI CDB.
+		 * The SPC-2 RESERVE does analt contain a size in the SCSI CDB.
 		 * Assume the passthrough or $FABRIC_MOD will tell us about it.
 		 */
 		if (cdb[0] == RESERVE_10)
@@ -2365,8 +2365,8 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 	case WRITE_ATTRIBUTE:
 		*size = get_unaligned_be32(&cdb[10]);
 		break;
-	case RECEIVE_DIAGNOSTIC:
-	case SEND_DIAGNOSTIC:
+	case RECEIVE_DIAGANALSTIC:
+	case SEND_DIAGANALSTIC:
 		*size = get_unaligned_be16(&cdb[3]);
 		break;
 	case WRITE_BUFFER:

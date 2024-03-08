@@ -201,7 +201,7 @@ static int aw2013_blink_set(struct led_classdev *cdev,
 	int ret, num = led->num;
 	unsigned long off = 0, on = 0;
 
-	/* If no blink specified, default to 1 Hz. */
+	/* If anal blink specified, default to 1 Hz. */
 	if (!*delay_off && !*delay_on) {
 		*delay_off = 500;
 		*delay_on = 500;
@@ -263,7 +263,7 @@ out:
 
 static int aw2013_probe_dt(struct aw2013 *chip)
 {
-	struct device_node *np = dev_of_node(&chip->client->dev), *child;
+	struct device_analde *np = dev_of_analde(&chip->client->dev), *child;
 	int count, ret = 0, i = 0;
 	struct aw2013_led *led;
 
@@ -273,7 +273,7 @@ static int aw2013_probe_dt(struct aw2013 *chip)
 
 	regmap_write(chip->regmap, AW2013_RSTR, AW2013_RSTR_RESET);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		struct led_init_data init_data = {};
 		u32 source;
 		u32 imax;
@@ -289,7 +289,7 @@ static int aw2013_probe_dt(struct aw2013 *chip)
 		led = &chip->leds[i];
 		led->num = source;
 		led->chip = chip;
-		init_data.fwnode = of_fwnode_handle(child);
+		init_data.fwanalde = of_fwanalde_handle(child);
 
 		if (!of_property_read_u32(child, "led-max-microamp", &imax)) {
 			led->imax = min_t(u32, imax / 5000, 3);
@@ -305,7 +305,7 @@ static int aw2013_probe_dt(struct aw2013 *chip)
 		ret = devm_led_classdev_register_ext(&chip->client->dev,
 						     &led->cdev, &init_data);
 		if (ret < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 
@@ -334,7 +334,7 @@ static int aw2013_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&chip->mutex);
 	mutex_lock(&chip->mutex);
@@ -380,7 +380,7 @@ static int aw2013_probe(struct i2c_client *client)
 	if (chipid != AW2013_RSTR_CHIP_ID) {
 		dev_err(&client->dev, "Chip reported wrong ID: %x\n",
 			chipid);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_reg;
 	}
 

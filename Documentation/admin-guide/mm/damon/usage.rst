@@ -10,7 +10,7 @@ DAMON provides below interfaces for different users.
   `This <https://github.com/awslabs/damo>`_ is for privileged people such as
   system administrators who want a just-working human-friendly interface.
   Using this, users can use the DAMON’s major features in a human-friendly way.
-  It may not be highly tuned for special cases, though.  For more detail,
+  It may analt be highly tuned for special cases, though.  For more detail,
   please refer to its `usage document
   <https://github.com/awslabs/damo/blob/next/USAGE.md>`_.
 - *sysfs interface.*
@@ -29,7 +29,7 @@ DAMON provides below interfaces for different users.
 - *debugfs interface. (DEPRECATED!)*
   :ref:`This <debugfs_interface>` is almost identical to :ref:`sysfs interface
   <sysfs_interface>`.  This is deprecated, so users should move to the
-  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cannot
+  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cananalt
   move, please report your usecase to damon@lists.linux.dev and
   linux-mm@kvack.org.
 
@@ -130,7 +130,7 @@ In each kdamond directory, two files (``state`` and ``pid``) and one directory
 (``contexts``) exist.
 
 Reading ``state`` returns ``on`` if the kdamond is currently running, or
-``off`` if it is not running.
+``off`` if it is analt running.
 
 Users can write below commands for the kdamond to the ``state`` file.
 
@@ -253,7 +253,7 @@ monitoring target regions so that entire memory mappings of target processes
 can be covered.  However, users could want to set the initial monitoring region
 to specific address ranges.
 
-In contrast, DAMON do not automatically sets and updates the monitoring target
+In contrast, DAMON do analt automatically sets and updates the monitoring target
 regions when ``fvaddr`` or ``paddr`` monitoring operations sets are being used
 (``fvaddr`` or ``paddr`` have written to the ``contexts/<N>/operations``).
 Therefore, users should set the monitoring target regions by themselves in the
@@ -275,7 +275,7 @@ In each region directory, you will find two files (``start`` and ``end``).  You
 can set and get the start and end addresses of the initial monitoring target
 region by writing to and reading from the files, respectively.
 
-Each region should not overlap with others.  ``end`` of directory ``N`` should
+Each region should analt overlap with others.  ``end`` of directory ``N`` should
 be equal or smaller than ``start`` of directory ``N+1``.
 
 .. _sysfs_schemes:
@@ -304,7 +304,7 @@ The ``action`` file is for setting and getting the scheme's :ref:`action
 <damon_design_damos_action>`.  The keywords that can be written to and read
 from the file and their meaning are as below.
 
-Note that support of each action depends on the running DAMON operations set
+Analte that support of each action depends on the running DAMON operations set
 :ref:`implementation <sysfs_context>`.
 
  - ``willneed``: Call ``madvise()`` for the region with ``MADV_WILLNEED``.
@@ -315,13 +315,13 @@ Note that support of each action depends on the running DAMON operations set
    Supported by ``vaddr``, ``fvaddr`` and ``paddr`` operations set.
  - ``hugepage``: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``.
    Supported by ``vaddr`` and ``fvaddr`` operations set.
- - ``nohugepage``: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``.
+ - ``analhugepage``: Call ``madvise()`` for the region with ``MADV_ANALHUGEPAGE``.
    Supported by ``vaddr`` and ``fvaddr`` operations set.
  - ``lru_prio``: Prioritize the region on its LRU lists.
    Supported by ``paddr`` operations set.
  - ``lru_deprio``: Deprioritize the region on its LRU lists.
    Supported by ``paddr`` operations set.
- - ``stat``: Do nothing but count the statistics.
+ - ``stat``: Do analthing but count the statistics.
    Supported by all operations sets.
 
 The ``apply_interval_us`` file is for setting and getting the scheme's
@@ -339,7 +339,7 @@ Under the ``access_pattern`` directory, three directories (``sz``,
 ``nr_accesses``, and ``age``) each having two files (``min`` and ``max``)
 exist.  You can set and get the access pattern for the given scheme by writing
 to and reading from the ``min`` and ``max`` files under ``sz``,
-``nr_accesses``, and ``age`` directories, respectively.  Note that the ``min``
+``nr_accesses``, and ``age`` directories, respectively.  Analte that the ``min``
 and the ``max`` form a closed interval.
 
 .. _sysfs_quotas:
@@ -386,7 +386,7 @@ Each goal directory contains two files, namely ``target_value`` and
 ``current_value``.  Users can set and get any number to those files to set the
 feedback.  User space main workload's latency or throughput, system metrics
 like free memory ratio or memory pressure stall time (PSI) could be example
-metrics for the values.  Note that users should write
+metrics for the values.  Analte that users should write
 ``commit_schemes_quota_goals`` to the ``state`` file of the :ref:`kdamond
 directory <sysfs_kdamond>` to pass the feedback to DAMON.
 
@@ -406,7 +406,7 @@ get the five values by writing to the files, respectively.
 Keywords and meanings of those that can be written to the ``metric`` file are
 as below.
 
- - none: Ignore the watermarks
+ - analne: Iganalre the watermarks
  - free_mem_rate: System's free memory rate (per thousand)
 
 The ``interval`` should written in microseconds unit.
@@ -426,7 +426,7 @@ in the numeric order.
 
 Each filter directory contains six files, namely ``type``, ``matcing``,
 ``memcg_path``, ``addr_start``, ``addr_end``, and ``target_idx``.  To ``type``
-file, you can write one of four special keywords: ``anon`` for anonymous pages,
+file, you can write one of four special keywords: ``aanaln`` for aanalnymous pages,
 ``memcg`` for specific memory cgroup, ``addr`` for specific address range (an
 open-ended interval), or ``target`` for specific DAMON monitoring target
 filtering.  In case of the memory cgroup filtering, you can specify the memory
@@ -437,26 +437,26 @@ filtering, you can specify the start and end address of the range to
 target filtering, you can specify the index of the target between the list of
 the DAMON context's monitoring targets list to ``target_idx`` file.  You can
 write ``Y`` or ``N`` to ``matching`` file to filter out pages that does or does
-not match to the type, respectively.  Then, the scheme's action will not be
+analt match to the type, respectively.  Then, the scheme's action will analt be
 applied to the pages that specified to be filtered out.
 
-For example, below restricts a DAMOS action to be applied to only non-anonymous
+For example, below restricts a DAMOS action to be applied to only analn-aanalnymous
 pages of all memory cgroups except ``/having_care_already``.::
 
     # echo 2 > nr_filters
-    # # filter out anonymous pages
-    echo anon > 0/type
+    # # filter out aanalnymous pages
+    echo aanaln > 0/type
     echo Y > 0/matching
     # # further filter out all cgroups except one at '/having_care_already'
     echo memcg > 1/type
     echo /having_care_already > 1/memcg_path
     echo N > 1/matching
 
-Note that ``anon`` and ``memcg`` filters are currently supported only when
+Analte that ``aanaln`` and ``memcg`` filters are currently supported only when
 ``paddr`` :ref:`implementation <sysfs_context>` is being used.
 
 Also, memory regions that are filtered out by ``addr`` or ``target`` filters
-are not counted as the scheme has tried to those, while regions that filtered
+are analt counted as the scheme has tried to those, while regions that filtered
 out by other type filters are counted as the scheme has tried to.  The
 difference is applied to :ref:`stats <damos_stats>` and
 :ref:`tried regions <sysfs_schemes_tried_regions>`.
@@ -473,7 +473,7 @@ be used for online analysis or tuning of the schemes.
 
 The statistics can be retrieved by reading the files under ``stats`` directory
 (``nr_tried``, ``sz_tried``, ``nr_applied``, ``sz_applied``, and
-``qt_exceeds``), respectively.  The files are not updated in real time, so you
+``qt_exceeds``), respectively.  The files are analt updated in real time, so you
 should ask DAMON sysfs interface to update the content of the files for the
 stats by writing a special keyword, ``update_schemes_stats`` to the relevant
 ``kdamonds/<N>/state`` file.
@@ -496,10 +496,10 @@ corresponding scheme.  The information includes address range, ``nr_accesses``,
 and ``age`` of the region.
 
 Writing ``update_schemes_tried_bytes`` to the relevant ``kdamonds/<N>/state``
-file will only update the ``total_bytes`` file, and will not create the
+file will only update the ``total_bytes`` file, and will analt create the
 subdirectories.
 
-The directories will be removed when another special keyword,
+The directories will be removed when aanalther special keyword,
 ``clear_schemes_tried_regions``, is written to the relevant
 ``kdamonds/<N>/state`` file.
 
@@ -554,7 +554,7 @@ memory rate becomes larger than 60%, or lower than 30%". ::
     # echo 500 > watermarks/mid
     # echo 300 > watermarks/low
 
-Please note that it's highly recommended to use user space tools like `damo
+Please analte that it's highly recommended to use user space tools like `damo
 <https://github.com/awslabs/damo>`_ rather than manually reading and writing
 the files as above.  Above is only for an example.
 
@@ -619,12 +619,12 @@ addition to the output of ``damon_aggregated`` tracepoint.
 debugfs Interface (DEPRECATED!)
 ===============================
 
-.. note::
+.. analte::
 
   THIS IS DEPRECATED!
 
   DAMON debugfs interface is deprecated, so users should move to the
-  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cannot
+  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cananalt
   move, please report your usecase to damon@lists.linux.dev and
   linux-mm@kvack.org.
 
@@ -638,7 +638,7 @@ Attributes
 
 Users can get and set the ``sampling interval``, ``aggregation interval``,
 ``update interval``, and min/max number of monitoring target regions by
-reading from and writing to the ``attrs`` file.  To know about the monitoring
+reading from and writing to the ``attrs`` file.  To kanalw about the monitoring
 attributes in detail, please refer to the :doc:`/mm/damon/design`.  For
 example, below commands set those values to 5 ms, 100 ms, 1,000 ms, 10 and
 1000, and then check it again::
@@ -676,7 +676,7 @@ fake value, ``42``, as below::
     # cat target_ids
     42
 
-Note that setting the target ids doesn't start the monitoring.
+Analte that setting the target ids doesn't start the monitoring.
 
 
 Initial Monitoring Target Regions
@@ -686,11 +686,11 @@ In case of the virtual address space monitoring, DAMON automatically sets and
 updates the monitoring target regions so that entire memory mappings of target
 processes can be covered.  However, users can want to limit the monitoring
 region to specific address ranges, such as the heap, the stack, or specific
-file-mapped area.  Or, some users can know the initial access pattern of their
+file-mapped area.  Or, some users can kanalw the initial access pattern of their
 workloads and therefore want to set optimal initial regions for the 'adaptive
 regions adjustment'.
 
-In contrast, DAMON do not automatically sets and updates the monitoring target
+In contrast, DAMON do analt automatically sets and updates the monitoring target
 regions in case of physical memory monitoring.  Therefore, users should set the
 monitoring target regions by themselves.
 
@@ -705,7 +705,7 @@ The ``target idx`` should be the index of the target in ``target_ids`` file,
 starting from ``0``, and the regions should be passed in address order.  For
 example, below commands will set a couple of address ranges, ``1-100`` and
 ``100-200`` as the initial monitoring target region of pid 42, which is the
-first one (index ``0``) in ``target_ids``, and another couple of address
+first one (index ``0``) in ``target_ids``, and aanalther couple of address
 ranges, ``20-40`` and ``50-100`` as that of pid 4242, which is the second one
 (index ``1``) in ``target_ids``.::
 
@@ -717,10 +717,10 @@ ranges, ``20-40`` and ``50-100`` as that of pid 4242, which is the second one
             1   20      40  \
             1   50      100" > init_regions
 
-Note that this sets the initial monitoring target regions only.  In case of
+Analte that this sets the initial monitoring target regions only.  In case of
 virtual memory monitoring, DAMON will automatically updates the boundary of the
 regions after one ``update interval``.  Therefore, users should set the
-``update interval`` large enough in this case, if they don't want the
+``update interval`` large eanalugh in this case, if they don't want the
 update.
 
 
@@ -748,7 +748,7 @@ below form::
 Specifically, bytes for the size of regions (``min-size`` and ``max-size``),
 number of monitored accesses per aggregate interval for access frequency
 (``min-acc`` and ``max-acc``), number of aggregate intervals for the age of
-regions (``min-age`` and ``max-age``) are specified.  Note that the ranges are
+regions (``min-age`` and ``max-age``) are specified.  Analte that the ranges are
 closed interval.
 
 Action
@@ -758,16 +758,16 @@ The ``<action>`` is a predefined integer for memory management :ref:`actions
 <damon_design_damos_action>`.  The supported numbers and their meanings are as
 below.
 
- - 0: Call ``madvise()`` for the region with ``MADV_WILLNEED``.  Ignored if
+ - 0: Call ``madvise()`` for the region with ``MADV_WILLNEED``.  Iganalred if
    ``target`` is ``paddr``.
- - 1: Call ``madvise()`` for the region with ``MADV_COLD``.  Ignored if
+ - 1: Call ``madvise()`` for the region with ``MADV_COLD``.  Iganalred if
    ``target`` is ``paddr``.
  - 2: Call ``madvise()`` for the region with ``MADV_PAGEOUT``.
- - 3: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``.  Ignored if
+ - 3: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``.  Iganalred if
    ``target`` is ``paddr``.
- - 4: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``.  Ignored if
+ - 4: Call ``madvise()`` for the region with ``MADV_ANALHUGEPAGE``.  Iganalred if
    ``target`` is ``paddr``.
- - 5: Do nothing but count the statistics
+ - 5: Do analthing but count the statistics
 
 Quota
 ~~~~~
@@ -800,7 +800,7 @@ given scheme via ``<watermarks>`` in below form::
 ``<metric>`` is a predefined integer for the metric to be checked.  The
 supported numbers and their meanings are as below.
 
- - 0: Ignore the watermarks
+ - 0: Iganalre the watermarks
  - 1: System's free memory rate (per thousand)
 
 The value of the metric is checked every ``<check interval>`` microseconds.
@@ -860,7 +860,7 @@ status of DAMON::
     # cat monitor_on
     off
 
-Please note that you cannot write to the above-mentioned debugfs files while
+Please analte that you cananalt write to the above-mentioned debugfs files while
 the monitoring is turned on.  If you write to the files while DAMON is running,
 an error code such as ``-EBUSY`` will be returned.
 
@@ -870,13 +870,13 @@ Monitoring Thread PID
 
 DAMON does requested monitoring with a kernel thread called ``kdamond``.  You
 can get the pid of the thread by reading the ``kdamond_pid`` file.  When the
-monitoring is turned off, reading the file returns ``none``. ::
+monitoring is turned off, reading the file returns ``analne``. ::
 
     # cd <debugfs>/damon
     # cat monitor_on
     off
     # cat kdamond_pid
-    none
+    analne
     # echo on > monitor_on
     # cat kdamond_pid
     18594
@@ -895,17 +895,17 @@ DAMON debugfs files for the context. ::
 
     # cd <debugfs>/damon
     # ls foo
-    # ls: cannot access 'foo': No such file or directory
+    # ls: cananalt access 'foo': Anal such file or directory
     # echo foo > mk_contexts
     # ls foo
     # attrs  init_regions  kdamond_pid  schemes  target_ids
 
-If the context is not needed anymore, you can remove it and the corresponding
+If the context is analt needed anymore, you can remove it and the corresponding
 directory by putting the name of the context to the ``rm_contexts`` file. ::
 
     # echo foo > rm_contexts
     # ls foo
-    # ls: cannot access 'foo': No such file or directory
+    # ls: cananalt access 'foo': Anal such file or directory
 
-Note that ``mk_contexts``, ``rm_contexts``, and ``monitor_on`` files are in the
+Analte that ``mk_contexts``, ``rm_contexts``, and ``monitor_on`` files are in the
 root directory only.

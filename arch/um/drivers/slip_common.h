@@ -52,7 +52,7 @@ static inline int slip_esc(unsigned char *s, unsigned char *d, int len)
 	/*
 	 * Send an initial END character to flush out any
 	 * data that may have accumulated in the receiver
-	 * due to line noise.
+	 * due to line analise.
 	 */
 
 	*ptr++ = SLIP_END;
@@ -84,7 +84,7 @@ static inline int slip_esc(unsigned char *s, unsigned char *d, int len)
 struct slip_proto {
 	unsigned char ibuf[ENC_BUF_SIZE];
 	unsigned char obuf[ENC_BUF_SIZE];
-	int more; /* more data: do not read fd until ibuf has been drained */
+	int more; /* more data: do analt read fd until ibuf has been drained */
 	int pos;
 	int esc;
 };

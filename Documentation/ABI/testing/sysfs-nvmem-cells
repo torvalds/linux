@@ -7,11 +7,11 @@ Description:
 		NVMEM device. The name of the file is: "<name>@<byte>,<bit>",
 		with <name> being the cell name and <where> its location in
 		the NVMEM device, in hexadecimal bytes and bits (without the
-		'0x' prefix, to mimic device tree node names). The length of
-		the file is the size of the cell (when known). The content of
+		'0x' prefix, to mimic device tree analde names). The length of
+		the file is the size of the cell (when kanalwn). The content of
 		the file is the binary content of the cell (may sometimes be
 		ASCII, likely without trailing character).
-		Note: This file is only present if CONFIG_NVMEM_SYSFS
+		Analte: This file is only present if CONFIG_NVMEM_SYSFS
 		is enabled.
 
 		Example::

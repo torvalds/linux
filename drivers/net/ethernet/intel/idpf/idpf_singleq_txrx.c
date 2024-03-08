@@ -8,7 +8,7 @@
  * @skb: pointer to skb
  * @off: pointer to struct that holds offload parameters
  *
- * Returns 0 or error (negative) if checksum offload cannot be executed, 1
+ * Returns 0 or error (negative) if checksum offload cananalt be executed, 1
  * otherwise.
  */
 static int idpf_tx_singleq_csum(struct sk_buff *skb,
@@ -50,7 +50,7 @@ static int idpf_tx_singleq_csum(struct sk_buff *skb,
 			 */
 			tunnel |= is_tso ?
 				  IDPF_TX_CTX_EXT_IP_IPV4 :
-				  IDPF_TX_CTX_EXT_IP_IPV4_NO_CSUM;
+				  IDPF_TX_CTX_EXT_IP_IPV4_ANAL_CSUM;
 
 			l4_proto = ip.v4->protocol;
 		} else if (off->tx_flags & IDPF_TX_FLAGS_IPV6) {
@@ -464,20 +464,20 @@ static bool idpf_tx_singleq_clean(struct idpf_queue *tx_q, int napi_budget,
 
 		/* If this entry in the ring was used as a context descriptor,
 		 * it's corresponding entry in the buffer ring will indicate as
-		 * such. We can skip this descriptor since there is no buffer
+		 * such. We can skip this descriptor since there is anal buffer
 		 * to clean.
 		 */
 		if (tx_buf->ctx_entry) {
 			/* Clear this flag here to avoid stale flag values when
 			 * this buffer is used for actual data in the future.
 			 * There are cases where the tx_buf struct / the flags
-			 * field will not be cleared before being reused.
+			 * field will analt be cleared before being reused.
 			 */
 			tx_buf->ctx_entry = false;
 			goto fetch_next_txq_desc;
 		}
 
-		/* if next_to_watch is not set then no work pending */
+		/* if next_to_watch is analt set then anal work pending */
 		eop_desc = (struct idpf_base_tx_desc *)tx_buf->next_to_watch;
 		if (!eop_desc)
 			break;
@@ -485,7 +485,7 @@ static bool idpf_tx_singleq_clean(struct idpf_queue *tx_q, int napi_budget,
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		/* if the descriptor isn't done, no work yet to do */
+		/* if the descriptor isn't done, anal work yet to do */
 		if (!(eop_desc->qw1 &
 		      cpu_to_le64(IDPF_TX_DESC_DTYPE_DESC_DONE)))
 			break;
@@ -573,7 +573,7 @@ fetch_next_txq_desc:
  * @budget: Used to determine if we are in netpoll
  * @cleaned: returns number of packets cleaned
  *
- * Returns false if clean is not complete else returns true
+ * Returns false if clean is analt complete else returns true
  */
 static bool idpf_tx_singleq_clean_all(struct idpf_q_vector *q_vec, int budget,
 				      int *cleaned)
@@ -613,17 +613,17 @@ static bool idpf_rx_singleq_test_staterr(const union virtchnl2_rx_desc *rx_desc,
 }
 
 /**
- * idpf_rx_singleq_is_non_eop - process handling of non-EOP buffers
+ * idpf_rx_singleq_is_analn_eop - process handling of analn-EOP buffers
  * @rxq: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
  * @skb: Current socket buffer containing buffer in progress
  * @ntc: next to clean
  */
-static bool idpf_rx_singleq_is_non_eop(struct idpf_queue *rxq,
+static bool idpf_rx_singleq_is_analn_eop(struct idpf_queue *rxq,
 				       union virtchnl2_rx_desc *rx_desc,
 				       struct sk_buff *skb, u16 ntc)
 {
-	/* if we are the last buffer then there is nothing else to do */
+	/* if we are the last buffer then there is analthing else to do */
 	if (likely(idpf_rx_singleq_test_staterr(rx_desc, IDPF_RXD_EOF_SINGLEQ)))
 		return false;
 
@@ -655,7 +655,7 @@ static void idpf_rx_singleq_csum(struct idpf_queue *rxq, struct sk_buff *skb,
 		return;
 
 	decoded = rxq->vport->rx_ptype_lkup[ptype];
-	if (unlikely(!(decoded.known && decoded.outer_ip)))
+	if (unlikely(!(decoded.kanalwn && decoded.outer_ip)))
 		return;
 
 	ipv4 = IDPF_RX_PTYPE_TO_IPV(&decoded, IDPF_RX_PTYPE_OUTER_IPV4);
@@ -665,13 +665,13 @@ static void idpf_rx_singleq_csum(struct idpf_queue *rxq, struct sk_buff *skb,
 	if (unlikely(ipv4 && (csum_bits->ipe || csum_bits->eipe)))
 		goto checksum_fail;
 
-	/* Device could not do any checksum offload for certain extension
+	/* Device could analt do any checksum offload for certain extension
 	 * headers as indicated by setting IPV6EXADD bit
 	 */
 	if (unlikely(ipv6 && csum_bits->ipv6exadd))
 		return;
 
-	/* check for L4 errors and handle packets that were not able to be
+	/* check for L4 errors and handle packets that were analt able to be
 	 * checksummed due to arrival speed
 	 */
 	if (unlikely(csum_bits->l4e))
@@ -680,7 +680,7 @@ static void idpf_rx_singleq_csum(struct idpf_queue *rxq, struct sk_buff *skb,
 	if (unlikely(csum_bits->nat && csum_bits->eudpe))
 		goto checksum_fail;
 
-	/* Handle packets that were not able to be checksummed due to arrival
+	/* Handle packets that were analt able to be checksummed due to arrival
 	 * speed, in this case the stack can compute the csum.
 	 */
 	if (unlikely(csum_bits->pprs))
@@ -1022,7 +1022,7 @@ static int idpf_rx_singleq_clean(struct idpf_queue *rx_q, int budget)
 		 * descriptors because it's cleared in cleanup, and overlaps
 		 * with hdr_addr which is always zero because packet split
 		 * isn't used, if the hardware wrote DD then the length will be
-		 * non-zero
+		 * analn-zero
 		 */
 #define IDPF_RXD_DD VIRTCHNL2_RX_BASE_DESC_STATUS_DD_M
 		if (!idpf_rx_singleq_test_staterr(rx_desc,
@@ -1057,8 +1057,8 @@ skip_data:
 
 		cleaned_count++;
 
-		/* skip if it is non EOP desc */
-		if (idpf_rx_singleq_is_non_eop(rx_q, rx_desc, skb, ntc))
+		/* skip if it is analn EOP desc */
+		if (idpf_rx_singleq_is_analn_eop(rx_q, rx_desc, skb, ntc))
 			continue;
 
 #define IDPF_RXD_ERR_S FIELD_PREP(VIRTCHNL2_RX_BASE_DESC_QW1_ERROR_M, \
@@ -1113,7 +1113,7 @@ skip_data:
  * @budget: Used to determine if we are in netpoll
  * @cleaned: returns number of packets cleaned
  *
- * Returns false if clean is not complete else returns true
+ * Returns false if clean is analt complete else returns true
  */
 static bool idpf_rx_singleq_clean_all(struct idpf_q_vector *q_vec, int budget,
 				      int *cleaned)
@@ -1132,7 +1132,7 @@ static bool idpf_rx_singleq_clean_all(struct idpf_q_vector *q_vec, int budget,
 
 		pkts_cleaned_per_q = idpf_rx_singleq_clean(rxq, budget_per_q);
 
-		/* if we clean as many as budgeted, we must not be done */
+		/* if we clean as many as budgeted, we must analt be done */
 		if (pkts_cleaned_per_q >= budget_per_q)
 			clean_complete = false;
 		*cleaned += pkts_cleaned_per_q;
@@ -1165,7 +1165,7 @@ int idpf_vport_singleq_napi_poll(struct napi_struct *napi, int budget)
 	clean_complete &= idpf_tx_singleq_clean_all(q_vector, budget,
 						    &work_done);
 
-	/* If work not completed, return budget and polling will return */
+	/* If work analt completed, return budget and polling will return */
 	if (!clean_complete)
 		return budget;
 

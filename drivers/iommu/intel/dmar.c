@@ -40,7 +40,7 @@ typedef int (*dmar_res_handler_t)(struct acpi_dmar_header *, void *);
 struct dmar_res_callback {
 	dmar_res_handler_t	cb[ACPI_DMAR_TYPE_RESERVED];
 	void			*arg[ACPI_DMAR_TYPE_RESERVED];
-	bool			ignore_unhandled;
+	bool			iganalre_unhandled;
 	bool			print_entry;
 };
 
@@ -116,37 +116,37 @@ void dmar_free_dev_scope(struct dmar_dev_scope **devices, int *cnt)
 	*cnt = 0;
 }
 
-/* Optimize out kzalloc()/kfree() for normal cases */
-static char dmar_pci_notify_info_buf[64];
+/* Optimize out kzalloc()/kfree() for analrmal cases */
+static char dmar_pci_analtify_info_buf[64];
 
-static struct dmar_pci_notify_info *
-dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
+static struct dmar_pci_analtify_info *
+dmar_alloc_pci_analtify_info(struct pci_dev *dev, unsigned long event)
 {
 	int level = 0;
 	size_t size;
 	struct pci_dev *tmp;
-	struct dmar_pci_notify_info *info;
+	struct dmar_pci_analtify_info *info;
 
 	/*
-	 * Ignore devices that have a domain number higher than what can
+	 * Iganalre devices that have a domain number higher than what can
 	 * be looked up in DMAR, e.g. VMD subdevices with domain 0x10000
 	 */
 	if (pci_domain_nr(dev->bus) > U16_MAX)
 		return NULL;
 
 	/* Only generate path[] for device addition event */
-	if (event == BUS_NOTIFY_ADD_DEVICE)
+	if (event == BUS_ANALTIFY_ADD_DEVICE)
 		for (tmp = dev; tmp; tmp = tmp->bus->self)
 			level++;
 
 	size = struct_size(info, path, level);
-	if (size <= sizeof(dmar_pci_notify_info_buf)) {
-		info = (struct dmar_pci_notify_info *)dmar_pci_notify_info_buf;
+	if (size <= sizeof(dmar_pci_analtify_info_buf)) {
+		info = (struct dmar_pci_analtify_info *)dmar_pci_analtify_info_buf;
 	} else {
 		info = kzalloc(size, GFP_KERNEL);
 		if (!info) {
 			if (dmar_dev_scope_status == 0)
-				dmar_dev_scope_status = -ENOMEM;
+				dmar_dev_scope_status = -EANALMEM;
 			return NULL;
 		}
 	}
@@ -155,7 +155,7 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 	info->dev = dev;
 	info->seg = pci_domain_nr(dev->bus);
 	info->level = level;
-	if (event == BUS_NOTIFY_ADD_DEVICE) {
+	if (event == BUS_ANALTIFY_ADD_DEVICE) {
 		for (tmp = dev; tmp; tmp = tmp->bus->self) {
 			level--;
 			info->path[level].bus = tmp->bus->number;
@@ -169,13 +169,13 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 	return info;
 }
 
-static inline void dmar_free_pci_notify_info(struct dmar_pci_notify_info *info)
+static inline void dmar_free_pci_analtify_info(struct dmar_pci_analtify_info *info)
 {
-	if ((void *)info != dmar_pci_notify_info_buf)
+	if ((void *)info != dmar_pci_analtify_info_buf)
 		kfree(info);
 }
 
-static bool dmar_match_pci_path(struct dmar_pci_notify_info *info, int bus,
+static bool dmar_match_pci_path(struct dmar_pci_analtify_info *info, int bus,
 				struct acpi_dmar_pci_path *path, int count)
 {
 	int i;
@@ -210,8 +210,8 @@ fallback:
 	return false;
 }
 
-/* Return: > 0 if match found, 0 if no match found, < 0 if error happens */
-int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
+/* Return: > 0 if match found, 0 if anal match found, < 0 if error happens */
+int dmar_insert_dev_scope(struct dmar_pci_analtify_info *info,
 			  void *start, void*end, u16 segment,
 			  struct dmar_dev_scope *devices,
 			  int devices_cnt)
@@ -236,20 +236,20 @@ int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 			continue;
 
 		/*
-		 * We expect devices with endpoint scope to have normal PCI
+		 * We expect devices with endpoint scope to have analrmal PCI
 		 * headers, and devices with bridge scope to have bridge PCI
 		 * headers.  However PCI NTB devices may be listed in the
 		 * DMAR table with bridge scope, even though they have a
-		 * normal PCI header.  NTB devices are identified by class
+		 * analrmal PCI header.  NTB devices are identified by class
 		 * "BRIDGE_OTHER" (0680h) - we don't declare a socpe mismatch
 		 * for this special case.
 		 */
 		if ((scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT &&
-		     info->dev->hdr_type != PCI_HEADER_TYPE_NORMAL) ||
+		     info->dev->hdr_type != PCI_HEADER_TYPE_ANALRMAL) ||
 		    (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_BRIDGE &&
-		     (info->dev->hdr_type == PCI_HEADER_TYPE_NORMAL &&
+		     (info->dev->hdr_type == PCI_HEADER_TYPE_ANALRMAL &&
 		      info->dev->class >> 16 != PCI_BASE_CLASS_BRIDGE))) {
-			pr_warn("Device scope type does not match for %s\n",
+			pr_warn("Device scope type does analt match for %s\n",
 				pci_name(info->dev));
 			return -EINVAL;
 		}
@@ -269,7 +269,7 @@ int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 	return 0;
 }
 
-int dmar_remove_dev_scope(struct dmar_pci_notify_info *info, u16 segment,
+int dmar_remove_dev_scope(struct dmar_pci_analtify_info *info, u16 segment,
 			  struct dmar_dev_scope *devices, int count)
 {
 	int index;
@@ -289,7 +289,7 @@ int dmar_remove_dev_scope(struct dmar_pci_notify_info *info, u16 segment,
 	return 0;
 }
 
-static int dmar_pci_bus_add_dev(struct dmar_pci_notify_info *info)
+static int dmar_pci_bus_add_dev(struct dmar_pci_analtify_info *info)
 {
 	int ret = 0;
 	struct dmar_drhd_unit *dmaru;
@@ -309,7 +309,7 @@ static int dmar_pci_bus_add_dev(struct dmar_pci_notify_info *info)
 			break;
 	}
 	if (ret >= 0)
-		ret = dmar_iommu_notify_scope_dev(info);
+		ret = dmar_iommu_analtify_scope_dev(info);
 	if (ret < 0 && dmar_dev_scope_status == 0)
 		dmar_dev_scope_status = ret;
 
@@ -319,7 +319,7 @@ static int dmar_pci_bus_add_dev(struct dmar_pci_notify_info *info)
 	return ret;
 }
 
-static void  dmar_pci_bus_del_dev(struct dmar_pci_notify_info *info)
+static void  dmar_pci_bus_del_dev(struct dmar_pci_analtify_info *info)
 {
 	struct dmar_drhd_unit *dmaru;
 
@@ -327,7 +327,7 @@ static void  dmar_pci_bus_del_dev(struct dmar_pci_notify_info *info)
 		if (dmar_remove_dev_scope(info, dmaru->segment,
 			dmaru->devices, dmaru->devices_cnt))
 			break;
-	dmar_iommu_notify_scope_dev(info);
+	dmar_iommu_analtify_scope_dev(info);
 }
 
 static inline void vf_inherit_msi_domain(struct pci_dev *pdev)
@@ -337,11 +337,11 @@ static inline void vf_inherit_msi_domain(struct pci_dev *pdev)
 	dev_set_msi_domain(&pdev->dev, dev_get_msi_domain(&physfn->dev));
 }
 
-static int dmar_pci_bus_notifier(struct notifier_block *nb,
+static int dmar_pci_bus_analtifier(struct analtifier_block *nb,
 				 unsigned long action, void *data)
 {
 	struct pci_dev *pdev = to_pci_dev(data);
-	struct dmar_pci_notify_info *info;
+	struct dmar_pci_analtify_info *info;
 
 	/* Only care about add/remove events for physical functions.
 	 * For VFs we actually do the lookup based on the corresponding
@@ -352,36 +352,36 @@ static int dmar_pci_bus_notifier(struct notifier_block *nb,
 		 * PF device. Ideally the device would inherit the domain
 		 * from the bus, but DMAR can have multiple units per bus
 		 * which makes this impossible. The VF 'bus' could inherit
-		 * from the PF device, but that's yet another x86'sism to
+		 * from the PF device, but that's yet aanalther x86'sism to
 		 * inflict on everybody else.
 		 */
-		if (action == BUS_NOTIFY_ADD_DEVICE)
+		if (action == BUS_ANALTIFY_ADD_DEVICE)
 			vf_inherit_msi_domain(pdev);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	if (action != BUS_NOTIFY_ADD_DEVICE &&
-	    action != BUS_NOTIFY_REMOVED_DEVICE)
-		return NOTIFY_DONE;
+	if (action != BUS_ANALTIFY_ADD_DEVICE &&
+	    action != BUS_ANALTIFY_REMOVED_DEVICE)
+		return ANALTIFY_DONE;
 
-	info = dmar_alloc_pci_notify_info(pdev, action);
+	info = dmar_alloc_pci_analtify_info(pdev, action);
 	if (!info)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	down_write(&dmar_global_lock);
-	if (action == BUS_NOTIFY_ADD_DEVICE)
+	if (action == BUS_ANALTIFY_ADD_DEVICE)
 		dmar_pci_bus_add_dev(info);
-	else if (action == BUS_NOTIFY_REMOVED_DEVICE)
+	else if (action == BUS_ANALTIFY_REMOVED_DEVICE)
 		dmar_pci_bus_del_dev(info);
 	up_write(&dmar_global_lock);
 
-	dmar_free_pci_notify_info(info);
+	dmar_free_pci_analtify_info(info);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block dmar_pci_bus_nb = {
-	.notifier_call = dmar_pci_bus_notifier,
+static struct analtifier_block dmar_pci_bus_nb = {
+	.analtifier_call = dmar_pci_bus_analtifier,
 	.priority = 1,
 };
 
@@ -417,7 +417,7 @@ static int dmar_parse_one_drhd(struct acpi_dmar_header *header, void *arg)
 
 	dmaru = kzalloc(sizeof(*dmaru) + header->length, GFP_KERNEL);
 	if (!dmaru)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * If header is allocated from slab by ACPI _DSM method, we need to
@@ -435,7 +435,7 @@ static int dmar_parse_one_drhd(struct acpi_dmar_header *header, void *arg)
 					      &dmaru->devices_cnt);
 	if (dmaru->devices_cnt && dmaru->devices == NULL) {
 		kfree(dmaru);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = alloc_iommu(dmaru);
@@ -471,7 +471,7 @@ static int __init dmar_parse_one_andd(struct acpi_dmar_header *header,
 	/* Check for NUL termination within the designated length */
 	if (strnlen(andd->device_name, header->length - 8) == header->length - 8) {
 		pr_warn(FW_BUG
-			   "Your BIOS is broken; ANDD object name is not NUL-terminated\n"
+			   "Your BIOS is broken; ANDD object name is analt NUL-terminated\n"
 			   "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
 			   dmi_get_system_info(DMI_BIOS_VENDOR),
 			   dmi_get_system_info(DMI_BIOS_VERSION),
@@ -494,16 +494,16 @@ static int dmar_parse_one_rhsa(struct acpi_dmar_header *header, void *arg)
 	rhsa = (struct acpi_dmar_rhsa *)header;
 	for_each_drhd_unit(drhd) {
 		if (drhd->reg_base_addr == rhsa->base_address) {
-			int node = pxm_to_node(rhsa->proximity_domain);
+			int analde = pxm_to_analde(rhsa->proximity_domain);
 
-			if (node != NUMA_NO_NODE && !node_online(node))
-				node = NUMA_NO_NODE;
-			drhd->iommu->node = node;
+			if (analde != NUMA_ANAL_ANALDE && !analde_online(analde))
+				analde = NUMA_ANAL_ANALDE;
+			drhd->iommu->analde = analde;
 			return 0;
 		}
 	}
 	pr_warn(FW_BUG
-		"Your BIOS is broken; RHSA refers to non-existent DMAR unit at %llx\n"
+		"Your BIOS is broken; RHSA refers to analn-existent DMAR unit at %llx\n"
 		"BIOS vendor: %s; Ver: %s; Product Version: %s\n",
 		rhsa->base_address,
 		dmi_get_system_info(DMI_BIOS_VENDOR),
@@ -514,7 +514,7 @@ static int dmar_parse_one_rhsa(struct acpi_dmar_header *header, void *arg)
 	return 0;
 }
 #else
-#define	dmar_parse_one_rhsa		dmar_res_noop
+#define	dmar_parse_one_rhsa		dmar_res_analop
 #endif
 
 static void
@@ -573,10 +573,10 @@ static int __init dmar_table_detect(void)
 
 	if (ACPI_SUCCESS(status) && !dmar_tbl) {
 		pr_warn("Unable to map DMAR\n");
-		status = AE_NOT_FOUND;
+		status = AE_ANALT_FOUND;
 	}
 
-	return ACPI_SUCCESS(status) ? 0 : -ENOENT;
+	return ACPI_SUCCESS(status) ? 0 : -EANALENT;
 }
 
 static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
@@ -602,7 +602,7 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 
 		if (iter->type >= ACPI_DMAR_TYPE_RESERVED) {
 			/* continue for forward compatibility */
-			pr_debug("Unknown DMAR structure type %d\n",
+			pr_debug("Unkanalwn DMAR structure type %d\n",
 				 iter->type);
 		} else if (cb->cb[iter->type]) {
 			int ret;
@@ -610,8 +610,8 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 			ret = cb->cb[iter->type](iter, cb->arg[iter->type]);
 			if (ret)
 				return ret;
-		} else if (!cb->ignore_unhandled) {
-			pr_warn("No handler for DMAR structure type %d\n",
+		} else if (!cb->iganalre_unhandled) {
+			pr_warn("Anal handler for DMAR structure type %d\n",
 				iter->type);
 			return -EINVAL;
 		}
@@ -638,7 +638,7 @@ parse_dmar_table(void)
 	int ret;
 	struct dmar_res_callback cb = {
 		.print_entry = true,
-		.ignore_unhandled = true,
+		.iganalre_unhandled = true,
 		.arg[ACPI_DMAR_TYPE_HARDWARE_UNIT] = &drhd_count,
 		.cb[ACPI_DMAR_TYPE_HARDWARE_UNIT] = &dmar_parse_one_drhd,
 		.cb[ACPI_DMAR_TYPE_RESERVED_MEMORY] = &dmar_parse_one_rmrr,
@@ -655,14 +655,14 @@ parse_dmar_table(void)
 	dmar_table_detect();
 
 	/*
-	 * ACPI tables may not be DMA protected by tboot, so use DMAR copy
+	 * ACPI tables may analt be DMA protected by tboot, so use DMAR copy
 	 * SINIT saved in SinitMleData in TXT heap (which is DMA protected)
 	 */
 	dmar_tbl = tboot_get_dmar_table(dmar_tbl);
 
 	dmar = (struct acpi_table_dmar *)dmar_tbl;
 	if (!dmar)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dmar->width < PAGE_SHIFT - 1) {
 		pr_warn("Invalid DMAR haw\n");
@@ -672,7 +672,7 @@ parse_dmar_table(void)
 	pr_info("Host address width %d\n", dmar->width + 1);
 	ret = dmar_walk_dmar_table(dmar, &cb);
 	if (ret == 0 && drhd_count == 0)
-		pr_warn(FW_BUG "No DRHD structure found in DMAR table\n");
+		pr_warn(FW_BUG "Anal DRHD structure found in DMAR table\n");
 
 	return ret;
 }
@@ -763,7 +763,7 @@ static void __init dmar_acpi_insert_dev_scope(u8 device_number,
 			BUG_ON(i >= dmaru->devices_cnt);
 		}
 	}
-	pr_warn("No IOMMU scope found for ANDD enumeration ID %d (%s)\n",
+	pr_warn("Anal IOMMU scope found for ANDD enumeration ID %d (%s)\n",
 		device_number, dev_name(&adev->dev));
 }
 
@@ -772,7 +772,7 @@ static int __init dmar_acpi_dev_scope_init(void)
 	struct acpi_dmar_andd *andd;
 
 	if (dmar_tbl == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (andd = (void *)dmar_tbl + sizeof(struct acpi_table_dmar);
 	     ((unsigned long)andd) < ((unsigned long)dmar_tbl) + dmar_tbl->length;
@@ -803,13 +803,13 @@ static int __init dmar_acpi_dev_scope_init(void)
 int __init dmar_dev_scope_init(void)
 {
 	struct pci_dev *dev = NULL;
-	struct dmar_pci_notify_info *info;
+	struct dmar_pci_analtify_info *info;
 
 	if (dmar_dev_scope_status != 1)
 		return dmar_dev_scope_status;
 
 	if (list_empty(&dmar_drhd_units)) {
-		dmar_dev_scope_status = -ENODEV;
+		dmar_dev_scope_status = -EANALDEV;
 	} else {
 		dmar_dev_scope_status = 0;
 
@@ -819,14 +819,14 @@ int __init dmar_dev_scope_init(void)
 			if (dev->is_virtfn)
 				continue;
 
-			info = dmar_alloc_pci_notify_info(dev,
-					BUS_NOTIFY_ADD_DEVICE);
+			info = dmar_alloc_pci_analtify_info(dev,
+					BUS_ANALTIFY_ADD_DEVICE);
 			if (!info) {
 				pci_dev_put(dev);
 				return dmar_dev_scope_status;
 			} else {
 				dmar_pci_bus_add_dev(info);
-				dmar_free_pci_notify_info(info);
+				dmar_free_pci_analtify_info(info);
 			}
 		}
 	}
@@ -834,9 +834,9 @@ int __init dmar_dev_scope_init(void)
 	return dmar_dev_scope_status;
 }
 
-void __init dmar_register_bus_notifier(void)
+void __init dmar_register_bus_analtifier(void)
 {
-	bus_register_notifier(&pci_bus_type, &dmar_pci_bus_nb);
+	bus_register_analtifier(&pci_bus_type, &dmar_pci_bus_nb);
 }
 
 
@@ -848,11 +848,11 @@ int __init dmar_table_init(void)
 	if (dmar_table_initialized == 0) {
 		ret = parse_dmar_table();
 		if (ret < 0) {
-			if (ret != -ENODEV)
+			if (ret != -EANALDEV)
 				pr_info("Parse DMAR table failure.\n");
 		} else  if (list_empty(&dmar_drhd_units)) {
-			pr_info("No DMAR devices found\n");
-			ret = -ENODEV;
+			pr_info("Anal DMAR devices found\n");
+			ret = -EANALDEV;
 		}
 
 		if (ret < 0)
@@ -919,7 +919,7 @@ void __init detect_intel_iommu(void)
 	int ret;
 	struct dmar_res_callback validate_drhd_cb = {
 		.cb[ACPI_DMAR_TYPE_HARDWARE_UNIT] = &dmar_validate_one_drhd,
-		.ignore_unhandled = true,
+		.iganalre_unhandled = true,
 	};
 
 	down_write(&dmar_global_lock);
@@ -927,7 +927,7 @@ void __init detect_intel_iommu(void)
 	if (!ret)
 		ret = dmar_walk_dmar_table((struct acpi_table_dmar *)dmar_tbl,
 					   &validate_drhd_cb);
-	if (!ret && !no_iommu && !iommu_detected &&
+	if (!ret && !anal_iommu && !iommu_detected &&
 	    (!dmar_disabled || dmar_platform_optin())) {
 		iommu_detected = 1;
 		/* Make sure ACS will be enabled */
@@ -980,7 +980,7 @@ static int map_iommu(struct intel_iommu *iommu, struct dmar_drhd_unit *drhd)
 	iommu->reg = ioremap(iommu->reg_phys, iommu->reg_size);
 	if (!iommu->reg) {
 		pr_err("Can't map the region\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release;
 	}
 
@@ -1010,7 +1010,7 @@ static int map_iommu(struct intel_iommu *iommu, struct dmar_drhd_unit *drhd)
 		iommu->reg = ioremap(iommu->reg_phys, iommu->reg_size);
 		if (!iommu->reg) {
 			pr_err("Can't map the region\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto release;
 		}
 	}
@@ -1050,7 +1050,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iommu->seq_id = ida_alloc_range(&dmar_seq_ids, 0,
 					DMAR_UNITS_SUPPORTED - 1, GFP_KERNEL);
@@ -1070,25 +1070,25 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	err = -EINVAL;
 	if (!cap_sagaw(iommu->cap) &&
 	    (!ecap_smts(iommu->ecap) || ecap_slts(iommu->ecap))) {
-		pr_info("%s: No supported address widths. Not attempting DMA translation.\n",
+		pr_info("%s: Anal supported address widths. Analt attempting DMA translation.\n",
 			iommu->name);
-		drhd->ignored = 1;
+		drhd->iganalred = 1;
 	}
 
-	if (!drhd->ignored) {
+	if (!drhd->iganalred) {
 		agaw = iommu_calculate_agaw(iommu);
 		if (agaw < 0) {
-			pr_err("Cannot get a valid agaw for iommu (seq_id = %d)\n",
+			pr_err("Cananalt get a valid agaw for iommu (seq_id = %d)\n",
 			       iommu->seq_id);
-			drhd->ignored = 1;
+			drhd->iganalred = 1;
 		}
 	}
-	if (!drhd->ignored) {
+	if (!drhd->iganalred) {
 		msagaw = iommu_calculate_max_sagaw(iommu);
 		if (msagaw < 0) {
-			pr_err("Cannot get a valid max agaw for iommu (seq_id = %d)\n",
+			pr_err("Cananalt get a valid max agaw for iommu (seq_id = %d)\n",
 			       iommu->seq_id);
-			drhd->ignored = 1;
+			drhd->iganalred = 1;
 			agaw = -1;
 		}
 	}
@@ -1096,13 +1096,13 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	iommu->msagaw = msagaw;
 	iommu->segment = drhd->segment;
 
-	iommu->node = NUMA_NO_NODE;
+	iommu->analde = NUMA_ANAL_ANALDE;
 
 	ver = readl(iommu->reg + DMAR_VER_REG);
 	pr_info("%s: reg_base_addr %llx ver %d:%d cap %llx ecap %llx\n",
 		iommu->name,
 		(unsigned long long)drhd->reg_base_addr,
-		DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver),
+		DMAR_VER_MAJOR(ver), DMAR_VER_MIANALR(ver),
 		(unsigned long long)iommu->cap,
 		(unsigned long long)iommu->ecap);
 
@@ -1116,7 +1116,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 		iommu->gcmd |= DMA_GCMD_QIE;
 
 	if (alloc_iommu_pmu(iommu))
-		pr_debug("Cannot alloc PMU for iommu (seq_id = %d)\n", iommu->seq_id);
+		pr_debug("Cananalt alloc PMU for iommu (seq_id = %d)\n", iommu->seq_id);
 
 	raw_spin_lock_init(&iommu->register_lock);
 
@@ -1132,7 +1132,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	 * be set yet. When intel_iommu_init() runs, it registers the units
 	 * present at boot time, then sets intel_iommu_enabled.
 	 */
-	if (intel_iommu_enabled && !drhd->ignored) {
+	if (intel_iommu_enabled && !drhd->iganalred) {
 		err = iommu_device_sysfs_add(&iommu->iommu, NULL,
 					     intel_iommu_groups,
 					     "%s", iommu->name);
@@ -1165,7 +1165,7 @@ error:
 
 static void free_iommu(struct intel_iommu *iommu)
 {
-	if (intel_iommu_enabled && !iommu->drhd->ignored) {
+	if (intel_iommu_enabled && !iommu->drhd->iganalred) {
 		iommu_pmu_unregister(iommu);
 		iommu_device_unregister(&iommu->iommu);
 		iommu_device_sysfs_remove(&iommu->iommu);
@@ -1232,7 +1232,7 @@ static const char *qi_type_string(u8 type)
 	case QI_PGRP_RESP_TYPE:
 		return "Page Group Response";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -1283,7 +1283,7 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 
 	/*
 	 * If IQE happens, the head points to the descriptor associated
-	 * with the error. No new descriptors are fetched until the IQE
+	 * with the error. Anal new descriptors are fetched until the IQE
 	 * is cleared.
 	 */
 	if (fault & DMA_FSTS_IQE) {
@@ -1306,7 +1306,7 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 
 	/*
 	 * If ITE happens, all pending wait_desc commands are aborted.
-	 * No new descriptors are fetched until the ITE is cleared.
+	 * Anal new descriptors are fetched until the ITE is cleared.
 	 */
 	if (fault & DMA_FSTS_ITE) {
 		head = readl(iommu->reg + DMAR_IQH_REG);
@@ -1341,7 +1341,7 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
  * invalidation interface(QI). Multiple descriptors can be submitted at a
  * time, a wait descriptor will be appended to each submission to ensure
  * hardware has completed the invalidation before return. Wait descriptors
- * can be part of the submission but it will not be polled for completion.
+ * can be part of the submission but it will analt be polled for completion.
  */
 int qi_submit_sync(struct intel_iommu *iommu, struct qi_desc *desc,
 		   unsigned int count, unsigned long options)
@@ -1379,7 +1379,7 @@ restart:
 
 	raw_spin_lock_irqsave(&qi->q_lock, flags);
 	/*
-	 * Check if we have enough empty slots in the queue to submit,
+	 * Check if we have eanalugh empty slots in the queue to submit,
 	 * the calculation is based on:
 	 * # of desc + 1 wait desc + 1 space between head and tail
 	 */
@@ -1425,7 +1425,7 @@ restart:
 	while (qi->desc_status[wait_index] != QI_DONE) {
 		/*
 		 * We will leave the interrupts disabled, to prevent interrupt
-		 * context to queue another cmd while a cmd is already submitted
+		 * context to queue aanalther cmd while a cmd is already submitted
 		 * and waiting for completion on this cpu. This is to avoid
 		 * a deadlock where the interrupt context can wait indefinitely
 		 * for free slots in the queue.
@@ -1525,7 +1525,7 @@ void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 pfsid,
 	/*
 	 * VT-d spec, section 4.3:
 	 *
-	 * Software is recommended to not submit any Device-TLB invalidation
+	 * Software is recommended to analt submit any Device-TLB invalidation
 	 * requests while address remapping hardware is disabled.
 	 */
 	if (!(iommu->gcmd & DMA_GCMD_TE))
@@ -1557,7 +1557,7 @@ void qi_flush_piotlb(struct intel_iommu *iommu, u16 did, u32 pasid, u64 addr,
 	/*
 	 * npages == -1 means a PASID-selective invalidation, otherwise,
 	 * a positive value for Page-selective-within-PASID invalidation.
-	 * 0 is not a valid input.
+	 * 0 is analt a valid input.
 	 */
 	if (WARN_ON(!npages)) {
 		pr_err("Invalid input npages = %ld\n", npages);
@@ -1567,7 +1567,7 @@ void qi_flush_piotlb(struct intel_iommu *iommu, u16 did, u32 pasid, u64 addr,
 	if (npages == -1) {
 		desc.qw0 = QI_EIOTLB_PASID(pasid) |
 				QI_EIOTLB_DID(did) |
-				QI_EIOTLB_GRAN(QI_GRAN_NONG_PASID) |
+				QI_EIOTLB_GRAN(QI_GRAN_ANALNG_PASID) |
 				QI_EIOTLB_TYPE;
 		desc.qw1 = 0;
 	} else {
@@ -1599,7 +1599,7 @@ void qi_flush_dev_iotlb_pasid(struct intel_iommu *iommu, u16 sid, u16 pfsid,
 	/*
 	 * VT-d spec, section 4.3:
 	 *
-	 * Software is recommended to not submit any Device-TLB invalidation
+	 * Software is recommended to analt submit any Device-TLB invalidation
 	 * requests while address remapping hardware is disabled.
 	 */
 	if (!(iommu->gcmd & DMA_GCMD_TE))
@@ -1615,11 +1615,11 @@ void qi_flush_dev_iotlb_pasid(struct intel_iommu *iommu, u16 sid, u16 pfsid,
 	 * range. VT-d spec 6.5.2.6.
 	 * e.g. address bit 12[0] indicates 8KB, 13[0] indicates 16KB.
 	 * size order = 0 is PAGE_SIZE 4KB
-	 * Max Invs Pending (MIP) is set to 0 for now until we have DIT in
+	 * Max Invs Pending (MIP) is set to 0 for analw until we have DIT in
 	 * ECAP.
 	 */
 	if (!IS_ALIGNED(addr, VTD_PAGE_SIZE << size_order))
-		pr_warn_ratelimited("Invalidate non-aligned address %llx, order %d\n",
+		pr_warn_ratelimited("Invalidate analn-aligned address %llx, order %d\n",
 				    addr, size_order);
 
 	/* Take page address */
@@ -1734,7 +1734,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	struct page *desc_page;
 
 	if (!ecap_qis(iommu->ecap))
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * queued invalidation is already setup and enabled.
@@ -1744,7 +1744,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 
 	iommu->qi = kmalloc(sizeof(*qi), GFP_ATOMIC);
 	if (!iommu->qi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qi = iommu->qi;
 
@@ -1752,12 +1752,12 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	 * Need two pages to accommodate 256 descriptors of 256 bits each
 	 * if the remapping hardware supports scalable mode translation.
 	 */
-	desc_page = alloc_pages_node(iommu->node, GFP_ATOMIC | __GFP_ZERO,
+	desc_page = alloc_pages_analde(iommu->analde, GFP_ATOMIC | __GFP_ZERO,
 				     !!ecap_smts(iommu->ecap));
 	if (!desc_page) {
 		kfree(qi);
 		iommu->qi = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	qi->desc = page_address(desc_page);
@@ -1767,7 +1767,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 		free_page((unsigned long) qi->desc);
 		kfree(qi);
 		iommu->qi = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	raw_spin_lock_init(&qi->q_lock);
@@ -1782,7 +1782,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 enum faulttype {
 	DMA_REMAP,
 	INTR_REMAP,
-	UNKNOWN,
+	UNKANALWN,
 };
 
 static const char *dma_remap_fault_reasons[] =
@@ -1792,14 +1792,14 @@ static const char *dma_remap_fault_reasons[] =
 	"Present bit in context entry is clear",
 	"Invalid context entry",
 	"Access beyond MGAW",
-	"PTE Write access is not set",
-	"PTE Read access is not set",
+	"PTE Write access is analt set",
+	"PTE Read access is analt set",
 	"Next page table ptr is invalid",
 	"Root table address invalid",
 	"Context table ptr is invalid",
-	"non-zero reserved fields in RTP",
-	"non-zero reserved fields in CTP",
-	"non-zero reserved fields in PTE",
+	"analn-zero reserved fields in RTP",
+	"analn-zero reserved fields in CTP",
+	"analn-zero reserved fields in PTE",
 	"PCE for translation request specifies blocking",
 };
 
@@ -1807,37 +1807,37 @@ static const char * const dma_remap_sm_fault_reasons[] = {
 	"SM: Invalid Root Table Address",
 	"SM: TTM 0 for request with PASID",
 	"SM: TTM 0 for page group request",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x33-0x37 */
+	"Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", /* 0x33-0x37 */
 	"SM: Error attempting to access Root Entry",
 	"SM: Present bit in Root Entry is clear",
-	"SM: Non-zero reserved field set in Root Entry",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x3B-0x3F */
+	"SM: Analn-zero reserved field set in Root Entry",
+	"Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", /* 0x3B-0x3F */
 	"SM: Error attempting to access Context Entry",
 	"SM: Present bit in Context Entry is clear",
-	"SM: Non-zero reserved field set in the Context Entry",
+	"SM: Analn-zero reserved field set in the Context Entry",
 	"SM: Invalid Context Entry",
 	"SM: DTE field in Context Entry is clear",
 	"SM: PASID Enable field in Context Entry is clear",
 	"SM: PASID is larger than the max in Context Entry",
 	"SM: PRE field in Context-Entry is clear",
 	"SM: RID_PASID field error in Context-Entry",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x49-0x4F */
+	"Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", /* 0x49-0x4F */
 	"SM: Error attempting to access the PASID Directory Entry",
 	"SM: Present bit in Directory Entry is clear",
-	"SM: Non-zero reserved field set in PASID Directory Entry",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x53-0x57 */
+	"SM: Analn-zero reserved field set in PASID Directory Entry",
+	"Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", /* 0x53-0x57 */
 	"SM: Error attempting to access PASID Table Entry",
 	"SM: Present bit in PASID Table Entry is clear",
-	"SM: Non-zero reserved field set in PASID Table Entry",
+	"SM: Analn-zero reserved field set in PASID Table Entry",
 	"SM: Invalid Scalable-Mode PASID Table Entry",
 	"SM: ERE field is clear in PASID Table Entry",
 	"SM: SRE field is clear in PASID Table Entry",
-	"Unknown", "Unknown",/* 0x5E-0x5F */
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x60-0x67 */
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x68-0x6F */
+	"Unkanalwn", "Unkanalwn",/* 0x5E-0x5F */
+	"Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", /* 0x60-0x67 */
+	"Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", /* 0x68-0x6F */
 	"SM: Error attempting to access first-level paging entry",
 	"SM: Present bit in first-level paging entry is clear",
-	"SM: Non-zero reserved field set in first-level paging entry",
+	"SM: Analn-zero reserved field set in first-level paging entry",
 	"SM: Error attempting to access FL-PML4 entry",
 	"SM: First-level entry address beyond MGAW in Nested translation",
 	"SM: Read permission error in FL-PML4 entry in Nested translation",
@@ -1845,20 +1845,20 @@ static const char * const dma_remap_sm_fault_reasons[] = {
 	"SM: Write permission error in first-level paging entry in Nested translation",
 	"SM: Error attempting to access second-level paging entry",
 	"SM: Read/Write permission error in second-level paging entry",
-	"SM: Non-zero reserved field set in second-level paging entry",
+	"SM: Analn-zero reserved field set in second-level paging entry",
 	"SM: Invalid second-level page table pointer",
-	"SM: A/D bit update needed in second-level entry when set up in no snoop",
-	"Unknown", "Unknown", "Unknown", /* 0x7D-0x7F */
-	"SM: Address in first-level translation is not canonical",
+	"SM: A/D bit update needed in second-level entry when set up in anal sanalop",
+	"Unkanalwn", "Unkanalwn", "Unkanalwn", /* 0x7D-0x7F */
+	"SM: Address in first-level translation is analt caanalnical",
 	"SM: U/S set 0 for first-level translation with user privilege",
-	"SM: No execute permission for request with PASID and ER=1",
+	"SM: Anal execute permission for request with PASID and ER=1",
 	"SM: Address beyond the DMA hardware max",
 	"SM: Second-level entry address beyond the max",
-	"SM: No write permission for Write/AtomicOp request",
-	"SM: No read permission for Read/AtomicOp request",
+	"SM: Anal write permission for Write/AtomicOp request",
+	"SM: Anal read permission for Read/AtomicOp request",
 	"SM: Invalid address-interrupt address",
-	"Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", /* 0x88-0x8F */
-	"SM: A/D bit update needed in first-level entry when set up in no snoop",
+	"Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", "Unkanalwn", /* 0x88-0x8F */
+	"SM: A/D bit update needed in first-level entry when set up in anal sanalop",
 };
 
 static const char *irq_remap_fault_reasons[] =
@@ -1886,8 +1886,8 @@ static const char *dmar_get_fault_reason(u8 fault_reason, int *fault_type)
 		*fault_type = DMA_REMAP;
 		return dma_remap_fault_reasons[fault_reason];
 	} else {
-		*fault_type = UNKNOWN;
-		return "Unknown";
+		*fault_type = UNKANALWN;
+		return "Unkanalwn";
 	}
 }
 
@@ -1977,7 +1977,7 @@ static int dmar_fault_do_one(struct intel_iommu *iommu, int type,
 	}
 
 	if (pasid == IOMMU_PASID_INVALID)
-		pr_err("[%s NO_PASID] Request device [%02x:%02x.%d] fault addr 0x%llx [fault reason 0x%02x] %s\n",
+		pr_err("[%s ANAL_PASID] Request device [%02x:%02x.%d] fault addr 0x%llx [fault reason 0x%02x] %s\n",
 		       type ? "DMA Read" : "DMA Write",
 		       source_id >> 8, PCI_SLOT(source_id & 0xFF),
 		       PCI_FUNC(source_id & 0xFF), addr,
@@ -2010,7 +2010,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 	if (fault_status && __ratelimit(&rs))
 		pr_err("DRHD: handling fault status reg %x\n", fault_status);
 
-	/* TBD: ignore advanced fault log currently */
+	/* TBD: iganalre advanced fault log currently */
 	if (!(fault_status & DMA_FSTS_PPF))
 		goto unlock_exit;
 
@@ -2055,7 +2055,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 		raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 
 		if (!ratelimited)
-			/* Using pasid -1 if pasid is not present */
+			/* Using pasid -1 if pasid is analt present */
 			dmar_fault_do_one(iommu, type, fault_reason,
 					  pasid_present ? pasid : IOMMU_PASID_INVALID,
 					  source_id, guest_addr);
@@ -2084,15 +2084,15 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 	if (iommu->irq)
 		return 0;
 
-	irq = dmar_alloc_hwirq(iommu->seq_id, iommu->node, iommu);
+	irq = dmar_alloc_hwirq(iommu->seq_id, iommu->analde, iommu);
 	if (irq > 0) {
 		iommu->irq = irq;
 	} else {
-		pr_err("No free IRQ vectors\n");
+		pr_err("Anal free IRQ vectors\n");
 		return -EINVAL;
 	}
 
-	ret = request_irq(irq, dmar_fault, IRQF_NO_THREAD, iommu->name, iommu);
+	ret = request_irq(irq, dmar_fault, IRQF_ANAL_THREAD, iommu->name, iommu);
 	if (ret)
 		pr_err("Can't request irq\n");
 	return ret;
@@ -2133,18 +2133,18 @@ int __init enable_drhd_fault_handling(void)
 int dmar_reenable_qi(struct intel_iommu *iommu)
 {
 	if (!ecap_qis(iommu->ecap))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!iommu->qi)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * First disable queued invalidation.
 	 */
 	dmar_disable_qi(iommu);
 	/*
-	 * Then enable queued invalidation again. Since there is no pending
-	 * invalidation requests now, it's safe to re-enable queued
+	 * Then enable queued invalidation again. Since there is anal pending
+	 * invalidation requests analw, it's safe to re-enable queued
 	 * invalidation.
 	 */
 	__dmar_enable_qi(iommu);
@@ -2178,7 +2178,7 @@ static int __init dmar_free_unused_resources(void)
 		return 0;
 
 	if (dmar_dev_scope_status != 1 && !list_empty(&dmar_drhd_units))
-		bus_unregister_notifier(&pci_bus_type, &dmar_pci_bus_nb);
+		bus_unregister_analtifier(&pci_bus_type, &dmar_pci_bus_nb);
 
 	down_write(&dmar_global_lock);
 	list_for_each_entry_safe(dmaru, dmaru_n, &dmar_drhd_units, list) {
@@ -2194,7 +2194,7 @@ late_initcall(dmar_free_unused_resources);
 
 /*
  * DMAR Hotplug Support
- * For more details, please refer to Intel(R) Virtualization Technology
+ * For more details, please refer to Intel(R) Virtualization Techanallogy
  * for Directed-IO Architecture Specifiction, Rev 2.2, Section 8.8
  * "Remapping Hardware Unit Hot Plug".
  */
@@ -2203,7 +2203,7 @@ static guid_t dmar_hp_guid =
 		  0x91, 0xBF, 0xC3, 0xCB, 0x81, 0xFC, 0x5D, 0xAF);
 
 /*
- * Currently there's only one revision and BIOS will not check the revision id,
+ * Currently there's only one revision and BIOS will analt check the revision id,
  * so use 0 for safety.
  */
 #define	DMAR_DSM_REV_ID			0
@@ -2220,7 +2220,7 @@ static inline bool dmar_detect_dsm(acpi_handle handle, int func)
 static int dmar_walk_dsm_resource(acpi_handle handle, int func,
 				  dmar_res_handler_t handler, void *arg)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	union acpi_object *obj;
 	struct acpi_dmar_header *start;
 	struct dmar_res_callback callback;
@@ -2237,7 +2237,7 @@ static int dmar_walk_dsm_resource(acpi_handle handle, int func,
 	obj = acpi_evaluate_dsm_typed(handle, &dmar_hp_guid, DMAR_DSM_REV_ID,
 				      func, NULL, ACPI_TYPE_BUFFER);
 	if (!obj)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&callback, 0, sizeof(callback));
 	callback.cb[res_type[func]] = handler;
@@ -2257,7 +2257,7 @@ static int dmar_hp_add_drhd(struct acpi_dmar_header *header, void *arg)
 
 	dmaru = dmar_find_dmaru((struct acpi_dmar_hardware_unit *)header);
 	if (!dmaru)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = dmar_ir_hotplug(dmaru, true);
 	if (ret == 0)
@@ -2319,7 +2319,7 @@ static int dmar_hotplug_insert(acpi_handle handle)
 	ret = dmar_walk_dsm_resource(handle, DMAR_DSM_FUNC_DRHD,
 				     &dmar_parse_one_drhd, (void *)&drhd_count);
 	if (ret == 0 && drhd_count == 0) {
-		pr_warn(FW_BUG "No DRHD structures in buffer returned by _DSM method\n");
+		pr_warn(FW_BUG "Anal DRHD structures in buffer returned by _DSM method\n");
 		goto out;
 	} else if (ret) {
 		goto release_drhd;
@@ -2438,7 +2438,7 @@ int dmar_device_remove(acpi_handle handle)
  *
  * Returns true if the platform has %DMA_CTRL_PLATFORM_OPT_IN_FLAG set in
  * the ACPI DMAR table. This means that the platform boot firmware has made
- * sure no device can issue DMA outside of RMRR regions.
+ * sure anal device can issue DMA outside of RMRR regions.
  */
 bool dmar_platform_optin(void)
 {

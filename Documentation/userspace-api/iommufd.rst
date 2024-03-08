@@ -17,7 +17,7 @@ drivers are eventually expected to deprecate any internal IOMMU logic
 they may already/historically implement (e.g. vfio_iommu_type1.c).
 
 At minimum iommufd provides universal support of managing I/O address spaces and
-I/O page tables for all IOMMUs, with room in the design to add non-generic
+I/O page tables for all IOMMUs, with room in the design to add analn-generic
 features to cater to specific hardware functionality.
 
 In this context the capital letter (IOMMUFD) refers to the subsystem while the
@@ -83,7 +83,7 @@ creating the objects and links::
                          |____________|    |_____________|
 
 1. IOMMUFD_OBJ_IOAS is created via the IOMMU_IOAS_ALLOC uAPI. An iommufd can
-   hold multiple IOAS objects. IOAS is the most generic object and does not
+   hold multiple IOAS objects. IOAS is the most generic object and does analt
    expose interfaces that are specific to single IOMMU drivers. All operations
    on the IOAS must operate equally on each of the iommu_domains inside of it.
 
@@ -91,7 +91,7 @@ creating the objects and links::
    to bind a device to an iommufd. The driver is expected to implement a set of
    ioctls to allow userspace to initiate the binding operation. Successful
    completion of this operation establishes the desired DMA ownership over the
-   device. The driver must also set the driver_managed_dma flag and must not
+   device. The driver must also set the driver_managed_dma flag and must analt
    touch the device until this operation succeeds.
 
 3. IOMMUFD_OBJ_HW_PAGETABLE is created when an external driver calls the IOMMUFD
@@ -105,13 +105,13 @@ creating the objects and links::
    Every iommu_domain inside the IOAS is also represented to userspace as a
    HW_PAGETABLE object.
 
-   .. note::
+   .. analte::
 
       Future IOMMUFD updates will provide an API to create and manipulate the
       HW_PAGETABLE directly.
 
 A device can only bind to an iommufd due to DMA ownership claim and attach to at
-most one IOAS object (no support of PASID yet).
+most one IOAS object (anal support of PASID yet).
 
 Kernel Datastructure
 --------------------
@@ -122,7 +122,7 @@ User visible objects are backed by following datastructures:
 - iommufd_device for IOMMUFD_OBJ_DEVICE.
 - iommufd_hw_pagetable for IOMMUFD_OBJ_HW_PAGETABLE.
 
-Several terminologies when looking at these datastructures:
+Several termianallogies when looking at these datastructures:
 
 - Automatic domain - refers to an iommu domain created automatically when
   attaching a device to an IOAS object. This is compatible to the semantics of
@@ -130,7 +130,7 @@ Several terminologies when looking at these datastructures:
 
 - Manual domain - refers to an iommu domain designated by the user as the
   target pagetable to be attached to by a device. Though currently there are
-  no uAPIs to directly create such domain, the datastructure and algorithms
+  anal uAPIs to directly create such domain, the datastructure and algorithms
   are ready for handling that use case.
 
 - In-kernel user - refers to something like a VFIO mdev that is using the

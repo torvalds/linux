@@ -4,7 +4,7 @@
  *
  * Authors:
  *	Mitsuru KANDA @USAGI
- *	Kazunori MIYAZAWA @USAGI
+ *	Kazuanalri MIYAZAWA @USAGI
  *	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  *		IPv6 support
  *	YOSHIFUJI Hideaki
@@ -78,7 +78,7 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt6.rt6i_idev = in6_dev_get(dev);
 	if (!xdst->u.rt6.rt6i_idev) {
 		netdev_put(dev, &xdst->u.dst.dev_tracker);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Sheit... I remember I did this right. Apparently,
@@ -213,7 +213,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __net_exit xfrm6_net_sysctl_exit(struct net *net)

@@ -8,13 +8,13 @@
 //  All Rights Reserved
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/smp.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
-#include <linux/soc/samsung/exynos-regs-pmu.h>
+#include <linux/soc/samsung/exyanals-regs-pmu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
@@ -24,10 +24,10 @@
 
 #include "common.h"
 
-extern void exynos4_secondary_startup(void);
+extern void exyanals4_secondary_startup(void);
 
-/* XXX exynos_pen_release is cargo culted code - DO NOT COPY XXX */
-volatile int exynos_pen_release = -1;
+/* XXX exyanals_pen_release is cargo culted code - DO ANALT COPY XXX */
+volatile int exyanals_pen_release = -1;
 
 #ifdef CONFIG_HOTPLUG_CPU
 static inline void cpu_leave_lowpower(u32 core_id)
@@ -54,11 +54,11 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 	for (;;) {
 
 		/* Turn the CPU off on next WFI instruction. */
-		exynos_cpu_power_down(core_id);
+		exyanals_cpu_power_down(core_id);
 
 		wfi();
 
-		if (exynos_pen_release == core_id) {
+		if (exyanals_pen_release == core_id) {
 			/*
 			 * OK, proper wakeup, we're done
 			 */
@@ -69,7 +69,7 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 		 * Getting here, means that we have come out of WFI without
 		 * having been woken up - this shouldn't happen
 		 *
-		 * Just note it happening - when we're woken, we can report
+		 * Just analte it happening - when we're woken, we can report
 		 * its occurrence.
 		 */
 		(*spurious)++;
@@ -78,103 +78,103 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 #endif /* CONFIG_HOTPLUG_CPU */
 
 /**
- * exynos_cpu_power_down() - power down the specified cpu
+ * exyanals_cpu_power_down() - power down the specified cpu
  * @cpu: the cpu to power down
  *
  * Power down the specified cpu. The sequence must be finished by a
  * call to cpu_do_idle()
  */
-void exynos_cpu_power_down(int cpu)
+void exyanals_cpu_power_down(int cpu)
 {
 	u32 core_conf;
 
-	if (cpu == 0 && (soc_is_exynos5420() || soc_is_exynos5800())) {
+	if (cpu == 0 && (soc_is_exyanals5420() || soc_is_exyanals5800())) {
 		/*
 		 * Bypass power down for CPU0 during suspend. Check for
 		 * the SYS_PWR_REG value to decide if we are suspending
 		 * the system.
 		 */
-		int val = pmu_raw_readl(EXYNOS5_ARM_CORE0_SYS_PWR_REG);
+		int val = pmu_raw_readl(EXYANALS5_ARM_CORE0_SYS_PWR_REG);
 
 		if (!(val & S5P_CORE_LOCAL_PWR_EN))
 			return;
 	}
 
-	core_conf = pmu_raw_readl(EXYNOS_ARM_CORE_CONFIGURATION(cpu));
+	core_conf = pmu_raw_readl(EXYANALS_ARM_CORE_CONFIGURATION(cpu));
 	core_conf &= ~S5P_CORE_LOCAL_PWR_EN;
-	pmu_raw_writel(core_conf, EXYNOS_ARM_CORE_CONFIGURATION(cpu));
+	pmu_raw_writel(core_conf, EXYANALS_ARM_CORE_CONFIGURATION(cpu));
 }
 
 /**
- * exynos_cpu_power_up() - power up the specified cpu
+ * exyanals_cpu_power_up() - power up the specified cpu
  * @cpu: the cpu to power up
  *
  * Power up the specified cpu
  */
-void exynos_cpu_power_up(int cpu)
+void exyanals_cpu_power_up(int cpu)
 {
 	u32 core_conf = S5P_CORE_LOCAL_PWR_EN;
 
-	if (soc_is_exynos3250())
+	if (soc_is_exyanals3250())
 		core_conf |= S5P_CORE_AUTOWAKEUP_EN;
 
 	pmu_raw_writel(core_conf,
-			EXYNOS_ARM_CORE_CONFIGURATION(cpu));
+			EXYANALS_ARM_CORE_CONFIGURATION(cpu));
 }
 
 /**
- * exynos_cpu_power_state() - returns the power state of the cpu
+ * exyanals_cpu_power_state() - returns the power state of the cpu
  * @cpu: the cpu to retrieve the power state from
  */
-int exynos_cpu_power_state(int cpu)
+int exyanals_cpu_power_state(int cpu)
 {
-	return (pmu_raw_readl(EXYNOS_ARM_CORE_STATUS(cpu)) &
+	return (pmu_raw_readl(EXYANALS_ARM_CORE_STATUS(cpu)) &
 			S5P_CORE_LOCAL_PWR_EN);
 }
 
 /**
- * exynos_cluster_power_down() - power down the specified cluster
+ * exyanals_cluster_power_down() - power down the specified cluster
  * @cluster: the cluster to power down
  */
-void exynos_cluster_power_down(int cluster)
+void exyanals_cluster_power_down(int cluster)
 {
-	pmu_raw_writel(0, EXYNOS_COMMON_CONFIGURATION(cluster));
+	pmu_raw_writel(0, EXYANALS_COMMON_CONFIGURATION(cluster));
 }
 
 /**
- * exynos_cluster_power_up() - power up the specified cluster
+ * exyanals_cluster_power_up() - power up the specified cluster
  * @cluster: the cluster to power up
  */
-void exynos_cluster_power_up(int cluster)
+void exyanals_cluster_power_up(int cluster)
 {
 	pmu_raw_writel(S5P_CORE_LOCAL_PWR_EN,
-			EXYNOS_COMMON_CONFIGURATION(cluster));
+			EXYANALS_COMMON_CONFIGURATION(cluster));
 }
 
 /**
- * exynos_cluster_power_state() - returns the power state of the cluster
+ * exyanals_cluster_power_state() - returns the power state of the cluster
  * @cluster: the cluster to retrieve the power state from
  *
  */
-int exynos_cluster_power_state(int cluster)
+int exyanals_cluster_power_state(int cluster)
 {
-	return (pmu_raw_readl(EXYNOS_COMMON_STATUS(cluster)) &
+	return (pmu_raw_readl(EXYANALS_COMMON_STATUS(cluster)) &
 		S5P_CORE_LOCAL_PWR_EN);
 }
 
 /**
- * exynos_scu_enable() - enables SCU for Cortex-A9 based system
+ * exyanals_scu_enable() - enables SCU for Cortex-A9 based system
  */
-void exynos_scu_enable(void)
+void exyanals_scu_enable(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	static void __iomem *scu_base;
 
 	if (!scu_base) {
-		np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+		np = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-scu");
 		if (np) {
 			scu_base = of_iomap(np, 0);
-			of_node_put(np);
+			of_analde_put(np);
 		} else {
 			scu_base = ioremap(scu_a9_get_base(), SZ_4K);
 		}
@@ -184,7 +184,7 @@ void exynos_scu_enable(void)
 
 static void __iomem *cpu_boot_reg_base(void)
 {
-	if (soc_is_exynos4210() && exynos_rev() == EXYNOS4210_REV_1_1)
+	if (soc_is_exyanals4210() && exyanals_rev() == EXYANALS4210_REV_1_1)
 		return pmu_base_addr + S5P_INFORM5;
 	return sysram_base_addr;
 }
@@ -195,10 +195,10 @@ static inline void __iomem *cpu_boot_reg(int cpu)
 
 	boot_reg = cpu_boot_reg_base();
 	if (!boot_reg)
-		return IOMEM_ERR_PTR(-ENODEV);
-	if (soc_is_exynos4412())
+		return IOMEM_ERR_PTR(-EANALDEV);
+	if (soc_is_exyanals4412())
 		boot_reg += 4*cpu;
-	else if (soc_is_exynos5420() || soc_is_exynos5800())
+	else if (soc_is_exyanals5420() || soc_is_exyanals5800())
 		boot_reg += 4;
 	return boot_reg;
 }
@@ -206,14 +206,14 @@ static inline void __iomem *cpu_boot_reg(int cpu)
 /*
  * Set wake up by local power mode and execute software reset for given core.
  *
- * Currently this is needed only when booting secondary CPU on Exynos3250.
+ * Currently this is needed only when booting secondary CPU on Exyanals3250.
  */
-void exynos_core_restart(u32 core_id)
+void exyanals_core_restart(u32 core_id)
 {
 	unsigned int timeout = 16;
 	u32 val;
 
-	if (!soc_is_exynos3250())
+	if (!soc_is_exyanals3250())
 		return;
 
 	while (timeout && !pmu_raw_readl(S5P_PMU_SPARE2)) {
@@ -226,36 +226,36 @@ void exynos_core_restart(u32 core_id)
 	}
 	udelay(10);
 
-	val = pmu_raw_readl(EXYNOS_ARM_CORE_STATUS(core_id));
+	val = pmu_raw_readl(EXYANALS_ARM_CORE_STATUS(core_id));
 	val |= S5P_CORE_WAKEUP_FROM_LOCAL_CFG;
-	pmu_raw_writel(val, EXYNOS_ARM_CORE_STATUS(core_id));
+	pmu_raw_writel(val, EXYANALS_ARM_CORE_STATUS(core_id));
 
-	pmu_raw_writel(EXYNOS_CORE_PO_RESET(core_id), EXYNOS_SWRESET);
+	pmu_raw_writel(EXYANALS_CORE_PO_RESET(core_id), EXYANALS_SWRESET);
 }
 
 /*
- * XXX CARGO CULTED CODE - DO NOT COPY XXX
+ * XXX CARGO CULTED CODE - DO ANALT COPY XXX
  *
- * Write exynos_pen_release in a way that is guaranteed to be visible to
+ * Write exyanals_pen_release in a way that is guaranteed to be visible to
  * all observers, irrespective of whether they're taking part in coherency
- * or not.  This is necessary for the hotplug code to work reliably.
+ * or analt.  This is necessary for the hotplug code to work reliably.
  */
-static void exynos_write_pen_release(int val)
+static void exyanals_write_pen_release(int val)
 {
-	exynos_pen_release = val;
+	exyanals_pen_release = val;
 	smp_wmb();
-	sync_cache_w(&exynos_pen_release);
+	sync_cache_w(&exyanals_pen_release);
 }
 
 static DEFINE_SPINLOCK(boot_lock);
 
-static void exynos_secondary_init(unsigned int cpu)
+static void exyanals_secondary_init(unsigned int cpu)
 {
 	/*
-	 * let the primary processor know we're out of the
+	 * let the primary processor kanalw we're out of the
 	 * pen, then head off into the C entry point
 	 */
-	exynos_write_pen_release(-1);
+	exyanals_write_pen_release(-1);
 
 	/*
 	 * Synchronise with the boot thread.
@@ -264,7 +264,7 @@ static void exynos_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-int exynos_set_boot_addr(u32 core_id, unsigned long boot_addr)
+int exyanals_set_boot_addr(u32 core_id, unsigned long boot_addr)
 {
 	int ret;
 
@@ -273,9 +273,9 @@ int exynos_set_boot_addr(u32 core_id, unsigned long boot_addr)
 	 * and fall back to boot register if it fails.
 	 */
 	ret = call_firmware_op(set_cpu_boot_addr, core_id, boot_addr);
-	if (ret && ret != -ENOSYS)
+	if (ret && ret != -EANALSYS)
 		goto fail;
-	if (ret == -ENOSYS) {
+	if (ret == -EANALSYS) {
 		void __iomem *boot_reg = cpu_boot_reg(core_id);
 
 		if (IS_ERR(boot_reg)) {
@@ -289,7 +289,7 @@ fail:
 	return ret;
 }
 
-int exynos_get_boot_addr(u32 core_id, unsigned long *boot_addr)
+int exyanals_get_boot_addr(u32 core_id, unsigned long *boot_addr)
 {
 	int ret;
 
@@ -298,9 +298,9 @@ int exynos_get_boot_addr(u32 core_id, unsigned long *boot_addr)
 	 * and fall back to boot register if it fails.
 	 */
 	ret = call_firmware_op(get_cpu_boot_addr, core_id, boot_addr);
-	if (ret && ret != -ENOSYS)
+	if (ret && ret != -EANALSYS)
 		goto fail;
-	if (ret == -ENOSYS) {
+	if (ret == -EANALSYS) {
 		void __iomem *boot_reg = cpu_boot_reg(core_id);
 
 		if (IS_ERR(boot_reg)) {
@@ -314,12 +314,12 @@ fail:
 	return ret;
 }
 
-static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int exyanals_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	u32 mpidr = cpu_logical_map(cpu);
 	u32 core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	/*
 	 * Set synchronisation state between this boot processor
@@ -330,19 +330,19 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	/*
 	 * The secondary processor is waiting to be released from
 	 * the holding pen - release it, then wait for it to flag
-	 * that it has been released by resetting exynos_pen_release.
+	 * that it has been released by resetting exyanals_pen_release.
 	 *
-	 * Note that "exynos_pen_release" is the hardware CPU core ID, whereas
+	 * Analte that "exyanals_pen_release" is the hardware CPU core ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
-	exynos_write_pen_release(core_id);
+	exyanals_write_pen_release(core_id);
 
-	if (!exynos_cpu_power_state(core_id)) {
-		exynos_cpu_power_up(core_id);
+	if (!exyanals_cpu_power_state(core_id)) {
+		exyanals_cpu_power_up(core_id);
 		timeout = 10;
 
 		/* wait max 10 ms until cpu1 is on */
-		while (exynos_cpu_power_state(core_id)
+		while (exyanals_cpu_power_state(core_id)
 		       != S5P_CORE_LOCAL_PWR_EN) {
 			if (timeout == 0)
 				break;
@@ -357,7 +357,7 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		}
 	}
 
-	exynos_core_restart(core_id);
+	exyanals_core_restart(core_id);
 
 	/*
 	 * Send the secondary CPU a soft interrupt, thereby causing
@@ -371,46 +371,46 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		smp_rmb();
 
-		boot_addr = __pa_symbol(exynos4_secondary_startup);
+		boot_addr = __pa_symbol(exyanals4_secondary_startup);
 
-		ret = exynos_set_boot_addr(core_id, boot_addr);
+		ret = exyanals_set_boot_addr(core_id, boot_addr);
 		if (ret)
 			goto fail;
 
 		call_firmware_op(cpu_boot, core_id);
 
-		if (soc_is_exynos3250())
+		if (soc_is_exyanals3250())
 			dsb_sev();
 		else
 			arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
-		if (exynos_pen_release == -1)
+		if (exyanals_pen_release == -1)
 			break;
 
 		udelay(10);
 	}
 
-	if (exynos_pen_release != -1)
+	if (exyanals_pen_release != -1)
 		ret = -ETIMEDOUT;
 
 	/*
-	 * now the secondary core is starting up let it run its
+	 * analw the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
 	 */
 fail:
 	spin_unlock(&boot_lock);
 
-	return exynos_pen_release != -1 ? ret : 0;
+	return exyanals_pen_release != -1 ? ret : 0;
 }
 
-static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
+static void __init exyanals_smp_prepare_cpus(unsigned int max_cpus)
 {
-	exynos_sysram_init();
+	exyanals_sysram_init();
 
-	exynos_set_delayed_reset_assertion(true);
+	exyanals_set_delayed_reset_assertion(true);
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
-		exynos_scu_enable();
+		exyanals_scu_enable();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -419,7 +419,7 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
  *
  * Called with IRQs disabled
  */
-static void exynos_cpu_die(unsigned int cpu)
+static void exyanals_cpu_die(unsigned int cpu)
 {
 	int spurious = 0;
 	u32 mpidr = cpu_logical_map(cpu);
@@ -440,11 +440,11 @@ static void exynos_cpu_die(unsigned int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-const struct smp_operations exynos_smp_ops __initconst = {
-	.smp_prepare_cpus	= exynos_smp_prepare_cpus,
-	.smp_secondary_init	= exynos_secondary_init,
-	.smp_boot_secondary	= exynos_boot_secondary,
+const struct smp_operations exyanals_smp_ops __initconst = {
+	.smp_prepare_cpus	= exyanals_smp_prepare_cpus,
+	.smp_secondary_init	= exyanals_secondary_init,
+	.smp_boot_secondary	= exyanals_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
-	.cpu_die		= exynos_cpu_die,
+	.cpu_die		= exyanals_cpu_die,
 #endif
 };

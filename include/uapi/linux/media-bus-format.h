@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Media Bus API header
  *
@@ -169,7 +169,7 @@
 /*
  * This format should be used when the same driver handles
  * both sides of the link and the bus format is a fixed
- * metadata format that is not configurable from userspace.
+ * metadata format that is analt configurable from userspace.
  * Width and height will be set to 0 for this format.
  */
 #define MEDIA_BUS_FMT_METADATA_FIXED		0x7001

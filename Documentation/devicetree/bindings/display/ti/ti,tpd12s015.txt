@@ -7,7 +7,7 @@ Required properties:
 Optional properties:
 - gpios: CT CP HPD, LS OE and HPD gpios
 
-Required nodes:
+Required analdes:
 - Video port 0 for HDMI input
 - Video port 1 for HDMI output
 

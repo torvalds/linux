@@ -27,10 +27,10 @@ long over_ret = 0;
 char pad_out[10] = {};
 long pad_ret = 0;
 
-char noarg_out[64] = {};
-long noarg_ret = 0;
+char analarg_out[64] = {};
+long analarg_ret = 0;
 
-long nobuf_ret = 0;
+long analbuf_ret = 0;
 
 extern const void schedule __ksym;
 
@@ -66,10 +66,10 @@ int handler(const void *ctx)
 	over_ret = BPF_SNPRINTF(over_out, sizeof(over_out), "%%overflow");
 	/* Padding of fixed width numbers */
 	pad_ret = BPF_SNPRINTF(pad_out, sizeof(pad_out), "%5d %0900000X", 4, 4);
-	/* No args */
-	noarg_ret = BPF_SNPRINTF(noarg_out, sizeof(noarg_out), "simple case");
-	/* No buffer */
-	nobuf_ret = BPF_SNPRINTF(NULL, 0, "only interested in length %d", 60);
+	/* Anal args */
+	analarg_ret = BPF_SNPRINTF(analarg_out, sizeof(analarg_out), "simple case");
+	/* Anal buffer */
+	analbuf_ret = BPF_SNPRINTF(NULL, 0, "only interested in length %d", 60);
 
 	return 0;
 }

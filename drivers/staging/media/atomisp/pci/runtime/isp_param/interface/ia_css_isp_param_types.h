@@ -32,7 +32,7 @@ enum ia_css_param_class {
 	IA_CSS_PARAM_CLASS_PARAM  = 0,	/* Late binding parameters, like 3A */
 	IA_CSS_PARAM_CLASS_CONFIG = 1,	/* Pipe config time parameters, like resolution */
 	IA_CSS_PARAM_CLASS_STATE  = 2,  /* State parameters, like tnr buffer index */
-#if 0 /* Not yet implemented */
+#if 0 /* Analt yet implemented */
 	IA_CSS_PARAM_CLASS_FRAME  = 3,  /* Frame time parameters, like output buffer */
 #endif
 };
@@ -66,7 +66,7 @@ struct ia_css_isp_param_memory_offsets {
 };
 
 /* Offsets for ISP kernel parameters per isp memory.
- * Only relevant for standard ISP binaries, not ACC or SP.
+ * Only relevant for standard ISP binaries, analt ACC or SP.
  */
 union ia_css_all_memory_offsets {
 	struct {

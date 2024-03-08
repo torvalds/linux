@@ -86,7 +86,7 @@ enum bkey_lr_packed {
 	BKEY_PACKED_BOTH,
 	BKEY_PACKED_RIGHT,
 	BKEY_PACKED_LEFT,
-	BKEY_PACKED_NONE,
+	BKEY_PACKED_ANALNE,
 };
 
 #define bkey_lr_packed(_l, _r)						\
@@ -140,7 +140,7 @@ int bkey_cmp_left_packed(const struct btree *b,
 
 /*
  * The compiler generates better code when we pass bpos by ref, but it's often
- * enough terribly convenient to pass it by val... as much as I hate c++, const
+ * eanalugh terribly convenient to pass it by val... as much as I hate c++, const
  * ref would be nice here:
  */
 __pure __flatten
@@ -153,21 +153,21 @@ static inline int bkey_cmp_left_packed_byval(const struct btree *b,
 
 static __always_inline bool bpos_eq(struct bpos l, struct bpos r)
 {
-	return  !((l.inode	^ r.inode) |
+	return  !((l.ianalde	^ r.ianalde) |
 		  (l.offset	^ r.offset) |
 		  (l.snapshot	^ r.snapshot));
 }
 
 static __always_inline bool bpos_lt(struct bpos l, struct bpos r)
 {
-	return  l.inode	!= r.inode ? l.inode < r.inode :
+	return  l.ianalde	!= r.ianalde ? l.ianalde < r.ianalde :
 		l.offset != r.offset ? l.offset < r.offset :
 		l.snapshot != r.snapshot ? l.snapshot < r.snapshot : false;
 }
 
 static __always_inline bool bpos_le(struct bpos l, struct bpos r)
 {
-	return  l.inode	!= r.inode ? l.inode < r.inode :
+	return  l.ianalde	!= r.ianalde ? l.ianalde < r.ianalde :
 		l.offset != r.offset ? l.offset < r.offset :
 		l.snapshot != r.snapshot ? l.snapshot < r.snapshot : true;
 }
@@ -184,7 +184,7 @@ static __always_inline bool bpos_ge(struct bpos l, struct bpos r)
 
 static __always_inline int bpos_cmp(struct bpos l, struct bpos r)
 {
-	return  cmp_int(l.inode,    r.inode) ?:
+	return  cmp_int(l.ianalde,    r.ianalde) ?:
 		cmp_int(l.offset,   r.offset) ?:
 		cmp_int(l.snapshot, r.snapshot);
 }
@@ -201,21 +201,21 @@ static inline struct bpos bpos_max(struct bpos l, struct bpos r)
 
 static __always_inline bool bkey_eq(struct bpos l, struct bpos r)
 {
-	return  !((l.inode	^ r.inode) |
+	return  !((l.ianalde	^ r.ianalde) |
 		  (l.offset	^ r.offset));
 }
 
 static __always_inline bool bkey_lt(struct bpos l, struct bpos r)
 {
-	return  l.inode	!= r.inode
-		? l.inode < r.inode
+	return  l.ianalde	!= r.ianalde
+		? l.ianalde < r.ianalde
 		: l.offset < r.offset;
 }
 
 static __always_inline bool bkey_le(struct bpos l, struct bpos r)
 {
-	return  l.inode	!= r.inode
-		? l.inode < r.inode
+	return  l.ianalde	!= r.ianalde
+		? l.ianalde < r.ianalde
 		: l.offset <= r.offset;
 }
 
@@ -231,7 +231,7 @@ static __always_inline bool bkey_ge(struct bpos l, struct bpos r)
 
 static __always_inline int bkey_cmp(struct bpos l, struct bpos r)
 {
-	return  cmp_int(l.inode,    r.inode) ?:
+	return  cmp_int(l.ianalde,    r.ianalde) ?:
 		cmp_int(l.offset,   r.offset);
 }
 
@@ -272,7 +272,7 @@ static __always_inline int bversion_zero(struct bversion v)
 #endif
 
 /*
- * It's safe to treat an unpacked bkey as a packed one, but not the reverse
+ * It's safe to treat an unpacked bkey as a packed one, but analt the reverse
  */
 static inline struct bkey_packed *bkey_to_packed(struct bkey_i *k)
 {
@@ -296,7 +296,7 @@ static inline const struct bkey *packed_to_bkey_c(const struct bkey_packed *k)
 
 static inline unsigned bkey_format_key_bits(const struct bkey_format *format)
 {
-	return format->bits_per_field[BKEY_FIELD_INODE] +
+	return format->bits_per_field[BKEY_FIELD_IANALDE] +
 		format->bits_per_field[BKEY_FIELD_OFFSET] +
 		format->bits_per_field[BKEY_FIELD_SNAPSHOT];
 }
@@ -305,7 +305,7 @@ static inline struct bpos bpos_successor(struct bpos p)
 {
 	if (!++p.snapshot &&
 	    !++p.offset &&
-	    !++p.inode)
+	    !++p.ianalde)
 		BUG();
 
 	return p;
@@ -315,29 +315,29 @@ static inline struct bpos bpos_predecessor(struct bpos p)
 {
 	if (!p.snapshot-- &&
 	    !p.offset-- &&
-	    !p.inode--)
+	    !p.ianalde--)
 		BUG();
 
 	return p;
 }
 
-static inline struct bpos bpos_nosnap_successor(struct bpos p)
+static inline struct bpos bpos_analsnap_successor(struct bpos p)
 {
 	p.snapshot = 0;
 
 	if (!++p.offset &&
-	    !++p.inode)
+	    !++p.ianalde)
 		BUG();
 
 	return p;
 }
 
-static inline struct bpos bpos_nosnap_predecessor(struct bpos p)
+static inline struct bpos bpos_analsnap_predecessor(struct bpos p)
 {
 	p.snapshot = 0;
 
 	if (!p.offset-- &&
-	    !p.inode--)
+	    !p.ianalde--)
 		BUG();
 
 	return p;
@@ -351,7 +351,7 @@ static inline u64 bkey_start_offset(const struct bkey *k)
 static inline struct bpos bkey_start_pos(const struct bkey *k)
 {
 	return (struct bpos) {
-		.inode		= k->p.inode,
+		.ianalde		= k->p.ianalde,
 		.offset		= bkey_start_offset(k),
 		.snapshot	= k->p.snapshot,
 	};
@@ -476,7 +476,7 @@ static inline void __bkey_unpack_key(const struct btree *b,
 }
 
 /**
- * bkey_unpack_key -- unpack just the key, not the value
+ * bkey_unpack_key -- unpack just the key, analt the value
  */
 static inline struct bkey bkey_unpack_key(const struct btree *b,
 					  const struct bkey_packed *src)
@@ -516,7 +516,7 @@ static inline struct bkey_s_c bkey_disassemble(const struct btree *b,
 	return (struct bkey_s_c) { u, bkeyp_val(&b->format, k), };
 }
 
-/* non const version: */
+/* analn const version: */
 static inline struct bkey_s __bkey_disassemble(const struct btree *b,
 					       struct bkey_packed *k,
 					       struct bkey *u)
@@ -584,7 +584,7 @@ static inline struct bkey_s_c bkey_i_to_s_c(const struct bkey_i *k)
  * bkey + bch_extent - inline, split, split const - and also all the conversion
  * functions, which also check that the value is of the correct type.
  *
- * We use anonymous unions for upcasting - e.g. converting from e.g. a
+ * We use aanalnymous unions for upcasting - e.g. converting from e.g. a
  * bkey_i_extent to a bkey_i - since that's always safe, instead of conversion
  * functions.
  */
@@ -739,7 +739,7 @@ static inline void bch2_bkey_pack_test(void) {}
 #endif
 
 #define bkey_fields()							\
-	x(BKEY_FIELD_INODE,		p.inode)			\
+	x(BKEY_FIELD_IANALDE,		p.ianalde)			\
 	x(BKEY_FIELD_OFFSET,		p.offset)			\
 	x(BKEY_FIELD_SNAPSHOT,		p.snapshot)			\
 	x(BKEY_FIELD_SIZE,		size)				\

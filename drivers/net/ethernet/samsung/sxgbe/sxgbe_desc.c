@@ -20,12 +20,12 @@
 #include "sxgbe_desc.h"
 
 /* DMA TX descriptor ring initialization */
-static void sxgbe_init_tx_desc(struct sxgbe_tx_norm_desc *p)
+static void sxgbe_init_tx_desc(struct sxgbe_tx_analrm_desc *p)
 {
 	p->tdes23.tx_rd_des23.own_bit = 0;
 }
 
-static void sxgbe_tx_desc_enable_tse(struct sxgbe_tx_norm_desc *p, u8 is_tse,
+static void sxgbe_tx_desc_enable_tse(struct sxgbe_tx_analrm_desc *p, u8 is_tse,
 				     u32 total_hdr_len, u32 tcp_hdr_len,
 				     u32 tcp_payload_len)
 {
@@ -36,7 +36,7 @@ static void sxgbe_tx_desc_enable_tse(struct sxgbe_tx_norm_desc *p, u8 is_tse,
 }
 
 /* Assign buffer lengths for descriptor */
-static void sxgbe_prepare_tx_desc(struct sxgbe_tx_norm_desc *p, u8 is_fd,
+static void sxgbe_prepare_tx_desc(struct sxgbe_tx_analrm_desc *p, u8 is_fd,
 				  int buf1_len, int pkt_len, int cksum)
 {
 	p->tdes23.tx_rd_des23.first_desc = is_fd;
@@ -49,32 +49,32 @@ static void sxgbe_prepare_tx_desc(struct sxgbe_tx_norm_desc *p, u8 is_fd,
 }
 
 /* Set VLAN control information */
-static void sxgbe_tx_vlanctl_desc(struct sxgbe_tx_norm_desc *p, int vlan_ctl)
+static void sxgbe_tx_vlanctl_desc(struct sxgbe_tx_analrm_desc *p, int vlan_ctl)
 {
 	p->tdes23.tx_rd_des23.vlan_tag_ctl = vlan_ctl;
 }
 
-/* Set the owner of Normal descriptor */
-static void sxgbe_set_tx_owner(struct sxgbe_tx_norm_desc *p)
+/* Set the owner of Analrmal descriptor */
+static void sxgbe_set_tx_owner(struct sxgbe_tx_analrm_desc *p)
 {
 	p->tdes23.tx_rd_des23.own_bit = 1;
 }
 
-/* Get the owner of Normal descriptor */
-static int sxgbe_get_tx_owner(struct sxgbe_tx_norm_desc *p)
+/* Get the owner of Analrmal descriptor */
+static int sxgbe_get_tx_owner(struct sxgbe_tx_analrm_desc *p)
 {
 	return p->tdes23.tx_rd_des23.own_bit;
 }
 
 /* Invoked by the xmit function to close the tx descriptor */
-static void sxgbe_close_tx_desc(struct sxgbe_tx_norm_desc *p)
+static void sxgbe_close_tx_desc(struct sxgbe_tx_analrm_desc *p)
 {
 	p->tdes23.tx_rd_des23.last_desc = 1;
 	p->tdes23.tx_rd_des23.int_on_com = 1;
 }
 
 /* Clean the tx descriptor as soon as the tx irq is received */
-static void sxgbe_release_tx_desc(struct sxgbe_tx_norm_desc *p)
+static void sxgbe_release_tx_desc(struct sxgbe_tx_analrm_desc *p)
 {
 	memset(p, 0, sizeof(*p));
 }
@@ -82,31 +82,31 @@ static void sxgbe_release_tx_desc(struct sxgbe_tx_norm_desc *p)
 /* Clear interrupt on tx frame completion. When this bit is
  * set an interrupt happens as soon as the frame is transmitted
  */
-static void sxgbe_clear_tx_ic(struct sxgbe_tx_norm_desc *p)
+static void sxgbe_clear_tx_ic(struct sxgbe_tx_analrm_desc *p)
 {
 	p->tdes23.tx_rd_des23.int_on_com = 0;
 }
 
 /* Last tx segment reports the transmit status */
-static int sxgbe_get_tx_ls(struct sxgbe_tx_norm_desc *p)
+static int sxgbe_get_tx_ls(struct sxgbe_tx_analrm_desc *p)
 {
 	return p->tdes23.tx_rd_des23.last_desc;
 }
 
 /* Get the buffer size from the descriptor */
-static int sxgbe_get_tx_len(struct sxgbe_tx_norm_desc *p)
+static int sxgbe_get_tx_len(struct sxgbe_tx_analrm_desc *p)
 {
 	return p->tdes23.tx_rd_des23.buf1_size;
 }
 
 /* Set tx timestamp enable bit */
-static void sxgbe_tx_enable_tstamp(struct sxgbe_tx_norm_desc *p)
+static void sxgbe_tx_enable_tstamp(struct sxgbe_tx_analrm_desc *p)
 {
 	p->tdes23.tx_rd_des23.timestmp_enable = 1;
 }
 
 /* get tx timestamp status */
-static int sxgbe_get_tx_timestamp_status(struct sxgbe_tx_norm_desc *p)
+static int sxgbe_get_tx_timestamp_status(struct sxgbe_tx_analrm_desc *p)
 {
 	return p->tdes23.tx_rd_des23.timestmp_enable;
 }
@@ -210,7 +210,7 @@ static int sxgbe_tx_ctxt_desc_get_cde(struct sxgbe_tx_ctxt_desc *p)
 }
 
 /* DMA RX descriptor ring initialization */
-static void sxgbe_init_rx_desc(struct sxgbe_rx_norm_desc *p, int disable_rx_ic,
+static void sxgbe_init_rx_desc(struct sxgbe_rx_analrm_desc *p, int disable_rx_ic,
 			       int mode, int end)
 {
 	p->rdes23.rx_rd_des23.own_bit = 1;
@@ -219,44 +219,44 @@ static void sxgbe_init_rx_desc(struct sxgbe_rx_norm_desc *p, int disable_rx_ic,
 }
 
 /* Get RX own bit */
-static int sxgbe_get_rx_owner(struct sxgbe_rx_norm_desc *p)
+static int sxgbe_get_rx_owner(struct sxgbe_rx_analrm_desc *p)
 {
 	return p->rdes23.rx_rd_des23.own_bit;
 }
 
 /* Set RX own bit */
-static void sxgbe_set_rx_owner(struct sxgbe_rx_norm_desc *p)
+static void sxgbe_set_rx_owner(struct sxgbe_rx_analrm_desc *p)
 {
 	p->rdes23.rx_rd_des23.own_bit = 1;
 }
 
 /* Set Interrupt on completion bit */
-static void sxgbe_set_rx_int_on_com(struct sxgbe_rx_norm_desc *p)
+static void sxgbe_set_rx_int_on_com(struct sxgbe_rx_analrm_desc *p)
 {
 	p->rdes23.rx_rd_des23.int_on_com = 1;
 }
 
 /* Get the receive frame size */
-static int sxgbe_get_rx_frame_len(struct sxgbe_rx_norm_desc *p)
+static int sxgbe_get_rx_frame_len(struct sxgbe_rx_analrm_desc *p)
 {
 	return p->rdes23.rx_wb_des23.pkt_len;
 }
 
 /* Return first Descriptor status */
-static int sxgbe_get_rx_fd_status(struct sxgbe_rx_norm_desc *p)
+static int sxgbe_get_rx_fd_status(struct sxgbe_rx_analrm_desc *p)
 {
 	return p->rdes23.rx_wb_des23.first_desc;
 }
 
 /* Return Last Descriptor status */
-static int sxgbe_get_rx_ld_status(struct sxgbe_rx_norm_desc *p)
+static int sxgbe_get_rx_ld_status(struct sxgbe_rx_analrm_desc *p)
 {
 	return p->rdes23.rx_wb_des23.last_desc;
 }
 
 
 /* Return the RX status looking at the WB fields */
-static int sxgbe_rx_wbstatus(struct sxgbe_rx_norm_desc *p,
+static int sxgbe_rx_wbstatus(struct sxgbe_rx_analrm_desc *p,
 			     struct sxgbe_extra_stats *x, int *checksum)
 {
 	int status = 0;
@@ -281,11 +281,11 @@ static int sxgbe_rx_wbstatus(struct sxgbe_rx_norm_desc *p,
 			x->rx_gaint_pkt_err++;
 			break;
 		case RX_IP_HDR_ERR:
-			*checksum = CHECKSUM_NONE;
+			*checksum = CHECKSUM_ANALNE;
 			x->ip_hdr_err++;
 			break;
 		case RX_PAYLOAD_ERR:
-			*checksum = CHECKSUM_NONE;
+			*checksum = CHECKSUM_ANALNE;
 			x->ip_payload_err++;
 			break;
 		case RX_OVERFLOW_ERR:
@@ -345,8 +345,8 @@ static int sxgbe_rx_wbstatus(struct sxgbe_rx_norm_desc *p,
 
 	/* L3/L4 Pkt type */
 	switch (p->rdes23.rx_wb_des23.layer34_pkt_type) {
-	case RX_NOT_IP_PKT:
-		x->not_ip_pkt++;
+	case RX_ANALT_IP_PKT:
+		x->analt_ip_pkt++;
 		break;
 	case RX_IPV4_TCP_PKT:
 		x->ip4_tcp_pkt++;
@@ -357,8 +357,8 @@ static int sxgbe_rx_wbstatus(struct sxgbe_rx_norm_desc *p,
 	case RX_IPV4_ICMP_PKT:
 		x->ip4_icmp_pkt++;
 		break;
-	case RX_IPV4_UNKNOWN_PKT:
-		x->ip4_unknown_pkt++;
+	case RX_IPV4_UNKANALWN_PKT:
+		x->ip4_unkanalwn_pkt++;
 		break;
 	case RX_IPV6_TCP_PKT:
 		x->ip6_tcp_pkt++;
@@ -369,8 +369,8 @@ static int sxgbe_rx_wbstatus(struct sxgbe_rx_norm_desc *p,
 	case RX_IPV6_ICMP_PKT:
 		x->ip6_icmp_pkt++;
 		break;
-	case RX_IPV6_UNKNOWN_PKT:
-		x->ip6_unknown_pkt++;
+	case RX_IPV6_UNKANALWN_PKT:
+		x->ip6_unkanalwn_pkt++;
 		break;
 	default:
 		pr_err("Invalid L3/L4 Packet type\n");
@@ -422,8 +422,8 @@ static void sxgbe_rx_ctxt_wbstatus(struct sxgbe_rx_ctxt_desc *p,
 		x->timestamp_dropped++;
 
 	/* ptp */
-	if (p->ptp_msgtype == RX_NO_PTP)
-		x->rx_msg_type_no_ptp++;
+	if (p->ptp_msgtype == RX_ANAL_PTP)
+		x->rx_msg_type_anal_ptp++;
 	else if (p->ptp_msgtype == RX_PTP_SYNC)
 		x->rx_ptp_type_sync++;
 	else if (p->ptp_msgtype == RX_PTP_FOLLOW_UP)
@@ -438,8 +438,8 @@ static void sxgbe_rx_ctxt_wbstatus(struct sxgbe_rx_ctxt_desc *p,
 		x->rx_ptp_type_pdelay_resp++;
 	else if (p->ptp_msgtype == RX_PTP_PDELAY_FOLLOW_UP)
 		x->rx_ptp_type_pdelay_follow_up++;
-	else if (p->ptp_msgtype == RX_PTP_ANNOUNCE)
-		x->rx_ptp_announce++;
+	else if (p->ptp_msgtype == RX_PTP_ANANALUNCE)
+		x->rx_ptp_ananalunce++;
 	else if (p->ptp_msgtype == RX_PTP_MGMT)
 		x->rx_ptp_mgmt++;
 	else if (p->ptp_msgtype == RX_PTP_SIGNAL)

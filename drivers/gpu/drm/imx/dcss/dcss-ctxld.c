@@ -102,7 +102,7 @@ static irqreturn_t dcss_ctxld_irq_handler(int irq, void *data)
 	} else if (irq_status & CTXLD_IRQ_ERROR) {
 		/*
 		 * Except for throwing an error message and clearing the status
-		 * register, there's not much we can do here.
+		 * register, there's analt much we can do here.
 		 */
 		dev_err(ctxld->dev, "ctxld: error encountered: %08x\n",
 			irq_status);
@@ -180,7 +180,7 @@ static int dcss_ctxld_alloc_ctx(struct dcss_ctxld *ctxld)
 					 CTXLD_DB_CTX_ENTRIES * sizeof(*ctx),
 					 &ctxld->db_paddr[i], GFP_KERNEL);
 		if (!ctx)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ctxld->db[i] = ctx;
 
@@ -188,7 +188,7 @@ static int dcss_ctxld_alloc_ctx(struct dcss_ctxld *ctxld)
 					 CTXLD_SB_CTX_ENTRIES * sizeof(*ctx),
 					 &ctxld->sb_paddr[i], GFP_KERNEL);
 		if (!ctx)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ctxld->sb_hp[i] = ctx;
 		ctxld->sb_lp[i] = ctx + CTXLD_SB_HP_CTX_ENTRIES;
@@ -204,7 +204,7 @@ int dcss_ctxld_init(struct dcss_dev *dcss, unsigned long ctxld_base)
 
 	ctxld = kzalloc(sizeof(*ctxld), GFP_KERNEL);
 	if (!ctxld)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcss->ctxld = ctxld;
 	ctxld->dev = dcss->dev;
@@ -213,14 +213,14 @@ int dcss_ctxld_init(struct dcss_dev *dcss, unsigned long ctxld_base)
 
 	ret = dcss_ctxld_alloc_ctx(ctxld);
 	if (ret) {
-		dev_err(dcss->dev, "ctxld: cannot allocate context memory.\n");
+		dev_err(dcss->dev, "ctxld: cananalt allocate context memory.\n");
 		goto err;
 	}
 
 	ctxld->ctxld_reg = ioremap(ctxld_base, SZ_4K);
 	if (!ctxld->ctxld_reg) {
 		dev_err(dcss->dev, "ctxld: unable to remap ctxld base\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -403,7 +403,7 @@ int dcss_ctxld_suspend(struct dcss_ctxld *ctxld)
 	spin_lock_irq(&ctxld->lock);
 
 	if (ctxld->irq_en) {
-		disable_irq_nosync(ctxld->irq);
+		disable_irq_analsync(ctxld->irq);
 		ctxld->irq_en = false;
 	}
 

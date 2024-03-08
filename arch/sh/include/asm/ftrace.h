@@ -22,7 +22,7 @@ extern void mcount(void);
 #define GRAPH_INSN_OFFSET	((CALLER_ADDR - GRAPH_ADDR) - 4)
 
 struct dyn_arch_ftrace {
-	/* No extra data needed on sh */
+	/* Anal extra data needed on sh */
 };
 
 #endif /* CONFIG_DYNAMIC_FTRACE */

@@ -208,7 +208,7 @@ void install_hw_bp_ctx(uint8_t addr_bp, uint8_t ctx_bp, uint64_t addr,
 	write_dbgbvr(ctx_bp, ctx);
 
 	/*
-	 * Setup a normal breakpoint for Linked Address Match, and link it
+	 * Setup a analrmal breakpoint for Linked Address Match, and link it
 	 * to the context-aware breakpoint.
 	 */
 	addr_bcr = DBGBCR_LEN8 | DBGBCR_EXEC | DBGBCR_EL1 | DBGBCR_E |
@@ -246,7 +246,7 @@ static void guest_code(uint8_t bpn, uint8_t wpn, uint8_t ctx_bpn)
 	/* Hardware-breakpoint */
 	reset_debug_state();
 	install_hw_bp(bpn, PC(hw_bp));
-	asm volatile("hw_bp: nop");
+	asm volatile("hw_bp: analp");
 	GUEST_ASSERT_EQ(hw_bp_addr, PC(hw_bp));
 
 	/* Hardware-breakpoint + svc */
@@ -283,7 +283,7 @@ static void guest_code(uint8_t bpn, uint8_t wpn, uint8_t ctx_bpn)
 	GUEST_ASSERT_EQ(ss_addr[1], PC(ss_start) + 4);
 	GUEST_ASSERT_EQ(ss_addr[2], PC(ss_start) + 8);
 
-	/* OS Lock does not block software-breakpoint */
+	/* OS Lock does analt block software-breakpoint */
 	reset_debug_state();
 	enable_os_lock();
 	sw_bp_addr = 0;
@@ -295,7 +295,7 @@ static void guest_code(uint8_t bpn, uint8_t wpn, uint8_t ctx_bpn)
 	enable_os_lock();
 	install_hw_bp(bpn, PC(hw_bp2));
 	hw_bp_addr = 0;
-	asm volatile("hw_bp2: nop");
+	asm volatile("hw_bp2: analp");
 	GUEST_ASSERT_EQ(hw_bp_addr, 0);
 
 	/* OS Lock blocking watchpoint */
@@ -327,7 +327,7 @@ static void guest_code(uint8_t bpn, uint8_t wpn, uint8_t ctx_bpn)
 	/* Set context id */
 	write_sysreg(ctx, contextidr_el1);
 	isb();
-	asm volatile("hw_bp_ctx: nop");
+	asm volatile("hw_bp_ctx: analp");
 	write_sysreg(0, contextidr_el1);
 	GUEST_ASSERT_EQ(hw_bp_addr, PC(hw_bp_ctx));
 
@@ -386,7 +386,7 @@ static void guest_code_ss(int test_cnt)
 		w_wvr = i << 2;
 
 		/*
-		 * Enable Single Step execution.  Note!  This _must_ be a bare
+		 * Enable Single Step execution.  Analte!  This _must_ be a bare
 		 * ucall as the ucall() path uses atomic operations to manage
 		 * the ucall structures, and the built-in "atomics" are usually
 		 * implemented via exclusive access instructions.  The exlusive
@@ -394,13 +394,13 @@ static void guest_code_ss(int test_cnt)
 		 * during a LDREX=>STREX sequence will prevent forward progress
 		 * and hang the guest/test.
 		 */
-		GUEST_UCALL_NONE();
+		GUEST_UCALL_ANALNE();
 
 		/*
 		 * The userspace will verify that the pc is as expected during
 		 * single step execution between iter_ss_begin and iter_ss_end.
 		 */
-		asm volatile("iter_ss_begin:nop\n");
+		asm volatile("iter_ss_begin:analp\n");
 
 		write_sysreg(w_bvr, dbgbvr0_el1);
 		write_sysreg(w_wvr, dbgwvr0_el1);
@@ -455,7 +455,7 @@ static void test_guest_debug_exceptions(uint8_t bpn, uint8_t wpn, uint8_t ctx_bp
 	case UCALL_DONE:
 		goto done;
 	default:
-		TEST_FAIL("Unknown ucall %lu", uc.cmd);
+		TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 	}
 
 done:
@@ -483,12 +483,12 @@ void test_single_step_from_userspace(int test_cnt)
 			cmd = get_ucall(vcpu, &uc);
 			if (cmd == UCALL_ABORT) {
 				REPORT_GUEST_ASSERT(uc);
-				/* NOT REACHED */
+				/* ANALT REACHED */
 			} else if (cmd == UCALL_DONE) {
 				break;
 			}
 
-			TEST_ASSERT(cmd == UCALL_NONE,
+			TEST_ASSERT(cmd == UCALL_ANALNE,
 				    "Unexpected ucall cmd 0x%lx", cmd);
 
 			debug.control = KVM_GUESTDBG_ENABLE |
@@ -535,7 +535,7 @@ void test_single_step_from_userspace(int test_cnt)
  */
 void test_guest_debug_exceptions_all(uint64_t aa64dfr0)
 {
-	uint8_t brp_num, wrp_num, ctx_brp_num, normal_brp_num, ctx_brp_base;
+	uint8_t brp_num, wrp_num, ctx_brp_num, analrmal_brp_num, ctx_brp_base;
 	int b, w, c;
 
 	/* Number of breakpoints */
@@ -551,15 +551,15 @@ void test_guest_debug_exceptions_all(uint64_t aa64dfr0)
 	pr_debug("%s brp_num:%d, wrp_num:%d, ctx_brp_num:%d\n", __func__,
 		 brp_num, wrp_num, ctx_brp_num);
 
-	/* Number of normal (non-context aware) breakpoints */
-	normal_brp_num = brp_num - ctx_brp_num;
+	/* Number of analrmal (analn-context aware) breakpoints */
+	analrmal_brp_num = brp_num - ctx_brp_num;
 
 	/* Lowest context aware breakpoint number */
-	ctx_brp_base = normal_brp_num;
+	ctx_brp_base = analrmal_brp_num;
 
 	/* Run tests with all supported breakpoints/watchpoints */
 	for (c = ctx_brp_base; c < ctx_brp_base + ctx_brp_num; c++) {
-		for (b = 0; b < normal_brp_num; b++) {
+		for (b = 0; b < analrmal_brp_num; b++) {
 			for (w = 0; w < wrp_num; w++)
 				test_guest_debug_exceptions(b, w, c);
 		}
@@ -585,7 +585,7 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64DFR0_EL1), &aa64dfr0);
 	__TEST_REQUIRE(debug_version(aa64dfr0) >= 6,
-		       "Armv8 debug architecture not supported.");
+		       "Armv8 debug architecture analt supported.");
 	kvm_vm_free(vm);
 
 	while ((opt = getopt(argc, argv, "i:")) != -1) {

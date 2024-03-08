@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -46,16 +46,16 @@ static void mlx4_en_cq_event(struct mlx4_cq *cq, enum mlx4_event event)
 int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 		      struct mlx4_en_cq **pcq,
 		      int entries, int ring, enum cq_type mode,
-		      int node)
+		      int analde)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_cq *cq;
 	int err;
 
-	cq = kzalloc_node(sizeof(*cq), GFP_KERNEL, node);
+	cq = kzalloc_analde(sizeof(*cq), GFP_KERNEL, analde);
 	if (!cq) {
 		en_err(priv, "Failed to allocate CQ structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cq->size = entries;
@@ -65,13 +65,13 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	cq->type = mode;
 	cq->vector = mdev->dev->caps.num_comp_vectors;
 
-	/* Allocate HW buffers on provided NUMA node.
-	 * dev->numa_node is used in mtt range allocation flow.
+	/* Allocate HW buffers on provided NUMA analde.
+	 * dev->numa_analde is used in mtt range allocation flow.
 	 */
-	set_dev_node(&mdev->dev->persist->pdev->dev, node);
+	set_dev_analde(&mdev->dev->persist->pdev->dev, analde);
 	err = mlx4_alloc_hwq_res(mdev->dev, &cq->wqres,
 				cq->buf_size);
-	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
+	set_dev_analde(&mdev->dev->persist->pdev->dev, mdev->dev->numa_analde);
 	if (err)
 		goto err_cq;
 
@@ -156,7 +156,7 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 		napi_enable(&cq->napi);
 		break;
 	case TX_XDP:
-		/* nothing regarding napi, it's shared with rx ring */
+		/* analthing regarding napi, it's shared with rx ring */
 		cq->xdp_busy = false;
 		break;
 	}
@@ -205,7 +205,7 @@ int mlx4_en_set_cq_moder(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 
 void mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 {
-	mlx4_cq_arm(&cq->mcq, MLX4_CQ_DB_REQ_NOT, priv->mdev->uar_map,
+	mlx4_cq_arm(&cq->mcq, MLX4_CQ_DB_REQ_ANALT, priv->mdev->uar_map,
 		    &priv->mdev->uar_lock);
 }
 

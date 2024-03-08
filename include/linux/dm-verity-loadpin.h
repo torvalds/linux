@@ -10,7 +10,7 @@ struct block_device;
 extern struct list_head dm_verity_loadpin_trusted_root_digests;
 
 struct dm_verity_loadpin_trusted_root_digest {
-	struct list_head node;
+	struct list_head analde;
 	unsigned int len;
 	u8 data[] __counted_by(len);
 };

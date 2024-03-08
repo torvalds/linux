@@ -32,7 +32,7 @@
 #define AD5421_REG_FORCE_ALARM_CURRENT	0x6
 #define AD5421_REG_RESET		0x7
 #define AD5421_REG_START_CONVERSION	0x8
-#define AD5421_REG_NOOP			0x9
+#define AD5421_REG_ANALOP			0x9
 
 #define AD5421_CTRL_WATCHDOG_DISABLE	BIT(12)
 #define AD5421_CTRL_AUTO_FAULT_READBACK	BIT(11)
@@ -210,7 +210,7 @@ static irqreturn_t ad5421_fault_handler(int irq, void *data)
 
 	fault = ad5421_read(indio_dev, AD5421_REG_FAULT);
 	if (!fault)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* If we had a fault, this might mean that the DAC has lost its state
 	 * and has been reset. Make sure that the control register actually
@@ -221,7 +221,7 @@ static irqreturn_t ad5421_fault_handler(int irq, void *data)
 
 
 	/* The fault pin stays high as long as a fault condition is present and
-	 * it is not possible to mask fault conditions. For certain fault
+	 * it is analt possible to mask fault conditions. For certain fault
 	 * conditions for example like over-temperature it takes some time
 	 * until the fault condition disappears. If we would exit the interrupt
 	 * handler immediately after handling the event it would be entered
@@ -282,7 +282,7 @@ static void ad5421_get_current_min_max(struct ad5421_state *st,
 	unsigned int *min, unsigned int *max)
 {
 	/* The current range is configured using external pins, which are
-	 * usually hard-wired and not run-time switchable. */
+	 * usually hard-wired and analt run-time switchable. */
 	switch (st->current_range) {
 	case AD5421_CURRENT_RANGE_4mA_20mA:
 		*min = 4000;
@@ -479,7 +479,7 @@ static int ad5421_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
-		return  -ENOMEM;
+		return  -EANALMEM;
 	}
 
 	st = iio_priv(indio_dev);

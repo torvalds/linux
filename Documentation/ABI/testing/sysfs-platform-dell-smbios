@@ -1,5 +1,5 @@
 What:		/sys/devices/platform/<platform>/tokens/*
-Date:		November 2017
+Date:		Analvember 2017
 KernelVersion:	4.15
 Contact:	Dell.Client.Kernel@dell.com
 Description:

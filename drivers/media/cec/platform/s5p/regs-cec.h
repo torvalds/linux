@@ -7,8 +7,8 @@
  *  register header file for Samsung TVOUT driver
  */
 
-#ifndef __EXYNOS_REGS__H
-#define __EXYNOS_REGS__H
+#ifndef __EXYANALS_REGS__H
+#define __EXYANALS_REGS__H
 
 /*
  * Register part
@@ -88,6 +88,6 @@
 #define S5P_CEC_LOGIC_ADDR_MASK			(0xF)
 
 /* PMU Registers for PHY */
-#define EXYNOS_HDMI_PHY_CONTROL			0x700
+#define EXYANALS_HDMI_PHY_CONTROL			0x700
 
-#endif	/* __EXYNOS_REGS__H	*/
+#endif	/* __EXYANALS_REGS__H	*/

@@ -17,11 +17,11 @@ description: |
   bindings defined here, plus any bus controller specific properties, if
   needed.
 
-  Each SPMI controller has zero or more child nodes (up to 16 ones), each
+  Each SPMI controller has zero or more child analdes (up to 16 ones), each
   one representing an unique slave at the bus.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^spmi@.*"
 
   "#address-cells":
@@ -32,7 +32,7 @@ properties:
 
 patternProperties:
   "@[0-9a-f]$":
-    description: up to 16 child PMIC nodes
+    description: up to 16 child PMIC analdes
     type: object
 
     properties:

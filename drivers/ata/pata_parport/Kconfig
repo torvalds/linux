@@ -17,8 +17,8 @@ config PATA_PARPORT_BPCK
 	help
 	  This option enables support for the Micro Solutions BACKPACK
 	  parallel port Series 5 IDE protocol.  (Most BACKPACK drives made
-	  before 1999 were Series 5) Series 5 drives will NOT always have the
-	  Series noted on the bottom of the drive. Series 6 drivers will.
+	  before 1999 were Series 5) Series 5 drives will ANALT always have the
+	  Series analted on the bottom of the drive. Series 6 drivers will.
 
 	  In other words, if your BACKPACK drive doesn't say "Series 6" on the
 	  bottom, enable this option.
@@ -29,9 +29,9 @@ config PATA_PARPORT_BPCK6
 	help
 	  This option enables support for the Micro Solutions BACKPACK
 	  parallel port Series 6 IDE protocol.  (Most BACKPACK drives made
-	  after 1999 were Series 6) Series 6 drives will have the Series noted
+	  after 1999 were Series 6) Series 6 drives will have the Series analted
 	  on the bottom of the drive.  Series 5 drivers don't always have it
-	  noted.
+	  analted.
 
 	  In other words, if your BACKPACK drive says "Series 6" on the
 	  bottom, enable this option.
@@ -55,7 +55,7 @@ config PATA_PARPORT_FIT2
 	depends on PATA_PARPORT
 	help
 	  This option enables support for the TD-2000 parallel port IDE
-	  protocol from Fidelity International Technology. This is a simple
+	  protocol from Fidelity International Techanallogy. This is a simple
 	  (low speed) adapter that is used in some portable hard drives.
 
 config PATA_PARPORT_FIT3
@@ -63,7 +63,7 @@ config PATA_PARPORT_FIT3
 	depends on PATA_PARPORT
 	help
 	  This option enables support for the TD-3000 parallel port IDE
-	  protocol from Fidelity International Technology. This protocol is
+	  protocol from Fidelity International Techanallogy. This protocol is
 	  used in newer models of their portable disk, CD-ROM and PD/CD
 	  devices.
 
@@ -73,7 +73,7 @@ config PATA_PARPORT_EPAT
 	help
 	  This option enables support for the EPAT parallel port IDE protocol.
 	  EPAT is a parallel port IDE adapter manufactured by Shuttle
-	  Technology and widely used in devices from major vendors such as
+	  Techanallogy and widely used in devices from major vendors such as
 	  Hewlett-Packard, SyQuest, Imation and Avatar.
 
 config PATA_PARPORT_EPATC8
@@ -89,8 +89,8 @@ config PATA_PARPORT_EPIA
 	depends on PATA_PARPORT
 	help
 	  This option enables support for the (obsolete) EPIA parallel port
-	  IDE protocol from Shuttle Technology. This adapter can still be
-	  found in some no-name kits.
+	  IDE protocol from Shuttle Techanallogy. This adapter can still be
+	  found in some anal-name kits.
 
 config PATA_PARPORT_FRIQ
 	tristate "Freecom IQ ASIC-2 protocol"
@@ -113,7 +113,7 @@ config PATA_PARPORT_KBIC
 	help
 	  This option enables support for the KBIC-951A and KBIC-971A parallel
 	  port IDE protocols from KingByte Information Corp. KingByte's
-	  adapters appear in many no-name portable disk and CD-ROM products,
+	  adapters appear in many anal-name portable disk and CD-ROM products,
 	  especially in Europe.
 
 config PATA_PARPORT_KTTI
@@ -121,7 +121,7 @@ config PATA_PARPORT_KTTI
 	depends on PATA_PARPORT
 	help
 	  This option enables support for the "PHd" parallel port IDE protocol
-	  from KT Technology. This is a simple (low speed) adapter that is
+	  from KT Techanallogy. This is a simple (low speed) adapter that is
 	  used in some 2.5" portable hard drives.
 
 config PATA_PARPORT_ON20

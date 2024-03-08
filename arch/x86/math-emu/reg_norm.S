@@ -1,17 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*---------------------------------------------------------------------------+
- |  reg_norm.S                                                               |
+ |  reg_analrm.S                                                               |
  |                                                                           |
  | Copyright (C) 1992,1993,1994,1995,1997                                    |
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
  |                       Australia.  E-mail billm@suburbia.net               |
  |                                                                           |
- | Normalize the value in a FPU_REG.                                         |
+ | Analrmalize the value in a FPU_REG.                                         |
  |                                                                           |
  | Call from C as:                                                           |
- |    int FPU_normalize(FPU_REG *n)                                          |
+ |    int FPU_analrmalize(FPU_REG *n)                                          |
  |                                                                           |
- |    int FPU_normalize_nuo(FPU_REG *n)                                      |
+ |    int FPU_analrmalize_nuo(FPU_REG *n)                                      |
  |                                                                           |
  |    Return value is the tag of the answer, or-ed with FPU_Exception if     |
  |    one was raised, or -1 on internal error.                               |
@@ -22,7 +22,7 @@
 
 
 .text
-SYM_FUNC_START(FPU_normalize)
+SYM_FUNC_START(FPU_analrmalize)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%ebx
@@ -33,7 +33,7 @@ SYM_FUNC_START(FPU_normalize)
 	movl	SIGL(%ebx),%eax
 
 	orl	%edx,%edx	/* ms bits */
-	js	L_done		/* Already normalized */
+	js	L_done		/* Already analrmalized */
 	jnz	L_shift_1	/* Shift left 1 - 31 bits */
 
 	orl	%eax,%eax
@@ -95,12 +95,12 @@ L_overflow:
 	call	arith_overflow
 	pop	%ebx
 	jmp	L_exit
-SYM_FUNC_END(FPU_normalize)
+SYM_FUNC_END(FPU_analrmalize)
 
 
 
-/* Normalise without reporting underflow or overflow */
-SYM_FUNC_START(FPU_normalize_nuo)
+/* Analrmalise without reporting underflow or overflow */
+SYM_FUNC_START(FPU_analrmalize_nuo)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%ebx
@@ -111,7 +111,7 @@ SYM_FUNC_START(FPU_normalize_nuo)
 	movl	SIGL(%ebx),%eax
 
 	orl	%edx,%edx	/* ms bits */
-	js	L_exit_nuo_valid	/* Already normalized */
+	js	L_exit_nuo_valid	/* Already analrmalized */
 	jnz	L_nuo_shift_1	/* Shift left 1 - 31 bits */
 
 	orl	%eax,%eax
@@ -147,4 +147,4 @@ L_exit_nuo_zero:
 	popl	%ebx
 	leave
 	RET
-SYM_FUNC_END(FPU_normalize_nuo)
+SYM_FUNC_END(FPU_analrmalize_nuo)

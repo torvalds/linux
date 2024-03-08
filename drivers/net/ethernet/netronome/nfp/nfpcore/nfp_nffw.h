@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_nffw.h
- * Authors: Jason McMullan <jason.mcmullan@netronome.com>
- *          Francois H. Theron <francois.theron@netronome.com>
+ * Authors: Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Francois H. Theron <francois.theron@netroanalme.com>
  */
 
 #ifndef NFP_NFFW_H
@@ -32,13 +32,13 @@ void nfp_mip_strtab(const struct nfp_mip *mip, u32 *addr, u32 *size);
 /* Implemented in nfp_rtsym.c */
 
 enum nfp_rtsym_type {
-	NFP_RTSYM_TYPE_NONE	= 0,
+	NFP_RTSYM_TYPE_ANALNE	= 0,
 	NFP_RTSYM_TYPE_OBJECT	= 1,
 	NFP_RTSYM_TYPE_FUNCTION	= 2,
 	NFP_RTSYM_TYPE_ABS	= 3,
 };
 
-#define NFP_RTSYM_TARGET_NONE		0
+#define NFP_RTSYM_TARGET_ANALNE		0
 #define NFP_RTSYM_TARGET_LMEM		-1
 #define NFP_RTSYM_TARGET_EMU_CACHE	-7
 

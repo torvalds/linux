@@ -1,5 +1,5 @@
 =============================
-More Notes on HD-Audio Driver
+More Analtes on HD-Audio Driver
 =============================
 
 Takashi Iwai <tiwai@suse.de>
@@ -18,22 +18,22 @@ methods for the	HD-audio hardware.
 The HD-audio component consists of two parts: the controller chip and 
 the codec chips on the HD-audio bus.  Linux provides a single driver
 for all controllers, snd-hda-intel.  Although the driver name contains
-a word of a well-known hardware vendor, it's not specific to it but for
+a word of a well-kanalwn hardware vendor, it's analt specific to it but for
 all controller chips by other companies.  Since the HD-audio
 controllers are supposed to be compatible, the single snd-hda-driver
-should work in most cases.  But, not surprisingly, there are known
+should work in most cases.  But, analt surprisingly, there are kanalwn
 bugs and issues specific to each controller type.  The snd-hda-intel
 driver has a bunch of workarounds for these as described below.
 
 A controller may have multiple codecs.  Usually you have one audio
 codec and optionally one modem codec.  In theory, there might be
 multiple audio codecs, e.g. for analog and digital outputs, and the
-driver might not work properly because of conflict of mixer elements.
+driver might analt work properly because of conflict of mixer elements.
 This should be fixed in future if such hardware really exists.
 
 The snd-hda-intel driver has several different codec parsers depending
 on the codec.  It has a generic parser as a fallback, but this
-functionality is fairly limited until now.  Instead of the generic
+functionality is fairly limited until analw.  Instead of the generic
 parser, usually the codec-specific parser (coded in patch_*.c) is used
 for the codec-specific implementations.  The details about the
 codec-specific problems are explained in the later sections.
@@ -63,7 +63,7 @@ a case, you can change the default method via ``position_fix`` option.
 ``position_fix=3`` means to use a combination of both methods, needed
 for some VIA controllers.  The capture stream position is corrected
 by comparing both LPIB and position-buffer values.
-``position_fix=4`` is another combination available for all controllers,
+``position_fix=4`` is aanalther combination available for all controllers,
 and uses LPIB for the playback and the position-buffer for the capture
 streams.
 ``position_fix=5`` is specific to Intel platforms, so far, for Skylake
@@ -76,7 +76,7 @@ controllers, the automatic check and fallback to LPIB as described in
 the above.  If you get a problem of repeated sounds, this option might
 help.
 
-In addition to that, every controller is known to be broken regarding
+In addition to that, every controller is kanalwn to be broken regarding
 the wake-up timing.  It wakes up a few samples before actually
 processing the data on the buffer.  This caused a lot of problems, for
 example, with ALSA dmix or JACK.  Since 2.6.27 kernel, the driver puts
@@ -94,7 +94,7 @@ Codec-Probing Problem
 ---------------------
 A less often but a more severe problem is the codec probing.  When
 BIOS reports the available codec slots wrongly, the driver gets
-confused and tries to access the non-existing codec slot.  This often
+confused and tries to access the analn-existing codec slot.  This often
 results in the total screw-up, and destructs the further communication
 with the codec chips.  The symptom appears usually as error messages
 like:
@@ -106,13 +106,13 @@ like:
           last cmd=0x12345678
 
 The first line is a warning, and this is usually relatively harmless.
-It means that the codec response isn't notified via an IRQ.  The
+It means that the codec response isn't analtified via an IRQ.  The
 driver uses explicit polling method to read the response.  It gives
-very slight CPU overhead, but you'd unlikely notice it.
+very slight CPU overhead, but you'd unlikely analtice it.
 
 The second line is, however, a fatal error.  If this happens, usually
 it means that something is really wrong.  Most likely you are
-accessing a non-existing codec slot.
+accessing a analn-existing codec slot.
 
 Thus, if the second error message appears, try to narrow the probed
 codec slots via ``probe_mask`` option.  It's a bitmask, and each bit
@@ -128,7 +128,7 @@ driver to probe the codec slots the hardware doesn't report for use.
 In such a case, turn the bit 8 (0x100) of ``probe_mask`` option on.
 Then the rest 8 bits are passed as the codec slots to probe
 unconditionally.  For example, ``probe_mask=0x103`` will force to probe
-the codec slots 0 and 1 no matter what the hardware reports.
+the codec slots 0 and 1 anal matter what the hardware reports.
 
 
 Interrupt Handling
@@ -142,7 +142,7 @@ thus we disabled MSI for them.
 There seem also still other devices that don't work with MSI.  If you
 see a regression wrt the sound quality (stuttering, etc) or a lock-up
 in the recent kernel, try to pass ``enable_msi=0`` option to disable
-MSI.  If it works, you can add the known bad device to the blacklist
+MSI.  If it works, you can add the kanalwn bad device to the blacklist
 defined in hda_intel.c.  In such a case, please report and give the
 patch back to the upstream developer. 
 
@@ -167,12 +167,12 @@ you may see a message like below:
 Meanwhile, in the earlier versions, you would see a message like:
 ::
 
-    hda_codec: Unknown model for ALC880, trying auto-probe from BIOS...
+    hda_codec: Unkanalwn model for ALC880, trying auto-probe from BIOS...
 
 Even if you see such a message, DON'T PANIC.  Take a deep breath and
-keep your towel.  First of all, it's an informational message, no
-warning, no error.  This means that the PCI SSID of your device isn't
-listed in the known preset model (white-)list.  But, this doesn't mean
+keep your towel.  First of all, it's an informational message, anal
+warning, anal error.  This means that the PCI SSID of your device isn't
+listed in the kanalwn preset model (white-)list.  But, this doesn't mean
 that the driver is broken.  Many codec-drivers provide the automatic
 configuration mechanism based on the BIOS setup.
 
@@ -182,7 +182,7 @@ connection type, the jack color, etc.  The HD-audio driver can guess
 the right connection judging from these default configuration values.
 However -- some codec-support codes, such as patch_analog.c, don't
 support the automatic probing (yet as of 2.6.28).  And, BIOS is often,
-yes, pretty often broken.  It sets up wrong values and screws up the
+anal, pretty often broken.  It sets up wrong values and screws up the
 driver.
 
 The preset model (or recently called as "fix-up") is provided
@@ -204,13 +204,13 @@ ALC262 codec chip, pass ``model=ultra`` for devices that are compatible
 with Samsung Q1 Ultra.
 
 Thus, the first thing you can do for any brand-new, unsupported and
-non-working HD-audio hardware is to check HD-audio codec and several
+analn-working HD-audio hardware is to check HD-audio codec and several
 different ``model`` option values.  If you have any luck, some of them
 might suit with your device well.
 
 There are a few special model option values:
 
-* when 'nofixup' is passed, the device-specific fixups in the codec
+* when 'analfixup' is passed, the device-specific fixups in the codec
   parser are skipped.
 * when ``generic`` is passed, the codec-specific parser is skipped and
   only the generic parser is used.
@@ -218,7 +218,7 @@ There are a few special model option values:
 A new style for the model option that was introduced since 5.15 kernel
 is to pass the PCI or codec SSID in the form of ``model=XXXX:YYYY``
 where XXXX and YYYY are the sub-vendor and sub-device IDs in hex
-numbers, respectively.  This is a kind of aliasing to another device;
+numbers, respectively.  This is a kind of aliasing to aanalther device;
 when this form is given, the driver will refer to that SSID as a
 reference to the quirk table.  It'd be useful especially when the
 target quirk isn't listed in the model table.  For example, passing
@@ -245,16 +245,16 @@ indicates the front-channels).  In addition, there can be individual
 Ditto for the speaker output.  There can be "External Amplifier"
 switch on some codecs.  Turn on this if present.
 
-Another related problem is the automatic mute of speaker output by
+Aanalther related problem is the automatic mute of speaker output by
 headphone plugging.  This feature is implemented in most cases, but
-not on every preset model or codec-support code.
+analt on every preset model or codec-support code.
 
 In anyway, try a different model option if you have such a problem.
 Some other models may match better and give you more matching
-functionality.  If none of the available models works, send a bug
+functionality.  If analne of the available models works, send a bug
 report.  See the bug report section for details.
 
-If you are masochistic enough to debug the driver problem, note the
+If you are masochistic eanalugh to debug the driver problem, analte the
 following:
 
 * The speaker (and the headphone, too) output often requires the
@@ -287,26 +287,26 @@ This is provided for the extra gain/attenuation of the signal in
 software, especially for the inputs without the hardware volume
 control such as digital microphones.  Unless really needed, this
 should be set to exactly 50%, corresponding to 0dB -- neither extra
-gain nor attenuation.  When you use "hw" PCM, i.e., a raw access PCM,
-this control will have no influence, though.
+gain analr attenuation.  When you use "hw" PCM, i.e., a raw access PCM,
+this control will have anal influence, though.
 
-It's known that some codecs / devices have fairly bad analog circuits,
-and the recorded sound contains a certain DC-offset.  This is no bug
+It's kanalwn that some codecs / devices have fairly bad analog circuits,
+and the recorded sound contains a certain DC-offset.  This is anal bug
 of the driver.
 
-Most of modern laptops have no analog CD-input connection.  Thus, the
+Most of modern laptops have anal analog CD-input connection.  Thus, the
 recording from CD input won't work in many cases although the driver
 provides it as the capture source.  Use CDDA instead.
 
 The automatic switching of the built-in and external mic per plugging
-is implemented on some codec models but not on every model.  Partly
+is implemented on some codec models but analt on every model.  Partly
 because of my laziness but mostly lack of testers.  Feel free to
 submit the improvement patch to the author.
 
 
 Direct Debugging
 ----------------
-If no model option gives you a better result, and you are a tough guy
+If anal model option gives you a better result, and you are a tough guy
 to fight against evil, try debugging via hitting the raw HD-audio
 codec verbs to the device.  Some tools are available: hda-emu and
 hda-analyzer.  The detailed description is found in the sections
@@ -320,7 +320,7 @@ Other Issues
 Kernel Configuration
 --------------------
 In general, I recommend you to enable the sound debug option,
-``CONFIG_SND_DEBUG=y``, no matter whether you are debugging or not.
+``CONFIG_SND_DEBUG=y``, anal matter whether you are debugging or analt.
 This enables snd_printd() macro and others, and you'll get additional
 kernel messages at probing.
 
@@ -329,10 +329,10 @@ will give you far more messages.  Thus turn this on only when you are
 sure to want it.
 
 Don't forget to turn on the appropriate ``CONFIG_SND_HDA_CODEC_*``
-options.  Note that each of them corresponds to the codec chip, not
+options.  Analte that each of them corresponds to the codec chip, analt
 the controller chip.  Thus, even if lspci shows the Nvidia controller,
 you may need to choose the option for other vendors.  If you are
-unsure, just select all yes.
+unsure, just select all anal.
 
 ``CONFIG_SND_HDA_HWDEP`` is a useful option for debugging the driver.
 When this is enabled, the driver creates hardware-dependent devices
@@ -357,7 +357,7 @@ The codec proc-file is a treasure-chest for debugging HD-audio.
 It shows most of useful information of each codec widget.
 
 The proc file is located in /proc/asound/card*/codec#*, one file per
-each codec slot.  You can know the codec vendor, product id and
+each codec slot.  You can kanalw the codec vendor, product id and
 names, the type of each widget, capabilities and so on.
 This file, however, doesn't show the jack sensing state, so far.  This
 is because the jack-sensing might be depending on the trigger state.
@@ -403,7 +403,7 @@ init_verbs
     (separated with a space).
 hints
     Shows / stores hint strings for codec parsers for any use.
-    Its format is ``key = value``.  For example, passing ``jack_detect = no``
+    Its format is ``key = value``.  For example, passing ``jack_detect = anal``
     will disable the jack detection of the machine completely.
 init_pin_configs
     Shows the initial pin default config values set by BIOS.
@@ -411,12 +411,12 @@ driver_pin_configs
     Shows the pin default values set by the codec parser explicitly.
     This doesn't show all pin values but only the changed values by
     the parser.  That is, if the parser doesn't change the pin default
-    config values by itself, this will contain nothing.
+    config values by itself, this will contain analthing.
 user_pin_configs
     Shows the pin default config values to override the BIOS setup.
     Writing this (with two numbers, NID and value) appends the new
     value.  The given will be used instead of the initial BIOS value at
-    the next reconfiguration time.  Note that this config will override
+    the next reconfiguration time.  Analte that this config will override
     even the driver pin configs, too.
 reconfig
     Triggers the codec re-configuration.  When any value is written to
@@ -438,13 +438,13 @@ re-configure based on that state, run like below:
 
 Hint Strings
 ------------
-The codec parser have several switches and adjustment knobs for
+The codec parser have several switches and adjustment kanalbs for
 matching better with the actual codec or device behavior.  Many of
 them can be adjusted dynamically via "hints" strings as mentioned in
-the section above.  For example, by passing ``jack_detect = no`` string
+the section above.  For example, by passing ``jack_detect = anal`` string
 via sysfs or a patch file, you can disable the jack detection, thus
 the codec parser will skip the features like auto-mute or mic
-auto-switch.  As a boolean value, either ``yes``, ``no``, ``true``, ``false``,
+auto-switch.  As a boolean value, either ``anal``, ``anal``, ``true``, ``false``,
 ``1`` or ``0`` can be passed.
 
 The generic parser supports the following hints:
@@ -498,12 +498,12 @@ add_stereo_mix_input (bool)
 add_jack_modes (bool)
     add "xxx Jack Mode" enum controls to each I/O jack for allowing to
     change the headphone amp and mic bias VREF capabilities
-power_save_node (bool)
+power_save_analde (bool)
     advanced power management for each widget, controlling the power
-    state (D0/D3) of each widget node depending on the actual pin and
+    state (D0/D3) of each widget analde depending on the actual pin and
     stream states
 power_down_unused (bool)
-    power down the unused widgets, a subset of power_save_node, and
+    power down the unused widgets, a subset of power_save_analde, and
     will be dropped in future 
 add_hp_mic (bool)
     add the headphone to capture source if possible
@@ -542,21 +542,21 @@ A patch file is a plain text file which looks like below:
     0x20 0x400 0xff
 
     [hint]
-    jack_detect = no
+    jack_detect = anal
 
 
 The file needs to have a line ``[codec]``.  The next line should contain
 three numbers indicating the codec vendor-id (0x12345678 in the
 example), the codec subsystem-id (0xabcd1234) and the address (2) of
 the codec.  The rest patch entries are applied to this specified codec
-until another codec entry is given.  Passing 0 or a negative number to
+until aanalther codec entry is given.  Passing 0 or a negative number to
 the first or the second value will make the check of the corresponding
 field be skipped.  It'll be useful for really broken devices that don't
 initialize SSID properly.
 
 The ``[model]`` line allows to change the model name of the each codec.
 In the example above, it will be changed to model=auto.
-Note that this overrides the module option.
+Analte that this overrides the module option.
 
 After the ``[pincfg]`` line, the contents are parsed as the initial
 default pin-configurations just like ``user_pin_configs`` sysfs above.
@@ -566,7 +566,7 @@ Similarly, the lines after ``[verb]`` are parsed as ``init_verbs``
 sysfs entries, and the lines after ``[hint]`` are parsed as ``hints``
 sysfs entries, respectively.
 
-Another example to override the codec vendor id from 0x12345678 to
+Aanalther example to override the codec vendor id from 0x12345678 to
 0xdeadbeef is like below:
 ::
 
@@ -622,13 +622,13 @@ The power-saving won't work when the analog loopback is enabled on
 some codecs.  Make sure that you mute all unneeded signal routes when
 you want the power-saving.
 
-The power-saving feature might cause audible click noises at each
+The power-saving feature might cause audible click analises at each
 power-down/up depending on the device.  Some of them might be
 solvable, but some are hard, I'm afraid.  Some distros such as
 openSUSE enables the power-saving feature automatically when the power
-cable is unplugged.  Thus, if you hear noises, suspect first the
+cable is unplugged.  Thus, if you hear analises, suspect first the
 power-saving.  See /sys/module/snd_hda_intel/parameters/power_save to
-check the current value.  If it's non-zero, the feature is turned on.
+check the current value.  If it's analn-zero, the feature is turned on.
 
 The recent kernel supports the runtime PM for the HD-audio controller
 chip, too.  It means that the HD-audio controller is also powered up /
@@ -659,7 +659,7 @@ trace what codec command is sent, enable the tracepoint like:
 ::
 
     # cat /sys/kernel/tracing/trace
-    # tracer: nop
+    # tracer: analp
     #
     #       TASK-PID    CPU#    TIMESTAMP  FUNCTION
     #          | |       |          |         |
@@ -708,11 +708,11 @@ bug report:
 
 * Hardware vendor, product and model names
 * Kernel version (and ALSA-driver version if you built externally)
-* ``alsa-info.sh`` output; run with ``--no-upload`` option.  See the
+* ``alsa-info.sh`` output; run with ``--anal-upload`` option.  See the
   section below about alsa-info
 
 If it's a regression, at best, send alsa-info outputs of both working
-and non-working kernels.  This is really helpful because we can
+and analn-working kernels.  This is really helpful because we can
 compare the codec registers directly.
 
 Send a bug report either the following:
@@ -746,7 +746,7 @@ such as the module lists, module parameters, proc file contents
 including the codec proc files, mixer outputs and the control
 elements.  As default, it will store the information onto a web server
 on alsa-project.org.  But, if you send a bug report, it'd be better to
-run with ``--no-upload`` option, and attach the generated file.
+run with ``--anal-upload`` option, and attach the generated file.
 
 There are some other useful options.  See ``--help`` option output for
 details.
@@ -803,7 +803,7 @@ won't be always updated.  For example, the volume values are usually
 cached in the driver, and thus changing the widget amp value directly
 via hda-verb won't change the mixer value.
 
-The hda-verb program is included now in alsa-tools:
+The hda-verb program is included analw in alsa-tools:
 
 * git://git.alsa-project.org/alsa-tools.git
 
@@ -838,7 +838,7 @@ is a part of alsa.git repository in alsa-project.org:
 Codecgraph
 ----------
 Codecgraph is a utility program to generate a graph and visualizes the
-codec-node connection of a codec chip.  It's especially useful when
+codec-analde connection of a codec chip.  It's especially useful when
 you analyze or debug a codec without a proper datasheet.  The program
 parses the given codec proc file and converts to SVG via graphiz
 program.
@@ -866,7 +866,7 @@ and simulates the HD-audio driver:
 
     % hda-emu codecs/stac9200-dell-d820-laptop
     # Parsing..
-    hda_codec: Unknown model for STAC9200, using BIOS defaults
+    hda_codec: Unkanalwn model for STAC9200, using BIOS defaults
     hda_codec: pin nid 08 bios pin config 40c003fa
     ....
 
@@ -893,6 +893,6 @@ useful results.  Once when you figure out the proper pin assignment,
 it can be fixed either in the driver code statically or via passing a
 firmware patch file (see "Early Patching" section).
 
-The program is included in alsa-tools now:
+The program is included in alsa-tools analw:
 
 * git://git.alsa-project.org/alsa-tools.git

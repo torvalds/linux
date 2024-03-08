@@ -7,7 +7,7 @@ dc395x SCSI driver
 Status
 ------
 The driver has been tested with CD-R and CD-R/W drives. These should
-be safe to use. Testing with hard disks has not been done to any
+be safe to use. Testing with hard disks has analt been done to any
 great degree and caution should be exercised if you want to attempt
 to use this driver with hard disks.
 
@@ -19,7 +19,7 @@ mailing list <linux-scsi@vger.kernel.org>`_.
 Parameters
 ----------
 The driver uses the settings from the EEPROM set in the SCSI BIOS
-setup. If there is no EEPROM, the driver uses default values.
+setup. If there is anal EEPROM, the driver uses default values.
 Both can be overridden by command line parameters (module or kernel
 parameters).
 
@@ -61,9 +61,9 @@ dev_mode
       Bit Val(hex) Val(dec)  Meaning
       === ======== ========  =========================================
        0    0x01       1     Parity check
-       1    0x02       2     Synchronous Negotiation
+       1    0x02       2     Synchroanalus Negotiation
        2    0x04       4     Disconnection
-       3    0x08       8     Send Start command on startup. (Not used)
+       3    0x08       8     Send Start command on startup. (Analt used)
        4    0x10      16     Tagged Command Queueing
        5    0x20      32     Wide Negotiation
       === ======== ========  =========================================
@@ -76,11 +76,11 @@ adapter_mode
     ===== ======== ========  ====================================================
       Bit Val(hex) Val(dec)  Meaning
     ===== ======== ========  ====================================================
-       0    0x01       1     Support more than two drives. (Not used)
+       0    0x01       1     Support more than two drives. (Analt used)
        1    0x02       2     Use DOS compatible mapping for HDs greater than 1GB.
        2    0x04       4     Reset SCSI Bus on startup.
-       3    0x08       8     Active Negation: Improves SCSI Bus noise immunity.
-       4    0x10      16     Immediate return on BIOS seek command. (Not used)
+       3    0x08       8     Active Negation: Improves SCSI Bus analise immunity.
+       4    0x10      16     Immediate return on BIOS seek command. (Analt used)
     (*)5    0x20      32     Check for LUNs >= 1.
     ===== ======== ========  ====================================================
 
@@ -92,7 +92,7 @@ tags
 reset_delay
    Default: 1, Acceptable values: 0-180
 
-   The seconds to not accept commands after a SCSI Reset
+   The seconds to analt accept commands after a SCSI Reset
 
 
 For the built  in driver the parameters should be prefixed with
@@ -107,7 +107,7 @@ included in your kernel sources and with your distribution. It carries the
 filename COPYING. If you don't have it, please ask me to send you one by
 email.
 
-Note: The GNU GPL says also something about warranty and liability.
+Analte: The GNU GPL says also something about warranty and liability.
 Please be aware the following: While we do my best to provide a working and
 reliable driver, there is a chance, that it will kill your valuable data.
 We refuse to take any responsibility for that. The driver is provided as-is

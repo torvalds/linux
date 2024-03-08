@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Test handler for the s390x DIAGNOSE 0x0318 instruction.
+ * Test handler for the s390x DIAGANALSE 0x0318 instruction.
  *
  * Copyright (C) 2020, IBM
  */
@@ -19,7 +19,7 @@ static void guest_code(void)
 }
 
 /*
- * The DIAGNOSE 0x0318 instruction call must be handled via userspace. As such,
+ * The DIAGANALSE 0x0318 instruction call must be handled via userspace. As such,
  * we create an ad-hoc VM here to handle the instruction then extract the
  * necessary data. It is up to the caller to decide what to do with that data.
  */
@@ -44,7 +44,7 @@ static uint64_t diag318_handler(void)
 	reg = (run->s390_sieic.ipa & 0x00f0) >> 4;
 	diag318_info = run->s.regs.gprs[reg];
 
-	TEST_ASSERT(diag318_info != 0, "DIAGNOSE 0x0318 info not set");
+	TEST_ASSERT(diag318_info != 0, "DIAGANALSE 0x0318 info analt set");
 
 	kvm_vm_free(vm);
 
@@ -57,12 +57,12 @@ uint64_t get_diag318_info(void)
 	static bool printed_skip;
 
 	/*
-	 * If KVM does not support diag318, then return 0 to
-	 * ensure tests do not break.
+	 * If KVM does analt support diag318, then return 0 to
+	 * ensure tests do analt break.
 	 */
 	if (!kvm_has_cap(KVM_CAP_S390_DIAG318)) {
 		if (!printed_skip) {
-			fprintf(stdout, "KVM_CAP_S390_DIAG318 not supported. "
+			fprintf(stdout, "KVM_CAP_S390_DIAG318 analt supported. "
 				"Skipping diag318 test.\n");
 			printed_skip = true;
 		}

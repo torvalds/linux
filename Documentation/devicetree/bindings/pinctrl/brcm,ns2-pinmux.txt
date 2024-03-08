@@ -1,6 +1,6 @@
-Broadcom Northstar2 IOMUX Controller
+Broadcom Analrthstar2 IOMUX Controller
 
-The Northstar2 IOMUX controller supports group based mux configuration. There
+The Analrthstar2 IOMUX controller supports group based mux configuration. There
 are some individual pins that support modifying the pinconf parameters.
 
 Required properties:
@@ -10,9 +10,9 @@ Required properties:
 
 - reg:
     Define the base and range of the I/O address space that contains the
-    Northstar2 IOMUX and pin configuration registers.
+    Analrthstar2 IOMUX and pin configuration registers.
 
-Properties in sub nodes:
+Properties in sub analdes:
 
 - function:
     The mux function to select
@@ -60,13 +60,13 @@ For example:
 		};
 	};
 
-List of supported functions and groups in Northstar2:
+List of supported functions and groups in Analrthstar2:
 
 "nand": "nand_grp"
 
-"nor": "nor_data_grp", "nor_adv_grp", "nor_addr_0_3_grp", "nor_addr_4_5_grp",
-	"nor_addr_6_7_grp", "nor_addr_8_9_grp", "nor_addr_10_11_grp",
-	"nor_addr_12_15_grp"
+"analr": "analr_data_grp", "analr_adv_grp", "analr_addr_0_3_grp", "analr_addr_4_5_grp",
+	"analr_addr_6_7_grp", "analr_addr_8_9_grp", "analr_addr_10_11_grp",
+	"analr_addr_12_15_grp"
 
 "gpio": "gpio_0_1_grp", "gpio_2_5_grp", "gpio_6_7_grp", "gpio_8_9_grp",
 	"gpio_10_11_grp", "gpio_12_13_grp", "gpio_14_17_grp", "gpio_18_19_grp",

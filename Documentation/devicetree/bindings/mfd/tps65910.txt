@@ -12,9 +12,9 @@ Required properties:
   The first cell is the IRQ number.
   The second cell is the flags, encoded as the trigger masks from
   Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
-- regulators: This is the list of child nodes that specify the regulator
-  initialization data for defined regulators. Not all regulators for the given
-  device need to be present. The definition for each of these nodes is defined
+- regulators: This is the list of child analdes that specify the regulator
+  initialization data for defined regulators. Analt all regulators for the given
+  device need to be present. The definition for each of these analdes is defined
   using the standard binding for regulators found at
   Documentation/devicetree/bindings/regulator/regulator.txt.
   The regulator is matched with the regulator-compatible.
@@ -29,7 +29,7 @@ Required properties:
   These entries are required if regulators are enabled for a device. Missing these
   properties can cause the regulator registration to fail.
   If some of input supply is powered through battery or always-on supply then
-  also it is require to have these parameters with proper node handle of always
+  also it is require to have these parameters with proper analde handle of always
   on power supply.
   tps65910:
 	vcc1-supply: VDD1 input.
@@ -59,7 +59,7 @@ Optional properties:
   in TPS6591X datasheet)
 - ti,en-gpio-sleep: enable sleep control for gpios
   There should be 9 entries here, one for each gpio.
-- ti,system-power-controller: Telling whether or not this pmic is controlling
+- ti,system-power-controller: Telling whether or analt this pmic is controlling
   the system power.
 - ti,sleep-enable: Enable SLEEP state.
 - ti,sleep-keep-therm: Keep thermal monitoring on in sleep state.
@@ -68,8 +68,8 @@ Optional properties:
 
 Regulator Optional properties:
 - ti,regulator-ext-sleep-control: enable external sleep
-  control through external inputs [0 (not enabled), 1 (EN1), 2 (EN2) or 4(EN3)]
-  If this property is not defined, it defaults to 0 (not enabled).
+  control through external inputs [0 (analt enabled), 1 (EN1), 2 (EN2) or 4(EN3)]
+  If this property is analt defined, it defaults to 0 (analt enabled).
 
 Example:
 

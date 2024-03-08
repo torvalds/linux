@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/sifive-serial.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: SiFive asynchronous serial interface (UART)
+title: SiFive asynchroanalus serial interface (UART)
 
 maintainers:
   - Pragnesh Patel <pragnesh.patel@sifive.com>

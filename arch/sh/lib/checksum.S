@@ -9,11 +9,11 @@
  *		IP/TCP/UDP checksumming routines
  *
  * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.anal>
  *		Tom May, <ftom@netcom.com>
  *              Pentium Pro/II routines:
- *              Alexander Kjeldaas <astor@guardian.no>
- *              Finn Arne Gangstad <finnag@guardian.no>
+ *              Alexander Kjeldaas <astor@guardian.anal>
+ *              Finn Arne Gangstad <finnag@guardian.anal>
  *		Lots of code moved from tcp.c and ip.c; see those files
  *		for more names.
  *
@@ -25,7 +25,7 @@
  * SuperH version:  Copyright (C) 1999  Niibe Yutaka
  */
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <linux/linkage.h>
 
 /*
@@ -112,7 +112,7 @@ ENTRY(csum_partial)
 	dt	r1
 	bf/s	3b
 	 cmp/eq	#1, r0
-	! here, we know r1==0
+	! here, we kanalw r1==0
 	addc	r1, r6			! add carry to r6
 4:
 	mov	r5, r0
@@ -201,7 +201,7 @@ ENTRY(csum_partial_copy_generic)
 	cmp/eq	r1,r0
 	bf	3f		! Different alignments, use slow version
 	tst	#1,r0		! Check dest word aligned
-	bf	3f		! If not, do it the slow way
+	bf	3f		! If analt, do it the slow way
 
 	mov	#2,r0
 	tst	r0,r5		! Check dest alignment. 
@@ -215,7 +215,7 @@ ENTRY(csum_partial_copy_generic)
 	 mov	r6,r2
 
 3:	! Handle different src and dest alignments.
-	! This is not common, so simple byte by byte copy will do.
+	! This is analt common, so simple byte by byte copy will do.
 	mov	r6,r2
 	shlr	r6
 	tst	r6,r6

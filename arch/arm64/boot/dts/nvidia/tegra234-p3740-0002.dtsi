@@ -41,8 +41,8 @@
 				clocks = <&bpmp TEGRA234_CLK_AUD_MCLK>;
 				clock-names = "mclk";
 
-				realtek,dmic1-data-pin = <RT5640_DMIC1_DATA_PIN_NONE>;
-				realtek,dmic2-data-pin = <RT5640_DMIC2_DATA_PIN_NONE>;
+				realtek,dmic1-data-pin = <RT5640_DMIC1_DATA_PIN_ANALNE>;
+				realtek,dmic2-data-pin = <RT5640_DMIC2_DATA_PIN_ANALNE>;
 				realtek,jack-detect-source = <RT5640_JD_SRC_HDA_HEADER>;
 
 				sound-name-prefix = "CVB-RT";

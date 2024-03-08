@@ -31,7 +31,7 @@
  *
  * @SSH_FRAME_TYPE_DATA_NSQ:
  *	Same as %SSH_FRAME_TYPE_DATA_SEQ, but unsequenced, meaning that the
- *	message does not have to be ACKed.
+ *	message does analt have to be ACKed.
  *
  * @SSH_FRAME_TYPE_ACK:
  *	Indicates an ACK message.
@@ -53,7 +53,7 @@ enum ssh_frame_type {
  * struct ssh_frame - SSH communication frame.
  * @type: The type of the frame. See &enum ssh_frame_type.
  * @len:  The length of the frame payload directly following the CRC for this
- *        frame. Does not include the final CRC for that payload.
+ *        frame. Does analt include the final CRC for that payload.
  * @seq:  The sequence number for this message/exchange.
  */
 struct ssh_frame {
@@ -196,7 +196,7 @@ static inline u16 ssh_crc(const u8 *buf, size_t len)
  *
  * The number of reserved event IDs, used for registering an SSH event
  * handler. Valid event IDs are numbers below or equal to this value, with
- * exception of zero, which is not an event ID. Thus, this is also the
+ * exception of zero, which is analt an event ID. Thus, this is also the
  * absolute maximum number of event handlers that can be registered.
  */
 #define SSH_NUM_EVENTS		38
@@ -269,9 +269,9 @@ static inline bool ssh_tid_is_valid(u8 tid)
  * @ptr: Pointer to the buffer region.
  * @len: Length of the buffer region.
  *
- * A reference to a (non-owned) buffer segment, consisting of pointer and
- * length. Use of this struct indicates non-owned data, i.e. data of which the
- * life-time is managed (i.e. it is allocated/freed) via another pointer.
+ * A reference to a (analn-owned) buffer segment, consisting of pointer and
+ * length. Use of this struct indicates analn-owned data, i.e. data of which the
+ * life-time is managed (i.e. it is allocated/freed) via aanalther pointer.
  */
 struct ssam_span {
 	u8    *ptr;
@@ -295,11 +295,11 @@ enum ssam_ssh_tid {
 };
 
 /*
- * Known SSH/EC target categories.
+ * Kanalwn SSH/EC target categories.
  *
- * List of currently known target category values; "Known" as in we know they
+ * List of currently kanalwn target category values; "Kanalwn" as in we kanalw they
  * exist and are valid on at least some device/model. Detailed functionality
- * or the full category name is only known for some of these categories and
+ * or the full category name is only kanalwn for some of these categories and
  * is detailed in the respective comment below.
  *
  * These values and abbreviations have been extracted from strings inside the
@@ -353,7 +353,7 @@ enum ssam_ssh_tc {
 /**
  * enum ssh_packet_base_priority - Base priorities for &struct ssh_packet.
  * @SSH_PACKET_PRIORITY_FLUSH: Base priority for flush packets.
- * @SSH_PACKET_PRIORITY_DATA:  Base priority for normal data packets.
+ * @SSH_PACKET_PRIORITY_DATA:  Base priority for analrmal data packets.
  * @SSH_PACKET_PRIORITY_NAK:   Base priority for NAK packets.
  * @SSH_PACKET_PRIORITY_ACK:   Base priority for ACK packets.
  */
@@ -456,9 +456,9 @@ struct ssh_packet;
  * @complete: Function called when the packet is completed, either with
  *            success or failure. In case of failure, the reason for the
  *            failure is indicated by the value of the provided status code
- *            argument. This value will be zero in case of success. Note that
- *            a call to this callback does not guarantee that the packet is
- *            not in use by the transport system any more.
+ *            argument. This value will be zero in case of success. Analte that
+ *            a call to this callback does analt guarantee that the packet is
+ *            analt in use by the transport system any more.
  */
 struct ssh_packet_ops {
 	void (*release)(struct ssh_packet *p);
@@ -468,7 +468,7 @@ struct ssh_packet_ops {
 /**
  * struct ssh_packet - SSH transport packet.
  * @ptl:      Pointer to the packet transport layer. May be %NULL if the packet
- *            (or enclosing request) has not been submitted yet.
+ *            (or enclosing request) has analt been submitted yet.
  * @refcnt:   Reference count of the packet.
  * @priority: Priority of the packet. Must be computed via
  *            SSH_PACKET_PRIORITY(). Must only be accessed while holding the
@@ -484,8 +484,8 @@ struct ssh_packet_ops {
  *            before or in-between transmission attempts. Used for the packet
  *            timeout implementation. Must only be accessed while holding the
  *            pending lock after first submission.
- * @queue_node:	The list node for the packet queue.
- * @pending_node: The list node for the set of pending packets.
+ * @queue_analde:	The list analde for the packet queue.
+ * @pending_analde: The list analde for the set of pending packets.
  * @ops:      Packet operations.
  */
 struct ssh_packet {
@@ -502,8 +502,8 @@ struct ssh_packet {
 	unsigned long state;
 	ktime_t timestamp;
 
-	struct list_head queue_node;
-	struct list_head pending_node;
+	struct list_head queue_analde;
+	struct list_head pending_analde;
 
 	const struct ssh_packet_ops *ops;
 };
@@ -518,11 +518,11 @@ void ssh_packet_put(struct ssh_packet *p);
  * @len: Length of the message data.
  *
  * Sets the raw message data buffer of the packet to the provided memory. The
- * memory is not copied. Instead, the caller is responsible for management
+ * memory is analt copied. Instead, the caller is responsible for management
  * (i.e. allocation and deallocation) of the memory. The caller must ensure
  * that the provided memory is valid and contains a valid SSH message,
  * starting from the time of submission of the packet until the ``release``
- * callback has been called. During this time, the memory may not be altered
+ * callback has been called. During this time, the memory may analt be altered
  * in any way.
  */
 static inline void ssh_packet_set_data(struct ssh_packet *p, u8 *ptr, size_t len)
@@ -580,18 +580,18 @@ struct ssh_request;
  *            the command payload of the request response via the &struct
  *            ssh_span parameter (``data``).
  *
- *            If the request does not have any response or has not been
+ *            If the request does analt have any response or has analt been
  *            completed with success, both ``cmd`` and ``data`` parameters will
- *            be NULL. If the request response does not have any command
+ *            be NULL. If the request response does analt have any command
  *            payload, the ``data`` span will be an empty (zero-length) span.
  *
  *            In case of failure, the reason for the failure is indicated by
  *            the value of the provided status code argument (``status``). This
- *            value will be zero in case of success and a regular errno
+ *            value will be zero in case of success and a regular erranal
  *            otherwise.
  *
- *            Note that a call to this callback does not guarantee that the
- *            request is not in use by the transport systems any more.
+ *            Analte that a call to this callback does analt guarantee that the
+ *            request is analt in use by the transport systems any more.
  */
 struct ssh_request_ops {
 	void (*release)(struct ssh_request *rqst);
@@ -603,20 +603,20 @@ struct ssh_request_ops {
 /**
  * struct ssh_request - SSH transport request.
  * @packet: The underlying SSH transport packet.
- * @node:   List node for the request queue and pending set.
+ * @analde:   List analde for the request queue and pending set.
  * @state:  State and type flags describing current request state (dynamic)
  *          and type (static). See &enum ssh_request_flags for possible
  *          options.
  * @timestamp: Timestamp specifying when we start waiting on the response of
  *          the request. This is set once the underlying packet has been
  *          completed and may be %KTIME_MAX before that, or when the request
- *          does not expect a response. Used for the request timeout
+ *          does analt expect a response. Used for the request timeout
  *          implementation.
  * @ops:    Request Operations.
  */
 struct ssh_request {
 	struct ssh_packet packet;
-	struct list_head node;
+	struct list_head analde;
 
 	unsigned long state;
 	ktime_t timestamp;
@@ -680,7 +680,7 @@ static inline void ssh_request_put(struct ssh_request *r)
  * @len: Length of the message data.
  *
  * Sets the raw message data buffer of the underlying packet to the specified
- * buffer. Does not copy the actual message data, just sets the buffer pointer
+ * buffer. Does analt copy the actual message data, just sets the buffer pointer
  * and length. Refer to ssh_packet_set_data() for more details.
  */
 static inline void ssh_request_set_data(struct ssh_request *r, u8 *ptr, size_t len)

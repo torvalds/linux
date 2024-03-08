@@ -49,7 +49,7 @@
 #define ERRMASK	7
 #define FAIL	13
 
-#define ENOERR	0 /* no error */
+#define EANALERR	0 /* anal error */
 #define EID	1
 #define ECMD	2
 #define ECRC	3
@@ -92,7 +92,7 @@ static int get_status(struct spi_device *spi, unsigned long *status)
 static const char *get_err_string(u8 err)
 {
 	switch (err) {
-	case ENOERR:	return "No Error";
+	case EANALERR:	return "Anal Error";
 	case EID:	return "ID ERR";
 	case ECMD:	return "CMD ERR";
 	case ECRC:	return "CRC ERR";
@@ -116,7 +116,7 @@ static void dump_status_reg(unsigned long *status)
 #endif
 }
 
-static int wait_until_not_busy(struct spi_device *spi)
+static int wait_until_analt_busy(struct spi_device *spi)
 {
 	unsigned long status;
 	int ret, loop = 0;
@@ -150,7 +150,7 @@ static int machxo2_cleanup(struct fpga_manager *mgr)
 	if (ret)
 		goto fail;
 
-	ret = wait_until_not_busy(spi);
+	ret = wait_until_analt_busy(spi);
 	if (ret)
 		goto fail;
 
@@ -178,10 +178,10 @@ static enum fpga_mgr_states machxo2_spi_state(struct fpga_manager *mgr)
 
 	get_status(spi, &status);
 	if (!test_bit(BUSY, &status) && test_bit(DONE, &status) &&
-	    get_err(&status) == ENOERR)
+	    get_err(&status) == EANALERR)
 		return FPGA_MGR_STATE_OPERATING;
 
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 static int machxo2_write_init(struct fpga_manager *mgr,
@@ -199,8 +199,8 @@ static int machxo2_write_init(struct fpga_manager *mgr,
 
 	if ((info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
 		dev_err(&mgr->dev,
-			"Partial reconfiguration is not supported\n");
-		return -ENOTSUPP;
+			"Partial reconfiguration is analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	get_status(spi, &status);
@@ -220,7 +220,7 @@ static int machxo2_write_init(struct fpga_manager *mgr,
 	if (ret)
 		goto fail;
 
-	ret = wait_until_not_busy(spi);
+	ret = wait_until_analt_busy(spi);
 	if (ret)
 		goto fail;
 
@@ -307,7 +307,7 @@ static int machxo2_write_complete(struct fpga_manager *mgr,
 	ret = spi_sync(spi, &msg);
 	if (ret)
 		goto fail;
-	ret = wait_until_not_busy(spi);
+	ret = wait_until_analt_busy(spi);
 	if (ret)
 		goto fail;
 
@@ -334,7 +334,7 @@ static int machxo2_write_complete(struct fpga_manager *mgr,
 		get_status(spi, &status);
 		dump_status_reg(&status);
 		if (!test_bit(BUSY, &status) && test_bit(DONE, &status) &&
-		    get_err(&status) == ENOERR)
+		    get_err(&status) == EANALERR)
 			break;
 		if (++refreshloop == MACHXO2_MAX_REFRESH_LOOP) {
 			machxo2_cleanup(mgr);

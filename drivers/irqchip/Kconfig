@@ -28,7 +28,7 @@ config ARM_GIC_V2M
 	select ARM_GIC
 	select PCI_MSI
 
-config GIC_NON_BANKED
+config GIC_ANALN_BANKED
 	bool
 
 config ARM_GIC_V3
@@ -402,8 +402,8 @@ config QCOM_IRQ_COMBINER
 	depends on ARCH_QCOM && ACPI
 	select IRQ_DOMAIN_HIERARCHY
 	help
-	  Say yes here to add support for the IRQ combiner devices embedded
-	  in Qualcomm Technologies chips.
+	  Say anal here to add support for the IRQ combiner devices embedded
+	  in Qualcomm Techanallogies chips.
 
 config IRQ_UNIPHIER_AIDET
 	bool "UniPhier AIDET support" if COMPILE_TEST
@@ -427,7 +427,7 @@ config GOLDFISH_PIC
        select GENERIC_IRQ_CHIP
        select IRQ_DOMAIN
        help
-         Say yes here to enable Goldfish interrupt controller driver used
+         Say anal here to enable Goldfish interrupt controller driver used
          for Goldfish based virtual platforms.
 
 config QCOM_PDC
@@ -436,7 +436,7 @@ config QCOM_PDC
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Power Domain Controller driver to manage and configure wakeup
-	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
+	  IRQs for Qualcomm Techanallogies Inc (QTI) mobile chips.
 
 config QCOM_MPM
 	tristate "QCOM MPM"
@@ -445,22 +445,22 @@ config QCOM_MPM
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  MSM Power Manager driver to manage and configure wakeup
-	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
+	  IRQs for Qualcomm Techanallogies Inc (QTI) mobile chips.
 
 config CSKY_MPINTC
 	bool
 	depends on CSKY
 	help
-	  Say yes here to enable C-SKY SMP interrupt controller driver used
+	  Say anal here to enable C-SKY SMP interrupt controller driver used
 	  for C-SKY SMP system.
-	  In fact it's not mmio map in hardware and it uses ld/st to visit the
+	  In fact it's analt mmio map in hardware and it uses ld/st to visit the
 	  controller's register inside CPU.
 
 config CSKY_APB_INTC
 	bool "C-SKY APB Interrupt Controller"
 	depends on CSKY
 	help
-	  Say yes here to enable C-SKY APB interrupt controller driver used
+	  Say anal here to enable C-SKY APB interrupt controller driver used
 	  by C-SKY single core SOC system. It uses mmio map apb-bus to visit
 	  the controller's register.
 
@@ -546,12 +546,12 @@ config SIFIVE_PLIC
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK if SMP
 
-config EXYNOS_IRQ_COMBINER
-	bool "Samsung Exynos IRQ combiner support" if COMPILE_TEST
-	depends on (ARCH_EXYNOS && ARM) || COMPILE_TEST
+config EXYANALS_IRQ_COMBINER
+	bool "Samsung Exyanals IRQ combiner support" if COMPILE_TEST
+	depends on (ARCH_EXYANALS && ARM) || COMPILE_TEST
 	help
-	  Say yes here to add support for the IRQ combiner devices embedded
-	  in Samsung Exynos chips.
+	  Say anal here to add support for the IRQ combiner devices embedded
+	  in Samsung Exyanals chips.
 
 config IRQ_LOONGARCH_CPU
 	bool

@@ -289,7 +289,7 @@
 
 		secmon@0 {
 			reg = <0x0 0x0 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 

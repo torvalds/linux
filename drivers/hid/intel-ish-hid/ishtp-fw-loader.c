@@ -67,7 +67,7 @@ enum ish_loader_commands {
  * from the sensor data streaming. Here we download a large (300+ Kb)
  * image directly to ISH SRAM memory. There is limited benefit of
  * DMA'ing 300 Kb image in 4 Kb chucks limit. Hence, we introduce
- * this "direct dma" mode, where we do not use ISH-TP for DMA, but
+ * this "direct dma" mode, where we do analt use ISH-TP for DMA, but
  * instead manage the DMA directly in kernel driver and Shim firmware
  * loader (allocate buffer, break in chucks and transfer). This allows
  * to overcome 4 Kb limit, and optimize the data flow path in firmware.
@@ -99,7 +99,7 @@ static int dma_buf_size_limit = 4 * PAGE_SIZE;
  * struct loader_msg_hdr - Header for ISH Loader commands.
  * @command:		LOADER_CMD* commands. Bit 7 is the response.
  * @reserved:		Reserved space
- * @status:		Command response status. Non 0, is error
+ * @status:		Command response status. Analn 0, is error
  *			condition.
  *
  * This structure is used as header for every command/data sent/received
@@ -118,7 +118,7 @@ struct loader_xfer_query {
 
 struct ish_fw_version {
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 	u16 hotfix;
 	u16 build;
 } __packed;
@@ -127,7 +127,7 @@ union loader_version {
 	u32 value;
 	struct {
 		u8 major;
-		u8 minor;
+		u8 mianalr;
 		u8 hotfix;
 		u8 build;
 	};
@@ -225,8 +225,8 @@ struct ishtp_cl_data {
 	/*
 	 * In certain failure scenrios, it makes sense to reset the ISH
 	 * subsystem and retry Host firmware loading (e.g. bad message
-	 * packet, ENOMEM, etc.). On the other hand, failures due to
-	 * protocol mismatch, etc., are not recoverable. We do not
+	 * packet, EANALMEM, etc.). On the other hand, failures due to
+	 * protocol mismatch, etc., are analt recoverable. We do analt
 	 * retry them.
 	 *
 	 * If set, the flag indicates that we should re-try the
@@ -350,7 +350,7 @@ static void process_recv(struct ishtp_cl *loader_ishtp_cl,
 
 	if (client_data->response.received) {
 		dev_err(cl_data_to_dev(client_data),
-			"Previous firmware message not yet processed\n");
+			"Previous firmware message analt yet processed\n");
 		client_data->response.error = -EINVAL;
 		goto end;
 	}
@@ -492,7 +492,7 @@ static int ish_query_loader_prop(struct ishtp_cl_data *client_data,
 	/* On success, the return value is the received buffer size */
 	if (rv != sizeof(struct loader_xfer_query_response)) {
 		dev_err(cl_data_to_dev(client_data),
-			"data size %d is not equal to size of loader_xfer_query_response %zu\n",
+			"data size %d is analt equal to size of loader_xfer_query_response %zu\n",
 			rv, sizeof(struct loader_xfer_query_response));
 		client_data->flag_retry = true;
 		*fw_info = (struct shim_fw_info){};
@@ -504,9 +504,9 @@ static int ish_query_loader_prop(struct ishtp_cl_data *client_data,
 
 	/* Loader firmware properties */
 	dev_dbg(cl_data_to_dev(client_data),
-		"ish_fw_version: major=%d minor=%d hotfix=%d build=%d protocol_version=0x%x loader_version=%d\n",
+		"ish_fw_version: major=%d mianalr=%d hotfix=%d build=%d protocol_version=0x%x loader_version=%d\n",
 		fw_info->ish_fw_version.major,
-		fw_info->ish_fw_version.minor,
+		fw_info->ish_fw_version.mianalr,
 		fw_info->ish_fw_version.hotfix,
 		fw_info->ish_fw_version.build,
 		fw_info->protocol_version,
@@ -525,7 +525,7 @@ static int ish_query_loader_prop(struct ishtp_cl_data *client_data,
 			"ISH firmware size %zu is greater than Shim firmware loader max supported %d\n",
 			fw->size,
 			fw_info->ldr_capability.max_fw_image_size);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	/* For DMA the buffer size should be multiple of cacheline size */
@@ -565,7 +565,7 @@ static int ish_fw_xfer_ishtp(struct ishtp_cl_data *client_data,
 	ldr_xfer_ipc_frag = kzalloc(LOADER_SHIM_IPC_BUF_SIZE, GFP_KERNEL);
 	if (!ldr_xfer_ipc_frag) {
 		client_data->flag_retry = true;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ldr_xfer_ipc_frag->fragment.hdr.command = LOADER_CMD_XFER_FRAGMENT;
@@ -611,7 +611,7 @@ static int ish_fw_xfer_ishtp(struct ishtp_cl_data *client_data,
 	return 0;
 
 end_err_resp_buf_release:
-	/* Free ISH buffer if not done already, in error case */
+	/* Free ISH buffer if analt done already, in error case */
 	kfree(ldr_xfer_ipc_frag);
 	return rv;
 }
@@ -657,14 +657,14 @@ static int ish_fw_xfer_direct_dma(struct ishtp_cl_data *client_data,
 
 	/*
 	 * Buffer size should be multiple of cacheline size
-	 * if it's not, select the previous cacheline boundary.
+	 * if it's analt, select the previous cacheline boundary.
 	 */
 	payload_max_size &= ~(L1_CACHE_BYTES - 1);
 
 	dma_buf = dma_alloc_coherent(devc, payload_max_size, &dma_buf_phy, GFP_KERNEL);
 	if (!dma_buf) {
 		client_data->flag_retry = true;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ldr_xfer_dma_frag.fragment.hdr.command = LOADER_CMD_XFER_FRAGMENT;
@@ -759,7 +759,7 @@ static int load_fw_from_host(struct ishtp_cl_data *client_data)
 	filename = kzalloc(FILENAME_SIZE, GFP_KERNEL);
 	if (!filename) {
 		client_data->flag_retry = true;
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto end_error;
 	}
 
@@ -787,7 +787,7 @@ static int load_fw_from_host(struct ishtp_cl_data *client_data)
 		rv = ish_fw_xfer_ishtp(client_data, fw);
 	} else {
 		dev_err(cl_data_to_dev(client_data),
-			"No transfer mode selected in firmware\n");
+			"Anal transfer mode selected in firmware\n");
 		rv = -EINVAL;
 	}
 	if (rv < 0)
@@ -920,11 +920,11 @@ static int loader_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 				   sizeof(*client_data),
 				   GFP_KERNEL);
 	if (!client_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loader_ishtp_cl = ishtp_cl_allocate(cl_device);
 	if (!loader_ishtp_cl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ishtp_set_drvdata(cl_device, loader_ishtp_cl);
 	ishtp_set_client_data(loader_ishtp_cl, client_data);

@@ -16,15 +16,15 @@ struct scsi_host_template;
 struct Scsi_Host;
 struct scsi_nl_hdr;
 
-#define SCSI_CMD_RETRIES_NO_LIMIT -1
+#define SCSI_CMD_RETRIES_ANAL_LIMIT -1
 
 /*
- * Error codes used by scsi-ml internally. These must not be used by drivers.
+ * Error codes used by scsi-ml internally. These must analt be used by drivers.
  */
 enum scsi_ml_status {
 	SCSIML_STAT_OK			= 0x00,
 	SCSIML_STAT_RESV_CONFLICT	= 0x01,	/* Reservation conflict */
-	SCSIML_STAT_NOSPC		= 0x02,	/* Space allocation on the dev failed */
+	SCSIML_STAT_ANALSPC		= 0x02,	/* Space allocation on the dev failed */
 	SCSIML_STAT_MED_ERROR		= 0x03,	/* Medium error */
 	SCSIML_STAT_TGT_FAILURE		= 0x04,	/* Permanent target failure */
 	SCSIML_STAT_DL_TIMEOUT		= 0x05, /* Command Duration Limit timeout */
@@ -99,7 +99,7 @@ void scsi_eh_ready_devs(struct Scsi_Host *shost,
 			struct list_head *done_q);
 int scsi_eh_get_sense(struct list_head *work_q,
 		      struct list_head *done_q);
-bool scsi_noretry_cmd(struct scsi_cmnd *scmd);
+bool scsi_analretry_cmd(struct scsi_cmnd *scmd);
 void scsi_eh_done(struct scsi_cmnd *scmd);
 
 /* scsi_lib.c */

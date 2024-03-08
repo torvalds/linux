@@ -55,7 +55,7 @@ void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 		 */
 		"	la	1,%[vxrs]\n"	/* load save area */
 		"	tmll	%[m],30\n"	/* KERNEL_VXR */
-		"	jz	7f\n"		/* no work -> done */
+		"	jz	7f\n"		/* anal work -> done */
 		"	jo	5f\n"		/* -> save V0..V31 */
 		/*
 		 * Test for special case KERNEL_FPU_MID only. In this
@@ -137,7 +137,7 @@ void __kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 		 */
 		"	la	1,%[vxrs]\n"	/* load restore area */
 		"	tmll	%[m],30\n"	/* KERNEL_VXR */
-		"	jz	7f\n"		/* no work -> done */
+		"	jz	7f\n"		/* anal work -> done */
 		"	jo	5f\n"		/* -> restore V0..V31 */
 		/*
 		 * Test for special case KERNEL_FPU_MID only. In this

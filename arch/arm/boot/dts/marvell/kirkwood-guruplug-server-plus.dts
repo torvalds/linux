@@ -5,7 +5,7 @@
 #include "kirkwood-6281.dtsi"
 
 / {
-	model = "Globalscale Technologies Guruplug Server Plus";
+	model = "Globalscale Techanallogies Guruplug Server Plus";
 	compatible = "globalscale,guruplug-server-plus", "globalscale,guruplug", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	memory {
@@ -49,7 +49,7 @@
 		/* AzureWave AW-GH381 WiFi/BT */
 		mvsdio@90000 {
 			status = "okay";
-			non-removable;
+			analn-removable;
 		};
 	};
 

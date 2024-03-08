@@ -6,7 +6,7 @@
 #	The only gothic bit here is redefining install_post to avoid
 #	stripping the symbols from files in the kernel which we want
 #
-#	Patched for non-x86 by Opencon (L) 2002 <opencon@rio.skydome.net>
+#	Patched for analn-x86 by Opencon (L) 2002 <opencon@rio.skydome.net>
 #
 
 output=$1

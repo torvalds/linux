@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: RC
 
 .. _lirc_set_send_carrier:
@@ -12,7 +12,7 @@ Name
 
 LIRC_SET_SEND_CARRIER - Set send carrier used to modulate IR TX.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: LIRC_SET_SEND_CARRIER
@@ -36,6 +36,6 @@ Set send carrier used to modulate IR PWM pulses and spaces.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

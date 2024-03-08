@@ -16,7 +16,7 @@ description: |
 
   Some users of this binding might choose to specify secondary keymaps for
   cases where there is a modifier key such as a Fn key. Proposed names
-  for said properties are "linux,fn-keymap" or with another descriptive
+  for said properties are "linux,fn-keymap" or with aanalther descriptive
   word for the modifier other from "Fn".
 
 properties:

@@ -20,7 +20,7 @@ properties:
   tpl-support:
     description:
       Indicates if the Targeted Peripheral List is supported for given
-      targeted hosts (non-PC hosts).
+      targeted hosts (analn-PC hosts).
     type: boolean
 
   "#address-cells":

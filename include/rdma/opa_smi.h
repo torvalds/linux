@@ -50,8 +50,8 @@ struct opa_smp {
 
 /* Subnet management attributes */
 /* ... */
-#define OPA_ATTRIB_ID_NODE_DESCRIPTION		cpu_to_be16(0x0010)
-#define OPA_ATTRIB_ID_NODE_INFO			cpu_to_be16(0x0011)
+#define OPA_ATTRIB_ID_ANALDE_DESCRIPTION		cpu_to_be16(0x0010)
+#define OPA_ATTRIB_ID_ANALDE_INFO			cpu_to_be16(0x0011)
 #define OPA_ATTRIB_ID_PORT_INFO			cpu_to_be16(0x0015)
 #define OPA_ATTRIB_ID_PARTITION_TABLE		cpu_to_be16(0x0016)
 #define OPA_ATTRIB_ID_SL_TO_SC_MAP		cpu_to_be16(0x0017)
@@ -69,18 +69,18 @@ struct opa_smp {
 #define OPA_ATTRIB_ID_BUFFER_CONTROL_TABLE	cpu_to_be16(0x008A)
 /* ... */
 
-struct opa_node_description {
+struct opa_analde_description {
 	u8 data[64];
 } __packed;
 
-struct opa_node_info {
+struct opa_analde_info {
 	u8      base_version;
 	u8      class_version;
-	u8      node_type;
+	u8      analde_type;
 	u8      num_ports;
 	__be32  reserved;
 	__be64  system_image_guid;
-	__be64  node_guid;
+	__be64  analde_guid;
 	__be64  port_guid;
 	__be16  partition_cap;
 	__be16  device_id;

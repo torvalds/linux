@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*
- * Mellanox i2c mux driver
+ * Mellaanalx i2c mux driver
  *
- * Copyright (C) 2016-2020 Mellanox Technologies
+ * Copyright (C) 2016-2020 Mellaanalx Techanallogies
  */
 
 #include <linux/device.h>
@@ -138,13 +138,13 @@ static int mlxcpld_mux_probe(struct platform_device *pdev)
 	}
 
 	if (!i2c_check_functionality(client->adapter, func))
-		return -ENODEV;
+		return -EANALDEV;
 
 	muxc = i2c_mux_alloc(client->adapter, &pdev->dev, pdata->num_adaps,
 			     sizeof(*data), 0, mlxcpld_mux_select_chan,
 			     mlxcpld_mux_deselect);
 	if (!muxc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, muxc);
 	data = i2c_mux_priv(muxc);
@@ -159,9 +159,9 @@ static int mlxcpld_mux_probe(struct platform_device *pdev)
 			goto virt_reg_failed;
 	}
 
-	/* Notify caller when all channels' adapters are created. */
-	if (pdata->completion_notify)
-		pdata->completion_notify(pdata->handle, muxc->parent, muxc->adapter);
+	/* Analtify caller when all channels' adapters are created. */
+	if (pdata->completion_analtify)
+		pdata->completion_analtify(pdata->handle, muxc->parent, muxc->adapter);
 
 	return 0;
 
@@ -187,7 +187,7 @@ static struct platform_driver mlxcpld_mux_driver = {
 
 module_platform_driver(mlxcpld_mux_driver);
 
-MODULE_AUTHOR("Michael Shych (michaels@mellanox.com)");
-MODULE_DESCRIPTION("Mellanox I2C-CPLD-MUX driver");
+MODULE_AUTHOR("Michael Shych (michaels@mellaanalx.com)");
+MODULE_DESCRIPTION("Mellaanalx I2C-CPLD-MUX driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:i2c-mux-mlxcpld");

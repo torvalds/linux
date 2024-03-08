@@ -23,21 +23,21 @@ enum ubsan_checks {
 	ubsan_negate_overflow,
 	ubsan_nullability_arg,
 	ubsan_nullability_return,
-	ubsan_nonnull_arg,
-	ubsan_nonnull_return,
+	ubsan_analnnull_arg,
+	ubsan_analnnull_return,
 	ubsan_out_of_bounds,
 	ubsan_pointer_overflow,
 	ubsan_shift_out_of_bounds,
 	ubsan_sub_overflow,
 	ubsan_type_mismatch,
 	ubsan_alignment_assumption,
-	ubsan_vla_bound_not_positive,
+	ubsan_vla_bound_analt_positive,
 };
 
 enum {
 	type_kind_int = 0,
 	type_kind_float = 1,
-	type_unknown = 0xffff
+	type_unkanalwn = 0xffff
 };
 
 struct type_descriptor {
@@ -83,7 +83,7 @@ struct type_mismatch_data_common {
 	unsigned char type_check_kind;
 };
 
-struct nonnull_arg_data {
+struct analnnull_arg_data {
 	struct source_location location;
 	struct source_location attr_location;
 	int arg_index;

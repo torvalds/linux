@@ -4,7 +4,7 @@
  * Copyright (C) 2005 IBM Corporation
  *
  * Author(s):
- * 	Ryan S. Arnold <rsa@us.ibm.com>
+ * 	Ryan S. Aranalld <rsa@us.ibm.com>
  *
  * hvc_console header information:
  *      moved here from arch/powerpc/include/asm/hvconsole.h
@@ -25,10 +25,10 @@
 #define MAX_NR_HVC_CONSOLES	16
 
 /*
- * The Linux TTY code does not support dynamic addition of tty derived devices
- * so we need to know how many tty devices we might need when space is allocated
+ * The Linux TTY code does analt support dynamic addition of tty derived devices
+ * so we need to kanalw how many tty devices we might need when space is allocated
  * for the tty device.  Since this driver supports hotplug of vty adapters we
- * need to make sure we have enough allocated.
+ * need to make sure we have eanalugh allocated.
  */
 #define HVC_ALLOC_TTY_ADAPTERS	8
 
@@ -39,7 +39,7 @@ struct hvc_struct {
 	int do_wakeup;
 	int outbuf_size;
 	int n_outbuf;
-	uint32_t vtermno;
+	uint32_t vtermanal;
 	const struct hv_ops *ops;
 	int irq_requested;
 	int data;
@@ -52,14 +52,14 @@ struct hvc_struct {
 
 /* implemented by a low level driver */
 struct hv_ops {
-	ssize_t (*get_chars)(uint32_t vtermno, u8 *buf, size_t count);
-	ssize_t (*put_chars)(uint32_t vtermno, const u8 *buf, size_t count);
-	int (*flush)(uint32_t vtermno, bool wait);
+	ssize_t (*get_chars)(uint32_t vtermanal, u8 *buf, size_t count);
+	ssize_t (*put_chars)(uint32_t vtermanal, const u8 *buf, size_t count);
+	int (*flush)(uint32_t vtermanal, bool wait);
 
-	/* Callbacks for notification. Called in open, close and hangup */
-	int (*notifier_add)(struct hvc_struct *hp, int irq);
-	void (*notifier_del)(struct hvc_struct *hp, int irq);
-	void (*notifier_hangup)(struct hvc_struct *hp, int irq);
+	/* Callbacks for analtification. Called in open, close and hangup */
+	int (*analtifier_add)(struct hvc_struct *hp, int irq);
+	void (*analtifier_del)(struct hvc_struct *hp, int irq);
+	void (*analtifier_hangup)(struct hvc_struct *hp, int irq);
 
 	/* tiocmget/set implementation */
 	int (*tiocmget)(struct hvc_struct *hp);
@@ -70,11 +70,11 @@ struct hv_ops {
 };
 
 /* Register a vterm and a slot index for use as a console (console_init) */
-extern int hvc_instantiate(uint32_t vtermno, int index,
+extern int hvc_instantiate(uint32_t vtermanal, int index,
 			   const struct hv_ops *ops);
 
 /* register a vterm for hvc tty operation (module_init or hotplug add) */
-extern struct hvc_struct * hvc_alloc(uint32_t vtermno, int data,
+extern struct hvc_struct * hvc_alloc(uint32_t vtermanal, int data,
 				     const struct hv_ops *ops, int outbuf_size);
 /* remove a vterm from hvc tty operation (module_exit or hotplug remove) */
 extern void hvc_remove(struct hvc_struct *hp);
@@ -95,10 +95,10 @@ static inline void hvc_resize(struct hvc_struct *hp, struct winsize ws)
 	spin_unlock_irqrestore(&hp->lock, flags);
 }
 
-/* default notifier for irq based notification */
-extern int notifier_add_irq(struct hvc_struct *hp, int data);
-extern void notifier_del_irq(struct hvc_struct *hp, int data);
-extern void notifier_hangup_irq(struct hvc_struct *hp, int data);
+/* default analtifier for irq based analtification */
+extern int analtifier_add_irq(struct hvc_struct *hp, int data);
+extern void analtifier_del_irq(struct hvc_struct *hp, int data);
+extern void analtifier_hangup_irq(struct hvc_struct *hp, int data);
 
 
 #if defined(CONFIG_XMON) && defined(CONFIG_SMP)

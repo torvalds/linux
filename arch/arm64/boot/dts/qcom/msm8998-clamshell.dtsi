@@ -2,8 +2,8 @@
 /* Copyright (c) 2019, Jeffrey Hugo. All rights reserved. */
 
 /*
- * Common include for MSM8998 clamshell devices, ie the Lenovo Miix 630,
- * Asus NovaGo TP370QL, and HP Envy x2.  All three devices are basically the
+ * Common include for MSM8998 clamshell devices, ie the Leanalvo Miix 630,
+ * Asus AnalvaGo TP370QL, and HP Envy x2.  All three devices are basically the
  * same, with differences in peripherals.
  */
 
@@ -40,7 +40,7 @@
 		/*
 		 * Configure a pull-up on 45 (RX). This is needed to
 		 * avoid garbage data when the TX pin of the Bluetooth
-		 * module is in tri-state (module powered off or not
+		 * module is in tri-state (module powered off or analt
 		 * driving the signal yet).
 		 */
 		bias-pull-up;
@@ -57,8 +57,8 @@
 };
 
 /*
- * The laptop FW does not appear to support the retention state as it is
- * not advertised as enabled in ACPI, and enabling it in DT can cause boot
+ * The laptop FW does analt appear to support the retention state as it is
+ * analt advertised as enabled in ACPI, and enabling it in DT can cause boot
  * hangs.
  */
 &CPU0 {

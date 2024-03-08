@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2013 Imagination Technologies
+ * Copyright (C) 2013 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 #ifndef _ASM_MSA_H
@@ -159,7 +159,7 @@ static inline void init_msa_upper(void)
 #ifndef TOOLCHAIN_SUPPORTS_MSA
 /*
  * Define assembler macros using .word for the c[ft]cmsa instructions in order
- * to allow compilation with toolchains that do not support MSA. Once all
+ * to allow compilation with toolchains that do analt support MSA. Once all
  * toolchains in use support MSA these can be removed.
  */
 

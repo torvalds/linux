@@ -174,7 +174,7 @@
 	vmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&rtl_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	rtl8723bs: sdio_wifi@1 {

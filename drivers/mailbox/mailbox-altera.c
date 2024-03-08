@@ -291,12 +291,12 @@ static int altera_mbox_probe(struct platform_device *pdev)
 	mbox = devm_kzalloc(&pdev->dev, sizeof(*mbox),
 			    GFP_KERNEL);
 	if (!mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocated one channel */
 	chans = devm_kzalloc(&pdev->dev, sizeof(*chans), GFP_KERNEL);
 	if (!chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox->mbox_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mbox->mbox_base))

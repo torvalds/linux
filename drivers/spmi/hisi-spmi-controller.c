@@ -269,7 +269,7 @@ static int spmi_controller_probe(struct platform_device *pdev)
 
 	ctrl = devm_spmi_controller_alloc(&pdev->dev, sizeof(*spmi_controller));
 	if (IS_ERR(ctrl)) {
-		dev_err(&pdev->dev, "can not allocate spmi_controller data\n");
+		dev_err(&pdev->dev, "can analt allocate spmi_controller data\n");
 		return PTR_ERR(ctrl);
 	}
 	spmi_controller = spmi_controller_get_drvdata(ctrl);
@@ -277,22 +277,22 @@ static int spmi_controller_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iores) {
-		dev_err(&pdev->dev, "can not get resource!\n");
+		dev_err(&pdev->dev, "can analt get resource!\n");
 		return -EINVAL;
 	}
 
 	spmi_controller->base = devm_ioremap(&pdev->dev, iores->start,
 					     resource_size(iores));
 	if (!spmi_controller->base) {
-		dev_err(&pdev->dev, "can not remap base addr!\n");
-		return -EADDRNOTAVAIL;
+		dev_err(&pdev->dev, "can analt remap base addr!\n");
+		return -EADDRANALTAVAIL;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "hisilicon,spmi-channel",
+	ret = of_property_read_u32(pdev->dev.of_analde, "hisilicon,spmi-channel",
 				   &spmi_controller->channel);
 	if (ret) {
-		dev_err(&pdev->dev, "can not get channel\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "can analt get channel\n");
+		return -EANALDEV;
 	}
 
 	platform_set_drvdata(pdev, spmi_controller);
@@ -302,7 +302,7 @@ static int spmi_controller_probe(struct platform_device *pdev)
 
 	ctrl->nr = spmi_controller->channel;
 	ctrl->dev.parent = pdev->dev.parent;
-	ctrl->dev.of_node = of_node_get(pdev->dev.of_node);
+	ctrl->dev.of_analde = of_analde_get(pdev->dev.of_analde);
 
 	/* Callbacks */
 	ctrl->read_cmd = spmi_read_cmd;

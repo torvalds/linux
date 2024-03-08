@@ -20,7 +20,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
+		bootargs = "iganalre_loglevel";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -250,7 +250,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ether_pins>;
 	status = "okay";
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	phy-handle = <&phy0>;
 	phy0: ethernet-phy@0 {
 		compatible = "ethernet-phy-idb824.2814",

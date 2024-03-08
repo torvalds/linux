@@ -6,7 +6,7 @@
  *
  *  (C) 1991  Linus Torvalds - minix filesystem
  *
- *  Steve Beynon		       : Missing last directory entries fixed
+ *  Steve Beyanaln		       : Missing last directory entries fixed
  *  (stephen@askone.demon.co.uk)      : 21st June 1996
  *
  *  isofs directory handling functions
@@ -14,7 +14,7 @@
 #include <linux/gfp.h>
 #include "isofs.h"
 
-int isofs_name_translate(struct iso_directory_record *de, char *new, struct inode *inode)
+int isofs_name_translate(struct iso_directory_record *de, char *new, struct ianalde *ianalde)
 {
 	char * old = de->name;
 	int len = de->name_len[0];
@@ -48,11 +48,11 @@ int isofs_name_translate(struct iso_directory_record *de, char *new, struct inod
 
 /* Acorn extensions written by Matthew Wilcox <willy@infradead.org> 1998 */
 int get_acorn_filename(struct iso_directory_record *de,
-			    char *retname, struct inode *inode)
+			    char *retname, struct ianalde *ianalde)
 {
 	int std;
 	unsigned char *chr;
-	int retnamlen = isofs_name_translate(de, retname, inode);
+	int retnamlen = isofs_name_translate(de, retname, ianalde);
 
 	if (retnamlen == 0)
 		return 0;
@@ -79,30 +79,30 @@ int get_acorn_filename(struct iso_directory_record *de,
 /*
  * This should _really_ be cleaned up some day..
  */
-static int do_isofs_readdir(struct inode *inode, struct file *file,
+static int do_isofs_readdir(struct ianalde *ianalde, struct file *file,
 		struct dir_context *ctx,
 		char *tmpname, struct iso_directory_record *tmpde)
 {
-	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
-	unsigned char bufbits = ISOFS_BUFFER_BITS(inode);
+	unsigned long bufsize = ISOFS_BUFFER_SIZE(ianalde);
+	unsigned char bufbits = ISOFS_BUFFER_BITS(ianalde);
 	unsigned long block, offset, block_saved, offset_saved;
-	unsigned long inode_number = 0;	/* Quiet GCC */
+	unsigned long ianalde_number = 0;	/* Quiet GCC */
 	struct buffer_head *bh = NULL;
 	int len;
 	int map;
 	int first_de = 1;
 	char *p = NULL;		/* Quiet GCC */
 	struct iso_directory_record *de;
-	struct isofs_sb_info *sbi = ISOFS_SB(inode->i_sb);
+	struct isofs_sb_info *sbi = ISOFS_SB(ianalde->i_sb);
 
 	offset = ctx->pos & (bufsize - 1);
 	block = ctx->pos >> bufbits;
 
-	while (ctx->pos < inode->i_size) {
+	while (ctx->pos < ianalde->i_size) {
 		int de_len;
 
 		if (!bh) {
-			bh = isofs_bread(inode, block);
+			bh = isofs_bread(ianalde, block);
 			if (!bh)
 				return 0;
 		}
@@ -139,7 +139,7 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 			brelse(bh);
 			bh = NULL;
 			if (offset) {
-				bh = isofs_bread(inode, block);
+				bh = isofs_bread(ianalde, block);
 				if (!bh)
 					return 0;
 				memcpy((void *) tmpde + slop, bh->b_data, offset);
@@ -149,18 +149,18 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < de->name_len[0] +
 					sizeof(struct iso_directory_record)) {
-			printk(KERN_NOTICE "iso9660: Corrupted directory entry"
-			       " in block %lu of inode %lu\n", block,
-			       inode->i_ino);
+			printk(KERN_ANALTICE "iso9660: Corrupted directory entry"
+			       " in block %lu of ianalde %lu\n", block,
+			       ianalde->i_ianal);
 			brelse(bh);
 			return -EIO;
 		}
 
 		if (first_de) {
-			isofs_normalize_block_and_offset(de,
+			isofs_analrmalize_block_and_offset(de,
 							&block_saved,
 							&offset_saved);
-			inode_number = isofs_get_ino(block_saved,
+			ianalde_number = isofs_get_ianal(block_saved,
 							offset_saved, bufbits);
 		}
 
@@ -190,10 +190,10 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 		}
 
 		/* Handle everything else.  Do name translation if there
-		   is no Rock Ridge NM field. */
+		   is anal Rock Ridge NM field. */
 
 		/*
-		 * Do not report hidden files if so instructed, or associated
+		 * Do analt report hidden files if so instructed, or associated
 		 * files unless instructed to do so
 		 */
 		if ((sbi->s_hide && (de->flags[-sbi->s_high_sierra] & 1)) ||
@@ -205,7 +205,7 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 
 		map = 1;
 		if (sbi->s_rock) {
-			len = get_rock_ridge_filename(de, tmpname, inode);
+			len = get_rock_ridge_filename(de, tmpname, ianalde);
 			if (len != 0) {		/* may be -1 */
 				p = tmpname;
 				map = 0;
@@ -214,16 +214,16 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 		if (map) {
 #ifdef CONFIG_JOLIET
 			if (sbi->s_joliet_level) {
-				len = get_joliet_filename(de, tmpname, inode);
+				len = get_joliet_filename(de, tmpname, ianalde);
 				p = tmpname;
 			} else
 #endif
 			if (sbi->s_mapping == 'a') {
-				len = get_acorn_filename(de, tmpname, inode);
+				len = get_acorn_filename(de, tmpname, ianalde);
 				p = tmpname;
 			} else
 			if (sbi->s_mapping == 'n') {
-				len = isofs_name_translate(de, tmpname, inode);
+				len = isofs_name_translate(de, tmpname, ianalde);
 				p = tmpname;
 			} else {
 				p = de->name;
@@ -231,7 +231,7 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 			}
 		}
 		if (len > 0) {
-			if (!dir_emit(ctx, p, len, inode_number, DT_UNKNOWN))
+			if (!dir_emit(ctx, p, len, ianalde_number, DT_UNKANALWN))
 				break;
 		}
 		ctx->pos += de_len;
@@ -251,15 +251,15 @@ static int isofs_readdir(struct file *file, struct dir_context *ctx)
 	int result;
 	char *tmpname;
 	struct iso_directory_record *tmpde;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
 	tmpname = (char *)__get_free_page(GFP_KERNEL);
 	if (tmpname == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmpde = (struct iso_directory_record *) (tmpname+1024);
 
-	result = do_isofs_readdir(inode, file, ctx, tmpname, tmpde);
+	result = do_isofs_readdir(ianalde, file, ctx, tmpname, tmpde);
 
 	free_page((unsigned long) tmpname);
 	return result;
@@ -275,7 +275,7 @@ const struct file_operations isofs_dir_operations =
 /*
  * directories can handle most operations...
  */
-const struct inode_operations isofs_dir_inode_operations =
+const struct ianalde_operations isofs_dir_ianalde_operations =
 {
 	.lookup = isofs_lookup,
 };

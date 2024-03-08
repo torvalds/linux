@@ -27,11 +27,11 @@
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	char *fpga_family = "Unknown";
-	char *cpu_ver = "Unknown";
+	char *fpga_family = "Unkanalwn";
+	char *cpu_ver = "Unkanalwn";
 	int i;
 
-	/* Denormalised to get the fpga family string */
+	/* Deanalrmalised to get the fpga family string */
 	for (i = 0; family_string_lookup[i].s != NULL; i++) {
 		if (cpuinfo.fpga_family_code == family_string_lookup[i].k) {
 			fpga_family = (char *)family_string_lookup[i].s;
@@ -39,7 +39,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		}
 	}
 
-	/* Denormalised to get the hw version string */
+	/* Deanalrmalised to get the hw version string */
 	for (i = 0; cpu_ver_lookup[i].s != NULL; i++) {
 		if (cpuinfo.ver_code == cpu_ver_lookup[i].k) {
 			cpu_ver = (char *)cpu_ver_lookup[i].s;
@@ -66,10 +66,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   " MSR:\t\t%s\n"
 		   " PCMP:\t\t%s\n"
 		   " DIV:\t\t%s\n",
-		   (cpuinfo.use_instr & PVR0_USE_BARREL_MASK) ? "yes" : "no",
-		   (cpuinfo.use_instr & PVR2_USE_MSR_INSTR) ? "yes" : "no",
-		   (cpuinfo.use_instr & PVR2_USE_PCMP_INSTR) ? "yes" : "no",
-		   (cpuinfo.use_instr & PVR0_USE_DIV_MASK) ? "yes" : "no");
+		   (cpuinfo.use_instr & PVR0_USE_BARREL_MASK) ? "anal" : "anal",
+		   (cpuinfo.use_instr & PVR2_USE_MSR_INSTR) ? "anal" : "anal",
+		   (cpuinfo.use_instr & PVR2_USE_PCMP_INSTR) ? "anal" : "anal",
+		   (cpuinfo.use_instr & PVR0_USE_DIV_MASK) ? "anal" : "anal");
 
 	seq_printf(m, " MMU:\t\t%x\n", cpuinfo.mmu);
 
@@ -77,9 +77,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   " MUL:\t\t%s\n"
 		   " FPU:\t\t%s\n",
 		   (cpuinfo.use_mult & PVR2_USE_MUL64_MASK) ? "v2" :
-		   (cpuinfo.use_mult & PVR0_USE_HW_MUL_MASK) ? "v1" : "no",
+		   (cpuinfo.use_mult & PVR0_USE_HW_MUL_MASK) ? "v1" : "anal",
 		   (cpuinfo.use_fpu & PVR2_USE_FPU2_MASK) ? "v2" :
-		   (cpuinfo.use_fpu & PVR0_USE_FPU_MASK) ? "v1" : "no");
+		   (cpuinfo.use_fpu & PVR0_USE_FPU_MASK) ? "v1" : "anal");
 
 	seq_printf(m,
 		   " Exc:\t\t%s%s%s%s%s%s%s%s\n",
@@ -102,7 +102,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			   cpuinfo.icache_size >> 10,
 			   cpuinfo.icache_line_length);
 	else
-		seq_puts(m, "Icache:\t\tno\n");
+		seq_puts(m, "Icache:\t\tanal\n");
 
 	if (cpuinfo.use_dcache) {
 		seq_printf(m,
@@ -115,12 +115,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		else
 			seq_puts(m, "write-through\n");
 	} else {
-		seq_puts(m, "Dcache:\t\tno\n");
+		seq_puts(m, "Dcache:\t\tanal\n");
 	}
 
 	seq_printf(m,
 		   "HW-Debug:\t%s\n",
-		   cpuinfo.hw_debug ? "yes" : "no");
+		   cpuinfo.hw_debug ? "anal" : "anal");
 
 	seq_printf(m,
 		   "PVR-USR1:\t%02x\n"

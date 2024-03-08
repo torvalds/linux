@@ -38,7 +38,7 @@ static inline int nf_osf_ttl(const struct sk_buff *skb,
 
 	if (ttl_check == NF_OSF_TTL_TRUE)
 		return ip->ttl == f_ttl;
-	if (ttl_check == NF_OSF_TTL_NOCHECK)
+	if (ttl_check == NF_OSF_TTL_ANALCHECK)
 		return 1;
 	else if (ip->ttl <= f_ttl)
 		return 1;
@@ -76,7 +76,7 @@ static bool nf_osf_match_one(const struct sk_buff *skb,
 		return false;
 
 	/*
-	 * Should not happen if userspace parser was written correctly.
+	 * Should analt happen if userspace parser was written correctly.
 	 */
 	if (f->wss.wc >= OSF_WSS_MAX)
 		return false;
@@ -247,7 +247,7 @@ nf_osf_match(const struct sk_buff *skb, u_int8_t family,
 
 	if (!fcount && (info->flags & NF_OSF_LOG))
 		nf_log_packet(net, family, hooknum, skb, in, out, NULL,
-			      "Remote OS is not known: %pI4:%u -> %pI4:%u\n",
+			      "Remote OS is analt kanalwn: %pI4:%u -> %pI4:%u\n",
 			      &ip->saddr, ntohs(tcp->source),
 			      &ip->daddr, ntohs(tcp->dest));
 
@@ -325,7 +325,7 @@ static int nfnl_osf_add_callback(struct sk_buff *skb,
 
 	kf = kmalloc(sizeof(struct nf_osf_finger), GFP_KERNEL);
 	if (!kf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&kf->finger, f, sizeof(struct nf_osf_user_finger));
 
@@ -356,7 +356,7 @@ static int nfnl_osf_remove_callback(struct sk_buff *skb,
 {
 	struct nf_osf_user_finger *f;
 	struct nf_osf_finger *sf;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;

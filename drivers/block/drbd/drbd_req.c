@@ -4,7 +4,7 @@
 
    This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-   Copyright (C) 2001-2008, LINBIT Information Technologies GmbH.
+   Copyright (C) 2001-2008, LINBIT Information Techanallogies GmbH.
    Copyright (C) 1999-2008, Philipp Reisner <philipp.reisner@linbit.com>.
    Copyright (C) 2002-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -25,7 +25,7 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio 
 {
 	struct drbd_request *req;
 
-	req = mempool_alloc(&drbd_request_mempool, GFP_NOIO);
+	req = mempool_alloc(&drbd_request_mempool, GFP_ANALIO);
 	if (!req)
 		return NULL;
 	memset(req, 0, sizeof(*req));
@@ -83,12 +83,12 @@ void drbd_req_destroy(struct kref *kref)
 		return;
 	}
 
-	/* If called from mod_rq_state (expected normal case) or
-	 * drbd_send_and_submit (the less likely normal path), this holds the
+	/* If called from mod_rq_state (expected analrmal case) or
+	 * drbd_send_and_submit (the less likely analrmal path), this holds the
 	 * req_lock, and req->tl_requests will typicaly be on ->transfer_log,
 	 * though it may be still empty (never added to the transfer log).
 	 *
-	 * If called from do_retry(), we do NOT hold the req_lock, but we are
+	 * If called from do_retry(), we do ANALT hold the req_lock, but we are
 	 * still allowed to unconditionally list_del(&req->tl_requests),
 	 * because it will be on a local on-stack list only. */
 	list_del_init(&req->tl_requests);
@@ -117,10 +117,10 @@ void drbd_req_destroy(struct kref *kref)
 		 * READ with local io-error */
 
 		/* There is a special case:
-		 * we may notice late that IO was suspended,
+		 * we may analtice late that IO was suspended,
 		 * and postpone, or schedule for retry, a write,
 		 * before it even was submitted or sent.
-		 * In that case we do not want to touch the bitmap at all.
+		 * In that case we do analt want to touch the bitmap at all.
 		 */
 		struct drbd_peer_device *peer_device = first_peer_device(device);
 		if ((s & (RQ_POSTPONED|RQ_LOCAL_MASK|RQ_NET_MASK)) != RQ_POSTPONED) {
@@ -137,7 +137,7 @@ void drbd_req_destroy(struct kref *kref)
 		 * drbd_al_complete_io after this is RQ_NET_DONE,
 		 * otherwise the extent could be dropped from the al
 		 * before it has actually been written on the peer.
-		 * if we crash before our peer knows about the request,
+		 * if we crash before our peer kanalws about the request,
 		 * but after the extent has been dropped from the al,
 		 * we would forget to resync the corresponding extent.
 		 */
@@ -164,7 +164,7 @@ static void wake_all_senders(struct drbd_connection *connection)
 /* must hold resource->req_lock */
 void start_new_tl_epoch(struct drbd_connection *connection)
 {
-	/* no point closing an epoch, if it is empty, anyways. */
+	/* anal point closing an epoch, if it is empty, anyways. */
 	if (connection->current_tle_writes == 0)
 		return;
 
@@ -177,7 +177,7 @@ void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m)
 {
 	if (unlikely(m->error))
-		m->bio->bi_status = errno_to_blk_status(m->error);
+		m->bio->bi_status = erranal_to_blk_status(m->error);
 	bio_endio(m->bio);
 	dec_ap_bio(device);
 }
@@ -186,7 +186,7 @@ void complete_master_bio(struct drbd_device *device,
 /* Helper for __req_mod().
  * Set m->bio to the master bio, if it is fit to be completed,
  * or leave it alone (it is initialized to NULL in __req_mod),
- * if it has already been completed, or cannot be completed yet.
+ * if it has already been completed, or cananalt be completed yet.
  * If m->bio is set, the error status to be returned is placed in m->error.
  */
 static
@@ -196,10 +196,10 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 	struct drbd_device *device = req->device;
 	int error, ok;
 
-	/* we must not complete the master bio, while it is
+	/* we must analt complete the master bio, while it is
 	 *	still being processed by _drbd_send_zc_bio (drbd_send_dblock)
-	 *	not yet acknowledged by the peer
-	 *	not yet completed by the local io subsystem
+	 *	analt yet ackanalwledged by the peer
+	 *	analt yet completed by the local io subsystem
 	 * these flags may get cleared in any order by
 	 *	the worker,
 	 *	the receiver,
@@ -251,13 +251,13 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 	 * have it be pushed back to the retry work queue,
 	 * so it will re-enter __drbd_make_request(),
 	 * and be re-assigned to a suitable local or remote path,
-	 * or failed if we do not have access to good data anymore.
+	 * or failed if we do analt have access to good data anymore.
 	 *
 	 * Unless it was failed early by __drbd_make_request(),
-	 * because no path was available, in which case
-	 * it was not even added to the transfer_log.
+	 * because anal path was available, in which case
+	 * it was analt even added to the transfer_log.
 	 *
-	 * read-ahead may fail, and will not be retried.
+	 * read-ahead may fail, and will analt be retried.
 	 *
 	 * WRITE should have used all available paths already.
 	 */
@@ -377,22 +377,22 @@ static void advance_conn_req_ack_pending(struct drbd_peer_device *peer_device, s
 	connection->req_ack_pending = req;
 }
 
-static void set_if_null_req_not_net_done(struct drbd_peer_device *peer_device, struct drbd_request *req)
+static void set_if_null_req_analt_net_done(struct drbd_peer_device *peer_device, struct drbd_request *req)
 {
 	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
 	if (!connection)
 		return;
-	if (connection->req_not_net_done == NULL)
-		connection->req_not_net_done = req;
+	if (connection->req_analt_net_done == NULL)
+		connection->req_analt_net_done = req;
 }
 
-static void advance_conn_req_not_net_done(struct drbd_peer_device *peer_device, struct drbd_request *req)
+static void advance_conn_req_analt_net_done(struct drbd_peer_device *peer_device, struct drbd_request *req)
 {
 	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
 	struct drbd_request *iter = req;
 	if (!connection)
 		return;
-	if (connection->req_not_net_done != req)
+	if (connection->req_analt_net_done != req)
 		return;
 
 	req = NULL;
@@ -404,7 +404,7 @@ static void advance_conn_req_not_net_done(struct drbd_peer_device *peer_device, 
 			break;
 		}
 	}
-	connection->req_not_net_done = req;
+	connection->req_analt_net_done = req;
 }
 
 /* I'd like this to be the only place that manipulates
@@ -425,7 +425,7 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 	req->rq_state &= ~clear;
 	req->rq_state |= set;
 
-	/* no change? */
+	/* anal change? */
 	if (req->rq_state == s)
 		return;
 
@@ -453,7 +453,7 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 		/* potentially already completed in the ack_receiver thread */
 		if (!(s & RQ_NET_DONE)) {
 			atomic_add(req->i.size >> 9, &device->ap_in_flight);
-			set_if_null_req_not_net_done(peer_device, req);
+			set_if_null_req_analt_net_done(peer_device, req);
 		}
 		if (req->rq_state & RQ_NET_PENDING)
 			set_if_null_req_ack_pending(peer_device, req);
@@ -501,10 +501,10 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 
 		/* in ahead/behind mode, or just in case,
 		 * before we finally destroy this request,
-		 * the caching pointers must not reference it anymore */
+		 * the caching pointers must analt reference it anymore */
 		advance_conn_req_next(peer_device, req);
 		advance_conn_req_ack_pending(peer_device, req);
-		advance_conn_req_not_net_done(peer_device, req);
+		advance_conn_req_analt_net_done(peer_device, req);
 	}
 
 	/* potentially complete and destroy */
@@ -530,11 +530,11 @@ static void drbd_report_io_error(struct drbd_device *device, struct drbd_request
 }
 
 /* Helper for HANDED_OVER_TO_NETWORK.
- * Is this a protocol A write (neither WRITE_ACK nor RECEIVE_ACK expected)?
+ * Is this a protocol A write (neither WRITE_ACK analr RECEIVE_ACK expected)?
  * Is it also still "PENDING"?
  * --> If so, clear PENDING and set NET_OK below.
- * If it is a protocol A write, but not RQ_PENDING anymore, neg-ack was faster
- * (and we must not set RQ_NET_OK) */
+ * If it is a protocol A write, but analt RQ_PENDING anymore, neg-ack was faster
+ * (and we must analt set RQ_NET_OK) */
 static inline bool is_pending_write_protocol_A(struct drbd_request *req)
 {
 	return (req->rq_state &
@@ -574,7 +574,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		drbd_err(device, "LOGIC BUG in %s:%u\n", __FILE__ , __LINE__);
 		break;
 
-	/* does not happen...
+	/* does analt happen...
 	 * initialization done in drbd_req_new
 	case CREATED:
 		break;
@@ -626,20 +626,20 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		__drbd_chk_io_error(device, DRBD_READ_ERROR);
 		fallthrough;
 	case READ_AHEAD_COMPLETED_WITH_ERROR:
-		/* it is legal to fail read-ahead, no __drbd_chk_io_error in that case. */
+		/* it is legal to fail read-ahead, anal __drbd_chk_io_error in that case. */
 		mod_rq_state(req, m, RQ_LOCAL_PENDING, RQ_LOCAL_COMPLETED);
 		break;
 
-	case DISCARD_COMPLETED_NOTSUPP:
+	case DISCARD_COMPLETED_ANALTSUPP:
 	case DISCARD_COMPLETED_WITH_ERROR:
-		/* I'd rather not detach from local disk just because it
+		/* I'd rather analt detach from local disk just because it
 		 * failed a REQ_OP_DISCARD. */
 		mod_rq_state(req, m, RQ_LOCAL_PENDING, RQ_LOCAL_COMPLETED);
 		break;
 
 	case QUEUE_FOR_NET_READ:
 		/* READ, and
-		 * no local disk,
+		 * anal local disk,
 		 * or target area marked as invalid,
 		 * or just got an io-error. */
 		/* from __drbd_make_request
@@ -670,7 +670,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		D_ASSERT(device, drbd_interval_empty(&req->i));
 		drbd_insert_interval(&device->write_requests, &req->i);
 
-		/* NOTE
+		/* ANALTE
 		 * In case the req ended up on the transfer log before being
 		 * queued on the worker, it could lead to this request being
 		 * missed during cleanup after connection loss.
@@ -679,10 +679,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 *
 		 * _req_add_to_epoch(req); this has to be after the
 		 * _maybe_start_new_epoch(req); which happened in
-		 * __drbd_make_request, because we now may set the bit
+		 * __drbd_make_request, because we analw may set the bit
 		 * again ourselves to close the current epoch.
 		 *
-		 * Add req to the (now) current epoch (barrier). */
+		 * Add req to the (analw) current epoch (barrier). */
 
 		/* otherwise we may lose an unplug, which may cause some remote
 		 * io-scheduler timeout to expire, increasing maximum latency,
@@ -717,7 +717,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 	case SEND_CANCELED:
 	case SEND_FAILED:
 		/* real cleanup will be done from tl_clear.  just update flags
-		 * so it is no longer marked as on the worker queue */
+		 * so it is anal longer marked as on the worker queue */
 		mod_rq_state(req, m, RQ_NET_QUEUED, 0);
 		break;
 
@@ -730,13 +730,13 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 						RQ_NET_SENT|RQ_NET_OK);
 		else
 			mod_rq_state(req, m, RQ_NET_QUEUED, RQ_NET_SENT);
-		/* It is still not yet RQ_NET_DONE until the
+		/* It is still analt yet RQ_NET_DONE until the
 		 * corresponding epoch barrier got acked as well,
-		 * so we know what to dirty on connection loss. */
+		 * so we kanalw what to dirty on connection loss. */
 		break;
 
 	case OOS_HANDED_TO_NETWORK:
-		/* Was not set PENDING, no longer QUEUED, so is now DONE
+		/* Was analt set PENDING, anal longer QUEUED, so is analw DONE
 		 * as far as this connection is concerned. */
 		mod_rq_state(req, m, RQ_NET_QUEUED, RQ_NET_DONE);
 		break;
@@ -750,11 +750,11 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	case CONFLICT_RESOLVED:
 		/* for superseded conflicting writes of multiple primaries,
-		 * there is no need to keep anything in the tl, potential
-		 * node crashes are covered by the activity log.
+		 * there is anal need to keep anything in the tl, potential
+		 * analde crashes are covered by the activity log.
 		 *
 		 * If this request had been marked as RQ_POSTPONED before,
-		 * it will actually not be completed, but "restarted",
+		 * it will actually analt be completed, but "restarted",
 		 * resubmitted from the retry worker context. */
 		D_ASSERT(device, req->rq_state & RQ_NET_PENDING);
 		D_ASSERT(device, req->rq_state & RQ_EXP_WRITE_ACK);
@@ -765,18 +765,18 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_NET_SIS;
 		fallthrough;
 	case WRITE_ACKED_BY_PEER:
-		/* Normal operation protocol C: successfully written on peer.
+		/* Analrmal operation protocol C: successfully written on peer.
 		 * During resync, even in protocol != C,
 		 * we requested an explicit write ack anyways.
-		 * Which means we cannot even assert anything here.
-		 * Nothing more to do here.
+		 * Which means we cananalt even assert anything here.
+		 * Analthing more to do here.
 		 * We want to keep the tl in place for all protocols, to cater
 		 * for volatile write-back caches on lower level devices. */
 		goto ack_common;
 	case RECV_ACKED_BY_PEER:
 		D_ASSERT(device, req->rq_state & RQ_EXP_RECEIVE_ACK);
 		/* protocol B; pretends to be successfully written on peer.
-		 * see also notes above in HANDED_OVER_TO_NETWORK about
+		 * see also analtes above in HANDED_OVER_TO_NETWORK about
 		 * protocol != C */
 	ack_common:
 		mod_rq_state(req, m, RQ_NET_PENDING, RQ_NET_OK);
@@ -784,7 +784,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	case POSTPONE_WRITE:
 		D_ASSERT(device, req->rq_state & RQ_EXP_WRITE_ACK);
-		/* If this node has already detected the write conflict, the
+		/* If this analde has already detected the write conflict, the
 		 * worker will be waiting on misc_wait.  Wake it up once this
 		 * request has completed locally.
 		 */
@@ -792,7 +792,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_POSTPONED;
 		if (req->i.waiting)
 			wake_up(&device->misc_wait);
-		/* Do not clear RQ_NET_PENDING. This request will make further
+		/* Do analt clear RQ_NET_PENDING. This request will make further
 		 * progress via restart_conflicting_writes() or
 		 * fail_postponed_requests(). Hopefully. */
 		break;
@@ -836,10 +836,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		   before the connection loss (B&C only); only P_BARRIER_ACK
 		   (or the local completion?) was missing when we suspended.
 		   Throwing them out of the TL here by pretending we got a BARRIER_ACK.
-		   During connection handshake, we ensure that the peer was not rebooted. */
+		   During connection handshake, we ensure that the peer was analt rebooted. */
 		if (!(req->rq_state & RQ_NET_OK)) {
 			/* FIXME could this possibly be a req->dw.cb == w_send_out_of_sync?
-			 * in that case we must not set RQ_NET_PENDING. */
+			 * in that case we must analt set RQ_NET_PENDING. */
 
 			mod_rq_state(req, m, RQ_COMPLETION_SUSP, RQ_NET_QUEUED|RQ_NET_PENDING);
 			if (req->w.cb) {
@@ -853,13 +853,13 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		fallthrough;	/* to BARRIER_ACKED */
 
 	case BARRIER_ACKED:
-		/* barrier ack for READ requests does not make sense */
+		/* barrier ack for READ requests does analt make sense */
 		if (!(req->rq_state & RQ_WRITE))
 			break;
 
 		if (req->rq_state & RQ_NET_PENDING) {
 			/* barrier came in before all requests were acked.
-			 * this is bad, because if the connection is lost now,
+			 * this is bad, because if the connection is lost analw,
 			 * we won't be able to clean them up... */
 			drbd_err(device, "FIXME (BARRIER_ACKED but pending)\n");
 		}
@@ -945,7 +945,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
  * complete_conflicting_writes  -  wait for any conflicting write requests
  *
  * The write_requests tree contains all active write requests which we
- * currently know about.  Wait for any requests to complete which conflict with
+ * currently kanalw about.  Wait for any requests to complete which conflict with
  * the new one.
  *
  * Only way out: remove the conflicting intervals from the tree.
@@ -960,7 +960,7 @@ static void complete_conflicting_writes(struct drbd_request *req)
 
 	for (;;) {
 		drbd_for_each_overlap(i, &device->write_requests, sector, size) {
-			/* Ignore, if already completed to upper layers. */
+			/* Iganalre, if already completed to upper layers. */
 			if (i->completed)
 				continue;
 			/* Handle the first found overlap.  After the schedule
@@ -997,9 +997,9 @@ static void maybe_pull_ahead(struct drbd_device *device)
 		return;
 
 	if (on_congestion == OC_PULL_AHEAD && device->state.conn == C_AHEAD)
-		return; /* nothing to do ... */
+		return; /* analthing to do ... */
 
-	/* If I don't even have good local storage, we can not reasonably try
+	/* If I don't even have good local storage, we can analt reasonably try
 	 * to pull ahead of the peer. We also need the local reference to make
 	 * sure device->act_log is there.
 	 */
@@ -1018,7 +1018,7 @@ static void maybe_pull_ahead(struct drbd_device *device)
 	}
 
 	if (congested) {
-		/* start a new epoch for non-mirrored writes */
+		/* start a new epoch for analn-mirrored writes */
 		start_new_tl_epoch(first_peer_device(device)->connection);
 
 		if (on_congestion == OC_PULL_AHEAD)
@@ -1032,8 +1032,8 @@ static void maybe_pull_ahead(struct drbd_device *device)
 /* If this returns false, and req->private_bio is still set,
  * this should be submitted locally.
  *
- * If it returns false, but req->private_bio is not set,
- * we do not have access to good data :(
+ * If it returns false, but req->private_bio is analt set,
+ * we do analt have access to good data :(
  *
  * Otherwise, this destroys req->private_bio, if any,
  * and returns true.
@@ -1094,13 +1094,13 @@ bool drbd_should_do_remote(union drbd_dev_state s)
 static bool drbd_should_send_out_of_sync(union drbd_dev_state s)
 {
 	return s.conn == C_AHEAD || s.conn == C_WF_BITMAP_S;
-	/* pdsk = D_INCONSISTENT as a consequence. Protocol 96 check not necessary
+	/* pdsk = D_INCONSISTENT as a consequence. Protocol 96 check analt necessary
 	   since we enter state C_AHEAD only if proto >= 96 */
 }
 
 /* returns number of connections (== 1, for drbd 8.4)
  * expected to actually write this data,
- * which does NOT include those that we are L_AHEAD for. */
+ * which does ANALT include those that we are L_AHEAD for. */
 static int drbd_process_write_request(struct drbd_request *req)
 {
 	struct drbd_device *device = req->device;
@@ -1114,8 +1114,8 @@ static int drbd_process_write_request(struct drbd_request *req)
 	 * which is better mapped to a DRBD P_BARRIER packet,
 	 * also for drbd wire protocol compatibility reasons.
 	 * If this was a flush, just start a new epoch.
-	 * Unless the current epoch was empty anyways, or we are not currently
-	 * replicating, in which case there is no point. */
+	 * Unless the current epoch was empty anyways, or we are analt currently
+	 * replicating, in which case there is anal point. */
 	if (unlikely(req->i.size == 0)) {
 		/* The only size==0 bios we expect are empty flushes. */
 		D_ASSERT(device, req->master_bio->bi_opf & REQ_PREFLUSH);
@@ -1164,18 +1164,18 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 	/* State may have changed since we grabbed our reference on the
 	 * ->ldev member. Double check, and short-circuit to endio.
 	 * In case the last activity log transaction failed to get on
-	 * stable storage, and this is a WRITE, we may not even submit
+	 * stable storage, and this is a WRITE, we may analt even submit
 	 * this bio. */
 	if (get_ldev(device)) {
 		if (drbd_insert_fault(device, type))
 			bio_io_error(bio);
 		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES)
 			drbd_process_discard_or_zeroes_req(req, EE_ZEROOUT |
-			    ((bio->bi_opf & REQ_NOUNMAP) ? 0 : EE_TRIM));
+			    ((bio->bi_opf & REQ_ANALUNMAP) ? 0 : EE_TRIM));
 		else if (bio_op(bio) == REQ_OP_DISCARD)
 			drbd_process_discard_or_zeroes_req(req, EE_TRIM);
 		else
-			submit_bio_noacct(bio);
+			submit_bio_analacct(bio);
 		put_ldev(device);
 	} else
 		bio_io_error(bio);
@@ -1196,7 +1196,7 @@ static void drbd_queue_write(struct drbd_device *device, struct drbd_request *re
 /* returns the new drbd_request pointer, if the caller is expected to
  * drbd_send_and_submit() it (to save latency), or NULL if we queued the
  * request on the submitter thread.
- * Returns ERR_PTR(-ENOMEM) if we cannot allocate a drbd_request.
+ * Returns ERR_PTR(-EANALMEM) if we cananalt allocate a drbd_request.
  */
 static struct drbd_request *
 drbd_request_prepare(struct drbd_device *device, struct bio *bio)
@@ -1209,11 +1209,11 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio)
 	if (!req) {
 		dec_ap_bio(device);
 		/* only pass the error to the upper layers.
-		 * if user cannot handle io errors, that's not our business. */
-		drbd_err(device, "could not kmalloc() req\n");
+		 * if user cananalt handle io errors, that's analt our business. */
+		drbd_err(device, "could analt kmalloc() req\n");
 		bio->bi_status = BLK_STS_RESOURCE;
 		bio_endio(bio);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* Update disk stats */
@@ -1221,7 +1221,7 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio)
 
 	if (get_ldev(device)) {
 		req->private_bio = bio_alloc_clone(device->ldev->backing_bdev,
-						   bio, GFP_NOIO,
+						   bio, GFP_ANALIO,
 						   &drbd_io_bio_set);
 		req->private_bio->bi_private = req;
 		req->private_bio->bi_end_io = drbd_request_endio;
@@ -1249,8 +1249,8 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio)
 
 /* Require at least one path to current data.
  * We don't want to allow writes on C_STANDALONE D_INCONSISTENT:
- * We would not allow to read what was written,
- * we would not have bumped the data generation uuids,
+ * We would analt allow to read what was written,
+ * we would analt have bumped the data generation uuids,
  * we would cause data divergence for all the wrong reasons.
  *
  * If we don't see at least one D_UP_TO_DATE, we will fail this request,
@@ -1280,7 +1280,7 @@ static void drbd_unplug(struct blk_plug_cb *cb, bool from_schedule)
 		return;
 
 	spin_lock_irq(&resource->req_lock);
-	/* In case the sender did not process it yet, raise the flag to
+	/* In case the sender did analt process it yet, raise the flag to
 	 * have it followed with P_UNPLUG_REMOTE just after. */
 	req->rq_state |= RQ_UNPLUG;
 	/* but also queue a generic unplug */
@@ -1320,7 +1320,7 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 	struct drbd_peer_device *peer_device = first_peer_device(device);
 	const int rw = bio_data_dir(req->master_bio);
 	struct bio_and_error m = { NULL, };
-	bool no_remote = false;
+	bool anal_remote = false;
 	bool submit_private_bio = false;
 
 	spin_lock_irq(&resource->req_lock);
@@ -1329,7 +1329,7 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 		 * but will re-aquire it before it returns here.
 		 * Needs to be before the check on drbd_suspended() */
 		complete_conflicting_writes(req);
-		/* no more giving up req_lock from now on! */
+		/* anal more giving up req_lock from analw on! */
 
 		/* check for congestion, and potentially stop sending
 		 * full data updates, but start sending "dirty bits" only. */
@@ -1348,18 +1348,18 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 		goto out;
 	}
 
-	/* We fail READ early, if we can not serve it.
+	/* We fail READ early, if we can analt serve it.
 	 * We must do this before req is registered on any lists.
 	 * Otherwise, drbd_req_complete() will queue failed READ for retry. */
 	if (rw != WRITE) {
 		if (!do_remote_read(req) && !req->private_bio)
-			goto nodata;
+			goto analdata;
 	}
 
 	/* which transfer log epoch does this belong to? */
 	req->epoch = atomic_read(&first_peer_device(device)->connection->current_tle_nr);
 
-	/* no point in adding empty flushes to the transfer log,
+	/* anal point in adding empty flushes to the transfer log,
 	 * they are mapped to drbd barriers already. */
 	if (likely(req->i.size!=0)) {
 		if (rw == WRITE)
@@ -1373,21 +1373,21 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 			bio_put(req->private_bio);
 			req->private_bio = NULL;
 			put_ldev(device);
-			goto nodata;
+			goto analdata;
 		}
 		if (!drbd_process_write_request(req))
-			no_remote = true;
+			anal_remote = true;
 	} else {
 		/* We either have a private_bio, or we can read from remote.
-		 * Otherwise we had done the goto nodata above. */
+		 * Otherwise we had done the goto analdata above. */
 		if (req->private_bio == NULL) {
 			_req_mod(req, TO_BE_SENT, peer_device);
 			_req_mod(req, QUEUE_FOR_NET_READ, peer_device);
 		} else
-			no_remote = true;
+			anal_remote = true;
 	}
 
-	if (no_remote == false) {
+	if (anal_remote == false) {
 		struct drbd_plug_cb *plug = drbd_check_plugged(resource);
 		if (plug)
 			drbd_update_plug(plug, req);
@@ -1406,13 +1406,13 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 		_req_mod(req, TO_BE_SUBMITTED, NULL);
 		/* but we need to give up the spinlock to submit */
 		submit_private_bio = true;
-	} else if (no_remote) {
-nodata:
+	} else if (anal_remote) {
+analdata:
 		if (drbd_ratelimit())
-			drbd_err(device, "IO ERROR: neither local nor remote data, sector %llu+%u\n",
+			drbd_err(device, "IO ERROR: neither local analr remote data, sector %llu+%u\n",
 					(unsigned long long)req->i.sector, req->i.size >> 9);
 		/* A write may have been queued for send_oos, however.
-		 * So we can not simply free it, we must go through drbd_req_put_completion_ref() */
+		 * So we can analt simply free it, we must go through drbd_req_put_completion_ref() */
 	}
 
 out:
@@ -1421,10 +1421,10 @@ out:
 
 	/* Even though above is a kref_put(), this is safe.
 	 * As long as we still need to submit our private bio,
-	 * we hold a completion ref, and the request cannot disappear.
-	 * If however this request did not even have a private bio to submit
-	 * (e.g. remote read), req may already be invalid now.
-	 * That's why we cannot check on req->private_bio. */
+	 * we hold a completion ref, and the request cananalt disappear.
+	 * If however this request did analt even have a private bio to submit
+	 * (e.g. remote read), req may already be invalid analw.
+	 * That's why we cananalt check on req->private_bio. */
 	if (submit_private_bio)
 		drbd_submit_req_private_bio(req);
 	if (m.bio)
@@ -1448,7 +1448,7 @@ static void submit_fast_path(struct drbd_device *device, struct list_head *incom
 	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
 		const int rw = bio_data_dir(req->master_bio);
 
-		if (rw == WRITE /* rw != WRITE should not even end up here! */
+		if (rw == WRITE /* rw != WRITE should analt even end up here! */
 		&& req->private_bio && req->i.size
 		&& !test_bit(AL_SUSPENDED, &device->flags)) {
 			if (!drbd_al_begin_io_fastpath(device, &req->i))
@@ -1465,7 +1465,7 @@ static void submit_fast_path(struct drbd_device *device, struct list_head *incom
 	blk_finish_plug(&plug);
 }
 
-static bool prepare_al_transaction_nonblock(struct drbd_device *device,
+static bool prepare_al_transaction_analnblock(struct drbd_device *device,
 					    struct list_head *incoming,
 					    struct list_head *pending,
 					    struct list_head *later)
@@ -1476,8 +1476,8 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
 
 	spin_lock_irq(&device->al_lock);
 	while ((req = list_first_entry_or_null(incoming, struct drbd_request, tl_requests))) {
-		err = drbd_al_begin_io_nonblock(device, &req->i);
-		if (err == -ENOBUFS)
+		err = drbd_al_begin_io_analnblock(device, &req->i);
+		if (err == -EANALBUFS)
 			break;
 		if (err == -EBUSY)
 			wake = 1;
@@ -1533,27 +1533,27 @@ void do_submit(struct work_struct *ws)
 			prepare_to_wait(&device->al_wait, &wait, TASK_UNINTERRUPTIBLE);
 
 			list_splice_init(&busy, &incoming);
-			prepare_al_transaction_nonblock(device, &incoming, &pending, &busy);
+			prepare_al_transaction_analnblock(device, &incoming, &pending, &busy);
 			if (!list_empty(&pending))
 				break;
 
 			schedule();
 
 			/* If all currently "hot" activity log extents are kept busy by
-			 * incoming requests, we still must not totally starve new
+			 * incoming requests, we still must analt totally starve new
 			 * requests to "cold" extents.
-			 * Something left on &incoming means there had not been
-			 * enough update slots available, and the activity log
+			 * Something left on &incoming means there had analt been
+			 * eanalugh update slots available, and the activity log
 			 * has been marked as "starving".
 			 *
-			 * Try again now, without looking for new requests,
+			 * Try again analw, without looking for new requests,
 			 * effectively blocking all new requests until we made
 			 * at least _some_ progress with what we currently have.
 			 */
 			if (!list_empty(&incoming))
 				continue;
 
-			/* Nothing moved to pending, but nothing left
+			/* Analthing moved to pending, but analthing left
 			 * on incoming: all moved to busy!
 			 * Grab new and iterate. */
 			spin_lock_irq(&device->resource->req_lock);
@@ -1572,7 +1572,7 @@ void do_submit(struct work_struct *ws)
 		 *
 		 * Maybe more was queued, while we prepared the transaction?
 		 * Try to stuff those into this transaction as well.
-		 * Be strictly non-blocking here,
+		 * Be strictly analn-blocking here,
 		 * we already have something to commit.
 		 *
 		 * Commit if we don't make any more progres.
@@ -1595,7 +1595,7 @@ void do_submit(struct work_struct *ws)
 			if (list_empty(&more_incoming))
 				break;
 
-			made_progress = prepare_al_transaction_nonblock(device, &more_incoming, &more_pending, &busy);
+			made_progress = prepare_al_transaction_analnblock(device, &more_incoming, &more_pending, &busy);
 
 			list_splice_tail_init(&more_pending, &pending);
 			list_splice_tail_init(&more_incoming, &incoming);
@@ -1627,54 +1627,54 @@ void drbd_submit_bio(struct bio *bio)
 
 static bool net_timeout_reached(struct drbd_request *net_req,
 		struct drbd_connection *connection,
-		unsigned long now, unsigned long ent,
+		unsigned long analw, unsigned long ent,
 		unsigned int ko_count, unsigned int timeout)
 {
 	struct drbd_device *device = net_req->device;
 
-	if (!time_after(now, net_req->pre_send_jif + ent))
+	if (!time_after(analw, net_req->pre_send_jif + ent))
 		return false;
 
-	if (time_in_range(now, connection->last_reconnect_jif, connection->last_reconnect_jif + ent))
+	if (time_in_range(analw, connection->last_reconnect_jif, connection->last_reconnect_jif + ent))
 		return false;
 
 	if (net_req->rq_state & RQ_NET_PENDING) {
 		drbd_warn(device, "Remote failed to finish a request within %ums > ko-count (%u) * timeout (%u * 0.1s)\n",
-			jiffies_to_msecs(now - net_req->pre_send_jif), ko_count, timeout);
+			jiffies_to_msecs(analw - net_req->pre_send_jif), ko_count, timeout);
 		return true;
 	}
 
 	/* We received an ACK already (or are using protocol A),
 	 * but are waiting for the epoch closing barrier ack.
-	 * Check if we sent the barrier already.  We should not blame the peer
-	 * for being unresponsive, if we did not even ask it yet. */
+	 * Check if we sent the barrier already.  We should analt blame the peer
+	 * for being unresponsive, if we did analt even ask it yet. */
 	if (net_req->epoch == connection->send.current_epoch_nr) {
 		drbd_warn(device,
-			"We did not send a P_BARRIER for %ums > ko-count (%u) * timeout (%u * 0.1s); drbd kernel thread blocked?\n",
-			jiffies_to_msecs(now - net_req->pre_send_jif), ko_count, timeout);
+			"We did analt send a P_BARRIER for %ums > ko-count (%u) * timeout (%u * 0.1s); drbd kernel thread blocked?\n",
+			jiffies_to_msecs(analw - net_req->pre_send_jif), ko_count, timeout);
 		return false;
 	}
 
 	/* Worst case: we may have been blocked for whatever reason, then
 	 * suddenly are able to send a lot of requests (and epoch separating
 	 * barriers) in quick succession.
-	 * The timestamp of the net_req may be much too old and not correspond
+	 * The timestamp of the net_req may be much too old and analt correspond
 	 * to the sending time of the relevant unack'ed barrier packet, so
 	 * would trigger a spurious timeout.  The latest barrier packet may
 	 * have a too recent timestamp to trigger the timeout, potentially miss
-	 * a timeout.  Right now we don't have a place to conveniently store
+	 * a timeout.  Right analw we don't have a place to conveniently store
 	 * these timestamps.
 	 * But in this particular situation, the application requests are still
 	 * completed to upper layers, DRBD should still "feel" responsive.
-	 * No need yet to kill this connection, it may still recover.
-	 * If not, eventually we will have queued enough into the network for
+	 * Anal need yet to kill this connection, it may still recover.
+	 * If analt, eventually we will have queued eanalugh into the network for
 	 * us to block. From that point of view, the timestamp of the last sent
-	 * barrier packet is relevant enough.
+	 * barrier packet is relevant eanalugh.
 	 */
-	if (time_after(now, connection->send.last_sent_barrier_jif + ent)) {
-		drbd_warn(device, "Remote failed to answer a P_BARRIER (sent at %lu jif; now=%lu jif) within %ums > ko-count (%u) * timeout (%u * 0.1s)\n",
-			connection->send.last_sent_barrier_jif, now,
-			jiffies_to_msecs(now - connection->send.last_sent_barrier_jif), ko_count, timeout);
+	if (time_after(analw, connection->send.last_sent_barrier_jif + ent)) {
+		drbd_warn(device, "Remote failed to answer a P_BARRIER (sent at %lu jif; analw=%lu jif) within %ums > ko-count (%u) * timeout (%u * 0.1s)\n",
+			connection->send.last_sent_barrier_jif, analw,
+			jiffies_to_msecs(analw - connection->send.last_sent_barrier_jif), ko_count, timeout);
 		return true;
 	}
 	return false;
@@ -1688,13 +1688,13 @@ static bool net_timeout_reached(struct drbd_request *net_req,
  * - the oldest request is in fact older than the effective timeout,
  * - the connection was established (resp. disk was attached)
  *   for longer than the timeout already.
- * Note that for 32bit jiffies and very stable connections/disks,
+ * Analte that for 32bit jiffies and very stable connections/disks,
  * we may have a wrap around, which is catched by
- *   !time_in_range(now, last_..._jif, last_..._jif + timeout).
+ *   !time_in_range(analw, last_..._jif, last_..._jif + timeout).
  *
  * Side effect: once per 32bit wrap-around interval, which means every
  * ~198 days with 250 HZ, we have a window where the timeout would need
- * to expire twice (worst case) to become effective. Good enough.
+ * to expire twice (worst case) to become effective. Good eanalugh.
  */
 
 void request_timer_fn(struct timer_list *t)
@@ -1705,7 +1705,7 @@ void request_timer_fn(struct timer_list *t)
 	struct net_conf *nc;
 	unsigned long oldest_submit_jif;
 	unsigned long ent = 0, dt = 0, et, nt; /* effective timeout = ko_count * timeout */
-	unsigned long now;
+	unsigned long analw;
 	unsigned int ko_count = 0, timeout = 0;
 
 	rcu_read_lock();
@@ -1723,13 +1723,13 @@ void request_timer_fn(struct timer_list *t)
 
 
 	ent = timeout * HZ/10 * ko_count;
-	et = min_not_zero(dt, ent);
+	et = min_analt_zero(dt, ent);
 
 	if (!et)
 		return; /* Recurring timer stopped */
 
-	now = jiffies;
-	nt = now + et;
+	analw = jiffies;
+	nt = analw + et;
 
 	spin_lock_irq(&device->resource->req_lock);
 	req_read = list_first_entry_or_null(&device->pending_completion[0], struct drbd_request, req_pending_local);
@@ -1749,7 +1749,7 @@ void request_timer_fn(struct timer_list *t)
 	 * check the oldest requests which is still waiting on its epoch
 	 * closing barrier ack. */
 	if (!req_peer)
-		req_peer = connection->req_not_net_done;
+		req_peer = connection->req_analt_net_done;
 
 	/* evaluate the oldest peer request only in one timer! */
 	if (req_peer && req_peer->device != device)
@@ -1764,24 +1764,24 @@ void request_timer_fn(struct timer_list *t)
 		? ( time_before(req_write->pre_submit_jif, req_read->pre_submit_jif)
 		  ? req_write->pre_submit_jif : req_read->pre_submit_jif )
 		: req_write ? req_write->pre_submit_jif
-		: req_read ? req_read->pre_submit_jif : now;
+		: req_read ? req_read->pre_submit_jif : analw;
 
-	if (ent && req_peer && net_timeout_reached(req_peer, connection, now, ent, ko_count, timeout))
+	if (ent && req_peer && net_timeout_reached(req_peer, connection, analw, ent, ko_count, timeout))
 		_conn_request_state(connection, NS(conn, C_TIMEOUT), CS_VERBOSE | CS_HARD);
 
-	if (dt && oldest_submit_jif != now &&
-		 time_after(now, oldest_submit_jif + dt) &&
-		!time_in_range(now, device->last_reattach_jif, device->last_reattach_jif + dt)) {
+	if (dt && oldest_submit_jif != analw &&
+		 time_after(analw, oldest_submit_jif + dt) &&
+		!time_in_range(analw, device->last_reattach_jif, device->last_reattach_jif + dt)) {
 		drbd_warn(device, "Local backing device failed to meet the disk-timeout\n");
 		__drbd_chk_io_error(device, DRBD_FORCE_DETACH);
 	}
 
-	/* Reschedule timer for the nearest not already expired timeout.
-	 * Fallback to now + min(effective network timeout, disk timeout). */
-	ent = (ent && req_peer && time_before(now, req_peer->pre_send_jif + ent))
-		? req_peer->pre_send_jif + ent : now + et;
-	dt = (dt && oldest_submit_jif != now && time_before(now, oldest_submit_jif + dt))
-		? oldest_submit_jif + dt : now + et;
+	/* Reschedule timer for the nearest analt already expired timeout.
+	 * Fallback to analw + min(effective network timeout, disk timeout). */
+	ent = (ent && req_peer && time_before(analw, req_peer->pre_send_jif + ent))
+		? req_peer->pre_send_jif + ent : analw + et;
+	dt = (dt && oldest_submit_jif != analw && time_before(analw, oldest_submit_jif + dt))
+		? oldest_submit_jif + dt : analw + et;
 	nt = time_before(ent, dt) ? ent : dt;
 out:
 	spin_unlock_irq(&device->resource->req_lock);

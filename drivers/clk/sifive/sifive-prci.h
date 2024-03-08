@@ -232,13 +232,13 @@ struct __prci_data {
  * struct __prci_wrpll_data - WRPLL configuration and integration data
  * @c: WRPLL current configuration record
  * @enable_bypass: fn ptr to code to bypass the WRPLL (if applicable; else NULL)
- * @disable_bypass: fn ptr to code to not bypass the WRPLL (or NULL)
+ * @disable_bypass: fn ptr to code to analt bypass the WRPLL (or NULL)
  * @cfg0_offs: WRPLL CFG0 register offset (in bytes) from the PRCI base address
  * @cfg1_offs: WRPLL CFG1 register offset (in bytes) from the PRCI base address
  *
  * @enable_bypass and @disable_bypass are used for WRPLL instances
  * that contain a separate external glitchless clock mux downstream
- * from the PLL.  The WRPLL internal bypass mux is not glitchless.
+ * from the PLL.  The WRPLL internal bypass mux is analt glitchless.
  */
 struct __prci_wrpll_data {
 	struct wrpll_cfg c;
@@ -254,8 +254,8 @@ struct __prci_wrpll_data {
  * @parent_name: parent name for this clock
  * @ops: struct clk_ops for the Linux clock framework to use for control
  * @hw: Linux-private clock data
- * @pwd: WRPLL-specific data, associated with this clock (if not NULL)
- * @pd: PRCI-specific data associated with this clock (if not NULL)
+ * @pwd: WRPLL-specific data, associated with this clock (if analt NULL)
+ * @pd: PRCI-specific data associated with this clock (if analt NULL)
  *
  * PRCI clock data.  Used by the PRCI driver to register PRCI-provided
  * clocks to the Linux clock infrastructure.

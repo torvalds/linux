@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver VCAP debugFS implementation
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include <linux/types.h>
@@ -18,10 +18,10 @@ static const char *sparx5_vcap_is0_etype_str(u32 value)
 	switch (value) {
 	case VCAP_IS0_PS_ETYPE_DEFAULT:
 		return "default";
-	case VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE:
-		return "normal_7tuple";
-	case VCAP_IS0_PS_ETYPE_NORMAL_5TUPLE_IP4:
-		return "normal_5tuple_ip4";
+	case VCAP_IS0_PS_ETYPE_ANALRMAL_7TUPLE:
+		return "analrmal_7tuple";
+	case VCAP_IS0_PS_ETYPE_ANALRMAL_5TUPLE_IP4:
+		return "analrmal_5tuple_ip4";
 	case VCAP_IS0_PS_ETYPE_MLL:
 		return "mll";
 	case VCAP_IS0_PS_ETYPE_LL_FULL:
@@ -30,10 +30,10 @@ static const char *sparx5_vcap_is0_etype_str(u32 value)
 		return "pure_5tuple_ip4";
 	case VCAP_IS0_PS_ETYPE_ETAG:
 		return "etag";
-	case VCAP_IS0_PS_ETYPE_NO_LOOKUP:
-		return "no lookup";
+	case VCAP_IS0_PS_ETYPE_ANAL_LOOKUP:
+		return "anal lookup";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -42,10 +42,10 @@ static const char *sparx5_vcap_is0_mpls_str(u32 value)
 	switch (value) {
 	case VCAP_IS0_PS_MPLS_FOLLOW_ETYPE:
 		return "follow_etype";
-	case VCAP_IS0_PS_MPLS_NORMAL_7TUPLE:
-		return "normal_7tuple";
-	case VCAP_IS0_PS_MPLS_NORMAL_5TUPLE_IP4:
-		return "normal_5tuple_ip4";
+	case VCAP_IS0_PS_MPLS_ANALRMAL_7TUPLE:
+		return "analrmal_7tuple";
+	case VCAP_IS0_PS_MPLS_ANALRMAL_5TUPLE_IP4:
+		return "analrmal_5tuple_ip4";
 	case VCAP_IS0_PS_MPLS_MLL:
 		return "mll";
 	case VCAP_IS0_PS_MPLS_LL_FULL:
@@ -54,10 +54,10 @@ static const char *sparx5_vcap_is0_mpls_str(u32 value)
 		return "pure_5tuple_ip4";
 	case VCAP_IS0_PS_MPLS_ETAG:
 		return "etag";
-	case VCAP_IS0_PS_MPLS_NO_LOOKUP:
-		return "no lookup";
+	case VCAP_IS0_PS_MPLS_ANAL_LOOKUP:
+		return "anal lookup";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -66,10 +66,10 @@ static const char *sparx5_vcap_is0_mlbs_str(u32 value)
 	switch (value) {
 	case VCAP_IS0_PS_MLBS_FOLLOW_ETYPE:
 		return "follow_etype";
-	case VCAP_IS0_PS_MLBS_NO_LOOKUP:
-		return "no lookup";
+	case VCAP_IS0_PS_MLBS_ANAL_LOOKUP:
+		return "anal lookup";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -81,14 +81,14 @@ static void sparx5_vcap_is0_port_keys(struct sparx5 *sparx5,
 	int lookup;
 	u32 value, val;
 
-	out->prf(out->dst, "  port[%02d] (%s): ", port->portno,
+	out->prf(out->dst, "  port[%02d] (%s): ", port->portanal,
 		 netdev_name(port->ndev));
 	for (lookup = 0; lookup < admin->lookups; ++lookup) {
 		out->prf(out->dst, "\n    Lookup %d: ", lookup);
 
 		/* Get lookup state */
 		value = spx5_rd(sparx5,
-				ANA_CL_ADV_CL_CFG(port->portno, lookup));
+				ANA_CL_ADV_CL_CFG(port->portanal, lookup));
 		out->prf(out->dst, "\n      state: ");
 		if (ANA_CL_ADV_CL_CFG_LOOKUP_ENA_GET(value))
 			out->prf(out->dst, "on");
@@ -124,13 +124,13 @@ static void sparx5_vcap_is2_port_keys(struct sparx5 *sparx5,
 	int lookup;
 	u32 value;
 
-	out->prf(out->dst, "  port[%02d] (%s): ", port->portno,
+	out->prf(out->dst, "  port[%02d] (%s): ", port->portanal,
 	   netdev_name(port->ndev));
 	for (lookup = 0; lookup < admin->lookups; ++lookup) {
 		out->prf(out->dst, "\n    Lookup %d: ", lookup);
 
 		/* Get lookup state */
-		value = spx5_rd(sparx5, ANA_ACL_VCAP_S2_CFG(port->portno));
+		value = spx5_rd(sparx5, ANA_ACL_VCAP_S2_CFG(port->portanal));
 		out->prf(out->dst, "\n      state: ");
 		if (ANA_ACL_VCAP_S2_CFG_SEC_ENA_GET(value) & BIT(lookup))
 			out->prf(out->dst, "on");
@@ -139,21 +139,21 @@ static void sparx5_vcap_is2_port_keys(struct sparx5 *sparx5,
 
 		/* Get key selection state */
 		value = spx5_rd(sparx5,
-				ANA_ACL_VCAP_S2_KEY_SEL(port->portno, lookup));
+				ANA_ACL_VCAP_S2_KEY_SEL(port->portanal, lookup));
 
-		out->prf(out->dst, "\n      noneth: ");
-		switch (ANA_ACL_VCAP_S2_KEY_SEL_NON_ETH_KEY_SEL_GET(value)) {
-		case VCAP_IS2_PS_NONETH_MAC_ETYPE:
+		out->prf(out->dst, "\n      analneth: ");
+		switch (ANA_ACL_VCAP_S2_KEY_SEL_ANALN_ETH_KEY_SEL_GET(value)) {
+		case VCAP_IS2_PS_ANALNETH_MAC_ETYPE:
 			out->prf(out->dst, "mac_etype");
 			break;
-		case VCAP_IS2_PS_NONETH_CUSTOM_1:
+		case VCAP_IS2_PS_ANALNETH_CUSTOM_1:
 			out->prf(out->dst, "custom1");
 			break;
-		case VCAP_IS2_PS_NONETH_CUSTOM_2:
+		case VCAP_IS2_PS_ANALNETH_CUSTOM_2:
 			out->prf(out->dst, "custom2");
 			break;
-		case VCAP_IS2_PS_NONETH_NO_LOOKUP:
-			out->prf(out->dst, "none");
+		case VCAP_IS2_PS_ANALNETH_ANAL_LOOKUP:
+			out->prf(out->dst, "analne");
 			break;
 		}
 		out->prf(out->dst, "\n      ipv4_mc: ");
@@ -291,7 +291,7 @@ static void sparx5_vcap_es0_port_keys(struct sparx5 *sparx5,
 {
 	u32 value;
 
-	out->prf(out->dst, "  port[%02d] (%s): ", port->portno,
+	out->prf(out->dst, "  port[%02d] (%s): ", port->portanal,
 		 netdev_name(port->ndev));
 	out->prf(out->dst, "\n    Lookup 0: ");
 
@@ -304,10 +304,10 @@ static void sparx5_vcap_es0_port_keys(struct sparx5 *sparx5,
 		out->prf(out->dst, "off");
 
 	out->prf(out->dst, "\n      keyset: ");
-	value = spx5_rd(sparx5, REW_RTAG_ETAG_CTRL(port->portno));
+	value = spx5_rd(sparx5, REW_RTAG_ETAG_CTRL(port->portanal));
 	switch (REW_RTAG_ETAG_CTRL_ES0_ISDX_KEY_ENA_GET(value)) {
-	case VCAP_ES0_PS_NORMAL_SELECTION:
-		out->prf(out->dst, "normal");
+	case VCAP_ES0_PS_ANALRMAL_SELECTION:
+		out->prf(out->dst, "analrmal");
 		break;
 	case VCAP_ES0_PS_FORCE_ISDX_LOOKUPS:
 		out->prf(out->dst, "isdx");
@@ -330,13 +330,13 @@ static void sparx5_vcap_es2_port_keys(struct sparx5 *sparx5,
 	int lookup;
 	u32 value;
 
-	out->prf(out->dst, "  port[%02d] (%s): ", port->portno,
+	out->prf(out->dst, "  port[%02d] (%s): ", port->portanal,
 	   netdev_name(port->ndev));
 	for (lookup = 0; lookup < admin->lookups; ++lookup) {
 		out->prf(out->dst, "\n    Lookup %d: ", lookup);
 
 		/* Get lookup state */
-		value = spx5_rd(sparx5, EACL_VCAP_ES2_KEY_SEL(port->portno,
+		value = spx5_rd(sparx5, EACL_VCAP_ES2_KEY_SEL(port->portanal,
 							      lookup));
 		out->prf(out->dst, "\n      state: ");
 		if (EACL_VCAP_ES2_KEY_SEL_KEY_ENA_GET(value))
@@ -464,7 +464,7 @@ int sparx5_port_info(struct net_device *ndev,
 		sparx5_vcap_es2_port_stickies(sparx5, admin, out);
 		break;
 	default:
-		out->prf(out->dst, "  no info\n");
+		out->prf(out->dst, "  anal info\n");
 		break;
 	}
 	return 0;

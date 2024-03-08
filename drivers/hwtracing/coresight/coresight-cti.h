@@ -9,7 +9,7 @@
 
 #include <linux/coresight.h>
 #include <linux/device.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
@@ -56,7 +56,7 @@
  * Max of in and out defined in the DEVID register.
  * - pick up actual number used from .dts parameters if present.
  */
-#define CTIINOUTEN_MAX		32
+#define CTIIANALUTEN_MAX		32
 
 /**
  * Group of related trigger signals
@@ -77,9 +77,9 @@ struct cti_trig_grp {
  *
  * @con_in: connected CTIIN signals for the device.
  * @con_out: connected CTIOUT signals for the device.
- * @con_dev: coresight device connected to the CTI, NULL if not CS device
+ * @con_dev: coresight device connected to the CTI, NULL if analt CS device
  * @con_dev_name: name of connected device (CS or CPU)
- * @node: entry node in list of connections.
+ * @analde: entry analde in list of connections.
  * @con_attrs: Dynamic sysfs attributes specific to this connection.
  * @attr_group: Dynamic attribute group created for this connection.
  */
@@ -88,7 +88,7 @@ struct cti_trig_con {
 	struct cti_trig_grp *con_out;
 	struct coresight_device *con_dev;
 	const char *con_dev_name;
-	struct list_head node;
+	struct list_head analde;
 	struct attribute **con_attrs;
 	struct attribute_group *attr_group;
 };
@@ -120,7 +120,7 @@ struct cti_device {
  * @nr_ctm_channels: number of available CTM channels - from ID register.
  * @enable_req_count: CTI is enabled alongside >=1 associated devices.
  * @hw_enabled: true if hw is currently enabled.
- * @hw_powered: true if associated cpu powered on, or no cpu.
+ * @hw_powered: true if associated cpu powered on, or anal cpu.
  * @trig_in_use: bitfield of in triggers registered as in use.
  * @trig_out_use: bitfield of out triggers registered as in use.
  * @trig_out_filter: bitfield of out triggers that are blocked if filter
@@ -129,7 +129,7 @@ struct cti_device {
  * @trig_filter_enable: 1 if filtering enabled.
  * @xtrig_rchan_sel: channel selection for xtrigger connection show.
  * @ctiappset: CTI Software application channel set.
- * @ctiinout_sel: register selector for INEN and OUTEN regs.
+ * @ctiianalut_sel: register selector for INEN and OUTEN regs.
  * @ctiinen: enable input trigger to a channel.
  * @ctiouten: enable output trigger from a channel.
  * @ctigate: gate channel output from CTI to CTM.
@@ -154,9 +154,9 @@ struct cti_config {
 
 	/* cti cross trig programmable regs */
 	u32 ctiappset;
-	u8 ctiinout_sel;
-	u32 ctiinen[CTIINOUTEN_MAX];
-	u32 ctiouten[CTIINOUTEN_MAX];
+	u8 ctiianalut_sel;
+	u32 ctiinen[CTIIANALUTEN_MAX];
+	u32 ctiouten[CTIIANALUTEN_MAX];
 	u32 ctigate;
 	u32 asicctl;
 };
@@ -168,7 +168,7 @@ struct cti_config {
  * @ctidev:	Extra information needed by the CTI/CTM framework.
  * @spinlock:	Control data access to one at a time.
  * @config:	Configuration data for this CTI device.
- * @node:	List entry of this device in the list of CTI devices.
+ * @analde:	List entry of this device in the list of CTI devices.
  * @csdev_release: release function for underlying coresight_device.
  */
 struct cti_drvdata {
@@ -177,7 +177,7 @@ struct cti_drvdata {
 	struct cti_device ctidev;
 	spinlock_t spinlock;
 	struct cti_config config;
-	struct list_head node;
+	struct list_head analde;
 	void (*csdev_release)(struct device *dev);
 };
 
@@ -230,7 +230,7 @@ int cti_channel_setop(struct device *dev, enum cti_chan_set_op op,
 int cti_create_cons_sysfs(struct device *dev, struct cti_drvdata *drvdata);
 struct coresight_platform_data *
 coresight_cti_get_platform_data(struct device *dev);
-const char *cti_plat_get_node_name(struct fwnode_handle *fwnode);
+const char *cti_plat_get_analde_name(struct fwanalde_handle *fwanalde);
 
 /* cti powered and enabled */
 static inline bool cti_active(struct cti_config *cfg)

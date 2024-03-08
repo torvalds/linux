@@ -97,7 +97,7 @@ static ssize_t coredump_show(struct device *dev,
  * default:	When the remoteproc crashes the entire coredump will be
  *		copied to a separate buffer and exposed to userspace.
  *
- * inline:	The coredump will not be copied to a separate buffer and the
+ * inline:	The coredump will analt be copied to a separate buffer and the
  *		recovery process will have to wait until data is read by
  *		userspace. But this avoid usage of extra memory.
  */
@@ -136,11 +136,11 @@ static ssize_t firmware_show(struct device *dev, struct device_attribute *attr,
 
 	/*
 	 * If the remote processor has been started by an external
-	 * entity we have no idea of what image it is running.  As such
+	 * entity we have anal idea of what image it is running.  As such
 	 * simply display a generic string rather then rproc->firmware.
 	 */
 	if (rproc->state == RPROC_ATTACHED)
-		firmware = "unknown";
+		firmware = "unkanalwn";
 
 	return sprintf(buf, "%s\n", firmware);
 }

@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -42,8 +42,8 @@ int virtio_gpu_resource_id_get(struct virtio_gpu_device *vgdev, uint32_t *resid)
 		 * "f91a9dd35715 Fix unlinking resources from hash
 		 * table." (Feb 2019) fixes the bug.
 		 */
-		static atomic_t seqno = ATOMIC_INIT(0);
-		int handle = atomic_inc_return(&seqno);
+		static atomic_t seqanal = ATOMIC_INIT(0);
+		int handle = atomic_inc_return(&seqanal);
 		*resid = handle + 1;
 	} else {
 		int handle = ida_alloc(&vgdev->resource_ida, GFP_KERNEL);
@@ -72,8 +72,8 @@ void virtio_gpu_cleanup_object(struct virtio_gpu_object *bo)
 		struct virtio_gpu_object_vram *vram = to_virtio_gpu_vram(bo);
 
 		spin_lock(&vgdev->host_visible_lock);
-		if (drm_mm_node_allocated(&vram->vram_node))
-			drm_mm_remove_node(&vram->vram_node);
+		if (drm_mm_analde_allocated(&vram->vram_analde))
+			drm_mm_remove_analde(&vram->vram_analde);
 
 		spin_unlock(&vgdev->host_visible_lock);
 
@@ -90,7 +90,7 @@ static void virtio_gpu_free_object(struct drm_gem_object *obj)
 
 	if (bo->created) {
 		virtio_gpu_cmd_unref_resource(vgdev, bo);
-		virtio_gpu_notify(vgdev);
+		virtio_gpu_analtify(vgdev);
 		/* completion handler calls virtio_gpu_cleanup_object() */
 		return;
 	}
@@ -125,7 +125,7 @@ struct drm_gem_object *virtio_gpu_create_object(struct drm_device *dev,
 
 	shmem = kzalloc(sizeof(*shmem), GFP_KERNEL);
 	if (!shmem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dshmem = &shmem->base.base;
 	dshmem->base.funcs = &virtio_gpu_shmem_funcs;
@@ -156,7 +156,7 @@ static int virtio_gpu_object_shmem_init(struct virtio_gpu_device *vgdev,
 			       GFP_KERNEL);
 	if (!(*ents)) {
 		DRM_ERROR("failed to allocate ent list\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (use_dma_api) {
@@ -207,7 +207,7 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 		goto err_put_id;
 
 	if (fence) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		objs = virtio_gpu_array_alloc(1);
 		if (!objs)
 			goto err_free_entry;

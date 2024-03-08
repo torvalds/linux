@@ -54,14 +54,14 @@ qed_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
 	dbg_data_buf_size = qed_dbg_all_data_size(cdev);
 	p_dbg_data_buf = vzalloc(dbg_data_buf_size);
 	if (!p_dbg_data_buf) {
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "Failed to allocate memory for a debug data buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = qed_dbg_all_data(cdev, p_dbg_data_buf);
 	if (err) {
-		DP_NOTICE(cdev, "Failed to obtain debug data\n");
+		DP_ANALTICE(cdev, "Failed to obtain debug data\n");
 		vfree(p_dbg_data_buf);
 		return err;
 	}
@@ -102,7 +102,7 @@ void qed_fw_reporters_create(struct devlink *devlink)
 	dl->fw_reporter = devlink_health_reporter_create(devlink, &qed_fw_fatal_reporter_ops,
 							 QED_REPORTER_FW_GRACEFUL_PERIOD, dl);
 	if (IS_ERR(dl->fw_reporter)) {
-		DP_NOTICE(dl->cdev, "Failed to create fw reporter, err = %ld\n",
+		DP_ANALTICE(dl->cdev, "Failed to create fw reporter, err = %ld\n",
 			  PTR_ERR(dl->fw_reporter));
 		dl->fw_reporter = NULL;
 	}
@@ -184,7 +184,7 @@ static int qed_devlink_info_get(struct devlink *devlink,
 
 	snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
 		 dev_info->fw_major,
-		 dev_info->fw_minor,
+		 dev_info->fw_mianalr,
 		 dev_info->fw_rev,
 		 dev_info->fw_eng);
 
@@ -205,7 +205,7 @@ struct devlink *qed_devlink_register(struct qed_dev *cdev)
 	dl = devlink_alloc(&qed_dl_ops, sizeof(struct qed_devlink),
 			   &cdev->pdev->dev);
 	if (!dl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qdevlink = devlink_priv(dl);
 	qdevlink->cdev = cdev;

@@ -49,8 +49,8 @@ static inline unsigned int pll_freq_delta(unsigned int f1, unsigned int f2) {
 	return f2;
 }
 
-#define NO_MORE_MNP	0x01FFFFFF
-#define G450_MNP_FREQBITS	(0xFFFFFF43)	/* do not mask high byte so we'll catch NO_MORE_MNP */
+#define ANAL_MORE_MNP	0x01FFFFFF
+#define G450_MNP_FREQBITS	(0xFFFFFF43)	/* do analt mask high byte so we'll catch ANAL_MORE_MNP */
 
 static unsigned int g450_nextpll(const struct matrox_fb_info *minfo,
 				 const struct matrox_pll_limits *pi,
@@ -66,7 +66,7 @@ static unsigned int g450_nextpll(const struct matrox_fb_info *minfo,
 		if (m == 0 || m == 0xFF) {
 			if (m == 0) {
 				if (p & 0x40) {
-					return NO_MORE_MNP;
+					return ANAL_MORE_MNP;
 				}
 			        if (p & 3) {
 					p--;
@@ -75,7 +75,7 @@ static unsigned int g450_nextpll(const struct matrox_fb_info *minfo,
 				}
 				tvco >>= 1;
 				if (tvco < pi->vcomin) {
-					return NO_MORE_MNP;
+					return ANAL_MORE_MNP;
 				}
 				*fvco = tvco;
 			}
@@ -325,7 +325,7 @@ static int g450_checkcache(struct matrox_fb_info *minfo,
 			return mnp;
 		}
 	}
-	return NO_MORE_MNP;
+	return ANAL_MORE_MNP;
 }
 
 static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
@@ -432,7 +432,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 		unsigned int mnp;
 		unsigned int xvco;
 
-		for (mnp = g450_firstpll(minfo, pi, &xvco, fout); mnp != NO_MORE_MNP; mnp = g450_nextpll(minfo, pi, &xvco, mnp)) {
+		for (mnp = g450_firstpll(minfo, pi, &xvco, fout); mnp != ANAL_MORE_MNP; mnp = g450_nextpll(minfo, pi, &xvco, mnp)) {
 			unsigned int idx;
 			unsigned int vco;
 			unsigned int delta;
@@ -446,7 +446,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 				   with < highest one wins */
 				if (delta <= deltaarray[idx-1]) {
 					/* all else being equal except VCO,
-					 * choose VCO not near (within 1/16th or so) VCOmin
+					 * choose VCO analt near (within 1/16th or so) VCOmin
 					 * (freqs near VCOmin aren't as stable)
 					 */
 					if (delta == deltaarray[idx-1]
@@ -465,7 +465,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 			mnpcount++;
 		}
 	}
-	/* VideoPLL and PixelPLL matched: do nothing... In all other cases we should get at least one frequency */
+	/* VideoPLL and PixelPLL matched: do analthing... In all other cases we should get at least one frequency */
 	if (!mnpcount) {
 		return -EBUSY;
 	}
@@ -475,7 +475,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 		
 		matroxfb_DAC_lock_irqsave(flags);
 		mnp = g450_checkcache(minfo, ci, mnparray[0]);
-		if (mnp != NO_MORE_MNP) {
+		if (mnp != ANAL_MORE_MNP) {
 			matroxfb_g450_setpll_cond(minfo, mnp, pll);
 		} else {
 			mnp = g450_findworkingpll(minfo, pll, mnparray, mnpcount);
@@ -504,7 +504,7 @@ int matroxfb_g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 		kfree(arr);
 		return r;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 EXPORT_SYMBOL(matroxfb_g450_setclk);

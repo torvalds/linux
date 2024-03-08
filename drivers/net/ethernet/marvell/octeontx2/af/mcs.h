@@ -62,7 +62,7 @@
 
 #define MCS_CPM_TX_INT_PACKET_XPN_EQ0		BIT_ULL(0)
 #define MCS_CPM_TX_INT_PN_THRESH_REACHED	BIT_ULL(1)
-#define MCS_CPM_TX_INT_SA_NOT_VALID		BIT_ULL(2)
+#define MCS_CPM_TX_INT_SA_ANALT_VALID		BIT_ULL(2)
 
 #define MCS_CPM_RX_INT_SECTAG_V_EQ1		BIT_ULL(0)
 #define MCS_CPM_RX_INT_SECTAG_E_EQ0_C_EQ1	BIT_ULL(1)
@@ -93,7 +93,7 @@ struct mcs_intr_event {
 };
 
 struct mcs_intrq_entry {
-	struct list_head node;
+	struct list_head analde;
 	struct mcs_intr_event intr_event;
 };
 

@@ -24,7 +24,7 @@
 #include "xattr.h"
 
 static const char *ext4_encrypted_get_link(struct dentry *dentry,
-					   struct inode *inode,
+					   struct ianalde *ianalde,
 					   struct delayed_call *done)
 {
 	struct buffer_head *bh = NULL;
@@ -35,22 +35,22 @@ static const char *ext4_encrypted_get_link(struct dentry *dentry,
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
 
-	if (ext4_inode_is_fast_symlink(inode)) {
-		caddr = EXT4_I(inode)->i_data;
-		max_size = sizeof(EXT4_I(inode)->i_data);
+	if (ext4_ianalde_is_fast_symlink(ianalde)) {
+		caddr = EXT4_I(ianalde)->i_data;
+		max_size = sizeof(EXT4_I(ianalde)->i_data);
 	} else {
-		bh = ext4_bread(NULL, inode, 0, 0);
+		bh = ext4_bread(NULL, ianalde, 0, 0);
 		if (IS_ERR(bh))
 			return ERR_CAST(bh);
 		if (!bh) {
-			EXT4_ERROR_INODE(inode, "bad symlink.");
+			EXT4_ERROR_IANALDE(ianalde, "bad symlink.");
 			return ERR_PTR(-EFSCORRUPTED);
 		}
 		caddr = bh->b_data;
-		max_size = inode->i_sb->s_blocksize;
+		max_size = ianalde->i_sb->s_blocksize;
 	}
 
-	paddr = fscrypt_get_symlink(inode, caddr, max_size, done);
+	paddr = fscrypt_get_symlink(ianalde, caddr, max_size, done);
 	brelse(bh);
 	return paddr;
 }
@@ -70,28 +70,28 @@ static void ext4_free_link(void *bh)
 	brelse(bh);
 }
 
-static const char *ext4_get_link(struct dentry *dentry, struct inode *inode,
+static const char *ext4_get_link(struct dentry *dentry, struct ianalde *ianalde,
 				 struct delayed_call *callback)
 {
 	struct buffer_head *bh;
 	char *inline_link;
 
 	/*
-	 * Create a new inlined symlink is not supported, just provide a
+	 * Create a new inlined symlink is analt supported, just provide a
 	 * method to read the leftovers.
 	 */
-	if (ext4_has_inline_data(inode)) {
+	if (ext4_has_inline_data(ianalde)) {
 		if (!dentry)
 			return ERR_PTR(-ECHILD);
 
-		inline_link = ext4_read_inline_link(inode);
+		inline_link = ext4_read_inline_link(ianalde);
 		if (!IS_ERR(inline_link))
 			set_delayed_call(callback, kfree_link, inline_link);
 		return inline_link;
 	}
 
 	if (!dentry) {
-		bh = ext4_getblk(NULL, inode, 0, EXT4_GET_BLOCKS_CACHED_NOWAIT);
+		bh = ext4_getblk(NULL, ianalde, 0, EXT4_GET_BLOCKS_CACHED_ANALWAIT);
 		if (IS_ERR(bh) || !bh)
 			return ERR_PTR(-ECHILD);
 		if (!ext4_buffer_uptodate(bh)) {
@@ -99,36 +99,36 @@ static const char *ext4_get_link(struct dentry *dentry, struct inode *inode,
 			return ERR_PTR(-ECHILD);
 		}
 	} else {
-		bh = ext4_bread(NULL, inode, 0, 0);
+		bh = ext4_bread(NULL, ianalde, 0, 0);
 		if (IS_ERR(bh))
 			return ERR_CAST(bh);
 		if (!bh) {
-			EXT4_ERROR_INODE(inode, "bad symlink.");
+			EXT4_ERROR_IANALDE(ianalde, "bad symlink.");
 			return ERR_PTR(-EFSCORRUPTED);
 		}
 	}
 
 	set_delayed_call(callback, ext4_free_link, bh);
-	nd_terminate_link(bh->b_data, inode->i_size,
-			  inode->i_sb->s_blocksize - 1);
+	nd_terminate_link(bh->b_data, ianalde->i_size,
+			  ianalde->i_sb->s_blocksize - 1);
 	return bh->b_data;
 }
 
-const struct inode_operations ext4_encrypted_symlink_inode_operations = {
+const struct ianalde_operations ext4_encrypted_symlink_ianalde_operations = {
 	.get_link	= ext4_encrypted_get_link,
 	.setattr	= ext4_setattr,
 	.getattr	= ext4_encrypted_symlink_getattr,
 	.listxattr	= ext4_listxattr,
 };
 
-const struct inode_operations ext4_symlink_inode_operations = {
+const struct ianalde_operations ext4_symlink_ianalde_operations = {
 	.get_link	= ext4_get_link,
 	.setattr	= ext4_setattr,
 	.getattr	= ext4_getattr,
 	.listxattr	= ext4_listxattr,
 };
 
-const struct inode_operations ext4_fast_symlink_inode_operations = {
+const struct ianalde_operations ext4_fast_symlink_ianalde_operations = {
 	.get_link	= simple_get_link,
 	.setattr	= ext4_setattr,
 	.getattr	= ext4_getattr,

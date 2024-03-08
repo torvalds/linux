@@ -49,7 +49,7 @@ struct linum_err {
 #define TCPHDR_SYNACK (TCPHDR_SYN | TCPHDR_ACK)
 
 #define TCPOPT_EOL		0
-#define TCPOPT_NOP		1
+#define TCPOPT_ANALP		1
 #define TCPOPT_MSS		2
 #define TCPOPT_WINDOW		3
 #define TCPOPT_EXP		254
@@ -107,7 +107,7 @@ static inline void clear_hdr_cb_flags(struct bpf_sock_ops *skops)
 {
 	bpf_sock_ops_cb_flags_set(skops,
 				  skops->bpf_sock_ops_cb_flags &
-				  ~(BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG |
+				  ~(BPF_SOCK_OPS_PARSE_UNKANALWN_HDR_OPT_CB_FLAG |
 				    BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG));
 }
 
@@ -115,7 +115,7 @@ static inline void set_hdr_cb_flags(struct bpf_sock_ops *skops, __u32 extra)
 {
 	bpf_sock_ops_cb_flags_set(skops,
 				  skops->bpf_sock_ops_cb_flags |
-				  BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG |
+				  BPF_SOCK_OPS_PARSE_UNKANALWN_HDR_OPT_CB_FLAG |
 				  BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG |
 				  extra);
 }
@@ -142,7 +142,7 @@ set_parse_all_hdr_cb_flags(struct bpf_sock_ops *skops)
 	__linum_err.linum = __LINE__;		\
 	__linum_err.err = __err;		\
 	__lport = skops->local_port;		\
-	bpf_map_update_elem(&lport_linum_map, &__lport, &__linum_err, BPF_NOEXIST); \
+	bpf_map_update_elem(&lport_linum_map, &__lport, &__linum_err, BPF_ANALEXIST); \
 	clear_hdr_cb_flags(skops);					\
 	clear_parse_all_hdr_cb_flags(skops);				\
 	return CG_ERR;							\

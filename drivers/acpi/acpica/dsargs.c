@@ -20,16 +20,16 @@ ACPI_MODULE_NAME("dsargs")
 
 /* Local prototypes */
 static acpi_status
-acpi_ds_execute_arguments(struct acpi_namespace_node *node,
-			  struct acpi_namespace_node *scope_node,
+acpi_ds_execute_arguments(struct acpi_namespace_analde *analde,
+			  struct acpi_namespace_analde *scope_analde,
 			  u32 aml_length, u8 *aml_start);
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_execute_arguments
  *
- * PARAMETERS:  node                - Object NS node
- *              scope_node          - Parent NS node
+ * PARAMETERS:  analde                - Object NS analde
+ *              scope_analde          - Parent NS analde
  *              aml_length          - Length of executable AML
  *              aml_start           - Pointer to the AML
  *
@@ -40,8 +40,8 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 static acpi_status
-acpi_ds_execute_arguments(struct acpi_namespace_node *node,
-			  struct acpi_namespace_node *scope_node,
+acpi_ds_execute_arguments(struct acpi_namespace_analde *analde,
+			  struct acpi_namespace_analde *scope_analde,
 			  u32 aml_length, u8 *aml_start)
 {
 	acpi_status status;
@@ -54,18 +54,18 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 
 	op = acpi_ps_alloc_op(AML_INT_EVAL_SUBTREE_OP, aml_start);
 	if (!op) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
-	/* Save the Node for use in acpi_ps_parse_aml */
+	/* Save the Analde for use in acpi_ps_parse_aml */
 
-	op->common.node = scope_node;
+	op->common.analde = scope_analde;
 
 	/* Create and initialize a new parser state */
 
 	walk_state = acpi_ds_create_walk_state(0, NULL, NULL, NULL);
 	if (!walk_state) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -79,7 +79,7 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 	/* Mark this parse as a deferred opcode */
 
 	walk_state->parse_flags = ACPI_PARSE_DEFERRED_OP;
-	walk_state->deferred_node = node;
+	walk_state->deferred_analde = analde;
 
 	/* Pass1: Parse the entire declaration */
 
@@ -90,23 +90,23 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 
 	/* Get and init the Op created above */
 
-	op->common.node = node;
+	op->common.analde = analde;
 	acpi_ps_delete_parse_tree(op);
 
 	/* Evaluate the deferred arguments */
 
 	op = acpi_ps_alloc_op(AML_INT_EVAL_SUBTREE_OP, aml_start);
 	if (!op) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
-	op->common.node = scope_node;
+	op->common.analde = scope_analde;
 
 	/* Create and initialize a new parser state */
 
 	walk_state = acpi_ds_create_walk_state(0, NULL, NULL, NULL);
 	if (!walk_state) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -121,7 +121,7 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 
 	/* Mark this execution as a deferred opcode */
 
-	walk_state->deferred_node = node;
+	walk_state->deferred_analde = analde;
 	status = acpi_ps_parse_aml(walk_state);
 
 cleanup:
@@ -146,7 +146,7 @@ acpi_status
 acpi_ds_get_buffer_field_arguments(union acpi_operand_object *obj_desc)
 {
 	union acpi_operand_object *extra_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_get_buffer_field_arguments, obj_desc);
@@ -155,20 +155,20 @@ acpi_ds_get_buffer_field_arguments(union acpi_operand_object *obj_desc)
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Get the AML pointer (method object) and buffer_field node */
+	/* Get the AML pointer (method object) and buffer_field analde */
 
 	extra_desc = acpi_ns_get_secondary_object(obj_desc);
-	node = obj_desc->buffer_field.node;
+	analde = obj_desc->buffer_field.analde;
 
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
-			(ACPI_TYPE_BUFFER_FIELD, node, NULL));
+			(ACPI_TYPE_BUFFER_FIELD, analde, NULL));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "[%4.4s] BufferField Arg Init\n",
-			  acpi_ut_get_node_name(node)));
+			  acpi_ut_get_analde_name(analde)));
 
 	/* Execute the AML code for the term_arg arguments */
 
-	status = acpi_ds_execute_arguments(node, node->parent,
+	status = acpi_ds_execute_arguments(analde, analde->parent,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
 	return_ACPI_STATUS(status);
@@ -191,7 +191,7 @@ acpi_status
 acpi_ds_get_bank_field_arguments(union acpi_operand_object *obj_desc)
 {
 	union acpi_operand_object *extra_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_get_bank_field_arguments, obj_desc);
@@ -200,20 +200,20 @@ acpi_ds_get_bank_field_arguments(union acpi_operand_object *obj_desc)
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Get the AML pointer (method object) and bank_field node */
+	/* Get the AML pointer (method object) and bank_field analde */
 
 	extra_desc = acpi_ns_get_secondary_object(obj_desc);
-	node = obj_desc->bank_field.node;
+	analde = obj_desc->bank_field.analde;
 
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
-			(ACPI_TYPE_LOCAL_BANK_FIELD, node, NULL));
+			(ACPI_TYPE_LOCAL_BANK_FIELD, analde, NULL));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "[%4.4s] BankField Arg Init\n",
-			  acpi_ut_get_node_name(node)));
+			  acpi_ut_get_analde_name(analde)));
 
 	/* Execute the AML code for the term_arg arguments */
 
-	status = acpi_ds_execute_arguments(node, node->parent,
+	status = acpi_ds_execute_arguments(analde, analde->parent,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
 	if (ACPI_FAILURE(status)) {
@@ -222,7 +222,7 @@ acpi_ds_get_bank_field_arguments(union acpi_operand_object *obj_desc)
 
 	status = acpi_ut_add_address_range(obj_desc->region.space_id,
 					   obj_desc->region.address,
-					   obj_desc->region.length, node);
+					   obj_desc->region.length, analde);
 	return_ACPI_STATUS(status);
 }
 
@@ -241,7 +241,7 @@ acpi_ds_get_bank_field_arguments(union acpi_operand_object *obj_desc)
 
 acpi_status acpi_ds_get_buffer_arguments(union acpi_operand_object *obj_desc)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_get_buffer_arguments, obj_desc);
@@ -250,12 +250,12 @@ acpi_status acpi_ds_get_buffer_arguments(union acpi_operand_object *obj_desc)
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Get the Buffer node */
+	/* Get the Buffer analde */
 
-	node = obj_desc->buffer.node;
-	if (!node) {
+	analde = obj_desc->buffer.analde;
+	if (!analde) {
 		ACPI_ERROR((AE_INFO,
-			    "No pointer back to namespace node in buffer object %p",
+			    "Anal pointer back to namespace analde in buffer object %p",
 			    obj_desc));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
@@ -264,7 +264,7 @@ acpi_status acpi_ds_get_buffer_arguments(union acpi_operand_object *obj_desc)
 
 	/* Execute the AML code for the term_arg arguments */
 
-	status = acpi_ds_execute_arguments(node, node,
+	status = acpi_ds_execute_arguments(analde, analde,
 					   obj_desc->buffer.aml_length,
 					   obj_desc->buffer.aml_start);
 	return_ACPI_STATUS(status);
@@ -285,7 +285,7 @@ acpi_status acpi_ds_get_buffer_arguments(union acpi_operand_object *obj_desc)
 
 acpi_status acpi_ds_get_package_arguments(union acpi_operand_object *obj_desc)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_get_package_arguments, obj_desc);
@@ -294,12 +294,12 @@ acpi_status acpi_ds_get_package_arguments(union acpi_operand_object *obj_desc)
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Get the Package node */
+	/* Get the Package analde */
 
-	node = obj_desc->package.node;
-	if (!node) {
+	analde = obj_desc->package.analde;
+	if (!analde) {
 		ACPI_ERROR((AE_INFO,
-			    "No pointer back to namespace node in package %p",
+			    "Anal pointer back to namespace analde in package %p",
 			    obj_desc));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
@@ -309,7 +309,7 @@ acpi_status acpi_ds_get_package_arguments(union acpi_operand_object *obj_desc)
 
 	/* Execute the AML code for the term_arg arguments */
 
-	status = acpi_ds_execute_arguments(node, node,
+	status = acpi_ds_execute_arguments(analde, analde,
 					   obj_desc->package.aml_length,
 					   obj_desc->package.aml_start);
 
@@ -331,7 +331,7 @@ acpi_status acpi_ds_get_package_arguments(union acpi_operand_object *obj_desc)
 
 acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *obj_desc)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 	union acpi_operand_object *extra_desc;
 
@@ -343,24 +343,24 @@ acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *obj_desc)
 
 	extra_desc = acpi_ns_get_secondary_object(obj_desc);
 	if (!extra_desc) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
-	/* Get the Region node */
+	/* Get the Region analde */
 
-	node = obj_desc->region.node;
+	analde = obj_desc->region.analde;
 
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
-			(ACPI_TYPE_REGION, node, NULL));
+			(ACPI_TYPE_REGION, analde, NULL));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "[%4.4s] OpRegion Arg Init at AML %p\n",
-			  acpi_ut_get_node_name(node),
+			  acpi_ut_get_analde_name(analde),
 			  extra_desc->extra.aml_start));
 
 	/* Execute the argument AML */
 
-	status = acpi_ds_execute_arguments(node, extra_desc->extra.scope_node,
+	status = acpi_ds_execute_arguments(analde, extra_desc->extra.scope_analde,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
 	if (ACPI_FAILURE(status)) {
@@ -369,6 +369,6 @@ acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *obj_desc)
 
 	status = acpi_ut_add_address_range(obj_desc->region.space_id,
 					   obj_desc->region.address,
-					   obj_desc->region.length, node);
+					   obj_desc->region.length, analde);
 	return_ACPI_STATUS(status);
 }

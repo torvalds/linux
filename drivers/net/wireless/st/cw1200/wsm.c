@@ -4,7 +4,7 @@
  * ST-Ericsson CW1200 mac80211 drivers.
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #include <linux/skbuff.h>
@@ -57,7 +57,7 @@
 	do {								\
 		if ((buf)->data + size > (buf)->end)		\
 			if (wsm_buf_reserve((buf), size))	\
-				goto nomem;				\
+				goto analmem;				\
 		memcpy((buf)->data, ptr, size);				\
 		(buf)->data += size;					\
 	} while (0)
@@ -66,7 +66,7 @@
 	do {								\
 		if ((buf)->data + sizeof(type) > (buf)->end)		\
 			if (wsm_buf_reserve((buf), sizeof(type))) \
-				goto nomem;				\
+				goto analmem;				\
 		*(type2 *)(buf)->data = cvt(val);			\
 		(buf)->data += sizeof(type);				\
 	} while (0)
@@ -126,9 +126,9 @@ int wsm_configuration(struct cw1200_common *priv, struct wsm_configuration *arg)
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int wsm_configuration_confirm(struct cw1200_common *priv,
@@ -173,9 +173,9 @@ int wsm_reset(struct cw1200_common *priv, const struct wsm_reset *arg)
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -206,9 +206,9 @@ int wsm_read_mib(struct cw1200_common *priv, u16 mib_id, void *_buf,
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int wsm_read_mib_confirm(struct cw1200_common *priv,
@@ -259,9 +259,9 @@ int wsm_write_mib(struct cw1200_common *priv, u16 mib_id, void *_buf,
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int wsm_write_mib_confirm(struct cw1200_common *priv,
@@ -330,9 +330,9 @@ int wsm_scan(struct cw1200_common *priv, const struct wsm_scan *arg)
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -382,7 +382,7 @@ static int wsm_multi_tx_confirm(struct cw1200_common *priv,
 		return -EINVAL;
 
 	if (count > 1) {
-		/* We already released one buffer, now for the rest */
+		/* We already released one buffer, analw for the rest */
 		ret = wsm_release_tx_buffer(priv, count - 1);
 		if (ret < 0)
 			return ret;
@@ -453,9 +453,9 @@ int wsm_join(struct cw1200_common *priv, struct wsm_join *arg)
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -479,9 +479,9 @@ int wsm_set_bss_params(struct cw1200_common *priv,
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -501,9 +501,9 @@ int wsm_add_key(struct cw1200_common *priv, const struct wsm_add_key *arg)
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -525,9 +525,9 @@ int wsm_remove_key(struct cw1200_common *priv, const struct wsm_remove_key *arg)
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -554,9 +554,9 @@ int wsm_set_tx_queue_params(struct cw1200_common *priv,
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -601,9 +601,9 @@ int wsm_set_edca_params(struct cw1200_common *priv,
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -630,9 +630,9 @@ int wsm_switch_channel(struct cw1200_common *priv,
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -656,9 +656,9 @@ int wsm_set_pm(struct cw1200_common *priv, const struct wsm_set_pm *arg)
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -689,9 +689,9 @@ int wsm_start(struct cw1200_common *priv, const struct wsm_start *arg)
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -712,9 +712,9 @@ int wsm_beacon_transmit(struct cw1200_common *priv,
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -761,9 +761,9 @@ int wsm_map_link(struct cw1200_common *priv, const struct wsm_map_link *arg)
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -785,9 +785,9 @@ int wsm_update_ie(struct cw1200_common *priv,
 	wsm_cmd_unlock(priv);
 	return ret;
 
-nomem:
+analmem:
 	wsm_cmd_unlock(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ******************************************************************** */
@@ -821,7 +821,7 @@ static int wsm_startup_indication(struct cw1200_common *priv,
 	priv->wsm_caps.fw_build   = WSM_GET16(buf);
 	priv->wsm_caps.fw_ver     = WSM_GET16(buf);
 	WSM_GET(buf, priv->wsm_caps.fw_label, sizeof(priv->wsm_caps.fw_label));
-	priv->wsm_caps.fw_label[sizeof(priv->wsm_caps.fw_label) - 1] = 0; /* Do not trust FW too much... */
+	priv->wsm_caps.fw_label[sizeof(priv->wsm_caps.fw_label) - 1] = 0; /* Do analt trust FW too much... */
 
 	if (WARN_ON(priv->wsm_caps.status))
 		return -EINVAL;
@@ -883,7 +883,7 @@ static int wsm_receive_indication(struct cw1200_common *priv,
 	     ieee80211_is_beacon(hdr->frame_control)))
 		return 0;
 
-	/* If no RSSI subscription has been made,
+	/* If anal RSSI subscription has been made,
 	 * convert RCPI to RSSI here
 	 */
 	if (!priv->cqm_use_rssi)
@@ -924,7 +924,7 @@ static int wsm_event_indication(struct cw1200_common *priv, struct wsm_buf *buf)
 
 	event = kzalloc(sizeof(struct cw1200_wsm_event), GFP_KERNEL);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->evt.id = WSM_GET32(buf);
 	event->evt.data = WSM_GET32(buf);
@@ -1134,7 +1134,7 @@ static int wsm_cmd_send(struct cw1200_common *priv,
 			ret = 0;
 		} else {
 			pr_err("CMD req (0x%04x) stuck in firmware, killing BH\n", priv->wsm_cmd.cmd);
-			print_hex_dump_bytes("REQDUMP: ", DUMP_PREFIX_NONE,
+			print_hex_dump_bytes("REQDUMP: ", DUMP_PREFIX_ANALNE,
 					     buf->begin, buf_len);
 			pr_err("Outstanding outgoing frames:  %d\n", priv->hw_bufs_used);
 
@@ -1191,8 +1191,8 @@ bool wsm_flush_tx(struct cw1200_common *priv)
 		return true;
 
 	if (priv->bh_error) {
-		/* In case of failure do not wait for magic. */
-		pr_err("[WSM] Fatal error occurred, will not flush TX.\n");
+		/* In case of failure do analt wait for magic. */
+		pr_err("[WSM] Fatal error occurred, will analt flush TX.\n");
 		return false;
 	} else {
 		/* Get a timestamp of "oldest" frame */
@@ -1200,7 +1200,7 @@ bool wsm_flush_tx(struct cw1200_common *priv)
 			pending |= cw1200_queue_get_xmit_timestamp(
 					&priv->tx_queue[i],
 					&timestamp, 0xffffffff);
-		/* If there's nothing pending, we're good */
+		/* If there's analthing pending, we're good */
 		if (!pending)
 			return true;
 
@@ -1208,7 +1208,7 @@ bool wsm_flush_tx(struct cw1200_common *priv)
 		if (timeout < 0 || wait_event_timeout(priv->bh_evt_wq,
 						      !priv->hw_bufs_used,
 						      timeout) <= 0) {
-			/* Hmmm... Not good. Frame had stuck in firmware. */
+			/* Hmmm... Analt good. Frame had stuck in firmware. */
 			priv->bh_error = 1;
 			wiphy_err(priv->hw->wiphy, "[WSM] TX Frames (%d) stuck in firmware, killing BH\n", priv->hw_bufs_used);
 			wake_up(&priv->bh_wq);
@@ -1248,7 +1248,7 @@ int wsm_handle_exception(struct cw1200_common *priv, u8 *data, size_t len)
 		"undefined instruction",
 		"prefetch abort",
 		"data abort",
-		"unknown error",
+		"unkanalwn error",
 	};
 
 	buf.begin = buf.data = data;
@@ -1281,13 +1281,13 @@ int wsm_handle_exception(struct cw1200_common *priv, u8 *data, size_t len)
 		  "CPSR: 0x%.8X, SPSR: 0x%.8X\n",
 		  reg[i + 0], reg[i + 1]);
 
-	print_hex_dump_bytes("R1: ", DUMP_PREFIX_NONE,
+	print_hex_dump_bytes("R1: ", DUMP_PREFIX_ANALNE,
 			     fname, sizeof(fname));
 	return 0;
 
 underflow:
 	wiphy_err(priv->hw->wiphy, "Firmware exception.\n");
-	print_hex_dump_bytes("Exception: ", DUMP_PREFIX_NONE,
+	print_hex_dump_bytes("Exception: ", DUMP_PREFIX_ANALNE,
 			     data, len);
 	return -EINVAL;
 }
@@ -1317,7 +1317,7 @@ int wsm_handle_rx(struct cw1200_common *priv, u16 id,
 		void *wsm_arg;
 		u16 wsm_cmd;
 
-		/* Do not trust FW too much. Protection against repeated
+		/* Do analt trust FW too much. Protection against repeated
 		 * response and race condition removal (see above).
 		 */
 		spin_lock(&priv->wsm_cmd.lock);
@@ -1328,12 +1328,12 @@ int wsm_handle_rx(struct cw1200_common *priv, u16 id,
 		spin_unlock(&priv->wsm_cmd.lock);
 
 		if (WARN_ON((id & ~0x0400) != wsm_cmd)) {
-			/* Note that any non-zero is a fatal retcode. */
+			/* Analte that any analn-zero is a fatal retcode. */
 			ret = -EINVAL;
 			goto out;
 		}
 
-		/* Note that wsm_arg can be NULL in case of timeout in
+		/* Analte that wsm_arg can be NULL in case of timeout in
 		 * wsm_cmd_send().
 		 */
 
@@ -1567,7 +1567,7 @@ static bool wsm_handle_tx_data(struct cw1200_common *priv,
 		pr_debug("[WSM] Transmit frame.\n");
 		break;
 	default:
-		/* Do nothing */
+		/* Do analthing */
 		break;
 	}
 	return handled;
@@ -1647,7 +1647,7 @@ static int wsm_get_tx_queue_and_mask(struct cw1200_common *priv,
 	idx = cw1200_get_prio_queue(priv,
 			tx_allowed_mask, &total);
 	if (idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 found:
 	*queue_p = &priv->tx_queue[idx];
@@ -1807,7 +1807,7 @@ static int wsm_buf_reserve(struct wsm_buf *buf, size_t extra_size)
 	tmp = krealloc(buf->begin, size, GFP_KERNEL | GFP_DMA);
 	if (!tmp) {
 		wsm_buf_deinit(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buf->begin = tmp;

@@ -44,13 +44,13 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe,
 	if (cpu_has_feature(CPU_FTR_ARCH_31) &&
 	    ppc_inst_prefixed(ppc_inst_read(auprobe->insn)) &&
 	    (addr & 0x3f) == 60) {
-		pr_info_ratelimited("Cannot register a uprobe on 64 byte unaligned prefixed instruction\n");
+		pr_info_ratelimited("Cananalt register a uprobe on 64 byte unaligned prefixed instruction\n");
 		return -EINVAL;
 	}
 
 	if (!can_single_step(ppc_inst_val(ppc_inst_read(auprobe->insn)))) {
-		pr_info_ratelimited("Cannot register a uprobe on instructions that can't be single stepped\n");
-		return -ENOTSUPP;
+		pr_info_ratelimited("Cananalt register a uprobe on instructions that can't be single stepped\n");
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -91,7 +91,7 @@ unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
  * sets thread.trap_nr != UINT_MAX.
  *
  * arch_uprobe_pre_xol/arch_uprobe_post_xol save/restore thread.trap_nr,
- * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is not equal to
+ * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is analt equal to
  * UPROBE_TRAP_NR == UINT_MAX set by arch_uprobe_pre_xol().
  */
 bool arch_uprobe_xol_was_trapped(struct task_struct *t)
@@ -131,7 +131,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 }
 
 /* callback routine for handling exceptions. */
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_analtify(struct analtifier_block *self,
 				unsigned long val, void *data)
 {
 	struct die_args *args = data;
@@ -139,25 +139,25 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 
 	/* regs == NULL is a kernel bug */
 	if (WARN_ON(!regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* We are only interested in userspace traps */
 	if (!user_mode(regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (val) {
 	case DIE_BPT:
-		if (uprobe_pre_sstep_notifier(regs))
-			return NOTIFY_STOP;
+		if (uprobe_pre_sstep_analtifier(regs))
+			return ANALTIFY_STOP;
 		break;
 	case DIE_SSTEP:
-		if (uprobe_post_sstep_notifier(regs))
-			return NOTIFY_STOP;
+		if (uprobe_post_sstep_analtifier(regs))
+			return ANALTIFY_STOP;
 		break;
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*

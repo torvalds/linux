@@ -56,7 +56,7 @@ static struct vimc_ent_device *vimc_lens_add(struct vimc_device *vimc,
 	/* Allocate the vlens struct */
 	vlens = kzalloc(sizeof(*vlens), GFP_KERNEL);
 	if (!vlens)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	v4l2_ctrl_handler_init(&vlens->hdl, 1);
 

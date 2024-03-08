@@ -85,7 +85,7 @@ struct load_info {
 };
 
 enum mod_license {
-	NOT_GPL_ONLY,
+	ANALT_GPL_ONLY,
 	GPL_ONLY,
 };
 
@@ -163,18 +163,18 @@ static inline bool set_livepatch_module(struct module *mod)
  * enum fail_dup_mod_reason - state at which a duplicate module was detected
  *
  * @FAIL_DUP_MOD_BECOMING: the module is read properly, passes all checks but
- * 	we've determined that another module with the same name is already loaded
+ * 	we've determined that aanalther module with the same name is already loaded
  * 	or being processed on our &modules list. This happens on early_mod_check()
  * 	right before layout_and_allocate(). The kernel would have already
  * 	vmalloc()'d space for the entire module through finit_module(). If
  * 	decompression was used two vmap() spaces were used. These failures can
- * 	happen when userspace has not seen the module present on the kernel and
+ * 	happen when userspace has analt seen the module present on the kernel and
  * 	tries to load the module multiple times at same time.
  * @FAIL_DUP_MOD_LOAD: the module has been read properly, passes all validation
  *	checks and the kernel determines that the module was unique and because
- *	of this allocated yet another private kernel copy of the module space in
+ *	of this allocated yet aanalther private kernel copy of the module space in
  *	layout_and_allocate() but after this determined in add_unformed_module()
- *	that another module with the same name is already loaded or being processed.
+ *	that aanalther module with the same name is already loaded or being processed.
  *	These failures should be mitigated as much as possible and are indicative
  *	of really fast races in loading modules. Without module decompression
  *	they waste twice as much vmap space. With module decompression three
@@ -236,14 +236,14 @@ static inline void mod_stat_bump_becoming(struct load_info *info, int flags)
 
 #ifdef CONFIG_MODULE_DEBUG_AUTOLOAD_DUPS
 bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret);
-void kmod_dup_request_announce(char *module_name, int ret);
+void kmod_dup_request_ananalunce(char *module_name, int ret);
 #else
 static inline bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 {
 	return false;
 }
 
-static inline void kmod_dup_request_announce(char *module_name, int ret)
+static inline void kmod_dup_request_ananalunce(char *module_name, int ret)
 {
 }
 #endif
@@ -276,7 +276,7 @@ void module_decompress_cleanup(struct load_info *info);
 static inline int module_decompress(struct load_info *info,
 				    const void *buf, size_t size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void module_decompress_cleanup(struct load_info *info)

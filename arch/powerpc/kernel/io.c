@@ -119,7 +119,7 @@ EXPORT_SYMBOL(_outsl_ns);
 
 #define IO_CHECK_ALIGN(v,a) ((((unsigned long)(v)) & ((a) - 1)) == 0)
 
-notrace void
+analtrace void
 _memset_io(volatile void __iomem *addr, int c, unsigned long n)
 {
 	void *p = (void __force *)addr;

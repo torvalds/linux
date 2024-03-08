@@ -172,7 +172,7 @@ static struct attribute *coresight_cti_attrs[] = {
 
 /* register based attributes */
 
-/* Read registers with power check only (no enable check). */
+/* Read registers with power check only (anal enable check). */
 static ssize_t coresight_cti_reg_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
@@ -189,7 +189,7 @@ static ssize_t coresight_cti_reg_show(struct device *dev,
 	return sysfs_emit(buf, "0x%x\n", val);
 }
 
-/* Write registers with power check only (no enable check). */
+/* Write registers with power check only (anal enable check). */
 static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 						      struct device_attribute *attr,
 						      const char *buf, size_t size)
@@ -255,7 +255,7 @@ static struct attribute *coresight_cti_mgmt_attrs[] = {
 
 /*
  * Show a simple 32 bit value if enabled and powered.
- * If inaccessible & pcached_val not NULL then show cached value.
+ * If inaccessible & pcached_val analt NULL then show cached value.
  */
 static ssize_t cti_reg32_show(struct device *dev, char *buf,
 			      u32 *pcached_val, int reg_offset)
@@ -280,7 +280,7 @@ static ssize_t cti_reg32_show(struct device *dev, char *buf,
 
 /*
  * Store a simple 32 bit value.
- * If pcached_val not NULL, then copy to here too,
+ * If pcached_val analt NULL, then copy to here too,
  * if reg_offset >= 0 then write through if enabled.
  */
 static ssize_t cti_reg32_store(struct device *dev, const char *buf,
@@ -326,18 +326,18 @@ static ssize_t name##_store(struct device *dev,				\
 }									\
 static DEVICE_ATTR_RW(name)
 
-static ssize_t inout_sel_show(struct device *dev,
+static ssize_t ianalut_sel_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
 	u32 val;
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
-	val = (u32)drvdata->config.ctiinout_sel;
+	val = (u32)drvdata->config.ctiianalut_sel;
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t inout_sel_store(struct device *dev,
+static ssize_t ianalut_sel_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t size)
 {
@@ -346,15 +346,15 @@ static ssize_t inout_sel_store(struct device *dev,
 
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
-	if (val > (CTIINOUTEN_MAX - 1))
+	if (val > (CTIIANALUTEN_MAX - 1))
 		return -EINVAL;
 
 	spin_lock(&drvdata->spinlock);
-	drvdata->config.ctiinout_sel = val;
+	drvdata->config.ctiianalut_sel = val;
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
-static DEVICE_ATTR_RW(inout_sel);
+static DEVICE_ATTR_RW(ianalut_sel);
 
 static ssize_t inen_show(struct device *dev,
 			 struct device_attribute *attr,
@@ -365,7 +365,7 @@ static ssize_t inen_show(struct device *dev,
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
 	spin_lock(&drvdata->spinlock);
-	index = drvdata->config.ctiinout_sel;
+	index = drvdata->config.ctiianalut_sel;
 	val = drvdata->config.ctiinen[index];
 	spin_unlock(&drvdata->spinlock);
 	return sprintf(buf, "%#lx\n", val);
@@ -384,7 +384,7 @@ static ssize_t inen_store(struct device *dev,
 		return -EINVAL;
 
 	spin_lock(&drvdata->spinlock);
-	index = config->ctiinout_sel;
+	index = config->ctiianalut_sel;
 	config->ctiinen[index] = val;
 
 	/* write through if enabled */
@@ -404,7 +404,7 @@ static ssize_t outen_show(struct device *dev,
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
 	spin_lock(&drvdata->spinlock);
-	index = drvdata->config.ctiinout_sel;
+	index = drvdata->config.ctiianalut_sel;
 	val = drvdata->config.ctiouten[index];
 	spin_unlock(&drvdata->spinlock);
 	return sprintf(buf, "%#lx\n", val);
@@ -423,7 +423,7 @@ static ssize_t outen_store(struct device *dev,
 		return -EINVAL;
 
 	spin_lock(&drvdata->spinlock);
-	index = config->ctiinout_sel;
+	index = config->ctiianalut_sel;
 	config->ctiouten[index] = val;
 
 	/* write through if enabled */
@@ -499,11 +499,11 @@ static DEVICE_ATTR_WO(apppulse);
 
 /*
  * Define CONFIG_CORESIGHT_CTI_INTEGRATION_REGS to enable the access to the
- * integration control registers. Normally only used to investigate connection
+ * integration control registers. Analrmally only used to investigate connection
  * data.
  */
 static struct attribute *coresight_cti_regs_attrs[] = {
-	&dev_attr_inout_sel.attr,
+	&dev_attr_ianalut_sel.attr,
 	&dev_attr_inen.attr,
 	&dev_attr_outen.attr,
 	&dev_attr_gate.attr,
@@ -740,7 +740,7 @@ static ssize_t chan_xtrigs_reset_store(struct device *dev,
 	config->ctigate = GENMASK(config->nr_ctm_channels - 1, 0);
 	config->asicctl = 0;
 	config->ctiappset = 0;
-	config->ctiinout_sel = 0;
+	config->ctiianalut_sel = 0;
 	config->xtrig_rchan_sel = 0;
 
 	/* if enabled then write through */
@@ -849,7 +849,7 @@ static ssize_t print_chan_list(struct device *dev,
 	if (!inuse)
 		inuse_bits = ~inuse_bits;
 
-	/* list of channels, or 'none' */
+	/* list of channels, or 'analne' */
 	chan_mask = GENMASK(config->nr_ctm_channels - 1, 0);
 	if (inuse_bits & chan_mask)
 		size = bitmap_print_to_pagebuf(true, buf, &inuse_bits,
@@ -1023,13 +1023,13 @@ static int cti_create_con_sysfs_attr(struct device *dev,
 			eattr->attr.attr.name = name;
 			eattr->attr.attr.mode = 0444;
 
-			/* now the device_attribute struct */
+			/* analw the device_attribute struct */
 			eattr->attr.show = show_fns[attr_type];
 		} else {
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	eattr->var = con;
 	con->con_attrs[attr_idx] = &eattr->attr.attr;
@@ -1071,17 +1071,17 @@ static int cti_create_con_attr_set(struct device *dev, int con_idx,
 {
 	struct attribute_group *attr_group = NULL;
 	int attr_idx = 0;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	attr_group = cti_create_con_sysfs_group(dev, ctidev, con_idx, tc);
 	if (!attr_group)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate NULL terminated array of attributes */
 	tc->con_attrs = devm_kcalloc(dev, CTI_CON_ATTR_MAX + 1,
 				     sizeof(struct attribute *), GFP_KERNEL);
 	if (!tc->con_attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = cti_create_con_sysfs_attr(dev, tc, CTI_CON_ATTR_NAME,
 					attr_idx++);
@@ -1130,7 +1130,7 @@ static int cti_create_cons_groups(struct device *dev, struct cti_device *ctidev)
 					  sizeof(struct attribute_group *),
 					  GFP_KERNEL);
 	if (!ctidev->con_groups)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1149,7 +1149,7 @@ int cti_create_cons_sysfs(struct device *dev, struct cti_drvdata *drvdata)
 		ctidev->con_groups[i] = coresight_cti_groups[i];
 
 	/* add dynamic set for each connection */
-	list_for_each_entry(tc, &ctidev->trig_cons, node) {
+	list_for_each_entry(tc, &ctidev->trig_cons, analde) {
 		err = cti_create_con_attr_set(dev, con_idx++, ctidev, tc);
 		if (err)
 			break;

@@ -25,7 +25,7 @@ module_param(extra_sensor_type, ushort, 0);
 MODULE_PARM_DESC(extra_sensor_type, "Type of extra sensor (0=autodetect, 1=temperature, 2=voltage)");
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
 /*
  * Many GL520 constants specified below
@@ -441,7 +441,7 @@ static ssize_t fan_div_store(struct device *dev,
 		break;
 	default:
 		dev_err(&client->dev,
-	"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n", v);
+	"fan_div value %ld analt supported. Choose one of 1, 2, 4 or 8!\n", v);
 		return -EINVAL;
 	}
 
@@ -794,21 +794,21 @@ static const struct attribute_group gl520_group_temp2 = {
  * Real code
  */
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int gl520_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Determine the chip type. */
 	if ((gl520_read_value(client, GL520_REG_CHIP_ID) != 0x20) ||
 	    ((gl520_read_value(client, GL520_REG_REVISION) & 0x7f) != 0x00) ||
 	    ((gl520_read_value(client, GL520_REG_CONF) & 0x80) != 0x00)) {
-		dev_dbg(&client->dev, "Unknown chip type, skipping\n");
-		return -ENODEV;
+		dev_dbg(&client->dev, "Unkanalwn chip type, skipping\n");
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, "gl520sm", I2C_NAME_SIZE);
@@ -862,7 +862,7 @@ static int gl520_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct gl520_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -898,7 +898,7 @@ static struct i2c_driver gl520_driver = {
 	.probe		= gl520_probe,
 	.id_table	= gl520_id,
 	.detect		= gl520_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(gl520_driver);

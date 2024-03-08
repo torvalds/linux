@@ -13,7 +13,7 @@
 
 static int sk_diag_dump_name(struct sock *sk, struct sk_buff *nlskb)
 {
-	/* might or might not have a hash table lock */
+	/* might or might analt have a hash table lock */
 	struct unix_address *addr = smp_load_acquire(&unix_sk(sk)->addr);
 
 	if (!addr)
@@ -30,7 +30,7 @@ static int sk_diag_dump_vfs(struct sock *sk, struct sk_buff *nlskb)
 
 	if (dentry) {
 		struct unix_diag_vfs uv = {
-			.udiag_vfs_ino = d_backing_inode(dentry)->i_ino,
+			.udiag_vfs_ianal = d_backing_ianalde(dentry)->i_ianal,
 			.udiag_vfs_dev = dentry->d_sb->s_dev,
 		};
 
@@ -43,16 +43,16 @@ static int sk_diag_dump_vfs(struct sock *sk, struct sk_buff *nlskb)
 static int sk_diag_dump_peer(struct sock *sk, struct sk_buff *nlskb)
 {
 	struct sock *peer;
-	int ino;
+	int ianal;
 
 	peer = unix_peer_get(sk);
 	if (peer) {
 		unix_state_lock(peer);
-		ino = sock_i_ino(peer);
+		ianal = sock_i_ianal(peer);
 		unix_state_unlock(peer);
 		sock_put(peer);
 
-		return nla_put_u32(nlskb, UNIX_DIAG_PEER, ino);
+		return nla_put_u32(nlskb, UNIX_DIAG_PEER, ianal);
 	}
 
 	return 0;
@@ -86,7 +86,7 @@ static int sk_diag_dump_icons(struct sock *sk, struct sk_buff *nlskb)
 			 */
 			unix_state_lock_nested(req, U_LOCK_DIAG);
 			peer = unix_sk(req)->peer;
-			buf[i++] = (peer ? sock_i_ino(peer) : 0);
+			buf[i++] = (peer ? sock_i_ianal(peer) : 0);
 			unix_state_unlock(req);
 		}
 		spin_unlock(&sk->sk_receive_queue.lock);
@@ -123,7 +123,7 @@ static int sk_diag_dump_uid(struct sock *sk, struct sk_buff *nlskb,
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
 			struct user_namespace *user_ns,
-			u32 portid, u32 seq, u32 flags, int sk_ino)
+			u32 portid, u32 seq, u32 flags, int sk_ianal)
 {
 	struct nlmsghdr *nlh;
 	struct unix_diag_msg *rep;
@@ -138,7 +138,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 	rep->udiag_type = sk->sk_type;
 	rep->udiag_state = sk->sk_state;
 	rep->pad = 0;
-	rep->udiag_ino = sk_ino;
+	rep->udiag_ianal = sk_ianal;
 	sock_diag_save_cookie(sk, rep->udiag_cookie);
 
 	if ((req->udiag_show & UDIAG_SHOW_NAME) &&
@@ -184,16 +184,16 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 			struct user_namespace *user_ns,
 			u32 portid, u32 seq, u32 flags)
 {
-	int sk_ino;
+	int sk_ianal;
 
 	unix_state_lock(sk);
-	sk_ino = sock_i_ino(sk);
+	sk_ianal = sock_i_ianal(sk);
 	unix_state_unlock(sk);
 
-	if (!sk_ino)
+	if (!sk_ianal)
 		return 0;
 
-	return sk_diag_fill(sk, skb, req, user_ns, portid, seq, flags, sk_ino);
+	return sk_diag_fill(sk, skb, req, user_ns, portid, seq, flags, sk_ianal);
 }
 
 static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
@@ -236,7 +236,7 @@ done:
 	return skb->len;
 }
 
-static struct sock *unix_lookup_by_ino(struct net *net, unsigned int ino)
+static struct sock *unix_lookup_by_ianal(struct net *net, unsigned int ianal)
 {
 	struct sock *sk;
 	int i;
@@ -244,7 +244,7 @@ static struct sock *unix_lookup_by_ino(struct net *net, unsigned int ino)
 	for (i = 0; i < UNIX_HASH_SIZE; i++) {
 		spin_lock(&net->unx.table.locks[i]);
 		sk_for_each(sk, &net->unx.table.buckets[i]) {
-			if (ino == sock_i_ino(sk)) {
+			if (ianal == sock_i_ianal(sk)) {
 				sock_hold(sk);
 				spin_unlock(&net->unx.table.locks[i]);
 				return sk;
@@ -266,13 +266,13 @@ static int unix_diag_get_exact(struct sk_buff *in_skb,
 	int err;
 
 	err = -EINVAL;
-	if (req->udiag_ino == 0)
-		goto out_nosk;
+	if (req->udiag_ianal == 0)
+		goto out_analsk;
 
-	sk = unix_lookup_by_ino(net, req->udiag_ino);
-	err = -ENOENT;
+	sk = unix_lookup_by_ianal(net, req->udiag_ianal);
+	err = -EANALENT;
 	if (sk == NULL)
-		goto out_nosk;
+		goto out_analsk;
 
 	err = sock_diag_check_cookie(sk, req->udiag_cookie);
 	if (err)
@@ -280,14 +280,14 @@ static int unix_diag_get_exact(struct sk_buff *in_skb,
 
 	extra_len = 256;
 again:
-	err = -ENOMEM;
+	err = -EANALMEM;
 	rep = nlmsg_new(sizeof(struct unix_diag_msg) + extra_len, GFP_KERNEL);
 	if (!rep)
 		goto out;
 
 	err = sk_diag_fill(sk, rep, req, sk_user_ns(NETLINK_CB(in_skb).sk),
 			   NETLINK_CB(in_skb).portid,
-			   nlh->nlmsg_seq, 0, req->udiag_ino);
+			   nlh->nlmsg_seq, 0, req->udiag_ianal);
 	if (err < 0) {
 		nlmsg_free(rep);
 		extra_len += 256;
@@ -301,7 +301,7 @@ again:
 out:
 	if (sk)
 		sock_put(sk);
-out_nosk:
+out_analsk:
 	return err;
 }
 

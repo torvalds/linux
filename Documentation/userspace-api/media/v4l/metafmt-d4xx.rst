@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _v4l2-meta-fmt-d4xx:
 
@@ -24,7 +24,7 @@ document describes proprietary metadata types, used by D4xx cameras.
 V4L2_META_FMT_D4XX buffers follow the metadata buffer layout of
 V4L2_META_FMT_UVC with the only difference, that it also includes proprietary
 payload header data. D4xx cameras use bulk transfers and only send one payload
-per frame, therefore their headers cannot be larger than 255 bytes.
+per frame, therefore their headers cananalt be larger than 255 bytes.
 
 This document implements Intel Configuration version 3 [9_].
 
@@ -92,7 +92,7 @@ where all fields are in little endian order:
     * - __u32 Flags
       - A bitmask of flags: see [3_] below
     * - __u32 Frame counter
-      - Monotonically increasing counter
+      - Moanaltonically increasing counter
     * - __u32 Optical time
       - Time in microseconds from the beginning of a frame till its middle
     * - __u32 Readout time
@@ -196,7 +196,7 @@ where all fields are in little endian order:
 [6] 8-bit camera hardware configuration bitfield: ::
 
   [1:0] depthCamera
-	00: no depth
+	00: anal depth
 	01: standard depth
 	10: wide depth
 	11: reserved
@@ -233,8 +233,8 @@ Fish Eye sensor: ::
 .. _8:
 
 [8] The "Laser mode" has been replaced in version 3 by three different fields.
-"Laser" has been renamed to "Emitter" as there are multiple technologies for
-camera projectors. As we have another field for "Laser Power" we introduced
+"Laser" has been renamed to "Emitter" as there are multiple techanallogies for
+camera projectors. As we have aanalther field for "Laser Power" we introduced
 "LED Power" for extra emitter.
 
 The "Laser mode" __u32 fields has been split into: ::

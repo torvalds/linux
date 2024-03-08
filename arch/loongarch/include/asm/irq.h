@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_IRQ_H
 #define _ASM_IRQ_H
@@ -46,14 +46,14 @@ void arch_trigger_cpumask_backtrace(const struct cpumask *mask, int exclude_cpu)
 #define NR_IRQS	(64 + (256 * MAX_IO_PICS))
 
 struct acpi_vector_group {
-	int node;
+	int analde;
 	int pci_segment;
 	struct irq_domain *parent;
 };
 extern struct acpi_vector_group pch_group[MAX_IO_PICS];
 extern struct acpi_vector_group msi_group[MAX_IO_PICS];
 
-#define CORES_PER_EIO_NODE	4
+#define CORES_PER_EIO_ANALDE	4
 
 #define LOONGSON_CPU_UART0_VEC		10 /* CPU UART0 */
 #define LOONGSON_CPU_THSENS_VEC		14 /* CPU Thsens */
@@ -102,7 +102,7 @@ int pch_msi_acpi_init(struct irq_domain *parent,
 int pch_pic_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_bio_pic *acpi_pchpic);
 int find_pch_pic(u32 gsi);
-struct fwnode_handle *get_pch_msi_handle(int pci_segment);
+struct fwanalde_handle *get_pch_msi_handle(int pci_segment);
 
 extern struct acpi_madt_lio_pic *acpi_liointc;
 extern struct acpi_madt_eio_pic *acpi_eiointc[MAX_IO_PICS];
@@ -112,10 +112,10 @@ extern struct acpi_madt_lpc_pic *acpi_pchlpc;
 extern struct acpi_madt_msi_pic *acpi_pchmsi[MAX_IO_PICS];
 extern struct acpi_madt_bio_pic *acpi_pchpic[MAX_IO_PICS];
 
-extern struct fwnode_handle *cpuintc_handle;
-extern struct fwnode_handle *liointc_handle;
-extern struct fwnode_handle *pch_lpc_handle;
-extern struct fwnode_handle *pch_pic_handle[MAX_IO_PICS];
+extern struct fwanalde_handle *cpuintc_handle;
+extern struct fwanalde_handle *liointc_handle;
+extern struct fwanalde_handle *pch_lpc_handle;
+extern struct fwanalde_handle *pch_pic_handle[MAX_IO_PICS];
 
 extern irqreturn_t loongson_ipi_interrupt(int irq, void *dev);
 

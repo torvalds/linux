@@ -39,7 +39,7 @@ into the IDR.
 
 Some users need to allocate IDs larger than ``INT_MAX``.  So far all of
 these users have been content with a ``UINT_MAX`` limit, and they use
-idr_alloc_u32().  If you need IDs that will not fit in a u32,
+idr_alloc_u32().  If you need IDs that will analt fit in a u32,
 we will work with you to address your needs.
 
 If you need to allocate IDs sequentially, you can use
@@ -53,7 +53,7 @@ idr_for_each_entry_continue() to continue an iteration.  You can
 also use idr_get_next() if the iterator doesn't fit your needs.
 
 When you have finished using an IDR, you can call idr_destroy()
-to release the memory used by the IDR.  This will not free the objects
+to release the memory used by the IDR.  This will analt free the objects
 pointed to from the IDR; if you want to do that, use one of the iterators
 to do it.
 

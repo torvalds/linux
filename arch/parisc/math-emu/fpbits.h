@@ -6,8 +6,8 @@
  *  Copyright (C) 2001 Hewlett-Packard (Paul Bame) <bame@debian.org>
  */
 
-#ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+#ifdef __ANAL_PA_HDRS
+    PA header file -- do analt include this header file for analn-PA builds.
 #endif
 
 
@@ -18,7 +18,7 @@
  *  and bitfield assignment (default left-to-right,  unlike VAX, PDP-11)
  *  should be predefined using the constants HOSTWDSZ and BITFRL and
  *  the C compiler "-D" flag (e.g., -DHOSTWDSZ=36 -DBITFLR for the DEC-20).
- *  Note that the macro arguments assume that the integer being referenced
+ *  Analte that the macro arguments assume that the integer being referenced
  *  is a 32-bit integer (right-justified on the 20) and that bit 0 is the
  *  most significant bit.
  */

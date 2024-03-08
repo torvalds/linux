@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
@@ -28,7 +28,7 @@
  * - a list of "index" objects representing the cpu's local cache hierarchy
  */
 struct cache_dir {
-	struct kobject *kobj; /* bare (not embedded) kobject for cache
+	struct kobject *kobj; /* bare (analt embedded) kobject for cache
 			       * directory */
 	struct cache_index_dir *index; /* list of index objects */
 };
@@ -104,8 +104,8 @@ static const struct cache_type_info cache_type_info[] = {
 
 /* Cache object: each instance of this corresponds to a distinct cache
  * in the system.  There are separate objects for Harvard caches: one
- * each for instruction and data, and each refers to the same OF node.
- * The refcount of the OF node is elevated for the lifetime of the
+ * each for instruction and data, and each refers to the same OF analde.
+ * The refcount of the OF analde is elevated for the lifetime of the
  * cache object.  A cache object is released when its shared_cpu_map
  * is cleared (see cache_cpu_clear).
  *
@@ -115,10 +115,10 @@ static const struct cache_type_info cache_type_info[] = {
  * (e.g. L1d -> L1i -> L2 -> L3).
  */
 struct cache {
-	struct device_node *ofnode;    /* OF node for this cache, may be cpu */
+	struct device_analde *ofanalde;    /* OF analde for this cache, may be cpu */
 	struct cpumask shared_cpu_map; /* online CPUs using this cache */
 	int type;                      /* split cache disambiguation */
-	int level;                     /* level not explicit in device tree */
+	int level;                     /* level analt explicit in device tree */
 	int group_id;                  /* id of the group of threads that share this cache */
 	struct list_head list;         /* global list of cache objects */
 	struct cache *next_local;      /* next cache of >= level */
@@ -142,24 +142,24 @@ static const char *cache_type_string(const struct cache *cache)
 }
 
 static void cache_init(struct cache *cache, int type, int level,
-		       struct device_node *ofnode, int group_id)
+		       struct device_analde *ofanalde, int group_id)
 {
 	cache->type = type;
 	cache->level = level;
-	cache->ofnode = of_node_get(ofnode);
+	cache->ofanalde = of_analde_get(ofanalde);
 	cache->group_id = group_id;
 	INIT_LIST_HEAD(&cache->list);
 	list_add(&cache->list, &cache_list);
 }
 
 static struct cache *new_cache(int type, int level,
-			       struct device_node *ofnode, int group_id)
+			       struct device_analde *ofanalde, int group_id)
 {
 	struct cache *cache;
 
 	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
 	if (cache)
-		cache_init(cache, type, level, ofnode, group_id);
+		cache_init(cache, type, level, ofanalde, group_id);
 
 	return cache;
 }
@@ -171,9 +171,9 @@ static void release_cache_debugcheck(struct cache *cache)
 	list_for_each_entry(iter, &cache_list, list)
 		WARN_ONCE(iter->next_local == cache,
 			  "cache for %pOFP(%s) refers to cache for %pOFP(%s)\n",
-			  iter->ofnode,
+			  iter->ofanalde,
 			  cache_type_string(iter),
-			  cache->ofnode,
+			  cache->ofanalde,
 			  cache_type_string(cache));
 }
 
@@ -183,11 +183,11 @@ static void release_cache(struct cache *cache)
 		return;
 
 	pr_debug("freeing L%d %s cache for %pOFP\n", cache->level,
-		 cache_type_string(cache), cache->ofnode);
+		 cache_type_string(cache), cache->ofanalde);
 
 	release_cache_debugcheck(cache);
 	list_del(&cache->list);
-	of_node_put(cache->ofnode);
+	of_analde_put(cache->ofanalde);
 	kfree(cache);
 }
 
@@ -198,7 +198,7 @@ static void cache_cpu_set(struct cache *cache, int cpu)
 	while (next) {
 		WARN_ONCE(cpumask_test_cpu(cpu, &next->shared_cpu_map),
 			  "CPU %i already accounted in %pOFP(%s)\n",
-			  cpu, next->ofnode,
+			  cpu, next->ofanalde,
 			  cache_type_string(next));
 		cpumask_set_cpu(cpu, &next->shared_cpu_map);
 		next = next->next_local;
@@ -212,9 +212,9 @@ static int cache_size(const struct cache *cache, unsigned int *ret)
 
 	propname = cache_type_info[cache->type].size_prop;
 
-	cache_size = of_get_property(cache->ofnode, propname, NULL);
+	cache_size = of_get_property(cache->ofanalde, propname, NULL);
 	if (!cache_size)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*ret = of_read_number(cache_size, 1);
 	return 0;
@@ -225,13 +225,13 @@ static int cache_size_kb(const struct cache *cache, unsigned int *ret)
 	unsigned int size;
 
 	if (cache_size(cache, &size))
-		return -ENODEV;
+		return -EANALDEV;
 
 	*ret = size / 1024;
 	return 0;
 }
 
-/* not cache_line_size() because that's a macro in include/linux/cache.h */
+/* analt cache_line_size() because that's a macro in include/linux/cache.h */
 static int cache_get_line_size(const struct cache *cache, unsigned int *ret)
 {
 	const __be32 *line_size;
@@ -243,13 +243,13 @@ static int cache_get_line_size(const struct cache *cache, unsigned int *ret)
 		const char *propname;
 
 		propname = cache_type_info[cache->type].line_size_props[i];
-		line_size = of_get_property(cache->ofnode, propname, NULL);
+		line_size = of_get_property(cache->ofanalde, propname, NULL);
 		if (line_size)
 			break;
 	}
 
 	if (!line_size)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*ret = of_read_number(line_size, 1);
 	return 0;
@@ -262,9 +262,9 @@ static int cache_nr_sets(const struct cache *cache, unsigned int *ret)
 
 	propname = cache_type_info[cache->type].nr_sets_prop;
 
-	nr_sets = of_get_property(cache->ofnode, propname, NULL);
+	nr_sets = of_get_property(cache->ofanalde, propname, NULL);
 	if (!nr_sets)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*ret = of_read_number(nr_sets, 1);
 	return 0;
@@ -279,7 +279,7 @@ static int cache_associativity(const struct cache *cache, unsigned int *ret)
 	if (cache_nr_sets(cache, &nr_sets))
 		goto err;
 
-	/* If the cache is fully associative, there is no need to
+	/* If the cache is fully associative, there is anal need to
 	 * check the other properties.
 	 */
 	if (nr_sets == 1) {
@@ -298,7 +298,7 @@ static int cache_associativity(const struct cache *cache, unsigned int *ret)
 	*ret = (size / nr_sets) / line_size;
 	return 0;
 err:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* helper for dealing with split caches */
@@ -311,7 +311,7 @@ static struct cache *cache_find_first_sibling(struct cache *cache)
 		return cache;
 
 	list_for_each_entry(iter, &cache_list, list)
-		if (iter->ofnode == cache->ofnode &&
+		if (iter->ofanalde == cache->ofanalde &&
 		    iter->group_id == cache->group_id &&
 		    iter->next_local == cache)
 			return iter;
@@ -319,15 +319,15 @@ static struct cache *cache_find_first_sibling(struct cache *cache)
 	return cache;
 }
 
-/* return the first cache on a local list matching node and thread-group id */
-static struct cache *cache_lookup_by_node_group(const struct device_node *node,
+/* return the first cache on a local list matching analde and thread-group id */
+static struct cache *cache_lookup_by_analde_group(const struct device_analde *analde,
 						int group_id)
 {
 	struct cache *cache = NULL;
 	struct cache *iter;
 
 	list_for_each_entry(iter, &cache_list, list) {
-		if (iter->ofnode != node ||
+		if (iter->ofanalde != analde ||
 		    iter->group_id != group_id)
 			continue;
 		cache = cache_find_first_sibling(iter);
@@ -337,7 +337,7 @@ static struct cache *cache_lookup_by_node_group(const struct device_node *node,
 	return cache;
 }
 
-static bool cache_node_is_unified(const struct device_node *np)
+static bool cache_analde_is_unified(const struct device_analde *np)
 {
 	return of_get_property(np, "cache-unified", NULL);
 }
@@ -351,31 +351,31 @@ static bool cache_node_is_unified(const struct device_node *np)
  * in /sys/devices/system/cpu/cpu0/cache/index2/, and this code will need
  * to be extended further.
  */
-static int cache_is_unified_d(const struct device_node *np)
+static int cache_is_unified_d(const struct device_analde *np)
 {
 	return of_get_property(np,
 		cache_type_info[CACHE_TYPE_UNIFIED_D].size_prop, NULL) ?
 		CACHE_TYPE_UNIFIED_D : CACHE_TYPE_UNIFIED;
 }
 
-static struct cache *cache_do_one_devnode_unified(struct device_node *node, int group_id,
+static struct cache *cache_do_one_devanalde_unified(struct device_analde *analde, int group_id,
 						  int level)
 {
-	pr_debug("creating L%d ucache for %pOFP\n", level, node);
+	pr_debug("creating L%d ucache for %pOFP\n", level, analde);
 
-	return new_cache(cache_is_unified_d(node), level, node, group_id);
+	return new_cache(cache_is_unified_d(analde), level, analde, group_id);
 }
 
-static struct cache *cache_do_one_devnode_split(struct device_node *node, int group_id,
+static struct cache *cache_do_one_devanalde_split(struct device_analde *analde, int group_id,
 						int level)
 {
 	struct cache *dcache, *icache;
 
 	pr_debug("creating L%d dcache and icache for %pOFP\n", level,
-		 node);
+		 analde);
 
-	dcache = new_cache(CACHE_TYPE_DATA, level, node, group_id);
-	icache = new_cache(CACHE_TYPE_INSTRUCTION, level, node, group_id);
+	dcache = new_cache(CACHE_TYPE_DATA, level, analde, group_id);
+	icache = new_cache(CACHE_TYPE_INSTRUCTION, level, analde, group_id);
 
 	if (!dcache || !icache)
 		goto err;
@@ -389,32 +389,32 @@ err:
 	return NULL;
 }
 
-static struct cache *cache_do_one_devnode(struct device_node *node, int group_id, int level)
+static struct cache *cache_do_one_devanalde(struct device_analde *analde, int group_id, int level)
 {
 	struct cache *cache;
 
-	if (cache_node_is_unified(node))
-		cache = cache_do_one_devnode_unified(node, group_id, level);
+	if (cache_analde_is_unified(analde))
+		cache = cache_do_one_devanalde_unified(analde, group_id, level);
 	else
-		cache = cache_do_one_devnode_split(node, group_id, level);
+		cache = cache_do_one_devanalde_split(analde, group_id, level);
 
 	return cache;
 }
 
-static struct cache *cache_lookup_or_instantiate(struct device_node *node,
+static struct cache *cache_lookup_or_instantiate(struct device_analde *analde,
 						 int group_id,
 						 int level)
 {
 	struct cache *cache;
 
-	cache = cache_lookup_by_node_group(node, group_id);
+	cache = cache_lookup_by_analde_group(analde, group_id);
 
 	WARN_ONCE(cache && cache->level != level,
 		  "cache level mismatch on lookup (got %d, expected %d)\n",
 		  cache->level, level);
 
 	if (!cache)
-		cache = cache_do_one_devnode(node, group_id, level);
+		cache = cache_do_one_devanalde(analde, group_id, level);
 
 	return cache;
 }
@@ -436,7 +436,7 @@ static void link_cache_lists(struct cache *smaller, struct cache *bigger)
 	WARN_ONCE((smaller->level == 1 && bigger->level > 2) ||
 		  (smaller->level > 1 && bigger->level != smaller->level + 1),
 		  "linking L%i cache %pOFP to L%i cache %pOFP; skipped a level?\n",
-		  smaller->level, smaller->ofnode, bigger->level, bigger->ofnode);
+		  smaller->level, smaller->ofanalde, bigger->level, bigger->ofanalde);
 }
 
 static void do_subsidiary_caches_debugcheck(struct cache *cache)
@@ -444,11 +444,11 @@ static void do_subsidiary_caches_debugcheck(struct cache *cache)
 	WARN_ONCE(cache->level != 1,
 		  "instantiating cache chain from L%d %s cache for "
 		  "%pOFP instead of an L1\n", cache->level,
-		  cache_type_string(cache), cache->ofnode);
-	WARN_ONCE(!of_node_is_type(cache->ofnode, "cpu"),
-		  "instantiating cache chain from node %pOFP of type '%s' "
-		  "instead of a cpu node\n", cache->ofnode,
-		  of_node_get_device_type(cache->ofnode));
+		  cache_type_string(cache), cache->ofanalde);
+	WARN_ONCE(!of_analde_is_type(cache->ofanalde, "cpu"),
+		  "instantiating cache chain from analde %pOFP of type '%s' "
+		  "instead of a cpu analde\n", cache->ofanalde,
+		  of_analde_get_device_type(cache->ofanalde));
 }
 
 /*
@@ -476,19 +476,19 @@ static int get_group_id(unsigned int cpu_id, int level)
 
 static void do_subsidiary_caches(struct cache *cache, unsigned int cpu_id)
 {
-	struct device_node *subcache_node;
+	struct device_analde *subcache_analde;
 	int level = cache->level;
 
 	do_subsidiary_caches_debugcheck(cache);
 
-	while ((subcache_node = of_find_next_cache_node(cache->ofnode))) {
+	while ((subcache_analde = of_find_next_cache_analde(cache->ofanalde))) {
 		struct cache *subcache;
 		int group_id;
 
 		level++;
 		group_id = get_group_id(cpu_id, level);
-		subcache = cache_lookup_or_instantiate(subcache_node, group_id, level);
-		of_node_put(subcache_node);
+		subcache = cache_lookup_or_instantiate(subcache_analde, group_id, level);
+		of_analde_put(subcache_analde);
 		if (!subcache)
 			break;
 
@@ -499,20 +499,20 @@ static void do_subsidiary_caches(struct cache *cache, unsigned int cpu_id)
 
 static struct cache *cache_chain_instantiate(unsigned int cpu_id)
 {
-	struct device_node *cpu_node;
+	struct device_analde *cpu_analde;
 	struct cache *cpu_cache = NULL;
 	int group_id;
 
 	pr_debug("creating cache object(s) for CPU %i\n", cpu_id);
 
-	cpu_node = of_get_cpu_node(cpu_id, NULL);
-	WARN_ONCE(!cpu_node, "no OF node found for CPU %i\n", cpu_id);
-	if (!cpu_node)
+	cpu_analde = of_get_cpu_analde(cpu_id, NULL);
+	WARN_ONCE(!cpu_analde, "anal OF analde found for CPU %i\n", cpu_id);
+	if (!cpu_analde)
 		goto out;
 
 	group_id = get_group_id(cpu_id, 1);
 
-	cpu_cache = cache_lookup_or_instantiate(cpu_node, group_id, 1);
+	cpu_cache = cache_lookup_or_instantiate(cpu_analde, group_id, 1);
 	if (!cpu_cache)
 		goto out;
 
@@ -520,7 +520,7 @@ static struct cache *cache_chain_instantiate(unsigned int cpu_id)
 
 	cache_cpu_set(cpu_cache, cpu_id);
 out:
-	of_node_put(cpu_node);
+	of_analde_put(cpu_analde);
 
 	return cpu_cache;
 }
@@ -532,7 +532,7 @@ static struct cache_dir *cacheinfo_create_cache_dir(unsigned int cpu_id)
 	struct kobject *kobj = NULL;
 
 	dev = get_cpu_device(cpu_id);
-	WARN_ONCE(!dev, "no dev for CPU %i\n", cpu_id);
+	WARN_ONCE(!dev, "anal dev for CPU %i\n", cpu_id);
 	if (!dev)
 		goto err;
 
@@ -594,7 +594,7 @@ static ssize_t size_show(struct kobject *k, struct kobj_attribute *attr, char *b
 	cache = index_kobj_to_cache(k);
 
 	if (cache_size_kb(cache, &size_kb))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "%uK\n", size_kb);
 }
@@ -611,7 +611,7 @@ static ssize_t line_size_show(struct kobject *k, struct kobj_attribute *attr, ch
 	cache = index_kobj_to_cache(k);
 
 	if (cache_get_line_size(cache, &line_size))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "%u\n", line_size);
 }
@@ -627,7 +627,7 @@ static ssize_t nr_sets_show(struct kobject *k, struct kobj_attribute *attr, char
 	cache = index_kobj_to_cache(k);
 
 	if (cache_nr_sets(cache, &nr_sets))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "%u\n", nr_sets);
 }
@@ -643,7 +643,7 @@ static ssize_t associativity_show(struct kobject *k, struct kobj_attribute *attr
 	cache = index_kobj_to_cache(k);
 
 	if (cache_associativity(cache, &associativity))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "%u\n", associativity);
 }
@@ -721,7 +721,7 @@ static struct attribute *cache_index_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(cache_index_default);
 
-/* Attributes which should be created if the cache device node has the
+/* Attributes which should be created if the cache device analde has the
  * right properties -- see cacheinfo_create_index_opt_attrs
  */
 static struct kobj_attribute *cache_index_opt_attrs[] = {
@@ -768,15 +768,15 @@ static void cacheinfo_create_index_opt_attrs(struct cache_index_dir *dir)
 
 		rc = attr->show(&dir->kobj, attr, buf);
 		if (rc <= 0) {
-			pr_debug("not creating %s attribute for "
+			pr_debug("analt creating %s attribute for "
 				 "%pOFP(%s) (rc = %zd)\n",
-				 attr->attr.name, cache->ofnode,
+				 attr->attr.name, cache->ofanalde,
 				 cache_type, rc);
 			continue;
 		}
 		if (sysfs_create_file(&dir->kobj, &attr->attr))
-			pr_debug("could not create %s attribute for %pOFP(%s)\n",
-				 attr->attr.name, cache->ofnode, cache_type);
+			pr_debug("could analt create %s attribute for %pOFP(%s)\n",
+				 attr->attr.name, cache->ofanalde, cache_type);
 	}
 
 	kfree(buf);
@@ -844,18 +844,18 @@ void cacheinfo_cpu_online(unsigned int cpu_id)
 
 static struct cache *cache_lookup_by_cpu(unsigned int cpu_id)
 {
-	struct device_node *cpu_node;
+	struct device_analde *cpu_analde;
 	struct cache *cache;
 	int group_id;
 
-	cpu_node = of_get_cpu_node(cpu_id, NULL);
-	WARN_ONCE(!cpu_node, "no OF node found for CPU %i\n", cpu_id);
-	if (!cpu_node)
+	cpu_analde = of_get_cpu_analde(cpu_id, NULL);
+	WARN_ONCE(!cpu_analde, "anal OF analde found for CPU %i\n", cpu_id);
+	if (!cpu_analde)
 		return NULL;
 
 	group_id = get_group_id(cpu_id, 1);
-	cache = cache_lookup_by_node_group(cpu_node, group_id);
-	of_node_put(cpu_node);
+	cache = cache_lookup_by_analde_group(cpu_analde, group_id);
+	of_analde_put(cpu_analde);
 
 	return cache;
 }
@@ -893,8 +893,8 @@ static void cache_cpu_clear(struct cache *cache, int cpu)
 		struct cache *next = cache->next_local;
 
 		WARN_ONCE(!cpumask_test_cpu(cpu, &cache->shared_cpu_map),
-			  "CPU %i not accounted in %pOFP(%s)\n",
-			  cpu, cache->ofnode,
+			  "CPU %i analt accounted in %pOFP(%s)\n",
+			  cpu, cache->ofanalde,
 			  cache_type_string(cache));
 
 		cpumask_clear_cpu(cpu, &cache->shared_cpu_map);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __SPARC_STAT_H
 #define __SPARC_STAT_H
 
@@ -8,7 +8,7 @@
 /* 64 bit sparc */
 struct stat {
 	unsigned int st_dev;
-	__kernel_ino_t st_ino;
+	__kernel_ianal_t st_ianal;
 	__kernel_mode_t st_mode;
 	short   st_nlink;
 	__kernel_uid32_t st_uid;
@@ -25,7 +25,7 @@ struct stat {
 
 struct stat64 {
 	unsigned long	st_dev;
-	unsigned long	st_ino;
+	unsigned long	st_ianal;
 	unsigned long	st_nlink;
 
 	unsigned int	st_mode;
@@ -51,7 +51,7 @@ struct stat64 {
 /* 32 bit sparc */
 struct stat {
 	unsigned short	st_dev;
-	__kernel_ino_t	st_ino;
+	__kernel_ianal_t	st_ianal;
 	__kernel_mode_t	st_mode;
 	short		st_nlink;
 	unsigned short	st_uid;
@@ -74,7 +74,7 @@ struct stat {
 struct stat64 {
 	unsigned long long st_dev;
 
-	unsigned long long st_ino;
+	unsigned long long st_ianal;
 
 	unsigned int	st_mode;
 	unsigned int	st_nlink;

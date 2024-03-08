@@ -53,8 +53,8 @@ static void dwc3_xlnx_mask_phy_rst(struct dwc3_xlnx *priv_data, bool mask)
 
 	/*
 	 * Enable or disable ULPI PHY reset from USB Controller.
-	 * This does not actually reset the phy, but just controls
-	 * whether USB controller can or cannot reset ULPI PHY.
+	 * This does analt actually reset the phy, but just controls
+	 * whether USB controller can or cananalt reset ULPI PHY.
 	 */
 	reg = readl(priv_data->regs + XLNX_USB_PHY_RST_EN);
 
@@ -113,8 +113,8 @@ static int dwc3_xlnx_init_zynqmp(struct dwc3_xlnx *priv_data)
 	}
 
 	/*
-	 * The following core resets are not required unless a USB3 PHY
-	 * is used, and the subsequent register settings are not required
+	 * The following core resets are analt required unless a USB3 PHY
+	 * is used, and the subsequent register settings are analt required
 	 * unless a core reset is performed (they should be set properly
 	 * by the first-stage boot loader, but may be reverted by a core
 	 * reset). They may also break the configuration if USB3 is actually
@@ -223,7 +223,7 @@ skip_usb3_phy:
 	 * of reaching DDR directly. This traffic routing is needed to
 	 * make SMMU and CCI work with USB DMA.
 	 */
-	if (of_dma_is_coherent(dev->of_node) || device_iommu_mapped(dev)) {
+	if (of_dma_is_coherent(dev->of_analde) || device_iommu_mapped(dev)) {
 		reg = readl(priv_data->regs + XLNX_USB_TRAFFIC_ROUTE_CONFIG);
 		reg |= XLNX_USB_TRAFFIC_ROUTE_FPD;
 		writel(reg, priv_data->regs + XLNX_USB_TRAFFIC_ROUTE_CONFIG);
@@ -250,14 +250,14 @@ static int dwc3_xlnx_probe(struct platform_device *pdev)
 {
 	struct dwc3_xlnx		*priv_data;
 	struct device			*dev = &pdev->dev;
-	struct device_node		*np = dev->of_node;
+	struct device_analde		*np = dev->of_analde;
 	const struct of_device_id	*match;
 	void __iomem			*regs;
 	int				ret;
 
 	priv_data = devm_kzalloc(dev, sizeof(*priv_data), GFP_KERNEL);
 	if (!priv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs)) {
@@ -266,7 +266,7 @@ static int dwc3_xlnx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	match = of_match_node(dwc3_xlnx_of_match, pdev->dev.of_node);
+	match = of_match_analde(dwc3_xlnx_of_match, pdev->dev.of_analde);
 
 	priv_data->pltfm_init = match->data;
 	priv_data->regs = regs;
@@ -297,7 +297,7 @@ static int dwc3_xlnx_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_pm_set_suspended;
 
-	pm_suspend_ignore_children(dev, false);
+	pm_suspend_iganalre_children(dev, false);
 	return pm_runtime_resume_and_get(dev);
 
 err_pm_set_suspended:
@@ -319,7 +319,7 @@ static void dwc3_xlnx_remove(struct platform_device *pdev)
 	clk_bulk_disable_unprepare(priv_data->num_clocks, priv_data->clks);
 	priv_data->num_clocks = 0;
 
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_set_suspended(dev);
 }
 

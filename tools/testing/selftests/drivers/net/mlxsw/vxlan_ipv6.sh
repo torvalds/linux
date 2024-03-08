@@ -22,7 +22,7 @@ sanitization_single_dev_learning_enabled_ipv6_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_sanaloping 0
 
 	ip link add name vxlan0 up type vxlan id 10 learning $UDPCSUM_FLAFS \
 		ttl 20 tos inherit local $LOCAL_IP_1 dstport 4789
@@ -39,10 +39,10 @@ sanitization_single_dev_udp_checksum_ipv6_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_sanaloping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning \
-		noudp6zerocsumrx udp6zerocsumtx ttl 20 tos inherit \
+	ip link add name vxlan0 up type vxlan id 10 anallearning \
+		analudp6zerocsumrx udp6zerocsumtx ttl 20 tos inherit \
 		local $LOCAL_IP_1 dstport 4789
 
 	sanitization_single_dev_test_fail
@@ -50,8 +50,8 @@ sanitization_single_dev_udp_checksum_ipv6_test()
 
 	ip link del dev vxlan0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning \
-		udp6zerocsumrx noudp6zerocsumtx ttl 20 tos inherit \
+	ip link add name vxlan0 up type vxlan id 10 anallearning \
+		udp6zerocsumrx analudp6zerocsumtx ttl 20 tos inherit \
 		local $LOCAL_IP_1 dstport 4789
 
 	sanitization_single_dev_test_fail

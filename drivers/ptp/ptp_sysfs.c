@@ -81,7 +81,7 @@ static ssize_t extts_fifo_show(struct device *dev,
 	size_t qcnt;
 	int cnt = 0;
 
-	cnt = list_count_nodes(&ptp->tsevqs);
+	cnt = list_count_analdes(&ptp->tsevqs);
 	if (cnt <= 0)
 		goto out;
 
@@ -178,7 +178,7 @@ static int unregister_vclock(struct device *dev, void *data)
 	ptp_vclock_unregister(vclock);
 	(*num)--;
 
-	/* For break. Not error. */
+	/* For break. Analt error. */
 	if (*num == 0)
 		return -EINVAL;
 
@@ -249,7 +249,7 @@ static ssize_t n_vclocks_store(struct device *dev,
 	/* Need to inform about changed physical clock behavior */
 	if (!ptp->has_cycles) {
 		if (num == 0)
-			dev_info(dev, "only physical clock in use now\n");
+			dev_info(dev, "only physical clock in use analw\n");
 		else
 			dev_info(dev, "guarantee physical clock free running\n");
 	}
@@ -300,7 +300,7 @@ static ssize_t max_vclocks_store(struct device *dev,
 	size = sizeof(int) * max;
 	vclock_index = kzalloc(size, GFP_KERNEL);
 	if (!vclock_index) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -440,7 +440,7 @@ static ssize_t ptp_pin_store(struct device *dev, struct device_attribute *attr,
 int ptp_populate_pin_groups(struct ptp_clock *ptp)
 {
 	struct ptp_clock_info *info = ptp->info;
-	int err = -ENOMEM, i, n_pins = info->n_pins;
+	int err = -EANALMEM, i, n_pins = info->n_pins;
 
 	if (!n_pins)
 		return 0;
@@ -448,11 +448,11 @@ int ptp_populate_pin_groups(struct ptp_clock *ptp)
 	ptp->pin_dev_attr = kcalloc(n_pins, sizeof(*ptp->pin_dev_attr),
 				    GFP_KERNEL);
 	if (!ptp->pin_dev_attr)
-		goto no_dev_attr;
+		goto anal_dev_attr;
 
 	ptp->pin_attr = kcalloc(1 + n_pins, sizeof(*ptp->pin_attr), GFP_KERNEL);
 	if (!ptp->pin_attr)
-		goto no_pin_attr;
+		goto anal_pin_attr;
 
 	for (i = 0; i < n_pins; i++) {
 		struct device_attribute *da = &ptp->pin_dev_attr[i];
@@ -471,9 +471,9 @@ int ptp_populate_pin_groups(struct ptp_clock *ptp)
 
 	return 0;
 
-no_pin_attr:
+anal_pin_attr:
 	kfree(ptp->pin_dev_attr);
-no_dev_attr:
+anal_dev_attr:
 	return err;
 }
 

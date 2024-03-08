@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -149,17 +149,17 @@ static inline enum comp_state get_wqe(struct rxe_qp *qp,
 {
 	struct rxe_send_wqe *wqe;
 
-	/* we come here whether or not we found a response packet to see if
+	/* we come here whether or analt we found a response packet to see if
 	 * there are any posted WQEs
 	 */
 	wqe = queue_head(qp->sq.queue, QUEUE_TYPE_FROM_CLIENT);
 	*wqe_p = wqe;
 
-	/* no WQE or requester has not started it yet */
+	/* anal WQE or requester has analt started it yet */
 	if (!wqe || wqe->state == wqe_state_posted)
 		return pkt ? COMPST_DONE : COMPST_EXIT;
 
-	/* WQE does not require an ack */
+	/* WQE does analt require an ack */
 	if (wqe->state == wqe_state_done)
 		return COMPST_COMP_WQE;
 
@@ -204,11 +204,11 @@ static inline enum comp_state check_psn(struct rxe_qp *qp,
 	diff = psn_compare(pkt->psn, qp->comp.psn);
 	if (diff < 0) {
 		/* response is most likely a retried packet if it matches an
-		 * uncompleted WQE go complete it else ignore it
+		 * uncompleted WQE go complete it else iganalre it
 		 */
 		if (pkt->psn == wqe->last_psn)
 			return COMPST_COMP_ACK;
-		else if (pkt->opcode == IB_OPCODE_RC_ACKNOWLEDGE &&
+		else if (pkt->opcode == IB_OPCODE_RC_ACKANALWLEDGE &&
 			 (qp->comp.opcode == IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST ||
 			  qp->comp.opcode == IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE))
 			return COMPST_CHECK_ACK;
@@ -241,7 +241,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 	case IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST:
 	case IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE:
 		/* Check NAK code to handle a remote error */
-		if (pkt->opcode == IB_OPCODE_RC_ACKNOWLEDGE)
+		if (pkt->opcode == IB_OPCODE_RC_ACKANALWLEDGE)
 			break;
 
 		if (pkt->opcode != IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE &&
@@ -290,7 +290,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 		reset_retry_counters(qp);
 		return COMPST_READ;
 
-	case IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE:
+	case IB_OPCODE_RC_ATOMIC_ACKANALWLEDGE:
 		syn = aeth_syn(pkt);
 
 		if ((syn & AETH_TYPE_MASK) != AETH_ACK)
@@ -302,7 +302,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 		reset_retry_counters(qp);
 		return COMPST_ATOMIC;
 
-	case IB_OPCODE_RC_ACKNOWLEDGE:
+	case IB_OPCODE_RC_ACKANALWLEDGE:
 		syn = aeth_syn(pkt);
 		switch (syn & AETH_TYPE_MASK) {
 		case AETH_ACK:
@@ -433,7 +433,7 @@ static void make_send_cqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		}
 	} else {
 		if (wqe->status != IB_WC_WR_FLUSH_ERR)
-			rxe_err_qp(qp, "non-flush error status = %d",
+			rxe_err_qp(qp, "analn-flush error status = %d",
 				wqe->status);
 	}
 }
@@ -441,7 +441,7 @@ static void make_send_cqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 /*
  * IBA Spec. Section 10.7.3.1 SIGNALED COMPLETIONS
  * ---------8<---------8<-------------
- * ...Note that if a completion error occurs, a Work Completion
+ * ...Analte that if a completion error occurs, a Work Completion
  * will always be generated, even if the signaling
  * indicator requests an Unsignaled Completion.
  * ---------8<---------8<-------------
@@ -591,21 +591,21 @@ static int flush_send_wqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
  * if unable to complete a wqe, i.e. cq is full, stop
  * completing and flush the remaining wqes
  */
-static void flush_send_queue(struct rxe_qp *qp, bool notify)
+static void flush_send_queue(struct rxe_qp *qp, bool analtify)
 {
 	struct rxe_send_wqe *wqe;
 	struct rxe_queue *q = qp->sq.queue;
 	int err;
 
-	/* send queue never got created. nothing to do. */
+	/* send queue never got created. analthing to do. */
 	if (!qp->sq.queue)
 		return;
 
 	while ((wqe = queue_head(q, q->type))) {
-		if (notify) {
+		if (analtify) {
 			err = flush_send_wqe(qp, wqe);
 			if (err)
-				notify = 0;
+				analtify = 0;
 		}
 		queue_advance_consumer(q, q->type);
 	}
@@ -657,10 +657,10 @@ int rxe_completer(struct rxe_qp *qp)
 	spin_lock_irqsave(&qp->state_lock, flags);
 	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
 			  qp_state(qp) == IB_QPS_RESET) {
-		bool notify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
+		bool analtify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
 
 		drain_resp_pkts(qp);
-		flush_send_queue(qp, notify);
+		flush_send_queue(qp, analtify);
 		spin_unlock_irqrestore(&qp->state_lock, flags);
 		goto exit;
 	}
@@ -757,18 +757,18 @@ int rxe_completer(struct rxe_qp *qp)
 
 		case COMPST_ERROR_RETRY:
 			/* we come here if the retry timer fired and we did
-			 * not receive a response packet. try to retry the send
-			 * queue if that makes sense and the limits have not
+			 * analt receive a response packet. try to retry the send
+			 * queue if that makes sense and the limits have analt
 			 * been exceeded. remember that some timeouts are
-			 * spurious since we do not reset the timer but kick
+			 * spurious since we do analt reset the timer but kick
 			 * it down the road or let it expire
 			 */
 
-			/* there is nothing to retry in this case */
+			/* there is analthing to retry in this case */
 			if (!wqe || (wqe->state == wqe_state_posted))
 				goto exit;
 
-			/* if we've started a retry, don't start another
+			/* if we've started a retry, don't start aanalther
 			 * retry sequence, unless this is a timeout.
 			 */
 			if (qp->comp.started_retry &&
@@ -779,7 +779,7 @@ int rxe_completer(struct rxe_qp *qp)
 				if (qp->comp.retry_cnt != 7)
 					qp->comp.retry_cnt--;
 
-				/* no point in retrying if we have already
+				/* anal point in retrying if we have already
 				 * seen the last ack that the requester could
 				 * have caused
 				 */
@@ -835,7 +835,7 @@ int rxe_completer(struct rxe_qp *qp)
 		}
 	}
 
-	/* A non-zero return value will cause rxe_do_task to
+	/* A analn-zero return value will cause rxe_do_task to
 	 * exit its loop and end the work item. A zero return
 	 * will continue looping and return to rxe_completer
 	 */

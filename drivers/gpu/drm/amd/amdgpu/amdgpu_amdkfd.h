@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,7 +30,7 @@
 #include <linux/mm.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/memremap.h>
 #include <kgd_kfd_interface.h>
 #include <drm/drm_client.h>
@@ -49,7 +49,7 @@ enum TLB_FLUSH_TYPE {
 struct amdgpu_device;
 
 enum kfd_mem_attachment_type {
-	KFD_MEM_ATT_SHARED,	/* Share kgd_mem->bo or another attachment's */
+	KFD_MEM_ATT_SHARED,	/* Share kgd_mem->bo or aanalther attachment's */
 	KFD_MEM_ATT_USERPTR,	/* SG bo to DMA map pages from a userptr bo */
 	KFD_MEM_ATT_DMABUF,	/* DMAbuf to DMA map TTM BOs */
 	KFD_MEM_ATT_SG		/* Tag to DMA map SG BOs */
@@ -141,12 +141,12 @@ struct amdkfd_process_info {
 	/* Eviction Fence */
 	struct amdgpu_amdkfd_fence *eviction_fence;
 
-	/* MMU-notifier related fields */
-	struct mutex notifier_lock;
+	/* MMU-analtifier related fields */
+	struct mutex analtifier_lock;
 	uint32_t evicted_bos;
 	struct delayed_work restore_userptr_work;
 	struct pid *pid;
-	bool block_mmu_notifications;
+	bool block_mmu_analtifications;
 };
 
 int amdgpu_amdkfd_init(void);
@@ -191,7 +191,7 @@ int kfd_debugfs_kfd_mem_limits(struct seq_file *m, void *data);
 bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm);
 struct amdgpu_amdkfd_fence *to_amdgpu_amdkfd_fence(struct dma_fence *f);
 int amdgpu_amdkfd_remove_fence_on_pt_pd_bos(struct amdgpu_bo *bo);
-int amdgpu_amdkfd_evict_userptr(struct mmu_interval_notifier *mni,
+int amdgpu_amdkfd_evict_userptr(struct mmu_interval_analtifier *mni,
 				unsigned long cur_seq, struct kgd_mem *mem);
 #else
 static inline
@@ -213,7 +213,7 @@ int amdgpu_amdkfd_remove_fence_on_pt_pd_bos(struct amdgpu_bo *bo)
 }
 
 static inline
-int amdgpu_amdkfd_evict_userptr(struct mmu_interval_notifier *mni,
+int amdgpu_amdkfd_evict_userptr(struct mmu_interval_analtifier *mni,
 				unsigned long cur_seq, struct kgd_mem *mem)
 {
 	return 0;
@@ -328,7 +328,7 @@ int amdgpu_amdkfd_get_tile_config(struct amdgpu_device *adev,
 void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev,
 				bool reset);
 bool amdgpu_amdkfd_bo_mapped_to_dev(struct amdgpu_device *adev, struct kgd_mem *mem);
-void amdgpu_amdkfd_block_mmu_notifications(void *p);
+void amdgpu_amdkfd_block_mmu_analtifications(void *p);
 int amdgpu_amdkfd_criu_resume(void *p);
 bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev);
 int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
@@ -351,11 +351,11 @@ void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
 				struct amdgpu_vm *vm);
 
 /**
- * @amdgpu_amdkfd_release_notify() - Notify KFD when GEM object is released
+ * @amdgpu_amdkfd_release_analtify() - Analtify KFD when GEM object is released
  *
  * Allows KFD to release its resources associated with the GEM object.
  */
-void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo);
+void amdgpu_amdkfd_release_analtify(struct amdgpu_bo *bo);
 void amdgpu_amdkfd_reserve_system_mem(uint64_t size);
 #else
 static inline
@@ -370,7 +370,7 @@ void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
 }
 
 static inline
-void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo)
+void amdgpu_amdkfd_release_analtify(struct amdgpu_bo *bo)
 {
 }
 #endif
@@ -409,7 +409,7 @@ void kgd2kfd_unlock_kfd(void);
 #else
 static inline int kgd2kfd_init(void)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline void kgd2kfd_exit(void)

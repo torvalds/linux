@@ -8,20 +8,20 @@
 
 #include <linux/types.h>
 
-#define JUMP_LABEL_NOP_SIZE 3
+#define JUMP_LABEL_ANALP_SIZE 3
 
 static __always_inline bool arch_static_branch(struct static_key *key,
 					       bool branch)
 {
 	asm goto("1:\n\t"
-			  "_nop\n\t"
+			  "_analp\n\t"
 			  ".pushsection __jump_table,  \"aw\"\n\t"
-			  ".word 1b, %l[l_yes], %c0\n\t"
+			  ".word 1b, %l[l_anal], %c0\n\t"
 			  ".popsection\n\t"
-			  : :  "i" (&((char *)key)[branch]) :  : l_yes);
+			  : :  "i" (&((char *)key)[branch]) :  : l_anal);
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 
@@ -34,22 +34,22 @@ static __always_inline bool arch_static_branch_jump(struct static_key *key,
 	 * passes could use them. A spot right after the J instruction
 	 * is one such point. Assembler and/or linker may insert padding
 	 * or literals here, breaking code flow in case the J instruction
-	 * is later replaced with NOP. Put a label right after the J to
-	 * make it reachable and wrap both into a no-transform block
+	 * is later replaced with ANALP. Put a label right after the J to
+	 * make it reachable and wrap both into a anal-transform block
 	 * to avoid any assembler interference with this.
 	 */
 	asm goto("1:\n\t"
-			  ".begin no-transform\n\t"
-			  "_j %l[l_yes]\n\t"
+			  ".begin anal-transform\n\t"
+			  "_j %l[l_anal]\n\t"
 			  "2:\n\t"
-			  ".end no-transform\n\t"
+			  ".end anal-transform\n\t"
 			  ".pushsection __jump_table,  \"aw\"\n\t"
-			  ".word 1b, %l[l_yes], %c0\n\t"
+			  ".word 1b, %l[l_anal], %c0\n\t"
 			  ".popsection\n\t"
-			  : :  "i" (&((char *)key)[branch]) :  : l_yes);
+			  : :  "i" (&((char *)key)[branch]) :  : l_anal);
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 

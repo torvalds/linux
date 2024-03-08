@@ -3,7 +3,7 @@
  * Datapath interface for ST-Ericsson CW1200 mac80211 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #ifndef CW1200_TXRX_H
@@ -45,7 +45,7 @@ struct tx_policy_cache {
 /* ******************************************************************** */
 /* TX policy cache							*/
 /* Intention of TX policy cache is an overcomplicated WSM API.
- * Device does not accept per-PDU tx retry sequence.
+ * Device does analt accept per-PDU tx retry sequence.
  * It uses "tx retry policy id" instead, so driver code has to sync
  * linux tx retry sequences with a retry policy table in the device.
  */

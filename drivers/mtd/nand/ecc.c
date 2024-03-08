@@ -49,48 +49,48 @@
  * prepare/finish hook.
  *
  * [external ECC engine]
- *   - external + prepare + raw + read: do nothing
- *   - external + finish  + raw + read: do nothing
- *   - external + prepare + raw + write: do nothing
- *   - external + finish  + raw + write: do nothing
- *   - external + prepare + ecc + read: do nothing
+ *   - external + prepare + raw + read: do analthing
+ *   - external + finish  + raw + read: do analthing
+ *   - external + prepare + raw + write: do analthing
+ *   - external + finish  + raw + write: do analthing
+ *   - external + prepare + ecc + read: do analthing
  *   - external + finish  + ecc + read: calculate expected ECC bytes, extract
  *                                      ECC bytes from OOB buffer, correct
  *                                      and report any bitflip/error
  *   - external + prepare + ecc + write: calculate ECC bytes and store them at
  *                                       the right place in the OOB buffer based
  *                                       on the OOB layout
- *   - external + finish  + ecc + write: do nothing
+ *   - external + finish  + ecc + write: do analthing
  *
  * [pipelined ECC engine]
  *   - pipelined + prepare + raw + read: disable the controller's ECC engine if
  *                                       activated
- *   - pipelined + finish  + raw + read: do nothing
+ *   - pipelined + finish  + raw + read: do analthing
  *   - pipelined + prepare + raw + write: disable the controller's ECC engine if
  *                                        activated
- *   - pipelined + finish  + raw + write: do nothing
+ *   - pipelined + finish  + raw + write: do analthing
  *   - pipelined + prepare + ecc + read: enable the controller's ECC engine if
  *                                       deactivated
  *   - pipelined + finish  + ecc + read: check the status, report any
  *                                       error/bitflip
  *   - pipelined + prepare + ecc + write: enable the controller's ECC engine if
  *                                        deactivated
- *   - pipelined + finish  + ecc + write: do nothing
+ *   - pipelined + finish  + ecc + write: do analthing
  *
  * [ondie ECC engine]
  *   - ondie + prepare + raw + read: send commands to disable the on-chip ECC
  *                                   engine if activated
- *   - ondie + finish  + raw + read: do nothing
+ *   - ondie + finish  + raw + read: do analthing
  *   - ondie + prepare + raw + write: send commands to disable the on-chip ECC
  *                                    engine if activated
- *   - ondie + finish  + raw + write: do nothing
+ *   - ondie + finish  + raw + write: do analthing
  *   - ondie + prepare + ecc + read: send commands to enable the on-chip ECC
  *                                   engine if deactivated
  *   - ondie + finish  + ecc + read: send commands to check the status, report
  *                                   any error/bitflip
  *   - ondie + prepare + ecc + write: send commands to enable the on-chip ECC
  *                                    engine if deactivated
- *   - ondie + finish  + ecc + write: do nothing
+ *   - ondie + finish  + ecc + write: do analthing
  */
 
 #include <linux/module.h>
@@ -336,18 +336,18 @@ const struct mtd_ooblayout_ops *nand_get_large_page_hamming_ooblayout(void)
 EXPORT_SYMBOL_GPL(nand_get_large_page_hamming_ooblayout);
 
 static enum nand_ecc_engine_type
-of_get_nand_ecc_engine_type(struct device_node *np)
+of_get_nand_ecc_engine_type(struct device_analde *np)
 {
-	struct device_node *eng_np;
+	struct device_analde *eng_np;
 
-	if (of_property_read_bool(np, "nand-no-ecc-engine"))
-		return NAND_ECC_ENGINE_TYPE_NONE;
+	if (of_property_read_bool(np, "nand-anal-ecc-engine"))
+		return NAND_ECC_ENGINE_TYPE_ANALNE;
 
 	if (of_property_read_bool(np, "nand-use-soft-ecc-engine"))
 		return NAND_ECC_ENGINE_TYPE_SOFT;
 
 	eng_np = of_parse_phandle(np, "nand-ecc-engine", 0);
-	of_node_put(eng_np);
+	of_analde_put(eng_np);
 
 	if (eng_np) {
 		if (eng_np == np)
@@ -364,7 +364,7 @@ static const char * const nand_ecc_placement[] = {
 	[NAND_ECC_PLACEMENT_INTERLEAVED] = "interleaved",
 };
 
-static enum nand_ecc_placement of_get_nand_ecc_placement(struct device_node *np)
+static enum nand_ecc_placement of_get_nand_ecc_placement(struct device_analde *np)
 {
 	enum nand_ecc_placement placement;
 	const char *pm;
@@ -379,7 +379,7 @@ static enum nand_ecc_placement of_get_nand_ecc_placement(struct device_node *np)
 		}
 	}
 
-	return NAND_ECC_PLACEMENT_UNKNOWN;
+	return NAND_ECC_PLACEMENT_UNKANALWN;
 }
 
 static const char * const nand_ecc_algos[] = {
@@ -388,7 +388,7 @@ static const char * const nand_ecc_algos[] = {
 	[NAND_ECC_ALGO_RS] = "rs",
 };
 
-static enum nand_ecc_algo of_get_nand_ecc_algo(struct device_node *np)
+static enum nand_ecc_algo of_get_nand_ecc_algo(struct device_analde *np)
 {
 	enum nand_ecc_algo ecc_algo;
 	const char *pm;
@@ -404,10 +404,10 @@ static enum nand_ecc_algo of_get_nand_ecc_algo(struct device_node *np)
 		}
 	}
 
-	return NAND_ECC_ALGO_UNKNOWN;
+	return NAND_ECC_ALGO_UNKANALWN;
 }
 
-static int of_get_nand_ecc_step_size(struct device_node *np)
+static int of_get_nand_ecc_step_size(struct device_analde *np)
 {
 	int ret;
 	u32 val;
@@ -416,7 +416,7 @@ static int of_get_nand_ecc_step_size(struct device_node *np)
 	return ret ? ret : val;
 }
 
-static int of_get_nand_ecc_strength(struct device_node *np)
+static int of_get_nand_ecc_strength(struct device_analde *np)
 {
 	int ret;
 	u32 val;
@@ -427,7 +427,7 @@ static int of_get_nand_ecc_strength(struct device_node *np)
 
 void of_get_nand_ecc_user_config(struct nand_device *nand)
 {
-	struct device_node *dn = nanddev_get_of_node(nand);
+	struct device_analde *dn = nanddev_get_of_analde(nand);
 	int strength, size;
 
 	nand->ecc.user_conf.engine_type = of_get_nand_ecc_engine_type(dn);
@@ -448,7 +448,7 @@ void of_get_nand_ecc_user_config(struct nand_device *nand)
 EXPORT_SYMBOL(of_get_nand_ecc_user_config);
 
 /**
- * nand_ecc_is_strong_enough - Check if the chip configuration meets the
+ * nand_ecc_is_strong_eanalugh - Check if the chip configuration meets the
  *                             datasheet requirements.
  *
  * @nand: Device to check
@@ -464,7 +464,7 @@ EXPORT_SYMBOL(of_get_nand_ecc_user_config);
  * Requirement (2) ensures we can correct even when all bitflips are clumped
  * in the same sector.
  */
-bool nand_ecc_is_strong_enough(struct nand_device *nand)
+bool nand_ecc_is_strong_eanalugh(struct nand_device *nand)
 {
 	const struct nand_ecc_props *reqs = nanddev_get_ecc_requirements(nand);
 	const struct nand_ecc_props *conf = nanddev_get_ecc_conf(nand);
@@ -472,7 +472,7 @@ bool nand_ecc_is_strong_enough(struct nand_device *nand)
 	int corr, ds_corr;
 
 	if (conf->step_size == 0 || reqs->step_size == 0)
-		/* Not enough information */
+		/* Analt eanalugh information */
 		return true;
 
 	/*
@@ -484,7 +484,7 @@ bool nand_ecc_is_strong_enough(struct nand_device *nand)
 
 	return corr >= ds_corr && conf->strength >= reqs->strength;
 }
-EXPORT_SYMBOL(nand_ecc_is_strong_enough);
+EXPORT_SYMBOL(nand_ecc_is_strong_eanalugh);
 
 /* ECC engine driver internal helpers */
 int nand_ecc_init_req_tweaking(struct nand_ecc_req_tweak_ctx *ctx,
@@ -504,7 +504,7 @@ int nand_ecc_init_req_tweaking(struct nand_ecc_req_tweak_ctx *ctx,
 
 	ctx->spare_databuf = kzalloc(total_buffer_size, GFP_KERNEL);
 	if (!ctx->spare_databuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->spare_oobbuf = ctx->spare_databuf + ctx->page_buffer_size;
 
@@ -520,7 +520,7 @@ EXPORT_SYMBOL_GPL(nand_ecc_cleanup_req_tweaking);
 
 /*
  * Ensure data and OOB area is fully read/written otherwise the correction might
- * not work as expected.
+ * analt work as expected.
  */
 void nand_ecc_tweak_req(struct nand_ecc_req_tweak_ctx *ctx,
 			struct nand_page_io_req *req)
@@ -595,7 +595,7 @@ struct nand_ecc_engine *nand_ecc_get_sw_engine(struct nand_device *nand)
 {
 	unsigned int algo = nand->ecc.user_conf.algo;
 
-	if (algo == NAND_ECC_ALGO_UNKNOWN)
+	if (algo == NAND_ECC_ALGO_UNKANALWN)
 		algo = nand->ecc.defaults.algo;
 
 	switch (algo) {
@@ -625,12 +625,12 @@ int nand_ecc_register_on_host_hw_engine(struct nand_ecc_engine *engine)
 		return -EINVAL;
 
 	/* Prevent multiple registrations of one engine */
-	list_for_each_entry(item, &on_host_hw_engines, node)
+	list_for_each_entry(item, &on_host_hw_engines, analde)
 		if (item == engine)
 			return 0;
 
 	mutex_lock(&on_host_hw_engines_mutex);
-	list_add_tail(&engine->node, &on_host_hw_engines);
+	list_add_tail(&engine->analde, &on_host_hw_engines);
 	mutex_unlock(&on_host_hw_engines_mutex);
 
 	return 0;
@@ -643,7 +643,7 @@ int nand_ecc_unregister_on_host_hw_engine(struct nand_ecc_engine *engine)
 		return -EINVAL;
 
 	mutex_lock(&on_host_hw_engines_mutex);
-	list_del(&engine->node);
+	list_del(&engine->analde);
 	mutex_unlock(&on_host_hw_engines_mutex);
 
 	return 0;
@@ -654,7 +654,7 @@ static struct nand_ecc_engine *nand_ecc_match_on_host_hw_engine(struct device *d
 {
 	struct nand_ecc_engine *item;
 
-	list_for_each_entry(item, &on_host_hw_engines, node)
+	list_for_each_entry(item, &on_host_hw_engines, analde)
 		if (item->dev == dev)
 			return item;
 
@@ -666,21 +666,21 @@ struct nand_ecc_engine *nand_ecc_get_on_host_hw_engine(struct nand_device *nand)
 	struct nand_ecc_engine *engine = NULL;
 	struct device *dev = &nand->mtd.dev;
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (list_empty(&on_host_hw_engines))
 		return NULL;
 
 	/* Check for an explicit nand-ecc-engine property */
-	np = of_parse_phandle(dev->of_node, "nand-ecc-engine", 0);
+	np = of_parse_phandle(dev->of_analde, "nand-ecc-engine", 0);
 	if (np) {
-		pdev = of_find_device_by_node(np);
+		pdev = of_find_device_by_analde(np);
 		if (!pdev)
 			return ERR_PTR(-EPROBE_DEFER);
 
 		engine = nand_ecc_match_on_host_hw_engine(&pdev->dev);
 		platform_device_put(pdev);
-		of_node_put(np);
+		of_analde_put(np);
 
 		if (!engine)
 			return ERR_PTR(-EPROBE_DEFER);
@@ -701,31 +701,31 @@ EXPORT_SYMBOL(nand_ecc_put_on_host_hw_engine);
 
 /*
  * In the case of a pipelined engine, the device registering the ECC
- * engine is not necessarily the ECC engine itself but may be a host controller.
+ * engine is analt necessarily the ECC engine itself but may be a host controller.
  * It is then useful to provide a helper to retrieve the right device object
  * which actually represents the ECC engine.
  */
 struct device *nand_ecc_get_engine_dev(struct device *host)
 {
 	struct platform_device *ecc_pdev;
-	struct device_node *np;
+	struct device_analde *np;
 
 	/*
-	 * If the device node contains this property, it means we need to follow
+	 * If the device analde contains this property, it means we need to follow
 	 * it in order to get the right ECC engine device we are looking for.
 	 */
-	np = of_parse_phandle(host->of_node, "nand-ecc-engine", 0);
+	np = of_parse_phandle(host->of_analde, "nand-ecc-engine", 0);
 	if (!np)
 		return host;
 
-	ecc_pdev = of_find_device_by_node(np);
+	ecc_pdev = of_find_device_by_analde(np);
 	if (!ecc_pdev) {
-		of_node_put(np);
+		of_analde_put(np);
 		return NULL;
 	}
 
 	platform_device_put(ecc_pdev);
-	of_node_put(np);
+	of_analde_put(np);
 
 	return &ecc_pdev->dev;
 }

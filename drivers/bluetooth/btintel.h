@@ -166,7 +166,7 @@ enum {
 	INTEL_BROKEN_INITIAL_NCMD,
 	INTEL_BROKEN_SHUTDOWN_LED,
 	INTEL_ROM_LEGACY,
-	INTEL_ROM_LEGACY_NO_WBS_SUPPORT,
+	INTEL_ROM_LEGACY_ANAL_WBS_SUPPORT,
 	INTEL_ACPI_RESET_ACTIVE,
 
 	__INTEL_NUM_FLAGS,
@@ -232,50 +232,50 @@ int btintel_set_quality_report(struct hci_dev *hdev, bool enable);
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_enter_mfg(struct hci_dev *hdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_exit_mfg(struct hci_dev *hdev, bool reset, bool patched)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_set_diag(struct hci_dev *hdev, bool enable)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_version_info(struct hci_dev *hdev,
 				       struct intel_version *ver)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_load_ddc_config(struct hci_dev *hdev,
 					  const char *ddc_name)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_read_version(struct hci_dev *hdev,
 				       struct intel_version *ver)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline struct regmap *btintel_regmap_init(struct hci_dev *hdev,
@@ -288,26 +288,26 @@ static inline struct regmap *btintel_regmap_init(struct hci_dev *hdev,
 static inline int btintel_send_intel_reset(struct hci_dev *hdev,
 					   u32 reset_param)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_read_boot_params(struct hci_dev *hdev,
 					   struct intel_boot_params *params)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_download_firmware(struct hci_dev *dev,
 					    const struct firmware *fw,
 					    u32 *boot_param)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btintel_configure_setup(struct hci_dev *hdev,
 					  const char *driver_name)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline void btintel_bootup(struct hci_dev *hdev,
@@ -322,6 +322,6 @@ static inline void btintel_secure_send_result(struct hci_dev *hdev,
 
 static inline int btintel_set_quality_report(struct hci_dev *hdev, bool enable)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif

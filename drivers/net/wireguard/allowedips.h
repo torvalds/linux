@@ -12,11 +12,11 @@
 
 struct wg_peer;
 
-struct allowedips_node {
+struct allowedips_analde {
 	struct wg_peer __rcu *peer;
-	struct allowedips_node __rcu *bit[2];
+	struct allowedips_analde __rcu *bit[2];
 	u8 cidr, bit_at_a, bit_at_b, bitlen;
-	u8 bits[16] __aligned(__alignof(u64));
+	u8 bits[16] __aligned(__aliganalf(u64));
 
 	/* Keep rarely used members at bottom to be beyond cache line. */
 	unsigned long parent_bit_packed;
@@ -27,8 +27,8 @@ struct allowedips_node {
 };
 
 struct allowedips {
-	struct allowedips_node __rcu *root4;
-	struct allowedips_node __rcu *root6;
+	struct allowedips_analde __rcu *root4;
+	struct allowedips_analde __rcu *root6;
 	u64 seq;
 } __aligned(4); /* We pack the lower 2 bits of &root, but m68k only gives 16-bit alignment. */
 
@@ -40,8 +40,8 @@ int wg_allowedips_insert_v6(struct allowedips *table, const struct in6_addr *ip,
 			    u8 cidr, struct wg_peer *peer, struct mutex *lock);
 void wg_allowedips_remove_by_peer(struct allowedips *table,
 				  struct wg_peer *peer, struct mutex *lock);
-/* The ip input pointer should be __aligned(__alignof(u64))) */
-int wg_allowedips_read_node(struct allowedips_node *node, u8 ip[16], u8 *cidr);
+/* The ip input pointer should be __aligned(__aliganalf(u64))) */
+int wg_allowedips_read_analde(struct allowedips_analde *analde, u8 ip[16], u8 *cidr);
 
 /* These return a strong reference to a peer: */
 struct wg_peer *wg_allowedips_lookup_dst(struct allowedips *table,

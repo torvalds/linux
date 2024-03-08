@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef NO_BCACHEFS_CHARDEV
+#ifndef ANAL_BCACHEFS_CHARDEV
 
 #include "bcachefs.h"
 #include "bcachefs_ioctl.h"
@@ -79,7 +79,7 @@ static long bch2_ioctl_assemble(struct bch_ioctl_assemble __user *user_arg)
 
 	user_devs = kmalloc_array(arg.nr_devs, sizeof(u64), GFP_KERNEL);
 	if (!user_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devs = kcalloc(arg.nr_devs, sizeof(char *), GFP_KERNEL);
 
@@ -129,7 +129,7 @@ static long bch2_ioctl_incremental(struct bch_ioctl_incremental __user *user_arg
 	kfree(path);
 
 	if (err) {
-		pr_err("Could not register bcachefs devices: %s", err);
+		pr_err("Could analt register bcachefs devices: %s", err);
 		return -EINVAL;
 	}
 
@@ -187,7 +187,7 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 	if (!(devs = kcalloc(arg.nr_devs, sizeof(*devs), GFP_KERNEL)) ||
 	    !(thr = kzalloc(sizeof(*thr), GFP_KERNEL)) ||
 	    !(thr->devs = kcalloc(arg.nr_devs, sizeof(*thr->devs), GFP_KERNEL))) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -249,7 +249,7 @@ static long bch2_global_ioctl(unsigned cmd, void __user *arg)
 		break;
 	}
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 
@@ -421,7 +421,7 @@ static int bch2_data_thread(void *arg)
 	return 0;
 }
 
-static int bch2_data_job_release(struct inode *inode, struct file *file)
+static int bch2_data_job_release(struct ianalde *ianalde, struct file *file)
 {
 	struct bch_data_ctx *ctx = container_of(file->private_data, struct bch_data_ctx, thr);
 
@@ -453,7 +453,7 @@ static ssize_t bch2_data_job_read(struct file *file, char __user *buf,
 static const struct file_operations bcachefs_data_ops = {
 	.release	= bch2_data_job_release,
 	.read		= bch2_data_job_read,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static long bch2_ioctl_data(struct bch_fs *c,
@@ -470,7 +470,7 @@ static long bch2_ioctl_data(struct bch_fs *c,
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->c = c;
 	ctx->arg = arg;
@@ -501,11 +501,11 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 
 	arg = kzalloc(size_add(sizeof(*arg), replica_entries_bytes), GFP_KERNEL);
 	if (!arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	src = bch2_fs_usage_read(c);
 	if (!src) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -523,7 +523,7 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 		struct bch_replicas_entry_v1 *src_e =
 			cpu_replicas_entry(&c->replicas, i);
 
-		/* check that we have enough space for one replicas entry */
+		/* check that we have eanalugh space for one replicas entry */
 		if (dst_e + 1 > dst_end) {
 			ret = -ERANGE;
 			break;
@@ -711,7 +711,7 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 			return ca->dev_idx;
 		}
 
-	return -BCH_ERR_ENOENT_dev_idx_not_found;
+	return -BCH_ERR_EANALENT_dev_idx_analt_found;
 }
 
 static long bch2_ioctl_disk_resize(struct bch_fs *c,
@@ -822,7 +822,7 @@ static long bch2_ioctl_fsck_online(struct bch_fs *c,
 
 	thr = kzalloc(sizeof(*thr), GFP_KERNEL);
 	if (!thr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -912,7 +912,7 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 	case BCH_IOCTL_FSCK_ONLINE:
 		BCH_IOCTL(fsck_online, struct bch_ioctl_fsck_online);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 out:
 	if (ret < 0)
@@ -920,12 +920,12 @@ out:
 	return ret;
 }
 
-static DEFINE_IDR(bch_chardev_minor);
+static DEFINE_IDR(bch_chardev_mianalr);
 
 static long bch2_chardev_ioctl(struct file *filp, unsigned cmd, unsigned long v)
 {
-	unsigned minor = iminor(file_inode(filp));
-	struct bch_fs *c = minor < U8_MAX ? idr_find(&bch_chardev_minor, minor) : NULL;
+	unsigned mianalr = imianalr(file_ianalde(filp));
+	struct bch_fs *c = mianalr < U8_MAX ? idr_find(&bch_chardev_mianalr, mianalr) : NULL;
 	void __user *arg = (void __user *) v;
 
 	return c
@@ -936,7 +936,7 @@ static long bch2_chardev_ioctl(struct file *filp, unsigned cmd, unsigned long v)
 static const struct file_operations bch_chardev_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl = bch2_chardev_ioctl,
-	.open		= nonseekable_open,
+	.open		= analnseekable_open,
 };
 
 static int bch_chardev_major;
@@ -947,19 +947,19 @@ void bch2_fs_chardev_exit(struct bch_fs *c)
 {
 	if (!IS_ERR_OR_NULL(c->chardev))
 		device_unregister(c->chardev);
-	if (c->minor >= 0)
-		idr_remove(&bch_chardev_minor, c->minor);
+	if (c->mianalr >= 0)
+		idr_remove(&bch_chardev_mianalr, c->mianalr);
 }
 
 int bch2_fs_chardev_init(struct bch_fs *c)
 {
-	c->minor = idr_alloc(&bch_chardev_minor, c, 0, 0, GFP_KERNEL);
-	if (c->minor < 0)
-		return c->minor;
+	c->mianalr = idr_alloc(&bch_chardev_mianalr, c, 0, 0, GFP_KERNEL);
+	if (c->mianalr < 0)
+		return c->mianalr;
 
 	c->chardev = device_create(bch_chardev_class, NULL,
-				   MKDEV(bch_chardev_major, c->minor), c,
-				   "bcachefs%u-ctl", c->minor);
+				   MKDEV(bch_chardev_major, c->mianalr), c,
+				   "bcachefs%u-ctl", c->mianalr);
 	if (IS_ERR(c->chardev))
 		return PTR_ERR(c->chardev);
 
@@ -996,4 +996,4 @@ int __init bch2_chardev_init(void)
 	return 0;
 }
 
-#endif /* NO_BCACHEFS_CHARDEV */
+#endif /* ANAL_BCACHEFS_CHARDEV */

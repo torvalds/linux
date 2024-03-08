@@ -15,7 +15,7 @@
  * the upper limit of system RAM in 4-level paging mode. Since the kdump
  * jump could be from 5-level paging to 4-level paging, the jump will fail if
  * the kernel is put above 64 TB, and during the 1st kernel bootup there's
- * no good way to detect the paging mode of the target kernel which will be
+ * anal good way to detect the paging mode of the target kernel which will be
  * loaded for dumping.
  */
 extern unsigned long swiotlb_size_or_default(void);

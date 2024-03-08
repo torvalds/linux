@@ -3,7 +3,7 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -175,10 +175,10 @@ static void do_bind(int fd)
 	laddr.sll_protocol = htons(ETH_P_IP);
 	laddr.sll_ifindex = if_nametoindex(cfg_ifname);
 	if (!laddr.sll_ifindex)
-		error(1, errno, "if_nametoindex");
+		error(1, erranal, "if_nametoindex");
 
 	if (bind(fd, (void *)&laddr, sizeof(laddr)))
-		error(1, errno, "bind");
+		error(1, erranal, "bind");
 }
 
 static void do_send(int fd, char *buf, int len)
@@ -202,13 +202,13 @@ static void do_send(int fd, char *buf, int len)
 		laddr.sll_protocol = htons(ETH_P_IP);
 		laddr.sll_ifindex = if_nametoindex(cfg_ifname);
 		if (!laddr.sll_ifindex)
-			error(1, errno, "if_nametoindex");
+			error(1, erranal, "if_nametoindex");
 
 		ret = sendto(fd, buf, len, 0, (void *)&laddr, sizeof(laddr));
 	}
 
 	if (ret == -1)
-		error(1, errno, "write");
+		error(1, erranal, "write");
 	if (ret != len)
 		error(1, 0, "write: %u %u", ret, len);
 
@@ -222,18 +222,18 @@ static int do_tx(void)
 
 	fd = socket(PF_PACKET, cfg_use_dgram ? SOCK_DGRAM : SOCK_RAW, 0);
 	if (fd == -1)
-		error(1, errno, "socket t");
+		error(1, erranal, "socket t");
 
 	if (cfg_use_bind)
 		do_bind(fd);
 
 	if (cfg_use_qdisc_bypass &&
 	    setsockopt(fd, SOL_PACKET, PACKET_QDISC_BYPASS, &one, sizeof(one)))
-		error(1, errno, "setsockopt qdisc bypass");
+		error(1, erranal, "setsockopt qdisc bypass");
 
 	if (cfg_use_vnet &&
 	    setsockopt(fd, SOL_PACKET, PACKET_VNET_HDR, &one, sizeof(one)))
-		error(1, errno, "setsockopt vnet");
+		error(1, erranal, "setsockopt vnet");
 
 	len = build_packet(cfg_payload_len);
 
@@ -243,7 +243,7 @@ static int do_tx(void)
 	do_send(fd, tbuf, len);
 
 	if (close(fd))
-		error(1, errno, "close t");
+		error(1, erranal, "close t");
 
 	return len;
 }
@@ -256,17 +256,17 @@ static int setup_rx(void)
 
 	fd = socket(PF_INET, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket r");
+		error(1, erranal, "socket r");
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
-		error(1, errno, "setsockopt rcv timeout");
+		error(1, erranal, "setsockopt rcv timeout");
 
 	raddr.sin_family = AF_INET;
 	raddr.sin_port = htons(cfg_port);
 	raddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if (bind(fd, (void *)&raddr, sizeof(raddr)))
-		error(1, errno, "bind r");
+		error(1, erranal, "bind r");
 
 	return fd;
 }
@@ -277,7 +277,7 @@ static void do_rx(int fd, int expected_len, char *expected)
 
 	ret = recv(fd, rbuf, sizeof(rbuf), 0);
 	if (ret == -1)
-		error(1, errno, "recv");
+		error(1, erranal, "recv");
 	if (ret != expected_len)
 		error(1, 0, "recv: %u != %u", ret, expected_len);
 
@@ -294,10 +294,10 @@ static int setup_sniffer(void)
 
 	fd = socket(PF_PACKET, SOCK_RAW, 0);
 	if (fd == -1)
-		error(1, errno, "socket p");
+		error(1, erranal, "socket p");
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
-		error(1, errno, "setsockopt rcv timeout");
+		error(1, erranal, "setsockopt rcv timeout");
 
 	pair_udp_setfilter(fd);
 	do_bind(fd);
@@ -376,9 +376,9 @@ static void run_test(void)
 	do_rx(fdr, cfg_payload_len, tbuf + total_len - cfg_payload_len);
 
 	if (close(fds))
-		error(1, errno, "close s");
+		error(1, erranal, "close s");
 	if (close(fdr))
-		error(1, errno, "close r");
+		error(1, erranal, "close r");
 }
 
 int main(int argc, char **argv)
@@ -386,11 +386,11 @@ int main(int argc, char **argv)
 	parse_opts(argc, argv);
 
 	if (system("ip link set dev lo mtu 1500"))
-		error(1, errno, "ip link set mtu");
+		error(1, erranal, "ip link set mtu");
 	if (system("ip addr add dev lo 172.17.0.1/24"))
-		error(1, errno, "ip addr add");
+		error(1, erranal, "ip addr add");
 	if (system("sysctl -w net.ipv4.conf.lo.accept_local=1"))
-		error(1, errno, "sysctl lo.accept_local");
+		error(1, erranal, "sysctl lo.accept_local");
 
 	run_test();
 

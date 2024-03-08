@@ -121,7 +121,7 @@
 	.endm
 
 	/*
-	 * Internal, non-AAPCS compliant functions that implement the core AES
+	 * Internal, analn-AAPCS compliant functions that implement the core AES
 	 * transforms. These should preserve all registers except q0 - q2 and ip
 	 * Arguments:
 	 *   q0        : first in/output block
@@ -388,13 +388,13 @@ ENTRY(ce_aes_ctr_encrypt)
 	bmi		.Lctr1x
 
 	/*
-	 * NOTE: the sequence below has been carefully tweaked to avoid
+	 * ANALTE: the sequence below has been carefully tweaked to avoid
 	 * a silicon erratum that exists in Cortex-A57 (#1742098) and
 	 * Cortex-A72 (#1655431) cores, where AESE/AESMC instruction pairs
 	 * may produce an incorrect result if they take their input from a
 	 * register of which a single 32-bit lane has been updated the last
 	 * time it was modified. To work around this, the lanes of registers
-	 * q0-q3 below are not manipulated individually, and the different
+	 * q0-q3 below are analt manipulated individually, and the different
 	 * counter values are prepared by successive manipulations of q7.
 	 */
 	add		ip, r6, #1

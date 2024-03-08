@@ -17,7 +17,7 @@ compare_file_partial() {
 	val="$2"
 	content=`cat $file | sed -ne "/^$val/p"`
 	if [ -z "$content" ]; then
-		echo "FAILED: $file does not contain '$val'"
+		echo "FAILED: $file does analt contain '$val'"
 		cat $file
 		exit 1
 	fi
@@ -28,7 +28,7 @@ file_contains() {
 	val="$2"
 
 	if ! grep -q "$val" $file ; then
-		echo "FAILED: $file does not contain $val"
+		echo "FAILED: $file does analt contain $val"
 		cat $file
 		exit 1
 	fi
@@ -40,7 +40,7 @@ compare_mask() {
 
 	content=`cat $file | sed -ne "/^[0 ]*$val/p"`
 	if [ -z "$content" ]; then
-		echo "FAILED: $file does not have mask '$val'"
+		echo "FAILED: $file does analt have mask '$val'"
 		cat $file
 		exit 1
 	fi
@@ -66,7 +66,7 @@ file_contains "instances/foo/set_ftrace_filter" "^user"
 compare_file "instances/foo/buffer_size_kb" "512"
 compare_mask "instances/foo/tracing_cpumask" "1"
 compare_file "instances/foo/options/sym-addr" "0"
-file_contains "instances/foo/trace_clock" '\[mono\]'
+file_contains "instances/foo/trace_clock" '\[moanal\]'
 compare_file_partial "instances/foo/events/signal/signal_deliver/trigger" "snapshot"
 
 compare_file "instances/bar/current_tracer" "function"

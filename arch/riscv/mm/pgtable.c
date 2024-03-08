@@ -82,7 +82,7 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
 	flush_tlb_kernel_range(addr, addr + PUD_SIZE);
 
 	for (i = 0; i < PTRS_PER_PMD; i++) {
-		if (!pmd_none(pmd[i])) {
+		if (!pmd_analne(pmd[i])) {
 			pte_t *pte = (pte_t *)pmd_page_vaddr(pmd[i]);
 
 			pte_free_kernel(NULL, pte);
@@ -132,7 +132,7 @@ pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 	VM_BUG_ON(pmd_trans_huge(pmdp_get(pmdp)));
 	/*
 	 * When leaf PTE entries (regular pages) are collapsed into a leaf
-	 * PMD entry (huge page), a valid non-leaf PTE is converted into a
+	 * PMD entry (huge page), a valid analn-leaf PTE is converted into a
 	 * valid leaf PTE at the level 1 page table.  Since the sfence.vma
 	 * forms that specify an address only apply to leaf PTEs, we need a
 	 * global flush here.  collapse_huge_page() assumes these flushes are

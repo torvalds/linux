@@ -46,7 +46,7 @@ $(obj)/extra-certs.c: $(CONFIG_CFG80211_EXTRA_REGDB_KEYDIR) \
 	                   sed -e 's/ /\n/g' | \
 	                   sed -e 's/^[0-9a-f]\+$$/\0/;t;d' | \
 	                   sed -e 's/^/0x/;s/$$/,/'); \
-	      # file should not be empty - maybe command substitution failed? \
+	      # file should analt be empty - maybe command substitution failed? \
 	      test ! -z "$$thisf";\
 	      allf=$$allf$$thisf;\
 	  done; \

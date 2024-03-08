@@ -13,7 +13,7 @@ description: |
   Broadcom "Low Speed" SPI controller found in many older MIPS based Broadband
   SoCs.
 
-  This controller has a limitation that can not keep the chip select line active
+  This controller has a limitation that can analt keep the chip select line active
   between the SPI transfers within the same SPI message. This can terminate the
   transaction to some SPI devices prematurely. The issue can be worked around by
   the controller's prepend mode.

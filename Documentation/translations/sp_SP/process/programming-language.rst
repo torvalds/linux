@@ -9,7 +9,7 @@ Lenguaje de programación
 ========================
 
 El kernel está escrito en el lenguaje de programación C [sp-c-language]_.
-Más concretamente, el kernel normalmente se compila con ``gcc`` [sp-gcc]_
+Más concretamente, el kernel analrmalmente se compila con ``gcc`` [sp-gcc]_
 bajo ``-std=gnu11`` [sp-gcc-c-dialect-options]_: el dialecto GNU de ISO C11.
 ``clang`` [sp-clang]_ también es compatible, consulte los documentos en
 :ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
@@ -18,7 +18,7 @@ Este dialecto contiene muchas extensiones del lenguaje [sp-gnu-extensions]_,
 y muchos de ellos se usan dentro del kernel de forma habitual.
 
 Hay algo de soporte para compilar el núcleo con ``icc`` [sp-icc]_ para varias
-de las arquitecturas, aunque en el momento de escribir este texto, eso no
+de las arquitecturas, aunque en el momento de escribir este texto, eso anal
 está terminado y requiere parches de terceros.
 
 Atributos
@@ -30,9 +30,9 @@ definida por la implementación a las entidades del lenguaje (como variables,
 funciones o tipos) sin tener que hacer cambios sintácticos significativos
 al idioma (por ejemplo, agregar una nueva palabra clave) [sp-n2049]_.
 
-En algunos casos, los atributos son opcionales (es decir, hay compiladores
-que no los admiten pero de todos modos deben producir el código adecuado,
-incluso si es más lento o no realiza tantas comprobaciones/diagnósticos en
+En alguanals casos, los atributos son opcionales (es decir, hay compiladores
+que anal los admiten pero de todos modos deben producir el código adecuado,
+incluso si es más lento o anal realiza tantas comprobaciones/diagnósticos en
 tiempo de compilación).
 
 El kernel define pseudo-palabras clave (por ejemplo, ``__pure``) en lugar

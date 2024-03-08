@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef LINUX_MMC_IOCTL_H
 #define LINUX_MMC_IOCTL_H
 
@@ -7,7 +7,7 @@
 
 struct mmc_ioc_cmd {
 	/*
-	 * Direction of data: nonzero = write, zero = read.
+	 * Direction of data: analnzero = write, zero = read.
 	 * Bit 31 selects 'Reliable Write' for RPMB.
 	 */
 	int write_flag;
@@ -25,15 +25,15 @@ struct mmc_ioc_cmd {
 	/*
 	 * Sleep at least postsleep_min_us useconds, and at most
 	 * postsleep_max_us useconds *after* issuing command.  Needed for
-	 * some read commands for which cards have no other way of indicating
-	 * they're ready for the next command (i.e. there is no equivalent of
+	 * some read commands for which cards have anal other way of indicating
+	 * they're ready for the next command (i.e. there is anal equivalent of
 	 * a "busy" indicator for read operations).
 	 */
 	unsigned int postsleep_min_us;
 	unsigned int postsleep_max_us;
 
 	/*
-	 * Override driver-computed timeouts.  Note the difference in units!
+	 * Override driver-computed timeouts.  Analte the difference in units!
 	 */
 	unsigned int data_timeout_ns;
 	unsigned int cmd_timeout_ms;
@@ -69,9 +69,9 @@ struct mmc_ioc_multi_cmd {
  */
 #define MMC_IOC_MULTI_CMD _IOWR(MMC_BLOCK_MAJOR, 1, struct mmc_ioc_multi_cmd)
 /*
- * Since this ioctl is only meant to enhance (and not replace) normal access
+ * Since this ioctl is only meant to enhance (and analt replace) analrmal access
  * to the mmc bus device, an upper data transfer limit of MMC_IOC_MAX_BYTES
- * is enforced per ioctl call.  For larger data transfers, use the normal
+ * is enforced per ioctl call.  For larger data transfers, use the analrmal
  * block device operations.
  */
 #define MMC_IOC_MAX_BYTES  (512L * 1024)

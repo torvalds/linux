@@ -14,7 +14,7 @@
 
 /* ARP Offload feature flags for arp_ol iovar */
 #define BRCMF_ARP_OL_AGENT		0x00000001
-#define BRCMF_ARP_OL_SNOOP		0x00000002
+#define BRCMF_ARP_OL_SANALOP		0x00000002
 #define BRCMF_ARP_OL_HOST_AUTO_REPLY	0x00000004
 #define BRCMF_ARP_OL_PEER_AUTO_REPLY	0x00000008
 
@@ -23,7 +23,7 @@
 
 #define BRCMF_STA_BRCM			0x00000001	/* Running a Broadcom driver */
 #define BRCMF_STA_WME			0x00000002	/* WMM association */
-#define BRCMF_STA_NONERP		0x00000004	/* No ERP */
+#define BRCMF_STA_ANALNERP		0x00000004	/* Anal ERP */
 #define BRCMF_STA_AUTHE			0x00000008	/* Authenticated */
 #define BRCMF_STA_ASSOC			0x00000010	/* Associated */
 #define BRCMF_STA_AUTHO			0x00000020	/* Authorized */
@@ -46,7 +46,7 @@
 #define BRCMF_STA_DWDS_CAP		0x01000000	/* DWDS CAP */
 #define BRCMF_STA_DWDS			0x02000000	/* DWDS active */
 
-/* size of brcmf_scan_params not including variable length array */
+/* size of brcmf_scan_params analt including variable length array */
 #define BRCMF_SCAN_PARAMS_FIXED_SIZE	64
 #define BRCMF_SCAN_PARAMS_V2_FIXED_SIZE	72
 
@@ -114,7 +114,7 @@
 /* If the bit is set, frm received was bcast frame: */
 #define BRCMF_WOWL_BCAST		(1 << 15)
 /* If the bit is set, scan offload is enabled: */
-#define BRCMF_WOWL_SCANOL		(1 << 16)
+#define BRCMF_WOWL_SCAANALL		(1 << 16)
 /* Wakeup on tcpkeep alive timeout: */
 #define BRCMF_WOWL_TCPKEEP_TIME		(1 << 17)
 /* Wakeup on mDNS Conflict Resolution: */
@@ -166,7 +166,7 @@
 #define BRCMF_RSN_KEK_LENGTH		16
 #define BRCMF_RSN_REPLAY_LEN		8
 
-#define BRCMF_MFP_NONE			0
+#define BRCMF_MFP_ANALNE			0
 #define BRCMF_MFP_CAPABLE		1
 #define BRCMF_MFP_REQUIRED		2
 
@@ -176,7 +176,7 @@
 
 #define BRCMF_PMKSA_VER_2		2
 #define BRCMF_PMKSA_VER_3		3
-#define BRCMF_PMKSA_NO_EXPIRY		0xffffffff
+#define BRCMF_PMKSA_ANAL_EXPIRY		0xffffffff
 
 /* MAX_CHUNK_LEN is the maximum length for data passing to firmware in each
  * ioctl. It is relatively small because firmware has small maximum size input
@@ -329,7 +329,7 @@ struct brcmf_bss_info_le {
 	__le16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
 	__le16 RSSI;		/* receive signal strength (in dBm) */
-	s8 phy_noise;		/* noise (in dBm) */
+	s8 phy_analise;		/* analise (in dBm) */
 
 	u8 n_cap;		/* BSS is 802.11N Capable */
 	/* 802.11N BSS Capabilities (based on HT_CAP_*): */
@@ -396,7 +396,7 @@ struct brcmf_scan_params_le {
 				 *
 				 * if ssid count is zero, single ssid in the
 				 * fixed parameter portion is assumed, otherwise
-				 * ssid in the fixed portion is ignored
+				 * ssid in the fixed portion is iganalred
 				 */
 	union {
 		__le16 padding;	/* Reserve space for at least 1 entry for abort
@@ -440,7 +440,7 @@ struct brcmf_scan_params_v2_le {
 				 *
 				 * if ssid count is zero, single ssid in the
 				 * fixed parameter portion is assumed, otherwise
-				 * ssid in the fixed portion is ignored
+				 * ssid in the fixed portion is iganalred
 				 */
 	union {
 		__le16 padding;	/* Reserve space for at least 1 entry for abort
@@ -645,7 +645,7 @@ struct brcmf_sta_info_le {
 	__le64 rx_ucast_bytes; /* data bytes recvd (ucast) */
 	__le64 rx_mcast_bytes; /* data bytes recvd (mcast) */
 	s8 rssi[BRCMF_ANT_MAX];   /* per antenna rssi */
-	s8 nf[BRCMF_ANT_MAX];     /* per antenna noise floor */
+	s8 nf[BRCMF_ANT_MAX];     /* per antenna analise floor */
 	__le16 aid;                    /* association ID */
 	__le16 ht_capabilities;        /* advertised ht caps */
 	__le16 vht_flags;              /* converted vht flags */
@@ -729,7 +729,7 @@ struct brcmf_rx_mgmt_data {
  * @cmd: "add", "del" or "clr".
  * @masksize: Size of the mask in #of bytes
  * @offset: Pattern byte offset in packet
- * @patternoffset: Offset of start of pattern. Starting from field masksize.
+ * @patteranalffset: Offset of start of pattern. Starting from field masksize.
  * @patternsize: Size of the pattern itself in #of bytes
  * @id: id
  * @reasonsize: Size of the wakeup reason code
@@ -739,13 +739,13 @@ struct brcmf_fil_wowl_pattern_le {
 	u8	cmd[4];
 	__le32	masksize;
 	__le32	offset;
-	__le32	patternoffset;
+	__le32	patteranalffset;
 	__le32	patternsize;
 	__le32	id;
 	__le32	reasonsize;
 	__le32	type;
 	/* u8 mask[] - Mask follows the structure above */
-	/* u8 pattern[] - Pattern follows the mask is at 'patternoffset' */
+	/* u8 pattern[] - Pattern follows the mask is at 'patteranalffset' */
 };
 
 struct brcmf_mbss_ssid_le {
@@ -814,23 +814,23 @@ struct brcmf_rev_info_le {
  * @version: structure version.
  * @length: structure length.
  * @epi_ver_major: EPI major version
- * @epi_ver_minor: EPI minor version
+ * @epi_ver_mianalr: EPI mianalr version
  * @epi_ver_rc: EPI rc version
  * @epi_ver_incr: EPI increment version
  * @wlc_ver_major: WLC major version
- * @wlc_ver_minor: WLC minor version
+ * @wlc_ver_mianalr: WLC mianalr version
  */
 struct brcmf_wlc_version_le {
 	__le16 version;
 	__le16 length;
 
 	__le16 epi_ver_major;
-	__le16 epi_ver_minor;
+	__le16 epi_ver_mianalr;
 	__le16 epi_ver_rc;
 	__le16 epi_ver_incr;
 
 	__le16 wlc_ver_major;
-	__le16 wlc_ver_minor;
+	__le16 wlc_ver_mianalr;
 };
 
 /**
@@ -848,13 +848,13 @@ struct brcmf_assoclist_le {
  * struct brcmf_rssi_be - RSSI threshold event format
  *
  * @rssi: receive signal strength (in dBm)
- * @snr: signal-noise ratio
- * @noise: noise (in dBm)
+ * @snr: signal-analise ratio
+ * @analise: analise (in dBm)
  */
 struct brcmf_rssi_be {
 	__be32 rssi;
 	__be32 snr;
-	__be32 noise;
+	__be32 analise;
 };
 
 #define BRCMF_MAX_RSSI_LEVELS 8
@@ -874,7 +874,7 @@ struct brcmf_rssi_event_le {
 
 /**
  * struct brcmf_wowl_wakeind_le - Wakeup indicators
- *	Note: note both fields contain same information.
+ *	Analte: analte both fields contain same information.
  *
  * @pci_wakeind: Whether PCI PMECSR PMEStatus bit was set.
  * @ucode_wakeind: What wakeup-event indication was set by ucode
@@ -926,7 +926,7 @@ struct brcmf_pmksa_v2 {
  * @pmk_len: Length of PMK data.
  * @fils_cache_id: FILS cache identifier
  * @ssid: The AP's SSID.
- * @time_left: Remaining time until expiry. 0 = expired, ~0 = no expiry.
+ * @time_left: Remaining time until expiry. 0 = expired, ~0 = anal expiry.
  */
 struct brcmf_pmksa_v3 {
 	u8 bssid[ETH_ALEN];
@@ -980,9 +980,9 @@ struct brcmf_pmk_op_v3_le {
 };
 
 /**
- * struct brcmf_pno_param_le - PNO scan configuration parameters
+ * struct brcmf_panal_param_le - PANAL scan configuration parameters
  *
- * @version: PNO parameters version.
+ * @version: PANAL parameters version.
  * @scan_freq: scan frequency.
  * @lost_network_timeout: #sec. to declare discovered network as lost.
  * @flags: Bit field to control features of PFN such as sort criteria auto
@@ -996,7 +996,7 @@ struct brcmf_pmk_op_v3_le {
  * @exp: exponent of 2 for maximum scan interval.
  * @slow_freq: slow scan period.
  */
-struct brcmf_pno_param_le {
+struct brcmf_panal_param_le {
 	__le32 version;
 	__le32 scan_freq;
 	__le32 lost_network_timeout;
@@ -1010,14 +1010,14 @@ struct brcmf_pno_param_le {
 };
 
 /**
- * struct brcmf_pno_config_le - PNO channel configuration.
+ * struct brcmf_panal_config_le - PANAL channel configuration.
  *
  * @reporttype: determines what is reported.
  * @channel_num: number of channels specified in @channel_list.
- * @channel_list: channels to use in PNO scan.
+ * @channel_list: channels to use in PANAL scan.
  * @flags: reserved.
  */
-struct brcmf_pno_config_le {
+struct brcmf_panal_config_le {
 	__le32  reporttype;
 	__le32  channel_num;
 	__le16  channel_list[BRCMF_NUMCHANNELS];
@@ -1025,7 +1025,7 @@ struct brcmf_pno_config_le {
 };
 
 /**
- * struct brcmf_pno_net_param_le - scan parameters per preferred network.
+ * struct brcmf_panal_net_param_le - scan parameters per preferred network.
  *
  * @ssid: ssid name and its length.
  * @flags: bit2: hidden.
@@ -1034,7 +1034,7 @@ struct brcmf_pno_config_le {
  * @wpa_auth: WPA type.
  * @wsec: wsec value.
  */
-struct brcmf_pno_net_param_le {
+struct brcmf_panal_net_param_le {
 	struct brcmf_ssid_le ssid;
 	__le32 flags;
 	__le32 infra;
@@ -1044,7 +1044,7 @@ struct brcmf_pno_net_param_le {
 };
 
 /**
- * struct brcmf_pno_net_info_le - information per found network.
+ * struct brcmf_panal_net_info_le - information per found network.
  *
  * @bssid: BSS network identifier.
  * @channel: channel number only.
@@ -1053,7 +1053,7 @@ struct brcmf_pno_net_param_le {
  * @RSSI: receive signal strength (in dBm).
  * @timestamp: age in seconds.
  */
-struct brcmf_pno_net_info_le {
+struct brcmf_panal_net_info_le {
 	u8 bssid[ETH_ALEN];
 	u8 channel;
 	u8 SSID_len;
@@ -1063,19 +1063,19 @@ struct brcmf_pno_net_info_le {
 };
 
 /**
- * struct brcmf_pno_scanresults_le - result returned in PNO NET FOUND event.
+ * struct brcmf_panal_scanresults_le - result returned in PANAL NET FOUND event.
  *
- * @version: PNO version identifier.
- * @status: indicates completion status of PNO scan.
- * @count: amount of brcmf_pno_net_info_le entries appended.
+ * @version: PANAL version identifier.
+ * @status: indicates completion status of PANAL scan.
+ * @count: amount of brcmf_panal_net_info_le entries appended.
  */
-struct brcmf_pno_scanresults_le {
+struct brcmf_panal_scanresults_le {
 	__le32 version;
 	__le32 status;
 	__le32 count;
 };
 
-struct brcmf_pno_scanresults_v2_le {
+struct brcmf_panal_scanresults_v2_le {
 	__le32 version;
 	__le32 status;
 	__le32 count;
@@ -1083,13 +1083,13 @@ struct brcmf_pno_scanresults_v2_le {
 };
 
 /**
- * struct brcmf_pno_macaddr_le - to configure PNO macaddr randomization.
+ * struct brcmf_panal_macaddr_le - to configure PANAL macaddr randomization.
  *
- * @version: PNO version identifier.
+ * @version: PANAL version identifier.
  * @flags: Flags defining how mac addrss should be used.
  * @mac: MAC address.
  */
-struct brcmf_pno_macaddr_le {
+struct brcmf_panal_macaddr_le {
 	u8 version;
 	u8 flags;
 	u8 mac[ETH_ALEN];
@@ -1112,12 +1112,12 @@ struct brcmf_dload_data_le {
 };
 
 /**
- * struct brcmf_pno_bssid_le - bssid configuration for PNO scan.
+ * struct brcmf_panal_bssid_le - bssid configuration for PANAL scan.
  *
  * @bssid: BSS network identifier.
  * @flags: flags for this BSSID.
  */
-struct brcmf_pno_bssid_le {
+struct brcmf_panal_bssid_le {
 	u8 bssid[ETH_ALEN];
 	__le16 flags;
 };
@@ -1152,13 +1152,13 @@ struct brcmf_gtk_keyinfo_le {
 	u8 replay_counter[BRCMF_RSN_REPLAY_LEN];
 };
 
-#define BRCMF_PNO_REPORT_NO_BATCH	BIT(2)
+#define BRCMF_PANAL_REPORT_ANAL_BATCH	BIT(2)
 
 /**
  * struct brcmf_gscan_bucket_config - configuration data for channel bucket.
  *
  * @bucket_end_index: last channel index in @channel_list in
- *	@struct brcmf_pno_config_le.
+ *	@struct brcmf_panal_config_le.
  * @bucket_freq_multiple: scan interval expressed in N * @scan_freq.
  * @flag: channel bucket report flags.
  * @reserved: for future use.
@@ -1201,8 +1201,8 @@ enum brcmf_gscan_cfg_flags {
  *	will generate an event.
  * @swc_rssi_window_size: size of rssi cache buffer (max=8).
  * @count_of_channel_buckets: number of array members in @bucket.
- * @retry_threshold: !unknown!
- * @lost_ap_window: !unknown!
+ * @retry_threshold: !unkanalwn!
+ * @lost_ap_window: !unkanalwn!
  * @bucket: array of channel buckets.
  */
 struct brcmf_gscan_config {

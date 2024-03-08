@@ -4,10 +4,10 @@
  * Copyright (c) 2013 Linaro Ltd.
  * Author: Thomas Abraham <thomas.ab@samsung.com>
  *
- * Common Clock Framework support for Exynos5250 SoC.
+ * Common Clock Framework support for Exyanals5250 SoC.
 */
 
-#include <dt-bindings/clock/exynos5250.h>
+#include <dt-bindings/clock/exyanals5250.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -15,7 +15,7 @@
 
 #include "clk.h"
 #include "clk-cpu.h"
-#include "clk-exynos5-subcmu.h"
+#include "clk-exyanals5-subcmu.h"
 
 #define APLL_LOCK		0x0
 #define APLL_CON0		0x100
@@ -100,11 +100,11 @@
 #define PWR_CTRL2_CORE2_UP_RATIO		(1 << 4)
 #define PWR_CTRL2_CORE1_UP_RATIO		(1 << 0)
 
-/* NOTE: Must be equal to the last clock ID increased by one */
+/* ANALTE: Must be equal to the last clock ID increased by one */
 #define CLKS_NR					(CLK_MOUT_VPLLSRC + 1)
 
 /* list of PLLs to be registered */
-enum exynos5250_plls {
+enum exyanals5250_plls {
 	apll, mpll, cpll, epll, vpll, gpll, bpll,
 	nr_plls			/* number of PLLs */
 };
@@ -115,7 +115,7 @@ static void __iomem *reg_base;
  * list of controller registers to be saved and restored during a
  * suspend/resume cycle.
  */
-static const unsigned long exynos5250_clk_regs[] __initconst = {
+static const unsigned long exyanals5250_clk_regs[] __initconst = {
 	SRC_CPU,
 	DIV_CPU0,
 	PWR_CTRL1,
@@ -199,55 +199,55 @@ PNAME(mout_usb3_p)	= { "mout_mpll_user", "mout_cpll" };
 PNAME(mout_group1_p)	= { "fin_pll", "fin_pll", "sclk_hdmi27m",
 				"sclk_dptxphy", "sclk_uhostphy", "sclk_hdmiphy",
 				"mout_mpll_user", "mout_epll", "mout_vpll",
-				"mout_cpll", "none", "none",
-				"none", "none", "none",
-				"none" };
+				"mout_cpll", "analne", "analne",
+				"analne", "analne", "analne",
+				"analne" };
 PNAME(mout_audio0_p)	= { "cdclk0", "fin_pll", "sclk_hdmi27m", "sclk_dptxphy",
 				"sclk_uhostphy", "fin_pll",
 				"mout_mpll_user", "mout_epll", "mout_vpll",
-				"mout_cpll", "none", "none",
-				"none", "none", "none",
-				"none" };
+				"mout_cpll", "analne", "analne",
+				"analne", "analne", "analne",
+				"analne" };
 PNAME(mout_audio1_p)	= { "cdclk1", "fin_pll", "sclk_hdmi27m", "sclk_dptxphy",
 				"sclk_uhostphy", "fin_pll",
 				"mout_mpll_user", "mout_epll", "mout_vpll",
-				"mout_cpll", "none", "none",
-				"none", "none", "none",
-				"none" };
+				"mout_cpll", "analne", "analne",
+				"analne", "analne", "analne",
+				"analne" };
 PNAME(mout_audio2_p)	= { "cdclk2", "fin_pll", "sclk_hdmi27m", "sclk_dptxphy",
 				"sclk_uhostphy", "fin_pll",
 				"mout_mpll_user", "mout_epll", "mout_vpll",
-				"mout_cpll", "none", "none",
-				"none", "none", "none",
-				"none" };
+				"mout_cpll", "analne", "analne",
+				"analne", "analne", "analne",
+				"analne" };
 PNAME(mout_spdif_p)	= { "sclk_audio0", "sclk_audio1", "sclk_audio2",
 				"spdif_extclk" };
 
 /* fixed rate clocks generated outside the soc */
-static struct samsung_fixed_rate_clock exynos5250_fixed_rate_ext_clks[] __initdata = {
+static struct samsung_fixed_rate_clock exyanals5250_fixed_rate_ext_clks[] __initdata = {
 	FRATE(CLK_FIN_PLL, "fin_pll", NULL, 0, 0),
 };
 
 /* fixed rate clocks generated inside the soc */
-static const struct samsung_fixed_rate_clock exynos5250_fixed_rate_clks[] __initconst = {
+static const struct samsung_fixed_rate_clock exyanals5250_fixed_rate_clks[] __initconst = {
 	FRATE(CLK_SCLK_HDMIPHY, "sclk_hdmiphy", NULL, 0, 24000000),
 	FRATE(0, "sclk_hdmi27m", NULL, 0, 27000000),
 	FRATE(0, "sclk_dptxphy", NULL, 0, 24000000),
 	FRATE(0, "sclk_uhostphy", NULL, 0, 48000000),
 };
 
-static const struct samsung_fixed_factor_clock exynos5250_fixed_factor_clks[] __initconst = {
+static const struct samsung_fixed_factor_clock exyanals5250_fixed_factor_clks[] __initconst = {
 	FFACTOR(0, "fout_mplldiv2", "fout_mpll", 1, 2, 0),
 	FFACTOR(0, "fout_bplldiv2", "fout_bpll", 1, 2, 0),
 };
 
-static const struct samsung_mux_clock exynos5250_pll_pmux_clks[] __initconst = {
+static const struct samsung_mux_clock exyanals5250_pll_pmux_clks[] __initconst = {
 	MUX(CLK_MOUT_VPLLSRC, "mout_vpllsrc", mout_vpllsrc_p, SRC_TOP2, 0, 1),
 };
 
-static const struct samsung_mux_clock exynos5250_mux_clks[] __initconst = {
+static const struct samsung_mux_clock exyanals5250_mux_clks[] __initconst = {
 	/*
-	 * NOTE: Following table is sorted by (clock domain, register address,
+	 * ANALTE: Following table is sorted by (clock domain, register address,
 	 * bitfield shift) triplet in ascending order. When adding new entries,
 	 * please make sure that the order is kept, to avoid merge conflicts
 	 * and make further work with defined data easier.
@@ -341,9 +341,9 @@ static const struct samsung_mux_clock exynos5250_mux_clks[] __initconst = {
 	MUX(0, "mout_bpll_fout", mout_bpll_fout_p, PLL_DIV2_SEL, 0, 1),
 };
 
-static const struct samsung_div_clock exynos5250_div_clks[] __initconst = {
+static const struct samsung_div_clock exyanals5250_div_clks[] __initconst = {
 	/*
-	 * NOTE: Following table is sorted by (clock domain, register address,
+	 * ANALTE: Following table is sorted by (clock domain, register address,
 	 * bitfield shift) triplet in ascending order. When adding new entries,
 	 * please make sure that the order is kept, to avoid merge conflicts
 	 * and make further work with defined data easier.
@@ -433,9 +433,9 @@ static const struct samsung_div_clock exynos5250_div_clks[] __initconst = {
 	DIV(CLK_DIV_I2S2, "div_i2s2", "sclk_audio2", DIV_PERIC5, 8, 6),
 };
 
-static const struct samsung_gate_clock exynos5250_gate_clks[] __initconst = {
+static const struct samsung_gate_clock exyanals5250_gate_clks[] __initconst = {
 	/*
-	 * NOTE: Following table is sorted by (clock domain, register address,
+	 * ANALTE: Following table is sorted by (clock domain, register address,
 	 * bitfield shift) triplet in ascending order. When adding new entries,
 	 * please make sure that the order is kept, to avoid merge conflicts
 	 * and make further work with defined data easier.
@@ -605,15 +605,15 @@ static const struct samsung_gate_clock exynos5250_gate_clks[] __initconst = {
 
 	GATE(CLK_CHIPID, "chipid", "div_aclk66", GATE_IP_PERIS, 0, 0, 0),
 	GATE(CLK_SYSREG, "sysreg", "div_aclk66",
-			GATE_IP_PERIS, 1, CLK_IGNORE_UNUSED, 0),
-	GATE(CLK_PMU, "pmu", "div_aclk66", GATE_IP_PERIS, 2, CLK_IGNORE_UNUSED,
+			GATE_IP_PERIS, 1, CLK_IGANALRE_UNUSED, 0),
+	GATE(CLK_PMU, "pmu", "div_aclk66", GATE_IP_PERIS, 2, CLK_IGANALRE_UNUSED,
 		0),
 	GATE(CLK_CMU_TOP, "cmu_top", "div_aclk66",
-			GATE_IP_PERIS, 3, CLK_IGNORE_UNUSED, 0),
+			GATE_IP_PERIS, 3, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_CMU_CORE, "cmu_core", "div_aclk66",
-			GATE_IP_PERIS, 4, CLK_IGNORE_UNUSED, 0),
+			GATE_IP_PERIS, 4, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_CMU_MEM, "cmu_mem", "div_aclk66",
-			GATE_IP_PERIS, 5, CLK_IGNORE_UNUSED, 0),
+			GATE_IP_PERIS, 5, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_TZPC0, "tzpc0", "div_aclk66", GATE_IP_PERIS, 6, 0, 0),
 	GATE(CLK_TZPC1, "tzpc1", "div_aclk66", GATE_IP_PERIS, 7, 0, 0),
 	GATE(CLK_TZPC2, "tzpc2", "div_aclk66", GATE_IP_PERIS, 8, 0, 0),
@@ -652,7 +652,7 @@ static const struct samsung_gate_clock exynos5250_gate_clks[] __initconst = {
 			GATE_IP_ISP1, 7, 0, 0),
 };
 
-static const struct samsung_gate_clock exynos5250_disp_gate_clks[] __initconst = {
+static const struct samsung_gate_clock exyanals5250_disp_gate_clks[] __initconst = {
 	GATE(CLK_FIMD1, "fimd1", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 0, 0,
 		0),
 	GATE(CLK_MIE1, "mie1", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 1, 0,
@@ -670,29 +670,29 @@ static const struct samsung_gate_clock exynos5250_disp_gate_clks[] __initconst =
 			GATE_IP_DISP1, 8, 0, 0),
 };
 
-static struct exynos5_subcmu_reg_dump exynos5250_disp_suspend_regs[] = {
+static struct exyanals5_subcmu_reg_dump exyanals5250_disp_suspend_regs[] = {
 	{ GATE_IP_DISP1, 0xffffffff, 0xffffffff }, /* DISP1 gates */
 	{ SRC_TOP3, 0, BIT(4) },	/* MUX mout_aclk200_disp1_sub */
 	{ SRC_TOP3, 0, BIT(6) },	/* MUX mout_aclk300_disp1_sub */
 };
 
-static const struct exynos5_subcmu_info exynos5250_disp_subcmu = {
-	.gate_clks	= exynos5250_disp_gate_clks,
-	.nr_gate_clks	= ARRAY_SIZE(exynos5250_disp_gate_clks),
-	.suspend_regs	= exynos5250_disp_suspend_regs,
-	.nr_suspend_regs = ARRAY_SIZE(exynos5250_disp_suspend_regs),
+static const struct exyanals5_subcmu_info exyanals5250_disp_subcmu = {
+	.gate_clks	= exyanals5250_disp_gate_clks,
+	.nr_gate_clks	= ARRAY_SIZE(exyanals5250_disp_gate_clks),
+	.suspend_regs	= exyanals5250_disp_suspend_regs,
+	.nr_suspend_regs = ARRAY_SIZE(exyanals5250_disp_suspend_regs),
 	.pd_name	= "DISP1",
 };
 
-static const struct exynos5_subcmu_info *exynos5250_subcmus[] = {
-	&exynos5250_disp_subcmu,
+static const struct exyanals5_subcmu_info *exyanals5250_subcmus[] = {
+	&exyanals5250_disp_subcmu,
 };
 
 static const struct samsung_pll_rate_table vpll_24mhz_tbl[] __initconst = {
 	/* sorted in descending order */
 	/* PLL_36XX_RATE(rate, m, p, s, k) */
 	PLL_36XX_RATE(24 * MHZ, 266000000, 266, 3, 3, 0),
-	/* Not in UM, but need for eDP on snow */
+	/* Analt in UM, but need for eDP on sanalw */
 	PLL_36XX_RATE(24 * MHZ, 70500000, 94, 2, 4, 0),
 	{ },
 };
@@ -732,7 +732,7 @@ static const struct samsung_pll_rate_table apll_24mhz_tbl[] __initconst = {
 	PLL_35XX_RATE(24 * MHZ, 200000000, 100, 3, 2),
 };
 
-static struct samsung_pll_clock exynos5250_plls[nr_plls] __initdata = {
+static struct samsung_pll_clock exyanals5250_plls[nr_plls] __initdata = {
 	[apll] = PLL(pll_35xx, CLK_FOUT_APLL, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, NULL),
 	[mpll] = PLL(pll_35xx, CLK_FOUT_MPLL, "fout_mpll", "fin_pll", MPLL_LOCK,
@@ -755,7 +755,7 @@ static struct samsung_pll_clock exynos5250_plls[nr_plls] __initdata = {
 #define E5250_CPU_DIV1(hpm, copy)					\
 		(((hpm) << 4) | (copy))
 
-static const struct exynos_cpuclk_cfg_data exynos5250_armclk_d[] __initconst = {
+static const struct exyanals_cpuclk_cfg_data exyanals5250_armclk_d[] __initconst = {
 	{ 1700000, E5250_CPU_DIV0(5, 3, 7, 7, 7, 3), E5250_CPU_DIV1(2, 0), },
 	{ 1600000, E5250_CPU_DIV0(4, 1, 7, 7, 7, 3), E5250_CPU_DIV1(2, 0), },
 	{ 1500000, E5250_CPU_DIV0(4, 1, 7, 7, 7, 2), E5250_CPU_DIV1(2, 0), },
@@ -775,9 +775,9 @@ static const struct exynos_cpuclk_cfg_data exynos5250_armclk_d[] __initconst = {
 	{  0 },
 };
 
-static const struct samsung_cpu_clock exynos5250_cpu_clks[] __initconst = {
+static const struct samsung_cpu_clock exyanals5250_cpu_clks[] __initconst = {
 	CPU_CLK(CLK_ARM_CLK, "armclk", CLK_MOUT_APLL, CLK_MOUT_MPLL, CLK_CPU_HAS_DIV1, 0x200,
-			exynos5250_armclk_d),
+			exyanals5250_armclk_d),
 };
 
 static const struct of_device_id ext_clk_match[] __initconst = {
@@ -785,8 +785,8 @@ static const struct of_device_id ext_clk_match[] __initconst = {
 	{ },
 };
 
-/* register exynox5250 clocks */
-static void __init exynos5250_clk_init(struct device_node *np)
+/* register exyanalx5250 clocks */
+static void __init exyanals5250_clk_init(struct device_analde *np)
 {
 	struct samsung_clk_provider *ctx;
 	unsigned int tmp;
@@ -803,34 +803,34 @@ static void __init exynos5250_clk_init(struct device_node *np)
 	ctx = samsung_clk_init(NULL, reg_base, CLKS_NR);
 	hws = ctx->clk_data.hws;
 
-	samsung_clk_of_register_fixed_ext(ctx, exynos5250_fixed_rate_ext_clks,
-			ARRAY_SIZE(exynos5250_fixed_rate_ext_clks),
+	samsung_clk_of_register_fixed_ext(ctx, exyanals5250_fixed_rate_ext_clks,
+			ARRAY_SIZE(exyanals5250_fixed_rate_ext_clks),
 			ext_clk_match);
-	samsung_clk_register_mux(ctx, exynos5250_pll_pmux_clks,
-				ARRAY_SIZE(exynos5250_pll_pmux_clks));
+	samsung_clk_register_mux(ctx, exyanals5250_pll_pmux_clks,
+				ARRAY_SIZE(exyanals5250_pll_pmux_clks));
 
 	if (clk_hw_get_rate(hws[CLK_FIN_PLL]) == 24 * MHZ) {
-		exynos5250_plls[epll].rate_table = epll_24mhz_tbl;
-		exynos5250_plls[apll].rate_table = apll_24mhz_tbl;
+		exyanals5250_plls[epll].rate_table = epll_24mhz_tbl;
+		exyanals5250_plls[apll].rate_table = apll_24mhz_tbl;
 	}
 
 	if (clk_hw_get_rate(hws[CLK_MOUT_VPLLSRC]) == 24 * MHZ)
-		exynos5250_plls[vpll].rate_table =  vpll_24mhz_tbl;
+		exyanals5250_plls[vpll].rate_table =  vpll_24mhz_tbl;
 
-	samsung_clk_register_pll(ctx, exynos5250_plls,
-			ARRAY_SIZE(exynos5250_plls));
-	samsung_clk_register_fixed_rate(ctx, exynos5250_fixed_rate_clks,
-			ARRAY_SIZE(exynos5250_fixed_rate_clks));
-	samsung_clk_register_fixed_factor(ctx, exynos5250_fixed_factor_clks,
-			ARRAY_SIZE(exynos5250_fixed_factor_clks));
-	samsung_clk_register_mux(ctx, exynos5250_mux_clks,
-			ARRAY_SIZE(exynos5250_mux_clks));
-	samsung_clk_register_div(ctx, exynos5250_div_clks,
-			ARRAY_SIZE(exynos5250_div_clks));
-	samsung_clk_register_gate(ctx, exynos5250_gate_clks,
-			ARRAY_SIZE(exynos5250_gate_clks));
-	samsung_clk_register_cpu(ctx, exynos5250_cpu_clks,
-			ARRAY_SIZE(exynos5250_cpu_clks));
+	samsung_clk_register_pll(ctx, exyanals5250_plls,
+			ARRAY_SIZE(exyanals5250_plls));
+	samsung_clk_register_fixed_rate(ctx, exyanals5250_fixed_rate_clks,
+			ARRAY_SIZE(exyanals5250_fixed_rate_clks));
+	samsung_clk_register_fixed_factor(ctx, exyanals5250_fixed_factor_clks,
+			ARRAY_SIZE(exyanals5250_fixed_factor_clks));
+	samsung_clk_register_mux(ctx, exyanals5250_mux_clks,
+			ARRAY_SIZE(exyanals5250_mux_clks));
+	samsung_clk_register_div(ctx, exyanals5250_div_clks,
+			ARRAY_SIZE(exyanals5250_div_clks));
+	samsung_clk_register_gate(ctx, exyanals5250_gate_clks,
+			ARRAY_SIZE(exyanals5250_gate_clks));
+	samsung_clk_register_cpu(ctx, exyanals5250_cpu_clks,
+			ARRAY_SIZE(exyanals5250_cpu_clks));
 
 	/*
 	 * Enable arm clock down (in idle) and set arm divider
@@ -844,7 +844,7 @@ static void __init exynos5250_clk_init(struct device_node *np)
 
 	/*
 	 * Enable arm clock up (on exiting idle). Set arm divider
-	 * ratios when not in idle along with the standby duration
+	 * ratios when analt in idle along with the standby duration
 	 * ratios.
 	 */
 	tmp = (PWR_CTRL2_DIV2_UP_EN | PWR_CTRL2_DIV1_UP_EN |
@@ -852,14 +852,14 @@ static void __init exynos5250_clk_init(struct device_node *np)
 		PWR_CTRL2_CORE2_UP_RATIO | PWR_CTRL2_CORE1_UP_RATIO);
 	__raw_writel(tmp, reg_base + PWR_CTRL2);
 
-	samsung_clk_sleep_init(reg_base, exynos5250_clk_regs,
-			       ARRAY_SIZE(exynos5250_clk_regs));
-	exynos5_subcmus_init(ctx, ARRAY_SIZE(exynos5250_subcmus),
-			     exynos5250_subcmus);
+	samsung_clk_sleep_init(reg_base, exyanals5250_clk_regs,
+			       ARRAY_SIZE(exyanals5250_clk_regs));
+	exyanals5_subcmus_init(ctx, ARRAY_SIZE(exyanals5250_subcmus),
+			     exyanals5250_subcmus);
 
 	samsung_clk_of_add_provider(np, ctx);
 
-	pr_info("Exynos5250: clock setup completed, armclk=%ld\n",
+	pr_info("Exyanals5250: clock setup completed, armclk=%ld\n",
 		clk_hw_get_rate(hws[CLK_DIV_ARM2]));
 }
-CLK_OF_DECLARE_DRIVER(exynos5250_clk, "samsung,exynos5250-clock", exynos5250_clk_init);
+CLK_OF_DECLARE_DRIVER(exyanals5250_clk, "samsung,exyanals5250-clock", exyanals5250_clk_init);

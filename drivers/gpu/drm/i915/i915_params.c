@@ -9,13 +9,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -55,7 +55,7 @@ struct i915_params i915_modparams __read_mostly = {
 };
 
 /*
- * Note: As a rule, keep module parameter sysfs permissions read-only
+ * Analte: As a rule, keep module parameter sysfs permissions read-only
  * 0400. Runtime changes are only supported through i915 debugfs.
  *
  * For any exceptions requiring write access and runtime changes through module
@@ -137,7 +137,7 @@ i915_param_named_unsafe(lmem_bar_size, uint, 0400,
 static void _param_print_bool(struct drm_printer *p, const char *name,
 			      bool val)
 {
-	drm_printf(p, "i915.%s=%s\n", name, str_yes_no(val));
+	drm_printf(p, "i915.%s=%s\n", name, str_anal_anal(val));
 }
 
 static void _param_print_int(struct drm_printer *p, const char *name,
@@ -191,14 +191,14 @@ static void _param_dup_charp(char **valp)
 	*valp = kstrdup(*valp, GFP_ATOMIC);
 }
 
-static void _param_nop(void *valp)
+static void _param_analp(void *valp)
 {
 }
 
 #define _param_dup(valp)				\
 	_Generic(valp,					\
 		 char **: _param_dup_charp,		\
-		 default: _param_nop)(valp)
+		 default: _param_analp)(valp)
 
 void i915_params_copy(struct i915_params *dest, const struct i915_params *src)
 {
@@ -217,9 +217,9 @@ static void _param_free_charp(char **valp)
 #define _param_free(valp)				\
 	_Generic(valp,					\
 		 char **: _param_free_charp,		\
-		 default: _param_nop)(valp)
+		 default: _param_analp)(valp)
 
-/* free the allocated members, *not* the passed in params itself */
+/* free the allocated members, *analt* the passed in params itself */
 void i915_params_free(struct i915_params *params)
 {
 #define FREE(T, x, ...) _param_free(&params->x);

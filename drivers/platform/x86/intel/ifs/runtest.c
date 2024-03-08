@@ -11,7 +11,7 @@
 #include "ifs.h"
 
 /*
- * Note all code and data in this file is protected by
+ * Analte all code and data in this file is protected by
  * ifs_sem. On HT systems all threads on a core will
  * execute together, but only the first thread on the
  * core will update results of the test.
@@ -30,13 +30,13 @@
 #define IFS_THREAD_WAIT 100000
 
 enum ifs_status_err_code {
-	IFS_NO_ERROR				= 0,
-	IFS_OTHER_THREAD_COULD_NOT_JOIN		= 1,
+	IFS_ANAL_ERROR				= 0,
+	IFS_OTHER_THREAD_COULD_ANALT_JOIN		= 1,
 	IFS_INTERRUPTED_BEFORE_RENDEZVOUS	= 2,
 	IFS_POWER_MGMT_INADEQUATE_FOR_SCAN	= 3,
 	IFS_INVALID_CHUNK_RANGE			= 4,
 	IFS_MISMATCH_ARGUMENTS_BETWEEN_THREADS	= 5,
-	IFS_CORE_NOT_CAPABLE_CURRENTLY		= 6,
+	IFS_CORE_ANALT_CAPABLE_CURRENTLY		= 6,
 	IFS_UNASSIGNED_ERROR_CODE		= 7,
 	IFS_EXCEED_NUMBER_OF_THREADS_CONCURRENT	= 8,
 	IFS_INTERRUPTED_DURING_EXECUTION	= 9,
@@ -45,14 +45,14 @@ enum ifs_status_err_code {
 };
 
 static const char * const scan_test_status[] = {
-	[IFS_NO_ERROR] = "SCAN no error",
-	[IFS_OTHER_THREAD_COULD_NOT_JOIN] = "Other thread could not join.",
+	[IFS_ANAL_ERROR] = "SCAN anal error",
+	[IFS_OTHER_THREAD_COULD_ANALT_JOIN] = "Other thread could analt join.",
 	[IFS_INTERRUPTED_BEFORE_RENDEZVOUS] = "Interrupt occurred prior to SCAN coordination.",
 	[IFS_POWER_MGMT_INADEQUATE_FOR_SCAN] =
 	"Core Abort SCAN Response due to power management condition.",
-	[IFS_INVALID_CHUNK_RANGE] = "Non valid chunks in the range",
+	[IFS_INVALID_CHUNK_RANGE] = "Analn valid chunks in the range",
 	[IFS_MISMATCH_ARGUMENTS_BETWEEN_THREADS] = "Mismatch in arguments between threads T0/T1.",
-	[IFS_CORE_NOT_CAPABLE_CURRENTLY] = "Core not capable of performing SCAN currently",
+	[IFS_CORE_ANALT_CAPABLE_CURRENTLY] = "Core analt capable of performing SCAN currently",
 	[IFS_UNASSIGNED_ERROR_CODE] = "Unassigned error code 0x7",
 	[IFS_EXCEED_NUMBER_OF_THREADS_CONCURRENT] =
 	"Exceeded number of Logical Processors (LP) allowed to run Scan-At-Field concurrently",
@@ -61,10 +61,10 @@ static const char * const scan_test_status[] = {
 	[IFS_CORRUPTED_CHUNK] = "Scan operation aborted due to corrupted image. Try reloading",
 };
 
-static void message_not_tested(struct device *dev, int cpu, union ifs_status status)
+static void message_analt_tested(struct device *dev, int cpu, union ifs_status status)
 {
 	if (status.error_code < ARRAY_SIZE(scan_test_status)) {
-		dev_info(dev, "CPU(s) %*pbl: SCAN operation did not start. %s\n",
+		dev_info(dev, "CPU(s) %*pbl: SCAN operation did analt start. %s\n",
 			 cpumask_pr_args(cpu_smt_mask(cpu)),
 			 scan_test_status[status.error_code]);
 	} else if (status.error_code == IFS_SW_TIMEOUT) {
@@ -73,9 +73,9 @@ static void message_not_tested(struct device *dev, int cpu, union ifs_status sta
 	} else if (status.error_code == IFS_SW_PARTIAL_COMPLETION) {
 		dev_info(dev, "CPU(s) %*pbl: %s\n",
 			 cpumask_pr_args(cpu_smt_mask(cpu)),
-			 "Not all scan chunks were executed. Maximum forward progress retries exceeded");
+			 "Analt all scan chunks were executed. Maximum forward progress retries exceeded");
 	} else {
-		dev_info(dev, "CPU(s) %*pbl: SCAN unknown status %llx\n",
+		dev_info(dev, "CPU(s) %*pbl: SCAN unkanalwn status %llx\n",
 			 cpumask_pr_args(cpu_smt_mask(cpu)), status.data);
 	}
 }
@@ -90,12 +90,12 @@ static void message_fail(struct device *dev, int cpu, union ifs_status status)
 	 * been corrupted. Reloading the image may fix this issue.
 	 */
 	if (status.control_error) {
-		dev_err(dev, "CPU(s) %*pbl: could not execute from loaded scan image. Batch: %02x version: 0x%x\n",
+		dev_err(dev, "CPU(s) %*pbl: could analt execute from loaded scan image. Batch: %02x version: 0x%x\n",
 			cpumask_pr_args(cpu_smt_mask(cpu)), ifsd->cur_batch, ifsd->loaded_version);
 	}
 
 	/*
-	 * signature_error is set when the output from the scan chains does not
+	 * signature_error is set when the output from the scan chains does analt
 	 * match the expected signature. This might be a transient problem (e.g.
 	 * due to a bit flip from an alpha particle or neutron). If the problem
 	 * repeats on a subsequent test, then it indicates an actual problem in
@@ -116,8 +116,8 @@ static bool can_restart(union ifs_status status)
 		return false;
 
 	switch (err_code) {
-	case IFS_NO_ERROR:
-	case IFS_OTHER_THREAD_COULD_NOT_JOIN:
+	case IFS_ANAL_ERROR:
+	case IFS_OTHER_THREAD_COULD_ANALT_JOIN:
 	case IFS_INTERRUPTED_BEFORE_RENDEZVOUS:
 	case IFS_POWER_MGMT_INADEQUATE_FOR_SCAN:
 	case IFS_EXCEED_NUMBER_OF_THREADS_CONCURRENT:
@@ -125,7 +125,7 @@ static bool can_restart(union ifs_status status)
 		return true;
 	case IFS_INVALID_CHUNK_RANGE:
 	case IFS_MISMATCH_ARGUMENTS_BETWEEN_THREADS:
-	case IFS_CORE_NOT_CAPABLE_CURRENTLY:
+	case IFS_CORE_ANALT_CAPABLE_CURRENTLY:
 	case IFS_UNASSIGNED_ERROR_CODE:
 	case IFS_UNASSIGNED_ERROR_CODE_0xA:
 	case IFS_CORRUPTED_CHUNK:
@@ -222,7 +222,7 @@ static void ifs_test_core(int cpu, struct device *dev)
 		if (status_chunk == to_start) {
 			/* Check for forward progress */
 			if (--retries == 0) {
-				if (status.error_code == IFS_NO_ERROR)
+				if (status.error_code == IFS_ANAL_ERROR)
 					status.error_code = IFS_SW_PARTIAL_COMPLETION;
 				break;
 			}
@@ -243,8 +243,8 @@ static void ifs_test_core(int cpu, struct device *dev)
 		ifsd->status = SCAN_TEST_FAIL;
 		message_fail(dev, cpu, status);
 	} else if (status.error_code) {
-		ifsd->status = SCAN_NOT_TESTED;
-		message_not_tested(dev, cpu, status);
+		ifsd->status = SCAN_ANALT_TESTED;
+		message_analt_tested(dev, cpu, status);
 	} else {
 		ifsd->status = SCAN_TEST_PASS;
 	}
@@ -324,7 +324,7 @@ static void ifs_array_test_core(int cpu, struct device *dev)
 	if (command.ctrl_result)
 		ifsd->status = SCAN_TEST_FAIL;
 	else if (timed_out || command.array_bitmask)
-		ifsd->status = SCAN_NOT_TESTED;
+		ifsd->status = SCAN_ANALT_TESTED;
 	else
 		ifsd->status = SCAN_TEST_PASS;
 }
@@ -376,7 +376,7 @@ int do_core_test(int cpu, struct device *dev)
 	cpus_read_lock();
 
 	if (!cpu_online(cpu)) {
-		dev_info(dev, "cannot test on the offline cpu %d\n", cpu);
+		dev_info(dev, "cananalt test on the offline cpu %d\n", cpu);
 		ret = -EINVAL;
 		goto out;
 	}

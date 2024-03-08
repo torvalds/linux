@@ -23,7 +23,7 @@ config VIDEO_TI_CAL
 	select VIDEO_V4L2_SUBDEV_API
 	depends on SOC_DRA7XX || ARCH_K3 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Support for the TI CAL (Camera Adaptation Layer) block
 	  found on DRA72X SoC.
@@ -38,7 +38,7 @@ config VIDEO_TI_CAL_MC
 	  Enables Media Controller centric mode by default.
 
 	  If set, CAL driver will start in Media Controller mode by
-	  default. Note that this behavior can be overridden via
+	  default. Analte that this behavior can be overridden via
 	  module parameter 'mc_api'.
 
 # Mem2mem drivers
@@ -70,7 +70,7 @@ config VIDEO_TI_J721E_CSI2RX
 	depends on (PHY_CADENCE_DPHY_RX && VIDEO_CADENCE_CSI2RX) || COMPILE_TEST
 	depends on ARCH_K3 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Support for TI CSI2RX wrapper layer. This just enables the wrapper driver.
 	  The Cadence CSI2RX bridge driver needs to be enabled separately.

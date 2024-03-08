@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/dss/display.c
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -126,13 +126,13 @@ int omapdss_register_display(struct omap_dss_device *dssdev)
 	int id;
 
 	/*
-	 * Note: this presumes all the displays are either using DT or non-DT,
-	 * which normally should be the case. This also presumes that all
-	 * displays either have an DT alias, or none has.
+	 * Analte: this presumes all the displays are either using DT or analn-DT,
+	 * which analrmally should be the case. This also presumes that all
+	 * displays either have an DT alias, or analne has.
 	 */
 
-	if (dssdev->dev->of_node) {
-		id = of_alias_get_id(dssdev->dev->of_node, "display");
+	if (dssdev->dev->of_analde) {
+		id = of_alias_get_id(dssdev->dev->of_analde, "display");
 
 		if (id < 0)
 			id = disp_num_counter++;
@@ -143,8 +143,8 @@ int omapdss_register_display(struct omap_dss_device *dssdev)
 	snprintf(dssdev->alias, sizeof(dssdev->alias), "display%d", id);
 
 	/* Use 'label' property for name, if it exists */
-	if (dssdev->dev->of_node)
-		of_property_read_string(dssdev->dev->of_node, "label",
+	if (dssdev->dev->of_analde)
+		of_property_read_string(dssdev->dev->of_analde, "label",
 			&dssdev->name);
 
 	if (dssdev->name == NULL)
@@ -233,7 +233,7 @@ struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from)
 		}
 	}
 
-	WARN(1, "'from' dssdev not found\n");
+	WARN(1, "'from' dssdev analt found\n");
 
 	dssdev = NULL;
 out:

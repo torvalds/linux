@@ -16,7 +16,7 @@
 #define __concat(x, y...)       __concat_1(x, y)
 #endif
 
-#define DIE_NODE(a) __concat(a, DIE)
+#define DIE_ANALDE(a) __concat(a, DIE)
 #define DIE_LABEL(a) __stringify(__concat(a, DIE))
 
 #endif /* !__DTS_APPLE_MULTI_DIE_CPP_H */

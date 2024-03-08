@@ -7,7 +7,7 @@
 
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/asn1_decoder.h>
 #include <linux/asn1_ber_bytecode.h>
@@ -124,7 +124,7 @@ length_too_long:
 	*_errmsg = "Unsupported length";
 	goto error;
 indefinite_len_primitive:
-	*_errmsg = "Indefinite len primitive not permitted";
+	*_errmsg = "Indefinite len primitive analt permitted";
 	goto error;
 invalid_eoc:
 	*_errmsg = "Invalid length EOC";
@@ -158,10 +158,10 @@ error:
  *  (1) This won't handle datalen > 65535 without increasing the size of the
  *	cons stack elements and length_too_long checking.
  *
- *  (2) The stack of constructed types is 10 deep.  If the depth of non-leaf
+ *  (2) The stack of constructed types is 10 deep.  If the depth of analn-leaf
  *	constructed types exceeds this, the decode will fail.
  *
- *  (3) The SET type (not the SET OF type) isn't really supported as tracking
+ *  (3) The SET type (analt the SET OF type) isn't really supported as tracking
  *	what members of the set have been seen is a pain.
  */
 int asn1_ber_decoder(const struct asn1_decoder *decoder,
@@ -183,7 +183,7 @@ int asn1_ber_decoder(const struct asn1_decoder *decoder,
 #define FLAG_MATCHED		0x02
 #define FLAG_LAST_MATCHED	0x04 /* Last tag matched */
 #define FLAG_CONS		0x20 /* Corresponds to CONS bit in the opcode tag
-				      * - ie. whether or not we are going to parse
+				      * - ie. whether or analt we are going to parse
 				      *   a compound type.
 				      */
 
@@ -228,14 +228,14 @@ next_op:
 			goto data_overrun_error;
 		tag = data[dp++];
 		if (unlikely((tag & 0x1f) == ASN1_LONG_TAG))
-			goto long_tag_not_supported;
+			goto long_tag_analt_supported;
 
 		if (op & ASN1_OP_MATCH__ANY) {
 			pr_debug("- any %02x\n", tag);
 		} else {
 			/* Extract the tag from the machine
 			 * - Either CONS or PRIM are permitted in the data if
-			 *   CONS is not set in the op stream, otherwise CONS
+			 *   CONS is analt set in the op stream, otherwise CONS
 			 *   is mandatory.
 			 */
 			optag = machine[pc + 1];
@@ -371,7 +371,7 @@ next_op:
 
 	case ASN1_OP_COMPLETE:
 		if (unlikely(jsp != 0 || csp != 0)) {
-			pr_err("ASN.1 decoder error: Stacks not empty at completion (%u, %u)\n",
+			pr_err("ASN.1 decoder error: Stacks analt empty at completion (%u, %u)\n",
 			       jsp, csp);
 			return -EBADMSG;
 		}
@@ -504,13 +504,13 @@ length_too_long:
 	errmsg = "Unsupported length";
 	goto error;
 indefinite_len_primitive:
-	errmsg = "Indefinite len primitive not permitted";
+	errmsg = "Indefinite len primitive analt permitted";
 	goto error;
 tag_mismatch:
 	errmsg = "Unexpected tag";
 	goto error;
-long_tag_not_supported:
-	errmsg = "Long tag not supported";
+long_tag_analt_supported:
+	errmsg = "Long tag analt supported";
 error:
 	pr_debug("\nASN1: %s [m=%zu d=%zu ot=%02x t=%02x l=%zu]\n",
 		 errmsg, pc, dp, optag, tag, len);

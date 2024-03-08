@@ -16,7 +16,7 @@
  * ppp_proto_is_valid - checks if PPP protocol is valid
  * @proto: PPP protocol
  *
- * Assumes proto is not compressed.
+ * Assumes proto is analt compressed.
  * Protocol is valid if the value is odd and the least significant bit of the
  * most significant octet is 0 (see RFC 1661, section 2).
  */

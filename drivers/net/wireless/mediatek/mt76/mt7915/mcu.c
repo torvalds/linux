@@ -47,7 +47,7 @@ mt7915_mcu_get_sta_nss(u16 mcs_map)
 	for (nss = 8; nss > 0; nss--) {
 		u8 nss_mcs = (mcs_map >> (2 * (nss - 1))) & 3;
 
-		if (nss_mcs != IEEE80211_VHT_MCS_NOT_SUPPORTED)
+		if (nss_mcs != IEEE80211_VHT_MCS_ANALT_SUPPORTED)
 			break;
 	}
 
@@ -94,7 +94,7 @@ mt7915_mcu_set_sta_he_mcs(struct ieee80211_sta *sta, __le16 *he_mcs,
 			mcs = IEEE80211_HE_MCS_SUPPORT_0_11;
 			break;
 		default:
-			mcs = IEEE80211_HE_MCS_NOT_SUPPORTED;
+			mcs = IEEE80211_HE_MCS_ANALT_SUPPORTED;
 			break;
 		}
 		mcs_map &= ~(0x3 << (nss * 2));
@@ -232,12 +232,12 @@ mt7915_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 static void
-mt7915_mcu_rx_csa_notify(struct mt7915_dev *dev, struct sk_buff *skb)
+mt7915_mcu_rx_csa_analtify(struct mt7915_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt7915_mcu_csa_notify *c;
+	struct mt7915_mcu_csa_analtify *c;
 
-	c = (struct mt7915_mcu_csa_notify *)skb->data;
+	c = (struct mt7915_mcu_csa_analtify *)skb->data;
 
 	if (c->band_idx > MT_BAND1)
 		return;
@@ -252,13 +252,13 @@ mt7915_mcu_rx_csa_notify(struct mt7915_dev *dev, struct sk_buff *skb)
 }
 
 static void
-mt7915_mcu_rx_thermal_notify(struct mt7915_dev *dev, struct sk_buff *skb)
+mt7915_mcu_rx_thermal_analtify(struct mt7915_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt7915_mcu_thermal_notify *t;
+	struct mt7915_mcu_thermal_analtify *t;
 	struct mt7915_phy *phy;
 
-	t = (struct mt7915_mcu_thermal_notify *)skb->data;
+	t = (struct mt7915_mcu_thermal_analtify *)skb->data;
 	if (t->ctrl.ctrl_id != THERMAL_PROTECT_ENABLE)
 		return;
 
@@ -318,7 +318,7 @@ mt7915_mcu_rx_log_message(struct mt7915_dev *dev, struct sk_buff *skb)
 		type = "WA";
 		break;
 	default:
-		type = "unknown";
+		type = "unkanalwn";
 		break;
 	}
 
@@ -335,12 +335,12 @@ mt7915_mcu_cca_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 static void
-mt7915_mcu_rx_bcc_notify(struct mt7915_dev *dev, struct sk_buff *skb)
+mt7915_mcu_rx_bcc_analtify(struct mt7915_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt7915_mcu_bcc_notify *b;
+	struct mt7915_mcu_bcc_analtify *b;
 
-	b = (struct mt7915_mcu_bcc_notify *)skb->data;
+	b = (struct mt7915_mcu_bcc_analtify *)skb->data;
 
 	if (b->band_idx > MT_BAND1)
 		return;
@@ -362,19 +362,19 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
 	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	switch (rxd->ext_eid) {
 	case MCU_EXT_EVENT_THERMAL_PROTECT:
-		mt7915_mcu_rx_thermal_notify(dev, skb);
+		mt7915_mcu_rx_thermal_analtify(dev, skb);
 		break;
 	case MCU_EXT_EVENT_RDD_REPORT:
 		mt7915_mcu_rx_radar_detected(dev, skb);
 		break;
-	case MCU_EXT_EVENT_CSA_NOTIFY:
-		mt7915_mcu_rx_csa_notify(dev, skb);
+	case MCU_EXT_EVENT_CSA_ANALTIFY:
+		mt7915_mcu_rx_csa_analtify(dev, skb);
 		break;
 	case MCU_EXT_EVENT_FW_LOG_2_HOST:
 		mt7915_mcu_rx_log_message(dev, skb);
 		break;
-	case MCU_EXT_EVENT_BCC_NOTIFY:
-		mt7915_mcu_rx_bcc_notify(dev, skb);
+	case MCU_EXT_EVENT_BCC_ANALTIFY:
+		mt7915_mcu_rx_bcc_analtify(dev, skb);
 		break;
 	default:
 		break;
@@ -406,7 +406,7 @@ void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb)
 	     rxd->ext_eid == MCU_EXT_EVENT_FW_LOG_2_HOST ||
 	     rxd->ext_eid == MCU_EXT_EVENT_ASSERT_DUMP ||
 	     rxd->ext_eid == MCU_EXT_EVENT_PS_SYNC ||
-	     rxd->ext_eid == MCU_EXT_EVENT_BCC_NOTIFY ||
+	     rxd->ext_eid == MCU_EXT_EVENT_BCC_ANALTIFY ||
 	     !rxd->seq) &&
 	     !(rxd->eid == MCU_CMD_EXT_CID &&
 	       rxd->ext_eid == MCU_EXT_EVENT_WA_TX_STAT))
@@ -471,7 +471,7 @@ static bool mt7915_check_he_obss_narrow_bw_ru(struct ieee80211_hw *hw,
 			  &iter_data);
 
 	/*
-	 * If there is at least one AP on radar channel that cannot
+	 * If there is at least one AP on radar channel that cananalt
 	 * tolerate 26-tone RU UL OFDMA transmissions using HE TB PPDU.
 	 */
 	return !iter_data.tolerated;
@@ -1829,10 +1829,10 @@ mt7915_mcu_beacon_mbss(struct sk_buff *rskb, struct sk_buff *skb,
 			const u8 *idx_ie;
 
 			if (sub_elem->id || sub_elem->datalen < 4)
-				continue; /* not a valid BSS profile */
+				continue; /* analt a valid BSS profile */
 
 			/* Find WLAN_EID_MULTI_BSSID_IDX
-			 * in the merged nontransmitted profile
+			 * in the merged analntransmitted profile
 			 */
 			idx_ie = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX,
 						  sub_elem->data,
@@ -1907,7 +1907,7 @@ mt7915_mcu_add_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 	u8 *buf, interval;
 	int len;
 
-	if (vif->bss_conf.nontransmitted)
+	if (vif->bss_conf.analntransmitted)
 		return 0;
 
 	rskb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->mt76, NULL,
@@ -1985,7 +1985,7 @@ int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int len = MT7915_MAX_BSS_OFFLOAD_SIZE;
 	bool ext_phy = phy != &dev->phy;
 
-	if (vif->bss_conf.nontransmitted)
+	if (vif->bss_conf.analntransmitted)
 		return 0;
 
 	rskb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->mt76,
@@ -2067,7 +2067,7 @@ static int mt7915_load_firmware(struct mt7915_dev *dev)
 		ret = mt7915_firmware_state(dev, false);
 		if (ret) {
 			dev_err(dev->mt76.dev,
-				"Firmware is not ready for download\n");
+				"Firmware is analt ready for download\n");
 			return ret;
 		}
 	}
@@ -2323,10 +2323,10 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
 {
 	int ret;
 
-	/* force firmware operation mode into normal state,
+	/* force firmware operation mode into analrmal state,
 	 * which should be set before firmware download stage.
 	 */
-	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_ANALRMAL_MODE);
 
 	ret = mt7915_driver_own(dev, 0);
 	if (ret)
@@ -2745,7 +2745,7 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 		req.tx_path_num = fls(phy->mt76->antenna_mask);
 
 	if (phy->mt76->hw->conf.flags & IEEE80211_CONF_MONITOR)
-		req.switch_reason = CH_SWITCH_NORMAL;
+		req.switch_reason = CH_SWITCH_ANALRMAL;
 	else if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL ||
 		 phy->mt76->hw->conf.flags & IEEE80211_CONF_IDLE)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
@@ -2753,7 +2753,7 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 					  NL80211_IFTYPE_AP))
 		req.switch_reason = CH_SWITCH_DFS;
 	else
-		req.switch_reason = CH_SWITCH_NORMAL;
+		req.switch_reason = CH_SWITCH_ANALRMAL;
 
 	if (cmd == MCU_EXT_CMD(CHANNEL_SWITCH))
 		req.rx_path = hweight8(req.rx_path);
@@ -2791,7 +2791,7 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
 		skb = mt76_mcu_msg_alloc(&dev->mt76, NULL,
 					 sizeof(req) + eep_len);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		req.format = FIELD_PREP(MAX_PAGE_IDX_MASK, total - 1) |
 			     FIELD_PREP(PAGE_IDX_MASK, i) | EE_FORMAT_WHOLE;
@@ -2891,7 +2891,7 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
 
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, sizeof(req) + len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req.idx = idx;
 	req.len = cpu_to_le32(len);
@@ -3030,7 +3030,7 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch)
 	/* strict order */
 	if (is_mt7915(&dev->mt76)) {
 		static const u32 chip_offs[] = {
-			MIB_NON_WIFI_TIME,
+			MIB_ANALN_WIFI_TIME,
 			MIB_TX_TIME,
 			MIB_RX_TIME,
 			MIB_OBSS_AIRTIME,
@@ -3041,7 +3041,7 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch)
 		offs_cc = 20;
 	} else {
 		static const u32 chip_offs[] = {
-			MIB_NON_WIFI_TIME_V2,
+			MIB_ANALN_WIFI_TIME_V2,
 			MIB_TX_TIME_V2,
 			MIB_RX_TIME_V2,
 			MIB_OBSS_AIRTIME_V2
@@ -3454,7 +3454,7 @@ mt7915_mcu_set_obss_spr_pd(struct mt7915_phy *phy,
 	struct {
 		struct mt7915_mcu_sr_ctrl ctrl;
 		struct {
-			u8 pd_th_non_srg;
+			u8 pd_th_analn_srg;
 			u8 pd_th_srg;
 			u8 period_offs;
 			u8 rcpi_src;
@@ -3473,7 +3473,7 @@ mt7915_mcu_set_obss_spr_pd(struct mt7915_phy *phy,
 		},
 	};
 	int ret;
-	u8 max_th = 82, non_srg_max_th = 62;
+	u8 max_th = 82, analn_srg_max_th = 62;
 
 	/* disable firmware dynamical PD asjustment */
 	ret = mt7915_mcu_enable_obss_spr(phy, SPR_ENABLE_DPD, false);
@@ -3481,12 +3481,12 @@ mt7915_mcu_set_obss_spr_pd(struct mt7915_phy *phy,
 		return ret;
 
 	if (he_obss_pd->sr_ctrl &
-	    IEEE80211_HE_SPR_NON_SRG_OBSS_PD_SR_DISALLOWED)
-		req.param.pd_th_non_srg = max_th;
-	else if (he_obss_pd->sr_ctrl & IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT)
-		req.param.pd_th_non_srg  = max_th - he_obss_pd->non_srg_max_offset;
+	    IEEE80211_HE_SPR_ANALN_SRG_OBSS_PD_SR_DISALLOWED)
+		req.param.pd_th_analn_srg = max_th;
+	else if (he_obss_pd->sr_ctrl & IEEE80211_HE_SPR_ANALN_SRG_OFFSET_PRESENT)
+		req.param.pd_th_analn_srg  = max_th - he_obss_pd->analn_srg_max_offset;
 	else
-		req.param.pd_th_non_srg  = non_srg_max_th;
+		req.param.pd_th_analn_srg  = analn_srg_max_th;
 
 	if (he_obss_pd->sr_ctrl & IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT)
 		req.param.pd_th_srg = max_th - he_obss_pd->max_offset;
@@ -3531,7 +3531,7 @@ mt7915_mcu_set_obss_spr_siga(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 	else
 		return 0;
 
-	/* switch to normal AP mode */
+	/* switch to analrmal AP mode */
 	ret = mt7915_mcu_enable_obss_spr(phy, SPR_ENABLE_MODE, 0);
 	if (ret)
 		return ret;
@@ -3604,7 +3604,7 @@ int mt7915_mcu_add_obss_spr(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
-	/* set SRG/non-SRG OBSS PD threshold */
+	/* set SRG/analn-SRG OBSS PD threshold */
 	ret = mt7915_mcu_set_obss_spr_pd(phy, he_obss_pd);
 	if (ret)
 		return ret;
@@ -3748,7 +3748,7 @@ int mt7915_mcu_update_bss_color(struct mt7915_dev *dev, struct ieee80211_vif *vi
 }
 
 #define TWT_AGRT_TRIGGER	BIT(0)
-#define TWT_AGRT_ANNOUNCE	BIT(1)
+#define TWT_AGRT_ANANALUNCE	BIT(1)
 #define TWT_AGRT_PROTECT	BIT(2)
 
 int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
@@ -3789,7 +3789,7 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
 	if (flow->protection)
 		req.agrt_params |= TWT_AGRT_PROTECT;
 	if (!flow->flowtype)
-		req.agrt_params |= TWT_AGRT_ANNOUNCE;
+		req.agrt_params |= TWT_AGRT_ANANALUNCE;
 	if (flow->trigger)
 		req.agrt_params |= TWT_AGRT_TRIGGER;
 

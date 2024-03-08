@@ -9,14 +9,14 @@
 static volatile sig_atomic_t done;
 
 /* We want to check this symbol in perf report */
-noinline void test_loop(void);
+analinline void test_loop(void);
 
 static void sighandler(int sig __maybe_unused)
 {
 	done = 1;
 }
 
-noinline void test_loop(void)
+analinline void test_loop(void)
 {
 	while (!done);
 }

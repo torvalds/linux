@@ -33,7 +33,7 @@ static irqreturn_t max77620_gpio_irqhandler(int irq, void *data)
 	err = regmap_read(gpio->rmap, MAX77620_REG_IRQ_LVL2_GPIO, &value);
 	if (err < 0) {
 		dev_err(gpio->dev, "REG_IRQ_LVL2_GPIO read failed: %d\n", err);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	pending = value;
@@ -199,7 +199,7 @@ static int max77620_gpio_set_debounce(struct max77620_gpio *mgpio,
 
 	switch (debounce) {
 	case 0:
-		val = MAX77620_CNFG_GPIO_DBNC_None;
+		val = MAX77620_CNFG_GPIO_DBNC_Analne;
 		break;
 	case 1 ... 8000:
 		val = MAX77620_CNFG_GPIO_DBNC_8ms;
@@ -260,7 +260,7 @@ static int max77620_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 		break;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int max77620_gpio_irq_init_hw(struct gpio_chip *gc)
@@ -303,7 +303,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 
 	mgpio = devm_kzalloc(&pdev->dev, sizeof(*mgpio), GFP_KERNEL);
 	if (!mgpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&mgpio->buslock);
 	mgpio->rmap = chip->rmap;
@@ -326,7 +326,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_edge_irq;
 	girq->init_hw = max77620_gpio_irq_init_hw;
 	girq->threaded = true;

@@ -43,7 +43,7 @@ static int rcar_du_wb_conn_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 
-	return drm_add_modes_noedid(connector, dev->mode_config.max_width,
+	return drm_add_modes_analedid(connector, dev->mode_config.max_width,
 				    dev->mode_config.max_height);
 }
 
@@ -59,7 +59,7 @@ static int rcar_du_wb_prepare_job(struct drm_writeback_connector *connector,
 
 	rjob = kzalloc(sizeof(*rjob), GFP_KERNEL);
 	if (!rjob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map the framebuffer to the VSP. */
 	ret = rcar_du_vsp_map_fb(rcrtc->vsp, job->fb, rjob->sg_tables);

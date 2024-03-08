@@ -35,7 +35,7 @@ static int __init mpc83xx_restart_init(void)
 
 arch_initcall(mpc83xx_restart_init);
 
-void __noreturn mpc83xx_restart(char *cmd)
+void __analreturn mpc83xx_restart(char *cmd)
 {
 #define RST_OFFSET	0x00000900
 #define RST_PROT_REG	0x00000018
@@ -50,7 +50,7 @@ void __noreturn mpc83xx_restart(char *cmd)
 		/* set software hard reset */
 		out_be32(restart_reg_base + (RST_CTRL_REG >> 2), 0x2);
 	} else {
-		printk (KERN_EMERG "Error: Restart registers not mapped, spinning!\n");
+		printk (KERN_EMERG "Error: Restart registers analt mapped, spinning!\n");
 	}
 
 	for (;;) ;
@@ -73,18 +73,18 @@ long __init mpc83xx_time_init(void)
 
 void __init mpc83xx_ipic_init_IRQ(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* looking for fsl,pq2pro-pic which is asl compatible with fsl,ipic */
-	np = of_find_compatible_node(NULL, NULL, "fsl,ipic");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,ipic");
 	if (!np)
-		np = of_find_node_by_type(NULL, "ipic");
+		np = of_find_analde_by_type(NULL, "ipic");
 	if (!np)
 		return;
 
 	ipic_init(np, 0);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	/* Initialize the default interrupt mapping priorities,
 	 * in case the boot rom changed something on us.
@@ -112,11 +112,11 @@ int __init mpc83xx_declare_of_platform_devices(void)
 #ifdef CONFIG_PCI
 void __init mpc83xx_setup_pci(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
+	for_each_compatible_analde(np, "pci", "fsl,mpc8349-pci")
 		mpc83xx_add_bridge(np);
-	for_each_compatible_node(np, "pci", "fsl,mpc8314-pcie")
+	for_each_compatible_analde(np, "pci", "fsl,mpc8314-pcie")
 		mpc83xx_add_bridge(np);
 }
 #endif

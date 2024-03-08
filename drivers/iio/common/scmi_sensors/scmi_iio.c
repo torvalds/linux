@@ -32,11 +32,11 @@ struct scmi_iio_priv {
 	struct mutex lock;
 	/* adding one additional channel for timestamp */
 	s64 iio_buf[SCMI_IIO_NUM_OF_AXIS + 1];
-	struct notifier_block sensor_update_nb;
+	struct analtifier_block sensor_update_nb;
 	u32 *freq_avail;
 };
 
-static int scmi_iio_sensor_update_cb(struct notifier_block *nb,
+static int scmi_iio_sensor_update_cb(struct analtifier_block *nb,
 				     unsigned long event, void *data)
 {
 	struct scmi_sensor_update_report *sensor_update = data;
@@ -47,7 +47,7 @@ static int scmi_iio_sensor_update_cb(struct notifier_block *nb,
 	int i;
 
 	if (sensor_update->readings_count == 0)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	sensor = container_of(nb, struct scmi_iio_priv, sensor_update_nb);
 
@@ -66,7 +66,7 @@ static int scmi_iio_sensor_update_cb(struct notifier_block *nb,
 		/*
 		 *  Timestamp returned by SCMI is in seconds and is equal to
 		 *  time * power-of-10 multiplier(tstamp_scale) seconds.
-		 *  Converting the timestamp to nanoseconds below.
+		 *  Converting the timestamp to naanalseconds below.
 		 */
 		tstamp_scale = sensor->sensor_info->tstamp_scale +
 			       const_ilog2(NSEC_PER_SEC) / const_ilog2(10);
@@ -81,7 +81,7 @@ static int scmi_iio_sensor_update_cb(struct notifier_block *nb,
 	scmi_iio_dev = sensor->indio_dev;
 	iio_push_to_buffers_with_timestamp(scmi_iio_dev, sensor->iio_buf,
 					   time_ns);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int scmi_iio_buffer_preenable(struct iio_dev *iio_dev)
@@ -527,7 +527,7 @@ static int scmi_iio_set_sampling_freq_avail(struct iio_dev *iio_dev)
 				     (sensor->sensor_info->intervals.count * 2),
 			     GFP_KERNEL);
 	if (!sensor->freq_avail)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (sensor->sensor_info->intervals.segmented) {
 		low_interval = sensor->sensor_info->intervals
@@ -581,14 +581,14 @@ scmi_alloc_iiodev(struct scmi_device *sdev,
 
 	iiodev = devm_iio_device_alloc(dev, sizeof(*sensor));
 	if (!iiodev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	iiodev->modes = INDIO_DIRECT_MODE;
 	sensor = iio_priv(iiodev);
 	sensor->sensor_ops = ops;
 	sensor->ph = ph;
 	sensor->sensor_info = sensor_info;
-	sensor->sensor_update_nb.notifier_call = scmi_iio_sensor_update_cb;
+	sensor->sensor_update_nb.analtifier_call = scmi_iio_sensor_update_cb;
 	sensor->indio_dev = iiodev;
 	mutex_init(&sensor->lock);
 
@@ -602,7 +602,7 @@ scmi_alloc_iiodev(struct scmi_device *sdev,
 			     sizeof(*iio_channels) * (iiodev->num_channels),
 			     GFP_KERNEL);
 	if (!iio_channels)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = scmi_iio_set_sampling_freq_avail(iiodev);
 	if (ret < 0)
@@ -622,13 +622,13 @@ scmi_alloc_iiodev(struct scmi_device *sdev,
 					  sensor_info->axis[i].id);
 	}
 
-	ret = handle->notify_ops->devm_event_notifier_register(sdev,
+	ret = handle->analtify_ops->devm_event_analtifier_register(sdev,
 				SCMI_PROTOCOL_SENSOR, SCMI_EVENT_SENSOR_UPDATE,
 				&sensor->sensor_info->id,
 				&sensor->sensor_update_nb);
 	if (ret) {
 		dev_err(&iiodev->dev,
-			"Error in registering sensor update notifier for sensor %s err %d",
+			"Error in registering sensor update analtifier for sensor %s err %d",
 			sensor->sensor_info->name, ret);
 		return ERR_PTR(ret);
 	}
@@ -647,21 +647,21 @@ static int scmi_iio_dev_probe(struct scmi_device *sdev)
 	struct device *dev = &sdev->dev;
 	struct iio_dev *scmi_iio_dev;
 	u16 nr_sensors;
-	int err = -ENODEV, i;
+	int err = -EANALDEV, i;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sensor_ops = handle->devm_protocol_get(sdev, SCMI_PROTOCOL_SENSOR, &ph);
 	if (IS_ERR(sensor_ops)) {
-		dev_err(dev, "SCMI device has no sensor interface\n");
+		dev_err(dev, "SCMI device has anal sensor interface\n");
 		return PTR_ERR(sensor_ops);
 	}
 
 	nr_sensors = sensor_ops->count_get(ph);
 	if (!nr_sensors) {
 		dev_dbg(dev, "0 sensors found via SCMI bus\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < nr_sensors; i++) {

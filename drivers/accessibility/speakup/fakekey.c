@@ -26,7 +26,7 @@ int speakup_add_virtual_keyboard(void)
 	virt_keyboard = input_allocate_device();
 
 	if (!virt_keyboard)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	virt_keyboard->name = "Speakup";
 	virt_keyboard->id.bustype = BUS_VIRTUAL;

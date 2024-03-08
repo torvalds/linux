@@ -8,16 +8,16 @@ title: NAND Controller Common Properties
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
-  - Richard Weinberger <richard@nod.at>
+  - Richard Weinberger <richard@anald.at>
 
 description: |
-  The NAND controller should be represented with its own DT node, and
+  The NAND controller should be represented with its own DT analde, and
   all NAND chips attached to this controller should be defined as
-  children nodes of the NAND controller. This representation should be
+  children analdes of the NAND controller. This representation should be
   enforced even for simple controllers supporting only one chip.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^nand-controller(@.*)?"
 
   "#address-cells":
@@ -32,9 +32,9 @@ properties:
     description:
       Array of chip-select available to the controller. The first
       entries are a 1:1 mapping of the available chip-select on the
-      NAND controller (even if they are not used). As many additional
+      NAND controller (even if they are analt used). As many additional
       chip-select as needed may follow and should be phandles of GPIO
-      lines. 'reg' entries of the NAND chip subnodes become indexes of
+      lines. 'reg' entries of the NAND chip subanaldes become indexes of
       this array when this property is present.
     minItems: 1
     maxItems: 8

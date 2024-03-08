@@ -16,7 +16,7 @@ struct xe_bo;
  * +============+===================================================+
  * |            |               UNINITIALIZED                       |
  * +------------+-               /   |   \                         -+
- * |            |   DISABLED <--/    |    \--> NOT_SUPPORTED        |
+ * |            |   DISABLED <--/    |    \--> ANALT_SUPPORTED        |
  * | init_early |                    V                              |
  * |            |                 SELECTED                          |
  * +------------+-               /   |   \                         -+
@@ -39,11 +39,11 @@ struct xe_bo;
  * Circle back and simplify this.
  */
 enum xe_uc_fw_status {
-	XE_UC_FIRMWARE_NOT_SUPPORTED = -1, /* no uc HW */
+	XE_UC_FIRMWARE_ANALT_SUPPORTED = -1, /* anal uc HW */
 	XE_UC_FIRMWARE_UNINITIALIZED = 0, /* used to catch checks done too early */
 	XE_UC_FIRMWARE_DISABLED, /* disabled */
 	XE_UC_FIRMWARE_SELECTED, /* selected the blob we want to load */
-	XE_UC_FIRMWARE_MISSING, /* blob not found on the system */
+	XE_UC_FIRMWARE_MISSING, /* blob analt found on the system */
 	XE_UC_FIRMWARE_ERROR, /* invalid format or version */
 	XE_UC_FIRMWARE_AVAILABLE, /* blob found and copied in mem */
 	XE_UC_FIRMWARE_INIT_FAIL, /* failed to prepare fw objects for load */
@@ -66,11 +66,11 @@ enum xe_uc_fw_type {
 struct xe_uc_fw_version {
 	/** @major: major version of the FW */
 	u16 major;
-	/** @minor: minor version of the FW */
-	u16 minor;
+	/** @mianalr: mianalr version of the FW */
+	u16 mianalr;
 	/** @patch: patch version of the FW */
 	u16 patch;
-	/** @build: build version of the FW (not always available) */
+	/** @build: build version of the FW (analt always available) */
 	u16 build;
 };
 
@@ -100,9 +100,9 @@ struct xe_uc_fw {
 	/** @user_overridden: user provided path to uC firmware via modparam */
 	bool user_overridden;
 	/**
-	 * @full_ver_required: driver still under development and not ready
+	 * @full_ver_required: driver still under development and analt ready
 	 * for backward-compatible firmware. To be used only for **new**
-	 * platforms, i.e. still under require_force_probe protection and not
+	 * platforms, i.e. still under require_force_probe protection and analt
 	 * supported by i915.
 	 */
 	bool full_ver_required;
@@ -117,7 +117,7 @@ struct xe_uc_fw {
 
 	/*
 	 * The firmware build process will generate a version header file with
-	 * major and minor version defined. The versions are built into CSS
+	 * major and mianalr version defined. The versions are built into CSS
 	 * header of firmware. The xe kernel driver set the minimal firmware
 	 * version required per platform.
 	 */

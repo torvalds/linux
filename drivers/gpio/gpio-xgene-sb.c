@@ -118,7 +118,7 @@ static int xgene_gpio_sb_to_irq(struct gpio_chip *gc, u32 gpio)
 			(gpio > HWIRQ_TO_GPIO(priv, priv->nirq)))
 		return -ENXIO;
 
-	fwspec.fwnode = gc->parent->fwnode;
+	fwspec.fwanalde = gc->parent->fwanalde;
 	fwspec.param_count = 2;
 	fwspec.param[0] = GPIO_TO_HWIRQ(priv, gpio);
 	fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
@@ -187,14 +187,14 @@ static int xgene_gpio_sb_domain_alloc(struct irq_domain *domain,
 		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
 				&xgene_gpio_sb_irq_chip, priv);
 
-	parent_fwspec.fwnode = domain->parent->fwnode;
-	if (is_of_node(parent_fwspec.fwnode)) {
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
+	if (is_of_analde(parent_fwspec.fwanalde)) {
 		parent_fwspec.param_count = 3;
 		parent_fwspec.param[0] = 0;/* SPI */
 		/* Skip SGIs and PPIs*/
 		parent_fwspec.param[1] = hwirq + priv->parent_irq_base - 32;
 		parent_fwspec.param[2] = fwspec->param[1];
-	} else if (is_fwnode_irqchip(parent_fwspec.fwnode)) {
+	} else if (is_fwanalde_irqchip(parent_fwspec.fwanalde)) {
 		parent_fwspec.param_count = 2;
 		parent_fwspec.param[0] = hwirq + priv->parent_irq_base;
 		parent_fwspec.param[1] = fwspec->param[1];
@@ -223,7 +223,7 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
@@ -238,7 +238,7 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 	}
 	if (!parent_domain) {
 		dev_err(&pdev->dev, "unable to obtain parent domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = bgpio_init(&priv->gc, &pdev->dev, 4,
@@ -250,18 +250,18 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 
 	priv->gc.to_irq = xgene_gpio_sb_to_irq;
 
-	/* Retrieve start irq pin, use default if property not found */
+	/* Retrieve start irq pin, use default if property analt found */
 	priv->irq_start = XGENE_DFLT_IRQ_START_PIN;
 	if (!device_property_read_u32(&pdev->dev,
 					XGENE_IRQ_START_PROPERTY, &val32))
 		priv->irq_start = val32;
 
-	/* Retrieve number irqs, use default if property not found */
+	/* Retrieve number irqs, use default if property analt found */
 	priv->nirq = XGENE_DFLT_MAX_NIRQ;
 	if (!device_property_read_u32(&pdev->dev, XGENE_NIRQ_PROPERTY, &val32))
 		priv->nirq = val32;
 
-	/* Retrieve number gpio, use default if property not found */
+	/* Retrieve number gpio, use default if property analt found */
 	priv->gc.ngpio = XGENE_DFLT_MAX_NGPIO;
 	if (!device_property_read_u32(&pdev->dev, XGENE_NGPIO_PROPERTY, &val32))
 		priv->gc.ngpio = val32;
@@ -272,10 +272,10 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	priv->irq_domain = irq_domain_create_hierarchy(parent_domain,
-					0, priv->nirq, pdev->dev.fwnode,
+					0, priv->nirq, pdev->dev.fwanalde,
 					&xgene_gpio_sb_domain_ops, priv);
 	if (!priv->irq_domain)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->gc.irq.domain = priv->irq_domain;
 

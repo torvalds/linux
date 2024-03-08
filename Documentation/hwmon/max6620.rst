@@ -9,7 +9,7 @@ Supported chips:
 
     Prefix: 'max6620'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: http://pdfserv.maxim-ic.com/en/ds/MAX6620.pdf
 
@@ -32,15 +32,15 @@ The driver provides the following sensor access in sysfs:
 
 ================ ======= =====================================================
 fan[1-4]_alarm   ro      Fan alarm.
-fan[1-4]_div     rw      Sets the nominal RPM range of the fan. Valid values
+fan[1-4]_div     rw      Sets the analminal RPM range of the fan. Valid values
                          are 1, 2, 4, 8, 16 and 32.
 fan[1-4]_input   ro      Fan speed in RPM.
 fan[1-4]_target  rw      Desired fan speed in RPM.
 ================ ======= =====================================================
 
-Usage notes
+Usage analtes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does analt auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.

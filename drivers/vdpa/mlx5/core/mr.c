@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Ltd. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd. */
 
 #include <linux/vhost_types.h>
 #include <linux/vdpa.h>
@@ -59,7 +59,7 @@ static int create_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct
 	inlen = MLX5_ST_SZ_BYTES(create_mkey_in) + roundup(MLX5_ST_SZ_BYTES(mtt) * mr->nsg, 16);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_mkey_in, in, uid, mvdev->res.uid);
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
@@ -196,7 +196,7 @@ static int create_indirect_key(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr 
 	inlen = MLX5_ST_SZ_BYTES(create_mkey_in) + klm_byte_size(mr->num_klms);
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_mkey_in, in, uid, mvdev->res.uid);
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
@@ -261,7 +261,7 @@ static int map_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr
 			if (!sg) {
 				mlx5_vdpa_warn(mvdev, "sg null. start 0x%llx, end 0x%llx\n",
 					       map->start, map->last + 1);
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err_map;
 			}
 			sg_set_page(sg, pg, sglen, 0);
@@ -275,7 +275,7 @@ done:
 	mr->nsg = nsg;
 	mr->nent = dma_map_sg_attrs(dma, mr->sg_head.sgl, mr->nsg, DMA_BIDIRECTIONAL, 0);
 	if (!mr->nent) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_map;
 	}
 
@@ -320,7 +320,7 @@ static int add_direct_chain(struct mlx5_vdpa_dev *mvdev,
 		sz = (u32)min_t(u64, MAX_KLM_SIZE, size);
 		dmr = kzalloc(sizeof(*dmr), GFP_KERNEL);
 		if (!dmr) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_alloc;
 		}
 
@@ -430,7 +430,7 @@ static int create_dma_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr)
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 
@@ -605,7 +605,7 @@ static int _mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 
 	mr->iotlb = vhost_iotlb_alloc(0, 0);
 	if (!mr->iotlb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_mr;
 	}
 
@@ -637,7 +637,7 @@ struct mlx5_vdpa_mr *mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&mvdev->mr_mtx);
 	err = _mlx5_vdpa_create_mr(mvdev, mr, iotlb);

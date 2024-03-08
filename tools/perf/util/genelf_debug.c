@@ -107,7 +107,7 @@ buffer_ext_addr(struct buffer_ext *be)
 }
 
 struct debug_line_header {
-	// Not counting this field
+	// Analt counting this field
 	uword total_length;
 	// version number (2 currently)
 	uhalf version;
@@ -134,9 +134,9 @@ struct debug_line_header {
 } __packed;
 
 /* DWARF 2 spec talk only about one possible compilation unit header while
- * binutils can handle two flavours of dwarf 2, 32 and 64 bits, this is not
+ * binutils can handle two flavours of dwarf 2, 32 and 64 bits, this is analt
  * related to the used arch, an ELF 32 can hold more than 4 Go of debug
- * information. For now we handle only DWARF 2 32 bits comp unit. It'll only
+ * information. For analw we handle only DWARF 2 32 bits comp unit. It'll only
  * become a problem if we generate more than 4GB of debug information.
  */
 struct compilation_unit_header {
@@ -259,9 +259,9 @@ static void emit_advance_pc(struct buffer_ext *be, unsigned long delta_pc)
 	emit_opcode_unsigned(be, DW_LNS_advance_pc, delta_pc);
 }
 
-static void emit_advance_lineno(struct buffer_ext  *be, long delta_lineno)
+static void emit_advance_lineanal(struct buffer_ext  *be, long delta_lineanal)
 {
-	emit_opcode_signed(be, DW_LNS_advance_line, delta_lineno);
+	emit_opcode_signed(be, DW_LNS_advance_line, delta_lineanal);
 }
 
 static void emit_lne_end_of_sequence(struct buffer_ext *be)
@@ -283,11 +283,11 @@ static void emit_lne_define_filename(struct buffer_ext *be,
 	emit_unsigned_LEB128(be, strlen(filename) + 5);
 	emit_opcode(be, DW_LNE_define_file);
 	emit_string(be, filename);
-	/* directory index 0=do not know */
+	/* directory index 0=do analt kanalw */
         emit_unsigned_LEB128(be, 0);
-	/* last modification date on file 0=do not know */
+	/* last modification date on file 0=do analt kanalw */
         emit_unsigned_LEB128(be, 0);
-	/* filesize 0=do not know */
+	/* filesize 0=do analt kanalw */
         emit_unsigned_LEB128(be, 0);
 }
 
@@ -307,7 +307,7 @@ static ubyte get_special_opcode(struct debug_entry *ent,
 	/*
 	 * delta from line_base
 	 */
-	temp = (ent->lineno - last_line) - default_debug_line_header.line_base;
+	temp = (ent->lineanal - last_line) - default_debug_line_header.line_base;
 
 	if (temp >= default_debug_line_header.line_range)
 		return 0;
@@ -317,9 +317,9 @@ static ubyte get_special_opcode(struct debug_entry *ent,
 	 */
 	delta_addr = (ent->addr - last_vma) / default_debug_line_header.minimum_instruction_length;
 
-	/* This is not sufficient to ensure opcode will be in [0-256] but
-	 * sufficient to ensure when summing with the delta lineno we will
-	 * not overflow the unsigned long opcode */
+	/* This is analt sufficient to ensure opcode will be in [0-256] but
+	 * sufficient to ensure when summing with the delta lineanal we will
+	 * analt overflow the unsigned long opcode */
 
 	if (delta_addr <= 256 / default_debug_line_header.line_range) {
 		unsigned long opcode = temp +
@@ -331,7 +331,7 @@ static ubyte get_special_opcode(struct debug_entry *ent,
 	return 0;
 }
 
-static void emit_lineno_info(struct buffer_ext *be,
+static void emit_lineanal_info(struct buffer_ext *be,
 			     struct debug_entry *ent, size_t nr_entry,
 			     unsigned long code_addr)
 {
@@ -376,16 +376,16 @@ static void emit_lineno_info(struct buffer_ext *be,
 
 		special_opcode = get_special_opcode(ent, last_line, last_vma);
 		if (special_opcode != 0) {
-			last_line = ent->lineno;
+			last_line = ent->lineanal;
 			last_vma  = ent->addr;
 			emit_opcode(be, special_opcode);
 		} else {
 			/*
 			 * lines differ, emit line delta
 			 */
-			if (last_line != ent->lineno) {
-				emit_advance_lineno(be, ent->lineno - last_line);
-				last_line = ent->lineno;
+			if (last_line != ent->lineanal) {
+				emit_advance_lineanal(be, ent->lineanal - last_line);
+				last_line = ent->lineanal;
 				need_copy = 1;
 			}
 			/*
@@ -429,7 +429,7 @@ static void add_debug_line(struct buffer_ext *be,
 	dbg_header->prolog_length = (buffer_ext_size(be) - old_size) -
 		offsetof(struct debug_line_header, minimum_instruction_length);
 
-	emit_lineno_info(be, ent, nr_entry, code_addr);
+	emit_lineanal_info(be, ent, nr_entry, code_addr);
 
 	emit_lne_end_of_sequence(be);
 
@@ -443,7 +443,7 @@ add_debug_abbrev(struct buffer_ext *be)
 {
         emit_unsigned_LEB128(be, 1);
         emit_unsigned_LEB128(be, DW_TAG_compile_unit);
-        emit_unsigned_LEB128(be, DW_CHILDREN_yes);
+        emit_unsigned_LEB128(be, DW_CHILDREN_anal);
         emit_unsigned_LEB128(be, DW_AT_stmt_list);
         emit_unsigned_LEB128(be, DW_FORM_data4);
         emit_unsigned_LEB128(be, 0);
@@ -512,13 +512,13 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		goto out;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		goto out;
 	}
 
@@ -531,7 +531,7 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		goto out;
 	}
 
@@ -546,13 +546,13 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		goto out;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		goto out;
 	}
 
@@ -565,7 +565,7 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		goto out;
 	}
 
@@ -580,13 +580,13 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		goto out;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		goto out;
 	}
 
@@ -599,7 +599,7 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		goto out;
 	}
 
@@ -610,7 +610,7 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 	shdr->sh_entsize = 0;
 
 	/*
-	 * now we update the ELF image with all the sections
+	 * analw we update the ELF image with all the sections
 	 */
 	if (elf_update(e, ELF_C_WRITE) < 0)
 		warnx("elf_update debug failed");

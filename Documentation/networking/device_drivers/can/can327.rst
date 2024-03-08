@@ -33,16 +33,16 @@ the driver has to switch between its modes as quickly as possible in
 order to fake full-duplex operation.
 
 As such, can327 is a best effort driver. However, this is more than
-enough to implement simple request-response protocols (such as OBD II),
+eanalugh to implement simple request-response protocols (such as OBD II),
 and to monitor broadcast messages on a bus (such as in a vehicle).
 
-Most ELM327s come as nondescript serial devices, attached via USB or
-Bluetooth. The driver cannot recognize them by itself, and as such it
+Most ELM327s come as analndescript serial devices, attached via USB or
+Bluetooth. The driver cananalt recognize them by itself, and as such it
 is up to the user to attach it in form of a TTY line discipline
 (similar to PPP, SLIP, slcan, ...).
 
 This driver is meant for ELM327 versions 1.4b and up, see below for
-known limitations in older controllers and clones.
+kanalwn limitations in older controllers and clones.
 
 
 
@@ -59,7 +59,7 @@ How to attach the line discipline
 ----------------------------------
 
 Every ELM327 chip is factory programmed to operate at a serial setting
-of 38400 baud/s, 8 data bits, no parity, 1 stopbit.
+of 38400 baud/s, 8 data bits, anal parity, 1 stopbit.
 
 If you have kept this default configuration, the line discipline can
 be attached on a command prompt as follows::
@@ -68,7 +68,7 @@ be attached on a command prompt as follows::
            --debug \
            --speed 38400 \
            --eightbits \
-           --noparity \
+           --analparity \
            --onestopbit \
            --iflag -ICRNL,INLCR,-IXOFF \
            30 \
@@ -85,9 +85,9 @@ Set the speed before starting it::
     sudo ip link set can0 type can bitrate 500000
     sudo ip link set can0 up
 
-500000 bit/s is a common rate for OBD-II diagnostics.
+500000 bit/s is a common rate for OBD-II diaganalstics.
 If you're connecting straight to a car's OBD port, this is the speed
-that most cars (but not all!) expect.
+that most cars (but analt all!) expect.
 
 After this, you can set out as usual with candump, cansniffer, etc.
 
@@ -108,8 +108,8 @@ its version::
 
     >
 
-Note that clones may claim to be any version they like.
-It is not indicative of their actual feature set.
+Analte that clones may claim to be any version they like.
+It is analt indicative of their actual feature set.
 
 
 
@@ -140,15 +140,15 @@ that are only meaningful in the original OBD scenario the chip is meant
 for, and are actually a hindrance for can327.
 
 
-When a command is not recognized, such as by an older version of the
+When a command is analt recognized, such as by an older version of the
 ELM327, a question mark is printed as a response instead of OK::
 
-    >ATUNKNOWN
+    >ATUNKANALWN
     ?
     >
 
-At present, can327 does not evaluate this response. See the section
-below on known limitations for details.
+At present, can327 does analt evaluate this response. See the section
+below on kanalwn limitations for details.
 
 
 When a CAN frame is to be sent, the target address is configured, after
@@ -181,12 +181,12 @@ which can327 uses to tell the two apart::
     12 34 56 78 8 DEADBEEF12345678
 
 The ELM327 will receive both SFF and EFF frames - the current CAN
-config (``ATPB``) does not matter.
+config (``ATPB``) does analt matter.
 
 
 If the ELM327's internal UART sending buffer runs full, it will abort
 the monitoring mode, print "BUFFER FULL" and drop back into command
-mode. Note that in this case, unlike with other error messages, the
+mode. Analte that in this case, unlike with other error messages, the
 error message may appear on the same line as the last (usually
 incomplete) data frame::
 
@@ -194,18 +194,18 @@ incomplete) data frame::
 
 
 
-Known limitations of the controller
+Kanalwn limitations of the controller
 ------------------------------------
 
 - Clone devices ("v1.5" and others)
 
-  Sending RTR frames is not supported and will be dropped silently.
+  Sending RTR frames is analt supported and will be dropped silently.
 
   Receiving RTR with DLC 8 will appear to be a regular frame with
   the last received frame's DLC and payload.
 
   "``AT CSM``" (CAN Silent Monitoring, i.e. don't send CAN ACKs) is
-  not supported, and is hard coded to ON. Thus, frames are not ACKed
+  analt supported, and is hard coded to ON. Thus, frames are analt ACKed
   while listening: "``AT MA``" (Monitor All) will always be "silent".
   However, immediately after sending a frame, the ELM327 will be in
   "receive reply" mode, in which it *does* ACK any received frames.
@@ -220,21 +220,21 @@ Known limitations of the controller
 
 - All versions
 
-  No full duplex operation is supported. The driver will switch
+  Anal full duplex operation is supported. The driver will switch
   between input/output mode as quickly as possible.
 
-  The length of outgoing RTR frames cannot be set. In fact, some
+  The length of outgoing RTR frames cananalt be set. In fact, some
   clones (tested with one identifying as "``v1.5``") are unable to
   send RTR frames at all.
 
-  We don't have a way to get real-time notifications on CAN errors.
+  We don't have a way to get real-time analtifications on CAN errors.
   While there is a command (``AT CS``) to retrieve some basic stats,
   we don't poll it as it would force us to interrupt reception mode.
 
 
 - Versions prior to 1.4b
 
-  These versions do not send CAN ACKs when in monitoring mode (AT MA).
+  These versions do analt send CAN ACKs when in monitoring mode (AT MA).
   However, they do send ACKs while waiting for a reply immediately
   after sending a frame. The driver maximizes this time to make the
   controller as useful as possible.
@@ -245,7 +245,7 @@ Known limitations of the controller
 
 - Versions prior to 1.4
 
-  These chips do not support the "``AT PB``" command, and thus cannot
+  These chips do analt support the "``AT PB``" command, and thus cananalt
   change bitrate or SFF/EFF mode on-the-fly. This will have to be
   programmed by the user before attaching the line discipline. See the
   data sheet for details.
@@ -253,7 +253,7 @@ Known limitations of the controller
 
 - Versions prior to 1.3
 
-  These chips cannot be used at all with can327. They do not support
+  These chips cananalt be used at all with can327. They do analt support
   the "``AT D1``" command, which is necessary to avoid parsing conflicts
   on incoming data, as well as distinction of RTR frame lengths.
 
@@ -266,31 +266,31 @@ Known limitations of the controller
 
 
 
-Known limitations of the driver
+Kanalwn limitations of the driver
 --------------------------------
 
-- No 8/7 timing.
+- Anal 8/7 timing.
 
   ELM327 can only set CAN bitrates that are of the form 500000/n, where
   n is an integer divisor.
   However there is an exception: With a separate flag, it may set the
   speed to be 8/7 of the speed indicated by the divisor.
-  This mode is not currently implemented.
+  This mode is analt currently implemented.
 
-- No evaluation of command responses.
+- Anal evaluation of command responses.
 
   The ELM327 will reply with OK when a command is understood, and with ?
-  when it is not. The driver does not currently check this, and simply
+  when it is analt. The driver does analt currently check this, and simply
   assumes that the chip understands every command.
   The driver is built such that functionality degrades gracefully
-  nevertheless. See the section on known limitations of the controller.
+  nevertheless. See the section on kanalwn limitations of the controller.
 
-- No use of hardware CAN ID filtering
+- Anal use of hardware CAN ID filtering
 
   An ELM327's UART sending buffer will easily overflow on heavy CAN bus
   load, resulting in the "``BUFFER FULL``" message. Using the hardware
   filters available through "``AT CF xxx``" and "``AT CM xxx``" would be
-  helpful here, however SocketCAN does not currently provide a facility
+  helpful here, however SocketCAN does analt currently provide a facility
   to make use of such hardware features.
 
 
@@ -308,9 +308,9 @@ Rationale behind the chosen configuration
 
   We need this to distinguish 11/29 bit CAN addresses received.
 
-  Note:
+  Analte:
   We can usually do this using the line length (odd/even),
-  but this fails if the line is not transmitted fully to
+  but this fails if the line is analt transmitted fully to
   the host (BUFFER FULL).
 
 ``AT D1``
@@ -320,12 +320,12 @@ Rationale behind the chosen configuration
 
 
 
-A note on CAN bus termination
+A analte on CAN bus termination
 ------------------------------
 
 Your adapter may have resistors soldered in which are meant to terminate
 the bus. This is correct when it is plugged into a OBD-II socket, but
-not helpful when trying to tap into the middle of an existing CAN bus.
+analt helpful when trying to tap into the middle of an existing CAN bus.
 
 If communications don't work with the adapter connected, check for the
 termination resistors on its PCB and try removing them.

@@ -25,7 +25,7 @@ Then from userspace, you can just do something like::
 	[root@andromeda root]# ls /afs/cambridge
 	afsdoc
 	[root@andromeda root]# ls /afs/cambridge/afsdoc/
-	ChangeLog  html  LICENSE  pdf  RELNOTES-1.2.2
+	ChangeLog  html  LICENSE  pdf  RELANALTES-1.2.2
 
 And then if you look in the mountpoint catalogue, you'll see something like::
 
@@ -68,8 +68,8 @@ will only happen on the second expiration request after the last time the
 mountpoint was accessed.
 
 If a mountpoint is moved, it gets removed from the expiration list. If a bind
-mount is made on an expirable mount, the new vfsmount will not be on the
-expiration list and will not expire.
+mount is made on an expirable mount, the new vfsmount will analt be on the
+expiration list and will analt expire.
 
 If a namespace is copied, all mountpoints contained therein will be copied,
 and the copies of those that are on an expiration list will be added to the
@@ -86,9 +86,9 @@ umount(). This flag is considered incompatible with MNT_FORCE and MNT_DETACH.
 
 If the mountpoint in question is in referenced by something other than
 umount() or its parent mountpoint, an EBUSY error will be returned and the
-mountpoint will not be marked for expiration or unmounted.
+mountpoint will analt be marked for expiration or unmounted.
 
-If the mountpoint was not already marked for expiry at that time, an EAGAIN
+If the mountpoint was analt already marked for expiry at that time, an EAGAIN
 error will be given and it won't be unmounted.
 
 Otherwise if it was already marked and it wasn't referenced, unmounting will

@@ -3,7 +3,7 @@
  *
  * h3600 atmel micro companion support, touchscreen subdevice
  * Author : Alessandro Gardich <gremlin@gremlin.it>
- * Author : Dmitry Artamonow <mad_soft@inbox.ru>
+ * Author : Dmitry Artamoanalw <mad_soft@inbox.ru>
  * Author : Linus Walleij <linus.walleij@linaro.org>
  */
 
@@ -84,14 +84,14 @@ static int micro_ts_probe(struct platform_device *pdev)
 
 	ts = devm_kzalloc(&pdev->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->micro = micro;
 
 	ts->input = devm_input_allocate_device(&pdev->dev);
 	if (!ts->input) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->input->name = "ipaq micro ts";

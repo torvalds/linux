@@ -7,7 +7,7 @@
  *		Alan Cox. <alan@redhat.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/cpumask.h>
@@ -21,7 +21,7 @@ typedef bool (*smp_cond_func_t)(int cpu, void *info);
  * structure shares (partial) layout with struct irq_work
  */
 struct __call_single_data {
-	struct __call_single_node node;
+	struct __call_single_analde analde;
 	smp_call_func_t func;
 	void *info;
 };
@@ -39,10 +39,10 @@ do {						\
 } while (0)
 
 /*
- * Enqueue a llist_node on the call_single_queue; be very careful, read
+ * Enqueue a llist_analde on the call_single_queue; be very careful, read
  * flush_smp_call_function_queue() in detail.
  */
-extern void __smp_call_single_queue(int cpu, struct llist_node *node);
+extern void __smp_call_single_queue(int cpu, struct llist_analde *analde);
 
 /* total number of cpus in this system (may exceed NR_CPUS) */
 extern unsigned int total_cpus;
@@ -59,8 +59,8 @@ int smp_call_function_single_async(int cpu, call_single_data_t *csd);
  * Cpus stopping functions in panic. All have default weak definitions.
  * Architecture-dependent code may override them.
  */
-void __noreturn panic_smp_self_stop(void);
-void __noreturn nmi_panic_self_stop(struct pt_regs *regs);
+void __analreturn panic_smp_self_stop(void);
+void __analreturn nmi_panic_self_stop(struct pt_regs *regs);
 void crash_smp_send_stop(void);
 
 /*
@@ -75,14 +75,14 @@ static inline void on_each_cpu(smp_call_func_t func, void *info, int wait)
  * on_each_cpu_mask(): Run a function on processors specified by
  * cpumask, which may include the local processor.
  * @mask: The set of cpus to run on (only runs on online subset).
- * @func: The function to run. This must be fast and non-blocking.
+ * @func: The function to run. This must be fast and analn-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait (atomically) until function has completed
  *        on other CPUs.
  *
  * If @wait is true, then returns once @func has returned.
  *
- * You must not call this function with disabled interrupts or from a
+ * You must analt call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.  The
  * exception is that it may be used during early boot while
  * early_boot_irqs_disabled is set.
@@ -123,7 +123,7 @@ static inline void on_each_cpu_cond(smp_cond_func_t cond_func,
 extern void smp_send_stop(void);
 
 /*
- * sends a 'reschedule' event to another CPU:
+ * sends a 'reschedule' event to aanalther CPU:
  */
 extern void arch_smp_send_reschedule(int cpu);
 /*
@@ -235,14 +235,14 @@ static inline int get_boot_cpu_id(void)
 /**
  * raw_processor_id() - get the current (unstable) CPU id
  *
- * For then you know what you are doing and need an unstable
+ * For then you kanalw what you are doing and need an unstable
  * CPU id.
  */
 
 /**
  * smp_processor_id() - get the current (stable) CPU id
  *
- * This is the normal accessor to the CPU id and should be used
+ * This is the analrmal accessor to the CPU id and should be used
  * whenever possible.
  *
  * The CPU id is stable when:
@@ -252,7 +252,7 @@ static inline int get_boot_cpu_id(void)
  *  - the task is CPU affine.
  *
  * When CONFIG_DEBUG_PREEMPT; we verify these assumption and WARN
- * when smp_processor_id() is used when the CPU id is not stable.
+ * when smp_processor_id() is used when the CPU id is analt stable.
  */
 
 /*
@@ -275,7 +275,7 @@ static inline int get_boot_cpu_id(void)
 #define put_cpu()		preempt_enable()
 
 /*
- * Callback to arch code if there's nosmp or maxcpus=0 on the
+ * Callback to arch code if there's analsmp or maxcpus=0 on the
  * boot command line:
  */
 extern void arch_disable_smp_support(void);

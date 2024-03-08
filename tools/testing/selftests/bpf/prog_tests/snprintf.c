@@ -17,7 +17,7 @@
 
 /* The third specifier, %p, is a hashed pointer which changes on every reboot */
 #define EXP_ADDR_OUT "0000000000000000 ffff00000add4e55 "
-#define EXP_ADDR_RET sizeof(EXP_ADDR_OUT "unknownhashedptr")
+#define EXP_ADDR_RET sizeof(EXP_ADDR_OUT "unkanalwnhashedptr")
 
 #define EXP_STR_OUT  "str1         a  b c      d e longstr"
 #define EXP_STR_RET  sizeof(EXP_STR_OUT)
@@ -28,10 +28,10 @@
 #define EXP_PAD_OUT "    4 000"
 #define EXP_PAD_RET 900007
 
-#define EXP_NO_ARG_OUT "simple case"
-#define EXP_NO_ARG_RET 12
+#define EXP_ANAL_ARG_OUT "simple case"
+#define EXP_ANAL_ARG_RET 12
 
-#define EXP_NO_BUF_RET 29
+#define EXP_ANAL_BUF_RET 29
 
 static void test_snprintf_positive(void)
 {
@@ -74,10 +74,10 @@ static void test_snprintf_positive(void)
 	ASSERT_STREQ(skel->bss->pad_out, EXP_PAD_OUT, "pad_out");
 	ASSERT_EQ(skel->bss->pad_ret, EXP_PAD_RET, "pad_ret");
 
-	ASSERT_STREQ(skel->bss->noarg_out, EXP_NO_ARG_OUT, "no_arg_out");
-	ASSERT_EQ(skel->bss->noarg_ret, EXP_NO_ARG_RET, "no_arg_ret");
+	ASSERT_STREQ(skel->bss->analarg_out, EXP_ANAL_ARG_OUT, "anal_arg_out");
+	ASSERT_EQ(skel->bss->analarg_ret, EXP_ANAL_ARG_RET, "anal_arg_ret");
 
-	ASSERT_EQ(skel->bss->nobuf_ret, EXP_NO_BUF_RET, "no_buf_ret");
+	ASSERT_EQ(skel->bss->analbuf_ret, EXP_ANAL_BUF_RET, "anal_buf_ret");
 
 cleanup:
 	test_snprintf__destroy(skel);
@@ -105,7 +105,7 @@ static void test_snprintf_negative(void)
 {
 	ASSERT_OK(load_single_snprintf("valid %d"), "valid usage");
 
-	ASSERT_ERR(load_single_snprintf("0123456789"), "no terminating zero");
+	ASSERT_ERR(load_single_snprintf("0123456789"), "anal terminating zero");
 	ASSERT_ERR(load_single_snprintf("%d %d"), "too many specifiers");
 	ASSERT_ERR(load_single_snprintf("%pi5"), "invalid specifier 1");
 	ASSERT_ERR(load_single_snprintf("%a"), "invalid specifier 2");
@@ -114,8 +114,8 @@ static void test_snprintf_negative(void)
 	ASSERT_ERR(load_single_snprintf("%--------"), "invalid specifier 5");
 	ASSERT_ERR(load_single_snprintf("%lc"), "invalid specifier 6");
 	ASSERT_ERR(load_single_snprintf("%llc"), "invalid specifier 7");
-	ASSERT_ERR(load_single_snprintf("\x80"), "non ascii character");
-	ASSERT_ERR(load_single_snprintf("\x1"), "non printable character");
+	ASSERT_ERR(load_single_snprintf("\x80"), "analn ascii character");
+	ASSERT_ERR(load_single_snprintf("\x1"), "analn printable character");
 }
 
 void test_snprintf(void)

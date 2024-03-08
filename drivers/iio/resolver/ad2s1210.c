@@ -19,10 +19,10 @@
  * Control                     | 0x92 | *as bit fields*
  *   Phase lock range          | D5   | events/in_phase0_mag_rising_value
  *   Hysteresis                | D4   | in_angl0_hysteresis
- *   Encoder resolution        | D3:2 | *not implemented*
+ *   Encoder resolution        | D3:2 | *analt implemented*
  *   Resolution                | D1:0 | *device tree: assigned-resolution-bits*
  * Soft Reset                  | 0xF0 | [2]
- * Fault                       | 0xFF | *not implemented*
+ * Fault                       | 0xFF | *analt implemented*
  *
  * [1]: The value written to the LOT low register is high value minus the
  * hysteresis.
@@ -41,7 +41,7 @@
  * Phase error exceeds phase lock range    | D1 | phase0      | mag    | rising
  * Configuration parity error              | D0 | *writes to kernel log*
  *
- * [3]: The chip does not differentiate between fault on sine vs. cosine so
+ * [3]: The chip does analt differentiate between fault on sine vs. cosine so
  * there will also be an event on the altvoltage2 channel.
  */
 
@@ -178,7 +178,7 @@ static int ad2s1210_set_mode(struct ad2s1210_state *st, enum ad2s1210_mode mode)
 	DECLARE_BITMAP(bitmap, 2);
 
 	if (!gpios)
-		return mode == st->fixed_mode ? 0 : -EOPNOTSUPP;
+		return mode == st->fixed_mode ? 0 : -EOPANALTSUPP;
 
 	bitmap[0] = mode;
 
@@ -320,7 +320,7 @@ static int ad2s1210_reinit_excitation_frequency(struct ad2s1210_state *st,
 {
 	/* Map resolution to settle time in milliseconds. */
 	static const int track_time_ms[] = { 10, 20, 25, 60 };
-	unsigned int ignored;
+	unsigned int iganalred;
 	int ret;
 	u8 fcw;
 
@@ -334,7 +334,7 @@ static int ad2s1210_reinit_excitation_frequency(struct ad2s1210_state *st,
 
 	/*
 	 * Software reset reinitializes the excitation frequency output.
-	 * It does not reset any of the configuration registers.
+	 * It does analt reset any of the configuration registers.
 	 */
 	ret = regmap_write(st->regmap, AD2S1210_REG_SOFT_RESET, 0);
 	if (ret < 0)
@@ -349,7 +349,7 @@ static int ad2s1210_reinit_excitation_frequency(struct ad2s1210_state *st,
 	msleep(track_time_ms[st->resolution] * 8192000 / st->clkin_hz);
 
 	/* Reading the fault register clears the faults. */
-	ret = regmap_read(st->regmap, AD2S1210_REG_FAULT, &ignored);
+	ret = regmap_read(st->regmap, AD2S1210_REG_FAULT, &iganalred);
 	if (ret < 0)
 		return ret;
 
@@ -367,7 +367,7 @@ static void ad2s1210_push_events(struct iio_dev *indio_dev,
 	/* Sine/cosine inputs clipped */
 	if (FAULT_ONESHOT(AD2S1210_FAULT_CLIP, flags, st->prev_fault_flags)) {
 		/*
-		 * The chip does not differentiate between fault on sine vs.
+		 * The chip does analt differentiate between fault on sine vs.
 		 * cosine channel so we just send an event on both channels.
 		 */
 		iio_push_event(indio_dev,
@@ -434,7 +434,7 @@ static void ad2s1210_push_events(struct iio_dev *indio_dev,
 	if (FAULT_ONESHOT(AD2S1210_FAULT_CONFIG_PARITY, flags,
 			  st->prev_fault_flags))
 		/*
-		 * Userspace should also get notified of this via error return
+		 * Userspace should also get analtified of this via error return
 		 * when trying to write to any attribute that writes a register.
 		 */
 		dev_err_ratelimited(&indio_dev->dev,
@@ -765,7 +765,7 @@ static int ad2s1210_read_raw(struct iio_dev *indio_dev,
 			/* approx 0.3 arc min converted to radians */
 			*val = 0;
 			*val2 = 95874;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_ANGL_VEL:
 			*val = st->clkin_hz;
 			*val2 = ad2s1210_velocity_scale[st->resolution];
@@ -1343,7 +1343,7 @@ static irqreturn_t ad2s1210_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan, pf->timestamp);
 
 error_ret:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1430,7 +1430,7 @@ static int ad2s1210_setup_gpios(struct ad2s1210_state *st)
 	DECLARE_BITMAP(bitmap, 2);
 	int ret;
 
-	/* should not be sampling on startup */
+	/* should analt be sampling on startup */
 	st->sample_gpio = devm_gpiod_get(dev, "sample", GPIOD_OUT_LOW);
 	if (IS_ERR(st->sample_gpio))
 		return dev_err_probe(dev, PTR_ERR(st->sample_gpio),
@@ -1504,8 +1504,8 @@ static const struct regmap_range ad2s1210_regmap_readable_ranges[] = {
 };
 
 static const struct regmap_access_table ad2s1210_regmap_rd_table = {
-	.yes_ranges = ad2s1210_regmap_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ad2s1210_regmap_readable_ranges),
+	.anal_ranges = ad2s1210_regmap_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(ad2s1210_regmap_readable_ranges),
 };
 
 static const struct regmap_range ad2s1210_regmap_writeable_ranges[] = {
@@ -1516,8 +1516,8 @@ static const struct regmap_range ad2s1210_regmap_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table ad2s1210_regmap_wr_table = {
-	.yes_ranges = ad2s1210_regmap_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ad2s1210_regmap_writeable_ranges),
+	.anal_ranges = ad2s1210_regmap_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(ad2s1210_regmap_writeable_ranges),
 };
 
 static int ad2s1210_setup_regmap(struct ad2s1210_state *st)
@@ -1550,7 +1550,7 @@ static int ad2s1210_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	st = iio_priv(indio_dev);
 
 	mutex_init(&st->lock);

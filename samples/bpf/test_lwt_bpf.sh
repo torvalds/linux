@@ -306,8 +306,8 @@ redirected to $DST_IFINDEX" || exit 1
 	remove_prog xmit
 }
 
-function test_no_l2_and_redirect {
-	test_start "test_no_l2_and_redirect on lwt xmit"
+function test_anal_l2_and_redirect {
+	test_start "test_anal_l2_and_redirect on lwt xmit"
 	install_test xmit fill_garbage_and_redirect
 	ping -c 3 $IPVETH1 && {
 		failure "Unexpected success despite lack of L2 header"
@@ -345,9 +345,9 @@ Set initial 96 bytes of header to FF" || exit 1
 	remove_prog xmit
 }
 
-function test_netperf_nop {
-	test_start "test_netperf_nop on lwt xmit"
-	install_test xmit nop
+function test_netperf_analp {
+	test_start "test_netperf_analp on lwt xmit"
+	install_test xmit analp
 	netperf -H $IPVETH1 -t TCP_STREAM || {
 		failure "packets appear to be dropped"
 	}
@@ -370,7 +370,7 @@ setup_one_veth $NS1 $VETH0 $VETH1 $IPVETH0 $IPVETH1 $IPVETH1b
 setup_one_veth $NS2 $VETH2 $VETH3 $IPVETH2 $IPVETH3
 ip netns exec $NS1 netserver
 echo 1 > ${TRACE_ROOT}/tracing_on
-echo nocontext-info > ${TRACE_ROOT}/trace_options
+echo analcontext-info > ${TRACE_ROOT}/trace_options
 
 DST_MAC=$(lookup_mac $VETH1 $NS1)
 SRC_MAC=$(lookup_mac $VETH0)
@@ -394,9 +394,9 @@ test_drop_all "out"
 test_drop_all_in
 test_rewrite
 test_push_ll_and_redirect
-test_no_l2_and_redirect
+test_anal_l2_and_redirect
 test_fill_garbage
-test_netperf_nop
+test_netperf_analp
 test_netperf_redirect
 
 cleanup

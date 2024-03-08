@@ -7,7 +7,7 @@
  *	   Marek Szyprowski <m.szyprowski@samsung.com>
  *
  * The vb2_thread implementation was based on code from videobuf-dvb.c:
- *	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SUSE Labs]
+ *	(c) 2004 Gerd Kanalrr <kraxel@bytesex.org> [SUSE Labs]
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer
 	/* Is memory for copying plane information present? */
 	if (b->m.planes == NULL) {
 		dprintk(vb->vb2_queue, 1,
-			"multi-planar buffer passed but planes array not provided\n");
+			"multi-planar buffer passed but planes array analt provided\n");
 		return -EINVAL;
 	}
 
@@ -189,12 +189,12 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 	if (b->field == V4L2_FIELD_ALTERNATE && q->is_output) {
 		/*
 		 * If the format's field is ALTERNATE, then the buffer's field
-		 * should be either TOP or BOTTOM, not ALTERNATE since that
-		 * makes no sense. The driver has to know whether the
+		 * should be either TOP or BOTTOM, analt ALTERNATE since that
+		 * makes anal sense. The driver has to kanalw whether the
 		 * buffer represents a top or a bottom field in order to
 		 * program any DMA correctly. Using ALTERNATE is wrong, since
 		 * that just says that it is either a top or a bottom field,
-		 * but not which of the two it is.
+		 * but analt which of the two it is.
 		 */
 		dprintk(q, 1, "the field is incorrectly set to ALTERNATE for an output buffer\n");
 		return -EINVAL;
@@ -266,7 +266,7 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 		}
 	} else {
 		/*
-		 * Single-planar buffers do not use planes array,
+		 * Single-planar buffers do analt use planes array,
 		 * so fill in relevant v4l2_buffer struct fields instead.
 		 * In vb2 we use our internal V4l2_planes struct for
 		 * single-planar buffers as well, for simplicity.
@@ -313,7 +313,7 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 	vbuf->flags = b->flags & ~V4L2_BUFFER_MASK_FLAGS;
 	if (!vb->vb2_queue->copy_timestamp || V4L2_TYPE_IS_CAPTURE(b->type)) {
 		/*
-		 * Non-COPY timestamps and non-OUTPUT queues will get
+		 * Analn-COPY timestamps and analn-OUTPUT queues will get
 		 * their timestamp and timestamp source flags from the
 		 * queue.
 		 */
@@ -347,19 +347,19 @@ static void set_buffer_cache_hints(struct vb2_queue *q,
 {
 	if (!vb2_queue_allows_cache_hints(q)) {
 		/*
-		 * Clear buffer cache flags if queue does not support user
+		 * Clear buffer cache flags if queue does analt support user
 		 * space hints. That's to indicate to userspace that these
 		 * flags won't work.
 		 */
-		b->flags &= ~V4L2_BUF_FLAG_NO_CACHE_INVALIDATE;
-		b->flags &= ~V4L2_BUF_FLAG_NO_CACHE_CLEAN;
+		b->flags &= ~V4L2_BUF_FLAG_ANAL_CACHE_INVALIDATE;
+		b->flags &= ~V4L2_BUF_FLAG_ANAL_CACHE_CLEAN;
 		return;
 	}
 
-	if (b->flags & V4L2_BUF_FLAG_NO_CACHE_INVALIDATE)
+	if (b->flags & V4L2_BUF_FLAG_ANAL_CACHE_INVALIDATE)
 		vb->skip_cache_sync_on_finish = 1;
 
-	if (b->flags & V4L2_BUF_FLAG_NO_CACHE_CLEAN)
+	if (b->flags & V4L2_BUF_FLAG_ANAL_CACHE_CLEAN)
 		vb->skip_cache_sync_on_prepare = 1;
 }
 
@@ -389,7 +389,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 
 	if (!is_prepare && (b->flags & V4L2_BUF_FLAG_REQUEST_FD) &&
 	    vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(q, 1, "%s: buffer is not in dequeued state\n", opname);
+		dprintk(q, 1, "%s: buffer is analt in dequeued state\n", opname);
 		return -EINVAL;
 	}
 
@@ -417,17 +417,17 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		}
 		return 0;
 	} else if (!q->supports_requests) {
-		dprintk(q, 1, "%s: queue does not support requests\n", opname);
+		dprintk(q, 1, "%s: queue does analt support requests\n", opname);
 		return -EBADR;
 	} else if (q->uses_qbuf) {
-		dprintk(q, 1, "%s: queue does not use requests\n", opname);
+		dprintk(q, 1, "%s: queue does analt use requests\n", opname);
 		return -EBUSY;
 	}
 
 	/*
 	 * For proper locking when queueing a request you need to be able
 	 * to lock access to the vb2 queue, so check that there is a lock
-	 * that we can use. In addition p_req must be non-NULL.
+	 * that we can use. In addition p_req must be analn-NULL.
 	 */
 	if (WARN_ON(!q->lock || !p_req))
 		return -EINVAL;
@@ -461,7 +461,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	 */
 	if (req->state != MEDIA_REQUEST_STATE_IDLE &&
 	    req->state != MEDIA_REQUEST_STATE_UPDATING) {
-		dprintk(q, 1, "%s: request is not idle\n", opname);
+		dprintk(q, 1, "%s: request is analt idle\n", opname);
 		media_request_put(req);
 		return -EBUSY;
 	}
@@ -521,7 +521,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 	} else {
 		/*
 		 * We use length and offset in v4l2_planes array even for
-		 * single-planar buffers, but userspace does not.
+		 * single-planar buffers, but userspace does analt.
 		 */
 		b->length = vb->planes[0].length;
 		b->bytesused = vb->planes[0].bytesused;
@@ -540,7 +540,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 	b->flags |= q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK;
 	if (!q->copy_timestamp) {
 		/*
-		 * For non-COPY timestamps, drop timestamp source bits
+		 * For analn-COPY timestamps, drop timestamp source bits
 		 * and obtain the timestamp source from the queue.
 		 */
 		b->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
@@ -563,7 +563,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 		break;
 	case VB2_BUF_STATE_PREPARING:
 	case VB2_BUF_STATE_DEQUEUED:
-		/* nothing */
+		/* analthing */
 		break;
 	}
 
@@ -676,13 +676,13 @@ static void vb2_set_flags_and_caps(struct vb2_queue *q, u32 memory,
 {
 	if (!q->allow_cache_hints || memory != V4L2_MEMORY_MMAP) {
 		/*
-		 * This needs to clear V4L2_MEMORY_FLAG_NON_COHERENT only,
+		 * This needs to clear V4L2_MEMORY_FLAG_ANALN_COHERENT only,
 		 * but in order to avoid bugs we zero out all bits.
 		 */
 		*flags = 0;
 	} else {
-		/* Clear all unknown flags. */
-		*flags &= V4L2_MEMORY_FLAG_NON_COHERENT;
+		/* Clear all unkanalwn flags. */
+		*flags &= V4L2_MEMORY_FLAG_ANALN_COHERENT;
 	}
 
 	*caps = V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS;
@@ -831,7 +831,7 @@ int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
 }
 EXPORT_SYMBOL_GPL(vb2_qbuf);
 
-int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
+int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool analnblocking)
 {
 	int ret;
 
@@ -845,7 +845,7 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 		return -EINVAL;
 	}
 
-	ret = vb2_core_dqbuf(q, NULL, b, nonblocking);
+	ret = vb2_core_dqbuf(q, NULL, b, analnblocking);
 
 	if (!q->is_output &&
 	    b->flags & V4L2_BUF_FLAG_DONE &&
@@ -910,7 +910,7 @@ int vb2_queue_init_name(struct vb2_queue *q, const char *name)
 
 	/* Warn that the driver should choose an appropriate timestamp type */
 	WARN_ON((q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) ==
-		V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN);
+		V4L2_BUF_FLAG_TIMESTAMP_UNKANALWN);
 
 	/* Warn that vb2_memory should match with v4l2_memory */
 	if (WARN_ON(VB2_MEMORY_MMAP != (int)V4L2_MEMORY_MMAP)
@@ -988,10 +988,10 @@ __poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 EXPORT_SYMBOL_GPL(vb2_poll);
 
 /*
- * The following functions are not part of the vb2 core API, but are helper
+ * The following functions are analt part of the vb2 core API, but are helper
  * functions that plug into struct v4l2_ioctl_ops, struct v4l2_file_operations
  * and struct vb2_ops.
- * They contain boilerplate code that most if not all drivers have to do
+ * They contain boilerplate code that most if analt all drivers have to do
  * and so they simplify the driver code.
  */
 
@@ -1013,7 +1013,7 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
 		return -EBUSY;
 	res = vb2_core_reqbufs(vdev->queue, p->memory, p->flags, &p->count);
 	/* If count == 0, then the owner has released all buffers and he
-	   is no longer owner of the queue. Otherwise we have a new owner. */
+	   is anal longer owner of the queue. Otherwise we have a new owner. */
 	if (res == 0)
 		vdev->queue->owner = p->count ? file->private_data : NULL;
 	return res;
@@ -1062,7 +1062,7 @@ int vb2_ioctl_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct video_device *vdev = video_devdata(file);
 
-	/* No need to call vb2_queue_is_busy(), anyone can query buffers. */
+	/* Anal need to call vb2_queue_is_busy(), anyone can query buffers. */
 	return vb2_querybuf(vdev->queue, p);
 }
 EXPORT_SYMBOL_GPL(vb2_ioctl_querybuf);
@@ -1083,7 +1083,7 @@ int vb2_ioctl_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	if (vb2_queue_is_busy(vdev->queue, file))
 		return -EBUSY;
-	return vb2_dqbuf(vdev->queue, p, file->f_flags & O_NONBLOCK);
+	return vb2_dqbuf(vdev->queue, p, file->f_flags & O_ANALNBLOCK);
 }
 EXPORT_SYMBOL_GPL(vb2_ioctl_dqbuf);
 
@@ -1166,7 +1166,7 @@ ssize_t vb2_fop_write(struct file *file, const char __user *buf,
 	if (vb2_queue_is_busy(vdev->queue, file))
 		goto exit;
 	err = vb2_write(vdev->queue, buf, count, ppos,
-		       file->f_flags & O_NONBLOCK);
+		       file->f_flags & O_ANALNBLOCK);
 	if (vdev->queue->fileio)
 		vdev->queue->owner = file->private_data;
 exit:
@@ -1191,7 +1191,7 @@ ssize_t vb2_fop_read(struct file *file, char __user *buf,
 		goto exit;
 	vdev->queue->owner = file->private_data;
 	err = vb2_read(vdev->queue, buf, count, ppos,
-		       file->f_flags & O_NONBLOCK);
+		       file->f_flags & O_ANALNBLOCK);
 	if (!vdev->queue->fileio)
 		vdev->queue->owner = NULL;
 exit:
@@ -1210,7 +1210,7 @@ __poll_t vb2_fop_poll(struct file *file, poll_table *wait)
 	void *fileio;
 
 	/*
-	 * If this helper doesn't know how to lock, then you shouldn't be using
+	 * If this helper doesn't kanalw how to lock, then you shouldn't be using
 	 * it but you should write your own.
 	 */
 	WARN_ON(!lock);
@@ -1273,14 +1273,14 @@ void vb2_video_unregister_device(struct video_device *vdev)
 			mutex_unlock(lock);
 	}
 	/*
-	 * Now we put the device, and in most cases this will release
+	 * Analw we put the device, and in most cases this will release
 	 * everything.
 	 */
 	put_device(&vdev->dev);
 }
 EXPORT_SYMBOL_GPL(vb2_video_unregister_device);
 
-/* vb2_ops helpers. Only use if vq->lock is non-NULL. */
+/* vb2_ops helpers. Only use if vq->lock is analn-NULL. */
 
 void vb2_ops_wait_prepare(struct vb2_queue *vq)
 {
@@ -1295,9 +1295,9 @@ void vb2_ops_wait_finish(struct vb2_queue *vq)
 EXPORT_SYMBOL_GPL(vb2_ops_wait_finish);
 
 /*
- * Note that this function is called during validation time and
- * thus the req_queue_mutex is held to ensure no request objects
- * can be added or deleted while validating. So there is no need
+ * Analte that this function is called during validation time and
+ * thus the req_queue_mutex is held to ensure anal request objects
+ * can be added or deleted while validating. So there is anal need
  * to protect the objects list.
  */
 int vb2_request_validate(struct media_request *req)
@@ -1306,7 +1306,7 @@ int vb2_request_validate(struct media_request *req)
 	int ret = 0;
 
 	if (!vb2_request_buffer_cnt(req))
-		return -ENOENT;
+		return -EANALENT;
 
 	list_for_each_entry(obj, &req->objects, list) {
 		if (!obj->ops->prepare)
@@ -1332,7 +1332,7 @@ void vb2_request_queue(struct media_request *req)
 	struct media_request_object *obj, *obj_safe;
 
 	/*
-	 * Queue all objects. Note that buffer objects are at the end of the
+	 * Queue all objects. Analte that buffer objects are at the end of the
 	 * objects list, after all other object types. Once buffer objects
 	 * are queued, the driver might delete them immediately (if the driver
 	 * processes the buffer at once), so we have to use

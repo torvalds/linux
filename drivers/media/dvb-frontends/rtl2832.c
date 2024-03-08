@@ -27,7 +27,7 @@ static const struct rtl2832_reg_entry registers[] = {
 	[DVBT_MGD_THD5]		= {0x19a,  7, 0},
 	[DVBT_MGD_THD6]		= {0x19b,  7, 0},
 	[DVBT_MGD_THD7]		= {0x19c,  7, 0},
-	[DVBT_EN_CACQ_NOTCH]	= {0x161,  4, 4},
+	[DVBT_EN_CACQ_ANALTCH]	= {0x161,  4, 4},
 	[DVBT_AD_AV_REF]	= {0x009,  6, 0},
 	[DVBT_REG_PI]		= {0x00a,  2, 0},
 	[DVBT_PIP_ON]		= {0x021,  3, 3},
@@ -263,7 +263,7 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		{DVBT_MGD_THD6,			0x37},
 		{DVBT_MGD_THD7,			0x39},
 		{DVBT_EN_BK_TRK,		0x0},
-		{DVBT_EN_CACQ_NOTCH,		0x0},
+		{DVBT_EN_CACQ_ANALTCH,		0x0},
 		{DVBT_AD_AV_REF,		0x2a},
 		{DVBT_REG_PI,			0x6},
 		{DVBT_PIP_ON,			0x0},
@@ -351,13 +351,13 @@ static int rtl2832_init(struct dvb_frontend *fe)
 
 	/* init stats here in order signal app which stats are supported */
 	c->strength.len = 1;
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	dev->sleeping = false;
 
 	return 0;
@@ -579,7 +579,7 @@ static int rtl2832_get_frontend(struct dvb_frontend *fe,
 
 	switch ((buf[0] >> 4) & 7) {
 	case 0:
-		c->hierarchy = HIERARCHY_NONE;
+		c->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		c->hierarchy = HIERARCHY_1;
@@ -679,7 +679,7 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
 		c->strength.stat[0].uvalue = u16tmp;
 	} else {
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* CNR */
@@ -722,7 +722,7 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		c->cnr.stat[0].svalue = tmp;
 	} else {
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* BER */
@@ -742,8 +742,8 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->post_bit_count.stat[0].uvalue = dev->post_bit_count;
 	} else {
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return 0;
@@ -943,17 +943,17 @@ err:
 	return ret;
 }
 
-static int rtl2832_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+static int rtl2832_pid_filter_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
 	int ret;
 	u8 u8tmp;
 
-	dev_dbg(&client->dev, "onoff=%d, slave_ts=%d\n", onoff, dev->slave_ts);
+	dev_dbg(&client->dev, "oanalff=%d, slave_ts=%d\n", oanalff, dev->slave_ts);
 
 	/* enable / disable PID filter */
-	if (onoff)
+	if (oanalff)
 		u8tmp = 0x80;
 	else
 		u8tmp = 0x00;
@@ -972,21 +972,21 @@ err:
 }
 
 static int rtl2832_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
-			      int onoff)
+			      int oanalff)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
 	int ret;
 	u8 buf[4];
 
-	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d slave_ts=%d\n",
-		index, pid, onoff, dev->slave_ts);
+	dev_dbg(&client->dev, "index=%d pid=%04x oanalff=%d slave_ts=%d\n",
+		index, pid, oanalff, dev->slave_ts);
 
 	/* skip invalid PIDs (0x2000) */
 	if (pid > 0x1fff || index > 32)
 		return 0;
 
-	if (onoff)
+	if (oanalff)
 		set_bit(index, &dev->filters);
 	else
 		clear_bit(index, &dev->filters);
@@ -1045,7 +1045,7 @@ static int rtl2832_probe(struct i2c_client *client)
 	/* allocate memory for the internal state */
 	dev = kzalloc(sizeof(struct rtl2832_dev), GFP_KERNEL);
 	if (dev == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1062,7 +1062,7 @@ static int rtl2832_probe(struct i2c_client *client)
 	dev->regmap_config.max_register = 5 * 0x100;
 	dev->regmap_config.ranges = regmap_range_cfg;
 	dev->regmap_config.num_ranges = ARRAY_SIZE(regmap_range_cfg);
-	dev->regmap_config.cache_type = REGCACHE_NONE;
+	dev->regmap_config.cache_type = REGCACHE_ANALNE;
 	dev->regmap = regmap_init_i2c(client, &dev->regmap_config);
 	if (IS_ERR(dev->regmap)) {
 		ret = PTR_ERR(dev->regmap);
@@ -1078,7 +1078,7 @@ static int rtl2832_probe(struct i2c_client *client)
 	dev->muxc = i2c_mux_alloc(i2c, &i2c->dev, 1, 0, I2C_MUX_LOCKED,
 				  rtl2832_select, rtl2832_deselect);
 	if (!dev->muxc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_regmap_exit;
 	}
 	dev->muxc->priv = dev;

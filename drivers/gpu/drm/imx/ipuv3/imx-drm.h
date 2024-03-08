@@ -2,7 +2,7 @@
 #ifndef _IMX_DRM_H_
 #define _IMX_DRM_H_
 
-struct device_node;
+struct device_analde;
 struct drm_crtc;
 struct drm_connector;
 struct drm_device;
@@ -35,7 +35,7 @@ void imx_drm_mode_config_init(struct drm_device *drm);
 struct drm_gem_dma_object *imx_drm_fb_get_obj(struct drm_framebuffer *fb);
 
 int imx_drm_encoder_parse_of(struct drm_device *drm,
-	struct drm_encoder *encoder, struct device_node *np);
+	struct drm_encoder *encoder, struct device_analde *np);
 
 void imx_drm_connector_destroy(struct drm_connector *connector);
 

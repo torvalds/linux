@@ -28,7 +28,7 @@
  * Register base of the timer that's selected for pairing with the watchdog.
  * This driver arbitrarily uses timer 5, which is currently unused by
  * other drivers (in particular, the Tegra clocksource driver).  If this
- * needs to change, take care that the new timer is not used by the
+ * needs to change, take care that the new timer is analt used by the
  * clocksource driver.
  */
 #define WDT_TIMER_BASE			0x60
@@ -69,11 +69,11 @@ MODULE_PARM_DESC(heartbeat,
 	"Watchdog heartbeats in seconds. (default = "
 	__MODULE_STRING(WDT_HEARTBEAT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+	__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static int tegra_wdt_start(struct watchdog_device *wdd)
 {
@@ -81,7 +81,7 @@ static int tegra_wdt_start(struct watchdog_device *wdd)
 	u32 val;
 
 	/*
-	 * This thing has a fixed 1MHz clock.  Normally, we would set the
+	 * This thing has a fixed 1MHz clock.  Analrmally, we would set the
 	 * period to 1 second by writing 1000000ul, but the watchdog system
 	 * reset actually occurs on the 4th expiration of this counter,
 	 * so we set the period to 1/4 of this amount.
@@ -93,7 +93,7 @@ static int tegra_wdt_start(struct watchdog_device *wdd)
 	/*
 	 * Set number of periods and start counter.
 	 *
-	 * Interrupt handler is not required for user space
+	 * Interrupt handler is analt required for user space
 	 * WDT accesses, since the caller is responsible to ping the
 	 * WDT to reset the counter before expiration, through ioctls.
 	 */
@@ -198,7 +198,7 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 	 */
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize struct tegra_wdt. */
 	wdt->wdt_regs = regs + WDT_BASE;
@@ -215,7 +215,7 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(wdd, wdt);
 
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 
 	watchdog_stop_on_unregister(wdd);
 	ret = devm_watchdog_register_device(dev, wdd);
@@ -224,8 +224,8 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(dev, "initialized (heartbeat = %d sec, nowayout = %d)\n",
-		 heartbeat, nowayout);
+	dev_info(dev, "initialized (heartbeat = %d sec, analwayout = %d)\n",
+		 heartbeat, analwayout);
 
 	return 0;
 }

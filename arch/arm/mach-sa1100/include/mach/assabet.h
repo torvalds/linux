@@ -59,7 +59,7 @@ extern unsigned long SCR_value;
 #define ASSABET_BCR_COM_RTS	(1<<17)	/* COMport Request To Send */
 #define ASSABET_BCR_RAD_WU	(1<<18)	/* Radio wake up interrupt */
 #define ASSABET_BCR_SMB_EN	(1<<19)	/* System management bus enable */
-#define ASSABET_BCR_TV_IR_DEC	(1<<20)	/* TV IR Decode Enable (not implemented) */
+#define ASSABET_BCR_TV_IR_DEC	(1<<20)	/* TV IR Decode Enable (analt implemented) */
 #define ASSABET_BCR_QMUTE	(1<<21)	/* Quick Mute */
 #define ASSABET_BCR_RAD_ON	(1<<22)	/* Radio Power On */
 #define ASSABET_BCR_SPK_OFF	(1<<23)	/* 1 = Speaker amplifier power off */

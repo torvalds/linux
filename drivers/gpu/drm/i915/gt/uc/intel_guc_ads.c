@@ -190,7 +190,7 @@ int intel_guc_global_policies_update(struct intel_guc *guc)
 	int ret;
 
 	if (iosys_map_is_null(&guc->ads_map))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	scheduler_policies = ads_blob_read(guc, ads.scheduler_policies);
 	GEM_BUG_ON(!scheduler_policies);
@@ -213,7 +213,7 @@ static void guc_mapping_table_init(struct intel_gt *gt,
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	/* Table must be set to invalid values for entries not used */
+	/* Table must be set to invalid values for entries analt used */
 	for (i = 0; i < GUC_MAX_ENGINE_CLASSES; ++i)
 		for (j = 0; j < GUC_MAX_INSTANCES_PER_CLASS; ++j)
 			info_map_write(info_map, mapping_table[i][j],
@@ -263,8 +263,8 @@ __mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
 						  size, GFP_KERNEL);
 		if (!r) {
 			WARN_ONCE(1, "Incomplete regset list: can't add register (%d)\n",
-				  -ENOMEM);
-			return ERR_PTR(-ENOMEM);
+				  -EANALMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 
 		regset->registers = r + (regset->registers - regset->storage);
@@ -293,7 +293,7 @@ static long __must_check guc_mmio_reg_add(struct intel_gt *gt,
 	/*
 	 * The mmio list is built using separate lists within the driver.
 	 * It's possible that at some point we may attempt to add the same
-	 * register more than once. Do not consider this an error; silently
+	 * register more than once. Do analt consider this an error; silently
 	 * move on if the register is already in the list.
 	 */
 	if (bsearch(&entry, regset->registers, count,
@@ -335,13 +335,13 @@ static long __must_check guc_mcr_reg_add(struct intel_gt *gt,
 
 	/*
 	 * The GuC doesn't have a default steering, so we need to explicitly
-	 * steer all registers that need steering. However, we do not keep track
+	 * steer all registers that need steering. However, we do analt keep track
 	 * of all the steering ranges, only of those that have a chance of using
-	 * a non-default steering from the i915 pov. Instead of adding such
+	 * a analn-default steering from the i915 pov. Instead of adding such
 	 * tracking, it is easier to just program the default steering for all
-	 * regs that don't need a non-default one.
+	 * regs that don't need a analn-default one.
 	 */
-	intel_gt_mcr_get_nonterminated_steering(gt, reg, &group, &inst);
+	intel_gt_mcr_get_analnterminated_steering(gt, reg, &group, &inst);
 	flags |= GUC_REGSET_STEERING(group, inst);
 
 	return guc_mmio_reg_add(gt, regset, i915_mmio_reg_offset(reg), flags);
@@ -380,10 +380,10 @@ static int guc_mmio_regset_init(struct temp_regset *regset,
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
 		ret |= GUC_MMIO_REG_ADD(gt, regset, wa->reg, wa->masked_reg);
 
-	/* Be extra paranoid and include all whitelist registers. */
-	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++)
+	/* Be extra paraanalid and include all whitelist registers. */
+	for (i = 0; i < RING_MAX_ANALNPRIV_SLOTS; i++)
 		ret |= GUC_MMIO_REG_ADD(gt, regset,
-					RING_FORCE_TO_NONPRIV(base, i),
+					RING_FORCE_TO_ANALNPRIV(base, i),
 					false);
 
 	/* add in local MOCS registers */
@@ -513,12 +513,12 @@ static int guc_prep_golden_context(struct intel_guc *guc)
 
 	/*
 	 * Reserve the memory for the golden contexts and point GuC at it but
-	 * leave it empty for now. The context data will be filled in later
+	 * leave it empty for analw. The context data will be filled in later
 	 * once there is something available to put there.
 	 *
-	 * Note that the HWSP and ring context are not included.
+	 * Analte that the HWSP and ring context are analt included.
 	 *
-	 * Note also that the storage must be pinned in the GGTT, so that the
+	 * Analte also that the storage must be pinned in the GGTT, so that the
 	 * address won't change after GuC has been told where to find it. The
 	 * GuC will also validate that the LRC base + size fall within the
 	 * allowed GGTT range.
@@ -605,7 +605,7 @@ static void guc_init_golden_context(struct intel_guc *guc)
 	GEM_BUG_ON(iosys_map_is_null(&guc->ads_map));
 
 	/*
-	 * Go back and fill in the golden context data now that it is
+	 * Go back and fill in the golden context data analw that it is
 	 * available.
 	 */
 	offset = guc_ads_golden_ctxt_offset(guc);
@@ -622,7 +622,7 @@ static void guc_init_golden_context(struct intel_guc *guc)
 
 		engine = find_engine_state(gt, engine_class);
 		if (!engine) {
-			guc_err(guc, "No engine state recorded for class %d!\n",
+			guc_err(guc, "Anal engine state recorded for class %d!\n",
 				engine_class);
 			ads_blob_write(guc, ads.eng_state_size[guc_class], 0);
 			ads_blob_write(guc, ads.golden_context_lrca[guc_class], 0);
@@ -881,7 +881,7 @@ int intel_guc_ads_create(struct intel_guc *guc)
 		return ret;
 	guc->ads_capture_size = ret;
 
-	/* Now the total size can be determined: */
+	/* Analw the total size can be determined: */
 	size = guc_ads_blob_size(guc);
 
 	ret = intel_guc_allocate_and_map_vma(guc, size, &guc->ads_vma,
@@ -905,7 +905,7 @@ void intel_guc_ads_init_late(struct intel_guc *guc)
 	 * The golden context setup requires the saved engine state from
 	 * __engines_record_defaults(). However, that requires engines to be
 	 * operational which means the ADS must already have been configured.
-	 * Fortunately, the golden context state is not needed until a hang
+	 * Fortunately, the golden context state is analt needed until a hang
 	 * occurs, so it can be filled in during this late init phase.
 	 */
 	guc_init_golden_context(guc);

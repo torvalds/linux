@@ -86,7 +86,7 @@ static int usb4_native_switch_op(struct tb_switch *sw, u16 opcode,
 		return ret;
 
 	if (val & ROUTER_CS_26_ONS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (status)
 		*status = (val & ROUTER_CS_26_STATUS_MASK) >>
@@ -127,11 +127,11 @@ static int __usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
 		ret = cm_ops->usb4_switch_op(sw, opcode, metadata, status,
 					     tx_data, tx_dwords, rx_data,
 					     rx_dwords);
-		if (ret != -EOPNOTSUPP)
+		if (ret != -EOPANALTSUPP)
 			return ret;
 
 		/*
-		 * If the proxy was not supported then run the native
+		 * If the proxy was analt supported then run the native
 		 * router operation instead.
 		 */
 	}
@@ -171,8 +171,8 @@ static void usb4_switch_check_wakes(struct tb_switch *sw)
 			return;
 
 		tb_sw_dbg(sw, "PCIe wake: %s, USB3 wake: %s\n",
-			  (val & ROUTER_CS_6_WOPS) ? "yes" : "no",
-			  (val & ROUTER_CS_6_WOUS) ? "yes" : "no");
+			  (val & ROUTER_CS_6_WOPS) ? "anal" : "anal",
+			  (val & ROUTER_CS_6_WOUS) ? "anal" : "anal");
 
 		wakeup = val & (ROUTER_CS_6_WOPS | ROUTER_CS_6_WOUS);
 	}
@@ -190,9 +190,9 @@ static void usb4_switch_check_wakes(struct tb_switch *sw)
 			break;
 
 		tb_port_dbg(port, "USB4 wake: %s, connection wake: %s, disconnection wake: %s\n",
-			    (val & PORT_CS_18_WOU4S) ? "yes" : "no",
-			    (val & PORT_CS_18_WOCS) ? "yes" : "no",
-			    (val & PORT_CS_18_WODS) ? "yes" : "no");
+			    (val & PORT_CS_18_WOU4S) ? "anal" : "anal",
+			    (val & PORT_CS_18_WOCS) ? "anal" : "anal",
+			    (val & PORT_CS_18_WODS) ? "anal" : "anal");
 
 		wakeup_usb4 = val & (PORT_CS_18_WOU4S | PORT_CS_18_WOCS |
 				     PORT_CS_18_WODS);
@@ -229,11 +229,11 @@ static bool link_is_usb4(struct tb_port *port)
  * USB4 routers need additional settings in order to enable all the
  * tunneling. This function enables USB and PCIe tunneling if it can be
  * enabled (e.g the parent switch also supports them). If USB tunneling
- * is not available for some reason (like that there is Thunderbolt 3
+ * is analt available for some reason (like that there is Thunderbolt 3
  * switch upstream) then the internal xHCI controller is enabled
  * instead.
  *
- * This does not set the configuration valid bit of the router. To do
+ * This does analt set the configuration valid bit of the router. To do
  * that call usb4_switch_configuration_valid().
  */
 int usb4_switch_setup(struct tb_switch *sw)
@@ -261,7 +261,7 @@ int usb4_switch_setup(struct tb_switch *sw)
 	tbt3 = !(val & ROUTER_CS_6_TNS);
 
 	tb_sw_dbg(sw, "TBT3 support: %s, xHCI: %s\n",
-		  tbt3 ? "yes" : "no", xhci ? "yes" : "no");
+		  tbt3 ? "anal" : "anal", xhci ? "anal" : "anal");
 
 	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
 	if (ret)
@@ -275,15 +275,15 @@ int usb4_switch_setup(struct tb_switch *sw)
 
 	/*
 	 * Only enable PCIe tunneling if the parent router supports it
-	 * and it is not disabled.
+	 * and it is analt disabled.
 	 */
 	if (tb_acpi_may_tunnel_pcie() &&
 	    tb_switch_find_port(parent, TB_TYPE_PCIE_DOWN)) {
 		val |= ROUTER_CS_5_PTO;
 		/*
 		 * xHCI can be enabled if PCIe tunneling is supported
-		 * and the parent does not have any USB3 dowstream
-		 * adapters (so we cannot do USB 3.x tunneling).
+		 * and the parent does analt have any USB3 dowstream
+		 * adapters (so we cananalt do USB 3.x tunneling).
 		 */
 		if (xhci)
 			val |= ROUTER_CS_5_HCO;
@@ -302,9 +302,9 @@ int usb4_switch_setup(struct tb_switch *sw)
  * Sets configuration valid bit for the router. Must be called before
  * any tunnels can be set through the router and after
  * usb4_switch_setup() has been called. Can be called to host and device
- * routers (does nothing for the latter).
+ * routers (does analthing for the latter).
  *
- * Returns %0 in success and negative errno otherwise.
+ * Returns %0 in success and negative erranal otherwise.
  */
 int usb4_switch_configuration_valid(struct tb_switch *sw)
 {
@@ -369,8 +369,8 @@ static int usb4_switch_drom_read_block(void *data,
  * @size: Number of bytes to read from DROM
  *
  * Uses USB4 router operations to read router DROM. For devices this
- * should always work but for hosts it may return %-EOPNOTSUPP in which
- * case the host router does not have DROM.
+ * should always work but for hosts it may return %-EOPANALTSUPP in which
+ * case the host router does analt have DROM.
  */
 int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
 			  size_t size)
@@ -514,8 +514,8 @@ int usb4_switch_set_sleep(struct tb_switch *sw)
  * @sw: USB4 router
  *
  * If the router supports NVM operations this function returns the NVM
- * sector size in bytes. If NVM operations are not supported returns
- * %-EOPNOTSUPP.
+ * sector size in bytes. If NVM operations are analt supported returns
+ * %-EOPANALTSUPP.
  */
 int usb4_switch_nvm_sector_size(struct tb_switch *sw)
 {
@@ -529,7 +529,7 @@ int usb4_switch_nvm_sector_size(struct tb_switch *sw)
 		return ret;
 
 	if (status)
-		return status == 0x2 ? -EOPNOTSUPP : -EIO;
+		return status == 0x2 ? -EOPANALTSUPP : -EIO;
 
 	return metadata & USB4_NVM_SECTOR_SIZE_MASK;
 }
@@ -562,8 +562,8 @@ static int usb4_switch_nvm_read_block(void *data,
  * @buf: Read data is placed here
  * @size: How many bytes to read
  *
- * Reads NVM contents of the router. If NVM is not supported returns
- * %-EOPNOTSUPP.
+ * Reads NVM contents of the router. If NVM is analt supported returns
+ * %-EOPANALTSUPP.
  */
 int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
 			 size_t size)
@@ -577,10 +577,10 @@ int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
  * @sw: USB4 router
  * @address: Start offset
  *
- * Explicitly sets NVM write offset. Normally when writing to NVM this
+ * Explicitly sets NVM write offset. Analrmally when writing to NVM this
  * is done automatically by usb4_switch_nvm_write().
  *
- * Returns %0 in success and negative errno if there was a failure.
+ * Returns %0 in success and negative erranal if there was a failure.
  */
 int usb4_switch_nvm_set_offset(struct tb_switch *sw, unsigned int address)
 {
@@ -623,7 +623,7 @@ static int usb4_switch_nvm_write_next_block(void *data, unsigned int dwaddress,
  * @size: Size of @buf in bytes
  *
  * Writes @buf to the router NVM using USB4 router operations. If NVM
- * write is not supported returns %-EOPNOTSUPP.
+ * write is analt supported returns %-EOPANALTSUPP.
  */
 int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
 			  const void *buf, size_t size)
@@ -645,7 +645,7 @@ int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
  * After the new NVM has been written via usb4_switch_nvm_write(), this
  * function triggers NVM authentication process. The router gets power
  * cycled and if the authentication is successful the new NVM starts
- * running. In case of failure returns negative errno.
+ * running. In case of failure returns negative erranal.
  *
  * The caller should call usb4_switch_nvm_authenticate_status() to read
  * the status of the authentication after power cycle. It should be the
@@ -662,7 +662,7 @@ int usb4_switch_nvm_authenticate(struct tb_switch *sw)
 	 * expected to get any of the following errors back.
 	 */
 	case -EACCES:
-	case -ENOTCONN:
+	case -EANALTCONN:
 	case -ETIMEDOUT:
 		return 0;
 
@@ -678,7 +678,7 @@ int usb4_switch_nvm_authenticate(struct tb_switch *sw)
  *
  * The function checks if there is status available from the last NVM
  * authenticate router operation. If there is status then %0 is returned
- * and the status code is placed in @status. Returns negative errno in case
+ * and the status code is placed in @status. Returns negative erranal in case
  * of failure.
  *
  * Must be called before any other router operation.
@@ -692,7 +692,7 @@ int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status)
 
 	if (cm_ops->usb4_switch_nvm_authenticate_status) {
 		ret = cm_ops->usb4_switch_nvm_authenticate_status(sw, status);
-		if (ret != -EOPNOTSUPP)
+		if (ret != -EOPANALTSUPP)
 			return ret;
 	}
 
@@ -706,7 +706,7 @@ int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status)
 		if (val & ROUTER_CS_26_OV)
 			return -EBUSY;
 		if (val & ROUTER_CS_26_ONS)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		*status = (val & ROUTER_CS_26_STATUS_MASK) >>
 			ROUTER_CS_26_STATUS_SHIFT;
@@ -725,7 +725,7 @@ int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status)
  * allocation fields accordingly. Specifically @sw->credits_allocation
  * is set to %true if these parameters can be used in tunneling.
  *
- * Returns %0 on success and negative errno otherwise.
+ * Returns %0 on success and negative erranal otherwise.
  */
 int usb4_switch_credits_init(struct tb_switch *sw)
 {
@@ -784,7 +784,7 @@ int usb4_switch_credits_init(struct tb_switch *sw)
 			max_dma = value;
 			break;
 		default:
-			tb_sw_dbg(sw, " unknown credit allocation index %#x, skipping\n",
+			tb_sw_dbg(sw, " unkanalwn credit allocation index %#x, skipping\n",
 				  index);
 			break;
 		}
@@ -876,10 +876,10 @@ bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
 	ret = usb4_switch_op(sw, USB4_SWITCH_OP_QUERY_DP_RESOURCE, &metadata,
 			     &status);
 	/*
-	 * If DP resource allocation is not supported assume it is
+	 * If DP resource allocation is analt supported assume it is
 	 * always available.
 	 */
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return true;
 	if (ret)
 		return false;
@@ -894,7 +894,7 @@ bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
  *
  * Allocates DP IN resource for DP tunneling using USB4 router
  * operations. If the resource was allocated returns %0. Otherwise
- * returns negative errno, in particular %-EBUSY if the resource is
+ * returns negative erranal, in particular %-EBUSY if the resource is
  * already allocated.
  */
 int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
@@ -905,7 +905,7 @@ int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 
 	ret = usb4_switch_op(sw, USB4_SWITCH_OP_ALLOC_DP_RESOURCE, &metadata,
 			     &status);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return 0;
 	if (ret)
 		return ret;
@@ -928,7 +928,7 @@ int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 
 	ret = usb4_switch_op(sw, USB4_SWITCH_OP_DEALLOC_DP_RESOURCE, &metadata,
 			     &status);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return 0;
 	if (ret)
 		return ret;
@@ -965,7 +965,7 @@ static int usb4_port_idx(const struct tb_switch *sw, const struct tb_port *port)
  * USB4 routers have direct mapping between USB4 ports and PCIe
  * downstream adapters where the PCIe topology is extended. This
  * function returns the corresponding downstream PCIe adapter or %NULL
- * if no such mapping was possible.
+ * if anal such mapping was possible.
  */
 struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
 					  const struct tb_port *port)
@@ -996,7 +996,7 @@ struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
  * USB4 routers have direct mapping between USB4 ports and USB 3.x
  * downstream adapters where the USB 3.x topology is extended. This
  * function returns the corresponding downstream USB 3.x adapter or
- * %NULL if no such mapping was possible.
+ * %NULL if anal such mapping was possible.
  */
 struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 					  const struct tb_port *port)
@@ -1026,7 +1026,7 @@ struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
  * For USB4 router finds all USB4 ports and registers devices for each.
  * Can be called to any router.
  *
- * Return %0 in case of success and negative errno in case of failure.
+ * Return %0 in case of success and negative erranal in case of failure.
  */
 int usb4_switch_add_ports(struct tb_switch *sw)
 {
@@ -1181,11 +1181,11 @@ static int usb4_set_xdomain_configured(struct tb_port *port, bool configured)
 
 /**
  * usb4_port_configure_xdomain() - Configure port for XDomain
- * @port: USB4 port connected to another host
+ * @port: USB4 port connected to aanalther host
  * @xd: XDomain that is connected to the port
  *
- * Marks the USB4 port as being connected to another host and updates
- * the link type. Returns %0 in success and negative errno in failure.
+ * Marks the USB4 port as being connected to aanalther host and updates
+ * the link type. Returns %0 in success and negative erranal in failure.
  */
 int usb4_port_configure_xdomain(struct tb_port *port, struct tb_xdomain *xd)
 {
@@ -1195,7 +1195,7 @@ int usb4_port_configure_xdomain(struct tb_port *port, struct tb_xdomain *xd)
 
 /**
  * usb4_port_unconfigure_xdomain() - Unconfigure port for XDomain
- * @port: USB4 port that was connected to another host
+ * @port: USB4 port that was connected to aanalther host
  *
  * Clears USB4 port from being marked as XDomain.
  */
@@ -1278,7 +1278,7 @@ static int usb4_port_sb_read(struct tb_port *port, enum usb4_sb_target target,
 		return ret;
 
 	if (val & PORT_CS_1_NR)
-		return -ENODEV;
+		return -EANALDEV;
 	if (val & PORT_CS_1_RC)
 		return -EIO;
 
@@ -1325,14 +1325,14 @@ static int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
 		return ret;
 
 	if (val & PORT_CS_1_NR)
-		return -ENODEV;
+		return -EANALDEV;
 	if (val & PORT_CS_1_RC)
 		return -EIO;
 
 	return 0;
 }
 
-static int usb4_port_sb_opcode_err_to_errno(u32 val)
+static int usb4_port_sb_opcode_err_to_erranal(u32 val)
 {
 	switch (val) {
 	case 0:
@@ -1340,7 +1340,7 @@ static int usb4_port_sb_opcode_err_to_errno(u32 val)
 	case USB4_SB_OPCODE_ERR:
 		return -EAGAIN;
 	case USB4_SB_OPCODE_ONS:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
 		return -EIO;
 	}
@@ -1369,7 +1369,7 @@ static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 			return ret;
 
 		if (val != opcode)
-			return usb4_port_sb_opcode_err_to_errno(val);
+			return usb4_port_sb_opcode_err_to_erranal(val);
 	} while (ktime_before(ktime_get(), timeout));
 
 	return -ETIMEDOUT;
@@ -1395,10 +1395,10 @@ static int usb4_port_set_router_offline(struct tb_port *port, bool offline)
  * @port: USB4 port
  *
  * This function puts the USB4 port into offline mode. In this mode the
- * port does not react on hotplug events anymore. This needs to be
- * called before retimer access is done when the USB4 links is not up.
+ * port does analt react on hotplug events anymore. This needs to be
+ * called before retimer access is done when the USB4 links is analt up.
  *
- * Returns %0 in case of success and negative errno if there was an
+ * Returns %0 in case of success and negative erranal if there was an
  * error.
  */
 int usb4_port_router_offline(struct tb_port *port)
@@ -1423,7 +1423,7 @@ int usb4_port_router_online(struct tb_port *port)
  *
  * This forces the USB4 port to send broadcast RT transaction which
  * makes the retimers on the link to assign index to themselves. Returns
- * %0 in case of success and negative errno if there was an error.
+ * %0 in case of success and negative erranal if there was an error.
  */
 int usb4_port_enumerate_retimers(struct tb_port *port)
 {
@@ -1526,7 +1526,7 @@ int usb4_port_asym_set_link_width(struct tb_port *port, enum tb_link_width width
  * Wait for completion of the change.
  *
  * Returns %0 in case of success, %-ETIMEDOUT if case of timeout or
- * a negative errno in case of a failure.
+ * a negative erranal in case of a failure.
  */
 int usb4_port_asym_start(struct tb_port *port)
 {
@@ -1634,7 +1634,7 @@ int usb4_port_hw_margin(struct tb_port *port, unsigned int lanes,
  *
  * Runs software lane margining on USB4 port. Read back the error
  * counters by calling usb4_port_sw_margin_errors(). Returns %0 in
- * success and negative errno otherwise.
+ * success and negative erranal otherwise.
  */
 int usb4_port_sw_margin(struct tb_port *port, unsigned int lanes, bool timing,
 			bool right_high, u32 counter)
@@ -1665,7 +1665,7 @@ int usb4_port_sw_margin(struct tb_port *port, unsigned int lanes, bool timing,
  * @errors: Error metadata is copied here.
  *
  * This reads back the software margining error counters from the port.
- * Returns %0 in success and negative errno otherwise.
+ * Returns %0 in success and negative erranal otherwise.
  */
 int usb4_port_sw_margin_errors(struct tb_port *port, u32 *errors)
 {
@@ -1694,7 +1694,7 @@ static inline int usb4_port_retimer_op(struct tb_port *port, u8 index,
  * @index: Retimer index
  *
  * Enables sideband channel transations on SBTX. Can be used when USB4
- * link does not go up, for example if there is no device connected.
+ * link does analt go up, for example if there is anal device connected.
  */
 int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index)
 {
@@ -1703,11 +1703,11 @@ int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index)
 	ret = usb4_port_retimer_op(port, index, USB4_SB_OPCODE_SET_INBOUND_SBTX,
 				   500);
 
-	if (ret != -ENODEV)
+	if (ret != -EANALDEV)
 		return ret;
 
 	/*
-	 * Per the USB4 retimer spec, the retimer is not required to
+	 * Per the USB4 retimer spec, the retimer is analt required to
 	 * send an RT (Retimer Transaction) response for the first
 	 * SET_INBOUND_SBTX command
 	 */
@@ -1739,9 +1739,9 @@ int usb4_port_retimer_unset_inbound_sbtx(struct tb_port *port, u8 index)
  *
  * Function reads retimer sideband registers starting from @reg. The
  * retimer is connected to @port at @index. Returns %0 in case of
- * success, and read data is copied to @buf. If there is no retimer
- * present at given @index returns %-ENODEV. In any other failure
- * returns negative errno.
+ * success, and read data is copied to @buf. If there is anal retimer
+ * present at given @index returns %-EANALDEV. In any other failure
+ * returns negative erranal.
  */
 int usb4_port_retimer_read(struct tb_port *port, u8 index, u8 reg, void *buf,
 			   u8 size)
@@ -1760,8 +1760,8 @@ int usb4_port_retimer_read(struct tb_port *port, u8 index, u8 reg, void *buf,
  *
  * Writes retimer sideband registers starting from @reg. The retimer is
  * connected to @port at @index. Returns %0 in case of success. If there
- * is no retimer present at given @index returns %-ENODEV. In any other
- * failure returns negative errno.
+ * is anal retimer present at given @index returns %-EANALDEV. In any other
+ * failure returns negative erranal.
  */
 int usb4_port_retimer_write(struct tb_port *port, u8 index, u8 reg,
 			    const void *buf, u8 size)
@@ -1776,9 +1776,9 @@ int usb4_port_retimer_write(struct tb_port *port, u8 index, u8 reg,
  * @index: Retimer index
  *
  * If the retimer at @index is last one (connected directly to the
- * Type-C port) this function returns %1. If it is not returns %0. If
- * the retimer is not present returns %-ENODEV. Otherwise returns
- * negative errno.
+ * Type-C port) this function returns %1. If it is analt returns %0. If
+ * the retimer is analt present returns %-EANALDEV. Otherwise returns
+ * negative erranal.
  */
 int usb4_port_retimer_is_last(struct tb_port *port, u8 index)
 {
@@ -1802,8 +1802,8 @@ int usb4_port_retimer_is_last(struct tb_port *port, u8 index)
  *
  * Reads NVM sector size (in bytes) of a retimer at @index. This
  * operation can be used to determine whether the retimer supports NVM
- * upgrade for example. Returns sector size in bytes or negative errno
- * in case of error. Specifically returns %-ENODEV if there is no
+ * upgrade for example. Returns sector size in bytes or negative erranal
+ * in case of error. Specifically returns %-EANALDEV if there is anal
  * retimer at @index.
  */
 int usb4_port_retimer_nvm_sector_size(struct tb_port *port, u8 index)
@@ -1827,10 +1827,10 @@ int usb4_port_retimer_nvm_sector_size(struct tb_port *port, u8 index)
  * @index: Retimer index
  * @address: Start offset
  *
- * Exlicitly sets NVM write offset. Normally when writing to NVM this is
+ * Exlicitly sets NVM write offset. Analrmally when writing to NVM this is
  * done automatically by usb4_port_retimer_nvm_write().
  *
- * Returns %0 in success and negative errno if there was a failure.
+ * Returns %0 in success and negative erranal if there was a failure.
  */
 int usb4_port_retimer_nvm_set_offset(struct tb_port *port, u8 index,
 				     unsigned int address)
@@ -1884,8 +1884,8 @@ static int usb4_port_retimer_nvm_write_next_block(void *data,
  *
  * Writes @size bytes from @buf to the retimer NVM. Used for NVM
  * upgrade. Returns %0 if the data was written successfully and negative
- * errno in case of failure. Specifically returns %-ENODEV if there is
- * no retimer at @index.
+ * erranal in case of failure. Specifically returns %-EANALDEV if there is
+ * anal retimer at @index.
  */
 int usb4_port_retimer_nvm_write(struct tb_port *port, u8 index, unsigned int address,
 				const void *buf, size_t size)
@@ -1908,7 +1908,7 @@ int usb4_port_retimer_nvm_write(struct tb_port *port, u8 index, unsigned int add
  *
  * After the new NVM image has been written via usb4_port_retimer_nvm_write()
  * this function can be used to trigger the NVM upgrade process. If
- * successful the retimer restarts with the new NVM and may not have the
+ * successful the retimer restarts with the new NVM and may analt have the
  * index set so one needs to call usb4_port_enumerate_retimers() to
  * force index to be assigned.
  */
@@ -1918,8 +1918,8 @@ int usb4_port_retimer_nvm_authenticate(struct tb_port *port, u8 index)
 
 	/*
 	 * We need to use the raw operation here because once the
-	 * authentication completes the retimer index is not set anymore
-	 * so we do not get back the status now.
+	 * authentication completes the retimer index is analt set anymore
+	 * so we do analt get back the status analw.
 	 */
 	val = USB4_SB_OPCODE_NVM_AUTH_WRITE;
 	return usb4_port_sb_write(port, USB4_SB_TARGET_RETIMER, index,
@@ -1937,7 +1937,7 @@ int usb4_port_retimer_nvm_authenticate(struct tb_port *port, u8 index)
  *
  * Returns %0 if the authentication status was successfully read. The
  * completion metadata (the result) is then stored into @status. If
- * reading the status fails, returns negative errno.
+ * reading the status fails, returns negative erranal.
  */
 int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 					      u32 *status)
@@ -1950,7 +1950,7 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 	if (ret)
 		return ret;
 
-	ret = usb4_port_sb_opcode_err_to_errno(val);
+	ret = usb4_port_sb_opcode_err_to_erranal(val);
 	switch (ret) {
 	case 0:
 		*status = 0;
@@ -2005,8 +2005,8 @@ static int usb4_port_retimer_nvm_read_block(void *data, unsigned int dwaddress,
  * @size: Number of bytes to read
  *
  * Reads retimer NVM and copies the contents to @buf. Returns %0 if the
- * read was successful and negative errno in case of failure.
- * Specifically returns %-ENODEV if there is no retimer at @index.
+ * read was successful and negative erranal in case of failure.
+ * Specifically returns %-EANALDEV if there is anal retimer at @index.
  */
 int usb4_port_retimer_nvm_read(struct tb_port *port, u8 index,
 			       unsigned int address, void *buf, size_t size)
@@ -2031,7 +2031,7 @@ usb4_usb3_port_max_bandwidth(const struct tb_port *port, unsigned int bw)
  * @port: USB3 adapter port
  *
  * Return maximum supported link rate of a USB3 adapter in Mb/s.
- * Negative errno in case of error.
+ * Negative erranal in case of error.
  */
 int usb4_usb3_port_max_link_rate(struct tb_port *port)
 {
@@ -2149,7 +2149,7 @@ static int usb4_usb3_port_read_allocated_bandwidth(struct tb_port *port,
  *
  * Stores currently allocated USB3 bandwidth into @upstream_bw and
  * @downstream_bw in Mb/s. Returns %0 in case of success and negative
- * errno in failure.
+ * erranal in failure.
  */
 int usb4_usb3_port_allocated_bandwidth(struct tb_port *port, int *upstream_bw,
 				       int *downstream_bw)
@@ -2244,14 +2244,14 @@ static int usb4_usb3_port_write_allocated_bandwidth(struct tb_port *port,
  * @downstream_bw: New downstream bandwidth
  *
  * This can be used to set how much bandwidth is allocated for the USB3
- * tunneled isochronous traffic. @upstream_bw and @downstream_bw are the
+ * tunneled isochroanalus traffic. @upstream_bw and @downstream_bw are the
  * new values programmed to the USB3 adapter allocation registers. If
  * the values are lower than what is currently consumed the allocation
  * is set to what is currently consumed instead (consumed bandwidth
- * cannot be taken away by CM). The actual new values are returned in
+ * cananalt be taken away by CM). The actual new values are returned in
  * @upstream_bw and @downstream_bw.
  *
- * Returns %0 in case of success and negative errno if there was a
+ * Returns %0 in case of success and negative erranal if there was a
  * failure.
  */
 int usb4_usb3_port_allocate_bandwidth(struct tb_port *port, int *upstream_bw,
@@ -2294,7 +2294,7 @@ err_request:
  * Releases USB3 allocated bandwidth down to what is actually consumed.
  * The new bandwidth is returned in @upstream_bw and @downstream_bw.
  *
- * Returns 0% in success and negative errno in case of failure.
+ * Returns 0% in success and negative erranal in case of failure.
  */
 int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 				     int *downstream_bw)
@@ -2312,7 +2312,7 @@ int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 
 	/*
 	 * Always keep 900 Mb/s to make sure xHCI has at least some
-	 * bandwidth available for isochronous traffic.
+	 * bandwidth available for isochroanalus traffic.
 	 */
 	if (consumed_up < 900)
 		consumed_up = 900;
@@ -2346,8 +2346,8 @@ static bool is_usb4_dpin(const struct tb_port *port)
  * @port: DP IN adapter
  * @cm_id: CM ID to assign
  *
- * Sets CM ID for the @port. Returns %0 on success and negative errno
- * otherwise. Speficially returns %-EOPNOTSUPP if the @port does not
+ * Sets CM ID for the @port. Returns %0 on success and negative erranal
+ * otherwise. Speficially returns %-EOPANALTSUPP if the @port does analt
  * support this.
  */
 int usb4_dp_port_set_cm_id(struct tb_port *port, int cm_id)
@@ -2356,7 +2356,7 @@ int usb4_dp_port_set_cm_id(struct tb_port *port, int cm_id)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);
@@ -2425,9 +2425,9 @@ bool usb4_dp_port_bandwidth_mode_enabled(struct tb_port *port)
  * @supported: Does the CM support bandwidth allocation mode
  *
  * Can be called to any DP IN adapter. Sets or clears the CM support bit
- * of the DP IN adapter. Returns %0 in success and negative errno
- * otherwise. Specifically returns %-OPNOTSUPP if the passed in adapter
- * does not support this.
+ * of the DP IN adapter. Returns %0 in success and negative erranal
+ * otherwise. Specifically returns %-OPANALTSUPP if the passed in adapter
+ * does analt support this.
  */
 int usb4_dp_port_set_cm_bandwidth_mode_supported(struct tb_port *port,
 						 bool supported)
@@ -2436,7 +2436,7 @@ int usb4_dp_port_set_cm_bandwidth_mode_supported(struct tb_port *port,
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);
@@ -2457,8 +2457,8 @@ int usb4_dp_port_set_cm_bandwidth_mode_supported(struct tb_port *port,
  * @port: DP IN adapter
  *
  * Reads bandwidth allocation Group ID from the DP IN adapter and
- * returns it. If the adapter does not support setting Group_ID
- * %-EOPNOTSUPP is returned.
+ * returns it. If the adapter does analt support setting Group_ID
+ * %-EOPANALTSUPP is returned.
  */
 int usb4_dp_port_group_id(struct tb_port *port)
 {
@@ -2466,7 +2466,7 @@ int usb4_dp_port_group_id(struct tb_port *port)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);
@@ -2482,8 +2482,8 @@ int usb4_dp_port_group_id(struct tb_port *port)
  * @group_id: Group ID for the adapter
  *
  * Sets bandwidth allocation mode Group ID for the DP IN adapter.
- * Returns %0 in case of success and negative errno otherwise.
- * Specifically returns %-EOPNOTSUPP if the adapter does not support
+ * Returns %0 in case of success and negative erranal otherwise.
+ * Specifically returns %-EOPANALTSUPP if the adapter does analt support
  * this.
  */
 int usb4_dp_port_set_group_id(struct tb_port *port, int group_id)
@@ -2492,7 +2492,7 @@ int usb4_dp_port_set_group_id(struct tb_port *port, int group_id)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);
@@ -2507,14 +2507,14 @@ int usb4_dp_port_set_group_id(struct tb_port *port, int group_id)
 }
 
 /**
- * usb4_dp_port_nrd() - Read non-reduced rate and lanes
+ * usb4_dp_port_nrd() - Read analn-reduced rate and lanes
  * @port: DP IN adapter
- * @rate: Non-reduced rate in Mb/s is placed here
- * @lanes: Non-reduced lanes are placed here
+ * @rate: Analn-reduced rate in Mb/s is placed here
+ * @lanes: Analn-reduced lanes are placed here
  *
- * Reads the non-reduced rate and lanes from the DP IN adapter. Returns
- * %0 in success and negative errno otherwise. Specifically returns
- * %-EOPNOTSUPP if the adapter does not support this.
+ * Reads the analn-reduced rate and lanes from the DP IN adapter. Returns
+ * %0 in success and negative erranal otherwise. Specifically returns
+ * %-EOPANALTSUPP if the adapter does analt support this.
  */
 int usb4_dp_port_nrd(struct tb_port *port, int *rate, int *lanes)
 {
@@ -2522,7 +2522,7 @@ int usb4_dp_port_nrd(struct tb_port *port, int *rate, int *lanes)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);
@@ -2562,15 +2562,15 @@ int usb4_dp_port_nrd(struct tb_port *port, int *rate, int *lanes)
 }
 
 /**
- * usb4_dp_port_set_nrd() - Set non-reduced rate and lanes
+ * usb4_dp_port_set_nrd() - Set analn-reduced rate and lanes
  * @port: DP IN adapter
- * @rate: Non-reduced rate in Mb/s
- * @lanes: Non-reduced lanes
+ * @rate: Analn-reduced rate in Mb/s
+ * @lanes: Analn-reduced lanes
  *
  * Before the capabilities reduction this function can be used to set
- * the non-reduced values for the DP IN adapter. Returns %0 in success
- * and negative errno otherwise. If the adapter does not support this
- * %-EOPNOTSUPP is returned.
+ * the analn-reduced values for the DP IN adapter. Returns %0 in success
+ * and negative erranal otherwise. If the adapter does analt support this
+ * %-EOPANALTSUPP is returned.
  */
 int usb4_dp_port_set_nrd(struct tb_port *port, int rate, int lanes)
 {
@@ -2578,7 +2578,7 @@ int usb4_dp_port_set_nrd(struct tb_port *port, int rate, int lanes)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);
@@ -2630,8 +2630,8 @@ int usb4_dp_port_set_nrd(struct tb_port *port, int rate, int lanes)
  * @port: DP IN adapter
  *
  * Reads the programmed granularity from @port. If the DP IN adapter does
- * not support bandwidth allocation mode returns %-EOPNOTSUPP and negative
- * errno in other error cases.
+ * analt support bandwidth allocation mode returns %-EOPANALTSUPP and negative
+ * erranal in other error cases.
  */
 int usb4_dp_port_granularity(struct tb_port *port)
 {
@@ -2639,7 +2639,7 @@ int usb4_dp_port_granularity(struct tb_port *port)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);
@@ -2667,8 +2667,8 @@ int usb4_dp_port_granularity(struct tb_port *port)
  * @granularity: Granularity in Mb/s. Supported values: 1000, 500 and 250.
  *
  * Sets the granularity used with the estimated, allocated and requested
- * bandwidth. Returns %0 in success and negative errno otherwise. If the
- * adapter does not support this %-EOPNOTSUPP is returned.
+ * bandwidth. Returns %0 in success and negative erranal otherwise. If the
+ * adapter does analt support this %-EOPANALTSUPP is returned.
  */
 int usb4_dp_port_set_granularity(struct tb_port *port, int granularity)
 {
@@ -2676,7 +2676,7 @@ int usb4_dp_port_set_granularity(struct tb_port *port, int granularity)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);
@@ -2711,8 +2711,8 @@ int usb4_dp_port_set_granularity(struct tb_port *port, int granularity)
  * Sets the estimated bandwidth to @bw. Set the granularity by calling
  * usb4_dp_port_set_granularity() before calling this. The @bw is round
  * down to the closest granularity multiplier. Returns %0 in success
- * and negative errno otherwise. Specifically returns %-EOPNOTSUPP if
- * the adapter does not support this.
+ * and negative erranal otherwise. Specifically returns %-EOPANALTSUPP if
+ * the adapter does analt support this.
  */
 int usb4_dp_port_set_estimated_bandwidth(struct tb_port *port, int bw)
 {
@@ -2720,7 +2720,7 @@ int usb4_dp_port_set_estimated_bandwidth(struct tb_port *port, int bw)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = usb4_dp_port_granularity(port);
 	if (ret < 0)
@@ -2744,7 +2744,7 @@ int usb4_dp_port_set_estimated_bandwidth(struct tb_port *port, int bw)
  * @port: DP IN adapter
  *
  * Reads and returns allocated bandwidth for @port in Mb/s (taking into
- * account the programmed granularity). Returns negative errno in case
+ * account the programmed granularity). Returns negative erranal in case
  * of error.
  */
 int usb4_dp_port_allocated_bandwidth(struct tb_port *port)
@@ -2753,7 +2753,7 @@ int usb4_dp_port_allocated_bandwidth(struct tb_port *port)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = usb4_dp_port_granularity(port);
 	if (ret < 0)
@@ -2839,7 +2839,7 @@ static int usb4_dp_port_wait_and_clear_cm_ack(struct tb_port *port,
  *
  * Communicates the new allocated bandwidth with the DPCD (graphics
  * driver). Takes into account the programmed granularity. Returns %0 in
- * success and negative errno in case of error.
+ * success and negative erranal in case of error.
  */
 int usb4_dp_port_allocate_bandwidth(struct tb_port *port, int bw)
 {
@@ -2847,7 +2847,7 @@ int usb4_dp_port_allocate_bandwidth(struct tb_port *port, int bw)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = usb4_dp_port_granularity(port);
 	if (ret < 0)
@@ -2880,9 +2880,9 @@ int usb4_dp_port_allocate_bandwidth(struct tb_port *port, int bw)
  *
  * Reads the DPCD (graphics driver) requested bandwidth and returns it
  * in Mb/s. Takes the programmed granularity into account. In case of
- * error returns negative errno. Specifically returns %-EOPNOTSUPP if
- * the adapter does not support bandwidth allocation mode, and %ENODATA
- * if there is no active bandwidth request from the graphics driver.
+ * error returns negative erranal. Specifically returns %-EOPANALTSUPP if
+ * the adapter does analt support bandwidth allocation mode, and %EANALDATA
+ * if there is anal active bandwidth request from the graphics driver.
  */
 int usb4_dp_port_requested_bandwidth(struct tb_port *port)
 {
@@ -2890,7 +2890,7 @@ int usb4_dp_port_requested_bandwidth(struct tb_port *port)
 	int ret;
 
 	if (!is_usb4_dpin(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = usb4_dp_port_granularity(port);
 	if (ret < 0)
@@ -2903,7 +2903,7 @@ int usb4_dp_port_requested_bandwidth(struct tb_port *port)
 		return ret;
 
 	if (!(val & ADP_DP_CS_8_DR))
-		return -ENODATA;
+		return -EANALDATA;
 
 	return (val & ADP_DP_CS_8_REQUESTED_BW_MASK) * granularity;
 }
@@ -2915,7 +2915,7 @@ int usb4_dp_port_requested_bandwidth(struct tb_port *port)
  *
  * Enables or disables extended encapsulation used in PCIe tunneling. Caller
  * needs to make sure both adapters support this before enabling. Returns %0 on
- * success and negative errno otherwise.
+ * success and negative erranal otherwise.
  */
 int usb4_pci_port_set_ext_encapsulation(struct tb_port *port, bool enable)
 {

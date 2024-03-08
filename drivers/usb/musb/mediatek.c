@@ -77,7 +77,7 @@ static int mtk_otg_switch_set(struct mtk_glue *glue, enum usb_role role)
 		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 		glue->phy_mode = PHY_MODE_USB_HOST;
 		new_role = USB_ROLE_HOST;
-		if (glue->role == USB_ROLE_NONE)
+		if (glue->role == USB_ROLE_ANALNE)
 			phy_power_on(glue->phy);
 
 		devctl |= MUSB_DEVCTL_SESSION;
@@ -90,17 +90,17 @@ static int mtk_otg_switch_set(struct mtk_glue *glue, enum usb_role role)
 		new_role = USB_ROLE_DEVICE;
 		devctl &= ~MUSB_DEVCTL_SESSION;
 		musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
-		if (glue->role == USB_ROLE_NONE)
+		if (glue->role == USB_ROLE_ANALNE)
 			phy_power_on(glue->phy);
 
 		MUSB_DEV_MODE(musb);
 		break;
-	case USB_ROLE_NONE:
+	case USB_ROLE_ANALNE:
 		glue->phy_mode = PHY_MODE_USB_OTG;
-		new_role = USB_ROLE_NONE;
+		new_role = USB_ROLE_ANALNE;
 		devctl &= ~MUSB_DEVCTL_SESSION;
 		musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
-		if (glue->role != USB_ROLE_NONE)
+		if (glue->role != USB_ROLE_ANALNE)
 			phy_power_off(glue->phy);
 
 		break;
@@ -134,7 +134,7 @@ static int mtk_otg_switch_init(struct mtk_glue *glue)
 	role_sx_desc.set = musb_usb_role_sx_set;
 	role_sx_desc.get = musb_usb_role_sx_get;
 	role_sx_desc.allow_userspace_control = true;
-	role_sx_desc.fwnode = dev_fwnode(glue->dev);
+	role_sx_desc.fwanalde = dev_fwanalde(glue->dev);
 	role_sx_desc.driver_data = glue;
 	glue->role_sw = usb_role_switch_register(glue->dev, &role_sx_desc);
 
@@ -149,7 +149,7 @@ static void mtk_otg_switch_exit(struct mtk_glue *glue)
 static irqreturn_t generic_interrupt(int irq, void *__hci)
 {
 	unsigned long flags;
-	irqreturn_t retval = IRQ_NONE;
+	irqreturn_t retval = IRQ_ANALNE;
 	struct musb *musb = __hci;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -173,7 +173,7 @@ static irqreturn_t generic_interrupt(int irq, void *__hci)
 
 static irqreturn_t mtk_musb_interrupt(int irq, void *dev_id)
 {
-	irqreturn_t retval = IRQ_NONE;
+	irqreturn_t retval = IRQ_ANALNE;
 	struct musb *musb = (struct musb *)dev_id;
 	u32 l1_ints;
 
@@ -233,7 +233,7 @@ static int mtk_musb_set_mode(struct musb *musb, u8 mode)
 		break;
 	case MUSB_OTG:
 		new_mode = PHY_MODE_USB_OTG;
-		new_role = USB_ROLE_NONE;
+		new_role = USB_ROLE_ANALNE;
 		break;
 	default:
 		dev_err(glue->dev, "Invalid mode request\n");
@@ -244,7 +244,7 @@ static int mtk_musb_set_mode(struct musb *musb, u8 mode)
 		return 0;
 
 	if (musb->port_mode != MUSB_OTG) {
-		dev_err(glue->dev, "Does not support changing modes\n");
+		dev_err(glue->dev, "Does analt support changing modes\n");
 		return -EINVAL;
 	}
 
@@ -353,7 +353,7 @@ static const struct musb_platform_ops mtk_musb_ops = {
 	.set_toggle = mtk_musb_set_toggle,
 	.exit = mtk_musb_exit,
 #ifdef CONFIG_USB_INVENTRA_DMA
-	.dma_init = musbhs_dma_controller_create_noirq,
+	.dma_init = musbhs_dma_controller_create_analirq,
 	.dma_exit = musbhs_dma_controller_destroy,
 #endif
 	.clearb = mtk_musb_clearb,
@@ -403,17 +403,17 @@ static int mtk_musb_probe(struct platform_device *pdev)
 	struct mtk_glue *glue;
 	struct platform_device_info pinfo;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	glue->dev = dev;
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret) {
@@ -445,7 +445,7 @@ static int mtk_musb_probe(struct platform_device *pdev)
 		break;
 	case USB_DR_MODE_OTG:
 		glue->phy_mode = PHY_MODE_USB_OTG;
-		glue->role = USB_ROLE_NONE;
+		glue->role = USB_ROLE_ANALNE;
 		break;
 	default:
 		dev_err(&pdev->dev, "Error 'dr_mode' property\n");
@@ -487,8 +487,8 @@ static int mtk_musb_probe(struct platform_device *pdev)
 	pinfo.num_res = pdev->num_resources;
 	pinfo.data = pdata;
 	pinfo.size_data = sizeof(*pdata);
-	pinfo.fwnode = of_fwnode_handle(np);
-	pinfo.of_node_reused = true;
+	pinfo.fwanalde = of_fwanalde_handle(np);
+	pinfo.of_analde_reused = true;
 
 	glue->musb_pdev = platform_device_register_full(&pinfo);
 	if (IS_ERR(glue->musb_pdev)) {

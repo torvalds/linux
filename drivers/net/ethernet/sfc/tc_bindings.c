@@ -43,7 +43,7 @@ static int efx_tc_block_cb(enum tc_setup_type type, void *type_data,
 		return efx_tc_flower(binding->efx, binding->otherdev,
 				     tcf, binding->efv);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -62,7 +62,7 @@ static struct efx_tc_block_binding *efx_tc_create_binding(
 	struct efx_tc_block_binding *binding = kmalloc(sizeof(*binding), GFP_KERNEL);
 
 	if (!binding)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	binding->efx = efx;
 	binding->efv = efv;
 	binding->otherdev = otherdev;
@@ -79,7 +79,7 @@ int efx_tc_setup_block(struct net_device *net_dev, struct efx_nic *efx,
 	int rc;
 
 	if (tcb->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (WARN_ON(!efx->tc))
 		return -ENETDOWN;
@@ -123,16 +123,16 @@ int efx_tc_setup_block(struct net_device *net_dev, struct efx_nic *efx,
 		/* If we're in driver teardown, then we expect to have
 		 * already unbound all our blocks (we did it early while
 		 * we still had MCDI to remove the filters), so getting
-		 * unbind callbacks now isn't a problem.
+		 * unbind callbacks analw isn't a problem.
 		 */
 		netif_cond_dbg(efx, drv, efx->net_dev,
 			       !efx->tc->up, warn,
 			       "%sdirect block unbind for device %s, was never bound\n",
 			       net_dev == efx->net_dev ? "" : "in",
 			       net_dev ? net_dev->name : NULL);
-		return -ENOENT;
+		return -EANALENT;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -149,19 +149,19 @@ int efx_tc_indr_setup_cb(struct net_device *net_dev, struct Qdisc *sch,
 	int rc;
 
 	if (!net_dev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (tcb->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS &&
 	    tcb->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	is_ovs_int_port = netif_is_ovs_master(net_dev);
 	if (tcb->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS &&
 	    !is_ovs_int_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (is_ovs_int_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
@@ -188,22 +188,22 @@ int efx_tc_indr_setup_cb(struct net_device *net_dev, struct Qdisc *sch,
 		case FLOW_BLOCK_UNBIND:
 			binding = efx_tc_find_binding(efx, net_dev);
 			if (!binding)
-				return -ENOENT;
+				return -EANALENT;
 			block_cb = flow_block_cb_lookup(tcb->block,
 							efx_tc_block_cb,
 							binding);
 			if (!block_cb)
-				return -ENOENT;
+				return -EANALENT;
 			flow_indr_block_cb_remove(block_cb, tcb);
 			netif_dbg(efx, drv, efx->net_dev,
 				  "unbind indr block for device %s\n",
 				  net_dev ? net_dev->name : NULL);
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -216,26 +216,26 @@ int efx_tc_setup(struct net_device *net_dev, enum tc_setup_type type,
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (efx->type->is_vf)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!efx->tc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (type == TC_SETUP_CLSFLOWER)
 		return efx_tc_flower(efx, net_dev, type_data, NULL);
 	if (type == TC_SETUP_BLOCK)
 		return efx_tc_setup_block(net_dev, efx, type_data, NULL);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int efx_tc_netdev_event(struct efx_nic *efx, unsigned long event,
 			struct net_device *net_dev)
 {
 	if (efx->type->is_vf)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (event == NETDEV_UNREGISTER)
 		efx_tc_unregister_egdev(efx, net_dev);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }

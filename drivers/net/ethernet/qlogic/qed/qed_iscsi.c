@@ -19,7 +19,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/qed/qed_iscsi_if.h>
@@ -128,7 +128,7 @@ static int qed_iscsi_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
 		return p_iscsi->event_cb(p_iscsi->event_context,
 					 fw_event_code, data);
 	} else {
-		DP_NOTICE(p_hwfn, "iSCSI async completion is not set\n");
+		DP_ANALTICE(p_hwfn, "iSCSI async completion is analt set\n");
 		return -EINVAL;
 	}
 }
@@ -171,7 +171,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	/* Sanity */
 	if (p_params->num_queues > p_hwfn->hw_info.feat_num[QED_ISCSI_CQ]) {
 		DP_ERR(p_hwfn,
-		       "Cannot satisfy CQ amount. Queues requested %d, CQs available %d. Aborting function start\n",
+		       "Cananalt satisfy CQ amount. Queues requested %d, CQs available %d. Aborting function start\n",
 		       p_params->num_queues,
 		       p_hwfn->hw_info.feat_num[QED_ISCSI_CQ]);
 		qed_sp_destroy_request(p_hwfn, p_ent);
@@ -632,7 +632,7 @@ static void __iomem *qed_iscsi_get_primary_bdq_prod(struct qed_hwfn *p_hwfn,
 					 MSTORM_SCSI_BDQ_EXT_PROD,
 					 RESC_START(p_hwfn, QED_BDQ), bdq_id);
 	} else {
-		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		DP_ANALTICE(p_hwfn, "BDQ is analt allocated!\n");
 		return NULL;
 	}
 }
@@ -646,7 +646,7 @@ static void __iomem *qed_iscsi_get_secondary_bdq_prod(struct qed_hwfn *p_hwfn,
 					 TSTORM_SCSI_BDQ_EXT_PROD,
 					 RESC_START(p_hwfn, QED_BDQ), bdq_id);
 	} else {
-		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		DP_ANALTICE(p_hwfn, "BDQ is analt allocated!\n");
 		return NULL;
 	}
 }
@@ -654,30 +654,30 @@ static void __iomem *qed_iscsi_get_secondary_bdq_prod(struct qed_hwfn *p_hwfn,
 static int qed_iscsi_setup_connection(struct qed_iscsi_conn *p_conn)
 {
 	if (!p_conn->queue_cnts_virt_addr)
-		goto nomem;
+		goto analmem;
 	memset(p_conn->queue_cnts_virt_addr, 0,
 	       sizeof(*p_conn->queue_cnts_virt_addr));
 
 	if (!p_conn->tcp_upload_params_virt_addr)
-		goto nomem;
+		goto analmem;
 	memset(p_conn->tcp_upload_params_virt_addr, 0,
 	       sizeof(*p_conn->tcp_upload_params_virt_addr));
 
 	if (!p_conn->r2tq.p_virt_addr)
-		goto nomem;
+		goto analmem;
 	qed_chain_pbl_zero_mem(&p_conn->r2tq);
 
 	if (!p_conn->uhq.p_virt_addr)
-		goto nomem;
+		goto analmem;
 	qed_chain_pbl_zero_mem(&p_conn->uhq);
 
 	if (!p_conn->xhq.p_virt_addr)
-		goto nomem;
+		goto analmem;
 	qed_chain_pbl_zero_mem(&p_conn->xhq);
 
 	return 0;
-nomem:
-	return -ENOMEM;
+analmem:
+	return -EANALMEM;
 }
 
 static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
@@ -712,14 +712,14 @@ static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 
 	p_conn = kzalloc(sizeof(*p_conn), GFP_KERNEL);
 	if (!p_conn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p_q_cnts = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				      sizeof(*p_q_cnts),
 				      &p_conn->queue_cnts_phys_addr,
 				      GFP_KERNEL);
 	if (!p_q_cnts)
-		goto nomem_queue_cnts_param;
+		goto analmem_queue_cnts_param;
 	p_conn->queue_cnts_virt_addr = p_q_cnts;
 
 	p_tcp = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
@@ -727,7 +727,7 @@ static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 				   &p_conn->tcp_upload_params_phys_addr,
 				   GFP_KERNEL);
 	if (!p_tcp)
-		goto nomem_upload_param;
+		goto analmem_upload_param;
 	p_conn->tcp_upload_params_virt_addr = p_tcp;
 
 	params.num_elems = p_params->num_r2tq_pages_in_ring *
@@ -736,7 +736,7 @@ static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 
 	rc = qed_chain_alloc(p_hwfn->cdev, &p_conn->r2tq, &params);
 	if (rc)
-		goto nomem_r2tq;
+		goto analmem_r2tq;
 
 	params.num_elems = p_params->num_uhq_pages_in_ring *
 			   QED_CHAIN_PAGE_SIZE / sizeof(struct iscsi_uhqe);
@@ -744,36 +744,36 @@ static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 
 	rc = qed_chain_alloc(p_hwfn->cdev, &p_conn->uhq, &params);
 	if (rc)
-		goto nomem_uhq;
+		goto analmem_uhq;
 
 	params.elem_size = sizeof(struct iscsi_xhqe);
 
 	rc = qed_chain_alloc(p_hwfn->cdev, &p_conn->xhq, &params);
 	if (rc)
-		goto nomem;
+		goto analmem;
 
 	p_conn->free_on_delete = true;
 	*p_out_conn = p_conn;
 	return 0;
 
-nomem:
+analmem:
 	qed_chain_free(p_hwfn->cdev, &p_conn->uhq);
-nomem_uhq:
+analmem_uhq:
 	qed_chain_free(p_hwfn->cdev, &p_conn->r2tq);
-nomem_r2tq:
+analmem_r2tq:
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 			  sizeof(struct tcp_upload_params),
 			  p_conn->tcp_upload_params_virt_addr,
 			  p_conn->tcp_upload_params_phys_addr);
-nomem_upload_param:
+analmem_upload_param:
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 			  sizeof(struct scsi_terminate_extra_params),
 			  p_conn->queue_cnts_virt_addr,
 			  p_conn->queue_cnts_phys_addr);
-nomem_queue_cnts_param:
+analmem_queue_cnts_param:
 	kfree(p_conn);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int qed_iscsi_acquire_connection(struct qed_hwfn *p_hwfn,
@@ -847,7 +847,7 @@ int qed_iscsi_alloc(struct qed_hwfn *p_hwfn)
 
 	p_iscsi_info = kzalloc(sizeof(*p_iscsi_info), GFP_KERNEL);
 	if (!p_iscsi_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&p_iscsi_info->free_list);
 
@@ -918,8 +918,8 @@ static void _qed_iscsi_get_mstats(struct qed_hwfn *p_hwfn,
 		      MSTORM_ISCSI_RX_STATS_OFFSET(p_hwfn->rel_pf_id);
 	qed_memcpy_from(p_hwfn, p_ptt, &mstats, mstats_addr, sizeof(mstats));
 
-	p_stats->iscsi_rx_dropped_pdus_task_not_valid =
-	    HILO_64_REGPAIR(mstats.iscsi_rx_dropped_pdus_task_not_valid);
+	p_stats->iscsi_rx_dropped_pdus_task_analt_valid =
+	    HILO_64_REGPAIR(mstats.iscsi_rx_dropped_pdus_task_analt_valid);
 }
 
 static void _qed_iscsi_get_ustats(struct qed_hwfn *p_hwfn,
@@ -1026,7 +1026,7 @@ static int qed_iscsi_get_stats(struct qed_hwfn *p_hwfn,
 }
 
 struct qed_hash_iscsi_con {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct qed_iscsi_conn *con;
 };
 
@@ -1065,7 +1065,7 @@ static struct qed_hash_iscsi_con *qed_iscsi_get_hash(struct qed_dev *cdev,
 	if (!(cdev->flags & QED_FLAG_STORAGE_STARTED))
 		return NULL;
 
-	hash_for_each_possible(cdev->connections, hash_con, node, handle) {
+	hash_for_each_possible(cdev->connections, hash_con, analde, handle) {
 		if (hash_con->con->icid == handle)
 			break;
 	}
@@ -1081,13 +1081,13 @@ static int qed_iscsi_stop(struct qed_dev *cdev)
 	int rc;
 
 	if (!(cdev->flags & QED_FLAG_STORAGE_STARTED)) {
-		DP_NOTICE(cdev, "iscsi already stopped\n");
+		DP_ANALTICE(cdev, "iscsi already stopped\n");
 		return 0;
 	}
 
 	if (!hash_empty(cdev->connections)) {
-		DP_NOTICE(cdev,
-			  "Can't stop iscsi - not all connections were returned\n");
+		DP_ANALTICE(cdev,
+			  "Can't stop iscsi - analt all connections were returned\n");
 		return -EINVAL;
 	}
 
@@ -1108,14 +1108,14 @@ static int qed_iscsi_start(struct qed_dev *cdev,
 	struct qed_tid_mem *tid_info;
 
 	if (cdev->flags & QED_FLAG_STORAGE_STARTED) {
-		DP_NOTICE(cdev, "iscsi already started;\n");
+		DP_ANALTICE(cdev, "iscsi already started;\n");
 		return 0;
 	}
 
 	rc = qed_sp_iscsi_func_start(QED_AFFIN_HWFN(cdev), QED_SPQ_MODE_EBLOCK,
 				     NULL, event_context, async_event_cb);
 	if (rc) {
-		DP_NOTICE(cdev, "Failed to start iscsi\n");
+		DP_ANALTICE(cdev, "Failed to start iscsi\n");
 		return rc;
 	}
 
@@ -1129,12 +1129,12 @@ static int qed_iscsi_start(struct qed_dev *cdev,
 
 	if (!tid_info) {
 		qed_iscsi_stop(cdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = qed_cxt_get_tid_mem_info(QED_AFFIN_HWFN(cdev), tid_info);
 	if (rc) {
-		DP_NOTICE(cdev, "Failed to gather task information\n");
+		DP_ANALTICE(cdev, "Failed to gather task information\n");
 		qed_iscsi_stop(cdev);
 		kfree(tid_info);
 		return rc;
@@ -1161,13 +1161,13 @@ static int qed_iscsi_acquire_conn(struct qed_dev *cdev,
 	/* Allocate a hashed connection */
 	hash_con = kzalloc(sizeof(*hash_con), GFP_ATOMIC);
 	if (!hash_con)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Acquire the connection */
 	rc = qed_iscsi_acquire_connection(QED_AFFIN_HWFN(cdev), NULL,
 					  &hash_con->con);
 	if (rc) {
-		DP_NOTICE(cdev, "Failed to acquire Connection\n");
+		DP_ANALTICE(cdev, "Failed to acquire Connection\n");
 		kfree(hash_con);
 		return rc;
 	}
@@ -1175,7 +1175,7 @@ static int qed_iscsi_acquire_conn(struct qed_dev *cdev,
 	/* Added the connection to hash table */
 	*handle = hash_con->con->icid;
 	*fw_cid = hash_con->con->fw_cid;
-	hash_add(cdev->connections, &hash_con->node, *handle);
+	hash_add(cdev->connections, &hash_con->analde, *handle);
 
 	if (p_doorbell)
 		*p_doorbell = qed_iscsi_get_db_addr(QED_AFFIN_HWFN(cdev),
@@ -1190,12 +1190,12 @@ static int qed_iscsi_release_conn(struct qed_dev *cdev, u32 handle)
 
 	hash_con = qed_iscsi_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 		return -EINVAL;
 	}
 
-	hlist_del(&hash_con->node);
+	hlist_del(&hash_con->analde);
 	qed_iscsi_release_connection(QED_AFFIN_HWFN(cdev), hash_con->con);
 	kfree(hash_con);
 
@@ -1211,7 +1211,7 @@ static int qed_iscsi_offload_conn(struct qed_dev *cdev,
 
 	hash_con = qed_iscsi_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 		return -EINVAL;
 	}
@@ -1286,7 +1286,7 @@ static int qed_iscsi_update_conn(struct qed_dev *cdev,
 
 	hash_con = qed_iscsi_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 		return -EINVAL;
 	}
@@ -1310,7 +1310,7 @@ static int qed_iscsi_clear_conn_sq(struct qed_dev *cdev, u32 handle)
 
 	hash_con = qed_iscsi_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 		return -EINVAL;
 	}
@@ -1326,7 +1326,7 @@ static int qed_iscsi_destroy_conn(struct qed_dev *cdev,
 
 	hash_con = qed_iscsi_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 		return -EINVAL;
 	}
@@ -1356,7 +1356,7 @@ static int qed_iscsi_change_mac(struct qed_dev *cdev,
 
 	hash_con = qed_iscsi_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 		return -EINVAL;
 	}

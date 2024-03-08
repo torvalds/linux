@@ -18,7 +18,7 @@
 
 #define DRIVER_DATE			"20210223"
 #define DRIVER_MAJOR			1
-#define DRIVER_MINOR			1
+#define DRIVER_MIANALR			1
 
 /* Platform definitions */
 #define KMB_CRTC_MIN_VFP		4
@@ -61,7 +61,7 @@ struct kmb_drm_private {
 	struct layer_status		plane_status[KMB_MAX_PLANES];
 	int				kmb_under_flow;
 	int				kmb_flush_done;
-	int				layer_no;
+	int				layer_anal;
 };
 
 static inline struct kmb_drm_private *to_kmb(const struct drm_device *dev)
@@ -102,5 +102,5 @@ static inline void kmb_clr_bitmask_lcd(struct kmb_drm_private *dev_p,
 }
 
 int kmb_setup_crtc(struct drm_device *dev);
-void kmb_set_scanout(struct kmb_drm_private *lcd);
+void kmb_set_scaanalut(struct kmb_drm_private *lcd);
 #endif /* __KMB_DRV_H__ */

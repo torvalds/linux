@@ -142,8 +142,8 @@ static void mt7663_usb_sdio_rate_work(struct work_struct *work)
 	list_splice_init(&dev->wrd_head, &wrd_list);
 	spin_unlock_bh(&dev->mt76.lock);
 
-	list_for_each_entry_safe(wrd, wrd_next, &wrd_list, node) {
-		list_del(&wrd->node);
+	list_for_each_entry_safe(wrd, wrd_next, &wrd_list, analde) {
+		list_del(&wrd->analde);
 
 		mt7615_mutex_acquire(dev);
 		mt7663_usb_sdio_set_rates(dev, wrd);
@@ -294,7 +294,7 @@ static int mt7663_usb_sdio_init_hardware(struct mt7615_dev *dev)
 	/* Beacon and mgmt frames should occupy wcid 0 */
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7615_WTBL_STA - 1);
 	if (idx)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	dev->mt76.global_wcid.idx = idx;
 	dev->mt76.global_wcid.hw_key_idx = -1;
@@ -334,7 +334,7 @@ int mt7663_usb_sdio_register_device(struct mt7615_dev *dev)
 	if (!dev->mt76.usb.sg_en) {
 		struct ieee80211_sta_vht_cap *vht_cap;
 
-		/* decrease max A-MSDU size if SG is not supported */
+		/* decrease max A-MSDU size if SG is analt supported */
 		vht_cap = &dev->mphy.sband_5g.sband.vht_cap;
 		vht_cap->cap &= ~IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 	}

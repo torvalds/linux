@@ -70,8 +70,8 @@
 #define BOOT_ERR_MASK			(0xf << BOOT_ERR_SHIFT)
 #define BOOT_PROG_MASK			0xf
 
-#define BROM_STATUS_NOT_RUN		0x2
-#define BROM_NOT_RUN			(SRAM_OPEN | BROM_STATUS_NOT_RUN)
+#define BROM_STATUS_ANALT_RUN		0x2
+#define BROM_ANALT_RUN			(SRAM_OPEN | BROM_STATUS_ANALT_RUN)
 #define BROM_STATUS_COMPLETE		0x6
 #define BROM_RUNNING			(SRAM_OPEN | BROM_STATUS_COMPLETE)
 #define BOOT1_STATUS_COMPLETE		0x6
@@ -154,11 +154,11 @@
 #define BAR_INTF_VER_MAJOR_SHIFT	16
 #define BAR_INTF_VER_MASK		0xffff
 /*
- * major and minor semantic version numbers supported
+ * major and mianalr semantic version numbers supported
  * Please update as required on interface changes
  */
 #define SEMANTIC_MAJOR			1
-#define SEMANTIC_MINOR			0
+#define SEMANTIC_MIANALR			0
 
 /*
  * first door bell reg, ie for queue = 0.  Only need the first one, as
@@ -202,9 +202,9 @@
 
 /* indicate if msgq ctrl in BAR1 is populated */
 #define VK_BAR1_MSGQ_DEF_RDY		0x60c0
-/* ready marker value for the above location, normal boot2 */
+/* ready marker value for the above location, analrmal boot2 */
 #define VK_BAR1_MSGQ_RDY_MARKER		0xbeefcafe
-/* ready marker value for the above location, normal boot2 */
+/* ready marker value for the above location, analrmal boot2 */
 #define VK_BAR1_DIAG_RDY_MARKER		0xdeadcafe
 /* number of msgqs in BAR1 */
 #define VK_BAR1_MSGQ_NR			0x60c4
@@ -252,7 +252,7 @@
 #define BCM_VK_DEF_IB_SGL_BLK_LEN	 16
 #define BCM_VK_IB_SGL_BLK_MAX		 24
 
-enum pci_barno {
+enum pci_baranal {
 	BAR_0 = 0,
 	BAR_1,
 	BAR_2
@@ -334,7 +334,7 @@ struct bcm_vk_proc_mon_entry_t {
  */
 #define BCM_VK_PROC_MON_MAX 8 /* max entries supported */
 struct bcm_vk_proc_mon_info {
-	u32 num; /**< no of entries */
+	u32 num; /**< anal of entries */
 	u32 entry_size; /**< per entry size */
 	struct bcm_vk_proc_mon_entry_t entries[BCM_VK_PROC_MON_MAX];
 };
@@ -347,7 +347,7 @@ struct bcm_vk_hb_ctrl {
 
 struct bcm_vk_alert {
 	u16 flags;
-	u16 notfs;
+	u16 analtfs;
 };
 
 /* some alert counters that the driver will keep track */
@@ -399,7 +399,7 @@ struct bcm_vk {
 	void *tdma_vaddr; /* test dma segment virtual addr */
 	dma_addr_t tdma_addr; /* test dma segment bus addr */
 
-	struct notifier_block panic_nb;
+	struct analtifier_block panic_nb;
 	u32 ib_sgl_size; /* size allocated for inband sgl insertion */
 
 	/* heart beat mechanism control structure */
@@ -421,7 +421,7 @@ struct bcm_vk {
 enum bcm_vk_wq_offload_flags {
 	BCM_VK_WQ_DWNLD_PEND = 0,
 	BCM_VK_WQ_DWNLD_AUTO = 1,
-	BCM_VK_WQ_NOTF_PEND  = 2,
+	BCM_VK_WQ_ANALTF_PEND  = 2,
 };
 
 /* a macro to get an individual field with mask and shift */
@@ -447,27 +447,27 @@ extern struct bcm_vk_entry const bcm_vk_host_err[BCM_VK_HOST_ERR_NUM];
  */
 #define BCM_VK_INTF_IS_DOWN(val) ((val) == 0xffffffff)
 
-static inline u32 vkread32(struct bcm_vk *vk, enum pci_barno bar, u64 offset)
+static inline u32 vkread32(struct bcm_vk *vk, enum pci_baranal bar, u64 offset)
 {
 	return readl(vk->bar[bar] + offset);
 }
 
 static inline void vkwrite32(struct bcm_vk *vk,
 			     u32 value,
-			     enum pci_barno bar,
+			     enum pci_baranal bar,
 			     u64 offset)
 {
 	writel(value, vk->bar[bar] + offset);
 }
 
-static inline u8 vkread8(struct bcm_vk *vk, enum pci_barno bar, u64 offset)
+static inline u8 vkread8(struct bcm_vk *vk, enum pci_baranal bar, u64 offset)
 {
 	return readb(vk->bar[bar] + offset);
 }
 
 static inline void vkwrite8(struct bcm_vk *vk,
 			    u8 value,
-			    enum pci_barno bar,
+			    enum pci_baranal bar,
 			    u64 offset)
 {
 	writeb(value, vk->bar[bar] + offset);
@@ -486,16 +486,16 @@ static inline bool bcm_vk_msgq_marker_valid(struct bcm_vk *vk)
 	return (rdy_marker == VK_BAR1_MSGQ_RDY_MARKER);
 }
 
-int bcm_vk_open(struct inode *inode, struct file *p_file);
+int bcm_vk_open(struct ianalde *ianalde, struct file *p_file);
 ssize_t bcm_vk_read(struct file *p_file, char __user *buf, size_t count,
 		    loff_t *f_pos);
 ssize_t bcm_vk_write(struct file *p_file, const char __user *buf,
 		     size_t count, loff_t *f_pos);
 __poll_t bcm_vk_poll(struct file *p_file, struct poll_table_struct *wait);
-int bcm_vk_release(struct inode *inode, struct file *p_file);
+int bcm_vk_release(struct ianalde *ianalde, struct file *p_file);
 void bcm_vk_release_data(struct kref *kref);
 irqreturn_t bcm_vk_msgq_irqhandler(int irq, void *dev_id);
-irqreturn_t bcm_vk_notf_irqhandler(int irq, void *dev_id);
+irqreturn_t bcm_vk_analtf_irqhandler(int irq, void *dev_id);
 irqreturn_t bcm_vk_tty_irqhandler(int irq, void *dev_id);
 int bcm_vk_msg_init(struct bcm_vk *vk);
 void bcm_vk_msg_remove(struct bcm_vk *vk);
@@ -509,7 +509,7 @@ void bcm_to_v_q_doorbell(struct bcm_vk *vk, u32 q_num, u32 db_val);
 int bcm_vk_auto_load_all_images(struct bcm_vk *vk);
 void bcm_vk_hb_init(struct bcm_vk *vk);
 void bcm_vk_hb_deinit(struct bcm_vk *vk);
-void bcm_vk_handle_notf(struct bcm_vk *vk);
+void bcm_vk_handle_analtf(struct bcm_vk *vk);
 bool bcm_vk_drv_access_ok(struct bcm_vk *vk);
 void bcm_vk_set_host_alert(struct bcm_vk *vk, u32 bit_mask);
 

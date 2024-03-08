@@ -44,7 +44,7 @@ int mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
 		      lower_32_bits(mhi_buf->dma_addr));
 
 	mhi_write_reg(mhi_cntrl, base, BHIE_RXVECSIZE_OFFS, mhi_buf->len);
-	sequence_id = MHI_RANDOM_U32_NONZERO(BHIE_RXVECSTATUS_SEQNUM_BMSK);
+	sequence_id = MHI_RANDOM_U32_ANALNZERO(BHIE_RXVECSTATUS_SEQNUM_BMSK);
 
 	ret = mhi_write_reg_field(mhi_cntrl, base, BHIE_RXVECDB_OFFS,
 				  BHIE_RXVECDB_SEQNUM_BMSK, sequence_id);
@@ -82,8 +82,8 @@ static int __mhi_download_rddm_in_panic(struct mhi_controller *mhi_cntrl)
 	 * other cores to shutdown while we're collecting RDDM buffer. After
 	 * returning from this function, we expect the device to reset.
 	 *
-	 * Normaly, we read/write pm_state only after grabbing the
-	 * pm_lock, since we're in a panic, skipping it. Also there is no
+	 * Analrmaly, we read/write pm_state only after grabbing the
+	 * pm_lock, since we're in a panic, skipping it. Also there is anal
 	 * gurantee that this state change would take effect since
 	 * we're setting it w/o grabbing pm_lock
 	 */
@@ -92,9 +92,9 @@ static int __mhi_download_rddm_in_panic(struct mhi_controller *mhi_cntrl)
 	smp_wmb();
 
 	/*
-	 * Make sure device is not already in RDDM. In case the device asserts
+	 * Make sure device is analt already in RDDM. In case the device asserts
 	 * and a kernel panic follows, device will already be in RDDM.
-	 * Do not trigger SYS ERR again and proceed with waiting for
+	 * Do analt trigger SYS ERR again and proceed with waiting for
 	 * image download completion.
 	 */
 	ee = mhi_get_exec_env(mhi_cntrl);
@@ -117,7 +117,7 @@ static int __mhi_download_rddm_in_panic(struct mhi_controller *mhi_cntrl)
 		if (rddm_retry <= 0) {
 			/* Hardware reset so force device to enter RDDM */
 			dev_dbg(dev,
-				"Did not enter RDDM, do a host req reset\n");
+				"Did analt enter RDDM, do a host req reset\n");
 			mhi_soc_reset(mhi_cntrl);
 			udelay(delayus);
 		}
@@ -192,7 +192,7 @@ static int mhi_fw_load_bhie(struct mhi_controller *mhi_cntrl,
 		return -EIO;
 	}
 
-	sequence_id = MHI_RANDOM_U32_NONZERO(BHIE_TXVECSTATUS_SEQNUM_BMSK);
+	sequence_id = MHI_RANDOM_U32_ANALNZERO(BHIE_TXVECSTATUS_SEQNUM_BMSK);
 	dev_dbg(dev, "Starting image download via BHIe. Sequence ID: %u\n",
 		sequence_id);
 	mhi_write_reg(mhi_cntrl, base, BHIE_TXVECADDR_HIGH_OFFS,
@@ -251,7 +251,7 @@ static int mhi_fw_load_bhi(struct mhi_controller *mhi_cntrl,
 		goto invalid_pm_state;
 	}
 
-	session_id = MHI_RANDOM_U32_NONZERO(BHI_TXDB_SEQNUM_BMSK);
+	session_id = MHI_RANDOM_U32_ANALNZERO(BHI_TXDB_SEQNUM_BMSK);
 	dev_dbg(dev, "Starting image download via BHI. Session ID: %u\n",
 		session_id);
 	mhi_write_reg(mhi_cntrl, base, BHI_STATUS, 0);
@@ -322,7 +322,7 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 
 	img_info = kzalloc(sizeof(*img_info), GFP_KERNEL);
 	if (!img_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate memory for entries */
 	img_info->mhi_buf = kcalloc(segments, sizeof(*img_info->mhi_buf),
@@ -361,7 +361,7 @@ error_alloc_segment:
 error_alloc_mhi_buf:
 	kfree(img_info);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void mhi_firmware_copy(struct mhi_controller *mhi_cntrl,
@@ -398,7 +398,7 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 	int i, ret;
 
 	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
-		dev_err(dev, "Device MHI is not in valid state\n");
+		dev_err(dev, "Device MHI is analt in valid state\n");
 		return;
 	}
 
@@ -406,13 +406,13 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 	ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->bhi, BHI_SERIALNU,
 			   &mhi_cntrl->serial_number);
 	if (ret)
-		dev_err(dev, "Could not capture serial number via BHI\n");
+		dev_err(dev, "Could analt capture serial number via BHI\n");
 
 	for (i = 0; i < ARRAY_SIZE(mhi_cntrl->oem_pk_hash); i++) {
 		ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->bhi, BHI_OEMPKHASH(i),
 				   &mhi_cntrl->oem_pk_hash[i]);
 		if (ret) {
-			dev_err(dev, "Could not capture OEM PK HASH via BHI\n");
+			dev_err(dev, "Could analt capture OEM PK HASH via BHI\n");
 			break;
 		}
 	}
@@ -428,7 +428,7 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 	if (!fw_name && mhi_cntrl->fbc_download &&
 	    mhi_cntrl->fw_data && mhi_cntrl->fw_sz) {
 		if (!mhi_cntrl->sbl_size) {
-			dev_err(dev, "fw_data provided but no sbl_size\n");
+			dev_err(dev, "fw_data provided but anal sbl_size\n");
 			goto error_fw_load;
 		}
 
@@ -441,7 +441,7 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 	if (!fw_name || (mhi_cntrl->fbc_download && (!mhi_cntrl->sbl_size ||
 						     !mhi_cntrl->seg_len))) {
 		dev_err(dev,
-			"No firmware image defined or !sbl_size || !seg_len\n");
+			"Anal firmware image defined or !sbl_size || !seg_len\n");
 		goto error_fw_load;
 	}
 
@@ -453,7 +453,7 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 
 	size = (mhi_cntrl->fbc_download) ? mhi_cntrl->sbl_size : firmware->size;
 
-	/* SBL size provided is maximum size, not necessarily the image size */
+	/* SBL size provided is maximum size, analt necessarily the image size */
 	if (size > firmware->size)
 		size = firmware->size;
 
@@ -475,7 +475,7 @@ skip_req_fw:
 
 	/* Error or in EDL mode, we're done */
 	if (ret) {
-		dev_err(dev, "MHI did not load image over BHI, ret: %d\n", ret);
+		dev_err(dev, "MHI did analt load image over BHI, ret: %d\n", ret);
 		release_firmware(firmware);
 		goto error_fw_load;
 	}
@@ -511,7 +511,7 @@ fw_load_ready_state:
 	/* Transitioning into MHI RESET->READY state */
 	ret = mhi_ready_state_transition(mhi_cntrl);
 	if (ret) {
-		dev_err(dev, "MHI did not enter READY state\n");
+		dev_err(dev, "MHI did analt enter READY state\n");
 		goto error_ready_state;
 	}
 
@@ -546,7 +546,7 @@ int mhi_download_amss_image(struct mhi_controller *mhi_cntrl)
 			       /* Vector table is the last entry */
 			       &image_info->mhi_buf[image_info->entries - 1]);
 	if (ret) {
-		dev_err(dev, "MHI did not load AMSS, ret:%d\n", ret);
+		dev_err(dev, "MHI did analt load AMSS, ret:%d\n", ret);
 		write_lock_irq(&mhi_cntrl->pm_lock);
 		new_state = mhi_tryset_pm_state(mhi_cntrl, MHI_PM_FW_DL_ERR);
 		write_unlock_irq(&mhi_cntrl->pm_lock);

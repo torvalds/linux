@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) "dvbdev: " fmt
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -54,13 +54,13 @@ static const char * const dnames[] = {
 	[DVB_DEVICE_OSD] =		"osd"
 };
 
-#ifdef CONFIG_DVB_DYNAMIC_MINORS
-#define MAX_DVB_MINORS		256
-#define DVB_MAX_IDS		MAX_DVB_MINORS
+#ifdef CONFIG_DVB_DYNAMIC_MIANALRS
+#define MAX_DVB_MIANALRS		256
+#define DVB_MAX_IDS		MAX_DVB_MIANALRS
 #else
 #define DVB_MAX_IDS		4
 
-static const u8 minor_type[] = {
+static const u8 mianalr_type[] = {
 	[DVB_DEVICE_VIDEO]      = 0,
 	[DVB_DEVICE_AUDIO]      = 1,
 	[DVB_DEVICE_SEC]        = 2,
@@ -72,24 +72,24 @@ static const u8 minor_type[] = {
 	[DVB_DEVICE_OSD]        = 8,
 };
 
-#define nums2minor(num, type, id) \
-	(((num) << 6) | ((id) << 4) | minor_type[type])
+#define nums2mianalr(num, type, id) \
+	(((num) << 6) | ((id) << 4) | mianalr_type[type])
 
-#define MAX_DVB_MINORS		(DVB_MAX_ADAPTERS * 64)
+#define MAX_DVB_MIANALRS		(DVB_MAX_ADAPTERS * 64)
 #endif
 
 static struct class *dvb_class;
 
-static struct dvb_device *dvb_minors[MAX_DVB_MINORS];
-static DECLARE_RWSEM(minor_rwsem);
+static struct dvb_device *dvb_mianalrs[MAX_DVB_MIANALRS];
+static DECLARE_RWSEM(mianalr_rwsem);
 
-static int dvb_device_open(struct inode *inode, struct file *file)
+static int dvb_device_open(struct ianalde *ianalde, struct file *file)
 {
 	struct dvb_device *dvbdev;
 
 	mutex_lock(&dvbdev_mutex);
-	down_read(&minor_rwsem);
-	dvbdev = dvb_minors[iminor(inode)];
+	down_read(&mianalr_rwsem);
+	dvbdev = dvb_mianalrs[imianalr(ianalde)];
 
 	if (dvbdev && dvbdev->fops) {
 		int err = 0;
@@ -101,33 +101,33 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 		file->private_data = dvb_device_get(dvbdev);
 		replace_fops(file, new_fops);
 		if (file->f_op->open)
-			err = file->f_op->open(inode, file);
-		up_read(&minor_rwsem);
+			err = file->f_op->open(ianalde, file);
+		up_read(&mianalr_rwsem);
 		mutex_unlock(&dvbdev_mutex);
 		if (err)
 			dvb_device_put(dvbdev);
 		return err;
 	}
 fail:
-	up_read(&minor_rwsem);
+	up_read(&mianalr_rwsem);
 	mutex_unlock(&dvbdev_mutex);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct file_operations dvb_device_fops = {
 	.owner =	THIS_MODULE,
 	.open =		dvb_device_open,
-	.llseek =	noop_llseek,
+	.llseek =	analop_llseek,
 };
 
 static struct cdev dvb_device_cdev;
 
-int dvb_generic_open(struct inode *inode, struct file *file)
+int dvb_generic_open(struct ianalde *ianalde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 
 	if (!dvbdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!dvbdev->users)
 		return -EBUSY;
@@ -147,12 +147,12 @@ int dvb_generic_open(struct inode *inode, struct file *file)
 }
 EXPORT_SYMBOL(dvb_generic_open);
 
-int dvb_generic_release(struct inode *inode, struct file *file)
+int dvb_generic_release(struct ianalde *ianalde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 
 	if (!dvbdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
 		dvbdev->readers++;
@@ -173,7 +173,7 @@ long dvb_generic_ioctl(struct file *file,
 	struct dvb_device *dvbdev = file->private_data;
 
 	if (!dvbdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!dvbdev->kernel_ioctl)
 		return -EINVAL;
@@ -225,9 +225,9 @@ static void dvb_media_device_free(struct dvb_device *dvbdev)
 		dvbdev->tsout_num_entities = 0;
 	}
 
-	if (dvbdev->intf_devnode) {
-		media_devnode_remove(dvbdev->intf_devnode);
-		dvbdev->intf_devnode = NULL;
+	if (dvbdev->intf_devanalde) {
+		media_devanalde_remove(dvbdev->intf_devanalde);
+		dvbdev->intf_devanalde = NULL;
 	}
 
 	if (dvbdev->adapter->conn) {
@@ -249,12 +249,12 @@ static int dvb_create_tsout_entity(struct dvb_device *dvbdev,
 	dvbdev->tsout_pads = kcalloc(npads, sizeof(*dvbdev->tsout_pads),
 				     GFP_KERNEL);
 	if (!dvbdev->tsout_pads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dvbdev->tsout_entity = kcalloc(npads, sizeof(*dvbdev->tsout_entity),
 				       GFP_KERNEL);
 	if (!dvbdev->tsout_entity)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dvbdev->tsout_num_entities = npads;
 
@@ -265,7 +265,7 @@ static int dvb_create_tsout_entity(struct dvb_device *dvbdev,
 
 		entity->name = kasprintf(GFP_KERNEL, "%s #%d", name, i);
 		if (!entity->name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		entity->function = MEDIA_ENT_F_IO_DTV;
 		pads->flags = MEDIA_PAD_FL_SINK;
@@ -313,9 +313,9 @@ static int dvb_create_media_entity(struct dvb_device *dvbdev,
 		 * We should be creating entities for the MPE/ULE
 		 * decapsulation hardware (or software implementation).
 		 *
-		 * However, the number of for the MPE/ULE decaps may not be
+		 * However, the number of for the MPE/ULE decaps may analt be
 		 * fixed. As we don't have yet dynamic support for PADs at
-		 * the Media Controller, let's not create the decap
+		 * the Media Controller, let's analt create the decap
 		 * entities yet.
 		 */
 		return 0;
@@ -325,7 +325,7 @@ static int dvb_create_media_entity(struct dvb_device *dvbdev,
 
 	dvbdev->entity = kzalloc(sizeof(*dvbdev->entity), GFP_KERNEL);
 	if (!dvbdev->entity)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dvbdev->entity->name = dvbdev->name;
 
@@ -335,7 +335,7 @@ static int dvb_create_media_entity(struct dvb_device *dvbdev,
 		if (!dvbdev->pads) {
 			kfree(dvbdev->entity);
 			dvbdev->entity = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -383,7 +383,7 @@ static int dvb_create_media_entity(struct dvb_device *dvbdev,
 #endif
 
 static int dvb_register_media_device(struct dvb_device *dvbdev,
-				     int type, int minor,
+				     int type, int mianalr,
 				     unsigned int demux_sink_pads)
 {
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
@@ -418,12 +418,12 @@ static int dvb_register_media_device(struct dvb_device *dvbdev,
 		return 0;
 	}
 
-	dvbdev->intf_devnode = media_devnode_create(dvbdev->adapter->mdev,
+	dvbdev->intf_devanalde = media_devanalde_create(dvbdev->adapter->mdev,
 						    intf_type, 0,
-						    DVB_MAJOR, minor);
+						    DVB_MAJOR, mianalr);
 
-	if (!dvbdev->intf_devnode)
-		return -ENOMEM;
+	if (!dvbdev->intf_devanalde)
+		return -EANALMEM;
 
 	/*
 	 * Create the "obvious" link, e. g. the ones that represent
@@ -437,11 +437,11 @@ static int dvb_register_media_device(struct dvb_device *dvbdev,
 		return 0;
 
 	link = media_create_intf_link(dvbdev->entity,
-				      &dvbdev->intf_devnode->intf,
+				      &dvbdev->intf_devanalde->intf,
 				      MEDIA_LNK_FL_ENABLED |
 				      MEDIA_LNK_FL_IMMUTABLE);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 	return 0;
 }
@@ -452,9 +452,9 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 {
 	struct dvb_device *dvbdev;
 	struct file_operations *dvbdevfops = NULL;
-	struct dvbdevfops_node *node = NULL, *new_node = NULL;
+	struct dvbdevfops_analde *analde = NULL, *new_analde = NULL;
 	struct device *clsdev;
-	int minor;
+	int mianalr;
 	int id, ret;
 
 	mutex_lock(&dvbdev_register_lock);
@@ -470,7 +470,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	*pdvbdev = dvbdev = kzalloc(sizeof(*dvbdev), GFP_KERNEL);
 	if (!dvbdev) {
 		mutex_unlock(&dvbdev_register_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -478,10 +478,10 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	 * the first allocated fops are used. This prevents memory leaks
 	 * that can occur when the same device is probe()d repeatedly.
 	 */
-	list_for_each_entry(node, &dvbdevfops_list, list_head) {
-		if (node->fops->owner == adap->module &&
-		    node->type == type && node->template == template) {
-			dvbdevfops = node->fops;
+	list_for_each_entry(analde, &dvbdevfops_list, list_head) {
+		if (analde->fops->owner == adap->module &&
+		    analde->type == type && analde->template == template) {
+			dvbdevfops = analde->fops;
 			break;
 		}
 	}
@@ -491,21 +491,21 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 		if (!dvbdevfops) {
 			kfree(dvbdev);
 			mutex_unlock(&dvbdev_register_lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
-		new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
-		if (!new_node) {
+		new_analde = kzalloc(sizeof(*new_analde), GFP_KERNEL);
+		if (!new_analde) {
 			kfree(dvbdevfops);
 			kfree(dvbdev);
 			mutex_unlock(&dvbdev_register_lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
-		new_node->fops = dvbdevfops;
-		new_node->type = type;
-		new_node->template = template;
-		list_add_tail(&new_node->list_head, &dvbdevfops_list);
+		new_analde->fops = dvbdevfops;
+		new_analde->type = type;
+		new_analde->template = template;
+		list_add_tail(&new_analde->list_head, &dvbdevfops_list);
 	}
 
 	memcpy(dvbdev, template, sizeof(struct dvb_device));
@@ -518,37 +518,37 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	init_waitqueue_head(&dvbdev->wait_queue);
 	dvbdevfops->owner = adap->module;
 	list_add_tail(&dvbdev->list_head, &adap->device_list);
-	down_write(&minor_rwsem);
-#ifdef CONFIG_DVB_DYNAMIC_MINORS
-	for (minor = 0; minor < MAX_DVB_MINORS; minor++)
-		if (!dvb_minors[minor])
+	down_write(&mianalr_rwsem);
+#ifdef CONFIG_DVB_DYNAMIC_MIANALRS
+	for (mianalr = 0; mianalr < MAX_DVB_MIANALRS; mianalr++)
+		if (!dvb_mianalrs[mianalr])
 			break;
-	if (minor == MAX_DVB_MINORS) {
-		if (new_node) {
-			list_del(&new_node->list_head);
+	if (mianalr == MAX_DVB_MIANALRS) {
+		if (new_analde) {
+			list_del(&new_analde->list_head);
 			kfree(dvbdevfops);
-			kfree(new_node);
+			kfree(new_analde);
 		}
 		list_del(&dvbdev->list_head);
 		kfree(dvbdev);
-		up_write(&minor_rwsem);
+		up_write(&mianalr_rwsem);
 		mutex_unlock(&dvbdev_register_lock);
 		return -EINVAL;
 	}
 #else
-	minor = nums2minor(adap->num, type, id);
+	mianalr = nums2mianalr(adap->num, type, id);
 #endif
-	dvbdev->minor = minor;
-	dvb_minors[minor] = dvb_device_get(dvbdev);
-	up_write(&minor_rwsem);
-	ret = dvb_register_media_device(dvbdev, type, minor, demux_sink_pads);
+	dvbdev->mianalr = mianalr;
+	dvb_mianalrs[mianalr] = dvb_device_get(dvbdev);
+	up_write(&mianalr_rwsem);
+	ret = dvb_register_media_device(dvbdev, type, mianalr, demux_sink_pads);
 	if (ret) {
 		pr_err("%s: dvb_register_media_device failed to create the mediagraph\n",
 		       __func__);
-		if (new_node) {
-			list_del(&new_node->list_head);
+		if (new_analde) {
+			list_del(&new_analde->list_head);
 			kfree(dvbdevfops);
-			kfree(new_node);
+			kfree(new_analde);
 		}
 		dvb_media_device_free(dvbdev);
 		list_del(&dvbdev->list_head);
@@ -558,15 +558,15 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	}
 
 	clsdev = device_create(dvb_class, adap->device,
-			       MKDEV(DVB_MAJOR, minor),
+			       MKDEV(DVB_MAJOR, mianalr),
 			       dvbdev, "dvb%d.%s%d", adap->num, dnames[type], id);
 	if (IS_ERR(clsdev)) {
 		pr_err("%s: failed to create device dvb%d.%s%d (%ld)\n",
 		       __func__, adap->num, dnames[type], id, PTR_ERR(clsdev));
-		if (new_node) {
-			list_del(&new_node->list_head);
+		if (new_analde) {
+			list_del(&new_analde->list_head);
 			kfree(dvbdevfops);
-			kfree(new_node);
+			kfree(new_analde);
 		}
 		dvb_media_device_free(dvbdev);
 		list_del(&dvbdev->list_head);
@@ -575,8 +575,8 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 		return PTR_ERR(clsdev);
 	}
 
-	dprintk("DVB: register adapter%d/%s%d @ minor: %i (0x%02x)\n",
-		adap->num, dnames[type], id, minor, minor);
+	dprintk("DVB: register adapter%d/%s%d @ mianalr: %i (0x%02x)\n",
+		adap->num, dnames[type], id, mianalr, mianalr);
 
 	mutex_unlock(&dvbdev_register_lock);
 	return 0;
@@ -588,14 +588,14 @@ void dvb_remove_device(struct dvb_device *dvbdev)
 	if (!dvbdev)
 		return;
 
-	down_write(&minor_rwsem);
-	dvb_minors[dvbdev->minor] = NULL;
+	down_write(&mianalr_rwsem);
+	dvb_mianalrs[dvbdev->mianalr] = NULL;
 	dvb_device_put(dvbdev);
-	up_write(&minor_rwsem);
+	up_write(&mianalr_rwsem);
 
 	dvb_media_device_free(dvbdev);
 
-	device_destroy(dvb_class, MKDEV(DVB_MAJOR, dvbdev->minor));
+	device_destroy(dvb_class, MKDEV(DVB_MAJOR, dvbdev->mianalr));
 
 	list_del(&dvbdev->list_head);
 }
@@ -646,7 +646,7 @@ static int dvb_create_io_intf_links(struct dvb_adapter *adap,
 						      MEDIA_LNK_FL_ENABLED |
 						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 	return 0;
@@ -692,7 +692,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	 * Prepare to signalize to media_create_pad_links() that multiple
 	 * entities of the same type exists and a 1:n or n:1 links need to be
 	 * created.
-	 * NOTE: if both tuner and demod have multiple instances, it is up
+	 * ANALTE: if both tuner and demod have multiple instances, it is up
 	 * to the caller driver to create such links.
 	 */
 	if (ntuner > 1)
@@ -703,12 +703,12 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	if (create_rf_connector) {
 		conn = kzalloc(sizeof(*conn), GFP_KERNEL);
 		if (!conn)
-			return -ENOMEM;
+			return -EANALMEM;
 		adap->conn = conn;
 
 		adap->conn_pads = kzalloc(sizeof(*adap->conn_pads), GFP_KERNEL);
 		if (!adap->conn_pads)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		conn->flags = MEDIA_ENT_FL_CONNECTOR;
 		conn->function = MEDIA_ENT_F_CONN_RF;
@@ -749,7 +749,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	}
 
 	if (ntuner && ndemod) {
-		/* NOTE: first found tuner source pad presumed correct */
+		/* ANALTE: first found tuner source pad presumed correct */
 		pad_source = media_get_pad_index(tuner, MEDIA_PAD_FL_SOURCE,
 						 PAD_SIGNAL_ANALOG);
 		if (pad_source < 0)
@@ -812,7 +812,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 						      MEDIA_LNK_FL_ENABLED |
 						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		if (intf->type == MEDIA_INTF_T_DVB_FE && tuner) {
@@ -820,12 +820,12 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 						      MEDIA_LNK_FL_ENABLED |
 						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 #if 0
 		/*
-		 * Indirect link - let's not create yet, as we don't know how
-		 *		   to handle indirect links, nor if this will
+		 * Indirect link - let's analt create yet, as we don't kanalw how
+		 *		   to handle indirect links, analr if this will
 		 *		   actually be needed.
 		 */
 		if (intf->type == MEDIA_INTF_T_DVB_DVR && demux) {
@@ -833,7 +833,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 						      MEDIA_LNK_FL_ENABLED |
 						      MEDIA_LNK_FL_IMMUTABLE);
 			if (!link)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 #endif
 		if (intf->type == MEDIA_INTF_T_DVB_DVR) {
@@ -958,7 +958,7 @@ int dvb_usercopy(struct file *file,
 
 	/*  Copy arguments into temp kernel buffer  */
 	switch (_IOC_DIR(cmd)) {
-	case _IOC_NONE:
+	case _IOC_ANALNE:
 		/*
 		 * For this command, the pointer is actually an integer
 		 * argument.
@@ -974,7 +974,7 @@ int dvb_usercopy(struct file *file,
 			/* too big to allocate from stack */
 			mbuf = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
 			if (!mbuf)
-				return -ENOMEM;
+				return -EANALMEM;
 			parg = mbuf;
 		}
 
@@ -986,8 +986,8 @@ int dvb_usercopy(struct file *file,
 
 	/* call driver */
 	err = func(file, cmd, parg);
-	if (err == -ENOIOCTLCMD)
-		err = -ENOTTY;
+	if (err == -EANALIOCTLCMD)
+		err = -EANALTTY;
 
 	if (err < 0)
 		goto out;
@@ -1065,7 +1065,7 @@ static int dvb_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static char *dvb_devnode(const struct device *dev, umode_t *mode)
+static char *dvb_devanalde(const struct device *dev, umode_t *mode)
 {
 	const struct dvb_device *dvbdev = dev_get_drvdata(dev);
 
@@ -1078,14 +1078,14 @@ static int __init init_dvbdev(void)
 	int retval;
 	dev_t dev = MKDEV(DVB_MAJOR, 0);
 
-	retval = register_chrdev_region(dev, MAX_DVB_MINORS, "DVB");
+	retval = register_chrdev_region(dev, MAX_DVB_MIANALRS, "DVB");
 	if (retval != 0) {
 		pr_err("dvb-core: unable to get major %d\n", DVB_MAJOR);
 		return retval;
 	}
 
 	cdev_init(&dvb_device_cdev, &dvb_device_fops);
-	retval = cdev_add(&dvb_device_cdev, dev, MAX_DVB_MINORS);
+	retval = cdev_add(&dvb_device_cdev, dev, MAX_DVB_MIANALRS);
 	if (retval != 0) {
 		pr_err("dvb-core: unable register character device\n");
 		goto error;
@@ -1097,27 +1097,27 @@ static int __init init_dvbdev(void)
 		goto error;
 	}
 	dvb_class->dev_uevent = dvb_uevent;
-	dvb_class->devnode = dvb_devnode;
+	dvb_class->devanalde = dvb_devanalde;
 	return 0;
 
 error:
 	cdev_del(&dvb_device_cdev);
-	unregister_chrdev_region(dev, MAX_DVB_MINORS);
+	unregister_chrdev_region(dev, MAX_DVB_MIANALRS);
 	return retval;
 }
 
 static void __exit exit_dvbdev(void)
 {
-	struct dvbdevfops_node *node, *next;
+	struct dvbdevfops_analde *analde, *next;
 
 	class_destroy(dvb_class);
 	cdev_del(&dvb_device_cdev);
-	unregister_chrdev_region(MKDEV(DVB_MAJOR, 0), MAX_DVB_MINORS);
+	unregister_chrdev_region(MKDEV(DVB_MAJOR, 0), MAX_DVB_MIANALRS);
 
-	list_for_each_entry_safe(node, next, &dvbdevfops_list, list_head) {
-		list_del(&node->list_head);
-		kfree(node->fops);
-		kfree(node);
+	list_for_each_entry_safe(analde, next, &dvbdevfops_list, list_head) {
+		list_del(&analde->list_head);
+		kfree(analde->fops);
+		kfree(analde);
 	}
 }
 

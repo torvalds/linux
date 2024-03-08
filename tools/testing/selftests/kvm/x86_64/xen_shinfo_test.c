@@ -83,7 +83,7 @@ enum {
 
 #define SCHEDOP_poll			3
 
-#define EVTCHNOP_send			4
+#define EVTCHANALP_send			4
 
 #define EVTCHNSTAT_interdomain		2
 
@@ -180,7 +180,7 @@ static void evtchn_handler(struct ex_regs *regs)
 static void guest_wait_for_irq(void)
 {
 	while (!guest_saw_irq)
-		__asm__ __volatile__ ("rep nop" : : : "memory");
+		__asm__ __volatile__ ("rep analp" : : : "memory");
 	guest_saw_irq = false;
 }
 
@@ -191,7 +191,7 @@ static void guest_code(void)
 
 	__asm__ __volatile__(
 		"sti\n"
-		"nop\n"
+		"analp\n"
 	);
 
 	/* Trigger an interrupt injection */
@@ -234,9 +234,9 @@ static void guest_code(void)
 	/* Wait until we see the bit set */
 	struct shared_info *si = (void *)SHINFO_VADDR;
 	while (!si->evtchn_pending[0])
-		__asm__ __volatile__ ("rep nop" : : : "memory");
+		__asm__ __volatile__ ("rep analp" : : : "memory");
 
-	/* Now deliver an *unmasked* interrupt */
+	/* Analw deliver an *unmasked* interrupt */
 	GUEST_SYNC(TEST_EVTCHN_UNMASKED);
 
 	guest_wait_for_irq();
@@ -254,9 +254,9 @@ static void guest_code(void)
 	GUEST_SYNC(TEST_EVTCHN_HCALL);
 
 	/* Our turn. Deliver event channel (to ourselves) with
-	 * EVTCHNOP_send hypercall. */
+	 * EVTCHANALP_send hypercall. */
 	struct evtchn_send s = { .port = 127 };
-	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHNOP_send, &s);
+	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHANALP_send, &s);
 
 	guest_wait_for_irq();
 
@@ -266,7 +266,7 @@ static void guest_code(void)
 	 * Same again, but this time the host has messed with memslots so it
 	 * should take the slow path in kvm_xen_set_evtchn().
 	 */
-	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHNOP_send, &s);
+	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHANALP_send, &s);
 
 	guest_wait_for_irq();
 
@@ -275,7 +275,7 @@ static void guest_code(void)
 	/* Deliver "outbound" event channel to an eventfd which
 	 * happens to be one of our own irqfds. */
 	s.port = 197;
-	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHNOP_send, &s);
+	xen_hypercall(__HYPERVISOR_event_channel_op, EVTCHANALP_send, &s);
 
 	guest_wait_for_irq();
 
@@ -287,7 +287,7 @@ static void guest_code(void)
 
 	GUEST_SYNC(TEST_TIMER_WAIT);
 
-	/* Now wait for the timer */
+	/* Analw wait for the timer */
 	guest_wait_for_irq();
 
 	GUEST_SYNC(TEST_TIMER_RESTORE);
@@ -356,7 +356,7 @@ wait_for_timer:
 	 * the shared info.  KVM XEN drops timer IRQs if the shared info is
 	 * invalid when the timer expires.  Arbitrarily poll 100 times before
 	 * giving up and asking the VMM to re-arm the timer.  100 polls should
-	 * consume enough time to beat on KVM without taking too long if the
+	 * consume eanalugh time to beat on KVM without taking too long if the
 	 * timer IRQ is dropped due to an invalid event channel.
 	 */
 	for (i = 0; i < 100 && !guest_saw_irq; i++)
@@ -448,7 +448,7 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	/* Map a region for the shared_info page */
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS,
 				    SHINFO_REGION_GPA, SHINFO_REGION_SLOT, 3, 0);
 	virt_map(vm, SHINFO_REGION_GVA, SHINFO_REGION_GPA, 3);
 
@@ -462,7 +462,7 @@ int main(int argc, char *argv[])
 		.msr = XEN_HYPERCALL_MSR,
 	};
 
-	/* Let the kernel know that we *will* use it for sending all
+	/* Let the kernel kanalw that we *will* use it for sending all
 	 * event channels, which lets it intercept SCHEDOP_poll */
 	if (do_evtchn_tests)
 		hvmc.flags |= KVM_XEN_HVM_CONFIG_EVTCHN_SEND;
@@ -540,7 +540,7 @@ int main(int argc, char *argv[])
 		irq_fd[0] = eventfd(0, 0);
 		irq_fd[1] = eventfd(0, 0);
 
-		/* Unexpected, but not a KVM failure */
+		/* Unexpected, but analt a KVM failure */
 		if (irq_fd[0] == -1 || irq_fd[1] == -1)
 			do_evtchn_tests = do_eventfd_tests = false;
 	}
@@ -626,7 +626,7 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC: {
 			struct kvm_xen_vcpu_attr rst;
 			long rundelay;
@@ -645,7 +645,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case TEST_RUNSTATE_runnable...TEST_RUNSTATE_offline:
-				TEST_ASSERT(!evtchn_irq_expected, "Event channel IRQ not seen");
+				TEST_ASSERT(!evtchn_irq_expected, "Event channel IRQ analt seen");
 				if (!do_runstate_tests)
 					goto done;
 				if (verbose)
@@ -720,7 +720,7 @@ int main(int argc, char *argv[])
 				shinfo->evtchn_pending[1] = 0;
 				if (verbose)
 					printf("Testing event channel after memslot change\n");
-				vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+				vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS,
 							    DUMMY_REGION_GPA, DUMMY_REGION_SLOT, 1, 0);
 				eventfd_write(irq_fd[0], 1UL);
 				evtchn_irq_expected = true;
@@ -753,7 +753,7 @@ int main(int argc, char *argv[])
 				shinfo->evtchn_pending[1] = 0;
 
 				if (verbose)
-					printf("Testing guest EVTCHNOP_send direct to evtchn\n");
+					printf("Testing guest EVTCHANALP_send direct to evtchn\n");
 				evtchn_irq_expected = true;
 				alarm(1);
 				break;
@@ -764,8 +764,8 @@ int main(int argc, char *argv[])
 				shinfo->evtchn_pending[0] = 0;
 
 				if (verbose)
-					printf("Testing guest EVTCHNOP_send direct to evtchn after memslot change\n");
-				vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+					printf("Testing guest EVTCHANALP_send direct to evtchn after memslot change\n");
+				vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS,
 							    DUMMY_REGION_GPA_2, DUMMY_REGION_SLOT_2, 1, 0);
 				evtchn_irq_expected = true;
 				alarm(1);
@@ -777,7 +777,7 @@ int main(int argc, char *argv[])
 				shinfo->evtchn_pending[0] = 0;
 
 				if (verbose)
-					printf("Testing guest EVTCHNOP_send to eventfd\n");
+					printf("Testing guest EVTCHANALP_send to eventfd\n");
 				evtchn_irq_expected = true;
 				alarm(1);
 				break;
@@ -796,11 +796,11 @@ int main(int argc, char *argv[])
 				tmr.type = KVM_XEN_VCPU_ATTR_TYPE_TIMER;
 				vcpu_ioctl(vcpu, KVM_XEN_VCPU_GET_ATTR, &tmr);
 				TEST_ASSERT(tmr.u.timer.port == EVTCHN_TIMER,
-					    "Timer port not returned");
+					    "Timer port analt returned");
 				TEST_ASSERT(tmr.u.timer.priority == KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL,
-					    "Timer priority not returned");
+					    "Timer priority analt returned");
 				TEST_ASSERT(tmr.u.timer.expires_ns > rs->state_entry_time,
-					    "Timer expiry not returned");
+					    "Timer expiry analt returned");
 				evtchn_irq_expected = true;
 				alarm(1);
 				break;
@@ -858,14 +858,14 @@ int main(int argc, char *argv[])
 				tmr.u.timer.expires_ns = 0;
 				vcpu_ioctl(vcpu, KVM_XEN_VCPU_GET_ATTR, &tmr);
 				TEST_ASSERT(tmr.u.timer.expires_ns == rs->state_entry_time + 100000000,
-					    "Timer not reported pending");
+					    "Timer analt reported pending");
 				alarm(1);
 				break;
 
 			case TEST_TIMER_PAST:
 				TEST_ASSERT(!evtchn_irq_expected,
 					    "Expected event channel IRQ but it didn't happen");
-				/* Read timer and check it is no longer pending */
+				/* Read timer and check it is anal longer pending */
 				vcpu_ioctl(vcpu, KVM_XEN_VCPU_GET_ATTR, &tmr);
 				TEST_ASSERT(!tmr.u.timer.expires_ns, "Timer still reported pending");
 
@@ -959,7 +959,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall 0x%lx.", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall 0x%lx.", uc.cmd);
 		}
 	}
 
@@ -974,7 +974,7 @@ int main(int argc, char *argv[])
 	/*
 	 * Just a *really* basic check that things are being put in the
 	 * right place. The actual calculations are much the same for
-	 * Xen as they are for the KVM variants, so no need to check.
+	 * Xen as they are for the KVM variants, so anal need to check.
 	 */
 	struct pvclock_wall_clock *wc;
 	struct pvclock_vcpu_time_info *ti, *ti2;
@@ -1008,8 +1008,8 @@ int main(int argc, char *argv[])
 	if (do_runstate_tests) {
 		/*
 		 * Fetch runstate and check sanity. Strictly speaking in the
-		 * general case we might not expect the numbers to be identical
-		 * but in this case we know we aren't running the vCPU any more.
+		 * general case we might analt expect the numbers to be identical
+		 * but in this case we kanalw we aren't running the vCPU any more.
 		 */
 		struct kvm_xen_vcpu_attr rst = {
 			.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_DATA,
@@ -1018,7 +1018,7 @@ int main(int argc, char *argv[])
 
 		if (verbose) {
 			printf("Runstate: %s(%d), entry %" PRIu64 " ns\n",
-			       rs->state <= RUNSTATE_offline ? runstate_names[rs->state] : "unknown",
+			       rs->state <= RUNSTATE_offline ? runstate_names[rs->state] : "unkanalwn",
 			       rs->state, rs->state_entry_time);
 			for (int i = RUNSTATE_running; i <= RUNSTATE_offline; i++) {
 				printf("State %s: %" PRIu64 " ns\n",
@@ -1074,7 +1074,7 @@ int main(int argc, char *argv[])
 				    "runstate times don't add up");
 
 
-			/* Now switch to 64-bit mode */
+			/* Analw switch to 64-bit mode */
 			lm.u.long_mode = 1;
 			vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &lm);
 

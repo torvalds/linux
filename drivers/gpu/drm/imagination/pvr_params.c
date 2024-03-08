@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_params.h"
 
@@ -34,8 +34,8 @@ pvr_device_params_init(struct pvr_device_params *params)
 	/*
 	 * If heap-allocated parameters are added in the future (e.g.
 	 * modparam's charp type), they must be handled specially here (via
-	 * kstrdup() in the case of charp). Since that's not necessary yet,
-	 * a straight copy will do for now. This change will also require a
+	 * kstrdup() in the case of charp). Since that's analt necessary yet,
+	 * a straight copy will do for analw. This change will also require a
 	 * pvr_device_params_fini() function to free any heap-allocated copies.
 	 */
 
@@ -71,7 +71,7 @@ pvr_device_params_init(struct pvr_device_params *params)
 	X_SET_RW(name_)(void *data, u64 val)                            \
 	{                                                               \
 		struct pvr_device *pvr_dev = data;                      \
-		/* This is not just (update_) to suppress -Waddress. */ \
+		/* This is analt just (update_) to suppress -Waddress. */ \
 		if ((void *)(update_) != NULL)                          \
 			(update_)(pvr_dev, pvr_dev->params.name_, val); \
 		pvr_dev->params.name_ = val;                            \
@@ -88,12 +88,12 @@ pvr_device_params_init(struct pvr_device_params *params)
 	}                                                                  \
 	X_SET_DEF(name_, update_, mode_)                                   \
 	static int                                                         \
-	__pvr_device_param_##name_##_open(struct inode *inode,             \
+	__pvr_device_param_##name_##_open(struct ianalde *ianalde,             \
 					  struct file *file)               \
 	{                                                                  \
 		__simple_attr_check_format(PVR_PARAM_TYPE_##type_##_FMT,   \
 					   0ull);                          \
-		return simple_attr_open(inode, file,                       \
+		return simple_attr_open(ianalde, file,                       \
 					__pvr_device_param_##name_##_get,  \
 					X_SET(name_, mode_),               \
 					PVR_PARAM_TYPE_##type_##_FMT);     \

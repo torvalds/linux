@@ -86,7 +86,7 @@ static int cs35l56_sync_asp1_mixer_widgets_with_firmware(struct cs35l56_private 
 
 	/*
 	 * Resume so we can read the registers from silicon if the regmap
-	 * cache has not yet been populated.
+	 * cache has analt yet been populated.
 	 */
 	ret = pm_runtime_resume_and_get(cs35l56->base.dev);
 	if (ret < 0)
@@ -116,7 +116,7 @@ static int cs35l56_sync_asp1_mixer_widgets_with_firmware(struct cs35l56_private 
 
 		kcontrol = snd_soc_card_get_kcontrol_locked(dapm->card, name);
 		if (!kcontrol) {
-			dev_warn(cs35l56->base.dev, "Could not find control %s\n", name);
+			dev_warn(cs35l56->base.dev, "Could analt find control %s\n", name);
 			continue;
 		}
 
@@ -204,7 +204,7 @@ static const struct snd_kcontrol_new cs35l56_controls[] = {
 };
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx1_enum,
-				  SND_SOC_NOPM,
+				  SND_SOC_ANALPM,
 				  0, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
@@ -214,7 +214,7 @@ static const struct snd_kcontrol_new asp1_tx1_mux =
 			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx2_enum,
-				  SND_SOC_NOPM,
+				  SND_SOC_ANALPM,
 				  1, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
@@ -224,7 +224,7 @@ static const struct snd_kcontrol_new asp1_tx2_mux =
 			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx3_enum,
-				  SND_SOC_NOPM,
+				  SND_SOC_ANALPM,
 				  2, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
@@ -234,7 +234,7 @@ static const struct snd_kcontrol_new asp1_tx3_mux =
 			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx4_enum,
-				  SND_SOC_NOPM,
+				  SND_SOC_ANALPM,
 				  3, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
@@ -330,16 +330,16 @@ static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_B", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_AMP", 0, 0),
 
-	SND_SOC_DAPM_SUPPLY("ASP1 CFG", SND_SOC_NOPM, 0, 0, cs35l56_asp1_cfg_event,
+	SND_SOC_DAPM_SUPPLY("ASP1 CFG", SND_SOC_ANALPM, 0, 0, cs35l56_asp1_cfg_event,
 			    SND_SOC_DAPM_PRE_PMU),
 
-	SND_SOC_DAPM_SUPPLY("PLAY", SND_SOC_NOPM, 0, 0, cs35l56_play_event,
+	SND_SOC_DAPM_SUPPLY("PLAY", SND_SOC_ANALPM, 0, 0, cs35l56_play_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_OUT_DRV("AMP", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("AMP", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPK"),
 
-	SND_SOC_DAPM_PGA_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0, cs35l56_dsp_event,
+	SND_SOC_DAPM_PGA_E("DSP1", SND_SOC_ANALPM, 0, 0, NULL, 0, cs35l56_dsp_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_AIF_IN("ASP1RX1", NULL, 0, CS35L56_ASP1_ENABLES1,
@@ -355,15 +355,15 @@ static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("ASP1TX4", NULL, 3, CS35L56_ASP1_ENABLES1,
 			     CS35L56_ASP_TX4_EN_SHIFT, 0),
 
-	SND_SOC_DAPM_MUX("ASP1 TX1 Source", SND_SOC_NOPM, 0, 0, &asp1_tx1_mux),
-	SND_SOC_DAPM_MUX("ASP1 TX2 Source", SND_SOC_NOPM, 0, 0, &asp1_tx2_mux),
-	SND_SOC_DAPM_MUX("ASP1 TX3 Source", SND_SOC_NOPM, 0, 0, &asp1_tx3_mux),
-	SND_SOC_DAPM_MUX("ASP1 TX4 Source", SND_SOC_NOPM, 0, 0, &asp1_tx4_mux),
+	SND_SOC_DAPM_MUX("ASP1 TX1 Source", SND_SOC_ANALPM, 0, 0, &asp1_tx1_mux),
+	SND_SOC_DAPM_MUX("ASP1 TX2 Source", SND_SOC_ANALPM, 0, 0, &asp1_tx2_mux),
+	SND_SOC_DAPM_MUX("ASP1 TX3 Source", SND_SOC_ANALPM, 0, 0, &asp1_tx3_mux),
+	SND_SOC_DAPM_MUX("ASP1 TX4 Source", SND_SOC_ANALPM, 0, 0, &asp1_tx4_mux),
 
-	SND_SOC_DAPM_MUX("SDW1 TX1 Source", SND_SOC_NOPM, 0, 0, &sdw1_tx1_mux),
-	SND_SOC_DAPM_MUX("SDW1 TX2 Source", SND_SOC_NOPM, 0, 0, &sdw1_tx2_mux),
-	SND_SOC_DAPM_MUX("SDW1 TX3 Source", SND_SOC_NOPM, 0, 0, &sdw1_tx3_mux),
-	SND_SOC_DAPM_MUX("SDW1 TX4 Source", SND_SOC_NOPM, 0, 0, &sdw1_tx4_mux),
+	SND_SOC_DAPM_MUX("SDW1 TX1 Source", SND_SOC_ANALPM, 0, 0, &sdw1_tx1_mux),
+	SND_SOC_DAPM_MUX("SDW1 TX2 Source", SND_SOC_ANALPM, 0, 0, &sdw1_tx2_mux),
+	SND_SOC_DAPM_MUX("SDW1 TX3 Source", SND_SOC_ANALPM, 0, 0, &sdw1_tx3_mux),
+	SND_SOC_DAPM_MUX("SDW1 TX4 Source", SND_SOC_ANALPM, 0, 0, &sdw1_tx4_mux),
 
 	SND_SOC_DAPM_SIGGEN("VMON ADC"),
 	SND_SOC_DAPM_SIGGEN("IMON ADC"),
@@ -551,7 +551,7 @@ static int cs35l56_asp_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx
 	cs35l56->asp_slot_width = (u8)slot_width;
 	cs35l56->asp_slot_count = (u8)slots;
 
-	// Note: rx/tx is from point of view of the CPU end
+	// Analte: rx/tx is from point of view of the CPU end
 	if (tx_mask == 0)
 		tx_mask = 0x3;	// ASPRX1/RX2 in slots 0 and 1
 
@@ -690,7 +690,7 @@ static int cs35l56_sdw_dai_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(cs35l56->base.dev, "%s: rate %d\n", __func__, params_rate(params));
 
 	if (!cs35l56->base.init_done)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!sdw_stream)
 		return -EINVAL;
@@ -820,15 +820,15 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing
 
 	/*
 	 * Disable SoundWire interrupts to prevent race with IRQ work.
-	 * Setting sdw_irq_no_unmask prevents the handler re-enabling
+	 * Setting sdw_irq_anal_unmask prevents the handler re-enabling
 	 * the SoundWire interrupt.
 	 */
 	if (cs35l56->sdw_peripheral) {
-		cs35l56->sdw_irq_no_unmask = true;
+		cs35l56->sdw_irq_anal_unmask = true;
 		flush_work(&cs35l56->sdw_irq_work);
-		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1, 0);
-		sdw_read_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1);
-		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
+		sdw_write_anal_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1, 0);
+		sdw_read_anal_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1);
+		sdw_write_anal_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
 		flush_work(&cs35l56->sdw_irq_work);
 	}
 
@@ -879,8 +879,8 @@ err_unlock:
 err:
 	/* Re-enable SoundWire interrupts */
 	if (cs35l56->sdw_peripheral) {
-		cs35l56->sdw_irq_no_unmask = false;
-		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1,
+		cs35l56->sdw_irq_anal_unmask = false;
+		sdw_write_anal_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1,
 				CS35L56_SDW_INT_MASK_CODEC_IRQ);
 	}
 }
@@ -923,10 +923,10 @@ static void cs35l56_dsp_work(struct work_struct *work)
 		cs35l56->dsp.fwf_name, cs35l56->dsp.system_name);
 
 	/*
-	 * The firmware cannot be patched if it is already running from
+	 * The firmware cananalt be patched if it is already running from
 	 * patch RAM. In this case the firmware files are versioned to
 	 * match the running firmware version and will only contain
-	 * tunings. We do not need to shutdown the firmware to apply
+	 * tunings. We do analt need to shutdown the firmware to apply
 	 * tunings so can use the lower cost reinit sequence instead.
 	 */
 	if (!firmware_missing)
@@ -963,13 +963,13 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 								  vendor, device);
 		}
 		if (!cs35l56->dsp.system_name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (!wait_for_completion_timeout(&cs35l56->init_completion,
 					 msecs_to_jiffies(5000))) {
 		dev_err(cs35l56->base.dev, "%s: init_completion timed out\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	cs35l56->component = component;
@@ -1070,10 +1070,10 @@ int cs35l56_system_suspend(struct device *dev)
 		flush_work(&cs35l56->dsp_work);
 
 	/*
-	 * The interrupt line is normally shared, but after we start suspending
+	 * The interrupt line is analrmally shared, but after we start suspending
 	 * we can't check if our device is the source of an interrupt, and can't
 	 * clear it. Prevent this race by temporarily disabling the parent irq
-	 * until we reach _no_irq.
+	 * until we reach _anal_irq.
 	 */
 	if (cs35l56->base.irq)
 		disable_irq(cs35l56->base.irq);
@@ -1090,7 +1090,7 @@ int cs35l56_system_suspend_late(struct device *dev)
 
 	/*
 	 * Assert RESET before removing supplies.
-	 * RESET is usually shared by all amps so it must not be asserted until
+	 * RESET is usually shared by all amps so it must analt be asserted until
 	 * all driver instances have done their suspend() stage.
 	 */
 	if (cs35l56->base.reset_gpio) {
@@ -1104,29 +1104,29 @@ int cs35l56_system_suspend_late(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(cs35l56_system_suspend_late);
 
-int cs35l56_system_suspend_no_irq(struct device *dev)
+int cs35l56_system_suspend_anal_irq(struct device *dev)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
 
-	dev_dbg(dev, "system_suspend_no_irq\n");
+	dev_dbg(dev, "system_suspend_anal_irq\n");
 
-	/* Handlers are now disabled so the parent IRQ can safely be re-enabled. */
+	/* Handlers are analw disabled so the parent IRQ can safely be re-enabled. */
 	if (cs35l56->base.irq)
 		enable_irq(cs35l56->base.irq);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cs35l56_system_suspend_no_irq);
+EXPORT_SYMBOL_GPL(cs35l56_system_suspend_anal_irq);
 
-int cs35l56_system_resume_no_irq(struct device *dev)
+int cs35l56_system_resume_anal_irq(struct device *dev)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
 
-	dev_dbg(dev, "system_resume_no_irq\n");
+	dev_dbg(dev, "system_resume_anal_irq\n");
 
 	/*
 	 * WAKE interrupts unmask if the CS35L56 hibernates, which can cause
-	 * spurious interrupts, and the interrupt line is normally shared.
+	 * spurious interrupts, and the interrupt line is analrmally shared.
 	 * We can't check if our device is the source of an interrupt, and can't
 	 * clear it, until it has fully resumed. Prevent this race by temporarily
 	 * disabling the parent irq until we complete resume().
@@ -1136,7 +1136,7 @@ int cs35l56_system_resume_no_irq(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cs35l56_system_resume_no_irq);
+EXPORT_SYMBOL_GPL(cs35l56_system_resume_anal_irq);
 
 int cs35l56_system_resume_early(struct device *dev)
 {
@@ -1200,7 +1200,7 @@ int cs35l56_system_resume(struct device *dev)
 	queue_work(cs35l56->dsp_wq, &cs35l56->dsp_work);
 
 	/*
-	 * suspend_bias_off ensures we are now in BIAS_OFF so there will be
+	 * suspend_bias_off ensures we are analw in BIAS_OFF so there will be
 	 * a BIAS_OFF->BIAS_STANDBY transition to complete dsp patching.
 	 */
 
@@ -1215,7 +1215,7 @@ static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 
 	cs35l56->dsp_wq = create_singlethread_workqueue("cs35l56-dsp");
 	if (!cs35l56->dsp_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&cs35l56->dsp_work, cs35l56_dsp_work);
 
@@ -1243,7 +1243,7 @@ static int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56)
 	int ret;
 
 	ret = device_property_read_string(dev, "cirrus,firmware-uid", &prop);
-	/* If bad sw node property, return 0 and fallback to legacy firmware path */
+	/* If bad sw analde property, return 0 and fallback to legacy firmware path */
 	if (ret < 0)
 		return 0;
 
@@ -1255,7 +1255,7 @@ static int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56)
 		cs35l56->dsp.system_name = devm_kstrdup(dev, prop, GFP_KERNEL);
 
 	if (cs35l56->dsp.system_name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "Firmware UID: %s\n", cs35l56->dsp.system_name);
 
@@ -1264,8 +1264,8 @@ static int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56)
 
 /*
  * Some SoundWire laptops have a spk-id-gpios property but it points to
- * the wrong ACPI Device node so can't be used to get the GPIO. Try to
- * find the SDCA node containing the GpioIo resource and add a GPIO
+ * the wrong ACPI Device analde so can't be used to get the GPIO. Try to
+ * find the SDCA analde containing the GpioIo resource and add a GPIO
  * mapping to it.
  */
 static const struct acpi_gpio_params cs35l56_af01_first_gpio = { 0, 0, false };
@@ -1281,39 +1281,39 @@ static void cs35l56_acpi_dev_release_driver_gpios(void *adev)
 
 static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l56)
 {
-	struct fwnode_handle *af01_fwnode;
+	struct fwanalde_handle *af01_fwanalde;
 	const union acpi_object *obj;
 	struct gpio_desc *desc;
 	int ret;
 
-	/* Find the SDCA node containing the GpioIo */
-	af01_fwnode = device_get_named_child_node(cs35l56->base.dev, "AF01");
-	if (!af01_fwnode) {
-		dev_dbg(cs35l56->base.dev, "No AF01 node\n");
-		return -ENOENT;
+	/* Find the SDCA analde containing the GpioIo */
+	af01_fwanalde = device_get_named_child_analde(cs35l56->base.dev, "AF01");
+	if (!af01_fwanalde) {
+		dev_dbg(cs35l56->base.dev, "Anal AF01 analde\n");
+		return -EANALENT;
 	}
 
 	ret = acpi_dev_get_property(ACPI_COMPANION(cs35l56->base.dev),
 				    "spk-id-gpios", ACPI_TYPE_PACKAGE, &obj);
 	if (ret) {
-		dev_dbg(cs35l56->base.dev, "Could not get spk-id-gpios package: %d\n", ret);
-		return -ENOENT;
+		dev_dbg(cs35l56->base.dev, "Could analt get spk-id-gpios package: %d\n", ret);
+		return -EANALENT;
 	}
 
 	/* The broken properties we can handle are a 4-element package (one GPIO) */
 	if (obj->package.count != 4) {
 		dev_warn(cs35l56->base.dev, "Unexpected spk-id element count %d\n",
 			 obj->package.count);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Add a GPIO mapping if it doesn't already have one */
-	if (!fwnode_property_present(af01_fwnode, "spk-id-gpios")) {
-		struct acpi_device *adev = to_acpi_device_node(af01_fwnode);
+	if (!fwanalde_property_present(af01_fwanalde, "spk-id-gpios")) {
+		struct acpi_device *adev = to_acpi_device_analde(af01_fwanalde);
 
 		/*
 		 * Can't use devm_acpi_dev_add_driver_gpios() because the
-		 * mapping isn't being added to the node pointed to by
+		 * mapping isn't being added to the analde pointed to by
 		 * ACPI_COMPANION().
 		 */
 		ret = acpi_dev_add_driver_gpios(adev, cs35l56_af01_spkid_gpios_mapping);
@@ -1331,7 +1331,7 @@ static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l5
 		dev_dbg(cs35l56->base.dev, "Added spk-id-gpios mapping to AF01\n");
 	}
 
-	desc = fwnode_gpiod_get_index(af01_fwnode, "spk-id", 0, GPIOD_IN, NULL);
+	desc = fwanalde_gpiod_get_index(af01_fwanalde, "spk-id", 0, GPIOD_IN, NULL);
 	if (IS_ERR(desc)) {
 		ret = PTR_ERR(desc);
 		return dev_err_probe(cs35l56->base.dev, ret, "Get GPIO from AF01 failed\n");
@@ -1356,7 +1356,7 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 
 	init_completion(&cs35l56->init_completion);
 	mutex_init(&cs35l56->base.irq_lock);
-	cs35l56->speaker_id = -ENOENT;
+	cs35l56->speaker_id = -EANALENT;
 
 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
@@ -1394,10 +1394,10 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 	}
 
 	ret = cs35l56_get_speaker_id(&cs35l56->base);
-	if (ACPI_COMPANION(cs35l56->base.dev) && cs35l56->sdw_peripheral && (ret == -ENOENT))
+	if (ACPI_COMPANION(cs35l56->base.dev) && cs35l56->sdw_peripheral && (ret == -EANALENT))
 		ret = cs35l56_try_get_broken_sdca_spkid_gpio(cs35l56);
 
-	if ((ret < 0) && (ret != -ENOENT))
+	if ((ret < 0) && (ret != -EANALENT))
 		goto err;
 
 	cs35l56->speaker_id = ret;
@@ -1458,12 +1458,12 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 		return ret;
 
 	if (!cs35l56->base.reset_gpio) {
-		dev_dbg(cs35l56->base.dev, "No reset gpio: using soft reset\n");
+		dev_dbg(cs35l56->base.dev, "Anal reset gpio: using soft reset\n");
 		cs35l56->soft_resetting = true;
 		cs35l56_system_reset(&cs35l56->base, !!cs35l56->sdw_peripheral);
 		if (cs35l56->sdw_peripheral) {
 			/* Keep alive while we wait for re-enumeration */
-			pm_runtime_get_noresume(cs35l56->base.dev);
+			pm_runtime_get_analresume(cs35l56->base.dev);
 			return 0;
 		}
 	}
@@ -1474,7 +1474,7 @@ post_soft_reset:
 
 		/* Done re-enumerating after one-time init so release the keep-alive */
 		if (cs35l56->sdw_peripheral && !cs35l56->base.init_done)
-			pm_runtime_put_noidle(cs35l56->base.dev);
+			pm_runtime_put_analidle(cs35l56->base.dev);
 
 		regcache_mark_dirty(cs35l56->base.regmap);
 		ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
@@ -1492,7 +1492,7 @@ post_soft_reset:
 	/* Registers could be dirty after soft reset or SoundWire enumeration */
 	regcache_sync(cs35l56->base.regmap);
 
-	/* Set ASP1 DOUT to high-impedance when it is not transmitting audio data. */
+	/* Set ASP1 DOUT to high-impedance when it is analt transmitting audio data. */
 	ret = regmap_set_bits(cs35l56->base.regmap, CS35L56_ASP1_CONTROL3,
 			      CS35L56_ASP1_DOUT_HIZ_CTRL_MASK);
 	if (ret)
@@ -1535,7 +1535,7 @@ EXPORT_NS_GPL_DEV_PM_OPS(cs35l56_pm_ops_i2c_spi, SND_SOC_CS35L56_CORE) = {
 	SET_RUNTIME_PM_OPS(cs35l56_runtime_suspend_i2c_spi, cs35l56_runtime_resume_i2c_spi, NULL)
 	SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend, cs35l56_system_resume)
 	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_late, cs35l56_system_resume_early)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_no_irq, cs35l56_system_resume_no_irq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_anal_irq, cs35l56_system_resume_anal_irq)
 };
 #endif
 

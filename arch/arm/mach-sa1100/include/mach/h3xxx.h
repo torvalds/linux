@@ -3,7 +3,7 @@
  * Definitions for Compaq iPAQ H3100 and H3600 handheld computers
  *
  * (c) 2000 Compaq Computer Corporation. (Author: Jamey Hicks)
- * (c) 2009 Dmitry Artamonow <mad_soft@inbox.ru>
+ * (c) 2009 Dmitry Artamoanalw <mad_soft@inbox.ru>
  */
 
 #ifndef _INCLUDE_H3XXX_H_
@@ -48,7 +48,7 @@
 
 #define H3600_GPIO_CLK_SET0		12	/* audio sample rate clock generator */
 #define H3600_GPIO_CLK_SET1		13
-#define H3600_GPIO_SOFT_RESET		20	/* also known as BATT_FAULT */
+#define H3600_GPIO_SOFT_RESET		20	/* also kanalwn as BATT_FAULT */
 #define H3600_GPIO_OPT_LOCK		22
 #define H3600_GPIO_OPT_DET		27
 

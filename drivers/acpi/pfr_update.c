@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/efi.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/idr.h>
@@ -430,7 +430,7 @@ static long pfru_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return start_update(START_STAGE_ACTIVATE, pfru_dev);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -461,7 +461,7 @@ static ssize_t pfru_write(struct file *file, const char __user *buf,
 	phy_addr = (phys_addr_t)((buf_info.addr_hi << 32) | buf_info.addr_lo);
 	buf_ptr = memremap(phy_addr, buf_info.buf_size, MEMREMAP_WB);
 	if (!buf_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!copy_from_iter_full(buf_ptr, len, &iter)) {
 		ret = -EINVAL;
@@ -486,7 +486,7 @@ static const struct file_operations acpi_pfru_fops = {
 	.owner		= THIS_MODULE,
 	.write		= pfru_write,
 	.unlocked_ioctl = pfru_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static int acpi_pfru_remove(struct platform_device *pdev)
@@ -513,12 +513,12 @@ static int acpi_pfru_probe(struct platform_device *pdev)
 
 	if (!acpi_has_method(handle, "_DSM")) {
 		dev_dbg(&pdev->dev, "Missing _DSM\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pfru_dev = devm_kzalloc(&pdev->dev, sizeof(*pfru_dev), GFP_KERNEL);
 	if (!pfru_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ida_alloc(&pfru_ida, GFP_KERNEL);
 	if (ret < 0)
@@ -532,16 +532,16 @@ static int acpi_pfru_probe(struct platform_device *pdev)
 	pfru_dev->rev_id = PFRU_DEFAULT_REV_ID;
 	pfru_dev->parent_dev = &pdev->dev;
 
-	pfru_dev->miscdev.minor = MISC_DYNAMIC_MINOR;
+	pfru_dev->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	pfru_dev->miscdev.name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 						"pfru%d", pfru_dev->index);
 	if (!pfru_dev->miscdev.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pfru_dev->miscdev.nodename = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+	pfru_dev->miscdev.analdename = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 						    "acpi_pfr_update%d", pfru_dev->index);
-	if (!pfru_dev->miscdev.nodename)
-		return -ENOMEM;
+	if (!pfru_dev->miscdev.analdename)
+		return -EANALMEM;
 
 	pfru_dev->miscdev.fops = &acpi_pfru_fops;
 	pfru_dev->miscdev.parent = &pdev->dev;

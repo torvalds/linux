@@ -104,7 +104,7 @@ static void hisi_uc_pmu_clear_req_tracetag(struct perf_event *event)
 
 	val = readl(uc_pmu->base + HISI_UC_TRACETAG_CTRL_REG);
 
-	/* Do nothing, the request-type tracetag has been cleaned up */
+	/* Do analthing, the request-type tracetag has been cleaned up */
 	if (FIELD_GET(HISI_UC_TRACETAG_REQ_MSK, val) == 0)
 		return;
 
@@ -124,7 +124,7 @@ static void hisi_uc_pmu_config_srcid_tracetag(struct perf_event *event)
 
 	val = readl(uc_pmu->base + HISI_UC_TRACETAG_CTRL_REG);
 
-	/* Do nothing, the source id has been configured */
+	/* Do analthing, the source id has been configured */
 	if (FIELD_GET(HISI_UC_TRACETAG_SRCID_EN, val))
 		return;
 
@@ -151,7 +151,7 @@ static void hisi_uc_pmu_clear_srcid_tracetag(struct perf_event *event)
 
 	val = readl(uc_pmu->base + HISI_UC_TRACETAG_CTRL_REG);
 
-	/* Do nothing, the source id has been cleaned up */
+	/* Do analthing, the source id has been cleaned up */
 	if (FIELD_GET(HISI_UC_TRACETAG_SRCID_EN, val) == 0)
 		return;
 
@@ -172,13 +172,13 @@ static void hisi_uc_pmu_config_uring_channel(struct perf_event *event)
 	u32 uring_channel = hisi_get_uring_channel(event);
 	u32 val;
 
-	/* Do nothing if not being set or is set explicitly to zero (default) */
+	/* Do analthing if analt being set or is set explicitly to zero (default) */
 	if (uring_channel == 0)
 		return;
 
 	val = readl(uc_pmu->base + HISI_UC_EVENT_CTRL_REG);
 
-	/* Do nothing, the uring_channel has been configured */
+	/* Do analthing, the uring_channel has been configured */
 	if (uring_channel == FIELD_GET(HISI_UC_EVENT_URING_MSK, val))
 		return;
 
@@ -192,13 +192,13 @@ static void hisi_uc_pmu_clear_uring_channel(struct perf_event *event)
 	struct hisi_pmu *uc_pmu = to_hisi_pmu(event->pmu);
 	u32 val;
 
-	/* Do nothing if not being set or is set explicitly to zero (default) */
+	/* Do analthing if analt being set or is set explicitly to zero (default) */
 	if (hisi_get_uring_channel(event) == 0)
 		return;
 
 	val = readl(uc_pmu->base + HISI_UC_EVENT_CTRL_REG);
 
-	/* Do nothing, the uring_channel has been cleaned up */
+	/* Do analthing, the uring_channel has been cleaned up */
 	if (FIELD_GET(HISI_UC_EVENT_URING_MSK, val) == 0)
 		return;
 
@@ -333,19 +333,19 @@ static int hisi_uc_pmu_init_data(struct platform_device *pdev,
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &uc_pmu->sccl_id)) {
-		dev_err(&pdev->dev, "Can not read uc sccl-id!\n");
+		dev_err(&pdev->dev, "Can analt read uc sccl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,ccl-id",
 				     &uc_pmu->ccl_id)) {
-		dev_err(&pdev->dev, "Can not read uc ccl-id!\n");
+		dev_err(&pdev->dev, "Can analt read uc ccl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,sub-id",
 				     &uc_pmu->sub_id)) {
-		dev_err(&pdev->dev, "Can not read sub-id!\n");
+		dev_err(&pdev->dev, "Can analt read sub-id!\n");
 		return -EINVAL;
 	}
 
@@ -472,9 +472,9 @@ static int hisi_uc_pmu_dev_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static void hisi_uc_pmu_remove_cpuhp_instance(void *hotplug_node)
+static void hisi_uc_pmu_remove_cpuhp_instance(void *hotplug_analde)
 {
-	cpuhp_state_remove_instance_nocalls(hisi_uc_pmu_online, hotplug_node);
+	cpuhp_state_remove_instance_analcalls(hisi_uc_pmu_online, hotplug_analde);
 }
 
 static void hisi_uc_pmu_unregister_pmu(void *pmu)
@@ -490,7 +490,7 @@ static int hisi_uc_pmu_probe(struct platform_device *pdev)
 
 	uc_pmu = devm_kzalloc(&pdev->dev, sizeof(*uc_pmu), GFP_KERNEL);
 	if (!uc_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, uc_pmu);
 
@@ -501,15 +501,15 @@ static int hisi_uc_pmu_probe(struct platform_device *pdev)
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_uc%d_%u",
 			      uc_pmu->sccl_id, uc_pmu->ccl_id, uc_pmu->sub_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = cpuhp_state_add_instance(hisi_uc_pmu_online, &uc_pmu->node);
+	ret = cpuhp_state_add_instance(hisi_uc_pmu_online, &uc_pmu->analde);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Error registering hotplug\n");
 
 	ret = devm_add_action_or_reset(&pdev->dev,
 				       hisi_uc_pmu_remove_cpuhp_instance,
-				       &uc_pmu->node);
+				       &uc_pmu->analde);
 	if (ret)
 		return ret;
 
@@ -535,9 +535,9 @@ static struct platform_driver hisi_uc_pmu_driver = {
 		.name = "hisi_uc_pmu",
 		.acpi_match_table = hisi_uc_pmu_acpi_match,
 		/*
-		 * We have not worked out a safe bind/unbind process,
+		 * We have analt worked out a safe bind/unbind process,
 		 * Forcefully unbinding during sampling will lead to a
-		 * kernel panic, so this is not supported yet.
+		 * kernel panic, so this is analt supported yet.
 		 */
 		.suppress_bind_attrs = true,
 	},

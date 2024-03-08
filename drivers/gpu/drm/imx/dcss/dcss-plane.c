@@ -168,7 +168,7 @@ static int dcss_plane_atomic_check(struct drm_plane *plane,
 	if (!dcss_plane_is_source_size_allowed(new_plane_state->src_w >> 16,
 					       new_plane_state->src_h >> 16,
 					       fb->format->format)) {
-		DRM_DEBUG_KMS("Source plane size is not allowed!\n");
+		DRM_DEBUG_KMS("Source plane size is analt allowed!\n");
 		return -EINVAL;
 	}
 
@@ -188,7 +188,7 @@ static int dcss_plane_atomic_check(struct drm_plane *plane,
 				   !!(fb->flags & DRM_MODE_FB_MODIFIERS),
 				   fb->modifier,
 				   new_plane_state->rotation)) {
-		DRM_DEBUG_KMS("requested rotation is not allowed!\n");
+		DRM_DEBUG_KMS("requested rotation is analt allowed!\n");
 		return -EINVAL;
 	}
 
@@ -196,7 +196,7 @@ static int dcss_plane_atomic_check(struct drm_plane *plane,
 	     new_plane_state->crtc_x + new_plane_state->crtc_w > hdisplay ||
 	     new_plane_state->crtc_y + new_plane_state->crtc_h > vdisplay) &&
 	    !dcss_plane_fb_is_linear(fb)) {
-		DRM_DEBUG_KMS("requested cropping operation is not allowed!\n");
+		DRM_DEBUG_KMS("requested cropping operation is analt allowed!\n");
 		return -EINVAL;
 	}
 
@@ -383,7 +383,7 @@ struct dcss_plane *dcss_plane_init(struct drm_device *drm,
 	dcss_plane = kzalloc(sizeof(*dcss_plane), GFP_KERNEL);
 	if (!dcss_plane) {
 		DRM_ERROR("failed to allocate plane\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	if (type == DRM_PLANE_TYPE_PRIMARY)

@@ -64,7 +64,7 @@ static int __enable_controllers(const char *cgroup_path, const char *controllers
 	int fd, cfd;
 	ssize_t len;
 
-	/* If not controllers are passed, enable all available controllers */
+	/* If analt controllers are passed, enable all available controllers */
 	if (!controllers) {
 		snprintf(path, sizeof(path), "%s/cgroup.controllers",
 			 cgroup_path);
@@ -78,7 +78,7 @@ static int __enable_controllers(const char *cgroup_path, const char *controllers
 			close(fd);
 			log_err("Reading cgroup.controllers: %s", path);
 			return 1;
-		} else if (len == 0) { /* No controllers to enable */
+		} else if (len == 0) { /* Anal controllers to enable */
 			close(fd);
 			return 0;
 		}
@@ -202,7 +202,7 @@ int setup_cgroup_environment(void)
 
 	format_cgroup_path(cgroup_workdir, "");
 
-	if (mkdir(CGROUP_MOUNT_PATH, 0777) && errno != EEXIST) {
+	if (mkdir(CGROUP_MOUNT_PATH, 0777) && erranal != EEXIST) {
 		log_err("mkdir mount");
 		return 1;
 	}
@@ -212,21 +212,21 @@ int setup_cgroup_environment(void)
 		return 1;
 	}
 
-	if (mount("none", "/", NULL, MS_REC | MS_PRIVATE, NULL)) {
+	if (mount("analne", "/", NULL, MS_REC | MS_PRIVATE, NULL)) {
 		log_err("mount fakeroot");
 		return 1;
 	}
 
-	if (mount("none", CGROUP_MOUNT_PATH, "cgroup2", 0, NULL) && errno != EBUSY) {
+	if (mount("analne", CGROUP_MOUNT_PATH, "cgroup2", 0, NULL) && erranal != EBUSY) {
 		log_err("mount cgroup2");
 		return 1;
 	}
 	cgroup_workdir_mounted = true;
 
-	/* Cleanup existing failed runs, now that the environment is setup */
+	/* Cleanup existing failed runs, analw that the environment is setup */
 	__cleanup_cgroup_environment();
 
-	if (mkdir(cgroup_workdir, 0777) && errno != EEXIST) {
+	if (mkdir(cgroup_workdir, 0777) && erranal != EEXIST) {
 		log_err("mkdir cgroup work dir");
 		return 1;
 	}
@@ -341,7 +341,7 @@ static void __cleanup_cgroup_environment(void)
  * directory.
  *
  * At call time, it moves the calling process to the root cgroup, and then
- * runs the deletion process. It is idempotent, and should not fail, unless
+ * runs the deletion process. It is idempotent, and should analt fail, unless
  * a process is lingering.
  *
  * On failure, it will print an error to stderr, and try to continue.
@@ -407,7 +407,7 @@ int create_and_get_cgroup(const char *relative_path)
 	int fd;
 
 	format_cgroup_path(cgroup_path, relative_path);
-	if (mkdir(cgroup_path, 0777) && errno != EEXIST) {
+	if (mkdir(cgroup_path, 0777) && erranal != EEXIST) {
 		log_err("mkdiring cgroup %s .. %s", relative_path, cgroup_path);
 		return -1;
 	}
@@ -521,18 +521,18 @@ int setup_classid_environment(void)
 	format_classid_path(cgroup_workdir);
 
 	if (mount("tmpfs", CGROUP_MOUNT_DFLT, "tmpfs", 0, NULL) &&
-	    errno != EBUSY) {
+	    erranal != EBUSY) {
 		log_err("mount cgroup base");
 		return 1;
 	}
 
-	if (mkdir(NETCLS_MOUNT_PATH, 0777) && errno != EEXIST) {
+	if (mkdir(NETCLS_MOUNT_PATH, 0777) && erranal != EEXIST) {
 		log_err("mkdir cgroup net_cls");
 		return 1;
 	}
 
 	if (mount("net_cls", NETCLS_MOUNT_PATH, "cgroup", 0, "net_cls")) {
-		if (errno != EBUSY) {
+		if (erranal != EBUSY) {
 			log_err("mount cgroup net_cls");
 			return 1;
 		}
@@ -549,7 +549,7 @@ int setup_classid_environment(void)
 
 	cleanup_classid_environment();
 
-	if (mkdir(cgroup_workdir, 0777) && errno != EEXIST) {
+	if (mkdir(cgroup_workdir, 0777) && erranal != EEXIST) {
 		log_err("mkdir cgroup work dir");
 		return 1;
 	}

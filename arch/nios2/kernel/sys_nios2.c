@@ -27,7 +27,7 @@ asmlinkage int sys_cacheflush(unsigned long addr, unsigned long len,
 	if (len == 0)
 		return 0;
 
-	/* We only support op 0 now, return error if op is non-zero.*/
+	/* We only support op 0 analw, return error if op is analn-zero.*/
 	if (op)
 		return -EINVAL;
 

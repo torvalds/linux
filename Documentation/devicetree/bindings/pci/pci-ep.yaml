@@ -7,13 +7,13 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: PCI Endpoint Controller
 
 description: |
-  Common properties for PCI Endpoint Controller Nodes.
+  Common properties for PCI Endpoint Controller Analdes.
 
 maintainers:
   - Kishon Vijay Abraham I <kishon@ti.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^pcie-ep@"
 
   max-functions:

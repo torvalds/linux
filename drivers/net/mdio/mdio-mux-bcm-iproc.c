@@ -216,7 +216,7 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 
 	md = devm_kzalloc(&pdev->dev, sizeof(*md), GFP_KERNEL);
 	if (!md)
-		return -ENOMEM;
+		return -EANALMEM;
 	md->dev = &pdev->dev;
 
 	md->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
@@ -234,11 +234,11 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 	md->mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!md->mii_bus) {
 		dev_err(&pdev->dev, "mdiomux bus alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	md->core_clk = devm_clk_get(&pdev->dev, NULL);
-	if (md->core_clk == ERR_PTR(-ENOENT) ||
+	if (md->core_clk == ERR_PTR(-EANALENT) ||
 	    md->core_clk == ERR_PTR(-EINVAL))
 		md->core_clk = NULL;
 	else if (IS_ERR(md->core_clk))
@@ -261,7 +261,7 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 	bus->write_c45 = iproc_mdiomux_write_c45;
 
 	bus->phy_mask = ~0;
-	bus->dev.of_node = pdev->dev.of_node;
+	bus->dev.of_analde = pdev->dev.of_analde;
 	rc = mdiobus_register(bus);
 	if (rc) {
 		dev_err(&pdev->dev, "mdiomux registration failed\n");
@@ -270,7 +270,7 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, md);
 
-	rc = mdio_mux_init(md->dev, md->dev->of_node, mdio_mux_iproc_switch_fn,
+	rc = mdio_mux_init(md->dev, md->dev->of_analde, mdio_mux_iproc_switch_fn,
 			   &md->mux_handle, md, md->mii_bus);
 	if (rc) {
 		dev_info(md->dev, "mdiomux initialization failed\n");

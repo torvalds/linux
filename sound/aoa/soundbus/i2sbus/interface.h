@@ -7,7 +7,7 @@
 #ifndef __I2SBUS_INTERFACE_H
 #define __I2SBUS_INTERFACE_H
 
-/* i2s bus control registers, at least what we know about them */
+/* i2s bus control registers, at least what we kanalw about them */
 
 #define __PAD(m,n) u8 __pad##m[n]
 #define _PAD(line, n) __PAD(line, n)
@@ -105,7 +105,7 @@ static inline int i2s_sf_mclkdiv(int div, int *out)
 		return 0;
 	}
 }
-/* SClk is the clock that drives the i2s wire bus. Note that it is
+/* SClk is the clock that drives the i2s wire bus. Analte that it is
  * derived from the MClk above by taking only every 'divisor' tick
  * of MClk.
  */
@@ -138,7 +138,7 @@ static inline int i2s_sf_sclkdiv(int div, int *out)
 #	define I2S_SF_SERIAL_FORMAT_I2S_32X	(2<<I2S_SF_SERIAL_FORMAT_SHIFT)
 #	define I2S_SF_SERIAL_FORMAT_I2S_DAV	(4<<I2S_SF_SERIAL_FORMAT_SHIFT)
 #	define I2S_SF_SERIAL_FORMAT_I2S_SILABS	(5<<I2S_SF_SERIAL_FORMAT_SHIFT)
-/* unknown */
+/* unkanalwn */
 #	define I2S_SF_EXT_SAMPLE_FREQ_INT_SHIFT	12
 #	define I2S_SF_EXT_SAMPLE_FREQ_INT_MASK	(0xF<<I2S_SF_SAMPLE_FREQ_INT_SHIFT)
 /* probably gives external frequency? */
@@ -174,13 +174,13 @@ static inline int i2s_sf_sclkdiv(int div, int *out)
 #	define I2S_DWS_DATA_OUT_24BIT		(3<<I2S_DWS_DATA_OUT_SIZE_SHIFT)
 
 
-/* unknown */
+/* unkanalwn */
 #define I2S_REG_PEAK_LEVEL_SEL		0x70
 
-/* unknown */
+/* unkanalwn */
 #define I2S_REG_PEAK_LEVEL_IN0		0x80
 
-/* unknown */
+/* unkanalwn */
 #define I2S_REG_PEAK_LEVEL_IN1		0x90
 
 #endif /* __I2SBUS_INTERFACE_H */

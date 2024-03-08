@@ -12,7 +12,7 @@ struct snd_rawmidi_params32 {
 	s32 stream;
 	u32 buffer_size;
 	u32 avail_min;
-	unsigned int no_active_sensing; /* avoid bit-field */
+	unsigned int anal_active_sensing; /* avoid bit-field */
 	unsigned int mode;
 	unsigned char reserved[12];
 } __packed;
@@ -27,9 +27,9 @@ static int snd_rawmidi_ioctl_params_compat(struct snd_rawmidi_file *rfile,
 	    get_user(params.buffer_size, &src->buffer_size) ||
 	    get_user(params.avail_min, &src->avail_min) ||
 	    get_user(params.mode, &src->mode) ||
-	    get_user(val, &src->no_active_sensing))
+	    get_user(val, &src->anal_active_sensing))
 		return -EFAULT;
-	params.no_active_sensing = val;
+	params.anal_active_sensing = val;
 	switch (params.stream) {
 	case SNDRV_RAWMIDI_STREAM_OUTPUT:
 		if (!rfile->output)
@@ -123,5 +123,5 @@ static long snd_rawmidi_ioctl_compat(struct file *file, unsigned int cmd, unsign
 	case SNDRV_RAWMIDI_IOCTL_STATUS_COMPAT64:
 		return snd_rawmidi_ioctl_status_compat64(rfile, argp);
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }

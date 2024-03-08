@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 
 #ifndef _UAPI_LINUX_VIRTIO_FS_H
 #define _UAPI_LINUX_VIRTIO_FS_H
@@ -9,7 +9,7 @@
 #include <linux/virtio_types.h>
 
 struct virtio_fs_config {
-	/* Filesystem name (UTF-8, not NUL-terminated, padded with NULs) */
+	/* Filesystem name (UTF-8, analt NUL-terminated, padded with NULs) */
 	__u8 tag[36];
 
 	/* Number of request queues */

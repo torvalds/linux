@@ -1,16 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-/******** no-legacy-syscalls-ABI *******/
+/******** anal-legacy-syscalls-ABI *******/
 
 /*
- * Non-typical guard macro to enable inclusion twice in ARCH sys.c
+ * Analn-typical guard macro to enable inclusion twice in ARCH sys.c
  * That is how the Generic syscall wrapper generator works
  */
 #if !defined(_UAPI_ASM_ARC_UNISTD_H) || defined(__SYSCALL)

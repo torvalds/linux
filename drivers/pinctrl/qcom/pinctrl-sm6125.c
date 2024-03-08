@@ -1072,10 +1072,10 @@ static const struct pinfunction sm6125_functions[] = {
 };
 
  /*
- * Every pin is maintained as a single group, and missing or non-existing pin
+ * Every pin is maintained as a single group, and missing or analn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would analt be able to request these dummy pin groups.
  */
 static const struct msm_pingroup sm6125_groups[] = {
 	[0] = PINGROUP(0, WEST, qup00, _, qdss, _, _, _, _, _, _),

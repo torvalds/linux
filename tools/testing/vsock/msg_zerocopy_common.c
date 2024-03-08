@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2023 SberDevices.
  *
- * Author: Arseniy Krasnov <avkrasnov@salutedevices.com>
+ * Author: Arseniy Krasanalv <avkrasanalv@salutedevices.com>
  */
 
 #include <stdio.h>
@@ -43,7 +43,7 @@ void vsock_recv_completion(int fd, const bool *zerocopied)
 
 	cm = CMSG_FIRSTHDR(&msg);
 	if (!cm) {
-		fprintf(stderr, "cmsg: no cmsg\n");
+		fprintf(stderr, "cmsg: anal cmsg\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -63,8 +63,8 @@ void vsock_recv_completion(int fd, const bool *zerocopied)
 		exit(EXIT_FAILURE);
 	}
 
-	if (serr->ee_errno) {
-		fprintf(stderr, "serr: wrong error code: %u\n", serr->ee_errno);
+	if (serr->ee_erranal) {
+		fprintf(stderr, "serr: wrong error code: %u\n", serr->ee_erranal);
 		exit(EXIT_FAILURE);
 	}
 

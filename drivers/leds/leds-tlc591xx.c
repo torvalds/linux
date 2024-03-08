@@ -16,7 +16,7 @@
 
 #define TLC591XX_REG_MODE1	0x00
 #define MODE1_RESPON_ADDR_MASK	0xF0
-#define MODE1_NORMAL_MODE	(0 << 4)
+#define MODE1_ANALRMAL_MODE	(0 << 4)
 #define MODE1_SPEED_MODE	(1 << 4)
 
 #define TLC591XX_REG_MODE2	0x01
@@ -41,7 +41,7 @@
 
 struct tlc591xx_led {
 	bool active;
-	unsigned int led_no;
+	unsigned int led_anal;
 	struct led_classdev ldev;
 	struct tlc591xx_priv *priv;
 };
@@ -73,7 +73,7 @@ tlc591xx_set_mode(struct regmap *regmap, u8 mode)
 	int err;
 	u8 val;
 
-	err = regmap_write(regmap, TLC591XX_REG_MODE1, MODE1_NORMAL_MODE);
+	err = regmap_write(regmap, TLC591XX_REG_MODE1, MODE1_ANALRMAL_MODE);
 	if (err)
 		return err;
 
@@ -86,9 +86,9 @@ static int
 tlc591xx_set_ledout(struct tlc591xx_priv *priv, struct tlc591xx_led *led,
 		    u8 val)
 {
-	unsigned int i = (led->led_no % 4) * 2;
+	unsigned int i = (led->led_anal % 4) * 2;
 	unsigned int mask = LEDOUT_MASK << i;
-	unsigned int addr = priv->reg_ledout_offset + (led->led_no >> 2);
+	unsigned int addr = priv->reg_ledout_offset + (led->led_anal >> 2);
 
 	val = val << i;
 
@@ -99,7 +99,7 @@ static int
 tlc591xx_set_pwm(struct tlc591xx_priv *priv, struct tlc591xx_led *led,
 		 u8 brightness)
 {
-	u8 pwm = TLC591XX_REG_PWM(led->led_no);
+	u8 pwm = TLC591XX_REG_PWM(led->led_anal);
 
 	return regmap_write(priv->regmap, pwm, brightness);
 }
@@ -146,19 +146,19 @@ MODULE_DEVICE_TABLE(of, of_tlc591xx_leds_match);
 static int
 tlc591xx_probe(struct i2c_client *client)
 {
-	struct device_node *np, *child;
+	struct device_analde *np, *child;
 	struct device *dev = &client->dev;
 	const struct tlc591xx *tlc591xx;
 	struct tlc591xx_priv *priv;
 	int err, count, reg;
 
-	np = dev_of_node(dev);
+	np = dev_of_analde(dev);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tlc591xx = device_get_match_data(dev);
 	if (!tlc591xx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	count = of_get_available_child_count(np);
 	if (!count || count > tlc591xx->max_leds)
@@ -166,7 +166,7 @@ tlc591xx_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regmap = devm_regmap_init_i2c(client, &tlc591xx_regmap);
 	if (IS_ERR(priv->regmap)) {
@@ -182,33 +182,33 @@ tlc591xx_probe(struct i2c_client *client)
 	if (err < 0)
 		return err;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		struct tlc591xx_led *led;
 		struct led_init_data init_data = {};
 
-		init_data.fwnode = of_fwnode_handle(child);
+		init_data.fwanalde = of_fwanalde_handle(child);
 
 		err = of_property_read_u32(child, "reg", &reg);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			return err;
 		}
 		if (reg < 0 || reg >= tlc591xx->max_leds ||
 		    priv->leds[reg].active) {
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 		led = &priv->leds[reg];
 
 		led->active = true;
 		led->priv = priv;
-		led->led_no = reg;
+		led->led_anal = reg;
 		led->ldev.brightness_set_blocking = tlc591xx_brightness_set;
 		led->ldev.max_brightness = TLC591XX_MAX_BRIGHTNESS;
 		err = devm_led_classdev_register_ext(dev, &led->ldev,
 						     &init_data);
 		if (err < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			return dev_err_probe(dev, err,
 					     "couldn't register LED %s\n",
 					     led->ldev.name);

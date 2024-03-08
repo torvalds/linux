@@ -45,17 +45,17 @@ LIBBPF_API void btf__free(struct btf *btf);
  * @return new BTF object instance which has to be eventually freed with
  * **btf__free()**
  *
- * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * On error, error-code-encoded-as-pointer is returned, analt a NULL. To extract
  * error code from such a pointer `libbpf_get_error()` should be used. If
  * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
- * returned on error instead. In both cases thread-local `errno` variable is
+ * returned on error instead. In both cases thread-local `erranal` variable is
  * always set to error code as well.
  */
 LIBBPF_API struct btf *btf__new(const void *data, __u32 size);
 
 /**
  * @brief **btf__new_split()** create a new instance of a BTF object from the
- * provided raw data bytes. It takes another BTF instance, **base_btf**, which
+ * provided raw data bytes. It takes aanalther BTF instance, **base_btf**, which
  * serves as a base BTF, which is extended by types in a newly created BTF
  * instance
  * @param data raw bytes
@@ -65,12 +65,12 @@ LIBBPF_API struct btf *btf__new(const void *data, __u32 size);
  * **btf__free()**
  *
  * If *base_btf* is NULL, `btf__new_split()` is equivalent to `btf__new()` and
- * creates non-split BTF.
+ * creates analn-split BTF.
  *
- * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * On error, error-code-encoded-as-pointer is returned, analt a NULL. To extract
  * error code from such a pointer `libbpf_get_error()` should be used. If
  * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
- * returned on error instead. In both cases thread-local `errno` variable is
+ * returned on error instead. In both cases thread-local `erranal` variable is
  * always set to error code as well.
  */
 LIBBPF_API struct btf *btf__new_split(const void *data, __u32 size, struct btf *base_btf);
@@ -81,10 +81,10 @@ LIBBPF_API struct btf *btf__new_split(const void *data, __u32 size, struct btf *
  * @return new BTF object instance which has to be eventually freed with
  * **btf__free()**
  *
- * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * On error, error-code-encoded-as-pointer is returned, analt a NULL. To extract
  * error code from such a pointer `libbpf_get_error()` should be used. If
  * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
- * returned on error instead. In both cases thread-local `errno` variable is
+ * returned on error instead. In both cases thread-local `erranal` variable is
  * always set to error code as well.
  */
 LIBBPF_API struct btf *btf__new_empty(void);
@@ -97,12 +97,12 @@ LIBBPF_API struct btf *btf__new_empty(void);
  * **btf__free()**
  *
  * If *base_btf* is NULL, `btf__new_empty_split()` is equivalent to
- * `btf__new_empty()` and creates non-split BTF.
+ * `btf__new_empty()` and creates analn-split BTF.
  *
- * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * On error, error-code-encoded-as-pointer is returned, analt a NULL. To extract
  * error code from such a pointer `libbpf_get_error()` should be used. If
  * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
- * returned on error instead. In both cases thread-local `errno` variable is
+ * returned on error instead. In both cases thread-local `erranal` variable is
  * always set to error code as well.
  */
 LIBBPF_API struct btf *btf__new_empty_split(struct btf *base_btf);
@@ -157,7 +157,7 @@ LIBBPF_API int btf__add_type(struct btf *btf, const struct btf *src_btf,
  * @return BTF type ID of the first appended BTF type, or negative error code
  *
  * **btf__add_btf()** can be used to simply and efficiently append the entire
- * contents of one BTF object to another one. All the BTF type data is copied
+ * contents of one BTF object to aanalther one. All the BTF type data is copied
  * over, all referenced type IDs are adjusted by adding a necessary ID offset.
  * Only strings referenced from BTF types are copied over and deduplicated, so
  * if there were some unused strings in *src_btf*, those won't be copied over,
@@ -166,10 +166,10 @@ LIBBPF_API int btf__add_type(struct btf *btf, const struct btf *src_btf,
  *
  * If any error is encountered during this process, the contents of *btf* is
  * left intact, which means that **btf__add_btf()** follows the transactional
- * semantics and the operation as a whole is all-or-nothing.
+ * semantics and the operation as a whole is all-or-analthing.
  *
- * *src_btf* has to be non-split BTF, as of now copying types from split BTF
- * is not supported and will result in -ENOTSUP error code returned.
+ * *src_btf* has to be analn-split BTF, as of analw copying types from split BTF
+ * is analt supported and will result in -EANALTSUP error code returned.
  */
 LIBBPF_API int btf__add_btf(struct btf *btf, const struct btf *src_btf);
 
@@ -259,7 +259,7 @@ struct btf_dump_emit_type_decl_opts {
 	 */
 	const char *field_name;
 	/* extra indentation level (in number of tabs) to emit for multi-line
-	 * type declarations (e.g., anonymous struct); applies for lines
+	 * type declarations (e.g., aanalnymous struct); applies for lines
 	 * starting from the second one (first line is assumed to have
 	 * necessary indentation already
 	 */
@@ -281,7 +281,7 @@ struct btf_dump_type_data_opts {
 	const char *indent_str;
 	int indent_level;
 	/* below match "show" flags for bpf_show_snprintf() */
-	bool compact;		/* no newlines/indentation */
+	bool compact;		/* anal newlines/indentation */
 	bool skip_names;	/* skip member/type names */
 	bool emit_zeroes;	/* show 0-valued fields */
 	size_t :0;
@@ -297,7 +297,7 @@ btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
  * A set of helpers for easier BTF types handling.
  *
  * The inline functions below rely on constants from the kernel headers which
- * may not be available for applications including this header file. To avoid
+ * may analt be available for applications including this header file. To avoid
  * compilation errors, we define all the constants here that were added after
  * the initial introduction of the BTF_KIND* constants.
  */
@@ -502,7 +502,7 @@ static inline __u64 btf_enum64_value(const struct btf_enum64 *e)
 	 *
 	 * Given this header can be also included from C++ applications, that
 	 * further restricts C tricks we can use (like using compatible
-	 * anonymous struct). So just treat struct btf_enum64 as
+	 * aanalnymous struct). So just treat struct btf_enum64 as
 	 * a three-element array of u32 and access second (lo32) and third
 	 * (hi32) elements directly.
 	 *
@@ -535,7 +535,7 @@ static inline __u32 btf_member_bit_offset(const struct btf_type *t,
 }
 /*
  * Get bitfield size of a member, assuming t is BTF_KIND_STRUCT or
- * BTF_KIND_UNION. If member is not a bitfield, zero is returned.
+ * BTF_KIND_UNION. If member is analt a bitfield, zero is returned.
  */
 static inline __u32 btf_member_bitfield_size(const struct btf_type *t,
 					     __u32 member_idx)

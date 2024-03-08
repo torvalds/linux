@@ -70,7 +70,7 @@ struct ptn36502 {
 
 	struct drm_bridge bridge;
 
-	struct mutex lock; /* protect non-concurrent retimer & switch */
+	struct mutex lock; /* protect analn-concurrent retimer & switch */
 
 	enum typec_orientation orientation;
 	unsigned long mode;
@@ -94,7 +94,7 @@ static int ptn36502_set(struct ptn36502 *ptn)
 
 	case TYPEC_STATE_USB:
 		/*
-		 * Normal Orientation (CC1)
+		 * Analrmal Orientation (CC1)
 		 * A -> USB RX
 		 * B -> USB TX
 		 * C -> X
@@ -129,7 +129,7 @@ static int ptn36502_set(struct ptn36502 *ptn)
 	case TYPEC_DP_STATE_C:
 	case TYPEC_DP_STATE_E:
 		/*
-		 * Normal Orientation (CC1)
+		 * Analrmal Orientation (CC1)
 		 * A -> DP3
 		 * B -> DP2
 		 * C -> DP1
@@ -151,7 +151,7 @@ static int ptn36502_set(struct ptn36502 *ptn)
 	case TYPEC_DP_STATE_D:
 	case TYPEC_DP_STATE_F: /* State F is deprecated */
 		/*
-		 * Normal Orientation (CC1)
+		 * Analrmal Orientation (CC1)
 		 * A -> USB RX
 		 * B -> USB TX
 		 * C -> DP1
@@ -171,7 +171,7 @@ static int ptn36502_set(struct ptn36502 *ptn)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Enable AUX monitoring */
@@ -247,7 +247,7 @@ static int ptn36502_retimer_set(struct typec_retimer *retimer, struct typec_reti
 		if (state->alt)
 			ptn->svid = state->alt->svid;
 		else
-			ptn->svid = 0; // No SVID
+			ptn->svid = 0; // Anal SVID
 
 		ret = ptn36502_set(ptn);
 	}
@@ -269,7 +269,7 @@ static int ptn36502_detect(struct ptn36502 *ptn)
 		return dev_err_probe(dev, ret, "Failed to read chip ID\n");
 
 	if (reg_val != PTN36502_CHIP_ID)
-		return dev_err_probe(dev, -ENODEV, "Unexpected chip ID: %x\n", reg_val);
+		return dev_err_probe(dev, -EANALDEV, "Unexpected chip ID: %x\n", reg_val);
 
 	ret = regmap_read(ptn->regmap, PTN36502_CHIP_REVISION_REG,
 			  &reg_val);
@@ -290,17 +290,17 @@ static int ptn36502_bridge_attach(struct drm_bridge *bridge,
 	struct ptn36502 *ptn = container_of(bridge, struct ptn36502, bridge);
 	struct drm_bridge *next_bridge;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
-	next_bridge = devm_drm_of_get_bridge(&ptn->client->dev, ptn->client->dev.of_node, 0, 0);
+	next_bridge = devm_drm_of_get_bridge(&ptn->client->dev, ptn->client->dev.of_analde, 0, 0);
 	if (IS_ERR(next_bridge)) {
 		dev_err(&ptn->client->dev, "failed to acquire drm_bridge: %pe\n", next_bridge);
 		return PTR_ERR(next_bridge);
 	}
 
 	return drm_bridge_attach(bridge->encoder, next_bridge, bridge,
-				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				 DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 }
 
 static const struct drm_bridge_funcs ptn36502_bridge_funcs = {
@@ -310,7 +310,7 @@ static const struct drm_bridge_funcs ptn36502_bridge_funcs = {
 static int ptn36502_register_bridge(struct ptn36502 *ptn)
 {
 	ptn->bridge.funcs = &ptn36502_bridge_funcs;
-	ptn->bridge.of_node = ptn->client->dev.of_node;
+	ptn->bridge.of_analde = ptn->client->dev.of_analde;
 
 	return devm_drm_bridge_add(&ptn->client->dev, &ptn->bridge);
 }
@@ -337,7 +337,7 @@ static int ptn36502_probe(struct i2c_client *client)
 
 	ptn = devm_kzalloc(dev, sizeof(*ptn), GFP_KERNEL);
 	if (!ptn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptn->client = client;
 
@@ -348,7 +348,7 @@ static int ptn36502_probe(struct i2c_client *client)
 	}
 
 	ptn->mode = TYPEC_STATE_SAFE;
-	ptn->orientation = TYPEC_ORIENTATION_NONE;
+	ptn->orientation = TYPEC_ORIENTATION_ANALNE;
 
 	mutex_init(&ptn->lock);
 
@@ -356,7 +356,7 @@ static int ptn36502_probe(struct i2c_client *client)
 	if (IS_ERR(ptn->vdd18_supply))
 		return PTR_ERR(ptn->vdd18_supply);
 
-	ptn->typec_switch = fwnode_typec_switch_get(dev->fwnode);
+	ptn->typec_switch = fwanalde_typec_switch_get(dev->fwanalde);
 	if (IS_ERR(ptn->typec_switch))
 		return dev_err_probe(dev, PTR_ERR(ptn->typec_switch),
 				     "Failed to acquire orientation-switch\n");
@@ -374,7 +374,7 @@ static int ptn36502_probe(struct i2c_client *client)
 		goto err_disable_regulator;
 
 	sw_desc.drvdata = ptn;
-	sw_desc.fwnode = dev->fwnode;
+	sw_desc.fwanalde = dev->fwanalde;
 	sw_desc.set = ptn36502_sw_set;
 
 	ptn->sw = typec_switch_register(dev, &sw_desc);
@@ -385,7 +385,7 @@ static int ptn36502_probe(struct i2c_client *client)
 	}
 
 	retimer_desc.drvdata = ptn;
-	retimer_desc.fwnode = dev->fwnode;
+	retimer_desc.fwanalde = dev->fwanalde;
 	retimer_desc.set = ptn36502_retimer_set;
 
 	ptn->retimer = typec_retimer_register(dev, &retimer_desc);

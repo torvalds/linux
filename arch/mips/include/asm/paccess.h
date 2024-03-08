@@ -7,13 +7,13 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  *
  * Protected memory access.  Used for everything that might take revenge
- * by sending a DBE error like accessing possibly non-existent memory or
+ * by sending a DBE error like accessing possibly analn-existent memory or
  * devices.
  */
 #ifndef _ASM_PACCESS_H
 #define _ASM_PACCESS_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #ifdef CONFIG_32BIT
 #define __PA_ADDR	".word"
@@ -44,7 +44,7 @@ struct __large_pstruct { unsigned long buf[100]; };
 	case 2: __get_dbe_asm("lh"); break;				\
 	case 4: __get_dbe_asm("lw"); break;				\
 	case 8:	 __get_dbe_asm("ld"); break;				\
-	default: __get_dbe_unknown(); break;				\
+	default: __get_dbe_unkanalwn(); break;				\
 	}								\
 	x = (__typeof__(*(ptr))) __gu_val;				\
 	__gu_err;							\
@@ -69,7 +69,7 @@ struct __large_pstruct { unsigned long buf[100]; };
 	:"o" (__mp(__gu_addr)), "i" (-EFAULT));				\
 }
 
-extern void __get_dbe_unknown(void);
+extern void __get_dbe_unkanalwn(void);
 
 #define __put_dbe(x, ptr, size)						\
 ({									\
@@ -84,7 +84,7 @@ extern void __get_dbe_unknown(void);
 	case 2: __put_dbe_asm("sh"); break;				\
 	case 4: __put_dbe_asm("sw"); break;				\
 	case 8: __put_dbe_asm("sd"); break;				\
-	default: __put_dbe_unknown(); break;				\
+	default: __put_dbe_unkanalwn(); break;				\
 	}								\
 	__pu_err;							\
 })
@@ -107,7 +107,7 @@ extern void __get_dbe_unknown(void);
 	: "r" (__pu_val), "o" (__mp(__pu_addr)), "i" (-EFAULT));	\
 }
 
-extern void __put_dbe_unknown(void);
+extern void __put_dbe_unkanalwn(void);
 
 extern unsigned long search_dbe_table(unsigned long addr);
 

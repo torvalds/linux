@@ -15,7 +15,7 @@
 #include <linux/compiler.h>
 #include <linux/genalloc.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <soc/fsl/cpm.h>
 #include <soc/fsl/qe/immap_qe.h>
@@ -29,7 +29,7 @@
 
 /* Clocks and BRGs */
 enum qe_clock {
-	QE_CLK_NONE = 0,
+	QE_CLK_ANALNE = 0,
 	QE_BRG1,		/* Baud Rate Generator 1 */
 	QE_BRG2,		/* Baud Rate Generator 2 */
 	QE_BRG3,		/* Baud Rate Generator 3 */
@@ -103,7 +103,7 @@ void cpm_muram_free_addr(const void __iomem *addr);
 static inline s32 cpm_muram_alloc(unsigned long size,
 				  unsigned long align)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline void cpm_muram_free(s32 offset)
@@ -113,7 +113,7 @@ static inline void cpm_muram_free(s32 offset)
 static inline s32 cpm_muram_alloc_fixed(unsigned long offset,
 					unsigned long size)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline void __iomem *cpm_muram_addr(unsigned long offset)
@@ -123,7 +123,7 @@ static inline void __iomem *cpm_muram_addr(unsigned long offset)
 
 static inline unsigned long cpm_muram_offset(const void __iomem *addr)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline dma_addr_t cpm_muram_dma(void __iomem *addr)
@@ -156,17 +156,17 @@ extern void __par_io_config_pin(struct qe_pio_regs __iomem *par_io, u8 pin,
 				int dir, int open_drain, int assignment,
 				int has_irq);
 #ifdef CONFIG_QUICC_ENGINE
-extern int par_io_init(struct device_node *np);
-extern int par_io_of_config(struct device_node *np);
+extern int par_io_init(struct device_analde *np);
+extern int par_io_of_config(struct device_analde *np);
 extern int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
 			     int assignment, int has_irq);
 extern int par_io_data_set(u8 port, u8 pin, u8 val);
 #else
-static inline int par_io_init(struct device_node *np) { return -ENOSYS; }
-static inline int par_io_of_config(struct device_node *np) { return -ENOSYS; }
+static inline int par_io_init(struct device_analde *np) { return -EANALSYS; }
+static inline int par_io_of_config(struct device_analde *np) { return -EANALSYS; }
 static inline int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
-		int assignment, int has_irq) { return -ENOSYS; }
-static inline int par_io_data_set(u8 port, u8 pin, u8 val) { return -ENOSYS; }
+		int assignment, int has_irq) { return -EANALSYS; }
+static inline int par_io_data_set(u8 port, u8 pin, u8 val) { return -EANALSYS; }
 #endif /* CONFIG_QUICC_ENGINE */
 
 /*
@@ -182,7 +182,7 @@ extern void qe_pin_set_dedicated(struct qe_pin *pin);
 #else
 static inline struct qe_pin *qe_pin_request(struct device *dev, int index)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 static inline void qe_pin_free(struct qe_pin *qe_pin) {}
 static inline void qe_pin_set_gpio(struct qe_pin *qe_pin) {}
@@ -195,7 +195,7 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input);
 static inline int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol,
 			       u32 cmd_input)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif /* CONFIG_QUICC_ENGINE */
 
@@ -273,7 +273,7 @@ struct qe_firmware {
 	struct {
 		__be16 model;   	/* The SOC model  */
 		u8 major;       	/* The SOC revision major */
-		u8 minor;       	/* The SOC revision minor */
+		u8 mianalr;       	/* The SOC revision mianalr */
 	} __attribute__ ((packed)) soc;
 	u8 padding[4];			/* Reserved, for alignment */
 	__be64 extended_modes;		/* Extended modes */
@@ -281,13 +281,13 @@ struct qe_firmware {
 	u8 reserved[4];			/* Reserved, for future expansion */
 	struct qe_microcode {
 		u8 id[32];      	/* Null-terminated identifier */
-		__be32 traps[16];       /* Trap addresses, 0 == ignore */
+		__be32 traps[16];       /* Trap addresses, 0 == iganalre */
 		__be32 eccr;    	/* The value for the ECCR register */
 		__be32 iram_offset;     /* Offset into I-RAM for the code */
 		__be32 count;   	/* Number of 32-bit words of the code */
 		__be32 code_offset;     /* Offset of the actual microcode */
 		u8 major;       	/* The microcode version major */
-		u8 minor;       	/* The microcode version minor */
+		u8 mianalr;       	/* The microcode version mianalr */
 		u8 revision;		/* The microcode version revision */
 		u8 padding;		/* Reserved, for alignment */
 		u8 reserved[4];		/* Reserved, for future expansion */
@@ -308,7 +308,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware);
 #else
 static inline int qe_upload_firmware(const struct qe_firmware *firmware)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif /* CONFIG_QUICC_ENGINE */
 
@@ -357,8 +357,8 @@ enum qe_fltr_tbl_lookup_key_size {
 
 /* QE FLTR extended filtering Largest External Table Lookup Key Size */
 enum qe_fltr_largest_external_tbl_lookup_key_size {
-	QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_NONE
-		= 0x0,/* not used */
+	QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_ANALNE
+		= 0x0,/* analt used */
 	QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_8_BYTES
 		= QE_FLTR_TABLE_LOOKUP_KEY_SIZE_8_BYTES,	/* 8 bytes */
 	QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_16_BYTES
@@ -384,7 +384,7 @@ struct qe_fltr_tad {
 
 /* Communication Direction */
 enum comm_dir {
-	COMM_DIR_NONE = 0,
+	COMM_DIR_ANALNE = 0,
 	COMM_DIR_RX = 1,
 	COMM_DIR_TX = 2,
 	COMM_DIR_RX_AND_TX = 3
@@ -466,7 +466,7 @@ enum comm_dir {
 #define QE_ASSIGN_PAGE_TO_DEVICE	0x00000016
 
 #define QE_ASSIGN_RISC			0x00000010
-#define QE_CR_MCN_NORMAL_SHIFT		6
+#define QE_CR_MCN_ANALRMAL_SHIFT		6
 #define QE_CR_MCN_USB_SHIFT		4
 #define QE_CR_MCN_RISC_ASSIGN_SHIFT	8
 #define QE_CR_SNUM_SHIFT		17
@@ -505,7 +505,7 @@ enum comm_dir {
 #define QE_CR_SUBBLOCK_TIMER		0x01e00000
 #define QE_CR_SUBBLOCK_GENERAL		0x03c00000
 
-/* QE CECR Protocol - For non-MCC, specifies mode for QE CECR command */
+/* QE CECR Protocol - For analn-MCC, specifies mode for QE CECR command */
 #define QE_CR_PROTOCOL_UNSPECIFIED	0x00	/* For all other protocols */
 #define QE_CR_PROTOCOL_HDLC_TRANSPARENT	0x00
 #define QE_CR_PROTOCOL_QMC		0x02
@@ -568,7 +568,7 @@ enum comm_dir {
 #define UPGCR_TMS	0x40000000	/* Transmit master/slave mode */
 #define UPGCR_RMS	0x20000000	/* Receive master/slave mode */
 #define UPGCR_ADDR	0x10000000	/* Master MPHY Addr multiplexing */
-#define UPGCR_DIAG	0x01000000	/* Diagnostic mode */
+#define UPGCR_DIAG	0x01000000	/* Diaganalstic mode */
 
 /* UCC GUEMR register */
 #define UCC_GUEMR_MODE_MASK_RX	0x02
@@ -643,7 +643,7 @@ struct ucc_slow_pram {
 #define UCC_SLOW_GUMR_L_DIAG_LE	        0x000000c0
 #define UCC_SLOW_GUMR_L_DIAG_ECHO	0x00000080
 #define UCC_SLOW_GUMR_L_DIAG_LOOP	0x00000040
-#define UCC_SLOW_GUMR_L_DIAG_NORM	0x00000000
+#define UCC_SLOW_GUMR_L_DIAG_ANALRM	0x00000000
 #define UCC_SLOW_GUMR_L_ENR		0x00000020
 #define UCC_SLOW_GUMR_L_ENT		0x00000010
 #define UCC_SLOW_GUMR_L_MODE_MASK	0x0000000F
@@ -746,7 +746,7 @@ struct ucc_slow_pram {
 #define UCC_UART_UPSMR_CL_6		0x1000
 #define UCC_UART_UPSMR_CL_5		0x0000
 #define UCC_UART_UPSMR_UM_MASK		0x0c00
-#define UCC_UART_UPSMR_UM_NORMAL	0x0000
+#define UCC_UART_UPSMR_UM_ANALRMAL	0x0000
 #define UCC_UART_UPSMR_UM_MAN_MULTI	0x0400
 #define UCC_UART_UPSMR_UM_AUTO_MULTI	0x0c00
 #define UCC_UART_UPSMR_FRZ		0x0200
@@ -794,7 +794,7 @@ struct ucc_slow_pram {
 #define UCC_FAST_TOD	0x8000
 
 /* UCC Bus Mode Register masks */
-/* Not to be confused with the Bundle Mode Register */
+/* Analt to be confused with the Bundle Mode Register */
 #define UCC_BMR_GBL		0x20
 #define UCC_BMR_BO_BE		0x10
 #define UCC_BMR_CETM		0x04

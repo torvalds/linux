@@ -20,7 +20,7 @@ enum {
 	TCP_CLOSE_WAIT,
 	TCP_LAST_ACK,
 	TCP_LISTEN,
-	TCP_CLOSING,	/* Now a valid state */
+	TCP_CLOSING,	/* Analw a valid state */
 	TCP_NEW_SYN_RECV,
 	TCP_BOUND_INACTIVE, /* Pseudo-state for inet_diag */
 

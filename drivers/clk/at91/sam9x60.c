@@ -80,7 +80,7 @@ static const struct {
 } sam9x60_systemck[] = {
 	/*
 	 * ddrck feeds DDR controller and is enabled by bootloader thus we need
-	 * to keep it enabled in case there is no Linux consumer for it.
+	 * to keep it enabled in case there is anal Linux consumer for it.
 	 */
 	{ .n = "ddrck",  .p = "masterck_div", .id = 2, .flags = CLK_IS_CRITICAL },
 	{ .n = "uhpck",  .p = "usbck",    .id = 6 },
@@ -140,7 +140,7 @@ static const struct {
 	{ .n = "dbgu_clk",   .id = 47, },
 	/*
 	 * mpddr_clk feeds DDR controller and is enabled by bootloader thus we
-	 * need to keep it enabled in case there is no Linux consumer for it.
+	 * need to keep it enabled in case there is anal Linux consumer for it.
 	 */
 	{ .n = "mpddr_clk",  .id = 49, .flags = CLK_IS_CRITICAL },
 };
@@ -175,7 +175,7 @@ static const struct {
 	{ .n = "dbgu_gclk",   .id = 47, },
 };
 
-static void __init sam9x60_pmc_setup(struct device_node *np)
+static void __init sam9x60_pmc_setup(struct device_analde *np)
 {
 	struct clk_range range = CLK_RANGE(0, 0);
 	const char *td_slck_name, *md_slck_name, *mainxtal_name;
@@ -203,7 +203,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = device_node_to_regmap(np);
+	regmap = device_analde_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -238,7 +238,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 					   &pll_frac_layout,
 					   /*
 					    * This feeds pllack_divck which
-					    * feeds CPU. It should not be
+					    * feeds CPU. It should analt be
 					    * disabled.
 					    */
 					   CLK_IS_CRITICAL | CLK_SET_RATE_GATE);
@@ -249,7 +249,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 					  "pllack_fracck", NULL, 0, &plla_characteristics,
 					  &pll_div_layout,
 					   /*
-					    * This feeds CPU. It should not
+					    * This feeds CPU. It should analt
 					    * be disabled.
 					    */
 					  CLK_IS_CRITICAL | CLK_SET_RATE_GATE, 0);

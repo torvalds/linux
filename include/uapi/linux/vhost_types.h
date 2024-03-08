@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_VHOST_TYPES_H
 #define _LINUX_VHOST_TYPES_H
 /* Userspace interface for in-kernel virtio accelerators. */
@@ -63,7 +63,7 @@ struct vhost_vring_worker {
 	unsigned int worker_id;
 };
 
-/* no alignment requirement */
+/* anal alignment requirement */
 struct vhost_iotlb_msg {
 	__u64 iova;
 	__u64 size;
@@ -82,7 +82,7 @@ struct vhost_iotlb_msg {
  * VHOST_IOTLB_BATCH_BEGIN, followed by any number of
  * VHOST_IOTLB_UPDATE messages, and ending with VHOST_IOTLB_BATCH_END.
  * When one of these two values is used as the message type, the rest
- * of the fields in the message are ignored. There's no guarantee that
+ * of the fields in the message are iganalred. There's anal guarantee that
  * these changes take place automatically in the device.
  */
 #define VHOST_IOTLB_BATCH_BEGIN    5
@@ -114,7 +114,7 @@ struct vhost_memory_region {
 	__u64 guest_phys_addr;
 	__u64 memory_size; /* bytes */
 	__u64 userspace_addr;
-	__u64 flags_padding; /* No flags are currently specified. */
+	__u64 flags_padding; /* Anal flags are currently specified. */
 };
 
 /* All region addresses and sizes must be 4K aligned. */
@@ -133,7 +133,7 @@ struct vhost_memory {
  *
  * ABI Rev 0: July 2012 version starting point for v3.6-rc merge candidate +
  *            RFC-v2 vhost-scsi userspace.  Add GET_ABI_VERSION ioctl usage
- * ABI Rev 1: January 2013. Ignore vhost_tpgt field in struct vhost_scsi_target.
+ * ABI Rev 1: January 2013. Iganalre vhost_tpgt field in struct vhost_scsi_target.
  *            All the targets under vhost_wwpn can be seen and used by guset.
  */
 

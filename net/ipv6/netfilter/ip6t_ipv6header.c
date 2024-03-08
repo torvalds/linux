@@ -47,12 +47,12 @@ ipv6header_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		struct ipv6_opt_hdr _hdr;
 		int hdrlen;
 
-		/* No more exthdr -> evaluate */
-		if (nexthdr == NEXTHDR_NONE) {
-			temp |= MASK_NONE;
+		/* Anal more exthdr -> evaluate */
+		if (nexthdr == NEXTHDR_ANALNE) {
+			temp |= MASK_ANALNE;
 			break;
 		}
-		/* Is there enough space for the next ext header? */
+		/* Is there eanalugh space for the next ext header? */
 		if (len < (int)sizeof(struct ipv6_opt_hdr))
 			return false;
 		/* ESP -> evaluate */
@@ -103,7 +103,7 @@ ipv6header_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 			break;
 	}
 
-	if (nexthdr != NEXTHDR_NONE && nexthdr != NEXTHDR_ESP)
+	if (nexthdr != NEXTHDR_ANALNE && nexthdr != NEXTHDR_ESP)
 		temp |= MASK_PROTO;
 
 	if (info->modeflag)

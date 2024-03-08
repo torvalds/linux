@@ -81,7 +81,7 @@ struct com20020_dev {
 #define COM20020_REG_W_INTMASK	0	/* writable */
 #define COM20020_REG_R_STATUS	0	/* readable */
 #define COM20020_REG_W_COMMAND	1	/* standard arcnet commands */
-#define COM20020_REG_R_DIAGSTAT	1	/* diagnostic status */
+#define COM20020_REG_R_DIAGSTAT	1	/* diaganalstic status */
 #define COM20020_REG_W_ADDR_HI	2	/* control for IO-mapped memory */
 #define COM20020_REG_W_ADDR_LO	3
 #define COM20020_REG_RW_MEMDATA	4	/* data port for IO-mapped memory */
@@ -92,7 +92,7 @@ struct com20020_dev {
 					 */
 
 /* in the ADDR_HI register */
-#define RDDATAflag	0x80	/* next access is a read (not a write) */
+#define RDDATAflag	0x80	/* next access is a read (analt a write) */
 
 /* in the DIAGSTAT register */
 #define NEWNXTIDflag	0x02	/* ID to which token is passed has changed */
@@ -108,8 +108,8 @@ struct com20020_dev {
 #define SLOWARB		0x01    /* enable Slow Arbitration for >=5Mbps */
 
 /* COM2002x */
-#define SUB_TENTATIVE	0	/* tentative node ID */
-#define SUB_NODE	1	/* node ID */
+#define SUB_TENTATIVE	0	/* tentative analde ID */
+#define SUB_ANALDE	1	/* analde ID */
 #define SUB_SETUP1	2	/* various options */
 #define SUB_TEST	3	/* test/diag register */
 

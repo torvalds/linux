@@ -26,7 +26,7 @@ static ssize_t nsim_dbg_netdev_ops_read(struct file *filp,
 	bufsize = (ipsec->count * 4 * 60) + 60;
 	buf = kzalloc(bufsize, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = buf;
 	p += scnprintf(p, bufsize - (p - buf),
@@ -70,7 +70,7 @@ static int nsim_ipsec_find_empty_idx(struct nsim_ipsec *ipsec)
 	u32 i;
 
 	if (ipsec->count == NSIM_IPSEC_MAX_SA_COUNT)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* search sa table */
 	for (i = 0; i < NSIM_IPSEC_MAX_SA_COUNT; i++) {
@@ -78,7 +78,7 @@ static int nsim_ipsec_find_empty_idx(struct nsim_ipsec *ipsec)
 			return i;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int nsim_ipsec_parse_proto_keys(struct xfrm_state *xs,
@@ -145,7 +145,7 @@ static int nsim_ipsec_add_sa(struct xfrm_state *xs,
 	}
 
 	if (xs->calg) {
-		NL_SET_ERR_MSG_MOD(extack, "Compression offload not supported");
+		NL_SET_ERR_MSG_MOD(extack, "Compression offload analt supported");
 		return -EINVAL;
 	}
 
@@ -157,7 +157,7 @@ static int nsim_ipsec_add_sa(struct xfrm_state *xs,
 	/* find the first unused index */
 	ret = nsim_ipsec_find_empty_idx(ipsec);
 	if (ret < 0) {
-		NL_SET_ERR_MSG_MOD(extack, "No space for SA in Rx table!");
+		NL_SET_ERR_MSG_MOD(extack, "Anal space for SA in Rx table!");
 		return ret;
 	}
 	sa_idx = (u16)ret;
@@ -243,14 +243,14 @@ bool nsim_ipsec_tx(struct netdevsim *ns, struct sk_buff *skb)
 		return true;
 
 	if (unlikely(!sp->len)) {
-		netdev_err(ns->netdev, "no xfrm state len = %d\n",
+		netdev_err(ns->netdev, "anal xfrm state len = %d\n",
 			   sp->len);
 		return false;
 	}
 
 	xs = xfrm_input_state(skb);
 	if (unlikely(!xs)) {
-		netdev_err(ns->netdev, "no xfrm_input_state() xs = %p\n", xs);
+		netdev_err(ns->netdev, "anal xfrm_input_state() xs = %p\n", xs);
 		return false;
 	}
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -52,7 +52,7 @@
 #define PACKET3_COMPUTE(op, n) (PACKET3(op, n) | 1 << 1)
 
 /* Packet 3 types */
-#define	PACKET3_NOP					0x10
+#define	PACKET3_ANALP					0x10
 #define	PACKET3_SET_BASE				0x11
 #define		PACKET3_BASE_INDEX(x)                  ((x) << 0)
 #define			CE_PARTITION_BASE		3
@@ -154,7 +154,7 @@
 #define	PACKET3_EVENT_WRITE				0x46
 #define		EVENT_TYPE(x)                           ((x) << 0)
 #define		EVENT_INDEX(x)                          ((x) << 8)
-		/* 0 - any non-TS event
+		/* 0 - any analn-TS event
 		 * 1 - ZPASS_DONE, PIXEL_PIPE_STAT_*
 		 * 2 - SAMPLE_PIPELINESTAT
 		 * 3 - SAMPLE_STREAMOUTSTAT*
@@ -178,7 +178,7 @@
 #define		PACKET3_RELEASE_MEM_CACHE_POLICY(x)	((x) << 25)
 		/* 0 - cache_policy__me_release_mem__lru
 		 * 1 - cache_policy__me_release_mem__stream
-		 * 2 - cache_policy__me_release_mem__noa
+		 * 2 - cache_policy__me_release_mem__anala
 		 * 3 - cache_policy__me_release_mem__bypass
 		 */
 #define		PACKET3_RELEASE_MEM_EXECUTE		(1 << 28)
@@ -191,7 +191,7 @@
 		 * 4 - send 64bit sys counter value
 		 */
 #define		PACKET3_RELEASE_MEM_INT_SEL(x)		((x) << 24)
-		/* 0 - none
+		/* 0 - analne
 		 * 1 - interrupt only (DATA_SEL = 0)
 		 * 2 - interrupt when data write is confirmed
 		 */
@@ -268,7 +268,7 @@
  */
 #define 	PACKET3_ACQUIRE_MEM_GCR_CNTL_GLI_INV(x) ((x) << 0)
 		/*
-		 * 0:NOP
+		 * 0:ANALP
 		 * 1:ALL
 		 * 2:RANGE
 		 * 3:FIRST_LAST
@@ -425,7 +425,7 @@
 		/* 0 - PREEMPT_QUEUES
 		 * 1 - RESET_QUEUES
 		 * 2 - DISABLE_PROCESS_QUEUES
-		 * 3 - PREEMPT_QUEUES_NO_UNMAP
+		 * 3 - PREEMPT_QUEUES_ANAL_UNMAP
 		 */
 #              define PACKET3_UNMAP_QUEUES_QUEUE_SEL(x)        ((x) << 4)
 #              define PACKET3_UNMAP_QUEUES_ENGINE_SEL(x)       ((x) << 26)

@@ -92,7 +92,7 @@ full_failed:
 charging_failed:
 	kfree(psy->charging_full_trig_name);
 charging_full_failed:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void power_supply_remove_bat_triggers(struct power_supply *psy)
@@ -129,7 +129,7 @@ static int power_supply_create_gen_triggers(struct power_supply *psy)
 	psy->online_trig_name = kasprintf(GFP_KERNEL, "%s-online",
 					  psy->desc->name);
 	if (!psy->online_trig_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led_trigger_register_simple(psy->online_trig_name, &psy->online_trig);
 

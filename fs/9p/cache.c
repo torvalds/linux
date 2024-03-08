@@ -25,7 +25,7 @@ int v9fs_cache_session_get_cookie(struct v9fs_session_info *v9ses,
 	name = kasprintf(GFP_KERNEL, "9p,%s,%s",
 			 dev_name, v9ses->cachetag ?: v9ses->aname);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (p = name; *p; p++)
 		if (*p == '/')
@@ -47,30 +47,30 @@ int v9fs_cache_session_get_cookie(struct v9fs_session_info *v9ses,
 	return 0;
 }
 
-void v9fs_cache_inode_get_cookie(struct inode *inode)
+void v9fs_cache_ianalde_get_cookie(struct ianalde *ianalde)
 {
-	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct v9fs_ianalde *v9ianalde = V9FS_I(ianalde);
 	struct v9fs_session_info *v9ses;
 	__le32 version;
 	__le64 path;
 
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(ianalde->i_mode))
 		return;
-	if (WARN_ON(v9fs_inode_cookie(v9inode)))
+	if (WARN_ON(v9fs_ianalde_cookie(v9ianalde)))
 		return;
 
-	version = cpu_to_le32(v9inode->qid.version);
-	path = cpu_to_le64(v9inode->qid.path);
-	v9ses = v9fs_inode2v9ses(inode);
-	v9inode->netfs.cache =
+	version = cpu_to_le32(v9ianalde->qid.version);
+	path = cpu_to_le64(v9ianalde->qid.path);
+	v9ses = v9fs_ianalde2v9ses(ianalde);
+	v9ianalde->netfs.cache =
 		fscache_acquire_cookie(v9fs_session_cache(v9ses),
 				       0,
 				       &path, sizeof(path),
 				       &version, sizeof(version),
-				       i_size_read(&v9inode->netfs.inode));
-	if (v9inode->netfs.cache)
-		mapping_set_release_always(inode->i_mapping);
+				       i_size_read(&v9ianalde->netfs.ianalde));
+	if (v9ianalde->netfs.cache)
+		mapping_set_release_always(ianalde->i_mapping);
 
-	p9_debug(P9_DEBUG_FSC, "inode %p get cookie %p\n",
-		 inode, v9fs_inode_cookie(v9inode));
+	p9_debug(P9_DEBUG_FSC, "ianalde %p get cookie %p\n",
+		 ianalde, v9fs_ianalde_cookie(v9ianalde));
 }

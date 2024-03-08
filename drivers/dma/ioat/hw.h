@@ -74,8 +74,8 @@ struct ioat_dma_descriptor {
 		uint32_t ctl;
 		struct {
 			unsigned int int_en:1;
-			unsigned int src_snoop_dis:1;
-			unsigned int dest_snoop_dis:1;
+			unsigned int src_sanalop_dis:1;
+			unsigned int dest_sanalop_dis:1;
 			unsigned int compl_write:1;
 			unsigned int fence:1;
 			unsigned int null:1;
@@ -108,8 +108,8 @@ struct ioat_xor_descriptor {
 		uint32_t ctl;
 		struct {
 			unsigned int int_en:1;
-			unsigned int src_snoop_dis:1;
-			unsigned int dest_snoop_dis:1;
+			unsigned int src_sanalop_dis:1;
+			unsigned int dest_sanalop_dis:1;
 			unsigned int compl_write:1;
 			unsigned int fence:1;
 			unsigned int src_cnt:3;
@@ -155,8 +155,8 @@ struct ioat_pq_descriptor {
 		uint32_t ctl;
 		struct {
 			unsigned int int_en:1;
-			unsigned int src_snoop_dis:1;
-			unsigned int dest_snoop_dis:1;
+			unsigned int src_sanalop_dis:1;
+			unsigned int dest_sanalop_dis:1;
 			unsigned int compl_write:1;
 			unsigned int fence:1;
 			unsigned int src_cnt:3;
@@ -204,8 +204,8 @@ struct ioat_pq_update_descriptor {
 		uint32_t ctl;
 		struct {
 			unsigned int int_en:1;
-			unsigned int src_snoop_dis:1;
-			unsigned int dest_snoop_dis:1;
+			unsigned int src_sanalop_dis:1;
+			unsigned int dest_sanalop_dis:1;
 			unsigned int compl_write:1;
 			unsigned int fence:1;
 			unsigned int src_cnt:3;

@@ -102,7 +102,7 @@ struct qusb2_phy_init_tbl {
 	unsigned int val;
 	/*
 	 * register part of layout ?
-	 * if yes, then offset gives index in the reg-layout
+	 * if anal, then offset gives index in the reg-layout
 	 */
 	int in_layout;
 };
@@ -327,7 +327,7 @@ static const struct qusb2_phy_cfg ipq6018_phy_cfg = {
 
 	.disable_ctrl   = POWER_DOWN,
 	.mask_core_ready = PLL_LOCKED,
-	/* autoresume not used */
+	/* autoresume analt used */
 	.autoresume_en   = BIT(0),
 };
 
@@ -568,7 +568,7 @@ static void qusb2_phy_set_tune2_param(struct qusb2_phy *qphy)
 
 	/*
 	 * Read efuse register having TUNE2/1 parameter's high nibble.
-	 * If efuse register shows value as 0x0 (indicating value is not
+	 * If efuse register shows value as 0x0 (indicating value is analt
 	 * fused), or if we fail to find a valid efuse register setting,
 	 * then use default value for high nibble that we have already
 	 * set while configuring the phy.
@@ -613,7 +613,7 @@ static int __maybe_unused qusb2_phy_runtime_suspend(struct device *dev)
 	dev_vdbg(dev, "Suspending QUSB2 Phy, mode:%d\n", qphy->mode);
 
 	if (!qphy->phy_initialized) {
-		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		dev_vdbg(dev, "PHY analt initialized, bailing out\n");
 		return 0;
 	}
 
@@ -636,7 +636,7 @@ static int __maybe_unused qusb2_phy_runtime_suspend(struct device *dev)
 		intr_mask |= DPSE_INTR_HIGH_SEL;
 		break;
 	default:
-		/* No device connected, enable both DP/DM high interrupt */
+		/* Anal device connected, enable both DP/DM high interrupt */
 		intr_mask |= DMSE_INTR_HIGH_SEL;
 		intr_mask |= DPSE_INTR_HIGH_SEL;
 		break;
@@ -679,7 +679,7 @@ static int __maybe_unused qusb2_phy_runtime_resume(struct device *dev)
 	dev_vdbg(dev, "Resuming QUSB2 phy, mode:%d\n", qphy->mode);
 
 	if (!qphy->phy_initialized) {
-		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		dev_vdbg(dev, "PHY analt initialized, bailing out\n");
 		return 0;
 	}
 
@@ -792,15 +792,15 @@ static int qusb2_phy_init(struct phy *phy)
 	usleep_range(150, 160);
 
 	/*
-	 * Not all the SoCs have got a readable TCSR_PHY_CLK_SCHEME
-	 * register in the TCSR so, if there's none, use the default
+	 * Analt all the SoCs have got a readable TCSR_PHY_CLK_SCHEME
+	 * register in the TCSR so, if there's analne, use the default
 	 * value hardcoded in the configuration.
 	 */
 	qphy->has_se_clk_scheme = cfg->se_clk_scheme_default;
 
 	/*
 	 * read TCSR_PHY_CLK_SCHEME register to check if single-ended
-	 * clock scheme is selected. If yes, then disable differential
+	 * clock scheme is selected. If anal, then disable differential
 	 * ref_clk and use single-ended clock, otherwise use differential
 	 * ref_clk only.
 	 */
@@ -967,7 +967,7 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 
 	qphy = devm_kzalloc(dev, sizeof(*qphy), GFP_KERNEL);
 	if (!qphy)
-		return -ENOMEM;
+		return -EANALMEM;
 	or = &qphy->overrides;
 
 	qphy->base = devm_platform_ioremap_resource(pdev, 0);
@@ -1006,7 +1006,7 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 	/* Get the specific init parameters of QMP phy */
 	qphy->cfg = of_device_get_match_data(dev);
 
-	qphy->tcsr = syscon_regmap_lookup_by_phandle(dev->of_node,
+	qphy->tcsr = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							"qcom,tcsr-syscon");
 	if (IS_ERR(qphy->tcsr)) {
 		dev_dbg(dev, "failed to lookup TCSR regmap\n");
@@ -1021,43 +1021,43 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 		dev_dbg(dev, "failed to lookup tune2 hstx trim value\n");
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,imp-res-offset-value",
+	if (!of_property_read_u32(dev->of_analde, "qcom,imp-res-offset-value",
 				  &value)) {
 		or->imp_res_offset.value = (u8)value;
 		or->imp_res_offset.override = true;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,bias-ctrl-value",
+	if (!of_property_read_u32(dev->of_analde, "qcom,bias-ctrl-value",
 				  &value)) {
 		or->bias_ctrl.value = (u8)value;
 		or->bias_ctrl.override = true;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,charge-ctrl-value",
+	if (!of_property_read_u32(dev->of_analde, "qcom,charge-ctrl-value",
 				  &value)) {
 		or->charge_ctrl.value = (u8)value;
 		or->charge_ctrl.override = true;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,hstx-trim-value",
+	if (!of_property_read_u32(dev->of_analde, "qcom,hstx-trim-value",
 				  &value)) {
 		or->hstx_trim.value = (u8)value;
 		or->hstx_trim.override = true;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,preemphasis-level",
+	if (!of_property_read_u32(dev->of_analde, "qcom,preemphasis-level",
 				     &value)) {
 		or->preemphasis.value = (u8)value;
 		or->preemphasis.override = true;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,preemphasis-width",
+	if (!of_property_read_u32(dev->of_analde, "qcom,preemphasis-width",
 				     &value)) {
 		or->preemphasis_width.value = (u8)value;
 		or->preemphasis_width.override = true;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "qcom,hsdisc-trim-value",
+	if (!of_property_read_u32(dev->of_analde, "qcom,hsdisc-trim-value",
 				  &value)) {
 		or->hsdisc_trim.value = (u8)value;
 		or->hsdisc_trim.override = true;

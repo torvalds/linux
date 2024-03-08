@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <inttypes.h>
@@ -168,7 +168,7 @@ static int read_objdump_output(FILE *f, void *buf, size_t *len, u64 start_addr)
 		off_last = off + written_bytes;
 	}
 
-	/* len returns number of bytes that could not be read */
+	/* len returns number of bytes that could analt be read */
 	*len -= off_last;
 
 	free(line);
@@ -192,7 +192,7 @@ static int read_via_objdump(const char *filename, u64 addr, void *buf,
 
 	pr_debug("Objdump command is: %s\n", cmd);
 
-	/* Ignore objdump errors */
+	/* Iganalre objdump errors */
 	strcat(cmd, " 2>/dev/null");
 
 	f = popen(cmd, "r");
@@ -244,7 +244,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	addr_location__init(&al);
 	if (!thread__find_map(thread, cpumode, addr, &al) || !map__dso(al.map)) {
 		if (cpumode == PERF_RECORD_MISC_HYPERVISOR) {
-			pr_debug("Hypervisor address can not be resolved - skipping\n");
+			pr_debug("Hypervisor address can analt be resolved - skipping\n");
 			goto out;
 		}
 
@@ -265,7 +265,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	if (len > BUFSZ)
 		len = BUFSZ;
 
-	/* Do not go off the map */
+	/* Do analt go off the map */
 	if (addr + len > map__end(al.map))
 		len = map__end(al.map) - addr;
 
@@ -348,7 +348,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 				pr_debug("Reducing len to %zu\n", len);
 			} else if (dso__is_kcore(dso)) {
 				/*
-				 * objdump cannot handle very large segments
+				 * objdump cananalt handle very large segments
 				 * that may be found in kcore.
 				 */
 				pr_debug("objdump failed for kcore");
@@ -522,10 +522,10 @@ static void do_something(void)
 
 enum {
 	TEST_CODE_READING_OK,
-	TEST_CODE_READING_NO_VMLINUX,
-	TEST_CODE_READING_NO_KCORE,
-	TEST_CODE_READING_NO_ACCESS,
-	TEST_CODE_READING_NO_KERNEL_OBJ,
+	TEST_CODE_READING_ANAL_VMLINUX,
+	TEST_CODE_READING_ANAL_KCORE,
+	TEST_CODE_READING_ANAL_ACCESS,
+	TEST_CODE_READING_ANAL_KERNEL_OBJ,
 };
 
 static int do_test_code_reading(bool try_kcore)
@@ -584,9 +584,9 @@ static int do_test_code_reading(bool try_kcore)
 
 	/* 2nd time through we just try kcore */
 	if (try_kcore && !have_kcore)
-		return TEST_CODE_READING_NO_KCORE;
+		return TEST_CODE_READING_ANAL_KCORE;
 
-	/* No point getting kernel events if there is no kernel object */
+	/* Anal point getting kernel events if there is anal kernel object */
 	if (!have_vmlinux && !have_kcore)
 		evidx++;
 
@@ -649,12 +649,12 @@ static int do_test_code_reading(bool try_kcore)
 
 			if (events[evidx] == NULL && verbose > 0) {
 				char errbuf[512];
-				evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
+				evlist__strerror_open(evlist, erranal, errbuf, sizeof(errbuf));
 				pr_debug("perf_evlist__open() failed!\n%s\n", errbuf);
 			}
 
 			/*
-			 * Both cpus and threads are now owned by evlist
+			 * Both cpus and threads are analw owned by evlist
 			 * and will be freed by following perf_evlist__set_maps
 			 * call. Getting reference to keep them alive.
 			 */
@@ -688,11 +688,11 @@ static int do_test_code_reading(bool try_kcore)
 		goto out_put;
 
 	if (!have_vmlinux && !have_kcore && !try_kcore)
-		err = TEST_CODE_READING_NO_KERNEL_OBJ;
+		err = TEST_CODE_READING_ANAL_KERNEL_OBJ;
 	else if (!have_vmlinux && !try_kcore)
-		err = TEST_CODE_READING_NO_VMLINUX;
+		err = TEST_CODE_READING_ANAL_VMLINUX;
 	else if (strstr(events[evidx], ":u"))
-		err = TEST_CODE_READING_NO_ACCESS;
+		err = TEST_CODE_READING_ANAL_ACCESS;
 	else
 		err = TEST_CODE_READING_OK;
 out_put:
@@ -717,17 +717,17 @@ static int test__code_reading(struct test_suite *test __maybe_unused, int subtes
 	switch (ret) {
 	case TEST_CODE_READING_OK:
 		return 0;
-	case TEST_CODE_READING_NO_VMLINUX:
-		pr_debug("no vmlinux\n");
+	case TEST_CODE_READING_ANAL_VMLINUX:
+		pr_debug("anal vmlinux\n");
 		return 0;
-	case TEST_CODE_READING_NO_KCORE:
-		pr_debug("no kcore\n");
+	case TEST_CODE_READING_ANAL_KCORE:
+		pr_debug("anal kcore\n");
 		return 0;
-	case TEST_CODE_READING_NO_ACCESS:
-		pr_debug("no access\n");
+	case TEST_CODE_READING_ANAL_ACCESS:
+		pr_debug("anal access\n");
 		return 0;
-	case TEST_CODE_READING_NO_KERNEL_OBJ:
-		pr_debug("no kernel obj\n");
+	case TEST_CODE_READING_ANAL_KERNEL_OBJ:
+		pr_debug("anal kernel obj\n");
 		return 0;
 	default:
 		return -1;

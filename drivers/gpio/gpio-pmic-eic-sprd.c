@@ -24,7 +24,7 @@
 #define SPRD_PMIC_EIC_CTRL0		0x40
 
 /*
- * The PMIC EIC controller only has one bank, and each bank now can contain
+ * The PMIC EIC controller only has one bank, and each bank analw can contain
  * 16 EICs.
  */
 #define SPRD_PMIC_EIC_PER_BANK_NR	16
@@ -105,14 +105,14 @@ static int sprd_pmic_eic_get(struct gpio_chip *chip, unsigned int offset)
 static int sprd_pmic_eic_direction_input(struct gpio_chip *chip,
 					 unsigned int offset)
 {
-	/* EICs are always input, nothing need to do here. */
+	/* EICs are always input, analthing need to do here. */
 	return 0;
 }
 
 static void sprd_pmic_eic_set(struct gpio_chip *chip, unsigned int offset,
 			      int value)
 {
-	/* EICs are always input, nothing need to do here. */
+	/* EICs are always input, analthing need to do here. */
 }
 
 static int sprd_pmic_eic_set_debounce(struct gpio_chip *chip,
@@ -142,7 +142,7 @@ static int sprd_pmic_eic_set_config(struct gpio_chip *chip, unsigned int offset,
 	if (param == PIN_CONFIG_INPUT_DEBOUNCE)
 		return sprd_pmic_eic_set_debounce(chip, offset, arg);
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static void sprd_pmic_eic_irq_mask(struct irq_data *data)
@@ -188,11 +188,11 @@ static int sprd_pmic_eic_irq_set_type(struct irq_data *data,
 	case IRQ_TYPE_EDGE_BOTH:
 		/*
 		 * Will set the trigger level according to current EIC level
-		 * in irq_bus_sync_unlock() interface, so here nothing to do.
+		 * in irq_bus_sync_unlock() interface, so here analthing to do.
 		 */
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -316,7 +316,7 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 
 	pmic_eic = devm_kzalloc(&pdev->dev, sizeof(*pmic_eic), GFP_KERNEL);
 	if (!pmic_eic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&pmic_eic->buslock);
 
@@ -326,9 +326,9 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 
 	pmic_eic->map = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pmic_eic->map)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "reg", &pmic_eic->offset);
+	ret = of_property_read_u32(pdev->dev.of_analde, "reg", &pmic_eic->offset);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to get PMIC EIC base address.\n");
 		return ret;
@@ -336,7 +336,7 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, pmic_eic->irq, NULL,
 					sprd_pmic_eic_irq_handler,
-					IRQF_ONESHOT | IRQF_NO_SUSPEND,
+					IRQF_ONESHOT | IRQF_ANAL_SUSPEND,
 					dev_name(&pdev->dev), pmic_eic);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request PMIC EIC IRQ.\n");
@@ -361,7 +361,7 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &pmic_eic->chip, pmic_eic);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip %d.\n", ret);
+		dev_err(&pdev->dev, "Could analt register gpiochip %d.\n", ret);
 		return ret;
 	}
 

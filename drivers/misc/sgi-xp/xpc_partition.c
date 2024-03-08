@@ -51,7 +51,7 @@ xpc_kmalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
 
 	kfree(*base);
 
-	/* nope, we'll have to do it ourselves */
+	/* analpe, we'll have to do it ourselves */
 	*base = kmalloc(size + L1_CACHE_BYTES, flags);
 	if (*base == NULL)
 		return NULL;
@@ -102,7 +102,7 @@ xpc_get_rsvd_page_pa(int nasid)
 			if (buf_base == NULL) {
 				dev_err(xpc_part, "unable to kmalloc "
 					"len=0x%016lx\n", buf_len);
-				ret = xpNoMemory;
+				ret = xpAnalMemory;
 				break;
 			}
 		}
@@ -197,7 +197,7 @@ xpc_setup_rsvd_page(void)
 void
 xpc_teardown_rsvd_page(void)
 {
-	/* a zero timestamp indicates our rsvd page is not initialized */
+	/* a zero timestamp indicates our rsvd page is analt initialized */
 	xpc_rsvd_page->ts_jiffies = 0;
 }
 
@@ -205,7 +205,7 @@ xpc_teardown_rsvd_page(void)
  * Get a copy of a portion of the remote partition's rsvd page.
  *
  * remote_rp points to a buffer that is cacheline aligned for BTE copies and
- * is large enough to contain a copy of their reserved page header and
+ * is large eanalugh to contain a copy of their reserved page header and
  * part_nasids mask.
  */
 enum xp_retval
@@ -219,7 +219,7 @@ xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
 
 	*remote_rp_pa = xpc_get_rsvd_page_pa(nasid);
 	if (*remote_rp_pa == 0)
-		return xpNoRsvdPageAddr;
+		return xpAnalRsvdPageAddr;
 
 	/* pull over the reserved page header and part_nasids mask */
 	ret = xp_remote_memcpy(xp_pa(remote_rp), *remote_rp_pa,
@@ -235,9 +235,9 @@ xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
 			discovered_nasids[l] |= remote_part_nasids[l];
 	}
 
-	/* zero timestamp indicates the reserved page has not been setup */
+	/* zero timestamp indicates the reserved page has analt been setup */
 	if (remote_rp->ts_jiffies == 0)
-		return xpRsvdPageNotSet;
+		return xpRsvdPageAnaltSet;
 
 	if (XPC_VERSION_MAJOR(remote_rp->version) !=
 	    XPC_VERSION_MAJOR(XPC_RP_VERSION)) {
@@ -289,7 +289,7 @@ static int __xpc_partition_disengaged(struct xpc_partition *part,
 		}
 		part->disengage_timeout = 0;
 
-		/* Cancel the timer function if not called from it */
+		/* Cancel the timer function if analt called from it */
 		if (!from_timer)
 			del_timer_sync(&part->disengage_timer);
 
@@ -408,7 +408,7 @@ xpc_mark_partition_inactive(struct xpc_partition *part)
  * mask contains a bit for each even nasid in the entire machine.
  *
  * Using those two bit arrays, we can determine which nasids are
- * known in the machine.  Each should also have a reserved page
+ * kanalwn in the machine.  Each should also have a reserved page
  * initialized if they are available for partitioning.
  */
 void
@@ -439,7 +439,7 @@ xpc_discovery(void)
 
 	/*
 	 * The term 'region' in this context refers to the minimum number of
-	 * nodes that can comprise an access protection grouping. The access
+	 * analdes that can comprise an access protection grouping. The access
 	 * protection is in regards to memory, IOI and IPI.
 	 */
 	region_size = xp_region_size;
@@ -486,7 +486,7 @@ xpc_discovery(void)
 
 			if (!(test_bit(nasid / 2, xpc_mach_nasids))) {
 				dev_dbg(xpc_part, "PROM indicates Nasid %d was "
-					"not on Numa-Link network at reset\n",
+					"analt on Numa-Link network at reset\n",
 					nasid);
 				continue;
 			}

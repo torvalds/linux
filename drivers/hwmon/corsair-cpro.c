@@ -4,7 +4,7 @@
  * Copyright (C) 2020 Marius Zachmann <mail@mariuszachmann.de>
  *
  * This driver uses hid reports to communicate with the device to allow hidraw userspace drivers
- * still being used. The device does not use report ids. When using hidraw and this driver
+ * still being used. The device does analt use report ids. When using hidraw and this driver
  * simultaniously, reports could be switched.
  */
 
@@ -29,14 +29,14 @@
 
 #define CTL_GET_TMP_CNCT	0x10	/*
 					 * returns in bytes 1-4 for each temp sensor:
-					 * 0 not connected
+					 * 0 analt connected
 					 * 1 connected
 					 */
 #define CTL_GET_TMP		0x11	/*
 					 * send: byte 1 is channel, rest zero
 					 * rcv:  returns temp for channel in centi-degree celsius
 					 * in bytes 1 and 2
-					 * returns 0x11 in byte 0 if no sensor is connected
+					 * returns 0x11 in byte 0 if anal sensor is connected
 					 */
 #define CTL_GET_VOLT		0x12	/*
 					 * send: byte 1 is rail number: 0 = 12v, 1 = 5v, 2 = 3.3v
@@ -45,7 +45,7 @@
 					 */
 #define CTL_GET_FAN_CNCT	0x20	/*
 					 * returns in bytes 1-6 for each fan:
-					 * 0 not connected
+					 * 0 analt connected
 					 * 1 3pin
 					 * 2 4pin
 					 */
@@ -86,21 +86,21 @@ struct ccp_device {
 	char fan_label[6][LABEL_LENGTH];
 };
 
-/* converts response error in buffer to errno */
-static int ccp_get_errno(struct ccp_device *ccp)
+/* converts response error in buffer to erranal */
+static int ccp_get_erranal(struct ccp_device *ccp)
 {
 	switch (ccp->buffer[0]) {
 	case 0x00: /* success */
 		return 0;
 	case 0x01: /* called invalid command */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case 0x10: /* called GET_VOLT / GET_TMP with invalid arguments */
 		return -EINVAL;
 	case 0x11: /* requested temps of disconnected sensors */
-	case 0x12: /* requested pwm of not pwm controlled channels */
-		return -ENODATA;
+	case 0x12: /* requested pwm of analt pwm controlled channels */
+		return -EANALDATA;
 	default:
-		hid_dbg(ccp->hdev, "unknown device response error: %d", ccp->buffer[0]);
+		hid_dbg(ccp->hdev, "unkanalwn device response error: %d", ccp->buffer[0]);
 		return -EIO;
 	}
 }
@@ -127,7 +127,7 @@ static int send_usb_cmd(struct ccp_device *ccp, u8 command, u8 byte1, u8 byte2, 
 	if (!t)
 		return -ETIMEDOUT;
 
-	return ccp_get_errno(ccp);
+	return ccp_get_erranal(ccp);
 }
 
 static int ccp_raw_event(struct hid_device *hdev, struct hid_report *report, u8 *data, int size)
@@ -178,7 +178,7 @@ static int set_pwm(struct ccp_device *ccp, int channel, long val)
 
 	ret = send_usb_cmd(ccp, CTL_SET_FAN_FPWM, channel, val, 0);
 	if (!ret)
-		ccp->target[channel] = -ENODATA;
+		ccp->target[channel] = -EANALDATA;
 
 	mutex_unlock(&ccp->mutex);
 	return ret;
@@ -217,7 +217,7 @@ static int ccp_read_string(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ccp_read(struct device *dev, enum hwmon_sensor_types type,
@@ -248,10 +248,10 @@ static int ccp_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = ret;
 			return 0;
 		case hwmon_fan_target:
-			/* how to read target values from the device is unknown */
+			/* how to read target values from the device is unkanalwn */
 			/* driver returns last set value or 0			*/
 			if (ccp->target[channel] < 0)
-				return -ENODATA;
+				return -EANALDATA;
 			*val = ccp->target[channel];
 			return 0;
 		default:
@@ -286,7 +286,7 @@ static int ccp_read(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 };
 
 static int ccp_write(struct device *dev, enum hwmon_sensor_types type,
@@ -315,7 +315,7 @@ static int ccp_write(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 };
 
 static umode_t ccp_is_visible(const void *data, enum hwmon_sensor_types type,
@@ -440,7 +440,7 @@ static int get_fan_cnct(struct ccp_device *ccp)
 			continue;
 
 		set_bit(channel, ccp->fan_cnct);
-		ccp->target[channel] = -ENODATA;
+		ccp->target[channel] = -EANALDATA;
 
 		switch (mode) {
 		case 1:
@@ -490,11 +490,11 @@ static int ccp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ccp = devm_kzalloc(&hdev->dev, sizeof(*ccp), GFP_KERNEL);
 	if (!ccp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ccp->buffer = devm_kmalloc(&hdev->dev, OUT_BUFFER_SIZE, GFP_KERNEL);
 	if (!ccp->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_parse(hdev);
 	if (ret)

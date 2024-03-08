@@ -36,7 +36,7 @@ void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 		[ 18 ]            = "wc",
 		[ 19 ]            = "contig",
 
-		[ 21 ]            = "pinned", /* NO_EVICT */
+		[ 21 ]            = "pinned", /* ANAL_EVICT */
 		[ 22 ]            = "topdown",
 	};
 	const struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
@@ -60,7 +60,7 @@ EXPORT_SYMBOL(drm_gem_ttm_print_info);
  * &drm_gem_object_funcs.vmap callback.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise.
+ * 0 on success, or a negative erranal code otherwise.
  */
 int drm_gem_ttm_vmap(struct drm_gem_object *gem,
 		     struct iosys_map *map)
@@ -130,7 +130,7 @@ EXPORT_SYMBOL(drm_gem_ttm_mmap);
  * See struct &drm_driver.dumb_map_offset.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise.
+ * 0 on success, or a negative erranal code otherwise.
  */
 int drm_gem_ttm_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 				uint32_t handle, uint64_t *offset)
@@ -139,9 +139,9 @@ int drm_gem_ttm_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 
 	gem = drm_gem_object_lookup(file, handle);
 	if (!gem)
-		return -ENOENT;
+		return -EANALENT;
 
-	*offset = drm_vma_node_offset_addr(&gem->vma_node);
+	*offset = drm_vma_analde_offset_addr(&gem->vma_analde);
 
 	drm_gem_object_put(gem);
 

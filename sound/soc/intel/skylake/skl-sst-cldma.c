@@ -107,7 +107,7 @@ static void skl_cldma_setup_bdle(struct sst_dsp *ctx,
  * Setup controller
  * Configure the registers to update the dma buffer address and
  * enable interrupts.
- * Note: Using the channel 1 for transfer
+ * Analte: Using the channel 1 for transfer
  */
 static void skl_cldma_setup_controller(struct sst_dsp  *ctx,
 		struct snd_dma_buffer *dmab_bdl, unsigned int max_size,
@@ -181,7 +181,7 @@ int skl_cldma_wait_interruptible(struct sst_dsp *ctx)
 	}
 
 cleanup:
-	ctx->cl_dev.wake_status = SKL_CL_DMA_STATUS_NONE;
+	ctx->cl_dev.wake_status = SKL_CL_DMA_STATUS_ANALNE;
 	return ret;
 }
 
@@ -243,8 +243,8 @@ static void skl_cldma_fill_buffer(struct sst_dsp *ctx, unsigned int size,
  *    register to identify the transfer status.
  * 3. if wait flag is set, waits for DBL interrupt to copy the next chunk till
  *    bytes_left is 0.
- *    if wait flag is not set, doesn't wait for BDL interrupt. after ccopying
- *    the first chunk return the no of bytes_left to be copied.
+ *    if wait flag is analt set, doesn't wait for BDL interrupt. after ccopying
+ *    the first chunk return the anal of bytes_left to be copied.
  */
 static int
 skl_cldma_copy_to_buf(struct sst_dsp *ctx, const void *bin,

@@ -3,11 +3,11 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Rahul Sharma <rahul.sharma@samsung.com>
  *
- * Provides Constants for Exynos5260 clocks.
+ * Provides Constants for Exyanals5260 clocks.
  */
 
-#ifndef _DT_BINDINGS_CLK_EXYNOS5260_H
-#define _DT_BINDINGS_CLK_EXYNOS5260_H
+#ifndef _DT_BINDINGS_CLK_EXYANALS5260_H
+#define _DT_BINDINGS_CLK_EXYANALS5260_H
 
 /* Clock names: <cmu><type><IP> */
 
@@ -187,7 +187,7 @@
 #define MIF_DOUT_MEDIA_PLL				18
 #define MIF_CLK_LPDDR3PHY_WRAP1				19
 #define MIF_CLK_LPDDR3PHY_WRAP0				20
-#define MIF_CLK_MONOCNT					21
+#define MIF_CLK_MOANALCNT					21
 #define MIF_CLK_MIF_RTC					22
 #define MIF_CLK_DREX1					23
 #define MIF_CLK_DREX0					24

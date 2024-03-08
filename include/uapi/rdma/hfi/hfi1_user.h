@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
@@ -26,21 +26,21 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -71,16 +71,16 @@
 #define HFI1_USER_SWMAJOR 6
 
 /*
- * Minor version differences are always compatible
+ * Mianalr version differences are always compatible
  * a within a major version, however if user software is larger
  * than driver software, some new features and/or structure fields
- * may not be implemented; the user code must deal with this if it
+ * may analt be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
-#define HFI1_USER_SWMINOR 3
+#define HFI1_USER_SWMIANALR 3
 
 /*
- * We will encode the major/minor inside a single 32bit version number.
+ * We will encode the major/mianalr inside a single 32bit version number.
  */
 #define HFI1_SWMAJOR_SHIFT 16
 
@@ -98,12 +98,12 @@
 #define HFI1_CAP_TID_RDMA         (1UL <<  5) /* Enable TID RDMA operations */
 #define HFI1_CAP_USE_SDMA_HEAD    (1UL <<  6) /* DMA Hdr Q tail vs. use CSR */
 #define HFI1_CAP_MULTI_PKT_EGR    (1UL <<  7) /* Enable multi-packet Egr buffs*/
-#define HFI1_CAP_NODROP_RHQ_FULL  (1UL <<  8) /* Don't drop on Hdr Q full */
-#define HFI1_CAP_NODROP_EGR_FULL  (1UL <<  9) /* Don't drop on EGR buffs full */
+#define HFI1_CAP_ANALDROP_RHQ_FULL  (1UL <<  8) /* Don't drop on Hdr Q full */
+#define HFI1_CAP_ANALDROP_EGR_FULL  (1UL <<  9) /* Don't drop on EGR buffs full */
 #define HFI1_CAP_TID_UNMAP        (1UL << 10) /* Disable Expected TID caching */
 #define HFI1_CAP_PRINT_UNIMPL     (1UL << 11) /* Show for unimplemented feats */
 #define HFI1_CAP_ALLOW_PERM_JKEY  (1UL << 12) /* Allow use of permissive JKEY */
-#define HFI1_CAP_NO_INTEGRITY     (1UL << 13) /* Enable ctxt integrity checks */
+#define HFI1_CAP_ANAL_INTEGRITY     (1UL << 13) /* Enable ctxt integrity checks */
 #define HFI1_CAP_PKEY_CHECK       (1UL << 14) /* Enable ctxt PKey checking */
 #define HFI1_CAP_STATIC_RATE_CTRL (1UL << 15) /* Allow PBC.StaticRateControl */
 #define HFI1_CAP_OPFN             (1UL << 16) /* Enable the OPFN protocol */
@@ -120,15 +120,15 @@
 #define _HFI1_EVENT_LID_CHANGE_BIT     2
 #define _HFI1_EVENT_LMC_CHANGE_BIT     3
 #define _HFI1_EVENT_SL2VL_CHANGE_BIT   4
-#define _HFI1_EVENT_TID_MMU_NOTIFY_BIT 5
-#define _HFI1_MAX_EVENT_BIT _HFI1_EVENT_TID_MMU_NOTIFY_BIT
+#define _HFI1_EVENT_TID_MMU_ANALTIFY_BIT 5
+#define _HFI1_MAX_EVENT_BIT _HFI1_EVENT_TID_MMU_ANALTIFY_BIT
 
 #define HFI1_EVENT_FROZEN            (1UL << _HFI1_EVENT_FROZEN_BIT)
 #define HFI1_EVENT_LINKDOWN          (1UL << _HFI1_EVENT_LINKDOWN_BIT)
 #define HFI1_EVENT_LID_CHANGE        (1UL << _HFI1_EVENT_LID_CHANGE_BIT)
 #define HFI1_EVENT_LMC_CHANGE        (1UL << _HFI1_EVENT_LMC_CHANGE_BIT)
 #define HFI1_EVENT_SL2VL_CHANGE      (1UL << _HFI1_EVENT_SL2VL_CHANGE_BIT)
-#define HFI1_EVENT_TID_MMU_NOTIFY    (1UL << _HFI1_EVENT_TID_MMU_NOTIFY_BIT)
+#define HFI1_EVENT_TID_MMU_ANALTIFY    (1UL << _HFI1_EVENT_TID_MMU_ANALTIFY_BIT)
 
 /*
  * These are the status bits readable (in ASCII form, 64bit value)
@@ -175,7 +175,7 @@ struct hfi1_sdma_comp_entry {
 };
 
 /*
- * Device status and notifications from driver to user-space.
+ * Device status and analtifications from driver to user-space.
  */
 struct hfi1_status {
 	__aligned_u64 dev;      /* device/hw status bits */

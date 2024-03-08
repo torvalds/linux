@@ -42,7 +42,7 @@ static int idio_16_handle_mask_sync(const int index, const unsigned int mask_buf
 	int err;
 	unsigned int val;
 
-	/* exit early if no change since the previous mask */
+	/* exit early if anal change since the previous mask */
 	if (mask_buf == prev_mask)
 		return 0;
 
@@ -118,18 +118,18 @@ int devm_idio_16_regmap_register(struct device *const dev,
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->map = config->map;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->name = dev_name(dev);
 	chip->status_base = IDIO_16_INTERRUPT_STATUS;
 	chip->mask_base = IDIO_16_ENABLE_IRQ;
 	chip->ack_base = IDIO_16_CLEAR_INTERRUPT;
-	chip->no_status = config->no_status;
+	chip->anal_status = config->anal_status;
 	chip->num_regs = 1;
 	chip->irqs = config->regmap_irqs;
 	chip->num_irqs = config->num_regmap_irqs;

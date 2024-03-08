@@ -34,7 +34,7 @@ properties:
   vbus-gpios:
     maxItems: 1
     description:
-      GPIO pin (output) used to control VBUS. If skipped, no such control
+      GPIO pin (output) used to control VBUS. If skipped, anal such control
       takes place.
 
 required:

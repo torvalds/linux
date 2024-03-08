@@ -6,10 +6,10 @@
  * Copyright (c) 2009 Clemens Ladisch <clemens@ladisch.de>
  * Copyright (c) 2020 Guenter Roeck <linux@roeck-us.net>
  *
- * Implementation notes:
+ * Implementation analtes:
  * - CCD register address information as well as the calculation to
  *   convert raw register values is from https://github.com/ocerman/zenpower.
- *   The information is not confirmed from chip datasheets, but experiments
+ *   The information is analt confirmed from chip datasheets, but experiments
  *   suggest that it provides reasonable temperature values.
  */
 
@@ -53,7 +53,7 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 
 #define REG_REPORTED_TEMPERATURE	0xa4
 
-#define REG_NORTHBRIDGE_CAPABILITIES	0xe8
+#define REG_ANALRTHBRIDGE_CAPABILITIES	0xe8
 #define  NB_CAP_HTC			BIT(10)
 
 /*
@@ -80,7 +80,7 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 /*
  * AMD's Industrial processor 3255 supports temperature from -40 deg to 105 deg Celsius.
  * Use the model name to identify 3255 CPUs and set a flag to display negative temperature.
- * Do not round off to zero for negative Tctl or Tdie values if the flag is set
+ * Do analt round off to zero for negative Tctl or Tdie values if the flag is set
  */
 #define AMD_I3255_STR				"3255"
 
@@ -153,7 +153,7 @@ static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
 
 static void read_tempreg_nb_zen(struct pci_dev *pdev, u32 *regval)
 {
-	amd_smn_read(amd_pci_dev_to_node_id(pdev),
+	amd_smn_read(amd_pci_dev_to_analde_id(pdev),
 		     ZEN_REPORTED_TEMP_CTRL_BASE, regval);
 }
 
@@ -196,7 +196,7 @@ static int k10temp_read_labels(struct device *dev,
 		*str = k10temp_temp_label[channel];
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -221,13 +221,13 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 				*val = 0;
 			break;
 		case 2 ... 13:		/* Tccd{1-12} */
-			amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
+			amd_smn_read(amd_pci_dev_to_analde_id(data->pdev),
 				     ZEN_CCD_TEMP(data->ccd_offset, channel - 2),
 						  &regval);
 			*val = (regval & ZEN_CCD_TEMP_MASK) * 125 - 49000;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_temp_max:
@@ -243,7 +243,7 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 			- ((regval >> 24) & 0xf)) * 500 + 52000;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -255,7 +255,7 @@ static int k10temp_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return k10temp_read_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -284,7 +284,7 @@ static umode_t k10temp_is_visible(const void *_data,
 				return 0;
 
 			pci_read_config_dword(pdev,
-					      REG_NORTHBRIDGE_CAPABILITIES,
+					      REG_ANALRTHBRIDGE_CAPABILITIES,
 					      &reg);
 			if (!(reg & NB_CAP_HTC))
 				return 0;
@@ -381,7 +381,7 @@ static void k10temp_get_ccd_support(struct pci_dev *pdev,
 	int i;
 
 	for (i = 0; i < limit; i++) {
-		amd_smn_read(amd_pci_dev_to_node_id(pdev),
+		amd_smn_read(amd_pci_dev_to_analde_id(pdev),
 			     ZEN_CCD_TEMP(data->ccd_offset, i), &regval);
 		if (regval & ZEN_CCD_TEMP_VALID)
 			data->show_temp |= BIT(TCCD_BIT(i));
@@ -400,7 +400,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (!force) {
 			dev_err(dev,
 				"unreliable CPU thermal sensor; monitoring disabled\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		dev_warn(dev,
 			 "unreliable CPU thermal sensor; check erratum 319\n");
@@ -408,7 +408,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->pdev = pdev;
 	data->show_temp |= BIT(TCTL_BIT);	/* Always show Tctl */
@@ -437,7 +437,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			k10temp_get_ccd_support(pdev, data, 4);
 			break;
 		case 0x31:	/* Zen2 Threadripper */
-		case 0x60:	/* Renoir */
+		case 0x60:	/* Reanalir */
 		case 0x68:	/* Lucienne */
 		case 0x71:	/* Zen2 */
 			data->ccd_offset = 0x154;

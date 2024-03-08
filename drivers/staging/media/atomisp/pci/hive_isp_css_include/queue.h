@@ -17,12 +17,12 @@
 #define __QUEUE_H_INCLUDED__
 
 /*
- * This file is included on every cell {SP,ISP,host} and is system agnostic
+ * This file is included on every cell {SP,ISP,host} and is system aganalstic
  *
  * System and cell specific interfaces and inline code are included
  * conditionally through Makefile path settings.
  *
- *  - system and cell agnostic interfaces, constants and identifiers
+ *  - system and cell aganalstic interfaces, constants and identifiers
  *	- public:  cell specific interfaces
  *	- private: cell specific inline implementations
  *	- global:  inter cell constants and identifiers

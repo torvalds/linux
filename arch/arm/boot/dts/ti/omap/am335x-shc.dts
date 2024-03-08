@@ -242,7 +242,7 @@
 };
 
 &rtc {
-	ti,no-init;
+	ti,anal-init;
 };
 
 &sham {

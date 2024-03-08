@@ -125,7 +125,7 @@ static int af9033_init(struct dvb_frontend *fe)
 	if (i == ARRAY_SIZE(clock_adc_lut)) {
 		dev_err(&client->dev, "Couldn't find ADC config for clock %d\n",
 			dev->cfg.clock);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -251,7 +251,7 @@ static int af9033_init(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&client->dev, "unsupported tuner ID=%d\n",
 			dev->cfg.tuner);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -283,17 +283,17 @@ static int af9033_init(struct dvb_frontend *fe)
 	dev->bandwidth_hz = 0; /* Force to program all parameters */
 	/* Init stats here in order signal app which stats are supported */
 	c->strength.len = 1;
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_count.len = 1;
-	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_error.len = 1;
-	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	return 0;
 err:
@@ -524,7 +524,7 @@ static int af9033_get_frontend(struct dvb_frontend *fe,
 
 	switch ((buf[2] >> 0) & 7) {
 	case 0:
-		c->hierarchy = HIERARCHY_NONE;
+		c->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		c->hierarchy = HIERARCHY_1;
@@ -578,7 +578,7 @@ static int af9033_get_frontend(struct dvb_frontend *fe,
 		c->code_rate_HP = FEC_7_8;
 		break;
 	case 5:
-		c->code_rate_HP = FEC_NONE;
+		c->code_rate_HP = FEC_ANALNE;
 		break;
 	}
 
@@ -599,7 +599,7 @@ static int af9033_get_frontend(struct dvb_frontend *fe,
 		c->code_rate_LP = FEC_7_8;
 		break;
 	case 5:
-		c->code_rate_LP = FEC_NONE;
+		c->code_rate_LP = FEC_ANALNE;
 		break;
 	}
 
@@ -622,7 +622,7 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	*status = 0;
 
-	/* Radio channel status: 0=no result, 1=has signal, 2=no signal */
+	/* Radio channel status: 0=anal result, 1=has signal, 2=anal signal */
 	ret = regmap_read(dev->regmap, 0x800047, &utmp);
 	if (ret)
 		goto err;
@@ -673,7 +673,7 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->strength.stat[0].svalue = tmp;
 	} else {
 		c->strength.len = 1;
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* CNR */
@@ -765,7 +765,7 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		c->cnr.stat[0].svalue = utmp1;
 	} else {
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* UCB/PER/BER */
@@ -961,15 +961,15 @@ err:
 	return ret;
 }
 
-static int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+static int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
 	int ret;
 
-	dev_dbg(&client->dev, "onoff=%d\n", onoff);
+	dev_dbg(&client->dev, "oanalff=%d\n", oanalff);
 
-	ret = regmap_update_bits(dev->regmap, 0x80f993, 0x01, onoff);
+	ret = regmap_update_bits(dev->regmap, 0x80f993, 0x01, oanalff);
 	if (ret)
 		goto err;
 
@@ -980,15 +980,15 @@ err:
 }
 
 static int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid,
-			     int onoff)
+			     int oanalff)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
 	int ret;
 	u8 wbuf[2] = {(pid >> 0) & 0xff, (pid >> 8) & 0xff};
 
-	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d\n",
-		index, pid, onoff);
+	dev_dbg(&client->dev, "index=%d pid=%04x oanalff=%d\n",
+		index, pid, oanalff);
 
 	if (pid > 0x1fff)
 		return 0;
@@ -996,7 +996,7 @@ static int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid,
 	ret = regmap_bulk_write(dev->regmap, 0x80f996, wbuf, 2);
 	if (ret)
 		goto err;
-	ret = regmap_write(dev->regmap, 0x80f994, onoff);
+	ret = regmap_write(dev->regmap, 0x80f994, oanalff);
 	if (ret)
 		goto err;
 	ret = regmap_write(dev->regmap, 0x80f995, index);
@@ -1064,7 +1064,7 @@ static int af9033_probe(struct i2c_client *client)
 	/* Allocate memory for the internal state */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1085,7 +1085,7 @@ static int af9033_probe(struct i2c_client *client)
 	}
 
 	if (dev->cfg.clock != 12000000) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&client->dev,
 			"Unsupported clock %u Hz. Only 12000000 Hz is supported currently\n",
 			dev->cfg.clock);
@@ -1129,7 +1129,7 @@ static int af9033_probe(struct i2c_client *client)
 		 buf[4], buf[5], buf[6], buf[7]);
 
 	/* Sleep as chip seems to be partly active by default */
-	/* IT9135 did not like to sleep at that early */
+	/* IT9135 did analt like to sleep at that early */
 	if (dev->is_af9035) {
 		ret = regmap_write(dev->regmap, 0x80004c, 0x01);
 		if (ret)

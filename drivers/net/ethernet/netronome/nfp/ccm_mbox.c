@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/io.h>
@@ -41,7 +41,7 @@ enum nfp_net_mbox_cmsg_state {
  * @err:	error encountered during processing if any
  * @max_len:	max(request_len, reply_len)
  * @exp_reply:	expected reply length (0 means don't validate)
- * @posted:	the message was posted and nobody waits for the reply
+ * @posted:	the message was posted and analbody waits for the reply
  */
 struct nfp_ccm_mbox_cmsg_cb {
 	enum nfp_net_mbox_cmsg_state state;
@@ -245,8 +245,8 @@ static void nfp_ccm_mbox_copy_out(struct nfp_net *nn, struct sk_buff *last)
 		if (type == NFP_NET_MBOX_TLV_TYPE_RESV)
 			goto next_tlv;
 		if (type != NFP_NET_MBOX_TLV_TYPE_MSG &&
-		    type != NFP_NET_MBOX_TLV_TYPE_MSG_NOSUP) {
-			nn_dp_warn(&nn->dp, "mailbox unknown TLV type:%d offset:%u len:%u\n",
+		    type != NFP_NET_MBOX_TLV_TYPE_MSG_ANALSUP) {
+			nn_dp_warn(&nn->dp, "mailbox unkanalwn TLV type:%d offset:%u len:%u\n",
 				   type, offset, length);
 			break;
 		}
@@ -261,15 +261,15 @@ static void nfp_ccm_mbox_copy_out(struct nfp_net *nn, struct sk_buff *last)
 
 		skb = nfp_ccm_mbox_find_req(nn, hdr.tag, last);
 		if (!skb) {
-			nn_dp_warn(&nn->dp, "mailbox request not found:%u\n",
+			nn_dp_warn(&nn->dp, "mailbox request analt found:%u\n",
 				   be16_to_cpu(hdr.tag));
 			break;
 		}
 		cb = (void *)skb->cb;
 
-		if (type == NFP_NET_MBOX_TLV_TYPE_MSG_NOSUP) {
+		if (type == NFP_NET_MBOX_TLV_TYPE_MSG_ANALSUP) {
 			nn_dp_warn(&nn->dp,
-				   "mailbox msg not supported type:%d\n",
+				   "mailbox msg analt supported type:%d\n",
 				   nfp_ccm_get_type(skb));
 			cb->err = -EIO;
 			goto next_tlv;
@@ -305,8 +305,8 @@ static void nfp_ccm_mbox_copy_out(struct nfp_net *nn, struct sk_buff *last)
 				skb_put(skb, length - skb->len);
 
 			/* We overcopy here slightly, but that's okay,
-			 * the skb is large enough, and the garbage will
-			 * be ignored (beyond skb->len).
+			 * the skb is large eanalugh, and the garbage will
+			 * be iganalred (beyond skb->len).
 			 */
 			skb_data = (__be32 *)skb->data;
 			memcpy(skb_data, &hdr, 4);
@@ -333,7 +333,7 @@ next_tlv:
 		cb = (void *)skb->cb;
 
 		if (cb->state != NFP_NET_MBOX_CMSG_STATE_REPLY_FOUND) {
-			cb->err = -ENOENT;
+			cb->err = -EANALENT;
 			smp_wmb(); /* order the cb->err vs. cb->state */
 		}
 		cb->state = NFP_NET_MBOX_CMSG_STATE_DONE;
@@ -398,7 +398,7 @@ static void nfp_ccm_mbox_run_queue_unlock(struct nfp_net *nn)
 	}
 	spin_unlock_bh(&nn->mbox_cmsg.queue.lock);
 
-	/* Now we own all skb's marked in progress, new requests may arrive
+	/* Analw we own all skb's marked in progress, new requests may arrive
 	 * at the end of the queue.
 	 */
 
@@ -473,11 +473,11 @@ nfp_ccm_mbox_msg_prepare(struct nfp_net *nn, struct sk_buff *skb,
 
 	if (unlikely(!(nn->tlv_caps.mbox_cmsg_types & BIT(type)))) {
 		nn_dp_warn(&nn->dp,
-			   "message type %d not supported by mailbox\n", type);
+			   "message type %d analt supported by mailbox\n", type);
 		return -EINVAL;
 	}
 
-	/* If the reply size is unknown assume it will take the entire
+	/* If the reply size is unkanalwn assume it will take the entire
 	 * mailbox, the callers should do their best for this to never
 	 * happen.
 	 */
@@ -565,7 +565,7 @@ int __nfp_ccm_mbox_communicate(struct nfp_net *nn, struct sk_buff *skb,
 					 nfp_ccm_mbox_should_run(nn, skb),
 					 msecs_to_jiffies(NFP_CCM_TIMEOUT));
 
-		/* fast path for those completed by another thread */
+		/* fast path for those completed by aanalther thread */
 		if (nfp_ccm_mbox_done(skb)) {
 			smp_rmb(); /* pairs with wmb after data is written */
 			return nfp_ccm_mbox_skb_return(skb);
@@ -732,7 +732,7 @@ int nfp_ccm_mbox_alloc(struct nfp_net *nn)
 
 	nn->mbox_cmsg.workq = alloc_workqueue("nfp-ccm-mbox", WQ_UNBOUND, 0);
 	if (!nn->mbox_cmsg.workq)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

@@ -35,8 +35,8 @@ V4L2 subsystem. The function takes six arguments:
 
 - dev:
 	flash device, e.g. an I2C device
-- of_node:
-	of_node of the LED, may be NULL if the same as device's
+- of_analde:
+	of_analde of the LED, may be NULL if the same as device's
 - fled_cdev:
 	LED flash class device to wrap
 - iled_cdev:
@@ -53,7 +53,7 @@ V4L2 subsystem. The function takes six arguments:
 	* intensity_to_led_brightness and led_brightness_to_intensity
 		perform
 		enum led_brightness <-> V4L2 intensity conversion in a device
-		specific manner - they can be used for devices with non-linear
+		specific manner - they can be used for devices with analn-linear
 		LED current scale.
 - config:
 	configuration for V4L2 Flash sub-device
@@ -82,7 +82,7 @@ Please refer to drivers/leds/leds-max77693.c for an exemplary usage of the
 v4l2 flash wrapper.
 
 Once the V4L2 sub-device is registered by the driver which created the Media
-controller device, the sub-device node acts just as a node of a native V4L2
+controller device, the sub-device analde acts just as a analde of a native V4L2
 flash API device would. The calls are simply routed to the LED flash API.
 
 Opening the V4L2 flash sub-device makes the LED subsystem sysfs interface

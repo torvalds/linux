@@ -56,7 +56,7 @@ size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_ar
 		goto mask_arg;
 	}
 	/*
-	 * Some commands ignore the third fcntl argument, "arg", so mask it
+	 * Some commands iganalre the third fcntl argument, "arg", so mask it
 	 */
 	if (arg->val == F_GET_SEALS ||
 	    arg->val == F_GETSIG) {

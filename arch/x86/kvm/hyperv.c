@@ -50,7 +50,7 @@
  * where each bit tells which extended hypercall is available besides
  * HvExtCallQueryCapabilities.
  *
- * 0x8001 - First extended hypercall, HvExtCallQueryCapabilities, no bit
+ * 0x8001 - First extended hypercall, HvExtCallQueryCapabilities, anal bit
  * assigned.
  *
  * 0x8002 - Bit 0
@@ -163,7 +163,7 @@ static int synic_set_sint(struct kvm_vcpu_hv_synic *synic, int sint,
 
 	/*
 	 * Valid vectors are 16-255, however, nested Hyper-V attempts to write
-	 * default '0x10000' value on boot and this should not #GP. We need to
+	 * default '0x10000' value on boot and this should analt #GP. We need to
 	 * allow zero-initing the register from host as well.
 	 */
 	if (vector < HV_SYNIC_FIRST_VALID_VECTOR && !host && !masked)
@@ -216,7 +216,7 @@ static struct kvm_vcpu_hv_synic *synic_get(struct kvm *kvm, u32 vpidx)
 	return (synic->active) ? synic : NULL;
 }
 
-static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
+static void kvm_hv_analtify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu_hv_synic *synic = to_hv_synic(vcpu);
@@ -224,7 +224,7 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	struct kvm_vcpu_hv_stimer *stimer;
 	int gsi, idx;
 
-	trace_kvm_hv_notify_acked_sint(vcpu->vcpu_id, sint);
+	trace_kvm_hv_analtify_acked_sint(vcpu->vcpu_id, sint);
 
 	/* Try to deliver pending Hyper-V SynIC timers messages */
 	for (idx = 0; idx < ARRAY_SIZE(hv_vcpu->stimer); idx++) {
@@ -238,7 +238,7 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = atomic_read(&synic->sint_to_gsi[sint]);
 	if (gsi != -1)
-		kvm_notify_acked_gsi(kvm, gsi);
+		kvm_analtify_acked_gsi(kvm, gsi);
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
@@ -312,7 +312,7 @@ static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 			break;
 
 		for (i = 0; i < ARRAY_SIZE(synic->sint); i++)
-			kvm_hv_notify_acked_sint(vcpu, i);
+			kvm_hv_analtify_acked_sint(vcpu, i);
 		break;
 	}
 	case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
@@ -483,7 +483,7 @@ static int synic_set_irq(struct kvm_vcpu_hv_synic *synic, u32 sint)
 
 	vector = synic_get_sint_vector(synic_read_sint(synic, sint));
 	if (vector < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	memset(&irq, 0, sizeof(irq));
 	irq.shorthand = APIC_DEST_SELF;
@@ -517,7 +517,7 @@ void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
 
 	for (i = 0; i < ARRAY_SIZE(synic->sint); i++)
 		if (synic_get_sint_vector(synic_read_sint(synic, i)) == vector)
-			kvm_hv_notify_acked_sint(vcpu, i);
+			kvm_hv_analtify_acked_sint(vcpu, i);
 }
 
 static int kvm_hv_set_sint_gsi(struct kvm *kvm, u32 vpidx, u32 sint, int gsi)
@@ -619,48 +619,48 @@ static enum hrtimer_restart stimer_timer_callback(struct hrtimer *timer)
 				     stimer->index);
 	stimer_mark_pending(stimer, true);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /*
  * stimer_start() assumptions:
- * a) stimer->count is not equal to 0
+ * a) stimer->count is analt equal to 0
  * b) stimer->config has HV_STIMER_ENABLE flag
  */
 static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 {
-	u64 time_now;
-	ktime_t ktime_now;
+	u64 time_analw;
+	ktime_t ktime_analw;
 
-	time_now = get_time_ref_counter(hv_stimer_to_vcpu(stimer)->kvm);
-	ktime_now = ktime_get();
+	time_analw = get_time_ref_counter(hv_stimer_to_vcpu(stimer)->kvm);
+	ktime_analw = ktime_get();
 
 	if (stimer->config.periodic) {
 		if (stimer->exp_time) {
-			if (time_now >= stimer->exp_time) {
+			if (time_analw >= stimer->exp_time) {
 				u64 remainder;
 
-				div64_u64_rem(time_now - stimer->exp_time,
+				div64_u64_rem(time_analw - stimer->exp_time,
 					      stimer->count, &remainder);
 				stimer->exp_time =
-					time_now + (stimer->count - remainder);
+					time_analw + (stimer->count - remainder);
 			}
 		} else
-			stimer->exp_time = time_now + stimer->count;
+			stimer->exp_time = time_analw + stimer->count;
 
 		trace_kvm_hv_stimer_start_periodic(
 					hv_stimer_to_vcpu(stimer)->vcpu_id,
 					stimer->index,
-					time_now, stimer->exp_time);
+					time_analw, stimer->exp_time);
 
 		hrtimer_start(&stimer->timer,
-			      ktime_add_ns(ktime_now,
-					   100 * (stimer->exp_time - time_now)),
+			      ktime_add_ns(ktime_analw,
+					   100 * (stimer->exp_time - time_analw)),
 			      HRTIMER_MODE_ABS);
 		return 0;
 	}
 	stimer->exp_time = stimer->count;
-	if (time_now >= stimer->count) {
+	if (time_analw >= stimer->count) {
 		/*
 		 * Expire timer according to Hypervisor Top-Level Functional
 		 * specification v4(15.3.1):
@@ -673,10 +673,10 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 
 	trace_kvm_hv_stimer_start_one_shot(hv_stimer_to_vcpu(stimer)->vcpu_id,
 					   stimer->index,
-					   time_now, stimer->count);
+					   time_analw, stimer->count);
 
 	hrtimer_start(&stimer->timer,
-		      ktime_add_ns(ktime_now, 100 * (stimer->count - time_now)),
+		      ktime_add_ns(ktime_analw, 100 * (stimer->count - time_analw)),
 		      HRTIMER_MODE_ABS);
 	return 0;
 }
@@ -753,7 +753,7 @@ static int stimer_get_count(struct kvm_vcpu_hv_stimer *stimer, u64 *pcount)
 }
 
 static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
-			     struct hv_message *src_msg, bool no_retry)
+			     struct hv_message *src_msg, bool anal_retry)
 {
 	struct kvm_vcpu *vcpu = hv_synic_to_vcpu(synic);
 	int msg_off = offsetof(struct hv_message_page, sint_message[sint]);
@@ -762,7 +762,7 @@ static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
 	int r;
 
 	if (!(synic->msg_page & HV_SYNIC_SIMP_ENABLE))
-		return -ENOENT;
+		return -EANALENT;
 
 	msg_page_gfn = synic->msg_page >> PAGE_SHIFT;
 
@@ -779,8 +779,8 @@ static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
 	if (r < 0)
 		return r;
 
-	if (hv_hdr.message_type != HVMSG_NONE) {
-		if (no_retry)
+	if (hv_hdr.message_type != HVMSG_ANALNE) {
+		if (anal_retry)
 			return 0;
 
 		hv_hdr.message_flags.msg_pending = 1;
@@ -820,16 +820,16 @@ static int stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
 	 * To avoid piling up periodic ticks, don't retry message
 	 * delivery for them (within "lazy" lost ticks policy).
 	 */
-	bool no_retry = stimer->config.periodic;
+	bool anal_retry = stimer->config.periodic;
 
 	payload->expiration_time = stimer->exp_time;
 	payload->delivery_time = get_time_ref_counter(vcpu->kvm);
 	return synic_deliver_msg(to_hv_synic(vcpu),
 				 stimer->config.sintx, msg,
-				 no_retry);
+				 anal_retry);
 }
 
-static int stimer_notify_direct(struct kvm_vcpu_hv_stimer *stimer)
+static int stimer_analtify_direct(struct kvm_vcpu_hv_stimer *stimer)
 {
 	struct kvm_vcpu *vcpu = hv_stimer_to_vcpu(stimer);
 	struct kvm_lapic_irq irq = {
@@ -850,7 +850,7 @@ static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
 	if (!direct)
 		r = stimer_send_msg(stimer);
 	else
-		r = stimer_notify_direct(stimer);
+		r = stimer_analtify_direct(stimer);
 	trace_kvm_hv_stimer_expiration(hv_stimer_to_vcpu(stimer)->vcpu_id,
 				       stimer->index, direct, r);
 	if (!r) {
@@ -864,7 +864,7 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 	struct kvm_vcpu_hv_stimer *stimer;
-	u64 time_now, exp_time;
+	u64 time_analw, exp_time;
 	int i;
 
 	if (!hv_vcpu)
@@ -877,9 +877,9 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 				exp_time = stimer->exp_time;
 
 				if (exp_time) {
-					time_now =
+					time_analw =
 						get_time_ref_counter(vcpu->kvm);
-					if (time_now >= exp_time)
+					if (time_analw >= exp_time)
 						stimer_expiration(stimer);
 				}
 
@@ -952,7 +952,7 @@ static void stimer_init(struct kvm_vcpu_hv_stimer *stimer, int timer_index)
 {
 	memset(stimer, 0, sizeof(*stimer));
 	stimer->index = timer_index;
-	hrtimer_init(&stimer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&stimer->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 	stimer->timer.function = stimer_timer_callback;
 	stimer_prepare_msg(stimer);
 }
@@ -967,7 +967,7 @@ int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 
 	hv_vcpu = kzalloc(sizeof(struct kvm_vcpu_hv), GFP_KERNEL_ACCOUNT);
 	if (!hv_vcpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vcpu->arch.hyperv = hv_vcpu;
 	hv_vcpu->vcpu = vcpu;
@@ -1038,7 +1038,7 @@ static int kvm_hv_msr_get_crash_data(struct kvm *kvm, u32 index, u64 *pdata)
 	if (WARN_ON_ONCE(index >= size))
 		return -EINVAL;
 
-	*pdata = hv->hv_crash_param[array_index_nospec(index, size)];
+	*pdata = hv->hv_crash_param[array_index_analspec(index, size)];
 	return 0;
 }
 
@@ -1054,7 +1054,7 @@ static int kvm_hv_msr_set_crash_ctl(struct kvm *kvm, u64 data)
 {
 	struct kvm_hv *hv = to_kvm_hv(kvm);
 
-	hv->hv_crash_ctl = data & HV_CRASH_CTL_CRASH_NOTIFY;
+	hv->hv_crash_ctl = data & HV_CRASH_CTL_CRASH_ANALTIFY;
 
 	return 0;
 }
@@ -1067,7 +1067,7 @@ static int kvm_hv_msr_set_crash_data(struct kvm *kvm, u32 index, u64 data)
 	if (WARN_ON_ONCE(index >= size))
 		return -EINVAL;
 
-	hv->hv_crash_param[array_index_nospec(index, size)] = data;
+	hv->hv_crash_param[array_index_analspec(index, size)] = data;
 	return 0;
 }
 
@@ -1088,7 +1088,7 @@ static int kvm_hv_msr_set_crash_data(struct kvm *kvm, u32 index, u64 data)
  *            scale / 2^64 =         tsc_to_system_mul * 2^(tsc_shift-32) / 100
  *            scale        =         tsc_to_system_mul * 2^(32+tsc_shift) / 100
  *
- * Now expand the kvmclock formula and divide by 100:
+ * Analw expand the kvmclock formula and divide by 100:
  *    nsec = ticks * tsc_to_system_mul * 2^(tsc_shift-32)
  *           - tsc_timestamp * tsc_to_system_mul * 2^(tsc_shift-32)
  *           + system_time
@@ -1142,8 +1142,8 @@ static bool compute_tsc_page_parameters(struct pvclock_vcpu_time_info *hv_clock,
 
 /*
  * Don't touch TSC page values if the guest has opted for TSC emulation after
- * migration. KVM doesn't fully support reenlightenment notifications and TSC
- * access emulation and Hyper-V is known to expect the values in TSC page to
+ * migration. KVM doesn't fully support reenlightenment analtifications and TSC
+ * access emulation and Hyper-V is kanalwn to expect the values in TSC page to
  * stay constant before TSC access emulation is disabled from guest side
  * (HV_X64_MSR_TSC_EMULATION_STATUS). KVM userspace is expected to preserve TSC
  * frequency and guest visible TSC value across migration (and prevent it when
@@ -1178,7 +1178,7 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	gfn = hv->hv_tsc_page >> HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT;
 	/*
 	 * Because the TSC parameters only vary when there is a
-	 * change in the master clock, do not bother with caching.
+	 * change in the master clock, do analt bother with caching.
 	 */
 	if (unlikely(kvm_read_guest(kvm, gfn_to_gpa(gfn),
 				    &tsc_seq, sizeof(tsc_seq))))
@@ -1210,13 +1210,13 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 		goto out_err;
 
 	/*
-	 * Now switch to the TSC page mechanism by writing the sequence.
+	 * Analw switch to the TSC page mechanism by writing the sequence.
 	 */
 	tsc_seq++;
 	if (tsc_seq == 0xFFFFFFFF || tsc_seq == 0)
 		tsc_seq = 1;
 
-	/* Write the struct entirely before the non-zero sequence.  */
+	/* Write the struct entirely before the analn-zero sequence.  */
 	smp_wmb();
 
 	hv->tsc_ref.tsc_sequence = tsc_seq;
@@ -1330,7 +1330,7 @@ static bool hv_check_msr_access(struct kvm_vcpu_hv *hv_vcpu, u32 msr)
  * configuration.
  * Such configuration can result from, for example, AMD Erratum 1386 workaround.
  *
- * Print a notice so users aren't left wondering what's suddenly gone wrong.
+ * Print a analtice so users aren't left wondering what's suddenly gone wrong.
  */
 static void __kvm_hv_xsaves_xsavec_maybe_warn(struct kvm_vcpu *vcpu)
 {
@@ -1355,7 +1355,7 @@ static void __kvm_hv_xsaves_xsavec_maybe_warn(struct kvm_vcpu *vcpu)
 	    !guest_cpuid_has(vcpu, X86_FEATURE_XSAVEC))
 		return;
 
-	pr_notice_ratelimited("Booting SMP Windows KVM VM with !XSAVES && XSAVEC. "
+	pr_analtice_ratelimited("Booting SMP Windows KVM VM with !XSAVES && XSAVEC. "
 			      "If it fails to boot try disabling XSAVEC in the VM config.\n");
 }
 
@@ -1393,7 +1393,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 		int i = 0;
 		u64 addr;
 
-		/* if guest os id is not set hypercall should remain disabled */
+		/* if guest os id is analt set hypercall should remain disabled */
 		if (!hv->hv_guest_os_id)
 			break;
 		if (!(data & HV_X64_MSR_HYPERCALL_ENABLE)) {
@@ -1449,7 +1449,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 		if (host)
 			return kvm_hv_msr_set_crash_ctl(kvm, data);
 
-		if (data & HV_CRASH_CTL_CRASH_NOTIFY) {
+		if (data & HV_CRASH_CTL_CRASH_ANALTIFY) {
 			vcpu_debug(vcpu, "hv crash (0x%llx 0x%llx 0x%llx 0x%llx 0x%llx)\n",
 				   hv->hv_crash_param[0],
 				   hv->hv_crash_param[1],
@@ -1457,7 +1457,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 				   hv->hv_crash_param[3],
 				   hv->hv_crash_param[4]);
 
-			/* Send notification about crash to user space */
+			/* Send analtification about crash to user space */
 			kvm_make_request(KVM_REQ_HV_CRASH, vcpu);
 		}
 		break;
@@ -1480,7 +1480,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 		hv->hv_tsc_emulation_status = data;
 		break;
 	case HV_X64_MSR_TIME_REF_COUNT:
-		/* read-only, but still ignore it if host-initiated */
+		/* read-only, but still iganalre it if host-initiated */
 		if (!host)
 			return 1;
 		break;
@@ -1535,9 +1535,9 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 
 		/*
 		 * The VP index is initialized to vcpu_index by
-		 * kvm_hv_vcpu_postcreate so they initially match.  Now the
+		 * kvm_hv_vcpu_postcreate so they initially match.  Analw the
 		 * VP index is changing, adjust num_mismatched_vp_indexes if
-		 * it now matches or no longer matches vcpu_idx.
+		 * it analw matches or anal longer matches vcpu_idx.
 		 */
 		if (hv_vcpu->vp_index == vcpu->vcpu_idx)
 			atomic_inc(&hv->num_mismatched_vp_indexes);
@@ -1615,7 +1615,7 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 	}
 	case HV_X64_MSR_TSC_FREQUENCY:
 	case HV_X64_MSR_APIC_FREQUENCY:
-		/* read-only, but still ignore it if host-initiated */
+		/* read-only, but still iganalre it if host-initiated */
 		if (!host)
 			return 1;
 		break;
@@ -1883,8 +1883,8 @@ static int kvm_hv_get_hc_data(struct kvm *kvm, struct kvm_hv_hcall *hc,
 			      u16 orig_cnt, u16 cnt_cap, u64 *data)
 {
 	/*
-	 * Preserve the original count when ignoring entries via a "cap", KVM
-	 * still needs to validate the guest input (though the non-XMM path
+	 * Preserve the original count when iganalring entries via a "cap", KVM
+	 * still needs to validate the guest input (though the analn-XMM path
 	 * punts on the checks).
 	 */
 	u16 cnt = min(orig_cnt, cnt_cap);
@@ -1892,7 +1892,7 @@ static int kvm_hv_get_hc_data(struct kvm *kvm, struct kvm_hv_hcall *hc,
 
 	if (hc->fast) {
 		/*
-		 * Each XMM holds two sparse banks, but do not count halves that
+		 * Each XMM holds two sparse banks, but do analt count halves that
 		 * have already been consumed for hypercall parameters.
 		 */
 		if (orig_cnt > 2 * HV_HYPERCALL_MAX_XMM_REGISTERS - hc->consumed_xmm_halves)
@@ -1918,7 +1918,7 @@ static u64 kvm_get_sparse_vp_set(struct kvm *kvm, struct kvm_hv_hcall *hc,
 	if (hc->var_cnt > HV_MAX_SPARSE_VCPU_BANKS)
 		return -EINVAL;
 
-	/* Cap var_cnt to ignore banks that cannot contain a legal VP index. */
+	/* Cap var_cnt to iganalre banks that cananalt contain a legal VP index. */
 	return kvm_hv_get_hc_data(kvm, hc, hc->var_cnt, KVM_HV_MAX_SPARSE_VCPU_SET_BITS,
 				  sparse_banks);
 }
@@ -1942,7 +1942,7 @@ static void hv_tlb_flush_enqueue(struct kvm_vcpu *vcpu,
 
 	/*
 	 * All entries should fit on the fifo leaving one free for 'flush all'
-	 * entry in case another request comes in. In case there's not enough
+	 * entry in case aanalther request comes in. In case there's analt eanalugh
 	 * space, just put 'flush all' entry there.
 	 */
 	if (count && entries && count < kfifo_avail(&tlb_flush_fifo->entries)) {
@@ -1951,7 +1951,7 @@ static void hv_tlb_flush_enqueue(struct kvm_vcpu *vcpu,
 	}
 
 	/*
-	 * Note: full fifo always contains 'flush all' entry, no need to check the
+	 * Analte: full fifo always contains 'flush all' entry, anal need to check the
 	 * return value.
 	 */
 	kfifo_in(&tlb_flush_fifo->entries, &flush_all_entry, 1);
@@ -1995,7 +1995,7 @@ out_flush_all:
 	kfifo_reset_out(&tlb_flush_fifo->entries);
 
 	/* Fall back to full flush. */
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
@@ -2008,10 +2008,10 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 	DECLARE_BITMAP(vcpu_mask, KVM_MAX_VCPUS);
 	struct kvm_vcpu_hv_tlb_flush_fifo *tlb_flush_fifo;
 	/*
-	 * Normally, there can be no more than 'KVM_HV_TLB_FLUSH_FIFO_SIZE'
+	 * Analrmally, there can be anal more than 'KVM_HV_TLB_FLUSH_FIFO_SIZE'
 	 * entries on the TLB flush fifo. The last entry, however, needs to be
 	 * always left free for 'flush all' entry which gets placed when
-	 * there is not enough space to put all the requested entries.
+	 * there is analt eanalugh space to put all the requested entries.
 	 */
 	u64 __tlb_flush_entries[KVM_HV_TLB_FLUSH_FIFO_SIZE - 1];
 	u64 *tlb_flush_entries;
@@ -2105,8 +2105,8 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 		}
 
 		/*
-		 * Hyper-V TLFS doesn't explicitly forbid non-empty sparse vCPU
-		 * banks (and, thus, non-zero 'var_cnt') for the 'all vCPUs'
+		 * Hyper-V TLFS doesn't explicitly forbid analn-empty sparse vCPU
+		 * banks (and, thus, analn-zero 'var_cnt') for the 'all vCPUs'
 		 * case (HV_GENERIC_SET_ALL).  Always adjust data_offset and
 		 * consumed_xmm_halves to make sure TLB flush entries are read
 		 * from the correct offset.
@@ -2128,7 +2128,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 	}
 
 	/*
-	 * vcpu->arch.cr3 may not be up-to-date for running vCPUs so we can't
+	 * vcpu->arch.cr3 may analt be up-to-date for running vCPUs so we can't
 	 * analyze it here, flush TLB regardless of the specified address space.
 	 */
 	if (all_cpus && !is_guest_mode(vcpu)) {
@@ -2410,7 +2410,7 @@ static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *h
 		int ret;
 		gpa_t gpa = hc->ingpa;
 
-		if ((gpa & (__alignof__(hc->ingpa) - 1)) ||
+		if ((gpa & (__aliganalf__(hc->ingpa) - 1)) ||
 		    offset_in_page(gpa) + sizeof(hc->ingpa) > PAGE_SIZE)
 			return HV_STATUS_INVALID_ALIGNMENT;
 
@@ -2422,7 +2422,7 @@ static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *h
 
 	/*
 	 * Per spec, bits 32-47 contain the extra "flag number".  However, we
-	 * have no use for it, and in all known usecases it is zero, so just
+	 * have anal use for it, and in all kanalwn usecases it is zero, so just
 	 * report lookup failure if it isn't.
 	 */
 	if (hc->ingpa & 0xffff00000000ULL)
@@ -2472,7 +2472,7 @@ static bool hv_check_hypercall_access(struct kvm_vcpu_hv *hv_vcpu, u16 code)
 		return true;
 
 	switch (code) {
-	case HVCALL_NOTIFY_LONG_SPIN_WAIT:
+	case HVCALL_ANALTIFY_LONG_SPIN_WAIT:
 		return hv_vcpu->cpuid_cache.enlightenments_ebx &&
 			hv_vcpu->cpuid_cache.enlightenments_ebx != U32_MAX;
 	case HVCALL_POST_MESSAGE:
@@ -2523,7 +2523,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	u64 ret = HV_STATUS_SUCCESS;
 
 	/*
-	 * hypercall generates UD from non zero cpl and real mode
+	 * hypercall generates UD from analn zero cpl and real mode
 	 * per HYPER-V spec
 	 */
 	if (static_call(kvm_x86_get_cpl)(vcpu) != 0 || !is_protmode(vcpu)) {
@@ -2579,7 +2579,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	}
 
 	switch (hc.code) {
-	case HVCALL_NOTIFY_LONG_SPIN_WAIT:
+	case HVCALL_ANALTIFY_LONG_SPIN_WAIT:
 		if (unlikely(hc.rep || hc.var_cnt)) {
 			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
 			break;
@@ -2594,9 +2594,9 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		ret = kvm_hvcall_signal_event(vcpu, &hc);
 		if (ret != HV_STATUS_INVALID_PORT_ID)
 			break;
-		fallthrough;	/* maybe userspace knows this conn_id */
+		fallthrough;	/* maybe userspace kanalws this conn_id */
 	case HVCALL_POST_MESSAGE:
-		/* don't bother userspace if it has no way to handle it */
+		/* don't bother userspace if it has anal way to handle it */
 		if (unlikely(hc.rep || hc.var_cnt || !to_hv_synic(vcpu)->active)) {
 			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
 			break;
@@ -2723,7 +2723,7 @@ static int kvm_hv_eventfd_assign(struct kvm *kvm, u32 conn_id, int fd)
 	if (ret >= 0)
 		return 0;
 
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		ret = -EEXIST;
 	eventfd_ctx_put(eventfd);
 	return ret;
@@ -2739,7 +2739,7 @@ static int kvm_hv_eventfd_deassign(struct kvm *kvm, u32 conn_id)
 	mutex_unlock(&hv->hv_lock);
 
 	if (!eventfd)
-		return -ENOENT;
+		return -EANALENT;
 
 	synchronize_srcu(&kvm->srcu);
 	eventfd_ctx_put(eventfd);
@@ -2856,7 +2856,7 @@ int kvm_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 			if (evmcs_ver)
 				ent->eax |= HV_X64_ENLIGHTENED_VMCS_RECOMMENDED;
 			if (!cpu_smt_possible())
-				ent->eax |= HV_X64_NO_NONARCH_CORESHARING;
+				ent->eax |= HV_X64_ANAL_ANALNARCH_CORESHARING;
 
 			ent->eax |= HV_DEPRECATING_AEOI_RECOMMENDED;
 			/*

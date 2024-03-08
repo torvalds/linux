@@ -208,7 +208,7 @@
 #define S5P_FIMV_DEC_STATUS_CRC_NUMBER_FOUR		(1<<4)
 #define S5P_FIMV_DEC_STATUS_CRC_NUMBER_MASK		(1<<4)
 #define S5P_FIMV_DEC_STATUS_CRC_GENERATED		(1<<5)
-#define S5P_FIMV_DEC_STATUS_CRC_NOT_GENERATED		(0<<5)
+#define S5P_FIMV_DEC_STATUS_CRC_ANALT_GENERATED		(0<<5)
 #define S5P_FIMV_DEC_STATUS_CRC_MASK			(1<<5)
 
 #define S5P_FIMV_DEC_STATUS_RESOLUTION_MASK		(3<<4)
@@ -263,7 +263,7 @@
 #define S5P_FIMV_ENC_SI_PIC_CNT		0x2008 /* picture count */
 #define S5P_FIMV_ENC_SI_WRITE_PTR	0x200c /* write pointer */
 #define S5P_FIMV_ENC_SI_SLICE_TYPE	0x2010 /* slice type(I/P/B/IDR) */
-#define S5P_FIMV_ENC_SI_SLICE_TYPE_NON_CODED	0
+#define S5P_FIMV_ENC_SI_SLICE_TYPE_ANALN_CODED	0
 #define S5P_FIMV_ENC_SI_SLICE_TYPE_I		1
 #define S5P_FIMV_ENC_SI_SLICE_TYPE_P		2
 #define S5P_FIMV_ENC_SI_SLICE_TYPE_B		3
@@ -330,7 +330,7 @@
 #define S5P_FIMV_SI_CH0_HOST_WR_ADR	0x2064 /* address of shared memory */
 
 /* Codec numbers  */
-#define S5P_FIMV_CODEC_NONE		-1
+#define S5P_FIMV_CODEC_ANALNE		-1
 
 #define S5P_FIMV_CODEC_H264_DEC		0
 #define S5P_FIMV_CODEC_VC1_DEC		1
@@ -390,7 +390,7 @@
 #define S5P_FIMV_REG_CLEAR_COUNT		0
 
 /* Error handling defines */
-#define S5P_FIMV_ERR_NO_VALID_SEQ_HDR		67
+#define S5P_FIMV_ERR_ANAL_VALID_SEQ_HDR		67
 #define S5P_FIMV_ERR_INCOMPLETE_FRAME		124
 #define S5P_FIMV_ERR_TIMEOUT			140
 #define S5P_FIMV_ERR_WARNINGS_START		145
@@ -402,7 +402,7 @@
 /* Shared memory registers' offsets */
 
 /* An offset of the start position in the stream when
- * the start position is not aligned */
+ * the start position is analt aligned */
 #define S5P_FIMV_SHARED_CROP_INFO_H		0x0020
 #define S5P_FIMV_SHARED_CROP_LEFT_MASK		0xFFFF
 #define S5P_FIMV_SHARED_CROP_LEFT_SHIFT		0

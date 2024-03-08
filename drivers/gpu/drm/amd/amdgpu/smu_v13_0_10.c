@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,7 +46,7 @@ smu_v13_0_10_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
 	int i;
 
-	if (reset_context->method != AMD_RESET_METHOD_NONE) {
+	if (reset_context->method != AMD_RESET_METHOD_ANALNE) {
 		for_each_handler(i, handler, reset_ctl) {
 			if (handler->reset_method == reset_context->method)
 				return handler;
@@ -282,15 +282,15 @@ int smu_v13_0_10_reset_init(struct amdgpu_device *adev)
 
 	reset_ctl = kzalloc(sizeof(*reset_ctl), GFP_KERNEL);
 	if (!reset_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset_ctl->handle = adev;
 	reset_ctl->async_reset = smu_v13_0_10_async_reset;
-	reset_ctl->active_reset = AMD_RESET_METHOD_NONE;
+	reset_ctl->active_reset = AMD_RESET_METHOD_ANALNE;
 	reset_ctl->get_reset_handler = smu_v13_0_10_get_reset_handler;
 
 	INIT_WORK(&reset_ctl->reset_work, reset_ctl->async_reset);
-	/* Only mode2 is handled through reset control now */
+	/* Only mode2 is handled through reset control analw */
 	reset_ctl->reset_handlers = &smu_v13_0_10_rst_handlers;
 
 	adev->reset_cntl = reset_ctl;

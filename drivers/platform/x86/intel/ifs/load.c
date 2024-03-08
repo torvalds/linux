@@ -38,19 +38,19 @@ static u64 ifs_test_image_ptr;			/* 256B aligned address of test pattern */
 static DECLARE_COMPLETION(ifs_done);
 
 static const char * const scan_hash_status[] = {
-	[0] = "No error reported",
+	[0] = "Anal error reported",
 	[1] = "Attempt to copy scan hashes when copy already in progress",
-	[2] = "Secure Memory not set up correctly",
-	[3] = "FuSaInfo.ProgramID does not match or ff-mm-ss does not match",
+	[2] = "Secure Memory analt set up correctly",
+	[3] = "FuSaInfo.ProgramID does analt match or ff-mm-ss does analt match",
 	[4] = "Reserved",
 	[5] = "Integrity check failed",
 	[6] = "Scan reload or test is in progress"
 };
 
 static const char * const scan_authentication_status[] = {
-	[0] = "No error reported",
+	[0] = "Anal error reported",
 	[1] = "Attempt to authenticate a chunk which is already marked as authentic",
-	[2] = "Chunk authentication error. The hash of chunk did not match expected value",
+	[2] = "Chunk authentication error. The hash of chunk did analt match expected value",
 	[3] = "Reserved",
 	[4] = "Chunk outside the current stride",
 	[5] = "Authentication flow interrupted",
@@ -280,7 +280,7 @@ static int validate_ifs_metadata(struct device *dev)
 
 	/* Scan chunk start must be 256 byte aligned */
 	if (!IS_ALIGNED(ifs_test_image_ptr, IFS_CHUNK_ALIGNMENT)) {
-		dev_err(dev, "Scan pattern is not aligned on %d bytes aligned in %s\n",
+		dev_err(dev, "Scan pattern is analt aligned on %d bytes aligned in %s\n",
 			IFS_CHUNK_ALIGNMENT, test_file);
 		return ret;
 	}
@@ -293,7 +293,7 @@ static int validate_ifs_metadata(struct device *dev)
 
 	if (ifs_meta->chunks_per_stride &&
 	    (ifs_meta->starting_chunk % ifs_meta->chunks_per_stride != 0)) {
-		dev_warn(dev, "Starting chunk num %u not a multiple of chunks_per_stride %u\n",
+		dev_warn(dev, "Starting chunk num %u analt a multiple of chunks_per_stride %u\n",
 			 ifs_meta->starting_chunk, ifs_meta->chunks_per_stride);
 		return ret;
 	}
@@ -353,7 +353,7 @@ static int image_sanity_check(struct device *dev, const struct microcode_header_
 
 	/* Provide a specific error message when loading an older/unsupported image */
 	if (data->hdrver != MC_HEADER_TYPE_IFS) {
-		dev_err(dev, "Header version %d not supported\n", data->hdrver);
+		dev_err(dev, "Header version %d analt supported\n", data->hdrver);
 		return -EINVAL;
 	}
 
@@ -365,7 +365,7 @@ static int image_sanity_check(struct device *dev, const struct microcode_header_
 	intel_collect_cpu_info(&sig);
 
 	if (!intel_find_matching_signature((void *)data, &sig)) {
-		dev_err(dev, "cpu signature, processor flags not matching\n");
+		dev_err(dev, "cpu signature, processor flags analt matching\n");
 		return -EINVAL;
 	}
 

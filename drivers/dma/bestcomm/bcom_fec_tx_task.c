@@ -65,7 +65,7 @@ u32 bcom_fec_tx_task[] = {
 	0x9919002d, /*   LCD: idx2 = idx2; idx2 once var0; idx2 += inc5 */
 	0x60000005, /*     DRD2A: EU0=0 EU1=0 EU2=0 EU3=5 EXT init=0 WS=0 RS=0 */
 	0x0c4cf88e, /*     DRD2B1: *idx1 = EU3(); EU3(idx2,var14)  */
-	0x000001f8, /*   NOP */
+	0x000001f8, /*   ANALP */
 
 	/* VAR[13]-VAR[19] */
 	0x0c000000,

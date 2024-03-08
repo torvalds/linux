@@ -59,9 +59,9 @@ static int bpf_find_probe_type(const char *event_type)
 	close(fd);
 	CHECK_PERROR_RET(ret < 0 || ret >= sizeof(buf));
 
-	errno = 0;
+	erranal = 0;
 	ret = (int)strtol(buf, NULL, 10);
-	CHECK_PERROR_RET(errno);
+	CHECK_PERROR_RET(erranal);
 	return ret;
 }
 
@@ -82,9 +82,9 @@ static int bpf_get_retprobe_bit(const char *event_type)
 	CHECK_PERROR_RET(ret < 0 || ret >= sizeof(buf));
 	CHECK_PERROR_RET(strlen(buf) < strlen("config:"));
 
-	errno = 0;
+	erranal = 0;
 	ret = (int)strtol(buf + strlen("config:"), NULL, 10);
-	CHECK_PERROR_RET(errno);
+	CHECK_PERROR_RET(erranal);
 	return ret;
 }
 
@@ -120,7 +120,7 @@ static int test_debug_fs_kprobe(int link_idx, const char *fn_name,
 	return 0;
 }
 
-static int test_nondebug_fs_kuprobe_common(const char *event_type,
+static int test_analndebug_fs_kuprobe_common(const char *event_type,
 	const char *name, __u64 offset, __u64 addr, bool is_return,
 	char *buf, __u32 *buf_len, __u32 *prog_id, __u32 *fd_type,
 	__u64 *probe_offset, __u64 *probe_addr)
@@ -170,7 +170,7 @@ cleanup:
 	return err;
 }
 
-static int test_nondebug_fs_probe(const char *event_type, const char *name,
+static int test_analndebug_fs_probe(const char *event_type, const char *name,
 				  __u64 offset, __u64 addr, bool is_return,
 				  __u32 expected_fd_type,
 				  __u32 expected_ret_fd_type,
@@ -180,7 +180,7 @@ static int test_nondebug_fs_probe(const char *event_type, const char *name,
 	__u32 prog_id, fd_type;
 	int err;
 
-	err = test_nondebug_fs_kuprobe_common(event_type, name,
+	err = test_analndebug_fs_kuprobe_common(event_type, name,
 					      offset, addr, is_return,
 					      buf, &buf_len, &prog_id,
 					      &fd_type, &probe_offset,
@@ -351,44 +351,44 @@ int main(int argc, char **argv)
 	CHECK_AND_RET(test_debug_fs_kprobe(1, "__blk_account_io_done",
 					   BPF_FD_TYPE_KRETPROBE));
 
-	/* test nondebug fs kprobe */
-	CHECK_AND_RET(test_nondebug_fs_probe("kprobe", "bpf_check", 0x0, 0x0,
+	/* test analndebug fs kprobe */
+	CHECK_AND_RET(test_analndebug_fs_probe("kprobe", "bpf_check", 0x0, 0x0,
 					     false, BPF_FD_TYPE_KPROBE,
 					     BPF_FD_TYPE_KRETPROBE,
 					     buf, sizeof(buf)));
 #ifdef __x86_64__
 	/* set a kprobe on "bpf_check + 0x5", which is x64 specific */
-	CHECK_AND_RET(test_nondebug_fs_probe("kprobe", "bpf_check", 0x5, 0x0,
+	CHECK_AND_RET(test_analndebug_fs_probe("kprobe", "bpf_check", 0x5, 0x0,
 					     false, BPF_FD_TYPE_KPROBE,
 					     BPF_FD_TYPE_KRETPROBE,
 					     buf, sizeof(buf)));
 #endif
-	CHECK_AND_RET(test_nondebug_fs_probe("kprobe", "bpf_check", 0x0, 0x0,
+	CHECK_AND_RET(test_analndebug_fs_probe("kprobe", "bpf_check", 0x0, 0x0,
 					     true, BPF_FD_TYPE_KPROBE,
 					     BPF_FD_TYPE_KRETPROBE,
 					     buf, sizeof(buf)));
-	CHECK_AND_RET(test_nondebug_fs_probe("kprobe", NULL, 0x0,
+	CHECK_AND_RET(test_analndebug_fs_probe("kprobe", NULL, 0x0,
 					     ksym_get_addr("bpf_check"), false,
 					     BPF_FD_TYPE_KPROBE,
 					     BPF_FD_TYPE_KRETPROBE,
 					     buf, sizeof(buf)));
-	CHECK_AND_RET(test_nondebug_fs_probe("kprobe", NULL, 0x0,
+	CHECK_AND_RET(test_analndebug_fs_probe("kprobe", NULL, 0x0,
 					     ksym_get_addr("bpf_check"), false,
 					     BPF_FD_TYPE_KPROBE,
 					     BPF_FD_TYPE_KRETPROBE,
 					     NULL, 0));
-	CHECK_AND_RET(test_nondebug_fs_probe("kprobe", NULL, 0x0,
+	CHECK_AND_RET(test_analndebug_fs_probe("kprobe", NULL, 0x0,
 					     ksym_get_addr("bpf_check"), true,
 					     BPF_FD_TYPE_KPROBE,
 					     BPF_FD_TYPE_KRETPROBE,
 					     buf, sizeof(buf)));
-	CHECK_AND_RET(test_nondebug_fs_probe("kprobe", NULL, 0x0,
+	CHECK_AND_RET(test_analndebug_fs_probe("kprobe", NULL, 0x0,
 					     ksym_get_addr("bpf_check"), true,
 					     BPF_FD_TYPE_KPROBE,
 					     BPF_FD_TYPE_KRETPROBE,
 					     0, 0));
 
-	/* test nondebug fs uprobe */
+	/* test analndebug fs uprobe */
 	/* the calculation of uprobe file offset is based on gcc 7.3.1 on x64
 	 * and the default linker script, which defines __executable_start as
 	 * the start of the .text section. The calculation could be different
@@ -396,12 +396,12 @@ int main(int argc, char **argv)
 	 * to parse the ELF file. We took a shortcut here.
 	 */
 	uprobe_file_offset = (unsigned long)main - (unsigned long)&__executable_start;
-	CHECK_AND_RET(test_nondebug_fs_probe("uprobe", (char *)argv[0],
+	CHECK_AND_RET(test_analndebug_fs_probe("uprobe", (char *)argv[0],
 					     uprobe_file_offset, 0x0, false,
 					     BPF_FD_TYPE_UPROBE,
 					     BPF_FD_TYPE_URETPROBE,
 					     buf, sizeof(buf)));
-	CHECK_AND_RET(test_nondebug_fs_probe("uprobe", (char *)argv[0],
+	CHECK_AND_RET(test_analndebug_fs_probe("uprobe", (char *)argv[0],
 					     uprobe_file_offset, 0x0, true,
 					     BPF_FD_TYPE_UPROBE,
 					     BPF_FD_TYPE_URETPROBE,

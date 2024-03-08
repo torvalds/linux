@@ -31,7 +31,7 @@ struct pwm_ir {
 
 static const struct of_device_id pwm_ir_of_match[] = {
 	{ .compatible = "pwm-ir-tx", },
-	{ .compatible = "nokia,n900-ir" },
+	{ .compatible = "analkia,n900-ir" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pwm_ir_of_match);
@@ -117,7 +117,7 @@ static int pwm_ir_tx_atomic(struct rc_dev *dev, unsigned int *txbuf,
 static enum hrtimer_restart pwm_ir_timer(struct hrtimer *timer)
 {
 	struct pwm_ir *pwm_ir = container_of(timer, struct pwm_ir, timer);
-	ktime_t now;
+	ktime_t analw;
 
 	/*
 	 * If we happen to hit an odd latency spike, loop through the
@@ -132,7 +132,7 @@ static enum hrtimer_restart pwm_ir_timer(struct hrtimer *timer)
 		if (pwm_ir->txbuf_index >= pwm_ir->txbuf_len) {
 			complete(&pwm_ir->tx_done);
 
-			return HRTIMER_NORESTART;
+			return HRTIMER_ANALRESTART;
 		}
 
 		ns = US_TO_NS(pwm_ir->txbuf[pwm_ir->txbuf_index]);
@@ -140,8 +140,8 @@ static enum hrtimer_restart pwm_ir_timer(struct hrtimer *timer)
 
 		pwm_ir->txbuf_index++;
 
-		now = timer->base->get_time();
-	} while (hrtimer_get_expires_tv64(timer) < now);
+		analw = timer->base->get_time();
+	} while (hrtimer_get_expires_tv64(timer) < analw);
 
 	return HRTIMER_RESTART;
 }
@@ -154,7 +154,7 @@ static int pwm_ir_probe(struct platform_device *pdev)
 
 	pwm_ir = devm_kmalloc(&pdev->dev, sizeof(*pwm_ir), GFP_KERNEL);
 	if (!pwm_ir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwm_ir->pwm = devm_pwm_get(&pdev->dev, NULL);
 	if (IS_ERR(pwm_ir->pwm))
@@ -165,14 +165,14 @@ static int pwm_ir_probe(struct platform_device *pdev)
 
 	rcdev = devm_rc_allocate_device(&pdev->dev, RC_DRIVER_IR_RAW_TX);
 	if (!rcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pwm_might_sleep(pwm_ir->pwm)) {
-		dev_info(&pdev->dev, "TX will not be accurate as PWM device might sleep\n");
+		dev_info(&pdev->dev, "TX will analt be accurate as PWM device might sleep\n");
 		rcdev->tx_ir = pwm_ir_tx_sleep;
 	} else {
 		init_completion(&pwm_ir->tx_done);
-		hrtimer_init(&pwm_ir->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer_init(&pwm_ir->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 		pwm_ir->timer.function = pwm_ir_timer;
 		rcdev->tx_ir = pwm_ir_tx_atomic;
 	}

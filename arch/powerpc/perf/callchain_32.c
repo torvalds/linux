@@ -36,7 +36,7 @@ static int read_user_stack_32(const unsigned int __user *ptr, unsigned int *ret)
 }
 
 /*
- * Layout for non-RT signal frames
+ * Layout for analn-RT signal frames
  */
 struct signal_frame_32 {
 	char			dummy[__SIGNAL_FRAMESIZE32];
@@ -106,10 +106,10 @@ static unsigned int __user *signal_frame_32_regs(unsigned int sp,
 	struct rt_signal_frame_32 __user *rt_sf;
 
 	/*
-	 * Note: the next_sp - sp >= signal frame size check
+	 * Analte: the next_sp - sp >= signal frame size check
 	 * is true when next_sp < sp, for example, when
 	 * transitioning from an alternate signal stack to the
-	 * normal stack.
+	 * analrmal stack.
 	 */
 	if (next_sp - sp >= sizeof(struct signal_frame_32) &&
 	    is_sigreturn_32_address(next_ip, sp) &&

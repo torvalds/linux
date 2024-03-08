@@ -28,9 +28,9 @@
  * The Octeon bootbus compact flash interface is connected in at least
  * 3 different configurations on various evaluation boards:
  *
- * -- 8  bits no irq, no DMA
- * -- 16 bits no irq, no DMA
- * -- 16 bits True IDE mode with DMA, but no irq.
+ * -- 8  bits anal irq, anal DMA
+ * -- 16 bits anal irq, anal DMA
+ * -- 16 bits True IDE mode with DMA, but anal irq.
  *
  * In the last case the DMA engine can generate an interrupt when the
  * transfer is complete.  For the first two cases only PIO is supported.
@@ -66,17 +66,17 @@ static const struct scsi_host_template octeon_cf_sht = {
 static int enable_dma;
 module_param(enable_dma, int, 0444);
 MODULE_PARM_DESC(enable_dma,
-		 "Enable use of DMA on interfaces that support it (0=no dma [default], 1=use dma)");
+		 "Enable use of DMA on interfaces that support it (0=anal dma [default], 1=use dma)");
 
 /*
- * Convert nanosecond based time to setting used in the
+ * Convert naanalsecond based time to setting used in the
  * boot bus timing register, based on timing multiple
  */
 static unsigned int ns_to_tim_reg(unsigned int tim_mult, unsigned int nsecs)
 {
 	/*
 	 * Compute # of eclock periods to get desired duration in
-	 * nanoseconds.
+	 * naanalseconds.
 	 */
 	return DIV_ROUND_UP(nsecs * (octeon_get_io_clock_rate() / 1000000),
 			  1000 * tim_mult);
@@ -107,8 +107,8 @@ static void octeon_cf_set_boot_reg_cfg(int cs, unsigned int multiplier)
 	reg_cfg.s.tim_mult = tim_mult;	/* Timing mutiplier */
 	reg_cfg.s.rd_dly = 0;	/* Sample on falling edge of BOOT_OE */
 	reg_cfg.s.sam = 0;	/* Don't combine write and output enable */
-	reg_cfg.s.we_ext = 0;	/* No write enable extension */
-	reg_cfg.s.oe_ext = 0;	/* No read enable extension */
+	reg_cfg.s.we_ext = 0;	/* Anal write enable extension */
+	reg_cfg.s.oe_ext = 0;	/* Anal read enable extension */
 	reg_cfg.s.en = 1;	/* Enable this region */
 	reg_cfg.s.orbit = 0;	/* Don't combine with previous region */
 	reg_cfg.s.ale = 0;	/* Don't do address multiplexing */
@@ -181,7 +181,7 @@ static void octeon_cf_set_piomode(struct ata_port *ap, struct ata_device *dev)
 	reg_tim.s.pages = 0;
 	/* We don't use multiplexed address mode */
 	reg_tim.s.ale = 0;
-	/* Not used */
+	/* Analt used */
 	reg_tim.s.page = 0;
 	/* Time after IORDY to coninue to assert the data */
 	reg_tim.s.wait = 0;
@@ -234,7 +234,7 @@ static void octeon_cf_set_dmamode(struct ata_port *ap, struct ata_device *dev)
 	/* dma_tim.s.tim_mult = 0 --> 4x */
 	tim_mult = 4;
 
-	/* not spec'ed, value in eclocks, not affected by tim_mult */
+	/* analt spec'ed, value in eclocks, analt affected by tim_mult */
 	dma_arq = 8;
 	pause = 25 - dma_arq * 1000 /
 		(octeon_get_io_clock_rate() / 1000000); /* Tz */
@@ -374,7 +374,7 @@ static unsigned int octeon_cf_data_xfer16(struct ata_queued_cmd *qc,
 }
 
 /*
- * Read the taskfile for 16bit non-True IDE only.
+ * Read the taskfile for 16bit analn-True IDE only.
  */
 static void octeon_cf_tf_read16(struct ata_port *ap, struct ata_taskfile *tf)
 {
@@ -445,7 +445,7 @@ static int octeon_cf_softreset16(struct ata_link *link, unsigned int *classes,
 
 	rc = ata_sff_wait_after_reset(link, 1, deadline);
 	if (rc) {
-		ata_link_err(link, "SRST failed (errno=%d)\n", rc);
+		ata_link_err(link, "SRST failed (erranal=%d)\n", rc);
 		return rc;
 	}
 
@@ -455,8 +455,8 @@ static int octeon_cf_softreset16(struct ata_link *link, unsigned int *classes,
 }
 
 /*
- * Load the taskfile for 16bit non-True IDE only.  The device_addr is
- * not loaded, we do this as part of octeon_cf_exec_command16.
+ * Load the taskfile for 16bit analn-True IDE only.  The device_addr is
+ * analt loaded, we do this as part of octeon_cf_exec_command16.
  */
 static void octeon_cf_tf_load16(struct ata_port *ap,
 				const struct ata_taskfile *tf)
@@ -486,7 +486,7 @@ static void octeon_cf_tf_load16(struct ata_port *ap,
 
 static void octeon_cf_dev_select(struct ata_port *ap, unsigned int device)
 {
-/*  There is only one device, do nothing. */
+/*  There is only one device, do analthing. */
 	return;
 }
 
@@ -510,7 +510,7 @@ static void octeon_cf_exec_command16(struct ata_port *ap,
 	ata_wait_idle(ap);
 }
 
-static void octeon_cf_ata_port_noaction(struct ata_port *ap)
+static void octeon_cf_ata_port_analaction(struct ata_port *ap)
 {
 }
 
@@ -570,7 +570,7 @@ static void octeon_cf_dma_start(struct ata_queued_cmd *qc)
 	 */
 	mio_boot_dma_cfg.s.clr = 0;
 
-	/* Size is specified in 16bit words and minus one notation */
+	/* Size is specified in 16bit words and minus one analtation */
 	mio_boot_dma_cfg.s.size = sg_dma_len(sg) / 2 - 1;
 
 	/* We need to swap the high and low bytes of every 16 bits */
@@ -603,7 +603,7 @@ static unsigned int octeon_cf_dma_finished(struct ata_port *ap,
 
 	dma_cfg.u64 = cvmx_read_csr(cf_port->dma_base + DMA_CFG);
 	if (dma_cfg.s.size != 0xfffff) {
-		/* Error, the transfer was not complete.  */
+		/* Error, the transfer was analt complete.  */
 		qc->err_mask |= AC_ERR_HOST_BUS;
 		ap->hsm_task_state = HSM_ST_ERR;
 	}
@@ -712,12 +712,12 @@ static enum hrtimer_restart octeon_cf_delayed_finish(struct hrtimer *hrt)
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 	u8 status;
-	enum hrtimer_restart rv = HRTIMER_NORESTART;
+	enum hrtimer_restart rv = HRTIMER_ANALRESTART;
 
 	spin_lock_irqsave(&host->lock, flags);
 
 	/*
-	 * If the port is not waiting for completion, it must have
+	 * If the port is analt waiting for completion, it must have
 	 * handled it previously.  The hsm_task_state is
 	 * protected by host->lock.
 	 */
@@ -727,7 +727,7 @@ static enum hrtimer_restart octeon_cf_delayed_finish(struct hrtimer *hrt)
 	status = ioread8(ap->ioaddr.altstatus_addr);
 	if (status & (ATA_BUSY | ATA_DRQ)) {
 		/* Still busy, try again. */
-		hrtimer_forward_now(hrt,
+		hrtimer_forward_analw(hrt,
 				    ns_to_ktime(OCTEON_CF_BUSY_POLL_INTERVAL));
 		rv = HRTIMER_RESTART;
 		goto out;
@@ -776,7 +776,7 @@ static unsigned int octeon_cf_qc_issue(struct ata_queued_cmd *qc)
 		break;
 
 	case ATAPI_PROT_DMA:
-		dev_err(ap->dev, "Error, ATAPI not supported\n");
+		dev_err(ap->dev, "Error, ATAPI analt supported\n");
 		BUG();
 
 	default:
@@ -789,11 +789,11 @@ static unsigned int octeon_cf_qc_issue(struct ata_queued_cmd *qc)
 static struct ata_port_operations octeon_cf_ops = {
 	.inherits		= &ata_sff_port_ops,
 	.check_atapi_dma	= octeon_cf_check_atapi_dma,
-	.qc_prep		= ata_noop_qc_prep,
+	.qc_prep		= ata_analop_qc_prep,
 	.qc_issue		= octeon_cf_qc_issue,
 	.sff_dev_select		= octeon_cf_dev_select,
-	.sff_irq_on		= octeon_cf_ata_port_noaction,
-	.sff_irq_clear		= octeon_cf_ata_port_noaction,
+	.sff_irq_on		= octeon_cf_ata_port_analaction,
+	.sff_irq_clear		= octeon_cf_ata_port_analaction,
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= octeon_cf_set_piomode,
 	.set_dmamode		= octeon_cf_set_dmamode,
@@ -806,7 +806,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 
 	bool is_16bit;
 	u64 reg;
-	struct device_node *node;
+	struct device_analde *analde;
 	void __iomem *cs0;
 	void __iomem *cs1 = NULL;
 	struct ata_host *host;
@@ -818,47 +818,47 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	u32 bus_width;
 	int rv;
 
-	node = pdev->dev.of_node;
-	if (node == NULL)
+	analde = pdev->dev.of_analde;
+	if (analde == NULL)
 		return -EINVAL;
 
 	cf_port = devm_kzalloc(&pdev->dev, sizeof(*cf_port), GFP_KERNEL);
 	if (!cf_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cf_port->is_true_ide = of_property_read_bool(node, "cavium,true-ide");
+	cf_port->is_true_ide = of_property_read_bool(analde, "cavium,true-ide");
 
-	if (of_property_read_u32(node, "cavium,bus-width", &bus_width) == 0)
+	if (of_property_read_u32(analde, "cavium,bus-width", &bus_width) == 0)
 		is_16bit = (bus_width == 16);
 	else
 		is_16bit = false;
 
-	rv = of_property_read_reg(node, 0, &reg, NULL);
+	rv = of_property_read_reg(analde, 0, &reg, NULL);
 	if (rv < 0)
 		return rv;
 	cf_port->cs0 = upper_32_bits(reg);
 
 	if (cf_port->is_true_ide) {
-		struct device_node *dma_node;
-		dma_node = of_parse_phandle(node,
+		struct device_analde *dma_analde;
+		dma_analde = of_parse_phandle(analde,
 					    "cavium,dma-engine-handle", 0);
-		if (dma_node) {
+		if (dma_analde) {
 			struct platform_device *dma_dev;
-			dma_dev = of_find_device_by_node(dma_node);
+			dma_dev = of_find_device_by_analde(dma_analde);
 			if (dma_dev) {
 				struct resource *res_dma;
 				int i;
 				res_dma = platform_get_resource(dma_dev, IORESOURCE_MEM, 0);
 				if (!res_dma) {
 					put_device(&dma_dev->dev);
-					of_node_put(dma_node);
+					of_analde_put(dma_analde);
 					return -EINVAL;
 				}
 				cf_port->dma_base = (u64)devm_ioremap(&pdev->dev, res_dma->start,
 									 resource_size(res_dma));
 				if (!cf_port->dma_base) {
 					put_device(&dma_dev->dev);
-					of_node_put(dma_node);
+					of_analde_put(dma_analde);
 					return -EINVAL;
 				}
 
@@ -869,7 +869,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 				}
 				put_device(&dma_dev->dev);
 			}
-			of_node_put(dma_node);
+			of_analde_put(dma_analde);
 		}
 		res_cs1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		if (!res_cs1)
@@ -880,7 +880,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 		if (!cs1)
 			return -EINVAL;
 
-		rv = of_property_read_reg(node, 1, &reg, NULL);
+		rv = of_property_read_reg(analde, 1, &reg, NULL);
 		if (rv < 0)
 			return rv;
 		cf_port->cs1 = upper_32_bits(reg);
@@ -893,12 +893,12 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	cs0 = devm_ioremap(&pdev->dev, res_cs0->start,
 				   resource_size(res_cs0));
 	if (!cs0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ap = host->ports[0];
 	ap->private_data = cf_port;
@@ -906,7 +906,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	cf_port->ap = ap;
 	ap->ops = &octeon_cf_ops;
 	ap->pio_mask = ATA_PIO6;
-	ap->flags |= ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING;
+	ap->flags |= ATA_FLAG_ANAL_ATAPI | ATA_FLAG_PIO_POLLING;
 
 	if (!is_16bit) {
 		base = cs0 + 0x800;
@@ -935,12 +935,12 @@ static int octeon_cf_probe(struct platform_device *pdev)
 
 		ap->mwdma_mask	= enable_dma ? ATA_MWDMA4 : 0;
 
-		/* True IDE mode needs a timer to poll for not-busy.  */
-		hrtimer_init(&cf_port->delayed_finish, CLOCK_MONOTONIC,
+		/* True IDE mode needs a timer to poll for analt-busy.  */
+		hrtimer_init(&cf_port->delayed_finish, CLOCK_MOANALTONIC,
 			     HRTIMER_MODE_REL);
 		cf_port->delayed_finish.function = octeon_cf_delayed_finish;
 	} else {
-		/* 16 bit but not True IDE */
+		/* 16 bit but analt True IDE */
 		base = cs0 + 0x800;
 		octeon_cf_ops.sff_data_xfer	= octeon_cf_data_xfer16;
 		octeon_cf_ops.softreset		= octeon_cf_softreset16;

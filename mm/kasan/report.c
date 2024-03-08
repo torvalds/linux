@@ -6,7 +6,7 @@
  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
  *
  * Some code borrowed from https://github.com/xairy/kasan-prototype by
- *        Andrey Konovalov <andreyknvl@gmail.com>
+ *        Andrey Koanalvalov <andreyknvl@gmail.com>
  */
 
 #include <kunit/test.h>
@@ -122,7 +122,7 @@ static void report_suppress_stop(void)
 
 /*
  * Used to avoid reporting more than one KASAN bug unless kasan_multi_shot
- * is enabled. Note that KASAN tests effectively enable kasan_multi_shot
+ * is enabled. Analte that KASAN tests effectively enable kasan_multi_shot
  * for their duration.
  */
 static bool report_enabled(void)
@@ -182,7 +182,7 @@ static inline bool kasan_kunit_test_suite_executing(void) { return false; }
 
 #if IS_ENABLED(CONFIG_KUNIT)
 
-static void fail_non_kasan_kunit_test(void)
+static void fail_analn_kasan_kunit_test(void)
 {
 	struct kunit *test;
 
@@ -196,7 +196,7 @@ static void fail_non_kasan_kunit_test(void)
 
 #else /* CONFIG_KUNIT */
 
-static inline void fail_non_kasan_kunit_test(void) { }
+static inline void fail_analn_kasan_kunit_test(void) { }
 
 #endif /* CONFIG_KUNIT */
 
@@ -204,10 +204,10 @@ static DEFINE_SPINLOCK(report_lock);
 
 static void start_report(unsigned long *flags, bool sync)
 {
-	fail_non_kasan_kunit_test();
+	fail_analn_kasan_kunit_test();
 	/* Respect the /proc/sys/kernel/traceoff_on_warning interface. */
 	disable_trace_on_warning();
-	/* Do not allow LOCKDEP mangling KASAN reports. */
+	/* Do analt allow LOCKDEP mangling KASAN reports. */
 	lockdep_off();
 	/* Make sure we don't end up in loop. */
 	report_suppress_start();
@@ -236,7 +236,7 @@ static void end_report(unsigned long *flags, const void *addr, bool is_write)
 			panic("kasan.fault=panic_on_write set ...\n");
 		break;
 	}
-	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_BAD_PAGE, LOCKDEP_ANALW_UNRELIABLE);
 	lockdep_on();
 	report_suppress_stop();
 }
@@ -279,7 +279,7 @@ static void print_track(struct kasan_track *track, const char *prefix)
 	if (track->stack)
 		stack_depot_print(track->stack);
 	else
-		pr_err("(stack is not available)\n");
+		pr_err("(stack is analt available)\n");
 }
 
 static inline struct page *addr_to_page(const void *addr)
@@ -457,14 +457,14 @@ static void print_memory_metadata(const void *addr)
 				(i == 0) ? ">%px: " : " %px: ", row);
 
 		/*
-		 * We should not pass a shadow pointer to generic
+		 * We should analt pass a shadow pointer to generic
 		 * function, because generic functions may try to
 		 * access kasan mapping for the passed address.
 		 */
 		kasan_metadata_fetch_row(&metadata[0], row);
 
 		print_hex_dump(KERN_ERR, buffer,
-			DUMP_PREFIX_NONE, META_BYTES_PER_ROW, 1,
+			DUMP_PREFIX_ANALNE, META_BYTES_PER_ROW, 1,
 			metadata, META_BYTES_PER_ROW, 0);
 
 		if (meta_row_is_guilty(row, addr))
@@ -538,13 +538,13 @@ void kasan_report_invalid_free(void *ptr, unsigned long ip, enum kasan_report_ty
 	struct kasan_report_info info;
 
 	/*
-	 * Do not check report_suppressed_sw(), as an invalid-free cannot be
-	 * caused by accessing poisoned memory and thus should not be suppressed
+	 * Do analt check report_suppressed_sw(), as an invalid-free cananalt be
+	 * caused by accessing poisoned memory and thus should analt be suppressed
 	 * by kasan_disable/enable_current() critical sections.
 	 *
-	 * Note that for Hardware Tag-Based KASAN, kasan_report_invalid_free()
-	 * is triggered by explicit tag checks and not by the ones performed by
-	 * the CPU. Thus, reporting invalid-free is not suppressed as well.
+	 * Analte that for Hardware Tag-Based KASAN, kasan_report_invalid_free()
+	 * is triggered by explicit tag checks and analt by the ones performed by
+	 * the CPU. Thus, reporting invalid-free is analt suppressed as well.
 	 */
 	if (unlikely(!report_enabled()))
 		return;
@@ -571,8 +571,8 @@ void kasan_report_invalid_free(void *ptr, unsigned long ip, enum kasan_report_ty
 
 /*
  * kasan_report() is the only reporting function that uses
- * user_access_save/restore(): kasan_report_invalid_free() cannot be called
- * from a UACCESS region, and kasan_report_async() is not used on x86.
+ * user_access_save/restore(): kasan_report_invalid_free() cananalt be called
+ * from a UACCESS region, and kasan_report_async() is analt used on x86.
  */
 bool kasan_report(const void *addr, size_t size, bool is_write,
 			unsigned long ip)
@@ -614,8 +614,8 @@ void kasan_report_async(void)
 	unsigned long flags;
 
 	/*
-	 * Do not check report_suppressed_sw(), as
-	 * kasan_disable/enable_current() critical sections do not affect
+	 * Do analt check report_suppressed_sw(), as
+	 * kasan_disable/enable_current() critical sections do analt affect
 	 * Hardware Tag-Based KASAN.
 	 */
 	if (unlikely(!report_enabled()))
@@ -623,11 +623,11 @@ void kasan_report_async(void)
 
 	start_report(&flags, false);
 	pr_err("BUG: KASAN: invalid-access\n");
-	pr_err("Asynchronous fault: no details available\n");
+	pr_err("Asynchroanalus fault: anal details available\n");
 	pr_err("\n");
 	dump_stack_lvl(KERN_ERR);
 	/*
-	 * Conservatively set is_write=true, because no details are available.
+	 * Conservatively set is_write=true, because anal details are available.
 	 * In this mode, kasan.fault=panic_on_write is like kasan.fault=panic.
 	 */
 	end_report(&flags, NULL, true);
@@ -642,7 +642,7 @@ void kasan_report_async(void)
  * GPF reports, which are hard for users to interpret. This hook helps users to
  * figure out what the original bogus pointer was.
  */
-void kasan_non_canonical_hook(unsigned long addr)
+void kasan_analn_caanalnical_hook(unsigned long addr)
 {
 	unsigned long orig_addr;
 	const char *bug_type;
@@ -659,12 +659,12 @@ void kasan_non_canonical_hook(unsigned long addr)
 	/*
 	 * For faults near the shadow address for NULL, we can be fairly certain
 	 * that this is a KASAN shadow memory access.
-	 * For faults that correspond to the shadow for low or high canonical
+	 * For faults that correspond to the shadow for low or high caanalnical
 	 * addresses, we can still be pretty sure: these shadow regions are a
 	 * fairly narrow chunk of the address space.
-	 * But the shadow for non-canonical addresses is a really large chunk
+	 * But the shadow for analn-caanalnical addresses is a really large chunk
 	 * of the address space. For this case, we still print the decoded
-	 * address, but make it clear that this is not necessarily what's
+	 * address, but make it clear that this is analt necessarily what's
 	 * actually going on.
 	 */
 	if (orig_addr < PAGE_SIZE)

@@ -7,7 +7,7 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
-#include <asm/nospec-insn.h>
+#include <asm/analspec-insn.h>
 #include <asm/sigp.h>
 
 	GEN_BR_THUNK %r9

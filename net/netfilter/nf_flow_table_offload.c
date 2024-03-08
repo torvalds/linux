@@ -160,7 +160,7 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 		memset(&mask->ipv6.dst, 0xff, sizeof(mask->ipv6.dst));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	mask->control.addr_type = 0xffff;
 	match->dissector.used_keys |= BIT_ULL(key->control.addr_type);
@@ -176,7 +176,7 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 	case IPPROTO_GRE:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	key->basic.ip_proto = tuple->l4proto;
@@ -243,12 +243,12 @@ static int flow_offload_eth_src(struct net *net,
 		other_tuple = &flow->tuplehash[!dir].tuple;
 		dev = dev_get_by_index(net, other_tuple->iifidx);
 		if (!dev)
-			return -ENOENT;
+			return -EANALENT;
 
 		addr = dev->dev_addr;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mask = ~0xffff0000;
@@ -295,7 +295,7 @@ static int flow_offload_eth_dst(struct net *net,
 		dst_cache = this_tuple->dst_cache;
 		n = dst_neigh_lookup(dst_cache, daddr);
 		if (!n)
-			return -ENOENT;
+			return -EANALENT;
 
 		read_lock_bh(&n->lock);
 		nud_state = n->nud_state;
@@ -304,10 +304,10 @@ static int flow_offload_eth_dst(struct net *net,
 		neigh_release(n);
 
 		if (!(nud_state & NUD_VALID))
-			return -ENOENT;
+			return -EANALENT;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mask = ~0xffffffff;
@@ -738,7 +738,7 @@ nf_flow_offload_rule_alloc(struct net *net,
 	struct flow_offload *flow = offload->flow;
 	struct dst_entry *other_dst = NULL;
 	struct nf_flow_rule *flow_rule;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	flow_rule = kzalloc(sizeof(*flow_rule), GFP_KERNEL);
 	if (!flow_rule)
@@ -807,13 +807,13 @@ static int nf_flow_offload_alloc(const struct flow_offload_work *offload,
 	flow_rule[0] = nf_flow_offload_rule_alloc(net, offload,
 						  FLOW_OFFLOAD_DIR_ORIGINAL);
 	if (!flow_rule[0])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow_rule[1] = nf_flow_offload_rule_alloc(net, offload,
 						  FLOW_OFFLOAD_DIR_REPLY);
 	if (!flow_rule[1]) {
 		__nf_flow_offload_destroy(flow_rule[0]);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -899,7 +899,7 @@ static int flow_offload_rule_add(struct flow_offload_work *offload,
 		ok_count += flow_offload_tuple_add(offload, flow_rule[1],
 						   FLOW_OFFLOAD_DIR_REPLY);
 	if (ok_count == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -1115,7 +1115,7 @@ static int nf_flow_table_block_setup(struct nf_flowtable *flowtable,
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 	up_write(&flowtable->flow_block_lock);
 
@@ -1212,7 +1212,7 @@ int nf_flow_table_offload_init(void)
 	nf_flow_offload_add_wq  = alloc_workqueue("nf_ft_offload_add",
 						  WQ_UNBOUND | WQ_SYSFS, 0);
 	if (!nf_flow_offload_add_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nf_flow_offload_del_wq  = alloc_workqueue("nf_ft_offload_del",
 						  WQ_UNBOUND | WQ_SYSFS, 0);
@@ -1230,7 +1230,7 @@ err_stats_wq:
 	destroy_workqueue(nf_flow_offload_del_wq);
 err_del_wq:
 	destroy_workqueue(nf_flow_offload_add_wq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void nf_flow_table_offload_exit(void)

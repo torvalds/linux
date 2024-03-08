@@ -14,11 +14,11 @@ struct Sun_Machine_Models {
 	unsigned char id_machtype;
 };
 
-/* Current number of machines we know about that has an IDPROM
+/* Current number of machines we kanalw about that has an IDPROM
  * machtype entry including one entry for the 0x80 OBP machines.
  */
 // reduced along with table in arch/m68k/sun3/idprom.c
-// sun3 port doesn't need to know about sparc machines.
+// sun3 port doesn't need to kanalw about sparc machines.
 //#define NUM_SUN_MACHINES   23
 #define NUM_SUN_MACHINES  8
 

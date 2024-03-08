@@ -29,7 +29,7 @@ Description:	Reading this file gives the current selected profile for this
 
 		This file can be monitored for changes by polling for POLLPRI,
 		POLLPRI will be signalled on any changes, independent of those
-		changes coming from a userspace write; or coming from another
+		changes coming from a userspace write; or coming from aanalther
 		source such as e.g. a hotkey triggered profile change handled
 		either directly by the embedded-controller or fully handled
 		inside the kernel.

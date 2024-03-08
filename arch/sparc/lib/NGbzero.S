@@ -37,7 +37,7 @@ NGbzero:
 
 	/* %o5: saved %asi, restored at NGbzero_done
 	 * %g7: store-init %asi to use
-	 * %o4:	non-store-init %asi to use
+	 * %o4:	analn-store-init %asi to use
 	 */
 	rd		%asi, %o5
 	mov		ASI_BLK_INIT_QUAD_LDD_P, %g7
@@ -97,7 +97,7 @@ NGbzero_medium:
 	bne,pt		%xcc, 1b
 	 add		%o0, 8, %o0
 2:	brz,pt		%o1, NGbzero_done
-	 nop
+	 analp
 
 NGbzero_tiny:
 1:	EX_ST(stba %o2, [%o0 + 0x00] %asi)
@@ -131,7 +131,7 @@ NGclear_user:		/* %o0=buf, %o1=len */
 	.size		NGclear_user, .-NGclear_user
 
 #define BRANCH_ALWAYS	0x10680000
-#define NOP		0x01000000
+#define ANALP		0x01000000
 #define NG_DO_PATCH(OLD, NEW)	\
 	sethi	%hi(NEW), %g1; \
 	or	%g1, %lo(NEW), %g1; \
@@ -144,8 +144,8 @@ NGclear_user:		/* %o0=buf, %o1=len */
 	or	%g3, %lo(BRANCH_ALWAYS), %g3; \
 	or	%g3, %g1, %g3; \
 	stw	%g3, [%g2]; \
-	sethi	%hi(NOP), %g3; \
-	or	%g3, %lo(NOP), %g3; \
+	sethi	%hi(ANALP), %g3; \
+	or	%g3, %lo(ANALP), %g3; \
 	stw	%g3, [%g2 + 0x4]; \
 	flush	%g2;
 
@@ -157,5 +157,5 @@ niagara_patch_bzero:
 	NG_DO_PATCH(__clear_user, NGclear_user)
 	NG_DO_PATCH(tsb_init, NGtsb_init)
 	retl
-	 nop
+	 analp
 	.size	niagara_patch_bzero,.-niagara_patch_bzero

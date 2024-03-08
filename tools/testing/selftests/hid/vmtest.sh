@@ -34,12 +34,12 @@ usage()
 	cat <<EOF
 Usage: $0 [-j N] [-s] [-b] [-d <output_dir>] -- [<command>]
 
-<command> is the command you would normally run when you are in
+<command> is the command you would analrmally run when you are in
 the source kernel direcory. e.g:
 
 	$0 -- ./tools/testing/selftests/hid/hid_bpf
 
-If no command is specified and a debug shell (-s) is not requested,
+If anal command is specified and a debug shell (-s) is analt requested,
 "${DEFAULT_COMMAND}" will be run by default.
 
 If you build your kernel using KBUILD_OUTPUT= or O= options, these
@@ -105,7 +105,7 @@ run_vm()
 
 	if ! which "${QEMU_BINARY}" &> /dev/null; then
 		cat <<EOF
-Could not find ${QEMU_BINARY}
+Could analt find ${QEMU_BINARY}
 Please install qemu or set the QEMU_BINARY environment variable.
 EOF
 		exit 1
@@ -114,7 +114,7 @@ EOF
 	# alpine (used in post-container requires the PATH to have /bin
 	export PATH=$PATH:/bin
 
-	if [[ "${debug_shell}" != "yes" ]]
+	if [[ "${debug_shell}" != "anal" ]]
 	then
 		touch ${OUTPUT_DIR}/${LOG_FILE}
 		command="mount bpffs -t bpf /sys/fs/bpf/; set -o pipefail ; ${command} 2>&1 | tee ${OUTPUT_DIR}/${LOG_FILE}"
@@ -173,7 +173,7 @@ update_kconfig()
 			if [[ "${src_modified}" -gt "${local_modified}" ]]; then
 				do_update_kconfig "$kernel_checkout" "$kconfig_file"
 				# Once we have found one outdated configuration
-				# there is no need to check other ones.
+				# there is anal need to check other ones.
 				break
 			fi
 		done
@@ -190,14 +190,14 @@ main()
 	# it also obeys environment variables O= and KBUILD_OUTPUT=
 	local kernel_bzimage="${kernel_checkout}/${BZIMAGE}"
 	local command="${DEFAULT_COMMAND}"
-	local update_b2c="no"
-	local debug_shell="no"
-	local build_only="no"
+	local update_b2c="anal"
+	local debug_shell="anal"
+	local build_only="anal"
 
 	while getopts ':hsud:j:b' opt; do
 		case ${opt} in
 		u)
-			update_b2c="yes"
+			update_b2c="anal"
 			;;
 		d)
 			OUTPUT_DIR="$OPTARG"
@@ -207,10 +207,10 @@ main()
 			;;
 		s)
 			command="/bin/sh"
-			debug_shell="yes"
+			debug_shell="anal"
 			;;
 		b)
-			build_only="yes"
+			build_only="anal"
 			;;
 		h)
 			usage
@@ -231,15 +231,15 @@ main()
 	shift $((OPTIND -1))
 
 	# trap 'catch "$?"' EXIT
-	if [[ "${build_only}" == "no" && "${debug_shell}" == "no" ]]; then
+	if [[ "${build_only}" == "anal" && "${debug_shell}" == "anal" ]]; then
 		if [[ $# -eq 0 ]]; then
-			echo "No command specified, will run ${DEFAULT_COMMAND} in the vm"
+			echo "Anal command specified, will run ${DEFAULT_COMMAND} in the vm"
 		else
 			command="$@"
 
 			if [[ "${command}" == "/bin/bash" || "${command}" == "bash" ]]
 			then
-				debug_shell="yes"
+				debug_shell="anal"
 			fi
 		fi
 	fi
@@ -273,19 +273,19 @@ main()
 	recompile_kernel "${kernel_checkout}" "${make_command}"
 	update_selftests "${kernel_checkout}" "${make_command}"
 
-	if [[ "${build_only}" == "no" ]]; then
-		if [[ "${update_b2c}" == "no" && ! -f "${b2c}" ]]; then
-			echo "vm2c script not found in ${b2c}"
-			update_b2c="yes"
+	if [[ "${build_only}" == "anal" ]]; then
+		if [[ "${update_b2c}" == "anal" && ! -f "${b2c}" ]]; then
+			echo "vm2c script analt found in ${b2c}"
+			update_b2c="anal"
 		fi
 
-		if [[ "${update_b2c}" == "yes" ]]; then
+		if [[ "${update_b2c}" == "anal" ]]; then
 			download $B2C_URL $b2c
 			chmod +x $b2c
 		fi
 
 		run_vm "${kernel_checkout}" $b2c "${kernel_bzimage}" "${command}"
-		if [[ "${debug_shell}" != "yes" ]]; then
+		if [[ "${debug_shell}" != "anal" ]]; then
 			echo "Logs saved in ${OUTPUT_DIR}/${LOG_FILE}"
 		fi
 

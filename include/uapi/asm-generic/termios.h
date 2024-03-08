@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_GENERIC_TERMIOS_H
 #define _UAPI_ASM_GENERIC_TERMIOS_H
 /*
@@ -6,7 +6,7 @@
  * varying levels of bug fixes on top. Usually it's a good idea
  * to use this generic version instead, but be careful to avoid
  * ABI changes.
- * New architectures should not provide their own version.
+ * New architectures should analt provide their own version.
  */
 
 #include <asm/termbits.h>

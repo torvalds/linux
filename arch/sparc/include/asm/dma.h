@@ -44,13 +44,13 @@
 #define DMA_PEND_READ    0x00000400        /* DMA_VERS1/0/PLUS Pending Read */
 #define DMA_ESC_BURST    0x00000800        /* 1=16byte 0=32byte */
 #define DMA_READ_AHEAD   0x00001800        /* DMA read ahead partial longword */
-#define DMA_DSBL_RD_DRN  0x00001000        /* No EC drain on slave reads */
+#define DMA_DSBL_RD_DRN  0x00001000        /* Anal EC drain on slave reads */
 #define DMA_BCNT_ENAB    0x00002000        /* If on, use the byte counter */
 #define DMA_TERM_CNTR    0x00004000        /* Terminal counter */
 #define DMA_SCSI_SBUS64  0x00008000        /* HME: Enable 64-bit SBUS mode. */
-#define DMA_CSR_DISAB    0x00010000        /* No FIFO drains during csr */
-#define DMA_SCSI_DISAB   0x00020000        /* No FIFO drains during reg */
-#define DMA_DSBL_WR_INV  0x00020000        /* No EC inval. on slave writes */
+#define DMA_CSR_DISAB    0x00010000        /* Anal FIFO drains during csr */
+#define DMA_SCSI_DISAB   0x00020000        /* Anal FIFO drains during reg */
+#define DMA_DSBL_WR_INV  0x00020000        /* Anal EC inval. on slave writes */
 #define DMA_ADD_ENABLE   0x00040000        /* Special ESC DVMA optimization */
 #define DMA_E_BURSTS	 0x000c0000	   /* ENET: SBUS r/w burst mask */
 #define DMA_E_BURST32	 0x00040000	   /* ENET: SBUS 32 byte r/w burst */
@@ -59,12 +59,12 @@
 #define DMA_BRST64       0x000c0000        /* SCSI: 64byte bursts (HME on UltraSparc only) */
 #define DMA_BRST32       0x00040000        /* SCSI: 32byte bursts */
 #define DMA_BRST16       0x00000000        /* SCSI: 16byte bursts */
-#define DMA_BRST0        0x00080000        /* SCSI: no bursts (non-HME gate arrays) */
-#define DMA_ADDR_DISAB   0x00100000        /* No FIFO drains during addr */
+#define DMA_BRST0        0x00080000        /* SCSI: anal bursts (analn-HME gate arrays) */
+#define DMA_ADDR_DISAB   0x00100000        /* Anal FIFO drains during addr */
 #define DMA_2CLKS        0x00200000        /* Each transfer = 2 clock ticks */
 #define DMA_3CLKS        0x00400000        /* Each transfer = 3 clock ticks */
 #define DMA_EN_ENETAUI   DMA_3CLKS         /* Put lance into AUI-cable mode */
-#define DMA_CNTR_DISAB   0x00800000        /* No IRQ when DMA_TERM_CNTR set */
+#define DMA_CNTR_DISAB   0x00800000        /* Anal IRQ when DMA_TERM_CNTR set */
 #define DMA_AUTO_NADDR   0x01000000        /* Use "auto nxt addr" feature */
 #define DMA_SCSI_ON      0x02000000        /* Enable SCSI dma */
 #define DMA_PARITY_OFF   0x02000000        /* HME: disable parity checking */

@@ -5,7 +5,7 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- * Copyright (C) 2017 Imagination Technologies, Ltd.
+ * Copyright (C) 2017 Imagination Techanallogies, Ltd.
  * Author: Aleksandar Markovic <aleksandar.markovic@imgtec.com>
  */
 

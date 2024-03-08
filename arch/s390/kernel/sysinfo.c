@@ -40,7 +40,7 @@ static inline int __stsi(void *sysinfo, int fc, int sel1, int sel2, int *lvl)
 		: [r0] "+d" (r0), [rc] "+d" (rc)
 		: [r1] "d" (sel2),
 		  [sysinfo] "a" (sysinfo),
-		  [retval] "K" (-EOPNOTSUPP)
+		  [retval] "K" (-EOPANALTSUPP)
 		: "cc", "0", "1", "memory");
 	*lvl = ((unsigned int) r0) >> 28;
 	return rc;
@@ -129,13 +129,13 @@ static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 			   info->model_var_cap,
 			   info->model_var_cap_rating);
 	if (info->ncr)
-		seq_printf(m, "Nominal Cap. Rating:  %08u\n", info->ncr);
+		seq_printf(m, "Analminal Cap. Rating:  %08u\n", info->ncr);
 	if (info->npr)
-		seq_printf(m, "Nominal Perm. Rating: %08u\n", info->npr);
+		seq_printf(m, "Analminal Perm. Rating: %08u\n", info->npr);
 	if (info->ntr)
-		seq_printf(m, "Nominal Temp. Rating: %08u\n", info->ntr);
+		seq_printf(m, "Analminal Temp. Rating: %08u\n", info->ntr);
 	if (has_var_cap && info->nvr)
-		seq_printf(m, "Nominal Var. Rating:  %08u\n", info->nvr);
+		seq_printf(m, "Analminal Var. Rating:  %08u\n", info->nvr);
 	if (info->cai) {
 		seq_printf(m, "Capacity Adj. Ind.:   %d\n", info->cai);
 		seq_printf(m, "Capacity Ch. Reason:  %d\n", info->ccr);
@@ -191,18 +191,18 @@ static void stsi_1_2_2(struct seq_file *m, struct sysinfo_1_2_2 *info)
 	/*
 	 * Sigh 2. According to the specification the alternate
 	 * capability field is a 32 bit floating point number
-	 * if the higher order 8 bits are not zero. Printing
-	 * a floating point number in the kernel is a no-no,
+	 * if the higher order 8 bits are analt zero. Printing
+	 * a floating point number in the kernel is a anal-anal,
 	 * always print the number as 32 bit unsigned integer.
-	 * The user-space needs to know about the strange
+	 * The user-space needs to kanalw about the strange
 	 * encoding of the alternate cpu capability.
 	 */
 	seq_printf(m, "Capability:           %u", info->capability);
 	if (info->format == 1)
 		seq_printf(m, " %u", ext->alt_capability);
 	seq_putc(m, '\n');
-	if (info->nominal_cap)
-		seq_printf(m, "Nominal Capability:   %d\n", info->nominal_cap);
+	if (info->analminal_cap)
+		seq_printf(m, "Analminal Capability:   %d\n", info->analminal_cap);
 	if (info->secondary_cap)
 		seq_printf(m, "Secondary Capability: %d\n", info->secondary_cap);
 	for (i = 2; i <= info->cpus_total; i++) {
@@ -345,7 +345,7 @@ EXPORT_SYMBOL(register_service_level);
 int unregister_service_level(struct service_level *slr)
 {
 	struct service_level *ptr, *next;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	down_write(&service_level_sem);
 	list_for_each_entry_safe(ptr, next, &service_level_list, list) {
@@ -443,7 +443,7 @@ void s390_adjust_jiffies(void)
 		 * In addition a lower value indicates a proportionally
 		 * higher cpu capacity. Bogomips are the other way round.
 		 * To get to a halfway suitable number we divide 1e7
-		 * by the cpu capability number. Yes, that means a floating
+		 * by the cpu capability number. Anal, that means a floating
 		 * point division ..
 		 */
 		kernel_fpu_begin(&fpu, KERNEL_FPR);
@@ -488,27 +488,27 @@ void calibrate_delay(void)
 #ifdef CONFIG_DEBUG_FS
 
 #define STSI_FILE(fc, s1, s2)						       \
-static int stsi_open_##fc##_##s1##_##s2(struct inode *inode, struct file *file)\
+static int stsi_open_##fc##_##s1##_##s2(struct ianalde *ianalde, struct file *file)\
 {									       \
 	file->private_data = (void *) get_zeroed_page(GFP_KERNEL);	       \
 	if (!file->private_data)					       \
-		return -ENOMEM;						       \
+		return -EANALMEM;						       \
 	if (stsi(file->private_data, fc, s1, s2)) {			       \
 		free_page((unsigned long)file->private_data);		       \
 		file->private_data = NULL;				       \
 		return -EACCES;						       \
 	}								       \
-	return nonseekable_open(inode, file);				       \
+	return analnseekable_open(ianalde, file);				       \
 }									       \
 									       \
 static const struct file_operations stsi_##fc##_##s1##_##s2##_fs_ops = {       \
 	.open		= stsi_open_##fc##_##s1##_##s2,			       \
 	.release	= stsi_release,					       \
 	.read		= stsi_read,					       \
-	.llseek		= no_llseek,					       \
+	.llseek		= anal_llseek,					       \
 };
 
-static int stsi_release(struct inode *inode, struct file *file)
+static int stsi_release(struct ianalde *ianalde, struct file *file)
 {
 	free_page((unsigned long)file->private_data);
 	return 0;

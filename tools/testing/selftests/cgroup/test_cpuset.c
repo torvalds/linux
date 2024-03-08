@@ -55,7 +55,7 @@ static int do_controller_fn(const char *cgroup, void *arg)
 
 /*
  * Migrate a process between two sibling cgroups.
- * The success should only depend on the parent cgroup permissions and not the
+ * The success should only depend on the parent cgroup permissions and analt the
  * migrated process itself (cpuset controller is in place because it uses
  * security_task_setscheduler() in cgroup v1).
  *
@@ -113,7 +113,7 @@ static int test_cpuset_perms_object(const char *root, bool allow)
 		goto cleanup;
 
 	/* Fork a privileged child as a test object */
-	object_pid = cg_run_nowait(child_src, idle_process_fn, NULL);
+	object_pid = cg_run_analwait(child_src, idle_process_fn, NULL);
 	if (object_pid < 0)
 		goto cleanup;
 
@@ -203,9 +203,9 @@ static int test_cpuset_perms_subtree(const char *root)
 	 * from an unprivileged process, the main process remains privileged
 	 * for cleanup.
 	 * The unprivileged child runs in subtree too to avoid parent and
-	 * internal-node constraing violation.
+	 * internal-analde constraing violation.
 	 */
-	object_pid = cg_run_nowait(child, idle_process_fn, NULL);
+	object_pid = cg_run_analwait(child, idle_process_fn, NULL);
 	if (object_pid < 0)
 		goto cleanup;
 

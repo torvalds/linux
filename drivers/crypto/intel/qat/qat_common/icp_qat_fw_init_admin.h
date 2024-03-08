@@ -89,8 +89,8 @@ struct icp_qat_fw_init_admin_req {
 			__u32 heartbeat_ticks;
 		};
 		struct {
-			__u16 node_id;
-			__u8 node_type;
+			__u16 analde_id;
+			__u8 analde_type;
 			__u8 svc_type;
 			__u8 resrvd5[3];
 			__u8 rp_count;
@@ -110,7 +110,7 @@ struct icp_qat_fw_init_admin_resp {
 	union {
 		__u32 resrvd2;
 		struct {
-			__u16 version_minor_num;
+			__u16 version_mianalr_num;
 			__u16 version_major_num;
 		};
 		__u32 extended_features;
@@ -177,7 +177,7 @@ struct icp_qat_fw_init_admin_pm_info {
 	struct_group(event_counters,
 		__u32 sys_pm;
 		__u32 host_msg;
-		__u32 unknown;
+		__u32 unkanalwn;
 		__u32 local_ssm;
 		__u32 timer;
 	);

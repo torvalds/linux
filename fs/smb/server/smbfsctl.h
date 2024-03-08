@@ -11,8 +11,8 @@
  * List of ioctl/fsctl function codes that are or could be useful in the
  * future to remote clients like cifs or SMB2 client.  There is probably
  * a slightly larger set of fsctls that NTFS local filesystem could handle,
- * including the seven below that we do not have struct definitions for.
- * Even with protocol definitions for most of these now available, we still
+ * including the seven below that we do analt have struct definitions for.
+ * Even with protocol definitions for most of these analw available, we still
  * need to do some experimentation to identify which are practical to do
  * remotely.  Some of the following, such as the encryption/compression ones
  * could be invoked from tools via a specialized hook into the VFS rather
@@ -68,7 +68,7 @@
 #define FSCTL_SIS_LINK_FILES         0x0009C104
 #define FSCTL_PIPE_PEEK              0x0011400C /* BB add struct */
 #define FSCTL_PIPE_TRANSCEIVE        0x0011C017 /* BB add struct */
-/* strange that the number for this op is not sequential with previous op */
+/* strange that the number for this op is analt sequential with previous op */
 #define FSCTL_PIPE_WAIT              0x00110018 /* BB add struct */
 #define FSCTL_REQUEST_RESUME_KEY     0x00140078
 #define FSCTL_LMR_GET_LINK_TRACK_INF 0x001400E8 /* BB add struct */

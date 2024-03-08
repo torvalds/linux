@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -103,7 +103,7 @@ static void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 		/*
 		 * With MES enabled, we only need to initialize
 		 * the base address. The size and offset are
-		 * not initialized as AMDGPU manages the whole
+		 * analt initialized as AMDGPU manages the whole
 		 * doorbell space.
 		 */
 		*aperture_base = adev->doorbell.base;
@@ -131,7 +131,7 @@ static void amdgpu_amdkfd_reset_work(struct work_struct *work)
 
 	memset(&reset_context, 0, sizeof(reset_context));
 
-	reset_context.method = AMD_RESET_METHOD_NONE;
+	reset_context.method = AMD_RESET_METHOD_ANALNE;
 	reset_context.reset_req_dev = adev;
 	clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 
@@ -179,7 +179,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			.gpuvm_size = min(adev->vm_manager.max_pfn
 					  << AMDGPU_GPU_PAGE_SHIFT,
 					  AMDGPU_GMC_HOLE_START),
-			.drm_render_minor = adev_to_drm(adev)->render->index,
+			.drm_render_mianalr = adev_to_drm(adev)->render->index,
 			.sdma_doorbell_idx = adev->doorbell_index.sdma_engine,
 			.enable_mes = adev->enable_mes,
 		};
@@ -192,7 +192,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 				  AMDGPU_MAX_QUEUES);
 
 		/* According to linux/bitmap.h we shouldn't use bitmap_clear if
-		 * nbits is not compile time constant
+		 * nbits is analt compile time constant
 		 */
 		last_valid_bit = 1 /* only first MEC can have compute queues */
 				* adev->gfx.mec.num_pipe_per_mec
@@ -214,10 +214,10 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		 * set for SDMA, VCN, and IH blocks.
 		 */
 		if (adev->asic_type >= CHIP_VEGA10) {
-			gpu_resources.non_cp_doorbells_start =
-					adev->doorbell_index.first_non_cp;
-			gpu_resources.non_cp_doorbells_end =
-					adev->doorbell_index.last_non_cp;
+			gpu_resources.analn_cp_doorbells_start =
+					adev->doorbell_index.first_analn_cp;
+			gpu_resources.analn_cp_doorbells_end =
+					adev->doorbell_index.last_analn_cp;
 		}
 
 		adev->kfd.init_complete = kgd2kfd_device_init(adev->kfd.dev,
@@ -383,7 +383,7 @@ int amdgpu_amdkfd_alloc_gws(struct amdgpu_device *adev, size_t size,
 	bp.size = size;
 	bp.byte_align = 1;
 	bp.domain = AMDGPU_GEM_DOMAIN_GWS;
-	bp.flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+	bp.flags = AMDGPU_GEM_CREATE_ANAL_CPU_ACCESS;
 	bp.type = ttm_bo_type_device;
 	bp.resv = NULL;
 	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
@@ -509,7 +509,7 @@ int amdgpu_amdkfd_get_dmabuf_info(struct amdgpu_device *adev, int dma_buf_fd,
 		return PTR_ERR(dma_buf);
 
 	if (dma_buf->ops != &amdgpu_dmabuf_ops)
-		/* Can't handle non-graphics buffers */
+		/* Can't handle analn-graphics buffers */
 		goto out_put;
 
 	obj = dma_buf->priv;
@@ -556,9 +556,9 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct amdgpu_device *dst,
 	int ret = amdgpu_xgmi_get_hops_count(adev, peer_adev);
 
 	if (ret < 0) {
-		DRM_ERROR("amdgpu: failed to get  xgmi hops count between node %d and %d. ret = %d\n",
-			adev->gmc.xgmi.physical_node_id,
-			peer_adev->gmc.xgmi.physical_node_id, ret);
+		DRM_ERROR("amdgpu: failed to get  xgmi hops count between analde %d and %d. ret = %d\n",
+			adev->gmc.xgmi.physical_analde_id,
+			peer_adev->gmc.xgmi.physical_analde_id, ret);
 		ret = 0;
 	}
 	return  (uint8_t)ret;
@@ -577,12 +577,12 @@ int amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(struct amdgpu_device *dst,
 	if (src)
 		peer_adev = src;
 
-	/* num links returns 0 for indirect peers since indirect route is unknown. */
+	/* num links returns 0 for indirect peers since indirect route is unkanalwn. */
 	num_links = is_min ? 1 : amdgpu_xgmi_get_num_links(adev, peer_adev);
 	if (num_links < 0) {
-		DRM_ERROR("amdgpu: failed to get xgmi num links between node %d and %d. ret = %d\n",
-			adev->gmc.xgmi.physical_node_id,
-			peer_adev->gmc.xgmi.physical_node_id, num_links);
+		DRM_ERROR("amdgpu: failed to get xgmi num links between analde %d and %d. ret = %d\n",
+			adev->gmc.xgmi.physical_analde_id,
+			peer_adev->gmc.xgmi.physical_analde_id, num_links);
 		num_links = 0;
 	}
 
@@ -684,7 +684,7 @@ int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
 	ib->gpu_addr = gpu_addr;
 	ib->ptr = ib_cmd;
 	ib->length_dw = ib_len;
-	/* This works for NO_HWS. TODO: need to handle without knowing VMID */
+	/* This works for ANAL_HWS. TODO: need to handle without kanalwing VMID */
 	job->vmid = vmid;
 	job->num_ibs = 1;
 
@@ -752,7 +752,7 @@ int amdgpu_amdkfd_send_close_event_drain_irq(struct amdgpu_device *adev,
 {
 	int ret;
 
-	/* Device or IH ring is not ready so bail. */
+	/* Device or IH ring is analt ready so bail. */
 	ret = amdgpu_ih_wait_on_checkpoint_process_ts(adev, &adev->irq.ih);
 	if (ret)
 		return ret;
@@ -792,12 +792,12 @@ u64 amdgpu_amdkfd_xcp_memory_size(struct amdgpu_device *adev, int xcp_id)
 			/* In NPS1 mode, we should restrict the vram reporting
 			 * tied to the ttm_pages_limit which is 1/2 of the system
 			 * memory. For other partition modes, the HBM is uniformly
-			 * divided already per numa node reported. If user wants to
+			 * divided already per numa analde reported. If user wants to
 			 * go beyond the default ttm limit and maximize the ROCm
 			 * allocations, they can go up to max ttm and sysmem limits.
 			 */
 
-			tmp = (ttm_tt_pages_limit() << PAGE_SHIFT) / num_online_nodes();
+			tmp = (ttm_tt_pages_limit() << PAGE_SHIFT) / num_online_analdes();
 		} else {
 			tmp = adev->gmc.mem_partitions[mem_id].size;
 		}
@@ -822,11 +822,11 @@ int amdgpu_amdkfd_unmap_hiq(struct amdgpu_device *adev, u32 doorbell_off,
 
 	ring_funcs = kzalloc(sizeof(*ring_funcs), GFP_KERNEL);
 	if (!ring_funcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_ring_funcs;
 	}
 
@@ -838,7 +838,7 @@ int amdgpu_amdkfd_unmap_hiq(struct amdgpu_device *adev, u32 doorbell_off,
 
 	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size)) {
 		spin_unlock(&kiq->ring_lock);
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto free_ring;
 	}
 

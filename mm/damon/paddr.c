@@ -7,7 +7,7 @@
 
 #define pr_fmt(fmt) "damon-pa: " fmt
 
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/page_idle.h>
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
@@ -36,7 +36,7 @@ static void damon_pa_mkold(unsigned long paddr)
 	struct folio *folio = damon_get_folio(PHYS_PFN(paddr));
 	struct rmap_walk_control rwc = {
 		.rmap_one = __damon_pa_mkold,
-		.anon_lock = folio_lock_anon_vma_read,
+		.aanaln_lock = folio_lock_aanaln_vma_read,
 	};
 	bool need_lock;
 
@@ -48,7 +48,7 @@ static void damon_pa_mkold(unsigned long paddr)
 		goto out;
 	}
 
-	need_lock = !folio_test_anon(folio) || folio_test_ksm(folio);
+	need_lock = !folio_test_aanaln(folio) || folio_test_ksm(folio);
 	if (need_lock && !folio_trylock(folio))
 		goto out;
 
@@ -91,12 +91,12 @@ static bool __damon_pa_young(struct folio *folio, struct vm_area_struct *vma,
 		if (pvmw.pte) {
 			*accessed = pte_young(ptep_get(pvmw.pte)) ||
 				!folio_test_idle(folio) ||
-				mmu_notifier_test_young(vma->vm_mm, addr);
+				mmu_analtifier_test_young(vma->vm_mm, addr);
 		} else {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 			*accessed = pmd_young(pmdp_get(pvmw.pmd)) ||
 				!folio_test_idle(folio) ||
-				mmu_notifier_test_young(vma->vm_mm, addr);
+				mmu_analtifier_test_young(vma->vm_mm, addr);
 #else
 			WARN_ON_ONCE(1);
 #endif	/* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -118,7 +118,7 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *folio_sz)
 	struct rmap_walk_control rwc = {
 		.arg = &accessed,
 		.rmap_one = __damon_pa_young,
-		.anon_lock = folio_lock_anon_vma_read,
+		.aanaln_lock = folio_lock_aanaln_vma_read,
 	};
 	bool need_lock;
 
@@ -133,7 +133,7 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *folio_sz)
 		goto out;
 	}
 
-	need_lock = !folio_test_anon(folio) || folio_test_ksm(folio);
+	need_lock = !folio_test_aanaln(folio) || folio_test_ksm(folio);
 	if (need_lock && !folio_trylock(folio))
 		goto out;
 
@@ -191,8 +191,8 @@ static bool __damos_pa_filter_out(struct damos_filter *filter,
 	struct mem_cgroup *memcg;
 
 	switch (filter->type) {
-	case DAMOS_FILTER_TYPE_ANON:
-		matched = folio_test_anon(folio);
+	case DAMOS_FILTER_TYPE_AANALN:
+		matched = folio_test_aanaln(folio);
 		break;
 	case DAMOS_FILTER_TYPE_MEMCG:
 		rcu_read_lock();
@@ -305,7 +305,7 @@ static unsigned long damon_pa_apply_scheme(struct damon_ctx *ctx,
 	case DAMOS_STAT:
 		break;
 	default:
-		/* DAMOS actions that not yet supported by 'paddr'. */
+		/* DAMOS actions that analt yet supported by 'paddr'. */
 		break;
 	}
 	return 0;

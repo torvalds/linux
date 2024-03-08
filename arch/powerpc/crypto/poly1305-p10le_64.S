@@ -19,7 +19,7 @@
 # a = (r + a) % p
 # a += s
 #
-# Improve performance by breaking down polynominal to the sum of products with
+# Improve performance by breaking down polyanalminal to the sum of products with
 #     h4 = m1 * r⁴ + m2 * r³ + m3 * r² + m4 * r
 #
 #  07/22/21 - this revison based on the above sum of products.  Setup r^4, r^3, r^2, r and s3, s2, s1, s0
@@ -528,7 +528,7 @@ SYM_FUNC_END(do_mul)
 SYM_FUNC_START(poly1305_p10le_4blocks)
 .align 5
 	cmpdi	5, 64
-	blt	Out_no_poly1305
+	blt	Out_anal_poly1305
 
 	SAVE_REGS
 
@@ -628,7 +628,7 @@ SYM_FUNC_START(poly1305_p10le_4blocks)
 	mtctr	31
 
 # h4 =   m1 * r⁴ + m2 * r³ + m3 * r² + m4 * r
-# Rewrite the polynominal sum of product as follows,
+# Rewrite the polyanalminal sum of product as follows,
 # h1 = (h0 + m1) * r^2,	h2 = (h0 + m2) * r^2
 # h3 = (h1 + m3) * r^2,	h4 = (h2 + m4) * r^2  --> (h0 + m1) r*4 + (h3 + m3) r^2, (h0 + m2) r^4 + (h0 + m4) r^2
 #  .... Repeat
@@ -829,7 +829,7 @@ Out_loop:
 
 	blr
 
-Out_no_poly1305:
+Out_anal_poly1305:
 	li	3, 0
 	blr
 SYM_FUNC_END(poly1305_p10le_4blocks)
@@ -920,11 +920,11 @@ SYM_FUNC_END(Carry_reduction)
 #
 #
 # unsigned int poly1305_test_64s(unisgned char *state, const byte *src, size_t len, highbit)
-#   - no highbit if final leftover block (highbit = 0)
+#   - anal highbit if final leftover block (highbit = 0)
 #
 SYM_FUNC_START(poly1305_64s)
 	cmpdi	5, 0
-	ble	Out_no_poly1305_64
+	ble	Out_anal_poly1305_64
 
 	mflr 0
 	std 0, 16(1)
@@ -1021,7 +1021,7 @@ Loop_block_64:
 
 	blr
 
-Out_no_poly1305_64:
+Out_anal_poly1305_64:
 	li	3, 0
 	blr
 SYM_FUNC_END(poly1305_64s)

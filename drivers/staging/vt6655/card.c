@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Provide functions to setup NIC operation mode
@@ -78,7 +78,7 @@ static void vt6655_mac_set_bb_type(void __iomem *iobase, u32 mask)
  *      tx_rate         - pointer to RSPINF TxRate field
  *      rsv_time        - pointer to RSPINF RsvTime field
  *
- * Return Value: none
+ * Return Value: analne
  */
 static void calculate_ofdmr_parameter(unsigned char rate,
 				       u8 bb_type,
@@ -178,9 +178,9 @@ static void calculate_ofdmr_parameter(unsigned char rate,
  *  In:
  *      priv             - The adapter to be set
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: None.
+ * Return Value: Analne.
  */
 bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
 {
@@ -283,9 +283,9 @@ bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
  *      bss_timestamp   - Rx BCN's TSF
  *      qwLocalTSF      - Local TSF
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  */
 bool card_update_tsf(struct vnt_private *priv, unsigned char rx_rate,
 		    u64 bss_timestamp)
@@ -316,7 +316,7 @@ bool card_update_tsf(struct vnt_private *priv, unsigned char rx_rate,
  *      priv         - The adapter to be set.
  *      beacon_interval - Beacon Interval
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if succeed; otherwise false
  */
@@ -348,7 +348,7 @@ bool card_set_beacon_period(struct vnt_private *priv,
  *  In:
  *      priv         - The adapter to be turned off
  *  Out:
- *      none
+ *      analne
  *
  */
 void card_radio_power_off(struct vnt_private *priv)
@@ -425,9 +425,9 @@ void card_safe_reset_tx(struct vnt_private *priv)
  *  In:
  *      priv     - Pointer to the adapter
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  */
 void CARDvSafeResetRx(struct vnt_private *priv)
 {
@@ -471,7 +471,7 @@ void CARDvSafeResetRx(struct vnt_private *priv)
  *      priv             - The adapter to be set
  *      wRateIdx            - Receiving data rate
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: response Control frame rate
  */
@@ -497,7 +497,7 @@ static unsigned short CARDwGetCCKControlRate(struct vnt_private *priv,
  *      priv             - The adapter to be set
  *      wRateIdx            - Receiving data rate
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: response Control frame rate
  */
@@ -509,7 +509,7 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *priv,
 	pr_debug("BASIC RATE: %X\n", priv->basic_rates);
 
 	if (!CARDbIsOFDMinBasicRate((void *)priv)) {
-		pr_debug("%s:(NO OFDM) %d\n", __func__, wRateIdx);
+		pr_debug("%s:(ANAL OFDM) %d\n", __func__, wRateIdx);
 		if (wRateIdx > RATE_24M)
 			wRateIdx = RATE_24M;
 		return wRateIdx;
@@ -532,9 +532,9 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *priv,
  *  In:
  *      priv             - The adapter to be set
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: None.
+ * Return Value: Analne.
  */
 void card_set_rspinf(struct vnt_private *priv, u8 bb_type)
 {
@@ -704,7 +704,7 @@ unsigned char card_get_pkt_type(struct vnt_private *priv)
  *      qwTSF1          - Rx BCN's TSF
  *      qwTSF2          - Local TSF
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: TSF Offset value
  */
@@ -727,7 +727,7 @@ u64 card_get_tsf_offset(unsigned char rx_rate, u64 qwTSF1, u64 qwTSF2)
  *  In:
  *      priv         - The adapter to be read
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: Current TSF counter
  */
@@ -787,9 +787,9 @@ u64 card_get_next_tbtt(u64 qwTSF, unsigned short beacon_interval)
  *      iobase          - IO Base
  *      beacon_interval - Beacon Interval
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  */
 void CARDvSetFirstNextTBTT(struct vnt_private *priv,
 			   unsigned short beacon_interval)
@@ -817,9 +817,9 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv,
  *      qwTSF           - Current TSF counter
  *      beacon_interval - Beacon Interval
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  */
 void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 qwTSF,
 			 unsigned short beacon_interval)

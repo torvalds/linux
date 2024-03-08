@@ -5,8 +5,8 @@
 #include <linux/dax.h>
 #include <linux/mm.h>
 
-static bool nohmem;
-module_param_named(disable, nohmem, bool, 0444);
+static bool analhmem;
+module_param_named(disable, analhmem, bool, 0444);
 
 static bool platform_initialized;
 static DEFINE_MUTEX(hmem_resource_lock);
@@ -66,7 +66,7 @@ static void __hmem_register_resource(int target_nid, struct resource *res)
 
 void hmem_register_resource(int target_nid, struct resource *res)
 {
-	if (nohmem)
+	if (analhmem)
 		return;
 
 	mutex_lock(&hmem_resource_lock);
@@ -76,7 +76,7 @@ void hmem_register_resource(int target_nid, struct resource *res)
 
 static __init int hmem_register_one(struct resource *res, void *data)
 {
-	hmem_register_resource(phys_to_target_node(res->start), res);
+	hmem_register_resource(phys_to_target_analde(res->start), res);
 
 	return 0;
 }

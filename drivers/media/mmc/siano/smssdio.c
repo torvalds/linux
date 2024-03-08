@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  smssdio.c - Siano 1xxx SDIO interface driver
+ *  smssdio.c - Siaanal 1xxx SDIO interface driver
  *
  *  Copyright 2008 Pierre Ossman
  *
- * Based on code by Siano Mobile Silicon, Inc.,
+ * Based on code by Siaanal Mobile Silicon, Inc.,
  * Copyright (C) 2006-2008, Uri Shkolnik
  *
  * This hardware is a bit odd in that all transfers should be done
@@ -16,7 +16,7 @@
  */
 
 /*
- * General cleanup notes:
+ * General cleanup analtes:
  *
  * - only typedefs should be name *_t
  *
@@ -48,26 +48,26 @@
 #define SMSSDIO_BLOCK_SIZE	128
 
 static const struct sdio_device_id smssdio_ids[] = {
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_STELLAR),
-	 .driver_data = SMS1XXX_BOARD_SIANO_STELLAR},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_NOVA_A0),
-	 .driver_data = SMS1XXX_BOARD_SIANO_NOVA_A},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_NOVA_B0),
-	 .driver_data = SMS1XXX_BOARD_SIANO_NOVA_B},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_VEGA_A0),
-	 .driver_data = SMS1XXX_BOARD_SIANO_VEGA},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_VENICE),
-	 .driver_data = SMS1XXX_BOARD_SIANO_VEGA},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_MING),
-	.driver_data = SMS1XXX_BOARD_SIANO_MING},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_PELE),
-	.driver_data = SMS1XXX_BOARD_SIANO_PELE},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_RIO),
-	.driver_data = SMS1XXX_BOARD_SIANO_RIO},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_DENVER_2160),
-	.driver_data = SMS1XXX_BOARD_SIANO_DENVER_2160},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_DENVER_1530),
-	.driver_data = SMS1XXX_BOARD_SIANO_DENVER_1530},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_STELLAR),
+	 .driver_data = SMS1XXX_BOARD_SIAANAL_STELLAR},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_ANALVA_A0),
+	 .driver_data = SMS1XXX_BOARD_SIAANAL_ANALVA_A},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_ANALVA_B0),
+	 .driver_data = SMS1XXX_BOARD_SIAANAL_ANALVA_B},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_VEGA_A0),
+	 .driver_data = SMS1XXX_BOARD_SIAANAL_VEGA},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_VENICE),
+	 .driver_data = SMS1XXX_BOARD_SIAANAL_VEGA},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_MING),
+	.driver_data = SMS1XXX_BOARD_SIAANAL_MING},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_PELE),
+	.driver_data = SMS1XXX_BOARD_SIAANAL_PELE},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_RIO),
+	.driver_data = SMS1XXX_BOARD_SIAANAL_RIO},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_DENVER_2160),
+	.driver_data = SMS1XXX_BOARD_SIAANAL_DENVER_2160},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_SIAANAL, SDIO_DEVICE_ID_SIAANAL_DENVER_1530),
+	.driver_data = SMS1XXX_BOARD_SIAANAL_DENVER_1530},
 	{ /* end: all zeroes */ },
 };
 
@@ -82,7 +82,7 @@ struct smssdio_device {
 };
 
 /*******************************************************************/
-/* Siano core callbacks                                            */
+/* Siaanal core callbacks                                            */
 /*******************************************************************/
 
 static int smssdio_sendrequest(void *context, void *buffer, size_t size)
@@ -132,7 +132,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 	smsdev = sdio_get_drvdata(func);
 
 	/*
-	 * The interrupt register has no defined meaning. It is just
+	 * The interrupt register has anal defined meaning. It is just
 	 * a way of turning of the level triggered interrupt.
 	 */
 	(void)sdio_readb(func, SMSSDIO_INT, &ret);
@@ -200,7 +200,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 
 		/*
 		 * ..then fall back to one block at a time if that is
-		 * not possible...
+		 * analt possible...
 		 *
 		 * (we have to do this manually because of the
 		 * problem with the "increase address" bit)
@@ -246,7 +246,7 @@ static int smssdio_probe(struct sdio_func *func,
 
 	smsdev = kzalloc(sizeof(struct smssdio_device), GFP_KERNEL);
 	if (!smsdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smsdev->func = func;
 
@@ -270,7 +270,7 @@ static int smssdio_probe(struct sdio_func *func,
 		/*
 		 * FIXME: Stellar needs special handling...
 		 */
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free;
 	}
 
@@ -353,7 +353,7 @@ static int __init smssdio_module_init(void)
 {
 	int ret = 0;
 
-	printk(KERN_INFO "smssdio: Siano SMS1xxx SDIO driver\n");
+	printk(KERN_INFO "smssdio: Siaanal SMS1xxx SDIO driver\n");
 	printk(KERN_INFO "smssdio: Copyright Pierre Ossman\n");
 
 	ret = sdio_register_driver(&smssdio_driver);
@@ -369,6 +369,6 @@ static void __exit smssdio_module_exit(void)
 module_init(smssdio_module_init);
 module_exit(smssdio_module_exit);
 
-MODULE_DESCRIPTION("Siano SMS1xxx SDIO driver");
+MODULE_DESCRIPTION("Siaanal SMS1xxx SDIO driver");
 MODULE_AUTHOR("Pierre Ossman");
 MODULE_LICENSE("GPL");

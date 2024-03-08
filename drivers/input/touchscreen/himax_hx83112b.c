@@ -2,7 +2,7 @@
 /*
  * Driver for Himax hx83112b touchscreens
  *
- * Copyright (C) 2022 Job Noorman <job@noorman.info>
+ * Copyright (C) 2022 Job Analorman <job@analorman.info>
  *
  * This code is based on "Himax Android Driver Sample Code for QCT platform":
  *
@@ -126,7 +126,7 @@ static int himax_check_product_id(struct himax_ts_data *ts)
 
 	default:
 		dev_err(&ts->client->dev,
-			"Unknown product id: %x\n", product_id);
+			"Unkanalwn product id: %x\n", product_id);
 		return -EINVAL;
 	}
 }
@@ -138,7 +138,7 @@ static int himax_input_register(struct himax_ts_data *ts)
 	ts->input_dev = devm_input_allocate_device(&ts->client->dev);
 	if (!ts->input_dev) {
 		dev_err(&ts->client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->input_dev->name = "Himax Touchscreen";
@@ -260,7 +260,7 @@ static irqreturn_t himax_irq_handler(int irq, void *dev_id)
 
 	error = himax_handle_input(ts);
 	if (error)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return IRQ_HANDLED;
 }
@@ -278,7 +278,7 @@ static int himax_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, ts);
 	ts->client = client;
@@ -359,6 +359,6 @@ static struct i2c_driver himax_ts_driver = {
 };
 module_i2c_driver(himax_ts_driver);
 
-MODULE_AUTHOR("Job Noorman <job@noorman.info>");
+MODULE_AUTHOR("Job Analorman <job@analorman.info>");
 MODULE_DESCRIPTION("Himax hx83112b touchscreen driver");
 MODULE_LICENSE("GPL");

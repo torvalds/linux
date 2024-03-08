@@ -12,20 +12,20 @@ char _license[] SEC("license") = "GPL";
 	"local_address                         "	\
 	"remote_address                        "	\
 	"st tx_queue rx_queue tr tm->when retrnsmt"	\
-	"   uid  timeout inode ref pointer drops\n"
+	"   uid  timeout ianalde ref pointer drops\n"
 
-static long sock_i_ino(const struct sock *sk)
+static long sock_i_ianal(const struct sock *sk)
 {
 	const struct socket *sk_socket = sk->sk_socket;
-	const struct inode *inode;
-	unsigned long ino;
+	const struct ianalde *ianalde;
+	unsigned long ianal;
 
 	if (!sk_socket)
 		return 0;
 
-	inode = &container_of(sk_socket, struct socket_alloc, socket)->vfs_inode;
-	bpf_probe_read_kernel(&ino, sizeof(ino), &inode->i_ino);
-	return ino;
+	ianalde = &container_of(sk_socket, struct socket_alloc, socket)->vfs_ianalde;
+	bpf_probe_read_kernel(&ianal, sizeof(ianal), &ianalde->i_ianal);
+	return ianal;
 }
 
 SEC("iter/udp")
@@ -70,7 +70,7 @@ int dump_udp6(struct bpf_iter__udp *ctx)
 		       inet->sk.sk_wmem_alloc.refs.counter - 1,
 		       rqueue,
 		       0, 0L, 0, ctx->uid, 0,
-		       sock_i_ino(&inet->sk),
+		       sock_i_ianal(&inet->sk),
 		       inet->sk.sk_refcnt.refs.counter, udp_sk,
 		       inet->sk.sk_drops.counter);
 

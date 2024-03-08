@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#include "nolibc-test-linkage.h"
+#include "anallibc-test-linkage.h"
 
-#ifndef NOLIBC
-#include <errno.h>
+#ifndef ANALLIBC
+#include <erranal.h>
 #endif
 
-void *linkage_test_errno_addr(void)
+void *linkage_test_erranal_addr(void)
 {
-	return &errno;
+	return &erranal;
 }
 
 int linkage_test_constructor_test_value;

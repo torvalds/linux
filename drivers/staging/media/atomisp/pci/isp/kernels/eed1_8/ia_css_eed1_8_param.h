@@ -24,7 +24,7 @@
 /* Configuration parameters: */
 
 /* Enable median for false color correction
- * 0: Do not use median
+ * 0: Do analt use median
  * 1: Use median
  * Default: 1
  */

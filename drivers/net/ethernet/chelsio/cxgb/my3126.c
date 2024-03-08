@@ -8,7 +8,7 @@
 static int my3126_reset(struct cphy *cphy, int wait)
 {
 	/*
-	 * This can be done through registers.  It is not required since
+	 * This can be done through registers.  It is analt required since
 	 * a full chip reset is used.
 	 */
 	return 0;
@@ -196,7 +196,7 @@ static int my3126_phy_reset(adapter_t * adapter)
 	t1_tpi_write(adapter, A_ELMER0_GPO, val | 4);
 	msleep(1000);
 
-	/* Now lets enable the Laser. Delay 100us */
+	/* Analw lets enable the Laser. Delay 100us */
 	t1_tpi_read(adapter, A_ELMER0_GPO, &val);
 	val |= 0x8000;
 	t1_tpi_write(adapter, A_ELMER0_GPO, val);

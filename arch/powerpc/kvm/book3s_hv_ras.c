@@ -122,7 +122,7 @@ void kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * Now get the event and stash it in the vcpu struct so it can
+	 * Analw get the event and stash it in the vcpu struct so it can
 	 * be handled by the primary thread in virtual mode.  We can't
 	 * call machine_check_queue_event() here if we are running on
 	 * an offline secondary thread.
@@ -144,12 +144,12 @@ long kvmppc_p9_realmode_hmi_handler(struct kvm_vcpu *vcpu)
 	long ret = 0;
 
 	/*
-	 * Unapply and clear the offset first. That way, if the TB was not
+	 * Unapply and clear the offset first. That way, if the TB was analt
 	 * resynced then it will remain in host-offset, and if it was resynced
 	 * then it is brought into host-offset. Then the tb offset is
 	 * re-applied before continuing with the KVM exit.
 	 *
-	 * This way, we don't need to actually know whether not OPAL resynced
+	 * This way, we don't need to actually kanalw whether analt OPAL resynced
 	 * the timebase or do any of the complicated dance that the P7/8
 	 * path requires.
 	 */
@@ -245,13 +245,13 @@ static void kvmppc_tb_resync_done(void)
  * Timebase (TB) error. If this HMI is due to TB error, then TB would
  * have been in stopped state. The opal hmi handler Will fix it and
  * restore the TB value with host timebase value. For HMI caused due
- * to non-TB errors, opal hmi handler will not touch/restore TB register
+ * to analn-TB errors, opal hmi handler will analt touch/restore TB register
  * and hence there won't be any change in TB value.
  *
- * Since we are not sure about the cause of this HMI, we can't be sure
+ * Since we are analt sure about the cause of this HMI, we can't be sure
  * about the content of TB register whether it holds guest or host timebase
  * value. Hence the idea is to resync the TB on every HMI, so that we
- * know about the exact state of the TB value. Resync TB call will
+ * kanalw about the exact state of the TB value. Resync TB call will
  * restore TB to host timebase.
  *
  * Things to consider:
@@ -290,18 +290,18 @@ static void kvmppc_tb_resync_done(void)
  *   state in_guest[] array respectively.
  * - Once all primary threads clear in_guest[0-3], all of them will invoke
  *   opal hmi handler.
- * - Now all threads will wait for TB resync to complete by invoking
+ * - Analw all threads will wait for TB resync to complete by invoking
  *   wait_for_tb_resync() except the thread leader.
  * - Thread leader will do a TB resync by invoking opal_resync_timebase()
  *   call and the it will clear the resync required bit.
- * - All other threads will now come out of resync wait loop and proceed
+ * - All other threads will analw come out of resync wait loop and proceed
  *   with individual execution.
  * - On return of this function, primary thread will signal all
  *   secondary threads to proceed.
  * - All secondary threads will eventually call opal hmi handler on
  *   their exit path.
  *
- * Returns 1 if the timebase offset should be applied, 0 if not.
+ * Returns 1 if the timebase offset should be applied, 0 if analt.
  */
 
 long kvmppc_realmode_hmi_handler(void)
@@ -314,7 +314,7 @@ long kvmppc_realmode_hmi_handler(void)
 		return 1;
 
 	/*
-	 * By now primary thread has already completed guest->host
+	 * By analw primary thread has already completed guest->host
 	 * partition switch but haven't signaled secondaries yet.
 	 * All the secondary threads on this subcore is waiting
 	 * for primary thread to signal them to go ahead.
@@ -322,7 +322,7 @@ long kvmppc_realmode_hmi_handler(void)
 	 * For threads from subcore which isn't in guest, they all will
 	 * wait until all other subcores on this core exit the guest.
 	 *
-	 * Now set the resync required bit. If you are the first to
+	 * Analw set the resync required bit. If you are the first to
 	 * set this bit then kvmppc_tb_resync_required() function will
 	 * return true. For rest all other subcores
 	 * kvmppc_tb_resync_required() will return false.
@@ -340,7 +340,7 @@ long kvmppc_realmode_hmi_handler(void)
 	/*
 	 * Wait for other subcores on this core to exit the guest.
 	 * All the primary threads and threads from subcore that are
-	 * not in guest will wait here until all subcores are out
+	 * analt in guest will wait here until all subcores are out
 	 * of guest context.
 	 */
 	wait_for_subcore_guest_exit();
@@ -348,7 +348,7 @@ long kvmppc_realmode_hmi_handler(void)
 	/*
 	 * At this point we are sure that primary threads from each
 	 * subcore on this core have completed guest->host partition
-	 * switch. Now it is safe to call HMI handler.
+	 * switch. Analw it is safe to call HMI handler.
 	 */
 	if (ppc_md.hmi_exception_early)
 		ppc_md.hmi_exception_early(NULL);

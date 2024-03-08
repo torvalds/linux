@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@
 
 #include <nvrm/nvtypes.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/alloc/alloc_channel.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080_notification.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080_analtification.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080ce.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080fifo.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
@@ -106,7 +106,7 @@ r535_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, 
 						  fifo->rm.mthdbuf_size,
 						  &chan->rm.mthdbuf.addr, GFP_KERNEL);
 	if (!chan->rm.mthdbuf.ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	args = nvkm_gsp_rm_alloc_get(&chan->vmm->rm.device.object, 0xf1f00000 | chan->id,
 				     fifo->func->chan.user.oclass, sizeof(*args),
@@ -170,8 +170,8 @@ r535_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, 
 		args->internalFlags = NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, PRIVILEGE, USER);
 	else
 		args->internalFlags = NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, PRIVILEGE, ADMIN);
-	args->internalFlags |= NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ERROR_NOTIFIER_TYPE, NONE);
-	args->internalFlags |= NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ECC_ERROR_NOTIFIER_TYPE, NONE);
+	args->internalFlags |= NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ERROR_ANALTIFIER_TYPE, ANALNE);
+	args->internalFlags |= NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ECC_ERROR_ANALTIFIER_TYPE, ANALNE);
 
 	ret = nvkm_gsp_rm_alloc_wr(&chan->rm.object, args);
 	if (ret)
@@ -286,7 +286,7 @@ r535_chan_id_get_locked(struct nvkm_chan *chan, struct nvkm_memory *muserd, u64 
 
 		userd = kzalloc(sizeof(*userd), GFP_KERNEL);
 		if (!userd)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		userd->chid = nvkm_chid_get(runl->chid, chan);
 		if (userd->chid < 0) {
@@ -345,19 +345,19 @@ r535_cgrp = {
 };
 
 static int
-r535_engn_nonstall(struct nvkm_engn *engn)
+r535_engn_analnstall(struct nvkm_engn *engn)
 {
 	struct nvkm_subdev *subdev = &engn->engine->subdev;
 	int ret;
 
-	ret = nvkm_gsp_intr_nonstall(subdev->device->gsp, subdev->type, subdev->inst);
-	WARN_ON(ret == -ENOENT);
+	ret = nvkm_gsp_intr_analnstall(subdev->device->gsp, subdev->type, subdev->inst);
+	WARN_ON(ret == -EANALENT);
 	return ret;
 }
 
 static const struct nvkm_engn_func
 r535_ce = {
-	.nonstall = r535_engn_nonstall,
+	.analnstall = r535_engn_analnstall,
 };
 
 static int
@@ -377,7 +377,7 @@ r535_gr_ctor(struct nvkm_engn *engn, struct nvkm_vctx *vctx, struct nvkm_chan *c
 
 static const struct nvkm_engn_func
 r535_gr = {
-	.nonstall = r535_engn_nonstall,
+	.analnstall = r535_engn_analnstall,
 	.ctor2 = r535_gr_ctor,
 };
 
@@ -429,7 +429,7 @@ r535_flcn_ctor(struct nvkm_engn *engn, struct nvkm_vctx *vctx, struct nvkm_chan 
 
 static const struct nvkm_engn_func
 r535_flcn = {
-	.nonstall = r535_engn_nonstall,
+	.analnstall = r535_engn_analnstall,
 	.ctor2 = r535_flcn_ctor,
 };
 
@@ -649,7 +649,7 @@ r535_fifo_new(const struct nvkm_fifo_func *hw, struct nvkm_device *device,
 	struct nvkm_fifo_func *rm;
 
 	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rm->dtor = r535_fifo_dtor;
 	rm->runl_ctor = r535_fifo_runl_ctor;
@@ -658,8 +658,8 @@ r535_fifo_new(const struct nvkm_fifo_func *hw, struct nvkm_device *device,
 	rm->cgrp.func = &r535_cgrp;
 	rm->chan = hw->chan;
 	rm->chan.func = &r535_chan;
-	rm->nonstall = &ga100_fifo_nonstall;
-	rm->nonstall_ctor = ga100_fifo_nonstall_ctor;
+	rm->analnstall = &ga100_fifo_analnstall;
+	rm->analnstall_ctor = ga100_fifo_analnstall_ctor;
 
 	return nvkm_fifo_new_(rm, device, type, inst, pfifo);
 }

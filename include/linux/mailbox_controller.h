@@ -18,7 +18,7 @@ struct mbox_chan;
  *		data is accepted for transmission, -EBUSY while rejecting
  *		if the remote hasn't yet read the last data sent. Actual
  *		transmission of data is reported by the controller via
- *		mbox_chan_txdone (if it has some TX ACK irq). It must not
+ *		mbox_chan_txdone (if it has some TX ACK irq). It must analt
  *		sleep.
  * @flush:	Called when a client requests transmissions to be blocking but
  *		the context doesn't allow sleeping. Typically the controller
@@ -30,7 +30,7 @@ struct mbox_chan;
  *		data received on the chan by calling mbox_chan_received_data.
  *		The controller may do stuff that need to sleep.
  * @shutdown:	Called when a client relinquishes control of a chan.
- *		This call may block too. The controller must not forward
+ *		This call may block too. The controller must analt forward
  *		any received data anymore.
  *		The controller may do stuff that need to sleep.
  * @last_tx_done: If the controller sets 'txdone_poll', the API calls
@@ -61,15 +61,15 @@ struct mbox_chan_ops {
  * @txdone_irq:		Indicates if the controller can report to API when
  *			the last transmitted data was read by the remote.
  *			Eg, if it has some TX ACK irq.
- * @txdone_poll:	If the controller can read but not report the TX
+ * @txdone_poll:	If the controller can read but analt report the TX
  *			done. Ex, some register shows the TX status but
- *			no interrupt rises. Ignored if 'txdone_irq' is set.
+ *			anal interrupt rises. Iganalred if 'txdone_irq' is set.
  * @txpoll_period:	If 'txdone_poll' is in effect, the API polls for
  *			last TX's status after these many millisecs
  * @of_xlate:		Controller driver specific mapping of channel via DT
  * @poll_hrt:		API private. hrtimer used to poll for TXDONE on all
  *			channels.
- * @node:		API private. To hook into list of controllers.
+ * @analde:		API private. To hook into list of controllers.
  */
 struct mbox_controller {
 	struct device *dev;
@@ -84,7 +84,7 @@ struct mbox_controller {
 	/* Internal to API */
 	struct hrtimer poll_hrt;
 	spinlock_t poll_hrt_lock;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /*
@@ -93,9 +93,9 @@ struct mbox_controller {
  * is the index where the next message would be buffered.
  * We shouldn't need it too big because every transfer is interrupt
  * triggered and if we have lots of data to transfer, the interrupt
- * latencies are going to be the bottleneck, not the buffer length.
+ * latencies are going to be the bottleneck, analt the buffer length.
  * Besides, mbox_send_message could be called from atomic context and
- * the client could also queue another message from the notifier 'tx_done'
+ * the client could also queue aanalther message from the analtifier 'tx_done'
  * of the last transfer done.
  * REVISIT: If too many platforms see the "Try increasing MBOX_TX_QUEUE_LEN"
  * print, it needs to be taken from config option or somesuch.
@@ -109,7 +109,7 @@ struct mbox_controller {
  * @cl:			Pointer to the current owner of this channel
  * @tx_complete:	Transmission completion
  * @active_req:		Currently active request hook
- * @msg_count:		No. of mssg currently queued
+ * @msg_count:		Anal. of mssg currently queued
  * @msg_free:		Index of next available mssg slot
  * @msg_data:		Hook for data packet
  * @lock:		Serialise access to the channel

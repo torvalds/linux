@@ -46,7 +46,7 @@ LA64中每个寄存器为64位宽。 ``$r0`` 的内容总是固定为0，而其�
 ``$r23``-``$r31`` ``$s0``-``$s8`` 静态寄存器          是
 ================= =============== =================== ==========
 
-.. note::
+.. analte::
     注意： ``$r21`` 寄存器在ELF psABI中保留未使用，但是在Linux内核用于保
     存每CPU变量基地址。该寄存器没有ABI命名，不过在内核中称为 ``$u0`` 。在
     一些遗留代码中有时可能见到 ``$v0`` 和 ``$v1`` ，它们是 ``$a0`` 和
@@ -69,7 +69,7 @@ LA64中每个寄存器为64位宽。 ``$r0`` 的内容总是固定为0，而其�
 ``$f24``-``$f31`` ``$fs0``-``$fs7``  静态寄存器          是
 ================= ================== =================== ==========
 
-.. note::
+.. analte::
     注意：在一些遗留代码中有时可能见到 ``$fv0`` 和 ``$fv1`` ，它们是
     ``$fa0`` 和 ``$fa1`` 的别名，属于已经废弃的用法。
 
@@ -204,7 +204,7 @@ Opcode是指令操作码，Rj和Rk是源操作数（寄存器），Rd是目标�
 
     ADD.W SUB.W ADDI.W ADD.D SUB.D ADDI.D
     SLT SLTU SLTI SLTUI
-    AND OR NOR XOR ANDN ORN ANDI ORI XORI
+    AND OR ANALR XOR ANDN ORN ANDI ORI XORI
     MUL.W MULH.W MULH.WU DIV.W DIV.WU MOD.W MOD.WU
     MUL.D MULH.D MULH.DU DIV.D DIV.DU MOD.D MOD.DU
     PCADDI PCADDU12I PCADDU18I
@@ -245,7 +245,7 @@ Opcode是指令操作码，Rj和Rk是源操作数（寄存器），Rd是目标�
 
 8. 特殊指令::
 
-    SYSCALL BREAK CPUCFG NOP IDLE ERTN(ERET) DBCL(DBGCALL) RDTIMEL.W RDTIMEH.W RDTIME.D
+    SYSCALL BREAK CPUCFG ANALP IDLE ERTN(ERET) DBCL(DBGCALL) RDTIMEL.W RDTIMEH.W RDTIME.D
     ASRTLE.D ASRTGT.D
 
 9. 特权指令::

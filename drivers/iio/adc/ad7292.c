@@ -260,13 +260,13 @@ static int ad7292_probe(struct spi_device *spi)
 {
 	struct ad7292_state *st;
 	struct iio_dev *indio_dev;
-	struct device_node *child;
+	struct device_analde *child;
 	bool diff_channels = false;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->spi = spi;
@@ -305,10 +305,10 @@ static int ad7292_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7292_info;
 
-	for_each_available_child_of_node(spi->dev.of_node, child) {
+	for_each_available_child_of_analde(spi->dev.of_analde, child) {
 		diff_channels = of_property_read_bool(child, "diff-channels");
 		if (diff_channels) {
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}

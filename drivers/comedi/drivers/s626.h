@@ -86,7 +86,7 @@
 /* RPS command codes. */
 #define S626_RPS_CLRSIGNAL	0x00000000	/* CLEAR SIGNAL */
 #define S626_RPS_SETSIGNAL	0x10000000	/* SET SIGNAL */
-#define S626_RPS_NOP		0x00000000	/* NOP */
+#define S626_RPS_ANALP		0x00000000	/* ANALP */
 #define S626_RPS_PAUSE		0x20000000	/* PAUSE */
 #define S626_RPS_UPLOAD		0x40000000	/* UPLOAD */
 #define S626_RPS_JUMP		0x80000000	/* JUMP */
@@ -112,7 +112,7 @@
 						 */
 #define S626_RPS_SIG2		0x00800000	/*
 						 * RPS semaphore 2
-						 * (not used).
+						 * (analt used).
 						 */
 #define S626_RPS_GPIO2		0x00080000	/* RPS GPIO2 */
 #define S626_RPS_GPIO3		0x00100000	/* RPS GPIO3 */
@@ -193,7 +193,7 @@
 /* Master Control Register 2 (MC2) constants. */
 #define S626_MC2_UPLD_DEBI	0x0002	/* Upload DEBI. */
 #define S626_MC2_UPLD_IIC	0x0001	/* Upload I2C. */
-#define S626_MC2_RPSSIG2	0x2000	/* RPS signal 2 (not used). */
+#define S626_MC2_RPSSIG2	0x2000	/* RPS signal 2 (analt used). */
 #define S626_MC2_RPSSIG1	0x1000	/* RPS signal 1 (DAC RPS busy). */
 #define S626_MC2_RPSSIG0	0x0800	/* RPS signal 0 (ADC RPS busy). */
 
@@ -293,7 +293,7 @@
 					 * Enable edge capture on DIO chans
 					 * specified by S626_LP_WRCAPSELx.
 					 */
-#define S626_MISC1_NOEDCAP	0x0000	/*
+#define S626_MISC1_ANALEDCAP	0x0000	/*
 					 * Disable edge capture on specified
 					 * DIO chans.
 					 */
@@ -441,7 +441,7 @@
 #define S626_I2C_ATTRSTART	0x3	/* I2C attribute START. */
 #define S626_I2C_ATTRCONT	0x2	/* I2C attribute CONT. */
 #define S626_I2C_ATTRSTOP	0x1	/* I2C attribute STOP. */
-#define S626_I2C_ATTRNOP	0x0	/* I2C attribute NOP. */
+#define S626_I2C_ATTRANALP	0x0	/* I2C attribute ANALP. */
 
 /* Code macros used for constructing I2C command bytes. */
 #define S626_I2C_B2(ATTR, VAL)	(((ATTR) << 6) | ((VAL) << 24))
@@ -482,7 +482,7 @@
 					 */
 
 /* 2-bit field that specifies Endian byte lane steering: */
-#define S626_DEBI_CFG_SWAP_NONE	0x00000000	/*
+#define S626_DEBI_CFG_SWAP_ANALNE	0x00000000	/*
 						 * Straight - don't swap any
 						 * bytes (Intel).
 						 */
@@ -507,7 +507,7 @@
 					 */
 
 /* Intel byte lane steering (pass through all byte lanes). */
-#define S626_DEBI_SWAP		S626_DEBI_CFG_SWAP_NONE
+#define S626_DEBI_SWAP		S626_DEBI_CFG_SWAP_ANALNE
 
 #elif S626_PLATFORM == S626_MOTOROLA
 
@@ -536,10 +536,10 @@
 					 * Preload B core in response to
 					 * A Overflow.
 					 */
-#define S626_LOADSRC_NONE	3	/* Never preload core. */
+#define S626_LOADSRC_ANALNE	3	/* Never preload core. */
 
 /* IntSrc values: */
-#define S626_INTSRC_NONE	0	/* Interrupts disabled. */
+#define S626_INTSRC_ANALNE	0	/* Interrupts disabled. */
 #define S626_INTSRC_OVER	1	/* Interrupt on Overflow. */
 #define S626_INTSRC_INDX	2	/* Interrupt on Index. */
 #define S626_INTSRC_BOTH	3	/* Interrupt on Index or Overflow. */

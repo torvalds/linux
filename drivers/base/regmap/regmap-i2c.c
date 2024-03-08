@@ -147,8 +147,8 @@ static int regmap_i2c_gather_write(void *context,
 	/* If the I2C controller can't do a gather tell the core, it
 	 * will substitute in a linear write for us.
 	 */
-	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_NOSTART))
-		return -ENOTSUPP;
+	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_ANALSTART))
+		return -EANALTSUPP;
 
 	xfer[0].addr = i2c->addr;
 	xfer[0].flags = 0;
@@ -156,7 +156,7 @@ static int regmap_i2c_gather_write(void *context,
 	xfer[0].buf = (void *)reg;
 
 	xfer[1].addr = i2c->addr;
-	xfer[1].flags = I2C_M_NOSTART;
+	xfer[1].flags = I2C_M_ANALSTART;
 	xfer[1].len = val_size;
 	xfer[1].buf = (void *)val;
 
@@ -331,7 +331,7 @@ static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 		case REGMAP_ENDIAN_BIG:
 			bus = &regmap_smbus_word_swapped;
 			break;
-		default:		/* everything else is not supported */
+		default:		/* everything else is analt supported */
 			break;
 		}
 	else if (config->val_bits == 8 && config->reg_bits == 8 &&
@@ -340,7 +340,7 @@ static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 		bus = &regmap_smbus_byte;
 
 	if (!bus)
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EANALTSUPP);
 
 	quirks = i2c->adapter->quirks;
 	if (quirks) {
@@ -355,7 +355,7 @@ static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 		if (max_read || max_write) {
 			ret_bus = kmemdup(bus, sizeof(*bus), GFP_KERNEL);
 			if (!ret_bus)
-				return ERR_PTR(-ENOMEM);
+				return ERR_PTR(-EANALMEM);
 			ret_bus->free_on_exit = true;
 			ret_bus->max_raw_read = max_read;
 			ret_bus->max_raw_write = max_write;

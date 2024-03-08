@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stddef.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -46,20 +46,20 @@
 #define TRANS_FD "fd"
 #define TRANS_FD_LEN strlen(TRANS_FD)
 
-#define VNET_HDR_FAIL "could not enable vnet headers on fd %d"
+#define VNET_HDR_FAIL "could analt enable vnet headers on fd %d"
 #define TUN_GET_F_FAIL "tapraw: TUNGETFEATURES failed: %s"
-#define L2TPV3_BIND_FAIL "l2tpv3_open : could not bind socket err=%i"
-#define UNIX_BIND_FAIL "unix_open : could not bind socket err=%i"
+#define L2TPV3_BIND_FAIL "l2tpv3_open : could analt bind socket err=%i"
+#define UNIX_BIND_FAIL "unix_open : could analt bind socket err=%i"
 #define BPF_ATTACH_FAIL "Failed to attach filter size %d prog %px to %d, err %d\n"
 #define BPF_DETACH_FAIL "Failed to detach filter size %d prog %px to %d, err %d\n"
 
 #define MAX_UN_LEN 107
 
-static const char padchar[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+static const char padchar[] = "0123456789ABCDEFGHIJKLMANALPQRSTUVWXYZ";
 static const char *template = "tapXXXXXX";
 
 /* This is very ugly and brute force lookup, but it is done
- * only once at initialization so not worth doing hashes or
+ * only once at initialization so analt worth doing hashes or
  * anything more intelligent
  */
 
@@ -121,7 +121,7 @@ cleanup:
 
 /*
  * Socket/FD configuration functions. These return an structure
- * of rx and tx descriptors to cover cases where these are not
+ * of rx and tx descriptors to cover cases where these are analt
  * the same (f.e. read via raw socket and write via tap).
  */
 
@@ -132,7 +132,7 @@ static int create_tap_fd(char *iface)
 {
 	struct ifreq ifr;
 	int fd = -1;
-	int err = -ENOMEM, offload;
+	int err = -EANALMEM, offload;
 
 	fd = open(PATH_NET_TUN, O_RDWR);
 	if (fd < 0) {
@@ -140,7 +140,7 @@ static int create_tap_fd(char *iface)
 		goto tap_fd_cleanup;
 	}
 	memset(&ifr, 0, sizeof(ifr));
-	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
+	ifr.ifr_flags = IFF_TAP | IFF_ANAL_PI | IFF_VNET_HDR;
 	strscpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 
 	err = ioctl(fd, TUNSETIFF, (void *) &ifr);
@@ -163,17 +163,17 @@ static int create_raw_fd(char *iface, int flags, int proto)
 	struct ifreq ifr;
 	int fd = -1;
 	struct sockaddr_ll sock;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	fd = socket(AF_PACKET, SOCK_RAW, flags);
 	if (fd == -1) {
-		err = -errno;
+		err = -erranal;
 		goto raw_fd_cleanup;
 	}
 	memset(&ifr, 0, sizeof(ifr));
 	strscpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 	if (ioctl(fd, SIOCGIFINDEX, (void *) &ifr) < 0) {
-		err = -errno;
+		err = -erranal;
 		goto raw_fd_cleanup;
 	}
 
@@ -183,7 +183,7 @@ static int create_raw_fd(char *iface, int flags, int proto)
 
 	if (bind(fd,
 		(struct sockaddr *) &sock, sizeof(struct sockaddr_ll)) < 0) {
-		err = -errno;
+		err = -erranal;
 		goto raw_fd_cleanup;
 	}
 	return fd;
@@ -316,12 +316,12 @@ static struct vector_fds *user_init_unix_fds(struct arglist *ifspec, int id)
 	dst = uml_vector_fetch_arg(ifspec, "dst");
 	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
 	if (result == NULL) {
-		printk(UM_KERN_ERR "unix open:cannot allocate remote addr");
+		printk(UM_KERN_ERR "unix open:cananalt allocate remote addr");
 		goto unix_cleanup;
 	}
 	remote_addr = uml_kmalloc(sizeof(struct sockaddr_un), UM_GFP_KERNEL);
 	if (remote_addr == NULL) {
-		printk(UM_KERN_ERR "unix open:cannot allocate remote addr");
+		printk(UM_KERN_ERR "unix open:cananalt allocate remote addr");
 		goto unix_cleanup;
 	}
 
@@ -331,7 +331,7 @@ static struct vector_fds *user_init_unix_fds(struct arglist *ifspec, int id)
 		if ((src != NULL) && (strlen(src) <= MAX_UN_LEN)) {
 			local_addr = uml_kmalloc(sizeof(struct sockaddr_un), UM_GFP_KERNEL);
 			if (local_addr == NULL) {
-				printk(UM_KERN_ERR "bess open:cannot allocate local addr");
+				printk(UM_KERN_ERR "bess open:cananalt allocate local addr");
 				goto unix_cleanup;
 			}
 			local_addr->sun_family = AF_UNIX;
@@ -350,21 +350,21 @@ static struct vector_fds *user_init_unix_fds(struct arglist *ifspec, int id)
 	fd = socket(AF_UNIX, socktype, 0);
 	if (fd == -1) {
 		printk(UM_KERN_ERR
-			"unix open: could not open socket, error = %d",
-			-errno
+			"unix open: could analt open socket, error = %d",
+			-erranal
 		);
 		goto unix_cleanup;
 	}
 	if (local_addr != NULL) {
 		if (bind(fd, (struct sockaddr *) local_addr, sizeof(struct sockaddr_un))) {
-			printk(UM_KERN_ERR UNIX_BIND_FAIL, errno);
+			printk(UM_KERN_ERR UNIX_BIND_FAIL, erranal);
 			goto unix_cleanup;
 		}
 	}
 	switch (id) {
 	case ID_BESS:
 		if (connect(fd, (const struct sockaddr *) remote_addr, sizeof(struct sockaddr_un)) < 0) {
-			printk(UM_KERN_ERR "bess open:cannot connect to %s %i", remote_addr->sun_path, -errno);
+			printk(UM_KERN_ERR "bess open:cananalt connect to %s %i", remote_addr->sun_path, -erranal);
 			goto unix_cleanup;
 		}
 		break;
@@ -390,10 +390,10 @@ static int strtofd(const char *nptr)
 	if (nptr == NULL)
 		return -1;
 
-	errno = 0;
+	erranal = 0;
 	fd = strtol(nptr, &endptr, 10);
 	if (nptr == endptr ||
-		errno != 0 ||
+		erranal != 0 ||
 		*endptr != '\0' ||
 		fd < 0 ||
 		fd > INT_MAX) {
@@ -437,7 +437,7 @@ fd_cleanup:
 static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 {
 	int rxfd = -1, txfd = -1;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	char *iface;
 	struct vector_fds *result = NULL;
 	char *argv[] = {NULL, NULL, NULL, NULL};
@@ -448,12 +448,12 @@ static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 
 	rxfd = create_raw_fd(iface, ETH_P_ALL, ETH_P_ALL);
 	if (rxfd == -1) {
-		err = -errno;
+		err = -erranal;
 		goto raw_cleanup;
 	}
 	txfd = create_raw_fd(iface, 0, ETH_P_IP); /* Turn off RX on this fd */
 	if (txfd == -1) {
-		err = -errno;
+		err = -erranal;
 		goto raw_cleanup;
 	}
 	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
@@ -506,11 +506,11 @@ bool uml_tap_enable_vnet_headers(int fd)
 	int len = sizeof(struct virtio_net_hdr);
 
 	if (ioctl(fd, TUNGETFEATURES, &features) == -1) {
-		printk(UM_KERN_INFO TUN_GET_F_FAIL, strerror(errno));
+		printk(UM_KERN_INFO TUN_GET_F_FAIL, strerror(erranal));
 		return false;
 	}
 	if ((features & IFF_VNET_HDR) == 0) {
-		printk(UM_KERN_INFO "tapraw: No VNET HEADER support");
+		printk(UM_KERN_INFO "tapraw: Anal VNET HEADER support");
 		return false;
 	}
 	ioctl(fd, TUNSETVNETHDRSZ, &len);
@@ -519,7 +519,7 @@ bool uml_tap_enable_vnet_headers(int fd)
 
 static struct vector_fds *user_init_socket_fds(struct arglist *ifspec, int id)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int fd = -1, gairet;
 	struct addrinfo srchints;
 	struct addrinfo dsthints;
@@ -578,7 +578,7 @@ static struct vector_fds *user_init_socket_fds(struct arglist *ifspec, int id)
 	gairet = getaddrinfo(src, srcport, &dsthints, &gairesult);
 	if ((gairet != 0) || (gairesult == NULL)) {
 		printk(UM_KERN_ERR
-			"socket_open : could not resolve src, error = %s",
+			"socket_open : could analt resolve src, error = %s",
 			gai_strerror(gairet)
 		);
 		return NULL;
@@ -587,15 +587,15 @@ static struct vector_fds *user_init_socket_fds(struct arglist *ifspec, int id)
 		gairesult->ai_socktype, gairesult->ai_protocol);
 	if (fd == -1) {
 		printk(UM_KERN_ERR
-			"socket_open : could not open socket, error = %d",
-			-errno
+			"socket_open : could analt open socket, error = %d",
+			-erranal
 		);
 		goto cleanup;
 	}
 	if (bind(fd,
 		(struct sockaddr *) gairesult->ai_addr,
 		gairesult->ai_addrlen)) {
-		printk(UM_KERN_ERR L2TPV3_BIND_FAIL, errno);
+		printk(UM_KERN_ERR L2TPV3_BIND_FAIL, erranal);
 		goto cleanup;
 	}
 
@@ -607,7 +607,7 @@ static struct vector_fds *user_init_socket_fds(struct arglist *ifspec, int id)
 	gairet = getaddrinfo(dst, dstport, &dsthints, &gairesult);
 	if ((gairet != 0) || (gairesult == NULL)) {
 		printk(UM_KERN_ERR
-			"socket_open : could not resolve dst, error = %s",
+			"socket_open : could analt resolve dst, error = %s",
 			gai_strerror(gairet)
 		);
 		return NULL;
@@ -651,7 +651,7 @@ struct vector_fds *uml_vector_user_open(
 	char *transport;
 
 	if (parsed == NULL) {
-		printk(UM_KERN_ERR "no parsed config for unit %d\n", unit);
+		printk(UM_KERN_ERR "anal parsed config for unit %d\n", unit);
 		return NULL;
 	}
 	transport = uml_vector_fetch_arg(parsed, "transport");
@@ -682,12 +682,12 @@ int uml_vector_sendmsg(int fd, void *hdr, int flags)
 	int n;
 
 	CATCH_EINTR(n = sendmsg(fd, (struct msghdr *) hdr,  flags));
-	if ((n < 0) && (errno == EAGAIN))
+	if ((n < 0) && (erranal == EAGAIN))
 		return 0;
 	if (n >= 0)
 		return n;
 	else
-		return -errno;
+		return -erranal;
 }
 
 int uml_vector_recvmsg(int fd, void *hdr, int flags)
@@ -696,12 +696,12 @@ int uml_vector_recvmsg(int fd, void *hdr, int flags)
 	struct msghdr *msg = (struct msghdr *) hdr;
 
 	CATCH_EINTR(n = readv(fd, msg->msg_iov, msg->msg_iovlen));
-	if ((n < 0) && (errno == EAGAIN))
+	if ((n < 0) && (erranal == EAGAIN))
 		return 0;
 	if (n >= 0)
 		return n;
 	else
-		return -errno;
+		return -erranal;
 }
 
 int uml_vector_writev(int fd, void *hdr, int iovcount)
@@ -709,12 +709,12 @@ int uml_vector_writev(int fd, void *hdr, int iovcount)
 	int n;
 
 	CATCH_EINTR(n = writev(fd, (struct iovec *) hdr,  iovcount));
-	if ((n < 0) && ((errno == EAGAIN) || (errno == ENOBUFS)))
+	if ((n < 0) && ((erranal == EAGAIN) || (erranal == EANALBUFS)))
 		return 0;
 	if (n >= 0)
 		return n;
 	else
-		return -errno;
+		return -erranal;
 }
 
 int uml_vector_sendmmsg(
@@ -726,12 +726,12 @@ int uml_vector_sendmmsg(
 	int n;
 
 	CATCH_EINTR(n = sendmmsg(fd, (struct mmsghdr *) msgvec, vlen, flags));
-	if ((n < 0) && ((errno == EAGAIN) || (errno == ENOBUFS)))
+	if ((n < 0) && ((erranal == EAGAIN) || (erranal == EANALBUFS)))
 		return 0;
 	if (n >= 0)
 		return n;
 	else
-		return -errno;
+		return -erranal;
 }
 
 int uml_vector_recvmmsg(
@@ -744,12 +744,12 @@ int uml_vector_recvmmsg(
 
 	CATCH_EINTR(
 		n = recvmmsg(fd, (struct mmsghdr *) msgvec, vlen, flags, 0));
-	if ((n < 0) && (errno == EAGAIN))
+	if ((n < 0) && (erranal == EAGAIN))
 		return 0;
 	if (n >= 0)
 		return n;
 	else
-		return -errno;
+		return -erranal;
 }
 int uml_vector_attach_bpf(int fd, void *bpf)
 {
@@ -758,7 +758,7 @@ int uml_vector_attach_bpf(int fd, void *bpf)
 	int err = setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, bpf, sizeof(struct sock_fprog));
 
 	if (err < 0)
-		printk(KERN_ERR BPF_ATTACH_FAIL, prog->len, prog->filter, fd, -errno);
+		printk(KERN_ERR BPF_ATTACH_FAIL, prog->len, prog->filter, fd, -erranal);
 	return err;
 }
 
@@ -768,7 +768,7 @@ int uml_vector_detach_bpf(int fd, void *bpf)
 
 	int err = setsockopt(fd, SOL_SOCKET, SO_DETACH_FILTER, bpf, sizeof(struct sock_fprog));
 	if (err < 0)
-		printk(KERN_ERR BPF_DETACH_FAIL, prog->len, prog->filter, fd, -errno);
+		printk(KERN_ERR BPF_DETACH_FAIL, prog->len, prog->filter, fd, -erranal);
 	return err;
 }
 void *uml_vector_default_bpf(const void *mac)
@@ -808,7 +808,7 @@ void *uml_vector_default_bpf(const void *mac)
 	return bpf_prog;
 }
 
-/* Note - this function requires a valid mac being passed as an arg */
+/* Analte - this function requires a valid mac being passed as an arg */
 
 void *uml_vector_user_bpf(char *filename)
 {
@@ -821,7 +821,7 @@ void *uml_vector_user_bpf(char *filename)
 		return NULL;
 
 	if (stat(filename, &statbuf) < 0) {
-		printk(KERN_ERR "Error %d reading bpf file", -errno);
+		printk(KERN_ERR "Error %d reading bpf file", -erranal);
 		return false;
 	}
 	bpf_prog = uml_kmalloc(sizeof(struct sock_fprog), UM_GFP_KERNEL);
@@ -833,7 +833,7 @@ void *uml_vector_user_bpf(char *filename)
 	bpf_prog->filter = NULL;
 	ffd = os_open_file(filename, of_read(OPENFLAGS()), 0);
 	if (ffd < 0) {
-		printk(KERN_ERR "Error %d opening bpf file", -errno);
+		printk(KERN_ERR "Error %d opening bpf file", -erranal);
 		goto bpf_failed;
 	}
 	bpf = uml_kmalloc(statbuf.st_size, UM_GFP_KERNEL);

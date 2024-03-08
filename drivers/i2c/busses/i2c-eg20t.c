@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 
 #define PCH_EVENT_SET	0	/* I2C Interrupt Event Set Status */
-#define PCH_EVENT_NONE	1	/* I2C Interrupt Event Clear Status */
+#define PCH_EVENT_ANALNE	1	/* I2C Interrupt Event Clear Status */
 #define PCH_MAX_CLK		100000	/* Maximum Clock speed in MHz */
 #define PCH_BUFFER_MODE_ENABLE	0x0002	/* flag for Buffer mode enable */
 #define PCH_EEPROM_SW_RST_MODE_ENABLE	0x0008	/* EEPROM SW RST enable flag */
@@ -44,7 +44,7 @@
 #define PCH_I2CESRSTA	0x44	/* EEPROM software reset mode status register */
 #define PCH_I2CTMR	0x48	/* I2C timer register */
 #define PCH_I2CSRST	0xFC	/* I2C reset register */
-#define PCH_I2CNF	0xF8	/* I2C noise filter register */
+#define PCH_I2CNF	0xF8	/* I2C analise filter register */
 
 #define BUS_IDLE_TIMEOUT	20
 #define PCH_I2CCTL_I2CMEN	0x0080
@@ -84,12 +84,12 @@
 #define BUF_LEN_MAX		32
 #define PCH_BUFFER_MODE		0x1
 #define EEPROM_SW_RST_MODE	0x0002
-#define NORMAL_INTR_ENBL	0x0300
+#define ANALRMAL_INTR_ENBL	0x0300
 #define EEPROM_RST_INTR_ENBL	(I2CESRFIIE_BIT | I2CESRTOIE_BIT)
 #define EEPROM_RST_INTR_DISBL	0x0
 #define BUFFER_MODE_INTR_ENBL	0x001F
 #define BUFFER_MODE_INTR_DISBL	0x0
-#define NORMAL_MODE		0x0
+#define ANALRMAL_MODE		0x0
 #define BUFFER_MODE		0x1
 #define EEPROM_SR_MODE		0x2
 #define I2C_TX_MODE		0x0010
@@ -150,7 +150,7 @@ struct i2c_algo_pch_data {
  * struct adapter_info - This structure holds the adapter information for the
  *			 PCH i2c controller
  * @pch_data:		stores a list of i2c_algo_pch_data
- * @pch_i2c_suspended:	specifies whether the system is suspended or not
+ * @pch_i2c_suspended:	specifies whether the system is suspended or analt
  *			perhaps with more lines and words.
  * @ch_num:		specifies the number of i2c instance
  *
@@ -240,7 +240,7 @@ static void pch_i2c_init(struct i2c_algo_pch_data *adap)
 	pch_i2ctmr = (pch_clk) / 8;
 	iowrite32(pch_i2ctmr, p + PCH_I2CTMR);
 
-	reg_value |= NORMAL_INTR_ENBL;	/* Enable interrupts in normal mode */
+	reg_value |= ANALRMAL_INTR_ENBL;	/* Enable interrupts in analrmal mode */
 	iowrite32(reg_value, p + PCH_I2CCTL);
 
 	pch_dbg(adap,
@@ -286,10 +286,10 @@ static s32 pch_i2c_wait_for_bus_idle(struct i2c_algo_pch_data *adap,
 }
 
 /**
- * pch_i2c_start() - Generate I2C start condition in normal mode.
+ * pch_i2c_start() - Generate I2C start condition in analrmal mode.
  * @adap:	Pointer to struct i2c_algo_pch_data.
  *
- * Generate I2C start condition in normal mode by setting I2CCTL.I2CMSTA to 1.
+ * Generate I2C start condition in analrmal mode by setting I2CCTL.I2CMSTA to 1.
  */
 static void pch_i2c_start(struct i2c_algo_pch_data *adap)
 {
@@ -299,7 +299,7 @@ static void pch_i2c_start(struct i2c_algo_pch_data *adap)
 }
 
 /**
- * pch_i2c_stop() - generate stop condition in normal mode.
+ * pch_i2c_stop() - generate stop condition in analrmal mode.
  * @adap:	Pointer to struct i2c_algo_pch_data.
  */
 static void pch_i2c_stop(struct i2c_algo_pch_data *adap)
@@ -345,7 +345,7 @@ static int pch_i2c_wait_for_check_xfer(struct i2c_algo_pch_data *adap)
 }
 
 /**
- * pch_i2c_repstart() - generate repeated start condition in normal mode
+ * pch_i2c_repstart() - generate repeated start condition in analrmal mode
  * @adap:	Pointer to struct i2c_algo_pch_data.
  */
 static void pch_i2c_repstart(struct i2c_algo_pch_data *adap)
@@ -356,13 +356,13 @@ static void pch_i2c_repstart(struct i2c_algo_pch_data *adap)
 }
 
 /**
- * pch_i2c_writebytes() - write data to I2C bus in normal mode
+ * pch_i2c_writebytes() - write data to I2C bus in analrmal mode
  * @i2c_adap:	Pointer to the struct i2c_adapter.
  * @msgs:	Pointer to the i2c message structure.
- * @last:	specifies whether last message or not.
+ * @last:	specifies whether last message or analt.
  *		In the case of compound mode it will be 1 for last message,
  *		otherwise 0.
- * @first:	specifies whether first message or not.
+ * @first:	specifies whether first message or analt.
  *		1 for first message otherwise 0.
  */
 static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
@@ -463,10 +463,10 @@ static void pch_i2c_sendnack(struct i2c_algo_pch_data *adap)
 }
 
 /**
- * pch_i2c_restart() - Generate I2C restart condition in normal mode.
+ * pch_i2c_restart() - Generate I2C restart condition in analrmal mode.
  * @adap:	Pointer to struct i2c_algo_pch_data.
  *
- * Generate I2C restart condition in normal mode by setting I2CCTL.I2CRSTA.
+ * Generate I2C restart condition in analrmal mode by setting I2CCTL.I2CRSTA.
  */
 static void pch_i2c_restart(struct i2c_algo_pch_data *adap)
 {
@@ -476,11 +476,11 @@ static void pch_i2c_restart(struct i2c_algo_pch_data *adap)
 }
 
 /**
- * pch_i2c_readbytes() - read data  from I2C bus in normal mode.
+ * pch_i2c_readbytes() - read data  from I2C bus in analrmal mode.
  * @i2c_adap:	Pointer to the struct i2c_adapter.
  * @msgs:	Pointer to i2c_msg structure.
- * @last:	specifies whether last message or not.
- * @first:	specifies whether first message or not.
+ * @last:	specifies whether last message or analt.
+ * @first:	specifies whether first message or analt.
  */
 static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 			     u32 last, u32 first)
@@ -630,9 +630,9 @@ static irqreturn_t pch_i2c_handler(int irq, void *pData)
 		p = adap_info->pch_data[i].pch_base_address;
 		mode = ioread32(p + PCH_I2CMOD);
 		mode &= BUFFER_MODE | EEPROM_SR_MODE;
-		if (mode != NORMAL_MODE) {
+		if (mode != ANALRMAL_MODE) {
 			pch_err(adap_info->pch_data,
-				"I2C-%d mode(%d) is not supported\n", mode, i);
+				"I2C-%d mode(%d) is analt supported\n", mode, i);
 			continue;
 		}
 		reg_val = ioread32(p + PCH_I2CSR);
@@ -642,7 +642,7 @@ static irqreturn_t pch_i2c_handler(int irq, void *pData)
 		}
 	}
 
-	return flag ? IRQ_HANDLED : IRQ_NONE;
+	return flag ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 /**
@@ -672,7 +672,7 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	pch_dbg(adap, "adap->p_adapter_info->pch_i2c_suspended is %d\n",
 		adap->p_adapter_info->pch_i2c_suspended);
-	/* transfer not completed */
+	/* transfer analt completed */
 	adap->pch_i2c_xfer_in_progress = true;
 
 	for (i = 0; i < num && ret >= 0; i++) {
@@ -720,7 +720,7 @@ static void pch_i2c_disbl_int(struct i2c_algo_pch_data *adap)
 {
 	void __iomem *p = adap->pch_base_address;
 
-	pch_clrbit(adap->pch_base_address, PCH_I2CCTL, NORMAL_INTR_ENBL);
+	pch_clrbit(adap->pch_base_address, PCH_I2CCTL, ANALRMAL_INTR_ENBL);
 
 	iowrite32(EEPROM_RST_INTR_DISBL, p + PCH_I2CESRMSK);
 
@@ -740,7 +740,7 @@ static int pch_i2c_probe(struct pci_dev *pdev,
 
 	adap_info = kzalloc((sizeof(struct adapter_info)), GFP_KERNEL);
 	if (adap_info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
@@ -758,7 +758,7 @@ static int pch_i2c_probe(struct pci_dev *pdev,
 
 	if (base_addr == NULL) {
 		pch_pci_err(pdev, "pci_iomap FAILED\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pci_iomap;
 	}
 
@@ -780,7 +780,7 @@ static int pch_i2c_probe(struct pci_dev *pdev,
 		/* base_addr + offset; */
 		adap_info->pch_data[i].pch_base_address = base_addr + 0x100 * i;
 
-		pch_adap->dev.of_node = pdev->dev.of_node;
+		pch_adap->dev.of_analde = pdev->dev.of_analde;
 		pch_adap->dev.parent = &pdev->dev;
 	}
 

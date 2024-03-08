@@ -37,7 +37,7 @@
 		{ TPS_REG_INT_PR_SWAP_REQUESTED,		"PR_SWAP_REQUESTED" }, \
 		{ TPS_REG_INT_GOTO_MIN_RECEIVED,		"GOTO_MIN_RECEIVED" }, \
 		{ TPS_REG_INT_USB_HOST_PRESENT,			"USB_HOST_PRESENT" }, \
-		{ TPS_REG_INT_USB_HOST_PRESENT_NO_LONGER,	"USB_HOST_PRESENT_NO_LONGER" }, \
+		{ TPS_REG_INT_USB_HOST_PRESENT_ANAL_LONGER,	"USB_HOST_PRESENT_ANAL_LONGER" }, \
 		{ TPS_REG_INT_HIGH_VOLTAGE_WARNING,		"HIGH_VOLTAGE_WARNING" }, \
 		{ TPS_REG_INT_PP_SWITCH_CHANGED,		"PP_SWITCH_CHANGED" }, \
 		{ TPS_REG_INT_POWER_STATUS_UPDATE,		"POWER_STATUS_UPDATE" }, \
@@ -49,7 +49,7 @@
 		{ TPS_REG_INT_CMD1_COMPLETE,			"CMD1_COMPLETE" }, \
 		{ TPS_REG_INT_CMD2_COMPLETE,			"CMD2_COMPLETE" }, \
 		{ TPS_REG_INT_ERROR_DEVICE_INCOMPATIBLE,	"ERROR_DEVICE_INCOMPATIBLE" }, \
-		{ TPS_REG_INT_ERROR_CANNOT_PROVIDE_PWR,		"ERROR_CANNOT_PROVIDE_PWR" }, \
+		{ TPS_REG_INT_ERROR_CANANALT_PROVIDE_PWR,		"ERROR_CANANALT_PROVIDE_PWR" }, \
 		{ TPS_REG_INT_ERROR_CAN_PROVIDE_PWR_LATER,	"ERROR_CAN_PROVIDE_PWR_LATER" }, \
 		{ TPS_REG_INT_ERROR_POWER_EVENT_OCCURRED,	"ERROR_POWER_EVENT_OCCURRED" }, \
 		{ TPS_REG_INT_ERROR_MISSING_GET_CAP_MESSAGE,	"ERROR_MISSING_GET_CAP_MESSAGE" }, \
@@ -102,12 +102,12 @@
 #define show_status_conn_state(status) \
 	__print_symbolic(TPS_STATUS_CONN_STATE((status)), \
 		{ TPS_STATUS_CONN_STATE_CONN_WITH_R_A,	"conn-Ra"  }, \
-		{ TPS_STATUS_CONN_STATE_CONN_NO_R_A,	"conn-no-Ra" }, \
-		{ TPS_STATUS_CONN_STATE_NO_CONN_R_A,	"no-conn-Ra" },	\
+		{ TPS_STATUS_CONN_STATE_CONN_ANAL_R_A,	"conn-anal-Ra" }, \
+		{ TPS_STATUS_CONN_STATE_ANAL_CONN_R_A,	"anal-conn-Ra" },	\
 		{ TPS_STATUS_CONN_STATE_DEBUG_CONN,	"debug"	 }, \
 		{ TPS_STATUS_CONN_STATE_AUDIO_CONN,	"audio"	 }, \
 		{ TPS_STATUS_CONN_STATE_DISABLED,	"disabled" }, \
-		{ TPS_STATUS_CONN_STATE_NO_CONN,	"no-conn" })
+		{ TPS_STATUS_CONN_STATE_ANAL_CONN,	"anal-conn" })
 
 #define show_status_pp_switch_state(status) \
 	__print_symbolic(status, \
@@ -121,7 +121,7 @@
 		{ TPS_STATUS_POWER_SOURCE_VBUS,		"vbus" }, \
 		{ TPS_STATUS_POWER_SOURCE_VIN_3P3,	"vin-3p3" }, \
 		{ TPS_STATUS_POWER_SOURCE_DEAD_BAT,	"dead-battery" }, \
-		{ TPS_STATUS_POWER_SOURCE_UNKNOWN,	"unknown" })
+		{ TPS_STATUS_POWER_SOURCE_UNKANALWN,	"unkanalwn" })
 
 #define show_status_vbus_status(status) \
 	__print_symbolic(TPS_STATUS_VBUS_STATUS(status), \
@@ -133,15 +133,15 @@
 #define show_status_usb_host_present(status) \
 	__print_symbolic(TPS_STATUS_USB_HOST_PRESENT(status), \
 		{ TPS_STATUS_USB_HOST_PRESENT_PD_USB,	 "pd-usb" }, \
-		{ TPS_STATUS_USB_HOST_PRESENT_NO_PD,	 "no-pd" }, \
-		{ TPS_STATUS_USB_HOST_PRESENT_PD_NO_USB, "pd-no-usb" }, \
-		{ TPS_STATUS_USB_HOST_PRESENT_NO,	 "no" })
+		{ TPS_STATUS_USB_HOST_PRESENT_ANAL_PD,	 "anal-pd" }, \
+		{ TPS_STATUS_USB_HOST_PRESENT_PD_ANAL_USB, "pd-anal-usb" }, \
+		{ TPS_STATUS_USB_HOST_PRESENT_ANAL,	 "anal" })
 
 #define show_status_legacy(status) \
 	__print_symbolic(TPS_STATUS_LEGACY(status),	     \
 		{ TPS_STATUS_LEGACY_SOURCE,		 "source" }, \
 		{ TPS_STATUS_LEGACY_SINK,		 "sink" }, \
-		{ TPS_STATUS_LEGACY_NO,			 "no" })
+		{ TPS_STATUS_LEGACY_ANAL,			 "anal" })
 
 #define show_status_flags(flags) \
 	__print_flags((flags & TPS6598X_STATUS_FLAGS_MASK), "|", \
@@ -186,7 +186,7 @@
 	__print_symbolic(TPS25750_POWER_STATUS_CHARGER_DETECT_STATUS(power_status), \
 		{ TPS25750_POWER_STATUS_CHARGER_DET_STATUS_DISABLED,	"disabled"}, \
 		{ TPS25750_POWER_STATUS_CHARGER_DET_STATUS_IN_PROGRESS,	"in progress"}, \
-		{ TPS25750_POWER_STATUS_CHARGER_DET_STATUS_NONE,	"none"}, \
+		{ TPS25750_POWER_STATUS_CHARGER_DET_STATUS_ANALNE,	"analne"}, \
 		{ TPS25750_POWER_STATUS_CHARGER_DET_STATUS_SPD,		"spd"}, \
 		{ TPS25750_POWER_STATUS_CHARGER_DET_STATUS_BC_1_2_CPD,	"cpd"}, \
 		{ TPS25750_POWER_STATUS_CHARGER_DET_STATUS_BC_1_2_DPD,	"dpd"}, \
@@ -383,7 +383,7 @@ TRACE_EVENT(tps6598x_data_status,
 
 	    TP_printk("%s%s%s",
 		      show_data_status_flags(__entry->data_status),
-		      __entry->data_status & TPS_DATA_STATUS_DP_CONNECTION ? ", DP pinout " : "",
+		      __entry->data_status & TPS_DATA_STATUS_DP_CONNECTION ? ", DP pianalut " : "",
 		      maybe_show_data_status_dp_pin_assignment(__entry->data_status)
 		    )
 );

@@ -13,29 +13,29 @@ maintainers:
 description: |
   Please refer to pinctrl-bindings.txt in this directory for details of the
   common pinctrl bindings used by client devices, including the meaning of
-  the phrase "pin configuration node".
+  the phrase "pin configuration analde".
 
-  Tegra's pin configuration nodes act as a container for an arbitrary number
-  of subnodes. Each of these subnodes represents some desired configuration
+  Tegra's pin configuration analdes act as a container for an arbitrary number
+  of subanaldes. Each of these subanaldes represents some desired configuration
   for a pin, a group, or a list of pins or groups. This configuration can
   include the mux function to select on those pin(s)/ group(s), and various
   pin configuration parameters, such as pull-up, tristate, drive strength,
   etc.
 
-  The name of each subnode is not important; all subnodes should be
+  The name of each subanalde is analt important; all subanaldes should be
   enumerated and processed purely based on their content.
 
-  Each subnode only affects those parameters that are explicitly listed. In
-  other words, a subnode that lists a mux function but no pin configuration
-  parameters implies no information about any pin configuration parameters.
+  Each subanalde only affects those parameters that are explicitly listed. In
+  other words, a subanalde that lists a mux function but anal pin configuration
+  parameters implies anal information about any pin configuration parameters.
 
-  Similarly, a pin subnode that describes a pullup parameter implies no
+  Similarly, a pin subanalde that describes a pullup parameter implies anal
   information about e.g.  the mux function or tristate parameter. For this
   reason, even seemingly boolean values are actually tristates in this
   binding: unspecified, off, or on. Unspecified is represented as an absent
   property, and off/on are represented as integer values 0 and 1.
 
-  Note that many of these properties are only valid for certain specific pins
+  Analte that many of these properties are only valid for certain specific pins
   or groups. See the Tegra TRM and various pinmux spreadsheets for complete
   details regarding which groups support which functionality. The Linux
   pinctrl driver may also be a useful reference, since it consolidates,
@@ -57,7 +57,7 @@ properties:
     description: Pull-down/up setting to apply to the pin.
     $ref: /schemas/types.yaml#/definitions/uint32
     oneOf:
-      - description: none
+      - description: analne
         const: 0
       - description: down
         const: 1
@@ -96,7 +96,7 @@ properties:
     description: Enable high speed mode the pins.
     $ref: /schemas/types.yaml#/definitions/uint32
     oneOf:
-      - description: normal speed mode
+      - description: analrmal speed mode
         const: 0
       - description: high speed mode
         const: 1
@@ -145,7 +145,7 @@ properties:
     description: select VIL/VIH receivers
     $ref: /schemas/types.yaml#/definitions/uint32
     oneOf:
-      - description: normal receivers
+      - description: analrmal receivers
         const: 0
       - description: high-voltage receivers
         const: 1
@@ -159,7 +159,7 @@ properties:
     description: Select high-voltage receivers.
     $ref: /schemas/types.yaml#/definitions/uint32
     oneOf:
-      - description: Use normal receivers.
+      - description: Use analrmal receivers.
         const: 0
       - description: Use high-voltage receivers.
         const: 1

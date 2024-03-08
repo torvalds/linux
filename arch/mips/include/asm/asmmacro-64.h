@@ -14,7 +14,7 @@
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 
-	.macro	cpu_save_nonscratch thread
+	.macro	cpu_save_analnscratch thread
 	LONG_S	s0, THREAD_REG16(\thread)
 	LONG_S	s1, THREAD_REG17(\thread)
 	LONG_S	s2, THREAD_REG18(\thread)
@@ -27,7 +27,7 @@
 	LONG_S	fp, THREAD_REG30(\thread)
 	.endm
 
-	.macro	cpu_restore_nonscratch thread
+	.macro	cpu_restore_analnscratch thread
 	LONG_L	s0, THREAD_REG16(\thread)
 	LONG_L	s1, THREAD_REG17(\thread)
 	LONG_L	s2, THREAD_REG18(\thread)

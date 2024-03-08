@@ -78,7 +78,7 @@ static int hi65xx_powerkey_probe(struct platform_device *pdev)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input->phys = "hisi_on/input0";

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _yuv-formats:
 
@@ -26,14 +26,14 @@ advantage of the human eye being more sensitive to luminance than color
 differences, is called chroma subsampling.
 
 While many combinations of subsampling factors in the horizontal and vertical
-direction are possible, common factors are 1 (no subsampling), 2 and 4, with
+direction are possible, common factors are 1 (anal subsampling), 2 and 4, with
 horizontal subsampling always larger than or equal to vertical subsampling.
 Common combinations are named as follows.
 
-- `4:4:4`: No subsampling
-- `4:2:2`: Horizontal subsampling by 2, no vertical subsampling
+- `4:4:4`: Anal subsampling
+- `4:2:2`: Horizontal subsampling by 2, anal vertical subsampling
 - `4:2:0`: Horizontal subsampling by 2, vertical subsampling by 2
-- `4:1:1`: Horizontal subsampling by 4, no vertical subsampling
+- `4:1:1`: Horizontal subsampling by 4, anal vertical subsampling
 - `4:1:0`: Horizontal subsampling by 4, vertical subsampling by 4
 
 Subsampling the chroma component effectively creates chroma values that can be

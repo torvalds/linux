@@ -62,8 +62,8 @@ int get_old_timex32(struct __kernel_timex *, const struct old_timex32 __user *);
 int put_old_timex32(struct old_timex32 __user *, const struct __kernel_timex *);
 
 /**
- * ns_to_kernel_old_timeval - Convert nanoseconds to timeval
- * @nsec:	the nanoseconds value to be converted
+ * ns_to_kernel_old_timeval - Convert naanalseconds to timeval
+ * @nsec:	the naanalseconds value to be converted
  *
  * Returns the timeval representation of the nsec parameter.
  */

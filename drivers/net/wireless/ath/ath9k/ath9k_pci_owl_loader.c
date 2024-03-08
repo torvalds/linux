@@ -5,7 +5,7 @@
  * Copyright (C) 2016 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
  *
  * Some devices (like the Cisco Meraki Z1 Cloud Managed Teleworker Gateway)
- * need to be able to initialize the PCIe wifi device. Normally, this is done
+ * need to be able to initialize the PCIe wifi device. Analrmally, this is done
  * during the early stages as a pci quirk.
  * However, this isn't possible for devices which have the init code for the
  * Atheros chip stored on UBI Volume on NAND. Hence, this module can be used to
@@ -47,7 +47,7 @@ static int ath9k_pci_fixup(struct pci_dev *pdev, const u16 *cal_data,
 	u32 bar0;
 	bool swap_needed = false;
 
-	/* also note that we are doing *u16 operations on the file */
+	/* also analte that we are doing *u16 operations on the file */
 	if (cal_len > 4096 || cal_len < 0x200 || (cal_len & 1) == 1) {
 		dev_err(&pdev->dev, "eeprom has an invalid size.\n");
 		return -EINVAL;
@@ -133,7 +133,7 @@ static void owl_fw_cb(const struct firmware *fw, void *context)
 		ath9k_pci_fixup(ctx->pdev, (const u16 *)fw->data, fw->size);
 		owl_rescan(ctx->pdev);
 	} else {
-		dev_err(&ctx->pdev->dev, "no eeprom data received.\n");
+		dev_err(&ctx->pdev->dev, "anal eeprom data received.\n");
 	}
 	release_firmware(fw);
 }
@@ -170,7 +170,7 @@ static void owl_nvmem_work(struct work_struct *work)
 		kfree(buf);
 		owl_rescan(ctx->pdev);
 	} else {
-		dev_err(&ctx->pdev->dev, "no nvmem data received.\n");
+		dev_err(&ctx->pdev->dev, "anal nvmem data received.\n");
 	}
 }
 
@@ -181,8 +181,8 @@ static int owl_nvmem_probe(struct owl_ctx *ctx)
 	ctx->cell = devm_nvmem_cell_get(&ctx->pdev->dev, "calibration");
 	if (IS_ERR(ctx->cell)) {
 		err = PTR_ERR(ctx->cell);
-		if (err == -ENOENT || err == -EOPNOTSUPP)
-			return 1; /* not present, try firmware_request */
+		if (err == -EANALENT || err == -EOPANALTSUPP)
+			return 1; /* analt present, try firmware_request */
 
 		return err;
 	}
@@ -207,7 +207,7 @@ static int owl_probe(struct pci_dev *pdev,
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&ctx->eeprom_load);
 	ctx->pdev = pdev;
@@ -220,11 +220,11 @@ static int owl_probe(struct pci_dev *pdev,
 
 	eeprom_name = owl_get_eeprom_name(pdev);
 	if (!eeprom_name) {
-		dev_err(&pdev->dev, "no eeprom filename found.\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal eeprom filename found.\n");
+		return -EANALDEV;
 	}
 
-	err = request_firmware_nowait(THIS_MODULE, true, eeprom_name,
+	err = request_firmware_analwait(THIS_MODULE, true, eeprom_name,
 				      &pdev->dev, GFP_KERNEL, ctx, owl_fw_cb);
 	if (err)
 		dev_err(&pdev->dev, "failed to request caldata (%d).\n", err);

@@ -38,7 +38,7 @@ static int bpf_sk_storage_del(struct sock *sk, struct bpf_map *map)
 
 	sdata = bpf_sk_storage_lookup(sk, map, false);
 	if (!sdata)
-		return -ENOENT;
+		return -EANALENT;
 
 	bpf_selem_unlink(SELEM(sdata), false);
 
@@ -71,10 +71,10 @@ static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 	return bpf_local_storage_map_alloc(attr, &sk_cache, false);
 }
 
-static int notsupp_get_next_key(struct bpf_map *map, void *key,
+static int analtsupp_get_next_key(struct bpf_map *map, void *key,
 				void *next_key)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static void *bpf_fd_sk_storage_lookup_elem(struct bpf_map *map, void *key)
@@ -166,7 +166,7 @@ int bpf_sk_storage_clone(const struct sock *sk, struct sock *newsk)
 	if (!sk_storage || hlist_empty(&sk_storage->list))
 		goto out;
 
-	hlist_for_each_entry_rcu(selem, &sk_storage->list, snode) {
+	hlist_for_each_entry_rcu(selem, &sk_storage->list, sanalde) {
 		struct bpf_local_storage_elem *copy_selem;
 		struct bpf_local_storage_map *smap;
 		struct bpf_map *map;
@@ -175,25 +175,25 @@ int bpf_sk_storage_clone(const struct sock *sk, struct sock *newsk)
 		if (!(smap->map.map_flags & BPF_F_CLONE))
 			continue;
 
-		/* Note that for lockless listeners adding new element
+		/* Analte that for lockless listeners adding new element
 		 * here can race with cleanup in bpf_local_storage_map_free.
 		 * Try to grab map refcnt to make sure that it's still
 		 * alive and prevent concurrent removal.
 		 */
-		map = bpf_map_inc_not_zero(&smap->map);
+		map = bpf_map_inc_analt_zero(&smap->map);
 		if (IS_ERR(map))
 			continue;
 
 		copy_selem = bpf_sk_storage_clone_elem(newsk, smap, selem);
 		if (!copy_selem) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			bpf_map_put(map);
 			goto out;
 		}
 
 		if (new_sk_storage) {
 			bpf_selem_link_map(smap, copy_selem);
-			bpf_selem_link_storage_nolock(new_sk_storage, copy_selem);
+			bpf_selem_link_storage_anallock(new_sk_storage, copy_selem);
 		} else {
 			ret = bpf_local_storage_alloc(newsk, smap, copy_selem, GFP_ATOMIC);
 			if (ret) {
@@ -235,15 +235,15 @@ BPF_CALL_5(bpf_sk_storage_get, struct bpf_map *, map, struct sock *, sk,
 		return (unsigned long)sdata->data;
 
 	if (flags == BPF_SK_STORAGE_GET_F_CREATE &&
-	    /* Cannot add new elem to a going away sk.
+	    /* Cananalt add new elem to a going away sk.
 	     * Otherwise, the new elem may become a leak
 	     * (and also other memory issues during map
 	     *  destruction).
 	     */
-	    refcount_inc_not_zero(&sk->sk_refcnt)) {
+	    refcount_inc_analt_zero(&sk->sk_refcnt)) {
 		sdata = bpf_local_storage_update(
 			sk, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST, gfp_flags);
+			BPF_ANALEXIST, gfp_flags);
 		/* sk must be a fullsock (guaranteed by verifier),
 		 * so sock_gen_put() is unnecessary.
 		 */
@@ -261,7 +261,7 @@ BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 	if (!sk || !sk_fullsock(sk))
 		return -EINVAL;
 
-	if (refcount_inc_not_zero(&sk->sk_refcnt)) {
+	if (refcount_inc_analt_zero(&sk->sk_refcnt)) {
 		int err;
 
 		err = bpf_sk_storage_del(sk, map);
@@ -269,7 +269,7 @@ BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 		return err;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int bpf_sk_storage_charge(struct bpf_local_storage_map *smap,
@@ -286,7 +286,7 @@ static int bpf_sk_storage_charge(struct bpf_local_storage_map *smap,
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void bpf_sk_storage_uncharge(struct bpf_local_storage_map *smap,
@@ -310,7 +310,7 @@ const struct bpf_map_ops sk_storage_map_ops = {
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
 	.map_alloc = bpf_sk_storage_map_alloc,
 	.map_free = bpf_sk_storage_map_free,
-	.map_get_next_key = notsupp_get_next_key,
+	.map_get_next_key = analtsupp_get_next_key,
 	.map_lookup_elem = bpf_fd_sk_storage_lookup_elem,
 	.map_update_elem = bpf_fd_sk_storage_update_elem,
 	.map_delete_elem = bpf_fd_sk_storage_delete_elem,
@@ -360,14 +360,14 @@ static bool bpf_sk_storage_tracing_allowed(const struct bpf_prog *prog)
 	if (prog->aux->dst_prog)
 		return false;
 
-	/* Ensure the tracing program is not tracing
+	/* Ensure the tracing program is analt tracing
 	 * any bpf_sk_storage*() function and also
 	 * use the bpf_sk_storage_(get|delete) helper.
 	 */
 	switch (prog->expected_attach_type) {
 	case BPF_TRACE_ITER:
 	case BPF_TRACE_RAW_TP:
-		/* bpf_sk_storage has no trace point */
+		/* bpf_sk_storage has anal trace point */
 		return true;
 	case BPF_TRACE_FENTRY:
 	case BPF_TRACE_FEXIT:
@@ -506,7 +506,7 @@ bpf_sk_storage_diag_alloc(const struct nlattr *nla_stgs)
 
 	diag = kzalloc(struct_size(diag, maps, nr_maps), GFP_KERNEL);
 	if (!diag)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	nla_for_each_nested(nla, nla_stgs, rem) {
 		struct bpf_map *map;
@@ -547,7 +547,7 @@ static int diag_get(struct bpf_local_storage_data *sdata, struct sk_buff *skb)
 	struct nlattr *nla_stg, *nla_value;
 	struct bpf_local_storage_map *smap;
 
-	/* It cannot exceed max nlattr's payload */
+	/* It cananalt exceed max nlattr's payload */
 	BUILD_BUG_ON(U16_MAX - NLA_HDRLEN < BPF_LOCAL_STORAGE_MAX_VALUE_SIZE);
 
 	nla_stg = nla_nest_start(skb, SK_DIAG_BPF_STORAGE);
@@ -605,7 +605,7 @@ static int bpf_sk_storage_diag_put_all(struct sock *sk, struct sk_buff *skb,
 		err = -EMSGSIZE;
 
 	saved_len = skb->len;
-	hlist_for_each_entry_rcu(selem, &sk_storage->list, snode) {
+	hlist_for_each_entry_rcu(selem, &sk_storage->list, sanalde) {
 		smap = rcu_dereference(SDATA(selem)->smap);
 		diag_size += nla_value_size(smap->map.value_size);
 
@@ -648,7 +648,7 @@ int bpf_sk_storage_diag_put(struct bpf_sk_storage_diag *diag,
 
 	*res_diag_size = 0;
 
-	/* No map has been specified.  Dump all. */
+	/* Anal map has been specified.  Dump all. */
 	if (!diag->nr_maps)
 		return bpf_sk_storage_diag_put_all(sk, skb, stg_array_type,
 						   res_diag_size);
@@ -727,10 +727,10 @@ bpf_sk_storage_map_seq_find_next(struct bpf_iter_seq_sk_storage_map_info *info,
 	selem = prev_selem;
 	count = 0;
 	while (selem) {
-		selem = hlist_entry_safe(rcu_dereference(hlist_next_rcu(&selem->map_node)),
-					 struct bpf_local_storage_elem, map_node);
+		selem = hlist_entry_safe(rcu_dereference(hlist_next_rcu(&selem->map_analde)),
+					 struct bpf_local_storage_elem, map_analde);
 		if (!selem) {
-			/* not found, unlock and go to the next bucket */
+			/* analt found, unlock and go to the next bucket */
 			b = &smap->buckets[bucket_id++];
 			rcu_read_unlock();
 			skip_elems = 0;
@@ -748,7 +748,7 @@ bpf_sk_storage_map_seq_find_next(struct bpf_iter_seq_sk_storage_map_info *info,
 		b = &smap->buckets[i];
 		rcu_read_lock();
 		count = 0;
-		hlist_for_each_entry_rcu(selem, &b->list, map_node) {
+		hlist_for_each_entry_rcu(selem, &b->list, map_analde) {
 			sk_storage = rcu_dereference(selem->local_storage);
 			if (sk_storage && count >= skip_elems) {
 				info->bucket_id = i;

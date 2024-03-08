@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Controls header for NPCM video driver
  *
- * Copyright (C) 2022 Nuvoton Technologies
+ * Copyright (C) 2022 Nuvoton Techanallogies
  */
 
 #ifndef _UAPI_LINUX_NPCM_VIDEO_H

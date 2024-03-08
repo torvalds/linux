@@ -8,28 +8,28 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of GIAGIO.COM nor the names of its contributors
+ * 3. Neither the name of GIAGIO.COM analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this analtice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are analt restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -44,7 +44,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -118,7 +118,7 @@ static int ipheth_alloc_urbs(struct ipheth_device *iphone)
 
 	tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (tx_urb == NULL)
-		goto error_nomem;
+		goto error_analmem;
 
 	rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (rx_urb == NULL)
@@ -148,8 +148,8 @@ free_rx_urb:
 	usb_free_urb(rx_urb);
 free_tx_urb:
 	usb_free_urb(tx_urb);
-error_nomem:
-	return -ENOMEM;
+error_analmem:
+	return -EANALMEM;
 }
 
 static void ipheth_free_urbs(struct ipheth_device *iphone)
@@ -175,7 +175,7 @@ static int ipheth_consume_skb(char *buf, int len, struct ipheth_device *dev)
 	skb = dev_alloc_skb(len);
 	if (!skb) {
 		dev->net->stats.rx_dropped++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_put_data(skb, buf, len);
@@ -232,7 +232,7 @@ static int ipheth_rcvbulk_callback_ncm(struct urb *urb)
 	}
 
 	ncm0 = urb->transfer_buffer + le16_to_cpu(ncmh->wNdpIndex);
-	if (ncm0->dwSignature != cpu_to_le32(USB_CDC_NCM_NDP16_NOCRC_SIGN) ||
+	if (ncm0->dwSignature != cpu_to_le32(USB_CDC_NCM_NDP16_ANALCRC_SIGN) ||
 	    le16_to_cpu(ncmh->wHeaderLength) + le16_to_cpu(ncm0->wLength) >=
 	    urb->actual_length) {
 		dev->net->stats.rx_errors++;
@@ -273,7 +273,7 @@ static void ipheth_rcvbulk_callback(struct urb *urb)
 
 	status = urb->status;
 	switch (status) {
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 	case -EPROTO:
@@ -291,8 +291,8 @@ static void ipheth_rcvbulk_callback(struct urb *urb)
 		return;
 	}
 
-	/* RX URBs starting with 0x00 0x01 do not encapsulate Ethernet frames,
-	 * but rather are control frames. Their purpose is not documented, and
+	/* RX URBs starting with 0x00 0x01 do analt encapsulate Ethernet frames,
+	 * but rather are control frames. Their purpose is analt documented, and
 	 * they don't affect driver functionality, okay to drop them.
 	 * There is usually just one 4-byte control frame as the very first
 	 * URB received from the bulk IN endpoint.
@@ -324,7 +324,7 @@ static void ipheth_sndbulk_callback(struct urb *urb)
 		return;
 
 	if (status != 0 &&
-	    status != -ENOENT &&
+	    status != -EANALENT &&
 	    status != -ECONNRESET &&
 	    status != -ESHUTDOWN)
 		dev_err(&dev->intf->dev, "%s: urb status: %d\n",
@@ -442,7 +442,7 @@ static int ipheth_rx_submit(struct ipheth_device *dev, gfp_t mem_flags)
 			  dev->rx_buf, dev->rx_buf_len,
 			  ipheth_rcvbulk_callback,
 			  dev);
-	dev->rx_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	dev->rx_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	retval = usb_submit_urb(dev->rx_urb, mem_flags);
 	if (retval)
@@ -486,7 +486,7 @@ static netdev_tx_t ipheth_tx(struct sk_buff *skb, struct net_device *net)
 	struct usb_device *udev = dev->udev;
 	int retval;
 
-	/* Paranoid */
+	/* Paraanalid */
 	if (skb->len > IPHETH_TX_BUF_SIZE) {
 		WARN(1, "%s: skb too large: %d bytes\n", __func__, skb->len);
 		dev->net->stats.tx_dropped++;
@@ -501,7 +501,7 @@ static netdev_tx_t ipheth_tx(struct sk_buff *skb, struct net_device *net)
 			  dev->tx_buf, skb->len,
 			  ipheth_sndbulk_callback,
 			  dev);
-	dev->tx_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	dev->tx_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	netif_stop_queue(net);
 	retval = usb_submit_urb(dev->tx_urb, GFP_ATOMIC);
@@ -559,7 +559,7 @@ static int ipheth_probe(struct usb_interface *intf,
 
 	netdev = alloc_etherdev(sizeof(struct ipheth_device));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	netdev->netdev_ops = &ipheth_netdev_ops;
 	netdev->watchdog_timeo = IPHETH_TX_TIMEOUT;
@@ -575,7 +575,7 @@ static int ipheth_probe(struct usb_interface *intf,
 	/* Set up endpoints */
 	hintf = usb_altnum_to_altsetting(intf, IPHETH_ALT_INTFNUM);
 	if (hintf == NULL) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		dev_err(&intf->dev, "Unable to find alternate settings interface\n");
 		goto err_endpoints;
 	}
@@ -588,14 +588,14 @@ static int ipheth_probe(struct usb_interface *intf,
 			dev->bulk_out = endp->bEndpointAddress;
 	}
 	if (!(dev->bulk_in && dev->bulk_out)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		dev_err(&intf->dev, "Unable to find endpoints\n");
 		goto err_endpoints;
 	}
 
 	dev->ctrl_buf = kmalloc(IPHETH_CTRL_BUF_SIZE, GFP_KERNEL);
 	if (dev->ctrl_buf == NULL) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_alloc_ctrl_buf;
 	}
 
@@ -658,7 +658,7 @@ static void ipheth_disconnect(struct usb_interface *intf)
 		free_netdev(dev->net);
 	}
 	usb_set_intfdata(intf, NULL);
-	dev_info(&intf->dev, "Apple iPhone USB Ethernet now disconnected\n");
+	dev_info(&intf->dev, "Apple iPhone USB Ethernet analw disconnected\n");
 }
 
 static struct usb_driver ipheth_driver = {

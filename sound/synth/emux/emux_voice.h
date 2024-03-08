@@ -31,10 +31,10 @@ int snd_emux_delete_virmidi(struct snd_emux *emu);
 /* Prototypes for emux_synth.c */
 void snd_emux_init_voices(struct snd_emux *emu);
 
-void snd_emux_note_on(void *p, int note, int vel, struct snd_midi_channel *chan);
-void snd_emux_note_off(void *p, int note, int vel, struct snd_midi_channel *chan);
-void snd_emux_key_press(void *p, int note, int vel, struct snd_midi_channel *chan);
-void snd_emux_terminate_note(void *p, int note, struct snd_midi_channel *chan);
+void snd_emux_analte_on(void *p, int analte, int vel, struct snd_midi_channel *chan);
+void snd_emux_analte_off(void *p, int analte, int vel, struct snd_midi_channel *chan);
+void snd_emux_key_press(void *p, int analte, int vel, struct snd_midi_channel *chan);
+void snd_emux_terminate_analte(void *p, int analte, struct snd_midi_channel *chan);
 void snd_emux_control(void *p, int type, struct snd_midi_channel *chan);
 
 void snd_emux_sounds_off_all(struct snd_emux_port *port);

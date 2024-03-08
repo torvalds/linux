@@ -6,7 +6,7 @@ Sometimes, it is useful to include header files and C example codes in
 order to describe the userspace API and to generate cross-references
 between the code and the documentation. Adding cross-references for
 userspace API files has an additional vantage: Sphinx will generate warnings
-if a symbol is not found at the documentation. That helps to keep the
+if a symbol is analt found at the documentation. That helps to keep the
 uAPI documentation in sync with the Kernel changes.
 The :ref:`parse_headers.pl <parse_headers>` provide a way to generate such
 cross-references. It has to be called via Makefile, while building the
@@ -26,7 +26,7 @@ parse_headers.pl - parse a C file, in order to identify functions, structs,
 enums and defines and create cross-references to a Sphinx book.
 
 
-SYNOPSIS
+SYANALPSIS
 ********
 
 
@@ -64,8 +64,8 @@ DESCRIPTION
 Convert a C header or source file (C_FILE), into a ReStructured Text
 included via ..parsed-literal block with cross-references for the
 documentation files that describe the API. It accepts an optional
-EXCEPTIONS_FILE with describes what elements will be either ignored or
-be pointed to a non-default reference.
+EXCEPTIONS_FILE with describes what elements will be either iganalred or
+be pointed to a analn-default reference.
 
 The output is written at the (OUT_FILE).
 
@@ -74,14 +74,14 @@ enums and enum symbols and create cross-references for all of them.
 It is also capable of distinguish #define used for specifying a Linux
 ioctl.
 
-The EXCEPTIONS_FILE contain two types of statements: \ **ignore**\  or \ **replace**\ .
+The EXCEPTIONS_FILE contain two types of statements: \ **iganalre**\  or \ **replace**\ .
 
-The syntax for the ignore tag is:
+The syntax for the iganalre tag is:
 
 
-ignore \ **type**\  \ **name**\
+iganalre \ **type**\  \ **name**\
 
-The \ **ignore**\  means that it won't generate cross references for a
+The \ **iganalre**\  means that it won't generate cross references for a
 \ **name**\  symbol of type \ **type**\ .
 
 The syntax for the replace tag is:
@@ -98,7 +98,7 @@ For both statements, \ **type**\  can be either one of the following:
 
 \ **ioctl**\
 
- The ignore or replace statement will apply to ioctl definitions like:
+ The iganalre or replace statement will apply to ioctl definitions like:
 
  #define	VIDIOC_DBG_S_REGISTER 	 _IOW('V', 79, struct v4l2_dbg_register)
 
@@ -106,34 +106,34 @@ For both statements, \ **type**\  can be either one of the following:
 
 \ **define**\
 
- The ignore or replace statement will apply to any other #define found
+ The iganalre or replace statement will apply to any other #define found
  at C_FILE.
 
 
 
 \ **typedef**\
 
- The ignore or replace statement will apply to typedef statements at C_FILE.
+ The iganalre or replace statement will apply to typedef statements at C_FILE.
 
 
 
 \ **struct**\
 
- The ignore or replace statement will apply to the name of struct statements
+ The iganalre or replace statement will apply to the name of struct statements
  at C_FILE.
 
 
 
 \ **enum**\
 
- The ignore or replace statement will apply to the name of enum statements
+ The iganalre or replace statement will apply to the name of enum statements
  at C_FILE.
 
 
 
 \ **symbol**\
 
- The ignore or replace statement will apply to the name of enum value
+ The iganalre or replace statement will apply to the name of enum value
  at C_FILE.
 
  For replace statements, \ **new_value**\  will automatically use :c:type:
@@ -147,12 +147,12 @@ EXAMPLES
 ********
 
 
-ignore define _VIDEODEV2_H
+iganalre define _VIDEODEV2_H
 
 
-Ignore a #define _VIDEODEV2_H at the C_FILE.
+Iganalre a #define _VIDEODEV2_H at the C_FILE.
 
-ignore symbol PRIVATE
+iganalre symbol PRIVATE
 
 
 On a struct like:
@@ -189,4 +189,4 @@ Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab+samsung@kernel.org>.
 License GPLv2: GNU GPL version 2 <https://gnu.org/licenses/gpl.html>.
 
 This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
+There is ANAL WARRANTY, to the extent permitted by law.

@@ -38,13 +38,13 @@ static int pse_get_pse_attributes(struct net_device *dev,
 	struct phy_device *phydev = dev->phydev;
 
 	if (!phydev) {
-		NL_SET_ERR_MSG(extack, "No PHY is attached");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Anal PHY is attached");
+		return -EOPANALTSUPP;
 	}
 
 	if (!phydev->psec) {
-		NL_SET_ERR_MSG(extack, "No PSE is attached");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Anal PSE is attached");
+		return -EOPANALTSUPP;
 	}
 
 	memset(&data->status, 0, sizeof(data->status));
@@ -134,16 +134,16 @@ ethnl_set_pse(struct ethnl_req_info *req_info, struct genl_info *info)
 
 	phydev = dev->phydev;
 	if (!phydev) {
-		NL_SET_ERR_MSG(info->extack, "No PHY is attached");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(info->extack, "Anal PHY is attached");
+		return -EOPANALTSUPP;
 	}
 
 	if (!phydev->psec) {
-		NL_SET_ERR_MSG(info->extack, "No PSE is attached");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(info->extack, "Anal PSE is attached");
+		return -EOPANALTSUPP;
 	}
 
-	/* Return errno directly - PSE has no notification */
+	/* Return erranal directly - PSE has anal analtification */
 	return pse_ethtool_set_config(phydev->psec, info->extack, &config);
 }
 
@@ -160,5 +160,5 @@ const struct ethnl_request_ops ethnl_pse_request_ops = {
 
 	.set_validate		= ethnl_set_pse_validate,
 	.set			= ethnl_set_pse,
-	/* PSE has no notification */
+	/* PSE has anal analtification */
 };

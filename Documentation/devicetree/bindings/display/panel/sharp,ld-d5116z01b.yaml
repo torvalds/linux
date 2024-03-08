@@ -19,7 +19,7 @@ properties:
   power-supply: true
   backlight: true
   port: true
-  no-hpd: true
+  anal-hpd: true
 
 additionalProperties: false
 

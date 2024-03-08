@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 #
 # Author: Chuck Lever <chuck.lever@oracle.com>
 #
@@ -16,7 +16,7 @@ definitions:
     type: enum
     name: handler-class
     value-start: 0
-    entries: [ none, tlshd, max ]
+    entries: [ analne, tlshd, max ]
   -
     type: enum
     name: msg-type
@@ -89,8 +89,8 @@ operations:
   list:
     -
       name: ready
-      doc: Notify handlers that a new handshake request is waiting
-      notify: accept
+      doc: Analtify handlers that a new handshake request is waiting
+      analtify: accept
     -
       name: accept
       doc: Handler retrieves next queued handshake request
@@ -123,6 +123,6 @@ operations:
 mcast-groups:
   list:
     -
-      name: none
+      name: analne
     -
       name: tlshd

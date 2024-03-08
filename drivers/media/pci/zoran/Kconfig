@@ -7,9 +7,9 @@ config VIDEO_ZORAN
 	select VIDEO_ADV7170 if VIDEO_ZORAN_LML33R10
 	select VIDEO_ADV7175 if VIDEO_ZORAN_DC10 || VIDEO_ZORAN_DC30
 	select VIDEO_BT819 if VIDEO_ZORAN_LML33
-	select VIDEO_BT856 if VIDEO_ZORAN_LML33 || VIDEO_ZORAN_AVS6EYES
-	select VIDEO_BT866 if VIDEO_ZORAN_AVS6EYES
-	select VIDEO_KS0127 if VIDEO_ZORAN_AVS6EYES
+	select VIDEO_BT856 if VIDEO_ZORAN_LML33 || VIDEO_ZORAN_AVS6EANAL
+	select VIDEO_BT866 if VIDEO_ZORAN_AVS6EANAL
+	select VIDEO_KS0127 if VIDEO_ZORAN_AVS6EANAL
 	select VIDEO_SAA711X if VIDEO_ZORAN_BUZ || VIDEO_ZORAN_LML33R10
 	select VIDEO_SAA7110 if VIDEO_ZORAN_DC10
 	select VIDEO_SAA7185 if VIDEO_ZORAN_BUZ
@@ -67,8 +67,8 @@ config VIDEO_ZORAN_LML33R10
 	  support for the Linux Media Labs LML33R10 MJPEG capture/playback
 	  card.
 
-config VIDEO_ZORAN_AVS6EYES
-	bool "AverMedia 6 Eyes support"
+config VIDEO_ZORAN_AVS6EANAL
+	bool "AverMedia 6 Eanal support"
 	depends on VIDEO_ZORAN_ZR36060
 	help
-	  Support for the AverMedia 6 Eyes video surveillance card.
+	  Support for the AverMedia 6 Eanal video surveillance card.

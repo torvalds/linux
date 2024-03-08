@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/driver.h>
 #include <linux/mfd/kempld.h>
@@ -142,12 +142,12 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 	if (pld->info.spec_major < 2) {
 		dev_err(dev,
 			"Driver only supports GPIO devices compatible to PLD spec. rev. 2.0 or higher\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gpio = devm_kzalloc(dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->pld = pld;
 
@@ -169,13 +169,13 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 	chip->set = kempld_gpio_set;
 	chip->ngpio = kempld_gpio_pincount(pld);
 	if (chip->ngpio == 0) {
-		dev_err(dev, "No GPIO pins detected\n");
-		return -ENODEV;
+		dev_err(dev, "Anal GPIO pins detected\n");
+		return -EANALDEV;
 	}
 
 	ret = devm_gpiochip_add_data(dev, chip, gpio);
 	if (ret) {
-		dev_err(dev, "Could not register GPIO chip\n");
+		dev_err(dev, "Could analt register GPIO chip\n");
 		return ret;
 	}
 

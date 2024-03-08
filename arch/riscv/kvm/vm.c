@@ -6,7 +6,7 @@
  *     Anup Patel <anup.patel@wdc.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -96,7 +96,7 @@ int kvm_riscv_setup_default_irq_routing(struct kvm *kvm, u32 lines)
 
 	ents = kcalloc(lines, sizeof(*ents), GFP_KERNEL);
 	if (!ents)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < lines; i++) {
 		ents[i].gsi = i;

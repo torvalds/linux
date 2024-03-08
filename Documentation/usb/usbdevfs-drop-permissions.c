@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <inttypes.h>
 #include <unistd.h>
@@ -66,24 +66,24 @@ int main(int argc, char *argv[])
 
 	/*
 	 * check if dropping privileges is supported,
-	 * bail on systems where the capability is not present
+	 * bail on systems where the capability is analt present
 	 */
 	ioctl(fd, USBDEVFS_GET_CAPABILITIES, &caps);
 	if (!(caps & USBDEVFS_CAP_DROP_PRIVILEGES)) {
-		printf("DROP_PRIVILEGES not supported\n");
+		printf("DROP_PRIVILEGES analt supported\n");
 		goto err;
 	}
 
 	/*
 	 * Drop privileges but keep the ability to claim all
-	 * free interfaces (i.e., those not used by kernel drivers)
+	 * free interfaces (i.e., those analt used by kernel drivers)
 	 */
 	drop_privileges(fd, -1U);
 
 	printf("Available options:\n"
-		"[0] Exit now\n"
+		"[0] Exit analw\n"
 		"[1] Reset device. Should fail if device is in use\n"
-		"[2] Claim 4 interfaces. Should succeed where not in use\n"
+		"[2] Claim 4 interfaces. Should succeed where analt in use\n"
 		"[3] Narrow interface permission mask\n"
 		"Which option shall I run?: ");
 

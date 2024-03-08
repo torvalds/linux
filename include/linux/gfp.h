@@ -40,19 +40,19 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
 #ifdef CONFIG_HIGHMEM
 #define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
 #else
-#define OPT_ZONE_HIGHMEM ZONE_NORMAL
+#define OPT_ZONE_HIGHMEM ZONE_ANALRMAL
 #endif
 
 #ifdef CONFIG_ZONE_DMA
 #define OPT_ZONE_DMA ZONE_DMA
 #else
-#define OPT_ZONE_DMA ZONE_NORMAL
+#define OPT_ZONE_DMA ZONE_ANALRMAL
 #endif
 
 #ifdef CONFIG_ZONE_DMA32
 #define OPT_ZONE_DMA32 ZONE_DMA32
 #else
-#define OPT_ZONE_DMA32 ZONE_NORMAL
+#define OPT_ZONE_DMA32 ZONE_ANALRMAL
 #endif
 
 /*
@@ -61,26 +61,26 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
  * bits long and there are 16 of them to cover all possible combinations of
  * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM.
  *
- * The zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA.
- * But GFP_MOVABLE is not only a zone specifier but also an allocation
- * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
+ * The zone fallback order is MOVABLE=>HIGHMEM=>ANALRMAL=>DMA32=>DMA.
+ * But GFP_MOVABLE is analt only a zone specifier but also an allocation
+ * policy. Therefore __GFP_MOVABLE plus aanalther zone selector is valid.
  * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
  *
  *       bit       result
  *       =================
- *       0x0    => NORMAL
- *       0x1    => DMA or NORMAL
- *       0x2    => HIGHMEM or NORMAL
+ *       0x0    => ANALRMAL
+ *       0x1    => DMA or ANALRMAL
+ *       0x2    => HIGHMEM or ANALRMAL
  *       0x3    => BAD (DMA+HIGHMEM)
- *       0x4    => DMA32 or NORMAL
+ *       0x4    => DMA32 or ANALRMAL
  *       0x5    => BAD (DMA+DMA32)
  *       0x6    => BAD (HIGHMEM+DMA32)
  *       0x7    => BAD (HIGHMEM+DMA32+DMA)
- *       0x8    => NORMAL (MOVABLE+0)
- *       0x9    => DMA or NORMAL (MOVABLE+DMA)
+ *       0x8    => ANALRMAL (MOVABLE+0)
+ *       0x9    => DMA or ANALRMAL (MOVABLE+DMA)
  *       0xa    => MOVABLE (Movable is valid only if HIGHMEM is set too)
  *       0xb    => BAD (MOVABLE+HIGHMEM+DMA)
- *       0xc    => DMA32 or NORMAL (MOVABLE+DMA32)
+ *       0xc    => DMA32 or ANALRMAL (MOVABLE+DMA32)
  *       0xd    => BAD (MOVABLE+DMA32+DMA)
  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
@@ -89,7 +89,7 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
  */
 
 #if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
-/* ZONE_DEVICE is not a valid GFP zone specifier */
+/* ZONE_DEVICE is analt a valid GFP zone specifier */
 #define GFP_ZONES_SHIFT 2
 #else
 #define GFP_ZONES_SHIFT ZONES_SHIFT
@@ -100,11 +100,11 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
 #endif
 
 #define GFP_ZONE_TABLE ( \
-	(ZONE_NORMAL << 0 * GFP_ZONES_SHIFT)				       \
+	(ZONE_ANALRMAL << 0 * GFP_ZONES_SHIFT)				       \
 	| (OPT_ZONE_DMA << ___GFP_DMA * GFP_ZONES_SHIFT)		       \
 	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * GFP_ZONES_SHIFT)	       \
 	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * GFP_ZONES_SHIFT)		       \
-	| (ZONE_NORMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)		       \
+	| (ZONE_ANALRMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)		       \
 	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * GFP_ZONES_SHIFT)    \
 	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * GFP_ZONES_SHIFT)\
 	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * GFP_ZONES_SHIFT)\
@@ -112,8 +112,8 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
 
 /*
  * GFP_ZONE_BAD is a bitmap for all combinations of __GFP_DMA, __GFP_DMA32
- * __GFP_HIGHMEM and __GFP_MOVABLE that are not permitted. One flag per
- * entry starting with bit 0. Bit is set if the combination is not
+ * __GFP_HIGHMEM and __GFP_MOVABLE that are analt permitted. One flag per
+ * entry starting with bit 0. Bit is set if the combination is analt
  * allowed.
  */
 #define GFP_ZONE_BAD ( \
@@ -148,24 +148,24 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 static inline int gfp_zonelist(gfp_t flags)
 {
 #ifdef CONFIG_NUMA
-	if (unlikely(flags & __GFP_THISNODE))
-		return ZONELIST_NOFALLBACK;
+	if (unlikely(flags & __GFP_THISANALDE))
+		return ZONELIST_ANALFALLBACK;
 #endif
 	return ZONELIST_FALLBACK;
 }
 
 /*
- * We get the zone list from the current node and the gfp_mask.
- * This zone list contains a maximum of MAX_NUMNODES*MAX_NR_ZONES zones.
- * There are two zonelists per node, one for all zones with memory and
- * one containing just zones from the node the zonelist belongs to.
+ * We get the zone list from the current analde and the gfp_mask.
+ * This zone list contains a maximum of MAX_NUMANALDES*MAX_NR_ZONES zones.
+ * There are two zonelists per analde, one for all zones with memory and
+ * one containing just zones from the analde the zonelist belongs to.
  *
- * For the case of non-NUMA systems the NODE_DATA() gets optimized to
+ * For the case of analn-NUMA systems the ANALDE_DATA() gets optimized to
  * &contig_page_data at compile-time.
  */
-static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
+static inline struct zonelist *analde_zonelist(int nid, gfp_t flags)
 {
-	return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
+	return ANALDE_DATA(nid)->analde_zonelists + gfp_zonelist(flags);
 }
 
 #ifndef HAVE_ARCH_FREE_PAGE
@@ -176,12 +176,12 @@ static inline void arch_alloc_page(struct page *page, int order) { }
 #endif
 
 struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
-		nodemask_t *nodemask);
+		analdemask_t *analdemask);
 struct folio *__folio_alloc(gfp_t gfp, unsigned int order, int preferred_nid,
-		nodemask_t *nodemask);
+		analdemask_t *analdemask);
 
 unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
-				nodemask_t *nodemask, int nr_pages,
+				analdemask_t *analdemask, int nr_pages,
 				struct list_head *page_list,
 				struct page **page_array);
 
@@ -203,62 +203,62 @@ alloc_pages_bulk_array(gfp_t gfp, unsigned long nr_pages, struct page **page_arr
 }
 
 static inline unsigned long
-alloc_pages_bulk_array_node(gfp_t gfp, int nid, unsigned long nr_pages, struct page **page_array)
+alloc_pages_bulk_array_analde(gfp_t gfp, int nid, unsigned long nr_pages, struct page **page_array)
 {
-	if (nid == NUMA_NO_NODE)
+	if (nid == NUMA_ANAL_ANALDE)
 		nid = numa_mem_id();
 
 	return __alloc_pages_bulk(gfp, nid, NULL, nr_pages, NULL, page_array);
 }
 
-static inline void warn_if_node_offline(int this_node, gfp_t gfp_mask)
+static inline void warn_if_analde_offline(int this_analde, gfp_t gfp_mask)
 {
-	gfp_t warn_gfp = gfp_mask & (__GFP_THISNODE|__GFP_NOWARN);
+	gfp_t warn_gfp = gfp_mask & (__GFP_THISANALDE|__GFP_ANALWARN);
 
-	if (warn_gfp != (__GFP_THISNODE|__GFP_NOWARN))
+	if (warn_gfp != (__GFP_THISANALDE|__GFP_ANALWARN))
 		return;
 
-	if (node_online(this_node))
+	if (analde_online(this_analde))
 		return;
 
-	pr_warn("%pGg allocation from offline node %d\n", &gfp_mask, this_node);
+	pr_warn("%pGg allocation from offline analde %d\n", &gfp_mask, this_analde);
 	dump_stack();
 }
 
 /*
- * Allocate pages, preferring the node given as nid. The node must be valid and
- * online. For more general interface, see alloc_pages_node().
+ * Allocate pages, preferring the analde given as nid. The analde must be valid and
+ * online. For more general interface, see alloc_pages_analde().
  */
 static inline struct page *
-__alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+__alloc_pages_analde(int nid, gfp_t gfp_mask, unsigned int order)
 {
-	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-	warn_if_node_offline(nid, gfp_mask);
+	VM_BUG_ON(nid < 0 || nid >= MAX_NUMANALDES);
+	warn_if_analde_offline(nid, gfp_mask);
 
 	return __alloc_pages(gfp_mask, order, nid, NULL);
 }
 
 static inline
-struct folio *__folio_alloc_node(gfp_t gfp, unsigned int order, int nid)
+struct folio *__folio_alloc_analde(gfp_t gfp, unsigned int order, int nid)
 {
-	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-	warn_if_node_offline(nid, gfp);
+	VM_BUG_ON(nid < 0 || nid >= MAX_NUMANALDES);
+	warn_if_analde_offline(nid, gfp);
 
 	return __folio_alloc(gfp, order, nid, NULL);
 }
 
 /*
- * Allocate pages, preferring the node given as nid. When nid == NUMA_NO_NODE,
- * prefer the current CPU's closest node. Otherwise node must be valid and
+ * Allocate pages, preferring the analde given as nid. When nid == NUMA_ANAL_ANALDE,
+ * prefer the current CPU's closest analde. Otherwise analde must be valid and
  * online.
  */
-static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+static inline struct page *alloc_pages_analde(int nid, gfp_t gfp_mask,
 						unsigned int order)
 {
-	if (nid == NUMA_NO_NODE)
+	if (nid == NUMA_ANAL_ANALDE)
 		nid = numa_mem_id();
 
-	return __alloc_pages_node(nid, gfp_mask, order);
+	return __alloc_pages_analde(nid, gfp_mask, order);
 }
 
 #ifdef CONFIG_NUMA
@@ -271,7 +271,7 @@ struct folio *vma_alloc_folio(gfp_t gfp, int order, struct vm_area_struct *vma,
 #else
 static inline struct page *alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
-	return alloc_pages_node(numa_node_id(), gfp_mask, order);
+	return alloc_pages_analde(numa_analde_id(), gfp_mask, order);
 }
 static inline struct page *alloc_pages_mpol(gfp_t gfp, unsigned int order,
 		struct mempolicy *mpol, pgoff_t ilx, int nid)
@@ -280,7 +280,7 @@ static inline struct page *alloc_pages_mpol(gfp_t gfp, unsigned int order,
 }
 static inline struct folio *folio_alloc(gfp_t gfp, unsigned int order)
 {
-	return __folio_alloc_node(gfp, order, numa_node_id());
+	return __folio_alloc_analde(gfp, order, numa_analde_id());
 }
 #define vma_alloc_folio(gfp, order, vma, addr, hugepage)		\
 	folio_alloc(gfp, order)
@@ -345,7 +345,7 @@ void setup_pcp_cacheinfo(void);
  */
 extern gfp_t gfp_allowed_mask;
 
-/* Returns true if the gfp_mask allows use of ALLOC_NO_WATERMARK */
+/* Returns true if the gfp_mask allows use of ALLOC_ANAL_WATERMARK */
 bool gfp_pfmemalloc_allowed(gfp_t gfp_mask);
 
 static inline bool gfp_has_io_fs(gfp_t gfp)
@@ -354,7 +354,7 @@ static inline bool gfp_has_io_fs(gfp_t gfp)
 }
 
 /*
- * Check if the gfp flags allow compaction - GFP_NOIO is a really
+ * Check if the gfp flags allow compaction - GFP_ANALIO is a really
  * tricky context because the migration might require IO.
  */
 static inline bool gfp_compaction_allowed(gfp_t gfp_mask)
@@ -369,7 +369,7 @@ extern gfp_t vma_thp_gfp_mask(struct vm_area_struct *vma);
 extern int alloc_contig_range(unsigned long start, unsigned long end,
 			      unsigned migratetype, gfp_t gfp_mask);
 extern struct page *alloc_contig_pages(unsigned long nr_pages, gfp_t gfp_mask,
-				       int nid, nodemask_t *nodemask);
+				       int nid, analdemask_t *analdemask);
 #endif
 void free_contig_range(unsigned long pfn, unsigned long nr_pages);
 

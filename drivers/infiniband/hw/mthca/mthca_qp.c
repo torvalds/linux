@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems. All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -486,7 +486,7 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 	qp_attr->port_num   =
 		(be32_to_cpu(context->pri_path.port_pkey) >> 24) & 0x3;
 
-	/* qp_attr->en_sqd_async_notify is only applicable in modify qp */
+	/* qp_attr->en_sqd_async_analtify is only applicable in modify qp */
 	qp_attr->sq_draining = mthca_state == MTHCA_QP_STATE_DRAINING;
 
 	qp_attr->max_rd_atomic = 1 << ((be32_to_cpu(context->params1) >> 21) & 0x7);
@@ -786,8 +786,8 @@ static int __mthca_modify_qp(struct ib_qp *ibqp,
 					       to_msrq(ibqp->srq)->srqn);
 
 	if (cur_state == IB_QPS_RTS && new_state == IB_QPS_SQD	&&
-	    attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY		&&
-	    attr->en_sqd_async_notify)
+	    attr_mask & IB_QP_EN_SQD_ASYNC_ANALTIFY		&&
+	    attr->en_sqd_async_analtify)
 		sqd_event = 1 << 31;
 
 	err = mthca_MODIFY_QP(dev, cur_state, new_state, qp->qpn, 0,
@@ -864,7 +864,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 	int err = -EINVAL;
 
 	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&qp->mutex);
 	if (attr_mask & IB_QP_CUR_STATE) {
@@ -932,7 +932,7 @@ static int mthca_max_data_size(struct mthca_dev *dev, struct mthca_qp *qp, int d
 {
 	/*
 	 * Calculate the maximum size of WQE s/g segments, excluding
-	 * the next segment and other non-data segments.
+	 * the next segment and other analn-data segments.
 	 */
 	int max_data_size = desc_sz - sizeof (struct mthca_next_seg);
 
@@ -993,7 +993,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 			       struct ib_udata *udata)
 {
 	int size;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	size = sizeof (struct mthca_next_seg) +
 		qp->rq.max_gs * sizeof (struct mthca_data_seg);
@@ -1003,7 +1003,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 
 	for (qp->rq.wqe_shift = 6; 1 << qp->rq.wqe_shift < size;
 	     qp->rq.wqe_shift++)
-		; /* nothing */
+		; /* analthing */
 
 	size = qp->sq.max_gs * sizeof (struct mthca_data_seg);
 	switch (qp->transport) {
@@ -1037,7 +1037,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 		break;
 	}
 
-	/* Make sure that we have enough space for a bind request */
+	/* Make sure that we have eanalugh space for a bind request */
 	size = max_t(int, size, sizeof (struct mthca_bind_seg));
 
 	size += sizeof (struct mthca_next_seg);
@@ -1047,7 +1047,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 
 	for (qp->sq.wqe_shift = 6; 1 << qp->sq.wqe_shift < size;
 	     qp->sq.wqe_shift++)
-		; /* nothing */
+		; /* analthing */
 
 	qp->send_wqe_offset = ALIGN(qp->rq.max << qp->rq.wqe_shift,
 				    1 << qp->sq.wqe_shift);
@@ -1055,7 +1055,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 	/*
 	 * If this is a userspace QP, we don't actually have to
 	 * allocate anything.  All we need is to calculate the WQE
-	 * sizes and the send_wqe_offset, so we're done now.
+	 * sizes and the send_wqe_offset, so we're done analw.
 	 */
 	if (udata)
 		return 0;
@@ -1137,13 +1137,13 @@ static int mthca_alloc_memfree(struct mthca_dev *dev,
 		qp->rq.db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_RQ,
 						 qp->qpn, &qp->rq.db);
 		if (qp->rq.db_index < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		qp->sq.db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_SQ,
 						 qp->qpn, &qp->sq.db);
 		if (qp->sq.db_index < 0) {
 			mthca_free_db(dev, MTHCA_DB_TYPE_RQ, qp->rq.db_index);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1197,7 +1197,7 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	mthca_adjust_qp_caps(dev, pd, qp);
 
 	/*
-	 * If this is a userspace QP, we're done now.  The doorbells
+	 * If this is a userspace QP, we're done analw.  The doorbells
 	 * will be allocated and buffers will be initialized in
 	 * userspace.
 	 */
@@ -1313,7 +1313,7 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 
 	qp->qpn = mthca_alloc(&dev->qp_table.alloc);
 	if (qp->qpn == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize port to zero for error-catching. */
 	qp->port = 0;
@@ -1387,7 +1387,7 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 		dma_alloc_coherent(&dev->pdev->dev, qp->sqp->header_buf_size,
 				   &qp->sqp->header_dma, GFP_KERNEL);
 	if (!qp->sqp->header_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irq(&dev->qp_table.lock);
 	if (mthca_array_get(&dev->qp_table.qp, mqpn))
@@ -1637,7 +1637,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	/*
 	 * f0 and size0 are only used if nreq != 0, and they will
 	 * always be initialized the first time through the main loop
-	 * before nreq is incremented.  So nreq cannot become non-zero
+	 * before nreq is incremented.  So nreq cananalt become analn-zero
 	 * without initializing f0 and size0, and they are in fact
 	 * never used uninitialized.
 	 */
@@ -1658,7 +1658,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 					" %d max, %d nreq)\n", qp->qpn,
 					qp->sq.head, qp->sq.tail,
 					qp->sq.max, nreq);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			goto out;
 		}
@@ -1707,7 +1707,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				break;
 
 			default:
-				/* No extra segments required for sends */
+				/* Anal extra segments required for sends */
 				break;
 			}
 
@@ -1724,7 +1724,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				break;
 
 			default:
-				/* No extra segments required for sends */
+				/* Anal extra segments required for sends */
 				break;
 			}
 
@@ -1833,7 +1833,7 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 	/*
 	 * size0 is only used if nreq != 0, and it will always be
 	 * initialized the first time through the main loop before
-	 * nreq is incremented.  So nreq cannot become non-zero
+	 * nreq is incremented.  So nreq cananalt become analn-zero
 	 * without initializing size0, and it is in fact never used
 	 * uninitialized.
 	 */
@@ -1854,7 +1854,7 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 					" %d max, %d nreq)\n", qp->qpn,
 					qp->rq.head, qp->rq.tail,
 					qp->rq.max, nreq);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			goto out;
 		}
@@ -1941,7 +1941,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	/*
 	 * f0 and size0 are only used if nreq != 0, and they will
 	 * always be initialized the first time through the main loop
-	 * before nreq is incremented.  So nreq cannot become non-zero
+	 * before nreq is incremented.  So nreq cananalt become analn-zero
 	 * without initializing f0 and size0, and they are in fact
 	 * never used uninitialized.
 	 */
@@ -1988,7 +1988,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 					" %d max, %d nreq)\n", qp->qpn,
 					qp->sq.head, qp->sq.tail,
 					qp->sq.max, nreq);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			goto out;
 		}
@@ -2037,7 +2037,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				break;
 
 			default:
-				/* No extra segments required for sends */
+				/* Anal extra segments required for sends */
 				break;
 			}
 
@@ -2054,7 +2054,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				break;
 
 			default:
-				/* No extra segments required for sends */
+				/* Anal extra segments required for sends */
 				break;
 			}
 
@@ -2183,7 +2183,7 @@ int mthca_arbel_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 					" %d max, %d nreq)\n", qp->qpn,
 					qp->rq.head, qp->rq.tail,
 					qp->rq.max, nreq);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			goto out;
 		}

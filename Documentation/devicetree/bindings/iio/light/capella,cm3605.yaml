@@ -16,7 +16,7 @@ description: |
   software logic to interface a host operating system.
 
   This ALS and proximity sensor was one of the very first deployed in mobile
-  handsets, notably it is used in the very first Nexus One Android phone from
+  handsets, analtably it is used in the very first Nexus One Android phone from
   2010.
 
 properties:
@@ -50,7 +50,7 @@ properties:
   capella,aset-resistance-ohms:
     enum: [50000, 100000, 300000, 600000]
     description: >
-      Sensitivity calibration resistance. Note that calibration curves
+      Sensitivity calibration resistance. Analte that calibration curves
       are only provided for specific allowed values. Default: 100 kOhms.
 
 required:

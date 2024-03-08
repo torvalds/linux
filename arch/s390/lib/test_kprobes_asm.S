@@ -5,7 +5,7 @@
 
 #define KPROBES_TARGET_START(name)	\
 	SYM_FUNC_START(name);		\
-	FTRACE_GEN_NOP_ASM(name)
+	FTRACE_GEN_ANALP_ASM(name)
 
 #define KPROBES_TARGET_END(name)	\
 	SYM_FUNC_END(name);		\
@@ -32,9 +32,9 @@ KPROBES_TARGET_START(kprobes_target_in_insn6_hi)
 KPROBES_TARGET_END(kprobes_target_in_insn6_hi)
 
 KPROBES_TARGET_START(kprobes_target_bp)
-	nop
+	analp
 	.word 0x0000
-	nop
+	analp
 1:	br %r14
 KPROBES_TARGET_END(kprobes_target_bp)
 

@@ -17,8 +17,8 @@ MODULE_AUTHOR("Wolfgang Grandegger <wg@grandegger.com>");
  *
  * CAN network devices *should* support a local echo functionality
  * (see Documentation/networking/can.rst). To test the handling of CAN
- * interfaces that do not support the local echo both driver types are
- * implemented. In the case that the driver does not support the echo
+ * interfaces that do analt support the local echo both driver types are
+ * implemented. In the case that the driver does analt support the echo
  * the IFF_ECHO remains clear in dev->flags. This causes the PF_CAN core
  * to perform the echo as a fallback solution.
  */
@@ -67,7 +67,7 @@ int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 	if (!priv->echo_skb[idx]) {
 		skb = can_create_echo_skb(skb);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* make settings for echo to reduce code in irq context */
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -301,15 +301,15 @@ struct sk_buff *alloc_can_err_skb(struct net_device *dev, struct can_frame **cf)
 }
 EXPORT_SYMBOL_GPL(alloc_can_err_skb);
 
-/* Check for outgoing skbs that have not been created by the CAN subsystem */
+/* Check for outgoing skbs that have analt been created by the CAN subsystem */
 static bool can_skb_headroom_valid(struct net_device *dev, struct sk_buff *skb)
 {
 	/* af_packet creates a headroom of HH_DATA_MOD bytes which is fine */
 	if (WARN_ON_ONCE(skb_headroom(skb) < sizeof(struct can_skb_priv)))
 		return false;
 
-	/* af_packet does not apply CAN skb specific settings */
-	if (skb->ip_summed == CHECKSUM_NONE) {
+	/* af_packet does analt apply CAN skb specific settings */
+	if (skb->ip_summed == CHECKSUM_ANALNE) {
 		/* init headroom */
 		can_skb_prv(skb)->ifindex = dev->ifindex;
 		can_skb_prv(skb)->skbcnt = 0;
@@ -338,7 +338,7 @@ static bool can_skb_headroom_valid(struct net_device *dev, struct sk_buff *skb)
 	return true;
 }
 
-/* Drop a given socketbuffer if it does not contain a valid CAN frame. */
+/* Drop a given socketbuffer if it does analt contain a valid CAN frame. */
 bool can_dropped_invalid_skb(struct net_device *dev, struct sk_buff *skb)
 {
 	switch (ntohs(skb->protocol)) {

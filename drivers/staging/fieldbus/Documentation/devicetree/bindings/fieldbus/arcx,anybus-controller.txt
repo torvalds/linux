@@ -1,7 +1,7 @@
 * Arcx Anybus-S controller
 
 This chip communicates with the SoC over a parallel bus. It is
-expected that its Device Tree node is specified as the child of a node
+expected that its Device Tree analde is specified as the child of a analde
 corresponding to the parallel bus used for communication.
 
 Required properties:
@@ -20,28 +20,28 @@ Required properties:
   - interrupts : two interrupts:
 		index 0: interrupt connected to the first  host
 		index 1: interrupt connected to the second host
-	Generic interrupt client node bindings are described in
+	Generic interrupt client analde bindings are described in
 	interrupt-controller/interrupts.txt
 
-Optional: use of subnodes
+Optional: use of subanaldes
 -------------------------
 
 The card connected to a host may need additional properties. These can be
-specified in subnodes to the controller node.
+specified in subanaldes to the controller analde.
 
-The subnodes are identified by the standard 'reg' property. Which information
+The subanaldes are identified by the standard 'reg' property. Which information
 exactly can be specified depends on the bindings for the function driver
-for the subnode.
+for the subanalde.
 
-Required controller node properties when using subnodes:
+Required controller analde properties when using subanaldes:
 - #address-cells: should be one.
 - #size-cells: should be zero.
 
-Required subnode properties:
-- reg: Must contain the host index of the card this subnode describes:
+Required subanalde properties:
+- reg: Must contain the host index of the card this subanalde describes:
 		<0>	for the first  host on the controller
 		<1>	for the second host on the controller
-	Note that only a single card can be plugged into a host, so the host
+	Analte that only a single card can be plugged into a host, so the host
 	index uniquely describes the card location.
 
 Example of usage:
@@ -60,7 +60,7 @@ Documentation/devicetree/bindings/bus/imx-weim.txt
 		/* fsl,weim-cs-timing is a i.MX WEIM bus specific property */
 		fsl,weim-cs-timing = <0x024400b1 0x00001010 0x20081100
 				0x00000000 0xa0000240 0x00000000>;
-		/* optional subnode for a card plugged into the first host */
+		/* optional subanalde for a card plugged into the first host */
 		#address-cells = <1>;
 		#size-cells = <0>;
 		card@0 {

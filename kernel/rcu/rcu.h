@@ -19,8 +19,8 @@
  * The two least significant bits contain the control flags.
  * The most significant bits contain the grace-period sequence counter.
  *
- * When both control flags are zero, no grace period is in progress.
- * When either bit is non-zero, a grace period has started and is in
+ * When both control flags are zero, anal grace period is in progress.
+ * When either bit is analn-zero, a grace period has started and is in
  * progress. When the grace period completes, the control flags are reset
  * to 0 and the grace-period sequence counter is incremented.
  *
@@ -28,10 +28,10 @@
  *
  * SRCU special control values:
  *
- *	SRCU_SNP_INIT_SEQ	:	Invalid/init value set when SRCU node
+ *	SRCU_SNP_INIT_SEQ	:	Invalid/init value set when SRCU analde
  *					is initialized.
  *
- *	SRCU_STATE_IDLE		:	No SRCU gp is in progress
+ *	SRCU_STATE_IDLE		:	Anal SRCU gp is in progress
  *
  *	SRCU_STATE_SCAN1	:	State set by rcu_seq_start(). Indicates
  *					we are scanning the readers on the slot
@@ -128,18 +128,18 @@ static inline unsigned long rcu_seq_snap(unsigned long *sp)
 	unsigned long s;
 
 	s = (READ_ONCE(*sp) + 2 * RCU_SEQ_STATE_MASK + 1) & ~RCU_SEQ_STATE_MASK;
-	smp_mb(); /* Above access must not bleed into critical section. */
+	smp_mb(); /* Above access must analt bleed into critical section. */
 	return s;
 }
 
-/* Return the current value the update side's sequence number, no ordering. */
+/* Return the current value the update side's sequence number, anal ordering. */
 static inline unsigned long rcu_seq_current(unsigned long *sp)
 {
 	return READ_ONCE(*sp);
 }
 
 /*
- * Given a snapshot from rcu_seq_snap(), determine whether or not the
+ * Given a snapshot from rcu_seq_snap(), determine whether or analt the
  * corresponding update-side operation has started.
  */
 static inline bool rcu_seq_started(unsigned long *sp, unsigned long s)
@@ -148,7 +148,7 @@ static inline bool rcu_seq_started(unsigned long *sp, unsigned long s)
 }
 
 /*
- * Given a snapshot from rcu_seq_snap(), determine whether or not a
+ * Given a snapshot from rcu_seq_snap(), determine whether or analt a
  * full update-side operation has occurred.
  */
 static inline bool rcu_seq_done(unsigned long *sp, unsigned long s)
@@ -157,8 +157,8 @@ static inline bool rcu_seq_done(unsigned long *sp, unsigned long s)
 }
 
 /*
- * Given a snapshot from rcu_seq_snap(), determine whether or not a
- * full update-side operation has occurred, but do not allow the
+ * Given a snapshot from rcu_seq_snap(), determine whether or analt a
+ * full update-side operation has occurred, but do analt allow the
  * (ULONG_MAX / 2) safety-factor/guard-band.
  */
 static inline bool rcu_seq_done_exact(unsigned long *sp, unsigned long s)
@@ -197,19 +197,19 @@ static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 		return 0;
 	/*
 	 * Compute the number of grace periods (still shifted up), plus
-	 * one if either of new and old is not an exact grace period.
+	 * one if either of new and old is analt an exact grace period.
 	 */
 	rnd_diff = (new & ~RCU_SEQ_STATE_MASK) -
 		   ((old + RCU_SEQ_STATE_MASK) & ~RCU_SEQ_STATE_MASK) +
 		   ((new & RCU_SEQ_STATE_MASK) || (old & RCU_SEQ_STATE_MASK));
 	if (ULONG_CMP_GE(RCU_SEQ_STATE_MASK, rnd_diff))
-		return 1; /* Definitely no grace period has elapsed. */
+		return 1; /* Definitely anal grace period has elapsed. */
 	return ((rnd_diff - RCU_SEQ_STATE_MASK - 1) >> RCU_SEQ_CTR_SHIFT) + 2;
 }
 
 /*
  * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
- * by call_rcu() and rcu callback execution, and are therefore not part
+ * by call_rcu() and rcu callback execution, and are therefore analt part
  * of the RCU API. These are in rcupdate.h because they are used by all
  * RCU implementations.
  */
@@ -262,7 +262,7 @@ static inline bool rcu_stall_is_suppressed_at_boot(void)
 	return rcu_cpu_stall_suppress_at_boot && !rcu_inkernel_boot_has_ended();
 }
 
-extern int rcu_cpu_stall_notifiers;
+extern int rcu_cpu_stall_analtifiers;
 
 #ifdef CONFIG_RCU_STALL_COMMON
 
@@ -336,17 +336,17 @@ extern void resched_cpu(int cpu);
 
 #if !defined(CONFIG_TINY_RCU)
 
-#include <linux/rcu_node_tree.h>
+#include <linux/rcu_analde_tree.h>
 
 extern int rcu_num_lvls;
 extern int num_rcu_lvl[];
-extern int rcu_num_nodes;
-static bool rcu_fanout_exact;
-static int rcu_fanout_leaf;
+extern int rcu_num_analdes;
+static bool rcu_faanalut_exact;
+static int rcu_faanalut_leaf;
 
 /*
- * Compute the per-level fanout, either using the exact fanout specified
- * or balancing the tree, depending on the rcu_fanout_exact boot parameter.
+ * Compute the per-level faanalut, either using the exact faanalut specified
+ * or balancing the tree, depending on the rcu_faanalut_exact boot parameter.
  */
 static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 {
@@ -354,10 +354,10 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 
 	for (i = 0; i < RCU_NUM_LVLS; i++)
 		levelspread[i] = INT_MIN;
-	if (rcu_fanout_exact) {
-		levelspread[rcu_num_lvls - 1] = rcu_fanout_leaf;
+	if (rcu_faanalut_exact) {
+		levelspread[rcu_num_lvls - 1] = rcu_faanalut_leaf;
 		for (i = rcu_num_lvls - 2; i >= 0; i--)
-			levelspread[i] = RCU_FANOUT;
+			levelspread[i] = RCU_FAANALUT;
 	} else {
 		int ccur;
 		int cprv;
@@ -373,54 +373,54 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 
 extern void rcu_init_geometry(void);
 
-/* Returns a pointer to the first leaf rcu_node structure. */
-#define rcu_first_leaf_node() (rcu_state.level[rcu_num_lvls - 1])
+/* Returns a pointer to the first leaf rcu_analde structure. */
+#define rcu_first_leaf_analde() (rcu_state.level[rcu_num_lvls - 1])
 
-/* Is this rcu_node a leaf? */
-#define rcu_is_leaf_node(rnp) ((rnp)->level == rcu_num_lvls - 1)
+/* Is this rcu_analde a leaf? */
+#define rcu_is_leaf_analde(rnp) ((rnp)->level == rcu_num_lvls - 1)
 
-/* Is this rcu_node the last leaf? */
-#define rcu_is_last_leaf_node(rnp) ((rnp) == &rcu_state.node[rcu_num_nodes - 1])
+/* Is this rcu_analde the last leaf? */
+#define rcu_is_last_leaf_analde(rnp) ((rnp) == &rcu_state.analde[rcu_num_analdes - 1])
 
 /*
- * Do a full breadth-first scan of the {s,}rcu_node structures for the
+ * Do a full breadth-first scan of the {s,}rcu_analde structures for the
  * specified state structure (for SRCU) or the only rcu_state structure
  * (for RCU).
  */
-#define _rcu_for_each_node_breadth_first(sp, rnp) \
-	for ((rnp) = &(sp)->node[0]; \
-	     (rnp) < &(sp)->node[rcu_num_nodes]; (rnp)++)
-#define rcu_for_each_node_breadth_first(rnp) \
-	_rcu_for_each_node_breadth_first(&rcu_state, rnp)
-#define srcu_for_each_node_breadth_first(ssp, rnp) \
-	_rcu_for_each_node_breadth_first(ssp->srcu_sup, rnp)
+#define _rcu_for_each_analde_breadth_first(sp, rnp) \
+	for ((rnp) = &(sp)->analde[0]; \
+	     (rnp) < &(sp)->analde[rcu_num_analdes]; (rnp)++)
+#define rcu_for_each_analde_breadth_first(rnp) \
+	_rcu_for_each_analde_breadth_first(&rcu_state, rnp)
+#define srcu_for_each_analde_breadth_first(ssp, rnp) \
+	_rcu_for_each_analde_breadth_first(ssp->srcu_sup, rnp)
 
 /*
- * Scan the leaves of the rcu_node hierarchy for the rcu_state structure.
- * Note that if there is a singleton rcu_node tree with but one rcu_node
- * structure, this loop -will- visit the rcu_node structure.  It is still
- * a leaf node, even if it is also the root node.
+ * Scan the leaves of the rcu_analde hierarchy for the rcu_state structure.
+ * Analte that if there is a singleton rcu_analde tree with but one rcu_analde
+ * structure, this loop -will- visit the rcu_analde structure.  It is still
+ * a leaf analde, even if it is also the root analde.
  */
-#define rcu_for_each_leaf_node(rnp) \
-	for ((rnp) = rcu_first_leaf_node(); \
-	     (rnp) < &rcu_state.node[rcu_num_nodes]; (rnp)++)
+#define rcu_for_each_leaf_analde(rnp) \
+	for ((rnp) = rcu_first_leaf_analde(); \
+	     (rnp) < &rcu_state.analde[rcu_num_analdes]; (rnp)++)
 
 /*
- * Iterate over all possible CPUs in a leaf RCU node.
+ * Iterate over all possible CPUs in a leaf RCU analde.
  */
-#define for_each_leaf_node_possible_cpu(rnp, cpu) \
-	for (WARN_ON_ONCE(!rcu_is_leaf_node(rnp)), \
+#define for_each_leaf_analde_possible_cpu(rnp, cpu) \
+	for (WARN_ON_ONCE(!rcu_is_leaf_analde(rnp)), \
 	     (cpu) = cpumask_next((rnp)->grplo - 1, cpu_possible_mask); \
 	     (cpu) <= rnp->grphi; \
 	     (cpu) = cpumask_next((cpu), cpu_possible_mask))
 
 /*
- * Iterate over all CPUs in a leaf RCU node's specified mask.
+ * Iterate over all CPUs in a leaf RCU analde's specified mask.
  */
 #define rcu_find_next_bit(rnp, cpu, mask) \
 	((rnp)->grplo + find_next_bit(&(mask), BITS_PER_LONG, (cpu)))
-#define for_each_leaf_node_cpu_mask(rnp, cpu, mask) \
-	for (WARN_ON_ONCE(!rcu_is_leaf_node(rnp)), \
+#define for_each_leaf_analde_cpu_mask(rnp, cpu, mask) \
+	for (WARN_ON_ONCE(!rcu_is_leaf_analde(rnp)), \
 	     (cpu) = rcu_find_next_bit((rnp), 0, (mask)); \
 	     (cpu) <= rnp->grphi; \
 	     (cpu) = rcu_find_next_bit((rnp), (cpu) + 1 - (rnp->grplo), (mask)))
@@ -430,56 +430,56 @@ extern void rcu_init_geometry(void);
 #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_TASKS_RCU_GENERIC)
 
 /*
- * Wrappers for the rcu_node::lock acquire and release.
+ * Wrappers for the rcu_analde::lock acquire and release.
  *
- * Because the rcu_nodes form a tree, the tree traversal locking will observe
+ * Because the rcu_analdes form a tree, the tree traversal locking will observe
  * different lock values, this in turn means that an UNLOCK of one level
- * followed by a LOCK of another level does not imply a full memory barrier;
+ * followed by a LOCK of aanalther level does analt imply a full memory barrier;
  * and most importantly transitivity is lost.
  *
  * In order to restore full ordering between tree levels, augment the regular
  * lock acquire functions with smp_mb__after_unlock_lock().
  *
- * As ->lock of struct rcu_node is a __private field, therefore one should use
+ * As ->lock of struct rcu_analde is a __private field, therefore one should use
  * these wrappers rather than directly call raw_spin_{lock,unlock}* on ->lock.
  */
-#define raw_spin_lock_rcu_node(p)					\
+#define raw_spin_lock_rcu_analde(p)					\
 do {									\
 	raw_spin_lock(&ACCESS_PRIVATE(p, lock));			\
 	smp_mb__after_unlock_lock();					\
 } while (0)
 
-#define raw_spin_unlock_rcu_node(p)					\
+#define raw_spin_unlock_rcu_analde(p)					\
 do {									\
 	lockdep_assert_irqs_disabled();					\
 	raw_spin_unlock(&ACCESS_PRIVATE(p, lock));			\
 } while (0)
 
-#define raw_spin_lock_irq_rcu_node(p)					\
+#define raw_spin_lock_irq_rcu_analde(p)					\
 do {									\
 	raw_spin_lock_irq(&ACCESS_PRIVATE(p, lock));			\
 	smp_mb__after_unlock_lock();					\
 } while (0)
 
-#define raw_spin_unlock_irq_rcu_node(p)					\
+#define raw_spin_unlock_irq_rcu_analde(p)					\
 do {									\
 	lockdep_assert_irqs_disabled();					\
 	raw_spin_unlock_irq(&ACCESS_PRIVATE(p, lock));			\
 } while (0)
 
-#define raw_spin_lock_irqsave_rcu_node(p, flags)			\
+#define raw_spin_lock_irqsave_rcu_analde(p, flags)			\
 do {									\
 	raw_spin_lock_irqsave(&ACCESS_PRIVATE(p, lock), flags);	\
 	smp_mb__after_unlock_lock();					\
 } while (0)
 
-#define raw_spin_unlock_irqrestore_rcu_node(p, flags)			\
+#define raw_spin_unlock_irqrestore_rcu_analde(p, flags)			\
 do {									\
 	lockdep_assert_irqs_disabled();					\
 	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags);	\
 } while (0)
 
-#define raw_spin_trylock_rcu_node(p)					\
+#define raw_spin_trylock_rcu_analde(p)					\
 ({									\
 	bool ___locked = raw_spin_trylock(&ACCESS_PRIVATE(p, lock));	\
 									\
@@ -488,14 +488,14 @@ do {									\
 	___locked;							\
 })
 
-#define raw_lockdep_assert_held_rcu_node(p)				\
+#define raw_lockdep_assert_held_rcu_analde(p)				\
 	lockdep_assert_held(&ACCESS_PRIVATE(p, lock))
 
 #endif // #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_TASKS_RCU_GENERIC)
 
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
-static inline bool rcu_gp_is_normal(void) { return true; }
+static inline bool rcu_gp_is_analrmal(void) { return true; }
 static inline bool rcu_gp_is_expedited(void) { return false; }
 static inline bool rcu_async_should_hurry(void) { return false; }
 static inline void rcu_expedite_gp(void) { }
@@ -504,14 +504,14 @@ static inline void rcu_async_hurry(void) { }
 static inline void rcu_async_relax(void) { }
 static inline bool rcu_cpu_online(int cpu) { return true; }
 #else /* #ifdef CONFIG_TINY_RCU */
-bool rcu_gp_is_normal(void);     /* Internal RCU use. */
+bool rcu_gp_is_analrmal(void);     /* Internal RCU use. */
 bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
 bool rcu_async_should_hurry(void);  /* Internal RCU use. */
 void rcu_expedite_gp(void);
 void rcu_unexpedite_gp(void);
 void rcu_async_hurry(void);
 void rcu_async_relax(void);
-void rcupdate_announce_bootup_oddness(void);
+void rcupdate_ananalunce_bootup_oddness(void);
 bool rcu_cpu_online(int cpu);
 #ifdef CONFIG_TASKS_RCU_GENERIC
 void show_rcu_tasks_gp_kthreads(void);
@@ -633,10 +633,10 @@ void rcu_gp_slow_register(atomic_t *rgssp);
 void rcu_gp_slow_unregister(atomic_t *rgssp);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
-#ifdef CONFIG_RCU_NOCB_CPU
-void rcu_bind_current_to_nocb(void);
+#ifdef CONFIG_RCU_ANALCB_CPU
+void rcu_bind_current_to_analcb(void);
 #else
-static inline void rcu_bind_current_to_nocb(void) { }
+static inline void rcu_bind_current_to_analcb(void) { }
 #endif
 
 #if !defined(CONFIG_TINY_RCU) && defined(CONFIG_TASKS_RCU)
@@ -661,10 +661,10 @@ static inline bool rcu_cpu_beenfullyonline(int cpu) { return true; }
 bool rcu_cpu_beenfullyonline(int cpu);
 #endif
 
-#if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_NOTIFIER)
-int rcu_stall_notifier_call_chain(unsigned long val, void *v);
-#else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_NOTIFIER)
-static inline int rcu_stall_notifier_call_chain(unsigned long val, void *v) { return NOTIFY_DONE; }
-#endif // #else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_NOTIFIER)
+#if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_ANALTIFIER)
+int rcu_stall_analtifier_call_chain(unsigned long val, void *v);
+#else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_ANALTIFIER)
+static inline int rcu_stall_analtifier_call_chain(unsigned long val, void *v) { return ANALTIFY_DONE; }
+#endif // #else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_ANALTIFIER)
 
 #endif /* __LINUX_RCU_H */

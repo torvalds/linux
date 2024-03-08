@@ -5,7 +5,7 @@
 #include "util.h"
 
 /*
- * NOTE: we can't differentiate between __le64 and u64 with type_is - this
+ * ANALTE: we can't differentiate between __le64 and u64 with type_is - this
  * assumes u64 is little endian:
  */
 #define __vstruct_u64s(_s)						\

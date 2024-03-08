@@ -47,7 +47,7 @@ properties:
 
   "#dma-cells":
     description: |
-      The first cell denotes the receive/transmit request number and
+      The first cell deanaltes the receive/transmit request number and
       should be between 1 and the maximum number of requests supported.
       This value corresponds to the RX/TX_REQUEST_SELECT fields in the
       ADMA_CHn_CTRL register.

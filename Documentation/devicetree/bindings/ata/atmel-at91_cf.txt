@@ -5,7 +5,7 @@ Required properties:
 - reg : should specify localbus address and size used.
 - gpios : specifies the gpio pins to control the CF device. Detect
   and reset gpio's are mandatory while irq and vcc gpio's are
-  optional and may be set to 0 if not present.
+  optional and may be set to 0 if analt present.
 
 Example:
 compact-flash@50000000 {

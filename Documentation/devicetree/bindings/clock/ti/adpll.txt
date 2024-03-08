@@ -12,7 +12,7 @@ Required properties:
 - compatible : shall be one of "ti,dm814-adpll-s-clock" or
   "ti,dm814-adpll-lj-clock" depending on the type of the ADPLL
 - #clock-cells : from common clock binding; shall be set to 1.
-- clocks : link phandles of parent clocks clkinp and clkinpulow, note
+- clocks : link phandles of parent clocks clkinp and clkinpulow, analte
   that the adpll-s-clock also has an optional clkinphif
 - reg : address and length of the register set for controlling the ADPLL.
 

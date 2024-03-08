@@ -10,7 +10,7 @@ maintainers:
   - Peng Fan <peng.fan@nxp.com>
 
 description:
-  The i.MX93 MEDIAMIX domain contains control and status registers known
+  The i.MX93 MEDIAMIX domain contains control and status registers kanalwn
   as MEDIAMIX Block Control (MEDIAMIX BLK_CTRL). These registers include
   clocking, reset, and miscellaneous top-level controls for peripherals
   within the MEDIAMIX domain

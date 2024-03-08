@@ -29,7 +29,7 @@ void rtl88e_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 			      rtlphy->rfreg_chnlval[0]);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n", bandwidth);
+		pr_err("unkanalwn bandwidth: %#X\n", bandwidth);
 		break;
 	}
 }
@@ -42,20 +42,20 @@ void rtl88e_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	u32 tx_agc[2] = {0, 0}, tmpval;
-	bool turbo_scanoff = false;
+	bool turbo_scaanalff = false;
 	u8 idx1, idx2;
 	u8 *ptr;
 	u8 direction;
 	u32 pwrtrac_value;
 
 	if (rtlefuse->eeprom_regulatory != 0)
-		turbo_scanoff = true;
+		turbo_scaanalff = true;
 
 	if (mac->act_scanning) {
 		tx_agc[RF90_PATH_A] = 0x3f3f3f3f;
 		tx_agc[RF90_PATH_B] = 0x3f3f3f3f;
 
-		if (turbo_scanoff) {
+		if (turbo_scaanalff) {
 			for (idx1 = RF90_PATH_A; idx1 <= RF90_PATH_B; idx1++) {
 				tx_agc[idx1] = ppowerlevel[idx1] |
 				    (ppowerlevel[idx1] << 8) |

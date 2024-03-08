@@ -35,7 +35,7 @@ BEGIN {
 
 	# Setup generating tables
 	print "/* x86 opcode map generated from x86-opcode-map.txt */"
-	print "/* Do not change this code. */\n"
+	print "/* Do analt change this code. */\n"
 	ggid = 1
 	geid = 1
 	gaid = 0
@@ -152,7 +152,7 @@ function array_size(arr,   i,c) {
 /^GrpTable:/ {
 	print "/* " $0 " */"
 	if (!($2 in group))
-		semantic_error("No group: " $2 )
+		semantic_error("Anal group: " $2 )
 	gid = group[$2]
 	tname = "inat_group_table_" gid
 }
@@ -244,7 +244,7 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		i = opnd[j]
 		if (match(i, imm_expr) == 1) {
 			if (!imm_flag[i])
-				semantic_error("Unknown imm opnd: " i)
+				semantic_error("Unkanalwn imm opnd: " i)
 			if (imm) {
 				if (i != "Ib")
 					semantic_error("Second IMM error")
@@ -268,7 +268,7 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 	# check if escaped opcode
 	if ("escape" == $2) {
 		if ($3 != "#")
-			semantic_error("No escaped name")
+			semantic_error("Anal escaped name")
 		ref = ""
 		for (i = 4; i <= NF; i++)
 			ref = ref $i
@@ -300,7 +300,7 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		if (match($i, sep_expr))
 			i++
 		else if (i < NF)
-			semantic_error($i " is not a separator")
+			semantic_error($i " is analt a separator")
 
 		# check if group opcode
 		if (match(opcode, group_expr)) {
@@ -333,7 +333,7 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		# check prefixes
 		if (match(ext, prefix_expr)) {
 			if (!prefix_num[opcode])
-				semantic_error("Unknown prefix: " opcode)
+				semantic_error("Unkanalwn prefix: " opcode)
 			flags = add_flags(flags, "INAT_MAKE_PREFIX(" prefix_num[opcode] ")")
 		}
 		if (length(flags) == 0)

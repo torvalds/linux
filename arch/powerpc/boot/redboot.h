@@ -12,7 +12,7 @@
 //
 
 /* A Board Information structure that is given to a program when
- * RedBoot starts it up.  Note: not all fields make sense for all
+ * RedBoot starts it up.  Analte: analt all fields make sense for all
  * architectures and it's up to the platform specific code to fill
  * in the details.
  */

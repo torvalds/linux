@@ -56,11 +56,11 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Not taken branch instructions retired.",
+        "BriefDescription": "Analt taken branch instructions retired.",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.COND_NTAKEN",
         "PEBS": "1",
-        "PublicDescription": "Counts not taken branch instructions retired.",
+        "PublicDescription": "Counts analt taken branch instructions retired.",
         "SampleAfterValue": "400009",
         "UMask": "0x10",
         "Unit": "cpu_core"
@@ -148,7 +148,7 @@
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
         "PEBS": "1",
-        "PublicDescription": "Counts the total number of mispredicted branch instructions retired.  All branch type instructions are accounted for.  Prediction of the branch target address enables the processor to begin executing instructions before the non-speculative execution path is known. The branch prediction unit (BPU) predicts the target address based on the instruction pointer (IP) of the branch and on the execution path through which execution reached this IP.    A branch misprediction occurs when the prediction is wrong, and results in discarding all instructions executed in the speculative path and re-fetching from the correct path.",
+        "PublicDescription": "Counts the total number of mispredicted branch instructions retired.  All branch type instructions are accounted for.  Prediction of the branch target address enables the processor to begin executing instructions before the analn-speculative execution path is kanalwn. The branch prediction unit (BPU) predicts the target address based on the instruction pointer (IP) of the branch and on the execution path through which execution reached this IP.    A branch misprediction occurs when the prediction is wrong, and results in discarding all instructions executed in the speculative path and re-fetching from the correct path.",
         "SampleAfterValue": "200003",
         "Unit": "cpu_atom"
     },
@@ -199,17 +199,17 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Mispredicted non-taken conditional branch instructions retired.",
+        "BriefDescription": "Mispredicted analn-taken conditional branch instructions retired.",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.COND_NTAKEN",
         "PEBS": "1",
-        "PublicDescription": "Counts the number of conditional branch instructions retired that were mispredicted and the branch direction was not taken.",
+        "PublicDescription": "Counts the number of conditional branch instructions retired that were mispredicted and the branch direction was analt taken.",
         "SampleAfterValue": "400009",
         "UMask": "0x10",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Mispredicted non-taken conditional branch instructions retired. This precise event may be used to get the misprediction cost via the Retire_Latency field of PEBS. It fires on the instruction that immediately follows the mispredicted branch.",
+        "BriefDescription": "Mispredicted analn-taken conditional branch instructions retired. This precise event may be used to get the misprediction cost via the Retire_Latency field of PEBS. It fires on the instruction that immediately follows the mispredicted branch.",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.COND_NTAKEN_COST",
         "PEBS": "1",
@@ -330,11 +330,11 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Analn PEBS",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.RET",
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted return instructions retired.",
+        "PublicDescription": "This is a analn-precise version (that is, does analt use PEBS) of the event that counts mispredicted return instructions retired.",
         "SampleAfterValue": "100007",
         "UMask": "0x8",
         "Unit": "cpu_core"
@@ -402,7 +402,7 @@
         "BriefDescription": "Cycle counts are evenly distributed between active threads in the Core.",
         "EventCode": "0xec",
         "EventName": "CPU_CLK_UNHALTED.DISTRIBUTED",
-        "PublicDescription": "This event distributes cycle counts between active hyperthreads, i.e., those in C0.  A hyperthread becomes inactive when it executes the HLT or MWAIT instructions.  If all other hyperthreads are inactive (or disabled or do not exist), all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread.",
+        "PublicDescription": "This event distributes cycle counts between active hyperthreads, i.e., those in C0.  A hyperthread becomes inactive when it executes the HLT or MWAIT instructions.  If all other hyperthreads are inactive (or disabled or do analt exist), all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2",
         "Unit": "cpu_core"
@@ -451,9 +451,9 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "BriefDescription": "Reference cycles when the core is analt in halt state.",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
-        "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. It is counted on a dedicated fixed counter, leaving the eight programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
+        "PublicDescription": "Counts the number of reference cycles when the core is analt in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is analt affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was analt in a halt state. It is counted on a dedicated fixed counter, leaving the eight programmable counters available for other events. Analte: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is analt clocked immediately so the overflow status bit will flip 'high (1)' and generate aanalther PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should iganalre this case.",
         "SampleAfterValue": "2000003",
         "UMask": "0x3",
         "Unit": "cpu_core"
@@ -462,16 +462,16 @@
         "BriefDescription": "Counts the number of unhalted reference clock cycles at TSC frequency.",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC_P",
-        "PublicDescription": "Counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. This event is not affected by core frequency changes and increments at a fixed frequency that is also used for the Time Stamp Counter (TSC). This event uses a programmable general purpose performance counter.",
+        "PublicDescription": "Counts the number of reference cycles that the core is analt in a halt state. The core enters the halt state when it is running the HLT instruction. This event is analt affected by core frequency changes and increments at a fixed frequency that is also used for the Time Stamp Counter (TSC). This event uses a programmable general purpose performance counter.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "BriefDescription": "Reference cycles when the core is analt in halt state.",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC_P",
-        "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
+        "PublicDescription": "Counts the number of reference cycles when the core is analt in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is analt affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was analt in a halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Analte: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is analt clocked immediately so the overflow status bit will flip 'high (1)' and generate aanalther PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should iganalre this case.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -484,9 +484,9 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Core cycles when the thread is not in halt state",
+        "BriefDescription": "Core cycles when the thread is analt in halt state",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
-        "PublicDescription": "Counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the eight programmable counters available for other events.",
+        "PublicDescription": "Counts the number of core cycles while the thread is analt in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Techanallogy or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was analt in the halt state. It is counted on a dedicated fixed counter, leaving the eight programmable counters available for other events.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2",
         "Unit": "cpu_core"
@@ -499,10 +499,10 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Thread cycles when thread is not in halt state",
+        "BriefDescription": "Thread cycles when thread is analt in halt state",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
-        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
+        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is analt in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
         "SampleAfterValue": "2000003",
         "Unit": "cpu_core"
     },
@@ -561,37 +561,37 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles total of 1 uop is executed on all ports and Reservation Station was not empty.",
+        "BriefDescription": "Cycles total of 1 uop is executed on all ports and Reservation Station was analt empty.",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.1_PORTS_UTIL",
-        "PublicDescription": "Counts cycles during which a total of 1 uop was executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Counts cycles during which a total of 1 uop was executed on all ports and Reservation Station (RS) was analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles total of 2 uops are executed on all ports and Reservation Station was not empty.",
+        "BriefDescription": "Cycles total of 2 uops are executed on all ports and Reservation Station was analt empty.",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.2_PORTS_UTIL",
-        "PublicDescription": "Counts cycles during which a total of 2 uops were executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Counts cycles during which a total of 2 uops were executed on all ports and Reservation Station (RS) was analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station was not empty.",
+        "BriefDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station was analt empty.",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.3_PORTS_UTIL",
-        "PublicDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station (RS) was analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station was not empty.",
+        "BriefDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station was analt empty.",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.4_PORTS_UTIL",
-        "PublicDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station (RS) was analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10",
         "Unit": "cpu_core"
@@ -606,20 +606,20 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles where the Store Buffer was full and no loads caused an execution stall.",
+        "BriefDescription": "Cycles where the Store Buffer was full and anal loads caused an execution stall.",
         "CounterMask": "2",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.BOUND_ON_STORES",
-        "PublicDescription": "Counts cycles where the Store Buffer was full and no loads caused an execution stall.",
+        "PublicDescription": "Counts cycles where the Store Buffer was full and anal loads caused an execution stall.",
         "SampleAfterValue": "1000003",
         "UMask": "0x40",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles no uop executed while RS was not empty, the SB was not full and there was no outstanding load.",
+        "BriefDescription": "Cycles anal uop executed while RS was analt empty, the SB was analt full and there was anal outstanding load.",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.EXE_BOUND_0_PORTS",
-        "PublicDescription": "Number of cycles total of 0 uops executed on all ports, Reservation Station (RS) was not empty, the Store Buffer (SB) was not full and there was no outstanding load.",
+        "PublicDescription": "Number of cycles total of 0 uops executed on all ports, Reservation Station (RS) was analt empty, the Store Buffer (SB) was analt full and there was anal outstanding load.",
         "SampleAfterValue": "1000003",
         "UMask": "0x80",
         "Unit": "cpu_core"
@@ -645,7 +645,7 @@
         "BriefDescription": "Number of instructions retired. Fixed Counter - architectural event",
         "EventName": "INST_RETIRED.ANY",
         "PEBS": "1",
-        "PublicDescription": "Counts the number of X86 instructions retired - an Architectural PerfMon event. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Notes: INST_RETIRED.ANY is counted by a designated fixed counter freeing up programmable counters to count other events. INST_RETIRED.ANY_P is counted by a programmable counter.",
+        "PublicDescription": "Counts the number of X86 instructions retired - an Architectural PerfMon event. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Analtes: INST_RETIRED.ANY is counted by a designated fixed counter freeing up programmable counters to count other events. INST_RETIRED.ANY_P is counted by a programmable counter.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -663,7 +663,7 @@
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.ANY_P",
         "PEBS": "1",
-        "PublicDescription": "Counts the number of X86 instructions retired - an Architectural PerfMon event. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Notes: INST_RETIRED.ANY is counted by a designated fixed counter freeing up programmable counters to count other events. INST_RETIRED.ANY_P is counted by a programmable counter.",
+        "PublicDescription": "Counts the number of X86 instructions retired - an Architectural PerfMon event. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Analtes: INST_RETIRED.ANY is counted by a designated fixed counter freeing up programmable counters to count other events. INST_RETIRED.ANY_P is counted by a programmable counter.",
         "SampleAfterValue": "2000003",
         "Unit": "cpu_core"
     },
@@ -676,10 +676,10 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Retired NOP instructions.",
+        "BriefDescription": "Retired ANALP instructions.",
         "EventCode": "0xc0",
-        "EventName": "INST_RETIRED.NOP",
-        "PublicDescription": "Counts all retired NOP or ENDBR32/64 or PREFETCHIT0/1 instructions",
+        "EventName": "INST_RETIRED.ANALP",
+        "PublicDescription": "Counts all retired ANALP or ENDBR32/64 or PREFETCHIT0/1 instructions",
         "SampleAfterValue": "2000003",
         "UMask": "0x2",
         "Unit": "cpu_core"
@@ -697,7 +697,7 @@
         "BriefDescription": "Iterations of Repeat string retired instructions.",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.REP_ITERATION",
-        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note the number of iterations is implementation-dependent.",
+        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Analte the number of iterations is implementation-dependent.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8",
         "Unit": "cpu_core"
@@ -736,7 +736,7 @@
         "BriefDescription": "Cycles when Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the thread",
         "EventCode": "0xad",
         "EventName": "INT_MISC.RAT_STALLS",
-        "PublicDescription": "This event counts the number of cycles during which Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the current thread. This also includes the cycles during which the Allocator is serving another thread.",
+        "PublicDescription": "This event counts the number of cycles during which Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the current thread. This also includes the cycles during which the Allocator is serving aanalther thread.",
         "SampleAfterValue": "1000003",
         "UMask": "0x8",
         "Unit": "cpu_core"
@@ -751,9 +751,9 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Bubble cycles of BAClear (Unknown Branch).",
+        "BriefDescription": "Bubble cycles of BAClear (Unkanalwn Branch).",
         "EventCode": "0xad",
-        "EventName": "INT_MISC.UNKNOWN_BRANCH_CYCLES",
+        "EventName": "INT_MISC.UNKANALWN_BRANCH_CYCLES",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x7",
         "SampleAfterValue": "1000003",
@@ -764,7 +764,7 @@
         "BriefDescription": "TMA slots where uops got dropped",
         "EventCode": "0xad",
         "EventName": "INT_MISC.UOP_DROPPING",
-        "PublicDescription": "Estimated number of Top-down Microarchitecture Analysis slots that got dropped due to non front-end reasons",
+        "PublicDescription": "Estimated number of Top-down Microarchitecture Analysis slots that got dropped due to analn front-end reasons",
         "SampleAfterValue": "1000003",
         "UMask": "0x10",
         "Unit": "cpu_core"
@@ -836,7 +836,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Counts the number of retired loads that are blocked because it initially appears to be store forward blocked, but subsequently is shown not to be blocked based on 4K alias check.",
+        "BriefDescription": "Counts the number of retired loads that are blocked because it initially appears to be store forward blocked, but subsequently is shown analt to be blocked based on 4K alias check.",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.ADDRESS_ALIAS",
         "PEBS": "1",
@@ -854,9 +854,9 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Counts the number of retired loads that are blocked because its address exactly matches an older store whose data is not ready.",
+        "BriefDescription": "Counts the number of retired loads that are blocked because its address exactly matches an older store whose data is analt ready.",
         "EventCode": "0x03",
-        "EventName": "LD_BLOCKS.DATA_UNKNOWN",
+        "EventName": "LD_BLOCKS.DATA_UNKANALWN",
         "PEBS": "1",
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
@@ -865,7 +865,7 @@
     {
         "BriefDescription": "The number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
         "EventCode": "0x03",
-        "EventName": "LD_BLOCKS.NO_SR",
+        "EventName": "LD_BLOCKS.ANAL_SR",
         "PublicDescription": "Counts the number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
         "SampleAfterValue": "100003",
         "UMask": "0x88",
@@ -881,10 +881,10 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Loads blocked due to overlapping with a preceding store that cannot be forwarded.",
+        "BriefDescription": "Loads blocked due to overlapping with a preceding store that cananalt be forwarded.",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
-        "PublicDescription": "Counts the number of times where store forwarding was prevented for a load operation. The most common case is a load blocked due to the address of memory access (partially) overlapping with a preceding uncompleted store. Note: See the table of not supported store forwards in the Optimization Guide.",
+        "PublicDescription": "Counts the number of times where store forwarding was prevented for a load operation. The most common case is a load blocked due to the address of memory access (partially) overlapping with a preceding uncompleted store. Analte: See the table of analt supported store forwards in the Optimization Guide.",
         "SampleAfterValue": "100003",
         "UMask": "0x82",
         "Unit": "cpu_core"
@@ -900,7 +900,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles optimal number of Uops delivered by the LSD, but did not come from the decoder.",
+        "BriefDescription": "Cycles optimal number of Uops delivered by the LSD, but did analt come from the decoder.",
         "CounterMask": "6",
         "EventCode": "0xa8",
         "EventName": "LSD.CYCLES_OK",
@@ -938,7 +938,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of machine clears due to a page fault.  Counts both I-Side and D-Side (Loads/Stores) page faults.  A page fault occurs when either the page is not present, or an access violation occurs.",
+        "BriefDescription": "Counts the number of machine clears due to a page fault.  Counts both I-Side and D-Side (Loads/Stores) page faults.  A page fault occurs when either the page is analt present, or an access violation occurs.",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.PAGE_FAULT",
         "SampleAfterValue": "20003",
@@ -988,10 +988,10 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "This event counts a subset of the Topdown Slots event that were not consumed by the back-end pipeline due to lack of back-end resources, as a result of memory subsystem delays, execution units limitations, or other conditions.",
+        "BriefDescription": "This event counts a subset of the Topdown Slots event that were analt consumed by the back-end pipeline due to lack of back-end resources, as a result of memory subsystem delays, execution units limitations, or other conditions.",
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.BACKEND_BOUND_SLOTS",
-        "PublicDescription": "This event counts a subset of the Topdown Slots event that were not consumed by the back-end pipeline due to lack of back-end resources, as a result of memory subsystem delays, execution units limitations, or other conditions.\nThe count is distributed among unhalted logical processors (hyper-threads) who share the same physical core, in processors that support Intel Hyper-Threading Technology. Software can use this event as the numerator for the Backend Bound metric (or top-level category) of the Top-down Microarchitecture Analysis method.",
+        "PublicDescription": "This event counts a subset of the Topdown Slots event that were analt consumed by the back-end pipeline due to lack of back-end resources, as a result of memory subsystem delays, execution units limitations, or other conditions.\nThe count is distributed among unhalted logical processors (hyper-threads) who share the same physical core, in processors that support Intel Hyper-Threading Techanallogy. Software can use this event as the numerator for the Backend Bound metric (or top-level category) of the Top-down Microarchitecture Analysis method.",
         "SampleAfterValue": "10000003",
         "UMask": "0x2",
         "Unit": "cpu_core"
@@ -1009,7 +1009,7 @@
         "BriefDescription": "TMA slots wasted due to incorrect speculation by branch mispredictions",
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.BR_MISPREDICT_SLOTS",
-        "PublicDescription": "Number of TMA slots that were wasted due to incorrect speculation by (any type of) branch mispredictions. This event estimates number of speculative operations that were issued but not retired as well as the out-of-order engine recovery past a branch misprediction.",
+        "PublicDescription": "Number of TMA slots that were wasted due to incorrect speculation by (any type of) branch mispredictions. This event estimates number of speculative operations that were issued but analt retired as well as the out-of-order engine recovery past a branch misprediction.",
         "SampleAfterValue": "10000003",
         "UMask": "0x8",
         "Unit": "cpu_core"
@@ -1025,7 +1025,7 @@
     {
         "BriefDescription": "TMA slots available for an unhalted logical processor. Fixed counter - architectural event",
         "EventName": "TOPDOWN.SLOTS",
-        "PublicDescription": "Number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method (TMA). The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core. Software can use this event as the denominator for the top-level metrics of the TMA method. This architectural event is counted on a designated fixed counter (Fixed Counter 3).",
+        "PublicDescription": "Number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method (TMA). The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core. Software can use this event as the deanalminator for the top-level metrics of the TMA method. This architectural event is counted on a designated fixed counter (Fixed Counter 3).",
         "SampleAfterValue": "10000003",
         "UMask": "0x4",
         "Unit": "cpu_core"
@@ -1040,15 +1040,15 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Counts the number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear.",
+        "BriefDescription": "Counts the number of issue slots that were analt consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear.",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.ALL",
-        "PublicDescription": "Counts the total number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear. Only issue slots wasted due to fast nukes such as memory ordering nukes are counted. Other nukes are not accounted for. Counts all issue slots blocked during this recovery window, including relevant microcode flows, and while uops are not yet available in the instruction queue (IQ) or until an FE_BOUND event occurs besides OTHER and CISC. Also includes the issue slots that were consumed by the backend but were thrown away because they were younger than the mispredict or machine clear.",
+        "PublicDescription": "Counts the total number of issue slots that were analt consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear. Only issue slots wasted due to fast nukes such as memory ordering nukes are counted. Other nukes are analt accounted for. Counts all issue slots blocked during this recovery window, including relevant microcode flows, and while uops are analt yet available in the instruction queue (IQ) or until an FE_BOUND event occurs besides OTHER and CISC. Also includes the issue slots that were consumed by the backend but were thrown away because they were younger than the mispredict or machine clear.",
         "SampleAfterValue": "1000003",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to Fast Nukes such as  Memory Ordering Machine clears and MRN nukes",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt consumed by the backend due to Fast Nukes such as  Memory Ordering Machine clears and MRN nukes",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.FASTNUKE",
         "SampleAfterValue": "1000003",
@@ -1056,7 +1056,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the total number of issue slots that were not consumed by the backend because allocation is stalled due to a machine clear (nuke) of any kind including memory ordering and memory disambiguation.",
+        "BriefDescription": "Counts the total number of issue slots that were analt consumed by the backend because allocation is stalled due to a machine clear (nuke) of any kind including memory ordering and memory disambiguation.",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.MACHINE_CLEARS",
         "SampleAfterValue": "1000003",
@@ -1064,7 +1064,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to Branch Mispredict",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt consumed by the backend due to Branch Mispredict",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.MISPREDICT",
         "SampleAfterValue": "1000003",
@@ -1072,7 +1072,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to a machine clear (nuke).",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt consumed by the backend due to a machine clear (nuke).",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.NUKE",
         "SampleAfterValue": "1000003",
@@ -1080,14 +1080,14 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of retirement slots not consumed due to backend stalls",
+        "BriefDescription": "Counts the number of retirement slots analt consumed due to backend stalls",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.ALL",
         "SampleAfterValue": "1000003",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to due to certain allocation restrictions",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt consumed by the backend due to due to certain allocation restrictions",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.ALLOC_RESTRICTIONS",
         "SampleAfterValue": "1000003",
@@ -1095,7 +1095,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to memory reservation stall (scheduler not being able to accept another uop).  This could be caused by RSV full or load/store buffer block.",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt consumed by the backend due to memory reservation stall (scheduler analt being able to accept aanalther uop).  This could be caused by RSV full or load/store buffer block.",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.MEM_SCHEDULER",
         "SampleAfterValue": "1000003",
@@ -1103,15 +1103,15 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to IEC and FPC RAT stalls - which can be due to the FIQ and IEC reservation station stall (integer, FP and SIMD scheduler not being able to accept another uop. )",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt consumed by the backend due to IEC and FPC RAT stalls - which can be due to the FIQ and IEC reservation station stall (integer, FP and SIMD scheduler analt being able to accept aanalther uop. )",
         "EventCode": "0x74",
-        "EventName": "TOPDOWN_BE_BOUND.NON_MEM_SCHEDULER",
+        "EventName": "TOPDOWN_BE_BOUND.ANALN_MEM_SCHEDULER",
         "SampleAfterValue": "1000003",
         "UMask": "0x8",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to mrbl stall.  A 'marble' refers to a physical register file entry, also known as the physical destination (PDST).",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt consumed by the backend due to mrbl stall.  A 'marble' refers to a physical register file entry, also kanalwn as the physical destination (PDST).",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.REGISTER",
         "SampleAfterValue": "1000003",
@@ -1119,7 +1119,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to ROB full",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt consumed by the backend due to ROB full",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.REORDER_BUFFER",
         "SampleAfterValue": "1000003",
@@ -1127,7 +1127,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to iq/jeu scoreboards or ms scb",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt consumed by the backend due to iq/jeu scoreboards or ms scb",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.SERIALIZATION",
         "SampleAfterValue": "1000003",
@@ -1135,14 +1135,14 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of retirement slots not consumed due to front end stalls",
+        "BriefDescription": "Counts the number of retirement slots analt consumed due to front end stalls",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.ALL",
         "SampleAfterValue": "1000003",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to BAClear",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to BAClear",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.BRANCH_DETECT",
         "SampleAfterValue": "1000003",
@@ -1150,7 +1150,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to BTClear",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to BTClear",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.BRANCH_RESTEER",
         "SampleAfterValue": "1000003",
@@ -1158,7 +1158,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to ms",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to ms",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.CISC",
         "SampleAfterValue": "1000003",
@@ -1166,7 +1166,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to decode stall",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to decode stall",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.DECODE",
         "SampleAfterValue": "1000003",
@@ -1174,7 +1174,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to frontend bandwidth restrictions due to decode, predecode, cisc, and other limitations.",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to frontend bandwidth restrictions due to decode, predecode, cisc, and other limitations.",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.FRONTEND_BANDWIDTH",
         "SampleAfterValue": "1000003",
@@ -1182,7 +1182,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to latency related stalls including BACLEARs, BTCLEARs, ITLB misses, and ICache misses.",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to latency related stalls including BACLEARs, BTCLEARs, ITLB misses, and ICache misses.",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.FRONTEND_LATENCY",
         "SampleAfterValue": "1000003",
@@ -1199,7 +1199,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to itlb miss [This event is alias to TOPDOWN_FE_BOUND.ITLB]",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to itlb miss [This event is alias to TOPDOWN_FE_BOUND.ITLB]",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.ITLB_MISS",
         "SampleAfterValue": "1000003",
@@ -1207,7 +1207,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend that do not categorize into any other common frontend stall",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend that do analt categorize into any other common frontend stall",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.OTHER",
         "SampleAfterValue": "1000003",
@@ -1215,7 +1215,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to predecode wrong",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to predecode wrong",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.PREDECODE",
         "SampleAfterValue": "1000003",
@@ -1231,10 +1231,10 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Number of non dec-by-all uops decoded by decoder",
+        "BriefDescription": "Number of analn dec-by-all uops decoded by decoder",
         "EventCode": "0x76",
         "EventName": "UOPS_DECODED.DEC0_UOPS",
-        "PublicDescription": "This event counts the number of not dec-by-all uops decoded by decoder 0.",
+        "PublicDescription": "This event counts the number of analt dec-by-all uops decoded by decoder 0.",
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -1392,12 +1392,12 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Counts number of cycles no uops were dispatched to be executed on this thread.",
+        "BriefDescription": "Counts number of cycles anal uops were dispatched to be executed on this thread.",
         "CounterMask": "1",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.STALLS",
         "Invert": "1",
-        "PublicDescription": "Counts cycles during which no uops were dispatched from the Reservation Station (RS) per thread.",
+        "PublicDescription": "Counts cycles during which anal uops were dispatched from the Reservation Station (RS) per thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -1446,12 +1446,12 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles when RAT does not issue Uops to RS for the thread",
+        "BriefDescription": "Cycles when RAT does analt issue Uops to RS for the thread",
         "CounterMask": "1",
         "EventCode": "0xae",
         "EventName": "UOPS_ISSUED.STALLS",
         "Invert": "1",
-        "PublicDescription": "Counts cycles during which the Resource Allocation Table (RAT) does not issue any Uops to the reservation station (RS) for the current thread.",
+        "PublicDescription": "Counts cycles during which the Resource Allocation Table (RAT) does analt issue any Uops to the reservation station (RS) for the current thread.",
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -1478,7 +1478,7 @@
         "BriefDescription": "Retired uops except the last uop of each instruction.",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.HEAVY",
-        "PublicDescription": "Counts the number of retired micro-operations (uops) except the last uop of each instruction. An instruction that is decoded into less than two uops does not contribute to the count.",
+        "PublicDescription": "Counts the number of retired micro-operations (uops) except the last uop of each instruction. An instruction that is decoded into less than two uops does analt contribute to the count.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -1537,7 +1537,7 @@
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "Counts the number of cycles using always true condition (uops_ret < 16) applied to non PEBS uops retired event.",
+        "PublicDescription": "Counts the number of cycles using always true condition (uops_ret < 16) applied to analn PEBS uops retired event.",
         "SampleAfterValue": "1000003",
         "UMask": "0x2",
         "Unit": "cpu_core"

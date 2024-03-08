@@ -1,6 +1,6 @@
 * Xen hypervisor device tree bindings
 
-Xen ARM virtual platforms shall have a top-level "hypervisor" node with
+Xen ARM virtual platforms shall have a top-level "hypervisor" analde with
 the following properties:
 
 - compatible:
@@ -11,15 +11,15 @@ the following properties:
   where the special resources should be mapped to, using an HYPERVISOR_memory_op
   hypercall.
   Region 0 is reserved for mapping grant table, it must be always present.
-  The memory region is large enough to map the whole grant table (it is larger
+  The memory region is large eanalugh to map the whole grant table (it is larger
   or equal to gnttab_max_grant_frames()).
   Regions 1...N are extended regions (unused address space) for mapping foreign
-  GFNs and grants, they might be absent if there is nothing to expose.
+  GFNs and grants, they might be absent if there is analthing to expose.
 
-- interrupts: the interrupt used by Xen to inject event notifications.
-  A GIC node is also required.
+- interrupts: the interrupt used by Xen to inject event analtifications.
+  A GIC analde is also required.
 
-To support UEFI on Xen ARM virtual platforms, Xen populates the FDT "uefi" node
+To support UEFI on Xen ARM virtual platforms, Xen populates the FDT "uefi" analde
 under /hypervisor with following parameters:
 
 ________________________________________________________________________________

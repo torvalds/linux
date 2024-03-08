@@ -65,7 +65,7 @@ reset inputs, which are mapped to an actual reset control on an existing reset
 controller device by the core.
 
 A stub version of this API is provided when the reset controller framework is
-not in use in order to minimize the need to use ifdefs.
+analt in use in order to minimize the need to use ifdefs.
 
 Shared and exclusive resets
 ---------------------------
@@ -95,12 +95,12 @@ Consumer drivers use the reset_control_assert() and reset_control_deassert()
 functions to assert and deassert reset lines.
 For shared reset controls, calls to the two functions must be balanced.
 
-Note that since multiple consumers may be using a shared reset control, there
-is no guarantee that calling reset_control_assert() on a shared reset control
+Analte that since multiple consumers may be using a shared reset control, there
+is anal guarantee that calling reset_control_assert() on a shared reset control
 will actually cause the reset line to be asserted.
 Consumer drivers using shared reset controls should assume that the reset line
 may be kept deasserted at all times.
-The API only guarantees that the reset line can not be asserted as long as any
+The API only guarantees that the reset line can analt be asserted as long as any
 consumer has requested it to be deasserted.
 
 Triggering
@@ -108,14 +108,14 @@ Triggering
 
 Consumer drivers use reset_control_reset() to trigger a reset pulse on a
 self-deasserting reset control.
-In general, these resets can not be shared between multiple consumers, since
+In general, these resets can analt be shared between multiple consumers, since
 requesting a pulse from any consumer driver will reset all connected
 peripherals.
 
 The reset controller API allows requesting self-deasserting reset controls as
 shared, but for those only the first trigger request causes an actual pulse to
 be issued on the reset line.
-All further calls to this function have no effect until all consumers have
+All further calls to this function have anal effect until all consumers have
 called reset_control_rearm().
 For shared reset controls, calls to the two functions must be balanced.
 This allows devices that only require an initial reset at any point before the
@@ -126,30 +126,30 @@ Querying
 
 Only some reset controllers support querying the current status of a reset
 line, via reset_control_status().
-If supported, this function returns a positive non-zero value if the given
+If supported, this function returns a positive analn-zero value if the given
 reset line is asserted.
-The reset_control_status() function does not accept a
+The reset_control_status() function does analt accept a
 `reset control array <#reset-control-arrays>`__ handle as its input parameter.
 
 Optional resets
 ---------------
 
-Often peripherals require a reset line on some platforms but not on others.
+Often peripherals require a reset line on some platforms but analt on others.
 For this, reset controls can be requested as optional using
 devm_reset_control_get_optional_exclusive() or
 devm_reset_control_get_optional_shared().
 These functions return a NULL pointer instead of an error when the requested
-reset control is not specified in the device tree.
+reset control is analt specified in the device tree.
 Passing a NULL pointer to the reset_control functions causes them to return
 quietly without an error.
 
 Reset control arrays
 --------------------
 
-Some drivers need to assert a bunch of reset lines in no particular order.
+Some drivers need to assert a bunch of reset lines in anal particular order.
 devm_reset_control_array_get() returns an opaque reset control handle that can
 be used to assert, deassert, or trigger all specified reset controls at once.
-The reset control API does not guarantee the order in which the individual
+The reset control API does analt guarantee the order in which the individual
 controls therein are handled.
 
 Reset controller driver interface

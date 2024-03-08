@@ -108,7 +108,7 @@ netxen_get_minidump_template(struct netxen_adapter *adapter)
 	size = adapter->mdump.md_template_size;
 
 	if (size == 0) {
-		dev_err(&adapter->pdev->dev, "Can not capture Minidump "
+		dev_err(&adapter->pdev->dev, "Can analt capture Minidump "
 			"template. Invalid template size.\n");
 		return NX_RCODE_INVALID_ARGS;
 	}
@@ -117,7 +117,7 @@ netxen_get_minidump_template(struct netxen_adapter *adapter)
 				  &md_template_addr, GFP_KERNEL);
 	if (!addr) {
 		dev_err(&adapter->pdev->dev, "Unable to allocate dmable memory for template.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -162,10 +162,10 @@ netxen_setup_minidump(struct netxen_adapter *adapter)
 	if (err) {
 		adapter->mdump.fw_supports_md = 0;
 		if ((err == NX_RCODE_CMD_INVALID) ||
-			(err == NX_RCODE_CMD_NOT_IMPL)) {
+			(err == NX_RCODE_CMD_ANALT_IMPL)) {
 			dev_info(&adapter->pdev->dev,
-				"Flashed firmware version does not support minidump, minimum version required is [ %u.%u.%u ]\n",
-				NX_MD_SUPPORT_MAJOR, NX_MD_SUPPORT_MINOR,
+				"Flashed firmware version does analt support minidump, minimum version required is [ %u.%u.%u ]\n",
+				NX_MD_SUPPORT_MAJOR, NX_MD_SUPPORT_MIANALR,
 				NX_MD_SUPPORT_SUBVERSION);
 		}
 		return err;
@@ -173,18 +173,18 @@ netxen_setup_minidump(struct netxen_adapter *adapter)
 
 	if (!adapter->mdump.md_template_size) {
 		dev_err(&adapter->pdev->dev, "Error : Invalid template size "
-		",should be non-zero.\n");
+		",should be analn-zero.\n");
 		return -EIO;
 	}
 	adapter->mdump.md_template =
 		kmalloc(adapter->mdump.md_template_size, GFP_KERNEL);
 
 	if (!adapter->mdump.md_template)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = netxen_get_minidump_template(adapter);
 	if (err) {
-		if (err == NX_RCODE_CMD_NOT_IMPL)
+		if (err == NX_RCODE_CMD_ANALT_IMPL)
 			adapter->mdump.fw_supports_md = 0;
 		goto free_template;
 	}
@@ -285,13 +285,13 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 	addr = dma_alloc_coherent(&adapter->pdev->dev, rq_size,
 				  &hostrq_phys_addr, GFP_KERNEL);
 	if (addr == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	prq = addr;
 
 	addr = dma_alloc_coherent(&adapter->pdev->dev, rsp_size,
 				  &cardrsp_phys_addr, GFP_KERNEL);
 	if (addr == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_rq;
 	}
 	prsp = addr;
@@ -434,13 +434,13 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 	rq_addr = dma_alloc_coherent(&adapter->pdev->dev, rq_size,
 				     &rq_phys_addr, GFP_KERNEL);
 	if (!rq_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rsp_size = SIZEOF_CARDRSP_TX(nx_cardrsp_tx_ctx_t);
 	rsp_addr = dma_alloc_coherent(&adapter->pdev->dev, rsp_size,
 				      &rsp_phys_addr, GFP_KERNEL);
 	if (!rsp_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_rq;
 	}
 
@@ -753,7 +753,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 				  &recv_ctx->phys_addr, GFP_KERNEL);
 	if (addr == NULL) {
 		dev_err(&pdev->dev, "failed to allocate hw context\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	recv_ctx->hwctx = addr;
@@ -771,7 +771,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	if (addr == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate tx desc ring\n",
 				netdev->name);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free;
 	}
 
@@ -786,7 +786,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 			dev_err(&pdev->dev,
 				"%s: failed to allocate rds ring [%d]\n",
 				netdev->name, ring);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out_free;
 		}
 		rds_ring->desc_head = addr;
@@ -807,7 +807,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 			dev_err(&pdev->dev,
 				"%s: failed to allocate sds ring [%d]\n",
 				netdev->name, ring);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out_free;
 		}
 		sds_ring->desc_head = addr;

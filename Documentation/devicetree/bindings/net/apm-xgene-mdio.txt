@@ -1,6 +1,6 @@
-APM X-Gene SoC MDIO node
+APM X-Gene SoC MDIO analde
 
-MDIO node is defined to describe on-chip MDIO controller.
+MDIO analde is defined to describe on-chip MDIO controller.
 
 Required properties:
 	- compatible: Must be "apm,xgene-mdio-rgmii" or "apm,xgene-mdio-xfi"
@@ -9,7 +9,7 @@ Required properties:
 	- reg: Address and length of the register set
 	- clocks: Reference to the clock entry
 
-For the phys on the mdio bus, there must be a node with the following fields:
+For the phys on the mdio bus, there must be a analde with the following fields:
 	- compatible: PHY identifier.  Please refer ./phy.txt for the format.
 	- reg: The ID number for the phy.
 

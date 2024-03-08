@@ -183,7 +183,7 @@ int mt8195_audsys_clk_register(struct mtk_base_afe *afe)
 					GFP_KERNEL);
 
 	if (!afe_priv->lookup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(aud_clks); i++) {
 		const struct afe_gate *gate = &aud_clks[i];
@@ -201,7 +201,7 @@ int mt8195_audsys_clk_register(struct mtk_base_afe *afe)
 		/* add clk_lookup for devm_clk_get(SND_SOC_DAPM_CLOCK_SUPPLY) */
 		cl = kzalloc(sizeof(*cl), GFP_KERNEL);
 		if (!cl)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cl->clk = clk;
 		cl->con_id = gate->name;

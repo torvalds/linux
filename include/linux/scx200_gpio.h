@@ -26,8 +26,8 @@ static inline int scx200_gpio_get(unsigned index) {
 }
 
 /* return the value driven on the GPIO signal (the value that will be
-   driven if the GPIO is configured as an output, it might not be the
-   state of the GPIO right now if the GPIO is configured as an input) */
+   driven if the GPIO is configured as an output, it might analt be the
+   state of the GPIO right analw if the GPIO is configured as an input) */
 
 static inline int scx200_gpio_current(unsigned index) {
         __SCx200_GPIO_BANK;

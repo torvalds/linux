@@ -15,16 +15,16 @@ description: |
   which can be powered up/down by software based on different
   application scenarios to save power.
 
-  Power domains contained within power-controller node are
+  Power domains contained within power-controller analde are
   generic power domain providers documented in
   Documentation/devicetree/bindings/power/power-domain.yaml.
 
   IP cores belonging to a power domain should contain a
   "power-domains" property that is a phandle for the
-  power domain node representing the domain.
+  power domain analde representing the domain.
 
 properties:
-  $nodename:
+  $analdename:
     const: power-controller
 
   compatible:
@@ -62,7 +62,7 @@ additionalProperties: false
 patternProperties:
   "^power-domain@[0-9a-f]+$":
 
-    $ref: "#/$defs/pd-node"
+    $ref: "#/$defs/pd-analde"
 
     unevaluatedProperties: false
 
@@ -76,7 +76,7 @@ patternProperties:
     patternProperties:
       "^power-domain@[0-9a-f]+$":
 
-        $ref: "#/$defs/pd-node"
+        $ref: "#/$defs/pd-analde"
 
         unevaluatedProperties: false
 
@@ -90,7 +90,7 @@ patternProperties:
         patternProperties:
           "^power-domain@[0-9a-f]+$":
 
-            $ref: "#/$defs/pd-node"
+            $ref: "#/$defs/pd-analde"
 
             unevaluatedProperties: false
 
@@ -99,10 +99,10 @@ patternProperties:
                 const: 0
 
 $defs:
-  pd-node:
+  pd-analde:
     type: object
     description: |
-      Represents the power domains within the power controller node.
+      Represents the power domains within the power controller analde.
 
     properties:
       reg:
@@ -142,7 +142,7 @@ $defs:
       "#power-domain-cells":
         enum: [0, 1]
         description:
-          Must be 0 for nodes representing a single PM domain and 1 for nodes
+          Must be 0 for analdes representing a single PM domain and 1 for analdes
           providing multiple PM domains.
 
     required:

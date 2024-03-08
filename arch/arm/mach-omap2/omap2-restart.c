@@ -25,7 +25,7 @@ static struct clk *reset_virt_prcm_set_ck, *reset_sys_ck;
 /**
  * omap2xxx_restart - Set DPLL to bypass mode for reboot to work
  *
- * Set the DPLL to bypass so that reboot completes successfully.  No
+ * Set the DPLL to bypass so that reboot completes successfully.  Anal
  * return value.
  */
 void omap2xxx_restart(enum reboot_mode mode, const char *cmd)

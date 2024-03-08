@@ -12,7 +12,7 @@
  +---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------+
- | Note:                                                                     |
+ | Analte:                                                                     |
  |    The file contains code which accesses user memory.                     |
  |    Emulator static data may change when user memory is accessed, due to   |
  |    other processes using the emulator while swapping is in progress.      |
@@ -41,7 +41,7 @@ void Un_impl(void)
 	unsigned long address = FPU_ORIG_EIP;
 
 	RE_ENTRANT_CHECK_OFF;
-	/* No need to check access_ok(), we have previously fetched these bytes. */
+	/* Anal need to check access_ok(), we have previously fetched these bytes. */
 	printk("Unimplemented FPU Opcode at eip=%p : ", (void __user *)address);
 	if (FPU_CS == __USER_CS) {
 		while (1) {
@@ -71,7 +71,7 @@ void Un_impl(void)
 #endif /*  0  */
 
 /*
-   Called for opcodes which are illegal and which are known to result in a
+   Called for opcodes which are illegal and which are kanalwn to result in a
    SIGILL with a real 80486.
    */
 void FPU_illegal(void)
@@ -83,13 +83,13 @@ void FPU_printall(void)
 {
 	int i;
 	static const char *tag_desc[] = { "Valid", "Zero", "ERROR", "Empty",
-		"DeNorm", "Inf", "NaN"
+		"DeAnalrm", "Inf", "NaN"
 	};
 	u_char byte1, FPU_modrm;
 	unsigned long address = FPU_ORIG_EIP;
 
 	RE_ENTRANT_CHECK_OFF;
-	/* No need to check access_ok(), we have previously fetched these bytes. */
+	/* Anal need to check access_ok(), we have previously fetched these bytes. */
 	printk("At %p:", (void *)address);
 	if (FPU_CS == __USER_CS) {
 #define MAX_PRINTED_BYTES 20
@@ -144,8 +144,8 @@ void FPU_printall(void)
 		printk("SW: overflow\n");
 	if (partial_status & SW_Zero_Div)
 		printk("SW: divide by zero\n");
-	if (partial_status & SW_Denorm_Op)
-		printk("SW: denormalized operand\n");
+	if (partial_status & SW_Deanalrm_Op)
+		printk("SW: deanalrmalized operand\n");
 	if (partial_status & SW_Invalid)
 		printk("SW: invalid operation\n");
 #endif /* DEBUGGING */
@@ -160,7 +160,7 @@ void FPU_printall(void)
 	       partial_status & SW_Underflow ? 1 : 0,
 	       partial_status & SW_Overflow ? 1 : 0,
 	       partial_status & SW_Zero_Div ? 1 : 0,
-	       partial_status & SW_Denorm_Op ? 1 : 0,
+	       partial_status & SW_Deanalrm_Op ? 1 : 0,
 	       partial_status & SW_Invalid ? 1 : 0);
 
 	printk(" CW: ic=%d rc=%d%d pc=%d%d iem=%d     ef=%d%d%d%d%d%d\n",
@@ -172,7 +172,7 @@ void FPU_printall(void)
 	       control_word & SW_Underflow ? 1 : 0,
 	       control_word & SW_Overflow ? 1 : 0,
 	       control_word & SW_Zero_Div ? 1 : 0,
-	       control_word & SW_Denorm_Op ? 1 : 0,
+	       control_word & SW_Deanalrm_Op ? 1 : 0,
 	       control_word & SW_Invalid ? 1 : 0);
 
 	for (i = 0; i < 8; i++) {
@@ -219,7 +219,7 @@ static struct {
 	EX_Underflow, "underflow"}, {
 	EX_Overflow, "overflow"}, {
 	EX_ZeroDiv, "divide by zero"}, {
-	EX_Denormal, "denormalized operand"}, {
+	EX_Deanalrmal, "deanalrmalized operand"}, {
 	EX_Invalid, "invalid operation"}, {
 	EX_INTERNAL, "INTERNAL BUG in " FPU_VERSION}, {
 	0, NULL}
@@ -290,8 +290,8 @@ static struct {
 	      0x213  in wm_sqrt.S
 	      0x214  in wm_sqrt.S
 	      0x215  in wm_sqrt.S
-	      0x220  in reg_norm.S
-	      0x221  in reg_norm.S
+	      0x220  in reg_analrm.S
+	      0x221  in reg_analrm.S
 	      0x230  in reg_round.S
 	      0x231  in reg_round.S
 	      0x232  in reg_round.S
@@ -343,7 +343,7 @@ asmlinkage __visible void FPU_exception(int n)
 			printk("FP Exception: %s!\n", exception_names[i].name);
 #endif /* PRINT_MESSAGES */
 		} else
-			printk("FPU emulator: Unknown Exception: 0x%04x!\n", n);
+			printk("FPU emulator: Unkanalwn Exception: 0x%04x!\n", n);
 
 		if (n == EX_INTERNAL) {
 			printk("FPU emulator: Internal error type 0x%04x\n",
@@ -356,7 +356,7 @@ asmlinkage __visible void FPU_exception(int n)
 #endif /* PRINT_MESSAGES */
 
 		/*
-		 * The 80486 generates an interrupt on the next non-control FPU
+		 * The 80486 generates an interrupt on the next analn-control FPU
 		 * instruction. So we need some means of flagging it.
 		 * We use the ES (Error Summary) bit for this.
 		 */
@@ -456,20 +456,20 @@ int real_2op_NaN(FPU_REG const *b, u_char tagb,
 			signalling = !(a->sigh & 0x40000000);
 		}
 	} else
-#ifdef PARANOID
+#ifdef PARAANALID
 	if (tagb == TW_NaN)
-#endif /* PARANOID */
+#endif /* PARAANALID */
 	{
 		signalling = !(b->sigh & 0x40000000);
 		x = b;
 	}
-#ifdef PARANOID
+#ifdef PARAANALID
 	else {
 		signalling = 0;
 		EXCEPTION(EX_INTERNAL | 0x113);
 		x = &CONST_QNaN;
 	}
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	if ((!signalling) || (control_word & CW_Invalid)) {
 		if (!x)
@@ -559,13 +559,13 @@ asmlinkage __visible void set_precision_flag_down(void)
 		EXCEPTION(EX_Precision);
 }
 
-asmlinkage __visible int denormal_operand(void)
+asmlinkage __visible int deanalrmal_operand(void)
 {
-	if (control_word & CW_Denormal) {	/* The masked response */
-		partial_status |= SW_Denorm_Op;
+	if (control_word & CW_Deanalrmal) {	/* The masked response */
+		partial_status |= SW_Deanalrm_Op;
 		return TAG_Special;
 	} else {
-		EXCEPTION(EX_Denormal);
+		EXCEPTION(EX_Deanalrmal);
 		return TAG_Special | FPU_Exception;
 	}
 }

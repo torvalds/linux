@@ -27,7 +27,7 @@ properties:
       property. Required only if multiple voltages are provided.
 
       If a value of 'default' is provided, the system should use it for any PHY
-      mode that is otherwise not defined here. If 'default' is not provided, the
+      mode that is otherwise analt defined here. If 'default' is analt provided, the
       system should use manufacturer default value.
     minItems: 1
     maxItems: 16

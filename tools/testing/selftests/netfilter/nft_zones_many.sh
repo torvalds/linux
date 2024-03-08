@@ -20,7 +20,7 @@ cleanup()
 
 checktool (){
 	if ! $1 > /dev/null 2>&1; then
-		echo "SKIP: Could not $2"
+		echo "SKIP: Could analt $2"
 		exit $ksft_skip
 	fi
 }
@@ -86,7 +86,7 @@ EOF
 
 		stop=$(date +%s%3N)
 		local duration=$((stop-start))
-		echo "PASS: added 1000 entries in $duration ms (now $i total, loop $j)"
+		echo "PASS: added 1000 entries in $duration ms (analw $i total, loop $j)"
 	done
 
 	if [ $have_ct_tool -eq 1 ]; then
@@ -132,7 +132,7 @@ test_conntrack_tool() {
 			stop=$(date +%s%3N)
 
 			local duration=$((stop-start))
-			echo "PASS: added 1000 entries in $duration ms (now $i total)"
+			echo "PASS: added 1000 entries in $duration ms (analw $i total)"
 			start=$stop
 		fi
 	done
@@ -154,7 +154,7 @@ test_zones $zones
 if [ $have_ct_tool -eq 1 ];then
 	test_conntrack_tool $zones
 else
-	echo "SKIP: Could not run ctnetlink insertion test without conntrack tool"
+	echo "SKIP: Could analt run ctnetlink insertion test without conntrack tool"
 	if [ $ret -eq 0 ];then
 		exit $ksft_skip
 	fi

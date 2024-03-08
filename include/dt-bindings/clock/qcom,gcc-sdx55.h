@@ -44,7 +44,7 @@
 #define GCC_CE1_CLK						37
 #define GCC_CPUSS_AHB_CLK					38
 #define GCC_CPUSS_AHB_CLK_SRC					39
-#define GCC_CPUSS_GNOC_CLK					40
+#define GCC_CPUSS_GANALC_CLK					40
 #define GCC_CPUSS_RBCPR_CLK					41
 #define GCC_CPUSS_RBCPR_CLK_SRC					42
 #define GCC_EMAC_CLK_SRC					43
@@ -77,7 +77,7 @@
 #define GCC_SDCC1_AHB_CLK					70
 #define GCC_SDCC1_APPS_CLK					71
 #define GCC_SDCC1_APPS_CLK_SRC					72
-#define GCC_SYS_NOC_CPUSS_AHB_CLK				73
+#define GCC_SYS_ANALC_CPUSS_AHB_CLK				73
 #define GCC_USB30_MASTER_CLK					74
 #define GCC_USB30_MASTER_CLK_SRC				75
 #define GCC_USB30_MOCK_UTMI_CLK					76
@@ -96,11 +96,11 @@
 #define GCC_EMAC_BCR						0
 #define GCC_PCIE_BCR						1
 #define GCC_PCIE_LINK_DOWN_BCR					2
-#define GCC_PCIE_NOCSR_COM_PHY_BCR				3
+#define GCC_PCIE_ANALCSR_COM_PHY_BCR				3
 #define GCC_PCIE_PHY_BCR					4
 #define GCC_PCIE_PHY_CFG_AHB_BCR				5
 #define GCC_PCIE_PHY_COM_BCR					6
-#define GCC_PCIE_PHY_NOCSR_COM_PHY_BCR				7
+#define GCC_PCIE_PHY_ANALCSR_COM_PHY_BCR				7
 #define GCC_PDM_BCR						8
 #define GCC_QUSB2PHY_BCR					9
 #define GCC_TCSR_PCIE_BCR					10

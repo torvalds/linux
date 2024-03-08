@@ -144,7 +144,7 @@ static int imx93_blk_ctrl_power_on(struct generic_pm_domain *genpd)
 
 	ret = pm_runtime_get_sync(bc->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(bc->dev);
+		pm_runtime_put_analidle(bc->dev);
 		dev_err(bc->dev, "failed to power up domain\n");
 		goto disable_clk;
 	}
@@ -208,7 +208,7 @@ static int imx93_blk_ctrl_probe(struct platform_device *pdev)
 
 	bc = devm_kzalloc(dev, sizeof(*bc), GFP_KERNEL);
 	if (!bc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bc->dev = dev;
 
@@ -225,14 +225,14 @@ static int imx93_blk_ctrl_probe(struct platform_device *pdev)
 				   sizeof(struct imx93_blk_ctrl_domain),
 				   GFP_KERNEL);
 	if (!bc->domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bc->onecell_data.num_domains = bc_data->num_domains;
 	bc->onecell_data.domains =
 		devm_kcalloc(dev, bc_data->num_domains,
 			     sizeof(struct generic_pm_domain *), GFP_KERNEL);
 	if (!bc->onecell_data.domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < bc_data->num_clks; i++)
 		bc->clks[i].id = bc_data->clk_names[i];
@@ -289,7 +289,7 @@ static int imx93_blk_ctrl_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	ret = of_genpd_add_provider_onecell(dev->of_node, &bc->onecell_data);
+	ret = of_genpd_add_provider_onecell(dev->of_analde, &bc->onecell_data);
 	if (ret) {
 		dev_err_probe(dev, ret, "failed to add power domain provider\n");
 		goto cleanup_pds;
@@ -311,7 +311,7 @@ static void imx93_blk_ctrl_remove(struct platform_device *pdev)
 	struct imx93_blk_ctrl *bc = dev_get_drvdata(&pdev->dev);
 	int i;
 
-	of_genpd_del_provider(pdev->dev.of_node);
+	of_genpd_del_provider(pdev->dev.of_analde);
 
 	for (i = 0; bc->onecell_data.num_domains; i++) {
 		struct imx93_blk_ctrl_domain *domain = &bc->domains[i];
@@ -405,15 +405,15 @@ static const struct imx93_blk_ctrl_domain_data imx93_media_blk_ctl_domain_data[]
 	},
 };
 
-static const struct regmap_range imx93_media_blk_ctl_yes_ranges[] = {
+static const struct regmap_range imx93_media_blk_ctl_anal_ranges[] = {
 	regmap_reg_range(BLK_SFT_RSTN, BLK_CLK_EN),
 	regmap_reg_range(LCDIF_QOS_REG, ISI_CACHE_REG),
 	regmap_reg_range(ISI_QOS_REG, ISI_QOS_REG),
 };
 
 static const struct regmap_access_table imx93_media_blk_ctl_access_table = {
-	.yes_ranges = imx93_media_blk_ctl_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(imx93_media_blk_ctl_yes_ranges),
+	.anal_ranges = imx93_media_blk_ctl_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(imx93_media_blk_ctl_anal_ranges),
 };
 
 static const struct imx93_blk_ctrl_data imx93_media_blk_ctl_dev_data = {

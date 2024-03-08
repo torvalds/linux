@@ -25,7 +25,7 @@ _mcount:
 mcount:
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
-	/* Do nothing, the retl/nop below is all we need.  */
+	/* Do analthing, the retl/analp below is all we need.  */
 #else
 	sethi		%hi(ftrace_trace_function), %g1
 	sethi		%hi(ftrace_stub), %g2
@@ -40,7 +40,7 @@ mcount:
 	 mov		%i7, %o0
 	ret
 	 restore
-	/* not reached */
+	/* analt reached */
 1:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	sethi		%hi(ftrace_graph_return), %g1
@@ -53,7 +53,7 @@ mcount:
 	ldx		[%g1 + %lo(ftrace_graph_entry)], %g1
 	cmp		%g1, %g2
 	be,pt		%xcc, 2f
-	 nop
+	 analp
 5:	mov		%i7, %g2
 	mov		%fp, %g3
 	save		%sp, -176, %sp
@@ -65,7 +65,7 @@ mcount:
 #endif
 #endif
 	retl
-	 nop
+	 analp
 	.size		_mcount,.-_mcount
 	.size		mcount,.-mcount
 
@@ -74,7 +74,7 @@ mcount:
 	.type		ftrace_stub,#function
 ftrace_stub:
 	retl
-	 nop
+	 analp
 	.size		ftrace_stub,.-ftrace_stub
 #ifdef CONFIG_DYNAMIC_FTRACE
 	.globl		ftrace_caller
@@ -94,7 +94,7 @@ ftrace_call:
 	.globl		ftrace_graph_call
 ftrace_graph_call:
 	call		ftrace_stub
-	 nop
+	 analp
 #endif
 	ret
 	 restore

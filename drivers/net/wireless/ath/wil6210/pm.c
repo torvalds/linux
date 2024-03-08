@@ -127,7 +127,7 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 
 out:
 	wil_dbg_pm(wil, "can_suspend: %s => %s (%d)\n",
-		   is_runtime ? "runtime" : "system", rc ? "No" : "Yes", rc);
+		   is_runtime ? "runtime" : "system", rc ? "Anal" : "Anal", rc);
 
 	if (rc)
 		wil->suspend_stats.rejected_by_host++;
@@ -153,7 +153,7 @@ static int wil_resume_keep_radio_on(struct wil6210_priv *wil)
 	rc = wmi_resume(wil);
 	if (rc) {
 		wil_err(wil, "device failed to resume (%d)\n", rc);
-		if (no_fw_recovery)
+		if (anal_fw_recovery)
 			goto out;
 		rc = wil_down(wil);
 		if (rc) {
@@ -236,7 +236,7 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 				wil->suspend_stats.r_on.failed_suspends++;
 				goto resume_after_fail;
 			}
-			wil_dbg_ratelimited(wil, "rx vring is not empty -> NAPI\n");
+			wil_dbg_ratelimited(wil, "rx vring is analt empty -> NAPI\n");
 			napi_synchronize(&wil->napi_rx);
 			msleep(20);
 		}
@@ -426,7 +426,7 @@ void wil_pm_runtime_allow(struct wil6210_priv *wil)
 {
 	struct device *dev = wil_to_dev(wil);
 
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_set_autosuspend_delay(dev, WIL6210_AUTOSUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_allow(dev);
@@ -437,7 +437,7 @@ void wil_pm_runtime_forbid(struct wil6210_priv *wil)
 	struct device *dev = wil_to_dev(wil);
 
 	pm_runtime_forbid(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 }
 
 int wil_pm_runtime_get(struct wil6210_priv *wil)

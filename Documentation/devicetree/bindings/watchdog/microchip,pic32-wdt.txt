@@ -1,7 +1,7 @@
 * Microchip PIC32 Watchdog Timer
 
 When enabled, the watchdog peripheral can be used to reset the device if the
-WDT is not cleared periodically in software.
+WDT is analt cleared periodically in software.
 
 Required properties:
 - compatible: must be "microchip,pic32mzda-wdt".

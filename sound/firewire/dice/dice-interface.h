@@ -9,7 +9,7 @@
 /*
  * Generally, all registers can be read like memory, i.e., with quadlet read or
  * block read transactions with at least quadlet-aligned offset and length.
- * Writes are not allowed except where noted; quadlet-sized registers must be
+ * Writes are analt allowed except where analted; quadlet-sized registers must be
  * written with a quadlet write transaction.
  *
  * All values are in big endian.  The DICE firmware runs on a little-endian CPU
@@ -47,30 +47,30 @@
  */
 
 /*
- * Stores the full 64-bit address (node ID and offset in the node's address
- * space) where the device will send notifications.  Must be changed with
+ * Stores the full 64-bit address (analde ID and offset in the analde's address
+ * space) where the device will send analtifications.  Must be changed with
  * a compare/swap transaction by the owner.  This register is automatically
  * cleared on a bus reset.
  */
 #define GLOBAL_OWNER			0x000
-#define  OWNER_NO_OWNER			0xffff000000000000uLL
-#define  OWNER_NODE_SHIFT		48
+#define  OWNER_ANAL_OWNER			0xffff000000000000uLL
+#define  OWNER_ANALDE_SHIFT		48
 
 /*
- * A bitmask with asynchronous events; read-only.  When any event(s) happen,
+ * A bitmask with asynchroanalus events; read-only.  When any event(s) happen,
  * the bits of previous events are cleared, and the value of this register is
  * also written to the address stored in the owner register.
  */
-#define GLOBAL_NOTIFICATION		0x008
+#define GLOBAL_ANALTIFICATION		0x008
 /* Some registers in the Rx/Tx sections may have changed. */
-#define  NOTIFY_RX_CFG_CHG		0x00000001
-#define  NOTIFY_TX_CFG_CHG		0x00000002
+#define  ANALTIFY_RX_CFG_CHG		0x00000001
+#define  ANALTIFY_TX_CFG_CHG		0x00000002
 /* Lock status of the current clock source may have changed. */
-#define  NOTIFY_LOCK_CHG		0x00000010
+#define  ANALTIFY_LOCK_CHG		0x00000010
 /* Write to the clock select register has been finished. */
-#define  NOTIFY_CLOCK_ACCEPTED		0x00000020
+#define  ANALTIFY_CLOCK_ACCEPTED		0x00000020
 /* Lock status of some clock source has changed. */
-#define  NOTIFY_EXT_STATUS		0x00000040
+#define  ANALTIFY_EXT_STATUS		0x00000040
 /* Other bits may be used for device-specific events. */
 
 /*
@@ -113,11 +113,11 @@
 #define  CLOCK_RATE_ANY_LOW		0x00000700
 #define  CLOCK_RATE_ANY_MID		0x00000800
 #define  CLOCK_RATE_ANY_HIGH		0x00000900
-#define  CLOCK_RATE_NONE		0x00000a00
+#define  CLOCK_RATE_ANALNE		0x00000a00
 #define  CLOCK_RATE_SHIFT		8
 
 /*
- * Enable streaming; read/write.  Writing a non-zero value (re)starts all
+ * Enable streaming; read/write.  Writing a analn-zero value (re)starts all
  * streams that have a valid iso channel set; zero stops all streams.  The
  * streams' parameters must be configured before starting.  This register is
  * automatically cleared on a bus reset.
@@ -130,8 +130,8 @@
 #define GLOBAL_STATUS			0x054
 /* The current clock source is locked. */
 #define  STATUS_SOURCE_LOCKED		0x00000001
-/* The actual sample rate; CLOCK_RATE_32000-_192000 or _NONE. */
-#define  STATUS_NOMINAL_RATE_MASK	0x0000ff00
+/* The actual sample rate; CLOCK_RATE_32000-_192000 or _ANALNE. */
+#define  STATUS_ANALMINAL_RATE_MASK	0x0000ff00
 
 /*
  * Status of all clock sources; read-only.
@@ -139,7 +139,7 @@
 #define GLOBAL_EXTENDED_STATUS		0x058
 /*
  * The _LOCKED bits always show the current status; any change generates
- * a notification.
+ * a analtification.
  */
 #define  EXT_STATUS_AES1_LOCKED		0x00000001
 #define  EXT_STATUS_AES2_LOCKED		0x00000002
@@ -153,7 +153,7 @@
 #define  EXT_STATUS_ARX4_LOCKED		0x00000200
 #define  EXT_STATUS_WC_LOCKED		0x00000400
 /*
- * The _SLIP bits do not generate notifications; a set bit indicates that an
+ * The _SLIP bits do analt generate analtifications; a set bit indicates that an
  * error occurred since the last time when this register was read with
  * a quadlet read transaction.
  */
@@ -175,7 +175,7 @@
 #define GLOBAL_SAMPLE_RATE		0x05c
 
 /*
- * Some old firmware versions do not have the following global registers.
+ * Some old firmware versions do analt have the following global registers.
  * Windows drivers produced by TCAT lost backward compatibility in its
  * early release because they can handle firmware only which supports the
  * following registers.
@@ -238,10 +238,10 @@
 #define TX_SIZE				0x004
 
 /*
- * The isochronous channel number on which packets are sent, or -1 if the
- * stream is not to be used; read/write.
+ * The isochroanalus channel number on which packets are sent, or -1 if the
+ * stream is analt to be used; read/write.
  */
-#define TX_ISOCHRONOUS			0x008
+#define TX_ISOCHROANALUS			0x008
 
 /*
  * The number of audio channels; read-only.  There will be one quadlet per
@@ -300,14 +300,14 @@
 #define RX_SIZE				0x004
 
 /*
- * The isochronous channel number on which packets are received, or -1 if the
- * stream is not to be used; read/write.
+ * The isochroanalus channel number on which packets are received, or -1 if the
+ * stream is analt to be used; read/write.
  */
-#define RX_ISOCHRONOUS			0x008
+#define RX_ISOCHROANALUS			0x008
 
 /*
  * Index of first quadlet to be interpreted; read/write.  If > 0, that many
- * quadlets at the beginning of each data block will be ignored, and all the
+ * quadlets at the beginning of each data block will be iganalred, and all the
  * audio and MIDI quadlets will follow.
  */
 #define RX_SEQ_START			0x00c
@@ -362,7 +362,7 @@
 
 /*
  * Current sample rate (CLOCK_RATE_* >> CLOCK_RATE_SHIFT), _32000-_192000 or
- * _NONE; read-only.
+ * _ANALNE; read-only.
  */
 #define EXT_SYNC_RATE			0x008
 
@@ -372,7 +372,7 @@
 #define EXT_SYNC_ADAT_USER_DATA		0x00c
 /* The data bits, if available. */
 #define  ADAT_USER_DATA_MASK		0x0f
-/* The data bits are not available. */
-#define  ADAT_USER_DATA_NO_DATA		0x10
+/* The data bits are analt available. */
+#define  ADAT_USER_DATA_ANAL_DATA		0x10
 
 #endif

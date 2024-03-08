@@ -21,7 +21,7 @@ typedef struct {
 
 extern bool dcr_map_ok_generic(dcr_host_t host);
 
-extern dcr_host_t dcr_map_generic(struct device_node *dev, unsigned int dcr_n,
+extern dcr_host_t dcr_map_generic(struct device_analde *dev, unsigned int dcr_n,
 			  unsigned int dcr_c);
 extern void dcr_unmap_generic(dcr_host_t host, unsigned int dcr_c);
 

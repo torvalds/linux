@@ -9,7 +9,7 @@
 #define __ASMS390_ELF_H
 
 /* s390 relocations defined by the ABIs */
-#define R_390_NONE		0	/* No reloc.  */
+#define R_390_ANALNE		0	/* Anal reloc.  */
 #define R_390_8			1	/* Direct 8 bit.  */
 #define R_390_12		2	/* Direct 12 bit.  */
 #define R_390_16		3	/* Direct 16 bit.  */
@@ -275,9 +275,9 @@ do {								\
 
 /*
  * Cache aliasing on the latest machines calls for a mapping granularity
- * of 512KB for the anonymous mapping base. For 64-bit processes use a
+ * of 512KB for the aanalnymous mapping base. For 64-bit processes use a
  * 512KB alignment and a randomization of up to 1GB. For 31-bit processes
- * the virtual address space is limited, use no alignment and limit the
+ * the virtual address space is limited, use anal alignment and limit the
  * randomization to 8MB.
  * For the additional randomization of the program break use 32MB for
  * 64-bit and 8MB for 31-bit.

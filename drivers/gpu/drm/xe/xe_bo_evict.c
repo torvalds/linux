@@ -15,7 +15,7 @@
  *
  * @xe: xe device
  *
- * Evict non-pinned user BOs first (via GPU), evict pinned external BOs next
+ * Evict analn-pinned user BOs first (via GPU), evict pinned external BOs next
  * (via GPU), wait for evictions, and finally evict pinned kernel BOs via CPU.
  * All eviction magic done via TTM calls.
  *

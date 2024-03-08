@@ -216,13 +216,13 @@ static const struct regmap_range write_range[] = {
 };
 
 static const struct regmap_access_table driver_read_table = {
-	.yes_ranges =   read_range,
-	.n_yes_ranges = ARRAY_SIZE(read_range),
+	.anal_ranges =   read_range,
+	.n_anal_ranges = ARRAY_SIZE(read_range),
 };
 
 static const struct regmap_access_table driver_write_table = {
-	.yes_ranges =   write_range,
-	.n_yes_ranges = ARRAY_SIZE(write_range),
+	.anal_ranges =   write_range,
+	.n_anal_ranges = ARRAY_SIZE(write_range),
 };
 
 const struct regmap_config fxos8700_regmap_config = {
@@ -358,7 +358,7 @@ static int fxos8700_set_scale(struct fxos8700_data *data,
 	/*
 	 * When device is in active mode, it failed to set an ACCEL
 	 * full-scale range(2g/4g/8g) in FXOS8700_XYZ_DATA_CFG.
-	 * This is not align with the datasheet, but it is a fxos8700
+	 * This is analt align with the datasheet, but it is a fxos8700
 	 * chip behavier. Set the device in standby mode before setting
 	 * an ACCEL full-scale range.
 	 */
@@ -423,7 +423,7 @@ static int fxos8700_get_data(struct fxos8700_data *data, int chan_type,
 
 	/*
 	 * Different register base addresses varies with channel types.
-	 * This bug hasn't been noticed before because using an enum is
+	 * This bug hasn't been analticed before because using an enum is
 	 * really hard to read. Use an a switch statement to take over that.
 	 */
 	switch (chan_type) {
@@ -465,7 +465,7 @@ static int fxos8700_get_data(struct fxos8700_data *data, int chan_type,
 		tmp = tmp >> 2;
 		break;
 	case IIO_MAGN:
-		/* Nothing to do */
+		/* Analthing to do */
 		break;
 	default:
 		return -EINVAL;
@@ -622,7 +622,7 @@ static int fxos8700_chip_init(struct fxos8700_data *data, bool use_spi)
 	if (val != FXOS8700_DEVICE_ID && val != FXOS8700_PRE_DEVICE_ID) {
 		dev_err(dev, "Wrong chip id, got %x expected %x or %x\n",
 			val, FXOS8700_DEVICE_ID, FXOS8700_PRE_DEVICE_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = fxos8700_set_active_mode(data, FXOS8700_ACCEL, true);
@@ -686,7 +686,7 @@ int fxos8700_core_probe(struct device *dev, struct regmap *regmap,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);

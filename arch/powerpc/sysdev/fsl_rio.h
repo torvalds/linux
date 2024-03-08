@@ -6,7 +6,7 @@
  * Thomas Moll <thomas.moll@sysgo.com>
  * - fixed maintenance access routines, check for aligned access
  *
- * Copyright 2009 Integrated Device Technology, Inc.
+ * Copyright 2009 Integrated Device Techanallogy, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
  * - Added Port-Write message handling
  * - Added Machine Check exception handling
@@ -122,7 +122,7 @@ extern struct fsl_rio_dbell *dbell;
 extern struct fsl_rio_pw *pw;
 
 extern int fsl_rio_setup_rmu(struct rio_mport *mport,
-	struct device_node *node);
+	struct device_analde *analde);
 extern int fsl_rio_port_write_init(struct fsl_rio_pw *pw);
 extern int fsl_rio_pw_enable(struct rio_mport *mport, int enable);
 extern void fsl_rio_port_error_handler(int offset);

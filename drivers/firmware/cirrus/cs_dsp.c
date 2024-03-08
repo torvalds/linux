@@ -461,7 +461,7 @@ static const struct {
 static int cs_dsp_coeff_base_reg(struct cs_dsp_coeff_ctl *ctl, unsigned int *reg,
 				 unsigned int off);
 
-static int cs_dsp_debugfs_read_controls_show(struct seq_file *s, void *ignored)
+static int cs_dsp_debugfs_read_controls_show(struct seq_file *s, void *iganalred)
 {
 	struct cs_dsp *dsp = s->private;
 	struct cs_dsp_coeff_ctl *ctl;
@@ -575,7 +575,7 @@ static unsigned int cs_dsp_region_to_reg(struct cs_dsp_region const *mem,
 	case WMFW_ADSP1_ZM:
 		return mem->base + (offset * 2);
 	default:
-		WARN(1, "Unknown memory region type");
+		WARN(1, "Unkanalwn memory region type");
 		return offset;
 	}
 }
@@ -593,18 +593,18 @@ static unsigned int cs_dsp_halo_region_to_reg(struct cs_dsp_region const *mem,
 	case WMFW_HALO_PM_PACKED:
 		return mem->base + (offset * 5);
 	default:
-		WARN(1, "Unknown memory region type");
+		WARN(1, "Unkanalwn memory region type");
 		return offset;
 	}
 }
 
 static void cs_dsp_read_fw_status(struct cs_dsp *dsp,
-				  int noffs, unsigned int *offs)
+				  int analffs, unsigned int *offs)
 {
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < noffs; ++i) {
+	for (i = 0; i < analffs; ++i) {
 		ret = regmap_read(dsp->regmap, dsp->base + offs[i], &offs[i]);
 		if (ret) {
 			cs_dsp_err(dsp, "Failed to read SCRATCH%u: %d\n", i, ret);
@@ -657,7 +657,7 @@ static int cs_dsp_coeff_base_reg(struct cs_dsp_coeff_ctl *ctl, unsigned int *reg
 
 	mem = cs_dsp_find_region(dsp, alg_region->type);
 	if (!mem) {
-		cs_dsp_err(dsp, "No base for region %x\n",
+		cs_dsp_err(dsp, "Anal base for region %x\n",
 			   alg_region->type);
 		return -EINVAL;
 	}
@@ -673,7 +673,7 @@ static int cs_dsp_coeff_base_reg(struct cs_dsp_coeff_ctl *ctl, unsigned int *reg
  * @event_id: the value to write to the given acked control
  *
  * Once the value has been written to the control the function shall block
- * until the running firmware acknowledges the write or timeout is exceeded.
+ * until the running firmware ackanalwledges the write or timeout is exceeded.
  *
  * Must be called with pwr_lock held.
  *
@@ -758,7 +758,7 @@ static int cs_dsp_coeff_write_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
 
 	scratch = kmemdup(buf, len, GFP_KERNEL | GFP_DMA);
 	if (!scratch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = regmap_raw_write(dsp->regmap, reg, scratch,
 			       len);
@@ -784,7 +784,7 @@ static int cs_dsp_coeff_write_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
  *
  * Must be called with pwr_lock held.
  *
- * Return: < 0 on error, 1 when the control value changed and 0 when it has not.
+ * Return: < 0 on error, 1 when the control value changed and 0 when it has analt.
  */
 int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl,
 			    unsigned int off, const void *buf, size_t len)
@@ -792,7 +792,7 @@ int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl,
 	int ret = 0;
 
 	if (!ctl)
-		return -ENOENT;
+		return -EANALENT;
 
 	lockdep_assert_held(&ctl->dsp->pwr_lock);
 
@@ -833,7 +833,7 @@ static int cs_dsp_coeff_read_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
 
 	scratch = kmalloc(len, GFP_KERNEL | GFP_DMA);
 	if (!scratch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = regmap_raw_read(dsp->regmap, reg, scratch, len);
 	if (ret) {
@@ -867,7 +867,7 @@ int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl,
 	int ret = 0;
 
 	if (!ctl)
-		return -ENOENT;
+		return -EANALENT;
 
 	lockdep_assert_held(&ctl->dsp->pwr_lock);
 
@@ -904,7 +904,7 @@ static int cs_dsp_coeff_init_control_caches(struct cs_dsp *dsp)
 
 		/*
 		 * For readable controls populate the cache from the DSP memory.
-		 * For non-readable controls the cache was zero-filled when
+		 * For analn-readable controls the cache was zero-filled when
 		 * created so we don't need to do anything.
 		 */
 		if (!ctl->flags || (ctl->flags & WMFW_CTL_FLAG_READABLE)) {
@@ -989,7 +989,7 @@ static int cs_dsp_create_control(struct cs_dsp *dsp,
 
 	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
 	if (!ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctl->fw_name = dsp->fw_name;
 	ctl->alg_region = *alg_region;
@@ -997,7 +997,7 @@ static int cs_dsp_create_control(struct cs_dsp *dsp,
 		ctl->subname_len = subname_len;
 		ctl->subname = kasprintf(GFP_KERNEL, "%.*s", subname_len, subname);
 		if (!ctl->subname) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_ctl;
 		}
 	}
@@ -1011,7 +1011,7 @@ static int cs_dsp_create_control(struct cs_dsp *dsp,
 	ctl->len = len;
 	ctl->cache = kzalloc(ctl->len, GFP_KERNEL);
 	if (!ctl->cache) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ctl_subname;
 	}
 
@@ -1205,7 +1205,7 @@ static int cs_dsp_parse_coeff(struct cs_dsp *dsp,
 			break;
 		case WMFW_CTL_TYPE_ACKED:
 			if (coeff_blk.flags & WMFW_CTL_FLAG_SYS)
-				continue;	/* ignore */
+				continue;	/* iganalre */
 
 			ret = cs_dsp_check_coeff_flags(dsp, &coeff_blk,
 						       WMFW_CTL_FLAG_VOLATILE |
@@ -1236,7 +1236,7 @@ static int cs_dsp_parse_coeff(struct cs_dsp *dsp,
 				return -EINVAL;
 			break;
 		default:
-			cs_dsp_err(dsp, "Unknown control type: %d\n",
+			cs_dsp_err(dsp, "Unkanalwn control type: %d\n",
 				   coeff_blk.ctl_type);
 			return -EINVAL;
 		}
@@ -1353,7 +1353,7 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 	}
 
 	if (!dsp->ops->validate_version(dsp, header->ver)) {
-		cs_dsp_err(dsp, "%s: unknown file format %d\n",
+		cs_dsp_err(dsp, "%s: unkanalwn file format %d\n",
 			   file, header->ver);
 		goto out_fw;
 	}
@@ -1385,7 +1385,7 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 	while (pos < firmware->size &&
 	       sizeof(*region) < firmware->size - pos) {
 		region = (void *)&(firmware->data[pos]);
-		region_name = "Unknown";
+		region_name = "Unkanalwn";
 		reg = 0;
 		text = NULL;
 		offset = le32_to_cpu(region->offset) & 0xffffff;
@@ -1422,7 +1422,7 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 		case WMFW_HALO_YM_PACKED:
 			mem = cs_dsp_find_region(dsp, type);
 			if (!mem) {
-				cs_dsp_err(dsp, "No region of type: %x\n", type);
+				cs_dsp_err(dsp, "Anal region of type: %x\n", type);
 				ret = -EINVAL;
 				goto out_fw;
 			}
@@ -1432,7 +1432,7 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 			break;
 		default:
 			cs_dsp_warn(dsp,
-				    "%s.%d: Unknown region type %x at %d(%x)\n",
+				    "%s.%d: Unkanalwn region type %x at %d(%x)\n",
 				    file, regions, type, pos, pos);
 			break;
 		}
@@ -1464,7 +1464,7 @@ static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 					       &buf_list);
 			if (!buf) {
 				cs_dsp_err(dsp, "Out of memory\n");
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_fw;
 			}
 
@@ -1513,7 +1513,7 @@ out_fw:
  *
  * Find cs_dsp_coeff_ctl with input name as its subname
  *
- * Return: pointer to the control on success, NULL if not found
+ * Return: pointer to the control on success, NULL if analt found
  */
 struct cs_dsp_coeff_ctl *cs_dsp_get_ctl(struct cs_dsp *dsp, const char *name, int type,
 					unsigned int alg)
@@ -1562,7 +1562,7 @@ static void *cs_dsp_read_algs(struct cs_dsp *dsp, size_t n_algs,
 	__be32 val;
 
 	if (n_algs == 0) {
-		cs_dsp_err(dsp, "No algorithms\n");
+		cs_dsp_err(dsp, "Anal algorithms\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1590,7 +1590,7 @@ static void *cs_dsp_read_algs(struct cs_dsp *dsp, size_t n_algs,
 
 	alg = kzalloc(len, GFP_KERNEL | GFP_DMA);
 	if (!alg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	reg = dsp->ops->region_to_reg(mem, pos);
 
@@ -1610,7 +1610,7 @@ static void *cs_dsp_read_algs(struct cs_dsp *dsp, size_t n_algs,
  * @type: the algorithm type to match
  * @id: the algorithm id to match
  *
- * Return: Pointer to matching algorithm region, or NULL if not found.
+ * Return: Pointer to matching algorithm region, or NULL if analt found.
  */
 struct cs_dsp_alg_region *cs_dsp_find_alg_region(struct cs_dsp *dsp,
 						 int type, unsigned int id)
@@ -1636,7 +1636,7 @@ static struct cs_dsp_alg_region *cs_dsp_create_region(struct cs_dsp *dsp,
 
 	alg_region = kzalloc(sizeof(*alg_region), GFP_KERNEL);
 	if (!alg_region)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	alg_region->type = type;
 	alg_region->alg = be32_to_cpu(id);
@@ -2085,7 +2085,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 			   file, blocks, le32_to_cpu(blk->len), offset, type);
 
 		reg = 0;
-		region_name = "Unknown";
+		region_name = "Unkanalwn";
 		switch (type) {
 		case (WMFW_NAME_TEXT << 8):
 			text = kzalloc(le32_to_cpu(blk->len) + 1, GFP_KERNEL);
@@ -2103,7 +2103,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 				region_name = "global coefficients";
 				mem = cs_dsp_find_region(dsp, type);
 				if (!mem) {
-					cs_dsp_err(dsp, "No ZM\n");
+					cs_dsp_err(dsp, "Anal ZM\n");
 					break;
 				}
 				reg = dsp->ops->region_to_reg(mem, 0);
@@ -2128,7 +2128,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 			region_name = cs_dsp_mem_region_name(type);
 			mem = cs_dsp_find_region(dsp, type);
 			if (!mem) {
-				cs_dsp_err(dsp, "No base for region %x\n", type);
+				cs_dsp_err(dsp, "Anal base for region %x\n", type);
 				break;
 			}
 
@@ -2149,13 +2149,13 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 				reg = dsp->ops->region_to_reg(mem, reg);
 				reg += offset;
 			} else {
-				cs_dsp_err(dsp, "No %s for algorithm %x\n",
+				cs_dsp_err(dsp, "Anal %s for algorithm %x\n",
 					   region_name, le32_to_cpu(blk->id));
 			}
 			break;
 
 		default:
-			cs_dsp_err(dsp, "%s.%d: Unknown region type %x at %d\n",
+			cs_dsp_err(dsp, "%s.%d: Unkanalwn region type %x at %d\n",
 				   file, blocks, type, pos);
 			break;
 		}
@@ -2184,7 +2184,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 					       &buf_list);
 			if (!buf) {
 				cs_dsp_err(dsp, "Out of memory\n");
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_fw;
 			}
 
@@ -2227,7 +2227,7 @@ static int cs_dsp_create_name(struct cs_dsp *dsp)
 		dsp->name = devm_kasprintf(dsp->dev, GFP_KERNEL, "DSP%d",
 					   dsp->num);
 		if (!dsp->name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -2561,7 +2561,7 @@ static void cs_dsp_halo_stop_watchdog(struct cs_dsp *dsp)
  * @fw_name: the user-friendly firmware name
  *
  * This function is used on ADSP2 and Halo DSP cores, it powers-up the DSP core
- * and downloads the firmware but does not start the firmware running. The
+ * and downloads the firmware but does analt start the firmware running. The
  * cs_dsp booted flag will be set once completed and if the core has a low-power
  * memory retention mode it will be put into this state after the firmware is
  * downloaded.
@@ -2634,7 +2634,7 @@ EXPORT_SYMBOL_NS_GPL(cs_dsp_power_up, FW_CS_DSP);
  * @dsp: pointer to DSP structure
  *
  * cs_dsp_stop() must have been called before this function. The core will be
- * fully powered down and so the memory will not be retained.
+ * fully powered down and so the memory will analt be retained.
  */
 void cs_dsp_power_down(struct cs_dsp *dsp)
 {
@@ -2753,7 +2753,7 @@ EXPORT_SYMBOL_NS_GPL(cs_dsp_run, FW_CS_DSP);
  * cs_dsp_stop() - Stops the firmware
  * @dsp: pointer to DSP structure
  *
- * Memory will not be disabled so firmware will remain loaded.
+ * Memory will analt be disabled so firmware will remain loaded.
  */
 void cs_dsp_stop(struct cs_dsp *dsp)
 {
@@ -2858,7 +2858,7 @@ EXPORT_SYMBOL_NS_GPL(cs_dsp_adsp2_init, FW_CS_DSP);
  */
 int cs_dsp_halo_init(struct cs_dsp *dsp)
 {
-	if (dsp->no_core_startstop)
+	if (dsp->anal_core_startstop)
 		dsp->ops = &cs_dsp_halo_ao_ops;
 	else
 		dsp->ops = &cs_dsp_halo_ops;
@@ -3243,7 +3243,7 @@ static const struct cs_dsp_ops cs_dsp_halo_ao_ops = {
  *
  * This function sequentially writes values into the format required for DSP
  * memory, it handles both inserting of the padding bytes and converting to
- * big endian. Note that data is only committed to the chunk when a whole DSP
+ * big endian. Analte that data is only committed to the chunk when a whole DSP
  * words worth of data is available.
  *
  * Return: Zero for success, a negative number on error.
@@ -3261,7 +3261,7 @@ int cs_dsp_chunk_write(struct cs_dsp_chunk *ch, int nbits, u32 val)
 
 	if (ch->cachebits == CS_DSP_DATA_WORD_BITS) {
 		if (cs_dsp_chunk_end(ch))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		ch->cache &= 0xFFFFFF;
 		for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= BITS_PER_BYTE)
@@ -3314,7 +3314,7 @@ int cs_dsp_chunk_read(struct cs_dsp_chunk *ch, int nbits)
 
 	if (!ch->cachebits) {
 		if (cs_dsp_chunk_end(ch))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		ch->cache = 0;
 		ch->cachebits = CS_DSP_DATA_WORD_BITS;

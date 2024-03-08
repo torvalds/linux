@@ -70,7 +70,7 @@
 #define CABLE_TEST_OK			0x00
 #define CABLE_TEST_SHORTED		0x01
 #define CABLE_TEST_OPEN			0x02
-#define CABLE_TEST_UNKNOWN		0x07
+#define CABLE_TEST_UNKANALWN		0x07
 
 #define VEND1_PORT_CONTROL		0x8040
 #define PORT_CONTROL_EN			BIT(14)
@@ -161,7 +161,7 @@
 #define PTP_CLK_PERIOD_1000BT1		8ULL
 
 #define EVENT_MSG_FILT_ALL		0x0F
-#define EVENT_MSG_FILT_NONE		0x00
+#define EVENT_MSG_FILT_ANALNE		0x00
 
 #define VEND1_GPIO_FUNC_CONFIG_BASE	0x2C40
 #define GPIO_FUNC_EN			BIT(15)
@@ -467,13 +467,13 @@ static int nxp_c45_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 static int nxp_c45_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct nxp_c45_phy *priv = container_of(ptp, struct nxp_c45_phy, caps);
-	struct timespec64 now, then;
+	struct timespec64 analw, then;
 
 	mutex_lock(&priv->ptp_lock);
 	then = ns_to_timespec64(delta);
-	_nxp_c45_ptp_gettimex64(ptp, &now, NULL);
-	now = timespec64_add(now, then);
-	_nxp_c45_ptp_settime64(ptp, &now);
+	_nxp_c45_ptp_gettimex64(ptp, &analw, NULL);
+	analw = timespec64_add(analw, then);
+	_nxp_c45_ptp_settime64(ptp, &analw);
 	mutex_unlock(&priv->ptp_lock);
 
 	return 0;
@@ -750,7 +750,7 @@ static int nxp_c45_perout_enable(struct nxp_c45_phy *priv,
 	int pin;
 
 	if (perout->flags & ~PTP_PEROUT_PHASE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pin = ptp_find_pin(priv->ptp_clock, PTP_PF_PEROUT, perout->index);
 	if (pin < 0)
@@ -768,7 +768,7 @@ static int nxp_c45_perout_enable(struct nxp_c45_phy *priv,
 	}
 
 	/* The PPS signal is fixed to 1 second and is always generated when the
-	 * seconds counter is incremented. The start time is not configurable.
+	 * seconds counter is incremented. The start time is analt configurable.
 	 * If the clock is adjusted, the PPS signal is automatically readjusted.
 	 */
 	if (perout->period.sec != 1 || perout->period.nsec != 0) {
@@ -778,13 +778,13 @@ static int nxp_c45_perout_enable(struct nxp_c45_phy *priv,
 
 	if (!(perout->flags & PTP_PEROUT_PHASE)) {
 		if (perout->start.sec != 0 || perout->start.nsec != 0) {
-			phydev_warn(phydev, "The start time is not configurable. Should be set to 0 seconds and 0 nanoseconds.");
+			phydev_warn(phydev, "The start time is analt configurable. Should be set to 0 seconds and 0 naanalseconds.");
 			return -EINVAL;
 		}
 	} else {
 		if (perout->phase.nsec != 0 &&
 		    perout->phase.nsec != (NSEC_PER_SEC >> 1)) {
-			phydev_warn(phydev, "The phase can be set only to 0 or 500000000 nanoseconds.");
+			phydev_warn(phydev, "The phase can be set only to 0 or 500000000 naanalseconds.");
 			return -EINVAL;
 		}
 
@@ -851,13 +851,13 @@ static int nxp_c45_extts_enable(struct nxp_c45_phy *priv,
 			      PTP_RISING_EDGE |
 			      PTP_FALLING_EDGE |
 			      PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* Sampling on both edges is not supported */
+	/* Sampling on both edges is analt supported */
 	if ((extts->flags & PTP_RISING_EDGE) &&
 	    (extts->flags & PTP_FALLING_EDGE) &&
 	    !data->ext_ts_both_edges)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pin = ptp_find_pin(priv->ptp_clock, PTP_PF_EXTTS, extts->index);
 	if (pin < 0)
@@ -894,23 +894,23 @@ static int nxp_c45_ptp_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_PEROUT:
 		return nxp_c45_perout_enable(priv, &req->perout, on);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
 static struct ptp_pin_desc nxp_c45_ptp_pins[] = {
-	{ "nxp_c45_gpio0", 0, PTP_PF_NONE},
-	{ "nxp_c45_gpio1", 1, PTP_PF_NONE},
-	{ "nxp_c45_gpio2", 2, PTP_PF_NONE},
-	{ "nxp_c45_gpio3", 3, PTP_PF_NONE},
-	{ "nxp_c45_gpio4", 4, PTP_PF_NONE},
-	{ "nxp_c45_gpio5", 5, PTP_PF_NONE},
-	{ "nxp_c45_gpio6", 6, PTP_PF_NONE},
-	{ "nxp_c45_gpio7", 7, PTP_PF_NONE},
-	{ "nxp_c45_gpio8", 8, PTP_PF_NONE},
-	{ "nxp_c45_gpio9", 9, PTP_PF_NONE},
-	{ "nxp_c45_gpio10", 10, PTP_PF_NONE},
-	{ "nxp_c45_gpio11", 11, PTP_PF_NONE},
+	{ "nxp_c45_gpio0", 0, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio1", 1, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio2", 2, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio3", 3, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio4", 4, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio5", 5, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio6", 6, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio7", 7, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio8", 8, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio9", 9, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio10", 10, PTP_PF_ANALNE},
+	{ "nxp_c45_gpio11", 11, PTP_PF_ANALNE},
 };
 
 static int nxp_c45_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
@@ -920,12 +920,12 @@ static int nxp_c45_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 		return -EINVAL;
 
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_PEROUT:
 	case PTP_PF_EXTTS:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -957,7 +957,7 @@ static int nxp_c45_init_ptp_clock(struct nxp_c45_phy *priv)
 		return PTR_ERR(priv->ptp_clock);
 
 	if (!priv->ptp_clock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1020,7 +1020,7 @@ static int nxp_c45_hwtstamp(struct mii_timestamper *mii_ts,
 	priv->hwts_tx = cfg->tx_type;
 
 	switch (cfg->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		priv->hwts_rx = 0;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
@@ -1041,19 +1041,19 @@ static int nxp_c45_hwtstamp(struct mii_timestamper *mii_ts,
 	} else {
 		phy_write_mmd(phydev, MDIO_MMD_VEND1,
 			      data->regmap->vend1_event_msg_filt,
-			      EVENT_MSG_FILT_NONE);
+			      EVENT_MSG_FILT_ANALNE);
 		data->ptp_enable(phydev, false);
 	}
 
 	if (nxp_c45_poll_txts(priv->phydev))
-		goto nxp_c45_no_ptp_irq;
+		goto nxp_c45_anal_ptp_irq;
 
 	if (priv->hwts_tx)
 		nxp_c45_set_reg_field(phydev, &data->regmap->irq_egr_ts_en);
 	else
 		nxp_c45_clear_reg_field(phydev, &data->regmap->irq_egr_ts_en);
 
-nxp_c45_no_ptp_irq:
+nxp_c45_anal_ptp_irq:
 	return 0;
 }
 
@@ -1068,7 +1068,7 @@ static int nxp_c45_ts_info(struct mii_timestamper *mii_ts,
 			SOF_TIMESTAMPING_RAW_HARDWARE;
 	ts_info->phc_index = ptp_clock_index(priv->ptp_clock);
 	ts_info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
-	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 			(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
 			(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
 			(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT);
@@ -1254,7 +1254,7 @@ static irqreturn_t nxp_c45_handle_interrupt(struct phy_device *phydev)
 {
 	const struct nxp_c45_phy_data *data = nxp_c45_get_data(phydev);
 	struct nxp_c45_phy *priv = phydev->priv;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct nxp_c45_hwts hwts;
 	int irq;
 
@@ -1368,12 +1368,12 @@ static int nxp_c45_get_sqi(struct phy_device *phydev)
 	return reg;
 }
 
-static void tja1120_link_change_notify(struct phy_device *phydev)
+static void tja1120_link_change_analtify(struct phy_device *phydev)
 {
 	/* Bug workaround for TJA1120 enegineering samples: fix egress
 	 * timestamps lost after link recovery.
 	 */
-	if (phydev->state == PHY_NOLINK) {
+	if (phydev->state == PHY_ANALLINK) {
 		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 				 TJA1120_EPHY_RESETS, EPHY_PCS_RESET);
 		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
@@ -1518,7 +1518,7 @@ static int nxp_c45_set_phy_mode(struct phy_device *phydev)
 	switch (phydev->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
 		if (!(ret & RGMII_ABILITY)) {
-			phydev_err(phydev, "rgmii mode not supported\n");
+			phydev_err(phydev, "rgmii mode analt supported\n");
 			return -EINVAL;
 		}
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_MII_BASIC_CONFIG,
@@ -1529,7 +1529,7 @@ static int nxp_c45_set_phy_mode(struct phy_device *phydev)
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 		if (!(ret & RGMII_ID_ABILITY)) {
-			phydev_err(phydev, "rgmii-id, rgmii-txid, rgmii-rxid modes are not supported\n");
+			phydev_err(phydev, "rgmii-id, rgmii-txid, rgmii-rxid modes are analt supported\n");
 			return -EINVAL;
 		}
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_MII_BASIC_CONFIG,
@@ -1542,7 +1542,7 @@ static int nxp_c45_set_phy_mode(struct phy_device *phydev)
 		break;
 	case PHY_INTERFACE_MODE_MII:
 		if (!(ret & MII_ABILITY)) {
-			phydev_err(phydev, "mii mode not supported\n");
+			phydev_err(phydev, "mii mode analt supported\n");
 			return -EINVAL;
 		}
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_MII_BASIC_CONFIG,
@@ -1550,7 +1550,7 @@ static int nxp_c45_set_phy_mode(struct phy_device *phydev)
 		break;
 	case PHY_INTERFACE_MODE_REVMII:
 		if (!(ret & REVMII_ABILITY)) {
-			phydev_err(phydev, "rev-mii mode not supported\n");
+			phydev_err(phydev, "rev-mii mode analt supported\n");
 			return -EINVAL;
 		}
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_MII_BASIC_CONFIG,
@@ -1558,7 +1558,7 @@ static int nxp_c45_set_phy_mode(struct phy_device *phydev)
 		break;
 	case PHY_INTERFACE_MODE_RMII:
 		if (!(ret & RMII_ABILITY)) {
-			phydev_err(phydev, "rmii mode not supported\n");
+			phydev_err(phydev, "rmii mode analt supported\n");
 			return -EINVAL;
 		}
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_MII_BASIC_CONFIG,
@@ -1566,7 +1566,7 @@ static int nxp_c45_set_phy_mode(struct phy_device *phydev)
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
 		if (!(ret & SGMII_ABILITY)) {
-			phydev_err(phydev, "sgmii mode not supported\n");
+			phydev_err(phydev, "sgmii mode analt supported\n");
 			return -EINVAL;
 		}
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_MII_BASIC_CONFIG,
@@ -1633,7 +1633,7 @@ static int nxp_c45_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&priv->tx_queue);
 	skb_queue_head_init(&priv->rx_queue);
@@ -1648,8 +1648,8 @@ static int nxp_c45_probe(struct phy_device *phydev)
 				     VEND1_PORT_ABILITIES);
 	ptp_ability = !!(phy_abilities & PTP_ABILITY);
 	if (!ptp_ability) {
-		phydev_dbg(phydev, "the phy does not support PTP");
-		goto no_ptp_support;
+		phydev_dbg(phydev, "the phy does analt support PTP");
+		goto anal_ptp_support;
 	}
 
 	if (IS_ENABLED(CONFIG_PTP_1588_CLOCK) &&
@@ -1661,24 +1661,24 @@ static int nxp_c45_probe(struct phy_device *phydev)
 		phydev->mii_ts = &priv->mii_ts;
 		ret = nxp_c45_init_ptp_clock(priv);
 	} else {
-		phydev_dbg(phydev, "PTP support not enabled even if the phy supports it");
+		phydev_dbg(phydev, "PTP support analt enabled even if the phy supports it");
 	}
 
-no_ptp_support:
+anal_ptp_support:
 	macsec_ability = !!(phy_abilities & MACSEC_ABILITY);
 	if (!macsec_ability) {
-		phydev_info(phydev, "the phy does not support MACsec\n");
-		goto no_macsec_support;
+		phydev_info(phydev, "the phy does analt support MACsec\n");
+		goto anal_macsec_support;
 	}
 
 	if (IS_ENABLED(CONFIG_MACSEC)) {
 		ret = nxp_c45_macsec_probe(phydev);
 		phydev_dbg(phydev, "MACsec support enabled.");
 	} else {
-		phydev_dbg(phydev, "MACsec support not enabled even if the phy supports it");
+		phydev_dbg(phydev, "MACsec support analt enabled even if the phy supports it");
 	}
 
-no_macsec_support:
+anal_macsec_support:
 
 	return ret;
 }
@@ -1962,7 +1962,7 @@ static struct phy_driver nxp_c45_driver[] = {
 		.config_intr		= tja1120_config_intr,
 		.handle_interrupt	= nxp_c45_handle_interrupt,
 		.read_status		= genphy_c45_read_status,
-		.link_change_notify	= tja1120_link_change_notify,
+		.link_change_analtify	= tja1120_link_change_analtify,
 		.suspend		= genphy_c45_pma_suspend,
 		.resume			= genphy_c45_pma_resume,
 		.get_sset_count		= nxp_c45_get_sset_count,

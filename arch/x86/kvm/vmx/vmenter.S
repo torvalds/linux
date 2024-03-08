@@ -3,7 +3,7 @@
 #include <asm/asm.h>
 #include <asm/bitsperlong.h>
 #include <asm/kvm_vcpu_regs.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/percpu.h>
 #include <asm/segment.h>
 #include "kvm-asm-offsets.h"
@@ -55,7 +55,7 @@
 
 	/*
 	 * "Restore" RSP from RBP, even though IRET has already unwound RSP to
-	 * the correct value.  objtool doesn't know the callee will IRET and,
+	 * the correct value.  objtool doesn't kanalw the callee will IRET and,
 	 * without the explicit restore, thinks the stack is getting walloped.
 	 * Using an unwind hint is problematic due to x86-64's dynamic alignment.
 	 */
@@ -64,7 +64,7 @@
 	RET
 .endm
 
-.section .noinstr.text, "ax"
+.section .analinstr.text, "ax"
 
 /**
  * __vmx_vcpu_run - Run a vCPU via a transition to VMX guest mode
@@ -115,7 +115,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 * host's, write the MSR.
 	 *
 	 * IMPORTANT: To avoid RSB underflow attacks and any other nastiness,
-	 * there must not be any returns or indirect branches between this code
+	 * there must analt be any returns or indirect branches between this code
 	 * and vmentry.
 	 */
 	mov 2*WORD_SIZE(%_ASM_SP), %_ASM_DI
@@ -131,7 +131,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 .Lspec_ctrl_done:
 
 	/*
-	 * Since vmentry is serializing on affected CPUs, there's no need for
+	 * Since vmentry is serializing on affected CPUs, there's anal need for
 	 * an LFENCE to stop speculation from skipping the wrmsr.
 	 */
 
@@ -233,7 +233,7 @@ SYM_INNER_LABEL_ALIGN(vmx_vmexit, SYM_L_GLOBAL)
 	 * speculative use of the guest's values, even those that are reloaded
 	 * via the stack.  In theory, an L1 cache miss when restoring registers
 	 * could lead to speculative execution with the guest's values.
-	 * Zeroing XORs are dirt cheap, i.e. the extra paranoia is essentially
+	 * Zeroing XORs are dirt cheap, i.e. the extra paraanalia is essentially
 	 * free.  RSP and RBX are exempt as RSP is restored by hardware during
 	 * VM-Exit and RBX is explicitly loaded with 0 or 1 to hold the return
 	 * value.
@@ -313,7 +313,7 @@ SYM_FUNC_END(vmx_do_nmi_irqoff)
  * @field:	VMCS field encoding that failed
  * @fault:	%true if the VMREAD faulted, %false if it failed
  *
- * Save and restore volatile registers across a call to vmread_error().  Note,
+ * Save and restore volatile registers across a call to vmread_error().  Analte,
  * all parameters are passed on the stack.
  */
 SYM_FUNC_START(vmread_error_trampoline)
@@ -361,5 +361,5 @@ SYM_FUNC_END(vmread_error_trampoline)
 .section .text, "ax"
 
 SYM_FUNC_START(vmx_do_interrupt_irqoff)
-	VMX_DO_EVENT_IRQOFF CALL_NOSPEC _ASM_ARG1
+	VMX_DO_EVENT_IRQOFF CALL_ANALSPEC _ASM_ARG1
 SYM_FUNC_END(vmx_do_interrupt_irqoff)

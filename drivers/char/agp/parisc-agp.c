@@ -271,7 +271,7 @@ agp_ioc_init(void __iomem *ioc_regs)
                        "configuration 0x%llx\n", io_tlb_ps);
                 info->gatt = NULL;
                 info->gatt_entries = 0;
-                return -ENODEV;
+                return -EANALDEV;
         }
         info->io_page_size = 1 << io_tlb_shift;
         info->io_pages_per_kpage = PAGE_SIZE / info->io_page_size;
@@ -288,9 +288,9 @@ agp_ioc_init(void __iomem *ioc_regs)
         if (info->gatt[0] != SBA_AGPGART_COOKIE) {
                 info->gatt = NULL;
                 info->gatt_entries = 0;
-                printk(KERN_ERR DRVPFX "No reserved IO PDIR entry found; "
+                printk(KERN_ERR DRVPFX "Anal reserved IO PDIR entry found; "
                        "GART disabled\n");
-                return -ENODEV;
+                return -EANALDEV;
         }
 
         return 0;
@@ -333,7 +333,7 @@ agp_lba_init(void __iomem *lba_hpa)
         if (cap != PCI_CAP_ID_AGP) {
                 printk(KERN_ERR DRVPFX "Invalid capability ID 0x%02x at 0x%x\n",
                        cap, info->lba_cap_offset);
-                return -ENODEV;
+                return -EANALDEV;
         }
 
         return 0;
@@ -348,7 +348,7 @@ parisc_agp_setup(void __iomem *ioc_hpa, void __iomem *lba_hpa)
 
 	fake_bridge_dev = pci_alloc_dev(NULL);
 	if (!fake_bridge_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	}
 
@@ -362,7 +362,7 @@ parisc_agp_setup(void __iomem *ioc_hpa, void __iomem *lba_hpa)
 
 	bridge = agp_alloc_bridge();
 	if (!bridge) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	}
 	bridge->driver = &parisc_agp_driver;
@@ -406,15 +406,15 @@ parisc_agp_init(void)
 	/* Find our parent Pluto */
 	sba = sba_list->dev;
 	if (!IS_PLUTO(sba)) {
-		printk(KERN_INFO DRVPFX "No Pluto found, so no AGPGART for you.\n");
+		printk(KERN_INFO DRVPFX "Anal Pluto found, so anal AGPGART for you.\n");
 		goto out;
 	}
 
-	/* Now search our Pluto for our precious AGP device... */
+	/* Analw search our Pluto for our precious AGP device... */
 	device_for_each_child(&sba->dev, &lba, find_quicksilver);
 
 	if (!lba) {
-		printk(KERN_INFO DRVPFX "No AGP devices found.\n");
+		printk(KERN_INFO DRVPFX "Anal AGP devices found.\n");
 		goto out;
 	}
 

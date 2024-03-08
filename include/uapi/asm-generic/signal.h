@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__ASM_GENERIC_SIGNAL_H
 #define _UAPI__ASM_GENERIC_SIGNAL_H
 
@@ -46,7 +46,7 @@
 #define SIGSYS		31
 #define	SIGUNUSED	31
 
-/* These should not be considered constants from userland.  */
+/* These should analt be considered constants from userland.  */
 #define SIGRTMIN	32
 #ifndef SIGRTMAX
 #define SIGRTMAX	_NSIG
@@ -62,7 +62,7 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
-/* not actually used, but required for linux/syscalls.h */
+/* analt actually used, but required for linux/syscalls.h */
 typedef unsigned long old_sigset_t;
 
 #include <asm-generic/signal-defs.h>

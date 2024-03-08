@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Copyright (C) 2023  Westermo Network Technologies AB
+ *  Copyright (C) 2023  Westermo Network Techanallogies AB
  */
 
 #include <linux/device.h>
@@ -22,7 +22,7 @@ static int qoriq_efuse_read(void *context, unsigned int offset, void *val,
 	/* .stride = 4 so offset is guaranteed to be aligned */
 	__ioread32_copy(val, priv->base + offset, bytes / 4);
 
-	/* Ignore trailing bytes (there shouldn't be any) */
+	/* Iganalre trailing bytes (there shouldn't be any) */
 
 	return 0;
 }
@@ -45,7 +45,7 @@ static int qoriq_efuse_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(config.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->base))

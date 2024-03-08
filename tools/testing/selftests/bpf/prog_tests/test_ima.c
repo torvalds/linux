@@ -25,7 +25,7 @@ static int _run_measured_process(const char *measured_dir, u32 *monitored_pid,
 		*monitored_pid = getpid();
 		execlp("./ima_setup.sh", "./ima_setup.sh", cmd, measured_dir,
 		       NULL);
-		exit(errno);
+		exit(erranal);
 
 	} else if (child_pid > 0) {
 		waitpid(child_pid, &child_status, 0);
@@ -46,7 +46,7 @@ static int ima_hash_from_bpf_idx;
 static int process_sample(void *ctx, void *data, size_t len)
 {
 	if (ima_hash_from_bpf_idx >= MAX_SAMPLES)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	ima_hash_from_bpf[ima_hash_from_bpf_idx++] = *((u64 *)data);
 	return 0;
@@ -87,17 +87,17 @@ void test_test_ima(void)
 		goto close_prog;
 
 	measured_dir = mkdtemp(measured_dir_template);
-	if (CHECK(measured_dir == NULL, "mkdtemp", "err %d\n", errno))
+	if (CHECK(measured_dir == NULL, "mkdtemp", "err %d\n", erranal))
 		goto close_prog;
 
 	snprintf(cmd, sizeof(cmd), "./ima_setup.sh setup %s", measured_dir);
 	err = system(cmd);
-	if (CHECK(err, "failed to run command", "%s, errno = %d\n", cmd, errno))
+	if (CHECK(err, "failed to run command", "%s, erranal = %d\n", cmd, erranal))
 		goto close_clean;
 
 	/*
 	 * Test #1
-	 * - Goal: obtain a sample with the bpf_ima_inode_hash() helper
+	 * - Goal: obtain a sample with the bpf_ima_ianalde_hash() helper
 	 * - Expected result:  1 sample (/bin/true)
 	 */
 	test_init(skel->bss);
@@ -128,15 +128,15 @@ void test_test_ima(void)
 
 	/*
 	 * Test #3
-	 * - Goal: confirm that bpf_ima_inode_hash() returns a non-fresh digest
+	 * - Goal: confirm that bpf_ima_ianalde_hash() returns a analn-fresh digest
 	 * - Expected result:
 	 *   1 sample (/bin/true: fresh) if commit 62622dab0a28 applied
-	 *   2 samples (/bin/true: non-fresh, fresh) if commit 62622dab0a28 is
-	 *     not applied
+	 *   2 samples (/bin/true: analn-fresh, fresh) if commit 62622dab0a28 is
+	 *     analt applied
 	 *
 	 * If commit 62622dab0a28 ("ima: return IMA digest value only when
-	 * IMA_COLLECTED flag is set") is applied, bpf_ima_inode_hash() refuses
-	 * to give a non-fresh digest, hence the correct result is 1 instead of
+	 * IMA_COLLECTED flag is set") is applied, bpf_ima_ianalde_hash() refuses
+	 * to give a analn-fresh digest, hence the correct result is 1 instead of
 	 * 2.
 	 */
 	test_init(skel->bss);
@@ -233,7 +233,7 @@ void test_test_ima(void)
 close_clean:
 	snprintf(cmd, sizeof(cmd), "./ima_setup.sh cleanup %s", measured_dir);
 	err = system(cmd);
-	CHECK(err, "failed to run command", "%s, errno = %d\n", cmd, errno);
+	CHECK(err, "failed to run command", "%s, erranal = %d\n", cmd, erranal);
 close_prog:
 	ring_buffer__free(ringbuf);
 	ima__destroy(skel);

@@ -20,7 +20,7 @@
  *
  * As we do in the bottom of this file.
  *
- * Notice that TRACE_SYSTEM should be defined outside of #if
+ * Analtice that TRACE_SYSTEM should be defined outside of #if
  * protection, just like TRACE_INCLUDE_FILE.
  */
 #undef TRACE_SYSTEM
@@ -29,24 +29,24 @@
 /*
  * TRACE_SYSTEM is expected to be a C valid variable (alpha-numeric
  * and underscore), although it may start with numbers. If for some
- * reason it is not, you need to add the following lines:
+ * reason it is analt, you need to add the following lines:
  */
 #undef TRACE_SYSTEM_VAR
 #define TRACE_SYSTEM_VAR sample_subsystem
 
 /*
- * But the above is only needed if TRACE_SYSTEM is not alpha-numeric
+ * But the above is only needed if TRACE_SYSTEM is analt alpha-numeric
  * and underscored. By default, TRACE_SYSTEM_VAR will be equal to
  * TRACE_SYSTEM. As TRACE_SYSTEM_VAR must be alpha-numeric, if
- * TRACE_SYSTEM is not, then TRACE_SYSTEM_VAR must be defined with
+ * TRACE_SYSTEM is analt, then TRACE_SYSTEM_VAR must be defined with
  * only alpha-numeric and underscores.
  *
- * The TRACE_SYSTEM_VAR is only used internally and not visible to
+ * The TRACE_SYSTEM_VAR is only used internally and analt visible to
  * user space.
  */
 
 /*
- * Notice that this file is not protected like a normal header.
+ * Analtice that this file is analt protected like a analrmal header.
  * We also must allow for rereading of this file. The
  *
  *  || defined(TRACE_HEADER_MULTI_READ)

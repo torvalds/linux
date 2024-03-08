@@ -70,7 +70,7 @@ static int rmnet_register_real_device(struct net_device *real_dev,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->dev = real_dev;
 	rc = netdev_rx_handler_register(real_dev, rmnet_rx_handler, port);
@@ -130,19 +130,19 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	u16 mux_id;
 
 	if (!tb[IFLA_LINK]) {
-		NL_SET_ERR_MSG_MOD(extack, "link not specified");
+		NL_SET_ERR_MSG_MOD(extack, "link analt specified");
 		return -EINVAL;
 	}
 
 	real_dev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (!real_dev) {
-		NL_SET_ERR_MSG_MOD(extack, "link does not exist");
-		return -ENODEV;
+		NL_SET_ERR_MSG_MOD(extack, "link does analt exist");
+		return -EANALDEV;
 	}
 
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mux_id = nla_get_u16(data[IFLA_RMNET_MUX_ID]);
 
@@ -162,7 +162,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	port->rmnet_mode = mode;
 	port->rmnet_dev = dev;
 
-	hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
+	hlist_add_head_rcu(&ep->hlanalde, &port->muxed_ep[mux_id]);
 
 	if (data[IFLA_RMNET_FLAGS]) {
 		struct ifla_rmnet_flags *flags;
@@ -209,7 +209,7 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 
 	ep = rmnet_get_endpoint(real_port, mux_id);
 	if (ep) {
-		hlist_del_init_rcu(&ep->hlnode);
+		hlist_del_init_rcu(&ep->hlanalde);
 		rmnet_vnd_dellink(mux_id, real_port, ep);
 		kfree(ep);
 	}
@@ -221,7 +221,7 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 
 static void rmnet_force_unassociate_device(struct net_device *real_dev)
 {
-	struct hlist_node *tmp_ep;
+	struct hlist_analde *tmp_ep;
 	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
 	unsigned long bkt_ep;
@@ -232,11 +232,11 @@ static void rmnet_force_unassociate_device(struct net_device *real_dev)
 	if (port->nr_rmnet_devs) {
 		/* real device */
 		rmnet_unregister_bridge(port);
-		hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlnode) {
+		hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlanalde) {
 			unregister_netdevice_queue(ep->egress_dev, &list);
 			netdev_upper_dev_unlink(real_dev, ep->egress_dev);
 			rmnet_vnd_dellink(ep->mux_id, port, ep);
-			hlist_del_init_rcu(&ep->hlnode);
+			hlist_del_init_rcu(&ep->hlanalde);
 			kfree(ep);
 		}
 		rmnet_unregister_real_device(real_dev);
@@ -246,13 +246,13 @@ static void rmnet_force_unassociate_device(struct net_device *real_dev)
 	}
 }
 
-static int rmnet_config_notify_cb(struct notifier_block *nb,
+static int rmnet_config_analtify_cb(struct analtifier_block *nb,
 				  unsigned long event, void *data)
 {
-	struct net_device *real_dev = netdev_notifier_info_to_dev(data);
+	struct net_device *real_dev = netdev_analtifier_info_to_dev(data);
 
 	if (!rmnet_is_real_dev_registered(real_dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -261,17 +261,17 @@ static int rmnet_config_notify_cb(struct notifier_block *nb,
 		break;
 	case NETDEV_CHANGEMTU:
 		if (rmnet_vnd_validate_real_dev_mtu(real_dev))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		break;
 	default:
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block rmnet_dev_notifier __read_mostly = {
-	.notifier_call = rmnet_config_notify_cb,
+static struct analtifier_block rmnet_dev_analtifier __read_mostly = {
+	.analtifier_call = rmnet_config_analtify_cb,
 };
 
 static int rmnet_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -280,7 +280,7 @@ static int rmnet_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
 	u16 mux_id;
 
 	if (!data || !data[IFLA_RMNET_MUX_ID]) {
-		NL_SET_ERR_MSG_MOD(extack, "MUX ID not specified");
+		NL_SET_ERR_MSG_MOD(extack, "MUX ID analt specified");
 		return -EINVAL;
 	}
 
@@ -303,11 +303,11 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 	u16 mux_id;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	real_dev = priv->real_dev;
 	if (!rmnet_is_real_dev_registered(real_dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = rmnet_get_port_rtnl(real_dev);
 
@@ -319,7 +319,7 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 
 			ep = rmnet_get_endpoint(port, priv->mux_id);
 			if (!ep)
-				return -ENODEV;
+				return -EANALDEV;
 
 			if (rmnet_get_endpoint(port, mux_id)) {
 				NL_SET_ERR_MSG_MOD(extack,
@@ -327,8 +327,8 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 				return -EINVAL;
 			}
 
-			hlist_del_init_rcu(&ep->hlnode);
-			hlist_add_head_rcu(&ep->hlnode,
+			hlist_del_init_rcu(&ep->hlanalde);
+			hlist_add_head_rcu(&ep->hlanalde,
 					   &port->muxed_ep[mux_id]);
 
 			ep->mux_id = mux_id;
@@ -420,7 +420,7 @@ struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id)
 {
 	struct rmnet_endpoint *ep;
 
-	hlist_for_each_entry_rcu(ep, &port->muxed_ep[mux_id], hlnode) {
+	hlist_for_each_entry_rcu(ep, &port->muxed_ep[mux_id], hlanalde) {
 		if (ep->mux_id == mux_id)
 			return ep;
 	}
@@ -454,7 +454,7 @@ int rmnet_add_bridge(struct net_device *rmnet_dev,
 
 	if (rmnet_is_real_dev_registered(slave_dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "slave cannot be another rmnet dev");
+				   "slave cananalt be aanalther rmnet dev");
 
 		return -EBUSY;
 	}
@@ -499,13 +499,13 @@ static int __init rmnet_init(void)
 {
 	int rc;
 
-	rc = register_netdevice_notifier(&rmnet_dev_notifier);
+	rc = register_netdevice_analtifier(&rmnet_dev_analtifier);
 	if (rc != 0)
 		return rc;
 
 	rc = rtnl_link_register(&rmnet_link_ops);
 	if (rc != 0) {
-		unregister_netdevice_notifier(&rmnet_dev_notifier);
+		unregister_netdevice_analtifier(&rmnet_dev_analtifier);
 		return rc;
 	}
 	return rc;
@@ -514,7 +514,7 @@ static int __init rmnet_init(void)
 static void __exit rmnet_exit(void)
 {
 	rtnl_link_unregister(&rmnet_link_ops);
-	unregister_netdevice_notifier(&rmnet_dev_notifier);
+	unregister_netdevice_analtifier(&rmnet_dev_analtifier);
 }
 
 module_init(rmnet_init)

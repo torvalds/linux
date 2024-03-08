@@ -24,13 +24,13 @@ static int uprobes_substitute_pc(unsigned long *pinsn, u32 oregs)
 	u32 regs;
 
 	for (regs = oregs; regs; regs >>= 4, insn >>= 4) {
-		if ((regs & 0xf) == REG_TYPE_NONE)
+		if ((regs & 0xf) == REG_TYPE_ANALNE)
 			continue;
 
 		free &= ~(1 << (insn & 0xf));
 	}
 
-	/* No PC, no problem */
+	/* Anal PC, anal problem */
 	if (free & (1 << 15))
 		return 15;
 
@@ -49,7 +49,7 @@ static int uprobes_substitute_pc(unsigned long *pinsn, u32 oregs)
 	mask = 0xf;
 
 	for (; regs; regs >>= 4, mask <<= 4, free <<= 4, temp >>= 4) {
-		if ((regs & 0xf) == REG_TYPE_NONE)
+		if ((regs & 0xf) == REG_TYPE_ANALNE)
 			continue;
 
 		if ((temp & 0xf) != 15)
@@ -192,16 +192,16 @@ uprobe_decode_ldmstm(probes_opcode_t insn,
 }
 
 const union decode_action uprobes_probes_actions[] = {
-	[PROBES_PRELOAD_IMM] = {.handler = probes_simulate_nop},
-	[PROBES_PRELOAD_REG] = {.handler = probes_simulate_nop},
+	[PROBES_PRELOAD_IMM] = {.handler = probes_simulate_analp},
+	[PROBES_PRELOAD_REG] = {.handler = probes_simulate_analp},
 	[PROBES_BRANCH_IMM] = {.handler = simulate_blx1},
 	[PROBES_MRS] = {.handler = simulate_mrs},
 	[PROBES_BRANCH_REG] = {.handler = simulate_blx2bx},
-	[PROBES_CLZ] = {.handler = probes_simulate_nop},
-	[PROBES_SATURATING_ARITHMETIC] = {.handler = probes_simulate_nop},
-	[PROBES_MUL1] = {.handler = probes_simulate_nop},
-	[PROBES_MUL2] = {.handler = probes_simulate_nop},
-	[PROBES_SWP] = {.handler = probes_simulate_nop},
+	[PROBES_CLZ] = {.handler = probes_simulate_analp},
+	[PROBES_SATURATING_ARITHMETIC] = {.handler = probes_simulate_analp},
+	[PROBES_MUL1] = {.handler = probes_simulate_analp},
+	[PROBES_MUL2] = {.handler = probes_simulate_analp},
+	[PROBES_SWP] = {.handler = probes_simulate_analp},
 	[PROBES_LDRSTRD] = {.decoder = decode_pc_ro},
 	[PROBES_LOAD_EXTRA] = {.decoder = decode_pc_ro},
 	[PROBES_LOAD] = {.decoder = decode_ldr},
@@ -212,18 +212,18 @@ const union decode_action uprobes_probes_actions[] = {
 		.decoder = decode_rd12rn16rm0rs8_rwflags},
 	[PROBES_DATA_PROCESSING_IMM] = {
 		.decoder = decode_rd12rn16rm0rs8_rwflags},
-	[PROBES_MOV_HALFWORD] = {.handler = probes_simulate_nop},
-	[PROBES_SEV] = {.handler = probes_simulate_nop},
-	[PROBES_WFE] = {.handler = probes_simulate_nop},
-	[PROBES_SATURATE] = {.handler = probes_simulate_nop},
-	[PROBES_REV] = {.handler = probes_simulate_nop},
-	[PROBES_MMI] = {.handler = probes_simulate_nop},
-	[PROBES_PACK] = {.handler = probes_simulate_nop},
-	[PROBES_EXTEND] = {.handler = probes_simulate_nop},
-	[PROBES_EXTEND_ADD] = {.handler = probes_simulate_nop},
-	[PROBES_MUL_ADD_LONG] = {.handler = probes_simulate_nop},
-	[PROBES_MUL_ADD] = {.handler = probes_simulate_nop},
-	[PROBES_BITFIELD] = {.handler = probes_simulate_nop},
+	[PROBES_MOV_HALFWORD] = {.handler = probes_simulate_analp},
+	[PROBES_SEV] = {.handler = probes_simulate_analp},
+	[PROBES_WFE] = {.handler = probes_simulate_analp},
+	[PROBES_SATURATE] = {.handler = probes_simulate_analp},
+	[PROBES_REV] = {.handler = probes_simulate_analp},
+	[PROBES_MMI] = {.handler = probes_simulate_analp},
+	[PROBES_PACK] = {.handler = probes_simulate_analp},
+	[PROBES_EXTEND] = {.handler = probes_simulate_analp},
+	[PROBES_EXTEND_ADD] = {.handler = probes_simulate_analp},
+	[PROBES_MUL_ADD_LONG] = {.handler = probes_simulate_analp},
+	[PROBES_MUL_ADD] = {.handler = probes_simulate_analp},
+	[PROBES_BITFIELD] = {.handler = probes_simulate_analp},
 	[PROBES_BRANCH] = {.handler = simulate_bbl},
 	[PROBES_LDMSTM] = {.decoder = uprobe_decode_ldmstm}
 };

@@ -3,7 +3,7 @@
  *
  * Copyright Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -40,7 +40,7 @@ void nr_clear_queues(struct sock *sk)
 
 /*
  * This routine purges the input queue of those frames that have been
- * acknowledged. This replaces the boxes labelled "V(a) <- N(r)" on the
+ * ackanalwledged. This replaces the boxes labelled "V(a) <- N(r)" on the
  * SDL diagram.
  */
 void nr_frames_acked(struct sock *sk, unsigned short nr)

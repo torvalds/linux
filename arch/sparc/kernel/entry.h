@@ -78,7 +78,7 @@ extern unsigned int icache_parity_tl1_occurred;
 asmlinkage void sparc_breakpoint(struct pt_regs *regs);
 void timer_interrupt(int irq, struct pt_regs *regs);
 
-void do_notify_resume(struct pt_regs *regs,
+void do_analtify_resume(struct pt_regs *regs,
 		      unsigned long orig_i0,
 		      unsigned long thread_info_flags);
 
@@ -157,9 +157,9 @@ void sun4v_data_access_exception_tl1(struct pt_regs *regs,
 void sun4v_resum_error(struct pt_regs *regs,
 		       unsigned long offset);
 void sun4v_resum_overflow(struct pt_regs *regs);
-void sun4v_nonresum_error(struct pt_regs *regs,
+void sun4v_analnresum_error(struct pt_regs *regs,
 			  unsigned long offset);
-void sun4v_nonresum_overflow(struct pt_regs *regs);
+void sun4v_analnresum_overflow(struct pt_regs *regs);
 void sun4v_mem_corrupt_detect_precise(struct pt_regs *regs,
 				      unsigned long addr,
 				      unsigned long context);
@@ -182,7 +182,7 @@ void hypervisor_tlbop_error(unsigned long err,
 void hypervisor_tlbop_error_xcall(unsigned long err,
 				  unsigned long op);
 
-/* WARNING: The error trap handlers in assembly know the precise
+/* WARNING: The error trap handlers in assembly kanalw the precise
  *	    layout of the following structure.
  *
  * C-level handlers in traps.c use this information to log the
@@ -197,14 +197,14 @@ struct cheetah_err_info {
 /*0x30*/u64 dcache_index;	/* D-cache index	*/
 /*0x38*/u64 dcache_tag;		/* D-cache tag/valid	*/
 /*0x40*/u64 dcache_utag;	/* D-cache microtag	*/
-/*0x48*/u64 dcache_stag;	/* D-cache snooptag	*/
+/*0x48*/u64 dcache_stag;	/* D-cache sanaloptag	*/
 
 	/* I-cache state */
 /*0x50*/u64 icache_data[8];	/* The actual insns + predecode	*/
 /*0x90*/u64 icache_index;	/* I-cache index	*/
 /*0x98*/u64 icache_tag;		/* I-cache phys tag	*/
 /*0xa0*/u64 icache_utag;	/* I-cache microtag	*/
-/*0xa8*/u64 icache_stag;	/* I-cache snooptag	*/
+/*0xa8*/u64 icache_stag;	/* I-cache sanaloptag	*/
 /*0xb0*/u64 icache_upper;	/* I-cache upper-tag	*/
 /*0xb8*/u64 icache_lower;	/* I-cache lower-tag	*/
 
@@ -223,27 +223,27 @@ struct cheetah_err_info {
  */
 extern struct cheetah_err_info *cheetah_error_log;
 
-/* UPA nodes send interrupt packet to UltraSparc with first data reg
+/* UPA analdes send interrupt packet to UltraSparc with first data reg
  * value low 5 (7 on Starfire) bits holding the IRQ identifier being
- * delivered.  We must translate this into a non-vector IRQ so we can
+ * delivered.  We must translate this into a analn-vector IRQ so we can
  * set the softint on this cpu.
  *
  * To make processing these packets efficient and race free we use
  * an array of irq buckets below.  The interrupt vector handler in
  * entry.S feeds incoming packets into per-cpu pil-indexed lists.
  *
- * If you make changes to ino_bucket, please update hand coded assembler
+ * If you make changes to ianal_bucket, please update hand coded assembler
  * of the vectored interrupt trap handler(s) in entry.S and sun4v_ivec.S
  */
-struct ino_bucket {
+struct ianal_bucket {
 /*0x00*/unsigned long __irq_chain_pa;
 
-	/* Interrupt number assigned to this INO.  */
+	/* Interrupt number assigned to this IANAL.  */
 /*0x08*/unsigned int __irq;
 /*0x0c*/unsigned int __pad;
 };
 
-extern struct ino_bucket *ivector_table;
+extern struct ianal_bucket *ivector_table;
 extern unsigned long ivector_table_pa;
 
 void init_irqwork_curcpu(void);

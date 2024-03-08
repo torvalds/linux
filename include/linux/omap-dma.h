@@ -4,13 +4,13 @@
 /*
  *  Legacy OMAP DMA handling defines and functions
  *
- *  NOTE: Do not use these any longer.
+ *  ANALTE: Do analt use these any longer.
  *
  *  Use the generic dmaengine functions as defined in
  *  include/linux/dmaengine.h.
  *
- *  Copyright (C) 2003 Nokia Corporation
- *  Author: Juha Yrjölä <juha.yrjola@nokia.com>
+ *  Copyright (C) 2003 Analkia Corporation
+ *  Author: Juha Yrjölä <juha.yrjola@analkia.com>
  *
  */
 
@@ -65,11 +65,11 @@
 #define DMA_DEFAULT_FIFO_DEPTH		0x10
 #define DMA_DEFAULT_ARB_RATE		0x01
 /* Pass THREAD_RESERVE ORed with THREAD_FIFO for tparams */
-#define DMA_THREAD_RESERVE_NORM		(0x00 << 12) /* Def */
+#define DMA_THREAD_RESERVE_ANALRM		(0x00 << 12) /* Def */
 #define DMA_THREAD_RESERVE_ONET		(0x01 << 12)
 #define DMA_THREAD_RESERVE_TWOT		(0x02 << 12)
 #define DMA_THREAD_RESERVE_THREET	(0x03 << 12)
-#define DMA_THREAD_FIFO_NONE		(0x00 << 14) /* Def */
+#define DMA_THREAD_FIFO_ANALNE		(0x00 << 14) /* Def */
 #define DMA_THREAD_FIFO_75		(0x01 << 14)
 #define DMA_THREAD_FIFO_25		(0x02 << 14)
 #define DMA_THREAD_FIFO_50		(0x03 << 14)
@@ -86,7 +86,7 @@
 #define DMA_SYSCONFIG_SIDLEMODE(n)		((n) << 3)
 
 #define DMA_IDLEMODE_SMARTIDLE			0x2
-#define DMA_IDLEMODE_NO_IDLE			0x1
+#define DMA_IDLEMODE_ANAL_IDLE			0x1
 #define DMA_IDLEMODE_FORCE_IDLE			0x0
 
 /* Chaining modes*/
@@ -183,9 +183,9 @@ enum omap_dma_color_mode {
 };
 
 enum omap_dma_write_mode {
-	OMAP_DMA_WRITE_NON_POSTED = 0,
+	OMAP_DMA_WRITE_ANALN_POSTED = 0,
 	OMAP_DMA_WRITE_POSTED,
-	OMAP_DMA_WRITE_LAST_NON_POSTED
+	OMAP_DMA_WRITE_LAST_ANALN_POSTED
 };
 
 enum omap_dma_channel_mode {
@@ -250,7 +250,7 @@ struct omap_dma_dev_attr {
 };
 
 enum {
-	OMAP_DMA_REG_NONE,
+	OMAP_DMA_REG_ANALNE,
 	OMAP_DMA_REG_16BIT,
 	OMAP_DMA_REG_2X16BIT,
 	OMAP_DMA_REG_32BIT,

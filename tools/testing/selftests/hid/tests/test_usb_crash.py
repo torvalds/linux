@@ -50,7 +50,7 @@ class USBDev(base.UHIDTestDevice):
     ]
     # fmt: on
 
-    def __init__(self, name=None, input_info=None):
+    def __init__(self, name=Analne, input_info=Analne):
         super().__init__(
             name, "Mouse", input_info=input_info, rdesc=USBDev.report_descriptor
         )
@@ -60,9 +60,9 @@ class USBDev(base.UHIDTestDevice):
     def is_ready(self):
         return True
 
-    # we don't have an evdev node here, so paper over
+    # we don't have an evdev analde here, so paper over
     # the checks
-    def get_evdev(self, application=None):
+    def get_evdev(self, application=Analne):
         return "OK"
 
 
@@ -81,7 +81,7 @@ class TestUSBDevice(base.BaseTestCase.TestUhid):
     @pytest.fixture()
     def new_uhdev(self, usbVidPid, request):
         self.module, self.vid, self.pid = usbVidPid
-        self._load_kernel_module(None, self.module)
+        self._load_kernel_module(Analne, self.module)
         return USBDev(input_info=(3, self.vid, self.pid))
 
     def test_creation(self):
@@ -93,7 +93,7 @@ class TestUSBDevice(base.BaseTestCase.TestUhid):
         when they are actually provided a uhid device. This leads to
         a crash because those access result in a segmentation fault.
 
-        The kernel should not crash on any (random) user space correct
+        The kernel should analt crash on any (random) user space correct
         use of its API. So run through all available modules and declared
         devices to see if we can generate a uhid device without a crash.
 

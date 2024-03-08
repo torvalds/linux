@@ -11,7 +11,7 @@
 __kernel_compat_\func:
 	CFI_STARTPROC
 	svc	\syscall
-	/* Make sure we notice when a syscall returns, which shouldn't happen */
+	/* Make sure we analtice when a syscall returns, which shouldn't happen */
 	.word	0
 	CFI_ENDPROC
 	.size	__kernel_compat_\func,.-__kernel_compat_\func

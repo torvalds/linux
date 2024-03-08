@@ -13,18 +13,18 @@ Optional properties (port):
   in DRAM. Can be set for each pool (id 0 : 3) separately. The value has
   to be chosen between 128 and 16352 and it also has to be aligned to 32.
   Otherwise the driver would adjust a given number or choose default if
-  not set.
+  analt set.
 - pool<0 : 3>,pkt-size: maximum size of a packet accepted by a given buffer
   pointers' pool (id 0 : 3). It will be taken into consideration only when pool
   type is 'short'. For 'long' ones it would be overridden by port's MTU.
-  If not set a driver will choose a default value.
+  If analt set a driver will choose a default value.
 
 In order to see how to hook the BM to a given ethernet port, please
 refer to Documentation/devicetree/bindings/net/marvell-armada-370-neta.txt.
 
 Example:
 
-- main node:
+- main analde:
 
 bm: bm@c8000 {
 	compatible = "marvell,armada-380-neta-bm";
@@ -35,7 +35,7 @@ bm: bm@c8000 {
 	pool1,pkt-size = <512>;
 };
 
-- internal SRAM node:
+- internal SRAM analde:
 
 bm_bppi: bm-bppi {
 	compatible = "mmio-sram";

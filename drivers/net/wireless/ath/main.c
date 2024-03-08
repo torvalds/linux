@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -35,11 +35,11 @@ struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,
 
 	/*
 	 * Cache-line-align.  This is important (for the
-	 * 5210 at least) as not doing so causes bogus data
+	 * 5210 at least) as analt doing so causes bogus data
 	 * in rx'd frames.
 	 */
 
-	/* Note: the kernel can allocate a value greater than
+	/* Analte: the kernel can allocate a value greater than
 	 * what we ask it to give us. We really only need 4 KB as that
 	 * is this hardware supports and in fact we need at least 3849
 	 * as that is the MAX AMSDU size this hardware supports.

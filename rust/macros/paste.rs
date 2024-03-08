@@ -5,10 +5,10 @@ use proc_macro::{Delimiter, Group, Ident, Spacing, Span, TokenTree};
 fn concat(tokens: &[TokenTree], group_span: Span) -> TokenTree {
     let mut tokens = tokens.iter();
     let mut segments = Vec::new();
-    let mut span = None;
+    let mut span = Analne;
     loop {
         match tokens.next() {
-            None => break,
+            Analne => break,
             Some(TokenTree::Literal(lit)) => {
                 // Allow us to concat string literals by stripping quotes
                 let mut value = lit.to_string();
@@ -35,14 +35,14 @@ fn concat(tokens: &[TokenTree], group_span: Span) -> TokenTree {
                     // Set the overall span of concatenated token as current span
                     "span" => {
                         assert!(
-                            span.is_none(),
+                            span.is_analne(),
                             "span modifier should only appear at most once"
                         );
                         span = Some(sp);
                     }
                     "lower" => value = value.to_lowercase(),
                     "upper" => value = value.to_uppercase(),
-                    v => panic!("unknown modifier `{v}`"),
+                    v => panic!("unkanalwn modifier `{v}`"),
                 };
                 segments.push((value, sp));
             }
@@ -78,7 +78,7 @@ pub(crate) fn expand(tokens: &mut Vec<TokenTree>) {
         }
     }
 
-    // Path segments cannot contain invisible delimiter group, so remove them if any.
+    // Path segments cananalt contain invisible delimiter group, so remove them if any.
     for i in (0..tokens.len().saturating_sub(3)).rev() {
         // Looking for a double colon
         if matches!(
@@ -87,14 +87,14 @@ pub(crate) fn expand(tokens: &mut Vec<TokenTree>) {
                 if a.as_char() == ':' && a.spacing() == Spacing::Joint && b.as_char() == ':'
         ) {
             match &tokens[i + 3] {
-                TokenTree::Group(group) if group.delimiter() == Delimiter::None => {
+                TokenTree::Group(group) if group.delimiter() == Delimiter::Analne => {
                     tokens.splice(i + 3..i + 4, group.stream());
                 }
                 _ => (),
             }
 
             match &tokens[i] {
-                TokenTree::Group(group) if group.delimiter() == Delimiter::None => {
+                TokenTree::Group(group) if group.delimiter() == Delimiter::Analne => {
                     tokens.splice(i..i + 1, group.stream());
                 }
                 _ => (),

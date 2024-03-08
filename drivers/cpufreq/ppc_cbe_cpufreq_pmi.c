@@ -39,7 +39,7 @@ int cbe_cpufreq_set_pmode_pmi(int cpu, unsigned int pmode)
 	long time;
 #endif
 	pmi_msg.type = PMI_TYPE_FREQ_CHANGE;
-	pmi_msg.data1 =	cbe_cpu_to_node(cpu);
+	pmi_msg.data1 =	cbe_cpu_to_analde(cpu);
 	pmi_msg.data2 = pmode;
 
 #ifdef DEBUG
@@ -65,21 +65,21 @@ static void cbe_cpufreq_handle_pmi(pmi_message_t pmi_msg)
 {
 	struct cpufreq_policy *policy;
 	struct freq_qos_request *req;
-	u8 node, slow_mode;
+	u8 analde, slow_mode;
 	int cpu, ret;
 
 	BUG_ON(pmi_msg.type != PMI_TYPE_FREQ_CHANGE);
 
-	node = pmi_msg.data1;
+	analde = pmi_msg.data1;
 	slow_mode = pmi_msg.data2;
 
-	cpu = cbe_node_to_cpu(node);
+	cpu = cbe_analde_to_cpu(analde);
 
-	pr_debug("cbe_handle_pmi: node: %d max_freq: %d\n", node, slow_mode);
+	pr_debug("cbe_handle_pmi: analde: %d max_freq: %d\n", analde, slow_mode);
 
 	policy = cpufreq_cpu_get(cpu);
 	if (!policy) {
-		pr_warn("cpufreq policy not found cpu%d\n", cpu);
+		pr_warn("cpufreq policy analt found cpu%d\n", cpu);
 		return;
 	}
 
@@ -90,7 +90,7 @@ static void cbe_cpufreq_handle_pmi(pmi_message_t pmi_msg)
 	if (ret < 0)
 		pr_warn("Failed to update freq constraint: %d\n", ret);
 	else
-		pr_debug("limiting node %d to slow mode %d\n", node, slow_mode);
+		pr_debug("limiting analde %d to slow mode %d\n", analde, slow_mode);
 
 	cpufreq_cpu_put(policy);
 }

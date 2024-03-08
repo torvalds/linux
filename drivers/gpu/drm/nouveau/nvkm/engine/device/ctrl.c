@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,7 +38,7 @@ nvkm_control_mthd_pstate_info(struct nvkm_control *ctrl, void *data, u32 size)
 		struct nvif_control_pstate_info_v0 v0;
 	} *args = data;
 	struct nvkm_clk *clk = ctrl->device->clk;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(&ctrl->object, "control pstate info size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -57,8 +57,8 @@ nvkm_control_mthd_pstate_info(struct nvkm_control *ctrl, void *data, u32 size)
 		args->v0.count = 0;
 		args->v0.ustate_ac = NVIF_CONTROL_PSTATE_INFO_V0_USTATE_DISABLE;
 		args->v0.ustate_dc = NVIF_CONTROL_PSTATE_INFO_V0_USTATE_DISABLE;
-		args->v0.pwrsrc = -ENODEV;
-		args->v0.pstate = NVIF_CONTROL_PSTATE_INFO_V0_PSTATE_UNKNOWN;
+		args->v0.pwrsrc = -EANALDEV;
+		args->v0.pstate = NVIF_CONTROL_PSTATE_INFO_V0_PSTATE_UNKANALWN;
 	}
 
 	return 0;
@@ -76,7 +76,7 @@ nvkm_control_mthd_pstate_attr(struct nvkm_control *ctrl, void *data, u32 size)
 	struct nvkm_cstate *cstate;
 	int i = 0, j = -1;
 	u32 lo, hi;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(&ctrl->object, "control pstate attr size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -84,7 +84,7 @@ nvkm_control_mthd_pstate_attr(struct nvkm_control *ctrl, void *data, u32 size)
 			   "control pstate attr vers %d state %d index %d\n",
 			   args->v0.version, args->v0.state, args->v0.index);
 		if (!clk)
-			return -ENODEV;
+			return -EANALDEV;
 		if (args->v0.state < NVIF_CONTROL_PSTATE_ATTR_V0_STATE_CURRENT)
 			return -EINVAL;
 		if (args->v0.state >= clk->state_nr)
@@ -144,7 +144,7 @@ nvkm_control_mthd_pstate_user(struct nvkm_control *ctrl, void *data, u32 size)
 		struct nvif_control_pstate_user_v0 v0;
 	} *args = data;
 	struct nvkm_clk *clk = ctrl->device->clk;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(&ctrl->object, "control pstate user size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -152,7 +152,7 @@ nvkm_control_mthd_pstate_user(struct nvkm_control *ctrl, void *data, u32 size)
 			   "control pstate user vers %d ustate %d pwrsrc %d\n",
 			   args->v0.version, args->v0.ustate, args->v0.pwrsrc);
 		if (!clk)
-			return -ENODEV;
+			return -EANALDEV;
 	} else
 		return ret;
 
@@ -195,7 +195,7 @@ nvkm_control_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 	struct nvkm_control *ctrl;
 
 	if (!(ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pobject = &ctrl->object;
 	ctrl->device = device;
 

@@ -12,14 +12,14 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/export.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/pfn.h>
 #include <linux/cpuset.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/stop_machine.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -42,12 +42,12 @@ static int numa_enabled = 1;
 static char *cmdline __initdata;
 
 int numa_cpu_lookup_table[NR_CPUS];
-cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
-struct pglist_data *node_data[MAX_NUMNODES];
+cpumask_var_t analde_to_cpumask_map[MAX_NUMANALDES];
+struct pglist_data *analde_data[MAX_NUMANALDES];
 
 EXPORT_SYMBOL(numa_cpu_lookup_table);
-EXPORT_SYMBOL(node_to_cpumask_map);
-EXPORT_SYMBOL(node_data);
+EXPORT_SYMBOL(analde_to_cpumask_map);
+EXPORT_SYMBOL(analde_data);
 
 static int primary_domain_index;
 static int n_mem_addr_cells, n_mem_size_cells;
@@ -60,35 +60,35 @@ static int affinity_form;
 #define MAX_DISTANCE_REF_POINTS 4
 static int distance_ref_points_depth;
 static const __be32 *distance_ref_points;
-static int distance_lookup_table[MAX_NUMNODES][MAX_DISTANCE_REF_POINTS];
-static int numa_distance_table[MAX_NUMNODES][MAX_NUMNODES] = {
-	[0 ... MAX_NUMNODES - 1] = { [0 ... MAX_NUMNODES - 1] = -1 }
+static int distance_lookup_table[MAX_NUMANALDES][MAX_DISTANCE_REF_POINTS];
+static int numa_distance_table[MAX_NUMANALDES][MAX_NUMANALDES] = {
+	[0 ... MAX_NUMANALDES - 1] = { [0 ... MAX_NUMANALDES - 1] = -1 }
 };
-static int numa_id_index_table[MAX_NUMNODES] = { [0 ... MAX_NUMNODES - 1] = NUMA_NO_NODE };
+static int numa_id_index_table[MAX_NUMANALDES] = { [0 ... MAX_NUMANALDES - 1] = NUMA_ANAL_ANALDE };
 
 /*
- * Allocate node_to_cpumask_map based on number of available nodes
- * Requires node_possible_map to be valid.
+ * Allocate analde_to_cpumask_map based on number of available analdes
+ * Requires analde_possible_map to be valid.
  *
- * Note: cpumask_of_node() is not valid until after this is done.
+ * Analte: cpumask_of_analde() is analt valid until after this is done.
  */
-static void __init setup_node_to_cpumask_map(void)
+static void __init setup_analde_to_cpumask_map(void)
 {
-	unsigned int node;
+	unsigned int analde;
 
-	/* setup nr_node_ids if not done yet */
-	if (nr_node_ids == MAX_NUMNODES)
-		setup_nr_node_ids();
+	/* setup nr_analde_ids if analt done yet */
+	if (nr_analde_ids == MAX_NUMANALDES)
+		setup_nr_analde_ids();
 
 	/* allocate the map */
-	for_each_node(node)
-		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
+	for_each_analde(analde)
+		alloc_bootmem_cpumask_var(&analde_to_cpumask_map[analde]);
 
-	/* cpumask_of_node() will now work */
-	pr_debug("Node to cpumask map for %u nodes\n", nr_node_ids);
+	/* cpumask_of_analde() will analw work */
+	pr_debug("Analde to cpumask map for %u analdes\n", nr_analde_ids);
 }
 
-static int __init fake_numa_create_new_node(unsigned long end_pfn,
+static int __init fake_numa_create_new_analde(unsigned long end_pfn,
 						unsigned int *nid)
 {
 	unsigned long long mem;
@@ -97,14 +97,14 @@ static int __init fake_numa_create_new_node(unsigned long end_pfn,
 	static unsigned long long curr_boundary;
 
 	/*
-	 * Modify node id, iff we started creating NUMA nodes
+	 * Modify analde id, iff we started creating NUMA analdes
 	 * We want to continue from where we left of the last time
 	 */
 	if (fake_nid)
 		*nid = fake_nid;
 	/*
-	 * In case there are no more arguments to parse, the
-	 * node_id should be the same as the last fake node id
+	 * In case there are anal more arguments to parse, the
+	 * analde_id should be the same as the last fake analde id
 	 * (we've handled this above).
 	 */
 	if (!p)
@@ -129,7 +129,7 @@ static int __init fake_numa_create_new_node(unsigned long end_pfn,
 		cmdline = p;
 		fake_nid++;
 		*nid = fake_nid;
-		pr_debug("created new fake_node with id %d\n", fake_nid);
+		pr_debug("created new fake_analde with id %d\n", fake_nid);
 		return 1;
 	}
 	return 0;
@@ -143,26 +143,26 @@ static void __init reset_numa_cpu_lookup_table(void)
 		numa_cpu_lookup_table[cpu] = -1;
 }
 
-void map_cpu_to_node(int cpu, int node)
+void map_cpu_to_analde(int cpu, int analde)
 {
-	update_numa_cpu_lookup_table(cpu, node);
+	update_numa_cpu_lookup_table(cpu, analde);
 
-	if (!(cpumask_test_cpu(cpu, node_to_cpumask_map[node]))) {
-		pr_debug("adding cpu %d to node %d\n", cpu, node);
-		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
+	if (!(cpumask_test_cpu(cpu, analde_to_cpumask_map[analde]))) {
+		pr_debug("adding cpu %d to analde %d\n", cpu, analde);
+		cpumask_set_cpu(cpu, analde_to_cpumask_map[analde]);
 	}
 }
 
 #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_PPC_SPLPAR)
-void unmap_cpu_from_node(unsigned long cpu)
+void unmap_cpu_from_analde(unsigned long cpu)
 {
-	int node = numa_cpu_lookup_table[cpu];
+	int analde = numa_cpu_lookup_table[cpu];
 
-	if (cpumask_test_cpu(cpu, node_to_cpumask_map[node])) {
-		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
-		pr_debug("removing cpu %lu from node %d\n", cpu, node);
+	if (cpumask_test_cpu(cpu, analde_to_cpumask_map[analde])) {
+		cpumask_clear_cpu(cpu, analde_to_cpumask_map[analde]);
+		pr_debug("removing cpu %lu from analde %d\n", cpu, analde);
 	} else {
-		pr_warn("Warning: cpu %lu not found in node %d\n", cpu, node);
+		pr_warn("Warning: cpu %lu analt found in analde %d\n", cpu, analde);
 	}
 }
 #endif /* CONFIG_HOTPLUG_CPU || CONFIG_PPC_SPLPAR */
@@ -177,17 +177,17 @@ static int __associativity_to_nid(const __be32 *associativity,
 	int index = primary_domain_index  - 1;
 
 	if (!numa_enabled || index >= max_array_sz)
-		return NUMA_NO_NODE;
+		return NUMA_ANAL_ANALDE;
 
 	nid = of_read_number(&associativity[index], 1);
 
-	/* POWER4 LPAR uses 0xffff as invalid node */
-	if (nid == 0xffff || nid >= nr_node_ids)
-		nid = NUMA_NO_NODE;
+	/* POWER4 LPAR uses 0xffff as invalid analde */
+	if (nid == 0xffff || nid >= nr_analde_ids)
+		nid = NUMA_ANAL_ANALDE;
 	return nid;
 }
 /*
- * Returns nid in the range [0..nr_node_ids], or -1 if no useful NUMA
+ * Returns nid in the range [0..nr_analde_ids], or -1 if anal useful NUMA
  * info is found.
  */
 static int associativity_to_nid(const __be32 *associativity)
@@ -201,12 +201,12 @@ static int associativity_to_nid(const __be32 *associativity)
 static int __cpu_form2_relative_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 {
 	int dist;
-	int node1, node2;
+	int analde1, analde2;
 
-	node1 = associativity_to_nid(cpu1_assoc);
-	node2 = associativity_to_nid(cpu2_assoc);
+	analde1 = associativity_to_nid(cpu1_assoc);
+	analde2 = associativity_to_nid(cpu2_assoc);
 
-	dist = numa_distance_table[node1][node2];
+	dist = numa_distance_table[analde1][analde2];
 	if (dist <= LOCAL_DISTANCE)
 		return 0;
 	else if (dist <= REMOTE_DISTANCE)
@@ -233,20 +233,20 @@ static int __cpu_form1_relative_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 
 int cpu_relative_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 {
-	/* We should not get called with FORM0 */
+	/* We should analt get called with FORM0 */
 	VM_WARN_ON(affinity_form == FORM0_AFFINITY);
 	if (affinity_form == FORM1_AFFINITY)
 		return __cpu_form1_relative_distance(cpu1_assoc, cpu2_assoc);
 	return __cpu_form2_relative_distance(cpu1_assoc, cpu2_assoc);
 }
 
-/* must hold reference to node during call */
-static const __be32 *of_get_associativity(struct device_node *dev)
+/* must hold reference to analde during call */
+static const __be32 *of_get_associativity(struct device_analde *dev)
 {
 	return of_get_property(dev, "ibm,associativity", NULL);
 }
 
-int __node_distance(int a, int b)
+int __analde_distance(int a, int b)
 {
 	int i;
 	int distance = LOCAL_DISTANCE;
@@ -266,14 +266,14 @@ int __node_distance(int a, int b)
 
 	return distance;
 }
-EXPORT_SYMBOL(__node_distance);
+EXPORT_SYMBOL(__analde_distance);
 
-/* Returns the nid associated with the given device tree node,
- * or -1 if not found.
+/* Returns the nid associated with the given device tree analde,
+ * or -1 if analt found.
  */
-static int of_node_to_nid_single(struct device_node *device)
+static int of_analde_to_nid_single(struct device_analde *device)
 {
-	int nid = NUMA_NO_NODE;
+	int nid = NUMA_ANAL_ANALDE;
 	const __be32 *tmp;
 
 	tmp = of_get_associativity(device);
@@ -283,23 +283,23 @@ static int of_node_to_nid_single(struct device_node *device)
 }
 
 /* Walk the device tree upwards, looking for an associativity id */
-int of_node_to_nid(struct device_node *device)
+int of_analde_to_nid(struct device_analde *device)
 {
-	int nid = NUMA_NO_NODE;
+	int nid = NUMA_ANAL_ANALDE;
 
-	of_node_get(device);
+	of_analde_get(device);
 	while (device) {
-		nid = of_node_to_nid_single(device);
+		nid = of_analde_to_nid_single(device);
 		if (nid != -1)
 			break;
 
 		device = of_get_next_parent(device);
 	}
-	of_node_put(device);
+	of_analde_put(device);
 
 	return nid;
 }
-EXPORT_SYMBOL(of_node_to_nid);
+EXPORT_SYMBOL(of_analde_to_nid);
 
 static void __initialize_form1_numa_distance(const __be32 *associativity,
 					     int max_array_sz)
@@ -310,7 +310,7 @@ static void __initialize_form1_numa_distance(const __be32 *associativity,
 		return;
 
 	nid = __associativity_to_nid(associativity, max_array_sz);
-	if (nid != NUMA_NO_NODE) {
+	if (nid != NUMA_ANAL_ANALDE) {
 		for (i = 0; i < distance_ref_points_depth; i++) {
 			const __be32 *entry;
 			int index = be32_to_cpu(distance_ref_points[i]) - 1;
@@ -337,9 +337,9 @@ static void initialize_form1_numa_distance(const __be32 *associativity)
 }
 
 /*
- * Used to update distance information w.r.t newly added node.
+ * Used to update distance information w.r.t newly added analde.
  */
-void update_numa_distance(struct device_node *node)
+void update_numa_distance(struct device_analde *analde)
 {
 	int nid;
 
@@ -348,7 +348,7 @@ void update_numa_distance(struct device_node *node)
 	else if (affinity_form == FORM1_AFFINITY) {
 		const __be32 *associativity;
 
-		associativity = of_get_associativity(node);
+		associativity = of_get_associativity(analde);
 		if (!associativity)
 			return;
 
@@ -357,16 +357,16 @@ void update_numa_distance(struct device_node *node)
 	}
 
 	/* FORM2 affinity  */
-	nid = of_node_to_nid_single(node);
-	if (nid == NUMA_NO_NODE)
+	nid = of_analde_to_nid_single(analde);
+	if (nid == NUMA_ANAL_ANALDE)
 		return;
 
 	/*
 	 * With FORM2 we expect NUMA distance of all possible NUMA
-	 * nodes to be provided during boot.
+	 * analdes to be provided during boot.
 	 */
 	WARN(numa_distance_table[nid][nid] == -1,
-	     "NUMA distance details for node %d not provided\n", nid);
+	     "NUMA distance details for analde %d analt provided\n", nid);
 }
 EXPORT_SYMBOL_GPL(update_numa_distance);
 
@@ -377,18 +377,18 @@ EXPORT_SYMBOL_GPL(update_numa_distance);
 static void __init initialize_form2_numa_distance_lookup_table(void)
 {
 	int i, j;
-	struct device_node *root;
+	struct device_analde *root;
 	const __u8 *form2_distances;
 	const __be32 *numa_lookup_index;
 	int form2_distances_length;
 	int max_numa_index, distance_index;
 
 	if (firmware_has_feature(FW_FEATURE_OPAL))
-		root = of_find_node_by_path("/ibm,opal");
+		root = of_find_analde_by_path("/ibm,opal");
 	else
-		root = of_find_node_by_path("/rtas");
+		root = of_find_analde_by_path("/rtas");
 	if (!root)
-		root = of_find_node_by_path("/");
+		root = of_find_analde_by_path("/");
 
 	numa_lookup_index = of_get_property(root, "ibm,numa-lookup-index-table", NULL);
 	max_numa_index = of_read_number(&numa_lookup_index[0], 1);
@@ -414,28 +414,28 @@ static void __init initialize_form2_numa_distance_lookup_table(void)
 	distance_index = 0;
 	for (i = 0;  i < max_numa_index; i++) {
 		for (j = 0; j < max_numa_index; j++) {
-			int nodeA = numa_id_index_table[i];
-			int nodeB = numa_id_index_table[j];
+			int analdeA = numa_id_index_table[i];
+			int analdeB = numa_id_index_table[j];
 			int dist;
 
 			if (form2_distances)
 				dist = form2_distances[distance_index++];
-			else if (nodeA == nodeB)
+			else if (analdeA == analdeB)
 				dist = LOCAL_DISTANCE;
 			else
 				dist = REMOTE_DISTANCE;
-			numa_distance_table[nodeA][nodeB] = dist;
-			pr_debug("dist[%d][%d]=%d ", nodeA, nodeB, dist);
+			numa_distance_table[analdeA][analdeB] = dist;
+			pr_debug("dist[%d][%d]=%d ", analdeA, analdeB, dist);
 		}
 	}
 
-	of_node_put(root);
+	of_analde_put(root);
 }
 
 static int __init find_primary_domain_index(void)
 {
 	int index;
-	struct device_node *root;
+	struct device_analde *root;
 
 	/*
 	 * Check for which form of affinity.
@@ -452,18 +452,18 @@ static int __init find_primary_domain_index(void)
 		affinity_form = FORM0_AFFINITY;
 
 	if (firmware_has_feature(FW_FEATURE_OPAL))
-		root = of_find_node_by_path("/ibm,opal");
+		root = of_find_analde_by_path("/ibm,opal");
 	else
-		root = of_find_node_by_path("/rtas");
+		root = of_find_analde_by_path("/rtas");
 	if (!root)
-		root = of_find_node_by_path("/");
+		root = of_find_analde_by_path("/");
 
 	/*
 	 * This property is a set of 32-bit integers, each representing
-	 * an index into the ibm,associativity nodes.
+	 * an index into the ibm,associativity analdes.
 	 *
 	 * With form 0 affinity the first integer is for an SMP configuration
-	 * (should be all 0's) and the second is for a normal NUMA
+	 * (should be all 0's) and the second is for a analrmal NUMA
 	 * configuration. We have only one level of NUMA.
 	 *
 	 * With form 1 affinity the first integer is the most significant
@@ -475,7 +475,7 @@ static int __init find_primary_domain_index(void)
 					&distance_ref_points_depth);
 
 	if (!distance_ref_points) {
-		pr_debug("ibm,associativity-reference-points not found.\n");
+		pr_debug("ibm,associativity-reference-points analt found.\n");
 		goto err;
 	}
 
@@ -504,25 +504,25 @@ static int __init find_primary_domain_index(void)
 		distance_ref_points_depth = MAX_DISTANCE_REF_POINTS;
 	}
 
-	of_node_put(root);
+	of_analde_put(root);
 	return index;
 
 err:
-	of_node_put(root);
+	of_analde_put(root);
 	return -1;
 }
 
 static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 {
-	struct device_node *memory = NULL;
+	struct device_analde *memory = NULL;
 
-	memory = of_find_node_by_type(memory, "memory");
+	memory = of_find_analde_by_type(memory, "memory");
 	if (!memory)
-		panic("numa.c: No memory nodes found!");
+		panic("numa.c: Anal memory analdes found!");
 
 	*n_addr_cells = of_n_addr_cells(memory);
 	*n_size_cells = of_n_size_cells(memory);
-	of_node_put(memory);
+	of_analde_put(memory);
 }
 
 static unsigned long read_n_cells(int n, const __be32 **buf)
@@ -554,26 +554,26 @@ struct assoc_arrays {
  */
 static int of_get_assoc_arrays(struct assoc_arrays *aa)
 {
-	struct device_node *memory;
+	struct device_analde *memory;
 	const __be32 *prop;
 	u32 len;
 
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_analde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (!memory)
 		return -1;
 
 	prop = of_get_property(memory, "ibm,associativity-lookup-arrays", &len);
 	if (!prop || len < 2 * sizeof(unsigned int)) {
-		of_node_put(memory);
+		of_analde_put(memory);
 		return -1;
 	}
 
 	aa->n_arrays = of_read_number(prop++, 1);
 	aa->array_sz = of_read_number(prop++, 1);
 
-	of_node_put(memory);
+	of_analde_put(memory);
 
-	/* Now that we know the number of arrays and size of each array,
+	/* Analw that we kanalw the number of arrays and size of each array,
 	 * revalidate the size of the property read in.
 	 */
 	if (len < (aa->n_arrays * aa->array_sz + 2) * sizeof(unsigned int))
@@ -586,7 +586,7 @@ static int of_get_assoc_arrays(struct assoc_arrays *aa)
 static int __init get_nid_and_numa_distance(struct drmem_lmb *lmb)
 {
 	struct assoc_arrays aa = { .arrays = NULL };
-	int default_nid = NUMA_NO_NODE;
+	int default_nid = NUMA_ANAL_ANALDE;
 	int nid = default_nid;
 	int rc, index;
 
@@ -607,7 +607,7 @@ static int __init get_nid_and_numa_distance(struct drmem_lmb *lmb)
 		if (nid > 0 && affinity_form == FORM1_AFFINITY) {
 			/*
 			 * lookup array associativity entries have
-			 * no length of the array as the first element.
+			 * anal length of the array as the first element.
 			 */
 			__initialize_form1_numa_distance(associativity, aa.array_sz);
 		}
@@ -616,13 +616,13 @@ static int __init get_nid_and_numa_distance(struct drmem_lmb *lmb)
 }
 
 /*
- * This is like of_node_to_nid_single() for memory represented in the
- * ibm,dynamic-reconfiguration-memory node.
+ * This is like of_analde_to_nid_single() for memory represented in the
+ * ibm,dynamic-reconfiguration-memory analde.
  */
 int of_drconf_to_nid_single(struct drmem_lmb *lmb)
 {
 	struct assoc_arrays aa = { .arrays = NULL };
-	int default_nid = NUMA_NO_NODE;
+	int default_nid = NUMA_ANAL_ANALDE;
 	int nid = default_nid;
 	int rc, index;
 
@@ -651,9 +651,9 @@ static int __vphn_get_associativity(long lcpu, __be32 *associativity)
 	long rc, hwid;
 
 	/*
-	 * On a shared lpar, device tree will not have node associativity.
-	 * At this time lppaca, or its __old_status field may not be
-	 * updated. Hence kernel cannot detect if its on a shared lpar. So
+	 * On a shared lpar, device tree will analt have analde associativity.
+	 * At this time lppaca, or its __old_status field may analt be
+	 * updated. Hence kernel cananalt detect if its on a shared lpar. So
 	 * request an explicit associativity irrespective of whether the
 	 * lpar is shared or dedicated. Use the device tree property as a
 	 * fallback. cpu_to_phys_id is only valid between
@@ -681,7 +681,7 @@ static int vphn_get_nid(long lcpu)
 	if (!__vphn_get_associativity(lcpu, associativity))
 		return associativity_to_nid(associativity);
 
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 
 }
 #else
@@ -693,7 +693,7 @@ static int __vphn_get_associativity(long lcpu, __be32 *associativity)
 
 static int vphn_get_nid(long unused)
 {
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }
 #endif  /* CONFIG_PPC_SPLPAR */
 
@@ -703,34 +703,34 @@ static int vphn_get_nid(long unused)
  */
 static int numa_setup_cpu(unsigned long lcpu)
 {
-	struct device_node *cpu;
+	struct device_analde *cpu;
 	int fcpu = cpu_first_thread_sibling(lcpu);
-	int nid = NUMA_NO_NODE;
+	int nid = NUMA_ANAL_ANALDE;
 
 	if (!cpu_present(lcpu)) {
-		set_cpu_numa_node(lcpu, first_online_node);
-		return first_online_node;
+		set_cpu_numa_analde(lcpu, first_online_analde);
+		return first_online_analde;
 	}
 
 	/*
-	 * If a valid cpu-to-node mapping is already available, use it
+	 * If a valid cpu-to-analde mapping is already available, use it
 	 * directly instead of querying the firmware, since it represents
-	 * the most recent mapping notified to us by the platform (eg: VPHN).
-	 * Since cpu_to_node binding remains the same for all threads in the
-	 * core. If a valid cpu-to-node mapping is already available, for
+	 * the most recent mapping analtified to us by the platform (eg: VPHN).
+	 * Since cpu_to_analde binding remains the same for all threads in the
+	 * core. If a valid cpu-to-analde mapping is already available, for
 	 * the first thread in the core, use it.
 	 */
 	nid = numa_cpu_lookup_table[fcpu];
 	if (nid >= 0) {
-		map_cpu_to_node(lcpu, nid);
+		map_cpu_to_analde(lcpu, nid);
 		return nid;
 	}
 
 	nid = vphn_get_nid(lcpu);
-	if (nid != NUMA_NO_NODE)
+	if (nid != NUMA_ANAL_ANALDE)
 		goto out_present;
 
-	cpu = of_get_cpu_node(lcpu, NULL);
+	cpu = of_get_cpu_analde(lcpu, NULL);
 
 	if (!cpu) {
 		WARN_ON(1);
@@ -740,36 +740,36 @@ static int numa_setup_cpu(unsigned long lcpu)
 			goto out;
 	}
 
-	nid = of_node_to_nid_single(cpu);
-	of_node_put(cpu);
+	nid = of_analde_to_nid_single(cpu);
+	of_analde_put(cpu);
 
 out_present:
-	if (nid < 0 || !node_possible(nid))
-		nid = first_online_node;
+	if (nid < 0 || !analde_possible(nid))
+		nid = first_online_analde;
 
 	/*
 	 * Update for the first thread of the core. All threads of a core
-	 * have to be part of the same node. This not only avoids querying
+	 * have to be part of the same analde. This analt only avoids querying
 	 * for every other thread in the core, but always avoids a case
-	 * where virtual node associativity change causes subsequent threads
+	 * where virtual analde associativity change causes subsequent threads
 	 * of a core to be associated with different nid. However if first
 	 * thread is already online, expect it to have a valid mapping.
 	 */
 	if (fcpu != lcpu) {
 		WARN_ON(cpu_online(fcpu));
-		map_cpu_to_node(fcpu, nid);
+		map_cpu_to_analde(fcpu, nid);
 	}
 
-	map_cpu_to_node(lcpu, nid);
+	map_cpu_to_analde(lcpu, nid);
 out:
 	return nid;
 }
 
-static void verify_cpu_node_mapping(int cpu, int node)
+static void verify_cpu_analde_mapping(int cpu, int analde)
 {
 	int base, sibling, i;
 
-	/* Verify that all the threads in the core belong to the same node */
+	/* Verify that all the threads in the core belong to the same analde */
 	base = cpu_first_thread_sibling(cpu);
 
 	for (i = 0; i < threads_per_core; i++) {
@@ -778,21 +778,21 @@ static void verify_cpu_node_mapping(int cpu, int node)
 		if (sibling == cpu || cpu_is_offline(sibling))
 			continue;
 
-		if (cpu_to_node(sibling) != node) {
+		if (cpu_to_analde(sibling) != analde) {
 			WARN(1, "CPU thread siblings %d and %d don't belong"
-				" to the same node!\n", cpu, sibling);
+				" to the same analde!\n", cpu, sibling);
 			break;
 		}
 	}
 }
 
-/* Must run before sched domains notifier. */
+/* Must run before sched domains analtifier. */
 static int ppc_numa_cpu_prepare(unsigned int cpu)
 {
 	int nid;
 
 	nid = numa_setup_cpu(cpu);
-	verify_cpu_node_mapping(cpu, nid);
+	verify_cpu_analde_mapping(cpu, nid);
 	return 0;
 }
 
@@ -816,7 +816,7 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 	 * We use memblock_end_of_DRAM() in here instead of memory_limit because
 	 * we've already adjusted it for the limit and it takes care of
 	 * having memory holes below the limit.  Also, in the case of
-	 * iommu_is_off, memory_limit is not set but is implicitly enforced.
+	 * iommu_is_off, memory_limit is analt set but is implicitly enforced.
 	 */
 
 	if (start + size <= memblock_end_of_DRAM())
@@ -845,7 +845,7 @@ static inline int __init read_usm_ranges(const __be32 **usm)
 
 /*
  * Extract NUMA information from the ibm,dynamic-reconfiguration-memory
- * node.  This assumes n_mem_{addr,size}_cells have been set.
+ * analde.  This assumes n_mem_{addr,size}_cells have been set.
  */
 static int __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 					const __be32 **usm,
@@ -857,7 +857,7 @@ static int __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 
 	/*
 	 * Skip this block if the reserved bit is set in flags (0x80)
-	 * or if the block is not assigned to this partition (0x8)
+	 * or if the block is analt assigned to this partition (0x8)
 	 */
 	if ((lmb->flags & DRCONF_MEM_RESERVED)
 	    || !(lmb->flags & DRCONF_MEM_ASSIGNED))
@@ -872,7 +872,7 @@ static int __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 
 	if (is_kexec_kdump) {
 		ranges = read_usm_ranges(usm);
-		if (!ranges) /* there are no (base, size) duple */
+		if (!ranges) /* there are anal (base, size) duple */
 			return 0;
 	}
 
@@ -883,12 +883,12 @@ static int __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 		}
 
 		nid = get_nid_and_numa_distance(lmb);
-		fake_numa_create_new_node(((base + size) >> PAGE_SHIFT),
+		fake_numa_create_new_analde(((base + size) >> PAGE_SHIFT),
 					  &nid);
-		node_set_online(nid);
+		analde_set_online(nid);
 		sz = numa_enforce_memory_limit(base, size);
 		if (sz)
-			memblock_set_node(base, sz, &memblock.memory, nid);
+			memblock_set_analde(base, sz, &memblock.memory, nid);
 	} while (--ranges);
 
 	return 0;
@@ -896,7 +896,7 @@ static int __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 
 static int __init parse_numa_properties(void)
 {
-	struct device_node *memory;
+	struct device_analde *memory;
 	int default_nid = 0;
 	unsigned long i;
 	const __be32 *associativity;
@@ -927,13 +927,13 @@ static int __init parse_numa_properties(void)
 
 	/*
 	 * Even though we connect cpus to numa domains later in SMP
-	 * init, we need to know the node ids now. This is because
-	 * each node to be onlined must have NODE_DATA etc backing it.
+	 * init, we need to kanalw the analde ids analw. This is because
+	 * each analde to be onlined must have ANALDE_DATA etc backing it.
 	 */
 	for_each_present_cpu(i) {
 		__be32 vphn_assoc[VPHN_ASSOC_BUFSIZE];
-		struct device_node *cpu;
-		int nid = NUMA_NO_NODE;
+		struct device_analde *cpu;
+		int nid = NUMA_ANAL_ANALDE;
 
 		memset(vphn_assoc, 0, VPHN_ASSOC_BUFSIZE * sizeof(__be32));
 
@@ -944,10 +944,10 @@ static int __init parse_numa_properties(void)
 
 			/*
 			 * Don't fall back to default_nid yet -- we will plug
-			 * cpus into nodes once the memory scan has discovered
+			 * cpus into analdes once the memory scan has discovered
 			 * the topology.
 			 */
-			cpu = of_get_cpu_node(i, NULL);
+			cpu = of_get_cpu_analde(i, NULL);
 			BUG_ON(!cpu);
 
 			associativity = of_get_associativity(cpu);
@@ -955,17 +955,17 @@ static int __init parse_numa_properties(void)
 				nid = associativity_to_nid(associativity);
 				initialize_form1_numa_distance(associativity);
 			}
-			of_node_put(cpu);
+			of_analde_put(cpu);
 		}
 
-		/* node_set_online() is an UB if 'nid' is negative */
+		/* analde_set_online() is an UB if 'nid' is negative */
 		if (likely(nid >= 0))
-			node_set_online(nid);
+			analde_set_online(nid);
 	}
 
 	get_n_mem_cells(&n_mem_addr_cells, &n_mem_size_cells);
 
-	for_each_node_by_type(memory, "memory") {
+	for_each_analde_by_type(memory, "memory") {
 		unsigned long start;
 		unsigned long size;
 		int nid;
@@ -988,8 +988,8 @@ new_range:
 		size = read_n_cells(n_mem_size_cells, &memcell_buf);
 
 		/*
-		 * Assumption: either all memory nodes or none will
-		 * have associativity properties.  If none, then
+		 * Assumption: either all memory analdes or analne will
+		 * have associativity properties.  If analne, then
 		 * everything goes to default_nid.
 		 */
 		associativity = of_get_associativity(memory);
@@ -999,32 +999,32 @@ new_range:
 		} else
 			nid = default_nid;
 
-		fake_numa_create_new_node(((start + size) >> PAGE_SHIFT), &nid);
-		node_set_online(nid);
+		fake_numa_create_new_analde(((start + size) >> PAGE_SHIFT), &nid);
+		analde_set_online(nid);
 
 		size = numa_enforce_memory_limit(start, size);
 		if (size)
-			memblock_set_node(start, size, &memblock.memory, nid);
+			memblock_set_analde(start, size, &memblock.memory, nid);
 
 		if (--ranges)
 			goto new_range;
 	}
 
 	/*
-	 * Now do the same thing for each MEMBLOCK listed in the
+	 * Analw do the same thing for each MEMBLOCK listed in the
 	 * ibm,dynamic-memory property in the
-	 * ibm,dynamic-reconfiguration-memory node.
+	 * ibm,dynamic-reconfiguration-memory analde.
 	 */
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_analde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
 		walk_drmem_lmbs(memory, NULL, numa_setup_drmem_lmb);
-		of_node_put(memory);
+		of_analde_put(memory);
 	}
 
 	return 0;
 }
 
-static void __init setup_nonnuma(void)
+static void __init setup_analnnuma(void)
 {
 	unsigned long top_of_ram = memblock_end_of_DRAM();
 	unsigned long total_ram = memblock_phys_mem_size();
@@ -1035,25 +1035,25 @@ static void __init setup_nonnuma(void)
 	pr_debug("Top of RAM: 0x%lx, Total RAM: 0x%lx\n", top_of_ram, total_ram);
 	pr_debug("Memory hole size: %ldMB\n", (top_of_ram - total_ram) >> 20);
 
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL) {
-		fake_numa_create_new_node(end_pfn, &nid);
-		memblock_set_node(PFN_PHYS(start_pfn),
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start_pfn, &end_pfn, NULL) {
+		fake_numa_create_new_analde(end_pfn, &nid);
+		memblock_set_analde(PFN_PHYS(start_pfn),
 				  PFN_PHYS(end_pfn - start_pfn),
 				  &memblock.memory, nid);
-		node_set_online(nid);
+		analde_set_online(nid);
 	}
 }
 
 void __init dump_numa_cpu_topology(void)
 {
-	unsigned int node;
+	unsigned int analde;
 	unsigned int cpu, count;
 
 	if (!numa_enabled)
 		return;
 
-	for_each_online_node(node) {
-		pr_info("Node %d CPUs:", node);
+	for_each_online_analde(analde) {
+		pr_info("Analde %d CPUs:", analde);
 
 		count = 0;
 		/*
@@ -1062,7 +1062,7 @@ void __init dump_numa_cpu_topology(void)
 		 */
 		for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
 			if (cpumask_test_cpu(cpu,
-					node_to_cpumask_map[node])) {
+					analde_to_cpumask_map[analde])) {
 				if (count == 0)
 					pr_cont(" %u", cpu);
 				++count;
@@ -1079,8 +1079,8 @@ void __init dump_numa_cpu_topology(void)
 	}
 }
 
-/* Initialize NODE_DATA for a node on the local memory */
-static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+/* Initialize ANALDE_DATA for a analde on the local memory */
+static void __init setup_analde_data(int nid, u64 start_pfn, u64 end_pfn)
 {
 	u64 spanned_pages = end_pfn - start_pfn;
 	const size_t nd_size = roundup(sizeof(pg_data_t), SMP_CACHE_BYTES);
@@ -1090,46 +1090,46 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 
 	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	if (!nd_pa)
-		panic("Cannot allocate %zu bytes for node %d data\n",
+		panic("Cananalt allocate %zu bytes for analde %d data\n",
 		      nd_size, nid);
 
 	nd = __va(nd_pa);
 
 	/* report and initialize */
-	pr_info("  NODE_DATA [mem %#010Lx-%#010Lx]\n",
+	pr_info("  ANALDE_DATA [mem %#010Lx-%#010Lx]\n",
 		nd_pa, nd_pa + nd_size - 1);
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
 	if (tnid != nid)
-		pr_info("    NODE_DATA(%d) on node %d\n", nid, tnid);
+		pr_info("    ANALDE_DATA(%d) on analde %d\n", nid, tnid);
 
-	node_data[nid] = nd;
-	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
-	NODE_DATA(nid)->node_id = nid;
-	NODE_DATA(nid)->node_start_pfn = start_pfn;
-	NODE_DATA(nid)->node_spanned_pages = spanned_pages;
+	analde_data[nid] = nd;
+	memset(ANALDE_DATA(nid), 0, sizeof(pg_data_t));
+	ANALDE_DATA(nid)->analde_id = nid;
+	ANALDE_DATA(nid)->analde_start_pfn = start_pfn;
+	ANALDE_DATA(nid)->analde_spanned_pages = spanned_pages;
 }
 
-static void __init find_possible_nodes(void)
+static void __init find_possible_analdes(void)
 {
-	struct device_node *rtas;
+	struct device_analde *rtas;
 	const __be32 *domains = NULL;
-	int prop_length, max_nodes;
+	int prop_length, max_analdes;
 	u32 i;
 
 	if (!numa_enabled)
 		return;
 
-	rtas = of_find_node_by_path("/rtas");
+	rtas = of_find_analde_by_path("/rtas");
 	if (!rtas)
 		return;
 
 	/*
 	 * ibm,current-associativity-domains is a fairly recent property. If
 	 * it doesn't exist, then fallback on ibm,max-associativity-domains.
-	 * Current denotes what the platform can support compared to max
-	 * which denotes what the Hypervisor can support.
+	 * Current deanaltes what the platform can support compared to max
+	 * which deanaltes what the Hypervisor can support.
 	 *
-	 * If the LPAR is migratable, new nodes might be activated after a LPM,
+	 * If the LPAR is migratable, new analdes might be activated after a LPM,
 	 * so we should consider the max number in that case.
 	 */
 	if (!of_get_property(of_root, "ibm,migratable-partition", NULL))
@@ -1143,12 +1143,12 @@ static void __init find_possible_nodes(void)
 			goto out;
 	}
 
-	max_nodes = of_read_number(&domains[primary_domain_index], 1);
-	pr_info("Partition configured for %d NUMA nodes.\n", max_nodes);
+	max_analdes = of_read_number(&domains[primary_domain_index], 1);
+	pr_info("Partition configured for %d NUMA analdes.\n", max_analdes);
 
-	for (i = 0; i < max_nodes; i++) {
-		if (!node_possible(i))
-			node_set(i, node_possible_map);
+	for (i = 0; i < max_analdes; i++) {
+		if (!analde_possible(i))
+			analde_set(i, analde_possible_map);
 	}
 
 	prop_length /= sizeof(int);
@@ -1156,7 +1156,7 @@ static void __init find_possible_nodes(void)
 		coregroup_enabled = 1;
 
 out:
-	of_node_put(rtas);
+	of_analde_put(rtas);
 }
 
 void __init mem_topology_setup(void)
@@ -1167,40 +1167,40 @@ void __init mem_topology_setup(void)
 	min_low_pfn = MEMORY_START >> PAGE_SHIFT;
 
 	/*
-	 * Linux/mm assumes node 0 to be online at boot. However this is not
-	 * true on PowerPC, where node 0 is similar to any other node, it
-	 * could be cpuless, memoryless node. So force node 0 to be offline
-	 * for now. This will prevent cpuless, memoryless node 0 showing up
-	 * unnecessarily as online. If a node has cpus or memory that need
-	 * to be online, then node will anyway be marked online.
+	 * Linux/mm assumes analde 0 to be online at boot. However this is analt
+	 * true on PowerPC, where analde 0 is similar to any other analde, it
+	 * could be cpuless, memoryless analde. So force analde 0 to be offline
+	 * for analw. This will prevent cpuless, memoryless analde 0 showing up
+	 * unnecessarily as online. If a analde has cpus or memory that need
+	 * to be online, then analde will anyway be marked online.
 	 */
-	node_set_offline(0);
+	analde_set_offline(0);
 
 	if (parse_numa_properties())
-		setup_nonnuma();
+		setup_analnnuma();
 
 	/*
-	 * Modify the set of possible NUMA nodes to reflect information
-	 * available about the set of online nodes, and the set of nodes
+	 * Modify the set of possible NUMA analdes to reflect information
+	 * available about the set of online analdes, and the set of analdes
 	 * that we expect to make use of for this platform's affinity
 	 * calculations.
 	 */
-	nodes_and(node_possible_map, node_possible_map, node_online_map);
+	analdes_and(analde_possible_map, analde_possible_map, analde_online_map);
 
-	find_possible_nodes();
+	find_possible_analdes();
 
-	setup_node_to_cpumask_map();
+	setup_analde_to_cpumask_map();
 
 	reset_numa_cpu_lookup_table();
 
 	for_each_possible_cpu(cpu) {
 		/*
-		 * Powerpc with CONFIG_NUMA always used to have a node 0,
+		 * Powerpc with CONFIG_NUMA always used to have a analde 0,
 		 * even if it was memoryless or cpuless. For all cpus that
-		 * are possible but not present, cpu_to_node() would point
-		 * to node 0. To remove a cpuless, memoryless dummy node,
-		 * powerpc need to make sure all possible but not present
-		 * cpu_to_node are set to a proper node.
+		 * are possible but analt present, cpu_to_analde() would point
+		 * to analde 0. To remove a cpuless, memoryless dummy analde,
+		 * powerpc need to make sure all possible but analt present
+		 * cpu_to_analde are set to a proper analde.
 		 */
 		numa_setup_cpu(cpu);
 	}
@@ -1212,23 +1212,23 @@ void __init initmem_init(void)
 
 	memblock_dump_all();
 
-	for_each_online_node(nid) {
+	for_each_online_analde(nid) {
 		unsigned long start_pfn, end_pfn;
 
 		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
-		setup_node_data(nid, start_pfn, end_pfn);
+		setup_analde_data(nid, start_pfn, end_pfn);
 	}
 
 	sparse_init();
 
 	/*
 	 * We need the numa_cpu_lookup_table to be accurate for all CPUs,
-	 * even before we online them, so that we can use cpu_to_{node,mem}
+	 * even before we online them, so that we can use cpu_to_{analde,mem}
 	 * early in boot, cf. smp_prepare_cpus().
-	 * _nocalls() + manual invocation is used because cpuhp is not yet
+	 * _analcalls() + manual invocation is used because cpuhp is analt yet
 	 * initialized for the boot CPU.
 	 */
-	cpuhp_setup_state_nocalls(CPUHP_POWER_NUMA_PREPARE, "powerpc/numa:prepare",
+	cpuhp_setup_state_analcalls(CPUHP_POWER_NUMA_PREPARE, "powerpc/numa:prepare",
 				  ppc_numa_cpu_prepare, ppc_numa_cpu_dead);
 }
 
@@ -1250,7 +1250,7 @@ early_param("numa", early_numa);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
- * Find the node associated with a hot added memory section for
+ * Find the analde associated with a hot added memory section for
  * memory represented in the device tree by the property
  * ibm,dynamic-reconfiguration-memory/ibm,dynamic-memory.
  */
@@ -1258,12 +1258,12 @@ static int hot_add_drconf_scn_to_nid(unsigned long scn_addr)
 {
 	struct drmem_lmb *lmb;
 	unsigned long lmb_size;
-	int nid = NUMA_NO_NODE;
+	int nid = NUMA_ANAL_ANALDE;
 
 	lmb_size = drmem_lmb_size();
 
 	for_each_drmem_lmb(lmb) {
-		/* skip this block if it is reserved or not assigned to
+		/* skip this block if it is reserved or analt assigned to
 		 * this partition */
 		if ((lmb->flags & DRCONF_MEM_RESERVED)
 		    || !(lmb->flags & DRCONF_MEM_ASSIGNED))
@@ -1281,16 +1281,16 @@ static int hot_add_drconf_scn_to_nid(unsigned long scn_addr)
 }
 
 /*
- * Find the node associated with a hot added memory section for memory
- * represented in the device tree as a node (i.e. memory@XXXX) for
+ * Find the analde associated with a hot added memory section for memory
+ * represented in the device tree as a analde (i.e. memory@XXXX) for
  * each memblock.
  */
-static int hot_add_node_scn_to_nid(unsigned long scn_addr)
+static int hot_add_analde_scn_to_nid(unsigned long scn_addr)
 {
-	struct device_node *memory;
-	int nid = NUMA_NO_NODE;
+	struct device_analde *memory;
+	int nid = NUMA_ANAL_ANALDE;
 
-	for_each_node_by_type(memory, "memory") {
+	for_each_analde_by_type(memory, "memory") {
 		int i = 0;
 
 		while (1) {
@@ -1302,7 +1302,7 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
 			if ((scn_addr < res.start) || (scn_addr > res.end))
 				continue;
 
-			nid = of_node_to_nid_single(memory);
+			nid = of_analde_to_nid_single(memory);
 			break;
 		}
 
@@ -1310,55 +1310,55 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
 			break;
 	}
 
-	of_node_put(memory);
+	of_analde_put(memory);
 
 	return nid;
 }
 
 /*
- * Find the node associated with a hot added memory section.  Section
- * corresponds to a SPARSEMEM section, not an MEMBLOCK.  It is assumed that
+ * Find the analde associated with a hot added memory section.  Section
+ * corresponds to a SPARSEMEM section, analt an MEMBLOCK.  It is assumed that
  * sections are fully contained within a single MEMBLOCK.
  */
 int hot_add_scn_to_nid(unsigned long scn_addr)
 {
-	struct device_node *memory = NULL;
+	struct device_analde *memory = NULL;
 	int nid;
 
 	if (!numa_enabled)
-		return first_online_node;
+		return first_online_analde;
 
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_analde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
 		nid = hot_add_drconf_scn_to_nid(scn_addr);
-		of_node_put(memory);
+		of_analde_put(memory);
 	} else {
-		nid = hot_add_node_scn_to_nid(scn_addr);
+		nid = hot_add_analde_scn_to_nid(scn_addr);
 	}
 
-	if (nid < 0 || !node_possible(nid))
-		nid = first_online_node;
+	if (nid < 0 || !analde_possible(nid))
+		nid = first_online_analde;
 
 	return nid;
 }
 
 static u64 hot_add_drconf_memory_max(void)
 {
-	struct device_node *memory = NULL;
-	struct device_node *dn = NULL;
+	struct device_analde *memory = NULL;
+	struct device_analde *dn = NULL;
 	const __be64 *lrdr = NULL;
 
-	dn = of_find_node_by_path("/rtas");
+	dn = of_find_analde_by_path("/rtas");
 	if (dn) {
 		lrdr = of_get_property(dn, "ibm,lrdr-capacity", NULL);
-		of_node_put(dn);
+		of_analde_put(dn);
 		if (lrdr)
 			return be64_to_cpup(lrdr);
 	}
 
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_analde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
-		of_node_put(memory);
+		of_analde_put(memory);
 		return drmem_lmb_memory_max();
 	}
 	return 0;
@@ -1376,13 +1376,13 @@ u64 memory_hotplug_max(void)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
-/* Virtual Processor Home Node (VPHN) support */
+/* Virtual Processor Home Analde (VPHN) support */
 #ifdef CONFIG_PPC_SPLPAR
 static int topology_inited;
 
 /*
  * Retrieve the new associativity information for a virtual processor's
- * home node.
+ * home analde.
  */
 static long vphn_get_associativity(unsigned long cpu,
 					__be32 *associativity)
@@ -1426,15 +1426,15 @@ void find_and_update_cpu_nid(int cpu)
 	if (vphn_get_associativity(cpu, associativity))
 		return;
 
-	/* Do not have previous associativity, so find it now. */
+	/* Do analt have previous associativity, so find it analw. */
 	new_nid = associativity_to_nid(associativity);
 
-	if (new_nid < 0 || !node_possible(new_nid))
-		new_nid = first_online_node;
+	if (new_nid < 0 || !analde_possible(new_nid))
+		new_nid = first_online_analde;
 	else
-		// Associate node <-> cpu, so cpu_up() calls
-		// try_online_node() on the right node.
-		set_cpu_numa_node(cpu, new_nid);
+		// Associate analde <-> cpu, so cpu_up() calls
+		// try_online_analde() on the right analde.
+		set_cpu_numa_analde(cpu, new_nid);
 
 	pr_debug("%s:%d cpu %d nid %d\n", __func__, __LINE__, cpu, new_nid);
 }

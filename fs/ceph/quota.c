@@ -10,30 +10,30 @@
 #include "super.h"
 #include "mds_client.h"
 
-void ceph_adjust_quota_realms_count(struct inode *inode, bool inc)
+void ceph_adjust_quota_realms_count(struct ianalde *ianalde, bool inc)
 {
-	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(ianalde->i_sb);
 	if (inc)
 		atomic64_inc(&mdsc->quotarealms_count);
 	else
 		atomic64_dec(&mdsc->quotarealms_count);
 }
 
-static inline bool ceph_has_realms_with_quotas(struct inode *inode)
+static inline bool ceph_has_realms_with_quotas(struct ianalde *ianalde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(sb);
-	struct inode *root = d_inode(sb->s_root);
+	struct ianalde *root = d_ianalde(sb->s_root);
 
 	if (atomic64_read(&mdsc->quotarealms_count) > 0)
 		return true;
 	/* if root is the real CephFS root, we don't have quota realms */
-	if (root && ceph_ino(root) == CEPH_INO_ROOT)
+	if (root && ceph_ianal(root) == CEPH_IANAL_ROOT)
 		return false;
-	/* MDS stray dirs have no quota realms */
-	if (ceph_vino_is_reserved(ceph_inode(inode)->i_vino))
+	/* MDS stray dirs have anal quota realms */
+	if (ceph_vianal_is_reserved(ceph_ianalde(ianalde)->i_vianal))
 		return false;
-	/* otherwise, we can't know for sure */
+	/* otherwise, we can't kanalw for sure */
 	return true;
 }
 
@@ -44,9 +44,9 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 	struct super_block *sb = mdsc->fsc->sb;
 	struct ceph_mds_quota *h = msg->front.iov_base;
 	struct ceph_client *cl = mdsc->fsc->client;
-	struct ceph_vino vino;
-	struct inode *inode;
-	struct ceph_inode_info *ci;
+	struct ceph_vianal vianal;
+	struct ianalde *ianalde;
+	struct ceph_ianalde_info *ci;
 
 	if (!ceph_inc_mds_stopping_blocker(mdsc, session))
 		return;
@@ -58,15 +58,15 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 		goto out;
 	}
 
-	/* lookup inode */
-	vino.ino = le64_to_cpu(h->ino);
-	vino.snap = CEPH_NOSNAP;
-	inode = ceph_find_inode(sb, vino);
-	if (!inode) {
-		pr_warn_client(cl, "failed to find inode %llx\n", vino.ino);
+	/* lookup ianalde */
+	vianal.ianal = le64_to_cpu(h->ianal);
+	vianal.snap = CEPH_ANALSNAP;
+	ianalde = ceph_find_ianalde(sb, vianal);
+	if (!ianalde) {
+		pr_warn_client(cl, "failed to find ianalde %llx\n", vianal.ianal);
 		goto out;
 	}
-	ci = ceph_inode(inode);
+	ci = ceph_ianalde(ianalde);
 
 	spin_lock(&ci->i_ceph_lock);
 	ci->i_rbytes = le64_to_cpu(h->rbytes);
@@ -76,176 +76,176 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 		            le64_to_cpu(h->max_files));
 	spin_unlock(&ci->i_ceph_lock);
 
-	iput(inode);
+	iput(ianalde);
 out:
 	ceph_dec_mds_stopping_blocker(mdsc);
 }
 
-static struct ceph_quotarealm_inode *
-find_quotarealm_inode(struct ceph_mds_client *mdsc, u64 ino)
+static struct ceph_quotarealm_ianalde *
+find_quotarealm_ianalde(struct ceph_mds_client *mdsc, u64 ianal)
 {
-	struct ceph_quotarealm_inode *qri = NULL;
-	struct rb_node **node, *parent = NULL;
+	struct ceph_quotarealm_ianalde *qri = NULL;
+	struct rb_analde **analde, *parent = NULL;
 	struct ceph_client *cl = mdsc->fsc->client;
 
-	mutex_lock(&mdsc->quotarealms_inodes_mutex);
-	node = &(mdsc->quotarealms_inodes.rb_node);
-	while (*node) {
-		parent = *node;
-		qri = container_of(*node, struct ceph_quotarealm_inode, node);
+	mutex_lock(&mdsc->quotarealms_ianaldes_mutex);
+	analde = &(mdsc->quotarealms_ianaldes.rb_analde);
+	while (*analde) {
+		parent = *analde;
+		qri = container_of(*analde, struct ceph_quotarealm_ianalde, analde);
 
-		if (ino < qri->ino)
-			node = &((*node)->rb_left);
-		else if (ino > qri->ino)
-			node = &((*node)->rb_right);
+		if (ianal < qri->ianal)
+			analde = &((*analde)->rb_left);
+		else if (ianal > qri->ianal)
+			analde = &((*analde)->rb_right);
 		else
 			break;
 	}
-	if (!qri || (qri->ino != ino)) {
-		/* Not found, create a new one and insert it */
+	if (!qri || (qri->ianal != ianal)) {
+		/* Analt found, create a new one and insert it */
 		qri = kmalloc(sizeof(*qri), GFP_KERNEL);
 		if (qri) {
-			qri->ino = ino;
-			qri->inode = NULL;
+			qri->ianal = ianal;
+			qri->ianalde = NULL;
 			qri->timeout = 0;
 			mutex_init(&qri->mutex);
-			rb_link_node(&qri->node, parent, node);
-			rb_insert_color(&qri->node, &mdsc->quotarealms_inodes);
+			rb_link_analde(&qri->analde, parent, analde);
+			rb_insert_color(&qri->analde, &mdsc->quotarealms_ianaldes);
 		} else
-			pr_warn_client(cl, "Failed to alloc quotarealms_inode\n");
+			pr_warn_client(cl, "Failed to alloc quotarealms_ianalde\n");
 	}
-	mutex_unlock(&mdsc->quotarealms_inodes_mutex);
+	mutex_unlock(&mdsc->quotarealms_ianaldes_mutex);
 
 	return qri;
 }
 
 /*
- * This function will try to lookup a realm inode which isn't visible in the
- * filesystem mountpoint.  A list of these kind of inodes (not visible) is
+ * This function will try to lookup a realm ianalde which isn't visible in the
+ * filesystem mountpoint.  A list of these kind of ianaldes (analt visible) is
  * maintained in the mdsc and freed only when the filesystem is umounted.
  *
- * Note that these inodes are kept in this list even if the lookup fails, which
+ * Analte that these ianaldes are kept in this list even if the lookup fails, which
  * allows to prevent useless lookup requests.
  */
-static struct inode *lookup_quotarealm_inode(struct ceph_mds_client *mdsc,
+static struct ianalde *lookup_quotarealm_ianalde(struct ceph_mds_client *mdsc,
 					     struct super_block *sb,
 					     struct ceph_snap_realm *realm)
 {
 	struct ceph_client *cl = mdsc->fsc->client;
-	struct ceph_quotarealm_inode *qri;
-	struct inode *in;
+	struct ceph_quotarealm_ianalde *qri;
+	struct ianalde *in;
 
-	qri = find_quotarealm_inode(mdsc, realm->ino);
+	qri = find_quotarealm_ianalde(mdsc, realm->ianal);
 	if (!qri)
 		return NULL;
 
 	mutex_lock(&qri->mutex);
-	if (qri->inode && ceph_is_any_caps(qri->inode)) {
-		/* A request has already returned the inode */
+	if (qri->ianalde && ceph_is_any_caps(qri->ianalde)) {
+		/* A request has already returned the ianalde */
 		mutex_unlock(&qri->mutex);
-		return qri->inode;
+		return qri->ianalde;
 	}
-	/* Check if this inode lookup has failed recently */
+	/* Check if this ianalde lookup has failed recently */
 	if (qri->timeout &&
 	    time_before_eq(jiffies, qri->timeout)) {
 		mutex_unlock(&qri->mutex);
 		return NULL;
 	}
-	if (qri->inode) {
+	if (qri->ianalde) {
 		/* get caps */
-		int ret = __ceph_do_getattr(qri->inode, NULL,
-					    CEPH_STAT_CAP_INODE, true);
+		int ret = __ceph_do_getattr(qri->ianalde, NULL,
+					    CEPH_STAT_CAP_IANALDE, true);
 		if (ret >= 0)
-			in = qri->inode;
+			in = qri->ianalde;
 		else
 			in = ERR_PTR(ret);
 	}  else {
-		in = ceph_lookup_inode(sb, realm->ino);
+		in = ceph_lookup_ianalde(sb, realm->ianal);
 	}
 
 	if (IS_ERR(in)) {
-		doutc(cl, "Can't lookup inode %llx (err: %ld)\n", realm->ino,
+		doutc(cl, "Can't lookup ianalde %llx (err: %ld)\n", realm->ianal,
 		      PTR_ERR(in));
 		qri->timeout = jiffies + msecs_to_jiffies(60 * 1000); /* XXX */
 	} else {
 		qri->timeout = 0;
-		qri->inode = in;
+		qri->ianalde = in;
 	}
 	mutex_unlock(&qri->mutex);
 
 	return in;
 }
 
-void ceph_cleanup_quotarealms_inodes(struct ceph_mds_client *mdsc)
+void ceph_cleanup_quotarealms_ianaldes(struct ceph_mds_client *mdsc)
 {
-	struct ceph_quotarealm_inode *qri;
-	struct rb_node *node;
+	struct ceph_quotarealm_ianalde *qri;
+	struct rb_analde *analde;
 
 	/*
-	 * It should now be safe to clean quotarealms_inode tree without holding
-	 * mdsc->quotarealms_inodes_mutex...
+	 * It should analw be safe to clean quotarealms_ianalde tree without holding
+	 * mdsc->quotarealms_ianaldes_mutex...
 	 */
-	mutex_lock(&mdsc->quotarealms_inodes_mutex);
-	while (!RB_EMPTY_ROOT(&mdsc->quotarealms_inodes)) {
-		node = rb_first(&mdsc->quotarealms_inodes);
-		qri = rb_entry(node, struct ceph_quotarealm_inode, node);
-		rb_erase(node, &mdsc->quotarealms_inodes);
-		iput(qri->inode);
+	mutex_lock(&mdsc->quotarealms_ianaldes_mutex);
+	while (!RB_EMPTY_ROOT(&mdsc->quotarealms_ianaldes)) {
+		analde = rb_first(&mdsc->quotarealms_ianaldes);
+		qri = rb_entry(analde, struct ceph_quotarealm_ianalde, analde);
+		rb_erase(analde, &mdsc->quotarealms_ianaldes);
+		iput(qri->ianalde);
 		kfree(qri);
 	}
-	mutex_unlock(&mdsc->quotarealms_inodes_mutex);
+	mutex_unlock(&mdsc->quotarealms_ianaldes_mutex);
 }
 
 /*
- * This function walks through the snaprealm for an inode and set the
+ * This function walks through the snaprealm for an ianalde and set the
  * realmp with the first snaprealm that has quotas set (max_files,
  * max_bytes, or any, depending on the 'which_quota' argument).  If the root is
  * reached, set the realmp with the root ceph_snap_realm instead.
  *
- * Note that the caller is responsible for calling ceph_put_snap_realm() on the
+ * Analte that the caller is responsible for calling ceph_put_snap_realm() on the
  * returned realm.
  *
  * Callers of this function need to hold mdsc->snap_rwsem.  However, if there's
- * a need to do an inode lookup, this rwsem will be temporarily dropped.  Hence
+ * a need to do an ianalde lookup, this rwsem will be temporarily dropped.  Hence
  * the 'retry' argument: if rwsem needs to be dropped and 'retry' is 'false'
  * this function will return -EAGAIN; otherwise, the snaprealms walk-through
  * will be restarted.
  */
-static int get_quota_realm(struct ceph_mds_client *mdsc, struct inode *inode,
+static int get_quota_realm(struct ceph_mds_client *mdsc, struct ianalde *ianalde,
 			   enum quota_get_realm which_quota,
 			   struct ceph_snap_realm **realmp, bool retry)
 {
 	struct ceph_client *cl = mdsc->fsc->client;
-	struct ceph_inode_info *ci = NULL;
+	struct ceph_ianalde_info *ci = NULL;
 	struct ceph_snap_realm *realm, *next;
-	struct inode *in;
+	struct ianalde *in;
 	bool has_quota;
 
 	if (realmp)
 		*realmp = NULL;
-	if (ceph_snap(inode) != CEPH_NOSNAP)
+	if (ceph_snap(ianalde) != CEPH_ANALSNAP)
 		return 0;
 
 restart:
-	realm = ceph_inode(inode)->i_snap_realm;
+	realm = ceph_ianalde(ianalde)->i_snap_realm;
 	if (realm)
 		ceph_get_snap_realm(mdsc, realm);
 	else
 		pr_err_ratelimited_client(cl,
 				"%p %llx.%llx null i_snap_realm\n",
-				inode, ceph_vinop(inode));
+				ianalde, ceph_vianalp(ianalde));
 	while (realm) {
-		bool has_inode;
+		bool has_ianalde;
 
-		spin_lock(&realm->inodes_with_caps_lock);
-		has_inode = realm->inode;
-		in = has_inode ? igrab(realm->inode) : NULL;
-		spin_unlock(&realm->inodes_with_caps_lock);
-		if (has_inode && !in)
+		spin_lock(&realm->ianaldes_with_caps_lock);
+		has_ianalde = realm->ianalde;
+		in = has_ianalde ? igrab(realm->ianalde) : NULL;
+		spin_unlock(&realm->ianaldes_with_caps_lock);
+		if (has_ianalde && !in)
 			break;
 		if (!in) {
 			up_read(&mdsc->snap_rwsem);
-			in = lookup_quotarealm_inode(mdsc, inode->i_sb, realm);
+			in = lookup_quotarealm_ianalde(mdsc, ianalde->i_sb, realm);
 			down_read(&mdsc->snap_rwsem);
 			if (IS_ERR_OR_NULL(in))
 				break;
@@ -255,7 +255,7 @@ restart:
 			goto restart;
 		}
 
-		ci = ceph_inode(in);
+		ci = ceph_ianalde(in);
 		has_quota = __ceph_has_quota(ci, which_quota);
 		iput(in);
 
@@ -276,7 +276,7 @@ restart:
 	return 0;
 }
 
-bool ceph_quota_is_same_realm(struct inode *old, struct inode *new)
+bool ceph_quota_is_same_realm(struct ianalde *old, struct ianalde *new)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(old->i_sb);
 	struct ceph_snap_realm *old_realm, *new_realm;
@@ -321,50 +321,50 @@ enum quota_check_op {
  * check_quota_exceeded() will walk up the snaprealm hierarchy and, for each
  * realm, it will execute quota check operation defined by the 'op' parameter.
  * The snaprealm walk is interrupted if the quota check detects that the quota
- * is exceeded or if the root inode is reached.
+ * is exceeded or if the root ianalde is reached.
  */
-static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
+static bool check_quota_exceeded(struct ianalde *ianalde, enum quota_check_op op,
 				 loff_t delta)
 {
-	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(ianalde->i_sb);
 	struct ceph_client *cl = mdsc->fsc->client;
-	struct ceph_inode_info *ci;
+	struct ceph_ianalde_info *ci;
 	struct ceph_snap_realm *realm, *next;
-	struct inode *in;
+	struct ianalde *in;
 	u64 max, rvalue;
 	bool exceeded = false;
 
-	if (ceph_snap(inode) != CEPH_NOSNAP)
+	if (ceph_snap(ianalde) != CEPH_ANALSNAP)
 		return false;
 
 	down_read(&mdsc->snap_rwsem);
 restart:
-	realm = ceph_inode(inode)->i_snap_realm;
+	realm = ceph_ianalde(ianalde)->i_snap_realm;
 	if (realm)
 		ceph_get_snap_realm(mdsc, realm);
 	else
 		pr_err_ratelimited_client(cl,
 				"%p %llx.%llx null i_snap_realm\n",
-				inode, ceph_vinop(inode));
+				ianalde, ceph_vianalp(ianalde));
 	while (realm) {
-		bool has_inode;
+		bool has_ianalde;
 
-		spin_lock(&realm->inodes_with_caps_lock);
-		has_inode = realm->inode;
-		in = has_inode ? igrab(realm->inode) : NULL;
-		spin_unlock(&realm->inodes_with_caps_lock);
-		if (has_inode && !in)
+		spin_lock(&realm->ianaldes_with_caps_lock);
+		has_ianalde = realm->ianalde;
+		in = has_ianalde ? igrab(realm->ianalde) : NULL;
+		spin_unlock(&realm->ianaldes_with_caps_lock);
+		if (has_ianalde && !in)
 			break;
 		if (!in) {
 			up_read(&mdsc->snap_rwsem);
-			in = lookup_quotarealm_inode(mdsc, inode->i_sb, realm);
+			in = lookup_quotarealm_ianalde(mdsc, ianalde->i_sb, realm);
 			down_read(&mdsc->snap_rwsem);
 			if (IS_ERR_OR_NULL(in))
 				break;
 			ceph_put_snap_realm(mdsc, realm);
 			goto restart;
 		}
-		ci = ceph_inode(in);
+		ci = ceph_ianalde(in);
 		spin_lock(&ci->i_ceph_lock);
 		if (op == QUOTA_CHECK_MAX_FILES_OP) {
 			max = ci->i_max_files;
@@ -416,64 +416,64 @@ restart:
 
 /*
  * ceph_quota_is_max_files_exceeded - check if we can create a new file
- * @inode:	directory where a new file is being created
+ * @ianalde:	directory where a new file is being created
  *
  * This functions returns true is max_files quota allows a new file to be
  * created.  It is necessary to walk through the snaprealm hierarchy (until the
  * FS root) to check all realms with quotas set.
  */
-bool ceph_quota_is_max_files_exceeded(struct inode *inode)
+bool ceph_quota_is_max_files_exceeded(struct ianalde *ianalde)
 {
-	if (!ceph_has_realms_with_quotas(inode))
+	if (!ceph_has_realms_with_quotas(ianalde))
 		return false;
 
-	WARN_ON(!S_ISDIR(inode->i_mode));
+	WARN_ON(!S_ISDIR(ianalde->i_mode));
 
-	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_FILES_OP, 1);
+	return check_quota_exceeded(ianalde, QUOTA_CHECK_MAX_FILES_OP, 1);
 }
 
 /*
  * ceph_quota_is_max_bytes_exceeded - check if we can write to a file
- * @inode:	inode being written
+ * @ianalde:	ianalde being written
  * @newsize:	new size if write succeeds
  *
  * This functions returns true is max_bytes quota allows a file size to reach
  * @newsize; it returns false otherwise.
  */
-bool ceph_quota_is_max_bytes_exceeded(struct inode *inode, loff_t newsize)
+bool ceph_quota_is_max_bytes_exceeded(struct ianalde *ianalde, loff_t newsize)
 {
-	loff_t size = i_size_read(inode);
+	loff_t size = i_size_read(ianalde);
 
-	if (!ceph_has_realms_with_quotas(inode))
+	if (!ceph_has_realms_with_quotas(ianalde))
 		return false;
 
 	/* return immediately if we're decreasing file size */
 	if (newsize <= size)
 		return false;
 
-	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_BYTES_OP, (newsize - size));
+	return check_quota_exceeded(ianalde, QUOTA_CHECK_MAX_BYTES_OP, (newsize - size));
 }
 
 /*
  * ceph_quota_is_max_bytes_approaching - check if we're reaching max_bytes
- * @inode:	inode being written
+ * @ianalde:	ianalde being written
  * @newsize:	new size if write succeeds
  *
  * This function returns true if the new file size @newsize will be consuming
  * more than 1/16th of the available quota space; it returns false otherwise.
  */
-bool ceph_quota_is_max_bytes_approaching(struct inode *inode, loff_t newsize)
+bool ceph_quota_is_max_bytes_approaching(struct ianalde *ianalde, loff_t newsize)
 {
-	loff_t size = ceph_inode(inode)->i_reported_size;
+	loff_t size = ceph_ianalde(ianalde)->i_reported_size;
 
-	if (!ceph_has_realms_with_quotas(inode))
+	if (!ceph_has_realms_with_quotas(ianalde))
 		return false;
 
 	/* return immediately if we're decreasing file size */
 	if (newsize <= size)
 		return false;
 
-	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_BYTES_APPROACHING_OP,
+	return check_quota_exceeded(ianalde, QUOTA_CHECK_MAX_BYTES_APPROACHING_OP,
 				    (newsize - size));
 }
 
@@ -490,24 +490,24 @@ bool ceph_quota_is_max_bytes_approaching(struct inode *inode, loff_t newsize)
 bool ceph_quota_update_statfs(struct ceph_fs_client *fsc, struct kstatfs *buf)
 {
 	struct ceph_mds_client *mdsc = fsc->mdsc;
-	struct ceph_inode_info *ci;
+	struct ceph_ianalde_info *ci;
 	struct ceph_snap_realm *realm;
-	struct inode *in;
+	struct ianalde *in;
 	u64 total = 0, used, free;
 	bool is_updated = false;
 
 	down_read(&mdsc->snap_rwsem);
-	get_quota_realm(mdsc, d_inode(fsc->sb->s_root), QUOTA_GET_MAX_BYTES,
+	get_quota_realm(mdsc, d_ianalde(fsc->sb->s_root), QUOTA_GET_MAX_BYTES,
 			&realm, true);
 	up_read(&mdsc->snap_rwsem);
 	if (!realm)
 		return false;
 
-	spin_lock(&realm->inodes_with_caps_lock);
-	in = realm->inode ? igrab(realm->inode) : NULL;
-	spin_unlock(&realm->inodes_with_caps_lock);
+	spin_lock(&realm->ianaldes_with_caps_lock);
+	in = realm->ianalde ? igrab(realm->ianalde) : NULL;
+	spin_unlock(&realm->ianaldes_with_caps_lock);
 	if (in) {
-		ci = ceph_inode(in);
+		ci = ceph_ianalde(in);
 		spin_lock(&ci->i_ceph_lock);
 		if (ci->i_max_bytes) {
 			total = ci->i_max_bytes >> CEPH_BLOCK_SHIFT;

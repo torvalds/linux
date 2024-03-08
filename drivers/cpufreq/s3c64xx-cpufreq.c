@@ -177,7 +177,7 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 			freq->frequency = CPUFREQ_ENTRY_INVALID;
 		}
 
-		/* If we have no regulator then assume startup
+		/* If we have anal regulator then assume startup
 		 * frequency is the maximum we can support. */
 		if (!vddarm && freq->frequency > clk_get_rate(policy->clk) / 1000)
 			freq->frequency = CPUFREQ_ENTRY_INVALID;

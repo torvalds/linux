@@ -11,7 +11,7 @@
 #include <linux/vmw_vmci_defs.h>
 
 enum vmci_route {
-	VMCI_ROUTE_NONE,
+	VMCI_ROUTE_ANALNE,
 	VMCI_ROUTE_AS_HOST,
 	VMCI_ROUTE_AS_GUEST,
 };

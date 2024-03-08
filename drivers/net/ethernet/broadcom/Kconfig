@@ -12,7 +12,7 @@ config NET_VENDOR_BROADCOM
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
 
-	  Note that the answer to this question does not directly affect
+	  Analte that the answer to this question does analt directly affect
 	  the kernel: saying N will just cause the configurator to skip all
 	  the questions regarding Broadcom chipsets. If you say Y, you will
 	  be asked for your specific chipset/driver in the following questions.

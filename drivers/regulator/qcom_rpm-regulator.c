@@ -641,7 +641,7 @@ static int rpm_reg_set(struct qcom_rpm_reg *vreg,
 }
 
 static int rpm_reg_of_parse_freq(struct device *dev,
-				 struct device_node *node,
+				 struct device_analde *analde,
 				 struct qcom_rpm_reg *vreg)
 {
 	static const int freq_table[] = {
@@ -656,7 +656,7 @@ static int rpm_reg_of_parse_freq(struct device *dev,
 	int i;
 
 	key = "qcom,switch-mode-frequency";
-	ret = of_property_read_u32(node, key, &freq);
+	ret = of_property_read_u32(analde, key, &freq);
 	if (ret) {
 		dev_err(dev, "regulator requires %s property\n", key);
 		return -EINVAL;
@@ -673,7 +673,7 @@ static int rpm_reg_of_parse_freq(struct device *dev,
 	return -EINVAL;
 }
 
-static int rpm_reg_of_parse(struct device_node *node,
+static int rpm_reg_of_parse(struct device_analde *analde,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *config)
 {
@@ -686,7 +686,7 @@ static int rpm_reg_of_parse(struct device_node *node,
 	int ret;
 
 	key = "bias-pull-down";
-	if (of_property_read_bool(node, key)) {
+	if (of_property_read_bool(analde, key)) {
 		ret = rpm_reg_set(vreg, &vreg->parts->pd, 1);
 		if (ret) {
 			dev_err(dev, "%s is invalid", key);
@@ -695,14 +695,14 @@ static int rpm_reg_of_parse(struct device_node *node,
 	}
 
 	if (vreg->parts->freq.mask) {
-		ret = rpm_reg_of_parse_freq(dev, node, vreg);
+		ret = rpm_reg_of_parse_freq(dev, analde, vreg);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (vreg->parts->pm.mask) {
 		key = "qcom,power-mode-hysteretic";
-		pwm = !of_property_read_bool(node, key);
+		pwm = !of_property_read_bool(analde, key);
 
 		ret = rpm_reg_set(vreg, &vreg->parts->pm, pwm);
 		if (ret) {
@@ -715,9 +715,9 @@ static int rpm_reg_of_parse(struct device_node *node,
 		force_mode = -1;
 
 		key = "qcom,force-mode";
-		ret = of_property_read_u32(node, key, &val);
+		ret = of_property_read_u32(analde, key, &val);
 		if (ret == -EINVAL) {
-			val = QCOM_RPM_FORCE_MODE_NONE;
+			val = QCOM_RPM_FORCE_MODE_ANALNE;
 		} else if (ret < 0) {
 			dev_err(dev, "failed to read %s\n", key);
 			return ret;
@@ -726,12 +726,12 @@ static int rpm_reg_of_parse(struct device_node *node,
 		/*
 		 * If force-mode is encoded as 2 bits then the
 		 * possible register values are:
-		 * NONE, LPM, HPM
+		 * ANALNE, LPM, HPM
 		 * otherwise:
-		 * NONE, LPM, AUTO, HPM, BYPASS
+		 * ANALNE, LPM, AUTO, HPM, BYPASS
 		 */
 		switch (val) {
-		case QCOM_RPM_FORCE_MODE_NONE:
+		case QCOM_RPM_FORCE_MODE_ANALNE:
 			force_mode = 0;
 			break;
 		case QCOM_RPM_FORCE_MODE_LPM:
@@ -945,19 +945,19 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	rpm = dev_get_drvdata(pdev->dev.parent);
 	if (!rpm) {
 		dev_err(&pdev->dev, "unable to retrieve handle to rpm\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	reg = device_get_match_data(&pdev->dev);
 	if (!reg) {
 		dev_err(&pdev->dev, "failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (; reg->name; reg++) {
 		vreg = devm_kmemdup(&pdev->dev, reg->template, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mutex_init(&vreg->lock);
 
@@ -989,7 +989,7 @@ static struct platform_driver rpm_reg_driver = {
 	.probe          = rpm_reg_probe,
 	.driver  = {
 		.name  = "qcom_rpm_reg",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(rpm_of_match),
 	},
 };

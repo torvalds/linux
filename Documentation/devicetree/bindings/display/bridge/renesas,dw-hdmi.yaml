@@ -10,11 +10,11 @@ maintainers:
   - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
 
 description: |
-  The HDMI transmitter is a Synopsys DesignWare HDMI 1.4 TX controller IP
+  The HDMI transmitter is a Syanalpsys DesignWare HDMI 1.4 TX controller IP
   with a companion PHY IP.
 
 allOf:
-  - $ref: synopsys,dw-hdmi.yaml#
+  - $ref: syanalpsys,dw-hdmi.yaml#
 
 properties:
   compatible:

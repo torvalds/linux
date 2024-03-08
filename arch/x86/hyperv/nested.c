@@ -22,7 +22,7 @@ int hyperv_flush_guest_mapping(u64 as)
 	struct hv_guest_mapping_flush *flush;
 	u64 status;
 	unsigned long flags;
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (!hv_hypercall_pg)
 		goto fault;
@@ -66,7 +66,7 @@ int hyperv_fill_flush_guest_mapping_list(
 		 * flush tlbs without range.
 		 */
 		if (gpa_n >= HV_MAX_FLUSH_REP_COUNT)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		additional_pages = min_t(u64, pages, HV_MAX_FLUSH_PAGES) - 1;
 
@@ -89,7 +89,7 @@ int hyperv_flush_guest_mapping_range(u64 as,
 	struct hv_guest_mapping_flush_list *flush;
 	u64 status;
 	unsigned long flags;
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 	int gpa_n = 0;
 
 	if (!hv_hypercall_pg || !fill_flush_list_func)

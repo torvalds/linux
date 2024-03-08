@@ -41,12 +41,12 @@ struct p2p_bss {
  * enum brcmf_p2p_status - P2P specific dongle status.
  *
  * @BRCMF_P2P_STATUS_IF_ADD: peer-to-peer vif add sent to dongle.
- * @BRCMF_P2P_STATUS_IF_DEL: NOT-USED?
+ * @BRCMF_P2P_STATUS_IF_DEL: ANALT-USED?
  * @BRCMF_P2P_STATUS_IF_DELETING: peer-to-peer vif delete sent to dongle.
  * @BRCMF_P2P_STATUS_IF_CHANGING: peer-to-peer vif change sent to dongle.
  * @BRCMF_P2P_STATUS_IF_CHANGED: peer-to-peer vif change completed on dongle.
  * @BRCMF_P2P_STATUS_ACTION_TX_COMPLETED: action frame tx completed.
- * @BRCMF_P2P_STATUS_ACTION_TX_NOACK: action frame tx not acked.
+ * @BRCMF_P2P_STATUS_ACTION_TX_ANALACK: action frame tx analt acked.
  * @BRCMF_P2P_STATUS_GO_NEG_PHASE: P2P GO negotiation ongoing.
  * @BRCMF_P2P_STATUS_DISCOVER_LISTEN: P2P listen, remaining on channel.
  * @BRCMF_P2P_STATUS_SENDING_ACT_FRAME: In the process of sending action frame.
@@ -62,7 +62,7 @@ enum brcmf_p2p_status {
 	BRCMF_P2P_STATUS_IF_CHANGING,
 	BRCMF_P2P_STATUS_IF_CHANGED,
 	BRCMF_P2P_STATUS_ACTION_TX_COMPLETED,
-	BRCMF_P2P_STATUS_ACTION_TX_NOACK,
+	BRCMF_P2P_STATUS_ACTION_TX_ANALACK,
 	BRCMF_P2P_STATUS_GO_NEG_PHASE,
 	BRCMF_P2P_STATUS_DISCOVER_LISTEN,
 	BRCMF_P2P_STATUS_SENDING_ACT_FRAME,
@@ -158,14 +158,14 @@ int brcmf_p2p_scan_prep(struct wiphy *wiphy,
 int brcmf_p2p_remain_on_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 				struct ieee80211_channel *channel,
 				unsigned int duration, u64 *cookie);
-int brcmf_p2p_notify_listen_complete(struct brcmf_if *ifp,
+int brcmf_p2p_analtify_listen_complete(struct brcmf_if *ifp,
 				     const struct brcmf_event_msg *e,
 				     void *data);
 void brcmf_p2p_cancel_remain_on_channel(struct brcmf_if *ifp);
-int brcmf_p2p_notify_action_frame_rx(struct brcmf_if *ifp,
+int brcmf_p2p_analtify_action_frame_rx(struct brcmf_if *ifp,
 				     const struct brcmf_event_msg *e,
 				     void *data);
-int brcmf_p2p_notify_action_tx_complete(struct brcmf_if *ifp,
+int brcmf_p2p_analtify_action_tx_complete(struct brcmf_if *ifp,
 					const struct brcmf_event_msg *e,
 					void *data);
 bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
@@ -173,7 +173,7 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 				 struct brcmf_fil_af_params_le *af_params);
 bool brcmf_p2p_scan_finding_common_channel(struct brcmf_cfg80211_info *cfg,
 					   struct brcmf_bss_info_le *bi);
-s32 brcmf_p2p_notify_rx_mgmt_p2p_probereq(struct brcmf_if *ifp,
+s32 brcmf_p2p_analtify_rx_mgmt_p2p_probereq(struct brcmf_if *ifp,
 					  const struct brcmf_event_msg *e,
 					  void *data);
 #endif /* WL_CFGP2P_H_ */

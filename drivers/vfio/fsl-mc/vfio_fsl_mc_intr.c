@@ -19,7 +19,7 @@ static int vfio_fsl_mc_irqs_allocate(struct vfio_fsl_mc_device *vdev)
 	int irq_count;
 	int ret, i;
 
-	/* Device does not support any interrupt */
+	/* Device does analt support any interrupt */
 	if (mc_dev->obj_desc.irq_count == 0)
 		return 0;
 
@@ -31,7 +31,7 @@ static int vfio_fsl_mc_irqs_allocate(struct vfio_fsl_mc_device *vdev)
 
 	mc_irq = kcalloc(irq_count, sizeof(*mc_irq), GFP_KERNEL_ACCOUNT);
 	if (!mc_irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate IRQs */
 	ret = fsl_mc_allocate_irqs(mc_dev);
@@ -80,7 +80,7 @@ static int vfio_set_trigger(struct vfio_fsl_mc_device *vdev,
 	irq->name = kasprintf(GFP_KERNEL_ACCOUNT, "vfio-irq[%d](%s)",
 			    hwirq, dev_name(&vdev->mc_dev->dev));
 	if (!irq->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trigger = eventfd_ctx_fdget(fd);
 	if (IS_ERR(trigger)) {
@@ -113,7 +113,7 @@ static int vfio_fsl_mc_set_irq_trigger(struct vfio_fsl_mc_device *vdev,
 	struct device *cont_dev = fsl_mc_cont_dev(&mc_dev->dev);
 	struct fsl_mc_device *mc_cont = to_fsl_mc_device(cont_dev);
 
-	if (!count && (flags & VFIO_IRQ_SET_DATA_NONE))
+	if (!count && (flags & VFIO_IRQ_SET_DATA_ANALNE))
 		return vfio_set_trigger(vdev, index, -1);
 
 	if (start != 0 || count != 1)
@@ -140,7 +140,7 @@ static int vfio_fsl_mc_set_irq_trigger(struct vfio_fsl_mc_device *vdev,
 
 	irq = &vdev->mc_irqs[index];
 
-	if (flags & VFIO_IRQ_SET_DATA_NONE) {
+	if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 		vfio_fsl_mc_irq_handler(hwirq, irq);
 
 	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
@@ -178,8 +178,8 @@ void vfio_fsl_mc_irqs_cleanup(struct vfio_fsl_mc_device *vdev)
 	int i;
 
 	/*
-	 * Device does not support any interrupt or the interrupts
-	 * were not configured
+	 * Device does analt support any interrupt or the interrupts
+	 * were analt configured
 	 */
 	if (!vdev->mc_irqs)
 		return;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@ nv50_mem_map(struct nvkm_mmu *mmu, struct nvkm_memory *memory, void *argv,
 	struct nvkm_device *device = mmu->subdev.device;
 	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	u64 size = nvkm_memory_size(memory);
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
 		uvmm.ro   = args->v0.ro;
@@ -70,7 +70,7 @@ nv50_mem_new(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 		struct nv50_mem_vn vn;
 		struct nv50_mem_v0 v0;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	bool contig;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
@@ -81,8 +81,8 @@ nv50_mem_new(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 		type   = 0x01;
 		contig = false;
 	} else
-		return -ENOSYS;
+		return -EANALSYS;
 
-	return nvkm_ram_get(mmu->subdev.device, NVKM_RAM_MM_NORMAL, type,
+	return nvkm_ram_get(mmu->subdev.device, NVKM_RAM_MM_ANALRMAL, type,
 			    page, size, contig, false, pmemory);
 }

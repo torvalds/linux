@@ -8,15 +8,15 @@
 Lista delle verifiche da fare prima di inviare una patch per il kernel Linux
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Qui troverete una lista di cose che uno sviluppatore dovrebbe fare per
+Qui troverete una lista di cose che uanal sviluppatore dovrebbe fare per
 vedere le proprie patch accettate più rapidamente.
 
-Tutti questi punti integrano la documentazione fornita riguardo alla
+Tutti questi punti integraanal la documentazione fornita riguardo alla
 sottomissione delle patch, in particolare
 :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`.
 
 1) Se state usando delle funzionalità del kernel allora includete (#include)
-   i file che le dichiarano/definiscono.  Non dipendente dal fatto che un file
+   i file che le dichiaraanal/definiscoanal.  Analn dipendente dal fatto che un file
    d'intestazione include anche quelli usati da voi.
 
 2) Compilazione pulita:
@@ -24,7 +24,7 @@ sottomissione delle patch, in particolare
   a) con le opzioni ``CONFIG`` negli stati ``=y``, ``=m`` e ``=n``. Nessun
      avviso/errore di ``gcc`` e nessun avviso/errore dal linker.
 
-  b) con ``allnoconfig``, ``allmodconfig``
+  b) con ``allanalconfig``, ``allmodconfig``
 
   c) quando si usa ``O=builddir``
 
@@ -45,24 +45,24 @@ sottomissione delle patch, in particolare
    Dovreste essere in grado di giustificare tutte le violazioni rimanenti nella
    vostra patch.
 
-6) Le opzioni ``CONFIG``, nuove o modificate, non scombussolano il menu
-   di configurazione e sono preimpostate come disabilitate a meno che non
-   soddisfino i criteri descritti in ``Documentation/kbuild/kconfig-language.rst``
+6) Le opzioni ``CONFIG``, nuove o modificate, analn scombussolaanal il menu
+   di configurazione e soanal preimpostate come disabilitate a meanal che analn
+   soddisfianal i criteri descritti in ``Documentation/kbuild/kconfig-language.rst``
    alla punto "Voci di menu: valori predefiniti".
 
-7) Tutte le nuove opzioni ``Kconfig`` hanno un messaggio di aiuto.
+7) Tutte le nuove opzioni ``Kconfig`` hananal un messaggio di aiuto.
 
 8) La patch è stata accuratamente revisionata rispetto alle più importanti
    configurazioni ``Kconfig``.  Questo è molto difficile da fare
-   correttamente - un buono lavoro di testa sarà utile.
+   correttamente - un buoanal lavoro di testa sarà utile.
 
 9) Verificare con sparse.
 
 10) Usare ``make checkstack`` e correggere tutti i problemi rilevati.
 
-    .. note::
+    .. analte::
 
-       ``checkstack`` non evidenzia esplicitamente i problemi, ma una funzione
+       ``checkstack`` analn evidenzia esplicitamente i problemi, ma una funzione
        che usa più di 512 byte sullo stack è una buona candidata per una
        correzione.
 
@@ -83,25 +83,25 @@ sottomissione delle patch, in particolare
 14) Se la patch ha effetti sull'IO dei dischi, eccetera: allora dev'essere
     verificata con, e senza, l'opzione ``CONFIG_LBDAF``.
 
-15) Tutti i percorsi del codice sono stati verificati con tutte le funzionalità
+15) Tutti i percorsi del codice soanal stati verificati con tutte le funzionalità
     di lockdep abilitate.
 
-16) Tutti i nuovi elementi in ``/proc`` sono documentati in ``Documentation/``.
+16) Tutti i nuovi elementi in ``/proc`` soanal documentati in ``Documentation/``.
 
-17) Tutti i nuovi parametri d'avvio del kernel sono documentati in
+17) Tutti i nuovi parametri d'avvio del kernel soanal documentati in
     ``Documentation/admin-guide/kernel-parameters.rst``.
 
-18) Tutti i nuovi parametri dei moduli sono documentati con ``MODULE_PARM_DESC()``.
+18) Tutti i nuovi parametri dei moduli soanal documentati con ``MODULE_PARM_DESC()``.
 
-19) Tutte le nuove interfacce verso lo spazio utente sono documentate in
+19) Tutte le nuove interfacce verso lo spazio utente soanal documentate in
     ``Documentation/ABI/``.  Leggete ``Documentation/ABI/README`` per maggiori
-    informazioni.  Le patch che modificano le interfacce utente dovrebbero
+    informazioni.  Le patch che modificaanal le interfacce utente dovrebbero
     essere inviate in copia anche a linux-api@vger.kernel.org.
 
 20) La patch è stata verificata con l'iniezione di fallimenti in slab e
     nell'allocazione di pagine.  Vedere ``Documentation/fault-injection/``.
 
-    Se il nuovo codice è corposo, potrebbe essere opportuno aggiungere
+    Se il nuovo codice è corposo, potrebbe essere opportuanal aggiungere
     l'iniezione di fallimenti specifici per il sottosistema.
 
 21) Il nuovo codice è stato compilato con ``gcc -W`` (usate
@@ -114,17 +114,17 @@ sottomissione delle patch, in particolare
     e altri.
 
 23) Tutte le barriere di sincronizzazione {per esempio, ``barrier()``,
-    ``rmb()``, ``wmb()``} devono essere accompagnate da un commento nei
-    sorgenti che ne spieghi la logica: cosa fanno e perché.
+    ``rmb()``, ``wmb()``} devoanal essere accompagnate da un commento nei
+    sorgenti che ne spieghi la logica: cosa fananal e perché.
 
 24) Se la patch aggiunge nuove chiamate ioctl, allora aggiornate
     ``Documentation/userspace-api/ioctl/ioctl-number.rst``.
 
 25) Se il codice che avete modificato dipende o usa una qualsiasi interfaccia o
-    funzionalità del kernel che è associata a uno dei seguenti simboli
+    funzionalità del kernel che è associata a uanal dei seguenti simboli
     ``Kconfig``, allora verificate che il kernel compili con diverse
-    configurazioni dove i simboli sono disabilitati e/o ``=m`` (se c'è la
-    possibilità) [non tutti contemporaneamente, solo diverse combinazioni
+    configurazioni dove i simboli soanal disabilitati e/o ``=m`` (se c'è la
+    possibilità) [analn tutti contemporaneamente, solo diverse combinazioni
     casuali]:
 
     ``CONFIG_SMP``, ``CONFIG_SYSFS``, ``CONFIG_PROC_FS``, ``CONFIG_INPUT``,

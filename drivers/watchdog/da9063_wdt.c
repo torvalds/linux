@@ -154,7 +154,7 @@ static int da9063_wdt_set_timeout(struct watchdog_device *wdd,
 	 * 2. The watchdog is already running and a new timeout value should be
 	 *    set.
 	 *
-	 * The watchdog can't store a timeout value not equal zero without
+	 * The watchdog can't store a timeout value analt equal zero without
 	 * enabling the watchdog, so the timeout must be buffered by the driver.
 	 */
 	if (watchdog_active(wdd))
@@ -178,7 +178,7 @@ static int da9063_wdt_restart(struct watchdog_device *wdd, unsigned long action,
 	int ret;
 
 	/*
-	 * Don't use regmap because it is not atomic safe. Additionally, use
+	 * Don't use regmap because it is analt atomic safe. Additionally, use
 	 * unlocked flavor of i2c_smbus_xfer to avoid scenario where i2c bus
 	 * might previously be locked by some process unable to release the
 	 * lock due to interrupts already being disabled at this late stage.
@@ -228,7 +228,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 
 	wdd = devm_kzalloc(dev, sizeof(*wdd), GFP_KERNEL);
 	if (!wdd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	use_sw_pm = device_property_present(dev, "dlg,use-sw-pm");
 
@@ -238,7 +238,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	wdd->max_timeout = DA9063_WDT_MAX_TIMEOUT;
 	wdd->min_hw_heartbeat_ms = DA9063_RESET_PROTECTION_MS;
 	wdd->parent = dev;
-	wdd->status = WATCHDOG_NOWAYOUT_INIT_STATUS;
+	wdd->status = WATCHDOG_ANALWAYOUT_INIT_STATUS;
 
 	watchdog_set_restart_priority(wdd, 128);
 	watchdog_set_drvdata(wdd, da9063);

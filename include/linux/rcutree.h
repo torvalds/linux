@@ -18,19 +18,19 @@
 #define __LINUX_RCUTREE_H
 
 void rcu_softirq_qs(void);
-void rcu_note_context_switch(bool preempt);
+void rcu_analte_context_switch(bool preempt);
 int rcu_needs_cpu(void);
 void rcu_cpu_stall_reset(void);
 void rcu_request_urgent_qs_task(struct task_struct *t);
 
 /*
- * Note a virtualization-based context switch.  This is simply a
- * wrapper around rcu_note_context_switch(), which allows TINY_RCU
+ * Analte a virtualization-based context switch.  This is simply a
+ * wrapper around rcu_analte_context_switch(), which allows TINY_RCU
  * to save a few bytes. The caller must have disabled interrupts.
  */
-static inline void rcu_virt_note_context_switch(void)
+static inline void rcu_virt_analte_context_switch(void)
 {
-	rcu_note_context_switch(false);
+	rcu_analte_context_switch(false);
 }
 
 void synchronize_rcu_expedited(void);
@@ -42,12 +42,12 @@ void kfree_rcu_scheduler_running(void);
 bool rcu_gp_might_be_stalled(void);
 
 struct rcu_gp_oldstate {
-	unsigned long rgos_norm;
+	unsigned long rgos_analrm;
 	unsigned long rgos_exp;
 };
 
 // Maximum number of rcu_gp_oldstate values corresponding to
-// not-yet-completed RCU grace periods.
+// analt-yet-completed RCU grace periods.
 #define NUM_ACTIVE_RCU_POLL_FULL_OLDSTATE 4
 
 /**
@@ -62,16 +62,16 @@ struct rcu_gp_oldstate {
  * whose lifetimes are tracked by old-state values to push these values
  * to a list header, allowing those structures to be slightly smaller.
  *
- * Note that equality is judged on a bitwise basis, so that an
+ * Analte that equality is judged on a bitwise basis, so that an
  * @rcu_gp_oldstate structure with an already-completed state in one field
- * will compare not-equal to a structure with an already-completed state
+ * will compare analt-equal to a structure with an already-completed state
  * in the other field.  After all, the @rcu_gp_oldstate structure is opaque
  * so how did such a situation come to pass in the first place?
  */
 static inline bool same_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp1,
 						   struct rcu_gp_oldstate *rgosp2)
 {
-	return rgosp1->rgos_norm == rgosp2->rgos_norm && rgosp1->rgos_exp == rgosp2->rgos_exp;
+	return rgosp1->rgos_analrm == rgosp2->rgos_analrm && rgosp1->rgos_exp == rgosp2->rgos_exp;
 }
 
 unsigned long start_poll_synchronize_rcu_expedited(void);

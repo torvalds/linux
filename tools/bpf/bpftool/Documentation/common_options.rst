@@ -13,8 +13,8 @@
 	  associated to BPF objects may rely on it).
 
 -j, --json
-	  Generate JSON output. For commands that cannot produce JSON, this
-	  option has no effect.
+	  Generate JSON output. For commands that cananalt produce JSON, this
+	  option has anal effect.
 
 -p, --pretty
 	  Generate human-readable JSON output. Implies **-j**.

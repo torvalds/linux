@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 
 #ifndef _UAPI_ASM_X86_AMD_HSMP_H_
 #define _UAPI_ASM_X86_AMD_HSMP_H_
@@ -86,7 +86,7 @@ struct hsmp_msg_desc {
  * supported list of messages and message definition in the
  * HSMP chapter of respective family/model PPR.
  *
- * Not supported messages would return -ENOMSG.
+ * Analt supported messages would return -EANALMSG.
  */
 static const struct hsmp_msg_desc hsmp_msg_desc_table[] = {
 	/* RESERVED */

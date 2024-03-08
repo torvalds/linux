@@ -45,14 +45,14 @@ struct other_info {
 	int			num_stack_entries;
 
 	/*
-	 * Optionally pass @current. Typically we do not need to pass @current
+	 * Optionally pass @current. Typically we do analt need to pass @current
 	 * via @other_info since just @task_pid is sufficient. Passing @current
 	 * has additional overhead.
 	 *
 	 * To safely pass @current, we must either use get_task_struct/
 	 * put_task_struct, or stall the thread that populated @other_info.
 	 *
-	 * We cannot rely on get_task_struct/put_task_struct in case
+	 * We cananalt rely on get_task_struct/put_task_struct in case
 	 * release_report() races with a task being released, and would have to
 	 * free it in release_report(). This may result in deadlock if we want
 	 * to use KCSAN on the allocators.
@@ -80,7 +80,7 @@ struct report_time {
 	unsigned long time;
 
 	/*
-	 * The frames of the 2 threads; if only 1 thread is known, one frame
+	 * The frames of the 2 threads; if only 1 thread is kanalwn, one frame
 	 * will be 0.
 	 */
 	unsigned long frame1;
@@ -89,12 +89,12 @@ struct report_time {
 
 /*
  * Since we also want to be able to debug allocators with KCSAN, to avoid
- * deadlock, report_times cannot be dynamically resized with krealloc in
+ * deadlock, report_times cananalt be dynamically resized with krealloc in
  * rate_limit_report.
  *
  * Therefore, we use a fixed-size array, which at most will occupy a page. This
  * still adequately rate limits reports, assuming that a) number of unique data
- * races is not excessive, and b) occurrence of unique races within the
+ * races is analt excessive, and b) occurrence of unique races within the
  * same time window is limited.
  */
 #define REPORT_TIMES_MAX (PAGE_SIZE / sizeof(struct report_time))
@@ -107,13 +107,13 @@ static struct report_time report_times[REPORT_TIMES_SIZE];
 /*
  * Spinlock serializing report generation, and access to @other_infos. Although
  * it could make sense to have a finer-grained locking story for @other_infos,
- * report generation needs to be serialized either way, so not much is gained.
+ * report generation needs to be serialized either way, so analt much is gained.
  */
 static DEFINE_RAW_SPINLOCK(report_lock);
 
 /*
  * Checks if the race identified by thread frames frame1 and frame2 has
- * been reported since (now - KCSAN_REPORT_ONCE_IN_MS).
+ * been reported since (analw - KCSAN_REPORT_ONCE_IN_MS).
  */
 static bool rate_limit_report(unsigned long frame1, unsigned long frame2)
 {
@@ -134,7 +134,7 @@ static bool rate_limit_report(unsigned long frame1, unsigned long frame2)
 
 		/*
 		 * Must always select an entry for use to store info as we
-		 * cannot resize report_times; at the end of the scan, use_entry
+		 * cananalt resize report_times; at the end of the scan, use_entry
 		 * will be the oldest entry, which ideally also happened before
 		 * KCSAN_REPORT_ONCE_IN_MS ago.
 		 */
@@ -142,7 +142,7 @@ static bool rate_limit_report(unsigned long frame1, unsigned long frame2)
 			use_entry = rt;
 
 		/*
-		 * Initially, no need to check any further as this entry as well
+		 * Initially, anal need to check any further as this entry as well
 		 * as following entries have never been used.
 		 */
 		if (rt->time == 0)
@@ -175,7 +175,7 @@ skip_report(enum kcsan_value_change value_change, unsigned long top_frame)
 
 	/*
 	 * The first call to skip_report always has value_change==TRUE, since we
-	 * cannot know the value written of an instrumented access. For the 2nd
+	 * cananalt kanalw the value written of an instrumented access. For the 2nd
 	 * call there are 6 cases with CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY:
 	 *
 	 * 1. read watchpoint, conflicting write (value_change==TRUE): report;
@@ -185,7 +185,7 @@ skip_report(enum kcsan_value_change value_change, unsigned long top_frame)
 	 * 5. write watchpoint, conflicting read (value_change==MAYBE): skip;
 	 * 6. write watchpoint, conflicting read (value_change==TRUE): report;
 	 *
-	 * Cases 1-4 are intuitive and expected; case 5 ensures we do not report
+	 * Cases 1-4 are intuitive and expected; case 5 ensures we do analt report
 	 * data races where the write may have rewritten the same value; case 6
 	 * is possible either if the size is larger than what we check value
 	 * changes for or the access type is KCSAN_ACCESS_ASSERT.
@@ -193,7 +193,7 @@ skip_report(enum kcsan_value_change value_change, unsigned long top_frame)
 	if (IS_ENABLED(CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY) &&
 	    value_change == KCSAN_VALUE_CHANGE_MAYBE) {
 		/*
-		 * The access is a write, but the data value did not change.
+		 * The access is a write, but the data value did analt change.
 		 *
 		 * We opt-out of this filter for certain functions at request of
 		 * maintainers.
@@ -215,14 +215,14 @@ static const char *get_access_type(int type)
 	if (type & KCSAN_ACCESS_ASSERT) {
 		if (type & KCSAN_ACCESS_SCOPED) {
 			if (type & KCSAN_ACCESS_WRITE)
-				return "assert no accesses (reordered)";
+				return "assert anal accesses (reordered)";
 			else
-				return "assert no writes (reordered)";
+				return "assert anal writes (reordered)";
 		} else {
 			if (type & KCSAN_ACCESS_WRITE)
-				return "assert no accesses";
+				return "assert anal accesses";
 			else
-				return "assert no writes";
+				return "assert anal writes";
 		}
 	}
 
@@ -297,7 +297,7 @@ static int get_stack_skipnr(const unsigned long stack_entries[], int num_entries
 		}
 
 		/*
-		 * No match for runtime functions -- @skip entries to skip to
+		 * Anal match for runtime functions -- @skip entries to skip to
 		 * get to first frame of interest.
 		 */
 		break;
@@ -339,8 +339,8 @@ replace_stack_entry(unsigned long stack_entries[], int num_entries, unsigned lon
 	}
 
 fallback:
-	/* Should not happen; the resulting stack trace is likely misleading. */
-	WARN_ONCE(1, "Cannot find frame for %pS in stack trace", (void *)ip);
+	/* Should analt happen; the resulting stack trace is likely misleading. */
+	WARN_ONCE(1, "Cananalt find frame for %pS in stack trace", (void *)ip);
 	return get_stack_skipnr(stack_entries, num_entries);
 }
 
@@ -411,7 +411,7 @@ static void print_report(enum kcsan_value_change value_change,
 						      other_info->ai.ip, &other_reordered_to);
 		other_frame = other_info->stack_entries[other_skipnr];
 
-		/* @value_change is only known for the other thread */
+		/* @value_change is only kanalwn for the other thread */
 		if (skip_report(value_change, other_frame))
 			return;
 	}
@@ -426,7 +426,7 @@ static void print_report(enum kcsan_value_change value_change,
 
 		/*
 		 * Order functions lexographically for consistent bug titles.
-		 * Do not print offset of functions to keep title short.
+		 * Do analt print offset of functions to keep title short.
 		 */
 		cmp = sym_strcmp((void *)other_frame, (void *)this_frame);
 		pr_err("BUG: KCSAN: %s in %ps / %ps\n",
@@ -459,7 +459,7 @@ static void print_report(enum kcsan_value_change value_change,
 		       get_access_type(ai->access_type), ai->ptr, ai->size,
 		       get_thread_desc(ai->task_pid), ai->cpu_id);
 	} else {
-		pr_err("race at unknown origin, with %s to 0x%px of %zu bytes by %s on cpu %i:\n",
+		pr_err("race at unkanalwn origin, with %s to 0x%px of %zu bytes by %s on cpu %i:\n",
 		       get_access_type(ai->access_type), ai->ptr, ai->size,
 		       get_thread_desc(ai->task_pid), ai->cpu_id);
 	}
@@ -498,7 +498,7 @@ static void print_report(enum kcsan_value_change value_change,
 static void release_report(unsigned long *flags, struct other_info *other_info)
 {
 	/*
-	 * Use size to denote valid/invalid, since KCSAN entirely ignores
+	 * Use size to deanalte valid/invalid, since KCSAN entirely iganalres
 	 * 0-sized accesses.
 	 */
 	other_info->ai.size = 0;
@@ -526,7 +526,7 @@ static void set_other_info_task_blocking(unsigned long *flags,
 	 * timeout to ensure this works in all contexts.
 	 *
 	 * Await approximately the worst case delay of the reporting thread (if
-	 * we are not interrupted).
+	 * we are analt interrupted).
 	 */
 	int timeout = max(kcsan_udelay_task, kcsan_udelay_interrupt);
 
@@ -534,7 +534,7 @@ static void set_other_info_task_blocking(unsigned long *flags,
 	do {
 		if (is_running) {
 			/*
-			 * Let lockdep know the real task is sleeping, to print
+			 * Let lockdep kanalw the real task is sleeping, to print
 			 * the held locks (recall we turned lockdep off, so
 			 * locking/unlocking @report_lock won't be recorded).
 			 */
@@ -542,7 +542,7 @@ static void set_other_info_task_blocking(unsigned long *flags,
 		}
 		raw_spin_unlock_irqrestore(&report_lock, *flags);
 		/*
-		 * We cannot call schedule() since we also cannot reliably
+		 * We cananalt call schedule() since we also cananalt reliably
 		 * determine if sleeping here is permitted -- see in_atomic().
 		 */
 
@@ -552,15 +552,15 @@ static void set_other_info_task_blocking(unsigned long *flags,
 			/*
 			 * Abort. Reset @other_info->task to NULL, since it
 			 * appears the other thread is still going to consume
-			 * it. It will result in no verbose info printed for
+			 * it. It will result in anal verbose info printed for
 			 * this task.
 			 */
 			other_info->task = NULL;
 			break;
 		}
 		/*
-		 * If invalid, or @ptr nor @current matches, then @other_info
-		 * has been consumed and we may continue. If not, retry.
+		 * If invalid, or @ptr analr @current matches, then @other_info
+		 * has been consumed and we may continue. If analt, retry.
 		 */
 	} while (other_info->ai.size && other_info->ai.ptr == ai->ptr &&
 		 other_info->task == current);
@@ -568,7 +568,7 @@ static void set_other_info_task_blocking(unsigned long *flags,
 		set_current_state(TASK_RUNNING);
 }
 
-/* Populate @other_info; requires that the provided @other_info not in use. */
+/* Populate @other_info; requires that the provided @other_info analt in use. */
 static void prepare_report_producer(unsigned long *flags,
 				    const struct access_info *ai,
 				    struct other_info *other_info)
@@ -576,15 +576,15 @@ static void prepare_report_producer(unsigned long *flags,
 	raw_spin_lock_irqsave(&report_lock, *flags);
 
 	/*
-	 * The same @other_infos entry cannot be used concurrently, because
+	 * The same @other_infos entry cananalt be used concurrently, because
 	 * there is a one-to-one mapping to watchpoint slots (@watchpoints in
 	 * core.c), and a watchpoint is only released for reuse after reporting
 	 * is done by the consumer of @other_info. Therefore, it is impossible
-	 * for another concurrent prepare_report_producer() to set the same
+	 * for aanalther concurrent prepare_report_producer() to set the same
 	 * @other_info, and are guaranteed exclusivity for the @other_infos
 	 * entry pointed to by @other_info.
 	 *
-	 * To check this property holds, size should never be non-zero here,
+	 * To check this property holds, size should never be analn-zero here,
 	 * because every consumer of struct other_info resets size to 0 in
 	 * release_report().
 	 */
@@ -620,7 +620,7 @@ static bool prepare_report_consumer(unsigned long *flags,
 	if (!matching_access((unsigned long)other_info->ai.ptr, other_info->ai.size,
 			     (unsigned long)ai->ptr, ai->size)) {
 		/*
-		 * If the actual accesses to not match, this was a false
+		 * If the actual accesses to analt match, this was a false
 		 * positive due to watchpoint encoding.
 		 */
 		atomic_long_inc(&kcsan_counters[KCSAN_COUNTER_ENCODING_FALSE_POSITIVES]);
@@ -655,7 +655,7 @@ void kcsan_report_set_info(const volatile void *ptr, size_t size, int access_typ
 	unsigned long flags;
 
 	kcsan_disable_current();
-	lockdep_off(); /* See kcsan_report_known_origin(). */
+	lockdep_off(); /* See kcsan_report_kanalwn_origin(). */
 
 	prepare_report_producer(&flags, &ai, &other_infos[watchpoint_idx]);
 
@@ -663,7 +663,7 @@ void kcsan_report_set_info(const volatile void *ptr, size_t size, int access_typ
 	kcsan_enable_current();
 }
 
-void kcsan_report_known_origin(const volatile void *ptr, size_t size, int access_type,
+void kcsan_report_kanalwn_origin(const volatile void *ptr, size_t size, int access_type,
 			       unsigned long ip, enum kcsan_value_change value_change,
 			       int watchpoint_idx, u64 old, u64 new, u64 mask)
 {
@@ -686,7 +686,7 @@ void kcsan_report_known_origin(const volatile void *ptr, size_t size, int access
 	/*
 	 * Never report if value_change is FALSE, only when it is
 	 * either TRUE or MAYBE. In case of MAYBE, further filtering may
-	 * be done once we know the full stack trace in print_report().
+	 * be done once we kanalw the full stack trace in print_report().
 	 */
 	if (value_change != KCSAN_VALUE_CHANGE_FALSE)
 		print_report(value_change, &ai, other_info, old, new, mask);
@@ -697,14 +697,14 @@ out:
 	kcsan_enable_current();
 }
 
-void kcsan_report_unknown_origin(const volatile void *ptr, size_t size, int access_type,
+void kcsan_report_unkanalwn_origin(const volatile void *ptr, size_t size, int access_type,
 				 unsigned long ip, u64 old, u64 new, u64 mask)
 {
 	const struct access_info ai = prepare_access_info(ptr, size, access_type, ip);
 	unsigned long flags;
 
 	kcsan_disable_current();
-	lockdep_off(); /* See kcsan_report_known_origin(). */
+	lockdep_off(); /* See kcsan_report_kanalwn_origin(). */
 
 	raw_spin_lock_irqsave(&report_lock, flags);
 	print_report(KCSAN_VALUE_CHANGE_TRUE, &ai, NULL, old, new, mask);

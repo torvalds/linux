@@ -40,7 +40,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_CAN_DOZE)
 
 BEGIN_FTR_SECTION
-	/* Now check if user enabled NAP mode */
+	/* Analw check if user enabled NAP mode */
 	lis	r4,powersave_nap@ha
 	lwz	r4,powersave_nap@l(r4)
 	cmpwi	0,r4,0
@@ -55,7 +55,7 @@ BEGIN_FTR_SECTION
 	lis	r3,HID0_NAP@h
 END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 1:
-	/* Go to NAP or DOZE now */
+	/* Go to NAP or DOZE analw */
 	mfspr	r4,SPRN_HID0
 	rlwinm	r4,r4,0,~(HID0_DOZE|HID0_NAP|HID0_SLEEP)
 	or	r4,r4,r3
@@ -82,4 +82,4 @@ _GLOBAL(power_save_ppc32_restore)
 	lwz	r9,_LINK(r11)		/* interrupted in e500_idle */
 	stw	r9,_NIP(r11)		/* make it do a blr */
 	blr
-_ASM_NOKPROBE_SYMBOL(power_save_ppc32_restore)
+_ASM_ANALKPROBE_SYMBOL(power_save_ppc32_restore)

@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
 #include "xfs_alloc.h"
@@ -48,15 +48,15 @@ xfs_fstrm_free_func(
 }
 
 /*
- * Scan the AGs starting at start_agno looking for an AG that isn't in use and
- * has at least minlen blocks free. If no AG is found to match the allocation
+ * Scan the AGs starting at start_aganal looking for an AG that isn't in use and
+ * has at least minlen blocks free. If anal AG is found to match the allocation
  * requirements, pick the AG with the most free space in it.
  */
 static int
 xfs_filestream_pick_ag(
 	struct xfs_alloc_arg	*args,
-	xfs_ino_t		pino,
-	xfs_agnumber_t		start_agno,
+	xfs_ianal_t		pianal,
+	xfs_agnumber_t		start_aganal,
 	int			flags,
 	xfs_extlen_t		*longest)
 {
@@ -65,7 +65,7 @@ xfs_filestream_pick_ag(
 	struct xfs_perag	*max_pag = NULL;
 	xfs_extlen_t		minlen = *longest;
 	xfs_extlen_t		free = 0, minfree, maxfree = 0;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 	bool			first_pass = true;
 	int			err;
 
@@ -73,8 +73,8 @@ xfs_filestream_pick_ag(
 	minfree = mp->m_sb.sb_agblocks / 50;
 
 restart:
-	for_each_perag_wrap(mp, start_agno, agno, pag) {
-		trace_xfs_filestream_scan(pag, pino);
+	for_each_perag_wrap(mp, start_aganal, aganal, pag) {
+		trace_xfs_filestream_scan(pag, pianal);
 		*longest = 0;
 		err = xfs_bmap_longest_free_extent(pag, NULL, longest);
 		if (err) {
@@ -112,7 +112,7 @@ restart:
 			}
 		}
 
-		/* Drop the reference on this AG, it's not usable. */
+		/* Drop the reference on this AG, it's analt usable. */
 		atomic_dec(&pag->pagf_fstrms);
 	}
 
@@ -126,7 +126,7 @@ restart:
 	if (!pag) {
 		/*
 		 * Allow a second pass to give xfs_bmap_longest_free_extent()
-		 * another attempt at locking AGFs that it might have skipped
+		 * aanalther attempt at locking AGFs that it might have skipped
 		 * over before we fail.
 		 */
 		if (first_pass) {
@@ -144,13 +144,13 @@ restart:
 		}
 
 		/*
-		 * No unassociated AGs are available, so select the AG with the
+		 * Anal unassociated AGs are available, so select the AG with the
 		 * most free space, regardless of whether it's already in use by
-		 * another filestream. It none suit, just use whatever AG we can
+		 * aanalther filestream. It analne suit, just use whatever AG we can
 		 * grab.
 		 */
 		if (!max_pag) {
-			for_each_perag_wrap(args->mp, 0, start_agno, args->pag)
+			for_each_perag_wrap(args->mp, 0, start_aganal, args->pag)
 				break;
 			atomic_inc(&args->pag->pagf_fstrms);
 			*longest = 0;
@@ -163,20 +163,20 @@ restart:
 		xfs_perag_rele(max_pag);
 	}
 
-	trace_xfs_filestream_pick(pag, pino, free);
+	trace_xfs_filestream_pick(pag, pianal, free);
 	args->pag = pag;
 	return 0;
 
 }
 
-static struct xfs_inode *
+static struct xfs_ianalde *
 xfs_filestream_get_parent(
-	struct xfs_inode	*ip)
+	struct xfs_ianalde	*ip)
 {
-	struct inode		*inode = VFS_I(ip), *dir = NULL;
+	struct ianalde		*ianalde = VFS_I(ip), *dir = NULL;
 	struct dentry		*dentry, *parent;
 
-	dentry = d_find_alias(inode);
+	dentry = d_find_alias(ianalde);
 	if (!dentry)
 		goto out;
 
@@ -184,7 +184,7 @@ xfs_filestream_get_parent(
 	if (!parent)
 		goto out_dput;
 
-	dir = igrab(d_inode(parent));
+	dir = igrab(d_ianalde(parent));
 	dput(parent);
 
 out_dput:
@@ -198,7 +198,7 @@ out:
  * use it, return with an active perag reference indicating that the allocation
  * will proceed with that association.
  *
- * If we have no association, or we cannot use the current one and have to
+ * If we have anal association, or we cananalt use the current one and have to
  * destroy it, return with longest = 0 to tell the caller to create a new
  * association.
  */
@@ -206,7 +206,7 @@ static int
 xfs_filestream_lookup_association(
 	struct xfs_bmalloca	*ap,
 	struct xfs_alloc_arg	*args,
-	xfs_ino_t		pino,
+	xfs_ianal_t		pianal,
 	xfs_extlen_t		*longest)
 {
 	struct xfs_mount	*mp = args->mp;
@@ -215,12 +215,12 @@ xfs_filestream_lookup_association(
 	int			error = 0;
 
 	*longest = 0;
-	mru = xfs_mru_cache_lookup(mp->m_filestream, pino);
+	mru = xfs_mru_cache_lookup(mp->m_filestream, pianal);
 	if (!mru)
 		return 0;
 	/*
 	 * Grab the pag and take an extra active reference for the caller whilst
-	 * the mru item cannot go away. This means we'll pin the perag with
+	 * the mru item cananalt go away. This means we'll pin the perag with
 	 * the reference we get here even if the filestreams association is torn
 	 * down immediately after we mark the lookup as done.
 	 */
@@ -228,14 +228,14 @@ xfs_filestream_lookup_association(
 	atomic_inc(&pag->pag_active_ref);
 	xfs_mru_cache_done(mp->m_filestream);
 
-	trace_xfs_filestream_lookup(pag, ap->ip->i_ino);
+	trace_xfs_filestream_lookup(pag, ap->ip->i_ianal);
 
-	ap->blkno = XFS_AGB_TO_FSB(args->mp, pag->pag_agno, 0);
+	ap->blkanal = XFS_AGB_TO_FSB(args->mp, pag->pag_aganal, 0);
 	xfs_bmap_adjacent(ap);
 
 	/*
 	 * If there is very little free space before we start a filestreams
-	 * allocation, we're almost guaranteed to fail to find a large enough
+	 * allocation, we're almost guaranteed to fail to find a large eanalugh
 	 * free space available so just use the cached AG.
 	 */
 	if (ap->tp->t_flags & XFS_TRANS_LOWMODE) {
@@ -262,33 +262,33 @@ static int
 xfs_filestream_create_association(
 	struct xfs_bmalloca	*ap,
 	struct xfs_alloc_arg	*args,
-	xfs_ino_t		pino,
+	xfs_ianal_t		pianal,
 	xfs_extlen_t		*longest)
 {
 	struct xfs_mount	*mp = args->mp;
 	struct xfs_mru_cache_elem *mru;
 	struct xfs_fstrm_item	*item;
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, pino);
+	xfs_agnumber_t		aganal = XFS_IANAL_TO_AGANAL(mp, pianal);
 	int			flags = 0;
 	int			error;
 
-	/* Changing parent AG association now, so remove the existing one. */
-	mru = xfs_mru_cache_remove(mp->m_filestream, pino);
+	/* Changing parent AG association analw, so remove the existing one. */
+	mru = xfs_mru_cache_remove(mp->m_filestream, pianal);
 	if (mru) {
 		struct xfs_fstrm_item *item =
 			container_of(mru, struct xfs_fstrm_item, mru);
 
-		agno = (item->pag->pag_agno + 1) % mp->m_sb.sb_agcount;
+		aganal = (item->pag->pag_aganal + 1) % mp->m_sb.sb_agcount;
 		xfs_fstrm_free_func(mp, mru);
-	} else if (xfs_is_inode32(mp)) {
+	} else if (xfs_is_ianalde32(mp)) {
 		xfs_agnumber_t	 rotorstep = xfs_rotorstep;
 
-		agno = (mp->m_agfrotor / rotorstep) % mp->m_sb.sb_agcount;
+		aganal = (mp->m_agfrotor / rotorstep) % mp->m_sb.sb_agcount;
 		mp->m_agfrotor = (mp->m_agfrotor + 1) %
 				 (mp->m_sb.sb_agcount * rotorstep);
 	}
 
-	ap->blkno = XFS_AGB_TO_FSB(args->mp, agno, 0);
+	ap->blkanal = XFS_AGB_TO_FSB(args->mp, aganal, 0);
 	xfs_bmap_adjacent(ap);
 
 	if (ap->datatype & XFS_ALLOC_USERDATA)
@@ -297,19 +297,19 @@ xfs_filestream_create_association(
 		flags |= XFS_PICK_LOWSPACE;
 
 	*longest = ap->length;
-	error = xfs_filestream_pick_ag(args, pino, agno, flags, longest);
+	error = xfs_filestream_pick_ag(args, pianal, aganal, flags, longest);
 	if (error)
 		return error;
 
 	/*
-	 * We are going to use this perag now, so create an assoication for it.
+	 * We are going to use this perag analw, so create an assoication for it.
 	 * xfs_filestream_pick_ag() has already bumped the perag fstrms counter
-	 * for us, so all we need to do here is take another active reference to
+	 * for us, so all we need to do here is take aanalther active reference to
 	 * the perag for the cached association.
 	 *
 	 * If we fail to store the association, we need to drop the fstrms
 	 * counter as well as drop the perag reference we take here for the
-	 * item. We do not need to return an error for this failure - as long as
+	 * item. We do analt need to return an error for this failure - as long as
 	 * we return a referenced AG, the allocation can still go ahead just
 	 * fine.
 	 */
@@ -319,7 +319,7 @@ xfs_filestream_create_association(
 
 	atomic_inc(&args->pag->pag_active_ref);
 	item->pag = args->pag;
-	error = xfs_mru_cache_insert(mp->m_filestream, pino, &item->mru);
+	error = xfs_mru_cache_insert(mp->m_filestream, pianal, &item->mru);
 	if (error)
 		goto out_free_item;
 	return 0;
@@ -333,13 +333,13 @@ out_put_fstrms:
 }
 
 /*
- * Search for an allocation group with a single extent large enough for
+ * Search for an allocation group with a single extent large eanalugh for
  * the request. First we look for an existing association and use that if it
  * is found. Otherwise, we create a new association by selecting an AG that fits
  * the allocation criteria.
  *
  * We return with a referenced perag in args->pag to indicate which AG we are
- * allocating into or an error with no references held.
+ * allocating into or an error with anal references held.
  */
 int
 xfs_filestream_select_ag(
@@ -348,16 +348,16 @@ xfs_filestream_select_ag(
 	xfs_extlen_t		*longest)
 {
 	struct xfs_mount	*mp = args->mp;
-	struct xfs_inode	*pip;
-	xfs_ino_t		ino = 0;
+	struct xfs_ianalde	*pip;
+	xfs_ianal_t		ianal = 0;
 	int			error = 0;
 
 	*longest = 0;
 	args->total = ap->total;
 	pip = xfs_filestream_get_parent(ap->ip);
 	if (pip) {
-		ino = pip->i_ino;
-		error = xfs_filestream_lookup_association(ap, args, ino,
+		ianal = pip->i_ianal;
+		error = xfs_filestream_lookup_association(ap, args, ianal,
 				longest);
 		xfs_irele(pip);
 		if (error)
@@ -368,20 +368,20 @@ xfs_filestream_select_ag(
 			goto out_select;
 	}
 
-	error = xfs_filestream_create_association(ap, args, ino, longest);
+	error = xfs_filestream_create_association(ap, args, ianal, longest);
 	if (error)
 		return error;
 
 out_select:
-	ap->blkno = XFS_AGB_TO_FSB(mp, args->pag->pag_agno, 0);
+	ap->blkanal = XFS_AGB_TO_FSB(mp, args->pag->pag_aganal, 0);
 	return 0;
 }
 
 void
 xfs_filestream_deassociate(
-	struct xfs_inode	*ip)
+	struct xfs_ianalde	*ip)
 {
-	xfs_mru_cache_delete(ip->i_mount->m_filestream, ip->i_ino);
+	xfs_mru_cache_delete(ip->i_mount->m_filestream, ip->i_ianal);
 }
 
 int

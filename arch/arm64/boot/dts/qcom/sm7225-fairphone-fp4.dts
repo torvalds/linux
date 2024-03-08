@@ -77,7 +77,7 @@
 		memory@efe01000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0 0xefe01000 0 0x600000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
@@ -442,7 +442,7 @@
 &pm6350_gpios {
 	gpio_keys_pin: gpio-keys-state {
 		pins = "gpio2";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		bias-pull-up;
 		input-enable;
 		power-source = <0>;
@@ -516,7 +516,7 @@
 };
 
 &qup_uart1_rts {
-	/* We'll drive RTS, so no pull */
+	/* We'll drive RTS, so anal pull */
 	drive-strength = <2>;
 	bias-disable;
 };
@@ -525,14 +525,14 @@
 	/*
 	 * Configure a pull-up on RX. This is needed to avoid
 	 * garbage data when the TX pin of the Bluetooth module is
-	 * in tri-state (module powered off or not driving the
+	 * in tri-state (module powered off or analt driving the
 	 * signal yet).
 	 */
 	bias-pull-up;
 };
 
 &qup_uart1_tx {
-	/* We'll drive TX, so no pull */
+	/* We'll drive TX, so anal pull */
 	drive-strength = <2>;
 	bias-disable;
 };

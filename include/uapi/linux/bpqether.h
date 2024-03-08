@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef	__BPQETHER_H
 #define	__BPQETHER_H
 
@@ -18,7 +18,7 @@ struct bpq_ethaddr {
 
 /* 
  * For SIOCSBPQETHOPT - this is compatible with PI2/PacketTwin card drivers,
- * currently not implemented, though. If someone wants to hook a radio
+ * currently analt implemented, though. If someone wants to hook a radio
  * to his Ethernet card he may find this useful. ;-)
  */
 

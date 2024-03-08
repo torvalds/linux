@@ -20,7 +20,7 @@
 #include "ocfs2.h"
 #include "alloc.h"
 #include "blockcheck.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "journal.h"
 #include "file.h"
 #include "sysfile.h"
@@ -36,14 +36,14 @@
  * should be obeyed by all the functions:
  * - any write of quota structure (either to local or global file) is protected
  *   by dqio_sem or dquot->dq_lock.
- * - any modification of global quota file holds inode cluster lock, i_rwsem,
+ * - any modification of global quota file holds ianalde cluster lock, i_rwsem,
  *   and ip_alloc_sem of the global quota file (achieved by
  *   ocfs2_lock_global_qf). It also has to hold qinfo_lock.
  * - an allocation of new blocks for local quota file is protected by
  *   its ip_alloc_sem
  *
  * A rough sketch of locking dependencies (lf = local file, gf = global file):
- * Normal filesystem operation:
+ * Analrmal filesystem operation:
  *   start_trans -> dqio_sem -> write to lf
  * Syncing of local and global file:
  *   ocfs2_lock_global_qf -> start_trans -> dqio_sem -> qinfo_lock ->
@@ -58,9 +58,9 @@
  * Release last reference to dquot:
  *   dq_lock -> ocfs2_lock_global_qf -> start_trans -> qinfo_lock -> write to gf
  *	     -> write to lf
- * Note that all the above operations also hold the inode cluster lock of lf.
+ * Analte that all the above operations also hold the ianalde cluster lock of lf.
  * Recovery:
- *   inode cluster lock of recovered lf
+ *   ianalde cluster lock of recovered lf
  *     -> read bitmaps -> ip_alloc_sem of lf
  *     -> ocfs2_lock_global_qf -> start_trans -> dqio_sem -> qinfo_lock ->
  *        write to gf
@@ -73,13 +73,13 @@ static void ocfs2_global_disk2memdqb(struct dquot *dquot, void *dp)
 	struct ocfs2_global_disk_dqblk *d = dp;
 	struct mem_dqblk *m = &dquot->dq_dqb;
 
-	/* Update from disk only entries not set by the admin */
+	/* Update from disk only entries analt set by the admin */
 	if (!test_bit(DQ_LASTSET_B + QIF_ILIMITS_B, &dquot->dq_flags)) {
 		m->dqb_ihardlimit = le64_to_cpu(d->dqb_ihardlimit);
 		m->dqb_isoftlimit = le64_to_cpu(d->dqb_isoftlimit);
 	}
-	if (!test_bit(DQ_LASTSET_B + QIF_INODES_B, &dquot->dq_flags))
-		m->dqb_curinodes = le64_to_cpu(d->dqb_curinodes);
+	if (!test_bit(DQ_LASTSET_B + QIF_IANALDES_B, &dquot->dq_flags))
+		m->dqb_curianaldes = le64_to_cpu(d->dqb_curianaldes);
 	if (!test_bit(DQ_LASTSET_B + QIF_BLIMITS_B, &dquot->dq_flags)) {
 		m->dqb_bhardlimit = le64_to_cpu(d->dqb_bhardlimit);
 		m->dqb_bsoftlimit = le64_to_cpu(d->dqb_bsoftlimit);
@@ -102,7 +102,7 @@ static void ocfs2_global_mem2diskdqb(void *dp, struct dquot *dquot)
 	d->dqb_use_count = cpu_to_le32(OCFS2_DQUOT(dquot)->dq_use_count);
 	d->dqb_ihardlimit = cpu_to_le64(m->dqb_ihardlimit);
 	d->dqb_isoftlimit = cpu_to_le64(m->dqb_isoftlimit);
-	d->dqb_curinodes = cpu_to_le64(m->dqb_curinodes);
+	d->dqb_curianaldes = cpu_to_le64(m->dqb_curianaldes);
 	d->dqb_bhardlimit = cpu_to_le64(m->dqb_bhardlimit);
 	d->dqb_bsoftlimit = cpu_to_le64(m->dqb_bsoftlimit);
 	d->dqb_curspace = cpu_to_le64(m->dqb_curspace);
@@ -142,34 +142,34 @@ int ocfs2_validate_quota_block(struct super_block *sb, struct buffer_head *bh)
 
 	/*
 	 * If the ecc fails, we return the error but otherwise
-	 * leave the filesystem running.  We know any error is
+	 * leave the filesystem running.  We kanalw any error is
 	 * local to this block.
 	 */
 	return ocfs2_validate_meta_ecc(sb, bh->b_data, &dqt->dq_check);
 }
 
-int ocfs2_read_quota_phys_block(struct inode *inode, u64 p_block,
+int ocfs2_read_quota_phys_block(struct ianalde *ianalde, u64 p_block,
 				struct buffer_head **bhp)
 {
 	int rc;
 
 	*bhp = NULL;
-	rc = ocfs2_read_blocks(INODE_CACHE(inode), p_block, 1, bhp, 0,
+	rc = ocfs2_read_blocks(IANALDE_CACHE(ianalde), p_block, 1, bhp, 0,
 			       ocfs2_validate_quota_block);
 	if (rc)
-		mlog_errno(rc);
+		mlog_erranal(rc);
 	return rc;
 }
 
-/* Read data from global quotafile - avoid pagecache and such because we cannot
+/* Read data from global quotafile - avoid pagecache and such because we cananalt
  * afford acquiring the locks... We use quota cluster lock to serialize
  * operations. Caller is responsible for acquiring it. */
 ssize_t ocfs2_quota_read(struct super_block *sb, int type, char *data,
 			 size_t len, loff_t off)
 {
 	struct ocfs2_mem_dqinfo *oinfo = sb_dqinfo(sb, type)->dqi_priv;
-	struct inode *gqinode = oinfo->dqi_gqinode;
-	loff_t i_size = i_size_read(gqinode);
+	struct ianalde *gqianalde = oinfo->dqi_gqianalde;
+	loff_t i_size = i_size_read(gqianalde);
 	int offset = off & (sb->s_blocksize - 1);
 	sector_t blk = off >> sb->s_blocksize_bits;
 	int err = 0;
@@ -185,10 +185,10 @@ ssize_t ocfs2_quota_read(struct super_block *sb, int type, char *data,
 	while (toread > 0) {
 		tocopy = min_t(size_t, (sb->s_blocksize - offset), toread);
 		if (!pcount) {
-			err = ocfs2_extent_map_get_blocks(gqinode, blk, &pblock,
+			err = ocfs2_extent_map_get_blocks(gqianalde, blk, &pblock,
 							  &pcount, NULL);
 			if (err) {
-				mlog_errno(err);
+				mlog_erranal(err);
 				return err;
 			}
 		} else {
@@ -196,9 +196,9 @@ ssize_t ocfs2_quota_read(struct super_block *sb, int type, char *data,
 			pblock++;
 		}
 		bh = NULL;
-		err = ocfs2_read_quota_phys_block(gqinode, pblock, &bh);
+		err = ocfs2_read_quota_phys_block(gqianalde, pblock, &bh);
 		if (err) {
-			mlog_errno(err);
+			mlog_erranal(err);
 			return err;
 		}
 		memcpy(data, bh->b_data + offset, tocopy);
@@ -211,14 +211,14 @@ ssize_t ocfs2_quota_read(struct super_block *sb, int type, char *data,
 	return len;
 }
 
-/* Write to quotafile (we know the transaction is already started and has
- * enough credits) */
+/* Write to quotafile (we kanalw the transaction is already started and has
+ * eanalugh credits) */
 ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 			  const char *data, size_t len, loff_t off)
 {
 	struct mem_dqinfo *info = sb_dqinfo(sb, type);
 	struct ocfs2_mem_dqinfo *oinfo = info->dqi_priv;
-	struct inode *gqinode = oinfo->dqi_gqinode;
+	struct ianalde *gqianalde = oinfo->dqi_gqianalde;
 	int offset = off & (sb->s_blocksize - 1);
 	sector_t blk = off >> sb->s_blocksize_bits;
 	int err = 0, new = 0, ja_type;
@@ -228,7 +228,7 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 
 	if (!handle) {
 		mlog(ML_ERROR, "Quota write (off=%llu, len=%llu) cancelled "
-		     "because transaction was not started.\n",
+		     "because transaction was analt started.\n",
 		     (unsigned long long)off, (unsigned long long)len);
 		return -EIO;
 	}
@@ -237,36 +237,36 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 		len = sb->s_blocksize - OCFS2_QBLK_RESERVED_SPACE - offset;
 	}
 
-	if (i_size_read(gqinode) < off + len) {
+	if (i_size_read(gqianalde) < off + len) {
 		loff_t rounded_end =
 				ocfs2_align_bytes_to_blocks(sb, off + len);
 
 		/* Space is already allocated in ocfs2_acquire_dquot() */
-		err = ocfs2_simple_size_update(gqinode,
+		err = ocfs2_simple_size_update(gqianalde,
 					       oinfo->dqi_gqi_bh,
 					       rounded_end);
 		if (err < 0)
 			goto out;
 		new = 1;
 	}
-	err = ocfs2_extent_map_get_blocks(gqinode, blk, &pblock, &pcount, NULL);
+	err = ocfs2_extent_map_get_blocks(gqianalde, blk, &pblock, &pcount, NULL);
 	if (err) {
-		mlog_errno(err);
+		mlog_erranal(err);
 		goto out;
 	}
-	/* Not rewriting whole block? */
+	/* Analt rewriting whole block? */
 	if ((offset || len < sb->s_blocksize - OCFS2_QBLK_RESERVED_SPACE) &&
 	    !new) {
-		err = ocfs2_read_quota_phys_block(gqinode, pblock, &bh);
+		err = ocfs2_read_quota_phys_block(gqianalde, pblock, &bh);
 		ja_type = OCFS2_JOURNAL_ACCESS_WRITE;
 	} else {
 		bh = sb_getblk(sb, pblock);
 		if (!bh)
-			err = -ENOMEM;
+			err = -EANALMEM;
 		ja_type = OCFS2_JOURNAL_ACCESS_CREATE;
 	}
 	if (err) {
-		mlog_errno(err);
+		mlog_erranal(err);
 		goto out;
 	}
 	lock_buffer(bh);
@@ -276,8 +276,8 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 	flush_dcache_page(bh->b_page);
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
-	ocfs2_set_buffer_uptodate(INODE_CACHE(gqinode), bh);
-	err = ocfs2_journal_access_dq(handle, INODE_CACHE(gqinode), bh,
+	ocfs2_set_buffer_uptodate(IANALDE_CACHE(gqianalde), bh);
+	err = ocfs2_journal_access_dq(handle, IANALDE_CACHE(gqianalde), bh,
 				      ja_type);
 	if (err < 0) {
 		brelse(bh);
@@ -287,11 +287,11 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 	brelse(bh);
 out:
 	if (err) {
-		mlog_errno(err);
+		mlog_erranal(err);
 		return err;
 	}
-	inode_inc_iversion(gqinode);
-	ocfs2_mark_inode_dirty(handle, gqinode, oinfo->dqi_gqi_bh);
+	ianalde_inc_iversion(gqianalde);
+	ocfs2_mark_ianalde_dirty(handle, gqianalde, oinfo->dqi_gqi_bh);
 	return len;
 }
 
@@ -300,7 +300,7 @@ int ocfs2_lock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex)
 	int status;
 	struct buffer_head *bh = NULL;
 
-	status = ocfs2_inode_lock(oinfo->dqi_gqinode, &bh, ex);
+	status = ocfs2_ianalde_lock(oinfo->dqi_gqianalde, &bh, ex);
 	if (status < 0)
 		return status;
 	spin_lock(&dq_data_lock);
@@ -310,10 +310,10 @@ int ocfs2_lock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex)
 		WARN_ON(bh != oinfo->dqi_gqi_bh);
 	spin_unlock(&dq_data_lock);
 	if (ex) {
-		inode_lock(oinfo->dqi_gqinode);
-		down_write(&OCFS2_I(oinfo->dqi_gqinode)->ip_alloc_sem);
+		ianalde_lock(oinfo->dqi_gqianalde);
+		down_write(&OCFS2_I(oinfo->dqi_gqianalde)->ip_alloc_sem);
 	} else {
-		down_read(&OCFS2_I(oinfo->dqi_gqinode)->ip_alloc_sem);
+		down_read(&OCFS2_I(oinfo->dqi_gqianalde)->ip_alloc_sem);
 	}
 	return 0;
 }
@@ -321,12 +321,12 @@ int ocfs2_lock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex)
 void ocfs2_unlock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex)
 {
 	if (ex) {
-		up_write(&OCFS2_I(oinfo->dqi_gqinode)->ip_alloc_sem);
-		inode_unlock(oinfo->dqi_gqinode);
+		up_write(&OCFS2_I(oinfo->dqi_gqianalde)->ip_alloc_sem);
+		ianalde_unlock(oinfo->dqi_gqianalde);
 	} else {
-		up_read(&OCFS2_I(oinfo->dqi_gqinode)->ip_alloc_sem);
+		up_read(&OCFS2_I(oinfo->dqi_gqianalde)->ip_alloc_sem);
 	}
-	ocfs2_inode_unlock(oinfo->dqi_gqinode, ex);
+	ocfs2_ianalde_unlock(oinfo->dqi_gqianalde, ex);
 	brelse(oinfo->dqi_gqi_bh);
 	spin_lock(&dq_data_lock);
 	if (!--oinfo->dqi_gqi_count)
@@ -337,8 +337,8 @@ void ocfs2_unlock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex)
 /* Read information header from global quota file */
 int ocfs2_global_read_info(struct super_block *sb, int type)
 {
-	unsigned int ino[OCFS2_MAXQUOTAS] = { USER_QUOTA_SYSTEM_INODE,
-					      GROUP_QUOTA_SYSTEM_INODE };
+	unsigned int ianal[OCFS2_MAXQUOTAS] = { USER_QUOTA_SYSTEM_IANALDE,
+					      GROUP_QUOTA_SYSTEM_IANALDE };
 	struct ocfs2_global_disk_dqinfo dinfo;
 	struct mem_dqinfo *info = sb_dqinfo(sb, type);
 	struct ocfs2_mem_dqinfo *oinfo = info->dqi_priv;
@@ -354,10 +354,10 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 	oinfo->dqi_gqi_count = 0;
 
 	/* Read global header */
-	oinfo->dqi_gqinode = ocfs2_get_system_file_inode(OCFS2_SB(sb), ino[type],
+	oinfo->dqi_gqianalde = ocfs2_get_system_file_ianalde(OCFS2_SB(sb), ianal[type],
 			OCFS2_INVALID_SLOT);
-	if (!oinfo->dqi_gqinode) {
-		mlog(ML_ERROR, "failed to get global quota inode (type=%d)\n",
+	if (!oinfo->dqi_gqianalde) {
+		mlog(ML_ERROR, "failed to get global quota ianalde (type=%d)\n",
 			type);
 		status = -EINVAL;
 		goto out_err;
@@ -365,11 +365,11 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 
 	status = ocfs2_lock_global_qf(oinfo, 0);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto out_err;
 	}
 
-	status = ocfs2_extent_map_get_blocks(oinfo->dqi_gqinode, 0, &oinfo->dqi_giblk,
+	status = ocfs2_extent_map_get_blocks(oinfo->dqi_gqianalde, 0, &oinfo->dqi_giblk,
 					     &pcount, NULL);
 	if (status < 0)
 		goto out_unlock;
@@ -383,11 +383,11 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 	ocfs2_qinfo_unlock(oinfo, 0);
 	ocfs2_unlock_global_qf(oinfo, 0);
 	if (status != sizeof(struct ocfs2_global_disk_dqinfo)) {
-		mlog(ML_ERROR, "Cannot read global quota info (%d).\n",
+		mlog(ML_ERROR, "Cananalt read global quota info (%d).\n",
 		     status);
 		if (status >= 0)
 			status = -EIO;
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto out_err;
 	}
 	info->dqi_bgrace = le32_to_cpu(dinfo.dqi_bgrace);
@@ -408,12 +408,12 @@ out_err:
 	return status;
 out_unlock:
 	ocfs2_unlock_global_qf(oinfo, 0);
-	mlog_errno(status);
+	mlog_erranal(status);
 	goto out_err;
 }
 
 /* Write information to global quota file. Expects exclusive lock on quota
- * file inode and quota info */
+ * file ianalde and quota info */
 static int __ocfs2_global_write_info(struct super_block *sb, int type)
 {
 	struct mem_dqinfo *info = sb_dqinfo(sb, type);
@@ -434,7 +434,7 @@ static int __ocfs2_global_write_info(struct super_block *sb, int type)
 				     sizeof(struct ocfs2_global_disk_dqinfo),
 				     OCFS2_GLOBAL_INFO_OFF);
 	if (size != sizeof(struct ocfs2_global_disk_dqinfo)) {
-		mlog(ML_ERROR, "Cannot write global quota info structure\n");
+		mlog(ML_ERROR, "Cananalt write global quota info structure\n");
 		if (size >= 0)
 			size = -EIO;
 		return size;
@@ -464,7 +464,7 @@ static int ocfs2_global_qinit_alloc(struct super_block *sb, int type)
 	struct ocfs2_mem_dqinfo *oinfo = sb_dqinfo(sb, type)->dqi_priv;
 
 	/*
-	 * We may need to allocate tree blocks and a leaf block but not the
+	 * We may need to allocate tree blocks and a leaf block but analt the
 	 * root block
 	 */
 	return oinfo->dqi_gi.dqi_qtree_depth;
@@ -473,14 +473,14 @@ static int ocfs2_global_qinit_alloc(struct super_block *sb, int type)
 static int ocfs2_calc_global_qinit_credits(struct super_block *sb, int type)
 {
 	/* We modify all the allocated blocks, tree root, info block and
-	 * the inode */
+	 * the ianalde */
 	return (ocfs2_global_qinit_alloc(sb, type) + 2) *
 			OCFS2_QUOTA_BLOCK_UPDATE_CREDITS + 1;
 }
 
 /* Sync local information about quota modifications with global quota file.
  * Caller must have started the transaction and obtained exclusive lock for
- * global quota file inode */
+ * global quota file ianalde */
 int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 {
 	int err, err2;
@@ -488,7 +488,7 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 	int type = dquot->dq_id.type;
 	struct ocfs2_mem_dqinfo *info = sb_dqinfo(sb, type)->dqi_priv;
 	struct ocfs2_global_disk_dqblk dqblk;
-	s64 spacechange, inodechange;
+	s64 spacechange, ianaldechange;
 	time64_t olditime, oldbtime;
 
 	err = sb->s_op->quota_read(sb, type, (char *)&dqblk,
@@ -503,26 +503,26 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 		goto out;
 	}
 
-	/* Update space and inode usage. Get also other information from
+	/* Update space and ianalde usage. Get also other information from
 	 * global quota file so that we don't overwrite any changes there.
 	 * We are */
 	spin_lock(&dquot->dq_dqb_lock);
 	spacechange = dquot->dq_dqb.dqb_curspace -
 					OCFS2_DQUOT(dquot)->dq_origspace;
-	inodechange = dquot->dq_dqb.dqb_curinodes -
-					OCFS2_DQUOT(dquot)->dq_originodes;
+	ianaldechange = dquot->dq_dqb.dqb_curianaldes -
+					OCFS2_DQUOT(dquot)->dq_origianaldes;
 	olditime = dquot->dq_dqb.dqb_itime;
 	oldbtime = dquot->dq_dqb.dqb_btime;
 	ocfs2_global_disk2memdqb(dquot, &dqblk);
 	trace_ocfs2_sync_dquot(from_kqid(&init_user_ns, dquot->dq_id),
 			       dquot->dq_dqb.dqb_curspace,
 			       (long long)spacechange,
-			       dquot->dq_dqb.dqb_curinodes,
-			       (long long)inodechange);
+			       dquot->dq_dqb.dqb_curianaldes,
+			       (long long)ianaldechange);
 	if (!test_bit(DQ_LASTSET_B + QIF_SPACE_B, &dquot->dq_flags))
 		dquot->dq_dqb.dqb_curspace += spacechange;
-	if (!test_bit(DQ_LASTSET_B + QIF_INODES_B, &dquot->dq_flags))
-		dquot->dq_dqb.dqb_curinodes += inodechange;
+	if (!test_bit(DQ_LASTSET_B + QIF_IANALDES_B, &dquot->dq_flags))
+		dquot->dq_dqb.dqb_curianaldes += ianaldechange;
 	/* Set properly space grace time... */
 	if (dquot->dq_dqb.dqb_bsoftlimit &&
 	    dquot->dq_dqb.dqb_curspace > dquot->dq_dqb.dqb_bsoftlimit) {
@@ -538,9 +538,9 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 		dquot->dq_dqb.dqb_btime = 0;
 		clear_bit(DQ_BLKS_B, &dquot->dq_flags);
 	}
-	/* Set properly inode grace time... */
+	/* Set properly ianalde grace time... */
 	if (dquot->dq_dqb.dqb_isoftlimit &&
-	    dquot->dq_dqb.dqb_curinodes > dquot->dq_dqb.dqb_isoftlimit) {
+	    dquot->dq_dqb.dqb_curianaldes > dquot->dq_dqb.dqb_isoftlimit) {
 		if (!test_bit(DQ_LASTSET_B + QIF_ITIME_B, &dquot->dq_flags) &&
 		    olditime > 0) {
 			if (dquot->dq_dqb.dqb_itime > 0)
@@ -551,17 +551,17 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 		}
 	} else {
 		dquot->dq_dqb.dqb_itime = 0;
-		clear_bit(DQ_INODES_B, &dquot->dq_flags);
+		clear_bit(DQ_IANALDES_B, &dquot->dq_flags);
 	}
 	/* All information is properly updated, clear the flags */
 	__clear_bit(DQ_LASTSET_B + QIF_SPACE_B, &dquot->dq_flags);
-	__clear_bit(DQ_LASTSET_B + QIF_INODES_B, &dquot->dq_flags);
+	__clear_bit(DQ_LASTSET_B + QIF_IANALDES_B, &dquot->dq_flags);
 	__clear_bit(DQ_LASTSET_B + QIF_BLIMITS_B, &dquot->dq_flags);
 	__clear_bit(DQ_LASTSET_B + QIF_ILIMITS_B, &dquot->dq_flags);
 	__clear_bit(DQ_LASTSET_B + QIF_BTIME_B, &dquot->dq_flags);
 	__clear_bit(DQ_LASTSET_B + QIF_ITIME_B, &dquot->dq_flags);
 	OCFS2_DQUOT(dquot)->dq_origspace = dquot->dq_dqb.dqb_curspace;
-	OCFS2_DQUOT(dquot)->dq_originodes = dquot->dq_dqb.dqb_curinodes;
+	OCFS2_DQUOT(dquot)->dq_origianaldes = dquot->dq_dqb.dqb_curianaldes;
 	spin_unlock(&dquot->dq_dqb_lock);
 	err = ocfs2_qinfo_lock(info, freeing);
 	if (err < 0) {
@@ -587,7 +587,7 @@ out_qlock:
 	ocfs2_qinfo_unlock(info, freeing);
 out:
 	if (err < 0)
-		mlog_errno(err);
+		mlog_erranal(err);
 	return err;
 }
 
@@ -614,17 +614,17 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 	handle = ocfs2_start_trans(osb, OCFS2_QSYNC_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto out_ilock;
 	}
 	down_write(&sb_dqopt(sb)->dqio_sem);
 	status = ocfs2_sync_dquot(dquot);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erranal(status);
 	/* We have to write local structure as well... */
 	status = ocfs2_local_write_dquot(dquot);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erranal(status);
 	up_write(&sb_dqopt(sb)->dqio_sem);
 	ocfs2_commit_trans(osb, handle);
 out_ilock:
@@ -638,10 +638,10 @@ static void qsync_work_fn(struct work_struct *work)
 	struct ocfs2_mem_dqinfo *oinfo = container_of(work,
 						      struct ocfs2_mem_dqinfo,
 						      dqi_sync_work.work);
-	struct super_block *sb = oinfo->dqi_gqinode->i_sb;
+	struct super_block *sb = oinfo->dqi_gqianalde->i_sb;
 
 	/*
-	 * We have to be careful here not to deadlock on s_umount as umount
+	 * We have to be careful here analt to deadlock on s_umount as umount
 	 * disabling quotas may be in progress and it waits for this work to
 	 * complete. If trylock fails, we'll do the sync next time...
 	 */
@@ -669,7 +669,7 @@ static int ocfs2_write_dquot(struct dquot *dquot)
 	handle = ocfs2_start_trans(osb, OCFS2_QWRITE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto out;
 	}
 	down_write(&sb_dqopt(dquot->dq_sb)->dqio_sem);
@@ -685,20 +685,20 @@ static int ocfs2_calc_qdel_credits(struct super_block *sb, int type)
 	struct ocfs2_mem_dqinfo *oinfo = sb_dqinfo(sb, type)->dqi_priv;
 	/*
 	 * We modify tree, leaf block, global info, local chunk header,
-	 * global and local inode; OCFS2_QINFO_WRITE_CREDITS already
-	 * accounts for inode update
+	 * global and local ianalde; OCFS2_QINFO_WRITE_CREDITS already
+	 * accounts for ianalde update
 	 */
 	return (oinfo->dqi_gi.dqi_qtree_depth + 2) *
 	       OCFS2_QUOTA_BLOCK_UPDATE_CREDITS +
 	       OCFS2_QINFO_WRITE_CREDITS +
-	       OCFS2_INODE_UPDATE_CREDITS;
+	       OCFS2_IANALDE_UPDATE_CREDITS;
 }
 
 void ocfs2_drop_dquot_refs(struct work_struct *work)
 {
 	struct ocfs2_super *osb = container_of(work, struct ocfs2_super,
 					       dquot_drop_work);
-	struct llist_node *list;
+	struct llist_analde *list;
 	struct ocfs2_dquot *odquot, *next_odquot;
 
 	list = llist_del_all(&osb->dquot_drop_list);
@@ -710,9 +710,9 @@ void ocfs2_drop_dquot_refs(struct work_struct *work)
 
 /*
  * Called when the last reference to dquot is dropped. If we are called from
- * downconvert thread, we cannot do all the handling here because grabbing
- * quota lock could deadlock (the node holding the quota lock could need some
- * other cluster lock to proceed but with blocked downconvert thread we cannot
+ * downconvert thread, we cananalt do all the handling here because grabbing
+ * quota lock could deadlock (the analde holding the quota lock could need some
+ * other cluster lock to proceed but with blocked downconvert thread we cananalt
  * release any lock).
  */
 static int ocfs2_release_dquot(struct dquot *dquot)
@@ -727,7 +727,7 @@ static int ocfs2_release_dquot(struct dquot *dquot)
 				  dquot->dq_id.type);
 
 	mutex_lock(&dquot->dq_lock);
-	/* Check whether we are not racing with some other dqget() */
+	/* Check whether we are analt racing with some other dqget() */
 	if (dquot_is_busy(dquot))
 		goto out;
 	/* Running from downconvert thread? Postpone quota processing to wq */
@@ -750,26 +750,26 @@ static int ocfs2_release_dquot(struct dquot *dquot)
 		ocfs2_calc_qdel_credits(dquot->dq_sb, dquot->dq_id.type));
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto out_ilock;
 	}
 
 	status = ocfs2_global_release_dquot(dquot);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto out_trans;
 	}
 	status = ocfs2_local_release_dquot(handle, dquot);
 	/*
-	 * If we fail here, we cannot do much as global structure is
+	 * If we fail here, we cananalt do much as global structure is
 	 * already released. So just complain...
 	 */
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erranal(status);
 	/*
 	 * Clear dq_off so that we search for the structure in quota file next
 	 * time we acquire it. The structure might be deleted and reallocated
-	 * elsewhere by another node while our dquot structure is on freelist.
+	 * elsewhere by aanalther analde while our dquot structure is on freelist.
 	 */
 	dquot->dq_off = 0;
 	clear_bit(DQ_ACTIVE_B, &dquot->dq_flags);
@@ -780,14 +780,14 @@ out_ilock:
 out:
 	mutex_unlock(&dquot->dq_lock);
 	if (status)
-		mlog_errno(status);
+		mlog_erranal(status);
 	return status;
 }
 
 /*
  * Read global dquot structure from disk or create it if it does
- * not exist. Also update use count of the global structure and
- * create structure in node-local quota file.
+ * analt exist. Also update use count of the global structure and
+ * create structure in analde-local quota file.
  */
 static int ocfs2_acquire_dquot(struct dquot *dquot)
 {
@@ -797,7 +797,7 @@ static int ocfs2_acquire_dquot(struct dquot *dquot)
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	int type = dquot->dq_id.type;
 	struct ocfs2_mem_dqinfo *info = sb_dqinfo(sb, type)->dqi_priv;
-	struct inode *gqinode = info->dqi_gqinode;
+	struct ianalde *gqianalde = info->dqi_gqianalde;
 	int need_alloc = ocfs2_global_qinit_alloc(sb, type);
 	handle_t *handle;
 
@@ -816,7 +816,7 @@ static int ocfs2_acquire_dquot(struct dquot *dquot)
 		goto out_dq;
 	/*
 	 * We always want to read dquot structure from disk because we don't
-	 * know what happened with it while it was on freelist.
+	 * kanalw what happened with it while it was on freelist.
 	 */
 	status = qtree_read_dquot(&info->dqi_gi, dquot);
 	ocfs2_qinfo_unlock(info, 0);
@@ -825,17 +825,17 @@ static int ocfs2_acquire_dquot(struct dquot *dquot)
 
 	OCFS2_DQUOT(dquot)->dq_use_count++;
 	OCFS2_DQUOT(dquot)->dq_origspace = dquot->dq_dqb.dqb_curspace;
-	OCFS2_DQUOT(dquot)->dq_originodes = dquot->dq_dqb.dqb_curinodes;
-	if (!dquot->dq_off) {	/* No real quota entry? */
+	OCFS2_DQUOT(dquot)->dq_origianaldes = dquot->dq_dqb.dqb_curianaldes;
+	if (!dquot->dq_off) {	/* Anal real quota entry? */
 		ex = 1;
 		/*
 		 * Add blocks to quota file before we start a transaction since
 		 * locking allocators ranks above a transaction start
 		 */
 		WARN_ON(journal_current_handle());
-		status = ocfs2_extend_no_holes(gqinode, NULL,
-			i_size_read(gqinode) + (need_alloc << sb->s_blocksize_bits),
-			i_size_read(gqinode));
+		status = ocfs2_extend_anal_holes(gqianalde, NULL,
+			i_size_read(gqianalde) + (need_alloc << sb->s_blocksize_bits),
+			i_size_read(gqianalde));
 		if (status < 0)
 			goto out_dq;
 	}
@@ -870,7 +870,7 @@ out_dq:
 out:
 	mutex_unlock(&dquot->dq_lock);
 	if (status)
-		mlog_errno(status);
+		mlog_erranal(status);
 	return status;
 }
 
@@ -897,11 +897,11 @@ out_global:
 	ocfs2_unlock_global_qf(info, 0);
 out:
 	/*
-	 * Avoid logging ENOENT since it just means there isn't next ID and
+	 * Avoid logging EANALENT since it just means there isn't next ID and
 	 * ESRCH which means quota isn't enabled for the filesystem.
 	 */
-	if (status && status != -ENOENT && status != -ESRCH)
-		mlog_errno(status);
+	if (status && status != -EANALENT && status != -ESRCH)
+		mlog_erranal(status);
 	return status;
 }
 
@@ -909,7 +909,7 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 {
 	unsigned long mask = (1 << (DQ_LASTSET_B + QIF_ILIMITS_B)) |
 			     (1 << (DQ_LASTSET_B + QIF_BLIMITS_B)) |
-			     (1 << (DQ_LASTSET_B + QIF_INODES_B)) |
+			     (1 << (DQ_LASTSET_B + QIF_IANALDES_B)) |
 			     (1 << (DQ_LASTSET_B + QIF_SPACE_B)) |
 			     (1 << (DQ_LASTSET_B + QIF_BTIME_B)) |
 			     (1 << (DQ_LASTSET_B + QIF_ITIME_B));
@@ -942,16 +942,16 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 	handle = ocfs2_start_trans(osb, OCFS2_QSYNC_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto out_ilock;
 	}
 	down_write(&sb_dqopt(sb)->dqio_sem);
 	status = ocfs2_sync_dquot(dquot);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto out_dlock;
 	}
-	/* Now write updated local dquot structure */
+	/* Analw write updated local dquot structure */
 	status = ocfs2_local_write_dquot(dquot);
 out_dlock:
 	up_write(&sb_dqopt(sb)->dqio_sem);
@@ -960,7 +960,7 @@ out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);
 out:
 	if (status)
-		mlog_errno(status);
+		mlog_erranal(status);
 	return status;
 }
 
@@ -977,7 +977,7 @@ static int ocfs2_write_info(struct super_block *sb, int type)
 	handle = ocfs2_start_trans(OCFS2_SB(sb), OCFS2_QINFO_WRITE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto out_ilock;
 	}
 	status = dquot_commit_info(sb, type);
@@ -986,14 +986,14 @@ out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);
 out:
 	if (status)
-		mlog_errno(status);
+		mlog_erranal(status);
 	return status;
 }
 
 static struct dquot *ocfs2_alloc_dquot(struct super_block *sb, int type)
 {
 	struct ocfs2_dquot *dquot =
-				kmem_cache_zalloc(ocfs2_dquot_cachep, GFP_NOFS);
+				kmem_cache_zalloc(ocfs2_dquot_cachep, GFP_ANALFS);
 
 	if (!dquot)
 		return NULL;

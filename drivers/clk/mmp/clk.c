@@ -7,7 +7,7 @@
 
 #include "clk.h"
 
-void mmp_clk_init(struct device_node *np, struct mmp_clk_unit *unit,
+void mmp_clk_init(struct device_analde *np, struct mmp_clk_unit *unit,
 		int nr_clks)
 {
 	struct clk **clk_table;

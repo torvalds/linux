@@ -26,7 +26,7 @@
 #define mmGIC_HOST_SOFT_RST_IRQ_POLL_REG	mmPSOC_GLOBAL_CONF_SCRATCHPAD_12
 #define mmCPU_RST_STATUS_TO_HOST		mmPSOC_GLOBAL_CONF_SCRATCHPAD_14
 /*
- *  Single scratchpad register used for all ARCs to notify dccm queue full event to FW.
+ *  Single scratchpad register used for all ARCs to analtify dccm queue full event to FW.
  *  So a new event would overwrite any unhandled previous event. In other words, incase
  *  of multiple events before previous ones are handled, last one would be considered.
  */

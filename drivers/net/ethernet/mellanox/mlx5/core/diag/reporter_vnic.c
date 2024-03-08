@@ -13,7 +13,7 @@ struct mlx5_vnic_diag_stats {
 	__be64 query_vnic_env_out[MLX5_ST_SZ_QW(query_vnic_env_out)];
 };
 
-void mlx5_reporter_vnic_diagnose_counters(struct mlx5_core_dev *dev,
+void mlx5_reporter_vnic_diaganalse_counters(struct mlx5_core_dev *dev,
 					  struct devlink_fmsg *fmsg,
 					  u16 vport_num, bool other_vport)
 {
@@ -24,7 +24,7 @@ void mlx5_reporter_vnic_diagnose_counters(struct mlx5_core_dev *dev,
 	MLX5_SET(query_vnic_env_in, in, vport_number, vport_num);
 	MLX5_SET(query_vnic_env_in, in, other_vport, !!other_vport);
 
-	mlx5_cmd_exec_inout(dev, query_vnic_env, in, &vnic.query_vnic_env_out);
+	mlx5_cmd_exec_ianalut(dev, query_vnic_env, in, &vnic.query_vnic_env_out);
 
 	devlink_fmsg_pair_nest_start(fmsg, "vNIC env counters");
 	devlink_fmsg_obj_nest_start(fmsg);
@@ -64,19 +64,19 @@ void mlx5_reporter_vnic_diagnose_counters(struct mlx5_core_dev *dev,
 	devlink_fmsg_pair_nest_end(fmsg);
 }
 
-static int mlx5_reporter_vnic_diagnose(struct devlink_health_reporter *reporter,
+static int mlx5_reporter_vnic_diaganalse(struct devlink_health_reporter *reporter,
 				       struct devlink_fmsg *fmsg,
 				       struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 
-	mlx5_reporter_vnic_diagnose_counters(dev, fmsg, 0, false);
+	mlx5_reporter_vnic_diaganalse_counters(dev, fmsg, 0, false);
 	return 0;
 }
 
 static const struct devlink_health_reporter_ops mlx5_reporter_vnic_ops = {
 	.name = "vnic",
-	.diagnose = mlx5_reporter_vnic_diagnose,
+	.diaganalse = mlx5_reporter_vnic_diaganalse,
 };
 
 void mlx5_reporter_vnic_create(struct mlx5_core_dev *dev)

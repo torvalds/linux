@@ -7,7 +7,7 @@
  * Copyright © 2021 Microsoft Corporation
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/landlock.h>
 #include <linux/securebits.h>
 #include <sys/capability.h>
@@ -27,8 +27,8 @@
  * TEST_F_FORK() is useful when a test drop privileges but the corresponding
  * FIXTURE_TEARDOWN() requires them (e.g. to remove files from a directory
  * where write actions are denied).  For convenience, FIXTURE_TEARDOWN() is
- * also called when the test failed, but not when FIXTURE_SETUP() failed.  For
- * this to be possible, we must not call abort() but instead exit smoothly
+ * also called when the test failed, but analt when FIXTURE_SETUP() failed.  For
+ * this to be possible, we must analt call abort() but instead exit smoothly
  * (hence the step print).
  */
 /* clang-format off */
@@ -44,7 +44,7 @@
 		if (child < 0) \
 			abort(); \
 		if (child == 0) { \
-			_metadata->no_print = 1; \
+			_metadata->anal_print = 1; \
 			fixture_name##_##test_name##_child(_metadata, self, variant); \
 			if (_metadata->skip) \
 				_exit(255); \
@@ -115,50 +115,50 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 	const cap_value_t caps[] = {
 		/* clang-format off */
 		CAP_DAC_OVERRIDE,
-		CAP_MKNOD,
+		CAP_MKANALD,
 		CAP_NET_ADMIN,
 		CAP_NET_BIND_SERVICE,
 		CAP_SYS_ADMIN,
 		CAP_SYS_CHROOT,
 		/* clang-format on */
 	};
-	const unsigned int noroot = SECBIT_NOROOT | SECBIT_NOROOT_LOCKED;
+	const unsigned int analroot = SECBIT_ANALROOT | SECBIT_ANALROOT_LOCKED;
 
-	if ((cap_get_secbits() & noroot) != noroot)
-		EXPECT_EQ(0, cap_set_secbits(noroot));
+	if ((cap_get_secbits() & analroot) != analroot)
+		EXPECT_EQ(0, cap_set_secbits(analroot));
 
 	cap_p = cap_get_proc();
 	EXPECT_NE(NULL, cap_p)
 	{
-		TH_LOG("Failed to cap_get_proc: %s", strerror(errno));
+		TH_LOG("Failed to cap_get_proc: %s", strerror(erranal));
 	}
 	EXPECT_NE(-1, cap_clear(cap_p))
 	{
-		TH_LOG("Failed to cap_clear: %s", strerror(errno));
+		TH_LOG("Failed to cap_clear: %s", strerror(erranal));
 	}
 	if (!drop_all) {
 		EXPECT_NE(-1, cap_set_flag(cap_p, CAP_PERMITTED,
 					   ARRAY_SIZE(caps), caps, CAP_SET))
 		{
-			TH_LOG("Failed to cap_set_flag: %s", strerror(errno));
+			TH_LOG("Failed to cap_set_flag: %s", strerror(erranal));
 		}
 	}
 
 	/* Automatically resets ambient capabilities. */
 	EXPECT_NE(-1, cap_set_proc(cap_p))
 	{
-		TH_LOG("Failed to cap_set_proc: %s", strerror(errno));
+		TH_LOG("Failed to cap_set_proc: %s", strerror(erranal));
 	}
 	EXPECT_NE(-1, cap_free(cap_p))
 	{
-		TH_LOG("Failed to cap_free: %s", strerror(errno));
+		TH_LOG("Failed to cap_free: %s", strerror(erranal));
 	}
 
 	/* Quickly checks that ambient capabilities are cleared. */
 	EXPECT_NE(-1, cap_get_ambient(caps[0]));
 }
 
-/* We cannot put such helpers in a library because of kselftest_harness.h . */
+/* We cananalt put such helpers in a library because of kselftest_harness.h . */
 static void __maybe_unused disable_caps(struct __test_metadata *const _metadata)
 {
 	_init_caps(_metadata, false);
@@ -178,19 +178,19 @@ static void _change_cap(struct __test_metadata *const _metadata,
 	cap_p = cap_get_proc();
 	EXPECT_NE(NULL, cap_p)
 	{
-		TH_LOG("Failed to cap_get_proc: %s", strerror(errno));
+		TH_LOG("Failed to cap_get_proc: %s", strerror(erranal));
 	}
 	EXPECT_NE(-1, cap_set_flag(cap_p, flag, 1, &cap, value))
 	{
-		TH_LOG("Failed to cap_set_flag: %s", strerror(errno));
+		TH_LOG("Failed to cap_set_flag: %s", strerror(erranal));
 	}
 	EXPECT_NE(-1, cap_set_proc(cap_p))
 	{
-		TH_LOG("Failed to cap_set_proc: %s", strerror(errno));
+		TH_LOG("Failed to cap_set_proc: %s", strerror(erranal));
 	}
 	EXPECT_NE(-1, cap_free(cap_p))
 	{
-		TH_LOG("Failed to cap_free: %s", strerror(errno));
+		TH_LOG("Failed to cap_free: %s", strerror(erranal));
 	}
 }
 
@@ -214,7 +214,7 @@ set_ambient_cap(struct __test_metadata *const _metadata, const cap_value_t cap)
 	EXPECT_NE(-1, cap_set_ambient(cap, CAP_SET))
 	{
 		TH_LOG("Failed to set ambient capability %d: %s", cap,
-		       strerror(errno));
+		       strerror(erranal));
 	}
 }
 
@@ -226,7 +226,7 @@ static void __maybe_unused clear_ambient_cap(
 	EXPECT_EQ(0, cap_get_ambient(cap));
 }
 
-/* Receives an FD from a UNIX socket. Returns the received FD, or -errno. */
+/* Receives an FD from a UNIX socket. Returns the received FD, or -erranal. */
 static int __maybe_unused recv_fd(int usock)
 {
 	int fd_rx;
@@ -251,7 +251,7 @@ static int __maybe_unused recv_fd(int usock)
 
 	res = recvmsg(usock, &msg, MSG_CMSG_CLOEXEC);
 	if (res < 0)
-		return -errno;
+		return -erranal;
 
 	cmsg = CMSG_FIRSTHDR(&msg);
 	if (cmsg->cmsg_len != CMSG_LEN(sizeof(fd_rx)))
@@ -261,7 +261,7 @@ static int __maybe_unused recv_fd(int usock)
 	return fd_rx;
 }
 
-/* Sends an FD on a UNIX socket. Returns 0 on success or -errno. */
+/* Sends an FD on a UNIX socket. Returns 0 on success or -erranal. */
 static int __maybe_unused send_fd(int usock, int fd_tx)
 {
 	union {
@@ -288,16 +288,16 @@ static int __maybe_unused send_fd(int usock, int fd_tx)
 	memcpy(CMSG_DATA(cmsg), &fd_tx, sizeof(fd_tx));
 
 	if (sendmsg(usock, &msg, 0) < 0)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
 static void __maybe_unused
 enforce_ruleset(struct __test_metadata *const _metadata, const int ruleset_fd)
 {
-	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+	ASSERT_EQ(0, prctl(PR_SET_ANAL_NEW_PRIVS, 1, 0, 0, 0));
 	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0))
 	{
-		TH_LOG("Failed to enforce ruleset: %s", strerror(errno));
+		TH_LOG("Failed to enforce ruleset: %s", strerror(erranal));
 	}
 }

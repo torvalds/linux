@@ -204,7 +204,7 @@ static int jdi_fhd_r63452_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &jdi_fhd_r63452_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -230,7 +230,7 @@ static int jdi_fhd_r63452_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio))
@@ -243,7 +243,7 @@ static int jdi_fhd_r63452_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			  MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	drm_panel_init(&ctx->panel, dev, &jdi_fhd_r63452_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ====================================================================
-Notes on Oxford Semiconductor PCIe (Tornado) 950 serial port devices
+Analtes on Oxford Semiconductor PCIe (Tornado) 950 serial port devices
 ====================================================================
 
 Oxford Semiconductor PCIe (Tornado) 950 serial port devices are driven
@@ -18,7 +18,7 @@ to 0.933bps can be obtained this way.
 
 By default the oversampling rate is set to 16 and the clock prescaler is
 set to 33.875, meaning that the frequency to be used as the reference
-for the usual 16-bit divisor is 115313.653, which is close enough to the
+for the usual 16-bit divisor is 115313.653, which is close eanalugh to the
 frequency of 115200 used by the original 8250 for the same values to be
 used for the divisor to obtain the requested baud rates by software that
 is unaware of the extra clock controls available.
@@ -31,14 +31,14 @@ setting bit 4 of the EFR.  In that mode setting bit 7 in the MCR enables
 the prescaler or otherwise it is bypassed as if the value of 1 was used.
 Additionally writing any value to CPR clears CPR2 for compatibility with
 old software written for older conventional PCI Oxford Semiconductor
-devices that do not have the extra prescaler's 9th bit in CPR2, so the
+devices that do analt have the extra prescaler's 9th bit in CPR2, so the
 CPR/CPR2 register pair has to be programmed in the right order.
 
 By using these parameters rates from 15625000bps down to 1bps can be
 obtained, with either exact or highly-accurate actual bit rates for
-standard and many non-standard rates.
+standard and many analn-standard rates.
 
-Here are the figures for the standard and some non-standard baud rates
+Here are the figures for the standard and some analn-standard baud rates
 (including those quoted in Oxford Semiconductor documentation), giving
 the requested rate (r), the actual rate yielded (a) and its deviation
 from the requested rate (d), and the values of the oversampling rate
@@ -105,7 +105,7 @@ Use a value such encoded for the ``custom_divisor`` field along with the
 ASYNC_SPD_CUST flag set in the ``flags`` field in ``struct serial_struct``
 passed with the TIOCSSERIAL ioctl(2), such as with the setserial(8)
 utility and its ``divisor`` and ``spd_cust`` parameters, and then select
-the baud rate of 38400bps.  Note that the value of 0 in TCR sets the
+the baud rate of 38400bps.  Analte that the value of 0 in TCR sets the
 oversampling rate to 16 and prescaler values below 1 in CPR2/CPR are
 clamped by the driver to 1.
 
@@ -118,7 +118,7 @@ port to 62500000 / 62.500 / 1250 / 16 = 50bps.
 Maciej W. Rozycki  <macro@orcam.me.uk>
 
 .. [OX200] "OXPCIe200 PCI Express Multi-Port Bridge", Oxford Semiconductor,
-   Inc., DS-0045, 10 Nov 2008, Section "950 Mode", pp. 64-65
+   Inc., DS-0045, 10 Analv 2008, Section "950 Mode", pp. 64-65
 
 .. [OX952] "OXPCIe952 PCI Express Bridge to Dual Serial & Parallel Port",
    Oxford Semiconductor, Inc., DS-0046, Mar 06 08, Section "950 Mode",

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Feature Integration Technology Inc. (aka Fintek) LPC CIR
+ * Driver for Feature Integration Techanallogy Inc. (aka Fintek) LPC CIR
  *
  * Copyright (C) 2011 Jarod Wilson <jarod@redhat.com>
  *
@@ -67,11 +67,11 @@ static inline void fintek_config_mode_disable(struct fintek_dev *fintek)
 
 /*
  * When you want to address a specific logical device, write its logical
- * device number to GCR_LOGICAL_DEV_NO
+ * device number to GCR_LOGICAL_DEV_ANAL
  */
 static inline void fintek_select_logical_dev(struct fintek_dev *fintek, u8 ldev)
 {
-	fintek_cr_write(fintek, ldev, GCR_LOGICAL_DEV_NO);
+	fintek_cr_write(fintek, ldev, GCR_LOGICAL_DEV_ANAL);
 }
 
 /* write val to cir config register */
@@ -118,8 +118,8 @@ static void cir_dump_regs(struct fintek_dev *fintek)
 static int fintek_hw_detect(struct fintek_dev *fintek)
 {
 	unsigned long flags;
-	u8 chip_major, chip_minor;
-	u8 vendor_major, vendor_minor;
+	u8 chip_major, chip_mianalr;
+	u8 vendor_major, vendor_mianalr;
 	u8 portsel, ir_class;
 	u16 vendor, chip;
 
@@ -152,15 +152,15 @@ static int fintek_hw_detect(struct fintek_dev *fintek)
 	}
 
 	chip_major = fintek_cr_read(fintek, GCR_CHIP_ID_HI);
-	chip_minor = fintek_cr_read(fintek, GCR_CHIP_ID_LO);
-	chip  = chip_major << 8 | chip_minor;
+	chip_mianalr = fintek_cr_read(fintek, GCR_CHIP_ID_LO);
+	chip  = chip_major << 8 | chip_mianalr;
 
 	vendor_major = fintek_cr_read(fintek, GCR_VENDOR_ID_HI);
-	vendor_minor = fintek_cr_read(fintek, GCR_VENDOR_ID_LO);
-	vendor = vendor_major << 8 | vendor_minor;
+	vendor_mianalr = fintek_cr_read(fintek, GCR_VENDOR_ID_LO);
+	vendor = vendor_major << 8 | vendor_mianalr;
 
 	if (vendor != VENDOR_ID_FINTEK)
-		fit_pr(KERN_WARNING, "Unknown vendor ID: 0x%04x", vendor);
+		fit_pr(KERN_WARNING, "Unkanalwn vendor ID: 0x%04x", vendor);
 	else
 		fit_dbg("Read Fintek vendor ID from chip");
 
@@ -168,7 +168,7 @@ static int fintek_hw_detect(struct fintek_dev *fintek)
 
 	spin_lock_irqsave(&fintek->fintek_lock, flags);
 	fintek->chip_major  = chip_major;
-	fintek->chip_minor  = chip_minor;
+	fintek->chip_mianalr  = chip_mianalr;
 	fintek->chip_vendor = vendor;
 
 	/*
@@ -388,7 +388,7 @@ static irqreturn_t fintek_cir_isr(int irq, void *data)
 	if (!(status & CIR_STATUS_IRQ_MASK) || status == 0xff) {
 		fit_dbg_verbose("%s exiting, IRSTS 0x%02x", __func__, status);
 		fintek_cir_reg_write(fintek, CIR_STATUS_IRQ_MASK, CIR_STATUS);
-		return IRQ_RETVAL(IRQ_NONE);
+		return IRQ_RETVAL(IRQ_ANALNE);
 	}
 
 	if (debug)
@@ -463,7 +463,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 {
 	struct fintek_dev *fintek;
 	struct rc_dev *rdev;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	fintek = kzalloc(sizeof(struct fintek_dev), GFP_KERNEL);
 	if (!fintek)
@@ -474,15 +474,15 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	if (!rdev)
 		goto exit_free_dev_rdev;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, 0)) {
-		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
+		dev_err(&pdev->dev, "IR PNP Port analt valid!\n");
 		goto exit_free_dev_rdev;
 	}
 
 	if (!pnp_irq_valid(pdev, 0)) {
-		dev_err(&pdev->dev, "IR PNP IRQ not valid!\n");
+		dev_err(&pdev->dev, "IR PNP IRQ analt valid!\n");
 		goto exit_free_dev_rdev;
 	}
 
@@ -520,7 +520,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = VENDOR_ID_FINTEK;
 	rdev->input_id.product = fintek->chip_major;
-	rdev->input_id.version = fintek->chip_minor;
+	rdev->input_id.version = fintek->chip_mianalr;
 	rdev->dev.parent = &pdev->dev;
 	rdev->driver_name = FINTEK_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
@@ -531,7 +531,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	fintek->rdev = rdev;
 
 	ret = -EBUSY;
-	/* now claim resources */
+	/* analw claim resources */
 	if (!request_region(fintek->cir_addr,
 			    fintek->cir_port_len, FINTEK_DRIVER_NAME))
 		goto exit_free_dev_rdev;
@@ -546,7 +546,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 
 	device_init_wakeup(&pdev->dev, true);
 
-	fit_pr(KERN_NOTICE, "driver has been successfully loaded\n");
+	fit_pr(KERN_ANALTICE, "driver has been successfully loaded\n");
 	if (debug)
 		cir_dump_regs(fintek);
 
@@ -648,7 +648,7 @@ static const struct pnp_device_id fintek_ids[] = {
 static struct pnp_driver fintek_driver = {
 	.name		= FINTEK_DRIVER_NAME,
 	.id_table	= fintek_ids,
-	.flags		= PNP_DRIVER_RES_DO_NOT_CHANGE,
+	.flags		= PNP_DRIVER_RES_DO_ANALT_CHANGE,
 	.probe		= fintek_probe,
 	.remove		= fintek_remove,
 	.suspend	= fintek_suspend,

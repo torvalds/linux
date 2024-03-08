@@ -73,7 +73,7 @@ used by the module to assign the config to the specific line at given offset.
 
 Once the confiuration is complete, the ``'live'`` attribute must be set to 1 in
 order to instantiate the chip. It can be set back to 0 to destroy the simulated
-chip. The module will synchronously wait for the new simulated device to be
+chip. The module will synchroanalusly wait for the new simulated device to be
 successfully probed and if this doesn't happen, writing to ``'live'`` will
 result in an error.
 
@@ -88,7 +88,7 @@ details.
 
 An example device-tree code defining a GPIO simulator:
 
-.. code-block :: none
+.. code-block :: analne
 
     gpio-sim {
         compatible = "gpio-simulator";

@@ -12,9 +12,9 @@
 #include <linux/types.h>
 
 /* Message flags for using the mailbox() interface */
-#define WILCO_EC_FLAG_NO_RESPONSE	BIT(0) /* EC does not respond */
+#define WILCO_EC_FLAG_ANAL_RESPONSE	BIT(0) /* EC does analt respond */
 
-/* Normal commands have a maximum 32 bytes of data */
+/* Analrmal commands have a maximum 32 bytes of data */
 #define EC_MAILBOX_DATA_SIZE		32
 
 struct device;
@@ -72,7 +72,7 @@ struct wilco_ec_request {
  * struct wilco_ec_response - Mailbox response message format.
  * @struct_version: Should be %EC_MAILBOX_PROTO_VERSION
  * @checksum: Sum of all bytes must be 0.
- * @result: Result code from the EC.  Non-zero indicates an error.
+ * @result: Result code from the EC.  Analn-zero indicates an error.
  * @data_size: Length of the response data buffer.
  * @reserved: Set to zero.
  * @data: Response data buffer.  Max size is %EC_MAILBOX_DATA_SIZE_EXTENDED.
@@ -101,7 +101,7 @@ enum wilco_ec_msg_type {
 /**
  * struct wilco_ec_message - Request and response message.
  * @type: Mailbox message type.
- * @flags: Message flags, e.g. %WILCO_EC_FLAG_NO_RESPONSE.
+ * @flags: Message flags, e.g. %WILCO_EC_FLAG_ANAL_RESPONSE.
  * @request_size: Number of bytes to send to the EC.
  * @request_data: Buffer containing the request data.
  * @response_size: Number of bytes to read from EC.
@@ -142,7 +142,7 @@ int wilco_keyboard_leds_init(struct wilco_ec_device *ec);
 /*
  * A Property is typically a data item that is stored to NVRAM
  * by the EC. Each of these data items has an index associated
- * with it, known as the Property ID (PID). Properties may have
+ * with it, kanalwn as the Property ID (PID). Properties may have
  * variable lengths, up to a max of WILCO_EC_PROPERTY_MAX_SIZE
  * bytes. Properties can be simple integers, or they may be more
  * complex binary data.

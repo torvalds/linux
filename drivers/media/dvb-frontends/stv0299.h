@@ -23,7 +23,7 @@
 
     Copyright (C) 2003 Vadim Catana <skystar@moldova.cc>:
 
-    Support for Philips SU1278 on Technotrend hardware
+    Support for Philips SU1278 on Techanaltrend hardware
 
     Copyright (C) 2004 Andrew de Quincey <adq_dvb@lidskialf.net>
 

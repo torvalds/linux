@@ -21,8 +21,8 @@ extern int amd_numa_init(void);
 extern int amd_get_subcaches(int);
 extern int amd_set_subcaches(int, unsigned long);
 
-extern int amd_smn_read(u16 node, u32 address, u32 *value);
-extern int amd_smn_write(u16 node, u32 address, u32 value);
+extern int amd_smn_read(u16 analde, u32 address, u32 *value);
+extern int amd_smn_write(u16 analde, u32 address, u32 value);
 
 struct amd_l3_cache {
 	unsigned indices;
@@ -53,12 +53,12 @@ struct threshold_bank {
 	struct kobject		*kobj;
 	struct threshold_block	*blocks;
 
-	/* initialized to the number of CPUs on the node sharing this bank */
+	/* initialized to the number of CPUs on the analde sharing this bank */
 	refcount_t		cpus;
 	unsigned int		shared;
 };
 
-struct amd_northbridge {
+struct amd_analrthbridge {
 	struct pci_dev *root;
 	struct pci_dev *misc;
 	struct pci_dev *link;
@@ -66,10 +66,10 @@ struct amd_northbridge {
 	struct threshold_bank *bank4;
 };
 
-struct amd_northbridge_info {
+struct amd_analrthbridge_info {
 	u16 num;
 	u64 flags;
-	struct amd_northbridge *nb;
+	struct amd_analrthbridge *nb;
 };
 
 #define AMD_NB_GART			BIT(0)
@@ -80,22 +80,22 @@ struct amd_northbridge_info {
 
 u16 amd_nb_num(void);
 bool amd_nb_has_feature(unsigned int feature);
-struct amd_northbridge *node_to_amd_nb(int node);
+struct amd_analrthbridge *analde_to_amd_nb(int analde);
 
-static inline u16 amd_pci_dev_to_node_id(struct pci_dev *pdev)
+static inline u16 amd_pci_dev_to_analde_id(struct pci_dev *pdev)
 {
 	struct pci_dev *misc;
 	int i;
 
 	for (i = 0; i != amd_nb_num(); i++) {
-		misc = node_to_amd_nb(i)->misc;
+		misc = analde_to_amd_nb(i)->misc;
 
 		if (pci_domain_nr(misc->bus) == pci_domain_nr(pdev->bus) &&
 		    PCI_SLOT(misc->devfn) == PCI_SLOT(pdev->devfn))
 			return i;
 	}
 
-	WARN(1, "Unable to find AMD Northbridge id for %s\n", pci_name(pdev));
+	WARN(1, "Unable to find AMD Analrthbridge id for %s\n", pci_name(pdev));
 	return 0;
 }
 
@@ -116,7 +116,7 @@ static inline bool amd_gart_present(void)
 
 #define amd_nb_num(x)		0
 #define amd_nb_has_feature(x)	false
-#define node_to_amd_nb(x)	NULL
+#define analde_to_amd_nb(x)	NULL
 #define amd_gart_present(x)	false
 
 #endif

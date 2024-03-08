@@ -53,19 +53,19 @@ static int _usbctrl_vendorreq_async_write(struct usb_device *udev, u8 request,
 
 	dr = kzalloc(sizeof(*dr), GFP_ATOMIC);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	databuf = kzalloc(databuf_maxlen, GFP_ATOMIC);
 	if (!databuf) {
 		kfree(dr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		kfree(databuf);
 		kfree(dr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dr->bRequestType = reqtype;
@@ -220,8 +220,8 @@ static void _rtl_usb_io_handler_release(struct ieee80211_hw *hw)
 	mutex_destroy(&rtlpriv->io.bb_mutex);
 }
 
-/*	Default aggregation handler. Do nothing and just return the oldest skb.  */
-static struct sk_buff *_none_usb_tx_aggregate_hdl(struct ieee80211_hw *hw,
+/*	Default aggregation handler. Do analthing and just return the oldest skb.  */
+static struct sk_buff *_analne_usb_tx_aggregate_hdl(struct ieee80211_hw *hw,
 						  struct sk_buff_head *list)
 {
 	return skb_dequeue(list);
@@ -260,7 +260,7 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 	rtlusb->usb_tx_aggregate_hdl =
 		 (rtlpriv->cfg->usb_interface_cfg->usb_tx_aggregate_hdl)
 		 ? rtlpriv->cfg->usb_interface_cfg->usb_tx_aggregate_hdl
-		 : &_none_usb_tx_aggregate_hdl;
+		 : &_analne_usb_tx_aggregate_hdl;
 
 	init_usb_anchor(&rtlusb->tx_submitted);
 	for (i = 0; i < RTL_USB_MAX_EP_NUM; i++) {
@@ -327,7 +327,7 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 		return -EINVAL;
 	}
 	if (rtlusb->out_ep_nums == 0) {
-		pr_err("No output end points found\n");
+		pr_err("Anal output end points found\n");
 		return -EINVAL;
 	}
 	/* usb endpoint mapping */
@@ -386,13 +386,13 @@ static int _rtl_prep_rx_urb(struct ieee80211_hw *hw, struct rtl_usb *rtlusb,
 				 &urb->transfer_dma);
 	if (!buf) {
 		pr_err("Failed to usb_alloc_coherent!!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	usb_fill_bulk_urb(urb, rtlusb->udev,
 			  usb_rcvbulkpipe(rtlusb->udev, rtlusb->in_ep),
 			  buf, rtlusb->rx_max_size, _rtl_rx_completed, rtlusb);
-	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	return 0;
 }
@@ -439,7 +439,7 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 	}
 }
 
-static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
+static void _rtl_usb_rx_process_analagg(struct ieee80211_hw *hw,
 				      struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -521,11 +521,11 @@ static void _rtl_rx_work(struct tasklet_struct *t)
 		}
 
 		if (likely(!rtlusb->usb_rx_segregate_hdl)) {
-			_rtl_usb_rx_process_noagg(hw, skb);
+			_rtl_usb_rx_process_analagg(hw, skb);
 		} else {
 			/* TO DO */
 			_rtl_rx_pre_process(hw, skb);
-			pr_err("rx agg not supported\n");
+			pr_err("rx agg analt supported\n");
 		}
 	}
 }
@@ -537,7 +537,7 @@ static unsigned int _rtl_rx_get_padding(struct ieee80211_hdr *hdr,
 	unsigned int padding = 0;
 #endif
 
-	/* make function no-op when possible */
+	/* make function anal-op when possible */
 	if (NET_IP_ALIGN == 0 || len < sizeof(*hdr))
 		return 0;
 
@@ -622,9 +622,9 @@ static void _rtl_rx_completed(struct urb *_urb)
 
 	switch (_urb->status) {
 	/* disconnect */
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		goto free;
 	default:
@@ -641,7 +641,7 @@ resubmit:
 	return;
 
 free:
-	/* On some architectures, usb_free_coherent must not be called from
+	/* On some architectures, usb_free_coherent must analt be called from
 	 * hardirq context. Queue urb to cleanup list.
 	 */
 	usb_anchor_urb(_urb, &rtlusb->rx_cleanup_urbs);
@@ -686,7 +686,7 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 	WARN_ON(rtlusb->rx_max_size < 1600);
 
 	for (i = 0; i < rtlusb->rx_urb_num; i++) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
 			goto err_out;
@@ -853,7 +853,7 @@ static void _rtl_tx_complete(struct urb *urb)
 		return;
 	err = _usb_tx_post(hw, urb, skb);
 	if (err) {
-		/* Ignore error and keep issuiing other urbs */
+		/* Iganalre error and keep issuiing other urbs */
 		return;
 	}
 }
@@ -996,7 +996,7 @@ int rtl_usb_probe(struct usb_interface *intf,
 				sizeof(struct rtl_usb_priv), &rtl_ops);
 	if (!hw) {
 		pr_warn("rtl_usb: ieee80211 alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rtlpriv = hw->priv;
 	rtlpriv->hw = hw;
@@ -1004,7 +1004,7 @@ int rtl_usb_probe(struct usb_interface *intf,
 				    GFP_KERNEL);
 	if (!rtlpriv->usb_data) {
 		ieee80211_free_hw(hw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* this spin lock must be initialized early */
@@ -1069,7 +1069,7 @@ error_out2:
 	complete(&rtlpriv->firmware_loading_complete);
 	kfree(rtlpriv->usb_data);
 	ieee80211_free_hw(hw);
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL(rtl_usb_probe);
 

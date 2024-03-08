@@ -31,8 +31,8 @@ static int sk_diag_put_flags(struct sock *sk, struct sk_buff *skb)
 		flags |= NDIAG_FLAG_PKTINFO;
 	if (nlk_test_bit(BROADCAST_SEND_ERROR, sk))
 		flags |= NDIAG_FLAG_BROADCAST_ERROR;
-	if (nlk_test_bit(RECV_NO_ENOBUFS, sk))
-		flags |= NDIAG_FLAG_NO_ENOBUFS;
+	if (nlk_test_bit(RECV_ANAL_EANALBUFS, sk))
+		flags |= NDIAG_FLAG_ANAL_EANALBUFS;
 	if (nlk_test_bit(LISTEN_ALL_NSID, sk))
 		flags |= NDIAG_FLAG_LISTEN_ALL_NSID;
 	if (nlk_test_bit(CAP_ACK, sk))
@@ -43,7 +43,7 @@ static int sk_diag_put_flags(struct sock *sk, struct sk_buff *skb)
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 			struct netlink_diag_req *req,
-			u32 portid, u32 seq, u32 flags, int sk_ino)
+			u32 portid, u32 seq, u32 flags, int sk_ianal)
 {
 	struct nlmsghdr *nlh;
 	struct netlink_diag_msg *rep;
@@ -60,7 +60,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 	rep->ndiag_protocol	= sk->sk_protocol;
 	rep->ndiag_state	= sk->sk_state;
 
-	rep->ndiag_ino		= sk_ino;
+	rep->ndiag_ianal		= sk_ianal;
 	rep->ndiag_portid	= nlk->portid;
 	rep->ndiag_dst_portid	= nlk->dst_portid;
 	rep->ndiag_dst_group	= nlk->dst_group;
@@ -109,7 +109,7 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	if (!hti) {
 		hti = kmalloc(sizeof(*hti), GFP_KERNEL);
 		if (!hti)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cb->args[2] = (long)hti;
 	}
@@ -138,7 +138,7 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 				 NETLINK_CB(cb->skb).portid,
 				 cb->nlh->nlmsg_seq,
 				 NLM_F_MULTI,
-				 sock_i_ino(sk)) < 0) {
+				 sock_i_ianal(sk)) < 0) {
 			ret = 1;
 			break;
 		}
@@ -168,7 +168,7 @@ mc_list:
 				 NETLINK_CB(cb->skb).portid,
 				 cb->nlh->nlmsg_seq,
 				 NLM_F_MULTI,
-				 __sock_i_ino(sk)) < 0) {
+				 __sock_i_ianal(sk)) < 0) {
 			ret = 1;
 			break;
 		}
@@ -202,7 +202,7 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		cb->args[1] = i;
 	} else {
 		if (req->sdiag_protocol >= MAX_LINKS)
-			return -ENOENT;
+			return -EANALENT;
 
 		err = __netlink_diag_dump(skb, cb, req->sdiag_protocol, s_num);
 	}
@@ -237,7 +237,7 @@ static int netlink_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
 		};
 		return netlink_dump_start(net->diag_nlsk, skb, h, &c);
 	} else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static const struct sock_diag_handler netlink_diag_handler = {
@@ -257,6 +257,6 @@ static void __exit netlink_diag_exit(void)
 
 module_init(netlink_diag_init);
 module_exit(netlink_diag_exit);
-MODULE_DESCRIPTION("Netlink-based socket monitoring/diagnostic interface (sock_diag)");
+MODULE_DESCRIPTION("Netlink-based socket monitoring/diaganalstic interface (sock_diag)");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 16 /* AF_NETLINK */);

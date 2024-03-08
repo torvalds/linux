@@ -25,7 +25,7 @@
  *
  * Check for a pattern at the given place. Used to search bad block
  * tables and good / bad block identifiers. Same as check_pattern, but
- * no optional empty check and the pattern is expected to start
+ * anal optional empty check and the pattern is expected to start
  * at offset 0.
  *
  */
@@ -73,7 +73,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 	readlen = bd->len;
 
 	/* chip == -1 case only */
-	/* Note that numblocks is 2 * (real numblocks) here;
+	/* Analte that numblocks is 2 * (real numblocks) here;
 	 * see i += 2 below as it makses shifting and masking less painful
 	 */
 	numblocks = this->chipsize >> (bbm->bbt_erase_shift - 1);
@@ -89,12 +89,12 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 		int ret;
 
 		for (j = 0; j < len; j++) {
-			/* No need to read pages fully,
+			/* Anal need to read pages fully,
 			 * just read required OOB bytes */
 			ret = onenand_bbt_read_oob(mtd,
 				from + j * this->writesize + bd->offs, &ops);
 
-			/* If it is a initial bad block, just ignore it */
+			/* If it is a initial bad block, just iganalre it */
 			if (ret == ONENAND_BBT_READ_FATAL_ERROR)
 				return -EIO;
 
@@ -170,7 +170,7 @@ static int onenand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt)
  * @bd:		descriptor for the good/bad block search pattern
  *
  * The function checks, if a bad block table(s) is/are already
- * available. If not it scans the device for manufacturer
+ * available. If analt it scans the device for manufacturer
  * marked good / bad blocks and writes the bad block table(s) to
  * the selected place.
  *
@@ -188,7 +188,7 @@ static int onenand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	/* Allocate memory (2bit per block) and clear the memory bad block table */
 	bbm->bbt = kzalloc(len, GFP_KERNEL);
 	if (!bbm->bbt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set erase shift */
 	bbm->bbt_erase_shift = this->erase_shift;
@@ -233,7 +233,7 @@ int onenand_default_bbt(struct mtd_info *mtd)
 
 	this->bbm = kzalloc(sizeof(struct bbm_info), GFP_KERNEL);
 	if (!this->bbm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bbm = this->bbm;
 

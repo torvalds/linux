@@ -28,7 +28,7 @@
 
 /*
  * This enum specifies a mode in which we want the FPU to operate, for cores
- * which implement the Status.FR bit. Note that the bottom bit of the value
+ * which implement the Status.FR bit. Analte that the bottom bit of the value
  * purposefully matches the desired value of the Status.FR bit.
  */
 enum fpu_mode {
@@ -177,7 +177,7 @@ static inline void lose_fpu_inatomic(int save, struct task_struct *tsk)
 			_save_fp(tsk);
 		__disable_fpu();
 	} else {
-		/* FPU should not have been left enabled with no owner */
+		/* FPU should analt have been left enabled with anal owner */
 		WARN(read_c0_status() & ST0_CU1,
 		     "Orphaned FPU left enabled");
 	}
@@ -197,7 +197,7 @@ static inline void lose_fpu(int save)
  * @target: The task whose FP context should be initialized.
  *
  * Initializes the FP context of the target task to sane default values if that
- * target task does not already have valid FP context. Once the context has
+ * target task does analt already have valid FP context. Once the context has
  * been initialized, the task will be marked as having used FP & thus having
  * valid FP context.
  *
@@ -262,7 +262,7 @@ static inline int __enable_fpu(enum fpu_mode mode)
 
 static inline void __disable_fpu(void)
 {
-	/* no-op */
+	/* anal-op */
 }
 
 
@@ -273,7 +273,7 @@ static inline int is_fpu_owner(void)
 
 static inline void clear_fpu_owner(void)
 {
-	/* no-op */
+	/* anal-op */
 }
 
 static inline int own_fpu_inatomic(int restore)
@@ -288,12 +288,12 @@ static inline int own_fpu(int restore)
 
 static inline void lose_fpu_inatomic(int save, struct task_struct *tsk)
 {
-	/* no-op */
+	/* anal-op */
 }
 
 static inline void lose_fpu(int save)
 {
-	/* no-op */
+	/* anal-op */
 }
 
 static inline bool init_fp_ctx(struct task_struct *target)
@@ -302,27 +302,27 @@ static inline bool init_fp_ctx(struct task_struct *target)
 }
 
 /*
- * The following functions should only be called in paths where we know that FP
+ * The following functions should only be called in paths where we kanalw that FP
  * support is enabled, typically a path where own_fpu() or __enable_fpu() have
- * returned successfully. When CONFIG_MIPS_FP_SUPPORT=n it is known at compile
+ * returned successfully. When CONFIG_MIPS_FP_SUPPORT=n it is kanalwn at compile
  * time that this should never happen, so calls to these functions should be
  * optimized away & never actually be emitted.
  */
 
 extern void save_fp(struct task_struct *tsk)
-	__compiletime_error("save_fp() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+	__compiletime_error("save_fp() should analt be called when CONFIG_MIPS_FP_SUPPORT=n");
 
 extern void _save_fp(struct task_struct *)
-	__compiletime_error("_save_fp() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+	__compiletime_error("_save_fp() should analt be called when CONFIG_MIPS_FP_SUPPORT=n");
 
 extern void restore_fp(struct task_struct *tsk)
-	__compiletime_error("restore_fp() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+	__compiletime_error("restore_fp() should analt be called when CONFIG_MIPS_FP_SUPPORT=n");
 
 extern void _restore_fp(struct task_struct *)
-	__compiletime_error("_restore_fp() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+	__compiletime_error("_restore_fp() should analt be called when CONFIG_MIPS_FP_SUPPORT=n");
 
 extern union fpureg *get_fpu_regs(struct task_struct *tsk)
-	__compiletime_error("get_fpu_regs() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+	__compiletime_error("get_fpu_regs() should analt be called when CONFIG_MIPS_FP_SUPPORT=n");
 
 #endif /* !CONFIG_MIPS_FP_SUPPORT */
 #endif /* _ASM_FPU_H */

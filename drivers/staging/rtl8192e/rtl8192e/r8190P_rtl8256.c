@@ -17,7 +17,7 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 
 	if (priv->card_8192_version != VERSION_8190_BD &&
 	    priv->card_8192_version != VERSION_8190_BE) {
-		netdev_warn(dev, "%s(): Unknown HW version.\n", __func__);
+		netdev_warn(dev, "%s(): Unkanalwn HW version.\n", __func__);
 		return;
 	}
 
@@ -40,7 +40,7 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 					  0x0e, bMask12Bits, 0x0e1);
 			break;
 		default:
-			netdev_err(dev, "%s(): Unknown bandwidth: %#X\n",
+			netdev_err(dev, "%s(): Unkanalwn bandwidth: %#X\n",
 				   __func__, bandwidth);
 			break;
 		}

@@ -79,13 +79,13 @@ static const struct s_p_tab {
 	/* StationConfigGrp */
 	{ SMT_P1014,AC_GROUP	} ,
 	{ SMT_P1015,AC_G,	MOFFSS(fddiSMTMac_Ct),		"B"	} ,
-	{ SMT_P1016,AC_G,	MOFFSS(fddiSMTNonMaster_Ct),	"B"	} ,
+	{ SMT_P1016,AC_G,	MOFFSS(fddiSMTAnalnMaster_Ct),	"B"	} ,
 	{ SMT_P1017,AC_G,	MOFFSS(fddiSMTMaster_Ct),	"B"	} ,
 	{ SMT_P1018,AC_G,	MOFFSS(fddiSMTAvailablePaths),	"B"	} ,
 	{ SMT_P1019,AC_G,	MOFFSS(fddiSMTConfigCapabilities),"S"	} ,
 	{ SMT_P101A,AC_GR,	MOFFSS(fddiSMTConfigPolicy),	"wS"	} ,
 	{ SMT_P101B,AC_GR,	MOFFSS(fddiSMTConnectionPolicy),"wS"	} ,
-	{ SMT_P101D,AC_GR,	MOFFSS(fddiSMTTT_Notify),	"wS"	} ,
+	{ SMT_P101D,AC_GR,	MOFFSS(fddiSMTTT_Analtify),	"wS"	} ,
 	{ SMT_P101E,AC_GR,	MOFFSS(fddiSMTStatRptPolicy),	"bB"	} ,
 	{ SMT_P101F,AC_GR,	MOFFSS(fddiSMTTrace_MaxExpiration),"lL"	} ,
 	{ SMT_P1020,AC_G,	MOFFSS(fddiSMTPORTIndexes),	"II"	} ,
@@ -104,7 +104,7 @@ static const struct s_p_tab {
 	{ SMT_P1032,AC_GROUP	} ,
 	{ SMT_P1033,AC_G,	MOFFSS(fddiSMTTimeStamp),"P"		} ,
 	{ SMT_P1034,AC_G,	MOFFSS(fddiSMTTransitionTimeStamp),"P"	} ,
-	/* NOTE : SMT_P1035 is already swapped ! SMT_P_SETCOUNT */
+	/* ANALTE : SMT_P1035 is already swapped ! SMT_P_SETCOUNT */
 	{ SMT_P1035,AC_G,	MOFFSS(fddiSMTSetCount),"4P"		} ,
 	{ SMT_P1036,AC_G,	MOFFSS(fddiSMTLastSetStationId),"8"	} ,
 
@@ -175,7 +175,7 @@ static const struct s_p_tab {
 	{ SMT_P2051,AC_G,	MOFFMS(fddiMACError_Ct),	"C"	} ,
 	{ SMT_P2052,AC_G,	MOFFMS(fddiMACLost_Ct),		"C"	} ,
 	{ SMT_P2053,AC_G,	MOFFMS(fddiMACTvxExpired_Ct),	"C"	} ,
-	{ SMT_P2054,AC_G,	MOFFMS(fddiMACNotCopied_Ct),	"C"	} ,
+	{ SMT_P2054,AC_G,	MOFFMS(fddiMACAnaltCopied_Ct),	"C"	} ,
 	{ SMT_P2056,AC_G,	MOFFMS(fddiMACRingOp_Ct),	"C"	} ,
 
 	/* FrameErrorConditionGrp */
@@ -183,10 +183,10 @@ static const struct s_p_tab {
 	{ SMT_P205F,AC_GR,	MOFFMS(fddiMACFrameErrorThreshold),"wS"	} ,
 	{ SMT_P2060,AC_G,	MOFFMS(fddiMACFrameErrorRatio),	"S"	} ,
 
-	/* NotCopiedConditionGrp */
+	/* AnaltCopiedConditionGrp */
 	{ SMT_P2064,AC_GROUP	} ,
-	{ SMT_P2067,AC_GR,	MOFFMS(fddiMACNotCopiedThreshold),"wS"	} ,
-	{ SMT_P2069,AC_G,	MOFFMS(fddiMACNotCopiedRatio),	"S"	} ,
+	{ SMT_P2067,AC_GR,	MOFFMS(fddiMACAnaltCopiedThreshold),"wS"	} ,
+	{ SMT_P2069,AC_G,	MOFFMS(fddiMACAnaltCopiedRatio),	"S"	} ,
 
 	/* StatusGrp */
 	{ SMT_P206E,AC_GROUP	} ,
@@ -194,7 +194,7 @@ static const struct s_p_tab {
 	{ SMT_P2070,AC_G,	MOFFMS(fddiMACDA_Flag),	"F"	} ,
 	{ SMT_P2071,AC_G,	MOFFMS(fddiMACUNDA_Flag),	"F"	} ,
 	{ SMT_P2072,AC_G,	MOFFMS(fddiMACFrameErrorFlag),	"F"	} ,
-	{ SMT_P2073,AC_G,	MOFFMS(fddiMACNotCopiedFlag),	"F"	} ,
+	{ SMT_P2073,AC_G,	MOFFMS(fddiMACAnaltCopiedFlag),	"F"	} ,
 	{ SMT_P2074,AC_G,	MOFFMS(fddiMACMA_UnitdataAvailable),"F"	} ,
 	{ SMT_P2075,AC_G,	MOFFMS(fddiMACHardwarePresent),	"F"	} ,
 	{ SMT_P2076,AC_GR,	MOFFMS(fddiMACMA_UnitdataEnable),"bF"	} ,
@@ -335,8 +335,8 @@ static SMbuf *smt_build_pmf_response(struct s_smc *smc, struct smt_header *req,
 	 * setup parameter status
 	 */
 	pcon.pc_len = SMT_MAX_INFO_LEN ;	/* max para length */
-	pcon.pc_err = 0 ;			/* no error */
-	pcon.pc_badset = 0 ;			/* no bad set count */
+	pcon.pc_err = 0 ;			/* anal error */
+	pcon.pc_badset = 0 ;			/* anal bad set count */
 	pcon.pc_p = (void *) (smt + 1) ;	/* paras start here */
 
 	/*
@@ -406,7 +406,7 @@ static SMbuf *smt_build_pmf_response(struct s_smc *smc, struct smt_header *req,
 		}
 		else {
 			/*
-			 * smt group has no index
+			 * smt group has anal index
 			 */
 			if (!set && (pa->p_len != 0)) {
 				pcon.pc_err = SMT_RDF_LENGTH ;
@@ -431,7 +431,7 @@ static SMbuf *smt_build_pmf_response(struct s_smc *smc, struct smt_header *req,
 				}
 			}
 			/*
-			 * ignore
+			 * iganalre
 			 *	AUTHORIZATION in get/set
 			 *	SET COUNT in set
 			 */
@@ -495,7 +495,7 @@ static int smt_authorize(struct s_smc *smc, struct smt_header *sm)
 	char		*p ;
 
 	/*
-	 * check source station id if not zero
+	 * check source station id if analt zero
 	 */
 	p = (char *) &smc->mib.fddiPRPMFStation ;
 	for (i = 0 ; i < 8 && !p[i] ; i++)
@@ -506,7 +506,7 @@ static int smt_authorize(struct s_smc *smc, struct smt_header *sm)
 			return 1;
 	}
 	/*
-	 * check authoriziation parameter if passwd not zero
+	 * check authoriziation parameter if passwd analt zero
 	 */
 	p = (char *) smc->mib.fddiPRPMFPasswd ;
 	for (i = 0 ; i < 8 && !p[i] ; i++)
@@ -605,7 +605,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 		break ;
 	case 0x2000 :
 		if (mac < 0 || mac >= NUMMACS) {
-			pcon->pc_err = SMT_RDF_NOPARAM ;
+			pcon->pc_err = SMT_RDF_ANALPARAM ;
 			return ;
 		}
 		mib_addr = (char *) (&smc->mib.m[mac]) ;
@@ -613,14 +613,14 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 		break ;
 	case 0x3000 :
 		if (path < 0 || path >= NUMPATHS) {
-			pcon->pc_err = SMT_RDF_NOPARAM ;
+			pcon->pc_err = SMT_RDF_ANALPARAM ;
 			return ;
 		}
 		mib_addr = (char *) (&smc->mib.a[path]) ;
 		break ;
 	case 0x4000 :
 		if (port < 0 || port >= smt_mib_phys(smc)) {
-			pcon->pc_err = SMT_RDF_NOPARAM ;
+			pcon->pc_err = SMT_RDF_ANALPARAM ;
 			return ;
 		}
 		mib_addr = (char *) (&smc->mib.p[port_to_mib(smc,port)]) ;
@@ -648,7 +648,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 #endif
 	case SMT_P20F1 :
 		if (!local) {
-			pcon->pc_err = SMT_RDF_NOPARAM ;
+			pcon->pc_err = SMT_RDF_ANALPARAM ;
 			return ;
 		}
 		break ;
@@ -738,18 +738,18 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 			sp_len = sizeof(struct smt_p_208d) ;
 			goto sp_done ;
 		}
-	case SMT_P208E :		/* not copied condition */
+	case SMT_P208E :		/* analt copied condition */
 		{
 			struct smt_p_208e	*sp ;
 			sp = (struct smt_p_208e *) to ;
 			sp->p208e_flag =
-				mib_m->fddiMACNotCopiedFlag ;
-			sp->p208e_not_copied =
-				mib_m->fddiMACNotCopied_Ct ;
+				mib_m->fddiMACAnaltCopiedFlag ;
+			sp->p208e_analt_copied =
+				mib_m->fddiMACAnaltCopied_Ct ;
 			sp->p208e_copied =
 				mib_m->fddiMACCopied_Ct ;
-			sp->p208e_not_copied_ratio =
-				mib_m->fddiMACNotCopiedRatio ;
+			sp->p208e_analt_copied_ratio =
+				mib_m->fddiMACAnaltCopiedRatio ;
 			sp_len = sizeof(struct smt_p_208e) ;
 			goto sp_done ;
 		}
@@ -866,7 +866,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 	 * in table ?
 	 */
 	if (!pt) {
-		pcon->pc_err = (para & 0xff00) ? SMT_RDF_NOPARAM :
+		pcon->pc_err = (para & 0xff00) ? SMT_RDF_ANALPARAM :
 						SMT_RDF_ILLEGAL ;
 		return ;
 	}
@@ -1007,7 +1007,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 			from += 32 ;
 			len -= 32 ;
 			break ;
-		case 'P' :		/* timestamp is NOT swapped */
+		case 'P' :		/* timestamp is ANALT swapped */
 			if (len < 8)
 				goto len_error ;
 			to[0] = *from++ ;
@@ -1030,7 +1030,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 done:
 	/*
 	 * make it even (in case of 'I' encoding)
-	 * note: len is DECREMENTED
+	 * analte: len is DECREMENTED
 	 */
 	if (len & 3) {
 		to[0] = 0 ;
@@ -1053,7 +1053,7 @@ sp_done:
 	goto done ;
 
 len_error:
-	/* parameter does not fit in frame */
+	/* parameter does analt fit in frame */
 	pcon->pc_err = SMT_RDF_TOOLONG ;
 	return ;
 
@@ -1101,7 +1101,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 		break ;
 	case 0x2000 :
 		if (mac < 0 || mac >= NUMMACS) {
-			return SMT_RDF_NOPARAM;
+			return SMT_RDF_ANALPARAM;
 		}
 		mib_m = &smc->mib.m[mac] ;
 		mib_addr = (char *) mib_m ;
@@ -1110,7 +1110,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 		break ;
 	case 0x3000 :
 		if (path < 0 || path >= NUMPATHS) {
-			return SMT_RDF_NOPARAM;
+			return SMT_RDF_ANALPARAM;
 		}
 		mib_a = &smc->mib.a[path] ;
 		mib_addr = (char *) mib_a ;
@@ -1119,7 +1119,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 		break ;
 	case 0x4000 :
 		if (port < 0 || port >= smt_mib_phys(smc)) {
-			return SMT_RDF_NOPARAM;
+			return SMT_RDF_ANALPARAM;
 		}
 		mib_p = &smc->mib.p[port_to_mib(smc,port)] ;
 		mib_addr = (char *) mib_p ;
@@ -1144,12 +1144,12 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 #endif
 	case SMT_P20F1 :
 		if (!local)
-			return SMT_RDF_NOPARAM;
+			return SMT_RDF_ANALPARAM;
 		break ;
 	}
 	pt = smt_get_ptab(pa->p_type) ;
 	if (!pt)
-		return (pa->p_type & 0xff00) ? SMT_RDF_NOPARAM :
+		return (pa->p_type & 0xff00) ? SMT_RDF_ANALPARAM :
 					       SMT_RDF_ILLEGAL;
 	switch (pt->p_access) {
 	case AC_GR :
@@ -1266,7 +1266,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 			from += 32 ;
 			len -= 32 ;
 			break ;
-		case 'P' :		/* timestamp is NOT swapped */
+		case 'P' :		/* timestamp is ANALT swapped */
 			if (set) {
 				to[0] = *from++ ;
 				to[1] = *from++ ;
@@ -1299,10 +1299,10 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 			goto val_error ;
 		IFSET(mib->fddiSMTConnectionPolicy = word_val) ;
 		break ;
-	case SMT_P101D : 		/* fddiSMTTT_Notify */
+	case SMT_P101D : 		/* fddiSMTTT_Analtify */
 		if (word_val < 2 || word_val > 30)
 			goto val_error ;
-		IFSET(mib->fddiSMTTT_Notify = word_val) ;
+		IFSET(mib->fddiSMTTT_Analtify = word_val) ;
 		break ;
 	case SMT_P101E :		/* fddiSMTStatRptPolicy */
 		if (byte_val & ~1)
@@ -1311,8 +1311,8 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 		break ;
 	case SMT_P101F :		/* fddiSMTTrace_MaxExpiration */
 		/*
-		 * note: lower limit trace_max = 6.001773... s
-		 * NO upper limit
+		 * analte: lower limit trace_max = 6.001773... s
+		 * ANAL upper limit
 		 */
 		if (long_val < (long)0x478bf51L)
 			goto val_error ;
@@ -1379,9 +1379,9 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 		/* 0 .. ffff acceptable */
 		IFSET(mib_m->fddiMACFrameErrorThreshold = word_val) ;
 		break ;
-	case SMT_P2067 :		/* fddiMACNotCopiedThreshold */
+	case SMT_P2067 :		/* fddiMACAnaltCopiedThreshold */
 		/* 0 .. ffff acceptable */
-		IFSET(mib_m->fddiMACNotCopiedThreshold = word_val) ;
+		IFSET(mib_m->fddiMACAnaltCopiedThreshold = word_val) ;
 		break ;
 	case SMT_P2076:			/* fddiMACMA_UnitdataEnable */
 		if (byte_val & ~1)
@@ -1417,7 +1417,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 #endif
 		break ;
 	case SMT_P3213:			/* fddiPATHT_Rmode */
-		/* no limit :
+		/* anal limit :
 		 * 0 .. 343.597 => 0 .. 2e32 * 80nS
 		 */
 		if (set) {
@@ -1502,10 +1502,10 @@ len_error:
 	return SMT_RDF_LENGTH;
 
 #if	0
-no_author_error:
-	/* parameter not setable, because the SBA is not active
-	 * Please note: we give the return code 'not authorizeed
-	 *  because SBA denied is not a valid return code in the
+anal_author_error:
+	/* parameter analt setable, because the SBA is analt active
+	 * Please analte: we give the return code 'analt authorizeed
+	 *  because SBA denied is analt a valid return code in the
 	 * PMF protocol.
 	 */
 	return SMT_RDF_AUTHOR;
@@ -1648,8 +1648,8 @@ void dump_hex(char *p, int len)
 #endif
 	}
 }
-#endif	/* no BOOT */
+#endif	/* anal BOOT */
 #endif	/* DEBUG */
 
 
-#endif	/* no SLIM_SMT */
+#endif	/* anal SLIM_SMT */

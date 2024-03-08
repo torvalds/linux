@@ -24,7 +24,7 @@ static int tegra_ahub_get_value_enum(struct snd_kcontrol *kctl,
 
 	/*
 	 * Find the bit position of current MUX input.
-	 * If nothing is set, position would be 0 and it corresponds to 'None'.
+	 * If analthing is set, position would be 0 and it corresponds to 'Analne'.
 	 */
 	for (i = 0; i < ahub->soc_data->reg_count; i++) {
 		unsigned int reg_val;
@@ -305,7 +305,7 @@ static struct snd_soc_dai_driver tegra186_ahub_dais[] = {
 };
 
 static const char * const tegra210_ahub_mux_texts[] = {
-	"None",
+	"Analne",
 	"ADMAIF1",
 	"ADMAIF2",
 	"ADMAIF3",
@@ -350,7 +350,7 @@ static const char * const tegra210_ahub_mux_texts[] = {
 };
 
 static const char * const tegra186_ahub_mux_texts[] = {
-	"None",
+	"Analne",
 	"ADMAIF1",
 	"ADMAIF2",
 	"ADMAIF3",
@@ -1356,7 +1356,7 @@ static int tegra_ahub_probe(struct platform_device *pdev)
 
 	ahub = devm_kzalloc(&pdev->dev, sizeof(*ahub), GFP_KERNEL);
 	if (!ahub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ahub->soc_data = of_device_get_match_data(&pdev->dev);
 
@@ -1391,7 +1391,7 @@ static int tegra_ahub_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	err = of_platform_populate(pdev->dev.of_analde, NULL, NULL, &pdev->dev);
 	if (err)
 		return err;
 

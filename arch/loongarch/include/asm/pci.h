@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_PCI_H
 #define _ASM_PCI_H
@@ -17,7 +17,7 @@
 #define HAVE_PCI_MMAP
 #define pcibios_assign_all_busses()     0
 
-extern phys_addr_t mcfg_addr_init(int node);
+extern phys_addr_t mcfg_addr_init(int analde);
 
 /* generic pci stuff */
 #include <asm-generic/pci.h>

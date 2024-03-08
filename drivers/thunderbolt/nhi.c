@@ -5,13 +5,13 @@
  * The NHI (native host interface) is the pci device that allows us to send and
  * receive frames from the thunderbolt bus.
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Analever <andreas.analever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
@@ -73,7 +73,7 @@ static void nhi_mask_interrupt(struct tb_nhi *nhi, int mask, int ring)
 static void nhi_clear_interrupt(struct tb_nhi *nhi, int ring)
 {
 	if (nhi->quirks & QUIRK_AUTO_CLEAR_INT)
-		ioread32(nhi->iobase + REG_RING_NOTIFY_BASE + ring);
+		ioread32(nhi->iobase + REG_RING_ANALTIFY_BASE + ring);
 	else
 		iowrite32(~0, nhi->iobase + REG_RING_INT_CLEAR + ring);
 }
@@ -106,7 +106,7 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 		 * Intel routers support a bit that isn't part of
 		 * the USB4 spec to ask the hardware to clear
 		 * interrupt status bits automatically since
-		 * we already know which interrupt was triggered.
+		 * we already kanalw which interrupt was triggered.
 		 *
 		 * Other routers explicitly disable auto-clear
 		 * to prevent conditions that may occur where two
@@ -167,7 +167,7 @@ static void nhi_disable_interrupts(struct tb_nhi *nhi)
 		nhi_mask_interrupt(nhi, ~0, 4 * i);
 
 	/* clear interrupt status bits */
-	for (i = 0; i < RING_NOTIFY_REG_COUNT(nhi); i++)
+	for (i = 0; i < RING_ANALTIFY_REG_COUNT(nhi); i++)
 		nhi_clear_interrupt(nhi, 4 * i);
 }
 
@@ -193,7 +193,7 @@ static void ring_iowrite_cons(struct tb_ring *ring, u16 cons)
 {
 	/*
 	 * The other 16-bits in the register is read-only and writes to it
-	 * are ignored by the hardware so we can save one ioread32() by
+	 * are iganalred by the hardware so we can save one ioread32() by
 	 * filling the read-only bits with zeroes.
 	 */
 	iowrite32(cons, ring_desc_base(ring) + 8);
@@ -312,7 +312,7 @@ invoke_callback:
 		frame = list_first_entry(&done, typeof(*frame), list);
 		/*
 		 * The callback may reenqueue or delete frame.
-		 * Do not hold on to it.
+		 * Do analt hold on to it.
 		 */
 		list_del_init(&frame->list);
 		if (frame->callback)
@@ -343,7 +343,7 @@ EXPORT_SYMBOL_GPL(__tb_ring_enqueue);
  *
  * This function can be called when @start_poll callback of the @ring
  * has been called. It will read one completed frame from the ring and
- * return it to the caller. Returns %NULL if there is no more completed
+ * return it to the caller. Returns %NULL if there is anal more completed
  * frames.
  */
 struct ring_frame *tb_ring_poll(struct tb_ring *ring)
@@ -456,7 +456,7 @@ static irqreturn_t ring_msix(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int ring_request_msix(struct tb_ring *ring, bool no_suspend)
+static int ring_request_msix(struct tb_ring *ring, bool anal_suspend)
 {
 	struct tb_nhi *nhi = ring->nhi;
 	unsigned long irqflags;
@@ -477,7 +477,7 @@ static int ring_request_msix(struct tb_ring *ring, bool no_suspend)
 
 	ring->irq = ret;
 
-	irqflags = no_suspend ? IRQF_NO_SUSPEND : 0;
+	irqflags = anal_suspend ? IRQF_ANAL_SUSPEND : 0;
 	ret = request_irq(ring->irq, ring_msix, irqflags, "thunderbolt", ring);
 	if (ret)
 		goto err_ida_remove;
@@ -521,7 +521,7 @@ static int nhi_alloc_hop(struct tb_nhi *nhi, struct tb_ring *ring)
 		unsigned int i;
 
 		/*
-		 * Automatically allocate HopID from the non-reserved
+		 * Automatically allocate HopID from the analn-reserved
 		 * range 1 .. hop_count - 1.
 		 */
 		for (i = start_hop; i < nhi->hop_count; i++) {
@@ -613,7 +613,7 @@ static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 	if (!ring->descriptors)
 		goto err_free_ring;
 
-	if (ring_request_msix(ring, flags & RING_FLAG_NO_SUSPEND))
+	if (ring_request_msix(ring, flags & RING_FLAG_ANAL_SUSPEND))
 		goto err_free_descs;
 
 	if (nhi_alloc_hop(nhi, ring))
@@ -656,7 +656,7 @@ EXPORT_SYMBOL_GPL(tb_ring_alloc_tx);
  * @e2e_tx_hop: Transmit HopID when E2E is enabled in @flags
  * @sof_mask: Mask of PDF values that start a frame
  * @eof_mask: Mask of PDF values that end a frame
- * @start_poll: If not %NULL the ring will call this function when an
+ * @start_poll: If analt %NULL the ring will call this function when an
  *		interrupt is triggered and masked, instead of callback
  *		in each Rx frame.
  * @poll_data: Optional data passed to @start_poll
@@ -675,7 +675,7 @@ EXPORT_SYMBOL_GPL(tb_ring_alloc_rx);
  * tb_ring_start() - enable a ring
  * @ring: Ring to start
  *
- * Must not be invoked in parallel with tb_ring_stop().
+ * Must analt be invoked in parallel with tb_ring_stop().
  */
 void tb_ring_start(struct tb_ring *ring)
 {
@@ -716,7 +716,7 @@ void tb_ring_start(struct tb_ring *ring)
 	}
 
 	/*
-	 * Now that the ring valid bit is set we can configure E2E if
+	 * Analw that the ring valid bit is set we can configure E2E if
 	 * enabled for the ring.
 	 */
 	if (ring->flags & RING_FLAG_E2E) {
@@ -751,7 +751,7 @@ EXPORT_SYMBOL_GPL(tb_ring_start);
  * tb_ring_stop() - shutdown a ring
  * @ring: Ring to stop
  *
- * Must not be invoked from a callback.
+ * Must analt be invoked from a callback.
  *
  * This method will disable the ring. Further calls to
  * tb_ring_tx/tb_ring_rx will return -ESHUTDOWN until ring_stop has been
@@ -804,14 +804,14 @@ EXPORT_SYMBOL_GPL(tb_ring_stop);
  *
  * Ring must be stopped.
  *
- * Must NOT be called from ring_frame->callback!
+ * Must ANALT be called from ring_frame->callback!
  */
 void tb_ring_free(struct tb_ring *ring)
 {
 	spin_lock_irq(&ring->nhi->lock);
 	/*
 	 * Dissociate the ring from the NHI. This also ensures that
-	 * nhi_interrupt_work cannot reschedule ring->work.
+	 * nhi_interrupt_work cananalt reschedule ring->work.
 	 */
 	if (ring->is_tx)
 		ring->nhi->tx_rings[ring->hop] = NULL;
@@ -838,7 +838,7 @@ void tb_ring_free(struct tb_ring *ring)
 		ring->hop);
 
 	/*
-	 * ring->work can no longer be scheduled (it is scheduled only
+	 * ring->work can anal longer be scheduled (it is scheduled only
 	 * by nhi_interrupt_work, ring_stop and ring_msix). Wait for it
 	 * to finish before freeing the ring.
 	 */
@@ -854,7 +854,7 @@ EXPORT_SYMBOL_GPL(tb_ring_free);
  * @data: Data to be send with the command
  *
  * Sends mailbox command to the firmware running on NHI. Returns %0 in
- * case of success and negative errno in case of failure.
+ * case of success and negative erranal in case of failure.
  */
 int nhi_mailbox_cmd(struct tb_nhi *nhi, enum nhi_mailbox_cmd cmd, u32 data)
 {
@@ -914,14 +914,14 @@ static void nhi_interrupt_work(struct work_struct *work)
 	spin_lock_irq(&nhi->lock);
 
 	/*
-	 * Starting at REG_RING_NOTIFY_BASE there are three status bitfields
+	 * Starting at REG_RING_ANALTIFY_BASE there are three status bitfields
 	 * (TX, RX, RX overflow). We iterate over the bits and read a new
 	 * dwords as required. The registers are cleared on read.
 	 */
 	for (bit = 0; bit < 3 * nhi->hop_count; bit++) {
 		if (bit % 32 == 0)
 			value = ioread32(nhi->iobase
-					 + REG_RING_NOTIFY_BASE
+					 + REG_RING_ANALTIFY_BASE
 					 + 4 * (bit / 32));
 		if (++hop == nhi->hop_count) {
 			hop = 0;
@@ -961,19 +961,19 @@ static irqreturn_t nhi_msi(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __nhi_suspend_noirq(struct device *dev, bool wakeup)
+static int __nhi_suspend_analirq(struct device *dev, bool wakeup)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
 	struct tb_nhi *nhi = tb->nhi;
 	int ret;
 
-	ret = tb_domain_suspend_noirq(tb);
+	ret = tb_domain_suspend_analirq(tb);
 	if (ret)
 		return ret;
 
-	if (nhi->ops && nhi->ops->suspend_noirq) {
-		ret = nhi->ops->suspend_noirq(tb->nhi, wakeup);
+	if (nhi->ops && nhi->ops->suspend_analirq) {
+		ret = nhi->ops->suspend_analirq(tb->nhi, wakeup);
 		if (ret)
 			return ret;
 	}
@@ -981,25 +981,25 @@ static int __nhi_suspend_noirq(struct device *dev, bool wakeup)
 	return 0;
 }
 
-static int nhi_suspend_noirq(struct device *dev)
+static int nhi_suspend_analirq(struct device *dev)
 {
-	return __nhi_suspend_noirq(dev, device_may_wakeup(dev));
+	return __nhi_suspend_analirq(dev, device_may_wakeup(dev));
 }
 
-static int nhi_freeze_noirq(struct device *dev)
+static int nhi_freeze_analirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
 
-	return tb_domain_freeze_noirq(tb);
+	return tb_domain_freeze_analirq(tb);
 }
 
-static int nhi_thaw_noirq(struct device *dev)
+static int nhi_thaw_analirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
 
-	return tb_domain_thaw_noirq(tb);
+	return tb_domain_thaw_analirq(tb);
 }
 
 static bool nhi_wake_supported(struct pci_dev *pdev)
@@ -1016,13 +1016,13 @@ static bool nhi_wake_supported(struct pci_dev *pdev)
 	return true;
 }
 
-static int nhi_poweroff_noirq(struct device *dev)
+static int nhi_poweroff_analirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	bool wakeup;
 
 	wakeup = device_may_wakeup(dev) && nhi_wake_supported(pdev);
-	return __nhi_suspend_noirq(dev, wakeup);
+	return __nhi_suspend_analirq(dev, wakeup);
 }
 
 static void nhi_enable_int_throttling(struct tb_nhi *nhi)
@@ -1041,7 +1041,7 @@ static void nhi_enable_int_throttling(struct tb_nhi *nhi)
 	}
 }
 
-static int nhi_resume_noirq(struct device *dev)
+static int nhi_resume_analirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
@@ -1056,15 +1056,15 @@ static int nhi_resume_noirq(struct device *dev)
 	if (!pci_device_is_present(pdev)) {
 		nhi->going_away = true;
 	} else {
-		if (nhi->ops && nhi->ops->resume_noirq) {
-			ret = nhi->ops->resume_noirq(nhi);
+		if (nhi->ops && nhi->ops->resume_analirq) {
+			ret = nhi->ops->resume_analirq(nhi);
 			if (ret)
 				return ret;
 		}
 		nhi_enable_int_throttling(tb->nhi);
 	}
 
-	return tb_domain_resume_noirq(tb);
+	return tb_domain_resume_analirq(tb);
 }
 
 static int nhi_suspend(struct device *dev)
@@ -1082,7 +1082,7 @@ static void nhi_complete(struct device *dev)
 
 	/*
 	 * If we were runtime suspended when system suspend started,
-	 * schedule runtime resume now. It should bring the domain back
+	 * schedule runtime resume analw. It should bring the domain back
 	 * to functional state.
 	 */
 	if (pm_runtime_suspended(&pdev->dev))
@@ -1198,17 +1198,17 @@ static void nhi_check_iommu(struct tb_nhi *nhi)
 	 * Ideally what we'd do here is grab every PCI device that
 	 * represents a tunnelling adapter for this NHI and check their
 	 * status directly, but unfortunately USB4 seems to make it
-	 * obnoxiously difficult to reliably make any correlation.
+	 * obanalxiously difficult to reliably make any correlation.
 	 *
-	 * So for now we'll have to bodge it... Hoping that the system
-	 * is at least sane enough that an adapter is in the same PCI
+	 * So for analw we'll have to bodge it... Hoping that the system
+	 * is at least sane eanalugh that an adapter is in the same PCI
 	 * segment as its NHI, if we can find *something* on that segment
 	 * which meets the requirements for Kernel DMA Protection, we'll
 	 * take that to imply that firmware is aware and has (hopefully)
-	 * done the right thing in general. We need to know that the PCI
+	 * done the right thing in general. We need to kanalw that the PCI
 	 * layer has seen the ExternalFacingPort property which will then
 	 * inform the IOMMU layer to enforce the complete "untrusted DMA"
-	 * flow, but also that the IOMMU driver itself can be trusted not
+	 * flow, but also that the IOMMU driver itself can be trusted analt
 	 * to have been subverted by a pre-boot DMA attack.
 	 */
 	while (bus->parent)
@@ -1268,7 +1268,7 @@ static int nhi_init_msi(struct tb_nhi *nhi)
 	/*
 	 * The NHI has 16 MSI-X vectors or a single MSI. We first try to
 	 * get all MSI-X vectors and if we succeed, each ring will have
-	 * one MSI-X. If for some reason that does not work out, we
+	 * one MSI-X. If for some reason that does analt work out, we
 	 * fallback to a single MSI.
 	 */
 	nvec = pci_alloc_irq_vectors(pdev, MSIX_MIN_VECS, MSIX_MAX_VECS,
@@ -1285,7 +1285,7 @@ static int nhi_init_msi(struct tb_nhi *nhi)
 			return irq;
 
 		res = devm_request_irq(&pdev->dev, irq, nhi_msi,
-				       IRQF_NO_SUSPEND, "thunderbolt", nhi);
+				       IRQF_ANAL_SUSPEND, "thunderbolt", nhi);
 		if (res)
 			return dev_err_probe(dev, res, "request_irq failed, aborting\n");
 	}
@@ -1315,7 +1315,7 @@ static struct tb *nhi_select_cm(struct tb_nhi *nhi)
 		return tb_probe(nhi);
 
 	/*
-	 * Either firmware based CM is running (we did not get control
+	 * Either firmware based CM is running (we did analt get control
 	 * from the firmware) or this is pre-USB4 PC so try first
 	 * firmware CM and then fallback to software CM.
 	 */
@@ -1334,23 +1334,23 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int res;
 
 	if (!nhi_imr_valid(pdev))
-		return dev_err_probe(dev, -ENODEV, "firmware image not valid, aborting\n");
+		return dev_err_probe(dev, -EANALDEV, "firmware image analt valid, aborting\n");
 
 	res = pcim_enable_device(pdev);
 	if (res)
-		return dev_err_probe(dev, res, "cannot enable PCI device, aborting\n");
+		return dev_err_probe(dev, res, "cananalt enable PCI device, aborting\n");
 
 	res = pcim_iomap_regions(pdev, 1 << 0, "thunderbolt");
 	if (res)
-		return dev_err_probe(dev, res, "cannot obtain PCI resources, aborting\n");
+		return dev_err_probe(dev, res, "cananalt obtain PCI resources, aborting\n");
 
 	nhi = devm_kzalloc(&pdev->dev, sizeof(*nhi), GFP_KERNEL);
 	if (!nhi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nhi->pdev = pdev;
 	nhi->ops = (const struct tb_nhi_ops *)id->driver_data;
-	/* cannot fail - table is allocated in pcim_iomap_regions */
+	/* cananalt fail - table is allocated in pcim_iomap_regions */
 	nhi->iobase = pcim_iomap_table(pdev)[0];
 	nhi->hop_count = ioread32(nhi->iobase + REG_CAPS) & 0x3ff;
 	dev_dbg(dev, "total paths: %d\n", nhi->hop_count);
@@ -1360,7 +1360,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	nhi->rx_rings = devm_kcalloc(&pdev->dev, nhi->hop_count,
 				     sizeof(*nhi->rx_rings), GFP_KERNEL);
 	if (!nhi->tx_rings || !nhi->rx_rings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nhi_check_quirks(nhi);
 	nhi_check_iommu(nhi);
@@ -1369,7 +1369,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	res = nhi_init_msi(nhi);
 	if (res)
-		return dev_err_probe(dev, res, "cannot enable MSI, aborting\n");
+		return dev_err_probe(dev, res, "cananalt enable MSI, aborting\n");
 
 	spin_lock_init(&nhi->lock);
 
@@ -1387,7 +1387,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	tb = nhi_select_cm(nhi);
 	if (!tb)
-		return dev_err_probe(dev, -ENODEV,
+		return dev_err_probe(dev, -EANALDEV,
 			"failed to determine connection manager, aborting\n");
 
 	dev_dbg(dev, "NHI initialized, starting thunderbolt\n");
@@ -1428,21 +1428,21 @@ static void nhi_remove(struct pci_dev *pdev)
 }
 
 /*
- * The tunneled pci bridges are siblings of us. Use resume_noirq to reenable
+ * The tunneled pci bridges are siblings of us. Use resume_analirq to reenable
  * the tunnels asap. A corresponding pci quirk blocks the downstream bridges
- * resume_noirq until we are done.
+ * resume_analirq until we are done.
  */
 static const struct dev_pm_ops nhi_pm_ops = {
-	.suspend_noirq = nhi_suspend_noirq,
-	.resume_noirq = nhi_resume_noirq,
-	.freeze_noirq = nhi_freeze_noirq,  /*
+	.suspend_analirq = nhi_suspend_analirq,
+	.resume_analirq = nhi_resume_analirq,
+	.freeze_analirq = nhi_freeze_analirq,  /*
 					    * we just disable hotplug, the
 					    * pci-tunnels stay alive.
 					    */
-	.thaw_noirq = nhi_thaw_noirq,
-	.restore_noirq = nhi_resume_noirq,
+	.thaw_analirq = nhi_thaw_analirq,
+	.restore_analirq = nhi_resume_analirq,
 	.suspend = nhi_suspend,
-	.poweroff_noirq = nhi_poweroff_noirq,
+	.poweroff_analirq = nhi_poweroff_analirq,
 	.poweroff = nhi_suspend,
 	.complete = nhi_complete,
 	.runtime_suspend = nhi_runtime_suspend,

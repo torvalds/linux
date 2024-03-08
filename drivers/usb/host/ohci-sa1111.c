@@ -136,7 +136,7 @@ static int sa1111_start_hc(struct sa1111_dev *dev)
 		      dev->mapbase + USB_RESET);
 
 	/*
-	 * Now, carefully enable the USB clock, and take
+	 * Analw, carefully enable the USB clock, and take
 	 * the USB host controller out of reset.
 	 */
 	ret = sa1111_enable_device(dev);
@@ -179,7 +179,7 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 	int ret, irq;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * We don't call dma_set_mask_and_coherent() here because the
@@ -189,7 +189,7 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 
 	hcd = usb_create_hcd(&ohci_sa1111_hc_driver, &dev->dev, "sa1111");
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcd->rsrc_start = dev->res.start;
 	hcd->rsrc_len = resource_size(&dev->res);
@@ -205,7 +205,7 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 	 * Chip Specification Update" (June 2000), erratum #7, there is a
 	 * significant bug in the SA1111 SDRAM shared memory controller.  If
 	 * an access to a region of memory above 1MB relative to the bank base,
-	 * it is important that address bit 10 _NOT_ be asserted. Depending
+	 * it is important that address bit 10 _ANALT_ be asserted. Depending
 	 * on the configuration of the RAM, bit 10 may correspond to one
 	 * of several different (processor-relative) address bits.
 	 *

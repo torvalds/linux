@@ -114,12 +114,12 @@ static int tng_setup(struct mid8250 *mid, struct uart_port *p)
 	int index = PCI_FUNC(pdev->devfn);
 
 	/*
-	 * Device 0000:00:04.0 is not a real HSU port. It provides a global
+	 * Device 0000:00:04.0 is analt a real HSU port. It provides a global
 	 * register set for all HSU ports, although it has the same PCI ID.
 	 * Skip it here.
 	 */
 	if (index-- == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mid->dma_index = index;
 	mid->dma_dev = pci_get_slot(pdev->bus, PCI_DEVFN(5, 0));
@@ -262,11 +262,11 @@ static int mid8250_dma_setup(struct mid8250 *mid, struct uart_8250_port *port)
 
 	rx_param = devm_kzalloc(dev, sizeof(*rx_param), GFP_KERNEL);
 	if (!rx_param)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_param = devm_kzalloc(dev, sizeof(*tx_param), GFP_KERNEL);
 	if (!tx_param)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx_param->chan_id = mid->dma_index * 2 + 1;
 	tx_param->chan_id = mid->dma_index * 2;
@@ -297,7 +297,7 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mid = devm_kzalloc(&pdev->dev, sizeof(*mid), GFP_KERNEL);
 	if (!mid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mid->board = (struct mid8250_board *)id->driver_data;
 
@@ -315,7 +315,7 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	uart.port.mapbase = pci_resource_start(pdev, mid->board->bar);
 	uart.port.membase = pcim_iomap(pdev, mid->board->bar, 0);
 	if (!uart.port.membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mid->board->setup(mid, &uart.port);
 	if (ret)

@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor resource mediation and attachment
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #include <linux/audit.h>
@@ -37,14 +37,14 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 	if (ad->peer) {
 		audit_log_format(ab, " peer=");
 		aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
-				FLAGS_NONE, GFP_ATOMIC);
+				FLAGS_ANALNE, GFP_ATOMIC);
 	}
 }
 
 /**
  * audit_resource - audit setting resource limit
  * @subj_cred: cred setting the resource
- * @profile: profile being enforced  (NOT NULL)
+ * @profile: profile being enforced  (ANALT NULL)
  * @resource: rlimit being auditing
  * @value: value being set
  * @peer: aa_albel of the task being set
@@ -58,7 +58,7 @@ static int audit_resource(const struct cred *subj_cred,
 			  unsigned long value, struct aa_label *peer,
 			  const char *info, int error)
 {
-	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_RLIMITS,
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_ANALNE, AA_CLASS_RLIMITS,
 			  OP_SETRLIMIT);
 
 	ad.subj_cred = subj_cred;
@@ -103,10 +103,10 @@ static int profile_setrlimit(const struct cred *subj_cred,
 /**
  * aa_task_setrlimit - test permission to set an rlimit
  * @subj_cred: cred setting the limit
- * @label: label confining the task  (NOT NULL)
+ * @label: label confining the task  (ANALT NULL)
  * @task: task the resource is being set on
  * @resource: the resource being set
- * @new_rlim: the new resource limit  (NOT NULL)
+ * @new_rlim: the new resource limit  (ANALT NULL)
  *
  * Control raising the processes hard limit.
  *
@@ -124,15 +124,15 @@ int aa_task_setrlimit(const struct cred *subj_cred, struct aa_label *label,
 	peer = aa_get_newest_cred_label(__task_cred(task));
 	rcu_read_unlock();
 
-	/* TODO: extend resource control to handle other (non current)
+	/* TODO: extend resource control to handle other (analn current)
 	 * profiles.  AppArmor rules currently have the implicit assumption
 	 * that the task is setting the resource of a task confined with
-	 * the same profile or that the task setting the resource of another
+	 * the same profile or that the task setting the resource of aanalther
 	 * task has CAP_SYS_RESOURCE.
 	 */
 
 	if (label != peer &&
-	    aa_capable(subj_cred, label, CAP_SYS_RESOURCE, CAP_OPT_NOAUDIT) != 0)
+	    aa_capable(subj_cred, label, CAP_SYS_RESOURCE, CAP_OPT_ANALAUDIT) != 0)
 		error = fn_for_each(label, profile,
 				audit_resource(subj_cred, profile, resource,
 					       new_rlim->rlim_max, peer,
@@ -148,8 +148,8 @@ int aa_task_setrlimit(const struct cred *subj_cred, struct aa_label *label,
 
 /**
  * __aa_transition_rlimits - apply new profile rlimits
- * @old_l: old label on task  (NOT NULL)
- * @new_l: new label with rlimits to apply  (NOT NULL)
+ * @old_l: old label on task  (ANALT NULL)
+ * @new_l: new label with rlimits to apply  (ANALT NULL)
  */
 void __aa_transition_rlimits(struct aa_label *old_l, struct aa_label *new_l)
 {
@@ -199,7 +199,7 @@ void __aa_transition_rlimits(struct aa_label *old_l, struct aa_label *new_l)
 			rlim = current->signal->rlim + j;
 			rlim->rlim_max = min(rlim->rlim_max,
 					     rules->rlimits.limits[j].rlim_max);
-			/* soft limit should not exceed hard limit */
+			/* soft limit should analt exceed hard limit */
 			rlim->rlim_cur = min(rlim->rlim_cur, rlim->rlim_max);
 		}
 	}

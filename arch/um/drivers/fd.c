@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <termios.h>
 #include "chan_user.h"
 #include <os.h>
@@ -77,7 +77,7 @@ static void fd_close(int fd, void *d)
 	CATCH_EINTR(err = tcsetattr(fd, TCSAFLUSH, &data->tt));
 	if (err)
 		printk(UM_KERN_ERR "Failed to restore terminal state - "
-		       "errno = %d\n", -err);
+		       "erranal = %d\n", -err);
 	data->raw = 0;
 }
 

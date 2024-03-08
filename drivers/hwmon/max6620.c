@@ -306,12 +306,12 @@ max6620_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			}
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -386,13 +386,13 @@ max6620_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -475,7 +475,7 @@ static int max6620_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct max6620_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);

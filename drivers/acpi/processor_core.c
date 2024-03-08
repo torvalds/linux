@@ -36,7 +36,7 @@ static int map_lapic_id(struct acpi_subtable_header *entry,
 		container_of(entry, struct acpi_madt_local_apic, header);
 
 	if (!(lapic->lapic_flags & ACPI_MADT_ENABLED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (lapic->processor_id != acpi_id)
 		return -EINVAL;
@@ -52,7 +52,7 @@ static int map_x2apic_id(struct acpi_subtable_header *entry,
 		container_of(entry, struct acpi_madt_local_x2apic, header);
 
 	if (!(apic->lapic_flags & ACPI_MADT_ENABLED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (device_declaration && (apic->uid == acpi_id)) {
 		*apic_id = apic->local_apic_id;
@@ -69,7 +69,7 @@ static int map_lsapic_id(struct acpi_subtable_header *entry,
 		container_of(entry, struct acpi_madt_local_sapic, header);
 
 	if (!(lsapic->lapic_flags & ACPI_MADT_ENABLED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (device_declaration) {
 		if ((entry->length < 16) || (lsapic->uid != acpi_id))
@@ -91,7 +91,7 @@ static int map_gicc_mpidr(struct acpi_subtable_header *entry,
 	    container_of(entry, struct acpi_madt_generic_interrupt, header);
 
 	if (!acpi_gicc_is_usable(gicc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* device_declaration means Device object in DSDT, in the
 	 * GIC interrupt model, logical processors are required to
@@ -117,7 +117,7 @@ static int map_rintc_hartid(struct acpi_subtable_header *entry,
 	    container_of(entry, struct acpi_madt_rintc, header);
 
 	if (!(rintc->flags & ACPI_MADT_ENABLED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* device_declaration means Device object in DSDT, in the
 	 * RISC-V, logical processors are required to
@@ -142,7 +142,7 @@ static int map_core_pic_id(struct acpi_subtable_header *entry,
 		container_of(entry, struct acpi_madt_core_pic, header);
 
 	if (!(core_pic->flags & ACPI_MADT_ENABLED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* device_declaration means Device object in DSDT, in LoongArch
 	 * system, logical processor acpi_id is required in _UID property
@@ -271,7 +271,7 @@ int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 
 	if (invalid_phys_cpuid(phys_id)) {
 		/*
-		 * On UP processor, there is no _MAT or MADT table.
+		 * On UP processor, there is anal _MAT or MADT table.
 		 * So above phys_id is always set to PHYS_CPUID_INVALID.
 		 *
 		 * BIOS may define multiple CPU handles even for UP processor.
@@ -285,9 +285,9 @@ int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 		 *     Processor (CPU3, 0x03, 0x00000410, 0x06) {}
 		 * }
 		 *
-		 * Ignores phys_id and always returns 0 for the processor
+		 * Iganalres phys_id and always returns 0 for the processor
 		 * handle with acpi id 0 if nr_cpu_ids is 1.
-		 * This should be the case if SMP tables are not found.
+		 * This should be the case if SMP tables are analt found.
 		 * Return -EINVAL for other CPU's handle.
 		 */
 		if (nr_cpu_ids <= 1 && acpi_id == 0)
@@ -306,7 +306,7 @@ int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 	if (phys_id == 0)
 		return phys_id;
 #endif
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)

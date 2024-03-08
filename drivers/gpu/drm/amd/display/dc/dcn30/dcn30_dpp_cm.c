@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -222,7 +222,7 @@ bool dpp3_program_gamcor_lut(
 
 	dpp3_enable_cm_block(dpp_base);
 
-	if (params == NULL) { //bypass if we have no pwl data
+	if (params == NULL) { //bypass if we have anal pwl data
 		REG_SET(CM_GAMCOR_CONTROL, 0, CM_GAMCOR_MODE, 0);
 		if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm)
 			dpp3_power_on_gamcor_lut(dpp_base, false);
@@ -401,7 +401,7 @@ void dpp3_cm_set_gamut_remap(
 		else
 			gamut_mode = 1;
 
-		//follow dcn2 approach for now - using only coefficient set A
+		//follow dcn2 approach for analw - using only coefficient set A
 		program_gamut_remap(dpp, arr_reg_val, gamut_mode);
 	}
 }

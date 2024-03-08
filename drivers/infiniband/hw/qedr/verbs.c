@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -298,7 +298,7 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 	ctx->dpi_size = oparams.dpi_size;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -400,7 +400,7 @@ int qedr_mmap(struct ib_ucontext *ucontext, struct vm_area_struct *vma)
 
 	rdma_entry = rdma_user_mmap_entry_get(ucontext, vma);
 	if (!rdma_entry) {
-		ibdev_dbg(dev, "pgoff[%#lx] does not have valid entry\n",
+		ibdev_dbg(dev, "pgoff[%#lx] does analt have valid entry\n",
 			  vma->vm_pgoff);
 		return -EINVAL;
 	}
@@ -539,7 +539,7 @@ static struct qedr_pbl *qedr_alloc_pbl_tbl(struct qedr_dev *dev,
 
 	pbl_table = kcalloc(pbl_info->num_pbls, sizeof(*pbl_table), flags);
 	if (!pbl_table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < pbl_info->num_pbls; i++) {
 		va = dma_alloc_coherent(&pdev->dev, pbl_info->pbl_size, &pa,
@@ -567,7 +567,7 @@ err:
 
 	qedr_free_pbl(dev, pbl_info, pbl_table);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static int qedr_prepare_pbl_tbl(struct qedr_dev *dev,
@@ -640,7 +640,7 @@ static void qedr_populate_pbls(struct qedr_dev *dev, struct ib_umem *umem,
 
 	pbe = (struct regpair *)pbl_tbl->va;
 	if (!pbe) {
-		DP_ERR(dev, "cannot populate PBL due to a NULL PBE\n");
+		DP_ERR(dev, "cananalt populate PBL due to a NULL PBE\n");
 		return;
 	}
 
@@ -693,7 +693,7 @@ static void qedr_db_recovery_del(struct qedr_dev *dev,
 		return;
 	}
 
-	/* Ignore return code as there is not much we can do about it. Error
+	/* Iganalre return code as there is analt much we can do about it. Error
 	 * log will be printed inside.
 	 */
 	dev->ops->common->db_recovery_del(dev->cdev, db_addr, db_data);
@@ -750,7 +750,7 @@ static int qedr_init_user_db_rec(struct ib_udata *udata,
 	struct qedr_user_mmap_entry *entry;
 	int rc;
 
-	/* Aborting for non doorbell userqueue (SRQ) or non-supporting lib */
+	/* Aborting for analn doorbell userqueue (SRQ) or analn-supporting lib */
 	if (requires_db_rec == 0 || !uctx->db_rec)
 		return 0;
 
@@ -758,7 +758,7 @@ static int qedr_init_user_db_rec(struct ib_udata *udata,
 	q->db_rec_data = (void *)get_zeroed_page(GFP_USER);
 	if (!q->db_rec_data) {
 		DP_ERR(dev, "get_zeroed_page failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -784,7 +784,7 @@ err_free_entry:
 err_free_db_data:
 	free_page((unsigned long)q->db_rec_data);
 	q->db_rec_data = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline int qedr_init_user_queue(struct ib_udata *udata,
@@ -822,7 +822,7 @@ static inline int qedr_init_user_queue(struct ib_udata *udata,
 	} else {
 		q->pbl_tbl = kzalloc(sizeof(*q->pbl_tbl), GFP_KERNEL);
 		if (!q->pbl_tbl) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err0;
 		}
 	}
@@ -863,7 +863,7 @@ static void doorbell_cq(struct qedr_cq *cq, u32 cons, u8 flags)
 	writeq(cq->db.raw, cq->db_addr);
 }
 
-int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_analtify_flags flags)
 {
 	struct qedr_cq *cq = get_qedr_cq(ibcq);
 	unsigned long sflags;
@@ -931,7 +931,7 @@ int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		 udata ? "User Lib" : "Kernel", entries, vector);
 
 	if (attr->flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (entries > QEDR_MAX_CQES) {
 		DP_ERR(dev,
@@ -957,7 +957,7 @@ int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 		if (!ureq.len) {
 			DP_ERR(dev,
-			       "create cq: cannot create a cq with 0 entries\n");
+			       "create cq: cananalt create a cq with 0 entries\n");
 			goto err0;
 		}
 
@@ -1091,33 +1091,33 @@ int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		qedr_db_recovery_del(dev, cq->db_addr, &cq->db.data);
 	}
 
-	/* We don't want the IRQ handler to handle a non-existing CQ so we
+	/* We don't want the IRQ handler to handle a analn-existing CQ so we
 	 * wait until all CNQ interrupts, if any, are received. This will always
-	 * happen and will always happen very fast. If not, then a serious error
+	 * happen and will always happen very fast. If analt, then a serious error
 	 * has occured. That is why we can use a long delay.
 	 * We spin for a short time so we don’t lose time on context switching
 	 * in case all the completions are handled in that span. Otherwise
 	 * we sleep for a while and check again. Since the CNQ may be
 	 * associated with (only) the current CPU we use msleep to allow the
 	 * current CPU to be freed.
-	 * The CNQ notification is increased in qedr_irq_handler().
+	 * The CNQ analtification is increased in qedr_irq_handler().
 	 */
 	iter = QEDR_DESTROY_CQ_MAX_ITERATIONS;
-	while (oparams.num_cq_notif != READ_ONCE(cq->cnq_notif) && iter) {
+	while (oparams.num_cq_analtif != READ_ONCE(cq->cnq_analtif) && iter) {
 		udelay(QEDR_DESTROY_CQ_ITER_DURATION);
 		iter--;
 	}
 
 	iter = QEDR_DESTROY_CQ_MAX_ITERATIONS;
-	while (oparams.num_cq_notif != READ_ONCE(cq->cnq_notif) && iter) {
+	while (oparams.num_cq_analtif != READ_ONCE(cq->cnq_analtif) && iter) {
 		msleep(QEDR_DESTROY_CQ_ITER_DURATION);
 		iter--;
 	}
 
-	/* Note that we don't need to have explicit code to wait for the
+	/* Analte that we don't need to have explicit code to wait for the
 	 * completion of the event handler because it is invoked from the EQ.
 	 * Since the destroy CQ ramrod has also been received on the EQ we can
-	 * be certain that there's no event handler in process.
+	 * be certain that there's anal event handler in process.
 	 */
 	return 0;
 }
@@ -1201,12 +1201,12 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 		DP_DEBUG(dev, QEDR_MSG_QP,
 			 "create qp: unsupported qp type=0x%x requested\n",
 			 attrs->qp_type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (attrs->cap.max_send_wr > qattr->max_sqe) {
 		DP_ERR(dev,
-		       "create qp: cannot create a SQ with %d elements (max_send_wr=0x%x)\n",
+		       "create qp: cananalt create a SQ with %d elements (max_send_wr=0x%x)\n",
 		       attrs->cap.max_send_wr, qattr->max_sqe);
 		return -EINVAL;
 	}
@@ -1232,7 +1232,7 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 		return -EINVAL;
 	}
 
-	/* verify consumer QPs are not trying to use GSI QP's CQ.
+	/* verify consumer QPs are analt trying to use GSI QP's CQ.
 	 * TGT QP isn't associated with RQ/SQ
 	 */
 	if ((attrs->qp_type != IB_QPT_GSI) && (dev->gsi_qp_created) &&
@@ -1244,7 +1244,7 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 		if ((send_cq->cq_type == QEDR_CQ_TYPE_GSI) ||
 		    (recv_cq->cq_type == QEDR_CQ_TYPE_GSI)) {
 			DP_ERR(dev,
-			       "create qp: consumer QP cannot use GSI CQs.\n");
+			       "create qp: consumer QP cananalt use GSI CQs.\n");
 			return -EINVAL;
 		}
 	}
@@ -1318,7 +1318,7 @@ static int qedr_copy_qp_uresp(struct qedr_dev *dev,
 	if (qedr_qp_has_rq(qp))
 		qedr_copy_rq_uresp(dev, uresp, qp);
 
-	uresp->atomic_supported = dev->atomic_cap != IB_ATOMIC_NONE;
+	uresp->atomic_supported = dev->atomic_cap != IB_ATOMIC_ANALNE;
 	uresp->qp_id = qp->qp_id;
 
 	rc = qedr_ib_copy_to_udata(udata, uresp, sizeof(*uresp));
@@ -1437,7 +1437,7 @@ static int qedr_check_srq_params(struct qedr_dev *dev,
 	}
 
 	if (!udata && attrs->srq_type == IB_SRQT_XRC) {
-		DP_ERR(dev, "XRC SRQs are not supported in kernel-space\n");
+		DP_ERR(dev, "XRC SRQs are analt supported in kernel-space\n");
 		return -EINVAL;
 	}
 
@@ -1515,7 +1515,7 @@ static int qedr_alloc_srq_kernel_params(struct qedr_srq *srq,
 	if (!va) {
 		DP_ERR(dev,
 		       "create srq: failed to allocate dma memory for producer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hw_srq->phy_prod_pair_addr = phy_prod_pair_addr;
@@ -1559,7 +1559,7 @@ int qedr_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 
 	if (init_attr->srq_type != IB_SRQT_BASIC &&
 	    init_attr->srq_type != IB_SRQT_XRC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = qedr_check_srq_params(dev, init_attr, udata);
 	if (rc)
@@ -1922,7 +1922,7 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 					      &in_params, &out_params);
 
 	if (!qp->qed_qp) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err1;
 	}
 
@@ -1938,7 +1938,7 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 			goto err;
 	}
 
-	/* db offset was calculated in copy_qp_uresp, now set in the user q */
+	/* db offset was calculated in copy_qp_uresp, analw set in the user q */
 	if (qedr_qp_has_sq(qp)) {
 		qp->usq.db_addr = ctx->dpi_addr + uresp.sq_db_offset;
 		qp->sq.max_wr = attrs->cap.max_send_wr;
@@ -1964,7 +1964,7 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
 		qp->urq.db_rec_db2_addr = ctx->dpi_addr + uresp.rq_db2_offset;
 
-		/* calculate the db_rec_db2 data since it is constant so no
+		/* calculate the db_rec_db2 data since it is constant so anal
 		 * need to reflect from user
 		 */
 		qp->urq.db_rec_db2_data.data.icid = cpu_to_le16(qp->icid);
@@ -2102,7 +2102,7 @@ qedr_iwarp_create_kernel_qp(struct qedr_dev *dev,
 	if (!qp->qed_qp)
 		return -EINVAL;
 
-	/* Now we allocate the chain */
+	/* Analw we allocate the chain */
 
 	params.intended_use = QED_CHAIN_USE_TO_PRODUCE;
 	params.num_elems = n_sq_elems;
@@ -2143,7 +2143,7 @@ static void qedr_cleanup_kernel(struct qedr_dev *dev, struct qedr_qp *qp)
 	dev->ops->common->chain_free(dev->cdev, &qp->rq.pbl);
 	kfree(qp->rqe_wr_id);
 
-	/* GSI qp is not registered to db mechanism so no need to delete */
+	/* GSI qp is analt registered to db mechanism so anal need to delete */
 	if (qp->qp_type == IB_QPT_GSI)
 		return;
 
@@ -2175,7 +2175,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 
 	/* A single work request may take up to QEDR_MAX_SQ_WQE_SIZE elements in
 	 * the ring. The ring should allow at least a single WR, even if the
-	 * user requested none, due to allocation issues.
+	 * user requested analne, due to allocation issues.
 	 * We should add an extra WR since the prod and cons indices of
 	 * wqe_wr_id are managed in such a way that the WQ is considered full
 	 * when (prod+1)%max_wr==cons. We currently don't do that because we
@@ -2190,7 +2190,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 				GFP_KERNEL);
 	if (!qp->wqe_wr_id) {
 		DP_ERR(dev, "create qp: failed SQ shadow memory allocation\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* QP handle to be written in CQE */
@@ -2199,7 +2199,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 
 	/* A single work request may take up to QEDR_MAX_RQ_WQE_SIZE elements in
 	 * the ring. There ring should allow at least a single WR, even if the
-	 * user requested none, due to allocation issues.
+	 * user requested analne, due to allocation issues.
 	 */
 	qp->rq.max_wr = (u16) max_t(u32, attrs->cap.max_recv_wr, 1);
 
@@ -2210,7 +2210,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 		DP_ERR(dev,
 		       "create qp: failed RQ shadow memory allocation\n");
 		kfree(qp->wqe_wr_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	qedr_init_common_qp_in_params(dev, pd, qp, attrs, true, &in_params);
@@ -2267,7 +2267,7 @@ int qedr_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	int rc = 0;
 
 	if (attrs->create_flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (attrs->qp_type == IB_QPT_XRC_TGT)
 		xrcd = get_qedr_xrcd(attrs->xrcd);
@@ -2442,8 +2442,8 @@ static int qedr_update_qp_state(struct qedr_dev *dev,
 		case QED_ROCE_QP_STATE_RESET:
 			if ((qp->rq.prod != qp->rq.cons) ||
 			    (qp->sq.prod != qp->sq.cons)) {
-				DP_NOTICE(dev,
-					  "Error->Reset with rq/sq not empty rq.prod=%x rq.cons=%x sq.prod=%x sq.cons=%x\n",
+				DP_ANALTICE(dev,
+					  "Error->Reset with rq/sq analt empty rq.prod=%x rq.cons=%x sq.prod=%x sq.cons=%x\n",
 					  qp->rq.prod, qp->rq.cons, qp->sq.prod,
 					  qp->sq.cons);
 				status = -EINVAL;
@@ -2478,7 +2478,7 @@ int qedr_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		 attr->qp_state);
 
 	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	old_qp_state = qedr_get_ibqp_state(qp->state);
 	if (attr_mask & IB_QP_STATE)
@@ -2506,7 +2506,7 @@ int qedr_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		qp_params.new_state = qedr_get_state_from_ibqp(attr->qp_state);
 	}
 
-	if (attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY)
+	if (attr_mask & IB_QP_EN_SQD_ASYNC_ANALTIFY)
 		qp_params.sqd_async = true;
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
@@ -2799,7 +2799,7 @@ int qedr_query_qp(struct ib_qp *ibqp,
 	qp_attr->sq_draining = (params.state == QED_ROCE_QP_STATE_SQD) ? 1 : 0;
 	qp_attr->max_dest_rd_atomic = params.max_dest_rd_atomic;
 	qp_attr->max_rd_atomic = params.max_rd_atomic;
-	qp_attr->en_sqd_async_notify = (params.sqd_async) ? 1 : 0;
+	qp_attr->en_sqd_async_analtify = (params.sqd_async) ? 1 : 0;
 
 	DP_DEBUG(dev, QEDR_MSG_QP, "QEDR_QUERY_QP: max_inline_data=%d\n",
 		 qp_attr->cap.max_inline_data);
@@ -2932,11 +2932,11 @@ static int init_mr_info(struct qedr_dev *dev, struct mr_info *info,
 		 &info->pbl_table->pa);
 
 	/* in usual case we use 2 PBLs, so we add one to free
-	 * list and allocating another one
+	 * list and allocating aanalther one
 	 */
 	tmp = qedr_alloc_pbl_tbl(dev, &info->pbl_info, GFP_KERNEL);
 	if (IS_ERR(tmp)) {
-		DP_DEBUG(dev, QEDR_MSG_MR, "Extra PBL is not allocated\n");
+		DP_DEBUG(dev, QEDR_MSG_MR, "Extra PBL is analt allocated\n");
 		goto done;
 	}
 
@@ -2957,7 +2957,7 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_mr *mr;
 	struct qedr_pd *pd;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	pd = get_qedr_pd(ibpd);
 	DP_DEBUG(dev, QEDR_MSG_MR,
@@ -3069,7 +3069,7 @@ static struct qedr_mr *__qedr_alloc_mr(struct ib_pd *ibpd,
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_mr *mr;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	DP_DEBUG(dev, QEDR_MSG_MR,
 		 "qedr_alloc_frmr pd = %d max_page_list_len= %d\n", pd->pd_id,
@@ -3160,7 +3160,7 @@ static int qedr_set_page(struct ib_mr *ibmr, u64 addr)
 
 	if (unlikely(mr->npages == mr->info.pbl_info.num_pbes)) {
 		DP_ERR(mr->dev, "qedr_set_page fails when %d\n", mr->npages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	DP_DEBUG(mr->dev, QEDR_MSG_MR, "qedr_set_page pages[%d] = 0x%llx\n",
@@ -3218,7 +3218,7 @@ struct ib_mr *qedr_get_dma_mr(struct ib_pd *ibpd, int acc)
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr->type = QEDR_MR_DMA;
 
@@ -3345,7 +3345,7 @@ static u32 qedr_prepare_sq_inline_data(struct qedr_dev *dev,
 		}
 	}
 
-	/* swap last not completed segment */
+	/* swap last analt completed segment */
 	if (seg_siz)
 		swap_wqe_data64((u64 *)wqe);
 
@@ -3558,7 +3558,7 @@ static int __qedr_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 
 	if (!qedr_can_post_send(qp, wr)) {
 		*bad_wr = wr;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	wqe = qed_chain_produce(&qp->sq.pbl);
@@ -3796,7 +3796,7 @@ int qedr_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 
 	/* Trigger doorbell
 	 * If there was a failure in the first WR then it will be triggered in
-	 * vane. However this is not harmful (as long as the producer value is
+	 * vane. However this is analt harmful (as long as the producer value is
 	 * unchanged). For performance reasons we avoid checking for this
 	 * redundant doorbell.
 	 *
@@ -3853,7 +3853,7 @@ int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			       hw_srq->wr_prod_cnt,
 			       atomic_read(&hw_srq->wr_cons_cnt),
 			       wr->num_sge, srq->hw_srq.max_sges);
-			status = -ENOMEM;
+			status = -EANALMEM;
 			*bad_wr = wr;
 			break;
 		}
@@ -3932,7 +3932,7 @@ int qedr_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 			       qed_chain_get_elem_left_u32(&qp->rq.pbl),
 			       QEDR_MAX_RQE_ELEMENTS_PER_RQE, wr->num_sge,
 			       qp->rq.max_sges);
-			status = -ENOMEM;
+			status = -EANALMEM;
 			*bad_wr = wr;
 			break;
 		}
@@ -3955,7 +3955,7 @@ int qedr_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 				   wr->sg_list[i].length, flags);
 		}
 
-		/* Special case of no sges. FW requires between 1-4 sges...
+		/* Special case of anal sges. FW requires between 1-4 sges...
 		 * in this case we need to post 1 sge with length zero. this is
 		 * because rdma write with immediate consumes an RQ.
 		 */
@@ -4037,11 +4037,11 @@ static union rdma_cqe *get_cqe(struct qedr_cq *cq)
 }
 
 /* In fmr we need to increase the number of fmr completed counter for the fmr
- * algorithm determining whether we can free a pbl or not.
- * we need to perform this whether the work request was signaled or not. for
+ * algorithm determining whether we can free a pbl or analt.
+ * we need to perform this whether the work request was signaled or analt. for
  * this purpose we call this function from the condition that checks if a wr
  * should be skipped, to make sure we don't miss it ( possibly this fmr
- * operation was not signalted)
+ * operation was analt signalted)
  */
 static inline void qedr_chk_if_fmr(struct qedr_qp *qp)
 {
@@ -4475,7 +4475,7 @@ int qedr_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	cq->cq_cons += new_cons - old_cons;
 
 	if (update)
-		/* doorbell notifies abount latest VALID entry,
+		/* doorbell analtifies abount latest VALID entry,
 		 * but chain already point to the next INVALID one
 		 */
 		doorbell_cq(cq, cq->cq_cons - 1, cq->arm_flags);

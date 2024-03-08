@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -737,12 +737,12 @@
 //DAGB0_RDCLI_OSD_PENDING
 #define DAGB0_RDCLI_OSD_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB0_RDCLI_OSD_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
-//DAGB0_RDCLI_NOALLOC_OVERRIDE
-#define DAGB0_RDCLI_NOALLOC_OVERRIDE__ENABLE__SHIFT                                                           0x0
-#define DAGB0_RDCLI_NOALLOC_OVERRIDE__ENABLE_MASK                                                             0x0000FFFFL
-//DAGB0_RDCLI_NOALLOC_OVERRIDE_VALUE
-#define DAGB0_RDCLI_NOALLOC_OVERRIDE_VALUE__VALUE__SHIFT                                                      0x0
-#define DAGB0_RDCLI_NOALLOC_OVERRIDE_VALUE__VALUE_MASK                                                        0x0000FFFFL
+//DAGB0_RDCLI_ANALALLOC_OVERRIDE
+#define DAGB0_RDCLI_ANALALLOC_OVERRIDE__ENABLE__SHIFT                                                           0x0
+#define DAGB0_RDCLI_ANALALLOC_OVERRIDE__ENABLE_MASK                                                             0x0000FFFFL
+//DAGB0_RDCLI_ANALALLOC_OVERRIDE_VALUE
+#define DAGB0_RDCLI_ANALALLOC_OVERRIDE_VALUE__VALUE__SHIFT                                                      0x0
+#define DAGB0_RDCLI_ANALALLOC_OVERRIDE_VALUE__VALUE_MASK                                                        0x0000FFFFL
 //DAGB0_WRCLI0
 #define DAGB0_WRCLI0__VIRT_CHAN__SHIFT                                                                        0x0
 #define DAGB0_WRCLI0__CHECK_TLB_CREDIT__SHIFT                                                                 0x3
@@ -1551,12 +1551,12 @@
 #define DAGB0_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB0_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB0_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB0_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB0_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB0_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
-//DAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
+//DAGB0_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB0_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB0_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
+//DAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
 //DAGB0_WRCLI_ASK_PENDING
 #define DAGB0_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB0_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -1581,12 +1581,12 @@
 //DAGB0_WRCLI_DBUS_GO_PENDING
 #define DAGB0_WRCLI_DBUS_GO_PENDING__BUSY__SHIFT                                                              0x0
 #define DAGB0_WRCLI_DBUS_GO_PENDING__BUSY_MASK                                                                0xFFFFFFFFL
-//DAGB0_WRCLI_NOALLOC_OVERRIDE
-#define DAGB0_WRCLI_NOALLOC_OVERRIDE__ENABLE__SHIFT                                                           0x0
-#define DAGB0_WRCLI_NOALLOC_OVERRIDE__ENABLE_MASK                                                             0x0000FFFFL
-//DAGB0_WRCLI_NOALLOC_OVERRIDE_VALUE
-#define DAGB0_WRCLI_NOALLOC_OVERRIDE_VALUE__VALUE__SHIFT                                                      0x0
-#define DAGB0_WRCLI_NOALLOC_OVERRIDE_VALUE__VALUE_MASK                                                        0x0000FFFFL
+//DAGB0_WRCLI_ANALALLOC_OVERRIDE
+#define DAGB0_WRCLI_ANALALLOC_OVERRIDE__ENABLE__SHIFT                                                           0x0
+#define DAGB0_WRCLI_ANALALLOC_OVERRIDE__ENABLE_MASK                                                             0x0000FFFFL
+//DAGB0_WRCLI_ANALALLOC_OVERRIDE_VALUE
+#define DAGB0_WRCLI_ANALALLOC_OVERRIDE_VALUE__VALUE__SHIFT                                                      0x0
+#define DAGB0_WRCLI_ANALALLOC_OVERRIDE_VALUE__VALUE_MASK                                                        0x0000FFFFL
 //DAGB0_DAGB_DLY
 #define DAGB0_DAGB_DLY__DLY__SHIFT                                                                            0x0
 #define DAGB0_DAGB_DLY__CLI__SHIFT                                                                            0x8
@@ -1678,25 +1678,25 @@
 #define DAGB0_FATAL_ERROR_STATUS2__DBGMSK_MASK                                                                0x01000000L
 #define DAGB0_FATAL_ERROR_STATUS2__FED_MASK                                                                   0x02000000L
 //DAGB0_FATAL_ERROR_STATUS3
-#define DAGB0_FATAL_ERROR_STATUS3__NOALLOC__SHIFT                                                             0x0
+#define DAGB0_FATAL_ERROR_STATUS3__ANALALLOC__SHIFT                                                             0x0
 #define DAGB0_FATAL_ERROR_STATUS3__UNITID__SHIFT                                                              0x1
 #define DAGB0_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x7
 #define DAGB0_FATAL_ERROR_STATUS3__SECLEVEL__SHIFT                                                            0xe
 #define DAGB0_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x11
 #define DAGB0_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x12
-#define DAGB0_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x13
+#define DAGB0_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x13
 #define DAGB0_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x14
 #define DAGB0_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x15
 #define DAGB0_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x17
 #define DAGB0_FATAL_ERROR_STATUS3__MEMLOG__SHIFT                                                              0x18
 #define DAGB0_FATAL_ERROR_STATUS3__EOP__SHIFT                                                                 0x19
-#define DAGB0_FATAL_ERROR_STATUS3__NOALLOC_MASK                                                               0x00000001L
+#define DAGB0_FATAL_ERROR_STATUS3__ANALALLOC_MASK                                                               0x00000001L
 #define DAGB0_FATAL_ERROR_STATUS3__UNITID_MASK                                                                0x0000007EL
 #define DAGB0_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00003F80L
 #define DAGB0_FATAL_ERROR_STATUS3__SECLEVEL_MASK                                                              0x0001C000L
 #define DAGB0_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00020000L
 #define DAGB0_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00040000L
-#define DAGB0_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00080000L
+#define DAGB0_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00080000L
 #define DAGB0_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00100000L
 #define DAGB0_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00600000L
 #define DAGB0_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00800000L
@@ -2496,12 +2496,12 @@
 //DAGB1_RDCLI_OSD_PENDING
 #define DAGB1_RDCLI_OSD_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB1_RDCLI_OSD_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
-//DAGB1_RDCLI_NOALLOC_OVERRIDE
-#define DAGB1_RDCLI_NOALLOC_OVERRIDE__ENABLE__SHIFT                                                           0x0
-#define DAGB1_RDCLI_NOALLOC_OVERRIDE__ENABLE_MASK                                                             0x0000FFFFL
-//DAGB1_RDCLI_NOALLOC_OVERRIDE_VALUE
-#define DAGB1_RDCLI_NOALLOC_OVERRIDE_VALUE__VALUE__SHIFT                                                      0x0
-#define DAGB1_RDCLI_NOALLOC_OVERRIDE_VALUE__VALUE_MASK                                                        0x0000FFFFL
+//DAGB1_RDCLI_ANALALLOC_OVERRIDE
+#define DAGB1_RDCLI_ANALALLOC_OVERRIDE__ENABLE__SHIFT                                                           0x0
+#define DAGB1_RDCLI_ANALALLOC_OVERRIDE__ENABLE_MASK                                                             0x0000FFFFL
+//DAGB1_RDCLI_ANALALLOC_OVERRIDE_VALUE
+#define DAGB1_RDCLI_ANALALLOC_OVERRIDE_VALUE__VALUE__SHIFT                                                      0x0
+#define DAGB1_RDCLI_ANALALLOC_OVERRIDE_VALUE__VALUE_MASK                                                        0x0000FFFFL
 //DAGB1_WRCLI0
 #define DAGB1_WRCLI0__VIRT_CHAN__SHIFT                                                                        0x0
 #define DAGB1_WRCLI0__CHECK_TLB_CREDIT__SHIFT                                                                 0x3
@@ -3310,12 +3310,12 @@
 #define DAGB1_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB1_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB1_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB1_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB1_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB1_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
-//DAGB1_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB1_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB1_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
+//DAGB1_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB1_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB1_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
+//DAGB1_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB1_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB1_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
 //DAGB1_WRCLI_ASK_PENDING
 #define DAGB1_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB1_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -3431,25 +3431,25 @@
 #define DAGB1_FATAL_ERROR_STATUS2__DBGMSK_MASK                                                                0x01000000L
 #define DAGB1_FATAL_ERROR_STATUS2__FED_MASK                                                                   0x02000000L
 //DAGB1_FATAL_ERROR_STATUS3
-#define DAGB1_FATAL_ERROR_STATUS3__NOALLOC__SHIFT                                                             0x0
+#define DAGB1_FATAL_ERROR_STATUS3__ANALALLOC__SHIFT                                                             0x0
 #define DAGB1_FATAL_ERROR_STATUS3__UNITID__SHIFT                                                              0x1
 #define DAGB1_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x7
 #define DAGB1_FATAL_ERROR_STATUS3__SECLEVEL__SHIFT                                                            0xe
 #define DAGB1_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x11
 #define DAGB1_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x12
-#define DAGB1_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x13
+#define DAGB1_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x13
 #define DAGB1_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x14
 #define DAGB1_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x15
 #define DAGB1_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x17
 #define DAGB1_FATAL_ERROR_STATUS3__MEMLOG__SHIFT                                                              0x18
 #define DAGB1_FATAL_ERROR_STATUS3__EOP__SHIFT                                                                 0x19
-#define DAGB1_FATAL_ERROR_STATUS3__NOALLOC_MASK                                                               0x00000001L
+#define DAGB1_FATAL_ERROR_STATUS3__ANALALLOC_MASK                                                               0x00000001L
 #define DAGB1_FATAL_ERROR_STATUS3__UNITID_MASK                                                                0x0000007EL
 #define DAGB1_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00003F80L
 #define DAGB1_FATAL_ERROR_STATUS3__SECLEVEL_MASK                                                              0x0001C000L
 #define DAGB1_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00020000L
 #define DAGB1_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00040000L
-#define DAGB1_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00080000L
+#define DAGB1_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00080000L
 #define DAGB1_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00100000L
 #define DAGB1_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00600000L
 #define DAGB1_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00800000L
@@ -5057,12 +5057,12 @@
 #define DAGB2_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB2_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB2_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB2_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB2_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB2_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
-//DAGB2_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB2_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB2_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
+//DAGB2_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB2_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB2_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
+//DAGB2_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB2_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB2_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
 //DAGB2_WRCLI_ASK_PENDING
 #define DAGB2_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB2_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -5178,25 +5178,25 @@
 #define DAGB2_FATAL_ERROR_STATUS2__DBGMSK_MASK                                                                0x01000000L
 #define DAGB2_FATAL_ERROR_STATUS2__FED_MASK                                                                   0x02000000L
 //DAGB2_FATAL_ERROR_STATUS3
-#define DAGB2_FATAL_ERROR_STATUS3__NOALLOC__SHIFT                                                             0x0
+#define DAGB2_FATAL_ERROR_STATUS3__ANALALLOC__SHIFT                                                             0x0
 #define DAGB2_FATAL_ERROR_STATUS3__UNITID__SHIFT                                                              0x1
 #define DAGB2_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x7
 #define DAGB2_FATAL_ERROR_STATUS3__SECLEVEL__SHIFT                                                            0xe
 #define DAGB2_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x11
 #define DAGB2_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x12
-#define DAGB2_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x13
+#define DAGB2_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x13
 #define DAGB2_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x14
 #define DAGB2_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x15
 #define DAGB2_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x17
 #define DAGB2_FATAL_ERROR_STATUS3__MEMLOG__SHIFT                                                              0x18
 #define DAGB2_FATAL_ERROR_STATUS3__EOP__SHIFT                                                                 0x19
-#define DAGB2_FATAL_ERROR_STATUS3__NOALLOC_MASK                                                               0x00000001L
+#define DAGB2_FATAL_ERROR_STATUS3__ANALALLOC_MASK                                                               0x00000001L
 #define DAGB2_FATAL_ERROR_STATUS3__UNITID_MASK                                                                0x0000007EL
 #define DAGB2_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00003F80L
 #define DAGB2_FATAL_ERROR_STATUS3__SECLEVEL_MASK                                                              0x0001C000L
 #define DAGB2_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00020000L
 #define DAGB2_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00040000L
-#define DAGB2_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00080000L
+#define DAGB2_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00080000L
 #define DAGB2_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00100000L
 #define DAGB2_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00600000L
 #define DAGB2_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00800000L
@@ -6804,12 +6804,12 @@
 #define DAGB3_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB3_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB3_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB3_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB3_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB3_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
-//DAGB3_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB3_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB3_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
+//DAGB3_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB3_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB3_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
+//DAGB3_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB3_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB3_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
 //DAGB3_WRCLI_ASK_PENDING
 #define DAGB3_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB3_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -6925,25 +6925,25 @@
 #define DAGB3_FATAL_ERROR_STATUS2__DBGMSK_MASK                                                                0x01000000L
 #define DAGB3_FATAL_ERROR_STATUS2__FED_MASK                                                                   0x02000000L
 //DAGB3_FATAL_ERROR_STATUS3
-#define DAGB3_FATAL_ERROR_STATUS3__NOALLOC__SHIFT                                                             0x0
+#define DAGB3_FATAL_ERROR_STATUS3__ANALALLOC__SHIFT                                                             0x0
 #define DAGB3_FATAL_ERROR_STATUS3__UNITID__SHIFT                                                              0x1
 #define DAGB3_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x7
 #define DAGB3_FATAL_ERROR_STATUS3__SECLEVEL__SHIFT                                                            0xe
 #define DAGB3_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x11
 #define DAGB3_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x12
-#define DAGB3_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x13
+#define DAGB3_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x13
 #define DAGB3_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x14
 #define DAGB3_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x15
 #define DAGB3_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x17
 #define DAGB3_FATAL_ERROR_STATUS3__MEMLOG__SHIFT                                                              0x18
 #define DAGB3_FATAL_ERROR_STATUS3__EOP__SHIFT                                                                 0x19
-#define DAGB3_FATAL_ERROR_STATUS3__NOALLOC_MASK                                                               0x00000001L
+#define DAGB3_FATAL_ERROR_STATUS3__ANALALLOC_MASK                                                               0x00000001L
 #define DAGB3_FATAL_ERROR_STATUS3__UNITID_MASK                                                                0x0000007EL
 #define DAGB3_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00003F80L
 #define DAGB3_FATAL_ERROR_STATUS3__SECLEVEL_MASK                                                              0x0001C000L
 #define DAGB3_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00020000L
 #define DAGB3_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00040000L
-#define DAGB3_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00080000L
+#define DAGB3_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00080000L
 #define DAGB3_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00100000L
 #define DAGB3_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00600000L
 #define DAGB3_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00800000L
@@ -8551,12 +8551,12 @@
 #define DAGB4_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX0_MASK                                                          0x08000000L
 #define DAGB4_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX1_MASK                                                          0x10000000L
 #define DAGB4_WR_ATOMIC_FIFO_CREDIT_CNTL1__FIX2_MASK                                                          0x20000000L
-//DAGB4_WRCLI_GPU_SNOOP_OVERRIDE
-#define DAGB4_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
-#define DAGB4_WRCLI_GPU_SNOOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
-//DAGB4_WRCLI_GPU_SNOOP_OVERRIDE_VALUE
-#define DAGB4_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
-#define DAGB4_WRCLI_GPU_SNOOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
+//DAGB4_WRCLI_GPU_SANALOP_OVERRIDE
+#define DAGB4_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE__SHIFT                                                         0x0
+#define DAGB4_WRCLI_GPU_SANALOP_OVERRIDE__ENABLE_MASK                                                           0x0000FFFFL
+//DAGB4_WRCLI_GPU_SANALOP_OVERRIDE_VALUE
+#define DAGB4_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE__SHIFT                                                   0x0
+#define DAGB4_WRCLI_GPU_SANALOP_OVERRIDE_VALUE__ENABLE_MASK                                                     0x0000FFFFL
 //DAGB4_WRCLI_ASK_PENDING
 #define DAGB4_WRCLI_ASK_PENDING__BUSY__SHIFT                                                                  0x0
 #define DAGB4_WRCLI_ASK_PENDING__BUSY_MASK                                                                    0xFFFFFFFFL
@@ -8672,25 +8672,25 @@
 #define DAGB4_FATAL_ERROR_STATUS2__DBGMSK_MASK                                                                0x01000000L
 #define DAGB4_FATAL_ERROR_STATUS2__FED_MASK                                                                   0x02000000L
 //DAGB4_FATAL_ERROR_STATUS3
-#define DAGB4_FATAL_ERROR_STATUS3__NOALLOC__SHIFT                                                             0x0
+#define DAGB4_FATAL_ERROR_STATUS3__ANALALLOC__SHIFT                                                             0x0
 #define DAGB4_FATAL_ERROR_STATUS3__UNITID__SHIFT                                                              0x1
 #define DAGB4_FATAL_ERROR_STATUS3__OP__SHIFT                                                                  0x7
 #define DAGB4_FATAL_ERROR_STATUS3__SECLEVEL__SHIFT                                                            0xe
 #define DAGB4_FATAL_ERROR_STATUS3__WRTMZ__SHIFT                                                               0x11
 #define DAGB4_FATAL_ERROR_STATUS3__RDTMZ__SHIFT                                                               0x12
-#define DAGB4_FATAL_ERROR_STATUS3__SNOOP__SHIFT                                                               0x13
+#define DAGB4_FATAL_ERROR_STATUS3__SANALOP__SHIFT                                                               0x13
 #define DAGB4_FATAL_ERROR_STATUS3__INVAL__SHIFT                                                               0x14
 #define DAGB4_FATAL_ERROR_STATUS3__NACK__SHIFT                                                                0x15
 #define DAGB4_FATAL_ERROR_STATUS3__RO__SHIFT                                                                  0x17
 #define DAGB4_FATAL_ERROR_STATUS3__MEMLOG__SHIFT                                                              0x18
 #define DAGB4_FATAL_ERROR_STATUS3__EOP__SHIFT                                                                 0x19
-#define DAGB4_FATAL_ERROR_STATUS3__NOALLOC_MASK                                                               0x00000001L
+#define DAGB4_FATAL_ERROR_STATUS3__ANALALLOC_MASK                                                               0x00000001L
 #define DAGB4_FATAL_ERROR_STATUS3__UNITID_MASK                                                                0x0000007EL
 #define DAGB4_FATAL_ERROR_STATUS3__OP_MASK                                                                    0x00003F80L
 #define DAGB4_FATAL_ERROR_STATUS3__SECLEVEL_MASK                                                              0x0001C000L
 #define DAGB4_FATAL_ERROR_STATUS3__WRTMZ_MASK                                                                 0x00020000L
 #define DAGB4_FATAL_ERROR_STATUS3__RDTMZ_MASK                                                                 0x00040000L
-#define DAGB4_FATAL_ERROR_STATUS3__SNOOP_MASK                                                                 0x00080000L
+#define DAGB4_FATAL_ERROR_STATUS3__SANALOP_MASK                                                                 0x00080000L
 #define DAGB4_FATAL_ERROR_STATUS3__INVAL_MASK                                                                 0x00100000L
 #define DAGB4_FATAL_ERROR_STATUS3__NACK_MASK                                                                  0x00600000L
 #define DAGB4_FATAL_ERROR_STATUS3__RO_MASK                                                                    0x00800000L
@@ -10407,8 +10407,8 @@
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -10423,8 +10423,8 @@
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA0_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA0_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA0_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA0_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA0_PERFCOUNTER_LO
@@ -10698,9 +10698,9 @@
 #define MMEA0_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA0_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA0_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA0_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA0_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA0_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA0_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA0_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA0_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA0_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA0_ERR_STATUS__FUE_FLAG_CLIENT__SHIFT                                                              0x13
@@ -10711,9 +10711,9 @@
 #define MMEA0_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA0_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA0_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA0_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA0_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA0_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA0_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA0_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA0_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA0_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 #define MMEA0_ERR_STATUS__FUE_FLAG_CLIENT_MASK                                                                0x00080000L
@@ -12402,8 +12402,8 @@
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -12418,8 +12418,8 @@
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA1_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA1_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA1_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA1_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA1_PERFCOUNTER_LO
@@ -12693,9 +12693,9 @@
 #define MMEA1_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA1_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA1_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA1_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA1_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA1_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA1_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA1_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA1_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA1_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA1_ERR_STATUS__FUE_FLAG_CLIENT__SHIFT                                                              0x13
@@ -12706,9 +12706,9 @@
 #define MMEA1_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA1_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA1_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA1_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA1_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA1_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA1_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA1_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA1_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA1_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 #define MMEA1_ERR_STATUS__FUE_FLAG_CLIENT_MASK                                                                0x00080000L
@@ -14397,8 +14397,8 @@
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -14413,8 +14413,8 @@
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA2_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA2_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA2_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA2_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA2_PERFCOUNTER_LO
@@ -14688,9 +14688,9 @@
 #define MMEA2_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA2_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA2_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA2_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA2_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA2_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA2_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA2_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA2_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA2_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA2_ERR_STATUS__FUE_FLAG_CLIENT__SHIFT                                                              0x13
@@ -14701,9 +14701,9 @@
 #define MMEA2_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA2_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA2_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA2_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA2_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA2_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA2_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA2_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA2_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA2_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 #define MMEA2_ERR_STATUS__FUE_FLAG_CLIENT_MASK                                                                0x00080000L
@@ -16392,8 +16392,8 @@
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -16408,8 +16408,8 @@
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA3_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA3_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA3_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA3_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA3_PERFCOUNTER_LO
@@ -16683,9 +16683,9 @@
 #define MMEA3_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA3_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA3_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA3_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA3_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA3_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA3_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA3_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA3_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA3_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA3_ERR_STATUS__FUE_FLAG_CLIENT__SHIFT                                                              0x13
@@ -16696,9 +16696,9 @@
 #define MMEA3_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA3_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA3_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA3_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA3_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA3_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA3_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA3_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA3_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA3_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 #define MMEA3_ERR_STATUS__FUE_FLAG_CLIENT_MASK                                                                0x00080000L
@@ -18387,8 +18387,8 @@
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                         0x9
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                    0xa
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                    0xb
-#define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                  0xc
-#define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                  0xd
+#define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                  0xc
+#define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                  0xd
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                            0xe
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                            0x16
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                            0x00000001L
@@ -18403,8 +18403,8 @@
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                           0x00000200L
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                      0x00000400L
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                      0x00000800L
-#define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                    0x00001000L
-#define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                    0x00002000L
+#define MMEA4_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                    0x00001000L
+#define MMEA4_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                    0x00002000L
 #define MMEA4_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                              0x003FC000L
 #define MMEA4_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                              0x3FC00000L
 //MMEA4_PERFCOUNTER_LO
@@ -18678,9 +18678,9 @@
 #define MMEA4_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                           0xb
 #define MMEA4_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                0xc
 #define MMEA4_ERR_STATUS__FUE_FLAG__SHIFT                                                                     0xd
-#define MMEA4_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                             0xe
+#define MMEA4_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                             0xe
 #define MMEA4_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                           0xf
-#define MMEA4_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                   0x10
+#define MMEA4_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                   0x10
 #define MMEA4_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                              0x11
 #define MMEA4_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                     0x12
 #define MMEA4_ERR_STATUS__FUE_FLAG_CLIENT__SHIFT                                                              0x13
@@ -18691,9 +18691,9 @@
 #define MMEA4_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                             0x00000800L
 #define MMEA4_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                  0x00001000L
 #define MMEA4_ERR_STATUS__FUE_FLAG_MASK                                                                       0x00002000L
-#define MMEA4_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                               0x00004000L
+#define MMEA4_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                               0x00004000L
 #define MMEA4_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                             0x00008000L
-#define MMEA4_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                     0x00010000L
+#define MMEA4_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                     0x00010000L
 #define MMEA4_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                0x00020000L
 #define MMEA4_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                       0x00040000L
 #define MMEA4_ERR_STATUS__FUE_FLAG_CLIENT_MASK                                                                0x00080000L
@@ -18758,7 +18758,7 @@
 #define PCTL0_CTRL__ALLOW_DEEP_SLEEP_MODE__SHIFT                                                              0x1
 #define PCTL0_CTRL__STCTRL_RSMU_IDLE_THRESHOLD__SHIFT                                                         0x4
 #define PCTL0_CTRL__STCTRL_DAGB_IDLE_THRESHOLD__SHIFT                                                         0xb
-#define PCTL0_CTRL__STCTRL_IGNORE_PROTECTION_FAULT__SHIFT                                                     0x10
+#define PCTL0_CTRL__STCTRL_IGANALRE_PROTECTION_FAULT__SHIFT                                                     0x10
 #define PCTL0_CTRL__OVR_EA0_SDP_PARTACK__SHIFT                                                                0x11
 #define PCTL0_CTRL__OVR_EA1_SDP_PARTACK__SHIFT                                                                0x12
 #define PCTL0_CTRL__OVR_EA2_SDP_PARTACK__SHIFT                                                                0x13
@@ -18777,7 +18777,7 @@
 #define PCTL0_CTRL__ALLOW_DEEP_SLEEP_MODE_MASK                                                                0x0000000EL
 #define PCTL0_CTRL__STCTRL_RSMU_IDLE_THRESHOLD_MASK                                                           0x000007F0L
 #define PCTL0_CTRL__STCTRL_DAGB_IDLE_THRESHOLD_MASK                                                           0x0000F800L
-#define PCTL0_CTRL__STCTRL_IGNORE_PROTECTION_FAULT_MASK                                                       0x00010000L
+#define PCTL0_CTRL__STCTRL_IGANALRE_PROTECTION_FAULT_MASK                                                       0x00010000L
 #define PCTL0_CTRL__OVR_EA0_SDP_PARTACK_MASK                                                                  0x00020000L
 #define PCTL0_CTRL__OVR_EA1_SDP_PARTACK_MASK                                                                  0x00040000L
 #define PCTL0_CTRL__OVR_EA2_SDP_PARTACK_MASK                                                                  0x00080000L
@@ -18903,82 +18903,82 @@
 #define PCTL0_MMHUB_DEEPSLEEP_OVERRIDE_IB__DS14_MASK                                                          0x00004000L
 #define PCTL0_MMHUB_DEEPSLEEP_OVERRIDE_IB__DS15_MASK                                                          0x00008000L
 #define PCTL0_MMHUB_DEEPSLEEP_OVERRIDE_IB__DS16_MASK                                                          0x00010000L
-//PCTL0_PG_IGNORE_DEEPSLEEP
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS0__SHIFT                                                                 0x0
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS1__SHIFT                                                                 0x1
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS2__SHIFT                                                                 0x2
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS3__SHIFT                                                                 0x3
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS4__SHIFT                                                                 0x4
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS5__SHIFT                                                                 0x5
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS6__SHIFT                                                                 0x6
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS7__SHIFT                                                                 0x7
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS8__SHIFT                                                                 0x8
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS9__SHIFT                                                                 0x9
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS10__SHIFT                                                                0xa
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS11__SHIFT                                                                0xb
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS12__SHIFT                                                                0xc
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS13__SHIFT                                                                0xd
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS14__SHIFT                                                                0xe
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS15__SHIFT                                                                0xf
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS16__SHIFT                                                                0x10
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS_ATHUB__SHIFT                                                            0x11
-#define PCTL0_PG_IGNORE_DEEPSLEEP__ALLIPS__SHIFT                                                              0x12
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS0_MASK                                                                   0x00000001L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS1_MASK                                                                   0x00000002L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS2_MASK                                                                   0x00000004L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS3_MASK                                                                   0x00000008L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS4_MASK                                                                   0x00000010L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS5_MASK                                                                   0x00000020L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS6_MASK                                                                   0x00000040L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS7_MASK                                                                   0x00000080L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS8_MASK                                                                   0x00000100L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS9_MASK                                                                   0x00000200L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS10_MASK                                                                  0x00000400L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS11_MASK                                                                  0x00000800L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS12_MASK                                                                  0x00001000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS13_MASK                                                                  0x00002000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS14_MASK                                                                  0x00004000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS15_MASK                                                                  0x00008000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS16_MASK                                                                  0x00010000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__DS_ATHUB_MASK                                                              0x00020000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP__ALLIPS_MASK                                                                0x00040000L
-//PCTL0_PG_IGNORE_DEEPSLEEP_IB
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS0__SHIFT                                                              0x0
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS1__SHIFT                                                              0x1
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS2__SHIFT                                                              0x2
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS3__SHIFT                                                              0x3
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS4__SHIFT                                                              0x4
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS5__SHIFT                                                              0x5
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS6__SHIFT                                                              0x6
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS7__SHIFT                                                              0x7
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS8__SHIFT                                                              0x8
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS9__SHIFT                                                              0x9
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS10__SHIFT                                                             0xa
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS11__SHIFT                                                             0xb
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS12__SHIFT                                                             0xc
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS13__SHIFT                                                             0xd
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS14__SHIFT                                                             0xe
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS15__SHIFT                                                             0xf
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS16__SHIFT                                                             0x10
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__ALLIPS__SHIFT                                                           0x11
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS0_MASK                                                                0x00000001L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS1_MASK                                                                0x00000002L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS2_MASK                                                                0x00000004L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS3_MASK                                                                0x00000008L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS4_MASK                                                                0x00000010L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS5_MASK                                                                0x00000020L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS6_MASK                                                                0x00000040L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS7_MASK                                                                0x00000080L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS8_MASK                                                                0x00000100L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS9_MASK                                                                0x00000200L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS10_MASK                                                               0x00000400L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS11_MASK                                                               0x00000800L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS12_MASK                                                               0x00001000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS13_MASK                                                               0x00002000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS14_MASK                                                               0x00004000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS15_MASK                                                               0x00008000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__DS16_MASK                                                               0x00010000L
-#define PCTL0_PG_IGNORE_DEEPSLEEP_IB__ALLIPS_MASK                                                             0x00020000L
+//PCTL0_PG_IGANALRE_DEEPSLEEP
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS0__SHIFT                                                                 0x0
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS1__SHIFT                                                                 0x1
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS2__SHIFT                                                                 0x2
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS3__SHIFT                                                                 0x3
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS4__SHIFT                                                                 0x4
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS5__SHIFT                                                                 0x5
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS6__SHIFT                                                                 0x6
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS7__SHIFT                                                                 0x7
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS8__SHIFT                                                                 0x8
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS9__SHIFT                                                                 0x9
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS10__SHIFT                                                                0xa
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS11__SHIFT                                                                0xb
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS12__SHIFT                                                                0xc
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS13__SHIFT                                                                0xd
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS14__SHIFT                                                                0xe
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS15__SHIFT                                                                0xf
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS16__SHIFT                                                                0x10
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS_ATHUB__SHIFT                                                            0x11
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__ALLIPS__SHIFT                                                              0x12
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS0_MASK                                                                   0x00000001L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS1_MASK                                                                   0x00000002L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS2_MASK                                                                   0x00000004L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS3_MASK                                                                   0x00000008L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS4_MASK                                                                   0x00000010L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS5_MASK                                                                   0x00000020L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS6_MASK                                                                   0x00000040L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS7_MASK                                                                   0x00000080L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS8_MASK                                                                   0x00000100L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS9_MASK                                                                   0x00000200L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS10_MASK                                                                  0x00000400L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS11_MASK                                                                  0x00000800L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS12_MASK                                                                  0x00001000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS13_MASK                                                                  0x00002000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS14_MASK                                                                  0x00004000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS15_MASK                                                                  0x00008000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS16_MASK                                                                  0x00010000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__DS_ATHUB_MASK                                                              0x00020000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP__ALLIPS_MASK                                                                0x00040000L
+//PCTL0_PG_IGANALRE_DEEPSLEEP_IB
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS0__SHIFT                                                              0x0
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS1__SHIFT                                                              0x1
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS2__SHIFT                                                              0x2
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS3__SHIFT                                                              0x3
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS4__SHIFT                                                              0x4
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS5__SHIFT                                                              0x5
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS6__SHIFT                                                              0x6
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS7__SHIFT                                                              0x7
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS8__SHIFT                                                              0x8
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS9__SHIFT                                                              0x9
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS10__SHIFT                                                             0xa
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS11__SHIFT                                                             0xb
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS12__SHIFT                                                             0xc
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS13__SHIFT                                                             0xd
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS14__SHIFT                                                             0xe
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS15__SHIFT                                                             0xf
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS16__SHIFT                                                             0x10
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__ALLIPS__SHIFT                                                           0x11
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS0_MASK                                                                0x00000001L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS1_MASK                                                                0x00000002L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS2_MASK                                                                0x00000004L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS3_MASK                                                                0x00000008L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS4_MASK                                                                0x00000010L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS5_MASK                                                                0x00000020L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS6_MASK                                                                0x00000040L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS7_MASK                                                                0x00000080L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS8_MASK                                                                0x00000100L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS9_MASK                                                                0x00000200L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS10_MASK                                                               0x00000400L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS11_MASK                                                               0x00000800L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS12_MASK                                                               0x00001000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS13_MASK                                                               0x00002000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS14_MASK                                                               0x00004000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS15_MASK                                                               0x00008000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__DS16_MASK                                                               0x00010000L
+#define PCTL0_PG_IGANALRE_DEEPSLEEP_IB__ALLIPS_MASK                                                             0x00020000L
 //PCTL0_SLICE0_CFG_DAGB_BUSY
 #define PCTL0_SLICE0_CFG_DAGB_BUSY__DB_LNCFG__SHIFT                                                           0x0
 #define PCTL0_SLICE0_CFG_DAGB_BUSY__DB_LNCFG_MASK                                                             0xFFFFFFFFL
@@ -19345,14 +19345,14 @@
 #define PCTL0_SLICE4_CFG_DS_ALLOW_IB__DS15_MASK                                                               0x00008000L
 #define PCTL0_SLICE4_CFG_DS_ALLOW_IB__DS16_MASK                                                               0x00010000L
 //PCTL0_UTCL2_MISC
-#define PCTL0_UTCL2_MISC__RENG_EXECUTE_NONSECURE_START_PTR__SHIFT                                             0x0
+#define PCTL0_UTCL2_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR__SHIFT                                             0x0
 #define PCTL0_UTCL2_MISC__CRITICAL_REGS_LOCK__SHIFT                                                           0xb
 #define PCTL0_UTCL2_MISC__TILE_IDLE_THRESHOLD__SHIFT                                                          0xc
 #define PCTL0_UTCL2_MISC__RENG_MEM_LS_ENABLE__SHIFT                                                           0xf
 #define PCTL0_UTCL2_MISC__STCTRL_FORCE_PGFSM_CMD_DONE__SHIFT                                                  0x10
 #define PCTL0_UTCL2_MISC__RENG_EXECUTE_ON_REG_UPDATE__SHIFT                                                   0x11
 #define PCTL0_UTCL2_MISC__RD_TIMER_ENABLE__SHIFT                                                              0x12
-#define PCTL0_UTCL2_MISC__RENG_EXECUTE_NONSECURE_START_PTR_MASK                                               0x000007FFL
+#define PCTL0_UTCL2_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR_MASK                                               0x000007FFL
 #define PCTL0_UTCL2_MISC__CRITICAL_REGS_LOCK_MASK                                                             0x00000800L
 #define PCTL0_UTCL2_MISC__TILE_IDLE_THRESHOLD_MASK                                                            0x00007000L
 #define PCTL0_UTCL2_MISC__RENG_MEM_LS_ENABLE_MASK                                                             0x00008000L
@@ -19360,7 +19360,7 @@
 #define PCTL0_UTCL2_MISC__RENG_EXECUTE_ON_REG_UPDATE_MASK                                                     0x00020000L
 #define PCTL0_UTCL2_MISC__RD_TIMER_ENABLE_MASK                                                                0x00040000L
 //PCTL0_SLICE0_MISC
-#define PCTL0_SLICE0_MISC__RENG_EXECUTE_NONSECURE_START_PTR__SHIFT                                            0x0
+#define PCTL0_SLICE0_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR__SHIFT                                            0x0
 #define PCTL0_SLICE0_MISC__CRITICAL_REGS_LOCK__SHIFT                                                          0xa
 #define PCTL0_SLICE0_MISC__TILE_IDLE_THRESHOLD__SHIFT                                                         0xb
 #define PCTL0_SLICE0_MISC__RENG_MEM_LS_ENABLE__SHIFT                                                          0xe
@@ -19368,7 +19368,7 @@
 #define PCTL0_SLICE0_MISC__DEEPSLEEP_DISCSDP__SHIFT                                                           0x10
 #define PCTL0_SLICE0_MISC__RENG_EXECUTE_ON_REG_UPDATE__SHIFT                                                  0x11
 #define PCTL0_SLICE0_MISC__RD_TIMER_ENABLE__SHIFT                                                             0x12
-#define PCTL0_SLICE0_MISC__RENG_EXECUTE_NONSECURE_START_PTR_MASK                                              0x000003FFL
+#define PCTL0_SLICE0_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR_MASK                                              0x000003FFL
 #define PCTL0_SLICE0_MISC__CRITICAL_REGS_LOCK_MASK                                                            0x00000400L
 #define PCTL0_SLICE0_MISC__TILE_IDLE_THRESHOLD_MASK                                                           0x00003800L
 #define PCTL0_SLICE0_MISC__RENG_MEM_LS_ENABLE_MASK                                                            0x00004000L
@@ -19377,7 +19377,7 @@
 #define PCTL0_SLICE0_MISC__RENG_EXECUTE_ON_REG_UPDATE_MASK                                                    0x00020000L
 #define PCTL0_SLICE0_MISC__RD_TIMER_ENABLE_MASK                                                               0x00040000L
 //PCTL0_SLICE1_MISC
-#define PCTL0_SLICE1_MISC__RENG_EXECUTE_NONSECURE_START_PTR__SHIFT                                            0x0
+#define PCTL0_SLICE1_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR__SHIFT                                            0x0
 #define PCTL0_SLICE1_MISC__CRITICAL_REGS_LOCK__SHIFT                                                          0xa
 #define PCTL0_SLICE1_MISC__TILE_IDLE_THRESHOLD__SHIFT                                                         0xb
 #define PCTL0_SLICE1_MISC__RENG_MEM_LS_ENABLE__SHIFT                                                          0xe
@@ -19385,7 +19385,7 @@
 #define PCTL0_SLICE1_MISC__DEEPSLEEP_DISCSDP__SHIFT                                                           0x10
 #define PCTL0_SLICE1_MISC__RENG_EXECUTE_ON_REG_UPDATE__SHIFT                                                  0x11
 #define PCTL0_SLICE1_MISC__RD_TIMER_ENABLE__SHIFT                                                             0x12
-#define PCTL0_SLICE1_MISC__RENG_EXECUTE_NONSECURE_START_PTR_MASK                                              0x000003FFL
+#define PCTL0_SLICE1_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR_MASK                                              0x000003FFL
 #define PCTL0_SLICE1_MISC__CRITICAL_REGS_LOCK_MASK                                                            0x00000400L
 #define PCTL0_SLICE1_MISC__TILE_IDLE_THRESHOLD_MASK                                                           0x00003800L
 #define PCTL0_SLICE1_MISC__RENG_MEM_LS_ENABLE_MASK                                                            0x00004000L
@@ -19394,7 +19394,7 @@
 #define PCTL0_SLICE1_MISC__RENG_EXECUTE_ON_REG_UPDATE_MASK                                                    0x00020000L
 #define PCTL0_SLICE1_MISC__RD_TIMER_ENABLE_MASK                                                               0x00040000L
 //PCTL0_SLICE2_MISC
-#define PCTL0_SLICE2_MISC__RENG_EXECUTE_NONSECURE_START_PTR__SHIFT                                            0x0
+#define PCTL0_SLICE2_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR__SHIFT                                            0x0
 #define PCTL0_SLICE2_MISC__CRITICAL_REGS_LOCK__SHIFT                                                          0xa
 #define PCTL0_SLICE2_MISC__TILE_IDLE_THRESHOLD__SHIFT                                                         0xb
 #define PCTL0_SLICE2_MISC__RENG_MEM_LS_ENABLE__SHIFT                                                          0xe
@@ -19402,7 +19402,7 @@
 #define PCTL0_SLICE2_MISC__DEEPSLEEP_DISCSDP__SHIFT                                                           0x10
 #define PCTL0_SLICE2_MISC__RENG_EXECUTE_ON_REG_UPDATE__SHIFT                                                  0x11
 #define PCTL0_SLICE2_MISC__RD_TIMER_ENABLE__SHIFT                                                             0x12
-#define PCTL0_SLICE2_MISC__RENG_EXECUTE_NONSECURE_START_PTR_MASK                                              0x000003FFL
+#define PCTL0_SLICE2_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR_MASK                                              0x000003FFL
 #define PCTL0_SLICE2_MISC__CRITICAL_REGS_LOCK_MASK                                                            0x00000400L
 #define PCTL0_SLICE2_MISC__TILE_IDLE_THRESHOLD_MASK                                                           0x00003800L
 #define PCTL0_SLICE2_MISC__RENG_MEM_LS_ENABLE_MASK                                                            0x00004000L
@@ -19411,7 +19411,7 @@
 #define PCTL0_SLICE2_MISC__RENG_EXECUTE_ON_REG_UPDATE_MASK                                                    0x00020000L
 #define PCTL0_SLICE2_MISC__RD_TIMER_ENABLE_MASK                                                               0x00040000L
 //PCTL0_SLICE3_MISC
-#define PCTL0_SLICE3_MISC__RENG_EXECUTE_NONSECURE_START_PTR__SHIFT                                            0x0
+#define PCTL0_SLICE3_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR__SHIFT                                            0x0
 #define PCTL0_SLICE3_MISC__CRITICAL_REGS_LOCK__SHIFT                                                          0xa
 #define PCTL0_SLICE3_MISC__TILE_IDLE_THRESHOLD__SHIFT                                                         0xb
 #define PCTL0_SLICE3_MISC__RENG_MEM_LS_ENABLE__SHIFT                                                          0xe
@@ -19419,7 +19419,7 @@
 #define PCTL0_SLICE3_MISC__DEEPSLEEP_DISCSDP__SHIFT                                                           0x10
 #define PCTL0_SLICE3_MISC__RENG_EXECUTE_ON_REG_UPDATE__SHIFT                                                  0x11
 #define PCTL0_SLICE3_MISC__RD_TIMER_ENABLE__SHIFT                                                             0x12
-#define PCTL0_SLICE3_MISC__RENG_EXECUTE_NONSECURE_START_PTR_MASK                                              0x000003FFL
+#define PCTL0_SLICE3_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR_MASK                                              0x000003FFL
 #define PCTL0_SLICE3_MISC__CRITICAL_REGS_LOCK_MASK                                                            0x00000400L
 #define PCTL0_SLICE3_MISC__TILE_IDLE_THRESHOLD_MASK                                                           0x00003800L
 #define PCTL0_SLICE3_MISC__RENG_MEM_LS_ENABLE_MASK                                                            0x00004000L
@@ -19428,7 +19428,7 @@
 #define PCTL0_SLICE3_MISC__RENG_EXECUTE_ON_REG_UPDATE_MASK                                                    0x00020000L
 #define PCTL0_SLICE3_MISC__RD_TIMER_ENABLE_MASK                                                               0x00040000L
 //PCTL0_SLICE4_MISC
-#define PCTL0_SLICE4_MISC__RENG_EXECUTE_NONSECURE_START_PTR__SHIFT                                            0x0
+#define PCTL0_SLICE4_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR__SHIFT                                            0x0
 #define PCTL0_SLICE4_MISC__CRITICAL_REGS_LOCK__SHIFT                                                          0xa
 #define PCTL0_SLICE4_MISC__TILE_IDLE_THRESHOLD__SHIFT                                                         0xb
 #define PCTL0_SLICE4_MISC__RENG_MEM_LS_ENABLE__SHIFT                                                          0xe
@@ -19436,7 +19436,7 @@
 #define PCTL0_SLICE4_MISC__DEEPSLEEP_DISCSDP__SHIFT                                                           0x10
 #define PCTL0_SLICE4_MISC__RENG_EXECUTE_ON_REG_UPDATE__SHIFT                                                  0x11
 #define PCTL0_SLICE4_MISC__RD_TIMER_ENABLE__SHIFT                                                             0x12
-#define PCTL0_SLICE4_MISC__RENG_EXECUTE_NONSECURE_START_PTR_MASK                                              0x000003FFL
+#define PCTL0_SLICE4_MISC__RENG_EXECUTE_ANALNSECURE_START_PTR_MASK                                              0x000003FFL
 #define PCTL0_SLICE4_MISC__CRITICAL_REGS_LOCK_MASK                                                            0x00000400L
 #define PCTL0_SLICE4_MISC__TILE_IDLE_THRESHOLD_MASK                                                           0x00003800L
 #define PCTL0_SLICE4_MISC__RENG_MEM_LS_ENABLE_MASK                                                            0x00004000L
@@ -19636,9 +19636,9 @@
 #define ATC_L2_CNTL3__REPEATER_FGCG_OFF_MASK                                                                  0x40000000L
 //ATC_L2_STATUS
 #define ATC_L2_STATUS__BUSY__SHIFT                                                                            0x0
-#define ATC_L2_STATUS__NO_OUTSTANDING_AT_REQUESTS__SHIFT                                                      0x1
+#define ATC_L2_STATUS__ANAL_OUTSTANDING_AT_REQUESTS__SHIFT                                                      0x1
 #define ATC_L2_STATUS__BUSY_MASK                                                                              0x00000001L
-#define ATC_L2_STATUS__NO_OUTSTANDING_AT_REQUESTS_MASK                                                        0x00000002L
+#define ATC_L2_STATUS__ANAL_OUTSTANDING_AT_REQUESTS_MASK                                                        0x00000002L
 //ATC_L2_STATUS2
 #define ATC_L2_STATUS2__UCE_MEM_ADDR__SHIFT                                                                   0x0
 #define ATC_L2_STATUS2__UCE_MEM_INST__SHIFT                                                                   0xc
@@ -19738,9 +19738,9 @@
 #define ATC_L2_CACHE_2M_DSM_CNTL__DED_COUNT_MASK                                                              0x00018000L
 #define ATC_L2_CACHE_2M_DSM_CNTL__TEST_FUE_MASK                                                               0x00020000L
 //ATC_L2_CNTL4
-#define ATC_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                          0x0
+#define ATC_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                          0x0
 #define ATC_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                         0xa
-#define ATC_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                            0x000003FFL
+#define ATC_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                            0x000003FFL
 #define ATC_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                           0x000FFC00L
 //ATC_L2_MM_GROUP_RT_CLASSES
 #define ATC_L2_MM_GROUP_RT_CLASSES__GROUP_RT_CLASS__SHIFT                                                     0x0
@@ -19857,9 +19857,9 @@
 #define VM_L2_PROTECTION_FAULT_CNTL__READ_PROTECTION_FAULT_ENABLE_DEFAULT__SHIFT                              0xa
 #define VM_L2_PROTECTION_FAULT_CNTL__WRITE_PROTECTION_FAULT_ENABLE_DEFAULT__SHIFT                             0xb
 #define VM_L2_PROTECTION_FAULT_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT__SHIFT                           0xc
-#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                                0xd
-#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                          0x1d
-#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_NO_RETRY_FAULT__SHIFT                                           0x1e
+#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                                0xd
+#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                          0x1d
+#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_ANAL_RETRY_FAULT__SHIFT                                           0x1e
 #define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_RETRY_FAULT__SHIFT                                              0x1f
 #define VM_L2_PROTECTION_FAULT_CNTL__CLEAR_PROTECTION_FAULT_STATUS_ADDR_MASK                                  0x00000001L
 #define VM_L2_PROTECTION_FAULT_CNTL__ALLOW_SUBSEQUENT_PROTECTION_FAULT_STATUS_ADDR_UPDATES_MASK               0x00000002L
@@ -19874,9 +19874,9 @@
 #define VM_L2_PROTECTION_FAULT_CNTL__READ_PROTECTION_FAULT_ENABLE_DEFAULT_MASK                                0x00000400L
 #define VM_L2_PROTECTION_FAULT_CNTL__WRITE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK                               0x00000800L
 #define VM_L2_PROTECTION_FAULT_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK                             0x00001000L
-#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                                  0x1FFFE000L
-#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                            0x20000000L
-#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_NO_RETRY_FAULT_MASK                                             0x40000000L
+#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                                  0x1FFFE000L
+#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                            0x20000000L
+#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_ANAL_RETRY_FAULT_MASK                                             0x40000000L
 #define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_RETRY_FAULT_MASK                                                0x80000000L
 //VM_L2_PROTECTION_FAULT_CNTL2
 #define VM_L2_PROTECTION_FAULT_CNTL2__CLIENT_ID_PRT_FAULT_INTERRUPT__SHIFT                                    0x0
@@ -19890,11 +19890,11 @@
 #define VM_L2_PROTECTION_FAULT_CNTL2__ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY_MASK                               0x00040000L
 #define VM_L2_PROTECTION_FAULT_CNTL2__ENABLE_RETRY_FAULT_INTERRUPT_MASK                                       0x00080000L
 //VM_L2_PROTECTION_FAULT_MM_CNTL3
-#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                  0x0
-#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                    0xFFFFFFFFL
+#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                  0x0
+#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                    0xFFFFFFFFL
 //VM_L2_PROTECTION_FAULT_MM_CNTL4
-#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                 0x0
-#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                   0xFFFFFFFFL
+#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                 0x0
+#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                   0xFFFFFFFFL
 //VM_L2_PROTECTION_FAULT_STATUS
 #define VM_L2_PROTECTION_FAULT_STATUS__MORE_FAULTS__SHIFT                                                     0x0
 #define VM_L2_PROTECTION_FAULT_STATUS__WALKER_ERROR__SHIFT                                                    0x1
@@ -19954,7 +19954,7 @@
 #define VM_L2_CNTL4__L2_CACHE_4K_PARTITION_COUNT__SHIFT                                                       0x0
 #define VM_L2_CNTL4__VMC_TAP_PDE_REQUEST_PHYSICAL__SHIFT                                                      0x6
 #define VM_L2_CNTL4__VMC_TAP_PTE_REQUEST_PHYSICAL__SHIFT                                                      0x7
-#define VM_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                           0x8
+#define VM_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                           0x8
 #define VM_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                          0x12
 #define VM_L2_CNTL4__BPM_CGCGLS_OVERRIDE__SHIFT                                                               0x1c
 #define VM_L2_CNTL4__GC_CH_FGCG_OFF__SHIFT                                                                    0x1d
@@ -19962,16 +19962,16 @@
 #define VM_L2_CNTL4__L2_CACHE_4K_PARTITION_COUNT_MASK                                                         0x0000003FL
 #define VM_L2_CNTL4__VMC_TAP_PDE_REQUEST_PHYSICAL_MASK                                                        0x00000040L
 #define VM_L2_CNTL4__VMC_TAP_PTE_REQUEST_PHYSICAL_MASK                                                        0x00000080L
-#define VM_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                             0x0003FF00L
+#define VM_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                             0x0003FF00L
 #define VM_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                            0x0FFC0000L
 #define VM_L2_CNTL4__BPM_CGCGLS_OVERRIDE_MASK                                                                 0x10000000L
 #define VM_L2_CNTL4__GC_CH_FGCG_OFF_MASK                                                                      0x20000000L
 #define VM_L2_CNTL4__VFIFO_HEAD_OF_QUEUE_MASK                                                                 0x40000000L
 //VM_L2_CNTL5
 #define VM_L2_CNTL5__WALKER_FETCH_PDE_MTYPE_ENABLE__SHIFT                                                     0x0
-#define VM_L2_CNTL5__WALKER_FETCH_PDE_NOALLOC_ENABLE__SHIFT                                                   0x1
+#define VM_L2_CNTL5__WALKER_FETCH_PDE_ANALALLOC_ENABLE__SHIFT                                                   0x1
 #define VM_L2_CNTL5__WALKER_FETCH_PDE_MTYPE_ENABLE_MASK                                                       0x00000001L
-#define VM_L2_CNTL5__WALKER_FETCH_PDE_NOALLOC_ENABLE_MASK                                                     0x00000002L
+#define VM_L2_CNTL5__WALKER_FETCH_PDE_ANALALLOC_ENABLE_MASK                                                     0x00000002L
 //VM_L2_MM_GROUP_RT_CLASSES
 #define VM_L2_MM_GROUP_RT_CLASSES__GROUP_0_RT_CLASS__SHIFT                                                    0x0
 #define VM_L2_MM_GROUP_RT_CLASSES__GROUP_1_RT_CLASS__SHIFT                                                    0x1
@@ -22451,27 +22451,27 @@
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ADDR__SHIFT                                            0x0
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PERMS__SHIFT                                           0x4
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__FRAGMENT_SIZE__SHIFT                                   0x7
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SNOOP__SHIFT                                           0xd
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SANALOP__SHIFT                                           0xd
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SPA__SHIFT                                             0xe
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__IO__SHIFT                                              0xf
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PTE_TMZ__SHIFT                                         0x10
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NO_PTE__SHIFT                                          0x11
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ANAL_PTE__SHIFT                                          0x11
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MTYPE__SHIFT                                           0x12
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MEMLOG__SHIFT                                          0x14
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__LLC_NOALLOC__SHIFT                                     0x15
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__LLC_ANALALLOC__SHIFT                                     0x15
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NACK__SHIFT                                            0x16
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ACK__SHIFT                                             0x1f
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ADDR_MASK                                              0x0000000FL
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PERMS_MASK                                             0x00000070L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__FRAGMENT_SIZE_MASK                                     0x00001F80L
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SNOOP_MASK                                             0x00002000L
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SANALOP_MASK                                             0x00002000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SPA_MASK                                               0x00004000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__IO_MASK                                                0x00008000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PTE_TMZ_MASK                                           0x00010000L
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NO_PTE_MASK                                            0x00020000L
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ANAL_PTE_MASK                                            0x00020000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MTYPE_MASK                                             0x000C0000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MEMLOG_MASK                                            0x00100000L
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__LLC_NOALLOC_MASK                                       0x00200000L
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__LLC_ANALALLOC_MASK                                       0x00200000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NACK_MASK                                              0x00C00000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ACK_MASK                                               0x80000000L
 

@@ -24,8 +24,8 @@ obj-$(CONFIG_SCSI_COMMON)	+= scsi_common.o
 
 obj-$(CONFIG_RAID_ATTRS)	+= raid_class.o
 
-# --- NOTE ORDERING HERE ---
-# For kernel non-modular link, transport attributes need to
+# --- ANALTE ORDERING HERE ---
+# For kernel analn-modular link, transport attributes need to
 # be initialised before drivers
 # --------------------------
 obj-$(CONFIG_SCSI_SPI_ATTRS)	+= scsi_transport_spi.o
@@ -177,7 +177,7 @@ sd_mod-$(CONFIG_BLK_DEV_ZONED) += sd_zbc.o
 sr_mod-objs	:= sr.o sr_ioctl.o sr_vendor.o
 ncr53c8xx-flags-$(CONFIG_SCSI_ZALON) \
 		:= -DCONFIG_NCR53C8XX_PREFETCH -DSCSI_NCR_BIG_ENDIAN \
-			-DCONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS
+			-DCONFIG_SCSI_NCR53C8XX_ANAL_WORD_TRANSFERS
 CFLAGS_ncr53c8xx.o	:= $(ncr53c8xx-flags-y) $(ncr53c8xx-flags-m)
 zalon7xx-objs	:= zalon.o ncr53c8xx.o
 

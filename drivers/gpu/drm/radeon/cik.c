@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -1960,7 +1960,7 @@ int ci_mc_load_microcode(struct radeon_device *rdev)
  * @rdev: radeon_device pointer
  *
  * Use the firmware interface to load the ucode images into
- * the driver (not loaded into hw).
+ * the driver (analt loaded into hw).
  * Returns 0 on success, error on failure.
  */
 static int cik_init_microcode(struct radeon_device *rdev)
@@ -2205,7 +2205,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		}
 	}
 
-	/* No SMC, MC ucode on APUs */
+	/* Anal SMC, MC ucode on APUs */
 	if (!(rdev->flags & RADEON_IS_IGP)) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", new_chip_name);
 		err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
@@ -3008,7 +3008,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 		break;
 
 	default:
-		DRM_ERROR("unknown num pipe config: 0x%x\n", num_pipe_configs);
+		DRM_ERROR("unkanalwn num pipe config: 0x%x\n", num_pipe_configs);
 	}
 }
 
@@ -3266,7 +3266,7 @@ static void cik_gpu_init(struct radeon_device *rdev)
 
 	rdev->config.cik.num_tile_pipes = rdev->config.cik.max_tile_pipes;
 	rdev->config.cik.mem_max_burst_length_bytes = 256;
-	tmp = (mc_arb_ramcfg & NOOFCOLS_MASK) >> NOOFCOLS_SHIFT;
+	tmp = (mc_arb_ramcfg & ANALOFCOLS_MASK) >> ANALOFCOLS_SHIFT;
 	rdev->config.cik.mem_row_size_in_kb = (4 * (1 << (8 + tmp))) / 1024;
 	if (rdev->config.cik.mem_row_size_in_kb > 4)
 		rdev->config.cik.mem_row_size_in_kb = 4;
@@ -3290,8 +3290,8 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		break;
 	}
 
-	/* setup tiling info dword.  gb_addr_config is not adequate since it does
-	 * not have bank info, so create a custom tiling dword.
+	/* setup tiling info dword.  gb_addr_config is analt adequate since it does
+	 * analt have bank info, so create a custom tiling dword.
 	 * bits 3:0   num_pipes
 	 * bits 7:4   num_banks
 	 * bits 11:8  group_size
@@ -3315,7 +3315,7 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		break;
 	}
 	rdev->config.cik.tile_config |=
-		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
+		((mc_arb_ramcfg & ANALOFBANK_MASK) >> ANALOFBANK_SHIFT) << 4;
 	rdev->config.cik.tile_config |=
 		((gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT) << 8;
 	rdev->config.cik.tile_config |=
@@ -3415,8 +3415,8 @@ static void cik_gpu_init(struct radeon_device *rdev)
  * @rdev: radeon_device pointer
  *
  * Set up the number and offset of the CP scratch registers.
- * NOTE: use of CP scratch registers is a legacy inferface and
- * is not used by default on newer asics (r6xx+).  On newer asics,
+ * ANALTE: use of CP scratch registers is a legacy inferface and
+ * is analt used by default on newer asics (r6xx+).  On newer asics,
  * memory buffers are used for fences rather than scratch regs.
  */
 static void cik_scratch_init(struct radeon_device *rdev)
@@ -3831,7 +3831,7 @@ int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 
 /*
  * CP.
- * On CIK, gfx and compute now have independant command processors.
+ * On CIK, gfx and compute analw have independant command processors.
  *
  * GFX
  * Gfx consists of a single ring and can process both gfx jobs and
@@ -3840,7 +3840,7 @@ int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
  * ME - Micro Engine
  * CE - Constant Engine
  * The PFP and ME make up what is considered the Drawing Engine (DE).
- * The CE is an asynchronous engine used for updating buffer desciptors
+ * The CE is an asynchroanalus engine used for updating buffer desciptors
  * used by the DE so that they can be loaded into cache in parallel
  * while the DE is processing state update packets.
  *
@@ -3879,7 +3879,7 @@ static void cik_cp_gfx_enable(struct radeon_device *rdev, bool enable)
  * @rdev: radeon_device pointer
  *
  * Loads the gfx PFP, ME, and CE ucode.
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is analt available.
  */
 static int cik_cp_gfx_load_microcode(struct radeon_device *rdev)
 {
@@ -4078,15 +4078,15 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	ring->wptr = 0;
 	WREG32(CP_RB0_WPTR, ring->wptr);
 
-	/* set the wb address wether it's enabled or not */
+	/* set the wb address wether it's enabled or analt */
 	WREG32(CP_RB0_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
 	WREG32(CP_RB0_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
 
-	/* scratch register shadowing is no longer supported */
+	/* scratch register shadowing is anal longer supported */
 	WREG32(SCRATCH_UMSK, 0);
 
 	if (!rdev->wb.enabled)
-		tmp |= RB_NO_UPDATE;
+		tmp |= RB_ANAL_UPDATE;
 
 	mdelay(1);
 	WREG32(CP_RB0_CNTL, tmp);
@@ -4241,7 +4241,7 @@ static void cik_cp_compute_enable(struct radeon_device *rdev, bool enable)
  * @rdev: radeon_device pointer
  *
  * Loads the compute MEC1&2 ucode.
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is analt available.
  */
 static int cik_cp_compute_load_microcode(struct radeon_device *rdev)
 {
@@ -4420,7 +4420,7 @@ static int cik_mec_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	/* clear memory.  Not sure if this is required or not */
+	/* clear memory.  Analt sure if this is required or analt */
 	memset(hpd, 0, rdev->mec.num_mec *rdev->mec.num_pipe * MEC_HPD_SIZE * 2);
 
 	radeon_bo_kunmap(rdev->mec.hpd_eop_obj);
@@ -4553,7 +4553,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 	cik_srbm_select(rdev, 0, 0, 0, 0);
 	mutex_unlock(&rdev->srbm_mutex);
 
-	/* init the queues.  Just two for now. */
+	/* init the queues.  Just two for analw. */
 	for (i = 0; i < 2; i++) {
 		if (i == 0)
 			idx = CAYMAN_RING_TYPE_CP1_INDEX;
@@ -4667,7 +4667,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		mqd->queue_state.cp_hqd_pq_control |= BUF_SWAP_32BIT;
 #endif
 		mqd->queue_state.cp_hqd_pq_control &=
-			~(UNORD_DISPATCH | ROQ_PQ_IB_FLIP | PQ_VOLATILE);
+			~(UANALRD_DISPATCH | ROQ_PQ_IB_FLIP | PQ_VOLATILE);
 		mqd->queue_state.cp_hqd_pq_control |=
 			PRIV_STATE | KMD_QUEUE; /* assuming kernel queue control */
 		WREG32(CP_HQD_PQ_CONTROL, mqd->queue_state.cp_hqd_pq_control);
@@ -4683,7 +4683,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		WREG32(CP_HQD_PQ_WPTR_POLL_ADDR_HI,
 		       mqd->queue_state.cp_hqd_pq_wptr_poll_addr_hi);
 
-		/* set the wb address wether it's enabled or not */
+		/* set the wb address wether it's enabled or analt */
 		if (i == 0)
 			wb_gpu_addr = rdev->wb.gpu_addr + RADEON_WB_CP1_RPTR_OFFSET;
 		else
@@ -4851,7 +4851,7 @@ u32 cik_gpu_check_soft_reset(struct radeon_device *rdev)
 		   TA_BUSY | VGT_BUSY |
 		   DB_BUSY | CB_BUSY |
 		   GDS_BUSY | SPI_BUSY |
-		   IA_BUSY | IA_BUSY_NO_DMA))
+		   IA_BUSY | IA_BUSY_ANAL_DMA))
 		reset_mask |= RADEON_RESET_GFX;
 
 	if (tmp & (CP_BUSY | CP_COHERENCY_BUSY))
@@ -4895,14 +4895,14 @@ u32 cik_gpu_check_soft_reset(struct radeon_device *rdev)
 	if (tmp & VMC_BUSY)
 		reset_mask |= RADEON_RESET_VMC;
 
-	if (tmp & (MCB_BUSY | MCB_NON_DISPLAY_BUSY |
+	if (tmp & (MCB_BUSY | MCB_ANALN_DISPLAY_BUSY |
 		   MCC_BUSY | MCD_BUSY))
 		reset_mask |= RADEON_RESET_MC;
 
 	if (evergreen_is_display_hung(rdev))
 		reset_mask |= RADEON_RESET_DISPLAY;
 
-	/* Skip MC reset as it's mostly likely not hung, just busy */
+	/* Skip MC reset as it's mostly likely analt hung, just busy */
 	if (reset_mask & RADEON_RESET_MC) {
 		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
 		reset_mask &= ~RADEON_RESET_MC;
@@ -5244,7 +5244,7 @@ int cik_asic_reset(struct radeon_device *rdev, bool hard)
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the 3D engine is locked up (CIK).
- * Returns true if the engine is locked, false if not.
+ * Returns true if the engine is locked, false if analt.
  */
 bool cik_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
@@ -5301,9 +5301,9 @@ static void cik_mc_program(struct radeon_device *rdev)
 	tmp |= ((rdev->mc.vram_start >> 24) & 0xFFFF);
 	WREG32(MC_VM_FB_LOCATION, tmp);
 	/* XXX double check these! */
-	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
-	WREG32(HDP_NONSURFACE_INFO, (2 << 7) | (1 << 30));
-	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
+	WREG32(HDP_ANALNSURFACE_BASE, (rdev->mc.vram_start >> 8));
+	WREG32(HDP_ANALNSURFACE_INFO, (2 << 7) | (1 << 30));
+	WREG32(HDP_ANALNSURFACE_SIZE, 0x3FFFFFFF);
 	WREG32(MC_VM_AGP_BASE, 0);
 	WREG32(MC_VM_AGP_TOP, 0x0FFFFFFF);
 	WREG32(MC_VM_AGP_BOT, 0x0FFFFFFF);
@@ -5339,7 +5339,7 @@ static int cik_mc_init(struct radeon_device *rdev)
 		chansize = 32;
 	}
 	tmp = RREG32(MC_SHARED_CHMAP);
-	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	switch ((tmp & ANALOFCHAN_MASK) >> ANALOFCHAN_SHIFT) {
 	case 0:
 	default:
 		numchan = 1;
@@ -5421,7 +5421,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	int r, i;
 
 	if (rdev->gart.robj == NULL) {
-		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
+		dev_err(rdev->dev, "Anal VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	r = radeon_gart_table_vram_pin(rdev);
@@ -5432,7 +5432,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	       (0xA << 7) |
 	       ENABLE_L1_TLB |
 	       ENABLE_L1_FRAGMENT_PROCESSING |
-	       SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+	       SYSTEM_ACCESS_MODE_ANALT_IN_SYS |
 	       ENABLE_ADVANCED_DRIVER_MODEL |
 	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
 	/* Setup L2 cache */
@@ -5550,7 +5550,7 @@ static void cik_pcie_gart_disable(struct radeon_device *rdev)
 	WREG32(VM_CONTEXT0_CNTL, 0);
 	WREG32(VM_CONTEXT1_CNTL, 0);
 	/* Setup TLB control */
-	WREG32(MC_VM_MX_L1_TLB_CNTL, SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+	WREG32(MC_VM_MX_L1_TLB_CNTL, SYSTEM_ACCESS_MODE_ANALT_IN_SYS |
 	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL,
@@ -5586,7 +5586,7 @@ static void cik_pcie_gart_fini(struct radeon_device *rdev)
  * @rdev: radeon_device pointer
  * @ib: indirect buffer pointer
  *
- * CIK uses hw IB checking so this is a nop (CIK).
+ * CIK uses hw IB checking so this is a analp (CIK).
  */
 int cik_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 {
@@ -5797,7 +5797,7 @@ static void cik_wait_for_rlc_serdes(struct radeon_device *rdev)
 
 	mask = SE_MASTER_BUSY_MASK | GC_MASTER_BUSY | TC0_MASTER_BUSY | TC1_MASTER_BUSY;
 	for (k = 0; k < rdev->usec_timeout; k++) {
-		if ((RREG32(RLC_SERDES_NONCU_MASTER_BUSY) & mask) == 0)
+		if ((RREG32(RLC_SERDES_ANALNCU_MASTER_BUSY) & mask) == 0)
 			break;
 		udelay(1);
 	}
@@ -5904,7 +5904,7 @@ static void cik_rlc_start(struct radeon_device *rdev)
  *
  * Initialize the RLC registers, load the ucode,
  * and start the RLC (CIK).
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is analt available.
  */
 static int cik_rlc_resume(struct radeon_device *rdev)
 {
@@ -6000,7 +6000,7 @@ static void cik_enable_cgcg(struct radeon_device *rdev, bool enable)
 
 		cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
 		WREG32(RLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
-		WREG32(RLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
+		WREG32(RLC_SERDES_WR_ANALNCU_MASTER_MASK, 0xffffffff);
 		tmp2 = BPM_ADDR_MASK | CGCG_OVERRIDE_0 | CGLS_ENABLE;
 		WREG32(RLC_SERDES_WR_CTRL, tmp2);
 
@@ -6047,7 +6047,7 @@ static void cik_enable_mgcg(struct radeon_device *rdev, bool enable)
 
 		cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
 		WREG32(RLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
-		WREG32(RLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
+		WREG32(RLC_SERDES_WR_ANALNCU_MASTER_MASK, 0xffffffff);
 		data = BPM_ADDR_MASK | MGCG_OVERRIDE_0;
 		WREG32(RLC_SERDES_WR_CTRL, data);
 
@@ -6095,7 +6095,7 @@ static void cik_enable_mgcg(struct radeon_device *rdev, bool enable)
 
 		cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
 		WREG32(RLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
-		WREG32(RLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
+		WREG32(RLC_SERDES_WR_ANALNCU_MASTER_MASK, 0xffffffff);
 		data = BPM_ADDR_MASK | MGCG_OVERRIDE_1;
 		WREG32(RLC_SERDES_WR_CTRL, data);
 
@@ -6961,8 +6961,8 @@ static int cik_irq_init(struct radeon_device *rdev)
 	 * IH_DUMMY_RD_OVERRIDE=1 - dummy read controlled by IH_DUMMY_RD_EN
 	 */
 	interrupt_cntl &= ~IH_DUMMY_RD_OVERRIDE;
-	/* IH_REQ_NONSNOOP_EN=1 if ring is in non-cacheable memory, e.g., vram */
-	interrupt_cntl &= ~IH_REQ_NONSNOOP_EN;
+	/* IH_REQ_ANALNSANALOP_EN=1 if ring is in analn-cacheable memory, e.g., vram */
+	interrupt_cntl &= ~IH_REQ_ANALNSANALOP_EN;
 	WREG32(INTERRUPT_CNTL, interrupt_cntl);
 
 	WREG32(IH_RB_BASE, rdev->ih.gpu_addr >> 8);
@@ -6975,7 +6975,7 @@ static int cik_irq_init(struct radeon_device *rdev)
 	if (rdev->wb.enabled)
 		ih_rb_cntl |= IH_WPTR_WRITEBACK_ENABLE;
 
-	/* set the writeback address whether it's enabled or not */
+	/* set the writeback address whether it's enabled or analt */
 	WREG32(IH_RB_WPTR_ADDR_LO, (rdev->wb.gpu_addr + R600_WB_IH_WPTR_OFFSET) & 0xFFFFFFFC);
 	WREG32(IH_RB_WPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + R600_WB_IH_WPTR_OFFSET) & 0xFF);
 
@@ -7023,7 +7023,7 @@ int cik_irq_set(struct radeon_device *rdev)
 	u32 dma_cntl, dma_cntl1;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
+		WARN(1, "Can't enable IRQ/MSI because anal handler is installed\n");
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */
@@ -7280,7 +7280,7 @@ int cik_irq_set(struct radeon_device *rdev)
  *
  * Ack interrupt sources on the GPU (vblanks, hpd,
  * etc.) (CIK).  Certain interrupts sources are sw
- * generated and do not require an explicit ack.
+ * generated and do analt require an explicit ack.
  */
 static inline void cik_irq_ack(struct radeon_device *rdev)
 {
@@ -7432,7 +7432,7 @@ static inline void cik_irq_ack(struct radeon_device *rdev)
 static void cik_irq_disable(struct radeon_device *rdev)
 {
 	cik_disable_interrupts(rdev);
-	/* Wait and acknowledge irq */
+	/* Wait and ackanalwledge irq */
 	mdelay(1);
 	cik_irq_ack(rdev);
 	cik_disable_interrupt_state(rdev);
@@ -7490,7 +7490,7 @@ static inline u32 cik_get_ih_wptr(struct radeon_device *rdev)
 	if (wptr & RB_OVERFLOW) {
 		wptr &= ~RB_OVERFLOW;
 		/* When a ring buffer overflow happen start parsing interrupt
-		 * from the last not overwritten vector (wptr + 16). Hopefully
+		 * from the last analt overwritten vector (wptr + 16). Hopefully
 		 * this should allow us to catchup.
 		 */
 		dev_warn(rdev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
@@ -7551,14 +7551,14 @@ int cik_irq_process(struct radeon_device *rdev)
 	bool queue_thermal = false;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	wptr = cik_get_ih_wptr(rdev);
 
 restart_ih:
 	/* is somebody else already processing irqs? */
 	if (atomic_xchg(&rdev->ih.lock, 1))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	rptr = rdev->ih.rptr;
 	DRM_DEBUG("cik_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
@@ -8118,7 +8118,7 @@ static void cik_uvd_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
 		/*
 		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
-		 * to early fails cik_uvd_start() and thus nothing happens
+		 * to early fails cik_uvd_start() and thus analthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
@@ -8166,7 +8166,7 @@ static void cik_uvd_resume(struct radeon_device *rdev)
 		return;
 
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, PACKET0(UVD_NO_OP, 0));
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, PACKET0(UVD_ANAL_OP, 0));
 	if (r) {
 		dev_err(rdev->dev, "failed initializing UVD ring (%d).\n", r);
 		return;
@@ -8190,7 +8190,7 @@ static void cik_vce_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed VCE (%d) init.\n", r);
 		/*
 		 * At this point rdev->vce.vcpu_bo is NULL which trickles down
-		 * to early fails cik_vce_start() and thus nothing happens
+		 * to early fails cik_vce_start() and thus analthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable vce here.
 		 */
@@ -8246,13 +8246,13 @@ static void cik_vce_resume(struct radeon_device *rdev)
 		return;
 
 	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
-	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, VCE_CMD_NO_OP);
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, VCE_CMD_ANAL_OP);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing VCE1 ring (%d).\n", r);
 		return;
 	}
 	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
-	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, VCE_CMD_NO_OP);
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, VCE_CMD_ANAL_OP);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing VCE1 ring (%d).\n", r);
 		return;
@@ -8276,7 +8276,7 @@ static void cik_vce_resume(struct radeon_device *rdev)
 static int cik_startup(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring;
-	u32 nop;
+	u32 analp;
 	int r;
 
 	/* enable pcie gen2/3 link */
@@ -8387,16 +8387,16 @@ static int cik_startup(struct radeon_device *rdev)
 
 	if (rdev->family == CHIP_HAWAII) {
 		if (rdev->new_fw)
-			nop = PACKET3(PACKET3_NOP, 0x3FFF);
+			analp = PACKET3(PACKET3_ANALP, 0x3FFF);
 		else
-			nop = RADEON_CP_PACKET2;
+			analp = RADEON_CP_PACKET2;
 	} else {
-		nop = PACKET3(PACKET3_NOP, 0x3FFF);
+		analp = PACKET3(PACKET3_ANALP, 0x3FFF);
 	}
 
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     nop);
+			     analp);
 	if (r)
 		return r;
 
@@ -8404,7 +8404,7 @@ static int cik_startup(struct radeon_device *rdev)
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP1_RPTR_OFFSET,
-			     nop);
+			     analp);
 	if (r)
 		return r;
 	ring->me = 1; /* first MEC */
@@ -8415,7 +8415,7 @@ static int cik_startup(struct radeon_device *rdev)
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP2_RPTR_OFFSET,
-			     nop);
+			     analp);
 	if (r)
 		return r;
 	/* dGPU only have 1 MEC */
@@ -8426,13 +8426,13 @@ static int cik_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
+			     SDMA_PACKET(SDMA_OPCODE_ANALP, 0, 0));
 	if (r)
 		return r;
 
 	ring = &rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, CAYMAN_WB_DMA1_RPTR_OFFSET,
-			     SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
+			     SDMA_PACKET(SDMA_OPCODE_ANALP, 0, 0));
 	if (r)
 		return r;
 
@@ -8532,7 +8532,7 @@ int cik_suspend(struct radeon_device *rdev)
 
 /* Plan is to move initialization in that function and use
  * helper function so that radeon_device_init pretty much
- * do nothing more than calling asic specific function. This
+ * do analthing more than calling asic specific function. This
  * should also allow to remove a bunch of callback function
  * like vram_info.
  */
@@ -8568,10 +8568,10 @@ int cik_init(struct radeon_device *rdev)
 	/* Post card if necessary */
 	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
-			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			dev_err(rdev->dev, "Card analt posted and anal BIOS - iganalring\n");
 			return -EINVAL;
 		}
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU analt posted. posting analw...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
 	/* init golden registers */
@@ -8674,7 +8674,7 @@ int cik_init(struct radeon_device *rdev)
 
 	/* Don't start up if the MC ucode is missing.
 	 * The default clocks and voltages before the MC ucode
-	 * is loaded are not suffient for advanced operations.
+	 * is loaded are analt suffient for advanced operations.
 	 */
 	if (!rdev->mc_fw && !(rdev->flags & RADEON_IS_IGP)) {
 		DRM_ERROR("radeon: MC ucode required for NI+.\n");
@@ -8741,7 +8741,7 @@ void dce8_program_fmt(struct drm_encoder *encoder)
 	if (radeon_encoder->devices & ATOM_DEVICE_LCD_SUPPORT)
 		return;
 
-	/* not needed for analog */
+	/* analt needed for analog */
 	if ((radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1) ||
 	    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2))
 		return;
@@ -8777,7 +8777,7 @@ void dce8_program_fmt(struct drm_encoder *encoder)
 			tmp |= (FMT_TRUNCATE_EN | FMT_TRUNCATE_DEPTH(2));
 		break;
 	default:
-		/* not needed */
+		/* analt needed */
 		break;
 	}
 
@@ -8855,7 +8855,7 @@ static u32 dce8_line_buffer_adjust(struct radeon_device *rdev,
 		}
 	}
 
-	/* controller not enabled, so no lb used */
+	/* controller analt enabled, so anal lb used */
 	return 0;
 }
 
@@ -8872,7 +8872,7 @@ static u32 cik_get_number_of_dram_channels(struct radeon_device *rdev)
 {
 	u32 tmp = RREG32(MC_SHARED_CHMAP);
 
-	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	switch ((tmp & ANALOFCHAN_MASK) >> ANALOFCHAN_SHIFT) {
 	case 0:
 	default:
 		return 1;
@@ -9040,7 +9040,7 @@ static u32 dce8_dmif_request_bandwidth(struct dce8_wm_params *wm)
  */
 static u32 dce8_available_bandwidth(struct dce8_wm_params *wm)
 {
-	/* Calculate the Available bandwidth. Display can use this temporarily but not in average. */
+	/* Calculate the Available bandwidth. Display can use this temporarily but analt in average. */
 	u32 dram_bandwidth = dce8_dram_bandwidth(wm);
 	u32 data_return_bandwidth = dce8_data_return_bandwidth(wm);
 	u32 dmif_req_bandwidth = dce8_dmif_request_bandwidth(wm);
@@ -9149,7 +9149,7 @@ static u32 dce8_latency_watermark(struct dce8_wm_params *wm)
  * Check if the display average bandwidth fits in the display
  * dram bandwidth (CIK).
  * Used for display watermark bandwidth calculations
- * Returns true if the display fits, false if not.
+ * Returns true if the display fits, false if analt.
  */
 static bool dce8_average_bandwidth_vs_dram_bandwidth_for_display(struct dce8_wm_params *wm)
 {
@@ -9169,7 +9169,7 @@ static bool dce8_average_bandwidth_vs_dram_bandwidth_for_display(struct dce8_wm_
  * Check if the display average bandwidth fits in the display
  * available bandwidth (CIK).
  * Used for display watermark bandwidth calculations
- * Returns true if the display fits, false if not.
+ * Returns true if the display fits, false if analt.
  */
 static bool dce8_average_bandwidth_vs_available_bandwidth(struct dce8_wm_params *wm)
 {
@@ -9187,7 +9187,7 @@ static bool dce8_average_bandwidth_vs_available_bandwidth(struct dce8_wm_params 
  *
  * Check latency hiding (CIK).
  * Used for display watermark bandwidth calculations
- * Returns true if the display fits, false if not.
+ * Returns true if the display fits, false if analt.
  */
 static bool dce8_check_latency_hiding(struct dce8_wm_params *wm)
 {
@@ -9324,7 +9324,7 @@ static void dce8_program_watermarks(struct radeon_device *rdev,
 			DRM_DEBUG_KMS("force priority to high\n");
 		}
 
-		/* Save number of lines the linebuffer leads before the scanout */
+		/* Save number of lines the linebuffer leads before the scaanalut */
 		radeon_crtc->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode->crtc_hdisplay);
 	}
 
@@ -9500,7 +9500,7 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev)
 		return;
 
 	speed_cap = pcie_get_speed_cap(root);
-	if (speed_cap == PCI_SPEED_UNKNOWN)
+	if (speed_cap == PCI_SPEED_UNKANALWN)
 		return;
 
 	if ((speed_cap != PCIE_SPEED_8_0GT) &&
@@ -9528,7 +9528,7 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev)
 		return;
 
 	if (speed_cap == PCIE_SPEED_8_0GT) {
-		/* re-try equalization if gen3 is not already enabled */
+		/* re-try equalization if gen3 is analt already enabled */
 		if (current_data_rate != 2) {
 			u16 bridge_cfg, gpu_cfg;
 			u16 bridge_cfg2, gpu_cfg2;
@@ -9546,7 +9546,7 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev)
 				if (tmp & LC_RENEGOTIATION_SUPPORT) {
 					tmp &= ~(LC_LINK_WIDTH_MASK | LC_UPCONFIGURE_DIS);
 					tmp |= (max_lw << LC_LINK_WIDTH_SHIFT);
-					tmp |= LC_UPCONFIGURE_SUPPORT | LC_RENEGOTIATE_EN | LC_RECONFIG_NOW;
+					tmp |= LC_UPCONFIGURE_SUPPORT | LC_RENEGOTIATE_EN | LC_RECONFIG_ANALW;
 					WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, tmp);
 				}
 			}
@@ -9677,7 +9677,7 @@ static void cik_program_aspm(struct radeon_device *rdev)
 		WREG32_PCIE_PORT(PCIE_LC_CNTL3, data);
 
 	orig = data = RREG32_PCIE_PORT(PCIE_P_CNTL);
-	data |= P_IGNORE_EDB_ERR;
+	data |= P_IGANALRE_EDB_ERR;
 	if (orig != data)
 		WREG32_PCIE_PORT(PCIE_P_CNTL, data);
 

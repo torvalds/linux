@@ -81,7 +81,7 @@ static int rzv2m_pwc_poweroff(struct sys_off_data *data)
 
 	dev_err(priv->dev, "Failed to power off the system");
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int rzv2m_pwc_probe(struct platform_device *pdev)
@@ -91,14 +91,14 @@ static int rzv2m_pwc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
 	/*
-	 * The register used by this driver cannot be read, therefore set the
+	 * The register used by this driver cananalt be read, therefore set the
 	 * outputs to their default values and initialize priv->ch_en_bits
 	 * accordingly. BIT 16 enables write to BIT 0, BIT 17 enables write to
 	 * BIT 1, and the default value of both BIT 0 and BIT 1 is 0.
@@ -108,7 +108,7 @@ static int rzv2m_pwc_probe(struct platform_device *pdev)
 
 	priv->gp = rzv2m_pwc_gc;
 	priv->gp.parent = pdev->dev.parent;
-	priv->gp.fwnode = dev_fwnode(&pdev->dev);
+	priv->gp.fwanalde = dev_fwanalde(&pdev->dev);
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &priv->gp, priv);
 	if (ret)

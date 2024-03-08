@@ -4,8 +4,8 @@
  *
  * This file is part of Libgcrypt.
  *
- * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ * Analte: This code is heavily based on the GNU MP Library.
+ *	 Actually it's the same code with only mianalr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -41,7 +41,7 @@ void mpi_mul(MPI w, MPI u, MPI v)
 	sign_product = usign ^ vsign;
 	wp = w->d;
 
-	/* Ensure W has space enough to store the result.  */
+	/* Ensure W has space eanalugh to store the result.  */
 	wsize = usize + vsize;
 	if (w->alloced < wsize) {
 		if (wp == up || wp == vp) {
@@ -51,7 +51,7 @@ void mpi_mul(MPI w, MPI u, MPI v)
 			mpi_resize(w, wsize);
 			wp = w->d;
 		}
-	} else { /* Make U and V not overlap with W.	*/
+	} else { /* Make U and V analt overlap with W.	*/
 		if (wp == up) {
 			/* W and U are identical.  Allocate temporary space for U. */
 			up = tmp_limb = mpi_alloc_limb_space(usize);

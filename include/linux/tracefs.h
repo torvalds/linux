@@ -39,24 +39,24 @@ struct eventfs_file;
  * will be called).
  *
  * The callback will be called with @name for the name of the file to create.
- * The callback can return less than 1 to indicate  that no file should be
+ * The callback can return less than 1 to indicate  that anal file should be
  * created.
  *
  * If a file is to be created, then @mode should be populated with the file
  * mode (permissions) for which the file is created for. This would be
- * used to set the created inode i_mode field.
+ * used to set the created ianalde i_mode field.
  *
  * The @data should be set to the data passed to the other file operations
- * (read, write, etc). Note, @data will also point to the data passed in
+ * (read, write, etc). Analte, @data will also point to the data passed in
  * to eventfs_create_dir() or eventfs_create_events_dir(), but the callback
  * can replace the data if it chooses to. Otherwise, the original data
  * will be used for the file operation functions.
  *
  * The @fops should be set to the file operations that will be used to create
- * the inode.
+ * the ianalde.
  *
  * NB. This callback is called while holding internal locks of the eventfs
- *     system. The callback must not call any code that might also call into
+ *     system. The callback must analt call any code that might also call into
  *     the tracefs or eventfs system or it will risk creating a deadlock.
  */
 typedef int (*eventfs_callback)(const char *name, umode_t *mode, void **data,
@@ -74,18 +74,18 @@ struct eventfs_entry {
 	eventfs_callback		callback;
 };
 
-struct eventfs_inode;
+struct eventfs_ianalde;
 
-struct eventfs_inode *eventfs_create_events_dir(const char *name, struct dentry *parent,
+struct eventfs_ianalde *eventfs_create_events_dir(const char *name, struct dentry *parent,
 						const struct eventfs_entry *entries,
 						int size, void *data);
 
-struct eventfs_inode *eventfs_create_dir(const char *name, struct eventfs_inode *parent,
+struct eventfs_ianalde *eventfs_create_dir(const char *name, struct eventfs_ianalde *parent,
 					 const struct eventfs_entry *entries,
 					 int size, void *data);
 
-void eventfs_remove_events_dir(struct eventfs_inode *ei);
-void eventfs_remove_dir(struct eventfs_inode *ei);
+void eventfs_remove_events_dir(struct eventfs_ianalde *ei);
+void eventfs_remove_dir(struct eventfs_ianalde *ei);
 
 struct dentry *tracefs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,

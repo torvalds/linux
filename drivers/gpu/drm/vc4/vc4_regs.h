@@ -213,7 +213,7 @@
 #define PV_MUX_CFG				0x34
 # define PV_MUX_CFG_RGB_PIXEL_MUX_MODE_MASK	VC4_MASK(5, 2)
 # define PV_MUX_CFG_RGB_PIXEL_MUX_MODE_SHIFT	2
-# define PV_MUX_CFG_RGB_PIXEL_MUX_MODE_NO_SWAP	8
+# define PV_MUX_CFG_RGB_PIXEL_MUX_MODE_ANAL_SWAP	8
 
 #define SCALER_CHANNELS_COUNT			3
 
@@ -230,7 +230,7 @@
 # define SCALER_DISPCTRL_DSP3_MUX_SHIFT		18
 
 /* Enables Display 0 short line and underrun contribution to
- * SCALER_DISPSTAT_IRQDISP0.  Note that short frame contributions are
+ * SCALER_DISPSTAT_IRQDISP0.  Analte that short frame contributions are
  * always enabled.
  */
 # define SCALER_DISPCTRL_DSPEISLUR(x)		BIT(13 + (x))
@@ -293,7 +293,7 @@
 /* Set on AXI slave write decode error */
 # define SCALER_DISPSTAT_IRQSLVWR		BIT(5)
 /* Set when SCALER_DISPSTAT_DMA_ERROR is set, or
- * SCALER_DISPSTAT_RESP_ERROR is not SCALER_DISPSTAT_RESP_OKAY.
+ * SCALER_DISPSTAT_RESP_ERROR is analt SCALER_DISPSTAT_RESP_OKAY.
  */
 # define SCALER_DISPSTAT_IRQDMA			BIT(4)
 /* Set when any of the EOF/EOLN/ESFRAME/ESLINE bits are set and their
@@ -344,9 +344,9 @@
  * instead of an entire line.
  */
 # define SCALER_DISPCTRLX_ONECTX		BIT(28)
-/* Set to have DISPSLAVE return 2 16bpp pixels and no status data. */
+/* Set to have DISPSLAVE return 2 16bpp pixels and anal status data. */
 # define SCALER_DISPCTRLX_FIFO32		BIT(27)
-/* Turns on output to the DISPSLAVE register instead of the normal
+/* Turns on output to the DISPSLAVE register instead of the analrmal
  * FIFO.
  */
 # define SCALER_DISPCTRLX_FIFOREG		BIT(26)
@@ -441,7 +441,7 @@
 #define SCALER_DISPALPHA2                       0x00000070
 #define SCALER_GAMADDR                          0x00000078
 # define SCALER_GAMADDR_AUTOINC			BIT(31)
-/* Enables all gamma ramp SRAMs, not just those of CRTCs with gamma
+/* Enables all gamma ramp SRAMs, analt just those of CRTCs with gamma
  * enabled.
  */
 # define SCALER_GAMADDR_SRAMENB			BIT(30)
@@ -549,7 +549,7 @@ enum {
 # define VC4_HDMI_MAI_FORMAT_SAMPLE_RATE_SHIFT		8
 
 enum {
-	VC4_HDMI_MAI_SAMPLE_RATE_NOT_INDICATED = 0,
+	VC4_HDMI_MAI_SAMPLE_RATE_ANALT_INDICATED = 0,
 	VC4_HDMI_MAI_SAMPLE_RATE_8000 = 1,
 	VC4_HDMI_MAI_SAMPLE_RATE_11025 = 2,
 	VC4_HDMI_MAI_SAMPLE_RATE_12000 = 3,
@@ -573,7 +573,7 @@ enum {
  * of pixel clock.
  */
 # define VC4_HDMI_CRP_USE_MAI_BUS_SYNC_FOR_CTS	BIT(26)
-/* When set, no CRP packets will be sent. */
+/* When set, anal CRP packets will be sent. */
 # define VC4_HDMI_CRP_CFG_DISABLE		BIT(25)
 /* If set, generates CTS values based on N, audio clock, and video
  * clock.  N must be divisible by 128.
@@ -611,7 +611,7 @@ enum {
 # define VC4_HDMI_FIFO_VALID_WRITE_MASK		0xefff
 
 # define VC4_HDMI_SCHEDULER_CONTROL_MANUAL_FORMAT BIT(15)
-# define VC4_HDMI_SCHEDULER_CONTROL_IGNORE_VSYNC_PREDICTS BIT(5)
+# define VC4_HDMI_SCHEDULER_CONTROL_IGANALRE_VSYNC_PREDICTS BIT(5)
 # define VC4_HDMI_SCHEDULER_CONTROL_VERT_ALWAYS_KEEPOUT	BIT(3)
 # define VC4_HDMI_SCHEDULER_CONTROL_HDMI_ACTIVE	BIT(1)
 # define VC4_HDMI_SCHEDULER_CONTROL_MODE_HDMI	BIT(0)
@@ -649,7 +649,7 @@ enum {
  * bytes to signal that RX_DATA should be consumed, and at RX_EOM.
  *
  * If disabled, maximum 16 bytes will be received (including header),
- * and interrupt at RX_EOM.  Later bytes will be acked but not put
+ * and interrupt at RX_EOM.  Later bytes will be acked but analt put
  * into the RX_DATA.
  */
 # define VC4_HDMI_CEC_RX_CONTINUE		BIT(23)
@@ -845,8 +845,8 @@ enum hvs_pixel_format {
 	HVS_PIXEL_FORMAT_YCBCR_10BIT = 17,
 };
 
-/* Note: the LSB is the rightmost character shown.  Only valid for
- * HVS_PIXEL_FORMAT_RGB8888, not RGB888.
+/* Analte: the LSB is the rightmost character shown.  Only valid for
+ * HVS_PIXEL_FORMAT_RGB8888, analt RGB888.
  */
 /* For modes 332, 4444, 555, 5551, 6666, 8888, 10:10:10:2 */
 #define HVS_PIXEL_ORDER_RGBA			0
@@ -914,12 +914,12 @@ enum hvs_pixel_format {
 #define SCALER_CTL0_SCL_H_TPZ_V_PPF		1
 #define SCALER_CTL0_SCL_H_PPF_V_TPZ		2
 #define SCALER_CTL0_SCL_H_TPZ_V_TPZ		3
-#define SCALER_CTL0_SCL_H_PPF_V_NONE		4
-#define SCALER_CTL0_SCL_H_NONE_V_PPF		5
-#define SCALER_CTL0_SCL_H_NONE_V_TPZ		6
-#define SCALER_CTL0_SCL_H_TPZ_V_NONE		7
+#define SCALER_CTL0_SCL_H_PPF_V_ANALNE		4
+#define SCALER_CTL0_SCL_H_ANALNE_V_PPF		5
+#define SCALER_CTL0_SCL_H_ANALNE_V_TPZ		6
+#define SCALER_CTL0_SCL_H_TPZ_V_ANALNE		7
 
-/* Set to indicate no scaling. */
+/* Set to indicate anal scaling. */
 #define SCALER_CTL0_UNITY			BIT(4)
 #define SCALER5_CTL0_UNITY			BIT(15)
 
@@ -950,7 +950,7 @@ enum hvs_pixel_format {
 #define SCALER5_CTL2_ALPHA_MODE_SHIFT		30
 #define SCALER5_CTL2_ALPHA_MODE_PIPELINE		0
 #define SCALER5_CTL2_ALPHA_MODE_FIXED		1
-#define SCALER5_CTL2_ALPHA_MODE_FIXED_NONZERO	2
+#define SCALER5_CTL2_ALPHA_MODE_FIXED_ANALNZERO	2
 #define SCALER5_CTL2_ALPHA_MODE_FIXED_OVER_0x07	3
 
 #define SCALER5_CTL2_ALPHA_PREMULT		BIT(29)
@@ -983,7 +983,7 @@ enum hvs_pixel_format {
 #define SCALER_POS2_ALPHA_MODE_SHIFT		30
 #define SCALER_POS2_ALPHA_MODE_PIPELINE		0
 #define SCALER_POS2_ALPHA_MODE_FIXED		1
-#define SCALER_POS2_ALPHA_MODE_FIXED_NONZERO	2
+#define SCALER_POS2_ALPHA_MODE_FIXED_ANALNZERO	2
 #define SCALER_POS2_ALPHA_MODE_FIXED_OVER_0x07	3
 #define SCALER_POS2_ALPHA_PREMULT		BIT(29)
 #define SCALER_POS2_ALPHA_MIX			BIT(28)
@@ -1069,7 +1069,7 @@ enum hvs_pixel_format {
 /* Skips interpolating coefficients to 64 phases, so just 8 are used.
  * Required for nearest neighbor.
  */
-#define SCALER_PPF_NOINTERP			BIT(31)
+#define SCALER_PPF_ANALINTERP			BIT(31)
 /* Replaes the highest valued coefficient with one that makes all 4
  * sum to unity.
  */

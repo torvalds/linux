@@ -66,7 +66,7 @@ static void qedi_process_logout_resp(struct qedi_ctx *qedi,
 		qedi_conn->active_cmd_count--;
 	} else {
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
-			  "Active cmd list node already deleted, tid=0x%x, cid=0x%x, io_cmd_node=%p\n",
+			  "Active cmd list analde already deleted, tid=0x%x, cid=0x%x, io_cmd_analde=%p\n",
 			  cmd->task_id, qedi_conn->iscsi_conn_id,
 			  &cmd->io_cmd);
 	}
@@ -130,7 +130,7 @@ static void qedi_process_text_resp(struct qedi_ctx *qedi,
 		qedi_conn->active_cmd_count--;
 	} else {
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
-			  "Active cmd list node already deleted, tid=0x%x, cid=0x%x, io_cmd_node=%p\n",
+			  "Active cmd list analde already deleted, tid=0x%x, cid=0x%x, io_cmd_analde=%p\n",
 			  cmd->task_id, qedi_conn->iscsi_conn_id,
 			  &cmd->io_cmd);
 	}
@@ -383,7 +383,7 @@ static void qedi_put_rq_bdq_buf(struct qedi_ctx *qedi,
 	pbl->opaque.iscsi_opaque.reserved_zero[2] = 0;
 	pbl->opaque.iscsi_opaque.opaque = cpu_to_le32(idx);
 
-	/* Increment producer to let f/w know we've handled the frame */
+	/* Increment producer to let f/w kanalw we've handled the frame */
 	qedi->bdq_prod_idx += count;
 
 	writew(qedi->bdq_prod_idx, qedi->bdq_primary_prod);
@@ -405,48 +405,48 @@ static void qedi_unsol_pdu_adjust_bdq(struct qedi_ctx *qedi,
 	qedi_put_rq_bdq_buf(qedi, cqe, (num_bdqs + 1));
 }
 
-static int qedi_process_nopin_mesg(struct qedi_ctx *qedi,
+static int qedi_process_analpin_mesg(struct qedi_ctx *qedi,
 				   union iscsi_cqe *cqe,
 				   struct iscsi_task *task,
 				   struct qedi_conn *qedi_conn, u16 que_idx)
 {
 	struct iscsi_conn *conn = qedi_conn->cls_conn->dd_data;
 	struct iscsi_session *session = conn->session;
-	struct iscsi_nop_in_hdr *cqe_nop_in;
-	struct iscsi_nopin *hdr;
+	struct iscsi_analp_in_hdr *cqe_analp_in;
+	struct iscsi_analpin *hdr;
 	struct qedi_cmd *cmd;
-	int tgt_async_nop = 0;
+	int tgt_async_analp = 0;
 	u32 lun[2];
 	u32 pdu_len, num_bdqs;
 	char bdq_data[QEDI_BDQ_BUF_SIZE];
 	unsigned long flags;
 
 	spin_lock_bh(&session->back_lock);
-	cqe_nop_in = &cqe->cqe_common.iscsi_hdr.nop_in;
+	cqe_analp_in = &cqe->cqe_common.iscsi_hdr.analp_in;
 
-	pdu_len = cqe_nop_in->hdr_second_dword &
-		  ISCSI_NOP_IN_HDR_DATA_SEG_LEN_MASK;
+	pdu_len = cqe_analp_in->hdr_second_dword &
+		  ISCSI_ANALP_IN_HDR_DATA_SEG_LEN_MASK;
 	num_bdqs = pdu_len / QEDI_BDQ_BUF_SIZE;
 
-	hdr = (struct iscsi_nopin *)&qedi_conn->gen_pdu.resp_hdr;
+	hdr = (struct iscsi_analpin *)&qedi_conn->gen_pdu.resp_hdr;
 	memset(hdr, 0, sizeof(struct iscsi_hdr));
-	hdr->opcode = cqe_nop_in->opcode;
-	hdr->max_cmdsn = cpu_to_be32(cqe_nop_in->max_cmd_sn);
-	hdr->exp_cmdsn = cpu_to_be32(cqe_nop_in->exp_cmd_sn);
-	hdr->statsn = cpu_to_be32(cqe_nop_in->stat_sn);
-	hdr->ttt = cpu_to_be32(cqe_nop_in->ttt);
+	hdr->opcode = cqe_analp_in->opcode;
+	hdr->max_cmdsn = cpu_to_be32(cqe_analp_in->max_cmd_sn);
+	hdr->exp_cmdsn = cpu_to_be32(cqe_analp_in->exp_cmd_sn);
+	hdr->statsn = cpu_to_be32(cqe_analp_in->stat_sn);
+	hdr->ttt = cpu_to_be32(cqe_analp_in->ttt);
 
 	if (cqe->cqe_common.cqe_type == ISCSI_CQE_TYPE_UNSOLICITED) {
 		spin_lock_irqsave(&qedi->hba_lock, flags);
 		qedi_unsol_pdu_adjust_bdq(qedi, &cqe->cqe_unsolicited,
 					  pdu_len, num_bdqs, bdq_data);
 		hdr->itt = RESERVED_ITT;
-		tgt_async_nop = 1;
+		tgt_async_analp = 1;
 		spin_unlock_irqrestore(&qedi->hba_lock, flags);
 		goto done;
 	}
 
-	/* Response to one of our nop-outs */
+	/* Response to one of our analp-outs */
 	if (task) {
 		cmd = task->dd_data;
 		hdr->flags = ISCSI_FLAG_CMD_FINAL;
@@ -473,7 +473,7 @@ done:
 	__iscsi_complete_pdu(conn, (struct iscsi_hdr *)hdr, bdq_data, pdu_len);
 
 	spin_unlock_bh(&session->back_lock);
-	return tgt_async_nop;
+	return tgt_async_analp;
 }
 
 static void qedi_process_async_mesg(struct qedi_ctx *qedi,
@@ -605,13 +605,13 @@ static void qedi_scsi_completion(struct qedi_ctx *qedi,
 
 	if (!iscsi_cmd(sc_cmd)->task) {
 		QEDI_WARN(&qedi->dbg_ctx,
-			  "NULL task pointer, returned in another context.\n");
+			  "NULL task pointer, returned in aanalther context.\n");
 		goto error;
 	}
 
 	if (!scsi_cmd_to_rq(sc_cmd)->q) {
 		QEDI_WARN(&qedi->dbg_ctx,
-			  "request->q is NULL so request is not valid, sc_cmd=%p.\n",
+			  "request->q is NULL so request is analt valid, sc_cmd=%p.\n",
 			  sc_cmd);
 		goto error;
 	}
@@ -698,15 +698,15 @@ static void qedi_mtask_completion(struct qedi_ctx *qedi,
 	case ISCSI_OPCODE_LOGOUT_RESPONSE:
 		qedi_process_logout_resp(qedi, cqe, task, conn);
 		break;
-	case ISCSI_OPCODE_NOP_IN:
-		qedi_process_nopin_mesg(qedi, cqe, task, conn, que_idx);
+	case ISCSI_OPCODE_ANALP_IN:
+		qedi_process_analpin_mesg(qedi, cqe, task, conn, que_idx);
 		break;
 	default:
-		QEDI_ERR(&qedi->dbg_ctx, "unknown opcode\n");
+		QEDI_ERR(&qedi->dbg_ctx, "unkanalwn opcode\n");
 	}
 }
 
-static void qedi_process_nopin_local_cmpl(struct qedi_ctx *qedi,
+static void qedi_process_analpin_local_cmpl(struct qedi_ctx *qedi,
 					  struct iscsi_cqe_solicited *cqe,
 					  struct iscsi_task *task,
 					  struct qedi_conn *qedi_conn)
@@ -744,7 +744,7 @@ static void qedi_process_cmd_cleanup_resp(struct qedi_ctx *qedi,
 	qedi_conn = qedi->cid_que.conn_cid_tbl[iscsi_cid];
 	if (!qedi_conn) {
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
-			  "icid not found 0x%x\n", cqe->conn_id);
+			  "icid analt found 0x%x\n", cqe->conn_id);
 		return;
 	}
 
@@ -757,7 +757,7 @@ static void qedi_process_cmd_cleanup_resp(struct qedi_ctx *qedi,
 			qedi_cmd = work->qedi_cmd;
 			if (!qedi_cmd->list_tmf_work) {
 				QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_SCSI_TM,
-					  "TMF work not found, cqe->tid=0x%x, cid=0x%x\n",
+					  "TMF work analt found, cqe->tid=0x%x, cid=0x%x\n",
 					  proto_itt, qedi_conn->iscsi_conn_id);
 				WARN_ON(1);
 			}
@@ -782,7 +782,7 @@ static void qedi_process_cmd_cleanup_resp(struct qedi_ctx *qedi,
 
 	spin_lock_bh(&conn->session->back_lock);
 	if (iscsi_task_is_completed(task)) {
-		QEDI_NOTICE(&qedi->dbg_ctx,
+		QEDI_ANALTICE(&qedi->dbg_ctx,
 			    "IO task completed, tmf rtt=0x%x, cid=0x%x\n",
 			   get_itt(tmf_hdr->rtt), qedi_conn->iscsi_conn_id);
 		goto unlock;
@@ -823,7 +823,7 @@ void qedi_fp_process_cqes(struct qedi_work *work)
 	struct qedi_ctx *qedi = work->qedi;
 	union iscsi_cqe *cqe = &work->cqe;
 	struct iscsi_task *task = NULL;
-	struct iscsi_nopout *nopout_hdr;
+	struct iscsi_analpout *analpout_hdr;
 	struct qedi_conn *q_conn;
 	struct iscsi_conn *conn;
 	struct qedi_cmd *qedi_cmd;
@@ -851,7 +851,7 @@ void qedi_fp_process_cqes(struct qedi_work *work)
 	q_conn = qedi->cid_que.conn_cid_tbl[iscsi_cid];
 	if (!q_conn) {
 		QEDI_WARN(&qedi->dbg_ctx,
-			  "Session no longer exists for cid=0x%x!!\n",
+			  "Session anal longer exists for cid=0x%x!!\n",
 			  iscsi_cid);
 		return;
 	}
@@ -875,11 +875,11 @@ void qedi_fp_process_cqes(struct qedi_work *work)
 			return;
 		}
 
-		/* Process NOPIN local completion */
-		nopout_hdr = (struct iscsi_nopout *)task->hdr;
-		if ((nopout_hdr->itt == RESERVED_ITT) &&
+		/* Process ANALPIN local completion */
+		analpout_hdr = (struct iscsi_analpout *)task->hdr;
+		if ((analpout_hdr->itt == RESERVED_ITT) &&
 		    (cqe->cqe_solicited.itid != (u16)RESERVED_ITT)) {
-			qedi_process_nopin_local_cmpl(qedi, &cqe->cqe_solicited,
+			qedi_process_analpin_local_cmpl(qedi, &cqe->cqe_solicited,
 						      task, q_conn);
 		} else {
 			cqe->cqe_solicited.itid =
@@ -890,8 +890,8 @@ void qedi_fp_process_cqes(struct qedi_work *work)
 		break;
 	case ISCSI_CQE_TYPE_UNSOLICITED:
 		switch (hdr_opcode) {
-		case ISCSI_OPCODE_NOP_IN:
-			qedi_process_nopin_mesg(qedi, cqe, task, q_conn,
+		case ISCSI_OPCODE_ANALP_IN:
+			qedi_process_analpin_mesg(qedi, cqe, task, q_conn,
 						que_idx);
 			break;
 		case ISCSI_OPCODE_ASYNC_MSG:
@@ -980,7 +980,7 @@ int qedi_send_iscsi_login(struct qedi_conn *qedi_conn,
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_task_ctx =
 	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks,
@@ -1081,7 +1081,7 @@ int qedi_send_iscsi_logout(struct qedi_conn *qedi_conn,
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_task_ctx =
 	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks,
@@ -1193,7 +1193,7 @@ int qedi_cleanup_all_io(struct qedi_ctx *qedi, struct qedi_conn *qedi_conn,
 		list_del_init(&cmd->io_cmd);
 		qedi_conn->active_cmd_count--;
 		QEDI_WARN(&qedi->dbg_ctx,
-			  "Deleted active cmd list node io_cmd=%p, cid=0x%x\n",
+			  "Deleted active cmd list analde io_cmd=%p, cid=0x%x\n",
 			  &cmd->io_cmd, qedi_conn->iscsi_conn_id);
 	}
 
@@ -1223,7 +1223,7 @@ int qedi_cleanup_all_io(struct qedi_ctx *qedi, struct qedi_conn *qedi_conn,
 	}
 
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_SCSI_TM,
-		  "i/o cmd_cleanup_req=%d, not equal to cmd_cleanup_cmpl=%d, cid=0x%x\n",
+		  "i/o cmd_cleanup_req=%d, analt equal to cmd_cleanup_cmpl=%d, cid=0x%x\n",
 		  qedi_conn->cmd_cleanup_req,
 		  atomic_read(&qedi_conn->cmd_cleanup_cmpl),
 		  qedi_conn->iscsi_conn_id);
@@ -1261,7 +1261,7 @@ void qedi_clearsq(struct qedi_ctx *qedi, struct qedi_conn *qedi_conn,
 
 	if (!qedi_ep) {
 		QEDI_WARN(&qedi->dbg_ctx,
-			  "Cannot proceed, ep already disconnected, cid=0x%x\n",
+			  "Cananalt proceed, ep already disconnected, cid=0x%x\n",
 			  qedi_conn->iscsi_conn_id);
 		return;
 	}
@@ -1352,13 +1352,13 @@ static void qedi_abort_work(struct work_struct *work)
 		  get_itt(tmf_hdr->rtt), get_itt(ctask->itt), cmd->task_id,
 		  qedi_conn->iscsi_conn_id);
 
-	if (qedi_do_not_recover) {
+	if (qedi_do_analt_recover) {
 		QEDI_ERR(&qedi->dbg_ctx, "DONT SEND CLEANUP/ABORT %d\n",
-			 qedi_do_not_recover);
+			 qedi_do_analt_recover);
 		goto clear_cleanup;
 	}
 
-	list_work = kzalloc(sizeof(*list_work), GFP_NOIO);
+	list_work = kzalloc(sizeof(*list_work), GFP_ANALIO);
 	if (!list_work) {
 		QEDI_ERR(&qedi->dbg_ctx, "Memory allocation failed\n");
 		goto clear_cleanup;
@@ -1373,7 +1373,7 @@ static void qedi_abort_work(struct work_struct *work)
 	qedi_cmd->list_tmf_work = list_work;
 
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_SCSI_TM,
-		  "Queue tmf work=%p, list node=%p, cid=0x%x, tmf flags=0x%x\n",
+		  "Queue tmf work=%p, list analde=%p, cid=0x%x, tmf flags=0x%x\n",
 		  list_work->ptr_tmf_work, list_work, qedi_conn->iscsi_conn_id,
 		  tmf_hdr->flags);
 
@@ -1438,11 +1438,11 @@ static int send_iscsi_tmf(struct qedi_conn *qedi_conn, struct iscsi_task *mtask,
 	qedi_cmd = (struct qedi_cmd *)mtask->dd_data;
 	ep = qedi_conn->ep;
 	if (!ep)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_task_ctx =
 	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks,
@@ -1558,7 +1558,7 @@ int qedi_send_iscsi_text(struct qedi_conn *qedi_conn,
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_task_ctx =
 	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks,
@@ -1631,17 +1631,17 @@ int qedi_send_iscsi_text(struct qedi_conn *qedi_conn,
 	return 0;
 }
 
-int qedi_send_iscsi_nopout(struct qedi_conn *qedi_conn,
+int qedi_send_iscsi_analpout(struct qedi_conn *qedi_conn,
 			   struct iscsi_task *task,
 			   char *datap, int data_len, int unsol)
 {
-	struct iscsi_nop_out_hdr nop_out_pdu_header;
+	struct iscsi_analp_out_hdr analp_out_pdu_header;
 	struct scsi_sgl_task_params tx_sgl_task_params;
 	struct scsi_sgl_task_params rx_sgl_task_params;
 	struct iscsi_task_params task_params;
 	struct qedi_ctx *qedi = qedi_conn->qedi;
 	struct iscsi_task_context *fw_task_ctx;
-	struct iscsi_nopout *nopout_hdr;
+	struct iscsi_analpout *analpout_hdr;
 	struct scsi_sge *resp_sge = NULL;
 	struct qedi_cmd *qedi_cmd;
 	struct qedi_endpoint *ep;
@@ -1652,12 +1652,12 @@ int qedi_send_iscsi_nopout(struct qedi_conn *qedi_conn,
 
 	resp_sge = (struct scsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
 	qedi_cmd = (struct qedi_cmd *)task->dd_data;
-	nopout_hdr = (struct iscsi_nopout *)task->hdr;
+	analpout_hdr = (struct iscsi_analpout *)task->hdr;
 	ep = qedi_conn->ep;
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_task_ctx =
 	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks,
@@ -1667,29 +1667,29 @@ int qedi_send_iscsi_nopout(struct qedi_conn *qedi_conn,
 	qedi_cmd->task_id = tid;
 
 	memset(&task_params, 0, sizeof(task_params));
-	memset(&nop_out_pdu_header, 0, sizeof(nop_out_pdu_header));
+	memset(&analp_out_pdu_header, 0, sizeof(analp_out_pdu_header));
 	memset(&tx_sgl_task_params, 0, sizeof(tx_sgl_task_params));
 	memset(&rx_sgl_task_params, 0, sizeof(rx_sgl_task_params));
 
 	/* Update header info */
-	nop_out_pdu_header.opcode = nopout_hdr->opcode;
-	SET_FIELD(nop_out_pdu_header.flags_attr, ISCSI_NOP_OUT_HDR_CONST1, 1);
-	SET_FIELD(nop_out_pdu_header.flags_attr, ISCSI_NOP_OUT_HDR_RSRV, 0);
+	analp_out_pdu_header.opcode = analpout_hdr->opcode;
+	SET_FIELD(analp_out_pdu_header.flags_attr, ISCSI_ANALP_OUT_HDR_CONST1, 1);
+	SET_FIELD(analp_out_pdu_header.flags_attr, ISCSI_ANALP_OUT_HDR_RSRV, 0);
 
-	memcpy(scsi_lun, &nopout_hdr->lun, sizeof(struct scsi_lun));
-	nop_out_pdu_header.lun.lo = be32_to_cpu(scsi_lun[0]);
-	nop_out_pdu_header.lun.hi = be32_to_cpu(scsi_lun[1]);
-	nop_out_pdu_header.cmd_sn = be32_to_cpu(nopout_hdr->cmdsn);
-	nop_out_pdu_header.exp_stat_sn = be32_to_cpu(nopout_hdr->exp_statsn);
+	memcpy(scsi_lun, &analpout_hdr->lun, sizeof(struct scsi_lun));
+	analp_out_pdu_header.lun.lo = be32_to_cpu(scsi_lun[0]);
+	analp_out_pdu_header.lun.hi = be32_to_cpu(scsi_lun[1]);
+	analp_out_pdu_header.cmd_sn = be32_to_cpu(analpout_hdr->cmdsn);
+	analp_out_pdu_header.exp_stat_sn = be32_to_cpu(analpout_hdr->exp_statsn);
 
 	qedi_update_itt_map(qedi, tid, task->itt, qedi_cmd);
 
-	if (nopout_hdr->ttt != ISCSI_TTT_ALL_ONES) {
-		nop_out_pdu_header.itt = be32_to_cpu(nopout_hdr->itt);
-		nop_out_pdu_header.ttt = be32_to_cpu(nopout_hdr->ttt);
+	if (analpout_hdr->ttt != ISCSI_TTT_ALL_ONES) {
+		analp_out_pdu_header.itt = be32_to_cpu(analpout_hdr->itt);
+		analp_out_pdu_header.ttt = be32_to_cpu(analpout_hdr->ttt);
 	} else {
-		nop_out_pdu_header.itt = qedi_set_itt(tid, get_itt(task->itt));
-		nop_out_pdu_header.ttt = ISCSI_TTT_ALL_ONES;
+		analp_out_pdu_header.itt = qedi_set_itt(tid, get_itt(task->itt));
+		analp_out_pdu_header.ttt = ISCSI_TTT_ALL_ONES;
 
 		spin_lock(&qedi_conn->list_lock);
 		list_add_tail(&qedi_cmd->io_cmd, &qedi_conn->active_cmd_list);
@@ -1731,8 +1731,8 @@ int qedi_send_iscsi_nopout(struct qedi_conn *qedi_conn,
 	task_params.sqe = &ep->sq[sq_idx];
 
 	memset(task_params.sqe, 0, sizeof(struct iscsi_wqe));
-	rval = init_initiator_nop_out_task(&task_params,
-					   &nop_out_pdu_header,
+	rval = init_initiator_analp_out_task(&task_params,
+					   &analp_out_pdu_header,
 					   &tx_sgl_task_params,
 					   &rx_sgl_task_params);
 	if (rval)
@@ -2002,7 +2002,7 @@ int qedi_iscsi_send_ioreq(struct iscsi_task *task)
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_task_ctx =
 	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks,
@@ -2125,7 +2125,7 @@ int qedi_iscsi_send_ioreq(struct iscsi_task *task)
 	return 0;
 }
 
-int qedi_iscsi_cleanup_task(struct iscsi_task *task, bool mark_cmd_node_deleted)
+int qedi_iscsi_cleanup_task(struct iscsi_task *task, bool mark_cmd_analde_deleted)
 {
 	struct iscsi_task_params task_params;
 	struct qedi_endpoint *ep;

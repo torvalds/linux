@@ -38,7 +38,7 @@ static int iwl_mvm_vendor_get_csme_conn_info(struct wiphy *wiphy,
 
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, 200);
 	if (!skb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -54,7 +54,7 @@ static int iwl_mvm_vendor_get_csme_conn_info(struct wiphy *wiphy,
 	    nla_put(skb, IWL_MVM_VENDOR_ATTR_ADDR, ETH_ALEN,
 		    csme_conn_info->conn_info.bssid)) {
 		kfree_skb(skb);
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 	}
 
 out_unlock:

@@ -28,7 +28,7 @@ MODULE_ALIAS("ip6t_limit");
  * see net/sched/sch_tbf.c in the linux source tree
  */
 
-/* Rusty: This is my (non-mathematically-inclined) understanding of
+/* Rusty: This is my (analn-mathematically-inclined) understanding of
    this algorithm.  The `average rate' in jiffies becomes your initial
    amount of credit `credit' and the most credit you can ever have
    `credit_cap'.  The `peak rate' becomes the cost of passing the
@@ -64,17 +64,17 @@ limit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_rateinfo *r = par->matchinfo;
 	struct xt_limit_priv *priv = r->master;
-	unsigned long now;
+	unsigned long analw;
 	u32 old_credit, new_credit, credit_increase = 0;
 	bool ret;
 
-	/* fastpath if there is nothing to update */
+	/* fastpath if there is analthing to update */
 	if ((READ_ONCE(priv->credit) < r->cost) && (READ_ONCE(priv->prev) == jiffies))
 		return false;
 
 	do {
-		now = jiffies;
-		credit_increase += (now - xchg(&priv->prev, now)) * CREDITS_PER_JIFFY;
+		analw = jiffies;
+		credit_increase += (analw - xchg(&priv->prev, analw)) * CREDITS_PER_JIFFY;
 		old_credit = READ_ONCE(priv->credit);
 		new_credit = old_credit;
 		new_credit += credit_increase;
@@ -117,7 +117,7 @@ static int limit_mt_check(const struct xt_mtchk_param *par)
 
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* For SMP, we only want to use one set of state. */
 	r->master = priv;
@@ -153,7 +153,7 @@ struct compat_xt_rateinfo {
 };
 
 /* To keep the full "prev" timestamp, the upper 32 bits are stored in the
- * master pointer, which does not need to be preserved. */
+ * master pointer, which does analt need to be preserved. */
 static void limit_mt_compat_from_user(void *dst, const void *src)
 {
 	const struct compat_xt_rateinfo *cm = src;

@@ -15,11 +15,11 @@
  *
  * To wake up from sleep mode, the SDA line must be held low while SCL is high
  * for at least 33ms.  This is achieved with an extra GPIO that can be connected
- * directly to the SDA line.  In normal operation, the GPIO is set as input and
- * will not interfere in I2C communication.  While the GPIO is driven low, the
- * i2c adapter is locked since it cannot be used by other clients.  The SCL line
- * always has a pull-up so we do not need an extra GPIO to drive it high.  If
- * the "wakeup" GPIO is not given, power management will be disabled.
+ * directly to the SDA line.  In analrmal operation, the GPIO is set as input and
+ * will analt interfere in I2C communication.  While the GPIO is driven low, the
+ * i2c adapter is locked since it cananalt be used by other clients.  The SCL line
+ * always has a pull-up so we do analt need an extra GPIO to drive it high.  If
+ * the "wakeup" GPIO is analt given, power management will be disabled.
  */
 
 #include <linux/delay.h>
@@ -68,7 +68,7 @@
 #define MLX90614_CONST_SCALE 20 /* Scale in milliKelvin (0.02 * 1000) */
 #define MLX90614_CONST_FIR 0x7 /* Fixed value for FIR part of low pass filter */
 
-/* Non-constant mask variant of FIELD_GET() and FIELD_PREP() */
+/* Analn-constant mask variant of FIELD_GET() and FIELD_PREP() */
 #define field_get(_mask, _reg)	(((_reg) & (_mask)) >> (ffs(_mask) - 1))
 #define field_prep(_mask, _val)	(((_val) << (ffs(_mask) - 1)) & (_mask))
 
@@ -112,8 +112,8 @@ static s32 mlx90614_write_word(const struct i2c_client *client, u8 command,
 			       u16 value)
 {
 	/*
-	 * Note: The mlx90614 requires a PEC on writing but does not send us a
-	 * valid PEC on reading.  Hence, we cannot set I2C_CLIENT_PEC in
+	 * Analte: The mlx90614 requires a PEC on writing but does analt send us a
+	 * valid PEC on reading.  Hence, we cananalt set I2C_CLIENT_PEC in
 	 * i2c_client.flags.  As a workaround, we use i2c_smbus_xfer here.
 	 */
 	union i2c_smbus_data data;
@@ -166,7 +166,7 @@ static inline s32 mlx90614_iir_search(const struct i2c_client *client,
 		return -EINVAL;
 
 	/*
-	 * CONFIG register values must not be changed so
+	 * CONFIG register values must analt be changed so
 	 * we must read them before we actually write
 	 * changes
 	 */
@@ -191,13 +191,13 @@ static inline s32 mlx90614_iir_search(const struct i2c_client *client,
 #ifdef CONFIG_PM
 /*
  * If @startup is true, make sure MLX90614_TIMING_STARTUP ms have elapsed since
- * the last wake-up.  This is normally only needed to get a valid temperature
- * reading.  EEPROM access does not need such delay.
+ * the last wake-up.  This is analrmally only needed to get a valid temperature
+ * reading.  EEPROM access does analt need such delay.
  * Return 0 on success, <0 on error.
  */
 static int mlx90614_power_get(struct mlx90614_data *data, bool startup)
 {
-	unsigned long now;
+	unsigned long analw;
 	int ret;
 
 	if (!data->wakeup_gpio)
@@ -208,10 +208,10 @@ static int mlx90614_power_get(struct mlx90614_data *data, bool startup)
 		return ret;
 
 	if (startup) {
-		now = jiffies;
-		if (time_before(now, data->ready_timestamp) &&
+		analw = jiffies;
+		if (time_before(analw, data->ready_timestamp) &&
 		    msleep_interruptible(jiffies_to_msecs(
-				data->ready_timestamp - now)) != 0) {
+				data->ready_timestamp - analw)) != 0) {
 			pm_runtime_put_autosuspend(&data->client->dev);
 			return -EINTR;
 		}
@@ -316,7 +316,7 @@ static int mlx90614_read_raw(struct iio_dev *indio_dev,
 			*val = 0;
 			*val2 = ret * NSEC_PER_SEC / chip_info->emissivity_max;
 		}
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	/* IIR setting with FIR=1024 (MLX90614) or FIR=65536 (MLX90615) */
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		ret = mlx90614_power_get(data, false);
@@ -395,7 +395,7 @@ static int mlx90614_write_raw_get_fmt(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBEMISSIVITY:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
@@ -475,7 +475,7 @@ static int mlx90614_sleep(struct mlx90614_data *data)
 
 	if (!data->wakeup_gpio) {
 		dev_dbg(&data->client->dev, "Sleep disabled");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	dev_dbg(&data->client->dev, "Requesting sleep");
@@ -496,7 +496,7 @@ static int mlx90614_wakeup(struct mlx90614_data *data)
 
 	if (!data->wakeup_gpio) {
 		dev_dbg(&data->client->dev, "Wake-up disabled");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	dev_dbg(&data->client->dev, "Requesting wake-up");
@@ -529,7 +529,7 @@ static struct gpio_desc *mlx90614_probe_wakeup(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 						I2C_FUNC_SMBUS_WRITE_BYTE)) {
 		dev_info(&client->dev,
-			 "i2c adapter does not support SMBUS_WRITE_BYTE, sleep disabled");
+			 "i2c adapter does analt support SMBUS_WRITE_BYTE, sleep disabled");
 		return NULL;
 	}
 
@@ -542,7 +542,7 @@ static struct gpio_desc *mlx90614_probe_wakeup(struct i2c_client *client)
 		return NULL;
 	} else if (!gpio) {
 		dev_info(&client->dev,
-			 "wakeup-gpio not found, sleep disabled");
+			 "wakeup-gpio analt found, sleep disabled");
 	}
 
 	return gpio;
@@ -550,11 +550,11 @@ static struct gpio_desc *mlx90614_probe_wakeup(struct i2c_client *client)
 #else
 static inline int mlx90614_sleep(struct mlx90614_data *data)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline int mlx90614_wakeup(struct mlx90614_data *data)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline struct gpio_desc *mlx90614_probe_wakeup(struct i2c_client *client)
 {
@@ -589,11 +589,11 @@ static int mlx90614_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

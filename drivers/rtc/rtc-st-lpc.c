@@ -152,19 +152,19 @@ static int st_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 static int st_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct st_rtc *rtc = dev_get_drvdata(dev);
-	struct rtc_time now;
-	unsigned long long now_secs;
+	struct rtc_time analw;
+	unsigned long long analw_secs;
 	unsigned long long alarm_secs;
 	unsigned long long lpa;
 
-	st_rtc_read_time(dev, &now);
-	now_secs = rtc_tm_to_time64(&now);
+	st_rtc_read_time(dev, &analw);
+	analw_secs = rtc_tm_to_time64(&analw);
 	alarm_secs = rtc_tm_to_time64(&t->time);
 
 	memcpy(&rtc->alarm, t, sizeof(struct rtc_wkalrm));
 
-	/* Now many secs to fire */
-	alarm_secs -= now_secs;
+	/* Analw many secs to fire */
+	alarm_secs -= analw_secs;
 	lpa = (unsigned long long)alarm_secs * rtc->clkrate;
 
 	st_rtc_set_hw_alarm(rtc, lpa >> 32, lpa);
@@ -183,7 +183,7 @@ static const struct rtc_class_ops st_rtc_ops = {
 
 static int st_rtc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct st_rtc *rtc;
 	uint32_t mode;
 	int ret = 0;
@@ -196,11 +196,11 @@ static int st_rtc_probe(struct platform_device *pdev)
 
 	/* LPC can either run as a Clocksource or in RTC or WDT mode */
 	if (mode != ST_LPC_MODE_RTC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct st_rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc_dev))

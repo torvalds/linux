@@ -26,19 +26,19 @@ struct sd {
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-/*		(does not work correctly)
-	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+/*		(does analt work correctly)
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 5 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
 */
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -236,7 +236,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 	reg_wb(gspca_dev, 0x27, 0x0000, 0x0000, 0x06);	/* 420 */
 	reg_r(gspca_dev, 0x27, 0x0000, 1);
 
-/* not useful..
+/* analt useful..
 	gspca_dev->alt = 4;		* use alternate setting 3 */
 
 	return gspca_dev->usb_err;
@@ -386,7 +386,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_SHARPNESS, 0, 255, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;
@@ -415,9 +415,9 @@ MODULE_DEVICE_TABLE(usb, device_table);
 static int sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
-	/* the video interface for isochronous transfer is 1 */
+	/* the video interface for isochroanalus transfer is 1 */
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return gspca_dev_probe2(intf, id, &sd_desc, sizeof(struct sd),
 				THIS_MODULE);

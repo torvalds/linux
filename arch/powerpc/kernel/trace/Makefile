@@ -4,7 +4,7 @@
 #
 
 ifdef CONFIG_FUNCTION_TRACER
-# do not trace tracer code
+# do analt trace tracer code
 CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_ftrace_64_pg.o = $(CC_FLAGS_FTRACE)
 endif

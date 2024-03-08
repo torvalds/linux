@@ -23,7 +23,7 @@ alloc_empty_config(struct i915_perf *perf)
 
 	oa_config = kzalloc(sizeof(*oa_config), GFP_KERNEL);
 	if (!oa_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oa_config->perf = perf;
 	kref_init(&oa_config->ref);
@@ -36,7 +36,7 @@ alloc_empty_config(struct i915_perf *perf)
 	if (oa_config->id < 0)  {
 		mutex_unlock(&perf->metrics_lock);
 		i915_oa_config_put(oa_config);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_unlock(&perf->metrics_lock);
@@ -194,7 +194,7 @@ static ktime_t poll_status(struct i915_request *rq, int slot)
 	return ktime_get();
 }
 
-static int live_noa_delay(void *arg)
+static int live_anala_delay(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_perf_stream *stream;
@@ -209,12 +209,12 @@ static int live_noa_delay(void *arg)
 
 	stream = test_stream(&i915->perf);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	expected = atomic64_read(&stream->perf->noa_programming_delay);
+	expected = atomic64_read(&stream->perf->anala_programming_delay);
 
 	if (stream->engine->class != RENDER_CLASS) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -242,7 +242,7 @@ static int live_noa_delay(void *arg)
 	}
 
 	err = rq->engine->emit_bb_start(rq,
-					i915_ggtt_offset(stream->noa_wait), 0,
+					i915_ggtt_offset(stream->anala_wait), 0,
 					I915_DISPATCH_SECURE);
 	if (err) {
 		i915_request_add(rq);
@@ -286,7 +286,7 @@ out:
 	return err;
 }
 
-static int live_noa_gpr(void *arg)
+static int live_anala_gpr(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_perf_stream *stream;
@@ -298,11 +298,11 @@ static int live_noa_gpr(void *arg)
 	int err;
 	int i;
 
-	/* Check that the delay does not clobber user context state (GPR) */
+	/* Check that the delay does analt clobber user context state (GPR) */
 
 	stream = test_stream(&i915->perf);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpr0 = i915_mmio_reg_offset(GEN8_RING_CS_GPR(stream->engine->mmio_base, 0));
 
@@ -312,7 +312,7 @@ static int live_noa_gpr(void *arg)
 		goto out;
 	}
 
-	/* Poison the ce->vm so we detect writes not to the GGTT gt->scratch */
+	/* Poison the ce->vm so we detect writes analt to the GGTT gt->scratch */
 	scratch = __px_vaddr(ce->vm->scratch[0]);
 	memset(scratch, POISON_FREE, PAGE_SIZE);
 
@@ -331,7 +331,7 @@ static int live_noa_gpr(void *arg)
 		}
 	}
 
-	/* Fill the 16 qword [32 dword] GPR with a known unlikely value */
+	/* Fill the 16 qword [32 dword] GPR with a kanalwn unlikely value */
 	cs = intel_ring_begin(rq, 2 * 32 + 2);
 	if (IS_ERR(cs)) {
 		err = PTR_ERR(cs);
@@ -344,12 +344,12 @@ static int live_noa_gpr(void *arg)
 		*cs++ = gpr0 + i * sizeof(u32);
 		*cs++ = STACK_MAGIC;
 	}
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(rq, cs);
 
 	/* Execute the GPU delay */
 	err = rq->engine->emit_bb_start(rq,
-					i915_ggtt_offset(stream->noa_wait), 0,
+					i915_ggtt_offset(stream->anala_wait), 0,
 					I915_DISPATCH_SECURE);
 	if (err) {
 		i915_request_add(rq);
@@ -385,7 +385,7 @@ static int live_noa_gpr(void *arg)
 	i915_request_add(rq);
 
 	if (i915_request_wait(rq, I915_WAIT_INTERRUPTIBLE, HZ / 2) < 0) {
-		pr_err("noa_wait timed out\n");
+		pr_err("anala_wait timed out\n");
 		intel_gt_set_wedged(stream->engine->gt);
 		err = -EIO;
 		goto out_rq;
@@ -401,7 +401,7 @@ static int live_noa_gpr(void *arg)
 		err = -EINVAL;
 	}
 
-	/* Verify that the user's scratch page was not used for GPR storage */
+	/* Verify that the user's scratch page was analt used for GPR storage */
 	if (memchr_inv(scratch, POISON_FREE, PAGE_SIZE)) {
 		pr_err("Scratch page overwritten!\n");
 		igt_hexdump(scratch, 4096);
@@ -421,8 +421,8 @@ int i915_perf_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_sanitycheck),
-		SUBTEST(live_noa_delay),
-		SUBTEST(live_noa_gpr),
+		SUBTEST(live_anala_delay),
+		SUBTEST(live_anala_gpr),
 	};
 	struct i915_perf *perf = &i915->perf;
 	int err;

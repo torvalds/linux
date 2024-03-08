@@ -38,7 +38,7 @@ static struct platform_device heartbeat_device = {
 };
 
 static struct smc91x_platdata smc91x_info = {
-	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.flags	= SMC91X_USE_16BIT | SMC91X_ANALWAIT,
 };
 
 static struct resource smc91x_resources[] = {
@@ -233,7 +233,7 @@ static int __init x3proto_devices_setup(void)
 	x3proto_init_irq();
 
 	/*
-	 * Now that ILSELs are available, set up the baseboard GPIOs.
+	 * Analw that ILSELs are available, set up the baseboard GPIOs.
 	 */
 	ret = x3proto_gpio_setup();
 	if (unlikely(ret))

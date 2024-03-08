@@ -20,7 +20,7 @@ avs_path_find_tplg(struct avs_dev *adev, const char *name)
 {
 	struct avs_soc_component *acomp;
 
-	list_for_each_entry(acomp, &adev->comp_list, node)
+	list_for_each_entry(acomp, &adev->comp_list, analde)
 		if (!strcmp(acomp->tplg->name, name))
 			return acomp->tplg;
 	return NULL;
@@ -31,7 +31,7 @@ avs_path_find_module(struct avs_path_pipeline *ppl, u32 template_id)
 {
 	struct avs_path_module *mod;
 
-	list_for_each_entry(mod, &ppl->mod_list, node)
+	list_for_each_entry(mod, &ppl->mod_list, analde)
 		if (mod->template->id == template_id)
 			return mod;
 	return NULL;
@@ -42,7 +42,7 @@ avs_path_find_pipeline(struct avs_path *path, u32 template_id)
 {
 	struct avs_path_pipeline *ppl;
 
-	list_for_each_entry(ppl, &path->ppl_list, node)
+	list_for_each_entry(ppl, &path->ppl_list, analde)
 		if (ppl->template->id == template_id)
 			return ppl;
 	return NULL;
@@ -59,7 +59,7 @@ avs_path_find_path(struct avs_dev *adev, const char *name, u32 template_id)
 	if (!tplg)
 		return NULL;
 
-	list_for_each_entry(pos, &tplg->path_tmpl_list, node) {
+	list_for_each_entry(pos, &tplg->path_tmpl_list, analde) {
 		if (pos->id == template_id) {
 			template = pos;
 			break;
@@ -70,7 +70,7 @@ avs_path_find_path(struct avs_dev *adev, const char *name, u32 template_id)
 
 	spin_lock(&adev->path_list_lock);
 	/* Only one variant of given path template may be instantiated at a time. */
-	list_for_each_entry(path, &adev->path_list, node) {
+	list_for_each_entry(path, &adev->path_list, analde) {
 		if (path->template->owner == template) {
 			spin_unlock(&adev->path_list_lock);
 			return path;
@@ -98,7 +98,7 @@ avs_path_find_variant(struct avs_dev *adev,
 {
 	struct avs_tplg_path *variant;
 
-	list_for_each_entry(variant, &template->path_list, node) {
+	list_for_each_entry(variant, &template->path_list, analde) {
 		dev_dbg(adev->dev, "check FE rate %d chn %d vbd %d bd %d\n",
 			variant->fe_fmt->sampling_freq, variant->fe_fmt->num_channels,
 			variant->fe_fmt->valid_bit_depth, variant->fe_fmt->bit_depth);
@@ -147,14 +147,14 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 	struct avs_tplg_module *t = mod->template;
 	struct avs_copier_cfg *cfg;
 	struct nhlt_specific_cfg *ep_blob;
-	union avs_connector_node_id node_id = {0};
+	union avs_connector_analde_id analde_id = {0};
 	size_t cfg_size, data_size = 0;
 	void *data = NULL;
 	u32 dma_type;
 	int ret;
 
 	dma_type = t->cfg_ext->copier.dma_type;
-	node_id.dma_type = dma_type;
+	analde_id.dma_type = dma_type;
 
 	switch (dma_type) {
 		struct avs_audio_format *fmt;
@@ -180,14 +180,14 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 			fmt->num_channels, fmt->sampling_freq, direction,
 			NHLT_DEVICE_I2S);
 		if (!ep_blob) {
-			dev_err(adev->dev, "no I2S ep_blob found\n");
-			return -ENOENT;
+			dev_err(adev->dev, "anal I2S ep_blob found\n");
+			return -EANALENT;
 		}
 
 		data = ep_blob->caps;
 		data_size = ep_blob->size;
 		/* I2S gateway's vindex is statically assigned in topology */
-		node_id.vindex = t->cfg_ext->copier.vindex.val;
+		analde_id.vindex = t->cfg_ext->copier.vindex.val;
 
 		break;
 
@@ -204,32 +204,32 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 				fmt->bit_depth, fmt->num_channels,
 				fmt->sampling_freq, direction, NHLT_DEVICE_DMIC);
 		if (!ep_blob) {
-			dev_err(adev->dev, "no DMIC ep_blob found\n");
-			return -ENOENT;
+			dev_err(adev->dev, "anal DMIC ep_blob found\n");
+			return -EANALENT;
 		}
 
 		data = ep_blob->caps;
 		data_size = ep_blob->size;
 		/* DMIC gateway's vindex is statically assigned in topology */
-		node_id.vindex = t->cfg_ext->copier.vindex.val;
+		analde_id.vindex = t->cfg_ext->copier.vindex.val;
 
 		break;
 
 	case AVS_DMA_HDA_HOST_OUTPUT:
 	case AVS_DMA_HDA_HOST_INPUT:
 		/* HOST gateway's vindex is dynamically assigned with DMA id */
-		node_id.vindex = mod->owner->owner->dma_id;
+		analde_id.vindex = mod->owner->owner->dma_id;
 		break;
 
 	case AVS_DMA_HDA_LINK_OUTPUT:
 	case AVS_DMA_HDA_LINK_INPUT:
-		node_id.vindex = t->cfg_ext->copier.vindex.val |
+		analde_id.vindex = t->cfg_ext->copier.vindex.val |
 				 mod->owner->owner->dma_id;
 		break;
 
 	case INVALID_OBJECT_ID:
 	default:
-		node_id = INVALID_NODE_ID;
+		analde_id = INVALID_ANALDE_ID;
 		break;
 	}
 
@@ -249,7 +249,7 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 	cfg->base.audio_fmt = *t->in_fmt;
 	cfg->out_fmt = *t->cfg_ext->copier.out_fmt;
 	cfg->feature_mask = t->cfg_ext->copier.feature_mask;
-	cfg->gtw_cfg.node_id = node_id;
+	cfg->gtw_cfg.analde_id = analde_id;
 	cfg->gtw_cfg.dma_buffer_size = t->cfg_ext->copier.dma_buffer_size;
 	/* config_length in DWORDs */
 	cfg->gtw_cfg.config_length = DIV_ROUND_UP(data_size, 4);
@@ -314,7 +314,7 @@ static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 	cfg->base.audio_fmt = *t->in_fmt;
 	cfg->vols[0].target_volume = volume;
 	cfg->vols[0].channel_id = AVS_ALL_CHANNELS_MASK;
-	cfg->vols[0].curve_type = AVS_AUDIO_CURVE_NONE;
+	cfg->vols[0].curve_type = AVS_AUDIO_CURVE_ANALNE;
 	cfg->vols[0].curve_duration = 0;
 
 	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id, t->core_id,
@@ -566,12 +566,12 @@ avs_path_module_create(struct avs_dev *adev,
 
 	mod = kzalloc(sizeof(*mod), GFP_KERNEL);
 	if (!mod)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mod->template = template;
 	mod->module_id = module_id;
 	mod->owner = owner;
-	INIT_LIST_HEAD(&mod->node);
+	INIT_LIST_HEAD(&mod->analde);
 
 	ret = avs_path_module_type_create(adev, mod);
 	if (ret) {
@@ -594,7 +594,7 @@ static int avs_path_binding_arm(struct avs_dev *adev, struct avs_path_binding *b
 	this_mod = avs_path_find_module(binding->owner,
 					t->mod_id);
 	if (!this_mod) {
-		dev_err(adev->dev, "path mod %d not found\n", t->mod_id);
+		dev_err(adev->dev, "path mod %d analt found\n", t->mod_id);
 		return -EINVAL;
 	}
 
@@ -602,7 +602,7 @@ static int avs_path_binding_arm(struct avs_dev *adev, struct avs_path_binding *b
 	target_path = avs_path_find_path(adev, t->target_tplg_name,
 					 t->target_path_tmpl_id);
 	if (!target_path) {
-		dev_err(adev->dev, "target path %s:%d not found\n",
+		dev_err(adev->dev, "target path %s:%d analt found\n",
 			t->target_tplg_name, t->target_path_tmpl_id);
 		return -EINVAL;
 	}
@@ -610,13 +610,13 @@ static int avs_path_binding_arm(struct avs_dev *adev, struct avs_path_binding *b
 	target_ppl = avs_path_find_pipeline(target_path,
 					    t->target_ppl_id);
 	if (!target_ppl) {
-		dev_err(adev->dev, "target ppl %d not found\n", t->target_ppl_id);
+		dev_err(adev->dev, "target ppl %d analt found\n", t->target_ppl_id);
 		return -EINVAL;
 	}
 
 	target_mod = avs_path_find_module(target_ppl, t->target_mod_id);
 	if (!target_mod) {
-		dev_err(adev->dev, "target mod %d not found\n", t->target_mod_id);
+		dev_err(adev->dev, "target mod %d analt found\n", t->target_mod_id);
 		return -EINVAL;
 	}
 
@@ -648,11 +648,11 @@ static struct avs_path_binding *avs_path_binding_create(struct avs_dev *adev,
 
 	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
 	if (!binding)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	binding->template = t;
 	binding->owner = owner;
-	INIT_LIST_HEAD(&binding->node);
+	INIT_LIST_HEAD(&binding->analde);
 
 	return binding;
 }
@@ -662,7 +662,7 @@ static int avs_path_pipeline_arm(struct avs_dev *adev,
 {
 	struct avs_path_module *mod;
 
-	list_for_each_entry(mod, &ppl->mod_list, node) {
+	list_for_each_entry(mod, &ppl->mod_list, analde) {
 		struct avs_path_module *source, *sink;
 		int ret;
 
@@ -671,12 +671,12 @@ static int avs_path_pipeline_arm(struct avs_dev *adev,
 		 * one, either way we don't have next module to bind it to.
 		 */
 		if (mod == list_last_entry(&ppl->mod_list,
-					   struct avs_path_module, node))
+					   struct avs_path_module, analde))
 			break;
 
 		/* bind current module to next module on list */
 		source = mod;
-		sink = list_next_entry(mod, node);
+		sink = list_next_entry(mod, analde);
 		if (!source || !sink)
 			return -EINVAL;
 
@@ -695,22 +695,22 @@ static void avs_path_pipeline_free(struct avs_dev *adev,
 	struct avs_path_binding *binding, *bsave;
 	struct avs_path_module *mod, *save;
 
-	list_for_each_entry_safe(binding, bsave, &ppl->binding_list, node) {
-		list_del(&binding->node);
+	list_for_each_entry_safe(binding, bsave, &ppl->binding_list, analde) {
+		list_del(&binding->analde);
 		avs_path_binding_free(adev, binding);
 	}
 
 	avs_dsp_delete_pipeline(adev, ppl->instance_id);
 
 	/* Unload resources occupied by owned modules */
-	list_for_each_entry_safe(mod, save, &ppl->mod_list, node) {
+	list_for_each_entry_safe(mod, save, &ppl->mod_list, analde) {
 		avs_dsp_delete_module(adev, mod->module_id, mod->instance_id,
 				      mod->owner->instance_id,
 				      mod->template->core_id);
 		avs_path_module_free(adev, mod);
 	}
 
-	list_del(&ppl->node);
+	list_del(&ppl->analde);
 	kfree(ppl);
 }
 
@@ -725,13 +725,13 @@ avs_path_pipeline_create(struct avs_dev *adev, struct avs_path *owner,
 
 	ppl = kzalloc(sizeof(*ppl), GFP_KERNEL);
 	if (!ppl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ppl->template = template;
 	ppl->owner = owner;
 	INIT_LIST_HEAD(&ppl->binding_list);
 	INIT_LIST_HEAD(&ppl->mod_list);
-	INIT_LIST_HEAD(&ppl->node);
+	INIT_LIST_HEAD(&ppl->analde);
 
 	ret = avs_dsp_create_pipeline(adev, cfg->req_size, cfg->priority,
 				      cfg->lp, cfg->attributes,
@@ -742,7 +742,7 @@ avs_path_pipeline_create(struct avs_dev *adev, struct avs_path *owner,
 		return ERR_PTR(ret);
 	}
 
-	list_for_each_entry(tmod, &template->mod_list, node) {
+	list_for_each_entry(tmod, &template->mod_list, analde) {
 		struct avs_path_module *mod;
 
 		mod = avs_path_module_create(adev, ppl, tmod);
@@ -752,7 +752,7 @@ avs_path_pipeline_create(struct avs_dev *adev, struct avs_path *owner,
 			goto init_err;
 		}
 
-		list_add_tail(&mod->node, &ppl->mod_list);
+		list_add_tail(&mod->analde, &ppl->mod_list);
 	}
 
 	for (i = 0; i < template->num_bindings; i++) {
@@ -765,7 +765,7 @@ avs_path_pipeline_create(struct avs_dev *adev, struct avs_path *owner,
 			goto init_err;
 		}
 
-		list_add_tail(&binding->node, &ppl->binding_list);
+		list_add_tail(&binding->analde, &ppl->binding_list);
 	}
 
 	return ppl;
@@ -784,21 +784,21 @@ static int avs_path_init(struct avs_dev *adev, struct avs_path *path,
 	path->template = template;
 	path->dma_id = dma_id;
 	INIT_LIST_HEAD(&path->ppl_list);
-	INIT_LIST_HEAD(&path->node);
+	INIT_LIST_HEAD(&path->analde);
 
 	/* create all the pipelines */
-	list_for_each_entry(tppl, &template->ppl_list, node) {
+	list_for_each_entry(tppl, &template->ppl_list, analde) {
 		struct avs_path_pipeline *ppl;
 
 		ppl = avs_path_pipeline_create(adev, path, tppl);
 		if (IS_ERR(ppl))
 			return PTR_ERR(ppl);
 
-		list_add_tail(&ppl->node, &path->ppl_list);
+		list_add_tail(&ppl->analde, &path->ppl_list);
 	}
 
 	spin_lock(&adev->path_list_lock);
-	list_add_tail(&path->node, &adev->path_list);
+	list_add_tail(&path->analde, &adev->path_list);
 	spin_unlock(&adev->path_list_lock);
 
 	return 0;
@@ -810,12 +810,12 @@ static int avs_path_arm(struct avs_dev *adev, struct avs_path *path)
 	struct avs_path_binding *binding;
 	int ret;
 
-	list_for_each_entry(ppl, &path->ppl_list, node) {
+	list_for_each_entry(ppl, &path->ppl_list, analde) {
 		/*
 		 * Arm all ppl bindings before binding internal modules
-		 * as it costs no IPCs which isn't true for the latter.
+		 * as it costs anal IPCs which isn't true for the latter.
 		 */
-		list_for_each_entry(binding, &ppl->binding_list, node) {
+		list_for_each_entry(binding, &ppl->binding_list, analde) {
 			ret = avs_path_binding_arm(adev, binding);
 			if (ret < 0)
 				return ret;
@@ -834,10 +834,10 @@ static void avs_path_free_unlocked(struct avs_path *path)
 	struct avs_path_pipeline *ppl, *save;
 
 	spin_lock(&path->owner->path_list_lock);
-	list_del(&path->node);
+	list_del(&path->analde);
 	spin_unlock(&path->owner->path_list_lock);
 
-	list_for_each_entry_safe(ppl, save, &path->ppl_list, node)
+	list_for_each_entry_safe(ppl, save, &path->ppl_list, analde)
 		avs_path_pipeline_free(path->owner, ppl);
 
 	kfree(path);
@@ -851,7 +851,7 @@ static struct avs_path *avs_path_create_unlocked(struct avs_dev *adev, u32 dma_i
 
 	path = kzalloc(sizeof(*path), GFP_KERNEL);
 	if (!path)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = avs_path_init(adev, path, template, dma_id);
 	if (ret < 0)
@@ -887,8 +887,8 @@ struct avs_path *avs_path_create(struct avs_dev *adev, u32 dma_id,
 
 	variant = avs_path_find_variant(adev, template, fe_params, be_params);
 	if (!variant) {
-		dev_err(adev->dev, "no matching variant found\n");
-		return ERR_PTR(-ENOENT);
+		dev_err(adev->dev, "anal matching variant found\n");
+		return ERR_PTR(-EANALENT);
 	}
 
 	/* Serialize path and its components creation. */
@@ -941,10 +941,10 @@ int avs_path_bind(struct avs_path *path)
 	struct avs_dev *adev = path->owner;
 	int ret;
 
-	list_for_each_entry(ppl, &path->ppl_list, node) {
+	list_for_each_entry(ppl, &path->ppl_list, analde) {
 		struct avs_path_binding *binding;
 
-		list_for_each_entry(binding, &ppl->binding_list, node) {
+		list_for_each_entry(binding, &ppl->binding_list, analde) {
 			struct avs_path_module *source, *sink;
 
 			source = binding->source;
@@ -974,10 +974,10 @@ int avs_path_unbind(struct avs_path *path)
 	struct avs_dev *adev = path->owner;
 	int ret;
 
-	list_for_each_entry(ppl, &path->ppl_list, node) {
+	list_for_each_entry(ppl, &path->ppl_list, analde) {
 		struct avs_path_binding *binding;
 
-		list_for_each_entry(binding, &ppl->binding_list, node) {
+		list_for_each_entry(binding, &ppl->binding_list, analde) {
 			struct avs_path_module *source, *sink;
 
 			source = binding->source;
@@ -1006,7 +1006,7 @@ int avs_path_reset(struct avs_path *path)
 	if (path->state == AVS_PPL_STATE_RESET)
 		return 0;
 
-	list_for_each_entry(ppl, &path->ppl_list, node) {
+	list_for_each_entry(ppl, &path->ppl_list, analde) {
 		ret = avs_ipc_set_pipeline_state(adev, ppl->instance_id,
 						 AVS_PPL_STATE_RESET);
 		if (ret) {
@@ -1029,7 +1029,7 @@ int avs_path_pause(struct avs_path *path)
 	if (path->state == AVS_PPL_STATE_PAUSED)
 		return 0;
 
-	list_for_each_entry_reverse(ppl, &path->ppl_list, node) {
+	list_for_each_entry_reverse(ppl, &path->ppl_list, analde) {
 		ret = avs_ipc_set_pipeline_state(adev, ppl->instance_id,
 						 AVS_PPL_STATE_PAUSED);
 		if (ret) {
@@ -1052,7 +1052,7 @@ int avs_path_run(struct avs_path *path, int trigger)
 	if (path->state == AVS_PPL_STATE_RUNNING && trigger == AVS_TPLG_TRIGGER_AUTO)
 		return 0;
 
-	list_for_each_entry(ppl, &path->ppl_list, node) {
+	list_for_each_entry(ppl, &path->ppl_list, analde) {
 		if (ppl->template->cfg->trigger != trigger)
 			continue;
 

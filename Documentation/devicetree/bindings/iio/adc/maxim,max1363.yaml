@@ -26,7 +26,7 @@ properties:
 
   vcc-supply: true
   vref-supply:
-    description: Optional external reference.  If not supplied, internal
+    description: Optional external reference.  If analt supplied, internal
       reference will be used.
 
   interrupts:

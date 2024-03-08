@@ -33,9 +33,9 @@ struct fsl_mc_io;
  * @suspend: Function called when a device is stopped
  * @resume: Function called when a device is resumed
  * @driver_managed_dma: Device driver doesn't use kernel DMA API for DMA.
- *		For most device drivers, no need to care about this flag
+ *		For most device drivers, anal need to care about this flag
  *		as long as all DMAs are handled through the kernel DMA API.
- *		For some special ones, for example VFIO drivers, they know
+ *		For some special ones, for example VFIO drivers, they kanalw
  *		how to manage the DMA themselves and set this flag so that
  *		the IOMMU layer will allow them to setup and manage their
  *		own I/O address space.
@@ -71,7 +71,7 @@ enum fsl_mc_pool_type {
 	FSL_MC_POOL_IRQ,
 
 	/*
-	 * NOTE: New resource pool types must be added before this entry
+	 * ANALTE: New resource pool types must be added before this entry
 	 */
 	FSL_MC_NUM_POOL_TYPES
 };
@@ -81,12 +81,12 @@ enum fsl_mc_pool_type {
  * @type: type of resource
  * @id: unique MC resource Id within the resources of the same type
  * @data: pointer to resource-specific data if the resource is currently
- * allocated, or NULL if the resource is not currently allocated.
+ * allocated, or NULL if the resource is analt currently allocated.
  * @parent_pool: pointer to the parent resource pool from which this
  * resource is allocated from.
- * @node: Node in the free list of the corresponding resource pool
+ * @analde: Analde in the free list of the corresponding resource pool
  *
- * NOTE: This structure is to be embedded as a field of specific
+ * ANALTE: This structure is to be embedded as a field of specific
  * MC resource structures.
  */
 struct fsl_mc_resource {
@@ -94,7 +94,7 @@ struct fsl_mc_resource {
 	s32 id;
 	void *data;
 	struct fsl_mc_resource_pool *parent_pool;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
@@ -120,12 +120,12 @@ struct fsl_mc_device_irq {
 #define FSL_MC_OBJ_STATE_PLUGGED	0x00000002
 
 /**
- * Shareability flag - Object flag indicating no memory shareability.
- * the object generates memory accesses that are non coherent with other
+ * Shareability flag - Object flag indicating anal memory shareability.
+ * the object generates memory accesses that are analn coherent with other
  * masters;
  * user is responsible for proper memory handling through IOMMU configuration.
  */
-#define FSL_MC_OBJ_FLAG_NO_MEM_SHAREABILITY	0x0001
+#define FSL_MC_OBJ_FLAG_ANAL_MEM_SHAREABILITY	0x0001
 
 /**
  * struct fsl_mc_obj_desc - Object descriptor
@@ -133,7 +133,7 @@ struct fsl_mc_device_irq {
  * @id: ID of logical object resource
  * @vendor: Object vendor identifier
  * @ver_major: Major version number
- * @ver_minor:  Minor version number
+ * @ver_mianalr:  Mianalr version number
  * @irq_count: Number of interrupts supported by the object
  * @region_count: Number of mappable regions supported by the object
  * @state: Object state: combination of FSL_MC_OBJ_STATE_ states
@@ -145,7 +145,7 @@ struct fsl_mc_obj_desc {
 	int id;
 	u16 vendor;
 	u16 ver_major;
-	u16 ver_minor;
+	u16 ver_mianalr;
 	u8 irq_count;
 	u8 region_count;
 	u32 state;
@@ -173,21 +173,21 @@ struct fsl_mc_obj_desc {
  * @icid: Isolation context ID for the device
  * @mc_handle: MC handle for the corresponding MC object opened
  * @mc_io: Pointer to MC IO object assigned to this device or
- * NULL if none.
+ * NULL if analne.
  * @obj_desc: MC description of the DPAA device
  * @regions: pointer to array of MMIO region entries
  * @irqs: pointer to array of pointers to interrupts allocated to this device
  * @resource: generic resource associated with this MC object device, if any.
- * @driver_override: driver name to force a match; do not set directly,
+ * @driver_override: driver name to force a match; do analt set directly,
  *                   because core frees it; use driver_set_override() to
  *                   set or clear it.
  *
  * Generic device object for MC object devices that are "attached" to a
  * MC bus.
  *
- * NOTES:
- * - For a non-DPRC object its icid is the same as its parent DPRC's icid.
- * - The SMMU notifier callback gets invoked after device_add() has been
+ * ANALTES:
+ * - For a analn-DPRC object its icid is the same as its parent DPRC's icid.
+ * - The SMMU analtifier callback gets invoked after device_add() has been
  *   called for an MC object device, but before the device-specific probe
  *   callback gets called.
  * - DP_OBJ_DPRC objects are the only MC objects that have built-in MC
@@ -197,9 +197,9 @@ struct fsl_mc_obj_desc {
  *   treated as resources that can be allocated/deallocated from the
  *   corresponding resource pool in the object's parent DPRC, using the
  *   fsl_mc_object_allocate()/fsl_mc_object_free() functions. These MC objects
- *   are known as "allocatable" objects. For them, the corresponding
+ *   are kanalwn as "allocatable" objects. For them, the corresponding
  *   fsl_mc_device's 'resource' points to the associated resource object.
- *   For MC objects that are not allocatable (e.g., DP_OBJ_DPRC, DP_OBJ_DPNI),
+ *   For MC objects that are analt allocatable (e.g., DP_OBJ_DPRC, DP_OBJ_DPNI),
  *   'resource' is NULL.
  */
 struct fsl_mc_device {
@@ -233,12 +233,12 @@ enum mc_cmd_status {
 	MC_CMD_STATUS_OK = 0x0, /* Completed successfully */
 	MC_CMD_STATUS_READY = 0x1, /* Ready to be processed */
 	MC_CMD_STATUS_AUTH_ERR = 0x3, /* Authentication error */
-	MC_CMD_STATUS_NO_PRIVILEGE = 0x4, /* No privilege */
+	MC_CMD_STATUS_ANAL_PRIVILEGE = 0x4, /* Anal privilege */
 	MC_CMD_STATUS_DMA_ERR = 0x5, /* DMA or I/O error */
 	MC_CMD_STATUS_CONFIG_ERR = 0x6, /* Configuration error */
 	MC_CMD_STATUS_TIMEOUT = 0x7, /* Operation timed out */
-	MC_CMD_STATUS_NO_RESOURCE = 0x8, /* No resources */
-	MC_CMD_STATUS_NO_MEMORY = 0x9, /* No memory available */
+	MC_CMD_STATUS_ANAL_RESOURCE = 0x8, /* Anal resources */
+	MC_CMD_STATUS_ANAL_MEMORY = 0x9, /* Anal memory available */
 	MC_CMD_STATUS_BUSY = 0xA, /* Device is busy */
 	MC_CMD_STATUS_UNSUPPORTED_OP = 0xB, /* Unsupported operation */
 	MC_CMD_STATUS_INVALID_STATE = 0xC /* Invalid state */
@@ -285,7 +285,7 @@ struct mc_rsp_create {
 
 struct mc_rsp_api_ver {
 	__le16 major_ver;
-	__le16 minor_ver;
+	__le16 mianalr_ver;
 };
 
 static inline u32 mc_cmd_read_object_id(struct fsl_mc_command *cmd)
@@ -298,13 +298,13 @@ static inline u32 mc_cmd_read_object_id(struct fsl_mc_command *cmd)
 
 static inline void mc_cmd_read_api_version(struct fsl_mc_command *cmd,
 					   u16 *major_ver,
-					   u16 *minor_ver)
+					   u16 *mianalr_ver)
 {
 	struct mc_rsp_api_ver *rsp_params;
 
 	rsp_params = (struct mc_rsp_api_ver *)cmd->params;
 	*major_ver = le16_to_cpu(rsp_params->major_ver);
-	*minor_ver = le16_to_cpu(rsp_params->minor_ver);
+	*mianalr_ver = le16_to_cpu(rsp_params->mianalr_ver);
 }
 
 /**
@@ -321,19 +321,19 @@ static inline void mc_cmd_read_api_version(struct fsl_mc_command *cmd,
  * @portal_virt_addr: MC command portal virtual address
  * @dpmcp_dev: pointer to the DPMCP device associated with the MC portal.
  *
- * Fields are only meaningful if the FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is not
+ * Fields are only meaningful if the FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is analt
  * set:
  * @mutex: Mutex to serialize mc_send_command() calls that use the same MC
  * portal, if the fsl_mc_io object was created with the
  * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag off. mc_send_command() calls for this
- * fsl_mc_io object must be made only from non-atomic context.
+ * fsl_mc_io object must be made only from analn-atomic context.
  *
  * Fields are only meaningful if the FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is
  * set:
  * @spinlock: Spinlock to serialize mc_send_command() calls that use the same MC
  * portal, if the fsl_mc_io object was created with the
  * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag on. mc_send_command() calls for this
- * fsl_mc_io object can be made from atomic or non-atomic context.
+ * fsl_mc_io object can be made from atomic or analn-atomic context.
  */
 struct fsl_mc_io {
 	struct device *dev;
@@ -345,7 +345,7 @@ struct fsl_mc_io {
 	union {
 		/*
 		 * This field is only meaningful if the
-		 * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is not set
+		 * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is analt set
 		 */
 		struct mutex mutex; /* serializes mc_send_command() */
 
@@ -362,7 +362,7 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct fsl_mc_command *cmd);
 #ifdef CONFIG_FSL_MC_BUS
 #define dev_is_fsl_mc(_dev) ((_dev)->bus == &fsl_mc_bus_type)
 #else
-/* If fsl-mc bus is not present device cannot belong to fsl-mc bus */
+/* If fsl-mc bus is analt present device cananalt belong to fsl-mc bus */
 #define dev_is_fsl_mc(_dev) (0)
 #endif
 
@@ -398,14 +398,14 @@ void fsl_mc_driver_unregister(struct fsl_mc_driver *driver);
 /**
  * struct fsl_mc_version
  * @major: Major version number: incremented on API compatibility changes
- * @minor: Minor version number: incremented on API additions (that are
+ * @mianalr: Mianalr version number: incremented on API additions (that are
  *		backward compatible); reset when major version is incremented
  * @revision: Internal revision number: incremented on implementation changes
- *		and/or bug fixes that have no impact on API
+ *		and/or bug fixes that have anal impact on API
  */
 struct fsl_mc_version {
 	u32 major;
-	u32 minor;
+	u32 mianalr;
 	u32 revision;
 };
 
@@ -425,7 +425,7 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 
 void fsl_mc_object_free(struct fsl_mc_device *mc_adev);
 
-struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwanalde_handle *fwanalde,
 						struct msi_domain_info *info,
 						struct irq_domain *parent);
 
@@ -529,7 +529,7 @@ static inline bool is_fsl_mc_bus_dpdmai(const struct fsl_mc_device *mc_dev)
 	return mc_dev->dev.type == &fsl_mc_bus_dpdmai_type;
 }
 
-#define DPRC_RESET_OPTION_NON_RECURSIVE                0x00000001
+#define DPRC_RESET_OPTION_ANALN_RECURSIVE                0x00000001
 int dprc_reset_container(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 token,
@@ -605,7 +605,7 @@ int dpbp_get_attributes(struct fsl_mc_io *mc_io,
  */
 
 /**
- * Use it to disable notifications; see dpcon_set_notification()
+ * Use it to disable analtifications; see dpcon_set_analtification()
  */
 #define DPCON_INVALID_DPIO_ID		(int)(-1)
 
@@ -662,22 +662,22 @@ int dpcon_get_attributes(struct fsl_mc_io *mc_io,
 			 struct dpcon_attr *attr);
 
 /**
- * struct dpcon_notification_cfg - Structure representing notification params
- * @dpio_id:	DPIO object ID; must be configured with a notification channel;
- *	to disable notifications set it to 'DPCON_INVALID_DPIO_ID';
+ * struct dpcon_analtification_cfg - Structure representing analtification params
+ * @dpio_id:	DPIO object ID; must be configured with a analtification channel;
+ *	to disable analtifications set it to 'DPCON_INVALID_DPIO_ID';
  * @priority:	Priority selection within the DPIO channel; valid values
  *		are 0-7, depending on the number of priorities in that channel
  * @user_ctx:	User context value provided with each CDAN message
  */
-struct dpcon_notification_cfg {
+struct dpcon_analtification_cfg {
 	int dpio_id;
 	u8 priority;
 	u64 user_ctx;
 };
 
-int dpcon_set_notification(struct fsl_mc_io *mc_io,
+int dpcon_set_analtification(struct fsl_mc_io *mc_io,
 			   u32 cmd_flags,
 			   u16 token,
-			   struct dpcon_notification_cfg *cfg);
+			   struct dpcon_analtification_cfg *cfg);
 
 #endif /* _FSL_MC_H_ */

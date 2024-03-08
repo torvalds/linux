@@ -142,10 +142,10 @@ static int ms_transfer_data(struct realtek_pci_ms *host, unsigned char data_dir,
 
 	if (data_dir == READ) {
 		dma_dir = DMA_DIR_FROM_CARD;
-		trans_mode = pro_card ? MS_TM_AUTO_READ : MS_TM_NORMAL_READ;
+		trans_mode = pro_card ? MS_TM_AUTO_READ : MS_TM_ANALRMAL_READ;
 	} else {
 		dma_dir = DMA_DIR_TO_CARD;
-		trans_mode = pro_card ? MS_TM_AUTO_WRITE : MS_TM_NORMAL_WRITE;
+		trans_mode = pro_card ? MS_TM_AUTO_WRITE : MS_TM_ANALRMAL_WRITE;
 	}
 
 	rtsx_pci_init_cmd(pcr);
@@ -175,7 +175,7 @@ static int ms_transfer_data(struct realtek_pci_ms *host, unsigned char data_dir,
 	rtsx_pci_add_cmd(pcr, CHECK_REG_CMD, MS_TRANSFER,
 			MS_TRANSFER_END, MS_TRANSFER_END);
 
-	rtsx_pci_send_cmd_no_wait(pcr);
+	rtsx_pci_send_cmd_anal_wait(pcr);
 
 	err = rtsx_pci_transfer_data(pcr, sg, 1, data_dir == READ, 10000);
 	if (err < 0) {
@@ -365,7 +365,7 @@ static int rtsx_pci_ms_issue_cmd(struct realtek_pci_ms *host)
 
 	if (req->need_card_int && (host->ifmode == MEMSTICK_SERIAL)) {
 		err = ms_read_bytes(host, MS_TPC_GET_INT,
-				NO_WAIT_INT, 1, &int_reg, NULL);
+				ANAL_WAIT_INT, 1, &int_reg, NULL);
 		if (err < 0)
 			return err;
 	}
@@ -548,7 +548,7 @@ static int rtsx_pci_ms_drv_probe(struct platform_device *pdev)
 
 	msh = memstick_alloc_host(sizeof(*host), &pdev->dev);
 	if (!msh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = memstick_priv(msh);
 	host->pcr = pcr;
@@ -599,11 +599,11 @@ static int rtsx_pci_ms_drv_remove(struct platform_device *pdev)
 
 		rtsx_pci_complete_unfinished_transfer(pcr);
 
-		host->req->error = -ENOMEDIUM;
+		host->req->error = -EANALMEDIUM;
 		do {
 			rc = memstick_next_req(msh, &host->req);
 			if (!rc)
-				host->req->error = -ENOMEDIUM;
+				host->req->error = -EANALMEDIUM;
 		} while (!rc);
 	}
 	mutex_unlock(&host->host_mutex);

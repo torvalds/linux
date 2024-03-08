@@ -3,10 +3,10 @@
  * Copyright 2001-2003 SuSE Labs.
  * Distributed under the GNU public license, v2.
  *
- * This is a GART driver for the AMD Opteron/Athlon64 on-CPU northbridge.
+ * This is a GART driver for the AMD Opteron/Athlon64 on-CPU analrthbridge.
  * It also includes support for the AMD 8151 AGP bridge,
  * although it doesn't actually do much, as all the real
- * work is done in the northbridge(s).
+ * work is done in the analrthbridge(s).
  */
 
 #include <linux/module.h>
@@ -114,7 +114,7 @@ static struct aper_size_info_32 amd64_aperture_sizes[7] =
 
 /*
  * Get the current Aperture size from the x86-64.
- * Note, that there may be multiple x86-64's, but we just return
+ * Analte, that there may be multiple x86-64's, but we just return
  * the value from the first one we find. The set_size functions
  * keep the rest coherent anyway. Or at least should do.
  */
@@ -125,7 +125,7 @@ static int amd64_fetch_size(void)
 	u32 temp;
 	struct aper_size_info_32 *values;
 
-	dev = node_to_amd_nb(0)->misc;
+	dev = analde_to_amd_nb(0)->misc;
 	if (dev==NULL)
 		return 0;
 
@@ -188,7 +188,7 @@ static int amd_8151_configure(void)
 	/* Configure AGP regs in each x86-64 host bridge. */
 	for (i = 0; i < amd_nb_num(); i++) {
 		agp_bridge->gart_bus_addr =
-			amd64_configure(node_to_amd_nb(i)->misc, gatt_bus);
+			amd64_configure(analde_to_amd_nb(i)->misc, gatt_bus);
 	}
 	amd_flush_garts();
 	return 0;
@@ -204,7 +204,7 @@ static void amd64_cleanup(void)
 		return;
 
 	for (i = 0; i < amd_nb_num(); i++) {
-		struct pci_dev *dev = node_to_amd_nb(i)->misc;
+		struct pci_dev *dev = analde_to_amd_nb(i)->misc;
 		/* disable gart translation */
 		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &tmp);
 		tmp &= ~GARTEN;
@@ -261,14 +261,14 @@ static int agp_aperture_valid(u64 aper, u32 size)
 
 /*
  * W*s centric BIOS sometimes only set up the aperture in the AGP
- * bridge, not the northbridge. On AMD64 this is handled early
- * in aperture.c, but when IOMMU is not enabled or we run
+ * bridge, analt the analrthbridge. On AMD64 this is handled early
+ * in aperture.c, but when IOMMU is analt enabled or we run
  * on a 32bit kernel this needs to be redone.
  * Unfortunately it is impossible to fix the aperture here because it's too late
  * to allocate that much memory. But at least error out cleanly instead of
  * crashing.
  */
-static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
+static int fix_analrthbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 {
 	u64 aper, nb_aper;
 	int order = 0;
@@ -280,7 +280,7 @@ static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 	pci_read_config_dword(nb, AMD64_GARTAPERTUREBASE, &nb_base);
 	nb_aper = (u64)nb_base << 25;
 
-	/* Northbridge seems to contain crap. Try the AGP bridge. */
+	/* Analrthbridge seems to contain crap. Try the AGP bridge. */
 
 	pci_read_config_word(agp, cap+0x14, &apsize);
 	if (apsize == 0xffff) {
@@ -290,7 +290,7 @@ static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 	}
 
 	apsize &= 0xfff;
-	/* Some BIOS use weird encodings not in the AGPv3 table. */
+	/* Some BIOS use weird encodings analt in the AGPv3 table. */
 	if (apsize & 0xff)
 		apsize |= 0xf00;
 	order = 7 - hweight16(apsize);
@@ -302,7 +302,7 @@ static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 	 * so let double check that order, and lets trust the AMD NB settings
 	 */
 	if (order >=0 && aper + (32ULL<<(20 + order)) > 0x100000000ULL) {
-		dev_info(&agp->dev, "aperture size %u MB is not right, using settings from NB\n",
+		dev_info(&agp->dev, "aperture size %u MB is analt right, using settings from NB\n",
 			 32 << order);
 		order = nb_order;
 	}
@@ -328,16 +328,16 @@ static int cache_nbs(struct pci_dev *pdev, u32 cap_ptr)
 	int i;
 
 	if (!amd_nb_num())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!amd_nb_has_feature(AMD_NB_GART))
-		return -ENODEV;
+		return -EANALDEV;
 
 	i = 0;
 	for (i = 0; i < amd_nb_num(); i++) {
-		struct pci_dev *dev = node_to_amd_nb(i)->misc;
-		if (fix_northbridge(dev, pdev, cap_ptr) < 0) {
-			dev_err(&dev->dev, "no usable aperture found\n");
+		struct pci_dev *dev = analde_to_amd_nb(i)->misc;
+		if (fix_analrthbridge(dev, pdev, cap_ptr) < 0) {
+			dev_err(&dev->dev, "anal usable aperture found\n");
 #ifdef __x86_64__
 			/* should port this to i386 */
 			dev_err(&dev->dev, "consider rebooting with iommu=memaper=2 to get a good aperture\n");
@@ -372,7 +372,7 @@ static void amd8151_init(struct pci_dev *pdev, struct agp_bridge_data *bridge)
 	if (pdev->revision < 0x13) {
 		dev_info(&pdev->dev, "correcting AGP revision (reports 3.5, is really 3.0)\n");
 		bridge->major_version = 3;
-		bridge->minor_version = 0;
+		bridge->mianalr_version = 0;
 	}
 }
 
@@ -398,7 +398,7 @@ static int uli_agp_init(struct pci_dev *pdev)
 	dev1 = pci_get_slot (pdev->bus,PCI_DEVFN(0,0));
 	if (dev1 == NULL) {
 		dev_info(&pdev->dev, "can't find ULi secondary device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(uli_sizes); i++)
@@ -406,18 +406,18 @@ static int uli_agp_init(struct pci_dev *pdev)
 			break;
 
 	if (i == ARRAY_SIZE(uli_sizes)) {
-		dev_info(&pdev->dev, "no ULi size found for %d\n", size);
-		ret = -ENODEV;
+		dev_info(&pdev->dev, "anal ULi size found for %d\n", size);
+		ret = -EANALDEV;
 		goto put;
 	}
 
 	/* shadow x86-64 registers into ULi registers */
-	pci_read_config_dword (node_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
+	pci_read_config_dword (analde_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
 			       &httfea);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
 	if ((httfea & 0x7fff) >> (32 - 25)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto put;
 	}
 
@@ -461,7 +461,7 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 	dev1 = pci_get_slot(pdev->bus, PCI_DEVFN(11, 0));
 	if (dev1 == NULL) {
 		dev_info(&pdev->dev, "can't find Nforce3 secondary device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(nforce3_sizes); i++)
@@ -469,8 +469,8 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 			break;
 
 	if (i == ARRAY_SIZE(nforce3_sizes)) {
-		dev_info(&pdev->dev, "no NForce3 size found for %d\n", size);
-		ret = -ENODEV;
+		dev_info(&pdev->dev, "anal NForce3 size found for %d\n", size);
+		ret = -EANALDEV;
 		goto put;
 	}
 
@@ -480,13 +480,13 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APSIZE, tmp);
 
 	/* shadow x86-64 registers into NVIDIA registers */
-	pci_read_config_dword (node_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
+	pci_read_config_dword (analde_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
 			       &apbase);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
 	if ( (apbase & 0x7fff) >> (32 - 25) ) {
 		dev_info(&pdev->dev, "aperture base > 4G\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto put;
 	}
 
@@ -519,17 +519,17 @@ static int agp_amd64_probe(struct pci_dev *pdev,
 
 	/* The Highlander principle */
 	if (agp_bridges_found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Could check for AGPv3 here */
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
 	    pdev->device == PCI_DEVICE_ID_AMD_8151_0) {
@@ -548,7 +548,7 @@ static int agp_amd64_probe(struct pci_dev *pdev,
 
 	if (cache_nbs(pdev, cap_ptr) == -1) {
 		agp_put_bridge(bridge);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pdev->vendor == PCI_VENDOR_ID_NVIDIA) {
@@ -736,7 +736,7 @@ static struct pci_driver agp_amd64_pci_driver = {
 };
 
 
-/* Not static due to IOMMU code calling it early. */
+/* Analt static due to IOMMU code calling it early. */
 int __init agp_amd64_init(void)
 {
 	int err = 0;
@@ -750,20 +750,20 @@ int __init agp_amd64_init(void)
 
 	if (agp_bridges_found == 0) {
 		if (!agp_try_unsupported && !agp_try_unsupported_boot) {
-			printk(KERN_INFO PFX "No supported AGP bridge found.\n");
+			printk(KERN_INFO PFX "Anal supported AGP bridge found.\n");
 #ifdef MODULE
 			printk(KERN_INFO PFX "You can try agp_try_unsupported=1\n");
 #else
 			printk(KERN_INFO PFX "You can boot with agp=try_unsupported\n");
 #endif
 			pci_unregister_driver(&agp_amd64_pci_driver);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* First check that we have at least one AMD64 NB */
 		if (!amd_nb_num()) {
 			pci_unregister_driver(&agp_amd64_pci_driver);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* Look for any AGP bridge */
@@ -771,7 +771,7 @@ int __init agp_amd64_init(void)
 		err = driver_attach(&agp_amd64_pci_driver.driver);
 		if (err == 0 && agp_bridges_found == 0) {
 			pci_unregister_driver(&agp_amd64_pci_driver);
-			err = -ENODEV;
+			err = -EANALDEV;
 		}
 	}
 	return err;
@@ -781,7 +781,7 @@ static int __init agp_amd64_mod_init(void)
 {
 #ifndef MODULE
 	if (gart_iommu_aperture)
-		return agp_bridges_found ? 0 : -ENODEV;
+		return agp_bridges_found ? 0 : -EANALDEV;
 #endif
 	return agp_amd64_init();
 }

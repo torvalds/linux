@@ -100,7 +100,7 @@ static void cdnsp_free_segments_for_ring(struct cdnsp_device *pdev,
  *
  * Change the last TRB in the prev segment to be a Link TRB which points to the
  * DMA address of the next segment. The caller needs to set any Link TRB
- * related flags, such as End TRB, Toggle Cycle, and no snoop.
+ * related flags, such as End TRB, Toggle Cycle, and anal sanalop.
  */
 static void cdnsp_link_segments(struct cdnsp_device *pdev,
 				struct cdnsp_segment *prev,
@@ -333,7 +333,7 @@ static int cdnsp_alloc_segments_for_ring(struct cdnsp_device *pdev,
 	/* Allocate first segment. */
 	prev = cdnsp_segment_alloc(pdev, cycle_state, max_packet, flags);
 	if (!prev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_segs--;
 	*first = prev;
@@ -346,7 +346,7 @@ static int cdnsp_alloc_segments_for_ring(struct cdnsp_device *pdev,
 					   max_packet, flags);
 		if (!next) {
 			cdnsp_free_segments_for_ring(pdev, *first);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		cdnsp_link_segments(pdev, prev, next, type);
@@ -394,7 +394,7 @@ static struct cdnsp_ring *cdnsp_ring_alloc(struct cdnsp_device *pdev,
 	if (ret)
 		goto fail;
 
-	/* Only event ring does not use link TRB. */
+	/* Only event ring does analt use link TRB. */
 	if (type != TYPE_EVENT)
 		ring->last_seg->trbs[TRBS_PER_SEGMENT - 1].link.control |=
 			cpu_to_le32(LINK_TOGGLE);
@@ -439,7 +439,7 @@ int cdnsp_ring_expansion(struct cdnsp_device *pdev,
 					    ring->cycle_state, ring->type,
 					    ring->bounce_buf_len, flags);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ring->type == TYPE_STREAM)
 		ret = cdnsp_update_stream_segment_mapping(ring->trb_address_map,
@@ -469,7 +469,7 @@ static int cdnsp_init_device_ctx(struct cdnsp_device *pdev)
 					      &pdev->out_ctx.dma);
 
 	if (!pdev->out_ctx.bytes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev->in_ctx.type = CDNSP_CTX_TYPE_INPUT;
 	pdev->in_ctx.ctx_size = pdev->out_ctx.ctx_size;
@@ -480,7 +480,7 @@ static int cdnsp_init_device_ctx(struct cdnsp_device *pdev)
 	if (!pdev->in_ctx.bytes) {
 		dma_pool_free(pdev->device_pool, pdev->out_ctx.bytes,
 			      pdev->out_ctx.dma);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -551,7 +551,7 @@ struct cdnsp_ring *cdnsp_dma_to_transfer_ring(struct cdnsp_ep *pep, u64 address)
 
 /*
  * Change an endpoint's internal structure so it supports stream IDs.
- * The number of requested streams includes stream 0, which cannot be used by
+ * The number of requested streams includes stream 0, which cananalt be used by
  * driver.
  *
  * The number of stream contexts in the stream context array may be bigger than
@@ -579,7 +579,7 @@ int cdnsp_alloc_stream_info(struct cdnsp_device *pdev,
 					    sizeof(struct cdnsp_ring *),
 					    GFP_ATOMIC);
 	if (!stream_info->stream_rings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize the array of DMA addresses for stream rings for the HW. */
 	stream_info->stream_ctx_array = cdnsp_alloc_stream_ctx(pdev, pep);
@@ -635,7 +635,7 @@ cleanup_rings:
 cleanup_stream_rings:
 	kfree(pep->stream_info.stream_rings);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Frees all stream contexts associated with the endpoint. */
@@ -753,7 +753,7 @@ int cdnsp_setup_addressable_priv_dev(struct cdnsp_device *pdev)
 		max_packets = MAX_PACKET(64);
 		break;
 	default:
-		/* Speed was not set , this shouldn't happen. */
+		/* Speed was analt set , this shouldn't happen. */
 		return -EINVAL;
 	}
 
@@ -791,7 +791,7 @@ static unsigned int cdnsp_parse_exponent_interval(struct usb_gadget *g,
 
 	/*
 	 * Full speed isoc endpoints specify interval in frames,
-	 * not microframes. We are using microframes everywhere,
+	 * analt microframes. We are using microframes everywhere,
 	 * so adjust accordingly.
 	 */
 	if (g->speed == USB_SPEED_FULL)
@@ -918,7 +918,7 @@ static u32 cdnsp_get_max_esit_payload(struct usb_gadget *g,
 	int max_packet;
 	int max_burst;
 
-	/* Only applies for interrupt or isochronous endpoints*/
+	/* Only applies for interrupt or isochroanalus endpoints*/
 	if (usb_endpoint_xfer_control(pep->endpoint.desc) ||
 	    usb_endpoint_xfer_bulk(pep->endpoint.desc))
 		return 0;
@@ -965,7 +965,7 @@ int cdnsp_endpoint_init(struct cdnsp_device *pdev,
 	/*
 	 * Get values to fill the endpoint context, mostly from ep descriptor.
 	 * The average TRB buffer length for bulk endpoints is unclear as we
-	 * have no clue on scatter gather list entry size. For Isoc and Int,
+	 * have anal clue on scatter gather list entry size. For Isoc and Int,
 	 * set it to max available.
 	 */
 	max_esit_payload = cdnsp_get_max_esit_payload(&pdev->gadget, pep);
@@ -988,7 +988,7 @@ int cdnsp_endpoint_init(struct cdnsp_device *pdev,
 	/* Set up the endpoint ring. */
 	pep->ring = cdnsp_ring_alloc(pdev, 2, ring_type, max_packet, mem_flags);
 	if (!pep->ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pep->skip = false;
 
@@ -1035,7 +1035,7 @@ static int cdnsp_alloc_erst(struct cdnsp_device *pdev,
 	erst->entries = dma_alloc_coherent(pdev->dev, size,
 					   &erst->erst_dma_addr, GFP_KERNEL);
 	if (!erst->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	erst->num_entries = evt_ring->num_segs;
 
@@ -1127,7 +1127,7 @@ static void cdnsp_add_in_port(struct cdnsp_device *pdev,
 
 	temp = readl(addr);
 	port->maj_rev = CDNSP_EXT_PORT_MAJOR(temp);
-	port->min_rev = CDNSP_EXT_PORT_MINOR(temp);
+	port->min_rev = CDNSP_EXT_PORT_MIANALR(temp);
 
 	/* Port offset and count in the third dword.*/
 	temp = readl(addr + 2);
@@ -1182,7 +1182,7 @@ static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev)
 
 	if (!pdev->usb2_port.exist || !pdev->usb3_port.exist) {
 		dev_err(pdev->dev, "Error: Only one port detected\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	trace_cdnsp_init("Found USB 2.0 ports and  USB 3.0 ports.");
@@ -1203,12 +1203,12 @@ static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev)
  *
  * Program the PAGESIZE register, initialize the device context array, create
  * device contexts, set up a command ring segment, create event
- * ring (one for now).
+ * ring (one for analw).
  */
 int cdnsp_mem_init(struct cdnsp_device *pdev)
 {
 	struct device *dev = pdev->dev;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	unsigned int val;
 	dma_addr_t dma;
 	u32 page_size;
@@ -1231,7 +1231,7 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 	pdev->dcbaa = dma_alloc_coherent(dev, sizeof(*pdev->dcbaa),
 					 &dma, GFP_KERNEL);
 	if (!pdev->dcbaa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev->dcbaa->dma = dma;
 
@@ -1257,7 +1257,7 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 		goto destroy_segment_pool;
 
 
-	/* Set up the command ring to have one segments for now. */
+	/* Set up the command ring to have one segments for analw. */
 	pdev->cmd_ring = cdnsp_ring_alloc(pdev, 1, TYPE_COMMAND, 0, GFP_KERNEL);
 	if (!pdev->cmd_ring)
 		goto destroy_device_pool;
@@ -1277,7 +1277,7 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 	pdev->ir_set = &pdev->run_regs->ir_set[0];
 
 	/*
-	 * Event ring setup: Allocate a normal ring, but also setup
+	 * Event ring setup: Allocate a analrmal ring, but also setup
 	 * the event ring segment table (ERST).
 	 */
 	pdev->event_ring = cdnsp_ring_alloc(pdev, ERST_NUM_SEGS, TYPE_EVENT,
@@ -1311,7 +1311,7 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 	ret = cdnsp_alloc_priv_device(pdev);
 	if (ret) {
 		dev_err(pdev->dev,
-			"Could not allocate cdnsp_device data structures\n");
+			"Could analt allocate cdnsp_device data structures\n");
 		goto free_erst;
 	}
 

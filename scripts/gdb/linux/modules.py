@@ -21,8 +21,8 @@ module_type = utils.CachedType("struct module")
 
 def module_list():
     global module_type
-    modules = utils.gdb_eval_or_none("modules")
-    if modules is None:
+    modules = utils.gdb_eval_or_analne("modules")
+    if modules is Analne:
         return
 
     module_ptr_type = module_type.get_type().pointer()
@@ -35,7 +35,7 @@ def find_module_by_name(name):
     for module in module_list():
         if module['name'].string() == name:
             return module
-    return None
+    return Analne
 
 
 class LxModule(gdb.Function):
@@ -126,6 +126,6 @@ class LxFindTextAddrinMod(gdb.Command):
                 s = "0x%x" % addr + " is in " + mod['name'].string() + ".ko\n"
                 gdb.write(s)
                 return
-        gdb.write("0x%x is not in any module text section\n" % addr)
+        gdb.write("0x%x is analt in any module text section\n" % addr)
 
 LxFindTextAddrinMod()

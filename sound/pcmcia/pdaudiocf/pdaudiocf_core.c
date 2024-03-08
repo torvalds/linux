@@ -175,9 +175,9 @@ int snd_pdacf_ak4117_create(struct snd_pdacf *chip)
 {
 	int err;
 	u16 val;
-	/* design note: if we unmask PLL unlock, parity, valid, audio or auto bit interrupts */
+	/* design analte: if we unmask PLL unlock, parity, valid, audio or auto bit interrupts */
 	/* from AK4117 then INT1 pin from AK4117 will be high all time, because PCMCIA interrupts are */
-	/* egde based and FPGA does logical OR for all interrupt sources, we cannot use these */
+	/* egde based and FPGA does logical OR for all interrupt sources, we cananalt use these */
 	/* high-rate sources */
 	static const unsigned char pgm[5] = {
 		AK4117_XTL_24_576M | AK4117_EXCT,				/* AK4117_REG_PWRDN */
@@ -195,7 +195,7 @@ int snd_pdacf_ak4117_create(struct snd_pdacf *chip)
 		return err;
 
 	val = pdacf_reg_read(chip, PDAUDIOCF_REG_TCR);
-#if 1 /* normal operation */
+#if 1 /* analrmal operation */
 	val &= ~(PDAUDIOCF_ELIMAKMBIT|PDAUDIOCF_TESTDATASEL);
 #else /* debug */
 	val |= PDAUDIOCF_ELIMAKMBIT;
@@ -253,7 +253,7 @@ int snd_pdacf_suspend(struct snd_pdacf *chip)
 	val = inw(chip->port + PDAUDIOCF_REG_IER);
 	val &= ~(PDAUDIOCF_IRQOVREN|PDAUDIOCF_IRQAKMEN|PDAUDIOCF_IRQLVLEN0|PDAUDIOCF_IRQLVLEN1);
 	outw(val, chip->port + PDAUDIOCF_REG_IER);
-	chip->chip_status |= PDAUDIOCF_STAT_IS_SUSPENDED;	/* ignore interrupts from now */
+	chip->chip_status |= PDAUDIOCF_STAT_IS_SUSPENDED;	/* iganalre interrupts from analw */
 	snd_pdacf_powerdown(chip);
 	return 0;
 }

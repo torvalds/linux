@@ -13,7 +13,7 @@ Optional properties:
 - everest,sdout-pull-down:
    Format used by the serial interface is controlled by pulling
    the sdout. If the sdout is pulled down, leftj format is used.
-   If this property is not provided, sdout is assumed to pulled
+   If this property is analt provided, sdout is assumed to pulled
    up and i2s format is used
 
 Example:

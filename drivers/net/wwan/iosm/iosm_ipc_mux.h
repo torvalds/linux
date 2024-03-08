@@ -60,12 +60,12 @@
 
 /* Initiated actions to change the state of the MUX object. */
 enum mux_event {
-	MUX_E_INACTIVE, /* No initiated actions. */
+	MUX_E_INACTIVE, /* Anal initiated actions. */
 	MUX_E_MUX_SESSION_OPEN, /* Create the MUX channel and a session. */
 	MUX_E_MUX_SESSION_CLOSE, /* Release a session. */
 	MUX_E_MUX_CHANNEL_CLOSE, /* Release the MUX channel. */
-	MUX_E_NO_ORDERS, /* No MUX order. */
-	MUX_E_NOT_APPLICABLE, /* Defect IP MUX. */
+	MUX_E_ANAL_ORDERS, /* Anal MUX order. */
+	MUX_E_ANALT_APPLICABLE, /* Defect IP MUX. */
 };
 
 /* MUX session open command. */
@@ -101,8 +101,8 @@ union mux_msg {
 /* Parameter definition of the open session command. */
 struct mux_cmd_open_session {
 	u8 flow_ctrl; /* 0: Flow control disabled (flow allowed). */
-	/* 1: Flow control enabled (flow not allowed)*/
-	u8 ipv4v6_hints; /* 0: IPv4/IPv6 hints not supported.*/
+	/* 1: Flow control enabled (flow analt allowed)*/
+	u8 ipv4v6_hints; /* 0: IPv4/IPv6 hints analt supported.*/
 	/* 1: IPv4/IPv6 hints supported*/
 	__le16 reserved2; /* Reserved. Set to zero. */
 	__le32 dl_head_pad_len; /* Maximum length supported */
@@ -113,8 +113,8 @@ struct mux_cmd_open_session {
 struct mux_cmd_open_session_resp {
 	__le32 response; /* Response code */
 	u8 flow_ctrl; /* 0: Flow control disabled (flow allowed). */
-	/* 1: Flow control enabled (flow not allowed) */
-	u8 ipv4v6_hints; /* 0: IPv4/IPv6 hints not supported */
+	/* 1: Flow control enabled (flow analt allowed) */
+	u8 ipv4v6_hints; /* 0: IPv4/IPv6 hints analt supported */
 	/* 1: IPv4/IPv6 hints supported */
 	__le16 reserved2; /* Reserved. Set to zero. */
 	__le32 ul_head_pad_len; /* Actual length supported for */
@@ -169,15 +169,15 @@ enum mux_state {
 
 /* Supported MUX protocols. */
 enum ipc_mux_protocol {
-	MUX_UNKNOWN,
+	MUX_UNKANALWN,
 	MUX_LITE,
 	MUX_AGGREGATION,
 };
 
 /* Supported UL data transfer methods. */
 enum ipc_mux_ul_flow {
-	MUX_UL_UNKNOWN,
-	MUX_UL, /* Normal UL data transfer */
+	MUX_UL_UNKANALWN,
+	MUX_UL, /* Analrmal UL data transfer */
 	MUX_UL_ON_CREDITS, /* UL data transfer will be based on credits */
 };
 
@@ -202,9 +202,9 @@ struct mux_session {
  *			Table Header.
  * @datagram_index :	Index (in bytes) to the k-th datagram in the table.
  *			Index shall count from the start of the block including
- *			the 16-byte header. This value shall be non-zero.
+ *			the 16-byte header. This value shall be analn-zero.
  * @datagram_length:	Length of the k-th datagram including the head padding.
- *			This value shall be non-zero.
+ *			This value shall be analn-zero.
  * @service_class:	Service class identifier for the datagram.
  * @reserved:		Reserved bytes. Set to zero
  */

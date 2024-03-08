@@ -9,7 +9,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <cxlmem.h>
 #include <cxlpci.h>
 #include <cxl.h>
@@ -432,7 +432,7 @@ static void cxl_switch_decoder_release(struct device *dev)
 struct cxl_root_decoder *to_cxl_root_decoder(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, !is_root_decoder(dev),
-			  "not a cxl_root_decoder device\n"))
+			  "analt a cxl_root_decoder device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_root_decoder, cxlsd.cxld.dev);
 }
@@ -488,7 +488,7 @@ struct cxl_decoder *to_cxl_decoder(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev,
 			  !is_switch_decoder(dev) && !is_endpoint_decoder(dev),
-			  "not a cxl_decoder device\n"))
+			  "analt a cxl_decoder device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_decoder, dev);
 }
@@ -497,7 +497,7 @@ EXPORT_SYMBOL_NS_GPL(to_cxl_decoder, CXL);
 struct cxl_endpoint_decoder *to_cxl_endpoint_decoder(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, !is_endpoint_decoder(dev),
-			  "not a cxl_endpoint_decoder device\n"))
+			  "analt a cxl_endpoint_decoder device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_endpoint_decoder, cxld.dev);
 }
@@ -506,7 +506,7 @@ EXPORT_SYMBOL_NS_GPL(to_cxl_endpoint_decoder, CXL);
 struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, !is_switch_decoder(dev),
-			  "not a cxl_switch_decoder device\n"))
+			  "analt a cxl_switch_decoder device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_switch_decoder, cxld.dev);
 }
@@ -589,7 +589,7 @@ EXPORT_SYMBOL_NS_GPL(is_cxl_port, CXL);
 struct cxl_port *to_cxl_port(const struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, dev->type != &cxl_port_type,
-			  "not a cxl_port device\n"))
+			  "analt a cxl_port device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_port, dev);
 }
@@ -674,15 +674,15 @@ static struct cxl_port *cxl_port_alloc(struct device *uport_dev,
 	struct device *dev;
 	int rc;
 
-	/* No parent_dport, root cxl_port */
+	/* Anal parent_dport, root cxl_port */
 	if (!parent_dport) {
 		cxl_root = kzalloc(sizeof(*cxl_root), GFP_KERNEL);
 		if (!cxl_root)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	} else {
 		_port = kzalloc(sizeof(*port), GFP_KERNEL);
 		if (!_port)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	rc = ida_alloc(&cxl_port_ida, GFP_KERNEL);
@@ -690,16 +690,16 @@ static struct cxl_port *cxl_port_alloc(struct device *uport_dev,
 		return ERR_PTR(rc);
 
 	if (cxl_root)
-		port = &no_free_ptr(cxl_root)->port;
+		port = &anal_free_ptr(cxl_root)->port;
 	else
-		port = no_free_ptr(_port);
+		port = anal_free_ptr(_port);
 
 	port->id = rc;
 	port->uport_dev = uport_dev;
 
 	/*
-	 * The top-level cxl_port "cxl_root" does not have a cxl_port as
-	 * its parent and it does not have any corresponding component
+	 * The top-level cxl_port "cxl_root" does analt have a cxl_port as
+	 * its parent and it does analt have any corresponding component
 	 * registers as its decode is described by a fixed platform
 	 * description.
 	 */
@@ -713,7 +713,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport_dev,
 		port->parent_dport = parent_dport;
 
 		/*
-		 * walk to the host bridge, or the first ancestor that knows
+		 * walk to the host bridge, or the first ancestor that kanalws
 		 * the host bridge
 		 */
 		iter = port;
@@ -740,7 +740,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport_dev,
 
 	device_initialize(dev);
 	lockdep_set_class_and_subclass(&dev->mutex, &cxl_port_key, port->depth);
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_port_type;
 
@@ -756,7 +756,7 @@ static int cxl_setup_comp_regs(struct device *host, struct cxl_register_map *map
 		.resource = component_reg_phys,
 	};
 
-	if (component_reg_phys == CXL_RESOURCE_NONE)
+	if (component_reg_phys == CXL_RESOURCE_ANALNE)
 		return 0;
 
 	map->reg_type = CXL_REGLOC_RBI_COMPONENT;
@@ -903,7 +903,7 @@ struct cxl_root *devm_cxl_add_root(struct device *host,
 	struct cxl_root *cxl_root;
 	struct cxl_port *port;
 
-	port = devm_cxl_add_port(host, host, CXL_RESOURCE_NONE, NULL);
+	port = devm_cxl_add_port(host, host, CXL_RESOURCE_ANALNE, NULL);
 	if (IS_ERR(port))
 		return (struct cxl_root *)port;
 
@@ -915,7 +915,7 @@ EXPORT_SYMBOL_NS_GPL(devm_cxl_add_root, CXL);
 
 struct pci_bus *cxl_port_to_pci_bus(struct cxl_port *port)
 {
-	/* There is no pci_bus associated with a CXL platform-root port */
+	/* There is anal pci_bus associated with a CXL platform-root port */
 	if (is_cxl_root(port))
 		return NULL;
 
@@ -1012,7 +1012,7 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *dport)
 	dup = find_dport(port, dport->port_id);
 	if (dup) {
 		dev_err(&port->dev,
-			"unable to add dport%d-%s non-unique port id (%s)\n",
+			"unable to add dport%d-%s analn-unique port id (%s)\n",
 			dport->port_id, dev_name(dport->dport_dev),
 			dev_name(dup->dport_dev));
 		return -EBUSY;
@@ -1028,7 +1028,7 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *dport)
 }
 
 /*
- * Since root-level CXL dports cannot be enumerated by PCI they are not
+ * Since root-level CXL dports cananalt be enumerated by PCI they are analt
  * enumerated by the common port driver that acquires the port lock over
  * dport add/remove. Instead, root dports are manually added by a
  * platform driver and cond_cxl_root_lock() is used to take the missing
@@ -1092,13 +1092,13 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 
 	dport = devm_kzalloc(host, sizeof(*dport), GFP_KERNEL);
 	if (!dport)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dport->dport_dev = dport_dev;
 	dport->port_id = port_id;
 	dport->port = port;
 
-	if (rcrb == CXL_RESOURCE_NONE) {
+	if (rcrb == CXL_RESOURCE_ANALNE) {
 		rc = cxl_dport_setup_regs(&port->dev, dport,
 					  component_reg_phys);
 		if (rc)
@@ -1107,13 +1107,13 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 		dport->rcrb.base = rcrb;
 		component_reg_phys = __rcrb_to_component(dport_dev, &dport->rcrb,
 							 CXL_RCRB_DOWNSTREAM);
-		if (component_reg_phys == CXL_RESOURCE_NONE) {
+		if (component_reg_phys == CXL_RESOURCE_ANALNE) {
 			dev_warn(dport_dev, "Invalid Component Registers in RCRB");
 			return ERR_PTR(-ENXIO);
 		}
 
 		/*
-		 * RCH @dport is not ready to map until associated with its
+		 * RCH @dport is analt ready to map until associated with its
 		 * memdev
 		 */
 		rc = cxl_dport_setup_regs(NULL, dport, component_reg_phys);
@@ -1123,7 +1123,7 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 		dport->rch = true;
 	}
 
-	if (component_reg_phys != CXL_RESOURCE_NONE)
+	if (component_reg_phys != CXL_RESOURCE_ANALNE)
 		dev_dbg(dport_dev, "Component Registers found for dport: %pa\n",
 			&component_reg_phys);
 
@@ -1159,7 +1159,7 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
  * @port_id: identifier for this dport in a decoder's target list
  * @component_reg_phys: optional location of CXL component registers
  *
- * Note that dports are appended to the devm release action's of the
+ * Analte that dports are appended to the devm release action's of the
  * either the port's host (for root ports), or the port itself (for
  * switch ports)
  */
@@ -1170,7 +1170,7 @@ struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 	struct cxl_dport *dport;
 
 	dport = __devm_cxl_add_dport(port, dport_dev, port_id,
-				     component_reg_phys, CXL_RESOURCE_NONE);
+				     component_reg_phys, CXL_RESOURCE_ANALNE);
 	if (IS_ERR(dport)) {
 		dev_dbg(dport_dev, "failed to add dport to %s: %ld\n",
 			dev_name(&port->dev), PTR_ERR(dport));
@@ -1198,13 +1198,13 @@ struct cxl_dport *devm_cxl_add_rch_dport(struct cxl_port *port,
 {
 	struct cxl_dport *dport;
 
-	if (rcrb == CXL_RESOURCE_NONE) {
+	if (rcrb == CXL_RESOURCE_ANALNE) {
 		dev_dbg(&port->dev, "failed to add RCH dport, missing RCRB\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	dport = __devm_cxl_add_dport(port, dport_dev, port_id,
-				     CXL_RESOURCE_NONE, rcrb);
+				     CXL_RESOURCE_ANALNE, rcrb);
 	if (IS_ERR(dport)) {
 		dev_dbg(dport_dev, "failed to add RCH dport to %s: %ld\n",
 			dev_name(&port->dev), PTR_ERR(dport));
@@ -1250,7 +1250,7 @@ static int cxl_add_ep(struct cxl_dport *dport, struct device *ep_dev)
 
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep->ep = get_device(ep_dev);
 	ep->dport = dport;
@@ -1330,7 +1330,7 @@ static struct cxl_port *find_cxl_port_at(struct cxl_port *parent_port,
  * All users of grandparent() are using it to walk PCIe-like switch port
  * hierarchy. A PCIe switch is comprised of a bridge device representing the
  * upstream switch port and N bridges representing downstream switch ports. When
- * bridges stack the grand-parent of a downstream switch port is another
+ * bridges stack the grand-parent of a downstream switch port is aanalther
  * downstream switch port in the immediate ancestor switch.
  */
 static struct device *grandparent(struct device *dev)
@@ -1381,11 +1381,11 @@ int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint)
 EXPORT_SYMBOL_NS_GPL(cxl_endpoint_autoremove, CXL);
 
 /*
- * The natural end of life of a non-root 'cxl_port' is when its parent port goes
+ * The natural end of life of a analn-root 'cxl_port' is when its parent port goes
  * through a ->remove() event ("top-down" unregistration). The unnatural trigger
  * for a port to be unregistered is when all memdevs beneath that port have gone
  * through ->remove(). This "bottom-up" removal selectively removes individual
- * child ports manually. This depends on devm_cxl_add_port() to not change is
+ * child ports manually. This depends on devm_cxl_add_port() to analt change is
  * devm action registration order, and for dports to have already been
  * destroyed by reap_dports().
  */
@@ -1487,10 +1487,10 @@ static resource_size_t find_component_registers(struct device *dev)
 
 	/*
 	 * Theoretically, CXL component registers can be hosted on a
-	 * non-PCI device, in practice, only cxl_test hits this case.
+	 * analn-PCI device, in practice, only cxl_test hits this case.
 	 */
 	if (!dev_is_pci(dev))
-		return CXL_RESOURCE_NONE;
+		return CXL_RESOURCE_ANALNE;
 
 	pdev = to_pci_dev(dev);
 
@@ -1511,7 +1511,7 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 	if (!dparent) {
 		/*
 		 * The iteration reached the topology root without finding the
-		 * CXL-root 'cxl_port' on a previous iteration, fail for now to
+		 * CXL-root 'cxl_port' on a previous iteration, fail for analw to
 		 * be re-probed after platform driver attaches.
 		 */
 		dev_dbg(&cxlmd->dev, "%s is a root dport\n",
@@ -1574,7 +1574,7 @@ int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd)
 
 	/*
 	 * Skip intermediate port enumeration in the RCH case, there
-	 * are no ports in between a host bridge and an endpoint.
+	 * are anal ports in between a host bridge and an endpoint.
 	 */
 	if (cxlmd->cxlds->rcd)
 		return 0;
@@ -1585,7 +1585,7 @@ int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd)
 
 	/*
 	 * Scan for and add all cxl_ports in this device's ancestry.
-	 * Repeat until no more ports are added. Abort if a port add
+	 * Repeat until anal more ports are added. Abort if a port add
 	 * attempt fails.
 	 */
 retry:
@@ -1604,7 +1604,7 @@ retry:
 
 		uport_dev = dport_dev->parent;
 		if (!uport_dev) {
-			dev_warn(dev, "at %s no parent for dport: %s\n",
+			dev_warn(dev, "at %s anal parent for dport: %s\n",
 				 dev_name(iter), dev_name(dport_dev));
 			return -ENXIO;
 		}
@@ -1739,7 +1739,7 @@ static int cxl_decoder_init(struct cxl_port *port, struct cxl_decoder *cxld)
 	dev = &cxld->dev;
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_decoder_key);
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	dev->parent = &port->dev;
 	dev->bus = &cxl_bus_type;
 
@@ -1792,7 +1792,7 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 	cxlrd = kzalloc(struct_size(cxlrd, cxlsd.target, nr_targets),
 			GFP_KERNEL);
 	if (!cxlrd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cxlsd = &cxlrd->cxlsd;
 	rc = cxl_switch_decoder_init(port, cxlsd, nr_targets);
@@ -1846,7 +1846,7 @@ struct cxl_switch_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
 
 	cxlsd = kzalloc(struct_size(cxlsd, target, nr_targets), GFP_KERNEL);
 	if (!cxlsd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rc = cxl_switch_decoder_init(port, cxlsd, nr_targets);
 	if (rc) {
@@ -1877,7 +1877,7 @@ struct cxl_endpoint_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port)
 
 	cxled = kzalloc(sizeof(*cxled), GFP_KERNEL);
 	if (!cxled)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cxled->pos = -1;
 	cxld = &cxled->cxld;
@@ -1899,7 +1899,7 @@ EXPORT_SYMBOL_NS_GPL(cxl_endpoint_decoder_alloc, CXL);
  *              traffic to. These numbers should correspond with the port number
  *              in the PCIe Link Capabilities structure.
  *
- * Certain types of decoders may not have any targets. The main example of this
+ * Certain types of decoders may analt have any targets. The main example of this
  * is an endpoint device. A more awkward example is a hostbridge whose root
  * ports get hot added (technically possible, though unlikely).
  *
@@ -2116,7 +2116,7 @@ static void combine_coordinates(struct access_coordinate *c1,
  * @port: endpoint cxl_port
  * @coord: output performance data
  *
- * Return: errno on failure, 0 on success.
+ * Return: erranal on failure, 0 on success.
  */
 int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 				      struct access_coordinate *coord)
@@ -2140,7 +2140,7 @@ int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 	 * The iterative loop starts at the endpoint and gathers the
 	 * latency of the CXL link from the current iter to the next downstream
 	 * port each iteration. If the parent is cxl root then there is
-	 * nothing to gather.
+	 * analthing to gather.
 	 */
 	while (iter && !is_cxl_root(to_cxl_port(iter->dev.parent))) {
 		combine_coordinates(&c, &dport->sw_coord);
@@ -2229,7 +2229,7 @@ static __init int cxl_core_init(void)
 
 	cxl_bus_wq = alloc_ordered_workqueue("cxl_port", 0);
 	if (!cxl_bus_wq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_wq;
 	}
 

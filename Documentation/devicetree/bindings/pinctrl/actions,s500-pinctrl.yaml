@@ -63,15 +63,15 @@ patternProperties:
       '^(.*-)?pinmux$':
         type: object
         description:
-          Pinctrl node's client devices specify pin muxes using subnodes,
+          Pinctrl analde's client devices specify pin muxes using subanaldes,
           which in turn use the standard properties below.
-        $ref: pinmux-node.yaml#
+        $ref: pinmux-analde.yaml#
 
         properties:
           groups:
             description:
               List of gpio pin groups affected by the functions specified in
-              this subnode.
+              this subanalde.
             items:
               oneOf:
                 - enum: [lcd0_d18_mfp, rmii_crs_dv_mfp, rmii_txd0_mfp,
@@ -98,7 +98,7 @@ patternProperties:
             description:
               Specify the alternative function to be configured for the
               given gpio pin groups.
-            enum: [nor, eth_rmii, eth_smii, spi0, spi1, spi2, spi3, sens0,
+            enum: [analr, eth_rmii, eth_smii, spi0, spi1, spi2, spi3, sens0,
                    sens1, uart0, uart1, uart2, uart3, uart4, uart5, uart6, i2s0,
                    i2s1, pcm1, pcm0, ks, jtag, pwm0, pwm1, pwm2, pwm3, pwm4, pwm5,
                    p0, sd0, sd1, sd2, i2c0, i2c1, i2c3, dsi, lvds, usb30, clko_25m,
@@ -113,15 +113,15 @@ patternProperties:
       '^(.*-)?pinconf$':
         type: object
         description:
-          Pinctrl node's client devices specify pin configurations using
-          subnodes, which in turn use the standard properties below.
-        $ref: pincfg-node.yaml#
+          Pinctrl analde's client devices specify pin configurations using
+          subanaldes, which in turn use the standard properties below.
+        $ref: pincfg-analde.yaml#
 
         properties:
           groups:
             description:
               List of gpio pin groups affected by the drive-strength property
-              specified in this subnode.
+              specified in this subanalde.
             items:
               oneOf:
                 - enum: [sirq_drv, rmii_txd01_txen_drv, rmii_rxer_drv,
@@ -139,7 +139,7 @@ patternProperties:
           pins:
             description:
               List of gpio pins affected by the bias-pull-* and
-              input-schmitt-* properties specified in this subnode.
+              input-schmitt-* properties specified in this subanalde.
             items:
               oneOf:
                 - enum: [dnand_dqs, dnand_dqsn, eth_txd0, eth_txd1, eth_txen,

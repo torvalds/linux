@@ -31,7 +31,7 @@ struct telem_endpoint;
 #define SPT_PMC_PM_STS_OFFSET			0x1c
 #define SPT_PMC_MTPMC_OFFSET			0x20
 #define SPT_PMC_MFPMC_OFFSET			0x38
-#define SPT_PMC_LTR_IGNORE_OFFSET		0x30C
+#define SPT_PMC_LTR_IGANALRE_OFFSET		0x30C
 #define SPT_PMC_VRIC1_OFFSET			0x31c
 #define SPT_PMC_MPHY_CORE_STS_0			0x1143
 #define SPT_PMC_MPHY_CORE_STS_1			0x1142
@@ -147,12 +147,12 @@ enum ppfear_regs {
 #define SPT_PMC_VRIC1_SLPS0LVEN			BIT(13)
 #define SPT_PMC_VRIC1_XTALSDQDIS		BIT(22)
 
-/* Cannonlake Power Management Controller register offsets */
+/* Cananalnlake Power Management Controller register offsets */
 #define CNP_PMC_SLPS0_DBG_OFFSET		0x10B4
 #define CNP_PMC_PM_CFG_OFFSET			0x1818
 #define CNP_PMC_SLP_S0_RES_COUNTER_OFFSET	0x193C
-#define CNP_PMC_LTR_IGNORE_OFFSET		0x1B0C
-/* Cannonlake: PGD PFET Enable Ack Status Register(s) start */
+#define CNP_PMC_LTR_IGANALRE_OFFSET		0x1B0C
+/* Cananalnlake: PGD PFET Enable Ack Status Register(s) start */
 #define CNP_PMC_HOST_PPFEAR0A			0x1D90
 
 #define CNP_PMC_LATCH_SLPS0_EVENTS		BIT(31)
@@ -186,8 +186,8 @@ enum ppfear_regs {
 
 #define LTR_DECODED_VAL				GENMASK(9, 0)
 #define LTR_DECODED_SCALE			GENMASK(12, 10)
-#define LTR_REQ_SNOOP				BIT(15)
-#define LTR_REQ_NONSNOOP			BIT(31)
+#define LTR_REQ_SANALOP				BIT(15)
+#define LTR_REQ_ANALNSANALOP			BIT(31)
 
 #define ICL_PPFEAR_NUM_ENTRIES			9
 #define ICL_NUM_IP_IGN_ALLOWED			20
@@ -299,7 +299,7 @@ struct pmc_bit_map {
  * @slps0_dbg_maps:	Array of SLP_S0_DBG* registers containing debug info
  * @ltr_show_sts:	Maps PCH IP Names to their MMIO register offsets
  * @slp_s0_offset:	PWRMBASE offset to read SLP_S0 residency
- * @ltr_ignore_offset:	PWRMBASE offset to read/write LTR ignore bit
+ * @ltr_iganalre_offset:	PWRMBASE offset to read/write LTR iganalre bit
  * @regmap_length:	Length of memory to map from PWRMBASE address to access
  * @ppfear0_offset:	PWRMBASE offset to read PPFEAR*
  * @ppfear_buckets:	Number of 8 bits blocks to read all IP blocks from
@@ -321,14 +321,14 @@ struct pmc_reg_map {
 	const struct pmc_bit_map **lpm_sts;
 	const u32 slp_s0_offset;
 	const int slp_s0_res_counter_step;
-	const u32 ltr_ignore_offset;
+	const u32 ltr_iganalre_offset;
 	const int regmap_length;
 	const u32 ppfear0_offset;
 	const int ppfear_buckets;
 	const u32 pm_cfg_offset;
 	const int pm_read_disable_bit;
 	const u32 slps0_dbg_offset;
-	const u32 ltr_ignore_max;
+	const u32 ltr_iganalre_max;
 	const u32 pm_vric1_offset;
 	/* Low Power Mode registers */
 	const int lpm_num_maps;
@@ -568,7 +568,7 @@ extern const struct pmc_reg_map arl_pchs_reg_map;
 
 extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
 extern int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev);
-int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore);
+int pmc_core_send_ltr_iganalre(struct pmc_dev *pmcdev, u32 value, int iganalre);
 
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
 int get_primary_reg_base(struct pmc *pmc);
@@ -598,9 +598,9 @@ int cnl_resume(struct pmc_dev *pmcdev);
 	     i++, mode = pmcdev->lpm_en_modes[i])
 
 #define DEFINE_PMC_CORE_ATTR_WRITE(__name)				\
-static int __name ## _open(struct inode *inode, struct file *file)	\
+static int __name ## _open(struct ianalde *ianalde, struct file *file)	\
 {									\
-	return single_open(file, __name ## _show, inode->i_private);	\
+	return single_open(file, __name ## _show, ianalde->i_private);	\
 }									\
 									\
 static const struct file_operations __name ## _fops = {			\

@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -164,7 +164,7 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
 
 	srq->wrid = kmalloc_array(srq->max, sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mthca_buf_alloc(dev, srq->max << srq->wqe_shift,
 			      MTHCA_MAX_DIRECT_SRQ_SIZE,
@@ -175,7 +175,7 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
 	}
 
 	/*
-	 * Now initialize the SRQ buffer so that all of the WQEs are
+	 * Analw initialize the SRQ buffer so that all of the WQEs are
 	 * linked into the list of free WQEs.  In addition, set the
 	 * scatter list L_Keys to the sentry value of 0x100.
 	 */
@@ -236,7 +236,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 
 	srq->srqn = mthca_alloc(&dev->srq_table.alloc);
 	if (srq->srqn == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mthca_is_memfree(dev)) {
 		err = mthca_table_get(dev, dev->srq_table.table, srq->srqn);
@@ -247,7 +247,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 			srq->db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_SRQ,
 						       srq->srqn, &srq->db);
 			if (srq->db_index < 0) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err_out_icm;
 			}
 		}
@@ -342,7 +342,7 @@ void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq)
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox)) {
-		mthca_warn(dev, "No memory for mailbox to free SRQ.\n");
+		mthca_warn(dev, "Anal memory for mailbox to free SRQ.\n");
 		return;
 	}
 
@@ -506,7 +506,7 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 
 		if (unlikely(next_ind < 0)) {
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			break;
 		}
@@ -596,7 +596,7 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 
 		if (unlikely(next_ind < 0)) {
 			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			break;
 		}
@@ -652,7 +652,7 @@ int mthca_max_srq_sge(struct mthca_dev *dev)
 	 * the largest power of 2 descriptor size that is <= to the
 	 * actual max WQE descriptor size, rather than return the
 	 * max_sg value given by the firmware (which is based on WQE
-	 * sizes as multiples of 16, not powers of 2).
+	 * sizes as multiples of 16, analt powers of 2).
 	 *
 	 * If SRQ implementation is changed for Tavor to be based on
 	 * multiples of 16, the calculation below can be deleted and

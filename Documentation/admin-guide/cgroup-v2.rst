@@ -16,18 +16,18 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
 .. CONTENTS
 
    1. Introduction
-     1-1. Terminology
+     1-1. Termianallogy
      1-2. What is cgroup?
    2. Basic Operations
      2-1. Mounting
      2-2. Organizing Processes and Threads
        2-2-1. Processes
        2-2-2. Threads
-     2-3. [Un]populated Notification
+     2-3. [Un]populated Analtification
      2-4. Controlling Controllers
        2-4-1. Enabling and Disabling
        2-4-2. Top-down Constraint
-       2-4-3. No Internal Process Constraint
+       2-4-3. Anal Internal Process Constraint
      2-5. Delegation
        2-5-1. Model of Delegation
        2-5-2. Delegation Containment
@@ -71,7 +71,7 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
        5.9-2 Migration and Ownership
      5-10. Others
        5-10-1. perf_event
-     5-N. Non-normative information
+     5-N. Analn-analrmative information
        5-N-1. CPU controller root cgroup process behaviour
        5-N-2. IO controller root cgroup process behaviour
    6. Namespace
@@ -85,7 +85,7 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
    R. Issues with v1 and Rationales for v2
      R-1. Multiple Hierarchies
      R-2. Thread Granularity
-     R-3. Competition Between Inner Nodes and Threads
+     R-3. Competition Between Inner Analdes and Threads
      R-4. Other Interface Issues
      R-5. Controller Issues and Remedies
        R-5-1. Memory
@@ -94,7 +94,7 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
 Introduction
 ============
 
-Terminology
+Termianallogy
 -----------
 
 "cgroup" stands for "control group" and is never capitalized.  The
@@ -121,7 +121,7 @@ cgroups form a tree structure and every process in the system belongs
 to one and only one cgroup.  All threads of a process belong to the
 same cgroup.  On creation, all processes are put in the cgroup that
 the parent process belongs to at the time.  A process can be migrated
-to another cgroup.  Migration of a process doesn't affect already
+to aanalther cgroup.  Migration of a process doesn't affect already
 existing descendant processes.
 
 Following certain structural constraints, controllers may be enabled or
@@ -130,7 +130,7 @@ hierarchical - if a controller is enabled on a cgroup, it affects all
 processes which belong to the cgroups consisting the inclusive
 sub-hierarchy of the cgroup.  When a controller is enabled on a nested
 cgroup, it always restricts the resource distribution further.  The
-restrictions set closer to the root in the hierarchy can not be
+restrictions set closer to the root in the hierarchy can analt be
 overridden from further away.
 
 
@@ -143,19 +143,19 @@ Mounting
 Unlike v1, cgroup v2 has only single hierarchy.  The cgroup v2
 hierarchy can be mounted with the following mount command::
 
-  # mount -t cgroup2 none $MOUNT_POINT
+  # mount -t cgroup2 analne $MOUNT_POINT
 
 cgroup2 filesystem has the magic number 0x63677270 ("cgrp").  All
-controllers which support v2 and are not bound to a v1 hierarchy are
+controllers which support v2 and are analt bound to a v1 hierarchy are
 automatically bound to the v2 hierarchy and show up at the root.
-Controllers which are not in active use in the v2 hierarchy can be
+Controllers which are analt in active use in the v2 hierarchy can be
 bound to other hierarchies.  This allows mixing v2 hierarchy with the
 legacy v1 multiple hierarchies in a fully backward compatible way.
 
 A controller can be moved across hierarchies only after the controller
-is no longer referenced in its current hierarchy.  Because per-cgroup
-controller states are destroyed asynchronously and controllers may
-have lingering references, a controller may not show up immediately on
+is anal longer referenced in its current hierarchy.  Because per-cgroup
+controller states are destroyed asynchroanalusly and controllers may
+have lingering references, a controller may analt show up immediately on
 the v2 hierarchy after the final umount of the previous hierarchy.
 Similarly, a controller should be fully disabled to be moved out of
 the unified hierarchy and it may take some time for the disabled
@@ -172,7 +172,7 @@ controllers after system boot.
 During transition to v2, system management software might still
 automount the v1 cgroup filesystem and so hijack all controllers
 during boot, before manual intervention is possible. To make testing
-and experimenting easier, the kernel parameter cgroup_no_v1= allows
+and experimenting easier, the kernel parameter cgroup_anal_v1= allows
 disabling controllers in v1 and make them always available in v2.
 
 cgroup v2 currently supports the following mount options.
@@ -181,7 +181,7 @@ cgroup v2 currently supports the following mount options.
 	Consider cgroup namespaces as delegation boundaries.  This
 	option is system wide and can only be set on mount or modified
 	through remount from the init namespace.  The mount option is
-	ignored on non-init namespace mounts.  Please refer to the
+	iganalred on analn-init namespace mounts.  Please refer to the
 	Delegation section for details.
 
   favordynmods
@@ -190,21 +190,21 @@ cgroup v2 currently supports the following mount options.
         hot path operations such as forks and exits more expensive.
         The static usage pattern of creating a cgroup, enabling
         controllers, and then seeding it with CLONE_INTO_CGROUP is
-        not affected by this option.
+        analt affected by this option.
 
   memory_localevents
         Only populate memory.events with data for the current cgroup,
-        and not any subtrees. This is legacy behaviour, the default
+        and analt any subtrees. This is legacy behaviour, the default
         behaviour without this option is to include subtree counts.
         This option is system wide and can only be set on mount or
         modified through remount from the init namespace. The mount
-        option is ignored on non-init namespace mounts.
+        option is iganalred on analn-init namespace mounts.
 
   memory_recursiveprot
         Recursively apply memory.min and memory.low protection to
         entire subtrees, without requiring explicit downward
         propagation into leaf cgroups.  This allows protecting entire
-        subtrees from one another, while retaining free competition
+        subtrees from one aanalther, while retaining free competition
         within those subtrees.  This should have been the default
         behavior but is a mount-option to avoid regressing setups
         relying on the original semantics (e.g. specifying bogusly
@@ -219,10 +219,10 @@ cgroup v2 currently supports the following mount options.
 
         A few caveats to keep in mind:
 
-        * There is no HugeTLB pool management involved in the memory
-          controller. The pre-allocated pool does not belong to anyone.
+        * There is anal HugeTLB pool management involved in the memory
+          controller. The pre-allocated pool does analt belong to anyone.
           Specifically, when a new HugeTLB folio is allocated to
-          the pool, it is not accounted for from the perspective of the
+          the pool, it is analt accounted for from the perspective of the
           memory controller. It is only charged to a cgroup when it is
           actually used (for e.g at page fault time). Host memory
           overcommit management has to consider this when configuring
@@ -235,8 +235,8 @@ cgroup v2 currently supports the following mount options.
         * Charging HugeTLB memory towards the memory controller affects
           memory protection and reclaim dynamics. Any userspace tuning
           (of low, min limits for e.g) needs to take this into account.
-        * HugeTLB pages utilized while this option is not selected
-          will not be tracked by the memory controller (even if cgroup
+        * HugeTLB pages utilized while this option is analt selected
+          will analt be tracked by the memory controller (even if cgroup
           v2 is remounted later on).
 
 
@@ -254,9 +254,9 @@ A child cgroup can be created by creating a sub-directory::
 A given cgroup may have multiple child cgroups forming a tree
 structure.  Each cgroup has a read-writable interface file
 "cgroup.procs".  When read, it lists the PIDs of all processes which
-belong to the cgroup one-per-line.  The PIDs are not ordered and the
+belong to the cgroup one-per-line.  The PIDs are analt ordered and the
 same PID may show up more than once if the process got moved to
-another cgroup and then back or the PID got recycled while reading.
+aanalther cgroup and then back or the PID got recycled while reading.
 
 A process can be migrated into a cgroup by writing its PID to the
 target cgroup's "cgroup.procs" file.  Only one process can be migrated
@@ -268,11 +268,11 @@ When a process forks a child process, the new process is born into the
 cgroup that the forking process belongs to at the time of the
 operation.  After exit, a process stays associated with the cgroup
 that it belonged to at the time of exit until it's reaped; however, a
-zombie process does not appear in "cgroup.procs" and thus can't be
-moved to another cgroup.
+zombie process does analt appear in "cgroup.procs" and thus can't be
+moved to aanalther cgroup.
 
 A cgroup which doesn't have any children or live processes can be
-destroyed by removing the directory.  Note that a cgroup which doesn't
+destroyed by removing the directory.  Analte that a cgroup which doesn't
 have any children and is associated only with zombie processes is
 considered empty and can be removed::
 
@@ -302,7 +302,7 @@ cgroup v2 supports thread granularity for a subset of controllers to
 support use cases requiring hierarchical resource distribution across
 the threads of a group of processes.  By default, all threads of a
 process belong to the same cgroup, which also serves as the resource
-domain to host resource consumptions which are not specific to a
+domain to host resource consumptions which are analt specific to a
 process or thread.  The thread mode allows threads to be spread across
 a subtree while still maintaining the common resource domain for them.
 
@@ -310,26 +310,26 @@ Controllers which support thread mode are called threaded controllers.
 The ones which don't are called domain controllers.
 
 Marking a cgroup threaded makes it join the resource domain of its
-parent as a threaded cgroup.  The parent may be another threaded
+parent as a threaded cgroup.  The parent may be aanalther threaded
 cgroup whose resource domain is further up in the hierarchy.  The root
-of a threaded subtree, that is, the nearest ancestor which is not
+of a threaded subtree, that is, the nearest ancestor which is analt
 threaded, is called threaded domain or thread root interchangeably and
 serves as the resource domain for the entire subtree.
 
 Inside a threaded subtree, threads of a process can be put in
-different cgroups and are not subject to the no internal process
-constraint - threaded controllers can be enabled on non-leaf cgroups
-whether they have threads in them or not.
+different cgroups and are analt subject to the anal internal process
+constraint - threaded controllers can be enabled on analn-leaf cgroups
+whether they have threads in them or analt.
 
 As the threaded domain cgroup hosts all the domain resource
 consumptions of the subtree, it is considered to have internal
-resource consumptions whether there are processes in it or not and
+resource consumptions whether there are processes in it or analt and
 can't have populated child cgroups which aren't threaded.  Because the
-root cgroup is not subject to no internal process constraint, it can
+root cgroup is analt subject to anal internal process constraint, it can
 serve both as a threaded domain and a parent to domain cgroups.
 
 The current operation mode or type of the cgroup is shown in the
-"cgroup.type" file which indicates whether the cgroup is a normal
+"cgroup.type" file which indicates whether the cgroup is a analrmal
 domain, a domain which is serving as the domain of a threaded subtree,
 or a threaded cgroup.
 
@@ -345,7 +345,7 @@ thread mode, the following conditions must be met.
 - As the cgroup will join the parent's resource domain.  The parent
   must either be a valid (threaded) domain or a threaded cgroup.
 
-- When the parent is an unthreaded domain, it must not have any domain
+- When the parent is an unthreaded domain, it must analt have any domain
   controllers enabled or populated domain children.  The root is
   exempt from this requirement.
 
@@ -358,12 +358,12 @@ C is created as a domain but isn't connected to a parent which can
 host child domains.  C can't be used until it is turned into a
 threaded cgroup.  "cgroup.type" file will report "domain (invalid)" in
 these cases.  Operations which fail due to invalid topology use
-EOPNOTSUPP as the errno.
+EOPANALTSUPP as the erranal.
 
 A domain cgroup is turned into a threaded domain when one of its child
 cgroup becomes threaded or threaded controllers are enabled in the
 "cgroup.subtree_control" file while there are processes in the cgroup.
-A threaded domain reverts to a normal domain when the conditions
+A threaded domain reverts to a analrmal domain when the conditions
 clear.
 
 When read, "cgroup.threads" contains the list of the thread IDs of all
@@ -378,7 +378,7 @@ The threaded domain cgroup serves as the resource domain for the whole
 subtree, and, while the threads can be scattered across the subtree,
 all the processes are considered to be in the threaded domain cgroup.
 "cgroup.procs" in a threaded domain cgroup contains the PIDs of all
-processes in the subtree and is not readable in the subtree proper.
+processes in the subtree and is analt readable in the subtree proper.
 However, "cgroup.procs" can be written to from anywhere in the subtree
 to migrate all threads of the matching process to the cgroup.
 
@@ -388,9 +388,9 @@ accounts for and controls resource consumptions associated with the
 threads in the cgroup and its descendants.  All consumptions which
 aren't tied to a specific thread belong to the threaded domain cgroup.
 
-Because a threaded subtree is exempt from no internal process
+Because a threaded subtree is exempt from anal internal process
 constraint, a threaded controller must be able to handle competition
-between threads in a non-leaf cgroup and its child cgroups.  Each
+between threads in a analn-leaf cgroup and its child cgroups.  Each
 threaded controller defines how such competitions are handled.
 
 Currently, the following controllers are threaded and can be enabled
@@ -401,17 +401,17 @@ in a threaded cgroup::
 - perf_event
 - pids
 
-[Un]populated Notification
+[Un]populated Analtification
 --------------------------
 
-Each non-root cgroup has a "cgroup.events" file which contains
+Each analn-root cgroup has a "cgroup.events" file which contains
 "populated" field indicating whether the cgroup's sub-hierarchy has
-live processes in it.  Its value is 0 if there is no live process in
-the cgroup and its descendants; otherwise, 1.  poll and [id]notify
+live processes in it.  Its value is 0 if there is anal live process in
+the cgroup and its descendants; otherwise, 1.  poll and [id]analtify
 events are triggered when the value changes.  This can be used, for
 example, to start a clean-up operation after all processes of a given
 sub-hierarchy have exited.  The populated state updates and
-notifications are recursive.  Consider the following sub-hierarchy
+analtifications are recursive.  Consider the following sub-hierarchy
 where the numbers in the parentheses represent the numbers of processes
 in each cgroup::
 
@@ -436,7 +436,7 @@ controllers available for the cgroup to enable::
   # cat cgroup.controllers
   cpu io memory
 
-No controller is enabled by default.  Controllers can be enabled and
+Anal controller is enabled by default.  Controllers can be enabled and
 disabled by writing to the "cgroup.subtree_control" file::
 
   # echo "+cpu +memory -io" > cgroup.subtree_control
@@ -456,7 +456,7 @@ listed in parentheses::
 
 As A has "cpu" and "memory" enabled, A will control the distribution
 of CPU cycles and memory to its children, in this case, B.  As B has
-"memory" enabled but not "CPU", C and D will compete freely on CPU
+"memory" enabled but analt "CPU", C and D will compete freely on CPU
 cycles but their division of memory available to B will be controlled.
 
 As a controller regulates the distribution of the target resource to
@@ -474,17 +474,17 @@ Top-down Constraint
 
 Resources are distributed top-down and a cgroup can further distribute
 a resource only if the resource has been distributed to it from the
-parent.  This means that all non-root "cgroup.subtree_control" files
+parent.  This means that all analn-root "cgroup.subtree_control" files
 can only contain controllers which are enabled in the parent's
 "cgroup.subtree_control" file.  A controller can be enabled only if
 the parent has the controller enabled and a controller can't be
 disabled if one or more children have it enabled.
 
 
-No Internal Process Constraint
+Anal Internal Process Constraint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Non-root cgroups can distribute domain resources to their children
+Analn-root cgroups can distribute domain resources to their children
 only when they don't have any processes of their own.  In other words,
 only domain cgroups which don't contain any processes can have domain
 controllers enabled in their "cgroup.subtree_control" files.
@@ -495,14 +495,14 @@ the leaves.  This rules out situations where child cgroups compete
 against internal processes of the parent.
 
 The root cgroup is exempt from this restriction.  Root contains
-processes and anonymous resource consumption which can't be associated
+processes and aanalnymous resource consumption which can't be associated
 with any other cgroups and requires special treatment from most
 controllers.  How resource consumption in the root cgroup is governed
 is up to each controller (for more information on this topic please
-refer to the Non-normative information section in the Controllers
+refer to the Analn-analrmative information section in the Controllers
 chapter).
 
-Note that the restriction doesn't get in the way if there is no
+Analte that the restriction doesn't get in the way if there is anal
 enabled controller in the cgroup's "cgroup.subtree_control".  This is
 important as otherwise it wouldn't be possible to create children of a
 populated cgroup.  To control resource distribution of a cgroup, the
@@ -526,7 +526,7 @@ cgroup namespace on namespace creation.
 Because the resource control interface files in a given directory
 control the distribution of the parent's resources, the delegatee
 shouldn't be allowed to write to them.  For the first method, this is
-achieved by not granting access to these files.  For the second, the
+achieved by analt granting access to these files.  For the second, the
 kernel rejects writes to all files other than "cgroup.procs" and
 "cgroup.subtree_control" on a namespace root from inside the
 namespace.
@@ -536,7 +536,7 @@ delegated, the user can build sub-hierarchy under the directory,
 organize processes inside it as it sees fit and further distribute the
 resources it received from the parent.  The limits and other settings
 of all resource controllers are hierarchical and regardless of what
-happens in the delegated sub-hierarchy, nothing can escape the
+happens in the delegated sub-hierarchy, analthing can escape the
 resource restrictions imposed by the parent.
 
 Currently, cgroup doesn't impose any restrictions on the number of
@@ -551,7 +551,7 @@ A delegated sub-hierarchy is contained in the sense that processes
 can't be moved into or out of the sub-hierarchy by the delegatee.
 
 For delegations to a less privileged user, this is achieved by
-requiring the following conditions for a process with a non-root euid
+requiring the following conditions for a process with a analn-root euid
 to migrate a target process into a cgroup by writing its PID to the
 "cgroup.procs" file.
 
@@ -577,13 +577,13 @@ Let's also say U0 wants to write the PID of a process which is
 currently in C10 into "C00/cgroup.procs".  U0 has write access to the
 file; however, the common ancestor of the source cgroup C10 and the
 destination cgroup C00 is above the points of delegation and U0 would
-not have write access to its "cgroup.procs" files and thus the write
+analt have write access to its "cgroup.procs" files and thus the write
 will be denied with -EACCES.
 
 For delegations to namespaces, containment is achieved by requiring
 that both the source and destination cgroups are reachable from the
 namespace of the process which is attempting the migration.  If either
-is not reachable, the migration is rejected with -ENOENT.
+is analt reachable, the migration is rejected with -EANALENT.
 
 
 Guidelines
@@ -593,7 +593,7 @@ Organize Once and Control
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Migrating a process across cgroups is a relatively expensive operation
-and stateful resources such as memory are not moved together with the
+and stateful resources such as memory are analt moved together with the
 process.  This is an explicit design decision as there often exist
 inherent trade-offs between migration and various hot paths in terms
 of synchronization cost.
@@ -645,10 +645,10 @@ used for stateless resources.
 
 All weights are in the range [1, 10000] with the default at 100.  This
 allows symmetric multiplicative biases in both directions at fine
-enough granularity while staying in the intuitive range.
+eanalugh granularity while staying in the intuitive range.
 
 As long as the weight is in range, all configuration combinations are
-valid and there is no reason to reject configuration changes or
+valid and there is anal reason to reject configuration changes or
 process migrations.
 
 "cpu.weight" proportionally distributes CPU cycles to active children
@@ -664,10 +664,10 @@ A child can only consume up to the configured amount of the resource.
 Limits can be over-committed - the sum of the limits of children can
 exceed the amount of resource available to the parent.
 
-Limits are in the range [0, max] and defaults to "max", which is noop.
+Limits are in the range [0, max] and defaults to "max", which is analop.
 
 As limits can be over-committed, all configuration combinations are
-valid and there is no reason to reject configuration changes or
+valid and there is anal reason to reject configuration changes or
 process migrations.
 
 "io.max" limits the maximum BPS and/or IOPS that a cgroup can consume
@@ -686,10 +686,10 @@ only up to the amount available to the parent is protected among
 children.
 
 Protections are in the range [0, max] and defaults to 0, which is
-noop.
+analop.
 
 As protections can be over-committed, all configuration combinations
-are valid and there is no reason to reject configuration changes or
+are valid and there is anal reason to reject configuration changes or
 process migrations.
 
 "memory.low" implements best-effort memory protection and is an
@@ -701,10 +701,10 @@ Allocations
 
 A cgroup is exclusively allocated a certain amount of a finite
 resource.  Allocations can't be over-committed - the sum of the
-allocations of children can not exceed the amount of resource
+allocations of children can analt exceed the amount of resource
 available to the parent.
 
-Allocations are in the range [0, max] and defaults to 0, which is no
+Allocations are in the range [0, max] and defaults to 0, which is anal
 resource.
 
 As allocations can't be over-committed, some configuration
@@ -755,7 +755,7 @@ implement restricted shortcuts for most common use cases.
 
 For both flat and nested keyed files, only the values for a single key
 can be written at a time.  For nested keyed files, the sub key pairs
-may be specified in any order and not all pairs have to be specified.
+may be specified in any order and analt all pairs have to be specified.
 
 
 Conventions
@@ -775,7 +775,7 @@ Conventions
 - If a controller implements weight based resource distribution, its
   interface file should be named "weight" and have the range [1,
   10000] with 100 as the default.  The values are chosen to allow
-  enough and symmetric bias in both directions while keeping it
+  eanalugh and symmetric bias in both directions while keeping it
   intuitive (the default is 100%).
 
 - If a controller implements an absolute resource guarantee and/or
@@ -796,9 +796,9 @@ Conventions
 
   When writing to update a specific override, "default" can be used as
   the value to indicate removal of the override.  Override entries
-  with "default" as the value must not appear when read.
+  with "default" as the value must analt appear when read.
 
-  For example, a setting which is keyed by major:minor device numbers
+  For example, a setting which is keyed by major:mianalr device numbers
   with integer values may look like the following::
 
     # cat cgroup-example-interface-file
@@ -824,9 +824,9 @@ Conventions
     default 125
     8:16 170
 
-- For events which are not very high frequency, an interface file
+- For events which are analt very high frequency, an interface file
   "events" should be created which lists event key value pairs.
-  Whenever a notifiable event happens, file modified event should be
+  Whenever a analtifiable event happens, file modified event should be
   generated on the file.
 
 
@@ -836,13 +836,13 @@ Core Interface Files
 All cgroup core files are prefixed with "cgroup."
 
   cgroup.type
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.
 
 	When read, it indicates the current type of the cgroup, which
 	can be one of the following values.
 
-	- "domain" : A normal valid domain cgroup.
+	- "domain" : A analrmal valid domain cgroup.
 
 	- "domain threaded" : A threaded domain cgroup which is
           serving as the root of a threaded subtree.
@@ -862,9 +862,9 @@ All cgroup core files are prefixed with "cgroup."
 	all cgroups.
 
 	When read, it lists the PIDs of all processes which belong to
-	the cgroup one-per-line.  The PIDs are not ordered and the
+	the cgroup one-per-line.  The PIDs are analt ordered and the
 	same PID may show up more than once if the process got moved
-	to another cgroup and then back or the PID got recycled while
+	to aanalther cgroup and then back or the PID got recycled while
 	reading.
 
 	A PID can be written to migrate the process associated with
@@ -879,7 +879,7 @@ All cgroup core files are prefixed with "cgroup."
 	When delegating a sub-hierarchy, write access to this file
 	should be granted along with the containing directory.
 
-	In a threaded cgroup, reading this file fails with EOPNOTSUPP
+	In a threaded cgroup, reading this file fails with EOPANALTSUPP
 	as all the processes belong to the thread root.  Writing is
 	supported and moves every thread of the process to the cgroup.
 
@@ -888,9 +888,9 @@ All cgroup core files are prefixed with "cgroup."
 	all cgroups.
 
 	When read, it lists the TIDs of all threads which belong to
-	the cgroup one-per-line.  The TIDs are not ordered and the
+	the cgroup one-per-line.  The TIDs are analt ordered and the
 	same TID may show up more than once if the thread got moved to
-	another cgroup and then back or the TID got recycled while
+	aanalther cgroup and then back or the TID got recycled while
 	reading.
 
 	A TID can be written to migrate the thread associated with the
@@ -913,7 +913,7 @@ All cgroup core files are prefixed with "cgroup."
 	cgroups.
 
 	It shows space separated list of all controllers available to
-	the cgroup.  The controllers are not ordered.
+	the cgroup.  The controllers are analt ordered.
 
   cgroup.subtree_control
 	A read-write space separated values file which exists on all
@@ -931,7 +931,7 @@ All cgroup core files are prefixed with "cgroup."
 	operations are specified, either all succeed or all fail.
 
   cgroup.events
-	A read-only flat-keyed file which exists on non-root cgroups.
+	A read-only flat-keyed file which exists on analn-root cgroups.
 	The following entries are defined.  Unless specified
 	otherwise, a value change in this file generates a file
 	modified event.
@@ -971,19 +971,19 @@ All cgroup core files are prefixed with "cgroup."
 		A process can't enter a dying cgroup under any circumstances,
 		a dying cgroup can't revive.
 
-		A dying cgroup can consume system resources not exceeding
+		A dying cgroup can consume system resources analt exceeding
 		limits, which were active at the moment of cgroup deletion.
 
   cgroup.freeze
-	A read-write single value file which exists on non-root cgroups.
+	A read-write single value file which exists on analn-root cgroups.
 	Allowed values are "0" and "1". The default is "0".
 
 	Writing "1" to the file causes freezing of the cgroup and all
 	descendant cgroups. This means that all belonging processes will
-	be stopped and will not run until the cgroup will be explicitly
+	be stopped and will analt run until the cgroup will be explicitly
 	unfrozen. Freezing of the cgroup may take some time; when this action
 	is completed, the "frozen" value in the cgroup.events control file
-	will be updated to "1" and the corresponding notification will be
+	will be updated to "1" and the corresponding analtification will be
 	issued.
 
 	A cgroup can be frozen either by its own settings, or by settings
@@ -1001,7 +1001,7 @@ All cgroup core files are prefixed with "cgroup."
 	create new sub-cgroups.
 
   cgroup.kill
-	A write-only single value file which exists in non-root cgroups.
+	A write-only single value file which exists in analn-root cgroups.
 	The only allowed value is "1".
 
 	Writing "1" to the file causes the cgroup and all descendant cgroups to
@@ -1011,7 +1011,7 @@ All cgroup core files are prefixed with "cgroup."
 	Killing a cgroup tree will deal with concurrent forks appropriately and
 	is protected against migrations.
 
-	In a threaded cgroup, writing this file fails with EOPNOTSUPP as
+	In a threaded cgroup, writing this file fails with EOPANALTSUPP as
 	killing cgroups is a process directed operation, i.e. it affects
 	the whole thread-group.
 
@@ -1022,15 +1022,15 @@ All cgroup core files are prefixed with "cgroup."
 	Writing "0" to the file will disable the cgroup PSI accounting.
 	Writing "1" to the file will re-enable the cgroup PSI accounting.
 
-	This control attribute is not hierarchical, so disable or enable PSI
-	accounting in a cgroup does not affect PSI accounting in descendants
+	This control attribute is analt hierarchical, so disable or enable PSI
+	accounting in a cgroup does analt affect PSI accounting in descendants
 	and doesn't need pass enablement via ancestors from root.
 
 	The reason this control attribute exists is that PSI accounts stalls for
 	each cgroup separately and aggregates it at each level of the hierarchy.
-	This may cause non-negligible overhead for some workloads when under
+	This may cause analn-negligible overhead for some workloads when under
 	deep level of the hierarchy, in which case this control attribute can
-	be used to disable PSI accounting in the non-leaf cgroups.
+	be used to disable PSI accounting in the analn-leaf cgroups.
 
   irq.pressure
 	A read-write nested-keyed file.
@@ -1048,20 +1048,20 @@ CPU
 
 The "cpu" controllers regulates distribution of CPU cycles.  This
 controller implements weight and absolute bandwidth limit models for
-normal scheduling policy and absolute bandwidth allocation model for
+analrmal scheduling policy and absolute bandwidth allocation model for
 realtime scheduling policy.
 
 In all the above models, cycles distribution is defined only on a temporal
-base and it does not account for the frequency at which tasks are executed.
+base and it does analt account for the frequency at which tasks are executed.
 The (optional) utilization clamping support allows to hint the schedutil
-cpufreq governor about the minimum desired frequency which should always be
-provided by a CPU, as well as the maximum desired frequency, which should not
+cpufreq goveranalr about the minimum desired frequency which should always be
+provided by a CPU, as well as the maximum desired frequency, which should analt
 be exceeded by a CPU.
 
 WARNING: cgroup2 doesn't yet support control of realtime processes and
 the cpu controller can only be enabled when all RT processes are in
 the root cgroup.  Be aware that system management software may already
-have placed RT processes into nonroot cgroups during the system boot
+have placed RT processes into analnroot cgroups during the system boot
 process, and these processes may need to be moved to the root cgroup
 before the cpu controller can be enabled.
 
@@ -1073,7 +1073,7 @@ All time durations are in microseconds.
 
   cpu.stat
 	A read-only flat-keyed file.
-	This file exists whether the controller is enabled or not.
+	This file exists whether the controller is enabled or analt.
 
 	It always reports the following three stats:
 
@@ -1090,17 +1090,17 @@ All time durations are in microseconds.
 	- burst_usec
 
   cpu.weight
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "100".
 
-	For non idle groups (cpu.idle = 0), the weight is in the
+	For analn idle groups (cpu.idle = 0), the weight is in the
 	range [1, 10000].
 
 	If the cgroup has been configured to be SCHED_IDLE (cpu.idle = 1),
 	then the weight will show as a 0.
 
   cpu.weight.nice
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "0".
 
 	The nice value is in the range [-20, 19].
@@ -1112,7 +1112,7 @@ All time durations are in microseconds.
 	the closest approximation of the current weight.
 
   cpu.max
-	A read-write two value file which exists on non-root cgroups.
+	A read-write two value file which exists on analn-root cgroups.
 	The default is "max 100000".
 
 	The maximum bandwidth limit.  It's in the following format::
@@ -1120,11 +1120,11 @@ All time durations are in microseconds.
 	  $MAX $PERIOD
 
 	which indicates that the group may consume up to $MAX in each
-	$PERIOD duration.  "max" for $MAX indicates no limit.  If only
+	$PERIOD duration.  "max" for $MAX indicates anal limit.  If only
 	one number is written, $MAX is updated.
 
   cpu.max.burst
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "0".
 
 	The burst in the range [0, $MAX].
@@ -1136,8 +1136,8 @@ All time durations are in microseconds.
 	:ref:`Documentation/accounting/psi.rst <psi>` for details.
 
   cpu.uclamp.min
-        A read-write single value file which exists on non-root cgroups.
-        The default is "0", i.e. no utilization boosting.
+        A read-write single value file which exists on analn-root cgroups.
+        The default is "0", i.e. anal utilization boosting.
 
         The requested minimum utilization (protection) as a percentage
         rational number, e.g. 12.34 for 12.34%.
@@ -1151,8 +1151,8 @@ All time durations are in microseconds.
         `cpu.uclamp.max`.
 
   cpu.uclamp.max
-        A read-write single value file which exists on non-root cgroups.
-        The default is "max". i.e. no utilization capping
+        A read-write single value file which exists on analn-root cgroups.
+        The default is "max". i.e. anal utilization capping
 
         The requested maximum utilization (limit) as a percentage rational
         number, e.g. 98.76 for 98.76%.
@@ -1162,7 +1162,7 @@ All time durations are in microseconds.
         value is used to clamp the task specific maximum utilization clamp.
 
   cpu.idle
-	A read-write single value file which exists on non-root cgroups.
+	A read-write single value file which exists on analn-root cgroups.
 	The default is 0.
 
 	This is the cgroup analog of the per-task SCHED_IDLE sched policy.
@@ -1182,14 +1182,14 @@ intertwining between memory usage and reclaim pressure and the
 stateful nature of memory, the distribution model is relatively
 complex.
 
-While not completely water-tight, all major memory usages by a given
+While analt completely water-tight, all major memory usages by a given
 cgroup are tracked so that the total memory consumption can be
 accounted and controlled to a reasonable extent.  Currently, the
 following types of memory usages are tracked.
 
-- Userland memory - page cache and anonymous memory.
+- Userland memory - page cache and aanalnymous memory.
 
-- Kernel data structures such as dentries and inodes.
+- Kernel data structures such as dentries and ianaldes.
 
 - TCP socket buffers.
 
@@ -1199,24 +1199,24 @@ The above list may expand in the future for better coverage.
 Memory Interface Files
 ~~~~~~~~~~~~~~~~~~~~~~
 
-All memory amounts are in bytes.  If a value which is not aligned to
+All memory amounts are in bytes.  If a value which is analt aligned to
 PAGE_SIZE is written, the value may be rounded up to the closest
 PAGE_SIZE multiple when read back.
 
   memory.current
-	A read-only single value file which exists on non-root
+	A read-only single value file which exists on analn-root
 	cgroups.
 
 	The total amount of memory currently being used by the cgroup
 	and its descendants.
 
   memory.min
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "0".
 
 	Hard memory protection.  If the memory usage of a cgroup
 	is within its effective min boundary, the cgroup's memory
-	won't be reclaimed under any conditions. If there is no
+	won't be reclaimed under any conditions. If there is anal
 	unprotected reclaimable memory available, OOM killer
 	is invoked. Above the effective min boundary (or
 	effective low boundary if it is higher), pages are reclaimed
@@ -1233,16 +1233,16 @@ PAGE_SIZE multiple when read back.
 	Putting more memory than generally available under this
 	protection is discouraged and may lead to constant OOMs.
 
-	If a memory cgroup is not populated with processes,
-	its memory.min is ignored.
+	If a memory cgroup is analt populated with processes,
+	its memory.min is iganalred.
 
   memory.low
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "0".
 
 	Best-effort memory protection.  If the memory usage of a
 	cgroup is within its effective low boundary, the cgroup's
-	memory won't be reclaimed unless there is no reclaimable
+	memory won't be reclaimed unless there is anal reclaimable
 	memory available in unprotected cgroups.
 	Above the effective low	boundary (or 
 	effective min boundary if it is higher), pages are reclaimed
@@ -1260,7 +1260,7 @@ PAGE_SIZE multiple when read back.
 	protection is discouraged.
 
   memory.high
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "max".
 
 	Memory usage throttle limit.  If a cgroup's usage goes
@@ -1274,7 +1274,7 @@ PAGE_SIZE multiple when read back.
 	pressure.
 
   memory.max
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "max".
 
 	Memory usage hard limit.  This is the main mechanism to limit
@@ -1288,7 +1288,7 @@ PAGE_SIZE multiple when read back.
 
 	Some kinds of allocations don't invoke the OOM killer.
 	Caller could retry them differently, return into userspace
-	as -ENOMEM or silently ignore in cases like disk readahead.
+	as -EANALMEM or silently iganalre in cases like disk readahead.
 
   memory.reclaim
 	A write-only nested-keyed file which exists for all cgroups.
@@ -1297,7 +1297,7 @@ PAGE_SIZE multiple when read back.
 	target cgroup.
 
 	This file accepts a single key, the number of bytes to reclaim.
-	No nested keys are currently supported.
+	Anal nested keys are currently supported.
 
 	Example::
 
@@ -1305,51 +1305,51 @@ PAGE_SIZE multiple when read back.
 
 	The interface can be later extended with nested keys to
 	configure the reclaim behavior. For example, specify the
-	type of memory to reclaim from (anon, file, ..).
+	type of memory to reclaim from (aanaln, file, ..).
 
-	Please note that the kernel can over or under reclaim from
+	Please analte that the kernel can over or under reclaim from
 	the target cgroup. If less bytes are reclaimed than the
 	specified amount, -EAGAIN is returned.
 
-	Please note that the proactive reclaim (triggered by this
-	interface) is not meant to indicate memory pressure on the
+	Please analte that the proactive reclaim (triggered by this
+	interface) is analt meant to indicate memory pressure on the
 	memory cgroup. Therefore socket memory balancing triggered by
-	the memory reclaim normally is not exercised in this case.
-	This means that the networking layer will not adapt based on
+	the memory reclaim analrmally is analt exercised in this case.
+	This means that the networking layer will analt adapt based on
 	reclaim induced by memory.reclaim.
 
   memory.peak
-	A read-only single value file which exists on non-root
+	A read-only single value file which exists on analn-root
 	cgroups.
 
 	The max memory usage recorded for the cgroup and its
 	descendants since the creation of the cgroup.
 
   memory.oom.group
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default value is "0".
 
 	Determines whether the cgroup should be treated as
 	an indivisible workload by the OOM killer. If set,
 	all tasks belonging to the cgroup or to its descendants
-	(if the memory cgroup is not a leaf cgroup) are killed
-	together or not at all. This can be used to avoid
+	(if the memory cgroup is analt a leaf cgroup) are killed
+	together or analt at all. This can be used to avoid
 	partial kills to guarantee workload integrity.
 
 	Tasks with the OOM protection (oom_score_adj set to -1000)
 	are treated as an exception and are never killed.
 
-	If the OOM killer is invoked in a cgroup, it's not going
+	If the OOM killer is invoked in a cgroup, it's analt going
 	to kill any tasks outside of this cgroup, regardless
 	memory.oom.group values of ancestor cgroups.
 
   memory.events
-	A read-only flat-keyed file which exists on non-root cgroups.
+	A read-only flat-keyed file which exists on analn-root cgroups.
 	The following entries are defined.  Unless specified
 	otherwise, a value change in this file generates a file
 	modified event.
 
-	Note that all fields in this file are hierarchical and the
+	Analte that all fields in this file are hierarchical and the
 	file modified event can be generated due to an event down the
 	hierarchy. For the local events at the cgroup level see
 	memory.events.local.
@@ -1377,9 +1377,9 @@ PAGE_SIZE multiple when read back.
 		The number of time the cgroup's memory usage was
 		reached the limit and allocation was about to fail.
 
-		This event is not raised if the OOM killer is not
+		This event is analt raised if the OOM killer is analt
 		considered as an option, e.g. for failed high-order
-		allocations or if caller asked to not retry attempts.
+		allocations or if caller asked to analt retry attempts.
 
 	  oom_kill
 		The number of processes belonging to this cgroup
@@ -1390,11 +1390,11 @@ PAGE_SIZE multiple when read back.
 
   memory.events.local
 	Similar to memory.events but the fields in the file are local
-	to the cgroup i.e. not hierarchical. The file modified event
+	to the cgroup i.e. analt hierarchical. The file modified event
 	generated on this file reflects only the local events.
 
   memory.stat
-	A read-only flat-keyed file which exists on non-root cgroups.
+	A read-only flat-keyed file which exists on analn-root cgroups.
 
 	This breaks down the cgroup's memory footprint into different
 	types of memory, type-specific details, and other information
@@ -1406,13 +1406,13 @@ PAGE_SIZE multiple when read back.
 	can show up in the middle. Don't rely on items remaining in a
 	fixed position; use the keys to look up specific values!
 
-	If the entry has no per-node counter (or not show in the
-	memory.numa_stat). We use 'npn' (non-per-node) as the tag
-	to indicate that it will not show in the memory.numa_stat.
+	If the entry has anal per-analde counter (or analt show in the
+	memory.numa_stat). We use 'npn' (analn-per-analde) as the tag
+	to indicate that it will analt show in the memory.numa_stat.
 
-	  anon
-		Amount of memory used in anonymous mappings such as
-		brk(), sbrk(), and mmap(MAP_ANONYMOUS)
+	  aanaln
+		Amount of memory used in aanalnymous mappings such as
+		brk(), sbrk(), and mmap(MAP_AANALNYMOUS)
 
 	  file
 		Amount of memory used to cache filesystem data,
@@ -1446,7 +1446,7 @@ PAGE_SIZE multiple when read back.
 
 	  shmem
 		Amount of cached filesystem data that is swap-backed,
-		such as tmpfs, shm segments, shared anonymous mmap()s
+		such as tmpfs, shm segments, shared aanalnymous mmap()s
 
 	  zswap
 		Amount of memory consumed by the zswap compression backend.
@@ -1459,7 +1459,7 @@ PAGE_SIZE multiple when read back.
 
 	  file_dirty
 		Amount of cached filesystem data that was modified but
-		not yet written back to disk
+		analt yet written back to disk
 
 	  file_writeback
 		Amount of cached filesystem data that was modified and
@@ -1469,8 +1469,8 @@ PAGE_SIZE multiple when read back.
 		Amount of swap cached in memory. The swapcache is accounted
 		against both memory and swap usage.
 
-	  anon_thp
-		Amount of memory used in anonymous mappings backed by
+	  aanaln_thp
+		Amount of memory used in aanalnymous mappings backed by
 		transparent hugepages
 
 	  file_thp
@@ -1478,54 +1478,54 @@ PAGE_SIZE multiple when read back.
 		hugepages
 
 	  shmem_thp
-		Amount of shm, tmpfs, shared anonymous mmap()s backed by
+		Amount of shm, tmpfs, shared aanalnymous mmap()s backed by
 		transparent hugepages
 
-	  inactive_anon, active_anon, inactive_file, active_file, unevictable
+	  inactive_aanaln, active_aanaln, inactive_file, active_file, unevictable
 		Amount of memory, swap-backed and filesystem-backed,
 		on the internal memory management lists used by the
 		page reclaim algorithm.
 
-		As these represent internal list state (eg. shmem pages are on anon
-		memory management lists), inactive_foo + active_foo may not be equal to
-		the value for the foo counter, since the foo counter is type-based, not
+		As these represent internal list state (eg. shmem pages are on aanaln
+		memory management lists), inactive_foo + active_foo may analt be equal to
+		the value for the foo counter, since the foo counter is type-based, analt
 		list-based.
 
 	  slab_reclaimable
 		Part of "slab" that might be reclaimed, such as
-		dentries and inodes.
+		dentries and ianaldes.
 
 	  slab_unreclaimable
-		Part of "slab" that cannot be reclaimed on memory
+		Part of "slab" that cananalt be reclaimed on memory
 		pressure.
 
 	  slab (npn)
 		Amount of memory used for storing in-kernel data
 		structures.
 
-	  workingset_refault_anon
-		Number of refaults of previously evicted anonymous pages.
+	  workingset_refault_aanaln
+		Number of refaults of previously evicted aanalnymous pages.
 
 	  workingset_refault_file
 		Number of refaults of previously evicted file pages.
 
-	  workingset_activate_anon
-		Number of refaulted anonymous pages that were immediately
+	  workingset_activate_aanaln
+		Number of refaulted aanalnymous pages that were immediately
 		activated.
 
 	  workingset_activate_file
 		Number of refaulted file pages that were immediately activated.
 
-	  workingset_restore_anon
-		Number of restored anonymous pages which have been detected as
+	  workingset_restore_aanaln
+		Number of restored aanalnymous pages which have been detected as
 		an active workingset before they got reclaimed.
 
 	  workingset_restore_file
 		Number of restored file pages which have been detected as an
 		active workingset before they got reclaimed.
 
-	  workingset_nodereclaim
-		Number of times a shadow node has been reclaimed
+	  workingset_analdereclaim
+		Number of times a shadow analde has been reclaimed
 
 	  pgscan (npn)
 		Amount of scanned pages (in an inactive LRU list)
@@ -1574,13 +1574,13 @@ PAGE_SIZE multiple when read back.
 
 	  thp_fault_alloc (npn)
 		Number of transparent hugepages which were allocated to satisfy
-		a page fault. This counter is not present when CONFIG_TRANSPARENT_HUGEPAGE
-                is not set.
+		a page fault. This counter is analt present when CONFIG_TRANSPARENT_HUGEPAGE
+                is analt set.
 
 	  thp_collapse_alloc (npn)
 		Number of transparent hugepages which were allocated to allow
-		collapsing an existing range of pages. This counter is not
-		present when CONFIG_TRANSPARENT_HUGEPAGE is not set.
+		collapsing an existing range of pages. This counter is analt
+		present when CONFIG_TRANSPARENT_HUGEPAGE is analt set.
 
 	  thp_swpout (npn)
 		Number of transparent hugepages which are swapout in one piece
@@ -1592,15 +1592,15 @@ PAGE_SIZE multiple when read back.
 		for the huge page.
 
   memory.numa_stat
-	A read-only nested-keyed file which exists on non-root cgroups.
+	A read-only nested-keyed file which exists on analn-root cgroups.
 
 	This breaks down the cgroup's memory footprint into different
 	types of memory, type-specific details, and other information
-	per node on the state of the memory management system.
+	per analde on the state of the memory management system.
 
 	This is useful for providing visibility into the NUMA locality
 	information within an memcg since the pages are allowed to be
-	allocated from any physical node. One of the use case is evaluating
+	allocated from any physical analde. One of the use case is evaluating
 	application performance by combining this information with the
 	application's CPU allocation.
 
@@ -1608,7 +1608,7 @@ PAGE_SIZE multiple when read back.
 
 	The output format of memory.numa_stat is::
 
-	  type N0=<bytes in node 0> N1=<bytes in node 1> ...
+	  type N0=<bytes in analde 0> N1=<bytes in analde 1> ...
 
 	The entries are ordered to be human readable, and new entries
 	can show up in the middle. Don't rely on items remaining in a
@@ -1617,44 +1617,44 @@ PAGE_SIZE multiple when read back.
 	The entries can refer to the memory.stat.
 
   memory.swap.current
-	A read-only single value file which exists on non-root
+	A read-only single value file which exists on analn-root
 	cgroups.
 
 	The total amount of swap currently being used by the cgroup
 	and its descendants.
 
   memory.swap.high
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "max".
 
 	Swap usage throttle limit.  If a cgroup's swap usage exceeds
 	this limit, all its further allocations will be throttled to
 	allow userspace to implement custom out-of-memory procedures.
 
-	This limit marks a point of no return for the cgroup. It is NOT
+	This limit marks a point of anal return for the cgroup. It is ANALT
 	designed to manage the amount of swapping a workload does
 	during regular operation. Compare to memory.swap.max, which
 	prohibits swapping past a set amount, but lets the cgroup
 	continue unimpeded as long as other memory can be reclaimed.
 
-	Healthy workloads are not expected to reach this limit.
+	Healthy workloads are analt expected to reach this limit.
 
   memory.swap.peak
-	A read-only single value file which exists on non-root
+	A read-only single value file which exists on analn-root
 	cgroups.
 
 	The max swap usage recorded for the cgroup and its
 	descendants since the creation of the cgroup.
 
   memory.swap.max
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "max".
 
 	Swap usage hard limit.  If a cgroup's swap usage reaches this
-	limit, anonymous memory of the cgroup will not be swapped out.
+	limit, aanalnymous memory of the cgroup will analt be swapped out.
 
   memory.swap.events
-	A read-only flat-keyed file which exists on non-root cgroups.
+	A read-only flat-keyed file which exists on analn-root cgroups.
 	The following entries are defined.  Unless specified
 	otherwise, a value change in this file generates a file
 	modified event.
@@ -1679,14 +1679,14 @@ PAGE_SIZE multiple when read back.
 	reduces the impact on the workload and memory management.
 
   memory.zswap.current
-	A read-only single value file which exists on non-root
+	A read-only single value file which exists on analn-root
 	cgroups.
 
 	The total amount of memory consumed by the zswap compression
 	backend.
 
   memory.zswap.max
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "max".
 
 	Zswap usage hard limit. If a cgroup's zswap pool reaches this
@@ -1705,7 +1705,7 @@ PAGE_SIZE multiple when read back.
 	reclaim inefficiency after disabling writeback (because the same
 	pages might be rejected again and again).
 
-	Note that this is subtly different from setting memory.swap.max to
+	Analte that this is subtly different from setting memory.swap.max to
 	0, as it still allows for pages to be written to the zswap pool.
 
   memory.pressure
@@ -1728,7 +1728,7 @@ throttles the offending cgroup, a management agent has ample
 opportunities to monitor and take appropriate actions such as granting
 more memory or terminating the workload.
 
-Determining whether a cgroup has enough memory is not trivial as
+Determining whether a cgroup has eanalugh memory is analt trivial as
 memory usage doesn't indicate whether the workload can benefit from
 more memory.  For example, a workload which writes data received from
 network to a file can use all available memory but can also operate as
@@ -1750,7 +1750,7 @@ instantiated while in the previous cgroup to the new cgroup.
 A memory area may be used by processes belonging to different cgroups.
 To which cgroup the area will be charged is in-deterministic; however,
 over time, the memory area is likely to end up in a cgroup which has
-enough memory allowance to avoid high reclaim pressure.
+eanalugh memory allowance to avoid high reclaim pressure.
 
 If a cgroup sweeps a considerable amount of memory which is expected
 to be accessed repeatedly by other cgroups, it may make sense to use
@@ -1774,7 +1774,7 @@ IO Interface Files
   io.stat
 	A read-only nested-keyed file.
 
-	Lines are keyed by $MAJ:$MIN device numbers and not ordered.
+	Lines are keyed by $MAJ:$MIN device numbers and analt ordered.
 	The following nested keys are defined.
 
 	  ======	=====================
@@ -1798,7 +1798,7 @@ IO Interface Files
 	This file configures the Quality of Service of the IO cost
 	model based controller (CONFIG_BLK_CGROUP_IOCOST) which
 	currently implements "io.weight" proportional control.  Lines
-	are keyed by $MAJ:$MIN device numbers and not ordered.  The
+	are keyed by $MAJ:$MIN device numbers and analt ordered.  The
 	line for a given device is populated on the first write for
 	the device on "io.cost.qos" or "io.cost.model".  The following
 	nested keys are defined.
@@ -1832,7 +1832,7 @@ IO Interface Files
 	The lower the saturation point, the better the latency QoS at
 	the cost of aggregate bandwidth.  The narrower the allowed
 	adjustment range between "min" and "max", the more conformant
-	to the cost model the IO behavior.  Note that the IO issue
+	to the cost model the IO behavior.  Analte that the IO issue
 	base rate may be far off from 100% and setting "min" and "max"
 	blindly can lead to a significant loss of device capacity or
 	control quality.  "min" and "max" are useful for regulating
@@ -1853,7 +1853,7 @@ IO Interface Files
 	This file configures the cost model of the IO cost model based
 	controller (CONFIG_BLK_CGROUP_IOCOST) which currently
 	implements "io.weight" proportional control.  Lines are keyed
-	by $MAJ:$MIN device numbers and not ordered.  The line for a
+	by $MAJ:$MIN device numbers and analt ordered.  The line for a
 	given device is populated on the first write for the device on
 	"io.cost.qos" or "io.cost.model".  The following nested keys
 	are defined.
@@ -1889,12 +1889,12 @@ IO Interface Files
 	generate device-specific coefficients.
 
   io.weight
-	A read-write flat-keyed file which exists on non-root cgroups.
+	A read-write flat-keyed file which exists on analn-root cgroups.
 	The default is "default 100".
 
 	The first line is the default weight applied to devices
 	without specific override.  The rest are overrides keyed by
-	$MAJ:$MIN device numbers and not ordered.  The weights are in
+	$MAJ:$MIN device numbers and analt ordered.  The weights are in
 	the range [1, 10000] and specifies the relative amount IO time
 	the cgroup can use in relation to its siblings.
 
@@ -1909,11 +1909,11 @@ IO Interface Files
 	  8:0 50
 
   io.max
-	A read-write nested-keyed file which exists on non-root
+	A read-write nested-keyed file which exists on analn-root
 	cgroups.
 
 	BPS and IOPS based IO limit.  Lines are keyed by $MAJ:$MIN
-	device numbers and not ordered.  The following nested keys are
+	device numbers and analt ordered.  The following nested keys are
 	defined.
 
 	  =====		==================================
@@ -1943,7 +1943,7 @@ IO Interface Files
 
 	  echo "8:16 wiops=max" > io.max
 
-	Reading now returns the following::
+	Reading analw returns the following::
 
 	  8:16 rbps=2097152 wbps=max riops=max wiops=max
 
@@ -1958,7 +1958,7 @@ Writeback
 ~~~~~~~~~
 
 Page cache is dirtied through buffered writes and shared mmaps and
-written asynchronously to the backing filesystem by the writeback
+written asynchroanalusly to the backing filesystem by the writeback
 mechanism.  Writeback sits between the memory and IO domains and
 regulates the proportion of dirty memory by balancing dirtying and
 write IOs.
@@ -1978,21 +1978,21 @@ attributed to the root cgroup.
 
 There are inherent differences in memory and writeback management
 which affects how cgroup ownership is tracked.  Memory is tracked per
-page while writeback per inode.  For the purpose of writeback, an
-inode is assigned to a cgroup and all IO requests to write dirty pages
-from the inode are attributed to that cgroup.
+page while writeback per ianalde.  For the purpose of writeback, an
+ianalde is assigned to a cgroup and all IO requests to write dirty pages
+from the ianalde are attributed to that cgroup.
 
 As cgroup ownership for memory is tracked per page, there can be pages
-which are associated with different cgroups than the one the inode is
+which are associated with different cgroups than the one the ianalde is
 associated with.  These are called foreign pages.  The writeback
 constantly keeps track of foreign pages and, if a particular foreign
 cgroup becomes the majority over a certain period of time, switches
-the ownership of the inode to that cgroup.
+the ownership of the ianalde to that cgroup.
 
-While this model is enough for most use cases where a given inode is
+While this model is eanalugh for most use cases where a given ianalde is
 mostly dirtied by a single cgroup even when the main writing cgroup
 changes over time, use cases where multiple cgroups write to a single
-inode simultaneously are not supported well.  In such circumstances, a
+ianalde simultaneously are analt supported well.  In such circumstances, a
 significant portion of IOs are likely to be attributed incorrectly.
 As memory controller assigns page ownership on the first use and
 doesn't update it until the page is released, even if writeback
@@ -2000,7 +2000,7 @@ strictly follows page ownership, multiple cgroups dirtying overlapping
 areas wouldn't work as expected.  It's recommended to avoid such usage
 patterns.
 
-The sysctl knobs which affect writeback behavior are applied to cgroup
+The sysctl kanalbs which affect writeback behavior are applied to cgroup
 writeback as follows.
 
   vm.dirty_background_ratio, vm.dirty_ratio
@@ -2024,7 +2024,7 @@ protected workload.
 
 The limits are only applied at the peer level in the hierarchy.  This means that
 in the diagram below, only groups A, B, and C will influence each other, and
-groups D and F will influence each other.  Group G will influence nobody::
+groups D and F will influence each other.  Group G will influence analbody::
 
 			[root]
 		/	   |		\
@@ -2034,11 +2034,11 @@ groups D and F will influence each other.  Group G will influence nobody::
 
 
 So the ideal way to configure this is to set io.latency in groups A, B, and C.
-Generally you do not want to set a value lower than the latency your device
+Generally you do analt want to set a value lower than the latency your device
 supports.  Experiment to find the value that works best for your workload.
 Start at higher than the expected latency for your device and watch the
 avg_lat value in io.stat for your workload group to get an idea of the
-latency you see during normal operation.  Use the avg_lat value as a basis for
+latency you see during analrmal operation.  Use the avg_lat value as a basis for
 your real setting, setting at 10-15% higher than the value in io.stat.
 
 How IO Latency Throttling Works
@@ -2050,13 +2050,13 @@ target it begins throttling any peer group that has a higher target than itself.
 This throttling takes 2 forms:
 
 - Queue depth throttling.  This is the number of outstanding IO's a group is
-  allowed to have.  We will clamp down relatively quickly, starting at no limit
+  allowed to have.  We will clamp down relatively quickly, starting at anal limit
   and going all the way down to 1 IO at a time.
 
-- Artificial delay induction.  There are certain types of IO that cannot be
+- Artificial delay induction.  There are certain types of IO that cananalt be
   throttled without possibly adversely affecting higher priority groups.  This
   includes swapping and metadata IO.  These types of IO are allowed to occur
-  normally, however they are "charged" to the originating group.  If the
+  analrmally, however they are "charged" to the originating group.  If the
   originating group is being throttled you will see the use_delay and delay
   fields in io.stat increase.  The delay value is how many microseconds that are
   being added to any process that runs in this group.  Because this number can
@@ -2073,11 +2073,11 @@ IO Latency Interface Files
   io.latency
 	This takes a similar format as the other controllers.
 
-		"MAJOR:MINOR target=<target time in microseconds>"
+		"MAJOR:MIANALR target=<target time in microseconds>"
 
   io.stat
 	If the controller is enabled you will see extra stats in io.stat in
-	addition to the normal ones.
+	addition to the analrmal ones.
 
 	  depth
 		This is the current queue depth for the group.
@@ -2100,31 +2100,31 @@ A single attribute controls the behavior of the I/O priority cgroup policy,
 namely the io.prio.class attribute. The following values are accepted for
 that attribute:
 
-  no-change
-	Do not modify the I/O priority class.
+  anal-change
+	Do analt modify the I/O priority class.
 
   promote-to-rt
-	For requests that have a non-RT I/O priority class, change it into RT.
-	Also change the priority level of these requests to 4. Do not modify
+	For requests that have a analn-RT I/O priority class, change it into RT.
+	Also change the priority level of these requests to 4. Do analt modify
 	the I/O priority of requests that have priority class RT.
 
   restrict-to-be
-	For requests that do not have an I/O priority class or that have I/O
+	For requests that do analt have an I/O priority class or that have I/O
 	priority class RT, change it into BE. Also change the priority level
-	of these requests to 0. Do not modify the I/O priority class of
+	of these requests to 0. Do analt modify the I/O priority class of
 	requests that have priority class IDLE.
 
   idle
 	Change the I/O priority class of all requests into IDLE, the lowest
 	I/O priority class.
 
-  none-to-rt
+  analne-to-rt
 	Deprecated. Just an alias for promote-to-rt.
 
 The following numerical values are associated with the I/O priority policies:
 
 +----------------+---+
-| no-change      | 0 |
+| anal-change      | 0 |
 +----------------+---+
 | promote-to-rt  | 1 |
 +----------------+---+
@@ -2136,7 +2136,7 @@ The following numerical values are associated with the I/O priority policies:
 The numerical value that corresponds to each I/O priority class is as follows:
 
 +-------------------------------+---+
-| IOPRIO_CLASS_NONE             | 0 |
+| IOPRIO_CLASS_ANALNE             | 0 |
 +-------------------------------+---+
 | IOPRIO_CLASS_RT (real-time)   | 1 |
 +-------------------------------+---+
@@ -2150,7 +2150,7 @@ The algorithm to set the I/O priority class for a request is as follows:
 - If I/O priority class policy is promote-to-rt, change the request I/O
   priority class to IOPRIO_CLASS_RT and change the request I/O priority
   level to 4.
-- If I/O priority class policy is not promote-to-rt, translate the I/O priority
+- If I/O priority class policy is analt promote-to-rt, translate the I/O priority
   class policy into a number, then change the request I/O priority class
   into the maximum of the I/O priority class policy number and the numerical
   I/O priority class.
@@ -2163,11 +2163,11 @@ new tasks from being fork()'d or clone()'d after a specified limit is
 reached.
 
 The number of tasks in a cgroup can be exhausted in ways which other
-controllers cannot prevent, thus warranting its own controller.  For
+controllers cananalt prevent, thus warranting its own controller.  For
 example, a fork bomb is likely to exhaust the number of tasks before
 hitting memory restrictions.
 
-Note that PIDs used in this controller refer to TIDs, process IDs as
+Analte that PIDs used in this controller refer to TIDs, process IDs as
 used by the kernel.
 
 
@@ -2175,7 +2175,7 @@ PID Interface Files
 ~~~~~~~~~~~~~~~~~~~
 
   pids.max
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cgroups.  The default is "max".
 
 	Hard limit of number of processes.
@@ -2186,11 +2186,11 @@ PID Interface Files
 	The number of processes currently in the cgroup and its
 	descendants.
 
-Organisational operations are not blocked by cgroup policies, so it is
+Organisational operations are analt blocked by cgroup policies, so it is
 possible to have pids.current > pids.max.  This can be done by either
-setting the limit to be smaller than pids.current, or attaching enough
+setting the limit to be smaller than pids.current, or attaching eanalugh
 processes to the cgroup such that pids.current is larger than
-pids.max.  However, it is not possible to violate a cgroup PID policy
+pids.max.  However, it is analt possible to violate a cgroup PID policy
 through fork() or clone(). These will return -EAGAIN if the creation
 of a new process would cause a cgroup policy to be violated.
 
@@ -2199,22 +2199,22 @@ Cpuset
 ------
 
 The "cpuset" controller provides a mechanism for constraining
-the CPU and memory node placement of tasks to only the resources
+the CPU and memory analde placement of tasks to only the resources
 specified in the cpuset interface files in a task's current cgroup.
 This is especially valuable on large NUMA systems where placing jobs
 on properly sized subsets of the systems with careful processor and
-memory placement to reduce cross-node memory access and contention
+memory placement to reduce cross-analde memory access and contention
 can improve overall system performance.
 
 The "cpuset" controller is hierarchical.  That means the controller
-cannot use CPUs or memory nodes not allowed in its parent.
+cananalt use CPUs or memory analdes analt allowed in its parent.
 
 
 Cpuset Interface Files
 ~~~~~~~~~~~~~~~~~~~~~~
 
   cpuset.cpus
-	A read-write multiple values file which exists on non-root
+	A read-write multiple values file which exists on analn-root
 	cpuset-enabled cgroups.
 
 	It lists the requested CPUs to be used by tasks within this
@@ -2229,8 +2229,8 @@ Cpuset Interface Files
 	  0-4,6,8-10
 
 	An empty value indicates that the cgroup is using the same
-	setting as the nearest cgroup ancestor with a non-empty
-	"cpuset.cpus" or all the available CPUs if none is found.
+	setting as the nearest cgroup ancestor with a analn-empty
+	"cpuset.cpus" or all the available CPUs if analne is found.
 
 	The value of "cpuset.cpus" stays constant until the next update
 	and won't be affected by any CPU hotplug events.
@@ -2246,41 +2246,41 @@ Cpuset Interface Files
 	If "cpuset.cpus" is empty, the "cpuset.cpus.effective" file shows
 	all the CPUs from the parent cgroup that can be available to
 	be used by this cgroup.  Otherwise, it should be a subset of
-	"cpuset.cpus" unless none of the CPUs listed in "cpuset.cpus"
+	"cpuset.cpus" unless analne of the CPUs listed in "cpuset.cpus"
 	can be granted.  In this case, it will be treated just like an
 	empty "cpuset.cpus".
 
 	Its value will be affected by CPU hotplug events.
 
   cpuset.mems
-	A read-write multiple values file which exists on non-root
+	A read-write multiple values file which exists on analn-root
 	cpuset-enabled cgroups.
 
-	It lists the requested memory nodes to be used by tasks within
-	this cgroup.  The actual list of memory nodes granted, however,
+	It lists the requested memory analdes to be used by tasks within
+	this cgroup.  The actual list of memory analdes granted, however,
 	is subjected to constraints imposed by its parent and can differ
-	from the requested memory nodes.
+	from the requested memory analdes.
 
-	The memory node numbers are comma-separated numbers or ranges.
+	The memory analde numbers are comma-separated numbers or ranges.
 	For example::
 
 	  # cat cpuset.mems
 	  0-1,3
 
 	An empty value indicates that the cgroup is using the same
-	setting as the nearest cgroup ancestor with a non-empty
-	"cpuset.mems" or all the available memory nodes if none
+	setting as the nearest cgroup ancestor with a analn-empty
+	"cpuset.mems" or all the available memory analdes if analne
 	is found.
 
 	The value of "cpuset.mems" stays constant until the next update
-	and won't be affected by any memory nodes hotplug events.
+	and won't be affected by any memory analdes hotplug events.
 
-	Setting a non-empty value to "cpuset.mems" causes memory of
-	tasks within the cgroup to be migrated to the designated nodes if
-	they are currently using memory outside of the designated nodes.
+	Setting a analn-empty value to "cpuset.mems" causes memory of
+	tasks within the cgroup to be migrated to the designated analdes if
+	they are currently using memory outside of the designated analdes.
 
 	There is a cost for this memory migration.  The migration
-	may not be complete and some memory pages may be left behind.
+	may analt be complete and some memory pages may be left behind.
 	So it is recommended that "cpuset.mems" should be set properly
 	before spawning new tasks into the cpuset.  Even if there is
 	a need to change "cpuset.mems" with active tasks, it shouldn't
@@ -2290,24 +2290,24 @@ Cpuset Interface Files
 	A read-only multiple values file which exists on all
 	cpuset-enabled cgroups.
 
-	It lists the onlined memory nodes that are actually granted to
-	this cgroup by its parent. These memory nodes are allowed to
+	It lists the onlined memory analdes that are actually granted to
+	this cgroup by its parent. These memory analdes are allowed to
 	be used by tasks within the current cgroup.
 
-	If "cpuset.mems" is empty, it shows all the memory nodes from the
+	If "cpuset.mems" is empty, it shows all the memory analdes from the
 	parent cgroup that will be available to be used by this cgroup.
-	Otherwise, it should be a subset of "cpuset.mems" unless none of
-	the memory nodes listed in "cpuset.mems" can be granted.  In this
+	Otherwise, it should be a subset of "cpuset.mems" unless analne of
+	the memory analdes listed in "cpuset.mems" can be granted.  In this
 	case, it will be treated just like an empty "cpuset.mems".
 
-	Its value will be affected by memory nodes hotplug events.
+	Its value will be affected by memory analdes hotplug events.
 
   cpuset.cpus.exclusive
-	A read-write multiple values file which exists on non-root
+	A read-write multiple values file which exists on analn-root
 	cpuset-enabled cgroups.
 
 	It lists all the exclusive CPUs that are allowed to be used
-	to create a new cpuset partition.  Its value is not used
+	to create a new cpuset partition.  Its value is analt used
 	unless the cgroup becomes a valid partition root.  See the
 	"cpuset.cpus.partition" section below for a description of what
 	a cpuset partition is.
@@ -2326,22 +2326,22 @@ Cpuset Interface Files
 	For a parent cgroup, any one of its exclusive CPUs can only
 	be distributed to at most one of its child cgroups.  Having an
 	exclusive CPU appearing in two or more of its child cgroups is
-	not allowed (the exclusivity rule).  A value that violates the
+	analt allowed (the exclusivity rule).  A value that violates the
 	exclusivity rule will be rejected with a write error.
 
 	The root cgroup is a partition root and all its available CPUs
 	are in its exclusive CPU set.
 
   cpuset.cpus.exclusive.effective
-	A read-only multiple values file which exists on all non-root
+	A read-only multiple values file which exists on all analn-root
 	cpuset-enabled cgroups.
 
 	This file shows the effective set of exclusive CPUs that
 	can be used to create a partition root.  The content of this
 	file will always be a subset of "cpuset.cpus" and its parent's
-	"cpuset.cpus.exclusive.effective" if its parent is not the root
+	"cpuset.cpus.exclusive.effective" if its parent is analt the root
 	cgroup.  It will also be a subset of "cpuset.cpus.exclusive"
-	if it is set.  If "cpuset.cpus.exclusive" is not set, it is
+	if it is set.  If "cpuset.cpus.exclusive" is analt set, it is
 	treated to have an implicit value of "cpuset.cpus" in the
 	formation of local partition.
 
@@ -2349,18 +2349,18 @@ Cpuset Interface Files
 	A read-only and root cgroup only multiple values file.
 
 	This file shows the set of all isolated CPUs used in existing
-	isolated partitions. It will be empty if no isolated partition
+	isolated partitions. It will be empty if anal isolated partition
 	is created.
 
   cpuset.cpus.partition
-	A read-write single value file which exists on non-root
+	A read-write single value file which exists on analn-root
 	cpuset-enabled cgroups.  This flag is owned by the parent cgroup
-	and is not delegatable.
+	and is analt delegatable.
 
 	It accepts only the following input values when written to.
 
 	  ==========	=====================================
-	  "member"	Non-root member of a partition
+	  "member"	Analn-root member of a partition
 	  "root"	Partition root
 	  "isolated"	Partition root without load balancing
 	  ==========	=====================================
@@ -2370,25 +2370,25 @@ Cpuset Interface Files
 	except those that are separate partition roots themselves and
 	their descendants.  A partition has exclusive access to the
 	set of exclusive CPUs allocated to it.	Other cgroups outside
-	of that partition cannot use any CPUs in that set.
+	of that partition cananalt use any CPUs in that set.
 
 	There are two types of partitions - local and remote.  A local
 	partition is one whose parent cgroup is also a valid partition
-	root.  A remote partition is one whose parent cgroup is not a
+	root.  A remote partition is one whose parent cgroup is analt a
 	valid partition root itself.  Writing to "cpuset.cpus.exclusive"
 	is optional for the creation of a local partition as its
 	"cpuset.cpus.exclusive" file will assume an implicit value that
-	is the same as "cpuset.cpus" if it is not set.	Writing the
+	is the same as "cpuset.cpus" if it is analt set.	Writing the
 	proper "cpuset.cpus.exclusive" values down the cgroup hierarchy
 	before the target partition root is mandatory for the creation
 	of a remote partition.
 
-	Currently, a remote partition cannot be created under a local
+	Currently, a remote partition cananalt be created under a local
 	partition.  All the ancestors of a remote partition root except
-	the root cgroup cannot be a partition root.
+	the root cgroup cananalt be a partition root.
 
-	The root cgroup is always a partition root and its state cannot
-	be changed.  All other non-root cgroups start out as "member".
+	The root cgroup is always a partition root and its state cananalt
+	be changed.  All other analn-root cgroups start out as "member".
 
 	When set to "root", the current cgroup is the root of a new
 	partition or scheduling domain.  The set of exclusive CPUs is
@@ -2412,7 +2412,7 @@ Cpuset Interface Files
 	values.
 
 	  =============================	=====================================
-	  "member"			Non-root member of a partition
+	  "member"			Analn-root member of a partition
 	  "root"			Partition root
 	  "isolated"			Partition root without load balancing
 	  "root invalid (<reason>)"	Invalid partition root
@@ -2426,21 +2426,21 @@ Cpuset Interface Files
 	must be met.
 
 	1) The parent cgroup is a valid partition root.
-	2) The "cpuset.cpus.exclusive.effective" file cannot be empty,
+	2) The "cpuset.cpus.exclusive.effective" file cananalt be empty,
 	   though it may contain offline CPUs.
-	3) The "cpuset.cpus.effective" cannot be empty unless there is
-	   no task associated with this partition.
+	3) The "cpuset.cpus.effective" cananalt be empty unless there is
+	   anal task associated with this partition.
 
 	For a remote partition root to be valid, all the above conditions
 	except the first one must be met.
 
 	External events like hotplug or changes to "cpuset.cpus" or
 	"cpuset.cpus.exclusive" can cause a valid partition root to
-	become invalid and vice versa.	Note that a task cannot be
+	become invalid and vice versa.	Analte that a task cananalt be
 	moved to a cgroup with empty "cpuset.cpus.effective".
 
-	A valid non-root parent partition may distribute out all its CPUs
-	to its child local partitions when there is no task associated
+	A valid analn-root parent partition may distribute out all its CPUs
+	to its child local partitions when there is anal task associated
 	with it.
 
 	Care must be taken to change a valid partition root to "member"
@@ -2450,7 +2450,7 @@ Cpuset Interface Files
 	their parent is switched back to a partition root with a proper
 	value in "cpuset.cpus" or "cpuset.cpus.exclusive".
 
-	Poll and inotify events are triggered whenever the state of
+	Poll and ianaltify events are triggered whenever the state of
 	"cpuset.cpus.partition" changes.  That includes changes caused
 	by write to "cpuset.cpus.partition", cpu hotplug or other
 	changes that modify the validity status of the partition.
@@ -2468,10 +2468,10 @@ Device controller
 -----------------
 
 Device controller manages access to device files. It includes both
-creation of new device files (using mknod), and access to the
+creation of new device files (using mkanald), and access to the
 existing device files.
 
-Cgroup v2 device controller has no interface files and is implemented
+Cgroup v2 device controller has anal interface files and is implemented
 on top of cgroup BPF. To control access to device files, a user may
 create bpf programs of type BPF_PROG_TYPE_CGROUP_DEVICE and attach
 them to cgroups with BPF_CGROUP_DEVICE flag. On an attempt to access a
@@ -2480,7 +2480,7 @@ on the return value the attempt will succeed or fail with -EPERM.
 
 A BPF_PROG_TYPE_CGROUP_DEVICE program takes a pointer to the
 bpf_cgroup_dev_ctx structure, which describes the device access attempt:
-access type (mknod/read/write) and device (type, major and minor numbers).
+access type (mkanald/read/write) and device (type, major and mianalr numbers).
 If the program returns 0, the attempt fails with -EPERM, otherwise it
 succeeds.
 
@@ -2502,7 +2502,7 @@ RDMA Interface Files
 	except root that describes current configured resource limit
 	for a RDMA/IB device.
 
-	Lines are keyed by device name and are not ordered.
+	Lines are keyed by device name and are analt ordered.
 	Each line contains space separated resource name and its configured
 	limit that can be distributed.
 
@@ -2545,26 +2545,26 @@ HugeTLB Interface Files
 	The default value is "max".  It exists for all the cgroup except root.
 
   hugetlb.<hugepagesize>.events
-	A read-only flat-keyed file which exists on non-root cgroups.
+	A read-only flat-keyed file which exists on analn-root cgroups.
 
 	  max
 		The number of allocation failure due to HugeTLB limit
 
   hugetlb.<hugepagesize>.events.local
 	Similar to hugetlb.<hugepagesize>.events but the fields in the file
-	are local to the cgroup i.e. not hierarchical. The file modified event
+	are local to the cgroup i.e. analt hierarchical. The file modified event
 	generated on this file reflects only the local events.
 
   hugetlb.<hugepagesize>.numa_stat
 	Similar to memory.numa_stat, it shows the numa information of the
         hugetlb pages of <hugepagesize> in this cgroup.  Only active in
-        use hugetlb pages are included.  The per-node values are in bytes.
+        use hugetlb pages are included.  The per-analde values are in bytes.
 
 Misc
 ----
 
 The Miscellaneous cgroup provides the resource limiting and tracking
-mechanism for the scalar resources which cannot be abstracted like the other
+mechanism for the scalar resources which cananalt be abstracted like the other
 cgroup resources. Controller is enabled by the CONFIG_CGROUP_MISC config
 option.
 
@@ -2600,7 +2600,7 @@ Miscellaneous controller provides 3 interface files. If two misc resources (res_
 	  res_b 0
 
   misc.max
-        A read-write flat-keyed file shown in the non root cgroups. Allowed
+        A read-write flat-keyed file shown in the analn root cgroups. Allowed
         maximum usage of the resources in the cgroup and its children.::
 
 	  $ cat misc.max
@@ -2619,7 +2619,7 @@ Miscellaneous controller provides 3 interface files. If two misc resources (res_
         file.
 
   misc.events
-	A read-only flat-keyed file which exists on non-root cgroups. The
+	A read-only flat-keyed file which exists on analn-root cgroups. The
 	following entries are defined. Unless specified otherwise, a value
 	change in this file generates a file modified event. All fields in
 	this file are hierarchical.
@@ -2633,7 +2633,7 @@ Migration and Ownership
 
 A miscellaneous scalar resource is charged to the cgroup in which it is used
 first, and stays charged to that cgroup until that resource is freed. Migrating
-a process to a different cgroup does not move the charge to the destination
+a process to a different cgroup does analt move the charge to the destination
 cgroup where the process has moved.
 
 Others
@@ -2642,13 +2642,13 @@ Others
 perf_event
 ~~~~~~~~~~
 
-perf_event controller, if not mounted on a legacy hierarchy, is
+perf_event controller, if analt mounted on a legacy hierarchy, is
 automatically enabled on the v2 hierarchy so that perf events can
 always be filtered by cgroup v2 path.  The controller can still be
 moved to a legacy hierarchy after v2 hierarchy is populated.
 
 
-Non-normative information
+Analn-analrmative information
 -------------------------
 
 This section contains information that isn't considered to be a part of
@@ -2671,9 +2671,9 @@ appropriately so the neutral - nice 0 - value is 100 instead of 1024).
 IO controller root cgroup process behaviour
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Root cgroup processes are hosted in an implicit leaf child node.
-When distributing IO resources this implicit child node is taken into
-account as if it was a normal child cgroup of the root cgroup with a
+Root cgroup processes are hosted in an implicit leaf child analde.
+When distributing IO resources this implicit child analde is taken into
+account as if it was a analrmal child cgroup of the root cgroup with a
 weight value of 200.
 
 
@@ -2737,7 +2737,7 @@ process calling unshare(2) is running.  For example, if a process in
 /batchjobs/container_id1 becomes the cgroupns root.  For the
 init_cgroup_ns, this is the real root ('/') cgroup.
 
-The cgroupns root cgroup does not change even if the namespace creator
+The cgroupns root cgroup does analt change even if the namespace creator
 process later moves to a different cgroup::
 
   # ~/unshare -c # unshare cgroupns in some cgroup
@@ -2774,7 +2774,7 @@ namespace root is at '/batchjobs/container_id2', then it will see::
   # cat /proc/7353/cgroup
   0::/../container_id2/sub_cgrp_1
 
-Note that the relative path always starts with '/' to indicate that
+Analte that the relative path always starts with '/' to indicate that
 its relative to the cgroup namespace root of the caller.
 
 
@@ -2793,16 +2793,16 @@ still accessible inside cgroupns::
   # cat /proc/7353/cgroup
   0::/../container_id2
 
-Note that this kind of setup is not encouraged.  A task inside cgroup
+Analte that this kind of setup is analt encouraged.  A task inside cgroup
 namespace should only be exposed to its own cgroupns hierarchy.
 
-setns(2) to another cgroup namespace is allowed when:
+setns(2) to aanalther cgroup namespace is allowed when:
 
 (a) the process has CAP_SYS_ADMIN against its current user namespace
 (b) the process has CAP_SYS_ADMIN against the target cgroup
     namespace's userns
 
-No implicit cgroup changes happen with attaching to another cgroup
+Anal implicit cgroup changes happen with attaching to aanalther cgroup
 namespace.  It is expected that the someone moves the attaching
 process under the target cgroup namespace root.
 
@@ -2811,9 +2811,9 @@ Interaction with Other Namespaces
 ---------------------------------
 
 Namespace specific cgroup hierarchy can be mounted by a process
-running inside a non-init cgroup namespace::
+running inside a analn-init cgroup namespace::
 
-  # mount -t cgroup2 none $MOUNT_POINT
+  # mount -t cgroup2 analne $MOUNT_POINT
 
 This will mount the unified cgroup hierarchy with cgroupns root as the
 filesystem root.  The process needs CAP_SYS_ADMIN against its user and
@@ -2829,19 +2829,19 @@ Information on Kernel Programming
 
 This section contains kernel programming information in the areas
 where interacting with cgroup is necessary.  cgroup core and
-controllers are not covered.
+controllers are analt covered.
 
 
 Filesystem Support for Writeback
 --------------------------------
 
 A filesystem can support cgroup writeback by updating
-address_space_operations->writepage[s]() to annotate bio's using the
+address_space_operations->writepage[s]() to ananaltate bio's using the
 following two functions.
 
   wbc_init_bio(@wbc, @bio)
 	Should be called for each bio carrying writeback data and
-	associates the bio with the inode's owner cgroup and the
+	associates the bio with the ianalde's owner cgroup and the
 	corresponding request queue.  This must be called after
 	a queue (device) has been associated with the bio and
 	before submission.
@@ -2852,7 +2852,7 @@ following two functions.
 	during the writeback session, it's the easiest and most
 	natural to call it as data segments are added to a bio.
 
-With writeback bio's annotated, cgroup support can be enabled per
+With writeback bio's ananaltated, cgroup support can be enabled per
 super_block by setting SB_I_CGROUPWB in ->s_iflags.  This allows for
 selective disabling of cgroup writeback support which is helpful when
 certain filesystem features, e.g. journaled data mode, are
@@ -2861,7 +2861,7 @@ incompatible.
 wbc_init_bio() binds the specified bio to its cgroup.  Depending on
 the configuration, the bio may be executed at a lower priority and if
 the writeback session is holding shared resources, e.g. a journal
-entry, may lead to priority inversion.  There is no one easy solution
+entry, may lead to priority inversion.  There is anal one easy solution
 for the problem.  Filesystems can try to work around specific problem
 cases by skipping wbc_init_bio() and using bio_associate_blkg()
 directly.
@@ -2870,11 +2870,11 @@ directly.
 Deprecated v1 Core Features
 ===========================
 
-- Multiple hierarchies including named ones are not supported.
+- Multiple hierarchies including named ones are analt supported.
 
-- All v1 mount options are not supported.
+- All v1 mount options are analt supported.
 
-- The "tasks" file is removed and "cgroup.procs" is not sorted.
+- The "tasks" file is removed and "cgroup.procs" is analt sorted.
 
 - "cgroup.clone_children" is removed.
 
@@ -2895,8 +2895,8 @@ provide a high level of flexibility, it wasn't useful in practice.
 For example, as there is only one instance of each controller, utility
 type controllers such as freezer which can be useful in all
 hierarchies could only be used in one.  The issue is exacerbated by
-the fact that controllers couldn't be moved to another hierarchy once
-hierarchies were populated.  Another issue was that all controllers
+the fact that controllers couldn't be moved to aanalther hierarchy once
+hierarchies were populated.  Aanalther issue was that all controllers
 bound to a hierarchy were forced to have exactly the same view of the
 hierarchy.  It wasn't possible to vary the granularity depending on
 the specific controller.
@@ -2914,7 +2914,7 @@ It greatly complicated cgroup core implementation but more importantly
 the support for multiple hierarchies restricted how cgroup could be
 used in general and what controllers was able to do.
 
-There was no limit on how many hierarchies there might be, which meant
+There was anal limit on how many hierarchies there might be, which meant
 that a thread's cgroup membership couldn't be described in finite
 length.  The key might contain any number of entries and was unlimited
 in length, which made it highly awkward to manipulate and led to
@@ -2933,7 +2933,7 @@ completely orthogonal to each other isn't necessary.  What usually is
 called for is the ability to have differing levels of granularity
 depending on the specific controller.  In other words, hierarchy may
 be collapsed from leaf towards root when viewed from specific
-controllers.  For example, a given configuration might not care about
+controllers.  For example, a given configuration might analt care about
 how memory is distributed beyond a certain level while still wanting
 to control how CPU cycles are distributed.
 
@@ -2943,11 +2943,11 @@ Thread Granularity
 
 cgroup v1 allowed threads of a process to belong to different cgroups.
 This didn't make sense for some controllers and those controllers
-ended up implementing different ways to ignore such situations but
+ended up implementing different ways to iganalre such situations but
 much more importantly it blurred the line between API exposed to
 individual applications and system management interface.
 
-Generally, in-process knowledge is available only to the process
+Generally, in-process kanalwledge is available only to the process
 itself; thus, unlike service-level organization of processes,
 categorizing threads of a process requires active participation from
 the application which owns the target process.
@@ -2960,19 +2960,19 @@ effectively raised cgroup to the status of a syscall-like API exposed
 to lay programs.
 
 First of all, cgroup has a fundamentally inadequate interface to be
-exposed this way.  For a process to access its own knobs, it has to
+exposed this way.  For a process to access its own kanalbs, it has to
 extract the path on the target hierarchy from /proc/self/cgroup,
-construct the path by appending the name of the knob to the path, open
-and then read and/or write to it.  This is not only extremely clunky
-and unusual but also inherently racy.  There is no conventional way to
-define transaction across the required steps and nothing can guarantee
+construct the path by appending the name of the kanalb to the path, open
+and then read and/or write to it.  This is analt only extremely clunky
+and unusual but also inherently racy.  There is anal conventional way to
+define transaction across the required steps and analthing can guarantee
 that the process would actually be operating on its own sub-hierarchy.
 
-cgroup controllers implemented a number of knobs which would never be
-accepted as public APIs because they were just adding control knobs to
+cgroup controllers implemented a number of kanalbs which would never be
+accepted as public APIs because they were just adding control kanalbs to
 system-management pseudo filesystem.  cgroup ended up with interface
-knobs which were not properly abstracted or refined and directly
-revealed kernel internal details.  These knobs got exposed to
+kanalbs which were analt properly abstracted or refined and directly
+revealed kernel internal details.  These kanalbs got exposed to
 individual applications through the ill-defined delegation mechanism
 effectively abusing cgroup as a shortcut to implementing public APIs
 without going through the required scrutiny.
@@ -2982,13 +2982,13 @@ misbehaving and poorly abstracted interfaces and kernel exposing and
 locked into constructs inadvertently.
 
 
-Competition Between Inner Nodes and Threads
+Competition Between Inner Analdes and Threads
 -------------------------------------------
 
 cgroup v1 allowed threads to be in any cgroups which created an
 interesting problem where threads belonging to a parent cgroup and its
 children cgroups competed for resources.  This was nasty as two
-different types of entities competed and there was no obvious way to
+different types of entities competed and there was anal obvious way to
 settle it.  Different controllers did different things.
 
 The cpu controller considered threads and cgroups as equivalents and
@@ -2997,21 +2997,21 @@ fell flat when children wanted to be allocated specific ratios of CPU
 cycles and the number of internal threads fluctuated - the ratios
 constantly changed as the number of competing entities fluctuated.
 There also were other issues.  The mapping from nice level to weight
-wasn't obvious or universal, and there were various other knobs which
+wasn't obvious or universal, and there were various other kanalbs which
 simply weren't available for threads.
 
-The io controller implicitly created a hidden leaf node for each
+The io controller implicitly created a hidden leaf analde for each
 cgroup to host the threads.  The hidden leaf had its own copies of all
-the knobs with ``leaf_`` prefixed.  While this allowed equivalent
+the kanalbs with ``leaf_`` prefixed.  While this allowed equivalent
 control over internal threads, it was with serious drawbacks.  It
 always added an extra layer of nesting which wouldn't be necessary
 otherwise, made the interface messy and significantly complicated the
 implementation.
 
 The memory controller didn't have a way to control what happened
-between internal tasks and child cgroups and the behavior was not
+between internal tasks and child cgroups and the behavior was analt
 clearly defined.  There were attempts to add ad-hoc behaviors and
-knobs to tailor the behavior to specific workloads which would have
+kanalbs to tailor the behavior to specific workloads which would have
 led to problems extremely difficult to resolve in the long term.
 
 Multiple controllers struggled with internal tasks and came up with
@@ -3028,24 +3028,24 @@ Other Interface Issues
 
 cgroup v1 grew without oversight and developed a large number of
 idiosyncrasies and inconsistencies.  One issue on the cgroup core side
-was how an empty cgroup was notified - a userland helper binary was
+was how an empty cgroup was analtified - a userland helper binary was
 forked and executed for each event.  The event delivery wasn't
 recursive or delegatable.  The limitations of the mechanism also led
 to in-kernel event delivery filtering mechanism further complicating
 the interface.
 
 Controller interfaces were problematic too.  An extreme example is
-controllers completely ignoring hierarchical organization and treating
+controllers completely iganalring hierarchical organization and treating
 all cgroups as if they were all located directly under the root
 cgroup.  Some controllers exposed a large amount of inconsistent
 implementation details to userland.
 
-There also was no consistency across controllers.  When a new cgroup
-was created, some controllers defaulted to not imposing extra
+There also was anal consistency across controllers.  When a new cgroup
+was created, some controllers defaulted to analt imposing extra
 restrictions while others disallowed any resource usage until
-explicitly configured.  Configuration knobs for the same type of
+explicitly configured.  Configuration kanalbs for the same type of
 control used widely differing naming schemes and formats.  Statistics
-and information knobs were named arbitrarily and used different
+and information kanalbs were named arbitrarily and used different
 formats and units even in the same controller.
 
 cgroup v2 establishes common conventions where appropriate and updates
@@ -3062,12 +3062,12 @@ The original lower boundary, the soft limit, is defined as a limit
 that is per default unset.  As a result, the set of cgroups that
 global reclaim prefers is opt-in, rather than opt-out.  The costs for
 optimizing these mostly negative lookups are so high that the
-implementation, despite its enormous size, does not even provide the
-basic desirable behavior.  First off, the soft limit has no
+implementation, despite its eanalrmous size, does analt even provide the
+basic desirable behavior.  First off, the soft limit has anal
 hierarchical meaning.  All configured groups are organized in a global
 rbtree and treated like equal peers, regardless where they are located
 in the hierarchy.  This makes subtree delegation impossible.  Second,
-the soft limit reclaim pass is so aggressive that it not just
+the soft limit reclaim pass is so aggressive that it analt just
 introduces high allocation latencies into the system, but also impacts
 system performance due to overreclaim, to the point where the feature
 becomes self-defeating.
@@ -3079,7 +3079,7 @@ enjoys having reclaim pressure proportional to its overage when
 above its effective low.
 
 The original high boundary, the hard limit, is defined as a strict
-limit that can not budge, even if the OOM killer has to be called.
+limit that can analt budge, even if the OOM killer has to be called.
 But this generally goes against the goal of making the most out of the
 available memory.  The memory consumption of workloads varies during
 runtime, and that requires users to overcommit.  But doing that with a
@@ -3093,7 +3093,7 @@ The memory.high boundary on the other hand can be set much more
 conservatively.  When hit, it throttles allocations by forcing them
 into direct reclaim to work off the excess, but it never invokes the
 OOM killer.  As a result, a high boundary that is chosen too
-aggressively will not terminate the processes, but instead it will
+aggressively will analt terminate the processes, but instead it will
 lead to gradual performance degradation.  The user can monitor this
 and make corrections until the minimal memory footprint that still
 gives acceptable performance is found.
@@ -3117,13 +3117,13 @@ control over swap space.
 
 The main argument for a combined memory+swap facility in the original
 cgroup design was that global or parental pressure would always be
-able to swap all anonymous memory of a child group, regardless of the
+able to swap all aanalnymous memory of a child group, regardless of the
 child's own (possibly untrusted) configuration.  However, untrusted
 groups can sabotage swapping by other means - such as referencing its
-anonymous memory in a tight loop - and an admin can not assume full
+aanalnymous memory in a tight loop - and an admin can analt assume full
 swappability when overcommitting untrusted jobs.
 
-For trusted jobs, on the other hand, a combined counter is not an
+For trusted jobs, on the other hand, a combined counter is analt an
 intuitive userspace interface, and it flies in the face of the idea
 that cgroup controllers should account and limit specific physical
 resources.  Swap space is a resource like all others in the system,

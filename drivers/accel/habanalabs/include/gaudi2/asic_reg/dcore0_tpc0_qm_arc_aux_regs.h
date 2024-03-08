@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE0_TPC0_QM_ARC_AUX_REGS_H_
@@ -284,7 +284,7 @@
 
 #define mmDCORE0_TPC0_QM_ARC_AUX_CBU_FORCE_RSP_OK 0x4008384
 
-#define mmDCORE0_TPC0_QM_ARC_AUX_CBU_NO_WR_INFLIGHT 0x400838C
+#define mmDCORE0_TPC0_QM_ARC_AUX_CBU_ANAL_WR_INFLIGHT 0x400838C
 
 #define mmDCORE0_TPC0_QM_ARC_AUX_CBU_SEI_INTR_ID 0x4008390
 
@@ -308,7 +308,7 @@
 
 #define mmDCORE0_TPC0_QM_ARC_AUX_LBU_FORCE_RSP_OK 0x4008434
 
-#define mmDCORE0_TPC0_QM_ARC_AUX_LBU_NO_WR_INFLIGHT 0x400843C
+#define mmDCORE0_TPC0_QM_ARC_AUX_LBU_ANAL_WR_INFLIGHT 0x400843C
 
 #define mmDCORE0_TPC0_QM_ARC_AUX_LBU_SEI_INTR_ID 0x4008440
 

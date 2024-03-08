@@ -22,7 +22,7 @@
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x0 0x0 0x1000000>;
 			alignment = <0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -398,8 +398,8 @@
 			clock-names = "iommu";
 			interrupt-parent = <&intc>;
 			interrupts = <0 128 4>,	/* Global Secure Fault */
-				<0 129 4>, /* Global Non-secure Fault */
-				/* Non-secure Context Interrupts (32) */
+				<0 129 4>, /* Global Analn-secure Fault */
+				/* Analn-secure Context Interrupts (32) */
 				<0 138 4>, <0 139 4>, <0 140 4>, <0 141 4>,
 				<0 142 4>, <0 143 4>, <0 144 4>, <0 145 4>,
 				<0 146 4>, <0 147 4>, <0 148 4>, <0 149 4>,
@@ -620,7 +620,7 @@
 		};
 
 		qspi: spi@ff8d2000 {
-			compatible = "intel,socfpga-qspi", "cdns,qspi-nor";
+			compatible = "intel,socfpga-qspi", "cdns,qspi-analr";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xff8d2000 0x100>,
@@ -636,7 +636,7 @@
 	};
 
 	usbphy0: usbphy0 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 };

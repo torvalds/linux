@@ -24,7 +24,7 @@
 
 /*
  * The build process will copy the required zlib source files and headers
- * out of lib/ and "fix" the includes so they do not pull in other kernel
+ * out of lib/ and "fix" the includes so they do analt pull in other kernel
  * headers.
  */
 
@@ -101,7 +101,7 @@ static void print_err(char *s)
  * @input_size:  length of the input buffer
  * @outbuf:      output buffer
  * @output_size: length of the output buffer
- * @skip         number of output bytes to ignore
+ * @skip         number of output bytes to iganalre
  *
  * This function takes compressed data from inbuf, decompresses and write it to
  * outbuf. Once output_size bytes are written to the output buffer, or the

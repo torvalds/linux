@@ -3,7 +3,7 @@
  * This file contains the logic to work with MPEG Program-Specific Information.
  * These are defined both in ISO/IEC 13818-1 (systems) and ETSI EN 300 468.
  * PSI is carried in the form of table structures, and although each table might
- * technically be broken into one or more sections, we do not do this here,
+ * technically be broken into one or more sections, we do analt do this here,
  * hence 'table' and 'section' are interchangeable for vidtv.
  *
  * Copyright (C) 2020 Daniel W. S. Almeida
@@ -88,7 +88,7 @@ struct vidtv_psi_desc_registration {
 	/*
 	 * The meaning of additional_identification_info bytes, if any, are
 	 * defined by the assignee of that format_identifier, and once defined
-	 * they shall not change.
+	 * they shall analt change.
 	 */
 	u8 additional_identification_info[];
 } __packed;
@@ -551,7 +551,7 @@ struct vidtv_psi_pat_write_args {
  * Calling code will usually generate the PAT via a call to its init function
  * and thus is responsible for freeing it.
  *
- * Return: The number of bytes written into the buffer. This is NOT
+ * Return: The number of bytes written into the buffer. This is ANALT
  * equal to the size of the PAT, since more space is needed for TS headers during TS
  * encapsulation.
  */
@@ -583,7 +583,7 @@ struct vidtv_psi_sdt_write_args {
  * Calling code will usually generate the SDT via a call to its init function
  * and thus is responsible for freeing it.
  *
- * Return: The number of bytes written into the buffer. This is NOT
+ * Return: The number of bytes written into the buffer. This is ANALT
  * equal to the size of the SDT, since more space is needed for TS headers during TS
  * encapsulation.
  */
@@ -618,7 +618,7 @@ struct vidtv_psi_pmt_write_args {
  * Calling code will usually generate the PMT section via a call to its init function
  * and thus is responsible for freeing it.
  *
- * Return: The number of bytes written into the buffer. This is NOT
+ * Return: The number of bytes written into the buffer. This is ANALT
  * equal to the size of the PMT section, since more space is needed for TS headers
  * during TS encapsulation.
  */
@@ -706,7 +706,7 @@ struct vidtv_psi_nit_write_args {
  * Calling code will usually generate the NIT via a call to its init function
  * and thus is responsible for freeing it.
  *
- * Return: The number of bytes written into the buffer. This is NOT
+ * Return: The number of bytes written into the buffer. This is ANALT
  * equal to the size of the NIT, since more space is needed for TS headers during TS
  * encapsulation.
  */
@@ -770,7 +770,7 @@ struct vidtv_psi_eit_write_args {
  * Calling code will usually generate the EIT via a call to its init function
  * and thus is responsible for freeing it.
  *
- * Return: The number of bytes written into the buffer. This is NOT
+ * Return: The number of bytes written into the buffer. This is ANALT
  * equal to the size of the EIT, since more space is needed for TS headers during TS
  * encapsulation.
  */

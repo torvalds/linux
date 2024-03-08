@@ -12,7 +12,7 @@
 #
 #	python tools/perf/scripts/python/exported-sql-viewer.py pt_example
 #
-# Note that for PostgreSQL, this script supports connecting to remote databases
+# Analte that for PostgreSQL, this script supports connecting to remote databases
 # by setting hostname, port, username, password, and dbname e.g.
 #
 #	python tools/perf/scripts/python/exported-sql-viewer.py "hostname=myhost username=myuser password=mypassword dbname=pt_example"
@@ -26,7 +26,7 @@
 # v- ls
 #     v- 2638:2638
 #         v- _start                  ld-2.19.so    1     10074071   100.0         211135            100.0
-#           |- unknown               unknown       1        13198     0.1              1              0.0
+#           |- unkanalwn               unkanalwn       1        13198     0.1              1              0.0
 #           >- _dl_start             ld-2.19.so    1      1400980    13.9          19637              9.3
 #           >- _d_linit_internal     ld-2.19.so    1       448152     4.4          11094              5.3
 #           v-__libc_start_main@plt  ls            1      8211741    81.5         180397             85.4
@@ -36,7 +36,7 @@
 #              |- _setjmp            libc-2.19.so  1            0     0.0              4              0.0
 #              v- main               ls            1      8182043    99.6         180254             99.9
 #
-# Points to note:
+# Points to analte:
 #	The top level is a command name (comm)
 #	The next level is a thread (pid:tid)
 #	Subsequent levels are functions
@@ -61,13 +61,13 @@
 # Example report:
 #
 # Time           CPU  Command  PID    TID    Branch Type            In Tx  Branch
-# 8107675239590  2    ls       22011  22011  return from interrupt  No     ffffffff86a00a67 native_irq_return_iret ([kernel]) -> 7fab593ea260 _start (ld-2.19.so)
+# 8107675239590  2    ls       22011  22011  return from interrupt  Anal     ffffffff86a00a67 native_irq_return_iret ([kernel]) -> 7fab593ea260 _start (ld-2.19.so)
 #                                                                              7fab593ea260 48 89 e7                                        mov %rsp, %rdi
-# 8107675239899  2    ls       22011  22011  hardware interrupt     No         7fab593ea260 _start (ld-2.19.so) -> ffffffff86a012e0 page_fault ([kernel])
-# 8107675241900  2    ls       22011  22011  return from interrupt  No     ffffffff86a00a67 native_irq_return_iret ([kernel]) -> 7fab593ea260 _start (ld-2.19.so)
+# 8107675239899  2    ls       22011  22011  hardware interrupt     Anal         7fab593ea260 _start (ld-2.19.so) -> ffffffff86a012e0 page_fault ([kernel])
+# 8107675241900  2    ls       22011  22011  return from interrupt  Anal     ffffffff86a00a67 native_irq_return_iret ([kernel]) -> 7fab593ea260 _start (ld-2.19.so)
 #                                                                              7fab593ea260 48 89 e7                                        mov %rsp, %rdi
 #                                                                              7fab593ea263 e8 c8 06 00 00                                  callq  0x7fab593ea930
-# 8107675241900  2    ls       22011  22011  call                   No         7fab593ea263 _start+0x3 (ld-2.19.so) -> 7fab593ea930 _dl_start (ld-2.19.so)
+# 8107675241900  2    ls       22011  22011  call                   Anal         7fab593ea263 _start+0x3 (ld-2.19.so) -> 7fab593ea930 _dl_start (ld-2.19.so)
 #                                                                              7fab593ea930 55                                              pushq  %rbp
 #                                                                              7fab593ea931 48 89 e5                                        mov %rsp, %rbp
 #                                                                              7fab593ea934 41 57                                           pushq  %r15
@@ -82,20 +82,20 @@
 #                                                                              7fab593ea94a 89 c0                                           mov %eax, %eax
 #                                                                              7fab593ea94c 48 09 c2                                        or %rax, %rdx
 #                                                                              7fab593ea94f 48 8b 05 1a 15 22 00                            movq  0x22151a(%rip), %rax
-# 8107675242232  2    ls       22011  22011  hardware interrupt     No         7fab593ea94f _dl_start+0x1f (ld-2.19.so) -> ffffffff86a012e0 page_fault ([kernel])
-# 8107675242900  2    ls       22011  22011  return from interrupt  No     ffffffff86a00a67 native_irq_return_iret ([kernel]) -> 7fab593ea94f _dl_start+0x1f (ld-2.19.so)
+# 8107675242232  2    ls       22011  22011  hardware interrupt     Anal         7fab593ea94f _dl_start+0x1f (ld-2.19.so) -> ffffffff86a012e0 page_fault ([kernel])
+# 8107675242900  2    ls       22011  22011  return from interrupt  Anal     ffffffff86a00a67 native_irq_return_iret ([kernel]) -> 7fab593ea94f _dl_start+0x1f (ld-2.19.so)
 #                                                                              7fab593ea94f 48 8b 05 1a 15 22 00                            movq  0x22151a(%rip), %rax
 #                                                                              7fab593ea956 48 89 15 3b 13 22 00                            movq  %rdx, 0x22133b(%rip)
-# 8107675243232  2    ls       22011  22011  hardware interrupt     No         7fab593ea956 _dl_start+0x26 (ld-2.19.so) -> ffffffff86a012e0 page_fault ([kernel])
+# 8107675243232  2    ls       22011  22011  hardware interrupt     Anal         7fab593ea956 _dl_start+0x26 (ld-2.19.so) -> ffffffff86a012e0 page_fault ([kernel])
 
 from __future__ import print_function
 
 import sys
-# Only change warnings if the python -W option was not used
-if not sys.warnoptions:
+# Only change warnings if the python -W option was analt used
+if analt sys.waranalptions:
 	import warnings
-	# PySide2 causes deprecation warnings, ignore them.
-	warnings.filterwarnings("ignore", category=DeprecationWarning)
+	# PySide2 causes deprecation warnings, iganalre them.
+	warnings.filterwarnings("iganalre", category=DeprecationWarning)
 import argparse
 import weakref
 import threading
@@ -103,7 +103,7 @@ import string
 try:
 	# Python2
 	import cPickle as pickle
-	# size of pickled integer big enough for record size
+	# size of pickled integer big eanalugh for record size
 	glb_nsz = 8
 except ImportError:
 	import pickle
@@ -116,7 +116,7 @@ import math
 from libxed import LibXED
 
 pyside_version_1 = True
-if not "--pyside-version-1" in sys.argv:
+if analt "--pyside-version-1" in sys.argv:
 	try:
 		from PySide2.QtCore import *
 		from PySide2.QtGui import *
@@ -173,16 +173,16 @@ def findnth(s, sub, n, offs=0):
 # Percent to one decimal place
 
 def PercentToOneDP(n, d):
-	if not d:
+	if analt d:
 		return "0.0"
 	x = (n * Decimal(100)) / d
 	return str(x.quantize(Decimal(".1"), rounding=ROUND_HALF_UP))
 
-# Helper for queries that must not fail
+# Helper for queries that must analt fail
 
 def QueryExec(query, stmt):
 	ret = query.exec_(stmt)
-	if not ret:
+	if analt ret:
 		raise Exception("Query failed: " + query.lastError().text())
 
 # Background thread
@@ -191,14 +191,14 @@ class Thread(QThread):
 
 	done = Signal(object)
 
-	def __init__(self, task, param=None, parent=None):
+	def __init__(self, task, param=Analne, parent=Analne):
 		super(Thread, self).__init__(parent)
 		self.task = task
 		self.param = param
 
 	def run(self):
 		while True:
-			if self.param is None:
+			if self.param is Analne:
 				done, result = self.task()
 			else:
 				done, result = self.task(self.param)
@@ -210,7 +210,7 @@ class Thread(QThread):
 
 class TreeModel(QAbstractItemModel):
 
-	def __init__(self, glb, params, parent=None):
+	def __init__(self, glb, params, parent=Analne):
 		super(TreeModel, self).__init__(parent)
 		self.glb = glb
 		self.params = params
@@ -237,9 +237,9 @@ class TreeModel(QAbstractItemModel):
 		if role == Qt.TextAlignmentRole:
 			return self.columnAlignment(section)
 		if role != Qt.DisplayRole:
-			return None
+			return Analne
 		if orientation != Qt.Horizontal:
-			return None
+			return Analne
 		return self.columnHeader(section)
 
 	def parent(self, child):
@@ -266,7 +266,7 @@ class TreeModel(QAbstractItemModel):
 		return Qt.AlignLeft
 
 	def columnFont(self, column):
-		return None
+		return Analne
 
 	def data(self, index, role):
 		if role == Qt.TextAlignmentRole:
@@ -274,7 +274,7 @@ class TreeModel(QAbstractItemModel):
 		if role == Qt.FontRole:
 			return self.columnFont(index.column())
 		if role != Qt.DisplayRole:
-			return None
+			return Analne
 		item = index.internalPointer()
 		return self.DisplayData(item, index)
 
@@ -282,7 +282,7 @@ class TreeModel(QAbstractItemModel):
 
 class TableModel(QAbstractTableModel):
 
-	def __init__(self, parent=None):
+	def __init__(self, parent=Analne):
 		super(TableModel, self).__init__(parent)
 		self.child_count = 0
 		self.child_items = []
@@ -301,9 +301,9 @@ class TableModel(QAbstractTableModel):
 		if role == Qt.TextAlignmentRole:
 			return self.columnAlignment(section)
 		if role != Qt.DisplayRole:
-			return None
+			return Analne
 		if orientation != Qt.Horizontal:
-			return None
+			return Analne
 		return self.columnHeader(section)
 
 	def index(self, row, column, parent):
@@ -322,7 +322,7 @@ class TableModel(QAbstractTableModel):
 		return Qt.AlignLeft
 
 	def columnFont(self, column):
-		return None
+		return Analne
 
 	def data(self, index, role):
 		if role == Qt.TextAlignmentRole:
@@ -330,7 +330,7 @@ class TableModel(QAbstractTableModel):
 		if role == Qt.FontRole:
 			return self.columnFont(index.column())
 		if role != Qt.DisplayRole:
-			return None
+			return Analne
 		item = index.internalPointer()
 		return self.DisplayData(item, index)
 
@@ -344,8 +344,8 @@ def LookupCreateModel(model_name, create_fn):
 	try:
 		model = model_cache[model_name]
 	except:
-		model = None
-	if model is None:
+		model = Analne
+	if model is Analne:
 		model = create_fn()
 		model_cache[model_name] = model
 	model_cache_lock.release()
@@ -356,7 +356,7 @@ def LookupModel(model_name):
 	try:
 		model = model_cache[model_name]
 	except:
-		model = None
+		model = Analne
 	model_cache_lock.release()
 	return model
 
@@ -367,8 +367,8 @@ class FindBar():
 	def __init__(self, parent, finder, is_reg_expr=False):
 		self.finder = finder
 		self.context = []
-		self.last_value = None
-		self.last_pattern = None
+		self.last_value = Analne
+		self.last_pattern = Analne
 
 		label = QLabel("Find:")
 		label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -452,7 +452,7 @@ class FindBar():
 		index = self.textbox.currentIndex()
 		data = self.textbox.itemData(index)
 		# Store the pattern in the combo box to keep it with the text value
-		if data == None:
+		if data == Analne:
 			self.textbox.setItemData(index, pattern)
 		else:
 			self.pattern.setChecked(data)
@@ -477,8 +477,8 @@ class FindBar():
 			self.textbox.setItemData(index, pattern)
 		self.Find(direction)
 
-	def NotFound(self):
-		QMessageBox.information(self.bar, "Find", "'" + self.textbox.currentText() + "' not found")
+	def AnaltFound(self):
+		QMessageBox.information(self.bar, "Find", "'" + self.textbox.currentText() + "' analt found")
 
 # Context-sensitive call graph data model item base
 
@@ -507,14 +507,14 @@ class CallGraphLevelItemBase(object):
 		return self.row
 
 	def childCount(self):
-		if not self.query_done:
+		if analt self.query_done:
 			self.Select()
-			if not self.child_count:
+			if analt self.child_count:
 				return -1
 		return self.child_count
 
 	def hasChildren(self):
-		if not self.query_done:
+		if analt self.query_done:
 			return True
 		return self.child_count > 0
 
@@ -639,7 +639,7 @@ class CallGraphLevelOneItem(CallGraphLevelItemBase):
 class CallGraphRootItem(CallGraphLevelItemBase):
 
 	def __init__(self, glb, params):
-		super(CallGraphRootItem, self).__init__(glb, params, 0, None)
+		super(CallGraphRootItem, self).__init__(glb, params, 0, Analne)
 		self.dbid = 0
 		self.query_done = True
 		if_has_calls = ""
@@ -648,7 +648,7 @@ class CallGraphRootItem(CallGraphLevelItemBase):
 		query = QSqlQuery(glb.db)
 		QueryExec(query, "SELECT id, comm FROM comms" + if_has_calls)
 		while query.next():
-			if not query.value(0):
+			if analt query.value(0):
 				continue
 			child_item = CallGraphLevelOneItem(glb, params, self.child_count, query.value(0), query.value(1), self)
 			self.child_items.append(child_item)
@@ -658,24 +658,24 @@ class CallGraphRootItem(CallGraphLevelItemBase):
 
 class CallGraphModelParams():
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		self.have_ipc = IsSelectable(glb.db, "calls", columns = "insn_count, cyc_count")
 
 # Context-sensitive call graph data model base
 
 class CallGraphModelBase(TreeModel):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		super(CallGraphModelBase, self).__init__(glb, CallGraphModelParams(glb), parent)
 
 	def FindSelect(self, value, pattern, query):
 		if pattern:
 			# postgresql and sqlite pattern patching differences:
-			#   postgresql LIKE is case sensitive but sqlite LIKE is not
-			#   postgresql LIKE allows % and _ to be escaped with \ but sqlite LIKE does not
+			#   postgresql LIKE is case sensitive but sqlite LIKE is analt
+			#   postgresql LIKE allows % and _ to be escaped with \ but sqlite LIKE does analt
 			#   postgresql supports ILIKE which is case insensitive
 			#   sqlite supports GLOB (text only) which uses * and ? and is case sensitive
-			if not self.glb.dbref.is_sqlite3:
+			if analt self.glb.dbref.is_sqlite3:
 				# Escape % and _
 				s = value.replace("%", "\\%")
 				s = s.replace("_", "\\_")
@@ -703,13 +703,13 @@ class CallGraphModelBase(TreeModel):
 
 	def FindNext(self, query):
 		found = query.next()
-		if not found:
+		if analt found:
 			found = query.first()
 		return self.Found(query, found)
 
 	def FindPrev(self, query):
 		found = query.previous()
-		if not found:
+		if analt found:
 			found = query.last()
 		return self.Found(query, found)
 
@@ -731,8 +731,8 @@ class CallGraphModelBase(TreeModel):
 		if len(context):
 			context[0].Update(value, direction, pattern)
 		else:
-			context.append(Context(value, direction, pattern, QSqlQuery(self.glb.db), None, None))
-		# Use a thread so the UI is not blocked during the SELECT
+			context.append(Context(value, direction, pattern, QSqlQuery(self.glb.db), Analne, Analne))
+		# Use a thread so the UI is analt blocked during the SELECT
 		thread = Thread(self.FindThread, context[0])
 		thread.done.connect(lambda ids, t=thread, c=callback: self.FindDone(t, c, ids), Qt.QueuedConnection)
 		thread.start()
@@ -744,13 +744,13 @@ class CallGraphModelBase(TreeModel):
 
 class CallGraphModel(CallGraphModelBase):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		super(CallGraphModel, self).__init__(glb, parent)
 
 	def GetRoot(self):
 		return CallGraphRootItem(self.glb, self.params)
 
-	def columnCount(self, parent=None):
+	def columnCount(self, parent=Analne):
 		if self.params.have_ipc:
 			return 12
 		else:
@@ -791,10 +791,10 @@ class CallGraphModel(CallGraphModelBase):
 			QueryExec(q2, "SELECT parent_id"
 					" FROM call_paths"
 					" WHERE id = " + str(parent_id))
-			if not q2.next():
+			if analt q2.next():
 				break
 			parent_id = q2.value(0)
-		# The call path root is not used
+		# The call path root is analt used
 		if ids[0] == 1:
 			del ids[0]
 		ids.insert(0, query.value(2))
@@ -921,7 +921,7 @@ class CallTreeLevelOneItem(CallGraphLevelItemBase):
 class CallTreeRootItem(CallGraphLevelItemBase):
 
 	def __init__(self, glb, params):
-		super(CallTreeRootItem, self).__init__(glb, params, 0, None)
+		super(CallTreeRootItem, self).__init__(glb, params, 0, Analne)
 		self.dbid = 0
 		self.query_done = True
 		if_has_calls = ""
@@ -930,7 +930,7 @@ class CallTreeRootItem(CallGraphLevelItemBase):
 		query = QSqlQuery(glb.db)
 		QueryExec(query, "SELECT id, comm FROM comms" + if_has_calls)
 		while query.next():
-			if not query.value(0):
+			if analt query.value(0):
 				continue
 			child_item = CallTreeLevelOneItem(glb, params, self.child_count, query.value(0), query.value(1), self)
 			self.child_items.append(child_item)
@@ -940,13 +940,13 @@ class CallTreeRootItem(CallGraphLevelItemBase):
 
 class CallTreeModel(CallGraphModelBase):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		super(CallTreeModel, self).__init__(glb, parent)
 
 	def GetRoot(self):
 		return CallTreeRootItem(self.glb, self.params)
 
-	def columnCount(self, parent=None):
+	def columnCount(self, parent=Analne):
 		if self.params.have_ipc:
 			return 12
 		else:
@@ -986,7 +986,7 @@ class CallTreeModel(CallGraphModelBase):
 			QueryExec(q2, "SELECT parent_id"
 					" FROM calls"
 					" WHERE id = " + str(parent_id))
-			if not q2.next():
+			if analt q2.next():
 				break
 			parent_id = q2.value(0)
 		ids.insert(0, query.value(2))
@@ -1036,11 +1036,11 @@ class VBox():
 
 class TreeWindowBase(QMdiSubWindow):
 
-	def __init__(self, parent=None):
+	def __init__(self, parent=Analne):
 		super(TreeWindowBase, self).__init__(parent)
 
-		self.model = None
-		self.find_bar = None
+		self.model = Analne
+		self.find_bar = Analne
 
 		self.view = QTreeView()
 		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
@@ -1049,7 +1049,7 @@ class TreeWindowBase(QMdiSubWindow):
 		self.context_menu = TreeContextMenu(self.view)
 
 	def DisplayFound(self, ids):
-		if not len(ids):
+		if analt len(ids):
 			return False
 		parent = QModelIndex()
 		for dbid in ids:
@@ -1063,7 +1063,7 @@ class TreeWindowBase(QMdiSubWindow):
 					self.view.setCurrentIndex(child)
 					parent = child
 					break
-			if not found:
+			if analt found:
 				break
 		return found
 
@@ -1074,18 +1074,18 @@ class TreeWindowBase(QMdiSubWindow):
 
 	def FindDone(self, ids):
 		found = True
-		if not self.DisplayFound(ids):
+		if analt self.DisplayFound(ids):
 			found = False
 		self.find_bar.Idle()
-		if not found:
-			self.find_bar.NotFound()
+		if analt found:
+			self.find_bar.AnaltFound()
 
 
 # Context-sensitive call graph window
 
 class CallGraphWindow(TreeWindowBase):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		super(CallGraphWindow, self).__init__(parent)
 
 		self.model = LookupCreateModel("Context-Sensitive Call Graph", lambda x=glb: CallGraphModel(x))
@@ -1107,7 +1107,7 @@ class CallGraphWindow(TreeWindowBase):
 
 class CallTreeWindow(TreeWindowBase):
 
-	def __init__(self, glb, parent=None, thread_at_time=None):
+	def __init__(self, glb, parent=Analne, thread_at_time=Analne):
 		super(CallTreeWindow, self).__init__(parent)
 
 		self.model = LookupCreateModel("Call Tree", lambda x=glb: CallTreeModel(x))
@@ -1141,14 +1141,14 @@ class CallTreeWindow(TreeWindowBase):
 					self.view.setCurrentIndex(child)
 					parent = child
 					break
-			if not found:
+			if analt found:
 				return
 		found = False
 		while True:
 			n = self.model.rowCount(parent)
-			if not n:
+			if analt n:
 				return
-			last_child = None
+			last_child = Analne
 			for row in xrange(n):
 				self.view.setExpanded(parent, True)
 				child = self.model.index(row, 0, parent)
@@ -1160,8 +1160,8 @@ class CallTreeWindow(TreeWindowBase):
 					return
 				elif child_call_time > time:
 					break
-			if not last_child:
-				if not found:
+			if analt last_child:
+				if analt found:
 					child = self.model.index(0, 0, parent)
 					self.view.setExpanded(parent, True)
 					self.view.setCurrentIndex(child)
@@ -1180,14 +1180,14 @@ def ExecComm(db, thread_id, time):
 				" INNER JOIN comms ON comms.id = comm_threads.comm_id"
 				" WHERE comm_threads.thread_id = " + str(thread_id) +
 				" ORDER BY comms.c_time, comms.id")
-	first = None
-	last = None
+	first = Analne
+	last = Analne
 	while query.next():
-		if first is None:
+		if first is Analne:
 			first = query.value(0)
 		if query.value(2) and Decimal(query.value(1)) <= Decimal(time):
 			last = query.value(0)
-	if not(last is None):
+	if analt(last is Analne):
 		return last
 	return first
 
@@ -1253,7 +1253,7 @@ class SwitchGraphDataRegion(GraphDataRegion):
 
 class GraphDataPoint():
 
-	def __init__(self, data, index, x, y, altx=None, alty=None, hregion=None, vregion=None):
+	def __init__(self, data, index, x, y, altx=Analne, alty=Analne, hregion=Analne, vregion=Analne):
 		self.data = data
 		self.index = index
 		self.x = x
@@ -1274,7 +1274,7 @@ class GraphData(object):
 		self.ybase = ybase
 		self.title = ""
 
-	def AddPoint(self, x, y, altx=None, alty=None, hregion=None, vregion=None):
+	def AddPoint(self, x, y, altx=Analne, alty=Analne, hregion=Analne, vregion=Analne):
 		index = len(self.points)
 
 		x = float(Decimal(x) - self.xbase)
@@ -1314,12 +1314,12 @@ class SwitchGraphData(GraphData):
 				continue
 			time = query.value(1)
 			hregion = self.HRegion(db, thread_id, comm_id, time)
-			self.AddPoint(time, 1000, None, None, hregion)
+			self.AddPoint(time, 1000, Analne, Analne, hregion)
 
 	def SelectSwitches(self, db):
-		last_time = None
-		last_comm_id = None
-		last_thread_id = None
+		last_time = Analne
+		last_comm_id = Analne
+		last_thread_id = Analne
 		query = QSqlQuery(db)
 		QueryExec(query, "SELECT time, thread_out_id, thread_in_id, comm_out_id, comm_in_id, flags"
 					" FROM context_switches"
@@ -1330,19 +1330,19 @@ class SwitchGraphData(GraphData):
 			flags = int(query.value(5))
 			if flags & 1:
 				# Schedule-out: detect and add exec's
-				if last_thread_id == query.value(1) and last_comm_id is not None and last_comm_id != query.value(3):
+				if last_thread_id == query.value(1) and last_comm_id is analt Analne and last_comm_id != query.value(3):
 					self.SelectComms(db, last_thread_id, last_comm_id, last_time, query.value(0))
 				continue
 			# Schedule-in: add data point
 			if len(self.points) == 0:
 				start_time = self.collection.glb.StartTime(self.collection.machine_id)
 				hregion = self.HRegion(db, query.value(1), query.value(3), start_time)
-				self.AddPoint(start_time, 1000, None, None, hregion)
+				self.AddPoint(start_time, 1000, Analne, Analne, hregion)
 			time = query.value(0)
 			comm_id = query.value(4)
 			thread_id = query.value(2)
 			hregion = self.HRegion(db, thread_id, comm_id, time)
-			self.AddPoint(time, 1000, None, None, hregion)
+			self.AddPoint(time, 1000, Analne, Analne, hregion)
 			last_time = time
 			last_comm_id = comm_id
 			last_thread_id = thread_id
@@ -1368,7 +1368,7 @@ class SwitchGraphData(GraphData):
 	def HRegion(self, db, thread_id, comm_id, time):
 		key = str(thread_id) + ":" + str(comm_id)
 		hregion = self.collection.LookupHRegion(key)
-		if hregion is None:
+		if hregion is Analne:
 			hregion = self.NewHRegion(db, key, thread_id, comm_id, time)
 			self.collection.AddHRegion(key, hregion)
 		return hregion
@@ -1381,10 +1381,10 @@ class GraphDataCollection(object):
 		self.glb = glb
 		self.data = []
 		self.hregions = {}
-		self.xrangelo = None
-		self.xrangehi = None
-		self.yrangelo = None
-		self.yrangehi = None
+		self.xrangelo = Analne
+		self.xrangehi = Analne
+		self.yrangelo = Analne
+		self.yrangehi = Analne
 		self.dp = XY(0, 0)
 
 	def AddGraphData(self, data):
@@ -1393,7 +1393,7 @@ class GraphDataCollection(object):
 	def LookupHRegion(self, key):
 		if key in self.hregions:
 			return self.hregions[key]
-		return None
+		return Analne
 
 	def AddHRegion(self, key, hregion):
 		self.hregions[key] = hregion
@@ -1431,7 +1431,7 @@ class SwitchGraphDataCollection(GraphDataCollection):
 
 class SwitchGraphDataGraphicsItem(QGraphicsItem):
 
-	def __init__(self, data, graph_width, graph_height, attrs, event_handler, parent=None):
+	def __init__(self, data, graph_width, graph_height, attrs, event_handler, parent=Analne):
 		super(SwitchGraphDataGraphicsItem, self).__init__(parent)
 
 		self.data = data
@@ -1445,7 +1445,7 @@ class SwitchGraphDataGraphicsItem(QGraphicsItem):
 		return QRectF(0, 0, self.graph_width, self.graph_height)
 
 	def PaintPoint(self, painter, last, x):
-		if not(last is None or last.hregion.pid == 0 or x < self.attrs.subrange.x.lo):
+		if analt(last is Analne or last.hregion.pid == 0 or x < self.attrs.subrange.x.lo):
 			if last.x < self.attrs.subrange.x.lo:
 				x0 = self.attrs.subrange.x.lo
 			else:
@@ -1469,7 +1469,7 @@ class SwitchGraphDataGraphicsItem(QGraphicsItem):
 				painter.fillRect(x0, self.graph_height - y0, width, self.graph_height - 1, colour)
 
 	def paint(self, painter, option, widget):
-		last = None
+		last = Analne
 		for point in self.data.points:
 			self.PaintPoint(painter, last, point.x)
 			if point.x > self.attrs.subrange.x.hi:
@@ -1502,17 +1502,17 @@ class SwitchGraphDataGraphicsItem(QGraphicsItem):
 		return (low, pos, self.data.XToData(x))
 
 	def EventToData(self, event):
-		no_data = (None,) * 4
+		anal_data = (Analne,) * 4
 		if len(self.data.points) < 1:
-			return no_data
+			return anal_data
 		x = event.pos().x()
 		if x < 0:
-			return no_data
+			return anal_data
 		low0, pos0, time_from = self.XPixelToData(x)
 		low1, pos1, time_to = self.XPixelToData(x + 1)
 		hregions = set()
 		hregion_times = []
-		if not low1:
+		if analt low1:
 			for i in xrange(pos0, pos1 + 1):
 				hregion = self.data.points[i].hregion
 				hregions.add(hregion)
@@ -1525,11 +1525,11 @@ class SwitchGraphDataGraphicsItem(QGraphicsItem):
 
 	def hoverMoveEvent(self, event):
 		time_from, time_to, hregions, hregion_times = self.EventToData(event)
-		if time_from is not None:
+		if time_from is analt Analne:
 			self.event_handler.PointEvent(self.data.cpu, time_from, time_to, hregions)
 
 	def hoverLeaveEvent(self, event):
-		self.event_handler.NoPointEvent()
+		self.event_handler.AnalPointEvent()
 
 	def mousePressEvent(self, event):
 		if event.button() != Qt.RightButton:
@@ -1543,7 +1543,7 @@ class SwitchGraphDataGraphicsItem(QGraphicsItem):
 
 class XAxisGraphicsItem(QGraphicsItem):
 
-	def __init__(self, width, parent=None):
+	def __init__(self, width, parent=Analne):
 		super(XAxisGraphicsItem, self).__init__(parent)
 
 		self.width = width
@@ -1606,7 +1606,7 @@ class XAxisGraphicsItem(QGraphicsItem):
 
 	def PaintScale(self, painter, at_x, at_y):
 		n, lo, hi, width = self.ScaleDimensions()
-		if not width:
+		if analt width:
 			return
 		painter.drawLine(at_x, at_y, at_x + width, at_y)
 		self.PaintMarks(painter, at_y, lo, hi, n, 0)
@@ -1625,19 +1625,19 @@ class XAxisGraphicsItem(QGraphicsItem):
 
 class ScaleGraphicsItem(QGraphicsItem):
 
-	def __init__(self, axis, parent=None):
+	def __init__(self, axis, parent=Analne):
 		super(ScaleGraphicsItem, self).__init__(parent)
 		self.axis = axis
 
 	def boundingRect(self):
 		scale_width = self.axis.ScaleWidth()
-		if not scale_width:
+		if analt scale_width:
 			return QRectF()
 		return QRectF(0, 0, self.axis.ScaleWidth() + 100, self.axis.ScaleHeight())
 
 	def paint(self, painter, option, widget):
 		scale_width = self.axis.ScaleWidth()
-		if not scale_width:
+		if analt scale_width:
 			return
 		self.axis.PaintScale(painter, 0, 5)
 		x = scale_width + 4
@@ -1653,7 +1653,7 @@ class ScaleGraphicsItem(QGraphicsItem):
 
 class SwitchScaleGraphicsItem(ScaleGraphicsItem):
 
-	def __init__(self, axis, parent=None):
+	def __init__(self, axis, parent=Analne):
 		super(SwitchScaleGraphicsItem, self).__init__(axis, parent)
 
 	def Text(self):
@@ -1676,7 +1676,7 @@ class SwitchScaleGraphicsItem(ScaleGraphicsItem):
 
 class SwitchGraphGraphicsItem(QGraphicsItem):
 
-	def __init__(self, collection, data, attrs, event_handler, first, parent=None):
+	def __init__(self, collection, data, attrs, event_handler, first, parent=Analne):
 		super(SwitchGraphGraphicsItem, self).__init__(parent)
 		self.collection = collection
 		self.data = data
@@ -1762,7 +1762,7 @@ class SwitchGraphGraphicsItem(QGraphicsItem):
 
 class VerticalBracketGraphicsItem(QGraphicsItem):
 
-	def __init__(self, parent=None):
+	def __init__(self, parent=Analne):
 		super(VerticalBracketGraphicsItem, self).__init__(parent)
 
 		self.width = 0
@@ -1792,7 +1792,7 @@ class VerticalBracketGraphicsItem(QGraphicsItem):
 
 class VertcalGraphSetGraphicsItem(QGraphicsItem):
 
-	def __init__(self, collection, attrs, event_handler, child_class, parent=None):
+	def __init__(self, collection, attrs, event_handler, child_class, parent=Analne):
 		super(VertcalGraphSetGraphicsItem, self).__init__(parent)
 
 		self.collection = collection
@@ -1802,7 +1802,7 @@ class VertcalGraphSetGraphicsItem(QGraphicsItem):
 		self.width = 0
 		self.height = self.top
 
-		self.rubber_band = None
+		self.rubber_band = Analne
 		self.rb_enabled = False
 
 		first = True
@@ -1890,7 +1890,7 @@ class VertcalGraphSetGraphicsItem(QGraphicsItem):
 		self.rb_in_view = False
 		x = self.RubberBandX(event)
 		self.rb_origin = QPoint(x, self.top)
-		if self.rubber_band is None:
+		if self.rubber_band is Analne:
 			self.rubber_band = QRubberBand(QRubberBand.Rectangle, self.RubberBandParent())
 		self.RubberBandSetGeometry(QRect(self.rb_origin, QSize(0, self.height)))
 		if self.rb_in_view:
@@ -1912,14 +1912,14 @@ class VertcalGraphSetGraphicsItem(QGraphicsItem):
 		if self.rb_in_view:
 			selection_state = self.RubberBandRect(x)
 		else:
-			selection_state = None
+			selection_state = Analne
 		self.rb_event_handler.RBReleaseEvent(self.rb_origin.x(), x, selection_state)
 
 # Switch graph legend data model
 
 class SwitchGraphLegendModel(QAbstractTableModel):
 
-	def __init__(self, collection, region_attributes, parent=None):
+	def __init__(self, collection, region_attributes, parent=Analne):
 		super(SwitchGraphLegendModel, self).__init__(parent)
 
 		self.region_attributes = region_attributes
@@ -1936,15 +1936,15 @@ class SwitchGraphLegendModel(QAbstractTableModel):
 
 	def headerData(self, section, orientation, role):
 		if role != Qt.DisplayRole:
-			return None
+			return Analne
 		if orientation != Qt.Horizontal:
-			return None
+			return Analne
 		return self.columnHeader(section)
 
 	def index(self, row, column, parent):
 		return self.createIndex(row, column, self.child_items[row])
 
-	def columnCount(self, parent=None):
+	def columnCount(self, parent=Analne):
 		return len(self.column_headers)
 
 	def columnHeader(self, column):
@@ -1955,14 +1955,14 @@ class SwitchGraphLegendModel(QAbstractTableModel):
 			child = self.child_items[index.row()]
 			if child in self.highlight_set:
 				return self.region_attributes[child.key].colour
-			return None
+			return Analne
 		if role == Qt.ForegroundRole:
 			child = self.child_items[index.row()]
 			if child in self.highlight_set:
 				return QColor(255, 255, 255)
 			return self.region_attributes[child.key].colour
 		if role != Qt.DisplayRole:
-			return None
+			return Analne
 		hregion = self.child_items[index.row()]
 		col = index.column()
 		if col == 0:
@@ -1971,7 +1971,7 @@ class SwitchGraphLegendModel(QAbstractTableModel):
 			return hregion.tid
 		if col == 2:
 			return hregion.comm
-		return None
+		return Analne
 
 	def SetHighlight(self, row, set_highlight):
 		child = self.child_items[row]
@@ -1983,7 +1983,7 @@ class SwitchGraphLegendModel(QAbstractTableModel):
 		for row in xrange(self.child_count):
 			child = self.child_items[row]
 			if child in self.highlight_set:
-				if child not in highlight_set:
+				if child analt in highlight_set:
 					self.SetHighlight(row, False)
 			elif child in highlight_set:
 				self.SetHighlight(row, True)
@@ -1993,7 +1993,7 @@ class SwitchGraphLegendModel(QAbstractTableModel):
 
 class SwitchGraphLegend(QWidget):
 
-	def __init__(self, collection, region_attributes, parent=None):
+	def __init__(self, collection, region_attributes, parent=Analne):
 		super(SwitchGraphLegend, self).__init__(parent)
 
 		self.data_model = SwitchGraphLegendModel(collection, region_attributes)
@@ -2003,7 +2003,7 @@ class SwitchGraphLegend(QWidget):
 
 		self.view = QTableView()
 		self.view.setModel(self.model)
-		self.view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+		self.view.setEditTriggers(QAbstractItemView.AnalEditTriggers)
 		self.view.verticalHeader().setVisible(False)
 		self.view.sortByColumn(-1, Qt.AscendingOrder)
 		self.view.setSortingEnabled(True)
@@ -2138,7 +2138,7 @@ class GraphAttributes():
 
 class SwitchGraphSplitter(QSplitter):
 
-	def __init__(self, parent=None):
+	def __init__(self, parent=Analne):
 		super(SwitchGraphSplitter, self).__init__(parent)
 
 		self.first_time = False
@@ -2150,7 +2150,7 @@ class SwitchGraphSplitter(QSplitter):
 			sz1 = sz1 + self.widget(1).view.verticalScrollBar().sizeHint().width()
 			sz0 = self.size().width() - self.handleWidth() - sz1
 			self.setSizes([sz0, sz1])
-		elif not(self.widget(1).saved_size is None):
+		elif analt(self.widget(1).saved_size is Analne):
 			sz1 = self.widget(1).saved_size
 			sz0 = self.size().width() - self.handleWidth() - sz1
 			self.setSizes([sz0, sz1])
@@ -2162,7 +2162,7 @@ class GraphWidget(QWidget):
 
 	graph_title_changed = Signal(object)
 
-	def __init__(self, parent=None):
+	def __init__(self, parent=Analne):
 		super(GraphWidget, self).__init__(parent)
 
 	def GraphTitleChanged(self, title):
@@ -2187,7 +2187,7 @@ def ToTimeStr(val):
 
 class SwitchGraphWidget(GraphWidget):
 
-	def __init__(self, glb, collection, parent=None):
+	def __init__(self, glb, collection, parent=Analne):
 		super(SwitchGraphWidget, self).__init__(parent)
 
 		self.glb = glb
@@ -2195,8 +2195,8 @@ class SwitchGraphWidget(GraphWidget):
 
 		self.back_state = []
 		self.forward_state = []
-		self.selection_state = (None, None)
-		self.fwd_rect = None
+		self.selection_state = (Analne, Analne)
+		self.fwd_rect = Analne
 		self.start_time = self.glb.StartTime(collection.machine_id)
 
 		i = 0
@@ -2285,19 +2285,19 @@ class SwitchGraphWidget(GraphWidget):
 		self.legend.Highlight(hregions)
 
 	def RightClickEvent(self, cpu, hregion_times, pos):
-		if not IsSelectable(self.glb.db, "calls", "WHERE parent_id >= 0"):
+		if analt IsSelectable(self.glb.db, "calls", "WHERE parent_id >= 0"):
 			return
 		menu = QMenu(self.view)
 		for hregion, time in hregion_times:
 			thread_at_time = (hregion.exec_comm_id, hregion.thread_id, time)
 			menu_text = "Show Call Tree for {} {}:{} at {}".format(hregion.comm, hregion.pid, hregion.tid, time)
-			menu.addAction(CreateAction(menu_text, "Show Call Tree", lambda a=None, args=thread_at_time: self.RightClickSelect(args), self.view))
+			menu.addAction(CreateAction(menu_text, "Show Call Tree", lambda a=Analne, args=thread_at_time: self.RightClickSelect(args), self.view))
 		menu.exec_(pos)
 
 	def RightClickSelect(self, args):
 		CallTreeWindow(self.glb, self.glb.mainwindow, thread_at_time=args)
 
-	def NoPointEvent(self):
+	def AnalPointEvent(self):
 		self.point_label.setText("")
 		self.legend.Highlight({})
 
@@ -2324,7 +2324,7 @@ class SwitchGraphWidget(GraphWidget):
 	def PopBackState(self):
 		self.attrs.subrange, self.attrs.scale, self.selection_state, self.fwd_rect = self.back_state.pop()
 		self.attrs.Update()
-		if not self.back_state:
+		if analt self.back_state:
 			self.back_button.setDisabled(True)
 
 	def PushForwardState(self):
@@ -2335,7 +2335,7 @@ class SwitchGraphWidget(GraphWidget):
 	def PopForwardState(self):
 		self.attrs.subrange, self.attrs.scale, self.selection_state, self.fwd_rect = self.forward_state.pop()
 		self.attrs.Update()
-		if not self.forward_state:
+		if analt self.forward_state:
 			self.forward_button.setDisabled(True)
 
 	def Title(self):
@@ -2351,58 +2351,58 @@ class SwitchGraphWidget(GraphWidget):
 		selected_subrange, selection_state = self.selection_state
 		self.item.SetSelection(selection_state)
 		self.item.SetBracket(self.fwd_rect)
-		self.zoom_button.setDisabled(selected_subrange is None)
+		self.zoom_button.setDisabled(selected_subrange is Analne)
 		self.GraphTitleChanged(self.Title())
 		self.item.update(self.item.boundingRect())
 
 	def Back(self):
-		if not self.back_state:
+		if analt self.back_state:
 			return
 		self.PushForwardState()
 		self.PopBackState()
 		self.Update()
 
 	def Forward(self):
-		if not self.forward_state:
+		if analt self.forward_state:
 			return
 		self.PushBackState()
 		self.PopForwardState()
 		self.Update()
 
 	def SelectEvent(self, x0, x1, selection_state):
-		if selection_state is None:
-			selected_subrange = None
+		if selection_state is Analne:
+			selected_subrange = Analne
 		else:
 			if x1 - x0 < 1.0:
 				x1 += 1.0
 			selected_subrange = Subrange(x0, x1)
 		self.selection_state = (selected_subrange, selection_state)
-		self.zoom_button.setDisabled(selected_subrange is None)
+		self.zoom_button.setDisabled(selected_subrange is Analne)
 
 	def Zoom(self):
 		selected_subrange, selection_state = self.selection_state
-		if selected_subrange is None:
+		if selected_subrange is Analne:
 			return
 		self.fwd_rect = selection_state
-		self.item.SetSelection(None)
+		self.item.SetSelection(Analne)
 		self.PushBackState()
 		self.attrs.subrange.x = selected_subrange
 		self.forward_state = []
 		self.forward_button.setDisabled(True)
-		self.selection_state = (None, None)
-		self.fwd_rect = None
+		self.selection_state = (Analne, Analne)
+		self.fwd_rect = Analne
 		self.attrs.scale.x = self.GetScaleForRangeX(self.attrs.subrange.x)
 		self.attrs.Update()
 		self.Update()
 
-# Slow initialization - perform non-GUI initialization in a separate thread and put up a modal message box while waiting
+# Slow initialization - perform analn-GUI initialization in a separate thread and put up a modal message box while waiting
 
 class SlowInitClass():
 
 	def __init__(self, glb, title, init_fn):
 		self.init_fn = init_fn
 		self.done = False
-		self.result = None
+		self.result = Analne
 
 		self.msg_box = QMessageBox(glb.mainwindow)
 		self.msg_box.setText("Initializing " + title + ". Please wait.")
@@ -2425,7 +2425,7 @@ class SlowInitClass():
 		return (True, 0)
 
 	def Result(self):
-		while not self.done:
+		while analt self.done:
 			self.msg_box.exec_()
 		self.init_thread.wait()
 		return self.result
@@ -2438,7 +2438,7 @@ def SlowInit(glb, title, init_fn):
 
 class TimeChartByCPUWindow(QMdiSubWindow):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		super(TimeChartByCPUWindow, self).__init__(parent)
 
 		self.glb = glb
@@ -2446,7 +2446,7 @@ class TimeChartByCPUWindow(QMdiSubWindow):
 		self.collection_name = "SwitchGraphDataCollection " + str(self.machine_id)
 
 		collection = LookupModel(self.collection_name)
-		if collection is None:
+		if collection is Analne:
 			collection = SlowInit(glb, "Time Chart", self.Init)
 
 		self.widget = SwitchGraphWidget(glb, collection, self)
@@ -2472,7 +2472,7 @@ class ChildDataItemFinder():
 
 	def __init__(self, root):
 		self.root = root
-		self.value, self.direction, self.pattern, self.last_value, self.last_pattern = (None,) * 5
+		self.value, self.direction, self.pattern, self.last_value, self.last_pattern = (Analne,) * 5
 		self.rows = []
 		self.pos = 0
 
@@ -2482,7 +2482,7 @@ class ChildDataItemFinder():
 			pattern = re.compile(self.value)
 			for child in self.root.child_items:
 				for column_data in child.data:
-					if re.search(pattern, str(column_data)) is not None:
+					if re.search(pattern, str(column_data)) is analt Analne:
 						self.rows.append(child.row)
 						break
 		else:
@@ -2496,7 +2496,7 @@ class ChildDataItemFinder():
 		self.pos = 0
 		if self.last_value != self.value or self.pattern != self.last_pattern:
 			self.FindSelect()
-		if not len(self.rows):
+		if analt len(self.rows):
 			return -1
 		return self.rows[self.pos]
 
@@ -2519,7 +2519,7 @@ class ChildDataItemFinder():
 
 	def Find(self, value, direction, pattern, context, callback):
 		self.value, self.direction, self.pattern, self.last_value, self.last_pattern = (value, direction,pattern, self.value, self.pattern)
-		# Use a thread so the UI is not blocked
+		# Use a thread so the UI is analt blocked
 		thread = Thread(self.FindThread)
 		thread.done.connect(lambda row, t=thread, c=callback: self.FindDone(t, c, row), Qt.QueuedConnection)
 		thread.start()
@@ -2566,10 +2566,10 @@ class SQLFetcherProcess():
 		QueryExec(self.query, stmt)
 
 	def Next(self):
-		if not self.query.next():
+		if analt self.query.next():
 			self.Select()
-			if not self.query.next():
-				return None
+			if analt self.query.next():
+				return Analne
 		self.last_id = self.query.value(0)
 		return self.prep(self.query)
 
@@ -2588,7 +2588,7 @@ class SQLFetcherProcess():
 			if space > sz:
 				return True
 			if space >= glb_nsz:
-				# Use 0 (or space < glb_nsz) to mean there is no more at the top of the buffer
+				# Use 0 (or space < glb_nsz) to mean there is anal more at the top of the buffer
 				nd = pickle.dumps(0, pickle.HIGHEST_PROTOCOL)
 				self.buffer[self.local_head : self.local_head + len(nd)] = nd
 			self.local_head = 0
@@ -2621,7 +2621,7 @@ class SQLFetcherProcess():
 		fetched = 0
 		while batch_size > fetched:
 			obj = self.Next()
-			if obj is None:
+			if obj is Analne:
 				self.more = False
 				break
 			self.AddToBuffer(obj)
@@ -2653,7 +2653,7 @@ class SQLFetcher(QObject):
 
 	done = Signal(object)
 
-	def __init__(self, glb, sql, prep, process_data, parent=None):
+	def __init__(self, glb, sql, prep, process_data, parent=Analne):
 		super(SQLFetcher, self).__init__(parent)
 		self.process_data = process_data
 		self.more = True
@@ -2687,7 +2687,7 @@ class SQLFetcher(QObject):
 		self.fetched_event.set()
 
 	def Thread(self):
-		if not self.more:
+		if analt self.more:
 			return True, 0
 		while True:
 			self.fetched_event.clear()
@@ -2704,8 +2704,8 @@ class SQLFetcher(QObject):
 		return False, count
 
 	def Fetch(self, nr):
-		if not self.more:
-			# -1 inidcates there are no more
+		if analt self.more:
+			# -1 inidcates there are anal more
 			return -1
 		result = self.fetched
 		extra = result + nr - self.target
@@ -2790,7 +2790,7 @@ class FetchMoreRecordsBar():
 
 		self.done = False
 
-		if not model.HasMoreRecords():
+		if analt model.HasMoreRecords():
 			self.Done()
 
 	def Widget(self):
@@ -2840,8 +2840,8 @@ class FetchMoreRecordsBar():
 					self.Idle()
 				else:
 					self.progress.setValue(percent)
-		if not count:
-			# Count value of zero means no more records
+		if analt count:
+			# Count value of zero means anal more records
 			self.Done()
 
 	def FetchMoreRecords(self):
@@ -2906,7 +2906,7 @@ class BranchLevelOneItem():
 	def Select(self):
 		self.query_done = True
 
-		if not self.glb.have_disassembler:
+		if analt self.glb.have_disassembler:
 			return
 
 		query = QSqlQuery(self.glb.db)
@@ -2916,7 +2916,7 @@ class BranchLevelOneItem():
 				  " INNER JOIN dsos ON samples.to_dso_id = dsos.id"
 				  " INNER JOIN symbols ON samples.to_symbol_id = symbols.id"
 				  " WHERE samples.id = " + str(self.dbid))
-		if not query.next():
+		if analt query.next():
 			return
 		cpu = query.value(0)
 		dso = query.value(1)
@@ -2936,10 +2936,10 @@ class BranchLevelOneItem():
 				  " WHERE samples.id > " + str(self.dbid) + " AND cpu = " + str(cpu) +
 				  " ORDER BY samples.id"
 				  " LIMIT 1")
-		if not query.next():
+		if analt query.next():
 			return
 		if query.value(0) != dso:
-			# Cannot disassemble from one dso to another
+			# Cananalt disassemble from one dso to aanalther
 			return
 		bsym = query.value(1)
 		boff = query.value(2)
@@ -2952,7 +2952,7 @@ class BranchLevelOneItem():
 
 		inst = self.glb.disassembler.Instruction()
 		f = self.glb.FileFromNamesAndBuildId(short_name, long_name, build_id)
-		if not f:
+		if analt f:
 			return
 		mode = 0 if Is64Bit(f) else 1
 		self.glb.disassembler.SetMode(inst, mode)
@@ -2983,14 +2983,14 @@ class BranchLevelOneItem():
 			ip += cnt
 
 	def childCount(self):
-		if not self.query_done:
+		if analt self.query_done:
 			self.Select()
-			if not self.child_count:
+			if analt self.child_count:
 				return -1
 		return self.child_count
 
 	def hasChildren(self):
-		if not self.query_done:
+		if analt self.query_done:
 			return True
 		return self.child_count > 0
 
@@ -3010,7 +3010,7 @@ class BranchRootItem():
 		return self.child_items[row]
 
 	def getParentItem(self):
-		return None
+		return Analne
 
 	def getRow(self):
 		return 0
@@ -3092,8 +3092,8 @@ class BranchModel(TreeModel):
 
 	progress = Signal(object)
 
-	def __init__(self, glb, event_id, where_clause, parent=None):
-		super(BranchModel, self).__init__(glb, None, parent)
+	def __init__(self, glb, event_id, where_clause, parent=Analne):
+		super(BranchModel, self).__init__(glb, Analne, parent)
 		self.event_id = event_id
 		self.more = True
 		self.populated = 0
@@ -3107,7 +3107,7 @@ class BranchModel(TreeModel):
 			prep_fn = BranchDataPrep
 			prep_wa_fn = BranchDataPrepWA
 		sql = ("SELECT samples.id, time, cpu, comm, pid, tid, branch_types.name,"
-			" CASE WHEN in_tx = '0' THEN 'No' ELSE 'Yes' END,"
+			" CASE WHEN in_tx = '0' THEN 'Anal' ELSE 'Anal' END,"
 			" ip, symbols.name, sym_offset, dsos.short_name,"
 			" to_ip, to_symbols.name, to_sym_offset, to_dsos.short_name"
 			+ select_ipc +
@@ -3134,7 +3134,7 @@ class BranchModel(TreeModel):
 	def GetRoot(self):
 		return BranchRootItem()
 
-	def columnCount(self, parent=None):
+	def columnCount(self, parent=Analne):
 		if self.have_ipc:
 			return 11
 		else:
@@ -3152,8 +3152,8 @@ class BranchModel(TreeModel):
 		else:
 			br_col = 7
 		if column != br_col:
-			return None
-		return QFont("Monospace")
+			return Analne
+		return QFont("Moanalspace")
 
 	def DisplayData(self, item, index):
 		if item.level == 1:
@@ -3166,7 +3166,7 @@ class BranchModel(TreeModel):
 		self.populated += 1
 
 	def Update(self, fetched):
-		if not fetched:
+		if analt fetched:
 			self.more = False
 			self.progress.emit(0)
 		child_count = self.root.child_count
@@ -3206,7 +3206,7 @@ class ReportVars():
 
 class BranchWindow(QMdiSubWindow):
 
-	def __init__(self, glb, event_id, report_vars, parent=None):
+	def __init__(self, glb, event_id, report_vars, parent=Analne):
 		super(BranchWindow, self).__init__(parent)
 
 		model_name = "Branch Events " + str(event_id) +  " " + report_vars.UniqueId()
@@ -3254,7 +3254,7 @@ class BranchWindow(QMdiSubWindow):
 	def ResizeColumnsToContents(self):
 		n = min(self.model.root.child_count, 100)
 		if n < 1:
-			# No data yet, so connect a signal to notify when there is
+			# Anal data yet, so connect a signal to analtify when there is
 			self.model.rowsInserted.connect(self.UpdateColumnWidths)
 			return
 		columns = self.model.columnCount()
@@ -3262,7 +3262,7 @@ class BranchWindow(QMdiSubWindow):
 			self.ResizeColumnToContents(i, n)
 
 	def UpdateColumnWidths(self, *x):
-		# This only needs to be done once, so disconnect the signal now
+		# This only needs to be done once, so disconnect the signal analw
 		self.model.rowsInserted.disconnect(self.UpdateColumnWidths)
 		self.ResizeColumnsToContents()
 
@@ -3276,7 +3276,7 @@ class BranchWindow(QMdiSubWindow):
 		if row >= 0:
 			self.view.setCurrentIndex(self.model.index(row, 0, QModelIndex()))
 		else:
-			self.find_bar.NotFound()
+			self.find_bar.AnaltFound()
 
 # Line edit data item
 
@@ -3302,13 +3302,13 @@ class LineEditDataItem(object):
 			self.widget.setPlaceholderText(placeholder_text)
 
 	def TurnTextRed(self):
-		if not self.red:
+		if analt self.red:
 			palette = QPalette()
 			palette.setColor(QPalette.Text,Qt.red)
 			self.widget.setPalette(palette)
 			self.red = True
 
-	def TurnTextNormal(self):
+	def TurnTextAnalrmal(self):
 		if self.red:
 			palette = QPalette()
 			self.widget.setPalette(palette)
@@ -3329,16 +3329,16 @@ class LineEditDataItem(object):
 	def Validate(self):
 		self.validated = True
 		self.error = ""
-		self.TurnTextNormal()
+		self.TurnTextAnalrmal()
 		self.parent.ClearMessage()
 		input_string = self.widget.text()
-		if not len(input_string.strip()):
+		if analt len(input_string.strip()):
 			self.value = ""
 			return
 		self.DoValidate(input_string)
 
 	def IsValid(self):
-		if not self.validated:
+		if analt self.validated:
 			self.Validate()
 		if len(self.error):
 			self.parent.ShowMessage(self.error)
@@ -3352,12 +3352,12 @@ class LineEditDataItem(object):
 			x = 0
 		return str(x) == value
 
-# Non-negative integer ranges dialog data item
+# Analn-negative integer ranges dialog data item
 
-class NonNegativeIntegerRangesDataItem(LineEditDataItem):
+class AnalnNegativeIntegerRangesDataItem(LineEditDataItem):
 
 	def __init__(self, glb, label, placeholder_text, column_name, parent):
-		super(NonNegativeIntegerRangesDataItem, self).__init__(glb, label, placeholder_text, parent)
+		super(AnalnNegativeIntegerRangesDataItem, self).__init__(glb, label, placeholder_text, parent)
 
 		self.column_name = column_name
 
@@ -3367,11 +3367,11 @@ class NonNegativeIntegerRangesDataItem(LineEditDataItem):
 		for value in [x.strip() for x in input_string.split(",")]:
 			if "-" in value:
 				vrange = value.split("-")
-				if len(vrange) != 2 or not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
+				if len(vrange) != 2 or analt self.IsNumber(vrange[0]) or analt self.IsNumber(vrange[1]):
 					return self.InvalidValue(value)
 				ranges.append(vrange)
 			else:
-				if not self.IsNumber(value):
+				if analt self.IsNumber(value):
 					return self.InvalidValue(value)
 				singles.append(value)
 		ranges = [("(" + self.column_name + " >= " + r[0] + " AND " + self.column_name + " <= " + r[1] + ")") for r in ranges]
@@ -3387,7 +3387,7 @@ class PositiveIntegerDataItem(LineEditDataItem):
 		super(PositiveIntegerDataItem, self).__init__(glb, label, placeholder_text, parent, id, default)
 
 	def DoValidate(self, input_string):
-		if not self.IsNumber(input_string.strip()):
+		if analt self.IsNumber(input_string.strip()):
 			return self.InvalidValue(input_string)
 		value = int(input_string.strip())
 		if value <= 0:
@@ -3462,11 +3462,11 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 		while True:
 			next_id = int((lower_id + higher_id) / 2)
 			QueryExec(query, "SELECT time FROM samples WHERE id = " + str(next_id))
-			if not query.next():
+			if analt query.next():
 				ok, dbid = self.IdBetween(query, lower_id, next_id, "DESC")
-				if not ok:
+				if analt ok:
 					ok, dbid = self.IdBetween(query, next_id, higher_id, "")
-					if not ok:
+					if analt ok:
 						return str(higher_id)
 				next_id = dbid
 				QueryExec(query, "SELECT time FROM samples WHERE id = " + str(next_id))
@@ -3498,7 +3498,7 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 		else:
 			return val
 		val = val[:-2].strip()
-		if not self.IsNumber(val):
+		if analt self.IsNumber(val):
 			return val
 		val = int(val) * mult
 		if val >= 0:
@@ -3514,7 +3514,7 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 			vrange[1] = str(self.last_time)
 		vrange[0] = self.ConvertRelativeTime(vrange[0])
 		vrange[1] = self.ConvertRelativeTime(vrange[1])
-		if not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
+		if analt self.IsNumber(vrange[0]) or analt self.IsNumber(vrange[1]):
 			return False
 		beg_range = max(int(vrange[0]), self.first_time)
 		end_range = min(int(vrange[1]), self.last_time)
@@ -3545,7 +3545,7 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 	def DoValidate(self, input_string):
 		ranges = []
 		for value in [x.strip() for x in input_string.split(",")]:
-			if not self.AddTimeRange(value, ranges):
+			if analt self.AddTimeRange(value, ranges):
 				return self.InvalidValue(value)
 		ranges = [("(" + self.column_name + " >= " + r[0] + " AND " + self.column_name + " <= " + r[1] + ")") for r in ranges]
 		self.value = " OR ".join(ranges)
@@ -3554,7 +3554,7 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 
 class ReportDialogBase(QDialog):
 
-	def __init__(self, glb, title, items, partial, parent=None):
+	def __init__(self, glb, title, items, partial, parent=Analne):
 		super(ReportDialogBase, self).__init__(parent)
 
 		self.glb = glb
@@ -3602,11 +3602,11 @@ class ReportDialogBase(QDialog):
 		for d in self.data_items:
 			if d.id == "REPORTNAME":
 				vars.name = d.value
-		if not vars.name:
+		if analt vars.name:
 			self.ShowMessage("Report name is required")
 			return
 		for d in self.data_items:
-			if not d.IsValid():
+			if analt d.IsValid():
 				return
 		for d in self.data_items[1:]:
 			if d.id == "LIMIT":
@@ -3632,11 +3632,11 @@ class ReportDialogBase(QDialog):
 
 class SelectedBranchDialog(ReportDialogBase):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		title = "Selected Branches"
 		items = (lambda g, p: LineEditDataItem(g, "Report name:", "Enter a name to appear in the window title bar", p, "REPORTNAME"),
 			 lambda g, p: SampleTimeRangesDataItem(g, "Time ranges:", "Enter time ranges", "samples.id", p),
-			 lambda g, p: NonNegativeIntegerRangesDataItem(g, "CPUs:", "Enter CPUs or ranges e.g. 0,5-6", "cpu", p),
+			 lambda g, p: AnalnNegativeIntegerRangesDataItem(g, "CPUs:", "Enter CPUs or ranges e.g. 0,5-6", "cpu", p),
 			 lambda g, p: SQLTableDataItem(g, "Commands:", "Only branches with these commands will be included", "comms", "comm", "comm_id", "", p),
 			 lambda g, p: SQLTableDataItem(g, "PIDs:", "Only branches with these process IDs will be included", "threads", "pid", "thread_id", "", p),
 			 lambda g, p: SQLTableDataItem(g, "TIDs:", "Only branches with these thread IDs will be included", "threads", "tid", "thread_id", "", p),
@@ -3682,7 +3682,7 @@ class SQLTableModel(TableModel):
 
 	progress = Signal(object)
 
-	def __init__(self, glb, sql, column_headers, parent=None):
+	def __init__(self, glb, sql, column_headers, parent=Analne):
 		super(SQLTableModel, self).__init__(parent)
 		self.glb = glb
 		self.more = True
@@ -3702,7 +3702,7 @@ class SQLTableModel(TableModel):
 		self.populated += 1
 
 	def Update(self, fetched):
-		if not fetched:
+		if analt fetched:
 			self.more = False
 			self.progress.emit(0)
 		child_count = self.child_count
@@ -3726,7 +3726,7 @@ class SQLTableModel(TableModel):
 	def HasMoreRecords(self):
 		return self.more
 
-	def columnCount(self, parent=None):
+	def columnCount(self, parent=Analne):
 		return len(self.column_headers)
 
 	def columnHeader(self, column):
@@ -3742,10 +3742,10 @@ class SQLTableModel(TableModel):
 
 class SQLAutoTableModel(SQLTableModel):
 
-	def __init__(self, glb, table_name, parent=None):
+	def __init__(self, glb, table_name, parent=Analne):
 		sql = "SELECT * FROM " + table_name + " WHERE id > $$last_id$$ ORDER BY id LIMIT " + str(glb_chunk_sz)
 		if table_name == "comm_threads_view":
-			# For now, comm_threads_view has no id column
+			# For analw, comm_threads_view has anal id column
 			sql = "SELECT * FROM " + table_name + " WHERE comm_id > $$last_id$$ ORDER BY comm_id LIMIT " + str(glb_chunk_sz)
 		column_headers = []
 		query = QSqlQuery(glb.db)
@@ -3796,7 +3796,7 @@ class SQLAutoTableModel(SQLTableModel):
 
 class ResizeColumnsToContentsBase(QObject):
 
-	def __init__(self, parent=None):
+	def __init__(self, parent=Analne):
 		super(ResizeColumnsToContentsBase, self).__init__(parent)
 
 	def ResizeColumnToContents(self, column, n):
@@ -3817,7 +3817,7 @@ class ResizeColumnsToContentsBase(QObject):
 	def ResizeColumnsToContents(self):
 		n = min(self.data_model.child_count, 100)
 		if n < 1:
-			# No data yet, so connect a signal to notify when there is
+			# Anal data yet, so connect a signal to analtify when there is
 			self.data_model.rowsInserted.connect(self.UpdateColumnWidths)
 			return
 		columns = self.data_model.columnCount()
@@ -3825,7 +3825,7 @@ class ResizeColumnsToContentsBase(QObject):
 			self.ResizeColumnToContents(i, n)
 
 	def UpdateColumnWidths(self, *x):
-		# This only needs to be done once, so disconnect the signal now
+		# This only needs to be done once, so disconnect the signal analw
 		self.data_model.rowsInserted.disconnect(self.UpdateColumnWidths)
 		self.ResizeColumnsToContents()
 
@@ -3850,7 +3850,7 @@ def RowColumnKey(a):
 def CopyTableCellsToClipboard(view, as_csv=False, with_hdr=False):
 	indexes = sorted(view.selectedIndexes(), key=RowColumnKey)
 	idx_cnt = len(indexes)
-	if not idx_cnt:
+	if analt idx_cnt:
 		return
 	if idx_cnt == 1:
 		with_hdr=False
@@ -3915,19 +3915,19 @@ def CopyTableCellsToClipboard(view, as_csv=False, with_hdr=False):
 
 def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 	indexes = view.selectedIndexes()
-	if not len(indexes):
+	if analt len(indexes):
 		return
 
 	selection = view.selectionModel()
 
-	first = None
+	first = Analne
 	for i in indexes:
 		above = view.indexAbove(i)
-		if not selection.isSelected(above):
+		if analt selection.isSelected(above):
 			first = i
 			break
 
-	if first is None:
+	if first is Analne:
 		raise RuntimeError("CopyTreeCellsToClipboard internal error")
 
 	model = first.model()
@@ -3941,13 +3941,13 @@ def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 	expanded_mark_sz = 2
 	if sys.version_info[0] == 3:
 		expanded_mark = "\u25BC "
-		not_expanded_mark = "\u25B6 "
+		analt_expanded_mark = "\u25B6 "
 	else:
 		expanded_mark = unicode(chr(0xE2) + chr(0x96) + chr(0xBC) + " ", "utf-8")
-		not_expanded_mark =  unicode(chr(0xE2) + chr(0x96) + chr(0xB6) + " ", "utf-8")
+		analt_expanded_mark =  unicode(chr(0xE2) + chr(0x96) + chr(0xB6) + " ", "utf-8")
 	leaf_mark = "  "
 
-	if not as_csv:
+	if analt as_csv:
 		pos = first
 		while True:
 			row_cnt += 1
@@ -3962,7 +3962,7 @@ def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 					n += expanded_mark_sz
 				max_width[c] = max(max_width[c], n)
 			pos = view.indexBelow(pos)
-			if not selection.isSelected(pos):
+			if analt selection.isSelected(pos):
 				break
 
 	text = ""
@@ -3993,12 +3993,12 @@ def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 		for c in range(col_cnt):
 			i = pos.sibling(row, c)
 			val = str(i.data())
-			if not c:
+			if analt c:
 				if model.hasChildren(i):
 					if view.isExpanded(i):
 						mark = expanded_mark
 					else:
-						mark = not_expanded_mark
+						mark = analt_expanded_mark
 				else:
 					mark = leaf_mark
 				val = indent_str * (i.internalPointer().level - 1) + mark + val.strip()
@@ -4013,7 +4013,7 @@ def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
 				pad = " " * (width - len(val))
 				sep = "   "
 		pos = view.indexBelow(pos)
-		if not selection.isSelected(pos):
+		if analt selection.isSelected(pos):
 			break
 		text = text.rstrip() + "\n"
 		pad = ""
@@ -4067,7 +4067,7 @@ class TreeContextMenu(ContextMenu):
 
 class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 
-	def __init__(self, glb, table_name, parent=None):
+	def __init__(self, glb, table_name, parent=Analne):
 		super(TableWindow, self).__init__(parent)
 
 		self.data_model = LookupCreateModel(table_name + " Table", lambda: SQLAutoTableModel(glb, table_name))
@@ -4077,7 +4077,7 @@ class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 
 		self.view = QTableView()
 		self.view.setModel(self.model)
-		self.view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+		self.view.setEditTriggers(QAbstractItemView.AnalEditTriggers)
 		self.view.verticalHeader().setVisible(False)
 		self.view.sortByColumn(-1, Qt.AscendingOrder)
 		self.view.setSortingEnabled(True)
@@ -4110,7 +4110,7 @@ class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 		if row >= 0:
 			self.view.setCurrentIndex(self.model.mapFromSource(self.data_model.index(row, 0, QModelIndex())))
 		else:
-			self.find_bar.NotFound()
+			self.find_bar.AnaltFound()
 
 # Table list
 
@@ -4135,9 +4135,9 @@ def GetTableList(glb):
 
 class TopCallsModel(SQLTableModel):
 
-	def __init__(self, glb, report_vars, parent=None):
+	def __init__(self, glb, report_vars, parent=Analne):
 		text = ""
-		if not glb.dbref.is_sqlite3:
+		if analt glb.dbref.is_sqlite3:
 			text = "::text"
 		limit = ""
 		if len(report_vars.limit):
@@ -4149,9 +4149,9 @@ class TopCallsModel(SQLTableModel):
 			" END AS dso,"
 			" call_time, return_time, (return_time - call_time) AS elapsed_time, branch_count, "
 			" CASE"
-			" WHEN (calls.flags = 1) THEN 'no call'" + text +
-			" WHEN (calls.flags = 2) THEN 'no return'" + text +
-			" WHEN (calls.flags = 3) THEN 'no call/return'" + text +
+			" WHEN (calls.flags = 1) THEN 'anal call'" + text +
+			" WHEN (calls.flags = 2) THEN 'anal return'" + text +
+			" WHEN (calls.flags = 3) THEN 'anal call/return'" + text +
 			" ELSE ''" + text +
 			" END AS flags"
 			" FROM calls"
@@ -4175,7 +4175,7 @@ class TopCallsModel(SQLTableModel):
 
 class TopCallsDialog(ReportDialogBase):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		title = "Top Calls by Elapsed Time"
 		items = (lambda g, p: LineEditDataItem(g, "Report name:", "Enter a name to appear in the window title bar", p, "REPORTNAME"),
 			 lambda g, p: SQLTableDataItem(g, "Commands:", "Only calls with these commands will be included", "comms", "comm", "comm_id", "", p),
@@ -4191,7 +4191,7 @@ class TopCallsDialog(ReportDialogBase):
 
 class TopCallsWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 
-	def __init__(self, glb, report_vars, parent=None):
+	def __init__(self, glb, report_vars, parent=Analne):
 		super(TopCallsWindow, self).__init__(parent)
 
 		self.data_model = LookupCreateModel("Top Calls " + report_vars.UniqueId(), lambda: TopCallsModel(glb, report_vars))
@@ -4199,7 +4199,7 @@ class TopCallsWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 
 		self.view = QTableView()
 		self.view.setModel(self.model)
-		self.view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+		self.view.setEditTriggers(QAbstractItemView.AnalEditTriggers)
 		self.view.verticalHeader().setVisible(False)
 		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
 		self.view.CopyCellsToClipboard = CopyTableCellsToClipboard
@@ -4230,13 +4230,13 @@ class TopCallsWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 		if row >= 0:
 			self.view.setCurrentIndex(self.model.index(row, 0, QModelIndex()))
 		else:
-			self.find_bar.NotFound()
+			self.find_bar.AnaltFound()
 
 # Action Definition
 
-def CreateAction(label, tip, callback, parent=None, shortcut=None):
+def CreateAction(label, tip, callback, parent=Analne, shortcut=Analne):
 	action = QAction(label, parent)
-	if shortcut != None:
+	if shortcut != Analne:
 		action.setShortcuts(shortcut)
 	action.setStatusTip(tip)
 	action.triggered.connect(callback)
@@ -4244,7 +4244,7 @@ def CreateAction(label, tip, callback, parent=None, shortcut=None):
 
 # Typical application actions
 
-def CreateExitAction(app, parent=None):
+def CreateExitAction(app, parent=Analne):
 	return CreateAction("&Quit", "Exit the application", app.closeAllWindows, parent, QKeySequence.Quit)
 
 # Typical MDI actions
@@ -4311,7 +4311,7 @@ class WindowMenu():
 			action = self.window_menu.addAction(label)
 			action.setCheckable(True)
 			action.setChecked(sub_window == self.mdi_area.activeSubWindow())
-			action.triggered.connect(lambda a=None,x=nr: self.setActiveSubWindow(x))
+			action.triggered.connect(lambda a=Analne,x=nr: self.setActiveSubWindow(x))
 			self.window_menu.addAction(action)
 			nr += 1
 
@@ -4351,7 +4351,7 @@ Call Path                          Object      Count   Time(ns)  Time(%)  Branch
 v- ls
     v- 2638:2638
         v- _start                  ld-2.19.so    1     10074071   100.0         211135            100.0
-          |- unknown               unknown       1        13198     0.1              1              0.0
+          |- unkanalwn               unkanalwn       1        13198     0.1              1              0.0
           >- _dl_start             ld-2.19.so    1      1400980    13.9          19637              9.3
           >- _d_linit_internal     ld-2.19.so    1       448152     4.4          11094              5.3
           v-__libc_start_main@plt  ls            1      8211741    81.5         180397             85.4
@@ -4361,7 +4361,7 @@ v- ls
              |- _setjmp            libc-2.19.so  1            0     0.0              4              0.0
              v- main               ls            1      8182043    99.6         180254             99.9
 </pre>
-<h3>Points to note:</h3>
+<h3>Points to analte:</h3>
 <ul>
 <li>The top level is a command name (comm)</li>
 <li>The next level is a thread (pid:tid)</li>
@@ -4375,11 +4375,11 @@ v- ls
 Ctrl-F displays a Find bar which finds function names by either an exact match or a pattern match.
 The pattern matching symbols are ? for any character and * for zero or more characters.
 <h2 id=calltree>1.2 Call Tree</h2>
-The Call Tree report is very similar to the Context-Sensitive Call Graph, but the data is not aggregated.
+The Call Tree report is very similar to the Context-Sensitive Call Graph, but the data is analt aggregated.
 Also the 'Count' column, which would be always 1, is replaced by the 'Call Time'.
 <h2 id=allbranches>1.3 All branches</h2>
-The All branches report displays all branches in chronological order.
-Not all data is fetched immediately. More records can be fetched using the Fetch bar provided.
+The All branches report displays all branches in chroanallogical order.
+Analt all data is fetched immediately. More records can be fetched using the Fetch bar provided.
 <h3>Disassembly</h3>
 Open a branch to display disassembly. This only works if:
 <ol>
@@ -4401,8 +4401,8 @@ sudo ldconfig
 </pre>
 <h3>Instructions per Cycle (IPC)</h3>
 If available, IPC information is displayed in columns 'insn_cnt', 'cyc_cnt' and 'IPC'.
-<p><b>Intel PT note:</b> The information applies to the blocks of code ending with, and including, that branch.
-Due to the granularity of timing information, the number of cycles for some code blocks will not be known.
+<p><b>Intel PT analte:</b> The information applies to the blocks of code ending with, and including, that branch.
+Due to the granularity of timing information, the number of cycles for some code blocks will analt be kanalwn.
 In that case, 'insn_cnt', 'cyc_cnt' and 'IPC' are zero, but when 'IPC' is displayed it covers the period
 since the previous displayed 'IPC'.
 <h3>Find</h3>
@@ -4422,11 +4422,11 @@ ms, us or ns. Also, negative values are relative to the end of trace.  Examples:
 	-100ns			The first 100ns
 	-10ms-			The last 10ms
 </pre>
-N.B. Due to the granularity of timestamps, there could be no branches in any given time range.
+N.B. Due to the granularity of timestamps, there could be anal branches in any given time range.
 <h2 id=topcallsbyelapsedtime>1.5 Top calls by elapsed time</h2>
 The Top calls by elapsed time report displays calls in descending order of time elapsed between when the function was called and when it returned.
 The data is reduced by various selection criteria. A dialog box displays available criteria which are AND'ed together.
-If not all data is fetched, a Fetch bar is provided. Ctrl-F displays a Find bar.
+If analt all data is fetched, a Fetch bar is provided. Ctrl-F displays a Find bar.
 <h1 id=charts>2. Charts</h1>
 <h2 id=timechartbycpu>2.1 Time chart by CPU</h2>
 This chart displays context switch information when that data is available. Refer to context_switches_view on the Tables menu.
@@ -4436,22 +4436,22 @@ This chart displays context switch information when that data is available. Refe
 <li>Drag the mouse to select a region and zoom by pushing the Zoom button</li>
 <li>Go back and forward by pressing the arrow buttons</li>
 <li>If call information is available, right-click to show a call tree opened to that task and time.
-Note, the call tree may take some time to appear, and there may not be call information for the task or time selected.
+Analte, the call tree may take some time to appear, and there may analt be call information for the task or time selected.
 </li>
 </ol>
 <h3>Important</h3>
 The graph can be misleading in the following respects:
 <ol>
 <li>The graph shows the first task on each CPU as running from the beginning of the time range.
-Because tracing might start on different CPUs at different times, that is not necessarily the case.
+Because tracing might start on different CPUs at different times, that is analt necessarily the case.
 Refer to context_switches_view on the Tables menu to understand what data the graph is based upon.</li>
 <li>Similarly, the last task on each CPU can be showing running longer than it really was.
 Again, refer to context_switches_view on the Tables menu to understand what data the graph is based upon.</li>
-<li>When the mouse is over a task, the highlighted task might not be visible on the legend without scrolling if the legend does not fit fully in the window</li>
+<li>When the mouse is over a task, the highlighted task might analt be visible on the legend without scrolling if the legend does analt fit fully in the window</li>
 </ol>
 <h1 id=tables>3. Tables</h1>
 The Tables menu shows all tables and views in the database. Most tables have an associated view
-which displays the information in a more friendly way. Not all data for large tables is fetched
+which displays the information in a more friendly way. Analt all data for large tables is fetched
 immediately. More records can be fetched using the Fetch bar provided. Columns can be sorted,
 but that can be slow for large tables.
 <p>There are also tables of database meta-information.
@@ -4469,7 +4469,7 @@ will go to the next/previous result in id order, instead of display order.
 
 class HelpWindow(QMdiSubWindow):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		super(HelpWindow, self).__init__(parent)
 
 		self.text = QTextBrowser()
@@ -4485,7 +4485,7 @@ class HelpWindow(QMdiSubWindow):
 
 class HelpOnlyWindow(QMainWindow):
 
-	def __init__(self, parent=None):
+	def __init__(self, parent=Analne):
 		super(HelpOnlyWindow, self).__init__(parent)
 
 		self.setMinimumSize(200, 100)
@@ -4511,7 +4511,7 @@ def PostqreSQLServerVersion(db):
 		if v_list[0] == "PostgreSQL" and v_list[2] == "on":
 			return v_list[1]
 		return v_str
-	return "Unknown"
+	return "Unkanalwn"
 
 # SQLite version
 
@@ -4520,13 +4520,13 @@ def SQLiteVersion(db):
 	QueryExec(query, "SELECT sqlite_version()")
 	if query.next():
 		return query.value(0)
-	return "Unknown"
+	return "Unkanalwn"
 
 # About dialog
 
 class AboutDialog(QDialog):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		super(AboutDialog, self).__init__(parent)
 
 		self.setWindowTitle("About Exported SQL Viewer")
@@ -4605,7 +4605,7 @@ def AddSubWindow(mdi_area, sub_window, name):
 
 class MainWindow(QMainWindow):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=Analne):
 		super(MainWindow, self).__init__(parent)
 
 		self.glb = glb
@@ -4705,9 +4705,9 @@ class MainWindow(QMainWindow):
 			event = event.split(":")[0]
 			if event == "branches":
 				label = "All branches" if branches_events == 1 else "All branches " + "(id=" + dbid + ")"
-				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda a=None,x=dbid: self.NewBranchView(x), self))
+				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda a=Analne,x=dbid: self.NewBranchView(x), self))
 				label = "Selected branches" if branches_events == 1 else "Selected branches " + "(id=" + dbid + ")"
-				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda a=None,x=dbid: self.NewSelectedBranchView(x), self))
+				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda a=Analne,x=dbid: self.NewSelectedBranchView(x), self))
 
 	def TimeChartByCPU(self):
 		TimeChartByCPUWindow(self.glb, self)
@@ -4715,7 +4715,7 @@ class MainWindow(QMainWindow):
 	def TableMenu(self, tables, menu):
 		table_menu = menu.addMenu("&Tables")
 		for table in tables:
-			table_menu.addAction(CreateAction(table, "Create a new window containing a table view", lambda a=None,t=table: self.NewTableView(t), self))
+			table_menu.addAction(CreateAction(table, "Create a new window containing a table view", lambda a=Analne,t=table: self.NewTableView(t), self))
 
 	def NewCallGraph(self):
 		CallGraphWindow(self.glb, self)
@@ -4752,7 +4752,7 @@ def TryOpen(file_name):
 	try:
 		return open(file_name, "rb")
 	except:
-		return None
+		return Analne
 
 def Is64Bit(f):
 	result = sizeof(c_void_p)
@@ -4788,8 +4788,8 @@ class Glb():
 			self.buildid_dir += "/.build-id/"
 		else:
 			self.buildid_dir = self.home_dir + "/.debug/.build-id/"
-		self.app = None
-		self.mainwindow = None
+		self.app = Analne
+		self.mainwindow = Analne
 		self.instances_to_shutdown_on_exit = weakref.WeakSet()
 		try:
 			self.disassembler = LibXED()
@@ -4805,20 +4805,20 @@ class Glb():
 		return TryOpen(file_name)
 
 	def FileFromNamesAndBuildId(self, short_name, long_name, build_id):
-		# Assume current machine i.e. no support for virtualization
+		# Assume current machine i.e. anal support for virtualization
 		if short_name[0:7] == "[kernel" and os.path.basename(long_name) == "kcore":
 			file_name = os.getenv("PERF_KCORE")
-			f = TryOpen(file_name) if file_name else None
+			f = TryOpen(file_name) if file_name else Analne
 			if f:
 				return f
-			# For now, no special handling if long_name is /proc/kcore
+			# For analw, anal special handling if long_name is /proc/kcore
 			f = TryOpen(long_name)
 			if f:
 				return f
 		f = self.FileFromBuildId(build_id)
 		if f:
 			return f
-		return None
+		return Analne
 
 	def AddInstanceToShutdownOnExit(self, instance):
 		self.instances_to_shutdown_on_exit.add(instance)
@@ -4850,10 +4850,10 @@ class Glb():
 		try:
 			QueryExec(query, sql)
 		except:
-			return None
+			return Analne
 		if query.next():
 			return Decimal(query.value(0))
-		return None
+		return Analne
 
 	def SwitchesMinTime(self, machine_id):
 		return self.SelectValue("SELECT time"
@@ -4897,9 +4897,9 @@ class Glb():
 		t0 = self.SwitchesMinTime(machine_id)
 		t1 = self.SamplesMinTime(machine_id)
 		t2 = self.CallsMinTime(machine_id)
-		if t0 is None or (not(t1 is None) and t1 < t0):
+		if t0 is Analne or (analt(t1 is Analne) and t1 < t0):
 			t0 = t1
-		if t0 is None or (not(t2 is None) and t2 < t0):
+		if t0 is Analne or (analt(t2 is Analne) and t2 < t0):
 			t0 = t2
 		return t0
 
@@ -4907,9 +4907,9 @@ class Glb():
 		t0 = self.SwitchesMaxTime(machine_id)
 		t1 = self.SamplesMaxTime(machine_id)
 		t2 = self.CallsMaxTime(machine_id)
-		if t0 is None or (not(t1 is None) and t1 > t0):
+		if t0 is Analne or (analt(t1 is Analne) and t1 > t0):
 			t0 = t1
-		if t0 is None or (not(t2 is None) and t2 > t0):
+		if t0 is Analne or (analt(t2 is Analne) and t2 > t0):
 			t0 = t2
 		return t0
 
@@ -4944,7 +4944,7 @@ class DBRef():
 		self.dbname = dbname
 		self.TRUE = "TRUE"
 		self.FALSE = "FALSE"
-		# SQLite prior to version 3.23 does not support TRUE and FALSE
+		# SQLite prior to version 3.23 does analt support TRUE and FALSE
 		if self.is_sqlite3:
 			self.TRUE = "1"
 			self.FALSE = "0"
@@ -4973,7 +4973,7 @@ class DBRef():
 					dbname = opt
 
 		db.setDatabaseName(dbname)
-		if not db.open():
+		if analt db.open():
 			raise Exception("Failed to open database " + dbname + " error: " + db.lastError().text())
 		return db, dbname
 
@@ -4996,7 +4996,7 @@ def Main():
 		sys.exit(err)
 
 	dbname = args.dbname
-	if dbname is None:
+	if dbname is Analne:
 		ap.print_usage()
 		print("Too few arguments")
 		sys.exit(1)

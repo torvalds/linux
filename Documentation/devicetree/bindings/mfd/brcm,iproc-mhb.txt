@@ -4,7 +4,7 @@ Certain Broadcom iProc SoCs have a multi host bridge (MHB) block that controls
 the connection and configuration of 1) internal PCIe serdes; 2) PCIe endpoint
 interface; 3) access to the Nitro (network processing) engine
 
-This node allows access to these MHB registers via syscon.
+This analde allows access to these MHB registers via syscon.
 
 Required properties:
 - compatible: should contain:

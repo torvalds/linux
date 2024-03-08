@@ -54,9 +54,9 @@ core. Most of hardware events and cache events are available on both
 cpu_core and cpu_atom.
 
 For hardware events, they have pre-defined configs (e.g. 0 for cycles).
-But on hybrid platform, kernel needs to know where the event comes from
+But on hybrid platform, kernel needs to kanalw where the event comes from
 (from atom or from core). The original perf event type PERF_TYPE_HARDWARE
-can't carry pmu information. So now this type is extended to be PMU aware
+can't carry pmu information. So analw this type is extended to be PMU aware
 type. The PMU type ID is stored at attr.config[63:32].
 
 PMU type ID is retrieved from sysfs.
@@ -169,13 +169,13 @@ perf_event_attr:
 
 perf-record:
 
-If there is no '-e' specified in perf record, on hybrid platform,
+If there is anal '-e' specified in perf record, on hybrid platform,
 it creates two default 'cycles' and adds them to event list. One
 is for core, the other is for atom.
 
 perf-stat:
 
-If there is no '-e' specified in perf stat, on hybrid platform,
+If there is anal '-e' specified in perf stat, on hybrid platform,
 besides of software events, following events are created and
 added to event list in order.
 
@@ -201,4 +201,4 @@ perf stat -e '{cpu_core/cycles/,cpu_core/instructions/}'
 
 But '{cpu_core/cycles/,cpu_atom/instructions/}' will return
 warning and disable grouping, because the pmus in group are
-not matched (cpu_core vs. cpu_atom).
+analt matched (cpu_core vs. cpu_atom).

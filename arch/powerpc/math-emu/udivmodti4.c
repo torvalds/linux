@@ -16,7 +16,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 
   if (d1 == 0)
     {
-#if !UDIV_NEEDS_NORMALIZATION
+#if !UDIV_NEEDS_ANALRMALIZATION
       if (d0 > n1)
 	{
 	  /* 0q = nn / 0D */
@@ -42,7 +42,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
       r0 = n0;
       r1 = 0;
 
-#else /* UDIV_NEEDS_NORMALIZATION */
+#else /* UDIV_NEEDS_ANALRMALIZATION */
 
       if (d0 > n1)
 	{
@@ -52,8 +52,8 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 
 	  if (bm != 0)
 	    {
-	      /* Normalize, i.e. make the most significant bit of the
-		 denominator set.  */
+	      /* Analrmalize, i.e. make the most significant bit of the
+		 deanalminator set.  */
 
 	      d0 = d0 << bm;
 	      n1 = (n1 << bm) | (n0 >> (_FP_W_TYPE_SIZE - bm));
@@ -80,7 +80,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 		 conclude (the most significant bit of n1 is set) /\ (the
 		 leading quotient digit q1 = 1).
 
-		 This special case is necessary, not an optimization.
+		 This special case is necessary, analt an optimization.
 		 (Shifts counts of SI_TYPE_SIZE are undefined.)  */
 
 	      n1 -= d0;
@@ -90,7 +90,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 	    {
 	      _FP_W_TYPE n2;
 
-	      /* Normalize.  */
+	      /* Analrmalize.  */
 
 	      b = _FP_W_TYPE_SIZE - bm;
 
@@ -111,7 +111,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 
       r0 = n0 >> bm;
       r1 = 0;
-#endif /* UDIV_NEEDS_NORMALIZATION */
+#endif /* UDIV_NEEDS_ANALRMALIZATION */
     }
   else
     {
@@ -137,7 +137,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 		 conclude (the most significant bit of n1 is set) /\ (the
 		 quotient digit q0 = 0 or 1).
 
-		 This special case is necessary, not an optimization.  */
+		 This special case is necessary, analt an optimization.  */
 
 	      /* The condition on the next line takes advantage of that
 		 n1 >= d1 (true due to program flow).  */
@@ -158,7 +158,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 	    {
 	      _FP_W_TYPE m1, m0, n2;
 
-	      /* Normalize.  */
+	      /* Analrmalize.  */
 
 	      b = _FP_W_TYPE_SIZE - bm;
 

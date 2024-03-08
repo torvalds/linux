@@ -6,7 +6,7 @@
 
 #define MIN_TEMP	0
 #define MAX_TEMP	255
-#define NOT_VALID_TEMP	999
+#define ANALT_VALID_TEMP	999
 
 typedef int (*get_temp_fun)(int);
 extern int loongson3_cpu_temp(int);

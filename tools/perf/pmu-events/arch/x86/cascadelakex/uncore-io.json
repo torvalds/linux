@@ -443,7 +443,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part0. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by aanalther IIO unit to the MMIO space of a card on IIO Part0. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -454,7 +454,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part1. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by aanalther IIO unit to the MMIO space of a card on IIO Part1. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -465,7 +465,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part2. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by aanalther IIO unit to the MMIO space of a card on IIO Part2. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -476,7 +476,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part3. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for 4 bytes of data made by a unit on the main die (generally a core) or by aanalther IIO unit to the MMIO space of a card on IIO Part3. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -509,7 +509,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part0 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part0 by a unit on the main die (generally a core) or by aanalther IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -520,7 +520,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part1 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part1 by a unit on the main die (generally a core) or by aanalther IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -531,7 +531,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part2 by  a unit on the main die (generally a core) or by another IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part2 by  a unit on the main die (generally a core) or by aanalther IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -542,7 +542,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part3 by  a unit on the main die (generally a core) or by another IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made to the MMIO space of a card on IIO Part3 by  a unit on the main die (generally a core) or by aanalther IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -575,7 +575,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part0. Does not include requests made by the same IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part0. Does analt include requests made by the same IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x8",
         "Unit": "IIO"
     },
@@ -586,7 +586,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part1. Does not include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part1. Does analt include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x8",
         "Unit": "IIO"
     },
@@ -597,7 +597,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part2. Does not include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part2. Does analt include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x8",
         "Unit": "IIO"
     },
@@ -608,12 +608,12 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part3. Does not include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts ever peer to peer read request for 4 bytes of data made by a different IIO unit to the MMIO space of a card on IIO Part3. Does analt include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x8",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Data requested by the CPU; Another card (different IIO stack) reading from this card.",
+        "BriefDescription": "Data requested by the CPU; Aanalther card (different IIO stack) reading from this card.",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.VTD0",
         "FCMask": "0x07",
@@ -624,7 +624,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Data requested by the CPU; Another card (different IIO stack) reading from this card.",
+        "BriefDescription": "Data requested by the CPU; Aanalther card (different IIO stack) reading from this card.",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.VTD1",
         "FCMask": "0x07",
@@ -641,7 +641,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part0 by a different IIO unit. Does not include requests made by the same IIO unit.  In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part0 by a different IIO unit. Does analt include requests made by the same IIO unit.  In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x2",
         "Unit": "IIO"
     },
@@ -652,7 +652,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part1 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part1 by a different IIO unit. Does analt include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x2",
         "Unit": "IIO"
     },
@@ -663,7 +663,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part2 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part2 by a different IIO unit. Does analt include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x2",
         "Unit": "IIO"
     },
@@ -674,12 +674,12 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part3 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made to the MMIO space of a card on IIO Part3 by a different IIO unit. Does analt include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x2",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Data requested by the CPU; Another card (different IIO stack) writing to this card.",
+        "BriefDescription": "Data requested by the CPU; Aanalther card (different IIO stack) writing to this card.",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.VTD0",
         "FCMask": "0x07",
@@ -690,7 +690,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Data requested by the CPU; Another card (different IIO stack) writing to this card.",
+        "BriefDescription": "Data requested by the CPU; Aanalther card (different IIO stack) writing to this card.",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.VTD1",
         "FCMask": "0x07",
@@ -1053,7 +1053,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Data requested of the CPU; Card reading from another Card (same or different stack)",
+        "BriefDescription": "Data requested of the CPU; Card reading from aanalther Card (same or different stack)",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.VTD0",
         "FCMask": "0x07",
@@ -1064,7 +1064,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Data requested of the CPU; Card reading from another Card (same or different stack)",
+        "BriefDescription": "Data requested of the CPU; Card reading from aanalther Card (same or different stack)",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.VTD1",
         "FCMask": "0x07",
@@ -1119,7 +1119,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Data requested of the CPU; Card writing to another Card (same or different stack)",
+        "BriefDescription": "Data requested of the CPU; Card writing to aanalther Card (same or different stack)",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.VTD0",
         "FCMask": "0x07",
@@ -1130,7 +1130,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Data requested of the CPU; Card writing to another Card (same or different stack)",
+        "BriefDescription": "Data requested of the CPU; Card writing to aanalther Card (same or different stack)",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.VTD1",
         "FCMask": "0x07",
@@ -1162,7 +1162,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "AND Mask/match for debug bus; Non-PCIE bus",
+        "BriefDescription": "AND Mask/match for debug bus; Analn-PCIE bus",
         "EventCode": "0x2",
         "EventName": "UNC_IIO_MASK_MATCH_AND.BUS0",
         "PerPkg": "1",
@@ -1171,7 +1171,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "AND Mask/match for debug bus; Non-PCIE bus and PCIE bus",
+        "BriefDescription": "AND Mask/match for debug bus; Analn-PCIE bus and PCIE bus",
         "EventCode": "0x2",
         "EventName": "UNC_IIO_MASK_MATCH_AND.BUS0_BUS1",
         "PerPkg": "1",
@@ -1180,9 +1180,9 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "AND Mask/match for debug bus; Non-PCIE bus and !(PCIE bus)",
+        "BriefDescription": "AND Mask/match for debug bus; Analn-PCIE bus and !(PCIE bus)",
         "EventCode": "0x2",
-        "EventName": "UNC_IIO_MASK_MATCH_AND.BUS0_NOT_BUS1",
+        "EventName": "UNC_IIO_MASK_MATCH_AND.BUS0_ANALT_BUS1",
         "PerPkg": "1",
         "PublicDescription": "Asserted if all bits specified by mask match",
         "UMask": "0x4",
@@ -1198,9 +1198,9 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "AND Mask/match for debug bus; !(Non-PCIE bus) and PCIE bus",
+        "BriefDescription": "AND Mask/match for debug bus; !(Analn-PCIE bus) and PCIE bus",
         "EventCode": "0x2",
-        "EventName": "UNC_IIO_MASK_MATCH_AND.NOT_BUS0_BUS1",
+        "EventName": "UNC_IIO_MASK_MATCH_AND.ANALT_BUS0_BUS1",
         "PerPkg": "1",
         "PublicDescription": "Asserted if all bits specified by mask match",
         "UMask": "0x10",
@@ -1209,14 +1209,14 @@
     {
         "BriefDescription": "AND Mask/match for debug bus",
         "EventCode": "0x2",
-        "EventName": "UNC_IIO_MASK_MATCH_AND.NOT_BUS0_NOT_BUS1",
+        "EventName": "UNC_IIO_MASK_MATCH_AND.ANALT_BUS0_ANALT_BUS1",
         "PerPkg": "1",
         "PublicDescription": "Asserted if all bits specified by mask match",
         "UMask": "0x20",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "OR Mask/match for debug bus; Non-PCIE bus",
+        "BriefDescription": "OR Mask/match for debug bus; Analn-PCIE bus",
         "EventCode": "0x3",
         "EventName": "UNC_IIO_MASK_MATCH_OR.BUS0",
         "PerPkg": "1",
@@ -1225,7 +1225,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "OR Mask/match for debug bus; Non-PCIE bus and PCIE bus",
+        "BriefDescription": "OR Mask/match for debug bus; Analn-PCIE bus and PCIE bus",
         "EventCode": "0x3",
         "EventName": "UNC_IIO_MASK_MATCH_OR.BUS0_BUS1",
         "PerPkg": "1",
@@ -1234,9 +1234,9 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "OR Mask/match for debug bus; Non-PCIE bus and !(PCIE bus)",
+        "BriefDescription": "OR Mask/match for debug bus; Analn-PCIE bus and !(PCIE bus)",
         "EventCode": "0x3",
-        "EventName": "UNC_IIO_MASK_MATCH_OR.BUS0_NOT_BUS1",
+        "EventName": "UNC_IIO_MASK_MATCH_OR.BUS0_ANALT_BUS1",
         "PerPkg": "1",
         "PublicDescription": "Asserted if any bits specified by mask match",
         "UMask": "0x4",
@@ -1252,18 +1252,18 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "OR Mask/match for debug bus; !(Non-PCIE bus) and PCIE bus",
+        "BriefDescription": "OR Mask/match for debug bus; !(Analn-PCIE bus) and PCIE bus",
         "EventCode": "0x3",
-        "EventName": "UNC_IIO_MASK_MATCH_OR.NOT_BUS0_BUS1",
+        "EventName": "UNC_IIO_MASK_MATCH_OR.ANALT_BUS0_BUS1",
         "PerPkg": "1",
         "PublicDescription": "Asserted if any bits specified by mask match",
         "UMask": "0x10",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "OR Mask/match for debug bus; !(Non-PCIE bus) and !(PCIE bus)",
+        "BriefDescription": "OR Mask/match for debug bus; !(Analn-PCIE bus) and !(PCIE bus)",
         "EventCode": "0x3",
-        "EventName": "UNC_IIO_MASK_MATCH_OR.NOT_BUS0_NOT_BUS1",
+        "EventName": "UNC_IIO_MASK_MATCH_OR.ANALT_BUS0_ANALT_BUS1",
         "PerPkg": "1",
         "PublicDescription": "Asserted if any bits specified by mask match",
         "UMask": "0x20",
@@ -1271,7 +1271,7 @@
     },
     {
         "BriefDescription": "Counting disabled",
-        "EventName": "UNC_IIO_NOTHING",
+        "EventName": "UNC_IIO_ANALTHING",
         "PerPkg": "1",
         "Unit": "IIO"
     },
@@ -3215,7 +3215,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -3226,7 +3226,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 1",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -3237,7 +3237,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -3248,7 +3248,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 3",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 3",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -3259,7 +3259,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -3270,7 +3270,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -3281,7 +3281,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3292,7 +3292,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 1",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3303,7 +3303,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3314,7 +3314,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 3",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 3",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3325,7 +3325,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3336,7 +3336,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3347,7 +3347,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
         "UMask": "0x80",
         "Unit": "IIO"
     },
@@ -3358,7 +3358,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 1",
         "UMask": "0x80",
         "Unit": "IIO"
     },
@@ -3369,7 +3369,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
         "UMask": "0x80",
         "Unit": "IIO"
     },
@@ -3380,7 +3380,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 3",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 3",
         "UMask": "0x80",
         "Unit": "IIO"
     },
@@ -3391,7 +3391,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
         "UMask": "0x80",
         "Unit": "IIO"
     },
@@ -3402,7 +3402,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
         "UMask": "0x80",
         "Unit": "IIO"
     },
@@ -3413,7 +3413,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3424,7 +3424,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 1",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3435,7 +3435,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3446,7 +3446,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 3",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; x4 card is plugged in to slot 3",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3457,7 +3457,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3468,7 +3468,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3479,7 +3479,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part0. In the general case, part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by aanalther IIO unit to the MMIO space of a card on IIO Part0. In the general case, part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -3490,7 +3490,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part1. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by aanalther IIO unit to the MMIO space of a card on IIO Part1. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -3501,7 +3501,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part2. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by aanalther IIO unit to the MMIO space of a card on IIO Part2. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -3512,7 +3512,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by another IIO unit to the MMIO space of a card on IIO Part3. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every read request for up to a 64 byte transaction of data made by a unit on the main die (generally a core) or by aanalther IIO unit to the MMIO space of a card on IIO Part3. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -3523,7 +3523,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -3534,7 +3534,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -3545,7 +3545,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part0 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part0 by a unit on the main die (generally a core) or by aanalther IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -3556,7 +3556,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part1 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part1 by a unit on the main die (generally a core) or by aanalther IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -3567,7 +3567,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part2 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part2 by a unit on the main die (generally a core) or by aanalther IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -3578,7 +3578,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part3 by a unit on the main die (generally a core) or by another IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part3 by a unit on the main die (generally a core) or by aanalther IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -3589,7 +3589,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -3600,7 +3600,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -3611,7 +3611,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part0. Does not include requests made by the same IIO unit. In the general case, part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part0. Does analt include requests made by the same IIO unit. In the general case, part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x8",
         "Unit": "IIO"
     },
@@ -3622,7 +3622,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part1. Does not include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part1. Does analt include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x8",
         "Unit": "IIO"
     },
@@ -3633,7 +3633,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part2. Does not include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part2. Does analt include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x8",
         "Unit": "IIO"
     },
@@ -3644,29 +3644,29 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part3. Does not include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer read request for up to a 64 byte transaction of data made by a different IIO unit to the MMIO space of a card on IIO Part3. Does analt include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x8",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Number Transactions requested by the CPU; Another card (different IIO stack) reading from this card.",
+        "BriefDescription": "Number Transactions requested by the CPU; Aanalther card (different IIO stack) reading from this card.",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_READ.VTD0",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
         "UMask": "0x8",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Number Transactions requested by the CPU; Another card (different IIO stack) reading from this card.",
+        "BriefDescription": "Number Transactions requested by the CPU; Aanalther card (different IIO stack) reading from this card.",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_READ.VTD1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
         "UMask": "0x8",
         "Unit": "IIO"
     },
@@ -3677,7 +3677,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part0 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part0 by a different IIO unit. Does analt include requests made by the same IIO unit. In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x2",
         "Unit": "IIO"
     },
@@ -3688,7 +3688,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part1 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part1 by a different IIO unit. Does analt include requests made by the same IIO unit. In the general case, Part1 refers to a x4 PCIe card plugged into the second slot of a PCIe riser card, but it could refer to any x4 device attached to the IIO unit using lanes starting at lane 4 of the 16 lanes supported by the bus.",
         "UMask": "0x2",
         "Unit": "IIO"
     },
@@ -3699,7 +3699,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part2 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part2 by a different IIO unit. Does analt include requests made by the same IIO unit. In the general case, Part2 refers to a x4 or x8 PCIe card plugged into the third slot of a PCIe riser card, but it could refer to any x4 or x8 device attached to the IIO unit and using lanes starting at lane 8 of the 16 lanes supported by the bus.",
         "UMask": "0x2",
         "Unit": "IIO"
     },
@@ -3710,29 +3710,29 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part3 by a different IIO unit. Does not include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made to the MMIO space of a card on IIO Part3 by a different IIO unit. Does analt include requests made by the same IIO unit. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x2",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Number Transactions requested by the CPU; Another card (different IIO stack) writing to this card.",
+        "BriefDescription": "Number Transactions requested by the CPU; Aanalther card (different IIO stack) writing to this card.",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.VTD0",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 0",
         "UMask": "0x2",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Number Transactions requested by the CPU; Another card (different IIO stack) writing to this card.",
+        "BriefDescription": "Number Transactions requested by the CPU; Aanalther card (different IIO stack) writing to this card.",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.VTD1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Outbound.  Number of requests, to the attached device, initiated by the main die.; VTd - Type 1",
         "UMask": "0x2",
         "Unit": "IIO"
     },
@@ -3743,7 +3743,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3754,7 +3754,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 1",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 1",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3765,7 +3765,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3776,7 +3776,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 3",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 3",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3787,7 +3787,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3798,7 +3798,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
         "UMask": "0x10",
         "Unit": "IIO"
     },
@@ -3809,7 +3809,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3820,7 +3820,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 1",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 1",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3831,7 +3831,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3842,7 +3842,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 3",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 3",
         "UMask": "0x20",
         "Unit": "IIO"
     },
@@ -3897,7 +3897,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -3908,7 +3908,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
         "UMask": "0x4",
         "Unit": "IIO"
     },
@@ -3963,7 +3963,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -3974,7 +3974,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -3985,7 +3985,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -3996,7 +3996,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 1",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 1",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -4007,7 +4007,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -4018,7 +4018,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 3",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; x4 card is plugged in to slot 3",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -4029,7 +4029,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -4040,7 +4040,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
         "UMask": "0x40",
         "Unit": "IIO"
     },
@@ -4089,24 +4089,24 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Number Transactions requested of the CPU; Card reading from another Card (same or different stack)",
+        "BriefDescription": "Number Transactions requested of the CPU; Card reading from aanalther Card (same or different stack)",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.VTD0",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
         "UMask": "0x8",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Number Transactions requested of the CPU; Card reading from another Card (same or different stack)",
+        "BriefDescription": "Number Transactions requested of the CPU; Card reading from aanalther Card (same or different stack)",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.VTD1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
         "UMask": "0x8",
         "Unit": "IIO"
     },
@@ -4155,24 +4155,24 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Number Transactions requested of the CPU; Card writing to another Card (same or different stack)",
+        "BriefDescription": "Number Transactions requested of the CPU; Card writing to aanalther Card (same or different stack)",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.VTD0",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x10",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 0",
         "UMask": "0x2",
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Number Transactions requested of the CPU; Card writing to another Card (same or different stack)",
+        "BriefDescription": "Number Transactions requested of the CPU; Card writing to aanalther Card (same or different stack)",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.VTD1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x20",
-        "PublicDescription": "Also known as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
+        "PublicDescription": "Also kanalwn as Inbound.  Number of 64 byte cache line requests initiated by the attached device.; VTd - Type 1",
         "UMask": "0x2",
         "Unit": "IIO"
     },

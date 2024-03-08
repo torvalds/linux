@@ -3,7 +3,7 @@
 	.insns = {
 		/* a = 0; */
 		/*
-		 * Note this is implemented with two separate instructions,
+		 * Analte this is implemented with two separate instructions,
 		 * where you might think one would suffice:
 		 *
 		 * BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),

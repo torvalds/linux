@@ -5,8 +5,8 @@ config VIDEO_HEXIUM_GEMINI
 	select VIDEO_SAA7146_VV
 	help
 	  This is a video4linux driver for the Hexium Gemini frame
-	  grabber card by Hexium. Please note that the Gemini Dual
-	  card is *not* fully supported.
+	  grabber card by Hexium. Please analte that the Gemini Dual
+	  card is *analt* fully supported.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_gemini.

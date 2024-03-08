@@ -33,7 +33,7 @@ int ef4_nic_alloc_buffer(struct ef4_nic *efx, struct ef4_buffer *buffer,
 	buffer->addr = dma_alloc_coherent(&efx->pci_dev->dev, len,
 					  &buffer->dma_addr, gfp_flags);
 	if (!buffer->addr)
-		return -ENOMEM;
+		return -EANALMEM;
 	buffer->len = len;
 	return 0;
 }
@@ -96,7 +96,7 @@ int ef4_nic_init_interrupt(struct ef4_nic *efx)
 		efx->net_dev->rx_cpu_rmap =
 			alloc_irq_cpu_rmap(efx->n_rx_channels);
 		if (!efx->net_dev->rx_cpu_rmap) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto fail1;
 		}
 	}
@@ -106,7 +106,7 @@ int ef4_nic_init_interrupt(struct ef4_nic *efx)
 	n_irqs = 0;
 	ef4_for_each_channel(channel, efx) {
 		rc = request_irq(channel->irq, efx->type->irq_handle_msi,
-				 IRQF_PROBE_SHARED, /* Not shared */
+				 IRQF_PROBE_SHARED, /* Analt shared */
 				 efx->msi_context[channel->channel].name,
 				 &efx->msi_context[channel->channel]);
 		if (rc) {
@@ -204,7 +204,7 @@ static const struct ef4_nic_reg ef4_nic_regs[] = {
 	REGISTER_AB(EE_SPI_HDATA),
 	REGISTER_AB(EE_BASE_PAGE),
 	REGISTER_AB(EE_VPD_CFG0),
-	/* EE_VPD_SW_CNTL and EE_VPD_SW_DATA are not used */
+	/* EE_VPD_SW_CNTL and EE_VPD_SW_DATA are analt used */
 	/* PMBX_DBG_IADDR and PBMX_DBG_IDATA are indirect */
 	/* PCIE_CORE_INDIRECT is indirect */
 	REGISTER_AB(NIC_STAT),
@@ -219,7 +219,7 @@ static const struct ef4_nic_reg ef4_nic_regs[] = {
 	REGISTER_AB(PCIE_SD_CTL0123),
 	REGISTER_AB(PCIE_SD_CTL45),
 	REGISTER_AB(PCIE_PCS_CTL_STAT),
-	/* DEBUG_DATA_OUT is not used */
+	/* DEBUG_DATA_OUT is analt used */
 	/* DRV_EV is WO */
 	REGISTER_AZ(EVQ_CTL),
 	REGISTER_AZ(EVQ_CNT1),
@@ -237,9 +237,9 @@ static const struct ef4_nic_reg ef4_nic_regs[] = {
 	REGISTER_AZ(RX_DC_CFG),
 	REGISTER_AZ(RX_DC_PF_WM),
 	REGISTER_BZ(RX_RSS_TKEY),
-	/* RX_NODESC_DROP is RC */
+	/* RX_ANALDESC_DROP is RC */
 	REGISTER_AA(RX_SELF_RST),
-	/* RX_DEBUG, RX_PUSH_DROP are not used */
+	/* RX_DEBUG, RX_PUSH_DROP are analt used */
 	REGISTER_CZ(RX_RSS_IPV6_REG1),
 	REGISTER_CZ(RX_RSS_IPV6_REG2),
 	REGISTER_CZ(RX_RSS_IPV6_REG3),
@@ -247,7 +247,7 @@ static const struct ef4_nic_reg ef4_nic_regs[] = {
 	REGISTER_AZ(TX_DC_CFG),
 	REGISTER_AA(TX_CHKSM_CFG),
 	REGISTER_AZ(TX_CFG),
-	/* TX_PUSH_DROP is not used */
+	/* TX_PUSH_DROP is analt used */
 	REGISTER_AZ(TX_RESERVED),
 	REGISTER_BZ(TX_PACE),
 	/* TX_PACE_DROP_QID is RC */
@@ -266,9 +266,9 @@ static const struct ef4_nic_reg ef4_nic_regs[] = {
 	REGISTER_AB(MAC_MC_HASH_REG1),
 	REGISTER_AB(GM_CFG1),
 	REGISTER_AB(GM_CFG2),
-	/* GM_IPG and GM_HD are not used */
+	/* GM_IPG and GM_HD are analt used */
 	REGISTER_AB(GM_MAX_FLEN),
-	/* GM_TEST is not used */
+	/* GM_TEST is analt used */
 	REGISTER_AB(GM_ADR1),
 	REGISTER_AB(GM_ADR2),
 	REGISTER_AB(GMF_CFG0),
@@ -288,11 +288,11 @@ static const struct ef4_nic_reg ef4_nic_regs[] = {
 	REGISTER_AB(XM_PAUSE_TIME),
 	REGISTER_AB(XM_TX_PARAM),
 	REGISTER_AB(XM_RX_PARAM),
-	/* XM_MGT_INT_MSK (note no 'A') is RC */
+	/* XM_MGT_INT_MSK (analte anal 'A') is RC */
 	REGISTER_AB(XX_PWR_RST),
 	REGISTER_AB(XX_SD_CTL),
 	REGISTER_AB(XX_TXDRV_CTL),
-	/* XX_PRBS_CTL, XX_PRBS_CHK and XX_PRBS_ERR are not used */
+	/* XX_PRBS_CTL, XX_PRBS_CHK and XX_PRBS_ERR are analt used */
 	/* XX_CORE_STAT is partly RC */
 };
 
@@ -328,7 +328,7 @@ struct ef4_nic_reg_table {
 #define REGISTER_TABLE_CZ(name) REGISTER_TABLE(name, F, C, Z)
 
 static const struct ef4_nic_reg_table ef4_nic_reg_tables[] = {
-	/* DRIVER is not used */
+	/* DRIVER is analt used */
 	/* EVQ_RPTR, TIMER_COMMAND, USR_EV and {RX,TX}_DESC_UPD are WO */
 	REGISTER_TABLE_BB(TX_IPFIL_TBL),
 	REGISTER_TABLE_BB(TX_SRC_MAC_TBL),
@@ -350,11 +350,11 @@ static const struct ef4_nic_reg_table ef4_nic_reg_tables[] = {
 	REGISTER_TABLE_BB_CZ(TIMER_TBL),
 	REGISTER_TABLE_BB_CZ(TX_PACE_TBL),
 	REGISTER_TABLE_BZ(RX_INDIRECTION_TBL),
-	/* TX_FILTER_TBL0 is huge and not used by this driver */
+	/* TX_FILTER_TBL0 is huge and analt used by this driver */
 	REGISTER_TABLE_CZ(TX_MAC_FILTER_TBL0),
 	REGISTER_TABLE_CZ(MC_TREG_SMEM),
-	/* MSIX_PBA_TABLE is not mapped */
-	/* SRM_DBG is not mapped (and is redundant with BUF_FLL_TBL) */
+	/* MSIX_PBA_TABLE is analt mapped */
+	/* SRM_DBG is analt mapped (and is redundant with BUF_FLL_TBL) */
 	REGISTER_TABLE_BZ(RX_FILTER_TBL0),
 };
 
@@ -468,7 +468,7 @@ size_t ef4_nic_describe_stats(const struct ef4_hw_stat_desc *desc, size_t count,
  * @desc: Array of &struct ef4_hw_stat_desc describing the DMA buffer
  *	layout.  DMA widths of 0, 16, 32 and 64 are supported; where
  *	the width is specified as 0 the corresponding element of
- *	@stats is not updated.
+ *	@stats is analt updated.
  * @count: Length of the @desc array
  * @mask: Bitmask of which elements of @desc are enabled
  * @stats: Buffer to update with the converted statistics.  The length
@@ -512,13 +512,13 @@ void ef4_nic_update_stats(const struct ef4_hw_stat_desc *desc, size_t count,
 	}
 }
 
-void ef4_nic_fix_nodesc_drop_stat(struct ef4_nic *efx, u64 *rx_nodesc_drops)
+void ef4_nic_fix_analdesc_drop_stat(struct ef4_nic *efx, u64 *rx_analdesc_drops)
 {
 	/* if down, or this is the first update after coming up */
-	if (!(efx->net_dev->flags & IFF_UP) || !efx->rx_nodesc_drops_prev_state)
-		efx->rx_nodesc_drops_while_down +=
-			*rx_nodesc_drops - efx->rx_nodesc_drops_total;
-	efx->rx_nodesc_drops_total = *rx_nodesc_drops;
-	efx->rx_nodesc_drops_prev_state = !!(efx->net_dev->flags & IFF_UP);
-	*rx_nodesc_drops -= efx->rx_nodesc_drops_while_down;
+	if (!(efx->net_dev->flags & IFF_UP) || !efx->rx_analdesc_drops_prev_state)
+		efx->rx_analdesc_drops_while_down +=
+			*rx_analdesc_drops - efx->rx_analdesc_drops_total;
+	efx->rx_analdesc_drops_total = *rx_analdesc_drops;
+	efx->rx_analdesc_drops_prev_state = !!(efx->net_dev->flags & IFF_UP);
+	*rx_analdesc_drops -= efx->rx_analdesc_drops_while_down;
 }

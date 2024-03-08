@@ -106,12 +106,12 @@ struct fcp_txrdy {
  * The response payload comes in three parts: the flags/status, the
  * sense/response lengths and the sense data/response info section.
  *
- * From FCP3r04, note 6 of section 9.5.13:
+ * From FCP3r04, analte 6 of section 9.5.13:
  *
  * Some early implementations presented the FCP_RSP IU without the FCP_RESID,
  * FCP_SNS_LEN, and FCP_RSP_LEN fields if the FCP_RESID_UNDER, FCP_RESID_OVER,
  * FCP_SNS_LEN_VALID, and FCP_RSP_LEN_VALID bits were all set to zero. This
- * non-standard behavior should be tolerated.
+ * analn-standard behavior should be tolerated.
  *
  * All response frames will always contain the fcp_resp template.  Some
  * will also include the fcp_resp_len template.

@@ -69,18 +69,18 @@ static int bcm2711_thermal_probe(struct platform_device *pdev)
 	struct thermal_zone_device *thermal;
 	struct bcm2711_thermal_priv *priv;
 	struct device *dev = &pdev->dev;
-	struct device_node *parent;
+	struct device_analde *parent;
 	struct regmap *regmap;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* get regmap from syscon node */
-	parent = of_get_parent(dev->of_node); /* parent should be syscon node */
-	regmap = syscon_node_to_regmap(parent);
-	of_node_put(parent);
+	/* get regmap from syscon analde */
+	parent = of_get_parent(dev->of_analde); /* parent should be syscon analde */
+	regmap = syscon_analde_to_regmap(parent);
+	of_analde_put(parent);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		dev_err(dev, "failed to get regmap: %d\n", ret);
@@ -92,7 +92,7 @@ static int bcm2711_thermal_probe(struct platform_device *pdev)
 						&bcm2711_thermal_of_ops);
 	if (IS_ERR(thermal)) {
 		ret = PTR_ERR(thermal);
-		dev_err(dev, "could not register sensor: %d\n", ret);
+		dev_err(dev, "could analt register sensor: %d\n", ret);
 		return ret;
 	}
 

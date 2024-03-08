@@ -43,7 +43,7 @@ static void idt_irq_dispatch(struct irq_desc *desc)
 	chained_irq_exit(host_chip, desc);
 }
 
-static int idt_pic_init(struct device_node *of_node, struct device_node *parent)
+static int idt_pic_init(struct device_analde *of_analde, struct device_analde *parent)
 {
 	struct irq_domain *domain;
 	struct idt_pic_data *idtpic;
@@ -54,36 +54,36 @@ static int idt_pic_init(struct device_node *of_node, struct device_node *parent)
 
 	idtpic = kzalloc(sizeof(*idtpic), GFP_KERNEL);
 	if (!idtpic) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err;
 	}
 
-	parent_irq = irq_of_parse_and_map(of_node, 0);
+	parent_irq = irq_of_parse_and_map(of_analde, 0);
 	if (!parent_irq) {
 		pr_err("Failed to map parent IRQ!\n");
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	idtpic->base = of_iomap(of_node, 0);
+	idtpic->base = of_iomap(of_analde, 0);
 	if (!idtpic->base) {
 		pr_err("Failed to map base address!\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap_irq;
 	}
 
-	domain = irq_domain_add_linear(of_node, IDT_PIC_NR_IRQS,
+	domain = irq_domain_add_linear(of_analde, IDT_PIC_NR_IRQS,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
 		pr_err("Failed to add irqdomain!\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_iounmap;
 	}
 	idtpic->irq_domain = domain;
 
 	ret = irq_alloc_domain_generic_chips(domain, 32, 1, "IDTPIC",
 					     handle_level_irq, 0,
-					     IRQ_NOPROBE | IRQ_LEVEL, 0);
+					     IRQ_ANALPROBE | IRQ_LEVEL, 0);
 	if (ret)
 		goto out_domain_remove;
 
@@ -115,7 +115,7 @@ out_unmap_irq:
 out_free:
 	kfree(idtpic);
 out_err:
-	pr_err("Failed to initialize! (errno = %d)\n", ret);
+	pr_err("Failed to initialize! (erranal = %d)\n", ret);
 	return ret;
 }
 

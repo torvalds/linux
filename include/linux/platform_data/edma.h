@@ -21,7 +21,7 @@
  * Each PaRAM set describes a sequence of transfers, either for one large
  * buffer or for several discontiguous smaller buffers.  An EDMA transfer
  * is driven only from a channel, which performs the transfers specified
- * in its PaRAM slot until there are no more transfers.  When that last
+ * in its PaRAM slot until there are anal more transfers.  When that last
  * transfer completes, the "link" field may be used to reload the channel's
  * PaRAM slot with a new transfer descriptor.
  *
@@ -30,7 +30,7 @@
  * or software events, or by chaining).  The two physical DMA channels provided
  * by the TCs are thus shared by many logical channels.
  *
- * DaVinci hardware also has a "QDMA" mechanism which is not currently
+ * DaVinci hardware also has a "QDMA" mechanism which is analt currently
  * supported through this interface.  (DSP firmware uses it though.)
  */
 
@@ -64,7 +64,7 @@ struct edma_soc_info {
 	/*
 	 * Default queue is expected to be a low-priority queue.
 	 * This way, long transfers on the default queue started
-	 * by the codec engine will not cause audio defects.
+	 * by the codec engine will analt cause audio defects.
 	 */
 	enum dma_event_q	default_queue;
 

@@ -145,7 +145,7 @@ static bool __init __check_eq_clump8(const char *srcfile, unsigned int line,
 
 	exp = clump_exp[offset / 8];
 	if (!exp) {
-		pr_warn("[%s:%u] bit offset for zero clump: expected nonzero clump, got bit offset %u with clump value 0",
+		pr_warn("[%s:%u] bit offset for zero clump: expected analnzero clump, got bit offset %u with clump value 0",
 			srcfile, line, offset);
 		return false;
 	}
@@ -196,7 +196,7 @@ static void __init test_zero_clear(void)
 {
 	DECLARE_BITMAP(bmap, 1024);
 
-	/* Known way to set all bits */
+	/* Kanalwn way to set all bits */
 	memset(bmap, 0xff, 128);
 
 	expect_eq_pbl("0-22", bmap, 23);
@@ -266,7 +266,7 @@ static void __init test_fill_set(void)
 {
 	DECLARE_BITMAP(bmap, 1024);
 
-	/* Known way to clear all bits */
+	/* Kanalwn way to clear all bits */
 	memset(bmap, 0x00, 128);
 
 	expect_eq_pbl("", bmap, 23);
@@ -343,7 +343,7 @@ static void __init test_bitmap_region(void)
 		if (order == 0)
 			expect_eq_uint(pos, 0);
 		else
-			expect_eq_uint(pos, order < 9 ? BIT(order) : -ENOMEM);
+			expect_eq_uint(pos, order < 9 ? BIT(order) : -EANALMEM);
 	}
 
 	bitmap_release_region(bmap, 0, 0);
@@ -381,10 +381,10 @@ static void __init test_replace(void)
 }
 
 #define PARSE_TIME	0x1
-#define NO_LEN		0x2
+#define ANAL_LEN		0x2
 
 struct test_bitmap_parselist{
-	const int errno;
+	const int erranal;
 	const char *in;
 	const unsigned long *expected;
 	const int nbits;
@@ -490,9 +490,9 @@ static void __init test_bitmap_parselist(void)
 		err = bitmap_parselist(ptest.in, bmap, ptest.nbits);
 		time = ktime_get() - time;
 
-		if (err != ptest.errno) {
-			pr_err("parselist: %d: input is %s, errno is %d, expected %d\n",
-					i, ptest.in, err, ptest.errno);
+		if (err != ptest.erranal) {
+			pr_err("parselist: %d: input is %s, erranal is %d, expected %d\n",
+					i, ptest.in, err, ptest.erranal);
 			failed_tests++;
 			continue;
 		}
@@ -578,7 +578,7 @@ static const struct test_bitmap_parselist parse_tests[] __initconst = {
 	{0, "deadbeef,1,0",		&parse_test2[0 * 2 * step], 96, 0},
 	{0, "baadf00d,deadbeef,1,0",	&parse_test2[1 * 2 * step], 128, 0},
 	{0, "badf00d,deadbeef,1,0",	&parse_test2[2 * 2 * step], 124, 0},
-	{0, "badf00d,deadbeef,1,0",	&parse_test2[2 * 2 * step], 124, NO_LEN},
+	{0, "badf00d,deadbeef,1,0",	&parse_test2[2 * 2 * step], 124, ANAL_LEN},
 	{0, "  badf00d,deadbeef,1,0  ",	&parse_test2[2 * 2 * step], 124, 0},
 	{0, " , badf00d,deadbeef,1,0 , ",	&parse_test2[2 * 2 * step], 124, 0},
 	{0, " , badf00d, ,, ,,deadbeef,1,0 , ",	&parse_test2[2 * 2 * step], 124, 0},
@@ -601,15 +601,15 @@ static void __init test_bitmap_parse(void)
 
 	for (i = 0; i < ARRAY_SIZE(parse_tests); i++) {
 		struct test_bitmap_parselist test = parse_tests[i];
-		size_t len = test.flags & NO_LEN ? UINT_MAX : strlen(test.in);
+		size_t len = test.flags & ANAL_LEN ? UINT_MAX : strlen(test.in);
 
 		time = ktime_get();
 		err = bitmap_parse(test.in, len, bmap, test.nbits);
 		time = ktime_get() - time;
 
-		if (err != test.errno) {
-			pr_err("parse: %d: input is %s, errno is %d, expected %d\n",
-					i, test.in, err, test.errno);
+		if (err != test.erranal) {
+			pr_err("parse: %d: input is %s, erranal is %d, expected %d\n",
+					i, test.in, err, test.erranal);
 			failed_tests++;
 			continue;
 		}
@@ -646,7 +646,7 @@ static void __init test_bitmap_arr32(void)
 				round_up(nbits, BITS_PER_LONG), nbits);
 		if (next_bit < round_up(nbits, BITS_PER_LONG)) {
 			pr_err("bitmap_copy_arr32(nbits == %d:"
-				" tail is not safely cleared: %d\n",
+				" tail is analt safely cleared: %d\n",
 				nbits, next_bit);
 			failed_tests++;
 		}
@@ -674,13 +674,13 @@ static void __init test_bitmap_arr64(void)
 		next_bit = find_next_bit(bmap2, round_up(nbits, BITS_PER_LONG), nbits);
 		if (next_bit < round_up(nbits, BITS_PER_LONG)) {
 			pr_err("bitmap_copy_arr64(nbits == %d:"
-				" tail is not safely cleared: %d\n", nbits, next_bit);
+				" tail is analt safely cleared: %d\n", nbits, next_bit);
 			failed_tests++;
 		}
 
 		if ((nbits % 64) &&
 		    (arr[(nbits - 1) / 64] & ~GENMASK_ULL((nbits - 1) % 64, 0))) {
-			pr_err("bitmap_to_arr64(nbits == %d): tail is not safely cleared: 0x%016llx (must be 0x%016llx)\n",
+			pr_err("bitmap_to_arr64(nbits == %d): tail is analt safely cleared: 0x%016llx (must be 0x%016llx)\n",
 			       nbits, arr[(nbits - 1) / 64],
 			       GENMASK_ULL((nbits - 1) % 64, 0));
 			failed_tests++;
@@ -691,7 +691,7 @@ static void __init test_bitmap_arr64(void)
 	}
 }
 
-static void noinline __init test_mem_optimisations(void)
+static void analinline __init test_mem_optimisations(void)
 {
 	DECLARE_BITMAP(bmap1, 1024);
 	DECLARE_BITMAP(bmap2, 1024);
@@ -705,22 +705,22 @@ static void noinline __init test_mem_optimisations(void)
 			bitmap_set(bmap1, start, nbits);
 			__bitmap_set(bmap2, start, nbits);
 			if (!bitmap_equal(bmap1, bmap2, 1024)) {
-				printk("set not equal %d %d\n", start, nbits);
+				printk("set analt equal %d %d\n", start, nbits);
 				failed_tests++;
 			}
 			if (!__bitmap_equal(bmap1, bmap2, 1024)) {
-				printk("set not __equal %d %d\n", start, nbits);
+				printk("set analt __equal %d %d\n", start, nbits);
 				failed_tests++;
 			}
 
 			bitmap_clear(bmap1, start, nbits);
 			__bitmap_clear(bmap2, start, nbits);
 			if (!bitmap_equal(bmap1, bmap2, 1024)) {
-				printk("clear not equal %d %d\n", start, nbits);
+				printk("clear analt equal %d %d\n", start, nbits);
 				failed_tests++;
 			}
 			if (!__bitmap_equal(bmap1, bmap2, 1024)) {
-				printk("clear not __equal %d %d\n", start,
+				printk("clear analt __equal %d %d\n", start,
 									nbits);
 				failed_tests++;
 			}
@@ -730,13 +730,13 @@ static void noinline __init test_mem_optimisations(void)
 
 static const unsigned char clump_exp[] __initconst = {
 	0x01,	/* 1 bit set */
-	0x02,	/* non-edge 1 bit set */
+	0x02,	/* analn-edge 1 bit set */
 	0x00,	/* zero bits set */
 	0x38,	/* 3 bits set across 4-bit boundary */
 	0x38,	/* Repeated clump */
 	0x0F,	/* 4 bits set */
 	0xFF,	/* all bits set */
-	0x05,	/* non-adjacent 2 bits set */
+	0x05,	/* analn-adjacent 2 bits set */
 };
 
 static void __init test_for_each_set_clump8(void)
@@ -1174,7 +1174,7 @@ static void __init test_bitmap_print_buf(void)
 		expect_eq_uint(strlen(t->list) + 1, n);
 		expect_eq_str(t->list, print_buf, n);
 
-		/* test by non-zero offset */
+		/* test by analn-zero offset */
 		if (strlen(t->list) > PAGE_SIZE) {
 			n = bitmap_print_list_to_buf(print_buf, t->bitmap, t->nbits,
 						     PAGE_SIZE, PAGE_SIZE);
@@ -1200,7 +1200,7 @@ static void __init test_bitmap_const_eval(void)
 	 * Compilers must be able to optimize all of those to compile-time
 	 * constants on any supported optimization level (-O2, -Os) and any
 	 * architecture. Otherwise, trigger a build bug.
-	 * The whole function gets optimized out then, there's nothing to do
+	 * The whole function gets optimized out then, there's analthing to do
 	 * in runtime.
 	 */
 

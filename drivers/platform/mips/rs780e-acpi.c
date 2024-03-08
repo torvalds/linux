@@ -102,7 +102,7 @@ static void acpi_registers_setup(void)
 	/* Set GPM9 as input */
 	pm_iowrite(0x8d, pm_ioread(0x8d) & (~(1 << 1)));
 
-	/* Set GPM9 as non-output */
+	/* Set GPM9 as analn-output */
 	pm_iowrite(0x94, pm_ioread(0x94) | (1 << 3));
 
 	/* GPM3 config ACPI trigger SCIOUT */
@@ -114,7 +114,7 @@ static void acpi_registers_setup(void)
 	/* GPM3 config falling edge trigger */
 	pm_iowrite(0x37, pm_ioread(0x37) & (~(1 << 6)));
 
-	/* No wait for STPGNT# in ACPI Sx state */
+	/* Anal wait for STPGNT# in ACPI Sx state */
 	pm_iowrite(0x7c, pm_ioread(0x7c) | (1 << 6));
 
 	/* Set GPM3 pull-down enable */
@@ -134,7 +134,7 @@ static int rs780e_acpi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* SCI interrupt need acpi space, allocate here */
 	if (!request_region(res->start, resource_size(res), "acpi")) {

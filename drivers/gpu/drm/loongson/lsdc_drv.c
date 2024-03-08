@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/pci.h>
@@ -27,7 +27,7 @@
 #define DRIVER_DESC                 "drm driver for loongson graphics"
 #define DRIVER_DATE                 "20220701"
 #define DRIVER_MAJOR                1
-#define DRIVER_MINOR                0
+#define DRIVER_MIANALR                0
 #define DRIVER_PATCHLEVEL           0
 
 DEFINE_DRM_GEM_FOPS(lsdc_gem_fops);
@@ -40,7 +40,7 @@ static const struct drm_driver lsdc_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
 	.debugfs_init = lsdc_debugfs_init,
@@ -150,7 +150,7 @@ static int lsdc_mode_config_init(struct drm_device *ddev,
 
 /*
  * The GPU and display controller in the LS7A1000/LS7A2000/LS2K2000 are
- * separated PCIE devices. They are two devices, not one. Bar 2 of the GPU
+ * separated PCIE devices. They are two devices, analt one. Bar 2 of the GPU
  * device contains the base address and size of the VRAM, both the GPU and
  * the DC could access the on-board VRAM.
  */
@@ -170,8 +170,8 @@ static int lsdc_get_dedicated_vram(struct lsdc_device *ldev,
 					       pdev_dc->bus->number,
 					       PCI_DEVFN(6, 0));
 	if (!pdev_gpu) {
-		drm_err(ddev, "No GPU device, then no VRAM\n");
-		return -ENODEV;
+		drm_err(ddev, "Anal GPU device, then anal VRAM\n");
+		return -EANALDEV;
 	}
 
 	base = pci_resource_start(pdev_gpu, 2);
@@ -232,7 +232,7 @@ lsdc_create_device(struct pci_dev *pdev,
 	/* Bar 0 of the DC device contains the MMIO register's base address */
 	ldev->reg_base = pcim_iomap(pdev, 0, 0);
 	if (!ldev->reg_base)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	spin_lock_init(&ldev->reglock);
 
@@ -254,7 +254,7 @@ lsdc_create_device(struct pci_dev *pdev,
 
 static unsigned int lsdc_vga_set_decode(struct pci_dev *pdev, bool state)
 {
-	return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+	return VGA_RSRC_ANALRMAL_IO | VGA_RSRC_ANALRMAL_MEM;
 }
 
 static int lsdc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -266,7 +266,7 @@ static int lsdc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	descp = lsdc_device_probe(pdev, ent->driver_data);
 	if (IS_ERR_OR_NULL(descp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pci_set_master(pdev);
 

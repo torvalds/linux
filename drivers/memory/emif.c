@@ -38,7 +38,7 @@
  *				are two devices attached to this EMIF, this
  *				value is the maximum of the two temperature
  *				levels.
- * @node:			node in the device list
+ * @analde:			analde in the device list
  * @base:			base address of memory-mapped IO registers.
  * @dev:			device pointer.
  * @regs_cache:			An array of 'struct emif_regs' that stores
@@ -50,13 +50,13 @@
  *				frequency in effect at the moment)
  * @plat_data:			Pointer to saved platform data.
  * @debugfs_root:		dentry to the root folder for EMIF in debugfs
- * @np_ddr:			Pointer to ddr device tree node
+ * @np_ddr:			Pointer to ddr device tree analde
  */
 struct emif_data {
 	u8				duplicate;
 	u8				temperature_level;
 	u8				lpmode;
-	struct list_head		node;
+	struct list_head		analde;
 	unsigned long			irq_state;
 	void __iomem			*base;
 	struct device			*dev;
@@ -64,7 +64,7 @@ struct emif_data {
 	struct emif_regs		*curr_regs;
 	struct emif_platform_data	*plat_data;
 	struct dentry			*debugfs_root;
-	struct device_node		*np_ddr;
+	struct device_analde		*np_ddr;
 };
 
 static struct emif_data *emif1;
@@ -88,13 +88,13 @@ static void do_emif_regdump_show(struct seq_file *s, struct emif_data *emif,
 	seq_printf(s, "sdram_tim3_shdw\t: 0x%08x\n", regs->sdram_tim3_shdw);
 
 	if (ip_rev == EMIF_4D) {
-		seq_printf(s, "read_idle_ctrl_shdw_normal\t: 0x%08x\n",
-			regs->read_idle_ctrl_shdw_normal);
+		seq_printf(s, "read_idle_ctrl_shdw_analrmal\t: 0x%08x\n",
+			regs->read_idle_ctrl_shdw_analrmal);
 		seq_printf(s, "read_idle_ctrl_shdw_volt_ramp\t: 0x%08x\n",
 			regs->read_idle_ctrl_shdw_volt_ramp);
 	} else if (ip_rev == EMIF_4D5) {
-		seq_printf(s, "dll_calib_ctrl_shdw_normal\t: 0x%08x\n",
-			regs->dll_calib_ctrl_shdw_normal);
+		seq_printf(s, "dll_calib_ctrl_shdw_analrmal\t: 0x%08x\n",
+			regs->dll_calib_ctrl_shdw_analrmal);
 		seq_printf(s, "dll_calib_ctrl_shdw_volt_ramp\t: 0x%08x\n",
 			regs->dll_calib_ctrl_shdw_volt_ramp);
 	}
@@ -167,7 +167,7 @@ static inline void __exit emif_debugfs_exit(struct emif_data *emif)
 #endif
 
 /*
- * Get bus width used by EMIF. Note that this may be different from the
+ * Get bus width used by EMIF. Analte that this may be different from the
  * bus width of the DDR devices used. For instance two 16-bit DDR devices
  * may be connected to a given CS of EMIF. In this case bus width as far
  * as EMIF is concerned is 32, where as the DDR bus width is 16 bits.
@@ -190,19 +190,19 @@ static void set_lpmode(struct emif_data *emif, u8 lpmode)
 	void __iomem *base = emif->base;
 
 	/*
-	 * Workaround for errata i743 - LPDDR2 Power-Down State is Not
+	 * Workaround for errata i743 - LPDDR2 Power-Down State is Analt
 	 * Efficient
 	 *
 	 * i743 DESCRIPTION:
 	 * The EMIF supports power-down state for low power. The EMIF
 	 * automatically puts the SDRAM into power-down after the memory is
-	 * not accessed for a defined number of cycles and the
+	 * analt accessed for a defined number of cycles and the
 	 * EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field is set to 0x4.
 	 * As the EMIF supports automatic output impedance calibration, a ZQ
 	 * calibration long command is issued every time it exits active
 	 * power-down and precharge power-down modes. The EMIF waits and
 	 * blocks any other command during this calibration.
-	 * The EMIF does not allow selective disabling of ZQ calibration upon
+	 * The EMIF does analt allow selective disabling of ZQ calibration upon
 	 * exit of power-down mode. Due to very short periods of power-down
 	 * cycles, ZQ calibration overhead creates bandwidth issues and
 	 * increases overall system power consumption. On the other hand,
@@ -210,9 +210,9 @@ static void set_lpmode(struct emif_data *emif, u8 lpmode)
 	 * still required.
 	 *
 	 * WORKAROUND
-	 * Because there is no power consumption benefit of the power-down due
+	 * Because there is anal power consumption benefit of the power-down due
 	 * to the calibration and there is a performance risk, the guideline
-	 * is to not allow power-down state and, therefore, to not have set
+	 * is to analt allow power-down state and, therefore, to analt have set
 	 * the EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field to 0x4.
 	 */
 	if ((emif->plat_data->ip_rev == EMIF_4D) &&
@@ -238,7 +238,7 @@ static void do_freq_update(void)
 	 *
 	 * i728 DESCRIPTION:
 	 * The EMIF automatically puts the SDRAM into self-refresh mode
-	 * after the EMIF has not performed accesses during
+	 * after the EMIF has analt performed accesses during
 	 * EMIF_PWR_MGMT_CTRL[7:4] REG_SR_TIM number of DDR clock cycles
 	 * and the EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field is set
 	 * to 0x2. If during a small window the following three events
@@ -256,7 +256,7 @@ static void do_freq_update(void)
 	 * frequency change has been done, the software can reprogram
 	 * EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE to 0x2
 	 */
-	list_for_each_entry(emif, &device_list, node) {
+	list_for_each_entry(emif, &device_list, analde) {
 		if (emif->lpmode == EMIF_LP_MODE_SELF_REFRESH)
 			set_lpmode(emif, EMIF_LP_MODE_DISABLE);
 	}
@@ -267,7 +267,7 @@ static void do_freq_update(void)
 	 * clock framework
 	 */
 
-	list_for_each_entry(emif, &device_list, node) {
+	list_for_each_entry(emif, &device_list, analde) {
 		if (emif->lpmode == EMIF_LP_MODE_SELF_REFRESH)
 			set_lpmode(emif, EMIF_LP_MODE_SELF_REFRESH);
 	}
@@ -392,7 +392,7 @@ static u32 get_pwr_mgmt_ctrl(u32 freq, struct emif_data *emif, u32 ip_rev)
 	/*
 	 * The value to be set in register is "log2(timeout) - 3"
 	 * if timeout < 16 load 0 in register
-	 * if timeout is not a power of 2, round to next highest power of 2
+	 * if timeout is analt a power of 2, round to next highest power of 2
 	 */
 	if (timeout < 16) {
 		timeout = 0;
@@ -443,7 +443,7 @@ static u32 get_pwr_mgmt_ctrl(u32 freq, struct emif_data *emif, u32 ip_rev)
 	pwr_mgmt_ctrl |= (SR_TIM_MASK | CS_TIM_MASK | PD_TIM_MASK) &
 			  ~mask;
 
-	/* No CS_TIM in EMIF_4D5 */
+	/* Anal CS_TIM in EMIF_4D5 */
 	if (ip_rev == EMIF_4D5)
 		pwr_mgmt_ctrl &= ~CS_TIM_MASK;
 
@@ -479,9 +479,9 @@ static void get_temperature_level(struct emif_data *emif)
 		temperature_level = max(temp, temperature_level);
 	}
 
-	/* treat everything less than nominal(3) in MR4 as nominal */
-	if (unlikely(temperature_level < SDRAM_TEMP_NOMINAL))
-		temperature_level = SDRAM_TEMP_NOMINAL;
+	/* treat everything less than analminal(3) in MR4 as analminal */
+	if (unlikely(temperature_level < SDRAM_TEMP_ANALMINAL))
+		temperature_level = SDRAM_TEMP_ANALMINAL;
 
 	/* if we get reserved value in MR4 persist with the existing value */
 	if (likely(temperature_level != SDRAM_TEMP_RESERVED_4))
@@ -494,7 +494,7 @@ static void get_temperature_level(struct emif_data *emif)
  * on the temperature at boot time and subsequently based on the temperature
  * alert interrupt. Temperature alert can happen when the temperature
  * increases or drops. So this function can have the effect of either
- * derating the timings or going back to nominal values.
+ * derating the timings or going back to analminal values.
  */
 static void setup_temperature_sensitive_regs(struct emif_data *emif,
 		struct emif_regs *regs)
@@ -509,7 +509,7 @@ static void setup_temperature_sensitive_regs(struct emif_data *emif,
 	tim3 = regs->sdram_tim3_shdw;
 	ref_ctrl = regs->ref_ctrl_shdw;
 
-	/* No de-rating for non-lpddr2 devices */
+	/* Anal de-rating for analn-lpddr2 devices */
 	if (type != DDR_TYPE_LPDDR2_S2 && type != DDR_TYPE_LPDDR2_S4)
 		goto out;
 
@@ -541,21 +541,21 @@ static irqreturn_t handle_temp_alert(void __iomem *base, struct emif_data *emif)
 	if (unlikely(emif->temperature_level == old_temp_level)) {
 		goto out;
 	} else if (!emif->curr_regs) {
-		dev_err(emif->dev, "temperature alert before registers are calculated, not de-rating timings\n");
+		dev_err(emif->dev, "temperature alert before registers are calculated, analt de-rating timings\n");
 		goto out;
 	}
 
 	custom_configs = emif->plat_data->custom_configs;
 
 	/*
-	 * IF we detect higher than "nominal rating" from DDR sensor
+	 * IF we detect higher than "analminal rating" from DDR sensor
 	 * on an unsupported DDR part, shutdown system
 	 */
 	if (custom_configs && !(custom_configs->mask &
 				EMIF_CUSTOM_CONFIG_EXTENDED_TEMP_PART)) {
 		if (emif->temperature_level >= SDRAM_TEMP_HIGH_DERATE_REFRESH) {
 			dev_err(emif->dev,
-				"%s:NOT Extended temperature capable memory. Converting MR4=0x%02x as shutdown event\n",
+				"%s:ANALT Extended temperature capable memory. Converting MR4=0x%02x as shutdown event\n",
 				__func__, emif->temperature_level);
 			/*
 			 * Temperature far too high - do kernel_power_off()
@@ -601,7 +601,7 @@ static irqreturn_t emif_interrupt_handler(int irq, void *dev_id)
 	/*
 	 * Handle temperature alert
 	 * Temperature alert should be same for all ports
-	 * So, it's enough to process it only for one of the ports
+	 * So, it's eanalugh to process it only for one of the ports
 	 */
 	if (interrupts & TA_SYS_MASK)
 		ret = handle_temp_alert(base, emif);
@@ -633,7 +633,7 @@ static irqreturn_t emif_threaded_isr(int irq, void *dev_id)
 		if (kernel_can_power_off()) {
 			kernel_power_off();
 		} else {
-			WARN(1, "FIXME: NO pm_power_off!!! trying restart\n");
+			WARN(1, "FIXME: ANAL pm_power_off!!! trying restart\n");
 			kernel_restart("SDRAM Over-temp Emergency restart");
 		}
 		return IRQ_HANDLED;
@@ -645,7 +645,7 @@ static irqreturn_t emif_threaded_isr(int irq, void *dev_id)
 		setup_temperature_sensitive_regs(emif, emif->curr_regs);
 		do_freq_update();
 	} else {
-		dev_err(emif->dev, "temperature alert before registers are calculated, not de-rating timings\n");
+		dev_err(emif->dev, "temperature alert before registers are calculated, analt de-rating timings\n");
 	}
 
 	spin_unlock_irqrestore(&emif_lock, irq_state);
@@ -696,7 +696,7 @@ static int __init_or_module setup_interrupts(struct emif_data *emif, u32 irq)
 
 	/* Enable interrupts for LL interface */
 	if (emif->plat_data->hw_caps & EMIF_HW_CAPS_LL_INTERFACE) {
-		/* TA need not be enabled for LL */
+		/* TA need analt be enabled for LL */
 		interrupts = EN_ERR_LL_MASK;
 		writel(interrupts, base + EMIF_LL_OCP_INTERRUPT_ENABLE_SET);
 	}
@@ -722,7 +722,7 @@ static void __init_or_module emif_onetime_settings(struct emif_data *emif)
 
 	/*
 	 * Init power management settings
-	 * We don't know the frequency yet. Use a high frequency
+	 * We don't kanalw the frequency yet. Use a high frequency
 	 * value for a conservative timeout setting
 	 */
 	pwr_mgmt_ctrl = get_pwr_mgmt_ctrl(1000000000, emif,
@@ -747,7 +747,7 @@ static void __init_or_module emif_onetime_settings(struct emif_data *emif)
 	writel(temp_alert_cfg, base + EMIF_TEMPERATURE_ALERT_CONFIG);
 
 	/*
-	 * Program external PHY control registers that are not frequency
+	 * Program external PHY control registers that are analt frequency
 	 * dependent
 	 */
 	if (emif->plat_data->phy_type != EMIF_PHY_TYPE_INTELLIPHY)
@@ -835,7 +835,7 @@ static int is_custom_config_valid(struct emif_custom_configs *cust_cfgs,
 }
 
 #if defined(CONFIG_OF)
-static void __init_or_module of_get_custom_configs(struct device_node *np_emif,
+static void __init_or_module of_get_custom_configs(struct device_analde *np_emif,
 		struct emif_data *emif)
 {
 	struct emif_custom_configs	*cust_cfgs = NULL;
@@ -884,8 +884,8 @@ static void __init_or_module of_get_custom_configs(struct device_node *np_emif,
 	emif->plat_data->custom_configs = cust_cfgs;
 }
 
-static void __init_or_module of_get_ddr_info(struct device_node *np_emif,
-		struct device_node *np_ddr,
+static void __init_or_module of_get_ddr_info(struct device_analde *np_emif,
+		struct device_analde *np_ddr,
 		struct ddr_device_info *dev_info)
 {
 	u32 density = 0, io_width = 0;
@@ -919,12 +919,12 @@ static void __init_or_module of_get_ddr_info(struct device_node *np_emif,
 }
 
 static struct emif_data * __init_or_module of_get_memory_device_details(
-		struct device_node *np_emif, struct device *dev)
+		struct device_analde *np_emif, struct device *dev)
 {
 	struct emif_data		*emif = NULL;
 	struct ddr_device_info		*dev_info = NULL;
 	struct emif_platform_data	*pd = NULL;
-	struct device_node		*np_ddr;
+	struct device_analde		*np_ddr;
 	int				len;
 
 	np_ddr = of_parse_phandle(np_emif, "device-handle", 0);
@@ -944,7 +944,7 @@ static struct emif_data * __init_or_module of_get_memory_device_details(
 	pd->device_info		= dev_info;
 	emif->dev		= dev;
 	emif->np_ddr		= np_ddr;
-	emif->temperature_level	= SDRAM_TEMP_NOMINAL;
+	emif->temperature_level	= SDRAM_TEMP_ANALMINAL;
 
 	if (of_device_is_compatible(np_emif, "ti,emif-4d"))
 		emif->plat_data->ip_rev = EMIF_4D;
@@ -973,7 +973,7 @@ static struct emif_data * __init_or_module of_get_memory_device_details(
 		emif->duplicate = true;
 		goto out;
 	} else if (emif1) {
-		dev_warn(emif->dev, "%s: Non-symmetric DDR geometry\n",
+		dev_warn(emif->dev, "%s: Analn-symmetric DDR geometry\n",
 			__func__);
 	}
 
@@ -994,7 +994,7 @@ out:
 #else
 
 static struct emif_data * __init_or_module of_get_memory_device_details(
-		struct device_node *np_emif, struct device *dev)
+		struct device_analde *np_emif, struct device *dev)
 {
 	return NULL;
 }
@@ -1035,7 +1035,7 @@ static struct emif_data *__init_or_module get_device_details(
 	pd->device_info		= dev_info;
 	emif->plat_data		= pd;
 	emif->dev		= dev;
-	emif->temperature_level	= SDRAM_TEMP_NOMINAL;
+	emif->temperature_level	= SDRAM_TEMP_ANALMINAL;
 
 	/*
 	 * For EMIF instances other than EMIF1 see if the devices connected
@@ -1052,13 +1052,13 @@ static struct emif_data *__init_or_module get_device_details(
 		pd->min_tck = NULL;
 		goto out;
 	} else if (emif1) {
-		dev_warn(emif->dev, "%s: Non-symmetric DDR geometry\n",
+		dev_warn(emif->dev, "%s: Analn-symmetric DDR geometry\n",
 			__func__);
 	}
 
 	/*
-	 * Copy custom configs - ignore allocation error, if any, as
-	 * custom_configs is not very critical
+	 * Copy custom configs - iganalre allocation error, if any, as
+	 * custom_configs is analt very critical
 	 */
 	cust_cfgs = pd->custom_configs;
 	if (cust_cfgs && is_custom_config_valid(cust_cfgs, dev)) {
@@ -1069,7 +1069,7 @@ static struct emif_data *__init_or_module get_device_details(
 	}
 
 	/*
-	 * Copy timings and min-tck values from platform data. If it is not
+	 * Copy timings and min-tck values from platform data. If it is analt
 	 * available or if memory allocation fails, use JEDEC defaults
 	 */
 	size = sizeof(struct lpddr2_timings) * pd->timings_arr_size;
@@ -1109,8 +1109,8 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 	struct emif_data	*emif;
 	int			irq, ret;
 
-	if (pdev->dev.of_node)
-		emif = of_get_memory_device_details(pdev->dev.of_node, &pdev->dev);
+	if (pdev->dev.of_analde)
+		emif = of_get_memory_device_details(pdev->dev.of_analde, &pdev->dev);
 	else
 		emif = get_device_details(pdev);
 
@@ -1119,7 +1119,7 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	list_add(&emif->node, &device_list);
+	list_add(&emif->analde, &device_list);
 
 	/* Save pointers to each other in emif and device structures */
 	emif->dev = &pdev->dev;
@@ -1145,7 +1145,7 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 		emif1 = emif;
 
 		/*
-		 * TODO: register notifiers for frequency and voltage
+		 * TODO: register analtifiers for frequency and voltage
 		 * change here once the respective frameworks are
 		 * available
 		 */
@@ -1156,7 +1156,7 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 
 	return 0;
 error:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit emif_remove(struct platform_device *pdev)

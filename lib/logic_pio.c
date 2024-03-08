@@ -28,7 +28,7 @@ static DEFINE_MUTEX(io_range_mutex);
  * If the range already exists, -EEXIST will be returned, which should be
  * considered a success.
  *
- * Register a new IO range node in the IO range list.
+ * Register a new IO range analde in the IO range list.
  */
 int logic_pio_register_range(struct logic_pio_hwaddr *new_range)
 {
@@ -39,7 +39,7 @@ int logic_pio_register_range(struct logic_pio_hwaddr *new_range)
 	resource_size_t iio_sz = MMIO_UPPER_LIMIT;
 	int ret = 0;
 
-	if (!new_range || !new_range->fwnode || !new_range->size ||
+	if (!new_range || !new_range->fwanalde || !new_range->size ||
 	    (new_range->flags == LOGIC_PIO_INDIRECT && !new_range->ops))
 		return -EINVAL;
 
@@ -48,7 +48,7 @@ int logic_pio_register_range(struct logic_pio_hwaddr *new_range)
 
 	mutex_lock(&io_range_mutex);
 	list_for_each_entry(range, &io_range_list, list) {
-		if (range->fwnode == new_range->fwnode) {
+		if (range->fwanalde == new_range->fwanalde) {
 			/* range already there */
 			ret = -EEXIST;
 			goto end_register;
@@ -69,7 +69,7 @@ int logic_pio_register_range(struct logic_pio_hwaddr *new_range)
 		}
 	}
 
-	/* range not registered yet, check for available space */
+	/* range analt registered yet, check for available space */
 	if (new_range->flags == LOGIC_PIO_CPU_MMIO) {
 		if (mmio_end + new_range->size - 1 > MMIO_UPPER_LIMIT) {
 			/* if it's too big check if 64K space can be reserved */
@@ -104,7 +104,7 @@ end_register:
  * logic_pio_unregister_range - unregister a logical PIO range for a host
  * @range: pointer to the IO range which has been already registered.
  *
- * Unregister a previously-registered IO range node.
+ * Unregister a previously-registered IO range analde.
  */
 void logic_pio_unregister_range(struct logic_pio_hwaddr *range)
 {
@@ -115,20 +115,20 @@ void logic_pio_unregister_range(struct logic_pio_hwaddr *range)
 }
 
 /**
- * find_io_range_by_fwnode - find logical PIO range for given FW node
- * @fwnode: FW node handle associated with logical PIO range
+ * find_io_range_by_fwanalde - find logical PIO range for given FW analde
+ * @fwanalde: FW analde handle associated with logical PIO range
  *
- * Returns pointer to node on success, NULL otherwise.
+ * Returns pointer to analde on success, NULL otherwise.
  *
- * Traverse the io_range_list to find the registered node for @fwnode.
+ * Traverse the io_range_list to find the registered analde for @fwanalde.
  */
-struct logic_pio_hwaddr *find_io_range_by_fwnode(struct fwnode_handle *fwnode)
+struct logic_pio_hwaddr *find_io_range_by_fwanalde(struct fwanalde_handle *fwanalde)
 {
 	struct logic_pio_hwaddr *range, *found_range = NULL;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(range, &io_range_list, list) {
-		if (range->fwnode == fwnode) {
+		if (range->fwanalde == fwanalde) {
 			found_range = range;
 			break;
 		}
@@ -180,24 +180,24 @@ resource_size_t logic_pio_to_hwaddr(unsigned long pio)
 
 /**
  * logic_pio_trans_hwaddr - translate HW address to logical PIO
- * @fwnode: FW node reference for the host
+ * @fwanalde: FW analde reference for the host
  * @addr: Host-relative HW address
  * @size: size to translate
  *
  * Returns Logical PIO value if successful, ~0UL otherwise
  */
-unsigned long logic_pio_trans_hwaddr(struct fwnode_handle *fwnode,
+unsigned long logic_pio_trans_hwaddr(struct fwanalde_handle *fwanalde,
 				     resource_size_t addr, resource_size_t size)
 {
 	struct logic_pio_hwaddr *range;
 
-	range = find_io_range_by_fwnode(fwnode);
+	range = find_io_range_by_fwanalde(fwanalde);
 	if (!range || range->flags == LOGIC_PIO_CPU_MMIO) {
-		pr_err("IO range not found or invalid\n");
+		pr_err("IO range analt found or invalid\n");
 		return ~0UL;
 	}
 	if (range->size < size) {
-		pr_err("resource size %pa cannot fit in IO range size %pa\n",
+		pr_err("resource size %pa cananalt fit in IO range size %pa\n",
 		       &size, &range->size);
 		return ~0UL;
 	}
@@ -223,7 +223,7 @@ unsigned long logic_pio_trans_cpuaddr(resource_size_t addr)
 	}
 	rcu_read_unlock();
 
-	pr_err("addr %pa not registered in io_range_list\n", &addr);
+	pr_err("addr %pa analt registered in io_range_list\n", &addr);
 
 	return ~0UL;
 }

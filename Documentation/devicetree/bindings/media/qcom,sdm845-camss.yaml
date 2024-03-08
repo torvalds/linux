@@ -23,7 +23,7 @@ properties:
 
   clock-names:
     items:
-      - const: camnoc_axi
+      - const: camanalc_axi
       - const: cpas_ahb
       - const: cphy_rx_src
       - const: csi0
@@ -222,7 +222,7 @@ examples:
       camss: camss@acb3000 {
         compatible = "qcom,sdm845-camss";
 
-        clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,
+        clocks = <&clock_camcc CAM_CC_CAMANALC_AXI_CLK>,
           <&clock_camcc CAM_CC_CPAS_AHB_CLK>,
           <&clock_camcc CAM_CC_CPHY_RX_CLK_SRC>,
           <&clock_camcc CAM_CC_IFE_0_CSID_CLK>,
@@ -259,7 +259,7 @@ examples:
           <&clock_camcc CAM_CC_IFE_LITE_CPHY_RX_CLK>,
           <&clock_camcc CAM_CC_IFE_LITE_CLK_SRC>;
 
-        clock-names = "camnoc_axi",
+        clock-names = "camanalc_axi",
           "cpas_ahb",
           "cphy_rx_src",
           "csi0",

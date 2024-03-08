@@ -200,9 +200,9 @@ enum wpan_phy_flags {
 struct wpan_phy {
 	/* If multiple wpan_phys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee802154_ptr, you won't
-	 * know whether it points to a wpan_phy your driver has registered
-	 * or not. Assign this to something global to your driver to
-	 * help determine whether you own this wpan_phy or not.
+	 * kanalw whether it points to a wpan_phy your driver has registered
+	 * or analt. Assign this to something global to your driver to
+	 * help determine whether you own this wpan_phy or analt.
 	 */
 	const void *privid;
 
@@ -210,7 +210,7 @@ struct wpan_phy {
 
 	/*
 	 * This is a PIB according to 802.15.4-2011.
-	 * We do not provide timing-related variables, as they
+	 * We do analt provide timing-related variables, as they
 	 * aren't used outside of driver
 	 */
 	u8 current_channel;
@@ -245,7 +245,7 @@ struct wpan_phy {
 	wait_queue_head_t sync_txq;
 
 	/* Current filtering level on reception.
-	 * Only allowed to be changed if phy is not operational.
+	 * Only allowed to be changed if phy is analt operational.
 	 */
 	enum ieee802154_filtering_level filtering;
 
@@ -276,7 +276,7 @@ static inline bool ieee802154_chan_is_valid(struct wpan_phy *phy,
 /**
  * struct ieee802154_addr - IEEE802.15.4 device address
  * @mode: Address mode from frame header. Can be one of:
- *        - @IEEE802154_ADDR_NONE
+ *        - @IEEE802154_ADDR_ANALNE
  *        - @IEEE802154_ADDR_SHORT
  *        - @IEEE802154_ADDR_LONG
  * @pan_id: The PAN ID this address belongs to
@@ -316,14 +316,14 @@ struct ieee802154_coord_desc {
  * @mode: the preferred mode to reach the device
  * @short_addr: the short address of this device
  * @extended_addr: the extended address of this device
- * @node: the list node
+ * @analde: the list analde
  */
 struct ieee802154_pan_device {
 	__le16 pan_id;
 	u8 mode;
 	__le16 short_addr;
 	__le64 extended_addr;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
@@ -366,14 +366,14 @@ struct cfg802154_beacon_request {
 
 /**
  * struct cfg802154_mac_pkt - MAC packet descriptor (beacon/command)
- * @node: MAC packets to process list member
+ * @analde: MAC packets to process list member
  * @skb: the received sk_buff
  * @sdata: the interface on which @skb was received
  * @page: page configuration when @skb was received
  * @channel: channel configuration when @skb was received
  */
 struct cfg802154_mac_pkt {
-	struct list_head node;
+	struct list_head analde;
 	struct sk_buff *skb;
 	struct ieee802154_sub_if_data *sdata;
 	u8 page;
@@ -499,7 +499,7 @@ struct wpan_dev {
 
 	bool lbt;
 
-	/* fallback for acknowledgment bit setting */
+	/* fallback for ackanalwledgment bit setting */
 	bool ackreq;
 
 	/* Associations */
@@ -595,7 +595,7 @@ unsigned int cfg802154_set_max_associations(struct wpan_dev *wpan_dev,
 					    unsigned int max);
 
 /**
- * cfg802154_get_free_short_addr - Get a free address among the known devices
+ * cfg802154_get_free_short_addr - Get a free address among the kanalwn devices
  * @wpan_dev: the wpan device
  * @return: a random short address expectedly unused on our PAN
  */

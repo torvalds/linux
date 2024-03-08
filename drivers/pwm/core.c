@@ -66,7 +66,7 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 		return -EBUSY;
 
 	if (!try_module_get(chip->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ops->request) {
 		err = ops->request(chip, pwm);
@@ -122,7 +122,7 @@ of_pwm_xlate_with_flags(struct pwm_chip *chip, const struct of_phandle_args *arg
 		return pwm;
 
 	pwm->args.period = args->args[1];
-	pwm->args.polarity = PWM_POLARITY_NORMAL;
+	pwm->args.polarity = PWM_POLARITY_ANALRMAL;
 
 	if (chip->of_pwm_n_cells >= 3) {
 		if (args->args_count > 2 && args->args[2] & PWM_POLARITY_INVERTED)
@@ -150,7 +150,7 @@ of_pwm_single_xlate(struct pwm_chip *chip, const struct of_phandle_args *args)
 		return pwm;
 
 	pwm->args.period = args->args[0];
-	pwm->args.polarity = PWM_POLARITY_NORMAL;
+	pwm->args.polarity = PWM_POLARITY_ANALRMAL;
 
 	if (args->args_count == 2 && args->args[1] & PWM_POLARITY_INVERTED)
 		pwm->args.polarity = PWM_POLARITY_INVERSED;
@@ -161,13 +161,13 @@ EXPORT_SYMBOL_GPL(of_pwm_single_xlate);
 
 static void of_pwmchip_add(struct pwm_chip *chip)
 {
-	if (!chip->dev || !chip->dev->of_node)
+	if (!chip->dev || !chip->dev->of_analde)
 		return;
 
 	if (!chip->of_xlate) {
 		u32 pwm_cells;
 
-		if (of_property_read_u32(chip->dev->of_node, "#pwm-cells",
+		if (of_property_read_u32(chip->dev->of_analde, "#pwm-cells",
 					 &pwm_cells))
 			pwm_cells = 2;
 
@@ -175,13 +175,13 @@ static void of_pwmchip_add(struct pwm_chip *chip)
 		chip->of_pwm_n_cells = pwm_cells;
 	}
 
-	of_node_get(chip->dev->of_node);
+	of_analde_get(chip->dev->of_analde);
 }
 
 static void of_pwmchip_remove(struct pwm_chip *chip)
 {
 	if (chip->dev)
-		of_node_put(chip->dev->of_node);
+		of_analde_put(chip->dev->of_analde);
 }
 
 static bool pwm_ops_check(const struct pwm_chip *chip)
@@ -223,7 +223,7 @@ int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 
 	chip->pwms = kcalloc(chip->npwm, sizeof(*chip->pwms), GFP_KERNEL);
 	if (!chip->pwms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&pwm_lock);
 
@@ -303,8 +303,8 @@ EXPORT_SYMBOL_GPL(__devm_pwmchip_add);
  * @label: a literal description string of this PWM
  *
  * Returns: A pointer to the PWM device at the given index of the given PWM
- * chip. A negative error code is returned if the index is not valid for the
- * specified PWM chip or if the PWM device cannot be requested.
+ * chip. A negative error code is returned if the index is analt valid for the
+ * specified PWM chip or if the PWM device cananalt be requested.
  */
 struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 					 unsigned int index,
@@ -339,7 +339,7 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 	if (!IS_ENABLED(CONFIG_PWM_DEBUG))
 		return;
 
-	/* No reasonable diagnosis possible without .get_state() */
+	/* Anal reasonable diaganalsis possible without .get_state() */
 	if (!chip->ops->get_state)
 		return;
 
@@ -355,7 +355,7 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 		return;
 
 	/*
-	 * The lowlevel driver either ignored .polarity (which is a bug) or as
+	 * The lowlevel driver either iganalred .polarity (which is a bug) or as
 	 * best effort inverted .polarity and fixed .duty_cycle respectively.
 	 * Undo this inversion and fixup for further tests.
 	 */
@@ -370,7 +370,7 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 
 	if (s2.polarity != state->polarity &&
 	    state->duty_cycle < state->period)
-		dev_warn(chip->dev, ".apply ignored .polarity\n");
+		dev_warn(chip->dev, ".apply iganalred .polarity\n");
 
 	if (state->enabled &&
 	    last->polarity == state->polarity &&
@@ -427,7 +427,7 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 	    (s1.enabled && s1.period != last->period) ||
 	    (s1.enabled && s1.duty_cycle != last->duty_cycle)) {
 		dev_err(chip->dev,
-			".apply is not idempotent (ena=%d pol=%d %llu/%llu) -> (ena=%d pol=%d %llu/%llu)\n",
+			".apply is analt idempotent (ena=%d pol=%d %llu/%llu) -> (ena=%d pol=%d %llu/%llu)\n",
 			s1.enabled, s1.polarity, s1.duty_cycle, s1.period,
 			last->enabled, last->polarity, last->duty_cycle,
 			last->period);
@@ -475,7 +475,7 @@ static int __pwm_apply(struct pwm_device *pwm, const struct pwm_state *state)
 
 /**
  * pwm_apply_might_sleep() - atomically apply a new state to a PWM device
- * Cannot be used in atomic context.
+ * Cananalt be used in atomic context.
  * @pwm: PWM device
  * @state: new state to apply
  */
@@ -497,9 +497,9 @@ int pwm_apply_might_sleep(struct pwm_device *pwm, const struct pwm_state *state)
 		 * Catch any drivers that have been marked as atomic but
 		 * that will sleep anyway.
 		 */
-		non_block_start();
+		analn_block_start();
 		err = __pwm_apply(pwm, state);
-		non_block_end();
+		analn_block_end();
 	} else {
 		err = __pwm_apply(pwm, state);
 	}
@@ -510,7 +510,7 @@ EXPORT_SYMBOL_GPL(pwm_apply_might_sleep);
 
 /**
  * pwm_apply_atomic() - apply a new state to a PWM device from atomic context
- * Not all PWM devices support this function, check with pwm_might_sleep().
+ * Analt all PWM devices support this function, check with pwm_might_sleep().
  * @pwm: PWM device
  * @state: new state to apply
  */
@@ -540,7 +540,7 @@ int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
 		return -EINVAL;
 
 	if (!pwm->chip->ops->capture)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	mutex_lock(&pwm_lock);
 	err = pwm->chip->ops->capture(pwm->chip, pwm, result, timeout);
@@ -568,7 +568,7 @@ int pwm_adjust_config(struct pwm_device *pwm)
 
 	/*
 	 * If the current period is zero it means that either the PWM driver
-	 * does not support initial state retrieval or the PWM has not yet
+	 * does analt support initial state retrieval or the PWM has analt yet
 	 * been configured.
 	 *
 	 * In either case, we setup the new period and polarity, and assign a
@@ -606,7 +606,7 @@ int pwm_adjust_config(struct pwm_device *pwm)
 }
 EXPORT_SYMBOL_GPL(pwm_adjust_config);
 
-static struct pwm_chip *fwnode_to_pwmchip(struct fwnode_handle *fwnode)
+static struct pwm_chip *fwanalde_to_pwmchip(struct fwanalde_handle *fwanalde)
 {
 	struct pwm_chip *chip;
 	unsigned long id, tmp;
@@ -614,7 +614,7 @@ static struct pwm_chip *fwnode_to_pwmchip(struct fwnode_handle *fwnode)
 	mutex_lock(&pwm_lock);
 
 	idr_for_each_entry_ul(&pwm_chips, chip, tmp, id)
-		if (chip->dev && device_match_fwnode(chip->dev, fwnode)) {
+		if (chip->dev && device_match_fwanalde(chip->dev, fwanalde)) {
 			mutex_unlock(&pwm_lock);
 			return chip;
 		}
@@ -631,12 +631,12 @@ static struct device_link *pwm_device_link_add(struct device *dev,
 
 	if (!dev) {
 		/*
-		 * No device for the PWM consumer has been provided. It may
+		 * Anal device for the PWM consumer has been provided. It may
 		 * impact the PM sequence ordering: the PWM supplier may get
 		 * suspended before the consumer.
 		 */
 		dev_warn(pwm->chip->dev,
-			 "No consumer device specified to create a link to\n");
+			 "Anal consumer device specified to create a link to\n");
 		return NULL;
 	}
 
@@ -653,11 +653,11 @@ static struct device_link *pwm_device_link_add(struct device *dev,
 /**
  * of_pwm_get() - request a PWM via the PWM framework
  * @dev: device for PWM consumer
- * @np: device node to get the PWM from
+ * @np: device analde to get the PWM from
  * @con_id: consumer name
  *
  * Returns the PWM device parsed from the phandle and index specified in the
- * "pwms" property of a device tree node or a negative error-code on failure.
+ * "pwms" property of a device tree analde or a negative error-code on failure.
  * Values parsed from the device tree are stored in the returned PWM device
  * object.
  *
@@ -670,7 +670,7 @@ static struct device_link *pwm_device_link_add(struct device *dev,
  * Returns: A pointer to the requested PWM device or an ERR_PTR()-encoded
  * error code on failure.
  */
-static struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
+static struct pwm_device *of_pwm_get(struct device *dev, struct device_analde *np,
 				     const char *con_id)
 {
 	struct pwm_device *pwm = NULL;
@@ -693,10 +693,10 @@ static struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
 		return ERR_PTR(err);
 	}
 
-	chip = fwnode_to_pwmchip(of_fwnode_handle(args.np));
+	chip = fwanalde_to_pwmchip(of_fwanalde_handle(args.np));
 	if (IS_ERR(chip)) {
 		if (PTR_ERR(chip) != -EPROBE_DEFER)
-			pr_err("%s(): PWM chip not found\n", __func__);
+			pr_err("%s(): PWM chip analt found\n", __func__);
 
 		pwm = ERR_CAST(chip);
 		goto put;
@@ -715,9 +715,9 @@ static struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
 	}
 
 	/*
-	 * If a consumer name was not given, try to look it up from the
+	 * If a consumer name was analt given, try to look it up from the
 	 * "pwm-names" property if it exists. Otherwise use the name of
-	 * the user device node.
+	 * the user device analde.
 	 */
 	if (!con_id) {
 		err = of_property_read_string_index(np, "pwm-names", index,
@@ -729,21 +729,21 @@ static struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
 	pwm->label = con_id;
 
 put:
-	of_node_put(args.np);
+	of_analde_put(args.np);
 
 	return pwm;
 }
 
 /**
  * acpi_pwm_get() - request a PWM via parsing "pwms" property in ACPI
- * @fwnode: firmware node to get the "pwms" property from
+ * @fwanalde: firmware analde to get the "pwms" property from
  *
- * Returns the PWM device parsed from the fwnode and index specified in the
+ * Returns the PWM device parsed from the fwanalde and index specified in the
  * "pwms" property or a negative error-code on failure.
  * Values parsed from the device tree are stored in the returned PWM device
  * object.
  *
- * This is analogous to of_pwm_get() except con_id is not yet supported.
+ * This is analogous to of_pwm_get() except con_id is analt yet supported.
  * ACPI entries must look like
  * Package () {"pwms", Package ()
  *     { <PWM device reference>, <PWM index>, <PWM period> [, <PWM flags>]}}
@@ -751,23 +751,23 @@ put:
  * Returns: A pointer to the requested PWM device or an ERR_PTR()-encoded
  * error code on failure.
  */
-static struct pwm_device *acpi_pwm_get(const struct fwnode_handle *fwnode)
+static struct pwm_device *acpi_pwm_get(const struct fwanalde_handle *fwanalde)
 {
 	struct pwm_device *pwm;
-	struct fwnode_reference_args args;
+	struct fwanalde_reference_args args;
 	struct pwm_chip *chip;
 	int ret;
 
 	memset(&args, 0, sizeof(args));
 
-	ret = __acpi_node_get_property_reference(fwnode, "pwms", 0, 3, &args);
+	ret = __acpi_analde_get_property_reference(fwanalde, "pwms", 0, 3, &args);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	if (args.nargs < 2)
 		return ERR_PTR(-EPROTO);
 
-	chip = fwnode_to_pwmchip(args.fwnode);
+	chip = fwanalde_to_pwmchip(args.fwanalde);
 	if (IS_ERR(chip))
 		return ERR_CAST(chip);
 
@@ -776,7 +776,7 @@ static struct pwm_device *acpi_pwm_get(const struct fwnode_handle *fwnode)
 		return pwm;
 
 	pwm->args.period = args.args[1];
-	pwm->args.polarity = PWM_POLARITY_NORMAL;
+	pwm->args.polarity = PWM_POLARITY_ANALRMAL;
 
 	if (args.nargs > 2 && args.args[2] & PWM_POLARITY_INVERTED)
 		pwm->args.polarity = PWM_POLARITY_INVERSED;
@@ -823,7 +823,7 @@ void pwm_remove_table(struct pwm_lookup *table, size_t num)
  * @dev: device for PWM consumer
  * @con_id: consumer name
  *
- * Lookup is first attempted using DT. If the device was not instantiated from
+ * Lookup is first attempted using DT. If the device was analt instantiated from
  * a device tree, a PWM chip and a relative index is looked up via a table
  * supplied by board setup code (see pwm_add_table()).
  *
@@ -835,7 +835,7 @@ void pwm_remove_table(struct pwm_lookup *table, size_t num)
  */
 struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 {
-	const struct fwnode_handle *fwnode = dev ? dev_fwnode(dev) : NULL;
+	const struct fwanalde_handle *fwanalde = dev ? dev_fwanalde(dev) : NULL;
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct pwm_device *pwm;
 	struct pwm_chip *chip;
@@ -846,20 +846,20 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	int err;
 
 	/* look up via DT first */
-	if (is_of_node(fwnode))
-		return of_pwm_get(dev, to_of_node(fwnode), con_id);
+	if (is_of_analde(fwanalde))
+		return of_pwm_get(dev, to_of_analde(fwanalde), con_id);
 
 	/* then lookup via ACPI */
-	if (is_acpi_node(fwnode)) {
-		pwm = acpi_pwm_get(fwnode);
-		if (!IS_ERR(pwm) || PTR_ERR(pwm) != -ENOENT)
+	if (is_acpi_analde(fwanalde)) {
+		pwm = acpi_pwm_get(fwanalde);
+		if (!IS_ERR(pwm) || PTR_ERR(pwm) != -EANALENT)
 			return pwm;
 	}
 
 	/*
 	 * We look up the provider in the static table typically provided by
 	 * board setup code. We first try to lookup the consumer device by
-	 * name. If the consumer device was passed in as NULL or if no match
+	 * name. If the consumer device was passed in as NULL or if anal match
 	 * was found, we try to find the consumer by directly looking it up
 	 * by name.
 	 *
@@ -908,7 +908,7 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	mutex_unlock(&pwm_lookup_lock);
 
 	if (!chosen)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	chip = pwmchip_find_by_name(chosen->provider);
 
@@ -1005,28 +1005,28 @@ struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id)
 EXPORT_SYMBOL_GPL(devm_pwm_get);
 
 /**
- * devm_fwnode_pwm_get() - request a resource managed PWM from firmware node
+ * devm_fwanalde_pwm_get() - request a resource managed PWM from firmware analde
  * @dev: device for PWM consumer
- * @fwnode: firmware node to get the PWM from
+ * @fwanalde: firmware analde to get the PWM from
  * @con_id: consumer name
  *
- * Returns the PWM device parsed from the firmware node. See of_pwm_get() and
+ * Returns the PWM device parsed from the firmware analde. See of_pwm_get() and
  * acpi_pwm_get() for a detailed description.
  *
  * Returns: A pointer to the requested PWM device or an ERR_PTR()-encoded
  * error code on failure.
  */
-struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
-				       struct fwnode_handle *fwnode,
+struct pwm_device *devm_fwanalde_pwm_get(struct device *dev,
+				       struct fwanalde_handle *fwanalde,
 				       const char *con_id)
 {
-	struct pwm_device *pwm = ERR_PTR(-ENODEV);
+	struct pwm_device *pwm = ERR_PTR(-EANALDEV);
 	int ret;
 
-	if (is_of_node(fwnode))
-		pwm = of_pwm_get(dev, to_of_node(fwnode), con_id);
-	else if (is_acpi_node(fwnode))
-		pwm = acpi_pwm_get(fwnode);
+	if (is_of_analde(fwanalde))
+		pwm = of_pwm_get(dev, to_of_analde(fwanalde), con_id);
+	else if (is_acpi_analde(fwanalde))
+		pwm = acpi_pwm_get(fwanalde);
 	if (IS_ERR(pwm))
 		return pwm;
 
@@ -1036,7 +1036,7 @@ struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
 
 	return pwm;
 }
-EXPORT_SYMBOL_GPL(devm_fwnode_pwm_get);
+EXPORT_SYMBOL_GPL(devm_fwanalde_pwm_get);
 
 #ifdef CONFIG_DEBUG_FS
 static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
@@ -1060,7 +1060,7 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 		seq_printf(s, " period: %llu ns", state.period);
 		seq_printf(s, " duty: %llu ns", state.duty_cycle);
 		seq_printf(s, " polarity: %s",
-			   state.polarity ? "inverse" : "normal");
+			   state.polarity ? "inverse" : "analrmal");
 
 		if (state.usage_power)
 			seq_puts(s, " usage_power");
@@ -1105,7 +1105,7 @@ static int pwm_seq_show(struct seq_file *s, void *v)
 
 	seq_printf(s, "%s%d: %s/%s, %d PWM device%s\n",
 		   (char *)s->private, chip->id,
-		   chip->dev->bus ? chip->dev->bus->name : "no-bus",
+		   chip->dev->bus ? chip->dev->bus->name : "anal-bus",
 		   dev_name(chip->dev), chip->npwm,
 		   (chip->npwm != 1) ? "s" : "");
 

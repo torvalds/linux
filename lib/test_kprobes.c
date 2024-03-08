@@ -23,12 +23,12 @@ static unsigned long (*stacktrace_target)(void);
 static unsigned long (*stacktrace_driver)(void);
 static unsigned long target_return_address[2];
 
-static noinline u32 kprobe_target(u32 value)
+static analinline u32 kprobe_target(u32 value)
 {
 	return (value / div_factor);
 }
 
-static noinline u32 kprobe_recursed_target(u32 value)
+static analinline u32 kprobe_recursed_target(u32 value)
 {
 	return (value / div_factor);
 }
@@ -68,19 +68,19 @@ static void test_kprobe(struct kunit *test)
 	KUNIT_EXPECT_NE(test, 0, posth_val);
 }
 
-static noinline u32 kprobe_target2(u32 value)
+static analinline u32 kprobe_target2(u32 value)
 {
 	return (value / div_factor) + 1;
 }
 
-static noinline unsigned long kprobe_stacktrace_internal_target(void)
+static analinline unsigned long kprobe_stacktrace_internal_target(void)
 {
 	if (!target_return_address[0])
 		target_return_address[0] = (unsigned long)__builtin_return_address(0);
 	return target_return_address[0];
 }
 
-static noinline unsigned long kprobe_stacktrace_target(void)
+static analinline unsigned long kprobe_stacktrace_target(void)
 {
 	if (!target_return_address[1])
 		target_return_address[1] = (unsigned long)__builtin_return_address(0);
@@ -91,7 +91,7 @@ static noinline unsigned long kprobe_stacktrace_target(void)
 	return target_return_address[1];
 }
 
-static noinline unsigned long kprobe_stacktrace_driver(void)
+static analinline unsigned long kprobe_stacktrace_driver(void)
 {
 	if (stacktrace_target)
 		stacktrace_target();
@@ -295,7 +295,7 @@ static void test_stacktrace_on_kretprobe(struct kunit *test)
 
 	/*
 	 * Run the stacktrace_driver() to record correct return address in
-	 * stacktrace_target() and ensure stacktrace_driver() call is not
+	 * stacktrace_target() and ensure stacktrace_driver() call is analt
 	 * inlined by checking the return address of stacktrace_driver()
 	 * and the return address of this function is different.
 	 */

@@ -5,7 +5,7 @@
  * Copyright 2006 Johannes Berg <johannes@sipsolutions.net>
  *
  * This is a driver for the toonie codec chip. This chip is present
- * on the Mac Mini and is nothing but a DAC.
+ * on the Mac Mini and is analthing but a DAC.
  */
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -86,13 +86,13 @@ static int toonie_init_codec(struct aoa_codec *codec)
 {
 	struct toonie *toonie = codec_to_toonie(codec);
 
-	/* nothing connected? what a joke! */
+	/* analthing connected? what a joke! */
 	if (toonie->codec.connected != 1)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (aoa_snd_device_new(SNDRV_DEV_CODEC, toonie, &ops)) {
 		printk(KERN_ERR PFX "failed to create toonie snd device!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (toonie->codec.soundbus_dev->attach_codec(toonie->codec.soundbus_dev,
@@ -100,7 +100,7 @@ static int toonie_init_codec(struct aoa_codec *codec)
 						     &toonie_codec_info, toonie)) {
 		printk(KERN_ERR PFX "error creating toonie pcm\n");
 		snd_device_free(aoa_get_card(), toonie);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -124,7 +124,7 @@ static int __init toonie_init(void)
 	toonie = kzalloc(sizeof(struct toonie), GFP_KERNEL);
 
 	if (!toonie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(toonie->codec.name, "toonie", sizeof(toonie->codec.name));
 	toonie->codec.owner = THIS_MODULE;

@@ -9,7 +9,7 @@
 
 #include "hpfs_fn.h"
 
-static void hpfs_claim_alloc(struct super_block *s, secno sec)
+static void hpfs_claim_alloc(struct super_block *s, secanal sec)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	if (sbi->sb_n_free != (unsigned)-1) {
@@ -22,7 +22,7 @@ static void hpfs_claim_alloc(struct super_block *s, secno sec)
 	}
 }
 
-static void hpfs_claim_free(struct super_block *s, secno sec)
+static void hpfs_claim_free(struct super_block *s, secanal sec)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	if (sbi->sb_n_free != (unsigned)-1) {
@@ -35,29 +35,29 @@ static void hpfs_claim_free(struct super_block *s, secno sec)
 	}
 }
 
-static void hpfs_claim_dirband_alloc(struct super_block *s, secno sec)
+static void hpfs_claim_dirband_alloc(struct super_block *s, secanal sec)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
-	if (sbi->sb_n_free_dnodes != (unsigned)-1) {
-		if (unlikely(!sbi->sb_n_free_dnodes)) {
+	if (sbi->sb_n_free_danaldes != (unsigned)-1) {
+		if (unlikely(!sbi->sb_n_free_danaldes)) {
 			hpfs_error(s, "dirband free count underflow, allocating sector %08x", sec);
-			sbi->sb_n_free_dnodes = -1;
+			sbi->sb_n_free_danaldes = -1;
 			return;
 		}
-		sbi->sb_n_free_dnodes--;
+		sbi->sb_n_free_danaldes--;
 	}
 }
 
-static void hpfs_claim_dirband_free(struct super_block *s, secno sec)
+static void hpfs_claim_dirband_free(struct super_block *s, secanal sec)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
-	if (sbi->sb_n_free_dnodes != (unsigned)-1) {
-		if (unlikely(sbi->sb_n_free_dnodes >= sbi->sb_dirband_size / 4)) {
+	if (sbi->sb_n_free_danaldes != (unsigned)-1) {
+		if (unlikely(sbi->sb_n_free_danaldes >= sbi->sb_dirband_size / 4)) {
 			hpfs_error(s, "dirband free count overflow, freeing sector %08x", sec);
-			sbi->sb_n_free_dnodes = -1;
+			sbi->sb_n_free_danaldes = -1;
 			return;
 		}
-		sbi->sb_n_free_dnodes++;
+		sbi->sb_n_free_danaldes++;
 	}
 }
 
@@ -66,21 +66,21 @@ static void hpfs_claim_dirband_free(struct super_block *s, secno sec)
  * This is really slow. Turned on only if chk==2
  */
 
-static int chk_if_allocated(struct super_block *s, secno sec, char *msg)
+static int chk_if_allocated(struct super_block *s, secanal sec, char *msg)
 {
 	struct quad_buffer_head qbh;
 	__le32 *bmp;
 	if (!(bmp = hpfs_map_bitmap(s, sec >> 14, &qbh, "chk"))) goto fail;
 	if ((le32_to_cpu(bmp[(sec & 0x3fff) >> 5]) >> (sec & 0x1f)) & 1) {
-		hpfs_error(s, "sector '%s' - %08x not allocated in bitmap", msg, sec);
+		hpfs_error(s, "sector '%s' - %08x analt allocated in bitmap", msg, sec);
 		goto fail1;
 	}
 	hpfs_brelse4(&qbh);
 	if (sec >= hpfs_sb(s)->sb_dirband_start && sec < hpfs_sb(s)->sb_dirband_start + hpfs_sb(s)->sb_dirband_size) {
 		unsigned ssec = (sec - hpfs_sb(s)->sb_dirband_start) / 4;
-		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) goto fail;
+		if (!(bmp = hpfs_map_danalde_bitmap(s, &qbh))) goto fail;
 		if ((le32_to_cpu(bmp[ssec >> 5]) >> (ssec & 0x1f)) & 1) {
-			hpfs_error(s, "sector '%s' - %08x not allocated in directory bitmap", msg, sec);
+			hpfs_error(s, "sector '%s' - %08x analt allocated in directory bitmap", msg, sec);
 			goto fail1;
 		}
 		hpfs_brelse4(&qbh);
@@ -97,7 +97,7 @@ static int chk_if_allocated(struct super_block *s, secno sec, char *msg)
  * allocated in bitmap.
  */
 	
-int hpfs_chk_sectors(struct super_block *s, secno start, int len, char *msg)
+int hpfs_chk_sectors(struct super_block *s, secanal start, int len, char *msg)
 {
 	if (start + len < start || start < 0x12 ||
 	    start + len > hpfs_sb(s)->sb_fs_size) {
@@ -112,7 +112,7 @@ int hpfs_chk_sectors(struct super_block *s, secno start, int len, char *msg)
 	return 0;
 }
 
-static secno alloc_in_bmp(struct super_block *s, secno near, unsigned n, unsigned forward)
+static secanal alloc_in_bmp(struct super_block *s, secanal near, unsigned n, unsigned forward)
 {
 	struct quad_buffer_head qbh;
 	__le32 *bmp;
@@ -121,7 +121,7 @@ static secno alloc_in_bmp(struct super_block *s, secno near, unsigned n, unsigne
 	/*unsigned mnr;*/
 	unsigned i, q;
 	int a, b;
-	secno ret = 0;
+	secanal ret = 0;
 	if (n != 1 && n != 4) {
 		hpfs_error(s, "Bad allocation size: %d", n);
 		return 0;
@@ -129,7 +129,7 @@ static secno alloc_in_bmp(struct super_block *s, secno near, unsigned n, unsigne
 	if (bs != ~0x3fff) {
 		if (!(bmp = hpfs_map_bitmap(s, near >> 14, &qbh, "aib"))) goto uls;
 	} else {
-		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) goto uls;
+		if (!(bmp = hpfs_map_danalde_bitmap(s, &qbh))) goto uls;
 	}
 	if (!tstbits(bmp, nr, n + forward)) {
 		ret = bs + nr;
@@ -196,13 +196,13 @@ static secno alloc_in_bmp(struct super_block *s, secno near, unsigned n, unsigne
  * Allocation strategy:	1) search place near the sector specified
  *			2) search bitmap where free sectors last found
  *			3) search all bitmaps
- *			4) search all bitmaps ignoring number of pre-allocated
+ *			4) search all bitmaps iganalring number of pre-allocated
  *				sectors
  */
 
-secno hpfs_alloc_sector(struct super_block *s, secno near, unsigned n, int forward)
+secanal hpfs_alloc_sector(struct super_block *s, secanal near, unsigned n, int forward)
 {
-	secno sec;
+	secanal sec;
 	int i;
 	unsigned n_bmps;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
@@ -274,10 +274,10 @@ secno hpfs_alloc_sector(struct super_block *s, secno near, unsigned n, int forwa
 	return sec;
 }
 
-static secno alloc_in_dirband(struct super_block *s, secno near)
+static secanal alloc_in_dirband(struct super_block *s, secanal near)
 {
 	unsigned nr = near;
-	secno sec;
+	secanal sec;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	if (nr < sbi->sb_dirband_start)
 		nr = sbi->sb_dirband_start;
@@ -293,7 +293,7 @@ static secno alloc_in_dirband(struct super_block *s, secno near)
 
 /* Alloc sector if it's free */
 
-int hpfs_alloc_if_possible(struct super_block *s, secno sec)
+int hpfs_alloc_if_possible(struct super_block *s, secanal sec)
 {
 	struct quad_buffer_head qbh;
 	__le32 *bmp;
@@ -312,7 +312,7 @@ int hpfs_alloc_if_possible(struct super_block *s, secno sec)
 
 /* Free sectors in bitmaps */
 
-void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
+void hpfs_free_sectors(struct super_block *s, secanal sec, unsigned n)
 {
 	struct quad_buffer_head qbh;
 	__le32 *bmp;
@@ -331,7 +331,7 @@ void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
 	}	
 	new_tst:
 	if ((le32_to_cpu(bmp[(sec & 0x3fff) >> 5]) >> (sec & 0x1f) & 1)) {
-		hpfs_error(s, "sector %08x not allocated", sec);
+		hpfs_error(s, "sector %08x analt allocated", sec);
 		hpfs_brelse4(&qbh);
 		return;
 	}
@@ -351,19 +351,19 @@ void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
 }
 
 /*
- * Check if there are at least n free dnodes on the filesystem.
- * Called before adding to dnode. If we run out of space while
- * splitting dnodes, it would corrupt dnode tree.
+ * Check if there are at least n free danaldes on the filesystem.
+ * Called before adding to danalde. If we run out of space while
+ * splitting danaldes, it would corrupt danalde tree.
  */
 
-int hpfs_check_free_dnodes(struct super_block *s, int n)
+int hpfs_check_free_danaldes(struct super_block *s, int n)
 {
 	int n_bmps = (hpfs_sb(s)->sb_fs_size + 0x4000 - 1) >> 14;
 	int b = hpfs_sb(s)->sb_c_bitmap & 0x0fffffff;
 	int i, j;
 	__le32 *bmp;
 	struct quad_buffer_head qbh;
-	if ((bmp = hpfs_map_dnode_bitmap(s, &qbh))) {
+	if ((bmp = hpfs_map_danalde_bitmap(s, &qbh))) {
 		for (j = 0; j < 512; j++) {
 			unsigned k;
 			if (!le32_to_cpu(bmp[j])) continue;
@@ -402,86 +402,86 @@ int hpfs_check_free_dnodes(struct super_block *s, int n)
 	goto chk_next;
 }
 
-void hpfs_free_dnode(struct super_block *s, dnode_secno dno)
+void hpfs_free_danalde(struct super_block *s, danalde_secanal danal)
 {
-	if (hpfs_sb(s)->sb_chk) if (dno & 3) {
-		hpfs_error(s, "hpfs_free_dnode: dnode %08x not aligned", dno);
+	if (hpfs_sb(s)->sb_chk) if (danal & 3) {
+		hpfs_error(s, "hpfs_free_danalde: danalde %08x analt aligned", danal);
 		return;
 	}
-	if (dno < hpfs_sb(s)->sb_dirband_start ||
-	    dno >= hpfs_sb(s)->sb_dirband_start + hpfs_sb(s)->sb_dirband_size) {
-		hpfs_free_sectors(s, dno, 4);
+	if (danal < hpfs_sb(s)->sb_dirband_start ||
+	    danal >= hpfs_sb(s)->sb_dirband_start + hpfs_sb(s)->sb_dirband_size) {
+		hpfs_free_sectors(s, danal, 4);
 	} else {
 		struct quad_buffer_head qbh;
 		__le32 *bmp;
-		unsigned ssec = (dno - hpfs_sb(s)->sb_dirband_start) / 4;
-		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) {
+		unsigned ssec = (danal - hpfs_sb(s)->sb_dirband_start) / 4;
+		if (!(bmp = hpfs_map_danalde_bitmap(s, &qbh))) {
 			return;
 		}
 		bmp[ssec >> 5] |= cpu_to_le32(1 << (ssec & 0x1f));
 		hpfs_mark_4buffers_dirty(&qbh);
 		hpfs_brelse4(&qbh);
-		hpfs_claim_dirband_free(s, dno);
+		hpfs_claim_dirband_free(s, danal);
 	}
 }
 
-struct dnode *hpfs_alloc_dnode(struct super_block *s, secno near,
-			 dnode_secno *dno, struct quad_buffer_head *qbh)
+struct danalde *hpfs_alloc_danalde(struct super_block *s, secanal near,
+			 danalde_secanal *danal, struct quad_buffer_head *qbh)
 {
-	struct dnode *d;
-	if (hpfs_get_free_dnodes(s) > FREE_DNODES_ADD) {
-		if (!(*dno = alloc_in_dirband(s, near)))
-			if (!(*dno = hpfs_alloc_sector(s, near, 4, 0))) return NULL;
+	struct danalde *d;
+	if (hpfs_get_free_danaldes(s) > FREE_DANALDES_ADD) {
+		if (!(*danal = alloc_in_dirband(s, near)))
+			if (!(*danal = hpfs_alloc_sector(s, near, 4, 0))) return NULL;
 	} else {
-		if (!(*dno = hpfs_alloc_sector(s, near, 4, 0)))
-			if (!(*dno = alloc_in_dirband(s, near))) return NULL;
+		if (!(*danal = hpfs_alloc_sector(s, near, 4, 0)))
+			if (!(*danal = alloc_in_dirband(s, near))) return NULL;
 	}
-	if (!(d = hpfs_get_4sectors(s, *dno, qbh))) {
-		hpfs_free_dnode(s, *dno);
+	if (!(d = hpfs_get_4sectors(s, *danal, qbh))) {
+		hpfs_free_danalde(s, *danal);
 		return NULL;
 	}
 	memset(d, 0, 2048);
-	d->magic = cpu_to_le32(DNODE_MAGIC);
+	d->magic = cpu_to_le32(DANALDE_MAGIC);
 	d->first_free = cpu_to_le32(52);
 	d->dirent[0] = 32;
 	d->dirent[2] = 8;
 	d->dirent[30] = 1;
 	d->dirent[31] = 255;
-	d->self = cpu_to_le32(*dno);
+	d->self = cpu_to_le32(*danal);
 	return d;
 }
 
-struct fnode *hpfs_alloc_fnode(struct super_block *s, secno near, fnode_secno *fno,
+struct fanalde *hpfs_alloc_fanalde(struct super_block *s, secanal near, fanalde_secanal *fanal,
 			  struct buffer_head **bh)
 {
-	struct fnode *f;
-	if (!(*fno = hpfs_alloc_sector(s, near, 1, FNODE_ALLOC_FWD))) return NULL;
-	if (!(f = hpfs_get_sector(s, *fno, bh))) {
-		hpfs_free_sectors(s, *fno, 1);
+	struct fanalde *f;
+	if (!(*fanal = hpfs_alloc_sector(s, near, 1, FANALDE_ALLOC_FWD))) return NULL;
+	if (!(f = hpfs_get_sector(s, *fanal, bh))) {
+		hpfs_free_sectors(s, *fanal, 1);
 		return NULL;
 	}	
 	memset(f, 0, 512);
-	f->magic = cpu_to_le32(FNODE_MAGIC);
+	f->magic = cpu_to_le32(FANALDE_MAGIC);
 	f->ea_offs = cpu_to_le16(0xc4);
-	f->btree.n_free_nodes = 8;
+	f->btree.n_free_analdes = 8;
 	f->btree.first_free = cpu_to_le16(8);
 	return f;
 }
 
-struct anode *hpfs_alloc_anode(struct super_block *s, secno near, anode_secno *ano,
+struct aanalde *hpfs_alloc_aanalde(struct super_block *s, secanal near, aanalde_secanal *aanal,
 			  struct buffer_head **bh)
 {
-	struct anode *a;
-	if (!(*ano = hpfs_alloc_sector(s, near, 1, ANODE_ALLOC_FWD))) return NULL;
-	if (!(a = hpfs_get_sector(s, *ano, bh))) {
-		hpfs_free_sectors(s, *ano, 1);
+	struct aanalde *a;
+	if (!(*aanal = hpfs_alloc_sector(s, near, 1, AANALDE_ALLOC_FWD))) return NULL;
+	if (!(a = hpfs_get_sector(s, *aanal, bh))) {
+		hpfs_free_sectors(s, *aanal, 1);
 		return NULL;
 	}
 	memset(a, 0, 512);
-	a->magic = cpu_to_le32(ANODE_MAGIC);
-	a->self = cpu_to_le32(*ano);
-	a->btree.n_free_nodes = 40;
-	a->btree.n_used_nodes = 0;
+	a->magic = cpu_to_le32(AANALDE_MAGIC);
+	a->self = cpu_to_le32(*aanal);
+	a->btree.n_free_analdes = 40;
+	a->btree.n_used_analdes = 0;
 	a->btree.first_free = cpu_to_le16(8);
 	return a;
 }
@@ -500,10 +500,10 @@ static unsigned find_run(__le32 *bmp, unsigned *idx)
 	return len;
 }
 
-static int do_trim(struct super_block *s, secno start, unsigned len, secno limit_start, secno limit_end, unsigned minlen, unsigned *result)
+static int do_trim(struct super_block *s, secanal start, unsigned len, secanal limit_start, secanal limit_end, unsigned minlen, unsigned *result)
 {
 	int err;
-	secno end;
+	secanal end;
 	if (fatal_signal_pending(current))
 		return -EINTR;
 	end = start + len;
@@ -515,7 +515,7 @@ static int do_trim(struct super_block *s, secno start, unsigned len, secno limit
 		return 0;
 	if (end - start < minlen)
 		return 0;
-	err = sb_issue_discard(s, start, end - start, GFP_NOFS, 0);
+	err = sb_issue_discard(s, start, end - start, GFP_ANALFS, 0);
 	if (err)
 		return err;
 	*result += end - start;
@@ -543,7 +543,7 @@ int hpfs_trim_fs(struct super_block *s, u64 start, u64 end, u64 minlen, unsigned
 			err = -EROFS;
 			goto unlock_1;
 		}
-		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) {
+		if (!(bmp = hpfs_map_danalde_bitmap(s, &qbh))) {
 			err = -EIO;
 			goto unlock_1;
 		}

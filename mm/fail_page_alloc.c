@@ -5,13 +5,13 @@
 static struct {
 	struct fault_attr attr;
 
-	bool ignore_gfp_highmem;
-	bool ignore_gfp_reclaim;
+	bool iganalre_gfp_highmem;
+	bool iganalre_gfp_reclaim;
 	u32 min_order;
 } fail_page_alloc = {
 	.attr = FAULT_ATTR_INITIALIZER,
-	.ignore_gfp_reclaim = true,
-	.ignore_gfp_highmem = true,
+	.iganalre_gfp_reclaim = true,
+	.iganalre_gfp_highmem = true,
 	.min_order = 1,
 };
 
@@ -27,17 +27,17 @@ bool __should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
 
 	if (order < fail_page_alloc.min_order)
 		return false;
-	if (gfp_mask & __GFP_NOFAIL)
+	if (gfp_mask & __GFP_ANALFAIL)
 		return false;
-	if (fail_page_alloc.ignore_gfp_highmem && (gfp_mask & __GFP_HIGHMEM))
+	if (fail_page_alloc.iganalre_gfp_highmem && (gfp_mask & __GFP_HIGHMEM))
 		return false;
-	if (fail_page_alloc.ignore_gfp_reclaim &&
+	if (fail_page_alloc.iganalre_gfp_reclaim &&
 			(gfp_mask & __GFP_DIRECT_RECLAIM))
 		return false;
 
 	/* See comment in __should_failslab() */
-	if (gfp_mask & __GFP_NOWARN)
-		flags |= FAULT_NOWARN;
+	if (gfp_mask & __GFP_ANALWARN)
+		flags |= FAULT_ANALWARN;
 
 	return should_fail_ex(&fail_page_alloc.attr, 1 << order, flags);
 }
@@ -52,10 +52,10 @@ static int __init fail_page_alloc_debugfs(void)
 	dir = fault_create_debugfs_attr("fail_page_alloc", NULL,
 					&fail_page_alloc.attr);
 
-	debugfs_create_bool("ignore-gfp-wait", mode, dir,
-			    &fail_page_alloc.ignore_gfp_reclaim);
-	debugfs_create_bool("ignore-gfp-highmem", mode, dir,
-			    &fail_page_alloc.ignore_gfp_highmem);
+	debugfs_create_bool("iganalre-gfp-wait", mode, dir,
+			    &fail_page_alloc.iganalre_gfp_reclaim);
+	debugfs_create_bool("iganalre-gfp-highmem", mode, dir,
+			    &fail_page_alloc.iganalre_gfp_highmem);
 	debugfs_create_u32("min-order", mode, dir, &fail_page_alloc.min_order);
 
 	return 0;

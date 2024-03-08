@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device tree for the Tolino Shine 2 HD ebook reader
+ * Device tree for the Tolianal Shine 2 HD ebook reader
  *
  * Name on mainboard is: 37NB-E60QF0+4A2 or 37NB-E60QF0+4A3
  * Serials start with: E60QF2
@@ -15,8 +15,8 @@
 #include "imx6sl.dtsi"
 
 / {
-	model = "Tolino Shine 2 HD";
-	compatible = "kobo,tolino-shine2hd", "fsl,imx6sl";
+	model = "Tolianal Shine 2 HD";
+	compatible = "kobo,tolianal-shine2hd", "fsl,imx6sl";
 
 	backlight {
 		compatible = "pwm-backlight";
@@ -76,13 +76,13 @@
 		pinctrl-0 = <&pinctrl_led>;
 
 		led-0 {
-			label = "tolinoshine2hd:white:on";
+			label = "tolianalshine2hd:white:on";
 			gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "timer";
 		};
 
 		led-1 {
-			label = "tolinoshine2hd:white:backlightboost";
+			label = "tolianalshine2hd:white:backlightboost";
 			gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "off";
 		};
@@ -133,7 +133,7 @@
 	status = "okay";
 
 	zforce: touchscreen@50 {
-		compatible = "neonode,zforce";
+		compatible = "neoanalde,zforce";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_zforce>;
 		reg = <0x50>;
@@ -573,7 +573,7 @@
 
 &snvs_rtc {
 	/*
-	 * We are using the RTC in the PMIC, but this one is not disabled
+	 * We are using the RTC in the PMIC, but this one is analt disabled
 	 * in imx6sl.dtsi.
 	 */
 	status = "disabled";
@@ -599,7 +599,7 @@
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	pinctrl-3 = <&pinctrl_usdhc2_sleep>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	/* internal uSD card */
@@ -614,7 +614,7 @@
 	vmmc-supply = <&reg_wifi>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	cap-power-off-card;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	/*

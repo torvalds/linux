@@ -6,7 +6,7 @@
 #include <linux/bits.h>
 #include <asm/asm-const.h>
 
-#define EX_TYPE_NONE		0
+#define EX_TYPE_ANALNE		0
 #define EX_TYPE_FIXUP		1
 #define EX_TYPE_BPF		2
 #define EX_TYPE_UA_STORE	3

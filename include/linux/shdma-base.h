@@ -5,7 +5,7 @@
  * extracted from shdma.c and headers
  *
  * Copyright (C) 2011-2012 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- * Copyright (C) 2009 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * Copyright (C) 2009 Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>
  * Copyright (C) 2009 Renesas Solutions, Inc. All rights reserved.
  * Copyright (C) 2007 Freescale Semiconductor, Inc. All rights reserved.
  */
@@ -44,7 +44,7 @@ struct shdma_slave {
 };
 
 struct shdma_desc {
-	struct list_head node;
+	struct list_head analde;
 	struct dma_async_tx_descriptor async_tx;
 	enum dma_transfer_direction direction;
 	size_t partial;

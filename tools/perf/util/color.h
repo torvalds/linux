@@ -8,7 +8,7 @@
 /* "\033[1;38;5;2xx;48;5;2xxm\0" is 23 bytes */
 #define COLOR_MAXLEN 24
 
-#define PERF_COLOR_NORMAL	""
+#define PERF_COLOR_ANALRMAL	""
 #define PERF_COLOR_RESET	"\033[m"
 #define PERF_COLOR_BOLD		"\033[1m"
 #define PERF_COLOR_RED		"\033[31m"

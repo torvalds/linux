@@ -49,7 +49,7 @@
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_USR_DEF_6         53   /* 11 0101    User Defined 8-bit Data Type 6                   */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_USR_DEF_7         54   /* 11 0110    User Defined 8-bit Data Type 7                   */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_USR_DEF_8         55   /* 11 0111    User Defined 8-bit Data Type 8                   */
-#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_Emb               18   /* 01 0010    embedded eight bit non image data                */
+#define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_Emb               18   /* 01 0010    embedded eight bit analn image data                */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_SOF                0   /* 00 0000    frame start                                      */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_EOF                1   /* 00 0001    frame end                                        */
 #define _HRT_CSS_RECEIVER_2400_DATA_FORMAT_ID_SOL                2   /* 00 0010    line start                                       */
@@ -139,7 +139,7 @@
 #define _HRT_CSS_RECEIVER_2400_BE_RAW18_OPTION_IDX                 6
 #define _HRT_CSS_RECEIVER_2400_BE_RAW18_EN_IDX                     8
 
-#define _HRT_CSS_RECEIVER_2400_BE_COMP_NO_COMP                     0
+#define _HRT_CSS_RECEIVER_2400_BE_COMP_ANAL_COMP                     0
 #define _HRT_CSS_RECEIVER_2400_BE_COMP_10_6_10                     1
 #define _HRT_CSS_RECEIVER_2400_BE_COMP_10_7_10                     2
 #define _HRT_CSS_RECEIVER_2400_BE_COMP_10_8_10                     3
@@ -184,14 +184,14 @@
 #define BE_CUST_PIX_EXT_PIX_EN_IDX         28    /* 1bits */
 #define BE_CUST_PIX_EXT_WIDTH              29
 
-/* Pixel Valid & EoP config = {[eop,valid](especial), [eop,valid](normal)} */
+/* Pixel Valid & EoP config = {[eop,valid](especial), [eop,valid](analrmal)} */
 #define BE_CUST_PIX_VALID_EOP_P0_IDX        0    /* 4bits */
 #define BE_CUST_PIX_VALID_EOP_P1_IDX        4    /* 4bits */
 #define BE_CUST_PIX_VALID_EOP_P2_IDX        8    /* 4bits */
 #define BE_CUST_PIX_VALID_EOP_P3_IDX        12   /* 4bits */
 #define BE_CUST_PIX_VALID_EOP_WIDTH         16
-#define BE_CUST_PIX_VALID_EOP_NOR_VALID_IDX 0    /* Normal (NO less get_bits case) Valid - 1bits */
-#define BE_CUST_PIX_VALID_EOP_NOR_EOP_IDX   1    /* Normal (NO less get_bits case) EoP - 1bits */
+#define BE_CUST_PIX_VALID_EOP_ANALR_VALID_IDX 0    /* Analrmal (ANAL less get_bits case) Valid - 1bits */
+#define BE_CUST_PIX_VALID_EOP_ANALR_EOP_IDX   1    /* Analrmal (ANAL less get_bits case) EoP - 1bits */
 #define BE_CUST_PIX_VALID_EOP_ESP_VALID_IDX 2    /* Especial (less get_bits case) Valid - 1bits */
 #define BE_CUST_PIX_VALID_EOP_ESP_EOP_IDX   3    /* Especial (less get_bits case) EoP - 1bits */
 

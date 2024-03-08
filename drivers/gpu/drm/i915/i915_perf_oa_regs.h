@@ -132,7 +132,7 @@
 #define  GEN12_OAG_OASTATUS_REPORT_LOST      (1 << 0)
 
 #define GDT_CHICKEN_BITS    _MMIO(0x9840)
-#define   GT_NOA_ENABLE	    0x00000080
+#define   GT_ANALA_ENABLE	    0x00000080
 
 /* Gen12 OAM unit */
 #define GEN12_OAM_HEAD_POINTER_OFFSET   (0x1a0)

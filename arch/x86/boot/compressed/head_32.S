@@ -8,7 +8,7 @@
 /*
  *  head.S contains the 32-bit startup code.
  *
- * NOTE!!! Startup happens at absolute address 0x00001000, which is also where
+ * ANALTE!!! Startup happens at absolute address 0x00001000, which is also where
  * the page directory will exist. The startup code will be overwritten by
  * the page directory. [According to comments etc elsewhere on a compressed
  * kernel it will end up at 0x1000 + 1Mb I hope so as I assume this. - AC]
@@ -35,7 +35,7 @@
 /*
  * These symbols needed to be marked as .hidden to prevent the BFD linker from
  * generating R_386_32 (rather than R_386_RELATIVE) relocations for them when
- * the 32-bit compressed kernel is linked as PIE. This is no longer necessary,
+ * the 32-bit compressed kernel is linked as PIE. This is anal longer necessary,
  * but it doesn't hurt to keep them .hidden.
  */
 	.hidden _bss
@@ -50,7 +50,7 @@ SYM_FUNC_START(startup_32)
 /*
  * Calculate the delta between where we were compiled to run
  * at and where we were actually loaded at.  This can only be done
- * with a short local call on x86.  Nothing  else will tell us what
+ * with a short local call on x86.  Analthing  else will tell us what
  * address we are running at.  The reserved chunk of the real-mode
  * data at 0x1e4 (defined as a scratch field) are used as the stack
  * for this calculation. Only 4 bytes are needed.
@@ -87,7 +87,7 @@ SYM_FUNC_START(startup_32)
 	movl	BP_kernel_alignment(%esi), %eax
 	decl	%eax
 	addl    %eax, %ebx
-	notl	%eax
+	analtl	%eax
 	andl    %eax, %ebx
 	cmpl	$LOAD_PHYSICAL_ADDR, %ebx
 	jae	1f
@@ -138,7 +138,7 @@ SYM_FUNC_START(startup_32)
 SYM_FUNC_END(startup_32)
 
 	.text
-SYM_FUNC_START_LOCAL_NOALIGN(.Lrelocated)
+SYM_FUNC_START_LOCAL_ANALALIGN(.Lrelocated)
 
 /*
  * Clear BSS (stack is currently empty)

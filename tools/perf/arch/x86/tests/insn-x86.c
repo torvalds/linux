@@ -76,7 +76,7 @@ static int get_branch(const char *branch_str)
 		const char *name;
 		int val;
 	} vals[] = {
-		{"no_branch",     INTEL_PT_BR_NO_BRANCH},
+		{"anal_branch",     INTEL_PT_BR_ANAL_BRANCH},
 		{"indirect",      INTEL_PT_BR_INDIRECT},
 		{"conditional",   INTEL_PT_BR_CONDITIONAL},
 		{"unconditional", INTEL_PT_BR_UNCONDITIONAL},
@@ -174,7 +174,7 @@ static int test_data_set(const struct test_data *dat_set, int x86_64)
  * gen-insn-x86-dat.sh script, make perf, and then run the test.
  *
  * If the test passes %0 is returned, otherwise %-1 is returned.  Use the
- * verbose (-v) option to see all the instructions and whether or not they
+ * verbose (-v) option to see all the instructions and whether or analt they
  * decoded successfully.
  */
 int test__insn_x86(struct test_suite *test __maybe_unused, int subtest __maybe_unused)

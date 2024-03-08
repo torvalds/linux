@@ -21,7 +21,7 @@
  * be hooked up there.
  */
 struct dp_aux_ep_device {
-	/** @dev: The normal dev pointer */
+	/** @dev: The analrmal dev pointer */
 	struct device dev;
 	/** @aux: Pointer to the aux bus */
 	struct drm_dp_aux *aux;
@@ -50,15 +50,15 @@ void of_dp_aux_depopulate_bus(struct drm_dp_aux *aux);
 int devm_of_dp_aux_populate_bus(struct drm_dp_aux *aux,
 				int (*done_probing)(struct drm_dp_aux *aux));
 
-/* Deprecated versions of the above functions. To be removed when no callers. */
+/* Deprecated versions of the above functions. To be removed when anal callers. */
 static inline int of_dp_aux_populate_ep_devices(struct drm_dp_aux *aux)
 {
 	int ret;
 
 	ret = of_dp_aux_populate_bus(aux, NULL);
 
-	/* New API returns -ENODEV for no child case; adapt to old assumption */
-	return (ret != -ENODEV) ? ret : 0;
+	/* New API returns -EANALDEV for anal child case; adapt to old assumption */
+	return (ret != -EANALDEV) ? ret : 0;
 }
 
 static inline int devm_of_dp_aux_populate_ep_devices(struct drm_dp_aux *aux)
@@ -67,8 +67,8 @@ static inline int devm_of_dp_aux_populate_ep_devices(struct drm_dp_aux *aux)
 
 	ret = devm_of_dp_aux_populate_bus(aux, NULL);
 
-	/* New API returns -ENODEV for no child case; adapt to old assumption */
-	return (ret != -ENODEV) ? ret : 0;
+	/* New API returns -EANALDEV for anal child case; adapt to old assumption */
+	return (ret != -EANALDEV) ? ret : 0;
 }
 
 static inline void of_dp_aux_depopulate_ep_devices(struct drm_dp_aux *aux)

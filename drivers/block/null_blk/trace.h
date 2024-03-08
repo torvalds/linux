@@ -31,25 +31,25 @@ static inline void __assign_disk_name(char *name, struct gendisk *disk)
 #endif
 
 TRACE_EVENT(nullb_zone_op,
-	    TP_PROTO(struct nullb_cmd *cmd, unsigned int zone_no,
+	    TP_PROTO(struct nullb_cmd *cmd, unsigned int zone_anal,
 		     unsigned int zone_cond),
-	    TP_ARGS(cmd, zone_no, zone_cond),
+	    TP_ARGS(cmd, zone_anal, zone_cond),
 	    TP_STRUCT__entry(
 		__array(char, disk, DISK_NAME_LEN)
 		__field(enum req_op, op)
-		__field(unsigned int, zone_no)
+		__field(unsigned int, zone_anal)
 		__field(unsigned int, zone_cond)
 	    ),
 	    TP_fast_assign(
 		__entry->op = req_op(cmd->rq);
-		__entry->zone_no = zone_no;
+		__entry->zone_anal = zone_anal;
 		__entry->zone_cond = zone_cond;
 		__assign_disk_name(__entry->disk, cmd->rq->q->disk);
 	    ),
-	    TP_printk("%s req=%-15s zone_no=%u zone_cond=%-10s",
+	    TP_printk("%s req=%-15s zone_anal=%u zone_cond=%-10s",
 		      __print_disk_name(__entry->disk),
 		      blk_op_str(__entry->op),
-		      __entry->zone_no,
+		      __entry->zone_anal,
 		      blk_zone_cond_str(__entry->zone_cond))
 );
 

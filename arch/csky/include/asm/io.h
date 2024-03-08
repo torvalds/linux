@@ -8,13 +8,13 @@
 
 /*
  * I/O memory access primitives. Reads are ordered relative to any
- * following Normal memory access. Writes are ordered relative to any prior
- * Normal memory access.
+ * following Analrmal memory access. Writes are ordered relative to any prior
+ * Analrmal memory access.
  *
  * For CACHEV1 (807, 810), store instruction could fast retire, so we need
- * another mb() to prevent st fast retire.
+ * aanalther mb() to prevent st fast retire.
  *
- * For CACHEV2 (860), store instruction with PAGE_ATTR_NO_BUFFERABLE won't
+ * For CACHEV2 (860), store instruction with PAGE_ATTR_ANAL_BUFFERABLE won't
  * fast retire.
  */
 #define readb(c)		({ u8  __v = readb_relaxed(c); rmb(); __v; })

@@ -25,7 +25,7 @@
 #include <linux/list.h>
 #include <linux/mfd/core.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -96,57 +96,57 @@ static const struct mfd_cell nvec_devices[] = {
 };
 
 /**
- * nvec_register_notifier - Register a notifier with nvec
+ * nvec_register_analtifier - Register a analtifier with nvec
  * @nvec: A &struct nvec_chip
- * @nb: The notifier block to register
+ * @nb: The analtifier block to register
  * @events: Unused
  *
- * Registers a notifier with @nvec. The notifier will be added to an atomic
- * notifier chain that is called for all received messages except those that
+ * Registers a analtifier with @nvec. The analtifier will be added to an atomic
+ * analtifier chain that is called for all received messages except those that
  * correspond to a request initiated by nvec_write_sync().
  */
-int nvec_register_notifier(struct nvec_chip *nvec, struct notifier_block *nb,
+int nvec_register_analtifier(struct nvec_chip *nvec, struct analtifier_block *nb,
 			   unsigned int events)
 {
-	return atomic_notifier_chain_register(&nvec->notifier_list, nb);
+	return atomic_analtifier_chain_register(&nvec->analtifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(nvec_register_notifier);
+EXPORT_SYMBOL_GPL(nvec_register_analtifier);
 
 /**
- * nvec_unregister_notifier - Unregister a notifier with nvec
+ * nvec_unregister_analtifier - Unregister a analtifier with nvec
  * @nvec: A &struct nvec_chip
- * @nb: The notifier block to unregister
+ * @nb: The analtifier block to unregister
  *
- * Unregisters a notifier with @nvec. The notifier will be removed from the
- * atomic notifier chain.
+ * Unregisters a analtifier with @nvec. The analtifier will be removed from the
+ * atomic analtifier chain.
  */
-int nvec_unregister_notifier(struct nvec_chip *nvec, struct notifier_block *nb)
+int nvec_unregister_analtifier(struct nvec_chip *nvec, struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&nvec->notifier_list, nb);
+	return atomic_analtifier_chain_unregister(&nvec->analtifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(nvec_unregister_notifier);
+EXPORT_SYMBOL_GPL(nvec_unregister_analtifier);
 
 /*
- * nvec_status_notifier - The final notifier
+ * nvec_status_analtifier - The final analtifier
  *
- * Prints a message about control events not handled in the notifier
+ * Prints a message about control events analt handled in the analtifier
  * chain.
  */
-static int nvec_status_notifier(struct notifier_block *nb,
+static int nvec_status_analtifier(struct analtifier_block *nb,
 				unsigned long event_type, void *data)
 {
 	struct nvec_chip *nvec = container_of(nb, struct nvec_chip,
-						nvec_status_notifier);
+						nvec_status_analtifier);
 	unsigned char *msg = data;
 
 	if (event_type != NVEC_CNTL)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	dev_warn(nvec->dev, "unhandled msg type %ld\n", event_type);
-	print_hex_dump(KERN_WARNING, "payload: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_WARNING, "payload: ", DUMP_PREFIX_ANALNE, 16, 1,
 		       msg, msg[1] + 2, true);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /**
@@ -155,7 +155,7 @@ static int nvec_status_notifier(struct notifier_block *nb,
  * @category: Pool category, see &enum nvec_msg_category
  *
  * Allocate a single &struct nvec_msg object from the message pool of
- * @nvec. The result shall be passed to nvec_msg_free() if no longer
+ * @nvec. The result shall be passed to nvec_msg_free() if anal longer
  * used.
  *
  * Outgoing messages are placed in the upper 75% of the pool, keeping the
@@ -175,7 +175,7 @@ static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec,
 		}
 	}
 
-	dev_err(nvec->dev, "could not allocate %s buffer\n",
+	dev_err(nvec->dev, "could analt allocate %s buffer\n",
 		(category == NVEC_MSG_TX) ? "TX" : "RX");
 
 	return NULL;
@@ -209,7 +209,7 @@ static bool nvec_msg_is_event(struct nvec_msg *msg)
  * nvec_msg_size - Get the size of a message
  * @msg: The message to get the size for
  *
- * This only works for received messages, not for outgoing messages.
+ * This only works for received messages, analt for outgoing messages.
  */
 static size_t nvec_msg_size(struct nvec_msg *msg)
 {
@@ -241,7 +241,7 @@ static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
 }
 
 /**
- * nvec_write_async - Asynchronously write a message to NVEC
+ * nvec_write_async - Asynchroanalusly write a message to NVEC
  * @nvec: An nvec_chip instance
  * @data: The message data, starting with the request type
  * @size: The size of @data
@@ -261,14 +261,14 @@ int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 	msg = nvec_msg_alloc(nvec, NVEC_MSG_TX);
 
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->data[0] = size;
 	memcpy(msg->data + 1, data, size);
 	msg->size = size + 1;
 
 	spin_lock_irqsave(&nvec->tx_lock, flags);
-	list_add_tail(&msg->node, &nvec->tx_data);
+	list_add_tail(&msg->analde, &nvec->tx_data);
 	spin_unlock_irqrestore(&nvec->tx_lock, flags);
 
 	schedule_work(&nvec->tx_work);
@@ -286,12 +286,12 @@ EXPORT_SYMBOL(nvec_write_async);
  *
  * This is similar to nvec_write_async(), but waits for the
  * request to be answered before returning. This function
- * uses a mutex and can thus not be called from e.g.
+ * uses a mutex and can thus analt be called from e.g.
  * interrupt handlers.
  *
  * Returns: 0 on success, a negative error code on failure.
  * The response message is returned in @msg. Shall be freed
- * with nvec_msg_free() once no longer used.
+ * with nvec_msg_free() once anal longer used.
  *
  */
 int nvec_write_sync(struct nvec_chip *nvec,
@@ -305,7 +305,7 @@ int nvec_write_sync(struct nvec_chip *nvec,
 
 	if (nvec_write_async(nvec, data, size) < 0) {
 		mutex_unlock(&nvec->sync_write_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_dbg(nvec->dev, "nvec_sync_write: 0x%04x\n",
@@ -380,7 +380,7 @@ static void nvec_request_master(struct work_struct *work)
 
 	spin_lock_irqsave(&nvec->tx_lock, flags);
 	while (!list_empty(&nvec->tx_data)) {
-		msg = list_first_entry(&nvec->tx_data, struct nvec_msg, node);
+		msg = list_first_entry(&nvec->tx_data, struct nvec_msg, analde);
 		spin_unlock_irqrestore(&nvec->tx_lock, flags);
 		nvec_gpio_set_value(nvec, 0);
 		err = wait_for_completion_interruptible_timeout(&nvec->ec_transfer,
@@ -395,7 +395,7 @@ static void nvec_request_master(struct work_struct *work)
 		spin_lock_irqsave(&nvec->tx_lock, flags);
 
 		if (err > 0) {
-			list_del_init(&msg->node);
+			list_del_init(&msg->analde);
 			nvec_msg_free(nvec, msg);
 		}
 	}
@@ -403,12 +403,12 @@ static void nvec_request_master(struct work_struct *work)
 }
 
 /**
- * parse_msg - Print some information and call the notifiers on an RX message
+ * parse_msg - Print some information and call the analtifiers on an RX message
  * @nvec: A &struct nvec_chip
  * @msg: A message received by @nvec
  *
- * Paarse some pieces of the message and then call the chain of notifiers
- * registered via nvec_register_notifier.
+ * Paarse some pieces of the message and then call the chain of analtifiers
+ * registered via nvec_register_analtifier.
  */
 static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
@@ -419,10 +419,10 @@ static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 
 	if ((msg->data[0] >> 7) == 1 && (msg->data[0] & 0x0f) == 5)
 		print_hex_dump(KERN_WARNING, "ec system event ",
-			       DUMP_PREFIX_NONE, 16, 1, msg->data,
+			       DUMP_PREFIX_ANALNE, 16, 1, msg->data,
 			       msg->data[1] + 2, true);
 
-	atomic_notifier_call_chain(&nvec->notifier_list, msg->data[0] & 0x8f,
+	atomic_analtifier_call_chain(&nvec->analtifier_list, msg->data[0] & 0x8f,
 				   msg->data);
 
 	return 0;
@@ -443,8 +443,8 @@ static void nvec_dispatch(struct work_struct *work)
 
 	spin_lock_irqsave(&nvec->rx_lock, flags);
 	while (!list_empty(&nvec->rx_data)) {
-		msg = list_first_entry(&nvec->rx_data, struct nvec_msg, node);
-		list_del_init(&msg->node);
+		msg = list_first_entry(&nvec->rx_data, struct nvec_msg, analde);
+		list_del_init(&msg->analde);
 		spin_unlock_irqrestore(&nvec->rx_lock, flags);
 
 		if (nvec->sync_write_pending ==
@@ -509,7 +509,7 @@ static void nvec_rx_completed(struct nvec_chip *nvec)
 	 * Add the received data to the work list and move the ring buffer
 	 * pointer to the next entry.
 	 */
-	list_add_tail(&nvec->rx->node, &nvec->rx_data);
+	list_add_tail(&nvec->rx->analde, &nvec->rx_data);
 
 	spin_unlock(&nvec->rx_lock);
 
@@ -542,21 +542,21 @@ static void nvec_invalid_flags(struct nvec_chip *nvec, unsigned int status,
  *
  * Gets the first entry from the tx_data list of @nvec and sets the
  * tx member to it. If the tx_data list is empty, this uses the
- * tx_scratch message to send a no operation message.
+ * tx_scratch message to send a anal operation message.
  */
 static void nvec_tx_set(struct nvec_chip *nvec)
 {
 	spin_lock(&nvec->tx_lock);
 	if (list_empty(&nvec->tx_data)) {
-		dev_err(nvec->dev, "empty tx - sending no-op\n");
+		dev_err(nvec->dev, "empty tx - sending anal-op\n");
 		memcpy(nvec->tx_scratch.data, "\x02\x07\x02", 3);
 		nvec->tx_scratch.size = 3;
 		nvec->tx_scratch.pos = 0;
 		nvec->tx = &nvec->tx_scratch;
-		list_add_tail(&nvec->tx->node, &nvec->tx_data);
+		list_add_tail(&nvec->tx->analde, &nvec->tx_data);
 	} else {
 		nvec->tx = list_first_entry(&nvec->tx_data, struct nvec_msg,
-					    node);
+					    analde);
 		nvec->tx->pos = 0;
 	}
 	spin_unlock(&nvec->tx_lock);
@@ -595,7 +595,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 		return IRQ_HANDLED;
 	}
 
-	/* The EC did not request a read, so it send us something, read it */
+	/* The EC did analt request a read, so it send us something, read it */
 	if ((status & RNW) == 0) {
 		received = readl(nvec->base + I2C_SL_RCVD);
 		if (status & RCVD)
@@ -615,7 +615,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 			nvec_invalid_flags(nvec, status, true);
 		} else {
 			nvec->rx = nvec_msg_alloc(nvec, NVEC_MSG_RX);
-			/* Should not happen in a normal world */
+			/* Should analt happen in a analrmal world */
 			if (unlikely(!nvec->rx)) {
 				nvec->state = 0;
 				break;
@@ -689,7 +689,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 		nvec->state = 1;
 	}
 
-	/* Send data if requested, but not on end of transmission */
+	/* Send data if requested, but analt on end of transmission */
 	if ((status & (RNW | END_TRANS)) == RNW)
 		writel(to_send, nvec->base + I2C_SL_RCVD);
 
@@ -712,7 +712,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 	 * TODO: A correct fix needs to be found for this.
 	 *
 	 * We experience less incomplete messages with this delay than without
-	 * it, but we don't know why. Help is appreciated.
+	 * it, but we don't kanalw why. Help is appreciated.
 	 */
 	udelay(100);
 
@@ -773,21 +773,21 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
 		enable_event[7] = { NVEC_SYS, CNF_EVENT_REPORTING, true };
 
-	if (!dev->of_node) {
+	if (!dev->of_analde) {
 		dev_err(dev, "must be instantiated using device tree\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	nvec = devm_kzalloc(dev, sizeof(struct nvec_chip), GFP_KERNEL);
 	if (!nvec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, nvec);
 	nvec->dev = dev;
 
-	if (of_property_read_u32(dev->of_node, "slave-addr", &nvec->i2c_addr)) {
-		dev_err(dev, "no i2c address specified");
-		return -ENODEV;
+	if (of_property_read_u32(dev->of_analde, "slave-addr", &nvec->i2c_addr)) {
+		dev_err(dev, "anal i2c address specified");
+		return -EANALDEV;
 	}
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -796,12 +796,12 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 
 	nvec->irq = platform_get_irq(pdev, 0);
 	if (nvec->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	i2c_clk = devm_clk_get(dev, "div-clk");
 	if (IS_ERR(i2c_clk)) {
 		dev_err(dev, "failed to get controller clock\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	nvec->rst = devm_reset_control_get_exclusive(dev, "i2c");
@@ -814,7 +814,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	nvec->i2c_clk = i2c_clk;
 	nvec->rx = &nvec->msg_pool[0];
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&nvec->notifier_list);
+	ATOMIC_INIT_ANALTIFIER_HEAD(&nvec->analtifier_list);
 
 	init_completion(&nvec->sync_write);
 	init_completion(&nvec->ec_transfer);
@@ -836,7 +836,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 			       "nvec", nvec);
 	if (err) {
 		dev_err(dev, "couldn't request irq\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	disable_irq(nvec->irq);
 
@@ -845,8 +845,8 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	/* enable event reporting */
 	nvec_toggle_global_events(nvec, true);
 
-	nvec->nvec_status_notifier.notifier_call = nvec_status_notifier;
-	nvec_register_notifier(nvec, &nvec->nvec_status_notifier, 0);
+	nvec->nvec_status_analtifier.analtifier_call = nvec_status_analtifier;
+	nvec_register_analtifier(nvec, &nvec->nvec_status_analtifier, 0);
 
 	nvec_power_handle = nvec;
 	pm_power_off = nvec_power_off;
@@ -888,7 +888,7 @@ static void tegra_nvec_remove(struct platform_device *pdev)
 
 	nvec_toggle_global_events(nvec, false);
 	mfd_remove_devices(nvec->dev);
-	nvec_unregister_notifier(nvec, &nvec->nvec_status_notifier);
+	nvec_unregister_analtifier(nvec, &nvec->nvec_status_analtifier);
 	cancel_work_sync(&nvec->rx_work);
 	cancel_work_sync(&nvec->tx_work);
 	/* FIXME: needs check whether nvec is responsible for power off */

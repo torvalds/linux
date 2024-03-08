@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -70,7 +70,7 @@
 #include "dpcs/dpcs_2_1_0_offset.h"
 #include "dpcs/dpcs_2_1_0_sh_mask.h"
 
-#include "renoir_ip_offset.h"
+#include "reanalir_ip_offset.h"
 #include "dcn/dcn_2_1_0_offset.h"
 #include "dcn/dcn_2_1_0_sh_mask.h"
 
@@ -829,7 +829,7 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 
 	if (vlevel > context->bw_ctx.dml.soc.num_states) {
 		/*
-		 * If mode is unsupported or there's still no p-state support then
+		 * If mode is unsupported or there's still anal p-state support then
 		 * fall back to favoring voltage.
 		 *
 		 * We don't actually support prefetch mode 2, so require that we
@@ -896,7 +896,7 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 
 		if (split[i] == 2) {
 			if (!hsplit_pipe || hsplit_pipe->plane_state != pipe->plane_state) {
-				/* pipe not split previously needs split */
+				/* pipe analt split previously needs split */
 				hsplit_pipe = dcn20_find_secondary_pipe(dc, &context->res_ctx, dc->res_pool, pipe);
 				ASSERT(hsplit_pipe);
 				if (!hsplit_pipe) {
@@ -1376,7 +1376,7 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 	return value;
 }
 
-static enum dc_status dcn21_patch_unknown_plane_state(struct dc_plane_state *plane_state)
+static enum dc_status dcn21_patch_unkanalwn_plane_state(struct dc_plane_state *plane_state)
 {
 	if (plane_state->ctx->dc->debug.disable_dcc == DCC_ENABLE) {
 		plane_state->dcc.enable = 1;
@@ -1384,7 +1384,7 @@ static enum dc_status dcn21_patch_unknown_plane_state(struct dc_plane_state *pla
 		plane_state->dcc.meta_pitch = ((plane_state->src_rect.width + 1023) / 1024) * 1024;
 	}
 
-	return dcn20_patch_unknown_plane_state(plane_state);
+	return dcn20_patch_unkanalwn_plane_state(plane_state);
 }
 
 static const struct resource_funcs dcn21_res_pool_funcs = {
@@ -1399,7 +1399,7 @@ static const struct resource_funcs dcn21_res_pool_funcs = {
 	.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
 	.release_pipe = dcn20_release_pipe,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
-	.patch_unknown_plane_state = dcn21_patch_unknown_plane_state,
+	.patch_unkanalwn_plane_state = dcn21_patch_unkanalwn_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
 	.update_bw_bounding_box = dcn21_update_bw_bounding_box,
@@ -1431,7 +1431,7 @@ static bool dcn21_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 
 	/* max pipe num for ASIC before check pipe fuses */
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
@@ -1468,7 +1468,7 @@ static bool dcn21_resource_construct(
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
-	// no OGAM ROM on DCN2
+	// anal OGAM ROM on DCN2
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;
 	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
@@ -1523,7 +1523,7 @@ static bool dcn21_resource_construct(
 
 	pool->base.clk_src_count = DCN20_CLK_SRC_TOTAL_DCN21;
 
-	/* todo: not reuse phy_pll registers */
+	/* todo: analt reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn21_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,

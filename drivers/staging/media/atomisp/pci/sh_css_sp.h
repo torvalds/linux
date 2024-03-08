@@ -140,7 +140,7 @@ sh_css_sp_set_sp_running(bool flag);
 bool
 sh_css_sp_is_running(void);
 
-#if SP_DEBUG != SP_DEBUG_NONE
+#if SP_DEBUG != SP_DEBUG_ANALNE
 
 void
 sh_css_sp_get_debug_state(struct sh_css_sp_debug_state *state);

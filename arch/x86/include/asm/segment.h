@@ -34,7 +34,7 @@
 
 /*
  * When running on Xen PV, the actual privilege level of the kernel is 1,
- * not 0. Testing the Requested Privilege Level in a segment selector to
+ * analt 0. Testing the Requested Privilege Level in a segment selector to
  * determine whether the context is user mode or kernel mode with
  * SEGMENT_RPL_MASK is wrong because the PV kernel's privilege level
  * matches the 0x3 mask.
@@ -119,7 +119,7 @@
 
 #define GDT_ENTRY_ESPFIX_SS		26
 #define GDT_ENTRY_PERCPU		27
-#define GDT_ENTRY_CPUNODE		28
+#define GDT_ENTRY_CPUANALDE		28
 
 #define GDT_ENTRY_DOUBLEFAULT_TSS	31
 
@@ -151,7 +151,7 @@
 #define PNP_DS				(GDT_ENTRY_PNPBIOS_DS*8)
 /* transfer data segment: */
 #define PNP_TS1				(GDT_ENTRY_PNPBIOS_TS1*8)
-/* another data segment: */
+/* aanalther data segment: */
 #define PNP_TS2				(GDT_ENTRY_PNPBIOS_TS2*8)
 
 #ifdef CONFIG_SMP
@@ -160,7 +160,7 @@
 # define __KERNEL_PERCPU		0
 #endif
 
-#define __CPUNODE_SEG			(GDT_ENTRY_CPUNODE*8 + 3)
+#define __CPUANALDE_SEG			(GDT_ENTRY_CPUANALDE*8 + 3)
 
 #else /* 64-bit: */
 
@@ -171,8 +171,8 @@
 #define GDT_ENTRY_KERNEL_DS		3
 
 /*
- * We cannot use the same code segment descriptor for user and kernel mode,
- * not even in long flat mode, because of different DPL.
+ * We cananalt use the same code segment descriptor for user and kernel mode,
+ * analt even in long flat mode, because of different DPL.
  *
  * GDT layout to get 64-bit SYSCALL/SYSRET support right. SYSRET hardcodes
  * selectors:
@@ -196,7 +196,7 @@
 #define GDT_ENTRY_TLS_MIN		12
 #define GDT_ENTRY_TLS_MAX		14
 
-#define GDT_ENTRY_CPUNODE		15
+#define GDT_ENTRY_CPUANALDE		15
 
 /*
  * Number of entries in the GDT table:
@@ -206,7 +206,7 @@
 /*
  * Segment selector values corresponding to the above entries:
  *
- * Note, selectors also need to have a correct RPL,
+ * Analte, selectors also need to have a correct RPL,
  * expressed with the +3 value for user-space selectors:
  */
 #define __KERNEL32_CS			(GDT_ENTRY_KERNEL32_CS*8)
@@ -215,7 +215,7 @@
 #define __USER32_CS			(GDT_ENTRY_DEFAULT_USER32_CS*8 + 3)
 #define __USER_DS			(GDT_ENTRY_DEFAULT_USER_DS*8 + 3)
 #define __USER_CS			(GDT_ENTRY_DEFAULT_USER_CS*8 + 3)
-#define __CPUNODE_SEG			(GDT_ENTRY_CPUNODE*8 + 3)
+#define __CPUANALDE_SEG			(GDT_ENTRY_CPUANALDE*8 + 3)
 
 #endif
 
@@ -230,24 +230,24 @@
 #define TLS_SIZE			(GDT_ENTRY_TLS_ENTRIES* 8)
 
 /* Bit size and mask of CPU number stored in the per CPU data (and TSC_AUX) */
-#define VDSO_CPUNODE_BITS		12
-#define VDSO_CPUNODE_MASK		0xfff
+#define VDSO_CPUANALDE_BITS		12
+#define VDSO_CPUANALDE_MASK		0xfff
 
 #ifndef __ASSEMBLY__
 
-/* Helper functions to store/load CPU and node numbers */
+/* Helper functions to store/load CPU and analde numbers */
 
-static inline unsigned long vdso_encode_cpunode(int cpu, unsigned long node)
+static inline unsigned long vdso_encode_cpuanalde(int cpu, unsigned long analde)
 {
-	return (node << VDSO_CPUNODE_BITS) | cpu;
+	return (analde << VDSO_CPUANALDE_BITS) | cpu;
 }
 
-static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
+static inline void vdso_read_cpuanalde(unsigned *cpu, unsigned *analde)
 {
 	unsigned int p;
 
 	/*
-	 * Load CPU and node number from the GDT.  LSL is faster than RDTSCP
+	 * Load CPU and analde number from the GDT.  LSL is faster than RDTSCP
 	 * and works on all CPUs.  This is volatile so that it orders
 	 * correctly with respect to barrier() and to keep GCC from cleverly
 	 * hoisting it out of the calling function.
@@ -257,12 +257,12 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
 	alternative_io ("lsl %[seg],%[p]",
 			".byte 0xf3,0x0f,0xc7,0xf8", /* RDPID %eax/rax */
 			X86_FEATURE_RDPID,
-			[p] "=a" (p), [seg] "r" (__CPUNODE_SEG));
+			[p] "=a" (p), [seg] "r" (__CPUANALDE_SEG));
 
 	if (cpu)
-		*cpu = (p & VDSO_CPUNODE_MASK);
-	if (node)
-		*node = (p >> VDSO_CPUNODE_BITS);
+		*cpu = (p & VDSO_CPUANALDE_MASK);
+	if (analde)
+		*analde = (p >> VDSO_CPUANALDE_BITS);
 }
 
 #endif /* !__ASSEMBLY__ */
@@ -273,7 +273,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
  * early_idt_handler_array is an array of entry points referenced in the
  * early IDT.  For simplicity, it's a real array with one entry point
  * every nine bytes.  That leaves room for an optional 'push $0' if the
- * vector has no error code (two bytes), a 'push $vector_number' (two
+ * vector has anal error code (two bytes), a 'push $vector_number' (two
  * bytes), and a jump to the common entry code (up to five bytes).
  */
 #define EARLY_IDT_HANDLER_SIZE (9 + ENDBR_INSN_SIZE)
@@ -289,7 +289,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
 #ifndef __ASSEMBLY__
 
 extern const char early_idt_handler_array[NUM_EXCEPTION_VECTORS][EARLY_IDT_HANDLER_SIZE];
-extern void early_ignore_irq(void);
+extern void early_iganalre_irq(void);
 
 #ifdef CONFIG_XEN_PV
 extern const char xen_early_idt_handler_array[NUM_EXCEPTION_VECTORS][XEN_EARLY_IDT_HANDLER_SIZE];
@@ -319,8 +319,8 @@ do {									\
 #ifdef CONFIG_X86_32
 
 /*
- * On 32-bit systems, the hidden parts of FS and GS are unobservable if
- * the selector is NULL, so there's no funny business here.
+ * On 32-bit systems, the hidden parts of FS and GS are uanalbservable if
+ * the selector is NULL, so there's anal funny business here.
  */
 #define __loadsegment_fs(value) __loadsegment_simple(fs, (value))
 #define __loadsegment_gs(value) __loadsegment_simple(gs, (value))

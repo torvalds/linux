@@ -185,7 +185,7 @@ irqreturn_t cnl_dsp_sst_interrupt(int irq, void *dev_id)
 {
 	struct sst_dsp *ctx = dev_id;
 	u32 val;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	spin_lock(&ctx->spinlock);
 
@@ -194,7 +194,7 @@ irqreturn_t cnl_dsp_sst_interrupt(int irq, void *dev_id)
 
 	if (val == 0xffffffff) {
 		spin_unlock(&ctx->spinlock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (val & CNL_ADSPIS_IPC) {

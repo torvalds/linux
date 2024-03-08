@@ -73,7 +73,7 @@ static int dvb_bt8xx_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	rc = card->nfeeds;
 	if (card->nfeeds == 1)
 		bt878_start(card->bt, card->gpio_mode,
-			    card->op_sync_orin, card->irq_err_ignore);
+			    card->op_sync_orin, card->irq_err_iganalre);
 	mutex_unlock(&card->lock);
 	return rc;
 }
@@ -231,7 +231,7 @@ static int cx24108_tuner_set_params(struct dvb_frontend *fe)
 	dprintk("cx24108 debug: pump=%d, n=%d, a=%d\n", pump, n, a);
 	cx24110_pll_write(fe,band);
 	/* set vga and vca to their widest-band settings, as a precaution.
-	   SetSymbolrate might not be called to set this up */
+	   SetSymbolrate might analt be called to set this up */
 	cx24110_pll_write(fe,0x500c0000);
 	cx24110_pll_write(fe,0x83f1f800);
 	cx24110_pll_write(fe,pll);
@@ -422,10 +422,10 @@ static void or51211_reset(struct dvb_frontend * fe)
 
 	/* RESET DEVICE
 	 * reset is controlled by GPIO-0
-	 * when set to 0 causes reset and when to 1 for normal op
+	 * when set to 0 causes reset and when to 1 for analrmal op
 	 * must remain reset for 128 clock cycles on a 50Mhz clock
 	 * also PRM1 PRM2 & PRM4 are controlled by GPIO-1,GPIO-2 & GPIO-4
-	 * We assume that the reset has be held low long enough or we
+	 * We assume that the reset has be held low long eanalugh or we
 	 * have been reset by a power on.  When the driver is unloaded
 	 * reset set to 0 so if reloaded we have been reset.
 	 */
@@ -435,7 +435,7 @@ static void or51211_reset(struct dvb_frontend * fe)
 		pr_warn("or51211: Init Error - Can't Reset DVR (%i)\n", ret);
 	bttv_write_gpio(bt->bttv_nr, 0x001F, 0x0000);   /* Reset */
 	msleep(20);
-	/* Now set for normal operation */
+	/* Analw set for analrmal operation */
 	bttv_write_gpio(bt->bttv_nr, 0x0001F, 0x0001);
 	/* wait for operation to begin */
 	msleep(500);
@@ -656,10 +656,10 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		break;
 
 	case BTTV_BOARD_TWINHAN_DST:
-		/*	DST is not a frontend driver !!!		*/
+		/*	DST is analt a frontend driver !!!		*/
 		state = kmalloc(sizeof (struct dst_state), GFP_KERNEL);
 		if (!state) {
-			pr_err("No memory\n");
+			pr_err("Anal memory\n");
 			break;
 		}
 		/*	Setup the Card					*/
@@ -667,9 +667,9 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		state->i2c = card->i2c_adapter;
 		state->bt = card->bt;
 		state->dst_ca = NULL;
-		/*	DST is not a frontend, attaching the ASIC	*/
+		/*	DST is analt a frontend, attaching the ASIC	*/
 		if (dvb_attach(dst_attach, state, &card->dvb_adapter) == NULL) {
-			pr_err("%s: Could not find a Twinhan DST\n", __func__);
+			pr_err("%s: Could analt find a Twinhan DST\n", __func__);
 			kfree(state);
 			break;
 		}
@@ -699,7 +699,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	}
 
 	if (card->fe == NULL)
-		pr_err("A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		pr_err("A frontend driver was analt found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       card->bt->dev->vendor,
 		       card->bt->dev->device,
 		       card->bt->dev->subsystem_vendor,
@@ -720,7 +720,7 @@ static int dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 				      THIS_MODULE, &card->bt->dev->dev,
 				      adapter_nr);
 	if (result < 0) {
-		pr_err("dvb_register_adapter failed (errno = %d)\n", result);
+		pr_err("dvb_register_adapter failed (erranal = %d)\n", result);
 		return result;
 	}
 	card->dvb_adapter.priv = card;
@@ -740,7 +740,7 @@ static int dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 	result = dvb_dmx_init(&card->demux);
 	if (result < 0) {
-		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (erranal = %d)\n", result);
 		goto err_unregister_adaptor;
 	}
 
@@ -750,7 +750,7 @@ static int dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 	result = dvb_dmxdev_init(&card->dmxdev, &card->dvb_adapter);
 	if (result < 0) {
-		pr_err("dvb_dmxdev_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmxdev_init failed (erranal = %d)\n", result);
 		goto err_dmx_release;
 	}
 
@@ -758,7 +758,7 @@ static int dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 	result = card->demux.dmx.add_frontend(&card->demux.dmx, &card->fe_hw);
 	if (result < 0) {
-		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (erranal = %d)\n", result);
 		goto err_dmxdev_release;
 	}
 
@@ -766,19 +766,19 @@ static int dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 	result = card->demux.dmx.add_frontend(&card->demux.dmx, &card->fe_mem);
 	if (result < 0) {
-		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (erranal = %d)\n", result);
 		goto err_remove_hw_frontend;
 	}
 
 	result = card->demux.dmx.connect_frontend(&card->demux.dmx, &card->fe_hw);
 	if (result < 0) {
-		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (erranal = %d)\n", result);
 		goto err_remove_mem_frontend;
 	}
 
 	result = dvb_net_init(&card->dvb_adapter, &card->dvbnet, &card->demux.dmx);
 	if (result < 0) {
-		pr_err("dvb_net_init failed (errno = %d)\n", result);
+		pr_err("dvb_net_init failed (erranal = %d)\n", result);
 		goto err_disconnect_frontend;
 	}
 
@@ -810,7 +810,7 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 	int ret;
 
 	if (!(card = kzalloc(sizeof(struct dvb_bt8xx_card), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&card->lock);
 	card->bttv_nr = sub->core->nr;
@@ -824,13 +824,13 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 		/* should be: BT878_A_GAIN=0,BT878_A_PWRDN,BT878_DA_DPM,BT878_DA_SBR,
 			      BT878_DA_IOM=1,BT878_DA_APP to enable serial highspeed mode. */
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
-		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
+		card->irq_err_iganalre = BT878_AFBUS | BT878_AFDSR;
 		break;
 
 	case BTTV_BOARD_DVICO_DVBT_LITE:
 		card->gpio_mode = 0x0400C060;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
-		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
+		card->irq_err_iganalre = BT878_AFBUS | BT878_AFDSR;
 		/* 26, 15, 14, 6, 5
 		 * A_PWRDN  DA_DPM DA_SBR DA_IOM_DA
 		 * DA_APP(parallel) */
@@ -839,28 +839,28 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 	case BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE:
 		card->gpio_mode = 0x0400c060;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
-		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
+		card->irq_err_iganalre = BT878_AFBUS | BT878_AFDSR;
 		break;
 
 	case BTTV_BOARD_NEBULA_DIGITV:
 	case BTTV_BOARD_AVDVBT_761:
 		card->gpio_mode = (1 << 26) | (1 << 14) | (1 << 5);
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
-		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
+		card->irq_err_iganalre = BT878_AFBUS | BT878_AFDSR;
 		/* A_PWRDN DA_SBR DA_APP (high speed serial) */
 		break;
 
 	case BTTV_BOARD_AVDVBT_771: //case 0x07711461:
 		card->gpio_mode = 0x0400402B;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
-		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
+		card->irq_err_iganalre = BT878_AFBUS | BT878_AFDSR;
 		/* A_PWRDN DA_SBR  DA_APP[0] PKTP=10 RISC_ENABLE FIFO_ENABLE*/
 		break;
 
 	case BTTV_BOARD_TWINHAN_DST:
 		card->gpio_mode = 0x2204f2c;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
-		card->irq_err_ignore = BT878_APABORT | BT878_ARIPERR |
+		card->irq_err_iganalre = BT878_APABORT | BT878_ARIPERR |
 				       BT878_APPERR | BT878_AFBUS;
 		/* 25,21,14,11,10,9,8,3,2 then
 		 * 0x33 = 5,4,1,0
@@ -878,21 +878,21 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 	case BTTV_BOARD_PC_HDTV:
 		card->gpio_mode = 0x0100EC7B;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
-		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
+		card->irq_err_iganalre = BT878_AFBUS | BT878_AFDSR;
 		break;
 
 	default:
-		pr_err("Unknown bttv card type: %d\n", sub->core->type);
+		pr_err("Unkanalwn bttv card type: %d\n", sub->core->type);
 		kfree(card);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dprintk("dvb_bt8xx: identified card%d as %s\n", card->bttv_nr, card->card_name);
 
 	if (!(bttv_pci_dev = bttv_get_pcidev(card->bttv_nr))) {
-		pr_err("no pci device for card %d\n", card->bttv_nr);
+		pr_err("anal pci device for card %d\n", card->bttv_nr);
 		kfree(card);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!(card->bt = dvb_bt8xx_878_match(card->bttv_nr, bttv_pci_dev))) {
@@ -900,7 +900,7 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 		pr_err("if you have the ALSA bt87x audio driver installed, try removing it.\n");
 
 		kfree(card);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_init(&card->bt->gpio_lock);

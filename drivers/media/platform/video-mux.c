@@ -16,13 +16,13 @@
 #include <linux/slab.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 
 struct video_mux {
 	struct v4l2_subdev subdev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct media_pad *pads;
 	struct mux_control *mux;
 	struct mutex lock;
@@ -33,13 +33,13 @@ static const struct v4l2_mbus_framefmt video_mux_format_mbus_default = {
 	.width = 1,
 	.height = 1,
 	.code = MEDIA_BUS_FMT_Y8_1X8,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 };
 
 static inline struct video_mux *
-notifier_to_video_mux(struct v4l2_async_notifier *n)
+analtifier_to_video_mux(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct video_mux, notifier);
+	return container_of(n, struct video_mux, analtifier);
 }
 
 static inline struct video_mux *v4l2_subdev_to_video_mux(struct v4l2_subdev *sd)
@@ -58,7 +58,7 @@ static int video_mux_link_setup(struct media_entity *entity,
 
 	/*
 	 * The mux state is determined by the enabled sink pad link.
-	 * Enabling or disabling the source pad link has no effect.
+	 * Enabling or disabling the source pad link has anal effect.
 	 */
 	if (local->flags & MEDIA_PAD_FL_SOURCE)
 		return 0;
@@ -111,7 +111,7 @@ out:
 static const struct media_entity_operations video_mux_ops = {
 	.link_setup = video_mux_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
-	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+	.get_fwanalde_pad = v4l2_subdev_get_fwanalde_pad_1_to_1,
 };
 
 static int video_mux_s_stream(struct v4l2_subdev *sd, int enable)
@@ -121,19 +121,19 @@ static int video_mux_s_stream(struct v4l2_subdev *sd, int enable)
 	struct media_pad *pad;
 
 	if (vmux->active == -1) {
-		dev_err(sd->dev, "Can not start streaming on inactive mux\n");
+		dev_err(sd->dev, "Can analt start streaming on inactive mux\n");
 		return -EINVAL;
 	}
 
 	pad = media_pad_remote_pad_first(&sd->entity.pads[vmux->active]);
 	if (!pad) {
 		dev_err(sd->dev, "Failed to find remote source pad\n");
-		return -ENOLINK;
+		return -EANALLINK;
 	}
 
 	if (!is_media_entity_v4l2_subdev(pad->entity)) {
-		dev_err(sd->dev, "Upstream entity is not a v4l2 subdev\n");
-		return -ENODEV;
+		dev_err(sd->dev, "Upstream entity is analt a v4l2 subdev\n");
+		return -EANALDEV;
 	}
 
 	upstream_sd = media_entity_to_v4l2_subdev(pad->entity);
@@ -162,7 +162,7 @@ static int video_mux_set_format(struct v4l2_subdev *sd,
 	if (!source_mbusformat)
 		return -EINVAL;
 
-	/* No size limitations except V4L2 compliance requirements */
+	/* Anal size limitations except V4L2 compliance requirements */
 	v4l_bound_align_image(&sdformat->format.width, 1, 65536, 0,
 			      &sdformat->format.height, 1, 65536, 0, 0);
 
@@ -262,11 +262,11 @@ static int video_mux_set_format(struct v4l2_subdev *sd,
 		break;
 	}
 	if (sdformat->format.field == V4L2_FIELD_ANY)
-		sdformat->format.field = V4L2_FIELD_NONE;
+		sdformat->format.field = V4L2_FIELD_ANALNE;
 
 	mutex_lock(&vmux->lock);
 
-	/* Source pad mirrors active sink pad, no limitations on sink pads */
+	/* Source pad mirrors active sink pad, anal limitations on sink pads */
 	if ((pad->flags & MEDIA_PAD_FL_SOURCE) && vmux->active >= 0)
 		sdformat->format = *v4l2_subdev_state_get_format(sd_state,
 								 vmux->active);
@@ -315,17 +315,17 @@ static const struct v4l2_subdev_internal_ops video_mux_internal_ops = {
 	.init_state = video_mux_init_state,
 };
 
-static int video_mux_notify_bound(struct v4l2_async_notifier *notifier,
+static int video_mux_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				  struct v4l2_subdev *sd,
 				  struct v4l2_async_connection *asd)
 {
-	struct video_mux *vmux = notifier_to_video_mux(notifier);
+	struct video_mux *vmux = analtifier_to_video_mux(analtifier);
 
-	return v4l2_create_fwnode_links(sd, &vmux->subdev);
+	return v4l2_create_fwanalde_links(sd, &vmux->subdev);
 }
 
-static const struct v4l2_async_notifier_operations video_mux_notify_ops = {
-	.bound = video_mux_notify_bound,
+static const struct v4l2_async_analtifier_operations video_mux_analtify_ops = {
+	.bound = video_mux_analtify_bound,
 };
 
 static int video_mux_async_register(struct video_mux *vmux,
@@ -334,30 +334,30 @@ static int video_mux_async_register(struct video_mux *vmux,
 	unsigned int i;
 	int ret;
 
-	v4l2_async_subdev_nf_init(&vmux->notifier, &vmux->subdev);
+	v4l2_async_subdev_nf_init(&vmux->analtifier, &vmux->subdev);
 
 	for (i = 0; i < num_input_pads; i++) {
 		struct v4l2_async_connection *asd;
-		struct fwnode_handle *ep, *remote_ep;
+		struct fwanalde_handle *ep, *remote_ep;
 
-		ep = fwnode_graph_get_endpoint_by_id(
-			dev_fwnode(vmux->subdev.dev), i, 0,
-			FWNODE_GRAPH_ENDPOINT_NEXT);
+		ep = fwanalde_graph_get_endpoint_by_id(
+			dev_fwanalde(vmux->subdev.dev), i, 0,
+			FWANALDE_GRAPH_ENDPOINT_NEXT);
 		if (!ep)
 			continue;
 
 		/* Skip dangling endpoints for backwards compatibility */
-		remote_ep = fwnode_graph_get_remote_endpoint(ep);
+		remote_ep = fwanalde_graph_get_remote_endpoint(ep);
 		if (!remote_ep) {
-			fwnode_handle_put(ep);
+			fwanalde_handle_put(ep);
 			continue;
 		}
-		fwnode_handle_put(remote_ep);
+		fwanalde_handle_put(remote_ep);
 
-		asd = v4l2_async_nf_add_fwnode_remote(&vmux->notifier, ep,
+		asd = v4l2_async_nf_add_fwanalde_remote(&vmux->analtifier, ep,
 						      struct v4l2_async_connection);
 
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 
 		if (IS_ERR(asd)) {
 			ret = PTR_ERR(asd);
@@ -367,9 +367,9 @@ static int video_mux_async_register(struct video_mux *vmux,
 		}
 	}
 
-	vmux->notifier.ops = &video_mux_notify_ops;
+	vmux->analtifier.ops = &video_mux_analtify_ops;
 
-	ret = v4l2_async_nf_register(&vmux->notifier);
+	ret = v4l2_async_nf_register(&vmux->analtifier);
 	if (ret)
 		goto err_nf_cleanup;
 
@@ -380,17 +380,17 @@ static int video_mux_async_register(struct video_mux *vmux,
 	return 0;
 
 err_nf_unregister:
-	v4l2_async_nf_unregister(&vmux->notifier);
+	v4l2_async_nf_unregister(&vmux->analtifier);
 err_nf_cleanup:
-	v4l2_async_nf_cleanup(&vmux->notifier);
+	v4l2_async_nf_cleanup(&vmux->analtifier);
 	return ret;
 }
 
 static int video_mux_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
-	struct device_node *ep;
+	struct device_analde *ep;
 	struct video_mux *vmux;
 	unsigned int num_pads = 0;
 	unsigned int i;
@@ -398,21 +398,21 @@ static int video_mux_probe(struct platform_device *pdev)
 
 	vmux = devm_kzalloc(dev, sizeof(*vmux), GFP_KERNEL);
 	if (!vmux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, vmux);
 
 	v4l2_subdev_init(&vmux->subdev, &video_mux_subdev_ops);
 	vmux->subdev.internal_ops = &video_mux_internal_ops;
 	snprintf(vmux->subdev.name, sizeof(vmux->subdev.name), "%pOFn", np);
-	vmux->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	vmux->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	vmux->subdev.dev = dev;
 
 	/*
 	 * The largest numbered port is the output port. It determines
 	 * total number of pads.
 	 */
-	for_each_endpoint_of_node(np, ep) {
+	for_each_endpoint_of_analde(np, ep) {
 		struct of_endpoint endpoint;
 
 		of_graph_parse_endpoint(ep, &endpoint);
@@ -420,7 +420,7 @@ static int video_mux_probe(struct platform_device *pdev)
 	}
 
 	if (num_pads < 2) {
-		dev_err(dev, "Not enough ports %d\n", num_pads);
+		dev_err(dev, "Analt eanalugh ports %d\n", num_pads);
 		return -EINVAL;
 	}
 
@@ -435,7 +435,7 @@ static int video_mux_probe(struct platform_device *pdev)
 	vmux->pads = devm_kcalloc(dev, num_pads, sizeof(*vmux->pads),
 				  GFP_KERNEL);
 	if (!vmux->pads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_pads; i++)
 		vmux->pads[i].flags = (i < num_pads - 1) ? MEDIA_PAD_FL_SINK
@@ -471,8 +471,8 @@ static void video_mux_remove(struct platform_device *pdev)
 	struct video_mux *vmux = platform_get_drvdata(pdev);
 	struct v4l2_subdev *sd = &vmux->subdev;
 
-	v4l2_async_nf_unregister(&vmux->notifier);
-	v4l2_async_nf_cleanup(&vmux->notifier);
+	v4l2_async_nf_unregister(&vmux->analtifier);
+	v4l2_async_nf_cleanup(&vmux->analtifier);
 	v4l2_async_unregister_subdev(sd);
 	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sd->entity);

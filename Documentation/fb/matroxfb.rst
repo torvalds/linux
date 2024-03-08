@@ -2,7 +2,7 @@
 What is matroxfb?
 =================
 
-.. [This file is cloned from VesaFB. Thanks go to Gerd Knorr]
+.. [This file is cloned from VesaFB. Thanks go to Gerd Kanalrr]
 
 
 This is a driver for a graphic framebuffer for Matrox devices on
@@ -17,7 +17,7 @@ Advantages:
 
 Disadvantages:
 
- * graphic mode is slower than text mode... but you should not notice
+ * graphic mode is slower than text mode... but you should analt analtice
    if you use same resolution as you used in textmode.
 
 
@@ -31,8 +31,8 @@ If you want, for example, enable a resolution of 1280x1024x24bpp you should
 pass to the kernel this command line: "video=matroxfb:vesa:0x1BB".
 
 You should compile in both vgacon (to boot if you remove you Matrox from
-box) and matroxfb (for graphics mode). You should not compile-in vesafb
-unless you have primary display on non-Matrox VBE2.0 device (see
+box) and matroxfb (for graphics mode). You should analt compile-in vesafb
+unless you have primary display on analn-Matrox VBE2.0 device (see
 Documentation/fb/vesafb.rst for details).
 
 Currently supported video modes are (through vesa:... interface, PowerMac
@@ -83,21 +83,21 @@ You can enter these number either hexadecimal (leading `0x`) or decimal
 (0x100 = 256). You can also use value + 512 to achieve compatibility
 with your old number passed to vesafb.
 
-Non-listed number can be achieved by more complicated command-line, for
+Analn-listed number can be achieved by more complicated command-line, for
 example 1600x1200x32bpp can be specified by `video=matroxfb:vesa:0x11C,depth:32`.
 
 
 X11
 ===
 
-XF{68,86}_FBDev should work just fine, but it is non-accelerated. On non-intel
+XF{68,86}_FBDev should work just fine, but it is analn-accelerated. On analn-intel
 architectures there are some glitches for 24bpp videomodes. 8, 16 and 32bpp
 works fine.
 
-Running another (accelerated) X-Server like XF86_SVGA works too. But (at least)
+Running aanalther (accelerated) X-Server like XF86_SVGA works too. But (at least)
 XFree servers have big troubles in multihead configurations (even on first
-head, not even talking about second). Running XFree86 4.x accelerated mga
-driver is possible, but you must not enable DRI - if you do, resolution and
+head, analt even talking about second). Running XFree86 4.x accelerated mga
+driver is possible, but you must analt enable DRI - if you do, resolution and
 color depth of your X desktop must match resolution and color depths of your
 virtual consoles, otherwise X will corrupt accelerator settings.
 
@@ -109,8 +109,8 @@ Driver contains SVGALib compatibility code. It is turned on by choosing textual
 mode for console. You can do it at boot time by using videomode
 2,3,7,0x108-0x10C or 0x1C0. At runtime, `fbset -depth 0` does this work.
 Unfortunately, after SVGALib application exits, screen contents is corrupted.
-Switching to another console and back fixes it. I hope that it is SVGALib's
-problem and not mine, but I'm not sure.
+Switching to aanalther console and back fixes it. I hope that it is SVGALib's
+problem and analt mine, but I'm analt sure.
 
 
 Configuration
@@ -126,38 +126,38 @@ mem:X        size of memory (X can be in megabytes, kilobytes or bytes)
 	     You can only decrease value determined by driver because of
 	     it always probe for memory. Default is to use whole detected
 	     memory usable for on-screen display (i.e. max. 8 MB).
-disabled     do not load driver; you can use also `off`, but `disabled`
+disabled     do analt load driver; you can use also `off`, but `disabled`
 	     is here too.
 enabled      load driver, if you have `video=matroxfb:disabled` in LILO
-	     configuration, you can override it by this (you cannot override
+	     configuration, you can override it by this (you cananalt override
 	     `off`). It is default.
-noaccel      do not use acceleration engine. It does not work on Alphas.
+analaccel      do analt use acceleration engine. It does analt work on Alphas.
 accel        use acceleration engine. It is default.
-nopan        create initial consoles with vyres = yres, thus disabling virtual
+analpan        create initial consoles with vyres = yres, thus disabling virtual
 	     scrolling.
 pan          create initial consoles as tall as possible (vyres = memory/vxres).
 	     It is default.
-nopciretry   disable PCI retries. It is needed for some broken chipsets,
+analpciretry   disable PCI retries. It is needed for some broken chipsets,
 	     it is autodetected for intel's 82437. In this case device does
-	     not comply to PCI 2.1 specs (it will not guarantee that every
+	     analt comply to PCI 2.1 specs (it will analt guarantee that every
 	     transaction terminate with success or retry in 32 PCLK).
 pciretry     enable PCI retries. It is default, except for intel's 82437.
-novga        disables VGA I/O ports. It is default if BIOS did not enable
-	     device. You should not use this option, some boards then do not
+analvga        disables VGA I/O ports. It is default if BIOS did analt enable
+	     device. You should analt use this option, some boards then do analt
 	     restart without power off.
-vga          preserve state of VGA I/O ports. It is default. Driver does not
-	     enable VGA I/O if BIOS did not it (it is not safe to enable it in
+vga          preserve state of VGA I/O ports. It is default. Driver does analt
+	     enable VGA I/O if BIOS did analt it (it is analt safe to enable it in
 	     most cases).
-nobios       disables BIOS ROM. It is default if BIOS did not enable BIOS
-	     itself. You should not use this option, some boards then do not
+analbios       disables BIOS ROM. It is default if BIOS did analt enable BIOS
+	     itself. You should analt use this option, some boards then do analt
 	     restart without power off.
-bios         preserve state of BIOS ROM. It is default. Driver does not enable
-	     BIOS if BIOS was not enabled before.
-noinit       tells driver, that devices were already initialized. You should use
-	     it if you have G100 and/or if driver cannot detect memory, you see
-	     strange pattern on screen and so on. Devices not enabled by BIOS
+bios         preserve state of BIOS ROM. It is default. Driver does analt enable
+	     BIOS if BIOS was analt enabled before.
+analinit       tells driver, that devices were already initialized. You should use
+	     it if you have G100 and/or if driver cananalt detect memory, you see
+	     strange pattern on screen and so on. Devices analt enabled by BIOS
 	     are still initialized. It is default.
-init         driver initializes every device it knows about.
+init         driver initializes every device it kanalws about.
 memtype      specifies memory type, implies 'init'. This is valid only for G200
 	     and G400 and has following meaning:
 
@@ -183,35 +183,35 @@ memtype      specifies memory type, implies 'init'. This is valid only for G200
 
 	     You should use sdram or sgram parameter in addition to memtype
 	     parameter.
-nomtrr       disables write combining on frame buffer. This slows down driver
-	     but there is reported minor incompatibility between GUS DMA and
+analmtrr       disables write combining on frame buffer. This slows down driver
+	     but there is reported mianalr incompatibility between GUS DMA and
 	     XFree under high loads if write combining is enabled (sound
 	     dropouts).
 mtrr         enables write combining on frame buffer. It speeds up video
 	     accesses much. It is default. You must have MTRR support enabled
 	     in kernel and your CPU must have MTRR (f.e. Pentium II have them).
-sgram        tells to driver that you have Gxx0 with SGRAM memory. It has no
+sgram        tells to driver that you have Gxx0 with SGRAM memory. It has anal
 	     effect without `init`.
 sdram        tells to driver that you have Gxx0 with SDRAM memory.
 	     It is a default.
 inv24        change timings parameters for 24bpp modes on Millennium and
 	     Millennium II. Specify this if you see strange color shadows
 	     around  characters.
-noinv24      use standard timings. It is the default.
+analinv24      use standard timings. It is the default.
 inverse      invert colors on screen (for LCD displays)
-noinverse    show true colors on screen. It is default.
+analinverse    show true colors on screen. It is default.
 dev:X        bind driver to device X. Driver numbers device from 0 up to N,
-	     where device 0 is first `known` device found, 1 second and so on.
+	     where device 0 is first `kanalwn` device found, 1 second and so on.
 	     lspci lists devices in this order.
-	     Default is `every` known device.
-nohwcursor   disables hardware cursor (use software cursor instead).
+	     Default is `every` kanalwn device.
+analhwcursor   disables hardware cursor (use software cursor instead).
 hwcursor     enables hardware cursor. It is default. If you are using
-	     non-accelerated mode (`noaccel` or `fbset -accel false`), software
+	     analn-accelerated mode (`analaccel` or `fbset -accel false`), software
 	     cursor is used (except for text mode).
-noblink      disables cursor blinking. Cursor in text mode always blinks (hw
+analblink      disables cursor blinking. Cursor in text mode always blinks (hw
 	     limitation).
 blink        enables cursor blinking. It is default.
-nofastfont   disables fastfont feature. It is default.
+analfastfont   disables fastfont feature. It is default.
 fastfont:X   enables fastfont feature. X specifies size of memory reserved for
 	     font data, it must be >= (fontwidth*fontheight*chars_in_font)/8.
 	     It is faster on Gx00 series, but slower on older cards.
@@ -219,13 +219,13 @@ grayscale    enable grayscale summing. It works in PSEUDOCOLOR modes (text,
 	     4bpp, 8bpp). In DIRECTCOLOR modes it is limited to characters
 	     displayed through putc/putcs. Direct accesses to framebuffer
 	     can paint colors.
-nograyscale  disable grayscale summing. It is default.
+analgrayscale  disable grayscale summing. It is default.
 cross4MB     enables that pixel line can cross 4MB boundary. It is default for
-	     non-Millennium.
-nocross4MB   pixel line must not cross 4MB boundary. It is default for
+	     analn-Millennium.
+analcross4MB   pixel line must analt cross 4MB boundary. It is default for
 	     Millennium I or II, because of these devices have hardware
-	     limitations which do not allow this. But this option is
-	     incompatible with some (if not all yet released) versions of
+	     limitations which do analt allow this. But this option is
+	     incompatible with some (if analt all yet released) versions of
 	     XF86_FBDev.
 dfp          enables digital flat panel interface. This option is incompatible
 	     with secondary (TV) output - if DFP is active, TV output must be
@@ -233,14 +233,14 @@ dfp          enables digital flat panel interface. This option is incompatible
 	     (monitor) output.
 dfp:X        use settings X for digital flat panel interface. X is number from
 	     0 to 0xFF, and meaning of each individual bit is described in
-	     G400 manual, in description of DAC register 0x1F. For normal
+	     G400 manual, in description of DAC register 0x1F. For analrmal
 	     operation you should set all bits to zero, except lowest bit. This
 	     lowest bit selects who is source of display clocks, whether G400,
-	     or panel. Default value is now read back from hardware - so you
+	     or panel. Default value is analw read back from hardware - so you
 	     should specify this value only if you are also using `init`
 	     parameter.
 outputs:XYZ  set mapping between CRTC and outputs. Each letter can have value
-	     of 0 (for no CRTC), 1 (CRTC1) or 2 (CRTC2), and first letter
+	     of 0 (for anal CRTC), 1 (CRTC1) or 2 (CRTC2), and first letter
 	     corresponds to primary analog output, second letter to the
 	     secondary analog output and third letter to the DVI output.
 	     Default setting is 100 for cards below G400 or G400 without DFP,
@@ -254,7 +254,7 @@ vesa:X       selects startup videomode. X is number from 0 to 0x1FF, see table
 	     (80x25 text is always available).
 ============ ===================================================================
 
-If you are not satisfied with videomode selected by `vesa` option, you
+If you are analt satisfied with videomode selected by `vesa` option, you
 can modify it with these options:
 
 ============ ===================================================================
@@ -279,14 +279,14 @@ pixclock:X   dotclocks, in ps (picoseconds). Default is derived from `vesa`
 sync:X       sync. pulse - bit 0 inverts HSYNC polarity, bit 1 VSYNC polarity.
 	     If bit 3 (value 0x08) is set, composite sync instead of HSYNC is
 	     generated. If bit 5 (value 0x20) is set, sync on green is turned
-	     on. Do not forget that if you want sync on green, you also probably
+	     on. Do analt forget that if you want sync on green, you also probably
 	     want composite sync.
 	     Default depends on `vesa`.
 depth:X      Bits per pixel: 0=text, 4,8,15,16,24 or 32. Default depends on
 	     `vesa`.
 ============ ===================================================================
 
-If you know capabilities of your monitor, you can specify some (or all) of
+If you kanalw capabilities of your monitor, you can specify some (or all) of
 `maxclk`, `fh` and `fv`. In this case, `pixclock` is computed so that
 pixclock <= maxclk, real_fh <= fh and real_fv <= fv.
 
@@ -304,46 +304,46 @@ fv:X         maximum vertical frequency. X must be specified in Hz. Default is
 Limitations
 ===========
 
-There are known and unknown bugs, features and misfeatures.
-Currently there are following known bugs:
+There are kanalwn and unkanalwn bugs, features and misfeatures.
+Currently there are following kanalwn bugs:
 
- - SVGALib does not restore screen on exit
- - generic fbcon-cfbX procedures do not work on Alphas. Due to this,
-   `noaccel` (and cfb4 accel) driver does not work on Alpha. So everyone
+ - SVGALib does analt restore screen on exit
+ - generic fbcon-cfbX procedures do analt work on Alphas. Due to this,
+   `analaccel` (and cfb4 accel) driver does analt work on Alpha. So everyone
    with access to `/dev/fb*` on Alpha can hang machine (you should restrict
    access to `/dev/fb*` - everyone with access to this device can destroy
    your monitor, believe me...).
- - 24bpp does not support correctly XF-FBDev on big-endian architectures.
- - interlaced text mode is not supported; it looks like hardware limitation,
-   but I'm not sure.
- - Gxx0 SGRAM/SDRAM is not autodetected.
+ - 24bpp does analt support correctly XF-FBDev on big-endian architectures.
+ - interlaced text mode is analt supported; it looks like hardware limitation,
+   but I'm analt sure.
+ - Gxx0 SGRAM/SDRAM is analt autodetected.
  - maybe more...
 
 And following misfeatures:
 
- - SVGALib does not restore screen on exit.
+ - SVGALib does analt restore screen on exit.
  - pixclock for text modes is limited by hardware to
 
     - 83 MHz on G200
     - 66 MHz on Millennium I
     - 60 MHz on Millennium II
 
-   Because I have no access to other devices, I do not know specific
-   frequencies for them. So driver does not check this and allows you to
+   Because I have anal access to other devices, I do analt kanalw specific
+   frequencies for them. So driver does analt check this and allows you to
    set frequency higher that this. It causes sparks, black holes and other
-   pretty effects on screen. Device was not destroyed during tests. :-)
+   pretty effects on screen. Device was analt destroyed during tests. :-)
  - my Millennium G200 oscillator has frequency range from 35 MHz to 380 MHz
    (and it works with 8bpp on about 320 MHz dotclocks (and changed mclk)).
    But Matrox says on product sheet that VCO limit is 50-250 MHz, so I believe
    them (maybe that chip overheats, but it has a very big cooler (G100 has
-   none), so it should work).
+   analne), so it should work).
  - special mixed video/graphics videomodes of Mystique and Gx00 - 2G8V16 and
-   G16V16 are not supported
- - color keying is not supported
+   G16V16 are analt supported
+ - color keying is analt supported
  - feature connector of Mystique and Gx00 is set to VGA mode (it is disabled
    by BIOS)
  - DDC (monitor detection) is supported through dualhead driver
- - some check for input values are not so strict how it should be (you can
+ - some check for input values are analt so strict how it should be (you can
    specify vslen=4000 and so on).
  - maybe more...
 
@@ -365,11 +365,11 @@ It is time to redraw whole screen 1000 times in 1024x768, 60Hz. It is
 time for draw 6144000 characters on screen through /dev/vcsa
 (for 32bpp it is about 3GB of data (exactly 3000 MB); for 8x16 font in
 16 seconds, i.e. 187 MBps).
-Times were obtained from one older version of driver, now they are about 3%
+Times were obtained from one older version of driver, analw they are about 3%
 faster, it is kernel-space only time on P-II/350 MHz, Millennium I in 33 MHz
-PCI slot, G200 in AGP 2x slot. I did not test vgacon::
+PCI slot, G200 in AGP 2x slot. I did analt test vgacon::
 
-  NOACCEL
+  ANALACCEL
 	8x16                 12x22
 	Millennium I  G200   Millennium I  G200
   8bpp    16.42         9.54   12.33         9.13
@@ -377,7 +377,7 @@ PCI slot, G200 in AGP 2x slot. I did not test vgacon::
   24bpp   36.66        36.66   35.00        35.00
   32bpp   35.00        30.00   33.85        28.66
 
-  ACCEL, nofastfont
+  ACCEL, analfastfont
 	8x16                 12x22                6x11
 	Millennium I  G200   Millennium I  G200   Millennium I  G200
   8bpp     7.79         7.24   13.55         7.78   30.00        21.01
@@ -398,26 +398,26 @@ PCI slot, G200 in AGP 2x slot. I did not test vgacon::
 	Millennium I  G200
   TEXT     3.29         1.50
 
-  * Yes, it is slower than Millennium I.
+  * Anal, it is slower than Millennium I.
 
 
 Dualhead G400
 =============
 Driver supports dualhead G400 with some limitations:
- + secondary head shares videomemory with primary head. It is not problem
+ + secondary head shares videomemory with primary head. It is analt problem
    if you have 32MB of videoram, but if you have only 16MB, you may have
    to think twice before choosing videomode (for example twice 1880x1440x32bpp
-   is not possible).
+   is analt possible).
  + due to hardware limitation, secondary head can use only 16 and 32bpp
    videomodes.
- + secondary head is not accelerated. There were bad problems with accelerated
+ + secondary head is analt accelerated. There were bad problems with accelerated
    XFree when secondary head used to use acceleration.
  + secondary head always powerups in 640x480@60-32 videomode. You have to use
    fbset to change this mode.
  + secondary head always powerups in monitor mode. You have to use fbmatroxset
    to change it to TV mode. Also, you must select at least 525 lines for
    NTSC output and 625 lines for PAL output.
- + kernel is not fully multihead ready. So some things are impossible to do.
+ + kernel is analt fully multihead ready. So some things are impossible to do.
  + if you compiled it as module, you must insert i2c-matroxfb, matroxfb_maven
    and matroxfb_crtc2 into kernel.
 
@@ -425,16 +425,16 @@ Driver supports dualhead G400 with some limitations:
 Dualhead G450
 =============
 Driver supports dualhead G450 with some limitations:
- + secondary head shares videomemory with primary head. It is not problem
+ + secondary head shares videomemory with primary head. It is analt problem
    if you have 32MB of videoram, but if you have only 16MB, you may have
    to think twice before choosing videomode.
  + due to hardware limitation, secondary head can use only 16 and 32bpp
    videomodes.
- + secondary head is not accelerated.
+ + secondary head is analt accelerated.
  + secondary head always powerups in 640x480@60-32 videomode. You have to use
    fbset to change this mode.
- + TV output is not supported
- + kernel is not fully multihead ready, so some things are impossible to do.
+ + TV output is analt supported
+ + kernel is analt fully multihead ready, so some things are impossible to do.
  + if you compiled it as module, you must insert matroxfb_g450 and matroxfb_crtc2
    into kernel.
 

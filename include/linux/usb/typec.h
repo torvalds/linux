@@ -19,7 +19,7 @@ struct typec_plug;
 struct typec_port;
 struct typec_altmode_ops;
 
-struct fwnode_handle;
+struct fwanalde_handle;
 struct device;
 
 struct usb_power_delivery;
@@ -38,7 +38,7 @@ enum typec_port_data {
 };
 
 enum typec_plug_type {
-	USB_PLUG_NONE,
+	USB_PLUG_ANALNE,
 	USB_PLUG_TYPE_A,
 	USB_PLUG_TYPE_B,
 	USB_PLUG_TYPE_C,
@@ -73,7 +73,7 @@ enum typec_pwr_opmode {
 };
 
 enum typec_accessory {
-	TYPEC_ACCESSORY_NONE,
+	TYPEC_ACCESSORY_ANALNE,
 	TYPEC_ACCESSORY_AUDIO,
 	TYPEC_ACCESSORY_DEBUG,
 };
@@ -81,8 +81,8 @@ enum typec_accessory {
 #define TYPEC_MAX_ACCESSORY	3
 
 enum typec_orientation {
-	TYPEC_ORIENTATION_NONE,
-	TYPEC_ORIENTATION_NORMAL,
+	TYPEC_ORIENTATION_ANALNE,
+	TYPEC_ORIENTATION_ANALRMAL,
 	TYPEC_ORIENTATION_REVERSE,
 };
 
@@ -199,11 +199,11 @@ struct typec_cable_desc {
 /*
  * struct typec_partner_desc - USB Type-C Partner Descriptor
  * @usb_pd: USB Power Delivery support
- * @accessory: Audio, Debug or none.
+ * @accessory: Audio, Debug or analne.
  * @identity: Discover Identity command data
  * @pd_revision: USB Power Delivery Specification Revision if supported
- * @attach: Notification about attached USB device
- * @deattach: Notification about removed USB device
+ * @attach: Analtification about attached USB device
+ * @deattach: Analtification about removed USB device
  *
  * Details about a partner that is attached to USB Type-C port. If @identity
  * member exists when partner is registered, a directory named "identity" is
@@ -260,7 +260,7 @@ enum usb_pd_svdm_ver {
  * @svdm_version: USB PD Structured VDM version if supported
  * @prefer_role: Initial role preference (DRP ports).
  * @accessory: Supported Accessory Modes
- * @fwnode: Optional fwnode of the port
+ * @fwanalde: Optional fwanalde of the port
  * @driver_data: Private pointer for driver specific info
  * @pd: Optional USB Power Delivery Support
  * @ops: Port operations vector
@@ -277,7 +277,7 @@ struct typec_capability {
 	enum typec_accessory	accessory[TYPEC_MAX_ACCESSORY];
 	unsigned int		orientation_aware:1;
 
-	struct fwnode_handle	*fwnode;
+	struct fwanalde_handle	*fwanalde;
 	void			*driver_data;
 
 	struct usb_power_delivery *pd;
@@ -286,7 +286,7 @@ struct typec_capability {
 };
 
 /* Specific to try_role(). Indicates the user want's to clear the preference. */
-#define TYPEC_NO_PREFERRED_ROLE	(-1)
+#define TYPEC_ANAL_PREFERRED_ROLE	(-1)
 
 struct typec_port *typec_register_port(struct device *parent,
 				       const struct typec_capability *cap);
@@ -321,7 +321,7 @@ int typec_set_mode(struct typec_port *port, int mode);
 void *typec_get_drvdata(struct typec_port *port);
 
 int typec_get_fw_cap(struct typec_capability *cap,
-		     struct fwnode_handle *fwnode);
+		     struct fwanalde_handle *fwanalde);
 
 int typec_find_pwr_opmode(const char *name);
 int typec_find_orientation(const char *name);
@@ -342,15 +342,15 @@ int typec_partner_set_usb_power_delivery(struct typec_partner *partner,
 
 /**
  * struct typec_connector - Representation of Type-C port for external drivers
- * @attach: notification about device removal
- * @deattach: notification about device removal
+ * @attach: analtification about device removal
+ * @deattach: analtification about device removal
  *
  * Drivers that control the USB and other ports (DisplayPorts, etc.), that are
  * connected to the Type-C connectors, can use these callbacks to inform the
  * Type-C connector class about connections and disconnections. That information
  * can then be used by the typec-port drivers to power on or off parts that are
- * needed or not needed - as an example, in USB mode if USB2 device is
- * enumerated, USB3 components (retimers, phys, and what have you) do not need
+ * needed or analt needed - as an example, in USB mode if USB2 device is
+ * enumerated, USB3 components (retimers, phys, and what have you) do analt need
  * to be powered on.
  *
  * The attached (enumerated) devices will be liked with the typec-partner device.

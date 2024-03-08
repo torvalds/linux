@@ -137,7 +137,7 @@ int blk_crypto_sysfs_register(struct gendisk *disk)
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
-		return -ENOMEM;
+		return -EANALMEM;
 	obj->profile = q->crypto_profile;
 
 	err = kobject_init_and_add(&obj->kobj, &blk_crypto_ktype,

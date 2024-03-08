@@ -2,7 +2,7 @@
 /*
  *  hwmon-sysfs.h - hardware monitoring chip driver sysfs defines
  *
- *  Copyright (C) 2005 Yani Ioannou <yani.ioannou@gmail.com>
+ *  Copyright (C) 2005 Yani Ioananalu <yani.ioananalu@gmail.com>
  */
 #ifndef _LINUX_HWMON_SYSFS_H
 #define _LINUX_HWMON_SYSFS_H

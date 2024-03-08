@@ -2,7 +2,7 @@
 /* drivers/rtc/rtc-goldfish.c
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (C) 2017 Imagination Technologies Ltd.
+ * Copyright (C) 2017 Imagination Techanallogies Ltd.
  */
 
 #include <linux/io.h>
@@ -133,14 +133,14 @@ static int goldfish_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct goldfish_rtc *rtcdrv;
 	void __iomem *base;
-	u64 now64;
+	u64 analw64;
 
 	rtcdrv = dev_get_drvdata(dev);
 	base = rtcdrv->base;
 
-	now64 = rtc_tm_to_time64(tm) * NSEC_PER_SEC;
-	gf_iowrite32((now64 >> 32), base + TIMER_TIME_HIGH);
-	gf_iowrite32(now64, base + TIMER_TIME_LOW);
+	analw64 = rtc_tm_to_time64(tm) * NSEC_PER_SEC;
+	gf_iowrite32((analw64 >> 32), base + TIMER_TIME_HIGH);
+	gf_iowrite32(analw64, base + TIMER_TIME_LOW);
 
 	return 0;
 }
@@ -160,7 +160,7 @@ static int goldfish_rtc_probe(struct platform_device *pdev)
 
 	rtcdrv = devm_kzalloc(&pdev->dev, sizeof(*rtcdrv), GFP_KERNEL);
 	if (!rtcdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, rtcdrv);
 	rtcdrv->base = devm_platform_ioremap_resource(pdev, 0);
@@ -169,7 +169,7 @@ static int goldfish_rtc_probe(struct platform_device *pdev)
 
 	rtcdrv->irq = platform_get_irq(pdev, 0);
 	if (rtcdrv->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtcdrv->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtcdrv->rtc))

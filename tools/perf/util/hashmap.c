@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
 /*
- * Generic non-thread safe hash map implementation.
+ * Generic analn-thread safe hash map implementation.
  *
  * Copyright (c) 2019 Facebook
  */
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/err.h>
 #include "hashmap.h"
 
@@ -55,7 +55,7 @@ struct hashmap *hashmap__new(hashmap_hash_fn hash_fn,
 	struct hashmap *map = malloc(sizeof(struct hashmap));
 
 	if (!map)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	hashmap__init(map, hash_fn, equal_fn, ctx);
 	return map;
 }
@@ -112,7 +112,7 @@ static int hashmap_grow(struct hashmap *map)
 	new_cap = 1UL << new_cap_bits;
 	new_buckets = calloc(new_cap, sizeof(new_buckets[0]));
 	if (!new_buckets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hashmap__for_each_entry_safe(map, cur, tmp, bkt) {
 		h = hash_bits(map->hash_fn(cur->key, map->ctx), new_cap_bits);
@@ -182,7 +182,7 @@ int hashmap_insert(struct hashmap *map, long key, long value,
 	}
 
 	if (strategy == HASHMAP_UPDATE)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (hashmap_needs_to_grow(map)) {
 		err = hashmap_grow(map);
@@ -193,7 +193,7 @@ int hashmap_insert(struct hashmap *map, long key, long value,
 
 	entry = malloc(sizeof(struct hashmap_entry));
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->key = key;
 	entry->value = value;

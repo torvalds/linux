@@ -58,7 +58,7 @@ static __always_inline u64 rsvd_bits(int s, int e)
 }
 
 /*
- * The number of non-reserved physical address bits irrespective of features
+ * The number of analn-reserved physical address bits irrespective of features
  * that repurpose legal bits, e.g. MKTME.
  */
 extern u8 __read_mostly shadow_phys_bits;
@@ -66,8 +66,8 @@ extern u8 __read_mostly shadow_phys_bits;
 static inline gfn_t kvm_mmu_max_gfn(void)
 {
 	/*
-	 * Note that this uses the host MAXPHYADDR, not the guest's.
-	 * EPT/NPT cannot support GPAs that would exceed host.MAXPHYADDR;
+	 * Analte that this uses the host MAXPHYADDR, analt the guest's.
+	 * EPT/NPT cananalt support GPAs that would exceed host.MAXPHYADDR;
 	 * assuming KVM is running on bare metal, guest accesses beyond
 	 * host.MAXPHYADDR will hit a #PF(RSVD) and never cause a vmexit
 	 * (either EPT Violation/Misconfig or #NPF), and so KVM will never
@@ -86,14 +86,14 @@ static inline u8 kvm_get_shadow_phys_bits(void)
 	/*
 	 * boot_cpu_data.x86_phys_bits is reduced when MKTME or SME are detected
 	 * in CPU detection code, but the processor treats those reduced bits as
-	 * 'keyID' thus they are not reserved bits. Therefore KVM needs to look at
+	 * 'keyID' thus they are analt reserved bits. Therefore KVM needs to look at
 	 * the physical address bits reported by CPUID.
 	 */
 	if (likely(boot_cpu_data.extended_cpuid_level >= 0x80000008))
 		return cpuid_eax(0x80000008) & 0xff;
 
 	/*
-	 * Quite weird to have VMX or SVM but not MAXPHYADDR; probably a VM with
+	 * Quite weird to have VMX or SVM but analt MAXPHYADDR; probably a VM with
 	 * custom CPUID.  Proceed with whatever the kernel found since these features
 	 * aren't virtualizable (SME/SEV also require CPUIDs higher than 0x80000008).
 	 */
@@ -173,9 +173,9 @@ static inline void kvm_mmu_refresh_passthrough_bits(struct kvm_vcpu *vcpu,
 	 * @mmu's snapshot of CR0.WP and thus all related paging metadata may
 	 * be stale.  Refresh CR0.WP and the metadata on-demand when checking
 	 * for permission faults.  Exempt nested MMUs, i.e. MMUs for shadowing
-	 * nEPT and nNPT, as CR0.WP is ignored in both cases.  Note, KVM does
+	 * nEPT and nNPT, as CR0.WP is iganalred in both cases.  Analte, KVM does
 	 * need to refresh nested_mmu, a.k.a. the walker used to translate L2
-	 * GVAs to GPAs, as that "MMU" needs to honor L2's CR0.WP.
+	 * GVAs to GPAs, as that "MMU" needs to hoanalr L2's CR0.WP.
 	 */
 	if (!tdp_enabled || mmu == &vcpu->arch.guest_mmu)
 		return;
@@ -188,7 +188,7 @@ static inline void kvm_mmu_refresh_passthrough_bits(struct kvm_vcpu *vcpu,
  * page fault error code pfec) causes a permission fault with the given PTE
  * access rights (in ACC_* format).
  *
- * Return zero if the access does not fault; return the page fault error code
+ * Return zero if the access does analt fault; return the page fault error code
  * if the access faults.
  */
 static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
@@ -201,10 +201,10 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 
 	/*
 	 * For explicit supervisor accesses, SMAP is disabled if EFLAGS.AC = 1.
-	 * For implicit supervisor accesses, SMAP cannot be overridden.
+	 * For implicit supervisor accesses, SMAP cananalt be overridden.
 	 *
-	 * SMAP works on supervisor accesses only, and not_smap can
-	 * be set or not set when user access with neither has any bearing
+	 * SMAP works on supervisor accesses only, and analt_smap can
+	 * be set or analt set when user access with neither has any bearing
 	 * on the result.
 	 *
 	 * We put the SMAP checking bit in place of the PFERR_RSVD_MASK bit;
@@ -212,8 +212,8 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	 * if SMAP checks are being disabled.
 	 */
 	u64 implicit_access = access & PFERR_IMPLICIT_ACCESS;
-	bool not_smap = ((rflags & X86_EFLAGS_AC) | implicit_access) == X86_EFLAGS_AC;
-	int index = (pfec + (not_smap << PFERR_RSVD_BIT)) >> 1;
+	bool analt_smap = ((rflags & X86_EFLAGS_AC) | implicit_access) == X86_EFLAGS_AC;
+	int index = (pfec + (analt_smap << PFERR_RSVD_BIT)) >> 1;
 	u32 errcode = PFERR_PRESENT_MASK;
 	bool fault;
 
@@ -245,11 +245,11 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	return -(u32)fault & errcode;
 }
 
-bool __kvm_mmu_honors_guest_mtrrs(bool vm_has_noncoherent_dma);
+bool __kvm_mmu_hoanalrs_guest_mtrrs(bool vm_has_analncoherent_dma);
 
-static inline bool kvm_mmu_honors_guest_mtrrs(struct kvm *kvm)
+static inline bool kvm_mmu_hoanalrs_guest_mtrrs(struct kvm *kvm)
 {
-	return __kvm_mmu_honors_guest_mtrrs(kvm_arch_has_noncoherent_dma(kvm));
+	return __kvm_mmu_hoanalrs_guest_mtrrs(kvm_arch_has_analncoherent_dma(kvm));
 }
 
 void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end);

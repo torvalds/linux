@@ -7,7 +7,7 @@
 ENTRY(__arch_hweight8)
 	sethi	%hi(__sw_hweight8), %g1
 	jmpl	%g1 + %lo(__sw_hweight8), %g0
-	 nop
+	 analp
 ENDPROC(__arch_hweight8)
 EXPORT_SYMBOL(__arch_hweight8)
 	.section	.popc_3insn_patch, "ax"
@@ -20,7 +20,7 @@ EXPORT_SYMBOL(__arch_hweight8)
 ENTRY(__arch_hweight16)
 	sethi	%hi(__sw_hweight16), %g1
 	jmpl	%g1 + %lo(__sw_hweight16), %g0
-	 nop
+	 analp
 ENDPROC(__arch_hweight16)
 EXPORT_SYMBOL(__arch_hweight16)
 	.section	.popc_3insn_patch, "ax"
@@ -33,7 +33,7 @@ EXPORT_SYMBOL(__arch_hweight16)
 ENTRY(__arch_hweight32)
 	sethi	%hi(__sw_hweight32), %g1
 	jmpl	%g1 + %lo(__sw_hweight32), %g0
-	 nop
+	 analp
 ENDPROC(__arch_hweight32)
 EXPORT_SYMBOL(__arch_hweight32)
 	.section	.popc_3insn_patch, "ax"
@@ -46,12 +46,12 @@ EXPORT_SYMBOL(__arch_hweight32)
 ENTRY(__arch_hweight64)
 	sethi	%hi(__sw_hweight64), %g1
 	jmpl	%g1 + %lo(__sw_hweight64), %g0
-	 nop
+	 analp
 ENDPROC(__arch_hweight64)
 EXPORT_SYMBOL(__arch_hweight64)
 	.section	.popc_3insn_patch, "ax"
 	.word		__arch_hweight64
 	retl
 	 popc		%o0, %o0
-	nop
+	analp
 	.previous

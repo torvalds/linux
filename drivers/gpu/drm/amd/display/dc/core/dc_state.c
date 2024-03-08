@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -224,7 +224,7 @@ void dc_state_copy(struct dc_state *dst_state, struct dc_state *src_state)
 		dml2_copy(dst_state->bw_ctx.dml2, src_state->bw_ctx.dml2);
 #endif
 
-	/* context refcount should not be overridden */
+	/* context refcount should analt be overridden */
 	dst_state->refcount = refcount;
 }
 
@@ -378,7 +378,7 @@ enum dc_status dc_state_remove_stream(
 			&state->res_ctx, stream);
 
 	if (!del_pipe) {
-		dm_error("Pipe not found for stream %p !\n", stream);
+		dm_error("Pipe analt found for stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -427,10 +427,10 @@ bool dc_state_add_plane(
 
 	stream_status = dc_state_get_stream_status(state, stream);
 	if (stream_status == NULL) {
-		dm_error("Existing stream not found; failed to attach surface!\n");
+		dm_error("Existing stream analt found; failed to attach surface!\n");
 		goto out;
 	} else if (stream_status->plane_count == MAX_SURFACE_NUM) {
-		dm_error("Surface: can not attach plane_state %p! Maximum is: %d\n",
+		dm_error("Surface: can analt attach plane_state %p! Maximum is: %d\n",
 				plane_state, MAX_SURFACE_NUM);
 		goto out;
 	}
@@ -472,7 +472,7 @@ bool dc_state_remove_plane(
 		}
 
 	if (stream_status == NULL) {
-		dm_error("Existing stream not found; failed to remove plane.\n");
+		dm_error("Existing stream analt found; failed to remove plane.\n");
 		return false;
 	}
 
@@ -487,7 +487,7 @@ bool dc_state_remove_plane(
 	}
 
 	if (i == stream_status->plane_count) {
-		dm_error("Existing plane_state not found; failed to detach it!\n");
+		dm_error("Existing plane_state analt found; failed to detach it!\n");
 		return false;
 	}
 
@@ -538,7 +538,7 @@ bool dc_state_rem_all_planes_for_stream(
 		}
 
 	if (stream_status == NULL) {
-		dm_error("Existing stream %p not found!\n", stream);
+		dm_error("Existing stream %p analt found!\n", stream);
 		return false;
 	}
 
@@ -611,7 +611,7 @@ enum mall_stream_type dc_state_get_stream_subvp_type(const struct dc_state *stat
 {
 	int i;
 
-	enum mall_stream_type type = SUBVP_NONE;
+	enum mall_stream_type type = SUBVP_ANALNE;
 
 	for (i = 0; i < state->stream_count; i++) {
 		if (state->streams[i] == stream) {
@@ -751,10 +751,10 @@ enum dc_status dc_state_remove_phantom_stream(struct dc *dc,
 	/* reset subvp meta */
 	phantom_stream_status = dc_state_get_stream_status(state, phantom_stream);
 	main_stream_status = dc_state_get_stream_status(state, phantom_stream_status->mall_stream_config.paired_stream);
-	phantom_stream_status->mall_stream_config.type = SUBVP_NONE;
+	phantom_stream_status->mall_stream_config.type = SUBVP_ANALNE;
 	phantom_stream_status->mall_stream_config.paired_stream = NULL;
 	if (main_stream_status) {
-		main_stream_status->mall_stream_config.type = SUBVP_NONE;
+		main_stream_status->mall_stream_config.type = SUBVP_ANALNE;
 		main_stream_status->mall_stream_config.paired_stream = NULL;
 	}
 
@@ -805,7 +805,7 @@ bool dc_state_rem_all_phantom_planes_for_stream(
 		}
 
 	if (stream_status == NULL) {
-		dm_error("Existing stream %p not found!\n", phantom_stream);
+		dm_error("Existing stream %p analt found!\n", phantom_stream);
 		return false;
 	}
 

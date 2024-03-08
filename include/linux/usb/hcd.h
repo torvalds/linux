@@ -60,7 +60,7 @@ struct giveback_urb_bh {
 };
 
 enum usb_dev_authorize_policy {
-	USB_DEVICE_AUTHORIZE_NONE	= 0,
+	USB_DEVICE_AUTHORIZE_ANALNE	= 0,
 	USB_DEVICE_AUTHORIZE_ALL	= 1,
 	USB_DEVICE_AUTHORIZE_INTERNAL	= 2,
 };
@@ -145,7 +145,7 @@ struct usb_hcd {
 	unsigned		msix_enabled:1;	/* driver has MSI-X enabled? */
 	unsigned		msi_enabled:1;	/* driver has MSI enabled? */
 	/*
-	 * do not manage the PHY state in the HCD core, instead let the driver
+	 * do analt manage the PHY state in the HCD core, instead let the driver
 	 * handle this (for example if the PHY can only be turned on after a
 	 * specific event)
 	 */
@@ -165,7 +165,7 @@ struct usb_hcd {
 	void __iomem		*regs;		/* device memory/io */
 	resource_size_t		rsrc_start;	/* memory/io resource start */
 	resource_size_t		rsrc_len;	/* memory/io resource length */
-	unsigned		power_budget;	/* in mA, 0 = no limit */
+	unsigned		power_budget;	/* in mA, 0 = anal limit */
 
 	struct giveback_urb_bh  high_prio_bh;
 	struct giveback_urb_bh  low_prio_bh;
@@ -258,8 +258,8 @@ struct hc_driver {
 	int	(*reset) (struct usb_hcd *hcd);
 	int	(*start) (struct usb_hcd *hcd);
 
-	/* NOTE:  these suspend/resume calls relate to the HC as
-	 * a whole, not just the root hub; they're for PCI bus glue.
+	/* ANALTE:  these suspend/resume calls relate to the HC as
+	 * a whole, analt just the root hub; they're for PCI bus glue.
 	 */
 	/* called after suspending the hub, before entering D3 etc */
 	int	(*pci_suspend)(struct usb_hcd *hcd, bool do_wakeup);
@@ -289,7 +289,7 @@ struct hc_driver {
 	 * (optional) these hooks allow an HCD to override the default DMA
 	 * mapping and unmapping routines.  In general, they shouldn't be
 	 * necessary unless the host controller has special DMA requirements,
-	 * such as alignment constraints.  If these are not specified, the
+	 * such as alignment constraints.  If these are analt specified, the
 	 * general usb_hcd_(un)?map_urb_for_dma functions will be used instead
 	 * (and it may be a good idea to call these functions in your HCD
 	 * implementation)
@@ -335,7 +335,7 @@ struct hc_driver {
 	int	(*alloc_streams)(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		unsigned int num_streams, gfp_t mem_flags);
-	/* Reverts a group of bulk endpoints back to not using stream IDs.
+	/* Reverts a group of bulk endpoints back to analt using stream IDs.
 	 * Can fail if we run out of memory.
 	 */
 	int	(*free_streams)(struct usb_hcd *hcd, struct usb_device *udev,
@@ -343,14 +343,14 @@ struct hc_driver {
 		gfp_t mem_flags);
 
 	/* Bandwidth computation functions */
-	/* Note that add_endpoint() can only be called once per endpoint before
+	/* Analte that add_endpoint() can only be called once per endpoint before
 	 * check_bandwidth() or reset_bandwidth() must be called.
 	 * drop_endpoint() can only be called once per endpoint also.
 	 * A call to xhci_drop_endpoint() followed by a call to
 	 * xhci_add_endpoint() will add the endpoint to the schedule with
-	 * possibly new parameters denoted by a different endpoint descriptor
+	 * possibly new parameters deanalted by a different endpoint descriptor
 	 * in usb_host_endpoint.  A call to xhci_add_endpoint() followed by a
-	 * call to xhci_drop_endpoint() is not allowed.
+	 * call to xhci_drop_endpoint() is analt allowed.
 	 */
 		/* Allocate endpoint resources and add them to a new schedule */
 	int	(*add_endpoint)(struct usb_hcd *, struct usb_device *,
@@ -359,12 +359,12 @@ struct hc_driver {
 	int	(*drop_endpoint)(struct usb_hcd *, struct usb_device *,
 				 struct usb_host_endpoint *);
 		/* Check that a new hardware configuration, set using
-		 * endpoint_enable and endpoint_disable, does not exceed bus
+		 * endpoint_enable and endpoint_disable, does analt exceed bus
 		 * bandwidth.  This must be called before any set configuration
 		 * or set interface requests are sent to the device.
 		 */
 	int	(*check_bandwidth)(struct usb_hcd *, struct usb_device *);
-		/* Reset the device schedule to the last known good schedule,
+		/* Reset the device schedule to the last kanalwn good schedule,
 		 * which was set from a previous successful call to
 		 * check_bandwidth().  This reverts any add_endpoint() and
 		 * drop_endpoint() calls since that last successful call.
@@ -377,13 +377,13 @@ struct hc_driver {
 				  unsigned int timeout_ms);
 		/* prepares the hardware to send commands to the device */
 	int	(*enable_device)(struct usb_hcd *, struct usb_device *udev);
-		/* Notifies the HCD after a hub descriptor is fetched.
+		/* Analtifies the HCD after a hub descriptor is fetched.
 		 * Will block.
 		 */
 	int	(*update_hub_device)(struct usb_hcd *, struct usb_device *hdev,
 			struct usb_tt *tt, gfp_t mem_flags);
 	int	(*reset_device)(struct usb_hcd *, struct usb_device *);
-		/* Notifies the HCD after a device is connected and its
+		/* Analtifies the HCD after a device is connected and its
 		 * address is set
 		 */
 	int	(*update_device)(struct usb_hcd *, struct usb_device *);
@@ -527,7 +527,7 @@ extern irqreturn_t usb_hcd_irq(int irq, void *__hcd);
 
 extern void usb_hc_died(struct usb_hcd *hcd);
 extern void usb_hcd_poll_rh_status(struct usb_hcd *hcd);
-extern void usb_wakeup_notification(struct usb_device *hdev,
+extern void usb_wakeup_analtification(struct usb_device *hdev,
 		unsigned int portnum);
 
 extern void usb_hcd_start_port_resume(struct usb_bus *bus, int portnum);
@@ -565,8 +565,8 @@ extern void usb_destroy_configuration(struct usb_device *dev);
  * The other type grows from high speed hubs when they connect to
  * full/low speed devices using "Transaction Translators" (TTs).
  *
- * TTs should only be known to the hub driver, and high speed bus
- * drivers (only EHCI for now).  They affect periodic scheduling and
+ * TTs should only be kanalwn to the hub driver, and high speed bus
+ * drivers (only EHCI for analw).  They affect periodic scheduling and
  * sometimes control/bulk error recovery.
  */
 
@@ -636,18 +636,18 @@ extern void usb_ep0_reinit(struct usb_device *);
  */
 #define FRAME_TIME_USECS	1000L
 #define BitTime(bytecount) (7 * 8 * bytecount / 6) /* with integer truncation */
-		/* Trying not to use worst-case bit-stuffing
+		/* Trying analt to use worst-case bit-stuffing
 		 * of (7/6 * 8 * bytecount) = 9.33 * bytecount */
 		/* bytecount = data payload byte count */
 
 #define NS_TO_US(ns)	DIV_ROUND_UP(ns, 1000L)
-			/* convert nanoseconds to microseconds, rounding up */
+			/* convert naanalseconds to microseconds, rounding up */
 
 /*
  * Full/low speed bandwidth allocation constants/support.
  */
-#define BW_HOST_DELAY	1000L		/* nanoseconds */
-#define BW_HUB_LS_SETUP	333L		/* nanoseconds */
+#define BW_HOST_DELAY	1000L		/* naanalseconds */
+#define BW_HUB_LS_SETUP	333L		/* naanalseconds */
 			/* 4 full-speed bit times (est.) */
 
 #define FRAME_TIME_BITS			12000L	/* frame = 1 millisecond */
@@ -655,8 +655,8 @@ extern void usb_ep0_reinit(struct usb_device *);
 #define FRAME_TIME_MAX_USECS_ALLOC	(90L * FRAME_TIME_USECS / 100L)
 
 /*
- * Ceiling [nano/micro]seconds (typical) for that many bytes at high speed
- * ISO is a bit less, no ACK ... from USB 2.0 spec, 5.11.3 (and needed
+ * Ceiling [naanal/micro]seconds (typical) for that many bytes at high speed
+ * ISO is a bit less, anal ACK ... from USB 2.0 spec, 5.11.3 (and needed
  * to preallocate bandwidth)
  */
 #define USB2_HOST_DELAY	5	/* nsec, guess */
@@ -756,7 +756,7 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
 /* random stuff */
 
 /* This rwsem is for use only by the hub driver and ehci-hcd.
- * Nobody else should touch it.
+ * Analbody else should touch it.
  */
 extern struct rw_semaphore ehci_cf_port_reset_rwsem;
 

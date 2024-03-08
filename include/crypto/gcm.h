@@ -1,7 +1,7 @@
 #ifndef _CRYPTO_GCM_H
 #define _CRYPTO_GCM_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <crypto/aes.h>
 #include <crypto/gf128mul.h>

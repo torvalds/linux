@@ -11,7 +11,7 @@
 
 #include <nvhw/class/cl907d.h>
 
-#include "nouveau_drv.h"
+#include "analuveau_drv.h"
 #include "core.h"
 #include "head.h"
 #include "wndw.h"
@@ -19,7 +19,7 @@
 #include "crc.h"
 
 static const char * const nv50_crc_sources[] = {
-	[NV50_CRC_SOURCE_NONE] = "none",
+	[NV50_CRC_SOURCE_ANALNE] = "analne",
 	[NV50_CRC_SOURCE_AUTO] = "auto",
 	[NV50_CRC_SOURCE_RG] = "rg",
 	[NV50_CRC_SOURCE_OUTP_ACTIVE] = "outp-active",
@@ -32,7 +32,7 @@ static int nv50_crc_parse_source(const char *buf, enum nv50_crc_source *s)
 	int i;
 
 	if (!buf) {
-		*s = NV50_CRC_SOURCE_NONE;
+		*s = NV50_CRC_SOURCE_ANALNE;
 		return 0;
 	}
 
@@ -48,11 +48,11 @@ int
 nv50_crc_verify_source(struct drm_crtc *crtc, const char *source_name,
 		       size_t *values_cnt)
 {
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
+	struct analuveau_drm *drm = analuveau_drm(crtc->dev);
 	enum nv50_crc_source source;
 
 	if (nv50_crc_parse_source(source_name, &source) < 0) {
-		NV_DEBUG(drm, "unknown source %s\n", source_name);
+		NV_DEBUG(drm, "unkanalwn source %s\n", source_name);
 		return -EINVAL;
 	}
 
@@ -68,7 +68,7 @@ const char *const *nv50_crc_get_sources(struct drm_crtc *crtc, size_t *count)
 
 static void
 nv50_crc_program_ctx(struct nv50_head *head,
-		     struct nv50_crc_notifier_ctx *ctx)
+		     struct nv50_crc_analtifier_ctx *ctx)
 {
 	struct nv50_disp *disp = nv50_disp(head->base.base.dev);
 	struct nv50_core *core = disp->core;
@@ -100,7 +100,7 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 		return;
 	}
 
-	drm_dbg_kms(dev, "Flipping notifier ctx for %s (%d -> %d)\n",
+	drm_dbg_kms(dev, "Flipping analtifier ctx for %s (%d -> %d)\n",
 		    crtc->name, crc->ctx_idx, new_idx);
 
 	nv50_crc_program_ctx(head, NULL);
@@ -109,7 +109,7 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 
 	end_vbl = drm_crtc_vblank_count(crtc);
 	if (unlikely(end_vbl != start_vbl))
-		NV_ERROR(nouveau_drm(dev),
+		NV_ERROR(analuveau_drm(dev),
 			 "Failed to flip CRC context on %s on time (%llu > %llu)\n",
 			 crtc->name, end_vbl, start_vbl);
 
@@ -118,7 +118,7 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 	spin_unlock_irq(&crc->lock);
 }
 
-static inline void nv50_crc_reset_ctx(struct nv50_crc_notifier_ctx *ctx)
+static inline void nv50_crc_reset_ctx(struct nv50_crc_analtifier_ctx *ctx)
 {
 	memset_io(ctx->mem.object.map.ptr, 0, ctx->mem.object.map.size);
 }
@@ -155,7 +155,7 @@ void nv50_crc_handle_vblank(struct nv50_head *head)
 	struct nv50_crc *crc = &head->crc;
 	const struct nv50_crc_func *func =
 		nv50_disp(head->base.base.dev)->core->func->crc;
-	struct nv50_crc_notifier_ctx *ctx;
+	struct nv50_crc_analtifier_ctx *ctx;
 	bool need_reschedule = false;
 
 	if (!func)
@@ -181,20 +181,20 @@ void nv50_crc_handle_vblank(struct nv50_head *head)
 		crc->ctx_changed = false;
 
 		/*
-		 * Unfortunately when notifier contexts are changed during CRC
+		 * Unfortunately when analtifier contexts are changed during CRC
 		 * capture, we will inevitably lose the CRC entry for the
 		 * frame where the hardware actually latched onto the first
 		 * UPDATE. According to Nvidia's hardware engineers, there's
-		 * no workaround for this.
+		 * anal workaround for this.
 		 *
-		 * Now, we could try to be smart here and calculate the number
+		 * Analw, we could try to be smart here and calculate the number
 		 * of missed CRCs based on audit timestamps, but those were
 		 * removed starting with volta. Since we always flush our
 		 * updates back-to-back without waiting, we'll just be
 		 * optimistic and assume we always miss exactly one frame.
 		 */
 		drm_dbg_kms(head->base.base.dev,
-			    "Notifier ctx flip for head-%d finished, lost CRC for frame %llu\n",
+			    "Analtifier ctx flip for head-%d finished, lost CRC for frame %llu\n",
 			    head->base.index, crc->frame);
 		crc->frame++;
 
@@ -217,21 +217,21 @@ out:
 
 static void nv50_crc_wait_ctx_finished(struct nv50_head *head,
 				       const struct nv50_crc_func *func,
-				       struct nv50_crc_notifier_ctx *ctx)
+				       struct nv50_crc_analtifier_ctx *ctx)
 {
 	struct drm_device *dev = head->base.base.dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	s64 ret;
 
 	ret = nvif_msec(&drm->client.device, 50,
 			if (func->ctx_finished(head, ctx)) break;);
 	if (ret == -ETIMEDOUT)
 		NV_ERROR(drm,
-			 "CRC notifier ctx for head %d not finished after 50ms\n",
+			 "CRC analtifier ctx for head %d analt finished after 50ms\n",
 			 head->base.index);
 	else if (ret)
 		NV_ATOMIC(drm,
-			  "CRC notifier ctx for head-%d finished after %lldns\n",
+			  "CRC analtifier ctx for head-%d finished after %lldns\n",
 			  head->base.index, ret);
 }
 
@@ -250,13 +250,13 @@ void nv50_crc_atomic_stop_reporting(struct drm_atomic_state *state)
 			continue;
 
 		spin_lock_irq(&crc->lock);
-		crc->src = NV50_CRC_SOURCE_NONE;
+		crc->src = NV50_CRC_SOURCE_ANALNE;
 		spin_unlock_irq(&crc->lock);
 
 		drm_crtc_vblank_put(crtc);
 		drm_vblank_work_cancel_sync(&crc->flip_work);
 
-		NV_ATOMIC(nouveau_drm(crtc->dev),
+		NV_ATOMIC(analuveau_drm(crtc->dev),
 			  "CRC reporting on vblank for head-%d disabled\n",
 			  head->base.index);
 
@@ -267,7 +267,7 @@ void nv50_crc_atomic_stop_reporting(struct drm_atomic_state *state)
 	}
 }
 
-void nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_state *state)
+void nv50_crc_atomic_init_analtifier_contexts(struct drm_atomic_state *state)
 {
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc *crtc;
@@ -289,7 +289,7 @@ void nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_state *state)
 	}
 }
 
-void nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_state *state)
+void nv50_crc_atomic_release_analtifier_contexts(struct drm_atomic_state *state)
 {
 	const struct nv50_crc_func *func =
 		nv50_disp(state->dev)->core->func->crc;
@@ -301,7 +301,7 @@ void nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_state *state)
 		struct nv50_head *head = nv50_head(crtc);
 		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_crc *crc = &head->crc;
-		struct nv50_crc_notifier_ctx *ctx = &crc->ctx[crc->ctx_idx];
+		struct nv50_crc_analtifier_ctx *ctx = &crc->ctx[crc->ctx_idx];
 
 		if (!asyh->clr.crc)
 			continue;
@@ -340,7 +340,7 @@ void nv50_crc_atomic_start_reporting(struct drm_atomic_state *state)
 					 true);
 		spin_unlock_irq(&crc->lock);
 
-		NV_ATOMIC(nouveau_drm(crtc->dev),
+		NV_ATOMIC(analuveau_drm(crtc->dev),
 			  "CRC reporting on vblank for head-%d enabled\n",
 			  head->base.index);
 	}
@@ -390,7 +390,7 @@ void nv50_crc_atomic_check_outp(struct nv50_atom *atom)
 		struct nv50_head_atom *armh = nv50_head_atom(old_crtc_state);
 		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_outp_atom *outp_atom;
-		struct nouveau_encoder *outp;
+		struct analuveau_encoder *outp;
 		struct drm_encoder *encoder, *enc;
 
 		enc = nv50_head_atom_get_encoder(armh);
@@ -424,13 +424,13 @@ void nv50_crc_atomic_check_outp(struct nv50_atom *atom)
 }
 
 static enum nv50_crc_source_type
-nv50_crc_source_type(struct nouveau_encoder *outp,
+nv50_crc_source_type(struct analuveau_encoder *outp,
 		     enum nv50_crc_source source)
 {
 	struct dcb_output *dcbe = outp->dcb;
 
 	switch (source) {
-	case NV50_CRC_SOURCE_NONE: return NV50_CRC_SOURCE_TYPE_NONE;
+	case NV50_CRC_SOURCE_ANALNE: return NV50_CRC_SOURCE_TYPE_ANALNE;
 	case NV50_CRC_SOURCE_RG:   return NV50_CRC_SOURCE_TYPE_RG;
 	default:		   break;
 	}
@@ -452,7 +452,7 @@ void nv50_crc_atomic_set(struct nv50_head *head,
 	struct drm_device *dev = crtc->dev;
 	struct nv50_crc *crc = &head->crc;
 	const struct nv50_crc_func *func = nv50_disp(dev)->core->func->crc;
-	struct nouveau_encoder *outp;
+	struct analuveau_encoder *outp;
 	struct drm_encoder *encoder;
 
 	encoder = nv50_head_atom_get_encoder(asyh);
@@ -472,14 +472,14 @@ void nv50_crc_atomic_clr(struct nv50_head *head)
 	const struct nv50_crc_func *func =
 		nv50_disp(head->base.base.dev)->core->func->crc;
 
-	func->set_src(head, 0, NV50_CRC_SOURCE_TYPE_NONE, NULL);
+	func->set_src(head, 0, NV50_CRC_SOURCE_TYPE_ANALNE, NULL);
 }
 
 static inline int
 nv50_crc_raster_type(enum nv50_crc_source source)
 {
 	switch (source) {
-	case NV50_CRC_SOURCE_NONE:
+	case NV50_CRC_SOURCE_ANALNE:
 	case NV50_CRC_SOURCE_AUTO:
 	case NV50_CRC_SOURCE_RG:
 	case NV50_CRC_SOURCE_OUTP_ACTIVE:
@@ -487,18 +487,18 @@ nv50_crc_raster_type(enum nv50_crc_source source)
 	case NV50_CRC_SOURCE_OUTP_COMPLETE:
 		return NV907D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_COMPLETE_RASTER;
 	case NV50_CRC_SOURCE_OUTP_INACTIVE:
-		return NV907D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_NON_ACTIVE_RASTER;
+		return NV907D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_ANALN_ACTIVE_RASTER;
 	}
 
 	return 0;
 }
 
-/* We handle mapping the memory for CRC notifiers ourselves, since each
- * notifier needs it's own handle
+/* We handle mapping the memory for CRC analtifiers ourselves, since each
+ * analtifier needs it's own handle
  */
 static inline int
 nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
-		  struct nv50_crc_notifier_ctx *ctx, size_t len, int idx)
+		  struct nv50_crc_analtifier_ctx *ctx, size_t len, int idx)
 {
 	struct nv50_core *core = nv50_disp(head->base.base.dev)->core;
 	int ret;
@@ -529,7 +529,7 @@ fail_fini:
 }
 
 static inline void
-nv50_crc_ctx_fini(struct nv50_crc_notifier_ctx *ctx)
+nv50_crc_ctx_fini(struct nv50_crc_analtifier_ctx *ctx)
 {
 	nvif_object_dtor(&ctx->ntfy);
 	nvif_mem_dtor(&ctx->mem);
@@ -543,7 +543,7 @@ int nv50_crc_set_source(struct drm_crtc *crtc, const char *source_str)
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_crc *crc = &head->crc;
 	const struct nv50_crc_func *func = nv50_disp(dev)->core->func->crc;
-	struct nvif_mmu *mmu = &nouveau_drm(dev)->client.mmu;
+	struct nvif_mmu *mmu = &analuveau_drm(dev)->client.mmu;
 	struct nv50_head_atom *asyh;
 	struct drm_crtc_state *crtc_state;
 	enum nv50_crc_source source;
@@ -563,7 +563,7 @@ int nv50_crc_set_source(struct drm_crtc *crtc, const char *source_str)
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_acquire_fini;
 	}
 	state->acquire_ctx = &ctx;
@@ -571,7 +571,7 @@ int nv50_crc_set_source(struct drm_crtc *crtc, const char *source_str)
 	if (source) {
 		for (i = 0; i < ARRAY_SIZE(head->crc.ctx); i++) {
 			ret = nv50_crc_ctx_init(head, mmu, &crc->ctx[i],
-						func->notifier_len, i);
+						func->analtifier_len, i);
 			if (ret)
 				goto out_ctx_fini;
 		}
@@ -641,10 +641,10 @@ nv50_crc_debugfs_flip_threshold_get(struct seq_file *m, void *data)
 }
 
 static int
-nv50_crc_debugfs_flip_threshold_open(struct inode *inode, struct file *file)
+nv50_crc_debugfs_flip_threshold_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, nv50_crc_debugfs_flip_threshold_get,
-			   inode->i_private);
+			   ianalde->i_private);
 }
 
 static ssize_t
@@ -656,7 +656,7 @@ nv50_crc_debugfs_flip_threshold_set(struct file *file,
 	struct nv50_head *head = m->private;
 	struct nv50_head_atom *armh;
 	struct drm_crtc *crtc = &head->base.base;
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
+	struct analuveau_drm *drm = analuveau_drm(crtc->dev);
 	struct nv50_crc *crc = &head->crc;
 	const struct nv50_crc_func *func =
 		nv50_disp(crtc->dev)->core->func->crc;

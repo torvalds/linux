@@ -2,7 +2,7 @@
 /*
  * Most of this ideas comes from x86.
  *
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_UNWIND_H
 #define _ASM_UNWIND_H
@@ -36,7 +36,7 @@ unsigned long unwind_get_return_address(struct unwind_state *state);
 
 static inline bool unwind_done(struct unwind_state *state)
 {
-	return state->stack_info.type == STACK_TYPE_UNKNOWN;
+	return state->stack_info.type == STACK_TYPE_UNKANALWN;
 }
 
 static inline bool unwind_error(struct unwind_state *state)

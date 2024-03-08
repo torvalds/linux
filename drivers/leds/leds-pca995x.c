@@ -3,7 +3,7 @@
  * LED driver for PCA995x I2C LED drivers
  *
  * Copyright 2011 bct electronic GmbH
- * Copyright 2013 Qtechnology/AS
+ * Copyright 2013 Qtechanallogy/AS
  * Copyright 2022 NXP
  * Copyright 2023 Marek Vasut
  */
@@ -24,7 +24,7 @@
 #define PCA9952_IREFALL			0x43
 #define PCA9955B_IREFALL		0x45
 
-/* Auto-increment disabled. Normal mode */
+/* Auto-increment disabled. Analrmal mode */
 #define PCA995X_MODE1_CFG		0x00
 
 /* LED select registers determine the source that drives LED outputs */
@@ -40,13 +40,13 @@
 #define PCA995X_IREFALL_FULL_CFG	0xFF
 #define PCA995X_IREFALL_HALF_CFG	(PCA995X_IREFALL_FULL_CFG / 2)
 
-#define PCA995X_TYPE_NON_B		0
+#define PCA995X_TYPE_ANALN_B		0
 #define PCA995X_TYPE_B			1
 
 #define ldev_to_led(c)	container_of(c, struct pca995x_led, ldev)
 
 struct pca995x_led {
-	unsigned int led_no;
+	unsigned int led_anal;
 	struct led_classdev ldev;
 	struct pca995x_chip *chip;
 };
@@ -65,9 +65,9 @@ static int pca995x_brightness_set(struct led_classdev *led_cdev,
 	u8 ledout_addr, pwmout_addr;
 	int shift, ret;
 
-	pwmout_addr = (chip->btype ? PCA9955B_PWM0 : PCA9952_PWM0) + led->led_no;
-	ledout_addr = PCA995X_LEDOUT0 + (led->led_no / PCA995X_OUTPUTS_PER_REG);
-	shift = PCA995X_LDRX_BITS * (led->led_no % PCA995X_OUTPUTS_PER_REG);
+	pwmout_addr = (chip->btype ? PCA9955B_PWM0 : PCA9952_PWM0) + led->led_anal;
+	ledout_addr = PCA995X_LEDOUT0 + (led->led_anal / PCA995X_OUTPUTS_PER_REG);
+	shift = PCA995X_LDRX_BITS * (led->led_anal % PCA995X_OUTPUTS_PER_REG);
 
 	switch (brightness) {
 	case LED_FULL:
@@ -101,8 +101,8 @@ static const struct regmap_config pca995x_regmap = {
 
 static int pca995x_probe(struct i2c_client *client)
 {
-	struct fwnode_handle *led_fwnodes[PCA995X_MAX_OUTPUTS] = { 0 };
-	struct fwnode_handle *np, *child;
+	struct fwanalde_handle *led_fwanaldes[PCA995X_MAX_OUTPUTS] = { 0 };
+	struct fwanalde_handle *np, *child;
 	struct device *dev = &client->dev;
 	struct pca995x_chip *chip;
 	struct pca995x_led *led;
@@ -110,13 +110,13 @@ static int pca995x_probe(struct i2c_client *client)
 
 	btype = (unsigned long)device_get_match_data(&client->dev);
 
-	np = dev_fwnode(dev);
+	np = dev_fwanalde(dev);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->btype = btype;
 	chip->regmap = devm_regmap_init_i2c(client, &pca995x_regmap);
@@ -125,22 +125,22 @@ static int pca995x_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, chip);
 
-	fwnode_for_each_available_child_node(np, child) {
-		ret = fwnode_property_read_u32(child, "reg", &reg);
+	fwanalde_for_each_available_child_analde(np, child) {
+		ret = fwanalde_property_read_u32(child, "reg", &reg);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
-		if (reg < 0 || reg >= PCA995X_MAX_OUTPUTS || led_fwnodes[reg]) {
-			fwnode_handle_put(child);
+		if (reg < 0 || reg >= PCA995X_MAX_OUTPUTS || led_fwanaldes[reg]) {
+			fwanalde_handle_put(child);
 			return -EINVAL;
 		}
 
 		led = &chip->leds[reg];
-		led_fwnodes[reg] = child;
+		led_fwanaldes[reg] = child;
 		led->chip = chip;
-		led->led_no = reg;
+		led->led_anal = reg;
 		led->ldev.brightness_set_blocking = pca995x_brightness_set;
 		led->ldev.max_brightness = 255;
 	}
@@ -148,23 +148,23 @@ static int pca995x_probe(struct i2c_client *client)
 	for (i = 0; i < PCA995X_MAX_OUTPUTS; i++) {
 		struct led_init_data init_data = {};
 
-		if (!led_fwnodes[i])
+		if (!led_fwanaldes[i])
 			continue;
 
-		init_data.fwnode = led_fwnodes[i];
+		init_data.fwanalde = led_fwanaldes[i];
 
 		ret = devm_led_classdev_register_ext(dev,
 						     &chip->leds[i].ldev,
 						     &init_data);
 		if (ret < 0) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(dev, ret,
-					     "Could not register LED %s\n",
+					     "Could analt register LED %s\n",
 					     chip->leds[i].ldev.name);
 		}
 	}
 
-	/* Disable LED all-call address and set normal mode */
+	/* Disable LED all-call address and set analrmal mode */
 	ret = regmap_write(chip->regmap, PCA995X_MODE1, PCA995X_MODE1_CFG);
 	if (ret)
 		return ret;
@@ -176,14 +176,14 @@ static int pca995x_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pca995x_id[] = {
-	{ "pca9952", .driver_data = (kernel_ulong_t)PCA995X_TYPE_NON_B },
+	{ "pca9952", .driver_data = (kernel_ulong_t)PCA995X_TYPE_ANALN_B },
 	{ "pca9955b", .driver_data = (kernel_ulong_t)PCA995X_TYPE_B },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, pca995x_id);
 
 static const struct of_device_id pca995x_of_match[] = {
-	{ .compatible = "nxp,pca9952",  .data = (void *)PCA995X_TYPE_NON_B },
+	{ .compatible = "nxp,pca9952",  .data = (void *)PCA995X_TYPE_ANALN_B },
 	{ .compatible = "nxp,pca9955b", .data = (void *)PCA995X_TYPE_B },
 	{},
 };

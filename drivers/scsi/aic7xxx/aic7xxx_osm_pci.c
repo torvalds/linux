@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -23,13 +23,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -102,7 +102,7 @@ static const struct pci_device_id ahc_linux_pci_id_table[] = {
 	ID(ID_AHA_3960D),
 	ID(ID_AHA_3960D_CPQ),
 	ID(ID_AIC7899_ARO),
-	/* Generic chip probes for devices we don't know exactly. */
+	/* Generic chip probes for devices we don't kanalw exactly. */
 	ID(ID_AIC7850 & ID_DEV_VENDOR_MASK),
 	ID(ID_AIC7855 & ID_DEV_VENDOR_MASK),
 	ID(ID_AIC7859 & ID_DEV_VENDOR_MASK),
@@ -170,7 +170,7 @@ ahc_linux_pci_inherit_flags(struct ahc_softc *ahc)
 			ahc->flags &= ~AHC_PRIMARY_CHANNEL; 
 			ahc->flags |= master->flags & AHC_PRIMARY_CHANNEL;
 		} else
-			printk(KERN_ERR "aic7xxx: no multichannel peer found!\n");
+			printk(KERN_ERR "aic7xxx: anal multichannel peer found!\n");
 		pci_dev_put(master_pdev);
 	} 
 }
@@ -190,7 +190,7 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci = pdev;
 	entry = ahc_find_pci_device(pci);
 	if (entry == NULL)
-		return (-ENODEV);
+		return (-EANALDEV);
 
 	/*
 	 * Allocate a softc for this card and
@@ -203,13 +203,13 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ahc_get_pci_function(pci));
 	name = kstrdup(buf, GFP_ATOMIC);
 	if (name == NULL)
-		return (-ENOMEM);
+		return (-EANALMEM);
 	ahc = ahc_alloc(NULL, name);
 	if (ahc == NULL)
-		return (-ENOMEM);
+		return (-EANALMEM);
 	if (pci_enable_device(pdev)) {
 		ahc_free(ahc);
-		return (-ENODEV);
+		return (-EANALDEV);
 	}
 	pci_set_master(pdev);
 
@@ -221,8 +221,8 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		if (dma_set_mask(dev, DMA_BIT_MASK(32))) {
 			ahc_free(ahc);
-			printk(KERN_WARNING "aic7xxx: No suitable DMA available.\n");
-                	return (-ENODEV);
+			printk(KERN_WARNING "aic7xxx: Anal suitable DMA available.\n");
+                	return (-EANALDEV);
 		}
 	}
 	ahc->dev_softc = pci;
@@ -270,7 +270,7 @@ ahc_pci_read_config(ahc_dev_softc_t pci, int reg, int width)
 	}
 	default:
 		panic("ahc_pci_read_config: Read size too big");
-		/* NOTREACHED */
+		/* ANALTREACHED */
 		return (0);
 	}
 }
@@ -290,7 +290,7 @@ ahc_pci_write_config(ahc_dev_softc_t pci, int reg, uint32_t value, int width)
 		break;
 	default:
 		panic("ahc_pci_write_config: Write size too big");
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 }
 
@@ -322,13 +322,13 @@ static int
 ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc, resource_size_t *base)
 {
 	if (aic7xxx_allow_memio == 0)
-		return (ENOMEM);
+		return (EANALMEM);
 
 	*base = pci_resource_start(ahc->dev_softc, 0);
 	if (*base == 0)
-		return (ENOMEM);
+		return (EANALMEM);
 	if (!request_region(*base, 256, "aic7xxx"))
-		return (ENOMEM);
+		return (EANALMEM);
 	return (0);
 }
 
@@ -345,16 +345,16 @@ ahc_linux_pci_reserve_mem_region(struct ahc_softc *ahc,
 	if (start != 0) {
 		*bus_addr = start;
 		if (!request_mem_region(start, 0x1000, "aic7xxx"))
-			error = ENOMEM;
+			error = EANALMEM;
 		if (error == 0) {
 			*maddr = ioremap(start, 256);
 			if (*maddr == NULL) {
-				error = ENOMEM;
+				error = EANALMEM;
 				release_mem_region(start, 0x1000);
 			}
 		}
 	} else
-		error = ENOMEM;
+		error = EANALMEM;
 	return (error);
 }
 
@@ -401,7 +401,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 			command |= PCIM_CMD_MEMEN;
 	} else {
 		printk("aic7xxx: PCI%d:%d:%d MEM region 0x%llx "
-		       "unavailable. Cannot memory map device.\n",
+		       "unavailable. Cananalt memory map device.\n",
 		       ahc_get_pci_bus(ahc->dev_softc),
 		       ahc_get_pci_slot(ahc->dev_softc),
 		       ahc_get_pci_function(ahc->dev_softc),
@@ -420,7 +420,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 			command |= PCIM_CMD_PORTEN;
 		} else {
 			printk("aic7xxx: PCI%d:%d:%d IO region 0x%llx[0..255] "
-			       "unavailable. Cannot map device.\n",
+			       "unavailable. Cananalt map device.\n",
 			       ahc_get_pci_bus(ahc->dev_softc),
 			       ahc_get_pci_slot(ahc->dev_softc),
 			       ahc_get_pci_function(ahc->dev_softc),

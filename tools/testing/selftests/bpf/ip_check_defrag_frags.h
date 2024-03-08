@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* DO NOT EDIT -- this file is generated */
+/* DO ANALT EDIT -- this file is generated */
 
 #ifndef _IP_CHECK_DEFRAG_FRAGS_H
 #define _IP_CHECK_DEFRAG_FRAGS_H

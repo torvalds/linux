@@ -61,19 +61,19 @@ struct regmap *__regmap_init_ram(const struct regmap_config *config,
 	struct regmap *map;
 
 	if (!config->max_register) {
-		pr_crit("No max_register specified for RAM regmap\n");
+		pr_crit("Anal max_register specified for RAM regmap\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	data->read = kcalloc(config->max_register + 1, sizeof(bool),
 			     GFP_KERNEL);
 	if (!data->read)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	data->written = kcalloc(config->max_register + 1, sizeof(bool),
 				GFP_KERNEL);
 	if (!data->written)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	map = __regmap_init(NULL, &regmap_ram, data, config,
 			    lock_key, lock_name);

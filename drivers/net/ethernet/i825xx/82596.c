@@ -14,8 +14,8 @@
 
    980825:  Changed to receive directly in to sk_buffs which are
    allocated at open() time.  Eliminates copy on incoming frames
-   (small ones are still copied).  Shared data now held in a
-   non-cached page, so we can run on 68060 in copyback mode.
+   (small ones are still copied).  Shared data analw held in a
+   analn-cached page, so we can run on 68060 in copyback mode.
 
    TBD:
    * look at deferring rx frames rather than discarding (as per tulip)
@@ -42,7 +42,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -117,12 +117,12 @@ static char version[] __initdata =
 #define WSWAPchar(x) ((char *)            (((u32)(x)<<16) | ((((u32)(x)))>>16)))
 #define ISCP_BUSY	0x00010000
 #else
-#error 82596.c: unknown architecture
+#error 82596.c: unkanalwn architecture
 #endif
 
 /*
  * These were the intel versions, left here for reference. There
- * are currently no x86 users of this legacy i82596 chip.
+ * are currently anal x86 users of this legacy i82596 chip.
  */
 #if 0
 #define WSWAPrfd(x)     ((struct i596_rfd *)((long)x))
@@ -175,8 +175,8 @@ static int rx_copybreak = 100;
 #define CMD_FLEX	0x0008	/* Enable flexible memory model */
 
 enum commands {
-	CmdNOp = 0, CmdSASetup = 1, CmdConfigure = 2, CmdMulticastList = 3,
-	CmdTx = 4, CmdTDR = 5, CmdDump = 6, CmdDiagnose = 7
+	CmdANALp = 0, CmdSASetup = 1, CmdConfigure = 2, CmdMulticastList = 3,
+	CmdTx = 4, CmdTDR = 5, CmdDump = 6, CmdDiaganalse = 7
 };
 
 #define STAT_C		0x8000	/* Set to 0 after execution */
@@ -217,7 +217,7 @@ struct i596_tbd {
  * command as seen by the 82596.  The b_next pointer, as used by the 82596
  * always references the status field of the next command, rather than the
  * v_next field, because the 82596 is unaware of v_next.  It may seem more
- * logical to put v_next at the end of the structure, but we cannot do that
+ * logical to put v_next at the end of the structure, but we cananalt do that
  * because the 82596 expects other fields to be there, depending on command
  * type.
  */
@@ -345,7 +345,7 @@ static char init_setup[] =
 #else
 	0x80,			/* don't save bad frames */
 #endif
-	0x2E,			/* No source address insertion, 8 byte preamble */
+	0x2E,			/* Anal source address insertion, 8 byte preamble */
 	0x00,			/* priority and backoff defaults */
 	0x60,			/* interframe spacing */
 	0x00,			/* slot time LSB */
@@ -550,7 +550,7 @@ static inline int init_rx_bufs(struct net_device *dev)
 
 		if (skb == NULL) {
 			remove_rx_bufs(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		rbd->v_next = rbd+1;
@@ -569,7 +569,7 @@ static inline int init_rx_bufs(struct net_device *dev)
 	rbd->v_next = lp->rbds;
 	rbd->b_next = WSWAPrbd(virt_to_bus(lp->rbds));
 
-	/* Now build the Receive Frame Descriptor List */
+	/* Analw build the Receive Frame Descriptor List */
 
 	for (i = 0, rfd = lp->rfds; i < rx_ring_size; i++, rfd++) {
 		rfd->rbd = I596_NULL;
@@ -625,11 +625,11 @@ static int init_i596_mem(struct net_device *dev)
 	if (MACH_IS_MVME16x) {
 		volatile unsigned char *pcc2 = (unsigned char *) 0xfff42000;
 
-		/* Disable all ints for now */
+		/* Disable all ints for analw */
 		pcc2[0x28] = 1;
 		pcc2[0x2a] = 0x48;
-		/* Following disables snooping.  Snooping is not required
-		 * as we make appropriate use of non-cached pages for
+		/* Following disables sanaloping.  Sanaloping is analt required
+		 * as we make appropriate use of analn-cached pages for
 		 * shared data, and cache_push/cache_clear.
 		 */
 		pcc2[0x2b] = 0x08;
@@ -690,7 +690,7 @@ static int init_i596_mem(struct net_device *dev)
 	if (MACH_IS_MVME16x) {
 		volatile unsigned char *pcc2 = (unsigned char *) 0xfff42000;
 
-		/* Enable ints, etc. now */
+		/* Enable ints, etc. analw */
 		pcc2[0x2a] = 0x55;	/* Edge sensitive */
 		pcc2[0x2b] = 0x15;
 	}
@@ -730,7 +730,7 @@ static int init_i596_mem(struct net_device *dev)
 
 	spin_unlock_irqrestore (&lp->lock, flags);
 
-	if (wait_cmd(dev,lp,1000,"RX_START not processed"))
+	if (wait_cmd(dev,lp,1000,"RX_START analt processed"))
 		goto failed;
 	DEB(DEB_INIT,printk(KERN_DEBUG "%s: Receive unit started OK\n", dev->name));
 	return 0;
@@ -760,7 +760,7 @@ static inline int i596_rx(struct net_device *dev)
 			rbd = lp->rbd_head;
 		else {
 			printk(KERN_CRIT "%s: rbd chain broken!\n", dev->name);
-			/* XXX Now what? */
+			/* XXX Analw what? */
 			rbd = I596_NULL;
 		}
 		DEB(DEB_RXFRAME, printk(KERN_DEBUG "  rfd %p, rfd.rbd %p, rfd.stat %04x\n",
@@ -775,7 +775,7 @@ static inline int i596_rx(struct net_device *dev)
 			DEB(DEB_RXADDR,print_eth(rbd->v_data, "received"));
 			frames++;
 
-			/* Check if the packet is long enough to just accept
+			/* Check if the packet is long eanalugh to just accept
 			 * without copying to a properly sized skbuff.
 			 */
 
@@ -968,7 +968,7 @@ static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd)
 		if (tickssofar < ticks_limit)
 			return;
 
-		printk(KERN_NOTICE "%s: command unit timed out, status resetting.\n", dev->name);
+		printk(KERN_ANALTICE "%s: command unit timed out, status resetting.\n", dev->name);
 
 		i596_reset(dev, lp, ioaddr);
 	}
@@ -981,7 +981,7 @@ static int i596_open(struct net_device *dev)
 	DEB(DEB_OPEN,printk(KERN_DEBUG "%s: i596_open() irq %d.\n", dev->name, dev->irq));
 
 	if (request_irq(dev->irq, i596_interrupt, 0, "i82596", dev)) {
-		printk(KERN_ERR "%s: IRQ %d not free\n", dev->name, dev->irq);
+		printk(KERN_ERR "%s: IRQ %d analt free\n", dev->name, dev->irq);
 		return -EAGAIN;
 	}
 #ifdef ENABLE_MVME16x_NET
@@ -1067,7 +1067,7 @@ static netdev_tx_t i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tbd = lp->tbds + lp->next_tx_cmd;
 
 	if (tx_cmd->cmd.command) {
-		printk(KERN_NOTICE "%s: xmit ring full, dropping packet.\n",
+		printk(KERN_ANALTICE "%s: xmit ring full, dropping packet.\n",
 				dev->name);
 		dev->stats.tx_dropped++;
 
@@ -1129,21 +1129,21 @@ static struct net_device * __init i82596_probe(void)
 	int err;
 
 	if (probed)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	probed++;
 
 	dev = alloc_etherdev(0);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 #ifdef ENABLE_MVME16x_NET
 	if (MACH_IS_MVME16x) {
-		if (mvme16x_config & MVME16x_CONFIG_NO_ETHERNET) {
-			printk(KERN_NOTICE "Ethernet probe disabled - chip not present\n");
-			err = -ENODEV;
+		if (mvme16x_config & MVME16x_CONFIG_ANAL_ETHERNET) {
+			printk(KERN_ANALTICE "Ethernet probe disabled - chip analt present\n");
+			err = -EANALDEV;
 			goto out;
 		}
-		memcpy(eth_addr, absolute_pointer(0xfffc1f2c), ETH_ALEN); /* YUCK! Get addr from NOVRAM */
+		memcpy(eth_addr, absolute_pointer(0xfffc1f2c), ETH_ALEN); /* YUCK! Get addr from ANALVRAM */
 		dev->base_addr = MVME_I596_BASE;
 		dev->irq = (unsigned) MVME16x_IRQ_I596;
 		goto found;
@@ -1164,13 +1164,13 @@ static struct net_device * __init i82596_probe(void)
 		goto found;
 	}
 #endif
-	err = -ENODEV;
+	err = -EANALDEV;
 	goto out;
 
 found:
 	dev->mem_start = (int)__get_free_pages(GFP_ATOMIC, 0);
 	if (!dev->mem_start) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out1;
 	}
 
@@ -1200,7 +1200,7 @@ found:
 #ifdef __mc68000__
 	cache_push(virt_to_phys((void *)(dev->mem_start)), 4096);
 	cache_clear(virt_to_phys((void *)(dev->mem_start)), 4096);
-	kernel_set_cachemode((void *)(dev->mem_start), 4096, IOMAP_NOCACHE_SER);
+	kernel_set_cachemode((void *)(dev->mem_start), 4096, IOMAP_ANALCACHE_SER);
 #endif
 	lp->scb.command = 0;
 	lp->scb.cmd = I596_NULL;
@@ -1243,8 +1243,8 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 	}
 #endif
 	if (dev == NULL) {
-		printk(KERN_ERR "i596_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
+		printk(KERN_ERR "i596_interrupt(): irq %d for unkanalwn device.\n", irq);
+		return IRQ_ANALNE;
 	}
 
 	ioaddr = dev->base_addr;
@@ -1324,7 +1324,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 			    }
 			case CmdConfigure:
 			case CmdMulticastList:
-				/* Zap command so set_multicast_list() knows it is free */
+				/* Zap command so set_multicast_list() kanalws it is free */
 				ptr->command = 0;
 				break;
 			}
@@ -1414,7 +1414,7 @@ static int i596_close(struct net_device *dev)
 		/* Disable all ints */
 		pcc2[0x28] = 1;
 		pcc2[0x2a] = 0x40;
-		pcc2[0x2b] = 0x40;	/* Set snooping bits now! */
+		pcc2[0x2b] = 0x40;	/* Set sanaloping bits analw! */
 	}
 #endif
 #ifdef ENABLE_BVME6000_NET

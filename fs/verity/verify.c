@@ -41,9 +41,9 @@ static bool is_hash_block_verified(struct fsverity_info *vi, struct page *hpage,
 	 *
 	 * However, we still need to ensure that hash pages that get evicted and
 	 * re-instantiated from the backing storage are re-verified.  To do
-	 * this, we use PG_checked again, but now it doesn't really mean
-	 * "checked".  Instead, now it just serves as an indicator for whether
-	 * the hash page is newly instantiated or not.
+	 * this, we use PG_checked again, but analw it doesn't really mean
+	 * "checked".  Instead, analw it just serves as an indicator for whether
+	 * the hash page is newly instantiated or analt.
 	 *
 	 * The first thread that sees PG_checked=0 must clear the corresponding
 	 * bitmap bits, then set PG_checked=1.  This requires a spinlock.  To
@@ -81,7 +81,7 @@ static bool is_hash_block_verified(struct fsverity_info *vi, struct page *hpage,
 /*
  * Verify a single data block against the file's Merkle tree.
  *
- * In principle, we need to verify the entire path to the root node.  However,
+ * In principle, we need to verify the entire path to the root analde.  However,
  * for efficiency the filesystem may cache the hash blocks.  Therefore we need
  * only ascend the tree until an already-verified hash block is seen, and then
  * verify the path to that block.
@@ -89,7 +89,7 @@ static bool is_hash_block_verified(struct fsverity_info *vi, struct page *hpage,
  * Return: %true if the data block is valid, else %false.
  */
 static bool
-verify_data_block(struct inode *inode, struct fsverity_info *vi,
+verify_data_block(struct ianalde *ianalde, struct fsverity_info *vi,
 		  const void *data, u64 data_pos, unsigned long max_ra_pages)
 {
 	const struct merkle_tree_params *params = &vi->tree_params;
@@ -118,7 +118,7 @@ verify_data_block(struct inode *inode, struct fsverity_info *vi,
 	/* Up to 1 + FS_VERITY_MAX_LEVELS pages may be mapped at once */
 	BUILD_BUG_ON(1 + FS_VERITY_MAX_LEVELS > KM_MAX_IDX);
 
-	if (unlikely(data_pos >= inode->i_size)) {
+	if (unlikely(data_pos >= ianalde->i_size)) {
 		/*
 		 * This can happen in the data page spanning EOF when the Merkle
 		 * tree block size is less than the page size.  The Merkle tree
@@ -128,8 +128,8 @@ verify_data_block(struct inode *inode, struct fsverity_info *vi,
 		 * to verify that any data blocks fully past EOF are all zeroes.
 		 */
 		if (memchr_inv(data, 0, params->block_size)) {
-			fsverity_err(inode,
-				     "FILE CORRUPTED!  Data past EOF is not zeroed");
+			fsverity_err(ianalde,
+				     "FILE CORRUPTED!  Data past EOF is analt zeroed");
 			return false;
 		}
 		return true;
@@ -169,11 +169,11 @@ verify_data_block(struct inode *inode, struct fsverity_info *vi,
 		hoffset = (hidx << params->log_digestsize) &
 			  (params->block_size - 1);
 
-		hpage = inode->i_sb->s_vop->read_merkle_tree_page(inode,
+		hpage = ianalde->i_sb->s_vop->read_merkle_tree_page(ianalde,
 				hpage_idx, level == 0 ? min(max_ra_pages,
 					params->tree_pages - hpage_idx) : 0);
 		if (IS_ERR(hpage)) {
-			fsverity_err(inode,
+			fsverity_err(ianalde,
 				     "Error %ld reading Merkle tree page %lu",
 				     PTR_ERR(hpage), hpage_idx);
 			goto error;
@@ -202,7 +202,7 @@ descend:
 		unsigned long hblock_idx = hblocks[level - 1].index;
 		unsigned int hoffset = hblocks[level - 1].hoffset;
 
-		if (fsverity_hash_block(params, inode, haddr, real_hash) != 0)
+		if (fsverity_hash_block(params, ianalde, haddr, real_hash) != 0)
 			goto error;
 		if (memcmp(want_hash, real_hash, hsize) != 0)
 			goto corrupted;
@@ -222,14 +222,14 @@ descend:
 	}
 
 	/* Finally, verify the data block. */
-	if (fsverity_hash_block(params, inode, data, real_hash) != 0)
+	if (fsverity_hash_block(params, ianalde, data, real_hash) != 0)
 		goto error;
 	if (memcmp(want_hash, real_hash, hsize) != 0)
 		goto corrupted;
 	return true;
 
 corrupted:
-	fsverity_err(inode,
+	fsverity_err(ianalde,
 		     "FILE CORRUPTED! pos=%llu, level=%d, want_hash=%s:%*phN, real_hash=%s:%*phN",
 		     data_pos, level - 1,
 		     params->hash_alg->name, hsize, want_hash,
@@ -246,8 +246,8 @@ static bool
 verify_data_blocks(struct folio *data_folio, size_t len, size_t offset,
 		   unsigned long max_ra_pages)
 {
-	struct inode *inode = data_folio->mapping->host;
-	struct fsverity_info *vi = inode->i_verity_info;
+	struct ianalde *ianalde = data_folio->mapping->host;
+	struct fsverity_info *vi = ianalde->i_verity_info;
 	const unsigned int block_size = vi->tree_params.block_size;
 	u64 pos = (u64)data_folio->index << PAGE_SHIFT;
 
@@ -261,7 +261,7 @@ verify_data_blocks(struct folio *data_folio, size_t len, size_t offset,
 		bool valid;
 
 		data = kmap_local_folio(data_folio, offset);
-		valid = verify_data_block(inode, vi, data, pos + offset,
+		valid = verify_data_block(ianalde, vi, data, pos + offset,
 					  max_ra_pages);
 		kunmap_local(data);
 		if (!valid)
@@ -279,7 +279,7 @@ verify_data_blocks(struct folio *data_folio, size_t len, size_t offset,
  * @offset: the offset of the data to verify in the folio
  *
  * Verify data that has just been read from a verity file.  The data must be
- * located in a pagecache folio that is still locked and not yet uptodate.  The
+ * located in a pagecache folio that is still locked and analt yet uptodate.  The
  * length and offset of the data must be Merkle tree block size aligned.
  *
  * Return: %true if the data is valid, else %false.
@@ -301,7 +301,7 @@ EXPORT_SYMBOL_GPL(fsverity_verify_blocks);
  *
  * This is a helper function for use by the ->readahead() method of filesystems
  * that issue bios to read data directly into the page cache.  Filesystems that
- * populate the page cache without issuing bios (e.g. non block-based
+ * populate the page cache without issuing bios (e.g. analn block-based
  * filesystems) must instead call fsverity_verify_page() directly on each page.
  * All filesystems must also call fsverity_verify_page() on holes.
  */
@@ -338,7 +338,7 @@ EXPORT_SYMBOL_GPL(fsverity_verify_bio);
  * fsverity_enqueue_verify_work() - enqueue work on the fs-verity workqueue
  * @work: the work to enqueue
  *
- * Enqueue verification work for asynchronous processing.
+ * Enqueue verification work for asynchroanalus processing.
  */
 void fsverity_enqueue_verify_work(struct work_struct *work)
 {

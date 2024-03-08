@@ -51,8 +51,8 @@ const char *phy_speed_to_str(int speed)
 		return "400Gbps";
 	case SPEED_800000:
 		return "800Gbps";
-	case SPEED_UNKNOWN:
-		return "Unknown";
+	case SPEED_UNKANALWN:
+		return "Unkanalwn";
 	default:
 		return "Unsupported (update phy-core.c)";
 	}
@@ -70,8 +70,8 @@ const char *phy_duplex_to_str(unsigned int duplex)
 		return "Half";
 	if (duplex == DUPLEX_FULL)
 		return "Full";
-	if (duplex == DUPLEX_UNKNOWN)
-		return "Unknown";
+	if (duplex == DUPLEX_UNKANALWN)
+		return "Unkanalwn";
 	return "Unsupported (update phy-core.c)";
 }
 EXPORT_SYMBOL_GPL(phy_duplex_to_str);
@@ -84,8 +84,8 @@ EXPORT_SYMBOL_GPL(phy_duplex_to_str);
 const char *phy_rate_matching_to_str(int rate_matching)
 {
 	switch (rate_matching) {
-	case RATE_MATCH_NONE:
-		return "none";
+	case RATE_MATCH_ANALNE:
+		return "analne";
 	case RATE_MATCH_PAUSE:
 		return "pause";
 	case RATE_MATCH_CRS:
@@ -100,7 +100,7 @@ EXPORT_SYMBOL_GPL(phy_rate_matching_to_str);
 /**
  * phy_interface_num_ports - Return the number of links that can be carried by
  *			     a given MAC-PHY physical link. Returns 0 if this is
- *			     unknown, the number of links else.
+ *			     unkanalwn, the number of links else.
  *
  * @interface: The interface mode we want to get the number of ports
  */
@@ -278,7 +278,7 @@ static const struct phy_setting settings[] = {
  * Search the settings array for a setting that matches the speed and
  * duplex, and which is supported.
  *
- * If @exact is unset, either an exact match or %NULL for no match will
+ * If @exact is unset, either an exact match or %NULL for anal match will
  * be returned.
  *
  * If @exact is set, an exact match, the fastest supported setting at
@@ -370,41 +370,41 @@ EXPORT_SYMBOL(phy_set_max_speed);
 
 void of_set_phy_supported(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	u32 max_speed;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return;
 
-	if (!node)
+	if (!analde)
 		return;
 
-	if (!of_property_read_u32(node, "max-speed", &max_speed))
+	if (!of_property_read_u32(analde, "max-speed", &max_speed))
 		__set_phy_supported(phydev, max_speed);
 }
 
 void of_set_phy_eee_broken(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	u32 broken = 0;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return;
 
-	if (!node)
+	if (!analde)
 		return;
 
-	if (of_property_read_bool(node, "eee-broken-100tx"))
+	if (of_property_read_bool(analde, "eee-broken-100tx"))
 		broken |= MDIO_EEE_100TX;
-	if (of_property_read_bool(node, "eee-broken-1000t"))
+	if (of_property_read_bool(analde, "eee-broken-1000t"))
 		broken |= MDIO_EEE_1000T;
-	if (of_property_read_bool(node, "eee-broken-10gt"))
+	if (of_property_read_bool(analde, "eee-broken-10gt"))
 		broken |= MDIO_EEE_10GT;
-	if (of_property_read_bool(node, "eee-broken-1000kx"))
+	if (of_property_read_bool(analde, "eee-broken-1000kx"))
 		broken |= MDIO_EEE_1000KX;
-	if (of_property_read_bool(node, "eee-broken-10gkx4"))
+	if (of_property_read_bool(analde, "eee-broken-10gkx4"))
 		broken |= MDIO_EEE_10GKX4;
-	if (of_property_read_bool(node, "eee-broken-10gkr"))
+	if (of_property_read_bool(analde, "eee-broken-10gkr"))
 		broken |= MDIO_EEE_10GKR;
 
 	phydev->eee_broken_modes = broken;
@@ -470,12 +470,12 @@ EXPORT_SYMBOL_GPL(phy_resolve_aneg_linkmode);
 void phy_check_downshift(struct phy_device *phydev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
-	int i, speed = SPEED_UNKNOWN;
+	int i, speed = SPEED_UNKANALWN;
 
 	phydev->downshifted_rate = 0;
 
 	if (phydev->autoneg == AUTONEG_DISABLE ||
-	    phydev->speed == SPEED_UNKNOWN)
+	    phydev->speed == SPEED_UNKANALWN)
 		return;
 
 	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
@@ -486,7 +486,7 @@ void phy_check_downshift(struct phy_device *phydev)
 			break;
 		}
 
-	if (speed == SPEED_UNKNOWN || phydev->speed >= speed)
+	if (speed == SPEED_UNKANALWN || phydev->speed >= speed)
 		return;
 
 	phydev_warn(phydev, "Downshift occurred from negotiated speed %s to actual speed %s, check cabling!\n",
@@ -511,14 +511,14 @@ static int phy_resolve_min_speed(struct phy_device *phydev, bool fdx_only)
 		}
 	}
 
-	return SPEED_UNKNOWN;
+	return SPEED_UNKANALWN;
 }
 
 int phy_speed_down_core(struct phy_device *phydev)
 {
 	int min_common_speed = phy_resolve_min_speed(phydev, true);
 
-	if (min_common_speed == SPEED_UNKNOWN)
+	if (min_common_speed == SPEED_UNKANALWN)
 		return -EINVAL;
 
 	__set_linkmode_max_speed(min_common_speed, phydev->advertising);
@@ -535,9 +535,9 @@ static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 	/* Write the desired MMD register address */
 	__mdiobus_write(bus, phy_addr, MII_MMD_DATA, regnum);
 
-	/* Select the Function : DATA with no post increment */
+	/* Select the Function : DATA with anal post increment */
 	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL,
-			devad | MII_MMD_CTRL_NOINCR);
+			devad | MII_MMD_CTRL_ANALINCR);
 }
 
 static int mmd_phy_read(struct mii_bus *bus, int phy_addr, bool is_c45,
@@ -663,7 +663,7 @@ EXPORT_SYMBOL(phy_write_mmd);
  *
  * Same calling rules as for __phy_read();
  *
- * NOTE: It's assumed that the entire PHY package is either C22 or C45.
+ * ANALTE: It's assumed that the entire PHY package is either C22 or C45.
  */
 int __phy_package_read_mmd(struct phy_device *phydev,
 			   unsigned int addr_offset, int devad,
@@ -695,7 +695,7 @@ EXPORT_SYMBOL(__phy_package_read_mmd);
  *
  * Same calling rules as for phy_read();
  *
- * NOTE: It's assumed that the entire PHY package is either C22 or C45.
+ * ANALTE: It's assumed that the entire PHY package is either C22 or C45.
  */
 int phy_package_read_mmd(struct phy_device *phydev,
 			 unsigned int addr_offset, int devad,
@@ -733,7 +733,7 @@ EXPORT_SYMBOL(phy_package_read_mmd);
  *
  * Same calling rules as for __phy_write();
  *
- * NOTE: It's assumed that the entire PHY package is either C22 or C45.
+ * ANALTE: It's assumed that the entire PHY package is either C22 or C45.
  */
 int __phy_package_write_mmd(struct phy_device *phydev,
 			    unsigned int addr_offset, int devad,
@@ -766,7 +766,7 @@ EXPORT_SYMBOL(__phy_package_write_mmd);
  *
  * Same calling rules as for phy_write();
  *
- * NOTE: It's assumed that the entire PHY package is either C22 or C45.
+ * ANALTE: It's assumed that the entire PHY package is either C22 or C45.
  */
 int phy_package_write_mmd(struct phy_device *phydev,
 			  unsigned int addr_offset, int devad,
@@ -797,11 +797,11 @@ EXPORT_SYMBOL(phy_package_write_mmd);
  * @mask: bit mask of bits to clear
  * @set: new value of bits set in mask to write to @regnum
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erranal, 0 if there was anal change, and 1 in case of change
  */
 int phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 {
@@ -822,7 +822,7 @@ EXPORT_SYMBOL_GPL(phy_modify_changed);
  * @mask: bit mask of bits to clear
  * @set: new value of bits set in mask to write to @regnum
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -843,7 +843,7 @@ EXPORT_SYMBOL_GPL(__phy_modify);
  * @mask: bit mask of bits to clear
  * @set: new value of bits set in mask to write to @regnum
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -870,7 +870,7 @@ EXPORT_SYMBOL_GPL(phy_modify);
  * Unlocked helper function which allows a MMD register to be modified as
  * new register value = (old register value & ~mask) | set
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erranal, 0 if there was anal change, and 1 in case of change
  */
 int __phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
 			     u16 mask, u16 set)
@@ -899,11 +899,11 @@ EXPORT_SYMBOL_GPL(__phy_modify_mmd_changed);
  * @mask: bit mask of bits to clear
  * @set: new value of bits set in mask to write to @regnum
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erranal, 0 if there was anal change, and 1 in case of change
  */
 int phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
 			   u16 mask, u16 set)
@@ -926,7 +926,7 @@ EXPORT_SYMBOL_GPL(phy_modify_mmd_changed);
  * @mask: bit mask of bits to clear
  * @set: new value of bits set in mask to write to @regnum
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -949,7 +949,7 @@ EXPORT_SYMBOL_GPL(__phy_modify_mmd);
  * @mask: bit mask of bits to clear
  * @set: new value of bits set in mask to write to @regnum
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -968,16 +968,16 @@ EXPORT_SYMBOL_GPL(phy_modify_mmd);
 
 static int __phy_read_page(struct phy_device *phydev)
 {
-	if (WARN_ONCE(!phydev->drv->read_page, "read_page callback not available, PHY driver not loaded?\n"))
-		return -EOPNOTSUPP;
+	if (WARN_ONCE(!phydev->drv->read_page, "read_page callback analt available, PHY driver analt loaded?\n"))
+		return -EOPANALTSUPP;
 
 	return phydev->drv->read_page(phydev);
 }
 
 static int __phy_write_page(struct phy_device *phydev, int page)
 {
-	if (WARN_ONCE(!phydev->drv->write_page, "write_page callback not available, PHY driver not loaded?\n"))
-		return -EOPNOTSUPP;
+	if (WARN_ONCE(!phydev->drv->write_page, "write_page callback analt available, PHY driver analt loaded?\n"))
+		return -EOPANALTSUPP;
 
 	return phydev->drv->write_page(phydev, page);
 }
@@ -987,7 +987,7 @@ static int __phy_write_page(struct phy_device *phydev, int page)
  * @phydev: a pointer to a &struct phy_device
  *
  * Take the MDIO bus lock, and return the current page number. On error,
- * returns a negative errno. phy_restore_page() must always be called
+ * returns a negative erranal. phy_restore_page() must always be called
  * after this, irrespective of success or failure of this call.
  */
 int phy_save_page(struct phy_device *phydev)
@@ -1004,7 +1004,7 @@ EXPORT_SYMBOL_GPL(phy_save_page);
  *
  * Take the MDIO bus lock to protect against concurrent access, save the
  * current PHY page, and set the current page.  On error, returns a
- * negative errno, otherwise returns the previous page number.
+ * negative erranal, otherwise returns the previous page number.
  * phy_restore_page() must always be called after this, irrespective
  * of success or failure of this call.
  */
@@ -1038,7 +1038,7 @@ EXPORT_SYMBOL_GPL(phy_select_page);
  *
  * Returns:
  *   @oldpage if it was a negative value, otherwise
- *   @ret if it was a negative errno value, otherwise
+ *   @ret if it was a negative erranal value, otherwise
  *   phy_write_page()'s negative value if it were in error, otherwise
  *   @ret.
  */
@@ -1114,7 +1114,7 @@ EXPORT_SYMBOL(phy_write_paged);
  * @mask: bit mask of bits to clear
  * @set: bit mask of bits to set
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erranal, 0 if there was anal change, and 1 in case of change
  */
 int phy_modify_paged_changed(struct phy_device *phydev, int page, u32 regnum,
 			     u16 mask, u16 set)

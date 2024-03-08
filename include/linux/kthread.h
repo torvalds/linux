@@ -8,24 +8,24 @@
 struct mm_struct;
 
 __printf(4, 5)
-struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
+struct task_struct *kthread_create_on_analde(int (*threadfn)(void *data),
 					   void *data,
-					   int node,
+					   int analde,
 					   const char namefmt[], ...);
 
 /**
- * kthread_create - create a kthread on the current node
+ * kthread_create - create a kthread on the current analde
  * @threadfn: the function to run in the thread
  * @data: data pointer for @threadfn()
  * @namefmt: printf-style format string for the thread name
  * @arg: arguments for @namefmt.
  *
- * This macro will create a kthread on the current node, leaving it in
- * the stopped state.  This is just a helper for kthread_create_on_node();
+ * This macro will create a kthread on the current analde, leaving it in
+ * the stopped state.  This is just a helper for kthread_create_on_analde();
  * see the documentation there for more details.
  */
 #define kthread_create(threadfn, data, namefmt, arg...) \
-	kthread_create_on_node(threadfn, data, NUMA_NO_NODE, namefmt, ##arg)
+	kthread_create_on_analde(threadfn, data, NUMA_ANAL_ANALDE, namefmt, ##arg)
 
 
 struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
@@ -46,7 +46,7 @@ bool kthread_is_per_cpu(struct task_struct *k);
  * @namefmt: printf-style name for the thread.
  *
  * Description: Convenient wrapper for kthread_create() followed by
- * wake_up_process().  Returns the kthread or ERR_PTR(-ENOMEM).
+ * wake_up_process().  Returns the kthread or ERR_PTR(-EANALMEM).
  */
 #define kthread_run(threadfn, data, namefmt, ...)			   \
 ({									   \
@@ -67,7 +67,7 @@ bool kthread_is_per_cpu(struct task_struct *k);
  *
  * Description: Convenient wrapper for kthread_create_on_cpu()
  * followed by wake_up_process().  Returns the kthread or
- * ERR_PTR(-ENOMEM).
+ * ERR_PTR(-EANALMEM).
  */
 static inline struct task_struct *
 kthread_run_on_cpu(int (*threadfn)(void *data), void *data,
@@ -97,12 +97,12 @@ void *kthread_probe_data(struct task_struct *k);
 int kthread_park(struct task_struct *k);
 void kthread_unpark(struct task_struct *k);
 void kthread_parkme(void);
-void kthread_exit(long result) __noreturn;
-void kthread_complete_and_exit(struct completion *, long) __noreturn;
+void kthread_exit(long result) __analreturn;
+void kthread_complete_and_exit(struct completion *, long) __analreturn;
 
 int kthreadd(void *unused);
 extern struct task_struct *kthreadd_task;
-extern int tsk_fork_get_node(struct task_struct *tsk);
+extern int tsk_fork_get_analde(struct task_struct *tsk);
 
 /*
  * Simple work processor based on kthread.
@@ -130,7 +130,7 @@ struct kthread_worker {
 };
 
 struct kthread_work {
-	struct list_head	node;
+	struct list_head	analde;
 	kthread_work_func_t	func;
 	struct kthread_worker	*worker;
 	/* Number of canceling calls that are running at the moment. */
@@ -143,7 +143,7 @@ struct kthread_delayed_work {
 };
 
 #define KTHREAD_WORK_INIT(work, fn)	{				\
-	.node = LIST_HEAD_INIT((work).node),				\
+	.analde = LIST_HEAD_INIT((work).analde),				\
 	.func = (fn),							\
 	}
 
@@ -172,7 +172,7 @@ extern void __kthread_init_worker(struct kthread_worker *worker,
 #define kthread_init_work(work, fn)					\
 	do {								\
 		memset((work), 0, sizeof(struct kthread_work));		\
-		INIT_LIST_HEAD(&(work)->node);				\
+		INIT_LIST_HEAD(&(work)->analde);				\
 		(work)->func = (fn);					\
 	} while (0)
 

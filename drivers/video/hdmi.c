@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -24,7 +24,7 @@
 #include <drm/display/drm_dp.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/hdmi.h>
 #include <linux/string.h>
@@ -121,7 +121,7 @@ ssize_t hdmi_avi_infoframe_pack_only(const struct hdmi_avi_infoframe *frame,
 	length = HDMI_INFOFRAME_HEADER_SIZE + frame->length;
 
 	if (size < length)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(buffer, 0, size);
 
@@ -292,7 +292,7 @@ ssize_t hdmi_spd_infoframe_pack_only(const struct hdmi_spd_infoframe *frame,
 	length = HDMI_INFOFRAME_HEADER_SIZE + frame->length;
 
 	if (size < length)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(buffer, 0, size);
 
@@ -438,7 +438,7 @@ ssize_t hdmi_audio_infoframe_pack_only(const struct hdmi_audio_infoframe *frame,
 	length = HDMI_INFOFRAME_HEADER_SIZE + frame->length;
 
 	if (size < length)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(buffer, 0, size);
 
@@ -496,7 +496,7 @@ EXPORT_SYMBOL(hdmi_audio_infoframe_pack);
  * Packs a HDMI Audio Infoframe to be sent over DisplayPort. This function
  * fills the secondary data packet to be used for DisplayPort.
  *
- * Return: Number of total written bytes or a negative errno on failure.
+ * Return: Number of total written bytes or a negative erranal on failure.
  */
 ssize_t
 hdmi_audio_infoframe_pack_for_dp(const struct hdmi_audio_infoframe *frame,
@@ -539,7 +539,7 @@ int hdmi_vendor_infoframe_init(struct hdmi_vendor_infoframe *frame)
 	frame->oui = HDMI_IEEE_OUI;
 
 	/*
-	 * 0 is a valid value for s3d_struct, so we use a special "not set"
+	 * 0 is a valid value for s3d_struct, so we use a special "analt set"
 	 * value
 	 */
 	frame->s3d_struct = HDMI_3D_STRUCTURE_INVALID;
@@ -622,7 +622,7 @@ ssize_t hdmi_vendor_infoframe_pack_only(const struct hdmi_vendor_infoframe *fram
 	length = HDMI_INFOFRAME_HEADER_SIZE + frame->length;
 
 	if (size < length)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(buffer, 0, size);
 
@@ -762,7 +762,7 @@ ssize_t hdmi_drm_infoframe_pack_only(const struct hdmi_drm_infoframe *frame,
 	length = HDMI_INFOFRAME_HEADER_SIZE + frame->length;
 
 	if (size < length)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(buffer, 0, size);
 
@@ -850,7 +850,7 @@ hdmi_vendor_any_infoframe_check(union hdmi_vendor_any_infoframe *frame)
 	if (ret)
 		return ret;
 
-	/* we only know about HDMI vendor infoframes */
+	/* we only kanalw about HDMI vendor infoframes */
 	if (frame->any.oui != HDMI_IEEE_OUI)
 		return -EINVAL;
 
@@ -870,7 +870,7 @@ hdmi_vendor_any_infoframe_pack_only(const union hdmi_vendor_any_infoframe *frame
 	if (ret)
 		return ret;
 
-	/* we only know about HDMI vendor infoframes */
+	/* we only kanalw about HDMI vendor infoframes */
 	if (frame->any.oui != HDMI_IEEE_OUI)
 		return -EINVAL;
 
@@ -1074,8 +1074,8 @@ static const char *hdmi_colorspace_get_name(enum hdmi_colorspace colorspace)
 static const char *hdmi_scan_mode_get_name(enum hdmi_scan_mode scan_mode)
 {
 	switch (scan_mode) {
-	case HDMI_SCAN_MODE_NONE:
-		return "No Data";
+	case HDMI_SCAN_MODE_ANALNE:
+		return "Anal Data";
 	case HDMI_SCAN_MODE_OVERSCAN:
 		return "Overscan";
 	case HDMI_SCAN_MODE_UNDERSCAN:
@@ -1089,8 +1089,8 @@ static const char *hdmi_scan_mode_get_name(enum hdmi_scan_mode scan_mode)
 static const char *hdmi_colorimetry_get_name(enum hdmi_colorimetry colorimetry)
 {
 	switch (colorimetry) {
-	case HDMI_COLORIMETRY_NONE:
-		return "No Data";
+	case HDMI_COLORIMETRY_ANALNE:
+		return "Anal Data";
 	case HDMI_COLORIMETRY_ITU_601:
 		return "ITU601";
 	case HDMI_COLORIMETRY_ITU_709:
@@ -1105,8 +1105,8 @@ static const char *
 hdmi_picture_aspect_get_name(enum hdmi_picture_aspect picture_aspect)
 {
 	switch (picture_aspect) {
-	case HDMI_PICTURE_ASPECT_NONE:
-		return "No Data";
+	case HDMI_PICTURE_ASPECT_ANALNE:
+		return "Anal Data";
 	case HDMI_PICTURE_ASPECT_4_3:
 		return "4:3";
 	case HDMI_PICTURE_ASPECT_16_9:
@@ -1195,8 +1195,8 @@ hdmi_quantization_range_get_name(enum hdmi_quantization_range qrange)
 static const char *hdmi_nups_get_name(enum hdmi_nups nups)
 {
 	switch (nups) {
-	case HDMI_NUPS_UNKNOWN:
-		return "Unknown Non-uniform Scaling";
+	case HDMI_NUPS_UNKANALWN:
+		return "Unkanalwn Analn-uniform Scaling";
 	case HDMI_NUPS_HORIZONTAL:
 		return "Horizontally Scaled";
 	case HDMI_NUPS_VERTICAL:
@@ -1252,7 +1252,7 @@ static void hdmi_avi_infoframe_log(const char *level,
 			hdmi_picture_aspect_get_name(frame->picture_aspect));
 	hdmi_log("    active aspect: %s\n",
 			hdmi_active_aspect_get_name(frame->active_aspect));
-	hdmi_log("    itc: %s\n", frame->itc ? "IT Content" : "No Data");
+	hdmi_log("    itc: %s\n", frame->itc ? "IT Content" : "Anal Data");
 	hdmi_log("    extended colorimetry: %s\n",
 			hdmi_extended_colorimetry_get_name(frame->extended_colorimetry));
 	hdmi_log("    quantization range: %s\n",
@@ -1274,8 +1274,8 @@ static const char *hdmi_spd_sdi_get_name(enum hdmi_spd_sdi sdi)
 	if (sdi < 0 || sdi > 0xff)
 		return "Invalid";
 	switch (sdi) {
-	case HDMI_SPD_SDI_UNKNOWN:
-		return "Unknown";
+	case HDMI_SPD_SDI_UNKANALWN:
+		return "Unkanalwn";
 	case HDMI_SPD_SDI_DSTB:
 		return "Digital STB";
 	case HDMI_SPD_SDI_DVDP:
@@ -1460,7 +1460,7 @@ static void hdmi_audio_infoframe_log(const char *level,
 	hdmi_log("    level shift value: %u dB\n",
 			frame->level_shift_value);
 	hdmi_log("    downmix inhibit: %s\n",
-			frame->downmix_inhibit ? "Yes" : "No");
+			frame->downmix_inhibit ? "Anal" : "Anal");
 }
 
 static void hdmi_drm_infoframe_log(const char *level,
@@ -1531,7 +1531,7 @@ hdmi_vendor_any_infoframe_log(const char *level,
 				  (const struct hdmi_any_infoframe *)frame);
 
 	if (frame->any.oui != HDMI_IEEE_OUI) {
-		hdmi_log("    not a HDMI vendor infoframe\n");
+		hdmi_log("    analt a HDMI vendor infoframe\n");
 		return;
 	}
 	if (hvf->vic == 0 && hvf->s3d_struct == HDMI_3D_STRUCTURE_INVALID) {

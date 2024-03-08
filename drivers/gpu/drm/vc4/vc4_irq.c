@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -28,7 +28,7 @@
  * interrupts, and where writing 1 bits clears those interrupts.
  * There are also a pair of interrupt registers
  * (V3D_INTENA/V3D_INTDIS) where writing a 1 to their bits enables or
- * disables that specific interrupt, and 0s written are ignored
+ * disables that specific interrupt, and 0s written are iganalred
  * (reading either one returns the set of enabled interrupts).
  *
  * When we take a binning flush done interrupt, we need to submit the
@@ -95,7 +95,7 @@ vc4_overflow_mem_work(struct work_struct *work)
 		if (exec) {
 			exec->bin_slots |= vc4->bin_alloc_overflow;
 		} else {
-			/* There's nothing queued in the hardware, so
+			/* There's analthing queued in the hardware, so
 			 * the old slot is free immediately.
 			 */
 			vc4->bin_alloc_used &= ~vc4->bin_alloc_overflow;
@@ -122,7 +122,7 @@ vc4_irq_finish_bin_job(struct drm_device *dev)
 	if (!exec)
 		return;
 
-	trace_vc4_bcl_end_irq(dev, exec->seqno);
+	trace_vc4_bcl_end_irq(dev, exec->seqanal);
 
 	vc4_move_job_to_render(dev, exec);
 	next = vc4_first_bin_job(vc4);
@@ -162,9 +162,9 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 	if (!exec)
 		return;
 
-	trace_vc4_rcl_end_irq(dev, exec->seqno);
+	trace_vc4_rcl_end_irq(dev, exec->seqanal);
 
-	vc4->finished_seqno++;
+	vc4->finished_seqanal++;
 	list_move_tail(&exec->head, &vc4->job_done_list);
 
 	nextbin = vc4_first_bin_job(vc4);
@@ -177,7 +177,7 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 	    (!nextbin || nextbin->perfmon != exec->perfmon))
 		vc4_perfmon_stop(vc4, exec->perfmon, true);
 
-	/* If there's a render job waiting, start it. If this is not the case
+	/* If there's a render job waiting, start it. If this is analt the case
 	 * we may have to unblock the binner if it's been stalled because of
 	 * perfmon (this can be checked by comparing the perfmon attached to
 	 * the finished renderjob to the one attached to the next bin job: if
@@ -205,12 +205,12 @@ vc4_irq(int irq, void *arg)
 	struct drm_device *dev = arg;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t intctl;
-	irqreturn_t status = IRQ_NONE;
+	irqreturn_t status = IRQ_ANALNE;
 
 	barrier();
 	intctl = V3D_READ(V3D_INTCTL);
 
-	/* Acknowledge the interrupts we're handling here. The binner
+	/* Ackanalwledge the interrupts we're handling here. The binner
 	 * last flush / render frame done interrupt will be cleared,
 	 * while OUTOMEM will stay high until the underlying cause is
 	 * cleared.
@@ -304,10 +304,10 @@ int vc4_irq_install(struct drm_device *dev, int irq)
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (irq == IRQ_NOTCONNECTED)
-		return -ENOTCONN;
+	if (irq == IRQ_ANALTCONNECTED)
+		return -EANALTCONN;
 
 	vc4_irq_prepare(dev);
 
@@ -340,7 +340,7 @@ void vc4_irq_reset(struct drm_device *dev)
 	if (WARN_ON_ONCE(vc4->is_vc5))
 		return;
 
-	/* Acknowledge any stale IRQs. */
+	/* Ackanalwledge any stale IRQs. */
 	V3D_WRITE(V3D_INTCTL, V3D_DRIVER_IRQS);
 
 	/*

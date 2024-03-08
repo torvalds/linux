@@ -10,20 +10,20 @@
 #include <asm/qspinlock.h>
 #include <asm/paravirt.h>
 
-#define MAX_NODES	4
+#define MAX_ANALDES	4
 
-struct qnode {
-	struct qnode	*next;
+struct qanalde {
+	struct qanalde	*next;
 	struct qspinlock *lock;
 	int		cpu;
 	u8		sleepy; /* 1 if the previous vCPU was preempted or
-				 * if the previous node was sleepy */
+				 * if the previous analde was sleepy */
 	u8		locked; /* 1 if lock acquired */
 };
 
-struct qnodes {
+struct qanaldes {
 	int		count;
-	struct qnode nodes[MAX_NODES];
+	struct qanalde analdes[MAX_ANALDES];
 };
 
 /* Tuning parameters */
@@ -47,7 +47,7 @@ static bool pv_yield_prev __read_mostly = true;
 static bool pv_yield_sleepy_owner __read_mostly = true;
 static bool pv_prod_head __read_mostly = false;
 
-static DEFINE_PER_CPU_ALIGNED(struct qnodes, qnodes);
+static DEFINE_PER_CPU_ALIGNED(struct qanaldes, qanaldes);
 static DEFINE_PER_CPU_ALIGNED(u64, sleepy_lock_seen_clock);
 
 #if _Q_SPIN_SPEC_BARRIER == 1
@@ -113,7 +113,7 @@ static inline int get_owner_cpu(u32 val)
 }
 
 /*
- * Try to acquire the lock if it was not already locked. If the tail matches
+ * Try to acquire the lock if it was analt already locked. If the tail matches
  * mytail then clear it, otherwise leave it unchnaged. Return previous value.
  *
  * This is used by the head of the queue to acquire the lock and clean up
@@ -154,8 +154,8 @@ static __always_inline u32 trylock_clean_tail(struct qspinlock *lock, u32 tail)
 /*
  * Publish our tail, replacing previous tail. Return previous value.
  *
- * This provides a release barrier for publishing node, this pairs with the
- * acquire barrier in get_tail_qnode() when the next CPU finds this tail
+ * This provides a release barrier for publishing analde, this pairs with the
+ * acquire barrier in get_tail_qanalde() when the next CPU finds this tail
  * value.
  */
 static __always_inline u32 publish_tail_cpu(struct qspinlock *lock, u32 tail)
@@ -248,7 +248,7 @@ static __always_inline void seen_sleepy_lock(void)
 		this_cpu_write(sleepy_lock_seen_clock, sched_clock());
 }
 
-static __always_inline void seen_sleepy_node(void)
+static __always_inline void seen_sleepy_analde(void)
 {
 	if (pv_sleepy_lock) {
 		if (pv_sleepy_lock_interval_ns)
@@ -257,30 +257,30 @@ static __always_inline void seen_sleepy_node(void)
 	}
 }
 
-static struct qnode *get_tail_qnode(struct qspinlock *lock, int prev_cpu)
+static struct qanalde *get_tail_qanalde(struct qspinlock *lock, int prev_cpu)
 {
-	struct qnodes *qnodesp = per_cpu_ptr(&qnodes, prev_cpu);
+	struct qanaldes *qanaldesp = per_cpu_ptr(&qanaldes, prev_cpu);
 	int idx;
 
 	/*
 	 * After publishing the new tail and finding a previous tail in the
 	 * previous val (which is the control dependency), this barrier
 	 * orders the release barrier in publish_tail_cpu performed by the
-	 * last CPU, with subsequently looking at its qnode structures
+	 * last CPU, with subsequently looking at its qanalde structures
 	 * after the barrier.
 	 */
 	smp_acquire__after_ctrl_dep();
 
-	for (idx = 0; idx < MAX_NODES; idx++) {
-		struct qnode *qnode = &qnodesp->nodes[idx];
-		if (qnode->lock == lock)
-			return qnode;
+	for (idx = 0; idx < MAX_ANALDES; idx++) {
+		struct qanalde *qanalde = &qanaldesp->analdes[idx];
+		if (qanalde->lock == lock)
+			return qanalde;
 	}
 
 	BUG();
 }
 
-/* Called inside spin_begin(). Returns whether or not the vCPU was preempted. */
+/* Called inside spin_begin(). Returns whether or analt the vCPU was preempted. */
 static __always_inline bool __yield_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt, bool mustq)
 {
 	int owner;
@@ -333,13 +333,13 @@ relax:
 	return preempted;
 }
 
-/* Called inside spin_begin(). Returns whether or not the vCPU was preempted. */
+/* Called inside spin_begin(). Returns whether or analt the vCPU was preempted. */
 static __always_inline bool yield_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt)
 {
 	return __yield_to_locked_owner(lock, val, paravirt, false);
 }
 
-/* Called inside spin_begin(). Returns whether or not the vCPU was preempted. */
+/* Called inside spin_begin(). Returns whether or analt the vCPU was preempted. */
 static __always_inline bool yield_head_to_locked_owner(struct qspinlock *lock, u32 val, bool paravirt)
 {
 	bool mustq = false;
@@ -350,9 +350,9 @@ static __always_inline bool yield_head_to_locked_owner(struct qspinlock *lock, u
 	return __yield_to_locked_owner(lock, val, paravirt, mustq);
 }
 
-static __always_inline void propagate_sleepy(struct qnode *node, u32 val, bool paravirt)
+static __always_inline void propagate_sleepy(struct qanalde *analde, u32 val, bool paravirt)
 {
-	struct qnode *next;
+	struct qanalde *next;
 	int owner;
 
 	if (!paravirt)
@@ -360,7 +360,7 @@ static __always_inline void propagate_sleepy(struct qnode *node, u32 val, bool p
 	if (!pv_yield_sleepy_owner)
 		return;
 
-	next = READ_ONCE(node->next);
+	next = READ_ONCE(analde->next);
 	if (!next)
 		return;
 
@@ -373,7 +373,7 @@ static __always_inline void propagate_sleepy(struct qnode *node, u32 val, bool p
 }
 
 /* Called inside spin_begin() */
-static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *node, int prev_cpu, bool paravirt)
+static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qanalde *analde, int prev_cpu, bool paravirt)
 {
 	u32 yield_count;
 	bool preempted = false;
@@ -385,30 +385,30 @@ static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *
 		goto yield_prev;
 
 	/*
-	 * If the previous waiter was preempted it might not be able to
+	 * If the previous waiter was preempted it might analt be able to
 	 * propagate sleepy to us, so check the lock in that case too.
 	 */
-	if (node->sleepy || vcpu_is_preempted(prev_cpu)) {
+	if (analde->sleepy || vcpu_is_preempted(prev_cpu)) {
 		u32 val = READ_ONCE(lock->val);
 
 		if (val & _Q_LOCKED_VAL) {
-			if (node->next && !node->next->sleepy) {
+			if (analde->next && !analde->next->sleepy) {
 				/*
 				 * Propagate sleepy to next waiter. Only if
 				 * owner is preempted, which allows the queue
-				 * to become "non-sleepy" if vCPU preemption
+				 * to become "analn-sleepy" if vCPU preemption
 				 * ceases to occur, even if the lock remains
 				 * highly contended.
 				 */
 				if (vcpu_is_preempted(get_owner_cpu(val)))
-					node->next->sleepy = 1;
+					analde->next->sleepy = 1;
 			}
 
 			preempted = yield_to_locked_owner(lock, val, paravirt);
 			if (preempted)
 				return preempted;
 		}
-		node->sleepy = false;
+		analde->sleepy = false;
 	}
 
 yield_prev:
@@ -422,11 +422,11 @@ yield_prev:
 	spin_end();
 
 	preempted = true;
-	seen_sleepy_node();
+	seen_sleepy_analde();
 
 	smp_rmb(); /* See __yield_to_locked_owner comment */
 
-	if (!READ_ONCE(node->locked)) {
+	if (!READ_ONCE(analde->locked)) {
 		yield_to_preempted(prev_cpu, yield_count);
 		spin_begin();
 		return preempted;
@@ -447,7 +447,7 @@ static __always_inline bool steal_break(u32 val, int iters, bool paravirt, bool 
 	if (IS_ENABLED(CONFIG_NUMA) &&
 	    (iters >= get_remote_steal_spins(paravirt, sleepy))) {
 		int cpu = get_owner_cpu(val);
-		if (numa_node_id() != cpu_to_node(cpu))
+		if (numa_analde_id() != cpu_to_analde(cpu))
 			return true;
 	}
 	return false;
@@ -525,8 +525,8 @@ static __always_inline bool try_to_steal_lock(struct qspinlock *lock, bool parav
 
 static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, bool paravirt)
 {
-	struct qnodes *qnodesp;
-	struct qnode *next, *node;
+	struct qanaldes *qanaldesp;
+	struct qanalde *next, *analde;
 	u32 val, old, tail;
 	bool seen_preempted = false;
 	bool sleepy = false;
@@ -536,54 +536,54 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 
 	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
 
-	qnodesp = this_cpu_ptr(&qnodes);
-	if (unlikely(qnodesp->count >= MAX_NODES)) {
+	qanaldesp = this_cpu_ptr(&qanaldes);
+	if (unlikely(qanaldesp->count >= MAX_ANALDES)) {
 		spec_barrier();
 		while (!queued_spin_trylock(lock))
 			cpu_relax();
 		return;
 	}
 
-	idx = qnodesp->count++;
+	idx = qanaldesp->count++;
 	/*
-	 * Ensure that we increment the head node->count before initialising
-	 * the actual node. If the compiler is kind enough to reorder these
+	 * Ensure that we increment the head analde->count before initialising
+	 * the actual analde. If the compiler is kind eanalugh to reorder these
 	 * stores, then an IRQ could overwrite our assignments.
 	 */
 	barrier();
-	node = &qnodesp->nodes[idx];
-	node->next = NULL;
-	node->lock = lock;
-	node->cpu = smp_processor_id();
-	node->sleepy = 0;
-	node->locked = 0;
+	analde = &qanaldesp->analdes[idx];
+	analde->next = NULL;
+	analde->lock = lock;
+	analde->cpu = smp_processor_id();
+	analde->sleepy = 0;
+	analde->locked = 0;
 
-	tail = encode_tail_cpu(node->cpu);
+	tail = encode_tail_cpu(analde->cpu);
 
 	/*
-	 * Assign all attributes of a node before it can be published.
+	 * Assign all attributes of a analde before it can be published.
 	 * Issues an lwsync, serving as a release barrier, as well as a
 	 * compiler barrier.
 	 */
 	old = publish_tail_cpu(lock, tail);
 
 	/*
-	 * If there was a previous node; link it and wait until reaching the
+	 * If there was a previous analde; link it and wait until reaching the
 	 * head of the waitqueue.
 	 */
 	if (old & _Q_TAIL_CPU_MASK) {
 		int prev_cpu = decode_tail_cpu(old);
-		struct qnode *prev = get_tail_qnode(lock, prev_cpu);
+		struct qanalde *prev = get_tail_qanalde(lock, prev_cpu);
 
-		/* Link @node into the waitqueue. */
-		WRITE_ONCE(prev->next, node);
+		/* Link @analde into the waitqueue. */
+		WRITE_ONCE(prev->next, analde);
 
-		/* Wait for mcs node lock to be released */
+		/* Wait for mcs analde lock to be released */
 		spin_begin();
-		while (!READ_ONCE(node->locked)) {
+		while (!READ_ONCE(analde->locked)) {
 			spec_barrier();
 
-			if (yield_to_prev(lock, node, prev_cpu, paravirt))
+			if (yield_to_prev(lock, analde, prev_cpu, paravirt))
 				seen_preempted = true;
 		}
 		spec_barrier();
@@ -597,7 +597,7 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 		 * the waiter will keep loading from it.
 		 */
 		if (_Q_SPIN_PREFETCH_NEXT) {
-			next = READ_ONCE(node->next);
+			next = READ_ONCE(analde->next);
 			if (next)
 				prefetchw(next);
 		}
@@ -630,7 +630,7 @@ again:
 			}
 		}
 
-		propagate_sleepy(node, val, paravirt);
+		propagate_sleepy(analde, val, paravirt);
 		preempted = yield_head_to_locked_owner(lock, val, paravirt);
 		if (!maybe_stealers)
 			continue;
@@ -664,20 +664,20 @@ again:
 	}
 
 	if ((old & _Q_TAIL_CPU_MASK) == tail)
-		goto release; /* We were the tail, no next. */
+		goto release; /* We were the tail, anal next. */
 
-	/* There is a next, must wait for node->next != NULL (MCS protocol) */
-	next = READ_ONCE(node->next);
+	/* There is a next, must wait for analde->next != NULL (MCS protocol) */
+	next = READ_ONCE(analde->next);
 	if (!next) {
 		spin_begin();
-		while (!(next = READ_ONCE(node->next)))
+		while (!(next = READ_ONCE(analde->next)))
 			cpu_relax();
 		spin_end();
 	}
 	spec_barrier();
 
 	/*
-	 * Unlock the next mcs waiter node. Release barrier is not required
+	 * Unlock the next mcs waiter analde. Release barrier is analt required
 	 * here because the acquirer is only accessing the lock word, and
 	 * the acquire barrier we took the lock with orders that update vs
 	 * this store to locked. The corresponding barrier is the smp_rmb()
@@ -697,7 +697,7 @@ again:
 	}
 
 release:
-	qnodesp->count--; /* release the node */
+	qanaldesp->count--; /* release the analde */
 }
 
 void queued_spin_lock_slowpath(struct qspinlock *lock)
@@ -740,9 +740,9 @@ static int steal_spins_set(void *data, u64 val)
 
 	/*
 	 * The lock slow path has a !maybe_stealers case that can assume
-	 * the head of queue will not see concurrent waiters. That waiter
+	 * the head of queue will analt see concurrent waiters. That waiter
 	 * is unsafe in the presence of stealers, so must keep them away
-	 * from one another.
+	 * from one aanalther.
 	 */
 
 	mutex_lock(&lock);

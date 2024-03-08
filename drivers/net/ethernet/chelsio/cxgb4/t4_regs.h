@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -344,9 +344,9 @@
 #define SGE_FLM_CACHE_BADDR_A 0x108c
 #define SGE_FLM_CFG_A 0x1090
 
-#define NOHDR_S    18
-#define NOHDR_V(x) ((x) << NOHDR_S)
-#define NOHDR_F    NOHDR_V(1U)
+#define ANALHDR_S    18
+#define ANALHDR_V(x) ((x) << ANALHDR_S)
+#define ANALHDR_F    ANALHDR_V(1U)
 
 #define HDRSTARTFLQ_S    11
 #define HDRSTARTFLQ_M    0x7U
@@ -418,9 +418,9 @@
 
 #define SGE_DOORBELL_CONTROL_A 0x10a8
 
-#define NOCOALESCE_S    26
-#define NOCOALESCE_V(x) ((x) << NOCOALESCE_S)
-#define NOCOALESCE_F    NOCOALESCE_V(1U)
+#define ANALCOALESCE_S    26
+#define ANALCOALESCE_V(x) ((x) << ANALCOALESCE_S)
+#define ANALCOALESCE_F    ANALCOALESCE_V(1U)
 
 #define ENABLE_DROP_S    13
 #define ENABLE_DROP_V(x) ((x) << ENABLE_DROP_S)
@@ -759,7 +759,7 @@
 #define MSTGRPPERR_V(x) ((x) << MSTGRPPERR_S)
 #define MSTGRPPERR_F    MSTGRPPERR_V(1U)
 
-#define PCIE_NONFAT_ERR_A	0x3010
+#define PCIE_ANALNFAT_ERR_A	0x3010
 #define PCIE_CFG_SPACE_REQ_A	0x3060
 #define PCIE_CFG_SPACE_DATA_A	0x3064
 #define PCIE_MEM_ACCESS_BASE_WIN_A 0x3068
@@ -1140,9 +1140,9 @@
 #define PREFDROPINT_V(x) ((x) << PREFDROPINT_S)
 #define PREFDROPINT_F    PREFDROPINT_V(1U)
 
-#define UPACCNONZERO_S    0
-#define UPACCNONZERO_V(x) ((x) << UPACCNONZERO_S)
-#define UPACCNONZERO_F    UPACCNONZERO_V(1U)
+#define UPACCANALNZERO_S    0
+#define UPACCANALNZERO_V(x) ((x) << UPACCANALNZERO_S)
+#define UPACCANALNZERO_F    UPACCANALNZERO_V(1U)
 
 #define MBHOSTPARERR_S    18
 #define MBHOSTPARERR_V(x) ((x) << MBHOSTPARERR_S)
@@ -2018,9 +2018,9 @@
 #define TRCFIFOEMPTY_V(x) ((x) << TRCFIFOEMPTY_S)
 #define TRCFIFOEMPTY_F    TRCFIFOEMPTY_V(1U)
 
-#define TRCIGNOREDROPINPUT_S    3
-#define TRCIGNOREDROPINPUT_V(x) ((x) << TRCIGNOREDROPINPUT_S)
-#define TRCIGNOREDROPINPUT_F    TRCIGNOREDROPINPUT_V(1U)
+#define TRCIGANALREDROPINPUT_S    3
+#define TRCIGANALREDROPINPUT_V(x) ((x) << TRCIGANALREDROPINPUT_S)
+#define TRCIGANALREDROPINPUT_F    TRCIGANALREDROPINPUT_V(1U)
 
 #define TRCKEEPDUPLICATES_S    2
 #define TRCKEEPDUPLICATES_V(x) ((x) << TRCKEEPDUPLICATES_S)
@@ -3031,9 +3031,9 @@
 #define CMDTIDERR_V(x) ((x) << CMDTIDERR_S)
 #define CMDTIDERR_F    CMDTIDERR_V(1U)
 
-#define T6_UNKNOWNCMD_S    3
-#define T6_UNKNOWNCMD_V(x) ((x) << T6_UNKNOWNCMD_S)
-#define T6_UNKNOWNCMD_F    T6_UNKNOWNCMD_V(1U)
+#define T6_UNKANALWNCMD_S    3
+#define T6_UNKANALWNCMD_V(x) ((x) << T6_UNKANALWNCMD_S)
+#define T6_UNKANALWNCMD_F    T6_UNKANALWNCMD_V(1U)
 
 #define T6_LIP0_S    2
 #define T6_LIP0_V(x) ((x) << T6_LIP0_S)
@@ -3081,9 +3081,9 @@
 #define REQQPARERR_V(x) ((x) << REQQPARERR_S)
 #define REQQPARERR_F    REQQPARERR_V(1U)
 
-#define UNKNOWNCMD_S    15
-#define UNKNOWNCMD_V(x) ((x) << UNKNOWNCMD_S)
-#define UNKNOWNCMD_F    UNKNOWNCMD_V(1U)
+#define UNKANALWNCMD_S    15
+#define UNKANALWNCMD_V(x) ((x) << UNKANALWNCMD_S)
+#define UNKANALWNCMD_F    UNKANALWNCMD_V(1U)
 
 #define PARITYERR_S    6
 #define PARITYERR_V(x) ((x) << PARITYERR_S)

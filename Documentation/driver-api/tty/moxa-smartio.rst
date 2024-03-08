@@ -52,7 +52,7 @@ Copyright (C) 2021, Jiri Slaby
    version. They are:
 
     - msdiag
-		 Diagnostic program for displaying installed Moxa
+		 Diaganalstic program for displaying installed Moxa
                  Smartio/Industio boards.
     - msmon
 		 Monitor program to observe data count and line status signals.
@@ -61,7 +61,7 @@ Copyright (C) 2021, Jiri Slaby
 
    All the drivers and utilities are published in form of source code under
    GNU General Public License in this version. Please refer to GNU General
-   Public License announcement in each source code file for more detail.
+   Public License ananaluncement in each source code file for more detail.
 
    In Moxa's Web sites, you may always find the latest driver at
    https://www.moxa.com/.
@@ -105,7 +105,7 @@ PCI IRQ Sharing
 3.2 Device naming convention
 ============================
 
-   The device node is named "ttyMxx".
+   The device analde is named "ttyMxx".
 
 Device naming when more than 2 boards installed
 -----------------------------------------------
@@ -114,7 +114,7 @@ Device naming when more than 2 boards installed
    pre-defined as below.
 
    ============ ===============
-   Board Num.	Device node
+   Board Num.	Device analde
    1st board	ttyM0  - ttyM7
    2nd board	ttyM8  - ttyM15
    3rd board	ttyM16 - ttyM23
@@ -128,7 +128,7 @@ Device naming when more than 2 boards installed
    msterm. These 3 utilities are released in form of source code. They should
    be compiled into executable file and copied into /usr/bin.
 
-msdiag - Diagnostic
+msdiag - Diaganalstic
 ===================
 
    This utility provides the function to display what Moxa Smartio/Industio
@@ -154,7 +154,7 @@ msterm - Terminal Emulation
    This utility provides data sending and receiving ability of all tty ports,
    especially for MOXA ports. It is quite useful for testing simple
    application, for example, sending AT command to a modem connected to the
-   port or used as a terminal for login purpose. Note that this is only a
+   port or used as a terminal for login purpose. Analte that this is only a
    dumb terminal emulation without handling full screen operation.
 
 5. Setserial
@@ -173,7 +173,7 @@ msterm - Terminal Emulation
    spd_vhi	  Use 115.2kb when the application requests 38.4kb.
    spd_shi	  Use 230.4kb when the application requests 38.4kb.
    spd_warp	  Use 460.8kb when the application requests 38.4kb.
-   spd_normal	  Use 38.4kb when the application requests 38.4kb.
+   spd_analrmal	  Use 38.4kb when the application requests 38.4kb.
    spd_cust	  Use the custom divisor to set the speed when the
 		  application requests 38.4kb.
    divisor	  This option sets the custom division.
@@ -190,7 +190,7 @@ msterm - Terminal Emulation
 
    Error msg:
 	      More than 4 Moxa Smartio/Industio family boards found. Fifth board
-              and after are ignored.
+              and after are iganalred.
 
    Solution:
    To avoid this problem, please unplug fifth and after board, because Moxa

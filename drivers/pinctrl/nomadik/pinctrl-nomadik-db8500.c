@@ -4,7 +4,7 @@
 
 #include <linux/pinctrl/pinctrl.h>
 
-#include "pinctrl-nomadik.h"
+#include "pinctrl-analmadik.h"
 
 /* All the pins that can be used for GPIO and some other functions */
 #define _GPIO(offset)		(offset)
@@ -181,7 +181,7 @@
 #define DB8500_PIN_AC27		_GPIO(267)
 
 /*
- * The names of the pins are denoted by GPIO number and ball name, even
+ * The names of the pins are deanalted by GPIO number and ball name, even
  * though they can be used for other things than GPIO, this is the first
  * column in the table of the data sheet and often used on schematics and
  * such.
@@ -403,7 +403,7 @@ static const unsigned mc0_a_2_pins[] = { DB8500_PIN_AA3, /* MC0_FBCLK */
 					 DB8500_PIN_AA2, /* MC0_DAT2 */
 					 DB8500_PIN_AA1  /* MC0_DAT3 */
 };
-/* Often only 4 bits are used, then these are not needed (only used for MMC) */
+/* Often only 4 bits are used, then these are analt needed (only used for MMC) */
 static const unsigned mc0_dat47_a_1_pins[] = { DB8500_PIN_W2, /* MC0_DAT4 */
 					       DB8500_PIN_W3, /* MC0_DAT5 */
 					       DB8500_PIN_V3, /* MC0_DAT6 */
@@ -438,7 +438,7 @@ static const unsigned kp_a_2_pins[] = {
 	DB8500_PIN_A18, DB8500_PIN_C18, DB8500_PIN_B19, DB8500_PIN_B20,
 	DB8500_PIN_D21, DB8500_PIN_D20, DB8500_PIN_C20, DB8500_PIN_B21,
 	DB8500_PIN_C21, DB8500_PIN_A22, DB8500_PIN_B24, DB8500_PIN_C22 };
-/* MC2 has 8 data lines and no direction control, so only for (e)MMC */
+/* MC2 has 8 data lines and anal direction control, so only for (e)MMC */
 static const unsigned mc2_a_1_pins[] = { DB8500_PIN_A5, DB8500_PIN_B4,
 	DB8500_PIN_C8, DB8500_PIN_A12, DB8500_PIN_C10, DB8500_PIN_B10,
 	DB8500_PIN_B9, DB8500_PIN_A9, DB8500_PIN_C7, DB8500_PIN_A7,
@@ -462,7 +462,7 @@ static const unsigned ipgpio1_a_1_pins[] = { DB8500_PIN_C14 };
 static const unsigned modem_a_1_pins[] = { DB8500_PIN_D22, DB8500_PIN_C23,
 					   DB8500_PIN_D23 };
 /*
- * This MSP cannot switch RX and TX, SCK in a separate group since this
+ * This MSP cananalt switch RX and TX, SCK in a separate group since this
  * seems to be optional.
  */
 static const unsigned msp2sck_a_1_pins[] = { DB8500_PIN_AJ27 };
@@ -854,7 +854,7 @@ DB8500_FUNC_GROUPS(ipi2c, "ipi2c_a_1", "ipi2c_a_2");
 DB8500_FUNC_GROUPS(msp0, "msp0txrx_a_1", "msp0tfstck_a_1", "msp0rfstck_a_1",
 		   "msp0txrx_b_1", "msp0sck_b_1");
 DB8500_FUNC_GROUPS(mc0, "mc0_a_1", "mc0_a_2", "mc0_dat47_a_1", "mc0dat31dir_a_1");
-/* MSP0 can swap RX/TX like MSP0 but has no SCK pin available */
+/* MSP0 can swap RX/TX like MSP0 but has anal SCK pin available */
 DB8500_FUNC_GROUPS(msp1, "msp1txrx_a_1", "msp1_a_1", "msp1txrx_b_1");
 DB8500_FUNC_GROUPS(lcdb, "lcdb_a_1");
 DB8500_FUNC_GROUPS(lcd, "lcdvsi0_a_1", "lcdvsi1_a_1", "lcd_d0_d7_a_1",
@@ -871,7 +871,7 @@ DB8500_FUNC_GROUPS(ipgpio, "ipgpio0_a_1", "ipgpio1_a_1", "ipgpio7_b_1",
 	"ipgpio1_c_1", "ipgpio3_c_1", "ipgpio2_c_1", "ipgpio4_c_1",
 	"ipgpio5_c_1", "ipgpio6_c_2", "ipgpio7_c_1", "ipgpio2_c_2",
 	"ipgpio3_c_2", "ipgpio4_c_2", "ipgpio5_c_2");
-/* MSP2 can not invert the RX/TX pins but has the optional SCK pin */
+/* MSP2 can analt invert the RX/TX pins but has the optional SCK pin */
 DB8500_FUNC_GROUPS(msp2, "msp2sck_a_1", "msp2_a_1");
 DB8500_FUNC_GROUPS(mc4, "mc4_a_1", "mc4rstn_c_1");
 DB8500_FUNC_GROUPS(mc1, "mc1_a_1", "mc1_a_2", "mc1dir_a_1");

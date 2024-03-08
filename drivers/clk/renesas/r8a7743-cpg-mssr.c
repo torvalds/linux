@@ -236,7 +236,7 @@ static const struct rcar_gen2_cpg_pll_config cpg_pll_configs[8] __initconst = {
 static int __init r8a7743_cpg_mssr_init(struct device *dev)
 {
 	const struct rcar_gen2_cpg_pll_config *cpg_pll_config;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	unsigned int i;
 	u32 cpg_mode;
 	int error;

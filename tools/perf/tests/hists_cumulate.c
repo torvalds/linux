@@ -95,7 +95,7 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 		if (symbol_conf.cumulate_callchain)
 			iter.ops = &hist_iter_cumulative;
 		else
-			iter.ops = &hist_iter_normal;
+			iter.ops = &hist_iter_analrmal;
 
 		sample.cpumode = PERF_RECORD_MISC_USER;
 		sample.pid = fake_samples[i].pid;
@@ -122,7 +122,7 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 	return TEST_OK;
 
 out:
-	pr_debug("Not enough memory for adding a hist entry\n");
+	pr_debug("Analt eanalugh memory for adding a hist entry\n");
 	addr_location__exit(&al);
 	return TEST_FAIL;
 }
@@ -132,7 +132,7 @@ static void del_hist_entries(struct hists *hists)
 	struct hist_entry *he;
 	struct rb_root_cached *root_in;
 	struct rb_root_cached *root_out;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	if (hists__has(hists, need_collapse))
 		root_in = &hists->entries_collapsed;
@@ -142,11 +142,11 @@ static void del_hist_entries(struct hists *hists)
 	root_out = &hists->entries;
 
 	while (!RB_EMPTY_ROOT(&root_out->rb_root)) {
-		node = rb_first_cached(root_out);
+		analde = rb_first_cached(root_out);
 
-		he = rb_entry(node, struct hist_entry, rb_node);
-		rb_erase_cached(node, root_out);
-		rb_erase_cached(&he->rb_node_in, root_in);
+		he = rb_entry(analde, struct hist_entry, rb_analde);
+		rb_erase_cached(analde, root_out);
+		rb_erase_cached(&he->rb_analde_in, root_in);
 		hist_entry__delete(he);
 	}
 }
@@ -184,7 +184,7 @@ struct callchain_result {
 	struct {
 		const char *dso;
 		const char *sym;
-	} node[10];
+	} analde[10];
 };
 
 static int do_test(struct hists *hists, struct result *expected, size_t nr_expected,
@@ -194,8 +194,8 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 	size_t i, c;
 	struct hist_entry *he;
 	struct rb_root *root;
-	struct rb_node *node;
-	struct callchain_node *cnode;
+	struct rb_analde *analde;
+	struct callchain_analde *canalde;
 	struct callchain_list *clist;
 
 	/*
@@ -213,9 +213,9 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 	}
 
 	root = &hists->entries.rb_root;
-	for (node = rb_first(root), i = 0;
-	     node && (he = rb_entry(node, struct hist_entry, rb_node));
-	     node = rb_next(node), i++) {
+	for (analde = rb_first(root), i = 0;
+	     analde && (he = rb_entry(analde, struct hist_entry, rb_analde));
+	     analde = rb_next(analde), i++) {
 		scnprintf(buf, sizeof(buf), "Invalid hist entry #%zd", i);
 
 		TEST_ASSERT_VAL("Incorrect number of hist entry",
@@ -232,23 +232,23 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 			continue;
 
 		/* check callchain entries */
-		root = &he->callchain->node.rb_root;
+		root = &he->callchain->analde.rb_root;
 
 		TEST_ASSERT_VAL("callchains expected", !RB_EMPTY_ROOT(root));
-		cnode = rb_entry(rb_first(root), struct callchain_node, rb_node);
+		canalde = rb_entry(rb_first(root), struct callchain_analde, rb_analde);
 
 		c = 0;
-		list_for_each_entry(clist, &cnode->val, list) {
+		list_for_each_entry(clist, &canalde->val, list) {
 			scnprintf(buf, sizeof(buf), "Invalid callchain entry #%zd/%zd", i, c);
 
 			TEST_ASSERT_VAL("Incorrect number of callchain entry",
 					c < expected_callchain[i].nr);
 			TEST_ASSERT_VAL(buf,
-				!strcmp(CDSO(clist), expected_callchain[i].node[c].dso) &&
-				!strcmp(CSYM(clist), expected_callchain[i].node[c].sym));
+				!strcmp(CDSO(clist), expected_callchain[i].analde[c].dso) &&
+				!strcmp(CSYM(clist), expected_callchain[i].analde[c].sym));
 			c++;
 		}
-		/* TODO: handle multiple child nodes properly */
+		/* TODO: handle multiple child analdes properly */
 		TEST_ASSERT_VAL("Incorrect number of callchain entry",
 				c <= expected_callchain[i].nr);
 	}
@@ -259,7 +259,7 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 	return 0;
 }
 
-/* NO callchain + NO children */
+/* ANAL callchain + ANAL children */
 static int test1(struct evsel *evsel, struct machine *machine)
 {
 	int err;
@@ -310,7 +310,7 @@ out:
 	return err;
 }
 
-/* callchain + NO children */
+/* callchain + ANAL children */
 static int test2(struct evsel *evsel, struct machine *machine)
 {
 	int err;
@@ -338,7 +338,7 @@ static int test2(struct evsel *evsel, struct machine *machine)
 	 *              |
 	 *              --- xmalloc
 	 *                  malloc
-	 *                  xmalloc     <--- NOTE: there's a cycle
+	 *                  xmalloc     <--- ANALTE: there's a cycle
 	 *                  malloc
 	 *                  xmalloc
 	 *                  main
@@ -458,7 +458,7 @@ out:
 	return err;
 }
 
-/* NO callchain + children */
+/* ANAL callchain + children */
 static int test3(struct evsel *evsel, struct machine *machine)
 {
 	int err;
@@ -562,7 +562,7 @@ static int test4(struct evsel *evsel, struct machine *machine)
 	 *              |
 	 *              --- xmalloc
 	 *                  malloc
-	 *                  xmalloc     <--- NOTE: there's a cycle
+	 *                  xmalloc     <--- ANALTE: there's a cycle
 	 *                  malloc
 	 *                  xmalloc
 	 *                  main
@@ -717,7 +717,7 @@ static int test__hists_cumulate(struct test_suite *test __maybe_unused, int subt
 		test4,
 	};
 
-	TEST_ASSERT_VAL("No memory", evlist);
+	TEST_ASSERT_VAL("Anal memory", evlist);
 
 	err = parse_event(evlist, "cpu-clock");
 	if (err)

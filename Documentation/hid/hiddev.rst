@@ -5,17 +5,17 @@ Care and feeding of your Human Interface Devices
 Introduction
 ============
 
-In addition to the normal input type HID devices, USB also uses the
-human interface device protocols for things that are not really human
+In addition to the analrmal input type HID devices, USB also uses the
+human interface device protocols for things that are analt really human
 interfaces, but have similar sorts of communication needs. The two big
 examples for this are power devices (especially uninterruptible power
 supplies) and monitor control on higher end monitors.
 
 To support these disparate requirements, the Linux USB system provides
 HID events to two separate interfaces:
-* the input subsystem, which converts HID events into normal input
+* the input subsystem, which converts HID events into analrmal input
 device interfaces (such as keyboard, mouse and joystick) and a
-normalised event interface - see Documentation/input/input.rst
+analrmalised event interface - see Documentation/input/input.rst
 * the hiddev interface, which provides fairly raw HID events
 
 The data flow for a HID event produced by a device is something like
@@ -27,32 +27,32 @@ the following::
                           --> hiddev.c ----> POWER / MONITOR CONTROL
 
 In addition, other subsystems (apart from USB) can potentially feed
-events into the input subsystem, but these have no effect on the HID
+events into the input subsystem, but these have anal effect on the HID
 device interface.
 
 Using the HID Device Interface
 ==============================
 
-The hiddev interface is a char interface using the normal USB major,
-with the minor numbers starting at 96 and finishing at 111. Therefore,
+The hiddev interface is a char interface using the analrmal USB major,
+with the mianalr numbers starting at 96 and finishing at 111. Therefore,
 you need the following commands::
 
-	mknod /dev/usb/hiddev0 c 180 96
-	mknod /dev/usb/hiddev1 c 180 97
-	mknod /dev/usb/hiddev2 c 180 98
-	mknod /dev/usb/hiddev3 c 180 99
-	mknod /dev/usb/hiddev4 c 180 100
-	mknod /dev/usb/hiddev5 c 180 101
-	mknod /dev/usb/hiddev6 c 180 102
-	mknod /dev/usb/hiddev7 c 180 103
-	mknod /dev/usb/hiddev8 c 180 104
-	mknod /dev/usb/hiddev9 c 180 105
-	mknod /dev/usb/hiddev10 c 180 106
-	mknod /dev/usb/hiddev11 c 180 107
-	mknod /dev/usb/hiddev12 c 180 108
-	mknod /dev/usb/hiddev13 c 180 109
-	mknod /dev/usb/hiddev14 c 180 110
-	mknod /dev/usb/hiddev15 c 180 111
+	mkanald /dev/usb/hiddev0 c 180 96
+	mkanald /dev/usb/hiddev1 c 180 97
+	mkanald /dev/usb/hiddev2 c 180 98
+	mkanald /dev/usb/hiddev3 c 180 99
+	mkanald /dev/usb/hiddev4 c 180 100
+	mkanald /dev/usb/hiddev5 c 180 101
+	mkanald /dev/usb/hiddev6 c 180 102
+	mkanald /dev/usb/hiddev7 c 180 103
+	mkanald /dev/usb/hiddev8 c 180 104
+	mkanald /dev/usb/hiddev9 c 180 105
+	mkanald /dev/usb/hiddev10 c 180 106
+	mkanald /dev/usb/hiddev11 c 180 107
+	mkanald /dev/usb/hiddev12 c 180 108
+	mkanald /dev/usb/hiddev13 c 180 109
+	mkanald /dev/usb/hiddev14 c 180 110
+	mkanald /dev/usb/hiddev15 c 180 111
 
 So you point your hiddev compliant user-space program at the correct
 interface for your device, and it all just works.
@@ -91,7 +91,7 @@ usage changes available to the reader using a struct hiddev_event::
        };
 
 containing the HID usage identifier for the status that changed, and
-the value that it was changed to. Note that the structure is defined
+the value that it was changed to. Analte that the structure is defined
 within <linux/hiddev.h>, along with some other useful #defines and
 structures.  The HID usage identifier is a composite of the HID usage
 page shifted to the 16 high order bits ORed with the usage code.  The
@@ -110,7 +110,7 @@ HIDIOCGVERSION
  Gets the version code out of the hiddev driver.
 
 HIDIOCAPPLICATION
-  - (none)
+  - (analne)
 
 This ioctl call returns the HID application usage associated with the
 HID device. The third argument to ioctl() specifies which application
@@ -124,13 +124,13 @@ hiddev_devinfo structure.
 HIDIOCGCOLLECTIONINFO
   - struct hiddev_collection_info (read/write)
 
-This returns a superset of the information above, providing not only
+This returns a superset of the information above, providing analt only
 application collections, but all the collections the device has.  It
 also returns the level the collection lives in the hierarchy.
 The user passes in a hiddev_collection_info struct with the index
 field set to the index that should be returned.  The ioctl fills in
 the other fields.  If the index is larger than the last collection
-index, the ioctl returns -1 and sets errno to -EINVAL.
+index, the ioctl returns -1 and sets erranal to -EINVAL.
 
 HIDIOCGDEVINFO
   - struct hiddev_devinfo (read)
@@ -144,12 +144,12 @@ Gets a string descriptor from the device. The caller must fill in the
 "index" field to indicate which descriptor should be returned.
 
 HIDIOCINITREPORT
-  - (none)
+  - (analne)
 
 Instructs the kernel to retrieve all input and feature report values
 from the device. At this point, all the usage structures will contain
 current values for the device, and will maintain it as the device
-changes.  Note that the use of this ioctl is unnecessary in general,
+changes.  Analte that the use of this ioctl is unnecessary in general,
 since later kernels automatically initialize the reports from the
 device at attach time.
 
@@ -184,7 +184,7 @@ HID_REPORT_ID_FIRST for the first report, and (HID_REPORT_ID_NEXT |
 report_id) for the next report after report_id. Without a priori
 information about report ids, the right way to use this ioctl is to
 use the relative IDs above to enumerate the valid IDs. The ioctl
-returns non-zero when there is no more next ID. The real report ID is
+returns analn-zero when there is anal more next ID. The real report ID is
 filled into the returned hiddev_report_info structure.
 
 HIDIOCGFIELDINFO
@@ -209,7 +209,7 @@ HIDIOCGUSAGE
 Returns the value of a usage in a hiddev_usage_ref structure. The
 usage to be retrieved can be specified as above, or the user can
 choose to fill in the report_type field and specify the report_id as
-HID_REPORT_ID_UNKNOWN. In this case, the hiddev_usage_ref will be
+HID_REPORT_ID_UNKANALWN. In this case, the hiddev_usage_ref will be
 filled in with the report and field information associated with this
 usage if it is found.
 
@@ -235,7 +235,7 @@ These operations respectively inspect and replace the mode flags
 that influence the read() call above.  The flags are as follows:
 
     HIDDEV_FLAG_UREF
-      - read() calls will now return
+      - read() calls will analw return
         struct hiddev_usage_ref instead of struct hiddev_event.
         This is a larger structure, but in situations where the
         device has more than one usage in its reports with the
@@ -247,5 +247,5 @@ that influence the read() call above.  The flags are as follows:
         with HIDDEV_FLAG_UREF.  With this flag set, when the device
         sends a report, a struct hiddev_usage_ref will be returned
         to read() filled in with the report_type and report_id, but
-        with field_index set to FIELD_INDEX_NONE.  This serves as
-        additional notification when the device has sent a report.
+        with field_index set to FIELD_INDEX_ANALNE.  This serves as
+        additional analtification when the device has sent a report.

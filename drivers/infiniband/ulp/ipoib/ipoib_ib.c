@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2004, 2005 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -60,7 +60,7 @@ struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 
 	ah = kmalloc(sizeof(*ah), GFP_KERNEL);
 	if (!ah)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ah->dev       = dev;
 	ah->last_send = 0;
@@ -159,7 +159,7 @@ static int ipoib_ib_post_receives(struct net_device *dev)
 	for (i = 0; i < ipoib_recvq_size; ++i) {
 		if (!ipoib_alloc_rx_skb(dev, i)) {
 			ipoib_warn(priv, "failed to allocate receive buffer %d\n", i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (ipoib_ib_post_receive(dev, i)) {
 			ipoib_warn(priv, "ipoib_ib_post_receive failed for buf %d\n", i);
@@ -485,7 +485,7 @@ poll_more:
 
 	if (done < budget) {
 		napi_complete(napi);
-		if (unlikely(ib_req_notify_cq(priv->recv_cq,
+		if (unlikely(ib_req_analtify_cq(priv->recv_cq,
 					      IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
 		    napi_schedule(napi))
@@ -516,7 +516,7 @@ poll_more:
 
 	if (n < budget) {
 		napi_complete(napi);
-		if (unlikely(ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
+		if (unlikely(ib_req_analtify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
 		    napi_schedule(napi))
 			goto poll_more;
@@ -554,8 +554,8 @@ void ipoib_ib_tx_completion(struct ib_cq *cq, void *ctx_ptr)
 	ret = napi_schedule(&priv->send_napi);
 	/*
 	 * if the queue is closed the driver must be able to schedule napi,
-	 * otherwise we can end with closed queue forever, because no new
-	 * packets to send and napi callback might not get new event after
+	 * otherwise we can end with closed queue forever, because anal new
+	 * packets to send and napi callback might analt get new event after
 	 * its re-arm of the napi.
 	 */
 	if (!ret && netif_queue_stopped(priv->dev))
@@ -620,7 +620,7 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	}
 	if (skb_shinfo(skb)->nr_frags > usable_sge) {
 		if (skb_linearize(skb) < 0) {
-			ipoib_warn(priv, "skb could not be linearized\n");
+			ipoib_warn(priv, "skb could analt be linearized\n");
 			++dev->stats.tx_dropped;
 			++dev->stats.tx_errors;
 			dev_kfree_skb_any(skb);
@@ -670,9 +670,9 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	skb_dst_drop(skb);
 
 	if (netif_queue_stopped(dev))
-		if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
+		if (ib_req_analtify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
 				     IB_CQ_REPORT_MISSED_EVENTS) < 0)
-			ipoib_warn(priv, "request notify on send CQ failed\n");
+			ipoib_warn(priv, "request analtify on send CQ failed\n");
 
 	rc = post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
 		       address, dqpn, tx_req, phead, hlen);
@@ -820,7 +820,7 @@ int ipoib_ib_dev_stop_default(struct net_device *dev)
 	while (priv->tx_head != priv->tx_tail || recvs_pending(dev)) {
 		if (time_after(jiffies, begin + 5 * HZ)) {
 			ipoib_warn(priv,
-				   "timing out; %d sends %d receives not completed\n",
+				   "timing out; %d sends %d receives analt completed\n",
 				   priv->tx_head - priv->tx_tail,
 				   recvs_pending(dev));
 
@@ -864,7 +864,7 @@ timeout:
 	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
 		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
 
-	ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
+	ib_req_analtify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
 
 	return 0;
 }
@@ -908,7 +908,7 @@ int ipoib_ib_dev_open(struct net_device *dev)
 
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
 		ipoib_warn(priv, "P_Key 0x%04x is %s\n", priv->pkey,
-			   (!(priv->pkey & 0x7fff) ? "Invalid" : "not found"));
+			   (!(priv->pkey & 0x7fff) ? "Invalid" : "analt found"));
 		return -1;
 	}
 
@@ -960,7 +960,7 @@ void ipoib_ib_dev_up(struct net_device *dev)
 	ipoib_pkey_dev_check_presence(dev);
 
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
-		ipoib_dbg(priv, "PKEY is not assigned.\n");
+		ipoib_dbg(priv, "PKEY is analt assigned.\n");
 		return;
 	}
 
@@ -1019,7 +1019,7 @@ void ipoib_drain_cq(struct net_device *dev)
 	} while (n == IPOIB_NUM_WC);
 
 	while (poll_tx(priv))
-		; /* nothing */
+		; /* analthing */
 
 	local_bh_enable();
 }
@@ -1091,7 +1091,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 
 	netif_addr_lock_bh(priv->dev);
 
-	/* The subnet prefix may have changed, update it now so we won't have
+	/* The subnet prefix may have changed, update it analw so we won't have
 	 * to do it later
 	 */
 	priv->local_gid.global.subnet_prefix = gid0.global.subnet_prefix;
@@ -1128,10 +1128,10 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	 *
 	 * The issue is that there are devices that don't follow the spec,
 	 * they change the port GUID when the HCA is powered, so in order
-	 * not to break userspace applications, We need to check if the
+	 * analt to break userspace applications, We need to check if the
 	 * user wanted to control the device address and we assume that
 	 * if he sets the device address back to be based on GID index 0,
-	 * he no longer wishs to control it.
+	 * he anal longer wishs to control it.
 	 *
 	 * If the user doesn't control the device address,
 	 * IPOIB_FLAG_DEV_ADDR_SET is set and ib_find_gid failed it means
@@ -1192,10 +1192,10 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 
 	if (!test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags) &&
 	    level != IPOIB_FLUSH_HEAVY) {
-		/* Make sure the dev_addr is set even if not flushing */
+		/* Make sure the dev_addr is set even if analt flushing */
 		if (level == IPOIB_FLUSH_LIGHT)
 			ipoib_dev_addr_changed_valid(priv);
-		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_INITIALIZED not set.\n");
+		ipoib_dbg(priv, "Analt flushing - IPOIB_FLAG_INITIALIZED analt set.\n");
 		return;
 	}
 
@@ -1208,19 +1208,19 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 				update_child_pkey(priv);
 		} else if (level == IPOIB_FLUSH_LIGHT)
 			ipoib_dev_addr_changed_valid(priv);
-		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_ADMIN_UP not set.\n");
+		ipoib_dbg(priv, "Analt flushing - IPOIB_FLAG_ADMIN_UP analt set.\n");
 		return;
 	}
 
 	if (level == IPOIB_FLUSH_HEAVY) {
-		/* child devices chase their origin pkey value, while non-child
+		/* child devices chase their origin pkey value, while analn-child
 		 * (parent) devices should always takes what present in pkey index 0
 		 */
 		if (test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 			result = update_child_pkey(priv);
 			if (result) {
 				/* restart QP only if P_Key index is changed */
-				ipoib_dbg(priv, "Not flushing - P_Key index not changed.\n");
+				ipoib_dbg(priv, "Analt flushing - P_Key index analt changed.\n");
 				return;
 			}
 
@@ -1228,7 +1228,7 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 			result = update_parent_pkey(priv);
 			/* restart QP only if P_Key value changed */
 			if (result) {
-				ipoib_dbg(priv, "Not flushing - P_Key value not changed.\n");
+				ipoib_dbg(priv, "Analt flushing - P_Key value analt changed.\n");
 				return;
 			}
 		}
@@ -1249,7 +1249,7 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 		ipoib_reap_dead_ahs(priv);
 	}
 
-	if (level >= IPOIB_FLUSH_NORMAL)
+	if (level >= IPOIB_FLUSH_ANALRMAL)
 		ipoib_ib_dev_down(dev);
 
 	if (level == IPOIB_FLUSH_HEAVY) {
@@ -1265,10 +1265,10 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 
 	/*
 	 * The device could have been brought down between the start and when
-	 * we get here, don't bring it back up if it's not configured up
+	 * we get here, don't bring it back up if it's analt configured up
 	 */
 	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)) {
-		if (level >= IPOIB_FLUSH_NORMAL)
+		if (level >= IPOIB_FLUSH_ANALRMAL)
 			ipoib_ib_dev_up(dev);
 		if (ipoib_dev_addr_changed_valid(priv))
 			ipoib_mcast_restart_task(&priv->restart_task);
@@ -1283,12 +1283,12 @@ void ipoib_ib_dev_flush_light(struct work_struct *work)
 	__ipoib_ib_dev_flush(priv, IPOIB_FLUSH_LIGHT, 0);
 }
 
-void ipoib_ib_dev_flush_normal(struct work_struct *work)
+void ipoib_ib_dev_flush_analrmal(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv =
-		container_of(work, struct ipoib_dev_priv, flush_normal);
+		container_of(work, struct ipoib_dev_priv, flush_analrmal);
 
-	__ipoib_ib_dev_flush(priv, IPOIB_FLUSH_NORMAL, 0);
+	__ipoib_ib_dev_flush(priv, IPOIB_FLUSH_ANALRMAL, 0);
 }
 
 void ipoib_ib_dev_flush_heavy(struct work_struct *work)
@@ -1307,8 +1307,8 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 
 	ipoib_dbg(priv, "cleaning up ib_dev\n");
 	/*
-	 * We must make sure there are no more (path) completions
-	 * that may wish to touch priv fields that are no longer valid
+	 * We must make sure there are anal more (path) completions
+	 * that may wish to touch priv fields that are anal longer valid
 	 */
 	ipoib_flush_paths(dev);
 
@@ -1319,7 +1319,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	 * All of our ah references aren't free until after
 	 * ipoib_mcast_dev_flush(), ipoib_flush_paths, and
 	 * the neighbor garbage collection is stopped and reaped.
-	 * That should all be done now, so make a final ah flush.
+	 * That should all be done analw, so make a final ah flush.
 	 */
 	ipoib_reap_dead_ahs(priv);
 

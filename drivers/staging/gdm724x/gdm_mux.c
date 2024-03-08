@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/usb.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -254,7 +254,7 @@ static void gdm_mux_rcv_complete(struct urb *urb)
 	remove_rx_submit_list(r, rx);
 
 	if (urb->status) {
-		if (mux_dev->usb_state == PM_NORMAL)
+		if (mux_dev->usb_state == PM_ANALRMAL)
 			dev_err(&urb->dev->dev, "%s: urb status error %d\n",
 				__func__, urb->status);
 		put_rx_struct(rx, r);
@@ -280,13 +280,13 @@ static int gdm_mux_recv(void *priv_dev,
 
 	if (!usbdev) {
 		pr_err("device is disconnected\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	r = get_rx_struct(rx);
 	if (!r) {
 		pr_err("get_rx_struct fail\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r->offset = 0;
@@ -365,7 +365,7 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	if (!t) {
 		pr_err("alloc_mux_tx fail\n");
 		spin_unlock_irqrestore(&mux_dev->write_lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mux_header = (struct mux_pkt_header *)t->buf;
@@ -478,7 +478,7 @@ static int init_usb(struct mux_dev *mux_dev)
 	for (i = 0; i < MAX_ISSUE_NUM * 2; i++) {
 		r = alloc_mux_rx();
 		if (!r) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -509,15 +509,15 @@ static int gdm_mux_probe(struct usb_interface *intf,
 	pr_info("mux vid = 0x%04x pid = 0x%04x\n", idVendor, idProduct);
 
 	if (bInterfaceNumber != 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mux_dev = kzalloc(sizeof(*mux_dev), GFP_KERNEL);
 	if (!mux_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tty_dev = kzalloc(sizeof(*tty_dev), GFP_KERNEL);
 	if (!tty_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_mux;
 	}
 
@@ -541,7 +541,7 @@ static int gdm_mux_probe(struct usb_interface *intf,
 		mux_dev->tty_dev = tty_dev;
 
 	mux_dev->intf = intf;
-	mux_dev->usb_state = PM_NORMAL;
+	mux_dev->usb_state = PM_ANALRMAL;
 
 	usb_get_dev(usbdev);
 	usb_set_intfdata(intf, tty_dev);
@@ -592,7 +592,7 @@ static int gdm_mux_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 
 	cancel_work_sync(&mux_dev->work_rx.work);
 
-	if (mux_dev->usb_state != PM_NORMAL) {
+	if (mux_dev->usb_state != PM_ANALRMAL) {
 		dev_err(intf->usb_dev, "usb suspend - invalid state\n");
 		return -1;
 	}
@@ -625,7 +625,7 @@ static int gdm_mux_resume(struct usb_interface *intf)
 		return -1;
 	}
 
-	mux_dev->usb_state = PM_NORMAL;
+	mux_dev->usb_state = PM_ANALRMAL;
 
 	for (i = 0; i < MAX_ISSUE_NUM; i++)
 		gdm_mux_recv(mux_dev, mux_dev->rx_cb);

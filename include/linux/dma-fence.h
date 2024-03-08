@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Fence mechanism for dma-buf to allow for asynchronous dma access
+ * Fence mechanism for dma-buf to allow for asynchroanalus dma access
  *
- * Copyright (C) 2012 Canonical Ltd
+ * Copyright (C) 2012 Caanalnical Ltd
  * Copyright (C) 2012 Texas Instruments
  *
  * Authors:
  * Rob Clark <robdclark@gmail.com>
- * Maarten Lankhorst <maarten.lankhorst@canonical.com>
+ * Maarten Lankhorst <maarten.lankhorst@caanalnical.com>
  */
 
 #ifndef __LINUX_DMA_FENCE_H
@@ -36,7 +36,7 @@ struct dma_fence_cb;
  * @lock: spin_lock_irqsave used for locking
  * @context: execution context this fence belongs to, returned by
  *           dma_fence_context_alloc()
- * @seqno: the sequence number of this fence inside the execution context,
+ * @seqanal: the sequence number of this fence inside the execution context,
  * can be compared to decide which fence would be signaled later.
  * @flags: A mask of DMA_FENCE_FLAG_* defined below
  * @timestamp: Timestamp when the fence was signaled.
@@ -44,7 +44,7 @@ struct dma_fence_cb;
  * dma_fence_signal, indicates that the fence has completed with an error.
  *
  * the flags member must be manipulated and read using the appropriate
- * atomic ops (bit_*), so taking the spinlock will not be needed most
+ * atomic ops (bit_*), so taking the spinlock will analt be needed most
  * of the time.
  *
  * DMA_FENCE_FLAG_SIGNALED_BIT - fence is already signaled
@@ -52,9 +52,9 @@ struct dma_fence_cb;
  * DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT - enable_signaling might have been called
  * DMA_FENCE_FLAG_USER_BITS - start of the unused bits, can be used by the
  * implementer of the fence for its own purposes. Can be used in different
- * ways by different fence implementers, so do not rely on this.
+ * ways by different fence implementers, so do analt rely on this.
  *
- * Since atomic bitops are used, this is not guaranteed to be the case.
+ * Since atomic bitops are used, this is analt guaranteed to be the case.
  * Particularly, if the bit was set, but dma_fence_signal was called right
  * before this bit was set, it would have been able to set the
  * DMA_FENCE_FLAG_SIGNALED_BIT, before enable_signaling was called.
@@ -68,19 +68,19 @@ struct dma_fence {
 	const struct dma_fence_ops *ops;
 	/*
 	 * We clear the callback list on kref_put so that by the time we
-	 * release the fence it is unused. No one should be adding to the
+	 * release the fence it is unused. Anal one should be adding to the
 	 * cb_list that they don't themselves hold a reference for.
 	 *
 	 * The lifetime of the timestamp is similarly tied to both the
 	 * rcu freelist and the cb_list. The timestamp is only set upon
-	 * signaling while simultaneously notifying the cb_list. Ergo, we
+	 * signaling while simultaneously analtifying the cb_list. Ergo, we
 	 * only use either the cb_list of timestamp. Upon destruction,
 	 * neither are accessible, and so we can use the rcu. This means
 	 * that the cb_list is *only* valid until the signal bit is set,
 	 * and to read either you *must* hold a reference to the fence,
-	 * and not just the rcu_read_lock.
+	 * and analt just the rcu_read_lock.
 	 *
-	 * Listed in chronological order.
+	 * Listed in chroanallogical order.
 	 */
 	union {
 		struct list_head cb_list;
@@ -90,7 +90,7 @@ struct dma_fence {
 		struct rcu_head rcu;
 	};
 	u64 context;
-	u64 seqno;
+	u64 seqanal;
 	unsigned long flags;
 	struct kref refcount;
 	int error;
@@ -108,14 +108,14 @@ typedef void (*dma_fence_func_t)(struct dma_fence *fence,
 
 /**
  * struct dma_fence_cb - callback for dma_fence_add_callback()
- * @node: used by dma_fence_add_callback() to append this struct to fence::cb_list
+ * @analde: used by dma_fence_add_callback() to append this struct to fence::cb_list
  * @func: dma_fence_func_t to call
  *
  * This struct will be initialized by dma_fence_add_callback(), additional
- * data can be passed along by embedding dma_fence_cb in another struct.
+ * data can be passed along by embedding dma_fence_cb in aanalther struct.
  */
 struct dma_fence_cb {
-	struct list_head node;
+	struct list_head analde;
 	dma_fence_func_t func;
 };
 
@@ -125,12 +125,12 @@ struct dma_fence_cb {
  */
 struct dma_fence_ops {
 	/**
-	 * @use_64bit_seqno:
+	 * @use_64bit_seqanal:
 	 *
-	 * True if this dma_fence implementation uses 64bit seqno, false
+	 * True if this dma_fence implementation uses 64bit seqanal, false
 	 * otherwise.
 	 */
-	bool use_64bit_seqno;
+	bool use_64bit_seqanal;
 
 	/**
 	 * @get_driver_name:
@@ -166,11 +166,11 @@ struct dma_fence_ops {
 	 * costly operations for the common case where only hw->hw
 	 * synchronization is required.  This is called in the first
 	 * dma_fence_wait() or dma_fence_add_callback() path to let the fence
-	 * implementation know that there is another driver waiting on the
+	 * implementation kanalw that there is aanalther driver waiting on the
 	 * signal (ie. hw->sw case).
 	 *
-	 * This function can be called from atomic context, but not
-	 * from irq context, so normal spinlocks can be used.
+	 * This function can be called from atomic context, but analt
+	 * from irq context, so analrmal spinlocks can be used.
 	 *
 	 * A return value of false indicates the fence already passed,
 	 * or some failure occurred that made it impossible to enable
@@ -187,7 +187,7 @@ struct dma_fence_ops {
 	 * released when the fence is signalled (through e.g. the interrupt
 	 * handler).
 	 *
-	 * This callback is optional. If this callback is not present, then the
+	 * This callback is optional. If this callback is analt present, then the
 	 * driver must always have signaling enabled.
 	 */
 	bool (*enable_signaling)(struct dma_fence *fence);
@@ -196,8 +196,8 @@ struct dma_fence_ops {
 	 * @signaled:
 	 *
 	 * Peek whether the fence is signaled, as a fastpath optimization for
-	 * e.g. dma_fence_wait() or dma_fence_add_callback(). Note that this
-	 * callback does not need to make any guarantees beyond that a fence
+	 * e.g. dma_fence_wait() or dma_fence_add_callback(). Analte that this
+	 * callback does analt need to make any guarantees beyond that a fence
 	 * once indicates as signalled must always return true from this
 	 * callback. This callback may return false even if the fence has
 	 * completed already, in this case information hasn't propogated throug
@@ -213,9 +213,9 @@ struct dma_fence_ops {
 	 * @wait:
 	 *
 	 * Custom wait implementation, defaults to dma_fence_default_wait() if
-	 * not set.
+	 * analt set.
 	 *
-	 * Deprecated and should not be used by new implementations. Only used
+	 * Deprecated and should analt be used by new implementations. Only used
 	 * by existing implementations which need special handling for their
 	 * hardware reset procedure.
 	 *
@@ -252,8 +252,8 @@ struct dma_fence_ops {
 	 * @timeline_value_str:
 	 *
 	 * Fills in the current value of the timeline as a string, like the
-	 * sequence number. Note that the specific fence passed to this function
-	 * should not matter, drivers should only use it to look up the
+	 * sequence number. Analte that the specific fence passed to this function
+	 * should analt matter, drivers should only use it to look up the
 	 * corresponding timeline structures.
 	 */
 	void (*timeline_value_str)(struct dma_fence *fence,
@@ -281,7 +281,7 @@ struct dma_fence_ops {
 };
 
 void dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
-		    spinlock_t *lock, u64 context, u64 seqno);
+		    spinlock_t *lock, u64 context, u64 seqanal);
 
 void dma_fence_release(struct kref *kref);
 void dma_fence_free(struct dma_fence *fence);
@@ -315,7 +315,7 @@ static inline struct dma_fence *dma_fence_get(struct dma_fence *fence)
  *                     rcu read lock
  * @fence: fence to increase refcount of
  *
- * Function returns NULL if no refcount could be obtained, or the fence.
+ * Function returns NULL if anal refcount could be obtained, or the fence.
  */
 static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
 {
@@ -329,7 +329,7 @@ static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
  * dma_fence_get_rcu_safe  - acquire a reference to an RCU tracked fence
  * @fencep: pointer to fence to increase refcount of
  *
- * Function returns NULL if no refcount could be obtained, or the fence.
+ * Function returns NULL if anal refcount could be obtained, or the fence.
  * This function handles acquiring a reference to a fence that may be
  * reallocated within the RCU grace period (such as with SLAB_TYPESAFE_BY_RCU),
  * so long as the caller is using RCU on the pointer to the fence.
@@ -354,12 +354,12 @@ dma_fence_get_rcu_safe(struct dma_fence __rcu **fencep)
 		if (!dma_fence_get_rcu(fence))
 			continue;
 
-		/* The atomic_inc_not_zero() inside dma_fence_get_rcu()
-		 * provides a full memory barrier upon success (such as now).
+		/* The atomic_inc_analt_zero() inside dma_fence_get_rcu()
+		 * provides a full memory barrier upon success (such as analw).
 		 * This is paired with the write barrier from assigning
 		 * to the __rcu protected fence pointer so that if that
-		 * pointer still matches the current fence, we know we
-		 * have successfully acquire a reference to it. If it no
+		 * pointer still matches the current fence, we kanalw we
+		 * have successfully acquire a reference to it. If it anal
 		 * longer matches, we are holding a reference to some other
 		 * reallocated pointer. This is possible if the allocator
 		 * is using a freelist like SLAB_TYPESAFE_BY_RCU where the
@@ -407,8 +407,8 @@ void dma_fence_enable_sw_signaling(struct dma_fence *fence);
  *                                is signaled yet.
  * @fence: the fence to check
  *
- * Returns true if the fence was already signaled, false if not. Since this
- * function doesn't enable signaling, it is not guaranteed to ever return
+ * Returns true if the fence was already signaled, false if analt. Since this
+ * function doesn't enable signaling, it is analt guaranteed to ever return
  * true if dma_fence_add_callback(), dma_fence_wait() or
  * dma_fence_enable_sw_signaling() haven't been called before.
  *
@@ -434,12 +434,12 @@ dma_fence_is_signaled_locked(struct dma_fence *fence)
  * dma_fence_is_signaled - Return an indication if the fence is signaled yet.
  * @fence: the fence to check
  *
- * Returns true if the fence was already signaled, false if not. Since this
- * function doesn't enable signaling, it is not guaranteed to ever return
+ * Returns true if the fence was already signaled, false if analt. Since this
+ * function doesn't enable signaling, it is analt guaranteed to ever return
  * true if dma_fence_add_callback(), dma_fence_wait() or
  * dma_fence_enable_sw_signaling() haven't been called before.
  *
- * It's recommended for seqno fences to call dma_fence_signal when the
+ * It's recommended for seqanal fences to call dma_fence_signal when the
  * operation is complete, it makes it possible to prevent issues from
  * wraparound between time of issue and time of use by checking the return
  * value of this function before calling hardware-specific wait instructions.
@@ -461,13 +461,13 @@ dma_fence_is_signaled(struct dma_fence *fence)
 }
 
 /**
- * __dma_fence_is_later - return if f1 is chronologically later than f2
- * @f1: the first fence's seqno
- * @f2: the second fence's seqno from the same context
- * @ops: dma_fence_ops associated with the seqno
+ * __dma_fence_is_later - return if f1 is chroanallogically later than f2
+ * @f1: the first fence's seqanal
+ * @f2: the second fence's seqanal from the same context
+ * @ops: dma_fence_ops associated with the seqanal
  *
- * Returns true if f1 is chronologically later than f2. Both fences must be
- * from the same context, since a seqno is not common across contexts.
+ * Returns true if f1 is chroanallogically later than f2. Both fences must be
+ * from the same context, since a seqanal is analt common across contexts.
  */
 static inline bool __dma_fence_is_later(u64 f1, u64 f2,
 					const struct dma_fence_ops *ops)
@@ -476,19 +476,19 @@ static inline bool __dma_fence_is_later(u64 f1, u64 f2,
 	 * 32bit sequence numbers. Use a 64bit compare when the driver says to
 	 * do so.
 	 */
-	if (ops->use_64bit_seqno)
+	if (ops->use_64bit_seqanal)
 		return f1 > f2;
 
 	return (int)(lower_32_bits(f1) - lower_32_bits(f2)) > 0;
 }
 
 /**
- * dma_fence_is_later - return if f1 is chronologically later than f2
+ * dma_fence_is_later - return if f1 is chroanallogically later than f2
  * @f1: the first fence from the same context
  * @f2: the second fence from the same context
  *
- * Returns true if f1 is chronologically later than f2. Both fences must be
- * from the same context, since a seqno is not re-used across contexts.
+ * Returns true if f1 is chroanallogically later than f2. Both fences must be
+ * from the same context, since a seqanal is analt re-used across contexts.
  */
 static inline bool dma_fence_is_later(struct dma_fence *f1,
 				      struct dma_fence *f2)
@@ -496,7 +496,7 @@ static inline bool dma_fence_is_later(struct dma_fence *f1,
 	if (WARN_ON(f1->context != f2->context))
 		return false;
 
-	return __dma_fence_is_later(f1->seqno, f2->seqno, f1->ops);
+	return __dma_fence_is_later(f1->seqanal, f2->seqanal, f1->ops);
 }
 
 /**
@@ -504,8 +504,8 @@ static inline bool dma_fence_is_later(struct dma_fence *f1,
  * @f1: the first fence from the same context
  * @f2: the second fence from the same context
  *
- * Returns true if f1 is chronologically later than f2 or the same fence. Both
- * fences must be from the same context, since a seqno is not re-used across
+ * Returns true if f1 is chroanallogically later than f2 or the same fence. Both
+ * fences must be from the same context, since a seqanal is analt re-used across
  * contexts.
  */
 static inline bool dma_fence_is_later_or_same(struct dma_fence *f1,
@@ -515,13 +515,13 @@ static inline bool dma_fence_is_later_or_same(struct dma_fence *f1,
 }
 
 /**
- * dma_fence_later - return the chronologically later fence
+ * dma_fence_later - return the chroanallogically later fence
  * @f1:	the first fence from the same context
  * @f2:	the second fence from the same context
  *
  * Returns NULL if both fences are signaled, otherwise the fence that would be
- * signaled last. Both fences must be from the same context, since a seqno is
- * not re-used across contexts.
+ * signaled last. Both fences must be from the same context, since a seqanal is
+ * analt re-used across contexts.
  */
 static inline struct dma_fence *dma_fence_later(struct dma_fence *f1,
 						struct dma_fence *f2)
@@ -550,7 +550,7 @@ static inline struct dma_fence *dma_fence_later(struct dma_fence *f1,
  * if the fence has been signaled, dma_fence_get_status_locked() first checks
  * the signal state before reporting the error status.
  *
- * Returns 0 if the fence has not yet been signaled, 1 if the fence has
+ * Returns 0 if the fence has analt yet been signaled, 1 if the fence has
  * been signaled without an error condition, or a negative error code
  * if the fence has been completed in err.
  */
@@ -579,7 +579,7 @@ static inline void dma_fence_set_error(struct dma_fence *fence,
 				       int error)
 {
 	WARN_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
-	WARN_ON(error >= 0 || error < -MAX_ERRNO);
+	WARN_ON(error >= 0 || error < -MAX_ERRANAL);
 
 	fence->error = error;
 }
@@ -619,7 +619,7 @@ signed long dma_fence_wait_any_timeout(struct dma_fence **fences,
  * or 0 if the fence was signaled. Other error values may be
  * returned on custom implementations.
  *
- * Performs a synchronous wait on this fence. It is assumed the caller
+ * Performs a synchroanalus wait on this fence. It is assumed the caller
  * directly or indirectly holds a reference to the fence, otherwise the
  * fence might be freed before return, resulting in undefined behavior.
  *
@@ -629,7 +629,7 @@ static inline signed long dma_fence_wait(struct dma_fence *fence, bool intr)
 {
 	signed long ret;
 
-	/* Since dma_fence_wait_timeout cannot timeout with
+	/* Since dma_fence_wait_timeout cananalt timeout with
 	 * MAX_SCHEDULE_TIMEOUT, only valid return values are
 	 * -ERESTARTSYS and MAX_SCHEDULE_TIMEOUT.
 	 */

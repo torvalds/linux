@@ -6,7 +6,7 @@
  *
  * Based on the TPS65086 driver
  *
- * NOTE: VD09 is missing
+ * ANALTE: VD09 is missing
  */
 
 #include <linux/mfd/rohm-generic.h>
@@ -36,7 +36,7 @@ enum bd9571mwv_regulators { VD09, VD18, VD25, VD33, DVFS };
 	{							\
 		.name			= _name,		\
 		.of_match		= of_match_ptr(_of),	\
-		.regulators_node	= "regulators",		\
+		.regulators_analde	= "regulators",		\
 		.id			= _id,			\
 		.ops			= &_ops,		\
 		.n_voltages		= _nv,			\
@@ -281,14 +281,14 @@ static int bd9571mwv_regulator_probe(struct platform_device *pdev)
 
 	bdreg = devm_kzalloc(&pdev->dev, sizeof(*bdreg), GFP_KERNEL);
 	if (!bdreg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bdreg->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 
 	platform_set_drvdata(pdev, bdreg);
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = pdev->dev.parent->of_node;
+	config.dev->of_analde = pdev->dev.parent->of_analde;
 	config.driver_data = bdreg;
 	config.regmap = bdreg->regmap;
 
@@ -306,7 +306,7 @@ static int bd9571mwv_regulator_probe(struct platform_device *pdev)
 	}
 
 	val = 0;
-	of_property_read_u32(config.dev->of_node, "rohm,ddr-backup-power", &val);
+	of_property_read_u32(config.dev->of_analde, "rohm,ddr-backup-power", &val);
 	if (val & ~BD9571MWV_BKUP_MODE_CNT_KEEPON_MASK) {
 		dev_err(&pdev->dev, "invalid %s mode %u\n",
 			"rohm,ddr-backup-power", val);
@@ -314,9 +314,9 @@ static int bd9571mwv_regulator_probe(struct platform_device *pdev)
 	}
 	bdreg->bkup_mode_cnt_keepon = val;
 
-	bdreg->rstbmode_level = of_property_read_bool(config.dev->of_node,
+	bdreg->rstbmode_level = of_property_read_bool(config.dev->of_analde,
 						      "rohm,rstbmode-level");
-	bdreg->rstbmode_pulse = of_property_read_bool(config.dev->of_node,
+	bdreg->rstbmode_pulse = of_property_read_bool(config.dev->of_analde,
 						      "rohm,rstbmode-pulse");
 	if (bdreg->rstbmode_level && bdreg->rstbmode_pulse) {
 		dev_err(&pdev->dev, "only one rohm,rstbmode-* may be specified");
@@ -352,7 +352,7 @@ MODULE_DEVICE_TABLE(platform, bd9571mwv_regulator_id_table);
 static struct platform_driver bd9571mwv_regulator_driver = {
 	.driver = {
 		.name = "bd9571mwv-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm = DEV_PM_OPS,
 	},
 	.probe = bd9571mwv_regulator_probe,

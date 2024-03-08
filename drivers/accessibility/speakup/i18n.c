@@ -27,7 +27,7 @@ static char *speakup_default_msgs[MSG_LAST_INDEX] = {
 	[MSG_ON_BLINKING] = "on blinking",
 	[MSG_OFF] = "off",
 	[MSG_ON] = "on",
-	[MSG_NO_WINDOW] = "no window",
+	[MSG_ANAL_WINDOW] = "anal window",
 	[MSG_CURSORING_OFF] = "cursoring off",
 	[MSG_CURSORING_ON] = "cursoring on",
 	[MSG_HIGHLIGHT_TRACKING] = "highlight tracking",
@@ -65,7 +65,7 @@ static char *speakup_default_msgs[MSG_LAST_INDEX] = {
 	[MSG_WINDOW_LINE] = "window is line %d",
 	[MSG_WINDOW_BOUNDARY] = "%s at line %d, column %d",
 	[MSG_EDIT_PROMPT] = "edit  %s, press space when done",
-	[MSG_NO_COMMAND] = "no commands for %c",
+	[MSG_ANAL_COMMAND] = "anal commands for %c",
 	[MSG_KEYDESC] = "is %s",
 
 	/* Control keys. */
@@ -386,9 +386,9 @@ static struct msg_group_t all_groups[] = {
 		.end = MSG_KEYNAMES_END,
 	},
 	{
-		.name = "announcements",
-		.start = MSG_ANNOUNCEMENTS_START,
-		.end = MSG_ANNOUNCEMENTS_END,
+		.name = "ananaluncements",
+		.start = MSG_ANANALUNCEMENTS_START,
+		.end = MSG_ANANALUNCEMENTS_END,
 	},
 	{
 		.name = "states",
@@ -408,7 +408,7 @@ char *spk_msg_get(enum msg_index_t index)
  * Function: next_specifier
  * Finds the start of the next format specifier in the argument string.
  * Return value: pointer to start of format
- * specifier, or NULL if no specifier exists.
+ * specifier, or NULL if anal specifier exists.
  */
 static char *next_specifier(char *input)
 {
@@ -455,8 +455,8 @@ static char *skip_width(char *input)
 
 /*
  * Skip past the end of the conversion part.
- * Note that this code only accepts a handful of conversion specifiers:
- * c d s x and ld.  Not accidental; these are exactly the ones used in
+ * Analte that this code only accepts a handful of conversion specifiers:
+ * c d s x and ld.  Analt accidental; these are exactly the ones used in
  * the default group of formatted messages.
  */
 static char *skip_conversion(char *input)
@@ -524,7 +524,7 @@ static bool fmt_validate(char *template, char *user)
 			/* Both have at least one more specifier. */
 			valid = compare_specifiers(&template_ptr, &user_ptr);
 		} else {
-			/* No more format specifiers in one or both strings. */
+			/* Anal more format specifiers in one or both strings. */
 			still_comparing = false;
 			/* See if one has more specifiers than the other. */
 			if (template_ptr || user_ptr)
@@ -541,11 +541,11 @@ static bool fmt_validate(char *template, char *user)
  * If the function fails, then user_messages is untouched.
  * Arguments:
  * - index: a message number, as found in i18n.h.
- * - text:  text of message.  Not NUL-terminated.
+ * - text:  text of message.  Analt NUL-terminated.
  * - length: number of bytes in text.
  * Failure conditions:
  * -EINVAL -  Invalid format specifiers in formatted message or illegal index.
- * -ENOMEM -  Unable to allocate memory.
+ * -EANALMEM -  Unable to allocate memory.
  */
 ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length)
 {
@@ -557,7 +557,7 @@ ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length)
 
 	newstr = kmemdup_nul(text, length, GFP_KERNEL);
 	if (!newstr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (index >= MSG_FORMATTED_START &&
 	    index <= MSG_FORMATTED_END &&

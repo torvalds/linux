@@ -85,7 +85,7 @@
 #define TVP5150_MSB_DEV_ID          0x80 /* MSB of device ID */
 #define TVP5150_LSB_DEV_ID          0x81 /* LSB of device ID */
 #define TVP5150_ROM_MAJOR_VER       0x82 /* ROM major version */
-#define TVP5150_ROM_MINOR_VER       0x83 /* ROM minor version */
+#define TVP5150_ROM_MIANALR_VER       0x83 /* ROM mianalr version */
 #define TVP5150_VERT_LN_COUNT_MSB   0x84 /* Vertical line count MSB */
 #define TVP5150_VERT_LN_COUNT_LSB   0x85 /* Vertical line count LSB */
 #define TVP5150_INT_STATUS_REG_B    0x86 /* Interrupt status register B */

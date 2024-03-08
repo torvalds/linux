@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/highmem.h>
@@ -71,7 +71,7 @@ static int kvm_mkclean_pte(kvm_pte_t *pte, phys_addr_t addr, kvm_ptw_ctx *ctx)
 	}
 
 	/*
-	 * Need not split huge page now, just set write-proect pte bit
+	 * Need analt split huge page analw, just set write-proect pte bit
 	 * Split huge page until next write fault
 	 */
 	if (kvm_pte_dirty(val)) {
@@ -144,7 +144,7 @@ static void _kvm_pte_init(void *addr, unsigned long val)
  *
  * Walk the page tables of kvm to find the PTE corresponding to the
  * address @addr. If page tables don't exist for @addr, they will be created
- * from the MMU cache if @cache is not NULL.
+ * from the MMU cache if @cache is analt NULL.
  */
 static kvm_pte_t *kvm_populate_gpa(struct kvm *kvm,
 				struct kvm_mmu_memory_cache *cache,
@@ -157,7 +157,7 @@ static kvm_pte_t *kvm_populate_gpa(struct kvm *kvm,
 	child = kvm->arch.pgd;
 	while (ctx.level > level) {
 		entry = kvm_pgtable_offset(&ctx, child, addr);
-		if (kvm_pte_none(&ctx, entry)) {
+		if (kvm_pte_analne(&ctx, entry)) {
 			if (!cache)
 				return NULL;
 
@@ -284,7 +284,7 @@ static int kvm_ptw_top(kvm_pte_t *dir, phys_addr_t addr, phys_addr_t end, kvm_pt
  * @kvm:	KVM pointer.
  * @start_gfn:	Guest frame number of first page in GPA range to flush.
  * @end_gfn:	Guest frame number of last page in GPA range to flush.
- * @lock:	Whether to hold mmu_lock or not
+ * @lock:	Whether to hold mmu_lock or analt
  *
  * Flushes a range of GPA mappings from the GPA page tables.
  */
@@ -389,7 +389,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm, const struct kvm_memory_slot
 	 * VM GPA address space
 	 */
 	if ((new->base_gfn + new->npages) > (kvm->arch.gpa_size >> PAGE_SHIFT))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new->arch.flags = 0;
 	size = new->npages * PAGE_SIZE;
@@ -401,7 +401,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm, const struct kvm_memory_slot
 	else {
 		/*
 		 * Pages belonging to memslots that don't have the same
-		 * alignment within a PMD for userspace and GPA cannot be
+		 * alignment within a PMD for userspace and GPA cananalt be
 		 * mapped with PMD entries, because we'll end up mapping
 		 * the wrong pages.
 		 *
@@ -449,8 +449,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 * If dirty page logging is enabled, write protect all pages in the slot
 	 * ready for dirty logging.
 	 *
-	 * There is no need to do this in any of the following cases:
-	 * CREATE:	No dirty mappings will already exist.
+	 * There is anal need to do this in any of the following cases:
+	 * CREATE:	Anal dirty mappings will already exist.
 	 * MOVE/DELETE:	The old mappings will already have been cleaned up by
 	 *		kvm_arch_flush_shadow_memslot()
 	 */
@@ -476,7 +476,7 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm, struct kvm_memory_slot *slot
 {
 	/*
 	 * The slot has been made invalid (ready for moving or deletion), so we
-	 * need to ensure that it can no longer be accessed by any guest vCPUs.
+	 * need to ensure that it can anal longer be accessed by any guest vCPUs.
 	 */
 	kvm_flush_range(kvm, slot->base_gfn, slot->base_gfn + slot->npages, 1);
 }
@@ -596,7 +596,7 @@ static int kvm_map_page_fast(struct kvm_vcpu *vcpu, unsigned long gpa, bool writ
 
 		if (kvm_pte_huge(new)) {
 			/*
-			 * Do not set write permission when dirty logging is
+			 * Do analt set write permission when dirty logging is
 			 * enabled for HugePages
 			 */
 			slot = gfn_to_memslot(kvm, gfn);
@@ -653,14 +653,14 @@ static bool fault_supports_huge_mapping(struct kvm_memory_slot *memslot,
 	end = start + memslot->npages * PAGE_SIZE;
 
 	/*
-	 * Next, let's make sure we're not trying to map anything not covered
+	 * Next, let's make sure we're analt trying to map anything analt covered
 	 * by the memslot. This means we have to prohibit block size mappings
-	 * for the beginning and end of a non-block aligned and non-block sized
+	 * for the beginning and end of a analn-block aligned and analn-block sized
 	 * memory slot (illustrated by the head and tail parts of the
 	 * userspace view above containing pages 'abcde' and 'xyz',
 	 * respectively).
 	 *
-	 * Note that it doesn't matter if we do the check using the
+	 * Analte that it doesn't matter if we do the check using the
 	 * userspace_addr or the base_gfn, as both are equally aligned (per
 	 * the check above) and equally sized.
 	 */
@@ -671,25 +671,25 @@ static bool fault_supports_huge_mapping(struct kvm_memory_slot *memslot,
  * Lookup the mapping level for @gfn in the current mm.
  *
  * WARNING!  Use of host_pfn_mapping_level() requires the caller and the end
- * consumer to be tied into KVM's handlers for MMU notifier events!
+ * consumer to be tied into KVM's handlers for MMU analtifier events!
  *
  * There are several ways to safely use this helper:
  *
  * - Check mmu_invalidate_retry_gfn() after grabbing the mapping level, before
  *   consuming it.  In this case, mmu_lock doesn't need to be held during the
- *   lookup, but it does need to be held while checking the MMU notifier.
+ *   lookup, but it does need to be held while checking the MMU analtifier.
  *
- * - Hold mmu_lock AND ensure there is no in-progress MMU notifier invalidation
- *   event for the hva.  This can be done by explicit checking the MMU notifier
+ * - Hold mmu_lock AND ensure there is anal in-progress MMU analtifier invalidation
+ *   event for the hva.  This can be done by explicit checking the MMU analtifier
  *   or by ensuring that KVM already has a valid mapping that covers the hva.
  *
- * - Do not use the result to install new mappings, e.g. use the host mapping
- *   level only to decide whether or not to zap an entry.  In this case, it's
- *   not required to hold mmu_lock (though it's highly likely the caller will
+ * - Do analt use the result to install new mappings, e.g. use the host mapping
+ *   level only to decide whether or analt to zap an entry.  In this case, it's
+ *   analt required to hold mmu_lock (though it's highly likely the caller will
  *   want to hold mmu_lock anyways, e.g. to modify SPTEs).
  *
- * Note!  The lookup can still race with modifications to host page tables, but
- * the above "rules" ensure KVM will not _consume_ the result of the walk if a
+ * Analte!  The lookup can still race with modifications to host page tables, but
+ * the above "rules" ensure KVM will analt _consume_ the result of the walk if a
  * race with the primary MMU occurs.
  */
 static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
@@ -704,8 +704,8 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
 	pmd_t pmd;
 
 	/*
-	 * Note, using the already-retrieved memslot and __gfn_to_hva_memslot()
-	 * is not solely for performance, it's also necessary to avoid the
+	 * Analte, using the already-retrieved memslot and __gfn_to_hva_memslot()
+	 * is analt solely for performance, it's also necessary to avoid the
 	 * "writable" check in __gfn_to_hva_many(), which will always fail on
 	 * read-only memslots due to gfn_to_hva() assuming writes.  Earlier
 	 * page fault steps have already verified the guest isn't writing a
@@ -721,26 +721,26 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
 	local_irq_save(flags);
 
 	/*
-	 * Read each entry once.  As above, a non-leaf entry can be promoted to
+	 * Read each entry once.  As above, a analn-leaf entry can be promoted to
 	 * a huge page _during_ this walk.  Re-reading the entry could send the
 	 * walk into the weeks, e.g. p*d_large() returns false (sees the old
 	 * value) and then p*d_offset() walks into the target huge page instead
 	 * of the old page table (sees the new value).
 	 */
 	pgd = READ_ONCE(*pgd_offset(kvm->mm, hva));
-	if (pgd_none(pgd))
+	if (pgd_analne(pgd))
 		goto out;
 
 	p4d = READ_ONCE(*p4d_offset(&pgd, hva));
-	if (p4d_none(p4d) || !p4d_present(p4d))
+	if (p4d_analne(p4d) || !p4d_present(p4d))
 		goto out;
 
 	pud = READ_ONCE(*pud_offset(&p4d, hva));
-	if (pud_none(pud) || !pud_present(pud))
+	if (pud_analne(pud) || !pud_present(pud))
 		goto out;
 
 	pmd = READ_ONCE(*pmd_offset(&pud, hva));
-	if (pmd_none(pmd) || !pmd_present(pmd))
+	if (pmd_analne(pmd) || !pmd_present(pmd))
 		goto out;
 
 	if (kvm_pte_huge(pmd_val(pmd)))
@@ -793,14 +793,14 @@ static kvm_pte_t *kvm_split_huge(struct kvm_vcpu *vcpu, kvm_pte_t *ptep, gfn_t g
  * caller.
  *
  * Returns:	0 on success
- *		-EFAULT if there is no memory region at @gpa or a write was
+ *		-EFAULT if there is anal memory region at @gpa or a write was
  *		attempted to a read-only memory region. This is usually handled
  *		as an MMIO access.
  */
 static int kvm_map_page(struct kvm_vcpu *vcpu, unsigned long gpa, bool write)
 {
 	bool writeable;
-	int srcu_idx, err, retry_no = 0, level;
+	int srcu_idx, err, retry_anal = 0, level;
 	unsigned long hva, mmu_seq, prot_bits;
 	kvm_pfn_t pfn;
 	kvm_pte_t *ptep, new_pte;
@@ -837,7 +837,7 @@ retry:
 	 * Ensure the read of mmu_invalidate_seq isn't reordered with PTE reads in
 	 * gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
 	 * risk the page we get a reference to getting unmapped before we have a
-	 * chance to grab the mmu_lock without mmu_invalidate_retry() noticing.
+	 * chance to grab the mmu_lock without mmu_invalidate_retry() analticing.
 	 *
 	 * This smp_rmb() pairs with the effective smp_wmb() of the combination
 	 * of the pte_unmap_unlock() after the PTE is zapped, and the
@@ -848,7 +848,7 @@ retry:
 
 	/* Slow path - ask KVM core whether we can access this GPA */
 	pfn = gfn_to_pfn_prot(kvm, gfn, write, &writeable);
-	if (is_error_noslot_pfn(pfn)) {
+	if (is_error_analslot_pfn(pfn)) {
 		err = -EFAULT;
 		goto out;
 	}
@@ -857,17 +857,17 @@ retry:
 	spin_lock(&kvm->mmu_lock);
 	if (mmu_invalidate_retry_gfn(kvm, mmu_seq, gfn)) {
 		/*
-		 * This can happen when mappings are changed asynchronously, but
-		 * also synchronously if a COW is triggered by
+		 * This can happen when mappings are changed asynchroanalusly, but
+		 * also synchroanalusly if a COW is triggered by
 		 * gfn_to_pfn_prot().
 		 */
 		spin_unlock(&kvm->mmu_lock);
 		kvm_release_pfn_clean(pfn);
-		if (retry_no > 100) {
-			retry_no = 0;
+		if (retry_anal > 100) {
+			retry_anal = 0;
 			schedule();
 		}
-		retry_no++;
+		retry_anal++;
 		goto retry;
 	}
 

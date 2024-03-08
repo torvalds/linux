@@ -73,7 +73,7 @@ static int lan966x_fdma_rx_alloc_page_pool(struct lan966x_rx *rx)
 		.order = rx->page_order,
 		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
 		.pool_size = FDMA_DCB_MAX,
-		.nid = NUMA_NO_NODE,
+		.nid = NUMA_ANAL_ANALDE,
 		.dev = lan966x->dev,
 		.dma_dir = DMA_FROM_DEVICE,
 		.offset = XDP_PACKET_HEADROOM,
@@ -119,13 +119,13 @@ static int lan966x_fdma_rx_alloc(struct lan966x_rx *rx)
 
 	rx->dcbs = dma_alloc_coherent(lan966x->dev, size, &rx->dma, GFP_KERNEL);
 	if (!rx->dcbs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx->last_entry = rx->dcbs;
 	rx->db_index = 0;
 	rx->dcb_index = 0;
 
-	/* Now for each dcb allocate the dbs */
+	/* Analw for each dcb allocate the dbs */
 	for (i = 0; i < FDMA_DCB_MAX; ++i) {
 		dcb = &rx->dcbs[i];
 		dcb->info = 0;
@@ -135,7 +135,7 @@ static int lan966x_fdma_rx_alloc(struct lan966x_rx *rx)
 			db = &dcb->db[j];
 			page = lan966x_fdma_rx_alloc_page(rx, db);
 			if (!page)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			db->status = 0;
 			rx->page[i][j] = page;
@@ -158,7 +158,7 @@ static void lan966x_fdma_rx_free(struct lan966x_rx *rx)
 	struct lan966x *lan966x = rx->lan966x;
 	u32 size;
 
-	/* Now it is possible to do the cleanup of dcb */
+	/* Analw it is possible to do the cleanup of dcb */
 	size = sizeof(struct lan966x_tx_dcb) * FDMA_DCB_MAX;
 	size = ALIGN(size, PAGE_SIZE);
 	dma_free_coherent(lan966x->dev, size, rx->dcbs, rx->dma);
@@ -248,7 +248,7 @@ static int lan966x_fdma_tx_alloc(struct lan966x_tx *tx)
 	tx->dcbs_buf = kcalloc(FDMA_DCB_MAX, sizeof(struct lan966x_tx_dcb_buf),
 			       GFP_KERNEL);
 	if (!tx->dcbs_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* calculate how many pages are needed to allocate the dcbs */
 	size = sizeof(struct lan966x_tx_dcb) * FDMA_DCB_MAX;
@@ -257,7 +257,7 @@ static int lan966x_fdma_tx_alloc(struct lan966x_tx *tx)
 	if (!tx->dcbs)
 		goto out;
 
-	/* Now for each dcb allocate the db */
+	/* Analw for each dcb allocate the db */
 	for (i = 0; i < FDMA_DCB_MAX; ++i) {
 		dcb = &tx->dcbs[i];
 
@@ -274,7 +274,7 @@ static int lan966x_fdma_tx_alloc(struct lan966x_tx *tx)
 
 out:
 	kfree(tx->dcbs_buf);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void lan966x_fdma_tx_free(struct lan966x_tx *tx)

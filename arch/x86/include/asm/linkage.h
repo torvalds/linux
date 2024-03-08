@@ -5,8 +5,8 @@
 #include <linux/stringify.h>
 #include <asm/ibt.h>
 
-#undef notrace
-#define notrace __attribute__((no_instrument_function))
+#undef analtrace
+#define analtrace __attribute__((anal_instrument_function))
 
 #ifdef CONFIG_64BIT
 /*
@@ -98,7 +98,7 @@
 #endif
 
 #define __CFI_TYPE(name)					\
-	SYM_START(__cfi_##name, SYM_L_LOCAL, SYM_A_NONE)	\
+	SYM_START(__cfi_##name, SYM_L_LOCAL, SYM_A_ANALNE)	\
 	CFI_PRE_PADDING						\
 	.byte 0xb8 ASM_NL					\
 	.long __kcfi_typeid_##name ASM_NL			\
@@ -122,9 +122,9 @@
 	SYM_START(name, SYM_L_GLOBAL, SYM_F_ALIGN)	\
 	ENDBR
 
-/* SYM_FUNC_START_NOALIGN -- use for global functions, w/o alignment */
-#define SYM_FUNC_START_NOALIGN(name)			\
-	SYM_START(name, SYM_L_GLOBAL, SYM_A_NONE)	\
+/* SYM_FUNC_START_ANALALIGN -- use for global functions, w/o alignment */
+#define SYM_FUNC_START_ANALALIGN(name)			\
+	SYM_START(name, SYM_L_GLOBAL, SYM_A_ANALNE)	\
 	ENDBR
 
 /* SYM_FUNC_START_LOCAL -- use for local functions */
@@ -132,9 +132,9 @@
 	SYM_START(name, SYM_L_LOCAL, SYM_F_ALIGN)	\
 	ENDBR
 
-/* SYM_FUNC_START_LOCAL_NOALIGN -- use for local functions, w/o alignment */
-#define SYM_FUNC_START_LOCAL_NOALIGN(name)		\
-	SYM_START(name, SYM_L_LOCAL, SYM_A_NONE)	\
+/* SYM_FUNC_START_LOCAL_ANALALIGN -- use for local functions, w/o alignment */
+#define SYM_FUNC_START_LOCAL_ANALALIGN(name)		\
+	SYM_START(name, SYM_L_LOCAL, SYM_A_ANALNE)	\
 	ENDBR
 
 /* SYM_FUNC_START_WEAK -- use for weak functions */
@@ -142,9 +142,9 @@
 	SYM_START(name, SYM_L_WEAK, SYM_F_ALIGN)	\
 	ENDBR
 
-/* SYM_FUNC_START_WEAK_NOALIGN -- use for weak functions, w/o alignment */
-#define SYM_FUNC_START_WEAK_NOALIGN(name)		\
-	SYM_START(name, SYM_L_WEAK, SYM_A_NONE)		\
+/* SYM_FUNC_START_WEAK_ANALALIGN -- use for weak functions, w/o alignment */
+#define SYM_FUNC_START_WEAK_ANALALIGN(name)		\
+	SYM_START(name, SYM_L_WEAK, SYM_A_ANALNE)		\
 	ENDBR
 
 #endif /* _ASM_X86_LINKAGE_H */

@@ -1,9 +1,9 @@
 MediaTek MT6380 Regulator
 
 All voltage regulators provided by the MT6380 PMIC are described as the
-subnodes of the MT6380 regulators node. Each regulator is named according
+subanaldes of the MT6380 regulators analde. Each regulator is named according
 to its regulator type, buck-<name> and ldo-<name>. The definition for each
-of these nodes is defined using the standard binding for regulators at
+of these analdes is defined using the standard binding for regulators at
 Documentation/devicetree/bindings/regulator/regulator.txt.
 
 The valid names for regulators are:

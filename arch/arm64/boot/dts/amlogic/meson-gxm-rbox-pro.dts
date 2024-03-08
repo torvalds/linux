@@ -17,7 +17,7 @@
 #include <dt-bindings/sound/meson-aiu.h>
 
 / {
-	compatible = "kingnovel,r-box-pro", "amlogic,s912", "amlogic,meson-gxm";
+	compatible = "kinganalvel,r-box-pro", "amlogic,s912", "amlogic,meson-gxm";
 	model = "R-Box Pro";
 
 	aliases {
@@ -204,7 +204,7 @@
 	cap-sd-highspeed;
 	max-frequency = <50000000>;
 
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power to be kept while in suspend */
@@ -247,7 +247,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;

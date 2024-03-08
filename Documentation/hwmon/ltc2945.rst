@@ -3,7 +3,7 @@ Kernel driver ltc2945
 
 Supported chips:
 
-  * Linear Technology LTC2945
+  * Linear Techanallogy LTC2945
 
     Prefix: 'ltc2945'
 
@@ -23,10 +23,10 @@ The LTC2945  is a rail-to-rail system monitor that measures current, voltage,
 and power consumption.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for LTC2945 devices, since there is no register
+This driver does analt probe for LTC2945 devices, since there is anal register
 which can be safely used to identify the chip. You will have to instantiate
 the devices explicitly.
 

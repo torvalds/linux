@@ -30,7 +30,7 @@ properties:
       Fabric Interface Controllers, FICs, are the interface between the FPGA
       fabric and the core complex on PolarFire SoC. The FICs require two clocks,
       one from each side of the interface. The "FIC clocks" described by this
-      property are on the core complex side & communication through a FIC is not
+      property are on the core complex side & communication through a FIC is analt
       possible unless it's corresponding clock is enabled. A clock must be
       enabled for each of the interfaces the root port is connected through.
       This could in theory be all 4 interfaces, one interface or any combination
@@ -72,7 +72,7 @@ properties:
     maxItems: 6
 
   msi-controller:
-    description: Identifies the node as an MSI controller.
+    description: Identifies the analde as an MSI controller.
 
   msi-parent:
     description: MSI controller the device is capable of using.

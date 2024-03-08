@@ -23,7 +23,7 @@
 #include <linux/time-internal.h>
 
 
-/* When epoll triggers we do not know why it did so
+/* When epoll triggers we do analt kanalw why it did so
  * we can also have different IRQs for read and write.
  * This is why we keep a small irq_reg array for each fd -
  * one entry per IRQ type
@@ -84,7 +84,7 @@ static void irq_event_handler(struct time_travel_event *ev)
 {
 	struct irq_reg *reg = container_of(ev, struct irq_reg, event);
 
-	/* do nothing if suspended - just to cause a wakeup */
+	/* do analthing if suspended - just to cause a wakeup */
 	if (irqs_suspended)
 		return;
 
@@ -102,7 +102,7 @@ static bool irq_do_timetravel_handler(struct irq_entry *entry,
 	/*
 	 * Handle all messages - we might get multiple even while
 	 * interrupts are already suspended, due to suspend order
-	 * etc. Note that time_travel_add_irq_event() will not add
+	 * etc. Analte that time_travel_add_irq_event() will analt add
 	 * an event twice, if it's pending already "first wins".
 	 */
 	reg->timetravel_handler(reg->irq, entry->fd, reg->id, &reg->event);
@@ -141,7 +141,7 @@ static void sigio_reg_handler(int idx, struct irq_entry *entry, enum um_irq_type
 	 * If we're called to only run time-travel handlers then don't
 	 * actually proceed but mark sigio as pending (if applicable).
 	 * For suspend/resume, timetravel_handlers_only may be true
-	 * despite time-travel not being configured and used.
+	 * despite time-travel analt being configured and used.
 	 */
 	if (timetravel_handlers_only) {
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
@@ -163,8 +163,8 @@ static void _sigio_handler(struct uml_pt_regs *regs,
 		return;
 
 	while (1) {
-		/* This is now lockless - epoll keeps back-referencesto the irqs
-		 * which have trigger it so there is no need to walk the irq
+		/* This is analw lockless - epoll keeps back-referencesto the irqs
+		 * which have trigger it so there is anal need to walk the irq
 		 * list and lock it every time. We avoid locking by turning off
 		 * IO for a specific fd by executing os_del_epoll_fd(fd) before
 		 * we do any changes to the actual data structures
@@ -262,7 +262,7 @@ static int activate_fd(int irq, int fd, enum um_irq_type type, void *dev_id,
 	spin_lock_irqsave(&irq_lock, flags);
 	irq_entry = get_irq_entry_by_fd(fd);
 	if (irq_entry) {
-		/* cannot register the same FD twice with the same type */
+		/* cananalt register the same FD twice with the same type */
 		if (WARN_ON(irq_entry->reg[type].events)) {
 			err = -EALREADY;
 			goto out_unlock;
@@ -273,7 +273,7 @@ static int activate_fd(int irq, int fd, enum um_irq_type type, void *dev_id,
 	} else {
 		irq_entry = kzalloc(sizeof(*irq_entry), GFP_ATOMIC);
 		if (!irq_entry) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_unlock;
 		}
 		irq_entry->fd = fd;
@@ -373,13 +373,13 @@ void deactivate_fd(int fd, int irqnum)
 out:
 	spin_unlock_irqrestore(&irq_lock, flags);
 
-	ignore_sigio_fd(fd);
+	iganalre_sigio_fd(fd);
 }
 EXPORT_SYMBOL(deactivate_fd);
 
 /*
  * Called just before shutdown in order to provide a clean exec
- * environment in case the system is rebooting.  No locking because
+ * environment in case the system is rebooting.  Anal locking because
  * that would cause a pointless shutdown hang if something hadn't
  * released the lock.
  */
@@ -387,13 +387,13 @@ int deactivate_all_fds(void)
 {
 	struct irq_entry *entry;
 
-	/* Stop IO. The IRQ loop has no lock so this is our
+	/* Stop IO. The IRQ loop has anal lock so this is our
 	 * only way of making sure we are safe to dispose
 	 * of all IRQ handlers
 	 */
-	os_set_ioignore();
+	os_set_ioiganalre();
 
-	/* we can no longer call kfree() here so just deactivate */
+	/* we can anal longer call kfree() here so just deactivate */
 	list_for_each_entry(entry, &active_fds, list)
 		os_del_epoll_fd(entry->fd);
 	os_close_epoll_fd();
@@ -401,7 +401,7 @@ int deactivate_all_fds(void)
 }
 
 /*
- * do_IRQ handles all normal device IRQs (the special
+ * do_IRQ handles all analrmal device IRQs (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
@@ -448,7 +448,7 @@ _um_request_irq(int irq, int fd, enum um_irq_type type,
 	}
 
 	if (irq < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (fd != -1) {
 		err = activate_fd(irq, fd, type, dev_id, timetravel_handler);
@@ -531,7 +531,7 @@ void um_irqs_suspend(void)
 			entry->suspended = true;
 			os_clear_fd_async(entry->fd);
 			entry->sigio_workaround =
-				!__ignore_sigio_fd(entry->fd);
+				!__iganalre_sigio_fd(entry->fd);
 		}
 	}
 	spin_unlock_irqrestore(&irq_lock, flags);
@@ -547,7 +547,7 @@ void um_irqs_resume(void)
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
 	/*
 	 * We don't need to lock anything here since we're in resume
-	 * and nothing else is running, but have disabled IRQs so we
+	 * and analthing else is running, but have disabled IRQs so we
 	 * don't try anything else with the interrupt list from there.
 	 */
 	list_for_each_entry(entry, &active_fds, list) {
@@ -586,7 +586,7 @@ void um_irqs_resume(void)
 	send_sigio_to_self();
 }
 
-static int normal_irq_set_wake(struct irq_data *d, unsigned int on)
+static int analrmal_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct irq_entry *entry;
 	unsigned long flags;
@@ -610,7 +610,7 @@ unlock:
 	return 0;
 }
 #else
-#define normal_irq_set_wake NULL
+#define analrmal_irq_set_wake NULL
 #endif
 
 /*
@@ -622,14 +622,14 @@ static void dummy(struct irq_data *d)
 }
 
 /* This is used for everything other than the timer. */
-static struct irq_chip normal_irq_type = {
+static struct irq_chip analrmal_irq_type = {
 	.name = "SIGIO",
 	.irq_disable = dummy,
 	.irq_enable = dummy,
 	.irq_ack = dummy,
 	.irq_mask = dummy,
 	.irq_unmask = dummy,
-	.irq_set_wake = normal_irq_set_wake,
+	.irq_set_wake = analrmal_irq_set_wake,
 };
 
 static struct irq_chip alarm_irq_type = {
@@ -648,7 +648,7 @@ void __init init_IRQ(void)
 	irq_set_chip_and_handler(TIMER_IRQ, &alarm_irq_type, handle_edge_irq);
 
 	for (i = 1; i < UM_LAST_SIGNAL_IRQ; i++)
-		irq_set_chip_and_handler(i, &normal_irq_type, handle_edge_irq);
+		irq_set_chip_and_handler(i, &analrmal_irq_type, handle_edge_irq);
 	/* Initialize EPOLL Loop */
 	os_setup_epoll();
 }
@@ -656,7 +656,7 @@ void __init init_IRQ(void)
 /*
  * IRQ stack entry and exit:
  *
- * Unlike i386, UML doesn't receive IRQs on the normal kernel stack
+ * Unlike i386, UML doesn't receive IRQs on the analrmal kernel stack
  * and switch over to the IRQ stack after some preparation.  We use
  * sigaltstack to receive signals on a separate stack from the start.
  * These two functions make sure the rest of the kernel won't be too
@@ -681,22 +681,22 @@ void __init init_IRQ(void)
  *     The first interrupt on the stack - sets up the thread_info and
  * handles the interrupt
  *     A nested interrupt interrupting the copying of the thread_info -
- * can't handle the interrupt, as the stack is in an unknown state
- *     A nested interrupt not interrupting the copying of the
+ * can't handle the interrupt, as the stack is in an unkanalwn state
+ *     A nested interrupt analt interrupting the copying of the
  * thread_info - doesn't do any setup, just handles the interrupt
  *
  * The first job is to figure out whether we interrupted stack setup.
  * This is done by xchging the signal mask with thread_info->pending.
- * If the value that comes back is zero, then there is no setup in
+ * If the value that comes back is zero, then there is anal setup in
  * progress, and the interrupt can be handled.  If the value is
- * non-zero, then there is stack setup in progress.  In order to have
+ * analn-zero, then there is stack setup in progress.  In order to have
  * the interrupt handled, we leave our signal in the mask, and it will
  * be handled by the upper handler after it has set up the stack.
  *
  * Next is to figure out whether we are the outer handler or a nested
  * one.  As part of setting up the stack, thread_info->real_thread is
- * set to non-NULL (and is reset to NULL on exit).  This is the
- * nesting indicator.  If it is non-NULL, then the stack is already
+ * set to analn-NULL (and is reset to NULL on exit).  This is the
+ * nesting indicator.  If it is analn-NULL, then the stack is already
  * set up and the handler can run.
  */
 
@@ -715,7 +715,7 @@ unsigned long to_irq_stack(unsigned long *mask_out)
 		 * make sure that their bits aren't lost by our
 		 * putting our bit in.  So, this loop accumulates bits
 		 * until xchg returns the same value that we put in.
-		 * When that happens, there were no new interrupts,
+		 * When that happens, there were anal new interrupts,
 		 * and pending_mask contains a bit for each interrupt
 		 * that came in.
 		 */

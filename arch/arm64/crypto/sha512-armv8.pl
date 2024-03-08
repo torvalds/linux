@@ -11,7 +11,7 @@
 
 # Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the OpenSSL license (the "License").  You may analt use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -42,13 +42,13 @@
 #	10% (or by 1 cycle per round), but at the cost of 20% loss
 #	on Cortex-A53 (or by 4 cycles per round).
 # (***)	Super-impressive coefficients over gcc-generated code are
-#	indication of some compiler "pathology", most notably code
+#	indication of some compiler "pathology", most analtably code
 #	generated with -mgeneral-regs-only is significantly faster
 #	and the gap is only 40-90%.
 #
 # October 2016.
 #
-# Originally it was reckoned that it makes no sense to implement NEON
+# Originally it was reckoned that it makes anal sense to implement NEON
 # version of SHA256 for 64-bit processors. This is because performance
 # improvement on most wide-spread Cortex-A5x processors was observed
 # to be marginal, same on Cortex-A53 and ~10% on A57. But then it was
@@ -133,9 +133,9 @@ ___
 # 'eor x,y,z,ror#n', it was found to negatively affect performance
 # on Apple A7. The reason seems to be that it requires even 'y' to
 # be available earlier. This means that such merged instruction is
-# not necessarily best choice on critical path... On the other hand
+# analt necessarily best choice on critical path... On the other hand
 # Cortex-A5x handles merged instructions much better than disjoint
-# rotate and logical... See (**) footnote above.
+# rotate and logical... See (**) footanalte above.
 $code.=<<___	if ($i<15);
 	ror	$t0,$e,#$Sigma1[0]
 	add	$h,$h,$t2			// h+=K[i]
@@ -450,8 +450,8 @@ ___
 }
 
 if ($SZ==4) {	######################################### NEON stuff #
-# You'll surely note a lot of similarities with sha256-armv4 module,
-# and of course it's not a coincidence. sha256-armv4 was used as
+# You'll surely analte a lot of similarities with sha256-armv4 module,
+# and of course it's analt a coincidence. sha256-armv4 was used as
 # initial template, but was adapted for ARMv8 instruction set and
 # extensively re-tuned for all-round performance.
 
@@ -659,7 +659,7 @@ sha256_block_neon:
 	ld1.32	{$T1},[$Ktbl], #16
 	ld1.32	{$T2},[$Ktbl], #16
 	ld1.32	{$T3},[$Ktbl], #16
-	rev32	@X[0],@X[0]		// yes, even on
+	rev32	@X[0],@X[0]		// anal, even on
 	rev32	@X[1],@X[1]		// big-endian
 	rev32	@X[2],@X[2]
 	rev32	@X[3],@X[3]

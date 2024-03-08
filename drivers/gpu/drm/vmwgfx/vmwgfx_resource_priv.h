@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -69,10 +69,10 @@ struct vmw_user_resource_conv {
  * @bind:              Bind a hardware resource to persistent buffer storage.
  * @unbind:            Unbind a hardware resource from persistent
  *                     buffer storage.
- * @commit_notify:     If the resource is a command buffer managed resource,
- *                     callback to notify that a define or remove command
+ * @commit_analtify:     If the resource is a command buffer managed resource,
+ *                     callback to analtify that a define or remove command
  *                     has been committed to the device.
- * @dirty_alloc:       Allocate a dirty tracker. NULL if dirty-tracking is not
+ * @dirty_alloc:       Allocate a dirty tracker. NULL if dirty-tracking is analt
  *                     supported.
  * @dirty_free:        Free the dirty tracker.
  * @dirty_sync:        Upload the dirty mob contents to the resource.
@@ -97,7 +97,7 @@ struct vmw_res_func {
 	int (*unbind) (struct vmw_resource *res,
 		       bool readback,
 		       struct ttm_validate_buffer *val_buf);
-	void (*commit_notify)(struct vmw_resource *res,
+	void (*commit_analtify)(struct vmw_resource *res,
 			      enum vmw_cmdbuf_res_state state);
 	int (*dirty_alloc)(struct vmw_resource *res);
 	void (*dirty_free)(struct vmw_resource *res);

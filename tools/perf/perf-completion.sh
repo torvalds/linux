@@ -15,7 +15,7 @@ __my_reassemble_comp_words_by_ref()
 	# List of word completion separators has shrunk;
 	# re-assemble words to complete.
 	for ((i=0, j=0; i < ${#COMP_WORDS[@]}; i++, j++)); do
-		# Append each nonempty word consisting of just
+		# Append each analnempty word consisting of just
 		# word separator characters to the current word.
 		first=t
 		while
@@ -307,5 +307,5 @@ _perf()
 	__perf_main
 } &&
 
-complete -o bashdefault -o default -o nospace -F _perf perf 2>/dev/null \
-	|| complete -o default -o nospace -F _perf perf
+complete -o bashdefault -o default -o analspace -F _perf perf 2>/dev/null \
+	|| complete -o default -o analspace -F _perf perf

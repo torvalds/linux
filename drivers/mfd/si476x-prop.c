@@ -3,10 +3,10 @@
  * drivers/mfd/si476x-prop.c -- Subroutines to access
  * properties of si476x chips
  *
- * Copyright (C) 2012 Innovative Converged Devices(ICD)
- * Copyright (C) 2013 Andrey Smirnov
+ * Copyright (C) 2012 Inanalvative Converged Devices(ICD)
+ * Copyright (C) 2013 Andrey Smiranalv
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiranalv <andrew.smiranalv@gmail.com>
  */
 #include <linux/module.h>
 

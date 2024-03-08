@@ -2,11 +2,11 @@ What:		/sys/bus/typec/devices/.../active
 Date:		July 2018
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
-		Shows if the mode is active or not. The attribute can be used
+		Shows if the mode is active or analt. The attribute can be used
 		for entering/exiting the mode. Entering/exiting modes is
-		supported as synchronous operation so write(2) to the attribute
-		does not return until the enter/exit mode operation has
-		finished. The attribute is notified when the mode is
+		supported as synchroanalus operation so write(2) to the attribute
+		does analt return until the enter/exit mode operation has
+		finished. The attribute is analtified when the mode is
 		entered/exited so poll(2) on the attribute wakes up.
 		Entering/exiting a mode will also generate uevent KOBJ_CHANGE.
 
@@ -31,9 +31,9 @@ Description:
 		for specific functionality in the specification for that
 		alternate mode.
 
-		With other alternate modes, the mode index values are not
-		assigned, and can not be therefore used for identification. When
-		the mode index is not assigned, identifying the alternate mode
+		With other alternate modes, the mode index values are analt
+		assigned, and can analt be therefore used for identification. When
+		the mode index is analt assigned, identifying the alternate mode
 		must be done with either mode VDO or the description.
 
 What:		/sys/bus/typec/devices/.../svid

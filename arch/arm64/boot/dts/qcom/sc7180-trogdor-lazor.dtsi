@@ -23,7 +23,7 @@
 
 /*
  * Lazor is stuffed with a 47k NTC as charger thermistor which currently is
- * not supported by the PM6150 ADC driver. Disable the charger thermal zone
+ * analt supported by the PM6150 ADC driver. Disable the charger thermal zone
  * to avoid using bogus temperature values.
  */
 &charger_thermal {
@@ -56,13 +56,13 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &pm6150_adc {
-	/delete-node/ channel@4f;
+	/delete-analde/ channel@4f;
 };
 
 &pm6150_adc_tm {
 	status = "disabled";
 
-	/delete-node/ charger-thermistor@0;
+	/delete-analde/ charger-thermistor@0;
 };
 
 &trackpad {
@@ -80,7 +80,7 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &ts_reset_l {
-	/* This pin is not connected on -rev0, pull up to park. */
+	/* This pin is analt connected on -rev0, pull up to park. */
 	/delete-property/bias-disable;
 	bias-pull-up;
 };

@@ -16,14 +16,14 @@
 #define PCIBIOS_MIN_MEM		16
 
 #if defined(CONFIG_PCI) && defined(CONFIG_NUMA)
-static inline int pcibus_to_node(struct pci_bus *bus)
+static inline int pcibus_to_analde(struct pci_bus *bus)
 {
-	return dev_to_node(&bus->dev);
+	return dev_to_analde(&bus->dev);
 }
 #ifndef cpumask_of_pcibus
-#define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ?		\
+#define cpumask_of_pcibus(bus)	(pcibus_to_analde(bus) == -1 ?		\
 				 cpu_all_mask :				\
-				 cpumask_of_node(pcibus_to_node(bus)))
+				 cpumask_of_analde(pcibus_to_analde(bus)))
 #endif
 #endif /* defined(CONFIG_PCI) && defined(CONFIG_NUMA) */
 

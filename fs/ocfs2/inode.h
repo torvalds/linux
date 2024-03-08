@@ -1,30 +1,30 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * inode.h
+ * ianalde.h
  *
  * Function prototypes
  *
  * Copyright (C) 2002, 2004 Oracle.  All rights reserved.
  */
 
-#ifndef OCFS2_INODE_H
-#define OCFS2_INODE_H
+#ifndef OCFS2_IANALDE_H
+#define OCFS2_IANALDE_H
 
 #include "extent_map.h"
 
-/* OCFS2 Inode Private Data */
-struct ocfs2_inode_info
+/* OCFS2 Ianalde Private Data */
+struct ocfs2_ianalde_info
 {
-	u64			ip_blkno;
+	u64			ip_blkanal;
 
 	struct ocfs2_lock_res		ip_rw_lockres;
-	struct ocfs2_lock_res		ip_inode_lockres;
+	struct ocfs2_lock_res		ip_ianalde_lockres;
 	struct ocfs2_lock_res		ip_open_lockres;
 
-	/* protects allocation changes on this inode. */
+	/* protects allocation changes on this ianalde. */
 	struct rw_semaphore		ip_alloc_sem;
 
-	/* protects extended attribute changes on this inode */
+	/* protects extended attribute changes on this ianalde */
 	struct rw_semaphore		ip_xattr_sem;
 
 	/* These fields are protected by ip_lock */
@@ -36,22 +36,22 @@ struct ocfs2_inode_info
 	u16				ip_dyn_features;
 	struct mutex			ip_io_mutex;
 	u32				ip_flags; /* see below */
-	u32				ip_attr; /* inode attributes */
+	u32				ip_attr; /* ianalde attributes */
 
 	/* Record unwritten extents during direct io. */
 	struct list_head		ip_unwritten_list;
 
 	/* protected by recovery_lock. */
-	struct inode			*ip_next_orphan;
+	struct ianalde			*ip_next_orphan;
 
 	struct ocfs2_caching_info	ip_metadata_cache;
 	struct ocfs2_extent_map		ip_extent_map;
-	struct inode			vfs_inode;
-	struct jbd2_inode		ip_jinode;
+	struct ianalde			vfs_ianalde;
+	struct jbd2_ianalde		ip_jianalde;
 
 	u32				ip_dir_start_lookup;
 
-	/* Only valid if the inode is the dir. */
+	/* Only valid if the ianalde is the dir. */
 	u32				ip_last_used_slot;
 	u64				ip_last_used_group;
 	u32				ip_dir_lock_gen;
@@ -59,7 +59,7 @@ struct ocfs2_inode_info
 	struct ocfs2_alloc_reservation	ip_la_data_resv;
 
 	/*
-	 * Transactions that contain inode's metadata needed to complete
+	 * Transactions that contain ianalde's metadata needed to complete
 	 * fsync and fdatasync, respectively.
 	 */
 	tid_t i_sync_tid;
@@ -71,52 +71,52 @@ struct ocfs2_inode_info
 /*
  * Flags for the ip_flags field
  */
-/* System file inodes  */
-#define OCFS2_INODE_SYSTEM_FILE		0x00000001
-#define OCFS2_INODE_JOURNAL		0x00000002
-#define OCFS2_INODE_BITMAP		0x00000004
-/* This inode has been wiped from disk */
-#define OCFS2_INODE_DELETED		0x00000008
-/* Has the inode been orphaned on another node?
+/* System file ianaldes  */
+#define OCFS2_IANALDE_SYSTEM_FILE		0x00000001
+#define OCFS2_IANALDE_JOURNAL		0x00000002
+#define OCFS2_IANALDE_BITMAP		0x00000004
+/* This ianalde has been wiped from disk */
+#define OCFS2_IANALDE_DELETED		0x00000008
+/* Has the ianalde been orphaned on aanalther analde?
  *
- * This hints to ocfs2_drop_inode that it should clear i_nlink before
+ * This hints to ocfs2_drop_ianalde that it should clear i_nlink before
  * continuing.
  *
- * We *only* set this on unlink vote from another node. If the inode
+ * We *only* set this on unlink vote from aanalther analde. If the ianalde
  * was locally orphaned, then we're sure of the state and don't need
- * to twiddle i_nlink later - it's either zero or not depending on
- * whether our unlink succeeded. Otherwise we got this from a node
- * whose intention was to orphan the inode, however he may have
- * crashed, failed etc, so we let ocfs2_drop_inode zero the value and
- * rely on ocfs2_delete_inode to sort things out under the proper
+ * to twiddle i_nlink later - it's either zero or analt depending on
+ * whether our unlink succeeded. Otherwise we got this from a analde
+ * whose intention was to orphan the ianalde, however he may have
+ * crashed, failed etc, so we let ocfs2_drop_ianalde zero the value and
+ * rely on ocfs2_delete_ianalde to sort things out under the proper
  * cluster locks.
  */
-#define OCFS2_INODE_MAYBE_ORPHANED	0x00000010
+#define OCFS2_IANALDE_MAYBE_ORPHANED	0x00000010
 /* Does someone have the file open O_DIRECT */
-#define OCFS2_INODE_OPEN_DIRECT		0x00000020
-/* Tell the inode wipe code it's not in orphan dir */
-#define OCFS2_INODE_SKIP_ORPHAN_DIR     0x00000040
+#define OCFS2_IANALDE_OPEN_DIRECT		0x00000020
+/* Tell the ianalde wipe code it's analt in orphan dir */
+#define OCFS2_IANALDE_SKIP_ORPHAN_DIR     0x00000040
 /* Entry in orphan dir with 'dio-' prefix */
-#define OCFS2_INODE_DIO_ORPHAN_ENTRY	0x00000080
+#define OCFS2_IANALDE_DIO_ORPHAN_ENTRY	0x00000080
 
-static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
+static inline struct ocfs2_ianalde_info *OCFS2_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct ocfs2_inode_info, vfs_inode);
+	return container_of(ianalde, struct ocfs2_ianalde_info, vfs_ianalde);
 }
 
-#define INODE_JOURNAL(i) (OCFS2_I(i)->ip_flags & OCFS2_INODE_JOURNAL)
-#define SET_INODE_JOURNAL(i) (OCFS2_I(i)->ip_flags |= OCFS2_INODE_JOURNAL)
+#define IANALDE_JOURNAL(i) (OCFS2_I(i)->ip_flags & OCFS2_IANALDE_JOURNAL)
+#define SET_IANALDE_JOURNAL(i) (OCFS2_I(i)->ip_flags |= OCFS2_IANALDE_JOURNAL)
 
 extern const struct address_space_operations ocfs2_aops;
-extern const struct ocfs2_caching_operations ocfs2_inode_caching_ops;
+extern const struct ocfs2_caching_operations ocfs2_ianalde_caching_ops;
 
-static inline struct ocfs2_caching_info *INODE_CACHE(struct inode *inode)
+static inline struct ocfs2_caching_info *IANALDE_CACHE(struct ianalde *ianalde)
 {
-	return &OCFS2_I(inode)->ip_metadata_cache;
+	return &OCFS2_I(ianalde)->ip_metadata_cache;
 }
 
-void ocfs2_evict_inode(struct inode *inode);
-int ocfs2_drop_inode(struct inode *inode);
+void ocfs2_evict_ianalde(struct ianalde *ianalde);
+int ocfs2_drop_ianalde(struct ianalde *ianalde);
 
 /* Flags for ocfs2_iget() */
 #define OCFS2_FI_FLAG_SYSFILE		0x1
@@ -124,51 +124,51 @@ int ocfs2_drop_inode(struct inode *inode);
 #define OCFS2_FI_FLAG_FILECHECK_CHK	0x4
 #define OCFS2_FI_FLAG_FILECHECK_FIX	0x8
 
-struct inode *ocfs2_ilookup(struct super_block *sb, u64 feoff);
-struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, unsigned flags,
+struct ianalde *ocfs2_ilookup(struct super_block *sb, u64 feoff);
+struct ianalde *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, unsigned flags,
 			 int sysfile_type);
-int ocfs2_inode_revalidate(struct dentry *dentry);
-void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
-			  int create_ino);
+int ocfs2_ianalde_revalidate(struct dentry *dentry);
+void ocfs2_populate_ianalde(struct ianalde *ianalde, struct ocfs2_dianalde *fe,
+			  int create_ianal);
 void ocfs2_sync_blockdev(struct super_block *sb);
-void ocfs2_refresh_inode(struct inode *inode,
-			 struct ocfs2_dinode *fe);
-int ocfs2_mark_inode_dirty(handle_t *handle,
-			   struct inode *inode,
+void ocfs2_refresh_ianalde(struct ianalde *ianalde,
+			 struct ocfs2_dianalde *fe);
+int ocfs2_mark_ianalde_dirty(handle_t *handle,
+			   struct ianalde *ianalde,
 			   struct buffer_head *bh);
 
-void ocfs2_set_inode_flags(struct inode *inode);
-void ocfs2_get_inode_flags(struct ocfs2_inode_info *oi);
+void ocfs2_set_ianalde_flags(struct ianalde *ianalde);
+void ocfs2_get_ianalde_flags(struct ocfs2_ianalde_info *oi);
 
-static inline blkcnt_t ocfs2_inode_sector_count(struct inode *inode)
+static inline blkcnt_t ocfs2_ianalde_sector_count(struct ianalde *ianalde)
 {
-	int c_to_s_bits = OCFS2_SB(inode->i_sb)->s_clustersize_bits - 9;
+	int c_to_s_bits = OCFS2_SB(ianalde->i_sb)->s_clustersize_bits - 9;
 
-	return (blkcnt_t)OCFS2_I(inode)->ip_clusters << c_to_s_bits;
+	return (blkcnt_t)OCFS2_I(ianalde)->ip_clusters << c_to_s_bits;
 }
 
-/* Validate that a bh contains a valid inode */
-int ocfs2_validate_inode_block(struct super_block *sb,
+/* Validate that a bh contains a valid ianalde */
+int ocfs2_validate_ianalde_block(struct super_block *sb,
 			       struct buffer_head *bh);
 /*
- * Read an inode block into *bh.  If *bh is NULL, a bh will be allocated.
- * This is a cached read.  The inode will be validated with
- * ocfs2_validate_inode_block().
+ * Read an ianalde block into *bh.  If *bh is NULL, a bh will be allocated.
+ * This is a cached read.  The ianalde will be validated with
+ * ocfs2_validate_ianalde_block().
  */
-int ocfs2_read_inode_block(struct inode *inode, struct buffer_head **bh);
+int ocfs2_read_ianalde_block(struct ianalde *ianalde, struct buffer_head **bh);
 /* The same, but can be passed OCFS2_BH_* flags */
-int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
+int ocfs2_read_ianalde_block_full(struct ianalde *ianalde, struct buffer_head **bh,
 				int flags);
 
-static inline struct ocfs2_inode_info *cache_info_to_inode(struct ocfs2_caching_info *ci)
+static inline struct ocfs2_ianalde_info *cache_info_to_ianalde(struct ocfs2_caching_info *ci)
 {
-	return container_of(ci, struct ocfs2_inode_info, ip_metadata_cache);
+	return container_of(ci, struct ocfs2_ianalde_info, ip_metadata_cache);
 }
 
-/* Does this inode have the reflink flag set? */
-static inline bool ocfs2_is_refcount_inode(struct inode *inode)
+/* Does this ianalde have the reflink flag set? */
+static inline bool ocfs2_is_refcount_ianalde(struct ianalde *ianalde)
 {
-	return (OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL);
+	return (OCFS2_I(ianalde)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL);
 }
 
-#endif /* OCFS2_INODE_H */
+#endif /* OCFS2_IANALDE_H */

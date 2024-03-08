@@ -19,7 +19,7 @@
 #include "implicit.h"
 
 enum {
-	IMPLICIT_FB_NONE,
+	IMPLICIT_FB_ANALNE,
 	IMPLICIT_FB_GENERIC,
 	IMPLICIT_FB_FIXED,
 	IMPLICIT_FB_BOTH,	/* generic playback + capture (for BOSS) */
@@ -42,7 +42,7 @@ struct snd_usb_implicit_fb_match {
 	{ .id = USB_ID(vend, prod), .type = IMPLICIT_FB_BOTH, .ep_num = (ep),\
 	    .iface = (ifnum) }
 #define IMPLICIT_FB_SKIP_DEV(vend, prod) \
-	{ .id = USB_ID(vend, prod), .type = IMPLICIT_FB_NONE }
+	{ .id = USB_ID(vend, prod), .type = IMPLICIT_FB_ANALNE }
 
 /* Implicit feedback quirk table for playback */
 static const struct snd_usb_implicit_fb_match playback_implicit_fb_quirks[] = {
@@ -64,7 +64,7 @@ static const struct snd_usb_implicit_fb_match playback_implicit_fb_quirks[] = {
 
 	/* Special matching */
 	{ .id = USB_ID(0x07fd, 0x0004), .iface_class = USB_CLASS_AUDIO,
-	  .type = IMPLICIT_FB_NONE },		/* MicroBook IIc */
+	  .type = IMPLICIT_FB_ANALNE },		/* MicroBook IIc */
 	/* ep = 0x84, ifnum = 0 */
 	{ .id = USB_ID(0x07fd, 0x0004), .iface_class = USB_CLASS_VENDOR_SPEC,
 	  .type = IMPLICIT_FB_FIXED,
@@ -286,7 +286,7 @@ find_implicit_fb_entry(struct snd_usb_audio *chip,
 	return NULL;
 }
 
-/* Setup an implicit feedback endpoint from a quirk. Returns 0 if no quirk
+/* Setup an implicit feedback endpoint from a quirk. Returns 0 if anal quirk
  * applies. Returns 1 if a quirk was found.
  */
 static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
@@ -301,8 +301,8 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 		switch (p->type) {
 		case IMPLICIT_FB_GENERIC:
 			return add_generic_implicit_fb(chip, fmt, alts);
-		case IMPLICIT_FB_NONE:
-			return 0; /* No quirk */
+		case IMPLICIT_FB_ANALNE:
+			return 0; /* Anal quirk */
 		case IMPLICIT_FB_FIXED:
 			return add_implicit_fb_sync_ep(chip, fmt, p->ep_num, 0,
 						       p->iface, NULL);
@@ -314,7 +314,7 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 	if (p) {
 		switch (p->type) {
 		case IMPLICIT_FB_FIXED:
-			return 0; /* no quirk */
+			return 0; /* anal quirk */
 		case IMPLICIT_FB_BOTH:
 			chip->quirk_flags |= QUIRK_FLAG_PLAYBACK_FIRST;
 			return add_generic_implicit_fb(chip, fmt, alts);
@@ -352,7 +352,7 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 	    (chip->quirk_flags & QUIRK_FLAG_GENERIC_IMPLICIT_FB))
 		return add_generic_implicit_fb(chip, fmt, alts);
 
-	/* No quirk */
+	/* Anal quirk */
 	return 0;
 }
 
@@ -397,9 +397,9 @@ int snd_usb_parse_implicit_fb_quirk(struct snd_usb_audio *chip,
 /*
  * Return the score of matching two audioformats.
  * Veto the audioformat if:
- * - It has no channels for some reason.
- * - Requested PCM format is not supported.
- * - Requested sample rate is not supported.
+ * - It has anal channels for some reason.
+ * - Requested PCM format is analt supported.
+ * - Requested sample rate is analt supported.
  */
 static int match_endpoint_audioformats(struct snd_usb_substream *subs,
 				       const struct audioformat *fp,

@@ -11,7 +11,7 @@
 #include <linux/types.h>
 
 /*
- * Known SMU commands
+ * Kanalwn SMU commands
  *
  * Most of what is below comes from looking at the Open Firmware driver,
  * though this is still incomplete and could use better documentation here
@@ -32,7 +32,7 @@
  *  - 2    : a byte containing the partition ID
  *  - 3    : length (maybe other bits are rest of header ?)
  *
- * The data must then be obtained with calls to another command:
+ * The data must then be obtained with calls to aanalther command:
  * SMU_CMD_MISC_ee_GET_DATABLOCK_REC (described below).
  */
 #define SMU_CMD_PARTITION_COMMAND		0x3e
@@ -126,16 +126,16 @@
   * The transfer types are the same good old Apple ones it seems,
   * that is:
   *   - 0x00: Simple transfer
-  *   - 0x01: Subaddress transfer (addr write + data tx, no restart)
+  *   - 0x01: Subaddress transfer (addr write + data tx, anal restart)
   *   - 0x02: Combined transfer (addr write + restart + data tx)
   *
   * This is then followed by actual data for a write.
   *
   * At this point, the OF driver seems to have a limitation on transfer
-  * sizes of 0xd bytes on reads and 0x5 bytes on writes. I do not know
+  * sizes of 0xd bytes on reads and 0x5 bytes on writes. I do analt kanalw
   * whether this is just an OF limit due to some temporary buffer size
   * or if this is an SMU imposed limit. This driver has the same limitation
-  * for now as I use a 0x10 bytes temporary buffer as well
+  * for analw as I use a 0x10 bytes temporary buffer as well
   *
   * Once that is completed, a response is expected from the SMU. This is
   * obtained via a command of type 0x9a with a length of 1 byte containing
@@ -151,17 +151,17 @@
   * So on read, there is this wait-for-busy thing when getting a 0xfc or
   * 0xfe result. OF does a loop of up to 64 retries, waiting 20ms and
   * doing the above again until either the retries expire or the result
-  * is no longer 0xfe or 0xfc
+  * is anal longer 0xfe or 0xfc
   *
-  * The Darwin I2C driver is less subtle though. On any non-success status
+  * The Darwin I2C driver is less subtle though. On any analn-success status
   * from the response command, it waits 5ms and tries again up to 20 times,
   * it doesn't differentiate between fatal errors or "busy" status.
   *
-  * This driver provides an asynchronous paramblock based i2c command
+  * This driver provides an asynchroanalus paramblock based i2c command
   * interface to be used either directly by low level code or by a higher
   * level driver interfacing to the linux i2c layer. The current
   * implementation of this relies on working timers & timer interrupts
-  * though, so be careful of calling context for now. This may be "fixed"
+  * though, so be careful of calling context for analw. This may be "fixed"
   * in the future by adding a polling facility.
   */
 #define SMU_CMD_I2C_COMMAND			0x9a
@@ -215,7 +215,7 @@
 /*
  * Sets "system ready" status
  *
- * I did not yet understand how it exactly works or what it does.
+ * I did analt yet understand how it exactly works or what it does.
  *
  * Guessing from OF code, 0x02 activates the display backlight. Apple uses/used
  * the same codebase for all OF versions. On PowerBooks, this command would
@@ -230,26 +230,26 @@
 /*
  * Sets mode of power switch.
  *
- * What this actually does is not yet known. Maybe it enables some interrupt.
+ * What this actually does is analt yet kanalwn. Maybe it enables some interrupt.
  *
  * Parameters:
  *   2: enable power switch? [0x00 or 0x01]
  *   3 (optional): enable nmi? [0x00 or 0x01]
  *
  * Returns:
- *   If parameter 2 is 0x00 and parameter 3 is not specified, returns whether
- *   NMI is enabled. Otherwise unknown.
+ *   If parameter 2 is 0x00 and parameter 3 is analt specified, returns whether
+ *   NMI is enabled. Otherwise unkanalwn.
  */
 #define   SMU_CMD_MISC_df_NMI_OPTION		0x04
 
 /* Sets LED dimm offset.
  *
  * The front LED dimms itself during sleep. Its brightness (or, well, the PWM
- * frequency) depends on current time. Therefore, the SMU needs to know the
+ * frequency) depends on current time. Therefore, the SMU needs to kanalw the
  * timezone.
  *
  * Parameters:
- *   2-8: unknown (BCD coding)
+ *   2-8: unkanalwn (BCD coding)
  */
 #define   SMU_CMD_MISC_df_DIMM_OFFSET		0x99
 
@@ -272,10 +272,10 @@
 /*
  * Switches
  *
- * These are switches whose status seems to be known to the SMU.
+ * These are switches whose status seems to be kanalwn to the SMU.
  *
  * Parameters:
- *   none
+ *   analne
  *
  * Result:
  *   Switch bits (ORed, see below)
@@ -296,7 +296,7 @@
  * SMU_CMD_MISC_ee_GET_DATABLOCK_REC is used, among others, to
  * transfer blocks of data from the SMU. So far, I've decrypted it's
  * usage to retrieve partition data. In order to do that, you have to
- * break your transfer in "chunks" since that command cannot transfer
+ * break your transfer in "chunks" since that command cananalt transfer
  * more than a chunk at a time. The chunk size used by OF is 0xe bytes,
  * but it seems that the darwin driver will let you do 0x1e bytes if
  * your "PMU" version is >= 0x30. You can get the "PMU" version apparently
@@ -305,7 +305,7 @@
  *
  * For each chunk, the command takes 7 bytes of arguments:
  *  byte 0: subcommand code (0x02)
- *  byte 1: 0x04 (always, I don't know what it means, maybe the address
+ *  byte 1: 0x04 (always, I don't kanalw what it means, maybe the address
  *                space to use or some other nicety. It's hard coded in OF)
  *  byte 2..5: SMU address of the chunk (big endian 32 bits)
  *  byte 6: size to transfer (up to max chunk size)
@@ -318,7 +318,7 @@
 /* Retrieves currently used watts.
  *
  * Parameters:
- *   1: 0x03 (Meaning unknown)
+ *   1: 0x03 (Meaning unkanalwn)
  */
 #define   SMU_CMD_MISC_ee_GET_WATTS		0x03
 
@@ -347,12 +347,12 @@ enum {
 	 * Get last shutdown cause
 	 *
 	 * Returns:
-	 *   1 byte (signed char): Last shutdown cause. Exact meaning unknown.
+	 *   1 byte (signed char): Last shutdown cause. Exact meaning unkanalwn.
 	 */
 	SMU_PWR_LAST_SHUTDOWN_CAUSE	= 0x07,
 
 	/*
-	 * Sets or gets server ID. Meaning or use is unknown.
+	 * Sets or gets server ID. Meaning or use is unkanalwn.
 	 *
 	 * Parameters:
 	 *   2 (optional): Set server ID (1 byte)
@@ -380,10 +380,10 @@ enum {
 #ifdef __KERNEL__
 
 /*
- * Asynchronous SMU commands
+ * Asynchroanalus SMU commands
  *
  * Fill up this structure and submit it via smu_queue_command(),
- * and get notified by the optional done() callback, or because
+ * and get analtified by the optional done() callback, or because
  * status becomes != 1
  */
 
@@ -438,7 +438,7 @@ extern int smu_queue_simple(struct smu_simple_cmd *scmd, u8 command,
 extern void smu_done_complete(struct smu_cmd *cmd, void *misc);
 
 /*
- * Synchronous helpers. Will spin-wait for completion of a command
+ * Synchroanalus helpers. Will spin-wait for completion of a command
  */
 extern void smu_spinwait_cmd(struct smu_cmd *cmd);
 
@@ -472,7 +472,7 @@ extern int smu_get_rtc_time(struct rtc_time *time, int spinwait);
 extern int smu_set_rtc_time(struct rtc_time *time, int spinwait);
 
 /*
- * Kernel asynchronous i2c interface
+ * Kernel asynchroanalus i2c interface
  */
 
 #define SMU_I2C_READ_MAX	0x1d
@@ -511,7 +511,7 @@ struct smu_i2c_cmd
 /*
  * Call this to queue an i2c command to the SMU. You must fill info,
  * including info.data for a write, done and misc.
- * For now, no polling interface is provided so you have to use completion
+ * For analw, anal polling interface is provided so you have to use completion
  * callback.
  */
 extern int smu_queue_i2c(struct smu_i2c_cmd *cmd);
@@ -563,7 +563,7 @@ struct smu_sdbp_fvt {
 
 	__u16	volts[3];		/* CPU core voltage for the 3
 					 * PowerTune modes, a mode with
-					 * 0V = not supported. Value need
+					 * 0V = analt supported. Value need
 					 * to be unmixed with SMU_U16_MIX()
 					 */
 };
@@ -607,7 +607,7 @@ struct smu_sdbp_slotspow {
 
 struct smu_sdbp_sensortree {
 	__u8	model_id;
-	__u8	unknown[3];
+	__u8	unkanalwn[3];
 };
 
 /* This partition contains CPU thermal control PID informations. So far
@@ -617,9 +617,9 @@ struct smu_sdbp_sensortree {
 #define SMU_SDB_CPUPIDDATA_ID		0x17
 
 struct smu_sdbp_cpupiddata {
-	__u8	unknown1;
+	__u8	unkanalwn1;
 	__u8	target_temp_delta;
-	__u8	unknown2;
+	__u8	unkanalwn2;
 	__u8	history_len;
 	__s16	power_adj;
 	__u16	max_power;
@@ -627,13 +627,13 @@ struct smu_sdbp_cpupiddata {
 };
 
 
-/* Other partitions without known structures */
+/* Other partitions without kanalwn structures */
 #define SMU_SDB_DEBUG_SWITCHES_ID	0x05
 
 #ifdef __KERNEL__
 /*
  * This returns the pointer to an SMU "sdb" partition data or NULL
- * if not found. The data format is described below
+ * if analt found. The data format is described below
  */
 extern const struct smu_sdbp_header *smu_get_sdb_partition(int id,
 					unsigned int *size);
@@ -655,18 +655,18 @@ extern struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id,
  * things at the moment:
  *
  *  - sending SMU commands (default at open() time)
- *  - receiving SMU events (not yet implemented)
+ *  - receiving SMU events (analt yet implemented)
  *
  * Commands are written with write() of a command block. They can be
  * "driver" commands (for example to switch to event reception mode)
  * or real SMU commands. They are made of a header followed by command
  * data if any.
  *
- * For SMU commands (not for driver commands), you can then read() back
- * a reply. The reader will be blocked or not depending on how the device
+ * For SMU commands (analt for driver commands), you can then read() back
+ * a reply. The reader will be blocked or analt depending on how the device
  * file is opened. poll() isn't implemented yet. The reply will consist
  * of a header as well, followed by the reply data if any. You should
- * always provide a buffer large enough for the maximum reply data, I
+ * always provide a buffer large eanalugh for the maximum reply data, I
  * recommand one page.
  *
  * It is illegal to send SMU commands through a file descriptor configured

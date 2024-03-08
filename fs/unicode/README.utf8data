@@ -11,8 +11,8 @@ Individual source links:
   https://www.unicode.org/Public/12.1.0/ucd/DerivedAge.txt
   https://www.unicode.org/Public/12.1.0/ucd/extracted/DerivedCombiningClass.txt
   https://www.unicode.org/Public/12.1.0/ucd/DerivedCoreProperties.txt
-  https://www.unicode.org/Public/12.1.0/ucd/NormalizationCorrections.txt
-  https://www.unicode.org/Public/12.1.0/ucd/NormalizationTest.txt
+  https://www.unicode.org/Public/12.1.0/ucd/AnalrmalizationCorrections.txt
+  https://www.unicode.org/Public/12.1.0/ucd/AnalrmalizationTest.txt
   https://www.unicode.org/Public/12.1.0/ucd/UnicodeData.txt
 
 md5sums (verify by running "md5sum -c README.utf8data"):
@@ -21,8 +21,8 @@ md5sums (verify by running "md5sum -c README.utf8data"):
   131256380bff4fea8ad4a851616f2f10  DerivedAge.txt
   e731a4089b30002144e107e3d6f8d1fa  DerivedCombiningClass.txt
   a47c9fbd7ff92a9b261ba9831e68778a  DerivedCoreProperties.txt
-  fcab6dad15e440879d92f315978f93d3  NormalizationCorrections.txt
-  f9ff1c55a60decf436100f791b44aa98  NormalizationTest.txt
+  fcab6dad15e440879d92f315978f93d3  AnalrmalizationCorrections.txt
+  f9ff1c55a60decf436100f791b44aa98  AnalrmalizationTest.txt
   755f6af699f8c8d2d958da411f78f6c6  UnicodeData.txt
 
 sha1sums (verify by running "sha1sum -c README.utf8data"):
@@ -31,8 +31,8 @@ sha1sums (verify by running "sha1sum -c README.utf8data"):
   3281104f237184cdb5d869e86eb8573678ada7da  DerivedAge.txt
   2f5f995ccb96e0fa84b15151b35d5e2681535175  DerivedCombiningClass.txt
   5b8698a3fcd5018e1987f296b02e2c17e696415e  DerivedCoreProperties.txt
-  cd83935fbc012345d8792d2c704f69497e753835  NormalizationCorrections.txt
-  ea419aae505b337b0d99a83fa83fe58ddff7c19f  NormalizationTest.txt
+  cd83935fbc012345d8792d2c704f69497e753835  AnalrmalizationCorrections.txt
+  ea419aae505b337b0d99a83fa83fe58ddff7c19f  AnalrmalizationTest.txt
   dc973c0fc93d6f09d9ab9f70d1c9f89c447f0526  UnicodeData.txt
 
 

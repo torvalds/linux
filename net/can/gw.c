@@ -8,28 +8,28 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this analtice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are analt restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -78,7 +78,7 @@ MODULE_PARM_DESC(max_hops,
 		 __stringify(CGW_MAX_HOPS) " hops, "
 		 "default: " __stringify(CGW_DEFAULT_HOPS) ")");
 
-static struct notifier_block notifier;
+static struct analtifier_block analtifier;
 static struct kmem_cache *cgw_cache __read_mostly;
 
 /* structure that contains the (on-the-fly) CAN frame modifications */
@@ -125,7 +125,7 @@ struct can_can_gw {
 
 /* list entry for CAN gateways jobs */
 struct cgw_job {
-	struct hlist_node list;
+	struct hlist_analde list;
 	struct rcu_head rcu;
 	u32 handled_frames;
 	u32 dropped_frames;
@@ -263,7 +263,7 @@ static void mod_set_ccdlc(struct canfd_frame *cf, struct cf_mod *mod)
 
 static void canframecpy(struct canfd_frame *dst, struct can_frame *src)
 {
-	/* Copy the struct members separately to ensure that no uninitialized
+	/* Copy the struct members separately to ensure that anal uninitialized
 	 * data are copied in the 3 bytes hole of the struct. This is needed
 	 * to make easy compares of the data in the struct cf_mod.
 	 */
@@ -275,7 +275,7 @@ static void canframecpy(struct canfd_frame *dst, struct can_frame *src)
 
 static void canfdframecpy(struct canfd_frame *dst, struct canfd_frame *src)
 {
-	/* Copy the struct members separately to ensure that no uninitialized
+	/* Copy the struct members separately to ensure that anal uninitialized
 	 * data are copied in the 2 bytes hole of the struct. This is needed
 	 * to make easy compares of the data in the struct cf_mod.
 	 */
@@ -470,12 +470,12 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 			return;
 	}
 
-	/* Do not handle CAN frames routed more than 'max_hops' times.
+	/* Do analt handle CAN frames routed more than 'max_hops' times.
 	 * In general we should never catch this delimiter which is intended
 	 * to cover a misconfiguration protection (e.g. circular CAN routes).
 	 *
 	 * The Controller Area Network controllers only accept CAN frames with
-	 * correct CRCs - which are not visible in the controller registers.
+	 * correct CRCs - which are analt visible in the controller registers.
 	 * According to skbuff.h documentation the csum_start element for IP
 	 * checksums is undefined/unused when ip_summed == CHECKSUM_UNNECESSARY.
 	 * Only CAN skbs can be processed here which already have this property.
@@ -496,12 +496,12 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 		return;
 	}
 
-	/* is sending the skb back to the incoming interface not allowed? */
+	/* is sending the skb back to the incoming interface analt allowed? */
 	if (!(gwj->flags & CGW_FLAGS_CAN_IIF_TX_OK) &&
 	    can_skb_prv(skb)->ifindex == gwj->dst.dev->ifindex)
 		return;
 
-	/* clone the given skb, which has not been done in can_rcv()
+	/* clone the given skb, which has analt been done in can_rcv()
 	 *
 	 * When there is at least one modification function activated,
 	 * we need to copy the skb as we want to modify skb->data.
@@ -553,7 +553,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 			(*gwj->mod.csumfunc.xor)(cf, &gwj->mod.csum.xor);
 	}
 
-	/* clear the skb timestamp if not configured the other way */
+	/* clear the skb timestamp if analt configured the other way */
 	if (!(gwj->flags & CGW_FLAGS_CAN_SRC_TSTAMP))
 		nskb->tstamp = 0;
 
@@ -584,18 +584,18 @@ static void cgw_job_free_rcu(struct rcu_head *rcu_head)
 	kmem_cache_free(cgw_cache, gwj);
 }
 
-static int cgw_notifier(struct notifier_block *nb,
+static int cgw_analtifier(struct analtifier_block *nb,
 			unsigned long msg, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 
 	if (dev->type != ARPHRD_CAN)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (msg == NETDEV_UNREGISTER) {
 		struct cgw_job *gwj = NULL;
-		struct hlist_node *nx;
+		struct hlist_analde *nx;
 
 		ASSERT_RTNL();
 
@@ -608,7 +608,7 @@ static int cgw_notifier(struct notifier_block *nb,
 		}
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
@@ -643,7 +643,7 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
 			goto cancel;
 	}
 
-	/* check non default settings of attributes */
+	/* check analn default settings of attributes */
 
 	if (gwj->limit_hops) {
 		if (nla_put_u8(skb, CGW_LIM_HOPS, gwj->limit_hops) < 0)
@@ -1030,7 +1030,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			nla_memcpy(&ccgw->filter, tb[CGW_FILTER],
 				   sizeof(struct can_filter));
 
-		err = -ENODEV;
+		err = -EANALDEV;
 
 		/* specifying two interfaces is mandatory */
 		if (!tb[CGW_SRC_IF] || !tb[CGW_DST_IF])
@@ -1072,7 +1072,7 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 
 	r = nlmsg_data(nlh);
 	if (r->can_family != AF_CAN)
-		return -EPFNOSUPPORT;
+		return -EPFANALSUPPORT;
 
 	/* so far we only support CAN -> CAN routings */
 	if (r->gwtype != CGW_TYPE_CAN_CAN)
@@ -1102,13 +1102,13 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 		}
 	}
 
-	/* ifindex == 0 is not allowed for job creation */
+	/* ifindex == 0 is analt allowed for job creation */
 	if (!ccgw.src_idx || !ccgw.dst_idx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gwj = kmem_cache_alloc(cgw_cache, GFP_KERNEL);
 	if (!gwj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gwj->handled_frames = 0;
 	gwj->dropped_frames = 0;
@@ -1121,7 +1121,7 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 	memcpy(&gwj->mod, &mod, sizeof(mod));
 	memcpy(&gwj->ccgw, &ccgw, sizeof(ccgw));
 
-	err = -ENODEV;
+	err = -EANALDEV;
 
 	gwj->src.dev = __dev_get_by_index(net, gwj->ccgw.src_idx);
 
@@ -1161,7 +1161,7 @@ out:
 static void cgw_remove_all_jobs(struct net *net)
 {
 	struct cgw_job *gwj = NULL;
-	struct hlist_node *nx;
+	struct hlist_analde *nx;
 
 	ASSERT_RTNL();
 
@@ -1177,7 +1177,7 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh,
 {
 	struct net *net = sock_net(skb->sk);
 	struct cgw_job *gwj = NULL;
-	struct hlist_node *nx;
+	struct hlist_analde *nx;
 	struct rtcanmsg *r;
 	struct cf_mod mod;
 	struct can_can_gw ccgw;
@@ -1192,7 +1192,7 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	r = nlmsg_data(nlh);
 	if (r->can_family != AF_CAN)
-		return -EPFNOSUPPORT;
+		return -EPFANALSUPPORT;
 
 	/* so far we only support CAN -> CAN routings */
 	if (r->gwtype != CGW_TYPE_CAN_CAN)
@@ -1225,7 +1225,7 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh,
 			if (gwj->mod.uid != mod.uid)
 				continue;
 		} else {
-			/* no uid => check for identical modifications */
+			/* anal uid => check for identical modifications */
 			if (memcmp(&gwj->mod, &mod, sizeof(mod)))
 				continue;
 		}
@@ -1278,17 +1278,17 @@ static __init int cgw_module_init(void)
 	if (ret)
 		return ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	cgw_cache = kmem_cache_create("can_gw", sizeof(struct cgw_job),
 				      0, 0, NULL);
 	if (!cgw_cache)
 		goto out_cache_create;
 
-	/* set notifier */
-	notifier.notifier_call = cgw_notifier;
-	ret = register_netdevice_notifier(&notifier);
+	/* set analtifier */
+	analtifier.analtifier_call = cgw_analtifier;
+	ret = register_netdevice_analtifier(&analtifier);
 	if (ret)
-		goto out_register_notifier;
+		goto out_register_analtifier;
 
 	ret = rtnl_register_module(THIS_MODULE, PF_CAN, RTM_GETROUTE,
 				   NULL, cgw_dump_jobs, 0);
@@ -1311,8 +1311,8 @@ out_rtnl_register3:
 out_rtnl_register2:
 	rtnl_unregister(PF_CAN, RTM_GETROUTE);
 out_rtnl_register1:
-	unregister_netdevice_notifier(&notifier);
-out_register_notifier:
+	unregister_netdevice_analtifier(&analtifier);
+out_register_analtifier:
 	kmem_cache_destroy(cgw_cache);
 out_cache_create:
 	unregister_pernet_subsys(&cangw_pernet_ops);
@@ -1324,7 +1324,7 @@ static __exit void cgw_module_exit(void)
 {
 	rtnl_unregister_all(PF_CAN);
 
-	unregister_netdevice_notifier(&notifier);
+	unregister_netdevice_analtifier(&analtifier);
 
 	unregister_pernet_subsys(&cangw_pernet_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

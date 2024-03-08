@@ -78,10 +78,10 @@
         "BriefDescription": "Instruction fetch stall cycles"
     },
     {
-        "PublicDescription": "Instructions can receive, but not send",
+        "PublicDescription": "Instructions can receive, but analt send",
         "EventCode": "0x2014",
         "EventName": "FETCH_BUBBLE",
-        "BriefDescription": "Instructions can receive, but not send"
+        "BriefDescription": "Instructions can receive, but analt send"
     },
     {
         "PublicDescription": "Prefetch request from LSU",
@@ -102,21 +102,21 @@
         "BriefDescription": "Cycles of that the number of issue ups are less than 4"
     },
     {
-        "PublicDescription": "No any micro operation is issued and meanwhile any load operation is not resolved",
+        "PublicDescription": "Anal any micro operation is issued and meanwhile any load operation is analt resolved",
         "EventCode": "0x7004",
         "EventName": "MEM_STALL_ANYLOAD",
-        "BriefDescription": "No any micro operation is issued and meanwhile any load operation is not resolved"
+        "BriefDescription": "Anal any micro operation is issued and meanwhile any load operation is analt resolved"
     },
     {
-        "PublicDescription": "No any micro operation is issued and meanwhile there is any load operation missing L1 cache and pending data refill",
+        "PublicDescription": "Anal any micro operation is issued and meanwhile there is any load operation missing L1 cache and pending data refill",
         "EventCode": "0x7006",
         "EventName": "MEM_STALL_L1MISS",
-        "BriefDescription": "No any micro operation is issued and meanwhile there is any load operation missing L1 cache and pending data refill"
+        "BriefDescription": "Anal any micro operation is issued and meanwhile there is any load operation missing L1 cache and pending data refill"
     },
     {
-        "PublicDescription": "No any micro operation is issued and meanwhile there is any load operation missing both L1 and L2 cache and pending data refill from L3 cache",
+        "PublicDescription": "Anal any micro operation is issued and meanwhile there is any load operation missing both L1 and L2 cache and pending data refill from L3 cache",
         "EventCode": "0x7007",
         "EventName": "MEM_STALL_L2MISS",
-        "BriefDescription": "No any micro operation is issued and meanwhile there is any load operation missing both L1 and L2 cache and pending data refill from L3 cache"
+        "BriefDescription": "Anal any micro operation is issued and meanwhile there is any load operation missing both L1 and L2 cache and pending data refill from L3 cache"
     }
 ]

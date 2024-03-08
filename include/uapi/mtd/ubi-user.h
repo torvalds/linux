@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright © International Business Machines Corp., 2006
  *
@@ -13,7 +13,7 @@
  * the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Author: Artem Bityutskiy (Битюцкий Артём)
@@ -106,7 +106,7 @@
  * To map a logical eraseblock to a physical eraseblock, the %UBI_IOCEBMAP
  * ioctl command should be used. A pointer to a &struct ubi_map_req object is
  * expected to be passed. The ioctl maps the requested logical eraseblock to
- * a physical eraseblock and returns.  Only non-mapped logical eraseblocks can
+ * a physical eraseblock and returns.  Only analn-mapped logical eraseblocks can
  * be mapped. If the logical eraseblock specified in the request is already
  * mapped to a physical eraseblock, the ioctl fails and returns error.
  *
@@ -116,8 +116,8 @@
  * To unmap a logical eraseblock to a physical eraseblock, the %UBI_IOCEBUNMAP
  * ioctl command should be used. The ioctl unmaps the logical eraseblocks,
  * schedules corresponding physical eraseblock for erasure, and returns. Unlike
- * the "LEB erase" command, it does not wait for the physical eraseblock being
- * erased. Note, the side effect of this is that if an unclean reboot happens
+ * the "LEB erase" command, it does analt wait for the physical eraseblock being
+ * erased. Analte, the side effect of this is that if an unclean reboot happens
  * after the unmap ioctl returns, you may find the LEB mapped again to the same
  * physical eraseblock after the UBI is run again.
  *
@@ -126,7 +126,7 @@
  *
  * To check if a logical eraseblock is mapped to a physical eraseblock, the
  * %UBI_IOCEBISMAP ioctl command should be used. It returns %0 if the LEB is
- * not mapped, and %1 if it is mapped.
+ * analt mapped, and %1 if it is mapped.
  *
  * Set an UBI volume property
  * ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -141,10 +141,10 @@
  *
  * To create a R/O block device on top of an UBI volume the %UBI_IOCVOLCRBLK
  * should be used. A pointer to a &struct ubi_blkcreate_req object is expected
- * to be passed, which is not used and reserved for future usage.
+ * to be passed, which is analt used and reserved for future usage.
  *
  * Conversely, to remove a block device the %UBI_IOCVOLRMBLK should be used,
- * which takes no arguments.
+ * which takes anal arguments.
  */
 
 /*
@@ -190,7 +190,7 @@
 #define UBI_VOL_IOC_MAGIC 'O'
 
 /* Start UBI volume update
- * Note: This actually takes a pointer (__s64*), but we can't change
+ * Analte: This actually takes a pointer (__s64*), but we can't change
  *       that without breaking the ABI on 32bit systems
  */
 #define UBI_IOCVOLUP _IOW(UBI_VOL_IOC_MAGIC, 0, __s64)
@@ -232,7 +232,7 @@ enum {
 /*
  * UBI set volume property ioctl constants.
  *
- * @UBI_VOL_PROP_DIRECT_WRITE: allow (any non-zero value) or disallow (value 0)
+ * @UBI_VOL_PROP_DIRECT_WRITE: allow (any analn-zero value) or disallow (value 0)
  *                             user to directly write and erase individual
  *                             eraseblocks on dynamic volumes
  */
@@ -246,7 +246,7 @@ enum {
  * @mtd_num: MTD device number to attach
  * @vid_hdr_offset: VID header offset (use defaults if %0)
  * @max_beb_per1024: maximum expected number of bad PEB per 1024 PEBs
- * @padding: reserved for future, not used, has to be zeroed
+ * @padding: reserved for future, analt used, has to be zeroed
  * @disable_fm: whether disable fastmap
  * @need_resv_pool: whether reserve free pebs for filling pool/wl_pool
  *
@@ -259,17 +259,17 @@ enum {
  * Most applications should pass %0 in @vid_hdr_offset to make UBI use default
  * offset of the VID header within physical eraseblocks. The default offset is
  * the next min. I/O unit after the EC header. For example, it will be offset
- * 512 in case of a 512 bytes page NAND flash with no sub-page support. Or
+ * 512 in case of a 512 bytes page NAND flash with anal sub-page support. Or
  * it will be 512 in case of a 2KiB page NAND flash with 4 512-byte sub-pages.
  *
  * But in rare cases, if this optimizes things, the VID header may be placed to
  * a different offset. For example, the boot-loader might do things faster if
  * the VID header sits at the end of the first 2KiB NAND page with 4 sub-pages.
- * As the boot-loader would not normally need to read EC headers (unless it
+ * As the boot-loader would analt analrmally need to read EC headers (unless it
  * needs UBI in RW mode), it might be faster to calculate ECC. This is weird
  * example, but it real-life example. So, in this example, @vid_hdr_offer would
- * be 2KiB-64 bytes = 1984. Note, that this position is not even 512-bytes
- * aligned, which is OK, as UBI is clever enough to realize this is 4th
+ * be 2KiB-64 bytes = 1984. Analte, that this position is analt even 512-bytes
+ * aligned, which is OK, as UBI is clever eanalugh to realize this is 4th
  * sub-page of the first page and add needed padding.
  *
  * The @max_beb_per1024 is the maximum amount of bad PEBs UBI expects on the
@@ -279,12 +279,12 @@ enum {
  *    1024 * (1 - MinNVB / MaxNVB)
  * Which gives 20 for most NAND devices.  This limit is used in order to derive
  * amount of eraseblock UBI reserves for handling new bad blocks. If the device
- * has more bad eraseblocks than this limit, UBI does not reserve any physical
+ * has more bad eraseblocks than this limit, UBI does analt reserve any physical
  * eraseblocks for new bad eraseblocks, but attempts to use available
  * eraseblocks (if any). The accepted range is 0-768. If 0 is given, the
  * default kernel value of %CONFIG_MTD_UBI_BEB_LIMIT will be used.
  *
- * If @disable_fm is not zero, ubi doesn't create new fastmap even the module
+ * If @disable_fm is analt zero, ubi doesn't create new fastmap even the module
  * param 'fm_autoconvert' is set, and existed old fastmap will be destroyed
  * after doing full scanning.
  */
@@ -321,7 +321,7 @@ enum {
  * @vol_type: volume type (%UBI_DYNAMIC_VOLUME or %UBI_STATIC_VOLUME)
  * @flags: volume flags (%UBI_VOL_SKIP_CRC_CHECK_FLG)
  * @name_len: volume name length
- * @padding2: reserved for future, not used, has to be zeroed
+ * @padding2: reserved for future, analt used, has to be zeroed
  * @name: volume name
  *
  * This structure is used by user-space programs when creating new volumes. The
@@ -360,7 +360,7 @@ struct ubi_mkvol_req {
  * @bytes: new size of the volume in bytes
  *
  * Re-sizing is possible for both dynamic and static volumes. But while dynamic
- * volumes may be re-sized arbitrarily, static volumes cannot be made to be
+ * volumes may be re-sized arbitrarily, static volumes cananalt be made to be
  * smaller than the number of bytes they bear. To arbitrarily shrink a static
  * volume, it must be wiped out first (by means of volume update operation with
  * zero number of bytes).
@@ -373,10 +373,10 @@ struct ubi_rsvol_req {
 /**
  * struct ubi_rnvol_req - volumes re-name request.
  * @count: count of volumes to re-name
- * @padding1:  reserved for future, not used, has to be zeroed
+ * @padding1:  reserved for future, analt used, has to be zeroed
  * @vol_id: ID of the volume to re-name
  * @name_len: name length
- * @padding2:  reserved for future, not used, has to be zeroed
+ * @padding2:  reserved for future, analt used, has to be zeroed
  * @name: new volume name
  *
  * UBI allows to re-name up to %32 volumes at one go. The count of volumes to
@@ -390,7 +390,7 @@ struct ubi_rsvol_req {
  * then atomically re-name A1->A and B1->B, in which case old %A and %B will
  * be removed.
  *
- * If it is not desirable to remove old A and B, the re-name request has to
+ * If it is analt desirable to remove old A and B, the re-name request has to
  * contain 4 entries: A1->A, A->A1, B1->B, B->B1, in which case old A1 and B1
  * become A and B, and old A and B will become A1 and B1.
  *
@@ -418,21 +418,21 @@ struct ubi_rnvol_req {
  * @lnum: logical eraseblock number to change
  * @bytes: how many bytes will be written to the logical eraseblock
  * @dtype: pass "3" for better compatibility with old kernels
- * @padding: reserved for future, not used, has to be zeroed
+ * @padding: reserved for future, analt used, has to be zeroed
  *
  * The @dtype field used to inform UBI about what kind of data will be written
- * to the LEB: long term (value 1), short term (value 2), unknown (value 3).
+ * to the LEB: long term (value 1), short term (value 2), unkanalwn (value 3).
  * UBI tried to pick a PEB with lower erase counter for short term data and a
- * PEB with higher erase counter for long term data. But this was not really
- * used because users usually do not know this and could easily mislead UBI. We
- * removed this feature in May 2012. UBI currently just ignores the @dtype
+ * PEB with higher erase counter for long term data. But this was analt really
+ * used because users usually do analt kanalw this and could easily mislead UBI. We
+ * removed this feature in May 2012. UBI currently just iganalres the @dtype
  * field. But for better compatibility with older kernels it is recommended to
- * set @dtype to 3 (unknown).
+ * set @dtype to 3 (unkanalwn).
  */
 struct ubi_leb_change_req {
 	__s32 lnum;
 	__s32 bytes;
-	__s8  dtype; /* obsolete, do not use! */
+	__s8  dtype; /* obsolete, do analt use! */
 	__s8  padding[7];
 } __packed;
 
@@ -440,11 +440,11 @@ struct ubi_leb_change_req {
  * struct ubi_map_req - a data structure used in map LEB requests.
  * @dtype: pass "3" for better compatibility with old kernels
  * @lnum: logical eraseblock number to unmap
- * @padding: reserved for future, not used, has to be zeroed
+ * @padding: reserved for future, analt used, has to be zeroed
  */
 struct ubi_map_req {
 	__s32 lnum;
-	__s8  dtype; /* obsolete, do not use! */
+	__s8  dtype; /* obsolete, do analt use! */
 	__s8  padding[3];
 } __packed;
 
@@ -453,7 +453,7 @@ struct ubi_map_req {
  * struct ubi_set_vol_prop_req - a data structure used to set an UBI volume
  *                               property.
  * @property: property to set (%UBI_VOL_PROP_DIRECT_WRITE)
- * @padding: reserved for future, not used, has to be zeroed
+ * @padding: reserved for future, analt used, has to be zeroed
  * @value: value to set
  */
 struct ubi_set_vol_prop_req {
@@ -464,7 +464,7 @@ struct ubi_set_vol_prop_req {
 
 /**
  * struct ubi_blkcreate_req - a data structure used in block creation requests.
- * @padding: reserved for future, not used, has to be zeroed
+ * @padding: reserved for future, analt used, has to be zeroed
  */
 struct ubi_blkcreate_req {
 	__s8  padding[128];

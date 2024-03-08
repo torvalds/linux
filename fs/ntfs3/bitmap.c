@@ -22,33 +22,33 @@
  */
 #define NTFS_MAX_WND_EXTENTS (32u * 1024u)
 
-struct rb_node_key {
-	struct rb_node node;
+struct rb_analde_key {
+	struct rb_analde analde;
 	size_t key;
 };
 
-struct e_node {
-	struct rb_node_key start; /* Tree sorted by start. */
-	struct rb_node_key count; /* Tree sorted by len. */
+struct e_analde {
+	struct rb_analde_key start; /* Tree sorted by start. */
+	struct rb_analde_key count; /* Tree sorted by len. */
 };
 
 static int wnd_rescan(struct wnd_bitmap *wnd);
 static struct buffer_head *wnd_map(struct wnd_bitmap *wnd, size_t iw);
 static bool wnd_is_free_hlp(struct wnd_bitmap *wnd, size_t bit, size_t bits);
 
-static struct kmem_cache *ntfs_enode_cachep;
+static struct kmem_cache *ntfs_eanalde_cachep;
 
 int __init ntfs3_init_bitmap(void)
 {
-	ntfs_enode_cachep = kmem_cache_create("ntfs3_enode_cache",
-					      sizeof(struct e_node), 0,
+	ntfs_eanalde_cachep = kmem_cache_create("ntfs3_eanalde_cache",
+					      sizeof(struct e_analde), 0,
 					      SLAB_RECLAIM_ACCOUNT, NULL);
-	return ntfs_enode_cachep ? 0 : -ENOMEM;
+	return ntfs_eanalde_cachep ? 0 : -EANALMEM;
 }
 
 void ntfs3_exit_bitmap(void)
 {
-	kmem_cache_destroy(ntfs_enode_cachep);
+	kmem_cache_destroy(ntfs_eanalde_cachep);
 }
 
 /*
@@ -57,7 +57,7 @@ void ntfs3_exit_bitmap(void)
  * b_pos + b_len - biggest fragment.
  * Scan range [wpos wbits) window @buf.
  *
- * Return: -1 if not found.
+ * Return: -1 if analt found.
  */
 static size_t wnd_scan(const void *buf, size_t wbit, u32 wpos, u32 wend,
 		       size_t to_alloc, size_t *prev_tail, size_t *b_pos,
@@ -89,7 +89,7 @@ static size_t wnd_scan(const void *buf, size_t wbit, u32 wpos, u32 wend,
 		}
 
 		/*
-		 * Now we have a fragment [wpos, wend) staring with 0.
+		 * Analw we have a fragment [wpos, wend) staring with 0.
 		 */
 		end = wpos + to_alloc - *prev_tail;
 		free_bits = find_next_bit_le(buf, min(end, wend), wpos);
@@ -122,39 +122,39 @@ static size_t wnd_scan(const void *buf, size_t wbit, u32 wpos, u32 wend,
  */
 void wnd_close(struct wnd_bitmap *wnd)
 {
-	struct rb_node *node, *next;
+	struct rb_analde *analde, *next;
 
 	kvfree(wnd->free_bits);
 	wnd->free_bits = NULL;
 	run_close(&wnd->run);
 
-	node = rb_first(&wnd->start_tree);
+	analde = rb_first(&wnd->start_tree);
 
-	while (node) {
-		next = rb_next(node);
-		rb_erase(node, &wnd->start_tree);
-		kmem_cache_free(ntfs_enode_cachep,
-				rb_entry(node, struct e_node, start.node));
-		node = next;
+	while (analde) {
+		next = rb_next(analde);
+		rb_erase(analde, &wnd->start_tree);
+		kmem_cache_free(ntfs_eanalde_cachep,
+				rb_entry(analde, struct e_analde, start.analde));
+		analde = next;
 	}
 }
 
-static struct rb_node *rb_lookup(struct rb_root *root, size_t v)
+static struct rb_analde *rb_lookup(struct rb_root *root, size_t v)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *r = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *r = NULL;
 
 	while (*p) {
-		struct rb_node_key *k;
+		struct rb_analde_key *k;
 
-		k = rb_entry(*p, struct rb_node_key, node);
+		k = rb_entry(*p, struct rb_analde_key, analde);
 		if (v < k->key) {
 			p = &(*p)->rb_left;
 		} else if (v > k->key) {
-			r = &k->node;
+			r = &k->analde;
 			p = &(*p)->rb_right;
 		} else {
-			return &k->node;
+			return &k->analde;
 		}
 	}
 
@@ -164,16 +164,16 @@ static struct rb_node *rb_lookup(struct rb_root *root, size_t v)
 /*
  * rb_insert_count - Helper function to insert special kind of 'count' tree.
  */
-static inline bool rb_insert_count(struct rb_root *root, struct e_node *e)
+static inline bool rb_insert_count(struct rb_root *root, struct e_analde *e)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	size_t e_ckey = e->count.key;
 	size_t e_skey = e->start.key;
 
 	while (*p) {
-		struct e_node *k =
-			rb_entry(parent = *p, struct e_node, count.node);
+		struct e_analde *k =
+			rb_entry(parent = *p, struct e_analde, count.analde);
 
 		if (e_ckey > k->count.key) {
 			p = &(*p)->rb_left;
@@ -189,26 +189,26 @@ static inline bool rb_insert_count(struct rb_root *root, struct e_node *e)
 		}
 	}
 
-	rb_link_node(&e->count.node, parent, p);
-	rb_insert_color(&e->count.node, root);
+	rb_link_analde(&e->count.analde, parent, p);
+	rb_insert_color(&e->count.analde, root);
 	return true;
 }
 
 /*
  * rb_insert_start - Helper function to insert special kind of 'count' tree.
  */
-static inline bool rb_insert_start(struct rb_root *root, struct e_node *e)
+static inline bool rb_insert_start(struct rb_root *root, struct e_analde *e)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	size_t e_skey = e->start.key;
 
 	while (*p) {
-		struct e_node *k;
+		struct e_analde *k;
 
 		parent = *p;
 
-		k = rb_entry(parent, struct e_node, start.node);
+		k = rb_entry(parent, struct e_analde, start.analde);
 		if (e_skey < k->start.key) {
 			p = &(*p)->rb_left;
 		} else if (e_skey > k->start.key) {
@@ -219,8 +219,8 @@ static inline bool rb_insert_start(struct rb_root *root, struct e_node *e)
 		}
 	}
 
-	rb_link_node(&e->start.node, parent, p);
-	rb_insert_color(&e->start.node, root);
+	rb_link_analde(&e->start.analde, parent, p);
+	rb_insert_color(&e->start.analde, root);
 	return true;
 }
 
@@ -231,9 +231,9 @@ static inline bool rb_insert_start(struct rb_root *root, struct e_node *e)
 static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			     bool build)
 {
-	struct e_node *e, *e0 = NULL;
+	struct e_analde *e, *e0 = NULL;
 	size_t ib, end_in = bit + len;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	if (build) {
 		/* Use extent_min to filter too short extents. */
@@ -249,14 +249,14 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 		if (!n) {
 			n = rb_first(&wnd->start_tree);
 		} else {
-			e = rb_entry(n, struct e_node, start.node);
+			e = rb_entry(n, struct e_analde, start.analde);
 			n = rb_next(n);
 			if (e->start.key + e->count.key == bit) {
 				/* Remove left. */
 				bit = e->start.key;
 				len += e->count.key;
-				rb_erase(&e->start.node, &wnd->start_tree);
-				rb_erase(&e->count.node, &wnd->count_tree);
+				rb_erase(&e->start.analde, &wnd->start_tree);
+				rb_erase(&e->count.analde, &wnd->count_tree);
 				wnd->count -= 1;
 				e0 = e;
 			}
@@ -265,7 +265,7 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 		while (n) {
 			size_t next_end;
 
-			e = rb_entry(n, struct e_node, start.node);
+			e = rb_entry(n, struct e_analde, start.analde);
 			next_end = e->start.key + e->count.key;
 			if (e->start.key > end_in)
 				break;
@@ -274,14 +274,14 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			n = rb_next(n);
 			len += next_end - end_in;
 			end_in = next_end;
-			rb_erase(&e->start.node, &wnd->start_tree);
-			rb_erase(&e->count.node, &wnd->count_tree);
+			rb_erase(&e->start.analde, &wnd->start_tree);
+			rb_erase(&e->count.analde, &wnd->count_tree);
 			wnd->count -= 1;
 
 			if (!e0)
 				e0 = e;
 			else
-				kmem_cache_free(ntfs_enode_cachep, e);
+				kmem_cache_free(ntfs_eanalde_cachep, e);
 		}
 
 		if (wnd->uptodated != 1) {
@@ -311,31 +311,31 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 	/* Insert new fragment. */
 	if (wnd->count >= NTFS_MAX_WND_EXTENTS) {
 		if (e0)
-			kmem_cache_free(ntfs_enode_cachep, e0);
+			kmem_cache_free(ntfs_eanalde_cachep, e0);
 
 		wnd->uptodated = -1;
 
 		/* Compare with smallest fragment. */
 		n = rb_last(&wnd->count_tree);
-		e = rb_entry(n, struct e_node, count.node);
+		e = rb_entry(n, struct e_analde, count.analde);
 		if (len <= e->count.key)
-			goto out; /* Do not insert small fragments. */
+			goto out; /* Do analt insert small fragments. */
 
 		if (build) {
-			struct e_node *e2;
+			struct e_analde *e2;
 
 			n = rb_prev(n);
-			e2 = rb_entry(n, struct e_node, count.node);
+			e2 = rb_entry(n, struct e_analde, count.analde);
 			/* Smallest fragment will be 'e2->count.key'. */
 			wnd->extent_min = e2->count.key;
 		}
 
 		/* Replace smallest fragment by new one. */
-		rb_erase(&e->start.node, &wnd->start_tree);
-		rb_erase(&e->count.node, &wnd->count_tree);
+		rb_erase(&e->start.analde, &wnd->start_tree);
+		rb_erase(&e->count.analde, &wnd->count_tree);
 		wnd->count -= 1;
 	} else {
-		e = e0 ? e0 : kmem_cache_alloc(ntfs_enode_cachep, GFP_ATOMIC);
+		e = e0 ? e0 : kmem_cache_alloc(ntfs_eanalde_cachep, GFP_ATOMIC);
 		if (!e) {
 			wnd->uptodated = -1;
 			goto out;
@@ -361,8 +361,8 @@ out:;
  */
 static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 {
-	struct rb_node *n, *n3;
-	struct e_node *e, *e3;
+	struct rb_analde *n, *n3;
+	struct e_analde *e, *e3;
 	size_t end_in = bit + len;
 	size_t end3, end, new_key, new_len, max_new_len;
 
@@ -372,7 +372,7 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 	if (!n)
 		return;
 
-	e = rb_entry(n, struct e_node, start.node);
+	e = rb_entry(n, struct e_analde, start.analde);
 	end = e->start.key + e->count.key;
 
 	new_key = new_len = 0;
@@ -392,7 +392,7 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 		n3 = rb_next(n);
 
 		while (n3) {
-			e3 = rb_entry(n3, struct e_node, start.node);
+			e3 = rb_entry(n3, struct e_analde, start.analde);
 			if (e3->start.key >= end_in)
 				break;
 
@@ -402,38 +402,38 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 			end3 = e3->start.key + e3->count.key;
 			if (end3 > end_in) {
 				e3->start.key = end_in;
-				rb_erase(&e3->count.node, &wnd->count_tree);
+				rb_erase(&e3->count.analde, &wnd->count_tree);
 				e3->count.key = end3 - end_in;
 				rb_insert_count(&wnd->count_tree, e3);
 				break;
 			}
 
 			n3 = rb_next(n3);
-			rb_erase(&e3->start.node, &wnd->start_tree);
-			rb_erase(&e3->count.node, &wnd->count_tree);
+			rb_erase(&e3->start.analde, &wnd->start_tree);
+			rb_erase(&e3->count.analde, &wnd->count_tree);
 			wnd->count -= 1;
-			kmem_cache_free(ntfs_enode_cachep, e3);
+			kmem_cache_free(ntfs_eanalde_cachep, e3);
 		}
 		if (!bmax)
 			return;
 		n3 = rb_first(&wnd->count_tree);
 		wnd->extent_max =
-			n3 ? rb_entry(n3, struct e_node, count.node)->count.key :
+			n3 ? rb_entry(n3, struct e_analde, count.analde)->count.key :
 			     0;
 		return;
 	}
 
 	if (e->count.key != wnd->extent_max) {
 		;
-	} else if (rb_prev(&e->count.node)) {
+	} else if (rb_prev(&e->count.analde)) {
 		;
 	} else {
-		n3 = rb_next(&e->count.node);
+		n3 = rb_next(&e->count.analde);
 		max_new_len = max(len, new_len);
 		if (!n3) {
 			wnd->extent_max = max_new_len;
 		} else {
-			e3 = rb_entry(n3, struct e_node, count.node);
+			e3 = rb_entry(n3, struct e_analde, count.analde);
 			wnd->extent_max = max(e3->count.key, max_new_len);
 		}
 	}
@@ -441,18 +441,18 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 	if (!len) {
 		if (new_len) {
 			e->start.key = new_key;
-			rb_erase(&e->count.node, &wnd->count_tree);
+			rb_erase(&e->count.analde, &wnd->count_tree);
 			e->count.key = new_len;
 			rb_insert_count(&wnd->count_tree, e);
 		} else {
-			rb_erase(&e->start.node, &wnd->start_tree);
-			rb_erase(&e->count.node, &wnd->count_tree);
+			rb_erase(&e->start.analde, &wnd->start_tree);
+			rb_erase(&e->count.analde, &wnd->count_tree);
 			wnd->count -= 1;
-			kmem_cache_free(ntfs_enode_cachep, e);
+			kmem_cache_free(ntfs_eanalde_cachep, e);
 		}
 		goto out;
 	}
-	rb_erase(&e->count.node, &wnd->count_tree);
+	rb_erase(&e->count.analde, &wnd->count_tree);
 	e->count.key = len;
 	rb_insert_count(&wnd->count_tree, e);
 
@@ -463,17 +463,17 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 		wnd->uptodated = -1;
 
 		/* Get minimal extent. */
-		e = rb_entry(rb_last(&wnd->count_tree), struct e_node,
-			     count.node);
+		e = rb_entry(rb_last(&wnd->count_tree), struct e_analde,
+			     count.analde);
 		if (e->count.key > new_len)
 			goto out;
 
 		/* Replace minimum. */
-		rb_erase(&e->start.node, &wnd->start_tree);
-		rb_erase(&e->count.node, &wnd->count_tree);
+		rb_erase(&e->start.analde, &wnd->start_tree);
+		rb_erase(&e->count.analde, &wnd->count_tree);
 		wnd->count -= 1;
 	} else {
-		e = kmem_cache_alloc(ntfs_enode_cachep, GFP_ATOMIC);
+		e = kmem_cache_alloc(ntfs_eanalde_cachep, GFP_ATOMIC);
 		if (!e)
 			wnd->uptodated = -1;
 	}
@@ -544,7 +544,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 
 			if (!run_lookup_entry(&wnd->run, vbo >> cluster_bits,
 					      &lcn, &clen, NULL)) {
-				err = -ENOENT;
+				err = -EANALENT;
 				goto out;
 			}
 
@@ -583,7 +583,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 			wpos = used;
 
 			if (wpos >= wbits) {
-				/* No free blocks. */
+				/* Anal free blocks. */
 				prev_tail = 0;
 				break;
 			}
@@ -663,7 +663,7 @@ int wnd_init(struct wnd_bitmap *wnd, struct super_block *sb, size_t nbits)
 		kvmalloc_array(wnd->nwnd, sizeof(u16), GFP_KERNEL | __GFP_ZERO);
 
 	if (!wnd->free_bits)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = wnd_rescan(wnd);
 	if (err)
@@ -691,7 +691,7 @@ static struct buffer_head *wnd_map(struct wnd_bitmap *wnd, size_t iw)
 
 	if (!run_lookup_entry(&wnd->run, vbo >> sbi->cluster_bits, &lcn, &clen,
 			      NULL)) {
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	lbo = ((u64)lcn << sbi->cluster_bits) + (vbo & sbi->cluster_mask);
@@ -806,11 +806,11 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 /*
  * wnd_set_used_safe - Mark the bits range from bit to bit + bits as used.
  *
- * Unlikely wnd_set_used/wnd_set_free this function is not full trusted.
+ * Unlikely wnd_set_used/wnd_set_free this function is analt full trusted.
  * It scans every bit in bitmap and marks free bit as used.
  * @done - how many bits were marked as used.
  *
- * NOTE: normally *done should be 0.
+ * ANALTE: analrmally *done should be 0.
  */
 int wnd_set_used_safe(struct wnd_bitmap *wnd, size_t bit, size_t bits,
 		      size_t *done)
@@ -892,9 +892,9 @@ static bool wnd_is_free_hlp(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 bool wnd_is_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 {
 	bool ret;
-	struct rb_node *n;
+	struct rb_analde *n;
 	size_t end;
-	struct e_node *e;
+	struct e_analde *e;
 
 	if (RB_EMPTY_ROOT(&wnd->start_tree))
 		goto use_wnd;
@@ -903,7 +903,7 @@ bool wnd_is_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 	if (!n)
 		goto use_wnd;
 
-	e = rb_entry(n, struct e_node, start.node);
+	e = rb_entry(n, struct e_analde, start.analde);
 
 	end = e->start.key + e->count.key;
 
@@ -929,8 +929,8 @@ bool wnd_is_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 	u32 wbits = 8 * sb->s_blocksize;
 	u32 wbit = bit & (wbits - 1);
 	size_t end;
-	struct rb_node *n;
-	struct e_node *e;
+	struct rb_analde *n;
+	struct e_analde *e;
 
 	if (RB_EMPTY_ROOT(&wnd->start_tree))
 		goto use_wnd;
@@ -940,7 +940,7 @@ bool wnd_is_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 	if (!n)
 		goto use_wnd;
 
-	e = rb_entry(n, struct e_node, start.node);
+	e = rb_entry(n, struct e_analde, start.analde);
 	if (e->start.key + e->count.key > bit)
 		return false;
 
@@ -982,7 +982,7 @@ out:
  *
  * - flags - BITMAP_FIND_XXX flags
  *
- * Return: 0 if not found.
+ * Return: 0 if analt found.
  */
 size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 		size_t flags, size_t *allocated)
@@ -992,8 +992,8 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 	size_t fnd, max_alloc, b_len, b_pos;
 	size_t iw, prev_tail, nwnd, wbit, ebit, zbit, zend;
 	size_t to_alloc0 = to_alloc;
-	const struct e_node *e;
-	const struct rb_node *pr, *cr;
+	const struct e_analde *e;
+	const struct rb_analde *pr, *cr;
 	u8 log2_bits;
 	bool fbits_valid;
 	struct buffer_head *bh;
@@ -1004,10 +1004,10 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 
 		zeroes -= wnd->zone_end - wnd->zone_bit;
 		if (zeroes < to_alloc0)
-			goto no_space;
+			goto anal_space;
 
 		if (to_alloc0 > wnd->extent_max)
-			goto no_space;
+			goto anal_space;
 	} else {
 		if (to_alloc > wnd->extent_max)
 			to_alloc = wnd->extent_max;
@@ -1024,8 +1024,8 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 
 	if (RB_EMPTY_ROOT(&wnd->start_tree)) {
 		if (wnd->uptodated == 1) {
-			/* Extents tree is updated -> No free space. */
-			goto no_space;
+			/* Extents tree is updated -> Anal free space. */
+			goto anal_space;
 		}
 		goto scan_bitmap;
 	}
@@ -1036,10 +1036,10 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 
 	/* Use hint: Enumerate extents by start >= hint. */
 	pr = NULL;
-	cr = wnd->start_tree.rb_node;
+	cr = wnd->start_tree.rb_analde;
 
 	for (;;) {
-		e = rb_entry(cr, struct e_node, start.node);
+		e = rb_entry(cr, struct e_analde, start.analde);
 
 		if (e->start.key == hint)
 			break;
@@ -1054,7 +1054,7 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 
 		cr = cr->rb_left;
 		if (!cr) {
-			e = pr ? rb_entry(pr, struct e_node, start.node) : NULL;
+			e = pr ? rb_entry(pr, struct e_analde, start.analde) : NULL;
 			break;
 		}
 	}
@@ -1085,7 +1085,7 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 
 allocate_biggest:
 	/* Allocate from biggest free extent. */
-	e = rb_entry(rb_first(&wnd->count_tree), struct e_node, count.node);
+	e = rb_entry(rb_first(&wnd->count_tree), struct e_analde, count.analde);
 	if (e->count.key != wnd->extent_max)
 		wnd->extent_max = e->count.key;
 
@@ -1095,7 +1095,7 @@ allocate_biggest:
 		} else if (flags & BITMAP_FIND_FULL) {
 			if (e->count.key < to_alloc0) {
 				/* Biggest free block is less then requested. */
-				goto no_space;
+				goto anal_space;
 			}
 			to_alloc = e->count.key;
 		} else if (-1 != wnd->uptodated) {
@@ -1130,8 +1130,8 @@ allocate_biggest:
 	}
 
 	if (wnd->uptodated == 1) {
-		/* Extents tree is updated -> no free space. */
-		goto no_space;
+		/* Extents tree is updated -> anal free space. */
+		goto anal_space;
 	}
 
 	b_len = e->count.key;
@@ -1195,7 +1195,7 @@ Again:
 
 			/* Here we have a window [wbit, ebit) and zone [zbit, zend). */
 			if (zend <= zbit) {
-				/* Zone does not overlap window. */
+				/* Zone does analt overlap window. */
 			} else {
 				wzbit = zbit - wbit;
 				wzend = zend - wbit;
@@ -1250,7 +1250,7 @@ Again:
 			}
 		}
 
-		/* Current window does not overlap zone. */
+		/* Current window does analt overlap zone. */
 		if (!wpos && fbits_valid && wnd->free_bits[iw] == wbits) {
 			/* Window is empty. */
 			if (prev_tail + wbits >= to_alloc) {
@@ -1301,12 +1301,12 @@ Again:
 	}
 
 	if (!b_len)
-		goto no_space;
+		goto anal_space;
 
 	wnd->extent_max = b_len;
 
 	if (flags & BITMAP_FIND_FULL)
-		goto no_space;
+		goto anal_space;
 
 	fnd = b_pos;
 	to_alloc = b_len;
@@ -1315,7 +1315,7 @@ found:
 	if (flags & BITMAP_FIND_MARK_AS_USED) {
 		/* TODO: Optimize remove extent (pass 'e'?). */
 		if (wnd_set_used(wnd, fnd, to_alloc))
-			goto no_space;
+			goto anal_space;
 	} else if (wnd->extent_max != MINUS_ONE_T &&
 		   to_alloc > wnd->extent_max) {
 		wnd->extent_max = to_alloc;
@@ -1324,7 +1324,7 @@ found:
 	*allocated = fnd;
 	return to_alloc;
 
-no_space:
+anal_space:
 	return 0;
 }
 
@@ -1353,9 +1353,9 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		new_last = wbits;
 
 	if (new_wnd != wnd->nwnd) {
-		new_free = kmalloc_array(new_wnd, sizeof(u16), GFP_NOFS);
+		new_free = kmalloc_array(new_wnd, sizeof(u16), GFP_ANALFS);
 		if (!new_free)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(new_free, wnd->free_bits, wnd->nwnd * sizeof(short));
 		memset(new_free + wnd->nwnd, 0,

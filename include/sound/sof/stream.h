@@ -33,9 +33,9 @@
 #define SOF_RATE_176400		(1 << 12) /**< 176400Hz */
 #define SOF_RATE_192000		(1 << 13) /**< 192000Hz */
 
-/* continuous and non-standard rates for flexibility */
+/* continuous and analn-standard rates for flexibility */
 #define SOF_RATE_CONTINUOUS	(1 << 30)  /**< range */
-#define SOF_RATE_KNOT		(1 << 31)  /**< non-continuous */
+#define SOF_RATE_KANALT		(1 << 31)  /**< analn-continuous */
 
 /* generic PCM flags for runtime settings */
 #define SOF_PCM_FLAG_XRUN_STOP	(1 << 0) /**< Stop on any XRUN */
@@ -52,7 +52,7 @@ enum sof_ipc_frame {
 /* stream buffer format */
 enum sof_ipc_buffer_format {
 	SOF_IPC_BUFFER_INTERLEAVED,
-	SOF_IPC_BUFFER_NONINTERLEAVED,
+	SOF_IPC_BUFFER_ANALNINTERLEAVED,
 	/* other formats here */
 };
 
@@ -84,10 +84,10 @@ struct sof_ipc_stream_params {
 	uint16_t sample_container_bytes;
 
 	uint32_t host_period_bytes;
-	uint16_t no_stream_position; /**< 1 means don't send stream position */
+	uint16_t anal_stream_position; /**< 1 means don't send stream position */
 	uint8_t cont_update_posn; /**< 1 means continuous update stream position */
 	uint8_t reserved0;
-	int16_t ext_data_length; /**< 0, means no extended data */
+	int16_t ext_data_length; /**< 0, means anal extended data */
 	uint8_t reserved[2];
 	uint16_t chmap[SOF_IPC_MAX_CHANNELS];	/**< channel map - SOF_CHMAP_ */
 	uint8_t ext_data[]; /**< extended data */

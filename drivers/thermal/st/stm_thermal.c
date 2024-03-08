@@ -81,7 +81,7 @@
 #define STARTUP_TIME		40
 #define TS1_T0_VAL0		30000  /* 30 celsius */
 #define TS1_T0_VAL1		130000 /* 130 celsius */
-#define NO_HW_TRIG		0
+#define ANAL_HW_TRIG		0
 #define SAMPLING_TIME		15
 
 struct stm_thermal_sensor {
@@ -130,7 +130,7 @@ static irqreturn_t stm_thermal_irq_handler(int irq, void *sdata)
 
 	stm_enable_irq(sensor);
 
-	/* Acknoledge all DTS irqs */
+	/* Ackanalledge all DTS irqs */
 	writel_relaxed(ICIFR_MASK, sensor->base + DTS_ICIFR_OFFSET);
 
 	return IRQ_HANDLED;
@@ -230,7 +230,7 @@ static int stm_thermal_calibration(struct stm_thermal_sensor *sensor)
 
 	/* select trigger */
 	value &= ~TS1_INTRIG_SEL_MASK;
-	value |= NO_HW_TRIG;
+	value |= ANAL_HW_TRIG;
 
 	writel_relaxed(value, sensor->base + DTS_CFGR1_OFFSET);
 
@@ -488,15 +488,15 @@ static int stm_thermal_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "%s: device tree node not found\n",
+	if (!pdev->dev.of_analde) {
+		dev_err(&pdev->dev, "%s: device tree analde analt found\n",
 			__func__);
 		return -EINVAL;
 	}
 
 	sensor = devm_kzalloc(&pdev->dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, sensor);
 

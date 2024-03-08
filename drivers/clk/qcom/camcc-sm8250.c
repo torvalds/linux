@@ -415,21 +415,21 @@ static struct clk_rcg2 cam_cc_bps_clk_src = {
 	},
 };
 
-static const struct freq_tbl ftbl_cam_cc_camnoc_axi_clk_src[] = {
+static const struct freq_tbl ftbl_cam_cc_camanalc_axi_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(300000000, P_CAM_CC_PLL0_OUT_EVEN, 2, 0, 0),
 	F(400000000, P_CAM_CC_PLL0_OUT_ODD, 1, 0, 0),
 	{ }
 };
 
-static struct clk_rcg2 cam_cc_camnoc_axi_clk_src = {
+static struct clk_rcg2 cam_cc_camanalc_axi_clk_src = {
 	.cmd_rcgr = 0xc0f8,
 	.mnd_width = 0,
 	.hid_width = 5,
 	.parent_map = cam_cc_parent_map_0,
-	.freq_tbl = ftbl_cam_cc_camnoc_axi_clk_src,
+	.freq_tbl = ftbl_cam_cc_camanalc_axi_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
-		.name = "cam_cc_camnoc_axi_clk_src",
+		.name = "cam_cc_camanalc_axi_clk_src",
 		.parent_data = cam_cc_parent_data_0,
 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
 		.flags = CLK_SET_RATE_PARENT,
@@ -1062,7 +1062,7 @@ static struct clk_branch cam_cc_bps_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "cam_cc_bps_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&cam_cc_camnoc_axi_clk_src.clkr.hw
+				&cam_cc_camanalc_axi_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1089,16 +1089,16 @@ static struct clk_branch cam_cc_bps_clk = {
 	},
 };
 
-static struct clk_branch cam_cc_camnoc_axi_clk = {
+static struct clk_branch cam_cc_camanalc_axi_clk = {
 	.halt_reg = 0xc114,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xc114,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "cam_cc_camnoc_axi_clk",
+			.name = "cam_cc_camanalc_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&cam_cc_camnoc_axi_clk_src.clkr.hw
+				&cam_cc_camanalc_axi_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1107,14 +1107,14 @@ static struct clk_branch cam_cc_camnoc_axi_clk = {
 	},
 };
 
-static struct clk_branch cam_cc_camnoc_dcd_xo_clk = {
+static struct clk_branch cam_cc_camanalc_dcd_xo_clk = {
 	.halt_reg = 0xc11c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xc11c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "cam_cc_camnoc_dcd_xo_clk",
+			.name = "cam_cc_camanalc_dcd_xo_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&cam_cc_xo_clk_src.clkr.hw
 			},
@@ -1548,7 +1548,7 @@ static struct clk_branch cam_cc_ife_0_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "cam_cc_ife_0_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&cam_cc_camnoc_axi_clk_src.clkr.hw
+				&cam_cc_camanalc_axi_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1674,7 +1674,7 @@ static struct clk_branch cam_cc_ife_1_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "cam_cc_ife_1_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&cam_cc_camnoc_axi_clk_src.clkr.hw
+				&cam_cc_camanalc_axi_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1782,7 +1782,7 @@ static struct clk_branch cam_cc_ife_lite_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "cam_cc_ife_lite_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&cam_cc_camnoc_axi_clk_src.clkr.hw
+				&cam_cc_camanalc_axi_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1890,7 +1890,7 @@ static struct clk_branch cam_cc_ipe_0_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "cam_cc_ipe_0_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&cam_cc_camnoc_axi_clk_src.clkr.hw
+				&cam_cc_camanalc_axi_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2088,7 +2088,7 @@ static struct clk_branch cam_cc_sbi_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "cam_cc_sbi_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&cam_cc_camnoc_axi_clk_src.clkr.hw
+				&cam_cc_camanalc_axi_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2269,9 +2269,9 @@ static struct clk_regmap *cam_cc_sm8250_clocks[] = {
 	[CAM_CC_BPS_AXI_CLK] = &cam_cc_bps_axi_clk.clkr,
 	[CAM_CC_BPS_CLK] = &cam_cc_bps_clk.clkr,
 	[CAM_CC_BPS_CLK_SRC] = &cam_cc_bps_clk_src.clkr,
-	[CAM_CC_CAMNOC_AXI_CLK] = &cam_cc_camnoc_axi_clk.clkr,
-	[CAM_CC_CAMNOC_AXI_CLK_SRC] = &cam_cc_camnoc_axi_clk_src.clkr,
-	[CAM_CC_CAMNOC_DCD_XO_CLK] = &cam_cc_camnoc_dcd_xo_clk.clkr,
+	[CAM_CC_CAMANALC_AXI_CLK] = &cam_cc_camanalc_axi_clk.clkr,
+	[CAM_CC_CAMANALC_AXI_CLK_SRC] = &cam_cc_camanalc_axi_clk_src.clkr,
+	[CAM_CC_CAMANALC_DCD_XO_CLK] = &cam_cc_camanalc_dcd_xo_clk.clkr,
 	[CAM_CC_CCI_0_CLK] = &cam_cc_cci_0_clk.clkr,
 	[CAM_CC_CCI_0_CLK_SRC] = &cam_cc_cci_0_clk_src.clkr,
 	[CAM_CC_CCI_1_CLK] = &cam_cc_cci_1_clk.clkr,

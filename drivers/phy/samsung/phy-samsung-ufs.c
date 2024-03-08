@@ -140,7 +140,7 @@ static int samsung_ufs_phy_clks_init(struct samsung_ufs_phy *phy)
 	phy->clks = devm_kcalloc(phy->dev, num_clks, sizeof(*phy->clks),
 				 GFP_KERNEL);
 	if (!phy->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_clks; i++)
 		phy->clks[i].id = drvdata->clk_list[i];
@@ -236,16 +236,16 @@ static int samsung_ufs_phy_probe(struct platform_device *pdev)
 	u32 isol_offset;
 	int err = 0;
 
-	match = of_match_node(samsung_ufs_phy_match, dev->of_node);
+	match = of_match_analde(samsung_ufs_phy_match, dev->of_analde);
 	if (!match) {
 		err = -EINVAL;
-		dev_err(dev, "failed to get match_node\n");
+		dev_err(dev, "failed to get match_analde\n");
 		goto out;
 	}
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -256,7 +256,7 @@ static int samsung_ufs_phy_probe(struct platform_device *pdev)
 	}
 
 	phy->reg_pmu = syscon_regmap_lookup_by_phandle(
-				dev->of_node, "samsung,pmu-syscon");
+				dev->of_analde, "samsung,pmu-syscon");
 	if (IS_ERR(phy->reg_pmu)) {
 		err = PTR_ERR(phy->reg_pmu);
 		dev_err(dev, "failed syscon remap for pmu\n");
@@ -276,7 +276,7 @@ static int samsung_ufs_phy_probe(struct platform_device *pdev)
 	phy->cfgs = drvdata->cfgs;
 	memcpy(&phy->isol, &drvdata->isol, sizeof(phy->isol));
 
-	if (!of_property_read_u32_index(dev->of_node, "samsung,pmu-syscon", 1,
+	if (!of_property_read_u32_index(dev->of_analde, "samsung,pmu-syscon", 1,
 					&isol_offset))
 		phy->isol.offset = isol_offset;
 
@@ -302,11 +302,11 @@ out:
 
 static const struct of_device_id samsung_ufs_phy_match[] = {
 	{
-		.compatible = "samsung,exynos7-ufs-phy",
-		.data = &exynos7_ufs_phy,
+		.compatible = "samsung,exyanals7-ufs-phy",
+		.data = &exyanals7_ufs_phy,
 	}, {
-		.compatible = "samsung,exynosautov9-ufs-phy",
-		.data = &exynosautov9_ufs_phy,
+		.compatible = "samsung,exyanalsautov9-ufs-phy",
+		.data = &exyanalsautov9_ufs_phy,
 	}, {
 		.compatible = "tesla,fsd-ufs-phy",
 		.data = &fsd_ufs_phy,

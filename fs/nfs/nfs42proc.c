@@ -24,7 +24,7 @@ static int nfs42_do_offload_cancel_async(struct file *dst, nfs4_stateid *std);
 
 static void nfs42_set_netaddr(struct file *filep, struct nfs42_netaddr *naddr)
 {
-	struct nfs_client *clp = (NFS_SERVER(file_inode(filep)))->nfs_client;
+	struct nfs_client *clp = (NFS_SERVER(file_ianalde(filep)))->nfs_client;
 	unsigned short port = 2049;
 
 	rcu_read_lock();
@@ -44,11 +44,11 @@ static void nfs42_set_netaddr(struct file *filep, struct nfs42_netaddr *naddr)
 static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 		struct nfs_lock_context *lock, loff_t offset, loff_t len)
 {
-	struct inode *inode = file_inode(filep);
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = file_ianalde(filep);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	u32 bitmask[NFS_BITMASK_SZ];
 	struct nfs42_falloc_args args = {
-		.falloc_fh	= NFS_FH(inode),
+		.falloc_fh	= NFS_FH(ianalde),
 		.falloc_offset	= offset,
 		.falloc_length	= len,
 		.falloc_bitmask	= bitmask,
@@ -69,29 +69,29 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 		return status;
 	}
 
-	nfs4_bitmask_set(bitmask, server->cache_consistency_bitmask, inode,
-			 NFS_INO_INVALID_BLOCKS);
+	nfs4_bitmask_set(bitmask, server->cache_consistency_bitmask, ianalde,
+			 NFS_IANAL_INVALID_BLOCKS);
 
 	res.falloc_fattr = nfs_alloc_fattr();
 	if (!res.falloc_fattr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = nfs4_call_sync(server->client, server, msg,
 				&args.seq_args, &res.seq_res, 0);
 	if (status == 0) {
-		if (nfs_should_remove_suid(inode)) {
-			spin_lock(&inode->i_lock);
-			nfs_set_cache_invalid(inode,
-				NFS_INO_REVAL_FORCED | NFS_INO_INVALID_MODE);
-			spin_unlock(&inode->i_lock);
+		if (nfs_should_remove_suid(ianalde)) {
+			spin_lock(&ianalde->i_lock);
+			nfs_set_cache_invalid(ianalde,
+				NFS_IANAL_REVAL_FORCED | NFS_IANAL_INVALID_MODE);
+			spin_unlock(&ianalde->i_lock);
 		}
-		status = nfs_post_op_update_inode_force_wcc(inode,
+		status = nfs_post_op_update_ianalde_force_wcc(ianalde,
 							    res.falloc_fattr);
 	}
 	if (msg->rpc_proc == &nfs4_procedures[NFSPROC4_CLNT_ALLOCATE])
-		trace_nfs4_fallocate(inode, &args, status);
+		trace_nfs4_fallocate(ianalde, &args, status);
 	else
-		trace_nfs4_deallocate(inode, &args, status);
+		trace_nfs4_deallocate(ianalde, &args, status);
 	kfree(res.falloc_fattr);
 	return status;
 }
@@ -99,8 +99,8 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 static int nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 				loff_t offset, loff_t len)
 {
-	struct inode *inode = file_inode(filep);
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = file_ianalde(filep);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs4_exception exception = { };
 	struct nfs_lock_context *lock;
 	int err;
@@ -109,17 +109,17 @@ static int nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 	if (IS_ERR(lock))
 		return PTR_ERR(lock);
 
-	exception.inode = inode;
+	exception.ianalde = ianalde;
 	exception.state = lock->open_context->state;
 
-	err = nfs_sync_inode(inode);
+	err = nfs_sync_ianalde(ianalde);
 	if (err)
 		goto out;
 
 	do {
 		err = _nfs42_proc_fallocate(msg, filep, lock, offset, len);
-		if (err == -ENOTSUPP) {
-			err = -EOPNOTSUPP;
+		if (err == -EANALTSUPP) {
+			err = -EOPANALTSUPP;
 			break;
 		}
 		err = nfs4_handle_exception(server, err, &exception);
@@ -134,19 +134,19 @@ int nfs42_proc_allocate(struct file *filep, loff_t offset, loff_t len)
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_ALLOCATE],
 	};
-	struct inode *inode = file_inode(filep);
+	struct ianalde *ianalde = file_ianalde(filep);
 	int err;
 
-	if (!nfs_server_capable(inode, NFS_CAP_ALLOCATE))
-		return -EOPNOTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_ALLOCATE))
+		return -EOPANALTSUPP;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
-	if (err == -EOPNOTSUPP)
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_ALLOCATE;
+	if (err == -EOPANALTSUPP)
+		NFS_SERVER(ianalde)->caps &= ~NFS_CAP_ALLOCATE;
 
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	return err;
 }
 
@@ -155,21 +155,21 @@ int nfs42_proc_deallocate(struct file *filep, loff_t offset, loff_t len)
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DEALLOCATE],
 	};
-	struct inode *inode = file_inode(filep);
+	struct ianalde *ianalde = file_ianalde(filep);
 	int err;
 
-	if (!nfs_server_capable(inode, NFS_CAP_DEALLOCATE))
-		return -EOPNOTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_DEALLOCATE))
+		return -EOPANALTSUPP;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
 	if (err == 0)
-		truncate_pagecache_range(inode, offset, (offset + len) -1);
-	if (err == -EOPNOTSUPP)
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_DEALLOCATE;
+		truncate_pagecache_range(ianalde, offset, (offset + len) -1);
+	if (err == -EOPANALTSUPP)
+		NFS_SERVER(ianalde)->caps &= ~NFS_CAP_DEALLOCATE;
 
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	return err;
 }
 
@@ -188,7 +188,7 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 
 	copy = kzalloc(sizeof(struct nfs4_copy_state), GFP_KERNEL);
 	if (!copy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&dst_server->nfs_client->cl_lock);
 	list_for_each_entry(iter,
@@ -233,7 +233,7 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 	}
 	if (status == -ERESTARTSYS) {
 		goto out_cancel;
-	} else if (copy->flags || copy->error == NFS4ERR_PARTNER_NO_AUTH) {
+	} else if (copy->flags || copy->error == NFS4ERR_PARTNER_ANAL_AUTH) {
 		status = -EAGAIN;
 		*restart = true;
 		goto out_cancel;
@@ -257,7 +257,7 @@ static int process_copy_commit(struct file *dst, loff_t pos_dst,
 			       struct nfs42_copy_res *res)
 {
 	struct nfs_commitres cres;
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 
 	cres.verf = kzalloc(sizeof(struct nfs_writeverf), GFP_KERNEL);
 	if (!cres.verf)
@@ -278,32 +278,32 @@ out:
 }
 
 /**
- * nfs42_copy_dest_done - perform inode cache updates after clone/copy offload
- * @inode: pointer to destination inode
+ * nfs42_copy_dest_done - perform ianalde cache updates after clone/copy offload
+ * @ianalde: pointer to destination ianalde
  * @pos: destination offset
  * @len: copy length
  *
- * Punch a hole in the inode page cache, so that the NFS client will
- * know to retrieve new data.
- * Update the file size if necessary, and then mark the inode as having
+ * Punch a hole in the ianalde page cache, so that the NFS client will
+ * kanalw to retrieve new data.
+ * Update the file size if necessary, and then mark the ianalde as having
  * invalid cached values for change attribute, ctime, mtime and space used.
  */
-static void nfs42_copy_dest_done(struct inode *inode, loff_t pos, loff_t len)
+static void nfs42_copy_dest_done(struct ianalde *ianalde, loff_t pos, loff_t len)
 {
 	loff_t newsize = pos + len;
 	loff_t end = newsize - 1;
 
-	WARN_ON_ONCE(invalidate_inode_pages2_range(inode->i_mapping,
+	WARN_ON_ONCE(invalidate_ianalde_pages2_range(ianalde->i_mapping,
 				pos >> PAGE_SHIFT, end >> PAGE_SHIFT));
 
-	spin_lock(&inode->i_lock);
-	if (newsize > i_size_read(inode))
-		i_size_write(inode, newsize);
-	nfs_set_cache_invalid(inode, NFS_INO_INVALID_CHANGE |
-					     NFS_INO_INVALID_CTIME |
-					     NFS_INO_INVALID_MTIME |
-					     NFS_INO_INVALID_BLOCKS);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
+	if (newsize > i_size_read(ianalde))
+		i_size_write(ianalde, newsize);
+	nfs_set_cache_invalid(ianalde, NFS_IANAL_INVALID_CHANGE |
+					     NFS_IANAL_INVALID_CTIME |
+					     NFS_IANAL_INVALID_MTIME |
+					     NFS_IANAL_INVALID_BLOCKS);
+	spin_unlock(&ianalde->i_lock);
 }
 
 static ssize_t _nfs42_proc_copy(struct file *src,
@@ -321,10 +321,10 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 		.rpc_argp = args,
 		.rpc_resp = res,
 	};
-	struct inode *dst_inode = file_inode(dst);
-	struct inode *src_inode = file_inode(src);
-	struct nfs_server *dst_server = NFS_SERVER(dst_inode);
-	struct nfs_server *src_server = NFS_SERVER(src_inode);
+	struct ianalde *dst_ianalde = file_ianalde(dst);
+	struct ianalde *src_ianalde = file_ianalde(src);
+	struct nfs_server *dst_server = NFS_SERVER(dst_ianalde);
+	struct nfs_server *src_server = NFS_SERVER(src_ianalde);
 	loff_t pos_src = args->src_pos;
 	loff_t pos_dst = args->dst_pos;
 	size_t count = args->count;
@@ -355,7 +355,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 		return status;
 	}
 
-	status = nfs_sync_inode(dst_inode);
+	status = nfs_sync_ianalde(dst_ianalde);
 	if (status)
 		return status;
 
@@ -364,7 +364,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 		res->commit_res.verf =
 			kzalloc(sizeof(struct nfs_writeverf), GFP_KERNEL);
 		if (!res->commit_res.verf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	set_bit(NFS_CLNT_SRC_SSC_COPY_STATE,
 		&src_lock->open_context->state->flags);
@@ -373,8 +373,8 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 
 	status = nfs4_call_sync(dst_server->client, dst_server, &msg,
 				&args->seq_args, &res->seq_res, 0);
-	trace_nfs4_copy(src_inode, dst_inode, args, res, nss, status);
-	if (status == -ENOTSUPP)
+	trace_nfs4_copy(src_ianalde, dst_ianalde, args, res, nss, status);
+	if (status == -EANALTSUPP)
 		dst_server->caps &= ~NFS_CAP_COPY;
 	if (status)
 		goto out;
@@ -386,22 +386,22 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 		goto out;
 	}
 
-	if (!res->synchronous) {
+	if (!res->synchroanalus) {
 		status = handle_async_copy(res, dst_server, src_server, src,
 				dst, &args->src_stateid, restart);
 		if (status)
 			goto out;
 	}
 
-	if ((!res->synchronous || !args->sync) &&
+	if ((!res->synchroanalus || !args->sync) &&
 			res->write_res.verifier.committed != NFS_FILE_SYNC) {
 		status = process_copy_commit(dst, pos_dst, res);
 		if (status)
 			goto out;
 	}
 
-	nfs42_copy_dest_done(dst_inode, pos_dst, res->write_res.count);
-	nfs_invalidate_atime(src_inode);
+	nfs42_copy_dest_done(dst_ianalde, pos_dst, res->write_res.count);
+	nfs_invalidate_atime(src_ianalde);
 	status = res->write_res.count;
 out:
 	if (args->sync)
@@ -414,24 +414,24 @@ ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 			struct nl4_server *nss,
 			nfs4_stateid *cnr_stateid, bool sync)
 {
-	struct nfs_server *server = NFS_SERVER(file_inode(dst));
+	struct nfs_server *server = NFS_SERVER(file_ianalde(dst));
 	struct nfs_lock_context *src_lock;
 	struct nfs_lock_context *dst_lock;
 	struct nfs42_copy_args args = {
-		.src_fh		= NFS_FH(file_inode(src)),
+		.src_fh		= NFS_FH(file_ianalde(src)),
 		.src_pos	= pos_src,
-		.dst_fh		= NFS_FH(file_inode(dst)),
+		.dst_fh		= NFS_FH(file_ianalde(dst)),
 		.dst_pos	= pos_dst,
 		.count		= count,
 		.sync		= sync,
 	};
 	struct nfs42_copy_res res;
 	struct nfs4_exception src_exception = {
-		.inode		= file_inode(src),
+		.ianalde		= file_ianalde(src),
 		.stateid	= &args.src_stateid,
 	};
 	struct nfs4_exception dst_exception = {
-		.inode		= file_inode(dst),
+		.ianalde		= file_ianalde(dst),
 		.stateid	= &args.dst_stateid,
 	};
 	ssize_t err, err2;
@@ -452,19 +452,19 @@ ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 	dst_exception.state = dst_lock->open_context->state;
 
 	do {
-		inode_lock(file_inode(dst));
+		ianalde_lock(file_ianalde(dst));
 		err = _nfs42_proc_copy(src, src_lock,
 				dst, dst_lock,
 				&args, &res,
 				nss, cnr_stateid, &restart);
-		inode_unlock(file_inode(dst));
+		ianalde_unlock(file_ianalde(dst));
 
 		if (err >= 0)
 			break;
-		if ((err == -ENOTSUPP ||
+		if ((err == -EANALTSUPP ||
 				err == -NFS4ERR_OFFLOAD_DENIED) &&
 				nfs42_files_from_same_server(src, dst)) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		} else if (err == -EAGAIN) {
 			if (!restart) {
@@ -472,17 +472,17 @@ ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 				continue;
 			}
 			break;
-		} else if (err == -NFS4ERR_OFFLOAD_NO_REQS &&
-				args.sync != res.synchronous) {
-			args.sync = res.synchronous;
+		} else if (err == -NFS4ERR_OFFLOAD_ANAL_REQS &&
+				args.sync != res.synchroanalus) {
+			args.sync = res.synchroanalus;
 			dst_exception.retry = 1;
 			continue;
 		} else if ((err == -ESTALE ||
 				err == -NFS4ERR_OFFLOAD_DENIED ||
-				err == -ENOTSUPP) &&
+				err == -EANALTSUPP) &&
 				!nfs42_files_from_same_server(src, dst)) {
 			nfs42_do_offload_cancel_async(src, &args.src_stateid);
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 
@@ -539,7 +539,7 @@ static const struct rpc_call_ops nfs42_offload_cancel_ops = {
 static int nfs42_do_offload_cancel_async(struct file *dst,
 					 nfs4_stateid *stateid)
 {
-	struct nfs_server *dst_server = NFS_SERVER(file_inode(dst));
+	struct nfs_server *dst_server = NFS_SERVER(file_ianalde(dst));
 	struct nfs42_offloadcancel_data *data = NULL;
 	struct nfs_open_context *ctx = nfs_file_open_context(dst);
 	struct rpc_task *task;
@@ -557,14 +557,14 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 	int status;
 
 	if (!(dst_server->caps & NFS_CAP_OFFLOAD_CANCEL))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	data = kzalloc(sizeof(struct nfs42_offloadcancel_data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->seq_server = dst_server;
-	data->args.osa_src_fh = NFS_FH(file_inode(dst));
+	data->args.osa_src_fh = NFS_FH(file_ianalde(dst));
 	memcpy(&data->args.osa_stateid, stateid,
 		sizeof(data->args.osa_stateid));
 	msg.rpc_argp = &data->args;
@@ -576,19 +576,19 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	status = rpc_wait_for_completion_task(task);
-	if (status == -ENOTSUPP)
+	if (status == -EANALTSUPP)
 		dst_server->caps &= ~NFS_CAP_OFFLOAD_CANCEL;
 	rpc_put_task(task);
 	return status;
 }
 
-static int _nfs42_proc_copy_notify(struct file *src, struct file *dst,
-				   struct nfs42_copy_notify_args *args,
-				   struct nfs42_copy_notify_res *res)
+static int _nfs42_proc_copy_analtify(struct file *src, struct file *dst,
+				   struct nfs42_copy_analtify_args *args,
+				   struct nfs42_copy_analtify_res *res)
 {
-	struct nfs_server *src_server = NFS_SERVER(file_inode(src));
+	struct nfs_server *src_server = NFS_SERVER(file_ianalde(src));
 	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_COPY_NOTIFY],
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_COPY_ANALTIFY],
 		.rpc_argp = args,
 		.rpc_resp = res,
 	};
@@ -614,41 +614,41 @@ static int _nfs42_proc_copy_notify(struct file *src, struct file *dst,
 
 	status = nfs4_call_sync(src_server->client, src_server, &msg,
 				&args->cna_seq_args, &res->cnr_seq_res, 0);
-	trace_nfs4_copy_notify(file_inode(src), args, res, status);
-	if (status == -ENOTSUPP)
-		src_server->caps &= ~NFS_CAP_COPY_NOTIFY;
+	trace_nfs4_copy_analtify(file_ianalde(src), args, res, status);
+	if (status == -EANALTSUPP)
+		src_server->caps &= ~NFS_CAP_COPY_ANALTIFY;
 
 out:
 	put_nfs_open_context(nfs_file_open_context(src));
 	return status;
 }
 
-int nfs42_proc_copy_notify(struct file *src, struct file *dst,
-				struct nfs42_copy_notify_res *res)
+int nfs42_proc_copy_analtify(struct file *src, struct file *dst,
+				struct nfs42_copy_analtify_res *res)
 {
-	struct nfs_server *src_server = NFS_SERVER(file_inode(src));
-	struct nfs42_copy_notify_args *args;
+	struct nfs_server *src_server = NFS_SERVER(file_ianalde(src));
+	struct nfs42_copy_analtify_args *args;
 	struct nfs4_exception exception = {
-		.inode = file_inode(src),
+		.ianalde = file_ianalde(src),
 	};
 	int status;
 
-	if (!(src_server->caps & NFS_CAP_COPY_NOTIFY))
-		return -EOPNOTSUPP;
+	if (!(src_server->caps & NFS_CAP_COPY_ANALTIFY))
+		return -EOPANALTSUPP;
 
-	args = kzalloc(sizeof(struct nfs42_copy_notify_args), GFP_KERNEL);
+	args = kzalloc(sizeof(struct nfs42_copy_analtify_args), GFP_KERNEL);
 	if (args == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	args->cna_src_fh  = NFS_FH(file_inode(src)),
+	args->cna_src_fh  = NFS_FH(file_ianalde(src)),
 	args->cna_dst.nl4_type = NL4_NETADDR;
 	nfs42_set_netaddr(dst, &args->cna_dst.u.nl4_addr);
 	exception.stateid = &args->cna_src_stateid;
 
 	do {
-		status = _nfs42_proc_copy_notify(src, dst, args, res);
-		if (status == -ENOTSUPP) {
-			status = -EOPNOTSUPP;
+		status = _nfs42_proc_copy_analtify(src, dst, args, res);
+		if (status == -EANALTSUPP) {
+			status = -EOPANALTSUPP;
 			goto out;
 		}
 		status = nfs4_handle_exception(src_server, status, &exception);
@@ -662,9 +662,9 @@ out:
 static loff_t _nfs42_proc_llseek(struct file *filep,
 		struct nfs_lock_context *lock, loff_t offset, int whence)
 {
-	struct inode *inode = file_inode(filep);
+	struct ianalde *ianalde = file_ianalde(filep);
 	struct nfs42_seek_args args = {
-		.sa_fh		= NFS_FH(inode),
+		.sa_fh		= NFS_FH(ianalde),
 		.sa_offset	= offset,
 		.sa_what	= (whence == SEEK_HOLE) ?
 					NFS4_CONTENT_HOLE : NFS4_CONTENT_DATA,
@@ -675,11 +675,11 @@ static loff_t _nfs42_proc_llseek(struct file *filep,
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	int status;
 
-	if (!nfs_server_capable(inode, NFS_CAP_SEEK))
-		return -ENOTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_SEEK))
+		return -EANALTSUPP;
 
 	status = nfs4_set_rw_stateid(&args.sa_stateid, lock->open_context,
 			lock, FMODE_READ);
@@ -689,15 +689,15 @@ static loff_t _nfs42_proc_llseek(struct file *filep,
 		return status;
 	}
 
-	status = nfs_filemap_write_and_wait_range(inode->i_mapping,
+	status = nfs_filemap_write_and_wait_range(ianalde->i_mapping,
 			offset, LLONG_MAX);
 	if (status)
 		return status;
 
 	status = nfs4_call_sync(server->client, server, &msg,
 				&args.seq_args, &res.seq_res, 0);
-	trace_nfs4_llseek(inode, &args, &res, status);
-	if (status == -ENOTSUPP)
+	trace_nfs4_llseek(ianalde, &args, &res, status);
+	if (status == -EANALTSUPP)
 		server->caps &= ~NFS_CAP_SEEK;
 	if (status)
 		return status;
@@ -705,12 +705,12 @@ static loff_t _nfs42_proc_llseek(struct file *filep,
 	if (whence == SEEK_DATA && res.sr_eof)
 		return -NFS4ERR_NXIO;
 	else
-		return vfs_setpos(filep, res.sr_offset, inode->i_sb->s_maxbytes);
+		return vfs_setpos(filep, res.sr_offset, ianalde->i_sb->s_maxbytes);
 }
 
 loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 {
-	struct nfs_server *server = NFS_SERVER(file_inode(filep));
+	struct nfs_server *server = NFS_SERVER(file_ianalde(filep));
 	struct nfs4_exception exception = { };
 	struct nfs_lock_context *lock;
 	loff_t err;
@@ -719,15 +719,15 @@ loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 	if (IS_ERR(lock))
 		return PTR_ERR(lock);
 
-	exception.inode = file_inode(filep);
+	exception.ianalde = file_ianalde(filep);
 	exception.state = lock->open_context->state;
 
 	do {
 		err = _nfs42_proc_llseek(filep, lock, offset, whence);
 		if (err >= 0)
 			break;
-		if (err == -ENOTSUPP) {
-			err = -EOPNOTSUPP;
+		if (err == -EANALTSUPP) {
+			err = -EOPANALTSUPP;
 			break;
 		}
 		err = nfs4_handle_exception(server, err, &exception);
@@ -742,19 +742,19 @@ static void
 nfs42_layoutstat_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
-	struct inode *inode = data->inode;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = data->ianalde;
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct pnfs_layout_hdr *lo;
 
-	spin_lock(&inode->i_lock);
-	lo = NFS_I(inode)->layout;
+	spin_lock(&ianalde->i_lock);
+	lo = NFS_I(ianalde)->layout;
 	if (!pnfs_layout_is_valid(lo)) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		rpc_exit(task, 0);
 		return;
 	}
 	nfs4_stateid_copy(&data->args.stateid, &lo->plh_stateid);
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ianalde->i_lock);
 	nfs4_setup_sequence(server->nfs_client, &data->args.seq_args,
 			    &data->res.seq_res, task);
 }
@@ -763,7 +763,7 @@ static void
 nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
-	struct inode *inode = data->inode;
+	struct ianalde *ianalde = data->ianalde;
 	struct pnfs_layout_hdr *lo;
 
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
@@ -774,15 +774,15 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 		return;
 	case -NFS4ERR_BADHANDLE:
 	case -ESTALE:
-		pnfs_destroy_layout(NFS_I(inode));
+		pnfs_destroy_layout(NFS_I(ianalde));
 		break;
 	case -NFS4ERR_EXPIRED:
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_STALE_STATEID:
 	case -NFS4ERR_BAD_STATEID:
-		spin_lock(&inode->i_lock);
-		lo = NFS_I(inode)->layout;
+		spin_lock(&ianalde->i_lock);
+		lo = NFS_I(ianalde)->layout;
 		if (pnfs_layout_is_valid(lo) &&
 		    nfs4_stateid_match(&data->args.stateid,
 					     &lo->plh_stateid)) {
@@ -793,15 +793,15 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 			 * with the current stateid.
 			 */
 			pnfs_mark_layout_stateid_invalid(lo, &head);
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ianalde->i_lock);
 			pnfs_free_lseg_list(&head);
-			nfs_commit_inode(inode, 0);
+			nfs_commit_ianalde(ianalde, 0);
 		} else
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ianalde->i_lock);
 		break;
 	case -NFS4ERR_OLD_STATEID:
-		spin_lock(&inode->i_lock);
-		lo = NFS_I(inode)->layout;
+		spin_lock(&ianalde->i_lock);
+		lo = NFS_I(ianalde)->layout;
 		if (pnfs_layout_is_valid(lo) &&
 		    nfs4_stateid_match_other(&data->args.stateid,
 					&lo->plh_stateid)) {
@@ -811,14 +811,14 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 				rpc_delay(task, HZ);
 			rpc_restart_call_prepare(task);
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		break;
-	case -ENOTSUPP:
-	case -EOPNOTSUPP:
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
+	case -EANALTSUPP:
+	case -EOPANALTSUPP:
+		NFS_SERVER(ianalde)->caps &= ~NFS_CAP_LAYOUTSTATS;
 	}
 
-	trace_nfs4_layoutstats(inode, &data->args.stateid, task->tk_status);
+	trace_nfs4_layoutstats(ianalde, &data->args.stateid, task->tk_status);
 }
 
 static void
@@ -833,11 +833,11 @@ nfs42_layoutstat_release(void *calldata)
 			devinfo[i].ld_private.ops->free(&devinfo[i].ld_private);
 	}
 
-	pnfs_put_layout_hdr(NFS_I(data->args.inode)->layout);
+	pnfs_put_layout_hdr(NFS_I(data->args.ianalde)->layout);
 	smp_mb__before_atomic();
-	clear_bit(NFS_INO_LAYOUTSTATS, &NFS_I(data->args.inode)->flags);
+	clear_bit(NFS_IANAL_LAYOUTSTATS, &NFS_I(data->args.ianalde)->flags);
 	smp_mb__after_atomic();
-	nfs_iput_and_deactive(data->inode);
+	nfs_iput_and_deactive(data->ianalde);
 	kfree(data->args.devinfo);
 	kfree(data);
 }
@@ -865,8 +865,8 @@ int nfs42_proc_layoutstats_generic(struct nfs_server *server,
 	};
 	struct rpc_task *task;
 
-	data->inode = nfs_igrab_and_active(data->args.inode);
-	if (!data->inode) {
+	data->ianalde = nfs_igrab_and_active(data->args.ianalde);
+	if (!data->ianalde) {
 		nfs42_layoutstat_release(data);
 		return -EAGAIN;
 	}
@@ -882,16 +882,16 @@ static struct nfs42_layouterror_data *
 nfs42_alloc_layouterror_data(struct pnfs_layout_segment *lseg, gfp_t gfp_flags)
 {
 	struct nfs42_layouterror_data *data;
-	struct inode *inode = lseg->pls_layout->plh_inode;
+	struct ianalde *ianalde = lseg->pls_layout->plh_ianalde;
 
 	data = kzalloc(sizeof(*data), gfp_flags);
 	if (data) {
-		data->args.inode = data->inode = nfs_igrab_and_active(inode);
-		if (data->inode) {
+		data->args.ianalde = data->ianalde = nfs_igrab_and_active(ianalde);
+		if (data->ianalde) {
 			data->lseg = pnfs_get_lseg(lseg);
 			if (data->lseg)
 				return data;
-			nfs_iput_and_deactive(data->inode);
+			nfs_iput_and_deactive(data->ianalde);
 		}
 		kfree(data);
 	}
@@ -902,7 +902,7 @@ static void
 nfs42_free_layouterror_data(struct nfs42_layouterror_data *data)
 {
 	pnfs_put_lseg(data->lseg);
-	nfs_iput_and_deactive(data->inode);
+	nfs_iput_and_deactive(data->ianalde);
 	kfree(data);
 }
 
@@ -910,21 +910,21 @@ static void
 nfs42_layouterror_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layouterror_data *data = calldata;
-	struct inode *inode = data->inode;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = data->ianalde;
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct pnfs_layout_hdr *lo = data->lseg->pls_layout;
 	unsigned i;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
 	if (!pnfs_layout_is_valid(lo)) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		rpc_exit(task, 0);
 		return;
 	}
 	for (i = 0; i < data->args.num_errors; i++)
 		nfs4_stateid_copy(&data->args.errors[i].stateid,
 				&lo->plh_stateid);
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ianalde->i_lock);
 	nfs4_setup_sequence(server->nfs_client, &data->args.seq_args,
 			    &data->res.seq_res, task);
 }
@@ -933,7 +933,7 @@ static void
 nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layouterror_data *data = calldata;
-	struct inode *inode = data->inode;
+	struct ianalde *ianalde = data->ianalde;
 	struct pnfs_layout_hdr *lo = data->lseg->pls_layout;
 
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
@@ -944,14 +944,14 @@ nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 		return;
 	case -NFS4ERR_BADHANDLE:
 	case -ESTALE:
-		pnfs_destroy_layout(NFS_I(inode));
+		pnfs_destroy_layout(NFS_I(ianalde));
 		break;
 	case -NFS4ERR_EXPIRED:
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_STALE_STATEID:
 	case -NFS4ERR_BAD_STATEID:
-		spin_lock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
 		if (pnfs_layout_is_valid(lo) &&
 		    nfs4_stateid_match(&data->args.errors[0].stateid,
 					     &lo->plh_stateid)) {
@@ -962,14 +962,14 @@ nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 			 * with the current stateid.
 			 */
 			pnfs_mark_layout_stateid_invalid(lo, &head);
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ianalde->i_lock);
 			pnfs_free_lseg_list(&head);
-			nfs_commit_inode(inode, 0);
+			nfs_commit_ianalde(ianalde, 0);
 		} else
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ianalde->i_lock);
 		break;
 	case -NFS4ERR_OLD_STATEID:
-		spin_lock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
 		if (pnfs_layout_is_valid(lo) &&
 		    nfs4_stateid_match_other(&data->args.errors[0].stateid,
 					&lo->plh_stateid)) {
@@ -979,14 +979,14 @@ nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 				rpc_delay(task, HZ);
 			rpc_restart_call_prepare(task);
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		break;
-	case -ENOTSUPP:
-	case -EOPNOTSUPP:
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTERROR;
+	case -EANALTSUPP:
+	case -EOPANALTSUPP:
+		NFS_SERVER(ianalde)->caps &= ~NFS_CAP_LAYOUTERROR;
 	}
 
-	trace_nfs4_layouterror(inode, &data->args.errors[0].stateid,
+	trace_nfs4_layouterror(ianalde, &data->args.errors[0].stateid,
 			       task->tk_status);
 }
 
@@ -1007,7 +1007,7 @@ static const struct rpc_call_ops nfs42_layouterror_ops = {
 int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 		const struct nfs42_layout_error *errors, size_t n)
 {
-	struct inode *inode = lseg->pls_layout->plh_inode;
+	struct ianalde *ianalde = lseg->pls_layout->plh_ianalde;
 	struct nfs42_layouterror_data *data;
 	struct rpc_task *task;
 	struct rpc_message msg = {
@@ -1020,13 +1020,13 @@ int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 	};
 	unsigned int i;
 
-	if (!nfs_server_capable(inode, NFS_CAP_LAYOUTERROR))
-		return -EOPNOTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_LAYOUTERROR))
+		return -EOPANALTSUPP;
 	if (n > NFS42_LAYOUTERROR_MAX)
 		return -EINVAL;
 	data = nfs42_alloc_layouterror_data(lseg, nfs_io_gfp_mask());
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < n; i++) {
 		data->args.errors[i] = errors[i];
 		data->args.num_errors++;
@@ -1035,7 +1035,7 @@ int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 	msg.rpc_argp = &data->args;
 	msg.rpc_resp = &data->res;
 	task_setup.callback_data = data;
-	task_setup.rpc_client = NFS_SERVER(inode)->client;
+	task_setup.rpc_client = NFS_SERVER(ianalde)->client;
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0, 0);
 	task = rpc_run_task(&task_setup);
 	if (IS_ERR(task))
@@ -1050,13 +1050,13 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 		struct nfs_lock_context *dst_lock, loff_t src_offset,
 		loff_t dst_offset, loff_t count)
 {
-	struct inode *src_inode = file_inode(src_f);
-	struct inode *dst_inode = file_inode(dst_f);
-	struct nfs_server *server = NFS_SERVER(dst_inode);
+	struct ianalde *src_ianalde = file_ianalde(src_f);
+	struct ianalde *dst_ianalde = file_ianalde(dst_f);
+	struct nfs_server *server = NFS_SERVER(dst_ianalde);
 	__u32 dst_bitmask[NFS_BITMASK_SZ];
 	struct nfs42_clone_args args = {
-		.src_fh = NFS_FH(src_inode),
-		.dst_fh = NFS_FH(dst_inode),
+		.src_fh = NFS_FH(src_ianalde),
+		.dst_fh = NFS_FH(dst_ianalde),
 		.src_offset = src_offset,
 		.dst_offset = dst_offset,
 		.count = count,
@@ -1087,20 +1087,20 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 
 	res.dst_fattr = nfs_alloc_fattr();
 	if (!res.dst_fattr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfs4_bitmask_set(dst_bitmask, server->cache_consistency_bitmask,
-			 dst_inode, NFS_INO_INVALID_BLOCKS);
+			 dst_ianalde, NFS_IANAL_INVALID_BLOCKS);
 
 	status = nfs4_call_sync(server->client, server, msg,
 				&args.seq_args, &res.seq_res, 0);
-	trace_nfs4_clone(src_inode, dst_inode, &args, status);
+	trace_nfs4_clone(src_ianalde, dst_ianalde, &args, status);
 	if (status == 0) {
 		/* a zero-length count means clone to EOF in src */
 		if (count == 0 && res.dst_fattr->valid & NFS_ATTR_FATTR_SIZE)
 			count = nfs_size_to_loff_t(res.dst_fattr->size) - dst_offset;
-		nfs42_copy_dest_done(dst_inode, dst_offset, count);
-		status = nfs_post_op_update_inode(dst_inode, res.dst_fattr);
+		nfs42_copy_dest_done(dst_ianalde, dst_offset, count);
+		status = nfs_post_op_update_ianalde(dst_ianalde, res.dst_fattr);
 	}
 
 	kfree(res.dst_fattr);
@@ -1113,22 +1113,22 @@ int nfs42_proc_clone(struct file *src_f, struct file *dst_f,
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLONE],
 	};
-	struct inode *inode = file_inode(src_f);
-	struct nfs_server *server = NFS_SERVER(file_inode(src_f));
+	struct ianalde *ianalde = file_ianalde(src_f);
+	struct nfs_server *server = NFS_SERVER(file_ianalde(src_f));
 	struct nfs_lock_context *src_lock;
 	struct nfs_lock_context *dst_lock;
 	struct nfs4_exception src_exception = { };
 	struct nfs4_exception dst_exception = { };
 	int err, err2;
 
-	if (!nfs_server_capable(inode, NFS_CAP_CLONE))
-		return -EOPNOTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_CLONE))
+		return -EOPANALTSUPP;
 
 	src_lock = nfs_get_lock_context(nfs_file_open_context(src_f));
 	if (IS_ERR(src_lock))
 		return PTR_ERR(src_lock);
 
-	src_exception.inode = file_inode(src_f);
+	src_exception.ianalde = file_ianalde(src_f);
 	src_exception.state = src_lock->open_context->state;
 
 	dst_lock = nfs_get_lock_context(nfs_file_open_context(dst_f));
@@ -1137,15 +1137,15 @@ int nfs42_proc_clone(struct file *src_f, struct file *dst_f,
 		goto out_put_src_lock;
 	}
 
-	dst_exception.inode = file_inode(dst_f);
+	dst_exception.ianalde = file_ianalde(dst_f);
 	dst_exception.state = dst_lock->open_context->state;
 
 	do {
 		err = _nfs42_proc_clone(&msg, src_f, dst_f, src_lock, dst_lock,
 					src_offset, dst_offset, count);
-		if (err == -ENOTSUPP || err == -EOPNOTSUPP) {
-			NFS_SERVER(inode)->caps &= ~NFS_CAP_CLONE;
-			err = -EOPNOTSUPP;
+		if (err == -EANALTSUPP || err == -EOPANALTSUPP) {
+			NFS_SERVER(ianalde)->caps &= ~NFS_CAP_CLONE;
+			err = -EOPANALTSUPP;
 			break;
 		}
 
@@ -1163,11 +1163,11 @@ out_put_src_lock:
 
 #define NFS4XATTR_MAXPAGES DIV_ROUND_UP(XATTR_SIZE_MAX, PAGE_SIZE)
 
-static int _nfs42_proc_removexattr(struct inode *inode, const char *name)
+static int _nfs42_proc_removexattr(struct ianalde *ianalde, const char *name)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs42_removexattrargs args = {
-		.fh = NFS_FH(inode),
+		.fh = NFS_FH(ianalde),
 		.xattr_name = name,
 	};
 	struct nfs42_removexattrres res;
@@ -1181,21 +1181,21 @@ static int _nfs42_proc_removexattr(struct inode *inode, const char *name)
 
 	ret = nfs4_call_sync(server->client, server, &msg, &args.seq_args,
 	    &res.seq_res, 1);
-	trace_nfs4_removexattr(inode, name, ret);
+	trace_nfs4_removexattr(ianalde, name, ret);
 	if (!ret)
-		nfs4_update_changeattr(inode, &res.cinfo, timestamp, 0);
+		nfs4_update_changeattr(ianalde, &res.cinfo, timestamp, 0);
 
 	return ret;
 }
 
-static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
+static int _nfs42_proc_setxattr(struct ianalde *ianalde, const char *name,
 				const void *buf, size_t buflen, int flags)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	__u32 bitmask[NFS_BITMASK_SZ];
 	struct page *pages[NFS4XATTR_MAXPAGES];
 	struct nfs42_setxattrargs arg = {
-		.fh		= NFS_FH(inode),
+		.fh		= NFS_FH(ianalde),
 		.bitmask	= bitmask,
 		.xattr_pages	= pages,
 		.xattr_len	= buflen,
@@ -1218,10 +1218,10 @@ static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
 
 	res.fattr = nfs_alloc_fattr();
 	if (!res.fattr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (buflen > 0) {
-		np = nfs4_buf_to_pages_noslab(buf, buflen, arg.xattr_pages);
+		np = nfs4_buf_to_pages_analslab(buf, buflen, arg.xattr_pages);
 		if (np < 0) {
 			ret = np;
 			goto out;
@@ -1230,18 +1230,18 @@ static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
 		np = 0;
 
 	nfs4_bitmask_set(bitmask, server->cache_consistency_bitmask,
-			 inode, NFS_INO_INVALID_CHANGE);
+			 ianalde, NFS_IANAL_INVALID_CHANGE);
 
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
 	    &res.seq_res, 1);
-	trace_nfs4_setxattr(inode, name, ret);
+	trace_nfs4_setxattr(ianalde, name, ret);
 
 	for (; np > 0; np--)
 		put_page(pages[np - 1]);
 
 	if (!ret) {
-		nfs4_update_changeattr(inode, &res.cinfo, timestamp, 0);
-		ret = nfs_post_op_update_inode(inode, res.fattr);
+		nfs4_update_changeattr(ianalde, &res.cinfo, timestamp, 0);
+		ret = nfs_post_op_update_ianalde(ianalde, res.fattr);
 	}
 
 out:
@@ -1249,13 +1249,13 @@ out:
 	return ret;
 }
 
-static ssize_t _nfs42_proc_getxattr(struct inode *inode, const char *name,
+static ssize_t _nfs42_proc_getxattr(struct ianalde *ianalde, const char *name,
 				void *buf, size_t buflen, struct page **pages,
 				size_t plen)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs42_getxattrargs arg = {
-		.fh		= NFS_FH(inode),
+		.fh		= NFS_FH(ianalde),
 		.xattr_name	= name,
 	};
 	struct nfs42_getxattrres res;
@@ -1271,21 +1271,21 @@ static ssize_t _nfs42_proc_getxattr(struct inode *inode, const char *name,
 
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
 	    &res.seq_res, 0);
-	trace_nfs4_getxattr(inode, name, ret);
+	trace_nfs4_getxattr(ianalde, name, ret);
 	if (ret < 0)
 		return ret;
 
 	/*
-	 * Normally, the caching is done one layer up, but for successful
+	 * Analrmally, the caching is done one layer up, but for successful
 	 * RPCS, always cache the result here, even if the caller was
 	 * just querying the length, or if the reply was too big for
 	 * the caller. This avoids a second RPC in the case of the
 	 * common query-alloc-retrieve cycle for xattrs.
 	 *
-	 * Note that xattr_len is always capped to XATTR_SIZE_MAX.
+	 * Analte that xattr_len is always capped to XATTR_SIZE_MAX.
 	 */
 
-	nfs4_xattr_cache_add(inode, name, NULL, pages, res.xattr_len);
+	nfs4_xattr_cache_add(ianalde, name, NULL, pages, res.xattr_len);
 
 	if (buflen) {
 		if (res.xattr_len > buflen)
@@ -1296,13 +1296,13 @@ static ssize_t _nfs42_proc_getxattr(struct inode *inode, const char *name,
 	return res.xattr_len;
 }
 
-static ssize_t _nfs42_proc_listxattrs(struct inode *inode, void *buf,
+static ssize_t _nfs42_proc_listxattrs(struct ianalde *ianalde, void *buf,
 				 size_t buflen, u64 *cookiep, bool *eofp)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct page **pages;
 	struct nfs42_listxattrsargs arg = {
-		.fh		= NFS_FH(inode),
+		.fh		= NFS_FH(ianalde),
 		.cookie		= *cookiep,
 	};
 	struct nfs42_listxattrsres res = {
@@ -1319,7 +1319,7 @@ static ssize_t _nfs42_proc_listxattrs(struct inode *inode, void *buf,
 	int ret, np, i;
 
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	res.scratch = alloc_page(GFP_KERNEL);
 	if (!res.scratch)
 		goto out;
@@ -1343,7 +1343,7 @@ static ssize_t _nfs42_proc_listxattrs(struct inode *inode, void *buf,
 
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
 	    &res.seq_res, 0);
-	trace_nfs4_listxattr(inode, ret);
+	trace_nfs4_listxattr(ianalde, ret);
 
 	if (ret >= 0) {
 		ret = res.copied;
@@ -1364,7 +1364,7 @@ out:
 
 }
 
-ssize_t nfs42_proc_getxattr(struct inode *inode, const char *name,
+ssize_t nfs42_proc_getxattr(struct ianalde *ianalde, const char *name,
 			      void *buf, size_t buflen)
 {
 	struct nfs4_exception exception = { };
@@ -1374,30 +1374,30 @@ ssize_t nfs42_proc_getxattr(struct inode *inode, const char *name,
 	np = nfs_page_array_len(0, buflen ?: XATTR_SIZE_MAX);
 	pages = kmalloc_array(np, sizeof(*pages), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < np; i++) {
 		pages[i] = alloc_page(GFP_KERNEL);
 		if (!pages[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 	}
 
 	/*
-	 * The GETXATTR op has no length field in the call, and the
+	 * The GETXATTR op has anal length field in the call, and the
 	 * xattr data is at the end of the reply.
 	 *
-	 * There is no downside in using the page-aligned length. It will
+	 * There is anal downside in using the page-aligned length. It will
 	 * allow receiving and caching xattrs that are too large for the
 	 * caller but still fit in the page-rounded value.
 	 */
 	do {
-		err = _nfs42_proc_getxattr(inode, name, buf, buflen,
+		err = _nfs42_proc_getxattr(ianalde, name, buf, buflen,
 			pages, np * PAGE_SIZE);
 		if (err >= 0)
 			break;
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 
@@ -1409,51 +1409,51 @@ out:
 	return err;
 }
 
-int nfs42_proc_setxattr(struct inode *inode, const char *name,
+int nfs42_proc_setxattr(struct ianalde *ianalde, const char *name,
 			      const void *buf, size_t buflen, int flags)
 {
 	struct nfs4_exception exception = { };
 	int err;
 
 	do {
-		err = _nfs42_proc_setxattr(inode, name, buf, buflen, flags);
+		err = _nfs42_proc_setxattr(ianalde, name, buf, buflen, flags);
 		if (!err)
 			break;
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 
 	return err;
 }
 
-ssize_t nfs42_proc_listxattrs(struct inode *inode, void *buf,
+ssize_t nfs42_proc_listxattrs(struct ianalde *ianalde, void *buf,
 			      size_t buflen, u64 *cookiep, bool *eofp)
 {
 	struct nfs4_exception exception = { };
 	ssize_t err;
 
 	do {
-		err = _nfs42_proc_listxattrs(inode, buf, buflen,
+		err = _nfs42_proc_listxattrs(ianalde, buf, buflen,
 		    cookiep, eofp);
 		if (err >= 0)
 			break;
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 
 	return err;
 }
 
-int nfs42_proc_removexattr(struct inode *inode, const char *name)
+int nfs42_proc_removexattr(struct ianalde *ianalde, const char *name)
 {
 	struct nfs4_exception exception = { };
 	int err;
 
 	do {
-		err = _nfs42_proc_removexattr(inode, name);
+		err = _nfs42_proc_removexattr(ianalde, name);
 		if (!err)
 			break;
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 

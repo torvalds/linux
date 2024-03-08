@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,14 +32,14 @@ mxm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr)
 	struct bit_entry x;
 
 	if (bit_entry(bios, 'x', &x)) {
-		nvkm_debug(subdev, "BIT 'x' table not present\n");
+		nvkm_debug(subdev, "BIT 'x' table analt present\n");
 		return 0x0000;
 	}
 
 	*ver = x.version;
 	*hdr = x.length;
 	if (*ver != 1 || *hdr < 3) {
-		nvkm_warn(subdev, "BIT 'x' table %d/%d unknown\n", *ver, *hdr);
+		nvkm_warn(subdev, "BIT 'x' table %d/%d unkanalwn\n", *ver, *hdr);
 		return 0x0000;
 	}
 
@@ -91,7 +91,7 @@ mxm_sor_map(struct nvkm_bios *bios, u8 conn)
 				return 0x00;
 			}
 
-			nvkm_warn(subdev, "unknown sor map v%02x\n", ver);
+			nvkm_warn(subdev, "unkanalwn sor map v%02x\n", ver);
 		}
 	}
 
@@ -128,7 +128,7 @@ mxm_ddc_map(struct nvkm_bios *bios, u8 port)
 				return 0x00;
 			}
 
-			nvkm_warn(subdev, "unknown ddc map v%02x\n", ver);
+			nvkm_warn(subdev, "unkanalwn ddc map v%02x\n", ver);
 		}
 	}
 

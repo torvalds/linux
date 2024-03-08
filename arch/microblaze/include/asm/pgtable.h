@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  */
 
 #ifndef _ASM_MICROBLAZE_PGTABLE_H
@@ -14,7 +14,7 @@
 extern int mem_init_done;
 #endif
 
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -30,7 +30,7 @@ extern pte_t *va_to_pte(unsigned long address);
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 
 /* Start and end of the vmalloc area. */
@@ -45,16 +45,16 @@ extern pte_t *va_to_pte(unsigned long address);
  * Macro to mark a page protection value as "uncacheable".
  */
 
-#define _PAGE_CACHE_CTL	(_PAGE_GUARDED | _PAGE_NO_CACHE | \
+#define _PAGE_CACHE_CTL	(_PAGE_GUARDED | _PAGE_ANAL_CACHE | \
 							_PAGE_WRITETHRU)
 
-#define pgprot_noncached(prot) \
+#define pgprot_analncached(prot) \
 			(__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
-					_PAGE_NO_CACHE | _PAGE_GUARDED))
+					_PAGE_ANAL_CACHE | _PAGE_GUARDED))
 
-#define pgprot_noncached_wc(prot) \
+#define pgprot_analncached_wc(prot) \
 			 (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
-							_PAGE_NO_CACHE))
+							_PAGE_ANAL_CACHE))
 
 /*
  * The MicroBlaze MMU is identical to the PPC-40x MMU, and uses a hash
@@ -76,11 +76,11 @@ extern pte_t *va_to_pte(unsigned long address);
  * TLB which is maintained totally under software control. In addition, the
  * instruction side has a hardware-managed, 2,4, or 8-entry, fully-associative
  * TLB which serves as a first level to the shared TLB. These two TLBs are
- * known as the UTLB and ITLB, respectively (see "mmu.h" for definitions).
+ * kanalwn as the UTLB and ITLB, respectively (see "mmu.h" for definitions).
  */
 
 /*
- * The normal case is that PTEs are 32-bits and we have a 1-page
+ * The analrmal case is that PTEs are 32-bits and we have a 1-page
  * 1024-entry pgdir pointing to 1-page 1024-entry PTE pages.  -- paulus
  *
  */
@@ -145,7 +145,7 @@ extern pte_t *va_to_pte(unsigned long address);
 /* Definitions for MicroBlaze. */
 #define	_PAGE_GUARDED	0x001	/* G: page is guarded from prefetch */
 #define _PAGE_PRESENT	0x002	/* software: PTE contains a translation */
-#define	_PAGE_NO_CACHE	0x004	/* I: caching is inhibited */
+#define	_PAGE_ANAL_CACHE	0x004	/* I: caching is inhibited */
 #define	_PAGE_WRITETHRU	0x008	/* W: caching is write-through */
 #define	_PAGE_USER	0x010	/* matches one of the zone permission bits */
 #define	_PAGE_RW	0x040	/* software: Writes permitted */
@@ -164,8 +164,8 @@ extern pte_t *va_to_pte(unsigned long address);
 #ifndef _PAGE_HASHPTE
 #define _PAGE_HASHPTE	0
 #endif
-#ifndef _PTE_NONE_MASK
-#define _PTE_NONE_MASK	0
+#ifndef _PTE_ANALNE_MASK
+#define _PTE_ANALNE_MASK	0
 #endif
 #ifndef _PAGE_SHARED
 #define _PAGE_SHARED	0
@@ -177,10 +177,10 @@ extern pte_t *va_to_pte(unsigned long address);
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 
 /*
- * Note: the _PAGE_COHERENT bit automatically gets set in the hardware
- * PTE if CONFIG_SMP is defined (hash_page does this); there is no need
+ * Analte: the _PAGE_COHERENT bit automatically gets set in the hardware
+ * PTE if CONFIG_SMP is defined (hash_page does this); there is anal need
  * to have it in the Linux PTE, and in fact the bit could be reused for
- * another purpose.  -- paulus.
+ * aanalther purpose.  -- paulus.
  */
 #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED)
 #define _PAGE_WRENABLE	(_PAGE_RW | _PAGE_DIRTY | _PAGE_HWWRITE)
@@ -188,9 +188,9 @@ extern pte_t *va_to_pte(unsigned long address);
 #define _PAGE_KERNEL \
 	(_PAGE_BASE | _PAGE_WRENABLE | _PAGE_SHARED | _PAGE_HWEXEC)
 
-#define _PAGE_IO	(_PAGE_KERNEL | _PAGE_NO_CACHE | _PAGE_GUARDED)
+#define _PAGE_IO	(_PAGE_KERNEL | _PAGE_ANAL_CACHE | _PAGE_GUARDED)
 
-#define PAGE_NONE	__pgprot(_PAGE_BASE)
+#define PAGE_ANALNE	__pgprot(_PAGE_BASE)
 #define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER)
 #define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
 #define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
@@ -218,12 +218,12 @@ extern unsigned long empty_zero_page[1024];
 
 #endif /* __ASSEMBLY__ */
 
-#define pte_none(pte)		((pte_val(pte) & ~_PTE_NONE_MASK) == 0)
+#define pte_analne(pte)		((pte_val(pte) & ~_PTE_ANALNE_MASK) == 0)
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, ptep) \
 	do { set_pte_at((mm), (addr), (ptep), __pte(0)); } while (0)
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_analne(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		((pmd_val(pmd) & _PMD_PRESENT) == 0)
 #define	pmd_present(pmd)	((pmd_val(pmd) & _PMD_PRESENT) != 0)
 #define	pmd_clear(pmdp)		do { pmd_val(*(pmdp)) = 0; } while (0)
@@ -240,7 +240,7 @@ extern unsigned long empty_zero_page[1024];
 #ifndef __ASSEMBLY__
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 static inline int pte_read(pte_t pte)  { return pte_val(pte) & _PAGE_USER; }
 static inline int pte_write(pte_t pte) { return pte_val(pte) & _PAGE_RW; }
@@ -248,8 +248,8 @@ static inline int pte_exec(pte_t pte)  { return pte_val(pte) & _PAGE_EXEC; }
 static inline int pte_dirty(pte_t pte) { return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte) { return pte_val(pte) & _PAGE_ACCESSED; }
 
-static inline void pte_uncache(pte_t pte) { pte_val(pte) |= _PAGE_NO_CACHE; }
-static inline void pte_cache(pte_t pte)   { pte_val(pte) &= ~_PAGE_NO_CACHE; }
+static inline void pte_uncache(pte_t pte) { pte_val(pte) |= _PAGE_ANAL_CACHE; }
+static inline void pte_cache(pte_t pte)   { pte_val(pte) &= ~_PAGE_ANAL_CACHE; }
 
 static inline pte_t pte_rdprotect(pte_t pte) \
 		{ pte_val(pte) &= ~_PAGE_USER; return pte; }
@@ -266,7 +266,7 @@ static inline pte_t pte_mkread(pte_t pte) \
 	{ pte_val(pte) |= _PAGE_USER; return pte; }
 static inline pte_t pte_mkexec(pte_t pte) \
 	{ pte_val(pte) |= _PAGE_USER | _PAGE_EXEC; return pte; }
-static inline pte_t pte_mkwrite_novma(pte_t pte) \
+static inline pte_t pte_mkwrite_analvma(pte_t pte) \
 	{ pte_val(pte) |= _PAGE_RW; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte) \
 	{ pte_val(pte) |= _PAGE_DIRTY; return pte; }
@@ -391,13 +391,13 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  *                         1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
  *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *   <------------------ offset -------------------> E < type -> 0 0
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  */
 #define __swp_type(entry)	((entry).val & 0x1f)
 #define __swp_offset(entry)	((entry).val >> 6)
@@ -425,14 +425,14 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 
 extern unsigned long iopa(unsigned long addr);
 
-/* Values for nocacheflag and cmode */
-/* These are not used by the APUS kernel_map, but prevents
+/* Values for analcacheflag and cmode */
+/* These are analt used by the APUS kernel_map, but prevents
  * compilation errors.
  */
 #define	IOMAP_FULL_CACHING	0
-#define	IOMAP_NOCACHE_SER	1
-#define	IOMAP_NOCACHE_NONSER	2
-#define	IOMAP_NO_COPYBACK	3
+#define	IOMAP_ANALCACHE_SER	1
+#define	IOMAP_ANALCACHE_ANALNSER	2
+#define	IOMAP_ANAL_COPYBACK	3
 
 void do_page_fault(struct pt_regs *regs, unsigned long address,
 		   unsigned long error_code);

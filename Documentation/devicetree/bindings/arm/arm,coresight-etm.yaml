@@ -36,7 +36,7 @@ select:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -95,7 +95,7 @@ properties:
     type: boolean
     description:
       Indicates that an implementation can skip powering up the trace unit.
-      TRCPDCR.PU does not have to be set on Qualcomm Technologies Inc. systems
+      TRCPDCR.PU does analt have to be set on Qualcomm Techanallogies Inc. systems
       since ETMs are in the same power domain as their CPU cores. This property
       is required to identify such systems with hardware errata where the CPU
       watchdog counter is stopped when TRCPDCR.PU is set.

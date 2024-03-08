@@ -20,7 +20,7 @@
 
 static DEFINE_SPINLOCK(die_lock);
 
-void __noreturn die(const char *str, struct pt_regs *regs, long err)
+void __analreturn die(const char *str, struct pt_regs *regs, long err)
 {
 	static int die_counter;
 
@@ -41,10 +41,10 @@ void __noreturn die(const char *str, struct pt_regs *regs, long err)
 		dump_mem("Stack: ", KERN_DEFAULT, regs->regs[15],
 			THREAD_SIZE + (unsigned long)task_stack_page(current));
 
-	notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV);
+	analtify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV);
 
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	spin_unlock_irq(&die_lock);
 	oops_exit();
 
@@ -72,7 +72,7 @@ void die_if_kernel(const char *str, struct pt_regs *regs, long err)
  * - kernel/userspace interfaces cause a jump to an appropriate handler
  * - other kernel errors are bad
  */
-void die_if_no_fixup(const char *str, struct pt_regs *regs, long err)
+void die_if_anal_fixup(const char *str, struct pt_regs *regs, long err)
 {
 	if (!user_mode(regs)) {
 		const struct exception_table_entry *fixup;
@@ -118,7 +118,7 @@ int is_valid_bugaddr(unsigned long addr)
 
 	if (addr < PAGE_OFFSET)
 		return 0;
-	if (get_kernel_nofault(opcode, (insn_size_t *)addr))
+	if (get_kernel_analfault(opcode, (insn_size_t *)addr))
 		return 0;
 	if (opcode == TRAPA_BUG_OPCODE)
 		return 1;
@@ -137,8 +137,8 @@ BUILD_TRAP_HANDLER(debug)
 	/* Rewind */
 	regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, "debug trap", regs, 0, vec & 0xff,
-		       SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "debug trap", regs, 0, vec & 0xff,
+		       SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 	force_sig(SIGTRAP);
@@ -154,8 +154,8 @@ BUILD_TRAP_HANDLER(bug)
 	/* Rewind */
 	regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, "bug trap", regs, 0, TRAPA_BUG_OPCODE & 0xff,
-		       SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "bug trap", regs, 0, TRAPA_BUG_OPCODE & 0xff,
+		       SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 #ifdef CONFIG_GENERIC_BUG
@@ -187,14 +187,14 @@ BUILD_TRAP_HANDLER(nmi)
 	nmi_enter();
 	this_cpu_inc(irq_stat.__nmi_count);
 
-	switch (notify_die(DIE_NMI, "NMI", regs, 0, vec & 0xff, SIGINT)) {
-	case NOTIFY_OK:
-	case NOTIFY_STOP:
+	switch (analtify_die(DIE_NMI, "NMI", regs, 0, vec & 0xff, SIGINT)) {
+	case ANALTIFY_OK:
+	case ANALTIFY_STOP:
 		break;
-	case NOTIFY_BAD:
-		die("Fatal Non-Maskable Interrupt", regs, SIGINT);
+	case ANALTIFY_BAD:
+		die("Fatal Analn-Maskable Interrupt", regs, SIGINT);
 	default:
-		printk(KERN_ALERT "Got NMI, but nobody cared. Ignoring...\n");
+		printk(KERN_ALERT "Got NMI, but analbody cared. Iganalring...\n");
 		break;
 	}
 

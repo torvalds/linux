@@ -49,7 +49,7 @@
  *		initialization, the	only bus-specific differences is in how the
  *		driver enables and disables interrupts.  Other than that, the
  *		run-time critical code behaves the same on both families.
- *		It's important to note that both adapter families are configured
+ *		It's important to analte that both adapter families are configured
  *		to I/O map, rather than memory map, the adapter registers.
  *
  *   Driver Open/Close -
@@ -65,7 +65,7 @@
  *					ifconfig fddi0 up
  *
  *   Driver Shutdown -
- *		Apparently, there is no shutdown or halt routine support under
+ *		Apparently, there is anal shutdown or halt routine support under
  *		Linux.  This routine would be called during "reboot" or
  *		"shutdown" to allow the driver to place the adapter in a safe
  *		state before a warm reboot occurs.  To be really safe, the user
@@ -90,7 +90,7 @@
  *
  *		The driver currently enables and disables adapter interrupts at the
  *		bus-logic chip and assumes that Linux will take care of clearing or
- *		acknowledging any host-based interrupt chips.
+ *		ackanalwledging any host-based interrupt chips.
  *
  *   Control Functions -
  *		Control functions are those used to support functions such as adding
@@ -127,7 +127,7 @@
  *		single-fragment receive buffers of 4608 bytes, then allocates a
  *		sk_buff, copies the data, then reposts the buffer.  To reduce CPU
  *		utilization, a better approach would be to pass up the receive
- *		buffer (no extra copy) then allocate and post a replacement buffer.
+ *		buffer (anal extra copy) then allocate and post a replacement buffer.
  *		This is a performance enhancement that should be looked into at
  *		some point.
  *
@@ -142,9 +142,9 @@
  *		Before posting the buffer to the adapter, the driver sets a three-byte
  *		packet request header (PRH) which is required by the Motorola MAC chip
  *		used on the adapters.  The PRH tells the MAC the type of token to
- *		receive/send, whether or not to generate and append the CRC, whether
- *		synchronous or asynchronous framing is used, etc.  Since the PRH
- *		definition is not necessarily consistent across all FDDI chipsets,
+ *		receive/send, whether or analt to generate and append the CRC, whether
+ *		synchroanalus or asynchroanalus framing is used, etc.  Since the PRH
+ *		definition is analt necessarily consistent across all FDDI chipsets,
  *		the driver, rather than the common FDDI packet handler routines,
  *		sets these bytes.
  *
@@ -159,11 +159,11 @@
  *		There's a subtle advantage to adding these pad bytes to the
  *		hard_header_len, it ensures that the data portion of the packet for
  *		an 802.2 SNAP frame is longword aligned.  Other FDDI driver
- *		implementations may not need the extra padding and can start copying
+ *		implementations may analt need the extra padding and can start copying
  *		or DMAing directly from the FC byte which starts at skb->data.  Should
- *		another driver implementation need ADDITIONAL padding, the net_init.c
+ *		aanalther driver implementation need ADDITIONAL padding, the net_init.c
  *		module should be updated and dev->hard_header_len should be increased.
- *		NOTE: To maintain the alignment on the data portion of the packet,
+ *		ANALTE: To maintain the alignment on the data portion of the packet,
  *		dev->hard_header_len should always be evenly divisible by 4 and at
  *		least 24 bytes in size.
  *
@@ -178,9 +178,9 @@
  *		09-Sep-96	LVS		Updated dfx_ctl_set_multicast_list to enable
  *							LLC group promiscuous mode if multicast list
  *							is too large.  LLC individual/group promiscuous
- *							mode is now disabled if IFF_PROMISC flag not set.
- *							dfx_xmt_queue_pkt no longer checks for NULL skb
- *							on Alan Cox recommendation.  Added node address
+ *							mode is analw disabled if IFF_PROMISC flag analt set.
+ *							dfx_xmt_queue_pkt anal longer checks for NULL skb
+ *							on Alan Cox recommendation.  Added analde address
  *							override support.
  *		12-Sep-96	LVS		Reset current address to factory address during
  *							device open.  Updated transmit path to post a
@@ -206,7 +206,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/eisa.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fddidevice.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -321,7 +321,7 @@ static struct tc_driver dfx_tc_driver;
  *   Routines for reading and writing values from/to adapter
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp		- pointer to board information
@@ -347,7 +347,7 @@ static struct tc_driver dfx_tc_driver;
  *   offsets defined in DEFXX.H.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
  *   bp->base is a valid base I/O address for this adapter.
@@ -356,7 +356,7 @@ static struct tc_driver dfx_tc_driver;
  * Side Effects:
  *   Rather than produce macros for these functions, these routines
  *   are defined using "inline" to ensure that the compiler will
- *   generate inline code and not waste a procedure call and return.
+ *   generate inline code and analt waste a procedure call and return.
  *   This provides all the benefits of macros, but with the
  *   advantage of strict data type checking.
  */
@@ -415,7 +415,7 @@ static void dfx_port_read_long(DFX_board_t *bp, int offset, u32 *data)
  *   registers.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp		- pointer to board information
@@ -426,7 +426,7 @@ static void dfx_port_read_long(DFX_board_t *bp, int offset, u32 *data)
  *   I am sure there are some.
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 static void dfx_get_bars(DFX_board_t *bp,
 			 resource_size_t *bar_start, resource_size_t *bar_len)
@@ -495,7 +495,7 @@ static const struct net_device_ops dfx_netdev_ops = {
 static void dfx_register_res_err(const char *print_name, bool mmio,
 				 unsigned long start, unsigned long len)
 {
-	pr_err("%s: Cannot reserve %s resource 0x%lx @ 0x%lx, aborting\n",
+	pr_err("%s: Cananalt reserve %s resource 0x%lx @ 0x%lx, aborting\n",
 	       print_name, mmio ? "MMIO" : "I/O", len, start);
 }
 
@@ -550,14 +550,14 @@ static int dfx_register(struct device *bdev)
 	if (!dev) {
 		printk(KERN_ERR "%s: Unable to allocate fddidev, aborting\n",
 		       print_name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Enable PCI device. */
 	if (dfx_bus_pci) {
 		err = pci_enable_device(to_pci_dev(bdev));
 		if (err) {
-			pr_err("%s: Cannot enable PCI device, aborting\n",
+			pr_err("%s: Cananalt enable PCI device, aborting\n",
 			       print_name);
 			goto err_out;
 		}
@@ -620,8 +620,8 @@ static int dfx_register(struct device *bdev)
 	if (dfx_use_mmio) {
 		bp->base.mem = ioremap(bar_start[0], bar_len[0]);
 		if (!bp->base.mem) {
-			printk(KERN_ERR "%s: Cannot map MMIO\n", print_name);
-			err = -ENOMEM;
+			printk(KERN_ERR "%s: Cananalt map MMIO\n", print_name);
+			err = -EANALMEM;
 			goto err_out_esic_region;
 		}
 	} else {
@@ -636,7 +636,7 @@ static int dfx_register(struct device *bdev)
 		pci_set_master(to_pci_dev(bdev));
 
 	if (dfx_driver_init(dev, print_name, bar_start[0]) != DFX_K_SUCCESS) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_unmap;
 	}
 
@@ -696,7 +696,7 @@ err_out:
  *   Initializes the bus-specific controller logic.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   dev - pointer to device information
@@ -706,7 +706,7 @@ err_out:
  *   then perform bus-specific logic initialization.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
  *   bp->base has already been set with the proper
@@ -714,7 +714,7 @@ err_out:
  *
  * Side Effects:
  *   Interrupts are enabled at the adapter bus-specific logic.
- *   Note:  Interrupts at the DMA engine (PDQ chip) are not
+ *   Analte:  Interrupts at the DMA engine (PDQ chip) are analt
  *   enabled yet.
  */
 
@@ -858,7 +858,7 @@ static void dfx_bus_init(struct net_device *dev)
  *   Uninitializes the bus-specific controller logic.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   dev - pointer to device information
@@ -867,7 +867,7 @@ static void dfx_bus_init(struct net_device *dev)
  *   Perform bus-specific logic uninitialization.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
  *   bp->base has already been set with the proper
@@ -920,7 +920,7 @@ static void dfx_bus_uninit(struct net_device *dev)
  *   are illegal, then this routine will set new defaults.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp - pointer to board information
@@ -930,14 +930,14 @@ static void dfx_bus_uninit(struct net_device *dev)
  *   PDQ, and all FDDI PCI controllers, all values are legal.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   dfx_adap_init has NOT been called yet so burst size and other items have
- *   not been set.
+ *   dfx_adap_init has ANALT been called yet so burst size and other items have
+ *   analt been set.
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static void dfx_bus_config_check(DFX_board_t *bp)
@@ -954,8 +954,8 @@ static void dfx_bus_config_check(DFX_board_t *bp)
 	if (dfx_bus_eisa) {
 		/*
 		 * First check if revision 2 EISA controller.  Rev. 1 cards used
-		 * PDQ revision B, so no workaround needed in this case.  Rev. 3
-		 * cards used PDQ revision E, so no workaround needed in this
+		 * PDQ revision B, so anal workaround needed in this case.  Rev. 3
+		 * cards used PDQ revision E, so anal workaround needed in this
 		 * case, either.  Only Rev. 2 cards used either Rev. D or E
 		 * chips, so we must verify the chip revision on Rev. 2 cards.
 		 */
@@ -990,7 +990,7 @@ static void dfx_bus_config_check(DFX_board_t *bp)
 						break;
 					}
 
-				/* Ensure that full-duplex mode is not enabled */
+				/* Ensure that full-duplex mode is analt enabled */
 
 				bp->full_duplex_enb = PI_SNMP_K_FALSE;
 				}
@@ -1024,7 +1024,7 @@ static void dfx_bus_config_check(DFX_board_t *bp)
  *
  * Return Codes:
  *   DFX_K_SUCCESS	- initialization succeeded
- *   DFX_K_FAILURE	- initialization failed - could not allocate memory
+ *   DFX_K_FAILURE	- initialization failed - could analt allocate memory
  *						or read adapter MAC address
  *
  * Assumptions:
@@ -1060,21 +1060,21 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 	/*
 	 * Initialize default values for configurable parameters
 	 *
-	 * Note: All of these parameters are ones that a user may
+	 * Analte: All of these parameters are ones that a user may
 	 *       want to customize.  It'd be nice to break these
 	 *		 out into Space.c or someplace else that's more
 	 *		 accessible/understandable than this file.
 	 */
 
 	bp->full_duplex_enb		= PI_SNMP_K_FALSE;
-	bp->req_ttrt			= 8 * 12500;		/* 8ms in 80 nanosec units */
+	bp->req_ttrt			= 8 * 12500;		/* 8ms in 80 naanalsec units */
 	bp->burst_size			= PI_PDATA_B_DMA_BURST_SIZE_DEF;
 	bp->rcv_bufs_to_post	= RCV_BUFS_DEF;
 
 	/*
 	 * Ensure that HW configuration is OK
 	 *
-	 * Note: Depending on the hardware revision, we may need to modify
+	 * Analte: Depending on the hardware revision, we may need to modify
 	 *       some of the configurable parameters to workaround hardware
 	 *       limitations.  We'll perform this configuration check AFTER
 	 *       setting the parameters to their default values.
@@ -1094,7 +1094,7 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 
 	if (dfx_hw_port_ctrl_req(bp, PI_PCTRL_M_MLA, PI_PDATA_A_MLA_K_LO, 0,
 				 &data) != DFX_K_SUCCESS) {
-		printk("%s: Could not read adapter factory MAC address!\n",
+		printk("%s: Could analt read adapter factory MAC address!\n",
 		       print_name);
 		return DFX_K_FAILURE;
 	}
@@ -1103,7 +1103,7 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 
 	if (dfx_hw_port_ctrl_req(bp, PI_PCTRL_M_MLA, PI_PDATA_A_MLA_K_HI, 0,
 				 &data) != DFX_K_SUCCESS) {
-		printk("%s: Could not read adapter factory MAC address!\n",
+		printk("%s: Could analt read adapter factory MAC address!\n",
 		       print_name);
 		return DFX_K_FAILURE;
 	}
@@ -1113,7 +1113,7 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 	/*
 	 * Set current address to factory address
 	 *
-	 * Note: Node address override support is handled through
+	 * Analte: Analde address override support is handled through
 	 *       dfx_ctl_set_mac_address.
 	 */
 
@@ -1152,10 +1152,10 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 	/*
 	 *  To guarantee the 8K alignment required for the descriptor block, 8K - 1
 	 *  plus the amount of memory needed was allocated.  The physical address
-	 *	is now 8K aligned.  By carving up the memory in a specific order,
+	 *	is analw 8K aligned.  By carving up the memory in a specific order,
 	 *  we'll guarantee the alignment requirements for all other structures.
 	 *
-	 *  Note: If the assumptions change regarding the non-paged, non-cached,
+	 *  Analte: If the assumptions change regarding the analn-paged, analn-cached,
 	 *		  physically contiguous nature of the memory block or the address
 	 *		  alignments, then we'll need to implement a different algorithm
 	 *		  for allocating the needed memory.
@@ -1230,7 +1230,7 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
  *
  * Arguments:
  *   bp - pointer to board information
- *   get_buffers - non-zero if buffers to be allocated
+ *   get_buffers - analn-zero if buffers to be allocated
  *
  * Functional Description:
  *   Issues the low-level firmware/hardware calls necessary to bring
@@ -1262,13 +1262,13 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 
 	if (dfx_hw_dma_uninit(bp, bp->reset_type) != DFX_K_SUCCESS)
 		{
-		printk("%s: Could not uninitialize/reset adapter!\n", bp->dev->name);
+		printk("%s: Could analt uninitialize/reset adapter!\n", bp->dev->name);
 		return DFX_K_FAILURE;
 		}
 
 	/*
 	 * When the PDQ is reset, some false Type 0 interrupts may be pending,
-	 * so we'll acknowledge all Type 0 interrupts now before continuing.
+	 * so we'll ackanalwledge all Type 0 interrupts analw before continuing.
 	 */
 
 	dfx_port_write_long(bp, PI_PDQ_K_REG_TYPE_0_STATUS, PI_HOST_INT_K_ACK_ALL_TYPE_0);
@@ -1276,7 +1276,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	/*
 	 * Clear Type 1 and Type 2 registers before going to DMA_AVAILABLE state
 	 *
-	 * Note: We only need to clear host copies of these registers.  The PDQ reset
+	 * Analte: We only need to clear host copies of these registers.  The PDQ reset
 	 *       takes care of the on-board register values.
 	 */
 
@@ -1296,7 +1296,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 							bp->burst_size,
 							NULL) != DFX_K_SUCCESS)
 		{
-		printk("%s: Could not set adapter burst size!\n", bp->dev->name);
+		printk("%s: Could analt set adapter burst size!\n", bp->dev->name);
 		return DFX_K_FAILURE;
 		}
 
@@ -1313,7 +1313,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 							0,
 							NULL) != DFX_K_SUCCESS)
 		{
-		printk("%s: Could not set consumer block address!\n", bp->dev->name);
+		printk("%s: Could analt set consumer block address!\n", bp->dev->name);
 		return DFX_K_FAILURE;
 		}
 
@@ -1321,7 +1321,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	 * Set the base address of Descriptor Block and bring adapter
 	 * to DMA_AVAILABLE state.
 	 *
-	 * Note: We also set the literal and data swapping requirements
+	 * Analte: We also set the literal and data swapping requirements
 	 *       in this command.
 	 *
 	 * Assumption: 32-bit physical address of descriptor block
@@ -1331,7 +1331,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 				 (u32)(bp->descr_block_phys |
 				       PI_PDATA_A_INIT_M_BSWAP_INIT),
 				 0, NULL) != DFX_K_SUCCESS) {
-		printk("%s: Could not set descriptor block address!\n",
+		printk("%s: Could analt set descriptor block address!\n",
 		       bp->dev->name);
 		return DFX_K_FAILURE;
 	}
@@ -1436,7 +1436,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
  *
  * Return Codes:
  *   0		 - Adapter was successfully opened
- *   -EAGAIN - Could not register IRQ or adapter initialization failed
+ *   -EAGAIN - Could analt register IRQ or adapter initialization failed
  *
  * Assumptions:
  *   This routine should only be called for a device that was
@@ -1466,11 +1466,11 @@ static int dfx_open(struct net_device *dev)
 	/*
 	 * Set current address to factory MAC address
 	 *
-	 * Note: We've already done this step in dfx_driver_init.
-	 *       However, it's possible that a user has set a node
+	 * Analte: We've already done this step in dfx_driver_init.
+	 *       However, it's possible that a user has set a analde
 	 *		 address override, then closed and reopened the
 	 *		 adapter.  Unless we reset the device address field
-	 *		 now, we'll continue to use the existing modified
+	 *		 analw, we'll continue to use the existing modified
 	 *		 address.
 	 */
 
@@ -1523,13 +1523,13 @@ static int dfx_open(struct net_device *dev)
  * Functional Description:
  *   This routine closes the adapter and brings it to a safe state.
  *   The interrupt service routine is deregistered with the OS.
- *   The adapter can be opened again with another call to dfx_open().
+ *   The adapter can be opened again with aanalther call to dfx_open().
  *
  * Return Codes:
  *   Always return 0.
  *
  * Assumptions:
- *   No further requests for this adapter are made after this routine is
+ *   Anal further requests for this adapter are made after this routine is
  *   called.  dfx_open() can be called to reset and reinitialize the
  *   adapter.
  *
@@ -1555,9 +1555,9 @@ static int dfx_close(struct net_device *dev)
 	/*
 	 * Flush any pending transmit buffers
 	 *
-	 * Note: It's important that we flush the transmit buffers
+	 * Analte: It's important that we flush the transmit buffers
 	 *		 BEFORE we clear our copy of the Type 2 register.
-	 *		 Otherwise, we'll have no idea how many buffers
+	 *		 Otherwise, we'll have anal idea how many buffers
 	 *		 we need to free.
 	 */
 
@@ -1566,7 +1566,7 @@ static int dfx_close(struct net_device *dev)
 	/*
 	 * Clear Type 1 and Type 2 registers after adapter reset
 	 *
-	 * Note: Even though we're closing the adapter, it's
+	 * Analte: Even though we're closing the adapter, it's
 	 *       possible that an interrupt will occur after
 	 *		 dfx_close is called.  Without some assurance to
 	 *		 the contrary we want to make sure that we don't
@@ -1607,7 +1607,7 @@ static int dfx_close(struct net_device *dev)
  *   Displays halt id's in string form.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp - pointer to board information
@@ -1616,13 +1616,13 @@ static int dfx_close(struct net_device *dev)
  *   Determine current halt id and display appropriate string.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   None
+ *   Analne
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static void dfx_int_pr_halt_id(DFX_board_t	*bp)
@@ -1676,7 +1676,7 @@ static void dfx_int_pr_halt_id(DFX_board_t	*bp)
 			break;
 
 		default:
-			printk("%s: Halt ID: Unknown (code = %X)\n", bp->dev->name, halt_id);
+			printk("%s: Halt ID: Unkanalwn (code = %X)\n", bp->dev->name, halt_id);
 			break;
 		}
 	}
@@ -1691,7 +1691,7 @@ static void dfx_int_pr_halt_id(DFX_board_t	*bp)
  *   Processes Type 0 interrupts.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp - pointer to board information
@@ -1702,13 +1702,13 @@ static void dfx_int_pr_halt_id(DFX_board_t	*bp)
  *   and the adapter is reset.
  *
  *   One tricky potential timing window is the rapid succession of "link avail"
- *   "link unavail" state change interrupts.  The acknowledgement of the Type 0
+ *   "link unavail" state change interrupts.  The ackanalwledgement of the Type 0
  *   interrupt must be done before reading the state from the Port Status
  *   register.  This is true because a state change could occur after reading
- *   the data, but before acknowledging the interrupt.  If this state change
+ *   the data, but before ackanalwledging the interrupt.  If this state change
  *   does happen, it would be lost because the driver is using the old state,
- *   and it will never know about the new state because it subsequently
- *   acknowledges the state change interrupt.
+ *   and it will never kanalw about the new state because it subsequently
+ *   ackanalwledges the state change interrupt.
  *
  *          INCORRECT                                      CORRECT
  *      read type 0 int reasons                   read type 0 int reasons
@@ -1717,10 +1717,10 @@ static void dfx_int_pr_halt_id(DFX_board_t	*bp)
  *      ... process interrupt ...                 ... process interrupt ...
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   None
+ *   Analne
  *
  * Side Effects:
  *   An adapter reset may occur if the adapter has any Type 0 error interrupts
@@ -1750,10 +1750,10 @@ static void dfx_int_type_0_process(DFX_board_t	*bp)
 							PI_TYPE_0_STAT_M_PM_PAR_ERR |
 							PI_TYPE_0_STAT_M_BUS_PAR_ERR))
 		{
-		/* Check for Non-Existent Memory error */
+		/* Check for Analn-Existent Memory error */
 
 		if (type_0_status & PI_TYPE_0_STAT_M_NXM)
-			printk("%s: Non-Existent Memory Access Error\n", bp->dev->name);
+			printk("%s: Analn-Existent Memory Access Error\n", bp->dev->name);
 
 		/* Check for Packet Memory Parity error */
 
@@ -1767,8 +1767,8 @@ static void dfx_int_type_0_process(DFX_board_t	*bp)
 
 		/* Reset adapter and bring it back on-line */
 
-		bp->link_available = PI_K_FALSE;	/* link is no longer available */
-		bp->reset_type = 0;					/* rerun on-board diagnostics */
+		bp->link_available = PI_K_FALSE;	/* link is anal longer available */
+		bp->reset_type = 0;					/* rerun on-board diaganalstics */
 		printk("%s: Resetting adapter...\n", bp->dev->name);
 		if (dfx_adap_init(bp, 0) != DFX_K_SUCCESS)
 			{
@@ -1784,9 +1784,9 @@ static void dfx_int_type_0_process(DFX_board_t	*bp)
 
 	if (type_0_status & PI_TYPE_0_STAT_M_XMT_FLUSH)
 		{
-		/* Flush any pending xmt's and acknowledge the flush interrupt */
+		/* Flush any pending xmt's and ackanalwledge the flush interrupt */
 
-		bp->link_available = PI_K_FALSE;		/* link is no longer available */
+		bp->link_available = PI_K_FALSE;		/* link is anal longer available */
 		dfx_xmt_flush(bp);						/* flush any outstanding packets */
 		(void) dfx_hw_port_ctrl_req(bp,
 									PI_PCTRL_M_XMT_DATA_FLUSH_DONE,
@@ -1815,8 +1815,8 @@ static void dfx_int_type_0_process(DFX_board_t	*bp)
 
 			/* Reset adapter and bring it back on-line */
 
-			bp->link_available = PI_K_FALSE;	/* link is no longer available */
-			bp->reset_type = 0;					/* rerun on-board diagnostics */
+			bp->link_available = PI_K_FALSE;	/* link is anal longer available */
+			bp->reset_type = 0;					/* rerun on-board diaganalstics */
 			printk("%s: Resetting adapter...\n", bp->dev->name);
 			if (dfx_adap_init(bp, 0) != DFX_K_SUCCESS)
 				{
@@ -1843,7 +1843,7 @@ static void dfx_int_type_0_process(DFX_board_t	*bp)
  *   Interrupt service routine (ISR)
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp - pointer to board information
@@ -1852,24 +1852,24 @@ static void dfx_int_type_0_process(DFX_board_t	*bp)
  *   This is the ISR which processes incoming adapter interrupts.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   This routine assumes PDQ interrupts have not been disabled.
+ *   This routine assumes PDQ interrupts have analt been disabled.
  *   When interrupts are disabled at the PDQ, the Port Status register
  *   is automatically cleared.  This routine uses the Port Status
  *   register value to determine whether a Type 0 interrupt occurred,
- *   so it's important that adapter interrupts are not normally
+ *   so it's important that adapter interrupts are analt analrmally
  *   enabled/disabled at the PDQ.
  *
- *   It's vital that this routine is NOT reentered for the
- *   same board and that the OS is not in another section of
+ *   It's vital that this routine is ANALT reentered for the
+ *   same board and that the OS is analt in aanalther section of
  *   code (eg. dfx_xmt_queue_pkt) for the same board on a
  *   different thread.
  *
  * Side Effects:
  *   Pending interrupts are serviced.  Depending on the type of
- *   interrupt, acknowledging and clearing the interrupt at the
+ *   interrupt, ackanalwledging and clearing the interrupt at the
  *   PDQ involves writing a register to clear the interrupt bit
  *   or updating completion indices.
  */
@@ -1931,10 +1931,10 @@ static void dfx_int_common(struct net_device *dev)
  *
  * Return Codes:
  *   IRQ_HANDLED - an IRQ was handled.
- *   IRQ_NONE    - no IRQ was handled.
+ *   IRQ_ANALNE    - anal IRQ was handled.
  *
  * Assumptions:
- *   The interrupt acknowledgement at the hardware level (eg. ACKing the PIC
+ *   The interrupt ackanalwledgement at the hardware level (eg. ACKing the PIC
  *   on Intel-based systems) is done by the operating system outside this
  *   routine.
  *
@@ -1960,7 +1960,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 
 		dfx_port_read_long(bp, PFI_K_REG_STATUS, &status);
 		if (!(status & PFI_STATUS_M_PDQ_INT))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		spin_lock(&bp->lock);
 
@@ -1986,7 +1986,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 
 		status = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 		if (!(status & PI_CONFIG_STAT_0_M_PEND))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		spin_lock(&bp->lock);
 
@@ -2015,7 +2015,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 				PI_PSTATUS_M_CMD_RSP_PENDING |
 				PI_PSTATUS_M_CMD_REQ_PENDING |
 				PI_PSTATUS_M_TYPE_0_PENDING)))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		spin_lock(&bp->lock);
 
@@ -2048,7 +2048,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
  *   returns FDDI statistics structure as defined
  *   in if_fddi.h.
  *
- *   Note: Since the FDDI statistics structure is
+ *   Analte: Since the FDDI statistics structure is
  *   still new and the device structure doesn't
  *   have an FDDI-specific get statistics handler,
  *   we'll return the FDDI statistics structure as
@@ -2063,13 +2063,13 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
  *   independent.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   None
+ *   Analne
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
@@ -2106,13 +2106,13 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
 	memcpy(bp->stats.smt_user_data, &bp->cmd_rsp_virt->smt_mib_get.smt_user_data, sizeof(bp->cmd_rsp_virt->smt_mib_get.smt_user_data));
 	bp->stats.smt_mib_version_id				= bp->cmd_rsp_virt->smt_mib_get.smt_mib_version_id;
 	bp->stats.smt_mac_cts						= bp->cmd_rsp_virt->smt_mib_get.smt_mac_ct;
-	bp->stats.smt_non_master_cts				= bp->cmd_rsp_virt->smt_mib_get.smt_non_master_ct;
+	bp->stats.smt_analn_master_cts				= bp->cmd_rsp_virt->smt_mib_get.smt_analn_master_ct;
 	bp->stats.smt_master_cts					= bp->cmd_rsp_virt->smt_mib_get.smt_master_ct;
 	bp->stats.smt_available_paths				= bp->cmd_rsp_virt->smt_mib_get.smt_available_paths;
 	bp->stats.smt_config_capabilities			= bp->cmd_rsp_virt->smt_mib_get.smt_config_capabilities;
 	bp->stats.smt_config_policy					= bp->cmd_rsp_virt->smt_mib_get.smt_config_policy;
 	bp->stats.smt_connection_policy				= bp->cmd_rsp_virt->smt_mib_get.smt_connection_policy;
-	bp->stats.smt_t_notify						= bp->cmd_rsp_virt->smt_mib_get.smt_t_notify;
+	bp->stats.smt_t_analtify						= bp->cmd_rsp_virt->smt_mib_get.smt_t_analtify;
 	bp->stats.smt_stat_rpt_policy				= bp->cmd_rsp_virt->smt_mib_get.smt_stat_rpt_policy;
 	bp->stats.smt_trace_max_expiration			= bp->cmd_rsp_virt->smt_mib_get.smt_trace_max_expiration;
 	bp->stats.smt_bypass_present				= bp->cmd_rsp_virt->smt_mib_get.smt_bypass_present;
@@ -2226,7 +2226,7 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
  *   on the adapter and/or update multicast address table.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   dev - pointer to device information
@@ -2250,10 +2250,10 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
  *		update adapter filters
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   Multicast addresses are presented in canonical (LSB) format.
+ *   Multicast addresses are presented in caanalnical (LSB) format.
  *
  * Side Effects:
  *   On-board adapter CAM and filters are updated.
@@ -2278,16 +2278,16 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 		/*
 		 * Check whether incoming multicast address count exceeds table size
 		 *
-		 * Note: The adapters utilize an on-board 64 entry CAM for
+		 * Analte: The adapters utilize an on-board 64 entry CAM for
 		 *       supporting perfect filtering of multicast packets
 		 *		 and bridge functions when adding unicast addresses.
-		 *		 There is no hash function available.  To support
+		 *		 There is anal hash function available.  To support
 		 *		 additional multicast addresses, the all multicast
 		 *		 filter (LLC group promiscuous mode) must be enabled.
 		 *
 		 *		 The firmware reserves two CAM entries for SMT-related
 		 *		 multicast addresses, which leaves 62 entries available.
-		 *		 The following code ensures that we're not being asked
+		 *		 The following code ensures that we're analt being asked
 		 *		 to add more than 62 addresses to the CAM.  If we are,
 		 *		 the driver will enable the all multicast filter.
 		 *		 Should the number of multicast addresses drop below
@@ -2315,7 +2315,7 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 
 		if (dfx_ctl_update_cam(bp) != DFX_K_SUCCESS)
 			{
-			DBG_printk("%s: Could not update multicast address table!\n", dev->name);
+			DBG_printk("%s: Could analt update multicast address table!\n", dev->name);
 			}
 		else
 			{
@@ -2327,7 +2327,7 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 
 	if (dfx_ctl_update_filters(bp) != DFX_K_SUCCESS)
 		{
-		DBG_printk("%s: Could not update adapter filters!\n", dev->name);
+		DBG_printk("%s: Could analt update adapter filters!\n", dev->name);
 		}
 	else
 		{
@@ -2342,18 +2342,18 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
  * ===========================
  *
  * Overview:
- *   Add node address override (unicast address) to adapter
+ *   Add analde address override (unicast address) to adapter
  *   CAM and update dev_addr field in device table.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   dev  - pointer to device information
  *   addr - pointer to sockaddr structure containing unicast address to add
  *
  * Functional Description:
- *   The adapter supports node address overrides by adding one or more
+ *   The adapter supports analde address overrides by adding one or more
  *   unicast addresses to the adapter CAM.  This is similar to adding
  *   multicast addresses.  In this routine we'll update the driver and
  *   device structures with the new address, then update the adapter CAM
@@ -2365,7 +2365,7 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
  *
  * Assumptions:
  *   The address pointed to by addr->sa_data is a valid unicast
- *   address and is presented in canonical (LSB) format.
+ *   address and is presented in caanalnical (LSB) format.
  *
  * Side Effects:
  *   On-board adapter CAM is updated.  On-board adapter filters
@@ -2384,12 +2384,12 @@ static int dfx_ctl_set_mac_address(struct net_device *dev, void *addr)
 	bp->uc_count = 1;
 
 	/*
-	 * Verify we're not exceeding the CAM size by adding unicast address
+	 * Verify we're analt exceeding the CAM size by adding unicast address
 	 *
-	 * Note: It's possible that before entering this routine we've
+	 * Analte: It's possible that before entering this routine we've
 	 *       already filled the CAM with 62 multicast addresses.
-	 *		 Since we need to place the node address override into
-	 *		 the CAM, we have to check to see that we're not
+	 *		 Since we need to place the analde address override into
+	 *		 the CAM, we have to check to see that we're analt
 	 *		 exceeding the CAM size.  If we are, we have to enable
 	 *		 the LLC group (multicast) promiscuous mode filter as
 	 *		 in dfx_ctl_set_multicast_list.
@@ -2404,7 +2404,7 @@ static int dfx_ctl_set_mac_address(struct net_device *dev, void *addr)
 
 		if (dfx_ctl_update_filters(bp) != DFX_K_SUCCESS)
 			{
-			DBG_printk("%s: Could not update adapter filters!\n", dev->name);
+			DBG_printk("%s: Could analt update adapter filters!\n", dev->name);
 			}
 		else
 			{
@@ -2416,7 +2416,7 @@ static int dfx_ctl_set_mac_address(struct net_device *dev, void *addr)
 
 	if (dfx_ctl_update_cam(bp) != DFX_K_SUCCESS)
 		{
-		DBG_printk("%s: Could not set new MAC address!\n", dev->name);
+		DBG_printk("%s: Could analt set new MAC address!\n", dev->name);
 		}
 	else
 		{
@@ -2445,14 +2445,14 @@ static int dfx_ctl_set_mac_address(struct net_device *dev, void *addr)
  *   Updates adapter CAM with current contents of board structure
  *   unicast and multicast address tables.  Since there are only 62
  *   free entries in CAM, this routine ensures that the command
- *   request buffer is not overrun.
+ *   request buffer is analt overrun.
  *
  * Return Codes:
  *   DFX_K_SUCCESS - Request succeeded
  *   DFX_K_FAILURE - Request failed
  *
  * Assumptions:
- *   All addresses being added (unicast and multicast) are in canonical
+ *   All addresses being added (unicast and multicast) are in caanalnical
  *   order.
  *
  * Side Effects:
@@ -2467,7 +2467,7 @@ static int dfx_ctl_update_cam(DFX_board_t *bp)
 	/*
 	 * Fill in command request information
 	 *
-	 * Note: Even though both the unicast and multicast address
+	 * Analte: Even though both the unicast and multicast address
 	 *       table entries are stored as contiguous 6 byte entries,
 	 *		 the firmware address filter set command expects each
 	 *		 entry to be two longwords (8 bytes total).  We must be
@@ -2481,7 +2481,7 @@ static int dfx_ctl_update_cam(DFX_board_t *bp)
 	bp->cmd_req_virt->cmd_type = PI_CMD_K_ADDR_FILTER_SET;
 	p_addr = &bp->cmd_req_virt->addr_filter_set.entry[0];
 
-	/* Now add unicast addresses to command request buffer, if any */
+	/* Analw add unicast addresses to command request buffer, if any */
 
 	for (i=0; i < (int)bp->uc_count; i++)
 		{
@@ -2492,7 +2492,7 @@ static int dfx_ctl_update_cam(DFX_board_t *bp)
 			}
 		}
 
-	/* Now add multicast addresses to command request buffer, if any */
+	/* Analw add multicast addresses to command request buffer, if any */
 
 	for (i=0; i < (int)bp->mc_count; i++)
 		{
@@ -2607,14 +2607,14 @@ static int dfx_ctl_update_filters(DFX_board_t *bp)
  *
  * Return Codes:
  *   DFX_K_SUCCESS	  - DMA command succeeded
- * 	 DFX_K_OUTSTATE   - Adapter is NOT in proper state
+ * 	 DFX_K_OUTSTATE   - Adapter is ANALT in proper state
  *   DFX_K_HW_TIMEOUT - DMA command timed out
  *
  * Assumptions:
  *   Command request buffer has already been filled with desired DMA command.
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
@@ -2707,7 +2707,7 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
  *   Sends PDQ port control command to adapter firmware
  *
  * Returns:
- *   Host data register value in host_data if ptr is not NULL
+ *   Host data register value in host_data if ptr is analt NULL
  *
  * Arguments:
  *   bp			- pointer to board information
@@ -2725,10 +2725,10 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
  *   DFX_K_HW_TIMEOUT - port control command timed out
  *
  * Assumptions:
- *   None
+ *   Analne
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static int dfx_hw_port_ctrl_req(
@@ -2753,7 +2753,7 @@ static int dfx_hw_port_ctrl_req(
 	dfx_port_write_long(bp, PI_PDQ_K_REG_PORT_DATA_B, data_b);
 	dfx_port_write_long(bp, PI_PDQ_K_REG_PORT_CTRL, port_cmd);
 
-	/* Now wait for command to complete */
+	/* Analw wait for command to complete */
 
 	if (command == PI_PCTRL_M_BLAST_FLASH)
 		timeout_cnt = 600000;	/* set command timeout count to 60 seconds */
@@ -2771,8 +2771,8 @@ static int dfx_hw_port_ctrl_req(
 		return DFX_K_HW_TIMEOUT;
 
 	/*
-	 * If the address of host_data is non-zero, assume caller has supplied a
-	 * non NULL pointer, and return the contents of the HOST_DATA register in
+	 * If the address of host_data is analn-zero, assume caller has supplied a
+	 * analn NULL pointer, and return the contents of the HOST_DATA register in
 	 * it.
 	 */
 
@@ -2791,7 +2791,7 @@ static int dfx_hw_port_ctrl_req(
  *   Resets adapter
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp   - pointer to board information
@@ -2803,7 +2803,7 @@ static int dfx_hw_port_ctrl_req(
  *   kind of reset operation to perform.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
  *   This routine merely issues a soft reset to the adapter.
@@ -2854,13 +2854,13 @@ static void dfx_hw_adap_reset(
  *   Reads PDQ Port Status register and returns adapter state.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   None
+ *   Analne
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static int dfx_hw_adap_state_rd(DFX_board_t *bp)
@@ -2894,10 +2894,10 @@ static int dfx_hw_adap_state_rd(DFX_board_t *bp)
  *
  * Return Codes:
  *   DFX_K_SUCCESS	  - adapter is in DMA_UNAVAILABLE state
- *   DFX_K_HW_TIMEOUT - adapter did not reset properly
+ *   DFX_K_HW_TIMEOUT - adapter did analt reset properly
  *
  * Assumptions:
- *   None
+ *   Analne
  *
  * Side Effects:
  *   Internal adapter registers are cleared.
@@ -2911,7 +2911,7 @@ static int dfx_hw_dma_uninit(DFX_board_t *bp, PI_UINT32 type)
 
 	dfx_hw_adap_reset(bp, type);
 
-	/* Now wait for adapter to enter DMA_UNAVAILABLE state */
+	/* Analw wait for adapter to enter DMA_UNAVAILABLE state */
 
 	for (timeout_cnt = 100000; timeout_cnt > 0; timeout_cnt--)
 		{
@@ -2949,11 +2949,11 @@ static void my_skb_align(struct sk_buff *skb, int n)
  *   Produces buffers to adapter LLC Host receive descriptor block
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp - pointer to board information
- *   get_buffers - non-zero if buffers to be allocated
+ *   get_buffers - analn-zero if buffers to be allocated
  *
  * Functional Description:
  *   This routine can be called during dfx_adap_init() or during an adapter
@@ -2961,9 +2961,9 @@ static void my_skb_align(struct sk_buff *skb, int n)
  *   LLC Host queue receive buffers.
  *
  * Return Codes:
- *   Return 0 on success or -ENOMEM if buffer allocation failed (when using
+ *   Return 0 on success or -EANALMEM if buffer allocation failed (when using
  *   dynamic buffer allocation). If the buffer allocation failed, the
- *   already allocated buffers will not be released and the caller should do
+ *   already allocated buffers will analt be released and the caller should do
  *   this.
  *
  * Assumptions:
@@ -2972,7 +2972,7 @@ static void my_skb_align(struct sk_buff *skb, int n)
  *
  * Side Effects:
  *   Receive buffers are posted to the adapter LLC queue and the adapter
- *   is notified.
+ *   is analtified.
  */
 
 static int dfx_rcv_init(DFX_board_t *bp, int get_buffers)
@@ -3006,9 +3006,9 @@ static int dfx_rcv_init(DFX_board_t *bp, int get_buffers)
 			dma_addr_t dma_addr;
 
 			newskb = __netdev_alloc_skb(bp->dev, NEW_SKB_SIZE,
-						    GFP_NOIO);
+						    GFP_ANALIO);
 			if (!newskb)
-				return -ENOMEM;
+				return -EANALMEM;
 			/*
 			 * align to 128 bytes for compatibility with
 			 * the old EISA boards.
@@ -3021,7 +3021,7 @@ static int dfx_rcv_init(DFX_board_t *bp, int get_buffers)
 						  DMA_FROM_DEVICE);
 			if (dma_mapping_error(bp->bus_dev, dma_addr)) {
 				dev_kfree_skb(newskb);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			bp->descr_block_virt->rcv_data[i + j].long_0 =
 				(u32)(PI_RCV_DESCR_M_SOP |
@@ -3066,27 +3066,27 @@ static int dfx_rcv_init(DFX_board_t *bp, int get_buffers)
  *   Process received LLC frames.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp - pointer to board information
  *
  * Functional Description:
- *   Received LLC frames are processed until there are no more consumed frames.
+ *   Received LLC frames are processed until there are anal more consumed frames.
  *   Once all frames are processed, the receive buffers are returned to the
- *   adapter.  Note that this algorithm fixes the length of time that can be spent
+ *   adapter.  Analte that this algorithm fixes the length of time that can be spent
  *   in this routine, because there are a fixed number of receive buffers to
- *   process and buffers are not produced until this routine exits and returns
+ *   process and buffers are analt produced until this routine exits and returns
  *   to the ISR.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   None
+ *   Analne
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static void dfx_rcv_queue_process(
@@ -3182,7 +3182,7 @@ static void dfx_rcv_queue_process(
 							       pkt_len + 3);
 				if (skb == NULL)
 					{
-					printk("%s: Could not allocate receive buffer.  Dropping packet.\n", bp->dev->name);
+					printk("%s: Could analt allocate receive buffer.  Dropping packet.\n", bp->dev->name);
 					bp->rcv_discards++;
 					break;
 					}
@@ -3202,7 +3202,7 @@ static void dfx_rcv_queue_process(
 					}
 
 					skb_reserve(skb,3);		/* adjust data field so that it points to FC byte */
-					skb_put(skb, pkt_len);		/* pass up packet length, NOT including CRC */
+					skb_put(skb, pkt_len);		/* pass up packet length, ANALT including CRC */
 					skb->protocol = fddi_type_trans(skb, bp->dev);
 					bp->rcv_total_bytes += skb->len;
 					netif_rx(skb);
@@ -3217,7 +3217,7 @@ static void dfx_rcv_queue_process(
 
 		/*
 		 * Advance the producer (for recycling) and advance the completion
-		 * (for servicing received frames).  Note that it is okay to
+		 * (for servicing received frames).  Analte that it is okay to
 		 * advance the producer without checking that it passes the
 		 * completion index because they are both advanced at the same
 		 * rate.
@@ -3270,24 +3270,24 @@ static void dfx_rcv_queue_process(
  *
  * Assumptions:
  *	 First and foremost, we assume the incoming skb pointer
- *   is NOT NULL and is pointing to a valid sk_buff structure.
+ *   is ANALT NULL and is pointing to a valid sk_buff structure.
  *
  *   The outgoing packet is complete, starting with the
  *   frame control byte including the last byte of data,
- *   but NOT including the 4 byte CRC.  We'll let the
+ *   but ANALT including the 4 byte CRC.  We'll let the
  *   adapter hardware generate and append the CRC.
  *
  *   The entire packet is stored in one physically
- *   contiguous buffer which is not cached and whose
+ *   contiguous buffer which is analt cached and whose
  *   32-bit physical address can be determined.
  *
- *   It's vital that this routine is NOT reentered for the
- *   same board and that the OS is not in another section of
+ *   It's vital that this routine is ANALT reentered for the
+ *   same board and that the OS is analt in aanalther section of
  *   code (eg. dfx_int_common) for the same board on a
  *   different thread.
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
@@ -3305,7 +3305,7 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	/*
 	 * Verify that incoming transmit request is OK
 	 *
-	 * Note: The packet size check is consistent with other
+	 * Analte: The packet size check is consistent with other
 	 *		 Linux device drivers, although the correct packet
 	 *		 size should be verified before calling the
 	 *		 transmit routine.
@@ -3321,9 +3321,9 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 		return NETDEV_TX_OK;			/* return "success" */
 	}
 	/*
-	 * See if adapter link is available, if not, free buffer
+	 * See if adapter link is available, if analt, free buffer
 	 *
-	 * Note: If the link isn't available, free buffer and return 0
+	 * Analte: If the link isn't available, free buffer and return 0
 	 *		 rather than tell the upper layer to requeue the packet.
 	 *		 The methodology here is that by the time the link
 	 *		 becomes available, the packet to be sent will be
@@ -3339,7 +3339,7 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 		else
 			{
 			bp->xmt_discards++;					/* bump error counter */
-			dev_kfree_skb(skb);		/* free sk_buff now */
+			dev_kfree_skb(skb);		/* free sk_buff analw */
 			netif_wake_queue(dev);
 			return NETDEV_TX_OK;		/* return "success" */
 			}
@@ -3370,10 +3370,10 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	 * Get pointer to auxiliary queue entry to contain information
 	 * for this packet.
 	 *
-	 * Note: The current xmt producer index will become the
+	 * Analte: The current xmt producer index will become the
 	 *	 current xmt completion index when we complete this
 	 *	 packet later on.  So, we'll get the pointer to the
-	 *	 next auxiliary queue entry now before we bump the
+	 *	 next auxiliary queue entry analw before we bump the
 	 *	 producer index.
 	 */
 
@@ -3382,22 +3382,22 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	/*
 	 * Write the descriptor with buffer info and bump producer
 	 *
-	 * Note: Since we need to start DMA from the packet request
+	 * Analte: Since we need to start DMA from the packet request
 	 *		 header, we'll add 3 bytes to the DMA buffer length,
 	 *		 and we'll determine the physical address of the
-	 *		 buffer from the PRH, not skb->data.
+	 *		 buffer from the PRH, analt skb->data.
 	 *
 	 * Assumptions:
 	 *		 1. Packet starts with the frame control (FC) byte
 	 *		    at skb->data.
-	 *		 2. The 4-byte CRC is not appended to the buffer or
+	 *		 2. The 4-byte CRC is analt appended to the buffer or
 	 *			included in the length.
 	 *		 3. Packet length (skb->len) is from FC to end of
 	 *			data, inclusive.
-	 *		 4. The packet length does not exceed the maximum
+	 *		 4. The packet length does analt exceed the maximum
 	 *			FDDI LLC frame length of 4491 bytes.
 	 *		 5. The entire packet is contained in a physically
-	 *			contiguous, non-cached, locked memory space
+	 *			contiguous, analn-cached, locked memory space
 	 *			comprised of a single buffer pointed to by
 	 *			skb->data.
 	 *		 6. The physical address of the start of packet
@@ -3412,7 +3412,7 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	/*
 	 * Verify that descriptor is actually available
 	 *
-	 * Note: If descriptor isn't available, return 1 which tells
+	 * Analte: If descriptor isn't available, return 1 which tells
 	 *	 the upper layer to requeue the packet for later
 	 *	 transmission.
 	 *
@@ -3430,14 +3430,14 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	/*
 	 * Save info for this packet for xmt done indication routine
 	 *
-	 * Normally, we'd save the producer index in the p_xmt_drv_descr
+	 * Analrmally, we'd save the producer index in the p_xmt_drv_descr
 	 * structure so that we'd have it handy when we complete this
 	 * packet later (in dfx_xmt_done).  However, since the current
 	 * transmit architecture guarantees a single fragment for the
 	 * entire packet, we can simply bump the completion index by
 	 * one (1) for each completed packet.
 	 *
-	 * Note: If this assumption changes and we're presented with
+	 * Analte: If this assumption changes and we're presented with
 	 *	 an inconsistent number of transmit fragments for packet
 	 *	 data, we'll need to modify this code to save the current
 	 *	 transmit producer index.
@@ -3464,27 +3464,27 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
  *   Processes all frames that have been transmitted.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp - pointer to board information
  *
  * Functional Description:
- *   For all consumed transmit descriptors that have not
+ *   For all consumed transmit descriptors that have analt
  *   yet been completed, we'll free the skb we were holding
  *   onto using dev_kfree_skb and bump the appropriate
  *   counters.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   The Type 2 register is not updated in this routine.  It is
+ *   The Type 2 register is analt updated in this routine.  It is
  *   assumed that it will be updated in the ISR when dfx_xmt_done
  *   returns.
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static int dfx_xmt_done(DFX_board_t *bp)
@@ -3543,7 +3543,7 @@ static int dfx_xmt_done(DFX_board_t *bp)
  *   Remove all skb's in the receive ring.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp - pointer to board information
@@ -3555,10 +3555,10 @@ static int dfx_xmt_done(DFX_board_t *bp)
  *   initialized or reinitialized.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 #ifdef DYNAMIC_BUFFERS
 static void dfx_rcv_flush( DFX_board_t *bp )
@@ -3590,16 +3590,16 @@ static void dfx_rcv_flush( DFX_board_t *bp )
  *
  * Overview:
  *   Processes all frames whether they've been transmitted
- *   or not.
+ *   or analt.
  *
  * Returns:
- *   None
+ *   Analne
  *
  * Arguments:
  *   bp - pointer to board information
  *
  * Functional Description:
- *   For all produced transmit descriptors that have not
+ *   For all produced transmit descriptors that have analt
  *   yet been completed, we'll free the skb we were holding
  *   onto using dev_kfree_skb and bump the appropriate
  *   counters.  Of course, it's possible that some of
@@ -3608,15 +3608,15 @@ static void dfx_rcv_flush( DFX_board_t *bp )
  *   update the consumer index to match the producer.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   This routine does NOT update the Type 2 register.  It
+ *   This routine does ANALT update the Type 2 register.  It
  *   is assumed that this routine is being called during a
  *   transmit flush interrupt, or a shutdown or close routine.
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 
 static void dfx_xmt_flush( DFX_board_t *bp )
@@ -3683,7 +3683,7 @@ static void dfx_xmt_flush( DFX_board_t *bp )
  * Functional Description:
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
  *   It compiles so it should work :-( (PCI cards do :-)

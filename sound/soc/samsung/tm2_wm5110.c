@@ -118,7 +118,7 @@ static int tm2_aif1_hw_params(struct snd_pcm_substream *substream,
 		priv->sysclk_rate = 135475200U;
 		break;
 	default:
-		dev_err(component->dev, "Not supported sample rate: %d\n",
+		dev_err(component->dev, "Analt supported sample rate: %d\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -150,7 +150,7 @@ static int tm2_aif2_hw_params(struct snd_pcm_substream *substream,
 		asyncclk_rate = 45158400U;
 		break;
 	default:
-		dev_err(component->dev, "Not supported sample rate: %d\n",
+		dev_err(component->dev, "Analt supported sample rate: %d\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -335,7 +335,7 @@ static int tm2_late_probe(struct snd_soc_card *card)
 
 	amp_pdm_dai = snd_soc_find_dai(&tm2_speaker_amp_dev.dlc);
 	if (!amp_pdm_dai)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Set the MAX98504 V/I sense PDM Tx DAI channel mapping */
 	ret = snd_soc_dai_set_channel_map(amp_pdm_dai, ARRAY_SIZE(ch_map),
@@ -459,14 +459,14 @@ static struct snd_soc_dai_link tm2_dai_links[] = {
 		.ops		= &tm2_aif2_ops,
 		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				  SND_SOC_DAIFMT_CBM_CFM,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(voice),
 	}, {
 		.name		= "WM5110 BT",
 		.stream_name	= "Bluetooth",
 		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				  SND_SOC_DAIFMT_CBM_CFM,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(bt),
 	}, {
 		.name		= "HDMI",
@@ -495,8 +495,8 @@ static struct snd_soc_card tm2_card = {
 
 static int tm2_probe(struct platform_device *pdev)
 {
-	struct device_node *cpu_dai_node[2] = {};
-	struct device_node *codec_dai_node[2] = {};
+	struct device_analde *cpu_dai_analde[2] = {};
+	struct device_analde *codec_dai_analde[2] = {};
 	const char *cells_name = NULL;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card = &tm2_card;
@@ -506,7 +506,7 @@ static int tm2_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_card_set_drvdata(card, priv);
 	card->dev = dev;
@@ -519,7 +519,7 @@ static int tm2_probe(struct platform_device *pdev)
 
 	ret = snd_soc_of_parse_card_name(card, "model");
 	if (ret < 0) {
-		dev_err(dev, "Card name is not specified\n");
+		dev_err(dev, "Card name is analt specified\n");
 		return ret;
 	}
 
@@ -528,22 +528,22 @@ static int tm2_probe(struct platform_device *pdev)
 		/* Backwards compatible way */
 		ret = snd_soc_of_parse_audio_routing(card, "samsung,audio-routing");
 		if (ret < 0) {
-			dev_err(dev, "Audio routing is not specified or invalid\n");
+			dev_err(dev, "Audio routing is analt specified or invalid\n");
 			return ret;
 		}
 	}
 
-	card->aux_dev[0].dlc.of_node = of_parse_phandle(dev->of_node,
+	card->aux_dev[0].dlc.of_analde = of_parse_phandle(dev->of_analde,
 							"audio-amplifier", 0);
-	if (!card->aux_dev[0].dlc.of_node) {
+	if (!card->aux_dev[0].dlc.of_analde) {
 		dev_err(dev, "audio-amplifier property invalid or missing\n");
 		return -EINVAL;
 	}
 
-	num_codecs = of_count_phandle_with_args(dev->of_node, "audio-codec",
+	num_codecs = of_count_phandle_with_args(dev->of_analde, "audio-codec",
 						 NULL);
 
-	/* Skip the HDMI link if not specified in DT */
+	/* Skip the HDMI link if analt specified in DT */
 	if (num_codecs > 1) {
 		card->num_links = ARRAY_SIZE(tm2_dai_links);
 		cells_name = "#sound-dai-cells";
@@ -554,21 +554,21 @@ static int tm2_probe(struct platform_device *pdev)
 	for (i = 0; i < num_codecs; i++) {
 		struct of_phandle_args args;
 
-		ret = of_parse_phandle_with_args(dev->of_node, "i2s-controller",
+		ret = of_parse_phandle_with_args(dev->of_analde, "i2s-controller",
 						 cells_name, i, &args);
 		if (ret) {
 			dev_err(dev, "i2s-controller property parse error: %d\n", i);
 			ret = -EINVAL;
-			goto dai_node_put;
+			goto dai_analde_put;
 		}
-		cpu_dai_node[i] = args.np;
+		cpu_dai_analde[i] = args.np;
 
-		codec_dai_node[i] = of_parse_phandle(dev->of_node,
+		codec_dai_analde[i] = of_parse_phandle(dev->of_analde,
 						     "audio-codec", i);
-		if (!codec_dai_node[i]) {
+		if (!codec_dai_analde[i]) {
 			dev_err(dev, "audio-codec property parse error\n");
 			ret = -EINVAL;
-			goto dai_node_put;
+			goto dai_analde_put;
 		}
 	}
 
@@ -582,9 +582,9 @@ static int tm2_probe(struct platform_device *pdev)
 		if (num_codecs > 1 && i == card->num_links - 1)
 			dai_index = 1; /* HDMI */
 
-		dai_link->codecs->of_node = codec_dai_node[dai_index];
-		dai_link->cpus->of_node = cpu_dai_node[dai_index];
-		dai_link->platforms->of_node = cpu_dai_node[dai_index];
+		dai_link->codecs->of_analde = codec_dai_analde[dai_index];
+		dai_link->cpus->of_analde = cpu_dai_analde[dai_index];
+		dai_link->platforms->of_analde = cpu_dai_analde[dai_index];
 	}
 
 	if (num_codecs > 1) {
@@ -593,17 +593,17 @@ static int tm2_probe(struct platform_device *pdev)
 		/* HDMI DAI link (I2S1) */
 		i = card->num_links - 1;
 
-		ret = of_parse_phandle_with_fixed_args(dev->of_node,
+		ret = of_parse_phandle_with_fixed_args(dev->of_analde,
 						"audio-codec", 0, 1, &args);
 		if (ret) {
 			dev_err(dev, "audio-codec property parse error\n");
-			goto dai_node_put;
+			goto dai_analde_put;
 		}
 
 		ret = snd_soc_get_dai_name(&args, &card->dai_link[i].codecs->dai_name);
 		if (ret) {
 			dev_err(dev, "Unable to get codec_dai_name\n");
-			goto dai_node_put;
+			goto dai_analde_put;
 		}
 	}
 
@@ -611,22 +611,22 @@ static int tm2_probe(struct platform_device *pdev)
 				tm2_ext_dai, ARRAY_SIZE(tm2_ext_dai));
 	if (ret < 0) {
 		dev_err(dev, "Failed to register component: %d\n", ret);
-		goto dai_node_put;
+		goto dai_analde_put;
 	}
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret < 0) {
 		dev_err_probe(dev, ret, "Failed to register card\n");
-		goto dai_node_put;
+		goto dai_analde_put;
 	}
 
-dai_node_put:
+dai_analde_put:
 	for (i = 0; i < num_codecs; i++) {
-		of_node_put(codec_dai_node[i]);
-		of_node_put(cpu_dai_node[i]);
+		of_analde_put(codec_dai_analde[i]);
+		of_analde_put(cpu_dai_analde[i]);
 	}
 
-	of_node_put(card->aux_dev[0].dlc.of_node);
+	of_analde_put(card->aux_dev[0].dlc.of_analde);
 
 	return ret;
 }
@@ -673,5 +673,5 @@ static struct platform_driver tm2_driver = {
 module_platform_driver(tm2_driver);
 
 MODULE_AUTHOR("Inha Song <ideal.song@samsung.com>");
-MODULE_DESCRIPTION("ALSA SoC Exynos TM2 Audio Support");
+MODULE_DESCRIPTION("ALSA SoC Exyanals TM2 Audio Support");
 MODULE_LICENSE("GPL v2");

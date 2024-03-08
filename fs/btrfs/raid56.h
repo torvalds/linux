@@ -61,7 +61,7 @@ struct btrfs_raid_bio {
 	/* How many sectors there are for the full stripe including P/Q */
 	u16 nr_sectors;
 
-	/* Number of data stripes (no p/q) */
+	/* Number of data stripes (anal p/q) */
 	u8 nr_data;
 
 	/* Number of all stripes (including P/Q) */
@@ -78,7 +78,7 @@ struct btrfs_raid_bio {
 
 	/*
 	 * Size of all the bios in the bio_list.  This helps us decide if the
-	 * rbio maps to a full stripe or not.
+	 * rbio maps to a full stripe or analt.
 	 */
 	int bio_list_bytes;
 
@@ -95,7 +95,7 @@ struct btrfs_raid_bio {
 	unsigned long finish_pbitmap;
 
 	/*
-	 * These are two arrays of pointers.  We allocate the rbio big enough
+	 * These are two arrays of pointers.  We allocate the rbio big eanalugh
 	 * to hold them both and setup their locations when the rbio is
 	 * allocated.
 	 */
@@ -123,7 +123,7 @@ struct btrfs_raid_bio {
 	 * Each bit is corresponding to one sector in either bio_sectors[] or
 	 * stripe_sectors[] array.
 	 *
-	 * The reason we don't use another bit in sector_ptr is, we have two
+	 * The reason we don't use aanalther bit in sector_ptr is, we have two
 	 * arrays of sectors, and a lot of IO can use sectors in both arrays.
 	 * Thus making it much harder to iterate.
 	 */
@@ -146,7 +146,7 @@ struct btrfs_raid_bio {
  * For trace event usage only. Records useful debug info for each bio submitted
  * by RAID56 to each physical device.
  *
- * No matter signed or not, (-1) is always the one indicating we can not grab
+ * Anal matter signed or analt, (-1) is always the one indicating we can analt grab
  * the proper stripe number.
  */
 struct raid56_bio_trace_info {

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 Citrix Systems
  *
- * Author: Stefano Stabellini <stefano.stabellini@eu.citrix.com>
+ * Author: Stefaanal Stabellini <stefaanal.stabellini@eu.citrix.com>
  */
 
 #define pr_fmt(fmt) "arm-pv: " fmt
@@ -41,13 +41,13 @@ struct pv_time_stolen_time_region {
 static DEFINE_PER_CPU(struct pv_time_stolen_time_region, stolen_time_region);
 
 static bool steal_acc = true;
-static int __init parse_no_stealacc(char *arg)
+static int __init parse_anal_stealacc(char *arg)
 {
 	steal_acc = false;
 	return 0;
 }
 
-early_param("no-steal-acc", parse_no_stealacc);
+early_param("anal-steal-acc", parse_anal_stealacc);
 
 /* return stolen time in ns by asking the hypervisor */
 static u64 para_steal_clock(int cpu)
@@ -60,7 +60,7 @@ static u64 para_steal_clock(int cpu)
 
 	/*
 	 * paravirt_steal_clock() may be called before the CPU
-	 * online notification callback runs. Until the callback
+	 * online analtification callback runs. Until the callback
 	 * has run we just return zero.
 	 */
 	rcu_read_lock();
@@ -101,7 +101,7 @@ static int stolen_time_cpu_online(unsigned int cpu)
 
 	arm_smccc_1_1_invoke(ARM_SMCCC_HV_PV_TIME_ST, &res);
 
-	if (res.a0 == SMCCC_RET_NOT_SUPPORTED)
+	if (res.a0 == SMCCC_RET_ANALT_SUPPORTED)
 		return -EINVAL;
 
 	kaddr = memremap(res.a0,
@@ -112,7 +112,7 @@ static int stolen_time_cpu_online(unsigned int cpu)
 
 	if (!reg->kaddr) {
 		pr_warn("Failed to map stolen time data structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (le32_to_cpu(kaddr->revision) != 0 ||

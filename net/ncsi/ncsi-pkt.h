@@ -161,7 +161,7 @@ struct ncsi_rsp_oem_pkt {
 	unsigned char           data[];      /* Payload data      */
 };
 
-/* Mellanox Response Data */
+/* Mellaanalx Response Data */
 struct ncsi_rsp_oem_mlx_pkt {
 	unsigned char           cmd_rev;     /* Command Revision  */
 	unsigned char           cmd;         /* Command ID        */
@@ -198,7 +198,7 @@ struct ncsi_rsp_gls_pkt {
 struct ncsi_rsp_gvi_pkt {
 	struct ncsi_rsp_pkt_hdr rsp;          /* Response header */
 	unsigned char           major;        /* NCSI version major */
-	unsigned char           minor;        /* NCSI version minor */
+	unsigned char           mianalr;        /* NCSI version mianalr */
 	unsigned char           update;       /* NCSI version update */
 	unsigned char           alpha1;       /* NCSI version alpha1 */
 	unsigned char           reserved[3];  /* Reserved        */
@@ -449,13 +449,13 @@ struct ncsi_aen_hncdsc_pkt {
 #define NCSI_PKT_RSP_C_FAILED		0x0001 /* Command Failed           */
 #define NCSI_PKT_RSP_C_UNAVAILABLE	0x0002 /* Command Unavailable      */
 #define NCSI_PKT_RSP_C_UNSUPPORTED	0x0003 /* Command Unsupported      */
-#define NCSI_PKT_RSP_R_NO_ERROR		0x0000 /* No Error                 */
-#define NCSI_PKT_RSP_R_INTERFACE	0x0001 /* Interface not ready      */
+#define NCSI_PKT_RSP_R_ANAL_ERROR		0x0000 /* Anal Error                 */
+#define NCSI_PKT_RSP_R_INTERFACE	0x0001 /* Interface analt ready      */
 #define NCSI_PKT_RSP_R_PARAM		0x0002 /* Invalid Parameter        */
-#define NCSI_PKT_RSP_R_CHANNEL		0x0003 /* Channel not Ready        */
-#define NCSI_PKT_RSP_R_PACKAGE		0x0004 /* Package not Ready        */
+#define NCSI_PKT_RSP_R_CHANNEL		0x0003 /* Channel analt Ready        */
+#define NCSI_PKT_RSP_R_PACKAGE		0x0004 /* Package analt Ready        */
 #define NCSI_PKT_RSP_R_LENGTH		0x0005 /* Invalid payload length   */
-#define NCSI_PKT_RSP_R_UNKNOWN		0x7fff /* Command type unsupported */
+#define NCSI_PKT_RSP_R_UNKANALWN		0x7fff /* Command type unsupported */
 
 /* NCSI AEN packet type */
 #define NCSI_PKT_AEN		0xFF /* AEN Packet               */

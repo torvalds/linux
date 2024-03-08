@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices analt fully compliant with HID standard
  *  - original and fixed report descriptors
  *
  *  Copyright (c) 2010-2017 Nikolai Kondrashov
@@ -442,7 +442,7 @@ __u8 uclogic_rdesc_twhl850_fixed2_arr[] = {
 	0x75, 0x01,         /*      Report Size (1),                */
 	0x95, 0x08,         /*      Report Count (8),               */
 	0x81, 0x02,         /*      Input (Variable),               */
-	0x18,               /*      Usage Minimum (None),           */
+	0x18,               /*      Usage Minimum (Analne),           */
 	0x29, 0xFF,         /*      Usage Maximum (FFh),            */
 	0x26, 0xFF, 0x00,   /*      Logical Maximum (255),          */
 	0x75, 0x08,         /*      Report Size (8),                */

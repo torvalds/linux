@@ -15,11 +15,11 @@ EM28xx cards list
      - Empia Chip
      - USB IDs
    * - 0
-     - Unknown EM2800 video grabber
+     - Unkanalwn EM2800 video grabber
      - em2800
      - eb1a:2800
    * - 1
-     - Unknown EM2750/28xx video grabber
+     - Unkanalwn EM2750/28xx video grabber
      - em2820 or em2840
      - eb1a:2710, eb1a:2820, eb1a:2821, eb1a:2860, eb1a:2861, eb1a:2862, eb1a:2863, eb1a:2870, eb1a:2881, eb1a:2883, eb1a:2868, eb1a:2875
    * - 2
@@ -99,7 +99,7 @@ EM28xx cards list
      - em2880
      - 0438:b002
    * - 21
-     - eMPIA Technology, Inc. GrabBeeX+ Video Encoder
+     - eMPIA Techanallogy, Inc. GrabBeeX+ Video Encoder
      - em2800
      - eb1a:2801
    * - 22
@@ -327,7 +327,7 @@ EM28xx cards list
      - em2874
      -
    * - 78
-     - PCTV nanoStick T2 290e
+     - PCTV naanalStick T2 290e
      - em28174
      - 2013:024f
    * - 79
@@ -359,7 +359,7 @@ EM28xx cards list
      - em2884
      - 2304:0242
    * - 86
-     - PCTV QuatroStick nano (520e)
+     - PCTV QuatroStick naanal (520e)
      - em2884
      - 2013:0251
    * - 87

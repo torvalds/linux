@@ -9,7 +9,7 @@
 
 #include "hdmi.h"
 
-int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_node *ep,
+int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_analde *ep,
 	struct hdmi_phy_data *phy)
 {
 	struct property *prop;
@@ -62,7 +62,7 @@ int hdmi_compute_acr(u32 pclk, u32 sample_freq, u32 *n, u32 *cts)
 
 	/*
 	 * When using deep color, the default N value (as in the HDMI
-	 * specification) yields to an non-integer CTS. Hence, we
+	 * specification) yields to an analn-integer CTS. Hence, we
 	 * modify it while keeping the restrictions described in
 	 * section 7.2.1 of the HDMI 1.4a specification.
 	 */

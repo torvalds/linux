@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -272,7 +272,7 @@ int __init am300_init(void)
 
 	am300_device = platform_device_alloc("broadsheetfb", -1);
 	if (!am300_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* the am300_board that will be seen by broadsheetfb is a copy */
 	platform_device_add_data(am300_device, &am300_board,

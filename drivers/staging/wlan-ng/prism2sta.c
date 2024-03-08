@@ -135,8 +135,8 @@ static int prism2sta_open(struct wlandevice *wlandev)
 	/* We don't currently have to do anything else.
 	 * The setup of the MAC should be subsequently completed via
 	 * the mlme commands.
-	 * Higher layers know we're ready from dev->start==1 and
-	 * dev->tbusy==0.  Our rx path knows to pass up received/
+	 * Higher layers kanalw we're ready from dev->start==1 and
+	 * dev->tbusy==0.  Our rx path kanalws to pass up received/
 	 * frames because of dev->flags&IFF_UP is true.
 	 */
 
@@ -167,8 +167,8 @@ static int prism2sta_open(struct wlandevice *wlandev)
 static int prism2sta_close(struct wlandevice *wlandev)
 {
 	/* We don't currently have to do anything else.
-	 * Higher layers know we're not ready from dev->start==0 and
-	 * dev->tbusy==1.  Our rx path knows to not pass up received
+	 * Higher layers kanalw we're analt ready from dev->start==0 and
+	 * dev->tbusy==1.  Our rx path kanalws to analt pass up received
 	 * frames because of dev->flags&IFF_UP is false.
 	 */
 
@@ -178,14 +178,14 @@ static int prism2sta_close(struct wlandevice *wlandev)
 /*
  * prism2sta_reset
  *
- * Currently not implemented.
+ * Currently analt implemented.
  *
  * Arguments:
  *	wlandev		wlan device structure
- *	none
+ *	analne
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -208,7 +208,7 @@ static void prism2sta_reset(struct wlandevice *wlandev)
  *       p80211_hdr      points to the 802.11 header for the packet.
  * Returns:
  *	0		Success and more buffs available
- *	1		Success but no more buffs
+ *	1		Success but anal more buffs
  *	2		Allocation failure
  *	4		Buffer full or queue busy
  *
@@ -315,7 +315,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 		 * Linux specific messages
 		 */
 	case DIDMSG_LNXREQ_HOSTWEP:
-		break;		/* ignore me. */
+		break;		/* iganalre me. */
 	case DIDMSG_LNXREQ_IFSTATE: {
 		struct p80211msg_lnxreq_ifstate *ifstatemsg;
 
@@ -347,18 +347,18 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 
 		qualmsg->link.status = P80211ENUM_msgitem_status_data_ok;
 		qualmsg->level.status = P80211ENUM_msgitem_status_data_ok;
-		qualmsg->noise.status = P80211ENUM_msgitem_status_data_ok;
+		qualmsg->analise.status = P80211ENUM_msgitem_status_data_ok;
 
 		qualmsg->link.data = le16_to_cpu(hw->qual.cq_curr_bss);
 		qualmsg->level.data = le16_to_cpu(hw->qual.asl_curr_bss);
-		qualmsg->noise.data = le16_to_cpu(hw->qual.anl_curr_fc);
+		qualmsg->analise.data = le16_to_cpu(hw->qual.anl_curr_fc);
 		qualmsg->txrate.data = hw->txrate;
 
 		break;
 	}
 	default:
 		netdev_warn(wlandev->netdev,
-			    "Unknown mgmt request message 0x%08x",
+			    "Unkanalwn mgmt request message 0x%08x",
 			    msg->msgcode);
 		break;
 	}
@@ -424,13 +424,13 @@ u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate)
 			break;
 		case WLAN_MSD_RUNNING:
 			netdev_warn(wlandev->netdev,
-				    "Cannot enter fwload state from enable state, you must disable first.\n");
+				    "Cananalt enter fwload state from enable state, you must disable first.\n");
 			result = P80211ENUM_resultcode_invalid_parameters;
 			break;
 		case WLAN_MSD_HWFAIL:
 		default:
 			/* probe() had a problem or the msdstate contains
-			 * an unrecognized value, there's nothing we can do.
+			 * an unrecognized value, there's analthing we can do.
 			 */
 			result = P80211ENUM_resultcode_implementation_failure;
 			break;
@@ -442,9 +442,9 @@ u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate)
 		case WLAN_MSD_FWLOAD:
 			wlandev->msdstate = WLAN_MSD_RUNNING_PENDING;
 			/* Initialize the device+driver for full
-			 * operation. Note that this might me an FWLOAD
-			 * to RUNNING transition so we must not do a chip
-			 * or board level reset.  Note that on failure,
+			 * operation. Analte that this might me an FWLOAD
+			 * to RUNNING transition so we must analt do a chip
+			 * or board level reset.  Analte that on failure,
 			 * the MSD state is set to HWPRESENT because we
 			 * can't make any assumptions about the state
 			 * of the hardware or a previous firmware load.
@@ -488,13 +488,13 @@ u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate)
 			result = P80211ENUM_resultcode_success;
 			break;
 		case WLAN_MSD_RUNNING:
-			/* Do nothing, we're already in this state. */
+			/* Do analthing, we're already in this state. */
 			result = P80211ENUM_resultcode_success;
 			break;
 		case WLAN_MSD_HWFAIL:
 		default:
 			/* probe() had a problem or the msdstate contains
-			 * an unrecognized value, there's nothing we can do.
+			 * an unrecognized value, there's analthing we can do.
 			 */
 			result = P80211ENUM_resultcode_implementation_failure;
 			break;
@@ -503,7 +503,7 @@ u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate)
 	case P80211ENUM_ifstate_disable:
 		switch (wlandev->msdstate) {
 		case WLAN_MSD_HWPRESENT:
-			/* Do nothing, we're already in this state. */
+			/* Do analthing, we're already in this state. */
 			result = P80211ENUM_resultcode_success;
 			break;
 		case WLAN_MSD_FWLOAD:
@@ -520,14 +520,14 @@ u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate)
 
 			hfa384x_drvr_stop(hw);
 
-			wlandev->macmode = WLAN_MACMODE_NONE;
+			wlandev->macmode = WLAN_MACMODE_ANALNE;
 			wlandev->msdstate = WLAN_MSD_HWPRESENT;
 			result = P80211ENUM_resultcode_success;
 			break;
 		case WLAN_MSD_HWFAIL:
 		default:
 			/* probe() had a problem or the msdstate contains
-			 * an unrecognized value, there's nothing we can do.
+			 * an unrecognized value, there's analthing we can do.
 			 */
 			result = P80211ENUM_resultcode_implementation_failure;
 			break;
@@ -569,7 +569,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	u8 addr[ETH_ALEN];
 
 	/* Collect version and compatibility info */
-	/*  Some are critical, some are not */
+	/*  Some are critical, some are analt */
 	/* NIC identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_NICIDENTITY,
 					&hw->ident_nic,
@@ -583,11 +583,11 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	le16_to_cpus(&hw->ident_nic.id);
 	le16_to_cpus(&hw->ident_nic.variant);
 	le16_to_cpus(&hw->ident_nic.major);
-	le16_to_cpus(&hw->ident_nic.minor);
+	le16_to_cpus(&hw->ident_nic.mianalr);
 
 	netdev_info(wlandev->netdev, "ident: nic h/w: id=0x%02x %d.%d.%d\n",
 		    hw->ident_nic.id, hw->ident_nic.major,
-		    hw->ident_nic.minor, hw->ident_nic.variant);
+		    hw->ident_nic.mianalr, hw->ident_nic.variant);
 
 	/* Primary f/w identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRIIDENTITY,
@@ -602,11 +602,11 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	le16_to_cpus(&hw->ident_pri_fw.id);
 	le16_to_cpus(&hw->ident_pri_fw.variant);
 	le16_to_cpus(&hw->ident_pri_fw.major);
-	le16_to_cpus(&hw->ident_pri_fw.minor);
+	le16_to_cpus(&hw->ident_pri_fw.mianalr);
 
 	netdev_info(wlandev->netdev, "ident: pri f/w: id=0x%02x %d.%d.%d\n",
 		    hw->ident_pri_fw.id, hw->ident_pri_fw.major,
-		    hw->ident_pri_fw.minor, hw->ident_pri_fw.variant);
+		    hw->ident_pri_fw.mianalr, hw->ident_pri_fw.variant);
 
 	/* Station (Secondary?) f/w identity */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STAIDENTITY,
@@ -619,7 +619,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 
 	if (hw->ident_nic.id < 0x8000) {
 		netdev_err(wlandev->netdev,
-			   "FATAL: Card is not an Intersil Prism2/2.5/3\n");
+			   "FATAL: Card is analt an Intersil Prism2/2.5/3\n");
 		result = -1;
 		goto failed;
 	}
@@ -628,7 +628,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	le16_to_cpus(&hw->ident_sta_fw.id);
 	le16_to_cpus(&hw->ident_sta_fw.variant);
 	le16_to_cpus(&hw->ident_sta_fw.major);
-	le16_to_cpus(&hw->ident_sta_fw.minor);
+	le16_to_cpus(&hw->ident_sta_fw.mianalr);
 
 	/* strip out the 'special' variant bits */
 	hw->mm_mods = hw->ident_sta_fw.variant & GENMASK(15, 14);
@@ -638,12 +638,12 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 		netdev_info(wlandev->netdev,
 			    "ident: sta f/w: id=0x%02x %d.%d.%d\n",
 			    hw->ident_sta_fw.id, hw->ident_sta_fw.major,
-			    hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
+			    hw->ident_sta_fw.mianalr, hw->ident_sta_fw.variant);
 	} else {
 		netdev_info(wlandev->netdev,
 			    "ident:  ap f/w: id=0x%02x %d.%d.%d\n",
 			    hw->ident_sta_fw.id, hw->ident_sta_fw.major,
-			    hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
+			    hw->ident_sta_fw.mianalr, hw->ident_sta_fw.variant);
 		netdev_err(wlandev->netdev, "Unsupported Tertiary AP firmware loaded!\n");
 		goto failed;
 	}
@@ -858,10 +858,10 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 
 	/* Only enable scan by default on newer firmware */
 	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
-				     hw->ident_sta_fw.minor,
+				     hw->ident_sta_fw.mianalr,
 				     hw->ident_sta_fw.variant) <
 	    HFA384x_FIRMWARE_VERSION(1, 5, 5)) {
-		wlandev->nsdcaps |= P80211_NSDCAP_NOSCAN;
+		wlandev->nsdcaps |= P80211_NSDCAP_ANALSCAN;
 	}
 
 	/* TODO: Set any internally managed config items */
@@ -908,7 +908,7 @@ static int prism2sta_setmulticast(struct wlandevice *wlandev,
 
 	u16 promisc;
 
-	/* If we're not ready, what's the point? */
+	/* If we're analt ready, what's the point? */
 	if (hw->state != HFA384x_STATE_RUNNING)
 		goto exit;
 
@@ -934,7 +934,7 @@ exit:
  *	inf		ptr to info frame (contents in hfa384x order)
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -980,7 +980,7 @@ static void prism2sta_inf_tallies(struct wlandevice *wlandev,
  *	inf		ptr to info frame (contents in hfa384x order)
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1035,7 +1035,7 @@ static void prism2sta_inf_scanresults(struct wlandevice *wlandev,
  *	inf		ptr to info frame (contents in hfa384x order)
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1061,7 +1061,7 @@ static void prism2sta_inf_hostscanresults(struct wlandevice *wlandev,
 	if (nbss == 0)
 		nbss = -1;
 
-	/* Notify/wake the sleeping caller. */
+	/* Analtify/wake the sleeping caller. */
 	hw->scanflag = nbss;
 	wake_up_interruptible(&hw->cmdq);
 };
@@ -1076,7 +1076,7 @@ static void prism2sta_inf_hostscanresults(struct wlandevice *wlandev,
  *	inf		ptr to info frame (contents in hfa384x order)
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1116,7 +1116,7 @@ static void prism2sta_inf_chinforesults(struct wlandevice *wlandev,
 			   "chinfo: channel %d, %s level (avg/peak)=%d/%d dB, pcf %d\n",
 			   chan + 1,
 			   (chinforesult->active & HFA384x_CHINFORESULT_BSSACTIVE) ?
-			   "signal" : "noise",
+			   "signal" : "analise",
 			   chinforesult->anl,
 			   chinforesult->pnl,
 			   (chinforesult->active & HFA384x_CHINFORESULT_PCFACTIVE) ? 1 : 0);
@@ -1145,23 +1145,23 @@ void prism2sta_processing_defer(struct work_struct *data)
 		}
 	}
 
-	/* Now let's handle the linkstatus stuff */
+	/* Analw let's handle the linkstatus stuff */
 	if (hw->link_status == hw->link_status_new)
 		return;
 
 	hw->link_status = hw->link_status_new;
 
 	switch (hw->link_status) {
-	case HFA384x_LINK_NOTCONNECTED:
+	case HFA384x_LINK_ANALTCONNECTED:
 		/* I'm currently assuming that this is the initial link
 		 * state.  It should only be possible immediately
 		 * following an Enable command.
 		 * Response:
-		 * Block Transmits, Ignore receives of data frames
+		 * Block Transmits, Iganalre receives of data frames
 		 */
 		netif_carrier_off(wlandev->netdev);
 
-		netdev_info(wlandev->netdev, "linkstatus=NOTCONNECTED (unhandled)\n");
+		netdev_info(wlandev->netdev, "linkstatus=ANALTCONNECTED (unhandled)\n");
 		break;
 
 	case HFA384x_LINK_CONNECTED:
@@ -1190,7 +1190,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 			netdev_info(wlandev->netdev, "linkstatus=CONNECTED\n");
 
-			/* For non-usb devices, we can use the sync versions */
+			/* For analn-usb devices, we can use the sync versions */
 			/* Collect the BSSID, and set state to allow tx */
 
 			result = hfa384x_drvr_getconfig(hw,
@@ -1246,12 +1246,12 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * (implying disassoc) up * to the MLME.
 		 * Response:
 		 * Indicate Deauthentication
-		 * Block Transmits, Ignore receives of data frames
+		 * Block Transmits, Iganalre receives of data frames
 		 */
 		if (wlandev->netdev->type == ARPHRD_ETHER)
 			netdev_info(wlandev->netdev,
 				    "linkstatus=DISCONNECTED (unhandled)\n");
-		wlandev->macmode = WLAN_MACMODE_NONE;
+		wlandev->macmode = WLAN_MACMODE_ANALNE;
 
 		netif_carrier_off(wlandev->netdev);
 
@@ -1262,12 +1262,12 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 	case HFA384x_LINK_AP_CHANGE:
 		/* This one indicates that the MAC has decided to and
-		 * successfully completed a change to another AP.  We
+		 * successfully completed a change to aanalther AP.  We
 		 * should probably implement a reassociation indication
 		 * in response to this one.  I'm thinking that the
-		 * p80211 layer needs to be notified in case of
+		 * p80211 layer needs to be analtified in case of
 		 * buffering/queueing issues.  User mode also needs to be
-		 * notified so that any BSS dependent elements can be
+		 * analtified so that any BSS dependent elements can be
 		 * updated.
 		 * associated state.  We * should send a deauth indication
 		 * (implying disassoc) up * to the MLME.
@@ -1313,11 +1313,11 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * so the MAC maintains its "associated" state in case
 		 * we get back in range.  We should block transmits and
 		 * receives in this state.  Do we need an indication here?
-		 * Probably not since a polling user-mode element would
+		 * Probably analt since a polling user-mode element would
 		 * get this status from p2PortStatus(FD40). What about
 		 * p80211?
 		 * Response:
-		 * Block Transmits, Ignore receives of data frames
+		 * Block Transmits, Iganalre receives of data frames
 		 */
 		netdev_info(wlandev->netdev, "linkstatus=AP_OUTOFRANGE (unhandled)\n");
 
@@ -1346,7 +1346,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * association failures.  The trick is going to be
 		 * 1) identifying the failure, and 2) state management.
 		 * Response:
-		 * Disable Transmits, Ignore receives of data frames
+		 * Disable Transmits, Iganalre receives of data frames
 		 */
 		if (hw->join_ap && --hw->join_retries > 0) {
 			struct hfa384x_join_request_data joinreq;
@@ -1373,7 +1373,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 	default:
 		/* This is bad, IO port problems? */
 		netdev_warn(wlandev->netdev,
-			    "unknown linkstatus=0x%02x\n", hw->link_status);
+			    "unkanalwn linkstatus=0x%02x\n", hw->link_status);
 		return;
 	}
 
@@ -1390,7 +1390,7 @@ void prism2sta_processing_defer(struct work_struct *data)
  *	inf		ptr to info frame (contents in hfa384x order)
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1418,7 +1418,7 @@ static void prism2sta_inf_linkstatus(struct wlandevice *wlandev,
  *	inf		ptr to info frame (contents in hfa384x order)
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1438,7 +1438,7 @@ static void prism2sta_inf_assocstatus(struct wlandevice *wlandev,
 
 	/*
 	 * Find the address in the list of authenticated stations.
-	 * If it wasn't found, then this address has not been previously
+	 * If it wasn't found, then this address has analt been previously
 	 * authenticated and something weird has happened if this is
 	 * anything other than an "authentication failed" message.
 	 * If the address was found, then set the "associated" flag for
@@ -1455,7 +1455,7 @@ static void prism2sta_inf_assocstatus(struct wlandevice *wlandev,
 	if (i >= hw->authlist.cnt) {
 		if (rec.assocstatus != HFA384x_ASSOCSTATUS_AUTHFAIL)
 			netdev_warn(wlandev->netdev,
-				    "assocstatus info frame received for non-authenticated station.\n");
+				    "assocstatus info frame received for analn-authenticated station.\n");
 	} else {
 		hw->authlist.assoc[i] =
 		    (rec.assocstatus == HFA384x_ASSOCSTATUS_STAASSOC ||
@@ -1478,7 +1478,7 @@ static void prism2sta_inf_assocstatus(struct wlandevice *wlandev,
  *	inf		ptr to info frame (contents in hfa384x order)
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1523,7 +1523,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 	 */
 
 	switch (hw->accessmode) {
-	case WLAN_ACCESS_NONE:
+	case WLAN_ACCESS_ANALNE:
 
 		/*
 		 * Deny all new authentications.  However, if a station
@@ -1610,7 +1610,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 	/*
 	 * If the authentication is okay, then add the MAC address to the
 	 * list of authenticated stations.  Don't add the address if it
-	 * is already in the list. (802.11b does not seem to disallow
+	 * is already in the list. (802.11b does analt seem to disallow
 	 * a station from issuing an authentication request when the
 	 * station is already authenticated. Does this sort of thing
 	 * ever happen?  We might as well do the check just in case.)
@@ -1666,7 +1666,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
  *	inf		ptr to info frame (contents in hfa384x order)
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1691,7 +1691,7 @@ static void prism2sta_inf_psusercnt(struct wlandevice *wlandev,
  *	inf		ptr to a generic info frame
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1743,7 +1743,7 @@ void prism2sta_ev_info(struct wlandevice *wlandev,
 		break;
 	default:
 		netdev_warn(wlandev->netdev,
-			    "Unknown info type=0x%02x\n", inf->infotype);
+			    "Unkanalwn info type=0x%02x\n", inf->infotype);
 		break;
 	}
 }
@@ -1757,7 +1757,7 @@ void prism2sta_ev_info(struct wlandevice *wlandev,
  *	wlandev		wlan device structure
  *	status		tx frame status word
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1780,7 +1780,7 @@ void prism2sta_ev_tx(struct wlandevice *wlandev, u16 status)
  *	wlandev		wlan device structure
  *
  * Returns:
- *	nothing
+ *	analthing
  *
  * Side effects:
  *
@@ -1799,7 +1799,7 @@ void prism2sta_ev_alloc(struct wlandevice *wlandev)
  * and initializes it with relevant bits.
  *
  * Arguments:
- *	none
+ *	analne
  *
  * Returns:
  *	the created struct wlandevice structure.
@@ -1860,12 +1860,12 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 		return;
 
 	/* we don't care if we're in AP mode */
-	if ((wlandev->macmode == WLAN_MACMODE_NONE) ||
+	if ((wlandev->macmode == WLAN_MACMODE_ANALNE) ||
 	    (wlandev->macmode == WLAN_MACMODE_ESS_AP)) {
 		return;
 	}
 
-	/* It only makes sense to poll these in non-IBSS */
+	/* It only makes sense to poll these in analn-IBSS */
 	if (wlandev->macmode != WLAN_MACMODE_IBSS_STA) {
 		result = hfa384x_drvr_getconfig(hw, HFA384x_RID_DBMCOMMSQUALITY,
 						&hw->qual, HFA384x_RID_DBMCOMMSQUALITY_LEN);

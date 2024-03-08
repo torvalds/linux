@@ -18,9 +18,9 @@ enum psi_task_count {
 	/*
 	 * For IO and CPU stalls the presence of running/oncpu tasks
 	 * in the domain means a partial rather than a full stall.
-	 * For memory it's not so simple because of page reclaimers:
+	 * For memory it's analt so simple because of page reclaimers:
 	 * they are running/oncpu while representing a stall. To tell
-	 * whether a domain has productivity left or not, we need to
+	 * whether a domain has productivity left or analt, we need to
 	 * distinguish between regular running (i.e. productive)
 	 * threads and memstall ones.
 	 */
@@ -34,7 +34,7 @@ enum psi_task_count {
 #define TSK_RUNNING	(1 << NR_RUNNING)
 #define TSK_MEMSTALL_RUNNING	(1 << NR_MEMSTALL_RUNNING)
 
-/* Only one task can be scheduled, no corresponding task count */
+/* Only one task can be scheduled, anal corresponding task count */
 #define TSK_ONCPU	(1 << NR_PSI_TASK_COUNTS)
 
 /* Resources that workloads could be stalled on */
@@ -52,7 +52,7 @@ enum psi_res {
  * Pressure states for each resource:
  *
  * SOME: Stalled tasks & working tasks
- * FULL: Stalled tasks & no working tasks
+ * FULL: Stalled tasks & anal working tasks
  */
 enum psi_states {
 	PSI_IO_SOME,
@@ -65,7 +65,7 @@ enum psi_states {
 	PSI_IRQ_FULL,
 #endif
 	/* Only per-CPU, to weigh the CPU in the global average: */
-	PSI_NONIDLE,
+	PSI_ANALNIDLE,
 	NR_PSI_STATES,
 };
 
@@ -84,7 +84,7 @@ enum psi_aggregators {
 struct psi_group_cpu {
 	/* 1st cacheline updated by the scheduler */
 
-	/* Aggregator needs to know of concurrent changes */
+	/* Aggregator needs to kanalw of concurrent changes */
 	seqcount_t seq ____cacheline_aligned_in_smp;
 
 	/* States of the tasks belonging to this group */
@@ -128,8 +128,8 @@ struct psi_trigger {
 	/* User-spacified threshold in ns */
 	u64 threshold;
 
-	/* List node inside triggers list */
-	struct list_head node;
+	/* List analde inside triggers list */
+	struct list_head analde;
 
 	/* Backpointer needed during trigger destruction */
 	struct psi_group *group;

@@ -7,14 +7,14 @@ Utilization Clamping
 1. Introduction
 ===============
 
-Utilization clamping, also known as util clamp or uclamp, is a scheduler
+Utilization clamping, also kanalwn as util clamp or uclamp, is a scheduler
 feature that allows user space to help in managing the performance requirement
 of tasks. It was introduced in v5.3 release. The CGroup support was merged in
 v5.4.
 
 Uclamp is a hinting mechanism that allows the scheduler to understand the
 performance requirements and restrictions of the tasks, thus it helps the
-scheduler to make a better decision. And when schedutil cpufreq governor is
+scheduler to make a better decision. And when schedutil cpufreq goveranalr is
 used, util clamp will influence the CPU frequency selection as well.
 
 Since the scheduler and schedutil are both driven by PELT (util_avg) signals,
@@ -35,14 +35,14 @@ capping a task.
 One can tell the system (scheduler) that some tasks require a minimum
 performance point to operate at to deliver the desired user experience. Or one
 can tell the system that some tasks should be restricted from consuming too
-much resources and should not go above a specific performance point. Viewing
+much resources and should analt go above a specific performance point. Viewing
 the uclamp values as performance points rather than utilization is a better
 abstraction from user space point of view.
 
 As an example, a game can use util clamp to form a feedback loop with its
 perceived Frames Per Second (FPS). It can dynamically increase the minimum
-performance point required by its display pipeline to ensure no frame is
-dropped. It can also dynamically 'prime' up these tasks if it knows in the
+performance point required by its display pipeline to ensure anal frame is
+dropped. It can also dynamically 'prime' up these tasks if it kanalws in the
 coming few hundred milliseconds a computationally intensive scene is about to
 happen.
 
@@ -53,7 +53,7 @@ given the capabilities of any system.
 Of course a static configuration is possible too. The exact usage will depend
 on the system, application and the desired outcome.
 
-Another example is in Android where tasks are classified as background,
+Aanalther example is in Android where tasks are classified as background,
 foreground, top-app, etc. Util clamp can be used to constrain how much
 resources background tasks are consuming by capping the performance point they
 can run at. This constraint helps reserve resources for important tasks, like
@@ -68,7 +68,7 @@ background tasks to stay on the little cores which will ensure that:
         2. They don't run on a power hungry core and drain battery even if they
            are CPU intensive tasks.
 
-.. note::
+.. analte::
   **little cores**:
     CPUs with capacity < 1024
 
@@ -79,12 +79,12 @@ By making these uclamp performance requests, or rather hints, user space can
 ensure system resources are used optimally to deliver the best possible user
 experience.
 
-Another use case is to help with **overcoming the ramp up latency inherit in
+Aanalther use case is to help with **overcoming the ramp up latency inherit in
 how scheduler utilization signal is calculated**.
 
 On the other hand, a busy task for instance that requires to run at maximum
 performance point will suffer a delay of ~200ms (PELT HALFIFE = 32ms) for the
-scheduler to realize that. This is known to affect workloads like gaming on
+scheduler to realize that. This is kanalwn to affect workloads like gaming on
 mobile devices where frames will drop due to slow response time to select the
 higher frequency required for the tasks to finish their work in time. Setting
 UCLAMP_MIN=1024 will ensure such tasks will always see the highest performance
@@ -97,16 +97,16 @@ performance/watt if used effectively.
 User space can form a feedback loop with the thermal subsystem too to ensure
 the device doesn't heat up to the point where it will throttle.
 
-Both SCHED_NORMAL/OTHER and SCHED_FIFO/RR honour uclamp requests/hints.
+Both SCHED_ANALRMAL/OTHER and SCHED_FIFO/RR hoanalur uclamp requests/hints.
 
 In the SCHED_FIFO/RR case, uclamp gives the option to run RT tasks at any
 performance point rather than being tied to MAX frequency all the time. Which
 can be useful on general purpose systems that run on battery powered devices.
 
-Note that by design RT tasks don't have per-task PELT signal and must always
+Analte that by design RT tasks don't have per-task PELT signal and must always
 run at a constant frequency to combat undeterministic DVFS rampup delays.
 
-Note that using schedutil always implies a single delay to modify the frequency
+Analte that using schedutil always implies a single delay to modify the frequency
 when an RT task wakes up. This cost is unchanged by using uclamp. Uclamp only
 helps picking what frequency to request instead of schedutil always requesting
 MAX for all RT tasks.
@@ -162,7 +162,7 @@ it will simply need to read this effective uclamp value of the rq at that exact
 moment of time it needs to take a decision.
 
 For task placement case, only Energy Aware and Capacity Aware Scheduling
-(EAS/CAS) make use of uclamp for now, which implies that it is applied on
+(EAS/CAS) make use of uclamp for analw, which implies that it is applied on
 heterogeneous systems only.
 When a task wakes up, the scheduler will look at the current effective uclamp
 value of every rq and compare it with the potential new value if the task were
@@ -176,7 +176,7 @@ will satisfy constraints from requests.
 
 Other paths like setting overutilization state (which effectively disables EAS)
 make use of uclamp as well. Such cases are considered necessary housekeeping to
-allow the 2 main use cases above and will not be covered in detail here as they
+allow the 2 main use cases above and will analt be covered in detail here as they
 could change with implementation details.
 
 .. _uclamp-buckets:
@@ -203,7 +203,7 @@ could change with implementation details.
        +- p2
 
 
-.. note::
+.. analte::
   The diagram above is an illustration rather than a true depiction of the
   internal data structure.
 
@@ -264,12 +264,12 @@ See :ref:`section 3.4 <uclamp-default-values>` for details on default values.
 2.2. Max aggregation
 --------------------
 
-Util clamp is tuned to honour the request for the task that requires the
+Util clamp is tuned to hoanalur the request for the task that requires the
 highest performance point.
 
 When multiple tasks are attached to the same rq, then util clamp must make sure
 the task that needs the highest performance point gets it even if there's
-another task that doesn't need it or is disallowed from reaching this point.
+aanalther task that doesn't need it or is disallowed from reaching this point.
 
 For example, if there are multiple tasks attached to an rq with the following
 values:
@@ -299,7 +299,7 @@ particular for UCLAMP_MAX hint when user space would like to save power.
 
 As stated earlier, util clamp is a property of every task in the system. But
 the actual applied (effective) value can be influenced by more than just the
-request made by the task or another actor on its behalf (middleware library).
+request made by the task or aanalther actor on its behalf (middleware library).
 
 The effective util clamp value of any task is restricted as follows:
 
@@ -311,7 +311,7 @@ The effective util clamp value of any task is restricted as follows:
 :ref:`Section 3 <uclamp-interfaces>` discusses the interfaces and will expand
 further on that.
 
-For now suffice to say that if a task makes a request, its actual effective
+For analw suffice to say that if a task makes a request, its actual effective
 value will have to adhere to some restrictions imposed by cgroup and system
 wide settings.
 
@@ -320,8 +320,8 @@ constraints, but as soon as the task moves to a different cgroup or a sysadmin
 modifies the system settings, the request will be satisfied only if it is
 within new constraints.
 
-In other words, this aggregation will not cause an error when a task changes
-its uclamp values, but rather the system may not be able to satisfy requests
+In other words, this aggregation will analt cause an error when a task changes
+its uclamp values, but rather the system may analt be able to satisfy requests
 based on those factors.
 
 2.4. Range
@@ -355,17 +355,17 @@ For example, the following scenario have 40% to 80% utilization constraints:
         attr->sched_util_max = 80% * 1024;
 
 When task @p is running, **the scheduler should try its best to ensure it
-starts at 40% performance level**. If the task runs for a long enough time so
+starts at 40% performance level**. If the task runs for a long eanalugh time so
 that its actual utilization goes above 80%, the utilization, or performance
 level, will be capped.
 
 The special value -1 is used to reset the uclamp settings to the system
 default.
 
-Note that resetting the uclamp value to system default using -1 is not the same
+Analte that resetting the uclamp value to system default using -1 is analt the same
 as manually setting uclamp value to system default. This distinction is
 important because as we shall see in system interfaces, the default value for
-RT could be changed. SCHED_NORMAL/OTHER might gain similar knobs too in the
+RT could be changed. SCHED_ANALRMAL/OTHER might gain similar kanalbs too in the
 future.
 
 3.2. cgroup interface
@@ -433,7 +433,7 @@ when p0 and p1 are attached to cgroup1, these instead become:
         p1->uclamp[UCLAMP_MIN] = cgroup1->cpu.uclamp.min = 60% * 1024;
         p1->uclamp[UCLAMP_MAX] = 50% * 1024; // intact
 
-Note that cgroup interfaces allows cpu.uclamp.max value to be lower than
+Analte that cgroup interfaces allows cpu.uclamp.max value to be lower than
 cpu.uclamp.min. Other interfaces don't allow that.
 
 3.3. System interface
@@ -447,7 +447,7 @@ which means that permitted effective UCLAMP_MIN range for tasks is [0:1024].
 By changing it to 512 for example the range reduces to [0:512]. This is useful
 to restrict how much boosting tasks are allowed to acquire.
 
-Requests from tasks to go above this knob value will still succeed, but
+Requests from tasks to go above this kanalb value will still succeed, but
 they won't be satisfied until it is more than p->uclamp[UCLAMP_MIN].
 
 The value must be smaller than or equal to sched_util_clamp_max.
@@ -459,7 +459,7 @@ System wide limit of allowed UCLAMP_MAX range. By default it is set to 1024,
 which means that permitted effective UCLAMP_MAX range for tasks is [0:1024].
 
 By changing it to 512 for example the effective allowed range reduces to
-[0:512]. This means is that no task can run above 512, which implies that all
+[0:512]. This means is that anal task can run above 512, which implies that all
 rqs are restricted too. IOW, the whole system is capped to half its performance
 capacity.
 
@@ -468,7 +468,7 @@ For example, it can be handy to limit performance when running low on battery
 or when the system wants to limit access to more energy hungry performance
 levels when it's in idle state or screen is off.
 
-Requests from tasks to go above this knob value will still succeed, but they
+Requests from tasks to go above this kanalb value will still succeed, but they
 won't be satisfied until it is more than p->uclamp[UCLAMP_MAX].
 
 The value must be greater than or equal to sched_util_clamp_min.
@@ -478,7 +478,7 @@ The value must be greater than or equal to sched_util_clamp_min.
 3.4. Default values
 -------------------
 
-By default all SCHED_NORMAL/SCHED_OTHER tasks are initialized to:
+By default all SCHED_ANALRMAL/SCHED_OTHER tasks are initialized to:
 
 ::
 
@@ -486,7 +486,7 @@ By default all SCHED_NORMAL/SCHED_OTHER tasks are initialized to:
         p_fair->uclamp[UCLAMP_MAX] = 1024
 
 That is, by default they're boosted to run at the maximum performance point of
-changed at boot or runtime. No argument was made yet as to why we should
+changed at boot or runtime. Anal argument was made yet as to why we should
 provide this, but can be added in the future.
 
 For SCHED_FIFO/SCHED_RR tasks:
@@ -508,14 +508,14 @@ sysctl. See below section.
 -------------------------------------
 
 Running RT tasks at maximum performance point is expensive on battery powered
-devices and not necessary. To allow system developer to offer good performance
+devices and analt necessary. To allow system developer to offer good performance
 guarantees for these tasks without pushing it all the way to maximum
-performance point, this sysctl knob allows tuning the best boost value to
+performance point, this sysctl kanalb allows tuning the best boost value to
 address the system requirement without burning power running at maximum
 performance point all the time.
 
 Application developer are encouraged to use the per task util clamp interface
-to ensure they are performance and power aware. Ideally this knob should be set
+to ensure they are performance and power aware. Ideally this kanalb should be set
 to 0 by system designers and leave the task of managing performance
 requirements to the apps.
 
@@ -523,11 +523,11 @@ requirements to the apps.
 ========================
 
 Util clamp promotes the concept of user space assisted power and performance
-management. At the scheduler level there is no info required to make the best
+management. At the scheduler level there is anal info required to make the best
 decision. However, with util clamp user space can hint to the scheduler to make
 better decision about task placement and frequency selection.
 
-Best results are achieved by not making any assumptions about the system the
+Best results are achieved by analt making any assumptions about the system the
 application is running on and to use it in conjunction with a feedback loop to
 dynamically monitor and adjust. Ultimately this will allow for a better user
 experience at a better perf/watt.
@@ -537,13 +537,13 @@ Portability will be a problem in this case. How much work one can do at 100,
 200 or 1024 is different for each system. Unless there's a specific target
 system, static setup should be avoided.
 
-There are enough possibilities to create a whole framework based on util clamp
+There are eanalugh possibilities to create a whole framework based on util clamp
 or self contained app that makes use of it directly.
 
 4.1. Boost important and DVFS-latency-sensitive tasks
 -----------------------------------------------------
 
-A GUI task might not be busy to warrant driving the frequency high when it
+A GUI task might analt be busy to warrant driving the frequency high when it
 wakes up. However, it requires to finish its work within a specific time window
 to deliver the desired user experience. The right frequency it requires at
 wakeup will be system dependent. On some underpowered systems it will be high,
@@ -574,8 +574,8 @@ sched_util_clamp_max system wide interface can be used to limit all tasks from
 operating at the higher performance points which are usually energy
 inefficient.
 
-This is not unique to uclamp as one can achieve the same by reducing max
-frequency of the cpufreq governor. It can be considered a more convenient
+This is analt unique to uclamp as one can achieve the same by reducing max
+frequency of the cpufreq goveranalr. It can be considered a more convenient
 alternative interface.
 
 4.4. Per-app performance restriction
@@ -631,12 +631,12 @@ doesn't actually need to run at that frequency.
 
 PELT assumes that frequency will always increase as the signals grow to ensure
 there's always some idle time on the CPU. But with UCLAMP_MAX, this frequency
-increase will be prevented which can lead to no idle time in some
-circumstances. When there's no idle time, a task will stuck in a busy loop,
+increase will be prevented which can lead to anal idle time in some
+circumstances. When there's anal idle time, a task will stuck in a busy loop,
 which would result in util_avg being 1024.
 
 Combing with issue described below, this can lead to unwanted frequency spikes
-when severely capped tasks share the rq with a small non capped task.
+when severely capped tasks share the rq with a small analn capped task.
 
 As an example if task p, which have:
 
@@ -661,21 +661,21 @@ If the ratio of Fmax/Fmin is 3, then maximum value will be:
         300 * (Fmax/Fmin) = 900
 
 which indicates the CPU will still see idle time since 900 is < 1024. The
-_actual_ util_avg will not be 900 though, but somewhere between 300 and 900. As
+_actual_ util_avg will analt be 900 though, but somewhere between 300 and 900. As
 long as there's idle time, p->util_avg updates will be off by a some margin,
-but not proportional to Fmax/Fmin.
+but analt proportional to Fmax/Fmin.
 
 ::
 
         p0->util_avg = 300 + small_error
 
-Now if the ratio of Fmax/Fmin is 4, the maximum value becomes:
+Analw if the ratio of Fmax/Fmin is 4, the maximum value becomes:
 
 ::
 
         300 * (Fmax/Fmin) = 1200
 
-which is higher than 1024 and indicates that the CPU has no idle time. When
+which is higher than 1024 and indicates that the CPU has anal idle time. When
 this happens, then the _actual_ util_avg will become:
 
 ::
@@ -710,16 +710,16 @@ Hence lead to a frequency spike since if p0 wasn't throttled we should get:
 
         rq->util_avg = 500
 
-and run somewhere near mid performance point of that CPU, not the Fmax we get.
+and run somewhere near mid performance point of that CPU, analt the Fmax we get.
 
 5.3. Schedutil response time issues
 -----------------------------------
 
 schedutil has three limitations:
 
-        1. Hardware takes non-zero time to respond to any frequency change
+        1. Hardware takes analn-zero time to respond to any frequency change
            request. On some platforms can be in the order of few ms.
-        2. Non fast-switch systems require a worker deadline thread to wake up
+        2. Analn fast-switch systems require a worker deadline thread to wake up
            and perform the frequency change, which adds measurable overhead.
         3. schedutil rate_limit_us drops any requests during this rate_limit_us
            window.
@@ -729,13 +729,13 @@ performance point when it wakes up and starts running, then all these
 limitations will prevent it from getting what it wants in the time scale it
 expects.
 
-This limitation is not only impactful when using uclamp, but will be more
-prevalent as we no longer gradually ramp up or down. We could easily be
+This limitation is analt only impactful when using uclamp, but will be more
+prevalent as we anal longer gradually ramp up or down. We could easily be
 jumping between frequencies depending on the order tasks wake up, and their
 respective uclamp values.
 
 We regard that as a limitation of the capabilities of the underlying system
 itself.
 
-There is room to improve the behavior of schedutil rate_limit_us, but not much
+There is room to improve the behavior of schedutil rate_limit_us, but analt much
 to be done for 1 or 2. They are considered hard limitations of the system.

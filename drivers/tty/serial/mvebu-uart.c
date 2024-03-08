@@ -83,7 +83,7 @@
 /* These bits are located in UART1 address space and control UART1 */
 #define  UART1_CLK_DIS		BIT(20)
 /* These bits are located in UART1 address space and control both UARTs */
-#define  CLK_NO_XTAL		BIT(19)
+#define  CLK_ANAL_XTAL		BIT(19)
 #define  CLK_TBG_DIV1_SHIFT	15
 #define  CLK_TBG_DIV1_MASK	0x7
 #define  CLK_TBG_DIV1_MAX	6
@@ -203,7 +203,7 @@ static void mvebu_uart_set_mctrl(struct uart_port *port,
 				 unsigned int mctrl)
 {
 /*
- * Even if we do not support configuring the modem control lines, this
+ * Even if we do analt support configuring the modem control lines, this
  * function must be proided to the serial core
  */
 }
@@ -270,7 +270,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 		if (status & STAT_RX_RDY(port)) {
 			ch = readl(port->membase + UART_RBR(port));
 			ch &= 0xff;
-			flag = TTY_NORMAL;
+			flag = TTY_ANALRMAL;
 			port->icount.rx++;
 
 			if (status & STAT_PAR_ERR)
@@ -278,7 +278,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 		}
 
 		/*
-		 * For UART2, error bits are not cleared on buffer read.
+		 * For UART2, error bits are analt cleared on buffer read.
 		 * This causes interrupt loop and system hang.
 		 */
 		if (IS_EXTENDED(port) && (status & STAT_BRK_ERR)) {
@@ -291,7 +291,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 			port->icount.brk++;
 			status &= ~(STAT_FRM_ERR | STAT_PAR_ERR);
 			if (uart_handle_break(port))
-				goto ignore_char;
+				goto iganalre_char;
 		}
 
 		if (status & STAT_OVR_ERR)
@@ -301,9 +301,9 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 			port->icount.frame++;
 
 		if (uart_handle_sysrq_char(port, ch))
-			goto ignore_char;
+			goto iganalre_char;
 
-		if (status & port->ignore_status_mask & STAT_PAR_ERR)
+		if (status & port->iganalre_status_mask & STAT_PAR_ERR)
 			status &= ~STAT_RX_RDY(port);
 
 		status &= port->read_status_mask;
@@ -311,7 +311,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 		if (status & STAT_PAR_ERR)
 			flag = TTY_PARITY;
 
-		status &= ~port->ignore_status_mask;
+		status &= ~port->iganalre_status_mask;
 
 		if (status & STAT_RX_RDY(port))
 			tty_insert_flip_char(tport, ch, flag);
@@ -325,7 +325,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 		if (status & STAT_OVR_ERR)
 			tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 
-ignore_char:
+iganalre_char:
 		status = readl(port->membase + UART_STAT);
 	} while (status & (STAT_RX_RDY(port) | STAT_BRK_DET));
 
@@ -484,18 +484,18 @@ static unsigned int mvebu_uart_baud_rate_set(struct uart_port *port, unsigned in
 	 * m2 for bits 4,5,6; m3 for bits 7,8 and m4 for bits 9,10.
 	 *
 	 * To simplify baudrate setup set all the M prescalers to the same
-	 * value. For baudrates 9600 Bd and higher, it is enough to use the
+	 * value. For baudrates 9600 Bd and higher, it is eanalugh to use the
 	 * default (x16) divisor or fractional divisor with M = 63, so there
-	 * is no need to use real fractional support (where the M prescalers
-	 * are not equal).
+	 * is anal need to use real fractional support (where the M prescalers
+	 * are analt equal).
 	 *
 	 * When all the M prescalers are zeroed then default (x16) divisor is
 	 * used. Default x16 scheme is more stable than M (fractional divisor),
-	 * so use M only when D divisor is not enough to derive baudrate.
+	 * so use M only when D divisor is analt eanalugh to derive baudrate.
 	 *
 	 * Member port->uartclk is either xtal clock rate or TBG clock rate
 	 * divided by (d1 * d2). So d1 and d2 are already set by the UART clock
-	 * driver (and UART driver itself cannot change them). Moreover they are
+	 * driver (and UART driver itself cananalt change them). Moreover they are
 	 * shared between both UARTs.
 	 */
 
@@ -548,21 +548,21 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= STAT_FRM_ERR | STAT_PAR_ERR;
 
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |=
+		port->iganalre_status_mask |=
 			STAT_FRM_ERR | STAT_PAR_ERR | STAT_OVR_ERR;
 
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= STAT_RX_RDY(port) | STAT_BRK_ERR;
+		port->iganalre_status_mask |= STAT_RX_RDY(port) | STAT_BRK_ERR;
 
 	/*
 	 * Maximal divisor is 1023 and maximal fractional divisor is 63. And
 	 * experiments show that baudrates above 1/80 of parent clock rate are
-	 * not stable. So disallow baudrates above 1/80 of the parent clock
-	 * rate. If port->uartclk is not available, then
+	 * analt stable. So disallow baudrates above 1/80 of the parent clock
+	 * rate. If port->uartclk is analt available, then
 	 * mvebu_uart_baud_rate_set() fails, so values min_baud and max_baud
-	 * in this case do not matter.
+	 * in this case do analt matter.
 	 */
 	min_baud = DIV_ROUND_UP(port->uartclk, BRDV_BAUD_MAX *
 				OSAMP_MAX_DIVISOR);
@@ -571,7 +571,7 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 	baud = uart_get_baud_rate(port, termios, old, min_baud, max_baud);
 	baud = mvebu_uart_baud_rate_set(port, baud);
 
-	/* In case baudrate cannot be changed, report previous old value */
+	/* In case baudrate cananalt be changed, report previous old value */
 	if (baud == 0 && old)
 		baud = tty_termios_baud_rate(old);
 
@@ -599,7 +599,7 @@ static const char *mvebu_uart_type(struct uart_port *port)
 
 static void mvebu_uart_release_port(struct uart_port *port)
 {
-	/* Nothing to do here */
+	/* Analthing to do here */
 }
 
 static int mvebu_uart_request_port(struct uart_port *port)
@@ -613,7 +613,7 @@ static int mvebu_uart_get_poll_char(struct uart_port *port)
 	unsigned int st = readl(port->membase + UART_STAT);
 
 	if (!(st & STAT_RX_RDY(port)))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return readl(port->membase + UART_RBR(port));
 }
@@ -669,7 +669,7 @@ static void mvebu_uart_putc(struct uart_port *port, unsigned char c)
 			break;
 	}
 
-	/* At early stage, DT is not parsed yet, only use UART0 */
+	/* At early stage, DT is analt parsed yet, only use UART0 */
 	writel(c, port->membase + UART_STD_TSH);
 
 	for (;;) {
@@ -693,7 +693,7 @@ mvebu_uart_early_console_setup(struct earlycon_device *device,
 			       const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = mvebu_uart_putc_early_write;
 
@@ -775,8 +775,8 @@ static int mvebu_uart_console_setup(struct console *co, char *options)
 	port = &mvebu_uart_ports[co->index];
 
 	if (!port->mapbase || !port->membase) {
-		pr_debug("console on ttyMV%i not present\n", co->index);
-		return -ENODEV;
+		pr_debug("console on ttyMV%i analt present\n", co->index);
+		return -EANALDEV;
 	}
 
 	if (options)
@@ -871,7 +871,7 @@ static const struct dev_pm_ops mvebu_uart_pm_ops = {
 
 static const struct of_device_id mvebu_uart_of_match[];
 
-/* Counter to keep track of each UART port id when not using CONFIG_OF */
+/* Counter to keep track of each UART port id when analt using CONFIG_OF */
 static int uart_num_counter;
 
 static int mvebu_uart_probe(struct platform_device *pdev)
@@ -883,15 +883,15 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	struct resource *reg;
 	int id, irq;
 
-	/* Assume that all UART ports have a DT alias or none has */
-	id = of_alias_get_id(pdev->dev.of_node, "serial");
-	if (!pdev->dev.of_node || id < 0)
+	/* Assume that all UART ports have a DT alias or analne has */
+	id = of_alias_get_id(pdev->dev.of_analde, "serial");
+	if (!pdev->dev.of_analde || id < 0)
 		pdev->id = uart_num_counter++;
 	else
 		pdev->id = id;
 
 	if (pdev->id >= MVEBU_NR_UARTS) {
-		dev_err(&pdev->dev, "cannot have more than %d UART ports\n",
+		dev_err(&pdev->dev, "cananalt have more than %d UART ports\n",
 			MVEBU_NR_UARTS);
 		return -EINVAL;
 	}
@@ -911,7 +911,7 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	port->line       = pdev->id;
 
 	/*
-	 * IRQ number is not stored in this structure because we may have two of
+	 * IRQ number is analt stored in this structure because we may have two of
 	 * them per port (RX and TX). Instead, use the driver UART structure
 	 * array so called ->irq[].
 	 */
@@ -926,7 +926,7 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	mvuart = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_uart),
 			      GFP_KERNEL);
 	if (!mvuart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get controller data depending on the compatible string */
 	mvuart->data = (struct mvebu_uart_driver_data *)match->data;
@@ -952,7 +952,7 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 
 	/* Manage interrupts */
 	if (platform_irq_count(pdev) == 1) {
-		/* Old bindings: no name on the single unamed UART0 IRQ */
+		/* Old bindings: anal name on the single unamed UART0 IRQ */
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0)
 			return irq;
@@ -961,7 +961,7 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	} else {
 		/*
 		 * New bindings: named interrupts (RX, TX) for both UARTS,
-		 * only make use of uart-rx and uart-tx interrupts, do not use
+		 * only make use of uart-rx and uart-tx interrupts, do analt use
 		 * uart-sum of UART0 port.
 		 */
 		irq = platform_get_irq_byname(pdev, "uart-rx");
@@ -1075,10 +1075,10 @@ static int mvebu_uart_clock_prepare(struct clk_hw *hw)
 	 * This function just reconfigures UART Clock Control register (located
 	 * in UART1 address space which controls both UART1 and UART2) to
 	 * selected UART base clock and recalculates current UART1/UART2
-	 * divisors in their address spaces, so that final baudrate will not be
+	 * divisors in their address spaces, so that final baudrate will analt be
 	 * changed by switching UART parent clock. This is required for
 	 * otherwise kernel's boot log stops working - we need to ensure that
-	 * UART baudrate does not change during this setup. It is a one time
+	 * UART baudrate does analt change during this setup. It is a one time
 	 * operation, it will execute only once and set `configured` to true,
 	 * and be skipped on subsequent calls. Because this UART Clock Control
 	 * register (UART_BRDV) is shared between UART1 baudrate function,
@@ -1106,7 +1106,7 @@ static int mvebu_uart_clock_prepare(struct clk_hw *hw)
 		d2 = 1;
 	}
 
-	if (val & CLK_NO_XTAL) {
+	if (val & CLK_ANAL_XTAL) {
 		prev_clock_idx = (val >> CLK_TBG_SEL_SHIFT) & CLK_TBG_SEL_MASK;
 		prev_d1d2 = ((val >> CLK_TBG_DIV1_SHIFT) & CLK_TBG_DIV1_MASK) *
 			    ((val >> CLK_TBG_DIV2_SHIFT) & CLK_TBG_DIV2_MASK);
@@ -1115,10 +1115,10 @@ static int mvebu_uart_clock_prepare(struct clk_hw *hw)
 		prev_d1d2 = 1;
 	}
 
-	/* Note that uart_clock_base->parent_rates[i] may not be available */
+	/* Analte that uart_clock_base->parent_rates[i] may analt be available */
 	prev_clock_rate = uart_clock_base->parent_rates[prev_clock_idx];
 
-	/* Recalculate UART1 divisor so UART1 baudrate does not change */
+	/* Recalculate UART1 divisor so UART1 baudrate does analt change */
 	if (prev_clock_rate) {
 		divisor = DIV_U64_ROUND_CLOSEST((u64)(val & BRDV_BAUD_MASK) *
 						parent_clock_rate * prev_d1d2,
@@ -1131,8 +1131,8 @@ static int mvebu_uart_clock_prepare(struct clk_hw *hw)
 	}
 
 	if (parent_clock_idx != PARENT_CLOCK_XTAL) {
-		/* Do not use XTAL, select TBG clock and TBG d1 * d2 divisors */
-		val |= CLK_NO_XTAL;
+		/* Do analt use XTAL, select TBG clock and TBG d1 * d2 divisors */
+		val |= CLK_ANAL_XTAL;
 		val &= ~(CLK_TBG_DIV1_MASK << CLK_TBG_DIV1_SHIFT);
 		val |= d1 << CLK_TBG_DIV1_SHIFT;
 		val &= ~(CLK_TBG_DIV2_MASK << CLK_TBG_DIV2_SHIFT);
@@ -1140,13 +1140,13 @@ static int mvebu_uart_clock_prepare(struct clk_hw *hw)
 		val &= ~(CLK_TBG_SEL_MASK << CLK_TBG_SEL_SHIFT);
 		val |= parent_clock_idx << CLK_TBG_SEL_SHIFT;
 	} else {
-		/* Use XTAL, TBG bits are then ignored */
-		val &= ~CLK_NO_XTAL;
+		/* Use XTAL, TBG bits are then iganalred */
+		val &= ~CLK_ANAL_XTAL;
 	}
 
 	writel(val, uart_clock_base->reg1);
 
-	/* Recalculate UART2 divisor so UART2 baudrate does not change */
+	/* Recalculate UART2 divisor so UART2 baudrate does analt change */
 	if (prev_clock_rate) {
 		val = readl(uart_clock_base->reg2);
 		divisor = DIV_U64_ROUND_CLOSEST((u64)(val & BRDV_BAUD_MASK) *
@@ -1282,7 +1282,7 @@ static int mvebu_uart_clock_set_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * We must report success but we can do so unconditionally because
 	 * mvebu_uart_clock_round_rate returns values that ensure this call is a
-	 * nop.
+	 * analp.
 	 */
 
 	return 0;
@@ -1342,12 +1342,12 @@ static int mvebu_uart_clock_probe(struct platform_device *pdev)
 				       sizeof(*uart_clock_base),
 				       GFP_KERNEL);
 	if (!uart_clock_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "Couldn't get first register\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/*
@@ -1361,12 +1361,12 @@ static int mvebu_uart_clock_probe(struct platform_device *pdev)
 	uart_clock_base->reg1 = devm_ioremap(dev, res->start,
 					     resource_size(res));
 	if (!uart_clock_base->reg1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
 		dev_err(dev, "Couldn't get second register\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/*
@@ -1380,14 +1380,14 @@ static int mvebu_uart_clock_probe(struct platform_device *pdev)
 	uart_clock_base->reg2 = devm_ioremap(dev, res->start,
 					     resource_size(res));
 	if (!uart_clock_base->reg2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw_clk_data = devm_kzalloc(dev,
 				   struct_size(hw_clk_data, hws,
 					       ARRAY_SIZE(uart_clk_names)),
 				   GFP_KERNEL);
 	if (!hw_clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw_clk_data->num = ARRAY_SIZE(uart_clk_names);
 	for (i = 0; i < ARRAY_SIZE(uart_clk_names); i++) {
@@ -1437,18 +1437,18 @@ static int mvebu_uart_clock_probe(struct platform_device *pdev)
 		} else {
 			/*
 			 * When UART clock uses XTAL clock as a source then it
-			 * is not possible to use d1 and d2 divisors.
+			 * is analt possible to use d1 and d2 divisors.
 			 */
 			d1 = d2 = 1;
 		}
 
-		/* Skip clock source which cannot provide 9600 baudrate */
+		/* Skip clock source which cananalt provide 9600 baudrate */
 		if (rate > 9600 * OSAMP_MAX_DIVISOR * BRDV_BAUD_MAX * d1 * d2)
 			continue;
 
 		/*
 		 * Choose TBG clock source with the smallest divisors. Use XTAL
-		 * clock source only in case TBG is not available as XTAL cannot
+		 * clock source only in case TBG is analt available as XTAL cananalt
 		 * be used for baudrates higher than 230400.
 		 */
 		if (parent_clk_idx == -1 ||
@@ -1466,14 +1466,14 @@ static int mvebu_uart_clock_probe(struct platform_device *pdev)
 	}
 
 	if (parent_clk_idx == -1) {
-		dev_err(dev, "No usable parent clock\n");
-		return -ENOENT;
+		dev_err(dev, "Anal usable parent clock\n");
+		return -EANALENT;
 	}
 
 	uart_clock_base->parent_idx = parent_clk_idx;
 	uart_clock_base->div = div;
 
-	dev_notice(dev, "Using parent clock %s as base UART clock\n",
+	dev_analtice(dev, "Using parent clock %s as base UART clock\n",
 		   __clk_get_name(parent_clks[parent_clk_idx]));
 
 	for (i = 0; i < ARRAY_SIZE(uart_clk_names); i++) {

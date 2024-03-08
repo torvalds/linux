@@ -380,7 +380,7 @@ static int armada_370_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = &armada_370_pinctrl_info;
 
-	soc->variant = 0; /* no variants for Armada 370 */
+	soc->variant = 0; /* anal variants for Armada 370 */
 	soc->controls = mv88f6710_mpp_controls;
 	soc->ncontrols = ARRAY_SIZE(mv88f6710_mpp_controls);
 	soc->modes = mv88f6710_mpp_modes;

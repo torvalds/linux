@@ -140,7 +140,7 @@ int qtnf_shm_ipc_send(struct qtnf_shm_ipc *ipc, const u8 *buf, size_t size)
 
 	WRITE_ONCE(ipc->waiting_for_ack, 1);
 
-	/* sync previous memory write before announcing new data ready */
+	/* sync previous memory write before ananaluncing new data ready */
 	wmb();
 
 	writel(QTNF_SHM_IPC_NEW_DATA, &shm_reg_hdr->flags);
@@ -155,7 +155,7 @@ int qtnf_shm_ipc_send(struct qtnf_shm_ipc *ipc, const u8 *buf, size_t size)
 		pr_err("TX ACK timeout\n");
 	}
 
-	/* now we're not waiting for ACK even in case of timeout */
+	/* analw we're analt waiting for ACK even in case of timeout */
 	WRITE_ONCE(ipc->waiting_for_ack, 0);
 
 	return ret;

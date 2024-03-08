@@ -90,7 +90,7 @@ static struct phy *rockchip_pcie_phy_of_xlate(struct device *dev,
 		return rk_phy->phys[0].phy;
 
 	if (WARN_ON(args->args[0] >= PHY_MAX_LANE_NUM))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return rk_phy->phys[args->args[0]].phy;
 }
@@ -187,9 +187,9 @@ static int rockchip_pcie_phy_power_on(struct phy *phy)
 				   PHY_LANE_IDLE_A_SHIFT + inst->index));
 
 	/*
-	 * No documented timeout value for phy operation below,
-	 * so we make it large enough here. And we use loop-break
-	 * method which should not be harmful.
+	 * Anal documented timeout value for phy operation below,
+	 * so we make it large eanalugh here. And we use loop-break
+	 * method which should analt be harmful.
 	 */
 	timeout = jiffies + msecs_to_jiffies(1000);
 
@@ -352,15 +352,15 @@ static int rockchip_pcie_phy_probe(struct platform_device *pdev)
 	int i;
 	u32 phy_num;
 
-	grf = syscon_node_to_regmap(dev->parent->of_node);
+	grf = syscon_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(grf)) {
-		dev_err(dev, "Cannot find GRF syscon\n");
+		dev_err(dev, "Cananalt find GRF syscon\n");
 		return PTR_ERR(grf);
 	}
 
 	rk_phy = devm_kzalloc(dev, sizeof(*rk_phy), GFP_KERNEL);
 	if (!rk_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rk_phy->phy_data = device_get_match_data(&pdev->dev);
 	if (!rk_phy->phy_data)
@@ -380,19 +380,19 @@ static int rockchip_pcie_phy_probe(struct platform_device *pdev)
 
 	rk_phy->clk_pciephy_ref = devm_clk_get(dev, "refclk");
 	if (IS_ERR(rk_phy->clk_pciephy_ref)) {
-		dev_err(dev, "refclk not found.\n");
+		dev_err(dev, "refclk analt found.\n");
 		return PTR_ERR(rk_phy->clk_pciephy_ref);
 	}
 
 	/* parse #phy-cells to see if it's legacy PHY model */
-	if (of_property_read_u32(dev->of_node, "#phy-cells", &phy_num))
-		return -ENOENT;
+	if (of_property_read_u32(dev->of_analde, "#phy-cells", &phy_num))
+		return -EANALENT;
 
 	phy_num = (phy_num == 0) ? 1 : PHY_MAX_LANE_NUM;
 	dev_dbg(dev, "phy number is %d\n", phy_num);
 
 	for (i = 0; i < phy_num; i++) {
-		rk_phy->phys[i].phy = devm_phy_create(dev, dev->of_node, &ops);
+		rk_phy->phys[i].phy = devm_phy_create(dev, dev->of_analde, &ops);
 		if (IS_ERR(rk_phy->phys[i].phy)) {
 			dev_err(dev, "failed to create PHY%d\n", i);
 			return PTR_ERR(rk_phy->phys[i].phy);

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009 DENX Software Engineering GmbH
  * Heiko Schocher <hs@denx.de>
- * Copyright 2006-2007 Secret Lab Technologies Ltd.
+ * Copyright 2006-2007 Secret Lab Techanallogies Ltd.
  */
 
 /include/ "mpc5200b.dtsi"

@@ -2,7 +2,7 @@
 #ifndef __DT_BINDINGS_Q6_AFE_H__
 #define __DT_BINDINGS_Q6_AFE_H__
 
-/* This file exists due to backward compatibility reasons, Please do not DELETE! */
+/* This file exists due to backward compatibility reasons, Please do analt DELETE! */
 
 #include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
 

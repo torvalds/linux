@@ -33,7 +33,7 @@
 /*
  * Write options to IP header, record destination address to
  * source route option, address of outgoing interface
- * (we should already know it, so that this  function is allowed be
+ * (we should already kanalw it, so that this  function is allowed be
  * called only after routing decision) and timestamp,
  * if we originate this datagram.
  *
@@ -68,10 +68,10 @@ void ip_options_build(struct sk_buff *skb, struct ip_options *opt,
 /*
  * Provided (sopt, skb) points to received options,
  * build in dopt compiled option set appropriate for answering.
- * i.e. invert SRR option, copy anothers,
+ * i.e. invert SRR option, copy aanalthers,
  * and grab room in RR/TS options.
  *
- * NOTE: dopt cannot point to skb.
+ * ANALTE: dopt cananalt point to skb.
  */
 
 int __ip_options_echo(struct net *net, struct ip_options *dopt,
@@ -187,8 +187,8 @@ int __ip_options_echo(struct net *net, struct ip_options *dopt,
 }
 
 /*
- *	Options "fragmenting", just fill options not
- *	allowed in fragments with NOOPs.
+ *	Options "fragmenting", just fill options analt
+ *	allowed in fragments with ANALOPs.
  *	Simple and stupid 8), but the most efficient way.
  */
 
@@ -203,7 +203,7 @@ void ip_options_fragment(struct sk_buff *skb)
 		switch (*optptr) {
 		case IPOPT_END:
 			return;
-		case IPOPT_NOOP:
+		case IPOPT_ANALOP:
 			l--;
 			optptr++;
 			continue;
@@ -212,7 +212,7 @@ void ip_options_fragment(struct sk_buff *skb)
 		if (optlen < 2 || optlen > l)
 		  return;
 		if (!IPOPT_COPIED(*optptr))
-			memset(optptr, IPOPT_NOOP, optlen);
+			memset(optptr, IPOPT_ANALOP, optlen);
 		l -= optlen;
 		optptr += optlen;
 	}
@@ -266,7 +266,7 @@ int __ip_options_compile(struct net *net,
 				}
 			}
 			goto eol;
-		case IPOPT_NOOP:
+		case IPOPT_ANALOP:
 			l--;
 			optptr++;
 			continue;
@@ -517,7 +517,7 @@ int ip_options_get(struct net *net, struct ip_options_rcu **optp,
 	opt = kzalloc(sizeof(struct ip_options_rcu) + ((optlen + 3) & ~3),
 		       GFP_KERNEL);
 	if (!opt)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (optlen && copy_from_sockptr(opt->opt.__data, data, optlen)) {
 		kfree(opt);
 		return -EFAULT;

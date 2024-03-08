@@ -42,11 +42,11 @@ EXPORT_SYMBOL(empty_zero_page);
 
 #ifdef CONFIG_MMU
 
-int m68k_virt_to_node_shift;
+int m68k_virt_to_analde_shift;
 
-void __init m68k_setup_node(int node)
+void __init m68k_setup_analde(int analde)
 {
-	node_set_online(node);
+	analde_set_online(analde);
 }
 
 #else /* CONFIG_MMU */

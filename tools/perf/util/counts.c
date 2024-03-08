@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include "evsel.h"
@@ -61,7 +61,7 @@ int evsel__alloc_counts(struct evsel *evsel)
 	int nthreads = perf_thread_map__nr(evsel->core.threads);
 
 	evsel->counts = perf_counts__new(perf_cpu_map__nr(cpus), nthreads);
-	return evsel->counts != NULL ? 0 : -ENOMEM;
+	return evsel->counts != NULL ? 0 : -EANALMEM;
 }
 
 void evsel__free_counts(struct evsel *evsel)

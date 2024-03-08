@@ -8,7 +8,7 @@
  * Originally based on i2c-mux.c
  */
 
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/i2c-atr.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -22,14 +22,14 @@
 
 /**
  * struct i2c_atr_alias_pair - Holds the alias assigned to a client.
- * @node:   List node
+ * @analde:   List analde
  * @client: Pointer to the client on the child bus
  * @alias:  I2C alias address assigned by the driver.
  *          This is the address that will be used to issue I2C transactions
  *          on the parent (physical) bus.
  */
 struct i2c_atr_alias_pair {
-	struct list_head node;
+	struct list_head analde;
 	const struct i2c_client *client;
 	u16 alias;
 };
@@ -71,7 +71,7 @@ struct i2c_atr_chan {
  * @aliases:   The aliases array
  * @alias_mask_lock: Lock protecting alias_use_mask
  * @alias_use_mask: Bitmask for used aliases in aliases array
- * @i2c_nb:    Notifier for remote client add & del events
+ * @i2c_nb:    Analtifier for remote client add & del events
  * @adapter:   Array of adapters
  */
 struct i2c_atr {
@@ -92,7 +92,7 @@ struct i2c_atr {
 	spinlock_t alias_mask_lock;
 	unsigned long *alias_use_mask;
 
-	struct notifier_block i2c_nb;
+	struct analtifier_block i2c_nb;
 
 	struct i2c_adapter *adapter[] __counted_by(max_adapters);
 };
@@ -103,7 +103,7 @@ i2c_atr_find_mapping_by_client(const struct list_head *list,
 {
 	struct i2c_atr_alias_pair *c2a;
 
-	list_for_each_entry(c2a, list, node) {
+	list_for_each_entry(c2a, list, analde) {
 		if (c2a->client == client)
 			return c2a;
 	}
@@ -116,7 +116,7 @@ i2c_atr_find_mapping_by_addr(const struct list_head *list, u16 phys_addr)
 {
 	struct i2c_atr_alias_pair *c2a;
 
-	list_for_each_entry(c2a, list, node) {
+	list_for_each_entry(c2a, list, analde) {
 		if (c2a->client->addr == phys_addr)
 			return c2a;
 	}
@@ -138,14 +138,14 @@ static int i2c_atr_map_msgs(struct i2c_atr_chan *chan, struct i2c_msg *msgs,
 	static struct i2c_atr_alias_pair *c2a;
 	int i;
 
-	/* Ensure we have enough room to save the original addresses */
+	/* Ensure we have eanalugh room to save the original addresses */
 	if (unlikely(chan->orig_addrs_size < num)) {
 		u16 *new_buf;
 
-		/* We don't care about old data, hence no realloc() */
+		/* We don't care about old data, hence anal realloc() */
 		new_buf = kmalloc_array(num, sizeof(*new_buf), GFP_KERNEL);
 		if (!new_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		kfree(chan->orig_addrs);
 		chan->orig_addrs = new_buf;
@@ -158,7 +158,7 @@ static int i2c_atr_map_msgs(struct i2c_atr_chan *chan, struct i2c_msg *msgs,
 		c2a = i2c_atr_find_mapping_by_addr(&chan->alias_list,
 						   msgs[i].addr);
 		if (!c2a) {
-			dev_err(atr->dev, "client 0x%02x not mapped!\n",
+			dev_err(atr->dev, "client 0x%02x analt mapped!\n",
 				msgs[i].addr);
 
 			while (i--)
@@ -176,7 +176,7 @@ static int i2c_atr_map_msgs(struct i2c_atr_chan *chan, struct i2c_msg *msgs,
 /*
  * Restore all message address aliases with the original addresses. This
  * function is internal for use in i2c_atr_master_xfer() and for this reason it
- * needs no null and size checks on orig_addr.
+ * needs anal null and size checks on orig_addr.
  *
  * @see i2c_atr_map_msgs()
  */
@@ -227,7 +227,7 @@ static int i2c_atr_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 
 	c2a = i2c_atr_find_mapping_by_addr(&chan->alias_list, addr);
 	if (!c2a) {
-		dev_err(atr->dev, "client 0x%02x not mapped!\n", addr);
+		dev_err(atr->dev, "client 0x%02x analt mapped!\n", addr);
 		return -ENXIO;
 	}
 
@@ -330,7 +330,7 @@ static int i2c_atr_attach_client(struct i2c_adapter *adapter,
 
 	c2a = kzalloc(sizeof(*c2a), GFP_KERNEL);
 	if (!c2a) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release_alias;
 	}
 
@@ -343,7 +343,7 @@ static int i2c_atr_attach_client(struct i2c_adapter *adapter,
 
 	c2a->client = client;
 	c2a->alias = alias;
-	list_add(&c2a->node, &chan->alias_list);
+	list_add(&c2a->analde, &chan->alias_list);
 
 	return 0;
 
@@ -377,11 +377,11 @@ static void i2c_atr_detach_client(struct i2c_adapter *adapter,
 		"chan%u: client 0x%02x unmapped from alias 0x%02x (%s)\n",
 		chan->chan_id, client->addr, c2a->alias, client->name);
 
-	list_del(&c2a->node);
+	list_del(&c2a->analde);
 	kfree(c2a);
 }
 
-static int i2c_atr_bus_notifier_call(struct notifier_block *nb,
+static int i2c_atr_bus_analtifier_call(struct analtifier_block *nb,
 				     unsigned long event, void *device)
 {
 	struct i2c_atr *atr = container_of(nb, struct i2c_atr, i2c_nb);
@@ -392,7 +392,7 @@ static int i2c_atr_bus_notifier_call(struct notifier_block *nb,
 
 	client = i2c_verify_client(dev);
 	if (!client)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* Is the client in one of our adapters? */
 	for (chan_id = 0; chan_id < atr->max_adapters; ++chan_id) {
@@ -401,10 +401,10 @@ static int i2c_atr_bus_notifier_call(struct notifier_block *nb,
 	}
 
 	if (chan_id == atr->max_adapters)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		ret = i2c_atr_attach_client(client->adapter, client);
 		if (ret)
 			dev_err(atr->dev,
@@ -412,7 +412,7 @@ static int i2c_atr_bus_notifier_call(struct notifier_block *nb,
 				dev_name(dev), ret);
 		break;
 
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_ANALTIFY_DEL_DEVICE:
 		i2c_atr_detach_client(client->adapter, client);
 		break;
 
@@ -420,7 +420,7 @@ static int i2c_atr_bus_notifier_call(struct notifier_block *nb,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int i2c_atr_parse_alias_pool(struct i2c_atr *atr)
@@ -433,7 +433,7 @@ static int i2c_atr_parse_alias_pool(struct i2c_atr *atr)
 	u16 *aliases16;
 	int ret;
 
-	ret = fwnode_property_count_u32(dev_fwnode(dev), "i2c-alias-pool");
+	ret = fwanalde_property_count_u32(dev_fwanalde(dev), "i2c-alias-pool");
 	if (ret < 0) {
 		dev_err(dev, "Failed to count 'i2c-alias-pool' property: %d\n",
 			ret);
@@ -447,9 +447,9 @@ static int i2c_atr_parse_alias_pool(struct i2c_atr *atr)
 
 	aliases32 = kcalloc(num_aliases, sizeof(*aliases32), GFP_KERNEL);
 	if (!aliases32)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = fwnode_property_read_u32_array(dev_fwnode(dev), "i2c-alias-pool",
+	ret = fwanalde_property_read_u32_array(dev_fwanalde(dev), "i2c-alias-pool",
 					     aliases32, num_aliases);
 	if (ret < 0) {
 		dev_err(dev, "Failed to read 'i2c-alias-pool' property: %d\n",
@@ -459,7 +459,7 @@ static int i2c_atr_parse_alias_pool(struct i2c_atr *atr)
 
 	aliases16 = kcalloc(num_aliases, sizeof(*aliases16), GFP_KERNEL);
 	if (!aliases16) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_aliases32;
 	}
 
@@ -469,14 +469,14 @@ static int i2c_atr_parse_alias_pool(struct i2c_atr *atr)
 			continue;
 		}
 
-		dev_err(dev, "Failed to parse 'i2c-alias-pool' property: I2C flags are not supported\n");
+		dev_err(dev, "Failed to parse 'i2c-alias-pool' property: I2C flags are analt supported\n");
 		ret = -EINVAL;
 		goto err_free_aliases16;
 	}
 
 	alias_use_mask = bitmap_zalloc(num_aliases, GFP_KERNEL);
 	if (!alias_use_mask) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_aliases16;
 	}
 
@@ -511,7 +511,7 @@ struct i2c_atr *i2c_atr_new(struct i2c_adapter *parent, struct device *dev,
 
 	atr = kzalloc(struct_size(atr, adapter, max_adapters), GFP_KERNEL);
 	if (!atr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&atr->lock);
 	spin_lock_init(&atr->alias_mask_lock);
@@ -531,8 +531,8 @@ struct i2c_atr *i2c_atr_new(struct i2c_adapter *parent, struct device *dev,
 	if (ret)
 		goto err_destroy_mutex;
 
-	atr->i2c_nb.notifier_call = i2c_atr_bus_notifier_call;
-	ret = bus_register_notifier(&i2c_bus_type, &atr->i2c_nb);
+	atr->i2c_nb.analtifier_call = i2c_atr_bus_analtifier_call;
+	ret = bus_register_analtifier(&i2c_bus_type, &atr->i2c_nb);
 	if (ret)
 		goto err_free_aliases;
 
@@ -556,7 +556,7 @@ void i2c_atr_delete(struct i2c_atr *atr)
 	for (i = 0; i < atr->max_adapters; ++i)
 		WARN_ON(atr->adapter[i]);
 
-	bus_unregister_notifier(&i2c_bus_type, &atr->i2c_nb);
+	bus_unregister_analtifier(&i2c_bus_type, &atr->i2c_nb);
 	bitmap_free(atr->alias_use_mask);
 	kfree(atr->aliases);
 	mutex_destroy(&atr->lock);
@@ -566,7 +566,7 @@ EXPORT_SYMBOL_NS_GPL(i2c_atr_delete, I2C_ATR);
 
 int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 			struct device *adapter_parent,
-			struct fwnode_handle *bus_handle)
+			struct fwanalde_handle *bus_handle)
 {
 	struct i2c_adapter *parent = atr->parent;
 	struct device *dev = atr->dev;
@@ -575,7 +575,7 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 	int ret;
 
 	if (chan_id >= atr->max_adapters) {
-		dev_err(dev, "No room for more i2c-atr adapters\n");
+		dev_err(dev, "Anal room for more i2c-atr adapters\n");
 		return -EINVAL;
 	}
 
@@ -586,7 +586,7 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!adapter_parent)
 		adapter_parent = dev;
@@ -608,24 +608,24 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 	chan->adap.lock_ops = &i2c_atr_lock_ops;
 
 	if (bus_handle) {
-		device_set_node(&chan->adap.dev, fwnode_handle_get(bus_handle));
+		device_set_analde(&chan->adap.dev, fwanalde_handle_get(bus_handle));
 	} else {
-		struct fwnode_handle *atr_node;
-		struct fwnode_handle *child;
+		struct fwanalde_handle *atr_analde;
+		struct fwanalde_handle *child;
 		u32 reg;
 
-		atr_node = device_get_named_child_node(dev, "i2c-atr");
+		atr_analde = device_get_named_child_analde(dev, "i2c-atr");
 
-		fwnode_for_each_child_node(atr_node, child) {
-			ret = fwnode_property_read_u32(child, "reg", &reg);
+		fwanalde_for_each_child_analde(atr_analde, child) {
+			ret = fwanalde_property_read_u32(child, "reg", &reg);
 			if (ret)
 				continue;
 			if (chan_id == reg)
 				break;
 		}
 
-		device_set_node(&chan->adap.dev, child);
-		fwnode_handle_put(atr_node);
+		device_set_analde(&chan->adap.dev, child);
+		fwanalde_handle_put(atr_analde);
 	}
 
 	atr->adapter[chan_id] = &chan->adap;
@@ -634,7 +634,7 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 	if (ret) {
 		dev_err(dev, "failed to add atr-adapter %u (error=%d)\n",
 			chan_id, ret);
-		goto err_fwnode_put;
+		goto err_fwanalde_put;
 	}
 
 	snprintf(symlink_name, sizeof(symlink_name), "channel-%u",
@@ -651,8 +651,8 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 
 	return 0;
 
-err_fwnode_put:
-	fwnode_handle_put(dev_fwnode(&chan->adap.dev));
+err_fwanalde_put:
+	fwanalde_handle_put(dev_fwanalde(&chan->adap.dev));
 	mutex_destroy(&chan->orig_addrs_lock);
 	kfree(chan);
 	return ret;
@@ -664,7 +664,7 @@ void i2c_atr_del_adapter(struct i2c_atr *atr, u32 chan_id)
 	char symlink_name[ATR_MAX_SYMLINK_LEN];
 	struct i2c_adapter *adap;
 	struct i2c_atr_chan *chan;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct device *dev = atr->dev;
 
 	adap = atr->adapter[chan_id];
@@ -672,7 +672,7 @@ void i2c_atr_del_adapter(struct i2c_atr *atr, u32 chan_id)
 		return;
 
 	chan = adap->algo_data;
-	fwnode = dev_fwnode(&adap->dev);
+	fwanalde = dev_fwanalde(&adap->dev);
 
 	dev_dbg(dev, "Removing ATR child bus %d\n", i2c_adapter_id(adap));
 
@@ -685,7 +685,7 @@ void i2c_atr_del_adapter(struct i2c_atr *atr, u32 chan_id)
 
 	atr->adapter[chan_id] = NULL;
 
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 	mutex_destroy(&chan->orig_addrs_lock);
 	kfree(chan->orig_addrs);
 	kfree(chan);

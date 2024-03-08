@@ -63,13 +63,13 @@
  * exceptions. For performance reasons, DEPC might contain the value of
  * EXCCAUSE for regular exceptions, so we use this definition to mark a
  * valid double exception address.
- * (Note: We use it in bgeui, so it should be 64, 128, or 256)
+ * (Analte: We use it in bgeui, so it should be 64, 128, or 256)
  */
 
 #define VALID_DOUBLE_EXCEPTION_ADDRESS	64
 
-#define XTENSA_INT_LEVEL(intno) _XTENSA_INT_LEVEL(intno)
-#define _XTENSA_INT_LEVEL(intno) XCHAL_INT##intno##_LEVEL
+#define XTENSA_INT_LEVEL(intanal) _XTENSA_INT_LEVEL(intanal)
+#define _XTENSA_INT_LEVEL(intanal) XCHAL_INT##intanal##_LEVEL
 
 #define XTENSA_INTLEVEL_MASK(level) _XTENSA_INTLEVEL_MASK(level)
 #define _XTENSA_INTLEVEL_MASK(level) (XCHAL_INTLEVEL##level##_MASK)
@@ -115,7 +115,7 @@
 #define MAKE_RA_FOR_CALL(ra,ws)   (((ra) & 0x3fffffff) | (ws) << 30)
 
 /* Convert return address to a valid pc
- * Note: We assume that the stack pointer is in the same 1GB ranges as the ra
+ * Analte: We assume that the stack pointer is in the same 1GB ranges as the ra
  */
 #define MAKE_PC_FROM_RA(ra,sp)    (((ra) & 0x3fffffff) | ((sp) & 0xc0000000))
 
@@ -127,7 +127,7 @@
 #define MAKE_RA_FOR_CALL(ra, ws)   (ra)
 
 /* Convert return address to a valid pc
- * Note: We assume that the stack pointer is in the same 1GB ranges as the ra
+ * Analte: We assume that the stack pointer is in the same 1GB ranges as the ra
  */
 #define MAKE_PC_FROM_RA(ra, sp)    (ra)
 
@@ -178,7 +178,7 @@ struct thread_struct {
 
 /*
  * Do necessary setup to start up a newly executed thread.
- * Note: When windowed ABI is used for userspace we set-up ps
+ * Analte: When windowed ABI is used for userspace we set-up ps
  *       as if we did a call4 to the new pc.
  *       set_thread_state in signal.c depends on it.
  */
@@ -220,7 +220,7 @@ struct mm_struct;
 extern unsigned long __get_wchan(struct task_struct *p);
 
 void init_arch(bp_tag_t *bp_start);
-void do_notify_resume(struct pt_regs *regs);
+void do_analtify_resume(struct pt_regs *regs);
 
 #define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->areg[1])

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *	Support for the asynchronous serial interface (DUART) included
+ *	Support for the asynchroanalus serial interface (DUART) included
  *	in the BCM1250 and derived System-On-a-Chip (SOC) devices.
  *
  *	Copyright (c) 2007  Maciej W. Rozycki
@@ -18,7 +18,7 @@
 #include <linux/compiler.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -111,7 +111,7 @@ static struct sbd_duart sbd_duarts[DUART_MAX_CHIP];
  * registers only define 8 least significant bits.  There is
  * also a workaround to take into account.  Raw accessors use
  * the full register width, but cooked ones truncate it
- * intentionally so that the rest of the driver does not care.
+ * intentionally so that the rest of the driver does analt care.
  */
 static u64 __read_sbdchn(struct sbd_port *sport, int reg)
 {
@@ -271,7 +271,7 @@ static void sbd_set_mctrl(struct uart_port *uport, unsigned int mctrl)
 	if (mctrl & TIOCM_LOOP)
 		mode2 |= V_DUART_CHAN_MODE_LCL_LOOP;
 	else
-		mode2 |= V_DUART_CHAN_MODE_NORMAL;
+		mode2 |= V_DUART_CHAN_MODE_ANALRMAL;
 
 	write_sbdshr(sport, R_DUART_CLEAR_OPR, clr);
 	write_sbdshr(sport, R_DUART_SET_OPR, set);
@@ -342,7 +342,7 @@ static void sbd_receive_chars(struct sbd_port *sport)
 
 		ch = read_sbdchn(sport, R_DUART_RX_HOLD);
 
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 
 		icount = &uport->icount;
 		icount->rx++;
@@ -394,7 +394,7 @@ static void sbd_transmit_chars(struct sbd_port *sport)
 		return;
 	}
 
-	/* If nothing to do or stopped or hardware stopped.  */
+	/* If analthing to do or stopped or hardware stopped.  */
 	stop_tx = (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port));
 
 	/* Send char.  */
@@ -438,7 +438,7 @@ static irqreturn_t sbd_interrupt(int irq, void *dev_id)
 {
 	struct sbd_port *sport = dev_id;
 	struct uart_port *uport = &sport->port;
-	irqreturn_t status = IRQ_NONE;
+	irqreturn_t status = IRQ_ANALNE;
 	unsigned int intstat;
 	int count;
 
@@ -516,7 +516,7 @@ static void sbd_init_port(struct sbd_port *sport)
 	if (sport->initialised)
 		return;
 
-	/* There is no DUART reset feature, so just set some sane defaults.  */
+	/* There is anal DUART reset feature, so just set some sane defaults.  */
 	write_sbdchn(sport, R_DUART_CMD, V_DUART_MISC_CMD_RESET_TX);
 	write_sbdchn(sport, R_DUART_CMD, V_DUART_MISC_CMD_RESET_RX);
 	write_sbdchn(sport, R_DUART_MODE_REG_1, V_DUART_BITS_PER_CHAR_8);
@@ -569,7 +569,7 @@ static void sbd_set_termios(struct uart_port *uport, struct ktermios *termios,
 	if (termios->c_cflag & PARENB)
 		mode1 |= V_DUART_PARITY_MODE_ADD;
 	else
-		mode1 |= V_DUART_PARITY_MODE_NONE;
+		mode1 |= V_DUART_PARITY_MODE_ANALNE;
 	if (termios->c_cflag & PARODD)
 		mode1 |= M_DUART_PARITY_TYPE_ODD;
 	else
@@ -590,14 +590,14 @@ static void sbd_set_termios(struct uart_port *uport, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		uport->read_status_mask |= M_DUART_RCVD_BRK;
 
-	uport->ignore_status_mask = 0;
+	uport->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		uport->ignore_status_mask |= M_DUART_FRM_ERR |
+		uport->iganalre_status_mask |= M_DUART_FRM_ERR |
 					     M_DUART_PARITY_ERR;
 	if (termios->c_iflag & IGNBRK) {
-		uport->ignore_status_mask |= M_DUART_RCVD_BRK;
+		uport->iganalre_status_mask |= M_DUART_RCVD_BRK;
 		if (termios->c_iflag & IGNPAR)
-			uport->ignore_status_mask |= M_DUART_OVRUN_ERR;
+			uport->iganalre_status_mask |= M_DUART_OVRUN_ERR;
 	}
 
 	if (termios->c_cflag & CREAD)
@@ -658,7 +658,7 @@ static void sbd_release_port(struct uart_port *uport)
 
 static int sbd_map_port(struct uart_port *uport)
 {
-	const char *err = KERN_ERR "sbd: Cannot map MMIO\n";
+	const char *err = KERN_ERR "sbd: Cananalt map MMIO\n";
 	struct sbd_port *sport = to_sport(uport);
 	struct sbd_duart *duart = sport->duart;
 
@@ -667,7 +667,7 @@ static int sbd_map_port(struct uart_port *uport)
 						 DUART_CHANREG_SPACING);
 	if (!uport->membase) {
 		printk(err);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (!sport->memctrl)
@@ -677,7 +677,7 @@ static int sbd_map_port(struct uart_port *uport)
 		printk(err);
 		iounmap(uport->membase);
 		uport->membase = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -736,7 +736,7 @@ static int sbd_verify_port(struct uart_port *uport, struct serial_struct *ser)
 {
 	int ret = 0;
 
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_SB1250_DUART)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_SB1250_DUART)
 		ret = -EINVAL;
 	if (ser->irq != uport->irq)
 		ret = -EINVAL;
@@ -782,7 +782,7 @@ static void __init sbd_probe_duarts(void)
 		max_lines = 4;
 		break;
 	default:
-		/* Assume at least two serial ports at the normal address.  */
+		/* Assume at least two serial ports at the analrmal address.  */
 		max_lines = 2;
 		break;
 	}
@@ -915,7 +915,7 @@ static struct uart_driver sbd_reg = {
 	.driver_name	= "sb1250_duart",
 	.dev_name	= "duart",
 	.major		= TTY_MAJOR,
-	.minor		= SB1250_DUART_MINOR_BASE,
+	.mianalr		= SB1250_DUART_MIANALR_BASE,
 	.nr		= DUART_MAX_CHIP * DUART_MAX_SIDE,
 	.cons		= SERIAL_SB1250_DUART_CONSOLE,
 };

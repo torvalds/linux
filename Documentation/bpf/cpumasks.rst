@@ -78,7 +78,7 @@ For example:
                 v = bpf_map_lookup_elem(&cpumask_map, &key);
                 if (!v) {
                         bpf_cpumask_release(mask);
-                        return -ENOENT;
+                        return -EANALENT;
                 }
 
                 old = bpf_kptr_xchg(&v->cpumask, mask);
@@ -100,7 +100,7 @@ For example:
 
                 cpumask = bpf_cpumask_create();
                 if (!cpumask)
-                        return -ENOMEM;
+                        return -EANALMEM;
 
                 if (!bpf_cpumask_full(task->cpus_ptr))
                         bpf_printk("task %s has CPU affinity", task->comm);
@@ -151,14 +151,14 @@ opportunistically acquired using RCU:
 		/* Assume a bpf_cpumask * kptr was previously stored in the map. */
 		v = bpf_map_lookup_elem(&cpumasks_kfunc_map, &key);
 		if (!v)
-			return -ENOENT;
+			return -EANALENT;
 
 		bpf_rcu_read_lock();
 		/* Acquire a reference to the bpf_cpumask * kptr that's already stored in the map. */
 		kptr = v->cpumask;
 		if (!kptr) {
-			/* If no bpf_cpumask was present in the map, it's because
-			 * we're racing with another CPU that removed it with
+			/* If anal bpf_cpumask was present in the map, it's because
+			 * we're racing with aanalther CPU that removed it with
 			 * bpf_kptr_xchg() between the bpf_map_lookup_elem()
 			 * above, and our load of the pointer from the map.
 			 */
@@ -179,8 +179,8 @@ opportunistically acquired using RCU:
 
 ``struct cpumask`` is the object that actually contains the cpumask bitmap
 being queried, mutated, etc. A ``struct bpf_cpumask`` wraps a ``struct
-cpumask``, which is why it's safe to cast it as such (note however that it is
-**not** safe to cast a ``struct cpumask *`` to a ``struct bpf_cpumask *``, and
+cpumask``, which is why it's safe to cast it as such (analte however that it is
+**analt** safe to cast a ``struct cpumask *`` to a ``struct bpf_cpumask *``, and
 the verifier will reject any program that tries to do so).
 
 As we'll see below, any kfunc that mutates its cpumask argument will take a
@@ -228,7 +228,7 @@ follows:
 
                 cpumask = bpf_cpumask_create();
                 if (!cpumask)
-                        return -ENOMEM;
+                        return -EANALMEM;
 
                 bpf_cpumask_set_cpu(0, cpumask);
                 if (!bpf_cpumask_test_cpu(0, cast(cpumask)))
@@ -276,7 +276,7 @@ bpf_cpumask_and(), bpf_cpumask_or(), and bpf_cpumask_xor():
 .. kernel-doc:: kernel/bpf/cpumask.c
    :identifiers: bpf_cpumask_and bpf_cpumask_or bpf_cpumask_xor
 
-The following is an example of how they may be used. Note that some of the
+The following is an example of how they may be used. Analte that some of the
 kfuncs shown in this example will be covered in more detail below.
 
 .. code-block:: c
@@ -292,12 +292,12 @@ kfuncs shown in this example will be covered in more detail below.
 
                 mask1 = bpf_cpumask_create();
                 if (!mask1)
-                        return -ENOMEM;
+                        return -EANALMEM;
 
                 mask2 = bpf_cpumask_create();
                 if (!mask2) {
                         bpf_cpumask_release(mask1);
-                        return -ENOMEM;
+                        return -EANALMEM;
                 }
 
                 // ...Safely create the other two masks... */
@@ -334,7 +334,7 @@ kfuncs shown in this example will be covered in more detail below.
 
 ----
 
-The contents of an entire cpumask may be copied to another using
+The contents of an entire cpumask may be copied to aanalther using
 bpf_cpumask_copy():
 
 .. kernel-doc:: kernel/bpf/cpumask.c
@@ -363,8 +363,8 @@ can be used to query the contents of cpumasks.
 
 ----
 
-Some example usages of these querying kfuncs were shown above. We will not
-replicate those examples here. Note, however, that all of the aforementioned
+Some example usages of these querying kfuncs were shown above. We will analt
+replicate those examples here. Analte, however, that all of the aforementioned
 kfuncs are tested in `tools/testing/selftests/bpf/progs/cpumask_success.c`_, so
 please take a look there if you're looking for more examples of how they can be
 used.
@@ -376,7 +376,7 @@ used.
 4. Adding BPF cpumask kfuncs
 ============================
 
-The set of supported BPF cpumask kfuncs are not (yet) a 1-1 match with the
+The set of supported BPF cpumask kfuncs are analt (yet) a 1-1 match with the
 cpumask operations in include/linux/cpumask.h. Any of those cpumask operations
 could easily be encapsulated in a new kfunc if and when required. If you'd like
 to support a new cpumask operation, please feel free to submit a patch. If you

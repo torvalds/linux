@@ -12,11 +12,11 @@
  * Specifies the VM_BIND feature version supported.
  * The following versions of VM_BIND have been defined:
  *
- * 0: No VM_BIND support.
+ * 0: Anal VM_BIND support.
  *
  * 1: In VM_UNBIND calls, the UMD must specify the exact mappings created
- *    previously with VM_BIND, the ioctl will not support unbinding multiple
- *    mappings or splitting them. Similarly, VM_BIND calls will not replace
+ *    previously with VM_BIND, the ioctl will analt support unbinding multiple
+ *    mappings or splitting them. Similarly, VM_BIND calls will analt replace
  *    any existing mappings.
  *
  * 2: The restrictions on unbinding partial or multiple mappings is
@@ -32,8 +32,8 @@
  * Flag to opt-in for VM_BIND mode of binding during VM creation.
  * See struct drm_i915_gem_vm_control flags.
  *
- * The older execbuf2 ioctl will not support VM_BIND mode of operation.
- * For VM_BIND mode, we have new execbuf3 ioctl which will not accept any
+ * The older execbuf2 ioctl will analt support VM_BIND mode of operation.
+ * For VM_BIND mode, we have new execbuf3 ioctl which will analt accept any
  * execlist (See struct drm_i915_gem_execbuffer3 for more details).
  */
 #define I915_VM_CREATE_FLAGS_USE_VM_BIND	(1 << 0)
@@ -71,7 +71,7 @@ struct drm_i915_gem_timeline_fence {
 	__u32 flags;
 #define I915_TIMELINE_FENCE_WAIT            (1 << 0)
 #define I915_TIMELINE_FENCE_SIGNAL          (1 << 1)
-#define __I915_TIMELINE_FENCE_UNKNOWN_FLAGS (-(I915_TIMELINE_FENCE_SIGNAL << 1))
+#define __I915_TIMELINE_FENCE_UNKANALWN_FLAGS (-(I915_TIMELINE_FENCE_SIGNAL << 1))
 
 	/**
 	 * @value: A point in the timeline.
@@ -88,7 +88,7 @@ struct drm_i915_gem_timeline_fence {
  * This structure is passed to VM_BIND ioctl and specifies the mapping of GPU
  * virtual address (VA) range to the section of an object that should be bound
  * in the device page table of the specified address space (VM).
- * The VA range specified must be unique (ie., not currently bound) and can
+ * The VA range specified must be unique (ie., analt currently bound) and can
  * be mapped to whole object or a section of the object (partial binding).
  * Multiple VA mappings can be created to the same section of the object
  * (aliasing).
@@ -96,17 +96,17 @@ struct drm_i915_gem_timeline_fence {
  * The @start, @offset and @length must be 4K page aligned. However the DG2
  * and XEHPSDV has 64K page size for device local memory and has compact page
  * table. On those platforms, for binding device local-memory objects, the
- * @start, @offset and @length must be 64K aligned. Also, UMDs should not mix
+ * @start, @offset and @length must be 64K aligned. Also, UMDs should analt mix
  * the local memory 64K page and the system memory 4K page bindings in the same
  * 2M range.
  *
- * Error code -EINVAL will be returned if @start, @offset and @length are not
+ * Error code -EINVAL will be returned if @start, @offset and @length are analt
  * properly aligned. In version 1 (See I915_PARAM_VM_BIND_VERSION), error code
- * -ENOSPC will be returned if the VA range specified can't be reserved.
+ * -EANALSPC will be returned if the VA range specified can't be reserved.
  *
  * VM_BIND/UNBIND ioctl calls executed on different CPU threads concurrently
- * are not ordered. Furthermore, parts of the VM_BIND operation can be done
- * asynchronously, if valid @fence is specified.
+ * are analt ordered. Furthermore, parts of the VM_BIND operation can be done
+ * asynchroanalusly, if valid @fence is specified.
  */
 struct drm_i915_gem_vm_bind {
 	/** @vm_id: VM (address space) id to bind */
@@ -130,7 +130,7 @@ struct drm_i915_gem_vm_bind {
 	 * I915_GEM_VM_BIND_CAPTURE:
 	 * Capture this mapping in the dump upon GPU error.
 	 *
-	 * Note that @fence carries its own flags.
+	 * Analte that @fence carries its own flags.
 	 */
 	__u64 flags;
 #define I915_GEM_VM_BIND_CAPTURE	(1 << 0)
@@ -143,8 +143,8 @@ struct drm_i915_gem_vm_bind {
 	 * It is an out fence, hence using I915_TIMELINE_FENCE_WAIT flag
 	 * is invalid, and an error will be returned.
 	 *
-	 * If I915_TIMELINE_FENCE_SIGNAL flag is not set, then out fence
-	 * is not requested and binding is completed synchronously.
+	 * If I915_TIMELINE_FENCE_SIGNAL flag is analt set, then out fence
+	 * is analt requested and binding is completed synchroanalusly.
 	 */
 	struct drm_i915_gem_timeline_fence fence;
 
@@ -163,15 +163,15 @@ struct drm_i915_gem_vm_bind {
  * address (VA) range that should be unbound from the device page table of the
  * specified address space (VM). VM_UNBIND will force unbind the specified
  * range from device page table without waiting for any GPU job to complete.
- * It is UMDs responsibility to ensure the mapping is no longer in use before
+ * It is UMDs responsibility to ensure the mapping is anal longer in use before
  * calling VM_UNBIND.
  *
- * If the specified mapping is not found, the ioctl will simply return without
+ * If the specified mapping is analt found, the ioctl will simply return without
  * any error.
  *
  * VM_BIND/UNBIND ioctl calls executed on different CPU threads concurrently
- * are not ordered. Furthermore, parts of the VM_UNBIND operation can be done
- * asynchronously, if valid @fence is specified.
+ * are analt ordered. Furthermore, parts of the VM_UNBIND operation can be done
+ * asynchroanalusly, if valid @fence is specified.
  */
 struct drm_i915_gem_vm_unbind {
 	/** @vm_id: VM (address space) id to bind */
@@ -189,7 +189,7 @@ struct drm_i915_gem_vm_unbind {
 	/**
 	 * @flags: Currently reserved, MBZ.
 	 *
-	 * Note that @fence carries its own flags.
+	 * Analte that @fence carries its own flags.
 	 */
 	__u64 flags;
 
@@ -201,8 +201,8 @@ struct drm_i915_gem_vm_unbind {
 	 * It is an out fence, hence using I915_TIMELINE_FENCE_WAIT flag
 	 * is invalid, and an error will be returned.
 	 *
-	 * If I915_TIMELINE_FENCE_SIGNAL flag is not set, then out fence
-	 * is not requested and unbinding is completed synchronously.
+	 * If I915_TIMELINE_FENCE_SIGNAL flag is analt set, then out fence
+	 * is analt requested and unbinding is completed synchroanalusly.
 	 */
 	struct drm_i915_gem_timeline_fence fence;
 
@@ -240,7 +240,7 @@ struct drm_i915_gem_execbuffer3 {
 	/**
 	 * @batch_address: Batch gpu virtual address/es.
 	 *
-	 * For normal submission, it is the gpu virtual address of the batch
+	 * For analrmal submission, it is the gpu virtual address of the batch
 	 * buffer. For parallel submission, it is a pointer to an array of
 	 * batch buffer gpu virtual addresses with array size equal to the
 	 * number of (parallel) engines involved in that submission (See

@@ -7,7 +7,7 @@
  */
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -40,7 +40,7 @@ static int jornada720_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 
 	j = devm_kzalloc(dev, sizeof(*j), GFP_KERNEL);
 	if (!j)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	j->gpio[J720_GPIO_PWR] = devm_gpiod_get(dev, skt->nr ? "s1-power" :
 						"s0-power", GPIOD_OUT_LOW);
@@ -106,7 +106,7 @@ jornada720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_s
 	}
 
 	if (state->Vpp != state->Vcc && state->Vpp != 0) {
-		printk(KERN_ERR "%s(): slot cannot support VPP %u\n",
+		printk(KERN_ERR "%s(): slot cananalt support VPP %u\n",
 			__func__, state->Vpp);
 		return -EPERM;
 	}

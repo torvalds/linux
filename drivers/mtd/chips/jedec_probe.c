@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 
@@ -184,13 +184,13 @@
  * Unlock address sets for AMD command sets.
  * Intel command sets use the MTD_UADDR_UNNECESSARY.
  * Each identifier, except MTD_UADDR_UNNECESSARY, and
- * MTD_UADDR_NO_SUPPORT must be defined below in unlock_addrs[].
- * MTD_UADDR_NOT_SUPPORTED must be 0 so that structure
- * initialization need not require initializing all of the
+ * MTD_UADDR_ANAL_SUPPORT must be defined below in unlock_addrs[].
+ * MTD_UADDR_ANALT_SUPPORTED must be 0 so that structure
+ * initialization need analt require initializing all of the
  * unlock addresses for all bit widths.
  */
 enum uaddr {
-	MTD_UADDR_NOT_SUPPORTED = 0,	/* data width not supported */
+	MTD_UADDR_ANALT_SUPPORTED = 0,	/* data width analt supported */
 	MTD_UADDR_0x0555_0x02AA,
 	MTD_UADDR_0x0555_0x0AAA,
 	MTD_UADDR_0x5555_0x2AAA,
@@ -198,7 +198,7 @@ enum uaddr {
 	MTD_UADDR_0x0AAA_0x0555,
 	MTD_UADDR_0xAAAA_0x5555,
 	MTD_UADDR_DONT_CARE,		/* Requires an arbitrary address */
-	MTD_UADDR_UNNECESSARY,		/* Does not require any address */
+	MTD_UADDR_UNNECESSARY,		/* Does analt require any address */
 };
 
 
@@ -210,16 +210,16 @@ struct unlock_addr {
 
 /*
  * I don't like the fact that the first entry in unlock_addrs[]
- * exists, but is for MTD_UADDR_NOT_SUPPORTED - and, therefore,
- * should not be used.  The  problem is that structures with
+ * exists, but is for MTD_UADDR_ANALT_SUPPORTED - and, therefore,
+ * should analt be used.  The  problem is that structures with
  * initializers have extra fields initialized to 0.  It is _very_
  * desirable to have the unlock address entries for unsupported
  * data widths automatically initialized - that means that
- * MTD_UADDR_NOT_SUPPORTED must be 0 and the first entry here
+ * MTD_UADDR_ANALT_SUPPORTED must be 0 and the first entry here
  * must go unused.
  */
 static const struct unlock_addr  unlock_addrs[] = {
-	[MTD_UADDR_NOT_SUPPORTED] = {
+	[MTD_UADDR_ANALT_SUPPORTED] = {
 		.addr1 = 0xffff,
 		.addr2 = 0xffff
 	},
@@ -1949,8 +1949,8 @@ static void jedec_reset(u32 base, struct map_info *map, struct cfi_private *cfi)
 	/* after checking the datasheets for SST, MACRONIX and ATMEL
 	 * (oh and incidentaly the jedec spec - 3.5.3.3) the reset
 	 * sequence is *supposed* to be 0xaa at 0x5555, 0x55 at
-	 * 0x2aaa, 0xF0 at 0x5555 this will not affect the AMD chips
-	 * as they will ignore the writes and don't care what address
+	 * 0x2aaa, 0xF0 at 0x5555 this will analt affect the AMD chips
+	 * as they will iganalre the writes and don't care what address
 	 * the F0 is written to */
 	if (cfi->addr_unlock1) {
 		pr_debug( "reset unlock called %x %x \n",
@@ -1960,9 +1960,9 @@ static void jedec_reset(u32 base, struct map_info *map, struct cfi_private *cfi)
 	}
 
 	cfi_send_gen_cmd(0xF0, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
-	/* Some misdesigned Intel chips do not respond for 0xF0 for a reset,
+	/* Some misdesigned Intel chips do analt respond for 0xF0 for a reset,
 	 * so ensure we're in read mode.  Send both the Intel and the AMD command
-	 * for this.  Intel uses 0xff for this, AMD uses 0xff for NOP, so
+	 * for this.  Intel uses 0xff for this, AMD uses 0xff for ANALP, so
 	 * this should be safe.
 	 */
 	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
@@ -2010,7 +2010,7 @@ static int cfi_jedec_setup(struct map_info *map, struct cfi_private *cfi, int in
 
 	uaddr = jedec_table[index].uaddr;
 
-	/* The table has unlock addresses in _bytes_, and we try not to let
+	/* The table has unlock addresses in _bytes_, and we try analt to let
 	   our brains explode when we see the datasheets talking about address
 	   lines numbered from A-1 to A18. The CFI table has unlock addresses
 	   in device-words according to the mode the device is connected in */
@@ -2056,7 +2056,7 @@ static inline int jedec_match( uint32_t base,
 		 * there aren't.
 		 */
 		if (finfo->dev_id > 0xff) {
-			pr_debug("%s(): ID is not 8bit\n",
+			pr_debug("%s(): ID is analt 8bit\n",
 			       __func__);
 			goto match_done;
 		}
@@ -2099,7 +2099,7 @@ static inline int jedec_match( uint32_t base,
 	if ( MTD_UADDR_UNNECESSARY != uaddr && MTD_UADDR_DONT_CARE != uaddr
 	     && ( unlock_addrs[uaddr].addr1 / cfi->device_type != cfi->addr_unlock1 ||
 		  unlock_addrs[uaddr].addr2 / cfi->device_type != cfi->addr_unlock2 ) ) {
-		pr_debug("MTD %s(): 0x%.4x 0x%.4x did not match\n",
+		pr_debug("MTD %s(): 0x%.4x 0x%.4x did analt match\n",
 			__func__,
 			unlock_addrs[uaddr].addr1,
 			unlock_addrs[uaddr].addr2);
@@ -2111,17 +2111,17 @@ static inline int jedec_match( uint32_t base,
 	 * ID mode.  The only time this should fail when it should succeed
 	 * is when the ID's are written as data to the same
 	 * addresses.  For this rare and unfortunate case the chip
-	 * cannot be probed correctly.
+	 * cananalt be probed correctly.
 	 * FIXME - write a driver that takes all of the chip info as
 	 * module parameters, doesn't probe but forces a load.
 	 */
-	pr_debug("MTD %s(): check ID's disappear when not in ID mode\n",
+	pr_debug("MTD %s(): check ID's disappear when analt in ID mode\n",
 	       __func__ );
 	jedec_reset( base, map, cfi );
 	mfr = jedec_read_mfr( map, base, cfi );
 	id = jedec_read_id( map, base, cfi );
 	if ( mfr == cfi->mfr && id == cfi->id ) {
-		pr_debug("MTD %s(): ID 0x%.2x:0x%.2x did not change after reset:\n"
+		pr_debug("MTD %s(): ID 0x%.2x:0x%.2x did analt change after reset:\n"
 		       "You might need to manually specify JEDEC parameters.\n",
 			__func__, cfi->mfr, cfi->id );
 		goto match_done;
@@ -2151,7 +2151,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 			    unsigned long *chip_map, struct cfi_private *cfi)
 {
 	int i;
-	enum uaddr uaddr_idx = MTD_UADDR_NOT_SUPPORTED;
+	enum uaddr uaddr_idx = MTD_UADDR_ANALT_SUPPORTED;
 	u32 probe_offset1, probe_offset2;
 
  retry:
@@ -2167,7 +2167,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 
 	/* Make certain we aren't probing past the end of map */
 	if (base >= map->size) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 			"Probe at base(0x%08x) past the end of the map(0x%08lx)\n",
 			base, map->size -1);
 		return 0;
@@ -2219,7 +2219,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 		id = jedec_read_id(map, base, cfi);
 
 		if ((mfr != cfi->mfr) || (id != cfi->id)) {
-			printk(KERN_DEBUG "%s: Found different chip or no chip at all (mfr 0x%x, id 0x%x) at 0x%x\n",
+			printk(KERN_DEBUG "%s: Found different chip or anal chip at all (mfr 0x%x, id 0x%x) at 0x%x\n",
 			       map->name, mfr, id, base);
 			jedec_reset(base, map, cfi);
 			return 0;
@@ -2230,7 +2230,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 	for (i=0; i < (base >> cfi->chipshift); i++) {
 		unsigned long start;
 		if(!test_bit(i, chip_map)) {
-			continue; /* Skip location; no valid chip at this address */
+			continue; /* Skip location; anal valid chip at this address */
 		}
 		start = i << cfi->chipshift;
 		if (jedec_read_mfr(map, start, cfi) == cfi->mfr &&
@@ -2247,7 +2247,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 				return 0;
 			}
 
-			/* Yes, it's actually got the device IDs as data. Most
+			/* Anal, it's actually got the device IDs as data. Most
 			 * unfortunate. Stick the new chip in read mode
 			 * too and if it's the same, assume it's an alias. */
 			/* FIXME: Use other modes to do a proper check */
@@ -2261,7 +2261,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 		}
 	}
 
-	/* OK, if we got to here, then none of the previous chips appear to
+	/* OK, if we got to here, then analne of the previous chips appear to
 	   be aliases for the current one. */
 	set_bit((base >> cfi->chipshift), chip_map); /* Update chip map */
 	cfi->numchips++;

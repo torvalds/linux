@@ -44,7 +44,7 @@ void switch_pmu_to_guest(struct kvm_vcpu *vcpu,
 
 	/* Save host */
 	if (ppc_get_pmu_inuse()) {
-		/* POWER9, POWER10 do not implement HPMC or SPMC */
+		/* POWER9, POWER10 do analt implement HPMC or SPMC */
 
 		host_os_sprs->mmcr0 = mfspr(SPRN_MMCR0);
 		host_os_sprs->mmcra = mfspr(SPRN_MMCRA);
@@ -80,7 +80,7 @@ void switch_pmu_to_guest(struct kvm_vcpu *vcpu,
 #endif
 
 	/*
-	 * Load guest. If the VPA said the PMCs are not in use but the guest
+	 * Load guest. If the VPA said the PMCs are analt in use but the guest
 	 * tried to access them anyway, HFSCR[PM] will be set by the HFAC
 	 * fault so we can make forward progress.
 	 */
@@ -106,7 +106,7 @@ void switch_pmu_to_guest(struct kvm_vcpu *vcpu,
 		/* Set MMCRA then MMCR0 last */
 		mtspr(SPRN_MMCRA, vcpu->arch.mmcra);
 		mtspr(SPRN_MMCR0, vcpu->arch.mmcr[0]);
-		/* No isync necessary because we're starting counters */
+		/* Anal isync necessary because we're starting counters */
 
 		if (!vcpu->arch.nested &&
 		    (vcpu->arch.hfscr_permitted & HFSCR_PM))
@@ -127,7 +127,7 @@ void switch_pmu_to_host(struct kvm_vcpu *vcpu,
 	if (IS_ENABLED(CONFIG_KVM_BOOK3S_HV_NESTED_PMU_WORKAROUND)) {
 		/*
 		 * Save pmu if this guest is capable of running nested guests.
-		 * This is option is for old L1s that do not set their
+		 * This is option is for old L1s that do analt set their
 		 * lppaca->pmcregs_in_use properly when entering their L2.
 		 */
 		save_pmu |= nesting_enabled(vcpu->kvm);

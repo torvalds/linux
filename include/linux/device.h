@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2001-2003 Patrick Mochel <mochel@osdl.org>
  * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (c) 2008-2009 Novell Inc.
+ * Copyright (c) 2008-2009 Analvell Inc.
  *
  * See Documentation/driver-api/driver-model/ for more information.
  */
@@ -40,8 +40,8 @@ struct driver_private;
 struct module;
 struct class;
 struct subsys_private;
-struct device_node;
-struct fwnode_handle;
+struct device_analde;
+struct fwanalde_handle;
 struct iommu_group;
 struct dev_pin_info;
 struct dev_iommu;
@@ -51,19 +51,19 @@ struct msi_device_data;
  * struct subsys_interface - interfaces to device functions
  * @name:       name of the device function
  * @subsys:     subsystem of the devices to attach to
- * @node:       the list of functions registered at the subsystem
+ * @analde:       the list of functions registered at the subsystem
  * @add_dev:    device hookup to device function handler
  * @remove_dev: device hookup to device function handler
  *
  * Simple interfaces attached to a subsystem. Multiple interfaces can
- * attach to a subsystem and its devices. Unlike drivers, they do not
+ * attach to a subsystem and its devices. Unlike drivers, they do analt
  * exclusively claim or control devices. Interfaces usually represent
  * a specific functionality of a subsystem/class of devices.
  */
 struct subsys_interface {
 	const char *name;
 	const struct bus_type *subsys;
-	struct list_head node;
+	struct list_head analde;
 	int (*add_dev)(struct device *dev, struct subsys_interface *sif);
 	void (*remove_dev)(struct device *dev, struct subsys_interface *sif);
 };
@@ -89,7 +89,7 @@ struct device_type {
 	const char *name;
 	const struct attribute_group **groups;
 	int (*uevent)(const struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(const struct device *dev, umode_t *mode,
+	char *(*devanalde)(const struct device *dev, umode_t *mode,
 			 kuid_t *uid, kgid_t *gid);
 	void (*release)(struct device *dev);
 
@@ -251,9 +251,9 @@ ssize_t device_store_bool(struct device *dev, struct device_attribute *attr,
 	struct dev_ext_attribute dev_attr_##_name = \
 		{ __ATTR(_name, _mode, device_show_bool, device_store_bool), &(_var) }
 
-#define DEVICE_ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store) \
+#define DEVICE_ATTR_IGANALRE_LOCKDEP(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name =		\
-		__ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store)
+		__ATTR_IGANALRE_LOCKDEP(_name, _mode, _show, _store)
 
 int device_create_file(struct device *device,
 		       const struct device_attribute *entry);
@@ -270,12 +270,12 @@ void device_remove_bin_file(struct device *dev,
 typedef void (*dr_release_t)(struct device *dev, void *res);
 typedef int (*dr_match_t)(struct device *dev, void *res, void *match_data);
 
-void *__devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp,
+void *__devres_alloc_analde(dr_release_t release, size_t size, gfp_t gfp,
 			  int nid, const char *name) __malloc;
 #define devres_alloc(release, size, gfp) \
-	__devres_alloc_node(release, size, gfp, NUMA_NO_NODE, #release)
-#define devres_alloc_node(release, size, gfp, nid) \
-	__devres_alloc_node(release, size, gfp, nid, #release)
+	__devres_alloc_analde(release, size, gfp, NUMA_ANAL_ANALDE, #release)
+#define devres_alloc_analde(release, size, gfp, nid) \
+	__devres_alloc_analde(release, size, gfp, nid, #release)
 
 void devres_for_each_res(struct device *dev, dr_release_t release,
 			 dr_match_t match, void *match_data,
@@ -355,7 +355,7 @@ void __iomem *devm_ioremap_resource_wc(struct device *dev,
 				       const struct resource *res);
 
 void __iomem *devm_of_iomap(struct device *dev,
-			    struct device_node *node, int index,
+			    struct device_analde *analde, int index,
 			    resource_size_t *size);
 #else
 
@@ -375,7 +375,7 @@ void __iomem *devm_ioremap_resource_wc(struct device *dev,
 
 static inline
 void __iomem *devm_of_iomap(struct device *dev,
-			    struct device_node *node, int index,
+			    struct device_analde *analde, int index,
 			    resource_size_t *size)
 {
 	return ERR_PTR(-EINVAL);
@@ -418,7 +418,7 @@ static inline int __devm_add_action_or_reset(struct device *dev, void (*action)(
  */
 #define devm_alloc_percpu(dev, type)      \
 	((typeof(type) __percpu *)__devm_alloc_percpu((dev), sizeof(type), \
-						      __alignof__(type)))
+						      __aliganalf__(type)))
 
 void __percpu *__devm_alloc_percpu(struct device *dev, size_t size,
 				   size_t align);
@@ -436,15 +436,15 @@ struct device_dma_parameters {
 
 /**
  * enum device_link_state - Device link states.
- * @DL_STATE_NONE: The presence of the drivers is not being tracked.
- * @DL_STATE_DORMANT: None of the supplier/consumer drivers is present.
- * @DL_STATE_AVAILABLE: The supplier driver is present, but the consumer is not.
+ * @DL_STATE_ANALNE: The presence of the drivers is analt being tracked.
+ * @DL_STATE_DORMANT: Analne of the supplier/consumer drivers is present.
+ * @DL_STATE_AVAILABLE: The supplier driver is present, but the consumer is analt.
  * @DL_STATE_CONSUMER_PROBE: The consumer is probing (supplier driver present).
  * @DL_STATE_ACTIVE: Both the supplier and consumer drivers are present.
  * @DL_STATE_SUPPLIER_UNBIND: The supplier driver is unbinding.
  */
 enum device_link_state {
-	DL_STATE_NONE = -1,
+	DL_STATE_ANALNE = -1,
 	DL_STATE_DORMANT = 0,
 	DL_STATE_AVAILABLE,
 	DL_STATE_CONSUMER_PROBE,
@@ -455,7 +455,7 @@ enum device_link_state {
 /*
  * Device link flags.
  *
- * STATELESS: The core will not remove this link automatically.
+ * STATELESS: The core will analt remove this link automatically.
  * AUTOREMOVE_CONSUMER: Remove the link automatically on consumer driver unbind.
  * PM_RUNTIME: If set, the runtime PM framework will use this link.
  * RPM_ACTIVE: Run pm_runtime_get_sync() on the supplier during link creation.
@@ -463,7 +463,7 @@ enum device_link_state {
  * AUTOPROBE_CONSUMER: Probe consumer driver automatically after supplier binds.
  * MANAGED: The core tracks presence of supplier/consumer drivers (internal).
  * SYNC_STATE_ONLY: Link only affects sync_state() behavior.
- * INFERRED: Inferred from data (eg: firmware) and not from driver actions.
+ * INFERRED: Inferred from data (eg: firmware) and analt from driver actions.
  */
 #define DL_FLAG_STATELESS		BIT(0)
 #define DL_FLAG_AUTOREMOVE_CONSUMER	BIT(1)
@@ -478,13 +478,13 @@ enum device_link_state {
 
 /**
  * enum dl_dev_state - Device driver presence tracking information.
- * @DL_DEV_NO_DRIVER: There is no driver attached to the device.
+ * @DL_DEV_ANAL_DRIVER: There is anal driver attached to the device.
  * @DL_DEV_PROBING: A driver is probing.
  * @DL_DEV_DRIVER_BOUND: The driver has been bound to the device.
  * @DL_DEV_UNBINDING: The driver is unbinding from the device.
  */
 enum dl_dev_state {
-	DL_DEV_NO_DRIVER = 0,
+	DL_DEV_ANAL_DRIVER = 0,
 	DL_DEV_PROBING,
 	DL_DEV_DRIVER_BOUND,
 	DL_DEV_UNBINDING,
@@ -493,15 +493,15 @@ enum dl_dev_state {
 /**
  * enum device_removable - Whether the device is removable. The criteria for a
  * device to be classified as removable is determined by its subsystem or bus.
- * @DEVICE_REMOVABLE_NOT_SUPPORTED: This attribute is not supported for this
+ * @DEVICE_REMOVABLE_ANALT_SUPPORTED: This attribute is analt supported for this
  *				    device (default).
- * @DEVICE_REMOVABLE_UNKNOWN:  Device location is Unknown.
- * @DEVICE_FIXED: Device is not removable by the user.
+ * @DEVICE_REMOVABLE_UNKANALWN:  Device location is Unkanalwn.
+ * @DEVICE_FIXED: Device is analt removable by the user.
  * @DEVICE_REMOVABLE: Device is removable by the user.
  */
 enum device_removable {
-	DEVICE_REMOVABLE_NOT_SUPPORTED = 0, /* must be 0 */
-	DEVICE_REMOVABLE_UNKNOWN,
+	DEVICE_REMOVABLE_ANALT_SUPPORTED = 0, /* must be 0 */
+	DEVICE_REMOVABLE_UNKANALWN,
 	DEVICE_FIXED,
 	DEVICE_REMOVABLE,
 };
@@ -541,7 +541,7 @@ struct dev_msi_info {
  * @DEVICE_PANEL_RIGHT: Device connection point is on the right panel.
  * @DEVICE_PANEL_FRONT: Device connection point is on the front panel.
  * @DEVICE_PANEL_BACK: Device connection point is on the back panel.
- * @DEVICE_PANEL_UNKNOWN: The panel with device connection point is unknown.
+ * @DEVICE_PANEL_UNKANALWN: The panel with device connection point is unkanalwn.
  */
 enum device_physical_location_panel {
 	DEVICE_PANEL_TOP,
@@ -550,7 +550,7 @@ enum device_physical_location_panel {
 	DEVICE_PANEL_RIGHT,
 	DEVICE_PANEL_FRONT,
 	DEVICE_PANEL_BACK,
-	DEVICE_PANEL_UNKNOWN,
+	DEVICE_PANEL_UNKANALWN,
 };
 
 /**
@@ -606,7 +606,7 @@ struct device_physical_location {
  * @parent:	The device's "parent" device, the device to which it is attached.
  * 		In most cases, a parent device is some sort of bus or host
  * 		controller. If parent is NULL, the device, is a top-level device,
- * 		which is not usually what you want.
+ * 		which is analt usually what you want.
  * @p:		Holds the private data of the driver core portions of the device.
  * 		See the comment of the struct device_private for detail.
  * @kobj:	A top-level, abstract class from which other classes are derived.
@@ -636,10 +636,10 @@ struct device_physical_location {
  * @pins:	For device pin management.
  *		See Documentation/driver-api/pin-control.rst for details.
  * @msi:	MSI related data
- * @numa_node:	NUMA node this device is close to.
+ * @numa_analde:	NUMA analde this device is close to.
  * @dma_ops:    DMA mapping operations for this device.
  * @dma_mask:	Dma mask (if dma'ble device).
- * @coherent_dma_mask: Like dma_mask, but for alloc_coherent mapping as not all
+ * @coherent_dma_mask: Like dma_mask, but for alloc_coherent mapping as analt all
  * 		hardware supports 64-bit addresses for consistent allocations
  * 		such descriptors.
  * @bus_dma_limit: Limit of an upstream bridge or bus which imposes a smaller
@@ -650,13 +650,13 @@ struct device_physical_location {
  * @dma_pools:	Dma pools (if dma'ble device).
  * @dma_mem:	Internal for coherent mem override.
  * @cma_area:	Contiguous memory area for dma allocations
- * @dma_io_tlb_mem: Software IO TLB allocator.  Not for driver use.
+ * @dma_io_tlb_mem: Software IO TLB allocator.  Analt for driver use.
  * @dma_io_tlb_pools:	List of transient swiotlb memory pools.
  * @dma_io_tlb_lock:	Protects changes to the list of active pools.
  * @dma_uses_io_tlb: %true if device has used the software IO TLB.
  * @archdata:	For arch-specific additions.
- * @of_node:	Associated device tree node.
- * @fwnode:	Associated device node supplied by platform firmware.
+ * @of_analde:	Associated device tree analde.
+ * @fwanalde:	Associated device analde supplied by platform firmware.
  * @devt:	For creating the sysfs "dev".
  * @id:		device instance
  * @devres_lock: Spinlock to protect the resource of the device.
@@ -676,7 +676,7 @@ struct device_physical_location {
  *
  * @offline_disabled: If set, the device is permanently online.
  * @offline:	Set after successful invocation of bus type's .offline().
- * @of_node_reused: Set if the device-tree node is shared with an ancestor
+ * @of_analde_reused: Set if the device-tree analde is shared with an ancestor
  *              device.
  * @state_synced: The hardware state of this device has been synced to match
  *		  the software state of this device by calling the driver/bus
@@ -685,10 +685,10 @@ struct device_physical_location {
  *		a bus (like AMBA) which can't check for matching drivers until
  *		other devices probe successfully.
  * @dma_coherent: this particular device is dma coherent, even if the
- *		architecture supports non-coherent devices.
+ *		architecture supports analn-coherent devices.
  * @dma_ops_bypass: If set to %true then the dma_ops are bypassed for the
  *		streaming DMA operations (->map_* / ->unmap_* / ->sync_*),
- *		and optionall (if the coherent mask is large enough) also
+ *		and optionall (if the coherent mask is large eanalugh) also
  *		for dma allocations.  This flag is managed by the dma ops
  *		instance from ->dma_supported.
  *
@@ -738,7 +738,7 @@ struct device {
 	u64		*dma_mask;	/* dma mask (if dma'able device) */
 	u64		coherent_dma_mask;/* Like dma_mask, but for
 					     alloc_coherent mappings as
-					     not all hardware supports
+					     analt all hardware supports
 					     64 bit addresses for consistent
 					     allocations such descriptors. */
 	u64		bus_dma_limit;	/* upstream dma constraint */
@@ -767,11 +767,11 @@ struct device {
 	/* arch specific additions */
 	struct dev_archdata	archdata;
 
-	struct device_node	*of_node; /* associated device tree node */
-	struct fwnode_handle	*fwnode; /* firmware device node */
+	struct device_analde	*of_analde; /* associated device tree analde */
+	struct fwanalde_handle	*fwanalde; /* firmware device analde */
 
 #ifdef CONFIG_NUMA
-	int		numa_node;	/* NUMA node this device is close to */
+	int		numa_analde;	/* NUMA analde this device is close to */
 #endif
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
 	u32			id;	/* device instance */
@@ -792,7 +792,7 @@ struct device {
 
 	bool			offline_disabled:1;
 	bool			offline:1;
-	bool			of_node_reused:1;
+	bool			of_analde_reused:1;
 	bool			state_synced:1;
 	bool			can_match:1;
 #if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
@@ -808,22 +808,22 @@ struct device {
 /**
  * struct device_link - Device link representation.
  * @supplier: The device on the supplier end of the link.
- * @s_node: Hook to the supplier device's list of links to consumers.
+ * @s_analde: Hook to the supplier device's list of links to consumers.
  * @consumer: The device on the consumer end of the link.
- * @c_node: Hook to the consumer device's list of links to suppliers.
+ * @c_analde: Hook to the consumer device's list of links to suppliers.
  * @link_dev: device used to expose link details in sysfs
  * @status: The state of the link (with respect to the presence of drivers).
  * @flags: Link flags.
- * @rpm_active: Whether or not the consumer device is runtime-PM-active.
+ * @rpm_active: Whether or analt the consumer device is runtime-PM-active.
  * @kref: Count repeated addition of the same link.
  * @rm_work: Work structure used for removing the link.
  * @supplier_preactivated: Supplier has been made active before consumer probe.
  */
 struct device_link {
 	struct device *supplier;
-	struct list_head s_node;
+	struct list_head s_analde;
 	struct device *consumer;
-	struct list_head c_node;
+	struct list_head c_analde;
 	struct device link_dev;
 	enum device_link_state status;
 	u32 flags;
@@ -867,7 +867,7 @@ static inline const char *dev_name(const struct device *dev)
  * @dev: struct device to get the bus/class name of
  *
  * Will return the name of the bus/class the device is attached to.  If it is
- * not attached to a bus/class, an empty string will be returned.
+ * analt attached to a bus/class, an empty string will be returned.
  */
 static inline const char *dev_bus_name(const struct device *dev)
 {
@@ -877,20 +877,20 @@ static inline const char *dev_bus_name(const struct device *dev)
 __printf(2, 3) int dev_set_name(struct device *dev, const char *name, ...);
 
 #ifdef CONFIG_NUMA
-static inline int dev_to_node(struct device *dev)
+static inline int dev_to_analde(struct device *dev)
 {
-	return dev->numa_node;
+	return dev->numa_analde;
 }
-static inline void set_dev_node(struct device *dev, int node)
+static inline void set_dev_analde(struct device *dev, int analde)
 {
-	dev->numa_node = node;
+	dev->numa_analde = analde;
 }
 #else
-static inline int dev_to_node(struct device *dev)
+static inline int dev_to_analde(struct device *dev)
 {
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }
-static inline void set_dev_node(struct device *dev, int node)
+static inline void set_dev_analde(struct device *dev, int analde)
 {
 }
 #endif
@@ -958,14 +958,14 @@ static inline bool device_async_suspend_enabled(struct device *dev)
 	return !!dev->power.async_suspend;
 }
 
-static inline bool device_pm_not_required(struct device *dev)
+static inline bool device_pm_analt_required(struct device *dev)
 {
-	return dev->power.no_pm;
+	return dev->power.anal_pm;
 }
 
-static inline void device_set_pm_not_required(struct device *dev)
+static inline void device_set_pm_analt_required(struct device *dev)
 {
-	dev->power.no_pm = true;
+	dev->power.anal_pm = true;
 }
 
 static inline void dev_pm_syscore_device(struct device *dev, bool val)
@@ -1012,11 +1012,11 @@ static inline void device_lock_assert(struct device *dev)
 	lockdep_assert_held(&dev->mutex);
 }
 
-static inline struct device_node *dev_of_node(struct device *dev)
+static inline struct device_analde *dev_of_analde(struct device *dev)
 {
 	if (!IS_ENABLED(CONFIG_OF) || !dev)
 		return NULL;
-	return dev->of_node;
+	return dev->of_analde;
 }
 
 static inline bool dev_has_sync_state(struct device *dev)
@@ -1043,7 +1043,7 @@ static inline bool dev_is_removable(struct device *dev)
 
 static inline bool dev_removable_is_valid(struct device *dev)
 {
-	return dev->removable != DEVICE_REMOVABLE_NOT_SUPPORTED;
+	return dev->removable != DEVICE_REMOVABLE_ANALT_SUPPORTED;
 }
 
 /*
@@ -1091,14 +1091,14 @@ do {                                                                   \
  *
  * This must be called with the device_lock() already held, for example
  * from driver ->probe(). Take care to only override the default
- * lockdep_no_validate class.
+ * lockdep_anal_validate class.
  */
 #ifdef CONFIG_LOCKDEP
 #define device_lock_set_class(dev, key)                                    \
 do {                                                                       \
 	struct device *__d = dev;                                          \
 	dev_WARN_ONCE(__d, !lockdep_match_class(&__d->mutex,               \
-						&__lockdep_no_validate__), \
+						&__lockdep_anal_validate__), \
 		 "overriding existing custom lock class\n");               \
 	__device_lock_set_class(__d, #key, key);                           \
 } while (0)
@@ -1107,7 +1107,7 @@ do {                                                                       \
 #endif
 
 /**
- * device_lock_reset_class - Return a device to the default lockdep novalidate state
+ * device_lock_reset_class - Return a device to the default lockdep analvalidate state
  * @dev: device to modify
  *
  * This must be called with the device_lock() already held, for example
@@ -1116,7 +1116,7 @@ do {                                                                       \
 #define device_lock_reset_class(dev) \
 do { \
 	struct device *__d __maybe_unused = dev;                       \
-	lock_set_novalidate_class(&__d->mutex.dep_map, "&dev->mutex",  \
+	lock_set_analvalidate_class(&__d->mutex.dep_map, "&dev->mutex",  \
 				  _THIS_IP_);                          \
 } while (0)
 
@@ -1125,10 +1125,10 @@ void unlock_device_hotplug(void);
 int lock_device_hotplug_sysfs(void);
 int device_offline(struct device *dev);
 int device_online(struct device *dev);
-void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
-void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
-void device_set_of_node_from_dev(struct device *dev, const struct device *dev2);
-void device_set_node(struct device *dev, struct fwnode_handle *fwnode);
+void set_primary_fwanalde(struct device *dev, struct fwanalde_handle *fwanalde);
+void set_secondary_fwanalde(struct device *dev, struct fwanalde_handle *fwanalde);
+void device_set_of_analde_from_dev(struct device *dev, const struct device *dev2);
+void device_set_analde(struct device *dev, struct fwanalde_handle *fwanalde);
 
 static inline int dev_num_vf(struct device *dev)
 {
@@ -1209,12 +1209,12 @@ int __must_check devm_device_add_group(struct device *dev,
 /*
  * Platform "fixup" functions - allow the platform to have their say
  * about devices and actions that the general device layer doesn't
- * know about.
+ * kanalw about.
  */
-/* Notify platform of device discovery */
-extern int (*platform_notify)(struct device *dev);
+/* Analtify platform of device discovery */
+extern int (*platform_analtify)(struct device *dev);
 
-extern int (*platform_notify_remove)(struct device *dev);
+extern int (*platform_analtify_remove)(struct device *dev);
 
 
 /*
@@ -1237,7 +1237,7 @@ static inline int devtmpfs_mount(void) { return 0; }
 /* drivers/base/power/shutdown.c */
 void device_shutdown(void);
 
-/* debugging and troubleshooting/diagnostic helpers. */
+/* debugging and troubleshooting/diaganalstic helpers. */
 const char *dev_driver_string(const struct device *dev);
 
 /* Device links interface. */
@@ -1249,8 +1249,8 @@ void device_links_supplier_sync_state_pause(void);
 void device_links_supplier_sync_state_resume(void);
 
 /* Create alias, so I can be autoloaded. */
-#define MODULE_ALIAS_CHARDEV(major,minor) \
-	MODULE_ALIAS("char-major-" __stringify(major) "-" __stringify(minor))
+#define MODULE_ALIAS_CHARDEV(major,mianalr) \
+	MODULE_ALIAS("char-major-" __stringify(major) "-" __stringify(mianalr))
 #define MODULE_ALIAS_CHARDEV_MAJOR(major) \
 	MODULE_ALIAS("char-major-" __stringify(major) "-*")
 

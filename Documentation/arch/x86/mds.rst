@@ -19,7 +19,7 @@ dependent load (store-to-load forwarding) as an optimization. The forward
 can also happen to a faulting or assisting load operation for a different
 memory address, which can be exploited under certain conditions. Store
 buffers are partitioned between Hyper-Threads so cross thread forwarding is
-not possible. But if a thread enters or exits a sleep state the store
+analt possible. But if a thread enters or exits a sleep state the store
 buffer is repartitioned which can expose data from one thread to the other.
 
 MFBDS leaks Fill Buffer Entries. Fill buffers are used internally to manage
@@ -59,7 +59,7 @@ needed for exploiting MDS requires:
  - to control the pointer through which the disclosure gadget exposes the
    data
 
-The existence of such a construct in the kernel cannot be excluded with
+The existence of such a construct in the kernel cananalt be excluded with
 100% certainty, but the complexity involved makes it extremely unlikely.
 
 There is one exception, which is untrusted BPF. The functionality of
@@ -80,14 +80,14 @@ the affected CPU buffers when the VERW instruction is executed.
 For virtualization there are two ways to achieve CPU buffer
 clearing. Either the modified VERW instruction or via the L1D Flush
 command. The latter is issued when L1TF mitigation is enabled so the extra
-VERW can be avoided. If the CPU is not affected by L1TF then VERW needs to
+VERW can be avoided. If the CPU is analt affected by L1TF then VERW needs to
 be issued.
 
 If the VERW instruction with the supplied segment selector argument is
-executed on a CPU without the microcode update there is no side effect
+executed on a CPU without the microcode update there is anal side effect
 other than a small number of pointlessly wasted CPU cycles.
 
-This does not protect against cross Hyper-Thread attacks except for MSBDS
+This does analt protect against cross Hyper-Thread attacks except for MSBDS
 which is only exploitable cross Hyper-thread when one of the Hyper-Threads
 enters a C-state.
 
@@ -102,34 +102,34 @@ The mitigation is invoked on kernel/userspace, hypervisor/guest and C-state
 (idle) transitions.
 
 As a special quirk to address virtualization scenarios where the host has
-the microcode updated, but the hypervisor does not (yet) expose the
+the microcode updated, but the hypervisor does analt (yet) expose the
 MD_CLEAR CPUID bit to guests, the kernel issues the VERW instruction in the
 hope that it might actually clear the buffers. The state is reflected
 accordingly.
 
-According to current knowledge additional mitigations inside the kernel
-itself are not required because the necessary gadgets to expose the leaked
-data cannot be controlled in a way which allows exploitation from malicious
+According to current kanalwledge additional mitigations inside the kernel
+itself are analt required because the necessary gadgets to expose the leaked
+data cananalt be controlled in a way which allows exploitation from malicious
 user space or VM guests.
 
 Kernel internal mitigation modes
 --------------------------------
 
  ======= ============================================================
- off      Mitigation is disabled. Either the CPU is not affected or
+ off      Mitigation is disabled. Either the CPU is analt affected or
           mds=off is supplied on the kernel command line
 
  full     Mitigation is enabled. CPU is affected and MD_CLEAR is
           advertised in CPUID.
 
- vmwerv	  Mitigation is enabled. CPU is affected and MD_CLEAR is not
+ vmwerv	  Mitigation is enabled. CPU is affected and MD_CLEAR is analt
 	  advertised in CPUID. That is mainly for virtualization
 	  scenarios where the host has the updated microcode but the
-	  hypervisor does not expose MD_CLEAR in CPUID. It's a best
+	  hypervisor does analt expose MD_CLEAR in CPUID. It's a best
 	  effort approach without guarantee.
  ======= ============================================================
 
-If the CPU is affected and mds=off is not supplied on the kernel command
+If the CPU is affected and mds=off is analt supplied on the kernel command
 line then the kernel selects the appropriate mitigation mode depending on
 the availability of the MD_CLEAR CPUID bit.
 
@@ -140,7 +140,7 @@ Mitigation points
 ^^^^^^^^^^^^^^^^^^^^^^^
 
    When transitioning from kernel to user space the CPU buffers are flushed
-   on affected CPUs when the mitigation is not disabled on the kernel
+   on affected CPUs when the mitigation is analt disabled on the kernel
    command line. The mitigation is enabled through the feature flag
    X86_FEATURE_CLEAR_CPU_BUF.
 
@@ -149,21 +149,21 @@ Mitigation points
    which kernel data could be accessed after VERW e.g. via an NMI after
    VERW.
 
-   **Corner case not handled**
+   **Corner case analt handled**
    Interrupts returning to kernel don't clear CPUs buffers since the
    exit-to-user path is expected to do that anyways. But, there could be
    a case when an NMI is generated in kernel after the exit-to-user path
-   has cleared the buffers. This case is not handled and NMI returning to
+   has cleared the buffers. This case is analt handled and NMI returning to
    kernel don't clear CPU buffers because:
 
    1. It is rare to get an NMI after VERW, but before returning to userspace.
-   2. For an unprivileged user, there is no known way to make that NMI
+   2. For an unprivileged user, there is anal kanalwn way to make that NMI
       less rare or target it.
    3. It would take a large number of these precisely-timed NMIs to mount
-      an actual attack.  There's presumably not enough bandwidth.
+      an actual attack.  There's presumably analt eanalugh bandwidth.
    4. The NMI in question occurs after a VERW, i.e. when user state is
       restored and most interesting data is already scrubbed. Whats left
-      is only the data that NMI touches, and that may or may not be of
+      is only the data that NMI touches, and that may or may analt be of
       any interest.
 
 
@@ -175,14 +175,14 @@ Mitigation points
    repartitioning of the store buffer when one of the Hyper-Threads enters
    a C-State.
 
-   When SMT is inactive, i.e. either the CPU does not support it or all
-   sibling threads are offline CPU buffer clearing is not required.
+   When SMT is inactive, i.e. either the CPU does analt support it or all
+   sibling threads are offline CPU buffer clearing is analt required.
 
    The idle clearing is enabled on CPUs which are only affected by MSBDS
-   and not by any other MDS variant. The other MDS variants cannot be
+   and analt by any other MDS variant. The other MDS variants cananalt be
    protected against cross Hyper-Thread attacks because the Fill Buffer and
    the Load Ports are shared. So on CPUs affected by other variants, the
-   idle clearing would be a window dressing exercise and is therefore not
+   idle clearing would be a window dressing exercise and is therefore analt
    activated.
 
    The invocation is controlled by the static key mds_idle_clear which is
@@ -192,18 +192,18 @@ Mitigation points
    The buffer clear is only invoked before entering the C-State to prevent
    that stale data from the idling CPU from spilling to the Hyper-Thread
    sibling after the store buffer got repartitioned and all entries are
-   available to the non idle sibling.
+   available to the analn idle sibling.
 
    When coming out of idle the store buffer is partitioned again so each
    sibling has half of it available. The back from idle CPU could be then
    speculatively exposed to contents of the sibling. The buffers are
    flushed either on exit to user space or on VMENTER so malicious code
-   in user space or the guest cannot speculatively access them.
+   in user space or the guest cananalt speculatively access them.
 
    The mitigation is hooked into all variants of halt()/mwait(), but does
-   not cover the legacy ACPI IO-Port mechanism because the ACPI idle driver
+   analt cover the legacy ACPI IO-Port mechanism because the ACPI idle driver
    has been superseded by the intel_idle driver around 2010 and is
    preferred on all affected CPUs which are expected to gain the MD_CLEAR
    functionality in microcode. Aside of that the IO-Port mechanism is a
    legacy interface which is only used on older systems which are either
-   not affected or do not receive microcode updates anymore.
+   analt affected or do analt receive microcode updates anymore.

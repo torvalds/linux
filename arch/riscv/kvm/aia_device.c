@@ -93,8 +93,8 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 			case KVM_DEV_RISCV_AIA_MODE_AUTO:
 				/*
 				 * HW Acceleration and Auto modes only
-				 * supported on host with non-zero guest
-				 * external interrupts (i.e. non-zero
+				 * supported on host with analn-zero guest
+				 * external interrupts (i.e. analn-zero
 				 * VS-level IMSIC pages).
 				 */
 				if (!kvm_riscv_aia_nr_hgei)
@@ -269,7 +269,7 @@ static int aia_init(struct kvm *kvm)
 	if (aia->nr_ids < aia->nr_sources)
 		return -EINVAL;
 
-	/* APLIC base is required for non-zero number of sources */
+	/* APLIC base is required for analn-zero number of sources */
 	if (aia->nr_sources && aia->aplic_addr == KVM_RISCV_AIA_UNDEF_ADDR)
 		return -EINVAL;
 

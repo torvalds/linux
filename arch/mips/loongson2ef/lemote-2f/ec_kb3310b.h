@@ -112,7 +112,7 @@ extern sci_handler yeeloong_report_lid_status;
 #define REG_AUDIO_VOLUME	0xF46C
 #define REG_AUDIO_MUTE		0xF4E7
 #define REG_AUDIO_BEEP		0xF4D0
-/* USB port power or not: rd/wr */
+/* USB port power or analt: rd/wr */
 #define REG_USB0_FLAG		0xF461
 #define REG_USB1_FLAG		0xF462
 #define REG_USB2_FLAG		0xF463

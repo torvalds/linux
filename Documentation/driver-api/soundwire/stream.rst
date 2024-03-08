@@ -192,22 +192,22 @@ Example 8: 4-channel Stream is rendered by 2 Masters, each rendering a
 	|     (Data)    |     Data Direction               |     (Data)    |
 	+---------------+  +----------------------->       +---------------+
 
-Note1: In multi-link cases like above, to lock, one would acquire a global
+Analte1: In multi-link cases like above, to lock, one would acquire a global
 lock and then go on locking bus instances. But, in this case the caller
 framework(ASoC DPCM) guarantees that stream operations on a card are
-always serialized. So, there is no race condition and hence no need for
+always serialized. So, there is anal race condition and hence anal need for
 global lock.
 
-Note2: A Slave device may be configured to receive all channels
+Analte2: A Slave device may be configured to receive all channels
 transmitted on a link for a given Stream (Example 4) or just a subset
-of the data (Example 3). The configuration of the Slave device is not
+of the data (Example 3). The configuration of the Slave device is analt
 handled by a SoundWire subsystem API, but instead by the
 snd_soc_dai_set_tdm_slot() API. The platform or machine driver will
 typically configure which of the slots are used. For Example 4, the
 same slots would be used by all Devices, while for Example 3 the Slave
 Device1 would use e.g. Slot 0 and Slave device2 slot 1.
 
-Note3: Multiple Sink ports can extract the same information for the
+Analte3: Multiple Sink ports can extract the same information for the
 same bitSlots in the SoundWire frame, however multiple Source ports
 shall be configured with different bitSlot configurations. This is the
 same limitation as with I2S/PCM TDM usages.
@@ -250,14 +250,14 @@ Below shows the SoundWire stream states and state transition diagram. ::
 	         |  STATE   |           |   STATE    |        |  STATE   |
 	         +----------+           +------------+        +----------+
 
-NOTE: State transitions between ``SDW_STREAM_ENABLED`` and
+ANALTE: State transitions between ``SDW_STREAM_ENABLED`` and
 ``SDW_STREAM_DISABLED`` are only relevant when then INFO_PAUSE flag is
 supported at the ALSA/ASoC level. Likewise the transition between
 ``SDW_DISABLED_STATE`` and ``SDW_PREPARED_STATE`` depends on the
 INFO_RESUME flag.
 
-NOTE2: The framework implements basic state transition checks, but
-does not e.g. check if a transition from DISABLED to ENABLED is valid
+ANALTE2: The framework implements basic state transition checks, but
+does analt e.g. check if a transition from DISABLED to ENABLED is valid
 on a specific platform. Such tests need to be added at the ALSA/ASoC
 level.
 
@@ -339,7 +339,7 @@ SDW_STREAM_PREPARED
 Prepare state of stream. Operations performed before entering in this state:
 
   (0) Steps 1 and 2 are omitted in the case of a resume operation,
-      where the bus bandwidth is known.
+      where the bus bandwidth is kanalwn.
 
   (1) Bus parameters such as bandwidth, frame shape, clock frequency,
       are computed based on current stream as well as already active
@@ -354,7 +354,7 @@ Prepare state of stream. Operations performed before entering in this state:
       Slave(s) registers. The banked registers programming is done on the
       alternate bank (bank currently unused). Port(s) are enabled for the
       already active stream(s) on the alternate bank (bank currently unused).
-      This is done in order to not disrupt already active stream(s).
+      This is done in order to analt disrupt already active stream(s).
 
   (4) Once all the values are programmed, Bus initiates switch to alternate
       bank where all new values programmed gets into effect.
@@ -367,7 +367,7 @@ After all above operations are successful, stream state is set to
 
 Bus implements below API for PREPARE state which needs to be called
 once per stream. From ASoC DPCM framework, this stream state is linked
-to .prepare() operation. Since the .trigger() operations may not
+to .prepare() operation. Since the .trigger() operations may analt
 follow the .prepare(), a direct transition from
 ``SDW_STREAM_PREPARED`` to ``SDW_STREAM_DEPREPARED`` is allowed.
 
@@ -459,12 +459,12 @@ After all above operations are successful, stream state is set to
 ``SDW_STREAM_DEPREPARED``.
 
 Bus implements below API for DEPREPARED state which needs to be called
-once per stream. ALSA/ASoC do not have a concept of 'deprepare', and
+once per stream. ALSA/ASoC do analt have a concept of 'deprepare', and
 the mapping from this stream state to ALSA/ASoC operation may be
 implementation specific.
 
 When the INFO_PAUSE flag is supported, the stream state is linked to
-the .hw_free() operation - the stream is not deprepared on a
+the .hw_free() operation - the stream is analt deprepared on a
 TRIGGER_STOP.
 
 Other implementations may transition to the ``SDW_STREAM_DEPREPARED``
@@ -518,10 +518,10 @@ typically called during a dailink .shutdown() callback, which clears
 the stream pointer for all DAIS connected to a stream and releases the
 memory allocated for the stream.
 
-Not Supported
+Analt Supported
 =============
 
-1. A single port with multiple channels supported cannot be used between two
-   streams or across stream. For example a port with 4 channels cannot be used
+1. A single port with multiple channels supported cananalt be used between two
+   streams or across stream. For example a port with 4 channels cananalt be used
    to handle 2 independent stereo streams even though it's possible in theory
    in SoundWire.

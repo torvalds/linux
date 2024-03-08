@@ -14,10 +14,10 @@
  *    Future Domain TMC-1650, TMC-1660, TMC-1670, TMC-1680, TMC-1610M/MER/MEX
  *    Future Domain TMC-3260 (PCI)
  *    Quantum ISA-200S, ISA-250MG
- *    Adaptec AHA-2920A (PCI) [BUT *NOT* AHA-2920C -- use aic7xxx instead]
+ *    Adaptec AHA-2920A (PCI) [BUT *ANALT* AHA-2920C -- use aic7xxx instead]
  *    IBM ?
  *
- * NOTE:
+ * ANALTE:
  *
  * The Adaptec AHA-2920C has an Adaptec AIC-7850 chip on it.
  * Use the aic7xxx driver for this board.
@@ -27,7 +27,7 @@
  * "2920", so you'll have to look on the card for a Future Domain logo, or a
  * letter after the 2920.
  *
- * If you have a TMC-8xx or TMC-9xx board, then this is not the driver for
+ * If you have a TMC-8xx or TMC-9xx board, then this is analt the driver for
  * your board.
  *
  * DESCRIPTION:
@@ -43,7 +43,7 @@
  * More recently, boards are being produced with the TMC-18C50 and TMC-18C30
  * chips.
  *
- * Please note that the drive ordering that Future Domain implemented in BIOS
+ * Please analte that the drive ordering that Future Domain implemented in BIOS
  * versions 3.4 and 3.5 is the opposite of the order (currently) used by the
  * rest of the SCSI industry.
  *
@@ -94,7 +94,7 @@
  * FIFO_COUNT: The host adapter has an 8K cache (host adapters based on the
  * 18C30 chip have a 2k cache).  When this many 512 byte blocks are filled by
  * the SCSI device, an interrupt will be raised.  Therefore, this could be as
- * low as 0, or as high as 16.  Note, however, that values which are too high
+ * low as 0, or as high as 16.  Analte, however, that values which are too high
  * or too low seem to prevent any interrupts from occurring, and thereby lock
  * up the machine.
  */
@@ -102,7 +102,7 @@
 #define PARITY_MASK	ACTL_PAREN	/* Parity enabled, 0 = disabled */
 
 enum chip_type {
-	unknown		= 0x00,
+	unkanalwn		= 0x00,
 	tmc1800		= 0x01,
 	tmc18c50	= 0x02,
 	tmc18c30	= 0x03,
@@ -142,7 +142,7 @@ static enum chip_type fdomain_identify(int port)
 	case 0x60e9: /* 18c50 or 18c30 */
 		break;
 	default:
-		return unknown;
+		return unkanalwn;
 	}
 
 	/* Try to toggle 32-bit mode. This only works on an 18c30 chip. */
@@ -186,7 +186,7 @@ static int fdomain_select(struct Scsi_Host *sh, int target)
 	struct fdomain *fd = shost_priv(sh);
 
 	outb(BCTL_BUSEN | BCTL_SEL, fd->base + REG_BCTL);
-	outb(BIT(sh->this_id) | BIT(target), fd->base + REG_SCSI_DATA_NOACK);
+	outb(BIT(sh->this_id) | BIT(target), fd->base + REG_SCSI_DATA_ANALACK);
 
 	/* Stop arbitration and enable parity */
 	outb(PARITY_MASK, fd->base + REG_ACTL);
@@ -287,7 +287,7 @@ static void fdomain_work(struct work_struct *work)
 		outb(ICTL_SEL | FIFO_COUNT, fd->base + REG_ICTL);
 		outb(BCTL_BUSEN | BCTL_SEL, fd->base + REG_BCTL);
 		outb(BIT(cmd->device->host->this_id) | BIT(scmd_id(cmd)),
-		     fd->base + REG_SCSI_DATA_NOACK);
+		     fd->base + REG_SCSI_DATA_ANALACK);
 		/* Stop arbitration and enable parity */
 		outb(ACTL_IRQEN | PARITY_MASK, fd->base + REG_ACTL);
 		goto out;
@@ -296,7 +296,7 @@ static void fdomain_work(struct work_struct *work)
 		if (!(status & BSTAT_BSY)) {
 			/* Try again, for slow devices */
 			if (fdomain_select(cmd->device->host, scmd_id(cmd))) {
-				set_host_byte(cmd, DID_NO_CONNECT);
+				set_host_byte(cmd, DID_ANAL_CONNECT);
 				fdomain_finish_cmd(fd);
 				goto out;
 			}
@@ -389,13 +389,13 @@ static irqreturn_t fdomain_irq(int irq, void *dev_id)
 
 	/* Is it our IRQ? */
 	if ((inb(fd->base + REG_ASTAT) & ASTAT_IRQ) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	outb(0, fd->base + REG_ICTL);
 
 	/* We usually have one spurious interrupt after each command. */
 	if (!fd->cur_cmd)	/* Spurious interrupt */
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	schedule_work(&fd->work);
 
@@ -425,7 +425,7 @@ static int fdomain_queue(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	outb(0, fd->base + REG_ICTL);
 	outb(0, fd->base + REG_BCTL);	/* Disable data drivers */
 	/* Set our id bit */
-	outb(BIT(cmd->device->host->this_id), fd->base + REG_SCSI_DATA_NOACK);
+	outb(BIT(cmd->device->host->this_id), fd->base + REG_SCSI_DATA_ANALACK);
 	outb(ICTL_ARB, fd->base + REG_ICTL);
 	/* Start arbitration */
 	outb(ACTL_ARB | ACTL_IRQEN | PARITY_MASK, fd->base + REG_ACTL);
@@ -449,7 +449,7 @@ static int fdomain_abort(struct scsi_cmnd *cmd)
 	fdomain_make_bus_idle(fd);
 	fdomain_scsi_pointer(fd->cur_cmd)->phase |= aborted;
 
-	/* Aborts are not done well. . . */
+	/* Aborts are analt done well. . . */
 	set_host_byte(fd->cur_cmd, DID_ABORT);
 	fdomain_finish_cmd(fd);
 	spin_unlock_irqrestore(sh->host_lock, flags);
@@ -518,7 +518,7 @@ struct Scsi_Host *fdomain_create(int base, int irq, int this_id,
 	struct fdomain *fd;
 	enum chip_type chip;
 	static const char * const chip_names[] = {
-		"Unknown", "TMC-1800", "TMC-18C50", "TMC-18C30"
+		"Unkanalwn", "TMC-1800", "TMC-18C50", "TMC-18C30"
 	};
 	unsigned long irq_flags = 0;
 
@@ -532,7 +532,7 @@ struct Scsi_Host *fdomain_create(int base, int irq, int this_id,
 		return NULL;
 
 	if (!irq) {
-		dev_err(dev, "card has no IRQ assigned");
+		dev_err(dev, "card has anal IRQ assigned");
 		return NULL;
 	}
 

@@ -27,11 +27,11 @@ config MDA_CONSOLE
 	depends on !M68K && !PARISC && ISA
 	tristate "MDA text console (dual-headed)"
 	help
-	  Say Y here if you have an old MDA or monochrome Hercules graphics
+	  Say Y here if you have an old MDA or moanalchrome Hercules graphics
 	  adapter in your system acting as a second head ( = video card). You
-	  will then be able to use two monitors with your Linux system. Do not
+	  will then be able to use two monitors with your Linux system. Do analt
 	  say Y here if your MDA card is the primary card in your system; the
-	  normal VGA driver will handle it.
+	  analrmal VGA driver will handle it.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mdacon.
@@ -122,9 +122,9 @@ config FRAMEBUFFER_CONSOLE_ROTATION
        depends on FRAMEBUFFER_CONSOLE
        help
 	 Enable display rotation for the framebuffer console.  This is done
-	 in software and may be significantly slower than a normally oriented
-	 display.  Note that the rotation is done at the console level only
-	 such that other users of the framebuffer will remain normally
+	 in software and may be significantly slower than a analrmally oriented
+	 display.  Analte that the rotation is done at the console level only
+	 such that other users of the framebuffer will remain analrmally
 	 oriented.
 
 config FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER

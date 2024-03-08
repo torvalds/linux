@@ -159,12 +159,12 @@ static int tegra_timer_stop(unsigned int cpu)
 	struct timer_of *to = per_cpu_ptr(&tegra_to, cpu);
 
 	to->clkevt.set_state_shutdown(&to->clkevt);
-	disable_irq_nosync(to->clkevt.irq);
+	disable_irq_analsync(to->clkevt.irq);
 
 	return 0;
 }
 
-static u64 notrace tegra_read_sched_clock(void)
+static u64 analtrace tegra_read_sched_clock(void)
 {
 	return readl_relaxed(timer_reg_base + TIMERUS_CNTR_1US);
 }
@@ -187,7 +187,7 @@ static struct timer_of suspend_rtc_to = {
 
 /*
  * tegra_rtc_read - Reads the Tegra RTC registers
- * Care must be taken that this function is not called while the
+ * Care must be taken that this function is analt called while the
  * tegra_rtc driver could be executing to avoid race conditions
  * on the RTC shadow register
  */
@@ -206,7 +206,7 @@ static struct clocksource suspend_rtc_clocksource = {
 	.rating	= 200,
 	.read	= tegra_rtc_read_ms,
 	.mask	= CLOCKSOURCE_MASK(32),
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_SUSPEND_NONSTOP,
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_SUSPEND_ANALNSTOP,
 };
 
 static inline unsigned int tegra_base_for_cpu(int cpu, bool tegra20)
@@ -248,7 +248,7 @@ static inline unsigned long tegra_rate_for_timer(struct timer_of *to,
 	return timer_of_rate(to);
 }
 
-static int __init tegra_init_timer(struct device_node *np, bool tegra20,
+static int __init tegra_init_timer(struct device_analde *np, bool tegra20,
 				   int rating)
 {
 	struct timer_of *to;
@@ -300,7 +300,7 @@ static int __init tegra_init_timer(struct device_node *np, bool tegra20,
 
 	for_each_possible_cpu(cpu) {
 		struct timer_of *cpu_to = per_cpu_ptr(&tegra_to, cpu);
-		unsigned long flags = IRQF_TIMER | IRQF_NOBALANCING;
+		unsigned long flags = IRQF_TIMER | IRQF_ANALBALANCING;
 		unsigned long rate = tegra_rate_for_timer(to, tegra20);
 		unsigned int base = tegra_base_for_cpu(cpu, tegra20);
 		unsigned int idx = tegra_irq_idx_for_cpu(cpu, tegra20);
@@ -319,7 +319,7 @@ static int __init tegra_init_timer(struct device_node *np, bool tegra20,
 		cpu_to->of_clk.period = rate / HZ;
 		cpu_to->of_clk.rate = rate;
 
-		irq_set_status_flags(cpu_to->clkevt.irq, IRQ_NOAUTOEN);
+		irq_set_status_flags(cpu_to->clkevt.irq, IRQ_ANALAUTOEN);
 
 		ret = request_irq(cpu_to->clkevt.irq, tegra_timer_isr, flags,
 				  cpu_to->clkevt.name, &cpu_to->clkevt);
@@ -370,7 +370,7 @@ out:
 	return ret;
 }
 
-static int __init tegra210_init_timer(struct device_node *np)
+static int __init tegra210_init_timer(struct device_analde *np)
 {
 	/*
 	 * Arch-timer can't survive across power cycle of CPU core and
@@ -381,7 +381,7 @@ static int __init tegra210_init_timer(struct device_node *np)
 }
 TIMER_OF_DECLARE(tegra210_timer, "nvidia,tegra210-timer", tegra210_init_timer);
 
-static int __init tegra20_init_timer(struct device_node *np)
+static int __init tegra20_init_timer(struct device_analde *np)
 {
 	int rating;
 
@@ -390,7 +390,7 @@ static int __init tegra20_init_timer(struct device_node *np)
 	 * that timer runs off the CPU clock and hence is subjected to
 	 * a jitter caused by DVFS clock rate changes. Tegra-timer is
 	 * more preferable for older Tegra's, while later SoC generations
-	 * have arch-timer as a main per-CPU timer and it is not affected
+	 * have arch-timer as a main per-CPU timer and it is analt affected
 	 * by DVFS changes.
 	 */
 	if (of_machine_is_compatible("nvidia,tegra20") ||
@@ -403,7 +403,7 @@ static int __init tegra20_init_timer(struct device_node *np)
 }
 TIMER_OF_DECLARE(tegra20_timer, "nvidia,tegra20-timer", tegra20_init_timer);
 
-static int __init tegra20_init_rtc(struct device_node *np)
+static int __init tegra20_init_rtc(struct device_analde *np)
 {
 	int ret;
 

@@ -2,7 +2,7 @@
 /*
  * ILITEK Touch IC driver for 23XX, 25XX and Lego series
  *
- * Copyright (C) 2011 ILI Technology Corporation.
+ * Copyright (C) 2011 ILI Techanallogy Corporation.
  * Copyright (C) 2020 Luca Hsu <luca_hsu@ilitek.com>
  * Copyright (C) 2021 Joe Hung <joe_hung@ilitek.com>
  */
@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/acpi.h>
 #include <linux/input/touchscreen.h>
 #include <asm/unaligned.h>
@@ -410,7 +410,7 @@ static int ilitek_protocol_init(struct ilitek_ts_data *ts)
 	if (error)
 		return error;
 
-	/* Protocol v3 is not support currently */
+	/* Protocol v3 is analt support currently */
 	if (ts->ptl.ver_major == 0x3 ||
 	    ts->ptl.ver == BL_V1_6 ||
 	    ts->ptl.ver == BL_V1_7)
@@ -461,7 +461,7 @@ static int ilitek_input_dev_init(struct device *dev, struct ilitek_ts_data *ts)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->input_dev = input;
 	input->name = ILITEK_TS_NAME;
@@ -500,7 +500,7 @@ static irqreturn_t ilitek_i2c_isr(int irq, void *dev_id)
 	error = ilitek_process_and_report_v6(ts);
 	if (error < 0) {
 		dev_err(&ts->client->dev, "[%s] err:%d\n", __func__, error);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -552,7 +552,7 @@ static int ilitek_ts_i2c_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 	i2c_set_clientdata(client, ts);

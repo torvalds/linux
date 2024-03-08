@@ -22,16 +22,16 @@ static struct kmem_cache *gb_message_cache;
 /* Workqueue to handle Greybus operation completions. */
 static struct workqueue_struct *gb_operation_completion_wq;
 
-/* Wait queue for synchronous cancellations. */
+/* Wait queue for synchroanalus cancellations. */
 static DECLARE_WAIT_QUEUE_HEAD(gb_operation_cancellation_queue);
 
 /*
- * Protects updates to operation->errno.
+ * Protects updates to operation->erranal.
  */
 static DEFINE_SPINLOCK(gb_operations_lock);
 
 static int gb_operation_response_send(struct gb_operation *operation,
-				      int errno);
+				      int erranal);
 
 /*
  * Increment operation active count and add to connection list unless the
@@ -72,7 +72,7 @@ static int gb_operation_get_active(struct gb_operation *operation)
 err_unlock:
 	spin_unlock_irqrestore(&connection->lock, flags);
 
-	return -ENOTCONN;
+	return -EANALTCONN;
 }
 
 /* Caller holds operation reference. */
@@ -109,18 +109,18 @@ static bool gb_operation_is_active(struct gb_operation *operation)
 /*
  * Set an operation's result.
  *
- * Initially an outgoing operation's errno value is -EBADR.
- * If no error occurs before sending the request message the only
- * valid value operation->errno can be set to is -EINPROGRESS,
+ * Initially an outgoing operation's erranal value is -EBADR.
+ * If anal error occurs before sending the request message the only
+ * valid value operation->erranal can be set to is -EINPROGRESS,
  * indicating the request has been (or rather is about to be) sent.
- * At that point nobody should be looking at the result until the
+ * At that point analbody should be looking at the result until the
  * response arrives.
  *
  * The first time the result gets set after the request has been
  * sent, that result "sticks."  That is, if two concurrent threads
  * race to set the result, the first one wins.  The return value
- * tells the caller whether its result was recorded; if not the
- * caller has nothing more to do.
+ * tells the caller whether its result was recorded; if analt the
+ * caller has analthing more to do.
  *
  * The result value -EILSEQ is reserved to signal an implementation
  * error; if it's ever observed, the code performing the request has
@@ -145,11 +145,11 @@ static bool gb_operation_result_set(struct gb_operation *operation, int result)
 		 * set at any other time.
 		 */
 		spin_lock_irqsave(&gb_operations_lock, flags);
-		prev = operation->errno;
+		prev = operation->erranal;
 		if (prev == -EBADR)
-			operation->errno = result;
+			operation->erranal = result;
 		else
-			operation->errno = -EILSEQ;
+			operation->erranal = -EILSEQ;
 		spin_unlock_irqrestore(&gb_operations_lock, flags);
 		WARN_ON(prev != -EBADR);
 
@@ -159,19 +159,19 @@ static bool gb_operation_result_set(struct gb_operation *operation, int result)
 	/*
 	 * The first result value set after a request has been sent
 	 * will be the final result of the operation.  Subsequent
-	 * attempts to set the result are ignored.
+	 * attempts to set the result are iganalred.
 	 *
-	 * Note that -EBADR is a reserved "initial state" result
+	 * Analte that -EBADR is a reserved "initial state" result
 	 * value.  Attempts to set this value result in a warning,
 	 * and the result code is set to -EILSEQ instead.
 	 */
 	if (WARN_ON(result == -EBADR))
-		result = -EILSEQ; /* Nobody should be setting -EBADR */
+		result = -EILSEQ; /* Analbody should be setting -EBADR */
 
 	spin_lock_irqsave(&gb_operations_lock, flags);
-	prev = operation->errno;
+	prev = operation->erranal;
 	if (prev == -EINPROGRESS)
-		operation->errno = result;	/* First and final result */
+		operation->erranal = result;	/* First and final result */
 	spin_unlock_irqrestore(&gb_operations_lock, flags);
 
 	return prev == -EINPROGRESS;
@@ -179,7 +179,7 @@ static bool gb_operation_result_set(struct gb_operation *operation, int result)
 
 int gb_operation_result(struct gb_operation *operation)
 {
-	int result = operation->errno;
+	int result = operation->erranal;
 
 	WARN_ON(result == -EBADR);
 	WARN_ON(result == -EINPROGRESS);
@@ -246,7 +246,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 			"%s: unexpected incoming request of type 0x%02x\n",
 			connection->name, operation->type);
 
-		status = -EPROTONOSUPPORT;
+		status = -EPROTOANALSUPPORT;
 	}
 
 	ret = gb_operation_response_send(operation, status);
@@ -266,7 +266,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
  *
  * For outgoing requests, the operation result value should have
  * been set before queueing this.  The operation callback function
- * allows the original requester to know the request has completed
+ * allows the original requester to kanalw the request has completed
  * and its result is available.
  */
 static void gb_operation_work(struct work_struct *work)
@@ -322,7 +322,7 @@ static void gb_operation_message_init(struct gb_host_device *hd,
 	/*
 	 * The type supplied for incoming message buffers will be
 	 * GB_REQUEST_TYPE_INVALID. Such buffers will be overwritten by
-	 * arriving data so there's no need to initialize the message header.
+	 * arriving data so there's anal need to initialize the message header.
 	 */
 	if (type != GB_REQUEST_TYPE_INVALID) {
 		u16 message_size = (u16)(sizeof(*header) + payload_size);
@@ -399,7 +399,7 @@ static void gb_operation_message_free(struct gb_message *message)
 
 /*
  * Map an enum gb_operation_status value (which is represented in a
- * message as a single byte) to an appropriate Linux negative errno.
+ * message as a single byte) to an appropriate Linux negative erranal.
  */
 static int gb_operation_status_map(u8 status)
 {
@@ -410,44 +410,44 @@ static int gb_operation_status_map(u8 status)
 		return -EINTR;
 	case GB_OP_TIMEOUT:
 		return -ETIMEDOUT;
-	case GB_OP_NO_MEMORY:
-		return -ENOMEM;
+	case GB_OP_ANAL_MEMORY:
+		return -EANALMEM;
 	case GB_OP_PROTOCOL_BAD:
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	case GB_OP_OVERFLOW:
 		return -EMSGSIZE;
 	case GB_OP_INVALID:
 		return -EINVAL;
 	case GB_OP_RETRY:
 		return -EAGAIN;
-	case GB_OP_NONEXISTENT:
-		return -ENODEV;
+	case GB_OP_ANALNEXISTENT:
+		return -EANALDEV;
 	case GB_OP_MALFUNCTION:
 		return -EILSEQ;
-	case GB_OP_UNKNOWN_ERROR:
+	case GB_OP_UNKANALWN_ERROR:
 	default:
 		return -EIO;
 	}
 }
 
 /*
- * Map a Linux errno value (from operation->errno) into the value
+ * Map a Linux erranal value (from operation->erranal) into the value
  * that should represent it in a response message status sent
  * over the wire.  Returns an enum gb_operation_status value (which
  * is represented in a message as a single byte).
  */
-static u8 gb_operation_errno_map(int errno)
+static u8 gb_operation_erranal_map(int erranal)
 {
-	switch (errno) {
+	switch (erranal) {
 	case 0:
 		return GB_OP_SUCCESS;
 	case -EINTR:
 		return GB_OP_INTERRUPTED;
 	case -ETIMEDOUT:
 		return GB_OP_TIMEOUT;
-	case -ENOMEM:
-		return GB_OP_NO_MEMORY;
-	case -EPROTONOSUPPORT:
+	case -EANALMEM:
+		return GB_OP_ANAL_MEMORY;
+	case -EPROTOANALSUPPORT:
 		return GB_OP_PROTOCOL_BAD;
 	case -EMSGSIZE:
 		return GB_OP_OVERFLOW;	/* Could be underflow too */
@@ -457,11 +457,11 @@ static u8 gb_operation_errno_map(int errno)
 		return GB_OP_RETRY;
 	case -EILSEQ:
 		return GB_OP_MALFUNCTION;
-	case -ENODEV:
-		return GB_OP_NONEXISTENT;
+	case -EANALDEV:
+		return GB_OP_ANALNEXISTENT;
 	case -EIO:
 	default:
-		return GB_OP_UNKNOWN_ERROR;
+		return GB_OP_UNKANALWN_ERROR;
 	}
 }
 
@@ -481,7 +481,7 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 
 	/*
 	 * Size and type get initialized when the message is
-	 * allocated.  The errno will be set before sending.  All
+	 * allocated.  The erranal will be set before sending.  All
 	 * that's left is the operation id, which we copy from the
 	 * request message header (as-is, in little-endian order).
 	 */
@@ -495,7 +495,7 @@ EXPORT_SYMBOL_GPL(gb_operation_response_alloc);
 
 /*
  * Create a Greybus operation to be sent over the given connection.
- * The request buffer will be big enough for a payload of the given
+ * The request buffer will be big eanalugh for a payload of the given
  * size.
  *
  * For outgoing requests, the request message's header will be
@@ -503,12 +503,12 @@ EXPORT_SYMBOL_GPL(gb_operation_response_alloc);
  * Outgoing operations must also specify the response buffer size,
  * which must be sufficient to hold all expected response data.  The
  * response message header will eventually be overwritten, so there's
- * no need to initialize it here.
+ * anal need to initialize it here.
  *
  * Request messages for incoming operations can arrive in interrupt
  * context, so they must be allocated with GFP_ATOMIC.  In this case
  * the request buffer will be immediately overwritten, so there is
- * no need to initialize the message header.  Responsibility for
+ * anal need to initialize the message header.  Responsibility for
  * allocating a response buffer lies with the incoming request
  * handler for a protocol.  So we don't allocate that here.
  *
@@ -546,7 +546,7 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 
 	operation->flags = op_flags;
 	operation->type = type;
-	operation->errno = -EBADR;  /* Initial value--means "never set" */
+	operation->erranal = -EBADR;  /* Initial value--means "never set" */
 
 	INIT_WORK(&operation->work, gb_operation_work);
 	init_completion(&operation->completion);
@@ -567,7 +567,7 @@ err_cache:
  * Create a new operation associated with the given connection.  The
  * request and response sizes provided are the number of bytes
  * required to hold the request/response payload only.  Both of
- * these are allowed to be 0.  Note that 0x00 is reserved as an
+ * these are allowed to be 0.  Analte that 0x00 is reserved as an
  * invalid operation type for all protocols, and this is enforced
  * here.
  */
@@ -616,7 +616,7 @@ gb_operation_create_core(struct gb_connection *connection,
 	return operation;
 }
 
-/* Do not export this function. */
+/* Do analt export this function. */
 
 size_t gb_operation_get_payload_size_max(struct gb_connection *connection)
 {
@@ -704,7 +704,7 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
  * gb_operation_request_send() - send an operation request message
  * @operation:	the operation to initiate
  * @callback:	the operation completion callback
- * @timeout:	operation timeout in milliseconds, or zero for no timeout
+ * @timeout:	operation timeout in milliseconds, or zero for anal timeout
  * @gfp:	the memory flags to use for any allocations
  *
  * The caller has filled in any payload so the request message is ready to go.
@@ -715,7 +715,7 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
  * desired.
  *
  * Return: 0 if the request was successfully queued in the host-driver queues,
- * or a negative errno.
+ * or a negative erranal.
  */
 int gb_operation_request_send(struct gb_operation *operation,
 			      gb_operation_callback callback,
@@ -735,7 +735,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 
 	/*
 	 * Record the callback function, which is executed in
-	 * non-atomic (workqueue) context when the final result
+	 * analn-atomic (workqueue) context when the final result
 	 * of an operation has been set.
 	 */
 	operation->callback = callback;
@@ -786,7 +786,7 @@ err_put:
 EXPORT_SYMBOL_GPL(gb_operation_request_send);
 
 /*
- * Send a synchronous operation.  This function is expected to
+ * Send a synchroanalus operation.  This function is expected to
  * block, returning only when the response has arrived, (or when an
  * error is detected.  The return value is the result of the
  * operation.
@@ -812,16 +812,16 @@ int gb_operation_request_send_sync_timeout(struct gb_operation *operation,
 EXPORT_SYMBOL_GPL(gb_operation_request_send_sync_timeout);
 
 /*
- * Send a response for an incoming operation request.  A non-zero
- * errno indicates a failed operation.
+ * Send a response for an incoming operation request.  A analn-zero
+ * erranal indicates a failed operation.
  *
  * If there is any response payload, the incoming request handler is
  * responsible for allocating the response message.  Otherwise the
- * it can simply supply the result errno; this function will
+ * it can simply supply the result erranal; this function will
  * allocate the response message if necessary.
  */
 static int gb_operation_response_send(struct gb_operation *operation,
-				      int errno)
+				      int erranal)
 {
 	struct gb_connection *connection = operation->connection;
 	int ret;
@@ -829,16 +829,16 @@ static int gb_operation_response_send(struct gb_operation *operation,
 	if (!operation->response &&
 	    !gb_operation_is_unidirectional(operation)) {
 		if (!gb_operation_response_alloc(operation, 0, GFP_KERNEL))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Record the result */
-	if (!gb_operation_result_set(operation, errno)) {
+	if (!gb_operation_result_set(operation, erranal)) {
 		dev_err(&connection->hd->dev, "request result already set\n");
 		return -EIO;	/* Shouldn't happen */
 	}
 
-	/* Sender of request does not care about response. */
+	/* Sender of request does analt care about response. */
 	if (gb_operation_is_unidirectional(operation))
 		return 0;
 
@@ -849,7 +849,7 @@ static int gb_operation_response_send(struct gb_operation *operation,
 		goto err_put;
 
 	/* Fill in the response header and send it */
-	operation->response->header->result = gb_operation_errno_map(errno);
+	operation->response->header->result = gb_operation_erranal_map(erranal);
 
 	ret = gb_message_send(operation->response, GFP_KERNEL);
 	if (ret)
@@ -879,8 +879,8 @@ void greybus_message_sent(struct gb_host_device *hd,
 	 * reference to the operation.  If an error occurred, report
 	 * it.
 	 *
-	 * For requests, if there's no error and the operation in not
-	 * unidirectional, there's nothing more to do until the response
+	 * For requests, if there's anal error and the operation in analt
+	 * unidirectional, there's analthing more to do until the response
 	 * arrives. If an error occurred attempting to send it, or if the
 	 * operation is unidrectional, record the result of the operation and
 	 * schedule its completion.
@@ -962,7 +962,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	struct gb_message *message;
 	size_t message_size;
 	u16 operation_id;
-	int errno;
+	int erranal;
 
 	operation_id = le16_to_cpu(header->operation_id);
 
@@ -981,16 +981,16 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		return;
 	}
 
-	errno = gb_operation_status_map(header->result);
+	erranal = gb_operation_status_map(header->result);
 	message = operation->response;
 	message_size = sizeof(*header) + message->payload_size;
-	if (!errno && size > message_size) {
+	if (!erranal && size > message_size) {
 		dev_err_ratelimited(&connection->hd->dev,
 				    "%s: malformed response 0x%02x received (%zu > %zu)\n",
 				    connection->name, header->type,
 				    size, message_size);
-		errno = -EMSGSIZE;
-	} else if (!errno && size < message_size) {
+		erranal = -EMSGSIZE;
+	} else if (!erranal && size < message_size) {
 		if (gb_operation_short_response_allowed(operation)) {
 			message->payload_size = size - sizeof(*header);
 		} else {
@@ -998,16 +998,16 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 					    "%s: short response 0x%02x received (%zu < %zu)\n",
 					    connection->name, header->type,
 					    size, message_size);
-			errno = -EMSGSIZE;
+			erranal = -EMSGSIZE;
 		}
 	}
 
-	/* We must ignore the payload if a bad status is returned */
-	if (errno)
+	/* We must iganalre the payload if a bad status is returned */
+	if (erranal)
 		size = sizeof(*header);
 
 	/* The rest will be handled in work queue context */
-	if (gb_operation_result_set(operation, errno)) {
+	if (gb_operation_result_set(operation, erranal)) {
 		memcpy(message->buffer, data, size);
 
 		trace_gb_message_recv_response(message);
@@ -1065,15 +1065,15 @@ void gb_connection_recv(struct gb_connection *connection,
 }
 
 /*
- * Cancel an outgoing operation synchronously, and record the given error to
+ * Cancel an outgoing operation synchroanalusly, and record the given error to
  * indicate why.
  */
-void gb_operation_cancel(struct gb_operation *operation, int errno)
+void gb_operation_cancel(struct gb_operation *operation, int erranal)
 {
 	if (WARN_ON(gb_operation_is_incoming(operation)))
 		return;
 
-	if (gb_operation_result_set(operation, errno)) {
+	if (gb_operation_result_set(operation, erranal)) {
 		gb_message_cancel(operation->request);
 		queue_work(gb_operation_completion_wq, &operation->work);
 	}
@@ -1087,10 +1087,10 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 EXPORT_SYMBOL_GPL(gb_operation_cancel);
 
 /*
- * Cancel an incoming operation synchronously. Called during connection tear
+ * Cancel an incoming operation synchroanalusly. Called during connection tear
  * down.
  */
-void gb_operation_cancel_incoming(struct gb_operation *operation, int errno)
+void gb_operation_cancel_incoming(struct gb_operation *operation, int erranal)
 {
 	if (WARN_ON(!gb_operation_is_incoming(operation)))
 		return;
@@ -1101,7 +1101,7 @@ void gb_operation_cancel_incoming(struct gb_operation *operation, int errno)
 		 * before cancelling it.
 		 */
 		flush_work(&operation->work);
-		if (!gb_operation_result_set(operation, errno))
+		if (!gb_operation_result_set(operation, erranal))
 			gb_message_cancel(operation->response);
 	}
 	trace_gb_message_cancel_incoming(operation->response);
@@ -1113,7 +1113,7 @@ void gb_operation_cancel_incoming(struct gb_operation *operation, int errno)
 }
 
 /**
- * gb_operation_sync_timeout() - implement a "simple" synchronous operation
+ * gb_operation_sync_timeout() - implement a "simple" synchroanalus operation
  * @connection: the Greybus connection to send this to
  * @type: the type of operation to send
  * @request: pointer to a memory buffer to copy the request from
@@ -1122,14 +1122,14 @@ void gb_operation_cancel_incoming(struct gb_operation *operation, int errno)
  * @response_size: the size of @response.
  * @timeout: operation timeout in milliseconds
  *
- * This function implements a simple synchronous Greybus operation.  It sends
+ * This function implements a simple synchroanalus Greybus operation.  It sends
  * the provided operation request and waits (sleeps) until the corresponding
  * operation response message has been successfully received, or an error
  * occurs.  @request and @response are buffers to hold the request and response
- * data respectively, and if they are not NULL, their size must be specified in
+ * data respectively, and if they are analt NULL, their size must be specified in
  * @request_size and @response_size.
  *
- * If a response payload is to come back, and @response is not NULL,
+ * If a response payload is to come back, and @response is analt NULL,
  * @response_size number of bytes will be copied into @response if the operation
  * is successful.
  *
@@ -1151,7 +1151,7 @@ int gb_operation_sync_timeout(struct gb_connection *connection, int type,
 					request_size, response_size,
 					GFP_KERNEL);
 	if (!operation)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (request_size)
 		memcpy(operation->request->payload, request, request_size);
@@ -1159,7 +1159,7 @@ int gb_operation_sync_timeout(struct gb_connection *connection, int type,
 	ret = gb_operation_request_send_sync_timeout(operation, timeout);
 	if (ret) {
 		dev_err(&connection->hd->dev,
-			"%s: synchronous operation id 0x%04x of type 0x%02x failed: %d\n",
+			"%s: synchroanalus operation id 0x%04x of type 0x%02x failed: %d\n",
 			connection->name, operation->id, type, ret);
 	} else {
 		if (response_size) {
@@ -1183,9 +1183,9 @@ EXPORT_SYMBOL_GPL(gb_operation_sync_timeout);
  * @timeout:		send timeout in milliseconds
  *
  * Initiate a unidirectional operation by sending a request message and
- * waiting for it to be acknowledged as sent by the host device.
+ * waiting for it to be ackanalwledged as sent by the host device.
  *
- * Note that successful send of a unidirectional operation does not imply that
+ * Analte that successful send of a unidirectional operation does analt imply that
  * the request as actually reached the remote end of the connection.
  */
 int gb_operation_unidirectional_timeout(struct gb_connection *connection,
@@ -1204,7 +1204,7 @@ int gb_operation_unidirectional_timeout(struct gb_connection *connection,
 					      GB_OPERATION_FLAG_UNIDIRECTIONAL,
 					      GFP_KERNEL);
 	if (!operation)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (request_size)
 		memcpy(operation->request->payload, request, request_size);
@@ -1228,7 +1228,7 @@ int __init gb_operation_init(void)
 					     sizeof(struct gb_message), 0, 0,
 					     NULL);
 	if (!gb_message_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gb_operation_cache = kmem_cache_create("gb_operation_cache",
 					       sizeof(struct gb_operation), 0,
@@ -1250,7 +1250,7 @@ err_destroy_message_cache:
 	kmem_cache_destroy(gb_message_cache);
 	gb_message_cache = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void gb_operation_exit(void)

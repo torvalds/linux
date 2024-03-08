@@ -17,101 +17,101 @@ static void pe_test_uints(struct kunit *test)
 		{ }
 	};
 
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	u8 val_u8, array_u8[2];
 	u16 val_u16, array_u16[2];
 	u32 val_u32, array_u32[2];
 	u64 val_u64, array_u64[2];
 	int error;
 
-	node = fwnode_create_software_node(entries, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, node);
+	analde = fwanalde_create_software_analde(entries, NULL);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, analde);
 
-	error = fwnode_property_count_u8(node, "prop-u8");
+	error = fwanalde_property_count_u8(analde, "prop-u8");
 	KUNIT_EXPECT_EQ(test, error, 1);
 
-	error = fwnode_property_read_u8(node, "prop-u8", &val_u8);
+	error = fwanalde_property_read_u8(analde, "prop-u8", &val_u8);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, val_u8, 8);
 
-	error = fwnode_property_read_u8_array(node, "prop-u8", array_u8, 1);
+	error = fwanalde_property_read_u8_array(analde, "prop-u8", array_u8, 1);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u8[0], 8);
 
-	error = fwnode_property_read_u8_array(node, "prop-u8", array_u8, 2);
+	error = fwanalde_property_read_u8_array(analde, "prop-u8", array_u8, 2);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u8(node, "no-prop-u8", &val_u8);
+	error = fwanalde_property_read_u8(analde, "anal-prop-u8", &val_u8);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u8_array(node, "no-prop-u8", array_u8, 1);
+	error = fwanalde_property_read_u8_array(analde, "anal-prop-u8", array_u8, 1);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u16(node, "prop-u16", &val_u16);
+	error = fwanalde_property_read_u16(analde, "prop-u16", &val_u16);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, val_u16, 16);
 
-	error = fwnode_property_count_u16(node, "prop-u16");
+	error = fwanalde_property_count_u16(analde, "prop-u16");
 	KUNIT_EXPECT_EQ(test, error, 1);
 
-	error = fwnode_property_read_u16_array(node, "prop-u16", array_u16, 1);
+	error = fwanalde_property_read_u16_array(analde, "prop-u16", array_u16, 1);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u16[0], 16);
 
-	error = fwnode_property_read_u16_array(node, "prop-u16", array_u16, 2);
+	error = fwanalde_property_read_u16_array(analde, "prop-u16", array_u16, 2);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u16(node, "no-prop-u16", &val_u16);
+	error = fwanalde_property_read_u16(analde, "anal-prop-u16", &val_u16);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u16_array(node, "no-prop-u16", array_u16, 1);
+	error = fwanalde_property_read_u16_array(analde, "anal-prop-u16", array_u16, 1);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u32(node, "prop-u32", &val_u32);
+	error = fwanalde_property_read_u32(analde, "prop-u32", &val_u32);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, val_u32, 32);
 
-	error = fwnode_property_count_u32(node, "prop-u32");
+	error = fwanalde_property_count_u32(analde, "prop-u32");
 	KUNIT_EXPECT_EQ(test, error, 1);
 
-	error = fwnode_property_read_u32_array(node, "prop-u32", array_u32, 1);
+	error = fwanalde_property_read_u32_array(analde, "prop-u32", array_u32, 1);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u32[0], 32);
 
-	error = fwnode_property_read_u32_array(node, "prop-u32", array_u32, 2);
+	error = fwanalde_property_read_u32_array(analde, "prop-u32", array_u32, 2);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u32(node, "no-prop-u32", &val_u32);
+	error = fwanalde_property_read_u32(analde, "anal-prop-u32", &val_u32);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u32_array(node, "no-prop-u32", array_u32, 1);
+	error = fwanalde_property_read_u32_array(analde, "anal-prop-u32", array_u32, 1);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u64(node, "prop-u64", &val_u64);
+	error = fwanalde_property_read_u64(analde, "prop-u64", &val_u64);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, val_u64, 64);
 
-	error = fwnode_property_count_u64(node, "prop-u64");
+	error = fwanalde_property_count_u64(analde, "prop-u64");
 	KUNIT_EXPECT_EQ(test, error, 1);
 
-	error = fwnode_property_read_u64_array(node, "prop-u64", array_u64, 1);
+	error = fwanalde_property_read_u64_array(analde, "prop-u64", array_u64, 1);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u64[0], 64);
 
-	error = fwnode_property_read_u64_array(node, "prop-u64", array_u64, 2);
+	error = fwanalde_property_read_u64_array(analde, "prop-u64", array_u64, 2);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u64(node, "no-prop-u64", &val_u64);
+	error = fwanalde_property_read_u64(analde, "anal-prop-u64", &val_u64);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u64_array(node, "no-prop-u64", array_u64, 1);
+	error = fwanalde_property_read_u64_array(analde, "anal-prop-u64", array_u64, 1);
 	KUNIT_EXPECT_NE(test, error, 0);
 
 	/* Count 64-bit values as 16-bit */
-	error = fwnode_property_count_u16(node, "prop-u64");
+	error = fwanalde_property_count_u16(analde, "prop-u64");
 	KUNIT_EXPECT_EQ(test, error, 4);
 
-	fwnode_remove_software_node(node);
+	fwanalde_remove_software_analde(analde);
 }
 
 static void pe_test_uint_arrays(struct kunit *test)
@@ -128,125 +128,125 @@ static void pe_test_uint_arrays(struct kunit *test)
 		{ }
 	};
 
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	u8 val_u8, array_u8[32];
 	u16 val_u16, array_u16[32];
 	u32 val_u32, array_u32[32];
 	u64 val_u64, array_u64[32];
 	int error;
 
-	node = fwnode_create_software_node(entries, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, node);
+	analde = fwanalde_create_software_analde(entries, NULL);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, analde);
 
-	error = fwnode_property_read_u8(node, "prop-u8", &val_u8);
+	error = fwanalde_property_read_u8(analde, "prop-u8", &val_u8);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, val_u8, 8);
 
-	error = fwnode_property_count_u8(node, "prop-u8");
+	error = fwanalde_property_count_u8(analde, "prop-u8");
 	KUNIT_EXPECT_EQ(test, error, 10);
 
-	error = fwnode_property_read_u8_array(node, "prop-u8", array_u8, 1);
+	error = fwanalde_property_read_u8_array(analde, "prop-u8", array_u8, 1);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u8[0], 8);
 
-	error = fwnode_property_read_u8_array(node, "prop-u8", array_u8, 2);
+	error = fwanalde_property_read_u8_array(analde, "prop-u8", array_u8, 2);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u8[0], 8);
 	KUNIT_EXPECT_EQ(test, array_u8[1], 9);
 
-	error = fwnode_property_read_u8_array(node, "prop-u8", array_u8, 17);
+	error = fwanalde_property_read_u8_array(analde, "prop-u8", array_u8, 17);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u8(node, "no-prop-u8", &val_u8);
+	error = fwanalde_property_read_u8(analde, "anal-prop-u8", &val_u8);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u8_array(node, "no-prop-u8", array_u8, 1);
+	error = fwanalde_property_read_u8_array(analde, "anal-prop-u8", array_u8, 1);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u16(node, "prop-u16", &val_u16);
+	error = fwanalde_property_read_u16(analde, "prop-u16", &val_u16);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, val_u16, 16);
 
-	error = fwnode_property_count_u16(node, "prop-u16");
+	error = fwanalde_property_count_u16(analde, "prop-u16");
 	KUNIT_EXPECT_EQ(test, error, 10);
 
-	error = fwnode_property_read_u16_array(node, "prop-u16", array_u16, 1);
+	error = fwanalde_property_read_u16_array(analde, "prop-u16", array_u16, 1);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u16[0], 16);
 
-	error = fwnode_property_read_u16_array(node, "prop-u16", array_u16, 2);
+	error = fwanalde_property_read_u16_array(analde, "prop-u16", array_u16, 2);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u16[0], 16);
 	KUNIT_EXPECT_EQ(test, array_u16[1], 17);
 
-	error = fwnode_property_read_u16_array(node, "prop-u16", array_u16, 17);
+	error = fwanalde_property_read_u16_array(analde, "prop-u16", array_u16, 17);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u16(node, "no-prop-u16", &val_u16);
+	error = fwanalde_property_read_u16(analde, "anal-prop-u16", &val_u16);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u16_array(node, "no-prop-u16", array_u16, 1);
+	error = fwanalde_property_read_u16_array(analde, "anal-prop-u16", array_u16, 1);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u32(node, "prop-u32", &val_u32);
+	error = fwanalde_property_read_u32(analde, "prop-u32", &val_u32);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, val_u32, 32);
 
-	error = fwnode_property_count_u32(node, "prop-u32");
+	error = fwanalde_property_count_u32(analde, "prop-u32");
 	KUNIT_EXPECT_EQ(test, error, 10);
 
-	error = fwnode_property_read_u32_array(node, "prop-u32", array_u32, 1);
+	error = fwanalde_property_read_u32_array(analde, "prop-u32", array_u32, 1);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u32[0], 32);
 
-	error = fwnode_property_read_u32_array(node, "prop-u32", array_u32, 2);
+	error = fwanalde_property_read_u32_array(analde, "prop-u32", array_u32, 2);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u32[0], 32);
 	KUNIT_EXPECT_EQ(test, array_u32[1], 33);
 
-	error = fwnode_property_read_u32_array(node, "prop-u32", array_u32, 17);
+	error = fwanalde_property_read_u32_array(analde, "prop-u32", array_u32, 17);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u32(node, "no-prop-u32", &val_u32);
+	error = fwanalde_property_read_u32(analde, "anal-prop-u32", &val_u32);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u32_array(node, "no-prop-u32", array_u32, 1);
+	error = fwanalde_property_read_u32_array(analde, "anal-prop-u32", array_u32, 1);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u64(node, "prop-u64", &val_u64);
+	error = fwanalde_property_read_u64(analde, "prop-u64", &val_u64);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, val_u64, 64);
 
-	error = fwnode_property_count_u64(node, "prop-u64");
+	error = fwanalde_property_count_u64(analde, "prop-u64");
 	KUNIT_EXPECT_EQ(test, error, 10);
 
-	error = fwnode_property_read_u64_array(node, "prop-u64", array_u64, 1);
+	error = fwanalde_property_read_u64_array(analde, "prop-u64", array_u64, 1);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u64[0], 64);
 
-	error = fwnode_property_read_u64_array(node, "prop-u64", array_u64, 2);
+	error = fwanalde_property_read_u64_array(analde, "prop-u64", array_u64, 2);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_EQ(test, array_u64[0], 64);
 	KUNIT_EXPECT_EQ(test, array_u64[1], 65);
 
-	error = fwnode_property_read_u64_array(node, "prop-u64", array_u64, 17);
+	error = fwanalde_property_read_u64_array(analde, "prop-u64", array_u64, 17);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u64(node, "no-prop-u64", &val_u64);
+	error = fwanalde_property_read_u64(analde, "anal-prop-u64", &val_u64);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_u64_array(node, "no-prop-u64", array_u64, 1);
+	error = fwanalde_property_read_u64_array(analde, "anal-prop-u64", array_u64, 1);
 	KUNIT_EXPECT_NE(test, error, 0);
 
 	/* Count 64-bit values as 16-bit */
-	error = fwnode_property_count_u16(node, "prop-u64");
+	error = fwanalde_property_count_u16(analde, "prop-u64");
 	KUNIT_EXPECT_EQ(test, error, 40);
 
 	/* Other way around */
-	error = fwnode_property_count_u64(node, "prop-u16");
+	error = fwanalde_property_count_u64(analde, "prop-u16");
 	KUNIT_EXPECT_EQ(test, error, 2);
 
-	fwnode_remove_software_node(node);
+	fwanalde_remove_software_analde(analde);
 }
 
 static void pe_test_strings(struct kunit *test)
@@ -263,62 +263,62 @@ static void pe_test_strings(struct kunit *test)
 		{ }
 	};
 
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	const char *str;
 	const char *strs[10];
 	int error;
 
-	node = fwnode_create_software_node(entries, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, node);
+	analde = fwanalde_create_software_analde(entries, NULL);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, analde);
 
-	error = fwnode_property_read_string(node, "str", &str);
+	error = fwanalde_property_read_string(analde, "str", &str);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_STREQ(test, str, "single");
 
-	error = fwnode_property_string_array_count(node, "str");
+	error = fwanalde_property_string_array_count(analde, "str");
 	KUNIT_EXPECT_EQ(test, error, 1);
 
-	error = fwnode_property_read_string_array(node, "str", strs, 1);
+	error = fwanalde_property_read_string_array(analde, "str", strs, 1);
 	KUNIT_EXPECT_EQ(test, error, 1);
 	KUNIT_EXPECT_STREQ(test, strs[0], "single");
 
 	/* asking for more data returns what we have */
-	error = fwnode_property_read_string_array(node, "str", strs, 2);
+	error = fwanalde_property_read_string_array(analde, "str", strs, 2);
 	KUNIT_EXPECT_EQ(test, error, 1);
 	KUNIT_EXPECT_STREQ(test, strs[0], "single");
 
-	error = fwnode_property_read_string(node, "no-str", &str);
+	error = fwanalde_property_read_string(analde, "anal-str", &str);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_read_string_array(node, "no-str", strs, 1);
+	error = fwanalde_property_read_string_array(analde, "anal-str", strs, 1);
 	KUNIT_EXPECT_LT(test, error, 0);
 
-	error = fwnode_property_read_string(node, "empty", &str);
+	error = fwanalde_property_read_string(analde, "empty", &str);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_STREQ(test, str, "");
 
-	error = fwnode_property_string_array_count(node, "strs");
+	error = fwanalde_property_string_array_count(analde, "strs");
 	KUNIT_EXPECT_EQ(test, error, 2);
 
-	error = fwnode_property_read_string_array(node, "strs", strs, 3);
+	error = fwanalde_property_read_string_array(analde, "strs", strs, 3);
 	KUNIT_EXPECT_EQ(test, error, 2);
 	KUNIT_EXPECT_STREQ(test, strs[0], "string-a");
 	KUNIT_EXPECT_STREQ(test, strs[1], "string-b");
 
-	error = fwnode_property_read_string_array(node, "strs", strs, 1);
+	error = fwanalde_property_read_string_array(analde, "strs", strs, 1);
 	KUNIT_EXPECT_EQ(test, error, 1);
 	KUNIT_EXPECT_STREQ(test, strs[0], "string-a");
 
 	/* NULL argument -> returns size */
-	error = fwnode_property_read_string_array(node, "strs", NULL, 0);
+	error = fwanalde_property_read_string_array(analde, "strs", NULL, 0);
 	KUNIT_EXPECT_EQ(test, error, 2);
 
 	/* accessing array as single value */
-	error = fwnode_property_read_string(node, "strs", &str);
+	error = fwanalde_property_read_string(analde, "strs", &str);
 	KUNIT_EXPECT_EQ(test, error, 0);
 	KUNIT_EXPECT_STREQ(test, str, "string-a");
 
-	fwnode_remove_software_node(node);
+	fwanalde_remove_software_analde(analde);
 }
 
 static void pe_test_bool(struct kunit *test)
@@ -328,15 +328,15 @@ static void pe_test_bool(struct kunit *test)
 		{ }
 	};
 
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 
-	node = fwnode_create_software_node(entries, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, node);
+	analde = fwanalde_create_software_analde(entries, NULL);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, analde);
 
-	KUNIT_EXPECT_TRUE(test, fwnode_property_read_bool(node, "prop"));
-	KUNIT_EXPECT_FALSE(test, fwnode_property_read_bool(node, "not-prop"));
+	KUNIT_EXPECT_TRUE(test, fwanalde_property_read_bool(analde, "prop"));
+	KUNIT_EXPECT_FALSE(test, fwanalde_property_read_bool(analde, "analt-prop"));
 
-	fwnode_remove_software_node(node);
+	fwanalde_remove_software_analde(analde);
 }
 
 /* Verifies that small U8 array is stored inline when property is copied */
@@ -354,7 +354,7 @@ static void pe_test_move_inline_u8(struct kunit *test)
 	const u8 *data_ptr;
 
 	copy = property_entries_dup(entries);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, copy);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, copy);
 
 	KUNIT_EXPECT_TRUE(test, copy[0].is_inline);
 	data_ptr = (u8 *)&copy[0].value;
@@ -386,7 +386,7 @@ static void pe_test_move_inline_str(struct kunit *test)
 	const char * const *data_ptr;
 
 	copy = property_entries_dup(entries);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, copy);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, copy);
 
 	KUNIT_EXPECT_TRUE(test, copy[0].is_inline);
 	KUNIT_EXPECT_STREQ(test, copy[0].value.str[0], "a");
@@ -405,88 +405,88 @@ static void pe_test_move_inline_str(struct kunit *test)
 /* Handling of reference properties */
 static void pe_test_reference(struct kunit *test)
 {
-	static const struct software_node node1 = { .name = "1" };
-	static const struct software_node node2 = { .name = "2" };
-	static const struct software_node *group[] = { &node1, &node2, NULL };
+	static const struct software_analde analde1 = { .name = "1" };
+	static const struct software_analde analde2 = { .name = "2" };
+	static const struct software_analde *group[] = { &analde1, &analde2, NULL };
 
-	static const struct software_node_ref_args refs[] = {
-		SOFTWARE_NODE_REFERENCE(&node1),
-		SOFTWARE_NODE_REFERENCE(&node2, 3, 4),
+	static const struct software_analde_ref_args refs[] = {
+		SOFTWARE_ANALDE_REFERENCE(&analde1),
+		SOFTWARE_ANALDE_REFERENCE(&analde2, 3, 4),
 	};
 
 	const struct property_entry entries[] = {
-		PROPERTY_ENTRY_REF("ref-1", &node1),
-		PROPERTY_ENTRY_REF("ref-2", &node2, 1, 2),
+		PROPERTY_ENTRY_REF("ref-1", &analde1),
+		PROPERTY_ENTRY_REF("ref-2", &analde2, 1, 2),
 		PROPERTY_ENTRY_REF_ARRAY("ref-3", refs),
 		{ }
 	};
 
-	struct fwnode_handle *node;
-	struct fwnode_reference_args ref;
+	struct fwanalde_handle *analde;
+	struct fwanalde_reference_args ref;
 	int error;
 
-	error = software_node_register_node_group(group);
+	error = software_analde_register_analde_group(group);
 	KUNIT_ASSERT_EQ(test, error, 0);
 
-	node = fwnode_create_software_node(entries, NULL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, node);
+	analde = fwanalde_create_software_analde(entries, NULL);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, analde);
 
-	error = fwnode_property_get_reference_args(node, "ref-1", NULL,
+	error = fwanalde_property_get_reference_args(analde, "ref-1", NULL,
 						   0, 0, &ref);
 	KUNIT_ASSERT_EQ(test, error, 0);
-	KUNIT_EXPECT_PTR_EQ(test, to_software_node(ref.fwnode), &node1);
+	KUNIT_EXPECT_PTR_EQ(test, to_software_analde(ref.fwanalde), &analde1);
 	KUNIT_EXPECT_EQ(test, ref.nargs, 0U);
 
 	/* wrong index */
-	error = fwnode_property_get_reference_args(node, "ref-1", NULL,
+	error = fwanalde_property_get_reference_args(analde, "ref-1", NULL,
 						   0, 1, &ref);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	error = fwnode_property_get_reference_args(node, "ref-2", NULL,
+	error = fwanalde_property_get_reference_args(analde, "ref-2", NULL,
 						   1, 0, &ref);
 	KUNIT_ASSERT_EQ(test, error, 0);
-	KUNIT_EXPECT_PTR_EQ(test, to_software_node(ref.fwnode), &node2);
+	KUNIT_EXPECT_PTR_EQ(test, to_software_analde(ref.fwanalde), &analde2);
 	KUNIT_EXPECT_EQ(test, ref.nargs, 1U);
 	KUNIT_EXPECT_EQ(test, ref.args[0], 1LLU);
 
 	/* asking for more args, padded with zero data */
-	error = fwnode_property_get_reference_args(node, "ref-2", NULL,
+	error = fwanalde_property_get_reference_args(analde, "ref-2", NULL,
 						   3, 0, &ref);
 	KUNIT_ASSERT_EQ(test, error, 0);
-	KUNIT_EXPECT_PTR_EQ(test, to_software_node(ref.fwnode), &node2);
+	KUNIT_EXPECT_PTR_EQ(test, to_software_analde(ref.fwanalde), &analde2);
 	KUNIT_EXPECT_EQ(test, ref.nargs, 3U);
 	KUNIT_EXPECT_EQ(test, ref.args[0], 1LLU);
 	KUNIT_EXPECT_EQ(test, ref.args[1], 2LLU);
 	KUNIT_EXPECT_EQ(test, ref.args[2], 0LLU);
 
 	/* wrong index */
-	error = fwnode_property_get_reference_args(node, "ref-2", NULL,
+	error = fwanalde_property_get_reference_args(analde, "ref-2", NULL,
 						   2, 1, &ref);
 	KUNIT_EXPECT_NE(test, error, 0);
 
 	/* array of references */
-	error = fwnode_property_get_reference_args(node, "ref-3", NULL,
+	error = fwanalde_property_get_reference_args(analde, "ref-3", NULL,
 						   0, 0, &ref);
 	KUNIT_ASSERT_EQ(test, error, 0);
-	KUNIT_EXPECT_PTR_EQ(test, to_software_node(ref.fwnode), &node1);
+	KUNIT_EXPECT_PTR_EQ(test, to_software_analde(ref.fwanalde), &analde1);
 	KUNIT_EXPECT_EQ(test, ref.nargs, 0U);
 
 	/* second reference in the array */
-	error = fwnode_property_get_reference_args(node, "ref-3", NULL,
+	error = fwanalde_property_get_reference_args(analde, "ref-3", NULL,
 						   2, 1, &ref);
 	KUNIT_ASSERT_EQ(test, error, 0);
-	KUNIT_EXPECT_PTR_EQ(test, to_software_node(ref.fwnode), &node2);
+	KUNIT_EXPECT_PTR_EQ(test, to_software_analde(ref.fwanalde), &analde2);
 	KUNIT_EXPECT_EQ(test, ref.nargs, 2U);
 	KUNIT_EXPECT_EQ(test, ref.args[0], 3LLU);
 	KUNIT_EXPECT_EQ(test, ref.args[1], 4LLU);
 
 	/* wrong index */
-	error = fwnode_property_get_reference_args(node, "ref-1", NULL,
+	error = fwanalde_property_get_reference_args(analde, "ref-1", NULL,
 						   0, 2, &ref);
 	KUNIT_EXPECT_NE(test, error, 0);
 
-	fwnode_remove_software_node(node);
-	software_node_unregister_node_group(group);
+	fwanalde_remove_software_analde(analde);
+	software_analde_unregister_analde_group(group);
 }
 
 static struct kunit_case property_entry_test_cases[] = {

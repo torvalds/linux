@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,7 +48,7 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 		ring = radeon_copy_blit_ring_index(rdev);
 		break;
 	default:
-		DRM_ERROR("Unknown copy method\n");
+		DRM_ERROR("Unkanalwn copy method\n");
 		return;
 	}
 
@@ -470,7 +470,7 @@ static void radeon_test_ring_sync2(struct radeon_device *rdev,
 	}
 
 	if (!sigA && !sigB) {
-		DRM_ERROR("Neither fence A nor B has been signaled\n");
+		DRM_ERROR("Neither fence A analr B has been signaled\n");
 		goto out_cleanup;
 	} else if (sigA && sigB) {
 		DRM_ERROR("Both fence A and B has been signaled\n");

@@ -154,7 +154,7 @@ void btrtl_set_driver_name(struct hci_dev *hdev, const char *driver_name);
 static inline struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 							 const char *postfix)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void btrtl_free(struct btrtl_device_info *btrtl_dev)
@@ -164,7 +164,7 @@ static inline void btrtl_free(struct btrtl_device_info *btrtl_dev)
 static inline int btrtl_download_firmware(struct hci_dev *hdev,
 					  struct btrtl_device_info *btrtl_dev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void btrtl_set_quirks(struct hci_dev *hdev,
@@ -174,12 +174,12 @@ static inline void btrtl_set_quirks(struct hci_dev *hdev,
 
 static inline int btrtl_setup_realtek(struct hci_dev *hdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btrtl_shutdown_realtek(struct hci_dev *hdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btrtl_get_uart_settings(struct hci_dev *hdev,
@@ -188,7 +188,7 @@ static inline int btrtl_get_uart_settings(struct hci_dev *hdev,
 					  u32 *device_baudrate,
 					  bool *flow_control)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline void btrtl_set_driver_name(struct hci_dev *hdev, const char *driver_name)

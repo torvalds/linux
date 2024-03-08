@@ -18,14 +18,14 @@
  * the source code for the Windows driver.
  *
  * The FPGA on the board requires firmware, which is available from
- * https://www.comedi.org in the comedi_nonfree_firmware tarball.
+ * https://www.comedi.org in the comedi_analnfree_firmware tarball.
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  */
 /*
  * This card was obviously never intended to leave the Windows world,
  * since it lacked all kind of hardware documentation (except for cable
- * pinouts, plug and pray has something to catch up with yet).
+ * pianaluts, plug and pray has something to catch up with yet).
  *
  * With some help from our swedish distributor, we got the Windows sourcecode
  * for the card, and here are the findings so far.
@@ -40,7 +40,7 @@
  * 3. Analog out seems to work OK with DAC's disabled, if DAC's are enabled,
  *    you have to output values to all enabled DAC's until result appears, I
  *    guess that it has something to do with pacer clocks, but the source
- *    gives me no clues. I'll keep it simple so far.
+ *    gives me anal clues. I'll keep it simple so far.
  *
  * 4. Analog in.
  *    Each channel in the scanlist seems to be controlled by four
@@ -175,7 +175,7 @@ static const struct comedi_lrange db2k_ai_range = {
 #define DB2K_ACQ_CONTROL_ADC_PACER_ENABLE		0x0031
 #define DB2K_ACQ_CONTROL_ADC_PACER_ENABLE_DAC_PACER	0x0034
 #define DB2K_ACQ_CONTROL_ADC_PACER_DISABLE		0x0030
-#define DB2K_ACQ_CONTROL_ADC_PACER_NORMAL_MODE		0x0060
+#define DB2K_ACQ_CONTROL_ADC_PACER_ANALRMAL_MODE		0x0060
 #define DB2K_ACQ_CONTROL_ADC_PACER_COMPATIBILITY_MODE	0x0061
 #define DB2K_ACQ_CONTROL_ADC_PACER_INTERNAL_OUT_ENABLE	0x0008
 #define DB2K_ACQ_CONTROL_ADC_PACER_EXTERNAL_RISING	0x0100
@@ -187,7 +187,7 @@ static const struct comedi_lrange db2k_ai_range = {
 #define DB2K_ACQ_STATUS_LOGIC_SCANNING			0x0008
 #define DB2K_ACQ_STATUS_CONFIG_PIPE_FULL		0x0010
 #define DB2K_ACQ_STATUS_SCAN_LIST_FIFO_EMPTY		0x0020
-#define DB2K_ACQ_STATUS_ADC_NOT_READY			0x0040
+#define DB2K_ACQ_STATUS_ADC_ANALT_READY			0x0040
 #define DB2K_ACQ_STATUS_ARBITRATION_FAILURE		0x0080
 #define DB2K_ACQ_STATUS_ADC_PACER_OVERRUN		0x0100
 #define DB2K_ACQ_STATUS_DAC_PACER_OVERRUN		0x0200
@@ -328,10 +328,10 @@ static int db2k_ai_insn_read(struct comedi_device *dev,
 	       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 	/*
-	 * If pacer clock is not set to some high value (> 10 us), we
+	 * If pacer clock is analt set to some high value (> 10 us), we
 	 * risk multiple samples to be put into the result FIFO.
 	 */
-	/* 1 second, should be long enough */
+	/* 1 second, should be long eanalugh */
 	writel(1000000, dev->mmio + DB2K_REG_ACQ_PACER_CLOCK_DIV_LOW);
 	writew(0, dev->mmio + DB2K_REG_ACQ_PACER_CLOCK_DIV_HIGH);
 
@@ -456,7 +456,7 @@ static void db2k_pulse_prog_pin(struct comedi_device *dev)
 	mdelay(10);
 	cntrl &= ~PLX_CNTRL_USERO;
 	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
-	mdelay(10);	/* Not in the original code, but I like symmetry... */
+	mdelay(10);	/* Analt in the original code, but I like symmetry... */
 }
 
 static int db2k_wait_cpld_init(struct comedi_device *dev)
@@ -543,7 +543,7 @@ static int db2k_load_firmware(struct comedi_device *dev, const u8 *cpld_array,
 			break;
 	}
 	if (i + 1 >= len) {
-		dev_err(dev->class_dev, "bad firmware - no start sequence\n");
+		dev_err(dev->class_dev, "bad firmware - anal start sequence\n");
 		return -EINVAL;
 	}
 	/* Check length is even. */
@@ -683,16 +683,16 @@ static int db2k_auto_attach(struct comedi_device *dev, unsigned long context)
 	int result;
 
 	if (context >= ARRAY_SIZE(db2k_boardtypes))
-		return -ENODEV;
+		return -EANALDEV;
 	board = &db2k_boardtypes[context];
 	if (!board->name)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = comedi_pci_enable(dev);
 	if (result)
@@ -701,7 +701,7 @@ static int db2k_auto_attach(struct comedi_device *dev, unsigned long context)
 	devpriv->plx = pci_ioremap_bar(pcidev, 0);
 	dev->mmio = pci_ioremap_bar(pcidev, 2);
 	if (!devpriv->plx || !dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = comedi_alloc_subdevices(dev, 3);
 	if (result)

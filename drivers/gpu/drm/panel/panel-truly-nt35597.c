@@ -216,7 +216,7 @@ static const struct cmd_set qcom_2k_panel_magic_cmds[] = {
 	{ { 0xE5, 0x01 }, 2 },
 	/* CMD mode(10) VDO mode(03) */
 	{ { 0xBB, 0x03 }, 2 },
-	/* Non Reload MTP */
+	/* Analn Reload MTP */
 	{ { 0xFB, 0x01 }, 2 },
 };
 
@@ -463,13 +463,13 @@ static int truly_nt35597_panel_add(struct truly_nt35597 *ctx)
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset gpio %ld\n", PTR_ERR(ctx->reset_gpio));
+		dev_err(dev, "cananalt get reset gpio %ld\n", PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
 	ctx->mode_gpio = devm_gpiod_get(dev, "mode", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->mode_gpio)) {
-		dev_err(dev, "cannot get mode gpio %ld\n", PTR_ERR(ctx->mode_gpio));
+		dev_err(dev, "cananalt get mode gpio %ld\n", PTR_ERR(ctx->mode_gpio));
 		return PTR_ERR(ctx->mode_gpio);
 	}
 
@@ -511,7 +511,7 @@ static int truly_nt35597_probe(struct mipi_dsi_device *dsi)
 	struct device *dev = &dsi->dev;
 	struct truly_nt35597 *ctx;
 	struct mipi_dsi_device *dsi1_device;
-	struct device_node *dsi1;
+	struct device_analde *dsi1;
 	struct mipi_dsi_host *dsi1_host;
 	struct mipi_dsi_device *dsi_dev;
 	int ret = 0;
@@ -520,36 +520,36 @@ static int truly_nt35597_probe(struct mipi_dsi_device *dsi)
 	const struct mipi_dsi_device_info info = {
 		.type = "trulynt35597",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	};
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * This device represents itself as one with two input ports which are
 	 * fed by the output ports of the two DSI controllers . The DSI0 is
 	 * the master controller and has most of the panel related info in its
-	 * child node.
+	 * child analde.
 	 */
 
 	ctx->config = of_device_get_match_data(dev);
 
 	if (!ctx->config) {
 		dev_err(dev, "missing device configuration\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	dsi1 = of_graph_get_remote_node(dsi->dev.of_node, 1, -1);
+	dsi1 = of_graph_get_remote_analde(dsi->dev.of_analde, 1, -1);
 	if (!dsi1) {
-		dev_err(dev, "failed to get remote node for dsi1_device\n");
-		return -ENODEV;
+		dev_err(dev, "failed to get remote analde for dsi1_device\n");
+		return -EANALDEV;
 	}
 
-	dsi1_host = of_find_mipi_dsi_host_by_node(dsi1);
-	of_node_put(dsi1);
+	dsi1_host = of_find_mipi_dsi_host_by_analde(dsi1);
+	of_analde_put(dsi1);
 	if (!dsi1_host) {
 		dev_err(dev, "failed to find dsi host\n");
 		return -EPROBE_DEFER;
@@ -579,7 +579,7 @@ static int truly_nt35597_probe(struct mipi_dsi_device *dsi)
 		dsi_dev->lanes = 4;
 		dsi_dev->format = MIPI_DSI_FMT_RGB888;
 		dsi_dev->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_LPM |
-			MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 		ret = mipi_dsi_attach(dsi_dev);
 		if (ret < 0) {
 			dev_err(dev, "dsi attach failed i = %d\n", i);

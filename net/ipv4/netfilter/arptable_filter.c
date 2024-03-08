@@ -35,7 +35,7 @@ static int arptable_filter_table_init(struct net *net)
 
 	repl = arpt_alloc_initial_table(&packet_filter);
 	if (repl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = arpt_register_table(net, &packet_filter, repl, arpfilter_ops);
 	kfree(repl);
 	return err;

@@ -227,8 +227,8 @@ static void bcma_core_pci_config_fixup(struct bcma_drv_pci *pc)
 
 	val16 = pcicore_read16(pc, regoff);
 
-	if (!(val16 & BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST)) {
-		val16 |= BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST;
+	if (!(val16 & BCMA_CORE_PCI_SPROM_L23READY_EXIT_ANALPERST)) {
+		val16 |= BCMA_CORE_PCI_SPROM_L23READY_EXIT_ANALPERST;
 		pcicore_write16(pc, regoff, val16);
 	}
 }

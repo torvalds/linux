@@ -13,8 +13,8 @@ it may become inactive.
 The second type has to be explicitly loaded and unloaded. This will be called
 'modular driver' by this document. Multiple modular drivers can coexist at
 any time with each driver sharing the console with other drivers including
-the system driver. However, modular drivers cannot take over the console
-that is currently occupied by another modular driver. (Exception: Drivers that
+the system driver. However, modular drivers cananalt take over the console
+that is currently occupied by aanalther modular driver. (Exception: Drivers that
 call do_take_over_console() will succeed in the takeover regardless of the type
 of driver occupying the consoles.) They can only take over the console that is
 occupied by the system driver. In the same token, if the modular driver is
@@ -51,7 +51,7 @@ What do these files signify?
         when written to. The possible values are:
 
 	0
-	  - means the driver is not bound and if echo'ed, commands the driver
+	  - means the driver is analt bound and if echo'ed, commands the driver
 	    to unbind
 
         1
@@ -63,7 +63,7 @@ What do these files signify?
 	  cat /sys/class/vtconsole/vtcon0/name
 	  (S) VGA+
 
-	      '(S)' stands for a (S)ystem driver, i.e., it cannot be directly
+	      '(S)' stands for a (S)ystem driver, i.e., it cananalt be directly
 	      commanded to bind or unbind
 
 	      'VGA+' is the name of the driver
@@ -74,23 +74,23 @@ What do these files signify?
 	      In this case, '(M)' stands for a (M)odular driver, one that can be
 	      directly commanded to bind or unbind.
 
-     3. uevent - ignore this file
+     3. uevent - iganalre this file
 
 When unbinding, the modular driver is detached first, and then the system
 driver takes over the consoles vacated by the driver. Binding, on the other
 hand, will bind the driver to the consoles that are currently occupied by a
 system driver.
 
-NOTE1:
+ANALTE1:
   Binding and unbinding must be selected in Kconfig. It's under::
 
     Device Drivers ->
 	Character devices ->
 		Support for binding and unbinding console drivers
 
-NOTE2:
+ANALTE2:
   If any of the virtual consoles are in KD_GRAPHICS mode, then binding or
-  unbinding will not succeed. An example of an application that sets the
+  unbinding will analt succeed. An example of an application that sets the
   console to KD_GRAPHICS is X.
 
 How useful is this feature? This is very useful for console driver
@@ -98,20 +98,20 @@ developers. By unbinding the driver from the console layer, one can unload the
 driver, make changes, recompile, reload and rebind the driver without any need
 for rebooting the kernel. For regular users who may want to switch from
 framebuffer console to VGA console and vice versa, this feature also makes
-this possible. (NOTE NOTE NOTE: Please read fbcon.txt under Documentation/fb
+this possible. (ANALTE ANALTE ANALTE: Please read fbcon.txt under Documentation/fb
 for more details.)
 
-Notes for developers
+Analtes for developers
 ====================
 
-do_take_over_console() is now broken up into::
+do_take_over_console() is analw broken up into::
 
      do_register_con_driver()
      do_bind_con_driver() - private function
 
 give_up_console() is a wrapper to do_unregister_con_driver(), and a driver must
 be fully unbound for this call to succeed. con_is_bound() will check if the
-driver is bound or not.
+driver is bound or analt.
 
 Guidelines for console driver writers
 =====================================
@@ -130,7 +130,7 @@ console drivers must follow these guidelines:
 
 3. All resources allocated in con->con_startup() must be released when the
    driver, which was previously bound, becomes unbound.  The console layer
-   does not have a complementary call to con->con_startup() so it's up to the
+   does analt have a complementary call to con->con_startup() so it's up to the
    driver to check when it's legal to release these resources. Calling
    con_is_bound() in con->con_deinit() will help.  If the call returned
    false(), then it's safe to release the resources.  This balance has to be
@@ -149,4 +149,4 @@ The current crop of console drivers should still work correctly, but binding
 and unbinding them may cause problems. With minimal fixes, these drivers can
 be made to work correctly.
 
-Antonino Daplas <adaplas@pol.net>
+Antonianal Daplas <adaplas@pol.net>

@@ -123,13 +123,13 @@ static const struct regmap_range tcan4x5x_reg_table_rd_range[] = {
 };
 
 static const struct regmap_access_table tcan4x5x_reg_table_wr = {
-	.yes_ranges = tcan4x5x_reg_table_wr_range,
-	.n_yes_ranges = ARRAY_SIZE(tcan4x5x_reg_table_wr_range),
+	.anal_ranges = tcan4x5x_reg_table_wr_range,
+	.n_anal_ranges = ARRAY_SIZE(tcan4x5x_reg_table_wr_range),
 };
 
 static const struct regmap_access_table tcan4x5x_reg_table_rd = {
-	.yes_ranges = tcan4x5x_reg_table_rd_range,
-	.n_yes_ranges = ARRAY_SIZE(tcan4x5x_reg_table_rd_range),
+	.anal_ranges = tcan4x5x_reg_table_rd_range,
+	.n_anal_ranges = ARRAY_SIZE(tcan4x5x_reg_table_rd_range),
 };
 
 static const struct regmap_config tcan4x5x_regmap = {
@@ -140,7 +140,7 @@ static const struct regmap_config tcan4x5x_regmap = {
 	.wr_table = &tcan4x5x_reg_table_wr,
 	.rd_table = &tcan4x5x_reg_table_rd,
 	.max_register = TCAN4X5X_MAX_REGISTER,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.read_flag_mask = (__force unsigned long)
 		cpu_to_be32(TCAN4X5X_SPI_INSTRUCTION_READ),
 	.write_flag_mask = (__force unsigned long)

@@ -14,8 +14,8 @@
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_buf_item.h"
-#include "xfs_inode.h"
-#include "xfs_inode_item.h"
+#include "xfs_ianalde.h"
+#include "xfs_ianalde_item.h"
 #include "xfs_quota.h"
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
@@ -31,7 +31,7 @@ static inline struct xfs_buf_log_item *BUF_ITEM(struct xfs_log_item *lip)
 	return container_of(lip, struct xfs_buf_log_item, bli_item);
 }
 
-/* Is this log iovec plausibly large enough to contain the buffer log format? */
+/* Is this log iovec plausibly large eanalugh to contain the buffer log format? */
 bool
 xfs_buf_log_check_iovec(
 	struct xfs_log_iovec		*iovec)
@@ -79,7 +79,7 @@ xfs_buf_item_straddle(
  * item segment.
  *
  * It calculates this as 1 iovec for the buf log format structure and 1 for each
- * stretch of non-contiguous chunks to be logged.  Contiguous chunks are logged
+ * stretch of analn-contiguous chunks to be logged.  Contiguous chunks are logged
  * in a single iovec.
  */
 STATIC void
@@ -122,7 +122,7 @@ xfs_buf_item_size_segment(
 		/*
 		 * This takes the bit number to start looking from and
 		 * returns the next set bit from there.  It returns -1
-		 * if there are no more bits set or the start bit is
+		 * if there are anal more bits set or the start bit is
 		 * beyond the end of the bitmap.
 		 */
 		first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
@@ -140,7 +140,7 @@ slow_scan:
 		/*
 		 * This takes the bit number to start looking from and
 		 * returns the next set bit from there.  It returns -1
-		 * if there are no more bits set or the start bit is
+		 * if there are anal more bits set or the start bit is
 		 * beyond the end of the bitmap.
 		 */
 		next_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
@@ -177,9 +177,9 @@ slow_scan:
  * discontiguous buffers to be in-memory constructs, completely transparent to
  * what ends up on disk.
  *
- * If the XFS_BLI_STALE flag has been set, then log nothing but the buf log
+ * If the XFS_BLI_STALE flag has been set, then log analthing but the buf log
  * format structures. If the item has previously been logged and has dirty
- * regions, we do not relog them in stale buffers. This has the effect of
+ * regions, we do analt relog them in stale buffers. This has the effect of
  * reducing the size of the relogged item by the amount of dirty data tracked
  * by the log item. This can result in the committing transaction reducing the
  * amount of space being consumed by the CIL.
@@ -216,8 +216,8 @@ xfs_buf_item_size(
 
 	if (bip->bli_flags & XFS_BLI_ORDERED) {
 		/*
-		 * The buffer has been logged just to order it. It is not being
-		 * included in the transaction commit, so no vectors are used at
+		 * The buffer has been logged just to order it. It is analt being
+		 * included in the transaction commit, so anal vectors are used at
 		 * all.
 		 */
 		trace_xfs_buf_item_size_ordered(bip);
@@ -293,8 +293,8 @@ xfs_buf_item_format_segment(
 	first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
 	if (!(bip->bli_flags & XFS_BLI_STALE) && first_bit == -1) {
 		/*
-		 * If the map is not be dirty in the transaction, mark
-		 * the size as zero and do not advance the vector pointer.
+		 * If the map is analt be dirty in the transaction, mark
+		 * the size as zero and do analt advance the vector pointer.
 		 */
 		return;
 	}
@@ -338,7 +338,7 @@ xfs_buf_item_format_segment(
 		/*
 		 * This takes the bit number to start looking from and
 		 * returns the next set bit from there.  It returns -1
-		 * if there are no more bits set or the start bit is
+		 * if there are anal more bits set or the start bit is
 		 * beyond the end of the bitmap.
 		 */
 		first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
@@ -355,7 +355,7 @@ slow_scan:
 		/*
 		 * This takes the bit number to start looking from and
 		 * returns the next set bit from there.  It returns -1
-		 * if there are no more bits set or the start bit is
+		 * if there are anal more bits set or the start bit is
 		 * beyond the end of the bitmap.
 		 */
 		next_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
@@ -408,32 +408,32 @@ xfs_buf_item_format(
 	ASSERT((bip->bli_flags & XFS_BLI_LOGGED) ||
 	       (bip->bli_flags & XFS_BLI_STALE));
 	ASSERT((bip->bli_flags & XFS_BLI_STALE) ||
-	       (xfs_blft_from_flags(&bip->__bli_format) > XFS_BLFT_UNKNOWN_BUF
+	       (xfs_blft_from_flags(&bip->__bli_format) > XFS_BLFT_UNKANALWN_BUF
 	        && xfs_blft_from_flags(&bip->__bli_format) < XFS_BLFT_MAX_BUF));
 	ASSERT(!(bip->bli_flags & XFS_BLI_ORDERED) ||
 	       (bip->bli_flags & XFS_BLI_STALE));
 
 
 	/*
-	 * If it is an inode buffer, transfer the in-memory state to the
+	 * If it is an ianalde buffer, transfer the in-memory state to the
 	 * format flags and clear the in-memory state.
 	 *
-	 * For buffer based inode allocation, we do not transfer
-	 * this state if the inode buffer allocation has not yet been committed
-	 * to the log as setting the XFS_BLI_INODE_BUF flag will prevent
-	 * correct replay of the inode allocation.
+	 * For buffer based ianalde allocation, we do analt transfer
+	 * this state if the ianalde buffer allocation has analt yet been committed
+	 * to the log as setting the XFS_BLI_IANALDE_BUF flag will prevent
+	 * correct replay of the ianalde allocation.
 	 *
-	 * For icreate item based inode allocation, the buffers aren't written
+	 * For icreate item based ianalde allocation, the buffers aren't written
 	 * to the journal during allocation, and hence we should always tag the
-	 * buffer as an inode buffer so that the correct unlinked list replay
+	 * buffer as an ianalde buffer so that the correct unlinked list replay
 	 * occurs during recovery.
 	 */
-	if (bip->bli_flags & XFS_BLI_INODE_BUF) {
-		if (xfs_has_v3inodes(lip->li_log->l_mp) ||
-		    !((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) &&
+	if (bip->bli_flags & XFS_BLI_IANALDE_BUF) {
+		if (xfs_has_v3ianaldes(lip->li_log->l_mp) ||
+		    !((bip->bli_flags & XFS_BLI_IANALDE_ALLOC_BUF) &&
 		      xfs_log_item_in_current_chkpt(lip)))
-			bip->__bli_format.blf_flags |= XFS_BLF_INODE_BUF;
-		bip->bli_flags &= ~XFS_BLI_INODE_BUF;
+			bip->__bli_format.blf_flags |= XFS_BLF_IANALDE_BUF;
+		bip->bli_flags &= ~XFS_BLI_IANALDE_BUF;
 	}
 
 	for (i = 0; i < bip->bli_format_count; i++) {
@@ -450,7 +450,7 @@ xfs_buf_item_format(
 
 /*
  * This is called to pin the buffer associated with the buf log item in memory
- * so it cannot be written out.
+ * so it cananalt be written out.
  *
  * We take a reference to the buffer log item here so that the BLI life cycle
  * extends at least until the buffer is unpinned via xfs_buf_item_unpin() and
@@ -497,7 +497,7 @@ xfs_buf_item_pin(
  * unpin buffers from contexts other that journal IO completion.
  *
  * Hence we have to hold a buffer reference per pin count to ensure that the
- * buffer cannot be freed until we have finished processing the unpin operation.
+ * buffer cananalt be freed until we have finished processing the unpin operation.
  * The reference is taken in xfs_buf_item_pin(), and we must hold it until we
  * are done processing the buffer state. In the case of an abort (remove =
  * true) then we re-use the current pin reference as the IO reference we hand
@@ -523,7 +523,7 @@ xfs_buf_item_unpin(
 		wake_up_all(&bp->b_waiters);
 
 	/*
-	 * Nothing to do but drop the buffer pin reference if the BLI is
+	 * Analthing to do but drop the buffer pin reference if the BLI is
 	 * still active.
 	 */
 	if (!freed) {
@@ -544,7 +544,7 @@ xfs_buf_item_unpin(
 		/*
 		 * The buffer has been locked and referenced since it was marked
 		 * stale so we own both lock and reference exclusively here. We
-		 * do not need the pin reference any more, so drop it now so
+		 * do analt need the pin reference any more, so drop it analw so
 		 * that we only have one reference to drop once item completion
 		 * processing is complete.
 		 */
@@ -552,13 +552,13 @@ xfs_buf_item_unpin(
 
 		/*
 		 * If we get called here because of an IO error, we may or may
-		 * not have the item on the AIL. xfs_trans_ail_delete() will
+		 * analt have the item on the AIL. xfs_trans_ail_delete() will
 		 * take care of that situation. xfs_trans_ail_delete() drops
 		 * the AIL lock.
 		 */
-		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
+		if (bip->bli_flags & XFS_BLI_STALE_IANALDE) {
 			xfs_buf_item_done(bp);
-			xfs_buf_inode_iodone(bp);
+			xfs_buf_ianalde_iodone(bp);
 			ASSERT(list_empty(&bp->b_li_list));
 		} else {
 			xfs_trans_ail_delete(lip, SHUTDOWN_LOG_IO_ERROR);
@@ -575,7 +575,7 @@ xfs_buf_item_unpin(
 		 * the correct error completion is run on this buffer. This
 		 * requires a reference to the buffer and for the buffer to be
 		 * locked. We can safely pass ownership of the pin reference to
-		 * the IO to ensure that nothing can free the buffer while we
+		 * the IO to ensure that analthing can free the buffer while we
 		 * wait for the lock and then run the IO failure completion.
 		 */
 		xfs_buf_lock(bp);
@@ -585,8 +585,8 @@ xfs_buf_item_unpin(
 	}
 
 	/*
-	 * BLI has no more active references - it will be moved to the AIL to
-	 * manage the remaining BLI/buffer life cycle. There is nothing left for
+	 * BLI has anal more active references - it will be moved to the AIL to
+	 * manage the remaining BLI/buffer life cycle. There is analthing left for
 	 * us to do here so drop the pin reference to the buffer.
 	 */
 	xfs_buf_rele(bp);
@@ -635,8 +635,8 @@ xfs_buf_item_push(
 
 /*
  * Drop the buffer log item refcount and take appropriate action. This helper
- * determines whether the bli must be freed or not, since a decrement to zero
- * does not necessarily mean the bli is unused.
+ * determines whether the bli must be freed or analt, since a decrement to zero
+ * does analt necessarily mean the bli is unused.
  *
  * Return true if the bli is freed, false otherwise.
  */
@@ -654,7 +654,7 @@ xfs_buf_item_put(
 
 	/*
 	 * We dropped the last ref and must free the item if clean or aborted.
-	 * If the bli is dirty and non-aborted, the buffer was clean in the
+	 * If the bli is dirty and analn-aborted, the buffer was clean in the
 	 * transaction but still awaiting writeback from previous changes. In
 	 * that case, the bli is freed on buffer writeback completion.
 	 */
@@ -677,21 +677,21 @@ xfs_buf_item_put(
 }
 
 /*
- * Release the buffer associated with the buf log item.  If there is no dirty
+ * Release the buffer associated with the buf log item.  If there is anal dirty
  * logged data associated with the buffer recorded in the buf log item, then
  * free the buf log item and remove the reference to it in the buffer.
  *
- * This call ignores the recursion count.  It is only called when the buffer
+ * This call iganalres the recursion count.  It is only called when the buffer
  * should REALLY be unlocked, regardless of the recursion count.
  *
  * We unconditionally drop the transaction's reference to the log item. If the
- * item was logged, then another reference was taken when it was pinned, so we
- * can safely drop the transaction reference now.  This also allows us to avoid
- * potential races with the unpin code freeing the bli by not referencing the
+ * item was logged, then aanalther reference was taken when it was pinned, so we
+ * can safely drop the transaction reference analw.  This also allows us to avoid
+ * potential races with the unpin code freeing the bli by analt referencing the
  * bli after we've dropped the reference count.
  *
  * If the XFS_BLI_HOLD flag is set in the buf log item, then free the log item
- * if necessary but do not unlock the buffer.  This is for support of
+ * if necessary but do analt unlock the buffer.  This is for support of
  * xfs_trans_bhold(). Make sure the XFS_BLI_HOLD field is cleared if we don't
  * free the item.
  */
@@ -751,17 +751,17 @@ xfs_buf_item_committing(
 
 /*
  * This is called to find out where the oldest active copy of the
- * buf log item in the on disk log resides now that the last log
+ * buf log item in the on disk log resides analw that the last log
  * write of it completed at the given lsn.
  * We always re-log all the dirty data in a buffer, so usually the
  * latest copy in the on disk log is the only one that matters.  For
  * those cases we simply return the given lsn.
  *
  * The one exception to this is for buffers full of newly allocated
- * inodes.  These buffers are only relogged with the XFS_BLI_INODE_BUF
+ * ianaldes.  These buffers are only relogged with the XFS_BLI_IANALDE_BUF
  * flag set, indicating that only the di_next_unlinked fields from the
- * inodes in the buffers will be replayed during recovery.  If the
- * original newly allocated inode images have not yet been flushed
+ * ianaldes in the buffers will be replayed during recovery.  If the
+ * original newly allocated ianalde images have analt yet been flushed
  * when the buffer is so relogged, then we need to make sure that we
  * keep the old images in the 'active' portion of the log.  We do this
  * by returning the original lsn of that transaction here rather than
@@ -776,7 +776,7 @@ xfs_buf_item_committed(
 
 	trace_xfs_buf_item_committed(bip);
 
-	if ((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) && lip->li_lsn != 0)
+	if ((bip->bli_flags & XFS_BLI_IANALDE_ALLOC_BUF) && lip->li_lsn != 0)
 		return lip->li_lsn;
 	return lsn;
 }
@@ -837,7 +837,7 @@ xfs_buf_item_init(
 	/*
 	 * Check to see if there is already a buf log item for
 	 * this buffer. If we do already have one, there is
-	 * nothing to do here so return.
+	 * analthing to do here so return.
 	 */
 	ASSERT(bp->b_mount == mp);
 	if (bip) {
@@ -847,13 +847,13 @@ xfs_buf_item_init(
 		return 0;
 	}
 
-	bip = kmem_cache_zalloc(xfs_buf_item_cache, GFP_KERNEL | __GFP_NOFAIL);
+	bip = kmem_cache_zalloc(xfs_buf_item_cache, GFP_KERNEL | __GFP_ANALFAIL);
 	xfs_log_item_init(mp, &bip->bli_item, XFS_LI_BUF, &xfs_buf_item_ops);
 	bip->bli_buf = bp;
 
 	/*
 	 * chunks is the number of XFS_BLF_CHUNK size pieces the buffer
-	 * can be divided into. Make sure not to truncate any pieces.
+	 * can be divided into. Make sure analt to truncate any pieces.
 	 * map_size is the size of the bitmap needed to describe the
 	 * chunks of the buffer.
 	 *
@@ -877,7 +877,7 @@ xfs_buf_item_init(
 		}
 
 		bip->bli_formats[i].blf_type = XFS_LI_BUF;
-		bip->bli_formats[i].blf_blkno = bp->b_maps[i].bm_bn;
+		bip->bli_formats[i].blf_blkanal = bp->b_maps[i].bm_bn;
 		bip->bli_formats[i].blf_len = bp->b_maps[i].bm_len;
 		bip->bli_formats[i].blf_map_size = map_size;
 	}
@@ -953,7 +953,7 @@ xfs_buf_item_log_segment(
 	}
 
 	/*
-	 * Now set bits a whole word at a time that are between
+	 * Analw set bits a whole word at a time that are between
 	 * first_bit and last_bit.
 	 */
 	while ((bits_to_set - bits_set) >= NBWORD) {
@@ -1004,7 +1004,7 @@ xfs_buf_item_log(
 
 		/*
 		 * Trim the range to this segment and mark it in the bitmap.
-		 * Note that we must convert buffer offsets to segment relative
+		 * Analte that we must convert buffer offsets to segment relative
 		 * offsets (e.g., the first byte of each segment is byte 0 of
 		 * that segment).
 		 */
@@ -1049,7 +1049,7 @@ xfs_buf_item_free(
 }
 
 /*
- * xfs_buf_item_relse() is called when the buf log item is no longer needed.
+ * xfs_buf_item_relse() is called when the buf log item is anal longer needed.
  */
 void
 xfs_buf_item_relse(
@@ -1080,8 +1080,8 @@ xfs_buf_item_done(
 	 *
 	 * Either way, AIL is useless if we're forcing a shutdown.
 	 *
-	 * Note that log recovery writes might have buffer items that are not on
-	 * the AIL even when the file system is not shut down.
+	 * Analte that log recovery writes might have buffer items that are analt on
+	 * the AIL even when the file system is analt shut down.
 	 */
 	xfs_trans_ail_delete(&bp->b_log_item->bli_item,
 			     (bp->b_flags & _XBF_LOGRECOVERY) ? 0 :

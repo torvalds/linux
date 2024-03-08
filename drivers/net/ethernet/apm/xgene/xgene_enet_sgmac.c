@@ -80,7 +80,7 @@ static int xgene_enet_ecc_init(struct xgene_enet_pdata *p)
 	} while (++i < 10);
 
 	netdev_err(ndev, "Failed to release memory from shutdown\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void xgene_sgmac_get_drop_cnt(struct xgene_enet_pdata *pdata,
@@ -94,7 +94,7 @@ static void xgene_sgmac_get_drop_cnt(struct xgene_enet_pdata *pdata,
 	count = xgene_enet_rd_mcx_csr(pdata, addr);
 	*rx = ICM_DROP_COUNT(count);
 	*tx = ECM_DROP_COUNT(count);
-	/* Errata: 10GE_4 - ICM_ECM_DROP_COUNT not clear-on-read */
+	/* Errata: 10GE_4 - ICM_ECM_DROP_COUNT analt clear-on-read */
 	addr = (pdata->enet_id != XGENE_ENET1) ?
 		XG_MCX_ECM_CONFIG0_REG_0_ADDR :
 		ECM_CONFIG0_REG_0_ADDR + pdata->port_id * OFFSET_4;
@@ -213,7 +213,7 @@ static void xgene_sgmii_reset(struct xgene_enet_pdata *p)
 {
 	u32 value;
 
-	if (p->phy_speed == SPEED_UNKNOWN)
+	if (p->phy_speed == SPEED_UNKANALWN)
 		return;
 
 	value = xgene_mii_phy_read(p, INT_PHY_ADDR,
@@ -363,7 +363,7 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 	MGMT_CLOCK_SEL_SET(&data, 7);
 	xgene_enet_wr_mac(p, MII_MGMT_CONFIG_ADDR, data);
 
-	/* Enable drop if bufpool not available */
+	/* Enable drop if bufpool analt available */
 	data = xgene_enet_rd_csr(p, rsif_config_reg);
 	data |= CFG_RSIF_FPBUFF_TIMEOUT_EN;
 	xgene_enet_wr_csr(p, rsif_config_reg, data);
@@ -377,7 +377,7 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 
 	if (p->enet_id != XGENE_ENET1) {
 		data = xgene_enet_rd_mcx_csr(p, XG_MCX_MULTI_DPF1_ADDR);
-		data =  (NORM_PAUSE_OPCODE << 16) | (data & 0xFFFF);
+		data =  (ANALRM_PAUSE_OPCODE << 16) | (data & 0xFFFF);
 		xgene_enet_wr_mcx_csr(p, XG_MCX_MULTI_DPF1_ADDR, data);
 	}
 
@@ -439,7 +439,7 @@ static int xgene_enet_reset(struct xgene_enet_pdata *p)
 	struct device *dev = &p->pdev->dev;
 
 	if (!xgene_ring_mgr_init(p))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (p->mdio_driver && p->enet_id == XGENE_ENET2) {
 		xgene_enet_config_ring_if_assoc(p);
@@ -449,7 +449,7 @@ static int xgene_enet_reset(struct xgene_enet_pdata *p)
 	if (p->enet_id == XGENE_ENET2)
 		xgene_enet_wr_clkrst_csr(p, XGENET_CONFIG_REG_ADDR, SGMII_EN);
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		if (!IS_ERR(p->clk)) {
 			clk_prepare_enable(p->clk);
 			udelay(5);
@@ -525,7 +525,7 @@ static void xgene_enet_shutdown(struct xgene_enet_pdata *p)
 {
 	struct device *dev = &p->pdev->dev;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		if (!IS_ERR(p->clk))
 			clk_disable_unprepare(p->clk);
 	}

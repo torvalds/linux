@@ -158,20 +158,20 @@ static int nvdec_init(struct host1x_client *client)
 	int err;
 
 	err = host1x_client_iommu_attach(client);
-	if (err < 0 && err != -ENODEV) {
+	if (err < 0 && err != -EANALDEV) {
 		dev_err(nvdec->dev, "failed to attach to domain: %d\n", err);
 		return err;
 	}
 
 	nvdec->channel = host1x_channel_request(client);
 	if (!nvdec->channel) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto detach;
 	}
 
 	client->syncpts[0] = host1x_syncpt_request(client, 0);
 	if (!client->syncpts[0]) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_channel;
 	}
 
@@ -281,7 +281,7 @@ static int nvdec_load_falcon_firmware(struct nvdec *nvdec)
 	/*
 	 * In this case we have received an IOVA from the shared domain, so we
 	 * need to make sure to get the physical address so that the DMA API
-	 * knows what memory pages to flush the cache for.
+	 * kanalws what memory pages to flush the cache for.
 	 */
 	if (client->group) {
 		dma_addr_t phys;
@@ -356,7 +356,7 @@ static int nvdec_open_channel(struct tegra_drm_client *client,
 
 	context->channel = host1x_channel_get(nvdec->channel);
 	if (!context->channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -438,13 +438,13 @@ static int nvdec_probe(struct platform_device *pdev)
 
 	nvdec = devm_kzalloc(dev, sizeof(*nvdec), GFP_KERNEL);
 	if (!nvdec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvdec->config = of_device_get_match_data(dev);
 
 	syncpts = devm_kzalloc(dev, sizeof(*syncpts), GFP_KERNEL);
 	if (!syncpts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvdec->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(nvdec->regs))
@@ -471,7 +471,7 @@ static int nvdec_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = of_property_read_u32(dev->of_node, "nvidia,host1x-class", &host_class);
+	err = of_property_read_u32(dev->of_analde, "nvidia,host1x-class", &host_class);
 	if (err < 0)
 		host_class = HOST1X_CLASS_NVDEC;
 

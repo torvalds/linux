@@ -7,7 +7,7 @@
  * region of PCC subspace that succeeds the PCC signature. The PCC Operation
  * Region works in conjunction with the PCC Table(Platform Communications
  * Channel Table). PCC subspaces that are marked for use as PCC Operation
- * Regions must not be used as PCC subspaces for the standard ACPI features
+ * Regions must analt be used as PCC subspaces for the standard ACPI features
  * such as CPPC, RASF, PDTT and MPST. These standard features must always use
  * the PCC Table instead.
  *
@@ -57,10 +57,10 @@ acpi_pcc_address_space_setup(acpi_handle region_handle, u32 function,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return AE_NO_MEMORY;
+		return AE_ANAL_MEMORY;
 
 	data->cl.rx_callback = pcc_rx_callback;
-	data->cl.knows_txdone = true;
+	data->cl.kanalws_txdone = true;
 	data->ctx.length = ctx->length;
 	data->ctx.subspace_id = ctx->subspace_id;
 	data->ctx.internal_buffer = ctx->internal_buffer;
@@ -70,13 +70,13 @@ acpi_pcc_address_space_setup(acpi_handle region_handle, u32 function,
 	if (IS_ERR(data->pcc_chan)) {
 		pr_err("Failed to find PCC channel for subspace %d\n",
 		       ctx->subspace_id);
-		ret = AE_NOT_FOUND;
+		ret = AE_ANALT_FOUND;
 		goto err_free_data;
 	}
 
 	pcc_chan = data->pcc_chan;
 	if (!pcc_chan->mchan->mbox->txdone_irq) {
-		pr_err("This channel-%d does not support interrupt.\n",
+		pr_err("This channel-%d does analt support interrupt.\n",
 		       ctx->subspace_id);
 		ret = AE_SUPPORT;
 		goto err_free_channel;
@@ -86,7 +86,7 @@ acpi_pcc_address_space_setup(acpi_handle region_handle, u32 function,
 	if (!data->pcc_comm_addr) {
 		pr_err("Failed to ioremap PCC comm region mem for %d\n",
 		       ctx->subspace_id);
-		ret = AE_NO_MEMORY;
+		ret = AE_ANAL_MEMORY;
 		goto err_free_channel;
 	}
 
@@ -120,9 +120,9 @@ acpi_pcc_address_space_handler(u32 function, acpi_physical_address addr,
 		return AE_ERROR;
 
 	/*
-	 * pcc_chan->latency is just a Nominal value. In reality the remote
+	 * pcc_chan->latency is just a Analminal value. In reality the remote
 	 * processor could be much slower to reply. So add an arbitrary
-	 * amount of wait on top of Nominal.
+	 * amount of wait on top of Analminal.
 	 */
 	usecs_lat = PCC_CMD_WAIT_RETRIES_NUM * data->pcc_chan->latency;
 	ret = wait_for_completion_timeout(&data->done,
@@ -149,5 +149,5 @@ void __init acpi_init_pcc(void)
 						    &acpi_pcc_address_space_setup,
 						    &pcc_ctx);
 	if (ACPI_FAILURE(status))
-		pr_alert("OperationRegion handler could not be installed\n");
+		pr_alert("OperationRegion handler could analt be installed\n");
 }

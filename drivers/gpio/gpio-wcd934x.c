@@ -81,7 +81,7 @@ static int wcd_gpio_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->map = dev_get_regmap(dev->parent, NULL);
 	if (!data->map) {
@@ -120,5 +120,5 @@ static struct platform_driver wcd_gpio_driver = {
 };
 
 module_platform_driver(wcd_gpio_driver);
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc WCD GPIO control driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc WCD GPIO control driver");
 MODULE_LICENSE("GPL v2");

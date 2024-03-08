@@ -9,26 +9,26 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
+#include "analuveau_drv.h"
+#include "analuveau_reg.h"
 #include "hw.h"
 
 /****************************************************************************\
 *                                                                            *
 * The video arbitration routines calculate some "magic" numbers.  Fixes      *
-* the snow seen when accessing the framebuffer without it.                   *
+* the sanalw seen when accessing the framebuffer without it.                   *
 * It just works (I hope).                                                    *
 *                                                                            *
 \****************************************************************************/
@@ -163,12 +163,12 @@ nv10_calc_arb(struct nv_fifo_info *fifo, struct nv_sim_state *arb)
 	extra_lat = xclks * 1000 * 1000 / mclk_freq;
 
 	if (arb->two_heads)
-		/* Account for another CRTC. */
+		/* Account for aanalther CRTC. */
 		extra_lat += fill_lat + extra_lat + burst_lat;
 
 	/* FIFO burst */
 
-	/* Max burst not leading to overflows. */
+	/* Max burst analt leading to overflows. */
 	max_burst_o = (1 + fifo_len - extra_lat * drain_rate / (1000 * 1000))
 		* (fill_rate / 1000) / ((fill_rate - drain_rate) / 1000);
 	fifo->burst = min(max_burst_o, 1024);
@@ -193,12 +193,12 @@ static void
 nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 		int *burst, int *lwm)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	struct nv_fifo_info fifo_data;
 	struct nv_sim_state sim_data;
-	int MClk = nouveau_hw_get_clock(dev, PLL_MEMORY);
-	int NVClk = nouveau_hw_get_clock(dev, PLL_CORE);
+	int MClk = analuveau_hw_get_clock(dev, PLL_MEMORY);
+	int NVClk = analuveau_hw_get_clock(dev, PLL_CORE);
 	uint32_t cfg1 = nvif_rd32(device, NV04_PFB_CFG1);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
@@ -249,9 +249,9 @@ nv20_update_arb(int *burst, int *lwm)
 }
 
 void
-nouveau_calc_arb(struct drm_device *dev, int vclk, int bpp, int *burst, int *lwm)
+analuveau_calc_arb(struct drm_device *dev, int vclk, int bpp, int *burst, int *lwm)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_KELVIN)

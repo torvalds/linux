@@ -166,7 +166,7 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 	guillemot = kzalloc(sizeof(struct guillemot), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!guillemot || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 
@@ -182,7 +182,7 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 	i = guillemot_read_packet(gameport, data);
 
 	if (i != GUILLEMOT_MAX_LENGTH * 8 || data[0] != 0x55 || data[16] != 0xaa) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 
@@ -191,9 +191,9 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 			break;
 
 	if (!guillemot_type[i].name) {
-		printk(KERN_WARNING "guillemot.c: Unknown joystick on %s. [ %02x%02x:%04x, ver %d.%02d ]\n",
+		printk(KERN_WARNING "guillemot.c: Unkanalwn joystick on %s. [ %02x%02x:%04x, ver %d.%02d ]\n",
 			gameport->phys, data[12], data[13], data[11], data[14], data[15]);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 

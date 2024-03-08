@@ -30,7 +30,7 @@
 #define MAX9271_SLEEP			BIT(4)
 #define MAX9271_INTTYPE_I2C		(0 << 2)
 #define MAX9271_INTTYPE_UART		(1 << 2)
-#define MAX9271_INTTYPE_NONE		(2 << 2)
+#define MAX9271_INTTYPE_ANALNE		(2 << 2)
 #define MAX9271_REVCCEN			BIT(1)
 #define MAX9271_FWDCCEN			BIT(0)
 /* Register 0x07 */
@@ -63,7 +63,7 @@
 #define MAX9271_I2CMSTBT_84KBPS		(2 << 2)
 #define MAX9271_I2CMSTBT_28KBPS		(1 << 2)
 #define MAX9271_I2CMSTBT_8KBPS		(0 << 2)
-#define MAX9271_I2CSLVTO_NONE		(3 << 0)
+#define MAX9271_I2CSLVTO_ANALNE		(3 << 0)
 #define MAX9271_I2CSLVTO_1024US		(2 << 0)
 #define MAX9271_I2CSLVTO_256US		(1 << 0)
 #define MAX9271_I2CSLVTO_64US		(0 << 0)
@@ -179,7 +179,7 @@ int max9271_enable_gpios(struct max9271_device *dev, u8 gpio_mask);
  * @gpio_mask: The mask of gpio lines to disable
  *
  * The @gpio_mask parameter shall be assembled using the MAX9271_GPIO*
- * bit values. GPO line is always enabled by default and cannot be disabled.
+ * bit values. GPO line is always enabled by default and cananalt be disabled.
  *
  * Return 0 on success or a negative error code on failure
  */
@@ -223,7 +223,7 @@ int max9271_set_deserializer_address(struct max9271_device *dev, u8 addr);
  * @dest: The I2C destination address
  *
  * Program address translation from @source to @dest. This is required to
- * communicate with local devices that do not support address reprogramming.
+ * communicate with local devices that do analt support address reprogramming.
  *
  * TODO: The device supports translation of two address, this function currently
  * supports a single one.

@@ -190,7 +190,7 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 		case NFT_BITWISE_RSHIFT:
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	} else {
 		priv->op = NFT_BITWISE_BOOL;
@@ -270,11 +270,11 @@ static int nft_bitwise_offload(struct nft_offload_ctx *ctx,
 	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
 
 	if (priv->op != NFT_BITWISE_BOOL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (memcmp(&priv->xor, &zero, sizeof(priv->xor)) ||
 	    priv->sreg != priv->dreg || priv->len != reg->len)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memcpy(&reg->mask, &priv->mask, sizeof(priv->mask));
 
@@ -430,7 +430,7 @@ static int nft_bitwise_fast_offload(struct nft_offload_ctx *ctx,
 	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
 
 	if (priv->xor || priv->sreg != priv->dreg || reg->len != sizeof(u32))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	reg->mask.data[0] = priv->mask;
 	return 0;

@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
-#define CTR_RFC3686_NONCE_SIZE 4
+#define CTR_RFC3686_ANALNCE_SIZE 4
 #define CTR_RFC3686_IV_SIZE 8
 #define CTR_RFC3686_BLOCK_SIZE 16
 

@@ -92,17 +92,17 @@ static void *bpf_fd_probe_obj(u32 ufd, enum bpf_type *type)
 	return ERR_PTR(-EINVAL);
 }
 
-static const struct inode_operations bpf_dir_iops;
+static const struct ianalde_operations bpf_dir_iops;
 
-static const struct inode_operations bpf_prog_iops = { };
-static const struct inode_operations bpf_map_iops  = { };
-static const struct inode_operations bpf_link_iops  = { };
+static const struct ianalde_operations bpf_prog_iops = { };
+static const struct ianalde_operations bpf_map_iops  = { };
+static const struct ianalde_operations bpf_link_iops  = { };
 
-static struct inode *bpf_get_inode(struct super_block *sb,
-				   const struct inode *dir,
+static struct ianalde *bpf_get_ianalde(struct super_block *sb,
+				   const struct ianalde *dir,
 				   umode_t mode)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
@@ -113,26 +113,26 @@ static struct inode *bpf_get_inode(struct super_block *sb,
 		return ERR_PTR(-EINVAL);
 	}
 
-	inode = new_inode(sb);
-	if (!inode)
-		return ERR_PTR(-ENOSPC);
+	ianalde = new_ianalde(sb);
+	if (!ianalde)
+		return ERR_PTR(-EANALSPC);
 
-	inode->i_ino = get_next_ino();
-	simple_inode_init_ts(inode);
+	ianalde->i_ianal = get_next_ianal();
+	simple_ianalde_init_ts(ianalde);
 
-	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
+	ianalde_init_owner(&analp_mnt_idmap, ianalde, dir, mode);
 
-	return inode;
+	return ianalde;
 }
 
-static int bpf_inode_type(const struct inode *inode, enum bpf_type *type)
+static int bpf_ianalde_type(const struct ianalde *ianalde, enum bpf_type *type)
 {
 	*type = BPF_TYPE_UNSPEC;
-	if (inode->i_op == &bpf_prog_iops)
+	if (ianalde->i_op == &bpf_prog_iops)
 		*type = BPF_TYPE_PROG;
-	else if (inode->i_op == &bpf_map_iops)
+	else if (ianalde->i_op == &bpf_map_iops)
 		*type = BPF_TYPE_MAP;
-	else if (inode->i_op == &bpf_link_iops)
+	else if (ianalde->i_op == &bpf_link_iops)
 		*type = BPF_TYPE_LINK;
 	else
 		return -EACCES;
@@ -140,31 +140,31 @@ static int bpf_inode_type(const struct inode *inode, enum bpf_type *type)
 	return 0;
 }
 
-static void bpf_dentry_finalize(struct dentry *dentry, struct inode *inode,
-				struct inode *dir)
+static void bpf_dentry_finalize(struct dentry *dentry, struct ianalde *ianalde,
+				struct ianalde *dir)
 {
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, ianalde);
 	dget(dentry);
 
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
 }
 
-static int bpf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static int bpf_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 		     struct dentry *dentry, umode_t mode)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = bpf_get_inode(dir->i_sb, dir, mode | S_IFDIR);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	ianalde = bpf_get_ianalde(dir->i_sb, dir, mode | S_IFDIR);
+	if (IS_ERR(ianalde))
+		return PTR_ERR(ianalde);
 
-	inode->i_op = &bpf_dir_iops;
-	inode->i_fop = &simple_dir_operations;
+	ianalde->i_op = &bpf_dir_iops;
+	ianalde->i_fop = &simple_dir_operations;
 
-	inc_nlink(inode);
+	inc_nlink(ianalde);
 	inc_nlink(dir);
 
-	bpf_dentry_finalize(dentry, inode, dir);
+	bpf_dentry_finalize(dentry, ianalde, dir);
 	return 0;
 }
 
@@ -180,7 +180,7 @@ static struct map_iter *map_iter(struct seq_file *m)
 
 static struct bpf_map *seq_file_to_map(struct seq_file *m)
 {
-	return file_inode(m->file)->i_private;
+	return file_ianalde(m->file)->i_private;
 }
 
 static void map_iter_free(struct map_iter *iter)
@@ -195,11 +195,11 @@ static struct map_iter *map_iter_alloc(struct bpf_map *map)
 {
 	struct map_iter *iter;
 
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL | __GFP_NOWARN);
+	iter = kzalloc(sizeof(*iter), GFP_KERNEL | __GFP_ANALWARN);
 	if (!iter)
 		goto error;
 
-	iter->key = kzalloc(map->key_size, GFP_KERNEL | __GFP_NOWARN);
+	iter->key = kzalloc(map->key_size, GFP_KERNEL | __GFP_ANALWARN);
 	if (!iter->key)
 		goto error;
 
@@ -268,16 +268,16 @@ static const struct seq_operations bpffs_map_seq_ops = {
 	.stop	= map_seq_stop,
 };
 
-static int bpffs_map_open(struct inode *inode, struct file *file)
+static int bpffs_map_open(struct ianalde *ianalde, struct file *file)
 {
-	struct bpf_map *map = inode->i_private;
+	struct bpf_map *map = ianalde->i_private;
 	struct map_iter *iter;
 	struct seq_file *m;
 	int err;
 
 	iter = map_iter_alloc(map);
 	if (!iter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = seq_open(file, &bpffs_map_seq_ops);
 	if (err) {
@@ -291,13 +291,13 @@ static int bpffs_map_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bpffs_map_release(struct inode *inode, struct file *file)
+static int bpffs_map_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 
 	map_iter_free(map_iter(m));
 
-	return seq_release(inode, file);
+	return seq_release(ianalde, file);
 }
 
 /* bpffs_map_fops should only implement the basic
@@ -316,7 +316,7 @@ static const struct file_operations bpffs_map_fops = {
 	.release	= bpffs_map_release,
 };
 
-static int bpffs_obj_open(struct inode *inode, struct file *file)
+static int bpffs_obj_open(struct ianalde *ianalde, struct file *file)
 {
 	return -EIO;
 }
@@ -326,19 +326,19 @@ static const struct file_operations bpffs_obj_fops = {
 };
 
 static int bpf_mkobj_ops(struct dentry *dentry, umode_t mode, void *raw,
-			 const struct inode_operations *iops,
+			 const struct ianalde_operations *iops,
 			 const struct file_operations *fops)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
-	struct inode *inode = bpf_get_inode(dir->i_sb, dir, mode);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	struct ianalde *dir = dentry->d_parent->d_ianalde;
+	struct ianalde *ianalde = bpf_get_ianalde(dir->i_sb, dir, mode);
+	if (IS_ERR(ianalde))
+		return PTR_ERR(ianalde);
 
-	inode->i_op = iops;
-	inode->i_fop = fops;
-	inode->i_private = raw;
+	ianalde->i_op = iops;
+	ianalde->i_fop = fops;
+	ianalde->i_private = raw;
 
-	bpf_dentry_finalize(dentry, inode, dir);
+	bpf_dentry_finalize(dentry, ianalde, dir);
 	return 0;
 }
 
@@ -367,7 +367,7 @@ static int bpf_mklink(struct dentry *dentry, umode_t mode, void *arg)
 }
 
 static struct dentry *
-bpf_lookup(struct inode *dir, struct dentry *dentry, unsigned flags)
+bpf_lookup(struct ianalde *dir, struct dentry *dentry, unsigned flags)
 {
 	/* Dots in names (e.g. "/sys/fs/bpf/foo.bar") are reserved for future
 	 * extensions. That allows popoulate_bpffs() create special files.
@@ -379,29 +379,29 @@ bpf_lookup(struct inode *dir, struct dentry *dentry, unsigned flags)
 	return simple_lookup(dir, dentry, flags);
 }
 
-static int bpf_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int bpf_symlink(struct mnt_idmap *idmap, struct ianalde *dir,
 		       struct dentry *dentry, const char *target)
 {
-	char *link = kstrdup(target, GFP_USER | __GFP_NOWARN);
-	struct inode *inode;
+	char *link = kstrdup(target, GFP_USER | __GFP_ANALWARN);
+	struct ianalde *ianalde;
 
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	inode = bpf_get_inode(dir->i_sb, dir, S_IRWXUGO | S_IFLNK);
-	if (IS_ERR(inode)) {
+	ianalde = bpf_get_ianalde(dir->i_sb, dir, S_IRWXUGO | S_IFLNK);
+	if (IS_ERR(ianalde)) {
 		kfree(link);
-		return PTR_ERR(inode);
+		return PTR_ERR(ianalde);
 	}
 
-	inode->i_op = &simple_symlink_inode_operations;
-	inode->i_link = link;
+	ianalde->i_op = &simple_symlink_ianalde_operations;
+	ianalde->i_link = link;
 
-	bpf_dentry_finalize(dentry, inode, dir);
+	bpf_dentry_finalize(dentry, ianalde, dir);
 	return 0;
 }
 
-static const struct inode_operations bpf_dir_iops = {
+static const struct ianalde_operations bpf_dir_iops = {
 	.lookup		= bpf_lookup,
 	.mkdir		= bpf_mkdir,
 	.symlink	= bpf_symlink,
@@ -419,16 +419,16 @@ static int bpf_iter_link_pin_kernel(struct dentry *parent,
 	struct dentry *dentry;
 	int ret;
 
-	inode_lock(parent->d_inode);
+	ianalde_lock(parent->d_ianalde);
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (IS_ERR(dentry)) {
-		inode_unlock(parent->d_inode);
+		ianalde_unlock(parent->d_ianalde);
 		return PTR_ERR(dentry);
 	}
 	ret = bpf_mkobj_ops(dentry, mode, link, &bpf_link_iops,
 			    &bpf_iter_fops);
 	dput(dentry);
-	inode_unlock(parent->d_inode);
+	ianalde_unlock(parent->d_ianalde);
 	return ret;
 }
 
@@ -436,7 +436,7 @@ static int bpf_obj_do_pin(int path_fd, const char __user *pathname, void *raw,
 			  enum bpf_type type)
 {
 	struct dentry *dentry;
-	struct inode *dir;
+	struct ianalde *dir;
 	struct path path;
 	umode_t mode;
 	int ret;
@@ -445,14 +445,14 @@ static int bpf_obj_do_pin(int path_fd, const char __user *pathname, void *raw,
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	dir = d_inode(path.dentry);
+	dir = d_ianalde(path.dentry);
 	if (dir->i_op != &bpf_dir_iops) {
 		ret = -EPERM;
 		goto out;
 	}
 
 	mode = S_IFREG | ((S_IRUSR | S_IWUSR) & ~current_umask());
-	ret = security_path_mknod(&path, dentry, mode, 0);
+	ret = security_path_mkanald(&path, dentry, mode, 0);
 	if (ret)
 		goto out;
 
@@ -494,7 +494,7 @@ int bpf_obj_pin_user(u32 ufd, int path_fd, const char __user *pathname)
 static void *bpf_obj_do_get(int path_fd, const char __user *pathname,
 			    enum bpf_type *type, int flags)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct path path;
 	void *raw;
 	int ret;
@@ -503,16 +503,16 @@ static void *bpf_obj_do_get(int path_fd, const char __user *pathname,
 	if (ret)
 		return ERR_PTR(ret);
 
-	inode = d_backing_inode(path.dentry);
+	ianalde = d_backing_ianalde(path.dentry);
 	ret = path_permission(&path, ACC_MODE(flags));
 	if (ret)
 		goto out;
 
-	ret = bpf_inode_type(inode, type);
+	ret = bpf_ianalde_type(ianalde, type);
 	if (ret)
 		goto out;
 
-	raw = bpf_any_get(inode->i_private, *type);
+	raw = bpf_any_get(ianalde->i_private, *type);
 	if (!IS_ERR(raw))
 		touch_atime(&path);
 
@@ -545,28 +545,28 @@ int bpf_obj_get_user(int path_fd, const char __user *pathname, int flags)
 	else if (type == BPF_TYPE_LINK)
 		ret = (f_flags != O_RDWR) ? -EINVAL : bpf_link_new_fd(raw);
 	else
-		return -ENOENT;
+		return -EANALENT;
 
 	if (ret < 0)
 		bpf_any_put(raw, type);
 	return ret;
 }
 
-static struct bpf_prog *__get_prog_inode(struct inode *inode, enum bpf_prog_type type)
+static struct bpf_prog *__get_prog_ianalde(struct ianalde *ianalde, enum bpf_prog_type type)
 {
 	struct bpf_prog *prog;
-	int ret = inode_permission(&nop_mnt_idmap, inode, MAY_READ);
+	int ret = ianalde_permission(&analp_mnt_idmap, ianalde, MAY_READ);
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (inode->i_op == &bpf_map_iops)
+	if (ianalde->i_op == &bpf_map_iops)
 		return ERR_PTR(-EINVAL);
-	if (inode->i_op == &bpf_link_iops)
+	if (ianalde->i_op == &bpf_link_iops)
 		return ERR_PTR(-EINVAL);
-	if (inode->i_op != &bpf_prog_iops)
+	if (ianalde->i_op != &bpf_prog_iops)
 		return ERR_PTR(-EACCES);
 
-	prog = inode->i_private;
+	prog = ianalde->i_private;
 
 	ret = security_bpf_prog(prog);
 	if (ret < 0)
@@ -586,7 +586,7 @@ struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type typ
 	int ret = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (ret)
 		return ERR_PTR(ret);
-	prog = __get_prog_inode(d_backing_inode(path.dentry), type);
+	prog = __get_prog_ianalde(d_backing_ianalde(path.dentry), type);
 	if (!IS_ERR(prog))
 		touch_atime(&path);
 	path_put(&path);
@@ -599,36 +599,36 @@ EXPORT_SYMBOL(bpf_prog_get_type_path);
  */
 static int bpf_show_options(struct seq_file *m, struct dentry *root)
 {
-	struct inode *inode = d_inode(root);
-	umode_t mode = inode->i_mode & S_IALLUGO & ~S_ISVTX;
+	struct ianalde *ianalde = d_ianalde(root);
+	umode_t mode = ianalde->i_mode & S_IALLUGO & ~S_ISVTX;
 
-	if (!uid_eq(inode->i_uid, GLOBAL_ROOT_UID))
+	if (!uid_eq(ianalde->i_uid, GLOBAL_ROOT_UID))
 		seq_printf(m, ",uid=%u",
-			   from_kuid_munged(&init_user_ns, inode->i_uid));
-	if (!gid_eq(inode->i_gid, GLOBAL_ROOT_GID))
+			   from_kuid_munged(&init_user_ns, ianalde->i_uid));
+	if (!gid_eq(ianalde->i_gid, GLOBAL_ROOT_GID))
 		seq_printf(m, ",gid=%u",
-			   from_kgid_munged(&init_user_ns, inode->i_gid));
+			   from_kgid_munged(&init_user_ns, ianalde->i_gid));
 	if (mode != S_IRWXUGO)
 		seq_printf(m, ",mode=%o", mode);
 	return 0;
 }
 
-static void bpf_free_inode(struct inode *inode)
+static void bpf_free_ianalde(struct ianalde *ianalde)
 {
 	enum bpf_type type;
 
-	if (S_ISLNK(inode->i_mode))
-		kfree(inode->i_link);
-	if (!bpf_inode_type(inode, &type))
-		bpf_any_put(inode->i_private, type);
-	free_inode_nonrcu(inode);
+	if (S_ISLNK(ianalde->i_mode))
+		kfree(ianalde->i_link);
+	if (!bpf_ianalde_type(ianalde, &type))
+		bpf_any_put(ianalde->i_private, type);
+	free_ianalde_analnrcu(ianalde);
 }
 
 static const struct super_operations bpf_super_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_ianalde	= generic_delete_ianalde,
 	.show_options	= bpf_show_options,
-	.free_inode	= bpf_free_inode,
+	.free_ianalde	= bpf_free_ianalde,
 };
 
 enum {
@@ -661,12 +661,12 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	opt = fs_parse(fc, bpf_fs_parameters, param, &result);
 	if (opt < 0) {
 		/* We might like to report bad mount options here, but
-		 * traditionally we've ignored all mount options, so we'd
-		 * better continue to ignore non-existing options for bpf.
+		 * traditionally we've iganalred all mount options, so we'd
+		 * better continue to iganalre analn-existing options for bpf.
 		 */
-		if (opt == -ENOPARAM) {
+		if (opt == -EANALPARAM) {
 			opt = vfs_parse_fs_param_source(fc, param);
-			if (opt != -ENOPARAM)
+			if (opt != -EANALPARAM)
 				return opt;
 
 			return 0;
@@ -720,7 +720,7 @@ EXPORT_SYMBOL_GPL(bpf_preload_ops);
 
 static bool bpf_preload_mod_get(void)
 {
-	/* If bpf_preload.ko wasn't loaded earlier then load it now.
+	/* If bpf_preload.ko wasn't loaded earlier then load it analw.
 	 * When bpf_preload is built into vmlinux the module's __init
 	 * function will populate it.
 	 */
@@ -742,7 +742,7 @@ static bool bpf_preload_mod_get(void)
 static void bpf_preload_mod_put(void)
 {
 	if (bpf_preload_ops)
-		/* now user can "rmmod bpf_preload" if necessary */
+		/* analw user can "rmmod bpf_preload" if necessary */
 		module_put(bpf_preload_ops->owner);
 }
 
@@ -785,7 +785,7 @@ static int bpf_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	static const struct tree_descr bpf_rfiles[] = { { "" } };
 	struct bpf_mount_opts *opts = fc->fs_private;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int ret;
 
 	ret = simple_fill_super(sb, BPF_FS_MAGIC, bpf_rfiles);
@@ -794,19 +794,19 @@ static int bpf_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_op = &bpf_super_ops;
 
-	inode = sb->s_root->d_inode;
-	inode->i_uid = opts->uid;
-	inode->i_gid = opts->gid;
-	inode->i_op = &bpf_dir_iops;
-	inode->i_mode &= ~S_IALLUGO;
+	ianalde = sb->s_root->d_ianalde;
+	ianalde->i_uid = opts->uid;
+	ianalde->i_gid = opts->gid;
+	ianalde->i_op = &bpf_dir_iops;
+	ianalde->i_mode &= ~S_IALLUGO;
 	populate_bpffs(sb->s_root);
-	inode->i_mode |= S_ISVTX | opts->mode;
+	ianalde->i_mode |= S_ISVTX | opts->mode;
 	return 0;
 }
 
 static int bpf_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, bpf_fill_super);
+	return get_tree_analdev(fc, bpf_fill_super);
 }
 
 static void bpf_free_fc(struct fs_context *fc)
@@ -829,7 +829,7 @@ static int bpf_init_fs_context(struct fs_context *fc)
 
 	opts = kzalloc(sizeof(struct bpf_mount_opts), GFP_KERNEL);
 	if (!opts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	opts->mode = S_IRWXUGO;
 	opts->uid = current_fsuid();

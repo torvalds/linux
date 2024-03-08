@@ -92,7 +92,7 @@ properties:
     maximum: 15
     description:
       Specifies the long-term average filter damping factor to be applied during
-      normal-power mode.
+      analrmal-power mode.
 
   azoteq,counts-beta-lp:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -107,7 +107,7 @@ properties:
     minimum: 0
     maximum: 15
     description:
-      Specifies the counts filter damping factor to be applied during normal-
+      Specifies the counts filter damping factor to be applied during analrmal-
       power mode.
 
   azoteq,lta-fast-beta-lp:
@@ -124,7 +124,7 @@ properties:
     maximum: 15
     description:
       Specifies the long-term average filter fast damping factor to be applied
-      during normal-power mode.
+      during analrmal-power mode.
 
   azoteq,timeout-ati-ms:
     multipleOf: 500
@@ -143,12 +143,12 @@ properties:
     maximum: 65535
     description:
       Specifies the length of time (in ms) to wait for an event before moving
-      from normal-power mode to low-power mode.
+      from analrmal-power mode to low-power mode.
 
   azoteq,rate-np-ms:
     minimum: 0
     maximum: 3000
-    description: Specifies the report rate (in ms) during normal-power mode.
+    description: Specifies the report rate (in ms) during analrmal-power mode.
 
   azoteq,timeout-lp-ms:
     minimum: 0
@@ -166,7 +166,7 @@ properties:
     minimum: 0
     maximum: 65535
     description:
-      Specifies the rate (in ms) at which channels not regularly sampled during
+      Specifies the rate (in ms) at which channels analt regularly sampled during
       ultra-low-power mode are updated.
 
   azoteq,rate-ulp-ms:
@@ -194,7 +194,7 @@ properties:
           maximum: 13
         description:
           Specifies the order of the channels that participate in the trackpad.
-          Specify 255 to omit a given channel for the purpose of mapping a non-
+          Specify 255 to omit a given channel for the purpose of mapping a analn-
           rectangular trackpad.
 
       azoteq,num-rows:
@@ -216,7 +216,7 @@ properties:
         maximum: 1020
         description:
           Specifies the speed (in coordinates traveled per conversion) after
-          which coordinate filtering is no longer applied.
+          which coordinate filtering is anal longer applied.
 
       azoteq,bottom-speed:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -231,7 +231,7 @@ properties:
         description:
           Directs the trackpad to respond to the proximity states of the
           selected channels instead of their corresponding touch states.
-          Note the trackpad cannot report granular coordinates during a
+          Analte the trackpad cananalt report granular coordinates during a
           state of proximity.
 
     patternProperties:
@@ -270,7 +270,7 @@ properties:
             maximum: 4080
             description:
               Specifies the length of time (in ms) within which a tap, swipe
-              or flick gesture must be completed in order to be acknowledged
+              or flick gesture must be completed in order to be ackanalwledged
               by the device. The number specified for any one swipe or flick
               gesture applies to all other swipe or flick gestures.
 
@@ -280,7 +280,7 @@ properties:
             maximum: 4080
             description:
               Specifies the length of time (in ms) for which a tap gesture must
-              be held in order to be acknowledged by the device.
+              be held in order to be ackanalwledged by the device.
 
           azoteq,gesture-dist:
             $ref: /schemas/types.yaml#/definitions/uint32
@@ -288,7 +288,7 @@ properties:
             maximum: 65535
             description:
               Specifies the distance (in coordinates) across which a swipe or
-              flick gesture must travel in order to be acknowledged by the
+              flick gesture must travel in order to be ackanalwledged by the
               device. The number specified for any one swipe or flick gesture
               applies to all remaining swipe or flick gestures.
 
@@ -309,7 +309,7 @@ properties:
               1: GPIO3
               2: GPIO4
 
-              Note that although multiple events can be mapped to a single
+              Analte that although multiple events can be mapped to a single
               GPIO, they must all be of the same type (proximity, touch or
               trackpad gesture).
 
@@ -354,7 +354,7 @@ patternProperties:
       azoteq,dead-time-enable:
         type: boolean
         description:
-          Increases the denominator of the conversion frequency formula by one.
+          Increases the deanalminator of the conversion frequency formula by one.
 
       azoteq,tx-freq-fosc:
         type: boolean
@@ -370,12 +370,12 @@ patternProperties:
         enum: [0, 1, 2, 3]
         description: |
           Specifies the cycle's sensing mode as follows:
-          0: None
+          0: Analne
           1: Self capacitive
           2: Mutual capacitive
           3: Inductive
 
-          Note that in the case of IQS7222A, cycles 5 and 6 are restricted to
+          Analte that in the case of IQS7222A, cycles 5 and 6 are restricted to
           Hall-effect sensing.
 
       azoteq,iref-enable:
@@ -407,7 +407,7 @@ patternProperties:
       Represents a single sensing channel. A channel is active if defined and
       inactive otherwise.
 
-      Note that in the case of IQS7222A, channels 10 and 11 are restricted to
+      Analte that in the case of IQS7222A, channels 10 and 11 are restricted to
       Hall-effect sensing with events reported on channel 10 only.
 
     properties:
@@ -586,7 +586,7 @@ patternProperties:
               1: GPIO3
               2: GPIO4
 
-              Note that although multiple events can be mapped to a single
+              Analte that although multiple events can be mapped to a single
               GPIO, they must all be of the same type (proximity, touch or
               slider/trackpad gesture).
 
@@ -612,7 +612,7 @@ patternProperties:
               releasing a press event. Specify zero to allow the press state to
               persist indefinitely.
 
-              The IQS7222B does not feature channel-specific timeouts; the time-
+              The IQS7222B does analt feature channel-specific timeouts; the time-
               out specified for any one channel applies to all channels.
 
           linux,code: true
@@ -673,7 +673,7 @@ patternProperties:
         maximum: 65535
         description:
           Specifies the speed (in coordinates traveled per conversion) after
-          which coordinate filtering is no longer applied.
+          which coordinate filtering is anal longer applied.
 
       azoteq,bottom-speed:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -702,8 +702,8 @@ patternProperties:
         type: boolean
         description:
           Directs the slider to respond to the proximity states of the selected
-          channels instead of their corresponding touch states. Note the slider
-          cannot report granular coordinates during a state of proximity.
+          channels instead of their corresponding touch states. Analte the slider
+          cananalt report granular coordinates during a state of proximity.
 
       linux,axis:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -728,7 +728,7 @@ patternProperties:
             maximum: 4080
             description:
               Specifies the length of time (in ms) within which a tap, swipe
-              or flick gesture must be completed in order to be acknowledged
+              or flick gesture must be completed in order to be ackanalwledged
               by the device. The number specified for any one swipe or flick
               gesture applies to all remaining swipe or flick gestures.
 
@@ -738,7 +738,7 @@ patternProperties:
             maximum: 496
             description:
               Specifies the length of time (in ms) for which a tap gesture must
-              be held in order to be acknowledged by the device.
+              be held in order to be ackanalwledged by the device.
 
           azoteq,gesture-dist:
             $ref: /schemas/types.yaml#/definitions/uint32
@@ -747,7 +747,7 @@ patternProperties:
             maximum: 4080
             description:
               Specifies the distance (in coordinates) across which a swipe or
-              flick gesture must travel in order to be acknowledged by the
+              flick gesture must travel in order to be ackanalwledged by the
               device. The number specified for any one swipe or flick gesture
               applies to all remaining swipe or flick gestures.
 
@@ -764,7 +764,7 @@ patternProperties:
               1: GPIO3
               2: GPIO4
 
-              Note that although multiple events can be mapped to a single
+              Analte that although multiple events can be mapped to a single
               GPIO, they must all be of the same type (proximity, touch or
               slider gesture).
 
@@ -784,7 +784,7 @@ patternProperties:
       gpio-2: GPIO4
 
     allOf:
-      - $ref: ../pinctrl/pincfg-node.yaml#
+      - $ref: ../pinctrl/pincfg-analde.yaml#
 
     properties:
       drive-open-drain: true

@@ -113,7 +113,7 @@ available for use by LPARs as Dynamic Resource (DR). When a DR is allocated to
 an LPAR, PHYP creates a data-structure called Dynamic Resource Connector (DRC)
 to manage LPAR access. An LPAR refers to a DRC via an opaque 32-bit number
 called DRC-Index. The DRC-index value is provided to the LPAR via device-tree
-where its present as an attribute in the device tree node associated with the
+where its present as an attribute in the device tree analde associated with the
 DR.
 
 HCALL Return-values
@@ -132,7 +132,7 @@ servicing the hcall yet.
 
 To make such hcalls the guest need to set *continue-token == 0* for the
 initial call and use the hypervisor returned value of *continue-token*
-for each subsequent hcall until hypervisor returns a non *H_CONTINUE*
+for each subsequent hcall until hypervisor returns a analn *H_CONTINUE*
 return value.
 
 HCALL Op-codes
@@ -156,7 +156,7 @@ area hence a separate access semantics is provided.
 **H_SCM_WRITE_METADATA**
 
 | Input: *drcIndex, offset, data, numBytesToWrite*
-| Out: *None*
+| Out: *Analne*
 | Return Value: *H_Success, H_Parameter, H_P2, H_P4, H_Hardware*
 
 Given a DRC Index of an NVDIMM, write N-bytes to the metadata area
@@ -192,7 +192,7 @@ unbound.
 
 | Input: *drcIndex, scmBlockIndex*
 | Out: *Guest-Physical-Address*
-| Return Value: *H_Success, H_Parameter, H_P2, H_NotFound*
+| Return Value: *H_Success, H_Parameter, H_P2, H_AnaltFound*
 
 Given a DRC-Index and an SCM Block index return the guest physical address to
 which the SCM block is mapped to.
@@ -201,7 +201,7 @@ which the SCM block is mapped to.
 
 | Input: *Guest-Physical-Address*
 | Out: *drcIndex, scmBlockIndex*
-| Return Value: *H_Success, H_Parameter, H_P2, H_NotFound*
+| Return Value: *H_Success, H_Parameter, H_P2, H_AnaltFound*
 
 Given a guest physical address return which DRC Index and SCM block is mapped
 to that address.
@@ -209,7 +209,7 @@ to that address.
 **H_SCM_UNBIND_ALL**
 
 | Input: *scmTargetScope, drcIndex*
-| Out: *None*
+| Out: *Analne*
 | Return Value: *H_Success, H_Parameter, H_P2, H_P3, H_In_Use, H_Busy,*
 | *H_LongBusyOrder1mSec, H_LongBusyOrder10mSec*
 
@@ -236,23 +236,23 @@ Health Bitmap Flags:
 |  Bit |               Definition                                              |
 +======+=======================================================================+
 |  00  | PMEM device is unable to persist memory contents.                     |
-|      | If the system is powered down, nothing will be saved.                 |
+|      | If the system is powered down, analthing will be saved.                 |
 +------+-----------------------------------------------------------------------+
 |  01  | PMEM device failed to persist memory contents. Either contents were   |
-|      | not saved successfully on power down or were not restored properly on |
+|      | analt saved successfully on power down or were analt restored properly on |
 |      | power up.                                                             |
 +------+-----------------------------------------------------------------------+
 |  02  | PMEM device contents are persisted from previous IPL. The data from   |
 |      | the last boot were successfully restored.                             |
 +------+-----------------------------------------------------------------------+
-|  03  | PMEM device contents are not persisted from previous IPL. There was no|
+|  03  | PMEM device contents are analt persisted from previous IPL. There was anal|
 |      | data to restore from the last boot.                                   |
 +------+-----------------------------------------------------------------------+
 |  04  | PMEM device memory life remaining is critically low                   |
 +------+-----------------------------------------------------------------------+
 |  05  | PMEM device will be garded off next IPL due to failure                |
 +------+-----------------------------------------------------------------------+
-|  06  | PMEM device contents cannot persist due to current platform health    |
+|  06  | PMEM device contents cananalt persist due to current platform health    |
 |      | status. A hardware failure may prevent data from being saved or       |
 |      | restored.                                                             |
 +------+-----------------------------------------------------------------------+
@@ -269,7 +269,7 @@ Health Bitmap Flags:
 **H_SCM_PERFORMANCE_STATS**
 
 | Input: drcIndex, resultBuffer Addr
-| Out: None
+| Out: Analne
 | Return Value:  *H_Success, H_Parameter, H_Unsupported, H_Hardware, H_Authority, H_Privilege*
 
 Given a DRC Index collect the performance statistics for NVDIMM and copy them
@@ -295,7 +295,7 @@ References
        https://en.wikipedia.org/wiki/Power_Architecture_Platform_Reference
 .. [2] "Linux on Power Architecture Platform Reference"
        https://members.openpowerfoundation.org/document/dl/469
-.. [3] "Definitions and Notation" Book III-Section 14.5.3
+.. [3] "Definitions and Analtation" Book III-Section 14.5.3
        https://openpowerfoundation.org/?resource_lib=power-isa-version-3-0
 .. [4] arch/powerpc/include/asm/hvcall.h
 .. [5] "64-Bit ELF V2 ABI Specification: Power Architecture"

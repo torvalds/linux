@@ -20,7 +20,7 @@
 
 int ext2_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 {
-	struct ext2_inode_info *ei = EXT2_I(d_inode(dentry));
+	struct ext2_ianalde_info *ei = EXT2_I(d_ianalde(dentry));
 
 	fileattr_fill_flags(fa, ei->i_flags & EXT2_FL_USER_VISIBLE);
 
@@ -30,22 +30,22 @@ int ext2_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 int ext2_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
-	struct ext2_inode_info *ei = EXT2_I(inode);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct ext2_ianalde_info *ei = EXT2_I(ianalde);
 
 	if (fileattr_has_fsx(fa))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* Is it quota file? Do not allow user to mess with it */
-	if (IS_NOQUOTA(inode))
+	/* Is it quota file? Do analt allow user to mess with it */
+	if (IS_ANALQUOTA(ianalde))
 		return -EPERM;
 
 	ei->i_flags = (ei->i_flags & ~EXT2_FL_USER_MODIFIABLE) |
 		(fa->flags & EXT2_FL_USER_MODIFIABLE);
 
-	ext2_set_inode_flags(inode);
-	inode_set_ctime_current(inode);
-	mark_inode_dirty(inode);
+	ext2_set_ianalde_flags(ianalde);
+	ianalde_set_ctime_current(ianalde);
+	mark_ianalde_dirty(ianalde);
 
 	return 0;
 }
@@ -53,8 +53,8 @@ int ext2_fileattr_set(struct mnt_idmap *idmap,
 
 long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
-	struct ext2_inode_info *ei = EXT2_I(inode);
+	struct ianalde *ianalde = file_ianalde(filp);
+	struct ext2_ianalde_info *ei = EXT2_I(ianalde);
 	unsigned short rsv_window_size;
 	int ret;
 
@@ -62,11 +62,11 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case EXT2_IOC_GETVERSION:
-		return put_user(inode->i_generation, (int __user *) arg);
+		return put_user(ianalde->i_generation, (int __user *) arg);
 	case EXT2_IOC_SETVERSION: {
 		__u32 generation;
 
-		if (!inode_owner_or_capable(&nop_mnt_idmap, inode))
+		if (!ianalde_owner_or_capable(&analp_mnt_idmap, ianalde))
 			return -EPERM;
 		ret = mnt_want_write_file(filp);
 		if (ret)
@@ -76,30 +76,30 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto setversion_out;
 		}
 
-		inode_lock(inode);
-		inode_set_ctime_current(inode);
-		inode->i_generation = generation;
-		inode_unlock(inode);
+		ianalde_lock(ianalde);
+		ianalde_set_ctime_current(ianalde);
+		ianalde->i_generation = generation;
+		ianalde_unlock(ianalde);
 
-		mark_inode_dirty(inode);
+		mark_ianalde_dirty(ianalde);
 setversion_out:
 		mnt_drop_write_file(filp);
 		return ret;
 	}
 	case EXT2_IOC_GETRSVSZ:
-		if (test_opt(inode->i_sb, RESERVATION)
-			&& S_ISREG(inode->i_mode)
+		if (test_opt(ianalde->i_sb, RESERVATION)
+			&& S_ISREG(ianalde->i_mode)
 			&& ei->i_block_alloc_info) {
-			rsv_window_size = ei->i_block_alloc_info->rsv_window_node.rsv_goal_size;
+			rsv_window_size = ei->i_block_alloc_info->rsv_window_analde.rsv_goal_size;
 			return put_user(rsv_window_size, (int __user *)arg);
 		}
-		return -ENOTTY;
+		return -EANALTTY;
 	case EXT2_IOC_SETRSVSZ: {
 
-		if (!test_opt(inode->i_sb, RESERVATION) ||!S_ISREG(inode->i_mode))
-			return -ENOTTY;
+		if (!test_opt(ianalde->i_sb, RESERVATION) ||!S_ISREG(ianalde->i_mode))
+			return -EANALTTY;
 
-		if (!inode_owner_or_capable(&nop_mnt_idmap, inode))
+		if (!ianalde_owner_or_capable(&analp_mnt_idmap, ianalde))
 			return -EACCES;
 
 		if (get_user(rsv_window_size, (int __user *)arg))
@@ -113,7 +113,7 @@ setversion_out:
 			rsv_window_size = EXT2_MAX_RESERVE_BLOCKS;
 
 		/*
-		 * need to allocate reservation structure for this inode
+		 * need to allocate reservation structure for this ianalde
 		 * before set the window size
 		 */
 		/*
@@ -122,13 +122,13 @@ setversion_out:
 		 */
 		mutex_lock(&ei->truncate_mutex);
 		if (!ei->i_block_alloc_info)
-			ext2_init_block_alloc_info(inode);
+			ext2_init_block_alloc_info(ianalde);
 
 		if (ei->i_block_alloc_info){
-			struct ext2_reserve_window_node *rsv = &ei->i_block_alloc_info->rsv_window_node;
+			struct ext2_reserve_window_analde *rsv = &ei->i_block_alloc_info->rsv_window_analde;
 			rsv->rsv_goal_size = rsv_window_size;
 		} else {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 		}
 
 		mutex_unlock(&ei->truncate_mutex);
@@ -136,7 +136,7 @@ setversion_out:
 		return ret;
 	}
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -152,7 +152,7 @@ long ext2_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		cmd = EXT2_IOC_SETVERSION;
 		break;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 	return ext2_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
 }

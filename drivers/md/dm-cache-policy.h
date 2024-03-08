@@ -46,9 +46,9 @@ struct dm_cache_policy {
 	/*
 	 * Find the location of a block.
 	 *
-	 * Must not block.
+	 * Must analt block.
 	 *
-	 * Returns 0 if in cache (cblock will be set), -ENOENT if not, < 0 for
+	 * Returns 0 if in cache (cblock will be set), -EANALENT if analt, < 0 for
 	 * other errors (-EWOULDBLOCK would be typical).  data_dir should be
 	 * READ or WRITE. fast_copy should be set if migrating this block would
 	 * be 'cheap' somehow (eg, discarded data). background_queued will be set
@@ -61,7 +61,7 @@ struct dm_cache_policy {
 	 * Sometimes the core target can optimise a migration, eg, the
 	 * block may be discarded, or the bio may cover an entire block.
 	 * In order to optimise it needs the migration immediately though
-	 * so it knows to do something different with the bio.
+	 * so it kanalws to do something different with the bio.
 	 *
 	 * This method is optional (policy-internal will fallback to using
 	 * lookup).
@@ -72,14 +72,14 @@ struct dm_cache_policy {
 				struct policy_work **work);
 
 	/*
-	 * Retrieves background work.  Returns -ENODATA when there's no
+	 * Retrieves background work.  Returns -EANALDATA when there's anal
 	 * background work.
 	 */
 	int (*get_background_work)(struct dm_cache_policy *p, bool idle,
 				   struct policy_work **result);
 
 	/*
-	 * You must pass in the same work pointer that you were given, not
+	 * You must pass in the same work pointer that you were given, analt
 	 * a copy.
 	 */
 	void (*complete_background_work)(struct dm_cache_policy *p,
@@ -99,13 +99,13 @@ struct dm_cache_policy {
 
 	/*
 	 * Drops the mapping, irrespective of whether it's clean or dirty.
-	 * Returns -ENODATA if cblock is not mapped.
+	 * Returns -EANALDATA if cblock is analt mapped.
 	 */
 	int (*invalidate_mapping)(struct dm_cache_policy *p, dm_cblock_t cblock);
 
 	/*
 	 * Gets the hint for a given cblock.  Called in a single threaded
-	 * context.  So no locking required.
+	 * context.  So anal locking required.
 	 */
 	uint32_t (*get_hint)(struct dm_cache_policy *p, dm_cblock_t cblock);
 
@@ -116,7 +116,7 @@ struct dm_cache_policy {
 
 	/*
 	 * Because of where we sit in the block layer, we can be asked to
-	 * map a lot of little bios that are all in the same block (no
+	 * map a lot of little bios that are all in the same block (anal
 	 * queue merging has occurred).  To stop the policy being fooled by
 	 * these, the core target sends regular tick() calls to the policy.
 	 * The policy should only count an entry as hit once per tick.
@@ -136,7 +136,7 @@ struct dm_cache_policy {
 	void (*allow_migrations)(struct dm_cache_policy *p, bool allow);
 
 	/*
-	 * Book keeping ptr for the policy register, not for general use.
+	 * Book keeping ptr for the policy register, analt for general use.
 	 */
 	void *private;
 };

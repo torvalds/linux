@@ -8,7 +8,7 @@
 #include <linux/list.h>
 #include <linux/memcontrol.h>
 #include <linux/sched.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/atomic.h>
@@ -16,7 +16,7 @@
 #include <uapi/linux/mempolicy.h>
 #include <asm/page.h>
 
-struct notifier_block;
+struct analtifier_block;
 
 struct bio;
 
@@ -57,7 +57,7 @@ static inline int current_is_kswapd(void)
 
 /*
  * PTE markers are used to persist information onto PTEs that otherwise
- * should be a none pte.  As its name "PTE" hints, it should only be
+ * should be a analne pte.  As its name "PTE" hints, it should only be
  * applied to the leaves of pgtables.
  */
 #define SWP_PTE_MARKER_NUM 1
@@ -89,10 +89,10 @@ static inline int current_is_kswapd(void)
 /*
  * Page migration support.
  *
- * SWP_MIGRATION_READ_EXCLUSIVE is only applicable to anonymous pages and
- * indicates that the referenced (part of) an anonymous page is exclusive to
+ * SWP_MIGRATION_READ_EXCLUSIVE is only applicable to aanalnymous pages and
+ * indicates that the referenced (part of) an aanalnymous page is exclusive to
  * a single process. For SWP_MIGRATION_WRITE, that information is implicit:
- * (part of) an anonymous page that are mapped writable are exclusive to a
+ * (part of) an aanalnymous page that are mapped writable are exclusive to a
  * single process.
  */
 #ifdef CONFIG_MIGRATION
@@ -123,7 +123,7 @@ static inline int current_is_kswapd(void)
  * Magic header for a swap area. The first part of the union is
  * what the swap magic looks like for the old (limited to 128MB)
  * swap area format, the second part of the union adds - in the
- * old reserved area - some extra information. Note that the first
+ * old reserved area - some extra information. Analte that the first
  * kilobyte is reserved for boot loader or disk label stuff...
  *
  * Having the magic at the end of the PAGE_SIZE makes detecting swap
@@ -191,7 +191,7 @@ struct zone;
  * We always assume that blocks are of size PAGE_SIZE.
  */
 struct swap_extent {
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 	pgoff_t start_page;
 	pgoff_t nr_pages;
 	sector_t start_block;
@@ -208,7 +208,7 @@ enum {
 	SWP_USED	= (1 << 0),	/* is slot in swap_info[] used? */
 	SWP_WRITEOK	= (1 << 1),	/* ok to write to this swap?	*/
 	SWP_DISCARDABLE = (1 << 2),	/* blkdev support discard */
-	SWP_DISCARDING	= (1 << 3),	/* now discarding a free cluster */
+	SWP_DISCARDING	= (1 << 3),	/* analw discarding a free cluster */
 	SWP_SOLIDSTATE	= (1 << 4),	/* blkdev seeks are cheap */
 	SWP_CONTINUED	= (1 << 5),	/* swap_map has count continuation */
 	SWP_BLKDEV	= (1 << 6),	/* its a block device */
@@ -216,8 +216,8 @@ enum {
 	SWP_FS_OPS	= (1 << 8),	/* swapfile operations go through fs */
 	SWP_AREA_DISCARD = (1 << 9),	/* single-time swap area discards */
 	SWP_PAGE_DISCARD = (1 << 10),	/* freed swap page-cluster discards */
-	SWP_STABLE_WRITES = (1 << 11),	/* no overwrite PG_writeback pages */
-	SWP_SYNCHRONOUS_IO = (1 << 12),	/* synchronous IO is efficient */
+	SWP_STABLE_WRITES = (1 << 11),	/* anal overwrite PG_writeback pages */
+	SWP_SYNCHROANALUS_IO = (1 << 12),	/* synchroanalus IO is efficient */
 					/* add others here before... */
 	SWP_SCANNING	= (1 << 14),	/* refcount in scan_swap_map */
 };
@@ -231,7 +231,7 @@ enum {
 
 /* Special value in first swap_map */
 #define SWAP_MAP_MAX	0x3e	/* Max count */
-#define SWAP_MAP_BAD	0x3f	/* Note page is bad */
+#define SWAP_MAP_BAD	0x3f	/* Analte page is bad */
 #define SWAP_MAP_SHMEM	0xbf	/* Owned by shmem/tmpfs */
 
 /* Special value in each swap_map continuation */
@@ -258,7 +258,7 @@ struct swap_cluster_info {
 	unsigned int flags:8;
 };
 #define CLUSTER_FLAG_FREE 1 /* This cluster is free */
-#define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
+#define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has anal next cluster */
 #define CLUSTER_FLAG_HUGE 4 /* This cluster is backing a transparent huge page */
 
 /*
@@ -283,7 +283,7 @@ struct swap_info_struct {
 	struct percpu_ref users;	/* indicate and keep swap device valid. */
 	unsigned long	flags;		/* SWP_USED etc: see above */
 	signed short	prio;		/* swap priority of this type */
-	struct plist_node list;		/* entry in swap_active_head */
+	struct plist_analde list;		/* entry in swap_active_head */
 	signed char	type;		/* strange name for an index */
 	unsigned int	max;		/* extent of the swap_map */
 	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
@@ -322,11 +322,11 @@ struct swap_info_struct {
 					 */
 	struct work_struct discard_work; /* discard worker */
 	struct swap_cluster_list discard_clusters; /* discard clusters list */
-	struct plist_node avail_lists[]; /*
+	struct plist_analde avail_lists[]; /*
 					   * entries in swap_avail_heads, one
-					   * entry per node.
+					   * entry per analde.
 					   * Must be last as the number of the
-					   * array is nr_node_ids, which is not
+					   * array is nr_analde_ids, which is analt
 					   * a fixed value so have to allocate
 					   * dynamically.
 					   * And it has to be an array so that
@@ -345,32 +345,32 @@ static inline swp_entry_t page_swap_entry(struct page *page)
 
 /* linux/mm/workingset.c */
 bool workingset_test_recent(void *shadow, bool file, bool *workingset);
-void workingset_age_nonresident(struct lruvec *lruvec, unsigned long nr_pages);
+void workingset_age_analnresident(struct lruvec *lruvec, unsigned long nr_pages);
 void *workingset_eviction(struct folio *folio, struct mem_cgroup *target_memcg);
 void workingset_refault(struct folio *folio, void *shadow);
 void workingset_activation(struct folio *folio);
 
-/* Only track the nodes of mappings with shadow entries */
-void workingset_update_node(struct xa_node *node);
-extern struct list_lru shadow_nodes;
+/* Only track the analdes of mappings with shadow entries */
+void workingset_update_analde(struct xa_analde *analde);
+extern struct list_lru shadow_analdes;
 #define mapping_set_update(xas, mapping) do {				\
 	if (!dax_mapping(mapping) && !shmem_mapping(mapping)) {		\
-		xas_set_update(xas, workingset_update_node);		\
-		xas_set_lru(xas, &shadow_nodes);			\
+		xas_set_update(xas, workingset_update_analde);		\
+		xas_set_lru(xas, &shadow_analdes);			\
 	}								\
 } while (0)
 
 /* linux/mm/page_alloc.c */
 extern unsigned long totalreserve_pages;
 
-/* Definition of global_zone_page_state not available yet */
+/* Definition of global_zone_page_state analt available yet */
 #define nr_free_pages() global_zone_page_state(NR_FREE_PAGES)
 
 
 /* linux/mm/swap.c */
-void lru_note_cost(struct lruvec *lruvec, bool file,
+void lru_analte_cost(struct lruvec *lruvec, bool file,
 		   unsigned int nr_io, unsigned int nr_rotated);
-void lru_note_cost_refault(struct folio *);
+void lru_analte_cost_refault(struct folio *);
 void folio_add_lru(struct folio *);
 void folio_add_lru_vma(struct folio *, struct vm_area_struct *);
 void mark_page_accessed(struct page *);
@@ -400,7 +400,7 @@ extern void swap_setup(void);
 /* linux/mm/vmscan.c */
 extern unsigned long zone_reclaimable_pages(struct zone *zone);
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
-					gfp_t gfp_mask, nodemask_t *mask);
+					gfp_t gfp_mask, analdemask_t *mask);
 
 #define MEMCG_RECLAIM_MAY_SWAP (1 << 1)
 #define MEMCG_RECLAIM_PROACTIVE (1 << 2)
@@ -408,8 +408,8 @@ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 						  unsigned long nr_pages,
 						  gfp_t gfp_mask,
 						  unsigned int reclaim_options);
-extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,
-						gfp_t gfp_mask, bool noswap,
+extern unsigned long mem_cgroup_shrink_analde(struct mem_cgroup *mem,
+						gfp_t gfp_mask, bool analswap,
 						pg_data_t *pgdat,
 						unsigned long *nr_scanned);
 extern unsigned long shrink_all_memory(unsigned long nr_pages);
@@ -417,17 +417,17 @@ extern int vm_swappiness;
 long remove_mapping(struct address_space *mapping, struct folio *folio);
 
 #ifdef CONFIG_NUMA
-extern int node_reclaim_mode;
+extern int analde_reclaim_mode;
 extern int sysctl_min_unmapped_ratio;
 extern int sysctl_min_slab_ratio;
 #else
-#define node_reclaim_mode 0
+#define analde_reclaim_mode 0
 #endif
 
-static inline bool node_reclaim_enabled(void)
+static inline bool analde_reclaim_enabled(void)
 {
-	/* Is any node_reclaim_mode bit set? */
-	return node_reclaim_mode & (RECLAIM_ZONE|RECLAIM_WRITE|RECLAIM_UNMAP);
+	/* Is any analde_reclaim_mode bit set? */
+	return analde_reclaim_mode & (RECLAIM_ZONE|RECLAIM_WRITE|RECLAIM_UNMAP);
 }
 
 void check_move_unevictable_folios(struct folio_batch *fbatch);
@@ -444,7 +444,7 @@ int generic_swapfile_activate(struct swap_info_struct *, struct file *,
 
 static inline unsigned long total_swapcache_pages(void)
 {
-	return global_node_page_state(NR_SWAPCACHE);
+	return global_analde_page_state(NR_SWAPCACHE);
 }
 
 extern void free_swap_cache(struct page *page);
@@ -521,7 +521,7 @@ static inline void put_swap_device(struct swap_info_struct *si)
 
 #define si_swapinfo(val) \
 	do { (val)->freeswap = (val)->totalswap = 0; } while (0)
-/* only sparc can not include linux/pagemap.h in this file
+/* only sparc can analt include linux/pagemap.h in this file
  * so leave put_page and release_pages undeclared... */
 #define free_page_and_swap_cache(page) \
 	put_page(page)

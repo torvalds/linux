@@ -6,7 +6,7 @@
 #include <linux/pm_domain.h>
 #include <linux/clkdev.h>
 
-#define APBC_NO_BUS_CTRL	BIT(0)
+#define APBC_ANAL_BUS_CTRL	BIT(0)
 #define APBC_POWER_CTRL		BIT(1)
 
 
@@ -249,13 +249,13 @@ void mmp_register_pll_clks(struct mmp_clk_unit *unit,
 	.bit_fc = (fc),					\
 }
 
-void mmp_clk_init(struct device_node *np, struct mmp_clk_unit *unit,
+void mmp_clk_init(struct device_analde *np, struct mmp_clk_unit *unit,
 		int nr_clks);
 void mmp_clk_add(struct mmp_clk_unit *unit, unsigned int id,
 		struct clk *clk);
 
 /* Power islands */
-#define MMP_PM_DOMAIN_NO_DISABLE		BIT(0)
+#define MMP_PM_DOMAIN_ANAL_DISABLE		BIT(0)
 
 struct generic_pm_domain *mmp_pm_domain_register(const char *name,
 		void __iomem *reg,

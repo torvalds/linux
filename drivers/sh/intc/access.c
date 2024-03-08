@@ -32,7 +32,7 @@ unsigned long intc_phys_to_virt(struct intc_desc_int *d, unsigned long address)
 		return address;
 	}
 
-	/* no windows defined, register must be 1:1 mapped virt:phys */
+	/* anal windows defined, register must be 1:1 mapped virt:phys */
 	return address;
 }
 
@@ -73,21 +73,21 @@ unsigned long intc_get_field_from_handle(unsigned int value, unsigned int handle
 }
 
 static unsigned long test_8(unsigned long addr, unsigned long h,
-			    unsigned long ignore)
+			    unsigned long iganalre)
 {
 	void __iomem *ptr = (void __iomem *)addr;
 	return intc_get_field_from_handle(__raw_readb(ptr), h);
 }
 
 static unsigned long test_16(unsigned long addr, unsigned long h,
-			     unsigned long ignore)
+			     unsigned long iganalre)
 {
 	void __iomem *ptr = (void __iomem *)addr;
 	return intc_get_field_from_handle(__raw_readw(ptr), h);
 }
 
 static unsigned long test_32(unsigned long addr, unsigned long h,
-			     unsigned long ignore)
+			     unsigned long iganalre)
 {
 	void __iomem *ptr = (void __iomem *)addr;
 	return intc_get_field_from_handle(__raw_readl(ptr), h);
@@ -232,7 +232,7 @@ unsigned long (*intc_disable_fns[])(unsigned long addr,
 	[MODE_PCLR_REG] = intc_mode_field,
 };
 
-unsigned long (*intc_enable_noprio_fns[])(unsigned long addr,
+unsigned long (*intc_enable_analprio_fns[])(unsigned long addr,
 					  unsigned long handle,
 					  unsigned long (*fn)(unsigned long,
 						unsigned long,

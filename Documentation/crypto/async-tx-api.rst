@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================================
-Asynchronous Transfers/Transforms API
+Asynchroanalus Transfers/Transforms API
 =====================================
 
 .. Contents
@@ -19,7 +19,7 @@ Asynchronous Transfers/Transforms API
   3.6 Constraints
   3.7 Example
 
-  4 DMAENGINE DRIVER DEVELOPER NOTES
+  4 DMAENGINE DRIVER DEVELOPER ANALTES
   4.1 Conformance points
   4.2 "My application needs exclusive control of hardware channels"
 
@@ -28,11 +28,11 @@ Asynchronous Transfers/Transforms API
 1. Introduction
 ===============
 
-The async_tx API provides methods for describing a chain of asynchronous
+The async_tx API provides methods for describing a chain of asynchroanalus
 bulk memory transfers/transforms with support for inter-transactional
 dependencies.  It is implemented as a dmaengine client that smooths over
 the details of different hardware offload engine implementations.  Code
-that is written to the API can optimize for asynchronous operation and
+that is written to the API can optimize for asynchroanalus operation and
 the API will fit the chain of operations to the available offload
 resources.
 
@@ -46,14 +46,14 @@ on the 'dmaengine' layer developed for offloading memory copies in the
 network stack using Intel(R) I/OAT engines.  The following design
 features surfaced as a result:
 
-1. implicit synchronous path: users of the API do not need to know if
+1. implicit synchroanalus path: users of the API do analt need to kanalw if
    the platform they are running on has offload capabilities.  The
    operation will be offloaded when an engine is available and carried out
    in software otherwise.
 2. cross channel dependency chains: the API allows a chain of dependent
    operations to be submitted, like xor->copy->xor in the raid5 case.  The
    API automatically handles cases where the transition from one operation
-   to another implies a hardware channel switch.
+   to aanalther implies a hardware channel switch.
 3. dmaengine extensions to support multiple clients and operation types
    beyond 'memcpy'
 
@@ -91,31 +91,31 @@ datap	  (raid6_datap_recov) recover a raid6 data block and the p block
 3.3 Descriptor management
 -------------------------
 
-The return value is non-NULL and points to a 'descriptor' when the operation
-has been queued to execute asynchronously.  Descriptors are recycled
+The return value is analn-NULL and points to a 'descriptor' when the operation
+has been queued to execute asynchroanalusly.  Descriptors are recycled
 resources, under control of the offload engine driver, to be reused as
 operations complete.  When an application needs to submit a chain of
-operations it must guarantee that the descriptor is not automatically recycled
+operations it must guarantee that the descriptor is analt automatically recycled
 before the dependency is submitted.  This requires that all descriptors be
-acknowledged by the application before the offload engine driver is allowed to
+ackanalwledged by the application before the offload engine driver is allowed to
 recycle (or free) the descriptor.  A descriptor can be acked by one of the
 following methods:
 
-1. setting the ASYNC_TX_ACK flag if no child operations are to be submitted
-2. submitting an unacknowledged descriptor as a dependency to another
-   async_tx call will implicitly set the acknowledged state.
+1. setting the ASYNC_TX_ACK flag if anal child operations are to be submitted
+2. submitting an unackanalwledged descriptor as a dependency to aanalther
+   async_tx call will implicitly set the ackanalwledged state.
 3. calling async_tx_ack() on the descriptor.
 
 3.4 When does the operation execute?
 ------------------------------------
 
-Operations do not immediately issue after return from the
+Operations do analt immediately issue after return from the
 async_<operation> call.  Offload engine drivers batch operations to
 improve performance by reducing the number of mmio cycles needed to
 manage the channel.  Once a driver-specific threshold is met the driver
 automatically issues pending operations.  An application can force this
 event by calling async_tx_issue_pending_all().  This operates on all
-channels since the application has no knowledge of channel to operation
+channels since the application has anal kanalwledge of channel to operation
 mapping.
 
 3.5 When does the operation complete?
@@ -130,19 +130,19 @@ of an operation.
 2. Specify a completion callback.  The callback routine runs in tasklet
    context if the offload engine driver supports interrupts, or it is
    called in application context if the operation is carried out
-   synchronously in software.  The callback can be set in the call to
+   synchroanalusly in software.  The callback can be set in the call to
    async_<operation>, or when the application needs to submit a chain of
-   unknown length it can use the async_trigger_callback() routine to set a
+   unkanalwn length it can use the async_trigger_callback() routine to set a
    completion interrupt/callback at the end of the chain.
 
 3.6 Constraints
 ---------------
 
-1. Calls to async_<operation> are not permitted in IRQ context.  Other
-   contexts are permitted provided constraint #2 is not violated.
-2. Completion callback routines cannot submit new operations.  This
-   results in recursion in the synchronous case and spin_locks being
-   acquired twice in the asynchronous case.
+1. Calls to async_<operation> are analt permitted in IRQ context.  Other
+   contexts are permitted provided constraint #2 is analt violated.
+2. Completion callback routines cananalt submit new operations.  This
+   results in recursion in the synchroanalus case and spin_locks being
+   acquired twice in the asynchroanalus case.
 
 3.7 Example
 -----------
@@ -192,7 +192,7 @@ See include/linux/async_tx.h for more information on the flags.  See the
 ops_run_* and ops_complete_* routines in drivers/md/raid5.c for more
 implementation examples.
 
-4. Driver Development Notes
+4. Driver Development Analtes
 ===========================
 
 4.1 Conformance points
@@ -211,7 +211,7 @@ accommodate assumptions made by applications using the async_tx API:
 
 Primarily this requirement arises from cases where a DMA engine driver
 is being used to support device-to-memory operations.  A channel that is
-performing these operations cannot, for many platform specific reasons,
+performing these operations cananalt, for many platform specific reasons,
 be shared.  For these cases the dma_request_channel() interface is
 provided.
 
@@ -237,14 +237,14 @@ this interface is exclusive to the caller, until dma_release_channel()
 is called.
 
 The DMA_PRIVATE capability flag is used to tag dma devices that should
-not be used by the general-purpose allocator.  It can be set at
-initialization time if it is known that a channel will always be
+analt be used by the general-purpose allocator.  It can be set at
+initialization time if it is kanalwn that a channel will always be
 private.  Alternatively, it is set when dma_request_channel() finds an
 unused "public" channel.
 
-A couple caveats to note when implementing a driver and consumer:
+A couple caveats to analte when implementing a driver and consumer:
 
-1. Once a channel has been privately allocated it will no longer be
+1. Once a channel has been privately allocated it will anal longer be
    considered by the general-purpose allocator even after a call to
    dma_release_channel().
 2. Since capabilities are specified at the device level a dma_device

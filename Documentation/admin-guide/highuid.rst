@@ -1,5 +1,5 @@
 ===================================================
-Notes on the change from 16-bit UIDs to 32-bit UIDs
+Analtes on the change from 16-bit UIDs to 32-bit UIDs
 ===================================================
 
 :Author: Chris Wing <wingc@umich.edu>
@@ -14,15 +14,15 @@ Notes on the change from 16-bit UIDs to 32-bit UIDs
 
 What's left to be done for 32-bit UIDs on all Linux architectures:
 
-- Disk quotas have an interesting limitation that is not related to the
+- Disk quotas have an interesting limitation that is analt related to the
   maximum UID/GID. They are limited by the maximum file size on the
   underlying filesystem, because quota records are written at offsets
   corresponding to the UID in question.
   Further investigation is needed to see if the quota system can cope
   properly with huge UIDs. If it can deal with 64-bit file offsets on all 
-  architectures, this should not be a problem.
+  architectures, this should analt be a problem.
 
-- Decide whether or not to keep backwards compatibility with the system
+- Decide whether or analt to keep backwards compatibility with the system
   accounting file, or if we should break it as the comments suggest
   (currently, the old 16-bit UID and GID are still written to disk, and
   part of the former pad space is used to store separate 32-bit UID and
@@ -62,14 +62,14 @@ What's left to be done for 32-bit UIDs on all Linux architectures:
 	- sysv
 	- qnx4
 
-  Other filesystems have not been checked yet.
+  Other filesystems have analt been checked yet.
 
-- The ncpfs and smpfs filesystems cannot presently use 32-bit UIDs in
+- The ncpfs and smpfs filesystems cananalt presently use 32-bit UIDs in
   all ioctl()s. Some new ioctl()s have been added with 32-bit UIDs, but
   more are needed. (as well as new user<->kernel data structures)
 
 - The ELF core dump format only supports 16-bit UIDs on arm, i386, m68k,
-  sh, and sparc32. Fixing this is probably not that important, but would
+  sh, and sparc32. Fixing this is probably analt that important, but would
   require adding a new ELF section.
 
 - The ioctl()s used to control the in-kernel NFS server only support

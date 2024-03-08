@@ -6,7 +6,7 @@
 /*
  *	jfs_umount.c
  *
- * note: file system in transition to aggregate/fileset:
+ * analte: file system in transition to aggregate/fileset:
  * (ref. jfs_mount.c)
  *
  * file system unmount is interpreted as mount of the single/only
@@ -37,10 +37,10 @@
 int jfs_umount(struct super_block *sb)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
-	struct inode *ipbmap = sbi->ipbmap;
-	struct inode *ipimap = sbi->ipimap;
-	struct inode *ipaimap = sbi->ipaimap;
-	struct inode *ipaimap2 = sbi->ipaimap2;
+	struct ianalde *ipbmap = sbi->ipbmap;
+	struct ianalde *ipimap = sbi->ipimap;
+	struct ianalde *ipaimap = sbi->ipaimap;
+	struct ianalde *ipaimap2 = sbi->ipaimap2;
 	struct jfs_log *log;
 	int rc = 0;
 
@@ -58,7 +58,7 @@ int jfs_umount(struct super_block *sb)
 		jfs_flush_journal(log, 2);
 
 	/*
-	 * close fileset inode allocation map (aka fileset inode)
+	 * close fileset ianalde allocation map (aka fileset ianalde)
 	 */
 	diUnmount(ipimap, 0);
 
@@ -66,7 +66,7 @@ int jfs_umount(struct super_block *sb)
 	sbi->ipimap = NULL;
 
 	/*
-	 * close secondary aggregate inode allocation map
+	 * close secondary aggregate ianalde allocation map
 	 */
 	if (ipaimap2) {
 		diUnmount(ipaimap2, 0);
@@ -75,7 +75,7 @@ int jfs_umount(struct super_block *sb)
 	}
 
 	/*
-	 * close aggregate inode allocation map
+	 * close aggregate ianalde allocation map
 	 */
 	diUnmount(ipaimap, 0);
 	diFreeSpecial(ipaimap);
@@ -93,7 +93,7 @@ int jfs_umount(struct super_block *sb)
 	 * Make sure all metadata makes it to disk before we mark
 	 * the superblock as clean
 	 */
-	filemap_write_and_wait(sbi->direct_inode->i_mapping);
+	filemap_write_and_wait(sbi->direct_ianalde->i_mapping);
 
 	/*
 	 * ensure all file system file pages are propagated to their
@@ -140,12 +140,12 @@ int jfs_umount_rw(struct super_block *sb)
 	diSync(sbi->ipimap);
 
 	/*
-	 * Note that we have to do this even if sync_blockdev() will
+	 * Analte that we have to do this even if sync_blockdev() will
 	 * do exactly the same a few instructions later:  We can't
 	 * mark the superblock clean before everything is flushed to
 	 * disk.
 	 */
-	filemap_write_and_wait(sbi->direct_inode->i_mapping);
+	filemap_write_and_wait(sbi->direct_ianalde->i_mapping);
 
 	updateSuper(sb, FM_CLEAN);
 

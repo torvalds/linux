@@ -9,7 +9,7 @@ ALL_TESTS="
 NUM_NETIFS=0
 source $lib_dir/lib.sh
 
-swp=$NETIF_NO_CABLE
+swp=$NETIF_ANAL_CABLE
 
 cleanup()
 {

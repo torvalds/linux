@@ -113,20 +113,20 @@ static int imx8qxp_pc_bridge_attach(struct drm_bridge *bridge,
 	struct imx8qxp_pc_channel *ch = bridge->driver_private;
 	struct imx8qxp_pc *pc = ch->pc;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)) {
 		DRM_DEV_ERROR(pc->dev,
-			      "do not support creating a drm_connector\n");
+			      "do analt support creating a drm_connector\n");
 		return -EINVAL;
 	}
 
 	if (!bridge->encoder) {
 		DRM_DEV_ERROR(pc->dev, "missing encoder\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return drm_bridge_attach(bridge->encoder,
 				 ch->next_bridge, bridge,
-				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				 DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 }
 
 static void
@@ -277,14 +277,14 @@ static int imx8qxp_pc_bridge_probe(struct platform_device *pdev)
 	struct imx8qxp_pc *pc;
 	struct imx8qxp_pc_channel *ch;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child, *remote;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child, *remote;
 	u32 i;
 	int ret;
 
 	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->base))
@@ -303,12 +303,12 @@ static int imx8qxp_pc_bridge_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pc);
 	pm_runtime_enable(dev);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		ret = of_property_read_u32(child, "reg", &i);
 		if (ret || i > 1) {
 			ret = -EINVAL;
 			DRM_DEV_ERROR(dev,
-				      "invalid channel(%u) node address\n", i);
+				      "invalid channel(%u) analde address\n", i);
 			goto free_child;
 		}
 
@@ -316,18 +316,18 @@ static int imx8qxp_pc_bridge_probe(struct platform_device *pdev)
 		ch->pc = pc;
 		ch->stream_id = i;
 
-		remote = of_graph_get_remote_node(child, 1, 0);
+		remote = of_graph_get_remote_analde(child, 1, 0);
 		if (!remote) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			DRM_DEV_ERROR(dev,
-				      "channel%u failed to get port1's remote node: %d\n",
+				      "channel%u failed to get port1's remote analde: %d\n",
 				      i, ret);
 			goto free_child;
 		}
 
 		ch->next_bridge = of_drm_find_bridge(remote);
 		if (!ch->next_bridge) {
-			of_node_put(remote);
+			of_analde_put(remote);
 			ret = -EPROBE_DEFER;
 			DRM_DEV_DEBUG_DRIVER(dev,
 					     "channel%u failed to find next bridge: %d\n",
@@ -335,11 +335,11 @@ static int imx8qxp_pc_bridge_probe(struct platform_device *pdev)
 			goto free_child;
 		}
 
-		of_node_put(remote);
+		of_analde_put(remote);
 
 		ch->bridge.driver_private = ch;
 		ch->bridge.funcs = &imx8qxp_pc_bridge_funcs;
-		ch->bridge.of_node = child;
+		ch->bridge.of_analde = child;
 		ch->is_available = true;
 
 		drm_bridge_add(&ch->bridge);
@@ -348,7 +348,7 @@ static int imx8qxp_pc_bridge_probe(struct platform_device *pdev)
 	return 0;
 
 free_child:
-	of_node_put(child);
+	of_analde_put(child);
 
 	if (i == 1 && pc->ch[0].next_bridge)
 		drm_bridge_remove(&pc->ch[0].bridge);

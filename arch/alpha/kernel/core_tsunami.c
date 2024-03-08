@@ -36,9 +36,9 @@ struct
 } saved_config[2] __attribute__((common));
 
 /*
- * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
- * One plausible explanation is that the I/O controller does not properly
- * handle the system transaction.  Another involves timing.  Ho hum.
+ * ANALTE: Herein lie back-to-back mb instructions.  They are magic. 
+ * One plausible explanation is that the I/O controller does analt properly
+ * handle the system transaction.  Aanalther involves timing.  Ho hum.
  */
 
 /*
@@ -57,13 +57,13 @@ struct
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore analt safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
- * Note that all config space accesses use Type 1 address format.
+ * Analte that all config space accesses use Type 1 address format.
  *
- * Note also that type 1 is determined by non-zero bus number.
+ * Analte also that type 1 is determined by analn-zero bus number.
  *
  * Type 1:
  *
@@ -79,7 +79,7 @@ struct
  *	10:8	function number
  *	 7:2	register number
  *  
- * Notes:
+ * Analtes:
  *	The function number selects which function of a multi-function device 
  *	(e.g., SCSI and Ethernet).
  * 
@@ -100,7 +100,7 @@ mk_conf_addr(struct pci_bus *pbus, unsigned int device_fn, int where,
 		 "pci_addr=0x%p, type1=0x%p)\n",
 		 bus, device_fn, where, pci_addr, type1));
 	
-	if (!pbus->parent) /* No parent means peer PCI bus. */
+	if (!pbus->parent) /* Anal parent means peer PCI bus. */
 		bus = 0;
 	*type1 = (bus != 0);
 
@@ -120,7 +120,7 @@ tsunami_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, &addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -145,7 +145,7 @@ tsunami_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, &addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -310,13 +310,13 @@ tsunami_init_one_pchip(tsunami_pchip *pchip, int index)
 	/*
 	 * Set up the PCI to main memory translation windows.
 	 *
-	 * Note: Window 3 is scatter-gather only
+	 * Analte: Window 3 is scatter-gather only
 	 * 
 	 * Window 0 is scatter-gather 8MB at 8MB (for isa)
 	 * Window 1 is scatter-gather (up to) 1GB at 1GB
 	 * Window 2 is direct access 2GB at 2GB
 	 *
-	 * NOTE: we need the align_entry settings for Acer devices on ES40,
+	 * ANALTE: we need the align_entry settings for Acer devices on ES40,
 	 * specifically floppy and IDE when memory is larger than 2GB.
 	 */
 	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000,
@@ -379,7 +379,7 @@ tsunami_init_arch(void)
 	unsigned long tmp;
 	
 	/* Ho hum.. init_arch is called before init_IRQ, but we need to be
-	   able to handle machine checks.  So install the handler now.  */
+	   able to handle machine checks.  So install the handler analw.  */
 	wrent(entInt, 0);
 
 	/* NXMs just don't matter to Tsunami--unless they make it

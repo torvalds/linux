@@ -10,7 +10,7 @@ maintainers:
   - Rui Miguel Silva <rmfrfs@gmail.com>
 
 description: |
-  This is device node for the CMOS Sensor Interface (CSI) which enables the
+  This is device analde for the CMOS Sensor Interface (CSI) which enables the
   chip to connect directly to external CMOS image sensors.
 
 properties:

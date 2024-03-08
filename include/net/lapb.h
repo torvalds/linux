@@ -16,14 +16,14 @@
 #define	LAPB_U		0x03	/* Unnumbered frames */
 
 #define	LAPB_RR		0x01	/* Receiver ready */
-#define	LAPB_RNR	0x05	/* Receiver not ready */
+#define	LAPB_RNR	0x05	/* Receiver analt ready */
 #define	LAPB_REJ	0x09	/* Reject */
 
-#define	LAPB_SABM	0x2F	/* Set Asynchronous Balanced Mode */
-#define	LAPB_SABME	0x6F	/* Set Asynchronous Balanced Mode Extended */
+#define	LAPB_SABM	0x2F	/* Set Asynchroanalus Balanced Mode */
+#define	LAPB_SABME	0x6F	/* Set Asynchroanalus Balanced Mode Extended */
 #define	LAPB_DISC	0x43	/* Disconnect */
 #define	LAPB_DM		0x0F	/* Disconnected mode */
-#define	LAPB_UA		0x63	/* Unnumbered acknowledge */
+#define	LAPB_UA		0x63	/* Unnumbered ackanalwledge */
 #define	LAPB_FRMR	0x87	/* Frame reject */
 
 #define LAPB_ILLEGAL	0x100	/* Impossible to be a real frame type */
@@ -81,7 +81,7 @@ struct lapb_frame {
  *	The per LAPB connection control structure.
  */
 struct lapb_cb {
-	struct list_head	node;
+	struct list_head	analde;
 	struct net_device	*dev;
 
 	/* Link status fields */

@@ -20,7 +20,7 @@
  * Generic associative array.
  */
 struct assoc_array {
-	struct assoc_array_ptr	*root;		/* The node at the root of the tree */
+	struct assoc_array_ptr	*root;		/* The analde at the root of the tree */
 	unsigned long		nr_leaves_on_tree;
 };
 

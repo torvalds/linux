@@ -94,11 +94,11 @@ static inline int aperture_valid(u64 aper_base, u32 aper_size, u32 min_size)
 		return 0;
 
 	if (aper_base + aper_size > 0x100000000ULL) {
-		printk(KERN_INFO "Aperture beyond 4GB. Ignoring.\n");
+		printk(KERN_INFO "Aperture beyond 4GB. Iganalring.\n");
 		return 0;
 	}
 	if (e820__mapped_any(aper_base, aper_base + aper_size, E820_TYPE_RAM)) {
-		printk(KERN_INFO "Aperture pointing to e820 RAM. Ignoring.\n");
+		printk(KERN_INFO "Aperture pointing to e820 RAM. Iganalring.\n");
 		return 0;
 	}
 	if (aper_size < min_size) {

@@ -8,20 +8,20 @@ config PINCTRL_SAMSUNG
 	select PINMUX
 	select PINCONF
 
-config PINCTRL_EXYNOS
-	bool "Pinctrl common driver part for Samsung Exynos SoCs"
-	depends on ARCH_EXYNOS || ARCH_S5PV210 || (COMPILE_TEST && OF)
+config PINCTRL_EXYANALS
+	bool "Pinctrl common driver part for Samsung Exyanals SoCs"
+	depends on ARCH_EXYANALS || ARCH_S5PV210 || (COMPILE_TEST && OF)
 	select PINCTRL_SAMSUNG
-	select PINCTRL_EXYNOS_ARM if ARM && (ARCH_EXYNOS || ARCH_S5PV210)
-	select PINCTRL_EXYNOS_ARM64 if ARM64 && ARCH_EXYNOS
+	select PINCTRL_EXYANALS_ARM if ARM && (ARCH_EXYANALS || ARCH_S5PV210)
+	select PINCTRL_EXYANALS_ARM64 if ARM64 && ARCH_EXYANALS
 
-config PINCTRL_EXYNOS_ARM
-	bool "ARMv7-specific pinctrl driver for Samsung Exynos SoCs" if COMPILE_TEST
-	depends on PINCTRL_EXYNOS
+config PINCTRL_EXYANALS_ARM
+	bool "ARMv7-specific pinctrl driver for Samsung Exyanals SoCs" if COMPILE_TEST
+	depends on PINCTRL_EXYANALS
 
-config PINCTRL_EXYNOS_ARM64
-	bool "ARMv8-specific pinctrl driver for Samsung Exynos SoCs" if COMPILE_TEST
-	depends on PINCTRL_EXYNOS
+config PINCTRL_EXYANALS_ARM64
+	bool "ARMv8-specific pinctrl driver for Samsung Exyanals SoCs" if COMPILE_TEST
+	depends on PINCTRL_EXYANALS
 
 config PINCTRL_S3C64XX
 	bool "Samsung S3C64XX SoC pinctrl driver"

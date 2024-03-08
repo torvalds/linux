@@ -43,7 +43,7 @@ properties:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -55,7 +55,7 @@ allOf:
         usb-hub: false
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

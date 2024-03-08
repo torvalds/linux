@@ -60,7 +60,7 @@ static inline long h_copy_rdma(s64 length, u64 sliobn, u64 slioba,
 	dma_wmb();
 	pr_debug("ibmvmc: h_copy_rdma(0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx\n",
 		 length, sliobn, slioba, dliobn, dlioba);
-	rc = plpar_hcall_norets(H_COPY_RDMA, length, sliobn, slioba,
+	rc = plpar_hcall_analrets(H_COPY_RDMA, length, sliobn, slioba,
 				dliobn, dlioba);
 	pr_debug("ibmvmc: h_copy_rdma rc = 0x%lx\n", rc);
 
@@ -75,7 +75,7 @@ static inline void h_free_crq(uint32_t unit_address)
 		if (H_IS_LONG_BUSY(rc))
 			msleep(get_longbusy_msecs(rc));
 
-		rc = plpar_hcall_norets(H_FREE_CRQ, unit_address);
+		rc = plpar_hcall_analrets(H_FREE_CRQ, unit_address);
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
 }
 
@@ -89,7 +89,7 @@ static inline void h_free_crq(uint32_t unit_address)
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static inline long h_request_vmc(u32 *vmc_index)
 {
@@ -112,7 +112,7 @@ static inline long h_request_vmc(u32 *vmc_index)
 /* routines for managing a command/response queue */
 /**
  * ibmvmc_handle_event: - Interrupt handler for crq events
- * @irq:        number of irq to handle, not used
+ * @irq:        number of irq to handle, analt used
  * @dev_instance: crq_server_adapter that received interrupt
  *
  * Disables interrupts and schedules ibmvmc_task
@@ -137,7 +137,7 @@ static irqreturn_t ibmvmc_handle_event(int irq, void *dev_instance)
  *
  * Return:
  *	0 - Success
- *	Non-Zero - Failure
+ *	Analn-Zero - Failure
  */
 static void ibmvmc_release_crq_queue(struct crq_server_adapter *adapter)
 {
@@ -167,7 +167,7 @@ static void ibmvmc_release_crq_queue(struct crq_server_adapter *adapter)
  *
  * Return:
  *	0 - Success
- *	Non-Zero - Failure
+ *	Analn-Zero - Failure
  */
 static int ibmvmc_reset_crq_queue(struct crq_server_adapter *adapter)
 {
@@ -183,12 +183,12 @@ static int ibmvmc_reset_crq_queue(struct crq_server_adapter *adapter)
 	queue->cur = 0;
 
 	/* And re-open it again */
-	rc = plpar_hcall_norets(H_REG_CRQ,
+	rc = plpar_hcall_analrets(H_REG_CRQ,
 				vdev->unit_address,
 				queue->msg_token, PAGE_SIZE);
 	if (rc == 2)
-		/* Adapter is good, but other end is not ready */
-		dev_warn(adapter->dev, "Partner adapter not ready\n");
+		/* Adapter is good, but other end is analt ready */
+		dev_warn(adapter->dev, "Partner adapter analt ready\n");
 	else if (rc != 0)
 		dev_err(adapter->dev, "couldn't register crq--rc 0x%x\n", rc);
 
@@ -199,7 +199,7 @@ static int ibmvmc_reset_crq_queue(struct crq_server_adapter *adapter)
  * crq_queue_next_crq: - Returns the next entry in message queue
  * @queue:      crq_queue to use
  *
- * Returns pointer to next entry in queue, or NULL if there are no new
+ * Returns pointer to next entry in queue, or NULL if there are anal new
  * entried in the CRQ.
  */
 static struct ibmvmc_crq_msg *crq_queue_next_crq(struct crq_queue *queue)
@@ -235,7 +235,7 @@ static struct ibmvmc_crq_msg *crq_queue_next_crq(struct crq_queue *queue)
  *
  * Return:
  *	0 - Success
- *	Non-Zero - Failure
+ *	Analn-Zero - Failure
  */
 static long ibmvmc_send_crq(struct crq_server_adapter *adapter,
 			    u64 word1, u64 word2)
@@ -251,7 +251,7 @@ static long ibmvmc_send_crq(struct crq_server_adapter *adapter,
 	 * over to the other side to prevent it from fetching any stale data.
 	 */
 	dma_wmb();
-	rc = plpar_hcall_norets(H_SEND_CRQ, vdev->unit_address, word1, word2);
+	rc = plpar_hcall_analrets(H_SEND_CRQ, vdev->unit_address, word1, word2);
 	dev_dbg(adapter->dev, "rc = 0x%lx\n", rc);
 
 	return rc;
@@ -473,7 +473,7 @@ static struct ibmvmc_hmc *ibmvmc_get_free_hmc(void)
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static int ibmvmc_return_hmc(struct ibmvmc_hmc *hmc, bool release_readers)
 {
@@ -538,7 +538,7 @@ static int ibmvmc_return_hmc(struct ibmvmc_hmc *hmc, bool release_readers)
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static int ibmvmc_send_open(struct ibmvmc_buffer *buffer,
 			    struct ibmvmc_hmc *hmc)
@@ -600,7 +600,7 @@ static int ibmvmc_send_open(struct ibmvmc_buffer *buffer,
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static int ibmvmc_send_close(struct ibmvmc_hmc *hmc)
 {
@@ -768,11 +768,11 @@ static int ibmvmc_send_rem_buffer_resp(struct crq_server_adapter *adapter,
  * used for all traffic between the management application and the hypervisor,
  * regardless of who initiated the communication.
  *
- * There is no response to this message.
+ * There is anal response to this message.
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static int ibmvmc_send_msg(struct crq_server_adapter *adapter,
 			   struct ibmvmc_buffer *buffer,
@@ -815,24 +815,24 @@ static int ibmvmc_send_msg(struct crq_server_adapter *adapter,
 /**
  * ibmvmc_open - Open Session
  *
- * @inode:	inode struct
+ * @ianalde:	ianalde struct
  * @file:	file struct
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
-static int ibmvmc_open(struct inode *inode, struct file *file)
+static int ibmvmc_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ibmvmc_file_session *session;
 
-	pr_debug("%s: inode = 0x%lx, file = 0x%lx, state = 0x%x\n", __func__,
-		 (unsigned long)inode, (unsigned long)file,
+	pr_debug("%s: ianalde = 0x%lx, file = 0x%lx, state = 0x%x\n", __func__,
+		 (unsigned long)ianalde, (unsigned long)file,
 		 ibmvmc.state);
 
 	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	session->file = file;
 	file->private_data = session;
@@ -843,14 +843,14 @@ static int ibmvmc_open(struct inode *inode, struct file *file)
 /**
  * ibmvmc_close - Close Session
  *
- * @inode:	inode struct
+ * @ianalde:	ianalde struct
  * @file:	file struct
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
-static int ibmvmc_close(struct inode *inode, struct file *file)
+static int ibmvmc_close(struct ianalde *ianalde, struct file *file)
 {
 	struct ibmvmc_file_session *session;
 	struct ibmvmc_hmc *hmc;
@@ -898,7 +898,7 @@ static int ibmvmc_close(struct inode *inode, struct file *file)
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static ssize_t ibmvmc_read(struct file *file, char *buf, size_t nbytes,
 			   loff_t *ppos)
@@ -927,19 +927,19 @@ static ssize_t ibmvmc_read(struct file *file, char *buf, size_t nbytes,
 
 	session = file->private_data;
 	if (!session) {
-		pr_warn("ibmvmc: read: no session\n");
+		pr_warn("ibmvmc: read: anal session\n");
 		return -EIO;
 	}
 
 	hmc = session->hmc;
 	if (!hmc) {
-		pr_warn("ibmvmc: read: no hmc\n");
+		pr_warn("ibmvmc: read: anal hmc\n");
 		return -EIO;
 	}
 
 	adapter = hmc->adapter;
 	if (!adapter) {
-		pr_warn("ibmvmc: read: no adapter\n");
+		pr_warn("ibmvmc: read: anal adapter\n");
 		return -EIO;
 	}
 
@@ -957,7 +957,7 @@ static ssize_t ibmvmc_read(struct file *file, char *buf, size_t nbytes,
 			retval = -EBADFD;
 			goto out;
 		}
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			retval = -EAGAIN;
 			goto out;
 		}
@@ -1019,7 +1019,7 @@ static unsigned int ibmvmc_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &ibmvmc_read_wait, wait);
 
 	if (hmc->queue_head != hmc->queue_tail)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= POLLIN | POLLRDANALRM;
 
 	return mask;
 }
@@ -1034,12 +1034,12 @@ static unsigned int ibmvmc_poll(struct file *file, poll_table *wait)
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 			    size_t count, loff_t *ppos)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct ibmvmc_buffer *vmc_buffer;
 	struct ibmvmc_file_session *session;
 	struct crq_server_adapter *adapter;
@@ -1061,7 +1061,7 @@ static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 
 	spin_lock_irqsave(&hmc->lock, flags);
 	if (hmc->state == ibmhmc_state_free) {
-		/* HMC connection is not valid (possibly was reset under us). */
+		/* HMC connection is analt valid (possibly was reset under us). */
 		ret = -EIO;
 		goto out;
 	}
@@ -1086,7 +1086,7 @@ static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 	}
 
 	/* Make sure the ioctl() was called & the open msg sent, and that
-	 * the HMC connection has not failed.
+	 * the HMC connection has analt failed.
 	 */
 	if (hmc->state != ibmhmc_state_ready) {
 		ret = -EIO;
@@ -1095,7 +1095,7 @@ static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 
 	vmc_buffer = ibmvmc_get_valid_hmc_buffer(hmc->index);
 	if (!vmc_buffer) {
-		/* No buffer available for the msg send, or we have not yet
+		/* Anal buffer available for the msg send, or we have analt yet
 		 * completed the open/open_resp sequence.  Retry until this is
 		 * complete.
 		 */
@@ -1103,7 +1103,7 @@ static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 		goto out;
 	}
 	if (!vmc_buffer->real_addr_local) {
-		dev_err(adapter->dev, "no buffer storage assigned\n");
+		dev_err(adapter->dev, "anal buffer storage assigned\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -1123,9 +1123,9 @@ static ssize_t ibmvmc_write(struct file *file, const char *buffer,
 	if (p == buffer)
 		goto out;
 
-	inode = file_inode(file);
-	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
-	mark_inode_dirty(inode);
+	ianalde = file_ianalde(file);
+	ianalde_set_mtime_to_ts(ianalde, ianalde_set_ctime_current(ianalde));
+	mark_ianalde_dirty(ianalde);
 
 	dev_dbg(adapter->dev, "write: file = 0x%lx, count = 0x%lx\n",
 		(unsigned long)file, (unsigned long)count);
@@ -1144,7 +1144,7 @@ static ssize_t ibmvmc_write(struct file *file, const char *buffer,
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static long ibmvmc_setup_hmc(struct ibmvmc_file_session *session)
 {
@@ -1157,7 +1157,7 @@ static long ibmvmc_setup_hmc(struct ibmvmc_file_session *session)
 	}
 
 	if (ibmvmc.state < ibmvmc_state_ready) {
-		pr_warn("ibmvmc: Reserve HMC: not state_ready\n");
+		pr_warn("ibmvmc: Reserve HMC: analt state_ready\n");
 		return -EAGAIN;
 	}
 
@@ -1168,16 +1168,16 @@ static long ibmvmc_setup_hmc(struct ibmvmc_file_session *session)
 		valid = 0;
 		ibmvmc_count_hmc_buffers(index, &valid, &free);
 		if (valid == 0) {
-			pr_warn("ibmvmc: buffers not ready for index %d\n",
+			pr_warn("ibmvmc: buffers analt ready for index %d\n",
 				index);
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 	}
 
 	/* Get an hmc object, and transition to ibmhmc_state_initial */
 	hmc = ibmvmc_get_free_hmc();
 	if (!hmc) {
-		pr_warn("%s: free hmc not found\n", __func__);
+		pr_warn("%s: free hmc analt found\n", __func__);
 		return -EBUSY;
 	}
 
@@ -1203,7 +1203,7 @@ static long ibmvmc_setup_hmc(struct ibmvmc_file_session *session)
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static long ibmvmc_ioctl_sethmcid(struct ibmvmc_file_session *session,
 				  unsigned char __user *new_hmc_id)
@@ -1224,7 +1224,7 @@ static long ibmvmc_ioctl_sethmcid(struct ibmvmc_file_session *session,
 
 		hmc = session->hmc;
 		if (!hmc) {
-			pr_err("ibmvmc: setup_hmc success but no hmc\n");
+			pr_err("ibmvmc: setup_hmc success but anal hmc\n");
 			return -EIO;
 		}
 	}
@@ -1245,7 +1245,7 @@ static long ibmvmc_ioctl_sethmcid(struct ibmvmc_file_session *session,
 	spin_unlock_irqrestore(&hmc->lock, flags);
 
 	if (!buffer || !buffer->real_addr_local) {
-		pr_warn("ibmvmc: sethmcid: no buffer available\n");
+		pr_warn("ibmvmc: sethmcid: anal buffer available\n");
 		return -EIO;
 	}
 
@@ -1267,7 +1267,7 @@ static long ibmvmc_ioctl_sethmcid(struct ibmvmc_file_session *session,
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static long ibmvmc_ioctl_query(struct ibmvmc_file_session *session,
 			       struct ibmvmc_query_struct __user *ret_struct)
@@ -1296,7 +1296,7 @@ static long ibmvmc_ioctl_query(struct ibmvmc_file_session *session,
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static long ibmvmc_ioctl_requestvmc(struct ibmvmc_file_session *session,
 				    u32 __user *ret_vmc_index)
@@ -1313,7 +1313,7 @@ static long ibmvmc_ioctl_requestvmc(struct ibmvmc_file_session *session,
 	if (rc == H_SUCCESS) {
 		rc = 0;
 	} else if (rc == H_FUNCTION) {
-		pr_err("ibmvmc: requestvmc: h_request_vmc not supported\n");
+		pr_err("ibmvmc: requestvmc: h_request_vmc analt supported\n");
 		return -EPERM;
 	} else if (rc == H_AUTHORITY) {
 		pr_err("ibmvmc: requestvmc: hypervisor denied vmc request\n");
@@ -1323,9 +1323,9 @@ static long ibmvmc_ioctl_requestvmc(struct ibmvmc_file_session *session,
 		return -EIO;
 	} else if (rc == H_RESOURCE) {
 		pr_err("ibmvmc: requestvmc: vmc resource unavailable\n");
-		return -ENODEV;
-	} else if (rc == H_NOT_AVAILABLE) {
-		pr_err("ibmvmc: requestvmc: system cannot be vmc managed\n");
+		return -EANALDEV;
+	} else if (rc == H_ANALT_AVAILABLE) {
+		pr_err("ibmvmc: requestvmc: system cananalt be vmc managed\n");
 		return -EPERM;
 	} else if (rc == H_PARAMETER) {
 		pr_err("ibmvmc: requestvmc: invalid parameter\n");
@@ -1353,7 +1353,7 @@ static long ibmvmc_ioctl_requestvmc(struct ibmvmc_file_session *session,
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static long ibmvmc_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
@@ -1365,7 +1365,7 @@ static long ibmvmc_ioctl(struct file *file,
 		 (unsigned long)session);
 
 	if (!session) {
-		pr_warn("ibmvmc: ioctl: no session\n");
+		pr_warn("ibmvmc: ioctl: anal session\n");
 		return -EIO;
 	}
 
@@ -1380,7 +1380,7 @@ static long ibmvmc_ioctl(struct file *file,
 		return ibmvmc_ioctl_requestvmc(session,
 			(unsigned int __user *)arg);
 	default:
-		pr_warn("ibmvmc: unknown ioctl 0x%x\n", cmd);
+		pr_warn("ibmvmc: unkanalwn ioctl 0x%x\n", cmd);
 		return -EINVAL;
 	}
 }
@@ -1414,13 +1414,13 @@ static const struct file_operations ibmvmc_fops = {
  * 3. The hypervisor sends VMC Add Buffer messages to the management
  *	partition, informing it of the new buffers.
  * 4. The hypervisor sends an HMC protocol message (to the management
- *	application) notifying it of the new buffers. This informs the
+ *	application) analtifying it of the new buffers. This informs the
  *	application that it has buffers available for sending HMC
  *	commands.
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static int ibmvmc_add_buffer(struct crq_server_adapter *adapter,
 			     struct ibmvmc_crq_msg *crq)
@@ -1510,7 +1510,7 @@ static int ibmvmc_add_buffer(struct crq_server_adapter *adapter,
  *
  * This message requests an HMC buffer to be transferred from management
  * partition ownership to hypervisor ownership. The management partition may
- * not be able to satisfy the request at a particular point in time if all its
+ * analt be able to satisfy the request at a particular point in time if all its
  * buffers are in use. The management partition requires a depth of at least
  * one inbound buffer to allow management application commands to flow to the
  * hypervisor. It is, therefore, an interface error for the hypervisor to
@@ -1520,11 +1520,11 @@ static int ibmvmc_add_buffer(struct crq_server_adapter *adapter,
  * application directly and inform the management partition when buffers may be
  * removed. The typical flow for removing buffers:
  *
- * 1. The management application no longer needs a communication path to a
+ * 1. The management application anal longer needs a communication path to a
  *	particular hypervisor function. That function is closed.
  * 2. The hypervisor and the management application quiesce all traffic to that
  *	function. The hypervisor requests a reduction in buffer pool size.
- * 3. The management application acknowledges the reduction in buffer pool size.
+ * 3. The management application ackanalwledges the reduction in buffer pool size.
  * 4. The hypervisor sends a Remove Buffer message to the management partition,
  *	informing it of the reduction in buffers.
  * 5. The management partition verifies it can remove the buffer. This is
@@ -1532,7 +1532,7 @@ static int ibmvmc_add_buffer(struct crq_server_adapter *adapter,
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 /*
  * The hypervisor requested that we pick an unused buffer, and return it.
@@ -1566,9 +1566,9 @@ static int ibmvmc_rem_buffer(struct crq_server_adapter *adapter,
 	spin_lock_irqsave(&hmcs[hmc_index].lock, flags);
 	buffer = ibmvmc_get_free_hmc_buffer(adapter, hmc_index);
 	if (!buffer) {
-		dev_info(adapter->dev, "rem_buffer: no buffer to remove\n");
+		dev_info(adapter->dev, "rem_buffer: anal buffer to remove\n");
 		spin_unlock_irqrestore(&hmcs[hmc_index].lock, flags);
-		ibmvmc_send_rem_buffer_resp(adapter, VMC_MSG_NO_BUFFER,
+		ibmvmc_send_rem_buffer_resp(adapter, VMC_MSG_ANAL_BUFFER,
 					    hmc_session, hmc_index,
 					    VMC_INVALID_BUFFER_ID);
 		return -1;
@@ -1639,7 +1639,7 @@ static int ibmvmc_recv_msg(struct crq_server_adapter *adapter,
 	if (hmc->state == ibmhmc_state_free) {
 		dev_err(adapter->dev, "Recv_msg: invalid hmc state = 0x%x\n",
 			hmc->state);
-		/* HMC connection is not valid (possibly was reset under us). */
+		/* HMC connection is analt valid (possibly was reset under us). */
 		spin_unlock_irqrestore(&hmc->lock, flags);
 		return -1;
 	}
@@ -1647,7 +1647,7 @@ static int ibmvmc_recv_msg(struct crq_server_adapter *adapter,
 	buffer = &hmc->buffer[buffer_id];
 
 	if (buffer->valid == 0 || buffer->owner == VMC_BUF_OWNER_ALPHA) {
-		dev_err(adapter->dev, "Recv_msg: not valid, or not HV.  0x%x 0x%x\n",
+		dev_err(adapter->dev, "Recv_msg: analt valid, or analt HV.  0x%x 0x%x\n",
 			buffer->valid, buffer->owner);
 		spin_unlock_irqrestore(&hmc->lock, flags);
 		return -1;
@@ -1730,7 +1730,7 @@ static void ibmvmc_process_capabilities(struct crq_server_adapter *adapter,
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static int ibmvmc_validate_hmc_session(struct crq_server_adapter *adapter,
 				       struct ibmvmc_crq_msg *crq)
@@ -1780,7 +1780,7 @@ static void ibmvmc_reset(struct crq_server_adapter *adapter, bool xport_event)
 			 */
 			ibmvmc.state = ibmvmc_state_crqinit;
 		} else {
-			/* The partner did not close their CRQ - instead, we're
+			/* The partner did analt close their CRQ - instead, we're
 			 * closing the CRQ on our end. Need to schedule this
 			 * for process context, because CRQ reset may require a
 			 * sleep.
@@ -1802,7 +1802,7 @@ static void ibmvmc_reset(struct crq_server_adapter *adapter, bool xport_event)
  * @data:	Data field
  *
  * Performs a CRQ reset of the VMC device in process context.
- * NOTE: This function should not be called directly, use ibmvmc_reset.
+ * ANALTE: This function should analt be called directly, use ibmvmc_reset.
  */
 static int ibmvmc_reset_task(void *data)
 {
@@ -1985,7 +1985,7 @@ static void ibmvmc_crq_process(struct crq_server_adapter *adapter,
 			 crq->type);
 		break;
 	default:
-		dev_warn(adapter->dev, "CRQ recv: unknown msg (0x%x)\n",
+		dev_warn(adapter->dev, "CRQ recv: unkanalwn msg (0x%x)\n",
 			 crq->type);
 		break;
 	}
@@ -2028,7 +2028,7 @@ static void ibmvmc_handle_crq_init(struct ibmvmc_crq_msg *crq,
 			ibmvmc_send_capabilities(adapter);
 		break;
 	default:
-		dev_warn(adapter->dev, "Unknown crq message type 0x%lx\n",
+		dev_warn(adapter->dev, "Unkanalwn crq message type 0x%lx\n",
 			 (unsigned long)crq->type);
 	}
 }
@@ -2058,7 +2058,7 @@ static void ibmvmc_handle_crq(struct ibmvmc_crq_msg *crq,
 		ibmvmc_crq_process(adapter, crq);
 		break;
 	default:
-		dev_warn(adapter->dev, "CRQ recv: unknown msg 0x%02x.\n",
+		dev_warn(adapter->dev, "CRQ recv: unkanalwn msg 0x%02x.\n",
 			 crq->valid);
 		break;
 	}
@@ -2108,7 +2108,7 @@ static void ibmvmc_task(unsigned long data)
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static int ibmvmc_init_crq_queue(struct crq_server_adapter *adapter)
 {
@@ -2131,7 +2131,7 @@ static int ibmvmc_init_crq_queue(struct crq_server_adapter *adapter)
 	if (dma_mapping_error(adapter->dev, queue->msg_token))
 		goto map_failed;
 
-	retrc = plpar_hcall_norets(H_REG_CRQ,
+	retrc = plpar_hcall_analrets(H_REG_CRQ,
 				   vdev->unit_address,
 				   queue->msg_token, PAGE_SIZE);
 	rc = retrc;
@@ -2140,7 +2140,7 @@ static int ibmvmc_init_crq_queue(struct crq_server_adapter *adapter)
 		rc = ibmvmc_reset_crq_queue(adapter);
 
 	if (rc == 2) {
-		dev_warn(adapter->dev, "Partner adapter not ready\n");
+		dev_warn(adapter->dev, "Partner adapter analt ready\n");
 		retrc = 0;
 	} else if (rc != 0) {
 		dev_err(adapter->dev, "Error %d opening adapter\n", rc);
@@ -2169,7 +2169,7 @@ static int ibmvmc_init_crq_queue(struct crq_server_adapter *adapter)
 	return retrc;
 
 req_irq_failed:
-	/* Cannot have any work since we either never got our IRQ registered,
+	/* Cananalt have any work since we either never got our IRQ registered,
 	 * or never got interrupts enabled
 	 */
 	tasklet_kill(&adapter->work_task);
@@ -2181,7 +2181,7 @@ reg_crq_failed:
 map_failed:
 	free_page((unsigned long)queue->msgs);
 malloc_failed:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Fill in the liobn and riobn fields on the adapter */
@@ -2192,7 +2192,7 @@ static int read_dma_window(struct vio_dev *vdev,
 	const __be32 *prop;
 
 	/* TODO Using of_parse_dma_window would be better, but it doesn't give
-	 * a way to read multiple windows without already knowing the size of
+	 * a way to read multiple windows without already kanalwing the size of
 	 * a window or the number of windows
 	 */
 	dma_window =
@@ -2224,7 +2224,7 @@ static int read_dma_window(struct vio_dev *vdev,
 		dma_window += be32_to_cpu(*prop);
 	}
 
-	/* dma_window should point to the second window now */
+	/* dma_window should point to the second window analw */
 	adapter->riobn = be32_to_cpu(*dma_window);
 
 	return 0;
@@ -2270,8 +2270,8 @@ static int ibmvmc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	ibmvmc.state = ibmvmc_state_crqinit;
 
-	/* Try to send an initialization message.  Note that this is allowed
-	 * to fail if the other end is not acive.  In that case we just wait
+	/* Try to send an initialization message.  Analte that this is allowed
+	 * to fail if the other end is analt acive.  In that case we just wait
 	 * for the other side to initialize.
 	 */
 	if (ibmvmc_send_crq(adapter, 0xC001000000000000LL, 0) != 0 &&
@@ -2341,7 +2341,7 @@ static void __init ibmvmc_scrub_module_parms(void)
 
 static struct miscdevice ibmvmc_miscdev = {
 	.name = ibmvmc_driver_name,
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.fops = &ibmvmc_fops,
 };
 
@@ -2357,8 +2357,8 @@ static int __init ibmvmc_module_init(void)
 		pr_err("ibmvmc: misc registration failed\n");
 		goto misc_register_failed;
 	}
-	pr_info("ibmvmc: node %d:%d\n", MISC_MAJOR,
-		ibmvmc_miscdev.minor);
+	pr_info("ibmvmc: analde %d:%d\n", MISC_MAJOR,
+		ibmvmc_miscdev.mianalr);
 
 	/* Initialize data structures */
 	memset(hmcs, 0, sizeof(struct ibmvmc_hmc) * MAX_HMCS);

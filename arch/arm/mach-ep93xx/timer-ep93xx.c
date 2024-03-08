@@ -22,7 +22,7 @@
  * The 508 kHz timers are ideal for use for the timer interrupt, as the
  * most common values of HZ divide 508 kHz nicely.  We pick the 32 bit
  * timer (timer 3) to get as long sleep intervals as possible when using
- * CONFIG_NO_HZ.
+ * CONFIG_ANAL_HZ.
  *
  * The higher clock rate of timer 4 makes it a better choice than the
  * other timers for use as clock source and for sched_clock(), providing
@@ -52,7 +52,7 @@
 #define EP93XX_TIMER123_RATE		508469
 #define EP93XX_TIMER4_RATE		983040
 
-static u64 notrace ep93xx_read_sched_clock(void)
+static u64 analtrace ep93xx_read_sched_clock(void)
 {
 	u64 ret;
 

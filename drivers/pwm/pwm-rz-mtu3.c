@@ -9,8 +9,8 @@
  *
  * Limitations:
  * - When PWM is disabled, the output is driven to Hi-Z.
- * - While the hardware supports both polarities, the driver (for now)
- *   only handles normal polarity.
+ * - While the hardware supports both polarities, the driver (for analw)
+ *   only handles analrmal polarity.
  * - HW uses one counter and two match components to configure duty_cycle
  *   and period.
  * - Multi-Function Timer Pulse Unit (a.k.a MTU) has 7 HW channels for PWM
@@ -306,7 +306,7 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 			state->duty_cycle = state->period;
 	}
 
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 	pm_runtime_put(chip->dev);
 
 	return 0;
@@ -338,7 +338,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * Prescalar is shared by multiple channels, so prescale can
-	 * NOT be modified when there are multiple channels in use with
+	 * ANALT be modified when there are multiple channels in use with
 	 * different settings. Modify prescalar if other PWM is off or handle
 	 * it, if current prescale value is less than the one we want to set.
 	 */
@@ -397,7 +397,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			rz_mtu3_enable(priv->mtu);
 	}
 
-	/* If the PWM is not enabled, turn the clock off again to save power. */
+	/* If the PWM is analt enabled, turn the clock off again to save power. */
 	if (!pwm->state.enabled)
 		pm_runtime_put(chip->dev);
 
@@ -411,7 +411,7 @@ static int rz_mtu3_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	bool enabled = pwm->state.enabled;
 	int ret;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -479,7 +479,7 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 
 	rz_mtu3_pwm = devm_kzalloc(&pdev->dev, sizeof(*rz_mtu3_pwm), GFP_KERNEL);
 	if (!rz_mtu3_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rz_mtu3_pwm->clk = parent_ddata->clk;
 

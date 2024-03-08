@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * ixp4xx PATA/Compact Flash driver
- * Copyright (C) 2006-07 Tower Technologies
+ * Copyright (C) 2006-07 Tower Techanallogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * An ATA driver to handle a Compact Flash connected
  * to the ixp4xx expansion bus in TrueIDE mode. The CF
  * must have it chip selects connected to two CS lines
- * on the ixp4xx. In the irq is not available, you might
+ * on the ixp4xx. In the irq is analt available, you might
  * want to modify both this driver and libata to run in
  * polling mode.
  */
@@ -186,7 +186,7 @@ static struct ata_port_operations ixp4xx_port_ops = {
 };
 
 static struct ata_port_info ixp4xx_port_info = {
-	.flags		= ATA_FLAG_NO_ATAPI,
+	.flags		= ATA_FLAG_ANAL_ATAPI,
 	.pio_mask	= ATA_PIO4,
 	.port_ops	= &ixp4xx_port_ops,
 };
@@ -236,7 +236,7 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 	struct ata_port_info pi = ixp4xx_port_info;
 	const struct ata_port_info *ppi[] = { &pi, NULL };
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct ixp4xx_pata *ixpp;
 	u32 csindex;
 	int ret;
@@ -244,11 +244,11 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 
 	ixpp = devm_kzalloc(dev, sizeof(*ixpp), GFP_KERNEL);
 	if (!ixpp)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ixpp->rmap = syscon_node_to_regmap(np->parent);
+	ixpp->rmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(ixpp->rmap))
-		return dev_err_probe(dev, PTR_ERR(ixpp->rmap), "no regmap\n");
+		return dev_err_probe(dev, PTR_ERR(ixpp->rmap), "anal regmap\n");
 	/* Inspect our address to figure out what chipselect the CMD is on */
 	ret = of_property_read_u32_index(np, "reg", 0, &csindex);
 	if (ret)
@@ -258,7 +258,7 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 
 	ixpp->host = ata_host_alloc_pinfo(dev, ppi, 1);
 	if (!ixpp->host)
-		return -ENOMEM;
+		return -EANALMEM;
 	ixpp->host->private_data = ixpp;
 
 	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));

@@ -173,11 +173,11 @@ sr_ena_2:
 	cmp	tmp1, #UDDRC_STAT_SELFREF_TYPE_SW
 	bne	sr_ena_2
 
-	/* Disable DX DLLs for non-backup modes. */
+	/* Disable DX DLLs for analn-backup modes. */
 	cmp	r7, #AT91_PM_BACKUP
 	beq	sr_ena_3
 
-	/* Do not soft reset the AC DLL. */
+	/* Do analt soft reset the AC DLL. */
 	ldr	tmp1, [r3, DDR3PHY_ACDLLCR]
 	bic	tmp1, tmp1, DDR3PHY_ACDLLCR_DLLSRST
 	str	tmp1, [r3, DDR3PHY_ACDLLCR]
@@ -302,7 +302,7 @@ sr_dis_6:
 	/* Wait for self-refresh exit done. */
 	ldr	tmp1, [r2, #UDDRC_STAT]
 	bic	tmp1, tmp1, #~UDDRC_STAT_OPMODE_MSK
-	cmp	tmp1, #UDDRC_STAT_OPMODE_NORMAL
+	cmp	tmp1, #UDDRC_STAT_OPMODE_ANALRMAL
 	bne	sr_dis_6
 
 	/* Enable all AXI ports. */
@@ -377,7 +377,7 @@ sr_ena_ddrc_sf:
 	/* If using the 2nd ddr controller */
 	ldr	r2, .sramc1_base
 	cmp	r2, #0
-	beq	sr_ena_no_2nd_ddrc
+	beq	sr_ena_anal_2nd_ddrc
 
 	ldr	r3, [r2, #AT91_DDRSDRC_MDR]
 	str	r3, .saved_sam9_mdr1
@@ -395,7 +395,7 @@ sr_ena_ddrc_sf:
 	orr	r3, r3, #AT91_DDRSDRC_LPCB_SELF_REFRESH
 	str	r3, [r2, #AT91_DDRSDRC_LPR]
 
-sr_ena_no_2nd_ddrc:
+sr_ena_anal_2nd_ddrc:
 	b	sr_ena_exit
 
 	/*
@@ -435,7 +435,7 @@ sr_ena_exit:
 	 */
 
 	 /*
-	  * For exiting the self-refresh mode, do nothing,
+	  * For exiting the self-refresh mode, do analthing,
 	  * automatically exit the self-refresh mode.
 	  */
 	b	sr_dis_exit
@@ -561,7 +561,7 @@ sr_dis_exit:
 .endm
 
 /**
- * Note: This procedure only applies on the platform which uses
+ * Analte: This procedure only applies on the platform which uses
  * the external crystal oscillator as a main clock source.
  */
 .macro at91_pm_ulp1_mode
@@ -619,8 +619,8 @@ sr_dis_exit:
 	str	tmp1, [pmc, #AT91_CKGR_MOR]
 
 	/* Quirk for SAM9X60's PMC */
-	nop
-	nop
+	analp
+	analp
 
 	wait_mckrdy tmp3
 

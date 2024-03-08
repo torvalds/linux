@@ -5,7 +5,7 @@ NAME
 ----
 perf-trace - strace inspired tool
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf trace'
@@ -100,8 +100,8 @@ filter out the startup phase of the program, which is often very different.
 --verbose::
         Increase the verbosity level.
 
---no-inherit::
-	Child tasks do not inherit counters.
+--anal-inherit::
+	Child tasks do analt inherit counters.
 
 -m::
 --mmap-pages=::
@@ -112,7 +112,7 @@ filter out the startup phase of the program, which is often very different.
 -C::
 --cpu::
 Collect samples only on the list of CPUs provided. Multiple CPUs can be provided as a
-comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+comma-separated list with anal space: 0,1. Ranges of CPUs are specified with -: 0-2.
 In per-thread mode with inheritance mode on (default), Events are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
@@ -134,7 +134,7 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Print full timestamp rather time relative to first sample.
 
 --comm::
-        Show process COMM right beside its ID, on by default, disable with --no-comm.
+        Show process COMM right beside its ID, on by default, disable with --anal-comm.
 
 -s::
 --summary::
@@ -146,8 +146,8 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Show all syscalls followed by a summary by thread with min, max, and
     average times (in msec) and relative stddev.
 
---errno-summary::
-	To be used with -s or -S, to show stats for the errnos experienced by
+--erranal-summary::
+	To be used with -s or -S, to show stats for the erranals experienced by
 	syscalls, using only this option will trigger --summary.
 
 --tool_stats::
@@ -160,12 +160,12 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 -F=[all|min|maj]::
 --pf=[all|min|maj]::
-	Trace pagefaults. Optionally, you can specify whether you want minor,
+	Trace pagefaults. Optionally, you can specify whether you want mianalr,
 	major or all pagefaults. Default value is maj.
 
 --syscalls::
 	Trace system calls. This options is enabled by default, disable with
-	--no-syscalls.
+	--anal-syscalls.
 
 --call-graph [mode,type,min[,limit],order[,key][,branch]]::
         Setup and enable call-graph (stack chain/backtrace) recording.
@@ -174,14 +174,14 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
         are 'dwarf' and 'lbr', where available, try: 'perf trace --call-graph dwarf'.
 
         Using this will, for the root user, bump the value of --mmap-pages to 4
-        times the maximum for non-root users, based on the kernel.perf_event_mlock_kb
+        times the maximum for analn-root users, based on the kernel.perf_event_mlock_kb
         sysctl. This is done only if the user doesn't specify a --mmap-pages value.
 
 --kernel-syscall-graph::
 	 Show the kernel callchains on the syscall exit path.
 
 --max-events=N::
-	Stop after processing N events. Note that strace-like events are considered
+	Stop after processing N events. Analte that strace-like events are considered
 	only at exit time or when a syscall is interrupted, i.e. in those cases this
 	option is equivalent to the number of lines printed.
 
@@ -196,12 +196,12 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --max-stack::
         Set the stack depth limit when parsing the callchain, anything
-        beyond the specified depth will be ignored. Note that at this point
+        beyond the specified depth will be iganalred. Analte that at this point
         this is just about the presentation part, i.e. the kernel is still
-        not limiting, the overhead of callchains needs to be set via the
-        knobs in --call-graph dwarf.
+        analt limiting, the overhead of callchains needs to be set via the
+        kanalbs in --call-graph dwarf.
 
-        Implies '--call-graph dwarf' when --call-graph not present on the
+        Implies '--call-graph dwarf' when --call-graph analt present on the
         command line, on systems where DWARF unwinding was built in.
 
         Default: /proc/sys/kernel/perf_event_max_stack when present for
@@ -209,9 +209,9 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --min-stack::
         Set the stack depth limit when parsing the callchain, anything
-        below the specified depth will be ignored. Disabled by default.
+        below the specified depth will be iganalred. Disabled by default.
 
-        Implies '--call-graph dwarf' when --call-graph not present on the
+        Implies '--call-graph dwarf' when --call-graph analt present on the
         command line, on systems where DWARF unwinding was built in.
 
 --print-sample::
@@ -224,7 +224,7 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	This option sets the time out limit. The default value is 500 ms.
 
 --sort-events::
-	Do sorting on batches of events, use when noticing out of order events that
+	Do sorting on batches of events, use when analticing out of order events that
 	may happen, for instance, when a thread gets migrated to a different CPU
 	while processing a syscall.
 
@@ -235,7 +235,7 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --map-dump::
 	Dump BPF maps setup by events passed via -e, for instance the augmented_raw_syscalls
-	living in tools/perf/examples/bpf/augmented_raw_syscalls.c. For now this
+	living in tools/perf/examples/bpf/augmented_raw_syscalls.c. For analw this
 	dumps just boolean map values and integer keys, in time this will print in hex
 	by default and use BTF when available, as well as use functions to do pretty
 	printing using the existing 'perf trace' syscall arg beautifiers to map integer
@@ -249,11 +249,11 @@ When tracing pagefaults, the format of the trace is as follows:
 
 <min|maj>fault [<ip.symbol>+<ip.offset>] => <addr.dso@addr.offset> (<map type><addr level>).
 
-- min/maj indicates whether fault event is minor or major;
+- min/maj indicates whether fault event is mianalr or major;
 - ip.symbol shows symbol for instruction pointer (the code that generated the
-  fault); if no debug symbols available, perf trace will print raw IP;
+  fault); if anal debug symbols available, perf trace will print raw IP;
 - addr.dso shows DSO for the faulted address;
-- map type is either 'd' for non-executable maps or 'x' for executable maps;
+- map type is either 'd' for analn-executable maps or 'x' for executable maps;
 - addr level is either 'k' for kernel dso or '.' for user dso.
 
 For symbols resolution you may need to install debugging symbols.
@@ -269,9 +269,9 @@ EXAMPLES
 
 Trace only major pagefaults:
 
- $ perf trace --no-syscalls -F
+ $ perf trace --anal-syscalls -F
 
-Trace syscalls, major and minor pagefaults:
+Trace syscalls, major and mianalr pagefaults:
 
  $ perf trace -F all
 
@@ -284,13 +284,13 @@ Trace the first 4 open, openat or open_by_handle_at syscalls (in the future more
 
   $ perf trace -e open* --max-events 4
   [root@jouet perf]# trace -e open* --max-events 4
-  2272.992 ( 0.037 ms): gnome-shell/1370 openat(dfd: CWD, filename: /proc/self/stat) = 31
-  2277.481 ( 0.139 ms): gnome-shell/3039 openat(dfd: CWD, filename: /proc/self/stat) = 65
-  3026.398 ( 0.076 ms): gnome-shell/3039 openat(dfd: CWD, filename: /proc/self/stat) = 65
+  2272.992 ( 0.037 ms): ganalme-shell/1370 openat(dfd: CWD, filename: /proc/self/stat) = 31
+  2277.481 ( 0.139 ms): ganalme-shell/3039 openat(dfd: CWD, filename: /proc/self/stat) = 65
+  3026.398 ( 0.076 ms): ganalme-shell/3039 openat(dfd: CWD, filename: /proc/self/stat) = 65
   4294.665 ( 0.015 ms): sed/15879 openat(dfd: CWD, filename: /etc/ld.so.cache, flags: CLOEXEC) = 3
   $
 
-Trace the first minor page fault when running a workload:
+Trace the first mianalr page fault when running a workload:
 
   # perf trace -F min --max-stack=7 --max-events 1 sleep 1
      0.000 ( 0.000 ms): sleep/18006 minfault [__clear_user+0x1a] => 0x5626efa56080 (?k)
@@ -308,7 +308,7 @@ Trace the next min page page fault to take place on the first CPU:
   # perf trace -F min --call-graph=dwarf --max-events 1 --cpu 0
      0.000 ( 0.000 ms): Web Content/17136 minfault [js::gc::Chunk::fetchNextDecommittedArena+0x4b] => 0x7fbe6181b000 (?.)
                                        js::gc::FreeSpan::initAsEmpty (inlined)
-                                       js::gc::Arena::setAsNotAllocated (inlined)
+                                       js::gc::Arena::setAsAnaltAllocated (inlined)
                                        js::gc::Chunk::fetchNextDecommittedArena (/usr/lib64/firefox/libxul.so)
                                        js::gc::Chunk::allocateArena (/usr/lib64/firefox/libxul.so)
                                        js::gc::GCRuntime::allocateArena (/usr/lib64/firefox/libxul.so)

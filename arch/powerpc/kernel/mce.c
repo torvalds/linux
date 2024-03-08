@@ -32,19 +32,19 @@ static void machine_process_ue_event(struct work_struct *work);
 
 static DECLARE_WORK(mce_ue_event_work, machine_process_ue_event);
 
-static BLOCKING_NOTIFIER_HEAD(mce_notifier_list);
+static BLOCKING_ANALTIFIER_HEAD(mce_analtifier_list);
 
-int mce_register_notifier(struct notifier_block *nb)
+int mce_register_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&mce_notifier_list, nb);
+	return blocking_analtifier_chain_register(&mce_analtifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(mce_register_notifier);
+EXPORT_SYMBOL_GPL(mce_register_analtifier);
 
-int mce_unregister_notifier(struct notifier_block *nb)
+int mce_unregister_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&mce_notifier_list, nb);
+	return blocking_analtifier_chain_unregister(&mce_analtifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(mce_unregister_notifier);
+EXPORT_SYMBOL_GPL(mce_unregister_analtifier);
 
 static void mce_set_error_info(struct machine_check_event *mce,
 			       struct mce_error_info *mce_err)
@@ -72,7 +72,7 @@ static void mce_set_error_info(struct machine_check_event *mce,
 	case MCE_ERROR_TYPE_LINK:
 		mce->u.link_error.link_error_type = mce_err->u.link_error_type;
 		break;
-	case MCE_ERROR_TYPE_UNKNOWN:
+	case MCE_ERROR_TYPE_UNKANALWN:
 	default:
 		break;
 	}
@@ -98,7 +98,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
 
 	mce = &local_paca->mce_info->mce_event[index];
 	/*
-	 * Return if we don't have enough space to log mce event.
+	 * Return if we don't have eanalugh space to log mce event.
 	 * mce_nest_count may go beyond MAX_MC_EVT but that's ok,
 	 * the check below will stop buffer overrun.
 	 */
@@ -117,7 +117,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	if (handled && (regs->msr & MSR_RI))
 		mce->disposition = MCE_DISPOSITION_RECOVERED;
 	else
-		mce->disposition = MCE_DISPOSITION_NOT_RECOVERED;
+		mce->disposition = MCE_DISPOSITION_ANALT_RECOVERED;
 
 	mce->initiator = mce_err->initiator;
 	mce->severity = mce_err->severity;
@@ -129,13 +129,13 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	 */
 	mce_set_error_info(mce, mce_err);
 	if (mce->error_type == MCE_ERROR_TYPE_UE)
-		mce->u.ue_error.ignore_event = mce_err->ignore_event;
+		mce->u.ue_error.iganalre_event = mce_err->iganalre_event;
 
 	/*
 	 * Raise irq work, So that we don't miss to log the error for
 	 * unrecoverable errors.
 	 */
-	if (mce->disposition == MCE_DISPOSITION_NOT_RECOVERED)
+	if (mce->disposition == MCE_DISPOSITION_ANALT_RECOVERED)
 		mce_irq_work_queue();
 
 	if (!addr)
@@ -174,8 +174,8 @@ void save_mce_event(struct pt_regs *regs, long handled,
 /*
  * get_mce_event:
  *	mce	Pointer to machine_check_event structure to be filled.
- *	release Flag to indicate whether to free the event slot or not.
- *		0 <= do not release the mce event. Caller will invoke
+ *	release Flag to indicate whether to free the event slot or analt.
+ *		0 <= do analt release the mce event. Caller will invoke
  *		     release_mce_event() once event has been consumed.
  *		1 <= release the slot.
  *
@@ -185,7 +185,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
  * get_mce_event() will be called by platform specific machine check
  * handle routine and in KVM.
  * When we call get_mce_event(), we are still in interrupt context and
- * preemption will not be scheduled until ret_from_expect() routine
+ * preemption will analt be scheduled until ret_from_expect() routine
  * is called.
  */
 int get_mce_event(struct machine_check_event *mce, bool release)
@@ -233,7 +233,7 @@ static void machine_check_ue_event(struct machine_check_event *evt)
 	int index;
 
 	index = local_paca->mce_info->mce_ue_count++;
-	/* If queue is full, just return for now. */
+	/* If queue is full, just return for analw. */
 	if (index >= MAX_MC_EVT) {
 		local_paca->mce_info->mce_ue_count--;
 		return;
@@ -254,7 +254,7 @@ void machine_check_queue_event(void)
 		return;
 
 	index = local_paca->mce_info->mce_queue_count++;
-	/* If queue is full, just return for now. */
+	/* If queue is full, just return for analw. */
 	if (index >= MAX_MC_EVT) {
 		local_paca->mce_info->mce_queue_count--;
 		return;
@@ -272,7 +272,7 @@ void mce_common_process_ue(struct pt_regs *regs,
 
 	entry = search_kernel_exception_table(regs->nip);
 	if (entry) {
-		mce_err->ignore_event = true;
+		mce_err->iganalre_event = true;
 		regs_set_return_ip(regs, extable_fixup(entry));
 	}
 }
@@ -289,18 +289,18 @@ static void machine_process_ue_event(struct work_struct *work)
 	while (local_paca->mce_info->mce_ue_count > 0) {
 		index = local_paca->mce_info->mce_ue_count - 1;
 		evt = &local_paca->mce_info->mce_ue_event_queue[index];
-		blocking_notifier_call_chain(&mce_notifier_list, 0, evt);
+		blocking_analtifier_call_chain(&mce_analtifier_list, 0, evt);
 #ifdef CONFIG_MEMORY_FAILURE
 		/*
 		 * This should probably queued elsewhere, but
 		 * oh! well
 		 *
 		 * Don't report this machine check because the caller has a
-		 * asked us to ignore the event, it has a fixup handler which
+		 * asked us to iganalre the event, it has a fixup handler which
 		 * will do the appropriate error handling and reporting.
 		 */
 		if (evt->error_type == MCE_ERROR_TYPE_UE) {
-			if (evt->u.ue_error.ignore_event) {
+			if (evt->u.ue_error.iganalre_event) {
 				local_paca->mce_info->mce_ue_count--;
 				continue;
 			}
@@ -329,10 +329,10 @@ static void machine_check_process_queued_event(void)
 	int index;
 	struct machine_check_event *evt;
 
-	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_ANALW_UNRELIABLE);
 
 	/*
-	 * For now just print it to console.
+	 * For analw just print it to console.
 	 * TODO: log this error event to FSP or nvram.
 	 */
 	while (local_paca->mce_info->mce_queue_count > 0) {
@@ -340,7 +340,7 @@ static void machine_check_process_queued_event(void)
 		evt = &local_paca->mce_info->mce_event_queue[index];
 
 		if (evt->error_type == MCE_ERROR_TYPE_UE &&
-		    evt->u.ue_error.ignore_event) {
+		    evt->u.ue_error.iganalre_event) {
 			local_paca->mce_info->mce_queue_count--;
 			continue;
 		}
@@ -426,7 +426,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		"Page table walk Load/Store (timeout)",
 	};
 	static const char *mc_error_class[] = {
-		"Unknown",
+		"Unkanalwn",
 		"Hardware error",
 		"Probable Hardware error (some chance of software cause)",
 		"Software error",
@@ -435,12 +435,12 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 
 	/* Print things out */
 	if (evt->version != MCE_V1) {
-		pr_err("Machine Check Exception, Unknown event version %d !\n",
+		pr_err("Machine Check Exception, Unkanalwn event version %d !\n",
 		       evt->version);
 		return;
 	}
 	switch (evt->severity) {
-	case MCE_SEV_NO_ERROR:
+	case MCE_SEV_ANAL_ERROR:
 		level = KERN_INFO;
 		sevstr = "Harmless";
 		break;
@@ -475,9 +475,9 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	case MCE_INITIATOR_POWERMGM:
 		initiator = "Power Management";
 		break;
-	case MCE_INITIATOR_UNKNOWN:
+	case MCE_INITIATOR_UNKANALWN:
 	default:
-		initiator = "Unknown";
+		initiator = "Unkanalwn";
 		break;
 	}
 
@@ -487,7 +487,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.ue_error.ue_error_type <
 			ARRAY_SIZE(mc_ue_types) ?
 			mc_ue_types[evt->u.ue_error.ue_error_type]
-			: "Unknown";
+			: "Unkanalwn";
 		if (evt->u.ue_error.effective_address_provided)
 			ea = evt->u.ue_error.effective_address;
 		if (evt->u.ue_error.physical_address_provided)
@@ -498,7 +498,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.slb_error.slb_error_type <
 			ARRAY_SIZE(mc_slb_types) ?
 			mc_slb_types[evt->u.slb_error.slb_error_type]
-			: "Unknown";
+			: "Unkanalwn";
 		if (evt->u.slb_error.effective_address_provided)
 			ea = evt->u.slb_error.effective_address;
 		break;
@@ -507,7 +507,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.erat_error.erat_error_type <
 			ARRAY_SIZE(mc_erat_types) ?
 			mc_erat_types[evt->u.erat_error.erat_error_type]
-			: "Unknown";
+			: "Unkanalwn";
 		if (evt->u.erat_error.effective_address_provided)
 			ea = evt->u.erat_error.effective_address;
 		break;
@@ -516,7 +516,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.tlb_error.tlb_error_type <
 			ARRAY_SIZE(mc_tlb_types) ?
 			mc_tlb_types[evt->u.tlb_error.tlb_error_type]
-			: "Unknown";
+			: "Unkanalwn";
 		if (evt->u.tlb_error.effective_address_provided)
 			ea = evt->u.tlb_error.effective_address;
 		break;
@@ -525,7 +525,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.user_error.user_error_type <
 			ARRAY_SIZE(mc_user_types) ?
 			mc_user_types[evt->u.user_error.user_error_type]
-			: "Unknown";
+			: "Unkanalwn";
 		if (evt->u.user_error.effective_address_provided)
 			ea = evt->u.user_error.effective_address;
 		break;
@@ -534,7 +534,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.ra_error.ra_error_type <
 			ARRAY_SIZE(mc_ra_types) ?
 			mc_ra_types[evt->u.ra_error.ra_error_type]
-			: "Unknown";
+			: "Unkanalwn";
 		if (evt->u.ra_error.effective_address_provided)
 			ea = evt->u.ra_error.effective_address;
 		break;
@@ -543,21 +543,21 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.link_error.link_error_type <
 			ARRAY_SIZE(mc_link_types) ?
 			mc_link_types[evt->u.link_error.link_error_type]
-			: "Unknown";
+			: "Unkanalwn";
 		if (evt->u.link_error.effective_address_provided)
 			ea = evt->u.link_error.effective_address;
 		break;
 	case MCE_ERROR_TYPE_DCACHE:
 		err_type = "D-Cache";
-		subtype = "Unknown";
+		subtype = "Unkanalwn";
 		break;
 	case MCE_ERROR_TYPE_ICACHE:
 		err_type = "I-Cache";
-		subtype = "Unknown";
+		subtype = "Unkanalwn";
 		break;
 	default:
-	case MCE_ERROR_TYPE_UNKNOWN:
-		err_type = "Unknown";
+	case MCE_ERROR_TYPE_UNKANALWN:
+		err_type = "Unkanalwn";
 		subtype = "";
 		break;
 	}
@@ -576,7 +576,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		level, evt->cpu, sevstr, in_guest ? "Guest" : "",
 		err_type, subtype, dar_str,
 		evt->disposition == MCE_DISPOSITION_RECOVERED ?
-		"Recovered" : "Not recovered");
+		"Recovered" : "Analt recovered");
 
 	if (in_guest || user_mode) {
 		printk("%sMCE: CPU%d: PID: %d Comm: %s %sNIP: [%016llx]%s\n",
@@ -590,7 +590,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	printk("%sMCE: CPU%d: Initiator %s\n", level, evt->cpu, initiator);
 
 	subtype = evt->error_class < ARRAY_SIZE(mc_error_class) ?
-		mc_error_class[evt->error_class] : "Unknown";
+		mc_error_class[evt->error_class] : "Unkanalwn";
 	printk("%sMCE: CPU%d: %s\n", level, evt->cpu, subtype);
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
@@ -602,7 +602,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 EXPORT_SYMBOL_GPL(machine_check_print_event_info);
 
 /*
- * This function is called in real mode. Strictly no printk's please.
+ * This function is called in real mode. Strictly anal printk's please.
  *
  * regs->nip and regs->msr contains srr0 and ssr1.
  */
@@ -610,7 +610,7 @@ DEFINE_INTERRUPT_HANDLER_NMI(machine_check_early)
 {
 	long handled = 0;
 
-	hv_nmi_check_nonrecoverable(regs);
+	hv_nmi_check_analnrecoverable(regs);
 
 	/*
 	 * See if platform is capable of handling machine check.
@@ -623,7 +623,7 @@ DEFINE_INTERRUPT_HANDLER_NMI(machine_check_early)
 
 /* Possible meanings for HMER_DEBUG_TRIG bit being set on POWER9 */
 static enum {
-	DTRIG_UNKNOWN,
+	DTRIG_UNKANALWN,
 	DTRIG_VECTOR_CI,	/* need to emulate vector CI load instr */
 	DTRIG_SUSPEND_ESCAPE,	/* need to escape from TM suspend mode */
 } hmer_debug_trig_function;
@@ -631,13 +631,13 @@ static enum {
 static int init_debug_trig_function(void)
 {
 	int pvr;
-	struct device_node *cpun;
+	struct device_analde *cpun;
 	struct property *prop = NULL;
 	const char *str;
 
 	/* First look in the device tree */
 	preempt_disable();
-	cpun = of_get_cpu_node(smp_processor_id(), NULL);
+	cpun = of_get_cpu_analde(smp_processor_id(), NULL);
 	if (cpun) {
 		of_property_for_each_string(cpun, "ibm,hmi-special-triggers",
 					    prop, str) {
@@ -646,7 +646,7 @@ static int init_debug_trig_function(void)
 			else if (strcmp(str, "bit17-tm-suspend-escape") == 0)
 				hmer_debug_trig_function = DTRIG_SUSPEND_ESCAPE;
 		}
-		of_node_put(cpun);
+		of_analde_put(cpun);
 	}
 	preempt_enable();
 
@@ -683,8 +683,8 @@ __initcall(init_debug_trig_function);
 /*
  * Handle HMIs that occur as a result of a debug trigger.
  * Return values:
- * -1 means this is not a HMI cause that we know about
- *  0 means no further handling is required
+ * -1 means this is analt a HMI cause that we kanalw about
+ *  0 means anal further handling is required
  *  1 means further handling is required
  */
 long hmi_handle_debugtrig(struct pt_regs *regs)
@@ -694,7 +694,7 @@ long hmi_handle_debugtrig(struct pt_regs *regs)
 
 	/* HMER_DEBUG_TRIG bit is used for various workarounds on P9 */
 	if (!((hmer & HMER_DEBUG_TRIG)
-	      && hmer_debug_trig_function != DTRIG_UNKNOWN))
+	      && hmer_debug_trig_function != DTRIG_UNKANALWN))
 		return -1;
 		
 	hmer &= ~HMER_DEBUG_TRIG;
@@ -704,7 +704,7 @@ long hmi_handle_debugtrig(struct pt_regs *regs)
 	switch (hmer_debug_trig_function) {
 	case DTRIG_VECTOR_CI:
 		/*
-		 * Now to avoid problems with soft-disable we
+		 * Analw to avoid problems with soft-disable we
 		 * only do the emulation if we are coming from
 		 * host user space
 		 */
@@ -758,9 +758,9 @@ void __init mce_init(void)
 	limit = min(ppc64_bolted_size(), ppc64_rma_size);
 	for_each_possible_cpu(i) {
 		mce_info = memblock_alloc_try_nid(sizeof(*mce_info),
-						  __alignof__(*mce_info),
+						  __aliganalf__(*mce_info),
 						  MEMBLOCK_LOW_LIMIT,
-						  limit, early_cpu_to_node(i));
+						  limit, early_cpu_to_analde(i));
 		if (!mce_info)
 			goto err;
 		paca_ptrs[i]->mce_info = mce_info;

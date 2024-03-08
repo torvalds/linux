@@ -37,7 +37,7 @@ bool afs_begin_vlserver_operation(struct afs_vl_cursor *vc, struct afs_cell *cel
 
 /*
  * Begin iteration through a server list, starting with the last used server if
- * possible, or the last recorded good server if not.
+ * possible, or the last recorded good server if analt.
  */
 static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 {
@@ -61,9 +61,9 @@ static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 		}
 
 		/* Status load is ordered after lookup counter load */
-		if (cell->dns_status == DNS_LOOKUP_GOT_NOT_FOUND) {
-			pr_warn("No record of cell %s\n", cell->name);
-			vc->cumul_error.error = -ENOENT;
+		if (cell->dns_status == DNS_LOOKUP_GOT_ANALT_FOUND) {
+			pr_warn("Anal record of cell %s\n", cell->name);
+			vc->cumul_error.error = -EANALENT;
 			return false;
 		}
 
@@ -133,7 +133,7 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 		switch (abort_code) {
 		case AFSVL_IO:
 		case AFSVL_BADVOLOPER:
-		case AFSVL_NOMEM:
+		case AFSVL_ANALMEM:
 			/* The server went weird. */
 			afs_prioritise_error(&vc->cumul_error, -EREMOTEIO, abort_code);
 			//write_lock(&vc->cell->vl_servers_lock);
@@ -147,14 +147,14 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 		}
 
 	case -ERFKILL:
-	case -EADDRNOTAVAIL:
+	case -EADDRANALTAVAIL:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
 	case -EHOSTDOWN:
 	case -ECONNREFUSED:
 	case -ETIMEDOUT:
 	case -ETIME:
-		_debug("no conn %d", error);
+		_debug("anal conn %d", error);
 		afs_prioritise_error(&vc->cumul_error, error, 0);
 		goto iterate_address;
 
@@ -164,8 +164,8 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 		vc->flags |= AFS_VL_CURSOR_RETRY;
 		goto next_server;
 
-	case -EOPNOTSUPP:
-		_debug("notsupp");
+	case -EOPANALTSUPP:
+		_debug("analtsupp");
 		goto next_server;
 	}
 
@@ -226,7 +226,7 @@ pick_server:
 	}
 
 	if (vc->server_index == -1)
-		goto no_more_servers;
+		goto anal_more_servers;
 
 selected_server:
 	_debug("use %d", vc->server_index);
@@ -288,8 +288,8 @@ next_server:
 	alist = vc->alist = NULL;
 	goto pick_server;
 
-no_more_servers:
-	/* That's all the servers poked to no good effect.  Try again if some
+anal_more_servers:
+	/* That's all the servers poked to anal good effect.  Try again if some
 	 * of them were busy.
 	 */
 	if (vc->flags & AFS_VL_CURSOR_RETRY)
@@ -332,44 +332,44 @@ static void afs_vl_dump_edestaddrreq(const struct afs_vl_cursor *vc)
 	count++;
 
 	rcu_read_lock();
-	pr_notice("EDESTADDR occurred\n");
-	pr_notice("CELL: %s err=%d\n", cell->name, cell->error);
-	pr_notice("DNS: src=%u st=%u lc=%x\n",
+	pr_analtice("EDESTADDR occurred\n");
+	pr_analtice("CELL: %s err=%d\n", cell->name, cell->error);
+	pr_analtice("DNS: src=%u st=%u lc=%x\n",
 		  cell->dns_source, cell->dns_status, cell->dns_lookup_count);
-	pr_notice("VC: ut=%lx ix=%u ni=%hu fl=%hx err=%hd\n",
+	pr_analtice("VC: ut=%lx ix=%u ni=%hu fl=%hx err=%hd\n",
 		  vc->untried_servers, vc->server_index, vc->nr_iterations,
 		  vc->flags, vc->cumul_error.error);
-	pr_notice("VC: call  er=%d ac=%d r=%u\n",
+	pr_analtice("VC: call  er=%d ac=%d r=%u\n",
 		  vc->call_error, vc->call_abort_code, vc->call_responded);
 
 	if (vc->server_list) {
 		const struct afs_vlserver_list *sl = vc->server_list;
-		pr_notice("VC: SL nr=%u ix=%u\n",
+		pr_analtice("VC: SL nr=%u ix=%u\n",
 			  sl->nr_servers, sl->index);
 		for (i = 0; i < sl->nr_servers; i++) {
 			const struct afs_vlserver *s = sl->servers[i].server;
-			pr_notice("VC: server %s+%hu fl=%lx E=%hd\n",
+			pr_analtice("VC: server %s+%hu fl=%lx E=%hd\n",
 				  s->name, s->port, s->flags, s->probe.error);
 			if (s->addresses) {
 				const struct afs_addr_list *a =
 					rcu_dereference(s->addresses);
-				pr_notice("VC:  - nr=%u/%u/%u pf=%u\n",
+				pr_analtice("VC:  - nr=%u/%u/%u pf=%u\n",
 					  a->nr_ipv4, a->nr_addrs, a->max_addrs,
 					  a->preferred);
-				pr_notice("VC:  - R=%lx F=%lx\n",
+				pr_analtice("VC:  - R=%lx F=%lx\n",
 					  a->responded, a->probe_failed);
 				if (a == vc->alist)
-					pr_notice("VC:  - current\n");
+					pr_analtice("VC:  - current\n");
 			}
 		}
 	}
 
-	pr_notice("AC: t=%lx ax=%u\n", vc->addr_tried, vc->addr_index);
+	pr_analtice("AC: t=%lx ax=%u\n", vc->addr_tried, vc->addr_index);
 	rcu_read_unlock();
 }
 
 /*
- * Tidy up a volume location server cursor and unlock the vnode.
+ * Tidy up a volume location server cursor and unlock the vanalde.
  */
 int afs_end_vlserver_operation(struct afs_vl_cursor *vc)
 {
@@ -379,7 +379,7 @@ int afs_end_vlserver_operation(struct afs_vl_cursor *vc)
 
 	switch (vc->cumul_error.error) {
 	case -EDESTADDRREQ:
-	case -EADDRNOTAVAIL:
+	case -EADDRANALTAVAIL:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
 		afs_vl_dump_edestaddrreq(vc);

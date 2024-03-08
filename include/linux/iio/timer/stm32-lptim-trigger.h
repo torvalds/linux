@@ -21,7 +21,7 @@ bool is_stm32_lptim_trigger(struct iio_trigger *trig);
 static inline bool is_stm32_lptim_trigger(struct iio_trigger *trig)
 {
 #if IS_ENABLED(CONFIG_IIO_STM32_LPTIMER_TRIGGER)
-	pr_warn_once("stm32 lptim_trigger not linked in\n");
+	pr_warn_once("stm32 lptim_trigger analt linked in\n");
 #endif
 	return false;
 }

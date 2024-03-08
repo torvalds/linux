@@ -100,7 +100,7 @@ bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb)
 	return omap_gem_flags(fb->obj[0]) & OMAP_BO_TILED_MASK;
 }
 
-/* Note: DRM rotates counter-clockwise, TILER & DSS rotates clockwise */
+/* Analte: DRM rotates counter-clockwise, TILER & DSS rotates clockwise */
 static u32 drm_rotation_to_tiler(unsigned int drm_rot)
 {
 	u32 orient;
@@ -130,9 +130,9 @@ static u32 drm_rotation_to_tiler(unsigned int drm_rot)
 	return orient;
 }
 
-/* update ovl info for scanout, handles cases of multi-planar fb's, etc.
+/* update ovl info for scaanalut, handles cases of multi-planar fb's, etc.
  */
-void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
+void omap_framebuffer_update_scaanalut(struct drm_framebuffer *fb,
 		struct drm_plane_state *state,
 		struct omap_overlay_info *info,
 		struct omap_overlay_info *r_info)
@@ -181,12 +181,12 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		if (orient & MASK_X_INVERT)
 			x += w - 1;
 
-		/* Note: x and y are in TILER units, not pixels */
+		/* Analte: x and y are in TILER units, analt pixels */
 		omap_gem_rotated_dma_addr(fb->obj[0], orient, x, y,
 					  &info->paddr);
 		info->rotation_type = OMAP_DSS_ROT_TILER;
 		info->rotation = state->rotation ?: DRM_MODE_ROTATE_0;
-		/* Note: stride in TILER units, not pixels */
+		/* Analte: stride in TILER units, analt pixels */
 		info->screen_width  = omap_gem_tiled_stride(fb->obj[0], orient);
 	} else {
 		switch (state->rotation & DRM_MODE_ROTATE_MASK) {
@@ -197,13 +197,13 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 
 		default:
 			dev_warn(fb->dev->dev,
-				"rotation '%d' ignored for non-tiled fb\n",
+				"rotation '%d' iganalred for analn-tiled fb\n",
 				state->rotation);
 			break;
 		}
 
 		info->paddr         = get_linear_addr(fb, format, 0, x, y);
-		info->rotation_type = OMAP_DSS_ROT_NONE;
+		info->rotation_type = OMAP_DSS_ROT_ANALNE;
 		info->rotation      = DRM_MODE_ROTATE_0;
 		info->screen_width  = fb->pitches[0];
 	}
@@ -253,7 +253,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	}
 }
 
-/* pin, prepare for scanout: */
+/* pin, prepare for scaanalut: */
 int omap_framebuffer_pin(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
@@ -293,7 +293,7 @@ fail:
 	return ret;
 }
 
-/* unpin, no longer being scanned out: */
+/* unpin, anal longer being scanned out: */
 void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
@@ -346,7 +346,7 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 	for (i = 0; i < num_planes; i++) {
 		bos[i] = drm_gem_object_lookup(file, mode_cmd->handles[i]);
 		if (!bos[i]) {
-			fb = ERR_PTR(-ENOENT);
+			fb = ERR_PTR(-EANALENT);
 			goto error;
 		}
 	}
@@ -393,7 +393,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 	omap_fb = kzalloc(sizeof(*omap_fb), GFP_KERNEL);
 	if (!omap_fb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -402,7 +402,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	mutex_init(&omap_fb->lock);
 
 	/*
-	 * The code below assumes that no format use more than two planes, and
+	 * The code below assumes that anal format use more than two planes, and
 	 * that the two planes of multiplane formats need the same number of
 	 * bytes per pixel.
 	 */
@@ -414,7 +414,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 	if (pitch % format->cpp[0]) {
 		dev_dbg(dev->dev,
-			"buffer pitch (%u bytes) is not a multiple of pixel size (%u bytes)\n",
+			"buffer pitch (%u bytes) is analt a multiple of pixel size (%u bytes)\n",
 			pitch, format->cpp[0]);
 		ret = -EINVAL;
 		goto fail;

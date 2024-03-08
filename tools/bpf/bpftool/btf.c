@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2019 Facebook */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/err.h>
 #include <stdbool.h>
@@ -21,7 +21,7 @@
 #include "main.h"
 
 static const char * const btf_kind_str[NR_BTF_KINDS] = {
-	[BTF_KIND_UNKN]		= "UNKNOWN",
+	[BTF_KIND_UNKN]		= "UNKANALWN",
 	[BTF_KIND_INT]		= "INT",
 	[BTF_KIND_PTR]		= "PTR",
 	[BTF_KIND_ARRAY]	= "ARRAY",
@@ -47,7 +47,7 @@ static const char *btf_int_enc_str(__u8 encoding)
 {
 	switch (encoding) {
 	case 0:
-		return "(none)";
+		return "(analne)";
 	case BTF_INT_SIGNED:
 		return "SIGNED";
 	case BTF_INT_CHAR:
@@ -69,7 +69,7 @@ static const char *btf_var_linkage_str(__u32 linkage)
 	case BTF_VAR_GLOBAL_EXTERN:
 		return "extern";
 	default:
-		return "(unknown)";
+		return "(unkanalwn)";
 	}
 }
 
@@ -83,14 +83,14 @@ static const char *btf_func_linkage_str(const struct btf_type *t)
 	case BTF_FUNC_EXTERN:
 		return "extern";
 	default:
-		return "(unknown)";
+		return "(unkanalwn)";
 	}
 }
 
 static const char *btf_str(const struct btf *btf, __u32 off)
 {
 	if (!off)
-		return "(anon)";
+		return "(aanaln)";
 	return btf__name_by_offset(btf, off) ? : "(invalid)";
 }
 
@@ -468,12 +468,12 @@ static int dump_btf_c(const struct btf *btf,
 
 	d = btf_dump__new(btf, btf_dump_printf, NULL, NULL);
 	if (!d)
-		return -errno;
+		return -erranal;
 
 	printf("#ifndef __VMLINUX_H__\n");
 	printf("#define __VMLINUX_H__\n");
 	printf("\n");
-	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#ifndef BPF_ANAL_PRESERVE_ACCESS_INDEX\n");
 	printf("#pragma clang attribute push (__attribute__((preserve_access_index)), apply_to = record)\n");
 	printf("#endif\n\n");
 
@@ -493,7 +493,7 @@ static int dump_btf_c(const struct btf *btf,
 		}
 	}
 
-	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#ifndef BPF_ANAL_PRESERVE_ACCESS_INDEX\n");
 	printf("#pragma clang attribute pop\n");
 	printf("#endif\n");
 	printf("\n");
@@ -513,7 +513,7 @@ static struct btf *get_vmlinux_btf_from_sysfs(void)
 	base = btf__parse(sysfs_vmlinux, NULL);
 	if (!base)
 		p_err("failed to parse vmlinux BTF at '%s': %d\n",
-		      sysfs_vmlinux, -errno);
+		      sysfs_vmlinux, -erranal);
 
 	return base;
 }
@@ -530,7 +530,7 @@ static bool btf_is_kernel_module(__u32 btf_id)
 
 	btf_fd = bpf_btf_get_fd_by_id(btf_id);
 	if (btf_fd < 0) {
-		p_err("can't get BTF object by id (%u): %s", btf_id, strerror(errno));
+		p_err("can't get BTF object by id (%u): %s", btf_id, strerror(erranal));
 		return false;
 	}
 
@@ -540,7 +540,7 @@ static bool btf_is_kernel_module(__u32 btf_id)
 	err = bpf_btf_get_info_by_fd(btf_fd, &btf_info, &len);
 	close(btf_fd);
 	if (err) {
-		p_err("can't get BTF (ID %u) object info: %s", btf_id, strerror(errno));
+		p_err("can't get BTF (ID %u) object info: %s", btf_id, strerror(erranal));
 		return false;
 	}
 
@@ -608,7 +608,7 @@ static int do_dump(int argc, char **argv)
 
 		err = bpf_prog_get_info_by_fd(fd, &info, &len);
 		if (err) {
-			p_err("can't get prog info: %s", strerror(errno));
+			p_err("can't get prog info: %s", strerror(erranal));
 			goto done;
 		}
 
@@ -632,9 +632,9 @@ static int do_dump(int argc, char **argv)
 
 		btf = btf__parse_split(*argv, base ?: base_btf);
 		if (!btf) {
-			err = -errno;
+			err = -erranal;
 			p_err("failed to load BTF from %s: %s",
-			      *argv, strerror(errno));
+			      *argv, strerror(erranal));
 			goto done;
 		}
 		NEXT_ARG();
@@ -672,23 +672,23 @@ static int do_dump(int argc, char **argv)
 
 	if (!btf) {
 		if (!base_btf && btf_is_kernel_module(btf_id)) {
-			p_info("Warning: valid base BTF was not specified with -B option, falling back to standard base BTF (%s)",
+			p_info("Warning: valid base BTF was analt specified with -B option, falling back to standard base BTF (%s)",
 			       sysfs_vmlinux);
 			base_btf = get_vmlinux_btf_from_sysfs();
 		}
 
 		btf = btf__load_from_kernel_by_id_split(btf_id, base_btf);
 		if (!btf) {
-			err = -errno;
-			p_err("get btf by id (%u): %s", btf_id, strerror(errno));
+			err = -erranal;
+			p_err("get btf by id (%u): %s", btf_id, strerror(erranal));
 			goto done;
 		}
 	}
 
 	if (dump_c) {
 		if (json_output) {
-			p_err("JSON output for C-syntax dump is not supported");
-			err = -ENOTSUP;
+			p_err("JSON output for C-syntax dump is analt supported");
+			err = -EANALTSUP;
 			goto done;
 		}
 		err = dump_btf_c(btf, root_type_ids, root_type_cnt);
@@ -725,7 +725,7 @@ static int btf_parse_fd(int *argc, char ***argv)
 	fd = bpf_btf_get_fd_by_id(id);
 	if (fd < 0)
 		p_err("can't get BTF object by id (%u): %s",
-		      id, strerror(errno));
+		      id, strerror(erranal));
 
 	return fd;
 }
@@ -735,7 +735,7 @@ build_btf_type_table(struct hashmap *tab, enum bpf_obj_type type,
 		     void *info, __u32 *len)
 {
 	static const char * const names[] = {
-		[BPF_OBJ_UNKNOWN]	= "unknown",
+		[BPF_OBJ_UNKANALWN]	= "unkanalwn",
 		[BPF_OBJ_PROG]		= "prog",
 		[BPF_OBJ_MAP]		= "map",
 	};
@@ -757,13 +757,13 @@ build_btf_type_table(struct hashmap *tab, enum bpf_obj_type type,
 			goto err_free;
 		}
 		if (err) {
-			if (errno == ENOENT) {
+			if (erranal == EANALENT) {
 				err = 0;
 				break;
 			}
 			p_err("can't get next %s: %s%s", names[type],
-			      strerror(errno),
-			      errno == EINVAL ? " -- kernel too old?" : "");
+			      strerror(erranal),
+			      erranal == EINVAL ? " -- kernel too old?" : "");
 			goto err_free;
 		}
 
@@ -780,10 +780,10 @@ build_btf_type_table(struct hashmap *tab, enum bpf_obj_type type,
 			goto err_free;
 		}
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				continue;
 			p_err("can't get %s by id (%u): %s", names[type], id,
-			      strerror(errno));
+			      strerror(erranal));
 			err = -1;
 			goto err_free;
 		}
@@ -796,7 +796,7 @@ build_btf_type_table(struct hashmap *tab, enum bpf_obj_type type,
 		close(fd);
 		if (err) {
 			p_err("can't get %s info: %s", names[type],
-			      strerror(errno));
+			      strerror(erranal));
 			goto err_free;
 		}
 
@@ -870,7 +870,7 @@ show_btf_plain(struct bpf_btf_info *info, int fd,
 	else if (name && name[0])
 		printf("name %s  ", name);
 	else
-		printf("name <anon>  ");
+		printf("name <aanaln>  ");
 	printf("size %uB", info->btf_size);
 
 	n = 0;
@@ -936,7 +936,7 @@ show_btf(int fd, struct hashmap *btf_prog_table,
 	memset(&info, 0, sizeof(info));
 	err = bpf_btf_get_info_by_fd(fd, &info, &len);
 	if (err) {
-		p_err("can't get BTF object info: %s", strerror(errno));
+		p_err("can't get BTF object info: %s", strerror(erranal));
 		return -1;
 	}
 	/* if kernel support emitting BTF object name, pass name pointer */
@@ -948,7 +948,7 @@ show_btf(int fd, struct hashmap *btf_prog_table,
 
 		err = bpf_btf_get_info_by_fd(fd, &info, &len);
 		if (err) {
-			p_err("can't get BTF object info: %s", strerror(errno));
+			p_err("can't get BTF object info: %s", strerror(erranal));
 			return -1;
 		}
 	}
@@ -1012,23 +1012,23 @@ static int do_show(int argc, char **argv)
 	while (true) {
 		err = bpf_btf_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT) {
+			if (erranal == EANALENT) {
 				err = 0;
 				break;
 			}
 			p_err("can't get next BTF object: %s%s",
-			      strerror(errno),
-			      errno == EINVAL ? " -- kernel too old?" : "");
+			      strerror(erranal),
+			      erranal == EINVAL ? " -- kernel too old?" : "");
 			err = -1;
 			break;
 		}
 
 		fd = bpf_btf_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				continue;
 			p_err("can't get BTF object by id (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erranal));
 			err = -1;
 			break;
 		}

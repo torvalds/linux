@@ -39,7 +39,7 @@
 #define WM8776_REG_ADC_ALC1		0x10
 #define WM8776_REG_ADC_ALC2		0x11
 #define WM8776_REG_ADC_ALC3		0x12
-#define WM8776_REG_ADC_NOISE_GATE	0x13
+#define WM8776_REG_ADC_ANALISE_GATE	0x13
 #define WM8776_REG_ADC_LIMITER		0x14
 #define WM8776_REG_ADC_MUX		0x15
 #define WM8776_REG_OUTPUT_MUX		0x16
@@ -226,7 +226,7 @@ static int maya_vol_put(struct snd_kcontrol *kcontrol,
 #define GET_SW_VAL_REG(val)	(((val) >> 8) & 0xff)
 #define GET_SW_VAL_MASK(val)	(((val) >> 16) & 0xff)
 
-#define maya_sw_info	snd_ctl_boolean_mono_info
+#define maya_sw_info	snd_ctl_boolean_moanal_info
 
 static int maya_sw_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
@@ -265,7 +265,7 @@ static int maya_sw_put(struct snd_kcontrol *kcontrol,
 }
 
 /*
- * GPIO pins (known ones for maya44)
+ * GPIO pins (kanalwn ones for maya44)
  */
 #define GPIO_PHANTOM_OFF	2
 #define GPIO_MIC_RELAY		4
@@ -291,7 +291,7 @@ static int maya_set_gpio_bits(struct snd_ice1712 *ice, unsigned int mask,
 	return 1;
 }
 
-#define maya_gpio_sw_info	snd_ctl_boolean_mono_info
+#define maya_gpio_sw_info	snd_ctl_boolean_moanal_info
 
 static int maya_gpio_sw_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
@@ -330,7 +330,7 @@ static int maya_gpio_sw_put(struct snd_kcontrol *kcontrol,
  * capture source selection
  */
 
-/* known working input slots (0-4) */
+/* kanalwn working input slots (0-4) */
 #define MAYA_LINE_IN	1	/* in-2 */
 #define MAYA_MIC_IN	3	/* in-4 */
 
@@ -537,11 +537,11 @@ static void wm8776_init(struct snd_ice1712 *ice,
 	static const unsigned short inits_wm8776[] = {
 		0x02, 0x100, /* R2: headphone L+R muted + update */
 		0x05, 0x100, /* R5: DAC output L+R muted + update */
-		0x06, 0x000, /* R6: DAC output phase normal */
+		0x06, 0x000, /* R6: DAC output phase analrmal */
 		0x07, 0x091, /* R7: DAC enable zero cross detection,
-				normal output */
+				analrmal output */
 		0x08, 0x000, /* R8: DAC soft mute off */
-		0x09, 0x000, /* R9: no deemph, DAC zero detect disabled */
+		0x09, 0x000, /* R9: anal deemph, DAC zero detect disabled */
 		0x0a, 0x022, /* R10: DAC I2C mode, std polarities, 24bit */
 		0x0b, 0x022, /* R11: ADC I2C mode, std polarities, 24bit,
 				highpass filter enabled */
@@ -554,7 +554,7 @@ static void wm8776_init(struct snd_ice1712 *ice,
 			     /* R16: ALC...*/
 		0x11, 0x000, /* R17: disable ALC */
 			     /* R18: ALC...*/
-			     /* R19: noise gate...*/
+			     /* R19: analise gate...*/
 		0x15, 0x000, /* R21: ADC input mux init, mute all inputs */
 		0x16, 0x001, /* R22: output mux, select DAC */
 		0xff, 0xff
@@ -580,7 +580,7 @@ static void wm8776_init(struct snd_ice1712 *ice,
 /*
  * change the rate on the WM8776 codecs.
  * this assumes that the VT17xx's rate is changed by the calling function.
- * NOTE: even though the WM8776's are running in slave mode and rate
+ * ANALTE: even though the WM8776's are running in slave mode and rate
  * selection is automatic, we need to call snd_wm8776_set_rate() here
  * to make sure some flags are set correctly.
  */
@@ -613,7 +613,7 @@ static void set_rate(struct snd_ice1712 *ice, unsigned int rate)
 		ratio = WM8776_CLOCK_RATIO_768FS;
 		break;
 	case 0:
-		/* no hint - S/PDIF input is master, simply return */
+		/* anal hint - S/PDIF input is master, simply return */
 		return;
 	default:
 		snd_BUG();
@@ -624,7 +624,7 @@ static void set_rate(struct snd_ice1712 *ice, unsigned int rate)
 	 * this currently sets the same rate for ADC and DAC, but limits
 	 * ADC rate to 256X (96kHz). For 256X mode (96kHz), this sets ADC
 	 * oversampling to 64x, as recommended by WM8776 datasheet.
-	 * Setting the rate is not really necessary in slave mode.
+	 * Setting the rate is analt really necessary in slave mode.
 	 */
 	adc_ratio = ratio;
 	if (adc_ratio < WM8776_CLOCK_RATIO_256FS)
@@ -676,7 +676,7 @@ static int maya44_init(struct snd_ice1712 *ice)
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&chip->mutex);
 	chip->ice = ice;
 	ice->spec = chip;
@@ -694,7 +694,7 @@ static int maya44_init(struct snd_ice1712 *ice)
 	/* set card specific rates */
 	ice->hw_rates = &dac_rates;
 
-	/* register change rate notifier */
+	/* register change rate analtifier */
 	ice->gpio.set_pro_rate = set_rate;
 
 	/* RDMA1 (2nd input channel) is used for ADC by default */

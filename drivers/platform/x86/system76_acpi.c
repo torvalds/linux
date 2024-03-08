@@ -25,7 +25,7 @@
 #include <acpi/battery.h>
 
 enum kbled_type {
-	KBLED_NONE,
+	KBLED_ANALNE,
 	KBLED_WHITE,
 	KBLED_RGB,
 };
@@ -83,7 +83,7 @@ static int system76_get(struct system76_data *data, char *method)
 	status = acpi_evaluate_integer(handle, method, NULL, &ret);
 	if (ACPI_SUCCESS(status))
 		return ret;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 // Get a System76 ACPI device value by name with index
@@ -104,7 +104,7 @@ static int system76_get_index(struct system76_data *data, char *method, int inde
 	status = acpi_evaluate_integer(handle, method, &obj_list, &ret);
 	if (ACPI_SUCCESS(status))
 		return ret;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 // Get a System76 ACPI device object by name
@@ -121,7 +121,7 @@ static int system76_get_object(struct system76_data *data, char *method, union a
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 // Get a name from a System76 ACPI device object
@@ -172,7 +172,7 @@ static ssize_t battery_get_threshold(int which, char *buf)
 
 	handle = ec_get_handle();
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	input.count = 1;
 	input.pointer = &param;
@@ -200,7 +200,7 @@ static ssize_t battery_set_threshold(int which, const char *buf, size_t count)
 
 	handle = ec_get_handle();
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = kstrtouint(buf, 10, &value);
 	if (ret)
@@ -265,10 +265,10 @@ static int system76_battery_add(struct power_supply *battery, struct acpi_batter
 {
 	// System76 EC only supports 1 battery
 	if (strcmp(battery->desc->name, "BAT0") != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (device_add_groups(&battery->dev, system76_battery_groups))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -396,10 +396,10 @@ static struct attribute *system76_kb_led_color_attrs[] = {
 
 ATTRIBUTE_GROUPS(system76_kb_led_color);
 
-// Notify that the keyboard LED was changed by hardware
-static void kb_led_notify(struct system76_data *data)
+// Analtify that the keyboard LED was changed by hardware
+static void kb_led_analtify(struct system76_data *data)
 {
-	led_classdev_notify_brightness_hw_changed(
+	led_classdev_analtify_brightness_hw_changed(
 		&data->kb_led,
 		data->kb_brightness
 	);
@@ -419,7 +419,7 @@ static void kb_led_hotkey_hardware(struct system76_data *data)
 	if (value < 0)
 		return;
 	data->kb_brightness = value;
-	kb_led_notify(data);
+	kb_led_analtify(data);
 }
 
 // Toggle the keyboard LED
@@ -431,7 +431,7 @@ static void kb_led_hotkey_toggle(struct system76_data *data)
 	} else {
 		kb_led_set(&data->kb_led, data->kb_toggle_brightness);
 	}
-	kb_led_notify(data);
+	kb_led_analtify(data);
 }
 
 // Decrease the keyboard LED brightness
@@ -449,7 +449,7 @@ static void kb_led_hotkey_down(struct system76_data *data)
 	} else {
 		kb_led_set(&data->kb_led, data->kb_toggle_brightness);
 	}
-	kb_led_notify(data);
+	kb_led_analtify(data);
 }
 
 // Increase the keyboard LED brightness
@@ -467,7 +467,7 @@ static void kb_led_hotkey_up(struct system76_data *data)
 	} else {
 		kb_led_set(&data->kb_led, data->kb_toggle_brightness);
 	}
-	kb_led_notify(data);
+	kb_led_analtify(data);
 }
 
 // Cycle the keyboard LED color
@@ -491,7 +491,7 @@ static void kb_led_hotkey_color(struct system76_data *data)
 	} else {
 		kb_led_set(&data->kb_led, data->kb_toggle_brightness);
 	}
-	kb_led_notify(data);
+	kb_led_analtify(data);
 }
 
 static umode_t thermal_is_visible(const void *drvdata, enum hwmon_sensor_types type,
@@ -556,10 +556,10 @@ static int thermal_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int thermal_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
@@ -585,10 +585,10 @@ static int thermal_read_string(struct device *dev, enum hwmon_sensor_types type,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops thermal_ops = {
@@ -643,8 +643,8 @@ static void input_key(struct system76_data *data, unsigned int code)
 	input_sync(data->input);
 }
 
-// Handle ACPI notification
-static void system76_notify(struct acpi_device *acpi_dev, u32 event)
+// Handle ACPI analtification
+static void system76_analtify(struct acpi_device *acpi_dev, u32 event)
 {
 	struct system76_data *data;
 
@@ -679,11 +679,11 @@ static int system76_add(struct acpi_device *acpi_dev)
 
 	data = devm_kzalloc(&acpi_dev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	acpi_dev->driver_data = data;
 	data->acpi_dev = acpi_dev;
 
-	// Some models do not run open EC firmware. Check for an ACPI method
+	// Some models do analt run open EC firmware. Check for an ACPI method
 	// that only exists on open EC to guard functionality specific to it.
 	data->has_open_ec = acpi_has_method(acpi_device_handle(data->acpi_dev), "NFAN");
 
@@ -695,7 +695,7 @@ static int system76_add(struct acpi_device *acpi_dev)
 	data->ap_led.brightness_get = ap_led_get;
 	data->ap_led.brightness_set_blocking = ap_led_set;
 	data->ap_led.max_brightness = 1;
-	data->ap_led.default_trigger = "rfkill-none";
+	data->ap_led.default_trigger = "rfkill-analne";
 	err = devm_led_classdev_register(&acpi_dev->dev, &data->ap_led);
 	if (err)
 		return err;
@@ -709,8 +709,8 @@ static int system76_add(struct acpi_device *acpi_dev)
 		data->kbled_type = system76_get(data, "GKBK");
 
 		switch (data->kbled_type) {
-		case KBLED_NONE:
-			// Nothing to do: Device will not be registered.
+		case KBLED_ANALNE:
+			// Analthing to do: Device will analt be registered.
 			break;
 		case KBLED_WHITE:
 			data->kb_led.max_brightness = 255;
@@ -739,7 +739,7 @@ static int system76_add(struct acpi_device *acpi_dev)
 		}
 	}
 
-	if (data->kbled_type != KBLED_NONE) {
+	if (data->kbled_type != KBLED_ANALNE) {
 		err = devm_led_classdev_register(&acpi_dev->dev, &data->kb_led);
 		if (err)
 			return err;
@@ -747,7 +747,7 @@ static int system76_add(struct acpi_device *acpi_dev)
 
 	data->input = devm_input_allocate_device(&acpi_dev->dev);
 	if (!data->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->input->name = "System76 ACPI Hotkeys";
 	data->input->phys = "system76_acpi/input0";
@@ -813,7 +813,7 @@ static struct acpi_driver system76_driver = {
 	.ops = {
 		.add = system76_add,
 		.remove = system76_remove,
-		.notify = system76_notify,
+		.analtify = system76_analtify,
 	},
 };
 module_acpi_driver(system76_driver);

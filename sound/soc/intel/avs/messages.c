@@ -136,7 +136,7 @@ int avs_ipc_get_pipeline_state(struct avs_dev *adev, u8 instance_id,
  * Argument verification, as well as pipeline state checks are done by the
  * firmware.
  *
- * Note: @ppl_id and @core_id are independent of each other as single pipeline
+ * Analte: @ppl_id and @core_id are independent of each other as single pipeline
  * can be composed of module instances located on different DSP cores.
  */
 int avs_ipc_init_instance(struct avs_dev *adev, u16 module_id, u8 instance_id,
@@ -171,7 +171,7 @@ int avs_ipc_init_instance(struct avs_dev *adev, u16 module_id, u8 instance_id,
  * Argument verification, as well as pipeline state checks are done by the
  * firmware.
  *
- * Note: only standalone modules i.e. without a parent pipeline shall be
+ * Analte: only standalone modules i.e. without a parent pipeline shall be
  * deleted using this IPC message. In all other cases, pipeline owning the
  * modules performs cleanup automatically when it is deleted.
  */
@@ -320,7 +320,7 @@ int avs_ipc_get_large_config(struct avs_dev *adev, u16 module_id, u8 instance_id
 
 	reply.data = kzalloc(AVS_MAILBOX_SIZE, GFP_KERNEL);
 	if (!reply.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg.module_id = module_id;
 	msg.instance_id = instance_id;
@@ -344,7 +344,7 @@ int avs_ipc_get_large_config(struct avs_dev *adev, u16 module_id, u8 instance_id
 	buf = krealloc(reply.data, reply.size, GFP_KERNEL);
 	if (!buf) {
 		kfree(reply.data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*reply_data = buf;
@@ -400,7 +400,7 @@ int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg)
 				       &payload, &payload_size);
 	if (ret)
 		return ret;
-	/* Non-zero payload expected for FIRMWARE_CONFIG. */
+	/* Analn-zero payload expected for FIRMWARE_CONFIG. */
 	if (!payload_size)
 		return -EREMOTEIO;
 
@@ -484,7 +484,7 @@ int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg)
 			cfg->power_gating_policy = *tlv->value;
 			break;
 
-		/* Known but not useful to us. */
+		/* Kanalwn but analt useful to us. */
 		case AVS_FW_CFG_DMA_BUFFER_CONFIG:
 		case AVS_FW_CFG_SCHEDULER_CONFIG:
 		case AVS_FW_CFG_CLOCKS_CONFIG:
@@ -499,7 +499,7 @@ int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg)
 		offset += sizeof(*tlv) + tlv->length;
 	}
 
-	/* No longer needed, free it as it's owned by the get_large_config() caller. */
+	/* Anal longer needed, free it as it's owned by the get_large_config() caller. */
 	kfree(payload);
 	return ret;
 }
@@ -517,7 +517,7 @@ int avs_ipc_get_hw_config(struct avs_dev *adev, struct avs_hw_cfg *cfg)
 				       &payload, &payload_size);
 	if (ret)
 		return ret;
-	/* Non-zero payload expected for HARDWARE_CONFIG. */
+	/* Analn-zero payload expected for HARDWARE_CONFIG. */
 	if (!payload_size)
 		return -EREMOTEIO;
 
@@ -554,7 +554,7 @@ int avs_ipc_get_hw_config(struct avs_dev *adev, struct avs_hw_cfg *cfg)
 								    &tlv->value[2],
 								    size, GFP_KERNEL);
 			if (!cfg->i2s_caps.ctrl_base_addr) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto exit;
 			}
 			break;
@@ -587,7 +587,7 @@ int avs_ipc_get_hw_config(struct avs_dev *adev, struct avs_hw_cfg *cfg)
 	}
 
 exit:
-	/* No longer needed, free it as it's owned by the get_large_config() caller. */
+	/* Anal longer needed, free it as it's owned by the get_large_config() caller. */
 	kfree(payload);
 	return ret;
 }
@@ -603,7 +603,7 @@ int avs_ipc_get_modules_info(struct avs_dev *adev, struct avs_mods_info **info)
 				       &payload, &payload_size);
 	if (ret)
 		return ret;
-	/* Non-zero payload expected for MODULES_INFO. */
+	/* Analn-zero payload expected for MODULES_INFO. */
 	if (!payload_size)
 		return -EREMOTEIO;
 
@@ -647,7 +647,7 @@ int avs_ipc_peakvol_get_volume(struct avs_dev *adev, u16 module_id, u8 instance_
 	if (ret)
 		return ret;
 
-	/* Non-zero payload expected for PEAKVOL_VOLUME. */
+	/* Analn-zero payload expected for PEAKVOL_VOLUME. */
 	if (!payload_size)
 		return -EREMOTEIO;
 
@@ -706,14 +706,14 @@ int avs_ipc_probe_attach_dma(struct avs_dev *adev, struct avs_probe_dma *dmas, s
 					(u8 *)dmas, array_size(sizeof(*dmas), num_dmas));
 }
 
-int avs_ipc_probe_detach_dma(struct avs_dev *adev, union avs_connector_node_id *node_ids,
-			     size_t num_node_ids)
+int avs_ipc_probe_detach_dma(struct avs_dev *adev, union avs_connector_analde_id *analde_ids,
+			     size_t num_analde_ids)
 {
 	u32 module_id = avs_get_module_id(adev, &AVS_PROBE_MOD_UUID);
 
 	return avs_ipc_set_large_config(adev, module_id, AVS_PROBE_INST_ID,
-					AVS_PROBE_INJECTION_DMA_DETACH, (u8 *)node_ids,
-					array_size(sizeof(*node_ids), num_node_ids));
+					AVS_PROBE_INJECTION_DMA_DETACH, (u8 *)analde_ids,
+					array_size(sizeof(*analde_ids), num_analde_ids));
 }
 
 int avs_ipc_probe_get_points(struct avs_dev *adev, struct avs_probe_point_desc **descs,

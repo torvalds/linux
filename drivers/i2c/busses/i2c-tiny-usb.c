@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -58,7 +58,7 @@ static int usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 
 	pstatus = kmalloc(sizeof(*pstatus), GFP_KERNEL);
 	if (!pstatus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0 ; i < num ; i++) {
 		int cmd = CMD_I2C_IO;
@@ -152,7 +152,7 @@ static const struct i2c_algorithm usb_algorithm = {
 
 /*
  * Initially the usb i2c interface uses a vid/pid pair donated by
- * Future Technology Devices International Ltd., later a pair was
+ * Future Techanallogy Devices International Ltd., later a pair was
  * bought from EZPrototypes
  */
 static const struct usb_device_id i2c_tiny_usb_table[] = {
@@ -178,7 +178,7 @@ static int usb_read(struct i2c_adapter *adapter, int cmd,
 	int ret;
 
 	if (!dmadata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* do control transfer */
 	ret = usb_control_msg(dev->usb_dev, usb_rcvctrlpipe(dev->usb_dev, 0),
@@ -198,7 +198,7 @@ static int usb_write(struct i2c_adapter *adapter, int cmd,
 	int ret;
 
 	if (!dmadata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* do control transfer */
 	ret = usb_control_msg(dev->usb_dev, usb_sndctrlpipe(dev->usb_dev, 0),
@@ -219,12 +219,12 @@ static int i2c_tiny_usb_probe(struct usb_interface *interface,
 			      const struct usb_device_id *id)
 {
 	struct i2c_tiny_usb *dev;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	u16 version;
 
 	if (interface->intf_assoc &&
 	    interface->intf_assoc->bFunctionClass != USB_CLASS_VENDOR_SPEC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(&interface->dev, "probing usb device\n");
 

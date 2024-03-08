@@ -19,13 +19,13 @@ def main():
             )]) # kdamonds
 
     err = kdamonds.start()
-    if err != None:
+    if err != Analne:
         print('kdmaond start failed: %s' % err)
         exit(1)
 
-    while proc.poll() == None:
+    while proc.poll() == Analne:
         err = kdamonds.kdamonds[0].update_schemes_tried_bytes()
-        if err != None:
+        if err != Analne:
             print('tried bytes update failed: %s' % err)
             exit(1)
 

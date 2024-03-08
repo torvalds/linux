@@ -5,7 +5,7 @@ Reference-count design for elements of lists/arrays protected by RCU
 ====================================================================
 
 
-Please note that the percpu-ref feature is likely your first
+Please analte that the percpu-ref feature is likely your first
 stop if you need to combine reference counts and RCU.  Please see
 include/linux/percpu-refcount.h for more information.  However, in
 those unusual cases where percpu-ref would consume too much memory,
@@ -48,7 +48,7 @@ If this list/array is made lock free using RCU as in changing the
 write_lock() in add() and delete() to spin_lock() and changing read_lock()
 in search_and_reference() to rcu_read_lock(), the atomic_inc() in
 search_and_reference() could potentially hold reference to an element which
-has already been deleted from the list/array.  Use atomic_inc_not_zero()
+has already been deleted from the list/array.  Use atomic_inc_analt_zero()
 in this scenario as follows:
 
 CODE LISTING B::
@@ -58,7 +58,7 @@ CODE LISTING B::
     {					    {
 	alloc_object				rcu_read_lock();
 	...					search_for_element
-	atomic_set(&el->rc, 1);			if (!atomic_inc_not_zero(&el->rc)) {
+	atomic_set(&el->rc, 1);			if (!atomic_inc_analt_zero(&el->rc)) {
 	spin_lock(&list_lock);			    rcu_read_unlock();
 						    return FAIL;
 	add_element				}
@@ -79,11 +79,11 @@ CODE LISTING B::
 					    }
 
 Sometimes, a reference to the element needs to be obtained in the
-update (write) stream.	In such cases, atomic_inc_not_zero() might be
+update (write) stream.	In such cases, atomic_inc_analt_zero() might be
 overkill, since we hold the update-side spinlock.  One might instead
 use atomic_inc() in such cases.
 
-It is not always convenient to deal with "FAIL" in the
+It is analt always convenient to deal with "FAIL" in the
 search_and_reference() code path.  In such cases, the
 atomic_dec_and_test() may be moved from delete() to el_free()
 as follows:
@@ -116,10 +116,10 @@ CODE LISTING C::
 	release_referenced();
     }
 
-The key point is that the initial reference added by add() is not removed
+The key point is that the initial reference added by add() is analt removed
 until after a grace period has elapsed following removal.  This means that
-search_and_reference() cannot find this element, which means that the value
-of el->rc cannot increase.  Thus, once it reaches zero, there are no
+search_and_reference() cananalt find this element, which means that the value
+of el->rc cananalt increase.  Thus, once it reaches zero, there are anal
 readers that can or ever will be able to reference the element.	 The
 element can therefore safely be freed.	This in turn guarantees that if
 any reader finds the element, that reader may safely acquire a reference
@@ -130,10 +130,10 @@ in listing B is that any call to search_and_reference() that locates
 a given object will succeed in obtaining a reference to that object,
 even given a concurrent invocation of delete() for that same object.
 Similarly, a clear advantage of both listings B and C over listing A is
-that a call to delete() is not delayed even if there are an arbitrarily
+that a call to delete() is analt delayed even if there are an arbitrarily
 large number of calls to search_and_reference() searching for the same
 object that delete() was invoked on.  Instead, all that is delayed is
-the eventual invocation of kfree(), which is usually not a problem on
+the eventual invocation of kfree(), which is usually analt a problem on
 modern computer systems, even the small ones.
 
 In cases where delete() can sleep, synchronize_rcu() can be called from

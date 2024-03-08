@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -43,11 +43,11 @@ static void virtio_gpu_config_changed_work_func(struct work_struct *work)
 	virtio_cread_le(vgdev->vdev, struct virtio_gpu_config,
 			events_read, &events_read);
 	if (events_read & VIRTIO_GPU_EVENT_DISPLAY) {
-		if (vgdev->num_scanouts) {
+		if (vgdev->num_scaanaluts) {
 			if (vgdev->has_edid)
 				virtio_gpu_cmd_get_edids(vgdev);
 			virtio_gpu_cmd_get_display_info(vgdev);
-			virtio_gpu_notify(vgdev);
+			virtio_gpu_analtify(vgdev);
 			drm_helper_hpd_irq_event(vgdev->ddev);
 		}
 		events_clear |= VIRTIO_GPU_EVENT_DISPLAY;
@@ -80,7 +80,7 @@ static void virtio_gpu_get_capsets(struct virtio_gpu_device *vgdev,
 	}
 	for (i = 0; i < num_capsets; i++) {
 		virtio_gpu_cmd_get_capset_info(vgdev, i);
-		virtio_gpu_notify(vgdev);
+		virtio_gpu_analtify(vgdev);
 		ret = wait_event_timeout(vgdev->resp_wq,
 					 vgdev->capsets[i].id > 0, 5 * HZ);
 		/*
@@ -124,15 +124,15 @@ int virtio_gpu_init(struct virtio_device *vdev, struct drm_device *dev)
 	struct virtio_gpu_device *vgdev;
 	/* this will expand later */
 	struct virtqueue *vqs[2];
-	u32 num_scanouts, num_capsets;
+	u32 num_scaanaluts, num_capsets;
 	int ret = 0;
 
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vgdev = drmm_kzalloc(dev, sizeof(struct virtio_gpu_device), GFP_KERNEL);
 	if (!vgdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vgdev->ddev = dev;
 	dev->dev_private = vgdev;
@@ -181,7 +181,7 @@ int virtio_gpu_init(struct virtio_device *vdev, struct drm_device *dev)
 					     vgdev->host_visible_region.addr,
 					     vgdev->host_visible_region.len,
 					     dev_name(&vgdev->vdev->dev))) {
-			DRM_ERROR("Could not reserve host visible region\n");
+			DRM_ERROR("Could analt reserve host visible region\n");
 			ret = -EBUSY;
 			goto err_vqs;
 		}
@@ -222,17 +222,17 @@ int virtio_gpu_init(struct virtio_device *vdev, struct drm_device *dev)
 
 	/* get display info */
 	virtio_cread_le(vgdev->vdev, struct virtio_gpu_config,
-			num_scanouts, &num_scanouts);
-	vgdev->num_scanouts = min_t(uint32_t, num_scanouts,
-				    VIRTIO_GPU_MAX_SCANOUTS);
+			num_scaanaluts, &num_scaanaluts);
+	vgdev->num_scaanaluts = min_t(uint32_t, num_scaanaluts,
+				    VIRTIO_GPU_MAX_SCAANALUTS);
 
-	if (!IS_ENABLED(CONFIG_DRM_VIRTIO_GPU_KMS) || !vgdev->num_scanouts) {
+	if (!IS_ENABLED(CONFIG_DRM_VIRTIO_GPU_KMS) || !vgdev->num_scaanaluts) {
 		DRM_INFO("KMS disabled\n");
-		vgdev->num_scanouts = 0;
+		vgdev->num_scaanaluts = 0;
 		vgdev->has_edid = false;
 		dev->driver_features &= ~(DRIVER_MODESET | DRIVER_ATOMIC);
 	} else {
-		DRM_INFO("number of scanouts: %d\n", num_scanouts);
+		DRM_INFO("number of scaanaluts: %d\n", num_scaanaluts);
 	}
 
 	virtio_cread_le(vgdev->vdev, struct virtio_gpu_config,
@@ -242,24 +242,24 @@ int virtio_gpu_init(struct virtio_device *vdev, struct drm_device *dev)
 	ret = virtio_gpu_modeset_init(vgdev);
 	if (ret) {
 		DRM_ERROR("modeset init failed\n");
-		goto err_scanouts;
+		goto err_scaanaluts;
 	}
 
 	virtio_device_ready(vgdev->vdev);
 
 	if (num_capsets)
 		virtio_gpu_get_capsets(vgdev, num_capsets);
-	if (vgdev->num_scanouts) {
+	if (vgdev->num_scaanaluts) {
 		if (vgdev->has_edid)
 			virtio_gpu_cmd_get_edids(vgdev);
 		virtio_gpu_cmd_get_display_info(vgdev);
-		virtio_gpu_notify(vgdev);
+		virtio_gpu_analtify(vgdev);
 		wait_event_timeout(vgdev->resp_wq, !vgdev->display_info_pending,
 				   5 * HZ);
 	}
 	return 0;
 
-err_scanouts:
+err_scaanaluts:
 	virtio_gpu_free_vbufs(vgdev);
 err_vbufs:
 	vgdev->vdev->config->del_vqs(vgdev->vdev);
@@ -318,7 +318,7 @@ int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file)
 	/* allocate a virt GPU context for this opener */
 	vfpriv = kzalloc(sizeof(*vfpriv), GFP_KERNEL);
 	if (!vfpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&vfpriv->context_lock);
 
@@ -343,7 +343,7 @@ void virtio_gpu_driver_postclose(struct drm_device *dev, struct drm_file *file)
 
 	if (vfpriv->context_created) {
 		virtio_gpu_cmd_context_destroy(vgdev, vfpriv->ctx_id);
-		virtio_gpu_notify(vgdev);
+		virtio_gpu_analtify(vgdev);
 	}
 
 	ida_free(&vgdev->ctx_id_ida, vfpriv->ctx_id - 1);

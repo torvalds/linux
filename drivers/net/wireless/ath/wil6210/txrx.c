@@ -22,11 +22,11 @@
 
 bool rx_align_2;
 module_param(rx_align_2, bool, 0444);
-MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - no");
+MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - anal");
 
 bool rx_large_buf;
 module_param(rx_large_buf, bool, 0444);
-MODULE_PARM_DESC(rx_large_buf, " allocate 8KB RX buffers, default - no");
+MODULE_PARM_DESC(rx_large_buf, " allocate 8KB RX buffers, default - anal");
 
 /* Drop Tx packets in case Tx ring is full */
 bool drop_if_ring_full;
@@ -91,7 +91,7 @@ bool wil_is_tx_idle(struct wil6210_priv *wil)
 					return false;
 				}
 				wil_dbg_ratelimited(wil,
-						    "tx vring is not empty -> NAPI\n");
+						    "tx vring is analt empty -> NAPI\n");
 				spin_unlock(&txdata->lock);
 				napi_synchronize(&wil->napi_tx);
 				msleep(20);
@@ -122,7 +122,7 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct wil_ring *vring)
 	vring->ctx = kcalloc(vring->size, sizeof(vring->ctx[0]), GFP_KERNEL);
 	if (!vring->ctx) {
 		vring->va = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* vring->va should be aligned on its size rounded up to power of 2
@@ -133,9 +133,9 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct wil_ring *vring)
 	 * if we are using more than 32 bit addresses switch to 32 bit
 	 * allocation before allocating vring memory.
 	 *
-	 * There's no check for the return value of dma_set_mask_and_coherent,
+	 * There's anal check for the return value of dma_set_mask_and_coherent,
 	 * since we assume if we were able to set the mask during
-	 * initialization in this system it will not fail if we set it again
+	 * initialization in this system it will analt fail if we set it again
 	 */
 	if (wil->dma_addr_size > 32)
 		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
@@ -144,7 +144,7 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct wil_ring *vring)
 	if (!vring->va) {
 		kfree(vring->ctx);
 		vring->ctx = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (wil->dma_addr_size > 32)
@@ -264,7 +264,7 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct wil_ring *vring,
 	struct sk_buff *skb = dev_alloc_skb(sz + headroom);
 
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, headroom);
 	skb_put(skb, sz);
@@ -273,12 +273,12 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct wil_ring *vring,
 	 * Make sure that the network stack calculates checksum for packets
 	 * which failed the HW checksum calculation
 	 */
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	pa = dma_map_single(dev, skb->data, skb->len, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(dev, pa))) {
 		kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	d->dma.d0 = RX_DMA_D0_CMD_DMA_RT | RX_DMA_D0_CMD_DMA_IT;
@@ -376,7 +376,7 @@ static int wil_rx_get_cid_by_skb(struct wil6210_priv *wil, struct sk_buff *skb)
 	unsigned char *ta;
 	u8 ftype;
 
-	/* in monitor mode there are no connections */
+	/* in monitor mode there are anal connections */
 	if (vif->wdev.iftype == NL80211_IFTYPE_MONITOR)
 		return cid;
 
@@ -386,14 +386,14 @@ static int wil_rx_get_cid_by_skb(struct wil6210_priv *wil, struct sk_buff *skb)
 			wil_err_ratelimited(wil,
 					    "Short data frame, len = %d\n",
 					    skb->len);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		ta = wil_skb_get_sa(skb);
 	} else {
 		if (unlikely(skb->len < sizeof(struct ieee80211_hdr_3addr))) {
 			wil_err_ratelimited(wil, "Short frame, len = %d\n",
 					    skb->len);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		hdr = (void *)skb->data;
 		ta = hdr->addr2;
@@ -402,7 +402,7 @@ static int wil_rx_get_cid_by_skb(struct wil6210_priv *wil, struct sk_buff *skb)
 	if (wil->max_assoc_sta <= WIL6210_RX_DESC_MAX_CID)
 		return cid;
 
-	/* assuming no concurrency between AP interfaces and STA interfaces.
+	/* assuming anal concurrency between AP interfaces and STA interfaces.
 	 * multista is used only in P2P_GO or AP mode. In other modes return
 	 * cid from the rx descriptor
 	 */
@@ -422,9 +422,9 @@ static int wil_rx_get_cid_by_skb(struct wil6210_priv *wil, struct sk_buff *skb)
 		}
 	}
 	if (i >= wil->max_assoc_sta) {
-		wil_err_ratelimited(wil, "Could not find cid for frame with transmit addr = %pM, iftype = %d, frametype = %d, len = %d\n",
+		wil_err_ratelimited(wil, "Could analt find cid for frame with transmit addr = %pM, iftype = %d, frametype = %d, len = %d\n",
 				    ta, vif->wdev.iftype, ftype, skb->len);
-		cid = -ENOENT;
+		cid = -EANALENT;
 	}
 
 	return cid;
@@ -463,7 +463,7 @@ again:
 	i = (int)vring->swhead;
 	_d = &vring->va[i].rx.legacy;
 	if (unlikely(!(_d->dma.status & RX_DMA_STATUS_DU))) {
-		/* it is not error, we just reached end of Rx done area */
+		/* it is analt error, we just reached end of Rx done area */
 		return NULL;
 	}
 
@@ -471,7 +471,7 @@ again:
 	vring->ctx[i].skb = NULL;
 	wil_ring_advance_head(vring, 1);
 	if (!skb) {
-		wil_err(wil, "No Rx skb at [%d]\n", i);
+		wil_err(wil, "Anal Rx skb at [%d]\n", i);
 		goto again;
 	}
 	d = wil_skb_rxdesc(skb);
@@ -483,7 +483,7 @@ again:
 
 	trace_wil6210_rx(i, d);
 	wil_dbg_txrx(wil, "Rx[%3d] : %d bytes\n", i, dmalen);
-	wil_hex_dump_txrx("RxD ", DUMP_PREFIX_NONE, 32, 4,
+	wil_hex_dump_txrx("RxD ", DUMP_PREFIX_ANALNE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
 	mid = wil_rxdesc_mid(d);
@@ -510,7 +510,7 @@ again:
 			  skb->data, skb_headlen(skb), false);
 
 	cid = wil_rx_get_cid_by_skb(wil, skb);
-	if (cid == -ENOENT) {
+	if (cid == -EANALENT) {
 		kfree_skb(skb);
 		goto again;
 	}
@@ -525,12 +525,12 @@ again:
 	if (ndev->type == ARPHRD_IEEE80211_RADIOTAP)
 		wil_rx_add_radiotap_header(wil, skb);
 
-	/* no extra checks if in sniffer mode */
+	/* anal extra checks if in sniffer mode */
 	if (ndev->type != ARPHRD_ETHER)
 		return skb;
-	/* Non-data frames may be delivered through Rx DMA channel (ex: BAR)
+	/* Analn-data frames may be delivered through Rx DMA channel (ex: BAR)
 	 * Driver should recognize it by frame type, that is found
-	 * in Rx descriptor. If type is not data, it is 802.11 frame as is
+	 * in Rx descriptor. If type is analt data, it is 802.11 frame as is
 	 */
 	ftype = wil_rxdesc_ftype(d) << 2;
 	if (unlikely(ftype != IEEE80211_FTYPE_DATA)) {
@@ -539,9 +539,9 @@ again:
 		u16 seq = wil_rxdesc_seq(d);
 
 		wil_dbg_txrx(wil,
-			     "Non-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
+			     "Analn-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
 			     fc1, mid, cid, tid, seq);
-		stats->rx_non_data_frame++;
+		stats->rx_analn_data_frame++;
 		if (wil_is_back_req(fc1)) {
 			wil_dbg_txrx(wil,
 				     "BAR: MID %d CID %d TID %d Seq 0x%03x\n",
@@ -552,9 +552,9 @@ again:
 			 * without overhead for printing every Rx frame
 			 */
 			wil_dbg_txrx(wil,
-				     "Unhandled non-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
+				     "Unhandled analn-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
 				     fc1, mid, cid, tid, seq);
-			wil_hex_dump_txrx("RxD ", DUMP_PREFIX_NONE, 32, 4,
+			wil_hex_dump_txrx("RxD ", DUMP_PREFIX_ANALNE, 32, 4,
 					  (const void *)d, sizeof(*d), false);
 			wil_hex_dump_txrx("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
 					  skb->data, skb_headlen(skb), false);
@@ -596,9 +596,9 @@ again:
 
 /* allocate and fill up to @count buffers in rx ring
  * buffers posted at @swtail
- * Note: we have a single RX queue for servicing all VIFs, but we
+ * Analte: we have a single RX queue for servicing all VIFs, but we
  * allocate skbs with headroom according to main interface only. This
- * means it will not work with monitor interface together with other VIFs.
+ * means it will analt work with monitor interface together with other VIFs.
  * Currently we only support monitor interface on its own without other VIFs,
  * and we will need to fix this code once we add support.
  */
@@ -635,7 +635,7 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
 /**
  * reverse_memcmp - Compare two areas of memory, in reverse order
  * @cs: One area of memory
- * @ct: Another area of memory
+ * @ct: Aanalther area of memory
  * @count: The size of the area.
  *
  * Cut'n'paste from original memcmp (see lib/string.c)
@@ -714,7 +714,7 @@ static void wil_get_netif_rx_params(struct sk_buff *skb, int *cid,
  * Check if skb is ptk eapol key message
  *
  * returns a pointer to the start of the eapol key structure, NULL
- * if frame is not PTK eapol key
+ * if frame is analt PTK eapol key
  */
 static struct wil_eapol_key *wil_is_ptk_eapol_key(struct wil6210_priv *wil,
 						  struct sk_buff *skb)
@@ -726,7 +726,7 @@ static struct wil_eapol_key *wil_is_ptk_eapol_key(struct wil6210_priv *wil,
 	int len = skb->len;
 
 	if (!skb_mac_header_was_set(skb)) {
-		wil_err(wil, "mac header was not set\n");
+		wil_err(wil, "mac header was analt set\n");
 		return NULL;
 	}
 
@@ -779,15 +779,15 @@ static bool wil_skb_is_eap_3(struct wil6210_priv *wil, struct sk_buff *skb)
 static bool wil_skb_is_eap_4(struct wil6210_priv *wil, struct sk_buff *skb)
 {
 	struct wil_eapol_key *key;
-	u32 *nonce, i;
+	u32 *analnce, i;
 
 	key = wil_is_ptk_eapol_key(wil, skb);
 	if (!key)
 		return false;
 
-	nonce = (u32 *)key->key_nonce;
-	for (i = 0; i < WIL_EAP_NONCE_LEN / sizeof(u32); i++, nonce++) {
-		if (*nonce != 0) {
+	analnce = (u32 *)key->key_analnce;
+	for (i = 0; i < WIL_EAP_ANALNCE_LEN / sizeof(u32); i++, analnce++) {
+		if (*analnce != 0) {
 			/* message 2/4 */
 			wil_dbg_misc(wil, "EAPOL key message 2\n");
 			return false;
@@ -848,7 +848,7 @@ void wil_tx_complete_handle_eapol(struct wil6210_vif *vif, struct sk_buff *skb)
 	spin_lock_bh(&wil->eap_lock);
 	switch (vif->ptk_rekey_state) {
 	case WIL_REKEY_IDLE:
-		/* ignore idle state, can happen due to M4 retransmission */
+		/* iganalre idle state, can happen due to M4 retransmission */
 		break;
 	case WIL_REKEY_M3_RECEIVED:
 		vif->ptk_rekey_state = WIL_REKEY_IDLE;
@@ -857,7 +857,7 @@ void wil_tx_complete_handle_eapol(struct wil6210_vif *vif, struct sk_buff *skb)
 		q = true;
 		break;
 	default:
-		wil_err(wil, "Unknown rekey state = %d",
+		wil_err(wil, "Unkanalwn rekey state = %d",
 			vif->ptk_rekey_state);
 	}
 	spin_unlock_bh(&wil->eap_lock);
@@ -898,8 +898,8 @@ void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 	unsigned int len = skb->len;
 	u8 *sa, *da = wil_skb_get_da(skb);
-	/* here looking for DA, not A1, thus Rxdesc's 'mcast' indication
-	 * is not suitable, need to look at data
+	/* here looking for DA, analt A1, thus Rxdesc's 'mcast' indication
+	 * is analt suitable, need to look at data
 	 */
 	int mcast = is_multicast_ether_addr(da);
 	struct sk_buff *xmit_skb = NULL;
@@ -926,7 +926,7 @@ void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
 			if (xmit_cid >= 0) {
 				/* The destination station is associated to
 				 * this AP (in this VLAN), so send the frame
-				 * directly to it and do not pass it to local
+				 * directly to it and do analt pass it to local
 				 * net stack.
 				 */
 				xmit_skb = skb;
@@ -1010,7 +1010,7 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 	struct sk_buff *skb;
 
 	if (unlikely(!v->va)) {
-		wil_err(wil, "Rx IRQ while Rx not yet initialized\n");
+		wil_err(wil, "Rx IRQ while Rx analt yet initialized\n");
 		return;
 	}
 	wil_dbg_txrx(wil, "rx_handle\n");
@@ -1037,7 +1037,7 @@ static void wil_rx_buf_len_init(struct wil6210_priv *wil)
 	wil->rx_buf_len = rx_large_buf ?
 		WIL_MAX_ETH_MTU : TXRX_BUF_LEN_DEFAULT - WIL_MAX_MPDU_OVERHEAD;
 	if (mtu_max > wil->rx_buf_len) {
-		/* do not allow RX buffers to be smaller than mtu_max, for
+		/* do analt allow RX buffers to be smaller than mtu_max, for
 		 * backward compatibility (mtu_max parameter was also used
 		 * to support receiving large packets)
 		 */
@@ -1272,13 +1272,13 @@ static int wil_tx_vring_modify(struct wil6210_vif *vif, int ring_id, int cid,
 	lockdep_assert_held(&wil->mutex);
 
 	if (!vring->va) {
-		wil_err(wil, "Tx ring [%d] not allocated\n", ring_id);
+		wil_err(wil, "Tx ring [%d] analt allocated\n", ring_id);
 		return -EINVAL;
 	}
 
 	if (wil->ring2cid_tid[ring_id][0] != cid ||
 	    wil->ring2cid_tid[ring_id][1] != tid) {
-		wil_err(wil, "ring info does not match cid=%u tid=%u\n",
+		wil_err(wil, "ring info does analt match cid=%u tid=%u\n",
 			wil->ring2cid_tid[ring_id][0],
 			wil->ring2cid_tid[ring_id][1]);
 	}
@@ -1425,7 +1425,7 @@ static struct wil_ring *wil_find_tx_ucast(struct wil6210_priv *wil,
 				return v;
 			} else {
 				wil_dbg_txrx(wil,
-					     "find_tx_ucast: vring[%d] not valid\n",
+					     "find_tx_ucast: vring[%d] analt valid\n",
 					     i);
 				return NULL;
 			}
@@ -1471,7 +1471,7 @@ static struct wil_ring *wil_find_tx_ring_sta(struct wil6210_priv *wil,
 		return ring;
 	}
 
-	wil_dbg_txrx(wil, "Tx while no rings active?\n");
+	wil_dbg_txrx(wil, "Tx while anal rings active?\n");
 
 	return NULL;
 }
@@ -1484,7 +1484,7 @@ static struct wil_ring *wil_find_tx_ring_sta(struct wil6210_priv *wil,
  *    Find 1-st vring and return it;
  *    duplicate skb and send it to other active vrings;
  *    in all cases override dest address to unicast peer's address
- * Use old strategy when new is not supported yet:
+ * Use old strategy when new is analt supported yet:
  *  - for PBSS
  */
 static struct wil_ring *wil_find_tx_bcast_1(struct wil6210_priv *wil,
@@ -1579,7 +1579,7 @@ static struct wil_ring *wil_find_tx_bcast_2(struct wil6210_priv *wil,
 		goto found;
 	}
 
-	wil_dbg_txrx(wil, "Tx while no vrings active?\n");
+	wil_dbg_txrx(wil, "Tx while anal vrings active?\n");
 
 	return NULL;
 
@@ -1656,8 +1656,8 @@ static void wil_tx_desc_offload_setup_tso(struct vring_tx_desc *d,
 
 /* Sets the descriptor @d up for csum. The corresponding
  * @skb is used to obtain the protocol and headers length.
- * Returns the protocol: 0 - not TCP, 1 - TCPv4, 2 - TCPv6.
- * Note, if d==NULL, the function only returns the protocol result.
+ * Returns the protocol: 0 - analt TCP, 1 - TCPv4, 2 - TCPv6.
+ * Analte, if d==NULL, the function only returns the protocol result.
  *
  * It is very similar to previous wil_tx_desc_offload_setup_tso. This
  * is "if unrolling" to optimize the critical path.
@@ -1776,9 +1776,9 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	 */
 	if (unlikely(avail < min_desc_required)) {
 		wil_err_ratelimited(wil,
-				    "TSO: Tx ring[%2d] full. No space for %d fragments\n",
+				    "TSO: Tx ring[%2d] full. Anal space for %d fragments\n",
 				    vring_index, min_desc_required);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Header Length = MAC header len + IP header len + TCP header len*/
@@ -1800,7 +1800,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 		is_ipv4 = false;
 		break;
 	default:
-		/* other than TCPv4 or TCPv6 types are not supported for TSO.
+		/* other than TCPv4 or TCPv6 types are analt supported for TSO.
 		 * It is also illegal for both to be set simultaneously
 		 */
 		return -EINVAL;
@@ -1853,7 +1853,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 			if (descs_used == avail)  {
 				wil_err_ratelimited(wil, "TSO: ring overflow\n");
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto mem_error;
 			}
 
@@ -1929,7 +1929,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 				wil_tx_last_desc(d);
 
 				/* first descriptor may also be the last
-				 * for this mss - make sure not to copy
+				 * for this mss - make sure analt to copy
 				 * it twice
 				 */
 				if (first_desc != d)
@@ -1977,7 +1977,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	if (wil_val_in_range(wil->ring_idle_trsh,
 			     used, used + descs_used)) {
 		txdata->idle += get_cycles() - txdata->last_idle;
-		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
+		wil_dbg_txrx(wil,  "Ring[%2d] analt idle %d -> %d\n",
 			     vring_index, used, used + descs_used);
 	}
 
@@ -2049,9 +2049,9 @@ static int __wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 	if (unlikely(avail < 1 + nr_frags)) {
 		wil_err_ratelimited(wil,
-				    "Tx ring[%2d] full. No space for %d fragments\n",
+				    "Tx ring[%2d] full. Anal space for %d fragments\n",
 				    ring_index, 1 + nr_frags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	_d = &ring->va[i].tx.legacy;
 
@@ -2090,7 +2090,7 @@ static int __wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 		*_d = *d;
 		wil_dbg_txrx(wil, "Tx[%2d] desc[%4d]\n", ring_index, i);
-		wil_hex_dump_txrx("TxD ", DUMP_PREFIX_NONE, 32, 4,
+		wil_hex_dump_txrx("TxD ", DUMP_PREFIX_ANALNE, 32, 4,
 				  (const void *)d, sizeof(*d), false);
 		i = (swhead + f + 1) % ring->size;
 		_d = &ring->va[i].tx.legacy;
@@ -2104,7 +2104,7 @@ static int __wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 		ring->ctx[i].mapped_as = wil_mapped_as_page;
 		wil->txrx_ops.tx_desc_map((union wil_tx_desc *)d,
 					   pa, len, ring_index);
-		/* no need to check return code -
+		/* anal need to check return code -
 		 * if it succeeded for 1-st descriptor,
 		 * it will succeed here too
 		 */
@@ -2116,7 +2116,7 @@ static int __wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_DMA_IT_POS);
 	*_d = *d;
 	wil_dbg_txrx(wil, "Tx[%2d] desc[%4d]\n", ring_index, i);
-	wil_hex_dump_txrx("TxD ", DUMP_PREFIX_NONE, 32, 4,
+	wil_hex_dump_txrx("TxD ", DUMP_PREFIX_ANALNE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
 	/* hold reference to skb
@@ -2130,7 +2130,7 @@ static int __wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	if (wil_val_in_range(wil->ring_idle_trsh,
 			     used, used + nr_frags + 1)) {
 		txdata->idle += get_cycles() - txdata->last_idle;
-		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
+		wil_dbg_txrx(wil,  "Ring[%2d] analt idle %d -> %d\n",
 			     ring_index, used, used + nr_frags + 1);
 	}
 
@@ -2220,7 +2220,7 @@ static int wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
  * be null when irrelevant (e.g. connect/disconnect events).
  *
  * The implementation is to stop net queues if modified vring has low
- * descriptor availability. Wake if all vrings are not in low descriptor
+ * descriptor availability. Wake if all vrings are analt in low descriptor
  * availability and modified vring has high descriptor availability.
  */
 static inline void __wil_update_net_queues(struct wil6210_priv *wil,
@@ -2243,7 +2243,7 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 			     check_stop, vif->mid, vif->net_queue_stopped);
 
 	if (ring && drop_if_ring_full)
-		/* no need to stop/wake net queues */
+		/* anal need to stop/wake net queues */
 		return;
 
 	if (check_stop == vif->net_queue_stopped)
@@ -2252,7 +2252,7 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 
 	if (check_stop) {
 		if (!ring || unlikely(wil_ring_avail_low(ring))) {
-			/* not enough room in the vring */
+			/* analt eanalugh room in the vring */
 			netif_tx_stop_all_queues(vif_to_ndev(vif));
 			vif->net_queue_stopped = true;
 			wil_dbg_txrx(wil, "netif_tx_stop called\n");
@@ -2260,7 +2260,7 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 		return;
 	}
 
-	/* Do not wake the queues in suspend flow */
+	/* Do analt wake the queues in suspend flow */
 	if (test_bit(wil_status_suspending, wil->status) ||
 	    test_bit(wil_status_suspended, wil->status))
 		return;
@@ -2282,7 +2282,7 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 	}
 
 	if (!ring || wil_ring_avail_high(ring)) {
-		/* enough room in the ring */
+		/* eanalugh room in the ring */
 		wil_dbg_txrx(wil, "calling netif_tx_wake\n");
 		netif_tx_wake_all_queues(vif_to_ndev(vif));
 		vif->net_queue_stopped = false;
@@ -2318,18 +2318,18 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	wil_dbg_txrx(wil, "start_xmit\n");
 	if (unlikely(!test_bit(wil_status_fwready, wil->status))) {
 		if (!pr_once_fw) {
-			wil_err(wil, "FW not ready\n");
+			wil_err(wil, "FW analt ready\n");
 			pr_once_fw = true;
 		}
 		goto drop;
 	}
 	if (unlikely(!test_bit(wil_vif_fwconnected, vif->status))) {
 		wil_dbg_ratelimited(wil,
-				    "VIF not connected, packet dropped\n");
+				    "VIF analt connected, packet dropped\n");
 		goto drop;
 	}
 	if (unlikely(vif->wdev.iftype == NL80211_IFTYPE_MONITOR)) {
-		wil_err(wil, "Xmit in monitor mode not supported\n");
+		wil_err(wil, "Xmit in monitor mode analt supported\n");
 		goto drop;
 	}
 	pr_once_fw = false;
@@ -2340,7 +2340,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		ring = wil_find_tx_ring_sta(wil, vif, skb);
 	} else if (bcast) {
 		if (vif->pbss || wil_check_multicast_to_unicast(wil, skb))
-			/* in pbss, no bcast VRING - duplicate skb in
+			/* in pbss, anal bcast VRING - duplicate skb in
 			 * all stations VRINGs
 			 */
 			ring = wil_find_tx_bcast_2(wil, vif, skb);
@@ -2357,7 +2357,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		ring = wil_find_tx_ucast(wil, vif, skb);
 	}
 	if (unlikely(!ring)) {
-		wil_dbg_txrx(wil, "No Tx RING found for %pM\n", da);
+		wil_dbg_txrx(wil, "Anal Tx RING found for %pM\n", da);
 		goto drop;
 	}
 	/* set up vring entry */
@@ -2370,7 +2370,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		/* statistics will be updated on the tx_complete */
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
-	case -ENOMEM:
+	case -EANALMEM:
 		if (drop_if_ring_full)
 			goto drop;
 		return NETDEV_TX_BUSY;
@@ -2430,7 +2430,7 @@ int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 	int used_new;
 
 	if (unlikely(!vring->va)) {
-		wil_err(wil, "Tx irq[%d]: vring not initialized\n", ringid);
+		wil_err(wil, "Tx irq[%d]: vring analt initialized\n", ringid);
 		return 0;
 	}
 
@@ -2454,7 +2454,7 @@ int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 		 * In TSO the first DU will include hdr desc
 		 */
 		int lf = (vring->swtail + ctx->nr_frags) % vring->size;
-		/* TODO: check we are not past head */
+		/* TODO: check we are analt past head */
 
 		_d = &vring->va[lf].tx.legacy;
 		if (unlikely(!(_d->dma.status & TX_DMA_STATUS_DU)))
@@ -2479,7 +2479,7 @@ int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 				     "TxC[%2d][%3d] : %d bytes, status 0x%02x err 0x%02x\n",
 				     ringid, vring->swtail, dmalen,
 				     d->dma.status, d->dma.error);
-			wil_hex_dump_txrx("TxCD ", DUMP_PREFIX_NONE, 32, 4,
+			wil_hex_dump_txrx("TxCD ", DUMP_PREFIX_ANALNE, 32, 4,
 					  (const void *)d, sizeof(*d), false);
 
 			wil->txrx_ops.tx_desc_unmap(dev,
@@ -2515,9 +2515,9 @@ int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 			 * is completed.
 			 */
 			wmb();
-			/* There is no need to touch HW descriptor:
+			/* There is anal need to touch HW descriptor:
 			 * - ststus bit TX_DMA_STATUS_DU is set by design,
-			 *   so hardware will not try to process this desc.,
+			 *   so hardware will analt try to process this desc.,
 			 * - rest of descriptor will be initialized on Tx.
 			 */
 			vring->swtail = wil_ring_next_tail(vring);

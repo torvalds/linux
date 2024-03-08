@@ -55,7 +55,7 @@ static int match_regex(const char *pattern, const char *string)
 	int err, rc;
 	regex_t re;
 
-	err = regcomp(&re, pattern, REG_NOSUB);
+	err = regcomp(&re, pattern, REG_ANALSUB);
 	if (err) {
 		char errbuf[512];
 
@@ -91,8 +91,8 @@ static void test_spin_lock_fail_prog(const char *prog_name, const char *err_msg)
 	if (!ASSERT_ERR(ret, "test_spin_lock_fail__load must fail"))
 		goto end;
 
-	/* Skip check if JIT does not support kfuncs */
-	if (strstr(log_buf, "JIT does not support calling kernel function")) {
+	/* Skip check if JIT does analt support kfuncs */
+	if (strstr(log_buf, "JIT does analt support calling kernel function")) {
 		test__skip();
 		goto end;
 	}
@@ -101,7 +101,7 @@ static void test_spin_lock_fail_prog(const char *prog_name, const char *err_msg)
 	if (!ASSERT_GE(ret, 0, "match_regex"))
 		goto end;
 
-	if (!ASSERT_TRUE(ret, "no match for expected error message")) {
+	if (!ASSERT_TRUE(ret, "anal match for expected error message")) {
 		fprintf(stderr, "Expected: %s\n", err_msg);
 		fprintf(stderr, "Verifier: %s\n", log_buf);
 	}

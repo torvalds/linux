@@ -8,29 +8,29 @@
 #ifndef _DCB_EVENT_H
 #define _DCB_EVENT_H
 
-struct notifier_block;
+struct analtifier_block;
 
-enum dcbevent_notif_type {
+enum dcbevent_analtif_type {
 	DCB_APP_EVENT = 1,
 };
 
 #ifdef CONFIG_DCB
-int register_dcbevent_notifier(struct notifier_block *nb);
-int unregister_dcbevent_notifier(struct notifier_block *nb);
-int call_dcbevent_notifiers(unsigned long val, void *v);
+int register_dcbevent_analtifier(struct analtifier_block *nb);
+int unregister_dcbevent_analtifier(struct analtifier_block *nb);
+int call_dcbevent_analtifiers(unsigned long val, void *v);
 #else
 static inline int
-register_dcbevent_notifier(struct notifier_block *nb)
+register_dcbevent_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int unregister_dcbevent_notifier(struct notifier_block *nb)
+static inline int unregister_dcbevent_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int call_dcbevent_notifiers(unsigned long val, void *v)
+static inline int call_dcbevent_analtifiers(unsigned long val, void *v)
 {
 	return 0;
 }

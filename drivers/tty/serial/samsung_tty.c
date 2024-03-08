@@ -6,19 +6,19 @@
  *	http://armlinux.simtec.co.uk/
  */
 
-/* Note on 2410 error handling
+/* Analte on 2410 error handling
  *
  * The s3c2410 manual has a love/hate affair with the contents of the
  * UERSTAT register in the UART blocks, and keeps marking some of the
  * error bits as reserved. Having checked with the s3c2410x01,
- * it copes with BREAKs properly, so I am happy to ignore the RESERVED
+ * it copes with BREAKs properly, so I am happy to iganalre the RESERVED
  * feature from the latter versions of the manual.
  *
  * If it becomes aparrent that latter versions of the 2410 remove these
  * bits, then action will have to be taken to differentiate the versions
  * and change the policy on BREAK
  *
- * BJD, 04-Nov-2004
+ * BJD, 04-Analv-2004
  */
 
 #include <linux/dmaengine.h>
@@ -47,7 +47,7 @@
 
 #define S3C24XX_SERIAL_NAME	"ttySAC"
 #define S3C24XX_SERIAL_MAJOR	204
-#define S3C24XX_SERIAL_MINOR	64
+#define S3C24XX_SERIAL_MIANALR	64
 
 #ifdef CONFIG_ARM64
 #define UART_NR			12
@@ -60,7 +60,7 @@
 #define S3C24XX_RX_PIO			1
 #define S3C24XX_RX_DMA			2
 
-/* flag to ignore all characters coming in */
+/* flag to iganalre all characters coming in */
 #define RXSTAT_DUMMY_READ (0x10000000)
 
 enum s3c24xx_port_type {
@@ -233,7 +233,7 @@ static inline const char *s3c24xx_serial_portname(const struct uart_port *port)
 	return to_platform_device(port->dev)->name;
 }
 
-static int s3c24xx_serial_txempty_nofifo(const struct uart_port *port)
+static int s3c24xx_serial_txempty_analfifo(const struct uart_port *port)
 {
 	return rd_regl(port, S3C2410_UTRSTAT) & S3C2410_UTRSTAT_TXE;
 }
@@ -247,7 +247,7 @@ static void s3c24xx_serial_rx_enable(struct uart_port *port)
 
 	uart_port_lock_irqsave(port, &flags);
 
-	while (--count && !s3c24xx_serial_txempty_nofifo(port))
+	while (--count && !s3c24xx_serial_txempty_analfifo(port))
 		udelay(100);
 
 	ufcon = rd_regl(port, S3C2410_UFCON);
@@ -296,7 +296,7 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 		s3c24xx_clear_bit(port, APPLE_S5L_UCON_TXTHRESH_ENA, S3C2410_UCON);
 		break;
 	default:
-		disable_irq_nosync(ourport->tx_irq);
+		disable_irq_analsync(ourport->tx_irq);
 		break;
 	}
 
@@ -364,10 +364,10 @@ static void enable_tx_dma(struct s3c24xx_uart_port *ourport)
 		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
 		break;
 	case TYPE_APPLE_S5L:
-		WARN_ON(1); // No DMA
+		WARN_ON(1); // Anal DMA
 		break;
 	default:
-		disable_irq_nosync(ourport->tx_irq);
+		disable_irq_analsync(ourport->tx_irq);
 		break;
 	}
 
@@ -519,7 +519,7 @@ static void s3c24xx_uart_copy_rx_to_tty(struct s3c24xx_uart_port *ourport,
 
 	ourport->port.icount.rx += count;
 	if (!tty) {
-		dev_err(ourport->port.dev, "No tty port\n");
+		dev_err(ourport->port.dev, "Anal tty port\n");
 		return;
 	}
 	copied = tty_insert_flip_string(tty,
@@ -551,7 +551,7 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 			s3c24xx_clear_bit(port, APPLE_S5L_UCON_RXTO_ENA, S3C2410_UCON);
 			break;
 		default:
-			disable_irq_nosync(ourport->rx_irq);
+			disable_irq_analsync(ourport->rx_irq);
 			break;
 		}
 		ourport->rx_enabled = 0;
@@ -763,7 +763,7 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 
 	while (max_count-- > 0) {
 		/*
-		 * Receive all characters known to be in FIFO
+		 * Receive all characters kanalwn to be in FIFO
 		 * before reading FIFO level again
 		 */
 		if (fifocnt == 0) {
@@ -778,7 +778,7 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 		ch = rd_reg(port, S3C2410_URXH);
 
 		if (port->flags & UPF_CONS_FLOW) {
-			int txe = s3c24xx_serial_txempty_nofifo(port);
+			int txe = s3c24xx_serial_txempty_analfifo(port);
 
 			if (ourport->rx_enabled) {
 				if (!txe) {
@@ -799,7 +799,7 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 
 		/* insert the character into the buffer */
 
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		port->icount.rx++;
 
 		if (unlikely(uerstat & S3C2410_UERSTAT_ANY)) {
@@ -812,7 +812,7 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 				dev_dbg(port->dev, "break!\n");
 				port->icount.brk++;
 				if (uart_handle_break(port))
-					continue; /* Ignore character */
+					continue; /* Iganalre character */
 			}
 
 			if (uerstat & S3C2410_UERSTAT_FRAME)
@@ -832,7 +832,7 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 		}
 
 		if (uart_handle_sysrq_char(port, ch))
-			continue; /* Ignore character */
+			continue; /* Iganalre character */
 
 		uart_insert_char(port, uerstat, S3C2410_UERSTAT_OVERRUN,
 				 ch, flag);
@@ -887,7 +887,7 @@ static void s3c24xx_serial_tx_chars(struct s3c24xx_uart_port *ourport)
 		return;
 	}
 
-	/* if there isn't anything more to transmit, or the uart is now
+	/* if there isn't anything more to transmit, or the uart is analw
 	 * stopped, disable the uart and exit
 	 */
 
@@ -962,7 +962,7 @@ static irqreturn_t apple_serial_handle_irq(int irq, void *id)
 	const struct s3c24xx_uart_port *ourport = id;
 	const struct uart_port *port = &ourport->port;
 	unsigned int pend = rd_regl(port, S3C2410_UTRSTAT);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (pend & (APPLE_S5L_UTRSTAT_RXTHRESH | APPLE_S5L_UTRSTAT_RXTO)) {
 		wr_regl(port, S3C2410_UTRSTAT,
@@ -991,10 +991,10 @@ static unsigned int s3c24xx_serial_tx_empty(struct uart_port *port)
 		return 1;
 	}
 
-	return s3c24xx_serial_txempty_nofifo(port);
+	return s3c24xx_serial_txempty_analfifo(port);
 }
 
-/* no modem control lines */
+/* anal modem control lines */
 static unsigned int s3c24xx_serial_get_mctrl(struct uart_port *port)
 {
 	unsigned int umstat = rd_reg(port, S3C2410_UMSTAT);
@@ -1074,7 +1074,7 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	if (ret < 0 ||
 	    dma_caps.residue_granularity < DMA_RESIDUE_GRANULARITY_BURST) {
 		reason = "insufficient DMA RX engine capabilities";
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_release_rx;
 	}
 
@@ -1091,7 +1091,7 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	if (ret < 0 ||
 	    dma_caps.residue_granularity < DMA_RESIDUE_GRANULARITY_BURST) {
 		reason = "insufficient DMA TX engine capabilities";
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_release_tx;
 	}
 
@@ -1102,7 +1102,7 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 
 	dma->rx_buf = kmalloc(dma->rx_size, GFP_KERNEL);
 	if (!dma->rx_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release_tx;
 	}
 
@@ -1137,7 +1137,7 @@ err_release_rx:
 	dma_release_channel(dma->rx_chan);
 err_warn:
 	if (reason)
-		dev_warn(p->port.dev, "%s, DMA will not be used\n", reason);
+		dev_warn(p->port.dev, "%s, DMA will analt be used\n", reason);
 	return ret;
 }
 
@@ -1227,7 +1227,7 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	ret = request_irq(port->irq, s3c64xx_serial_handle_irq, IRQF_SHARED,
 			  s3c24xx_serial_portname(port), ourport);
 	if (ret) {
-		dev_err(port->dev, "cannot get irq %d\n", port->irq);
+		dev_err(port->dev, "cananalt get irq %d\n", port->irq);
 		return ret;
 	}
 
@@ -1265,7 +1265,7 @@ static int apple_s5l_serial_startup(struct uart_port *port)
 	ret = request_irq(port->irq, apple_serial_handle_irq, 0,
 			  s3c24xx_serial_portname(port), ourport);
 	if (ret) {
-		dev_err(port->dev, "cannot get irq %d\n", port->irq);
+		dev_err(port->dev, "cananalt get irq %d\n", port->irq);
 		return ret;
 	}
 
@@ -1304,7 +1304,7 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 
 	switch (level) {
 	case 3:
-		while (--timeout && !s3c24xx_serial_txempty_nofifo(port))
+		while (--timeout && !s3c24xx_serial_txempty_analfifo(port))
 			udelay(100);
 
 		if (!IS_ERR(ourport->baudclk))
@@ -1320,7 +1320,7 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 			clk_prepare_enable(ourport->baudclk);
 		break;
 	default:
-		dev_err(port->dev, "s3c24xx_serial: unknown pm %d\n", level);
+		dev_err(port->dev, "s3c24xx_serial: unkanalwn pm %d\n", level);
 	}
 }
 
@@ -1407,8 +1407,8 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 			 * get a divisor adjustment of 1/16th on the baud clock.
 			 *
 			 * We don't keep the UDIVSLOT value (the 16ths we
-			 * calculated by not multiplying the baud by 16) as it
-			 * is easy enough to recalculate.
+			 * calculated by analt multiplying the baud by 16) as it
+			 * is easy eanalugh to recalculate.
 			 */
 
 			quot = div / 16;
@@ -1555,7 +1555,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 		else
 			ulcon |= S3C2410_LCON_PEVEN;
 	} else {
-		ulcon |= S3C2410_LCON_PNONE;
+		ulcon |= S3C2410_LCON_PANALNE;
 	}
 
 	uart_port_lock_irqsave(port, &flags);
@@ -1602,19 +1602,19 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 		port->read_status_mask |= S3C2410_UERSTAT_FRAME |
 			S3C2410_UERSTAT_PARITY;
 	/*
-	 * Which character status flags should we ignore?
+	 * Which character status flags should we iganalre?
 	 */
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= S3C2410_UERSTAT_OVERRUN;
+		port->iganalre_status_mask |= S3C2410_UERSTAT_OVERRUN;
 	if (termios->c_iflag & IGNBRK && termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= S3C2410_UERSTAT_FRAME;
+		port->iganalre_status_mask |= S3C2410_UERSTAT_FRAME;
 
 	/*
-	 * Ignore all characters if CREAD is not set.
+	 * Iganalre all characters if CREAD is analt set.
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= RXSTAT_DUMMY_READ;
+		port->iganalre_status_mask |= RXSTAT_DUMMY_READ;
 
 	uart_port_unlock_irqrestore(port, flags);
 }
@@ -1649,7 +1649,7 @@ s3c24xx_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	const struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 
-	if (ser->type != PORT_UNKNOWN && ser->type != info->port_type)
+	if (ser->type != PORT_UNKANALWN && ser->type != info->port_type)
 		return -EINVAL;
 
 	return 0;
@@ -1732,7 +1732,7 @@ static struct uart_driver s3c24xx_uart_drv = {
 	.cons		= S3C24XX_SERIAL_CONSOLE,
 	.dev_name	= S3C24XX_SERIAL_NAME,
 	.major		= S3C24XX_SERIAL_MAJOR,
-	.minor		= S3C24XX_SERIAL_MINOR,
+	.mianalr		= S3C24XX_SERIAL_MIANALR,
 };
 
 static struct s3c24xx_uart_port s3c24xx_serial_ports[UART_NR];
@@ -1821,7 +1821,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	int ret;
 
 	if (platdev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (port->mapbase != 0)
 		return -EINVAL;
@@ -1866,20 +1866,20 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	 * DMA is currently supported only on DT platforms, if DMA properties
 	 * are specified.
 	 */
-	if (platdev->dev.of_node && of_find_property(platdev->dev.of_node,
+	if (platdev->dev.of_analde && of_find_property(platdev->dev.of_analde,
 						     "dmas", NULL)) {
 		ourport->dma = devm_kzalloc(port->dev,
 					    sizeof(*ourport->dma),
 					    GFP_KERNEL);
 		if (!ourport->dma) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 	}
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
 	if (IS_ERR(ourport->clk)) {
-		pr_err("%s: Controller clock not found\n",
+		pr_err("%s: Controller clock analt found\n",
 				dev_name(&platdev->dev));
 		ret = PTR_ERR(ourport->clk);
 		goto err;
@@ -1940,7 +1940,7 @@ static int probe_index;
 static inline const struct s3c24xx_serial_drv_data *
 s3c24xx_get_driver_data(struct platform_device *pdev)
 {
-	if (dev_of_node(&pdev->dev))
+	if (dev_of_analde(&pdev->dev))
 		return of_device_get_match_data(&pdev->dev);
 
 	return (struct s3c24xx_serial_drv_data *)
@@ -1949,7 +1949,7 @@ s3c24xx_get_driver_data(struct platform_device *pdev)
 
 static int s3c24xx_serial_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct s3c24xx_uart_port *ourport;
 	int index = probe_index;
 	int ret, prop = 0;
@@ -1970,8 +1970,8 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 
 	ourport->drv_data = s3c24xx_get_driver_data(pdev);
 	if (!ourport->drv_data) {
-		dev_err(&pdev->dev, "could not find driver data\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "could analt find driver data\n");
+		return -EANALDEV;
 	}
 
 	ourport->baudclk = ERR_PTR(-EINVAL);
@@ -2097,7 +2097,7 @@ static int s3c24xx_serial_resume(struct device *dev)
 	return 0;
 }
 
-static int s3c24xx_serial_resume_noirq(struct device *dev)
+static int s3c24xx_serial_resume_analirq(struct device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
@@ -2168,7 +2168,7 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 
 static const struct dev_pm_ops s3c24xx_serial_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(s3c24xx_serial_suspend, s3c24xx_serial_resume)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, s3c24xx_serial_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(NULL, s3c24xx_serial_resume_analirq)
 };
 #define SERIAL_SAMSUNG_PM_OPS	(&s3c24xx_serial_pm_ops)
 
@@ -2196,7 +2196,7 @@ s3c24xx_serial_console_txrdy(struct uart_port *port, unsigned int ufcon)
 		return (ufstat & info->tx_fifofull) ? 0 : 1;
 	}
 
-	/* in non-fifo mode, we go and use the tx buffer empty */
+	/* in analn-fifo mode, we go and use the tx buffer empty */
 
 	utrstat = rd_regl(port, S3C2410_UTRSTAT);
 	return (utrstat & S3C2410_UTRSTAT_TXE) ? 1 : 0;
@@ -2222,7 +2222,7 @@ static int s3c24xx_serial_get_poll_char(struct uart_port *port)
 
 	ufstat = rd_regl(port, S3C2410_UFSTAT);
 	if (s3c24xx_serial_rx_fifocnt(ourport, ufstat) == 0)
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return rd_reg(port, S3C2410_URXH);
 }
@@ -2233,7 +2233,7 @@ static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 	unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
 	unsigned int ucon = rd_regl(port, S3C2410_UCON);
 
-	/* not possible to xmit on unconfigured port */
+	/* analt possible to xmit on unconfigured port */
 	if (!s3c24xx_port_configured(ucon))
 		return;
 
@@ -2262,7 +2262,7 @@ s3c24xx_serial_console_write(struct console *co, const char *s,
 	unsigned long flags;
 	bool locked = true;
 
-	/* not possible to xmit on unconfigured port */
+	/* analt possible to xmit on unconfigured port */
 	if (!s3c24xx_port_configured(ucon))
 		return;
 
@@ -2322,12 +2322,12 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 			*parity = 'o';
 			break;
 
-		case S3C2410_LCON_PNONE:
+		case S3C2410_LCON_PANALNE:
 		default:
 			*parity = 'n';
 		}
 
-		/* now calculate the baud rate */
+		/* analw calculate the baud rate */
 
 		clk_sel = s3c24xx_serial_getsource(port);
 		sprintf(clk_name, "clk_uart_baud%d", clk_sel);
@@ -2363,7 +2363,7 @@ s3c24xx_serial_console_setup(struct console *co, char *options)
 	/* is the port configured? */
 
 	if (port->mapbase == 0x0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cons_uart = port;
 
@@ -2451,10 +2451,10 @@ static const struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 #define S5PV210_SERIAL_DRV_DATA	NULL
 #endif
 
-#if defined(CONFIG_ARCH_EXYNOS)
-#define EXYNOS_COMMON_SERIAL_DRV_DATA()				\
+#if defined(CONFIG_ARCH_EXYANALS)
+#define EXYANALS_COMMON_SERIAL_DRV_DATA()				\
 	.info = {						\
-		.name		= "Samsung Exynos UART",	\
+		.name		= "Samsung Exyanals UART",	\
 		.type		= TYPE_S3C6400,			\
 		.port_type	= PORT_S3C6400,			\
 		.has_divslot	= 1,				\
@@ -2475,18 +2475,18 @@ static const struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 		.has_fracval	= 1,				\
 	}							\
 
-static const struct s3c24xx_serial_drv_data exynos4210_serial_drv_data = {
-	EXYNOS_COMMON_SERIAL_DRV_DATA(),
+static const struct s3c24xx_serial_drv_data exyanals4210_serial_drv_data = {
+	EXYANALS_COMMON_SERIAL_DRV_DATA(),
 	.fifosize = { 256, 64, 16, 16 },
 };
 
-static const struct s3c24xx_serial_drv_data exynos5433_serial_drv_data = {
-	EXYNOS_COMMON_SERIAL_DRV_DATA(),
+static const struct s3c24xx_serial_drv_data exyanals5433_serial_drv_data = {
+	EXYANALS_COMMON_SERIAL_DRV_DATA(),
 	.fifosize = { 64, 256, 16, 256 },
 };
 
-static const struct s3c24xx_serial_drv_data exynos850_serial_drv_data = {
-	EXYNOS_COMMON_SERIAL_DRV_DATA(),
+static const struct s3c24xx_serial_drv_data exyanals850_serial_drv_data = {
+	EXYANALS_COMMON_SERIAL_DRV_DATA(),
 	.fifosize = { 256, 64, 64, 64 },
 };
 
@@ -2494,21 +2494,21 @@ static const struct s3c24xx_serial_drv_data exynos850_serial_drv_data = {
  * Common drv_data struct for platforms that specify samsung,uart-fifosize in
  * device tree.
  */
-static const struct s3c24xx_serial_drv_data exynos_fifoszdt_serial_drv_data = {
-	EXYNOS_COMMON_SERIAL_DRV_DATA(),
+static const struct s3c24xx_serial_drv_data exyanals_fifoszdt_serial_drv_data = {
+	EXYANALS_COMMON_SERIAL_DRV_DATA(),
 	.fifosize = { 0 },
 };
 
-#define EXYNOS4210_SERIAL_DRV_DATA (&exynos4210_serial_drv_data)
-#define EXYNOS5433_SERIAL_DRV_DATA (&exynos5433_serial_drv_data)
-#define EXYNOS850_SERIAL_DRV_DATA (&exynos850_serial_drv_data)
-#define EXYNOS_FIFOSZDT_DRV_DATA (&exynos_fifoszdt_serial_drv_data)
+#define EXYANALS4210_SERIAL_DRV_DATA (&exyanals4210_serial_drv_data)
+#define EXYANALS5433_SERIAL_DRV_DATA (&exyanals5433_serial_drv_data)
+#define EXYANALS850_SERIAL_DRV_DATA (&exyanals850_serial_drv_data)
+#define EXYANALS_FIFOSZDT_DRV_DATA (&exyanals_fifoszdt_serial_drv_data)
 
 #else
-#define EXYNOS4210_SERIAL_DRV_DATA NULL
-#define EXYNOS5433_SERIAL_DRV_DATA NULL
-#define EXYNOS850_SERIAL_DRV_DATA NULL
-#define EXYNOS_FIFOSZDT_DRV_DATA NULL
+#define EXYANALS4210_SERIAL_DRV_DATA NULL
+#define EXYANALS5433_SERIAL_DRV_DATA NULL
+#define EXYANALS850_SERIAL_DRV_DATA NULL
+#define EXYANALS_FIFOSZDT_DRV_DATA NULL
 #endif
 
 #ifdef CONFIG_ARCH_APPLE
@@ -2578,23 +2578,23 @@ static const struct platform_device_id s3c24xx_serial_driver_ids[] = {
 		.name		= "s5pv210-uart",
 		.driver_data	= (kernel_ulong_t)S5PV210_SERIAL_DRV_DATA,
 	}, {
-		.name		= "exynos4210-uart",
-		.driver_data	= (kernel_ulong_t)EXYNOS4210_SERIAL_DRV_DATA,
+		.name		= "exyanals4210-uart",
+		.driver_data	= (kernel_ulong_t)EXYANALS4210_SERIAL_DRV_DATA,
 	}, {
-		.name		= "exynos5433-uart",
-		.driver_data	= (kernel_ulong_t)EXYNOS5433_SERIAL_DRV_DATA,
+		.name		= "exyanals5433-uart",
+		.driver_data	= (kernel_ulong_t)EXYANALS5433_SERIAL_DRV_DATA,
 	}, {
 		.name		= "s5l-uart",
 		.driver_data	= (kernel_ulong_t)S5L_SERIAL_DRV_DATA,
 	}, {
-		.name		= "exynos850-uart",
-		.driver_data	= (kernel_ulong_t)EXYNOS850_SERIAL_DRV_DATA,
+		.name		= "exyanals850-uart",
+		.driver_data	= (kernel_ulong_t)EXYANALS850_SERIAL_DRV_DATA,
 	}, {
 		.name		= "artpec8-uart",
 		.driver_data	= (kernel_ulong_t)ARTPEC8_SERIAL_DRV_DATA,
 	}, {
 		.name		= "gs101-uart",
-		.driver_data	= (kernel_ulong_t)EXYNOS_FIFOSZDT_DRV_DATA,
+		.driver_data	= (kernel_ulong_t)EXYANALS_FIFOSZDT_DRV_DATA,
 	},
 	{ },
 };
@@ -2606,18 +2606,18 @@ static const struct of_device_id s3c24xx_uart_dt_match[] = {
 		.data = S3C6400_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,s5pv210-uart",
 		.data = S5PV210_SERIAL_DRV_DATA },
-	{ .compatible = "samsung,exynos4210-uart",
-		.data = EXYNOS4210_SERIAL_DRV_DATA },
-	{ .compatible = "samsung,exynos5433-uart",
-		.data = EXYNOS5433_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,exyanals4210-uart",
+		.data = EXYANALS4210_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,exyanals5433-uart",
+		.data = EXYANALS5433_SERIAL_DRV_DATA },
 	{ .compatible = "apple,s5l-uart",
 		.data = S5L_SERIAL_DRV_DATA },
-	{ .compatible = "samsung,exynos850-uart",
-		.data = EXYNOS850_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,exyanals850-uart",
+		.data = EXYANALS850_SERIAL_DRV_DATA },
 	{ .compatible = "axis,artpec8-uart",
 		.data = ARTPEC8_SERIAL_DRV_DATA },
 	{ .compatible = "google,gs101-uart",
-		.data = EXYNOS_FIFOSZDT_DRV_DATA },
+		.data = EXYANALS_FIFOSZDT_DRV_DATA },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c24xx_uart_dt_match);
@@ -2723,7 +2723,7 @@ static int samsung_early_read(struct console *con, char *s, unsigned int n)
 		if (!(ufstat & data->rxfifo_mask))
 			break;
 		ch = rd_reg(&dev->port, S3C2410_URXH);
-		if (ch == NO_POLL_CHAR)
+		if (ch == ANAL_POLL_CHAR)
 			break;
 
 		s[num_read++] = ch;
@@ -2736,7 +2736,7 @@ static int __init samsung_early_console_setup(struct earlycon_device *device,
 					      const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = samsung_early_write;
 	device->con->read = samsung_early_read;
@@ -2765,7 +2765,7 @@ static int __init s3c2440_early_console_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(s3c6400, "samsung,s3c6400-uart",
 			s3c2440_early_console_setup);
 
-/* S5PV210, Exynos */
+/* S5PV210, Exyanals */
 static struct samsung_early_console_data s5pv210_early_console_data = {
 	.txfull_mask = S5PV210_UFSTAT_TXFULL,
 	.rxfifo_mask = S5PV210_UFSTAT_RXFULL | S5PV210_UFSTAT_RXMASK,
@@ -2780,7 +2780,7 @@ static int __init s5pv210_early_console_setup(struct earlycon_device *device,
 
 OF_EARLYCON_DECLARE(s5pv210, "samsung,s5pv210-uart",
 			s5pv210_early_console_setup);
-OF_EARLYCON_DECLARE(exynos4210, "samsung,exynos4210-uart",
+OF_EARLYCON_DECLARE(exyanals4210, "samsung,exyanals4210-uart",
 			s5pv210_early_console_setup);
 OF_EARLYCON_DECLARE(artpec8, "axis,artpec8-uart",
 			s5pv210_early_console_setup);
@@ -2789,7 +2789,7 @@ OF_EARLYCON_DECLARE(artpec8, "axis,artpec8-uart",
 static int __init apple_s5l_early_console_setup(struct earlycon_device *device,
 						const char *opt)
 {
-	/* Close enough to S3C2410 for earlycon... */
+	/* Close eanalugh to S3C2410 for earlycon... */
 	device->port.private_data = &s3c2410_early_console_data;
 
 #ifdef CONFIG_ARM64

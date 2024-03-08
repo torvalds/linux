@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -47,20 +47,20 @@
  * These bits are compared to how pins 1-3 of the part are connected,
  * depending on the size of the part, more on that later.
  *
- * Note that of this wire format, a client is in control
+ * Analte that of this wire format, a client is in control
  * of, and needs to specify only XYZ, A15:A8, A7:0, bits,
  * which is exactly the EEPROM memory address, or offset,
  * in order to address up to 8 EEPROM devices on the I2C bus.
  *
  * For instance, a 2-Mbit I2C EEPROM part, addresses all its bytes,
  * using an 18-bit address, bit 17 to 0 and thus would use all but one bit of
- * the 19 bits previously mentioned. The designer would then not connect
+ * the 19 bits previously mentioned. The designer would then analt connect
  * pins 1 and 2, and pin 3 usually named "A_2" or "E2", would be connected to
  * either Vcc or GND. This would allow for up to two 2-Mbit parts on
  * the same bus, where one would be addressable with bit 18 as 1, and
  * the other with bit 18 of the address as 0.
  *
- * For a 2-Mbit part, bit 18 is usually known as the "Chip Enable" or
+ * For a 2-Mbit part, bit 18 is usually kanalwn as the "Chip Enable" or
  * "Hardware Address Bit". This bit is compared to the load on pin 3
  * of the device, described above, and if there is a match, then this
  * device responds to the command. This way, you can connect two
@@ -82,7 +82,7 @@
  * See also top of amdgpu_ras_eeprom.c.
  *
  * P.S. If you need to write, lock and read the Identification Page,
- * (M24M02-DR device only, which we do not use), change the "7" to
+ * (M24M02-DR device only, which we do analt use), change the "7" to
  * "0xF" in the macro below, and let the client set bit 20 to 1 in
  * "eeprom_addr", and set A10 to 0 to write into it, and A10 and A1 to
  * 1 to lock it permanently.
@@ -137,7 +137,7 @@ static int __amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
 						      EEPROM_PAGE_MASK),
 				  (u32)buf_size);
 		} else {
-			/* Reading from the EEPROM has no limitation
+			/* Reading from the EEPROM has anal limitation
 			 * on the number of bytes read from the EEPROM
 			 * device--they are simply sequenced out.
 			 */
@@ -156,7 +156,7 @@ static int __amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
 			/* According to EEPROM specs the length of the
 			 * self-writing cycle, tWR (tW), is 10 ms.
 			 *
-			 * TODO: Use polling on ACK, aka Acknowledge
+			 * TODO: Use polling on ACK, aka Ackanalwledge
 			 * Polling, to minimize waiting for the
 			 * internal write cycle to complete, as it is
 			 * usually smaller than tWR (tW).
@@ -176,7 +176,7 @@ static int __amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
  * @buf_size: the size of @eeprom_buf
  * @read: True if reading from the EEPROM, false if writing
  *
- * Returns the number of bytes read/written; -errno on error.
+ * Returns the number of bytes read/written; -erranal on error.
  */
 static int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
 			      u8 *eeprom_buf, u16 buf_size, bool read)

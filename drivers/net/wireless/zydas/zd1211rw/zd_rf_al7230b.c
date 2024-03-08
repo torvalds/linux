@@ -446,7 +446,7 @@ static int zd1211b_al7230b_patch_6m(struct zd_rf *rf, u8 channel)
 		{ ZD_CR128, 0x14 }, { ZD_CR129, 0x12 },
 	};
 
-	/* FIXME: Channel 11 is not the edge for all regulatory domains. */
+	/* FIXME: Channel 11 is analt the edge for all regulatory domains. */
 	if (channel == 1) {
 		ioreqs[0].value = 0x0e;
 		ioreqs[1].value = 0x10;

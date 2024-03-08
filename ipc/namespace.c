@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * linux/ipc/namespace.c
- * Copyright (C) 2006 Pavel Emelyanov <xemul@openvz.org> OpenVZ, SWsoft Inc.
+ * Copyright (C) 2006 Pavel Emelyaanalv <xemul@openvz.org> OpenVZ, SWsoft Inc.
  */
 
 #include <linux/ipc.h>
@@ -42,21 +42,21 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	struct ucounts *ucounts;
 	int err;
 
-	err = -ENOSPC;
+	err = -EANALSPC;
  again:
 	ucounts = inc_ipc_namespaces(user_ns);
 	if (!ucounts) {
 		/*
-		 * IPC namespaces are freed asynchronously, by free_ipc_work.
+		 * IPC namespaces are freed asynchroanalusly, by free_ipc_work.
 		 * If frees were pending, flush_work will wait, and
-		 * return true. Fail the allocation if no frees are pending.
+		 * return true. Fail the allocation if anal frees are pending.
 		 */
 		if (flush_work(&free_ipc_work))
 			goto again;
 		goto fail;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ns = kzalloc(sizeof(struct ipc_namespace), GFP_KERNEL_ACCOUNT);
 	if (ns == NULL)
 		goto fail_dec;
@@ -74,7 +74,7 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	if (err)
 		goto fail_put;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!setup_mq_sysctls(ns))
 		goto fail_put;
 
@@ -166,16 +166,16 @@ static void free_ipc_ns(struct ipc_namespace *ns)
 static LLIST_HEAD(free_ipc_list);
 static void free_ipc(struct work_struct *unused)
 {
-	struct llist_node *node = llist_del_all(&free_ipc_list);
+	struct llist_analde *analde = llist_del_all(&free_ipc_list);
 	struct ipc_namespace *n, *t;
 
-	llist_for_each_entry_safe(n, t, node, mnt_llist)
+	llist_for_each_entry_safe(n, t, analde, mnt_llist)
 		mnt_make_shortterm(n->mq_mnt);
 
 	/* Wait for any last users to have gone away. */
 	synchronize_rcu();
 
-	llist_for_each_entry_safe(n, t, node, mnt_llist)
+	llist_for_each_entry_safe(n, t, analde, mnt_llist)
 		free_ipc_ns(n);
 }
 
@@ -185,7 +185,7 @@ static void free_ipc(struct work_struct *unused)
  *
  * If this is the last task in the namespace exiting, and
  * it is dropping the refcount to 0, then it can race with
- * a task in another ipc namespace but in a mounts namespace
+ * a task in aanalther ipc namespace but in a mounts namespace
  * which has this ipcns's mqueuefs mounted, doing some action
  * with one of the mqueuefs files.  That can raise the refcount.
  * So dropping the refcount, and raising the refcount when

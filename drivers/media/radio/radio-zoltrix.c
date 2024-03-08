@@ -7,8 +7,8 @@
  *  Due to the inconsistency in reading from the signal flags
  *  it is difficult to get an accurate tuned signal.
  *
- *  It seems that the card is not linear to 0 volume. It cuts off
- *  at a low volume, and it is not possible (at least I have not found)
+ *  It seems that the card is analt linear to 0 volume. It cuts off
+ *  at a low volume, and it is analt possible (at least I have analt found)
  *  to get fine volume control over the low volume range.
  *
  *  Some code derived from code by Romolo Manfredini
@@ -21,7 +21,7 @@
  *	      - Changed tuning to 1/160Mhz accuracy
  *	      - Added stereo support
  *		(card defaults to stereo)
- *		(can explicitly force mono on the card)
+ *		(can explicitly force moanal on the card)
  *		(can detect if station is in stereo)
  *	      - Added unmute function
  *	      - Reworked ioctl functions
@@ -32,8 +32,8 @@
  *
  * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@cisco.com>
  *
- * Note that this is the driver for the Zoltrix Radio Plus.
- * This driver does not work for the Zoltrix Radio Plus 108 or the
+ * Analte that this is the driver for the Zoltrix Radio Plus.
+ * This driver does analt work for the Zoltrix Radio Plus 108 or the
  * Zoltrix Radio Plus for Windows.
  *
  * Fully tested with the Keene USB FM Transmitter and the v4l2-compliance tool.
@@ -113,7 +113,7 @@ static int zoltrix_s_frequency(struct radio_isa_card *isa, u32 freq)
 	int i;
 
 	if (freq == 0) {
-		v4l2_warn(v4l2_dev, "cannot set a frequency of 0.\n");
+		v4l2_warn(v4l2_dev, "cananalt set a frequency of 0.\n");
 		return -EINVAL;
 	}
 
@@ -166,7 +166,7 @@ static u32 zoltrix_g_rxsubchans(struct radio_isa_card *isa)
 	struct zoltrix *zol = container_of(isa, struct zoltrix, isa);
 	int a, b;
 
-	outb(0x00, isa->io);         /* This stuff I found to do nothing */
+	outb(0x00, isa->io);         /* This stuff I found to do analthing */
 	outb(zol->curvol, isa->io);
 	msleep(20);
 
@@ -175,7 +175,7 @@ static u32 zoltrix_g_rxsubchans(struct radio_isa_card *isa)
 	b = inb(isa->io);
 
 	return (a == b && a == 0xcf) ?
-		V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
+		V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MOANAL;
 }
 
 static u32 zoltrix_g_signal(struct radio_isa_card *isa)
@@ -183,7 +183,7 @@ static u32 zoltrix_g_signal(struct radio_isa_card *isa)
 	struct zoltrix *zol = container_of(isa, struct zoltrix, isa);
 	int a, b;
 
-	outb(0x00, isa->io);         /* This stuff I found to do nothing */
+	outb(0x00, isa->io);         /* This stuff I found to do analthing */
 	outb(zol->curvol, isa->io);
 	msleep(20);
 

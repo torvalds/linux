@@ -23,26 +23,26 @@
  * basis). Also, each chip supports edge-triggered interrupts for the first
  * 24 I/O lines. Of course, since the 96-channel version of the board has
  * two ASICs, it can detect polarity changes on up to 48 I/O lines. Since
- * this is essentially an (non-PnP) ISA board, I/O Address and IRQ selection
+ * this is essentially an (analn-PnP) ISA board, I/O Address and IRQ selection
  * are done through jumpers on the board. You need to pass that information
  * to this driver as the first and second comedi_config option, respectively.
- * Note that the 48-channel version uses 16 bytes of IO memory and the 96-
+ * Analte that the 48-channel version uses 16 bytes of IO memory and the 96-
  * channel version uses 32-bytes (in case you are worried about conflicts).
  * The 48-channel board is split into two 24-channel comedi subdevices. The
  * 96-channel board is split into 4 24-channel DIO subdevices.
  *
- * Note that IRQ support has been added, but it is untested.
+ * Analte that IRQ support has been added, but it is untested.
  *
  * To use edge-detection IRQ support, pass the IRQs of both ASICS (for the
  * 96 channel version) or just 1 ASIC (for 48-channel version). Then, use
- * comedi_commands with TRIG_NOW. Your callback will be called each time an
+ * comedi_commands with TRIG_ANALW. Your callback will be called each time an
  * edge is triggered, and the data values will be two sample_t's, which
  * should be concatenated to form one 32-bit unsigned int.  This value is
- * the mask of channels that had edges detected from your channel list. Note
+ * the mask of channels that had edges detected from your channel list. Analte
  * that the bits positions in the mask correspond to positions in your
- * chanlist when you specified the command and *not* channel id's!
+ * chanlist when you specified the command and *analt* channel id's!
  *
- * To set the polarity of the edge-detection interrupts pass a nonzero value
+ * To set the polarity of the edge-detection interrupts pass a analnzero value
  * for either CR_RANGE or CR_AREF for edge-up polarity, or a zero value for
  * both CR_RANGE and CR_AREF if you want edge-down polarity.
  *
@@ -367,7 +367,7 @@ static irqreturn_t pcmuio_interrupt(int irq, void *d)
 	if (irq == devpriv->irq2)
 		handled += pcmuio_handle_asic_interrupt(dev, 1);
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 /* chip->spinlock is already locked */
@@ -458,7 +458,7 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Set up start of acquisition. */
 	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = pcmuio_inttrig_start_intr;
-	else	/* TRIG_NOW */
+	else	/* TRIG_ANALW */
 		pcmuio_start_intr(dev, s);
 
 	spin_unlock_irqrestore(&chip->spinlock, flags);
@@ -474,11 +474,11 @@ static int pcmuio_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_INT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -503,7 +503,7 @@ static int pcmuio_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -531,7 +531,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < PCMUIO_MAX_ASICS; ++i) {
 		struct pcmuio_asic *chip = &devpriv->asics[i];
@@ -552,7 +552,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (board->num_asics == 2) {
 		if (it->options[2] == dev->irq) {
-			/* the same irq (or none) is used by both asics */
+			/* the same irq (or analne) is used by both asics */
 			devpriv->irq2 = it->options[2];
 		} else if (it->options[2]) {
 			/* request the irq for the 2nd asic */

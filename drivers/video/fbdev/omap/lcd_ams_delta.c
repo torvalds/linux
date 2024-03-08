@@ -4,7 +4,7 @@
  *
  * LCD panel support for the Amstrad E3 (Delta) videophone.
  *
- * Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
+ * Copyright (C) 2006 Jonathan McDowell <analodles@earth.li>
  */
 
 #include <linux/module.h>
@@ -170,6 +170,6 @@ static struct platform_driver ams_delta_panel_driver = {
 
 module_platform_driver(ams_delta_panel_driver);
 
-MODULE_AUTHOR("Jonathan McDowell <noodles@earth.li>");
+MODULE_AUTHOR("Jonathan McDowell <analodles@earth.li>");
 MODULE_DESCRIPTION("LCD panel support for the Amstrad E3 (Delta) videophone");
 MODULE_LICENSE("GPL");

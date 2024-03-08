@@ -101,7 +101,7 @@ static int simatic_ipc_leds_probe(struct platform_device *pdev)
 		}
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	while (ipcled->value) {

@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(inet6_ehashfn);
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
- * we need not check it for TCP lookups anymore, thanks Alexey. -DaveM
+ * we need analt check it for TCP lookups anymore, thanks Alexey. -DaveM
  *
  * The sockhash lock must be held as a reader here.
  */
@@ -56,7 +56,7 @@ struct sock *__inet6_lookup_established(struct net *net,
 					   const int dif, const int sdif)
 {
 	struct sock *sk;
-	const struct hlist_nulls_node *node;
+	const struct hlist_nulls_analde *analde;
 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
@@ -67,12 +67,12 @@ struct sock *__inet6_lookup_established(struct net *net,
 
 
 begin:
-	sk_nulls_for_each_rcu(sk, node, &head->chain) {
+	sk_nulls_for_each_rcu(sk, analde, &head->chain) {
 		if (sk->sk_hash != hash)
 			continue;
 		if (!inet6_match(net, sk, saddr, daddr, ports, dif, sdif))
 			continue;
-		if (unlikely(!refcount_inc_not_zero(&sk->sk_refcnt)))
+		if (unlikely(!refcount_inc_analt_zero(&sk->sk_refcnt)))
 			goto out;
 
 		if (unlikely(!inet6_match(net, sk, saddr, daddr, ports, dif, sdif))) {
@@ -81,7 +81,7 @@ begin:
 		}
 		goto found;
 	}
-	if (get_nulls_value(node) != slot)
+	if (get_nulls_value(analde) != slot)
 		goto begin;
 out:
 	sk = NULL;
@@ -156,10 +156,10 @@ static struct sock *inet6_lhash2_lookup(struct net *net,
 		const unsigned short hnum, const int dif, const int sdif)
 {
 	struct sock *sk, *result = NULL;
-	struct hlist_nulls_node *node;
+	struct hlist_nulls_analde *analde;
 	int score, hiscore = 0;
 
-	sk_nulls_for_each_rcu(sk, node, &ilb2->nulls_head) {
+	sk_nulls_for_each_rcu(sk, analde, &ilb2->nulls_head) {
 		score = compute_score(sk, net, hnum, daddr, dif, sdif);
 		if (score > hiscore) {
 			result = inet6_lookup_reuseport(net, sk, skb, doff,
@@ -185,11 +185,11 @@ struct sock *inet6_lookup_run_sk_lookup(struct net *net,
 					inet6_ehashfn_t *ehashfn)
 {
 	struct sock *sk, *reuse_sk;
-	bool no_reuseport;
+	bool anal_reuseport;
 
-	no_reuseport = bpf_sk_lookup_run_v6(net, protocol, saddr, sport,
+	anal_reuseport = bpf_sk_lookup_run_v6(net, protocol, saddr, sport,
 					    daddr, hnum, dif, &sk);
-	if (no_reuseport || IS_ERR_OR_NULL(sk))
+	if (anal_reuseport || IS_ERR_OR_NULL(sk))
 		return sk;
 
 	reuse_sk = inet6_lookup_reuseport(net, sk, skb, doff,
@@ -255,7 +255,7 @@ struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
 
 	sk = __inet6_lookup(net, hashinfo, skb, doff, saddr, sport, daddr,
 			    ntohs(dport), dif, 0, &refcounted);
-	if (sk && !refcounted && !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcounted && !refcount_inc_analt_zero(&sk->sk_refcnt))
 		sk = NULL;
 	return sk;
 }
@@ -278,12 +278,12 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
-	const struct hlist_nulls_node *node;
+	const struct hlist_nulls_analde *analde;
 	struct inet_timewait_sock *tw = NULL;
 
 	spin_lock(lock);
 
-	sk_nulls_for_each(sk2, node, &head->chain) {
+	sk_nulls_for_each(sk2, analde, &head->chain) {
 		if (sk2->sk_hash != hash)
 			continue;
 
@@ -294,20 +294,20 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 				if (twsk_unique(sk, sk2, twp))
 					break;
 			}
-			goto not_unique;
+			goto analt_unique;
 		}
 	}
 
-	/* Must record num and sport now. Otherwise we will see
+	/* Must record num and sport analw. Otherwise we will see
 	 * in hash table socket with a funny identity.
 	 */
 	inet->inet_num = lport;
 	inet->inet_sport = htons(lport);
 	sk->sk_hash = hash;
 	WARN_ON(!sk_unhashed(sk));
-	__sk_nulls_add_node_rcu(sk, &head->chain);
+	__sk_nulls_add_analde_rcu(sk, &head->chain);
 	if (tw) {
-		sk_nulls_del_node_init_rcu((struct sock *)tw);
+		sk_nulls_del_analde_init_rcu((struct sock *)tw);
 		__NET_INC_STATS(net, LINUX_MIB_TIMEWAITRECYCLED);
 	}
 	spin_unlock(lock);
@@ -321,9 +321,9 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	}
 	return 0;
 
-not_unique:
+analt_unique:
 	spin_unlock(lock);
-	return -EADDRNOTAVAIL;
+	return -EADDRANALTAVAIL;
 }
 
 static u64 inet6_sk_port_offset(const struct sock *sk)

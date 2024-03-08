@@ -45,14 +45,14 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"tx_bytes_nic", IXGBE_STAT(stats.gotc)},
 	{"lsc_int", IXGBE_STAT(lsc_int)},
 	{"tx_busy", IXGBE_STAT(tx_busy)},
-	{"non_eop_descs", IXGBE_STAT(non_eop_descs)},
+	{"analn_eop_descs", IXGBE_STAT(analn_eop_descs)},
 	{"rx_errors", IXGBE_NETDEV_STAT(rx_errors)},
 	{"tx_errors", IXGBE_NETDEV_STAT(tx_errors)},
 	{"rx_dropped", IXGBE_NETDEV_STAT(rx_dropped)},
 	{"tx_dropped", IXGBE_NETDEV_STAT(tx_dropped)},
 	{"multicast", IXGBE_NETDEV_STAT(multicast)},
 	{"broadcast", IXGBE_STAT(stats.bprc)},
-	{"rx_no_buffer_count", IXGBE_STAT(stats.rnbc[0]) },
+	{"rx_anal_buffer_count", IXGBE_STAT(stats.rnbc[0]) },
 	{"collisions", IXGBE_NETDEV_STAT(collisions)},
 	{"rx_over_errors", IXGBE_NETDEV_STAT(rx_over_errors)},
 	{"rx_crc_errors", IXGBE_NETDEV_STAT(rx_crc_errors)},
@@ -81,7 +81,7 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"alloc_rx_page", IXGBE_STAT(alloc_rx_page)},
 	{"alloc_rx_page_failed", IXGBE_STAT(alloc_rx_page_failed)},
 	{"alloc_rx_buff_failed", IXGBE_STAT(alloc_rx_buff_failed)},
-	{"rx_no_dma_resources", IXGBE_STAT(hw_rx_no_dma_resources)},
+	{"rx_anal_dma_resources", IXGBE_STAT(hw_rx_anal_dma_resources)},
 	{"os2bmc_rx_by_bmc", IXGBE_STAT(stats.o2bgptc)},
 	{"os2bmc_tx_by_bmc", IXGBE_STAT(stats.b2ospc)},
 	{"os2bmc_tx_by_host", IXGBE_STAT(stats.o2bspc)},
@@ -96,8 +96,8 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_fcoe_dropped", IXGBE_STAT(stats.fcoerpdc)},
 	{"rx_fcoe_packets", IXGBE_STAT(stats.fcoeprc)},
 	{"rx_fcoe_dwords", IXGBE_STAT(stats.fcoedwrc)},
-	{"fcoe_noddp", IXGBE_STAT(stats.fcoe_noddp)},
-	{"fcoe_noddp_ext_buff", IXGBE_STAT(stats.fcoe_noddp_ext_buff)},
+	{"fcoe_analddp", IXGBE_STAT(stats.fcoe_analddp)},
+	{"fcoe_analddp_ext_buff", IXGBE_STAT(stats.fcoe_analddp_ext_buff)},
 	{"tx_fcoe_packets", IXGBE_STAT(stats.fcoeptc)},
 	{"tx_fcoe_dwords", IXGBE_STAT(stats.fcoedwtc)},
 #endif /* IXGBE_FCOE */
@@ -105,7 +105,7 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 
 /* ixgbe allocates num_tx_queues and num_rx_queues symmetrically so
  * we set the num_rx_queues to evaluate to num_tx_queues. This is
- * used because we do not have a good way to get the max number of
+ * used because we do analt have a good way to get the max number of
  * rx queues with CONFIG_RPS disabled.
  */
 #define IXGBE_NUM_RX_QUEUES netdev->num_tx_queues
@@ -309,7 +309,7 @@ static int ixgbe_get_link_ksettings(struct net_device *netdev,
 	case ixgbe_phy_aq:
 	case ixgbe_phy_x550em_ext_t:
 	case ixgbe_phy_fw:
-	case ixgbe_phy_cu_unknown:
+	case ixgbe_phy_cu_unkanalwn:
 		ethtool_link_ksettings_add_link_mode(cmd, supported, TP);
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, TP);
 		cmd->base.port = PORT_TP;
@@ -321,15 +321,15 @@ static int ixgbe_get_link_ksettings(struct net_device *netdev,
 		break;
 	case ixgbe_phy_nl:
 	case ixgbe_phy_sfp_passive_tyco:
-	case ixgbe_phy_sfp_passive_unknown:
+	case ixgbe_phy_sfp_passive_unkanalwn:
 	case ixgbe_phy_sfp_ftl:
 	case ixgbe_phy_sfp_avago:
 	case ixgbe_phy_sfp_intel:
-	case ixgbe_phy_sfp_unknown:
-	case ixgbe_phy_qsfp_passive_unknown:
-	case ixgbe_phy_qsfp_active_unknown:
+	case ixgbe_phy_sfp_unkanalwn:
+	case ixgbe_phy_qsfp_passive_unkanalwn:
+	case ixgbe_phy_qsfp_active_unkanalwn:
 	case ixgbe_phy_qsfp_intel:
-	case ixgbe_phy_qsfp_unknown:
+	case ixgbe_phy_qsfp_unkanalwn:
 		/* SFP+ devices, further checking needed */
 		switch (adapter->hw.phy.sfp_type) {
 		case ixgbe_sfp_type_da_cu:
@@ -355,12 +355,12 @@ static int ixgbe_get_link_ksettings(struct net_device *netdev,
 							     FIBRE);
 			cmd->base.port = PORT_FIBRE;
 			break;
-		case ixgbe_sfp_type_not_present:
+		case ixgbe_sfp_type_analt_present:
 			ethtool_link_ksettings_add_link_mode(cmd, supported,
 							     FIBRE);
 			ethtool_link_ksettings_add_link_mode(cmd, advertising,
 							     FIBRE);
-			cmd->base.port = PORT_NONE;
+			cmd->base.port = PORT_ANALNE;
 			break;
 		case ixgbe_sfp_type_1g_cu_core0:
 		case ixgbe_sfp_type_1g_cu_core1:
@@ -370,7 +370,7 @@ static int ixgbe_get_link_ksettings(struct net_device *netdev,
 							     TP);
 			cmd->base.port = PORT_TP;
 			break;
-		case ixgbe_sfp_type_unknown:
+		case ixgbe_sfp_type_unkanalwn:
 		default:
 			ethtool_link_ksettings_add_link_mode(cmd, supported,
 							     FIBRE);
@@ -385,9 +385,9 @@ static int ixgbe_get_link_ksettings(struct net_device *netdev,
 						     FIBRE);
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     FIBRE);
-		cmd->base.port = PORT_NONE;
+		cmd->base.port = PORT_ANALNE;
 		break;
-	case ixgbe_phy_unknown:
+	case ixgbe_phy_unkanalwn:
 	case ixgbe_phy_generic:
 	case ixgbe_phy_sfp_unsupported:
 	default:
@@ -446,8 +446,8 @@ static int ixgbe_get_link_ksettings(struct net_device *netdev,
 		}
 		cmd->base.duplex = DUPLEX_FULL;
 	} else {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	return 0;
@@ -464,14 +464,14 @@ static int ixgbe_set_link_ksettings(struct net_device *netdev,
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
 	    (hw->phy.multispeed_fiber)) {
 		/*
-		 * this function does not support duplex forcing, but can
+		 * this function does analt support duplex forcing, but can
 		 * limit the advertising of the adapter to the specified speed
 		 */
 		if (!linkmode_subset(cmd->link_modes.advertising,
 				     cmd->link_modes.supported))
 			return -EINVAL;
 
-		/* only allow one speed at a time if no autoneg */
+		/* only allow one speed at a time if anal autoneg */
 		if (!cmd->base.autoneg && hw->phy.multispeed_fiber) {
 			if (ethtool_link_ksettings_test_link_mode(cmd, advertising,
 								  10000baseT_Full) &&
@@ -569,12 +569,12 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_fc_info fc = hw->fc;
 
-	/* 82598 does no support link flow control with DCB enabled */
+	/* 82598 does anal support link flow control with DCB enabled */
 	if ((hw->mac.type == ixgbe_mac_82598EB) &&
 	    (adapter->flags & IXGBE_FLAG_DCB_ENABLED))
 		return -EINVAL;
 
-	/* some devices do not support autoneg of link flow control */
+	/* some devices do analt support autoneg of link flow control */
 	if ((pause->autoneg == AUTONEG_ENABLE) &&
 	    !ixgbe_device_supports_autoneg_fc(hw))
 		return -EINVAL;
@@ -588,7 +588,7 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	else if (!pause->rx_pause && pause->tx_pause)
 		fc.requested_mode = ixgbe_fc_tx_pause;
 	else
-		fc.requested_mode = ixgbe_fc_none;
+		fc.requested_mode = ixgbe_fc_analne;
 
 	/* if the thing changed then we'll update and use new autoneg */
 	if (memcmp(&fc, &hw->fc, sizeof(struct ixgbe_fc_info))) {
@@ -930,7 +930,7 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[1069] = IXGBE_READ_REG(hw, IXGBE_ANLP2);
 	regs_buff[1070] = IXGBE_READ_REG(hw, IXGBE_ATLASCTL);
 
-	/* Diagnostic */
+	/* Diaganalstic */
 	regs_buff[1071] = IXGBE_READ_REG(hw, IXGBE_RDSTATCTL);
 	for (i = 0; i < 8; i++)
 		regs_buff[1072 + i] = IXGBE_READ_REG(hw, IXGBE_RDSTAT(i));
@@ -1016,7 +1016,7 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 
 	eeprom_buff = kmalloc_array(eeprom_len, sizeof(u16), GFP_KERNEL);
 	if (!eeprom_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret_val = hw->eeprom.ops.read_buffer(hw, first_word, eeprom_len,
 					     eeprom_buff);
@@ -1053,7 +1053,7 @@ static int ixgbe_set_eeprom(struct net_device *netdev,
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 	eeprom_buff = kmalloc(max_len, GFP_KERNEL);
 	if (!eeprom_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr = eeprom_buff;
 
@@ -1191,7 +1191,7 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 
 	if ((new_tx_count == adapter->tx_ring_count) &&
 	    (new_rx_count == adapter->rx_ring_count)) {
-		/* nothing to do */
+		/* analthing to do */
 		return 0;
 	}
 
@@ -1217,7 +1217,7 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 	temp_ring = vmalloc(array_size(i, sizeof(struct ixgbe_ring)));
 
 	if (!temp_ring) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto clear_reset;
 	}
 
@@ -1326,7 +1326,7 @@ static int ixgbe_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_PRIV_FLAGS:
 		return IXGBE_PRIV_FLAGS_STR_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1483,7 +1483,7 @@ struct ixgbe_reg_test {
 
 #define PATTERN_TEST	1
 #define SET_READ_TEST	2
-#define WRITE_NO_TEST	3
+#define WRITE_ANAL_TEST	3
 #define TABLE32_TEST	4
 #define TABLE64_TEST_LO	5
 #define TABLE64_TEST_HI	6
@@ -1497,9 +1497,9 @@ static const struct ixgbe_reg_test reg_test_82599[] = {
 	{ IXGBE_RDBAL(0), 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFF80 },
 	{ IXGBE_RDBAH(0), 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ IXGBE_RDLEN(0), 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
-	{ IXGBE_RXDCTL(0), 4, WRITE_NO_TEST, 0, IXGBE_RXDCTL_ENABLE },
+	{ IXGBE_RXDCTL(0), 4, WRITE_ANAL_TEST, 0, IXGBE_RXDCTL_ENABLE },
 	{ IXGBE_RDT(0), 4, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
-	{ IXGBE_RXDCTL(0), 4, WRITE_NO_TEST, 0, 0 },
+	{ IXGBE_RXDCTL(0), 4, WRITE_ANAL_TEST, 0, 0 },
 	{ IXGBE_FCRTH(0), 1, PATTERN_TEST, 0x8007FFF0, 0x8007FFF0 },
 	{ IXGBE_FCTTV(0), 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ IXGBE_TDBAL(0), 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
@@ -1522,10 +1522,10 @@ static const struct ixgbe_reg_test reg_test_82598[] = {
 	{ IXGBE_RDBAH(0), 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ IXGBE_RDLEN(0), 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
 	/* Enable all four RX queues before testing. */
-	{ IXGBE_RXDCTL(0), 4, WRITE_NO_TEST, 0, IXGBE_RXDCTL_ENABLE },
+	{ IXGBE_RXDCTL(0), 4, WRITE_ANAL_TEST, 0, IXGBE_RXDCTL_ENABLE },
 	/* RDH is read-only for 82598, only test RDT. */
 	{ IXGBE_RDT(0), 4, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
-	{ IXGBE_RXDCTL(0), 4, WRITE_NO_TEST, 0, 0 },
+	{ IXGBE_RXDCTL(0), 4, WRITE_ANAL_TEST, 0, 0 },
 	{ IXGBE_FCRTH(0), 1, PATTERN_TEST, 0x8007FFF0, 0x8007FFF0 },
 	{ IXGBE_FCTTV(0), 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ IXGBE_TIPG, 1, PATTERN_TEST, 0x000000FF, 0x000000FF },
@@ -1659,7 +1659,7 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 						      test->mask,
 						      test->write);
 				break;
-			case WRITE_NO_TEST:
+			case WRITE_ANAL_TEST:
 				ixgbe_write_reg(&adapter->hw,
 						test->reg + (i * 0x40),
 						test->write);
@@ -1723,7 +1723,7 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 
 	/* Hook up test interrupt handler just for this test */
 	if (adapter->msix_entries) {
-		/* NOTE: we don't test MSI-X interrupts here, yet */
+		/* ANALTE: we don't test MSI-X interrupts here, yet */
 		return 0;
 	} else if (adapter->flags & IXGBE_FLAG_MSI_ENABLED) {
 		shared_int = false;
@@ -1778,7 +1778,7 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 		/*
 		 * Enable the interrupt to be reported in the cause
 		 * register and then force the same interrupt and see
-		 * if one gets posted.  If an interrupt was not posted
+		 * if one gets posted.  If an interrupt was analt posted
 		 * to the bus, the test failed.
 		 */
 		adapter->test_icr = 0;
@@ -1828,8 +1828,8 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 
 static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 {
-	/* Shut down the DMA engines now so they can be reinitialized later,
-	 * since the test rings and normally used rings should overlap on
+	/* Shut down the DMA engines analw so they can be reinitialized later,
+	 * since the test rings and analrmally used rings should overlap on
 	 * queue 0 we can just use the standard disable Rx/Tx calls and they
 	 * will take care of disabling the test rings for us.
 	 */
@@ -1837,7 +1837,7 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 	/* first Rx */
 	ixgbe_disable_rx(adapter);
 
-	/* now Tx */
+	/* analw Tx */
 	ixgbe_disable_tx(adapter);
 
 	ixgbe_reset(adapter);
@@ -1892,7 +1892,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	err = ixgbe_setup_rx_resources(adapter, rx_ring);
 	if (err) {
 		ret_val = 4;
-		goto err_nomem;
+		goto err_analmem;
 	}
 
 	hw->mac.ops.disable_rx(hw);
@@ -1907,7 +1907,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 
 	return 0;
 
-err_nomem:
+err_analmem:
 	ixgbe_free_desc_rings(adapter);
 	return ret_val;
 }
@@ -2022,7 +2022,7 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 
 		tx_desc = IXGBE_TX_DESC(tx_ring, tx_ntc);
 
-		/* if DD is not set transmit has not completed */
+		/* if DD is analt set transmit has analt completed */
 		if (!(tx_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)))
 			return count;
 
@@ -2198,7 +2198,7 @@ static void ixgbe_diag_test(struct net_device *netdev,
 			int i;
 			for (i = 0; i < adapter->num_vfs; i++) {
 				if (adapter->vfinfo[i].clear_to_send) {
-					netdev_warn(netdev, "offline diagnostic is not supported when VFs are present\n");
+					netdev_warn(netdev, "offline diaganalstic is analt supported when VFs are present\n");
 					data[0] = 1;
 					data[1] = 1;
 					data[2] = 1;
@@ -2242,10 +2242,10 @@ static void ixgbe_diag_test(struct net_device *netdev,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		/* If SRIOV or VMDq is enabled then skip MAC
-		 * loopback diagnostic. */
+		 * loopback diaganalstic. */
 		if (adapter->flags & (IXGBE_FLAG_SRIOV_ENABLED |
 				      IXGBE_FLAG_VMDQ_ENABLED)) {
-			e_info(hw, "Skip MAC loopback diagnostic in VT mode\n");
+			e_info(hw, "Skip MAC loopback diaganalstic in VT mode\n");
 			data[3] = 0;
 			goto skip_loopback;
 		}
@@ -2287,7 +2287,7 @@ static int ixgbe_wol_exclusion(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	int retval = 0;
 
-	/* WOL not supported for all devices */
+	/* WOL analt supported for all devices */
 	if (!ixgbe_wol_supported(adapter, hw->device_id,
 				 hw->subsystem_device_id)) {
 		retval = 1;
@@ -2326,10 +2326,10 @@ static int ixgbe_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	if (wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE |
 			    WAKE_FILTER))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ixgbe_wol_exclusion(adapter, wol))
-		return wol->wolopts ? -EOPNOTSUPP : 0;
+		return wol->wolopts ? -EOPANALTSUPP : 0;
 
 	adapter->wol = 0;
 
@@ -2364,7 +2364,7 @@ static int ixgbe_set_phys_id(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	if (!hw->mac.ops.led_on || !hw->mac.ops.led_off)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
@@ -2422,7 +2422,7 @@ static bool ixgbe_update_rsc(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	/* nothing to do if LRO or RSC are not enabled */
+	/* analthing to do if LRO or RSC are analt enabled */
 	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) ||
 	    !(netdev->features & NETIF_F_LRO))
 		return false;
@@ -2432,7 +2432,7 @@ static bool ixgbe_update_rsc(struct ixgbe_adapter *adapter)
 	    adapter->rx_itr_setting > IXGBE_MIN_RSC_ITR) {
 		if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)) {
 			adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
-			e_info(probe, "rx-usecs value high enough to re-enable RSC\n");
+			e_info(probe, "rx-usecs value high eanalugh to re-enable RSC\n");
 			return true;
 		}
 	/* if interrupt rate is too high then disable RSC */
@@ -2535,14 +2535,14 @@ static int ixgbe_get_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 	union ixgbe_atr_input *mask = &adapter->fdir_mask;
 	struct ethtool_rx_flow_spec *fsp =
 		(struct ethtool_rx_flow_spec *)&cmd->fs;
-	struct hlist_node *node2;
+	struct hlist_analde *analde2;
 	struct ixgbe_fdir_filter *rule = NULL;
 
 	/* report total rule count */
 	cmd->data = (1024 << adapter->fdir_pballoc) - 2;
 
-	hlist_for_each_entry_safe(rule, node2,
-				  &adapter->fdir_filter_list, fdir_node) {
+	hlist_for_each_entry_safe(rule, analde2,
+				  &adapter->fdir_filter_list, fdir_analde) {
 		if (fsp->location <= rule->sw_idx)
 			break;
 	}
@@ -2602,15 +2602,15 @@ static int ixgbe_get_ethtool_fdir_all(struct ixgbe_adapter *adapter,
 				      struct ethtool_rxnfc *cmd,
 				      u32 *rule_locs)
 {
-	struct hlist_node *node2;
+	struct hlist_analde *analde2;
 	struct ixgbe_fdir_filter *rule;
 	int cnt = 0;
 
 	/* report total rule count */
 	cmd->data = (1024 << adapter->fdir_pballoc) - 2;
 
-	hlist_for_each_entry_safe(rule, node2,
-				  &adapter->fdir_filter_list, fdir_node) {
+	hlist_for_each_entry_safe(rule, analde2,
+				  &adapter->fdir_filter_list, fdir_analde) {
 		if (cnt == cmd->rule_cnt)
 			return -EMSGSIZE;
 		rule_locs[cnt] = rule->sw_idx;
@@ -2676,7 +2676,7 @@ static int ixgbe_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			   u32 *rule_locs)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -2709,16 +2709,16 @@ int ixgbe_update_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 				    u16 sw_idx)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	struct hlist_node *node2;
+	struct hlist_analde *analde2;
 	struct ixgbe_fdir_filter *rule, *parent;
 	int err = -EINVAL;
 
 	parent = NULL;
 	rule = NULL;
 
-	hlist_for_each_entry_safe(rule, node2,
-				  &adapter->fdir_filter_list, fdir_node) {
-		/* hash found, or no matching entry */
+	hlist_for_each_entry_safe(rule, analde2,
+				  &adapter->fdir_filter_list, fdir_analde) {
+		/* hash found, or anal matching entry */
 		if (rule->sw_idx >= sw_idx)
 			break;
 		parent = rule;
@@ -2733,26 +2733,26 @@ int ixgbe_update_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 								sw_idx);
 		}
 
-		hlist_del(&rule->fdir_node);
+		hlist_del(&rule->fdir_analde);
 		kfree(rule);
 		adapter->fdir_filter_count--;
 	}
 
 	/*
-	 * If no input this was a delete, err should be 0 if a rule was
+	 * If anal input this was a delete, err should be 0 if a rule was
 	 * successfully found and removed from the list else -EINVAL
 	 */
 	if (!input)
 		return err;
 
-	/* initialize node and set software index */
-	INIT_HLIST_NODE(&input->fdir_node);
+	/* initialize analde and set software index */
+	INIT_HLIST_ANALDE(&input->fdir_analde);
 
 	/* add filter to the list */
 	if (parent)
-		hlist_add_behind(&input->fdir_node, &parent->fdir_node);
+		hlist_add_behind(&input->fdir_analde, &parent->fdir_analde);
 	else
-		hlist_add_head(&input->fdir_node,
+		hlist_add_head(&input->fdir_analde,
 			       &adapter->fdir_filter_list);
 
 	/* update counts */
@@ -2814,7 +2814,7 @@ static int ixgbe_add_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 	int err;
 
 	if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* ring_cookie is a masked into a set of queues and ixgbe pools or
 	 * we use the drop index.
@@ -2848,7 +2848,7 @@ static int ixgbe_add_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 
 	input = kzalloc(sizeof(*input), GFP_ATOMIC);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&mask, 0, sizeof(union ixgbe_atr_input));
 
@@ -2954,7 +2954,7 @@ static int ixgbe_set_rss_hash_opt(struct ixgbe_adapter *adapter,
 	u32 flags2 = adapter->flags2;
 
 	/*
-	 * RSS does not support anything other than hashing
+	 * RSS does analt support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
@@ -3064,7 +3064,7 @@ static int ixgbe_set_rss_hash_opt(struct ixgbe_adapter *adapter,
 static int ixgbe_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -3132,9 +3132,9 @@ static int ixgbe_set_rxfh(struct net_device *netdev,
 	int i;
 	u32 reta_entries = ixgbe_rss_indir_tbl_entries(adapter);
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Fill out the redirection table */
 	if (rxfh->indir) {
@@ -3173,7 +3173,7 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 
 	/* we always support timestamping disabled */
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE);
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_X550:
@@ -3256,18 +3256,18 @@ static void ixgbe_get_channels(struct net_device *dev,
 
 	/* report info for other vector */
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-		ch->max_other = NON_Q_VECTORS;
-		ch->other_count = NON_Q_VECTORS;
+		ch->max_other = ANALN_Q_VECTORS;
+		ch->other_count = ANALN_Q_VECTORS;
 	}
 
 	/* record RSS queues */
 	ch->combined_count = adapter->ring_feature[RING_F_RSS].indices;
 
-	/* nothing else to report if RSS is disabled */
+	/* analthing else to report if RSS is disabled */
 	if (ch->combined_count == 1)
 		return;
 
-	/* we do not support ATR queueing if SR-IOV is enabled */
+	/* we do analt support ATR queueing if SR-IOV is enabled */
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
 		return;
 
@@ -3290,15 +3290,15 @@ static int ixgbe_set_channels(struct net_device *dev,
 	unsigned int count = ch->combined_count;
 	u8 max_rss_indices = ixgbe_max_rss_indices(adapter);
 
-	/* verify they are not requesting separate vectors */
+	/* verify they are analt requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
-	/* verify other_count has not changed */
-	if (ch->other_count != NON_Q_VECTORS)
+	/* verify other_count has analt changed */
+	if (ch->other_count != ANALN_Q_VECTORS)
 		return -EINVAL;
 
-	/* verify the number of channels does not exceed hardware limits */
+	/* verify the number of channels does analt exceed hardware limits */
 	if (count > ixgbe_max_channels(adapter))
 		return -EINVAL;
 
@@ -3333,14 +3333,14 @@ static int ixgbe_get_module_info(struct net_device *dev,
 	if (hw->phy.type == ixgbe_phy_fw)
 		return -ENXIO;
 
-	/* Check whether we support SFF-8472 or not */
+	/* Check whether we support SFF-8472 or analt */
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_SFF_8472_COMP,
 					     &sff8472_rev);
 	if (status)
 		return -EIO;
 
-	/* addressing mode is not supported */
+	/* addressing mode is analt supported */
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_SFF_8472_SWAP,
 					     &addr_mode);
@@ -3348,13 +3348,13 @@ static int ixgbe_get_module_info(struct net_device *dev,
 		return -EIO;
 
 	if (addr_mode & IXGBE_SFF_ADDRESSING_MODE) {
-		e_err(drv, "Address change required to access page 0xA2, but not supported. Please report the module type to the driver maintainers.\n");
+		e_err(drv, "Address change required to access page 0xA2, but analt supported. Please report the module type to the driver maintainers.\n");
 		page_swap = true;
 	}
 
 	if (sff8472_rev == IXGBE_SFF_SFF_8472_UNSUP || page_swap ||
 	    !(addr_mode & IXGBE_SFF_DDM_IMPLEMENTED)) {
-		/* We have a SFP, but it does not support SFF-8472 */
+		/* We have a SFP, but it does analt support SFF-8472 */
 		modinfo->type = ETH_MODULE_SFF_8079;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
 	} else {
@@ -3468,12 +3468,12 @@ static int ixgbe_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	if (!(adapter->flags2 & IXGBE_FLAG2_EEE_CAPABLE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (hw->phy.eee_speeds_supported && hw->phy.type == ixgbe_phy_fw)
 		return ixgbe_get_eee_fw(adapter, edata);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ixgbe_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
@@ -3484,7 +3484,7 @@ static int ixgbe_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
 	s32 ret_val;
 
 	if (!(adapter->flags2 & IXGBE_FLAG2_EEE_CAPABLE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&eee_data, 0, sizeof(struct ethtool_eee));
 
@@ -3494,19 +3494,19 @@ static int ixgbe_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
 
 	if (eee_data.eee_enabled && !edata->eee_enabled) {
 		if (eee_data.tx_lpi_enabled != edata->tx_lpi_enabled) {
-			e_err(drv, "Setting EEE tx-lpi is not supported\n");
+			e_err(drv, "Setting EEE tx-lpi is analt supported\n");
 			return -EINVAL;
 		}
 
 		if (eee_data.tx_lpi_timer != edata->tx_lpi_timer) {
 			e_err(drv,
-			      "Setting EEE Tx LPI timer is not supported\n");
+			      "Setting EEE Tx LPI timer is analt supported\n");
 			return -EINVAL;
 		}
 
 		if (eee_data.advertised != edata->advertised) {
 			e_err(drv,
-			      "Setting EEE advertised speeds is not supported\n");
+			      "Setting EEE advertised speeds is analt supported\n");
 			return -EINVAL;
 		}
 	}
@@ -3572,8 +3572,8 @@ static int ixgbe_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 			flags2 |= IXGBE_FLAG2_AUTO_DISABLE_VF;
 		} else {
 			e_info(probe,
-			       "Cannot set private flags: Operation not supported\n");
-			return -EOPNOTSUPP;
+			       "Cananalt set private flags: Operation analt supported\n");
+			return -EOPANALTSUPP;
 		}
 	}
 

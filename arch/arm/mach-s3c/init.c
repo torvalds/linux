@@ -7,7 +7,7 @@
 // S3C series CPU initialisation
 
 /*
- * NOTE: Code in this file is not used on S3C64xx when booting with
+ * ANALTE: Code in this file is analt used on S3C64xx when booting with
  * Device Tree support.
  */
 
@@ -46,14 +46,14 @@ void __init s3c_init_cpu(unsigned long idcode,
 	cpu = s3c_lookup_cpu(idcode, cputab, cputab_size);
 
 	if (cpu == NULL) {
-		printk(KERN_ERR "Unknown CPU type 0x%08lx\n", idcode);
-		panic("Unknown S3C24XX CPU");
+		printk(KERN_ERR "Unkanalwn CPU type 0x%08lx\n", idcode);
+		panic("Unkanalwn S3C24XX CPU");
 	}
 
 	printk("CPU %s (id 0x%08lx)\n", cpu->name, idcode);
 
 	if (cpu->init == NULL) {
-		printk(KERN_ERR "CPU %s support not enabled\n", cpu->name);
+		printk(KERN_ERR "CPU %s support analt enabled\n", cpu->name);
 		panic("Unsupported Samsung CPU");
 	}
 
@@ -82,7 +82,7 @@ static struct s3c2410_uartcfg uart_cfgs[CONFIG_SERIAL_SAMSUNG_UARTS];
 
 void __init s3c24xx_init_uartdevs(char *name,
 				  struct s3c24xx_uart_resources *res,
-				  struct s3c2410_uartcfg *cfg, int no)
+				  struct s3c2410_uartcfg *cfg, int anal)
 {
 #ifdef CONFIG_SERIAL_SAMSUNG_UARTS
 	struct platform_device *platdev;
@@ -90,9 +90,9 @@ void __init s3c24xx_init_uartdevs(char *name,
 	struct s3c24xx_uart_resources *resp;
 	int uart;
 
-	memcpy(cfgptr, cfg, sizeof(struct s3c2410_uartcfg) * no);
+	memcpy(cfgptr, cfg, sizeof(struct s3c2410_uartcfg) * anal);
 
-	for (uart = 0; uart < no; uart++, cfg++, cfgptr++) {
+	for (uart = 0; uart < anal; uart++, cfg++, cfgptr++) {
 		platdev = s3c24xx_uart_src[cfgptr->hwport];
 
 		resp = res + cfgptr->hwport;
@@ -106,19 +106,19 @@ void __init s3c24xx_init_uartdevs(char *name,
 		platdev->dev.platform_data = cfgptr;
 	}
 
-	nr_uarts = no;
+	nr_uarts = anal;
 #endif
 }
 
-void __init s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+void __init s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int anal)
 {
 	if (cpu == NULL)
 		return;
 
 	if (cpu->init_uarts == NULL && IS_ENABLED(CONFIG_SAMSUNG_ATAGS)) {
-		printk(KERN_ERR "s3c24xx_init_uarts: cpu has no uart init\n");
+		printk(KERN_ERR "s3c24xx_init_uarts: cpu has anal uart init\n");
 	} else
-		(cpu->init_uarts)(cfg, no);
+		(cpu->init_uarts)(cfg, anal);
 }
 #endif
 
@@ -133,7 +133,7 @@ static int __init s3c_arch_init(void)
 	// do the correct init for cpu
 
 	if (cpu == NULL) {
-		/* Not needed when booting with device tree. */
+		/* Analt needed when booting with device tree. */
 		if (of_have_populated_dt())
 			return 0;
 		panic("s3c_arch_init: NULL cpu\n");

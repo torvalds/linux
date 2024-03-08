@@ -10,11 +10,11 @@
 #include <linux/clk.h>
 
 /* Sharability attributes of MSM IOMMU mappings */
-#define MSM_IOMMU_ATTR_NON_SH		0x0
+#define MSM_IOMMU_ATTR_ANALN_SH		0x0
 #define MSM_IOMMU_ATTR_SH		0x4
 
 /* Cacheability attributes of MSM IOMMU mappings */
-#define MSM_IOMMU_ATTR_NONCACHED	0x0
+#define MSM_IOMMU_ATTR_ANALNCACHED	0x0
 #define MSM_IOMMU_ATTR_CACHED_WB_WA	0x1
 #define MSM_IOMMU_ATTR_CACHED_WB_NWA	0x2
 #define MSM_IOMMU_ATTR_CACHED_WT	0x3
@@ -23,10 +23,10 @@
 #define MSM_IOMMU_CP_MASK		0x03
 
 /* Maximum number of Machine IDs that we are allowing to be mapped to the same
- * context bank. The number of MIDs mapped to the same CB does not affect
+ * context bank. The number of MIDs mapped to the same CB does analt affect
  * performance, but there is a practical limit on how many distinct MIDs may
  * be present. These mappings are typically determined at design time and are
- * not expected to change at run time.
+ * analt expected to change at run time.
  */
 #define MAX_NUM_MIDS	32
 
@@ -40,8 +40,8 @@
  * irq:		Interrupt number
  * clk:		The bus clock for this IOMMU hardware instance
  * pclk:	The clock for the IOMMU bus interconnect
- * dev_node:	list head in qcom_iommu_device_list
- * dom_node:	list head for domain
+ * dev_analde:	list head in qcom_iommu_device_list
+ * dom_analde:	list head for domain
  * ctx_list:	list of 'struct msm_iommu_ctx_dev'
  * context_map: Bitmap to track allocated context banks
  */
@@ -52,8 +52,8 @@ struct msm_iommu_dev {
 	int irq;
 	struct clk *clk;
 	struct clk *pclk;
-	struct list_head dev_node;
-	struct list_head dom_node;
+	struct list_head dev_analde;
+	struct list_head dom_analde;
 	struct list_head ctx_list;
 	DECLARE_BITMAP(context_map, IOMMU_MAX_CBS);
 
@@ -62,17 +62,17 @@ struct msm_iommu_dev {
 
 /**
  * struct msm_iommu_ctx_dev - an IOMMU context bank instance
- * of_node	node ptr of client device
+ * of_analde	analde ptr of client device
  * num		Index of this context bank within the hardware
  * mids		List of Machine IDs that are to be mapped into this context
  *		bank, terminated by -1. The MID is a set of signals on the
  *		AXI bus that identifies the function associated with a specific
  *		memory request. (See ARM spec).
  * num_mids	Total number of mids
- * node		list head in ctx_list
+ * analde		list head in ctx_list
  */
 struct msm_iommu_ctx_dev {
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	int num;
 	int mids[MAX_NUM_MIDS];
 	int num_mids;
@@ -81,7 +81,7 @@ struct msm_iommu_ctx_dev {
 
 /*
  * Interrupt handler for the IOMMU context fault interrupt. Hooking the
- * interrupt is not supported in the API yet, but this will print an error
+ * interrupt is analt supported in the API yet, but this will print an error
  * message and dump useful IOMMU registers.
  */
 irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id);

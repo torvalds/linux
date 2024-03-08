@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung EXYANALS4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -25,7 +25,7 @@
 
 #include "fimc-is.h"
 #include "fimc-is-command.h"
-#include "fimc-is-errno.h"
+#include "fimc-is-erranal.h"
 #include "fimc-is-param.h"
 #include "fimc-is-regs.h"
 #include "fimc-is-sensor.h"
@@ -300,7 +300,7 @@ static void __maybe_unused __is_set_init_isp_aa(struct fimc_is *is)
 	isp->aa.touch_x = 0;
 	isp->aa.touch_y = 0;
 	isp->aa.manual_af_setting = 0;
-	isp->aa.err = ISP_AF_ERROR_NONE;
+	isp->aa.err = ISP_AF_ERROR_ANALNE;
 
 	fimc_is_set_param_bit(is, PARAM_ISP_AA);
 }
@@ -312,7 +312,7 @@ void __is_set_isp_flash(struct fimc_is *is, u32 cmd, u32 redeye)
 
 	isp->flash.cmd = cmd;
 	isp->flash.redeye = redeye;
-	isp->flash.err = ISP_FLASH_ERROR_NONE;
+	isp->flash.err = ISP_FLASH_ERROR_ANALNE;
 
 	fimc_is_set_param_bit(is, PARAM_ISP_FLASH);
 }
@@ -326,7 +326,7 @@ void __is_set_isp_awb(struct fimc_is *is, u32 cmd, u32 val)
 
 	isp->awb.cmd = cmd;
 	isp->awb.illumination = val;
-	isp->awb.err = ISP_AWB_ERROR_NONE;
+	isp->awb.err = ISP_AWB_ERROR_ANALNE;
 
 	fimc_is_set_param_bit(is, PARAM_ISP_AWB);
 }
@@ -339,7 +339,7 @@ void __is_set_isp_effect(struct fimc_is *is, u32 cmd)
 	isp = &is->config[index].isp;
 
 	isp->effect.cmd = cmd;
-	isp->effect.err = ISP_IMAGE_EFFECT_ERROR_NONE;
+	isp->effect.err = ISP_IMAGE_EFFECT_ERROR_ANALNE;
 
 	fimc_is_set_param_bit(is, PARAM_ISP_IMAGE_EFFECT);
 }
@@ -353,7 +353,7 @@ void __is_set_isp_iso(struct fimc_is *is, u32 cmd, u32 val)
 
 	isp->iso.cmd = cmd;
 	isp->iso.value = val;
-	isp->iso.err = ISP_ISO_ERROR_NONE;
+	isp->iso.err = ISP_ISO_ERROR_ANALNE;
 
 	fimc_is_set_param_bit(is, PARAM_ISP_ISO);
 }
@@ -398,7 +398,7 @@ void __is_set_isp_adjust(struct fimc_is *is, u32 cmd, u32 val)
 
 	if (!test_bit(PARAM_ISP_ADJUST, p_index)) {
 		isp->adjust.cmd = cmd;
-		isp->adjust.err = ISP_ADJUST_ERROR_NONE;
+		isp->adjust.err = ISP_ADJUST_ERROR_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_ISP_ADJUST);
 	} else {
 		isp->adjust.cmd |= cmd;
@@ -435,7 +435,7 @@ void __is_set_isp_metering(struct fimc_is *is, u32 id, u32 val)
 	}
 
 	if (!test_bit(PARAM_ISP_METERING, p_index)) {
-		isp->metering.err = ISP_METERING_ERROR_NONE;
+		isp->metering.err = ISP_METERING_ERROR_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_ISP_METERING);
 	}
 }
@@ -449,7 +449,7 @@ void __is_set_isp_afc(struct fimc_is *is, u32 cmd, u32 val)
 
 	isp->afc.cmd = cmd;
 	isp->afc.manual = val;
-	isp->afc.err = ISP_AFC_ERROR_NONE;
+	isp->afc.err = ISP_AFC_ERROR_ANALNE;
 
 	fimc_is_set_param_bit(is, PARAM_ISP_AFC);
 }
@@ -494,7 +494,7 @@ void __is_set_fd_config_maxface(struct fimc_is *is, u32 val)
 
 	if (!test_bit((PARAM_FD_CONFIG - 32), p_index)) {
 		fd->config.cmd = FD_CONFIG_COMMAND_MAXIMUM_NUMBER;
-		fd->config.err = ERROR_FD_NONE;
+		fd->config.err = ERROR_FD_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_FD_CONFIG);
 	} else {
 		fd->config.cmd |= FD_CONFIG_COMMAND_MAXIMUM_NUMBER;
@@ -514,7 +514,7 @@ void __is_set_fd_config_rollangle(struct fimc_is *is, u32 val)
 
 	if (!test_bit((PARAM_FD_CONFIG - 32), p_index)) {
 		fd->config.cmd = FD_CONFIG_COMMAND_ROLL_ANGLE;
-		fd->config.err = ERROR_FD_NONE;
+		fd->config.err = ERROR_FD_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_FD_CONFIG);
 	} else {
 		fd->config.cmd |= FD_CONFIG_COMMAND_ROLL_ANGLE;
@@ -534,7 +534,7 @@ void __is_set_fd_config_yawangle(struct fimc_is *is, u32 val)
 
 	if (!test_bit((PARAM_FD_CONFIG - 32), p_index)) {
 		fd->config.cmd = FD_CONFIG_COMMAND_YAW_ANGLE;
-		fd->config.err = ERROR_FD_NONE;
+		fd->config.err = ERROR_FD_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_FD_CONFIG);
 	} else {
 		fd->config.cmd |= FD_CONFIG_COMMAND_YAW_ANGLE;
@@ -554,7 +554,7 @@ void __is_set_fd_config_smilemode(struct fimc_is *is, u32 val)
 
 	if (!test_bit((PARAM_FD_CONFIG - 32), p_index)) {
 		fd->config.cmd = FD_CONFIG_COMMAND_SMILE_MODE;
-		fd->config.err = ERROR_FD_NONE;
+		fd->config.err = ERROR_FD_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_FD_CONFIG);
 	} else {
 		fd->config.cmd |= FD_CONFIG_COMMAND_SMILE_MODE;
@@ -574,7 +574,7 @@ void __is_set_fd_config_blinkmode(struct fimc_is *is, u32 val)
 
 	if (!test_bit((PARAM_FD_CONFIG - 32), p_index)) {
 		fd->config.cmd = FD_CONFIG_COMMAND_BLINK_MODE;
-		fd->config.err = ERROR_FD_NONE;
+		fd->config.err = ERROR_FD_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_FD_CONFIG);
 	} else {
 		fd->config.cmd |= FD_CONFIG_COMMAND_BLINK_MODE;
@@ -593,11 +593,11 @@ void __is_set_fd_config_eyedetect(struct fimc_is *is, u32 val)
 	fd->config.eye_detect = val;
 
 	if (!test_bit((PARAM_FD_CONFIG - 32), p_index)) {
-		fd->config.cmd = FD_CONFIG_COMMAND_EYES_DETECT;
-		fd->config.err = ERROR_FD_NONE;
+		fd->config.cmd = FD_CONFIG_COMMAND_EANAL_DETECT;
+		fd->config.err = ERROR_FD_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_FD_CONFIG);
 	} else {
-		fd->config.cmd |= FD_CONFIG_COMMAND_EYES_DETECT;
+		fd->config.cmd |= FD_CONFIG_COMMAND_EANAL_DETECT;
 	}
 }
 
@@ -614,7 +614,7 @@ void __is_set_fd_config_mouthdetect(struct fimc_is *is, u32 val)
 
 	if (!test_bit((PARAM_FD_CONFIG - 32), p_index)) {
 		fd->config.cmd = FD_CONFIG_COMMAND_MOUTH_DETECT;
-		fd->config.err = ERROR_FD_NONE;
+		fd->config.err = ERROR_FD_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_FD_CONFIG);
 	} else {
 		fd->config.cmd |= FD_CONFIG_COMMAND_MOUTH_DETECT;
@@ -634,7 +634,7 @@ void __is_set_fd_config_orientation(struct fimc_is *is, u32 val)
 
 	if (!test_bit((PARAM_FD_CONFIG - 32), p_index)) {
 		fd->config.cmd = FD_CONFIG_COMMAND_ORIENTATION;
-		fd->config.err = ERROR_FD_NONE;
+		fd->config.err = ERROR_FD_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_FD_CONFIG);
 	} else {
 		fd->config.cmd |= FD_CONFIG_COMMAND_ORIENTATION;
@@ -654,7 +654,7 @@ void __is_set_fd_config_orientation_val(struct fimc_is *is, u32 val)
 
 	if (!test_bit((PARAM_FD_CONFIG - 32), p_index)) {
 		fd->config.cmd = FD_CONFIG_COMMAND_ORIENTATION_VALUE;
-		fd->config.err = ERROR_FD_NONE;
+		fd->config.err = ERROR_FD_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_FD_CONFIG);
 	} else {
 		fd->config.cmd |= FD_CONFIG_COMMAND_ORIENTATION_VALUE;
@@ -684,7 +684,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	/* ISP */
 	isp->control.cmd = CONTROL_COMMAND_START;
 	isp->control.bypass = CONTROL_BYPASS_DISABLE;
-	isp->control.err = CONTROL_ERROR_NONE;
+	isp->control.err = CONTROL_ERROR_ANALNE;
 	fimc_is_set_param_bit(is, PARAM_ISP_CONTROL);
 
 	isp->otf_input.cmd = OTF_INPUT_COMMAND_ENABLE;
@@ -701,7 +701,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	isp->otf_input.order = OTF_INPUT_ORDER_BAYER_GR_BG;
 	isp->otf_input.crop_offset_x = 0;
 	isp->otf_input.crop_offset_y = 0;
-	isp->otf_input.err = OTF_INPUT_ERROR_NONE;
+	isp->otf_input.err = OTF_INPUT_ERROR_ANALNE;
 
 	isp->dma1_input.cmd = DMA_INPUT_COMMAND_DISABLE;
 	isp->dma1_input.width = 0;
@@ -712,7 +712,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	isp->dma1_input.order = 0;
 	isp->dma1_input.buffer_number = 0;
 	isp->dma1_input.width = 0;
-	isp->dma1_input.err = DMA_INPUT_ERROR_NONE;
+	isp->dma1_input.err = DMA_INPUT_ERROR_ANALNE;
 	fimc_is_set_param_bit(is, PARAM_ISP_DMA1_INPUT);
 
 	isp->dma2_input.cmd = DMA_INPUT_COMMAND_DISABLE;
@@ -724,7 +724,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	isp->dma2_input.order = 0;
 	isp->dma2_input.buffer_number = 0;
 	isp->dma2_input.width = 0;
-	isp->dma2_input.err = DMA_INPUT_ERROR_NONE;
+	isp->dma2_input.err = DMA_INPUT_ERROR_ANALNE;
 	fimc_is_set_param_bit(is, PARAM_ISP_DMA2_INPUT);
 
 	isp->aa.cmd = ISP_AA_COMMAND_START;
@@ -775,7 +775,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	isp->otf_output.format = OTF_OUTPUT_FORMAT_YUV444;
 	isp->otf_output.bitwidth = 12;
 	isp->otf_output.order = 0;
-	isp->otf_output.err = OTF_OUTPUT_ERROR_NONE;
+	isp->otf_output.err = OTF_OUTPUT_ERROR_ANALNE;
 
 	if (!test_bit(PARAM_ISP_DMA1_OUTPUT, p_index)) {
 		isp->dma1_output.cmd = DMA_OUTPUT_COMMAND_DISABLE;
@@ -787,9 +787,9 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 		isp->dma1_output.order = 0;
 		isp->dma1_output.buffer_number = 0;
 		isp->dma1_output.buffer_address = 0;
-		isp->dma1_output.notify_dma_done = 0;
+		isp->dma1_output.analtify_dma_done = 0;
 		isp->dma1_output.dma_out_mask = 0;
-		isp->dma1_output.err = DMA_OUTPUT_ERROR_NONE;
+		isp->dma1_output.err = DMA_OUTPUT_ERROR_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_ISP_DMA1_OUTPUT);
 	}
 
@@ -803,9 +803,9 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 		isp->dma2_output.order = 0;
 		isp->dma2_output.buffer_number = 0;
 		isp->dma2_output.buffer_address = 0;
-		isp->dma2_output.notify_dma_done = 0;
+		isp->dma2_output.analtify_dma_done = 0;
 		isp->dma2_output.dma_out_mask = 0;
-		isp->dma2_output.err = DMA_OUTPUT_ERROR_NONE;
+		isp->dma2_output.err = DMA_OUTPUT_ERROR_ANALNE;
 		fimc_is_set_param_bit(is, PARAM_ISP_DMA2_OUTPUT);
 	}
 
@@ -828,7 +828,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	drc->otf_input.format = OTF_INPUT_FORMAT_YUV444;
 	drc->otf_input.bitwidth = 12;
 	drc->otf_input.order = 0;
-	drc->otf_input.err = OTF_INPUT_ERROR_NONE;
+	drc->otf_input.err = OTF_INPUT_ERROR_ANALNE;
 
 	drc->dma_input.cmd = DMA_INPUT_COMMAND_DISABLE;
 	drc->dma_input.width = 0;
@@ -839,7 +839,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	drc->dma_input.order = 0;
 	drc->dma_input.buffer_number = 0;
 	drc->dma_input.width = 0;
-	drc->dma_input.err = DMA_INPUT_ERROR_NONE;
+	drc->dma_input.err = DMA_INPUT_ERROR_ANALNE;
 	fimc_is_set_param_bit(is, PARAM_DRC_DMA_INPUT);
 
 	drc->otf_output.cmd = OTF_OUTPUT_COMMAND_ENABLE;
@@ -851,7 +851,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	drc->otf_output.format = OTF_OUTPUT_FORMAT_YUV444;
 	drc->otf_output.bitwidth = 8;
 	drc->otf_output.order = 0;
-	drc->otf_output.err = OTF_OUTPUT_ERROR_NONE;
+	drc->otf_output.err = OTF_OUTPUT_ERROR_ANALNE;
 
 	/* FD */
 	__is_set_fd_control(is, CONTROL_COMMAND_STOP);
@@ -867,7 +867,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	fd->otf_input.format = OTF_INPUT_FORMAT_YUV444;
 	fd->otf_input.bitwidth = 8;
 	fd->otf_input.order = 0;
-	fd->otf_input.err = OTF_INPUT_ERROR_NONE;
+	fd->otf_input.err = OTF_INPUT_ERROR_ANALNE;
 
 	fd->dma_input.cmd = DMA_INPUT_COMMAND_DISABLE;
 	fd->dma_input.width = 0;
@@ -878,7 +878,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	fd->dma_input.order = 0;
 	fd->dma_input.buffer_number = 0;
 	fd->dma_input.width = 0;
-	fd->dma_input.err = DMA_INPUT_ERROR_NONE;
+	fd->dma_input.err = DMA_INPUT_ERROR_ANALNE;
 	fimc_is_set_param_bit(is, PARAM_FD_DMA_INPUT);
 
 	__is_set_fd_config_maxface(is, 5);
@@ -886,7 +886,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	__is_set_fd_config_yawangle(is, FD_CONFIG_YAW_ANGLE_45_90);
 	__is_set_fd_config_smilemode(is, FD_CONFIG_SMILE_MODE_DISABLE);
 	__is_set_fd_config_blinkmode(is, FD_CONFIG_BLINK_MODE_DISABLE);
-	__is_set_fd_config_eyedetect(is, FD_CONFIG_EYES_DETECT_ENABLE);
+	__is_set_fd_config_eyedetect(is, FD_CONFIG_EANAL_DETECT_ENABLE);
 	__is_set_fd_config_mouthdetect(is, FD_CONFIG_MOUTH_DETECT_DISABLE);
 	__is_set_fd_config_orientation(is, FD_CONFIG_ORIENTATION_DISABLE);
 	__is_set_fd_config_orientation_val(is, 0);

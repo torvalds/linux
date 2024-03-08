@@ -30,7 +30,7 @@ Description:
 		This attribute shows the request for an operation to be
 		executed in the pre-OS environment. It is the only input from
 		the OS to the pre-OS environment. The request should be an
-		integer value range from 1 to 160, and 0 means no request.
+		integer value range from 1 to 160, and 0 means anal request.
 		This file can be read and written.
 
 What:		/sys/class/tpm/tpmX/ppi/response

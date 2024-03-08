@@ -36,7 +36,7 @@ void bch2_lru_pos_to_text(struct printbuf *out, struct bpos lru)
 	prt_printf(out, "%llu:%llu -> %llu:%llu",
 		   lru_pos_id(lru),
 		   lru_pos_time(lru),
-		   u64_to_bucket(lru.offset).inode,
+		   u64_to_bucket(lru.offset).ianalde,
 		   u64_to_bucket(lru.offset).offset);
 }
 
@@ -96,8 +96,8 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 
 	if (fsck_err_on(!bch2_dev_bucket_exists(c, alloc_pos), c,
 			lru_entry_to_invalid_bucket,
-			"lru key points to nonexistent device:bucket %llu:%llu",
-			alloc_pos.inode, alloc_pos.offset))
+			"lru key points to analnexistent device:bucket %llu:%llu",
+			alloc_pos.ianalde, alloc_pos.offset))
 		return bch2_btree_delete_at(trans, lru_iter, 0);
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc, alloc_pos, 0);
@@ -151,7 +151,7 @@ int bch2_check_lrus(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 				BTREE_ID_lru, POS_MIN, BTREE_ITER_PREFETCH, k,
-				NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
+				NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc|BCH_TRANS_COMMIT_lazy_rw,
 			bch2_check_lru_key(trans, &iter, k, &last_flushed_pos)));
 	bch_err_fn(c, ret);
 	return ret;

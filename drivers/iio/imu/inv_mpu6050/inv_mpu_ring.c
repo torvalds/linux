@@ -86,8 +86,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		bytes_per_datum += INV_MPU9X50_BYTES_MAGN;
 
 	/*
-	 * read fifo_count register to know how many bytes are inside the FIFO
-	 * right now
+	 * read fifo_count register to kanalw how many bytes are inside the FIFO
+	 * right analw
 	 */
 	result = regmap_bulk_read(st->map, st->reg->fifo_count_h,
 				  st->data, INV_MPU6050_FIFO_COUNT_BYTE);
@@ -118,7 +118,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	memset(data, 0, sizeof(data));
 
 	/* read all data once and process every samples */
-	result = regmap_noinc_read(st->map, st->reg->fifo_r_w, st->data, fifo_count);
+	result = regmap_analinc_read(st->map, st->reg->fifo_r_w, st->data, fifo_count);
 	if (result)
 		goto flush_fifo;
 	for (i = 0; i < nb; ++i) {
@@ -134,7 +134,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 
 end_session:
 	mutex_unlock(&st->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 
@@ -142,7 +142,7 @@ flush_fifo:
 	/* Flush HW and SW FIFOs. */
 	inv_reset_fifo(indio_dev);
 	mutex_unlock(&st->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

@@ -74,7 +74,7 @@ static void __flush_context(void)
 		cntx = atomic_long_xchg_relaxed(&per_cpu(active_context, i), 0);
 		/*
 		 * If this CPU has already been through a rollover, but
-		 * hasn't run another task in the meantime, we must preserve
+		 * hasn't run aanalther task in the meantime, we must preserve
 		 * its reserved CONTEXT, as this is the only trace we have of
 		 * the process it is still running.
 		 */
@@ -151,7 +151,7 @@ static void set_mm_asid(struct mm_struct *mm, unsigned int cpu)
 	cntx = atomic_long_read(&mm->context.id);
 
 	/*
-	 * If our active_context is non-zero and the context matches the
+	 * If our active_context is analn-zero and the context matches the
 	 * current_version, then we update the active_context entry with a
 	 * relaxed cmpxchg.
 	 *
@@ -198,7 +198,7 @@ switch_mm_fast:
 		local_flush_tlb_all();
 }
 
-static void set_mm_noasid(struct mm_struct *mm)
+static void set_mm_analasid(struct mm_struct *mm)
 {
 	/* Switch the page table and blindly nuke entire local TLB */
 	csr_write(CSR_SATP, virt_to_pfn(mm->pgd) | satp_mode);
@@ -210,7 +210,7 @@ static inline void set_mm(struct mm_struct *prev,
 {
 	/*
 	 * The mm_cpumask indicates which harts' TLBs contain the virtual
-	 * address mapping of the mm. Compared to noasid, using asid
+	 * address mapping of the mm. Compared to analasid, using asid
 	 * can't guarantee that stale TLB entries are invalidated because
 	 * the asid mechanism wouldn't flush TLB for every switch_mm for
 	 * performance. So when using asid, keep all CPUs footmarks in
@@ -221,7 +221,7 @@ static inline void set_mm(struct mm_struct *prev,
 		set_mm_asid(next, cpu);
 	} else {
 		cpumask_clear_cpu(cpu, mm_cpumask(prev));
-		set_mm_noasid(next);
+		set_mm_analasid(next);
 	}
 }
 
@@ -279,17 +279,17 @@ early_initcall(asids_init);
 static inline void set_mm(struct mm_struct *prev,
 			  struct mm_struct *next, unsigned int cpu)
 {
-	/* Nothing to do here when there is no MMU */
+	/* Analthing to do here when there is anal MMU */
 }
 #endif
 
 /*
  * When necessary, performs a deferred icache flush for the given MM context,
- * on the local CPU.  RISC-V has no direct mechanism for instruction cache
+ * on the local CPU.  RISC-V has anal direct mechanism for instruction cache
  * shoot downs, so instead we send an IPI that informs the remote harts they
  * need to flush their local instruction caches.  To avoid pathologically slow
  * behavior in a common case (a bunch of single-hart processes on a many-hart
- * machine, ie 'make -j') we avoid the IPIs for harts that are not currently
+ * machine, ie 'make -j') we avoid the IPIs for harts that are analt currently
  * executing a MM context and instead schedule a deferred local instruction
  * cache flush to be performed before execution resumes on each hart.  This
  * actually performs that local instruction cache flush, which implicitly only

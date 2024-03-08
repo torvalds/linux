@@ -7,7 +7,7 @@
  * Written by Koji Sato.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "nilfs.h"
 #include "page.h"
 #include "direct.h"
@@ -17,7 +17,7 @@
 static inline __le64 *nilfs_direct_dptrs(const struct nilfs_bmap *direct)
 {
 	return (__le64 *)
-		((struct nilfs_direct_node *)direct->b_u.u_data + 1);
+		((struct nilfs_direct_analde *)direct->b_u.u_data + 1);
 }
 
 static inline __u64
@@ -38,10 +38,10 @@ static int nilfs_direct_lookup(const struct nilfs_bmap *direct,
 	__u64 ptr;
 
 	if (key > NILFS_DIRECT_KEY_MAX || level != 1)
-		return -ENOENT;
+		return -EANALENT;
 	ptr = nilfs_direct_get_ptr(direct, key);
 	if (ptr == NILFS_BMAP_INVALID_PTR)
-		return -ENOENT;
+		return -EANALENT;
 
 	*ptrp = ptr;
 	return 0;
@@ -51,16 +51,16 @@ static int nilfs_direct_lookup_contig(const struct nilfs_bmap *direct,
 				      __u64 key, __u64 *ptrp,
 				      unsigned int maxblocks)
 {
-	struct inode *dat = NULL;
+	struct ianalde *dat = NULL;
 	__u64 ptr, ptr2;
 	sector_t blocknr;
 	int ret, cnt;
 
 	if (key > NILFS_DIRECT_KEY_MAX)
-		return -ENOENT;
+		return -EANALENT;
 	ptr = nilfs_direct_get_ptr(direct, key);
 	if (ptr == NILFS_BMAP_INVALID_PTR)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (NILFS_BMAP_USE_VBN(direct)) {
 		dat = nilfs_bmap_get_dat(direct);
@@ -106,12 +106,12 @@ nilfs_direct_find_target_v(const struct nilfs_bmap *direct, __u64 key)
 static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 {
 	union nilfs_bmap_ptr_req req;
-	struct inode *dat = NULL;
+	struct ianalde *dat = NULL;
 	struct buffer_head *bh;
 	int ret;
 
 	if (key > NILFS_DIRECT_KEY_MAX)
-		return -ENOENT;
+		return -EANALENT;
 	if (nilfs_direct_get_ptr(bmap, key) != NILFS_BMAP_INVALID_PTR)
 		return -EEXIST;
 
@@ -134,7 +134,7 @@ static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 		if (NILFS_BMAP_USE_VBN(bmap))
 			nilfs_bmap_set_target_v(bmap, key, req.bpr_ptr);
 
-		nilfs_inode_add_blocks(bmap->b_inode, 1);
+		nilfs_ianalde_add_blocks(bmap->b_ianalde, 1);
 	}
 	return ret;
 }
@@ -142,12 +142,12 @@ static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 static int nilfs_direct_delete(struct nilfs_bmap *bmap, __u64 key)
 {
 	union nilfs_bmap_ptr_req req;
-	struct inode *dat;
+	struct ianalde *dat;
 	int ret;
 
 	if (key > NILFS_DIRECT_KEY_MAX ||
 	    nilfs_direct_get_ptr(bmap, key) == NILFS_BMAP_INVALID_PTR)
-		return -ENOENT;
+		return -EANALENT;
 
 	dat = NILFS_BMAP_USE_VBN(bmap) ? nilfs_bmap_get_dat(bmap) : NULL;
 	req.bpr_ptr = nilfs_direct_get_ptr(bmap, key);
@@ -156,7 +156,7 @@ static int nilfs_direct_delete(struct nilfs_bmap *bmap, __u64 key)
 	if (!ret) {
 		nilfs_bmap_commit_end_ptr(bmap, &req, dat);
 		nilfs_direct_set_ptr(bmap, key, NILFS_BMAP_INVALID_PTR);
-		nilfs_inode_sub_blocks(bmap->b_inode, 1);
+		nilfs_ianalde_sub_blocks(bmap->b_ianalde, 1);
 	}
 	return ret;
 }
@@ -173,7 +173,7 @@ static int nilfs_direct_seek_key(const struct nilfs_bmap *direct, __u64 start,
 			return 0;
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int nilfs_direct_last_key(const struct nilfs_bmap *direct, __u64 *keyp)
@@ -187,7 +187,7 @@ static int nilfs_direct_last_key(const struct nilfs_bmap *direct, __u64 *keyp)
 			lastkey = key;
 
 	if (lastkey == NILFS_DIRECT_KEY_MAX + 1)
-		return -ENOENT;
+		return -EANALENT;
 
 	*keyp = lastkey;
 
@@ -226,7 +226,7 @@ int nilfs_direct_delete_and_convert(struct nilfs_bmap *bmap,
 	__le64 *dptrs;
 	int ret, i, j;
 
-	/* no need to allocate any resource for conversion */
+	/* anal need to allocate any resource for conversion */
 
 	/* delete */
 	ret = bmap->b_ops->bop_delete(bmap, key);
@@ -257,7 +257,7 @@ static int nilfs_direct_propagate(struct nilfs_bmap *bmap,
 				  struct buffer_head *bh)
 {
 	struct nilfs_palloc_req oldreq, newreq;
-	struct inode *dat;
+	struct ianalde *dat;
 	__u64 key;
 	__u64 ptr;
 	int ret;
@@ -290,7 +290,7 @@ static int nilfs_direct_assign_v(struct nilfs_bmap *direct,
 				 sector_t blocknr,
 				 union nilfs_binfo *binfo)
 {
-	struct inode *dat = nilfs_bmap_get_dat(direct);
+	struct ianalde *dat = nilfs_bmap_get_dat(direct);
 	union nilfs_bmap_ptr_req req;
 	int ret;
 
@@ -329,18 +329,18 @@ static int nilfs_direct_assign(struct nilfs_bmap *bmap,
 
 	key = nilfs_bmap_data_get_key(bmap, *bh);
 	if (unlikely(key > NILFS_DIRECT_KEY_MAX)) {
-		nilfs_crit(bmap->b_inode->i_sb,
-			   "%s (ino=%lu): invalid key: %llu",
+		nilfs_crit(bmap->b_ianalde->i_sb,
+			   "%s (ianal=%lu): invalid key: %llu",
 			   __func__,
-			   bmap->b_inode->i_ino, (unsigned long long)key);
+			   bmap->b_ianalde->i_ianal, (unsigned long long)key);
 		return -EINVAL;
 	}
 	ptr = nilfs_direct_get_ptr(bmap, key);
 	if (unlikely(ptr == NILFS_BMAP_INVALID_PTR)) {
-		nilfs_crit(bmap->b_inode->i_sb,
-			   "%s (ino=%lu): invalid pointer: %llu",
+		nilfs_crit(bmap->b_ianalde->i_sb,
+			   "%s (ianal=%lu): invalid pointer: %llu",
 			   __func__,
-			   bmap->b_inode->i_ino, (unsigned long long)ptr);
+			   bmap->b_ianalde->i_ianal, (unsigned long long)ptr);
 		return -EINVAL;
 	}
 

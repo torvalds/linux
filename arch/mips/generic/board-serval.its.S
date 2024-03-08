@@ -6,7 +6,7 @@
 			data = /incbin/("boot/dts/mscc/serval_pcb105.dtb");
 			type = "flat_dt";
 			arch = "mips";
-			compression = "none";
+			compression = "analne";
 			hash {
 				algo = "sha1";
 			};

@@ -97,7 +97,7 @@ static const int bmi088_sample_freqs[] = {
 
 /* Available OSR (over sampling rate) sets the 3dB cut-off frequency */
 enum bmi088_osr_modes {
-	BMI088_ACCEL_MODE_OSR_NORMAL = 0xA,
+	BMI088_ACCEL_MODE_OSR_ANALRMAL = 0xA,
 	BMI088_ACCEL_MODE_OSR_2 = 0x9,
 	BMI088_ACCEL_MODE_OSR_4 = 0x8,
 };
@@ -141,8 +141,8 @@ static const struct regmap_range bmi088_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table bmi088_volatile_table = {
-	.yes_ranges	= bmi088_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bmi088_volatile_ranges),
+	.anal_ranges	= bmi088_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(bmi088_volatile_ranges),
 };
 
 const struct regmap_config bmi088_regmap_conf = {
@@ -507,14 +507,14 @@ static int bmi088_accel_chip_init(struct bmi088_accel_data *data, enum bmi_devic
 	int ret, i;
 	unsigned int val;
 
-	if (type >= BOSCH_UNKNOWN)
-		return -ENODEV;
+	if (type >= BOSCH_UNKANALWN)
+		return -EANALDEV;
 
 	/* Do a dummy read to enable SPI interface, won't harm I2C */
 	regmap_read(data->regmap, BMI088_ACCEL_REG_INT_STATUS, &val);
 
 	/*
-	 * Reset chip to get it in a known good state. A delay of 1ms after
+	 * Reset chip to get it in a kanalwn good state. A delay of 1ms after
 	 * reset is required according to the data sheet
 	 */
 	ret = regmap_write(data->regmap, BMI088_ACCEL_REG_RESET,
@@ -559,7 +559,7 @@ int bmi088_accel_core_probe(struct device *dev, struct regmap *regmap,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
@@ -578,7 +578,7 @@ int bmi088_accel_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->info = &bmi088_accel_info;
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_enable(dev);
 	/* We need ~6ms to startup, so set the delay to 6 seconds */

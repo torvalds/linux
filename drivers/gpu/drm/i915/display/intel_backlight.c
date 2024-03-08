@@ -24,7 +24,7 @@
 #include "intel_quirks.h"
 
 /**
- * scale - scale values from one range to another
+ * scale - scale values from one range to aanalther
  * @source_val: value in range [@source_min..@source_max]
  * @source_min: minimum legal value for @source_val
  * @source_max: maximum legal value for @source_val
@@ -441,10 +441,10 @@ void intel_backlight_disable(const struct drm_connector_state *old_conn_state)
 		return;
 
 	/*
-	 * Do not disable backlight on the vga_switcheroo path. When switching
+	 * Do analt disable backlight on the vga_switcheroo path. When switching
 	 * away from i915, the other client may depend on i915 to handle the
 	 * backlight. This will leave the backlight on unnecessarily when
-	 * another client is not activated.
+	 * aanalther client is analt activated.
 	 */
 	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_CHANGING) {
 		drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] Skipping backlight disable on vga switch\n",
@@ -864,7 +864,7 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 
 	/*
 	 * Allow flipping bl_power as a sub-state of enabled. Sadly the
-	 * backlight class device does not make it easy to differentiate
+	 * backlight class device does analt make it easy to differentiate
 	 * between callbacks for brightness and bl_power, so our backlight_power
 	 * callback needs to take this into account.
 	 */
@@ -920,7 +920,7 @@ int intel_backlight_device_register(struct intel_connector *connector)
 	int ret = 0;
 
 	if (WARN_ON(panel->backlight.device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!panel->backlight.present)
 		return 0;
@@ -936,7 +936,7 @@ int intel_backlight_device_register(struct intel_connector *connector)
 	props.type = BACKLIGHT_RAW;
 
 	/*
-	 * Note: Everything should work even if the backlight device max
+	 * Analte: Everything should work even if the backlight device max
 	 * presented to the userspace is arbitrarily chosen.
 	 */
 	props.max_brightness = panel->backlight.max;
@@ -951,7 +951,7 @@ int intel_backlight_device_register(struct intel_connector *connector)
 
 	name = kstrdup("intel_backlight", GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bd = backlight_device_get_by_name(name);
 	if (bd) {
@@ -967,7 +967,7 @@ int intel_backlight_device_register(struct intel_connector *connector)
 		name = kasprintf(GFP_KERNEL, "card%d-%s-backlight",
 				 i915->drm.primary->index, connector->base.name);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	bd = backlight_device_register(name, connector->base.kdev, connector,
 				       &intel_backlight_device_ops, &props);
@@ -1168,7 +1168,7 @@ static u32 get_backlight_max_vbt(struct intel_connector *connector)
 
 	if (!panel->backlight.pwm_funcs->hz_to_pwm) {
 		drm_dbg_kms(&i915->drm,
-			    "backlight frequency conversion not supported\n");
+			    "backlight frequency conversion analt supported\n");
 		return 0;
 	}
 
@@ -1183,7 +1183,7 @@ static u32 get_backlight_max_vbt(struct intel_connector *connector)
 }
 
 /*
- * Note: The setup hooks can't assume pipe is set!
+ * Analte: The setup hooks can't assume pipe is set!
  */
 static u32 get_backlight_min_vbt(struct intel_connector *connector)
 {
@@ -1236,7 +1236,7 @@ static int lpt_setup_backlight(struct intel_connector *connector, enum pipe unus
 		panel->backlight.pwm_level_max = get_backlight_max_vbt(connector);
 
 	if (!panel->backlight.pwm_level_max)
-		return -ENODEV;
+		return -EANALDEV;
 
 	panel->backlight.pwm_level_min = get_backlight_min_vbt(connector);
 
@@ -1284,7 +1284,7 @@ static int pch_setup_backlight(struct intel_connector *connector, enum pipe unus
 		panel->backlight.pwm_level_max = get_backlight_max_vbt(connector);
 
 	if (!panel->backlight.pwm_level_max)
-		return -ENODEV;
+		return -EANALDEV;
 
 	panel->backlight.pwm_level_min = get_backlight_min_vbt(connector);
 
@@ -1321,7 +1321,7 @@ static int i9xx_setup_backlight(struct intel_connector *connector, enum pipe unu
 	}
 
 	if (!panel->backlight.pwm_level_max)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (panel->backlight.combination_mode)
 		panel->backlight.pwm_level_max *= 0xff;
@@ -1358,7 +1358,7 @@ static int i965_setup_backlight(struct intel_connector *connector, enum pipe unu
 		panel->backlight.pwm_level_max = get_backlight_max_vbt(connector);
 
 	if (!panel->backlight.pwm_level_max)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (panel->backlight.combination_mode)
 		panel->backlight.pwm_level_max *= 0xff;
@@ -1381,7 +1381,7 @@ static int vlv_setup_backlight(struct intel_connector *connector, enum pipe pipe
 	u32 ctl, ctl2;
 
 	if (drm_WARN_ON(&i915->drm, pipe != PIPE_A && pipe != PIPE_B))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctl2 = intel_de_read(i915, VLV_BLC_PWM_CTL2(pipe));
 	panel->backlight.active_low_pwm = ctl2 & BLM_POLARITY_I965;
@@ -1393,7 +1393,7 @@ static int vlv_setup_backlight(struct intel_connector *connector, enum pipe pipe
 		panel->backlight.pwm_level_max = get_backlight_max_vbt(connector);
 
 	if (!panel->backlight.pwm_level_max)
-		return -ENODEV;
+		return -EANALDEV;
 
 	panel->backlight.pwm_level_min = get_backlight_min_vbt(connector);
 
@@ -1433,7 +1433,7 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 		panel->backlight.pwm_level_max = get_backlight_max_vbt(connector);
 
 	if (!panel->backlight.pwm_level_max)
-		return -ENODEV;
+		return -EANALDEV;
 
 	panel->backlight.pwm_level_min = get_backlight_min_vbt(connector);
 
@@ -1501,7 +1501,7 @@ cnp_setup_backlight(struct intel_connector *connector, enum pipe unused)
 		panel->backlight.pwm_level_max = get_backlight_max_vbt(connector);
 
 	if (!panel->backlight.pwm_level_max)
-		return -ENODEV;
+		return -EANALDEV;
 
 	panel->backlight.pwm_level_min = get_backlight_min_vbt(connector);
 
@@ -1536,7 +1536,7 @@ static int ext_pwm_setup_backlight(struct intel_connector *connector,
 		drm_err(&i915->drm, "[CONNECTOR:%d:%s] Failed to get the %s PWM chip\n",
 			connector->base.base.id, connector->base.name, desc);
 		panel->backlight.pwm = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	panel->backlight.pwm_level_max = 100; /* 100% */
@@ -1649,11 +1649,11 @@ int intel_backlight_setup(struct intel_connector *connector, enum pipe pipe)
 	if (!connector->panel.vbt.backlight.present) {
 		if (intel_has_quirk(i915, QUIRK_BACKLIGHT_PRESENT)) {
 			drm_dbg_kms(&i915->drm,
-				    "[CONNECTOR:%d:%s] no backlight present per VBT, but present per quirk\n",
+				    "[CONNECTOR:%d:%s] anal backlight present per VBT, but present per quirk\n",
 				    connector->base.base.id, connector->base.name);
 		} else {
 			drm_dbg_kms(&i915->drm,
-				    "[CONNECTOR:%d:%s] no backlight present per VBT\n",
+				    "[CONNECTOR:%d:%s] anal backlight present per VBT\n",
 				    connector->base.base.id, connector->base.name);
 			return 0;
 		}
@@ -1661,7 +1661,7 @@ int intel_backlight_setup(struct intel_connector *connector, enum pipe pipe)
 
 	/* ensure intel_panel has been initialized first */
 	if (drm_WARN_ON(&i915->drm, !panel->backlight.funcs))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* set level and max in panel struct */
 	mutex_lock(&i915->display.backlight.lock);
@@ -1821,7 +1821,7 @@ void intel_backlight_init_funcs(struct intel_panel *panel)
 		if (intel_dp_aux_init_backlight_funcs(connector) == 0)
 			return;
 
-		if (!intel_has_quirk(i915, QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK))
+		if (!intel_has_quirk(i915, QUIRK_ANAL_PPS_BACKLIGHT_POWER_HOOK))
 			connector->panel.backlight.power = intel_pps_backlight_power;
 	}
 

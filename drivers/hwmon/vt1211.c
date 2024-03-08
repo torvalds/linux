@@ -45,7 +45,7 @@ static struct platform_device *pdev;
  *
  * The sensors are defined as follows.
  *
- * Sensor          Voltage Mode   Temp Mode   Notes (from the datasheet)
+ * Sensor          Voltage Mode   Temp Mode   Analtes (from the datasheet)
  * --------        ------------   ---------   --------------------------
  * Reading 1                      temp1       Intel thermal diode
  * Reading 3                      temp2       Internal thermal diode
@@ -356,7 +356,7 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkanalwn attr fetch (%d)\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -388,7 +388,7 @@ static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 		vt1211_write8(data, VT1211_REG_IN_MAX(ix), data->in_max[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkanalwn attr fetch (%d)\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -430,7 +430,7 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkanalwn attr fetch (%d)\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -464,7 +464,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
 			      data->temp_hyst[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkanalwn attr fetch (%d)\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -506,7 +506,7 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkanalwn attr fetch (%d)\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -559,7 +559,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 		default:
 			count = -EINVAL;
 			dev_warn(dev,
-				 "fan div value %ld not supported. Choose one of 1, 2, 4, or 8.\n",
+				 "fan div value %ld analt supported. Choose one of 1, 2, 4, or 8.\n",
 				 val);
 			goto EXIT;
 		}
@@ -569,7 +569,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 				data->fan_ctl));
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkanalwn attr fetch (%d)\n", fn);
 	}
 
 EXIT:
@@ -612,7 +612,7 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkanalwn attr fetch (%d)\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -663,7 +663,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		default:
 			count = -EINVAL;
 			dev_warn(dev,
-				 "pwm mode %ld not supported. Choose one of 0 or 2.\n",
+				 "pwm mode %ld analt supported. Choose one of 0 or 2.\n",
 				 val);
 			goto EXIT;
 		}
@@ -690,13 +690,13 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		if (val < 1 || val > 7) {
 			count = -EINVAL;
 			dev_warn(dev,
-				 "temp channel %ld not supported. Choose a value between 1 and 7.\n",
+				 "temp channel %ld analt supported. Choose a value between 1 and 7.\n",
 				 val);
 			goto EXIT;
 		}
 		if (!ISTEMP(val - 1, data->uch_config)) {
 			count = -EINVAL;
-			dev_warn(dev, "temp channel %ld is not available.\n",
+			dev_warn(dev, "temp channel %ld is analt available.\n",
 				 val);
 			goto EXIT;
 		}
@@ -709,7 +709,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 			      ((data->pwm_ctl[1] << 4) | data->pwm_ctl[0]));
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkanalwn attr fetch (%d)\n", fn);
 	}
 
 EXIT:
@@ -725,7 +725,7 @@ EXIT:
 
 /*
  * pwm[ix+1]_auto_point[ap+1]_temp mapping table:
- * Note that there is only a single set of temp auto points that controls both
+ * Analte that there is only a single set of temp auto points that controls both
  * PWM controllers. We still create 2 sets of sysfs files to make it look
  * more consistent even though they map to the same registers.
  *
@@ -790,7 +790,7 @@ static ssize_t set_pwm_auto_point_temp(struct device *dev,
 
 /*
  * pwm[ix+1]_auto_point[ap+1]_pwm mapping table:
- * Note that the PWM auto points 0 & 3 are hard-wired in the VT1211 and can't
+ * Analte that the PWM auto points 0 & 3 are hard-wired in the VT1211 and can't
  * be changed.
  *
  * ix ap : description
@@ -1143,7 +1143,7 @@ static int vt1211_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(struct vt1211_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(dev, res->start, resource_size(res),
@@ -1235,7 +1235,7 @@ static int __init vt1211_device_add(unsigned short address)
 
 	pdev = platform_device_alloc(DRVNAME, address);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed (%d)\n", err);
 		goto EXIT;
 	}
@@ -1274,7 +1274,7 @@ static int __init vt1211_find(int sio_cip, unsigned short *address)
 	if (err)
 		return err;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	devid = force_id ? force_id : superio_inb(sio_cip, SIO_VT1211_DEVID);
 	if (devid != SIO_VT1211_ID)
 		goto EXIT;
@@ -1289,7 +1289,7 @@ static int __init vt1211_find(int sio_cip, unsigned short *address)
 	*address = ((superio_inb(sio_cip, SIO_VT1211_BADDR) << 8) |
 		    (superio_inb(sio_cip, SIO_VT1211_BADDR + 1))) & 0xff00;
 	if (*address == 0) {
-		pr_warn("Base address is not set, skipping\n");
+		pr_warn("Base address is analt set, skipping\n");
 		goto EXIT;
 	}
 

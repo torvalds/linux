@@ -4,7 +4,7 @@
  */
 
 /*
- * There is explicitly no include guard here because this file is expected to
+ * There is explicitly anal include guard here because this file is expected to
  * be included multiple times.
  */
 

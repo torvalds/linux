@@ -47,7 +47,7 @@ void __init arm64_hugetlb_cma_reserve(void)
 
 	/*
 	 * HugeTLB CMA reservation is required for gigantic
-	 * huge pages which could not be allocated via the
+	 * huge pages which could analt be allocated via the
 	 * page allocator. Just warn if there is any change
 	 * breaking this assumption.
 	 */
@@ -224,7 +224,7 @@ static pte_t get_clear_contig_flush(struct mm_struct *mm,
  * "Misprogramming of the Contiguous bit", page D4-1762.
  *
  * This helper performs the break step for use cases where the
- * original pte is not needed.
+ * original pte is analt needed.
  */
 static void clear_flush(struct mm_struct *mm,
 			     unsigned long addr,
@@ -298,7 +298,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
 		WARN_ON(addr & (sz - 1));
 		ptep = pte_alloc_huge(mm, pmdp, addr);
 	} else if (sz == PMD_SIZE) {
-		if (want_pmd_share(vma, addr) && pud_none(READ_ONCE(*pudp)))
+		if (want_pmd_share(vma, addr) && pud_analne(READ_ONCE(*pudp)))
 			ptep = huge_pmd_share(mm, vma, addr, pudp);
 		else
 			ptep = (pte_t *)pmd_alloc(mm, pudp, addr);
@@ -329,7 +329,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 
 	pudp = pud_offset(p4dp, addr);
 	pud = READ_ONCE(*pudp);
-	if (sz != PUD_SIZE && pud_none(pud))
+	if (sz != PUD_SIZE && pud_analne(pud))
 		return NULL;
 	/* hugepage or swap? */
 	if (pud_huge(pud) || !pud_present(pud))
@@ -342,7 +342,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	pmdp = pmd_offset(pudp, addr);
 	pmd = READ_ONCE(*pmdp);
 	if (!(sz == PMD_SIZE || sz == CONT_PMD_SIZE) &&
-	    pmd_none(pmd))
+	    pmd_analne(pmd))
 		return NULL;
 	if (pmd_huge(pmd) || !pmd_present(pmd))
 		return (pte_t *)pmdp;
@@ -422,9 +422,9 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
  * huge_ptep_set_access_flags will update access flags (dirty, accesssed)
  * and write permission.
  *
- * For a contiguous huge pte range we need to check whether or not write
+ * For a contiguous huge pte range we need to check whether or analt write
  * permission has to change only on the first pte in the set. Then for
- * all the contiguous ptes we need to check whether or not there is a
+ * all the contiguous ptes we need to check whether or analt there is a
  * discrepancy between dirty or young.
  */
 static int __cont_access_flags_changed(pte_t *ptep, pte_t pte, int ncontig)
@@ -547,7 +547,7 @@ pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr
 	if (alternative_has_cap_unlikely(ARM64_WORKAROUND_2645198)) {
 		/*
 		 * Break-before-make (BBM) is required for all user space mappings
-		 * when the permission changes from executable to non-executable
+		 * when the permission changes from executable to analn-executable
 		 * in cases where cpu is affected with errata #2645198.
 		 */
 		if (pte_user_exec(READ_ONCE(*ptep)))

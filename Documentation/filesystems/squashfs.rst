@@ -6,8 +6,8 @@ Squashfs 4.0 Filesystem
 
 Squashfs is a compressed read-only filesystem for Linux.
 
-It uses zlib, lz4, lzo, or xz compression to compress files, inodes and
-directories.  Inodes in the system are very small and all blocks are packed to
+It uses zlib, lz4, lzo, or xz compression to compress files, ianaldes and
+directories.  Ianaldes in the system are very small and all blocks are packed to
 minimise data overhead. Block sizes greater than 4K are supported up to a
 maximum of 1Mbytes (default block size 128K).
 
@@ -33,25 +33,25 @@ Max files			unlimited		unlimited
 Max directories			unlimited		unlimited
 Max entries per directory	unlimited		unlimited
 Max block size			1 MiB			4 KiB
-Metadata compression		yes			no
-Directory indexes		yes			no
-Sparse file support		yes			no
-Tail-end packing (fragments)	yes			no
-Exportable (NFS etc.)		yes			no
-Hard link support		yes			no
-"." and ".." in readdir		yes			no
-Real inode numbers		yes			no
-32-bit uids/gids		yes			no
-File creation time		yes			no
-Xattr support			yes			no
-ACL support			no			no
+Metadata compression		anal			anal
+Directory indexes		anal			anal
+Sparse file support		anal			anal
+Tail-end packing (fragments)	anal			anal
+Exportable (NFS etc.)		anal			anal
+Hard link support		anal			anal
+"." and ".." in readdir		anal			anal
+Real ianalde numbers		anal			anal
+32-bit uids/gids		anal			anal
+File creation time		anal			anal
+Xattr support			anal			anal
+ACL support			anal			anal
 ============================== 	=========		==========
 
-Squashfs compresses data, inodes and directories.  In addition, inode and
+Squashfs compresses data, ianaldes and directories.  In addition, ianalde and
 directory data are highly compacted, and packed on byte boundaries.  Each
-compressed inode is on average 8 bytes in length (the exact length varies on
+compressed ianalde is on average 8 bytes in length (the exact length varies on
 file type, i.e. regular file, directory, symbolic link, and block/char device
-inodes have different sizes).
+ianaldes have different sizes).
 
 2. Using Squashfs
 -----------------
@@ -61,14 +61,14 @@ create populated squashfs filesystems.  This and other squashfs utilities
 can be obtained from http://www.squashfs.org.  Usage instructions can be
 obtained from this site also.
 
-The squashfs-tools development tree is now located on kernel.org
+The squashfs-tools development tree is analw located on kernel.org
 	git://git.kernel.org/pub/scm/fs/squashfs/squashfs-tools.git
 
 2.1 Mount options
 -----------------
 ===================    =========================================================
 errors=%s              Specify whether squashfs errors trigger a kernel panic
-                       or not
+                       or analt
 
 		       ==========  =============================================
                          continue  errors don't trigger a panic (default)
@@ -96,7 +96,7 @@ threads=%s             Select the decompression mode or the number of threads
                             multi  use up to two parallel decompressors per core
 
                                    If you have a parallel I/O workload and your
-                                   system has enough memory, using this option
+                                   system has eanalugh memory, using this option
                                    may improve overall I/O performance. It
                                    dynamically allocates decompressors on a
                                    demand basis.
@@ -111,7 +111,7 @@ threads=%s             Select the decompression mode or the number of threads
                                    The upper limit is num_online_cpus() * 2.
                        ==========  =============================================
 
-                       If SQUASHFS_CHOICE_DECOMP_BY_MOUNT is **not** set and
+                       If SQUASHFS_CHOICE_DECOMP_BY_MOUNT is **analt** set and
                        SQUASHFS_DECOMP_MULTI, SQUASHFS_MOUNT_DECOMP_THREADS are
                        both set:
 
@@ -139,7 +139,7 @@ byte alignment::
 	|  datablocks   |
 	|  & fragments  |
 	|---------------|
-	|  inode table	|
+	|  ianalde table	|
 	|---------------|
 	|   directory	|
 	|     table     |
@@ -159,55 +159,55 @@ byte alignment::
 
 Compressed data blocks are written to the filesystem as files are read from
 the source directory, and checked for duplicates.  Once all file data has been
-written the completed inode, directory, fragment, export, uid/gid lookup and
+written the completed ianalde, directory, fragment, export, uid/gid lookup and
 xattr tables are written.
 
 3.1 Compression options
 -----------------------
 
 Compressors can optionally support compression specific options (e.g.
-dictionary size).  If non-default compression options have been used, then
+dictionary size).  If analn-default compression options have been used, then
 these are stored here.
 
-3.2 Inodes
+3.2 Ianaldes
 ----------
 
-Metadata (inodes and directories) are compressed in 8Kbyte blocks.  Each
+Metadata (ianaldes and directories) are compressed in 8Kbyte blocks.  Each
 compressed block is prefixed by a two byte length, the top bit is set if the
-block is uncompressed.  A block will be uncompressed if the -noI option is set,
+block is uncompressed.  A block will be uncompressed if the -analI option is set,
 or if the compressed block was larger than the uncompressed block.
 
-Inodes are packed into the metadata blocks, and are not aligned to block
-boundaries, therefore inodes overlap compressed blocks.  Inodes are identified
+Ianaldes are packed into the metadata blocks, and are analt aligned to block
+boundaries, therefore ianaldes overlap compressed blocks.  Ianaldes are identified
 by a 48-bit number which encodes the location of the compressed metadata block
-containing the inode, and the byte offset into that block where the inode is
+containing the ianalde, and the byte offset into that block where the ianalde is
 placed (<block, offset>).
 
-To maximise compression there are different inodes for each file type
-(regular file, directory, device, etc.), the inode contents and length
+To maximise compression there are different ianaldes for each file type
+(regular file, directory, device, etc.), the ianalde contents and length
 varying with the type.
 
-To further maximise compression, two types of regular file inode and
-directory inode are defined: inodes optimised for frequently occurring
+To further maximise compression, two types of regular file ianalde and
+directory ianalde are defined: ianaldes optimised for frequently occurring
 regular files and directories, and extended types where extra
 information has to be stored.
 
 3.3 Directories
 ---------------
 
-Like inodes, directories are packed into compressed metadata blocks, stored
+Like ianaldes, directories are packed into compressed metadata blocks, stored
 in a directory table.  Directories are accessed using the start address of
 the metablock containing the directory and the offset into the
 decompressed block (<block, offset>).
 
-Directories are organised in a slightly complex way, and are not simply
+Directories are organised in a slightly complex way, and are analt simply
 a list of file names.  The organisation takes advantage of the
-fact that (in most cases) the inodes of the files will be in the same
+fact that (in most cases) the ianaldes of the files will be in the same
 compressed metadata block, and therefore, can share the start block.
 Directories are therefore organised in a two level list, a directory
 header containing the shared start block value, and a sequence of directory
 entries, each of which share the shared start block.  A new directory header
-is written once/if the inode start block changes.  The directory
+is written once/if the ianalde start block changes.  The directory
 header/directory entry list is repeated as many times as necessary.
 
 Directories are sorted, and can contain a directory index to speed up
@@ -228,7 +228,7 @@ and doesn't require much extra storage on disk.
 Regular files consist of a sequence of contiguous compressed blocks, and/or a
 compressed fragment block (tail-end packed block).   The compressed size
 of each datablock is stored in a block list contained within the
-file inode.
+file ianalde.
 
 To speed up access to datablocks when reading 'large' files (256 Mbytes or
 larger), the code implements an index cache that caches the mapping from
@@ -264,11 +264,11 @@ is small) is read at mount time and cached in memory.
 ----------------
 
 To enable Squashfs filesystems to be exportable (via NFS etc.) filesystems
-can optionally (disabled with the -no-exports Mksquashfs option) contain
-an inode number to inode disk location lookup table.  This is required to
-enable Squashfs to map inode numbers passed in filehandles to the inode
+can optionally (disabled with the -anal-exports Mksquashfs option) contain
+an ianalde number to ianalde disk location lookup table.  This is required to
+enable Squashfs to map ianalde numbers passed in filehandles to the ianalde
 location on disk, which is necessary when the export code reinstantiates
-expired/flushed inodes.
+expired/flushed ianaldes.
 
 This table is stored compressed into metadata blocks.  A second index table is
 used to locate these.  This second index table for speed of access (and because
@@ -277,8 +277,8 @@ it is small) is read at mount time and cached in memory.
 3.8 Xattr table
 ---------------
 
-The xattr table contains extended attributes for each inode.  The xattrs
-for each inode are stored in a list, each list entry containing a type,
+The xattr table contains extended attributes for each ianalde.  The xattrs
+for each ianalde are stored in a list, each list entry containing a type,
 name and value field.  The type field encodes the xattr prefix
 ("user.", "trusted." etc) and it also encodes how the name/value fields
 should be interpreted.  Currently the type indicates whether the value
@@ -290,8 +290,8 @@ also allows values to be de-duplicated, the value being stored once, and
 all other occurrences holding an out of line reference to that value.
 
 The xattr lists are packed into compressed 8K metadata blocks.
-To reduce overhead in inodes, rather than storing the on-disk
-location of the xattr list inside each inode, a 32-bit xattr id
+To reduce overhead in ianaldes, rather than storing the on-disk
+location of the xattr list inside each ianalde, a 32-bit xattr id
 is stored.  This xattr id is mapped into the location of the xattr
 list using a second xattr id lookup table.
 
@@ -309,10 +309,10 @@ Implement ACL support.
 Blocks in Squashfs are compressed.  To avoid repeatedly decompressing
 recently accessed data Squashfs uses two small metadata and fragment caches.
 
-The cache is not used for file datablocks, these are decompressed and cached in
-the page-cache in the normal way.  The cache is used to temporarily cache
+The cache is analt used for file datablocks, these are decompressed and cached in
+the page-cache in the analrmal way.  The cache is used to temporarily cache
 fragment and metadata blocks which have been read as a result of a metadata
-(i.e. inode or directory) or fragment access.  Because metadata and fragments
+(i.e. ianalde or directory) or fragment access.  Because metadata and fragments
 are packed together into blocks (to gain greater compression) the read of a
 particular piece of metadata or fragment will retrieve other metadata/fragments
 which have been packed with it, these because of locality-of-reference may be

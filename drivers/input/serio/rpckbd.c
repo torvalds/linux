@@ -43,7 +43,7 @@ static irqreturn_t rpckbd_rx(int irq, void *dev_id)
 {
 	struct serio *port = dev_id;
 	unsigned int byte;
-	int handled = IRQ_NONE;
+	int handled = IRQ_ANALNE;
 
 	while (iomd_readb(IOMD_KCTRL) & (1 << 5)) {
 		byte = iomd_readb(IOMD_KARTRX);
@@ -69,12 +69,12 @@ static int rpckbd_open(struct serio *port)
 	iomd_readb(IOMD_KARTRX);
 
 	if (request_irq(rpckbd->rx_irq, rpckbd_rx, 0, "rpckbd", port) != 0) {
-		printk(KERN_ERR "rpckbd.c: Could not allocate keyboard receive IRQ\n");
+		printk(KERN_ERR "rpckbd.c: Could analt allocate keyboard receive IRQ\n");
 		return -EBUSY;
 	}
 
 	if (request_irq(rpckbd->tx_irq, rpckbd_tx, 0, "rpckbd", port) != 0) {
-		printk(KERN_ERR "rpckbd.c: Could not allocate keyboard transmit IRQ\n");
+		printk(KERN_ERR "rpckbd.c: Could analt allocate keyboard transmit IRQ\n");
 		free_irq(rpckbd->rx_irq, port);
 		return -EBUSY;
 	}
@@ -113,7 +113,7 @@ static int rpckbd_probe(struct platform_device *dev)
 	if (!serio || !rpckbd) {
 		kfree(rpckbd);
 		kfree(serio);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rpckbd->rx_irq = rx_irq;

@@ -63,7 +63,7 @@ static const char * const per_src[] = {
 	"hsi_ker", "csi_ker", "hse_ck", "disabled" };
 
 static const char * const pll_src[] = {
-	"hsi_ck", "csi_ck", "hse_ck", "no clock" };
+	"hsi_ck", "csi_ck", "hse_ck", "anal clock" };
 
 static const char * const sdmmc_src[] = { "pll1_q", "pll2_r" };
 
@@ -172,7 +172,7 @@ static int ready_gate_clk_enable(struct clk_hw *hw)
 	/* We can't use readl_poll_timeout() because we can blocked if
 	 * someone enables this clock before clocksource changes.
 	 * Only jiffies counter is available. Jiffies are incremented by
-	 * interruptions and enable op does not allow to be interrupted.
+	 * interruptions and enable op does analt allow to be interrupted.
 	 */
 	do {
 		bit_status = !(readl(gate->reg) & BIT(rgate->bit_rdy));
@@ -224,7 +224,7 @@ static struct clk_hw *clk_register_ready_gate(struct device *dev,
 
 	rgate = kzalloc(sizeof(*rgate), GFP_KERNEL);
 	if (!rgate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &ready_gate_clk_ops;
@@ -299,7 +299,7 @@ static struct clk_mux *_get_cmux(void __iomem *reg, u8 shift, u8 width,
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mux->reg	= reg;
 	mux->shift	= shift;
@@ -318,7 +318,7 @@ static struct clk_divider *_get_cdiv(void __iomem *reg, u8 shift, u8 width,
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	div->reg   = reg;
 	div->shift = shift;
@@ -336,7 +336,7 @@ static struct clk_gate *_get_cgate(void __iomem *reg, u8 bit_idx, u32 flags,
 
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gate->reg	= reg;
 	gate->bit_idx	= bit_idx;
@@ -469,7 +469,7 @@ static struct clk_hw *clk_register_stm32_timer_ker(struct device *dev,
 
 	element = kzalloc(sizeof(*element), GFP_KERNEL);
 	if (!element)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &timer_ker_ops;
@@ -511,11 +511,11 @@ static void register_core_and_bus_clocks(void)
 {
 	/* CORE AND BUS */
 	hws[SYS_D1CPRE] = clk_hw_register_divider_table(NULL, "d1cpre",
-			"sys_ck", CLK_IGNORE_UNUSED, base + RCC_D1CFGR, 8, 4, 0,
+			"sys_ck", CLK_IGANALRE_UNUSED, base + RCC_D1CFGR, 8, 4, 0,
 			d1cpre_div_table, &stm32rcc_lock);
 
 	hws[HCLK] = clk_hw_register_divider_table(NULL, "hclk", "d1cpre",
-			CLK_IGNORE_UNUSED, base + RCC_D1CFGR, 0, 4, 0,
+			CLK_IGANALRE_UNUSED, base + RCC_D1CFGR, 0, 4, 0,
 			d1cpre_div_table, &stm32rcc_lock);
 
 	/* D1 DOMAIN */
@@ -609,12 +609,12 @@ struct stm32_osc_clk {
 	OSC_CLKF(_name, _parent, _gate_offset, _bit_idx, _bit_rdy, 0)
 
 static const struct stm32_osc_clk stm32_oclk[] __initconst = {
-	OSC_CLKF("hsi_ck",  "hsidiv",   RCC_CR,   0,  2, CLK_IGNORE_UNUSED),
-	OSC_CLKF("hsi_ker", "hsidiv",   RCC_CR,   1,  2, CLK_IGNORE_UNUSED),
-	OSC_CLKF("csi_ck",  "clk-csi",  RCC_CR,   7,  8, CLK_IGNORE_UNUSED),
-	OSC_CLKF("csi_ker", "clk-csi",  RCC_CR,   9,  8, CLK_IGNORE_UNUSED),
-	OSC_CLKF("rc48_ck", "clk-rc48", RCC_CR,  12, 13, CLK_IGNORE_UNUSED),
-	OSC_CLKF("lsi_ck",  "clk-lsi",  RCC_CSR,  0,  1, CLK_IGNORE_UNUSED),
+	OSC_CLKF("hsi_ck",  "hsidiv",   RCC_CR,   0,  2, CLK_IGANALRE_UNUSED),
+	OSC_CLKF("hsi_ker", "hsidiv",   RCC_CR,   1,  2, CLK_IGANALRE_UNUSED),
+	OSC_CLKF("csi_ck",  "clk-csi",  RCC_CR,   7,  8, CLK_IGANALRE_UNUSED),
+	OSC_CLKF("csi_ker", "clk-csi",  RCC_CR,   9,  8, CLK_IGANALRE_UNUSED),
+	OSC_CLKF("rc48_ck", "clk-rc48", RCC_CR,  12, 13, CLK_IGANALRE_UNUSED),
+	OSC_CLKF("lsi_ck",  "clk-lsi",  RCC_CSR,  0,  1, CLK_IGANALRE_UNUSED),
 };
 
 /* PLL configuration */
@@ -658,7 +658,7 @@ static const struct st32h7_pll_cfg stm32h7_pll3 = {
 };
 
 static const struct stm32_pll_data stm32_pll[] = {
-	{ "vco1", "pllsrc", CLK_IGNORE_UNUSED, &stm32h7_pll1 },
+	{ "vco1", "pllsrc", CLK_IGANALRE_UNUSED, &stm32h7_pll1 },
 	{ "vco2", "pllsrc", 0, &stm32h7_pll2 },
 	{ "vco3", "pllsrc", 0, &stm32h7_pll3 },
 };
@@ -794,7 +794,7 @@ static struct clk_hw *clk_register_stm32_pll(struct device *dev,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &pll_ops;
@@ -954,11 +954,11 @@ M_ODF_F(_name, _parent, _gate_offset,  _bit_idx, _rate_offset,\
 static const struct composite_clk_cfg stm32_odf[3][3] = {
 	{
 		M_ODF_F("pll1_p", "vco1", RCC_PLLCFGR, 16, RCC_PLL1DIVR,  9, 7,
-				CLK_IGNORE_UNUSED),
+				CLK_IGANALRE_UNUSED),
 		M_ODF_F("pll1_q", "vco1", RCC_PLLCFGR, 17, RCC_PLL1DIVR, 16, 7,
-				CLK_IGNORE_UNUSED),
+				CLK_IGANALRE_UNUSED),
 		M_ODF_F("pll1_r", "vco1", RCC_PLLCFGR, 18, RCC_PLL1DIVR, 24, 7,
-				CLK_IGNORE_UNUSED),
+				CLK_IGANALRE_UNUSED),
 	},
 
 	{
@@ -1078,7 +1078,7 @@ static const struct pclk_t pclk[] = {
 KER_CLKF(_gate_offset, _bit_idx, _mux_offset, _mux_shift, _mux_width,\
 		_name, _parent_name, 0)\
 
-#define KER_CLKF_NOMUX(_gate_offset, _bit_idx,\
+#define KER_CLKF_ANALMUX(_gate_offset, _bit_idx,\
 		_name, _parent_name,\
 		_flags) \
 { \
@@ -1093,9 +1093,9 @@ KER_CLKF(_gate_offset, _bit_idx, _mux_offset, _mux_shift, _mux_width,\
 static const struct composite_clk_cfg kclk[] = {
 	KER_CLK(RCC_AHB3ENR,  16, RCC_D1CCIPR,	16, 1, "sdmmc1", sdmmc_src),
 	KER_CLKF(RCC_AHB3ENR, 14, RCC_D1CCIPR,	 4, 2, "quadspi", qspi_src,
-			CLK_IGNORE_UNUSED),
+			CLK_IGANALRE_UNUSED),
 	KER_CLKF(RCC_AHB3ENR, 12, RCC_D1CCIPR,	 0, 2, "fmc", fmc_src,
-			CLK_IGNORE_UNUSED),
+			CLK_IGANALRE_UNUSED),
 	KER_CLK(RCC_AHB1ENR,  27, RCC_D2CCIP2R,	20, 2, "usb2otg", usbotg_src),
 	KER_CLK(RCC_AHB1ENR,  25, RCC_D2CCIP2R, 20, 2, "usb1otg", usbotg_src),
 	KER_CLK(RCC_AHB1ENR,   5, RCC_D3CCIPR,	16, 2, "adc12", adc_src),
@@ -1104,7 +1104,7 @@ static const struct composite_clk_cfg kclk[] = {
 	KER_CLK(RCC_AHB4ENR,  24, RCC_D3CCIPR,  16, 2, "adc3", adc_src),
 	KER_CLKF(RCC_APB3ENR,   4, RCC_D1CCIPR,	 8, 1, "dsi", dsi_src,
 			CLK_SET_RATE_PARENT),
-	KER_CLKF_NOMUX(RCC_APB3ENR, 3, "ltdc", ltdc_src, CLK_SET_RATE_PARENT),
+	KER_CLKF_ANALMUX(RCC_APB3ENR, 3, "ltdc", ltdc_src, CLK_SET_RATE_PARENT),
 	KER_CLK(RCC_APB1LENR, 31, RCC_D2CCIP2R,  0, 3, "usart8", usart_src2),
 	KER_CLK(RCC_APB1LENR, 30, RCC_D2CCIP2R,  0, 3, "usart7", usart_src2),
 	KER_CLK(RCC_APB1LENR, 27, RCC_D2CCIP2R, 22, 2, "hdmicec", cec_src),
@@ -1124,11 +1124,11 @@ static const struct composite_clk_cfg kclk[] = {
 	KER_CLK(RCC_APB2ENR,  29, RCC_CFGR,	14, 1, "hrtim", hrtim_src),
 	KER_CLK(RCC_APB2ENR,  28, RCC_D2CCIP1R, 24, 1, "dfsdm1", dfsdm1_src),
 	KER_CLKF(RCC_APB2ENR,  24, RCC_D2CCIP1R,  6, 3, "sai3", sai_src,
-		 CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
+		 CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT),
 	KER_CLKF(RCC_APB2ENR,  23, RCC_D2CCIP1R,  6, 3, "sai2", sai_src,
-		 CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
+		 CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT),
 	KER_CLKF(RCC_APB2ENR,  22, RCC_D2CCIP1R,  0, 3, "sai1", sai_src,
-		 CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
+		 CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT),
 	KER_CLK(RCC_APB2ENR,  20, RCC_D2CCIP1R, 16, 3, "spi5", spi_src2),
 	KER_CLK(RCC_APB2ENR,  13, RCC_D2CCIP1R, 16, 3, "spi4", spi_src2),
 	KER_CLK(RCC_APB2ENR,  12, RCC_D2CCIP1R, 16, 3, "spi1", spi_src1),
@@ -1192,7 +1192,7 @@ static const struct composite_clk_cfg mco_clk[] = {
 	M_MCO_F("mco2", mco_src2, RCC_CFGR, 29, 3, RCC_CFGR, 25, 4, 0),
 };
 
-static void __init stm32h7_rcc_init(struct device_node *np)
+static void __init stm32h7_rcc_init(struct device_analde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct composite_cfg c_cfg;
@@ -1210,7 +1210,7 @@ static void __init stm32h7_rcc_init(struct device_node *np)
 	hws = clk_data->hws;
 
 	for (n = 0; n < STM32H7_MAX_CLKS; n++)
-		hws[n] = ERR_PTR(-ENOENT);
+		hws[n] = ERR_PTR(-EANALENT);
 
 	/* get RCC base @ from DT */
 	base = of_iomap(np, 0);
@@ -1243,7 +1243,7 @@ static void __init stm32h7_rcc_init(struct device_node *np)
 	clk_hw_register_fixed_rate(NULL, "clk-lsi", NULL, 0, 32000);
 	clk_hw_register_fixed_rate(NULL, "clk-rc48", NULL, 0, 48000);
 
-	/* This clock is coming from outside. Frequencies unknown */
+	/* This clock is coming from outside. Frequencies unkanalwn */
 	hws[CK_DSI_PHY] = clk_hw_register_fixed_rate(NULL, "ck_dsi_phy", NULL,
 			0, 0);
 
@@ -1388,7 +1388,7 @@ err_free_clks:
 	kfree(clk_data);
 }
 
-/* The RCC node is a clock and reset controller, and these
+/* The RCC analde is a clock and reset controller, and these
  * functionalities are supported by different drivers that
  * matches the same compatible strings.
  */

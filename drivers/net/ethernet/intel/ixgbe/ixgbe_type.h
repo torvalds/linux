@@ -235,12 +235,12 @@ struct ixgbe_thermal_sensor_data {
 struct ixgbe_nvm_version {
 	u32 etk_id;
 	u8  nvm_major;
-	u16 nvm_minor;
+	u16 nvm_mianalr;
 	u8  nvm_id;
 
 	bool oem_valid;
 	u8   oem_major;
-	u8   oem_minor;
+	u8   oem_mianalr;
 	u16  oem_release;
 
 	bool or_valid;
@@ -465,7 +465,7 @@ struct ixgbe_nvm_version {
 #define IXGBE_TXPBTHRESH(_i) (0x04950 + ((_i) * 4)) /* 8 of these 0 - 7 */
 
 #define IXGBE_DMATXCTL_TE       0x1 /* Transmit Enable */
-#define IXGBE_DMATXCTL_NS       0x2 /* No Snoop LSO hdr buffer */
+#define IXGBE_DMATXCTL_NS       0x2 /* Anal Sanalop LSO hdr buffer */
 #define IXGBE_DMATXCTL_GDV      0x8 /* Global Double VLAN */
 #define IXGBE_DMATXCTL_MDP_EN   0x20 /* Bit 5 */
 #define IXGBE_DMATXCTL_MBINTEN  0x40 /* Bit 6 */
@@ -537,7 +537,7 @@ struct ixgbe_nvm_version {
 #define IXGBE_WUFC_IPV6 0x00000080 /* Directed IPv6 Packet Wakeup Enable */
 #define IXGBE_WUFC_MNG  0x00000100 /* Directed Mgmt Packet Wakeup Enable */
 
-#define IXGBE_WUFC_IGNORE_TCO   0x00008000 /* Ignore WakeOn TCO packets */
+#define IXGBE_WUFC_IGANALRE_TCO   0x00008000 /* Iganalre WakeOn TCO packets */
 #define IXGBE_WUFC_FLX0 0x00010000 /* Flexible Filter 0 Enable */
 #define IXGBE_WUFC_FLX1 0x00020000 /* Flexible Filter 1 Enable */
 #define IXGBE_WUFC_FLX2 0x00040000 /* Flexible Filter 2 Enable */
@@ -631,20 +631,20 @@ struct ixgbe_nvm_version {
 #define IXGBE_LSECTXPKTP        0x08A44 /* OutPktsProtected */
 #define IXGBE_LSECTXOCTE        0x08A48 /* OutOctetsEncrypted */
 #define IXGBE_LSECTXOCTP        0x08A4C /* OutOctetsProtected */
-#define IXGBE_LSECRXUT          0x08F40 /* InPktsUntagged/InPktsNoTag */
+#define IXGBE_LSECRXUT          0x08F40 /* InPktsUntagged/InPktsAnalTag */
 #define IXGBE_LSECRXOCTD        0x08F44 /* InOctetsDecrypted */
 #define IXGBE_LSECRXOCTV        0x08F48 /* InOctetsValidated */
 #define IXGBE_LSECRXBAD         0x08F4C /* InPktsBadTag */
-#define IXGBE_LSECRXNOSCI       0x08F50 /* InPktsNoSci */
-#define IXGBE_LSECRXUNSCI       0x08F54 /* InPktsUnknownSci */
+#define IXGBE_LSECRXANALSCI       0x08F50 /* InPktsAnalSci */
+#define IXGBE_LSECRXUNSCI       0x08F54 /* InPktsUnkanalwnSci */
 #define IXGBE_LSECRXUNCH        0x08F58 /* InPktsUnchecked */
 #define IXGBE_LSECRXDELAY       0x08F5C /* InPktsDelayed */
 #define IXGBE_LSECRXLATE        0x08F60 /* InPktsLate */
 #define IXGBE_LSECRXOK(_n)      (0x08F64 + (0x04 * (_n))) /* InPktsOk */
 #define IXGBE_LSECRXINV(_n)     (0x08F6C + (0x04 * (_n))) /* InPktsInvalid */
-#define IXGBE_LSECRXNV(_n)      (0x08F74 + (0x04 * (_n))) /* InPktsNotValid */
+#define IXGBE_LSECRXNV(_n)      (0x08F74 + (0x04 * (_n))) /* InPktsAnaltValid */
 #define IXGBE_LSECRXUNSA        0x08F7C /* InPktsUnusedSa */
-#define IXGBE_LSECRXNUSA        0x08F80 /* InPktsNotUsingSa */
+#define IXGBE_LSECRXNUSA        0x08F80 /* InPktsAnaltUsingSa */
 
 /* LinkSec (MacSec) Bit Fields and Masks */
 #define IXGBE_LSECTXCAP_SUM_MASK        0x00FF0000
@@ -706,7 +706,7 @@ struct ixgbe_nvm_version {
 #define IXGBE_RTTBCNRD    0x0498C
 #define IXGBE_RTTQCNRR    0x0498C
 #define IXGBE_RTTDTECC    0x04990
-#define IXGBE_RTTDTECC_NO_BCN   0x00000100
+#define IXGBE_RTTDTECC_ANAL_BCN   0x00000100
 #define IXGBE_RTTBCNRC    0x04984
 #define IXGBE_RTTBCNRC_RS_ENA	0x80000000
 #define IXGBE_RTTBCNRC_RF_DEC_MASK	0x00003FFF
@@ -766,7 +766,7 @@ struct ixgbe_nvm_version {
 #define IXGBE_FCRXCTRL_LASTSEQH BIT(3)   /* EN Last Header in Seq */
 #define IXGBE_FCRXCTRL_ALLH     BIT(4)   /* EN All Headers */
 #define IXGBE_FCRXCTRL_FRSTSEQH BIT(5)   /* EN 1st Seq. Header */
-#define IXGBE_FCRXCTRL_ICRC     BIT(6)   /* Ignore Bad FC CRC */
+#define IXGBE_FCRXCTRL_ICRC     BIT(6)   /* Iganalre Bad FC CRC */
 #define IXGBE_FCRXCTRL_FCCRCBO  BIT(7)   /* FC CRC Byte Ordering */
 #define IXGBE_FCRXCTRL_FCOEVER  0x00000f00 /* FCoE Version: 4 bits */
 #define IXGBE_FCRXCTRL_FCOEVER_SHIFT 8
@@ -1069,7 +1069,7 @@ struct ixgbe_nvm_version {
 #define IXGBE_TSIM       0x08C68 /* TimeSync Interrupt Mask Register - RW */
 #define IXGBE_TSSDP      0x0003C /* TimeSync SDP Configuration Register - RW */
 
-/* Diagnostic Registers */
+/* Diaganalstic Registers */
 #define IXGBE_RDSTATCTL   0x02C20
 #define IXGBE_RDSTAT(_i)  (0x02C00 + ((_i) * 4)) /* 0x02C00-0x02C1C */
 #define IXGBE_RDHMPN      0x02F08
@@ -1262,7 +1262,7 @@ struct ixgbe_nvm_version {
 
 /* Extended Device Control */
 #define IXGBE_CTRL_EXT_PFRSTD   0x00004000 /* Physical Function Reset Done */
-#define IXGBE_CTRL_EXT_NS_DIS   0x00010000 /* No Snoop disable */
+#define IXGBE_CTRL_EXT_NS_DIS   0x00010000 /* Anal Sanalop disable */
 #define IXGBE_CTRL_EXT_RO_DIS   0x00020000 /* Relaxed Ordering disable */
 #define IXGBE_CTRL_EXT_DRV_LOAD 0x10000000 /* Driver loaded bit for FW */
 
@@ -1878,8 +1878,8 @@ enum {
 #define IXGBE_AUTOC_LMS_KX4_KX_KR_1G_AN (0x6 << IXGBE_AUTOC_LMS_SHIFT)
 #define IXGBE_AUTOC_LMS_KX4_KX_KR_SGMII (0x7 << IXGBE_AUTOC_LMS_SHIFT)
 #define IXGBE_AUTOC_LMS_MASK            (0x7 << IXGBE_AUTOC_LMS_SHIFT)
-#define IXGBE_AUTOC_LMS_1G_LINK_NO_AN   (0x0 << IXGBE_AUTOC_LMS_SHIFT)
-#define IXGBE_AUTOC_LMS_10G_LINK_NO_AN  (0x1 << IXGBE_AUTOC_LMS_SHIFT)
+#define IXGBE_AUTOC_LMS_1G_LINK_ANAL_AN   (0x0 << IXGBE_AUTOC_LMS_SHIFT)
+#define IXGBE_AUTOC_LMS_10G_LINK_ANAL_AN  (0x1 << IXGBE_AUTOC_LMS_SHIFT)
 #define IXGBE_AUTOC_LMS_1G_AN           (0x2 << IXGBE_AUTOC_LMS_SHIFT)
 #define IXGBE_AUTOC_LMS_KX4_AN          (0x4 << IXGBE_AUTOC_LMS_SHIFT)
 #define IXGBE_AUTOC_LMS_KX4_AN_1G_AN    (0x6 << IXGBE_AUTOC_LMS_SHIFT)
@@ -1932,7 +1932,7 @@ enum {
 #define IXGBE_LINKS_TL_FAULT    0x00001000
 #define IXGBE_LINKS_SIGNAL      0x00000F00
 
-#define IXGBE_LINKS_SPEED_NON_STD   0x08000000
+#define IXGBE_LINKS_SPEED_ANALN_STD   0x08000000
 #define IXGBE_LINKS_SPEED_82599     0x30000000
 #define IXGBE_LINKS_SPEED_10G_82599 0x30000000
 #define IXGBE_LINKS_SPEED_1G_82599  0x20000000
@@ -2140,7 +2140,7 @@ enum {
 #define IXGBE_SAN_MAC_ADDR_PORT1_OFFSET  0x3
 #define IXGBE_DEVICE_CAPS_ALLOW_ANY_SFP  0x1
 #define IXGBE_DEVICE_CAPS_FCOE_OFFLOADS  0x2
-#define IXGBE_DEVICE_CAPS_NO_CROSSTALK_WR	BIT(7)
+#define IXGBE_DEVICE_CAPS_ANAL_CROSSTALK_WR	BIT(7)
 #define IXGBE_FW_LESM_PARAMETERS_PTR     0x2
 #define IXGBE_FW_LESM_STATE_1            0x1
 #define IXGBE_FW_LESM_STATE_ENABLED      0x8000 /* LESM Enable bit */
@@ -2284,7 +2284,7 @@ enum {
 #define IXGBE_RXMTRL_V2_FOLLOWUP_MSG		0x0800
 #define IXGBE_RXMTRL_V2_DELAY_RESP_MSG		0x0900
 #define IXGBE_RXMTRL_V2_PDELAY_FOLLOWUP_MSG	0x0A00
-#define IXGBE_RXMTRL_V2_ANNOUNCE_MSG		0x0B00
+#define IXGBE_RXMTRL_V2_ANANALUNCE_MSG		0x0B00
 #define IXGBE_RXMTRL_V2_SIGNALING_MSG		0x0C00
 #define IXGBE_RXMTRL_V2_MGMT_MSG		0x0D00
 
@@ -2308,11 +2308,11 @@ enum {
 /* Multiple Receive Queue Control */
 #define IXGBE_MRQC_RSSEN                 0x00000001  /* RSS Enable */
 #define IXGBE_MRQC_MRQE_MASK                    0xF /* Bits 3:0 */
-#define IXGBE_MRQC_RT8TCEN               0x00000002 /* 8 TC no RSS */
-#define IXGBE_MRQC_RT4TCEN               0x00000003 /* 4 TC no RSS */
+#define IXGBE_MRQC_RT8TCEN               0x00000002 /* 8 TC anal RSS */
+#define IXGBE_MRQC_RT4TCEN               0x00000003 /* 4 TC anal RSS */
 #define IXGBE_MRQC_RTRSS8TCEN            0x00000004 /* 8 TC w/ RSS */
 #define IXGBE_MRQC_RTRSS4TCEN            0x00000005 /* 4 TC w/ RSS */
-#define IXGBE_MRQC_VMDQEN                0x00000008 /* VMDq2 64 pools no RSS */
+#define IXGBE_MRQC_VMDQEN                0x00000008 /* VMDq2 64 pools anal RSS */
 #define IXGBE_MRQC_VMDQRSS32EN           0x0000000A /* VMDq2 32 pools w/ RSS */
 #define IXGBE_MRQC_VMDQRSS64EN           0x0000000B /* VMDq2 64 pools w/ RSS */
 #define IXGBE_MRQC_VMDQRT8TCEN           0x0000000C /* VMDq2/RT 16 pool 8 TC */
@@ -2419,8 +2419,8 @@ enum {
 #define IXGBE_RXDADV_STAT_MASK          0x000fffff /* Stat/NEXTP: bit 0-19 */
 #define IXGBE_RXDADV_STAT_FCEOFS        0x00000040 /* FCoE EOF/SOF Stat */
 #define IXGBE_RXDADV_STAT_FCSTAT        0x00000030 /* FCoE Pkt Stat */
-#define IXGBE_RXDADV_STAT_FCSTAT_NOMTCH 0x00000000 /* 00: No Ctxt Match */
-#define IXGBE_RXDADV_STAT_FCSTAT_NODDP  0x00000010 /* 01: Ctxt w/o DDP */
+#define IXGBE_RXDADV_STAT_FCSTAT_ANALMTCH 0x00000000 /* 00: Anal Ctxt Match */
+#define IXGBE_RXDADV_STAT_FCSTAT_ANALDDP  0x00000010 /* 01: Ctxt w/o DDP */
 #define IXGBE_RXDADV_STAT_FCSTAT_FCPRSP 0x00000020 /* 10: Recv. FCP_RSP */
 #define IXGBE_RXDADV_STAT_FCSTAT_DDP    0x00000030 /* 11: Ctxt w/ DDP */
 #define IXGBE_RXDADV_STAT_TS		0x00010000 /* IEEE 1588 Time Stamp */
@@ -2461,7 +2461,7 @@ enum {
 #define IXGBE_RXDADV_SPH                0x8000
 
 /* RSS Hash results */
-#define IXGBE_RXDADV_RSSTYPE_NONE       0x00000000
+#define IXGBE_RXDADV_RSSTYPE_ANALNE       0x00000000
 #define IXGBE_RXDADV_RSSTYPE_IPV4_TCP   0x00000001
 #define IXGBE_RXDADV_RSSTYPE_IPV4       0x00000002
 #define IXGBE_RXDADV_RSSTYPE_IPV6_TCP   0x00000003
@@ -2473,7 +2473,7 @@ enum {
 #define IXGBE_RXDADV_RSSTYPE_IPV6_UDP_EX 0x00000009
 
 /* RSS Packet Types as indicated in the receive descriptor. */
-#define IXGBE_RXDADV_PKTTYPE_NONE       0x00000000
+#define IXGBE_RXDADV_PKTTYPE_ANALNE       0x00000000
 #define IXGBE_RXDADV_PKTTYPE_IPV4       0x00000010 /* IPv4 hdr present */
 #define IXGBE_RXDADV_PKTTYPE_IPV4_EX    0x00000020 /* IPv4 hdr + extensions */
 #define IXGBE_RXDADV_PKTTYPE_IPV6       0x00000040 /* IPv6 hdr present */
@@ -2552,7 +2552,7 @@ enum {
 		(IXGBE_PVFTDT((q_per_pool)*(vf_number) + (vf_q_index)))
 
 enum ixgbe_fdir_pballoc_type {
-	IXGBE_FDIR_PBALLOC_NONE = 0,
+	IXGBE_FDIR_PBALLOC_ANALNE = 0,
 	IXGBE_FDIR_PBALLOC_64K  = 1,
 	IXGBE_FDIR_PBALLOC_128K = 2,
 	IXGBE_FDIR_PBALLOC_256K = 3,
@@ -2569,7 +2569,7 @@ enum ixgbe_fdir_pballoc_type {
 #define IXGBE_FDIRCTRL_REPORT_STATUS_ALWAYS     0x00000080
 #define IXGBE_FDIRCTRL_DROP_Q_SHIFT             8
 #define IXGBE_FDIRCTRL_FLEX_SHIFT               16
-#define IXGBE_FDIRCTRL_DROP_NO_MATCH		0x00008000
+#define IXGBE_FDIRCTRL_DROP_ANAL_MATCH		0x00008000
 #define IXGBE_FDIRCTRL_FILTERMODE_SHIFT		21
 #define IXGBE_FDIRCTRL_FILTERMODE_MACVLAN	0x0001 /* bit 23:21, 001b */
 #define IXGBE_FDIRCTRL_FILTERMODE_CLOUD		0x0002 /* bit 23:21, 010b */
@@ -2697,7 +2697,7 @@ enum ixgbe_fdir_pballoc_type {
 #define FW_PHY_ACT_SETUP_LINK_PAUSE_SHIFT 16
 #define FW_PHY_ACT_SETUP_LINK_PAUSE_MASK (3 << \
 					  HW_PHY_ACT_SETUP_LINK_PAUSE_SHIFT)
-#define FW_PHY_ACT_SETUP_LINK_PAUSE_NONE 0u
+#define FW_PHY_ACT_SETUP_LINK_PAUSE_ANALNE 0u
 #define FW_PHY_ACT_SETUP_LINK_PAUSE_TX	1u
 #define FW_PHY_ACT_SETUP_LINK_PAUSE_RX	2u
 #define FW_PHY_ACT_SETUP_LINK_PAUSE_RXTX 3u
@@ -2958,7 +2958,7 @@ struct ixgbe_adv_tx_context_desc {
 typedef u32 ixgbe_autoneg_advertised;
 /* Link speed */
 typedef u32 ixgbe_link_speed;
-#define IXGBE_LINK_SPEED_UNKNOWN	0
+#define IXGBE_LINK_SPEED_UNKANALWN	0
 #define IXGBE_LINK_SPEED_10_FULL	0x0002
 #define IXGBE_LINK_SPEED_100_FULL	0x0008
 #define IXGBE_LINK_SPEED_1GB_FULL	0x0020
@@ -3135,11 +3135,11 @@ enum ixgbe_eeprom_type {
 	ixgbe_eeprom_uninitialized = 0,
 	ixgbe_eeprom_spi,
 	ixgbe_flash,
-	ixgbe_eeprom_none /* No NVM support */
+	ixgbe_eeprom_analne /* Anal NVM support */
 };
 
 enum ixgbe_mac_type {
-	ixgbe_mac_unknown = 0,
+	ixgbe_mac_unkanalwn = 0,
 	ixgbe_mac_82598EB,
 	ixgbe_mac_82599EB,
 	ixgbe_mac_X540,
@@ -3150,8 +3150,8 @@ enum ixgbe_mac_type {
 };
 
 enum ixgbe_phy_type {
-	ixgbe_phy_unknown = 0,
-	ixgbe_phy_none,
+	ixgbe_phy_unkanalwn = 0,
+	ixgbe_phy_analne,
 	ixgbe_phy_tn,
 	ixgbe_phy_aq,
 	ixgbe_phy_x550em_kr,
@@ -3159,22 +3159,22 @@ enum ixgbe_phy_type {
 	ixgbe_phy_x550em_xfi,
 	ixgbe_phy_x550em_ext_t,
 	ixgbe_phy_ext_1g_t,
-	ixgbe_phy_cu_unknown,
+	ixgbe_phy_cu_unkanalwn,
 	ixgbe_phy_qt,
 	ixgbe_phy_xaui,
 	ixgbe_phy_nl,
 	ixgbe_phy_sfp_passive_tyco,
-	ixgbe_phy_sfp_passive_unknown,
-	ixgbe_phy_sfp_active_unknown,
+	ixgbe_phy_sfp_passive_unkanalwn,
+	ixgbe_phy_sfp_active_unkanalwn,
 	ixgbe_phy_sfp_avago,
 	ixgbe_phy_sfp_ftl,
 	ixgbe_phy_sfp_ftl_active,
-	ixgbe_phy_sfp_unknown,
+	ixgbe_phy_sfp_unkanalwn,
 	ixgbe_phy_sfp_intel,
-	ixgbe_phy_qsfp_passive_unknown,
-	ixgbe_phy_qsfp_active_unknown,
+	ixgbe_phy_qsfp_passive_unkanalwn,
+	ixgbe_phy_qsfp_active_unkanalwn,
 	ixgbe_phy_qsfp_intel,
-	ixgbe_phy_qsfp_unknown,
+	ixgbe_phy_qsfp_unkanalwn,
 	ixgbe_phy_sfp_unsupported,
 	ixgbe_phy_sgmii,
 	ixgbe_phy_fw,
@@ -3210,12 +3210,12 @@ enum ixgbe_sfp_type {
 	ixgbe_sfp_type_1g_sx_core1 = 12,
 	ixgbe_sfp_type_1g_lx_core0 = 13,
 	ixgbe_sfp_type_1g_lx_core1 = 14,
-	ixgbe_sfp_type_not_present = 0xFFFE,
-	ixgbe_sfp_type_unknown = 0xFFFF
+	ixgbe_sfp_type_analt_present = 0xFFFE,
+	ixgbe_sfp_type_unkanalwn = 0xFFFF
 };
 
 enum ixgbe_media_type {
-	ixgbe_media_type_unknown = 0,
+	ixgbe_media_type_unkanalwn = 0,
 	ixgbe_media_type_fiber,
 	ixgbe_media_type_fiber_qsfp,
 	ixgbe_media_type_fiber_lco,
@@ -3227,7 +3227,7 @@ enum ixgbe_media_type {
 
 /* Flow Control Settings */
 enum ixgbe_fc_mode {
-	ixgbe_fc_none = 0,
+	ixgbe_fc_analne = 0,
 	ixgbe_fc_rx_pause,
 	ixgbe_fc_tx_pause,
 	ixgbe_fc_full,
@@ -3244,7 +3244,7 @@ enum ixgbe_smart_speed {
 
 /* PCI bus types */
 enum ixgbe_bus_type {
-	ixgbe_bus_type_unknown = 0,
+	ixgbe_bus_type_unkanalwn = 0,
 	ixgbe_bus_type_pci_express,
 	ixgbe_bus_type_internal,
 	ixgbe_bus_type_reserved
@@ -3252,7 +3252,7 @@ enum ixgbe_bus_type {
 
 /* PCI bus speeds */
 enum ixgbe_bus_speed {
-	ixgbe_bus_speed_unknown = 0,
+	ixgbe_bus_speed_unkanalwn = 0,
 	ixgbe_bus_speed_33      = 33,
 	ixgbe_bus_speed_66      = 66,
 	ixgbe_bus_speed_100     = 100,
@@ -3266,7 +3266,7 @@ enum ixgbe_bus_speed {
 
 /* PCI bus widths */
 enum ixgbe_bus_width {
-	ixgbe_bus_width_unknown = 0,
+	ixgbe_bus_width_unkanalwn = 0,
 	ixgbe_bus_width_pcie_x1 = 1,
 	ixgbe_bus_width_pcie_x2 = 2,
 	ixgbe_bus_width_pcie_x4 = 4,
@@ -3303,7 +3303,7 @@ struct ixgbe_fc_info {
 	u16 pause_time; /* Flow Control Pause timer */
 	bool send_xon; /* Flow control send XON */
 	bool strict_ieee; /* Strict IEEE mode */
-	bool disable_fc_autoneg; /* Do not autonegotiate FC */
+	bool disable_fc_autoneg; /* Do analt autonegotiate FC */
 	bool fc_was_autonegged; /* Is current_mode the result of autonegging? */
 	enum ixgbe_fc_mode current_mode; /* FC mode in effect */
 	enum ixgbe_fc_mode requested_mode; /* FC mode requested by caller */
@@ -3380,8 +3380,8 @@ struct ixgbe_hw_stats {
 	u64 fcoeptc;
 	u64 fcoedwrc;
 	u64 fcoedwtc;
-	u64 fcoe_noddp;
-	u64 fcoe_noddp_ext_buff;
+	u64 fcoe_analddp;
+	u64 fcoe_analddp_ext_buff;
 	u64 b2ospc;
 	u64 b2ogprc;
 	u64 o2bgptc;
@@ -3550,7 +3550,7 @@ struct ixgbe_mac_info {
 	u8                              addr[ETH_ALEN];
 	u8                              perm_addr[ETH_ALEN];
 	u8                              san_addr[ETH_ALEN];
-	/* prefix for World Wide Node Name (WWNN) */
+	/* prefix for World Wide Analde Name (WWNN) */
 	u16                             wwnn_prefix;
 	/* prefix for World Wide Port Name (WWPN) */
 	u16                             wwpn_prefix;

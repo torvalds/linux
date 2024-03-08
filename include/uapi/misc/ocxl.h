@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /* Copyright 2017 IBM Corp. */
 #ifndef _UAPI_MISC_OCXL_H
 #define _UAPI_MISC_OCXL_H
@@ -37,7 +37,7 @@ struct ocxl_ioctl_metadata {
 
 	/* Version 0 fields */
 	__u8  afu_version_major;
-	__u8  afu_version_minor;
+	__u8  afu_version_mianalr;
 	__u32 pasid;		/* PASID assigned to the current context */
 
 	__u64 pp_mmio_size;	/* Per PASID MMIO size */

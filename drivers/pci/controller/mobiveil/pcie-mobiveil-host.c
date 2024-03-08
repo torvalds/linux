@@ -31,7 +31,7 @@ static bool mobiveil_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 		return false;
 
 	/*
-	 * Do not read more than one device on the bus directly
+	 * Do analt read more than one device on the bus directly
 	 * attached to RC
 	 */
 	if ((bus->primary == to_pci_host_bridge(bus->bridge)->busnr) && (PCI_SLOT(devfn) > 0))
@@ -140,7 +140,7 @@ static void mobiveil_pcie_isr(struct irq_desc *desc)
 
 		/*
 		 * MSI_STATUS_OFFSET register gets updated to zero
-		 * once we pop not only the MSI data but also address
+		 * once we pop analt only the MSI data but also address
 		 * from MSI hardware FIFO. So keeping these following
 		 * two dummy reads.
 		 */
@@ -166,7 +166,7 @@ static int mobiveil_pcie_parse_dt(struct mobiveil_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
 	struct platform_device *pdev = pcie->pdev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct mobiveil_root_port *rp = &pcie->rp;
 	struct resource *res;
 
@@ -187,10 +187,10 @@ static int mobiveil_pcie_parse_dt(struct mobiveil_pcie *pcie)
 	pcie->pcie_reg_base = res->start;
 
 	/* read the number of windows requested */
-	if (of_property_read_u32(node, "apio-wins", &pcie->apio_wins))
+	if (of_property_read_u32(analde, "apio-wins", &pcie->apio_wins))
 		pcie->apio_wins = MAX_PIO_WINDOWS;
 
-	if (of_property_read_u32(node, "ppio-wins", &pcie->ppio_wins))
+	if (of_property_read_u32(analde, "ppio-wins", &pcie->ppio_wins))
 		pcie->ppio_wins = MAX_PIO_WINDOWS;
 
 	return 0;
@@ -261,7 +261,7 @@ int mobiveil_host_init(struct mobiveil_pcie *pcie, bool reinit)
 
 	/*
 	 * we'll program one outbound window for config reads and
-	 * another default inbound window for all the upstream traffic
+	 * aanalther default inbound window for all the upstream traffic
 	 * rest of the outbound windows will be configured according to
 	 * the "ranges" field defined in device tree
 	 */
@@ -292,7 +292,7 @@ int mobiveil_host_init(struct mobiveil_pcie *pcie, bool reinit)
 	/* fixup for PCIe class register */
 	value = mobiveil_csr_readl(pcie, PAB_INTP_AXI_PIO_CLASS);
 	value &= 0xff;
-	value |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
+	value |= PCI_CLASS_BRIDGE_PCI_ANALRMAL << 8;
 	mobiveil_csr_writel(pcie, value, PAB_INTP_AXI_PIO_CLASS);
 
 	return 0;
@@ -404,7 +404,7 @@ static int mobiveil_irq_msi_domain_alloc(struct irq_domain *domain,
 	bit = find_first_zero_bit(msi->msi_irq_in_use, msi->num_of_vectors);
 	if (bit >= msi->num_of_vectors) {
 		mutex_unlock(&msi->lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	set_bit(bit, msi->msi_irq_in_use);
@@ -442,7 +442,7 @@ static const struct irq_domain_ops msi_domain_ops = {
 static int mobiveil_allocate_msi_domains(struct mobiveil_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
+	struct fwanalde_handle *fwanalde = of_analde_to_fwanalde(dev->of_analde);
 	struct mobiveil_msi *msi = &pcie->rp.msi;
 
 	mutex_init(&msi->lock);
@@ -450,16 +450,16 @@ static int mobiveil_allocate_msi_domains(struct mobiveil_pcie *pcie)
 						&msi_domain_ops, pcie);
 	if (!msi->dev_domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
+	msi->msi_domain = pci_msi_create_irq_domain(fwanalde,
 						    &mobiveil_msi_domain_info,
 						    msi->dev_domain);
 	if (!msi->msi_domain) {
 		dev_err(dev, "failed to create MSI domain\n");
 		irq_domain_remove(msi->dev_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -468,16 +468,16 @@ static int mobiveil_allocate_msi_domains(struct mobiveil_pcie *pcie)
 static int mobiveil_pcie_init_irq_domain(struct mobiveil_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct mobiveil_root_port *rp = &pcie->rp;
 
 	/* setup INTx */
-	rp->intx_domain = irq_domain_add_linear(node, PCI_NUM_INTX,
+	rp->intx_domain = irq_domain_add_linear(analde, PCI_NUM_INTX,
 						&intx_domain_ops, pcie);
 
 	if (!rp->intx_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	raw_spin_lock_init(&rp->intx_mask_lock);
@@ -558,7 +558,7 @@ int mobiveil_pcie_host_probe(struct mobiveil_pcie *pcie)
 	}
 
 	if (!mobiveil_pcie_is_bridge(pcie))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * configure all inbound and outbound windows and prepare the RC for

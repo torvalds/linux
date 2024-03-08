@@ -37,11 +37,11 @@
 
 /* PLL0B */
 #define LGM_CLK_NGI		30
-#define LGM_CLK_NOC4		31
+#define LGM_CLK_ANALC4		31
 #define LGM_CLK_SW		32
 #define LGM_CLK_QSPI		33
 #define LGM_CLK_CQEM		LGM_CLK_SW
-#define LGM_CLK_EMMC5		LGM_CLK_NOC4
+#define LGM_CLK_EMMC5		LGM_CLK_ANALC4
 
 /* PLL1 */
 #define LGM_CLK_CT		35

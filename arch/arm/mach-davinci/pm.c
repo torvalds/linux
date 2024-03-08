@@ -132,25 +132,25 @@ int __init davinci_pm_init(void)
 
 	pm_config.cpupll_reg_base = ioremap(DA8XX_PLL0_BASE, SZ_4K);
 	if (!pm_config.cpupll_reg_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm_config.ddrpll_reg_base = ioremap(DA850_PLL1_BASE, SZ_4K);
 	if (!pm_config.ddrpll_reg_base) {
-		ret = -ENOMEM;
-		goto no_ddrpll_mem;
+		ret = -EANALMEM;
+		goto anal_ddrpll_mem;
 	}
 
 	pm_config.ddrpsc_reg_base = ioremap(DA8XX_PSC1_BASE, SZ_4K);
 	if (!pm_config.ddrpsc_reg_base) {
-		ret = -ENOMEM;
-		goto no_ddrpsc_mem;
+		ret = -EANALMEM;
+		goto anal_ddrpsc_mem;
 	}
 
 	davinci_sram_suspend = sram_alloc(davinci_cpu_suspend_sz, NULL);
 	if (!davinci_sram_suspend) {
-		pr_err("PM: cannot allocate SRAM memory\n");
-		ret = -ENOMEM;
-		goto no_sram_mem;
+		pr_err("PM: cananalt allocate SRAM memory\n");
+		ret = -EANALMEM;
+		goto anal_sram_mem;
 	}
 
 	davinci_sram_push(davinci_sram_suspend, davinci_cpu_suspend,
@@ -160,11 +160,11 @@ int __init davinci_pm_init(void)
 
 	return 0;
 
-no_sram_mem:
+anal_sram_mem:
 	iounmap(pm_config.ddrpsc_reg_base);
-no_ddrpsc_mem:
+anal_ddrpsc_mem:
 	iounmap(pm_config.ddrpll_reg_base);
-no_ddrpll_mem:
+anal_ddrpll_mem:
 	iounmap(pm_config.cpupll_reg_base);
 	return ret;
 }

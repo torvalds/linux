@@ -17,7 +17,7 @@ struct rescale_tc_data {
 	const char *name;
 
 	const s32 numerator;
-	const s32 denominator;
+	const s32 deanalminator;
 	const s32 offset;
 
 	const int schan_val;
@@ -36,7 +36,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "typical IIO_VAL_INT, positive",
 		.numerator = 1000000,
-		.denominator = 8060,
+		.deanalminator = 8060,
 		.schan_scale_type = IIO_VAL_INT,
 		.schan_val = 42,
 		.expected = "5210.918114143",
@@ -44,7 +44,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "typical IIO_VAL_INT, negative",
 		.numerator = -1000000,
-		.denominator = 8060,
+		.deanalminator = 8060,
 		.schan_scale_type = IIO_VAL_INT,
 		.schan_val = 42,
 		.expected = "-5210.918114143",
@@ -52,7 +52,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "typical IIO_VAL_FRACTIONAL, positive",
 		.numerator = 1000000,
-		.denominator = 8060,
+		.deanalminator = 8060,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 42,
 		.schan_val2 = 20,
@@ -61,7 +61,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "typical IIO_VAL_FRACTIONAL, negative",
 		.numerator = -1000000,
-		.denominator = 8060,
+		.deanalminator = 8060,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 42,
 		.schan_val2 = 20,
@@ -70,7 +70,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "typical IIO_VAL_FRACTIONAL_LOG2, positive",
 		.numerator = 42,
-		.denominator = 53,
+		.deanalminator = 53,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = 4096,
 		.schan_val2 = 16,
@@ -79,26 +79,26 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "typical IIO_VAL_FRACTIONAL_LOG2, negative",
 		.numerator = -42,
-		.denominator = 53,
+		.deanalminator = 53,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = 4096,
 		.schan_val2 = 16,
 		.expected = "-0.049528301",
 	},
 	{
-		.name = "typical IIO_VAL_INT_PLUS_NANO, positive",
+		.name = "typical IIO_VAL_INT_PLUS_NAANAL, positive",
 		.numerator = 1000000,
-		.denominator = 8060,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 8060,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = 10,
 		.schan_val2 = 123456,
 		.expected = "1240.710106203",
 	},
 	{
-		.name = "typical IIO_VAL_INT_PLUS_NANO, negative",
+		.name = "typical IIO_VAL_INT_PLUS_NAANAL, negative",
 		.numerator = -1000000,
-		.denominator = 8060,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 8060,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = 10,
 		.schan_val2 = 123456,
 		.expected = "-1240.710106203",
@@ -106,7 +106,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "typical IIO_VAL_INT_PLUS_MICRO, positive",
 		.numerator = 1000000,
-		.denominator = 8060,
+		.deanalminator = 8060,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = 10,
 		.schan_val2 = 1234,
@@ -115,7 +115,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "typical IIO_VAL_INT_PLUS_MICRO, negative",
 		.numerator = -1000000,
-		.denominator = 8060,
+		.deanalminator = 8060,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = 10,
 		.schan_val2 = 1234,
@@ -127,7 +127,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL, 261/509 scaled by 90/1373754273",
 		.numerator = 261,
-		.denominator = 509,
+		.deanalminator = 509,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 90,
 		.schan_val2 = 1373754273,
@@ -136,7 +136,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL, 90/1373754273 scaled by 261/509",
 		.numerator = 90,
-		.denominator = 1373754273,
+		.deanalminator = 1373754273,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 261,
 		.schan_val2 = 509,
@@ -145,7 +145,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL, 760/1373754273 scaled by 427/2727",
 		.numerator = 760,
-		.denominator = 1373754273,
+		.deanalminator = 1373754273,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 427,
 		.schan_val2 = 2727,
@@ -154,7 +154,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL, 761/1373754273 scaled by 427/2727",
 		.numerator = 761,
-		.denominator = 1373754273,
+		.deanalminator = 1373754273,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 427,
 		.schan_val2 = 2727,
@@ -163,7 +163,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL, 5/32768 scaled by 3/10000",
 		.numerator = 5,
-		.denominator = 32768,
+		.deanalminator = 32768,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 3,
 		.schan_val2 = 10000,
@@ -172,7 +172,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL, 0 < scale < 1",
 		.numerator = 6,
-		.denominator = 6,
+		.deanalminator = 6,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 1,
 		.schan_val2 = 3,
@@ -181,7 +181,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL, -1 < scale < 0",
 		.numerator = -6,
-		.denominator = 6,
+		.deanalminator = 6,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 1,
 		.schan_val2 = 3,
@@ -190,7 +190,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL, 0 < scale < 2",
 		.numerator = 8,
-		.denominator = 2,
+		.deanalminator = 2,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 1,
 		.schan_val2 = 3,
@@ -199,7 +199,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL, -2 < scale < 0",
 		.numerator = -8,
-		.denominator = 2,
+		.deanalminator = 2,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = 1,
 		.schan_val2 = 3,
@@ -208,7 +208,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL_LOG2, 760/32768 scaled by 15/22",
 		.numerator = 760,
-		.denominator = 32768,
+		.deanalminator = 32768,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = 15,
 		.schan_val2 = 22,
@@ -217,7 +217,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL_LOG2, 761/32768 scaled by 15/22",
 		.numerator = 761,
-		.denominator = 32768,
+		.deanalminator = 32768,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = 15,
 		.schan_val2 = 22,
@@ -226,7 +226,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL_LOG2, 0 < scale < 1",
 		.numerator = 16,
-		.denominator = 3,
+		.deanalminator = 3,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = 1,
 		.schan_val2 = 4,
@@ -235,7 +235,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL_LOG2, -1 < scale < 0",
 		.numerator = -16,
-		.denominator = 3,
+		.deanalminator = 3,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = 1,
 		.schan_val2 = 4,
@@ -244,7 +244,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL_LOG2, 0 < scale < 2",
 		.numerator = 8,
-		.denominator = 3,
+		.deanalminator = 3,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = 1,
 		.schan_val2 = 1,
@@ -253,7 +253,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_FRACTIONAL_LOG2, -2 < scale < 0",
 		.numerator = -8,
-		.denominator = 3,
+		.deanalminator = 3,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = 1,
 		.schan_val2 = 1,
@@ -262,7 +262,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_INT_PLUS_MICRO, positive",
 		.numerator = 1,
-		.denominator = 2,
+		.deanalminator = 2,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = 5,
 		.schan_val2 = 1234,
@@ -271,86 +271,86 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "small IIO_VAL_INT_PLUS_MICRO, negative",
 		.numerator = -1,
-		.denominator = 2,
+		.deanalminator = 2,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = 5,
 		.schan_val2 = 1234,
 		.expected = "-2.500617",
 	},
 	/*
-	 * INT_PLUS_{MICRO,NANO} positive/negative corner cases
+	 * INT_PLUS_{MICRO,NAANAL} positive/negative corner cases
 	 */
 	{
-		.name = "negative IIO_VAL_INT_PLUS_NANO, negative schan",
+		.name = "negative IIO_VAL_INT_PLUS_NAANAL, negative schan",
 		.numerator = 1000000,
-		.denominator = 8060,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 8060,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = -10,
 		.schan_val2 = 123456,
 		.expected = "-1240.710106203",
 	},
 	{
-		.name = "negative IIO_VAL_INT_PLUS_NANO, both negative",
+		.name = "negative IIO_VAL_INT_PLUS_NAANAL, both negative",
 		.numerator = -1000000,
-		.denominator = 8060,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 8060,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = -10,
 		.schan_val2 = 123456,
 		.expected = "1240.710106203",
 	},
 	{
-		.name = "negative IIO_VAL_INT_PLUS_NANO, 3 negative",
+		.name = "negative IIO_VAL_INT_PLUS_NAANAL, 3 negative",
 		.numerator = -1000000,
-		.denominator = -8060,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = -8060,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = -10,
 		.schan_val2 = 123456,
 		.expected = "-1240.710106203",
 	},
 	{
-		.name = "negative IIO_VAL_INT_PLUS_NANO, 4 negative",
+		.name = "negative IIO_VAL_INT_PLUS_NAANAL, 4 negative",
 		.numerator = -1000000,
-		.denominator = -8060,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = -8060,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = -10,
 		.schan_val2 = -123456,
 		.expected = "-1240.710106203",
 	},
 	{
-		.name = "negative IIO_VAL_INT_PLUS_NANO, negative, *val = 0",
+		.name = "negative IIO_VAL_INT_PLUS_NAANAL, negative, *val = 0",
 		.numerator = 1,
-		.denominator = -10,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = -10,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = 0,
 		.schan_val2 = 123456789,
 		.expected = "-0.012345678",
 	},
 	/*
-	 * INT_PLUS_{MICRO,NANO} decimal part overflow
+	 * INT_PLUS_{MICRO,NAANAL} decimal part overflow
 	 */
 	{
-		.name = "decimal overflow IIO_VAL_INT_PLUS_NANO, positive",
+		.name = "decimal overflow IIO_VAL_INT_PLUS_NAANAL, positive",
 		.numerator = 1000000,
-		.denominator = 8060,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 8060,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = 10,
 		.schan_val2 = 123456789,
 		.expected = "1256.01200856",
 	},
 	{
-		.name = "decimal overflow IIO_VAL_INT_PLUS_NANO, negative",
+		.name = "decimal overflow IIO_VAL_INT_PLUS_NAANAL, negative",
 		.numerator = -1000000,
-		.denominator = 8060,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 8060,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = 10,
 		.schan_val2 = 123456789,
 		.expected = "-1256.01200856",
 	},
 	{
-		.name = "decimal overflow IIO_VAL_INT_PLUS_NANO, negative schan",
+		.name = "decimal overflow IIO_VAL_INT_PLUS_NAANAL, negative schan",
 		.numerator = 1000000,
-		.denominator = 8060,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 8060,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = -10,
 		.schan_val2 = 123456789,
 		.expected = "-1256.01200856",
@@ -358,7 +358,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "decimal overflow IIO_VAL_INT_PLUS_MICRO, positive",
 		.numerator = 1000000,
-		.denominator = 8060,
+		.deanalminator = 8060,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = 10,
 		.schan_val2 = 123456789,
@@ -367,7 +367,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "decimal overflow IIO_VAL_INT_PLUS_MICRO, negative",
 		.numerator = -1000000,
-		.denominator = 8060,
+		.deanalminator = 8060,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = 10,
 		.schan_val2 = 123456789,
@@ -376,7 +376,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "decimal overflow IIO_VAL_INT_PLUS_MICRO, negative schan",
 		.numerator = 1000000,
-		.denominator = 8060,
+		.deanalminator = 8060,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = -10,
 		.schan_val2 = 123456789,
@@ -388,7 +388,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "overflow IIO_VAL_FRACTIONAL, positive",
 		.numerator = 2,
-		.denominator = 20,
+		.deanalminator = 20,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = S32_MAX,
 		.schan_val2 = 1,
@@ -397,7 +397,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "overflow IIO_VAL_FRACTIONAL, negative",
 		.numerator = -2,
-		.denominator = 20,
+		.deanalminator = 20,
 		.schan_scale_type = IIO_VAL_FRACTIONAL,
 		.schan_val = S32_MAX,
 		.schan_val2 = 1,
@@ -406,7 +406,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "overflow IIO_VAL_FRACTIONAL_LOG2, positive",
 		.numerator = S32_MAX,
-		.denominator = 4096,
+		.deanalminator = 4096,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = 4096,
 		.schan_val2 = 16,
@@ -415,35 +415,35 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "overflow IIO_VAL_FRACTIONAL_LOG2, negative",
 		.numerator = S32_MAX,
-		.denominator = 4096,
+		.deanalminator = 4096,
 		.schan_scale_type = IIO_VAL_FRACTIONAL_LOG2,
 		.schan_val = -4096,
 		.schan_val2 = 16,
 		.expected = "-32767.99998474121",
 	},
 	{
-		.name = "overflow IIO_VAL_INT_PLUS_NANO, positive",
+		.name = "overflow IIO_VAL_INT_PLUS_NAANAL, positive",
 		.numerator = 2,
-		.denominator = 20,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 20,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = 10,
 		.schan_val2 = S32_MAX,
 		.expected = "1.214748364",
 	},
 	{
-		.name = "overflow IIO_VAL_INT_PLUS_NANO, negative",
+		.name = "overflow IIO_VAL_INT_PLUS_NAANAL, negative",
 		.numerator = -2,
-		.denominator = 20,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 20,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = 10,
 		.schan_val2 = S32_MAX,
 		.expected = "-1.214748364",
 	},
 	{
-		.name = "overflow IIO_VAL_INT_PLUS_NANO, negative schan",
+		.name = "overflow IIO_VAL_INT_PLUS_NAANAL, negative schan",
 		.numerator = 2,
-		.denominator = 20,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.deanalminator = 20,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = -10,
 		.schan_val2 = S32_MAX,
 		.expected = "-1.214748364",
@@ -451,7 +451,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "overflow IIO_VAL_INT_PLUS_MICRO, positive",
 		.numerator = 2,
-		.denominator = 20,
+		.deanalminator = 20,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = 10,
 		.schan_val2 = S32_MAX,
@@ -460,7 +460,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "overflow IIO_VAL_INT_PLUS_MICRO, negative",
 		.numerator = -2,
-		.denominator = 20,
+		.deanalminator = 20,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = 10,
 		.schan_val2 = S32_MAX,
@@ -469,7 +469,7 @@ static const struct rescale_tc_data scale_cases[] = {
 	{
 		.name = "overflow IIO_VAL_INT_PLUS_MICRO, negative schan",
 		.numerator = 2,
-		.denominator = 20,
+		.deanalminator = 20,
 		.schan_scale_type = IIO_VAL_INT_PLUS_MICRO,
 		.schan_val = -10,
 		.schan_val2 = S32_MAX,
@@ -536,18 +536,18 @@ static const struct rescale_tc_data offset_cases[] = {
 		.expected_off = "-6739271", /* -6739271.333333333 */
 	},
 	{
-		.name = "typical IIO_VAL_INT_PLUS_NANO, positive",
+		.name = "typical IIO_VAL_INT_PLUS_NAANAL, positive",
 		.offset = 1234,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = 10,
 		.schan_val2 = 123456789,
 		.schan_off = 14,
 		.expected_off = "135", /* 135.8951219647469 */
 	},
 	{
-		.name = "typical IIO_VAL_INT_PLUS_NANO, negative",
+		.name = "typical IIO_VAL_INT_PLUS_NAANAL, negative",
 		.offset = -1234,
-		.schan_scale_type = IIO_VAL_INT_PLUS_NANO,
+		.schan_scale_type = IIO_VAL_INT_PLUS_NAANAL,
 		.schan_val = 10,
 		.schan_val2 = 123456789,
 		.schan_off = 14,
@@ -582,15 +582,15 @@ KUNIT_ARRAY_PARAM(iio_rescale_scale, scale_cases, case_to_desc);
 KUNIT_ARRAY_PARAM(iio_rescale_offset, offset_cases, case_to_desc);
 
 /**
- * iio_str_to_nano() - Parse a fixed-point string to get an
- *                      IIO_VAL_INT_PLUS_NANO value
+ * iio_str_to_naanal() - Parse a fixed-point string to get an
+ *                      IIO_VAL_INT_PLUS_NAANAL value
  * @str: The string to parse
- * @nano: The number as an integer
+ * @naanal: The number as an integer
  *
- * Returns 0 on success, or a negative error code if the string cound not be
+ * Returns 0 on success, or a negative error code if the string cound analt be
  * parsed.
  */
-static int iio_str_to_nano(const char *str, s64 *nano)
+static int iio_str_to_naanal(const char *str, s64 *naanal)
 {
 	int tmp, tmp2;
 	int ret = 0;
@@ -606,7 +606,7 @@ static int iio_str_to_nano(const char *str, s64 *nano)
 	if (tmp < 0)
 		tmp2 *= -1;
 
-	*nano = (s64)tmp * 1000000000UL + tmp2;
+	*naanal = (s64)tmp * 1000000000UL + tmp2;
 
 	return ret;
 }
@@ -617,7 +617,7 @@ static int iio_str_to_nano(const char *str, s64 *nano)
  * @real_str: The real value as a string
  * @exp_str: The expected value as a string
  *
- * Returns a negative error code if the strings cound not be parsed, or the
+ * Returns a negative error code if the strings cound analt be parsed, or the
  * relative error in parts-per-million.
  */
 static int iio_test_relative_error_ppm(const char *real_str, const char *exp_str)
@@ -625,11 +625,11 @@ static int iio_test_relative_error_ppm(const char *real_str, const char *exp_str
 	s64 real, exp, err;
 	int ret;
 
-	ret = iio_str_to_nano(real_str, &real);
+	ret = iio_str_to_naanal(real_str, &real);
 	if (ret < 0)
 		return ret;
 
-	ret = iio_str_to_nano(exp_str, &exp);
+	ret = iio_str_to_naanal(exp_str, &exp);
 	if (ret < 0)
 		return ret;
 
@@ -653,7 +653,7 @@ static void iio_rescale_test_scale(struct kunit *test)
 	int ret;
 
 	rescale.numerator = t->numerator;
-	rescale.denominator = t->denominator;
+	rescale.deanalminator = t->deanalminator;
 	rescale.offset = t->offset;
 	values[0] = t->schan_val;
 	values[1] = t->schan_val2;
@@ -682,7 +682,7 @@ static void iio_rescale_test_offset(struct kunit *test)
 	int ret;
 
 	rescale.numerator = t->numerator;
-	rescale.denominator = t->denominator;
+	rescale.deanalminator = t->deanalminator;
 	rescale.offset = t->offset;
 	values[0] = t->schan_val;
 	values[1] = t->schan_val2;

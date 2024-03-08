@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@ nvkm_falcon_qmgr_seq_acquire(struct nvkm_falcon_qmgr *qmgr)
 	mutex_lock(&qmgr->seq.mutex);
 	index = find_first_zero_bit(qmgr->seq.tbl, NVKM_FALCON_QMGR_SEQ_NUM);
 	if (index >= NVKM_FALCON_QMGR_SEQ_NUM) {
-		nvkm_error(subdev, "no free sequence available\n");
+		nvkm_error(subdev, "anal free sequence available\n");
 		mutex_unlock(&qmgr->seq.mutex);
 		return ERR_PTR(-EAGAIN);
 	}
@@ -49,7 +49,7 @@ void
 nvkm_falcon_qmgr_seq_release(struct nvkm_falcon_qmgr *qmgr,
 			     struct nvkm_falcon_qmgr_seq *seq)
 {
-	/* no need to acquire seq.mutex since clear_bit is atomic */
+	/* anal need to acquire seq.mutex since clear_bit is atomic */
 	seq->state = SEQ_STATE_FREE;
 	seq->callback = NULL;
 	reinit_completion(&seq->done);
@@ -74,7 +74,7 @@ nvkm_falcon_qmgr_new(struct nvkm_falcon *falcon,
 	int i;
 
 	if (!(qmgr = *pqmgr = kzalloc(sizeof(*qmgr), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmgr->falcon = falcon;
 	mutex_init(&qmgr->seq.mutex);

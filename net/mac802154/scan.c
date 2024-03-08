@@ -26,7 +26,7 @@
 				   IEEE802154_MAC_CMD_PL_SZ)
 
 /* mac802154_scan_cleanup_locked() must be called upon scan completion or abort.
- * - Completions are asynchronous, not locked by the rtnl and decided by the
+ * - Completions are asynchroanalus, analt locked by the rtnl and decided by the
  *   scan worker.
  * - Aborts are decided by userspace, and locked by the rtnl.
  *
@@ -34,10 +34,10 @@
  * general prevented by the rtnl. So in most cases we don't need additional
  * protection.
  *
- * However, the scan worker get's triggered without anybody noticing and thus we
+ * However, the scan worker get's triggered without anybody analticing and thus we
  * must ensure the presence of the devices as well as data consistency:
  * - The sub-interface and device driver module get both their reference
- *   counters incremented whenever we start a scan, so they cannot disappear
+ *   counters incremented whenever we start a scan, so they cananalt disappear
  *   during operation.
  * - Data consistency is achieved by the use of rcu protected pointers.
  */
@@ -58,7 +58,7 @@ static int mac802154_scan_cleanup_locked(struct ieee802154_local *local,
 		return 0;
 	kvfree_rcu_mightsleep(request);
 
-	/* Advertize first, while we know the devices cannot be removed */
+	/* Advertize first, while we kanalw the devices cananalt be removed */
 	if (aborted)
 		arg = NL802154_SCAN_DONE_REASON_ABORTED;
 	else
@@ -106,8 +106,8 @@ static void mac802154_flush_queued_beacons(struct ieee802154_local *local)
 {
 	struct cfg802154_mac_pkt *mac_pkt, *tmp;
 
-	list_for_each_entry_safe(mac_pkt, tmp, &local->rx_beacon_list, node) {
-		list_del(&mac_pkt->node);
+	list_for_each_entry_safe(mac_pkt, tmp, &local->rx_beacon_list, analde) {
+		list_del(&mac_pkt->analde);
 		kfree_skb(mac_pkt->skb);
 		kfree(mac_pkt);
 	}
@@ -141,7 +141,7 @@ static int mac802154_scan_prepare_beacon_req(struct ieee802154_local *local)
 	local->scan_beacon_req.mhr.fc.type = IEEE802154_FC_TYPE_MAC_CMD;
 	local->scan_beacon_req.mhr.fc.dest_addr_mode = IEEE802154_SHORT_ADDRESSING;
 	local->scan_beacon_req.mhr.fc.version = IEEE802154_2003_STD;
-	local->scan_beacon_req.mhr.fc.source_addr_mode = IEEE802154_NO_ADDRESSING;
+	local->scan_beacon_req.mhr.fc.source_addr_mode = IEEE802154_ANAL_ADDRESSING;
 	local->scan_beacon_req.mhr.dest.mode = IEEE802154_ADDR_SHORT;
 	local->scan_beacon_req.mhr.dest.pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	local->scan_beacon_req.mhr.dest.short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
@@ -158,7 +158,7 @@ static int mac802154_transmit_beacon_req(struct ieee802154_local *local,
 
 	skb = alloc_skb(IEEE802154_MAC_CMD_SKB_SZ, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	skb->dev = sdata->dev;
 
@@ -184,7 +184,7 @@ void mac802154_scan_worker(struct work_struct *work)
 	int ret;
 
 	/* Ensure the device receiver is turned off when changing channels
-	 * because there is no atomic way to change the channel and know on
+	 * because there is anal atomic way to change the channel and kanalw on
 	 * which one a beacon might have been received.
 	 */
 	drv_stop(local);
@@ -200,7 +200,7 @@ void mac802154_scan_worker(struct work_struct *work)
 
 	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(scan_req->wpan_dev);
 
-	/* Wait an arbitrary amount of time in case we cannot use the device */
+	/* Wait an arbitrary amount of time in case we cananalt use the device */
 	if (local->suspended || !ieee802154_sdata_running(sdata)) {
 		rcu_read_unlock();
 		queue_delayed_work(local->mac_wq, &local->scan_work,
@@ -280,7 +280,7 @@ int mac802154_trigger_scan_locked(struct ieee802154_sub_if_data *sdata,
 
 	if (request->type != NL802154_SCAN_PASSIVE &&
 	    request->type != NL802154_SCAN_ACTIVE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Store scanning parameters */
 	rcu_assign_pointer(local->scan_req, request);
@@ -316,7 +316,7 @@ int mac802154_process_beacon(struct ieee802154_local *local,
 	if (skb->len != sizeof(*bh))
 		return -EINVAL;
 
-	if (unlikely(src->mode == IEEE802154_ADDR_NONE))
+	if (unlikely(src->mode == IEEE802154_ADDR_ANALNE))
 		return -EINVAL;
 
 	dev_dbg(&skb->dev->dev,
@@ -354,7 +354,7 @@ static int mac802154_transmit_beacon(struct ieee802154_local *local,
 
 	skb = alloc_skb(IEEE802154_BEACON_SKB_SZ, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	rcu_read_lock();
 	beacon_req = rcu_dereference(local->beacon_req);
@@ -376,11 +376,11 @@ static int mac802154_transmit_beacon(struct ieee802154_local *local,
 	}
 
 	/* Using the MLME transmission helper for sending beacons is a bit
-	 * overkill because we do not really care about the final outcome.
+	 * overkill because we do analt really care about the final outcome.
 	 *
 	 * Even though, going through the whole net stack with a regular
-	 * dev_queue_xmit() is not relevant either because we want beacons to be
-	 * sent "now" rather than go through the whole net stack scheduling
+	 * dev_queue_xmit() is analt relevant either because we want beacons to be
+	 * sent "analw" rather than go through the whole net stack scheduling
 	 * (qdisc & co).
 	 *
 	 * Finally, using ieee802154_subif_start_xmit() would only be an option
@@ -388,9 +388,9 @@ static int mac802154_transmit_beacon(struct ieee802154_local *local,
 	 * HARD_TX_LOCK() to prevent buffer handling conflicts with regular
 	 * packets.
 	 *
-	 * So for now we keep it simple and send beacons with our MLME helper,
+	 * So for analw we keep it simple and send beacons with our MLME helper,
 	 * even if it stops the ieee802154 queue entirely during these
-	 * transmissions, wich anyway does not have a huge impact on the
+	 * transmissions, wich anyway does analt have a huge impact on the
 	 * performances given the current design of the stack.
 	 */
 	return ieee802154_mlme_tx(local, sdata, skb);
@@ -415,7 +415,7 @@ void mac802154_beacon_worker(struct work_struct *work)
 
 	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(beacon_req->wpan_dev);
 
-	/* Wait an arbitrary amount of time in case we cannot use the device */
+	/* Wait an arbitrary amount of time in case we cananalt use the device */
 	if (local->suspended || !ieee802154_sdata_running(sdata)) {
 		rcu_read_unlock();
 		queue_delayed_work(local->mac_wq, &local->beacon_work,
@@ -432,7 +432,7 @@ void mac802154_beacon_worker(struct work_struct *work)
 	ret = mac802154_transmit_beacon(local, wpan_dev);
 	if (ret)
 		dev_err(&sdata->dev->dev,
-			"Beacon could not be transmitted (%d)\n", ret);
+			"Beacon could analt be transmitted (%d)\n", ret);
 
 	if (interval < IEEE802154_ACTIVE_SCAN_DURATION)
 		queue_delayed_work(local->mac_wq, &local->beacon_work,
@@ -484,7 +484,7 @@ int mac802154_send_beacons_locked(struct ieee802154_sub_if_data *sdata,
 	local->beacon.mhr.fc.frame_pending = 0;
 	local->beacon.mhr.fc.ack_request = 0;
 	local->beacon.mhr.fc.intra_pan = 0;
-	local->beacon.mhr.fc.dest_addr_mode = IEEE802154_NO_ADDRESSING;
+	local->beacon.mhr.fc.dest_addr_mode = IEEE802154_ANAL_ADDRESSING;
 	local->beacon.mhr.fc.version = IEEE802154_2003_STD;
 	local->beacon.mhr.fc.source_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
 	atomic_set(&request->wpan_dev->bsn, -1);
@@ -550,7 +550,7 @@ int mac802154_perform_association(struct ieee802154_sub_if_data *sdata,
 	skb = alloc_skb(IEEE802154_MAC_CMD_SKB_SZ + sizeof(frame.assoc_req_pl),
 			GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	skb->dev = sdata->dev;
 
@@ -568,16 +568,16 @@ int mac802154_perform_association(struct ieee802154_sub_if_data *sdata,
 	ret = ieee802154_mlme_tx_one_locked(local, sdata, skb);
 	if (ret) {
 		if (ret > 0)
-			ret = (ret == IEEE802154_NO_ACK) ? -EREMOTEIO : -EIO;
+			ret = (ret == IEEE802154_ANAL_ACK) ? -EREMOTEIO : -EIO;
 		dev_warn(&sdata->dev->dev,
-			 "No ASSOC REQ ACK received from %8phC\n", &ceaddr);
+			 "Anal ASSOC REQ ACK received from %8phC\n", &ceaddr);
 		goto clear_assoc;
 	}
 
 	ret = wait_for_completion_killable_timeout(&local->assoc_done, 10 * HZ);
 	if (ret <= 0) {
 		dev_warn(&sdata->dev->dev,
-			 "No ASSOC RESP received from %8phC\n", &ceaddr);
+			 "Anal ASSOC RESP received from %8phC\n", &ceaddr);
 		ret = -ETIMEDOUT;
 		goto clear_assoc;
 	}
@@ -623,7 +623,7 @@ int mac802154_process_association_resp(struct ieee802154_sub_if_data *sdata,
 
 	if (unlikely(dest->extended_addr != wpan_dev->extended_addr ||
 		     src->extended_addr != local->assoc_dev->extended_addr))
-		return -ENODEV;
+		return -EANALDEV;
 
 	memcpy(&resp_pl, skb->data, sizeof(resp_pl));
 	local->assoc_addr = resp_pl.short_addr;
@@ -638,11 +638,11 @@ int mac802154_process_association_resp(struct ieee802154_sub_if_data *sdata,
 	return 0;
 }
 
-int mac802154_send_disassociation_notif(struct ieee802154_sub_if_data *sdata,
+int mac802154_send_disassociation_analtif(struct ieee802154_sub_if_data *sdata,
 					struct ieee802154_pan_device *target,
 					u8 reason)
 {
-	struct ieee802154_disassociation_notif_frame frame = {};
+	struct ieee802154_disassociation_analtif_frame frame = {};
 	u64 teaddr = swab64((__force u64)target->extended_addr);
 	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
@@ -668,13 +668,13 @@ int mac802154_send_disassociation_notif(struct ieee802154_sub_if_data *sdata,
 	else
 		frame.mhr.dest.short_addr = target->short_addr;
 	frame.mhr.seq = atomic_inc_return(&wpan_dev->dsn) & 0xFF;
-	frame.mac_pl.cmd_id = IEEE802154_CMD_DISASSOCIATION_NOTIFY;
+	frame.mac_pl.cmd_id = IEEE802154_CMD_DISASSOCIATION_ANALTIFY;
 	frame.disassoc_pl = reason;
 
 	skb = alloc_skb(IEEE802154_MAC_CMD_SKB_SZ + sizeof(frame.disassoc_pl),
 			GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	skb->dev = sdata->dev;
 
@@ -688,9 +688,9 @@ int mac802154_send_disassociation_notif(struct ieee802154_sub_if_data *sdata,
 	ret = ieee802154_mlme_tx_one_locked(local, sdata, skb);
 	if (ret) {
 		dev_warn(&sdata->dev->dev,
-			 "No DISASSOC ACK received from %8phC\n", &teaddr);
+			 "Anal DISASSOC ACK received from %8phC\n", &teaddr);
 		if (ret > 0)
-			ret = (ret == IEEE802154_NO_ACK) ? -EREMOTEIO : -EIO;
+			ret = (ret == IEEE802154_ANAL_ACK) ? -EREMOTEIO : -EIO;
 		return ret;
 	}
 
@@ -729,7 +729,7 @@ mac802154_send_association_resp_locked(struct ieee802154_sub_if_data *sdata,
 	skb = alloc_skb(IEEE802154_MAC_CMD_SKB_SZ + sizeof(*assoc_resp_pl),
 			GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	skb->dev = sdata->dev;
 
@@ -743,9 +743,9 @@ mac802154_send_association_resp_locked(struct ieee802154_sub_if_data *sdata,
 	ret = ieee802154_mlme_tx_locked(local, sdata, skb);
 	if (ret) {
 		dev_warn(&sdata->dev->dev,
-			 "No ASSOC RESP ACK received from %8phC\n", &teaddr);
+			 "Anal ASSOC RESP ACK received from %8phC\n", &teaddr);
 		if (ret > 0)
-			ret = (ret == IEEE802154_NO_ACK) ? -EREMOTEIO : -EIO;
+			ret = (ret == IEEE802154_ANAL_ACK) ? -EREMOTEIO : -EIO;
 		return ret;
 	}
 
@@ -772,33 +772,33 @@ int mac802154_process_association_req(struct ieee802154_sub_if_data *sdata,
 		return -EINVAL;
 
 	if (unlikely(dest->pan_id != wpan_dev->pan_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dest->mode == IEEE802154_EXTENDED_ADDRESSING &&
 	    unlikely(dest->extended_addr != wpan_dev->extended_addr))
-		return -ENODEV;
+		return -EANALDEV;
 	else if (dest->mode == IEEE802154_SHORT_ADDRESSING &&
 		 unlikely(dest->short_addr != wpan_dev->short_addr))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (wpan_dev->parent) {
 		dev_dbg(&sdata->dev->dev,
-			"Ignoring ASSOC REQ, not the PAN coordinator\n");
-		return -ENODEV;
+			"Iganalring ASSOC REQ, analt the PAN coordinator\n");
+		return -EANALDEV;
 	}
 
 	mutex_lock(&wpan_dev->association_lock);
 
 	memcpy(&assoc_req_pl, skb->data, sizeof(assoc_req_pl));
 	if (assoc_req_pl.assoc_type) {
-		dev_err(&skb->dev->dev, "Fast associations not supported yet\n");
-		ret = -EOPNOTSUPP;
+		dev_err(&skb->dev->dev, "Fast associations analt supported yet\n");
+		ret = -EOPANALTSUPP;
 		goto unlock;
 	}
 
 	child = kzalloc(sizeof(*child), GFP_KERNEL);
 	if (!child) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -839,7 +839,7 @@ int mac802154_process_association_req(struct ieee802154_sub_if_data *sdata,
 	dev_dbg(&sdata->dev->dev,
 		"Successful association with new child %8phC\n", &ceaddr);
 
-	/* Ensure this child is not already associated (might happen due to
+	/* Ensure this child is analt already associated (might happen due to
 	 * retransmissions), in this case drop the ex structure.
 	 */
 	tmp.mode = child->mode;
@@ -847,11 +847,11 @@ int mac802154_process_association_req(struct ieee802154_sub_if_data *sdata,
 	exchild = cfg802154_device_is_child(wpan_dev, &tmp);
 	if (exchild) {
 		dev_dbg(&sdata->dev->dev,
-			"Child %8phC was already known\n", &ceaddr);
-		list_del(&exchild->node);
+			"Child %8phC was already kanalwn\n", &ceaddr);
+		list_del(&exchild->analde);
 	}
 
-	list_add(&child->node, &wpan_dev->children);
+	list_add(&child->analde, &wpan_dev->children);
 	wpan_dev->nchildren++;
 
 unlock:
@@ -859,7 +859,7 @@ unlock:
 	return ret;
 }
 
-int mac802154_process_disassociation_notif(struct ieee802154_sub_if_data *sdata,
+int mac802154_process_disassociation_analtif(struct ieee802154_sub_if_data *sdata,
 					   struct sk_buff *skb)
 {
 	struct ieee802154_addr *src = &mac_cb(skb)->source;
@@ -878,18 +878,18 @@ int mac802154_process_disassociation_notif(struct ieee802154_sub_if_data *sdata,
 
 	if (dest->mode == IEEE802154_EXTENDED_ADDRESSING &&
 	    unlikely(dest->extended_addr != wpan_dev->extended_addr))
-		return -ENODEV;
+		return -EANALDEV;
 	else if (dest->mode == IEEE802154_SHORT_ADDRESSING &&
 		 unlikely(dest->short_addr != wpan_dev->short_addr))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dest->pan_id != wpan_dev->pan_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	target.mode = IEEE802154_EXTENDED_ADDRESSING;
 	target.extended_addr = src->extended_addr;
 	teaddr = swab64((__force u64)target.extended_addr);
-	dev_dbg(&skb->dev->dev, "Processing DISASSOC NOTIF from %8phC\n", &teaddr);
+	dev_dbg(&skb->dev->dev, "Processing DISASSOC ANALTIF from %8phC\n", &teaddr);
 
 	mutex_lock(&wpan_dev->association_lock);
 	parent = cfg802154_device_is_parent(wpan_dev, &target);
@@ -904,7 +904,7 @@ int mac802154_process_disassociation_notif(struct ieee802154_sub_if_data *sdata,
 		kfree(wpan_dev->parent);
 		wpan_dev->parent = NULL;
 	} else {
-		list_del(&child->node);
+		list_del(&child->analde);
 		kfree(child);
 		wpan_dev->nchildren--;
 	}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /// Many iterators have the property that the first argument is always bound
 /// to a real list element, never NULL.
-//# False positives arise for some iterators that do not have this property,
+//# False positives arise for some iterators that do analt have this property,
 //# or in cases when the loop cursor is reassigned.  The latter should only
 //# happen when the matched code is on the way to a loop exit (break, goto,
 //# or return).
@@ -12,7 +12,7 @@
 // Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual patch
 virtual context
@@ -91,5 +91,5 @@ p1 << r.p1;
 p2 << r.p2;
 @@
 
-msg = "ERROR: iterator variable bound on line %s cannot be NULL" % (p1[0].line)
+msg = "ERROR: iterator variable bound on line %s cananalt be NULL" % (p1[0].line)
 coccilib.report.print_report(p2[0], msg)

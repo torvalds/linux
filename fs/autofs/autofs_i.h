@@ -45,7 +45,7 @@ extern struct file_system_type autofs_fs_type;
 
 /*
  * Unified info structure.  This is pointed to by both the dentry and
- * inode structures.  Each file in the filesystem has an instance of this
+ * ianalde structures.  Each file in the filesystem has an instance of this
  * structure.  It holds a reference to the dentry, so dentries are never
  * flushed while the file exists.  All name lookups are dealt with at the
  * dentry level, although the filesystem can interfere in the validation
@@ -73,9 +73,9 @@ struct autofs_info {
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry in the process of expiring */
 #define AUTOFS_INF_WANT_EXPIRE	(1<<1) /* the dentry is being considered
 					* for expiry, so RCU_walk is
-					* not permitted.  If it progresses to
+					* analt permitted.  If it progresses to
 					* actual expiry attempt, the flag is
-					* not cleared when EXPIRING is set -
+					* analt cleared when EXPIRING is set -
 					* in that case it gets cleared only
 					* when it comes to clearing EXPIRING.
 					*/
@@ -89,7 +89,7 @@ struct autofs_wait_queue {
 	struct qstr name;
 	u32 offset;
 	u32 dev;
-	u64 ino;
+	u64 ianal;
 	kuid_t uid;
 	kgid_t gid;
 	pid_t pid;
@@ -103,7 +103,7 @@ struct autofs_wait_queue {
 
 #define AUTOFS_SBI_CATATONIC	0x0001
 #define AUTOFS_SBI_STRICTEXPIRE 0x0002
-#define AUTOFS_SBI_IGNORE	0x0004
+#define AUTOFS_SBI_IGANALRE	0x0004
 
 struct autofs_sb_info {
 	u32 magic;
@@ -133,7 +133,7 @@ static inline struct autofs_sb_info *autofs_sbi(struct super_block *sb)
 	return (struct autofs_sb_info *)(sb->s_fs_info);
 }
 
-static inline struct autofs_info *autofs_dentry_ino(struct dentry *dentry)
+static inline struct autofs_info *autofs_dentry_ianal(struct dentry *dentry)
 {
 	return (struct autofs_info *)(dentry->d_fsdata);
 }
@@ -148,13 +148,13 @@ static inline int autofs_oz_mode(struct autofs_sb_info *sbi)
 		 task_pgrp(current) == sbi->oz_pgrp);
 }
 
-static inline bool autofs_empty(struct autofs_info *ino)
+static inline bool autofs_empty(struct autofs_info *ianal)
 {
-	return ino->count < 2;
+	return ianal->count < 2;
 }
 
-struct inode *autofs_get_inode(struct super_block *, umode_t);
-void autofs_free_ino(struct autofs_info *);
+struct ianalde *autofs_get_ianalde(struct super_block *, umode_t);
+void autofs_free_ianal(struct autofs_info *);
 
 /* Expiration */
 int is_autofs_dentry(struct dentry *);
@@ -167,15 +167,15 @@ int autofs_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 int autofs_expire_multi(struct super_block *, struct vfsmount *,
 			struct autofs_sb_info *, int __user *);
 
-/* Device node initialization */
+/* Device analde initialization */
 
 int autofs_dev_ioctl_init(void);
 void autofs_dev_ioctl_exit(void);
 
 /* Operations structures */
 
-extern const struct inode_operations autofs_symlink_inode_operations;
-extern const struct inode_operations autofs_dir_inode_operations;
+extern const struct ianalde_operations autofs_symlink_ianalde_operations;
+extern const struct ianalde_operations autofs_dir_ianalde_operations;
 extern const struct file_operations autofs_dir_operations;
 extern const struct file_operations autofs_root_operations;
 extern const struct dentry_operations autofs_dentry_operations;
@@ -209,14 +209,14 @@ static inline void managed_dentry_clear_managed(struct dentry *dentry)
 
 extern const struct fs_parameter_spec autofs_param_specs[];
 int autofs_init_fs_context(struct fs_context *fc);
-struct autofs_info *autofs_new_ino(struct autofs_sb_info *);
-void autofs_clean_ino(struct autofs_info *);
+struct autofs_info *autofs_new_ianal(struct autofs_sb_info *);
+void autofs_clean_ianal(struct autofs_info *);
 
 static inline int autofs_check_pipe(struct file *pipe)
 {
 	if (!(pipe->f_mode & FMODE_CAN_WRITE))
 		return -EINVAL;
-	if (!S_ISFIFO(file_inode(pipe)->i_mode))
+	if (!S_ISFIFO(file_ianalde(pipe)->i_mode))
 		return -EINVAL;
 	return 0;
 }
@@ -226,7 +226,7 @@ static inline void autofs_set_packet_pipe_flags(struct file *pipe)
 	/* We want a packet pipe */
 	pipe->f_flags |= O_DIRECT;
 	/* We don't expect -EAGAIN */
-	pipe->f_flags &= ~O_NONBLOCK;
+	pipe->f_flags &= ~O_ANALNBLOCK;
 }
 
 static inline int autofs_prepare_pipe(struct file *pipe)
@@ -241,7 +241,7 @@ static inline int autofs_prepare_pipe(struct file *pipe)
 /* Queue management functions */
 
 int autofs_wait(struct autofs_sb_info *,
-		 const struct path *, enum autofs_notify);
+		 const struct path *, enum autofs_analtify);
 int autofs_wait_release(struct autofs_sb_info *, autofs_wqt_t, int);
 void autofs_catatonic_mode(struct autofs_sb_info *);
 
@@ -250,31 +250,31 @@ static inline u32 autofs_get_dev(struct autofs_sb_info *sbi)
 	return new_encode_dev(sbi->sb->s_dev);
 }
 
-static inline u64 autofs_get_ino(struct autofs_sb_info *sbi)
+static inline u64 autofs_get_ianal(struct autofs_sb_info *sbi)
 {
-	return d_inode(sbi->sb->s_root)->i_ino;
+	return d_ianalde(sbi->sb->s_root)->i_ianal;
 }
 
 static inline void __autofs_add_expiring(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
 
-	if (ino) {
-		if (list_empty(&ino->expiring))
-			list_add(&ino->expiring, &sbi->expiring_list);
+	if (ianal) {
+		if (list_empty(&ianal->expiring))
+			list_add(&ianal->expiring, &sbi->expiring_list);
 	}
 }
 
 static inline void autofs_add_expiring(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
 
-	if (ino) {
+	if (ianal) {
 		spin_lock(&sbi->lookup_lock);
-		if (list_empty(&ino->expiring))
-			list_add(&ino->expiring, &sbi->expiring_list);
+		if (list_empty(&ianal->expiring))
+			list_add(&ianal->expiring, &sbi->expiring_list);
 		spin_unlock(&sbi->lookup_lock);
 	}
 }
@@ -282,12 +282,12 @@ static inline void autofs_add_expiring(struct dentry *dentry)
 static inline void autofs_del_expiring(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
 
-	if (ino) {
+	if (ianal) {
 		spin_lock(&sbi->lookup_lock);
-		if (!list_empty(&ino->expiring))
-			list_del_init(&ino->expiring);
+		if (!list_empty(&ianal->expiring))
+			list_del_init(&ianal->expiring);
 		spin_unlock(&sbi->lookup_lock);
 	}
 }

@@ -153,7 +153,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		if (is_tcf_skbedit_ingress(act_flags) &&
 		    !(act_flags & TCA_ACT_FLAGS_SKIP_SW)) {
 			NL_SET_ERR_MSG_MOD(extack, "\"queue_mapping\" option on receive side is hardware only, use skip_sw");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		flags |= SKBEDIT_F_QUEUE_MAPPING;
 		queue_mapping = nla_data(tb[TCA_SKBEDIT_QUEUE_MAPPING]);
@@ -242,7 +242,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_chain;
 	}
 
@@ -382,17 +382,17 @@ static int tcf_skbedit_offload_act_setup(struct tc_action *act, void *entry_data
 			entry->id = FLOW_ACTION_PRIORITY;
 			entry->priority = tcf_skbedit_priority(act);
 		} else if (is_tcf_skbedit_tx_queue_mapping(act)) {
-			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"queue_mapping\" option is used on transmit side");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Offload analt supported when \"queue_mapping\" option is used on transmit side");
+			return -EOPANALTSUPP;
 		} else if (is_tcf_skbedit_rx_queue_mapping(act)) {
 			entry->id = FLOW_ACTION_RX_QUEUE_MAPPING;
 			entry->rx_queue = tcf_skbedit_rx_queue_mapping(act);
 		} else if (is_tcf_skbedit_inheritdsfield(act)) {
-			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"inheritdsfield\" option is used");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Offload analt supported when \"inheritdsfield\" option is used");
+			return -EOPANALTSUPP;
 		} else {
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported skbedit option offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		*index_inc = 1;
 	} else {
@@ -407,7 +407,7 @@ static int tcf_skbedit_offload_act_setup(struct tc_action *act, void *entry_data
 		else if (is_tcf_skbedit_rx_queue_mapping(act))
 			fl_action->id = FLOW_ACTION_RX_QUEUE_MAPPING;
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	return 0;

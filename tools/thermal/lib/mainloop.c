@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1+
-// Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org>
+// Copyright (C) 2022, Linaro Ltd - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/epoll.h>
@@ -36,7 +36,7 @@ int mainloop(unsigned int timeout)
 			return 0;
 
 		if (nfds < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			return -1;
 		}

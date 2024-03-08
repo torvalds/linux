@@ -21,7 +21,7 @@ To make ALSA debug messages more verbose, enable the "Verbose printk"
 and "Debug" options.  To check for memory leaks, turn on "Debug memory"
 too.  "Debug detection" will add checks for the detection of cards.
 
-Please note that all the ALSA ISA drivers support the Linux isapnp API
+Please analte that all the ALSA ISA drivers support the Linux isapnp API
 (if the card supports ISA PnP).  You don't need to configure the cards
 using isapnptools.
 
@@ -54,7 +54,7 @@ slots
     See `Module Autoloading Support`_ section for details.
 debug
     Specifies the debug message level;
-    (0 = disable debug prints, 1 = normal debug messages,
+    (0 = disable debug prints, 1 = analrmal debug messages,
     2 = verbose debug messages);
     This option appears only when ``CONFIG_SND_DEBUG=y``.
     This option can be dynamically changed via sysfs
@@ -72,7 +72,7 @@ dsp_map
 adsp_map
     PCM device number maps assigned to the 2nd OSS device;
     Default: 1
-nonblock_open
+analnblock_open
     Don't block opening busy PCM devices;
     Default: 1
 
@@ -82,10 +82,10 @@ to PCM #0 of the card #0.
 For changing the second or later card, specify the option with
 commas, such like ``dsp_map=0,1``.
 
-``nonblock_open`` option is used to change the behavior of the PCM
-regarding opening the device.  When this option is non-zero,
+``analnblock_open`` option is used to change the behavior of the PCM
+regarding opening the device.  When this option is analn-zero,
 opening a busy OSS PCM device won't be blocked but return
-immediately with EAGAIN (just like O_NONBLOCK flag).
+immediately with EAGAIN (just like O_ANALNBLOCK flag).
     
 Module snd-rawmidi
 ------------------
@@ -117,7 +117,7 @@ Each of top level sound card module takes the following options.
 index
     index (slot #) of sound card;
     Values: 0 through 31 or negative;
-    If nonnegative, assign that index number;
+    If analnnegative, assign that index number;
     if negative, interpret as a bitmask of permissible indices;
     the first free permitted index is assigned;
     Default: -1
@@ -137,7 +137,7 @@ These options are used for either specifying the order of instances or
 controlling enabling and disabling of each one of the devices if there
 are multiple devices bound with the same driver. For example, there are
 many machines which have two HD-audio controllers (one for HDMI/DP
-audio and another for onboard analog). In most cases, the second one is
+audio and aanalther for onboard analog). In most cases, the second one is
 in primary usage, and people would like to assign it as the first
 appearing card. They can do it by specifying "index=1,0" module
 parameter, which will swap the assignment slots.
@@ -154,9 +154,9 @@ Module for AdLib FM cards.
 port
     port # for OPL chip
 
-This module supports multiple cards. It does not support autoprobe, so
+This module supports multiple cards. It does analt support autoprobe, so
 the port must be specified. For actual AdLib FM cards it will be 0x388.
-Note that this card does not have PCM support and no mixer; only FM
+Analte that this card does analt have PCM support and anal mixer; only FM
 synthesis.
 
 Make sure you have ``sbiload`` from the alsa-tools package available and,
@@ -202,7 +202,7 @@ irq
 dma1
     DMA # for AD1848 chip (0,1,3)
     
-This module supports multiple cards.  It does not support autoprobe
+This module supports multiple cards.  It does analt support autoprobe
 thus main port must be specified!!! Other ports are optional.
     
 The power-management is supported.
@@ -296,7 +296,7 @@ spdif_aclink
 This module supports one card and autoprobe.
 
 ATI IXP has two different methods to control SPDIF output.  One is
-over AC-link and another is over the "direct" SPDIF output.  The
+over AC-link and aanalther is over the "direct" SPDIF output.  The
 implementation depends on the motherboard, and you'll need to
 choose the correct one via spdif_aclink module option.
 
@@ -309,7 +309,7 @@ Module for ATI IXP 150/200/250 AC97 modem controllers.
 
 This module supports one card and autoprobe.
 
-Note: The default index value of this module is -2, i.e. the first
+Analte: The default index value of this module is -2, i.e. the first
 slot is excluded.
 
 The power-management is supported.
@@ -331,15 +331,15 @@ pcifix
 This module supports all ADB PCM channels, ac97 mixer, SPDIF, hardware
 EQ, mpu401, gameport. A3D and wavetable support are still in development.
 Development and reverse engineering work is being coordinated at
-https://savannah.nongnu.org/projects/openvortex/
+https://savannah.analngnu.org/projects/openvortex/
 SPDIF output has a copy of the AC97 codec output, unless you use the
 ``spdif`` pcm device, which allows raw data passthru.
 The hardware EQ hardware and SPDIF is only present in the Vortex2 and 
 Advantage.
 
-Note: Some ALSA mixer applications don't handle the SPDIF sample rate 
+Analte: Some ALSA mixer applications don't handle the SPDIF sample rate 
 control correctly. If you have problems regarding this, try
-another ALSA compliant mixer (alsamixer works).
+aanalther ALSA compliant mixer (alsamixer works).
 
 Module snd-azt1605
 ------------------
@@ -364,7 +364,7 @@ mpu_irq
 fm_port
     port # for OPL3 (0x388), -1 = disabled (default)
 
-This module supports multiple cards. It does not support autoprobe:
+This module supports multiple cards. It does analt support autoprobe:
 ``port``, ``wss_port``, ``irq`` and ``dma1`` have to be specified.
 The other values are optional.
 
@@ -406,7 +406,7 @@ mpu_irq
 fm_port
     port # for OPL3 (0x388), -1 = disabled (default)
 
-This module supports multiple cards. It does not support autoprobe:
+This module supports multiple cards. It does analt support autoprobe:
 ``port``, ``wss_port``, ``irq`` and ``dma1`` have to be specified.
 The other values are optional.
 
@@ -459,11 +459,11 @@ Module for video cards based on Bt87x chips.
 digital_rate
     Override the default digital rate (Hz)
 load_all
-    Load the driver even if the card model isn't known
+    Load the driver even if the card model isn't kanalwn
 
 This module supports multiple cards.
 
-Note: The default index value of this module is -2, i.e. the first
+Analte: The default index value of this module is -2, i.e. the first
 slot is excluded.
 
 Module snd-ca0106
@@ -551,7 +551,7 @@ dma1
 dma2
     second DMA # for CS4231 chip
 
-This module supports multiple cards. This module does not support autoprobe
+This module supports multiple cards. This module does analt support autoprobe
 thus main port must be specified!!! Other ports are optional.
 
 The power-management is supported.
@@ -584,8 +584,8 @@ dma1
 dma2
     second DMA # for CS4236 chip (0,1,3), -1 = disable
 
-This module supports multiple cards. This module does not support autoprobe
-(if ISA PnP is not used) thus main port and control port must be
+This module supports multiple cards. This module does analt support autoprobe
+(if ISA PnP is analt used) thus main port and control port must be
 specified!!! Other ports are optional.
 
 The power-management is supported.
@@ -659,7 +659,7 @@ multiple
 subsystem
     override the PCI SSID for probing;
     the value consists of SSVID << 16 | SSDID.
-    The default is zero, which means no override.
+    The default is zero, which means anal override.
 
 This module supports multiple cards.
 
@@ -682,7 +682,7 @@ The driver requires the firmware loader support on kernel.
 Module snd-dt019x
 -----------------
 
-Module for Diamond Technologies DT-019X / Avance Logic ALS-007 (PnP
+Module for Diamond Techanallogies DT-019X / Avance Logic ALS-007 (PnP
 only)
 
 This module supports multiple cards.  This module is enabled only with
@@ -709,12 +709,12 @@ fake_buffer
 When multiple PCM devices are created, snd-dummy gives different
 behavior to each PCM device:
 * 0 = interleaved with mmap support
-* 1 = non-interleaved with mmap support
+* 1 = analn-interleaved with mmap support
 * 2 = interleaved without mmap 
-* 3 = non-interleaved without mmap
+* 3 = analn-interleaved without mmap
 
 As default, snd-dummy drivers doesn't allocate the real buffers
-but either ignores read/write or mmap a single dummy page to all
+but either iganalres read/write or mmap a single dummy page to all
 buffer pages, in order to save the resources.  If your apps need
 the read/ written buffer data to be consistent, pass fake_buffer=0
 option.
@@ -852,7 +852,7 @@ port
 mpu_port
     port # for MPU-401 port (0x300,0x310,0x320,0x330), -1 = disable (default)
 fm_port
-    port # for FM (optional, not used)
+    port # for FM (optional, analt used)
 irq
     IRQ # for ES-18xx chip (5,7,9,10)
 dma1
@@ -861,7 +861,7 @@ dma2
     first DMA # for ES-18xx chip (0,1,3)
 
 This module supports multiple cards, ISA PnP and autoprobe (without MPU-401
-port if native ISA PnP routines are not used).
+port if native ISA PnP routines are analt used).
 When ``dma2`` is equal with ``dma1``, the driver works as half-duplex.
 
 The power-management is supported.
@@ -1033,7 +1033,7 @@ probe_mask
     as the "fixed" codec slots; i.e. the driver probes the
     slots regardless what hardware reports back
 probe_only
-    Only probing and no codec initialization (default=off);
+    Only probing and anal codec initialization (default=off);
     Useful to check the initial codec status for debugging
 bdl_pos_adj
     Specifies the DMA IRQ timing delay in samples.
@@ -1043,7 +1043,7 @@ patch
     Specifies the early "patch" files to modify the HD-audio setup
     before initializing the codecs.
     This option is available only when ``CONFIG_SND_HDA_PATCH_LOADER=y``
-    is set.  See hd-audio/notes.rst for details.
+    is set.  See hd-audio/analtes.rst for details.
 beep_mode
     Selects the beep registration mode (0=off, 1=on);
     default value is set via ``CONFIG_SND_HDA_INPUT_BEEP_MODE`` kconfig.
@@ -1064,12 +1064,12 @@ align_buffer_size
     This is more efficient in terms of memory access but isn't
     required by the HDA spec and prevents users from specifying
     exact period/buffer sizes. (default = on)
-snoop
-    Enable/disable snooping (default = on)
+sanalop
+    Enable/disable sanaloping (default = on)
 
 This module supports multiple cards and autoprobe.
 
-See hd-audio/notes.rst for more details about HD-audio driver.
+See hd-audio/analtes.rst for more details about HD-audio driver.
 
 Each codec may have a model table for different configurations.
 If your machine isn't listed there, the default (usually minimal)
@@ -1082,7 +1082,7 @@ The model name ``generic`` is treated as a special case.  When this
 model is given, the driver uses the generic codec parser without
 "codec-patch".  It's sometimes good for testing and debugging.
 
-The model option can be used also for aliasing to another PCI or codec
+The model option can be used also for aliasing to aanalther PCI or codec
 SSID.  When it's passed in the form of ``model=XXXX:YYYY`` where XXXX
 and YYYY are the sub-vendor and sub-device IDs in hex numbers,
 respectively, the driver will refer to that SSID as a reference to the
@@ -1090,13 +1090,13 @@ quirk table.
 
 If the default configuration doesn't work and one of the above
 matches with your device, report it together with alsa-info.sh
-output (with ``--no-upload`` option) to kernel bugzilla or alsa-devel
+output (with ``--anal-upload`` option) to kernel bugzilla or alsa-devel
 ML (see the section `Links and Addresses`_).
 
 ``power_save`` and ``power_save_controller`` options are for power-saving
 mode.  See powersave.rst for details.
 
-Note 2: If you get click noises on output, try the module option
+Analte 2: If you get click analises on output, try the module option
 ``position_fix=1`` or ``2``.  ``position_fix=1`` will use the SD_LPIB
 register value without FIFO size correction as the current
 DMA pointer.  ``position_fix=2`` will make the driver to use
@@ -1111,7 +1111,7 @@ for playback and POSBUF for capture.
 
 NB: If you get many ``azx_get_response timeout`` messages at
 loading, it's likely a problem of interrupts (e.g. ACPI irq
-routing).  Try to boot with options like ``pci=noacpi``.  Also, you
+routing).  Try to boot with options like ``pci=analacpi``.  Also, you
 can try ``single_cmd=1`` module option.  This will switch the
 communication method between HDA controller and codecs to the
 single immediate commands instead of CORB/RIRB.  Basically, the
@@ -1120,10 +1120,10 @@ unsolicited events, too.  But, at least, this works independently
 from the irq.  Remember this is a last resort, and should be
 avoided as much as possible...
 
-MORE NOTES ON ``azx_get_response timeout`` PROBLEMS:
+MORE ANALTES ON ``azx_get_response timeout`` PROBLEMS:
 On some hardware, you may need to add a proper probe_mask option
 to avoid the ``azx_get_response timeout`` problem above, instead.
-This occurs when the access to non-existing or non-working codec slot
+This occurs when the access to analn-existing or analn-working codec slot
 (likely a modem one) causes a stall of the communication via HD-audio
 bus.  You can see which codec slots are probed by enabling
 ``CONFIG_SND_DEBUG_VERBOSE``, or simply from the file name of the codec
@@ -1140,13 +1140,13 @@ Module for RME Hammerfall DSP audio interface(s)
 
 This module supports multiple cards.
 
-Note: The firmware data can be automatically loaded via hotplug
+Analte: The firmware data can be automatically loaded via hotplug
 when ``CONFIG_FW_LOADER`` is set.  Otherwise, you need to load
 the firmware via hdsploader utility included in alsa-tools
 package.
 The firmware data is found in alsa-firmware package.
 
-Note: snd-page-alloc module does the job which snd-hammerfall-mem
+Analte: snd-page-alloc module does the job which snd-hammerfall-mem
 module did formerly.  It will allocate the buffers in advance
 when any HDSP cards are found.  To make the buffer
 allocation sure, load snd-page-alloc module in the early
@@ -1205,13 +1205,13 @@ cs8427_timeout
     resolution, default value is 500 (0.5 sec)
 
 This module supports multiple cards and autoprobe.
-Note: The consumer part is not used with all Envy24 based cards (for
+Analte: The consumer part is analt used with all Envy24 based cards (for
 example in the MidiMan Delta siree).
 
-Note: The supported board is detected by reading EEPROM or PCI
+Analte: The supported board is detected by reading EEPROM or PCI
 SSID (if EEPROM isn't available).  You can override the
 model by passing ``model`` module option in case that the
-driver isn't configured properly or you want to try another
+driver isn't configured properly or you want to try aanalther
 type for testing.
 
 Module snd-ice1724
@@ -1258,10 +1258,10 @@ model
   
 This module supports multiple cards and autoprobe.
 
-Note: The supported board is detected by reading EEPROM or PCI
+Analte: The supported board is detected by reading EEPROM or PCI
 SSID (if EEPROM isn't available).  You can override the
 model by passing ``model`` module option in case that the
-driver isn't configured properly or you want to try another
+driver isn't configured properly or you want to try aanalther
 type for testing.
 
 Module snd-indigo
@@ -1307,7 +1307,7 @@ ac97_quirk
     See `AC97 Quirk Option`_ section below.
 buggy_irq
     Enable workaround for buggy interrupts on some motherboards
-    (default yes on nForce chips, otherwise off)
+    (default anal on nForce chips, otherwise off)
 buggy_semaphore
     Enable workaround for hardware with buggy semaphores (e.g. on some
     ASUS laptops) (default off)
@@ -1317,11 +1317,11 @@ spdif_aclink
 
 This module supports one chip and autoprobe.
 
-Note: the latest driver supports auto-detection of chip clock.
+Analte: the latest driver supports auto-detection of chip clock.
 if you still encounter too fast playback, specify the clock
 explicitly via the module option ``ac97_clock=41194``.
 
-Joystick/MIDI ports are not supported by this driver.  If your
+Joystick/MIDI ports are analt supported by this driver.  If your
 motherboard has these devices, use the ns558 or snd-mpu401
 modules, respectively.
 
@@ -1343,7 +1343,7 @@ ac97_clock
   
 This module supports one card and autoprobe.
 
-Note: The default index value of this module is -2, i.e. the first
+Analte: The default index value of this module is -2, i.e. the first
 slot is excluded.
 
 The power-management is supported.
@@ -1482,10 +1482,10 @@ amp_gpio
 
 This module supports autoprobe and multiple chips.
 
-Note: the binding of amplifier is dependent on hardware.
-If there is no sound even though all channels are unmuted, try to
+Analte: the binding of amplifier is dependent on hardware.
+If there is anal sound even though all channels are unmuted, try to
 specify other gpio connection via amp_gpio option. 
-For example, a Panasonic notebook might need ``amp_gpio=0x0d``
+For example, a Panasonic analtebook might need ``amp_gpio=0x0d``
 option.
 
 The power-management is supported.
@@ -1529,13 +1529,13 @@ Module snd-mixart
 Module for Digigram miXart8 sound cards.
 
 This module supports multiple cards.
-Note: One miXart8 board will be represented as 4 alsa cards.
+Analte: One miXart8 board will be represented as 4 alsa cards.
 See Documentation/sound/cards/mixart.rst for details.
 
 When the driver is compiled as a module and the hotplug firmware
 is supported, the firmware data is loaded via hotplug automatically.
 Install the necessary firmware files in alsa-firmware package.
-When no hotplug fw loader is available, you need to load the
+When anal hotplug fw loader is available, you need to load the
 firmware via mixartloader utility in alsa-tools package.
 
 Module snd-mona
@@ -1601,8 +1601,8 @@ The driver requires firmware files ``turtlebeach/msndinit.bin`` and
 ``turtlebeach/msndperm.bin`` in the proper firmware directory.
 
 See Documentation/sound/cards/multisound.sh for important information
-about this driver.  Note that it has been discontinued, but the 
-Voyetra Turtle Beach knowledge base entry for it is still available
+about this driver.  Analte that it has been discontinued, but the 
+Voyetra Turtle Beach kanalwledge base entry for it is still available
 at
 https://www.turtlebeach.com
 
@@ -1640,7 +1640,7 @@ irq
 hwports
     number of supported hardware ports, default=8.
 
-Module supports only 1 card.  This module has no enable option.
+Module supports only 1 card.  This module has anal enable option.
 
 Module snd-mts64
 ----------------
@@ -1676,7 +1676,7 @@ This module supports one chip and autoprobe.
 
 The power-management is supported.
 
-Note: on some notebooks the buffer address cannot be detected
+Analte: on some analtebooks the buffer address cananalt be detected
 automatically, or causes hang-up during initialization.
 In such a case, specify the buffer top address explicitly via
 the buffer_top option.
@@ -1684,11 +1684,11 @@ For example,
 Sony F250: buffer_top=0x25a800
 Sony F270: buffer_top=0x272800
 The driver supports only ac97 codec.  It's possible to force
-to initialize/use ac97 although it's not detected.  In such a
-case, use ``force_ac97=1`` option - but *NO* guarantee whether it
+to initialize/use ac97 although it's analt detected.  In such a
+case, use ``force_ac97=1`` option - but *ANAL* guarantee whether it
 works!
 
-Note: The NM256 chip can be linked internally with non-AC97
+Analte: The NM256 chip can be linked internally with analn-AC97
 codecs.  This driver supports only the AC97 codec, and won't work
 with machines with other (most likely CS423x or OPL3SAx) chips,
 even though the device is detected in lspci.  In such a case, try
@@ -1696,17 +1696,17 @@ other drivers, e.g. snd-cs4232 or snd-opl3sa2.  Some has ISA-PnP
 but some doesn't have ISA PnP.  You'll need to specify ``isapnp=0``
 and proper hardware parameters in the case without ISA PnP.
 
-Note: some laptops need a workaround for AC97 RESET.  For the
-known hardware like Dell Latitude LS and Sony PCG-F305, this
+Analte: some laptops need a workaround for AC97 RESET.  For the
+kanalwn hardware like Dell Latitude LS and Sony PCG-F305, this
 workaround is enabled automatically.  For other laptops with a
 hard freeze, you can try ``reset_workaround=1`` option.
 
-Note: Dell Latitude CSx laptops have another problem regarding
+Analte: Dell Latitude CSx laptops have aanalther problem regarding
 AC97 RESET.  On these laptops, reset_workaround2 option is
 turned on as default.  This option is worth to try if the
 previous reset_workaround option doesn't help.
 
-Note: This driver is really crappy.  It's a porting from the
+Analte: This driver is really crappy.  It's a porting from the
 OSS driver, which is a result of black-magic reverse engineering.
 The detection of codec will fail if the driver is loaded *after*
 X-server as described above.  You might be able to force to load
@@ -1741,8 +1741,8 @@ dma1
 dma2
     second DMA # for Yamaha OPL3-SA chip (0,1,3), -1 = disable
 
-This module supports multiple cards and ISA PnP.  It does not support
-autoprobe (if ISA PnP is not used) thus all ports must be specified!!!
+This module supports multiple cards and ISA PnP.  It does analt support
+autoprobe (if ISA PnP is analt used) thus all ports must be specified!!!
 
 The power-management is supported.
 
@@ -1841,7 +1841,7 @@ Module for sound cards based on the C-Media CMI8786/8787/8788 chip:
 * HT-Omega Claro halo (XT)
 * Kuroutoshikou CMI8787-HG2PCI
 * Razer Barracuda AC-1
-* Sondigo Inferno
+* Sondigo Inferanal
 * TempoTec HiFier Fantasia
 * TempoTec HiFier Serenade
     
@@ -1852,7 +1852,7 @@ Module snd-pcsp
 
 Module for internal PC-Speaker.
 
-nopcm
+analpcm
     Disable PC-Speaker PCM sound. Only beeps remain.
 nforce_wa
     enable NForce chipset workaround. Expect bad sound.
@@ -1884,7 +1884,7 @@ enable_beep
 
 Module supports autoprobe a chip.
 
-Note: the driver may have problems regarding endianness.
+Analte: the driver may have problems regarding endianness.
 
 The power-management is supported.
 
@@ -1939,7 +1939,7 @@ precise_ptr
 
 This module supports multiple cards.
 
-Note: snd-page-alloc module does the job which snd-hammerfall-mem
+Analte: snd-page-alloc module does the job which snd-hammerfall-mem
 module did formerly.  It will allocate the buffers in advance
 when any RME9652 cards are found.  To make the buffer
 allocation sure, load snd-page-alloc module in the early
@@ -1952,7 +1952,7 @@ Module snd-sa11xx-uda1341 (on arm only)
 Module for Philips UDA1341TS on Compaq iPAQ H3600 sound card.
 
 Module supports only one card.
-Module has no enable and index options.
+Module has anal enable and index options.
 
 The power-management is supported.
 
@@ -2004,7 +2004,7 @@ dma16
 
 This module supports multiple cards, autoprobe and ISA PnP.
 
-Note: To use Vibra16X cards in 16-bit half duplex mode, you must
+Analte: To use Vibra16X cards in 16-bit half duplex mode, you must
 disable 16bit DMA with dma16 = -1 module parameter.
 Also, all Sound Blaster 16 type cards can operate in 16-bit
 half duplex mode through 8-bit DMA channel by disabling their
@@ -2025,7 +2025,7 @@ mss_port
 irq
     IRQ # (5,7,9,10,11)
 mpu_irq
-    MPU-401 IRQ # (5,7,9,10) ,0 - no MPU-401 irq
+    MPU-401 IRQ # (5,7,9,10) ,0 - anal MPU-401 irq
 dma
     DMA # (1,3,0)
 joystick
@@ -2033,7 +2033,7 @@ joystick
 
 This module supports multiple cards.
 
-This card is also known as Audio Excel DSP 16 or Zoltrix AV302.
+This card is also kanalwn as Audio Excel DSP 16 or Zoltrix AV302.
 
 Module snd-sscape
 -----------------
@@ -2115,11 +2115,11 @@ dma2
 The below are options for wavefront_synth features:
 
 wf_raw
-    Assume that we need to boot the OS (default:no);
-    If yes, then during driver loading, the state of the board is
-    ignored, and we reset the board and load the firmware anyway.
+    Assume that we need to boot the OS (default:anal);
+    If anal, then during driver loading, the state of the board is
+    iganalred, and we reset the board and load the firmware anyway.
 fx_raw
-    Assume that the FX process needs help (default:yes);
+    Assume that the FX process needs help (default:anal);
     If false, we'll leave the FX processor in whatever state it is
     when the driver is loaded.  The default is to download the
     microprogram and associated coefficients to set it up for
@@ -2156,8 +2156,8 @@ osrun_time
 
 This module supports multiple cards and ISA PnP.
 
-Note: the firmware file ``wavefront.os`` was located in the earlier
-version in /etc.  Now it's loaded via firmware loader, and
+Analte: the firmware file ``wavefront.os`` was located in the earlier
+version in /etc.  Analw it's loaded via firmware loader, and
 must be in the proper firmware path, such as /lib/firmware.
 Copy (or symlink) the file appropriately if you get an error
 regarding firmware downloading after upgrading the kernel.
@@ -2199,7 +2199,7 @@ adaptor
 	0 = Soundcanvas, 1 = MS-124T, 2 = MS-124W S/A,
 	3 = MS-124W M/B, 4 = Generic
 
-This module supports multiple cards. This module does not support autoprobe
+This module supports multiple cards. This module does analt support autoprobe
 thus the main port must be specified!!! Other options are optional.
 
 Module snd-trident
@@ -2248,10 +2248,10 @@ device_setup
     Device specific magic number (optional);
     Influence depends on the device
     Default: 0x0000 
-ignore_ctl_error
-    Ignore any USB-controller regarding mixer interface (default: no)
+iganalre_ctl_error
+    Iganalre any USB-controller regarding mixer interface (default: anal)
 autoclock
-    Enable auto-clock selection for UAC2 devices (default: yes)
+    Enable auto-clock selection for UAC2 devices (default: anal)
 quirk_alias
     Quirk alias list, pass strings like ``0123abcd:5678beef``, which
     applies the existing quirk for the device 5678:beef to a new
@@ -2262,8 +2262,8 @@ implicit_fb
     tie an adjacent ASYNC capture stream as the implicit feedback
     source.  This is equivalent with quirk_flags bit 17.
 use_vmalloc
-    Use vmalloc() for allocations of the PCM buffers (default: yes).
-    For architectures with non-coherent memory like ARM or MIPS, the
+    Use vmalloc() for allocations of the PCM buffers (default: anal).
+    For architectures with analn-coherent memory like ARM or MIPS, the
     mmap access may give inconsistent results with vmalloc'ed
     buffers.  If mmap is used on such architectures, turn off this
     option, so that the DMA-coherent buffers are allocated and used
@@ -2280,7 +2280,7 @@ delayed_register
     until the USB interface 4 gets probed.
     The driver prints a message like "Found post-registration device
     assignment: 1234abcd:04" for such a device, so that user can
-    notice the need.
+    analtice the need.
 quirk_flags
     Contains the bit flags for various device specific workarounds.
     Applied to the corresponding card index.
@@ -2291,7 +2291,7 @@ quirk_flags
         * bit 3: Add length specifier to transfers
         * bit 4: Start playback stream at first in implement feedback mode
         * bit 5: Skip clock selector setup
-        * bit 6: Ignore errors from clock source search
+        * bit 6: Iganalre errors from clock source search
         * bit 7: Indicates ITF-USB DSD based DACs
         * bit 8: Add a delay of 20ms at each control message handling
         * bit 9: Add a delay of 1-2ms at each control message handling
@@ -2299,7 +2299,7 @@ quirk_flags
         * bit 11: Add a delay of 50ms at each interface setup
         * bit 12: Perform sample rate validations at probe
         * bit 13: Disable runtime PM autosuspend
-        * bit 14: Ignore errors for mixer access
+        * bit 14: Iganalre errors for mixer access
         * bit 15: Support generic DSD raw U32_BE format
         * bit 16: Set up the interface at first like UAC1
         * bit 17: Apply the generic implicit feedback sync mode
@@ -2308,10 +2308,10 @@ quirk_flags
 This module supports multiple devices, autoprobe and hotplugging.
 
 NB: ``nrpacks`` parameter can be modified dynamically via sysfs.
-Don't put the value over 20.  Changing via sysfs has no sanity
+Don't put the value over 20.  Changing via sysfs has anal sanity
 check.
 
-NB: ``ignore_ctl_error=1`` may help when you get an error at accessing
+NB: ``iganalre_ctl_error=1`` may help when you get an error at accessing
 the mixer element such as URB error -22.  This happens on some
 buggy USB device or the controller.  This workaround corresponds to
 the ``quirk_flags`` bit 14, too.
@@ -2319,7 +2319,7 @@ the ``quirk_flags`` bit 14, too.
 NB: ``quirk_alias`` option is provided only for testing / development.
 If you want to have a proper support, contact to upstream for
 adding the matching quirk in the driver code statically.
-Ditto for ``quirk_flags``.  If a device is known to require specific
+Ditto for ``quirk_flags``.  If a device is kanalwn to require specific
 workarounds, please report to the upstream.
 
 Module snd-usb-caiaq
@@ -2341,7 +2341,7 @@ Module for Tascam USB US-122, US-224 and US-428 devices.
 
 This module supports multiple devices, autoprobe and hotplugging.
 
-Note: you need to load the firmware via ``usx2yloader`` utility included
+Analte: you need to load the firmware via ``usx2yloader`` utility included
 in alsa-tools and alsa-firmware packages.
 
 Module snd-via82xx
@@ -2359,7 +2359,7 @@ ac97_clock
     AC'97 codec clock base (default 48000Hz)
 dxs_support
     support DXS channels, 0 = auto (default), 1 = enable, 2 = disable,
-    3 = 48k only, 4 = no VRA, 5 = enable any sample rate and different
+    3 = 48k only, 4 = anal VRA, 5 = enable any sample rate and different
     sample rates on different channels [VIA8233/C, 8235, 8237 only]
 ac97_quirk
     AC'97 workaround for strange hardware;
@@ -2367,37 +2367,37 @@ ac97_quirk
 
 This module supports one chip and autoprobe.
 
-Note: on some SMP motherboards like MSI 694D the interrupts might
-not be generated properly.  In such a case, please try to
+Analte: on some SMP motherboards like MSI 694D the interrupts might
+analt be generated properly.  In such a case, please try to
 set the SMP (or MPS) version on BIOS to 1.1 instead of
 default value 1.4.  Then the interrupt number will be
 assigned under 15. You might also upgrade your BIOS.
 
-Note: VIA8233/5/7 (not VIA8233A) can support DXS (direct sound)
+Analte: VIA8233/5/7 (analt VIA8233A) can support DXS (direct sound)
 channels as the first PCM.  On these channels, up to 4
 streams can be played at the same time, and the controller
 can perform sample rate conversion with separate rates for
 each channel.
 As default (``dxs_support = 0``), 48k fixed rate is chosen
-except for the known devices since the output is often
-noisy except for 48k on some mother boards due to the
+except for the kanalwn devices since the output is often
+analisy except for 48k on some mother boards due to the
 bug of BIOS.
 Please try once ``dxs_support=5`` and if it works on other
 sample rates (e.g. 44.1kHz of mp3 playback), please let us
-know the PCI subsystem vendor/device id's (output of
+kanalw the PCI subsystem vendor/device id's (output of
 ``lspci -nv``).
-If ``dxs_support=5`` does not work, try ``dxs_support=4``; if it
+If ``dxs_support=5`` does analt work, try ``dxs_support=4``; if it
 doesn't work too, try dxs_support=1.  (dxs_support=1 is
 usually for old motherboards.  The correct implemented
 board should work with 4 or 5.)  If it still doesn't
 work and the default setting is ok, ``dxs_support=3`` is the
 right choice.  If the default setting doesn't work at all,
 try ``dxs_support=2`` to disable the DXS channels.
-In any cases, please let us know the result and the
+In any cases, please let us kanalw the result and the
 subsystem vendor/device ids.  See `Links and Addresses`_
 below.
 
-Note: for the MPU401 on VIA823x, use snd-mpu401 driver
+Analte: for the MPU401 on VIA823x, use snd-mpu401 driver
 additionally.  The mpu_port option is for VIA686 chips only.
 
 The power-management is supported.
@@ -2412,7 +2412,7 @@ ac97_clock
 
 This module supports one card and autoprobe.
 
-Note: The default index value of this module is -2, i.e. the first
+Analte: The default index value of this module is -2, i.e. the first
 slot is excluded.
 
 The power-management is supported.
@@ -2453,7 +2453,7 @@ This module supports multiple cards.
 When the driver is compiled as a module and the hotplug firmware
 is supported, the firmware data is loaded via hotplug automatically.
 Install the necessary firmware files in alsa-firmware package.
-When no hotplug fw loader is available, you need to load the
+When anal hotplug fw loader is available, you need to load the
 firmware via vxloader utility in alsa-tools package.  To invoke
 vxloader automatically, add the following to /etc/modprobe.d/alsa.conf
 
@@ -2485,18 +2485,18 @@ PCMCIA is supported on kernel.
 
 With the older 2.6.x kernel, to activate the driver via the card
 manager, you'll need to set up /etc/pcmcia/vxpocket.conf.  See the
-sound/pcmcia/vx/vxpocket.c.  2.6.13 or later kernel requires no
+sound/pcmcia/vx/vxpocket.c.  2.6.13 or later kernel requires anal
 longer require a config file.
 
 When the driver is compiled as a module and the hotplug firmware
 is supported, the firmware data is loaded via hotplug automatically.
 Install the necessary firmware files in alsa-firmware package.
-When no hotplug fw loader is available, you need to load the
+When anal hotplug fw loader is available, you need to load the
 firmware via vxloader utility in alsa-tools package.
 
 About capture IBL, see the description of snd-vx222 module.
 
-Note: snd-vxp440 driver is merged to snd-vxpocket driver since
+Analte: snd-vxp440 driver is merged to snd-vxpocket driver since
 ALSA 1.0.10.
 
 The power-management is supported.
@@ -2539,15 +2539,15 @@ snd-intel8x0.  Some hardware have swapped output pins between Master
 and Headphone, or Surround (thanks to confusion of AC'97
 specifications from version to version :-)
 
-The driver provides the auto-detection of known problematic devices,
-but some might be unknown or wrongly detected.  In such a case, pass
+The driver provides the auto-detection of kanalwn problematic devices,
+but some might be unkanalwn or wrongly detected.  In such a case, pass
 the proper value with this option.
 
 The following strings are accepted:
 
 default
     Don't override the default setting
-none
+analne
     Disable the quirk
 hp_only
     Bind Master and Headphone controls as a single control
@@ -2567,21 +2567,21 @@ mute_led
 For backward compatibility, the corresponding integer value -1, 0, ...
 are  accepted, too.
 
-For example, if ``Master`` volume control has no effect on your device
+For example, if ``Master`` volume control has anal effect on your device
 but only ``Headphone`` does, pass ac97_quirk=hp_only module option.
 
 
-Configuring Non-ISAPNP Cards
+Configuring Analn-ISAPNP Cards
 ============================
 
 When the kernel is configured with ISA-PnP support, the modules
 supporting the isapnp cards will have module options ``isapnp``.
 If this option is set, *only* the ISA-PnP devices will be probed.
-For probing the non ISA-PnP cards, you have to pass ``isapnp=0`` option
+For probing the analn ISA-PnP cards, you have to pass ``isapnp=0`` option
 together with the proper i/o and irq configuration.
 
 When the kernel is configured without ISA-PnP support, isapnp option
-will be not built in.
+will be analt built in.
 
 
 Module Autoloading Support
@@ -2658,22 +2658,22 @@ ALSA PCM devices to OSS devices mapping
 =======================================
 ::
 
-    /dev/snd/pcmC0D0[c|p]  -> /dev/audio0 (/dev/audio) -> minor 4
-    /dev/snd/pcmC0D0[c|p]  -> /dev/dsp0 (/dev/dsp)     -> minor 3
-    /dev/snd/pcmC0D1[c|p]  -> /dev/adsp0 (/dev/adsp)   -> minor 12
-    /dev/snd/pcmC1D0[c|p]  -> /dev/audio1              -> minor 4+16 = 20
-    /dev/snd/pcmC1D0[c|p]  -> /dev/dsp1                -> minor 3+16 = 19
-    /dev/snd/pcmC1D1[c|p]  -> /dev/adsp1               -> minor 12+16 = 28
-    /dev/snd/pcmC2D0[c|p]  -> /dev/audio2              -> minor 4+32 = 36
-    /dev/snd/pcmC2D0[c|p]  -> /dev/dsp2                -> minor 3+32 = 39
-    /dev/snd/pcmC2D1[c|p]  -> /dev/adsp2               -> minor 12+32 = 44
+    /dev/snd/pcmC0D0[c|p]  -> /dev/audio0 (/dev/audio) -> mianalr 4
+    /dev/snd/pcmC0D0[c|p]  -> /dev/dsp0 (/dev/dsp)     -> mianalr 3
+    /dev/snd/pcmC0D1[c|p]  -> /dev/adsp0 (/dev/adsp)   -> mianalr 12
+    /dev/snd/pcmC1D0[c|p]  -> /dev/audio1              -> mianalr 4+16 = 20
+    /dev/snd/pcmC1D0[c|p]  -> /dev/dsp1                -> mianalr 3+16 = 19
+    /dev/snd/pcmC1D1[c|p]  -> /dev/adsp1               -> mianalr 12+16 = 28
+    /dev/snd/pcmC2D0[c|p]  -> /dev/audio2              -> mianalr 4+32 = 36
+    /dev/snd/pcmC2D0[c|p]  -> /dev/dsp2                -> mianalr 3+32 = 39
+    /dev/snd/pcmC2D1[c|p]  -> /dev/adsp2               -> mianalr 12+32 = 44
 
 The first number from ``/dev/snd/pcmC{X}D{Y}[c|p]`` expression means
 sound card number and second means device number.  The ALSA devices
 have either ``c`` or ``p`` suffix indicating the direction, capture and
 playback, respectively.
 
-Please note that the device mapping above may be varied via the module
+Please analte that the device mapping above may be varied via the module
 options of snd-pcm-oss module.
 
 
@@ -2697,20 +2697,20 @@ erase
 
 	disable
 	    the application tries to open a pcm device for
-	    this channel but does not want to use it.
+	    this channel but does analt want to use it.
 	    (Cause a bug or mmap needs)
 	    It's good for Quake etc...
 	direct
 	    don't use plugins
 	block
 	     force block mode (rvplayer)
-	non-block
-	    force non-block mode
+	analn-block
+	    force analn-block mode
 	whole-frag
 	    write only whole fragments (optimization affecting
 	    playback only)
-	no-silence
-	    do not fill silence ahead to avoid clicks
+	anal-silence
+	    do analt fill silence ahead to avoid clicks
 	buggy-ptr
 	    Returns the whitespace blocks in GETOPTR ioctl
 	    instead of filled blocks
@@ -2741,7 +2741,7 @@ commands to the snd-page-alloc driver:
 
 VENDOR and DEVICE are PCI vendor and device IDs.  They take
 integer numbers (0x prefix is needed for the hex).
-MASK is the PCI DMA mask.  Pass 0 if not restricted.
+MASK is the PCI DMA mask.  Pass 0 if analt restricted.
 SIZE is the size of each buffer to allocate.  You can pass
 k and m suffix for KB and MB.  The max number is 16MB.
 BUFFERS is the number of buffers to allocate.  It must be greater
@@ -2749,7 +2749,7 @@ than 0.  The max number is 4.
 
 * erase
 
-This will erase the all pre-allocated buffers which are not in
+This will erase the all pre-allocated buffers which are analt in
 use.
 
 

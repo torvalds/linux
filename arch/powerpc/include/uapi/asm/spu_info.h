@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * SPU info structures
  *
@@ -25,7 +25,7 @@ struct spu_dma_info {
 	__u64 dma_info_type;
 	__u64 dma_info_mask;
 	__u64 dma_info_status;
-	__u64 dma_info_stall_and_notify;
+	__u64 dma_info_stall_and_analtify;
 	__u64 dma_info_atomic_command_status;
 	struct mfc_cq_sr dma_info_command_data[16];
 };

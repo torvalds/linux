@@ -8,9 +8,9 @@
  *   Copyright (C) 2007-2009  Sam Ravnborg <sam@ravnborg.org>
  *
  *
- * Don't define absolute symbols until and unless you know that symbol
+ * Don't define absolute symbols until and unless you kanalw that symbol
  * value is should remain constant even if kernel image is relocated
- * at run time. Absolute symbols are not relocated. If symbol value should
+ * at run time. Absolute symbols are analt relocated. If symbol value should
  * change if kernel is relocated, make the symbol section relative and
  * put it inside the section definition.
  */
@@ -22,7 +22,7 @@
 #endif
 
 #define RUNTIME_DISCARD_EXIT
-#define EMITS_PT_NOTE
+#define EMITS_PT_ANALTE
 #define RO_EXCEPTION_TABLE_ALIGN	16
 
 #include <asm-generic/vmlinux.lds.h>
@@ -74,7 +74,7 @@ jiffies = jiffies_64;
  * encryption operates on a page basis. Make this section PMD-aligned
  * to avoid splitting the pages while mapping the section early.
  *
- * Note: We use a separate section so that only this section gets
+ * Analte: We use a separate section so that only this section gets
  * decrypted to avoid exposing more than we wish.
  */
 #define BSS_DECRYPTED						\
@@ -108,7 +108,7 @@ PHDRS {
 #endif
 	init PT_LOAD FLAGS(7);          /* RWE */
 #endif
-	note PT_NOTE FLAGS(0);          /* ___ */
+	analte PT_ANALTE FLAGS(0);          /* ___ */
 }
 
 SECTIONS
@@ -172,8 +172,8 @@ SECTIONS
 		INIT_TASK_DATA(THREAD_SIZE)
 
 #ifdef CONFIG_X86_32
-		/* 32 bit has nosave before _edata */
-		NOSAVE_DATA
+		/* 32 bit has analsave before _edata */
+		ANALSAVE_DATA
 #endif
 
 		PAGE_ALIGNED_DATA(PAGE_SIZE)
@@ -184,7 +184,7 @@ SECTIONS
 		CONSTRUCTORS
 
 		/* rarely changed data like cpu maps */
-		READ_MOSTLY_DATA(INTERNODE_CACHE_BYTES)
+		READ_MOSTLY_DATA(INTERANALDE_CACHE_BYTES)
 
 		/* End of data section */
 		_edata = .;
@@ -227,9 +227,9 @@ SECTIONS
 	/*
 	 * percpu offsets are zero-based on SMP.  PERCPU_VADDR() changes the
 	 * output PHDR, so the next output section - .init.text - should
-	 * start another segment - init.
+	 * start aanalther segment - init.
 	 */
-	PERCPU_VADDR(INTERNODE_CACHE_BYTES, 0, :percpu)
+	PERCPU_VADDR(INTERANALDE_CACHE_BYTES, 0, :percpu)
 	ASSERT(SIZEOF(.data..percpu) < CONFIG_PHYSICAL_START,
 	       "per-CPU data too large - increase CONFIG_PHYSICAL_START")
 #endif
@@ -241,7 +241,7 @@ SECTIONS
 
 	/*
 	 * Section for code used exclusively before alternatives are run. All
-	 * references to such code must be patched out by alternatives, normally
+	 * references to such code must be patched out by alternatives, analrmally
 	 * by using X86_FEATURE_ALWAYS CPU feature bit.
 	 *
 	 * See static_cpu_has() for an example.
@@ -327,7 +327,7 @@ SECTIONS
 
 	/*
 	 * And here are the replacement instructions. The linker sticks
-	 * them as binary blobs. The .altinstructions has enough data to
+	 * them as binary blobs. The .altinstructions has eanalugh data to
 	 * get the address and the length of them to patch the kernel safely.
 	 */
 	.altinstr_replacement : AT(ADDR(.altinstr_replacement) - LOAD_OFFSET) {
@@ -343,7 +343,7 @@ SECTIONS
 
 	. = ALIGN(8);
 	/*
-	 * .exit.text is discarded at runtime, not link time, to deal with
+	 * .exit.text is discarded at runtime, analt link time, to deal with
 	 *  references from .altinstructions
 	 */
 	.exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) {
@@ -355,7 +355,7 @@ SECTIONS
 	}
 
 #if !defined(CONFIG_X86_64) || !defined(CONFIG_SMP)
-	PERCPU_SECTION(INTERNODE_CACHE_BYTES)
+	PERCPU_SECTION(INTERANALDE_CACHE_BYTES)
 #endif
 
 	. = ALIGN(PAGE_SIZE);
@@ -378,8 +378,8 @@ SECTIONS
 	}
 
 #ifdef CONFIG_X86_64
-	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
-		NOSAVE_DATA
+	.data_analsave : AT(ADDR(.data_analsave) - LOAD_OFFSET) {
+		ANALSAVE_DATA
 	}
 #endif
 
@@ -423,7 +423,7 @@ SECTIONS
 	 * __end_of_kernel_reserve, the .brk section is later reserved as a
 	 * part of the kernel. Since it is located after __end_of_kernel_reserve
 	 * it will be discarded and become part of the available memory. As
-	 * such, it can only be used by very early boot code and must not be
+	 * such, it can only be used by very early boot code and must analt be
 	 * needed afterwards.
 	 *
 	 * Currently used by SME for performing in-place encryption of the
@@ -501,20 +501,20 @@ INIT_PER_CPU(irq_stack_backing_store);
 
 #ifdef CONFIG_SMP
 . = ASSERT((fixed_percpu_data == 0),
-           "fixed_percpu_data is not at start of per-cpu area");
+           "fixed_percpu_data is analt at start of per-cpu area");
 #endif
 
 #ifdef CONFIG_CPU_UNRET_ENTRY
-. = ASSERT((retbleed_return_thunk & 0x3f) == 0, "retbleed_return_thunk not cacheline-aligned");
+. = ASSERT((retbleed_return_thunk & 0x3f) == 0, "retbleed_return_thunk analt cacheline-aligned");
 #endif
 
 #ifdef CONFIG_CPU_SRSO
-. = ASSERT((srso_safe_ret & 0x3f) == 0, "srso_safe_ret not cacheline-aligned");
+. = ASSERT((srso_safe_ret & 0x3f) == 0, "srso_safe_ret analt cacheline-aligned");
 /*
- * GNU ld cannot do XOR until 2.41.
+ * GNU ld cananalt do XOR until 2.41.
  * https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=f6f78318fca803c4907fb8d7f6ded8295f1947b1
  *
- * LLVM lld cannot do XOR until lld-17.
+ * LLVM lld cananalt do XOR until lld-17.
  * https://github.com/llvm/llvm-project/commit/fae96104d4378166cbe5c875ef8ed808a356f3fb
  *
  * Instead do: (A | B) - (A & B) in order to compute the XOR

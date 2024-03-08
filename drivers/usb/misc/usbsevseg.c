@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -97,7 +97,7 @@ static void update_display_mode(struct usb_sevsegdev *mydev)
 	rc = usb_control_msg_send(mydev->udev, 0, 0x12, 0x48,
 				  (82 * 0x100) + 10, /* (set mode) */
 				  (mydev->mode_msb * 0x100) + mydev->mode_lsb,
-				  NULL, 0, 2000, GFP_NOIO);
+				  NULL, 0, 2000, GFP_ANALIO);
 
 	if (rc < 0)
 		dev_dbg(&mydev->udev->dev, "mode retval = %d\n", rc);
@@ -306,7 +306,7 @@ static int sevseg_probe(struct usb_interface *interface,
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct usb_sevsegdev *mydev;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	mydev = kzalloc(sizeof(struct usb_sevsegdev), GFP_KERNEL);
 	if (!mydev)
@@ -318,14 +318,14 @@ static int sevseg_probe(struct usb_interface *interface,
 
 	/* PM */
 	mydev->shadow_power = 1; /* currently active */
-	mydev->has_interface_pm = 0; /* have not issued autopm_get */
+	mydev->has_interface_pm = 0; /* have analt issued autopm_get */
 
 	/*set defaults */
 	mydev->textmode = 0x02; /* ascii mode */
 	mydev->mode_msb = 0x06; /* 6 characters */
 	mydev->mode_lsb = 0x3f; /* scanmode for 6 chars */
 
-	dev_info(&interface->dev, "USB 7 Segment device now attached\n");
+	dev_info(&interface->dev, "USB 7 Segment device analw attached\n");
 	return 0;
 
 error_mem:
@@ -340,7 +340,7 @@ static void sevseg_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 	usb_put_dev(mydev->udev);
 	kfree(mydev);
-	dev_info(&interface->dev, "USB 7 Segment now disconnected\n");
+	dev_info(&interface->dev, "USB 7 Segment analw disconnected\n");
 }
 
 static int sevseg_suspend(struct usb_interface *intf, pm_message_t message)
@@ -360,7 +360,7 @@ static int sevseg_resume(struct usb_interface *intf)
 	mydev = usb_get_intfdata(intf);
 	mydev->shadow_power = 1;
 	update_display_mode(mydev);
-	update_display_visual(mydev, GFP_NOIO);
+	update_display_visual(mydev, GFP_ANALIO);
 
 	return 0;
 }
@@ -372,7 +372,7 @@ static int sevseg_reset_resume(struct usb_interface *intf)
 	mydev = usb_get_intfdata(intf);
 	mydev->shadow_power = 1;
 	update_display_mode(mydev);
-	update_display_visual(mydev, GFP_NOIO);
+	update_display_visual(mydev, GFP_ANALIO);
 
 	return 0;
 }

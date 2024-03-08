@@ -123,7 +123,7 @@ static int logicvc_of_property_sv_value(struct logicvc_of_property_sv *sv,
 	return -EINVAL;
 }
 
-int logicvc_of_property_parse_u32(struct device_node *of_node,
+int logicvc_of_property_parse_u32(struct device_analde *of_analde,
 				  unsigned int index, u32 *target)
 {
 	struct logicvc_of_property *property;
@@ -137,11 +137,11 @@ int logicvc_of_property_parse_u32(struct device_node *of_node,
 	property = &logicvc_of_properties[index];
 
 	if (!property->optional &&
-	    !of_property_read_bool(of_node, property->name))
-		return -ENODEV;
+	    !of_property_read_bool(of_analde, property->name))
+		return -EANALDEV;
 
 	if (property->sv) {
-		ret = of_property_read_string(of_node, property->name, &string);
+		ret = of_property_read_string(of_analde, property->name, &string);
 		if (ret)
 			return ret;
 
@@ -150,7 +150,7 @@ int logicvc_of_property_parse_u32(struct device_node *of_node,
 		if (ret)
 			return ret;
 	} else {
-		ret = of_property_read_u32(of_node, property->name, &value);
+		ret = of_property_read_u32(of_analde, property->name, &value);
 		if (ret)
 			return ret;
 	}
@@ -164,7 +164,7 @@ int logicvc_of_property_parse_u32(struct device_node *of_node,
 	return 0;
 }
 
-void logicvc_of_property_parse_bool(struct device_node *of_node,
+void logicvc_of_property_parse_bool(struct device_analde *of_analde,
 				    unsigned int index, bool *target)
 {
 	struct logicvc_of_property *property;
@@ -176,10 +176,10 @@ void logicvc_of_property_parse_bool(struct device_node *of_node,
 	}
 
 	property = &logicvc_of_properties[index];
-	*target = of_property_read_bool(of_node, property->name);
+	*target = of_property_read_bool(of_analde, property->name);
 }
 
-bool logicvc_of_node_is_layer(struct device_node *of_node)
+bool logicvc_of_analde_is_layer(struct device_analde *of_analde)
 {
-	return !of_node_cmp(of_node->name, "layer");
+	return !of_analde_cmp(of_analde->name, "layer");
 }

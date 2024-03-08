@@ -2,7 +2,7 @@
 /*
  *   CIFS filesystem cache interface definitions
  *
- *   Copyright (c) 2010 Novell, Inc.
+ *   Copyright (c) 2010 Analvell, Inc.
  *   Authors(s): Suresh Jayaraman (sjayaraman@suse.de>
  *
  */
@@ -24,9 +24,9 @@ struct cifs_fscache_volume_coherency_data {
 } __packed;
 
 /*
- * Coherency data attached to CIFS inode within the cache.
+ * Coherency data attached to CIFS ianalde within the cache.
  */
-struct cifs_fscache_inode_coherency_data {
+struct cifs_fscache_ianalde_coherency_data {
 	__le64 last_write_time_sec;
 	__le64 last_change_time_sec;
 	__le32 last_write_time_nsec;
@@ -41,16 +41,16 @@ struct cifs_fscache_inode_coherency_data {
 extern int cifs_fscache_get_super_cookie(struct cifs_tcon *);
 extern void cifs_fscache_release_super_cookie(struct cifs_tcon *);
 
-extern void cifs_fscache_get_inode_cookie(struct inode *inode);
-extern void cifs_fscache_release_inode_cookie(struct inode *);
-extern void cifs_fscache_unuse_inode_cookie(struct inode *inode, bool update);
+extern void cifs_fscache_get_ianalde_cookie(struct ianalde *ianalde);
+extern void cifs_fscache_release_ianalde_cookie(struct ianalde *);
+extern void cifs_fscache_unuse_ianalde_cookie(struct ianalde *ianalde, bool update);
 
 static inline
-void cifs_fscache_fill_coherency(struct inode *inode,
-				 struct cifs_fscache_inode_coherency_data *cd)
+void cifs_fscache_fill_coherency(struct ianalde *ianalde,
+				 struct cifs_fscache_ianalde_coherency_data *cd)
 {
-	struct timespec64 ctime = inode_get_ctime(inode);
-	struct timespec64 mtime = inode_get_mtime(inode);
+	struct timespec64 ctime = ianalde_get_ctime(ianalde);
+	struct timespec64 mtime = ianalde_get_mtime(ianalde);
 
 	memset(cd, 0, sizeof(*cd));
 	cd->last_write_time_sec   = cpu_to_le64(mtime.tv_sec);
@@ -60,89 +60,89 @@ void cifs_fscache_fill_coherency(struct inode *inode,
 }
 
 
-static inline struct fscache_cookie *cifs_inode_cookie(struct inode *inode)
+static inline struct fscache_cookie *cifs_ianalde_cookie(struct ianalde *ianalde)
 {
-	return netfs_i_cookie(&CIFS_I(inode)->netfs);
+	return netfs_i_cookie(&CIFS_I(ianalde)->netfs);
 }
 
-static inline void cifs_invalidate_cache(struct inode *inode, unsigned int flags)
+static inline void cifs_invalidate_cache(struct ianalde *ianalde, unsigned int flags)
 {
-	struct cifs_fscache_inode_coherency_data cd;
+	struct cifs_fscache_ianalde_coherency_data cd;
 
-	cifs_fscache_fill_coherency(inode, &cd);
-	fscache_invalidate(cifs_inode_cookie(inode), &cd,
-			   i_size_read(inode), flags);
+	cifs_fscache_fill_coherency(ianalde, &cd);
+	fscache_invalidate(cifs_ianalde_cookie(ianalde), &cd,
+			   i_size_read(ianalde), flags);
 }
 
-extern int __cifs_fscache_query_occupancy(struct inode *inode,
+extern int __cifs_fscache_query_occupancy(struct ianalde *ianalde,
 					  pgoff_t first, unsigned int nr_pages,
 					  pgoff_t *_data_first,
 					  unsigned int *_data_nr_pages);
 
-static inline int cifs_fscache_query_occupancy(struct inode *inode,
+static inline int cifs_fscache_query_occupancy(struct ianalde *ianalde,
 					       pgoff_t first, unsigned int nr_pages,
 					       pgoff_t *_data_first,
 					       unsigned int *_data_nr_pages)
 {
-	if (!cifs_inode_cookie(inode))
-		return -ENOBUFS;
-	return __cifs_fscache_query_occupancy(inode, first, nr_pages,
+	if (!cifs_ianalde_cookie(ianalde))
+		return -EANALBUFS;
+	return __cifs_fscache_query_occupancy(ianalde, first, nr_pages,
 					      _data_first, _data_nr_pages);
 }
 
-extern int __cifs_readpage_from_fscache(struct inode *pinode, struct page *ppage);
-extern void __cifs_readahead_to_fscache(struct inode *pinode, loff_t pos, size_t len);
+extern int __cifs_readpage_from_fscache(struct ianalde *pianalde, struct page *ppage);
+extern void __cifs_readahead_to_fscache(struct ianalde *pianalde, loff_t pos, size_t len);
 
 
-static inline int cifs_readpage_from_fscache(struct inode *inode,
+static inline int cifs_readpage_from_fscache(struct ianalde *ianalde,
 					     struct page *page)
 {
-	if (cifs_inode_cookie(inode))
-		return __cifs_readpage_from_fscache(inode, page);
-	return -ENOBUFS;
+	if (cifs_ianalde_cookie(ianalde))
+		return __cifs_readpage_from_fscache(ianalde, page);
+	return -EANALBUFS;
 }
 
-static inline void cifs_readahead_to_fscache(struct inode *inode,
+static inline void cifs_readahead_to_fscache(struct ianalde *ianalde,
 					     loff_t pos, size_t len)
 {
-	if (cifs_inode_cookie(inode))
-		__cifs_readahead_to_fscache(inode, pos, len);
+	if (cifs_ianalde_cookie(ianalde))
+		__cifs_readahead_to_fscache(ianalde, pos, len);
 }
 
 #else /* CONFIG_CIFS_FSCACHE */
 static inline
-void cifs_fscache_fill_coherency(struct inode *inode,
-				 struct cifs_fscache_inode_coherency_data *cd)
+void cifs_fscache_fill_coherency(struct ianalde *ianalde,
+				 struct cifs_fscache_ianalde_coherency_data *cd)
 {
 }
 
 static inline int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon) { return 0; }
 static inline void cifs_fscache_release_super_cookie(struct cifs_tcon *tcon) {}
 
-static inline void cifs_fscache_get_inode_cookie(struct inode *inode) {}
-static inline void cifs_fscache_release_inode_cookie(struct inode *inode) {}
-static inline void cifs_fscache_unuse_inode_cookie(struct inode *inode, bool update) {}
-static inline struct fscache_cookie *cifs_inode_cookie(struct inode *inode) { return NULL; }
-static inline void cifs_invalidate_cache(struct inode *inode, unsigned int flags) {}
+static inline void cifs_fscache_get_ianalde_cookie(struct ianalde *ianalde) {}
+static inline void cifs_fscache_release_ianalde_cookie(struct ianalde *ianalde) {}
+static inline void cifs_fscache_unuse_ianalde_cookie(struct ianalde *ianalde, bool update) {}
+static inline struct fscache_cookie *cifs_ianalde_cookie(struct ianalde *ianalde) { return NULL; }
+static inline void cifs_invalidate_cache(struct ianalde *ianalde, unsigned int flags) {}
 
-static inline int cifs_fscache_query_occupancy(struct inode *inode,
+static inline int cifs_fscache_query_occupancy(struct ianalde *ianalde,
 					       pgoff_t first, unsigned int nr_pages,
 					       pgoff_t *_data_first,
 					       unsigned int *_data_nr_pages)
 {
 	*_data_first = ULONG_MAX;
 	*_data_nr_pages = 0;
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static inline int
-cifs_readpage_from_fscache(struct inode *inode, struct page *page)
+cifs_readpage_from_fscache(struct ianalde *ianalde, struct page *page)
 {
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static inline
-void cifs_readahead_to_fscache(struct inode *inode, loff_t pos, size_t len) {}
+void cifs_readahead_to_fscache(struct ianalde *ianalde, loff_t pos, size_t len) {}
 
 #endif /* CONFIG_CIFS_FSCACHE */
 

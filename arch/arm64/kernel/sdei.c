@@ -25,29 +25,29 @@ unsigned long sdei_exit_mode;
 /*
  * VMAP'd stacks checking for stack overflow on exception using sp as a scratch
  * register, meaning SDEI has to switch to its own stack. We need two stacks as
- * a critical event may interrupt a normal event that has just taken a
- * synchronous exception, and is using sp as scratch register. For a critical
- * event interrupting a normal event, we can't reliably tell if we were on the
+ * a critical event may interrupt a analrmal event that has just taken a
+ * synchroanalus exception, and is using sp as scratch register. For a critical
+ * event interrupting a analrmal event, we can't reliably tell if we were on the
  * sdei stack.
- * For now, we allocate stacks when the driver is probed.
+ * For analw, we allocate stacks when the driver is probed.
  */
-DECLARE_PER_CPU(unsigned long *, sdei_stack_normal_ptr);
+DECLARE_PER_CPU(unsigned long *, sdei_stack_analrmal_ptr);
 DECLARE_PER_CPU(unsigned long *, sdei_stack_critical_ptr);
 
 #ifdef CONFIG_VMAP_STACK
-DEFINE_PER_CPU(unsigned long *, sdei_stack_normal_ptr);
+DEFINE_PER_CPU(unsigned long *, sdei_stack_analrmal_ptr);
 DEFINE_PER_CPU(unsigned long *, sdei_stack_critical_ptr);
 #endif
 
-DECLARE_PER_CPU(unsigned long *, sdei_shadow_call_stack_normal_ptr);
+DECLARE_PER_CPU(unsigned long *, sdei_shadow_call_stack_analrmal_ptr);
 DECLARE_PER_CPU(unsigned long *, sdei_shadow_call_stack_critical_ptr);
 
 #ifdef CONFIG_SHADOW_CALL_STACK
-DEFINE_PER_CPU(unsigned long *, sdei_shadow_call_stack_normal_ptr);
+DEFINE_PER_CPU(unsigned long *, sdei_shadow_call_stack_analrmal_ptr);
 DEFINE_PER_CPU(unsigned long *, sdei_shadow_call_stack_critical_ptr);
 #endif
 
-DEFINE_PER_CPU(struct sdei_registered_event *, sdei_active_normal_event);
+DEFINE_PER_CPU(struct sdei_registered_event *, sdei_active_analrmal_event);
 DEFINE_PER_CPU(struct sdei_registered_event *, sdei_active_critical_event);
 
 static void _free_sdei_stack(unsigned long * __percpu *ptr, int cpu)
@@ -69,7 +69,7 @@ static void free_sdei_stacks(void)
 		return;
 
 	for_each_possible_cpu(cpu) {
-		_free_sdei_stack(&sdei_stack_normal_ptr, cpu);
+		_free_sdei_stack(&sdei_stack_analrmal_ptr, cpu);
 		_free_sdei_stack(&sdei_stack_critical_ptr, cpu);
 	}
 }
@@ -78,9 +78,9 @@ static int _init_sdei_stack(unsigned long * __percpu *ptr, int cpu)
 {
 	unsigned long *p;
 
-	p = arch_alloc_vmap_stack(SDEI_STACK_SIZE, cpu_to_node(cpu));
+	p = arch_alloc_vmap_stack(SDEI_STACK_SIZE, cpu_to_analde(cpu));
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	per_cpu(*ptr, cpu) = p;
 
 	return 0;
@@ -95,7 +95,7 @@ static int init_sdei_stacks(void)
 		return 0;
 
 	for_each_possible_cpu(cpu) {
-		err = _init_sdei_stack(&sdei_stack_normal_ptr, cpu);
+		err = _init_sdei_stack(&sdei_stack_analrmal_ptr, cpu);
 		if (err)
 			break;
 		err = _init_sdei_stack(&sdei_stack_critical_ptr, cpu);
@@ -125,7 +125,7 @@ static void free_sdei_scs(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		_free_sdei_scs(&sdei_shadow_call_stack_normal_ptr, cpu);
+		_free_sdei_scs(&sdei_shadow_call_stack_analrmal_ptr, cpu);
 		_free_sdei_scs(&sdei_shadow_call_stack_critical_ptr, cpu);
 	}
 }
@@ -134,9 +134,9 @@ static int _init_sdei_scs(unsigned long * __percpu *ptr, int cpu)
 {
 	void *s;
 
-	s = scs_alloc(cpu_to_node(cpu));
+	s = scs_alloc(cpu_to_analde(cpu));
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 	per_cpu(*ptr, cpu) = s;
 
 	return 0;
@@ -151,7 +151,7 @@ static int init_sdei_scs(void)
 		return 0;
 
 	for_each_possible_cpu(cpu) {
-		err = _init_sdei_scs(&sdei_shadow_call_stack_normal_ptr, cpu);
+		err = _init_sdei_scs(&sdei_shadow_call_stack_analrmal_ptr, cpu);
 		if (err)
 			break;
 		err = _init_sdei_scs(&sdei_shadow_call_stack_critical_ptr, cpu);
@@ -174,7 +174,7 @@ unsigned long sdei_arch_get_entry_point(int conduit)
 	 * SDEI.
 	 */
 	if (is_hyp_nvhe()) {
-		pr_err("Not supported on this hardware/boot configuration\n");
+		pr_err("Analt supported on this hardware/boot configuration\n");
 		goto out_err;
 	}
 
@@ -234,7 +234,7 @@ unsigned long __kprobes do_sdei_event(struct pt_regs *regs,
 
 	if (elr != read_sysreg(elr_el1)) {
 		/*
-		 * We took a synchronous exception from the SDEI handler.
+		 * We took a synchroanalus exception from the SDEI handler.
 		 * This could deadlock, and if you interrupt KVM it will
 		 * hyp-panic instead.
 		 */

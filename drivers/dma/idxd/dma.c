@@ -5,7 +5,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/dmaengine.h>
 #include <uapi/linux/idxd.h>
 #include "../dmaengine.h"
@@ -30,7 +30,7 @@ void idxd_dma_complete_txd(struct idxd_desc *desc,
 	int complete = 1;
 
 	if (desc->completion->status == DSA_COMP_SUCCESS) {
-		res.result = DMA_TRANS_NOERROR;
+		res.result = DMA_TRANS_ANALERROR;
 	} else if (desc->completion->status) {
 		if (idxd->request_int_handles && comp_type != IDXD_COMPLETE_ABORT &&
 		    desc->completion->status == DSA_COMP_INT_HANDLE_INVAL &&
@@ -74,7 +74,7 @@ static inline void idxd_prep_desc_common(struct idxd_wq *wq,
 	hw->dst_addr = addr_f2;
 	hw->xfer_size = len;
 	/*
-	 * For dedicated WQ, this field is ignored and HW will use the WQCFG.priv
+	 * For dedicated WQ, this field is iganalred and HW will use the WQCFG.priv
 	 * field instead. This field should be set to 0 for kernel descriptors
 	 * since kernel DMA on VT-d supports "user" privilege only.
 	 */
@@ -97,7 +97,7 @@ idxd_dma_prep_interrupt(struct dma_chan *c, unsigned long flags)
 	if (IS_ERR(desc))
 		return NULL;
 
-	idxd_prep_desc_common(wq, desc->hw, DSA_OPCODE_NOOP,
+	idxd_prep_desc_common(wq, desc->hw, DSA_OPCODE_ANALOP,
 			      0, 0, 0, desc->compl_dma, desc_flags);
 	desc->txd.flags = flags;
 	return &desc->txd;
@@ -161,7 +161,7 @@ static enum dma_status idxd_dma_tx_status(struct dma_chan *dma_chan,
 }
 
 /*
- * issue_pending() does not need to do anything since tx_submit() does the job
+ * issue_pending() does analt need to do anything since tx_submit() does the job
  * already.
  */
 static void idxd_dma_issue_pending(struct dma_chan *dma_chan)
@@ -201,9 +201,9 @@ int idxd_register_dma_device(struct idxd_device *idxd)
 	struct device *dev = &idxd->pdev->dev;
 	int rc;
 
-	idxd_dma = kzalloc_node(sizeof(*idxd_dma), GFP_KERNEL, dev_to_node(dev));
+	idxd_dma = kzalloc_analde(sizeof(*idxd_dma), GFP_KERNEL, dev_to_analde(dev));
 	if (!idxd_dma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma = &idxd_dma->dma;
 	INIT_LIST_HEAD(&dma->channels);
@@ -211,7 +211,7 @@ int idxd_register_dma_device(struct idxd_device *idxd)
 
 	dma_cap_set(DMA_INTERRUPT, dma->cap_mask);
 	dma_cap_set(DMA_PRIVATE, dma->cap_mask);
-	dma_cap_set(DMA_COMPLETION_NO_ORDER, dma->cap_mask);
+	dma_cap_set(DMA_COMPLETION_ANAL_ORDER, dma->cap_mask);
 	dma->device_release = idxd_dma_release;
 
 	dma->device_prep_dma_interrupt = idxd_dma_prep_interrupt;
@@ -254,13 +254,13 @@ static int idxd_register_dma_channel(struct idxd_wq *wq)
 	struct dma_chan *chan;
 	int rc, i;
 
-	idxd_chan = kzalloc_node(sizeof(*idxd_chan), GFP_KERNEL, dev_to_node(dev));
+	idxd_chan = kzalloc_analde(sizeof(*idxd_chan), GFP_KERNEL, dev_to_analde(dev));
 	if (!idxd_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chan = &idxd_chan->chan;
 	chan->device = dma;
-	list_add_tail(&chan->device_node, &dma->channels);
+	list_add_tail(&chan->device_analde, &dma->channels);
 
 	for (i = 0; i < wq->num_descs; i++) {
 		struct idxd_desc *desc = wq->descs[i];
@@ -289,7 +289,7 @@ static void idxd_unregister_dma_channel(struct idxd_wq *wq)
 	struct idxd_dma_dev *idxd_dma = wq->idxd->idxd_dma;
 
 	dma_async_device_channel_unregister(&idxd_dma->dma, chan);
-	list_del(&chan->device_node);
+	list_del(&chan->device_analde);
 	kfree(wq->idxd_chan);
 	wq->idxd_chan = NULL;
 	put_device(wq_confdev(wq));
@@ -307,8 +307,8 @@ static int idxd_dmaengine_drv_probe(struct idxd_dev *idxd_dev)
 
 	mutex_lock(&wq->wq_lock);
 	if (!idxd_wq_driver_name_match(wq, dev)) {
-		idxd->cmd_status = IDXD_SCMD_WQ_NO_DRV_NAME;
-		rc = -ENODEV;
+		idxd->cmd_status = IDXD_SCMD_WQ_ANAL_DRV_NAME;
+		rc = -EANALDEV;
 		goto err;
 	}
 
@@ -335,7 +335,7 @@ static int idxd_dmaengine_drv_probe(struct idxd_dev *idxd_dev)
 err_dma:
 	idxd_drv_disable_wq(wq);
 err:
-	wq->type = IDXD_WQT_NONE;
+	wq->type = IDXD_WQT_ANALNE;
 	mutex_unlock(&wq->wq_lock);
 	return rc;
 }
@@ -353,7 +353,7 @@ static void idxd_dmaengine_drv_remove(struct idxd_dev *idxd_dev)
 
 static enum idxd_dev_type dev_types[] = {
 	IDXD_DEV_WQ,
-	IDXD_DEV_NONE,
+	IDXD_DEV_ANALNE,
 };
 
 struct idxd_device_driver idxd_dmaengine_drv = {

@@ -6,8 +6,8 @@ enum cpuhp_smt_control {
 	CPU_SMT_ENABLED,
 	CPU_SMT_DISABLED,
 	CPU_SMT_FORCE_DISABLED,
-	CPU_SMT_NOT_SUPPORTED,
-	CPU_SMT_NOT_IMPLEMENTED,
+	CPU_SMT_ANALT_SUPPORTED,
+	CPU_SMT_ANALT_IMPLEMENTED,
 };
 
 #if defined(CONFIG_SMP) && defined(CONFIG_HOTPLUG_SMT)
@@ -20,7 +20,7 @@ extern bool cpu_smt_possible(void);
 extern int cpuhp_smt_enable(void);
 extern int cpuhp_smt_disable(enum cpuhp_smt_control ctrlval);
 #else
-# define cpu_smt_control               (CPU_SMT_NOT_IMPLEMENTED)
+# define cpu_smt_control               (CPU_SMT_ANALT_IMPLEMENTED)
 # define cpu_smt_num_threads 1
 static inline void cpu_smt_disable(bool force) { }
 static inline void cpu_smt_set_num_threads(unsigned int num_threads,

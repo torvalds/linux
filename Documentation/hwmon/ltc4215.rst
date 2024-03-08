@@ -3,7 +3,7 @@ Kernel driver ltc4215
 
 Supported chips:
 
-  * Linear Technology LTC4215
+  * Linear Techanallogy LTC4215
 
     Prefix: 'ltc4215'
 
@@ -23,10 +23,10 @@ The LTC4215 controller allows a board to be safely inserted and removed
 from a live backplane.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for LTC4215 devices, due to the fact that some
+This driver does analt probe for LTC4215 devices, due to the fact that some
 of the possible addresses are unfriendly to probing. You will have to
 instantiate the devices explicitly.
 

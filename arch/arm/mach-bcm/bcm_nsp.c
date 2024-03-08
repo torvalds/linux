@@ -8,7 +8,7 @@ static const char *const bcm_nsp_dt_compat[] __initconst = {
 	NULL,
 };
 
-DT_MACHINE_START(NSP_DT, "Broadcom Northstar Plus SoC")
+DT_MACHINE_START(NSP_DT, "Broadcom Analrthstar Plus SoC")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
 	.dt_compat = bcm_nsp_dt_compat,

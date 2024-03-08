@@ -137,11 +137,11 @@ static int axp288_adc_set_ts(struct axp288_adc_info *info,
 {
 	int ret;
 
-	/* No need to switch the current-source if the TS pin is disabled */
+	/* Anal need to switch the current-source if the TS pin is disabled */
 	if (!info->ts_enabled)
 		return 0;
 
-	/* Channels other than GPADC do not need the current source */
+	/* Channels other than GPADC do analt need the current source */
 	if (address != AXP288_GP_ADC_H)
 		return 0;
 
@@ -192,10 +192,10 @@ static int axp288_adc_read_raw(struct iio_dev *indio_dev,
  */
 static const struct dmi_system_id axp288_adc_ts_bias_override[] = {
 	{
-		/* Lenovo Ideapad 100S (11 inch) */
+		/* Leanalvo Ideapad 100S (11 inch) */
 		.matches = {
-		  DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		  DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 100S-11IBY"),
+		  DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
+		  DMI_MATCH(DMI_PRODUCT_VERSION, "Leanalvo ideapad 100S-11IBY"),
 		},
 		.driver_data = (void *)(uintptr_t)AXP288_ADC_TS_BIAS_80UA,
 	},
@@ -264,7 +264,7 @@ static int axp288_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*info));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = iio_priv(indio_dev);
 	info->irq = platform_get_irq(pdev, 0);

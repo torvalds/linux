@@ -9,11 +9,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -51,11 +51,11 @@ enum environment_cap {
  * @alpha2: the ISO / IEC 3166 alpha2 country code of the requested
  *	regulatory domain. We have a few special codes:
  *	00 - World regulatory domain
- *	99 - built by driver but a specific alpha2 cannot be determined
+ *	99 - built by driver but a specific alpha2 cananalt be determined
  *	98 - result of an intersection between two regulatory domains
- *	97 - regulatory domain has not yet been configured
+ *	97 - regulatory domain has analt yet been configured
  * @dfs_region: If CRDA responded with a regulatory domain that requires
- *	DFS master operation on a known DFS region (NL80211_DFS_*),
+ *	DFS master operation on a kanalwn DFS region (NL80211_DFS_*),
  *	dfs_region represents that region. Drivers can use this and the
  *	@alpha2 to adjust their device's DFS parameters as required.
  * @user_reg_hint_type: if the @initiator was of type
@@ -65,15 +65,15 @@ enum environment_cap {
  * @intersect: indicates whether the wireless core should intersect
  *	the requested regulatory domain with the presently set regulatory
  *	domain.
- * @processed: indicates whether or not this requests has already been
+ * @processed: indicates whether or analt this requests has already been
  *	processed. When the last request is processed it means that the
  *	currently regulatory domain set on cfg80211 is updated from
  *	CRDA and can be used by other regulatory requests. When a
- *	the last request is not yet processed we must yield until it
+ *	the last request is analt yet processed we must yield until it
  *	is processed before processing any new requests.
  * @country_ie_checksum: checksum of the last processed and accepted
  *	country IE
- * @country_ie_env: lets us know if the AP is telling us we are outdoor,
+ * @country_ie_env: lets us kanalw if the AP is telling us we are outdoor,
  *	indoor, or if it doesn't matter
  * @list: used to insert into the reg_requests_list linked list
  */
@@ -94,7 +94,7 @@ struct regulatory_request {
  * enum ieee80211_regulatory_flags - device regulatory flags
  *
  * @REGULATORY_CUSTOM_REG: tells us the driver for this device
- *	has its own custom regulatory domain and cannot identify the
+ *	has its own custom regulatory domain and cananalt identify the
  *	ISO / IEC 3166 alpha2 it belongs to. When this is enabled
  *	we will disregard the first regulatory hint (when the
  *	initiator is %REGDOM_SET_BY_CORE). Drivers that use
@@ -103,7 +103,7 @@ struct regulatory_request {
  *	If you use regulatory_hint() *after* using
  *	wiphy_apply_custom_regulatory() the wireless core will
  *	clear the REGULATORY_CUSTOM_REG for your wiphy as it would be
- *	implied that the device somehow gained knowledge of its region.
+ *	implied that the device somehow gained kanalwledge of its region.
  * @REGULATORY_STRICT_REG: tells us that the wiphy for this device
  *	has regulatory domain that it wishes to be considered as the
  *	superset for regulatory rules. After this device gets its regulatory
@@ -111,17 +111,17 @@ struct regulatory_request {
  *	for this device to enhance regulatory compliance, forcing the
  *	device to only possibly use subsets of the original regulatory
  *	rules. For example if channel 13 and 14 are disabled by this
- *	device's regulatory domain no user specified regulatory hint which
+ *	device's regulatory domain anal user specified regulatory hint which
  *	has these channels enabled would enable them for this wiphy,
  *	the device's original regulatory domain will be trusted as the
  *	base. You can program the superset of regulatory rules for this
  *	wiphy with regulatory_hint() for cards programmed with an
  *	ISO3166-alpha2 country code. wiphys that use regulatory_hint()
  *	will have their wiphy->regd programmed once the regulatory
- *	domain is set, and all other regulatory hints will be ignored
+ *	domain is set, and all other regulatory hints will be iganalred
  *	until their own regulatory domain gets programmed.
  * @REGULATORY_DISABLE_BEACON_HINTS: enable this if your driver needs to
- *	ensure that passive scan flags and beaconing flags may not be lifted by
+ *	ensure that passive scan flags and beaconing flags may analt be lifted by
  *	cfg80211 due to regulatory beacon hints. For more information on beacon
  *	hints read the documenation for regulatory_hint_found_beacon()
  * @REGULATORY_COUNTRY_IE_FOLLOW_POWER:  for devices that have a preference
@@ -131,41 +131,41 @@ struct regulatory_request {
  *	derived from the regulatory domain. The regulatory domain used will be
  *	based on the ISO3166-alpha2 from country IE provided through
  *	regulatory_hint_country_ie()
- * @REGULATORY_COUNTRY_IE_IGNORE: for devices that have a preference to ignore
+ * @REGULATORY_COUNTRY_IE_IGANALRE: for devices that have a preference to iganalre
  * 	all country IE information processed by the regulatory core. This will
  * 	override %REGULATORY_COUNTRY_IE_FOLLOW_POWER as all country IEs will
- * 	be ignored.
- * @REGULATORY_ENABLE_RELAX_NO_IR: for devices that wish to allow the
- *      NO_IR relaxation, which enables transmissions on channels on which
- *      otherwise initiating radiation is not allowed. This will enable the
- *      relaxations enabled under the CFG80211_REG_RELAX_NO_IR configuration
+ * 	be iganalred.
+ * @REGULATORY_ENABLE_RELAX_ANAL_IR: for devices that wish to allow the
+ *      ANAL_IR relaxation, which enables transmissions on channels on which
+ *      otherwise initiating radiation is analt allowed. This will enable the
+ *      relaxations enabled under the CFG80211_REG_RELAX_ANAL_IR configuration
  *      option
  * @REGULATORY_WIPHY_SELF_MANAGED: for devices that employ wiphy-specific
- *	regdom management. These devices will ignore all regdom changes not
+ *	regdom management. These devices will iganalre all regdom changes analt
  *	originating from their own wiphy.
  *	A self-managed wiphys only employs regulatory information obtained from
- *	the FW and driver and does not use other cfg80211 sources like
+ *	the FW and driver and does analt use other cfg80211 sources like
  *	beacon-hints, country-code IEs and hints from other devices on the same
- *	system. Conversely, a self-managed wiphy does not share its regulatory
+ *	system. Conversely, a self-managed wiphy does analt share its regulatory
  *	hints with other devices in the system. If a system contains several
  *	devices, one or more of which are self-managed, there might be
  *	contradictory regulatory settings between them. Usage of flag is
  *	generally discouraged. Only use it if the FW/driver is incompatible
- *	with non-locally originated hints.
+ *	with analn-locally originated hints.
  *	This flag is incompatible with the flags: %REGULATORY_CUSTOM_REG,
  *	%REGULATORY_STRICT_REG, %REGULATORY_COUNTRY_IE_FOLLOW_POWER,
- *	%REGULATORY_COUNTRY_IE_IGNORE and %REGULATORY_DISABLE_BEACON_HINTS.
+ *	%REGULATORY_COUNTRY_IE_IGANALRE and %REGULATORY_DISABLE_BEACON_HINTS.
  *	Mixing any of the above flags with this flag will result in a failure
  *	to register the wiphy. This flag implies
- *	%REGULATORY_DISABLE_BEACON_HINTS and %REGULATORY_COUNTRY_IE_IGNORE.
+ *	%REGULATORY_DISABLE_BEACON_HINTS and %REGULATORY_COUNTRY_IE_IGANALRE.
  */
 enum ieee80211_regulatory_flags {
 	REGULATORY_CUSTOM_REG			= BIT(0),
 	REGULATORY_STRICT_REG			= BIT(1),
 	REGULATORY_DISABLE_BEACON_HINTS		= BIT(2),
 	REGULATORY_COUNTRY_IE_FOLLOW_POWER	= BIT(3),
-	REGULATORY_COUNTRY_IE_IGNORE		= BIT(4),
-	REGULATORY_ENABLE_RELAX_NO_IR           = BIT(5),
+	REGULATORY_COUNTRY_IE_IGANALRE		= BIT(4),
+	REGULATORY_ENABLE_RELAX_ANAL_IR           = BIT(5),
 	/* reuse bit 6 next time */
 	REGULATORY_WIPHY_SELF_MANAGED		= BIT(7),
 };

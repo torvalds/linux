@@ -49,5 +49,5 @@ config CARL9170_HWRNG
 	  generated random numbers from the transport stream with
 	  usbmon [software] or special usb sniffer hardware.
 
-	  Say N, unless your setup[i.e.: embedded system] has no
+	  Say N, unless your setup[i.e.: embedded system] has anal
 	  other rng source and you can afford to take the risk.

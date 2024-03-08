@@ -23,7 +23,7 @@
 #include <asm/machvec.h>
 
 #define BASE_DIR	"srm_environment"	/* Subdir in /proc/		*/
-#define NAMED_DIR	"named_variables"	/* Subdir for known variables	*/
+#define NAMED_DIR	"named_variables"	/* Subdir for kanalwn variables	*/
 #define NUMBERED_DIR	"numbered_variables"	/* Subdir for all variables	*/
 #define VERSION		"0.0.6"			/* Module version		*/
 #define NAME		"srm_env"		/* Module name			*/
@@ -68,7 +68,7 @@ static int srm_env_proc_show(struct seq_file *m, void *v)
 
 	page = (char *)__get_free_page(GFP_USER);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = callback_getenv(id, page, PAGE_SIZE);
 
@@ -81,21 +81,21 @@ static int srm_env_proc_show(struct seq_file *m, void *v)
 	return ret;
 }
 
-static int srm_env_proc_open(struct inode *inode, struct file *file)
+static int srm_env_proc_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, srm_env_proc_show, pde_data(inode));
+	return single_open(file, srm_env_proc_show, pde_data(ianalde));
 }
 
 static ssize_t srm_env_proc_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int res;
-	unsigned long	id = (unsigned long)pde_data(file_inode(file));
+	unsigned long	id = (unsigned long)pde_data(file_ianalde(file));
 	char		*buf = (char *) __get_free_page(GFP_USER);
 	unsigned long	ret1, ret2;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = -EINVAL;
 	if (count >= PAGE_SIZE)
@@ -138,10 +138,10 @@ srm_env_init(void)
 	 */
 	if (!alpha_using_srm) {
 		printk(KERN_INFO "%s: This Alpha system doesn't "
-				"know about SRM (or you've booted "
+				"kanalw about SRM (or you've booted "
 				"SRM->MILO->Linux, which gets "
 				"misdetected)...\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -151,7 +151,7 @@ srm_env_init(void)
 	if (!base_dir) {
 		printk(KERN_ERR "Couldn't create base dir /proc/%s\n",
 				BASE_DIR);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -176,7 +176,7 @@ srm_env_init(void)
 	}
 
 	/*
-	 * Create all named nodes
+	 * Create all named analdes
 	 */
 	entry = srm_named_entries;
 	while (entry->name && entry->id) {
@@ -187,7 +187,7 @@ srm_env_init(void)
 	}
 
 	/*
-	 * Create all numbered nodes
+	 * Create all numbered analdes
 	 */
 	for (var_num = 0; var_num <= 255; var_num++) {
 		char name[4];
@@ -204,7 +204,7 @@ srm_env_init(void)
 
 cleanup:
 	remove_proc_subtree(BASE_DIR, NULL);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __exit

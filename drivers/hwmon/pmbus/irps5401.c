@@ -5,7 +5,7 @@
  * Copyright (c) 2019 SED Systems, a division of Calian Ltd.
  *
  * The device supports VOUT_PEAK, IOUT_PEAK, and TEMPERATURE_PEAK, however
- * this driver does not currently support them.
+ * this driver does analt currently support them.
  */
 
 #include <linux/err.h>

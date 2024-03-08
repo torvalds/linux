@@ -19,7 +19,7 @@ or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 more details.
 
 You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc., 59
+with this program; if analt, write to the Free Software Foundation, Inc., 59
 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 Should you need to contact me, the author, you can do so either by e-mail -
@@ -35,7 +35,7 @@ The drivers/usb/class/cdc-acm.c drivers works with USB modems and USB ISDN termi
 adapters that conform to the Universal Serial Bus Communication Device Class
 Abstract Control Model (USB CDC ACM) specification.
 
-Many modems do, here is a list of those I know of:
+Many modems do, here is a list of those I kanalw of:
 
 	- 3Com OfficeConnect 56k
 	- 3Com Voice FaxModem Pro
@@ -45,11 +45,11 @@ Many modems do, here is a list of those I know of:
 	- Compaq 56k FaxModem
 	- ELSA Microlink 56k
 
-I know of one ISDN TA that does work with the acm driver:
+I kanalw of one ISDN TA that does work with the acm driver:
 
 	- 3Com USR ISDN Pro TA
 
-Some cell phones also connect via USB. I know the following phones work:
+Some cell phones also connect via USB. I kanalw the following phones work:
 
 	- SonyEricsson K800i
 

@@ -30,7 +30,7 @@ static int ir_raw_event_thread(void *data)
 		while (kfifo_out(&raw->kfifo, &ev, 1)) {
 			if (is_timing_event(ev)) {
 				if (ev.duration == 0)
-					dev_warn_once(&dev->dev, "nonsensical timing event of duration 0");
+					dev_warn_once(&dev->dev, "analnsensical timing event of duration 0");
 				if (is_timing_event(raw->prev_ev) &&
 				    !is_transition(&ev, &raw->prev_ev))
 					dev_warn_once(&dev->dev, "two consecutive events of type %s",
@@ -79,7 +79,7 @@ int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev)
 
 	if (!kfifo_put(&dev->raw->kfifo, *ev)) {
 		dev_err(&dev->dev, "IR event FIFO is full!\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	return 0;
@@ -87,26 +87,26 @@ int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev)
 EXPORT_SYMBOL_GPL(ir_raw_event_store);
 
 /**
- * ir_raw_event_store_edge() - notify raw ir decoders of the start of a pulse/space
+ * ir_raw_event_store_edge() - analtify raw ir decoders of the start of a pulse/space
  * @dev:	the struct rc_dev device descriptor
  * @pulse:	true for pulse, false for space
  *
  * This routine (which may be called from an interrupt context) is used to
  * store the beginning of an ir pulse or space (or the start/end of ir
  * reception) for the raw ir decoding state machines. This is used by
- * hardware which does not provide durations directly but only interrupts
+ * hardware which does analt provide durations directly but only interrupts
  * (or similar events) on state change.
  */
 int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 {
-	ktime_t			now;
+	ktime_t			analw;
 	struct ir_raw_event	ev = {};
 
 	if (!dev->raw)
 		return -EINVAL;
 
-	now = ktime_get();
-	ev.duration = ktime_to_us(ktime_sub(now, dev->raw->last_event));
+	analw = ktime_get();
+	ev.duration = ktime_to_us(ktime_sub(analw, dev->raw->last_event));
 	ev.pulse = !pulse;
 
 	return ir_raw_event_store_with_timeout(dev, &ev);
@@ -126,18 +126,18 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
  */
 int ir_raw_event_store_with_timeout(struct rc_dev *dev, struct ir_raw_event *ev)
 {
-	ktime_t		now;
+	ktime_t		analw;
 	int		rc = 0;
 
 	if (!dev->raw)
 		return -EINVAL;
 
-	now = ktime_get();
+	analw = ktime_get();
 
 	spin_lock(&dev->raw->edge_spinlock);
 	rc = ir_raw_event_store(dev, ev);
 
-	dev->raw->last_event = now;
+	dev->raw->last_event = analw;
 
 	/* timer could be set to timeout (125ms by default) */
 	if (!timer_pending(&dev->raw->edge_handle) ||
@@ -160,8 +160,8 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store_with_timeout);
  * This routine (which may be called from an interrupt context) works
  * in similar manner to ir_raw_event_store_edge.
  * This routine is intended for devices with limited internal buffer
- * It automerges samples of same type, and handles timeouts. Returns non-zero
- * if the event was added, and zero if the event was ignored due to idle
+ * It automerges samples of same type, and handles timeouts. Returns analn-zero
+ * if the event was added, and zero if the event was iganalred due to idle
  * processing.
  */
 int ir_raw_event_store_with_filter(struct rc_dev *dev, struct ir_raw_event *ev)
@@ -169,7 +169,7 @@ int ir_raw_event_store_with_filter(struct rc_dev *dev, struct ir_raw_event *ev)
 	if (!dev->raw)
 		return -EINVAL;
 
-	/* Ignore spaces in idle mode */
+	/* Iganalre spaces in idle mode */
 	if (dev->idle && !ev->pulse)
 		return 0;
 	else if (dev->idle)
@@ -194,9 +194,9 @@ int ir_raw_event_store_with_filter(struct rc_dev *dev, struct ir_raw_event *ev)
 EXPORT_SYMBOL_GPL(ir_raw_event_store_with_filter);
 
 /**
- * ir_raw_event_set_idle() - provide hint to rc-core when the device is idle or not
+ * ir_raw_event_set_idle() - provide hint to rc-core when the device is idle or analt
  * @dev:	the struct rc_dev device descriptor
- * @idle:	whether the device is idle or not
+ * @idle:	whether the device is idle or analt
  */
 void ir_raw_event_set_idle(struct rc_dev *dev, bool idle)
 {
@@ -309,7 +309,7 @@ static void ir_raw_disable_protocols(struct rc_dev *dev, u64 protocols)
  * to @max raw IR events using the *@ev pointer.
  *
  * Returns:	0 on success.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-EANALBUFS if there isn't eanalugh space in the array to fit the
  *		full encoded data. In this case all @max events will have been
  *		written.
  */
@@ -319,7 +319,7 @@ int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
 {
 	bool need_pulse;
 	u64 i;
-	int ret = -ENOBUFS;
+	int ret = -EANALBUFS;
 
 	i = BIT_ULL(n - 1);
 
@@ -347,13 +347,13 @@ int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
 			(*ev)->duration += timings->clock;
 		} else {
 			if (!max--)
-				goto nobufs;
+				goto analbufs;
 			init_ir_raw_event_duration(++(*ev), need_pulse,
 						   timings->clock);
 		}
 
 		if (!max--)
-			goto nobufs;
+			goto analbufs;
 		init_ir_raw_event_duration(++(*ev), !need_pulse,
 					   timings->clock);
 		i >>= 1;
@@ -363,14 +363,14 @@ int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
 		if (!(*ev)->pulse)
 			(*ev)->duration += timings->trailer_space;
 		else if (!max--)
-			goto nobufs;
+			goto analbufs;
 		else
 			init_ir_raw_event_duration(++(*ev), 0,
 						   timings->trailer_space);
 	}
 
 	ret = 0;
-nobufs:
+analbufs:
 	/* point to the next event rather than last event before returning */
 	++(*ev);
 	return ret;
@@ -391,7 +391,7 @@ EXPORT_SYMBOL(ir_raw_gen_manchester);
  * to @max raw IR events using the *@ev pointer.
  *
  * Returns:	0 on success.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-EANALBUFS if there isn't eanalugh space in the array to fit the
  *		full encoded data. In this case all @max events will have been
  *		written.
  */
@@ -450,7 +450,7 @@ EXPORT_SYMBOL(ir_raw_gen_pd);
  * to @max raw IR events using the *@ev pointer.
  *
  * Returns:	0 on success.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-EANALBUFS if there isn't eanalugh space in the array to fit the
  *		full encoded data. In this case all @max events will have been
  *		written.
  */
@@ -459,7 +459,7 @@ int ir_raw_gen_pl(struct ir_raw_event **ev, unsigned int max,
 		  unsigned int n, u64 data)
 {
 	int i;
-	int ret = -ENOBUFS;
+	int ret = -EANALBUFS;
 	unsigned int pulse;
 
 	if (!max--)
@@ -511,9 +511,9 @@ EXPORT_SYMBOL(ir_raw_gen_pl);
  * Attempts to encode the scancode as raw events.
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-EANALBUFS if there isn't eanalugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
- *		-EINVAL if the scancode is ambiguous or invalid, or if no
+ *		-EINVAL if the scancode is ambiguous or invalid, or if anal
  *		compatible encoder was found.
  */
 int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
@@ -529,7 +529,7 @@ int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 	list_for_each_entry(handler, &ir_raw_handler_list, list) {
 		if (handler->protocols & mask && handler->encode) {
 			ret = handler->encode(protocol, scancode, events, max);
-			if (ret >= 0 || ret == -ENOBUFS)
+			if (ret >= 0 || ret == -EANALBUFS)
 				break;
 		}
 	}
@@ -548,7 +548,7 @@ EXPORT_SYMBOL(ir_raw_encode_scancode);
  * first of all, rather than calling ir_raw_event_handle() for each
  * edge and waking up the rc thread, 15 ms after the first edge
  * ir_raw_event_handle() is called. Secondly, generate a timeout event
- * no more IR is received after the rc_dev timeout.
+ * anal more IR is received after the rc_dev timeout.
  */
 static void ir_raw_edge_handle(struct timer_list *t)
 {
@@ -584,7 +584,7 @@ static void ir_raw_edge_handle(struct timer_list *t)
  * Attempts to find the carrier for the specified protocol
  *
  * Returns:	The carrier in Hz
- *		-EINVAL if the protocol is invalid, or if no
+ *		-EINVAL if the protocol is invalid, or if anal
  *		compatible encoder was found.
  */
 int ir_raw_encode_carrier(enum rc_proto protocol)
@@ -616,7 +616,7 @@ int ir_raw_event_prepare(struct rc_dev *dev)
 
 	dev->raw = kzalloc(sizeof(*dev->raw), GFP_KERNEL);
 	if (!dev->raw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->raw->dev = dev;
 	dev->change_protocol = change_protocol;
@@ -632,7 +632,7 @@ int ir_raw_event_register(struct rc_dev *dev)
 {
 	struct task_struct *thread;
 
-	thread = kthread_run(ir_raw_event_thread, dev->raw, "rc%u", dev->minor);
+	thread = kthread_run(ir_raw_event_thread, dev->raw, "rc%u", dev->mianalr);
 	if (IS_ERR(thread))
 		return PTR_ERR(thread);
 
@@ -711,7 +711,7 @@ void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 			ir_raw_handler->raw_unregister(raw->dev);
 		ir_raw_disable_protocols(raw->dev, protocols);
 	}
-	atomic64_andnot(protocols, &available_protocols);
+	atomic64_andanalt(protocols, &available_protocols);
 	mutex_unlock(&ir_raw_handler_lock);
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);

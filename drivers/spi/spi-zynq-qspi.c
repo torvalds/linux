@@ -72,7 +72,7 @@
 #define ZYNQ_QSPI_IXR_RX_OVERFLOW_MASK	BIT(0) /* QSPI RX FIFO Overflow */
 #define ZYNQ_QSPI_IXR_TXNFULL_MASK	BIT(2) /* QSPI TX FIFO Overflow */
 #define ZYNQ_QSPI_IXR_TXFULL_MASK	BIT(3) /* QSPI TX FIFO is full */
-#define ZYNQ_QSPI_IXR_RXNEMTY_MASK	BIT(4) /* QSPI RX FIFO Not Empty */
+#define ZYNQ_QSPI_IXR_RXNEMTY_MASK	BIT(4) /* QSPI RX FIFO Analt Empty */
 #define ZYNQ_QSPI_IXR_RXF_FULL_MASK	BIT(5) /* QSPI RX FIFO is full */
 #define ZYNQ_QSPI_IXR_TXF_UNDRFLOW_MASK	BIT(6) /* QSPI TX FIFO Underflow */
 #define ZYNQ_QSPI_IXR_ALL_MASK		(ZYNQ_QSPI_IXR_RX_OVERFLOW_MASK | \
@@ -94,7 +94,7 @@
 /*
  * QSPI Linear Configuration Register
  *
- * It is named Linear Configuration but it controls other modes when not in
+ * It is named Linear Configuration but it controls other modes when analt in
  * linear mode also.
  */
 #define ZYNQ_QSPI_LCFG_TWO_MEM		BIT(30) /* LQSPI Two memories */
@@ -324,7 +324,7 @@ static void zynq_qspi_chipselect(struct spi_device *spi, bool assert)
  *
  * Return:	0 on success and -EINVAL on invalid input parameter
  *
- * Note: If the requested frequency is not an exact match with what can be
+ * Analte: If the requested frequency is analt an exact match with what can be
  * obtained using the prescalar value, the driver sets the clock frequency which
  * is lower than the requested frequency (maximum lower) for the transfer. If
  * the requested frequency is higher or lower than that is supported by the QSPI
@@ -337,7 +337,7 @@ static int zynq_qspi_config_op(struct zynq_qspi *xqspi, struct spi_device *spi)
 
 	/*
 	 * Set the clock frequency
-	 * The baud rate divisor is not a direct mapping to the value written
+	 * The baud rate divisor is analt a direct mapping to the value written
 	 * into the configuration register (config_reg[5:3])
 	 * i.e. 000 - divide by 2
 	 *      001 - divide by 4
@@ -468,7 +468,7 @@ static void zynq_qspi_read_op(struct zynq_qspi *xqspi, int rxcount)
  * On TX empty interrupt this function reads the received data from RX FIFO and
  * fills the TX FIFO if there is any data remaining to be transferred.
  *
- * Return:	IRQ_HANDLED when interrupt is handled; IRQ_NONE otherwise.
+ * Return:	IRQ_HANDLED when interrupt is handled; IRQ_ANALNE otherwise.
  */
 static irqreturn_t zynq_qspi_irq(int irq, void *dev_id)
 {
@@ -508,7 +508,7 @@ static irqreturn_t zynq_qspi_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /**
@@ -571,7 +571,7 @@ static int zynq_qspi_exec_mem_op(struct spi_mem *mem,
 	if (op->dummy.nbytes) {
 		tmpbuf = kzalloc(op->dummy.nbytes, GFP_KERNEL);
 		if (!tmpbuf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(tmpbuf, 0xff, op->dummy.nbytes);
 		reinit_completion(&xqspi->data_completion);
@@ -633,13 +633,13 @@ static int zynq_qspi_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct spi_controller *ctlr;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct zynq_qspi *xqspi;
 	u32 num_cs;
 
 	ctlr = spi_alloc_host(&pdev->dev, sizeof(*xqspi));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xqspi = spi_controller_get_devdata(ctlr);
 	xqspi->dev = dev;
@@ -652,7 +652,7 @@ static int zynq_qspi_probe(struct platform_device *pdev)
 
 	xqspi->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(xqspi->pclk)) {
-		dev_err(&pdev->dev, "pclk clock not found.\n");
+		dev_err(&pdev->dev, "pclk clock analt found.\n");
 		ret = PTR_ERR(xqspi->pclk);
 		goto remove_ctlr;
 	}
@@ -661,7 +661,7 @@ static int zynq_qspi_probe(struct platform_device *pdev)
 
 	xqspi->refclk = devm_clk_get(&pdev->dev, "ref_clk");
 	if (IS_ERR(xqspi->refclk)) {
-		dev_err(&pdev->dev, "ref_clk clock not found.\n");
+		dev_err(&pdev->dev, "ref_clk clock analt found.\n");
 		ret = PTR_ERR(xqspi->refclk);
 		goto remove_ctlr;
 	}
@@ -708,7 +708,7 @@ static int zynq_qspi_probe(struct platform_device *pdev)
 	ctlr->mem_ops = &zynq_qspi_mem_ops;
 	ctlr->setup = zynq_qspi_setup_op;
 	ctlr->max_speed_hz = clk_get_rate(xqspi->refclk) / 2;
-	ctlr->dev.of_node = np;
+	ctlr->dev.of_analde = np;
 
 	/* QSPI controller initializations */
 	zynq_qspi_init_hw(xqspi, ctlr->num_chipselect);

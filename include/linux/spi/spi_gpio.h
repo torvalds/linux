@@ -3,7 +3,7 @@
 #define __LINUX_SPI_GPIO_H
 
 /*
- * For each bitbanged SPI bus, set up a platform_device node with:
+ * For each bitbanged SPI bus, set up a platform_device analde with:
  *   - name "spi_gpio"
  *   - id the same as the SPI bus number it implements
  *   - dev.platform data pointing to a struct spi_gpio_platform_data

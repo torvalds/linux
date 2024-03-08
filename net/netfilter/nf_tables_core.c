@@ -41,7 +41,7 @@ static inline bool nf_skip_indirect_calls(void) { return false; }
 static inline void nf_skip_indirect_calls_enable(void) { }
 #endif
 
-static noinline void __nft_trace_packet(const struct nft_pktinfo *pkt,
+static analinline void __nft_trace_packet(const struct nft_pktinfo *pkt,
 					const struct nft_verdict *verdict,
 					const struct nft_rule_dp *rule,
 					struct nft_traceinfo *info,
@@ -52,7 +52,7 @@ static noinline void __nft_trace_packet(const struct nft_pktinfo *pkt,
 
 	info->type = type;
 
-	nft_trace_notify(pkt, verdict, rule, info);
+	nft_trace_analtify(pkt, verdict, rule, info);
 }
 
 static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
@@ -108,7 +108,7 @@ static void nft_cmp16_fast_eval(const struct nft_expr *expr,
 	regs->verdict.code = NFT_BREAK;
 }
 
-static noinline void __nft_trace_verdict(const struct nft_pktinfo *pkt,
+static analinline void __nft_trace_verdict(const struct nft_pktinfo *pkt,
 					 struct nft_traceinfo *info,
 					 const struct nft_rule_dp *rule,
 					 const struct nft_regs *regs)
@@ -178,7 +178,7 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 
 DEFINE_STATIC_KEY_FALSE(nft_counters_enabled);
 
-static noinline void nft_update_chain_stats(const struct nft_chain *chain,
+static analinline void nft_update_chain_stats(const struct nft_chain *chain,
 					    const struct nft_pktinfo *pkt)
 {
 	struct nft_base_chain *base_chain;

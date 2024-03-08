@@ -17,9 +17,9 @@ enum ht_channel_width {
 };
 
 enum ht_extchnl_offset {
-	HT_EXTCHNL_OFFSET_NO_EXT = 0,
+	HT_EXTCHNL_OFFSET_ANAL_EXT = 0,
 	HT_EXTCHNL_OFFSET_UPPER = 1,
-	HT_EXTCHNL_OFFSET_NO_DEF = 2,
+	HT_EXTCHNL_OFFSET_ANAL_DEF = 2,
 	HT_EXTCHNL_OFFSET_LOWER = 3,
 };
 
@@ -63,7 +63,7 @@ struct ht_info_ele {
 	u8	SrvIntGranularity:3;
 
 	u8	OptMode:2;
-	u8	NonGFDevPresent:1;
+	u8	AnalnGFDevPresent:1;
 	u8	Revd1:5;
 	u8	Revd2:8;
 
@@ -156,7 +156,7 @@ enum ht_aggre_size {
 };
 
 enum ht_iot_peer {
-	HT_IOT_PEER_UNKNOWN = 0,
+	HT_IOT_PEER_UNKANALWN = 0,
 	HT_IOT_PEER_REALTEK = 1,
 	HT_IOT_PEER_REALTEK_92SE = 2,
 	HT_IOT_PEER_BROADCOM = 3,
@@ -191,7 +191,7 @@ enum ht_iot_action {
 	HT_IOT_ACT_DISABLE_SHORT_GI = 0x00020000,
 	HT_IOT_ACT_DISABLE_HIGH_POWER = 0x00040000,
 	HT_IOT_ACT_DISABLE_TX_40_MHZ = 0x00080000,
-	HT_IOT_ACT_TX_NO_AGGREGATION = 0x00100000,
+	HT_IOT_ACT_TX_ANAL_AGGREGATION = 0x00100000,
 	HT_IOT_ACT_DISABLE_TX_2SS = 0x00200000,
 
 	HT_IOT_ACT_MID_HIGHPOWER = 0x00400000,

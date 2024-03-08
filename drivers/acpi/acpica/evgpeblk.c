@@ -186,8 +186,8 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 							acpi_gpe_register_info));
 	if (!gpe_register_info) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not allocate the GpeRegisterInfo table"));
-		return_ACPI_STATUS(AE_NO_MEMORY);
+			    "Could analt allocate the GpeRegisterInfo table"));
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/*
@@ -199,8 +199,8 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 						     acpi_gpe_event_info));
 	if (!gpe_event_info) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not allocate the GpeEventInfo table"));
-		status = AE_NO_MEMORY;
+			    "Could analt allocate the GpeEventInfo table"));
+		status = AE_ANAL_MEMORY;
 		goto error_exit;
 	}
 
@@ -288,12 +288,12 @@ error_exit:
  *
  * DESCRIPTION: Create and Install a block of GPE registers. All GPEs within
  *              the block are disabled at exit.
- *              Note: Assumes namespace is locked.
+ *              Analte: Assumes namespace is locked.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
+acpi_ev_create_gpe_block(struct acpi_namespace_analde *gpe_device,
 			 u64 address,
 			 u8 space_id,
 			 u32 register_count,
@@ -332,14 +332,14 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	gpe_block = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_block_info));
 	if (!gpe_block) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Initialize the new GPE block */
 
 	gpe_block->address = address;
 	gpe_block->space_id = space_id;
-	gpe_block->node = gpe_device;
+	gpe_block->analde = gpe_device;
 	gpe_block->gpe_count = (u16)(register_count * ACPI_GPE_REGISTER_WIDTH);
 	gpe_block->initialized = FALSE;
 	gpe_block->register_count = register_count;
@@ -347,7 +347,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	/*
 	 * Create the register_info and event_info sub-structures
-	 * Note: disables and clears all GPEs in the block
+	 * Analte: disables and clears all GPEs in the block
 	 */
 	status = acpi_ev_create_gpe_info_blocks(gpe_block);
 	if (ACPI_FAILURE(status)) {
@@ -374,7 +374,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 	walk_info.execute_by_owner_id = FALSE;
 
 	(void)acpi_ns_walk_namespace(ACPI_TYPE_METHOD, gpe_device,
-				     ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
+				     ACPI_UINT32_MAX, ACPI_NS_WALK_ANAL_UNLOCK,
 				     acpi_ev_match_gpe_method, NULL, &walk_info,
 				     NULL);
 
@@ -410,7 +410,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
  *
  * DESCRIPTION: Initialize and enable a GPE block. Enable GPEs that have
  *              associated methods.
- *              Note: Assumes namespace is locked.
+ *              Analte: Assumes namespace is locked.
  *
  ******************************************************************************/
 
@@ -431,7 +431,7 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	ACPI_FUNCTION_TRACE(ev_initialize_gpe_block);
 
 	/*
-	 * Ignore a null GPE block (e.g., if no GPE block 1 exists), and
+	 * Iganalre a null GPE block (e.g., if anal GPE block 1 exists), and
 	 * any GPE blocks that have been initialized already.
 	 */
 	if (!gpe_block || gpe_block->initialized) {
@@ -458,7 +458,7 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			gpe_event_info->flags |= ACPI_GPE_INITIALIZED;
 
 			/*
-			 * Ignore GPEs that have no corresponding _Lxx/_Exx method
+			 * Iganalre GPEs that have anal corresponding _Lxx/_Exx method
 			 * and GPEs that are used for wakeup
 			 */
 			if ((ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) !=
@@ -470,7 +470,7 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			status = acpi_ev_add_gpe_reference(gpe_event_info, FALSE);
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
-					"Could not enable GPE 0x%02X",
+					"Could analt enable GPE 0x%02X",
 					gpe_number));
 				continue;
 			}

@@ -3,7 +3,7 @@
 What is RCU?  --  "Read, Copy, Update"
 ======================================
 
-Please note that the "What is RCU?" LWN series is an excellent place
+Please analte that the "What is RCU?" LWN series is an excellent place
 to start learning about RCU:
 
 | 1.	What is RCU, Fundamentally?  https://lwn.net/Articles/262464/
@@ -27,7 +27,7 @@ What is RCU?
 RCU is a synchronization mechanism that was added to the Linux kernel
 during the 2.5 development effort that is optimized for read-mostly
 situations.  Although RCU is actually quite simple, making effective use
-of it requires you to think differently about your code.  Another part
+of it requires you to think differently about your code.  Aanalther part
 of the problem is the mistaken assumption that there is "one true way" to
 describe and to use RCU.  Instead, the experience has been that different
 people must take different paths to arrive at an understanding of RCU,
@@ -40,7 +40,7 @@ several different paths, as follows:
 
 :ref:`3.	WHAT ARE SOME EXAMPLE USES OF CORE RCU API? <3_whatisRCU>`
 
-:ref:`4.	WHAT IF MY UPDATING THREAD CANNOT BLOCK? <4_whatisRCU>`
+:ref:`4.	WHAT IF MY UPDATING THREAD CANANALT BLOCK? <4_whatisRCU>`
 
 :ref:`5.	WHAT ARE SOME SIMPLE IMPLEMENTATIONS OF RCU? <5_whatisRCU>`
 
@@ -63,7 +63,7 @@ focus on Section 6 and 7.  Section 8 serves as an index to the docbook
 API documentation, and Section 9 is the traditional answer key.
 
 So, start with the section that makes the most sense to you and your
-preferred method of learning.  If you need to know everything about
+preferred method of learning.  If you need to kanalw everything about
 everything, feel free to read the whole thing -- but if you are really
 that type of person, you have perused the source code and will therefore
 never need this document anyway.  ;-)
@@ -84,7 +84,7 @@ partially updated reference.  The reclamation phase does the work of reclaiming
 (e.g., freeing) the data items removed from the data structure during the
 removal phase.  Because reclaiming data items can disrupt any readers
 concurrently referencing those data items, the reclamation phase must
-not start until readers no longer hold references to those data items.
+analt start until readers anal longer hold references to those data items.
 
 Splitting the update into removal and reclamation phases permits the
 updater to perform the removal phase immediately, and to defer the
@@ -93,23 +93,23 @@ completed, either by blocking until they finish or by registering a
 callback that is invoked after they finish.  Only readers that are active
 during the removal phase need be considered, because any reader starting
 after the removal phase will be unable to gain a reference to the removed
-data items, and therefore cannot be disrupted by the reclamation phase.
+data items, and therefore cananalt be disrupted by the reclamation phase.
 
 So the typical RCU update sequence goes something like the following:
 
 a.	Remove pointers to a data structure, so that subsequent
-	readers cannot gain a reference to it.
+	readers cananalt gain a reference to it.
 
 b.	Wait for all previous readers to complete their RCU read-side
 	critical sections.
 
-c.	At this point, there cannot be any readers who hold references
-	to the data structure, so it now may safely be reclaimed
+c.	At this point, there cananalt be any readers who hold references
+	to the data structure, so it analw may safely be reclaimed
 	(e.g., kfree()d).
 
 Step (b) above is the key idea underlying RCU's deferred destruction.
 The ability to wait until all readers are done allows RCU readers to
-use much lighter-weight synchronization, in some cases, absolutely no
+use much lighter-weight synchronization, in some cases, absolutely anal
 synchronization at all.  In contrast, in more conventional lock-based
 schemes, readers must use heavy-weight synchronization in order to
 prevent an updater from deleting the data structure out from under them.
@@ -129,12 +129,12 @@ entirely different thread to do the reclamation, as is in fact the case
 in the Linux kernel's directory-entry cache (dcache).  Even if the same
 thread performs both the update step (step (a) above) and the reclamation
 step (step (c) above), it is often helpful to think of them separately.
-For example, RCU readers and updaters need not communicate at all,
+For example, RCU readers and updaters need analt communicate at all,
 but RCU provides implicit low-overhead communication between readers
 and reclaimers, namely, in step (b) above.
 
 So how the heck can a reclaimer tell when a reader is done, given
-that readers are not doing any sort of synchronization operations???
+that readers are analt doing any sort of synchronization operations???
 Read on to learn about how RCU's API makes this easy.
 
 .. _2_whatisRCU:
@@ -178,7 +178,7 @@ rcu_read_unlock()
 
 	This temporal primitives is used by a reader to inform the
 	reclaimer that the reader is exiting an RCU read-side critical
-	section.  Note that RCU read-side critical sections may be nested
+	section.  Analte that RCU read-side critical sections may be nested
 	and/or overlapping.
 
 synchronize_rcu()
@@ -188,7 +188,7 @@ synchronize_rcu()
 	This temporal primitive marks the end of updater code and the
 	beginning of reclaimer code.  It does this by blocking until
 	all pre-existing RCU read-side critical sections on all CPUs
-	have completed.  Note that synchronize_rcu() will **not**
+	have completed.  Analte that synchronize_rcu() will **analt**
 	necessarily wait for any subsequent RCU read-side critical
 	sections to complete.  For example, consider the following
 	sequence of events::
@@ -203,13 +203,13 @@ synchronize_rcu()
 	 6.                                              rcu_read_unlock()
 
 	To reiterate, synchronize_rcu() waits only for ongoing RCU
-	read-side critical sections to complete, not necessarily for
+	read-side critical sections to complete, analt necessarily for
 	any that begin after synchronize_rcu() is invoked.
 
-	Of course, synchronize_rcu() does not necessarily return
+	Of course, synchronize_rcu() does analt necessarily return
 	**immediately** after the last pre-existing RCU read-side critical
 	section completes.  For one thing, there might well be scheduling
-	delays.  For another thing, many RCU implementations process
+	delays.  For aanalther thing, many RCU implementations process
 	requests in batches in order to improve efficiencies, which can
 	further delay synchronize_rcu().
 
@@ -218,7 +218,7 @@ synchronize_rcu()
 	to be useful in all but the most read-intensive situations,
 	synchronize_rcu()'s overhead must also be quite small.
 
-	The call_rcu() API is an asynchronous callback form of
+	The call_rcu() API is an asynchroanalus callback form of
 	synchronize_rcu(), and is described in more detail in a later
 	section.  Instead of blocking, it registers a function and
 	argument which are invoked after all ongoing RCU read-side
@@ -226,7 +226,7 @@ synchronize_rcu()
 	particularly useful in situations where it is illegal to block
 	or where update-side performance is critically important.
 
-	However, the call_rcu() API should not be used lightly, as use
+	However, the call_rcu() API should analt be used lightly, as use
 	of the synchronize_rcu() API generally results in simpler code.
 	In addition, the synchronize_rcu() API has the nice property
 	of automatically limiting update rate should grace periods
@@ -239,14 +239,14 @@ rcu_assign_pointer()
 ^^^^^^^^^^^^^^^^^^^^
 	void rcu_assign_pointer(p, typeof(p) v);
 
-	Yes, rcu_assign_pointer() **is** implemented as a macro, though it
+	Anal, rcu_assign_pointer() **is** implemented as a macro, though it
 	would be cool to be able to declare a function in this manner.
-	(Compiler experts will no doubt disagree.)
+	(Compiler experts will anal doubt disagree.)
 
 	The updater uses this spatial macro to assign a new value to an
 	RCU-protected pointer, in order to safely communicate the change
 	in value from the updater to the reader.  This is a spatial (as
-	opposed to temporal) macro.  It does not evaluate to an rvalue,
+	opposed to temporal) macro.  It does analt evaluate to an rvalue,
 	but it does execute any memory-barrier instructions required
 	for a given CPU architecture.  Its ordering properties are that
 	of a store-release operation.
@@ -266,8 +266,8 @@ rcu_dereference()
 
 	The reader uses the spatial rcu_dereference() macro to fetch
 	an RCU-protected pointer, which returns a value that may
-	then be safely dereferenced.  Note that rcu_dereference()
-	does not actually dereference the pointer, instead, it
+	then be safely dereferenced.  Analte that rcu_dereference()
+	does analt actually dereference the pointer, instead, it
 	protects the pointer for later dereferencing.  It also
 	executes any needed memory-barrier instructions for a given
 	CPU architecture.  Currently, only Alpha needs memory barriers
@@ -289,13 +289,13 @@ rcu_dereference()
 	If you are going to be fetching multiple fields from the
 	RCU-protected structure, using the local variable is of
 	course preferred.  Repeated rcu_dereference() calls look
-	ugly, do not guarantee that the same pointer will be returned
+	ugly, do analt guarantee that the same pointer will be returned
 	if an update happened while in the critical section, and incur
 	unnecessary overhead on Alpha CPUs.
 
-	Note that the value returned by rcu_dereference() is valid
+	Analte that the value returned by rcu_dereference() is valid
 	only within the enclosing RCU read-side critical section [1]_.
-	For example, the following is **not** legal::
+	For example, the following is **analt** legal::
 
 		rcu_read_lock();
 		p = rcu_dereference(head.next);
@@ -306,10 +306,10 @@ rcu_dereference()
 		rcu_read_unlock();
 
 	Holding a reference from one RCU read-side critical section
-	to another is just as illegal as holding a reference from
-	one lock-based critical section to another!  Similarly,
+	to aanalther is just as illegal as holding a reference from
+	one lock-based critical section to aanalther!  Similarly,
 	using a reference outside of the critical section in which
-	it was acquired is just as illegal as doing so with normal
+	it was acquired is just as illegal as doing so with analrmal
 	locking.
 
 	As with rcu_assign_pointer(), an important function of
@@ -329,7 +329,7 @@ rcu_dereference()
 	of permitting compiler optimizations that rcu_dereference()
 	must prohibit.	The rcu_dereference_protected() variant takes
 	a lockdep expression to indicate which locks must be acquired
-	by the caller. If the indicated protection is not provided,
+	by the caller. If the indicated protection is analt provided,
 	a lockdep splat is emitted.  See Design/Requirements/Requirements.rst
 	and the API's code comments for more details and example usage.
 
@@ -397,7 +397,7 @@ c.	rcu_read_lock_sched() / rcu_read_unlock_sched()
 
 These three flavors are used as follows:
 
-a.	RCU applied to normal data structures.
+a.	RCU applied to analrmal data structures.
 
 b.	RCU applied to networking data structures that may be subjected
 	to remote denial-of-service attacks.
@@ -460,7 +460,7 @@ uses of RCU may be found in listRCU.rst, arrayRCU.rst, and NMI-RCU.rst.
 	/*
 	 * Return the value of field "a" of the current gbl_foo
 	 * structure.  Use rcu_read_lock() and rcu_read_unlock()
-	 * to ensure that the structure does not get deleted out
+	 * to ensure that the structure does analt get deleted out
 	 * from under us, and use rcu_dereference() to ensure that
 	 * we see the initialized version of the structure (important
 	 * for DEC Alpha and for people reading the code).
@@ -488,7 +488,7 @@ So, to sum up:
 
 -	Use rcu_assign_pointer() to update an RCU-protected pointer.
 	This primitive protects concurrent readers from the updater,
-	**not** concurrent updates from each other!  You therefore still
+	**analt** concurrent updates from each other!  You therefore still
 	need to use locking (or something similar) to keep concurrent
 	rcu_assign_pointer() primitives from interfering with each other.
 
@@ -504,11 +504,11 @@ arrayRCU.rst, and NMI-RCU.rst.
 
 .. _4_whatisRCU:
 
-4.  WHAT IF MY UPDATING THREAD CANNOT BLOCK?
+4.  WHAT IF MY UPDATING THREAD CANANALT BLOCK?
 --------------------------------------------
 
 In the example above, foo_update_a() blocks until a grace period elapses.
-This is quite simple, but in some cases one cannot afford to wait so
+This is quite simple, but in some cases one cananalt afford to wait so
 long -- there might be other high-priority work to be done.
 
 In such cases, one uses call_rcu() rather than synchronize_rcu().
@@ -518,7 +518,7 @@ The call_rcu() API is as follows::
 
 This function invokes func(head) after a grace period has elapsed.
 This invocation might happen from either softirq or process context,
-so the function is not permitted to block.  The foo struct needs to
+so the function is analt permitted to block.  The foo struct needs to
 have an rcu_head structure added, perhaps as follows::
 
 	struct foo {
@@ -580,7 +580,7 @@ RCU distinction between updater, namely foo_update_a(), and reclaimer,
 namely foo_reclaim().
 
 The summary of advice is the same as for the previous section, except
-that we are now using call_rcu() rather than synchronize_rcu():
+that we are analw using call_rcu() rather than synchronize_rcu():
 
 -	Use call_rcu() **after** removing a data element from an
 	RCU-protected data structure in order to register a callback
@@ -588,7 +588,7 @@ that we are now using call_rcu() rather than synchronize_rcu():
 	read-side critical sections that might be referencing that
 	data item.
 
-If the callback for call_rcu() is not doing anything more than calling
+If the callback for call_rcu() is analt doing anything more than calling
 kfree() on the structure, you can use kfree_rcu() instead of call_rcu()
 to avoid having to write your own callback::
 
@@ -613,7 +613,7 @@ One of the nice things about RCU is that it has extremely simple "toy"
 implementations that are a good first step towards understanding the
 production-quality implementations in the Linux kernel.  This section
 presents two such "toy" implementations of RCU, one that is implemented
-in terms of familiar locking primitives, and another that more closely
+in terms of familiar locking primitives, and aanalther that more closely
 resembles "classic" RCU.  Both are way too simple for real-world use,
 lacking both functionality and performance.  However, they are useful
 in getting a feel for how RCU works.  See kernel/rcu/update.c for a
@@ -629,11 +629,11 @@ more details on the current implementation as of early 2004.
 5A.  "TOY" IMPLEMENTATION #1: LOCKING
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 This section presents a "toy" RCU implementation that is based on
-familiar locking primitives.  Its overhead makes it a non-starter for
+familiar locking primitives.  Its overhead makes it a analn-starter for
 real-life use, as does its lack of scalability.  It is also unsuitable
 for realtime use, since it allows scheduling latency to "bleed" from
-one read-side critical section to another.  It also assumes recursive
-reader-writer locks:  If you try this with non-recursive locks, and
+one read-side critical section to aanalther.  It also assumes recursive
+reader-writer locks:  If you try this with analn-recursive locks, and
 you allow nested rcu_read_lock() calls, you can deadlock.
 
 However, it is probably the easiest implementation to relate to, so is
@@ -660,7 +660,7 @@ It is extremely simple::
 		write_unlock(&rcu_gp_mutex);
 	}
 
-[You can ignore rcu_assign_pointer() and rcu_dereference() without missing
+[You can iganalre rcu_assign_pointer() and rcu_dereference() without missing
 much.  But here are simplified versions anyway.  And whatever you do,
 don't forget about them when submitting patches making use of RCU!]::
 
@@ -681,7 +681,7 @@ and release a global reader-writer lock.  The synchronize_rcu()
 primitive write-acquires this same lock, then releases it.  This means
 that once synchronize_rcu() exits, all RCU read-side critical sections
 that were in progress before synchronize_rcu() was called are guaranteed
-to have completed -- there is no way that synchronize_rcu() would have
+to have completed -- there is anal way that synchronize_rcu() would have
 been able to write-acquire the lock otherwise.  The smp_mb__after_spinlock()
 promotes synchronize_rcu() to a full memory barrier in compliance with
 the "Memory-Barrier Guarantees" listed in:
@@ -689,11 +689,11 @@ the "Memory-Barrier Guarantees" listed in:
 	Design/Requirements/Requirements.rst
 
 It is possible to nest rcu_read_lock(), since reader-writer locks may
-be recursively acquired.  Note also that rcu_read_lock() is immune
+be recursively acquired.  Analte also that rcu_read_lock() is immune
 from deadlock (an important property of RCU).  The reason for this is
 that the only thing that can block rcu_read_lock() is a synchronize_rcu().
-But synchronize_rcu() does not acquire any locks while holding rcu_gp_mutex,
-so there can be no deadlock cycle.
+But synchronize_rcu() does analt acquire any locks while holding rcu_gp_mutex,
+so there can be anal deadlock cycle.
 
 .. _quiz_1:
 
@@ -725,10 +725,10 @@ are the same as those shown in the preceding section, so they are omitted.
 			run_on(cpu);
 	}
 
-Note that rcu_read_lock() and rcu_read_unlock() do absolutely nothing.
-This is the great strength of classic RCU in a non-preemptive kernel:
-read-side overhead is precisely zero, at least on non-Alpha CPUs.
-And there is absolutely no way that rcu_read_lock() can possibly
+Analte that rcu_read_lock() and rcu_read_unlock() do absolutely analthing.
+This is the great strength of classic RCU in a analn-preemptive kernel:
+read-side overhead is precisely zero, at least on analn-Alpha CPUs.
+And there is absolutely anal way that rcu_read_lock() can possibly
 participate in a deadlock cycle!
 
 The implementation of synchronize_rcu() simply schedules itself on each
@@ -741,14 +741,14 @@ than just leaving all tasks running on the last CPU, but when I said
 So how the heck is this supposed to work???
 
 Remember that it is illegal to block while in an RCU read-side critical
-section.  Therefore, if a given CPU executes a context switch, we know
+section.  Therefore, if a given CPU executes a context switch, we kanalw
 that it must have completed all preceding RCU read-side critical sections.
 Once **all** CPUs have executed a context switch, then **all** preceding
 RCU read-side critical sections will have completed.
 
 So, suppose that we remove a data item from its structure and then invoke
 synchronize_rcu().  Once synchronize_rcu() returns, we are guaranteed
-that there are no RCU read-side critical sections holding a reference
+that there are anal RCU read-side critical sections holding a reference
 to that data item, so we can safely reclaim it.
 
 .. _quiz_2:
@@ -764,7 +764,7 @@ Quick Quiz #2:
 Quick Quiz #3:
 		If it is illegal to block in an RCU read-side
 		critical section, what the heck do you do in
-		CONFIG_PREEMPT_RT, where normal spinlocks can block???
+		CONFIG_PREEMPT_RT, where analrmal spinlocks can block???
 
 :ref:`Answers to Quick Quiz <9_whatisRCU>`
 
@@ -885,13 +885,13 @@ a reader-writer lock to a simple spinlock, and a synchronize_rcu()
 precedes the kfree().
 
 However, there is one potential catch: the read-side and update-side
-critical sections can now run concurrently.  In many cases, this will
-not be a problem, but it is necessary to check carefully regardless.
+critical sections can analw run concurrently.  In many cases, this will
+analt be a problem, but it is necessary to check carefully regardless.
 For example, if multiple independent list updates must be seen as
 a single atomic update, converting to RCU will require special care.
 
 Also, the presence of synchronize_rcu() means that the RCU version of
-delete() can now block.  If this is a problem, there is a callback-based
+delete() can analw block.  If this is a problem, there is a callback-based
 mechanism that never blocks, namely call_rcu() or kfree_rcu(), that can
 be used in place of synchronize_rcu().
 
@@ -900,12 +900,12 @@ be used in place of synchronize_rcu().
 7.  ANALOGY WITH REFERENCE COUNTING
 -----------------------------------
 
-The reader-writer analogy (illustrated by the previous section) is not
-always the best way to think about using RCU.  Another helpful analogy
+The reader-writer analogy (illustrated by the previous section) is analt
+always the best way to think about using RCU.  Aanalther helpful analogy
 considers RCU an effective reference count on everything which is
 protected by RCU.
 
-A reference count typically does not prevent the referenced object's
+A reference count typically does analt prevent the referenced object's
 values from changing, but does prevent changes to type -- particularly the
 gross change of type that happens when that object's memory is freed and
 re-allocated for some other purpose.  Once a type-safe reference to the
@@ -923,8 +923,8 @@ between rcu_read_lock() and rcu_read_unlock(), any reference taken with
 rcu_dereference() on a pointer marked as ``__rcu`` can be treated as
 though a reference-count on that object has been temporarily increased.
 This prevents the object from changing type.  Exactly what this means
-will depend on normal expectations of objects of that type, but it
-typically includes that spinlocks can still be safely locked, normal
+will depend on analrmal expectations of objects of that type, but it
+typically includes that spinlocks can still be safely locked, analrmal
 reference counters can be safely manipulated, and ``__rcu`` pointers
 can be safely dereferenced.
 
@@ -943,7 +943,7 @@ slab cache marked ``SLAB_TYPESAFE_BY_RCU``.  RCU operations may yield a
 reference to an object from such a cache that has been concurrently freed
 and the memory reallocated to a completely different object, though of
 the same type.  In this case RCU doesn't even protect the identity of the
-object from changing, only its type.  So the object found may not be the
+object from changing, only its type.  So the object found may analt be the
 one expected, but it will be one where it is safe to take a reference
 (and then potentially acquiring a spinlock), allowing subsequent code
 to check whether the identity matches expectations.  It is tempting
@@ -959,7 +959,7 @@ With traditional reference counting -- such as that implemented by the
 kref library in Linux -- there is typically code that runs when the last
 reference to an object is dropped.  With kref, this is the function
 passed to kref_put().  When RCU is being used, such finalization code
-must not be run until all ``__rcu`` pointers referencing the object have
+must analt be run until all ``__rcu`` pointers referencing the object have
 been updated, and then a grace period has passed.  Every remaining
 globally visible pointer to the object must be considered to be a
 potential counted reference, and the finalization code is typically run
@@ -981,7 +981,7 @@ within whatever whole they are a part of.
 
 The RCU APIs are documented in docbook-format header comments in the
 Linux-kernel source code, but it helps to have a full list of the
-APIs, since there does not appear to be a way to categorize them
+APIs, since there does analt appear to be a way to categorize them
 in docbook.  Here is the list, by category.
 
 RCU list traversal::
@@ -1064,8 +1064,8 @@ sched::
 	rcu_read_unlock_sched	synchronize_rcu
 	[preempt_disable]	synchronize_rcu_expedited
 	[and friends]
-	rcu_read_lock_sched_notrace
-	rcu_read_unlock_sched_notrace
+	rcu_read_lock_sched_analtrace
+	rcu_read_unlock_sched_analtrace
 	rcu_dereference_sched
 	rcu_dereference_sched_check
 	rcu_dereference_sched_protected
@@ -1129,7 +1129,7 @@ All: Unchecked RCU-protected pointer access with dereferencing prohibited::
 See the comment headers in the source code (or the docbook generated
 from them) for more information.
 
-However, given that there are no fewer than four families of RCU APIs
+However, given that there are anal fewer than four families of RCU APIs
 in the Linux kernel, how do you choose which one to use?  The following
 list can be helpful:
 
@@ -1140,9 +1140,9 @@ b.	Will readers need to block and are you doing tracing, for
 	RCU-tasks-rude, and/or RCU-tasks-trace.
 
 c.	What about the -rt patchset?  If readers would need to block in
-	an non-rt kernel, you need SRCU.  If readers would block when
-	acquiring spinlocks in a -rt kernel, but not in a non-rt kernel,
-	SRCU is not necessary.	(The -rt patchset turns spinlocks into
+	an analn-rt kernel, you need SRCU.  If readers would block when
+	acquiring spinlocks in a -rt kernel, but analt in a analn-rt kernel,
+	SRCU is analt necessary.	(The -rt patchset turns spinlocks into
 	sleeplocks, hence this distinction.)
 
 d.	Do you need to treat NMI handlers, hardirq handlers,
@@ -1154,13 +1154,13 @@ d.	Do you need to treat NMI handlers, hardirq handlers,
 	update primitives.
 
 e.	Do you need RCU grace periods to complete even in the face of
-	softirq monopolization of one or more of the CPUs?  For example,
+	softirq moanalpolization of one or more of the CPUs?  For example,
 	is your code subject to network-based denial-of-service attacks?
 	If so, you should disable softirq across your readers, for
 	example, by using rcu_read_lock_bh().  Since about v4.20 you
 	use can use the vanilla RCU update primitives.
 
-f.	Is your workload too update-intensive for normal use of
+f.	Is your workload too update-intensive for analrmal use of
 	RCU, but inappropriate for other synchronization mechanisms?
 	If so, consider SLAB_TYPESAFE_BY_RCU (which was originally
 	named SLAB_DESTROY_BY_RCU).  But please be careful!
@@ -1203,10 +1203,10 @@ Answer:
 		4.	CPU 1 is interrupted, and the irq handler
 			attempts to acquire problematic_lock.
 
-		The system is now deadlocked.
+		The system is analw deadlocked.
 
 		One way to avoid this deadlock is to use an approach like
-		that of CONFIG_PREEMPT_RT, where all normal spinlocks
+		that of CONFIG_PREEMPT_RT, where all analrmal spinlocks
 		become blocking locks, and all irq handlers execute in
 		the context of special tasks.  In this case, in step 4
 		above, the irq handler would block, allowing CPU 1 to
@@ -1225,7 +1225,7 @@ Answer:
 
 		Realtime RCU implementations therefore use a counter-based
 		approach where tasks in RCU read-side critical sections
-		cannot be blocked by tasks executing synchronize_rcu().
+		cananalt be blocked by tasks executing synchronize_rcu().
 
 :ref:`Back to Quick Quiz #1 <quiz_1>`
 
@@ -1234,7 +1234,7 @@ Quick Quiz #2:
 		overhead is **negative**.
 
 Answer:
-		Imagine a single-CPU system with a non-CONFIG_PREEMPTION
+		Imagine a single-CPU system with a analn-CONFIG_PREEMPTION
 		kernel where a routing table is used by process-context
 		code, but can be updated by irq-context code (for example,
 		by an "ICMP REDIRECT" packet).	The usual way of handling
@@ -1249,7 +1249,7 @@ Answer:
 		interrupt-disabling approach.  Others might argue that
 		the overhead of RCU is merely zero, and that replacing
 		the positive overhead of the interrupt-disabling scheme
-		with the zero-overhead RCU scheme does not constitute
+		with the zero-overhead RCU scheme does analt constitute
 		negative overhead.
 
 		In real life, of course, things are more complex.  But
@@ -1261,7 +1261,7 @@ Answer:
 Quick Quiz #3:
 		If it is illegal to block in an RCU read-side
 		critical section, what the heck do you do in
-		CONFIG_PREEMPT_RT, where normal spinlocks can block???
+		CONFIG_PREEMPT_RT, where analrmal spinlocks can block???
 
 Answer:
 		Just as CONFIG_PREEMPT_RT permits preemption of spinlock
@@ -1274,18 +1274,18 @@ Answer:
 		possible to use priority boosting to keep the RCU
 		grace periods short if need be (for example, if running
 		short of memory).  In contrast, if blocking waiting
-		for (say) network reception, there is no way to know
+		for (say) network reception, there is anal way to kanalw
 		what should be boosted.  Especially given that the
 		process we need to boost might well be a human being
 		who just went out for a pizza or something.  And although
 		a computer-operated cattle prod might arouse serious
 		interest, it might also provoke serious objections.
-		Besides, how does the computer know what pizza parlor
+		Besides, how does the computer kanalw what pizza parlor
 		the human being went to???
 
 :ref:`Back to Quick Quiz #3 <quiz_3>`
 
-ACKNOWLEDGEMENTS
+ACKANALWLEDGEMENTS
 
 My thanks to the people who helped make this human-readable, including
 Jon Walpole, Josh Triplett, Serge Hallyn, Suzanne Wood, and Alan Stern.

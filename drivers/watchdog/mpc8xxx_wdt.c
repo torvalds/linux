@@ -9,8 +9,8 @@
  * Copyright (c) 2008  MontaVista Software, Inc.
  *                     Anton Vorontsov <avorontsov@ru.mvista.com>
  *
- * Note: it appears that you can only actually ENABLE or DISABLE the thing
- * once after POR. Once enabled, you cannot disable, and vice versa.
+ * Analte: it appears that you can only actually ENABLE or DISABLE the thing
+ * once after POR. Once enabled, you cananalt disable, and vice versa.
  */
 
 #include <linux/fs.h>
@@ -64,10 +64,10 @@ module_param(reset, bool, 0);
 MODULE_PARM_DESC(reset,
 	"Watchdog Interrupt/Reset Mode. 0 = interrupt, 1 = reset");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-		 "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+		 "(default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static void mpc8xxx_wdt_keepalive(struct mpc8xxx_wdt_ddata *ddata)
 {
@@ -95,7 +95,7 @@ static int mpc8xxx_wdt_start(struct watchdog_device *w)
 
 	tmp = in_be32(&ddata->base->swcrr);
 	if (!(tmp & SWCRR_SWEN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ddata->swtc = tmp >> 16;
 	set_bit(WDOG_HW_RUNNING, &ddata->wdd.status);
@@ -143,7 +143,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata->base = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(ddata->base))
@@ -151,8 +151,8 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 
 	enabled = in_be32(&ddata->base->swcrr) & SWCRR_SWEN;
 	if (!enabled && wdt_type->hw_enabled) {
-		dev_info(dev, "could not be enabled in software\n");
-		return -ENODEV;
+		dev_info(dev, "could analt be enabled in software\n");
+		return -EANALDEV;
 	}
 
 	res = platform_get_resource(ofdev, IORESOURCE_MEM, 1);
@@ -161,7 +161,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 		u32 __iomem *rsr = ioremap(res->start, resource_size(res));
 
 		if (!rsr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		status = in_be32(rsr) & wdt_type->rsr_mask;
 		ddata->wdd.bootstatus = status ? WDIOF_CARDRESET : 0;
@@ -170,7 +170,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 		iounmap(rsr);
 
 		dev_info(dev, "Last boot was %scaused by watchdog\n",
-			 status ? "" : "not ");
+			 status ? "" : "analt ");
 	}
 
 	spin_lock_init(&ddata->lock);
@@ -181,7 +181,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	ddata->wdd.timeout = WATCHDOG_TIMEOUT;
 	watchdog_init_timeout(&ddata->wdd, timeout, dev);
 
-	watchdog_set_nowayout(&ddata->wdd, nowayout);
+	watchdog_set_analwayout(&ddata->wdd, analwayout);
 
 	ddata->swtc = min(ddata->wdd.timeout * freq / wdt_type->prescaler,
 			  0xffffU);

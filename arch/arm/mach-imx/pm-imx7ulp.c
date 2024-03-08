@@ -58,11 +58,11 @@ int imx7ulp_set_lpm(enum ulp_cpu_pwr_mode mode)
 
 void __init imx7ulp_pm_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx7ulp-smc1");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx7ulp-smc1");
 	smc1_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	WARN_ON(!smc1_base);
 
 	imx7ulp_set_lpm(ULP_PM_RUN);

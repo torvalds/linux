@@ -412,7 +412,7 @@ ST5(		mov		v4.d[0], x10			)
 		/*
 		 * Apply carry to counter blocks if needed.
 		 *
-		 * Since the carry flag was set, we know 0 <= IV_PART <
+		 * Since the carry flag was set, we kanalw 0 <= IV_PART <
 		 * MAX_STRIDE.  Using the value of IV_PART we can determine how
 		 * many counter blocks need to be updated.
 		 */
@@ -641,7 +641,7 @@ AES_FUNC_START(aes_xts_encrypt)
 
 	ld1		{v4.16b}, [x6]
 	xts_load_mask	v8
-	cbz		w7, .Lxtsencnotfirst
+	cbz		w7, .Lxtsencanaltfirst
 
 	enc_prepare	w3, x5, x8
 	xts_cts_skip_tw	w7, .LxtsencNx
@@ -649,7 +649,7 @@ AES_FUNC_START(aes_xts_encrypt)
 	enc_switch_key	w3, x2, x8
 	b		.LxtsencNx
 
-.Lxtsencnotfirst:
+.Lxtsencanaltfirst:
 	enc_prepare	w3, x2, x8
 .LxtsencloopNx:
 	next_tweak	v4, v4, v8
@@ -733,7 +733,7 @@ AES_FUNC_START(aes_xts_decrypt)
 	ld1		{v4.16b}, [x6]
 	xts_load_mask	v8
 	xts_cts_skip_tw	w7, .Lxtsdecskiptw
-	cbz		w7, .Lxtsdecnotfirst
+	cbz		w7, .Lxtsdecanaltfirst
 
 	enc_prepare	w3, x5, x8
 	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
@@ -741,7 +741,7 @@ AES_FUNC_START(aes_xts_decrypt)
 	dec_prepare	w3, x2, x8
 	b		.LxtsdecNx
 
-.Lxtsdecnotfirst:
+.Lxtsdecanaltfirst:
 	dec_prepare	w3, x2, x8
 .LxtsdecloopNx:
 	next_tweak	v4, v4, v8

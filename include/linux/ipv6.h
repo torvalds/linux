@@ -35,7 +35,7 @@ struct ipv6_devconf {
 	__s32		accept_ra_min_hop_limit;
 	__s32		accept_ra_min_lft;
 	__s32		accept_ra_pinfo;
-	__s32		ignore_routes_with_linkdown;
+	__s32		iganalre_routes_with_linkdown;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	__s32		accept_ra_rtr_pref;
 	__s32		rtr_probe_interval;
@@ -58,7 +58,7 @@ struct ipv6_devconf {
 	__s32		drop_unicast_in_l2_multicast;
 	__s32		accept_dad;
 	__s32		force_tllao;
-	__s32           ndisc_notify;
+	__s32           ndisc_analtify;
 	__s32		suppress_frag_ndisc;
 	__s32		accept_ra_mtu;
 	__s32		drop_unsolicited_na;
@@ -81,8 +81,8 @@ struct ipv6_devconf {
 	__u32		ioam6_id;
 	__u32		ioam6_id_wide;
 	__u8		ioam6_enabled;
-	__u8		ndisc_evict_nocarrier;
-	__u8		ra_honor_pio_life;
+	__u8		ndisc_evict_analcarrier;
+	__u8		ra_hoanalr_pio_life;
 
 	struct ctl_table_header *sysctl_header;
 };
@@ -178,7 +178,7 @@ static inline bool inet6_is_jumbogram(const struct sk_buff *skb)
 	return !!(IP6CB(skb)->flags & IP6SKB_JUMBOGRAM);
 }
 
-/* can not be used in TCP layer after tcp_v6_fill_cb */
+/* can analt be used in TCP layer after tcp_v6_fill_cb */
 static inline int inet6_sdif(const struct sk_buff *skb)
 {
 #if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)

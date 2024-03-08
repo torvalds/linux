@@ -101,7 +101,7 @@ static int spear_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		val = clk_rate * duty_ns;
 		dc = div64_u64(val, div);
 
-		/* if duty_ns and period_ns are not achievable then return */
+		/* if duty_ns and period_ns are analt achievable then return */
 		if (pv < PWMPCR_MIN_PERIOD || dc < PWMDCR_MIN_DUTY)
 			return -EINVAL;
 
@@ -118,7 +118,7 @@ static int spear_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/*
-	 * NOTE: the clock to PWM has to be enabled first before writing to the
+	 * ANALTE: the clock to PWM has to be enabled first before writing to the
 	 * registers.
 	 */
 	ret = clk_enable(pc->clk);
@@ -168,7 +168,7 @@ static int spear_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -193,14 +193,14 @@ static const struct pwm_ops spear_pwm_ops = {
 
 static int spear_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct spear_pwm_chip *pc;
 	int ret;
 	u32 val;
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pc->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->mmio_base))

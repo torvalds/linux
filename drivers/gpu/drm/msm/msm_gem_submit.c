@@ -41,11 +41,11 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 			((u64)nr_cmds * sizeof(submit->cmd[0]));
 
 	if (sz > SIZE_MAX)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	submit = kzalloc(sz, GFP_KERNEL | __GFP_NOWARN);
+	submit = kzalloc(sz, GFP_KERNEL | __GFP_ANALWARN);
 	if (!submit)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	submit->hw_fence = msm_fence_alloc();
 	if (IS_ERR(submit->hw_fence)) {
@@ -74,7 +74,7 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	/* Get a unique identifier for the submission for logging purposes */
 	submit->ident = atomic_inc_return(&ident) - 1;
 
-	INIT_LIST_HEAD(&submit->node);
+	INIT_LIST_HEAD(&submit->analde);
 
 	return submit;
 }
@@ -95,7 +95,7 @@ void __msm_gem_submit_destroy(struct kref *kref)
 
 	/*
 	 * If the submit is freed before msm_job_run(), then hw_fence is
-	 * just some pre-allocated memory, not a reference counted fence.
+	 * just some pre-allocated memory, analt a reference counted fence.
 	 * Once the job runs and the hw_fence is initialized, it will
 	 * have a refcount of at least one, since the submit holds a ref
 	 * to the hw_fence.
@@ -157,7 +157,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 	for (i = 0; i < args->nr_bos; i++) {
 		struct drm_gem_object *obj;
 
-		/* normally use drm_gem_object_lookup(), but for bulk lookup
+		/* analrmally use drm_gem_object_lookup(), but for bulk lookup
 		 * all under single table_lock just hit object_idr directly:
 		 */
 		obj = idr_find(&file->object_idr, submit->bos[i].handle);
@@ -211,7 +211,7 @@ static int submit_lookup_cmds(struct msm_gem_submit *submit,
 		}
 
 		if (submit_cmd.size % 4) {
-			SUBMIT_ERROR(submit, "non-aligned cmdstream buffer size: %u\n",
+			SUBMIT_ERROR(submit, "analn-aligned cmdstream buffer size: %u\n",
 				     submit_cmd.size);
 			ret = -EINVAL;
 			goto out;
@@ -229,12 +229,12 @@ static int submit_lookup_cmds(struct msm_gem_submit *submit,
 				sizeof(struct drm_msm_gem_submit_reloc));
 		/* check for overflow: */
 		if (sz == SIZE_MAX) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
-		submit->cmd[i].relocs = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN);
+		submit->cmd[i].relocs = kmalloc(sz, GFP_KERNEL | __GFP_ANALWARN);
 		if (!submit->cmd[i].relocs) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		ret = copy_from_user(submit->cmd[i].relocs, userptr, sz);
@@ -283,7 +283,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit)
 		 * disabled on specific buffers.  This is useful for internal
 		 * usermode driver managed buffers, suballocation, etc.
 		 */
-		if (submit->bos[i].flags & MSM_SUBMIT_BO_NO_IMPLICIT)
+		if (submit->bos[i].flags & MSM_SUBMIT_BO_ANAL_IMPLICIT)
 			continue;
 
 		ret = drm_sched_job_add_implicit_dependencies(&submit->base,
@@ -393,12 +393,12 @@ static int submit_reloc(struct msm_gem_submit *submit, struct drm_gem_object *ob
 	int ret = 0;
 
 	if (offset % 4) {
-		SUBMIT_ERROR(submit, "non-aligned cmdstream buffer: %u\n", offset);
+		SUBMIT_ERROR(submit, "analn-aligned cmdstream buffer: %u\n", offset);
 		return -EINVAL;
 	}
 
-	/* For now, just map the entire thing.  Eventually we probably
-	 * to do it page-by-page, w/ kmap() if not vmap()d..
+	/* For analw, just map the entire thing.  Eventually we probably
+	 * to do it page-by-page, w/ kmap() if analt vmap()d..
 	 */
 	ptr = msm_gem_get_vaddr_locked(obj);
 
@@ -414,7 +414,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct drm_gem_object *ob
 		uint64_t iova;
 
 		if (submit_reloc.submit_offset % 4) {
-			SUBMIT_ERROR(submit, "non-aligned reloc offset: %u\n",
+			SUBMIT_ERROR(submit, "analn-aligned reloc offset: %u\n",
 				     submit_reloc.submit_offset);
 			ret = -EINVAL;
 			goto out;
@@ -453,7 +453,7 @@ out:
 }
 
 /* Cleanup submit at end of ioctl.  In the error case, this also drops
- * references, unpins, and drops active refcnt.  In the non-error case,
+ * references, unpins, and drops active refcnt.  In the analn-error case,
  * this is done when the submit is retired.
  */
 static void submit_cleanup(struct msm_gem_submit *submit, bool error)
@@ -497,9 +497,9 @@ static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
 	uint32_t i, j;
 
 	syncobjs = kcalloc(nr_in_syncobjs, sizeof(*syncobjs),
-	                   GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	                   GFP_KERNEL | __GFP_ANALWARN | __GFP_ANALRETRY);
 	if (!syncobjs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < nr_in_syncobjs; ++i) {
 		uint64_t address = in_syncobjs_addr + i * syncobj_stride;
@@ -513,7 +513,7 @@ static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
 
 		if (syncobj_desc.point &&
 		    !drm_core_check_feature(submit->dev, DRIVER_SYNCOBJ_TIMELINE)) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 
@@ -571,9 +571,9 @@ static struct msm_submit_post_dep *msm_parse_post_deps(struct drm_device *dev,
 	uint32_t i, j;
 
 	post_deps = kcalloc(nr_syncobjs, sizeof(*post_deps),
-			    GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+			    GFP_KERNEL | __GFP_ANALWARN | __GFP_ANALRETRY);
 	if (!post_deps)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < nr_syncobjs; ++i) {
 		uint64_t address = syncobjs_addr + i * syncobj_stride;
@@ -595,13 +595,13 @@ static struct msm_submit_post_dep *msm_parse_post_deps(struct drm_device *dev,
 		if (syncobj_desc.point) {
 			if (!drm_core_check_feature(dev,
 			                            DRIVER_SYNCOBJ_TIMELINE)) {
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				break;
 			}
 
 			post_deps[i].chain = dma_fence_chain_alloc();
 			if (!post_deps[i].chain) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 		}
@@ -673,7 +673,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		return -EPERM;
 	}
 
-	/* for now, we just have 3d pipe.. eventually this would need to
+	/* for analw, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
 	 */
 	if (MSM_PIPE_ID(args->flags) != MSM_PIPE_3D0)
@@ -690,7 +690,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	queue = msm_submitqueue_get(ctx, args->queueid);
 	if (!queue)
-		return -ENOENT;
+		return -EANALENT;
 
 	ring = gpu->rb[queue->ring_nr];
 
@@ -768,7 +768,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
-	if (!(args->flags & MSM_SUBMIT_NO_IMPLICIT)) {
+	if (!(args->flags & MSM_SUBMIT_ANAL_IMPLICIT)) {
 		ret = submit_fence_sync(submit);
 		if (ret)
 			goto out;
@@ -800,7 +800,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			continue;
 
 		if (!gpu->allow_relocs) {
-			SUBMIT_ERROR(submit, "relocs not allowed\n");
+			SUBMIT_ERROR(submit, "relocs analt allowed\n");
 			ret = -EINVAL;
 			goto out;
 		}
@@ -818,7 +818,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	spin_lock(&queue->idr_lock);
 
 	/*
-	 * If using userspace provided seqno fence, validate that the id
+	 * If using userspace provided seqanal fence, validate that the id
 	 * is available before arming sched job.  Since access to fence_idr
 	 * is serialized on the queue lock, the slot should be still avail
 	 * after the job is armed
@@ -837,14 +837,14 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	if (args->flags & MSM_SUBMIT_FENCE_SN_IN) {
 		/*
-		 * Userspace has assigned the seqno fence that it wants
+		 * Userspace has assigned the seqanal fence that it wants
 		 * us to use.  It is an error to pick a fence sequence
-		 * number that is not available.
+		 * number that is analt available.
 		 */
 		submit->fence_id = args->fence;
 		ret = idr_alloc_u32(&queue->fence_idr, submit->user_fence,
 				    &submit->fence_id, submit->fence_id,
-				    GFP_NOWAIT);
+				    GFP_ANALWAIT);
 		/*
 		 * We've already validated that the fence_id slot is valid,
 		 * so if idr_alloc_u32 failed, it is a kernel bug
@@ -857,7 +857,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		 */
 		submit->fence_id = idr_alloc_cyclic(&queue->fence_idr,
 						    submit->user_fence, 1,
-						    INT_MAX, GFP_NOWAIT);
+						    INT_MAX, GFP_ANALWAIT);
 	}
 
 	spin_unlock(&queue->idr_lock);
@@ -871,7 +871,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret == 0 && args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
 		struct sync_file *sync_file = sync_file_create(submit->user_fence);
 		if (!sync_file) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 		} else {
 			fd_install(out_fence_fd, sync_file->file);
 			args->fence_fd = out_fence_fd;
@@ -883,7 +883,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	submit_attach_object_fences(submit);
 
-	/* The scheduler owns a ref now: */
+	/* The scheduler owns a ref analw: */
 	msm_gem_submit_get(submit);
 
 	msm_rd_dump_submit(priv->rd, submit, NULL);

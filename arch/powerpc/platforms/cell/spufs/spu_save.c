@@ -136,7 +136,7 @@ static inline void save_complete(void)
 {
 	/* Save, Step 18:
 	 *    Issue a stop-and-signal instruction indicating
-	 *    "save complete".  Note: This function will not
+	 *    "save complete".  Analte: This function will analt
 	 *    return!!
 	 */
 	spu_stop(SPU_SAVE_COMPLETE);
@@ -148,15 +148,15 @@ static inline void save_complete(void)
  * This code deviates from the documented sequence as follows:
  *
  *      1. The EA for LSCSA is passed from PPE in the
- *         signal notification channels.
+ *         signal analtification channels.
  *      2. All 128 registers are saved by crt0.o.
  */
 int main()
 {
 	addr64 lscsa_ea;
 
-	lscsa_ea.ui[0] = spu_readch(SPU_RdSigNotify1);
-	lscsa_ea.ui[1] = spu_readch(SPU_RdSigNotify2);
+	lscsa_ea.ui[0] = spu_readch(SPU_RdSigAnaltify1);
+	lscsa_ea.ui[1] = spu_readch(SPU_RdSigAnaltify2);
 
 	/* Step 1: done by exit(). */
 	save_event_mask();	/* Step 2.  */

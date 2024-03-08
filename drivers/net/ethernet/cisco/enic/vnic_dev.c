@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -47,11 +47,11 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 	rh  = bar->vaddr;
 	mrh = bar->vaddr;
 	if (!rh) {
-		vdev_err(vdev, "vNIC BAR0 res hdr not mem-mapped\n");
+		vdev_err(vdev, "vNIC BAR0 res hdr analt mem-mapped\n");
 		return -EINVAL;
 	}
 
-	/* Check for mgmt vnic in addition to normal vnic */
+	/* Check for mgmt vnic in addition to analrmal vnic */
 	if ((ioread32(&rh->magic) != VNIC_RES_MAGIC) ||
 		(ioread32(&rh->version) != VNIC_RES_VERSION)) {
 		if ((ioread32(&mrh->magic) != MGMTVNIC_MAGIC) ||
@@ -188,7 +188,7 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 	if (!ring->descs_unaligned) {
 		vdev_err(vdev, "Failed to allocate ring (size=%d), aborting\n",
 			 (int)ring->size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ring->base_addr = ALIGN(ring->base_addr_unaligned,
@@ -225,7 +225,7 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	status = ioread32(&devcmd->status);
 	if (status == 0xFFFFFFFF) {
 		/* PCI-e target device is gone */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (status & STAT_BUSY) {
 		vdev_neterr(vdev, "Busy devcmd %d\n", _CMD_N(cmd));
@@ -240,7 +240,7 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 
 	iowrite32(cmd, &devcmd->cmd);
 
-	if ((_CMD_FLAGS(cmd) & _CMD_FLAGS_NOWAIT))
+	if ((_CMD_FLAGS(cmd) & _CMD_FLAGS_ANALWAIT))
 		return 0;
 
 	for (delay = 0; delay < wait; delay++) {
@@ -250,7 +250,7 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		status = ioread32(&devcmd->status);
 		if (status == 0xFFFFFFFF) {
 			/* PCI-e target device is gone */
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (!(status & STAT_BUSY)) {
@@ -260,7 +260,7 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 				if (err == ERR_EINVAL &&
 				    cmd == CMD_CAPABILITY)
 					return -err;
-				if (err != ERR_ECMDUNKNOWN ||
+				if (err != ERR_ECMDUNKANALWN ||
 				    cmd != CMD_CAPABILITY)
 					vdev_neterr(vdev, "Error %d devcmd %d\n",
 						    err, _CMD_N(cmd));
@@ -295,7 +295,7 @@ static int _vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	fetch_index = ioread32(&dc2c->wq_ctrl->fetch_index);
 
 	if (fetch_index == 0xFFFFFFFF)
-		return -ENODEV;
+		return -EANALDEV;
 
 	new_posted = (posted + 1) % DEVCMD2_RING_SIZE;
 
@@ -307,8 +307,8 @@ static int _vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	dc2c->cmd_ring[posted].cmd = cmd;
 	dc2c->cmd_ring[posted].flags = 0;
 
-	if ((_CMD_FLAGS(cmd) & _CMD_FLAGS_NOWAIT))
-		dc2c->cmd_ring[posted].flags |= DEVCMD2_FNORESULT;
+	if ((_CMD_FLAGS(cmd) & _CMD_FLAGS_ANALWAIT))
+		dc2c->cmd_ring[posted].flags |= DEVCMD2_FANALRESULT;
 	if (_CMD_DIR(cmd) & _CMD_DIR_WRITE)
 		for (i = 0; i < VNIC_DEVCMD_NARGS; i++)
 			dc2c->cmd_ring[posted].args[i] = vdev->args[i];
@@ -321,7 +321,7 @@ static int _vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	iowrite32(new_posted, &dc2c->wq_ctrl->posted_index);
 	dc2c->posted = new_posted;
 
-	if (dc2c->cmd_ring[posted].flags & DEVCMD2_FNORESULT)
+	if (dc2c->cmd_ring[posted].flags & DEVCMD2_FANALRESULT)
 		return 0;
 
 	result = dc2c->result + dc2c->next_result;
@@ -337,7 +337,7 @@ static int _vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		if (result->color == color) {
 			if (result->error) {
 				err = result->error;
-				if (err != ERR_ECMDUNKNOWN ||
+				if (err != ERR_ECMDUNKANALWN ||
 				    cmd != CMD_CAPABILITY)
 					vdev_neterr(vdev, "Error %d devcmd %d\n",
 						    err, _CMD_N(cmd));
@@ -361,7 +361,7 @@ static int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
 {
 	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
 	if (!vdev->devcmd)
-		return -ENODEV;
+		return -EANALDEV;
 	vdev->devcmd_rtn = _vnic_dev_cmd;
 
 	return 0;
@@ -377,7 +377,7 @@ static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
 
 	vdev->devcmd2 = kzalloc(sizeof(*vdev->devcmd2), GFP_KERNEL);
 	if (!vdev->devcmd2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->devcmd2->color = 1;
 	vdev->devcmd2->result_size = DEVCMD2_RING_SIZE;
@@ -389,7 +389,7 @@ static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
 	fetch_index = ioread32(&vdev->devcmd2->wq.ctrl->fetch_index);
 	if (fetch_index == 0xFFFFFFFF) { /* check for hardware gone  */
 		vdev_err(vdev, "Fatal error in devcmd2 init - hardware surprise removal\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_free_wq;
 	}
 
@@ -460,7 +460,7 @@ static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
 	status = (u32)vdev->args[0];
 	if (status & STAT_ERROR) {
 		err = (int)vdev->args[1];
-		if (err != ERR_ECMDUNKNOWN ||
+		if (err != ERR_ECMDUNKANALWN ||
 		    cmd != CMD_CAPABILITY)
 			vdev_neterr(vdev, "Error %d proxy devcmd %d\n",
 				    err, _CMD_N(cmd));
@@ -473,7 +473,7 @@ static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
 	return 0;
 }
 
-static int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
+static int vnic_dev_cmd_anal_proxy(struct vnic_dev *vdev,
 	enum vnic_devcmd_cmd cmd, u64 *a0, u64 *a1, int wait)
 {
 	int err;
@@ -497,7 +497,7 @@ void vnic_dev_cmd_proxy_by_index_start(struct vnic_dev *vdev, u16 index)
 
 void vnic_dev_cmd_proxy_end(struct vnic_dev *vdev)
 {
-	vdev->proxy = PROXY_NONE;
+	vdev->proxy = PROXY_ANALNE;
 	vdev->proxy_index = 0;
 }
 
@@ -513,9 +513,9 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	case PROXY_BY_BDF:
 		return vnic_dev_cmd_proxy(vdev, CMD_PROXY_BY_BDF, cmd,
 				a0, a1, wait);
-	case PROXY_NONE:
+	case PROXY_ANALNE:
 	default:
-		return vnic_dev_cmd_no_proxy(vdev, cmd, a0, a1, wait);
+		return vnic_dev_cmd_anal_proxy(vdev, cmd, a0, a1, wait);
 	}
 }
 
@@ -542,7 +542,7 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 						   sizeof(struct vnic_devcmd_fw_info),
 						   &vdev->fw_info_pa, GFP_ATOMIC);
 		if (!vdev->fw_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		a0 = vdev->fw_info_pa;
 		a1 = sizeof(struct vnic_devcmd_fw_info);
@@ -594,7 +594,7 @@ int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats)
 						 sizeof(struct vnic_stats),
 						 &vdev->stats_pa, GFP_ATOMIC);
 		if (!vdev->stats)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	*stats = vdev->stats;
@@ -716,11 +716,11 @@ int vnic_dev_hang_reset_done(struct vnic_dev *vdev, int *done)
 	return 0;
 }
 
-int vnic_dev_hang_notify(struct vnic_dev *vdev)
+int vnic_dev_hang_analtify(struct vnic_dev *vdev)
 {
 	u64 a0, a1;
 	int wait = 1000;
-	return vnic_dev_cmd(vdev, CMD_HANG_NOTIFY, &a0, &a1, wait);
+	return vnic_dev_cmd(vdev, CMD_HANG_ANALTIFY, &a0, &a1, wait);
 }
 
 int vnic_dev_get_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
@@ -809,89 +809,89 @@ int vnic_dev_set_ig_vlan_rewrite_mode(struct vnic_dev *vdev,
 		return 0;
 }
 
-static int vnic_dev_notify_setcmd(struct vnic_dev *vdev,
-	void *notify_addr, dma_addr_t notify_pa, u16 intr)
+static int vnic_dev_analtify_setcmd(struct vnic_dev *vdev,
+	void *analtify_addr, dma_addr_t analtify_pa, u16 intr)
 {
 	u64 a0, a1;
 	int wait = 1000;
 	int r;
 
-	memset(notify_addr, 0, sizeof(struct vnic_devcmd_notify));
-	vdev->notify = notify_addr;
-	vdev->notify_pa = notify_pa;
+	memset(analtify_addr, 0, sizeof(struct vnic_devcmd_analtify));
+	vdev->analtify = analtify_addr;
+	vdev->analtify_pa = analtify_pa;
 
-	a0 = (u64)notify_pa;
+	a0 = (u64)analtify_pa;
 	a1 = ((u64)intr << 32) & 0x0000ffff00000000ULL;
-	a1 += sizeof(struct vnic_devcmd_notify);
+	a1 += sizeof(struct vnic_devcmd_analtify);
 
-	r = vnic_dev_cmd(vdev, CMD_NOTIFY, &a0, &a1, wait);
-	vdev->notify_sz = (r == 0) ? (u32)a1 : 0;
+	r = vnic_dev_cmd(vdev, CMD_ANALTIFY, &a0, &a1, wait);
+	vdev->analtify_sz = (r == 0) ? (u32)a1 : 0;
 	return r;
 }
 
-int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
+int vnic_dev_analtify_set(struct vnic_dev *vdev, u16 intr)
 {
-	void *notify_addr;
-	dma_addr_t notify_pa;
+	void *analtify_addr;
+	dma_addr_t analtify_pa;
 
-	if (vdev->notify || vdev->notify_pa) {
-		vdev_neterr(vdev, "notify block %p still allocated\n",
-			    vdev->notify);
+	if (vdev->analtify || vdev->analtify_pa) {
+		vdev_neterr(vdev, "analtify block %p still allocated\n",
+			    vdev->analtify);
 		return -EINVAL;
 	}
 
-	notify_addr = dma_alloc_coherent(&vdev->pdev->dev,
-					 sizeof(struct vnic_devcmd_notify),
-					 &notify_pa, GFP_ATOMIC);
-	if (!notify_addr)
-		return -ENOMEM;
+	analtify_addr = dma_alloc_coherent(&vdev->pdev->dev,
+					 sizeof(struct vnic_devcmd_analtify),
+					 &analtify_pa, GFP_ATOMIC);
+	if (!analtify_addr)
+		return -EANALMEM;
 
-	return vnic_dev_notify_setcmd(vdev, notify_addr, notify_pa, intr);
+	return vnic_dev_analtify_setcmd(vdev, analtify_addr, analtify_pa, intr);
 }
 
-static int vnic_dev_notify_unsetcmd(struct vnic_dev *vdev)
+static int vnic_dev_analtify_unsetcmd(struct vnic_dev *vdev)
 {
 	u64 a0, a1;
 	int wait = 1000;
 	int err;
 
-	a0 = 0;  /* paddr = 0 to unset notify buffer */
+	a0 = 0;  /* paddr = 0 to unset analtify buffer */
 	a1 = 0x0000ffff00000000ULL; /* intr num = -1 to unreg for intr */
-	a1 += sizeof(struct vnic_devcmd_notify);
+	a1 += sizeof(struct vnic_devcmd_analtify);
 
-	err = vnic_dev_cmd(vdev, CMD_NOTIFY, &a0, &a1, wait);
-	vdev->notify = NULL;
-	vdev->notify_pa = 0;
-	vdev->notify_sz = 0;
+	err = vnic_dev_cmd(vdev, CMD_ANALTIFY, &a0, &a1, wait);
+	vdev->analtify = NULL;
+	vdev->analtify_pa = 0;
+	vdev->analtify_sz = 0;
 
 	return err;
 }
 
-int vnic_dev_notify_unset(struct vnic_dev *vdev)
+int vnic_dev_analtify_unset(struct vnic_dev *vdev)
 {
-	if (vdev->notify) {
+	if (vdev->analtify) {
 		dma_free_coherent(&vdev->pdev->dev,
-				  sizeof(struct vnic_devcmd_notify),
-				  vdev->notify, vdev->notify_pa);
+				  sizeof(struct vnic_devcmd_analtify),
+				  vdev->analtify, vdev->analtify_pa);
 	}
 
-	return vnic_dev_notify_unsetcmd(vdev);
+	return vnic_dev_analtify_unsetcmd(vdev);
 }
 
-static int vnic_dev_notify_ready(struct vnic_dev *vdev)
+static int vnic_dev_analtify_ready(struct vnic_dev *vdev)
 {
 	u32 *words;
-	unsigned int nwords = vdev->notify_sz / 4;
+	unsigned int nwords = vdev->analtify_sz / 4;
 	unsigned int i;
 	u32 csum;
 
-	if (!vdev->notify || !vdev->notify_sz)
+	if (!vdev->analtify || !vdev->analtify_sz)
 		return 0;
 
 	do {
 		csum = 0;
-		memcpy(&vdev->notify_copy, vdev->notify, vdev->notify_sz);
-		words = (u32 *)&vdev->notify_copy;
+		memcpy(&vdev->analtify_copy, vdev->analtify, vdev->analtify_sz);
+		words = (u32 *)&vdev->analtify_copy;
 		for (i = 1; i < nwords; i++)
 			csum += words[i];
 	} while (csum != words[0]);
@@ -911,7 +911,7 @@ int vnic_dev_init(struct vnic_dev *vdev, int arg)
 		vnic_dev_cmd(vdev, CMD_INIT_v1, &a0, &a1, wait);
 		if (a0 & CMD_INITF_DEFAULT_MAC) {
 			/* Emulate these for old CMD_INIT_v1 which
-			 * didn't pass a0 so no CMD_INITF_*.
+			 * didn't pass a0 so anal CMD_INITF_*.
 			 */
 			vnic_dev_cmd(vdev, CMD_GET_MAC_ADDR, &a0, &a1, wait);
 			vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
@@ -947,12 +947,12 @@ int vnic_dev_intr_coal_timer_info(struct vnic_dev *vdev)
 	if (vnic_dev_capable(vdev, CMD_INTR_COAL_CONVERT))
 		err = vdev->devcmd_rtn(vdev, CMD_INTR_COAL_CONVERT, wait);
 	else
-		err = ERR_ECMDUNKNOWN;
+		err = ERR_ECMDUNKANALWN;
 
 	/* Use defaults when firmware doesn't support the devcmd at all or
 	 * supports it for only specific hardware
 	 */
-	if ((err == ERR_ECMDUNKNOWN) ||
+	if ((err == ERR_ECMDUNKANALWN) ||
 		(!err && !(vdev->args[0] && vdev->args[1] && vdev->args[2]))) {
 		vdev_netwarn(vdev, "Using default conversion factor for interrupt coalesce timer\n");
 		vnic_dev_intr_coal_timer_info_default(vdev);
@@ -970,34 +970,34 @@ int vnic_dev_intr_coal_timer_info(struct vnic_dev *vdev)
 
 int vnic_dev_link_status(struct vnic_dev *vdev)
 {
-	if (!vnic_dev_notify_ready(vdev))
+	if (!vnic_dev_analtify_ready(vdev))
 		return 0;
 
-	return vdev->notify_copy.link_state;
+	return vdev->analtify_copy.link_state;
 }
 
 u32 vnic_dev_port_speed(struct vnic_dev *vdev)
 {
-	if (!vnic_dev_notify_ready(vdev))
+	if (!vnic_dev_analtify_ready(vdev))
 		return 0;
 
-	return vdev->notify_copy.port_speed;
+	return vdev->analtify_copy.port_speed;
 }
 
 u32 vnic_dev_msg_lvl(struct vnic_dev *vdev)
 {
-	if (!vnic_dev_notify_ready(vdev))
+	if (!vnic_dev_analtify_ready(vdev))
 		return 0;
 
-	return vdev->notify_copy.msglvl;
+	return vdev->analtify_copy.msglvl;
 }
 
 u32 vnic_dev_mtu(struct vnic_dev *vdev)
 {
-	if (!vnic_dev_notify_ready(vdev))
+	if (!vnic_dev_analtify_ready(vdev))
 		return 0;
 
-	return vdev->notify_copy.mtu;
+	return vdev->analtify_copy.mtu;
 }
 
 void vnic_dev_set_intr_mode(struct vnic_dev *vdev,
@@ -1032,10 +1032,10 @@ u32 vnic_dev_get_intr_coal_timer_max(struct vnic_dev *vdev)
 void vnic_dev_unregister(struct vnic_dev *vdev)
 {
 	if (vdev) {
-		if (vdev->notify)
+		if (vdev->analtify)
 			dma_free_coherent(&vdev->pdev->dev,
-					  sizeof(struct vnic_devcmd_notify),
-					  vdev->notify, vdev->notify_pa);
+					  sizeof(struct vnic_devcmd_analtify),
+					  vdev->analtify, vdev->analtify_pa);
 		if (vdev->stats)
 			dma_free_coherent(&vdev->pdev->dev,
 					  sizeof(struct vnic_stats),
@@ -1096,7 +1096,7 @@ int vnic_devcmd_init(struct vnic_dev *vdev)
 		else
 			return 0;
 	} else {
-		vdev_warn(vdev, "DEVCMD2 resource not found (old firmware?) Using DEVCMD1\n");
+		vdev_warn(vdev, "DEVCMD2 resource analt found (old firmware?) Using DEVCMD1\n");
 	}
 	err = vnic_dev_init_devcmd1(vdev);
 	if (err)
@@ -1115,7 +1115,7 @@ int vnic_dev_init_prov2(struct vnic_dev *vdev, u8 *buf, u32 len)
 
 	prov_buf = dma_alloc_coherent(&vdev->pdev->dev, len, &prov_pa, GFP_ATOMIC);
 	if (!prov_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(prov_buf, buf, len);
 
@@ -1206,7 +1206,7 @@ int vnic_dev_classifier(struct vnic_dev *vdev, u8 cmd, u16 *entry,
 		tlv_va = dma_alloc_coherent(&vdev->pdev->dev, tlv_size,
 					    &tlv_pa, GFP_ATOMIC);
 		if (!tlv_va)
-			return -ENOMEM;
+			return -EANALMEM;
 		tlv = tlv_va;
 		a0 = tlv_pa;
 		a1 = tlv_size;
@@ -1276,11 +1276,11 @@ int vnic_dev_capable_rss_hash_type(struct vnic_dev *vdev, u8 *rss_hash_type)
 	int err;
 
 	err = vnic_dev_cmd(vdev, CMD_CAPABILITY, &a0, &a1, wait);
-	/* rss_hash_type is valid only when a0 is 1. Adapter which does not
+	/* rss_hash_type is valid only when a0 is 1. Adapter which does analt
 	 * support CMD_CAPABILITY for rss_hash_type has a0 = 0
 	 */
 	if (err || (a0 != 1))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	a1 = (a1 >> NIC_CFG_RSS_HASH_TYPE_SHIFT) &
 	     NIC_CFG_RSS_HASH_TYPE_MASK_FIELD;

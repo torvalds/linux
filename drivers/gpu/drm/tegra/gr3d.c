@@ -65,11 +65,11 @@ static int gr3d_init(struct host1x_client *client)
 
 	gr3d->channel = host1x_channel_request(client);
 	if (!gr3d->channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	client->syncpts[0] = host1x_syncpt_request(client, flags);
 	if (!client->syncpts[0]) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(client->dev, "failed to request syncpoint: %d\n", err);
 		goto put;
 	}
@@ -132,7 +132,7 @@ static int gr3d_open_channel(struct tegra_drm_client *client,
 
 	context->channel = host1x_channel_get(gr3d->channel);
 	if (!context->channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -362,7 +362,7 @@ static int gr3d_power_up_legacy_domain(struct device *dev, const char *name,
 
 	/*
 	 * tegra_powergate_sequence_power_up() leaves clocks enabled,
-	 * while GENPD not. Hence keep clock-enable balanced.
+	 * while GENPD analt. Hence keep clock-enable balanced.
 	 */
 	clk_disable_unprepare(clk);
 
@@ -383,10 +383,10 @@ static int gr3d_init_power(struct device *dev, struct gr3d *gr3d)
 	unsigned int i;
 	int err;
 
-	err = of_count_phandle_with_args(dev->of_node, "power-domains",
+	err = of_count_phandle_with_args(dev->of_analde, "power-domains",
 					 "#power-domain-cells");
 	if (err < 0) {
-		if (err != -ENOENT)
+		if (err != -EANALENT)
 			return err;
 
 		/*
@@ -453,7 +453,7 @@ static int gr3d_get_clocks(struct device *dev, struct gr3d *gr3d)
 
 	if (gr3d->nclocks != gr3d->soc->num_clocks) {
 		dev_err(dev, "invalid number of clocks: %u\n", gr3d->nclocks);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -478,7 +478,7 @@ static int gr3d_get_resets(struct device *dev, struct gr3d *gr3d)
 
 	if (WARN_ON(!gr3d->resets[RST_GR3D].rstc) ||
 	    WARN_ON(!gr3d->resets[RST_GR3D2].rstc && gr3d->nresets == 4))
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -492,7 +492,7 @@ static int gr3d_probe(struct platform_device *pdev)
 
 	gr3d = devm_kzalloc(&pdev->dev, sizeof(*gr3d), GFP_KERNEL);
 	if (!gr3d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, gr3d);
 
@@ -500,7 +500,7 @@ static int gr3d_probe(struct platform_device *pdev)
 
 	syncpts = devm_kzalloc(&pdev->dev, sizeof(*syncpts), GFP_KERNEL);
 	if (!syncpts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = gr3d_get_clocks(&pdev->dev, gr3d);
 	if (err)

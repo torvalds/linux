@@ -303,13 +303,13 @@ static int gs_query_dv_timings(struct v4l2_subdev *sd,
 			break;
 	}
 
-	/* If no register reports a video signal */
+	/* If anal register reports a video signal */
 	if (i >= 4)
-		return -ENOLINK;
+		return -EANALLINK;
 
 	gs_read_register(gs->pdev, REG_STATUS, &reg_value);
 	if (!(reg_value & MASK_H_LOCK) || !(reg_value & MASK_V_LOCK))
-		return -ENOLCK;
+		return -EANALLCK;
 	if (!(reg_value & MASK_STD_LOCK))
 		return -ERANGE;
 
@@ -371,22 +371,22 @@ static int gs_g_input_status(struct v4l2_subdev *sd, u32 *status)
 		if (reg_value)
 			break;
 		if (ret) {
-			*status = V4L2_IN_ST_NO_POWER;
+			*status = V4L2_IN_ST_ANAL_POWER;
 			return ret;
 		}
 	}
 
-	/* If no register reports a video signal */
+	/* If anal register reports a video signal */
 	if (i >= 4)
-		*status |= V4L2_IN_ST_NO_SIGNAL;
+		*status |= V4L2_IN_ST_ANAL_SIGNAL;
 
 	ret = gs_read_register(gs->pdev, REG_STATUS, &reg_value);
 	if (!(reg_value & MASK_H_LOCK))
-		*status |=  V4L2_IN_ST_NO_H_LOCK;
+		*status |=  V4L2_IN_ST_ANAL_H_LOCK;
 	if (!(reg_value & MASK_V_LOCK))
-		*status |=  V4L2_IN_ST_NO_V_LOCK;
+		*status |=  V4L2_IN_ST_ANAL_V_LOCK;
 	if (!(reg_value & MASK_STD_LOCK))
-		*status |=  V4L2_IN_ST_NO_STD_LOCK;
+		*status |=  V4L2_IN_ST_ANAL_STD_LOCK;
 
 	return ret;
 }
@@ -437,7 +437,7 @@ static int gs_probe(struct spi_device *spi)
 
 	gs = devm_kzalloc(&spi->dev, sizeof(struct gs), GFP_KERNEL);
 	if (!gs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gs->pdev = spi;
 	sd = &gs->sd;

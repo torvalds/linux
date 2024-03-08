@@ -87,13 +87,13 @@ length (2^14).
 
 TLS records are created and sent after each send() call, unless
 MSG_MORE is passed.  MSG_MORE will delay creation of a record until
-MSG_MORE is not passed, or the maximum record size is reached.
+MSG_MORE is analt passed, or the maximum record size is reached.
 
 The kernel will need to allocate a buffer for the encrypted data.
 This buffer is allocated at the time send() is called, such that
-either the entire send() call will return -ENOMEM (or block waiting
+either the entire send() call will return -EANALMEM (or block waiting
 for memory), or the encryption will always succeed.  If send() returns
--ENOMEM and some data was left on the socket buffer from a previous
+-EANALMEM and some data was left on the socket buffer from a previous
 call using MSG_MORE, the MSG_MORE data is left on the socket buffer.
 
 Receiving TLS application data
@@ -109,11 +109,11 @@ be received before decryption can happen.
   recv(sock, buffer, 16384);
 
 Received data is decrypted directly in to the user buffer if it is
-large enough, and no additional allocations occur.  If the userspace
+large eanalugh, and anal additional allocations occur.  If the userspace
 buffer is too small, data is decrypted in the kernel and copied to
 userspace.
 
-``EINVAL`` is returned if the TLS version in the received message does not
+``EINVAL`` is returned if the TLS version in the received message does analt
 match the version passed in setsockopt.
 
 ``EMSGSIZE`` is returned if the received message is too big.
@@ -165,7 +165,7 @@ Receiving TLS control messages
 ------------------------------
 
 TLS control messages are passed in the userspace buffer, with message
-type passed via cmsg.  If no cmsg buffer is provided, an error is
+type passed via cmsg.  If anal cmsg buffer is provided, an error is
 returned if a control message is received.  Data messages may be
 received without a cmsg buffer set.
 
@@ -193,7 +193,7 @@ received without a cmsg buffer set.
       // Do something with record_type, and control message data in
       // buffer.
       //
-      // Note that record_type may be == to application data (23).
+      // Analte that record_type may be == to application data (23).
   } else {
       // Buffer contains application data.
   }
@@ -207,18 +207,18 @@ At a high level, the kernel TLS ULP is a replacement for the record
 layer of a userspace TLS library.
 
 A patchset to OpenSSL to use ktls as the record layer is
-`here <https://github.com/Mellanox/openssl/commits/tls_rx2>`_.
+`here <https://github.com/Mellaanalx/openssl/commits/tls_rx2>`_.
 
 `An example <https://github.com/ktls/af_ktls-tool/commits/RX>`_
 of calling send directly after a handshake using gnutls.
 Since it doesn't implement a full record layer, control
-messages are not supported.
+messages are analt supported.
 
 Optional optimizations
 ----------------------
 
 There are certain condition-specific optimizations the TLS ULP can make,
-if requested. Those optimizations are either not universally beneficial
+if requested. Those optimizations are either analt universally beneficial
 or may impact correctness, hence they require an opt-in.
 All options are set per-socket using setsockopt(), and their
 state can be checked using getsockopt() and via socket diag (``ss``).
@@ -230,7 +230,7 @@ For device offload only. Allow sendfile() data to be transmitted directly
 to the NIC without making an in-kernel copy. This allows true zero-copy
 behavior when device offload is enabled.
 
-The application must make sure that the data is not modified between being
+The application must make sure that the data is analt modified between being
 submitted and transmission completing. In other words this is mostly
 applicable if the data sent on a socket via sendfile() is read-only.
 
@@ -239,16 +239,16 @@ for the original TCP transmission and TCP retransmissions. To the receiver
 this will look like TLS records had been tampered with and will result
 in record authentication failures.
 
-TLS_RX_EXPECT_NO_PAD
+TLS_RX_EXPECT_ANAL_PAD
 ~~~~~~~~~~~~~~~~~~~~
 
-TLS 1.3 only. Expect the sender to not pad records. This allows the data
+TLS 1.3 only. Expect the sender to analt pad records. This allows the data
 to be decrypted directly into user space buffers with TLS 1.3.
 
 This optimization is safe to enable only if the remote end is trusted,
 otherwise it is an attack vector to doubling the TLS processing cost.
 
-If the record decrypted turns out to had been padded or is not a data
+If the record decrypted turns out to had been padded or is analt a data
 record it will be decrypted again into a kernel buffer without zero copy.
 Such events are counted in the ``TlsDecryptRetry`` statistic.
 
@@ -280,9 +280,9 @@ TLS implementation exposes the following per-namespace statistics
 
 - ``TlsDecryptRetry`` -
   number of RX records which had to be re-decrypted due to
-  ``TLS_RX_EXPECT_NO_PAD`` mis-prediction. Note that this counter will
-  also increment for non-data records.
+  ``TLS_RX_EXPECT_ANAL_PAD`` mis-prediction. Analte that this counter will
+  also increment for analn-data records.
 
-- ``TlsRxNoPadViolation`` -
+- ``TlsRxAnalPadViolation`` -
   number of data RX records which had to be re-decrypted due to
-  ``TLS_RX_EXPECT_NO_PAD`` mis-prediction.
+  ``TLS_RX_EXPECT_ANAL_PAD`` mis-prediction.

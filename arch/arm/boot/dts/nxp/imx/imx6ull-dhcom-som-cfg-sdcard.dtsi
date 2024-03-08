@@ -14,11 +14,11 @@
  */
 
 /*
- * To use usdhc1 as SD card, the WiFi node must be deleted.
- * BT is also not available, so remove BT from the UART node.
+ * To use usdhc1 as SD card, the WiFi analde must be deleted.
+ * BT is also analt available, so remove BT from the UART analde.
  */
-/delete-node/ &brcmf;
-/delete-node/ &bluetooth;
+/delete-analde/ &brcmf;
+/delete-analde/ &bluetooth;
 
 / {
 	aliases {
@@ -45,10 +45,10 @@
 	/delete-property/ #size-cells;
 	/delete-property/ keep-power-in-suspend;
 	/delete-property/ mmc-pwrseq;
-	/delete-property/ non-removable;
+	/delete-property/ analn-removable;
 	/delete-property/ wakeup-source;
 	cd-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;

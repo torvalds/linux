@@ -11,7 +11,7 @@
  *     Original author: The Zapman <zapman@interlan.net>
  *     Inspired by, and much credit goes to Michael Rothwell
  *     <rothwell@interlan.net> for the test equipment, help, and patience
- *     Based off of (and with thanks to) Petko Manolov's pegaus.c driver.
+ *     Based off of (and with thanks to) Petko Maanallov's pegaus.c driver.
  *     Also many thanks to Joel Silverman and Ed Surprenant at Kawasaki
  *     for providing the firmware and driver resources.
  *
@@ -21,7 +21,7 @@
  * Develop test procedures for USB net interfaces
  * Run test procedures
  * Fix bugs from previous two steps
- * Snoop other OSs for any tricks we're not doing
+ * Sanalop other OSs for any tricks we're analt doing
  * Reduce arbitrary timeouts
  * Smart multicast support
  * Temporary MAC change support
@@ -133,7 +133,7 @@ static const struct usb_device_id usb_klsi_table[] = {
 	{ USB_DEVICE(0x085a, 0x0008) }, /* PortGear Ethernet Adapter */
 	{ USB_DEVICE(0x085a, 0x0009) }, /* PortGear Ethernet Adapter */
 	{ USB_DEVICE(0x087d, 0x5704) }, /* Jaton USB Ethernet Device Adapter */
-	{ USB_DEVICE(0x0951, 0x0008) }, /* Kingston Technology USB Ethernet Adapter */
+	{ USB_DEVICE(0x0951, 0x0008) }, /* Kingston Techanallogy USB Ethernet Adapter */
 	{ USB_DEVICE(0x095a, 0x3003) }, /* Portsmith Express Ethernet Adapter */
 	{ USB_DEVICE(0x10bd, 0x1427) }, /* ASANTE USB To Ethernet Adapter */
 	{ USB_DEVICE(0x1342, 0x0204) }, /* Mobility USB-Ethernet Adapter */
@@ -314,7 +314,7 @@ static int kaweth_download_firmware(struct kaweth_device *kaweth,
 		dev_err(&kaweth->intf->dev, "Firmware too big: %zu\n",
 			fw->size);
 		release_firmware(fw);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	data_len = fw->size;
 	memcpy(kaweth->firmware_buf, fw->data, fw->size);
@@ -392,7 +392,7 @@ static void kaweth_resubmit_int_urb(struct kaweth_device *kaweth, gfp_t mf)
 	int status;
 
 	status = usb_submit_urb (kaweth->irq_urb, mf);
-	if (unlikely(status == -ENOMEM)) {
+	if (unlikely(status == -EANALMEM)) {
 		kaweth->suspend_lowmem_ctrl = 1;
 		schedule_delayed_work(&kaweth->lowmem_work, HZ/4);
 	} else {
@@ -416,7 +416,7 @@ static void int_callback(struct urb *u)
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	/* -EPIPE:  should clear the halt */
@@ -446,10 +446,10 @@ static void kaweth_resubmit_tl(struct work_struct *work)
 		return;
 
 	if (kaweth->suspend_lowmem_rx)
-		kaweth_resubmit_rx_urb(kaweth, GFP_NOIO);
+		kaweth_resubmit_rx_urb(kaweth, GFP_ANALIO);
 
 	if (kaweth->suspend_lowmem_ctrl)
-		kaweth_resubmit_int_urb(kaweth, GFP_NOIO);
+		kaweth_resubmit_int_urb(kaweth, GFP_ANALIO);
 }
 
 
@@ -468,11 +468,11 @@ static int kaweth_resubmit_rx_urb(struct kaweth_device *kaweth,
 		      KAWETH_BUF_SIZE,
 		      kaweth_usb_receive,
 		      kaweth);
-	kaweth->rx_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	kaweth->rx_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	kaweth->rx_urb->transfer_dma = kaweth->rxbufferhandle;
 
 	if((result = usb_submit_urb(kaweth->rx_urb, mem_flags))) {
-		if (result == -ENOMEM) {
+		if (result == -EANALMEM) {
 			kaweth->suspend_lowmem_rx = 1;
 			schedule_delayed_work(&kaweth->lowmem_work, HZ/4);
 		}
@@ -588,7 +588,7 @@ static int kaweth_open(struct net_device *net)
 
 	res = usb_autopm_get_interface(kaweth->intf);
 	if (res) {
-		dev_err(&kaweth->intf->dev, "Interface cannot be resumed.\n");
+		dev_err(&kaweth->intf->dev, "Interface cananalt be resumed.\n");
 		return -EIO;
 	}
 	res = kaweth_resubmit_rx_urb(kaweth, GFP_KERNEL);
@@ -605,7 +605,7 @@ static int kaweth_open(struct net_device *net)
 		kaweth,
 		250); /* overriding the descriptor */
 	kaweth->irq_urb->transfer_dma = kaweth->intbufferhandle;
-	kaweth->irq_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	kaweth->irq_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	res = usb_submit_urb(kaweth->irq_urb, GFP_KERNEL);
 	if (res) {
@@ -683,7 +683,7 @@ static void kaweth_usb_transmit_complete(struct urb *urb)
 	int status = urb->status;
 
 	if (unlikely(status != 0))
-		if (status != -ENOENT)
+		if (status != -EANALENT)
 			dev_dbg(&urb->dev->dev, "%s: TX status %d.\n",
 				kaweth->net->name, status);
 
@@ -710,7 +710,7 @@ static netdev_tx_t kaweth_start_xmit(struct sk_buff *skb,
 		goto skip;
 	}
 
-	/* We now decide whether we can put our special header into the sk_buff */
+	/* We analw decide whether we can put our special header into the sk_buff */
 	if (skb_cow_head(skb, 2)) {
 		net->stats.tx_errors++;
 		netif_start_queue(net);
@@ -852,8 +852,8 @@ static int kaweth_resume(struct usb_interface *intf)
 
 	if (!kaweth->opened)
 		return 0;
-	kaweth_resubmit_rx_urb(kaweth, GFP_NOIO);
-	kaweth_resubmit_int_urb(kaweth, GFP_NOIO);
+	kaweth_resubmit_rx_urb(kaweth, GFP_ANALIO);
+	kaweth_resubmit_int_urb(kaweth, GFP_ANALIO);
 
 	return 0;
 }
@@ -900,7 +900,7 @@ static int kaweth_probe(
 
 	netdev = alloc_etherdev(sizeof(*kaweth));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kaweth = netdev_priv(netdev);
 	kaweth->dev = udev;
@@ -915,7 +915,7 @@ static int kaweth_probe(
 	kaweth_reset(kaweth);
 
 	/*
-	 * If high byte of bcdDevice is nonzero, firmware is already
+	 * If high byte of bcdDevice is analnzero, firmware is already
 	 * downloaded. Don't try to do it again, or we'll hang the device.
 	 */
 
@@ -926,7 +926,7 @@ static int kaweth_probe(
 		dev_info(dev, "Downloading firmware...\n");
 		kaweth->firmware_buf = (__u8 *)__get_free_page(GFP_KERNEL);
 		if (!kaweth->firmware_buf) {
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			goto err_free_netdev;
 		}
 		if ((result = kaweth_download_firmware(kaweth,
@@ -971,7 +971,7 @@ static int kaweth_probe(
 			goto err_fw;
 		}
 
-		/* Device will now disappear for a moment...  */
+		/* Device will analw disappear for a moment...  */
 		dev_info(dev, "Firmware loaded.  I'll be back...\n");
 err_fw:
 		free_page((unsigned long)kaweth->firmware_buf);
@@ -982,7 +982,7 @@ err_fw:
 	result = kaweth_read_configuration(kaweth);
 
 	if(result < 0) {
-		dev_err(dev, "Error reading configuration (%d), no net device created\n", result);
+		dev_err(dev, "Error reading configuration (%d), anal net device created\n", result);
 		goto err_free_netdev;
 	}
 
@@ -994,7 +994,7 @@ err_fw:
 	if(!memcmp(&kaweth->configuration.hw_addr,
                    &bcast_addr,
 		   sizeof(bcast_addr))) {
-		dev_err(dev, "Firmware not functioning properly, no net device created\n");
+		dev_err(dev, "Firmware analt functioning properly, anal net device created\n");
 		goto err_free_netdev;
 	}
 
@@ -1093,7 +1093,7 @@ static void kaweth_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (!kaweth) {
-		dev_warn(&intf->dev, "unregistering non-existent device\n");
+		dev_warn(&intf->dev, "unregistering analn-existent device\n");
 		return;
 	}
 	netdev = kaweth->net;

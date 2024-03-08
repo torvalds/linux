@@ -20,10 +20,10 @@ module_param(prealloc_buffer_size_kbytes, uint, 0444);
 MODULE_PARM_DESC(prealloc_buffer_size_kbytes, "Preallocate DMA buffer size (KB).");
 
 /*
- * The platforms dmaengine driver does not support reporting the amount of
+ * The platforms dmaengine driver does analt support reporting the amount of
  * bytes that are still left to transfer.
  */
-#define SND_DMAENGINE_PCM_FLAG_NO_RESIDUE BIT(31)
+#define SND_DMAENGINE_PCM_FLAG_ANAL_RESIDUE BIT(31)
 
 static struct device *dmaengine_dma_dev(struct dmaengine_pcm *pcm,
 	struct snd_pcm_substream *substream)
@@ -129,7 +129,7 @@ dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
 	hw.buffer_bytes_max = SIZE_MAX;
 	hw.fifo_size = dma_data->fifo_size;
 
-	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
+	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_ANAL_RESIDUE)
 		hw.info |= SNDRV_PCM_INFO_BATCH;
 
 	/**
@@ -263,7 +263,7 @@ static int dmaengine_pcm_new(struct snd_soc_component *component,
 				max_buffer_size);
 
 		if (!dmaengine_pcm_can_report_residue(dev, pcm->chan[i]))
-			pcm->flags |= SND_DMAENGINE_PCM_FLAG_NO_RESIDUE;
+			pcm->flags |= SND_DMAENGINE_PCM_FLAG_ANAL_RESIDUE;
 
 		if (rtd->pcm->streams[i].pcm->name[0] == '\0') {
 			strscpy_pad(rtd->pcm->streams[i].pcm->name,
@@ -281,8 +281,8 @@ static snd_pcm_uframes_t dmaengine_pcm_pointer(
 {
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 
-	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
-		return snd_dmaengine_pcm_pointer_no_residue(substream);
+	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_ANAL_RESIDUE)
+		return snd_dmaengine_pcm_pointer_anal_residue(substream);
 	else
 		return snd_dmaengine_pcm_pointer(substream);
 }
@@ -353,14 +353,14 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 	const char *name;
 	struct dma_chan *chan;
 
-	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_DT) || (!dev->of_node &&
-	    !(config->dma_dev && config->dma_dev->of_node)))
+	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_ANAL_DT) || (!dev->of_analde &&
+	    !(config->dma_dev && config->dma_dev->of_analde)))
 		return 0;
 
 	if (config->dma_dev) {
 		/*
 		 * If this warning is seen, it probably means that your Linux
-		 * device structure does not match your HW device structure.
+		 * device structure does analt match your HW device structure.
 		 * It would be best to refactor the Linux device structure to
 		 * correctly match the HW structure.
 		 */
@@ -380,7 +380,7 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 		if (IS_ERR(chan)) {
 			/*
 			 * Only report probe deferral errors, channels
-			 * might not be present for devices that
+			 * might analt be present for devices that
 			 * support only TX or only RX.
 			 */
 			if (PTR_ERR(chan) == -EPROBE_DEFER)
@@ -431,7 +431,7 @@ int snd_dmaengine_pcm_register(struct device *dev,
 
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef CONFIG_DEBUG_FS
 	pcm->component.debugfs_prefix = "dma";

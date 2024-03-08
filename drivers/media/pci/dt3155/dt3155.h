@@ -77,7 +77,7 @@
 #define SRST	       0x00000040
 #define FLD_DN_ODD     0x00000020
 #define FLD_DN_EVEN    0x00000010
-/*   These should not be used.
+/*   These should analt be used.
  *   Use CAP_CONT_ODD/EVEN instead
 #define CAP_SNGL_ODD   0x00000008
 #define CAP_SNGL_EVEN  0x00000004

@@ -22,15 +22,15 @@
 
 /* Register map */
 /* control section */
-#define RV3029_ONOFF_CTRL		0x00
-#define RV3029_ONOFF_CTRL_WE		BIT(0)
-#define RV3029_ONOFF_CTRL_TE		BIT(1)
-#define RV3029_ONOFF_CTRL_TAR		BIT(2)
-#define RV3029_ONOFF_CTRL_EERE		BIT(3)
-#define RV3029_ONOFF_CTRL_SRON		BIT(4)
-#define RV3029_ONOFF_CTRL_TD0		BIT(5)
-#define RV3029_ONOFF_CTRL_TD1		BIT(6)
-#define RV3029_ONOFF_CTRL_CLKINT	BIT(7)
+#define RV3029_OANALFF_CTRL		0x00
+#define RV3029_OANALFF_CTRL_WE		BIT(0)
+#define RV3029_OANALFF_CTRL_TE		BIT(1)
+#define RV3029_OANALFF_CTRL_TAR		BIT(2)
+#define RV3029_OANALFF_CTRL_EERE		BIT(3)
+#define RV3029_OANALFF_CTRL_SRON		BIT(4)
+#define RV3029_OANALFF_CTRL_TD0		BIT(5)
+#define RV3029_OANALFF_CTRL_TD1		BIT(6)
+#define RV3029_OANALFF_CTRL_CLKINT	BIT(7)
 #define RV3029_IRQ_CTRL			0x01
 #define RV3029_IRQ_CTRL_AIE		BIT(0)
 #define RV3029_IRQ_CTRL_TIE		BIT(1)
@@ -106,8 +106,8 @@
 #define RV3029_CONTROL_E2P_XOFFS	0x31 /* XTAL offset */
 #define RV3029_CONTROL_E2P_XOFFS_SIGN	BIT(7) /* Sign: 1->pos, 0->neg */
 #define RV3029_CONTROL_E2P_QCOEF	0x32 /* XTAL temp drift coef */
-#define RV3029_CONTROL_E2P_TURNOVER	0x33 /* XTAL turnover temp (in *C) */
-#define RV3029_CONTROL_E2P_TOV_MASK	0x3F /* XTAL turnover temp mask */
+#define RV3029_CONTROL_E2P_TURANALVER	0x33 /* XTAL turanalver temp (in *C) */
+#define RV3029_CONTROL_E2P_TOV_MASK	0x3F /* XTAL turanalver temp mask */
 
 /* user ram section */
 #define RV3029_RAM_PAGE			0x38
@@ -144,9 +144,9 @@ static int rv3029_eeprom_busywait(struct rv3029_data *rv3029)
 static int rv3029_eeprom_exit(struct rv3029_data *rv3029)
 {
 	/* Re-enable eeprom refresh */
-	return regmap_update_bits(rv3029->regmap, RV3029_ONOFF_CTRL,
-				  RV3029_ONOFF_CTRL_EERE,
-				  RV3029_ONOFF_CTRL_EERE);
+	return regmap_update_bits(rv3029->regmap, RV3029_OANALFF_CTRL,
+				  RV3029_OANALFF_CTRL_EERE,
+				  RV3029_OANALFF_CTRL_EERE);
 }
 
 static int rv3029_eeprom_enter(struct rv3029_data *rv3029)
@@ -159,7 +159,7 @@ static int rv3029_eeprom_enter(struct rv3029_data *rv3029)
 	if (ret < 0)
 		return ret;
 	if (sr & RV3029_STATUS_VLOW2)
-		return -ENODEV;
+		return -EANALDEV;
 	if (sr & RV3029_STATUS_VLOW1) {
 		/* We clear the bits and retry once just in case
 		 * we had a brown out in early startup.
@@ -175,13 +175,13 @@ static int rv3029_eeprom_enter(struct rv3029_data *rv3029)
 		if (sr & RV3029_STATUS_VLOW1) {
 			dev_err(rv3029->dev,
 				"Supply voltage is too low to safely access the EEPROM.\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	/* Disable eeprom refresh. */
-	ret = regmap_update_bits(rv3029->regmap, RV3029_ONOFF_CTRL,
-				 RV3029_ONOFF_CTRL_EERE, 0);
+	ret = regmap_update_bits(rv3029->regmap, RV3029_OANALFF_CTRL,
+				 RV3029_OANALFF_CTRL_EERE, 0);
 	if (ret < 0)
 		return ret;
 
@@ -276,14 +276,14 @@ static irqreturn_t rv3029_handle_irq(int irq, void *dev_id)
 	if (ret) {
 		dev_warn(dev, "Read IRQ Control Register error %d\n", ret);
 		rtc_unlock(rv3029->rtc);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_read(rv3029->regmap, RV3029_IRQ_FLAGS, &flags);
 	if (ret) {
 		dev_warn(dev, "Read IRQ Flags Register error %d\n", ret);
 		rtc_unlock(rv3029->rtc);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (flags & RV3029_IRQ_FLAGS_AF) {
@@ -468,7 +468,7 @@ static int rv3029_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 					  RV3029_STATUS_VLOW1, 0);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -544,17 +544,17 @@ static const struct rv3029_trickle_tab_elem {
 static void rv3029_trickle_config(struct device *dev)
 {
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	const struct rv3029_trickle_tab_elem *elem;
 	int i, err;
 	u32 ohms;
 	u8 trickle_set_bits;
 
-	if (!of_node)
+	if (!of_analde)
 		return;
 
 	/* Configure the trickle charger. */
-	err = of_property_read_u32(of_node, "trickle-resistor-ohms", &ohms);
+	err = of_property_read_u32(of_analde, "trickle-resistor-ohms", &ohms);
 	if (err) {
 		/* Disable trickle charger. */
 		trickle_set_bits = 0;
@@ -720,7 +720,7 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	rv3029 = devm_kzalloc(dev, sizeof(*rv3029), GFP_KERNEL);
 	if (!rv3029)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rv3029->regmap = regmap;
 	rv3029->irq = irq;
@@ -737,7 +737,7 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	if (rv3029->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(dev))
+		if (dev_fwanalde(dev))
 			irqflags = 0;
 
 		rc = devm_request_threaded_irq(dev, rv3029->irq,
@@ -776,8 +776,8 @@ static const struct regmap_range rv3029_holes_range[] = {
 };
 
 static const struct regmap_access_table rv3029_regs = {
-	.no_ranges =	rv3029_holes_range,
-	.n_no_ranges =	ARRAY_SIZE(rv3029_holes_range),
+	.anal_ranges =	rv3029_holes_range,
+	.n_anal_ranges =	ARRAY_SIZE(rv3029_holes_range),
 };
 
 static const struct regmap_config config = {
@@ -795,8 +795,8 @@ static int rv3029_i2c_probe(struct i2c_client *client)
 	struct regmap *regmap;
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK |
 				     I2C_FUNC_SMBUS_BYTE)) {
-		dev_err(&client->dev, "Adapter does not support SMBUS_I2C_BLOCK or SMBUS_I2C_BYTE\n");
-		return -ENODEV;
+		dev_err(&client->dev, "Adapter does analt support SMBUS_I2C_BLOCK or SMBUS_I2C_BYTE\n");
+		return -EANALDEV;
 	}
 
 	regmap = devm_regmap_init_i2c(client, &config);

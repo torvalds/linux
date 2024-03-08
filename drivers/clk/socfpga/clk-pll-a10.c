@@ -38,7 +38,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 	unsigned long divf, divq, reg;
 	unsigned long long vco_freq;
 
-	/* read VCO1 reg for numerator and denominator */
+	/* read VCO1 reg for numerator and deanalminator */
 	reg = readl(socfpgaclk->hw.reg + 0x4);
 	divf = (reg & SOCFPGA_PLL_DIVF_MASK) >> SOCFPGA_PLL_DIVF_SHIFT;
 	divq = (reg & SOCFPGA_PLL_DIVQ_MASK) >> SOCFPGA_PLL_DIVQ_SHIFT;
@@ -63,39 +63,39 @@ static const struct clk_ops clk_pll_ops = {
 	.get_parent = clk_pll_get_parent,
 };
 
-static void __init __socfpga_pll_init(struct device_node *node,
+static void __init __socfpga_pll_init(struct device_analde *analde,
 				      const struct clk_ops *ops)
 {
 	u32 reg;
 	struct clk_hw *hw_clk;
 	struct socfpga_pll *pll_clk;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *parent_name[SOCFGPA_MAX_PARENTS];
 	struct clk_init_data init;
-	struct device_node *clkmgr_np;
+	struct device_analde *clkmgr_np;
 	int rc;
 	int i = 0;
 
-	of_property_read_u32(node, "reg", &reg);
+	of_property_read_u32(analde, "reg", &reg);
 
 	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
 	if (WARN_ON(!pll_clk))
 		return;
 
-	clkmgr_np = of_find_compatible_node(NULL, NULL, "altr,clk-mgr");
+	clkmgr_np = of_find_compatible_analde(NULL, NULL, "altr,clk-mgr");
 	clk_mgr_a10_base_addr = of_iomap(clkmgr_np, 0);
-	of_node_put(clkmgr_np);
+	of_analde_put(clkmgr_np);
 	BUG_ON(!clk_mgr_a10_base_addr);
 	pll_clk->hw.reg = clk_mgr_a10_base_addr + reg;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
 
 	while (i < SOCFGPA_MAX_PARENTS && (parent_name[i] =
-			of_clk_get_parent_name(node, i)) != NULL)
+			of_clk_get_parent_name(analde, i)) != NULL)
 		i++;
 	init.num_parents = i;
 	init.parent_names = parent_name;
@@ -106,13 +106,13 @@ static void __init __socfpga_pll_init(struct device_node *node,
 
 	rc = clk_hw_register(NULL, hw_clk);
 	if (rc) {
-		pr_err("Could not register clock:%s\n", clk_name);
+		pr_err("Could analt register clock:%s\n", clk_name);
 		goto err_clk_hw_register;
 	}
 
-	rc = of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw_clk);
+	rc = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, hw_clk);
 	if (rc) {
-		pr_err("Could not register clock provider for node:%s\n",
+		pr_err("Could analt register clock provider for analde:%s\n",
 		       clk_name);
 		goto err_of_clk_add_hw_provider;
 	}
@@ -125,7 +125,7 @@ err_clk_hw_register:
 	kfree(pll_clk);
 }
 
-void __init socfpga_a10_pll_init(struct device_node *node)
+void __init socfpga_a10_pll_init(struct device_analde *analde)
 {
-	__socfpga_pll_init(node, &clk_pll_ops);
+	__socfpga_pll_init(analde, &clk_pll_ops);
 }

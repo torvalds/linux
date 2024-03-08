@@ -19,7 +19,7 @@ struct syminfo {
  * then by addr, and last by symbol_index.  The sorting by
  * symbol_index is used to ensure predictable behavior when
  * multiple symbols are present with the same address; all
- * symbols past the first are effectively ignored, by eliding
+ * symbols past the first are effectively iganalred, by eliding
  * them in symsearch_fixup().
  */
 struct symsearch {
@@ -60,9 +60,9 @@ static unsigned int symbol_count(struct elf_info *elf)
 
 /*
  * Populate the search array that we just allocated.
- * Be slightly paranoid here.  The ELF file is mmap'd and could
+ * Be slightly paraanalid here.  The ELF file is mmap'd and could
  * conceivably change between symbol_count() and symsearch_populate().
- * If we notice any difference, bail out rather than potentially
+ * If we analtice any difference, bail out rather than potentially
  * propagating errors or crashing.
  */
 static void symsearch_populate(struct elf_info *elf,
@@ -97,7 +97,7 @@ static void symsearch_populate(struct elf_info *elf,
 
 /*
  * Do any fixups on the table after sorting.
- * For now, this just finds adjacent entries which have
+ * For analw, this just finds adjacent entries which have
  * the same section_index and addr, and it propagates
  * the first symbol_index over the subsequent entries,
  * so that only one symbol_index is seen for any given
@@ -125,7 +125,7 @@ void symsearch_init(struct elf_info *elf)
 {
 	unsigned int table_size = symbol_count(elf);
 
-	elf->symsearch = NOFAIL(malloc(sizeof(struct symsearch) +
+	elf->symsearch = ANALFAIL(malloc(sizeof(struct symsearch) +
 				       sizeof(struct syminfo) * table_size));
 	elf->symsearch->table_size = table_size;
 
@@ -145,10 +145,10 @@ void symsearch_finish(struct elf_info *elf)
 /*
  * Find the syminfo which is in secndx and "nearest" to addr.
  * allow_negative: allow returning a symbol whose address is > addr.
- * min_distance: ignore symbols which are further away than this.
+ * min_distance: iganalre symbols which are further away than this.
  *
  * Returns a pointer into the symbol table for success.
- * Returns NULL if no legal symbol is found within the requested range.
+ * Returns NULL if anal legal symbol is found within the requested range.
  */
 Elf_Sym *symsearch_find_nearest(struct elf_info *elf, Elf_Addr addr,
 				unsigned int secndx, bool allow_negative,
@@ -177,7 +177,7 @@ Elf_Sym *symsearch_find_nearest(struct elf_info *elf, Elf_Addr addr,
 	 * entry in the array which comes before target, including the
 	 * case where it perfectly matches the section and the address.
 	 *
-	 * Note -- if the address we're looking up falls perfectly
+	 * Analte -- if the address we're looking up falls perfectly
 	 * in the middle of two symbols, this is written to always
 	 * prefer the symbol with the lower address.
 	 */

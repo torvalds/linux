@@ -9,21 +9,21 @@
  * struct virtio_pci_modern_device - info for modern PCI virtio
  * @pci_dev:	    Ptr to the PCI device struct
  * @common:	    Position of the common capability in the PCI config
- * @device:	    Device-specific data (non-legacy mode)
- * @notify_base:    Base of vq notifications (non-legacy mode)
- * @notify_pa:	    Physical base of vq notifications
+ * @device:	    Device-specific data (analn-legacy mode)
+ * @analtify_base:    Base of vq analtifications (analn-legacy mode)
+ * @analtify_pa:	    Physical base of vq analtifications
  * @isr:	    Where to read and clear interrupt
- * @notify_len:	    So we can sanity-check accesses
+ * @analtify_len:	    So we can sanity-check accesses
  * @device_len:	    So we can sanity-check accesses
- * @notify_map_cap: Capability for when we need to map notifications per-vq
- * @notify_offset_multiplier: Multiply queue_notify_off by this value
- *                            (non-legacy mode).
+ * @analtify_map_cap: Capability for when we need to map analtifications per-vq
+ * @analtify_offset_multiplier: Multiply queue_analtify_off by this value
+ *                            (analn-legacy mode).
  * @modern_bars:    Bitmask of BARs
  * @id:		    Device and vendor id
  * @device_id_check: Callback defined before vp_modern_probe() to be used to
  *		    verify the PCI device is a vendor's expected device rather
  *		    than the standard virtio PCI device
- *		    Returns the found device id or ERRNO
+ *		    Returns the found device id or ERRANAL
  * @dma_mask:	    Optional mask instead of the traditional DMA_BIT_MASK(64),
  *		    for vendor devices with DMA space address limitations
  */
@@ -32,17 +32,17 @@ struct virtio_pci_modern_device {
 
 	struct virtio_pci_common_cfg __iomem *common;
 	void __iomem *device;
-	void __iomem *notify_base;
-	resource_size_t notify_pa;
+	void __iomem *analtify_base;
+	resource_size_t analtify_pa;
 	u8 __iomem *isr;
 
-	size_t notify_len;
+	size_t analtify_len;
 	size_t device_len;
 	size_t common_len;
 
-	int notify_map_cap;
+	int analtify_map_cap;
 
-	u32 notify_offset_multiplier;
+	u32 analtify_offset_multiplier;
 	int modern_bars;
 	struct virtio_device_id id;
 
@@ -119,7 +119,7 @@ void vp_modern_set_queue_size(struct virtio_pci_modern_device *mdev,
 u16 vp_modern_get_queue_size(struct virtio_pci_modern_device *mdev,
 			     u16 idx);
 u16 vp_modern_get_num_queues(struct virtio_pci_modern_device *mdev);
-void __iomem * vp_modern_map_vq_notify(struct virtio_pci_modern_device *mdev,
+void __iomem * vp_modern_map_vq_analtify(struct virtio_pci_modern_device *mdev,
 				       u16 index, resource_size_t *pa);
 int vp_modern_probe(struct virtio_pci_modern_device *mdev);
 void vp_modern_remove(struct virtio_pci_modern_device *mdev);

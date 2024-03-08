@@ -35,7 +35,7 @@ static int virtbt_add_inbuf(struct virtio_bluetooth *vbt)
 
 	skb = alloc_skb(1000, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_init_one(sg, skb->data, 1000);
 
@@ -268,7 +268,7 @@ static int virtbt_probe(struct virtio_device *vdev)
 	__u8 type;
 
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	type = virtio_cread8(vdev, offsetof(struct virtio_bt_config, type));
 
@@ -282,7 +282,7 @@ static int virtbt_probe(struct virtio_device *vdev)
 
 	vbt = kzalloc(sizeof(*vbt), GFP_KERNEL);
 	if (!vbt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->priv = vbt;
 	vbt->vdev = vdev;
@@ -296,7 +296,7 @@ static int virtbt_probe(struct virtio_device *vdev)
 
 	hdev = hci_alloc_dev();
 	if (!hdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failed;
 	}
 

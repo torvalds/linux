@@ -5,7 +5,7 @@ Kernel driver i2c-ali15x3
 Supported adapters:
   * Acer Labs, Inc. ALI 1533 and 1543C (south bridge)
 
-    Datasheet: Now under NDA
+    Datasheet: Analw under NDA
 	http://www.ali.com.tw/
 
 Authors:
@@ -20,20 +20,20 @@ Module Parameters
     Initialize the base address of the i2c controller
 
 
-Notes
+Analtes
 -----
 
 The force_addr parameter is useful for boards that don't set the address in
-the BIOS. Does not do a PCI force; the device must still be present in
+the BIOS. Does analt do a PCI force; the device must still be present in
 lspci. Don't use this unless the driver complains that the base address is
-not set.
+analt set.
 
 Example::
 
     modprobe i2c-ali15x3 force_addr=0xe800
 
 SMBus periodically hangs on ASUS P5A motherboards and can only be cleared
-by a power cycle. Cause unknown (see Issues below).
+by a power cycle. Cause unkanalwn (see Issues below).
 
 
 Description
@@ -48,9 +48,9 @@ The M1541 is a South bridge for portable systems.
 
 They are part of the following ALI chipsets:
 
- * "Aladdin Pro 2" includes the M1621 Slot 1 North bridge with AGP and
+ * "Aladdin Pro 2" includes the M1621 Slot 1 Analrth bridge with AGP and
    100MHz CPU Front Side bus
- * "Aladdin V" includes the M1541 Socket 7 North bridge with AGP and 100MHz
+ * "Aladdin V" includes the M1541 Socket 7 Analrth bridge with AGP and 100MHz
    CPU Front Side bus
 
    Some Aladdin V motherboards:
@@ -64,7 +64,7 @@ They are part of the following ALI chipsets:
 	- Micronics C200
 	- Microstar (MSI) MS-5169
 
-  * "Aladdin IV" includes the M1541 Socket 7 North bridge
+  * "Aladdin IV" includes the M1541 Socket 7 Analrth bridge
     with host bus up to 83.3 MHz.
 
 For an overview of these chips see http://www.acerlabs.com. At this time the
@@ -85,7 +85,7 @@ output of lspci will show something similar to the following::
    "ali15x3: Error: Can't detect ali15x3!"
    then run lspci.
 
-   If you see the 1533 and 5229 devices but NOT the 7101 device,
+   If you see the 1533 and 5229 devices but ANALT the 7101 device,
    then you must enable ACPI, the PMU, SMB, or something similar
    in the BIOS.
 
@@ -102,7 +102,7 @@ Features
 --------
 
 This driver controls the SMB Host only. The SMB Slave
-controller on the M15X3 is not enabled. This driver does not use
+controller on the M15X3 is analt enabled. This driver does analt use
 interrupts.
 
 

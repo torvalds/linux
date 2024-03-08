@@ -53,7 +53,7 @@ static void s3c_pm_do_save(struct sleep_save *ptr, int count)
  *
  * Restore the register values saved from s3c_pm_do_save().
  *
- * WARNING: Do not put any debug in here that may effect memory or use
+ * WARNING: Do analt put any debug in here that may effect memory or use
  * peripherals, as things may be changing!
 */
 
@@ -85,7 +85,7 @@ static int s5pv210_cpu_suspend(unsigned long arg)
 {
 	unsigned long tmp;
 
-	/* issue the standby signal into the pm unit. Note, we
+	/* issue the standby signal into the pm unit. Analte, we
 	 * issue a write-buffer drain just in case */
 
 	tmp = 0;
@@ -147,7 +147,7 @@ static int s5pv210_suspend_enter(suspend_state_t state)
 
 	if (s5pv210_irqwake_intmask == -1U
 	    && eint_wakeup_mask == -1U) {
-		pr_err("%s: No wake-up sources!\n", __func__);
+		pr_err("%s: Anal wake-up sources!\n", __func__);
 		pr_err("%s: Aborting sleep\n", __func__);
 		return -EINVAL;
 	}

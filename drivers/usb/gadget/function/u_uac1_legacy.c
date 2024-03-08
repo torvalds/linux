@@ -45,7 +45,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 		struct snd_mask *m = hw_param_mask(params, var);
 		if (val == 0 && dir < 0) {
 			changed = -EINVAL;
-			snd_mask_none(m);
+			snd_mask_analne(m);
 		} else {
 			if (dir > 0)
 				val++;
@@ -58,7 +58,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 		struct snd_interval *i = hw_param_interval(params, var);
 		if (val == 0 && dir < 0) {
 			changed = -EINVAL;
-			snd_interval_none(i);
+			snd_interval_analne(i);
 		} else if (dir == 0)
 			changed = snd_interval_refine_set(i, val);
 		else {
@@ -108,7 +108,7 @@ static int playback_default_hw_params(struct gaudio_snd_dev *snd)
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	_snd_pcm_hw_params_any(params);
 	_snd_pcm_hw_param_set(params, SNDRV_PCM_HW_PARAM_ACCESS,
@@ -224,7 +224,7 @@ static int gaudio_open_snd_dev(struct gaudio *card)
 	if (IS_ERR(snd->filp)) {
 		int ret = PTR_ERR(snd->filp);
 
-		ERROR(card, "No such PCM playback device: %s\n", fn_play);
+		ERROR(card, "Anal such PCM playback device: %s\n", fn_play);
 		snd->filp = NULL;
 		return ret;
 	}
@@ -237,7 +237,7 @@ static int gaudio_open_snd_dev(struct gaudio *card)
 	snd = &card->capture;
 	snd->filp = filp_open(fn_cap, O_RDONLY, 0);
 	if (IS_ERR(snd->filp)) {
-		ERROR(card, "No such PCM capture device: %s\n", fn_cap);
+		ERROR(card, "Anal such PCM capture device: %s\n", fn_cap);
 		snd->substream = NULL;
 		snd->card = NULL;
 		snd->filp = NULL;
@@ -280,7 +280,7 @@ static int gaudio_close_snd_dev(struct gaudio *gau)
  *
  * This sets up PCM, mixer or MIDI ALSA devices fore USB gadget using.
  *
- * Returns negative errno, or zero on success
+ * Returns negative erranal, or zero on success
  */
 int gaudio_setup(struct gaudio *card)
 {

@@ -48,7 +48,7 @@ static inline struct usb_device *mt7601u_to_usb_dev(struct mt7601u_dev *mt7601u)
 static inline bool mt7601u_urb_has_error(struct urb *urb)
 {
 	return urb->status &&
-		urb->status != -ENOENT &&
+		urb->status != -EANALENT &&
 		urb->status != -ECONNRESET &&
 		urb->status != -ESHUTDOWN;
 }

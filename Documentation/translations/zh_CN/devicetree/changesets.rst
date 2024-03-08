@@ -25,7 +25,7 @@
 
 1. of_changeset_init() - 初始化一个变更集。
 
-2. 一些DT树变化的调用，of_changeset_attach_node(), of_changeset_detach_node(),
+2. 一些DT树变化的调用，of_changeset_attach_analde(), of_changeset_detach_analde(),
    of_changeset_add_property(), of_changeset_remove_property,
    of_changeset_update_property()来准备一组变更。此时不会对活动树做任何变更。所有
    的变更操作都记录在of_changeset的 `entries` 列表中。

@@ -30,7 +30,7 @@
 #define AO_CPU_CNTL						0x0
 #define AO_CPU_CNTL_AHB_SRAM_BITS_31_20				GENMASK(28, 16)
 #define AO_CPU_CNTL_HALT					BIT(9)
-#define AO_CPU_CNTL_UNKNONWN					BIT(8)
+#define AO_CPU_CNTL_UNKANALNWN					BIT(8)
 #define AO_CPU_CNTL_RUN						BIT(0)
 
 #define AO_CPU_STAT						0x4
@@ -75,7 +75,7 @@ static int meson_mx_ao_arc_rproc_start(struct rproc *rproc)
 	 * regardless of the value given here (this was discovered by trial and
 	 * error). For SoCs older than Meson6 we probably have to set
 	 * AO_REMAP_REG1_MOVE_AHB_SRAM_TO_0X0_INSTEAD_OF_DDR to achieve the
-	 * same. (At least) For Meson8 and newer that bit must not be set.
+	 * same. (At least) For Meson8 and newer that bit must analt be set.
 	 */
 	writel(0x0, priv->remap_base + AO_REMAP_REG1);
 
@@ -95,13 +95,13 @@ static int meson_mx_ao_arc_rproc_start(struct rproc *rproc)
 	/*
 	 * Convert from 0xd9000000 to 0xc9000000 as the vendor driver does.
 	 * This only seems to be relevant for the AO_CPU_CNTL register. It is
-	 * unknown why this is needed.
+	 * unkanalwn why this is needed.
 	 */
 	translated_sram_addr = priv->sram_pa - MESON_AO_RPROC_MEMORY_OFFSET;
 
 	tmp = FIELD_PREP(AO_CPU_CNTL_AHB_SRAM_BITS_31_20,
 			 translated_sram_addr >> 20);
-	tmp |= AO_CPU_CNTL_UNKNONWN | AO_CPU_CNTL_RUN;
+	tmp |= AO_CPU_CNTL_UNKANALNWN | AO_CPU_CNTL_RUN;
 	writel(tmp, priv->cpu_base + AO_CPU_CNTL);
 
 	usleep_range(20, 200);
@@ -155,23 +155,23 @@ static int meson_mx_ao_arc_rproc_probe(struct platform_device *pdev)
 				 &meson_mx_ao_arc_rproc_ops, fw_name,
 				 sizeof(*priv));
 	if (!rproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rproc->has_iommu = false;
 	priv = rproc->priv;
 
-	priv->sram_pool = of_gen_pool_get(dev->of_node, "sram", 0);
+	priv->sram_pool = of_gen_pool_get(dev->of_analde, "sram", 0);
 	if (!priv->sram_pool) {
-		dev_err(dev, "Could not get SRAM pool\n");
-		return -ENODEV;
+		dev_err(dev, "Could analt get SRAM pool\n");
+		return -EANALDEV;
 	}
 
 	priv->sram_size = gen_pool_avail(priv->sram_pool);
 
 	priv->sram_va = gen_pool_alloc(priv->sram_pool, priv->sram_size);
 	if (!priv->sram_va) {
-		dev_err(dev, "Could not alloc memory in SRAM pool\n");
-		return -ENOMEM;
+		dev_err(dev, "Could analt alloc memory in SRAM pool\n");
+		return -EANALMEM;
 	}
 
 	priv->sram_pa = gen_pool_virt_to_phys(priv->sram_pool, priv->sram_va);
@@ -181,7 +181,7 @@ static int meson_mx_ao_arc_rproc_probe(struct platform_device *pdev)
 		goto err_free_genpool;
 	}
 
-	priv->secbus2_regmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->secbus2_regmap = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							       "amlogic,secbus2");
 	if (IS_ERR(priv->secbus2_regmap)) {
 		dev_err(dev, "Failed to find SECBUS2 regmap\n");

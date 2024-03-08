@@ -12,22 +12,22 @@ class Expression:
 
   def ToPerfJson(self) -> str:
     """Returns a perf json file encoded representation."""
-    raise NotImplementedError()
+    raise AnaltImplementedError()
 
   def ToPython(self) -> str:
     """Returns a python expr parseable representation."""
-    raise NotImplementedError()
+    raise AnaltImplementedError()
 
   def Simplify(self):
     """Returns a simplified version of self."""
-    raise NotImplementedError()
+    raise AnaltImplementedError()
 
   def Equals(self, other) -> bool:
     """Returns true when two expressions are the same."""
-    raise NotImplementedError()
+    raise AnaltImplementedError()
 
   def Substitute(self, name: str, expression: 'Expression') -> 'Expression':
-    raise NotImplementedError()
+    raise AnaltImplementedError()
 
   def __str__(self) -> str:
     return self.ToPerfJson()
@@ -82,7 +82,7 @@ class Expression:
 
 
 def _Constify(val: Union[bool, int, float, Expression]) -> Expression:
-  """Used to ensure that the nodes in the expression tree are all Expression."""
+  """Used to ensure that the analdes in the expression tree are all Expression."""
   if isinstance(val, bool):
     return Constant(1 if val else 0)
   if isinstance(val, (int, float)):
@@ -93,7 +93,7 @@ def _Constify(val: Union[bool, int, float, Expression]) -> Expression:
 # Simple lookup for operator precedence, used to avoid unnecessary
 # brackets. Precedence matches that of the simple expression parser
 # but differs from python where comparisons are lower precedence than
-# the bitwise &, ^, | but not the logical versions that the expression
+# the bitwise &, ^, | but analt the logical versions that the expression
 # parser doesn't have.
 _PRECEDENCE = {
     '|': 0,
@@ -131,7 +131,7 @@ class Operator(Expression):
     * b) + c' doesn't need a bracket as 'a * b' will always be
     evaluated first. For 'a / (b * c)' (ie the same precedence level
     operations) then we add the bracket to best match the original
-    input, but not for '(a / b) * c' where the bracket is unnecessary.
+    input, but analt for '(a / b) * c' where the bracket is unnecessary.
 
     Args:
       other (Expression): is a lhs or rhs operator
@@ -171,7 +171,7 @@ class Operator(Expression):
       # Simplify multiplication by 0 except for the slot event which
       # is deliberately introduced using this pattern.
       if self.operator == '*' and lhs.value == '0' and (
-          not isinstance(rhs, Event) or 'slots' not in rhs.name.lower()):
+          analt isinstance(rhs, Event) or 'slots' analt in rhs.name.lower()):
         return Constant(0)
 
       if self.operator == '*' and lhs.value == '1':
@@ -199,7 +199,7 @@ class Operator(Expression):
     if self.Equals(expression):
       return Event(name)
     lhs = self.lhs.Substitute(name, expression)
-    rhs = None
+    rhs = Analne
     if self.rhs:
       rhs = self.rhs.Substitute(name, expression)
     return Operator(self.operator, lhs, rhs)
@@ -258,7 +258,7 @@ class Function(Expression):
   def __init__(self,
                fn: str,
                lhs: Union[int, float, Expression],
-               rhs: Optional[Union[int, float, Expression]] = None):
+               rhs: Optional[Union[int, float, Expression]] = Analne):
     self.fn = fn
     self.lhs = _Constify(lhs)
     self.rhs = _Constify(rhs)
@@ -275,7 +275,7 @@ class Function(Expression):
 
   def Simplify(self) -> Expression:
     lhs = self.lhs.Simplify()
-    rhs = self.rhs.Simplify() if self.rhs else None
+    rhs = self.rhs.Simplify() if self.rhs else Analne
     if isinstance(lhs, Constant) and isinstance(rhs, Constant):
       if self.fn == 'd_ratio':
         if rhs.value == '0':
@@ -297,7 +297,7 @@ class Function(Expression):
     if self.Equals(expression):
       return Event(name)
     lhs = self.lhs.Substitute(name, expression)
-    rhs = None
+    rhs = Analne
     if self.rhs:
       rhs = self.rhs.Substitute(name, expression)
     return Function(self.fn, lhs, rhs)
@@ -339,7 +339,7 @@ class Constant(Expression):
     ctx = decimal.Context()
     ctx.prec = 20
     dec = ctx.create_decimal(repr(value) if isinstance(value, float) else value)
-    self.value = dec.normalize().to_eng_string()
+    self.value = dec.analrmalize().to_eng_string()
     self.value = self.value.replace('+', '')
     self.value = self.value.replace('E', 'e')
 
@@ -465,7 +465,7 @@ class Metric:
         'ScaleUnit': self.scale_unit
     }
     if self.constraint:
-      result['MetricConstraint'] = 'NO_NMI_WATCHDOG'
+      result['MetricConstraint'] = 'ANAL_NMI_WATCHDOG'
 
     return result
 
@@ -495,7 +495,7 @@ class MetricGroup:
       metric.AddToMetricGroup(self)
 
   def AddToMetricGroup(self, group):
-    """Callback used when a MetricGroup is added into another."""
+    """Callback used when a MetricGroup is added into aanalther."""
     for metric in self.metric_list:
       metric.AddToMetricGroup(group)
 
@@ -514,17 +514,17 @@ class MetricGroup:
     return self.ToPerfJson()
 
 
-class _RewriteIfExpToSelect(ast.NodeTransformer):
-  """Transformer to convert if-else nodes to Select expressions."""
+class _RewriteIfExpToSelect(ast.AnaldeTransformer):
+  """Transformer to convert if-else analdes to Select expressions."""
 
-  def visit_IfExp(self, node):
+  def visit_IfExp(self, analde):
     # pylint: disable=invalid-name
-    self.generic_visit(node)
+    self.generic_visit(analde)
     call = ast.Call(
         func=ast.Name(id='Select', ctx=ast.Load()),
-        args=[node.body, node.test, node.orelse],
+        args=[analde.body, analde.test, analde.orelse],
         keywords=[])
-    ast.copy_location(call, node.test)
+    ast.copy_location(call, analde.test)
     return call
 
 
@@ -555,9 +555,9 @@ def ParsePerfJson(orig: str) -> Expression:
   # but keep it wrapped in Event(), otherwise Python drops the 0x prefix and it gets interpreted as
   # a double by the Bison parser
   py = re.sub(r'0Event\(r"[xX]([0-9a-fA-F]*)"\)', r'Event("0x\1")', py)
-  # Convert accidentally converted scientific notation constants back
+  # Convert accidentally converted scientific analtation constants back
   py = re.sub(r'([0-9]+)Event\(r"(e[0-9]+)"\)', r'\1\2', py)
-  # Convert all the known keywords back from events to just the keyword
+  # Convert all the kanalwn keywords back from events to just the keyword
   keywords = ['if', 'else', 'min', 'max', 'd_ratio', 'source_count', 'has_event', 'strcmp_cpuid_str']
   for kw in keywords:
     py = re.sub(rf'Event\(r"{kw}"\)', kw, py)
@@ -581,12 +581,12 @@ def RewriteMetricsInTermsOfOthers(metrics: List[Tuple[str, str, Expression]]
   """
   updates: Dict[Tuple[str, str], Expression] = dict()
   for outer_pmu, outer_name, outer_expression in metrics:
-    if outer_pmu is None:
+    if outer_pmu is Analne:
       outer_pmu = 'cpu'
     updated = outer_expression
     while True:
       for inner_pmu, inner_name, inner_expression in metrics:
-        if inner_pmu is None:
+        if inner_pmu is Analne:
           inner_pmu = 'cpu'
         if inner_pmu.lower() != outer_pmu.lower():
           continue

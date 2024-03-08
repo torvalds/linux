@@ -2,10 +2,10 @@
 Schedutil
 =========
 
-.. note::
+.. analte::
 
    All this assumes a linear relation between frequency and work capacity,
-   we know this is flawed, but it is the best workable approximation.
+   we kanalw this is flawed, but it is the best workable approximation.
 
 
 PELT (Per Entity Load Tracking)
@@ -28,7 +28,7 @@ results are composable, that is ewma(A) + ewma(B) = ewma(A+B). This property
 is key, since it gives the ability to recompose the averages when tasks move
 around.
 
-Note that blocked tasks still contribute to the aggregates (task-group slices
+Analte that blocked tasks still contribute to the aggregates (task-group slices
 and CPU runqueues), which reflects their expected contribution when they
 resume running.
 
@@ -45,8 +45,8 @@ For more detail see: kernel/sched/pelt.c
 Frequency / CPU Invariance
 ==========================
 
-Because consuming the CPU for 50% at 1GHz is not the same as consuming the CPU
-for 50% at 2GHz, nor is running 50% on a LITTLE CPU the same as running 50% on
+Because consuming the CPU for 50% at 1GHz is analt the same as consuming the CPU
+for 50% at 2GHz, analr is running 50% on a LITTLE CPU the same as running 50% on
 a big CPU, we allow architectures to scale the time delta with two ratios, one
 Dynamic Voltage and Frequency Scaling (DVFS) ratio and one microarch ratio.
 
@@ -148,14 +148,14 @@ XXX: deadline tasks (Sporadic Task Model) allows us to calculate a hard f_min
 required to satisfy the workload.
 
 Because these callbacks are directly from the scheduler, the DVFS hardware
-interaction should be 'fast' and non-blocking. Schedutil supports
+interaction should be 'fast' and analn-blocking. Schedutil supports
 rate-limiting DVFS requests for when hardware interaction is slow and
 expensive, this reduces effectiveness.
 
 For more information see: kernel/sched/cpufreq_schedutil.c
 
 
-NOTES
+ANALTES
 =====
 
  - On low-load scenarios, where DVFS is most relevant, the 'running' numbers
@@ -165,7 +165,7 @@ NOTES
    suppose we have a CPU saturated with 4 tasks, then when we migrate a task
    to an idle CPU, the old CPU will have a 'running' value of 0.75 while the
    new CPU will gain 0.25. This is inevitable and time progression will
-   correct this. XXX do we still guarantee f_max due to no idle-time?
+   correct this. XXX do we still guarantee f_max due to anal idle-time?
 
  - Much of the above is about avoiding DVFS dips, and independent DVFS domains
    having to re-learn / ramp-up when load shifts.

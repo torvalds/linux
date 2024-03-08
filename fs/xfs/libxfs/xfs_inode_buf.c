@@ -11,7 +11,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_ag.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_icache.h"
@@ -22,22 +22,22 @@
 #include <linux/iversion.h>
 
 /*
- * If we are doing readahead on an inode buffer, we might be in log recovery
- * reading an inode allocation buffer that hasn't yet been replayed, and hence
- * has not had the inode cores stamped into it. Hence for readahead, the buffer
+ * If we are doing readahead on an ianalde buffer, we might be in log recovery
+ * reading an ianalde allocation buffer that hasn't yet been replayed, and hence
+ * has analt had the ianalde cores stamped into it. Hence for readahead, the buffer
  * may be potentially invalid.
  *
  * If the readahead buffer is invalid, we need to mark it with an error and
  * clear the DONE status of the buffer so that a followup read will re-read it
  * from disk. We don't report the error otherwise to avoid warnings during log
  * recovery and we don't get unnecessary panics on debug kernels. We use EIO here
- * because all we want to do is say readahead failed; there is no-one to report
- * the error to, so this will distinguish it from a non-ra verifier failure.
+ * because all we want to do is say readahead failed; there is anal-one to report
+ * the error to, so this will distinguish it from a analn-ra verifier failure.
  * Changes to this readahead error behaviour also need to be reflected in
  * xfs_dquot_buf_readahead_verify().
  */
 static void
-xfs_inode_buf_verify(
+xfs_ianalde_buf_verify(
 	struct xfs_buf	*bp,
 	bool		readahead)
 {
@@ -46,21 +46,21 @@ xfs_inode_buf_verify(
 	int		ni;
 
 	/*
-	 * Validate the magic number and version of every inode in the buffer
+	 * Validate the magic number and version of every ianalde in the buffer
 	 */
-	ni = XFS_BB_TO_FSB(mp, bp->b_length) * mp->m_sb.sb_inopblock;
+	ni = XFS_BB_TO_FSB(mp, bp->b_length) * mp->m_sb.sb_ianalpblock;
 	for (i = 0; i < ni; i++) {
-		struct xfs_dinode	*dip;
-		xfs_agino_t		unlinked_ino;
+		struct xfs_dianalde	*dip;
+		xfs_agianal_t		unlinked_ianal;
 		int			di_ok;
 
-		dip = xfs_buf_offset(bp, (i << mp->m_sb.sb_inodelog));
-		unlinked_ino = be32_to_cpu(dip->di_next_unlinked);
+		dip = xfs_buf_offset(bp, (i << mp->m_sb.sb_ianaldelog));
+		unlinked_ianal = be32_to_cpu(dip->di_next_unlinked);
 		di_ok = xfs_verify_magic16(bp, dip->di_magic) &&
-			xfs_dinode_good_version(mp, dip->di_version) &&
-			xfs_verify_agino_or_null(bp->b_pag, unlinked_ino);
+			xfs_dianalde_good_version(mp, dip->di_version) &&
+			xfs_verify_agianal_or_null(bp->b_pag, unlinked_ianal);
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
-						XFS_ERRTAG_ITOBP_INOTOBP))) {
+						XFS_ERRTAG_ITOBP_IANALTOBP))) {
 			if (readahead) {
 				bp->b_flags &= ~XBF_DONE;
 				xfs_buf_ioerror(bp, -EIO);
@@ -69,7 +69,7 @@ xfs_inode_buf_verify(
 
 #ifdef DEBUG
 			xfs_alert(mp,
-				"bad inode magic/vsn daddr %lld #%d (magic=%x)",
+				"bad ianalde magic/vsn daddr %lld #%d (magic=%x)",
 				(unsigned long long)xfs_buf_daddr(bp), i,
 				be16_to_cpu(dip->di_magic));
 #endif
@@ -83,47 +83,47 @@ xfs_inode_buf_verify(
 
 
 static void
-xfs_inode_buf_read_verify(
+xfs_ianalde_buf_read_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_inode_buf_verify(bp, false);
+	xfs_ianalde_buf_verify(bp, false);
 }
 
 static void
-xfs_inode_buf_readahead_verify(
+xfs_ianalde_buf_readahead_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_inode_buf_verify(bp, true);
+	xfs_ianalde_buf_verify(bp, true);
 }
 
 static void
-xfs_inode_buf_write_verify(
+xfs_ianalde_buf_write_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_inode_buf_verify(bp, false);
+	xfs_ianalde_buf_verify(bp, false);
 }
 
-const struct xfs_buf_ops xfs_inode_buf_ops = {
-	.name = "xfs_inode",
-	.magic16 = { cpu_to_be16(XFS_DINODE_MAGIC),
-		     cpu_to_be16(XFS_DINODE_MAGIC) },
-	.verify_read = xfs_inode_buf_read_verify,
-	.verify_write = xfs_inode_buf_write_verify,
+const struct xfs_buf_ops xfs_ianalde_buf_ops = {
+	.name = "xfs_ianalde",
+	.magic16 = { cpu_to_be16(XFS_DIANALDE_MAGIC),
+		     cpu_to_be16(XFS_DIANALDE_MAGIC) },
+	.verify_read = xfs_ianalde_buf_read_verify,
+	.verify_write = xfs_ianalde_buf_write_verify,
 };
 
-const struct xfs_buf_ops xfs_inode_buf_ra_ops = {
-	.name = "xfs_inode_ra",
-	.magic16 = { cpu_to_be16(XFS_DINODE_MAGIC),
-		     cpu_to_be16(XFS_DINODE_MAGIC) },
-	.verify_read = xfs_inode_buf_readahead_verify,
-	.verify_write = xfs_inode_buf_write_verify,
+const struct xfs_buf_ops xfs_ianalde_buf_ra_ops = {
+	.name = "xfs_ianalde_ra",
+	.magic16 = { cpu_to_be16(XFS_DIANALDE_MAGIC),
+		     cpu_to_be16(XFS_DIANALDE_MAGIC) },
+	.verify_read = xfs_ianalde_buf_readahead_verify,
+	.verify_write = xfs_ianalde_buf_write_verify,
 };
 
 
 /*
- * This routine is called to map an inode to the buffer containing the on-disk
- * version of the inode.  It returns a pointer to the buffer containing the
- * on-disk inode in the bpp parameter.
+ * This routine is called to map an ianalde to the buffer containing the on-disk
+ * version of the ianalde.  It returns a pointer to the buffer containing the
+ * on-disk ianalde in the bpp parameter.
  */
 int
 xfs_imap_to_bp(
@@ -132,12 +132,12 @@ xfs_imap_to_bp(
 	struct xfs_imap		*imap,
 	struct xfs_buf		**bpp)
 {
-	return xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
+	return xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkanal,
 				   imap->im_len, XBF_UNMAPPED, bpp,
-				   &xfs_inode_buf_ops);
+				   &xfs_ianalde_buf_ops);
 }
 
-static inline struct timespec64 xfs_inode_decode_bigtime(uint64_t ts)
+static inline struct timespec64 xfs_ianalde_decode_bigtime(uint64_t ts)
 {
 	struct timespec64	tv;
 	uint32_t		n;
@@ -150,15 +150,15 @@ static inline struct timespec64 xfs_inode_decode_bigtime(uint64_t ts)
 
 /* Convert an ondisk timestamp to an incore timestamp. */
 struct timespec64
-xfs_inode_from_disk_ts(
-	struct xfs_dinode		*dip,
+xfs_ianalde_from_disk_ts(
+	struct xfs_dianalde		*dip,
 	const xfs_timestamp_t		ts)
 {
 	struct timespec64		tv;
 	struct xfs_legacy_timestamp	*lts;
 
-	if (xfs_dinode_has_bigtime(dip))
-		return xfs_inode_decode_bigtime(be64_to_cpu(ts));
+	if (xfs_dianalde_has_bigtime(dip))
+		return xfs_ianalde_decode_bigtime(be64_to_cpu(ts));
 
 	lts = (struct xfs_legacy_timestamp *)&ts;
 	tv.tv_sec = (int)be32_to_cpu(lts->t_sec);
@@ -168,64 +168,64 @@ xfs_inode_from_disk_ts(
 }
 
 int
-xfs_inode_from_disk(
-	struct xfs_inode	*ip,
-	struct xfs_dinode	*from)
+xfs_ianalde_from_disk(
+	struct xfs_ianalde	*ip,
+	struct xfs_dianalde	*from)
 {
-	struct inode		*inode = VFS_I(ip);
+	struct ianalde		*ianalde = VFS_I(ip);
 	int			error;
 	xfs_failaddr_t		fa;
 
 	ASSERT(ip->i_cowfp == NULL);
 
-	fa = xfs_dinode_verify(ip->i_mount, ip->i_ino, from);
+	fa = xfs_dianalde_verify(ip->i_mount, ip->i_ianal, from);
 	if (fa) {
-		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "dinode", from,
+		xfs_ianalde_verifier_error(ip, -EFSCORRUPTED, "dianalde", from,
 				sizeof(*from), fa);
 		return -EFSCORRUPTED;
 	}
 
 	/*
 	 * First get the permanent information that is needed to allocate an
-	 * inode. If the inode is unused, mode is zero and we shouldn't mess
+	 * ianalde. If the ianalde is unused, mode is zero and we shouldn't mess
 	 * with the uninitialized part of it.
 	 */
-	if (!xfs_has_v3inodes(ip->i_mount))
+	if (!xfs_has_v3ianaldes(ip->i_mount))
 		ip->i_flushiter = be16_to_cpu(from->di_flushiter);
-	inode->i_generation = be32_to_cpu(from->di_gen);
-	inode->i_mode = be16_to_cpu(from->di_mode);
-	if (!inode->i_mode)
+	ianalde->i_generation = be32_to_cpu(from->di_gen);
+	ianalde->i_mode = be16_to_cpu(from->di_mode);
+	if (!ianalde->i_mode)
 		return 0;
 
 	/*
-	 * Convert v1 inodes immediately to v2 inode format as this is the
-	 * minimum inode version format we support in the rest of the code.
-	 * They will also be unconditionally written back to disk as v2 inodes.
+	 * Convert v1 ianaldes immediately to v2 ianalde format as this is the
+	 * minimum ianalde version format we support in the rest of the code.
+	 * They will also be unconditionally written back to disk as v2 ianaldes.
 	 */
 	if (unlikely(from->di_version == 1)) {
-		set_nlink(inode, be16_to_cpu(from->di_onlink));
+		set_nlink(ianalde, be16_to_cpu(from->di_onlink));
 		ip->i_projid = 0;
 	} else {
-		set_nlink(inode, be32_to_cpu(from->di_nlink));
+		set_nlink(ianalde, be32_to_cpu(from->di_nlink));
 		ip->i_projid = (prid_t)be16_to_cpu(from->di_projid_hi) << 16 |
 					be16_to_cpu(from->di_projid_lo);
 	}
 
-	i_uid_write(inode, be32_to_cpu(from->di_uid));
-	i_gid_write(inode, be32_to_cpu(from->di_gid));
+	i_uid_write(ianalde, be32_to_cpu(from->di_uid));
+	i_gid_write(ianalde, be32_to_cpu(from->di_gid));
 
 	/*
 	 * Time is signed, so need to convert to signed 32 bit before
-	 * storing in inode timestamp which may be 64 bit. Otherwise
+	 * storing in ianalde timestamp which may be 64 bit. Otherwise
 	 * a time before epoch is converted to a time long after epoch
 	 * on 64 bit systems.
 	 */
-	inode_set_atime_to_ts(inode,
-			      xfs_inode_from_disk_ts(from, from->di_atime));
-	inode_set_mtime_to_ts(inode,
-			      xfs_inode_from_disk_ts(from, from->di_mtime));
-	inode_set_ctime_to_ts(inode,
-			      xfs_inode_from_disk_ts(from, from->di_ctime));
+	ianalde_set_atime_to_ts(ianalde,
+			      xfs_ianalde_from_disk_ts(from, from->di_atime));
+	ianalde_set_mtime_to_ts(ianalde,
+			      xfs_ianalde_from_disk_ts(from, from->di_mtime));
+	ianalde_set_ctime_to_ts(ianalde,
+			      xfs_ianalde_from_disk_ts(from, from->di_ctime));
 
 	ip->i_disk_size = be64_to_cpu(from->di_size);
 	ip->i_nblocks = be64_to_cpu(from->di_nblocks);
@@ -237,10 +237,10 @@ xfs_inode_from_disk(
 	if (from->di_dmevmask || from->di_dmstate)
 		xfs_iflags_set(ip, XFS_IPRESERVE_DM_FIELDS);
 
-	if (xfs_has_v3inodes(ip->i_mount)) {
-		inode_set_iversion_queried(inode,
+	if (xfs_has_v3ianaldes(ip->i_mount)) {
+		ianalde_set_iversion_queried(ianalde,
 					   be64_to_cpu(from->di_changecount));
-		ip->i_crtime = xfs_inode_from_disk_ts(from, from->di_crtime);
+		ip->i_crtime = xfs_ianalde_from_disk_ts(from, from->di_crtime);
 		ip->i_diflags2 = be64_to_cpu(from->di_flags2);
 		ip->i_cowextsize = be32_to_cpu(from->di_cowextsize);
 	}
@@ -253,7 +253,7 @@ xfs_inode_from_disk(
 		if (error)
 			goto out_destroy_data_fork;
 	}
-	if (xfs_is_reflink_inode(ip))
+	if (xfs_is_reflink_ianalde(ip))
 		xfs_ifork_init_cow(ip);
 	return 0;
 
@@ -264,15 +264,15 @@ out_destroy_data_fork:
 
 /* Convert an incore timestamp to an ondisk timestamp. */
 static inline xfs_timestamp_t
-xfs_inode_to_disk_ts(
-	struct xfs_inode		*ip,
+xfs_ianalde_to_disk_ts(
+	struct xfs_ianalde		*ip,
 	const struct timespec64		tv)
 {
 	struct xfs_legacy_timestamp	*lts;
 	xfs_timestamp_t			ts;
 
-	if (xfs_inode_has_bigtime(ip))
-		return cpu_to_be64(xfs_inode_encode_bigtime(tv));
+	if (xfs_ianalde_has_bigtime(ip))
+		return cpu_to_be64(xfs_ianalde_encode_bigtime(tv));
 
 	lts = (struct xfs_legacy_timestamp *)&ts;
 	lts->t_sec = cpu_to_be32(tv.tv_sec);
@@ -282,15 +282,15 @@ xfs_inode_to_disk_ts(
 }
 
 static inline void
-xfs_inode_to_disk_iext_counters(
-	struct xfs_inode	*ip,
-	struct xfs_dinode	*to)
+xfs_ianalde_to_disk_iext_counters(
+	struct xfs_ianalde	*ip,
+	struct xfs_dianalde	*to)
 {
-	if (xfs_inode_has_large_extent_counts(ip)) {
+	if (xfs_ianalde_has_large_extent_counts(ip)) {
 		to->di_big_nextents = cpu_to_be64(xfs_ifork_nextents(&ip->i_df));
 		to->di_big_anextents = cpu_to_be32(xfs_ifork_nextents(&ip->i_af));
 		/*
-		 * We might be upgrading the inode to use larger extent counters
+		 * We might be upgrading the ianalde to use larger extent counters
 		 * than was previously used. Hence zero the unused field.
 		 */
 		to->di_nrext64_pad = cpu_to_be16(0);
@@ -301,28 +301,28 @@ xfs_inode_to_disk_iext_counters(
 }
 
 void
-xfs_inode_to_disk(
-	struct xfs_inode	*ip,
-	struct xfs_dinode	*to,
+xfs_ianalde_to_disk(
+	struct xfs_ianalde	*ip,
+	struct xfs_dianalde	*to,
 	xfs_lsn_t		lsn)
 {
-	struct inode		*inode = VFS_I(ip);
+	struct ianalde		*ianalde = VFS_I(ip);
 
-	to->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
+	to->di_magic = cpu_to_be16(XFS_DIANALDE_MAGIC);
 	to->di_onlink = 0;
 
 	to->di_format = xfs_ifork_format(&ip->i_df);
-	to->di_uid = cpu_to_be32(i_uid_read(inode));
-	to->di_gid = cpu_to_be32(i_gid_read(inode));
+	to->di_uid = cpu_to_be32(i_uid_read(ianalde));
+	to->di_gid = cpu_to_be32(i_gid_read(ianalde));
 	to->di_projid_lo = cpu_to_be16(ip->i_projid & 0xffff);
 	to->di_projid_hi = cpu_to_be16(ip->i_projid >> 16);
 
-	to->di_atime = xfs_inode_to_disk_ts(ip, inode_get_atime(inode));
-	to->di_mtime = xfs_inode_to_disk_ts(ip, inode_get_mtime(inode));
-	to->di_ctime = xfs_inode_to_disk_ts(ip, inode_get_ctime(inode));
-	to->di_nlink = cpu_to_be32(inode->i_nlink);
-	to->di_gen = cpu_to_be32(inode->i_generation);
-	to->di_mode = cpu_to_be16(inode->i_mode);
+	to->di_atime = xfs_ianalde_to_disk_ts(ip, ianalde_get_atime(ianalde));
+	to->di_mtime = xfs_ianalde_to_disk_ts(ip, ianalde_get_mtime(ianalde));
+	to->di_ctime = xfs_ianalde_to_disk_ts(ip, ianalde_get_ctime(ianalde));
+	to->di_nlink = cpu_to_be32(ianalde->i_nlink);
+	to->di_gen = cpu_to_be32(ianalde->i_generation);
+	to->di_mode = cpu_to_be16(ianalde->i_mode);
 
 	to->di_size = cpu_to_be64(ip->i_disk_size);
 	to->di_nblocks = cpu_to_be64(ip->i_nblocks);
@@ -331,13 +331,13 @@ xfs_inode_to_disk(
 	to->di_aformat = xfs_ifork_format(&ip->i_af);
 	to->di_flags = cpu_to_be16(ip->i_diflags);
 
-	if (xfs_has_v3inodes(ip->i_mount)) {
+	if (xfs_has_v3ianaldes(ip->i_mount)) {
 		to->di_version = 3;
-		to->di_changecount = cpu_to_be64(inode_peek_iversion(inode));
-		to->di_crtime = xfs_inode_to_disk_ts(ip, ip->i_crtime);
+		to->di_changecount = cpu_to_be64(ianalde_peek_iversion(ianalde));
+		to->di_crtime = xfs_ianalde_to_disk_ts(ip, ip->i_crtime);
 		to->di_flags2 = cpu_to_be64(ip->i_diflags2);
 		to->di_cowextsize = cpu_to_be32(ip->i_cowextsize);
-		to->di_ino = cpu_to_be64(ip->i_ino);
+		to->di_ianal = cpu_to_be64(ip->i_ianal);
 		to->di_lsn = cpu_to_be64(lsn);
 		memset(to->di_pad2, 0, sizeof(to->di_pad2));
 		uuid_copy(&to->di_uuid, &ip->i_mount->m_sb.sb_meta_uuid);
@@ -348,12 +348,12 @@ xfs_inode_to_disk(
 		memset(to->di_v2_pad, 0, sizeof(to->di_v2_pad));
 	}
 
-	xfs_inode_to_disk_iext_counters(ip, to);
+	xfs_ianalde_to_disk_iext_counters(ip, to);
 }
 
 static xfs_failaddr_t
-xfs_dinode_verify_fork(
-	struct xfs_dinode	*dip,
+xfs_dianalde_verify_fork(
+	struct xfs_dianalde	*dip,
 	struct xfs_mount	*mp,
 	int			whichfork)
 {
@@ -370,37 +370,37 @@ xfs_dinode_verify_fork(
 	 * format matches the size of local data contained within the fork.
 	 *
 	 * For all types, check that when the size says the should be in extent
-	 * or btree format, the inode isn't claiming it is in local format.
+	 * or btree format, the ianalde isn't claiming it is in local format.
 	 */
 	if (whichfork == XFS_DATA_FORK) {
 		if (S_ISDIR(mode) || S_ISLNK(mode)) {
 			if (be64_to_cpu(dip->di_size) <= fork_size &&
-			    fork_format != XFS_DINODE_FMT_LOCAL)
+			    fork_format != XFS_DIANALDE_FMT_LOCAL)
 				return __this_address;
 		}
 
 		if (be64_to_cpu(dip->di_size) > fork_size &&
-		    fork_format == XFS_DINODE_FMT_LOCAL)
+		    fork_format == XFS_DIANALDE_FMT_LOCAL)
 			return __this_address;
 	}
 
 	switch (fork_format) {
-	case XFS_DINODE_FMT_LOCAL:
+	case XFS_DIANALDE_FMT_LOCAL:
 		/*
-		 * No local regular files yet.
+		 * Anal local regular files yet.
 		 */
 		if (S_ISREG(mode) && whichfork == XFS_DATA_FORK)
 			return __this_address;
 		if (di_nextents)
 			return __this_address;
 		break;
-	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_EXTENTS:
 		if (di_nextents > XFS_DFORK_MAXEXT(dip, mp, whichfork))
 			return __this_address;
 		break;
-	case XFS_DINODE_FMT_BTREE:
+	case XFS_DIANALDE_FMT_BTREE:
 		max_extents = xfs_iext_max_nextents(
-					xfs_dinode_has_large_extent_counts(dip),
+					xfs_dianalde_has_large_extent_counts(dip),
 					whichfork);
 		if (di_nextents > max_extents)
 			return __this_address;
@@ -412,22 +412,22 @@ xfs_dinode_verify_fork(
 }
 
 static xfs_failaddr_t
-xfs_dinode_verify_forkoff(
-	struct xfs_dinode	*dip,
+xfs_dianalde_verify_forkoff(
+	struct xfs_dianalde	*dip,
 	struct xfs_mount	*mp)
 {
 	if (!dip->di_forkoff)
 		return NULL;
 
 	switch (dip->di_format)  {
-	case XFS_DINODE_FMT_DEV:
+	case XFS_DIANALDE_FMT_DEV:
 		if (dip->di_forkoff != (roundup(sizeof(xfs_dev_t), 8) >> 3))
 			return __this_address;
 		break;
-	case XFS_DINODE_FMT_LOCAL:	/* fall through ... */
-	case XFS_DINODE_FMT_EXTENTS:    /* fall through ... */
-	case XFS_DINODE_FMT_BTREE:
-		if (dip->di_forkoff >= (XFS_LITINO(mp) >> 3))
+	case XFS_DIANALDE_FMT_LOCAL:	/* fall through ... */
+	case XFS_DIANALDE_FMT_EXTENTS:    /* fall through ... */
+	case XFS_DIANALDE_FMT_BTREE:
+		if (dip->di_forkoff >= (XFS_LITIANAL(mp) >> 3))
 			return __this_address;
 		break;
 	default:
@@ -437,11 +437,11 @@ xfs_dinode_verify_forkoff(
 }
 
 static xfs_failaddr_t
-xfs_dinode_verify_nrext64(
+xfs_dianalde_verify_nrext64(
 	struct xfs_mount	*mp,
-	struct xfs_dinode	*dip)
+	struct xfs_dianalde	*dip)
 {
-	if (xfs_dinode_has_large_extent_counts(dip)) {
+	if (xfs_dianalde_has_large_extent_counts(dip)) {
 		if (!xfs_has_large_extent_counts(mp))
 			return __this_address;
 		if (dip->di_nrext64_pad != 0)
@@ -455,10 +455,10 @@ xfs_dinode_verify_nrext64(
 }
 
 xfs_failaddr_t
-xfs_dinode_verify(
+xfs_dianalde_verify(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino,
-	struct xfs_dinode	*dip)
+	xfs_ianal_t		ianal,
+	struct xfs_dianalde	*dip)
 {
 	xfs_failaddr_t		fa;
 	uint16_t		mode;
@@ -469,17 +469,17 @@ xfs_dinode_verify(
 	xfs_extnum_t		naextents;
 	xfs_filblks_t		nblocks;
 
-	if (dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC))
+	if (dip->di_magic != cpu_to_be16(XFS_DIANALDE_MAGIC))
 		return __this_address;
 
 	/* Verify v3 integrity information first */
 	if (dip->di_version >= 3) {
-		if (!xfs_has_v3inodes(mp))
+		if (!xfs_has_v3ianaldes(mp))
 			return __this_address;
-		if (!xfs_verify_cksum((char *)dip, mp->m_sb.sb_inodesize,
-				      XFS_DINODE_CRC_OFF))
+		if (!xfs_verify_cksum((char *)dip, mp->m_sb.sb_ianaldesize,
+				      XFS_DIANALDE_CRC_OFF))
 			return __this_address;
-		if (be64_to_cpu(dip->di_ino) != ino)
+		if (be64_to_cpu(dip->di_ianal) != ianal)
 			return __this_address;
 		if (!uuid_equal(&dip->di_uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
@@ -491,14 +491,14 @@ xfs_dinode_verify(
 		return __this_address;
 
 	mode = be16_to_cpu(dip->di_mode);
-	if (mode && xfs_mode_to_ftype(mode) == XFS_DIR3_FT_UNKNOWN)
+	if (mode && xfs_mode_to_ftype(mode) == XFS_DIR3_FT_UNKANALWN)
 		return __this_address;
 
-	/* No zero-length symlinks/dirs. */
+	/* Anal zero-length symlinks/dirs. */
 	if ((S_ISLNK(mode) || S_ISDIR(mode)) && di_size == 0)
 		return __this_address;
 
-	fa = xfs_dinode_verify_nrext64(mp, dip);
+	fa = xfs_dianalde_verify_nrext64(mp, dip);
 	if (fa)
 		return fa;
 
@@ -516,7 +516,7 @@ xfs_dinode_verify(
 	if (S_ISDIR(mode) && nextents > mp->m_dir_geo->max_extents)
 		return __this_address;
 
-	if (mode && XFS_DFORK_BOFF(dip) > mp->m_sb.sb_inodesize)
+	if (mode && XFS_DFORK_BOFF(dip) > mp->m_sb.sb_ianaldesize)
 		return __this_address;
 
 	flags = be16_to_cpu(dip->di_flags);
@@ -525,7 +525,7 @@ xfs_dinode_verify(
 		return __this_address;
 
 	/* check for illegal values of forkoff */
-	fa = xfs_dinode_verify_forkoff(dip, mp);
+	fa = xfs_dianalde_verify_forkoff(dip, mp);
 	if (fa)
 		return fa;
 
@@ -535,37 +535,37 @@ xfs_dinode_verify(
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFSOCK:
-		if (dip->di_format != XFS_DINODE_FMT_DEV)
+		if (dip->di_format != XFS_DIANALDE_FMT_DEV)
 			return __this_address;
 		break;
 	case S_IFREG:
 	case S_IFLNK:
 	case S_IFDIR:
-		fa = xfs_dinode_verify_fork(dip, mp, XFS_DATA_FORK);
+		fa = xfs_dianalde_verify_fork(dip, mp, XFS_DATA_FORK);
 		if (fa)
 			return fa;
 		break;
 	case 0:
-		/* Uninitialized inode ok. */
+		/* Uninitialized ianalde ok. */
 		break;
 	default:
 		return __this_address;
 	}
 
 	if (dip->di_forkoff) {
-		fa = xfs_dinode_verify_fork(dip, mp, XFS_ATTR_FORK);
+		fa = xfs_dianalde_verify_fork(dip, mp, XFS_ATTR_FORK);
 		if (fa)
 			return fa;
 	} else {
 		/*
-		 * If there is no fork offset, this may be a freshly-made inode
+		 * If there is anal fork offset, this may be a freshly-made ianalde
 		 * in a new disk cluster, in which case di_aformat is zeroed.
-		 * Otherwise, such an inode must be in EXTENTS format; this goes
-		 * for freed inodes as well.
+		 * Otherwise, such an ianalde must be in EXTENTS format; this goes
+		 * for freed ianaldes as well.
 		 */
 		switch (dip->di_aformat) {
 		case 0:
-		case XFS_DINODE_FMT_EXTENTS:
+		case XFS_DIANALDE_FMT_EXTENTS:
 			break;
 		default:
 			return __this_address;
@@ -575,12 +575,12 @@ xfs_dinode_verify(
 	}
 
 	/* extent size hint validation */
-	fa = xfs_inode_validate_extsize(mp, be32_to_cpu(dip->di_extsize),
+	fa = xfs_ianalde_validate_extsize(mp, be32_to_cpu(dip->di_extsize),
 			mode, flags);
 	if (fa)
 		return fa;
 
-	/* only version 3 or greater inodes are extensively verified here */
+	/* only version 3 or greater ianaldes are extensively verified here */
 	if (dip->di_version < 3)
 		return NULL;
 
@@ -600,13 +600,13 @@ xfs_dinode_verify(
 		return __this_address;
 
 	/* COW extent size hint validation */
-	fa = xfs_inode_validate_cowextsize(mp, be32_to_cpu(dip->di_cowextsize),
+	fa = xfs_ianalde_validate_cowextsize(mp, be32_to_cpu(dip->di_cowextsize),
 			mode, flags, flags2);
 	if (fa)
 		return fa;
 
 	/* bigtime iflag can only happen on bigtime filesystems */
-	if (xfs_dinode_has_bigtime(dip) &&
+	if (xfs_dianalde_has_bigtime(dip) &&
 	    !xfs_has_bigtime(mp))
 		return __this_address;
 
@@ -614,9 +614,9 @@ xfs_dinode_verify(
 }
 
 void
-xfs_dinode_calc_crc(
+xfs_dianalde_calc_crc(
 	struct xfs_mount	*mp,
-	struct xfs_dinode	*dip)
+	struct xfs_dianalde	*dip)
 {
 	uint32_t		crc;
 
@@ -624,8 +624,8 @@ xfs_dinode_calc_crc(
 		return;
 
 	ASSERT(xfs_has_crc(mp));
-	crc = xfs_start_cksum_update((char *)dip, mp->m_sb.sb_inodesize,
-			      XFS_DINODE_CRC_OFF);
+	crc = xfs_start_cksum_update((char *)dip, mp->m_sb.sb_ianaldesize,
+			      XFS_DIANALDE_CRC_OFF);
 	dip->di_crc = xfs_end_cksum(crc);
 }
 
@@ -635,17 +635,17 @@ xfs_dinode_calc_crc(
  * 1. Extent size hint is only valid for directories and regular files.
  * 2. FS_XFLAG_EXTSIZE is only valid for regular files.
  * 3. FS_XFLAG_EXTSZINHERIT is only valid for directories.
- * 4. Hint cannot be larger than MAXTEXTLEN.
+ * 4. Hint cananalt be larger than MAXTEXTLEN.
  * 5. Can be changed on directories at any time.
- * 6. Hint value of 0 turns off hints, clears inode flags.
+ * 6. Hint value of 0 turns off hints, clears ianalde flags.
  * 7. Extent size must be a multiple of the appropriate block size.
  *    For realtime files, this is the rt extent size.
- * 8. For non-realtime files, the extent size hint must be limited
+ * 8. For analn-realtime files, the extent size hint must be limited
  *    to half the AG size to avoid alignment extending the extent beyond the
  *    limits of the AG.
  */
 xfs_failaddr_t
-xfs_inode_validate_extsize(
+xfs_ianalde_validate_extsize(
 	struct xfs_mount		*mp,
 	uint32_t			extsize,
 	uint16_t			mode,
@@ -668,20 +668,20 @@ xfs_inode_validate_extsize(
 	 * For a directory with both RTINHERIT and EXTSZINHERIT flags set, this
 	 * function has never checked that the extent size hint is an integer
 	 * multiple of the realtime extent size.  Since we allow users to set
-	 * this combination  on non-rt filesystems /and/ to change the rt
+	 * this combination  on analn-rt filesystems /and/ to change the rt
 	 * extent size when adding a rt device to a filesystem, the net effect
 	 * is that users can configure a filesystem anticipating one rt
-	 * geometry and change their minds later.  Directories do not use the
+	 * geometry and change their minds later.  Directories do analt use the
 	 * extent size hint, so this is harmless for them.
 	 *
 	 * If a directory with a misaligned extent size hint is allowed to
 	 * propagate that hint into a new regular realtime file, the result
-	 * is that the inode cluster buffer verifier will trigger a corruption
+	 * is that the ianalde cluster buffer verifier will trigger a corruption
 	 * shutdown the next time it is run, because the verifier has always
 	 * enforced the alignment rule for regular files.
 	 *
 	 * Because we allow administrators to set a new rt extent size when
-	 * adding a rt section, we cannot add a check to this verifier because
+	 * adding a rt section, we cananalt add a check to this verifier because
 	 * that will result a new source of directory corruption errors when
 	 * reading an existing filesystem.  Instead, we rely on callers to
 	 * decide when alignment checks are appropriate, and fix things up as
@@ -705,7 +705,7 @@ xfs_inode_validate_extsize(
 	if ((hint_flag || inherit_flag) && extsize == 0)
 		return __this_address;
 
-	/* free inodes get flags set to zero but extsize remains */
+	/* free ianaldes get flags set to zero but extsize remains */
 	if (mode && !(hint_flag || inherit_flag) && extsize != 0)
 		return __this_address;
 
@@ -725,17 +725,17 @@ xfs_inode_validate_extsize(
  * Validate di_cowextsize hint.
  *
  * 1. CoW extent size hint can only be set if reflink is enabled on the fs.
- *    The inode does not have to have any shared blocks, but it must be a v3.
+ *    The ianalde does analt have to have any shared blocks, but it must be a v3.
  * 2. FS_XFLAG_COWEXTSIZE is only valid for directories and regular files;
  *    for a directory, the hint is propagated to new files.
  * 3. Can be changed on files & directories at any time.
- * 4. Hint value of 0 turns off hints, clears inode flags.
+ * 4. Hint value of 0 turns off hints, clears ianalde flags.
  * 5. Extent size must be a multiple of the appropriate block size.
  * 6. The extent size hint must be limited to half the AG size to avoid
  *    alignment extending the extent beyond the limits of the AG.
  */
 xfs_failaddr_t
-xfs_inode_validate_cowextsize(
+xfs_ianalde_validate_cowextsize(
 	struct xfs_mount		*mp,
 	uint32_t			cowextsize,
 	uint16_t			mode,
@@ -759,7 +759,7 @@ xfs_inode_validate_cowextsize(
 	if (hint_flag && cowextsize == 0)
 		return __this_address;
 
-	/* free inodes get flags set to zero but cowextsize remains */
+	/* free ianaldes get flags set to zero but cowextsize remains */
 	if (mode && !hint_flag && cowextsize != 0)
 		return __this_address;
 

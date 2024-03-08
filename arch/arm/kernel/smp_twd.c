@@ -76,7 +76,7 @@ static int twd_set_next_event(unsigned long evt,
 /*
  * local_timer_ack: checks for a local timer interrupt.
  *
- * If a local timer interrupt has occurred, acknowledge and return 1.
+ * If a local timer interrupt has occurred, ackanalwledge and return 1.
  * Otherwise, return 0.
  */
 static int twd_timer_ack(void)
@@ -108,10 +108,10 @@ static void twd_update_frequency(void *new_rate)
 	clockevents_update_freq(raw_cpu_ptr(twd_evt), twd_timer_rate);
 }
 
-static int twd_rate_change(struct notifier_block *nb,
+static int twd_rate_change(struct analtifier_block *nb,
 	unsigned long flags, void *data)
 {
-	struct clk_notifier_data *cnd = data;
+	struct clk_analtifier_data *cnd = data;
 
 	/*
 	 * The twd clock events must be reprogrammed to account for the new
@@ -122,17 +122,17 @@ static int twd_rate_change(struct notifier_block *nb,
 		on_each_cpu(twd_update_frequency,
 				  (void *)&cnd->new_rate, 1);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block twd_clk_nb = {
-	.notifier_call = twd_rate_change,
+static struct analtifier_block twd_clk_nb = {
+	.analtifier_call = twd_rate_change,
 };
 
 static int twd_clk_init(void)
 {
 	if (twd_evt && raw_cpu_ptr(twd_evt) && !IS_ERR(twd_clk))
-		return clk_notifier_register(twd_clk, &twd_clk_nb);
+		return clk_analtifier_register(twd_clk, &twd_clk_nb);
 
 	return 0;
 }
@@ -156,10 +156,10 @@ static void twd_calibrate_rate(void)
 		while (get_jiffies_64() < waitjiffies)
 			udelay(10);
 
-		/* OK, now the tick has started, let's get the timer going */
+		/* OK, analw the tick has started, let's get the timer going */
 		waitjiffies += 5;
 
-				 /* enable, no interrupt or reload */
+				 /* enable, anal interrupt or reload */
 		writel_relaxed(0x1, twd_base + TWD_TIMER_CONTROL);
 
 				 /* maximum value */
@@ -186,10 +186,10 @@ static irqreturn_t twd_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
-static void twd_get_clock(struct device_node *np)
+static void twd_get_clock(struct device_analde *np)
 {
 	int err;
 
@@ -199,7 +199,7 @@ static void twd_get_clock(struct device_node *np)
 		twd_clk = clk_get_sys("smp_twd", NULL);
 
 	if (IS_ERR(twd_clk)) {
-		pr_err("smp_twd: clock not found %d\n", (int) PTR_ERR(twd_clk));
+		pr_err("smp_twd: clock analt found %d\n", (int) PTR_ERR(twd_clk));
 		return;
 	}
 
@@ -269,13 +269,13 @@ static int twd_timer_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int __init twd_local_timer_common_register(struct device_node *np)
+static int __init twd_local_timer_common_register(struct device_analde *np)
 {
 	int err;
 
 	twd_evt = alloc_percpu(struct clock_event_device);
 	if (!twd_evt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free;
 	}
 
@@ -285,7 +285,7 @@ static int __init twd_local_timer_common_register(struct device_node *np)
 		goto out_free;
 	}
 
-	cpuhp_setup_state_nocalls(CPUHP_AP_ARM_TWD_STARTING,
+	cpuhp_setup_state_analcalls(CPUHP_AP_ARM_TWD_STARTING,
 				  "arm/timer/twd:starting",
 				  twd_timer_starting_cpu, twd_timer_dying_cpu);
 
@@ -313,7 +313,7 @@ out_free:
 	return err;
 }
 
-static int __init twd_local_timer_of_register(struct device_node *np)
+static int __init twd_local_timer_of_register(struct device_analde *np)
 {
 	int err;
 
@@ -325,7 +325,7 @@ static int __init twd_local_timer_of_register(struct device_node *np)
 
 	twd_base = of_iomap(np, 0);
 	if (!twd_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

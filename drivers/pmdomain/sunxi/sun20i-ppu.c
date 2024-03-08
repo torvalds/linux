@@ -116,16 +116,16 @@ static int sun20i_ppu_probe(struct platform_device *pdev)
 
 	pds = devm_kcalloc(dev, desc->num_domains, sizeof(*pds), GFP_KERNEL);
 	if (!pds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ppu = devm_kzalloc(dev, sizeof(*ppu), GFP_KERNEL);
 	if (!ppu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ppu->domains = devm_kcalloc(dev, desc->num_domains,
 				    sizeof(*ppu->domains), GFP_KERNEL);
 	if (!ppu->domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ppu->num_domains = desc->num_domains;
 	platform_set_drvdata(pdev, ppu);
@@ -164,7 +164,7 @@ static int sun20i_ppu_probe(struct platform_device *pdev)
 		ppu->domains[i] = &pd->genpd;
 	}
 
-	ret = of_genpd_add_provider_onecell(dev->of_node, ppu);
+	ret = of_genpd_add_provider_onecell(dev->of_analde, ppu);
 	if (ret)
 		dev_warn(dev, "Failed to add provider: %d\n", ret);
 
@@ -196,7 +196,7 @@ static struct platform_driver sun20i_ppu_driver = {
 	.driver	= {
 		.name			= "sun20i-ppu",
 		.of_match_table		= sun20i_ppu_of_match,
-		/* Power domains cannot be removed while they are in use. */
+		/* Power domains cananalt be removed while they are in use. */
 		.suppress_bind_attrs	= true,
 	},
 };

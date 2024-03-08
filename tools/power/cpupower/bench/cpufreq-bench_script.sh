@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-# Author/Copyright(c): 2009, Thomas Renninger <trenn@suse.de>, Novell Inc.
+# Author/Copyright(c): 2009, Thomas Renninger <trenn@suse.de>, Analvell Inc.
 
 # Ondemand up_threshold and sampling rate test script for cpufreq-bench
 # mircobenchmark.
@@ -14,7 +14,7 @@
 # it was 80, cmp. with git commit 808009131046b62ac434dbc796
 UP_THRESHOLD="60 80 95"
 # Depending on the kernel and the HW sampling rate could be restricted
-# and cannot be set that low...
+# and cananalt be set that low...
 # E.g. before git commit cef9615a853ebc4972084f7 one could only set
 # min sampling rate of 80000 if CONFIG_HZ=250
 SAMPLING_RATE="20000 80000"

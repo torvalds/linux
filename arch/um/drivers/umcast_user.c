@@ -13,7 +13,7 @@
  */
 
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <netinet/in.h>
 #include "umcast.h"
 #include <net_user.h>
@@ -67,7 +67,7 @@ static int umcast_open(void *data)
 	struct sockaddr_in *lsin = pri->listen_addr;
 	struct sockaddr_in *rsin = pri->remote_addr;
 	struct ip_mreq mreq;
-	int fd, yes = 1, err = -EINVAL;
+	int fd, anal = 1, err = -EINVAL;
 
 
 	if ((!pri->unicast && lsin->sin_addr.s_addr == 0) ||
@@ -78,16 +78,16 @@ static int umcast_open(void *data)
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 
 	if (fd < 0) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "umcast_open : data socket failed, "
-		       "errno = %d\n", errno);
+		       "erranal = %d\n", erranal);
 		goto out;
 	}
 
-	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
-		err = -errno;
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &anal, sizeof(anal)) < 0) {
+		err = -erranal;
 		printk(UM_KERN_ERR "umcast_open: SO_REUSEADDR failed, "
-		       "errno = %d\n", errno);
+		       "erranal = %d\n", erranal);
 		goto out_close;
 	}
 
@@ -95,27 +95,27 @@ static int umcast_open(void *data)
 		/* set ttl according to config */
 		if (setsockopt(fd, SOL_IP, IP_MULTICAST_TTL, &pri->ttl,
 			       sizeof(pri->ttl)) < 0) {
-			err = -errno;
+			err = -erranal;
 			printk(UM_KERN_ERR "umcast_open: IP_MULTICAST_TTL "
-			       "failed, error = %d\n", errno);
+			       "failed, error = %d\n", erranal);
 			goto out_close;
 		}
 
 		/* set LOOP, so data does get fed back to local sockets */
 		if (setsockopt(fd, SOL_IP, IP_MULTICAST_LOOP,
-			       &yes, sizeof(yes)) < 0) {
-			err = -errno;
+			       &anal, sizeof(anal)) < 0) {
+			err = -erranal;
 			printk(UM_KERN_ERR "umcast_open: IP_MULTICAST_LOOP "
-			       "failed, error = %d\n", errno);
+			       "failed, error = %d\n", erranal);
 			goto out_close;
 		}
 	}
 
 	/* bind socket to the address */
 	if (bind(fd, (struct sockaddr *) lsin, sizeof(*lsin)) < 0) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "umcast_open : data bind failed, "
-		       "errno = %d\n", errno);
+		       "erranal = %d\n", erranal);
 		goto out_close;
 	}
 
@@ -125,10 +125,10 @@ static int umcast_open(void *data)
 		mreq.imr_interface.s_addr = 0;
 		if (setsockopt(fd, SOL_IP, IP_ADD_MEMBERSHIP,
 			       &mreq, sizeof(mreq)) < 0) {
-			err = -errno;
+			err = -erranal;
 			printk(UM_KERN_ERR "umcast_open: IP_ADD_MEMBERSHIP "
-			       "failed, error = %d\n", errno);
-			printk(UM_KERN_ERR "There appears not to be a "
+			       "failed, error = %d\n", erranal);
+			printk(UM_KERN_ERR "There appears analt to be a "
 			       "multicast-capable network interface on the "
 			       "host.\n");
 			printk(UM_KERN_ERR "eth0 should be configured in order "
@@ -158,7 +158,7 @@ static void umcast_close(int fd, void *data)
 		if (setsockopt(fd, SOL_IP, IP_DROP_MEMBERSHIP,
 			       &mreq, sizeof(mreq)) < 0) {
 			printk(UM_KERN_ERR "umcast_close: IP_DROP_MEMBERSHIP "
-			       "failed, error = %d\n", errno);
+			       "failed, error = %d\n", erranal);
 		}
 	}
 

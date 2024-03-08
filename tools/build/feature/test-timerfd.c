@@ -8,7 +8,7 @@ int main(void)
 {
 	struct itimerspec new_value;
 
-	int fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	int fd = timerfd_create(CLOCK_MOANALTONIC, TFD_ANALNBLOCK);
 	if (fd < 0)
 		return 1;
 

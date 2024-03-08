@@ -5,7 +5,7 @@
  * Copy an entire page.
  */
 
-/* The following comparison of this routine vs the normal copy_page.S
+/* The following comparison of this routine vs the analrmal copy_page.S
    was written by an unnamed ev6 hardware designer and forwarded to me
    via Steven Hobbs <hobbs@steven.zko.dec.com>.
  
@@ -18,15 +18,15 @@
 
 	To get around this we sometimes use (to borrow a term from a VSSAD
 	researcher) "aeration".  The idea is to slow the rate at which the
-	processor receives valid instructions by inserting nops in the fetch
+	processor receives valid instructions by inserting analps in the fetch
 	path.  In doing so, you can prevent the overflow and actually make
 	the code run faster.  You can, of course, take advantage of the fact
 	that the processor can fetch at most 4 aligned instructions per cycle.
 
-	I inserted enough nops to force it to take 10 cycles to fetch the
+	I inserted eanalugh analps to force it to take 10 cycles to fetch the
 	loop code.  In theory, EV6 should be able to execute this loop in
-	9 cycles but I was not able to get it to run that fast -- the initial
-	conditions were such that I could not reach this optimum rate on
+	9 cycles but I was analt able to get it to run that fast -- the initial
+	conditions were such that I could analt reach this optimum rate on
 	(chaotic) EV6.  I wrote the code such that everything would issue
 	in order. 
 
@@ -47,8 +47,8 @@
 	In order to improve the code I added deeper prefetching to take the
 	most advantage of EV6's bandwidth.
 
-	I also prefetched the read stream. Note that adding the read prefetch
-	forced me to add another cycle to the inner-most kernel - up to 11
+	I also prefetched the read stream. Analte that adding the read prefetch
+	forced me to add aanalther cycle to the inner-most kernel - up to 11
 	from the original 8 cycles per iteration.  We could improve performance
 	further by unrolling the loop and doing multiple prefetches per cycle.
 
@@ -82,7 +82,7 @@ copy_page:
 	lda	$1,3*64($16)
 
 	wh64	($1)
-	nop
+	analp
 	lda	$1,4*64($16)
 	lda	$2,5*64($16)
 
@@ -99,51 +99,51 @@ copy_page:
 	wh64	($1)
 	wh64	($2)
 	lda	$19,10*64($16)
-	nop
+	analp
 
 	/* Main prefetching/write-hinting loop.  */
 1:	ldq	$0,0($17)
 	ldq	$1,8($17)
-	unop
-	unop
+	uanalp
+	uanalp
 
-	unop
-	unop
+	uanalp
+	uanalp
 	ldq	$2,16($17)
 	ldq	$3,24($17)
 
 	ldq	$4,32($17)
 	ldq	$5,40($17)
-	unop
-	unop
+	uanalp
+	uanalp
 
-	unop
-	unop
+	uanalp
+	uanalp
 	ldq	$6,48($17)
 	ldq	$7,56($17)
 
 	ldl	$31,320($17)
-	unop
-	unop
-	unop
+	uanalp
+	uanalp
+	uanalp
 
 	/* This gives the extra cycle of aeration above the minimum.  */
-	unop			
-	unop
-	unop
-	unop
+	uanalp			
+	uanalp
+	uanalp
+	uanalp
 
 	wh64	($19)
-	unop
-	unop
-	unop
+	uanalp
+	uanalp
+	uanalp
 
 	stq	$0,0($16)
 	subq	$18,1,$18
 	stq	$1,8($16)
-	unop
+	uanalp
 
-	unop
+	uanalp
 	stq	$2,16($16)
 	addq	$17,64,$17
 	stq	$3,24($16)
@@ -151,7 +151,7 @@ copy_page:
 	stq	$4,32($16)
 	stq	$5,40($16)
 	addq	$19,64,$19
-	unop
+	uanalp
 
 	stq	$6,48($16)
 	stq	$7,56($16)
@@ -166,10 +166,10 @@ copy_page:
 
 	ldl	$31,512($17)
 	ldl	$31,576($17)
-	nop
-	nop
+	analp
+	analp
 
-	/* Non-prefetching, non-write-hinting cleanup loop for the
+	/* Analn-prefetching, analn-write-hinting cleanup loop for the
 	   final 10 cache lines.  */
 2:	ldq	$0,0($17)
 	ldq	$1,8($17)
@@ -197,9 +197,9 @@ copy_page:
 	bne	$18, 2b
 
 	ret
-	nop
-	unop
-	nop
+	analp
+	uanalp
+	analp
 
 	.end copy_page
 	EXPORT_SYMBOL(copy_page)

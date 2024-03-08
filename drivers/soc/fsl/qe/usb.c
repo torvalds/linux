@@ -10,7 +10,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <soc/fsl/qe/immap_qe.h>
@@ -34,7 +34,7 @@ int qe_usb_clock_set(enum qe_clock clk, int rate)
 	case QE_BRG9:  val = QE_CMXGCR_USBCS_BRG9;  break;
 	case QE_BRG10: val = QE_CMXGCR_USBCS_BRG10; break;
 	default:
-		pr_err("%s: requested unknown clock %d\n", __func__, clk);
+		pr_err("%s: requested unkanalwn clock %d\n", __func__, clk);
 		return -EINVAL;
 	}
 

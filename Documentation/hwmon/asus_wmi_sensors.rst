@@ -65,10 +65,10 @@ The driver is aware of and reads the following sensors:
  * Water Out,
  * CPU VRM Output Current.
 
-Known Issues:
+Kanalwn Issues:
  * The WMI implementation in some of Asus' BIOSes is buggy. This can result in
    fans stopping, fans getting stuck at max speed, or temperature readouts
-   getting stuck. This is not an issue with the driver, but the BIOS. The Prime
+   getting stuck. This is analt an issue with the driver, but the BIOS. The Prime
    X470 Pro seems particularly bad for this. The more frequently the WMI
    interface is polled the greater the potential for this to happen. Until you
    have subjected your computer to an extended soak test while polling the

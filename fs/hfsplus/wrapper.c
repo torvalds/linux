@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001
  * Brad Boyer (flar@allandria.com)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  *
  * Handling of HFS wrappers around HFS+ volumes
  */
@@ -35,15 +35,15 @@ struct hfsplus_wd {
  * The unit of I/O is hfsplus_min_io_size(sb), which may be bigger than
  * HFSPLUS_SECTOR_SIZE, and @buf must be sized accordingly. On reads
  * @data will return a pointer to the start of the requested sector,
- * which may not be the same location as @buf.
+ * which may analt be the same location as @buf.
  *
- * If @sector is not aligned to the bdev logical block size it will
+ * If @sector is analt aligned to the bdev logical block size it will
  * be rounded down. For writes this means that @buf should contain data
  * that starts at the rounded-down address. As long as the data was
  * read using hfsplus_submit_bio() and the same buffer is used things
  * will work correctly.
  *
- * Returns: %0 on success else -errno code
+ * Returns: %0 on success else -erranal code
  */
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 		       void *buf, void **data, blk_opf_t opf)
@@ -65,7 +65,7 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 	offset = start & (io_size - 1);
 	sector &= ~((io_size >> HFSPLUS_SECTOR_SHIFT) - 1);
 
-	bio = bio_alloc(sb->s_bdev, 1, opf, GFP_NOIO);
+	bio = bio_alloc(sb->s_bdev, 1, opf, GFP_ANALIO);
 	bio->bi_iter.bi_sector = sector;
 
 	if (op != REQ_OP_WRITE && data)
@@ -175,7 +175,7 @@ int hfsplus_read_wrapper(struct super_block *sb)
 	if (hfsplus_get_last_session(sb, &part_start, &part_size))
 		goto out;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	sbi->s_vhdr_buf = kmalloc(hfsplus_min_io_size(sb), GFP_KERNEL);
 	if (!sbi->s_vhdr_buf)
 		goto out;

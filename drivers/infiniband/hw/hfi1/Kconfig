@@ -2,7 +2,7 @@
 config INFINIBAND_HFI1
 	tristate "Cornelis OPX Gen1 support"
 	depends on X86_64 && INFINIBAND_RDMAVT && I2C && !UML
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	select CRC32
 	select I2C_ALGOBIT
 	help

@@ -36,7 +36,7 @@ int xadc_write_event_value(struct iio_dev *indio_dev,
 	int val, int val2);
 
 enum xadc_external_mux_mode {
-	XADC_EXTERNAL_MUX_NONE,
+	XADC_EXTERNAL_MUX_ANALNE,
 	XADC_EXTERNAL_MUX_SINGLE,
 	XADC_EXTERNAL_MUX_DUAL,
 };
@@ -181,7 +181,7 @@ static inline int xadc_write_adc_reg(struct xadc *xadc, unsigned int reg,
 #define XADC_CONF2_DIV_OFFSET	8
 
 #define XADC_CONF2_PD_MASK	(0x3 << 4)
-#define XADC_CONF2_PD_NONE	(0x0 << 4)
+#define XADC_CONF2_PD_ANALNE	(0x0 << 4)
 #define XADC_CONF2_PD_ADC_B	(0x2 << 4)
 #define XADC_CONF2_PD_BOTH	(0x3 << 4)
 

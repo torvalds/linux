@@ -7,7 +7,7 @@ Submitting Devicetree (DT) binding patches
 I. For patch submitters
 =======================
 
-  0) Normal patch submission rules from
+  0) Analrmal patch submission rules from
      Documentation/process/submitting-patches.rst applies.
 
   1) The Documentation/ and include/dt-bindings/ portion of the patch should
@@ -15,7 +15,7 @@ I. For patch submitters
 
        "dt-bindings: <binding dir>: ..."
 
-     The 80 characters of the subject are precious. It is recommended to not
+     The 80 characters of the subject are precious. It is recommended to analt
      use "Documentation" or "doc" because that is implied. All bindings are
      docs. Repeating "binding" again should also be avoided.
 
@@ -44,8 +44,8 @@ I. For patch submitters
   6) Any compatible strings used in a chip or board DTS file must be
      previously documented in the corresponding DT binding text file
      in Documentation/devicetree/bindings.  This rule applies even if
-     the Linux device driver does not yet match on the compatible
-     string.  [ checkpatch will emit warnings if this step is not
+     the Linux device driver does analt yet match on the compatible
+     string.  [ checkpatch will emit warnings if this step is analt
      followed as of commit bff5da4335256513497cc8c79f9a9d1665e09864
      ("checkpatch: add DT compatible string documentation checks"). ]
 
@@ -55,10 +55,10 @@ I. For patch submitters
          - compatible: Must contain '"nvidia,<chip>-pcie",
            "nvidia,tegra20-pcie"' where <chip> is tegra30, tegra132, ...
 
-     As in the above example, the known values of "<chip>" should be
+     As in the above example, the kanalwn values of "<chip>" should be
      documented if it is used.
 
-  8) If a documented compatible string is not yet matched by the
+  8) If a documented compatible string is analt yet matched by the
      driver, the documentation should also include a compatible
      string that is matched by the driver (as in the "nvidia,tegra20-pcie"
      example above).
@@ -74,7 +74,7 @@ II. For kernel maintainers
      the devicetree maintainers for guidance.  This will help them prioritize
      which ones to review and which ones are ok to let go.
 
-  2) For driver (not subsystem) bindings: If you are comfortable with the
+  2) For driver (analt subsystem) bindings: If you are comfortable with the
      binding, and it hasn't received an Acked-by from the devicetree
      maintainers after a few weeks, go ahead and take it.
 
@@ -84,7 +84,7 @@ II. For kernel maintainers
   3) For a series going though multiple trees, the binding patch should be
      kept with the driver using the binding.
 
-III. Notes
+III. Analtes
 ==========
 
   0) Please see Documentation/devicetree/bindings/ABI.rst for details

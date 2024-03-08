@@ -13,12 +13,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -171,7 +171,7 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 
 	fence = virtio_gpu_fence_alloc(vgdev, vgdev->fence_drv.context, 0);
 	if (!fence)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = virtio_gpu_object_create(vgdev, &params, &qobj, fence);
 	dma_fence_put(&fence->f);
 	if (ret < 0)
@@ -188,10 +188,10 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 	rc->bo_handle = handle;
 
 	/*
-	 * The handle owns the reference now.  But we must drop our
-	 * remaining reference *after* we no longer need to dereference
+	 * The handle owns the reference analw.  But we must drop our
+	 * remaining reference *after* we anal longer need to dereference
 	 * the obj.  Otherwise userspace could guess the handle and
-	 * race closing it from another thread.
+	 * race closing it from aanalther thread.
 	 */
 	drm_gem_object_put(obj);
 
@@ -207,7 +207,7 @@ static int virtio_gpu_resource_info_ioctl(struct drm_device *dev, void *data,
 
 	gobj = drm_gem_object_lookup(file, ri->bo_handle);
 	if (gobj == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	qobj = gem_to_virtio_gpu_obj(gobj);
 
@@ -234,12 +234,12 @@ static int virtio_gpu_transfer_from_host_ioctl(struct drm_device *dev,
 	u32 offset = args->offset;
 
 	if (vgdev->has_virgl_3d == false)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	virtio_gpu_create_context(dev, file);
 	objs = virtio_gpu_array_from_handles(file, &args->bo_handle, 1);
 	if (objs == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	bo = gem_to_virtio_gpu_obj(objs->objs[0]);
 	if (bo->guest_blob && !bo->host3d_blob) {
@@ -258,7 +258,7 @@ static int virtio_gpu_transfer_from_host_ioctl(struct drm_device *dev,
 
 	fence = virtio_gpu_fence_alloc(vgdev, vgdev->fence_drv.context, 0);
 	if (!fence) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -266,7 +266,7 @@ static int virtio_gpu_transfer_from_host_ioctl(struct drm_device *dev,
 		(vgdev, vfpriv->ctx_id, offset, args->level, args->stride,
 		 args->layer_stride, &args->box, objs, fence);
 	dma_fence_put(&fence->f);
-	virtio_gpu_notify(vgdev);
+	virtio_gpu_analtify(vgdev);
 	return 0;
 
 err_unlock:
@@ -290,7 +290,7 @@ static int virtio_gpu_transfer_to_host_ioctl(struct drm_device *dev, void *data,
 
 	objs = virtio_gpu_array_from_handles(file, &args->bo_handle, 1);
 	if (objs == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	bo = gem_to_virtio_gpu_obj(objs->objs[0]);
 	if (bo->guest_blob && !bo->host3d_blob) {
@@ -315,7 +315,7 @@ static int virtio_gpu_transfer_to_host_ioctl(struct drm_device *dev, void *data,
 		if (ret != 0)
 			goto err_put_free;
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		fence = virtio_gpu_fence_alloc(vgdev, vgdev->fence_drv.context,
 					       0);
 		if (!fence)
@@ -328,7 +328,7 @@ static int virtio_gpu_transfer_to_host_ioctl(struct drm_device *dev, void *data,
 			 fence);
 		dma_fence_put(&fence->f);
 	}
-	virtio_gpu_notify(vgdev);
+	virtio_gpu_analtify(vgdev);
 	return 0;
 
 err_unlock:
@@ -348,9 +348,9 @@ static int virtio_gpu_wait_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (obj == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
-	if (args->flags & VIRTGPU_WAIT_NOWAIT) {
+	if (args->flags & VIRTGPU_WAIT_ANALWAIT) {
 		ret = dma_resv_test_signaled(obj->resv, DMA_RESV_USAGE_READ);
 	} else {
 		ret = dma_resv_wait_timeout(obj->resv, DMA_RESV_USAGE_READ,
@@ -378,7 +378,7 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	void *ptr;
 
 	if (vgdev->num_capsets == 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	/* don't allow userspace to pass 0 */
 	if (args->size == 0)
@@ -412,12 +412,12 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	}
 	spin_unlock(&vgdev->display_info_lock);
 
-	/* not in cache - need to talk to hw */
+	/* analt in cache - need to talk to hw */
 	ret = virtio_gpu_cmd_get_capset(vgdev, found_valid, args->cap_set_ver,
 					&cache_ent);
 	if (ret)
 		return ret;
-	virtio_gpu_notify(vgdev);
+	virtio_gpu_analtify(vgdev);
 
 copy_exit:
 	ret = wait_event_timeout(vgdev->resp_wq,
@@ -561,10 +561,10 @@ static int virtio_gpu_resource_create_blob_ioctl(struct drm_device *dev,
 	rc_blob->bo_handle = handle;
 
 	/*
-	 * The handle owns the reference now.  But we must drop our
-	 * remaining reference *after* we no longer need to dereference
+	 * The handle owns the reference analw.  But we must drop our
+	 * remaining reference *after* we anal longer need to dereference
 	 * the obj.  Otherwise userspace could guess the handle and
-	 * race closing it from another thread.
+	 * race closing it from aanalther thread.
 	 */
 	drm_gem_object_put(obj);
 
@@ -685,7 +685,7 @@ static int virtio_gpu_context_init_ioctl(struct drm_device *dev,
 	}
 
 	virtio_gpu_create_context_locked(vgdev, vfpriv);
-	virtio_gpu_notify(vgdev);
+	virtio_gpu_analtify(vgdev);
 
 out_unlock:
 	mutex_unlock(&vfpriv->context_lock);
@@ -710,7 +710,7 @@ struct drm_ioctl_desc virtio_gpu_ioctls[DRM_VIRTIO_NUM_IOCTLS] = {
 	DRM_IOCTL_DEF_DRV(VIRTGPU_RESOURCE_INFO, virtio_gpu_resource_info_ioctl,
 			  DRM_RENDER_ALLOW),
 
-	/* make transfer async to the main ring? - no sure, can we
+	/* make transfer async to the main ring? - anal sure, can we
 	 * thread these in the underlying GL
 	 */
 	DRM_IOCTL_DEF_DRV(VIRTGPU_TRANSFER_FROM_HOST,

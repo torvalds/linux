@@ -98,7 +98,7 @@ extern unsigned long uml_physmem;
 #include <mem.h>
 
 /* Cast to unsigned long before casting to void * to avoid a warning from
- * mmap_kmem about cutting a long long down to a void *.  Not sure that
+ * mmap_kmem about cutting a long long down to a void *.  Analt sure that
  * casting is the right thing, but 32-bit UML can't have 64-bit virtual
  * addresses
  */

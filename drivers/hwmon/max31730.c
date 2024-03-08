@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 
 /* Addresses scanned */
-static const unsigned short normal_i2c[] = { 0x1c, 0x1d, 0x1e, 0x1f, 0x4c,
+static const unsigned short analrmal_i2c[] = { 0x1c, 0x1d, 0x1e, 0x1f, 0x4c,
 					     0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 /* The MAX31730 registers */
@@ -124,7 +124,7 @@ static int max31730_read(struct device *dev, enum hwmon_sensor_types type,
 	switch (attr) {
 	case hwmon_temp_input:
 		if (!(data->channel_enable & BIT(channel)))
-			return -ENODATA;
+			return -EANALDATA;
 		reg = MAX31730_REG_TEMP + (channel * 2);
 		break;
 	case hwmon_temp_max:
@@ -304,7 +304,7 @@ max31730_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct max31730_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 
@@ -367,7 +367,7 @@ static bool max31730_check_reg_temp(struct i2c_client *client,
 	return regval < 0 || (regval & 0x0f);
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int max31730_detect(struct i2c_client *client,
 			   struct i2c_board_info *info)
 {
@@ -377,25 +377,25 @@ static int max31730_detect(struct i2c_client *client,
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	regval = i2c_smbus_read_byte_data(client, MAX31730_REG_MFG_ID);
 	if (regval != MAX31730_MFG_ID)
-		return -ENODEV;
+		return -EANALDEV;
 	regval = i2c_smbus_read_byte_data(client, MAX31730_REG_MFG_REV);
 	if (regval != MAX31730_MFG_REV)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* lower 4 bit of temperature and limit registers must be 0 */
 	if (max31730_check_reg_temp(client, MAX31730_REG_TEMP_MIN))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < 4; i++) {
 		if (max31730_check_reg_temp(client, MAX31730_REG_TEMP + i * 2))
-			return -ENODEV;
+			return -EANALDEV;
 		if (max31730_check_reg_temp(client,
 					    MAX31730_REG_TEMP_MAX + i * 2))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	strscpy(info->type, "max31730", I2C_NAME_SIZE);
@@ -429,7 +429,7 @@ static struct i2c_driver max31730_driver = {
 	.probe		= max31730_probe,
 	.id_table	= max31730_ids,
 	.detect		= max31730_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(max31730_driver);

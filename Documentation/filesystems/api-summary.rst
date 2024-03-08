@@ -23,13 +23,13 @@ The Directory Cache
 .. kernel-doc:: include/linux/dcache.h
    :internal:
 
-Inode Handling
+Ianalde Handling
 --------------
 
-.. kernel-doc:: fs/inode.c
+.. kernel-doc:: fs/ianalde.c
    :export:
 
-.. kernel-doc:: fs/bad_inode.c
+.. kernel-doc:: fs/bad_ianalde.c
    :export:
 
 Registration and Superblocks
@@ -71,7 +71,7 @@ Other Functions
 .. kernel-doc:: fs/fs-writeback.c
    :export:
 
-.. kernel-doc:: fs/anon_inodes.c
+.. kernel-doc:: fs/aanaln_ianaldes.c
    :export:
 
 .. kernel-doc:: fs/attr.c
@@ -143,7 +143,7 @@ The debugfs filesystem
 debugfs interface
 -----------------
 
-.. kernel-doc:: fs/debugfs/inode.c
+.. kernel-doc:: fs/debugfs/ianalde.c
    :export:
 
 .. kernel-doc:: fs/debugfs/file.c

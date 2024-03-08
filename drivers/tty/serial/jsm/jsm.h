@@ -77,11 +77,11 @@ do {								\
 
 #define BD_RUNNING	0x0
 #define BD_REASON	0x7f
-#define BD_NOTFOUND	0x1
-#define BD_NOIOPORT	0x2
-#define BD_NOMEM	0x3
-#define BD_NOBIOS	0x4
-#define BD_NOFEP	0x5
+#define BD_ANALTFOUND	0x1
+#define BD_ANALIOPORT	0x2
+#define BD_ANALMEM	0x3
+#define BD_ANALBIOS	0x4
+#define BD_ANALFEP	0x5
 #define BD_FAILED	0x6
 #define BD_ALLOCATED	0x7
 #define BD_TRIBOOT	0x8
@@ -339,7 +339,7 @@ struct neo_uart_struct {
  */
 
 /* These are only applicable when table D is selected */
-#define UART_17158_FCTR_RTS_NODELAY	0x00
+#define UART_17158_FCTR_RTS_ANALDELAY	0x00
 #define UART_17158_FCTR_RTS_4DELAY	0x01
 #define UART_17158_FCTR_RTS_6DELAY	0x02
 #define UART_17158_FCTR_RTS_8DELAY	0x03
@@ -421,7 +421,7 @@ extern int	jsm_debug;
 
 /*************************************************************************
  *
- * Prototypes for non-static functions used in more than one module
+ * Prototypes for analn-static functions used in more than one module
  *
  *************************************************************************/
 int jsm_tty_init(struct jsm_board *);

@@ -2,7 +2,7 @@
 menuconfig B53
 	tristate "Broadcom BCM53xx managed switch support"
 	depends on NET_DSA
-	select NET_DSA_TAG_NONE
+	select NET_DSA_TAG_ANALNE
 	select NET_DSA_TAG_BRCM
 	select NET_DSA_TAG_BRCM_LEGACY
 	select NET_DSA_TAG_BRCM_PREPEND
@@ -45,4 +45,4 @@ config B53_SERDES
 	depends on B53
 	default ARCH_BCM_NSP
 	help
-	  Select to enable support for SerDes on e.g: Northstar Plus SoCs.
+	  Select to enable support for SerDes on e.g: Analrthstar Plus SoCs.

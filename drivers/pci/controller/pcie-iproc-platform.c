@@ -40,14 +40,14 @@ static int iproc_pltfm_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct iproc_pcie *pcie;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct resource reg;
 	struct pci_host_bridge *bridge;
 	int ret;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie = pci_host_bridge_priv(bridge);
 
@@ -64,7 +64,7 @@ static int iproc_pltfm_pcie_probe(struct platform_device *pdev)
 					     resource_size(&reg));
 	if (!pcie->base) {
 		dev_err(dev, "unable to map controller registers\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pcie->base_addr = reg.start;
 
@@ -83,7 +83,7 @@ static int iproc_pltfm_pcie_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * DT nodes are not used by all platforms that use the iProc PCIe
+	 * DT analdes are analt used by all platforms that use the iProc PCIe
 	 * core driver. For platforms that require explicit inbound mapping
 	 * configuration, "dma-ranges" would have been present in DT
 	 */

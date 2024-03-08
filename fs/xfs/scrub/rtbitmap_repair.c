@@ -12,7 +12,7 @@
 #include "xfs_btree.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_bit.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_btree.h"
@@ -33,13 +33,13 @@ xrep_setup_rtbitmap(
 	unsigned long long	blocks = 0;
 
 	/*
-	 * Reserve enough blocks to write out a completely new bmbt for a
-	 * maximally fragmented bitmap file.  We do not hold the rtbitmap
+	 * Reserve eanalugh blocks to write out a completely new bmbt for a
+	 * maximally fragmented bitmap file.  We do analt hold the rtbitmap
 	 * ILOCK yet, so this is entirely speculative.
 	 */
 	blocks = xfs_bmbt_calc_size(mp, mp->m_sb.sb_rbmblocks);
 	if (blocks > UINT_MAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rtb->resblks += blocks;
 	return 0;
@@ -47,7 +47,7 @@ xrep_setup_rtbitmap(
 
 /*
  * Make sure that the given range of the data fork of the realtime file is
- * mapped to written blocks.  The caller must ensure that the inode is joined
+ * mapped to written blocks.  The caller must ensure that the ianalde is joined
  * to the transaction.
  */
 STATIC int
@@ -78,8 +78,8 @@ xrep_rtbitmap_data_mappings(
 		}
 
 		/*
-		 * Written extents are ok.  Holes are not filled because we
-		 * do not know the freespace information.
+		 * Written extents are ok.  Holes are analt filled because we
+		 * do analt kanalw the freespace information.
 		 */
 		if (xfs_bmap_is_written_extent(&map) ||
 		    map.br_startblock == HOLESTARTBLOCK) {
@@ -151,7 +151,7 @@ xrep_rtbitmap_geometry(
 	if (sc->ip->i_disk_size < XFS_FSB_TO_B(mp, rtb->rbmblocks))
 		sc->ip->i_disk_size = XFS_FSB_TO_B(mp, rtb->rbmblocks);
 
-	xfs_trans_log_inode(sc->tp, sc->ip, XFS_ILOG_CORE);
+	xfs_trans_log_ianalde(sc->tp, sc->ip, XFS_ILOG_CORE);
 	return xrep_roll_trans(sc);
 }
 
@@ -176,7 +176,7 @@ xrep_rtbitmap(
 	 */
 	blocks = xfs_bmbt_calc_size(mp, rtb->rbmblocks);
 	if (blocks > UINT_MAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (blocks > rtb->resblks) {
 		error = xfs_trans_reserve_more(sc->tp, blocks, 0);
 		if (error)
@@ -185,14 +185,14 @@ xrep_rtbitmap(
 		rtb->resblks += blocks;
 	}
 
-	/* Fix inode core and forks. */
-	error = xrep_metadata_inode_forks(sc);
+	/* Fix ianalde core and forks. */
+	error = xrep_metadata_ianalde_forks(sc);
 	if (error)
 		return error;
 
 	xfs_trans_ijoin(sc->tp, sc->ip, 0);
 
-	/* Ensure no unwritten extents. */
+	/* Ensure anal unwritten extents. */
 	error = xrep_rtbitmap_data_mappings(sc, rtb->rbmblocks);
 	if (error)
 		return error;

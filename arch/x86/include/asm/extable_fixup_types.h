@@ -32,7 +32,7 @@
 #define EX_FLAG_CLEAR_AX_DX		EX_DATA_FLAG(3)
 
 /* types */
-#define	EX_TYPE_NONE			 0
+#define	EX_TYPE_ANALNE			 0
 #define	EX_TYPE_DEFAULT			 1
 #define	EX_TYPE_FAULT			 2
 #define	EX_TYPE_UACCESS			 3

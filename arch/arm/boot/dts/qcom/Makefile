@@ -3,7 +3,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-apq8016-sbc.dtb \
 	qcom-apq8026-asus-sparrow.dtb \
 	qcom-apq8026-huawei-sturgeon.dtb \
-	qcom-apq8026-lg-lenok.dtb \
+	qcom-apq8026-lg-leanalk.dtb \
 	qcom-apq8026-samsung-matisse-wifi.dtb \
 	qcom-apq8060-dragonboard.dtb \
 	qcom-apq8064-cm-qs600.dtb \
@@ -15,7 +15,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-apq8084-mtp.dtb \
 	qcom-ipq4018-ap120c-ac.dtb \
 	qcom-ipq4018-ap120c-ac-bit.dtb \
-	qcom-ipq4018-jalapeno.dtb \
+	qcom-ipq4018-jalapeanal.dtb \
 	qcom-ipq4019-ap.dk01.1-c1.dtb \
 	qcom-ipq4019-ap.dk04.1-c1.dtb \
 	qcom-ipq4019-ap.dk04.1-c3.dtb \
@@ -31,7 +31,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-msm8916-samsung-e5.dtb \
 	qcom-msm8916-samsung-e7.dtb \
 	qcom-msm8916-samsung-grandmax.dtb \
-	qcom-msm8916-samsung-serranove.dtb \
+	qcom-msm8916-samsung-serraanalve.dtb \
 	qcom-msm8926-htc-memul.dtb \
 	qcom-msm8926-microsoft-superman-lte.dtb \
 	qcom-msm8926-microsoft-tesla.dtb \
@@ -44,7 +44,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-msm8974pro-fairphone-fp2.dtb \
 	qcom-msm8974pro-oneplus-bacon.dtb \
 	qcom-msm8974pro-samsung-klte.dtb \
-	qcom-msm8974pro-sony-xperia-shinano-castor.dtb \
+	qcom-msm8974pro-sony-xperia-shinaanal-castor.dtb \
 	qcom-mdm9615-wp8548-mangoh-green.dtb \
 	qcom-sdx55-mtp.dtb \
 	qcom-sdx55-t55.dtb \

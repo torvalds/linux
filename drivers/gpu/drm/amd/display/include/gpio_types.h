@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,19 +44,19 @@ enum gpio_result {
 	GPIO_RESULT_DEVICE_BUSY,
 	GPIO_RESULT_OPEN_FAILED,
 	GPIO_RESULT_ALREADY_OPENED,
-	GPIO_RESULT_NON_SPECIFIC_ERROR
+	GPIO_RESULT_ANALN_SPECIFIC_ERROR
 };
 
 /*
  * @brief
  * Used to identify the specific GPIO device
  *
- * @notes
+ * @analtes
  * These constants are used as indices in a vector.
  * Thus they should start from zero and be contiguous.
  */
 enum gpio_id {
-	GPIO_ID_UNKNOWN = (-1),
+	GPIO_ID_UNKANALWN = (-1),
 	GPIO_ID_DDC_DATA,
 	GPIO_ID_DDC_CLOCK,
 	GPIO_ID_GENERIC,
@@ -70,7 +70,7 @@ enum gpio_id {
 	GPIO_ID_MAX = GPIO_ID_GSL
 };
 
-#define GPIO_ENUM_UNKNOWN \
+#define GPIO_ENUM_UNKANALWN \
 	32
 
 struct gpio_pin_info {
@@ -92,7 +92,7 @@ enum gpio_pin_output_state {
 };
 
 enum gpio_generic {
-	GPIO_GENERIC_UNKNOWN = (-1),
+	GPIO_GENERIC_UNKANALWN = (-1),
 	GPIO_GENERIC_A,
 	GPIO_GENERIC_B,
 	GPIO_GENERIC_C,
@@ -106,7 +106,7 @@ enum gpio_generic {
 };
 
 enum gpio_hpd {
-	GPIO_HPD_UNKNOWN = (-1),
+	GPIO_HPD_UNKANALWN = (-1),
 	GPIO_HPD_1,
 	GPIO_HPD_2,
 	GPIO_HPD_3,
@@ -119,7 +119,7 @@ enum gpio_hpd {
 };
 
 enum gpio_gpio_pad {
-	GPIO_GPIO_PAD_UNKNOWN = (-1),
+	GPIO_GPIO_PAD_UNKANALWN = (-1),
 	GPIO_GPIO_PAD_0,
 	GPIO_GPIO_PAD_1,
 	GPIO_GPIO_PAD_2,
@@ -157,7 +157,7 @@ enum gpio_gpio_pad {
 };
 
 enum gpio_vip_pad {
-	GPIO_VIP_PAD_UNKNOWN = (-1),
+	GPIO_VIP_PAD_UNKANALWN = (-1),
 	/* following never used -
 	 * GPIO_ID_DDC_CLOCK::GPIO_DDC_LINE_VIP_PAD defined instead */
 	GPIO_VIP_PAD_SCL,
@@ -177,7 +177,7 @@ enum gpio_vip_pad {
 };
 
 enum gpio_sync {
-	GPIO_SYNC_UNKNOWN = (-1),
+	GPIO_SYNC_UNKANALWN = (-1),
 	GPIO_SYNC_HSYNC_A,
 	GPIO_SYNC_VSYNC_A,
 	GPIO_SYNC_HSYNC_B,
@@ -188,7 +188,7 @@ enum gpio_sync {
 };
 
 enum gpio_gsl {
-	GPIO_GSL_UNKNOWN = (-1),
+	GPIO_GSL_UNKANALWN = (-1),
 	GPIO_GSL_GENLOCK_CLOCK,
 	GPIO_GSL_GENLOCK_VSYNC,
 	GPIO_GSL_SWAPLOCK_A,
@@ -204,7 +204,7 @@ enum gpio_gsl {
  * Values are meaningful (used as indexes to array)
  */
 enum gpio_ddc_line {
-	GPIO_DDC_LINE_UNKNOWN = (-1),
+	GPIO_DDC_LINE_UNKANALWN = (-1),
 	GPIO_DDC_LINE_DDC1,
 	GPIO_DDC_LINE_DDC2,
 	GPIO_DDC_LINE_DDC3,
@@ -225,7 +225,7 @@ enum gpio_ddc_line {
  * A GPIO device (pin) can be programmed in only one of these modes at a time.
  */
 enum gpio_mode {
-	GPIO_MODE_UNKNOWN = (-1),
+	GPIO_MODE_UNKANALWN = (-1),
 	GPIO_MODE_INPUT,
 	GPIO_MODE_OUTPUT,
 	GPIO_MODE_FAST_OUTPUT,
@@ -236,15 +236,15 @@ enum gpio_mode {
 /*
  * @brief
  * Identifies the source of the signal when GPIO is in HW mode.
- * get_signal_source() will return GPIO_SYGNAL_SOURCE__UNKNOWN
+ * get_signal_source() will return GPIO_SYGNAL_SOURCE__UNKANALWN
  * when one of the following holds:
  *    1. GPIO is input GPIO
- *    2. GPIO is not opened in HW mode
- *    3. GPIO does not have fixed signal source
+ *    2. GPIO is analt opened in HW mode
+ *    3. GPIO does analt have fixed signal source
  *    (like DC_GenericA have mux instead fixed)
  */
 enum gpio_signal_source {
-	GPIO_SIGNAL_SOURCE_UNKNOWN = (-1),
+	GPIO_SIGNAL_SOURCE_UNKANALWN = (-1),
 	GPIO_SIGNAL_SOURCE_DACA_STEREO_SYNC,
 	GPIO_SIGNAL_SOURCE_PASS_THROUGH_STEREO_SYNC,
 	GPIO_SIGNAL_SOURCE_DACB_STEREO_SYNC,
@@ -255,7 +255,7 @@ enum gpio_signal_source {
 };
 
 enum gpio_stereo_source {
-	GPIO_STEREO_SOURCE_UNKNOWN = (-1),
+	GPIO_STEREO_SOURCE_UNKANALWN = (-1),
 	GPIO_STEREO_SOURCE_D1,
 	GPIO_STEREO_SOURCE_D2,
 	GPIO_STEREO_SOURCE_D3,
@@ -269,7 +269,7 @@ enum gpio_stereo_source {
  */
 
 enum gpio_config_type {
-	GPIO_CONFIG_TYPE_NONE,
+	GPIO_CONFIG_TYPE_ANALNE,
 	GPIO_CONFIG_TYPE_DDC,
 	GPIO_CONFIG_TYPE_HPD,
 	GPIO_CONFIG_TYPE_GENERIC_MUX,

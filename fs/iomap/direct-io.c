@@ -17,7 +17,7 @@
 #include "../internal.h"
 
 /*
- * Private flags for iomap_dio, must not overlap with the public ones in
+ * Private flags for iomap_dio, must analt overlap with the public ones in
  * iomap.h:
  */
 #define IOMAP_DIO_CALLER_COMP	(1U << 26)
@@ -39,7 +39,7 @@ struct iomap_dio {
 	bool			wait_for_completion;
 
 	union {
-		/* used during submission and for synchronous completion: */
+		/* used during submission and for synchroanalus completion: */
 		struct {
 			struct iov_iter		*iter;
 			struct task_struct	*waiter;
@@ -100,7 +100,7 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
 
 	/*
 	 * Try again to invalidate clean pages which might have been cached by
-	 * non-direct readahead, or faulted in by get_user_pages() if the source
+	 * analn-direct readahead, or faulted in by get_user_pages() if the source
 	 * of the write was an mmap'ed region of the file we're writing.  Either
 	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
 	 * this invalidation fails, tough, the write still worked...
@@ -113,14 +113,14 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
 	if (!dio->error && dio->size && (dio->flags & IOMAP_DIO_WRITE))
 		kiocb_invalidate_post_direct_write(iocb, dio->size);
 
-	inode_dio_end(file_inode(iocb->ki_filp));
+	ianalde_dio_end(file_ianalde(iocb->ki_filp));
 
 	if (ret > 0) {
 		iocb->ki_pos += ret;
 
 		/*
 		 * If this is a DSYNC write, make sure we push it to stable
-		 * storage now that we've written data.
+		 * storage analw that we've written data.
 		 */
 		if (dio->flags & IOMAP_DIO_NEED_SYNC)
 			ret = generic_write_sync(iocb, ret);
@@ -147,7 +147,7 @@ static void iomap_dio_complete_work(struct work_struct *work)
 }
 
 /*
- * Set an error in the dio if none is set yet.  We have to use cmpxchg
+ * Set an error in the dio if analne is set yet.  We have to use cmpxchg
  * as the submission context and the completion context(s) can race to
  * update the error.
  */
@@ -163,12 +163,12 @@ void iomap_dio_bio_end_io(struct bio *bio)
 	struct kiocb *iocb = dio->iocb;
 
 	if (bio->bi_status)
-		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
+		iomap_dio_set_error(dio, blk_status_to_erranal(bio->bi_status));
 	if (!atomic_dec_and_test(&dio->ref))
 		goto release_bio;
 
 	/*
-	 * Synchronous dio, task itself will handle any completion work
+	 * Synchroanalus dio, task itself will handle any completion work
 	 * that needs after IO. All we need to do is wake the task.
 	 */
 	if (dio->wait_for_completion) {
@@ -200,11 +200,11 @@ void iomap_dio_bio_end_io(struct bio *bio)
 		/*
 		 * Invoke ->ki_complete() directly. We've assigned our
 		 * dio_complete callback handler, and since the issuer set
-		 * IOCB_DIO_CALLER_COMP, we know their ki_complete handler will
-		 * notice ->dio_complete being set and will defer calling that
+		 * IOCB_DIO_CALLER_COMP, we kanalw their ki_complete handler will
+		 * analtice ->dio_complete being set and will defer calling that
 		 * handler until it can be done from a safe task context.
 		 *
-		 * Note that the 'res' being passed in here is not important
+		 * Analte that the 'res' being passed in here is analt important
 		 * for this case. The actual completion value of the request
 		 * will be gotten from dio_complete when that is run by the
 		 * issuer.
@@ -220,7 +220,7 @@ void iomap_dio_bio_end_io(struct bio *bio)
 	 * guarantee data integrity.
 	 */
 	INIT_WORK(&dio->aio.work, iomap_dio_complete_work);
-	queue_work(file_inode(iocb->ki_filp)->i_sb->s_dio_done_wq,
+	queue_work(file_ianalde(iocb->ki_filp)->i_sb->s_dio_done_wq,
 			&dio->aio.work);
 release_bio:
 	if (should_dirty) {
@@ -235,12 +235,12 @@ EXPORT_SYMBOL_GPL(iomap_dio_bio_end_io);
 static void iomap_dio_zero(const struct iomap_iter *iter, struct iomap_dio *dio,
 		loff_t pos, unsigned len)
 {
-	struct inode *inode = file_inode(dio->iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(dio->iocb->ki_filp);
 	struct page *page = ZERO_PAGE(0);
 	struct bio *bio;
 
 	bio = iomap_dio_alloc_bio(iter, dio, 1, REQ_OP_WRITE | REQ_SYNC | REQ_IDLE);
-	fscrypt_set_bio_crypt_ctx(bio, inode, pos >> inode->i_blkbits,
+	fscrypt_set_bio_crypt_ctx(bio, ianalde, pos >> ianalde->i_blkbits,
 				  GFP_KERNEL);
 	bio->bi_iter.bi_sector = iomap_sector(&iter->iomap, pos);
 	bio->bi_private = dio;
@@ -252,7 +252,7 @@ static void iomap_dio_zero(const struct iomap_iter *iter, struct iomap_dio *dio,
 
 /*
  * Figure out the bio's operation flags from the dio request, the
- * mapping, and whether or not we want FUA.  Note that we can end up
+ * mapping, and whether or analt we want FUA.  Analte that we can end up
  * clearing the WRITE_THROUGH flag in the dio request.
  */
 static inline blk_opf_t iomap_dio_bio_opflags(struct iomap_dio *dio,
@@ -276,8 +276,8 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		struct iomap_dio *dio)
 {
 	const struct iomap *iomap = &iter->iomap;
-	struct inode *inode = iter->inode;
-	unsigned int fs_block_size = i_blocksize(inode), pad;
+	struct ianalde *ianalde = iter->ianalde;
+	unsigned int fs_block_size = i_blocksize(ianalde), pad;
 	loff_t length = iomap_length(iter);
 	loff_t pos = iter->pos;
 	blk_opf_t bio_opf;
@@ -324,7 +324,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 
 	/*
 	 * Save the original count and trim the iter to just the extent we
-	 * are operating on right now.  The iter will be re-expanded once
+	 * are operating on right analw.  The iter will be re-expanded once
 	 * we are done.
 	 */
 	orig_count = iov_iter_count(dio->submit.iter);
@@ -342,12 +342,12 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 	 */
 	if (need_zeroout ||
 	    ((dio->flags & IOMAP_DIO_NEED_SYNC) && !use_fua) ||
-	    ((dio->flags & IOMAP_DIO_WRITE) && pos >= i_size_read(inode)))
+	    ((dio->flags & IOMAP_DIO_WRITE) && pos >= i_size_read(ianalde)))
 		dio->flags &= ~IOMAP_DIO_CALLER_COMP;
 
 	/*
 	 * The rules for polled IO completions follow the guidelines as the
-	 * ones we set for inline and deferred completions. If none of those
+	 * ones we set for inline and deferred completions. If analne of those
 	 * are available for this IO, clear the polled flag.
 	 */
 	if (!(dio->flags & (IOMAP_DIO_INLINE_COMP|IOMAP_DIO_CALLER_COMP)))
@@ -377,7 +377,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		}
 
 		bio = iomap_dio_alloc_bio(iter, dio, nr_pages, bio_opf);
-		fscrypt_set_bio_crypt_ctx(bio, inode, pos >> inode->i_blkbits,
+		fscrypt_set_bio_crypt_ctx(bio, ianalde, pos >> ianalde->i_blkbits,
 					  GFP_KERNEL);
 		bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
 		bio->bi_ioprio = dio->iocb->ki_ioprio;
@@ -426,7 +426,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 	 */
 zero_tail:
 	if (need_zeroout ||
-	    ((dio->flags & IOMAP_DIO_WRITE) && pos >= i_size_read(inode))) {
+	    ((dio->flags & IOMAP_DIO_WRITE) && pos >= i_size_read(ianalde))) {
 		/* zero out from the end of the write to the end of the block */
 		pad = pos & (fs_block_size - 1);
 		if (pad)
@@ -465,15 +465,15 @@ static loff_t iomap_dio_inline_iter(const struct iomap_iter *iomi,
 		return -EIO;
 
 	if (dio->flags & IOMAP_DIO_WRITE) {
-		loff_t size = iomi->inode->i_size;
+		loff_t size = iomi->ianalde->i_size;
 
 		if (pos > size)
 			memset(iomap_inline_data(iomap, size), 0, pos - size);
 		copied = copy_from_iter(inline_data, length, iter);
 		if (copied) {
 			if (pos + copied > size)
-				i_size_write(iomi->inode, pos + copied);
-			mark_inode_dirty(iomi->inode);
+				i_size_write(iomi->ianalde, pos + copied);
+			mark_ianalde_dirty(iomi->ianalde);
 		}
 	} else {
 		copied = copy_to_iter(inline_data, length, iter);
@@ -502,7 +502,7 @@ static loff_t iomap_dio_iter(const struct iomap_iter *iter,
 		return iomap_dio_inline_iter(iter, dio);
 	case IOMAP_DELALLOC:
 		/*
-		 * DIO is not serialised against mmap() access at all, and so
+		 * DIO is analt serialised against mmap() access at all, and so
 		 * if the page_mkwrite occurs between the writeback and the
 		 * iomap_iter() call in the DIO path, then it will see the
 		 * DELALLOC block that the page-mkwrite allocated.
@@ -518,7 +518,7 @@ static loff_t iomap_dio_iter(const struct iomap_iter *iter,
 
 /*
  * iomap_dio_rw() always completes O_[D]SYNC writes regardless of whether the IO
- * is being issued as AIO or not.  This allows us to optimise pure data writes
+ * is being issued as AIO or analt.  This allows us to optimise pure data writes
  * to use REQ_FUA rather than requiring generic_write_sync() to issue a
  * REQ_FLUSH post write. This is slightly tricky because a single request here
  * can be mapped into multiple disjoint IOs and only a subset of the IOs issued
@@ -526,14 +526,14 @@ static loff_t iomap_dio_iter(const struct iomap_iter *iter,
  * completion.
  *
  * When page faults are disabled and @dio_flags includes IOMAP_DIO_PARTIAL,
- * __iomap_dio_rw can return a partial result if it encounters a non-resident
- * page in @iter after preparing a transfer.  In that case, the non-resident
+ * __iomap_dio_rw can return a partial result if it encounters a analn-resident
+ * page in @iter after preparing a transfer.  In that case, the analn-resident
  * pages can be faulted in and the request resumed with @done_before set to the
  * number of bytes previously transferred.  The request will then complete with
  * the correct total number of bytes transferred; this is essential for
- * completing partial requests asynchronously.
+ * completing partial requests asynchroanalusly.
  *
- * Returns -ENOTBLK In case of a page invalidation invalidation failure for
+ * Returns -EANALTBLK In case of a page invalidation invalidation failure for
  * writes.  The callers needs to fall back to buffered I/O in this case.
  */
 struct iomap_dio *
@@ -541,9 +541,9 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops, const struct iomap_dio_ops *dops,
 		unsigned int dio_flags, void *private, size_t done_before)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 	struct iomap_iter iomi = {
-		.inode		= inode,
+		.ianalde		= ianalde,
 		.pos		= iocb->ki_pos,
 		.len		= iov_iter_count(iter),
 		.flags		= IOMAP_DIRECT,
@@ -562,12 +562,12 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 	dio = kmalloc(sizeof(*dio), GFP_KERNEL);
 	if (!dio)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dio->iocb = iocb;
 	atomic_set(&dio->ref, 1);
 	dio->size = 0;
-	dio->i_size = i_size_read(inode);
+	dio->i_size = i_size_read(ianalde);
 	dio->dops = dops;
 	dio->error = 0;
 	dio->flags = 0;
@@ -576,8 +576,8 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	dio->submit.iter = iter;
 	dio->submit.waiter = current;
 
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		iomi.flags |= IOMAP_NOWAIT;
+	if (iocb->ki_flags & IOCB_ANALWAIT)
+		iomi.flags |= IOMAP_ANALWAIT;
 
 	if (iov_iter_rw(iter) == READ) {
 		/* reads can always complete inline */
@@ -621,9 +621,9 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			* For datasync only writes, we optimistically try using
 			* WRITE_THROUGH for this IO. This flag requires either
 			* FUA writes through the device's write cache, or a
-			* normal write to a device without a volatile write
-			* cache. For the former, Any non-FUA write that occurs
-			* will clear this flag, hence we know before completion
+			* analrmal write to a device without a volatile write
+			* cache. For the former, Any analn-FUA write that occurs
+			* will clear this flag, hence we kanalw before completion
 			* whether a cache flush is necessary.
 			*/
 			if (!(iocb->ki_flags & IOCB_SYNC))
@@ -638,21 +638,21 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		ret = kiocb_invalidate_pages(iocb, iomi.len);
 		if (ret) {
 			if (ret != -EAGAIN) {
-				trace_iomap_dio_invalidate_fail(inode, iomi.pos,
+				trace_iomap_dio_invalidate_fail(ianalde, iomi.pos,
 								iomi.len);
-				ret = -ENOTBLK;
+				ret = -EANALTBLK;
 			}
 			goto out_free_dio;
 		}
 
-		if (!wait_for_completion && !inode->i_sb->s_dio_done_wq) {
-			ret = sb_init_dio_done_wq(inode->i_sb);
+		if (!wait_for_completion && !ianalde->i_sb->s_dio_done_wq) {
+			ret = sb_init_dio_done_wq(ianalde->i_sb);
 			if (ret < 0)
 				goto out_free_dio;
 		}
 	}
 
-	inode_dio_begin(inode);
+	ianalde_dio_begin(ianalde);
 
 	blk_start_plug(&plug);
 	while ((ret = iomap_iter(&iomi, ops)) > 0) {
@@ -675,13 +675,13 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		iov_iter_revert(iter, iomi.pos - dio->i_size);
 
 	if (ret == -EFAULT && dio->size && (dio_flags & IOMAP_DIO_PARTIAL)) {
-		if (!(iocb->ki_flags & IOCB_NOWAIT))
+		if (!(iocb->ki_flags & IOCB_ANALWAIT))
 			wait_for_completion = true;
 		ret = 0;
 	}
 
 	/* magic error code to fall back to buffered I/O */
-	if (ret == -ENOTBLK) {
+	if (ret == -EANALTBLK) {
 		wait_for_completion = true;
 		ret = 0;
 	}
@@ -703,10 +703,10 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	 *
 	 *  (a) If this is the last reference we will always complete and free
 	 *	the dio ourselves.
-	 *  (b) If this is not the last reference, and we serve an asynchronous
+	 *  (b) If this is analt the last reference, and we serve an asynchroanalus
 	 *	iocb, we must never touch the dio after the decrement, the
 	 *	I/O completion handler will complete and free it.
-	 *  (c) If this is not the last reference, but we serve a synchronous
+	 *  (c) If this is analt the last reference, but we serve a synchroanalus
 	 *	iocb, the I/O completion handler will wake us up on the drop
 	 *	of the final reference, and we will complete and free it here
 	 *	after we got woken by the I/O completion handler.
@@ -714,7 +714,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	dio->wait_for_completion = wait_for_completion;
 	if (!atomic_dec_and_test(&dio->ref)) {
 		if (!wait_for_completion) {
-			trace_iomap_dio_rw_queued(inode, iomi.pos, iomi.len);
+			trace_iomap_dio_rw_queued(ianalde, iomi.pos, iomi.len);
 			return ERR_PTR(-EIOCBQUEUED);
 		}
 

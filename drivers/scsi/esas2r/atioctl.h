@@ -1,7 +1,7 @@
 /*  linux/drivers/scsi/esas2r/atioctl.h
  *      ATTO IOCTL Handling
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techanallogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -15,19 +15,19 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  NO WARRANTY
+ *  ANAL WARRANTY
  *  THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  *  CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- *  LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ *  LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  *  solely responsible for determining the appropriateness of using and
  *  distributing the Program and assumes all risks associated with its
- *  exercise of rights under this Agreement, including but not limited to
+ *  exercise of rights under this Agreement, including but analt limited to
  *  the risks and costs of program errors, damage to or loss of data,
  *  programs or equipment, and unavailability or interruption of operations.
  *
  *  DISCLAIMER OF LIABILITY
- *  NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ *  NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  *  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  *  DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -36,7 +36,7 @@
  *  HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if analt, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -58,10 +58,10 @@ struct __packed atto_express_ioctl_header {
 #define IOCTL_SUCCESS               0
 #define IOCTL_ERR_INVCMD          101
 #define IOCTL_INIT_FAILED         102
-#define IOCTL_NOT_IMPLEMENTED     103
+#define IOCTL_ANALT_IMPLEMENTED     103
 #define IOCTL_BAD_CHANNEL         104
 #define IOCTL_TARGET_OVERRUN      105
-#define IOCTL_TARGET_NOT_ENABLED  106
+#define IOCTL_TARGET_ANALT_ENABLED  106
 #define IOCTL_BAD_FLASH_IMGTYPE   107
 #define IOCTL_OUT_OF_RESOURCES    108
 #define IOCTL_GENERAL_ERROR       109
@@ -73,10 +73,10 @@ struct __packed atto_express_ioctl_header {
 };
 
 /*
- * NOTE - if channel == 0xFF, the request is
+ * ANALTE - if channel == 0xFF, the request is
  * handled on the adapter it came in on.
  */
-#define MAX_NODE_NAMES  256
+#define MAX_ANALDE_NAMES  256
 
 struct __packed atto_firmware_rw_request {
 	u8 function;
@@ -111,13 +111,13 @@ struct __packed atto_channel_list {
 
 struct __packed atto_channel_info {
 	u8 major_rev;
-	u8 minor_rev;
+	u8 mianalr_rev;
 	u8 IRQ;
 	u8 revision_id;
 	u8 pci_bus;
 	u8 pci_dev_func;
 	u8 core_rev;
-	u8 host_no;
+	u8 host_anal;
 	u16 device_id;
 	u16 vendor_id;
 	u16 ven_dev_id;
@@ -178,28 +178,28 @@ struct __packed atto_channel_info {
 #define CSMI_STS_INV_PORT            2006
 #define CSMI_STS_PORT_UNSELECTABLE   2007
 #define CSMI_STS_CONNECTION_FAILED   2008
-#define CSMI_STS_NO_SATA_DEV         2009
-#define CSMI_STS_NO_SATA_SIGNATURE   2010
+#define CSMI_STS_ANAL_SATA_DEV         2009
+#define CSMI_STS_ANAL_SATA_SIGNATURE   2010
 #define CSMI_STS_SCSI_EMULATION      2011
-#define CSMI_STS_NOT_AN_END_DEV      2012
-#define CSMI_STS_NO_SCSI_ADDR        2013
-#define CSMI_STS_NO_DEV_ADDR         2014
+#define CSMI_STS_ANALT_AN_END_DEV      2012
+#define CSMI_STS_ANAL_SCSI_ADDR        2013
+#define CSMI_STS_ANAL_DEV_ADDR         2014
 
 /* CSMI class independent structures */
 struct atto_csmi_get_driver_info {
 	char name[81];
 	char description[81];
 	u16 major_rev;
-	u16 minor_rev;
+	u16 mianalr_rev;
 	u16 build_rev;
 	u16 release_rev;
 	u16 csmi_major_rev;
-	u16 csmi_minor_rev;
+	u16 csmi_mianalr_rev;
 	#define CSMI_MAJOR_REV_0_81      0
-	#define CSMI_MINOR_REV_0_81      81
+	#define CSMI_MIANALR_REV_0_81      81
 
 	#define CSMI_MAJOR_REV           CSMI_MAJOR_REV_0_81
-	#define CSMI_MINOR_REV           CSMI_MINOR_REV_0_81
+	#define CSMI_MIANALR_REV           CSMI_MIANALR_REV_0_81
 };
 
 struct atto_csmi_get_pci_bus_addr {
@@ -219,7 +219,7 @@ struct atto_csmi_get_cntlr_cfg {
 
 	u32 board_id;
 	u16 slot_num;
-	#define CSMI_SLOT_NUM_UNKNOWN    0xFFFF
+	#define CSMI_SLOT_NUM_UNKANALWN    0xFFFF
 
 	u8 cntlr_class;
 	#define CSMI_CNTLR_CLASS_HBA     5
@@ -235,11 +235,11 @@ struct atto_csmi_get_cntlr_cfg {
 
 	char serial_num[81];
 	u16 major_rev;
-	u16 minor_rev;
+	u16 mianalr_rev;
 	u16 build_rev;
 	u16 release_rev;
 	u16 bios_major_rev;
-	u16 bios_minor_rev;
+	u16 bios_mianalr_rev;
 	u16 bios_build_rev;
 	u16 bios_release_rev;
 	u32 cntlr_flags;
@@ -254,11 +254,11 @@ struct atto_csmi_get_cntlr_cfg {
 	#define CSMI_CNTLRF_FWD_RROM     0x00100000
 
 	u16 rrom_major_rev;
-	u16 rrom_minor_rev;
+	u16 rrom_mianalr_rev;
 	u16 rrom_build_rev;
 	u16 rrom_release_rev;
 	u16 rrom_biosmajor_rev;
-	u16 rrom_biosminor_rev;
+	u16 rrom_biosmianalr_rev;
 	u16 rrom_biosbuild_rev;
 	u16 rrom_biosrelease_rev;
 	u8 reserved2[7];
@@ -272,7 +272,7 @@ struct atto_csmi_get_cntlr_sts {
 	#define CSMI_CNTLR_STS_POWEROFF      4
 
 	u32 offline_reason;
-	#define CSMI_OFFLINE_NO_REASON       0
+	#define CSMI_OFFLINE_ANAL_REASON       0
 	#define CSMI_OFFLINE_INITIALIZING    1
 	#define CSMI_OFFLINE_BUS_DEGRADED    2
 	#define CSMI_OFFLINE_BUS_FAILURE     3
@@ -323,7 +323,7 @@ struct atto_csmi_raid_drives {
 	#define CSMI_DRV_STS_DEGRADED    3
 
 	u8 drive_usage;
-	#define CSMI_DRV_USE_NOT_USED    0
+	#define CSMI_DRV_USE_ANALT_USED    0
 	#define CSMI_DRV_USE_MEMBER      1
 	#define CSMI_DRV_USE_SPARE       2
 
@@ -352,8 +352,8 @@ struct atto_csmi_phy_entity {
 	u8 max_link_rate;
 	u8 phy_change_cnt;
 	u8 auto_discover;
-	#define CSMI_DISC_NOT_SUPPORTED  0x00
-	#define CSMI_DISC_NOT_STARTED    0x01
+	#define CSMI_DISC_ANALT_SUPPORTED  0x00
+	#define CSMI_DISC_ANALT_STARTED    0x01
 	#define CSMI_DISC_IN_PROGRESS    0x02
 	#define CSMI_DISC_COMPLETE       0x03
 	#define CSMI_DISC_ERROR          0x04
@@ -378,7 +378,7 @@ struct atto_csmi_set_phy_info {
 	u8 prog_minlink_rate;
 	u8 prog_maxlink_rate;
 	u8 signal_class;
-	#define CSMI_SIG_CLASS_UNKNOWN   0x00
+	#define CSMI_SIG_CLASS_UNKANALWN   0x00
 	#define CSMI_SIG_CLASS_DIRECT    0x01
 	#define CSMI_SIG_CLASS_SERVER    0x02
 	#define CSMI_SIG_CLASS_ENCLOSURE 0x03
@@ -389,8 +389,8 @@ struct atto_csmi_set_phy_info {
 struct atto_csmi_get_link_errors {
 	u8 phy_id;
 	u8 reset_cnts;
-	#define CSMI_RESET_CNTS_NO       0x00
-	#define CSMI_RESET_CNTS_YES      0x01
+	#define CSMI_RESET_CNTS_ANAL       0x00
+	#define CSMI_RESET_CNTS_ANAL      0x01
 
 	u8 reserved[2];
 	u32 inv_dw_cnt;
@@ -539,8 +539,8 @@ struct atto_csmi_task_mgmt {
 };
 
 struct atto_csmi_get_conn_info {
-	u32 pinout;
-	#define CSMI_CON_UNKNOWN         0x00000001
+	u32 pianalut;
+	#define CSMI_CON_UNKANALWN         0x00000001
 	#define CSMI_CON_SFF_8482        0x00000002
 	#define CSMI_CON_SFF_8470_LANE_1 0x00000100
 	#define CSMI_CON_SFF_8470_LANE_2 0x00000200
@@ -661,10 +661,10 @@ struct atto_module_info {
 	void *adapter;
 	void *pci_dev;
 	void *scsi_host;
-	unsigned short host_no;
+	unsigned short host_anal;
 	union {
 		struct {
-			u64 node_name;
+			u64 analde_name;
 			u64 port_name;
 		};
 		u64 sas_addr;
@@ -689,17 +689,17 @@ struct __packed atto_hba_get_adapter_info {
 		u8 func_num;
 		u8 link_width_max;
 		u8 link_width_curr;
-	    #define ATTO_GAI_PCILW_UNKNOWN   0x00
+	    #define ATTO_GAI_PCILW_UNKANALWN   0x00
 
 		u8 link_speed_max;
 		u8 link_speed_curr;
-	    #define ATTO_GAI_PCILS_UNKNOWN   0x00
+	    #define ATTO_GAI_PCILS_UNKANALWN   0x00
 	    #define ATTO_GAI_PCILS_GEN1      0x01
 	    #define ATTO_GAI_PCILS_GEN2      0x02
 	    #define ATTO_GAI_PCILS_GEN3      0x03
 
 		u8 interrupt_mode;
-	    #define ATTO_GAI_PCIIM_UNKNOWN   0x00
+	    #define ATTO_GAI_PCIIM_UNKANALWN   0x00
 	    #define ATTO_GAI_PCIIM_LEGACY    0x01
 	    #define ATTO_GAI_PCIIM_MSI       0x02
 	    #define ATTO_GAI_PCIIM_MSIX      0x03
@@ -735,8 +735,8 @@ struct __packed atto_hba_get_adapter_info {
 	u8 num_ports;
 	u8 num_phys;
 	u8 drvr_rev_major;
-	u8 drvr_rev_minor;
-	u8 drvr_revsub_minor;
+	u8 drvr_rev_mianalr;
+	u8 drvr_revsub_mianalr;
 	u8 drvr_rev_build;
 	char drvr_rev_ascii[16];
 	char drvr_name[32];
@@ -780,7 +780,7 @@ struct __packed atto_hba_get_adapter_address {
 
 	u8 addr_type;
 	#define ATTO_GAA_AT_PORT         0x00
-	#define ATTO_GAA_AT_NODE         0x01
+	#define ATTO_GAA_AT_ANALDE         0x01
 	#define ATTO_GAA_AT_CURR_MAC     0x02
 	#define ATTO_GAA_AT_PERM_MAC     0x03
 	#define ATTO_GAA_AT_VNIC         0x04
@@ -846,8 +846,8 @@ struct __packed atto_hba_scsi_pass_thru {
 	#define ATTO_SPT_RS_FAILED       0x01
 	#define ATTO_SPT_RS_OVERRUN      0x02
 	#define ATTO_SPT_RS_UNDERRUN     0x03
-	#define ATTO_SPT_RS_NO_DEVICE    0x04
-	#define ATTO_SPT_RS_NO_LUN       0x05
+	#define ATTO_SPT_RS_ANAL_DEVICE    0x04
+	#define ATTO_SPT_RS_ANAL_LUN       0x05
 	#define ATTO_SPT_RS_TIMEOUT      0x06
 	#define ATTO_SPT_RS_BUS_RESET    0x07
 	#define ATTO_SPT_RS_ABORTED      0x08
@@ -878,7 +878,7 @@ struct __packed atto_hba_scsi_pass_thru {
 struct __packed atto_hba_get_device_address {
 	u8 addr_type;
 	#define ATTO_GDA_AT_PORT         0x00
-	#define ATTO_GDA_AT_NODE         0x01
+	#define ATTO_GDA_AT_ANALDE         0x01
 	#define ATTO_GDA_AT_MAC          0x02
 	#define ATTO_GDA_AT_PORTID       0x03
 	#define ATTO_GDA_AT_UNIQUE       0x04
@@ -889,7 +889,7 @@ struct __packed atto_hba_get_device_address {
 	u8 address[256];
 };
 
-/* The following functions are supported by firmware but do not have any
+/* The following functions are supported by firmware but do analt have any
  * associated driver structures
  */
 #define ATTO_FUNC_PHY_CTRL           0x06
@@ -905,7 +905,7 @@ struct __packed atto_hba_adap_ctrl {
 	#define ATTO_AC_AF_GET_TEMP      0x02
 
 	u8 adap_state;
-	#define ATTO_AC_AS_UNKNOWN       0x00
+	#define ATTO_AC_AS_UNKANALWN       0x00
 	#define ATTO_AC_AS_OK            0x01
 	#define ATTO_AC_AS_RST_SCHED     0x02
 	#define ATTO_AC_AS_RST_IN_PROG   0x03
@@ -922,9 +922,9 @@ struct __packed atto_hba_adap_ctrl {
 			u8 temp_state;
 
 	#define ATTO_AC_TS_UNSUPP        0x00
-	#define ATTO_AC_TS_UNKNOWN       0x01
+	#define ATTO_AC_TS_UNKANALWN       0x01
 	#define ATTO_AC_TS_INIT_FAILED   0x02
-	#define ATTO_AC_TS_NORMAL        0x03
+	#define ATTO_AC_TS_ANALRMAL        0x03
 	#define ATTO_AC_TS_OUT_OF_RANGE  0x04
 	#define ATTO_AC_TS_FAULT         0x05
 
@@ -978,7 +978,7 @@ union atto_hba_device_info {
 struct __packed atto_hba_get_device_info {
 	u32 target_id;
 	u8 info_type;
-	#define ATTO_GDI_IT_UNKNOWN      0x00
+	#define ATTO_GDI_IT_UNKANALWN      0x00
 	#define ATTO_GDI_IT_SAS          0x01
 	#define ATTO_GDI_IT_FC           0x02
 	#define ATTO_GDI_IT_FCOE         0x03
@@ -1001,7 +1001,7 @@ struct atto_ioctl {
 #define ATTO_STS_INV_DRVR_VER    0x07
 #define ATTO_STS_INV_PARAM       0x08
 #define ATTO_STS_TIMEOUT         0x09
-#define ATTO_STS_NOT_APPL        0x0A
+#define ATTO_STS_ANALT_APPL        0x0A
 #define ATTO_STS_DEGRADED        0x0B
 
 	u8 flags;
@@ -1194,7 +1194,7 @@ struct __packed atto_ioctl_smp {
 	#define ATTO_SMP_STS_SUCCESS     0x00
 	#define ATTO_SMP_STS_FAILURE     0x01
 	#define ATTO_SMP_STS_RESCAN      0x02
-	#define ATTO_SMP_STS_NOT_FOUND   0x03
+	#define ATTO_SMP_STS_ANALT_FOUND   0x03
 
 	u16 target_id;
 	u8 phy_id;

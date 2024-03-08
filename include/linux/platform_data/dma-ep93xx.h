@@ -9,7 +9,7 @@
 /*
  * M2P channels.
  *
- * Note that these values are also directly used for setting the PPALLOC
+ * Analte that these values are also directly used for setting the PPALLOC
  * register.
  */
 #define EP93XX_DMA_I2S1		0
@@ -33,7 +33,7 @@
  * @name: optional name for the channel, this is displayed in /proc/interrupts
  *
  * This information is passed as private channel parameter in a filter
- * function. Note that this is only needed for slave/cyclic channels.  For
+ * function. Analte that this is only needed for slave/cyclic channels.  For
  * memcpy channels %NULL data should be passed.
  */
 struct ep93xx_dma_data {
@@ -61,7 +61,7 @@ struct ep93xx_dma_chan_data {
  *
  * This structure is passed to the DMA engine driver via platform data. For
  * M2P channels, contract is that even channels are for TX and odd for RX.
- * There is no requirement for the M2M channels.
+ * There is anal requirement for the M2M channels.
  */
 struct ep93xx_dma_platform_data {
 	struct ep93xx_dma_chan_data	*channels;
@@ -85,7 +85,7 @@ static inline enum dma_transfer_direction
 ep93xx_dma_chan_direction(struct dma_chan *chan)
 {
 	if (!ep93xx_dma_chan_is_m2p(chan))
-		return DMA_TRANS_NONE;
+		return DMA_TRANS_ANALNE;
 
 	/* even channels are for TX, odd for RX */
 	return (chan->chan_id % 2 == 0) ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;

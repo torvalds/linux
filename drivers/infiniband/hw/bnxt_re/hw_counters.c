@@ -15,18 +15,18 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
@@ -106,11 +106,11 @@ static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
 	[BNXT_RE_RES_OPCODE_ERR].name        = "res_opcode_err",
 	[BNXT_RE_RES_RX_INVALID_RKEY].name   = "res_rx_invalid_rkey",
 	[BNXT_RE_RES_RX_DOMAIN_ERR].name     = "res_rx_domain_err",
-	[BNXT_RE_RES_RX_NO_PERM].name        = "res_rx_no_perm",
+	[BNXT_RE_RES_RX_ANAL_PERM].name        = "res_rx_anal_perm",
 	[BNXT_RE_RES_RX_RANGE_ERR].name      = "res_rx_range_err",
 	[BNXT_RE_RES_TX_INVALID_RKEY].name   = "res_tx_invalid_rkey",
 	[BNXT_RE_RES_TX_DOMAIN_ERR].name     = "res_tx_domain_err",
-	[BNXT_RE_RES_TX_NO_PERM].name        = "res_tx_no_perm",
+	[BNXT_RE_RES_TX_ANAL_PERM].name        = "res_tx_anal_perm",
 	[BNXT_RE_RES_TX_RANGE_ERR].name      = "res_tx_range_err",
 	[BNXT_RE_RES_IRRQ_OFLOW].name        = "res_irrq_oflow",
 	[BNXT_RE_RES_UNSUP_OPCODE].name      = "res_unsup_opcode",
@@ -240,16 +240,16 @@ static void bnxt_re_copy_err_stats(struct bnxt_re_dev *rdev,
 			err_s->res_rx_invalid_rkey;
 	stats->value[BNXT_RE_RES_RX_DOMAIN_ERR] =
 			err_s->res_rx_domain_err;
-	stats->value[BNXT_RE_RES_RX_NO_PERM] =
-			err_s->res_rx_no_perm;
+	stats->value[BNXT_RE_RES_RX_ANAL_PERM] =
+			err_s->res_rx_anal_perm;
 	stats->value[BNXT_RE_RES_RX_RANGE_ERR]  =
 			err_s->res_rx_range_err;
 	stats->value[BNXT_RE_RES_TX_INVALID_RKEY] =
 			err_s->res_tx_invalid_rkey;
 	stats->value[BNXT_RE_RES_TX_DOMAIN_ERR] =
 			err_s->res_tx_domain_err;
-	stats->value[BNXT_RE_RES_TX_NO_PERM] =
-			err_s->res_tx_no_perm;
+	stats->value[BNXT_RE_RES_TX_ANAL_PERM] =
+			err_s->res_tx_anal_perm;
 	stats->value[BNXT_RE_RES_TX_RANGE_ERR]  =
 			err_s->res_tx_range_err;
 	stats->value[BNXT_RE_RES_IRRQ_OFLOW] =

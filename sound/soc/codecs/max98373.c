@@ -47,8 +47,8 @@ static const char * const max98373_switch_text[] = {
 	"Left", "Right", "LeftRight"};
 
 static const struct soc_enum dai_sel_enum =
-	SOC_ENUM_SINGLE(MAX98373_R2029_PCM_TO_SPK_MONO_MIX_1,
-		MAX98373_PCM_TO_SPK_MONOMIX_CFG_SHIFT,
+	SOC_ENUM_SINGLE(MAX98373_R2029_PCM_TO_SPK_MOANAL_MIX_1,
+		MAX98373_PCM_TO_SPK_MOANALMIX_CFG_SHIFT,
 		3, max98373_switch_text);
 
 static const struct snd_kcontrol_new max98373_dai_controls =
@@ -64,7 +64,7 @@ static const struct snd_soc_dapm_widget max98373_dapm_widgets[] = {
 SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback",
 	MAX98373_R202B_PCM_RX_EN, 0, 0, max98373_dac_event,
 	SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_ANALPM, 0, 0,
 	&max98373_dai_controls),
 SND_SOC_DAPM_OUTPUT("BE_OUT"),
 SND_SOC_DAPM_AIF_OUT("Voltage Sense", "HiFi Capture", 0,
@@ -72,10 +72,10 @@ SND_SOC_DAPM_AIF_OUT("Voltage Sense", "HiFi Capture", 0,
 SND_SOC_DAPM_AIF_OUT("Current Sense", "HiFi Capture", 0,
 	MAX98373_R2047_IV_SENSE_ADC_EN, 1, 0),
 SND_SOC_DAPM_AIF_OUT("Speaker FB Sense", "HiFi Capture", 0,
-	SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_NOPM, 0, 0,
+	SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_ANALPM, 0, 0,
 	&max98373_vi_control),
-SND_SOC_DAPM_SWITCH("SpkFB Sense", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_SWITCH("SpkFB Sense", SND_SOC_ANALPM, 0, 0,
 	&max98373_spkfb_control),
 SND_SOC_DAPM_SIGGEN("VMON"),
 SND_SOC_DAPM_SIGGEN("IMON"),
@@ -254,7 +254,7 @@ SOC_SINGLE("ADC PVDD FLT Coeff", MAX98373_R2052_MEAS_ADC_PVDD_FLT_CFG,
 SOC_SINGLE("ADC TEMP FLT Coeff", MAX98373_R2053_MEAS_ADC_THERM_FLT_CFG,
 	0, 0x3, 0),
 SOC_ENUM("ADC SampleRate", max98373_adc_samplerate_enum),
-/* Brownout Detection Engine */
+/* Browanalut Detection Engine */
 SOC_SINGLE("BDE Switch", MAX98373_R20B5_BDE_EN, MAX98373_BDE_EN_SHIFT, 1, 0),
 SOC_SINGLE("BDE LVL4 Mute Switch", MAX98373_R20B2_BDE_L4_CFG_2,
 	MAX98373_LVL4_MUTE_EN_SHIFT, 1, 0),
@@ -365,10 +365,10 @@ static int max98373_probe(struct snd_soc_component *component)
 		0xFF);
 	/* L/R mix configuration */
 	regmap_write(max98373->regmap,
-		MAX98373_R2029_PCM_TO_SPK_MONO_MIX_1,
+		MAX98373_R2029_PCM_TO_SPK_MOANAL_MIX_1,
 		0x80);
 	regmap_write(max98373->regmap,
-		MAX98373_R202A_PCM_TO_SPK_MONO_MIX_2,
+		MAX98373_R202A_PCM_TO_SPK_MOANAL_MIX_2,
 		0x1);
 	/* Enable DC blocker */
 	regmap_write(max98373->regmap,
@@ -468,12 +468,12 @@ void max98373_slot_config(struct device *dev,
 {
 	int value;
 
-	if (!device_property_read_u32(dev, "maxim,vmon-slot-no", &value))
+	if (!device_property_read_u32(dev, "maxim,vmon-slot-anal", &value))
 		max98373->v_slot = value & 0xF;
 	else
 		max98373->v_slot = 0;
 
-	if (!device_property_read_u32(dev, "maxim,imon-slot-no", &value))
+	if (!device_property_read_u32(dev, "maxim,imon-slot-anal", &value))
 		max98373->i_slot = value & 0xF;
 	else
 		max98373->i_slot = 1;
@@ -497,7 +497,7 @@ void max98373_slot_config(struct device *dev,
 		msleep(20);
 	}
 
-	if (!device_property_read_u32(dev, "maxim,spkfb-slot-no", &value))
+	if (!device_property_read_u32(dev, "maxim,spkfb-slot-anal", &value))
 		max98373->spkfb_slot = value & 0xF;
 	else
 		max98373->spkfb_slot = 2;

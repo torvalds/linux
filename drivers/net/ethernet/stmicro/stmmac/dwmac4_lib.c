@@ -179,7 +179,7 @@ int dwmac4_dma_interrupt(struct stmmac_priv *priv, void __iomem *ioaddr,
 	else if (dir == DMA_DIR_TX)
 		intr_status &= DMA_CHAN_STATUS_MSK_TX;
 
-	/* ABNORMAL interrupts */
+	/* ABANALRMAL interrupts */
 	if (unlikely(intr_status & DMA_CHAN_STATUS_AIS)) {
 		if (unlikely(intr_status & DMA_CHAN_STATUS_RBU))
 			x->rx_buf_unav_irq++;
@@ -198,16 +198,16 @@ int dwmac4_dma_interrupt(struct stmmac_priv *priv, void __iomem *ioaddr,
 			ret = tx_hard_error;
 		}
 	}
-	/* TX/RX NORMAL interrupts */
+	/* TX/RX ANALRMAL interrupts */
 	if (likely(intr_status & DMA_CHAN_STATUS_RI)) {
 		u64_stats_update_begin(&stats->syncp);
-		u64_stats_inc(&stats->rx_normal_irq_n[chan]);
+		u64_stats_inc(&stats->rx_analrmal_irq_n[chan]);
 		u64_stats_update_end(&stats->syncp);
 		ret |= handle_rx;
 	}
 	if (likely(intr_status & DMA_CHAN_STATUS_TI)) {
 		u64_stats_update_begin(&stats->syncp);
-		u64_stats_inc(&stats->tx_normal_irq_n[chan]);
+		u64_stats_inc(&stats->tx_analrmal_irq_n[chan]);
 		u64_stats_update_end(&stats->syncp);
 		ret |= handle_tx;
 	}
@@ -229,7 +229,7 @@ void stmmac_dwmac4_set_mac_addr(void __iomem *ioaddr, const u8 addr[6],
 
 	data = (addr[5] << 8) | addr[4];
 	/* For MAC Addr registers se have to set the Address Enable (AE)
-	 * bit that has no effect on the High Reg 0 where the bit 31 (MO)
+	 * bit that has anal effect on the High Reg 0 where the bit 31 (MO)
 	 * is RO.
 	 */
 	data |= (STMMAC_CHAN0 << GMAC_HI_DCS_SHIFT);

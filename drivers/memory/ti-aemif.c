@@ -92,7 +92,7 @@
  * @ta: minimum turn around time, ns
  * @enable_ss: enable/disable select strobe mode
  * @enable_ew: enable/disable extended wait mode
- * @asize: width of the asynchronous device's data bus
+ * @asize: width of the asynchroanalus device's data bus
  */
 struct aemif_cs_data {
 	u8	cs;
@@ -114,7 +114,7 @@ struct aemif_cs_data {
  * @clk: source clock
  * @clk_rate: clock's rate in kHz
  * @num_cs: number of assigned chip-selects
- * @cs_offset: start number of cs nodes
+ * @cs_offset: start number of cs analdes
  * @cs_data: array of chip-select settings
  */
 struct aemif_device {
@@ -129,12 +129,12 @@ struct aemif_device {
 /**
  * aemif_calc_rate - calculate timing data.
  * @pdev: platform device to calculate for
- * @wanted: The cycle time needed in nanoseconds.
+ * @wanted: The cycle time needed in naanalseconds.
  * @clk: The input clock rate in kHz.
  * @max: The maximum divider value that can be programmed.
  *
  * On success, returns the calculated timing value minus 1 for easy
- * programming into AEMIF timing registers, else negative errno.
+ * programming into AEMIF timing registers, else negative erranal.
  */
 static int aemif_calc_rate(struct platform_device *pdev, int wanted,
 			   unsigned long clk, int max)
@@ -150,7 +150,7 @@ static int aemif_calc_rate(struct platform_device *pdev, int wanted,
 	if (result < 0)
 		result = 0;
 
-	/* ... But configuring tighter timings is not an option. */
+	/* ... But configuring tighter timings is analt an option. */
 	else if (result > max)
 		result = -EINVAL;
 
@@ -165,11 +165,11 @@ static int aemif_calc_rate(struct platform_device *pdev, int wanted,
  * This function programs the given timing values (in real clock) into the
  * AEMIF registers taking the AEMIF clock into account.
  *
- * This function does not use any locking while programming the AEMIF
+ * This function does analt use any locking while programming the AEMIF
  * because it is expected that there is only one user of a given
  * chip-select.
  *
- * Returns 0 on success, else negative errno.
+ * Returns 0 on success, else negative erranal.
  */
 static int aemif_config_abus(struct platform_device *pdev, int csnum)
 {
@@ -192,7 +192,7 @@ static int aemif_config_abus(struct platform_device *pdev, int csnum)
 
 	if (ta < 0 || rhold < 0 || rstrobe < 0 || rsetup < 0 ||
 	    whold < 0 || wstrobe < 0 || wsetup < 0) {
-		dev_err(&pdev->dev, "%s: cannot get suitable timings\n",
+		dev_err(&pdev->dev, "%s: cananalt get suitable timings\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -253,13 +253,13 @@ static void aemif_get_hw_params(struct platform_device *pdev, int csnum)
 /**
  * of_aemif_parse_abus_config - parse CS configuration from DT
  * @pdev: platform device to parse for
- * @np: device node ptr
+ * @np: device analde ptr
  *
  * This function update the emif async bus configuration based on the values
- * configured in a cs device binding node.
+ * configured in a cs device binding analde.
  */
 static int of_aemif_parse_abus_config(struct platform_device *pdev,
-				      struct device_node *np)
+				      struct device_analde *np)
 {
 	struct aemif_device *aemif = platform_get_drvdata(pdev);
 	struct aemif_cs_data *data;
@@ -287,7 +287,7 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 	/* read the current value in the hw register */
 	aemif_get_hw_params(pdev, aemif->num_cs++);
 
-	/* override the values from device node */
+	/* override the values from device analde */
 	if (!of_property_read_u32(np, "ti,cs-min-turnaround-ns", &val))
 		data->ta = val;
 
@@ -327,17 +327,17 @@ MODULE_DEVICE_TABLE(of, aemif_of_match);
 static int aemif_probe(struct platform_device *pdev)
 {
 	int i;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child_np;
 	struct aemif_device *aemif;
 	struct aemif_platform_data *pdata;
 	struct of_dev_auxdata *dev_lookup;
 
 	aemif = devm_kzalloc(dev, sizeof(*aemif), GFP_KERNEL);
 	if (!aemif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = dev_get_platdata(&pdev->dev);
 	dev_lookup = pdata ? pdata->dev_lookup : NULL;
@@ -346,7 +346,7 @@ static int aemif_probe(struct platform_device *pdev)
 
 	aemif->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(aemif->clk)) {
-		dev_err(dev, "cannot get clock 'aemif'\n");
+		dev_err(dev, "cananalt get clock 'aemif'\n");
 		return PTR_ERR(aemif->clk);
 	}
 
@@ -369,15 +369,15 @@ static int aemif_probe(struct platform_device *pdev)
 
 	if (np) {
 		/*
-		 * For every controller device node, there is a cs device node
+		 * For every controller device analde, there is a cs device analde
 		 * that describe the bus configuration parameters. This
-		 * functions iterate over these nodes and update the cs data
+		 * functions iterate over these analdes and update the cs data
 		 * array.
 		 */
-		for_each_available_child_of_node(np, child_np) {
+		for_each_available_child_of_analde(np, child_np) {
 			ret = of_aemif_parse_abus_config(pdev, child_np);
 			if (ret < 0) {
-				of_node_put(child_np);
+				of_analde_put(child_np);
 				goto error;
 			}
 		}
@@ -402,11 +402,11 @@ static int aemif_probe(struct platform_device *pdev)
 	 * child will be probed after the AEMIF timing parameters are set.
 	 */
 	if (np) {
-		for_each_available_child_of_node(np, child_np) {
+		for_each_available_child_of_analde(np, child_np) {
 			ret = of_platform_populate(child_np, NULL,
 						   dev_lookup, dev);
 			if (ret < 0) {
-				of_node_put(child_np);
+				of_analde_put(child_np);
 				goto error;
 			}
 		}

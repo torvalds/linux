@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  S390 version
  *
@@ -13,7 +13,7 @@
 
 /*
  * The struct ucontext_extended describes how the registers are stored
- * on a rt signal frame. Please note that the structure is not fixed,
+ * on a rt signal frame. Please analte that the structure is analt fixed,
  * if new CPU registers are added to the user state the size of the
  * struct ucontext_extended will increase.
  */

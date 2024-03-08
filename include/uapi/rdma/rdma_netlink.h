@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_RDMA_NETLINK_H
 #define _UAPI_RDMA_NETLINK_H
 
@@ -31,8 +31,8 @@ enum {
 /* iwarp port mapper message flags */
 enum {
 
-	/* Do not map the port for this IWPM request */
-	IWPM_FLAGS_NO_PORT_MAP = (1 << 0),
+	/* Do analt map the port for this IWPM request */
+	IWPM_FLAGS_ANAL_PORT_MAP = (1 << 0),
 };
 
 /* iwarp port mapper op-codes */
@@ -147,16 +147,16 @@ enum {
 	IWPM_NLA_HELLO_MAX
 };
 
-/* For RDMA_NLDEV_ATTR_DEV_NODE_TYPE */
+/* For RDMA_NLDEV_ATTR_DEV_ANALDE_TYPE */
 enum {
-	/* IB values map to NodeInfo:NodeType. */
-	RDMA_NODE_IB_CA = 1,
-	RDMA_NODE_IB_SWITCH,
-	RDMA_NODE_IB_ROUTER,
-	RDMA_NODE_RNIC,
-	RDMA_NODE_USNIC,
-	RDMA_NODE_USNIC_UDP,
-	RDMA_NODE_UNSPECIFIED,
+	/* IB values map to AnaldeInfo:AnaldeType. */
+	RDMA_ANALDE_IB_CA = 1,
+	RDMA_ANALDE_IB_SWITCH,
+	RDMA_ANALDE_IB_ROUTER,
+	RDMA_ANALDE_RNIC,
+	RDMA_ANALDE_USNIC,
+	RDMA_ANALDE_USNIC_UDP,
+	RDMA_ANALDE_UNSPECIFIED,
 };
 
 /*
@@ -327,7 +327,7 @@ enum rdma_nldev_attr {
 	 * For RDMA_NLDEV_CMD_GET commamnd, port index will return number
 	 * of available ports in ib_device, while for port specific operations,
 	 * it will be real port index as it appears in sysfs. Port index follows
-	 * sysfs notation and starts from 1 for the first port.
+	 * sysfs analtation and starts from 1 for the first port.
 	 */
 	RDMA_NLDEV_ATTR_PORT_INDEX,		/* u32 */
 
@@ -345,9 +345,9 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_FW_VERSION,		/* string */
 
 	/*
-	 * Node GUID (in host byte order) associated with the RDMA device.
+	 * Analde GUID (in host byte order) associated with the RDMA device.
 	 */
-	RDMA_NLDEV_ATTR_NODE_GUID,			/* u64 */
+	RDMA_NLDEV_ATTR_ANALDE_GUID,			/* u64 */
 
 	/*
 	 * System image GUID (in host byte order) associated with
@@ -377,7 +377,7 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_PORT_STATE,		/* u8 */
 	RDMA_NLDEV_ATTR_PORT_PHYS_STATE,	/* u8 */
 
-	RDMA_NLDEV_ATTR_DEV_NODE_TYPE,		/* u8 */
+	RDMA_NLDEV_ATTR_DEV_ANALDE_TYPE,		/* u8 */
 
 	RDMA_NLDEV_ATTR_RES_SUMMARY,		/* nested table */
 	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY,	/* nested table */
@@ -407,7 +407,7 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE,	/* u8 */
 	/*
 	 * QP types as visible to RDMA/core, the reserved QPT
-	 * are not exported through this interface.
+	 * are analt exported through this interface.
 	 */
 	RDMA_NLDEV_ATTR_RES_TYPE,		/* u8 */
 	RDMA_NLDEV_ATTR_RES_STATE,		/* u8 */
@@ -512,8 +512,8 @@ enum rdma_nldev_attr {
 	 * Information about a chardev.
 	 * CHARDEV_TYPE is the name of the chardev ABI (ie uverbs, umad, etc)
 	 * CHARDEV_ABI signals the ABI revision (historical)
-	 * CHARDEV_NAME is the kernel name for the /dev/ file (no directory)
-	 * CHARDEV is the 64 bit dev_t for the inode
+	 * CHARDEV_NAME is the kernel name for the /dev/ file (anal directory)
+	 * CHARDEV is the 64 bit dev_t for the ianalde
 	 */
 	RDMA_NLDEV_ATTR_CHARDEV_TYPE,		/* string */
 	RDMA_NLDEV_ATTR_CHARDEV_NAME,		/* string */
@@ -568,7 +568,7 @@ enum rdma_nldev_attr {
  * Supported counter bind modes. All modes are mutual-exclusive.
  */
 enum rdma_nl_counter_mode {
-	RDMA_COUNTER_MODE_NONE,
+	RDMA_COUNTER_MODE_ANALNE,
 
 	/*
 	 * A qp is bound with a counter automatically during initialization

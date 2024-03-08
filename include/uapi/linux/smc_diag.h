@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_SMC_DIAG_H_
 #define _UAPI_SMC_DIAG_H_
 
@@ -28,7 +28,7 @@ struct smc_diag_msg {
 	struct inet_diag_sockid id;
 
 	__u32		diag_uid;
-	__aligned_u64	diag_inode;
+	__aligned_u64	diag_ianalde;
 };
 
 /* Mode of a connection */
@@ -41,7 +41,7 @@ enum {
 /* Extensions */
 
 enum {
-	SMC_DIAG_NONE,
+	SMC_DIAG_ANALNE,
 	SMC_DIAG_CONNINFO,
 	SMC_DIAG_LGRINFO,
 	SMC_DIAG_SHUTDOWN,
@@ -98,7 +98,7 @@ struct smc_diag_lgrinfo {
 
 struct smc_diag_fallback {
 	__u32 reason;
-	__u32 peer_diagnosis;
+	__u32 peer_diaganalsis;
 };
 
 struct smcd_diag_dmbinfo {		/* SMC-D Socket internals */

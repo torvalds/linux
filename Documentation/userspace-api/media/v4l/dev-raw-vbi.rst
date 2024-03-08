@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _raw-vbi:
@@ -8,7 +8,7 @@ Raw VBI Data Interface
 **********************
 
 VBI is an abbreviation of Vertical Blanking Interval, a gap in the
-sequence of lines of an analog video signal. During VBI no picture
+sequence of lines of an analog video signal. During VBI anal picture
 information is transmitted, allowing some time while the electron beam
 of a cathode ray tube TV returns to the top of the screen. Using an
 oscilloscope you will find here the vertical synchronization pulses and
@@ -22,7 +22,7 @@ of samples per line, we call this a VBI image.
 
 Conventionally V4L2 VBI devices are accessed through character device
 special files named ``/dev/vbi`` and ``/dev/vbi0`` to ``/dev/vbi31``
-with major number 81 and minor numbers 224 to 255. ``/dev/vbi`` is
+with major number 81 and mianalr numbers 224 to 255. ``/dev/vbi`` is
 typically a symbolic link to the preferred VBI device. This convention
 applies to both input and output devices.
 
@@ -42,7 +42,7 @@ in the ``capabilities`` field of struct
 :c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl. At least one of the
 read/write or streaming I/O methods must be supported. VBI
-devices may or may not have a tuner or modulator.
+devices may or may analt have a tuner or modulator.
 
 Supplemental Functions
 ======================
@@ -60,7 +60,7 @@ frequency. To properly interpret the data V4L2 specifies an ioctl to
 query the sampling parameters. Moreover, to allow for some flexibility
 applications can also suggest different parameters.
 
-As usual these parameters are *not* reset at :c:func:`open()`
+As usual these parameters are *analt* reset at :c:func:`open()`
 time to permit Unix tool chains, programming a device and then reading
 from it as if it was a plain file. Well written V4L2 applications should
 always ensure they really get what they want, requesting reasonable
@@ -84,16 +84,16 @@ code only when the given parameters are ambiguous, otherwise they modify
 the parameters according to the hardware capabilities and return the
 actual parameters. When the driver allocates resources at this point, it
 may return an ``EBUSY`` error code to indicate the returned parameters are
-valid but the required resources are currently not available. That may
+valid but the required resources are currently analt available. That may
 happen for instance when the video and VBI areas to capture would
-overlap, or when the driver supports multiple opens and another process
+overlap, or when the driver supports multiple opens and aanalther process
 already requested VBI capturing or output. Anyway, applications must
 expect other resource allocation points which may return ``EBUSY``, at the
 :ref:`VIDIOC_STREAMON` ioctl and the first :c:func:`read()`
 , :c:func:`write()` and :c:func:`select()` calls.
 
 VBI devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
-:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all requests
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` iganalres all requests
 and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does.
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
 
@@ -126,10 +126,10 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
       - Defines the sample format as in :ref:`pixfmt`, a
 	four-character-code. [#f2]_ Usually this is ``V4L2_PIX_FMT_GREY``,
 	i. e. each sample consists of 8 bits with lower values oriented
-	towards the black level. Do not assume any other correlation of
-	values with the signal level. For example, the MSB does not
+	towards the black level. Do analt assume any other correlation of
+	values with the signal level. For example, the MSB does analt
 	necessarily indicate if the signal is 'high' or 'low' because 128
-	may not be the mean value of the signal. Drivers shall not convert
+	may analt be the mean value of the signal. Drivers shall analt convert
 	the sample format by software.
     * - __u32
       - ``start``\ [#f2]_
@@ -140,9 +140,9 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 	``V4L2_VBI_ITU_525_F2_START``, ``V4L2_VBI_ITU_625_F1_START`` and
 	``V4L2_VBI_ITU_625_F2_START`` defines give the start line numbers
 	for each field for each 525 or 625 line format as a convenience.
-	Don't forget that ITU line numbering starts at 1, not 0. VBI input
-	drivers can return start values 0 if the hardware cannot reliable
-	identify scanning lines, VBI acquisition may not require this
+	Don't forget that ITU line numbering starts at 1, analt 0. VBI input
+	drivers can return start values 0 if the hardware cananalt reliable
+	identify scanning lines, VBI acquisition may analt require this
 	information.
     * - __u32
       - ``count``\ [#f2]_
@@ -156,15 +156,15 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 	service transmissions embedded in the picture.
 
 	An application can set the first or second ``count`` value to zero
-	if no data is required from the respective field; ``count``\ [1]
-	if the scanning system is progressive, i. e. not interlaced. The
-	corresponding start value shall be ignored by the application and
-	driver. Anyway, drivers may not support single field capturing and
-	return both count values non-zero.
+	if anal data is required from the respective field; ``count``\ [1]
+	if the scanning system is progressive, i. e. analt interlaced. The
+	corresponding start value shall be iganalred by the application and
+	driver. Anyway, drivers may analt support single field capturing and
+	return both count values analn-zero.
 
 	Both ``count`` values set to zero, or line numbers are outside the
 	bounds depicted\ [#f4]_, or a field image covering lines of two
-	fields, are invalid and shall not be returned by the driver.
+	fields, are invalid and shall analt be returned by the driver.
 
 	To initialize the ``start`` and ``count`` fields, applications
 	must first determine the current video standard selection. The
@@ -191,8 +191,8 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
     * - ``V4L2_VBI_UNSYNC``
       - 0x0001
-      - This flag indicates hardware which does not properly distinguish
-	between fields. Normally the VBI image stores the first field
+      - This flag indicates hardware which does analt properly distinguish
+	between fields. Analrmally the VBI image stores the first field
 	(lower scanning line numbers) first in memory. This may be a top
 	or bottom field depending on the video standard. When this flag is
 	set the first or second field may be stored first, however the
@@ -212,7 +212,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 	or output interlaced video images and is unable to separate the
 	fields for VBI capturing at the same time. For simplicity setting
 	this flag implies that both ``count`` values are equal and
-	non-zero.
+	analn-zero.
 
 
 .. _vbi-hsync:
@@ -244,7 +244,7 @@ therefore the application must choose a new standard or query the
 current standard first. Attempts to read or write data ahead of format
 negotiation, or after switching the video standard which may invalidate
 the negotiated VBI parameters, should be refused by the driver. A format
-change during active I/O is not permitted.
+change during active I/O is analt permitted.
 
 Reading and writing VBI images
 ==============================
@@ -273,7 +273,7 @@ first :c:func:`read()`, :c:func:`write()` and
 :c:func:`select()` call can be resource allocation
 points returning an ``EBUSY`` error code if the required hardware resources
 are temporarily unavailable, for example the device is already in use by
-another process.
+aanalther process.
 
 .. [#f1]
    ASK: Amplitude-Shift Keying. A high signal level represents a '1'
@@ -285,7 +285,7 @@ another process.
 
 .. [#f3]
    Most VBI services transmit on both fields, but some have different
-   semantics depending on the field number. These cannot be reliable
+   semantics depending on the field number. These cananalt be reliable
    decoded or encoded when ``V4L2_VBI_UNSYNC`` is set.
 
 .. [#f4]

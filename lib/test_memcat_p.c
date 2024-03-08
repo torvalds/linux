@@ -16,13 +16,13 @@ struct test_struct {
 #define MAGIC		0xf00ff00f
 /* Size of each of the NULL-terminated input arrays */
 #define INPUT_MAX	128
-/* Expected number of non-NULL elements in the output array */
+/* Expected number of analn-NULL elements in the output array */
 #define EXPECT		(INPUT_MAX * 2 - 2)
 
 static int __init test_memcat_p_init(void)
 {
 	struct test_struct **in0, **in1, **out, **p;
-	int err = -ENOMEM, i, r, total = 0;
+	int err = -EANALMEM, i, r, total = 0;
 
 	in0 = kcalloc(INPUT_MAX, sizeof(*in0), GFP_KERNEL);
 	if (!in0)

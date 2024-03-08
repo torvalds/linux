@@ -5,7 +5,7 @@
  * Copyright (C) 2023 BayLibre Incorporated - https://www.baylibre.com/
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
@@ -133,7 +133,7 @@ static long tps6594_pfsm_ioctl(struct file *f, unsigned int cmd, unsigned long a
 	struct tps6594_pfsm *pfsm = TPS6594_FILE_TO_PFSM(f);
 	struct pmic_state_opt state_opt;
 	void __user *argp = (void __user *)arg;
-	int ret = -ENOIOCTLCMD;
+	int ret = -EANALIOCTLCMD;
 
 	switch (cmd) {
 	case PMIC_GOTO_STANDBY:
@@ -239,7 +239,7 @@ static irqreturn_t tps6594_pfsm_isr(int irq, void *dev_id)
 		}
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int tps6594_pfsm_probe(struct platform_device *pdev)
@@ -253,11 +253,11 @@ static int tps6594_pfsm_probe(struct platform_device *pdev)
 
 	pfsm = devm_kzalloc(dev, sizeof(struct tps6594_pfsm), GFP_KERNEL);
 	if (!pfsm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pfsm->regmap = tps->regmap;
 
-	pfsm->miscdev.minor = MISC_DYNAMIC_MINOR;
+	pfsm->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	pfsm->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "pfsm-%ld-0x%02x",
 					    tps->chip_id, tps->reg);
 	pfsm->miscdev.fops = &tps6594_pfsm_fops;

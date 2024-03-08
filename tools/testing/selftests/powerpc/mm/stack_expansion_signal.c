@@ -38,7 +38,7 @@ static int consume_stack(unsigned int stack_size, union pipe write_pipe)
 	else {
 		stack_top_ptr = &stack_cur;
 
-		FAIL_IF(notify_parent(write_pipe));
+		FAIL_IF(analtify_parent(write_pipe));
 
 		while (!sig_occurred)
 			barrier();

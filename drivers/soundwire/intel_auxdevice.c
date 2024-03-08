@@ -108,7 +108,7 @@ static void generic_new_peripheral_assigned(struct sdw_bus *bus,
 		dev_num_max = SDW_INTEL_DEV_NUM_IDA_MIN - 1;
 	}
 
-	/* paranoia check, this should never happen */
+	/* paraanalia check, this should never happen */
 	if (dev_num < dev_num_min || dev_num > dev_num_max)  {
 		dev_err(bus->dev, "%s: invalid dev_num %d, wake supported %d\n",
 			__func__, dev_num, slave->prop.wake_capable);
@@ -122,7 +122,7 @@ static void generic_new_peripheral_assigned(struct sdw_bus *bus,
 static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 {
 	struct sdw_master_prop *prop = &bus->prop;
-	struct fwnode_handle *link;
+	struct fwanalde_handle *link;
 	char name[32];
 	u32 quirk_mask;
 
@@ -130,20 +130,20 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 	snprintf(name, sizeof(name),
 		 "mipi-sdw-link-%d-subproperties", bus->link_id);
 
-	link = device_get_named_child_node(bus->dev, name);
+	link = device_get_named_child_analde(bus->dev, name);
 	if (!link) {
-		dev_err(bus->dev, "Master node %s not found\n", name);
+		dev_err(bus->dev, "Master analde %s analt found\n", name);
 		return -EIO;
 	}
 
-	fwnode_property_read_u32(link,
+	fwanalde_property_read_u32(link,
 				 "intel-sdw-ip-clock",
 				 &prop->mclk_freq);
 
-	/* the values reported by BIOS are the 2x clock, not the bus clock */
+	/* the values reported by BIOS are the 2x clock, analt the bus clock */
 	prop->mclk_freq /= 2;
 
-	fwnode_property_read_u32(link,
+	fwanalde_property_read_u32(link,
 				 "intel-quirk-mask",
 				 &quirk_mask);
 
@@ -180,7 +180,7 @@ static int intel_get_device_num_ida(struct sdw_bus *bus, struct sdw_slave *slave
 
 	bit = find_first_zero_bit(slave->bus->assigned, SDW_MAX_DEVICES);
 	if (bit == SDW_MAX_DEVICES)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return bit;
 }
@@ -206,7 +206,7 @@ static struct sdw_master_ops sdw_intel_ops = {
 };
 
 /*
- * probe and init (aux_dev_id argument is required by function prototype but not used)
+ * probe and init (aux_dev_id argument is required by function prototype but analt used)
  */
 static int intel_link_probe(struct auxiliary_device *auxdev,
 			    const struct auxiliary_device_id *aux_dev_id)
@@ -221,7 +221,7 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 
 	sdw = devm_kzalloc(dev, sizeof(*sdw), GFP_KERNEL);
 	if (!sdw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdns = &sdw->cdns;
 	bus = &cdns->bus;
@@ -251,10 +251,10 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 	/* use generic bandwidth allocation algorithm */
 	sdw->cdns.bus.compute_params = sdw_compute_params;
 
-	/* avoid resuming from pm_runtime suspend if it's not required */
+	/* avoid resuming from pm_runtime suspend if it's analt required */
 	dev_pm_set_driver_flags(dev, DPM_FLAG_SMART_SUSPEND);
 
-	ret = sdw_bus_master_add(bus, dev, dev->fwnode);
+	ret = sdw_bus_master_add(bus, dev, dev->fwanalde);
 	if (ret) {
 		dev_err(dev, "sdw_bus_master_add fail: %d\n", ret);
 		return ret;
@@ -262,10 +262,10 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 
 	if (bus->prop.hw_disabled)
 		dev_info(dev,
-			 "SoundWire master %d is disabled, will be ignored\n",
+			 "SoundWire master %d is disabled, will be iganalred\n",
 			 bus->link_id);
 	/*
-	 * Ignore BIOS err_threshold, it's a really bad idea when dealing
+	 * Iganalre BIOS err_threshold, it's a really bad idea when dealing
 	 * with multiple hardware synchronized links
 	 */
 	bus->prop.err_threshold = 0;
@@ -286,7 +286,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 
 	if (bus->prop.hw_disabled) {
 		dev_info(dev,
-			 "SoundWire master %d is disabled, ignoring\n",
+			 "SoundWire master %d is disabled, iganalring\n",
 			 sdw->instance);
 		return 0;
 	}
@@ -341,23 +341,23 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	}
 
 	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
-	if (clock_stop_quirks & SDW_INTEL_CLK_STOP_NOT_ALLOWED) {
+	if (clock_stop_quirks & SDW_INTEL_CLK_STOP_ANALT_ALLOWED) {
 		/*
 		 * To keep the clock running we need to prevent
 		 * pm_runtime suspend from happening by increasing the
 		 * reference count.
 		 * This quirk is specified by the parent PCI device in
 		 * case of specific latency requirements. It will have
-		 * no effect if pm_runtime is disabled by the user via
+		 * anal effect if pm_runtime is disabled by the user via
 		 * a module parameter for testing purposes.
 		 */
-		pm_runtime_get_noresume(dev);
+		pm_runtime_get_analresume(dev);
 	}
 
 	/*
 	 * The runtime PM status of Slave devices is "Unsupported"
 	 * until they report as ATTACHED. If they don't, e.g. because
-	 * there are no Slave devices populated or if the power-on is
+	 * there are anal Slave devices populated or if the power-on is
 	 * delayed or dependent on a power switch, the Master will
 	 * remain active and prevent its parent from suspending.
 	 *
@@ -394,7 +394,7 @@ static void intel_link_remove(struct auxiliary_device *auxdev)
 	/*
 	 * Since pm_runtime is already disabled, we don't decrease
 	 * the refcount when the clock_stop_quirk is
-	 * SDW_INTEL_CLK_STOP_NOT_ALLOWED
+	 * SDW_INTEL_CLK_STOP_ANALT_ALLOWED
 	 */
 	if (!bus->prop.hw_disabled) {
 		sdw_intel_debugfs_exit(sdw);
@@ -413,7 +413,7 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
 	bus = &sdw->cdns.bus;
 
 	if (bus->prop.hw_disabled || !sdw->startup_done) {
-		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
+		dev_dbg(dev, "SoundWire master %d is disabled or analt-started, iganalring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -446,7 +446,7 @@ static int intel_resume_child_device(struct device *dev, void *data)
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 
 	if (!slave->probed) {
-		dev_dbg(dev, "skipping device, no probed driver\n");
+		dev_dbg(dev, "skipping device, anal probed driver\n");
 		return 0;
 	}
 	if (!slave->dev_num_sticky) {
@@ -472,7 +472,7 @@ static int __maybe_unused intel_pm_prepare(struct device *dev)
 	int ret;
 
 	if (bus->prop.hw_disabled || !sdw->startup_done) {
-		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
+		dev_dbg(dev, "SoundWire master %d is disabled or analt-started, iganalring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -485,7 +485,7 @@ static int __maybe_unused intel_pm_prepare(struct device *dev)
 	     !clock_stop_quirks)) {
 		/*
 		 * if we've enabled clock stop, and the parent is suspended, the SHIM registers
-		 * are not accessible and the shim wake cannot be disabled.
+		 * are analt accessible and the shim wake cananalt be disabled.
 		 * The only solution is to resume the entire bus to full power
 		 */
 
@@ -507,8 +507,8 @@ static int __maybe_unused intel_pm_prepare(struct device *dev)
 
 		/*
 		 * Continue resuming the entire bus (parent + child devices) to exit
-		 * the clock stop mode. If there are no devices connected on this link
-		 * this is a no-op.
+		 * the clock stop mode. If there are anal devices connected on this link
+		 * this is a anal-op.
 		 * The resume to full power could have been implemented with a .prepare
 		 * step in SoundWire codec drivers. This would however require a lot
 		 * of code to handle an Intel-specific corner case. It is simpler in
@@ -532,7 +532,7 @@ static int __maybe_unused intel_suspend(struct device *dev)
 	int ret;
 
 	if (bus->prop.hw_disabled || !sdw->startup_done) {
-		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
+		dev_dbg(dev, "SoundWire master %d is disabled or analt-started, iganalring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -547,7 +547,7 @@ static int __maybe_unused intel_suspend(struct device *dev)
 
 			if (pm_runtime_suspended(dev->parent)) {
 				/*
-				 * paranoia check: this should not happen with the .prepare
+				 * paraanalia check: this should analt happen with the .prepare
 				 * resume to full power
 				 */
 				dev_err(dev, "%s: invalid config: parent is suspended\n", __func__);
@@ -561,7 +561,7 @@ static int __maybe_unused intel_suspend(struct device *dev)
 
 	ret = sdw_intel_stop_bus(sdw, false);
 	if (ret < 0) {
-		dev_err(dev, "%s: cannot stop bus: %d\n", __func__, ret);
+		dev_err(dev, "%s: cananalt stop bus: %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -577,7 +577,7 @@ static int __maybe_unused intel_suspend_runtime(struct device *dev)
 	int ret;
 
 	if (bus->prop.hw_disabled || !sdw->startup_done) {
-		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
+		dev_dbg(dev, "SoundWire master %d is disabled or analt-started, iganalring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -587,14 +587,14 @@ static int __maybe_unused intel_suspend_runtime(struct device *dev)
 	if (clock_stop_quirks & SDW_INTEL_CLK_STOP_TEARDOWN) {
 		ret = sdw_intel_stop_bus(sdw, false);
 		if (ret < 0) {
-			dev_err(dev, "%s: cannot stop bus during teardown: %d\n",
+			dev_err(dev, "%s: cananalt stop bus during teardown: %d\n",
 				__func__, ret);
 			return ret;
 		}
 	} else if (clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET || !clock_stop_quirks) {
 		ret = sdw_intel_stop_bus(sdw, true);
 		if (ret < 0) {
-			dev_err(dev, "%s: cannot stop bus during clock_stop: %d\n",
+			dev_err(dev, "%s: cananalt stop bus during clock_stop: %d\n",
 				__func__, ret);
 			return ret;
 		}
@@ -616,7 +616,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 	int ret;
 
 	if (bus->prop.hw_disabled || !sdw->startup_done) {
-		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
+		dev_dbg(dev, "SoundWire master %d is disabled or analt-started, iganalring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -654,7 +654,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 
 	ret = sdw_intel_start_bus(sdw);
 	if (ret < 0) {
-		dev_err(dev, "cannot start bus during resume\n");
+		dev_err(dev, "cananalt start bus during resume\n");
 		sdw_intel_link_power_down(sdw);
 		return ret;
 	}
@@ -663,7 +663,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 	 * after system resume, the pm_runtime suspend() may kick in
 	 * during the enumeration, before any children device force the
 	 * master device to remain active.  Using pm_runtime_get()
-	 * routines is not really possible, since it'd prevent the
+	 * routines is analt really possible, since it'd prevent the
 	 * master from suspending.
 	 * A reasonable compromise is to update the pm_runtime
 	 * counters and delay the pm_runtime suspend by several
@@ -684,7 +684,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 	int ret;
 
 	if (bus->prop.hw_disabled || !sdw->startup_done) {
-		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",
+		dev_dbg(dev, "SoundWire master %d is disabled or analt-started, iganalring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -709,7 +709,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 
 		ret = sdw_intel_start_bus(sdw);
 		if (ret < 0) {
-			dev_err(dev, "%s: cannot start bus after teardown: %d\n", __func__, ret);
+			dev_err(dev, "%s: cananalt start bus after teardown: %d\n", __func__, ret);
 			sdw_intel_link_power_down(sdw);
 			return ret;
 		}
@@ -723,7 +723,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 
 		ret = sdw_intel_start_bus_after_reset(sdw);
 		if (ret < 0) {
-			dev_err(dev, "%s: cannot start bus after reset: %d\n", __func__, ret);
+			dev_err(dev, "%s: cananalt start bus after reset: %d\n", __func__, ret);
 			sdw_intel_link_power_down(sdw);
 			return ret;
 		}
@@ -739,7 +739,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 
 		ret = sdw_intel_start_bus_after_clock_stop(sdw);
 		if (ret < 0) {
-			dev_err(dev, "%s: cannot start bus after clock stop: %d\n", __func__, ret);
+			dev_err(dev, "%s: cananalt start bus after clock stop: %d\n", __func__, ret);
 			sdw_intel_link_power_down(sdw);
 			return ret;
 		}

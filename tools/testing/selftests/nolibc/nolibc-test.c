@@ -5,15 +5,15 @@
 
 /* libc-specific include files
  * The program may be built in 3 ways:
- *   $(CC) -nostdlib -include /path/to/nolibc.h => NOLIBC already defined
- *   $(CC) -nostdlib -I/path/to/nolibc/sysroot  => _NOLIBC_* guards are present
- *   $(CC) with default libc                    => NOLIBC* never defined
+ *   $(CC) -analstdlib -include /path/to/anallibc.h => ANALLIBC already defined
+ *   $(CC) -analstdlib -I/path/to/anallibc/sysroot  => _ANALLIBC_* guards are present
+ *   $(CC) with default libc                    => ANALLIBC* never defined
  */
-#ifndef NOLIBC
+#ifndef ANALLIBC
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _NOLIBC_STDIO_H
+#ifndef _ANALLIBC_STDIO_H
 /* standard libcs need more includes */
 #include <sys/auxv.h>
 #include <sys/io.h>
@@ -29,7 +29,7 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <sched.h>
@@ -42,9 +42,9 @@
 #endif
 #endif
 
-#include "nolibc-test-linkage.h"
+#include "anallibc-test-linkage.h"
 
-/* for the type of int_fast16_t and int_fast32_t, musl differs from glibc and nolibc */
+/* for the type of int_fast16_t and int_fast32_t, musl differs from glibc and anallibc */
 #define SINT_MAX_OF_TYPE(type) (((type)1 << (sizeof(type) * 8 - 2)) - (type)1 + ((type)1 << (sizeof(type) * 8 - 2)))
 #define SINT_MIN_OF_TYPE(type) (-SINT_MAX_OF_TYPE(type) - 1)
 
@@ -69,7 +69,7 @@ struct test {
 	int (*func)(int min, int max); /* handler */
 };
 
-#ifndef _NOLIBC_STDLIB_H
+#ifndef _ANALLIBC_STDLIB_H
 char *itoa(int i)
 {
 	static char buf[12];
@@ -83,7 +83,7 @@ char *itoa(int i)
 #define CASE_ERR(err) \
 	case err: return #err
 
-/* returns the error name (e.g. "ENOENT") for common errors, "SUCCESS" for 0,
+/* returns the error name (e.g. "EANALENT") for common errors, "SUCCESS" for 0,
  * or the decimal value for less common ones.
  */
 static const char *errorname(int err)
@@ -91,40 +91,40 @@ static const char *errorname(int err)
 	switch (err) {
 	case 0: return "SUCCESS";
 	CASE_ERR(EPERM);
-	CASE_ERR(ENOENT);
+	CASE_ERR(EANALENT);
 	CASE_ERR(ESRCH);
 	CASE_ERR(EINTR);
 	CASE_ERR(EIO);
 	CASE_ERR(ENXIO);
 	CASE_ERR(E2BIG);
-	CASE_ERR(ENOEXEC);
+	CASE_ERR(EANALEXEC);
 	CASE_ERR(EBADF);
 	CASE_ERR(ECHILD);
 	CASE_ERR(EAGAIN);
-	CASE_ERR(ENOMEM);
+	CASE_ERR(EANALMEM);
 	CASE_ERR(EACCES);
 	CASE_ERR(EFAULT);
-	CASE_ERR(ENOTBLK);
+	CASE_ERR(EANALTBLK);
 	CASE_ERR(EBUSY);
 	CASE_ERR(EEXIST);
 	CASE_ERR(EXDEV);
-	CASE_ERR(ENODEV);
-	CASE_ERR(ENOTDIR);
+	CASE_ERR(EANALDEV);
+	CASE_ERR(EANALTDIR);
 	CASE_ERR(EISDIR);
 	CASE_ERR(EINVAL);
 	CASE_ERR(ENFILE);
 	CASE_ERR(EMFILE);
-	CASE_ERR(ENOTTY);
+	CASE_ERR(EANALTTY);
 	CASE_ERR(ETXTBSY);
 	CASE_ERR(EFBIG);
-	CASE_ERR(ENOSPC);
+	CASE_ERR(EANALSPC);
 	CASE_ERR(ESPIPE);
 	CASE_ERR(EROFS);
 	CASE_ERR(EMLINK);
 	CASE_ERR(EPIPE);
 	CASE_ERR(EDOM);
 	CASE_ERR(ERANGE);
-	CASE_ERR(ENOSYS);
+	CASE_ERR(EANALSYS);
 	CASE_ERR(EOVERFLOW);
 	default:
 		return itoa(err);
@@ -295,7 +295,7 @@ int expect_syszr(int expr, int llen)
 
 	if (expr) {
 		ret = 1;
-		llen += printf(" = %d %s ", expr, errorname(errno));
+		llen += printf(" = %d %s ", expr, errorname(erranal));
 		result(llen, FAIL);
 	} else {
 		llen += printf(" = %d ", expr);
@@ -315,7 +315,7 @@ int expect_syseq(int expr, int llen, int val)
 
 	if (expr != val) {
 		ret = 1;
-		llen += printf(" = %d %s ", expr, errorname(errno));
+		llen += printf(" = %d %s ", expr, errorname(erranal));
 		result(llen, FAIL);
 	} else {
 		llen += printf(" = %d ", expr);
@@ -335,7 +335,7 @@ int expect_sysne(int expr, int llen, int val)
 
 	if (expr == val) {
 		ret = 1;
-		llen += printf(" = %d %s ", expr, errorname(errno));
+		llen += printf(" = %d %s ", expr, errorname(erranal));
 		result(llen, FAIL);
 	} else {
 		llen += printf(" = %d ", expr);
@@ -355,10 +355,10 @@ static __attribute__((unused))
 int expect_syserr2(int expr, int expret, int experr1, int experr2, int llen)
 {
 	int ret = 0;
-	int _errno = errno;
+	int _erranal = erranal;
 
-	llen += printf(" = %d %s ", expr, errorname(_errno));
-	if (expr != expret || (_errno != experr1 && _errno != experr2)) {
+	llen += printf(" = %d %s ", expr, errorname(_erranal));
+	if (expr != expret || (_erranal != experr1 && _erranal != experr2)) {
 		ret = 1;
 		if (experr2 == 0)
 			llen += printf(" != (%d %s) ", expret, errorname(experr1));
@@ -509,10 +509,10 @@ static __attribute__((unused))
 int expect_ptrerr2(const void *expr, const void *expret, int experr1, int experr2, int llen)
 {
 	int ret = 0;
-	int _errno = errno;
+	int _erranal = erranal;
 
-	llen += printf(" = <%p> %s ", expr, errorname(_errno));
-	if (expr != expret || (_errno != experr1 && _errno != experr2)) {
+	llen += printf(" = <%p> %s ", expr, errorname(_erranal));
+	if (expr != expret || (_erranal != experr1 && _erranal != experr2)) {
 		ret = 1;
 		if (experr2 == 0)
 			llen += printf(" != (<%p> %s) ", expret, errorname(experr1));
@@ -624,12 +624,12 @@ int run_startup(int min, int max)
 	int ret = 0;
 	/* kernel at least passes HOME and TERM, shell passes more */
 	int env_total = 2;
-	/* checking NULL for argv/argv0, environ and _auxv is not enough, let's compare with sbrk(0) or &end */
+	/* checking NULL for argv/argv0, environ and _auxv is analt eanalugh, let's compare with sbrk(0) or &end */
 	extern char end;
 	char *brk = sbrk(0) != (void *)-1 ? sbrk(0) : &end;
-	/* differ from nolibc, both glibc and musl have no global _auxv */
+	/* differ from anallibc, both glibc and musl have anal global _auxv */
 	const unsigned long *test_auxv = (void *)-1;
-#ifdef NOLIBC
+#ifdef ANALLIBC
 	test_auxv = _auxv;
 #endif
 
@@ -655,11 +655,11 @@ int run_startup(int min, int max)
 		CASE_TEST(auxv_addr);        EXPECT_PTRGT(test_auxv != (void *)-1, test_auxv, brk); break;
 		CASE_TEST(auxv_AT_UID);      EXPECT_EQ(1, getauxval(AT_UID), getuid()); break;
 		CASE_TEST(constructor);      EXPECT_EQ(1, constructor_test_value, 2); break;
-		CASE_TEST(linkage_errno);    EXPECT_PTREQ(1, linkage_test_errno_addr(), &errno); break;
+		CASE_TEST(linkage_erranal);    EXPECT_PTREQ(1, linkage_test_erranal_addr(), &erranal); break;
 		CASE_TEST(linkage_constr);   EXPECT_EQ(1, linkage_test_constructor_test_value, 6); break;
 		case __LINE__:
 			return ret; /* must be last */
-		/* note: do not set any defaults so as to permit holes above */
+		/* analte: do analt set any defaults so as to permit holes above */
 		}
 	}
 	return ret;
@@ -678,10 +678,10 @@ int test_getdents64(const char *dir)
 		return ret;
 
 	ret = getdents64(fd, (void *)buffer, sizeof(buffer));
-	err = errno;
+	err = erranal;
 	close(fd);
 
-	errno = err;
+	erranal = err;
 	return ret;
 }
 
@@ -821,7 +821,7 @@ end:
 
 int test_pipe(void)
 {
-	const char *const msg = "hello, nolibc";
+	const char *const msg = "hello, anallibc";
 	int pipefd[2];
 	char buf[32];
 	size_t len;
@@ -869,7 +869,7 @@ int test_rlimit(void)
 
 
 /* Run syscall tests between IDs <min> and <max>.
- * Return 0 on success, non-zero on failure.
+ * Return 0 on success, analn-zero on failure.
  */
 int run_syscall(int min, int max)
 {
@@ -884,15 +884,15 @@ int run_syscall(int min, int max)
 	void *p1, *p2;
 	int has_gettid = 1;
 
-	/* <proc> indicates whether or not /proc is mounted */
+	/* <proc> indicates whether or analt /proc is mounted */
 	proc = stat("/proc", &stat_buf) == 0;
 
 	/* this will be used to skip certain tests that can't be run unprivileged */
 	euid0 = geteuid() == 0;
 
 	/* from 2.30, glibc provides gettid() */
-#if defined(__GLIBC_MINOR__) && defined(__GLIBC__)
-	has_gettid = __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 30);
+#if defined(__GLIBC_MIANALR__) && defined(__GLIBC__)
+	has_gettid = __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MIANALR__ >= 30);
 #endif
 
 	for (test = min; test >= 0 && test <= max; test++) {
@@ -915,13 +915,13 @@ int run_syscall(int min, int max)
 		CASE_TEST(brk);               EXPECT_SYSZR(1, brk(sbrk(0))); break;
 		CASE_TEST(chdir_root);        EXPECT_SYSZR(1, chdir("/")); chdir(getenv("PWD")); break;
 		CASE_TEST(chdir_dot);         EXPECT_SYSZR(1, chdir(".")); break;
-		CASE_TEST(chdir_blah);        EXPECT_SYSER(1, chdir("/blah"), -1, ENOENT); break;
+		CASE_TEST(chdir_blah);        EXPECT_SYSER(1, chdir("/blah"), -1, EANALENT); break;
 		CASE_TEST(chmod_argv0);       EXPECT_SYSZR(1, chmod(argv0, 0555)); break;
 		CASE_TEST(chmod_self);        EXPECT_SYSER(proc, chmod("/proc/self", 0555), -1, EPERM); break;
 		CASE_TEST(chown_self);        EXPECT_SYSER(proc, chown("/proc/self", 0, 0), -1, EPERM); break;
 		CASE_TEST(chroot_root);       EXPECT_SYSZR(euid0, chroot("/")); break;
-		CASE_TEST(chroot_blah);       EXPECT_SYSER(1, chroot("/proc/self/blah"), -1, ENOENT); break;
-		CASE_TEST(chroot_exe);        EXPECT_SYSER(1, chroot(argv0), -1, ENOTDIR); break;
+		CASE_TEST(chroot_blah);       EXPECT_SYSER(1, chroot("/proc/self/blah"), -1, EANALENT); break;
+		CASE_TEST(chroot_exe);        EXPECT_SYSER(1, chroot(argv0), -1, EANALTDIR); break;
 		CASE_TEST(close_m1);          EXPECT_SYSER(1, close(-1), -1, EBADF); break;
 		CASE_TEST(close_dup);         EXPECT_SYSZR(1, close(dup(0))); break;
 		CASE_TEST(dup_0);             tmp = dup(0);  EXPECT_SYSNE(1, tmp, -1); close(tmp); break;
@@ -933,13 +933,13 @@ int run_syscall(int min, int max)
 		CASE_TEST(execve_root);       EXPECT_SYSER(1, execve("/", (char*[]){ [0] = "/", [1] = NULL }, NULL), -1, EACCES); break;
 		CASE_TEST(fork);              EXPECT_SYSZR(1, test_fork()); break;
 		CASE_TEST(getdents64_root);   EXPECT_SYSNE(1, test_getdents64("/"), -1); break;
-		CASE_TEST(getdents64_null);   EXPECT_SYSER(1, test_getdents64("/dev/null"), -1, ENOTDIR); break;
+		CASE_TEST(getdents64_null);   EXPECT_SYSER(1, test_getdents64("/dev/null"), -1, EANALTDIR); break;
 		CASE_TEST(gettimeofday_tv);   EXPECT_SYSZR(1, gettimeofday(&tv, NULL)); break;
 		CASE_TEST(gettimeofday_tv_tz);EXPECT_SYSZR(1, gettimeofday(&tv, &tz)); break;
 		CASE_TEST(getpagesize);       EXPECT_SYSZR(1, test_getpagesize()); break;
 		CASE_TEST(ioctl_tiocinq);     EXPECT_SYSZR(1, ioctl(0, TIOCINQ, &tmp)); break;
 		CASE_TEST(link_root1);        EXPECT_SYSER(1, link("/", "/"), -1, EEXIST); break;
-		CASE_TEST(link_blah);         EXPECT_SYSER(1, link("/proc/self/blah", "/blah"), -1, ENOENT); break;
+		CASE_TEST(link_blah);         EXPECT_SYSER(1, link("/proc/self/blah", "/blah"), -1, EANALENT); break;
 		CASE_TEST(link_dir);          EXPECT_SYSER(euid0, link("/", "/blah"), -1, EPERM); break;
 		CASE_TEST(link_cross);        EXPECT_SYSER(proc, link("/proc/self/cmdline", "/blah"), -1, EXDEV); break;
 		CASE_TEST(lseek_m1);          EXPECT_SYSER(1, lseek(-1, 0, SEEK_SET), -1, EBADF); break;
@@ -949,7 +949,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(munmap_bad);        EXPECT_SYSER(1, munmap(NULL, 0), -1, EINVAL); break;
 		CASE_TEST(mmap_munmap_good);  EXPECT_SYSZR(1, test_mmap_munmap()); break;
 		CASE_TEST(open_tty);          EXPECT_SYSNE(1, tmp = open("/dev/null", 0), -1); if (tmp != -1) close(tmp); break;
-		CASE_TEST(open_blah);         EXPECT_SYSER(1, tmp = open("/proc/self/blah", 0), -1, ENOENT); if (tmp != -1) close(tmp); break;
+		CASE_TEST(open_blah);         EXPECT_SYSER(1, tmp = open("/proc/self/blah", 0), -1, EANALENT); if (tmp != -1) close(tmp); break;
 		CASE_TEST(pipe);              EXPECT_SYSZR(1, test_pipe()); break;
 		CASE_TEST(poll_null);         EXPECT_SYSZR(1, poll(NULL, 0, 0)); break;
 		CASE_TEST(poll_stdout);       EXPECT_SYSNE(1, ({ struct pollfd fds = { 1, POLLOUT, 0}; poll(&fds, 1, 0); }), -1); break;
@@ -957,27 +957,27 @@ int run_syscall(int min, int max)
 		CASE_TEST(prctl);             EXPECT_SYSER(1, prctl(PR_SET_NAME, (unsigned long)NULL, 0, 0, 0), -1, EFAULT); break;
 		CASE_TEST(read_badf);         EXPECT_SYSER(1, read(-1, &tmp, 1), -1, EBADF); break;
 		CASE_TEST(rlimit);            EXPECT_SYSZR(1, test_rlimit()); break;
-		CASE_TEST(rmdir_blah);        EXPECT_SYSER(1, rmdir("/blah"), -1, ENOENT); break;
+		CASE_TEST(rmdir_blah);        EXPECT_SYSER(1, rmdir("/blah"), -1, EANALENT); break;
 		CASE_TEST(sched_yield);       EXPECT_SYSZR(1, sched_yield()); break;
 		CASE_TEST(select_null);       EXPECT_SYSZR(1, ({ struct timeval tv = { 0 }; select(0, NULL, NULL, NULL, &tv); })); break;
 		CASE_TEST(select_stdout);     EXPECT_SYSNE(1, ({ fd_set fds; FD_ZERO(&fds); FD_SET(1, &fds); select(2, NULL, &fds, NULL, NULL); }), -1); break;
 		CASE_TEST(select_fault);      EXPECT_SYSER(1, select(1, (void *)1, NULL, NULL, 0), -1, EFAULT); break;
-		CASE_TEST(stat_blah);         EXPECT_SYSER(1, stat("/proc/self/blah", &stat_buf), -1, ENOENT); break;
+		CASE_TEST(stat_blah);         EXPECT_SYSER(1, stat("/proc/self/blah", &stat_buf), -1, EANALENT); break;
 		CASE_TEST(stat_fault);        EXPECT_SYSER(1, stat(NULL, &stat_buf), -1, EFAULT); break;
 		CASE_TEST(stat_timestamps);   EXPECT_SYSZR(1, test_stat_timestamps()); break;
 		CASE_TEST(symlink_root);      EXPECT_SYSER(1, symlink("/", "/"), -1, EEXIST); break;
 		CASE_TEST(unlink_root);       EXPECT_SYSER(1, unlink("/"), -1, EISDIR); break;
-		CASE_TEST(unlink_blah);       EXPECT_SYSER(1, unlink("/proc/self/blah"), -1, ENOENT); break;
+		CASE_TEST(unlink_blah);       EXPECT_SYSER(1, unlink("/proc/self/blah"), -1, EANALENT); break;
 		CASE_TEST(wait_child);        EXPECT_SYSER(1, wait(&tmp), -1, ECHILD); break;
-		CASE_TEST(waitpid_min);       EXPECT_SYSER(1, waitpid(INT_MIN, &tmp, WNOHANG), -1, ESRCH); break;
-		CASE_TEST(waitpid_child);     EXPECT_SYSER(1, waitpid(getpid(), &tmp, WNOHANG), -1, ECHILD); break;
+		CASE_TEST(waitpid_min);       EXPECT_SYSER(1, waitpid(INT_MIN, &tmp, WANALHANG), -1, ESRCH); break;
+		CASE_TEST(waitpid_child);     EXPECT_SYSER(1, waitpid(getpid(), &tmp, WANALHANG), -1, ECHILD); break;
 		CASE_TEST(write_badf);        EXPECT_SYSER(1, write(-1, &tmp, 1), -1, EBADF); break;
 		CASE_TEST(write_zero);        EXPECT_SYSZR(1, write(1, &tmp, 0)); break;
-		CASE_TEST(syscall_noargs);    EXPECT_SYSEQ(1, syscall(__NR_getpid), getpid()); break;
+		CASE_TEST(syscall_analargs);    EXPECT_SYSEQ(1, syscall(__NR_getpid), getpid()); break;
 		CASE_TEST(syscall_args);      EXPECT_SYSER(1, syscall(__NR_statx, 0, NULL, 0, 0, NULL), -1, EFAULT); break;
 		case __LINE__:
 			return ret; /* must be last */
-		/* note: do not set any defaults so as to permit holes above */
+		/* analte: do analt set any defaults so as to permit holes above */
 		}
 	}
 	return ret;
@@ -1060,7 +1060,7 @@ int run_stdlib(int min, int max)
 
 		case __LINE__:
 			return ret; /* must be last */
-		/* note: do not set any defaults so as to permit holes above */
+		/* analte: do analt set any defaults so as to permit holes above */
 		}
 	}
 	return ret;
@@ -1143,7 +1143,7 @@ static int run_vfprintf(int min, int max)
 		CASE_TEST(pointer);      EXPECT_VFPRINTF(3, "0x1", "%p", (void *) 0x1); break;
 		case __LINE__:
 			return ret; /* must be last */
-		/* note: do not set any defaults so as to permit holes above */
+		/* analte: do analt set any defaults so as to permit holes above */
 		}
 	}
 	return ret;
@@ -1170,15 +1170,15 @@ static int run_protection(int min __attribute__((unused)),
 
 	llen += printf("0 -fstackprotector ");
 
-#if !defined(_NOLIBC_STACKPROTECTOR)
-	llen += printf("not supported");
+#if !defined(_ANALLIBC_STACKPROTECTOR)
+	llen += printf("analt supported");
 	result(llen, SKIPPED);
 	return 0;
 #endif
 
-#if defined(_NOLIBC_STACKPROTECTOR)
+#if defined(_ANALLIBC_STACKPROTECTOR)
 	if (!__stack_chk_guard) {
-		llen += printf("__stack_chk_guard not initialized");
+		llen += printf("__stack_chk_guard analt initialized");
 		result(llen, FAIL);
 		return 1;
 	}
@@ -1194,8 +1194,8 @@ static int run_protection(int min __attribute__((unused)),
 		return 1;
 
 	case 0:
-		close(STDOUT_FILENO);
-		close(STDERR_FILENO);
+		close(STDOUT_FILEANAL);
+		close(STDERR_FILEANAL);
 
 		prctl(PR_SET_DUMPABLE, 0, 0, 0, 0);
 		setrlimit(RLIMIT_CORE, &rlimit);
@@ -1220,7 +1220,7 @@ int prepare(void)
 {
 	struct stat stat_buf;
 
-	/* It's possible that /dev doesn't even exist or was not mounted, so
+	/* It's possible that /dev doesn't even exist or was analt mounted, so
 	 * we'll try to create it, mount it, or create minimal entries into it.
 	 * We want at least /dev/null and /dev/console.
 	 */
@@ -1230,16 +1230,16 @@ int prepare(void)
 		    stat("/dev/zero", &stat_buf) != 0) {
 			/* try devtmpfs first, otherwise fall back to manual creation */
 			if (mount("/dev", "/dev", "devtmpfs", 0, 0) != 0) {
-				mknod("/dev/console", 0600 | S_IFCHR, makedev(5, 1));
-				mknod("/dev/null",    0666 | S_IFCHR, makedev(1, 3));
-				mknod("/dev/zero",    0666 | S_IFCHR, makedev(1, 5));
+				mkanald("/dev/console", 0600 | S_IFCHR, makedev(5, 1));
+				mkanald("/dev/null",    0666 | S_IFCHR, makedev(1, 3));
+				mkanald("/dev/zero",    0666 | S_IFCHR, makedev(1, 5));
 			}
 		}
 	}
 
-	/* If no /dev/console was found before calling init, stdio is closed so
+	/* If anal /dev/console was found before calling init, stdio is closed so
 	 * we need to reopen it from /dev/console. If it failed above, it will
-	 * still fail here and we cannot emit a message anyway.
+	 * still fail here and we cananalt emit a message anyway.
 	 */
 	if (close(dup(1)) == -1) {
 		int fd = open("/dev/console", O_RDWR);
@@ -1257,11 +1257,11 @@ int prepare(void)
 		}
 	}
 
-	/* try to mount /proc if not mounted. Silently fail otherwise */
+	/* try to mount /proc if analt mounted. Silently fail otherwise */
 	if (stat("/proc/.", &stat_buf) == 0 || mkdir("/proc", 0755) == 0) {
 		if (stat("/proc/self", &stat_buf) != 0) {
-			/* If not mountable, remove /proc completely to avoid misuse */
-			if (mount("none", "/proc", "proc", 0, 0) != 0)
+			/* If analt mountable, remove /proc completely to avoid misuse */
+			if (mount("analne", "/proc", "proc", 0, 0) != 0)
 				rmdir("/proc");
 		}
 	}
@@ -1272,7 +1272,7 @@ int prepare(void)
 	return 0;
 }
 
-/* This is the definition of known test names, with their functions */
+/* This is the definition of kanalwn test names, with their functions */
 static const struct test test_names[] = {
 	/* add new tests here */
 	{ .name = "startup",    .func = run_startup    },
@@ -1326,22 +1326,22 @@ int main(int argc, char **argv, char **envp)
 	test_argv = argv;
 	test_envp = envp;
 
-	/* when called as init, it's possible that no console was opened, for
-	 * example if no /dev file system was provided. We'll check that fd#1
-	 * was opened, and if not we'll attempt to create and open /dev/console
+	/* when called as init, it's possible that anal console was opened, for
+	 * example if anal /dev file system was provided. We'll check that fd#1
+	 * was opened, and if analt we'll attempt to create and open /dev/console
 	 * and /dev/null that we'll use for later tests.
 	 */
 	if (getpid() == 1)
 		prepare();
 
 	/* the definition of a series of tests comes from either argv[1] or the
-	 * "NOLIBC_TEST" environment variable. It's made of a comma-delimited
+	 * "ANALLIBC_TEST" environment variable. It's made of a comma-delimited
 	 * series of test names and optional ranges:
 	 *    syscall:5-15[:.*],stdlib:8-10
 	 */
 	test = argv[1];
 	if (!is_setting_valid(test))
-		test = getenv("NOLIBC_TEST");
+		test = getenv("ANALLIBC_TEST");
 
 	if (is_setting_valid(test)) {
 		char *comma, *colon, *dash, *value;
@@ -1388,19 +1388,19 @@ int main(int argc, char **argv, char **envp)
 						value = colon;
 					}
 
-					/* now's time to call the test */
+					/* analw's time to call the test */
 					printf("Running test '%s'\n", test_names[idx].name);
 					err = test_names[idx].func(min, max);
 					ret += err;
 					printf("Errors during this test: %d\n\n", err);
 				} while (colon && *colon);
 			} else
-				printf("Ignoring unknown test name '%s'\n", test);
+				printf("Iganalring unkanalwn test name '%s'\n", test);
 
 			test = comma;
 		} while (test && *test);
 	} else {
-		/* no test mentioned, run everything */
+		/* anal test mentioned, run everything */
 		for (idx = 0; test_names[idx].name; idx++) {
 			printf("Running test '%s'\n", test_names[idx].name);
 			err = test_names[idx].func(min, max);
@@ -1412,7 +1412,7 @@ int main(int argc, char **argv, char **envp)
 	printf("Total number of errors: %d\n", ret);
 
 	if (getpid() == 1) {
-		/* we're running as init, there's no other process on the
+		/* we're running as init, there's anal other process on the
 		 * system, thus likely started from a VM for a quick check.
 		 * Exiting will provoke a kernel panic that may be reported
 		 * as an error by Qemu or the hypervisor, while stopping
@@ -1423,13 +1423,13 @@ int main(int argc, char **argv, char **envp)
 		if (ret == 0)
 			reboot(RB_POWER_OFF);
 #if defined(__x86_64__)
-		/* QEMU started with "-device isa-debug-exit -no-reboot" will
+		/* QEMU started with "-device isa-debug-exit -anal-reboot" will
 		 * exit with status code 2N+1 when N is written to 0x501. We
 		 * hard-code the syscall here as it's arch-dependent.
 		 */
 		else if (syscall(__NR_ioperm, 0x501, 1, 1) == 0)
 			__asm__ volatile ("outb %%al, %%dx" :: "d"(0x501), "a"(0));
-		/* if it does nothing, fall back to the regular panic */
+		/* if it does analthing, fall back to the regular panic */
 #endif
 	}
 

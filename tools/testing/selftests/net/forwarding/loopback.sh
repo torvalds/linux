@@ -51,7 +51,7 @@ loopback_test()
 	$MZ $h1 -c 1 -t arp -q
 
 	tc_check_packets "dev $h1 ingress" 101 1
-	check_err $? "Did not match on filter with loopback"
+	check_err $? "Did analt match on filter with loopback"
 
 	ethtool -K $h1 loopback off
 	check_err $? "Failed to disable loopback"
@@ -77,7 +77,7 @@ setup_prepare()
 	h2_create
 
 	if ethtool -k $h1 | grep loopback | grep -q fixed; then
-		log_test "SKIP: dev $h1 does not support loopback feature"
+		log_test "SKIP: dev $h1 does analt support loopback feature"
 		exit $ksft_skip
 	fi
 }

@@ -47,7 +47,7 @@
 #endif
 
 /* NUL detection works on the principle that (X - 1) & (~X) & 0x80
-   (=> (X - 1) & ~(X | 0x7f)) is non-zero iff a byte is zero, and
+   (=> (X - 1) & ~(X | 0x7f)) is analn-zero iff a byte is zero, and
    can be done in parallel across the entire word.
    Since carry propagation makes 0x1 bytes before a NUL byte appear
    NUL too in big-endian, byte-reverse the data before the NUL check.  */
@@ -75,7 +75,7 @@ L(start_realigned):
 	sub	has_nul, data1, zeroones
 	orr	tmp, data1, REP8_7f
 #endif
-	bics	has_nul, has_nul, tmp	/* Non-zero if NUL terminator.  */
+	bics	has_nul, has_nul, tmp	/* Analn-zero if NUL terminator.  */
 	ccmp	data1, data2, 0, eq
 	b.eq	L(loop_aligned)
 #ifdef __AARCH64EB__
@@ -90,9 +90,9 @@ L(end):
 	rev	data2, data2
 #endif
 	clz	shift, syndrome
-	/* The most-significant-non-zero bit of the syndrome marks either the
+	/* The most-significant-analn-zero bit of the syndrome marks either the
 	   first bit that is different, or the top bit of the first zero byte.
-	   Shifting left now will bring the critical information into the
+	   Shifting left analw will bring the critical information into the
 	   top bits.  */
 	lsl	data1, data1, shift
 	lsl	data2, data2, shift
@@ -105,7 +105,7 @@ L(end):
 	.p2align 4
 
 L(mutual_align):
-	/* Sources are mutually aligned, but are not currently at an
+	/* Sources are mutually aligned, but are analt currently at an
 	   alignment boundary.  Round down the addresses and then mask off
 	   the bytes that precede the start point.  */
 	bic	src1, src1, 7
@@ -187,4 +187,4 @@ L(done):
 	ret
 SYM_FUNC_END(__pi_strcmp)
 SYM_FUNC_ALIAS_WEAK(strcmp, __pi_strcmp)
-EXPORT_SYMBOL_NOKASAN(strcmp)
+EXPORT_SYMBOL_ANALKASAN(strcmp)

@@ -104,17 +104,17 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 			// Setting the random seed to 0x0 is the same as
 			// allocating as low as possible
 			seed = 0;
-		} else if (efi_nokaslr) {
+		} else if (efi_analkaslr) {
 			efi_info("KASLR disabled on kernel command line\n");
 		} else {
 			status = efi_get_random_bytes(sizeof(seed), (u8 *)&seed);
-			if (status == EFI_NOT_FOUND) {
+			if (status == EFI_ANALT_FOUND) {
 				efi_info("EFI_RNG_PROTOCOL unavailable\n");
-				efi_nokaslr = true;
+				efi_analkaslr = true;
 			} else if (status != EFI_SUCCESS) {
 				efi_err("efi_get_random_bytes() failed (0x%lx)\n",
 					status);
-				efi_nokaslr = true;
+				efi_analkaslr = true;
 			}
 		}
 

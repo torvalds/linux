@@ -38,7 +38,7 @@ struct wm8711_priv {
  * wm8711 register cache
  * We can't read the WM8711 register space when we are
  * using 2 wire for device control, so we cache them instead.
- * There is no point in caching the reset register
+ * There is anal point in caching the reset register
  */
 static const struct reg_default wm8711_reg_defaults[] = {
 	{ 0, 0x0079 }, { 1, 0x0079 }, { 2, 0x000a }, { 3, 0x0008 },
@@ -332,7 +332,7 @@ static const struct snd_soc_dai_ops wm8711_ops = {
 	.mute_stream = wm8711_mute,
 	.set_sysclk = wm8711_set_dai_sysclk,
 	.set_fmt = wm8711_set_dai_fmt,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8711_dai = {
@@ -407,7 +407,7 @@ static int wm8711_spi_probe(struct spi_device *spi)
 	wm8711 = devm_kzalloc(&spi->dev, sizeof(struct wm8711_priv),
 			      GFP_KERNEL);
 	if (wm8711 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8711->regmap = devm_regmap_init_spi(spi, &wm8711_regmap);
 	if (IS_ERR(wm8711->regmap))
@@ -439,7 +439,7 @@ static int wm8711_i2c_probe(struct i2c_client *client)
 	wm8711 = devm_kzalloc(&client->dev, sizeof(struct wm8711_priv),
 			      GFP_KERNEL);
 	if (wm8711 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8711->regmap = devm_regmap_init_i2c(client, &wm8711_regmap);
 	if (IS_ERR(wm8711->regmap))

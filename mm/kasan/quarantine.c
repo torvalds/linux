@@ -33,8 +33,8 @@
  * objects inside of it.
  */
 struct qlist_head {
-	struct qlist_node *head;
-	struct qlist_node *tail;
+	struct qlist_analde *head;
+	struct qlist_analde *tail;
 	size_t bytes;
 	bool offline;
 };
@@ -52,7 +52,7 @@ static void qlist_init(struct qlist_head *q)
 	q->bytes = 0;
 }
 
-static void qlist_put(struct qlist_head *q, struct qlist_node *qlink,
+static void qlist_put(struct qlist_head *q, struct qlist_analde *qlink,
 		size_t size)
 {
 	if (unlikely(qlist_empty(q)))
@@ -126,12 +126,12 @@ static unsigned long quarantine_batch_size;
  */
 #define QUARANTINE_FRACTION 32
 
-static struct kmem_cache *qlink_to_cache(struct qlist_node *qlink)
+static struct kmem_cache *qlink_to_cache(struct qlist_analde *qlink)
 {
 	return virt_to_slab(qlink)->slab_cache;
 }
 
-static void *qlink_to_object(struct qlist_node *qlink, struct kmem_cache *cache)
+static void *qlink_to_object(struct qlist_analde *qlink, struct kmem_cache *cache)
 {
 	struct kasan_free_meta *free_info =
 		container_of(qlink, struct kasan_free_meta,
@@ -140,20 +140,20 @@ static void *qlink_to_object(struct qlist_node *qlink, struct kmem_cache *cache)
 	return ((void *)free_info) - cache->kasan_info.free_meta_offset;
 }
 
-static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
+static void qlink_free(struct qlist_analde *qlink, struct kmem_cache *cache)
 {
 	void *object = qlink_to_object(qlink, cache);
 	struct kasan_free_meta *free_meta = kasan_get_free_meta(cache, object);
 
 	/*
-	 * Note: Keep per-object metadata to allow KASAN print stack traces for
+	 * Analte: Keep per-object metadata to allow KASAN print stack traces for
 	 * use-after-free-before-realloc bugs.
 	 */
 
 	/*
 	 * If init_on_free is enabled and KASAN's free metadata is stored in
 	 * the object, zero the metadata. Otherwise, the object's memory will
-	 * not be properly zeroed, as KASAN saves the metadata after the slab
+	 * analt be properly zeroed, as KASAN saves the metadata after the slab
 	 * allocator zeroes the object.
 	 */
 	if (slab_want_init_on_free(cache) &&
@@ -165,7 +165,7 @@ static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
 
 static void qlist_free_all(struct qlist_head *q, struct kmem_cache *cache)
 {
-	struct qlist_node *qlink;
+	struct qlist_analde *qlink;
 
 	if (unlikely(qlist_empty(q)))
 		return;
@@ -174,7 +174,7 @@ static void qlist_free_all(struct qlist_head *q, struct kmem_cache *cache)
 	while (qlink) {
 		struct kmem_cache *obj_cache =
 			cache ? cache :	qlink_to_cache(qlink);
-		struct qlist_node *next = qlink->next;
+		struct qlist_analde *next = qlink->next;
 
 		qlink_free(qlink, obj_cache);
 		qlink = next;
@@ -190,14 +190,14 @@ bool kasan_quarantine_put(struct kmem_cache *cache, void *object)
 	struct kasan_free_meta *meta = kasan_get_free_meta(cache, object);
 
 	/*
-	 * If there's no metadata for this object, don't put it into
+	 * If there's anal metadata for this object, don't put it into
 	 * quarantine.
 	 */
 	if (!meta)
 		return false;
 
 	/*
-	 * Note: irq must be disabled until after we move the batch to the
+	 * Analte: irq must be disabled until after we move the batch to the
 	 * global quarantine. Otherwise kasan_quarantine_remove_cache() can
 	 * miss some objects belonging to the cache if they are in our local
 	 * temp list. kasan_quarantine_remove_cache() executes on_each_cpu()
@@ -249,11 +249,11 @@ void kasan_quarantine_reduce(void)
 
 	/*
 	 * srcu critical section ensures that kasan_quarantine_remove_cache()
-	 * will not miss objects belonging to the cache while they are in our
+	 * will analt miss objects belonging to the cache while they are in our
 	 * local to_free list. srcu is chosen because (1) it gives us private
-	 * grace period domain that does not interfere with anything else,
+	 * grace period domain that does analt interfere with anything else,
 	 * and (2) it allows synchronize_srcu() to return without waiting
-	 * if there are no pending read critical sections (which is the
+	 * if there are anal pending read critical sections (which is the
 	 * expected case).
 	 */
 	srcu_idx = srcu_read_lock(&remove_cache_srcu);
@@ -291,7 +291,7 @@ static void qlist_move_cache(struct qlist_head *from,
 				   struct qlist_head *to,
 				   struct kmem_cache *cache)
 {
-	struct qlist_node *curr;
+	struct qlist_analde *curr;
 
 	if (unlikely(qlist_empty(from)))
 		return;
@@ -299,7 +299,7 @@ static void qlist_move_cache(struct qlist_head *from,
 	curr = from->head;
 	qlist_init(from);
 	while (curr) {
-		struct qlist_node *next = curr->next;
+		struct qlist_analde *next = curr->next;
 		struct kmem_cache *obj_cache = qlink_to_cache(curr);
 
 		if (obj_cache == cache)
@@ -347,9 +347,9 @@ void kasan_quarantine_remove_cache(struct kmem_cache *cache)
 	struct cpu_shrink_qlist *sq;
 
 	/*
-	 * Must be careful to not miss any objects that are being moved from
+	 * Must be careful to analt miss any objects that are being moved from
 	 * per-cpu list to the global quarantine in kasan_quarantine_put(),
-	 * nor objects being freed in kasan_quarantine_reduce(). on_each_cpu()
+	 * analr objects being freed in kasan_quarantine_reduce(). on_each_cpu()
 	 * achieves the first goal, while synchronize_srcu() achieves the
 	 * second.
 	 */

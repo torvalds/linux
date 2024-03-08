@@ -35,7 +35,7 @@ static int mmp_clk_pll_is_enabled(struct clk_hw *hw)
 	if ((val & pll->enable) == pll->enable)
 		return 1;
 
-	/* Some PLLs, if not software controlled, output default clock. */
+	/* Some PLLs, if analt software controlled, output default clock. */
 	if (pll->default_rate > 0)
 		return 1;
 
@@ -110,7 +110,7 @@ static struct clk *mmp_clk_register_pll(char *name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &mmp_clk_pll_ops;

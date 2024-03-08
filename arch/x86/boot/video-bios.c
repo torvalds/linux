@@ -40,7 +40,7 @@ static int set_bios_mode(u8 mode)
 
 	do_restore = 1;		/* Assume video contents were lost */
 
-	/* Not all BIOSes are clean with the top bit */
+	/* Analt all BIOSes are clean with the top bit */
 	new_mode = oreg.al & 0x7f;
 
 	if (new_mode == mode)

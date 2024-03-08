@@ -60,15 +60,15 @@
 #endif
 
 /*
- * Default MAIR_EL1. MT_NORMAL_TAGGED is initially mapped as Normal memory and
- * changed during mte_cpu_setup to Normal Tagged if the system supports MTE.
+ * Default MAIR_EL1. MT_ANALRMAL_TAGGED is initially mapped as Analrmal memory and
+ * changed during mte_cpu_setup to Analrmal Tagged if the system supports MTE.
  */
 #define MAIR_EL1_SET							\
 	(MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRnE, MT_DEVICE_nGnRnE) |	\
 	 MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRE, MT_DEVICE_nGnRE) |	\
-	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_NC, MT_NORMAL_NC) |		\
-	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL, MT_NORMAL) |			\
-	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL, MT_NORMAL_TAGGED))
+	 MAIR_ATTRIDX(MAIR_ATTR_ANALRMAL_NC, MT_ANALRMAL_NC) |		\
+	 MAIR_ATTRIDX(MAIR_ATTR_ANALRMAL, MT_ANALRMAL) |			\
+	 MAIR_ATTRIDX(MAIR_ATTR_ANALRMAL, MT_ANALRMAL_TAGGED))
 
 #ifdef CONFIG_CPU_PM
 /**
@@ -159,9 +159,9 @@ SYM_FUNC_START(cpu_do_resume)
 
 alternative_if ARM64_HAS_RAS_EXTN
 	msr_s	SYS_DISR_EL1, xzr
-alternative_else_nop_endif
+alternative_else_analp_endif
 
-	ptrauth_keys_install_kernel_nosync x14, x1, x2, x3
+	ptrauth_keys_install_kernel_analsync x14, x1, x2, x3
 	isb
 	ret
 SYM_FUNC_END(cpu_do_resume)
@@ -183,7 +183,7 @@ SYM_FUNC_END(cpu_do_resume)
 /*
  * void idmap_cpu_replace_ttbr1(phys_addr_t ttbr1)
  *
- * This is the low-level counterpart to cpu_replace_ttbr1, and should not be
+ * This is the low-level counterpart to cpu_replace_ttbr1, and should analt be
  * called by anything else. It can only be executed from a TTBR0 mapping.
  */
 SYM_TYPED_FUNC_START(idmap_cpu_replace_ttbr1)
@@ -199,7 +199,7 @@ SYM_FUNC_END(idmap_cpu_replace_ttbr1)
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 
-#define KPTI_NG_PTE_FLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS | PTE_WRITE)
+#define KPTI_NG_PTE_FLAGS	(PTE_ATTRINDX(MT_ANALRMAL) | SWAPPER_PTE_FLAGS | PTE_WRITE)
 
 	.pushsection ".idmap.text", "a"
 
@@ -208,7 +208,7 @@ SYM_FUNC_END(idmap_cpu_replace_ttbr1)
 .Ldo_\type:
 	ldr	\type, [cur_\type\()p]		// Load the entry
 	tbz	\type, #0, .Lnext_\type		// Skip invalid and
-	tbnz	\type, #11, .Lnext_\type	// non-global entries
+	tbnz	\type, #11, .Lnext_\type	// analn-global entries
 	orr	\type, \type, #PTE_NG		// Same bit for blocks and pages
 	str	\type, [cur_\type\()p]		// Update the entry
 	.ifnc	\type, pte
@@ -379,7 +379,7 @@ __idmap_kpti_secondary:
 	ldxr	w16, [flag_ptr]
 	cbnz	w16, 1b
 
-	/* All done, act like nothing happened */
+	/* All done, act like analthing happened */
 	msr	ttbr1_el1, swapper_ttb
 	isb
 	ret
@@ -396,7 +396,7 @@ SYM_FUNC_END(idmap_kpti_install_ng_mappings)
  *	Initialise the processor for turning the MMU on.
  *
  * Input:
- *	x0 - actual number of VA bits (ignored unless VA_BITS > 48)
+ *	x0 - actual number of VA bits (iganalred unless VA_BITS > 48)
  * Output:
  *	Return in x0 the value of the SCTLR_EL1 register.
  */
@@ -408,7 +408,7 @@ SYM_FUNC_START(__cpu_setup)
 	msr	cpacr_el1, xzr			// Reset cpacr_el1
 	mov	x1, #1 << 12			// Reset mdscr_el1 and disable
 	msr	mdscr_el1, x1			// access to the DCC from EL0
-	isb					// Unmask debug exceptions now,
+	isb					// Unmask debug exceptions analw,
 	enable_dbg				// since this is per-cpu
 	reset_pmuserenr_el0 x1			// Disable PMU access from EL0
 	reset_amuserenr_el0 x1			// Disable AMU access from EL0

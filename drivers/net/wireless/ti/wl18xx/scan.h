@@ -82,12 +82,12 @@ struct wl18xx_cmd_scan_params {
 
 	/* send SCAN_REPORT_EVENT in periodic scans after each cycle
 	* if number of results >= report_threshold. Must be 0 for
-	* non periodic scans
+	* analn periodic scans
 	*/
 	u8 report_threshold;
 
 	/* Should periodic scan stop after a report event was created.
-	* Must be 0 for non periodic scans.
+	* Must be 0 for analn periodic scans.
 	*/
 	u8 terminate_on_report;
 

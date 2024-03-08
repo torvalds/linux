@@ -482,7 +482,7 @@ static void hns_ppe_com_srst(struct dsaf_device *dsaf_dev, bool dereset)
 	u32 reg_val;
 	u32 reg_addr;
 
-	if (!(dev_of_node(dsaf_dev->dev)))
+	if (!(dev_of_analde(dsaf_dev->dev)))
 		return;
 
 	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
@@ -577,7 +577,7 @@ static int hns_mac_get_sfp_prsnt(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
 	int ret;
 
 	if (!mac_cb->cpld_ctrl)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = dsaf_read_syscon(mac_cb->cpld_ctrl,
 			       mac_cb->cpld_ctrl_reg + MAC_SFP_PORT_OFFSET,
@@ -606,7 +606,7 @@ static int hns_mac_get_sfp_prsnt_acpi(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
 				      HNS_OP_GET_SFP_STAT_FUNC, &argv4,
 				      ACPI_TYPE_INTEGER);
 	if (!obj)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*sfp_prsnt = obj->integer.value;
 
@@ -641,10 +641,10 @@ static int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, bool en)
 
 	if (!mac_cb->phy_dev) {
 		if (ret)
-			pr_info("please confirm sfp is present or not\n");
+			pr_info("please confirm sfp is present or analt\n");
 		else
 			if (!sfp_prsnt)
-				pr_info("no sfp in this eth\n");
+				pr_info("anal sfp in this eth\n");
 	}
 
 	if (mac_cb->serdes_ctrl) {
@@ -703,7 +703,7 @@ hns_mac_config_sds_loopback_acpi(struct hns_mac_cb *mac_cb, bool en)
 		dev_warn(mac_cb->dsaf_dev->dev, "set port%d serdes lp fail!",
 			 mac_cb->mac_id);
 
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	ACPI_FREE(obj);
@@ -719,7 +719,7 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 	if (!misc_op)
 		return NULL;
 
-	if (dev_of_node(dsaf_dev->dev)) {
+	if (dev_of_analde(dsaf_dev->dev)) {
 		misc_op->cpld_set_led = hns_cpld_set_led;
 		misc_op->cpld_reset_led = cpld_led_reset;
 		misc_op->cpld_set_led_id = cpld_set_led_id;
@@ -736,7 +736,7 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 		misc_op->get_sfp_prsnt = hns_mac_get_sfp_prsnt;
 
 		misc_op->cfg_serdes_loopback = hns_mac_config_sds_loopback;
-	} else if (is_acpi_node(dsaf_dev->dev->fwnode)) {
+	} else if (is_acpi_analde(dsaf_dev->dev->fwanalde)) {
 		misc_op->cpld_set_led = hns_cpld_set_led_acpi;
 		misc_op->cpld_reset_led = cpld_led_reset_acpi;
 		misc_op->cpld_set_led_id = cpld_set_led_id_acpi;
@@ -762,10 +762,10 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 }
 
 struct
-platform_device *hns_dsaf_find_platform_device(struct fwnode_handle *fwnode)
+platform_device *hns_dsaf_find_platform_device(struct fwanalde_handle *fwanalde)
 {
 	struct device *dev;
 
-	dev = bus_find_device_by_fwnode(&platform_bus_type, fwnode);
+	dev = bus_find_device_by_fwanalde(&platform_bus_type, fwanalde);
 	return dev ? to_platform_device(dev) : NULL;
 }

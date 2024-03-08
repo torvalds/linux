@@ -24,7 +24,7 @@
         "EventCode": "0x34",
         "EventName": "UNC_C_LLC_LOOKUP.DATA_READ",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
+        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Analte the analn-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count analthing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
         "UMask": "0x3",
         "Unit": "CBOX"
     },
@@ -33,16 +33,16 @@
         "EventCode": "0x34",
         "EventName": "UNC_C_LLC_LOOKUP.NID",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
+        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Analte the analn-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count analthing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
         "UMask": "0x41",
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Cache Lookups; External Snoop Request",
+        "BriefDescription": "Cache Lookups; External Sanalop Request",
         "EventCode": "0x34",
-        "EventName": "UNC_C_LLC_LOOKUP.REMOTE_SNOOP",
+        "EventName": "UNC_C_LLC_LOOKUP.REMOTE_SANALOP",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
+        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Analte the analn-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count analthing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
         "UMask": "0x9",
         "Unit": "CBOX"
     },
@@ -51,7 +51,7 @@
         "EventCode": "0x34",
         "EventName": "UNC_C_LLC_LOOKUP.WRITE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
+        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Analte the analn-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set filter mask bit 0 and select a state or states to match.  Otherwise, the event will count analthing.   CBoGlCtrl[22:18] bits correspond to [FMESI] state.",
         "UMask": "0x5",
         "Unit": "CBOX"
     },
@@ -110,7 +110,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Cbo Misc; Silent Snoop Eviction",
+        "BriefDescription": "Cbo Misc; Silent Sanalop Eviction",
         "EventCode": "0x39",
         "EventName": "UNC_C_MISC.RSPI_WAS_FSE",
         "PerPkg": "1",
@@ -141,7 +141,7 @@
         "EventCode": "0x1b",
         "EventName": "UNC_C_RING_AD_USED.DOWN_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x4",
         "Unit": "CBOX"
     },
@@ -150,7 +150,7 @@
         "EventCode": "0x1b",
         "EventName": "UNC_C_RING_AD_USED.DOWN_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x8",
         "Unit": "CBOX"
     },
@@ -159,7 +159,7 @@
         "EventCode": "0x1b",
         "EventName": "UNC_C_RING_AD_USED.UP_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x1",
         "Unit": "CBOX"
     },
@@ -168,7 +168,7 @@
         "EventCode": "0x1b",
         "EventName": "UNC_C_RING_AD_USED.UP_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.  We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x2",
         "Unit": "CBOX"
     },
@@ -177,7 +177,7 @@
         "EventCode": "0x1c",
         "EventName": "UNC_C_RING_AK_USED.DOWN_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x4",
         "Unit": "CBOX"
     },
@@ -186,7 +186,7 @@
         "EventCode": "0x1c",
         "EventName": "UNC_C_RING_AK_USED.DOWN_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x8",
         "Unit": "CBOX"
     },
@@ -195,7 +195,7 @@
         "EventCode": "0x1c",
         "EventName": "UNC_C_RING_AK_USED.UP_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x1",
         "Unit": "CBOX"
     },
@@ -204,7 +204,7 @@
         "EventCode": "0x1c",
         "EventName": "UNC_C_RING_AK_USED.UP_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x2",
         "Unit": "CBOX"
     },
@@ -213,7 +213,7 @@
         "EventCode": "0x1d",
         "EventName": "UNC_C_RING_BL_USED.DOWN_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x4",
         "Unit": "CBOX"
     },
@@ -222,7 +222,7 @@
         "EventCode": "0x1d",
         "EventName": "UNC_C_RING_BL_USED.DOWN_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x8",
         "Unit": "CBOX"
     },
@@ -231,7 +231,7 @@
         "EventCode": "0x1d",
         "EventName": "UNC_C_RING_BL_USED.UP_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x1",
         "Unit": "CBOX"
     },
@@ -240,12 +240,12 @@
         "EventCode": "0x1d",
         "EventName": "UNC_C_RING_BL_USED.UP_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is NOT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from  the ring stop.We really have two rings in JKT -- a clockwise ring and a counter-clockwise ring.  On the left side of the ring, the 'UP' direction is on the clockwise ring and 'DN' is on the counter-clockwise ring.  On the right side of the ring, this is reversed.  The first half of the CBos are on the left side of the ring, and the 2nd half are on the right side of the ring.  In other words (for example), in a 4c part, Cbo 0 UP AD is ANALT the same ring as CBo 2 UP AD because they are on opposite sides of the ring.",
         "UMask": "0x2",
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Number of LLC responses that bounced on the Ring.; Acknowledgements to core",
+        "BriefDescription": "Number of LLC responses that bounced on the Ring.; Ackanalwledgements to core",
         "EventCode": "0x5",
         "EventName": "UNC_C_RING_BOUNCES.AK_CORE",
         "PerPkg": "1",
@@ -261,7 +261,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Number of LLC responses that bounced on the Ring.; Snoops of processor's cache.",
+        "BriefDescription": "Number of LLC responses that bounced on the Ring.; Sanalops of processor's cache.",
         "EventCode": "0x5",
         "EventName": "UNC_C_RING_BOUNCES.IV_CORE",
         "PerPkg": "1",
@@ -273,7 +273,7 @@
         "EventCode": "0x1e",
         "EventName": "UNC_C_RING_IV_USED.ANY",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the IV ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.  There is only 1 IV ring in JKT.  Therefore, if one wants to monitor the 'Even' ring, they should select both UP_EVEN and DN_EVEN.  To monitor the 'Odd' ring, they should select both UP_ODD and DN_ODD.",
+        "PublicDescription": "Counts the number of cycles that the IV ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.  There is only 1 IV ring in JKT.  Therefore, if one wants to monitor the 'Even' ring, they should select both UP_EVEN and DN_EVEN.  To monitor the 'Odd' ring, they should select both UP_ODD and DN_ODD.",
         "UMask": "0xf",
         "Unit": "CBOX"
     },
@@ -415,7 +415,7 @@
         "EventCode": "0x31",
         "EventName": "UNC_C_RxR_IPQ_RETRY.ADDR_CONFLICT",
         "PerPkg": "1",
-        "PublicDescription": "Number of times a snoop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
+        "PublicDescription": "Number of times a sanalop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
         "UMask": "0x4",
         "Unit": "CBOX"
     },
@@ -424,25 +424,25 @@
         "EventCode": "0x31",
         "EventName": "UNC_C_RxR_IPQ_RETRY.ANY",
         "PerPkg": "1",
-        "PublicDescription": "Number of times a snoop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
+        "PublicDescription": "Number of times a sanalop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
         "UMask": "0x1",
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Probe Queue Retries; No Egress Credits",
+        "BriefDescription": "Probe Queue Retries; Anal Egress Credits",
         "EventCode": "0x31",
         "EventName": "UNC_C_RxR_IPQ_RETRY.FULL",
         "PerPkg": "1",
-        "PublicDescription": "Number of times a snoop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
+        "PublicDescription": "Number of times a sanalop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
         "UMask": "0x2",
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Probe Queue Retries; No QPI Credits",
+        "BriefDescription": "Probe Queue Retries; Anal QPI Credits",
         "EventCode": "0x31",
         "EventName": "UNC_C_RxR_IPQ_RETRY.QPI_CREDITS",
         "PerPkg": "1",
-        "PublicDescription": "Number of times a snoop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
+        "PublicDescription": "Number of times a sanalop (probe) request had to retry.  Filters exist to cover some of the common cases retries.",
         "UMask": "0x10",
         "Unit": "CBOX"
     },
@@ -463,7 +463,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Ingress Request Queue Rejects; No Egress Credits",
+        "BriefDescription": "Ingress Request Queue Rejects; Anal Egress Credits",
         "EventCode": "0x32",
         "EventName": "UNC_C_RxR_IRQ_RETRY.FULL",
         "PerPkg": "1",
@@ -471,7 +471,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Ingress Request Queue Rejects; No QPI Credits",
+        "BriefDescription": "Ingress Request Queue Rejects; Anal QPI Credits",
         "EventCode": "0x32",
         "EventName": "UNC_C_RxR_IRQ_RETRY.QPI_CREDITS",
         "PerPkg": "1",
@@ -479,7 +479,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Ingress Request Queue Rejects; No RTIDs",
+        "BriefDescription": "Ingress Request Queue Rejects; Anal RTIDs",
         "EventCode": "0x32",
         "EventName": "UNC_C_RxR_IRQ_RETRY.RTID",
         "PerPkg": "1",
@@ -491,43 +491,43 @@
         "EventCode": "0x33",
         "EventName": "UNC_C_RxR_ISMQ_RETRY.ANY",
         "PerPkg": "1",
-        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
+        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when sanalop responses come back from the cores.",
         "UMask": "0x1",
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "ISMQ Retries; No Egress Credits",
+        "BriefDescription": "ISMQ Retries; Anal Egress Credits",
         "EventCode": "0x33",
         "EventName": "UNC_C_RxR_ISMQ_RETRY.FULL",
         "PerPkg": "1",
-        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
+        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when sanalop responses come back from the cores.",
         "UMask": "0x2",
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "ISMQ Retries; No IIO Credits",
+        "BriefDescription": "ISMQ Retries; Anal IIO Credits",
         "EventCode": "0x33",
         "EventName": "UNC_C_RxR_ISMQ_RETRY.IIO_CREDITS",
         "PerPkg": "1",
-        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
+        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when sanalop responses come back from the cores.",
         "UMask": "0x20",
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "ISMQ Retries; No QPI Credits",
+        "BriefDescription": "ISMQ Retries; Anal QPI Credits",
         "EventCode": "0x33",
         "EventName": "UNC_C_RxR_ISMQ_RETRY.QPI_CREDITS",
         "PerPkg": "1",
-        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
+        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when sanalop responses come back from the cores.",
         "UMask": "0x10",
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "ISMQ Retries; No RTIDs",
+        "BriefDescription": "ISMQ Retries; Anal RTIDs",
         "EventCode": "0x33",
         "EventName": "UNC_C_RxR_ISMQ_RETRY.RTID",
         "PerPkg": "1",
-        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when snoop responses come back from the cores.",
+        "PublicDescription": "Number of times a transaction flowing through the ISMQ had to retry.  Transaction pass through the ISMQ as responses for requests that already exist in the Cbo.  Some examples include: when data is returned or when sanalop responses come back from the cores.",
         "UMask": "0x8",
         "Unit": "CBOX"
     },
@@ -799,7 +799,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "Egress Allocations; BL - Cacheno",
+        "BriefDescription": "Egress Allocations; BL - Cacheanal",
         "EventCode": "0x2",
         "EventName": "UNC_C_TxR_INSERTS.BL_CACHE",
         "PerPkg": "1",
@@ -830,7 +830,7 @@
         "EventCode": "0x3",
         "EventName": "UNC_C_TxR_STARVED.AK",
         "PerPkg": "1",
-        "PublicDescription": "Counts injection starvation.  This starvation is triggered when the Egress cannot send a transaction onto the ring for a long period of time.",
+        "PublicDescription": "Counts injection starvation.  This starvation is triggered when the Egress cananalt send a transaction onto the ring for a long period of time.",
         "UMask": "0x2",
         "Unit": "CBOX"
     },
@@ -839,16 +839,16 @@
         "EventCode": "0x3",
         "EventName": "UNC_C_TxR_STARVED.BL",
         "PerPkg": "1",
-        "PublicDescription": "Counts injection starvation.  This starvation is triggered when the Egress cannot send a transaction onto the ring for a long period of time.",
+        "PublicDescription": "Counts injection starvation.  This starvation is triggered when the Egress cananalt send a transaction onto the ring for a long period of time.",
         "UMask": "0x4",
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "HA to iMC Bypass; Not Taken",
+        "BriefDescription": "HA to iMC Bypass; Analt Taken",
         "EventCode": "0x14",
-        "EventName": "UNC_H_BYPASS_IMC.NOT_TAKEN",
+        "EventName": "UNC_H_BYPASS_IMC.ANALT_TAKEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times when the HA was able to bypass was attempted.  This is a latency optimization for situations when there is light loadings on the memory subsystem.  This can be filted by when the bypass was taken and when it was not.",
+        "PublicDescription": "Counts the number of times when the HA was able to bypass was attempted.  This is a latency optimization for situations when there is light loadings on the memory subsystem.  This can be filted by when the bypass was taken and when it was analt.",
         "UMask": "0x2",
         "Unit": "HA"
     },
@@ -857,7 +857,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_H_BYPASS_IMC.TAKEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times when the HA was able to bypass was attempted.  This is a latency optimization for situations when there is light loadings on the memory subsystem.  This can be filted by when the bypass was taken and when it was not.",
+        "PublicDescription": "Counts the number of times when the HA was able to bypass was attempted.  This is a latency optimization for situations when there is light loadings on the memory subsystem.  This can be filted by when the bypass was taken and when it was analt.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -877,9 +877,9 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "Conflict Checks; No Conflict",
+        "BriefDescription": "Conflict Checks; Anal Conflict",
         "EventCode": "0xb",
-        "EventName": "UNC_H_CONFLICT_CYCLES.NO_CONFLICT",
+        "EventName": "UNC_H_CONFLICT_CYCLES.ANAL_CONFLICT",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "HA"
@@ -909,20 +909,20 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "Directory Lookups; Snoop Not Needed",
+        "BriefDescription": "Directory Lookups; Sanalop Analt Needed",
         "EventCode": "0xc",
-        "EventName": "UNC_H_DIRECTORY_LOOKUP.NO_SNP",
+        "EventName": "UNC_H_DIRECTORY_LOOKUP.ANAL_SNP",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of transactions that looked up the directory.  Can be filtered by requests that had to snoop and those that did not have to.",
+        "PublicDescription": "Counts the number of transactions that looked up the directory.  Can be filtered by requests that had to sanalop and those that did analt have to.",
         "UMask": "0x2",
         "Unit": "HA"
     },
     {
-        "BriefDescription": "Directory Lookups; Snoop Needed",
+        "BriefDescription": "Directory Lookups; Sanalop Needed",
         "EventCode": "0xc",
         "EventName": "UNC_H_DIRECTORY_LOOKUP.SNP",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of transactions that looked up the directory.  Can be filtered by requests that had to snoop and those that did not have to.",
+        "PublicDescription": "Counts the number of transactions that looked up the directory.  Can be filtered by requests that had to sanalop and those that did analt have to.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -956,36 +956,36 @@
     {
         "BriefDescription": "Cycles without QPI Ingress Credits; AD to QPI Link 0",
         "EventCode": "0x22",
-        "EventName": "UNC_H_IGR_NO_CREDIT_CYCLES.AD_QPI0",
+        "EventName": "UNC_H_IGR_ANAL_CREDIT_CYCLES.AD_QPI0",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the HA does not have credits to send messages to the QPI Agent.  This can be filtered by the different credit pools and the different links.",
+        "PublicDescription": "Counts the number of cycles when the HA does analt have credits to send messages to the QPI Agent.  This can be filtered by the different credit pools and the different links.",
         "UMask": "0x1",
         "Unit": "HA"
     },
     {
         "BriefDescription": "Cycles without QPI Ingress Credits; AD to QPI Link 1",
         "EventCode": "0x22",
-        "EventName": "UNC_H_IGR_NO_CREDIT_CYCLES.AD_QPI1",
+        "EventName": "UNC_H_IGR_ANAL_CREDIT_CYCLES.AD_QPI1",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the HA does not have credits to send messages to the QPI Agent.  This can be filtered by the different credit pools and the different links.",
+        "PublicDescription": "Counts the number of cycles when the HA does analt have credits to send messages to the QPI Agent.  This can be filtered by the different credit pools and the different links.",
         "UMask": "0x2",
         "Unit": "HA"
     },
     {
         "BriefDescription": "Cycles without QPI Ingress Credits; BL to QPI Link 0",
         "EventCode": "0x22",
-        "EventName": "UNC_H_IGR_NO_CREDIT_CYCLES.BL_QPI0",
+        "EventName": "UNC_H_IGR_ANAL_CREDIT_CYCLES.BL_QPI0",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the HA does not have credits to send messages to the QPI Agent.  This can be filtered by the different credit pools and the different links.",
+        "PublicDescription": "Counts the number of cycles when the HA does analt have credits to send messages to the QPI Agent.  This can be filtered by the different credit pools and the different links.",
         "UMask": "0x4",
         "Unit": "HA"
     },
     {
         "BriefDescription": "Cycles without QPI Ingress Credits; BL to QPI Link 1",
         "EventCode": "0x22",
-        "EventName": "UNC_H_IGR_NO_CREDIT_CYCLES.BL_QPI1",
+        "EventName": "UNC_H_IGR_ANAL_CREDIT_CYCLES.BL_QPI1",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the HA does not have credits to send messages to the QPI Agent.  This can be filtered by the different credit pools and the different links.",
+        "PublicDescription": "Counts the number of cycles when the HA does analt have credits to send messages to the QPI Agent.  This can be filtered by the different credit pools and the different links.",
         "UMask": "0x8",
         "Unit": "HA"
     },
@@ -1001,16 +1001,16 @@
         "EventCode": "0x1a",
         "EventName": "UNC_H_IMC_WRITES.ALL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/non-ISOCH.",
+        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/analn-ISOCH.",
         "UMask": "0xf",
         "Unit": "HA"
     },
     {
-        "BriefDescription": "HA to iMC Full Line Writes Issued; Full Line Non-ISOCH",
+        "BriefDescription": "HA to iMC Full Line Writes Issued; Full Line Analn-ISOCH",
         "EventCode": "0x1a",
         "EventName": "UNC_H_IMC_WRITES.FULL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/non-ISOCH.",
+        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/analn-ISOCH.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -1019,16 +1019,16 @@
         "EventCode": "0x1a",
         "EventName": "UNC_H_IMC_WRITES.FULL_ISOCH",
         "PerPkg": "1",
-        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/non-ISOCH.",
+        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/analn-ISOCH.",
         "UMask": "0x4",
         "Unit": "HA"
     },
     {
-        "BriefDescription": "HA to iMC Full Line Writes Issued; Partial Non-ISOCH",
+        "BriefDescription": "HA to iMC Full Line Writes Issued; Partial Analn-ISOCH",
         "EventCode": "0x1a",
         "EventName": "UNC_H_IMC_WRITES.PARTIAL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/non-ISOCH.",
+        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/analn-ISOCH.",
         "UMask": "0x2",
         "Unit": "HA"
     },
@@ -1037,7 +1037,7 @@
         "EventCode": "0x1a",
         "EventName": "UNC_H_IMC_WRITES.PARTIAL_ISOCH",
         "PerPkg": "1",
-        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/non-ISOCH.",
+        "PublicDescription": "Counts the total number of full line writes issued from the HA into the memory controller.  This counts for all four channels.  It can be filtered by full/partial and ISOCH/analn-ISOCH.",
         "UMask": "0x8",
         "Unit": "HA"
     },
@@ -1064,7 +1064,7 @@
         "EventCode": "0x3e",
         "EventName": "UNC_H_RING_AD_USED.CCW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x4",
         "Unit": "HA"
     },
@@ -1073,7 +1073,7 @@
         "EventCode": "0x3e",
         "EventName": "UNC_H_RING_AD_USED.CCW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x8",
         "Unit": "HA"
     },
@@ -1082,7 +1082,7 @@
         "EventCode": "0x3e",
         "EventName": "UNC_H_RING_AD_USED.CW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -1091,7 +1091,7 @@
         "EventCode": "0x3e",
         "EventName": "UNC_H_RING_AD_USED.CW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x2",
         "Unit": "HA"
     },
@@ -1100,7 +1100,7 @@
         "EventCode": "0x3f",
         "EventName": "UNC_H_RING_AK_USED.CCW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x4",
         "Unit": "HA"
     },
@@ -1109,7 +1109,7 @@
         "EventCode": "0x3f",
         "EventName": "UNC_H_RING_AK_USED.CCW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x8",
         "Unit": "HA"
     },
@@ -1118,7 +1118,7 @@
         "EventCode": "0x3f",
         "EventName": "UNC_H_RING_AK_USED.CW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -1127,7 +1127,7 @@
         "EventCode": "0x3f",
         "EventName": "UNC_H_RING_AK_USED.CW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x2",
         "Unit": "HA"
     },
@@ -1136,7 +1136,7 @@
         "EventCode": "0x40",
         "EventName": "UNC_H_RING_BL_USED.CCW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x4",
         "Unit": "HA"
     },
@@ -1145,7 +1145,7 @@
         "EventCode": "0x40",
         "EventName": "UNC_H_RING_BL_USED.CCW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x8",
         "Unit": "HA"
     },
@@ -1154,7 +1154,7 @@
         "EventCode": "0x40",
         "EventName": "UNC_H_RING_BL_USED.CW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -1163,79 +1163,79 @@
         "EventCode": "0x40",
         "EventName": "UNC_H_RING_BL_USED.CW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x2",
         "Unit": "HA"
     },
     {
         "BriefDescription": "iMC RPQ Credits Empty - Regular; Channel 0",
         "EventCode": "0x15",
-        "EventName": "UNC_H_RPQ_CYCLES_NO_REG_CREDITS.CHN0",
+        "EventName": "UNC_H_RPQ_CYCLES_ANAL_REG_CREDITS.CHN0",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'regular' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'regular' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x1",
         "Unit": "HA"
     },
     {
         "BriefDescription": "iMC RPQ Credits Empty - Regular; Channel 1",
         "EventCode": "0x15",
-        "EventName": "UNC_H_RPQ_CYCLES_NO_REG_CREDITS.CHN1",
+        "EventName": "UNC_H_RPQ_CYCLES_ANAL_REG_CREDITS.CHN1",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'regular' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'regular' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x2",
         "Unit": "HA"
     },
     {
         "BriefDescription": "iMC RPQ Credits Empty - Regular; Channel 2",
         "EventCode": "0x15",
-        "EventName": "UNC_H_RPQ_CYCLES_NO_REG_CREDITS.CHN2",
+        "EventName": "UNC_H_RPQ_CYCLES_ANAL_REG_CREDITS.CHN2",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'regular' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'regular' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x4",
         "Unit": "HA"
     },
     {
         "BriefDescription": "iMC RPQ Credits Empty - Regular; Channel 3",
         "EventCode": "0x15",
-        "EventName": "UNC_H_RPQ_CYCLES_NO_REG_CREDITS.CHN3",
+        "EventName": "UNC_H_RPQ_CYCLES_ANAL_REG_CREDITS.CHN3",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'regular' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'regular' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x8",
         "Unit": "HA"
     },
     {
         "BriefDescription": "iMC RPQ Credits Empty - Special; Channel 0",
         "EventCode": "0x16",
-        "EventName": "UNC_H_RPQ_CYCLES_NO_SPEC_CREDITS.CHN0",
+        "EventName": "UNC_H_RPQ_CYCLES_ANAL_SPEC_CREDITS.CHN0",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'special' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the 'special' credits.  This statistic is generally not interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'special' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the 'special' credits.  This statistic is generally analt interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x1",
         "Unit": "HA"
     },
     {
         "BriefDescription": "iMC RPQ Credits Empty - Special; Channel 1",
         "EventCode": "0x16",
-        "EventName": "UNC_H_RPQ_CYCLES_NO_SPEC_CREDITS.CHN1",
+        "EventName": "UNC_H_RPQ_CYCLES_ANAL_SPEC_CREDITS.CHN1",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'special' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the 'special' credits.  This statistic is generally not interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'special' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the 'special' credits.  This statistic is generally analt interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x2",
         "Unit": "HA"
     },
     {
         "BriefDescription": "iMC RPQ Credits Empty - Special; Channel 2",
         "EventCode": "0x16",
-        "EventName": "UNC_H_RPQ_CYCLES_NO_SPEC_CREDITS.CHN2",
+        "EventName": "UNC_H_RPQ_CYCLES_ANAL_SPEC_CREDITS.CHN2",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'special' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the 'special' credits.  This statistic is generally not interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'special' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the 'special' credits.  This statistic is generally analt interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x4",
         "Unit": "HA"
     },
     {
         "BriefDescription": "iMC RPQ Credits Empty - Special; Channel 3",
         "EventCode": "0x16",
-        "EventName": "UNC_H_RPQ_CYCLES_NO_SPEC_CREDITS.CHN3",
+        "EventName": "UNC_H_RPQ_CYCLES_ANAL_SPEC_CREDITS.CHN3",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'special' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the 'special' credits.  This statistic is generally not interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'special' credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and 'special' requests such as ISOCH reads.  This count only tracks the 'special' credits.  This statistic is generally analt interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x8",
         "Unit": "HA"
     },
@@ -1352,12 +1352,12 @@
         "EventCode": "0x6",
         "EventName": "UNC_H_TRACKER_INSERTS.ALL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of allocations into the local HA tracker pool.  This can be used in conjunction with the occupancy accumulation event in order to calculate average latency.  One cannot filter between reads and writes.  HA trackers are allocated as soon as a request enters the HA and is released after the snoop response and data return (or post in the case of a write) and the response is returned on the ring.",
+        "PublicDescription": "Counts the number of allocations into the local HA tracker pool.  This can be used in conjunction with the occupancy accumulation event in order to calculate average latency.  One cananalt filter between reads and writes.  HA trackers are allocated as soon as a request enters the HA and is released after the sanalop response and data return (or post in the case of a write) and the response is returned on the ring.",
         "UMask": "0x3",
         "Unit": "HA"
     },
     {
-        "BriefDescription": "Outbound NDR Ring Transactions; Non-data Responses",
+        "BriefDescription": "Outbound NDR Ring Transactions; Analn-data Responses",
         "EventCode": "0xf",
         "EventName": "UNC_H_TxR_AD.NDR",
         "PerPkg": "1",
@@ -1366,7 +1366,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "Outbound NDR Ring Transactions; Snoops",
+        "BriefDescription": "Outbound NDR Ring Transactions; Sanalops",
         "EventCode": "0xf",
         "EventName": "UNC_H_TxR_AD.SNP",
         "PerPkg": "1",
@@ -1399,7 +1399,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "AD Egress Not Empty; All",
+        "BriefDescription": "AD Egress Analt Empty; All",
         "EventCode": "0x29",
         "EventName": "UNC_H_TxR_AD_CYCLES_NE.ALL",
         "PerPkg": "1",
@@ -1407,7 +1407,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "AD Egress Not Empty; Scheduler 0",
+        "BriefDescription": "AD Egress Analt Empty; Scheduler 0",
         "EventCode": "0x29",
         "EventName": "UNC_H_TxR_AD_CYCLES_NE.SCHED0",
         "PerPkg": "1",
@@ -1415,7 +1415,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "AD Egress Not Empty; Scheduler 1",
+        "BriefDescription": "AD Egress Analt Empty; Scheduler 1",
         "EventCode": "0x29",
         "EventName": "UNC_H_TxR_AD_CYCLES_NE.SCHED1",
         "PerPkg": "1",
@@ -1495,7 +1495,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "AK Egress Not Empty; All",
+        "BriefDescription": "AK Egress Analt Empty; All",
         "EventCode": "0x31",
         "EventName": "UNC_H_TxR_AK_CYCLES_NE.ALL",
         "PerPkg": "1",
@@ -1503,7 +1503,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "AK Egress Not Empty; Scheduler 0",
+        "BriefDescription": "AK Egress Analt Empty; Scheduler 0",
         "EventCode": "0x31",
         "EventName": "UNC_H_TxR_AK_CYCLES_NE.SCHED0",
         "PerPkg": "1",
@@ -1511,7 +1511,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "AK Egress Not Empty; Scheduler 1",
+        "BriefDescription": "AK Egress Analt Empty; Scheduler 1",
         "EventCode": "0x31",
         "EventName": "UNC_H_TxR_AK_CYCLES_NE.SCHED1",
         "PerPkg": "1",
@@ -1547,7 +1547,7 @@
         "EventCode": "0xe",
         "EventName": "UNC_H_TxR_AK_NDR",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of outbound NDR transactions sent on the AK ring.  NDR stands for 'non-data response' and is generally used for completions that do not include data.  AK NDR is used for messages to the local socket.",
+        "PublicDescription": "Counts the number of outbound NDR transactions sent on the AK ring.  NDR stands for 'analn-data response' and is generally used for completions that do analt include data.  AK NDR is used for messages to the local socket.",
         "Unit": "HA"
     },
     {
@@ -1626,7 +1626,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "BL Egress Not Empty; All",
+        "BriefDescription": "BL Egress Analt Empty; All",
         "EventCode": "0x35",
         "EventName": "UNC_H_TxR_BL_CYCLES_NE.ALL",
         "PerPkg": "1",
@@ -1634,7 +1634,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "BL Egress Not Empty; Scheduler 0",
+        "BriefDescription": "BL Egress Analt Empty; Scheduler 0",
         "EventCode": "0x35",
         "EventName": "UNC_H_TxR_BL_CYCLES_NE.SCHED0",
         "PerPkg": "1",
@@ -1642,7 +1642,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "BL Egress Not Empty; Scheduler 1",
+        "BriefDescription": "BL Egress Analt Empty; Scheduler 1",
         "EventCode": "0x35",
         "EventName": "UNC_H_TxR_BL_CYCLES_NE.SCHED1",
         "PerPkg": "1",
@@ -1700,72 +1700,72 @@
     {
         "BriefDescription": "HA iMC CHN0 WPQ Credits Empty - Regular; Channel 0",
         "EventCode": "0x18",
-        "EventName": "UNC_H_WPQ_CYCLES_NO_REG_CREDITS.CHN0",
+        "EventName": "UNC_H_WPQ_CYCLES_ANAL_REG_CREDITS.CHN0",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'regular' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'regular' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x1",
         "Unit": "HA"
     },
     {
         "BriefDescription": "HA iMC CHN0 WPQ Credits Empty - Regular; Channel 1",
         "EventCode": "0x18",
-        "EventName": "UNC_H_WPQ_CYCLES_NO_REG_CREDITS.CHN1",
+        "EventName": "UNC_H_WPQ_CYCLES_ANAL_REG_CREDITS.CHN1",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'regular' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'regular' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x2",
         "Unit": "HA"
     },
     {
         "BriefDescription": "HA iMC CHN0 WPQ Credits Empty - Regular; Channel 2",
         "EventCode": "0x18",
-        "EventName": "UNC_H_WPQ_CYCLES_NO_REG_CREDITS.CHN2",
+        "EventName": "UNC_H_WPQ_CYCLES_ANAL_REG_CREDITS.CHN2",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'regular' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'regular' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x4",
         "Unit": "HA"
     },
     {
         "BriefDescription": "HA iMC CHN0 WPQ Credits Empty - Regular; Channel 3",
         "EventCode": "0x18",
-        "EventName": "UNC_H_WPQ_CYCLES_NO_REG_CREDITS.CHN3",
+        "EventName": "UNC_H_WPQ_CYCLES_ANAL_REG_CREDITS.CHN3",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'regular' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'regular' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x8",
         "Unit": "HA"
     },
     {
         "BriefDescription": "HA iMC CHN0 WPQ Credits Empty - Special; Channel 0",
         "EventCode": "0x19",
-        "EventName": "UNC_H_WPQ_CYCLES_NO_SPEC_CREDITS.CHN0",
+        "EventName": "UNC_H_WPQ_CYCLES_ANAL_SPEC_CREDITS.CHN0",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'special' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the 'special' credits.  This statistic is generally not interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'special' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the 'special' credits.  This statistic is generally analt interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x1",
         "Unit": "HA"
     },
     {
         "BriefDescription": "HA iMC CHN0 WPQ Credits Empty - Special; Channel 1",
         "EventCode": "0x19",
-        "EventName": "UNC_H_WPQ_CYCLES_NO_SPEC_CREDITS.CHN1",
+        "EventName": "UNC_H_WPQ_CYCLES_ANAL_SPEC_CREDITS.CHN1",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'special' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the 'special' credits.  This statistic is generally not interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'special' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the 'special' credits.  This statistic is generally analt interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x2",
         "Unit": "HA"
     },
     {
         "BriefDescription": "HA iMC CHN0 WPQ Credits Empty - Special; Channel 2",
         "EventCode": "0x19",
-        "EventName": "UNC_H_WPQ_CYCLES_NO_SPEC_CREDITS.CHN2",
+        "EventName": "UNC_H_WPQ_CYCLES_ANAL_SPEC_CREDITS.CHN2",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'special' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the 'special' credits.  This statistic is generally not interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'special' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the 'special' credits.  This statistic is generally analt interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x4",
         "Unit": "HA"
     },
     {
         "BriefDescription": "HA iMC CHN0 WPQ Credits Empty - Special; Channel 3",
         "EventCode": "0x19",
-        "EventName": "UNC_H_WPQ_CYCLES_NO_SPEC_CREDITS.CHN3",
+        "EventName": "UNC_H_WPQ_CYCLES_ANAL_SPEC_CREDITS.CHN3",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no 'special' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the 'special' credits.  This statistic is generally not interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
+        "PublicDescription": "Counts the number of cycles when there are anal 'special' credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and 'special' requests such as ISOCH writes.  This count only tracks the 'special' credits.  This statistic is generally analt interesting for general IA workloads, but may be of interest for understanding the characteristics of systems using ISOCH.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.",
         "UMask": "0x8",
         "Unit": "HA"
     }

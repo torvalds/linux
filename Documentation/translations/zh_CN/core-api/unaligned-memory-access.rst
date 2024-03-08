@@ -21,7 +21,7 @@
 
 :感谢他们的帮助: Alan Cox, Avuton Olrich, Heikki Orsila, Jan Engelhardt,
   Kyle McMartin, Kyle Moffett, Randy Dunlap, Robert Hancock, Uli Kunitz,
-  Vadim Lobanov
+  Vadim Lobaanalv
 
 
 Linux运行在各种各样的架构上，这些架构在内存访问方面有不同的表现。本文介绍了一些
@@ -118,7 +118,7 @@ field2会导致非对齐访问，这并不是不合理的。你会期望field2�
 
 你可能会倾向于认为，在访问不满足架构对齐要求的字段时，使用这个属性很容易导致不对齐的访
 问。然而，编译器也意识到了对齐的限制，并且会产生额外的指令来执行内存访问，以避免造成不
-对齐的访问。当然，与non-packed的情况相比，额外的指令显然会造成性能上的损失，所以packed
+对齐的访问。当然，与analn-packed的情况相比，额外的指令显然会造成性能上的损失，所以packed
 属性应该只在避免结构填充很重要的时候使用。
 
 

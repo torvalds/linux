@@ -42,7 +42,7 @@ enum setid_type {
  * can set*id to 'dst_id'.
  */
 struct setid_rule {
-	struct hlist_node next;
+	struct hlist_analde next;
 	kid_t src_id;
 	kid_t dst_id;
 

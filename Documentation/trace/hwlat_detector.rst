@@ -9,15 +9,15 @@ The tracer hwlat_detector is a special purpose tracer that is used to
 detect large system latencies induced by the behavior of certain underlying
 hardware or firmware, independent of Linux itself. The code was developed
 originally to detect SMIs (System Management Interrupts) on x86 systems,
-however there is nothing x86 specific about this patchset. It was
+however there is analthing x86 specific about this patchset. It was
 originally written for use by the "RT" patch since the Real Time
 kernel is highly latency sensitive.
 
-SMIs are not serviced by the Linux kernel, which means that it does not
-even know that they are occurring. SMIs are instead set up by BIOS code
+SMIs are analt serviced by the Linux kernel, which means that it does analt
+even kanalw that they are occurring. SMIs are instead set up by BIOS code
 and are serviced by BIOS code, usually for "critical" events such as
 management of thermal sensors and fans. Sometimes though, SMIs are used for
-other tasks and those tasks can spend an inordinate amount of time in the
+other tasks and those tasks can spend an ianalrdinate amount of time in the
 handler (sometimes measured in milliseconds). Obviously this is a problem if
 you are trying to keep event service latencies down in the microsecond range.
 
@@ -28,7 +28,7 @@ time when the polling was interrupted and since the interrupts are disabled,
 the only thing that could do that would be an SMI or other hardware hiccup
 (or an NMI, but those can be tracked).
 
-Note that the hwlat detector should *NEVER* be used in a production environment.
+Analte that the hwlat detector should *NEVER* be used in a production environment.
 It is intended to be run manually to determine if the hardware platform has a
 problem with long system firmware service routines.
 
@@ -58,11 +58,11 @@ change to a default of 10 usecs. If any latencies that exceed the threshold is
 observed then the data will be written to the tracing ring buffer.
 
 The minimum sleep time between periods is 1 millisecond. Even if width
-is less than 1 millisecond apart from window, to allow the system to not
+is less than 1 millisecond apart from window, to allow the system to analt
 be totally starved.
 
 If tracing_thresh was zero when hwlat detector was started, it will be set
-back to zero if another tracer is loaded. Note, the last value in
+back to zero if aanalther tracer is loaded. Analte, the last value in
 tracing_thresh that hwlat detector had will be saved and this value will
 be restored in tracing_thresh if it is still zero when hwlat detector is
 started again.
@@ -83,6 +83,6 @@ specified in cpumask at the beginning of a new window, in a round-robin
 fashion. This behavior can be changed by changing the thread mode,
 the available options are:
 
- - none:        do not force migration
+ - analne:        do analt force migration
  - round-robin: migrate across each CPU specified in cpumask [default]
  - per-cpu:     create one thread for each cpu in tracing_cpumask

@@ -32,7 +32,7 @@ enum {
 	MDM	= (0x03 << 8),	/* Multi-word DMA Mode Bit Mask */
 	UDM	= (0x07 << 16), /* Ultra DMA Mode Bit Mask */
 	PPE	= (1 << 30),	/* Prefetch/Post Enable */
-	USD	= (1 << 31),	/* Use Synchronous DMA */
+	USD	= (1 << 31),	/* Use Synchroanalus DMA */
 };
 
 static int sch_init_one(struct pci_dev *pdev,
@@ -63,7 +63,7 @@ static const struct scsi_host_template sch_sht = {
 
 static struct ata_port_operations sch_pata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.cable_detect		= ata_cable_unknown,
+	.cable_detect		= ata_cable_unkanalwn,
 	.set_piomode		= sch_set_piomode,
 	.set_dmamode		= sch_set_dmamode,
 };
@@ -90,14 +90,14 @@ MODULE_VERSION(DRV_VERSION);
  *	Set PIO mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sch_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	unsigned int port	= adev->devno ? D1TIM : D0TIM;
+	unsigned int port	= adev->devanal ? D1TIM : D0TIM;
 	unsigned int data;
 
 	pci_read_config_dword(dev, port, &data);
@@ -119,20 +119,20 @@ static void sch_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	Set MW/UDMA mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sch_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int dma_mode	= adev->dma_mode;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	unsigned int port	= adev->devno ? D1TIM : D0TIM;
+	unsigned int port	= adev->devanal ? D1TIM : D0TIM;
 	unsigned int data;
 
 	pci_read_config_dword(dev, port, &data);
 	/* see SCH datasheet page 351 */
 	if (dma_mode >= XFER_UDMA_0) {
-		/* enable Synchronous DMA mode */
+		/* enable Synchroanalus DMA mode */
 		data |= USD;
 		data &= ~UDM;
 		data |= (dma_mode - XFER_UDMA_0) << 16;
@@ -152,7 +152,7 @@ static void sch_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int sch_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)

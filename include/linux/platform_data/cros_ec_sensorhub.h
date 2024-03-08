@@ -10,7 +10,7 @@
 
 #include <linux/ktime.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_data/cros_ec_commands.h>
 
 struct iio_dev;
@@ -121,7 +121,7 @@ struct cros_ec_sensors_ts_batch_state {
  * @params: Pointer to parameters in msg.
  * @resp: Pointer to responses in msg.
  * @cmd_lock : Lock for sending msg.
- * @notifier: Notifier to kick the FIFO interrupt.
+ * @analtifier: Analtifier to kick the FIFO interrupt.
  * @ring: Preprocessed ring to store events.
  * @fifo_timestamp: Array for event timestamp and spreading.
  * @fifo_info: Copy of FIFO information coming from the EC.
@@ -138,7 +138,7 @@ struct cros_ec_sensors_ts_batch_state {
  *			    This occurs when timestamp interpolation from EC
  *			    time to AP time accidentally puts timestamps in
  *			    the future. These timestamps are clamped to
- *			    `now` and these count/total_ns maintain the
+ *			    `analw` and these count/total_ns maintain the
  *			    statistics for how much time was removed in a
  *			    given period.
  * @future_timestamp_total_ns: Total amount of time shaved.
@@ -154,7 +154,7 @@ struct cros_ec_sensorhub {
 	struct ec_response_motion_sense *resp;
 	struct mutex cmd_lock;  /* Lock for protecting msg structure. */
 
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 
 	struct cros_ec_sensors_ring_sample *ring;
 

@@ -27,7 +27,7 @@ static ssize_t ctcm_buffer_show(struct device *dev,
 	struct ctcm_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 	return sysfs_emit(buf, "%d\n", priv->buffer_size);
 }
 
@@ -41,8 +41,8 @@ static ssize_t ctcm_buffer_write(struct device *dev,
 
 	if (!(priv && priv->channel[CTCM_READ] &&
 	      priv->channel[CTCM_READ]->netdev)) {
-		CTCM_DBF_TEXT(SETUP, CTC_DBF_ERROR, "bfnondev");
-		return -ENODEV;
+		CTCM_DBF_TEXT(SETUP, CTC_DBF_ERROR, "bfanalndev");
+		return -EANALDEV;
 	}
 	ndev = priv->channel[CTCM_READ]->netdev;
 
@@ -118,7 +118,7 @@ static ssize_t stats_show(struct device *dev,
 	struct ctcm_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv || gdev->state != CCWGROUP_ONLINE)
-		return -ENODEV;
+		return -EANALDEV;
 	ctcm_print_statistics(priv);
 	return sysfs_emit(buf, "0\n");
 }
@@ -128,7 +128,7 @@ static ssize_t stats_write(struct device *dev, struct device_attribute *attr,
 {
 	struct ctcm_priv *priv = dev_get_drvdata(dev);
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 	/* Reset statistics */
 	memset(&priv->channel[WRITE]->prof, 0,
 				sizeof(priv->channel[CTCM_WRITE]->prof));
@@ -140,7 +140,7 @@ static ssize_t ctcm_proto_show(struct device *dev,
 {
 	struct ctcm_priv *priv = dev_get_drvdata(dev);
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sysfs_emit(buf, "%d\n", priv->protocol);
 }
@@ -152,7 +152,7 @@ static ssize_t ctcm_proto_store(struct device *dev,
 	struct ctcm_priv *priv = dev_get_drvdata(dev);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 	rc = kstrtoint(buf, 0, &value);
 	if (rc ||
 	    !((value == CTCM_PROTO_S390)  ||
@@ -167,11 +167,11 @@ static ssize_t ctcm_proto_store(struct device *dev,
 }
 
 static const char *ctcm_type[] = {
-	"not a channel",
+	"analt a channel",
 	"CTC/A",
 	"FICON channel",
 	"ESCON channel",
-	"unknown channel type",
+	"unkanalwn channel type",
 	"unsupported channel type",
 };
 
@@ -182,7 +182,7 @@ static ssize_t ctcm_type_show(struct device *dev,
 
 	cgdev = to_ccwgroupdev(dev);
 	if (!cgdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sysfs_emit(buf, "%s\n",
 			  ctcm_type[cgdev->cdev[0]->id.driver_info]);

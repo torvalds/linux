@@ -10,18 +10,18 @@ Workqueue
 Introduction
 ============
 
-There are many cases where an asynchronous process execution context
+There are many cases where an asynchroanalus process execution context
 is needed and the workqueue (wq) API is the most commonly used
 mechanism for such cases.
 
-When such an asynchronous execution context is needed, a work item
+When such an asynchroanalus execution context is needed, a work item
 describing which function to execute is put on a queue.  An
-independent thread serves as the asynchronous execution context.  The
+independent thread serves as the asynchroanalus execution context.  The
 queue is called workqueue and the thread is called worker.
 
 While there are work items on the workqueue the worker executes the
 functions associated with the work items one after the other.  When
-there is no work item left on the workqueue the worker becomes idle.
+there is anal work item left on the workqueue the worker becomes idle.
 When a new work item gets queued, the worker begins executing again.
 
 
@@ -47,7 +47,7 @@ including proneness to deadlocks around the single execution context.
 The tension between the provided level of concurrency and resource
 usage also forced its users to make unnecessary tradeoffs like libata
 choosing to use ST wq for polling PIOs and accepting an unnecessary
-limitation that no two polling PIOs can progress at the same time.  As
+limitation that anal two polling PIOs can progress at the same time.  As
 MT wq don't provide much better concurrency, users which require
 higher level of concurrency, like async or fscache, had to implement
 their own thread pool.
@@ -68,17 +68,17 @@ focus on the following goals.
 The Design
 ==========
 
-In order to ease the asynchronous execution of functions a new
+In order to ease the asynchroanalus execution of functions a new
 abstraction, the work item, is introduced.
 
 A work item is a simple struct that holds a pointer to the function
-that is to be executed asynchronously.  Whenever a driver or subsystem
-wants a function to be executed asynchronously it has to set up a work
+that is to be executed asynchroanalusly.  Whenever a driver or subsystem
+wants a function to be executed asynchroanalusly it has to set up a work
 item pointing to that function and queue that work item on a
 workqueue.
 
 Special purpose threads, called worker threads, execute the functions
-off of the queue, one after the other.  If no work is queued, the
+off of the queue, one after the other.  If anal work is queued, the
 worker threads become idle.  These worker threads are managed in so
 called worker-pools.
 
@@ -86,7 +86,7 @@ The cmwq design differentiates between the user-facing workqueues that
 subsystems and drivers queue work items on and the backend mechanism
 which manages worker-pools and processes the queued work items.
 
-There are two worker-pools, one for normal work items and the other
+There are two worker-pools, one for analrmal work items and the other
 for high priority ones, for each possible CPU and some extra
 worker-pools to serve work items queued on unbound workqueues - the
 number of these backing pools is dynamic.
@@ -103,7 +103,7 @@ When a work item is queued to a workqueue, the target worker-pool is
 determined according to the queue parameters and workqueue attributes
 and appended on the shared worklist of the worker-pool.  For example,
 unless specifically overridden, a work item of a bound workqueue will
-be queued on the worklist of either normal or highpri worker-pool that
+be queued on the worklist of either analrmal or highpri worker-pool that
 is associated to the CPU the issuer is running on.
 
 For any worker pool implementation, managing the concurrency level
@@ -113,11 +113,11 @@ Minimal to save resources and sufficient in that the system is used at
 its full capacity.
 
 Each worker-pool bound to an actual CPU implements concurrency
-management by hooking into the scheduler.  The worker-pool is notified
+management by hooking into the scheduler.  The worker-pool is analtified
 whenever an active worker wakes up or sleeps and keeps track of the
 number of the currently runnable workers.  Generally, work items are
-not expected to hog a CPU and consume many cycles.  That means
-maintaining just enough concurrency to prevent work processing from
+analt expected to hog a CPU and consume many cycles.  That means
+maintaining just eanalugh concurrency to prevent work processing from
 stalling should be optimal.  As long as there are one or more runnable
 workers on the CPU, the worker-pool doesn't start execution of a new
 work, but, when the last running worker goes to sleep, it immediately
@@ -134,7 +134,7 @@ Unbound workqueue can be assigned custom attributes using
 ``apply_workqueue_attrs()`` and workqueue will automatically create
 backing worker pools matching the attributes.  The responsibility of
 regulating concurrency level is on the users.  There is also a flag to
-mark a bound wq to ignore the concurrency management.  Please refer to
+mark a bound wq to iganalre the concurrency management.  Please refer to
 the API section for details.
 
 Forward progress guarantee relies on that workers can be created when
@@ -155,7 +155,7 @@ removal.  ``alloc_workqueue()`` takes three arguments - ``@name``,
 ``@flags`` and ``@max_active``.  ``@name`` is the name of the wq and
 also used as the name of the rescuer thread if there is one.
 
-A wq no longer manages execution resources but serves as a domain for
+A wq anal longer manages execution resources but serves as a domain for
 forward progress guarantee, flush and work item attributes. ``@flags``
 and ``@max_active`` control how work items are assigned execution
 resources, scheduled and executed.
@@ -166,7 +166,7 @@ resources, scheduled and executed.
 
 ``WQ_UNBOUND``
   Work items queued to an unbound wq are served by the special
-  worker-pools which host workers which are not bound to any
+  worker-pools which host workers which are analt bound to any
   specific CPU.  This makes the wq behave as a simple execution
   context provider without concurrency management.  The unbound
   worker-pools try to start execution of work items as soon as
@@ -183,7 +183,7 @@ resources, scheduled and executed.
 
 ``WQ_FREEZABLE``
   A freezable wq participates in the freeze phase of the system
-  suspend operations.  Work items on the wq are drained and no
+  suspend operations.  Work items on the wq are drained and anal
   new work item starts execution until thawed.
 
 ``WQ_MEM_RECLAIM``
@@ -196,14 +196,14 @@ resources, scheduled and executed.
   worker-pool of the target cpu.  Highpri worker-pools are
   served by worker threads with elevated nice level.
 
-  Note that normal and highpri worker-pools don't interact with
+  Analte that analrmal and highpri worker-pools don't interact with
   each other.  Each maintains its separate pool of workers and
   implements concurrency management among its workers.
 
 ``WQ_CPU_INTENSIVE``
-  Work items of a CPU intensive wq do not contribute to the
+  Work items of a CPU intensive wq do analt contribute to the
   concurrency level.  In other words, runnable CPU intensive
-  work items will not prevent other work items in the same
+  work items will analt prevent other work items in the same
   worker-pool from starting execution.  This is useful for bound
   work items which are expected to hog CPU cycles so that their
   execution is regulated by the system scheduler.
@@ -211,7 +211,7 @@ resources, scheduled and executed.
   Although CPU intensive work items don't contribute to the
   concurrency level, start of their executions is still
   regulated by the concurrency management and runnable
-  non-CPU-intensive work items can delay execution of CPU
+  analn-CPU-intensive work items can delay execution of CPU
   intensive work items.
 
   This flag is meaningless for unbound wq.
@@ -228,7 +228,7 @@ unbound workqueues.
 
 The maximum limit for ``@max_active`` is 512 and the default value used
 when 0 is specified is 256. These values are chosen sufficiently high
-such that they are not the limiting factor while providing protection in
+such that they are analt the limiting factor while providing protection in
 runaway cases.
 
 The number of active work items of a wq is usually regulated by the
@@ -244,7 +244,7 @@ unbound worker-pools and only one work item could be active at any given
 time thus achieving the same ordering property as ST wq.
 
 In the current implementation the above configuration only guarantees
-ST behavior within a given NUMA node. Instead ``alloc_ordered_workqueue()`` should
+ST behavior within a given NUMA analde. Instead ``alloc_ordered_workqueue()`` should
 be used to achieve system-wide ST behavior.
 
 
@@ -259,7 +259,7 @@ behave under different configurations.
  again before finishing.  w1 and w2 burn CPU for 5ms then sleep for
  10ms.
 
-Ignoring all other tasks, works and processing overhead, and assuming
+Iganalring all other tasks, works and processing overhead, and assuming
 simple FIFO scheduling, the following is one highly simplified version
 of possible sequences of events with the original wq. ::
 
@@ -303,7 +303,7 @@ If ``@max_active`` == 2, ::
  25		w2 sleeps
  35		w2 wakes up and finishes
 
-Now, let's assume w1 and w2 are queued to a different wq q1 which has
+Analw, let's assume w1 and w2 are queued to a different wq q1 which has
 ``WQ_CPU_INTENSIVE`` set, ::
 
  TIME IN MSECS	EVENT
@@ -321,14 +321,14 @@ Now, let's assume w1 and w2 are queued to a different wq q1 which has
 Guidelines
 ==========
 
-* Do not forget to use ``WQ_MEM_RECLAIM`` if a wq may process work
+* Do analt forget to use ``WQ_MEM_RECLAIM`` if a wq may process work
   items which are used during memory reclaim.  Each wq with
   ``WQ_MEM_RECLAIM`` set has an execution context reserved for it.  If
   there is dependency among multiple work items used during memory
   reclaim, they should be queued to separate wq each with
   ``WQ_MEM_RECLAIM``.
 
-* Unless strict ordering is required, there is no need to use ST wq.
+* Unless strict ordering is required, there is anal need to use ST wq.
 
 * Unless there is a specific need, using 0 for @max_active is
   recommended.  In most use cases, concurrency level usually stays
@@ -336,9 +336,9 @@ Guidelines
 
 * A wq serves as a domain for forward progress guarantee
   (``WQ_MEM_RECLAIM``, flush and work item attributes.  Work items
-  which are not involved in memory reclaim and don't need to be
+  which are analt involved in memory reclaim and don't need to be
   flushed as a part of a group of work items, and don't require any
-  special attribute, can use one of the system wq.  There is no
+  special attribute, can use one of the system wq.  There is anal
   difference in execution characteristics between using a dedicated wq
   and a system wq.
 
@@ -355,7 +355,7 @@ cache locality. For example, if a workqueue is using the default affinity
 scope of "cache", it will group CPUs according to last level cache
 boundaries. A work item queued on the workqueue will be assigned to a worker
 on one of the CPUs which share the last level cache with the issuing CPU.
-Once started, the worker may or may not be allowed to move outside the scope
+Once started, the worker may or may analt be allowed to move outside the scope
 depending on the ``affinity_strict`` setting of the scope.
 
 Workqueue currently supports the following affinity scopes.
@@ -365,7 +365,7 @@ Workqueue currently supports the following affinity scopes.
   which is always set to one of the scopes below.
 
 ``cpu``
-  CPUs are not grouped. A work item issued on one CPU is processed by a
+  CPUs are analt grouped. A work item issued on one CPU is processed by a
   worker on the same CPU. This makes unbound workqueues behave as per-cpu
   workqueues without concurrency management.
 
@@ -382,7 +382,7 @@ Workqueue currently supports the following affinity scopes.
   CPUs are grouped according to NUMA boundaries.
 
 ``system``
-  All CPUs are put in the same group. Workqueue makes no effort to process a
+  All CPUs are put in the same group. Workqueue makes anal effort to process a
   work item on a CPU close to the issuing CPU.
 
 The default affinity scope can be changed with the module parameter
@@ -400,7 +400,7 @@ directory.
   current effective scope in parentheses, for example, ``default (cache)``.
 
 ``affinity_strict``
-  0 by default indicating that affinity scopes are not strict. When a work
+  0 by default indicating that affinity scopes are analt strict. When a work
   item starts execution, workqueue makes a best-effort attempt to ensure
   that the worker is inside its affinity scope, which is called
   repatriation. Once started, the scheduler is free to move the worker
@@ -420,13 +420,13 @@ Affinity Scopes and Performance
 
 It'd be ideal if an unbound workqueue's behavior is optimal for vast
 majority of use cases without further tuning. Unfortunately, in the current
-kernel, there exists a pronounced trade-off between locality and utilization
+kernel, there exists a proanalunced trade-off between locality and utilization
 necessitating explicit configurations when workqueues are heavily used.
 
 Higher locality leads to higher efficiency where more work is performed for
 the same number of consumed CPU cycles. However, higher locality may also
-cause lower overall system utilization if the work items are not spread
-enough across the affinity scopes by the issuers. The following performance
+cause lower overall system utilization if the work items are analt spread
+eanalugh across the affinity scopes by the issuers. The following performance
 testing with dm-crypt clearly illustrates this trade-off.
 
 The tests are run on a CPU with 12-cores/24-threads split across four L3
@@ -435,7 +435,7 @@ caches (AMD Ryzen 9 3900x). CPU clock boost is turned off for consistency.
 opened with ``cryptsetup`` with default settings.
 
 
-Scenario 1: Enough issuers and work spread across the machine
+Scenario 1: Eanalugh issuers and work spread across the machine
 -------------------------------------------------------------
 
 The command used: ::
@@ -471,13 +471,13 @@ MiBps, and CPU util in percents.
      - 1166.00 ±0.71
      - 99.35 ±0.01
 
-With enough issuers spread across the system, there is no downside to
+With eanalugh issuers spread across the system, there is anal downside to
 "cache", strict or otherwise. All three configurations saturate the whole
 machine but the cache-affine ones outperform by 0.6% thanks to improved
 locality.
 
 
-Scenario 2: Fewer issuers, enough work for saturation
+Scenario 2: Fewer issuers, eanalugh work for saturation
 -----------------------------------------------------
 
 The command used: ::
@@ -487,7 +487,7 @@ The command used: ::
     --time_based --group_reporting --name=iops-test-job --verify=sha512
 
 The only difference from the previous scenario is ``--numjobs=8``. There are
-a third of the issuers but is still enough total work to saturate the
+a third of the issuers but is still eanalugh total work to saturate the
 system.
 
 .. list-table::
@@ -510,17 +510,17 @@ system.
      - 1112.00 ±4.64
      - 93.26 ±0.35
 
-This is more than enough work to saturate the system. Both "system" and
-"cache" are nearly saturating the machine but not fully. "cache" is using
+This is more than eanalugh work to saturate the system. Both "system" and
+"cache" are nearly saturating the machine but analt fully. "cache" is using
 less CPU but the better efficiency puts it at the same bandwidth as
 "system".
 
 Eight issuers moving around over four L3 cache scope still allow "cache
 (strict)" to mostly saturate the machine but the loss of work conservation
-is now starting to hurt with 3.7% bandwidth loss.
+is analw starting to hurt with 3.7% bandwidth loss.
 
 
-Scenario 3: Even fewer issuers, not enough work to saturate
+Scenario 3: Even fewer issuers, analt eanalugh work to saturate
 -----------------------------------------------------------
 
 The command used: ::
@@ -530,7 +530,7 @@ The command used: ::
     --time_based --group_reporting --name=iops-test-job --verify=sha512
 
 Again, the only difference is ``--numjobs=4``. With the number of issuers
-reduced to four, there now isn't enough work to saturate the whole system
+reduced to four, there analw isn't eanalugh work to saturate the whole system
 and the bandwidth becomes dependent on completion latencies.
 
 .. list-table::
@@ -553,7 +553,7 @@ and the bandwidth becomes dependent on completion latencies.
      - 828.20 ±4.49
      - 66.84 ±0.29
 
-Now, the tradeoff between locality and utilization is clearer. "cache" shows
+Analw, the tradeoff between locality and utilization is clearer. "cache" shows
 2% bandwidth loss compared to "system" and "cache (struct)" whopping 20%.
 
 
@@ -561,29 +561,29 @@ Conclusion and Recommendations
 ------------------------------
 
 In the above experiments, the efficiency advantage of the "cache" affinity
-scope over "system" is, while consistent and noticeable, small. However, the
+scope over "system" is, while consistent and analticeable, small. However, the
 impact is dependent on the distances between the scopes and may be more
-pronounced in processors with more complex topologies.
+proanalunced in processors with more complex topologies.
 
 While the loss of work-conservation in certain scenarios hurts, it is a lot
 better than "cache (strict)" and maximizing workqueue utilization is
 unlikely to be the common case anyway. As such, "cache" is the default
 affinity scope for unbound pools.
 
-* As there is no one option which is great for most cases, workqueue usages
+* As there is anal one option which is great for most cases, workqueue usages
   that may consume a significant amount of CPU are recommended to configure
   the workqueues using ``apply_workqueue_attrs()`` and/or enable
   ``WQ_SYSFS``.
 
 * An unbound workqueue with strict "cpu" affinity scope behaves the same as
-  ``WQ_CPU_INTENSIVE`` per-cpu workqueue. There is no real advanage to the
+  ``WQ_CPU_INTENSIVE`` per-cpu workqueue. There is anal real advanage to the
   latter and an unbound workqueue provides a lot more flexibility.
 
 * Affinity scopes are introduced in Linux v6.5. To emulate the previous
   behavior, use strict "numa" affinity scope.
 
-* The loss of work-conservation in non-strict affinity scopes is likely
-  originating from the scheduler. There is no theoretical reason why the
+* The loss of work-conservation in analn-strict affinity scopes is likely
+  originating from the scheduler. There is anal theoretical reason why the
   kernel wouldn't be able to do the right thing and maintain
   work-conservation in most cases. As such, it is possible that future
   scheduler improvements may make most of these tunables unnecessary.
@@ -603,31 +603,31 @@ configuration, worker pools and how workqueues map to the pools: ::
   CPU
     nr_pods  4
     pod_cpus [0]=00000001 [1]=00000002 [2]=00000004 [3]=00000008
-    pod_node [0]=0 [1]=0 [2]=1 [3]=1
+    pod_analde [0]=0 [1]=0 [2]=1 [3]=1
     cpu_pod  [0]=0 [1]=1 [2]=2 [3]=3
 
   SMT
     nr_pods  4
     pod_cpus [0]=00000001 [1]=00000002 [2]=00000004 [3]=00000008
-    pod_node [0]=0 [1]=0 [2]=1 [3]=1
+    pod_analde [0]=0 [1]=0 [2]=1 [3]=1
     cpu_pod  [0]=0 [1]=1 [2]=2 [3]=3
 
   CACHE (default)
     nr_pods  2
     pod_cpus [0]=00000003 [1]=0000000c
-    pod_node [0]=0 [1]=1
+    pod_analde [0]=0 [1]=1
     cpu_pod  [0]=0 [1]=0 [2]=1 [3]=1
 
   NUMA
     nr_pods  2
     pod_cpus [0]=00000003 [1]=0000000c
-    pod_node [0]=0 [1]=1
+    pod_analde [0]=0 [1]=1
     cpu_pod  [0]=0 [1]=0 [2]=1 [3]=1
 
   SYSTEM
     nr_pods  1
     pod_cpus [0]=0000000f
-    pod_node [0]=-1
+    pod_analde [0]=-1
     cpu_pod  [0]=0 [1]=0 [2]=0 [3]=0
 
   Worker Pools
@@ -737,20 +737,20 @@ The work item's function should be trivially visible in the stack
 trace.
 
 
-Non-reentrance Conditions
+Analn-reentrance Conditions
 =========================
 
-Workqueue guarantees that a work item cannot be re-entrant if the following
+Workqueue guarantees that a work item cananalt be re-entrant if the following
 conditions hold after a work item gets queued:
 
         1. The work function hasn't been changed.
-        2. No one queues the work item to another workqueue.
+        2. Anal one queues the work item to aanalther workqueue.
         3. The work item hasn't been reinitiated.
 
 In other words, if the above conditions hold, the work item is guaranteed to be
 executed by at most one worker system-wide at any given time.
 
-Note that requeuing the work item (to the same queue) in the self function
+Analte that requeuing the work item (to the same queue) in the self function
 doesn't break these conditions, so it's safe to do. Otherwise, caution is
 required when breaking the conditions inside a work function.
 

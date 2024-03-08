@@ -31,7 +31,7 @@ static bool __is_be(struct kvm_vcpu *vcpu)
  *
  * Returns:
  *  1: GICV access successfully performed
- *  0: Not a GICV access
+ *  0: Analt a GICV access
  * -1: Illegal GICV access successfully performed
  */
 int __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
@@ -46,7 +46,7 @@ int __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	fault_ipa  = kvm_vcpu_get_fault_ipa(vcpu);
 	fault_ipa |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
 
-	/* If not for GICV, move on */
+	/* If analt for GICV, move on */
 	if (fault_ipa <  vgic->vgic_cpu_base ||
 	    fault_ipa >= (vgic->vgic_cpu_base + KVM_VGIC_V2_CPU_SIZE))
 		return 0;
@@ -57,7 +57,7 @@ int __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 		return -1;
 	}
 
-	/* Not aligned? Don't bother */
+	/* Analt aligned? Don't bother */
 	if (fault_ipa & 3) {
 		__kvm_skip_instr(vcpu);
 		return -1;

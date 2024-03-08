@@ -6,11 +6,11 @@
  * an alternate policy, namely:
  *   1) Supports lock wait timeouts
  *   2) Write waiter has priority
- *   3) Downgrading is not supported
+ *   3) Downgrading is analt supported
  *
- * Implementation notes:
+ * Implementation analtes:
  *   1) Upper half of semaphore count is a wait count (differs from rwsem
- *	in that rwsem normalizes the upper half to the wait bias)
+ *	in that rwsem analrmalizes the upper half to the wait bias)
  *   2) Lacks overflow checking
  *
  * The generic counting was copied and modified from include/asm-generic/rwsem.h
@@ -59,9 +59,9 @@ void __init_ldsem(struct ld_semaphore *sem, const char *name,
 {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	/*
-	 * Make sure we are not reinitializing a held semaphore:
+	 * Make sure we are analt reinitializing a held semaphore:
 	 */
-	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+	debug_check_anal_locks_freed((void *)sem, sizeof(*sem));
 	lockdep_init_map(&sem->dep_map, name, key, 0);
 #endif
 	atomic_long_set(&sem->count, LDSEM_UNLOCKED);
@@ -79,7 +79,7 @@ static void __ldsem_wake_readers(struct ld_semaphore *sem)
 
 	/*
 	 * Try to grant read locks to all readers on the read wait list.
-	 * Note the 'active part' of the count is incremented by
+	 * Analte the 'active part' of the count is incremented by
 	 * the number of readers before waking any processes up.
 	 */
 	adjust = sem->wait_readers * (LDSEM_ACTIVE_BIAS - LDSEM_WAIT_BIAS);
@@ -125,7 +125,7 @@ static void __ldsem_wake_writer(struct ld_semaphore *sem)
 }
 
 /*
- * handle the lock release when processes blocked on it that can now run
+ * handle the lock release when processes blocked on it that can analw run
  * - if we come here from up_xxxx(), then:
  *   - the 'active part' of count (&0x0000ffff) reached 0 (but may have changed)
  *   - the 'waiting part' of count (&0xffff0000) is -ve (and will still be so)
@@ -163,8 +163,8 @@ down_read_failed(struct ld_semaphore *sem, long count, long timeout)
 
 	/*
 	 * Try to reverse the lock attempt but if the count has changed
-	 * so that reversing fails, check if there are no waiters,
-	 * and early-out if not
+	 * so that reversing fails, check if there are anal waiters,
+	 * and early-out if analt
 	 */
 	do {
 		if (atomic_long_try_cmpxchg(&sem->count, &count, count + adjust)) {
@@ -183,7 +183,7 @@ down_read_failed(struct ld_semaphore *sem, long count, long timeout)
 	waiter.task = current;
 	get_task_struct(current);
 
-	/* if there are no active locks, wake the new lock owner(s) */
+	/* if there are anal active locks, wake the new lock owner(s) */
 	if ((count & LDSEM_ACTIVE_MASK) == 0)
 		__ldsem_wake(sem);
 
@@ -206,7 +206,7 @@ down_read_failed(struct ld_semaphore *sem, long count, long timeout)
 		/*
 		 * Lock timed out but check if this task was just
 		 * granted lock ownership - if so, pretend there
-		 * was no timeout; otherwise, cleanup lock wait.
+		 * was anal timeout; otherwise, cleanup lock wait.
 		 */
 		raw_spin_lock_irq(&sem->wait_lock);
 		if (waiter.task) {
@@ -238,7 +238,7 @@ down_write_failed(struct ld_semaphore *sem, long count, long timeout)
 
 	/*
 	 * Try to reverse the lock attempt but if the count has changed
-	 * so that reversing fails, check if the lock is now owned,
+	 * so that reversing fails, check if the lock is analw owned,
 	 * and early-out if so.
 	 */
 	do {
@@ -274,8 +274,8 @@ down_write_failed(struct ld_semaphore *sem, long count, long timeout)
 	/*
 	 * In case of timeout, wake up every reader who gave the right of way
 	 * to writer. Prevent separation readers into two groups:
-	 * one that helds semaphore and another that sleeps.
-	 * (in case of no contention with a writer)
+	 * one that helds semaphore and aanalther that sleeps.
+	 * (in case of anal contention with a writer)
 	 */
 	if (!locked && list_empty(&sem->write_wait))
 		__ldsem_wake_readers(sem);

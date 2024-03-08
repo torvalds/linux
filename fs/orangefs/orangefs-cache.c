@@ -26,8 +26,8 @@ int op_cache_initialize(void)
 				     NULL);
 
 	if (!op_cache) {
-		gossip_err("Cannot create orangefs_op_cache\n");
-		return -ENOMEM;
+		gossip_err("Cananalt create orangefs_op_cache\n");
+		return -EANALMEM;
 	}
 
 	/* initialize our atomic tag counter */
@@ -101,7 +101,7 @@ char *get_opname_string(struct orangefs_kernel_op_s *new_op)
 		else if (type == ORANGEFS_VFS_OP_FEATURES)
 			return "OP_FEATURES";
 	}
-	return "OP_UNKNOWN?";
+	return "OP_UNKANALWN?";
 }
 
 void orangefs_new_tag(struct orangefs_kernel_op_s *op)
@@ -127,7 +127,7 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 		new_op->downcall.type = ORANGEFS_VFS_OP_INVALID;
 		new_op->downcall.status = -1;
 
-		new_op->op_state = OP_VFS_STATE_UNKNOWN;
+		new_op->op_state = OP_VFS_STATE_UNKANALWN;
 
 		/* initialize the op specific tag and upcall credentials */
 		orangefs_new_tag(new_op);

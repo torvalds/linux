@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # This test is for checking the nexthop offload API. It makes use of netdevsim
-# which registers a listener to the nexthop notification chain.
+# which registers a listener to the nexthop analtification chain.
 
 lib_dir=$(dirname $0)/../../../net/forwarding
 
@@ -23,7 +23,7 @@ ALL_TESTS="
 	nexthop_res_group_decrease_idle_timer_test
 	nexthop_res_group_unbalanced_timer_test
 	nexthop_res_group_unbalanced_timer_del_test
-	nexthop_res_group_no_unbalanced_timer_test
+	nexthop_res_group_anal_unbalanced_timer_test
 	nexthop_res_group_short_unbalanced_timer_test
 	nexthop_res_group_increase_unbalanced_timer_test
 	nexthop_res_group_decrease_unbalanced_timer_test
@@ -614,7 +614,7 @@ nexthop_res_group_unbalanced_timer_del_test()
 	nexthop_res_mark_buckets_busy 10 1
 	$IP nexthop replace id 10 group 1,50/2,150/3,1 type resilient
 
-	# Check that NH delete does not reset unbalanced time.
+	# Check that NH delete does analt reset unbalanced time.
 	sleep 4
 	$IP nexthop delete id 3
 	nexthop_bucket_nhid_count_check 10  1 4  2 4
@@ -636,7 +636,7 @@ nexthop_res_group_unbalanced_timer_del_test()
 	$IP nexthop flush &> /dev/null
 }
 
-nexthop_res_group_no_unbalanced_timer_test()
+nexthop_res_group_anal_unbalanced_timer_test()
 {
 	local i
 
@@ -772,7 +772,7 @@ nexthop_single_in_group_replace_test()
 	$IP nexthop add id 10 group 1/2
 
 	$IP nexthop replace id 1 via 192.0.2.4 dev dummy1
-	check_err $? "Failed to replace nexthop when should not"
+	check_err $? "Failed to replace nexthop when should analt"
 
 	nexthop_check "id 10" "id 10 group 1/2 trap"
 	check_err $? "Unexpected nexthop group entry"
@@ -822,7 +822,7 @@ nexthop_single_in_res_group_replace_test()
 	$IP nexthop add id 10 group 1/2 type resilient buckets 4
 
 	$IP nexthop replace id 1 via 192.0.2.4 dev dummy1
-	check_err $? "Failed to replace nexthop when should not"
+	check_err $? "Failed to replace nexthop when should analt"
 
 	nexthop_check "id 10" "id 10 group 1/2 type resilient buckets 4 idle_timer 120 unbalanced_timer 0 unbalanced_time 0 trap"
 	check_err $? "Unexpected nexthop group entry"
@@ -895,7 +895,7 @@ nexthop_single_in_group_delete_err_test()
 	RET=0
 
 	# First, nexthop 1 will be deleted, which will reduce the occupancy to
-	# 5. Afterwards, a replace notification will be sent for nexthop group
+	# 5. Afterwards, a replace analtification will be sent for nexthop group
 	# 10 with only two nexthops. Since the new group is allocated before
 	# the old is deleted, the replacement will fail as it will result in an
 	# occupancy of 7.
@@ -977,7 +977,7 @@ nexthop_replay_test()
 	$IP nexthop add id 10 group 1/2
 
 	$DEVLINK dev reload $DEVLINK_DEV
-	check_err $? "Failed to reload when should not"
+	check_err $? "Failed to reload when should analt"
 
 	nexthop_check "id 1" "id 1 via 192.0.2.2 dev dummy1 scope link trap"
 	check_err $? "Unexpected nexthop entry after reload"
@@ -1011,7 +1011,7 @@ nexthop_replay_err_test()
 
 	$DEVLINK resource set $DEVLINK_DEV path nexthops size 9999
 	$DEVLINK dev reload $DEVLINK_DEV
-	check_err $? "Failed to reload when should not"
+	check_err $? "Failed to reload when should analt"
 
 	log_test "Nexthop replay failure"
 

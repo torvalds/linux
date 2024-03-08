@@ -17,9 +17,9 @@
  * This driver can operate ARM SBSA Generic Watchdog as a single stage watchdog
  * or a two stages watchdog, it's set up by the module parameter "action".
  * In the single stage mode, when the timeout is reached, your system
- * will be reset by WS1. The first signal (WS0) is ignored.
+ * will be reset by WS1. The first signal (WS0) is iganalred.
  * In the two stages mode, when the timeout is reached, the first signal (WS0)
- * will trigger panic. If the system is getting into trouble and cannot be reset
+ * will trigger panic. If the system is getting into trouble and cananalt be reset
  * by panic or restart properly by the kdump kernel(if supported), then the
  * second stage (as long as the first stage) will be reached, system will be
  * reset by WS1. This function can help administrator to backup the system
@@ -31,17 +31,17 @@
  * |----timeout-----(panic)----timeout-----reset
  *
  * if action is 0 (the single stage mode):
- * |------WOR-----WS0(ignored)-----WOR------WS1
+ * |------WOR-----WS0(iganalred)-----WOR------WS1
  * |--------------timeout-------------------reset
  *
- * Note: Since this watchdog timer has two stages, and each stage is determined
+ * Analte: Since this watchdog timer has two stages, and each stage is determined
  * by WOR, in the single stage mode, the timeout is (WOR * 2); in the two
  * stages mode, the timeout is WOR. The maximum timeout in the two stages mode
  * is half of that in the single stage mode.
  */
 
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/interrupt.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -110,11 +110,11 @@ module_param(action, int, 0);
 MODULE_PARM_DESC(action, "after watchdog gets WS0 interrupt, do: "
 		 "0 = skip(*)  1 = panic");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, S_IRUGO);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, S_IRUGO);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  * Arm Base System Architecture 1.0 introduces watchdog v1 which
@@ -122,7 +122,7 @@ MODULE_PARM_DESC(nowayout,
  * - For version 0: WOR is 32 bits;
  * - For version 1: WOR is 48 bits which comprises the register
  * offset 0x8 and 0xC, and the bits [63:48] are reserved which are
- * Read-As-Zero and Writes-Ignored.
+ * Read-As-Zero and Writes-Iganalred.
  */
 static u64 sbsa_gwdt_reg_read(struct sbsa_gwdt *gwdt)
 {
@@ -155,7 +155,7 @@ static int sbsa_gwdt_set_timeout(struct watchdog_device *wdd,
 		sbsa_gwdt_reg_write((u64)gwdt->clk * timeout, gwdt);
 	else
 		/*
-		 * In the single stage mode, The first signal (WS0) is ignored,
+		 * In the single stage mode, The first signal (WS0) is iganalred,
 		 * the timeout is (WOR * 2), so the WOR should be configured
 		 * to half value of timeout.
 		 */
@@ -265,7 +265,7 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 
 	gwdt = devm_kzalloc(dev, sizeof(*gwdt), GFP_KERNEL);
 	if (!gwdt)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, gwdt);
 
 	cf_base = devm_platform_ioremap_resource(pdev, 0);
@@ -292,7 +292,7 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	wdd->min_timeout = 1;
 	wdd->timeout = DEFAULT_TIMEOUT;
 	watchdog_set_drvdata(wdd, gwdt);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 	sbsa_gwdt_get_version(wdd);
 	if (gwdt->version == 0)
 		wdd->max_hw_heartbeat_ms = U32_MAX / gwdt->clk * 1000;
@@ -329,7 +329,7 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 			dev_warn(dev, "falling back to single stage mode.\n");
 	}
 	/*
-	 * In the single stage mode, The first signal (WS0) is ignored,
+	 * In the single stage mode, The first signal (WS0) is iganalred,
 	 * the timeout is (WOR * 2), so the maximum timeout should be doubled.
 	 */
 	if (!action)

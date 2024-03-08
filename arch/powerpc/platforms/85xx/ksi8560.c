@@ -1,7 +1,7 @@
 /*
  * Board setup routines for the Emerson KSI8560
  *
- * Author: Alexandr Smirnov <asmirnov@ru.mvista.com>
+ * Author: Alexandr Smiranalv <asmiranalv@ru.mvista.com>
  *
  * Based on mpc85xx_ads.c maintained by Kumar Gala
  *
@@ -44,7 +44,7 @@
 
 static void __iomem *cpld_base = NULL;
 
-static void __noreturn machine_restart(char *cmd)
+static void __analreturn machine_restart(char *cmd)
 {
 	if (cpld_base)
 		out_8(cpld_base + KSI8560_CPLD_RCR1, KSI8560_CPLD_RCR1_CPUHR);
@@ -126,15 +126,15 @@ static void __init init_ioports(void)
  */
 static void __init ksi8560_setup_arch(void)
 {
-	struct device_node *cpld;
+	struct device_analde *cpld;
 
-	cpld = of_find_compatible_node(NULL, NULL, "emerson,KSI8560-cpld");
+	cpld = of_find_compatible_analde(NULL, NULL, "emerson,KSI8560-cpld");
 	if (cpld)
 		cpld_base = of_iomap(cpld, 0);
 	else
 		printk(KERN_ERR "Can't find CPLD in device tree\n");
 
-	of_node_put(cpld);
+	of_analde_put(cpld);
 
 	if (ppc_md.progress)
 		ppc_md.progress("ksi8560_setup_arch()", 0);
@@ -161,7 +161,7 @@ static void ksi8560_show_cpuinfo(struct seq_file *m)
 		seq_printf(m, "CPLD rev\t: %d\n",
 					in_8(cpld_base + KSI8560_CPLD_PVR));
 	} else
-		seq_printf(m, "Unknown Hardware and CPLD revs\n");
+		seq_printf(m, "Unkanalwn Hardware and CPLD revs\n");
 
 	seq_printf(m, "PVR\t\t: 0x%x\n", pvid);
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);

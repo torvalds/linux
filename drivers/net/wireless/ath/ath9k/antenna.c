@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -309,7 +309,7 @@ static void ath_select_ant_div_from_quick_scan(struct ath_ant_comb *antcomb,
 		break;
 	case 2:
 		antcomb->alt_good = false;
-		antcomb->scan_not_start = false;
+		antcomb->scan_analt_start = false;
 		antcomb->scan = false;
 		antcomb->rssi_first = main_rssi_avg;
 		antcomb->rssi_third = alt_rssi_avg;
@@ -684,7 +684,7 @@ static bool ath_ant_try_switch(struct ath_hw_antcomb_conf *div_ant_conf,
 	} else if ((curr_alt_set != ATH_ANT_DIV_COMB_LNA1) &&
 		   (curr_alt_set != ATH_ANT_DIV_COMB_LNA2)) {
 		/*
-		  Set alt to another LNA.
+		  Set alt to aanalther LNA.
 		*/
 		if (curr_main_set == ATH_ANT_DIV_COMB_LNA2)
 			div_ant_conf->alt_lna_conf = ATH_ANT_DIV_COMB_LNA1;
@@ -794,7 +794,7 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 
 		antcomb->count = 0;
 		antcomb->scan = true;
-		antcomb->scan_not_start = true;
+		antcomb->scan_analt_start = true;
 	}
 
 	if (!antcomb->scan) {
@@ -809,13 +809,13 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	    (alt_rssi_avg < (main_rssi_avg + div_ant_conf.lna1_lna2_delta)))
 		goto div_comb_done;
 
-	if (!antcomb->scan_not_start) {
+	if (!antcomb->scan_analt_start) {
 		ath_ant_try_scan(antcomb, &div_ant_conf, curr_alt_set,
 				 alt_rssi_avg, main_rssi_avg);
 	} else {
 		if (!antcomb->alt_good) {
-			antcomb->scan_not_start = false;
-			/* Set alt to another LNA */
+			antcomb->scan_analt_start = false;
+			/* Set alt to aanalther LNA */
 			if (curr_main_set == ATH_ANT_DIV_COMB_LNA2) {
 				div_ant_conf.main_lna_conf =
 					ATH_ANT_DIV_COMB_LNA2;

@@ -97,7 +97,7 @@ struct kone_profile {
 
 	/*
 	 * range 1-5
-	 * This number does not need to correspond with location where profile
+	 * This number does analt need to correspond with location where profile
 	 * saved
 	 */
 	uint8_t profile; /* range 1-5 */
@@ -109,7 +109,7 @@ struct kone_profile {
 	uint8_t dpi_rate; /* bit 1 = 800, ... */
 	uint8_t startup_dpi; /* range 1-6 */
 	uint8_t polling_rate; /* 1 = 125Hz, 2 = 500Hz, 3 = 1000Hz */
-	/* kone has no dcu
+	/* kone has anal dcu
 	 * value is always 2 in firmwares <= 1.32 and
 	 * 1 in firmwares > 1.32
 	 */
@@ -135,11 +135,11 @@ enum kone_polling_rates {
 struct kone_settings {
 	uint16_t size; /* always 36 */
 	uint8_t  startup_profile; /* 1-5 */
-	uint8_t	 unknown1;
+	uint8_t	 unkanalwn1;
 	uint8_t  tcu; /* 0 = off, 1 = on */
-	uint8_t  unknown2[23];
+	uint8_t  unkanalwn2[23];
 	uint8_t  calibration_data[4];
-	uint8_t  unknown3[2];
+	uint8_t  unkanalwn3[2];
 	uint16_t checksum;
 } __attribute__ ((__packed__));
 
@@ -154,7 +154,7 @@ struct kone_mouse_event {
 	uint8_t wheel; /* up = 1, down = -1 */
 	struct_group(wipe,
 		uint8_t tilt; /* right = 1, left = -1 */
-		uint8_t unknown;
+		uint8_t unkanalwn;
 		uint8_t event;
 		uint8_t value; /* press = 0, release = 1 */
 		uint8_t macro_key; /* 0 to 8 */
@@ -169,7 +169,7 @@ enum kone_mouse_events {
 	kone_mouse_event_calibration = 0xc0,
 	kone_mouse_event_call_overlong_macro = 0xe0,
 	kone_mouse_event_multimedia = 0xe1,
-	/* switch events notify if user changed values with mousebutton click */
+	/* switch events analtify if user changed values with mousebutton click */
 	kone_mouse_event_switch_dpi = 0xf0,
 	kone_mouse_event_switch_profile = 0xf1
 };
@@ -193,10 +193,10 @@ struct kone_roccat_report {
 struct kone_device {
 	/*
 	 * Storing actual values when we get informed about changes since there
-	 * is no way of getting this information from the device on demand
+	 * is anal way of getting this information from the device on demand
 	 */
 	int actual_profile, actual_dpi;
-	/* Used for neutralizing abnormal button behaviour */
+	/* Used for neutralizing abanalrmal button behaviour */
 	struct kone_mouse_event last_mouse_event;
 
 	/*
@@ -220,7 +220,7 @@ struct kone_device {
 	int firmware_version;
 
 	int roccat_claimed;
-	int chrdev_minor;
+	int chrdev_mianalr;
 };
 
 #endif

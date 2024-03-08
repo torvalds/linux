@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -1960,7 +1960,7 @@ static struct clk_regmap_div gcc_usb30_tert_mock_utmi_postdiv_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_aggre_noc_usb_north_axi_clk = {
+static struct clk_branch gcc_aggre_analc_usb_analrth_axi_clk = {
 	.halt_reg = 0x2d17c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x2d17c,
@@ -1969,13 +1969,13 @@ static struct clk_branch gcc_aggre_noc_usb_north_axi_clk = {
 		.enable_reg = 0x2d17c,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_aggre_noc_usb_north_axi_clk",
+			.name = "gcc_aggre_analc_usb_analrth_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_aggre_noc_usb_south_axi_clk = {
+static struct clk_branch gcc_aggre_analc_usb_south_axi_clk = {
 	.halt_reg = 0x2d174,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x2d174,
@@ -1984,7 +1984,7 @@ static struct clk_branch gcc_aggre_noc_usb_south_axi_clk = {
 		.enable_reg = 0x2d174,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_aggre_noc_usb_south_axi_clk",
+			.name = "gcc_aggre_analc_usb_south_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2170,7 +2170,7 @@ static struct clk_branch gcc_aggre_usb4_2_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_aggre_usb_noc_axi_clk = {
+static struct clk_branch gcc_aggre_usb_analc_axi_clk = {
 	.halt_reg = 0x2d034,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x2d034,
@@ -2179,7 +2179,7 @@ static struct clk_branch gcc_aggre_usb_noc_axi_clk = {
 		.enable_reg = 0x2d034,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_aggre_usb_noc_axi_clk",
+			.name = "gcc_aggre_usb_analc_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2273,7 +2273,7 @@ static struct clk_branch gcc_camera_sf_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_pcie_anoc_ahb_clk = {
+static struct clk_branch gcc_cfg_analc_pcie_aanalc_ahb_clk = {
 	.halt_reg = 0x10028,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x10028,
@@ -2282,13 +2282,13 @@ static struct clk_branch gcc_cfg_noc_pcie_anoc_ahb_clk = {
 		.enable_reg = 0x52028,
 		.enable_mask = BIT(20),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_pcie_anoc_ahb_clk",
+			.name = "gcc_cfg_analc_pcie_aanalc_ahb_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_pcie_anoc_north_ahb_clk = {
+static struct clk_branch gcc_cfg_analc_pcie_aanalc_analrth_ahb_clk = {
 	.halt_reg = 0x1002c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x1002c,
@@ -2297,13 +2297,13 @@ static struct clk_branch gcc_cfg_noc_pcie_anoc_north_ahb_clk = {
 		.enable_reg = 0x52028,
 		.enable_mask = BIT(22),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_pcie_anoc_north_ahb_clk",
+			.name = "gcc_cfg_analc_pcie_aanalc_analrth_ahb_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_pcie_anoc_south_ahb_clk = {
+static struct clk_branch gcc_cfg_analc_pcie_aanalc_south_ahb_clk = {
 	.halt_reg = 0x10030,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x10030,
@@ -2312,13 +2312,13 @@ static struct clk_branch gcc_cfg_noc_pcie_anoc_south_ahb_clk = {
 		.enable_reg = 0x52000,
 		.enable_mask = BIT(20),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_pcie_anoc_south_ahb_clk",
+			.name = "gcc_cfg_analc_pcie_aanalc_south_ahb_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb2_prim_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb2_prim_axi_clk = {
 	.halt_reg = 0x29288,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x29288,
@@ -2327,7 +2327,7 @@ static struct clk_branch gcc_cfg_noc_usb2_prim_axi_clk = {
 		.enable_reg = 0x29288,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_usb2_prim_axi_clk",
+			.name = "gcc_cfg_analc_usb2_prim_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&gcc_usb20_master_clk_src.clkr.hw,
 			},
@@ -2338,7 +2338,7 @@ static struct clk_branch gcc_cfg_noc_usb2_prim_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_mp_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_mp_axi_clk = {
 	.halt_reg = 0x173cc,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x173cc,
@@ -2347,7 +2347,7 @@ static struct clk_branch gcc_cfg_noc_usb3_mp_axi_clk = {
 		.enable_reg = 0x173cc,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_usb3_mp_axi_clk",
+			.name = "gcc_cfg_analc_usb3_mp_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&gcc_usb30_mp_master_clk_src.clkr.hw,
 			},
@@ -2358,7 +2358,7 @@ static struct clk_branch gcc_cfg_noc_usb3_mp_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_prim_axi_clk = {
 	.halt_reg = 0x3908c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x3908c,
@@ -2367,7 +2367,7 @@ static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
 		.enable_reg = 0x3908c,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_usb3_prim_axi_clk",
+			.name = "gcc_cfg_analc_usb3_prim_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&gcc_usb30_prim_master_clk_src.clkr.hw,
 			},
@@ -2378,7 +2378,7 @@ static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_sec_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_sec_axi_clk = {
 	.halt_reg = 0xa108c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0xa108c,
@@ -2387,7 +2387,7 @@ static struct clk_branch gcc_cfg_noc_usb3_sec_axi_clk = {
 		.enable_reg = 0xa108c,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_usb3_sec_axi_clk",
+			.name = "gcc_cfg_analc_usb3_sec_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&gcc_usb30_sec_master_clk_src.clkr.hw,
 			},
@@ -2398,7 +2398,7 @@ static struct clk_branch gcc_cfg_noc_usb3_sec_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_tert_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_tert_axi_clk = {
 	.halt_reg = 0xa208c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0xa208c,
@@ -2407,7 +2407,7 @@ static struct clk_branch gcc_cfg_noc_usb3_tert_axi_clk = {
 		.enable_reg = 0xa208c,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_usb3_tert_axi_clk",
+			.name = "gcc_cfg_analc_usb3_tert_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&gcc_usb30_tert_master_clk_src.clkr.hw,
 			},
@@ -2418,7 +2418,7 @@ static struct clk_branch gcc_cfg_noc_usb3_tert_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb_anoc_ahb_clk = {
+static struct clk_branch gcc_cfg_analc_usb_aanalc_ahb_clk = {
 	.halt_reg = 0x2d024,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x2d024,
@@ -2427,13 +2427,13 @@ static struct clk_branch gcc_cfg_noc_usb_anoc_ahb_clk = {
 		.enable_reg = 0x52028,
 		.enable_mask = BIT(21),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_usb_anoc_ahb_clk",
+			.name = "gcc_cfg_analc_usb_aanalc_ahb_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb_anoc_north_ahb_clk = {
+static struct clk_branch gcc_cfg_analc_usb_aanalc_analrth_ahb_clk = {
 	.halt_reg = 0x2d028,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x2d028,
@@ -2442,13 +2442,13 @@ static struct clk_branch gcc_cfg_noc_usb_anoc_north_ahb_clk = {
 		.enable_reg = 0x52028,
 		.enable_mask = BIT(23),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_usb_anoc_north_ahb_clk",
+			.name = "gcc_cfg_analc_usb_aanalc_analrth_ahb_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb_anoc_south_ahb_clk = {
+static struct clk_branch gcc_cfg_analc_usb_aanalc_south_ahb_clk = {
 	.halt_reg = 0x2d02c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x2d02c,
@@ -2457,39 +2457,39 @@ static struct clk_branch gcc_cfg_noc_usb_anoc_south_ahb_clk = {
 		.enable_reg = 0x52018,
 		.enable_mask = BIT(7),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cfg_noc_usb_anoc_south_ahb_clk",
+			.name = "gcc_cfg_analc_usb_aanalc_south_ahb_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cnoc_pcie1_tunnel_clk = {
+static struct clk_branch gcc_canalc_pcie1_tunnel_clk = {
 	.halt_reg = 0x2c2b4,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x52010,
 		.enable_mask = BIT(30),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cnoc_pcie1_tunnel_clk",
+			.name = "gcc_canalc_pcie1_tunnel_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cnoc_pcie2_tunnel_clk = {
+static struct clk_branch gcc_canalc_pcie2_tunnel_clk = {
 	.halt_reg = 0x132b4,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x52010,
 		.enable_mask = BIT(31),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cnoc_pcie2_tunnel_clk",
+			.name = "gcc_canalc_pcie2_tunnel_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cnoc_pcie_north_sf_axi_clk = {
+static struct clk_branch gcc_canalc_pcie_analrth_sf_axi_clk = {
 	.halt_reg = 0x10014,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x10014,
@@ -2498,13 +2498,13 @@ static struct clk_branch gcc_cnoc_pcie_north_sf_axi_clk = {
 		.enable_reg = 0x52008,
 		.enable_mask = BIT(6),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cnoc_pcie_north_sf_axi_clk",
+			.name = "gcc_canalc_pcie_analrth_sf_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cnoc_pcie_south_sf_axi_clk = {
+static struct clk_branch gcc_canalc_pcie_south_sf_axi_clk = {
 	.halt_reg = 0x10018,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x10018,
@@ -2513,13 +2513,13 @@ static struct clk_branch gcc_cnoc_pcie_south_sf_axi_clk = {
 		.enable_reg = 0x52028,
 		.enable_mask = BIT(12),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cnoc_pcie_south_sf_axi_clk",
+			.name = "gcc_canalc_pcie_south_sf_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cnoc_pcie_tunnel_clk = {
+static struct clk_branch gcc_canalc_pcie_tunnel_clk = {
 	.halt_reg = 0xa02b4,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0xa02b4,
@@ -2528,7 +2528,7 @@ static struct clk_branch gcc_cnoc_pcie_tunnel_clk = {
 		.enable_reg = 0x52010,
 		.enable_mask = BIT(29),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_cnoc_pcie_tunnel_clk",
+			.name = "gcc_canalc_pcie_tunnel_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2680,7 +2680,7 @@ static struct clk_branch gcc_gpu_gpll0_div_cph_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_gpu_memnoc_gfx_clk = {
+static struct clk_branch gcc_gpu_memanalc_gfx_clk = {
 	.halt_reg = 0x71010,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x71010,
@@ -2689,20 +2689,20 @@ static struct clk_branch gcc_gpu_memnoc_gfx_clk = {
 		.enable_reg = 0x71010,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_gpu_memnoc_gfx_clk",
+			.name = "gcc_gpu_memanalc_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_gpu_snoc_dvm_gfx_clk = {
+static struct clk_branch gcc_gpu_sanalc_dvm_gfx_clk = {
 	.halt_reg = 0x71018,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x71018,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_gpu_snoc_dvm_gfx_clk",
+			.name = "gcc_gpu_sanalc_dvm_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -4677,7 +4677,7 @@ static struct clk_branch gcc_sdcc4_apps_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_usb_axi_clk = {
+static struct clk_branch gcc_sys_analc_usb_axi_clk = {
 	.halt_reg = 0x2d014,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x2d014,
@@ -4686,7 +4686,7 @@ static struct clk_branch gcc_sys_noc_usb_axi_clk = {
 		.enable_reg = 0x2d014,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_sys_noc_usb_axi_clk",
+			.name = "gcc_sys_analc_usb_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -6230,8 +6230,8 @@ static struct gdsc gcc_usb_2_phy_gdsc = {
 };
 
 static struct clk_regmap *gcc_x1e80100_clocks[] = {
-	[GCC_AGGRE_NOC_USB_NORTH_AXI_CLK] = &gcc_aggre_noc_usb_north_axi_clk.clkr,
-	[GCC_AGGRE_NOC_USB_SOUTH_AXI_CLK] = &gcc_aggre_noc_usb_south_axi_clk.clkr,
+	[GCC_AGGRE_ANALC_USB_ANALRTH_AXI_CLK] = &gcc_aggre_analc_usb_analrth_axi_clk.clkr,
+	[GCC_AGGRE_ANALC_USB_SOUTH_AXI_CLK] = &gcc_aggre_analc_usb_south_axi_clk.clkr,
 	[GCC_AGGRE_UFS_PHY_AXI_CLK] = &gcc_aggre_ufs_phy_axi_clk.clkr,
 	[GCC_AGGRE_USB2_PRIM_AXI_CLK] = &gcc_aggre_usb2_prim_axi_clk.clkr,
 	[GCC_AGGRE_USB3_MP_AXI_CLK] = &gcc_aggre_usb3_mp_axi_clk.clkr,
@@ -6241,29 +6241,29 @@ static struct clk_regmap *gcc_x1e80100_clocks[] = {
 	[GCC_AGGRE_USB4_0_AXI_CLK] = &gcc_aggre_usb4_0_axi_clk.clkr,
 	[GCC_AGGRE_USB4_1_AXI_CLK] = &gcc_aggre_usb4_1_axi_clk.clkr,
 	[GCC_AGGRE_USB4_2_AXI_CLK] = &gcc_aggre_usb4_2_axi_clk.clkr,
-	[GCC_AGGRE_USB_NOC_AXI_CLK] = &gcc_aggre_usb_noc_axi_clk.clkr,
+	[GCC_AGGRE_USB_ANALC_AXI_CLK] = &gcc_aggre_usb_analc_axi_clk.clkr,
 	[GCC_AV1E_AHB_CLK] = &gcc_av1e_ahb_clk.clkr,
 	[GCC_AV1E_AXI_CLK] = &gcc_av1e_axi_clk.clkr,
 	[GCC_AV1E_XO_CLK] = &gcc_av1e_xo_clk.clkr,
 	[GCC_BOOT_ROM_AHB_CLK] = &gcc_boot_rom_ahb_clk.clkr,
 	[GCC_CAMERA_HF_AXI_CLK] = &gcc_camera_hf_axi_clk.clkr,
 	[GCC_CAMERA_SF_AXI_CLK] = &gcc_camera_sf_axi_clk.clkr,
-	[GCC_CFG_NOC_PCIE_ANOC_AHB_CLK] = &gcc_cfg_noc_pcie_anoc_ahb_clk.clkr,
-	[GCC_CFG_NOC_PCIE_ANOC_NORTH_AHB_CLK] = &gcc_cfg_noc_pcie_anoc_north_ahb_clk.clkr,
-	[GCC_CFG_NOC_PCIE_ANOC_SOUTH_AHB_CLK] = &gcc_cfg_noc_pcie_anoc_south_ahb_clk.clkr,
-	[GCC_CFG_NOC_USB2_PRIM_AXI_CLK] = &gcc_cfg_noc_usb2_prim_axi_clk.clkr,
-	[GCC_CFG_NOC_USB3_MP_AXI_CLK] = &gcc_cfg_noc_usb3_mp_axi_clk.clkr,
-	[GCC_CFG_NOC_USB3_PRIM_AXI_CLK] = &gcc_cfg_noc_usb3_prim_axi_clk.clkr,
-	[GCC_CFG_NOC_USB3_SEC_AXI_CLK] = &gcc_cfg_noc_usb3_sec_axi_clk.clkr,
-	[GCC_CFG_NOC_USB3_TERT_AXI_CLK] = &gcc_cfg_noc_usb3_tert_axi_clk.clkr,
-	[GCC_CFG_NOC_USB_ANOC_AHB_CLK] = &gcc_cfg_noc_usb_anoc_ahb_clk.clkr,
-	[GCC_CFG_NOC_USB_ANOC_NORTH_AHB_CLK] = &gcc_cfg_noc_usb_anoc_north_ahb_clk.clkr,
-	[GCC_CFG_NOC_USB_ANOC_SOUTH_AHB_CLK] = &gcc_cfg_noc_usb_anoc_south_ahb_clk.clkr,
-	[GCC_CNOC_PCIE1_TUNNEL_CLK] = &gcc_cnoc_pcie1_tunnel_clk.clkr,
-	[GCC_CNOC_PCIE2_TUNNEL_CLK] = &gcc_cnoc_pcie2_tunnel_clk.clkr,
-	[GCC_CNOC_PCIE_NORTH_SF_AXI_CLK] = &gcc_cnoc_pcie_north_sf_axi_clk.clkr,
-	[GCC_CNOC_PCIE_SOUTH_SF_AXI_CLK] = &gcc_cnoc_pcie_south_sf_axi_clk.clkr,
-	[GCC_CNOC_PCIE_TUNNEL_CLK] = &gcc_cnoc_pcie_tunnel_clk.clkr,
+	[GCC_CFG_ANALC_PCIE_AANALC_AHB_CLK] = &gcc_cfg_analc_pcie_aanalc_ahb_clk.clkr,
+	[GCC_CFG_ANALC_PCIE_AANALC_ANALRTH_AHB_CLK] = &gcc_cfg_analc_pcie_aanalc_analrth_ahb_clk.clkr,
+	[GCC_CFG_ANALC_PCIE_AANALC_SOUTH_AHB_CLK] = &gcc_cfg_analc_pcie_aanalc_south_ahb_clk.clkr,
+	[GCC_CFG_ANALC_USB2_PRIM_AXI_CLK] = &gcc_cfg_analc_usb2_prim_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_MP_AXI_CLK] = &gcc_cfg_analc_usb3_mp_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_PRIM_AXI_CLK] = &gcc_cfg_analc_usb3_prim_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_SEC_AXI_CLK] = &gcc_cfg_analc_usb3_sec_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_TERT_AXI_CLK] = &gcc_cfg_analc_usb3_tert_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB_AANALC_AHB_CLK] = &gcc_cfg_analc_usb_aanalc_ahb_clk.clkr,
+	[GCC_CFG_ANALC_USB_AANALC_ANALRTH_AHB_CLK] = &gcc_cfg_analc_usb_aanalc_analrth_ahb_clk.clkr,
+	[GCC_CFG_ANALC_USB_AANALC_SOUTH_AHB_CLK] = &gcc_cfg_analc_usb_aanalc_south_ahb_clk.clkr,
+	[GCC_CANALC_PCIE1_TUNNEL_CLK] = &gcc_canalc_pcie1_tunnel_clk.clkr,
+	[GCC_CANALC_PCIE2_TUNNEL_CLK] = &gcc_canalc_pcie2_tunnel_clk.clkr,
+	[GCC_CANALC_PCIE_ANALRTH_SF_AXI_CLK] = &gcc_canalc_pcie_analrth_sf_axi_clk.clkr,
+	[GCC_CANALC_PCIE_SOUTH_SF_AXI_CLK] = &gcc_canalc_pcie_south_sf_axi_clk.clkr,
+	[GCC_CANALC_PCIE_TUNNEL_CLK] = &gcc_canalc_pcie_tunnel_clk.clkr,
 	[GCC_DDRSS_GPU_AXI_CLK] = &gcc_ddrss_gpu_axi_clk.clkr,
 	[GCC_DISP_HF_AXI_CLK] = &gcc_disp_hf_axi_clk.clkr,
 	[GCC_DISP_XO_CLK] = &gcc_disp_xo_clk.clkr,
@@ -6282,8 +6282,8 @@ static struct clk_regmap *gcc_x1e80100_clocks[] = {
 	[GCC_GPU_CFG_AHB_CLK] = &gcc_gpu_cfg_ahb_clk.clkr,
 	[GCC_GPU_GPLL0_CPH_CLK_SRC] = &gcc_gpu_gpll0_cph_clk_src.clkr,
 	[GCC_GPU_GPLL0_DIV_CPH_CLK_SRC] = &gcc_gpu_gpll0_div_cph_clk_src.clkr,
-	[GCC_GPU_MEMNOC_GFX_CLK] = &gcc_gpu_memnoc_gfx_clk.clkr,
-	[GCC_GPU_SNOC_DVM_GFX_CLK] = &gcc_gpu_snoc_dvm_gfx_clk.clkr,
+	[GCC_GPU_MEMANALC_GFX_CLK] = &gcc_gpu_memanalc_gfx_clk.clkr,
+	[GCC_GPU_SANALC_DVM_GFX_CLK] = &gcc_gpu_sanalc_dvm_gfx_clk.clkr,
 	[GCC_PCIE0_PHY_RCHNG_CLK] = &gcc_pcie0_phy_rchng_clk.clkr,
 	[GCC_PCIE1_PHY_RCHNG_CLK] = &gcc_pcie1_phy_rchng_clk.clkr,
 	[GCC_PCIE2_PHY_RCHNG_CLK] = &gcc_pcie2_phy_rchng_clk.clkr,
@@ -6468,7 +6468,7 @@ static struct clk_regmap *gcc_x1e80100_clocks[] = {
 	[GCC_SDCC4_AHB_CLK] = &gcc_sdcc4_ahb_clk.clkr,
 	[GCC_SDCC4_APPS_CLK] = &gcc_sdcc4_apps_clk.clkr,
 	[GCC_SDCC4_APPS_CLK_SRC] = &gcc_sdcc4_apps_clk_src.clkr,
-	[GCC_SYS_NOC_USB_AXI_CLK] = &gcc_sys_noc_usb_axi_clk.clkr,
+	[GCC_SYS_ANALC_USB_AXI_CLK] = &gcc_sys_analc_usb_axi_clk.clkr,
 	[GCC_UFS_PHY_AHB_CLK] = &gcc_ufs_phy_ahb_clk.clkr,
 	[GCC_UFS_PHY_AXI_CLK] = &gcc_ufs_phy_axi_clk.clkr,
 	[GCC_UFS_PHY_AXI_CLK_SRC] = &gcc_ufs_phy_axi_clk_src.clkr,
@@ -6619,45 +6619,45 @@ static const struct qcom_reset_map gcc_x1e80100_resets[] = {
 	[GCC_DISPLAY_BCR] = { 0x27000 },
 	[GCC_GPU_BCR] = { 0x71000 },
 	[GCC_PCIE_0_LINK_DOWN_BCR] = { 0x6c014 },
-	[GCC_PCIE_0_NOCSR_COM_PHY_BCR] = { 0x6c020 },
+	[GCC_PCIE_0_ANALCSR_COM_PHY_BCR] = { 0x6c020 },
 	[GCC_PCIE_0_PHY_BCR] = { 0x6c01c },
-	[GCC_PCIE_0_PHY_NOCSR_COM_PHY_BCR] = { 0x6c028 },
+	[GCC_PCIE_0_PHY_ANALCSR_COM_PHY_BCR] = { 0x6c028 },
 	[GCC_PCIE_0_TUNNEL_BCR] = { 0xa0000 },
 	[GCC_PCIE_1_LINK_DOWN_BCR] = { 0x8e014 },
-	[GCC_PCIE_1_NOCSR_COM_PHY_BCR] = { 0x8e020 },
+	[GCC_PCIE_1_ANALCSR_COM_PHY_BCR] = { 0x8e020 },
 	[GCC_PCIE_1_PHY_BCR] = { 0x8e01c },
-	[GCC_PCIE_1_PHY_NOCSR_COM_PHY_BCR] = { 0x8e024 },
+	[GCC_PCIE_1_PHY_ANALCSR_COM_PHY_BCR] = { 0x8e024 },
 	[GCC_PCIE_1_TUNNEL_BCR] = { 0x2c000 },
 	[GCC_PCIE_2_LINK_DOWN_BCR] = { 0xa5014 },
-	[GCC_PCIE_2_NOCSR_COM_PHY_BCR] = { 0xa5020 },
+	[GCC_PCIE_2_ANALCSR_COM_PHY_BCR] = { 0xa5020 },
 	[GCC_PCIE_2_PHY_BCR] = { 0xa501c },
-	[GCC_PCIE_2_PHY_NOCSR_COM_PHY_BCR] = { 0xa5028 },
+	[GCC_PCIE_2_PHY_ANALCSR_COM_PHY_BCR] = { 0xa5028 },
 	[GCC_PCIE_2_TUNNEL_BCR] = { 0x13000 },
 	[GCC_PCIE_3_BCR] = { 0x58000 },
 	[GCC_PCIE_3_LINK_DOWN_BCR] = { 0xab014 },
-	[GCC_PCIE_3_NOCSR_COM_PHY_BCR] = { 0xab020 },
+	[GCC_PCIE_3_ANALCSR_COM_PHY_BCR] = { 0xab020 },
 	[GCC_PCIE_3_PHY_BCR] = { 0xab01c },
-	[GCC_PCIE_3_PHY_NOCSR_COM_PHY_BCR] = { 0xab024 },
+	[GCC_PCIE_3_PHY_ANALCSR_COM_PHY_BCR] = { 0xab024 },
 	[GCC_PCIE_4_BCR] = { 0x6b000 },
 	[GCC_PCIE_4_LINK_DOWN_BCR] = { 0xb3014 },
-	[GCC_PCIE_4_NOCSR_COM_PHY_BCR] = { 0xb3020 },
+	[GCC_PCIE_4_ANALCSR_COM_PHY_BCR] = { 0xb3020 },
 	[GCC_PCIE_4_PHY_BCR] = { 0xb301c },
-	[GCC_PCIE_4_PHY_NOCSR_COM_PHY_BCR] = { 0xb3028 },
+	[GCC_PCIE_4_PHY_ANALCSR_COM_PHY_BCR] = { 0xb3028 },
 	[GCC_PCIE_5_BCR] = { 0x2f000 },
 	[GCC_PCIE_5_LINK_DOWN_BCR] = { 0xaa014 },
-	[GCC_PCIE_5_NOCSR_COM_PHY_BCR] = { 0xaa020 },
+	[GCC_PCIE_5_ANALCSR_COM_PHY_BCR] = { 0xaa020 },
 	[GCC_PCIE_5_PHY_BCR] = { 0xaa01c },
-	[GCC_PCIE_5_PHY_NOCSR_COM_PHY_BCR] = { 0xaa028 },
+	[GCC_PCIE_5_PHY_ANALCSR_COM_PHY_BCR] = { 0xaa028 },
 	[GCC_PCIE_6A_BCR] = { 0x31000 },
 	[GCC_PCIE_6A_LINK_DOWN_BCR] = { 0xac014 },
-	[GCC_PCIE_6A_NOCSR_COM_PHY_BCR] = { 0xac020 },
+	[GCC_PCIE_6A_ANALCSR_COM_PHY_BCR] = { 0xac020 },
 	[GCC_PCIE_6A_PHY_BCR] = { 0xac01c },
-	[GCC_PCIE_6A_PHY_NOCSR_COM_PHY_BCR] = { 0xac024 },
+	[GCC_PCIE_6A_PHY_ANALCSR_COM_PHY_BCR] = { 0xac024 },
 	[GCC_PCIE_6B_BCR] = { 0x8d000 },
 	[GCC_PCIE_6B_LINK_DOWN_BCR] = { 0xb5014 },
-	[GCC_PCIE_6B_NOCSR_COM_PHY_BCR] = { 0xb5020 },
+	[GCC_PCIE_6B_ANALCSR_COM_PHY_BCR] = { 0xb5020 },
 	[GCC_PCIE_6B_PHY_BCR] = { 0xb501c },
-	[GCC_PCIE_6B_PHY_NOCSR_COM_PHY_BCR] = { 0xb5024 },
+	[GCC_PCIE_6B_PHY_ANALCSR_COM_PHY_BCR] = { 0xb5024 },
 	[GCC_PCIE_PHY_BCR] = { 0x6f000 },
 	[GCC_PCIE_PHY_CFG_AHB_BCR] = { 0x6f00c },
 	[GCC_PCIE_PHY_COM_BCR] = { 0x6f010 },

@@ -27,13 +27,13 @@ properties:
 
   shunt-resistor-micro-ohms:
     description:
-      The value of current sense resistor in microohms. If not provided,
+      The value of current sense resistor in microohms. If analt provided,
       the current reading and overcurrent alert is disabled.
 
   adi,shutdown-threshold-microamp:
     description:
       Specifies the current level at which an over current alert occurs.
-      If not provided, the overcurrent alert is configured to max ADC range
+      If analt provided, the overcurrent alert is configured to max ADC range
       based on shunt-resistor-micro-ohms.
 
   adi,vrange-high-enable:

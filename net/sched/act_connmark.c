@@ -123,7 +123,7 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 
 	nparms = kzalloc(sizeof(*nparms), GFP_KERNEL);
 	if (!nparms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parm = nla_data(tb[TCA_CONNMARK_PARMS]);
 	index = parm->index;

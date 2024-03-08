@@ -17,7 +17,7 @@ description:
   cluster. The PMU enables gathering various statistics on the operation of the
   DSU. The PMU provides independent 32-bit counters that can count any of the
   supported events, along with a 64-bit cycle counter. The PMU is accessed via
-  CPU system registers and has no MMIO component.
+  CPU system registers and has anal MMIO component.
 
 properties:
   compatible:

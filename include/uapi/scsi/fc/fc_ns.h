@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright(c) 2007 Intel Corporation. All rights reserved.
  *
@@ -12,7 +12,7 @@
 
 /*
  * Fibre Channel Services - Name Service (dNS)
- * From T11.org FC-GS-2 Rev 5.3 November 1998.
+ * From T11.org FC-GS-2 Rev 5.3 Analvember 1998.
  */
 
 /*
@@ -22,25 +22,25 @@
 
 /*
  * Name server Requests.
- * Note:  this is an incomplete list, some unused requests are omitted.
+ * Analte:  this is an incomplete list, some unused requests are omitted.
  */
 enum fc_ns_req {
 	FC_NS_GA_NXT =	0x0100,		/* get all next */
 	FC_NS_GI_A =	0x0101,		/* get identifiers - scope */
 	FC_NS_GPN_ID =	0x0112,		/* get port name by ID */
-	FC_NS_GNN_ID =	0x0113,		/* get node name by ID */
+	FC_NS_GNN_ID =	0x0113,		/* get analde name by ID */
 	FC_NS_GSPN_ID = 0x0118,		/* get symbolic port name */
 	FC_NS_GID_PN =	0x0121,		/* get ID for port name */
-	FC_NS_GID_NN =	0x0131,		/* get IDs for node name */
+	FC_NS_GID_NN =	0x0131,		/* get IDs for analde name */
 	FC_NS_GID_FT =	0x0171,		/* get IDs by FC4 type */
 	FC_NS_GPN_FT =	0x0172,		/* get port names by FC4 type */
 	FC_NS_GID_PT =	0x01a1,		/* get IDs by port type */
 	FC_NS_RPN_ID =	0x0212,		/* reg port name for ID */
-	FC_NS_RNN_ID =	0x0213,		/* reg node name for ID */
+	FC_NS_RNN_ID =	0x0213,		/* reg analde name for ID */
 	FC_NS_RFT_ID =	0x0217,		/* reg FC4 type for ID */
 	FC_NS_RSPN_ID =	0x0218,		/* reg symbolic port name */
 	FC_NS_RFF_ID =	0x021f,		/* reg FC4 Features for ID */
-	FC_NS_RSNN_NN =	0x0239,		/* reg symbolic node name */
+	FC_NS_RSNN_NN =	0x0239,		/* reg symbolic analde name */
 };
 
 /*
@@ -158,18 +158,18 @@ struct fc_ns_rft_id {
 
 /*
  * RPN_ID request - register port name for ID.
- * RNN_ID request - register node name for ID.
+ * RNN_ID request - register analde name for ID.
  */
 struct fc_ns_rn_id {
 	struct fc_ns_fid fr_fid;	/* port ID object */
-	__be64		fr_wwn;		/* node name or port name */
+	__be64		fr_wwn;		/* analde name or port name */
 } __attribute__((__packed__));
 
 /*
- * RSNN_NN request - register symbolic node name
+ * RSNN_NN request - register symbolic analde name
  */
 struct fc_ns_rsnn {
-	__be64		fr_wwn;		/* node name */
+	__be64		fr_wwn;		/* analde name */
 	__u8		fr_name_len;
 	char		fr_name[];
 } __attribute__((__packed__));

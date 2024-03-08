@@ -2,7 +2,7 @@
 /*
  * JZ4780 NAND/external memory controller (NEMC)
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex@alex-smith.me.uk>
  */
 
@@ -72,7 +72,7 @@ unsigned int jz4780_nemc_num_banks(struct device *dev)
 	unsigned long referenced = 0;
 	int i = 0;
 
-	while ((prop = of_get_address(dev->of_node, i++, NULL, NULL))) {
+	while ((prop = of_get_address(dev->of_analde, i++, NULL, NULL))) {
 		bank = of_read_number(prop, 1);
 		if (!(referenced & BIT(bank))) {
 			referenced |= BIT(bank);
@@ -157,7 +157,7 @@ static uint32_t jz4780_nemc_ns_to_cycles(struct jz4780_nemc *nemc, uint32_t ns)
 
 static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 				       unsigned int bank,
-				       struct device_node *node)
+				       struct device_analde *analde)
 {
 	uint32_t smcr, val, cycles;
 
@@ -187,7 +187,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 	smcr = readl(nemc->base + NEMC_SMCRn(bank));
 	smcr &= ~NEMC_SMCR_SMT;
 
-	if (!of_property_read_u32(node, "ingenic,nemc-bus-width", &val)) {
+	if (!of_property_read_u32(analde, "ingenic,nemc-bus-width", &val)) {
 		smcr &= ~NEMC_SMCR_BW_MASK;
 		switch (val) {
 		case 8:
@@ -196,14 +196,14 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		default:
 			/*
 			 * Earlier SoCs support a 16 bit bus width (the 4780
-			 * does not), until those are properly supported, error.
+			 * does analt), until those are properly supported, error.
 			 */
 			dev_err(nemc->dev, "unsupported bus width: %u\n", val);
 			return false;
 		}
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tAS", &val) == 0) {
+	if (of_property_read_u32(analde, "ingenic,nemc-tAS", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TAS_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > nemc->soc_info->tas_tah_cycles_max) {
@@ -215,7 +215,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		smcr |= cycles << NEMC_SMCR_TAS_SHIFT;
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tAH", &val) == 0) {
+	if (of_property_read_u32(analde, "ingenic,nemc-tAH", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TAH_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > nemc->soc_info->tas_tah_cycles_max) {
@@ -227,7 +227,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		smcr |= cycles << NEMC_SMCR_TAH_SHIFT;
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tBP", &val) == 0) {
+	if (of_property_read_u32(analde, "ingenic,nemc-tBP", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TBP_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > 31) {
@@ -239,7 +239,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		smcr |= convert_tBP_tAW[cycles] << NEMC_SMCR_TBP_SHIFT;
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tAW", &val) == 0) {
+	if (of_property_read_u32(analde, "ingenic,nemc-tAW", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TAW_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > 31) {
@@ -251,7 +251,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		smcr |= convert_tBP_tAW[cycles] << NEMC_SMCR_TAW_SHIFT;
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tSTRV", &val) == 0) {
+	if (of_property_read_u32(analde, "ingenic,nemc-tSTRV", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TSTRV_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > 63) {
@@ -272,7 +272,7 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct jz4780_nemc *nemc;
 	struct resource *res;
-	struct device_node *child;
+	struct device_analde *child;
 	const __be32 *prop;
 	unsigned int bank;
 	unsigned long referenced;
@@ -280,7 +280,7 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 
 	nemc = devm_kzalloc(dev, sizeof(*nemc), GFP_KERNEL);
 	if (!nemc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nemc->soc_info = device_get_match_data(dev);
 	if (!nemc->soc_info)
@@ -296,7 +296,7 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 	/*
 	 * The driver currently only uses the registers up to offset
 	 * NEMC_REG_LEN. Since the EFUSE registers are in the middle of the
-	 * NEMC registers, we only request the registers we will use for now;
+	 * NEMC registers, we only request the registers we will use for analw;
 	 * that way the EFUSE driver can probe too.
 	 */
 	if (!devm_request_mem_region(dev, res->start, NEMC_REG_LEN, dev_name(dev))) {
@@ -307,7 +307,7 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 	nemc->base = devm_ioremap(dev, res->start, NEMC_REG_LEN);
 	if (!nemc->base) {
 		dev_err(dev, "failed to get I/O memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	writel(0, nemc->base + NEMC_NFCSR);
@@ -332,12 +332,12 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Iterate over child devices, check that they do not conflict with
+	 * Iterate over child devices, check that they do analt conflict with
 	 * each other, and register child devices for them. If a child device
-	 * has invalid properties, it is ignored and no platform device is
+	 * has invalid properties, it is iganalred and anal platform device is
 	 * registered for it.
 	 */
-	for_each_child_of_node(nemc->dev->of_node, child) {
+	for_each_child_of_analde(nemc->dev->of_analde, child) {
 		referenced = 0;
 		i = 0;
 		while ((prop = of_get_address(child, i++, NULL, NULL))) {
@@ -356,11 +356,11 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 		}
 
 		if (!referenced) {
-			dev_err(nemc->dev, "%pOF has no addresses\n",
+			dev_err(nemc->dev, "%pOF has anal addresses\n",
 				child);
 			continue;
 		} else if (nemc->banks_present & referenced) {
-			dev_err(nemc->dev, "%pOF conflicts with another node\n",
+			dev_err(nemc->dev, "%pOF conflicts with aanalther analde\n",
 				child);
 			continue;
 		}

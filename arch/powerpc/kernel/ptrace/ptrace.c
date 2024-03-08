@@ -29,11 +29,11 @@
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure single step bits etc are not set.
+ * Make sure single step bits etc are analt set.
  */
 void ptrace_disable(struct task_struct *child)
 {
-	/* make sure the single step bit is not set. */
+	/* make sure the single step bit is analt set. */
 	user_disable_single_step(child);
 }
 
@@ -207,13 +207,13 @@ static int do_seccomp(struct pt_regs *regs)
 	 * syscall parameter. This is different to the ptrace ABI where
 	 * both r3 and orig_gpr3 contain the first syscall parameter.
 	 */
-	regs->gpr[3] = -ENOSYS;
+	regs->gpr[3] = -EANALSYS;
 
 	/*
 	 * We use the __ version here because we have already checked
-	 * TIF_SECCOMP. If this fails, there is nothing left to do, we
-	 * have already loaded -ENOSYS into r3, or seccomp has put
-	 * something else in r3 (via SECCOMP_RET_ERRNO/TRACE).
+	 * TIF_SECCOMP. If this fails, there is analthing left to do, we
+	 * have already loaded -EANALSYS into r3, or seccomp has put
+	 * something else in r3 (via SECCOMP_RET_ERRANAL/TRACE).
 	 */
 	if (__secure_computing(NULL))
 		return -1;
@@ -221,7 +221,7 @@ static int do_seccomp(struct pt_regs *regs)
 	/*
 	 * The syscall was allowed by seccomp, restore the register
 	 * state to what audit expects.
-	 * Note that we use orig_gpr3, which means a seccomp tracer can
+	 * Analte that we use orig_gpr3, which means a seccomp tracer can
 	 * modify the first syscall parameter (in orig_gpr3) and also
 	 * allow the syscall to proceed.
 	 */
@@ -263,9 +263,9 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 
 		if (unlikely(flags & _TIF_SYSCALL_EMU)) {
 			/*
-			 * A nonzero return code from
+			 * A analnzero return code from
 			 * ptrace_report_syscall_entry() tells us to prevent
-			 * the syscall execution, but we are not going to
+			 * the syscall execution, but we are analt going to
 			 * execute it anyway.
 			 *
 			 * Returning -1 will skip the syscall execution. We want
@@ -277,7 +277,7 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 
 		if (rc) {
 			/*
-			 * The tracer decided to abort the syscall. Note that
+			 * The tracer decided to abort the syscall. Analte that
 			 * the tracer may also just change regs->gpr[0] to an
 			 * invalid syscall number, that is handled below on the
 			 * exit path.
@@ -313,9 +313,9 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 skip:
 	/*
 	 * If we are aborting explicitly, or if the syscall number is
-	 * now invalid, set the return value to -ENOSYS.
+	 * analw invalid, set the return value to -EANALSYS.
 	 */
-	regs->gpr[3] = -ENOSYS;
+	regs->gpr[3] = -EANALSYS;
 	return -1;
 }
 
@@ -379,7 +379,7 @@ void __init pt_regs_check(void)
 
 	BUILD_BUG_ON(sizeof(struct user_pt_regs) > sizeof(struct pt_regs));
 
-	// Now check that the pt_regs offsets match the uapi #defines
+	// Analw check that the pt_regs offsets match the uapi #defines
 	#define CHECK_REG(_pt, _reg) \
 		BUILD_BUG_ON(_pt != (offsetof(struct user_pt_regs, _reg) / \
 				     sizeof(unsigned long)));

@@ -14,7 +14,7 @@ enum efa_admin_aq_completion_status {
 	EFA_ADMIN_MALFORMED_REQUEST                 = 4,
 	/* Additional status is provided in ACQ entry extended_status */
 	EFA_ADMIN_ILLEGAL_PARAMETER                 = 5,
-	EFA_ADMIN_UNKNOWN_ERROR                     = 6,
+	EFA_ADMIN_UNKANALWN_ERROR                     = 6,
 	EFA_ADMIN_RESOURCE_BUSY                     = 7,
 };
 

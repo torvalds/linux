@@ -75,7 +75,7 @@ struct iwl_fwrt_wk_data  {
  * @fifo: fifo number
  * @lmac: lmac number
  * @fifo_size: fifo size
- * @internal_txf: non zero if fifo is  internal Tx fifo
+ * @internal_txf: analn zero if fifo is  internal Tx fifo
  */
 struct iwl_txf_iter_data {
 	int fifo;
@@ -129,8 +129,8 @@ struct iwl_fw_runtime {
 
 		u8 conf;
 
-		/* ts of the beginning of a non-collect fw dbg data period */
-		unsigned long non_collect_ts_start[IWL_FW_INI_TIME_POINT_NUM];
+		/* ts of the beginning of a analn-collect fw dbg data period */
+		unsigned long analn_collect_ts_start[IWL_FW_INI_TIME_POINT_NUM];
 		u32 *d3_debug_data;
 		u32 lmac_err_id[MAX_NUM_LMAC];
 		u32 tcm_err_id[MAX_NUM_TCM];
@@ -143,9 +143,9 @@ struct iwl_fw_runtime {
 			u8 type;
 			u8 subtype;
 			u32 lmac_major;
-			u32 lmac_minor;
+			u32 lmac_mianalr;
 			u32 umac_major;
-			u32 umac_minor;
+			u32 umac_mianalr;
 		} fw_ver;
 	} dump;
 	struct {

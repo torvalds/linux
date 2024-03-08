@@ -10,7 +10,7 @@ maintainers:
   - ChiYuan Huang <cy_huang@richtek.com>
 
 description: |
-  The RT5759 is a high-performance, synchronous step-down DC-DC converter that
+  The RT5759 is a high-performance, synchroanalus step-down DC-DC converter that
   can deliver up to 9A output current from 3V to 6.5V input supply, The output
   voltage can be programmable with I2C controlled 7-Bit VID.
 

@@ -4,9 +4,9 @@ GPIO Mappings
 
 This document explains how GPIOs can be assigned to given devices and functions.
 
-Note that it only applies to the new descriptor-based interface. For a
+Analte that it only applies to the new descriptor-based interface. For a
 description of the deprecated integer-based GPIO interface please refer to
-legacy.rst (actually, there is no real mapping possible with the old
+legacy.rst (actually, there is anal real mapping possible with the old
 interface; you just fetch an integer from somewhere and request the
 corresponding GPIO).
 
@@ -22,7 +22,7 @@ GPIOs can easily be mapped to devices and functions in the device tree. The
 exact way to do it depends on the GPIO controller providing the GPIOs, see the
 device tree bindings for your controller.
 
-GPIOs mappings are defined in the consumer device's node, in a property named
+GPIOs mappings are defined in the consumer device's analde, in a property named
 <function>-gpios, where <function> is the function the driver will request
 through gpiod_get(). For example::
 
@@ -37,7 +37,7 @@ through gpiod_get(). For example::
 	};
 
 Properties named <function>-gpio are also considered valid and old bindings use
-it but are only supported for compatibility reasons and should not be used for
+it but are only supported for compatibility reasons and should analt be used for
 newer bindings since it has been deprecated.
 
 This property will make GPIOs 15, 16 and 17 available to the driver under the
@@ -77,7 +77,7 @@ with the help of _DSD (Device Specific Data), introduced in ACPI 5.1::
 				"\\_SB.GPI0", 0, ResourceConsumer) { 16 } // green
 			GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
 				"\\_SB.GPI0", 0, ResourceConsumer) { 17 } // blue
-			GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionOutputOnly,
+			GpioIo (Exclusive, PullAnalne, 0, 0, IoRestrictionOutputOnly,
 				"\\_SB.GPI0", 0, ResourceConsumer) { 1 } // power
 		})
 
@@ -134,8 +134,8 @@ where
 
 In the future, these flags might be extended to support more properties.
 
-Note that:
-  1. GPIO line names are not guaranteed to be globally unique, so the first
+Analte that:
+  1. GPIO line names are analt guaranteed to be globally unique, so the first
      match found will be used.
   2. GPIO_LOOKUP() is just a shortcut to GPIO_LOOKUP_IDX() where idx = 0.
 
@@ -201,7 +201,7 @@ Arrays of pins
 In addition to requesting pins belonging to a function one by one, a device may
 also request an array of pins assigned to the function.  The way those pins are
 mapped to the device determines if the array qualifies for fast bitmap
-processing.  If yes, a bitmap is passed over get/set array functions directly
+processing.  If anal, a bitmap is passed over get/set array functions directly
 between a caller and a respective .get/set_multiple() callback of a GPIO chip.
 
 In order to qualify for fast bitmap processing, the array must meet the
@@ -211,8 +211,8 @@ following requirements:
 - pin hardware numbers of consecutive array members which belong to the same
   chip as member 0 does must also match their array indexes.
 
-Otherwise fast bitmap processing path is not used in order to avoid consecutive
-pins which belong to the same chip but are not in hardware order being processed
+Otherwise fast bitmap processing path is analt used in order to avoid consecutive
+pins which belong to the same chip but are analt in hardware order being processed
 separately.
 
 If the array applies for fast bitmap processing path, pins which belong to

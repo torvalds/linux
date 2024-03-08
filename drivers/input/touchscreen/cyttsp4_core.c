@@ -105,7 +105,7 @@ static int cyttsp4_handshake(struct cyttsp4 *cd, u8 mode)
 	int rc;
 
 	/*
-	 * Mode change issued, handshaking now will cause endless mode change
+	 * Mode change issued, handshaking analw will cause endless mode change
 	 * requests, for sync mode modechange will do same with handshake
 	 * */
 	if (mode & CY_HST_MODE_CHANGE)
@@ -139,13 +139,13 @@ static int cyttsp4_hw_hard_reset(struct cyttsp4 *cd)
 		return 0;
 	}
 	dev_err(cd->dev, "%s: FAILED to execute HARD reset\n", __func__);
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int cyttsp4_hw_reset(struct cyttsp4 *cd)
 {
 	int rc = cyttsp4_hw_hard_reset(cd);
-	if (rc == -ENOSYS)
+	if (rc == -EANALSYS)
 		rc = cyttsp4_hw_soft_reset(cd);
 	return rc;
 }
@@ -220,7 +220,7 @@ static int cyttsp4_si_get_cydata(struct cyttsp4 *cd)
 	if (p == NULL) {
 		dev_err(cd->dev, "%s: failed to allocate cydata memory\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	si->si_ptrs.cydata = p;
 
@@ -295,7 +295,7 @@ static int cyttsp4_si_get_test_data(struct cyttsp4 *cd)
 	if (p == NULL) {
 		dev_err(cd->dev, "%s: failed to allocate test memory\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	si->si_ptrs.test = p;
 
@@ -354,7 +354,7 @@ static int cyttsp4_si_get_pcfg_data(struct cyttsp4 *cd)
 	if (p == NULL) {
 		dev_err(cd->dev, "%s: failed to allocate pcfg memory\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	si->si_ptrs.pcfg = p;
 
@@ -406,7 +406,7 @@ static int cyttsp4_si_get_opcfg_data(struct cyttsp4 *cd)
 	if (p == NULL) {
 		dev_err(cd->dev, "%s: failed to allocate opcfg memory\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	si->si_ptrs.opcfg = p;
 
@@ -494,7 +494,7 @@ static int cyttsp4_si_get_ddata(struct cyttsp4 *cd)
 	p = krealloc(si->si_ptrs.ddata, si->si_ofs.ddata_size, GFP_KERNEL);
 	if (p == NULL) {
 		dev_err(cd->dev, "%s: fail alloc ddata memory\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	si->si_ptrs.ddata = p;
 
@@ -521,7 +521,7 @@ static int cyttsp4_si_get_mdata(struct cyttsp4 *cd)
 	p = krealloc(si->si_ptrs.mdata, si->si_ofs.mdata_size, GFP_KERNEL);
 	if (p == NULL) {
 		dev_err(cd->dev, "%s: fail alloc mdata memory\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	si->si_ptrs.mdata = p;
 
@@ -555,7 +555,7 @@ static int cyttsp4_si_get_btn_data(struct cyttsp4 *cd)
 		if (p == NULL) {
 			dev_err(cd->dev, "%s: %s\n", __func__,
 				"fail alloc btn_keys memory");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		si->btn = p;
 
@@ -597,19 +597,19 @@ static int cyttsp4_si_get_op_data_ptrs(struct cyttsp4 *cd)
 
 	p = krealloc(si->xy_mode, si->si_ofs.mode_size, GFP_KERNEL|__GFP_ZERO);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	si->xy_mode = p;
 
 	p = krealloc(si->xy_data, si->si_ofs.data_size, GFP_KERNEL|__GFP_ZERO);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	si->xy_data = p;
 
 	p = krealloc(si->btn_rec_data,
 			si->si_ofs.btn_rec_size * si->si_ofs.num_btns,
 			GFP_KERNEL|__GFP_ZERO);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	si->btn_rec_data = p;
 
 	return 0;
@@ -665,13 +665,13 @@ static void cyttsp4_si_put_log_data(struct cyttsp4 *cd)
 		si->si_ofs.max_x, si->si_ofs.max_x);
 	dev_dbg(cd->dev, "%s: x_origin = %zd (%s)\n", __func__,
 		si->si_ofs.x_origin,
-		si->si_ofs.x_origin == CY_NORMAL_ORIGIN ?
+		si->si_ofs.x_origin == CY_ANALRMAL_ORIGIN ?
 		"left corner" : "right corner");
 	dev_dbg(cd->dev, "%s: max_y    = 0x%04zX (%zd)\n", __func__,
 		si->si_ofs.max_y, si->si_ofs.max_y);
 	dev_dbg(cd->dev, "%s: y_origin = %zd (%s)\n", __func__,
 		si->si_ofs.y_origin,
-		si->si_ofs.y_origin == CY_NORMAL_ORIGIN ?
+		si->si_ofs.y_origin == CY_ANALRMAL_ORIGIN ?
 		"upper corner" : "lower corner");
 	dev_dbg(cd->dev, "%s: max_p    = 0x%04zX (%zd)\n", __func__,
 		si->si_ofs.max_p, si->si_ofs.max_p);
@@ -738,7 +738,7 @@ static int cyttsp4_get_sysinfo_regs(struct cyttsp4 *cd)
 
 static void cyttsp4_queue_startup_(struct cyttsp4 *cd)
 {
-	if (cd->startup_state == STARTUP_NONE) {
+	if (cd->startup_state == STARTUP_ANALNE) {
 		cd->startup_state = STARTUP_QUEUED;
 		schedule_work(&cd->startup_work);
 		dev_dbg(cd->dev, "%s: cyttsp4_startup queued\n", __func__);
@@ -891,7 +891,7 @@ static void cyttsp4_get_mt_touches(struct cyttsp4_mt_data *md, int num_cur_tch)
 		/* use 0 based track id's */
 		sig = md->pdata->frmwrk->abs
 			[(CY_ABS_ID_OST * CY_NUM_ABS_SET) + 0];
-		if (sig != CY_IGNORE_VALUE) {
+		if (sig != CY_IGANALRE_VALUE) {
 			t = tch.abs[CY_TCH_T] - md->pdata->frmwrk->abs
 				[(CY_ABS_ID_OST * CY_NUM_ABS_SET) + CY_MIN_OST];
 			if (tch.abs[CY_TCH_E] == CY_EV_LIFTOFF) {
@@ -909,16 +909,16 @@ static void cyttsp4_get_mt_touches(struct cyttsp4_mt_data *md, int num_cur_tch)
 		for (j = 0; j <= CY_ABS_W_OST; j++) {
 			sig = md->pdata->frmwrk->abs[((CY_ABS_X_OST + j) *
 				CY_NUM_ABS_SET) + 0];
-			if (sig != CY_IGNORE_VALUE)
+			if (sig != CY_IGANALRE_VALUE)
 				input_report_abs(md->input, sig,
 					tch.abs[CY_TCH_X + j]);
 		}
 		if (si->si_ofs.tch_rec_size > CY_TMA1036_TCH_REC_SIZE) {
 			/*
 			 * TMA400 size and orientation fields:
-			 * if pressure is non-zero and major touch
-			 * signal is zero, then set major and minor touch
-			 * signals to minimum non-zero value
+			 * if pressure is analn-zero and major touch
+			 * signal is zero, then set major and mianalr touch
+			 * signals to minimum analn-zero value
 			 */
 			if (tch.abs[CY_TCH_P] > 0 && tch.abs[CY_TCH_MAJ] == 0)
 				tch.abs[CY_TCH_MAJ] = tch.abs[CY_TCH_MIN] = 1;
@@ -928,7 +928,7 @@ static void cyttsp4_get_mt_touches(struct cyttsp4_mt_data *md, int num_cur_tch)
 				sig = md->pdata->frmwrk->abs
 					[((CY_ABS_MAJ_OST + j) *
 					CY_NUM_ABS_SET) + 0];
-				if (sig != CY_IGNORE_VALUE)
+				if (sig != CY_IGANALRE_VALUE)
 					input_report_abs(md->input, sig,
 						tch.abs[CY_TCH_MAJ + j]);
 			}
@@ -1064,7 +1064,7 @@ static int cyttsp4_mt_attention(struct cyttsp4 *cd)
 		/* core handles handshake */
 		rc = cyttsp4_xy_worker(cd);
 	} else {
-		dev_vdbg(dev, "%s: Ignoring report while suspended\n",
+		dev_vdbg(dev, "%s: Iganalring report while suspended\n",
 			__func__);
 	}
 	mutex_unlock(&md->report_lock);
@@ -1084,12 +1084,12 @@ static irqreturn_t cyttsp4_irq(int irq, void *handle)
 	int rc;
 
 	/*
-	 * Check whether this IRQ should be ignored (external)
+	 * Check whether this IRQ should be iganalred (external)
 	 * This should be the very first thing to check since
-	 * ignore_irq may be set for a very short period of time
+	 * iganalre_irq may be set for a very short period of time
 	 */
-	if (atomic_read(&cd->ignore_irq)) {
-		dev_vdbg(dev, "%s: Ignoring IRQ\n", __func__);
+	if (atomic_read(&cd->iganalre_irq)) {
+		dev_vdbg(dev, "%s: Iganalring IRQ\n", __func__);
 		return IRQ_HANDLED;
 	}
 
@@ -1123,15 +1123,15 @@ static irqreturn_t cyttsp4_irq(int irq, void *handle)
 			__func__, cd->mode, cur_mode);
 
 		/* catch operation->bl glitch */
-		if (cd->mode != CY_MODE_UNKNOWN) {
-			/* Incase startup_state do not let startup_() */
-			cd->mode = CY_MODE_UNKNOWN;
+		if (cd->mode != CY_MODE_UNKANALWN) {
+			/* Incase startup_state do analt let startup_() */
+			cd->mode = CY_MODE_UNKANALWN;
 			cyttsp4_queue_startup_(cd);
 			goto cyttsp4_irq_exit;
 		}
 
 		/*
-		 * do not wake thread on this switch since
+		 * do analt wake thread on this switch since
 		 * it is possible to get an early heartbeat
 		 * prior to performing the reset
 		 */
@@ -1154,15 +1154,15 @@ static irqreturn_t cyttsp4_irq(int irq, void *handle)
 		dev_vdbg(dev, "%s: sysinfo\n", __func__);
 		break;
 	default:
-		cur_mode = CY_MODE_UNKNOWN;
-		dev_err(dev, "%s: unknown HST mode 0x%02X\n", __func__,
+		cur_mode = CY_MODE_UNKANALWN;
+		dev_err(dev, "%s: unkanalwn HST mode 0x%02X\n", __func__,
 			mode[0]);
 		break;
 	}
 
-	/* Check whether this IRQ should be ignored (internal) */
-	if (cd->int_status & CY_INT_IGNORE) {
-		dev_vdbg(dev, "%s: Ignoring IRQ\n", __func__);
+	/* Check whether this IRQ should be iganalred (internal) */
+	if (cd->int_status & CY_INT_IGANALRE) {
+		dev_vdbg(dev, "%s: Iganalring IRQ\n", __func__);
 		goto cyttsp4_irq_exit;
 	}
 
@@ -1234,7 +1234,7 @@ cyttsp4_irq_handshake:
 				__func__, mode[0], rc);
 
 	/*
-	 * a non-zero udelay period is required for using
+	 * a analn-zero udelay period is required for using
 	 * IRQF_TRIGGER_LOW in order to delay until the
 	 * device completes isr deassert
 	 */
@@ -1318,7 +1318,7 @@ exit:
 }
 
 /*
- * returns error if was not owned
+ * returns error if was analt owned
  */
 static int cyttsp4_release_exclusive(struct cyttsp4 *cd, void *ownptr)
 {
@@ -1382,7 +1382,7 @@ static int cyttsp4_reset_and_wait(struct cyttsp4 *cd)
 	mutex_lock(&cd->system_lock);
 	dev_dbg(cd->dev, "%s: reset hw...\n", __func__);
 	rc = cyttsp4_hw_reset(cd);
-	cd->mode = CY_MODE_UNKNOWN;
+	cd->mode = CY_MODE_UNKANALWN;
 	mutex_unlock(&cd->system_lock);
 	if (rc < 0) {
 		dev_err(cd->dev, "%s:Fail hw reset r=%d\n", __func__, rc);
@@ -1500,7 +1500,7 @@ cyttsp4_timer_watchdog_exit_error:
 static int cyttsp4_core_sleep_(struct cyttsp4 *cd)
 {
 	enum cyttsp4_sleep_state ss = SS_SLEEP_ON;
-	enum cyttsp4_int_state int_status = CY_INT_IGNORE;
+	enum cyttsp4_int_state int_status = CY_INT_IGANALRE;
 	int rc = 0;
 	u8 mode[2];
 
@@ -1545,9 +1545,9 @@ static int cyttsp4_core_sleep_(struct cyttsp4 *cd)
 
 	if (cd->cpdata->power) {
 		dev_dbg(cd->dev, "%s: Power down HW\n", __func__);
-		rc = cd->cpdata->power(cd->cpdata, 0, cd->dev, &cd->ignore_irq);
+		rc = cd->cpdata->power(cd->cpdata, 0, cd->dev, &cd->iganalre_irq);
 	} else {
-		dev_dbg(cd->dev, "%s: No power function\n", __func__);
+		dev_dbg(cd->dev, "%s: Anal power function\n", __func__);
 		rc = 0;
 	}
 	if (rc < 0) {
@@ -1563,7 +1563,7 @@ static int cyttsp4_core_sleep_(struct cyttsp4 *cd)
 
 error:
 	ss = SS_SLEEP_OFF;
-	int_status = CY_INT_NONE;
+	int_status = CY_INT_ANALNE;
 	cyttsp4_start_wd_timer(cd);
 
 exit:
@@ -1599,7 +1599,7 @@ reset:
 	/* exit bl into sysinfo mode */
 	dev_vdbg(cd->dev, "%s: write exit ldr...\n", __func__);
 	mutex_lock(&cd->system_lock);
-	cd->int_status &= ~CY_INT_IGNORE;
+	cd->int_status &= ~CY_INT_IGANALRE;
 	cd->int_status |= CY_INT_MODE_CHANGE;
 
 	rc = cyttsp4_adap_write(cd, CY_REG_BASE, sizeof(ldr_exit),
@@ -1628,7 +1628,7 @@ reset:
 			mutex_lock(&cd->system_lock);
 			cd->invalid_touch_app = true;
 			mutex_unlock(&cd->system_lock);
-			goto exit_no_wd;
+			goto exit_anal_wd;
 		}
 
 		if (retry--)
@@ -1668,13 +1668,13 @@ reset:
 		cd->sleep_state = SS_SLEEP_OFF;
 		mutex_unlock(&cd->system_lock);
 		cyttsp4_core_sleep_(cd);
-		goto exit_no_wd;
+		goto exit_anal_wd;
 	}
 	mutex_unlock(&cd->system_lock);
 
 exit:
 	cyttsp4_start_wd_timer(cd);
-exit_no_wd:
+exit_anal_wd:
 	return rc;
 }
 
@@ -1704,7 +1704,7 @@ static int cyttsp4_startup(struct cyttsp4 *cd)
 
 exit:
 	mutex_lock(&cd->system_lock);
-	cd->startup_state = STARTUP_NONE;
+	cd->startup_state = STARTUP_ANALNE;
 	mutex_unlock(&cd->system_lock);
 
 	/* Wake the waiters for end of startup */
@@ -1778,16 +1778,16 @@ static int cyttsp4_core_wake_(struct cyttsp4 *cd)
 		mutex_unlock(&cd->system_lock);
 		return 0;
 	}
-	cd->int_status &= ~CY_INT_IGNORE;
+	cd->int_status &= ~CY_INT_IGANALRE;
 	cd->int_status |= CY_INT_AWAKE;
 	cd->sleep_state = SS_WAKING;
 
 	if (cd->cpdata->power) {
 		dev_dbg(dev, "%s: Power up HW\n", __func__);
-		rc = cd->cpdata->power(cd->cpdata, 1, dev, &cd->ignore_irq);
+		rc = cd->cpdata->power(cd->cpdata, 1, dev, &cd->iganalre_irq);
 	} else {
-		dev_dbg(dev, "%s: No power function\n", __func__);
-		rc = -ENOSYS;
+		dev_dbg(dev, "%s: Anal power function\n", __func__);
+		rc = -EANALSYS;
 	}
 	if (rc < 0) {
 		dev_err(dev, "%s: HW Power up fails r=%d\n",
@@ -1899,7 +1899,7 @@ static int cyttsp4_setup_input_device(struct cyttsp4 *cd)
 {
 	struct device *dev = cd->dev;
 	struct cyttsp4_mt_data *md = &cd->md;
-	int signal = CY_IGNORE_VALUE;
+	int signal = CY_IGANALRE_VALUE;
 	int max_x, max_y, max_p, min, max;
 	int max_x_tmp, max_y_tmp;
 	int i;
@@ -1927,7 +1927,7 @@ static int cyttsp4_setup_input_device(struct cyttsp4 *cd)
 	for (i = 0; i < (md->pdata->frmwrk->size / CY_NUM_ABS_SET); i++) {
 		signal = md->pdata->frmwrk->abs
 			[(i * CY_NUM_ABS_SET) + CY_SIGNAL_OST];
-		if (signal != CY_IGNORE_VALUE) {
+		if (signal != CY_IGANALRE_VALUE) {
 			__set_bit(signal, md->input->absbit);
 			min = md->pdata->frmwrk->abs
 				[(i * CY_NUM_ABS_SET) + CY_MIN_OST];
@@ -1982,7 +1982,7 @@ static int cyttsp4_mt_probe(struct cyttsp4 *cd)
 	if (md->input == NULL) {
 		dev_err(dev, "%s: Error, failed to allocate input device\n",
 			__func__);
-		rc = -ENOSYS;
+		rc = -EANALSYS;
 		goto error_alloc_failed;
 	}
 
@@ -2021,21 +2021,21 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 
 	if (!pdata || !pdata->core_pdata || !pdata->mt_pdata) {
 		dev_err(dev, "%s: Missing platform data\n", __func__);
-		rc = -ENODEV;
-		goto error_no_pdata;
+		rc = -EANALDEV;
+		goto error_anal_pdata;
 	}
 
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
 	if (!cd) {
 		dev_err(dev, "%s: Error, kzalloc\n", __func__);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error_alloc_data;
 	}
 
 	cd->xfer_buf = kzalloc(xfer_buf_size, GFP_KERNEL);
 	if (!cd->xfer_buf) {
 		dev_err(dev, "%s: Error, kzalloc\n", __func__);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error_free_cd;
 	}
 
@@ -2070,7 +2070,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 		dev_dbg(cd->dev, "%s: Init HW\n", __func__);
 		rc = cd->cpdata->init(cd->cpdata, 1, cd->dev);
 	} else {
-		dev_dbg(cd->dev, "%s: No HW INIT function\n", __func__);
+		dev_dbg(cd->dev, "%s: Anal HW INIT function\n", __func__);
 		rc = 0;
 	}
 	if (rc < 0)
@@ -2087,7 +2087,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	rc = request_threaded_irq(cd->irq, NULL, cyttsp4_irq, irq_flags,
 		dev_name(dev), cd);
 	if (rc < 0) {
-		dev_err(dev, "%s: Error, could not request irq\n", __func__);
+		dev_err(dev, "%s: Error, could analt request irq\n", __func__);
 		goto error_request_irq;
 	}
 
@@ -2100,8 +2100,8 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	 */
 	rc = cyttsp4_startup(cd);
 
-	/* Do not fail probe if startup fails but the device is detected */
-	if (rc < 0 && cd->mode == CY_MODE_UNKNOWN) {
+	/* Do analt fail probe if startup fails but the device is detected */
+	if (rc < 0 && cd->mode == CY_MODE_UNKANALWN) {
 		dev_err(cd->dev, "%s: Fail initial startup r=%d\n",
 			__func__, rc);
 		goto error_startup;
@@ -2131,7 +2131,7 @@ error_free_xfer:
 error_free_cd:
 	kfree(cd);
 error_alloc_data:
-error_no_pdata:
+error_anal_pdata:
 	dev_err(dev, "%s failed.\n", __func__);
 	return ERR_PTR(rc);
 }

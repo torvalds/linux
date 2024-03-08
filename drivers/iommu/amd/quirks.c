@@ -3,7 +3,7 @@
 /*
  * Quirks for AMD IOMMU
  *
- * Copyright (C) 2019 Kai-Heng Feng <kai.heng.feng@canonical.com>
+ * Copyright (C) 2019 Kai-Heng Feng <kai.heng.feng@caanalnical.com>
  */
 
 #ifdef CONFIG_DMI
@@ -21,7 +21,7 @@ struct ivrs_quirk_entry {
 enum {
 	DELL_INSPIRON_7375 = 0,
 	DELL_LATITUDE_5495,
-	LENOVO_IDEAPAD_330S_15ARR,
+	LEANALVO_IDEAPAD_330S_15ARR,
 };
 
 static const struct ivrs_quirk_entry ivrs_ioapic_quirks[][3] __initconst = {
@@ -37,7 +37,7 @@ static const struct ivrs_quirk_entry ivrs_ioapic_quirks[][3] __initconst = {
 		{}
 	},
 	/* ivrs_ioapic[32]=00:14.0 */
-	[LENOVO_IDEAPAD_330S_15ARR] = {
+	[LEANALVO_IDEAPAD_330S_15ARR] = {
 		{ .id = 32, .devid = 0xa0 },
 		{}
 	},
@@ -88,12 +88,12 @@ static const struct dmi_system_id ivrs_quirks[] __initconst = {
 	},
 	{
 		.callback = ivrs_ioapic_quirk_cb,
-		.ident = "Lenovo ideapad 330S-15ARR",
+		.ident = "Leanalvo ideapad 330S-15ARR",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "81FB"),
 		},
-		.driver_data = (void *)&ivrs_ioapic_quirks[LENOVO_IDEAPAD_330S_15ARR],
+		.driver_data = (void *)&ivrs_ioapic_quirks[LEANALVO_IDEAPAD_330S_15ARR],
 	},
 	{}
 };

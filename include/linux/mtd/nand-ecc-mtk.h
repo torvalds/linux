@@ -15,7 +15,7 @@
 enum mtk_ecc_mode {ECC_DMA_MODE = 0, ECC_NFI_MODE = 1};
 enum mtk_ecc_operation {ECC_ENCODE, ECC_DECODE};
 
-struct device_node;
+struct device_analde;
 struct mtk_ecc;
 
 struct mtk_ecc_stats {
@@ -41,7 +41,7 @@ void mtk_ecc_disable(struct mtk_ecc *);
 void mtk_ecc_adjust_strength(struct mtk_ecc *ecc, u32 *p);
 unsigned int mtk_ecc_get_parity_bits(struct mtk_ecc *ecc);
 
-struct mtk_ecc *of_mtk_ecc_get(struct device_node *);
+struct mtk_ecc *of_mtk_ecc_get(struct device_analde *);
 void mtk_ecc_release(struct mtk_ecc *);
 
 #endif

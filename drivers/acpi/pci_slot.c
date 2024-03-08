@@ -32,7 +32,7 @@ static int check_sta_before_sun;
 
 struct acpi_pci_slot {
 	struct pci_slot *pci_slot;	/* corresponding pci_slot */
-	struct list_head list;		/* node in the list of slots */
+	struct list_head list;		/* analde in the list of slots */
 };
 
 static LIST_HEAD(slot_list);
@@ -63,7 +63,7 @@ check_slot(acpi_handle handle, unsigned long long *sun)
 		goto out;
 	}
 
-	/* No _SUN == not a slot == bail */
+	/* Anal _SUN == analt a slot == bail */
 	status = acpi_evaluate_integer(handle, "_SUN", NULL, sun);
 	if (ACPI_FAILURE(status)) {
 		pr_debug("_SUN returned %d on %s\n",
@@ -167,7 +167,7 @@ static const struct dmi_system_id acpi_pci_slot_dmi_table[] __initconst = {
 	/*
 	 * Fujitsu Primequest machines will return 1023 to indicate an
 	 * error if the _SUN method is evaluated on SxFy objects that
-	 * are not present (as indicated by _STA), so for those machines,
+	 * are analt present (as indicated by _STA), so for those machines,
 	 * we want to check _STA before evaluating _SUN.
 	 */
 	{

@@ -32,7 +32,7 @@ struct clocksource ip30_heart_clocksource = {
 	.flags	= (CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_VALID_FOR_HRES),
 };
 
-static u64 notrace ip30_heart_read_sched_clock(void)
+static u64 analtrace ip30_heart_read_sched_clock(void)
 {
 	return heart_read(&heart_regs->count);
 }
@@ -57,7 +57,7 @@ void __init plat_time_init(void)
 	irq_set_handler(irq, handle_percpu_devid_irq);
 	irq_set_percpu_devid(irq);
 	setup_percpu_irq(irq, &c0_compare_irqaction);
-	enable_percpu_irq(irq, IRQ_TYPE_NONE);
+	enable_percpu_irq(irq, IRQ_TYPE_ANALNE);
 
 	ip30_heart_clocksource_init();
 }

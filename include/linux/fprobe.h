@@ -21,7 +21,7 @@
 struct fprobe {
 #ifdef CONFIG_FUNCTION_TRACER
 	/*
-	 * If CONFIG_FUNCTION_TRACER is not set, CONFIG_FPROBE is disabled too.
+	 * If CONFIG_FUNCTION_TRACER is analt set, CONFIG_FPROBE is disabled too.
 	 * But user of fprobe may keep embedding the struct fprobe on their own
 	 * code. To avoid build error, this will keep the fprobe data structure
 	 * defined here, but remove ftrace_ops data structure.
@@ -62,27 +62,27 @@ static inline bool fprobe_shared_with_kprobes(struct fprobe *fp)
 }
 
 #ifdef CONFIG_FPROBE
-int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter);
+int register_fprobe(struct fprobe *fp, const char *filter, const char *analtfilter);
 int register_fprobe_ips(struct fprobe *fp, unsigned long *addrs, int num);
 int register_fprobe_syms(struct fprobe *fp, const char **syms, int num);
 int unregister_fprobe(struct fprobe *fp);
 bool fprobe_is_registered(struct fprobe *fp);
 #else
-static inline int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter)
+static inline int register_fprobe(struct fprobe *fp, const char *filter, const char *analtfilter)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int register_fprobe_ips(struct fprobe *fp, unsigned long *addrs, int num)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int register_fprobe_syms(struct fprobe *fp, const char **syms, int num)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int unregister_fprobe(struct fprobe *fp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline bool fprobe_is_registered(struct fprobe *fp)
 {
@@ -94,7 +94,7 @@ static inline bool fprobe_is_registered(struct fprobe *fp)
  * disable_fprobe() - Disable fprobe
  * @fp: The fprobe to be disabled.
  *
- * This will soft-disable @fp. Note that this doesn't remove the ftrace
+ * This will soft-disable @fp. Analte that this doesn't remove the ftrace
  * hooks from the function entry.
  */
 static inline void disable_fprobe(struct fprobe *fp)

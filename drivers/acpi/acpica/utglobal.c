@@ -59,12 +59,12 @@ const char acpi_gbl_upper_hex_digits[] = "0123456789ABCDEF";
 /*
  * Predefined ACPI Names (Built-in to the Interpreter)
  *
- * NOTES:
+ * ANALTES:
  * 1) _SB_ is defined to be a device to allow \_SB_._INI to be run
  *    during the initialization sequence.
  * 2) _TZ_ is defined to be a thermal zone in order to allow ASL code to
- *    perform a Notify() operation on it. 09/2010: Changed to type Device.
- *    This still allows notifies, but does not confuse host code that
+ *    perform a Analtify() operation on it. 09/2010: Changed to type Device.
+ *    This still allows analtifies, but does analt confuse host code that
  *    searches for valid thermal_zone objects.
  */
 const struct acpi_predefined_names acpi_gbl_pre_defined_names[] = {
@@ -77,7 +77,7 @@ const struct acpi_predefined_names acpi_gbl_pre_defined_names[] = {
 	 * March, 2015:
 	 * The _REV object is in the process of being deprecated, because
 	 * other ACPI implementations permanently return 2. Thus, it
-	 * has little or no value. Return 2 for compatibility with
+	 * has little or anal value. Return 2 for compatibility with
 	 * other ACPI implementations.
 	 */
 	{"_REV", ACPI_TYPE_INTEGER, ACPI_CAST_PTR(char, 2)},
@@ -200,7 +200,7 @@ const char *acpi_gbl_pld_panel_list[] = {
 	"RIGHT",
 	"FRONT",
 	"BACK",
-	"UNKNOWN",
+	"UNKANALWN",
 	NULL
 };
 
@@ -226,7 +226,7 @@ const char *acpi_gbl_pld_shape_list[] = {
 	"HORIZONTALRECTANGLE",
 	"VERTICALTRAPEZOID",
 	"HORIZONTALTRAPEZOID",
-	"UNKNOWN",
+	"UNKANALWN",
 	"CHAMFERED",
 	NULL
 };

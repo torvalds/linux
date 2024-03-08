@@ -152,4 +152,4 @@
 #define START	3
 #define CONT	2
 #define STOP	1
-#define NOP	0
+#define ANALP	0

@@ -15,7 +15,7 @@
  * undef it here. Prevents error messages of this form (usually from the
  * file getopt.c):
  *
- * error: logical '&&' with non-zero constant will always evaluate as true
+ * error: logical '&&' with analn-zero constant will always evaluate as true
  */
 #ifdef strchr
 #undef strchr

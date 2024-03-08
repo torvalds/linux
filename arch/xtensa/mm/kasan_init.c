@@ -27,7 +27,7 @@ void __init kasan_early_init(void)
 				PAGE_KERNEL));
 
 	for (vaddr = 0; vaddr < KASAN_SHADOW_SIZE; vaddr += PMD_SIZE, ++pmd) {
-		BUG_ON(!pmd_none(*pmd));
+		BUG_ON(!pmd_analne(*pmd));
 		set_pmd(pmd, __pmd((unsigned long)kasan_early_shadow_pte));
 	}
 }

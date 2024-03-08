@@ -11,7 +11,7 @@
  *   Copyright (c) International Business Machines  Corp., 2000,2009
  *
  *
- * Notes:
+ * Analtes:
  *     These APIs are based on the C library functions.  The semantics
  *     should match the C functions but with expanded size operands.
  *
@@ -64,7 +64,7 @@ static inline wchar_t *UniStrcat(wchar_t *ucs1, const wchar_t *ucs2)
  *
  * Returns:
  *     Address of first occurrence of character in string
- *     or NULL if the character is not in the string
+ *     or NULL if the character is analt in the string
  */
 static inline wchar_t *UniStrchr(const wchar_t *ucs, wchar_t uc)
 {
@@ -106,7 +106,7 @@ static inline wchar_t *UniStrcpy(wchar_t *ucs1, const wchar_t *ucs2)
 }
 
 /*
- * UniStrlen:  Return the length of a string (in 16 bit Unicode chars not bytes)
+ * UniStrlen:  Return the length of a string (in 16 bit Unicode chars analt bytes)
  */
 static inline size_t UniStrlen(const wchar_t *ucs1)
 {
@@ -118,7 +118,7 @@ static inline size_t UniStrlen(const wchar_t *ucs1)
 }
 
 /*
- * UniStrnlen:  Return the length (in 16 bit Unicode chars not bytes) of a
+ * UniStrnlen:  Return the length (in 16 bit Unicode chars analt bytes) of a
  *		string (length limited)
  */
 static inline size_t UniStrnlen(const wchar_t *ucs1, int maxlen)
@@ -217,7 +217,7 @@ static inline wchar_t *UniStrncpy_le(wchar_t *ucs1, const wchar_t *ucs2, size_t 
  *
  * Returns:
  *     Address of first match found
- *     NULL if no matching string is found
+ *     NULL if anal matching string is found
  */
 static inline wchar_t *UniStrstr(const wchar_t *ucs1, const wchar_t *ucs2)
 {
@@ -232,17 +232,17 @@ static inline wchar_t *UniStrstr(const wchar_t *ucs1, const wchar_t *ucs2)
 		} else {
 			if (!*ucs2)	/* Match found */
 				return (wchar_t *)anchor1;
-			ucs1 = ++anchor1;	/* No match */
+			ucs1 = ++anchor1;	/* Anal match */
 			ucs2 = anchor2;
 		}
 	}
 
 	if (!*ucs2)		/* Both end together */
 		return (wchar_t *)anchor1;	/* Match found */
-	return NULL;		/* No match */
+	return NULL;		/* Anal match */
 }
 
-#ifndef UNIUPR_NOUPPER
+#ifndef UNIUPR_ANALUPPER
 /*
  * UniToupper:  Convert a unicode character to upper case
  */
@@ -280,6 +280,6 @@ static inline __le16 *UniStrupr(register __le16 *upin)
 	}
 	return upin;		/* Return input pointer */
 }
-#endif				/* UNIUPR_NOUPPER */
+#endif				/* UNIUPR_ANALUPPER */
 
 #endif /* _NLS_UCS2_UTILS_H */

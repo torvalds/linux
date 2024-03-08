@@ -1,21 +1,21 @@
-The Exynos display port interface should be configured based on
+The Exyanals display port interface should be configured based on
 the type of panel connected to it.
 
-We use two nodes:
-	-dp-controller node
-	-dptx-phy node(defined inside dp-controller node)
+We use two analdes:
+	-dp-controller analde
+	-dptx-phy analde(defined inside dp-controller analde)
 
-For the DP-PHY initialization, we use the dptx-phy node.
+For the DP-PHY initialization, we use the dptx-phy analde.
 Required properties for dptx-phy: deprecated, use phys and phy-names
 	-reg: deprecated
 		Base address of DP PHY register.
 	-samsung,enable-mask: deprecated
 		The bit-mask used to enable/disable DP PHY.
 
-For the Panel initialization, we read data from dp-controller node.
+For the Panel initialization, we read data from dp-controller analde.
 Required properties for dp-controller:
 	-compatible:
-		should be "samsung,exynos5-dp".
+		should be "samsung,exyanals5-dp".
 	-reg:
 		physical base address of the controller and length
 		of memory mapped region.
@@ -33,19 +33,19 @@ Required properties for dp-controller:
 Optional properties for dp-controller:
 	-interlaced:
 		interlace scan mode.
-			Progressive if defined, Interlaced if not defined
+			Progressive if defined, Interlaced if analt defined
 	-vsync-active-high:
 		VSYNC polarity configuration.
-			High if defined, Low if not defined
+			High if defined, Low if analt defined
 	-hsync-active-high:
 		HSYNC polarity configuration.
-			High if defined, Low if not defined
+			High if defined, Low if analt defined
 	-samsung,hpd-gpio:
 		Hotplug detect GPIO.
 			Indicates which GPIO should be used for hotplug
 			detection
-	-video interfaces: Device node can contain video interface port
-			nodes according to [1].
+	-video interfaces: Device analde can contain video interface port
+			analdes according to [1].
 	- display-timings: timings for the connected panel as described by
 		Documentation/devicetree/bindings/display/panel/display-timing.txt
 
@@ -74,7 +74,7 @@ Example:
 
 SOC specific portion:
 	dp-controller {
-		compatible = "samsung,exynos5-dp";
+		compatible = "samsung,exyanals5-dp";
 		reg = <0x145b0000 0x10000>;
 		interrupts = <10 3>;
 		interrupt-parent = <&combiner>;

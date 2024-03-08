@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/asm/utrap.h
  *
@@ -22,7 +22,7 @@
 #define UT_DATA_EXCEPTION			12
 #define UT_DATA_ERROR				13
 #define UT_DATA_PROTECTION			14
-#define UT_MEM_ADDRESS_NOT_ALIGNED		15
+#define UT_MEM_ADDRESS_ANALT_ALIGNED		15
 #define UT_PRIVILEGED_ACTION			16
 #define UT_ASYNC_DATA_ERROR			17
 #define UT_TRAP_INSTRUCTION_16			18
@@ -42,7 +42,7 @@
 #define UT_TRAP_INSTRUCTION_30			32
 #define UT_TRAP_INSTRUCTION_31			33
 
-#define	UTH_NOCHANGE				(-1)
+#define	UTH_ANALCHANGE				(-1)
 
 #ifndef __ASSEMBLY__
 typedef int utrap_entry_t;

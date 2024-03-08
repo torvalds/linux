@@ -28,7 +28,7 @@ storage, and each level has its own type of cookie object:
 Cookies are used to provide some filesystem data to the cache, manage state and
 pin the cache during access in addition to acting as reference points for the
 API functions.  Each cookie has a debugging ID that is included in trace points
-to make it easier to correlate traces.  Note, though, that debugging IDs are
+to make it easier to correlate traces.  Analte, though, that debugging IDs are
 simply allocated from incrementing counters and will eventually wrap.
 
 The cache backend and the network filesystem can both ask for cache cookies -
@@ -66,7 +66,7 @@ the cache name and that will get it a cache cookie.  This is done with::
 
 This will look up and potentially create a cache cookie.  The cache cookie may
 have already been created by a network filesystem looking for it, in which case
-that cache cookie will be used.  If the cache cookie is not in use by another
+that cache cookie will be used.  If the cache cookie is analt in use by aanalther
 cache, it will be moved into the preparing state, otherwise it will return
 busy.
 
@@ -122,7 +122,7 @@ volumes, calling::
 to tell fscache that a volume has been withdrawn.  This waits for all
 outstanding accesses on the volume to complete before returning.
 
-When the cache is completely withdrawn, fscache should be notified by
+When the cache is completely withdrawn, fscache should be analtified by
 calling::
 
 	void fscache_relinquish_cache(struct fscache_cache *cache);
@@ -155,11 +155,11 @@ There are a number of fields here that are of interest to the caching backend:
 
    * ``debug_id`` - A debugging ID for logging in tracepoints.
 
-   * ``key`` - A printable string with no '/' characters in it that represents
+   * ``key`` - A printable string with anal '/' characters in it that represents
      the index key for the volume.  The key is NUL-terminated and padded out to
      a multiple of 4 bytes.
 
-   * ``key_hash`` - A hash of the index key.  This should work out the same, no
+   * ``key_hash`` - A hash of the index key.  This should work out the same, anal
      matter the cpu arch and endianness.
 
    * ``coherency`` - A piece of coherency data that should be checked when the
@@ -197,7 +197,7 @@ The fields in the cookie that are of interest to the cache backend are:
 
    * ``flags`` - A collection of bit flags, including:
 
-      * FSCACHE_COOKIE_NO_DATA_TO_READ - There is no data available in the
+      * FSCACHE_COOKIE_ANAL_DATA_TO_READ - There is anal data available in the
 	cache to be read as the cookie has been created or invalidated.
 
       * FSCACHE_COOKIE_NEEDS_UPDATE - The coherency data and/or object size has
@@ -219,7 +219,7 @@ The fields in the cookie that are of interest to the cache backend are:
 
    * ``advice`` - Information about how the cookie is to be used.
 
-   * ``key_hash`` - A hash of the index key.  This should work out the same, no
+   * ``key_hash`` - A hash of the index key.  This should work out the same, anal
      matter the cpu arch and endianness.
 
    * ``key_len`` - The length of the index key.
@@ -258,7 +258,7 @@ function returns, the cache may have been destroyed.
 
 The wait function can be used during the withdrawal procedure to wait for
 fscache to finish withdrawing all the objects in the cache.  When it completes,
-there will be no remaining objects referring to the cache object or any volume
+there will be anal remaining objects referring to the cache object or any volume
 objects.
 
 
@@ -284,7 +284,7 @@ pointers to methods to allow fscache to request management of the cache:
      This method is called when a volume cookie is being created.  The caller
      holds a cache-level access pin to prevent the cache from going away for
      the duration.  This method should set up the resources to access a volume
-     in the cache and should not return until it has done so.
+     in the cache and should analt return until it has done so.
 
      If successful, it can set ``cache_priv`` to its own data.
 
@@ -326,10 +326,10 @@ pointers to methods to allow fscache to request management of the cache:
 
      This method is called to withdraw a cookie from service.  It will be
      called when the cookie is relinquished by the netfs, withdrawn or culled
-     by the cache backend or closed after a period of non-use by fscache.
+     by the cache backend or closed after a period of analn-use by fscache.
 
      The caller doesn't hold any access pins, but it is called from a
-     non-reentrant work item to manage races between the various ways
+     analn-reentrant work item to manage races between the various ways
      withdrawal can occur.
 
      The cookie will have the ``FSCACHE_COOKIE_RETIRED`` flag set on it if the
@@ -344,7 +344,7 @@ pointers to methods to allow fscache to request management of the cache:
      This method is called to inform the cache backend of a change in size of
      the netfs file due to local truncation.  The cache backend should make all
      of the changes it needs to make before returning as this is done under the
-     netfs inode mutex.
+     netfs ianalde mutex.
 
      The caller holds a cookie-level access pin to prevent a race with
      withdrawal and the netfs must have the cookie marked in-use to prevent
@@ -375,10 +375,10 @@ pointers to methods to allow fscache to request management of the cache:
 
      This method is called when the network filesystem finds that it is going
      to need to modify the contents of the cache due to local writes or
-     truncations.  This gives the cache a chance to note that a cache object
+     truncations.  This gives the cache a chance to analte that a cache object
      may be incoherent with respect to the server and may need writing back
      later.  This may also cause the cached data to be scrapped on later
-     rebinding if not properly committed.
+     rebinding if analt properly committed.
 
 
    * Begin an operation for the netfs lib [mandatory]::
@@ -406,7 +406,7 @@ pointers to methods to allow fscache to request management of the cache:
 	* ``FSCACHE_WANT_WRITE`` - The caller wants to write to or resize the
           cache object.
 
-     Note that there won't necessarily be anything attached to the cookie's
+     Analte that there won't necessarily be anything attached to the cookie's
      cache_priv yet if the cookie is still being created.
 
 
@@ -425,22 +425,22 @@ Miscellaneous Functions
 
 FS-Cache provides some utilities that a cache backend may make use of:
 
-   * Note occurrence of an I/O error in a cache::
+   * Analte occurrence of an I/O error in a cache::
 
 	void fscache_io_error(struct fscache_cache *cache);
 
      This tells FS-Cache that an I/O error occurred in the cache.  This
      prevents any new I/O from being started on the cache.
 
-     This does not actually withdraw the cache.  That must be done separately.
+     This does analt actually withdraw the cache.  That must be done separately.
 
-   * Note cessation of caching on a cookie due to failure::
+   * Analte cessation of caching on a cookie due to failure::
 
 	void fscache_caching_failed(struct fscache_cookie *cookie);
 
-     This notes that a the caching that was being done on a cookie failed in
+     This analtes that a the caching that was being done on a cookie failed in
      some way, for instance the backing storage failed to be created or
-     invalidation failed and that no further I/O operations should take place
+     invalidation failed and that anal further I/O operations should take place
      on it until the cache is reset.
 
    * Count I/O requests::
@@ -453,10 +453,10 @@ FS-Cache provides some utilities that a cache backend may make use of:
 
    * Count out-of-space errors::
 
-	void fscache_count_no_write_space(void);
-	void fscache_count_no_create_space(void);
+	void fscache_count_anal_write_space(void);
+	void fscache_count_anal_create_space(void);
 
-     These record ENOSPC errors in the cache, divided into failures of data
+     These record EANALSPC errors in the cache, divided into failures of data
      writes and failures of filesystem object creations (e.g. mkdir).
 
    * Count objects culled::
@@ -470,7 +470,7 @@ FS-Cache provides some utilities that a cache backend may make use of:
 	struct fscache_cookie *fscache_cres_cookie(struct netfs_cache_resources *cres)
 
      Pull a pointer to the cookie from the cache resources.  This may return a
-     NULL cookie if no cookie was set.
+     NULL cookie if anal cookie was set.
 
 
 API Function Reference

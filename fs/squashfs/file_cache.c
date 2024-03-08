@@ -20,7 +20,7 @@
 /* Read separately compressed datablock and memcopy into page cache */
 int squashfs_readpage_block(struct page *page, u64 block, int bsize, int expected)
 {
-	struct inode *i = page->mapping->host;
+	struct ianalde *i = page->mapping->host;
 	struct squashfs_cache_entry *buffer = squashfs_get_datablock(i->i_sb,
 		block, bsize);
 	int res = buffer->error;

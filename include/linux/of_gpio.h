@@ -15,22 +15,22 @@
 #include <linux/gpio.h>		/* FIXME: Shouldn't be here */
 #include <linux/of.h>
 
-struct device_node;
+struct device_analde;
 
 #ifdef CONFIG_OF_GPIO
 
-extern int of_get_named_gpio(const struct device_node *np,
+extern int of_get_named_gpio(const struct device_analde *np,
 			     const char *list_name, int index);
 
 #else /* CONFIG_OF_GPIO */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
-/* Drivers may not strictly depend on the GPIO support, so let them link. */
-static inline int of_get_named_gpio(const struct device_node *np,
+/* Drivers may analt strictly depend on the GPIO support, so let them link. */
+static inline int of_get_named_gpio(const struct device_analde *np,
                                    const char *propname, int index)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 #endif /* CONFIG_OF_GPIO */

@@ -35,12 +35,12 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 						 const struct tomoyo_acl_head
 						 *))
 {
-	int error = param->is_delete ? -ENOENT : -ENOMEM;
+	int error = param->is_delete ? -EANALENT : -EANALMEM;
 	struct tomoyo_acl_head *entry;
 	struct list_head *list = param->list;
 
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		return -ENOMEM;
+		return -EANALMEM;
 	list_for_each_entry_rcu(entry, list, list,
 				srcu_read_lock_held(&tomoyo_ss)) {
 		if (entry->is_deleted == TOMOYO_GC_IN_PROGRESS)
@@ -100,7 +100,7 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 						 const bool))
 {
 	const bool is_delete = param->is_delete;
-	int error = is_delete ? -ENOENT : -ENOMEM;
+	int error = is_delete ? -EANALENT : -EANALMEM;
 	struct tomoyo_acl_info *entry;
 	struct list_head * const list = param->list;
 
@@ -243,14 +243,14 @@ int tomoyo_write_transition_control(struct tomoyo_acl_param *param,
 				    const u8 type)
 {
 	struct tomoyo_transition_control e = { .type = type };
-	int error = param->is_delete ? -ENOENT : -ENOMEM;
+	int error = param->is_delete ? -EANALENT : -EANALMEM;
 	char *program = param->data;
 	char *domainname = strstr(program, " from ");
 
 	if (domainname) {
 		*domainname = '\0';
 		domainname += 6;
-	} else if (type == TOMOYO_TRANSITION_CONTROL_NO_KEEP ||
+	} else if (type == TOMOYO_TRANSITION_CONTROL_ANAL_KEEP ||
 		   type == TOMOYO_TRANSITION_CONTROL_KEEP) {
 		domainname = program;
 		program = NULL;
@@ -346,7 +346,7 @@ static enum tomoyo_transition_type tomoyo_transition_type
  const struct tomoyo_path_info *program)
 {
 	const char *last_name = tomoyo_last_word(domainname->name);
-	enum tomoyo_transition_type type = TOMOYO_TRANSITION_CONTROL_NO_RESET;
+	enum tomoyo_transition_type type = TOMOYO_TRANSITION_CONTROL_ANAL_RESET;
 
 	while (type < TOMOYO_MAX_TRANSITION_TYPE) {
 		const struct list_head * const list =
@@ -357,12 +357,12 @@ static enum tomoyo_transition_type tomoyo_transition_type
 			type++;
 			continue;
 		}
-		if (type != TOMOYO_TRANSITION_CONTROL_NO_RESET &&
-		    type != TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE)
+		if (type != TOMOYO_TRANSITION_CONTROL_ANAL_RESET &&
+		    type != TOMOYO_TRANSITION_CONTROL_ANAL_INITIALIZE)
 			break;
 		/*
-		 * Do not check for reset_domain if no_reset_domain matched.
-		 * Do not check for initialize_domain if no_initialize_domain
+		 * Do analt check for reset_domain if anal_reset_domain matched.
+		 * Do analt check for initialize_domain if anal_initialize_domain
 		 * matched.
 		 */
 		type++;
@@ -403,7 +403,7 @@ static bool tomoyo_same_aggregator(const struct tomoyo_acl_head *a,
 int tomoyo_write_aggregator(struct tomoyo_acl_param *param)
 {
 	struct tomoyo_aggregator e = { };
-	int error = param->is_delete ? -ENOENT : -ENOMEM;
+	int error = param->is_delete ? -EANALENT : -EANALMEM;
 	const char *original_name = tomoyo_read_token(param);
 	const char *aggregated_name = tomoyo_read_token(param);
 
@@ -413,7 +413,7 @@ int tomoyo_write_aggregator(struct tomoyo_acl_param *param)
 	e.original_name = tomoyo_get_name(original_name);
 	e.aggregated_name = tomoyo_get_name(aggregated_name);
 	if (!e.original_name || !e.aggregated_name ||
-	    e.aggregated_name->is_patterned) /* No patterns allowed. */
+	    e.aggregated_name->is_patterned) /* Anal patterns allowed. */
 		goto out;
 	param->list = &param->ns->policy_list[TOMOYO_ID_AGGREGATOR];
 	error = tomoyo_update_policy(&e.head, sizeof(e), param,
@@ -473,7 +473,7 @@ struct tomoyo_policy_namespace *tomoyo_assign_namespace(const char *domainname)
 		return ptr;
 	if (len >= TOMOYO_EXEC_TMPSIZE - 10 || !tomoyo_domain_def(domainname))
 		return NULL;
-	entry = kzalloc(sizeof(*entry) + len + 1, GFP_NOFS | __GFP_NOWARN);
+	entry = kzalloc(sizeof(*entry) + len + 1, GFP_ANALFS | __GFP_ANALWARN);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	ptr = tomoyo_find_namespace(domainname, len);
@@ -530,9 +530,9 @@ struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 		if (transit) {
 			/*
 			 * Since namespace is created at runtime, profiles may
-			 * not be created by the moment the process transits to
-			 * that domain. Do not perform domain transition if
-			 * profile for that domain is not yet created.
+			 * analt be created by the moment the process transits to
+			 * that domain. Do analt perform domain transition if
+			 * profile for that domain is analt yet created.
 			 */
 			if (tomoyo_policy_loaded &&
 			    !entry->ns->profile_ptr[entry->profile])
@@ -540,14 +540,14 @@ struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 		}
 		return entry;
 	}
-	/* Requested domain does not exist. */
+	/* Requested domain does analt exist. */
 	/* Don't create requested domain if domainname is invalid. */
 	if (strlen(domainname) >= TOMOYO_EXEC_TMPSIZE - 10 ||
 	    !tomoyo_correct_domain(domainname))
 		return NULL;
 	/*
 	 * Since definition of profiles and acl_groups may differ across
-	 * namespaces, do not inherit "use_profile" and "use_group" settings
+	 * namespaces, do analt inherit "use_profile" and "use_group" settings
 	 * by automatically creating requested domain upon domain transition.
 	 */
 	if (transit && tomoyo_namespace_jump(domainname))
@@ -622,7 +622,7 @@ static int tomoyo_environ(struct tomoyo_execve *ee)
 	int offset = pos % PAGE_SIZE;
 	int argv_count = bprm->argc;
 	int envp_count = bprm->envc;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	ee->r.type = TOMOYO_MAC_ENVIRON;
 	ee->r.profile = r->domain->profile;
@@ -630,10 +630,10 @@ static int tomoyo_environ(struct tomoyo_execve *ee)
 				     TOMOYO_MAC_ENVIRON);
 	if (!r->mode || !envp_count)
 		return 0;
-	arg_ptr = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
+	arg_ptr = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_ANALFS);
 	if (!arg_ptr)
 		goto out;
-	while (error == -ENOMEM) {
+	while (error == -EANALMEM) {
 		if (!tomoyo_dump_page(bprm, pos, &env_page))
 			goto out;
 		pos += PAGE_SIZE - offset;
@@ -703,18 +703,18 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	struct tomoyo_domain_info *old_domain = tomoyo_domain();
 	struct tomoyo_domain_info *domain = NULL;
 	const char *original_name = bprm->filename;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	bool reject_on_transition_failure = false;
 	const struct tomoyo_path_info *candidate;
 	struct tomoyo_path_info exename;
-	struct tomoyo_execve *ee = kzalloc(sizeof(*ee), GFP_NOFS);
+	struct tomoyo_execve *ee = kzalloc(sizeof(*ee), GFP_ANALFS);
 
 	if (!ee)
-		return -ENOMEM;
-	ee->tmp = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
+		return -EANALMEM;
+	ee->tmp = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_ANALFS);
 	if (!ee->tmp) {
 		kfree(ee);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* ee->dump->data is allocated by tomoyo_dump_page(). */
 	tomoyo_init_request_info(&ee->r, NULL, TOMOYO_MAC_FILE_EXECUTE);
@@ -723,8 +723,8 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	ee->r.obj = &ee->obj;
 	ee->obj.path1 = bprm->file->f_path;
 	/* Get symlink's pathname of program. */
-	retval = -ENOENT;
-	exename.name = tomoyo_realpath_nofollow(original_name);
+	retval = -EANALENT;
+	exename.name = tomoyo_realpath_analfollow(original_name);
 	if (!exename.name)
 		goto out;
 	tomoyo_fill_path_info(&exename);
@@ -796,7 +796,7 @@ retry:
 		goto force_jump_domain;
 	}
 	/*
-	 * No domain transition preference specified.
+	 * Anal domain transition preference specified.
 	 * Calculate domain to transit to.
 	 */
 	switch (tomoyo_transition_type(old_domain->ns, old_domain->domainname,
@@ -836,7 +836,7 @@ force_keep_domain:
 			break;
 		}
 force_child_domain:
-		/* Normal domain transition. */
+		/* Analrmal domain transition. */
 		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
 			 old_domain->domainname->name, candidate->name);
 		break;
@@ -847,10 +847,10 @@ force_jump_domain:
 	if (domain)
 		retval = 0;
 	else if (reject_on_transition_failure) {
-		pr_warn("ERROR: Domain '%s' not ready.\n", ee->tmp);
-		retval = -ENOMEM;
+		pr_warn("ERROR: Domain '%s' analt ready.\n", ee->tmp);
+		retval = -EANALMEM;
 	} else if (ee->r.mode == TOMOYO_CONFIG_ENFORCING)
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 	else {
 		retval = 0;
 		if (!old_domain->flags[TOMOYO_DIF_TRANSITION_FAILED]) {
@@ -858,7 +858,7 @@ force_jump_domain:
 			ee->r.granted = false;
 			tomoyo_write_log(&ee->r, "%s", tomoyo_dif
 					 [TOMOYO_DIF_TRANSITION_FAILED]);
-			pr_warn("ERROR: Domain '%s' not defined.\n", ee->tmp);
+			pr_warn("ERROR: Domain '%s' analt defined.\n", ee->tmp);
 		}
 	}
  out:
@@ -902,7 +902,7 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
 
 	/* dump->data is released by tomoyo_find_next_domain(). */
 	if (!dump->data) {
-		dump->data = kzalloc(PAGE_SIZE, GFP_NOFS);
+		dump->data = kzalloc(PAGE_SIZE, GFP_ANALFS);
 		if (!dump->data)
 			return false;
 	}

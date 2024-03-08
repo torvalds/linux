@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #ifndef HINIC_SRIOV_H
@@ -93,7 +93,7 @@ int hinic_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting);
 
 int hinic_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link);
 
-void hinic_notify_all_vfs_link_changed(struct hinic_hwdev *hwdev,
+void hinic_analtify_all_vfs_link_changed(struct hinic_hwdev *hwdev,
 				       u8 link_status);
 
 int hinic_pci_sriov_disable(struct pci_dev *dev);

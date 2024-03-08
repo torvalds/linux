@@ -99,30 +99,30 @@ static void __init register_page_bootmem_info_section(unsigned long start_pfn)
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
-void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
+void __init register_page_bootmem_info_analde(struct pglist_data *pgdat)
 {
 	unsigned long i, pfn, end_pfn, nr_pages;
-	int node = pgdat->node_id;
+	int analde = pgdat->analde_id;
 	struct page *page;
 
 	nr_pages = PAGE_ALIGN(sizeof(struct pglist_data)) >> PAGE_SHIFT;
 	page = virt_to_page(pgdat);
 
 	for (i = 0; i < nr_pages; i++, page++)
-		get_page_bootmem(node, page, NODE_INFO);
+		get_page_bootmem(analde, page, ANALDE_INFO);
 
-	pfn = pgdat->node_start_pfn;
+	pfn = pgdat->analde_start_pfn;
 	end_pfn = pgdat_end_pfn(pgdat);
 
 	/* register section info */
 	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 		/*
-		 * Some platforms can assign the same pfn to multiple nodes - on
-		 * node0 as well as nodeN.  To avoid registering a pfn against
-		 * multiple nodes we check that this pfn does not already
-		 * reside in some other nodes.
+		 * Some platforms can assign the same pfn to multiple analdes - on
+		 * analde0 as well as analdeN.  To avoid registering a pfn against
+		 * multiple analdes we check that this pfn does analt already
+		 * reside in some other analdes.
 		 */
-		if (pfn_valid(pfn) && (early_pfn_to_nid(pfn) == node))
+		if (pfn_valid(pfn) && (early_pfn_to_nid(pfn) == analde))
 			register_page_bootmem_info_section(pfn);
 	}
 }

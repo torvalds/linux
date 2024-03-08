@@ -110,17 +110,17 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 	error = sas_register_phys(sas_ha);
 	if (error) {
-		pr_notice("couldn't register sas phys:%d\n", error);
+		pr_analtice("couldn't register sas phys:%d\n", error);
 		return error;
 	}
 
 	error = sas_register_ports(sas_ha);
 	if (error) {
-		pr_notice("couldn't register sas ports:%d\n", error);
+		pr_analtice("couldn't register sas ports:%d\n", error);
 		goto Undo_phys;
 	}
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	snprintf(name, sizeof(name), "%s_event_q", dev_name(sas_ha->dev));
 	sas_ha->event_q = create_singlethread_workqueue(name);
 	if (!sas_ha->event_q)
@@ -209,13 +209,13 @@ int sas_try_ata_reset(struct asd_sas_phy *asd_phy)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
  * transport_sas_phy_reset - reset a phy and permit libata to manage the link
  *
- * phy reset request via sysfs in host workqueue context so we know we
+ * phy reset request via sysfs in host workqueue context so we kanalw we
  * can block on eh and safely traverse the domain_device topology
  */
 static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
@@ -291,7 +291,7 @@ int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	enum phy_func reset_type;
 
 	if (!phy->enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hard_reset)
 		reset_type = PHY_FUNC_HARD_RESET;
@@ -403,7 +403,7 @@ static void sas_resume_insert_broadcast_ha(struct sas_ha_struct *ha)
 			spin_unlock(&port->phy_list_lock);
 
 			if (first_phy)
-				sas_notify_port_event(first_phy,
+				sas_analtify_port_event(first_phy,
 					PORTE_BROADCAST_RCVD, GFP_KERNEL);
 		}
 	}
@@ -414,7 +414,7 @@ static void _sas_resume_ha(struct sas_ha_struct *ha, bool drain)
 	const unsigned long tmo = msecs_to_jiffies(25000);
 	int i;
 
-	/* deform ports on phys that did not resume
+	/* deform ports on phys that did analt resume
 	 * at this point we may be racing the phy coming back (as posted
 	 * by the lldd).  So we post the event and once we are in the
 	 * libsas context check that the phy remains suspended before
@@ -430,13 +430,13 @@ static void _sas_resume_ha(struct sas_ha_struct *ha, bool drain)
 
 		if (phy->suspended) {
 			dev_warn(&phy->phy->dev, "resume timeout\n");
-			sas_notify_phy_event(phy, PHYE_RESUME_TIMEOUT,
+			sas_analtify_phy_event(phy, PHYE_RESUME_TIMEOUT,
 					     GFP_KERNEL);
 		}
 	}
 
 	/* all phys are back up or timed out, turn on i/o so we can
-	 * flush out disks that did not return
+	 * flush out disks that did analt return
 	 */
 	scsi_unblock_requests(ha->shost);
 	if (drain)
@@ -456,12 +456,12 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 }
 EXPORT_SYMBOL(sas_resume_ha);
 
-/* A no-sync variant, which does not call sas_drain_ha(). */
-void sas_resume_ha_no_sync(struct sas_ha_struct *ha)
+/* A anal-sync variant, which does analt call sas_drain_ha(). */
+void sas_resume_ha_anal_sync(struct sas_ha_struct *ha)
 {
 	_sas_resume_ha(ha, false);
 }
-EXPORT_SYMBOL(sas_resume_ha_no_sync);
+EXPORT_SYMBOL(sas_resume_ha_anal_sync);
 
 void sas_suspend_ha(struct sas_ha_struct *ha)
 {
@@ -507,7 +507,7 @@ static int sas_phy_setup(struct sas_phy *phy)
 	struct sas_phy_data *d = kzalloc(sizeof(*d), GFP_KERNEL);
 
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&d->event_lock);
 	INIT_SAS_WORK(&d->reset_work, phy_reset_work);
@@ -526,7 +526,7 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	int rc;
 
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm_runtime_get_sync(ha->dev);
 	/* libsas workqueue coordinates ata-eh reset with discovery */
@@ -555,7 +555,7 @@ static int queue_phy_enable(struct sas_phy *phy, int enable)
 	int rc;
 
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm_runtime_get_sync(ha->dev);
 	/* libsas workqueue coordinates ata-eh reset with discovery */
@@ -604,7 +604,7 @@ static inline ssize_t phy_event_threshold_store(struct device *dev,
 
 	sha->event_thres = simple_strtol(buf, NULL, 10);
 
-	/* threshold cannot be set too small */
+	/* threshold cananalt be set too small */
 	if (sha->event_thres < 32)
 		sha->event_thres = 32;
 
@@ -652,14 +652,14 @@ struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy,
 	if (atomic_read(&phy->event_nr) > phy->ha->event_thres) {
 		if (i->dft->lldd_control_phy) {
 			if (cmpxchg(&phy->in_shutdown, 0, 1) == 0) {
-				pr_notice("The phy%d bursting events, shut it down.\n",
+				pr_analtice("The phy%d bursting events, shut it down.\n",
 					  phy->id);
-				sas_notify_phy_event(phy, PHYE_SHUTDOWN,
+				sas_analtify_phy_event(phy, PHYE_SHUTDOWN,
 						     gfp_flags);
 			}
 		} else {
-			/* Do not support PHY control, stop allocating events */
-			WARN_ONCE(1, "PHY control not supported.\n");
+			/* Do analt support PHY control, stop allocating events */
+			WARN_ONCE(1, "PHY control analt supported.\n");
 			kmem_cache_free(sas_event_cache, event);
 			atomic_dec(&phy->event_nr);
 			event = NULL;
@@ -693,7 +693,7 @@ static int __init sas_class_init(void)
 free_task_kmem:
 	kmem_cache_destroy(sas_task_cache);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __exit sas_class_exit(void)

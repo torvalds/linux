@@ -52,7 +52,7 @@ properties:
     const: 1
 
   rockchip,grf:
-    description: The phandle of the syscon node for the general register file.
+    description: The phandle of the syscon analde for the general register file.
     $ref: /schemas/types.yaml#/definitions/phandle
 
   rockchip,hw-tshut-temp:

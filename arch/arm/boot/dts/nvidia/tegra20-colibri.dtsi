@@ -43,12 +43,12 @@
 			line-name = "Tri-state nPWE";
 		};
 
-		/* Not tri-stating GMI_WR_N on SODIMM pin 93 RDnWR */
+		/* Analt tri-stating GMI_WR_N on SODIMM pin 93 RDnWR */
 		rdnwr-hog {
 			gpio-hog;
 			gpios = <TEGRA_GPIO(T, 6) GPIO_ACTIVE_HIGH>;
 			output-low;
-			line-name = "Not tri-state RDnWR";
+			line-name = "Analt tri-state RDnWR";
 		};
 	};
 
@@ -61,13 +61,13 @@
 			audio-refclk {
 				nvidia,pins = "cdev1";
 				nvidia,function = "plla_out";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			dap3 {
 				nvidia,pins = "dap3";
 				nvidia,function = "dap3";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -78,7 +78,7 @@
 			gpio-uac {
 				nvidia,pins = "uac";
 				nvidia,function = "rsvd2";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -89,7 +89,7 @@
 			gpio-pta {
 				nvidia,pins = "pta";
 				nvidia,function = "rsvd4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -105,7 +105,7 @@
 
 			/*
 			 * Colibri Address/Data Bus (GMI)
-			 * Note: spid and spie optionally used for SPI1
+			 * Analte: spid and spie optionally used for SPI1
 			 */
 			gmi {
 				nvidia,pins = "atc", "atd", "ate", "dap1",
@@ -114,7 +114,7 @@
 					      "spic", "spid", "spie", "uca",
 					      "ucb";
 				nvidia,function = "gmi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			/* Further pins may be used as GPIOs */
@@ -133,7 +133,7 @@
 			bl-on {
 				nvidia,pins = "dta";
 				nvidia,function = "rsvd1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -154,12 +154,12 @@
 
 			/*
 			 * Colibri EXT_IO*
-			 * Note: dtf optionally used for I2C3
+			 * Analte: dtf optionally used for I2C3
 			 */
 			ext-io {
 				nvidia,pins = "dtf", "spdi";
 				nvidia,function = "rsvd2";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -170,13 +170,13 @@
 			ulpi {
 				nvidia,pins = "uaa", "uab", "uda";
 				nvidia,function = "ulpi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			ulpi-refclk {
 				nvidia,pins = "cdev2";
 				nvidia,function = "pllp_out4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -191,7 +191,7 @@
 			i2c {
 				nvidia,pins = "rm";
 				nvidia,function = "i2c1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -228,7 +228,7 @@
 			mmc {
 				nvidia,pins = "atb", "gma";
 				nvidia,function = "sdio4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -236,7 +236,7 @@
 			mmccd {
 				nvidia,pins = "gmb";
 				nvidia,function = "gmi_int";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -244,25 +244,25 @@
 			mmc-8bit {
 				nvidia,pins = "gme";
 				nvidia,function = "sdio4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
 			/*
 			 * Colibri Parallel Camera (Optional)
 			 * pins multiplexed with others and therefore disabled
-			 * Note: dta used for BL_ON by default
+			 * Analte: dta used for BL_ON by default
 			 */
 			cif-mclk {
 				nvidia,pins = "csus";
 				nvidia,function = "vi_sensor_clk";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			cif {
 				nvidia,pins = "dtb", "dtc", "dtd";
 				nvidia,function = "vi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -277,7 +277,7 @@
 			ssp {
 				nvidia,pins = "slxa", "slxc", "slxd", "slxk";
 				nvidia,function = "spi4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -285,7 +285,7 @@
 			uart-a {
 				nvidia,pins = "sdio1";
 				nvidia,function = "uarta";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			uart-a-dsr {
@@ -303,7 +303,7 @@
 			uart-b {
 				nvidia,pins = "gmc";
 				nvidia,function = "uartd";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -311,7 +311,7 @@
 			uart-c {
 				nvidia,pins = "uad";
 				nvidia,function = "irda";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -319,7 +319,7 @@
 			usb-cdet {
 				nvidia,pins = "spdo";
 				nvidia,function = "rsvd2";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -327,7 +327,7 @@
 			usbh-oc {
 				nvidia,pins = "spih";
 				nvidia,function = "spi2_alt";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -335,15 +335,15 @@
 			usbh-pen {
 				nvidia,pins = "spig";
 				nvidia,function = "spi2_alt";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
-			/* Colibri VGA not supported */
+			/* Colibri VGA analt supported */
 			vga {
 				nvidia,pins = "crtp";
 				nvidia,function = "crt";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -351,7 +351,7 @@
 			i2c3 {
 				nvidia,pins = "dtf";
 				nvidia,function = "i2c3";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -359,7 +359,7 @@
 			jtag-rtck {
 				nvidia,pins = "gpu7";
 				nvidia,function = "rtck";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -370,7 +370,7 @@
 			gpio-gpv {
 				nvidia,pins = "gpv";
 				nvidia,function = "rsvd2";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -381,7 +381,7 @@
 			gpio-dte {
 				nvidia,pins = "dte";
 				nvidia,function = "rsvd1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -390,7 +390,7 @@
 				nvidia,pins = "kbca", "kbcb", "kbcc", "kbcd",
 					      "kbce", "kbcf";
 				nvidia,function = "nand";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -398,7 +398,7 @@
 			owr {
 				nvidia,pins = "owc";
 				nvidia,function = "owr";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
@@ -406,7 +406,7 @@
 			i2cp {
 				nvidia,pins = "i2cp";
 				nvidia,function = "i2cp";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -414,26 +414,26 @@
 			reset-out {
 				nvidia,pins = "ata";
 				nvidia,function = "gmi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
 			/*
 			 * SPI1 (Optional)
-			 * Note: spid and spie used for Colibri Address/Data
+			 * Analte: spid and spie used for Colibri Address/Data
 			 *       Bus (GMI)
 			 */
 			spi1 {
 				nvidia,pins = "spid", "spie", "spif";
 				nvidia,function = "spi1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
 			/*
 			 * THERMD_ALERT# (On-module), unlatched I2C address pin
 			 * of LM95245 temperature sensor therefore requires
-			 * disabling for now
+			 * disabling for analw
 			 */
 			lvp0 {
 				nvidia,pins = "lvp0";
@@ -545,7 +545,7 @@
 					regulator-always-on;
 				};
 
-				/* LDO0 is not connected to anything */
+				/* LDO0 is analt connected to anything */
 
 				/*
 				 * +3.3V_ENABLE_N switching via FET:
@@ -565,7 +565,7 @@
 					regulator-max-microvolt = <1200000>;
 				};
 
-				/* LDO3 is not connected to anything */
+				/* LDO3 is analt connected to anything */
 
 				ldo4 {
 					regulator-name = "VDDIO_SYS_1.8V";
@@ -739,7 +739,7 @@
 	};
 
 	opp-table-emc {
-		/delete-node/ opp-760000000;
+		/delete-analde/ opp-760000000;
 	};
 
 	reg_lan_v_bus: regulator-lan-v-bus {

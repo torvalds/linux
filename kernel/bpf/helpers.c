@@ -160,21 +160,21 @@ const struct bpf_func_proto bpf_get_smp_processor_id_proto = {
 	.ret_type	= RET_INTEGER,
 };
 
-BPF_CALL_0(bpf_get_numa_node_id)
+BPF_CALL_0(bpf_get_numa_analde_id)
 {
-	return numa_node_id();
+	return numa_analde_id();
 }
 
-const struct bpf_func_proto bpf_get_numa_node_id_proto = {
-	.func		= bpf_get_numa_node_id,
+const struct bpf_func_proto bpf_get_numa_analde_id_proto = {
+	.func		= bpf_get_numa_analde_id,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 };
 
 BPF_CALL_0(bpf_ktime_get_ns)
 {
-	/* NMI safe access to clock monotonic */
-	return ktime_get_mono_fast_ns();
+	/* NMI safe access to clock moanaltonic */
+	return ktime_get_moanal_fast_ns();
 }
 
 const struct bpf_func_proto bpf_ktime_get_ns_proto = {
@@ -287,7 +287,7 @@ static inline void __bpf_spin_lock(struct bpf_spin_lock *lock)
 		arch_spinlock_t lock;
 	} u = { .lock = __ARCH_SPIN_LOCK_UNLOCKED };
 
-	compiletime_assert(u.val == 0, "__ARCH_SPIN_LOCK_UNLOCKED not 0");
+	compiletime_assert(u.val == 0, "__ARCH_SPIN_LOCK_UNLOCKED analt 0");
 	BUILD_BUG_ON(sizeof(*l) != sizeof(__u32));
 	BUILD_BUG_ON(sizeof(*lock) != sizeof(__u32));
 	preempt_disable();
@@ -334,7 +334,7 @@ static inline void __bpf_spin_lock_irqsave(struct bpf_spin_lock *lock)
 	__this_cpu_write(irqsave_flags, flags);
 }
 
-notrace BPF_CALL_1(bpf_spin_lock, struct bpf_spin_lock *, lock)
+analtrace BPF_CALL_1(bpf_spin_lock, struct bpf_spin_lock *, lock)
 {
 	__bpf_spin_lock_irqsave(lock);
 	return 0;
@@ -357,7 +357,7 @@ static inline void __bpf_spin_unlock_irqrestore(struct bpf_spin_lock *lock)
 	local_irq_restore(flags);
 }
 
-notrace BPF_CALL_1(bpf_spin_unlock, struct bpf_spin_lock *, lock)
+analtrace BPF_CALL_1(bpf_spin_unlock, struct bpf_spin_lock *, lock)
 {
 	__bpf_spin_unlock_irqrestore(lock);
 	return 0;
@@ -583,7 +583,7 @@ static const struct bpf_func_proto bpf_strncmp_proto = {
 	.arg3_type	= ARG_PTR_TO_CONST_STR,
 };
 
-BPF_CALL_4(bpf_get_ns_current_pid_tgid, u64, dev, u64, ino,
+BPF_CALL_4(bpf_get_ns_current_pid_tgid, u64, dev, u64, ianal,
 	   struct bpf_pidns_info *, nsdata, u32, size)
 {
 	struct task_struct *task = current;
@@ -601,11 +601,11 @@ BPF_CALL_4(bpf_get_ns_current_pid_tgid, u64, dev, u64, ino,
 
 	pidns = task_active_pid_ns(task);
 	if (unlikely(!pidns)) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto clear;
 	}
 
-	if (!ns_match(&pidns->ns, (dev_t)dev, ino))
+	if (!ns_match(&pidns->ns, (dev_t)dev, ianal))
 		goto clear;
 
 	nsdata->pid = task_pid_nr_ns(task, pidns);
@@ -680,7 +680,7 @@ BPF_CALL_5(bpf_copy_from_user_task, void *, dst, u32, size,
 {
 	int ret;
 
-	/* flags is not used yet */
+	/* flags is analt used yet */
 	if (unlikely(flags))
 		return -EINVAL;
 
@@ -746,15 +746,15 @@ static int bpf_trace_copy_string(char *buf, void *unsafe_ptr, char fmt_ptype,
 
 	switch (fmt_ptype) {
 	case 's':
-#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+#ifdef CONFIG_ARCH_HAS_ANALN_OVERLAPPING_ADDRESS_SPACE
 		if ((unsigned long)unsafe_ptr < TASK_SIZE)
-			return strncpy_from_user_nofault(buf, user_ptr, bufsz);
+			return strncpy_from_user_analfault(buf, user_ptr, bufsz);
 		fallthrough;
 #endif
 	case 'k':
-		return strncpy_from_kernel_nofault(buf, unsafe_ptr, bufsz);
+		return strncpy_from_kernel_analfault(buf, unsafe_ptr, bufsz);
 	case 'u':
-		return strncpy_from_user_nofault(buf, user_ptr, bufsz);
+		return strncpy_from_user_analfault(buf, user_ptr, bufsz);
 	}
 
 	return -EINVAL;
@@ -896,7 +896,7 @@ int bpf_bprintf_prepare(char *fmt, u32 fmt_size, const u64 *raw_args,
 				if (tmp_buf)
 					cur_arg = raw_args[num_spec];
 				i++;
-				goto nocopy_fmt;
+				goto analcopy_fmt;
 			}
 
 			if (fmt[i + 1] == 'B') {
@@ -922,16 +922,16 @@ int bpf_bprintf_prepare(char *fmt, u32 fmt_size, const u64 *raw_args,
 
 			i += 2;
 			if (!tmp_buf)
-				goto nocopy_fmt;
+				goto analcopy_fmt;
 
 			sizeof_cur_ip = (fmt[i] == '4') ? 4 : 16;
 			if (tmp_buf_end - tmp_buf < sizeof_cur_ip) {
-				err = -ENOSPC;
+				err = -EANALSPC;
 				goto out;
 			}
 
 			unsafe_ptr = (char *)(long)raw_args[num_spec];
-			err = copy_from_kernel_nofault(cur_ip, unsafe_ptr,
+			err = copy_from_kernel_analfault(cur_ip, unsafe_ptr,
 						       sizeof_cur_ip);
 			if (err < 0)
 				memset(cur_ip, 0, sizeof_cur_ip);
@@ -960,10 +960,10 @@ fmt_str:
 			}
 
 			if (!tmp_buf)
-				goto nocopy_fmt;
+				goto analcopy_fmt;
 
 			if (tmp_buf_end == tmp_buf) {
-				err = -ENOSPC;
+				err = -EANALSPC;
 				goto out;
 			}
 
@@ -982,10 +982,10 @@ fmt_str:
 			continue;
 		} else if (fmt[i] == 'c') {
 			if (!tmp_buf)
-				goto nocopy_fmt;
+				goto analcopy_fmt;
 
 			if (tmp_buf_end == tmp_buf) {
-				err = -ENOSPC;
+				err = -EANALSPC;
 				goto out;
 			}
 
@@ -1015,11 +1015,11 @@ fmt_str:
 
 		if (tmp_buf)
 			cur_arg = raw_args[num_spec];
-nocopy_fmt:
+analcopy_fmt:
 		if (tmp_buf) {
 			tmp_buf = PTR_ALIGN(tmp_buf, sizeof(u32));
 			if (tmp_buf_end - tmp_buf < sizeof_cur_arg) {
-				err = -ENOSPC;
+				err = -EANALSPC;
 				goto out;
 			}
 
@@ -1131,7 +1131,7 @@ static enum hrtimer_restart bpf_timer_cb(struct hrtimer *hrtimer)
 		goto out;
 
 	/* bpf_timer_cb() runs in hrtimer_run_softirq. It doesn't migrate and
-	 * cannot be preempted by another bpf_timer_cb() on the same cpu.
+	 * cananalt be preempted by aanalther bpf_timer_cb() on the same cpu.
 	 * Remember the timer this callback is servicing to prevent
 	 * deadlock if callback_fn() calls bpf_timer_cancel() or
 	 * bpf_map_delete_elem() on the same timer.
@@ -1152,7 +1152,7 @@ static enum hrtimer_restart bpf_timer_cb(struct hrtimer *hrtimer)
 
 	this_cpu_write(hrtimer_running, NULL);
 out:
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 BPF_CALL_3(bpf_timer_init, struct bpf_timer_kern *, timer, struct bpf_map *, map,
@@ -1164,14 +1164,14 @@ BPF_CALL_3(bpf_timer_init, struct bpf_timer_kern *, timer, struct bpf_map *, map
 
 	BUILD_BUG_ON(MAX_CLOCKS != 16);
 	BUILD_BUG_ON(sizeof(struct bpf_timer_kern) > sizeof(struct bpf_timer));
-	BUILD_BUG_ON(__alignof__(struct bpf_timer_kern) != __alignof__(struct bpf_timer));
+	BUILD_BUG_ON(__aliganalf__(struct bpf_timer_kern) != __aliganalf__(struct bpf_timer));
 
 	if (in_nmi())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (flags >= MAX_CLOCKS ||
-	    /* similar to timerfd except _ALARM variants are not supported */
-	    (clockid != CLOCK_MONOTONIC &&
+	    /* similar to timerfd except _ALARM variants are analt supported */
+	    (clockid != CLOCK_MOANALTONIC &&
 	     clockid != CLOCK_REALTIME &&
 	     clockid != CLOCK_BOOTTIME))
 		return -EINVAL;
@@ -1182,9 +1182,9 @@ BPF_CALL_3(bpf_timer_init, struct bpf_timer_kern *, timer, struct bpf_map *, map
 		goto out;
 	}
 	/* allocate hrtimer via map_kmalloc to use memcg accounting */
-	t = bpf_map_kmalloc_node(map, sizeof(*t), GFP_ATOMIC, map->numa_node);
+	t = bpf_map_kmalloc_analde(map, sizeof(*t), GFP_ATOMIC, map->numa_analde);
 	if (!t) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	t->value = (void *)timer - map->record->timer_off;
@@ -1196,7 +1196,7 @@ BPF_CALL_3(bpf_timer_init, struct bpf_timer_kern *, timer, struct bpf_map *, map
 	WRITE_ONCE(timer->timer, t);
 	/* Guarantee the order between timer->timer and map->usercnt. So
 	 * when there are concurrent uref release and bpf timer init, either
-	 * bpf_timer_cancel_and_free() called by uref release reads a no-NULL
+	 * bpf_timer_cancel_and_free() called by uref release reads a anal-NULL
 	 * timer or atomic64_read() below returns a zero usercnt.
 	 */
 	smp_mb();
@@ -1230,7 +1230,7 @@ BPF_CALL_3(bpf_timer_set_callback, struct bpf_timer_kern *, timer, void *, callb
 	int ret = 0;
 
 	if (in_nmi())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	__bpf_spin_lock_irqsave(&timer->lock);
 	t = timer->timer;
 	if (!t) {
@@ -1251,7 +1251,7 @@ BPF_CALL_3(bpf_timer_set_callback, struct bpf_timer_kern *, timer, void *, callb
 		/* Bump prog refcnt once. Every bpf_timer_set_callback()
 		 * can pick different callback_fn-s within the same prog.
 		 */
-		prog = bpf_prog_inc_not_zero(prog);
+		prog = bpf_prog_inc_analt_zero(prog);
 		if (IS_ERR(prog)) {
 			ret = PTR_ERR(prog);
 			goto out;
@@ -1282,7 +1282,7 @@ BPF_CALL_3(bpf_timer_start, struct bpf_timer_kern *, timer, u64, nsecs, u64, fla
 	enum hrtimer_mode mode;
 
 	if (in_nmi())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (flags & ~(BPF_F_TIMER_ABS | BPF_F_TIMER_CPU_PIN))
 		return -EINVAL;
 	__bpf_spin_lock_irqsave(&timer->lock);
@@ -1332,7 +1332,7 @@ BPF_CALL_1(bpf_timer_cancel, struct bpf_timer_kern *, timer)
 	int ret = 0;
 
 	if (in_nmi())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	rcu_read_lock();
 	__bpf_spin_lock_irqsave(&timer->lock);
 	t = timer->timer;
@@ -1394,8 +1394,8 @@ out:
 		return;
 	/* Cancel the timer and wait for callback to complete if it was running.
 	 * If hrtimer_cancel() can be safely called it's safe to call kfree(t)
-	 * right after for both preallocated and non-preallocated maps.
-	 * The timer->timer = NULL was already done and no code path can
+	 * right after for both preallocated and analn-preallocated maps.
+	 * The timer->timer = NULL was already done and anal code path can
 	 * see address 't' anymore.
 	 *
 	 * Check that bpf_map_delete/update_elem() wasn't called from timer
@@ -1406,7 +1406,7 @@ out:
 	 * from 't'. The bpf subprog callback_fn won't be able to access 't',
 	 * since timer->timer = NULL was already done. The timer will be
 	 * effectively cancelled because bpf_timer_cb() will return
-	 * HRTIMER_NORESTART.
+	 * HRTIMER_ANALRESTART.
 	 */
 	if (this_cpu_read(hrtimer_running) != t)
 		hrtimer_cancel(&t->timer);
@@ -1422,7 +1422,7 @@ BPF_CALL_2(bpf_kptr_xchg, void *, map_value, void *, ptr)
 
 /* Unlike other PTR_TO_BTF_ID helpers the btf_id in bpf_kptr_xchg()
  * helper is determined dynamically by the verifier. Use BPF_PTR_POISON to
- * denote type that verifier will determine.
+ * deanalte type that verifier will determine.
  */
 static const struct bpf_func_proto bpf_kptr_xchg_proto = {
 	.func         = bpf_kptr_xchg,
@@ -1567,7 +1567,7 @@ BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, const struct bpf_dynptr_kern 
 	case BPF_DYNPTR_TYPE_XDP:
 		return __bpf_xdp_load_bytes(src->data, src->offset + offset, dst, len);
 	default:
-		WARN_ONCE(true, "bpf_dynptr_read: unknown dynptr type %d\n", type);
+		WARN_ONCE(true, "bpf_dynptr_read: unkanalwn dynptr type %d\n", type);
 		return -EFAULT;
 	}
 }
@@ -1617,7 +1617,7 @@ BPF_CALL_5(bpf_dynptr_write, const struct bpf_dynptr_kern *, dst, u32, offset, v
 			return -EINVAL;
 		return __bpf_xdp_store_bytes(dst->data, dst->offset + offset, src, len);
 	default:
-		WARN_ONCE(true, "bpf_dynptr_write: unknown dynptr type %d\n", type);
+		WARN_ONCE(true, "bpf_dynptr_write: unkanalwn dynptr type %d\n", type);
 		return -EFAULT;
 	}
 }
@@ -1659,7 +1659,7 @@ BPF_CALL_3(bpf_dynptr_data, const struct bpf_dynptr_kern *, ptr, u32, offset, u3
 		/* skb and xdp dynptrs should use bpf_dynptr_slice / bpf_dynptr_slice_rdwr */
 		return 0;
 	default:
-		WARN_ONCE(true, "bpf_dynptr_data: unknown dynptr type %d\n", type);
+		WARN_ONCE(true, "bpf_dynptr_data: unkanalwn dynptr type %d\n", type);
 		return 0;
 	}
 }
@@ -1703,8 +1703,8 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_prandom_u32_proto;
 	case BPF_FUNC_get_smp_processor_id:
 		return &bpf_get_raw_smp_processor_id_proto;
-	case BPF_FUNC_get_numa_node_id:
-		return &bpf_get_numa_node_id_proto;
+	case BPF_FUNC_get_numa_analde_id:
+		return &bpf_get_numa_analde_id_proto;
 	case BPF_FUNC_tail_call:
 		return &bpf_tail_call_proto;
 	case BPF_FUNC_ktime_get_ns:
@@ -1830,9 +1830,9 @@ void bpf_list_head_free(const struct btf_field *field, void *list_head,
 	struct list_head *head = list_head, *orig_head = list_head;
 
 	BUILD_BUG_ON(sizeof(struct list_head) > sizeof(struct bpf_list_head));
-	BUILD_BUG_ON(__alignof__(struct list_head) > __alignof__(struct bpf_list_head));
+	BUILD_BUG_ON(__aliganalf__(struct list_head) > __aliganalf__(struct bpf_list_head));
 
-	/* Do the actual list draining outside the lock to not hold the lock for
+	/* Do the actual list draining outside the lock to analt hold the lock for
 	 * too long, and also prevent deadlocks if tracing programs end up
 	 * executing on entry/exit of functions called inside the critical
 	 * section, and end up doing map ops that call bpf_list_head_free for
@@ -1849,7 +1849,7 @@ unlock:
 	while (head != orig_head) {
 		void *obj = head;
 
-		obj -= field->graph_root.node_offset;
+		obj -= field->graph_root.analde_offset;
 		head = head->next;
 		/* The contained type can also have resources, including a
 		 * bpf_list_head which needs to be freed.
@@ -1861,12 +1861,12 @@ unlock:
 }
 
 /* Like rbtree_postorder_for_each_entry_safe, but 'pos' and 'n' are
- * 'rb_node *', so field name of rb_node within containing struct is not
+ * 'rb_analde *', so field name of rb_analde within containing struct is analt
  * needed.
  *
- * Since bpf_rb_tree's node type has a corresponding struct btf_field with
- * graph_root.node_offset, it's not necessary to know field name
- * or type of node struct
+ * Since bpf_rb_tree's analde type has a corresponding struct btf_field with
+ * graph_root.analde_offset, it's analt necessary to kanalw field name
+ * or type of analde struct
  */
 #define bpf_rbtree_postorder_for_each_entry_safe(pos, n, root) \
 	for (pos = rb_first_postorder(root); \
@@ -1877,11 +1877,11 @@ void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
 		      struct bpf_spin_lock *spin_lock)
 {
 	struct rb_root_cached orig_root, *root = rb_root;
-	struct rb_node *pos, *n;
+	struct rb_analde *pos, *n;
 	void *obj;
 
 	BUILD_BUG_ON(sizeof(struct rb_root_cached) > sizeof(struct bpf_rb_root));
-	BUILD_BUG_ON(__alignof__(struct rb_root_cached) > __alignof__(struct bpf_rb_root));
+	BUILD_BUG_ON(__aliganalf__(struct rb_root_cached) > __aliganalf__(struct bpf_rb_root));
 
 	__bpf_spin_lock_irqsave(spin_lock);
 	orig_root = *root;
@@ -1890,7 +1890,7 @@ void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
 
 	bpf_rbtree_postorder_for_each_entry_safe(pos, n, &orig_root.rb_root) {
 		obj = pos;
-		obj -= field->graph_root.node_offset;
+		obj -= field->graph_root.analde_offset;
 
 
 		migrate_disable();
@@ -1969,7 +1969,7 @@ __bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta
 	 * bpf_refcount type so that it is emitted in vmlinux BTF
 	 */
 	ref = (struct bpf_refcount *)(p__refcounted_kptr + meta->record->refcount_off);
-	if (!refcount_inc_not_zero((refcount_t *)ref))
+	if (!refcount_inc_analt_zero((refcount_t *)ref))
 		return NULL;
 
 	/* Verifier strips KF_RET_NULL if input is owned ref, see is_kfunc_ret_null
@@ -1978,11 +1978,11 @@ __bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta
 	return (void *)p__refcounted_kptr;
 }
 
-static int __bpf_list_add(struct bpf_list_node_kern *node,
+static int __bpf_list_add(struct bpf_list_analde_kern *analde,
 			  struct bpf_list_head *head,
 			  bool tail, struct btf_record *rec, u64 off)
 {
-	struct list_head *n = &node->list_head, *h = (void *)head;
+	struct list_head *n = &analde->list_head, *h = (void *)head;
 
 	/* If list_head was 0-initialized by map, bpf_obj_init_field wasn't
 	 * called on its fields, so init here
@@ -1990,45 +1990,45 @@ static int __bpf_list_add(struct bpf_list_node_kern *node,
 	if (unlikely(!h->next))
 		INIT_LIST_HEAD(h);
 
-	/* node->owner != NULL implies !list_empty(n), no need to separately
+	/* analde->owner != NULL implies !list_empty(n), anal need to separately
 	 * check the latter
 	 */
-	if (cmpxchg(&node->owner, NULL, BPF_PTR_POISON)) {
-		/* Only called from BPF prog, no need to migrate_disable */
+	if (cmpxchg(&analde->owner, NULL, BPF_PTR_POISON)) {
+		/* Only called from BPF prog, anal need to migrate_disable */
 		__bpf_obj_drop_impl((void *)n - off, rec, false);
 		return -EINVAL;
 	}
 
 	tail ? list_add_tail(n, h) : list_add(n, h);
-	WRITE_ONCE(node->owner, head);
+	WRITE_ONCE(analde->owner, head);
 
 	return 0;
 }
 
 __bpf_kfunc int bpf_list_push_front_impl(struct bpf_list_head *head,
-					 struct bpf_list_node *node,
+					 struct bpf_list_analde *analde,
 					 void *meta__ign, u64 off)
 {
-	struct bpf_list_node_kern *n = (void *)node;
+	struct bpf_list_analde_kern *n = (void *)analde;
 	struct btf_struct_meta *meta = meta__ign;
 
 	return __bpf_list_add(n, head, false, meta ? meta->record : NULL, off);
 }
 
 __bpf_kfunc int bpf_list_push_back_impl(struct bpf_list_head *head,
-					struct bpf_list_node *node,
+					struct bpf_list_analde *analde,
 					void *meta__ign, u64 off)
 {
-	struct bpf_list_node_kern *n = (void *)node;
+	struct bpf_list_analde_kern *n = (void *)analde;
 	struct btf_struct_meta *meta = meta__ign;
 
 	return __bpf_list_add(n, head, true, meta ? meta->record : NULL, off);
 }
 
-static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tail)
+static struct bpf_list_analde *__bpf_list_del(struct bpf_list_head *head, bool tail)
 {
 	struct list_head *n, *h = (void *)head;
-	struct bpf_list_node_kern *node;
+	struct bpf_list_analde_kern *analde;
 
 	/* If list_head was 0-initialized by map, bpf_obj_init_field wasn't
 	 * called on its fields, so init here
@@ -2039,68 +2039,68 @@ static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tai
 		return NULL;
 
 	n = tail ? h->prev : h->next;
-	node = container_of(n, struct bpf_list_node_kern, list_head);
-	if (WARN_ON_ONCE(READ_ONCE(node->owner) != head))
+	analde = container_of(n, struct bpf_list_analde_kern, list_head);
+	if (WARN_ON_ONCE(READ_ONCE(analde->owner) != head))
 		return NULL;
 
 	list_del_init(n);
-	WRITE_ONCE(node->owner, NULL);
-	return (struct bpf_list_node *)n;
+	WRITE_ONCE(analde->owner, NULL);
+	return (struct bpf_list_analde *)n;
 }
 
-__bpf_kfunc struct bpf_list_node *bpf_list_pop_front(struct bpf_list_head *head)
+__bpf_kfunc struct bpf_list_analde *bpf_list_pop_front(struct bpf_list_head *head)
 {
 	return __bpf_list_del(head, false);
 }
 
-__bpf_kfunc struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
+__bpf_kfunc struct bpf_list_analde *bpf_list_pop_back(struct bpf_list_head *head)
 {
 	return __bpf_list_del(head, true);
 }
 
-__bpf_kfunc struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
-						  struct bpf_rb_node *node)
+__bpf_kfunc struct bpf_rb_analde *bpf_rbtree_remove(struct bpf_rb_root *root,
+						  struct bpf_rb_analde *analde)
 {
-	struct bpf_rb_node_kern *node_internal = (struct bpf_rb_node_kern *)node;
+	struct bpf_rb_analde_kern *analde_internal = (struct bpf_rb_analde_kern *)analde;
 	struct rb_root_cached *r = (struct rb_root_cached *)root;
-	struct rb_node *n = &node_internal->rb_node;
+	struct rb_analde *n = &analde_internal->rb_analde;
 
-	/* node_internal->owner != root implies either RB_EMPTY_NODE(n) or
-	 * n is owned by some other tree. No need to check RB_EMPTY_NODE(n)
+	/* analde_internal->owner != root implies either RB_EMPTY_ANALDE(n) or
+	 * n is owned by some other tree. Anal need to check RB_EMPTY_ANALDE(n)
 	 */
-	if (READ_ONCE(node_internal->owner) != root)
+	if (READ_ONCE(analde_internal->owner) != root)
 		return NULL;
 
 	rb_erase_cached(n, r);
-	RB_CLEAR_NODE(n);
-	WRITE_ONCE(node_internal->owner, NULL);
-	return (struct bpf_rb_node *)n;
+	RB_CLEAR_ANALDE(n);
+	WRITE_ONCE(analde_internal->owner, NULL);
+	return (struct bpf_rb_analde *)n;
 }
 
 /* Need to copy rbtree_add_cached's logic here because our 'less' is a BPF
  * program
  */
 static int __bpf_rbtree_add(struct bpf_rb_root *root,
-			    struct bpf_rb_node_kern *node,
+			    struct bpf_rb_analde_kern *analde,
 			    void *less, struct btf_record *rec, u64 off)
 {
-	struct rb_node **link = &((struct rb_root_cached *)root)->rb_root.rb_node;
-	struct rb_node *parent = NULL, *n = &node->rb_node;
+	struct rb_analde **link = &((struct rb_root_cached *)root)->rb_root.rb_analde;
+	struct rb_analde *parent = NULL, *n = &analde->rb_analde;
 	bpf_callback_t cb = (bpf_callback_t)less;
 	bool leftmost = true;
 
-	/* node->owner != NULL implies !RB_EMPTY_NODE(n), no need to separately
+	/* analde->owner != NULL implies !RB_EMPTY_ANALDE(n), anal need to separately
 	 * check the latter
 	 */
-	if (cmpxchg(&node->owner, NULL, BPF_PTR_POISON)) {
-		/* Only called from BPF prog, no need to migrate_disable */
+	if (cmpxchg(&analde->owner, NULL, BPF_PTR_POISON)) {
+		/* Only called from BPF prog, anal need to migrate_disable */
 		__bpf_obj_drop_impl((void *)n - off, rec, false);
 		return -EINVAL;
 	}
 
 	while (*link) {
 		parent = *link;
-		if (cb((uintptr_t)node, (uintptr_t)parent, 0, 0, 0)) {
+		if (cb((uintptr_t)analde, (uintptr_t)parent, 0, 0, 0)) {
 			link = &parent->rb_left;
 		} else {
 			link = &parent->rb_right;
@@ -2108,38 +2108,38 @@ static int __bpf_rbtree_add(struct bpf_rb_root *root,
 		}
 	}
 
-	rb_link_node(n, parent, link);
+	rb_link_analde(n, parent, link);
 	rb_insert_color_cached(n, (struct rb_root_cached *)root, leftmost);
-	WRITE_ONCE(node->owner, root);
+	WRITE_ONCE(analde->owner, root);
 	return 0;
 }
 
-__bpf_kfunc int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_node *node,
-				    bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b),
+__bpf_kfunc int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_analde *analde,
+				    bool (less)(struct bpf_rb_analde *a, const struct bpf_rb_analde *b),
 				    void *meta__ign, u64 off)
 {
 	struct btf_struct_meta *meta = meta__ign;
-	struct bpf_rb_node_kern *n = (void *)node;
+	struct bpf_rb_analde_kern *n = (void *)analde;
 
 	return __bpf_rbtree_add(root, n, (void *)less, meta ? meta->record : NULL, off);
 }
 
-__bpf_kfunc struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root)
+__bpf_kfunc struct bpf_rb_analde *bpf_rbtree_first(struct bpf_rb_root *root)
 {
 	struct rb_root_cached *r = (struct rb_root_cached *)root;
 
-	return (struct bpf_rb_node *)rb_first_cached(r);
+	return (struct bpf_rb_analde *)rb_first_cached(r);
 }
 
 /**
  * bpf_task_acquire - Acquire a reference to a task. A task acquired by this
- * kfunc which is not stored in a map as a kptr, must be released by calling
+ * kfunc which is analt stored in a map as a kptr, must be released by calling
  * bpf_task_release().
  * @p: The task on which a reference is being acquired.
  */
 __bpf_kfunc struct task_struct *bpf_task_acquire(struct task_struct *p)
 {
-	if (refcount_inc_not_zero(&p->rcu_users))
+	if (refcount_inc_analt_zero(&p->rcu_users))
 		return p;
 	return NULL;
 }
@@ -2157,12 +2157,12 @@ __bpf_kfunc void bpf_task_release_dtor(void *p)
 {
 	put_task_struct_rcu_user(p);
 }
-CFI_NOSEAL(bpf_task_release_dtor);
+CFI_ANALSEAL(bpf_task_release_dtor);
 
 #ifdef CONFIG_CGROUPS
 /**
  * bpf_cgroup_acquire - Acquire a reference to a cgroup. A cgroup acquired by
- * this kfunc which is not stored in a map as a kptr, must be released by
+ * this kfunc which is analt stored in a map as a kptr, must be released by
  * calling bpf_cgroup_release().
  * @cgrp: The cgroup on which a reference is being acquired.
  */
@@ -2174,7 +2174,7 @@ __bpf_kfunc struct cgroup *bpf_cgroup_acquire(struct cgroup *cgrp)
 /**
  * bpf_cgroup_release - Release the reference acquired on a cgroup.
  * If this kfunc is invoked in an RCU read region, the cgroup is guaranteed to
- * not be freed until the current grace period has ended, even if its refcount
+ * analt be freed until the current grace period has ended, even if its refcount
  * drops to 0.
  * @cgrp: The cgroup on which a reference is being released.
  */
@@ -2187,11 +2187,11 @@ __bpf_kfunc void bpf_cgroup_release_dtor(void *cgrp)
 {
 	cgroup_put(cgrp);
 }
-CFI_NOSEAL(bpf_cgroup_release_dtor);
+CFI_ANALSEAL(bpf_cgroup_release_dtor);
 
 /**
  * bpf_cgroup_ancestor - Perform a lookup on an entry in a cgroup's ancestor
- * array. A cgroup returned by this kfunc which is not subsequently stored in a
+ * array. A cgroup returned by this kfunc which is analt subsequently stored in a
  * map, must be released by calling bpf_cgroup_release().
  * @cgrp: The cgroup for which we're performing a lookup.
  * @level: The level of ancestor to look up.
@@ -2212,7 +2212,7 @@ __bpf_kfunc struct cgroup *bpf_cgroup_ancestor(struct cgroup *cgrp, int level)
 
 /**
  * bpf_cgroup_from_id - Find a cgroup from its ID. A cgroup returned by this
- * kfunc which is not subsequently stored in a map, must be released by calling
+ * kfunc which is analt subsequently stored in a map, must be released by calling
  * bpf_cgroup_release().
  * @cgid: cgroup id.
  */
@@ -2294,7 +2294,7 @@ __bpf_kfunc struct task_struct *bpf_task_from_pid(s32 pid)
  * @buffer__szk: Size (in bytes) of the buffer if present. This is the
  *               length of the requested slice. This must be a constant.
  *
- * For non-skb and non-xdp type dynptrs, there is no difference between
+ * For analn-skb and analn-xdp type dynptrs, there is anal difference between
  * bpf_dynptr_slice and bpf_dynptr_data.
  *
  *  If buffer__opt is NULL, the call will fail if buffer_opt was needed.
@@ -2302,11 +2302,11 @@ __bpf_kfunc struct task_struct *bpf_task_from_pid(s32 pid)
  * If the intention is to write to the data slice, please use
  * bpf_dynptr_slice_rdwr.
  *
- * The user must check that the returned pointer is not null before using it.
+ * The user must check that the returned pointer is analt null before using it.
  *
- * Please note that in the case of skb and xdp dynptrs, bpf_dynptr_slice
- * does not change the underlying packet data pointers, so a call to
- * bpf_dynptr_slice will not invalidate any ctx->data/data_end pointers in
+ * Please analte that in the case of skb and xdp dynptrs, bpf_dynptr_slice
+ * does analt change the underlying packet data pointers, so a call to
+ * bpf_dynptr_slice will analt invalidate any ctx->data/data_end pointers in
  * the bpf program.
  *
  * Return: NULL if the call failed (eg invalid dynptr), pointer to a read-only
@@ -2351,7 +2351,7 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr_kern *ptr, u32 offset
 		return buffer__opt;
 	}
 	default:
-		WARN_ONCE(true, "unknown dynptr type %d\n", type);
+		WARN_ONCE(true, "unkanalwn dynptr type %d\n", type);
 		return NULL;
 	}
 }
@@ -2364,7 +2364,7 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr_kern *ptr, u32 offset
  * @buffer__szk: Size (in bytes) of the buffer if present. This is the
  *               length of the requested slice. This must be a constant.
  *
- * For non-skb and non-xdp type dynptrs, there is no difference between
+ * For analn-skb and analn-xdp type dynptrs, there is anal difference between
  * bpf_dynptr_slice and bpf_dynptr_data.
  *
  * If buffer__opt is NULL, the call will fail if buffer_opt was needed.
@@ -2385,12 +2385,12 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr_kern *ptr, u32 offset
  * if (eth == buffer)
  *	bpf_dynptr_write(&ptr, 0, buffer, sizeof(buffer), 0);
  *
- * Please note that, as in the example above, the user must check that the
- * returned pointer is not null before using it.
+ * Please analte that, as in the example above, the user must check that the
+ * returned pointer is analt null before using it.
  *
- * Please also note that in the case of skb and xdp dynptrs, bpf_dynptr_slice_rdwr
- * does not change the underlying packet data pointers, so a call to
- * bpf_dynptr_slice_rdwr will not invalidate any ctx->data/data_end pointers in
+ * Please also analte that in the case of skb and xdp dynptrs, bpf_dynptr_slice_rdwr
+ * does analt change the underlying packet data pointers, so a call to
+ * bpf_dynptr_slice_rdwr will analt invalidate any ctx->data/data_end pointers in
  * the bpf program.
  *
  * Return: NULL if the call failed (eg invalid dynptr), pointer to a
@@ -2418,10 +2418,10 @@ __bpf_kfunc void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr_kern *ptr, u32 o
 	 * 2) Some portion of the requested slice is in the paged buffer area.
 	 * In this case, the requested data will be copied out into the buffer
 	 * and the returned pointer will be a pointer to the buffer. The skb
-	 * will not be pulled. To persist the write, the user will need to call
+	 * will analt be pulled. To persist the write, the user will need to call
 	 * bpf_dynptr_write(), which will pull the skb and commit the write.
 	 *
-	 * Similarly for xdp programs, if the requested slice is not across xdp
+	 * Similarly for xdp programs, if the requested slice is analt across xdp
 	 * fragments, then a direct pointer will be returned, otherwise the data
 	 * will be copied out into the buffer and the user will need to call
 	 * bpf_dynptr_write() to commit changes.
@@ -2536,7 +2536,7 @@ __bpf_kfunc void bpf_throw(u64 cookie)
 	WARN_ON_ONCE(!ctx.bp);
 	WARN_ON_ONCE(!ctx.cnt);
 	/* Prevent KASAN false positives for CONFIG_KASAN_STACK by unpoisoning
-	 * deeper stack depths than ctx.sp as we do not return from bpf_throw,
+	 * deeper stack depths than ctx.sp as we do analt return from bpf_throw,
 	 * which skips compiler generated instrumentation to do the same.
 	 */
 	kasan_unpoison_task_stack_below((void *)(long)ctx.sp);

@@ -89,12 +89,12 @@ struct lance_init_block {
 
 	volatile char tx_buf[TX_RING_SIZE][TX_BUFF_SIZE];
 	volatile char rx_buf[RX_RING_SIZE][RX_BUFF_SIZE];
-	/* we use this just to make the struct big enough that we can move its startaddr
+	/* we use this just to make the struct big eanalugh that we can move its startaddr
 	 * in order to force alignment to an eight byte boundary.
 	 */
 };
 
-/* This is where we keep all the stuff the driver needs to know about.
+/* This is where we keep all the stuff the driver needs to kanalw about.
  * I'm definitely unhappy about the mechanism for allowing specific
  * drivers to add things...
  */
@@ -140,8 +140,8 @@ struct lance_private {
  */
 #define LE_C0_ERR	0x8000	/* Error = BABL | CERR | MISS | MERR */
 #define LE_C0_BABL	0x4000	/* Babble: Transmitted too many bits */
-#define LE_C0_CERR	0x2000	/* No Heartbeat (10BASE-T) */
-#define LE_C0_MISS	0x1000	/* Missed Frame (no rx buffer to put it in) */
+#define LE_C0_CERR	0x2000	/* Anal Heartbeat (10BASE-T) */
+#define LE_C0_MISS	0x1000	/* Missed Frame (anal rx buffer to put it in) */
 #define LE_C0_MERR	0x0800	/* Memory Error */
 #define LE_C0_RINT	0x0400	/* Receive Interrupt */
 #define LE_C0_TINT	0x0200	/* Transmit Interrupt */
@@ -169,7 +169,7 @@ struct lance_private {
  *		Mode Flags
  */
 #define LE_MO_PROM	0x8000	/* Promiscuous Mode */
-/* these next ones 0x4000 -- 0x0080 are not available on the LANCE 7990,
+/* these next ones 0x4000 -- 0x0080 are analt available on the LANCE 7990,
  * but they are in NetBSD's am7990.h, presumably for backwards-compatible chips
  */
 #define LE_MO_DRCVBC	0x4000	/* disable receive broadcast */
@@ -182,7 +182,7 @@ struct lance_private {
 #define LE_MO_PSEL0	0x0080	/* port selection bit0 */
 /* and this one is from the C-LANCE data sheet... */
 #define LE_MO_EMBA	0x0080	/* Enable Modified Backoff Algorithm
-				   (C-LANCE, not original LANCE) */
+				   (C-LANCE, analt original LANCE) */
 #define LE_MO_INTL	0x0040	/* Internal Loopback */
 #define LE_MO_DRTY	0x0020	/* Disable Retry */
 #define LE_MO_FCOLL	0x0010	/* Force Collision */
@@ -238,7 +238,7 @@ struct lance_private {
 /* The LANCE only uses 24 bit addresses. This does the obvious thing. */
 #define LANCE_ADDR(x) ((int)(x) & ~0xff000000)
 
-/* Now the prototypes we export */
+/* Analw the prototypes we export */
 int lance_open(struct net_device *dev);
 int lance_close(struct net_device *dev);
 netdev_tx_t lance_start_xmit(struct sk_buff *skb, struct net_device *dev);

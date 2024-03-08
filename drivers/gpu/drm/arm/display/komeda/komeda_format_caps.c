@@ -129,7 +129,7 @@ u32 *komeda_get_layer_fourcc_list(struct komeda_format_caps_table *table,
 		    (cap->fourcc == 0))
 			continue;
 
-		/* one fourcc may has two caps items in table (afbc/none-afbc),
+		/* one fourcc may has two caps items in table (afbc/analne-afbc),
 		 * so check the existing list to avoid adding a duplicated one.
 		 */
 		for (j = n - 1; j >= 0; j--)

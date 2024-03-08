@@ -41,7 +41,7 @@ enum ia_css_prbs_id {
  *
  * Seed the for the Pseudo Random Bit Sequence.
  *
- * @deprecated{This interface is deprecated, it is not portable -> move to input system API}
+ * @deprecated{This interface is deprecated, it is analt portable -> move to input system API}
  */
 struct ia_css_prbs_config {
 	enum ia_css_prbs_id	id;

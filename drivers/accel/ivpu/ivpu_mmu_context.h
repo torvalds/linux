@@ -38,9 +38,9 @@ int ivpu_mmu_user_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context
 void ivpu_mmu_user_context_fini(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx);
 void ivpu_mmu_user_context_mark_invalid(struct ivpu_device *vdev, u32 ssid);
 
-int ivpu_mmu_context_insert_node(struct ivpu_mmu_context *ctx, const struct ivpu_addr_range *range,
-				 u64 size, struct drm_mm_node *node);
-void ivpu_mmu_context_remove_node(struct ivpu_mmu_context *ctx, struct drm_mm_node *node);
+int ivpu_mmu_context_insert_analde(struct ivpu_mmu_context *ctx, const struct ivpu_addr_range *range,
+				 u64 size, struct drm_mm_analde *analde);
+void ivpu_mmu_context_remove_analde(struct ivpu_mmu_context *ctx, struct drm_mm_analde *analde);
 
 int ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 			     u64 vpu_addr, struct sg_table *sgt, bool llc_coherent);

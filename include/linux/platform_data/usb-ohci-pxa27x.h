@@ -16,7 +16,7 @@ struct pxaohci_platform_data {
 
 #define POWER_SENSE_LOW		(1 << 3)
 #define POWER_CONTROL_LOW	(1 << 4)
-#define NO_OC_PROTECTION	(1 << 5)
+#define ANAL_OC_PROTECTION	(1 << 5)
 #define OC_MODE_GLOBAL		(0 << 6)
 #define OC_MODE_PERPORT		(1 << 6)
 

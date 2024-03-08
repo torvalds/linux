@@ -44,7 +44,7 @@ struct igb_adapter;
 #define IGB_DEFAULT_ITR		3 /* dynamic */
 #define IGB_MAX_ITR_USECS	10000
 #define IGB_MIN_ITR_USECS	10
-#define NON_Q_VECTORS		1
+#define ANALN_Q_VECTORS		1
 #define MAX_Q_VECTORS		8
 #define MAX_MSIX_ENTRIES	10
 
@@ -61,11 +61,11 @@ struct igb_adapter;
 
 /* NVM version defines */
 #define IGB_MAJOR_MASK		0xF000
-#define IGB_MINOR_MASK		0x0FF0
+#define IGB_MIANALR_MASK		0x0FF0
 #define IGB_BUILD_MASK		0x000F
 #define IGB_COMB_VER_MASK	0x00FF
 #define IGB_MAJOR_SHIFT		12
-#define IGB_MINOR_SHIFT		4
+#define IGB_MIANALR_SHIFT		4
 #define IGB_COMB_VER_SHFT	8
 #define IGB_NVM_VER_INVALID	0xFFFF
 #define IGB_ETRACK_SHIFT	16
@@ -93,7 +93,7 @@ struct vf_data_storage {
 	u16 num_vf_mc_hashes;
 	u32 flags;
 	unsigned long last_nack;
-	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
+	u16 pf_vlan; /* When set, guest VLAN config analt allowed. */
 	u16 pf_qos;
 	u16 tx_rate;
 	bool spoofchk_enabled;
@@ -154,7 +154,7 @@ struct vf_mac_filter {
  * to deduct the space needed for the shared info and the padding needed
  * to IP align the frame.
  *
- * Note: For cache line sizes 256 or larger this value is going to end
+ * Analte: For cache line sizes 256 or larger this value is going to end
  *	 up negative.  In these cases we should fall back to the 3K
  *	 buffers.
  */
@@ -177,10 +177,10 @@ static inline int igb_skb_pad(void)
 {
 	int rx_buf_len;
 
-	/* If a 2K buffer cannot handle a standard Ethernet frame then
+	/* If a 2K buffer cananalt handle a standard Ethernet frame then
 	 * optimize padding for a 3K buffer instead of a 1.5K buffer.
 	 *
-	 * For a 3K buffer we need to add enough padding to allow for
+	 * For a 3K buffer we need to add eanalugh padding to allow for
 	 * tailroom due to NET_IP_ALIGN possibly shifting us out of
 	 * cache-line alignment.
 	 */
@@ -214,7 +214,7 @@ static inline int igb_skb_pad(void)
 #define IGB_MASTER_SLAVE	e1000_ms_hw_default
 #endif
 
-#define IGB_MNG_VLAN_NONE	-1
+#define IGB_MNG_VLAN_ANALNE	-1
 
 enum igb_tx_flags {
 	/* cmd_type flags */
@@ -357,7 +357,7 @@ struct igb_ring {
 		};
 	};
 	struct xdp_rxq_info xdp_rxq;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 struct igb_q_vector {
 	struct igb_adapter *adapter;	/* backlink */
@@ -375,7 +375,7 @@ struct igb_q_vector {
 	char name[IFNAMSIZ + 9];
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct igb_ring ring[] ____cacheline_internodealigned_in_smp;
+	struct igb_ring ring[] ____cacheline_interanaldealigned_in_smp;
 };
 
 enum e1000_ring_flags_t {
@@ -512,7 +512,7 @@ struct igb_nfc_input {
 };
 
 struct igb_nfc_filter {
-	struct hlist_node nfc_node;
+	struct hlist_analde nfc_analde;
 	struct igb_nfc_input filter;
 	unsigned long cookie;
 	u16 etype_reg_index;
@@ -603,7 +603,7 @@ struct igb_adapter {
 	u32 eims_enable_mask;
 	u32 eims_other;
 
-	/* to not mess up cache alignment, always add to the bottom */
+	/* to analt mess up cache alignment, always add to the bottom */
 	u16 tx_ring_count;
 	u16 rx_ring_count;
 	unsigned int vfs_allocated_count;

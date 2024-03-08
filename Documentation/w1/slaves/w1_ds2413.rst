@@ -44,7 +44,7 @@ Similarly the byte format is the same as for the PIO_ACCESS_WRITE command:
 ======== ======================================
 Bit 0:   PIOA
 Bit 1:   PIOB
-Bit 2-7: No matter (driver will set it to "1"s)
+Bit 2-7: Anal matter (driver will set it to "1"s)
 ======== ======================================
 
 

@@ -42,7 +42,7 @@
 #define RX_INT_32K_EN			BIT(1)
 #define HDMI_HTPLG_INT_32K_EN		BIT(0)
 
-#define NORMAL_INT_CTRL		0x5C
+#define ANALRMAL_INT_CTRL		0x5C
 #define HDMI_HTPLG_INT_STA		BIT(0)
 #define HDMI_PORD_INT_STA		BIT(1)
 #define HDMI_HTPLG_INT_CLR		BIT(16)
@@ -136,12 +136,12 @@ static void mtk_cec_htplg_irq_disable(struct mtk_cec *cec)
 static void mtk_cec_clear_htplg_irq(struct mtk_cec *cec)
 {
 	mtk_cec_set_bits(cec, TR_CONFIG, CLEAR_CEC_IRQ);
-	mtk_cec_set_bits(cec, NORMAL_INT_CTRL, HDMI_HTPLG_INT_CLR |
+	mtk_cec_set_bits(cec, ANALRMAL_INT_CTRL, HDMI_HTPLG_INT_CLR |
 			 HDMI_PORD_INT_CLR | HDMI_FULL_INT_CLR);
 	mtk_cec_set_bits(cec, RX_GEN_WD, HDMI_PORD_INT_32K_CLR |
 			 RX_INT_32K_CLR | HDMI_HTPLG_INT_32K_CLR);
 	usleep_range(5, 10);
-	mtk_cec_clear_bits(cec, NORMAL_INT_CTRL, HDMI_HTPLG_INT_CLR |
+	mtk_cec_clear_bits(cec, ANALRMAL_INT_CTRL, HDMI_HTPLG_INT_CLR |
 			   HDMI_PORD_INT_CLR | HDMI_FULL_INT_CLR);
 	mtk_cec_clear_bits(cec, TR_CONFIG, CLEAR_CEC_IRQ);
 	mtk_cec_clear_bits(cec, RX_GEN_WD, HDMI_PORD_INT_32K_CLR |
@@ -189,7 +189,7 @@ static int mtk_cec_probe(struct platform_device *pdev)
 
 	cec = devm_kzalloc(dev, sizeof(*cec), GFP_KERNEL);
 	if (!cec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, cec);
 	spin_lock_init(&cec->lock);

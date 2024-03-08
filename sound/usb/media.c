@@ -51,7 +51,7 @@ int snd_media_stream_init(struct snd_usb_substream *subs, struct snd_pcm *pcm,
 	/* allocate media_ctl */
 	mctl = kzalloc(sizeof(*mctl), GFP_KERNEL);
 	if (!mctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mctl->media_dev = mdev;
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -72,19 +72,19 @@ int snd_media_stream_init(struct snd_usb_substream *subs, struct snd_pcm *pcm,
 	if (ret)
 		goto free_mctl;
 
-	mctl->intf_devnode = media_devnode_create(mdev, intf_type, 0,
+	mctl->intf_devanalde = media_devanalde_create(mdev, intf_type, 0,
 						  MAJOR(pcm_dev->devt),
-						  MINOR(pcm_dev->devt));
-	if (!mctl->intf_devnode) {
-		ret = -ENOMEM;
+						  MIANALR(pcm_dev->devt));
+	if (!mctl->intf_devanalde) {
+		ret = -EANALMEM;
 		goto unregister_entity;
 	}
 	mctl->intf_link = media_create_intf_link(&mctl->media_entity,
-						 &mctl->intf_devnode->intf,
+						 &mctl->intf_devanalde->intf,
 						 MEDIA_LNK_FL_ENABLED);
 	if (!mctl->intf_link) {
-		ret = -ENOMEM;
-		goto devnode_remove;
+		ret = -EANALMEM;
+		goto devanalde_remove;
 	}
 
 	/* create link between mixer and audio */
@@ -105,8 +105,8 @@ int snd_media_stream_init(struct snd_usb_substream *subs, struct snd_pcm *pcm,
 
 remove_intf_link:
 	media_remove_intf_link(mctl->intf_link);
-devnode_remove:
-	media_devnode_remove(mctl->intf_devnode);
+devanalde_remove:
+	media_devanalde_remove(mctl->intf_devanalde);
 unregister_entity:
 	media_device_unregister_entity(&mctl->media_entity);
 free_mctl:
@@ -122,8 +122,8 @@ void snd_media_stream_delete(struct snd_usb_substream *subs)
 		struct media_device *mdev;
 
 		mdev = mctl->media_dev;
-		if (mdev && media_devnode_is_registered(mdev->devnode)) {
-			media_devnode_remove(mctl->intf_devnode);
+		if (mdev && media_devanalde_is_registered(mdev->devanalde)) {
+			media_devanalde_remove(mctl->intf_devanalde);
 			media_device_unregister_entity(&mctl->media_entity);
 			media_entity_cleanup(&mctl->media_entity);
 		}
@@ -164,7 +164,7 @@ void snd_media_stop_pipeline(struct snd_usb_substream *subs)
 static int snd_media_mixer_init(struct snd_usb_audio *chip)
 {
 	struct device *ctl_dev = chip->card->ctl_dev;
-	struct media_intf_devnode *ctl_intf;
+	struct media_intf_devanalde *ctl_intf;
 	struct usb_mixer_interface *mixer;
 	struct media_device *mdev = chip->media_dev;
 	struct media_mixer_ctl *mctl;
@@ -172,16 +172,16 @@ static int snd_media_mixer_init(struct snd_usb_audio *chip)
 	int ret;
 
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ctl_intf = chip->ctl_intf_media_devnode;
+	ctl_intf = chip->ctl_intf_media_devanalde;
 	if (!ctl_intf) {
-		ctl_intf = media_devnode_create(mdev, intf_type, 0,
+		ctl_intf = media_devanalde_create(mdev, intf_type, 0,
 						MAJOR(ctl_dev->devt),
-						MINOR(ctl_dev->devt));
+						MIANALR(ctl_dev->devt));
 		if (!ctl_intf)
-			return -ENOMEM;
-		chip->ctl_intf_media_devnode = ctl_intf;
+			return -EANALMEM;
+		chip->ctl_intf_media_devanalde = ctl_intf;
 	}
 
 	list_for_each_entry(mixer, &chip->mixer_list, list) {
@@ -192,7 +192,7 @@ static int snd_media_mixer_init(struct snd_usb_audio *chip)
 		/* allocate media_mixer_ctl */
 		mctl = kzalloc(sizeof(*mctl), GFP_KERNEL);
 		if (!mctl)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mctl->media_dev = mdev;
 		mctl->media_entity.function = MEDIA_ENT_F_AUDIO_MIXER;
@@ -216,9 +216,9 @@ static int snd_media_mixer_init(struct snd_usb_audio *chip)
 			media_device_unregister_entity(&mctl->media_entity);
 			media_entity_cleanup(&mctl->media_entity);
 			kfree(mctl);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		mctl->intf_devnode = ctl_intf;
+		mctl->intf_devanalde = ctl_intf;
 		mixer->media_mixer_ctl = mctl;
 	}
 	return 0;
@@ -239,16 +239,16 @@ static void snd_media_mixer_delete(struct snd_usb_audio *chip)
 		if (!mixer->media_mixer_ctl)
 			continue;
 
-		if (media_devnode_is_registered(mdev->devnode)) {
+		if (media_devanalde_is_registered(mdev->devanalde)) {
 			media_device_unregister_entity(&mctl->media_entity);
 			media_entity_cleanup(&mctl->media_entity);
 		}
 		kfree(mctl);
 		mixer->media_mixer_ctl = NULL;
 	}
-	if (media_devnode_is_registered(mdev->devnode))
-		media_devnode_remove(chip->ctl_intf_media_devnode);
-	chip->ctl_intf_media_devnode = NULL;
+	if (media_devanalde_is_registered(mdev->devanalde))
+		media_devanalde_remove(chip->ctl_intf_media_devanalde);
+	chip->ctl_intf_media_devanalde = NULL;
 }
 
 int snd_media_device_create(struct snd_usb_audio *chip,
@@ -270,7 +270,7 @@ int snd_media_device_create(struct snd_usb_audio *chip,
 
 	mdev = media_device_usb_allocate(usbdev, KBUILD_MODNAME, THIS_MODULE);
 	if (IS_ERR(mdev))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* save media device - avoid lookups */
 	chip->media_dev = mdev;
@@ -284,7 +284,7 @@ snd_mixer_init:
 			"Couldn't create media mixer entities. Error: %d\n",
 			ret);
 
-	if (!media_devnode_is_registered(mdev->devnode)) {
+	if (!media_devanalde_is_registered(mdev->devanalde)) {
 		/* don't register if snd_media_mixer_init() failed */
 		if (ret)
 			goto create_fail;

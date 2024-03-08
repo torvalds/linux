@@ -14,7 +14,7 @@
 static __always_inline
 int list_push_pop(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool leave_in_map)
 {
-	struct bpf_list_node *n;
+	struct bpf_list_analde *n;
 	struct foo *f;
 
 	f = bpf_obj_new(typeof(*f));
@@ -25,7 +25,7 @@ int list_push_pop(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool l
 	n = bpf_list_pop_front(head);
 	bpf_spin_unlock(lock);
 	if (n) {
-		bpf_obj_drop(container_of(n, struct foo, node2));
+		bpf_obj_drop(container_of(n, struct foo, analde2));
 		bpf_obj_drop(f);
 		return 3;
 	}
@@ -34,7 +34,7 @@ int list_push_pop(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool l
 	n = bpf_list_pop_back(head);
 	bpf_spin_unlock(lock);
 	if (n) {
-		bpf_obj_drop(container_of(n, struct foo, node2));
+		bpf_obj_drop(container_of(n, struct foo, analde2));
 		bpf_obj_drop(f);
 		return 4;
 	}
@@ -42,7 +42,7 @@ int list_push_pop(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool l
 
 	bpf_spin_lock(lock);
 	f->data = 42;
-	bpf_list_push_front(head, &f->node2);
+	bpf_list_push_front(head, &f->analde2);
 	bpf_spin_unlock(lock);
 	if (leave_in_map)
 		return 0;
@@ -51,7 +51,7 @@ int list_push_pop(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool l
 	bpf_spin_unlock(lock);
 	if (!n)
 		return 5;
-	f = container_of(n, struct foo, node2);
+	f = container_of(n, struct foo, analde2);
 	if (f->data != 42) {
 		bpf_obj_drop(f);
 		return 6;
@@ -59,14 +59,14 @@ int list_push_pop(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool l
 
 	bpf_spin_lock(lock);
 	f->data = 13;
-	bpf_list_push_front(head, &f->node2);
+	bpf_list_push_front(head, &f->analde2);
 	bpf_spin_unlock(lock);
 	bpf_spin_lock(lock);
 	n = bpf_list_pop_front(head);
 	bpf_spin_unlock(lock);
 	if (!n)
 		return 7;
-	f = container_of(n, struct foo, node2);
+	f = container_of(n, struct foo, analde2);
 	if (f->data != 13) {
 		bpf_obj_drop(f);
 		return 8;
@@ -77,7 +77,7 @@ int list_push_pop(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool l
 	n = bpf_list_pop_front(head);
 	bpf_spin_unlock(lock);
 	if (n) {
-		bpf_obj_drop(container_of(n, struct foo, node2));
+		bpf_obj_drop(container_of(n, struct foo, analde2));
 		return 9;
 	}
 
@@ -85,7 +85,7 @@ int list_push_pop(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool l
 	n = bpf_list_pop_back(head);
 	bpf_spin_unlock(lock);
 	if (n) {
-		bpf_obj_drop(container_of(n, struct foo, node2));
+		bpf_obj_drop(container_of(n, struct foo, analde2));
 		return 10;
 	}
 	return 0;
@@ -95,11 +95,11 @@ int list_push_pop(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool l
 static __always_inline
 int list_push_pop_multiple(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool leave_in_map)
 {
-	struct bpf_list_node *n;
+	struct bpf_list_analde *n;
 	struct foo *f[200], *pf;
 	int i;
 
-	/* Loop following this check adds nodes 2-at-a-time in order to
+	/* Loop following this check adds analdes 2-at-a-time in order to
 	 * validate multiple release_on_unlock release logic
 	 */
 	if (ARRAY_SIZE(f) % 2)
@@ -119,8 +119,8 @@ int list_push_pop_multiple(struct bpf_spin_lock *lock, struct bpf_list_head *hea
 		f[i + 1]->data = i + 1;
 
 		bpf_spin_lock(lock);
-		bpf_list_push_front(head, &f[i]->node2);
-		bpf_list_push_front(head, &f[i + 1]->node2);
+		bpf_list_push_front(head, &f[i]->analde2);
+		bpf_list_push_front(head, &f[i + 1]->analde2);
 		bpf_spin_unlock(lock);
 	}
 
@@ -130,13 +130,13 @@ int list_push_pop_multiple(struct bpf_spin_lock *lock, struct bpf_list_head *hea
 		bpf_spin_unlock(lock);
 		if (!n)
 			return 3;
-		pf = container_of(n, struct foo, node2);
+		pf = container_of(n, struct foo, analde2);
 		if (pf->data != (ARRAY_SIZE(f) - i - 1)) {
 			bpf_obj_drop(pf);
 			return 4;
 		}
 		bpf_spin_lock(lock);
-		bpf_list_push_back(head, &pf->node2);
+		bpf_list_push_back(head, &pf->analde2);
 		bpf_spin_unlock(lock);
 	}
 
@@ -149,7 +149,7 @@ int list_push_pop_multiple(struct bpf_spin_lock *lock, struct bpf_list_head *hea
 		bpf_spin_unlock(lock);
 		if (!n)
 			return 5;
-		pf = container_of(n, struct foo, node2);
+		pf = container_of(n, struct foo, analde2);
 		if (pf->data != i) {
 			bpf_obj_drop(pf);
 			return 6;
@@ -160,7 +160,7 @@ int list_push_pop_multiple(struct bpf_spin_lock *lock, struct bpf_list_head *hea
 	n = bpf_list_pop_back(head);
 	bpf_spin_unlock(lock);
 	if (n) {
-		bpf_obj_drop(container_of(n, struct foo, node2));
+		bpf_obj_drop(container_of(n, struct foo, analde2));
 		return 7;
 	}
 
@@ -168,7 +168,7 @@ int list_push_pop_multiple(struct bpf_spin_lock *lock, struct bpf_list_head *hea
 	n = bpf_list_pop_front(head);
 	bpf_spin_unlock(lock);
 	if (n) {
-		bpf_obj_drop(container_of(n, struct foo, node2));
+		bpf_obj_drop(container_of(n, struct foo, analde2));
 		return 8;
 	}
 	return 0;
@@ -177,7 +177,7 @@ int list_push_pop_multiple(struct bpf_spin_lock *lock, struct bpf_list_head *hea
 static __always_inline
 int list_in_list(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool leave_in_map)
 {
-	struct bpf_list_node *n;
+	struct bpf_list_analde *n;
 	struct bar *ba[8], *b;
 	struct foo *f;
 	int i;
@@ -193,13 +193,13 @@ int list_in_list(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool le
 		}
 		b->data = i;
 		bpf_spin_lock(&f->lock);
-		bpf_list_push_back(&f->head, &b->node);
+		bpf_list_push_back(&f->head, &b->analde);
 		bpf_spin_unlock(&f->lock);
 	}
 
 	bpf_spin_lock(lock);
 	f->data = 42;
-	bpf_list_push_front(head, &f->node2);
+	bpf_list_push_front(head, &f->analde2);
 	bpf_spin_unlock(lock);
 
 	if (leave_in_map)
@@ -210,7 +210,7 @@ int list_in_list(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool le
 	bpf_spin_unlock(lock);
 	if (!n)
 		return 4;
-	f = container_of(n, struct foo, node2);
+	f = container_of(n, struct foo, analde2);
 	if (f->data != 42) {
 		bpf_obj_drop(f);
 		return 5;
@@ -224,7 +224,7 @@ int list_in_list(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool le
 			bpf_obj_drop(f);
 			return 6;
 		}
-		b = container_of(n, struct bar, node);
+		b = container_of(n, struct bar, analde);
 		if (b->data != i) {
 			bpf_obj_drop(f);
 			bpf_obj_drop(b);
@@ -237,7 +237,7 @@ int list_in_list(struct bpf_spin_lock *lock, struct bpf_list_head *head, bool le
 	bpf_spin_unlock(&f->lock);
 	if (n) {
 		bpf_obj_drop(f);
-		bpf_obj_drop(container_of(n, struct bar, node));
+		bpf_obj_drop(container_of(n, struct bar, analde));
 		return 8;
 	}
 	bpf_obj_drop(f);

@@ -48,7 +48,7 @@ patternProperties:
     type: object
     additionalProperties: false
     description:
-      Child nodes needed for each channel that the platform uses.
+      Child analdes needed for each channel that the platform uses.
 
     properties:
       reg:

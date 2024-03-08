@@ -132,7 +132,7 @@ struct samsung_mux_clock {
 		.name		= cname,			\
 		.parent_names	= pnames,			\
 		.num_parents	= ARRAY_SIZE(pnames),		\
-		.flags		= (f) | CLK_SET_RATE_NO_REPARENT, \
+		.flags		= (f) | CLK_SET_RATE_ANAL_REPARENT, \
 		.offset		= o,				\
 		.shift		= s,				\
 		.width		= w,				\
@@ -272,7 +272,7 @@ struct samsung_pll_clock {
 	}
 
 #define PLL(_typ, _id, _name, _pname, _lock, _con, _rtable)	\
-	__PLL(_typ, _id, _name, _pname, CLK_GET_RATE_NOCACHE, _lock,	\
+	__PLL(_typ, _id, _name, _pname, CLK_GET_RATE_ANALCACHE, _lock,	\
 	      _con, _rtable)
 
 struct samsung_cpu_clock {
@@ -282,7 +282,7 @@ struct samsung_cpu_clock {
 	unsigned int	alt_parent_id;
 	unsigned long	flags;
 	int		offset;
-	const struct exynos_cpuclk_cfg_data *cfg;
+	const struct exyanals_cpuclk_cfg_data *cfg;
 };
 
 #define CPU_CLK(_id, _name, _pid, _apid, _flags, _offset, _cfg) \
@@ -297,7 +297,7 @@ struct samsung_cpu_clock {
 	}
 
 struct samsung_clock_reg_cache {
-	struct list_head node;
+	struct list_head analde;
 	void __iomem *reg_base;
 	struct samsung_clk_reg_dump *rdump;
 	unsigned int rd_num;
@@ -355,7 +355,7 @@ struct samsung_cmu_info {
 
 struct samsung_clk_provider *samsung_clk_init(struct device *dev,
 			void __iomem *base, unsigned long nr_clks);
-void samsung_clk_of_add_provider(struct device_node *np,
+void samsung_clk_of_add_provider(struct device_analde *np,
 			struct samsung_clk_provider *ctx);
 void samsung_clk_of_register_fixed_ext(
 			struct samsung_clk_provider *ctx,
@@ -395,7 +395,7 @@ void samsung_clk_register_cpu(struct samsung_clk_provider *ctx,
 void samsung_cmu_register_clocks(struct samsung_clk_provider *ctx,
 				 const struct samsung_cmu_info *cmu);
 struct samsung_clk_provider *samsung_cmu_register_one(
-			struct device_node *,
+			struct device_analde *,
 			const struct samsung_cmu_info *);
 
 #ifdef CONFIG_PM_SLEEP

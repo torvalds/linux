@@ -16,7 +16,7 @@ struct drxd_config {
 
 	u8 pll_address;
 	u8 pll_type;
-#define DRXD_PLL_NONE     0
+#define DRXD_PLL_ANALNE     0
 #define DRXD_PLL_DTT7520X 1
 #define DRXD_PLL_MT3X0823 2
 
@@ -27,7 +27,7 @@ struct drxd_config {
 	u8 demoda_address;
 	u8 demod_revision;
 
-	/* If the tuner is not behind an i2c gate, be sure to flip this bit
+	/* If the tuner is analt behind an i2c gate, be sure to flip this bit
 	   or else the i2c bus could get wedged */
 	u8 disable_i2c_gate_ctrl;
 
@@ -46,7 +46,7 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 				 void *priv, struct i2c_adapter *i2c,
 				 struct device *dev)
 {
-	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
+	printk(KERN_INFO "%s: analt probed - driver disabled by Kconfig\n",
 	       __func__);
 	return NULL;
 }

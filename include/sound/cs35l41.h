@@ -750,9 +750,9 @@ enum cs35l41_boost_type {
 	CS35L41_SHD_BOOST_ACTV,
 	CS35L41_SHD_BOOST_PASS,
 
-	// Not present in Binding Documentation, so no system should use this value.
+	// Analt present in Binding Documentation, so anal system should use this value.
 	// This value is only used in CLSA0100 Laptop
-	CS35L41_EXT_BOOST_NO_VSPK_SWITCH,
+	CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH,
 };
 
 enum cs35l41_clk_ids {
@@ -817,14 +817,14 @@ struct cs35l41_otp_map_element_t {
 
 enum cs35l41_cspl_mbox_status {
 	CSPL_MBOX_STS_ERROR = U32_MAX,
-	CSPL_MBOX_STS_ERROR2 = 0x00ffffff, // firmware not always sign-extending 24-bit value
+	CSPL_MBOX_STS_ERROR2 = 0x00ffffff, // firmware analt always sign-extending 24-bit value
 	CSPL_MBOX_STS_RUNNING = 0,
 	CSPL_MBOX_STS_PAUSED = 1,
 	CSPL_MBOX_STS_RDY_FOR_REINIT = 2,
 };
 
 enum cs35l41_cspl_mbox_cmd {
-	CSPL_MBOX_CMD_NONE = 0,
+	CSPL_MBOX_CMD_ANALNE = 0,
 	CSPL_MBOX_CMD_PAUSE = 1,
 	CSPL_MBOX_CMD_RESUME = 2,
 	CSPL_MBOX_CMD_REINIT = 3,
@@ -832,7 +832,7 @@ enum cs35l41_cspl_mbox_cmd {
 	CSPL_MBOX_CMD_HIBERNATE = 5,
 	CSPL_MBOX_CMD_OUT_OF_HIBERNATE = 6,
 	CSPL_MBOX_CMD_SPK_OUT_ENABLE = 7,
-	CSPL_MBOX_CMD_UNKNOWN_CMD = -1,
+	CSPL_MBOX_CMD_UNKANALWN_CMD = -1,
 	CSPL_MBOX_CMD_INVALID_SEQUENCE = -2,
 };
 

@@ -257,7 +257,7 @@ static const struct pinctrl_pin_desc tgllp_pins[] = {
 	PINCTRL_PIN(200, "GPPC_F_5"),
 	PINCTRL_PIN(201, "CNV_PA_BLANKING"),
 	PINCTRL_PIN(202, "GPPC_F_7"),
-	PINCTRL_PIN(203, "I2S_MCLK2_INOUT"),
+	PINCTRL_PIN(203, "I2S_MCLK2_IANALUT"),
 	PINCTRL_PIN(204, "BOOTMPC"),
 	PINCTRL_PIN(205, "GPPC_F_10"),
 	PINCTRL_PIN(206, "GPPC_F_11"),
@@ -355,14 +355,14 @@ static const struct intel_padgroup tgllp_community1_gpps[] = {
 static const struct intel_padgroup tgllp_community4_gpps[] = {
 	TGL_GPP(0, 171, 194, 256),			/* GPP_C */
 	TGL_GPP(1, 195, 219, 288),			/* GPP_F */
-	TGL_GPP(2, 220, 225, INTEL_GPIO_BASE_NOMAP),	/* HVCMOS */
+	TGL_GPP(2, 220, 225, INTEL_GPIO_BASE_ANALMAP),	/* HVCMOS */
 	TGL_GPP(3, 226, 250, 320),			/* GPP_E */
-	TGL_GPP(4, 251, 259, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
+	TGL_GPP(4, 251, 259, INTEL_GPIO_BASE_ANALMAP),	/* JTAG */
 };
 
 static const struct intel_padgroup tgllp_community5_gpps[] = {
 	TGL_GPP(0, 260, 267, 352),			/* GPP_R */
-	TGL_GPP(1, 268, 276, INTEL_GPIO_BASE_NOMAP),	/* SPI */
+	TGL_GPP(1, 268, 276, INTEL_GPIO_BASE_ANALMAP),	/* SPI */
 };
 
 static const struct intel_community tgllp_communities[] = {
@@ -718,7 +718,7 @@ static const struct intel_padgroup tglh_community4_gpps[] = {
 
 static const struct intel_padgroup tglh_community5_gpps[] = {
 	TGL_GPP(0, 267, 281, 448),			/* GPP_I */
-	TGL_GPP(1, 282, 290, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
+	TGL_GPP(1, 282, 290, INTEL_GPIO_BASE_ANALMAP),	/* JTAG */
 };
 
 static const struct intel_community tglh_communities[] = {

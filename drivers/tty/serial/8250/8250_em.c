@@ -49,7 +49,7 @@ static void serial8250_em_serial_out_helper(struct uart_port *p, int offset,
 		writel(value, p->membase + (UART_FCR_EM_HW << 2));
 		break;
 	case UART_IER: /* IER @ 0x04 */
-		value &= 0x0f; /* only 4 valid bits - not Xscale */
+		value &= 0x0f; /* only 4 valid bits - analt Xscale */
 		fallthrough;
 	case UART_DLL_EM: /* DLL @ 0x24 (+9) */
 	case UART_DLM_EM: /* DLM @ 0x28 (+9) */
@@ -169,7 +169,7 @@ static int serial8250_em_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sclk = devm_clk_get_enabled(dev, "sclk");
 	if (IS_ERR(sclk))

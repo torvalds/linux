@@ -17,11 +17,11 @@ struct lock_filter {
 };
 
 struct lock_stat {
-	struct hlist_node	hash_entry;
-	struct rb_node		rb;		/* used for sorting */
+	struct hlist_analde	hash_entry;
+	struct rb_analde		rb;		/* used for sorting */
 
 	u64			addr;		/* address of lockdep_map, used as ID */
-	char			*name;		/* for strcpy(), we cannot use const */
+	char			*name;		/* for strcpy(), we cananalt use const */
 	u64			*callstack;
 
 	unsigned int		nr_acquire;
@@ -35,7 +35,7 @@ struct lock_stat {
 	};
 	unsigned int		nr_trylock;
 
-	/* these times are in nano sec. */
+	/* these times are in naanal sec. */
 	u64                     avg_wait_time;
 	u64			wait_time_total;
 	u64			wait_time_min;
@@ -49,7 +49,7 @@ struct lock_stat {
  * States of lock_seq_stat
  *
  * UNINITIALIZED is required for detecting first event of acquire.
- * As the nature of lock events, there is no guarantee
+ * As the nature of lock events, there is anal guarantee
  * that the first event for the locks are acquire,
  * it can be acquired, contended or release.
  */
@@ -90,7 +90,7 @@ struct lock_seq_stat {
 };
 
 struct thread_stat {
-	struct rb_node		rb;
+	struct rb_analde		rb;
 
 	u32                     tid;
 	struct list_head        seq_list;

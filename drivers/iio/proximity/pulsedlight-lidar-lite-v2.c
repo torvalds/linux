@@ -3,7 +3,7 @@
  * pulsedlight-lidar-lite-v2.c - Support for PulsedLight LIDAR sensor
  *
  * Copyright (C) 2015, 2017-2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  *
  * TODO: interrupt mode, and signal strength reporting
  */
@@ -94,19 +94,19 @@ static int lidar_smbus_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)
 
 	/*
 	 * Device needs a STOP condition between address write, and data read
-	 * so in turn i2c_smbus_read_byte_data cannot be used
+	 * so in turn i2c_smbus_read_byte_data cananalt be used
 	 */
 
 	while (len--) {
 		ret = i2c_smbus_write_byte(client, reg++);
 		if (ret < 0) {
-			dev_err(&client->dev, "cannot write addr value");
+			dev_err(&client->dev, "cananalt write addr value");
 			return ret;
 		}
 
 		ret = i2c_smbus_read_byte(client);
 		if (ret < 0) {
-			dev_err(&client->dev, "cannot read data value");
+			dev_err(&client->dev, "cananalt read data value");
 			return ret;
 		}
 
@@ -165,8 +165,8 @@ static int lidar_get_measurement(struct lidar_data *data, u16 *reg)
 	/* start sample */
 	ret = lidar_write_control(data, LIDAR_REG_CONTROL_ACQUIRE);
 	if (ret < 0) {
-		dev_err(&client->dev, "cannot send start measurement command");
-		pm_runtime_put_noidle(&client->dev);
+		dev_err(&client->dev, "cananalt send start measurement command");
+		pm_runtime_put_analidle(&client->dev);
 		return ret;
 	}
 
@@ -241,10 +241,10 @@ static irqreturn_t lidar_trigger_handler(int irq, void *private)
 		iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 						   iio_get_time_ns(indio_dev));
 	} else if (ret != -EINVAL) {
-		dev_err(&data->client->dev, "cannot read LIDAR measurement");
+		dev_err(&data->client->dev, "cananalt read LIDAR measurement");
 	}
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -261,7 +261,7 @@ static int lidar_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = iio_priv(indio_dev);
 
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -271,7 +271,7 @@ static int lidar_probe(struct i2c_client *client)
 				I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BYTE))
 		data->xfer = lidar_smbus_xfer;
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev->info = &lidar_info;
 	indio_dev->name = LIDAR_DRV_NAME;
@@ -371,6 +371,6 @@ static struct i2c_driver lidar_driver = {
 };
 module_i2c_driver(lidar_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("PulsedLight LIDAR sensor");
 MODULE_LICENSE("GPL");

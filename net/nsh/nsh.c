@@ -23,12 +23,12 @@ int nsh_push(struct sk_buff *skb, const struct nshhdr *pushed_nh)
 	} else {
 		next_proto = tun_p_from_eth_p(skb->protocol);
 		if (!next_proto)
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 	}
 
 	/* Add the NSH header */
 	if (skb_cow_head(skb, length) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_push(skb, length);
 	nh = (struct nshhdr *)(skb->data);
@@ -52,17 +52,17 @@ int nsh_pop(struct sk_buff *skb)
 	__be16 inner_proto;
 
 	if (!pskb_may_pull(skb, NSH_BASE_HDR_LEN))
-		return -ENOMEM;
+		return -EANALMEM;
 	nh = (struct nshhdr *)(skb->data);
 	length = nsh_hdr_len(nh);
 	if (length < NSH_BASE_HDR_LEN)
 		return -EINVAL;
 	inner_proto = tun_p_to_eth_p(nh->np);
 	if (!pskb_may_pull(skb, length))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!inner_proto)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	skb_pull_rcsum(skb, length);
 	skb_reset_mac_header(skb);

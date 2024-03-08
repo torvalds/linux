@@ -53,7 +53,7 @@ Supported chips:
 
 
 Authors:
-	Vadim Pasternak <vadimp@mellanox.com>
+	Vadim Pasternak <vadimp@mellaanalx.com>
 	Guenter Roeck <linux@roeck-us.net>
 
 
@@ -64,10 +64,10 @@ Chips in this series are multi-phase step-down converters with one or two
 output channels and up to 8 phases per channel.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Example: the following commands will load the driver for an TPS53681 at address
@@ -182,6 +182,6 @@ curr[N]_max_alarm	Output current high alarm.
 curr[N]_crit_alarm	Output current critical high alarm.
 
 			Limit and alarm attributes are only available for
-			non-phase telemetry (iout1, iout2).
+			analn-phase telemetry (iout1, iout2).
 
 ======================= ========================================================

@@ -14,7 +14,7 @@ maintainers:
 description: |
   The communication between MT6359 and SoC is through Mediatek PMIC wrapper.
   For more detail, please visit Mediatek PMIC wrapper documentation.
-  Must be a child node of PMIC wrapper.
+  Must be a child analde of PMIC wrapper.
 
 properties:
   mediatek,dmic-mode:

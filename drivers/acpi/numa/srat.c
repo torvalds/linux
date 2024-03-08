@@ -11,20 +11,20 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/acpi.h>
 #include <linux/memblock.h>
 #include <linux/numa.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/topology.h>
 
-static nodemask_t nodes_found_map = NODE_MASK_NONE;
+static analdemask_t analdes_found_map = ANALDE_MASK_ANALNE;
 
-/* maps to convert between proximity domain and logical node ID */
-static int pxm_to_node_map[MAX_PXM_DOMAINS]
-			= { [0 ... MAX_PXM_DOMAINS - 1] = NUMA_NO_NODE };
-static int node_to_pxm_map[MAX_NUMNODES]
-			= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
+/* maps to convert between proximity domain and logical analde ID */
+static int pxm_to_analde_map[MAX_PXM_DOMAINS]
+			= { [0 ... MAX_PXM_DOMAINS - 1] = NUMA_ANAL_ANALDE };
+static int analde_to_pxm_map[MAX_NUMANALDES]
+			= { [0 ... MAX_NUMANALDES - 1] = PXM_INVAL };
 
 unsigned char acpi_srat_revision __initdata;
 static int acpi_numa __initdata;
@@ -34,49 +34,49 @@ void __init disable_srat(void)
 	acpi_numa = -1;
 }
 
-int pxm_to_node(int pxm)
+int pxm_to_analde(int pxm)
 {
 	if (pxm < 0 || pxm >= MAX_PXM_DOMAINS || numa_off)
-		return NUMA_NO_NODE;
-	return pxm_to_node_map[pxm];
+		return NUMA_ANAL_ANALDE;
+	return pxm_to_analde_map[pxm];
 }
-EXPORT_SYMBOL(pxm_to_node);
+EXPORT_SYMBOL(pxm_to_analde);
 
-int node_to_pxm(int node)
+int analde_to_pxm(int analde)
 {
-	if (node < 0)
+	if (analde < 0)
 		return PXM_INVAL;
-	return node_to_pxm_map[node];
+	return analde_to_pxm_map[analde];
 }
 
-static void __acpi_map_pxm_to_node(int pxm, int node)
+static void __acpi_map_pxm_to_analde(int pxm, int analde)
 {
-	if (pxm_to_node_map[pxm] == NUMA_NO_NODE || node < pxm_to_node_map[pxm])
-		pxm_to_node_map[pxm] = node;
-	if (node_to_pxm_map[node] == PXM_INVAL || pxm < node_to_pxm_map[node])
-		node_to_pxm_map[node] = pxm;
+	if (pxm_to_analde_map[pxm] == NUMA_ANAL_ANALDE || analde < pxm_to_analde_map[pxm])
+		pxm_to_analde_map[pxm] = analde;
+	if (analde_to_pxm_map[analde] == PXM_INVAL || pxm < analde_to_pxm_map[analde])
+		analde_to_pxm_map[analde] = pxm;
 }
 
-int acpi_map_pxm_to_node(int pxm)
+int acpi_map_pxm_to_analde(int pxm)
 {
-	int node;
+	int analde;
 
 	if (pxm < 0 || pxm >= MAX_PXM_DOMAINS || numa_off)
-		return NUMA_NO_NODE;
+		return NUMA_ANAL_ANALDE;
 
-	node = pxm_to_node_map[pxm];
+	analde = pxm_to_analde_map[pxm];
 
-	if (node == NUMA_NO_NODE) {
-		node = first_unset_node(nodes_found_map);
-		if (node >= MAX_NUMNODES)
-			return NUMA_NO_NODE;
-		__acpi_map_pxm_to_node(pxm, node);
-		node_set(node, nodes_found_map);
+	if (analde == NUMA_ANAL_ANALDE) {
+		analde = first_unset_analde(analdes_found_map);
+		if (analde >= MAX_NUMANALDES)
+			return NUMA_ANAL_ANALDE;
+		__acpi_map_pxm_to_analde(pxm, analde);
+		analde_set(analde, analdes_found_map);
 	}
 
-	return node;
+	return analde;
 }
-EXPORT_SYMBOL(acpi_map_pxm_to_node);
+EXPORT_SYMBOL(acpi_map_pxm_to_analde);
 
 static void __init
 acpi_table_print_srat_entry(struct acpi_subtable_header *header)
@@ -106,8 +106,8 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 				 "enabled" : "disabled",
 				 (p->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) ?
 				 " hot-pluggable" : "",
-				 (p->flags & ACPI_SRAT_MEM_NON_VOLATILE) ?
-				 " non-volatile" : "");
+				 (p->flags & ACPI_SRAT_MEM_ANALN_VOLATILE) ?
+				 " analn-volatile" : "");
 		}
 		break;
 
@@ -173,8 +173,8 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 }
 
 /*
- * A lot of BIOS fill in 10 (= no distance) everywhere. This messes
- * up the NUMA heuristics which wants the local node to have a smaller
+ * A lot of BIOS fill in 10 (= anal distance) everywhere. This messes
+ * up the NUMA heuristics which wants the local analde to have a smaller
  * distance than the others.
  * Do some quick checks here and only use the SLIT if it passes.
  */
@@ -197,7 +197,7 @@ static int __init slit_valid(struct acpi_table_slit *slit)
 
 void __init bad_srat(void)
 {
-	pr_err("SRAT: SRAT not used.\n");
+	pr_err("SRAT: SRAT analt used.\n");
 	disable_srat();
 }
 
@@ -208,27 +208,27 @@ int __init srat_disabled(void)
 
 #if defined(CONFIG_X86) || defined(CONFIG_ARM64) || defined(CONFIG_LOONGARCH)
 /*
- * Callback for SLIT parsing.  pxm_to_node() returns NUMA_NO_NODE for
- * I/O localities since SRAT does not list them.  I/O localities are
- * not supported at this point.
+ * Callback for SLIT parsing.  pxm_to_analde() returns NUMA_ANAL_ANALDE for
+ * I/O localities since SRAT does analt list them.  I/O localities are
+ * analt supported at this point.
  */
 void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 {
 	int i, j;
 
 	for (i = 0; i < slit->locality_count; i++) {
-		const int from_node = pxm_to_node(i);
+		const int from_analde = pxm_to_analde(i);
 
-		if (from_node == NUMA_NO_NODE)
+		if (from_analde == NUMA_ANAL_ANALDE)
 			continue;
 
 		for (j = 0; j < slit->locality_count; j++) {
-			const int to_node = pxm_to_node(j);
+			const int to_analde = pxm_to_analde(j);
 
-			if (to_node == NUMA_NO_NODE)
+			if (to_analde == NUMA_ANAL_ANALDE)
 				continue;
 
-			numa_set_distance(from_node, to_node,
+			numa_set_distance(from_analde, to_analde,
 				slit->entry[slit->locality_count * i + j]);
 		}
 	}
@@ -243,7 +243,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 {
 	u64 start, end;
 	u32 hotpluggable;
-	int node, pxm;
+	int analde, pxm;
 
 	if (srat_disabled())
 		goto out_err;
@@ -263,26 +263,26 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	if (acpi_srat_revision <= 1)
 		pxm &= 0xff;
 
-	node = acpi_map_pxm_to_node(pxm);
-	if (node == NUMA_NO_NODE) {
+	analde = acpi_map_pxm_to_analde(pxm);
+	if (analde == NUMA_ANAL_ANALDE) {
 		pr_err("SRAT: Too many proximity domains.\n");
 		goto out_err_bad_srat;
 	}
 
-	if (numa_add_memblk(node, start, end) < 0) {
-		pr_err("SRAT: Failed to add memblk to node %u [mem %#010Lx-%#010Lx]\n",
-		       node, (unsigned long long) start,
+	if (numa_add_memblk(analde, start, end) < 0) {
+		pr_err("SRAT: Failed to add memblk to analde %u [mem %#010Lx-%#010Lx]\n",
+		       analde, (unsigned long long) start,
 		       (unsigned long long) end - 1);
 		goto out_err_bad_srat;
 	}
 
-	node_set(node, numa_nodes_parsed);
+	analde_set(analde, numa_analdes_parsed);
 
-	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
-		node, pxm,
+	pr_info("SRAT: Analde %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
+		analde, pxm,
 		(unsigned long long) start, (unsigned long long) end - 1,
 		hotpluggable ? " hotplug" : "",
-		ma->flags & ACPI_SRAT_MEM_NON_VOLATILE ? " non-volatile" : "");
+		ma->flags & ACPI_SRAT_MEM_ANALN_VOLATILE ? " analn-volatile" : "");
 
 	/* Mark hotplug range in memblock. */
 	if (hotpluggable && memblock_mark_hotplug(start, ma->length))
@@ -304,7 +304,7 @@ static int __init acpi_parse_cfmws(union acpi_subtable_headers *header,
 	struct acpi_cedt_cfmws *cfmws;
 	int *fake_pxm = arg;
 	u64 start, end;
-	int node;
+	int analde;
 
 	cfmws = (struct acpi_cedt_cfmws *)header;
 	start = cfmws->base_hpa;
@@ -319,20 +319,20 @@ static int __init acpi_parse_cfmws(union acpi_subtable_headers *header,
 	if (!numa_fill_memblks(start, end))
 		return 0;
 
-	/* No SRAT description. Create a new node. */
-	node = acpi_map_pxm_to_node(*fake_pxm);
+	/* Anal SRAT description. Create a new analde. */
+	analde = acpi_map_pxm_to_analde(*fake_pxm);
 
-	if (node == NUMA_NO_NODE) {
+	if (analde == NUMA_ANAL_ANALDE) {
 		pr_err("ACPI NUMA: Too many proximity domains while processing CFMWS.\n");
 		return -EINVAL;
 	}
 
-	if (numa_add_memblk(node, start, end) < 0) {
-		/* CXL driver must handle the NUMA_NO_NODE case */
-		pr_warn("ACPI NUMA: Failed to add memblk for CFMWS node %d [mem %#llx-%#llx]\n",
-			node, start, end);
+	if (numa_add_memblk(analde, start, end) < 0) {
+		/* CXL driver must handle the NUMA_ANAL_ANALDE case */
+		pr_warn("ACPI NUMA: Failed to add memblk for CFMWS analde %d [mem %#llx-%#llx]\n",
+			analde, start, end);
 	}
-	node_set(node, numa_nodes_parsed);
+	analde_set(analde, numa_analdes_parsed);
 
 	/* Set the next available fake_pxm value */
 	(*fake_pxm)++;
@@ -351,7 +351,7 @@ static int __init acpi_parse_slit(struct acpi_table_header *table)
 	struct acpi_table_slit *slit = (struct acpi_table_slit *)table;
 
 	if (!slit_valid(slit)) {
-		pr_info("SLIT table looks invalid. Not used.\n");
+		pr_info("SLIT table looks invalid. Analt used.\n");
 		return -EINVAL;
 	}
 	acpi_numa_slit_init(slit);
@@ -419,7 +419,7 @@ acpi_parse_gi_affinity(union acpi_subtable_headers *header,
 		       const unsigned long end)
 {
 	struct acpi_srat_generic_affinity *gi_affinity;
-	int node;
+	int analde;
 
 	gi_affinity = (struct acpi_srat_generic_affinity *)header;
 	if (!gi_affinity)
@@ -429,13 +429,13 @@ acpi_parse_gi_affinity(union acpi_subtable_headers *header,
 	if (!(gi_affinity->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED))
 		return -EINVAL;
 
-	node = acpi_map_pxm_to_node(gi_affinity->proximity_domain);
-	if (node == NUMA_NO_NODE) {
+	analde = acpi_map_pxm_to_analde(gi_affinity->proximity_domain);
+	if (analde == NUMA_ANAL_ANALDE) {
 		pr_err("SRAT: Too many proximity domains.\n");
 		return -EINVAL;
 	}
-	node_set(node, numa_nodes_parsed);
-	node_set_state(node, N_GENERIC_INITIATOR);
+	analde_set(analde, numa_analdes_parsed);
+	analde_set_state(analde, N_GENERIC_INITIATOR);
 
 	return 0;
 }
@@ -494,9 +494,9 @@ int __init acpi_numa_init(void)
 		return -EINVAL;
 
 	/*
-	 * Should not limit number with cpu num that is from NR_CPUS or nr_cpus=
+	 * Should analt limit number with cpu num that is from NR_CPUS or nr_cpus=
 	 * SRAT cpu entries could have different order with that in MADT.
-	 * So go over all cpu entries in SRAT to get apicid to node mapping.
+	 * So go over all cpu entries in SRAT to get apicid to analde mapping.
 	 */
 
 	/* SRAT: System Resource Affinity Table */
@@ -526,15 +526,15 @@ int __init acpi_numa_init(void)
 
 	/*
 	 * CXL Fixed Memory Window Structures (CFMWS) must be parsed
-	 * after the SRAT. Create NUMA Nodes for CXL memory ranges that
-	 * are defined in the CFMWS and not already defined in the SRAT.
+	 * after the SRAT. Create NUMA Analdes for CXL memory ranges that
+	 * are defined in the CFMWS and analt already defined in the SRAT.
 	 * Initialize a fake_pxm as the first available PXM to emulate.
 	 */
 
 	/* fake_pxm is the next unused PXM value after SRAT parsing */
-	for (i = 0, fake_pxm = -1; i < MAX_NUMNODES; i++) {
-		if (node_to_pxm_map[i] > fake_pxm)
-			fake_pxm = node_to_pxm_map[i];
+	for (i = 0, fake_pxm = -1; i < MAX_NUMANALDES; i++) {
+		if (analde_to_pxm_map[i] > fake_pxm)
+			fake_pxm = analde_to_pxm_map[i];
 	}
 	fake_pxm++;
 	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CFMWS, acpi_parse_cfmws,
@@ -543,7 +543,7 @@ int __init acpi_numa_init(void)
 	if (cnt < 0)
 		return cnt;
 	else if (!parsed_numa_memblks)
-		return -ENOENT;
+		return -EANALENT;
 	return 0;
 }
 
@@ -564,12 +564,12 @@ static int acpi_get_pxm(acpi_handle h)
 	return -1;
 }
 
-int acpi_get_node(acpi_handle handle)
+int acpi_get_analde(acpi_handle handle)
 {
 	int pxm;
 
 	pxm = acpi_get_pxm(handle);
 
-	return pxm_to_node(pxm);
+	return pxm_to_analde(pxm);
 }
-EXPORT_SYMBOL(acpi_get_node);
+EXPORT_SYMBOL(acpi_get_analde);

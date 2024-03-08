@@ -33,7 +33,7 @@
 #define DLN2_GPIO_PIN_SET_EVENT_CFG	DLN2_CMD(0x1E, DLN2_GPIO_ID)
 #define DLN2_GPIO_PIN_GET_EVENT_CFG	DLN2_CMD(0x1F, DLN2_GPIO_ID)
 
-#define DLN2_GPIO_EVENT_NONE		0
+#define DLN2_GPIO_EVENT_ANALNE		0
 #define DLN2_GPIO_EVENT_CHANGE		1
 #define DLN2_GPIO_EVENT_LVL_HIGH	2
 #define DLN2_GPIO_EVENT_LVL_LOW		3
@@ -53,7 +53,7 @@ struct dln2_gpio {
 	 */
 	DECLARE_BITMAP(output_enabled, DLN2_GPIO_MAX_PINS);
 
-	/* active IRQs - not synced to hardware */
+	/* active IRQs - analt synced to hardware */
 	DECLARE_BITMAP(unmasked_irqs, DLN2_GPIO_MAX_PINS);
 	/* active IRQS - synced to hardware */
 	DECLARE_BITMAP(enabled_irqs, DLN2_GPIO_MAX_PINS);
@@ -275,7 +275,7 @@ static int dln2_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 	__le32 duration;
 
 	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	duration = cpu_to_le32(pinconf_to_config_argument(config));
 	return dln2_transfer_tx(dln2->pdev, DLN2_GPIO_SET_DEBOUNCE,
@@ -373,7 +373,7 @@ static void dln2_irq_bus_unlock(struct irq_data *irqd)
 			type = dln2->irq_type[pin] & DLN2_GPIO_EVENT_MASK;
 			set_bit(pin, dln2->enabled_irqs);
 		} else {
-			type = DLN2_GPIO_EVENT_NONE;
+			type = DLN2_GPIO_EVENT_ANALNE;
 			clear_bit(pin, dln2->enabled_irqs);
 		}
 
@@ -433,7 +433,7 @@ static void dln2_gpio_event(struct platform_device *pdev, u16 echo,
 
 	ret = generic_handle_domain_irq(dln2->gpio.irq.domain, pin);
 	if (unlikely(ret))
-		dev_err(dln2->gpio.parent, "pin %d not mapped to IRQ\n", pin);
+		dev_err(dln2->gpio.parent, "pin %d analt mapped to IRQ\n", pin);
 }
 
 static int dln2_gpio_probe(struct platform_device *pdev)
@@ -456,7 +456,7 @@ static int dln2_gpio_probe(struct platform_device *pdev)
 
 	dln2 = devm_kzalloc(&pdev->dev, sizeof(*dln2), GFP_KERNEL);
 	if (!dln2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&dln2->irq_lock);
 
@@ -479,11 +479,11 @@ static int dln2_gpio_probe(struct platform_device *pdev)
 
 	girq = &dln2->gpio.irq;
 	gpio_irq_chip_set_chip(girq, &dln2_irqchip);
-	/* The event comes from the outside so no parent handler */
+	/* The event comes from the outside so anal parent handler */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_simple_irq;
 
 	platform_set_drvdata(pdev, dln2);

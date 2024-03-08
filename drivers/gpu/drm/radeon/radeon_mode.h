@@ -1,5 +1,5 @@
 /*
- * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
+ * Copyright 2000 ATI Techanallogies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
  * Copyright 2008 Red Hat Inc.
  *
@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -82,7 +82,7 @@ enum radeon_hpd_id {
 	RADEON_HPD_4,
 	RADEON_HPD_5,
 	RADEON_HPD_6,
-	RADEON_HPD_NONE = 0xff,
+	RADEON_HPD_ANALNE = 0xff,
 };
 
 enum radeon_output_csc {
@@ -97,7 +97,7 @@ enum radeon_output_csc {
 /* radeon gpio-based i2c
  * 1. "mask" reg and bits
  *    grabs the gpio pins for software use
- *    0=not held  1=held
+ *    0=analt held  1=held
  * 2. "a" reg and bits
  *    output pin value
  *    0=low 1=high
@@ -146,7 +146,7 @@ struct radeon_tmds_pll {
 
 /* pll flags */
 #define RADEON_PLL_USE_BIOS_DIVS        (1 << 0)
-#define RADEON_PLL_NO_ODD_POST_DIV      (1 << 1)
+#define RADEON_PLL_ANAL_ODD_POST_DIV      (1 << 1)
 #define RADEON_PLL_USE_REF_DIV          (1 << 2)
 #define RADEON_PLL_LEGACY               (1 << 3)
 #define RADEON_PLL_PREFER_LOW_REF_DIV   (1 << 4)
@@ -207,7 +207,7 @@ struct radeon_i2c_chan {
 
 /* mostly for macs, but really any system without connector tables */
 enum radeon_connector_table {
-	CT_NONE = 0,
+	CT_ANALNE = 0,
 	CT_GENERIC,
 	CT_IBOOK,
 	CT_POWERBOOK_EXTERNAL,
@@ -310,7 +310,7 @@ struct radeon_atom_ss {
 };
 
 enum radeon_flip_status {
-	RADEON_FLIP_NONE,
+	RADEON_FLIP_ANALNE,
 	RADEON_FLIP_PENDING,
 	RADEON_FLIP_SUBMITTED
 };
@@ -646,10 +646,10 @@ struct atom_voltage_table
 	struct atom_voltage_table_entry entries[MAX_VOLTAGE_ENTRIES];
 };
 
-/* Driver internal use only flags of radeon_get_crtc_scanoutpos() */
-#define DRM_SCANOUTPOS_VALID        (1 << 0)
-#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
-#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
+/* Driver internal use only flags of radeon_get_crtc_scaanalutpos() */
+#define DRM_SCAANALUTPOS_VALID        (1 << 0)
+#define DRM_SCAANALUTPOS_IN_VBLANK    (1 << 1)
+#define DRM_SCAANALUTPOS_ACCURATE     (1 << 2)
 #define USE_REAL_VBLANKSTART 		(1 << 30)
 #define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
@@ -836,13 +836,13 @@ extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
 extern void radeon_cursor_reset(struct drm_crtc *crtc);
 
-extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+extern int radeon_get_crtc_scaanalutpos(struct drm_device *dev, unsigned int pipe,
 				      unsigned int flags, int *vpos, int *hpos,
 				      ktime_t *stime, ktime_t *etime,
 				      const struct drm_display_mode *mode);
 
 extern bool
-radeon_get_crtc_scanout_position(struct drm_crtc *crtc, bool in_vblank_irq,
+radeon_get_crtc_scaanalut_position(struct drm_crtc *crtc, bool in_vblank_irq,
 				 int *vpos, int *hpos,
 				 ktime_t *stime, ktime_t *etime,
 				 const struct drm_display_mode *mode);

@@ -1,5 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0+
-.. note: can be edited and viewed with /usr/bin/formiko-vim
+.. analte: can be edited and viewed with /usr/bin/formiko-vim
 
 ==========================================================
 PCI vDPA driver for the AMD/Pensando(R) DSC adapter family

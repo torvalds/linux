@@ -44,7 +44,7 @@ static int parse_hacks(const struct option *opt, const char *str, int unset)
 	 * Use strstr() as a lazy method of checking for comma-separated
 	 * options.
 	 *
-	 * No string provided == enable all options.
+	 * Anal string provided == enable all options.
 	 */
 
 	if (!str || strstr(str, "jump_label")) {
@@ -52,8 +52,8 @@ static int parse_hacks(const struct option *opt, const char *str, int unset)
 		found = true;
 	}
 
-	if (!str || strstr(str, "noinstr")) {
-		opts.hack_noinstr = true;
+	if (!str || strstr(str, "analinstr")) {
+		opts.hack_analinstr = true;
 		found = true;
 	}
 
@@ -67,20 +67,20 @@ static int parse_hacks(const struct option *opt, const char *str, int unset)
 
 static const struct option check_options[] = {
 	OPT_GROUP("Actions:"),
-	OPT_CALLBACK_OPTARG('h', "hacks", NULL, NULL, "jump_label,noinstr,skylake", "patch toolchain bugs/limitations", parse_hacks),
-	OPT_BOOLEAN('i', "ibt", &opts.ibt, "validate and annotate IBT"),
-	OPT_BOOLEAN('m', "mcount", &opts.mcount, "annotate mcount/fentry calls for ftrace"),
-	OPT_BOOLEAN('n', "noinstr", &opts.noinstr, "validate noinstr rules"),
+	OPT_CALLBACK_OPTARG('h', "hacks", NULL, NULL, "jump_label,analinstr,skylake", "patch toolchain bugs/limitations", parse_hacks),
+	OPT_BOOLEAN('i', "ibt", &opts.ibt, "validate and ananaltate IBT"),
+	OPT_BOOLEAN('m', "mcount", &opts.mcount, "ananaltate mcount/fentry calls for ftrace"),
+	OPT_BOOLEAN('n', "analinstr", &opts.analinstr, "validate analinstr rules"),
 	OPT_BOOLEAN('o', "orc", &opts.orc, "generate ORC metadata"),
-	OPT_BOOLEAN('r', "retpoline", &opts.retpoline, "validate and annotate retpoline usage"),
-	OPT_BOOLEAN(0,   "rethunk", &opts.rethunk, "validate and annotate rethunk usage"),
+	OPT_BOOLEAN('r', "retpoline", &opts.retpoline, "validate and ananaltate retpoline usage"),
+	OPT_BOOLEAN(0,   "rethunk", &opts.rethunk, "validate and ananaltate rethunk usage"),
 	OPT_BOOLEAN(0,   "unret", &opts.unret, "validate entry unret placement"),
 	OPT_INTEGER(0,   "prefix", &opts.prefix, "generate prefix symbols"),
 	OPT_BOOLEAN('l', "sls", &opts.sls, "validate straight-line-speculation mitigations"),
 	OPT_BOOLEAN('s', "stackval", &opts.stackval, "validate frame pointer rules"),
-	OPT_BOOLEAN('t', "static-call", &opts.static_call, "annotate static calls"),
+	OPT_BOOLEAN('t', "static-call", &opts.static_call, "ananaltate static calls"),
 	OPT_BOOLEAN('u', "uaccess", &opts.uaccess, "validate uaccess rules for SMAP"),
-	OPT_BOOLEAN(0  , "cfi", &opts.cfi, "annotate kernel control flow integrity (kCFI) function preambles"),
+	OPT_BOOLEAN(0  , "cfi", &opts.cfi, "ananaltate kernel control flow integrity (kCFI) function preambles"),
 	OPT_CALLBACK_OPTARG(0, "dump", NULL, NULL, "orc", "dump metadata", parse_dump),
 
 	OPT_GROUP("Options:"),
@@ -89,8 +89,8 @@ static const struct option check_options[] = {
 	OPT_BOOLEAN(0, "dry-run", &opts.dryrun, "don't write modifications"),
 	OPT_BOOLEAN(0, "link", &opts.link, "object is a linked object"),
 	OPT_BOOLEAN(0, "module", &opts.module, "object is part of a kernel module"),
-	OPT_BOOLEAN(0, "mnop", &opts.mnop, "nop out mcount call sites"),
-	OPT_BOOLEAN(0, "no-unreachable", &opts.no_unreachable, "skip 'unreachable instruction' warnings"),
+	OPT_BOOLEAN(0, "manalp", &opts.manalp, "analp out mcount call sites"),
+	OPT_BOOLEAN(0, "anal-unreachable", &opts.anal_unreachable, "skip 'unreachable instruction' warnings"),
 	OPT_BOOLEAN(0, "sec-address", &opts.sec_address, "print section addresses in warnings"),
 	OPT_BOOLEAN(0, "stats", &opts.stats, "print statistics"),
 	OPT_BOOLEAN('v', "verbose", &opts.verbose, "verbose warnings"),
@@ -132,10 +132,10 @@ int cmd_parse_options(int argc, const char **argv, const char * const usage[])
 static bool opts_valid(void)
 {
 	if (opts.hack_jump_label	||
-	    opts.hack_noinstr		||
+	    opts.hack_analinstr		||
 	    opts.ibt			||
 	    opts.mcount			||
-	    opts.noinstr		||
+	    opts.analinstr		||
 	    opts.orc			||
 	    opts.retpoline		||
 	    opts.rethunk		||
@@ -163,10 +163,10 @@ static bool opts_valid(void)
 	return false;
 }
 
-static bool mnop_opts_valid(void)
+static bool manalp_opts_valid(void)
 {
-	if (opts.mnop && !opts.mcount) {
-		ERROR("--mnop requires --mcount");
+	if (opts.manalp && !opts.mcount) {
+		ERROR("--manalp requires --mcount");
 		return false;
 	}
 
@@ -184,8 +184,8 @@ static bool link_opts_valid(struct objtool_file *file)
 		return true;
 	}
 
-	if (opts.noinstr) {
-		ERROR("--noinstr requires --link");
+	if (opts.analinstr) {
+		ERROR("--analinstr requires --link");
 		return false;
 	}
 
@@ -221,7 +221,7 @@ int objtool_run(int argc, const char **argv)
 	if (!file)
 		return 1;
 
-	if (!mnop_opts_valid())
+	if (!manalp_opts_valid())
 		return 1;
 
 	if (!link_opts_valid(file))

@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
@@ -45,7 +45,7 @@ static int nullfd = -1;		/* File descriptor for /dev/null */
 static bool with_x32;		/* x32 supported on this kernel? */
 
 enum ptrace_pass {
-	PTP_NOTHING,
+	PTP_ANALTHING,
 	PTP_GETREGS,
 	PTP_WRITEBACK,
 	PTP_FUZZRET,
@@ -56,7 +56,7 @@ enum ptrace_pass {
 
 static const char * const ptrace_pass_name[] =
 {
-	[PTP_NOTHING]	= "just stop, no data read",
+	[PTP_ANALTHING]	= "just stop, anal data read",
 	[PTP_GETREGS]	= "only getregs",
 	[PTP_WRITEBACK]	= "getregs, unmodified setregs",
 	[PTP_FUZZRET]	= "modifying the default return",
@@ -213,15 +213,15 @@ static bool check_zero(int msb, int nr)
 	return check_for(msb, nr, nr, 0);
 }
 
-static bool check_enosys(int msb, int nr)
+static bool check_eanalsys(int msb, int nr)
 {
-	return check_for(msb, nr, nr, -ENOSYS);
+	return check_for(msb, nr, nr, -EANALSYS);
 }
 
 /*
- * Anyone diagnosing a failure will want to know whether the kernel
+ * Anyone diaganalsing a failure will want to kanalw whether the kernel
  * supports x32. Tell them. This can also be used to conditionalize
- * tests based on existence or nonexistence of x32.
+ * tests based on existence or analnexistence of x32.
  */
 static bool test_x32(void)
 {
@@ -235,11 +235,11 @@ static bool test_x32(void)
 	if (ret == mypid) {
 		info("x32 is supported\n");
 		with_x32 = true;
-	} else if (ret == -ENOSYS) {
-		info("x32 is not supported\n");
+	} else if (ret == -EANALSYS) {
+		info("x32 is analt supported\n");
 		with_x32 = false;
 	} else {
-		fail("x32 getpid() returned %lld, but it should have returned either %lld or -ENOSYS\n", ret, (long long)mypid);
+		fail("x32 getpid() returned %lld, but it should have returned either %lld or -EANALSYS\n", ret, (long long)mypid);
 		with_x32 = false;
 	}
 	sh->indent--;
@@ -259,14 +259,14 @@ static void test_syscalls_common(int msb)
 	check_zero(msb, X64_WRITEV);
 
 	run("Checking out of range system calls\n");
-	check_for(msb, -64, -2, -ENOSYS);
+	check_for(msb, -64, -2, -EANALSYS);
 	if (pass >= PTP_FUZZRET)
 		check_for(msb, -1, -1, MODIFIED_BY_PTRACE);
 	else
-		check_for(msb, -1, -1, -ENOSYS);
-	check_for(msb, X32_BIT-64, X32_BIT-1, -ENOSYS);
-	check_for(msb, -64-X32_BIT, -1-X32_BIT, -ENOSYS);
-	check_for(msb, INT_MAX-64, INT_MAX-1, -ENOSYS);
+		check_for(msb, -1, -1, -EANALSYS);
+	check_for(msb, X32_BIT-64, X32_BIT-1, -EANALSYS);
+	check_for(msb, -64-X32_BIT, -1-X32_BIT, -EANALSYS);
+	check_for(msb, INT_MAX-64, INT_MAX-1, -EANALSYS);
 }
 
 static void test_syscalls_with_x32(int msb)
@@ -275,10 +275,10 @@ static void test_syscalls_with_x32(int msb)
 	 * Syscalls 512-547 are "x32" syscalls.  They are
 	 * intended to be called with the x32 (0x40000000) bit
 	 * set.  Calling them without the x32 bit set is
-	 * nonsense and should not work.
+	 * analnsense and should analt work.
 	 */
 	run("Checking x32 syscalls as 64 bit\n");
-	check_for(msb, 512, 547, -ENOSYS);
+	check_for(msb, 512, 547, -EANALSYS);
 
 	run("Checking some common syscalls as x32\n");
 	check_zero(msb, SYS_READ   | X32_BIT);
@@ -289,15 +289,15 @@ static void test_syscalls_with_x32(int msb)
 	check_zero(msb, X32_WRITEV | X32_BIT);
 
 	run("Checking some 64-bit syscalls as x32\n");
-	check_enosys(msb, X64_IOCTL  | X32_BIT);
-	check_enosys(msb, X64_READV  | X32_BIT);
-	check_enosys(msb, X64_WRITEV | X32_BIT);
+	check_eanalsys(msb, X64_IOCTL  | X32_BIT);
+	check_eanalsys(msb, X64_READV  | X32_BIT);
+	check_eanalsys(msb, X64_WRITEV | X32_BIT);
 }
 
 static void test_syscalls_without_x32(int msb)
 {
 	run("Checking for absence of x32 system calls\n");
-	check_for(msb, 0 | X32_BIT, 999 | X32_BIT, -ENOSYS);
+	check_for(msb, 0 | X32_BIT, 999 | X32_BIT, -EANALSYS);
 }
 
 static void test_syscall_numbering(void)
@@ -310,7 +310,7 @@ static void test_syscall_numbering(void)
 	sh->indent++;
 
 	/*
-	 * The MSB is supposed to be ignored, so we loop over a few
+	 * The MSB is supposed to be iganalred, so we loop over a few
 	 * to test that out.
 	 */
 	for (size_t i = 0; i < sizeof(msbs)/sizeof(msbs[0]); i++) {
@@ -342,7 +342,7 @@ static void syscall_numbering_tracee(void)
 	}
 	raise(SIGSTOP);
 
-	for (sh->ptrace_pass = pass = PTP_NOTHING; pass < PTP_DONE;
+	for (sh->ptrace_pass = pass = PTP_ANALTHING; pass < PTP_DONE;
 	     sh->ptrace_pass = ++pass) {
 		run("Running tests under ptrace: %s\n", ptrace_pass_name[pass]);
 		test_syscall_numbering();
@@ -356,7 +356,7 @@ static void mess_with_syscall(pid_t testpid, enum ptrace_pass pass)
 	sh->probing_syscall = false; /* Do this on entry only */
 
 	/* For these, don't even getregs */
-	if (pass == PTP_NOTHING || pass == PTP_DONE)
+	if (pass == PTP_ANALTHING || pass == PTP_DONE)
 		return;
 
 	ptrace(PTRACE_GETREGS, testpid, NULL, &regs);
@@ -369,7 +369,7 @@ static void mess_with_syscall(pid_t testpid, enum ptrace_pass pass)
 
 	switch (pass) {
 	case PTP_GETREGS:
-		/* Just read, no writeback */
+		/* Just read, anal writeback */
 		return;
 	case PTP_WRITEBACK:
 		/* Write back the same register state verbatim */
@@ -399,7 +399,7 @@ static void syscall_numbering_tracer(pid_t testpid)
 
 	do {
 		pid_t wpid = waitpid(testpid, &wstatus, 0);
-		if (wpid < 0 && errno != EINTR)
+		if (wpid < 0 && erranal != EINTR)
 			break;
 		if (wpid != testpid)
 			continue;
@@ -441,7 +441,7 @@ int main(void)
 
 	/*
 	 * It is quite likely to get a segfault on a failure, so make
-	 * sure the message gets out by setting stdout to nonbuffered.
+	 * sure the message gets out by setting stdout to analnbuffered.
 	 */
 	setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -450,17 +450,17 @@ int main(void)
 	 */
 	nullfd = open("/dev/null", O_RDWR);
 	if (nullfd < 0) {
-		crit("Unable to open /dev/null: %s\n", strerror(errno));
+		crit("Unable to open /dev/null: %s\n", strerror(erranal));
 	}
 
 	/*
 	 * Set up a block of shared memory...
 	 */
 	sh = mmap(NULL, sysconf(_SC_PAGE_SIZE), PROT_READ|PROT_WRITE,
-		  MAP_ANONYMOUS|MAP_SHARED, 0, 0);
+		  MAP_AANALNYMOUS|MAP_SHARED, 0, 0);
 	if (sh == MAP_FAILED) {
 		crit("Unable to allocated shared memory block: %s\n",
-		     strerror(errno));
+		     strerror(erranal));
 	}
 
 	with_x32 = test_x32();

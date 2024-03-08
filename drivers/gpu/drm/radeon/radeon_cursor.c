@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -177,7 +177,7 @@ static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y)
 		 * avivo cursor image can't end on 128 pixel boundary or
 		 * go past the end of the frame if both crtcs are enabled
 		 *
-		 * NOTE: It is safe to access crtc->enabled of other crtcs
+		 * ANALTE: It is safe to access crtc->enabled of other crtcs
 		 * without holding either the mode_config lock or the other
 		 * crtc's lock as long as write access to this flag _always_
 		 * grabs all locks.
@@ -302,8 +302,8 @@ int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
 
 	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
-		DRM_ERROR("Cannot find cursor object %x for crtc %d\n", handle, radeon_crtc->crtc_id);
-		return -ENOENT;
+		DRM_ERROR("Cananalt find cursor object %x for crtc %d\n", handle, radeon_crtc->crtc_id);
+		return -EANALENT;
 	}
 
 	robj = gem_to_radeon_bo(obj);

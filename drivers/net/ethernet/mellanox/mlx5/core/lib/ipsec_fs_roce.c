@@ -94,7 +94,7 @@ static int ipsec_fs_create_aliased_ft(struct mlx5_core_dev *ibv_owner,
 	int i;
 
 	if (!ipsec_fs_create_alias_supported(ibv_owner, ibv_allowed))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < ACCESS_KEY_LEN; i++)
 		if (!from_event)
@@ -141,7 +141,7 @@ ipsec_fs_roce_rx_rule_setup(struct mlx5_core_dev *mdev,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipsec_fs_roce_setup_udp_dport(spec, ROCE_V2_UDP_DPORT);
 
@@ -240,7 +240,7 @@ static int ipsec_fs_roce_tx_mpv_rule_setup(struct mlx5_core_dev *mdev,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS;
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, misc_parameters.source_vhca_port);
@@ -259,7 +259,7 @@ static int ipsec_fs_roce_tx_mpv_rule_setup(struct mlx5_core_dev *mdev,
 	}
 	roce->rule = rule;
 
-	/* No need for miss rule, since on miss we go to next PRIO, in which
+	/* Anal need for miss rule, since on miss we go to next PRIO, in which
 	 * if master is configured, he will catch the traffic to go to his
 	 * encryption table.
 	 */
@@ -287,11 +287,11 @@ static int ipsec_fs_roce_tx_mpv_create_ft(struct mlx5_core_dev *mdev,
 
 	roce_ns = mlx5_get_flow_namespace(peer_priv->mdev, MLX5_FLOW_NAMESPACE_RDMA_TX_IPSEC);
 	if (!roce_ns)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	nic_ns = mlx5_get_flow_namespace(peer_priv->mdev, MLX5_FLOW_NAMESPACE_EGRESS_IPSEC);
 	if (!nic_ns)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = ipsec_fs_create_aliased_ft(mdev, peer_priv->mdev, pol_ft, &roce->alias_id, roce->key,
 					 from_event);
@@ -383,11 +383,11 @@ static int ipsec_fs_roce_tx_mpv_create(struct mlx5_core_dev *mdev,
 	int err;
 
 	if (!mlx5_devcom_for_each_peer_begin(*ipsec_roce->devcom))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	peer_priv = mlx5_devcom_get_next_peer_data(*ipsec_roce->devcom, &tmp);
 	if (!peer_priv) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto release_peer;
 	}
 
@@ -452,29 +452,29 @@ static int ipsec_fs_roce_rx_mpv_create(struct mlx5_core_dev *mdev,
 				     &ipsec_roce->ipv6_rx;
 
 	if (!mlx5_devcom_for_each_peer_begin(*ipsec_roce->devcom))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	peer_priv = mlx5_devcom_get_next_peer_data(*ipsec_roce->devcom, &tmp);
 	if (!peer_priv) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto release_peer;
 	}
 
 	roce_ns = mlx5_get_flow_namespace(peer_priv->mdev, MLX5_FLOW_NAMESPACE_RDMA_RX_IPSEC);
 	if (!roce_ns) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto release_peer;
 	}
 
 	nic_ns = mlx5_get_flow_namespace(peer_priv->mdev, MLX5_FLOW_NAMESPACE_KERNEL);
 	if (!nic_ns) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto release_peer;
 	}
 
 	in = kvzalloc(MLX5_ST_SZ_BYTES(create_flow_group_in), GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release_peer;
 	}
 
@@ -611,7 +611,7 @@ int mlx5_ipsec_fs_roce_tx_create(struct mlx5_core_dev *mdev,
 
 	in = kvzalloc(MLX5_ST_SZ_BYTES(create_flow_group_in), GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mlx5_core_is_mp_slave(mdev)) {
 		err = ipsec_fs_roce_tx_mpv_create(mdev, ipsec_roce, pol_ft, in, from_event);
@@ -736,8 +736,8 @@ int mlx5_ipsec_fs_roce_rx_create(struct mlx5_core_dev *mdev,
 
 	in = kvzalloc(MLX5_ST_SZ_BYTES(create_flow_group_in), GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
-		goto fail_nomem;
+		err = -EANALMEM;
+		goto fail_analmem;
 	}
 
 	mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
@@ -811,7 +811,7 @@ fail_mgroup:
 	mlx5_destroy_flow_group(roce->g);
 fail_group:
 	kvfree(in);
-fail_nomem:
+fail_analmem:
 	mlx5_destroy_flow_table(roce->ft);
 	return err;
 }

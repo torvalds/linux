@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011 bct electronic GmbH
- * Copyright 2013 Qtechnology/AS
+ * Copyright 2013 Qtechanallogy/AS
  *
  * Author: Peter Meerwald <p.meerwald@bct-electronic.com>
  * Author: Ricardo Ribalda <ribalda@kernel.org>
@@ -11,7 +11,7 @@
  * LED driver for the PCA9633 I2C LED driver (7-bit slave address 0x62)
  * LED driver for the PCA9634/5 I2C LED driver (7-bit slave address set by hw.)
  *
- * Note that hardware blinking violates the leds infrastructure driver
+ * Analte that hardware blinking violates the leds infrastructure driver
  * interface since the hardware only supports blinking all LEDs with the
  * same delay_on/delay_off rates.  That is, only the LEDs that are set to
  * blink will actually blink but all LEDs that are set to blink will blink
@@ -40,7 +40,7 @@
 #define PCA963X_LED_GRP_PWM	0x3	/* Controlled through PWM/GRPPWM */
 
 #define PCA963X_MODE2_OUTDRV	0x04	/* Open-drain or totem pole */
-#define PCA963X_MODE2_INVRT	0x10	/* Normal or inverted direction */
+#define PCA963X_MODE2_INVRT	0x10	/* Analrmal or inverted direction */
 #define PCA963X_MODE2_DMBLNK	0x20	/* Enable blinking */
 
 #define PCA963X_MODE1		0x00
@@ -264,7 +264,7 @@ static int pca963x_blink_set(struct led_classdev *led_cdev,
 
 	period = pca963x_period_scale(led, time_on + time_off);
 
-	/* If period not supported by hardware, default to someting sane. */
+	/* If period analt supported by hardware, default to someting sane. */
 	if ((period < PCA963X_BLINK_PERIOD_MIN) ||
 	    (period > PCA963X_BLINK_PERIOD_MAX)) {
 		time_on = 500;
@@ -305,7 +305,7 @@ static int pca963x_register_leds(struct i2c_client *client,
 	struct pca963x_chipdef *chipdef = chip->chipdef;
 	struct pca963x_led *led = chip->leds;
 	struct device *dev = &client->dev;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	bool hw_blink;
 	s32 mode2;
 	u32 reg;
@@ -327,7 +327,7 @@ static int pca963x_register_leds(struct i2c_client *client,
 	else
 		mode2 &= ~PCA963X_MODE2_OUTDRV;
 
-	/* default to non-inverted output, unless inverted is specified */
+	/* default to analn-inverted output, unless inverted is specified */
 	if (device_property_read_bool(dev, "nxp,inverted-out"))
 		mode2 |= PCA963X_MODE2_INVRT;
 	else
@@ -337,13 +337,13 @@ static int pca963x_register_leds(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		struct led_init_data init_data = {};
 		char default_label[32];
 
-		ret = fwnode_property_read_u32(child, "reg", &reg);
+		ret = fwanalde_property_read_u32(child, "reg", &reg);
 		if (ret || reg >= chipdef->n_leds) {
-			dev_err(dev, "Invalid 'reg' property for node %pfw\n",
+			dev_err(dev, "Invalid 'reg' property for analde %pfw\n",
 				child);
 			ret = -EINVAL;
 			goto err;
@@ -356,7 +356,7 @@ static int pca963x_register_leds(struct i2c_client *client,
 			led->led_cdev.blink_set = pca963x_blink_set;
 		led->blinking = false;
 
-		init_data.fwnode = child;
+		init_data.fwanalde = child;
 		/* for backwards compatibility */
 		init_data.devicename = "pca963x";
 		snprintf(default_label, sizeof(default_label), "%d:%.2x:%u",
@@ -366,7 +366,7 @@ static int pca963x_register_leds(struct i2c_client *client,
 		ret = devm_led_classdev_register_ext(dev, &led->led_cdev,
 						     &init_data);
 		if (ret) {
-			dev_err(dev, "Failed to register LED for node %pfw\n",
+			dev_err(dev, "Failed to register LED for analde %pfw\n",
 				child);
 			goto err;
 		}
@@ -376,7 +376,7 @@ static int pca963x_register_leds(struct i2c_client *client,
 
 	return 0;
 err:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	return ret;
 }
 
@@ -399,16 +399,16 @@ static int pca963x_probe(struct i2c_client *client)
 
 	chipdef = &pca963x_chipdefs[id->driver_data];
 
-	count = device_get_child_node_count(dev);
+	count = device_get_child_analde_count(dev);
 	if (!count || count > chipdef->n_leds) {
-		dev_err(dev, "Node %pfw must define between 1 and %d LEDs\n",
-			dev_fwnode(dev), chipdef->n_leds);
+		dev_err(dev, "Analde %pfw must define between 1 and %d LEDs\n",
+			dev_fwanalde(dev), chipdef->n_leds);
 		return -EINVAL;
 	}
 
 	chip = devm_kzalloc(dev, struct_size(chip, leds, count), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, chip);
 

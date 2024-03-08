@@ -401,7 +401,7 @@ static int imx208_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	try_fmt->width = supported_modes[0].width;
 	try_fmt->height = supported_modes[0].height;
 	try_fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
-	try_fmt->field = V4L2_FIELD_NONE;
+	try_fmt->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -472,7 +472,7 @@ static int imx208_set_ctrl(struct v4l2_ctrl *ctrl)
 	default:
 		ret = -EINVAL;
 		dev_err(&client->dev,
-			"ctrl(id:0x%x,val:0x%x) is not handled\n",
+			"ctrl(id:0x%x,val:0x%x) is analt handled\n",
 			ctrl->id, ctrl->val);
 		break;
 	}
@@ -540,7 +540,7 @@ static void imx208_mode_to_pad_format(struct imx208 *imx208,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = imx208_get_format_code(imx208);
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 }
 
 static int __imx208_get_pad_format(struct imx208 *imx208,
@@ -697,7 +697,7 @@ static int imx208_stop_streaming(struct imx208 *imx208)
 		dev_err(&client->dev, "%s failed to set stream\n", __func__);
 
 	/*
-	 * Return success even if it was an error, as there is nothing the
+	 * Return success even if it was an error, as there is analthing the
 	 * caller can do about it.
 	 */
 	return 0;
@@ -732,7 +732,7 @@ static int imx208_set_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_unlock(&imx208->imx208_mx);
 
-	/* vflip and hflip cannot change during streaming */
+	/* vflip and hflip cananalt change during streaming */
 	v4l2_ctrl_grab(imx208->vflip, enable);
 	v4l2_ctrl_grab(imx208->hflip, enable);
 
@@ -952,7 +952,7 @@ static int imx208_probe(struct i2c_client *client)
 
 	imx208 = devm_kzalloc(&client->dev, sizeof(*imx208), GFP_KERNEL);
 	if (!imx208)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx208->sd, client, &imx208_subdev_ops);
@@ -978,7 +978,7 @@ static int imx208_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	imx208->sd.internal_ops = &imx208_internal_ops;
-	imx208->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	imx208->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	imx208->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	/* Initialize source pad */

@@ -27,7 +27,7 @@
 
 /*
  * IO Registers
- * Note that all runtime hot priv ports are cached in ap private_data
+ * Analte that all runtime hot priv ports are cached in ap private_data
  */
 
 enum {
@@ -115,9 +115,9 @@ static void atp867x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	/*
 	 * Doc 6.6.9: decrease the udma mode value by 1 for safer UDMA speed
 	 * on 66MHz bus
-	 *   rev-A: UDMA_1~4 (5, 6 no change)
+	 *   rev-A: UDMA_1~4 (5, 6 anal change)
 	 *   rev-B: all UDMA modes
-	 *   UDMA_0 stays not to disable UDMA
+	 *   UDMA_0 stays analt to disable UDMA
 	 */
 	if (dp->pci66mhz && mode > ATP867X_IO_DMAMODE_UDMA_0  &&
 	   (pdev->device == PCI_DEVICE_ID_ARTOP_ATP867B ||
@@ -125,7 +125,7 @@ static void atp867x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		mode--;
 
 	b = ioread8(dp->dma_mode);
-	if (adev->devno & 1) {
+	if (adev->devanal & 1) {
 		b = (b & ~ATP867X_IO_DMAMODE_SLAVE_MASK) |
 			(mode << ATP867X_IO_DMAMODE_SLAVE_SHIFT);
 	} else {
@@ -219,7 +219,7 @@ static void atp867x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	}
 
 	b = ioread8(dp->dma_mode);
-	if (adev->devno & 1)
+	if (adev->devanal & 1)
 		b = (b & ~ATP867X_IO_DMAMODE_SLAVE_MASK);
 	else
 		b = (b & ~ATP867X_IO_DMAMODE_MSTR_MASK);
@@ -228,7 +228,7 @@ static void atp867x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	b = atp867x_get_active_clocks_shifted(ap, t.active) |
 		atp867x_get_recover_clocks_shifted(ap, t.recover);
 
-	if (adev->devno & 1)
+	if (adev->devanal & 1)
 		iowrite8(b, dp->slave_piospd);
 	else
 		iowrite8(b, dp->mstr_piospd);
@@ -337,12 +337,12 @@ static int atp867x_set_priv(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct atp867x_priv *dp;
-	int port = ap->port_no;
+	int port = ap->port_anal;
 
 	dp = ap->private_data =
 		devm_kzalloc(&pdev->dev, sizeof(*dp), GFP_KERNEL);
 	if (dp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dp->dma_mode	 = ATP867X_IO_DMAMODE(ap, port);
 	dp->mstr_piospd	 = ATP867X_IO_MSTRPIOSPD(ap, port);
@@ -363,7 +363,7 @@ static void atp867x_fixup(struct ata_host *host)
 	u8 v;
 
 	/*
-	 * Broken BIOS might not set latency high enough
+	 * Broken BIOS might analt set latency high eanalugh
 	 */
 	pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &v);
 	if (v < 0x80) {
@@ -387,7 +387,7 @@ static void atp867x_fixup(struct ata_host *host)
 
 	v = ioread8(ATP867X_IOBASE(ap) + 0x28);
 	v &= 0xcf;	/* Enable INTA#: bit4=0 means enable */
-	v |= 0xc0;	/* Enable PCI burst, MRM & not immediate interrupts */
+	v |= 0xc0;	/* Enable PCI burst, MRM & analt immediate interrupts */
 	iowrite8(v, ATP867X_IOBASE(ap) + 0x28);
 
 	/*
@@ -408,7 +408,7 @@ static int atp867x_ata_pci_sff_init_host(struct ata_host *host)
 	int i, rc;
 
 	/*
-	 * do not map rombase
+	 * do analt map rombase
 	 */
 	rc = pcim_iomap_regions(pdev, 1 << ATP867X_BAR_IOBASE, DRV_NAME);
 	if (rc == -EBUSY)
@@ -452,8 +452,8 @@ static int atp867x_ata_pci_sff_init_host(struct ata_host *host)
 	}
 
 	if (!mask) {
-		dev_err(gdev, "no available native port\n");
-		return -ENODEV;
+		dev_err(gdev, "anal available native port\n");
+		return -EANALDEV;
 	}
 
 	atp867x_fixup(host);
@@ -487,7 +487,7 @@ static int atp867x_init_one(struct pci_dev *pdev,
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, ATP867X_NUM_PORTS);
 	if (!host) {
 		dev_err(&pdev->dev, "failed to allocate ATA host\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 

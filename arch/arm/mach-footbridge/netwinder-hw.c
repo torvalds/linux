@@ -146,7 +146,7 @@ static inline void wb977_init_global(void)
 	wb977_wb(0x26, 0x40);
 
 	/*
-	 * Power down FDC (not used)
+	 * Power down FDC (analt used)
 	 */
 	wb977_wb(0x22, 0xfe);
 
@@ -306,7 +306,7 @@ static inline void wb977_init_gpio(void)
 	wb977_wb(0xf2, 0x00);
 
 	/*
-	 *  - disable LED, no mouse nor keyboard IRQ
+	 *  - disable LED, anal mouse analr keyboard IRQ
 	 */
 	wb977_wb(0xf3, 0x00);
 
@@ -449,9 +449,9 @@ static inline void rwa010_read_ident(void)
 
 static inline void rwa010_global_init(void)
 {
-	WRITE_RWA(6, 2);	// Assign a card no = 2
+	WRITE_RWA(6, 2);	// Assign a card anal = 2
 
-	dprintk("Card no = %d\n", inb(0x203));
+	dprintk("Card anal = %d\n", inb(0x203));
 
 	/* disable the modem section of the chip */
 	WRITE_RWA(7, 3);
@@ -560,7 +560,7 @@ static void rwa010_soundblaster_reset(void)
 	}
 
 	if (i == 5)
-		printk("SoundBlaster: DSP not ready\n");
+		printk("SoundBlaster: DSP analt ready\n");
 	else {
 		outb(0xe1, 0x22c);
 
@@ -577,7 +577,7 @@ static void rwa010_soundblaster_reset(void)
 		}
 
 		if (i == 5)
-			printk("SoundBlaster: could not turn speaker off\n");
+			printk("SoundBlaster: could analt turn speaker off\n");
 
 		outb(0xd3, 0x22c);
 	}
@@ -616,7 +616,7 @@ static int __init nw_hw_init(void)
 __initcall(nw_hw_init);
 
 /*
- * Older NeTTroms either do not provide a parameters
+ * Older NeTTroms either do analt provide a parameters
  * page, or they don't supply correct information in
  * the parameter page.
  */
@@ -627,9 +627,9 @@ fixup_netwinder(struct tag *tags, char **cmdline)
 	extern int isapnp_disable;
 
 	/*
-	 * We must not use the kernels ISAPnP code
+	 * We must analt use the kernels ISAPnP code
 	 * on the NetWinder - it will reset the settings
-	 * for the WaveArtist chip and render it inoperable.
+	 * for the WaveArtist chip and render it ianalperable.
 	 */
 	isapnp_disable = 1;
 #endif
@@ -722,7 +722,7 @@ static int __init netwinder_leds_init(void)
 	int i;
 
 	if (!machine_is_netwinder())
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < ARRAY_SIZE(netwinder_leds); i++) {
 		struct netwinder_led *led;

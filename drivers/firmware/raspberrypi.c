@@ -43,7 +43,7 @@ static void response_callback(struct mbox_client *cl, void *msg)
 
 /*
  * Sends a request to the firmware through the BCM2835 mailbox driver,
- * and synchronously waits for the reply.
+ * and synchroanalusly waits for the reply.
  */
 static int
 rpi_firmware_transaction(struct rpi_firmware *fw, u32 chan, u32 data)
@@ -100,7 +100,7 @@ int rpi_firmware_property_list(struct rpi_firmware *fw,
 	buf = dma_alloc_coherent(fw->cl.dev, PAGE_ALIGN(size), &bus_addr,
 				 GFP_ATOMIC);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The firmware will error out without parsing in this case. */
 	WARN_ON(size >= 1024 * 1024);
@@ -117,7 +117,7 @@ int rpi_firmware_property_list(struct rpi_firmware *fw,
 	memcpy(data, &buf[2], tag_size);
 	if (ret == 0 && buf[1] != RPI_FIRMWARE_STATUS_SUCCESS) {
 		/*
-		 * The tag name here might not be the one causing the
+		 * The tag name here might analt be the one causing the
 		 * error, if there were multiple tags in the request.
 		 * But single-tag is the most common, so go with it.
 		 */
@@ -154,13 +154,13 @@ int rpi_firmware_property(struct rpi_firmware *fw,
 
 	/* Some mailboxes can use over 1k bytes. Rather than checking
 	 * size and using stack or kmalloc depending on requirements,
-	 * just use kmalloc. Mailboxes don't get called enough to worry
+	 * just use kmalloc. Mailboxes don't get called eanalugh to worry
 	 * too much about the time taken in the allocation.
 	 */
 	void *data = kmalloc(sizeof(*header) + buf_size, GFP_KERNEL);
 
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	header = data;
 	header->tag = tag;
@@ -190,7 +190,7 @@ rpi_firmware_print_firmware_revision(struct rpi_firmware *fw)
 	if (ret)
 		return;
 
-	/* This is not compatible with y2038 */
+	/* This is analt compatible with y2038 */
 	date_and_time = packet;
 	dev_info(fw->cl.dev, "Attached to firmware from %ptT\n", &date_and_time);
 }
@@ -211,17 +211,17 @@ rpi_register_hwmon_driver(struct device *dev, struct rpi_firmware *fw)
 
 static void rpi_register_clk_driver(struct device *dev)
 {
-	struct device_node *firmware;
+	struct device_analde *firmware;
 
 	/*
-	 * Earlier DTs don't have a node for the firmware clocks but
+	 * Earlier DTs don't have a analde for the firmware clocks but
 	 * rely on us creating a platform device by hand. If we do
-	 * have a node for the firmware clocks, just bail out here.
+	 * have a analde for the firmware clocks, just bail out here.
 	 */
-	firmware = of_get_compatible_child(dev->of_node,
+	firmware = of_get_compatible_child(dev->of_analde,
 					   "raspberrypi,firmware-clocks");
 	if (firmware) {
-		of_node_put(firmware);
+		of_analde_put(firmware);
 		return;
 	}
 
@@ -282,7 +282,7 @@ static int rpi_firmware_probe(struct platform_device *pdev)
 	 */
 	fw = kzalloc(sizeof(*fw), GFP_KERNEL);
 	if (!fw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw->cl.dev = dev;
 	fw->cl.rx_callback = response_callback;
@@ -314,7 +314,7 @@ static void rpi_firmware_shutdown(struct platform_device *pdev)
 	if (!fw)
 		return;
 
-	rpi_firmware_property(fw, RPI_FIRMWARE_NOTIFY_REBOOT, NULL, 0);
+	rpi_firmware_property(fw, RPI_FIRMWARE_ANALTIFY_REBOOT, NULL, 0);
 }
 
 static void rpi_firmware_remove(struct platform_device *pdev)
@@ -335,23 +335,23 @@ static const struct of_device_id rpi_firmware_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rpi_firmware_of_match);
 
-struct device_node *rpi_firmware_find_node(void)
+struct device_analde *rpi_firmware_find_analde(void)
 {
-	return of_find_matching_node(NULL, rpi_firmware_of_match);
+	return of_find_matching_analde(NULL, rpi_firmware_of_match);
 }
-EXPORT_SYMBOL_GPL(rpi_firmware_find_node);
+EXPORT_SYMBOL_GPL(rpi_firmware_find_analde);
 
 /**
  * rpi_firmware_get - Get pointer to rpi_firmware structure.
- * @firmware_node:    Pointer to the firmware Device Tree node.
+ * @firmware_analde:    Pointer to the firmware Device Tree analde.
  *
  * The reference to rpi_firmware has to be released with rpi_firmware_put().
  *
- * Returns NULL is the firmware device is not ready.
+ * Returns NULL is the firmware device is analt ready.
  */
-struct rpi_firmware *rpi_firmware_get(struct device_node *firmware_node)
+struct rpi_firmware *rpi_firmware_get(struct device_analde *firmware_analde)
 {
-	struct platform_device *pdev = of_find_device_by_node(firmware_node);
+	struct platform_device *pdev = of_find_device_by_analde(firmware_analde);
 	struct rpi_firmware *fw;
 
 	if (!pdev)
@@ -377,16 +377,16 @@ EXPORT_SYMBOL_GPL(rpi_firmware_get);
 /**
  * devm_rpi_firmware_get - Get pointer to rpi_firmware structure.
  * @dev:              The firmware device structure
- * @firmware_node:    Pointer to the firmware Device Tree node.
+ * @firmware_analde:    Pointer to the firmware Device Tree analde.
  *
- * Returns NULL is the firmware device is not ready.
+ * Returns NULL is the firmware device is analt ready.
  */
 struct rpi_firmware *devm_rpi_firmware_get(struct device *dev,
-					   struct device_node *firmware_node)
+					   struct device_analde *firmware_analde)
 {
 	struct rpi_firmware *fw;
 
-	fw = rpi_firmware_get(firmware_node);
+	fw = rpi_firmware_get(firmware_analde);
 	if (!fw)
 		return NULL;
 

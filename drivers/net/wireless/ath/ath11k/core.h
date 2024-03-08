@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_CORE_H
@@ -135,7 +135,7 @@ struct ath11k_skb_rxcb {
 	u8 is_frag;
 	u8 tid;
 	u16 peer_id;
-	u16 seq_no;
+	u16 seq_anal;
 };
 
 enum ath11k_hw_rev {
@@ -151,7 +151,7 @@ enum ath11k_hw_rev {
 
 enum ath11k_firmware_mode {
 	/* the default mode, standard 802.11 functionality */
-	ATH11K_FIRMWARE_MODE_NORMAL,
+	ATH11K_FIRMWARE_MODE_ANALRMAL,
 
 	/* factory tests etc */
 	ATH11K_FIRMWARE_MODE_FTM,
@@ -329,7 +329,7 @@ struct ath11k_vif {
 	struct ath11k *ar;
 	struct ieee80211_vif *vif;
 
-	u16 tx_seq_no;
+	u16 tx_seq_anal;
 	struct wmi_wmm_params_all_arg wmm_params;
 	struct list_head list;
 	union {
@@ -343,9 +343,9 @@ struct ath11k_vif {
 			u32 ssid_len;
 			u8 ssid[IEEE80211_MAX_SSID_LEN];
 			bool hidden_ssid;
-			/* P2P_IE with NoA attribute for P2P_GO case */
-			u32 noa_len;
-			u8 *noa_data;
+			/* P2P_IE with AnalA attribute for P2P_GO case */
+			u32 anala_len;
+			u8 *anala_data;
 		} ap;
 	} u;
 
@@ -364,7 +364,7 @@ struct ath11k_vif {
 	bool rsnie_present;
 	bool wpaie_present;
 	bool bcca_zero_sent;
-	bool do_not_send_tmpl;
+	bool do_analt_send_tmpl;
 	struct ieee80211_chanctx_conf chanctx;
 	struct ath11k_arp_ns_offload arp_ns_offload;
 	struct ath11k_rekey_data rekey_data;
@@ -383,7 +383,7 @@ struct ath11k_rx_peer_stats {
 	u64 udp_msdu_count;
 	u64 other_msdu_count;
 	u64 ampdu_msdu_count;
-	u64 non_ampdu_msdu_count;
+	u64 analn_ampdu_msdu_count;
 	u64 stbc_count;
 	u64 beamformed_count;
 	u64 mcs_count[HAL_RX_MAX_MCS + 1];
@@ -535,8 +535,8 @@ enum ath11k_state {
 	/* Add other states as required */
 };
 
-/* Antenna noise floor */
-#define ATH11K_DEFAULT_NOISE_FLOOR -95
+/* Antenna analise floor */
+#define ATH11K_DEFAULT_ANALISE_FLOOR -95
 
 #define ATH11K_INVALID_RSSI_FULL -1
 
@@ -610,7 +610,7 @@ struct ath11k {
 		bool is_roc;
 		int vdev_id;
 		int roc_freq;
-		bool roc_notify;
+		bool roc_analtify;
 	} scan;
 
 	struct {
@@ -631,7 +631,7 @@ struct ath11k {
 	u32 chan_tx_pwr;
 	u32 num_stations;
 	u32 max_num_stations;
-	/* To synchronize concurrent synchronous mac80211 callback operations,
+	/* To synchronize concurrent synchroanalus mac80211 callback operations,
 	 * concurrent debugfs configuration and concurrent FW statistics events.
 	 */
 	struct mutex conf_mutex;
@@ -915,7 +915,7 @@ struct ath11k_base {
 	 */
 	struct ieee80211_regdomain *default_regd[MAX_RADIOS];
 	/* This regd is set during dynamic country setting
-	 * This may or may not be used during the runtime
+	 * This may or may analt be used during the runtime
 	 */
 	struct ieee80211_regdomain *new_regd[MAX_RADIOS];
 
@@ -1007,7 +1007,7 @@ struct ath11k_fw_stats_pdev {
 	struct list_head list;
 
 	/* PDEV stats */
-	s32 ch_noise_floor;
+	s32 ch_analise_floor;
 	/* Cycles spent transmitting frames */
 	u32 tx_frame_count;
 	/* Cycles spent receiving frames */
@@ -1022,7 +1022,7 @@ struct ath11k_fw_stats_pdev {
 	u32 rts_bad;
 	u32 rts_good;
 	u32 fcs_bad;
-	u32 no_beacons;
+	u32 anal_beacons;
 	u32 mib_int_count;
 
 	/* PDEV TX stats */
@@ -1069,7 +1069,7 @@ struct ath11k_fw_stats_pdev {
 	u32 pdev_tx_timeout;
 	/* wal pdev resets */
 	u32 pdev_resets;
-	/* frames dropped due to non-availability of stateless TIDs */
+	/* frames dropped due to analn-availability of stateless TIDs */
 	u32 stateless_tid_alloc_failure;
 	/* PhY/BB underrun */
 	u32 phy_underrun;
@@ -1142,7 +1142,7 @@ struct ath11k_fw_stats_vdev {
 	u32 num_rts_success;
 	u32 num_rx_err;
 	u32 num_rx_discard;
-	u32 num_tx_not_acked;
+	u32 num_tx_analt_acked;
 	u32 tx_rate_history[MAX_TX_RATE_VALUES];
 	u32 beacon_rssi_history[MAX_TX_RATE_VALUES];
 };
@@ -1211,7 +1211,7 @@ static inline const char *ath11k_scan_state_str(enum ath11k_scan_state state)
 		return "aborting";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static inline struct ath11k_skb_cb *ATH11K_SKB_CB(struct sk_buff *skb)
@@ -1260,7 +1260,7 @@ static inline const char *ath11k_bus_str(enum ath11k_bus bus)
 		return "ahb";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 #endif /* _CORE_H_ */

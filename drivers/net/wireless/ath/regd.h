@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -28,8 +28,8 @@ enum ctl_group {
 	CTL_ETSI = 0x30,
 };
 
-#define SD_NO_CTL               0xE0
-#define NO_CTL                  0xff
+#define SD_ANAL_CTL               0xE0
+#define ANAL_CTL                  0xff
 #define CTL_11A                 0
 #define CTL_11B                 1
 #define CTL_11G                 2
@@ -122,14 +122,14 @@ enum CountryCode {
 	CTRY_JORDAN = 400,
 	CTRY_KAZAKHSTAN = 398,
 	CTRY_KENYA = 404,
-	CTRY_KOREA_NORTH = 408,
+	CTRY_KOREA_ANALRTH = 408,
 	CTRY_KOREA_ROC = 410,
 	CTRY_KOREA_ROC2 = 411,
 	CTRY_KOREA_ROC3 = 412,
 	CTRY_KOREA_ROC4 = 413,
 	CTRY_KUWAIT = 414,
 	CTRY_LATVIA = 428,
-	CTRY_LEBANON = 422,
+	CTRY_LEBAANALN = 422,
 	CTRY_LIBYA = 434,
 	CTRY_LIECHTENSTEIN = 438,
 	CTRY_LITHUANIA = 440,
@@ -148,7 +148,7 @@ enum CountryCode {
 	CTRY_NETHERLANDS_ANTILLES = 530,
 	CTRY_NEW_ZEALAND = 554,
 	CTRY_NICARAGUA = 558,
-	CTRY_NORWAY = 578,
+	CTRY_ANALRWAY = 578,
 	CTRY_OMAN = 512,
 	CTRY_PAKISTAN = 586,
 	CTRY_PANAMA = 591,
@@ -262,11 +262,11 @@ bool ath_is_world_regd(struct ath_regulatory *reg);
 bool ath_is_49ghz_allowed(u16 redomain);
 u16 ath_regd_find_country_by_name(char *alpha2);
 int ath_regd_init(struct ath_regulatory *reg, struct wiphy *wiphy,
-		  void (*reg_notifier)(struct wiphy *wiphy,
+		  void (*reg_analtifier)(struct wiphy *wiphy,
 				       struct regulatory_request *request));
 u32 ath_regd_get_band_ctl(struct ath_regulatory *reg,
 			  enum nl80211_band band);
-void ath_reg_notifier_apply(struct wiphy *wiphy,
+void ath_reg_analtifier_apply(struct wiphy *wiphy,
 			    struct regulatory_request *request,
 			    struct ath_regulatory *reg);
 

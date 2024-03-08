@@ -21,7 +21,7 @@
 
 #define MAILBOX_FULL(x)  (x & 0x00000001)
 
-#define NO_MFAS_AVAILABLE     0xFFFFFFFF
+#define ANAL_MFAS_AVAILABLE     0xFFFFFFFF
 
 
 #define INBOUND_QUEUE_PORT   0x40  /* contains address of next free MFA */
@@ -80,7 +80,7 @@ static inline void disable_uart_interrupts(void __iomem *base_address)
 	ibmasm_disable_interrupts(base_address, UART_INTR_MASK);
 }
 
-#define valid_mfa(mfa)	( (mfa) != NO_MFAS_AVAILABLE )
+#define valid_mfa(mfa)	( (mfa) != ANAL_MFAS_AVAILABLE )
 
 static inline u32 get_mfa_outbound(void __iomem *base_address)
 {

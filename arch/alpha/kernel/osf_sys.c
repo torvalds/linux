@@ -7,11 +7,11 @@
 
 /*
  * This file handles some of the stranger OSF/1 system call interfaces.
- * Some of the system calls expect a non-C calling standard, others have
+ * Some of the system calls expect a analn-C calling standard, others have
  * special parameter blocks..
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/task_stack.h>
@@ -52,15 +52,15 @@
 
 /*
  * Brk needs to return an error.  Still support Linux's brk(0) query idiom,
- * which OSF programs just shouldn't be doing.  We're still not quite
+ * which OSF programs just shouldn't be doing.  We're still analt quite
  * identical to OSF as we don't return 0 on success, but doing otherwise
- * would require changes to libc.  Hopefully this is good enough.
+ * would require changes to libc.  Hopefully this is good eanalugh.
  */
 SYSCALL_DEFINE1(osf_brk, unsigned long, brk)
 {
 	unsigned long retval = sys_brk(brk);
 	if (brk && brk != retval)
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 	return retval;
 }
  
@@ -94,7 +94,7 @@ SYSCALL_DEFINE4(osf_set_program_attributes, unsigned long, text_start,
 #define NAME_OFFSET	offsetof (struct osf_dirent, d_name)
 
 struct osf_dirent {
-	unsigned int d_ino;
+	unsigned int d_ianal;
 	unsigned short d_reclen;
 	unsigned short d_namlen;
 	char d_name[];
@@ -110,19 +110,19 @@ struct osf_dirent_callback {
 
 static bool
 osf_filldir(struct dir_context *ctx, const char *name, int namlen,
-	    loff_t offset, u64 ino, unsigned int d_type)
+	    loff_t offset, u64 ianal, unsigned int d_type)
 {
 	struct osf_dirent __user *dirent;
 	struct osf_dirent_callback *buf =
 		container_of(ctx, struct osf_dirent_callback, ctx);
 	unsigned int reclen = ALIGN(NAME_OFFSET + namlen + 1, sizeof(u32));
-	unsigned int d_ino;
+	unsigned int d_ianal;
 
 	buf->error = -EINVAL;	/* only used if we fail */
 	if (reclen > buf->count)
 		return false;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+	d_ianal = ianal;
+	if (sizeof(d_ianal) < sizeof(ianal) && d_ianal != ianal) {
 		buf->error = -EOVERFLOW;
 		return false;
 	}
@@ -132,7 +132,7 @@ osf_filldir(struct dir_context *ctx, const char *name, int namlen,
 		buf->basep = NULL;
 	}
 	dirent = buf->dirent;
-	if (put_user(d_ino, &dirent->d_ino) ||
+	if (put_user(d_ianal, &dirent->d_ianal) ||
 	    put_user(namlen, &dirent->d_namlen) ||
 	    put_user(reclen, &dirent->d_reclen) ||
 	    copy_to_user(dirent->d_name, name, namlen) ||
@@ -217,8 +217,8 @@ struct osf_stat {
 	unsigned	st_flags;
 	unsigned	st_gen;
 	long		st_spare[4];
-	unsigned	st_ino;
-	int		st_ino_reserved;
+	unsigned	st_ianal;
+	int		st_ianal_reserved;
 	int		st_atime;
 	int		st_atime_reserved;
 	int		st_mtime;
@@ -290,7 +290,7 @@ linux_to_osf_stat(struct kstat *lstat, struct osf_stat __user *osf_stat)
 	tmp.st_uatime	= lstat->atime.tv_nsec / 1000;
 	tmp.st_umtime	= lstat->mtime.tv_nsec / 1000;
 	tmp.st_uctime	= lstat->ctime.tv_nsec / 1000;
-	tmp.st_ino	= lstat->ino;
+	tmp.st_ianal	= lstat->ianal;
 	tmp.st_atime	= lstat->atime.tv_sec;
 	tmp.st_mtime	= lstat->mtime.tv_sec;
 	tmp.st_ctime	= lstat->ctime.tv_sec;
@@ -534,7 +534,7 @@ SYSCALL_DEFINE1(osf_utsname, char __user *, name)
 
 	down_read(&uts_sem);
 	memcpy(tmp + 0 * 32, utsname()->sysname, 32);
-	memcpy(tmp + 1 * 32, utsname()->nodename, 32);
+	memcpy(tmp + 1 * 32, utsname()->analdename, 32);
 	memcpy(tmp + 2 * 32, utsname()->release, 32);
 	memcpy(tmp + 3 * 32, utsname()->version, 32);
 	memcpy(tmp + 4 * 32, utsname()->machine, 32);
@@ -581,9 +581,9 @@ SYSCALL_DEFINE2(osf_getdomainname, char __user *, name, int, namelen)
 
 /*
  * The following stuff should move into a header file should it ever
- * be labeled "officially supported."  Right now, there is just enough
+ * be labeled "officially supported."  Right analw, there is just eanalugh
  * support to avoid applications (such as tar) printing error
- * messages.  The attributes are not really implemented.
+ * messages.  The attributes are analt really implemented.
  */
 
 /*
@@ -676,7 +676,7 @@ SYSCALL_DEFINE2(osf_proplist_syscall, enum pl_code, code,
 		error = 0;
 		break;
 	default:
-		error = -EOPNOTSUPP;
+		error = -EOPANALTSUPP;
 		break;
 	}
 	return error;
@@ -703,7 +703,7 @@ SYSCALL_DEFINE2(osf_sigstack, struct sigstack __user *, uss,
 		if (current->sas_ss_sp && on_sig_stack(usp))
 			goto out;
 
-		/* Since we don't know the extent of the stack, and we don't
+		/* Since we don't kanalw the extent of the stack, and we don't
 		   track onstack-ness, but rather calculate it, we must 
 		   presume a size.  Ho hum this interface is lossy.  */
 		current->sas_ss_sp = (unsigned long)ss_sp - SIGSTKSZ;
@@ -726,7 +726,7 @@ SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 {
 	const char *sysinfo_table[] = {
 		utsname()->sysname,
-		utsname()->nodename,
+		utsname()->analdename,
 		utsname()->release,
 		utsname()->version,
 		utsname()->machine,
@@ -768,7 +768,7 @@ SYSCALL_DEFINE5(osf_getsysinfo, unsigned long, op, void __user *, buffer,
 	switch (op) {
 	case GSI_IEEE_FP_CONTROL:
 		/* Return current software fp control & status bits.  */
-		/* Note that DU doesn't verify available space here.  */
+		/* Analte that DU doesn't verify available space here.  */
 
  		w = current_thread_info()->ieee_state & IEEE_SW_MASK;
  		w = swcr_update_status(w, rdfpcr());
@@ -778,7 +778,7 @@ SYSCALL_DEFINE5(osf_getsysinfo, unsigned long, op, void __user *, buffer,
 
 	case GSI_IEEE_STATE_AT_SIGNAL:
 		/*
-		 * Not sure anybody will ever use this weird stuff.  These
+		 * Analt sure anybody will ever use this weird stuff.  These
 		 * ops can be used (under OSF/1) to set the fpcr that should
 		 * be used when a signal handler starts executing.
 		 */
@@ -813,7 +813,7 @@ SYSCALL_DEFINE5(osf_getsysinfo, unsigned long, op, void __user *, buffer,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
@@ -865,19 +865,19 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 		wrfpcr(fpcr);
 
  		/* If any exceptions set by this call, and are unmasked,
-		   send a signal.  Old exceptions are not signaled.  */
+		   send a signal.  Old exceptions are analt signaled.  */
 		fex = (exc >> IEEE_STATUS_TO_EXCSUM_SHIFT) & swcr;
  		if (fex) {
 			int si_code = FPE_FLTUNK;
 
-			if (fex & IEEE_TRAP_ENABLE_DNO) si_code = FPE_FLTUND;
+			if (fex & IEEE_TRAP_ENABLE_DANAL) si_code = FPE_FLTUND;
 			if (fex & IEEE_TRAP_ENABLE_INE) si_code = FPE_FLTRES;
 			if (fex & IEEE_TRAP_ENABLE_UNF) si_code = FPE_FLTUND;
 			if (fex & IEEE_TRAP_ENABLE_OVF) si_code = FPE_FLTOVF;
 			if (fex & IEEE_TRAP_ENABLE_DZE) si_code = FPE_FLTDIV;
 			if (fex & IEEE_TRAP_ENABLE_INV) si_code = FPE_FLTINV;
 
-			send_sig_fault_trapno(SIGFPE, si_code,
+			send_sig_fault_trapanal(SIGFPE, si_code,
 				       (void __user *)NULL,  /* FIXME */
 				       0, current);
  		}
@@ -885,9 +885,9 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 	}
 
 	case SSI_IEEE_STATE_AT_SIGNAL:
-	case SSI_IEEE_IGNORE_STATE_AT_SIGNAL:
+	case SSI_IEEE_IGANALRE_STATE_AT_SIGNAL:
 		/*
-		 * Not sure anybody will ever use this weird stuff.  These
+		 * Analt sure anybody will ever use this weird stuff.  These
 		 * ops can be used (under OSF/1) to set the fpcr that should
 		 * be used when a signal handler starts executing.
 		 */
@@ -911,7 +911,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
  				break;
  
  			default:
- 				return -EOPNOTSUPP;
+ 				return -EOPANALTSUPP;
  			}
  		}
  		return 0;
@@ -924,7 +924,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /* Translations due to the fact that OSF's time_t is an int.  Which
@@ -1051,7 +1051,7 @@ SYSCALL_DEFINE5(osf_select, int, n, fd_set __user *, inp, fd_set __user *, outp,
 
 	}
 
-	/* OSF does not copy back the remaining time.  */
+	/* OSF does analt copy back the remaining time.  */
 	return core_sys_select(n, inp, outp, exp, to);
 }
 
@@ -1127,9 +1127,9 @@ SYSCALL_DEFINE4(osf_wait4, pid_t, pid, int __user *, ustatus, int, options,
 }
 
 /*
- * I don't know what the parameters are: the first one
+ * I don't kanalw what the parameters are: the first one
  * seems to be a timeval pointer, and I suspect the second
- * one is the time remaining.. Ho humm.. No documentation.
+ * one is the time remaining.. Ho humm.. Anal documentation.
  */
 SYSCALL_DEFINE2(osf_usleep_thread, struct timeval32 __user *, sleep,
 		struct timeval32 __user *, remain)
@@ -1212,7 +1212,7 @@ SYSCALL_DEFINE1(old_adjtimex, struct timex32 __user *, txc_p)
 }
 
 /* Get an address range which is currently unmapped.  Similar to the
-   generic version except that we know how to honor ADDR_LIMIT_32BIT.  */
+   generic version except that we kanalw how to hoanalr ADDR_LIMIT_32BIT.  */
 
 static unsigned long
 arch_get_unmapped_area_1(unsigned long addr, unsigned long len,
@@ -1243,7 +1243,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		limit = TASK_SIZE;
 
 	if (len > limit)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & MAP_FIXED)
 		return addr;
@@ -1254,20 +1254,20 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	   address larger than the requested if one exists, which is
 	   a terribly broken way to program.
 
-	   That said, I can see the use in being able to suggest not
+	   That said, I can see the use in being able to suggest analt
 	   merely specific addresses, but regions of memory -- perhaps
 	   this feature should be incorporated into all ports?  */
 
 	if (addr) {
 		addr = arch_get_unmapped_area_1 (PAGE_ALIGN(addr), len, limit);
-		if (addr != (unsigned long) -ENOMEM)
+		if (addr != (unsigned long) -EANALMEM)
 			return addr;
 	}
 
 	/* Next, try allocating at TASK_UNMAPPED_BASE.  */
 	addr = arch_get_unmapped_area_1 (PAGE_ALIGN(TASK_UNMAPPED_BASE),
 					 len, limit);
-	if (addr != (unsigned long) -ENOMEM)
+	if (addr != (unsigned long) -EANALMEM)
 		return addr;
 
 	/* Finally, try allocating in low memory.  */
@@ -1282,7 +1282,7 @@ SYSCALL_DEFINE2(osf_getpriority, int, which, int, who)
 	if (prio >= 0) {
 		/* Return value is the unbiased priority, i.e. 20 - prio.
 		   This does result in negative return values, so signal
-		   no error */
+		   anal error */
 		force_successful_syscall_return();
 		prio = 20 - prio;
 	}

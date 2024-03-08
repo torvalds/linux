@@ -80,12 +80,12 @@ static int gef_pic_cascade_irq;
  * 1     RO AXIS Message FIFO C Interrupt Status
  * 0     RO AXIS Message FIFO D Interrupt Status
  *
- * Interrupts can be forwarded to one of two output lines. Nothing
+ * Interrupts can be forwarded to one of two output lines. Analthing
  * clever is done, so if the masks are incorrectly set, a single input
  * interrupt could generate interrupts on both output lines!
  *
  * The dual lines are there to allow the chained interrupts to be easily
- * passed into two different cores. We currently do not use this functionality
+ * passed into two different cores. We currently do analt use this functionality
  * in this driver.
  *
  * Controller can also be configured to generate Machine checks (MCP), again on
@@ -165,7 +165,7 @@ static int gef_pic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int gef_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int gef_pic_host_xlate(struct irq_domain *h, struct device_analde *ct,
 			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
@@ -188,7 +188,7 @@ static const struct irq_domain_ops gef_pic_host_ops = {
 /*
  * Initialisation of PIC, this should be called in BSP
  */
-void __init gef_pic_init(struct device_node *np)
+void __init gef_pic_init(struct device_analde *np)
 {
 	unsigned long flags;
 

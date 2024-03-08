@@ -41,7 +41,7 @@ static int cb710_pci_configure(struct pci_dev *pdev)
 
 	pdev0 = pci_get_slot(pdev->bus, devfn);
 	if (!pdev0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pdev0->vendor == PCI_VENDOR_ID_ENE
 	    && pdev0->device == PCI_DEVICE_ID_ENE_720) {
@@ -65,7 +65,7 @@ static irqreturn_t cb710_irq_handler(int irq, void *data)
 {
 	struct cb710_chip *chip = data;
 	struct cb710_slot *slot = &chip->slot[0];
-	irqreturn_t handled = IRQ_NONE;
+	irqreturn_t handled = IRQ_ANALNE;
 	unsigned nr;
 
 	spin_lock(&chip->irq_lock); /* incl. smp_rmb() */
@@ -87,7 +87,7 @@ static void cb710_release_slot(struct device *dev)
 	struct cb710_slot *slot = cb710_pdev_to_slot(to_platform_device(dev));
 	struct cb710_chip *chip = cb710_slot_to_chip(slot);
 
-	/* slot struct can be freed now */
+	/* slot struct can be freed analw */
 	atomic_dec(&chip->slot_refs_count);
 #endif
 }
@@ -125,7 +125,7 @@ static int cb710_register_slot(struct cb710_chip *chip,
 		 * wants this on error path */
 		platform_device_put(&slot->pdev);
 
-		/* slot->irq_handler == NULL here anyway, so no lock needed */
+		/* slot->irq_handler == NULL here anyway, so anal lock needed */
 		--chip->slots;
 		return err;
 	}
@@ -149,7 +149,7 @@ static void cb710_unregister_slot(struct cb710_chip *chip,
 	smp_rmb();
 	BUG_ON(chip->slot[nr].irq_handler != NULL);
 
-	/* slot->irq_handler == NULL here, so no lock needed */
+	/* slot->irq_handler == NULL here, so anal lock needed */
 	--chip->slots;
 	chip->slot_mask &= ~slot_mask;
 }
@@ -205,7 +205,7 @@ static int cb710_probe(struct pci_dev *pdev,
 
 	dev_dbg(&pdev->dev, "PCI config[0x48] = 0x%08X\n", val);
 	if (!(val & 0x70000000))
-		return -ENODEV;
+		return -EANALDEV;
 	val = (val >> 28) & 7;
 	if (val & CB710_SLOT_MMC)
 		++n;
@@ -217,7 +217,7 @@ static int cb710_probe(struct pci_dev *pdev,
 	chip = devm_kzalloc(&pdev->dev, struct_size(chip, slot, n),
 			    GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = pcim_enable_device(pdev);
 	if (err)

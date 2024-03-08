@@ -13,7 +13,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/fsi.h>
 #include <linux/fsi-sbefifo.h>
@@ -68,7 +68,7 @@
 #define SBEFIFO_EOT_RAISE	0x08		/* (Up only) Set End Of Transfer */
 #define SBEFIFO_REQ_RESET	0x0C		/* (Up only) Reset Request */
 #define SBEFIFO_PERFORM_RESET	0x10		/* (Down only) Perform Reset */
-#define SBEFIFO_EOT_ACK		0x14		/* (Down only) Acknowledge EOT */
+#define SBEFIFO_EOT_ACK		0x14		/* (Down only) Ackanalwledge EOT */
 #define SBEFIFO_DOWN_MAX	0x18		/* (Down only) Max transfer */
 
 /* CFAM GP Mailbox SelfBoot Message register */
@@ -81,8 +81,8 @@
 
 enum sbe_state
 {
-	SBE_STATE_UNKNOWN = 0x0, // Unknown, initial state
-	SBE_STATE_IPLING  = 0x1, // IPL'ing - autonomous mode (transient)
+	SBE_STATE_UNKANALWN = 0x0, // Unkanalwn, initial state
+	SBE_STATE_IPLING  = 0x1, // IPL'ing - autoanalmous mode (transient)
 	SBE_STATE_ISTEP   = 0x2, // ISTEP - Running IPL by steps (transient)
 	SBE_STATE_MPIPL   = 0x3, // MPIPL
 	SBE_STATE_RUNTIME = 0x4, // SBE Runtime
@@ -302,7 +302,7 @@ static int sbefifo_check_sbe_state(struct sbefifo *sbefifo)
 
 	/* Check its state */
 	switch ((sbm & CFAM_SBM_SBE_STATE_MASK) >> CFAM_SBM_SBE_STATE_SHIFT) {
-	case SBE_STATE_UNKNOWN:
+	case SBE_STATE_UNKANALWN:
 		return -ESHUTDOWN;
 	case SBE_STATE_DMT:
 		return -EBUSY;
@@ -310,7 +310,7 @@ static int sbefifo_check_sbe_state(struct sbefifo *sbefifo)
 	case SBE_STATE_ISTEP:
 	case SBE_STATE_MPIPL:
 	case SBE_STATE_RUNTIME:
-	case SBE_STATE_DUMP: /* Not sure about that one */
+	case SBE_STATE_DUMP: /* Analt sure about that one */
 		break;
 	case SBE_STATE_FAILURE:
 	case SBE_STATE_QUIESCE:
@@ -431,14 +431,14 @@ static int sbefifo_cleanup_hw(struct sbefifo *sbefifo)
 	if ((up_status | down_status) & SBEFIFO_STS_PARITY_ERR)
 		need_reset = true;
 
-	/* Either FIFO not empty ? */
+	/* Either FIFO analt empty ? */
 	if (!((up_status & down_status) & SBEFIFO_STS_EMPTY))
 		need_reset = true;
 
 	if (!need_reset)
 		return 0;
 
-	dev_info(dev, "Cleanup: FIFO not clean (up=0x%08x down=0x%08x)\n",
+	dev_info(dev, "Cleanup: FIFO analt clean (up=0x%08x down=0x%08x)\n",
 		 up_status, down_status);
 
  do_reset:
@@ -477,7 +477,7 @@ static int sbefifo_wait(struct sbefifo *sbefifo, bool up,
 			break;
 	}
 	if (!ready) {
-		sysfs_notify(&sbefifo->dev.kobj, NULL, dev_attr_timeout.attr.name);
+		sysfs_analtify(&sbefifo->dev.kobj, NULL, dev_attr_timeout.attr.name);
 		sbefifo->timed_out = true;
 		dev_err(dev, "%s FIFO Timeout (%u ms)! status=%08x\n",
 			up ? "UP" : "DOWN", jiffies_to_msecs(timeout), sts);
@@ -530,7 +530,7 @@ static int sbefifo_send_command(struct sbefifo *sbefifo,
 		vacant -= chunk;
 	}
 
-	/* If there's no room left, wait for some to write EOT */
+	/* If there's anal room left, wait for some to write EOT */
 	if (!vacant) {
 		rc = sbefifo_wait(sbefifo, true, &status, timeout);
 		if (rc)
@@ -582,7 +582,7 @@ static int sbefifo_read_response(struct sbefifo *sbefifo, struct iov_iter *respo
 			/* Was it an EOT ? */
 			if (eot_set & 0x80) {
 				/*
-				 * There should be nothing else in the FIFO,
+				 * There should be analthing else in the FIFO,
 				 * if there is, mark broken, this will force
 				 * a reset on next use, but don't fail the
 				 * command.
@@ -600,7 +600,7 @@ static int sbefifo_read_response(struct sbefifo *sbefifo, struct iov_iter *respo
 
 				/*
 				 * If that write fail, still complete the request but mark
-				 * the fifo as broken for subsequent reset (not much else
+				 * the fifo as broken for subsequent reset (analt much else
 				 * we can do here).
 				 */
 				if (rc) {
@@ -639,7 +639,7 @@ static int sbefifo_do_command(struct sbefifo *sbefifo,
 	if (rc)
 		return rc;
 
-	/* Now, get the response */
+	/* Analw, get the response */
 	return sbefifo_read_response(sbefifo, response);
 }
 
@@ -692,7 +692,7 @@ static int __sbefifo_submit(struct sbefifo *sbefifo,
 	int rc;
 
 	if (sbefifo->dead)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cmd_len < 2 || be32_to_cpu(command[0]) != cmd_len) {
 		dev_vdbg(dev, "Invalid command len %zd (header: %d)\n",
@@ -715,7 +715,7 @@ static int __sbefifo_submit(struct sbefifo *sbefifo,
 	return rc;
  fail:
 	/*
-	 * On failure, attempt a reset. Ignore the result, it will mark
+	 * On failure, attempt a reset. Iganalre the result, it will mark
 	 * the fifo broken if the reset fails
 	 */
         sbefifo_request_reset(sbefifo);
@@ -745,12 +745,12 @@ int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,
 	int rc;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	sbefifo = dev_get_drvdata(dev);
 	if (!sbefifo)
-		return -ENODEV;
+		return -EANALDEV;
 	if (WARN_ON_ONCE(sbefifo->magic != SBEFIFO_MAGIC))
-		return -ENODEV;
+		return -EANALDEV;
 	if (!resp_len || !command || !response)
 		return -EINVAL;
 
@@ -787,21 +787,21 @@ static void sbefifo_release_command(struct sbefifo_user *user)
 	user->pending_len = 0;
 }
 
-static int sbefifo_user_open(struct inode *inode, struct file *file)
+static int sbefifo_user_open(struct ianalde *ianalde, struct file *file)
 {
-	struct sbefifo *sbefifo = container_of(inode->i_cdev, struct sbefifo, cdev);
+	struct sbefifo *sbefifo = container_of(ianalde->i_cdev, struct sbefifo, cdev);
 	struct sbefifo_user *user;
 
 	user = kzalloc(sizeof(struct sbefifo_user), GFP_KERNEL);
 	if (!user)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	file->private_data = user;
 	user->sbefifo = sbefifo;
 	user->cmd_page = (void *)__get_free_page(GFP_KERNEL);
 	if (!user->cmd_page) {
 		kfree(user);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	mutex_init(&user->file_lock);
 	user->cmd_timeout_ms = SBEFIFO_TIMEOUT_IN_CMD;
@@ -882,13 +882,13 @@ static ssize_t sbefifo_user_write(struct file *file, const char __user *buf,
 
 	mutex_lock(&user->file_lock);
 
-	/* Can we use the pre-allocate buffer ? If not, allocate */
+	/* Can we use the pre-allocate buffer ? If analt, allocate */
 	if (len <= PAGE_SIZE)
 		user->pending_cmd = user->cmd_page;
 	else
 		user->pending_cmd = vmalloc(len);
 	if (!user->pending_cmd) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto bail;
 	}
 
@@ -928,7 +928,7 @@ static ssize_t sbefifo_user_write(struct file *file, const char __user *buf,
 	return rc;
 }
 
-static int sbefifo_user_release(struct inode *inode, struct file *file)
+static int sbefifo_user_release(struct ianalde *ianalde, struct file *file)
 {
 	struct sbefifo_user *user = file->private_data;
 
@@ -983,7 +983,7 @@ static int sbefifo_read_timeout(struct sbefifo_user *user, void __user *argp)
 static long sbefifo_user_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct sbefifo_user *user = file->private_data;
-	int rc = -ENOTTY;
+	int rc = -EANALTTY;
 
 	if (!user)
 		return -EINVAL;
@@ -1026,7 +1026,7 @@ static int sbefifo_probe(struct device *dev)
 {
 	struct fsi_device *fsi_dev = to_fsi_dev(dev);
 	struct sbefifo *sbefifo;
-	struct device_node *np;
+	struct device_analde *np;
 	struct platform_device *child;
 	char child_name[32];
 	int rc, didx, child_idx = 0;
@@ -1035,12 +1035,12 @@ static int sbefifo_probe(struct device *dev)
 
 	sbefifo = kzalloc(sizeof(*sbefifo), GFP_KERNEL);
 	if (!sbefifo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Grab a reference to the device (parent of our cdev), we'll drop it later */
 	if (!get_device(dev)) {
 		kfree(sbefifo);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sbefifo->magic = SBEFIFO_MAGIC;
@@ -1056,8 +1056,8 @@ static int sbefifo_probe(struct device *dev)
 	sbefifo->dev.release = sbefifo_free;
 	device_initialize(&sbefifo->dev);
 
-	/* Allocate a minor in the FSI space */
-	rc = fsi_get_new_minor(fsi_dev, fsi_dev_sbefifo, &sbefifo->dev.devt, &didx);
+	/* Allocate a mianalr in the FSI space */
+	rc = fsi_get_new_mianalr(fsi_dev, fsi_dev_sbefifo, &sbefifo->dev.devt, &didx);
 	if (rc)
 		goto err;
 
@@ -1067,11 +1067,11 @@ static int sbefifo_probe(struct device *dev)
 	if (rc) {
 		dev_err(dev, "Error %d creating char device %s\n",
 			rc, dev_name(&sbefifo->dev));
-		goto err_free_minor;
+		goto err_free_mianalr;
 	}
 
-	/* Create platform devs for dts child nodes (occ, etc) */
-	for_each_available_child_of_node(dev->of_node, np) {
+	/* Create platform devs for dts child analdes (occ, etc) */
+	for_each_available_child_of_analde(dev->of_analde, np) {
 		snprintf(child_name, sizeof(child_name), "%s-dev%d",
 			 dev_name(&sbefifo->dev), child_idx++);
 		child = of_platform_device_create(np, child_name, dev);
@@ -1083,8 +1083,8 @@ static int sbefifo_probe(struct device *dev)
 	device_create_file(&sbefifo->dev, &dev_attr_timeout);
 
 	return 0;
- err_free_minor:
-	fsi_free_minor(sbefifo->dev.devt);
+ err_free_mianalr:
+	fsi_free_mianalr(sbefifo->dev.devt);
  err:
 	put_device(&sbefifo->dev);
 	return rc;
@@ -1095,8 +1095,8 @@ static int sbefifo_unregister_child(struct device *dev, void *data)
 	struct platform_device *child = to_platform_device(dev);
 
 	of_device_unregister(child);
-	if (dev->of_node)
-		of_node_clear_flag(dev->of_node, OF_POPULATED);
+	if (dev->of_analde)
+		of_analde_clear_flag(dev->of_analde, OF_POPULATED);
 
 	return 0;
 }
@@ -1114,7 +1114,7 @@ static int sbefifo_remove(struct device *dev)
 	mutex_unlock(&sbefifo->lock);
 
 	cdev_device_del(&sbefifo->cdev, &sbefifo->dev);
-	fsi_free_minor(sbefifo->dev.devt);
+	fsi_free_mianalr(sbefifo->dev.devt);
 	device_for_each_child(dev, NULL, sbefifo_unregister_child);
 	put_device(&sbefifo->dev);
 

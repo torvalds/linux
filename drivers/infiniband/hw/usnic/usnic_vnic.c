@@ -12,25 +12,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 
 #include "usnic_ib.h"
@@ -74,7 +74,7 @@ const char *usnic_vnic_res_type_to_str(enum usnic_vnic_res_type res_type)
 #undef DEFINE_USNIC_VNIC_RES_AT
 
 	if (res_type >= USNIC_VNIC_RES_TYPE_MAX)
-		return "unknown";
+		return "unkanalwn";
 
 	return usnic_vnic_res_type_desc[res_type];
 
@@ -241,13 +241,13 @@ usnic_vnic_get_resources(struct usnic_vnic *vnic, enum usnic_vnic_res_type type,
 
 	ret = kzalloc(sizeof(*ret), GFP_ATOMIC);
 	if (!ret)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (cnt > 0) {
 		ret->res = kcalloc(cnt, sizeof(*(ret->res)), GFP_ATOMIC);
 		if (!ret->res) {
 			kfree(ret);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 
 		spin_lock(&vnic->res_lock);
@@ -313,12 +313,12 @@ static int usnic_vnic_alloc_res_chunk(struct usnic_vnic *vnic,
 	chunk->cnt = chunk->free_cnt = cnt;
 	chunk->res = kcalloc(cnt, sizeof(*(chunk->res)), GFP_KERNEL);
 	if (!chunk->res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cnt; i++) {
 		res = kzalloc(sizeof(*res), GFP_KERNEL);
 		if (!res) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 		res->type = type;
@@ -359,9 +359,9 @@ static int usnic_vnic_discover_resources(struct pci_dev *pdev,
 		vnic->bar[i].len = pci_resource_len(pdev, i);
 		vnic->bar[i].vaddr = pci_iomap(pdev, i, vnic->bar[i].len);
 		if (!vnic->bar[i].vaddr) {
-			usnic_err("Cannot memory-map BAR %d, aborting\n",
+			usnic_err("Cananalt memory-map BAR %d, aborting\n",
 					i);
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out_clean_bar;
 		}
 		vnic->bar[i].bus_addr = pci_resource_start(pdev, i);
@@ -447,7 +447,7 @@ struct usnic_vnic *usnic_vnic_alloc(struct pci_dev *pdev)
 
 	vnic = kzalloc(sizeof(*vnic), GFP_KERNEL);
 	if (!vnic)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&vnic->res_lock);
 

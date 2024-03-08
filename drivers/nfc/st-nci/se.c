@@ -104,9 +104,9 @@ static struct nci_hci_gate st_nci_gates[] = {
 					ST_NCI_HOST_CONTROLLER_ID},
 
 	/* Secure element pipes are created by secure element host */
-	{ST_NCI_CONNECTIVITY_GATE, NCI_HCI_DO_NOT_OPEN_PIPE,
+	{ST_NCI_CONNECTIVITY_GATE, NCI_HCI_DO_ANALT_OPEN_PIPE,
 					ST_NCI_HOST_CONTROLLER_ID},
-	{ST_NCI_APDU_READER_GATE, NCI_HCI_DO_NOT_OPEN_PIPE,
+	{ST_NCI_APDU_READER_GATE, NCI_HCI_DO_ANALT_OPEN_PIPE,
 					ST_NCI_HOST_CONTROLLER_ID},
 };
 
@@ -167,7 +167,7 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 	 * (such as removing connectivity or APDU reader pipe)
 	 * A better approach on ST_NCI is to:
 	 * - get a pipe list for each host.
-	 * (eg: ST_NCI_HOST_CONTROLLER_ID for now).
+	 * (eg: ST_NCI_HOST_CONTROLLER_ID for analw).
 	 * (TODO Later on UICC HOST and eSE HOST)
 	 * - get pipe information
 	 * - match retrieved pipe list in st_nci_gates
@@ -236,8 +236,8 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 	}
 
 	/*
-	 * 3 gates have a well known pipe ID. Only NCI_HCI_LINK_MGMT_GATE
-	 * is not yet open at this stage.
+	 * 3 gates have a well kanalwn pipe ID. Only NCI_HCI_LINK_MGMT_GATE
+	 * is analt yet open at this stage.
 	 */
 	r = nci_hci_connect_gate(ndev, ST_NCI_HOST_CONTROLLER_ID,
 				 NCI_HCI_LINK_MGMT_GATE,
@@ -303,7 +303,7 @@ static int st_nci_hci_apdu_reader_event_received(struct nci_dev *ndev,
 /*
  * Returns:
  * <= 0: driver handled the event, skb consumed
- *    1: driver does not handle the event, please do standard processing
+ *    1: driver does analt handle the event, please do standard processing
  */
 static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 						u8 host, u8 event,
@@ -331,7 +331,7 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 		 * The key differences are aid storage length is variably sized
 		 * in the packet, but fixed in nfc_evt_transaction, and that
 		 * the aid_len is u8 in the packet, but u32 in the structure,
-		 * and the tags in the packet are not included in
+		 * and the tags in the packet are analt included in
 		 * nfc_evt_transaction.
 		 *
 		 * size(b):  1          1       5-16 1             1           0-255
@@ -351,7 +351,7 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 		params_len = skb->data[aid_len + 3];
 
 		/* Verify PARAMETERS tag is (82), and final check that there is
-		 * enough space in the packet to read everything.
+		 * eanalugh space in the packet to read everything.
 		 */
 		if (skb->data[aid_len + 2] != NFC_EVT_TRANSACTION_PARAMS_TAG ||
 		    skb->len < aid_len + 4 + params_len)
@@ -360,7 +360,7 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 		transaction = devm_kzalloc(dev, sizeof(*transaction) +
 					   params_len, GFP_KERNEL);
 		if (!transaction)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		transaction->aid_len = aid_len;
 		transaction->params_len = params_len;
@@ -459,12 +459,12 @@ static int st_nci_control_se(struct nci_dev *ndev, u8 se_idx,
 		msecs_to_jiffies(ST_NCI_SE_TO_HOT_PLUG));
 	info->se_info.se_active = true;
 
-	/* Ignore return value and check in any case the host_list */
+	/* Iganalre return value and check in any case the host_list */
 	wait_for_completion_interruptible(&info->se_info.req_completion);
 
 	/* There might be some "collision" after receiving a HOT_PLUG event
-	 * This may cause the CLF to not answer to the next hci command.
-	 * There is no possible synchronization to prevent this.
+	 * This may cause the CLF to analt answer to the next hci command.
+	 * There is anal possible synchronization to prevent this.
 	 * Adding a small delay is the only way to solve the issue.
 	 */
 	if (info->se_info.se_status->is_ese_present &&
@@ -532,7 +532,7 @@ int st_nci_enable_se(struct nci_dev *ndev, u32 se_idx)
 	if (r < 0) {
 		/*
 		 * The activation procedure failed, the secure element
-		 * is not connected. Remove from the list.
+		 * is analt connected. Remove from the list.
 		 */
 		nfc_remove_se(ndev->nfc_dev, se_idx);
 		return r;
@@ -554,7 +554,7 @@ static int st_nci_hci_network_init(struct nci_dev *ndev)
 		kzalloc(sizeof(struct core_conn_create_dest_spec_params) +
 			sizeof(struct dest_spec_params), GFP_KERNEL);
 	if (dest_params == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dest_params->type = NCI_DESTINATION_SPECIFIC_PARAM_NFCEE_TYPE;
 	dest_params->length = sizeof(struct dest_spec_params);
@@ -583,7 +583,7 @@ static int st_nci_hci_network_init(struct nci_dev *ndev)
 	 */
 	dev_num = find_first_zero_bit(dev_mask, ST_NCI_NUM_DEVICES);
 	if (dev_num >= ST_NCI_NUM_DEVICES) {
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto free_dest_params;
 	}
 
@@ -674,11 +674,11 @@ int st_nci_se_io(struct nci_dev *ndev, u32 se_idx,
 	default:
 		/* Need to free cb_context here as at the moment we can't
 		 * clearly indicate to the caller if the callback function
-		 * would be called (and free it) or not. In both cases a
+		 * would be called (and free it) or analt. In both cases a
 		 * negative value may be returned to the caller.
 		 */
 		kfree(cb_context);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 EXPORT_SYMBOL(st_nci_se_io);
@@ -686,11 +686,11 @@ EXPORT_SYMBOL(st_nci_se_io);
 static void st_nci_se_wt_timeout(struct timer_list *t)
 {
 	/*
-	 * No answer from the secure element
+	 * Anal answer from the secure element
 	 * within the defined timeout.
 	 * Let's send a reset request as recovery procedure.
 	 * According to the situation, we first try to send a software reset
-	 * to the secure element. If the next command is still not
+	 * to the secure element. If the next command is still analt
 	 * answering in time, we send to the CLF a secure element hardware
 	 * reset request.
 	 */

@@ -13,7 +13,7 @@
 #include <linux/sysfs.h>
 #include <linux/fs.h>
 
-#include "ocfs2_nodemanager.h"
+#include "ocfs2_analdemanager.h"
 #include "masklog.h"
 #include "sys.h"
 
@@ -49,7 +49,7 @@ int o2cb_sys_init(void)
 
 	o2cb_kset = kset_create_and_add("o2cb", NULL, fs_kobj);
 	if (!o2cb_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sysfs_create_group(&o2cb_kset->kobj, &o2cb_attr_group);
 	if (ret)

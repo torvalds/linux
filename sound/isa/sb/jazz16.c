@@ -122,7 +122,7 @@ static int jazz16_detect_board(unsigned long port,
 				break;
 		}
 	if (err < 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_unmap;
 	}
 	if (!snd_sbdsp_command(&chip, SB_DSP_GET_JAZZ_BRD_REV)) {
@@ -134,7 +134,7 @@ static int jazz16_detect_board(unsigned long port,
 		snd_sbdsp_get_byte(&chip);
 
 	if ((val & 0xf0) != 0x10) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_unmap;
 	}
 	if (!snd_sbdsp_command(&chip, SB_DSP_GET_JAZZ_MODEL)) {
@@ -263,7 +263,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 		xmpu_port = 0;
 	err = jazz16_detect_board(port[dev], xmpu_port);
 	if (err < 0) {
-		printk(KERN_ERR "Media Vision Jazz16 board not detected\n");
+		printk(KERN_ERR "Media Vision Jazz16 board analt detected\n");
 		return err;
 	}
 	err = snd_sbdsp_create(card, port[dev], irq[dev],
@@ -301,7 +301,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 	err = snd_opl3_create(card, chip->port, chip->port + 2,
 			      OPL3_HW_AUTO, 1, &opl3);
 	if (err < 0)
-		snd_printk(KERN_WARNING "no OPL device at 0x%lx-0x%lx\n",
+		snd_printk(KERN_WARNING "anal OPL device at 0x%lx-0x%lx\n",
 			   chip->port, chip->port + 2);
 	else {
 		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
@@ -317,7 +317,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 					mpu_port[dev], 0,
 					mpu_irq[dev],
 					NULL) < 0)
-			snd_printk(KERN_ERR "no MPU-401 device at 0x%lx\n",
+			snd_printk(KERN_ERR "anal MPU-401 device at 0x%lx\n",
 					mpu_port[dev]);
 	}
 

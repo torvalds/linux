@@ -10,7 +10,7 @@ maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
 description: |
-  Qualcomm Technologies Inc WCD9340/WCD9341 Audio Codec has integrated
+  Qualcomm Techanallogies Inc WCD9340/WCD9341 Audio Codec has integrated
   gpio controller to control 5 gpios on the chip.
 
 properties:

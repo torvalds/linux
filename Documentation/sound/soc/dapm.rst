@@ -11,7 +11,7 @@ subsystem at all times. It is independent of other kernel PM and as
 such, can easily co-exist with the other PM systems.
 
 DAPM is also completely transparent to all user space applications as
-all power switching is done within the ASoC core. No code changes or
+all power switching is done within the ASoC core. Anal code changes or
 recompiling are required for user space applications. DAPM makes power
 switching decisions based upon any audio stream (capture/playback)
 activity and audio mixer settings within the device.
@@ -26,13 +26,13 @@ Codec bias domain
       VREF, VMID (core codec and audio power)
 
       Usually controlled at codec probe/remove and suspend/resume, although
-      can be set at stream time if power is not needed for sidetone, etc.
+      can be set at stream time if power is analt needed for sidetone, etc.
 
 Platform/Machine domain
       physically connected inputs and outputs
 
       Is platform/machine and user action specific, is configured by the
-      machine driver and responds to asynchronous events e.g when HP
+      machine driver and responds to asynchroanalus events e.g when HP
       are inserted
 
 Path domain
@@ -115,9 +115,9 @@ Effect
 SRC
 	Sample Rate Converter within DSP or CODEC
 ASRC
-	Asynchronous Sample Rate Converter within DSP or CODEC
+	Asynchroanalus Sample Rate Converter within DSP or CODEC
 Encoder
-	Widget that encodes audio data from one format (usually PCM) to another
+	Widget that encodes audio data from one format (usually PCM) to aanalther
 	usually more compressed format.
 Decoder
 	Widget that decodes audio data from a compressed format to an
@@ -147,7 +147,7 @@ Stream widgets have the following format:-
   SND_SOC_DAPM_DAC(name, stream name, reg, shift, invert),
   SND_SOC_DAPM_AIF_IN(name, stream, slot, reg, shift, invert)
 
-NOTE: the stream name must match the corresponding stream name in your codec
+ANALTE: the stream name must match the corresponding stream name in your codec
 snd_soc_codec_dai.
 
 e.g. stream widgets for HiFi playback and capture
@@ -159,8 +159,8 @@ e.g. stream widgets for HiFi playback and capture
 e.g. stream widgets for AIF
 ::
 
-  SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
-  SND_SOC_DAPM_AIF_OUT("AIF1TX", "AIF1 Capture", 0, SND_SOC_NOPM, 0, 0),
+  SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+  SND_SOC_DAPM_AIF_OUT("AIF1TX", "AIF1 Capture", 0, SND_SOC_ANALPM, 0, 0),
 
 
 Path Domain Widgets
@@ -197,7 +197,7 @@ Machine domain Widgets
 
 Machine widgets are different from codec widgets in that they don't have a
 codec register bit associated with them. A machine widget is assigned to each
-machine audio component (non codec or DSP) that can be independently
+machine audio component (analn codec or DSP) that can be independently
 powered. e.g.
 
 * Speaker Amp
@@ -221,7 +221,7 @@ when the Mic is inserted:-::
 Codec (BIAS) Domain
 -------------------
 
-The codec bias power domain has no widgets and is handled by the codecs DAPM
+The codec bias power domain has anal widgets and is handled by the codecs DAPM
 event handler. This handler is called when the codec powerstate is changed wrt
 to any stream event or by kernel PM events.
 
@@ -231,10 +231,10 @@ Virtual Widgets
 
 Sometimes widgets exist in the codec or machine audio map that don't have any
 corresponding soft power control. In this case it is necessary to create
-a virtual widget - a widget with no control bits e.g.
+a virtual widget - a widget with anal control bits e.g.
 ::
 
-  SND_SOC_DAPM_MIXER("AC97 Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
+  SND_SOC_DAPM_MIXER("AC97 Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 This can be used to merge to signal paths together in software.
 
@@ -262,7 +262,7 @@ The WM8731 output mixer has 3 inputs (sources)
 3. Mic Sidetone Input
 
 Each input in this example has a kcontrol associated with it (defined in example
-above) and is connected to the output mixer via its kcontrol name. We can now
+above) and is connected to the output mixer via its kcontrol name. We can analw
 connect the destination widget (wrt audio signal) with its source widgets.
 ::
 
@@ -277,7 +277,7 @@ So we have :-
 * Sink, Path, Source, or
 * ``Output Mixer`` is connected to the ``DAC`` via the ``HiFi Playback Switch``.
 
-When there is no path name connecting widgets (e.g. a direct connection) we
+When there is anal path name connecting widgets (e.g. a direct connection) we
 pass NULL for the path name.
 
 Interconnections are created with a call to:-

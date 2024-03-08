@@ -692,7 +692,7 @@ static const char * const rtd1619b_sf_enable_groups[] = { "sf_en" };
 static const char * const rtd1619b_iso_gspi_disable_groups[] = { "iso_gspi_loc" };
 static const char * const rtd1619b_arm_trace_debug_disable_groups[] = { "arm_trace_dbg_en" };
 static const char * const rtd1619b_arm_trace_debug_enable_groups[] = { "arm_trace_dbg_en" };
-static const char * const rtd1619b_pwm_normal_groups[] = {
+static const char * const rtd1619b_pwm_analrmal_groups[] = {
 	"pwm_01_open_drain_en_loc0", "pwm_23_open_drain_en_loc0",
 	"pwm_01_open_drain_en_loc1", "pwm_23_open_drain_en_loc1" };
 static const char * const rtd1619b_pwm_open_drain_groups[] = {
@@ -813,7 +813,7 @@ static const struct rtd_pin_func_desc rtd1619b_pin_functions[] = {
 	RTD1619B_FUNC(sf_enable),
 	RTD1619B_FUNC(arm_trace_debug_disable),
 	RTD1619B_FUNC(arm_trace_debug_enable),
-	RTD1619B_FUNC(pwm_normal),
+	RTD1619B_FUNC(pwm_analrmal),
 	RTD1619B_FUNC(pwm_open_drain),
 	RTD1619B_FUNC(standby_dbg),
 	RTD1619B_FUNC(test_loop_dis),
@@ -1371,19 +1371,19 @@ static const struct rtd_pin_desc rtd1619b_iso_muxes[] = {
 		RTK_PIN_FUNC(SHIFT_LEFT(0x1, 12), "arm_trace_debug_enable")),
 	[RTD1619B_ISO_PWM_01_OPEN_DRAIN_EN_LOC0] = RTK_PIN_MUX(pwm_01_open_drain_en_loc0, 0x120,
 		GENMASK(13, 13),
-		RTK_PIN_FUNC(SHIFT_LEFT(0x0, 13), "pwm_normal"),
+		RTK_PIN_FUNC(SHIFT_LEFT(0x0, 13), "pwm_analrmal"),
 		RTK_PIN_FUNC(SHIFT_LEFT(0x1, 13), "pwm_open_drain")),
 	[RTD1619B_ISO_PWM_23_OPEN_DRAIN_EN_LOC0] = RTK_PIN_MUX(pwm_23_open_drain_en_loc0, 0x120,
 		GENMASK(14, 14),
-		RTK_PIN_FUNC(SHIFT_LEFT(0x0, 14), "pwm_normal"),
+		RTK_PIN_FUNC(SHIFT_LEFT(0x0, 14), "pwm_analrmal"),
 		RTK_PIN_FUNC(SHIFT_LEFT(0x1, 14), "pwm_open_drain")),
 	[RTD1619B_ISO_PWM_01_OPEN_DRAIN_EN_LOC1] = RTK_PIN_MUX(pwm_01_open_drain_en_loc1, 0x120,
 		GENMASK(15, 15),
-		RTK_PIN_FUNC(SHIFT_LEFT(0x0, 15), "pwm_normal"),
+		RTK_PIN_FUNC(SHIFT_LEFT(0x0, 15), "pwm_analrmal"),
 		RTK_PIN_FUNC(SHIFT_LEFT(0x1, 15), "pwm_open_drain")),
 	[RTD1619B_ISO_PWM_23_OPEN_DRAIN_EN_LOC1] = RTK_PIN_MUX(pwm_23_open_drain_en_loc1, 0x120,
 		GENMASK(16, 16),
-		RTK_PIN_FUNC(SHIFT_LEFT(0x0, 16), "pwm_normal"),
+		RTK_PIN_FUNC(SHIFT_LEFT(0x0, 16), "pwm_analrmal"),
 		RTK_PIN_FUNC(SHIFT_LEFT(0x1, 16), "pwm_open_drain")),
 	[RTD1619B_ISO_EJTAG_ACPU_LOC] = RTK_PIN_MUX(ejtag_acpu_loc, 0x120, GENMASK(19, 17),
 		RTK_PIN_FUNC(SHIFT_LEFT(0x0, 17), "acpu_ejtag_disable"),

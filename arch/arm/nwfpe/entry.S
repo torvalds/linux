@@ -16,7 +16,7 @@ It is called from the kernel with code similar to this:
 
 	sub	r4, r5, #4
 	ldrt	r0, [r4]			@ r0  = instruction
-	adrsvc	al, r9, ret_from_exception	@ r9  = normal FP return
+	adrsvc	al, r9, ret_from_exception	@ r9  = analrmal FP return
 	adrsvc	al, lr, fpundefinstr		@ lr  = undefined instr return
 
 	get_current_task r10
@@ -47,13 +47,13 @@ This routine does three things:
 user registers into it.  See /usr/include/asm/proc/ptrace.h for details.
 
 2) It calls EmulateAll to emulate a floating point instruction.
-EmulateAll returns 1 if the emulation was successful, or 0 if not.
+EmulateAll returns 1 if the emulation was successful, or 0 if analt.
 
 3) If an instruction has been emulated successfully, it looks ahead at
 the next instruction.  If it is a floating point instruction, it
 executes the instruction, without returning to user space.  In this
 way it repeatedly looks ahead and executes floating point instructions
-until it encounters a non floating point instruction, at which time it
+until it encounters a analn floating point instruction, at which time it
 returns via _fpreturn.
 
 This is done to reduce the effect of the trap overhead on each
@@ -81,7 +81,7 @@ emulate:
 	mov	r0, r6			@ prepare for EmulateAll()
 	bl	EmulateAll		@ emulate the instruction
 	cmp	r0, #0			@ was emulation successful
-	reteq	r4			@ no, return failure
+	reteq	r4			@ anal, return failure
 
 next:
 	uaccess_enable r3
@@ -92,7 +92,7 @@ next:
 	teq	r2, #0x0C000000
 	teqne	r2, #0x0D000000
 	teqne	r2, #0x0E000000
-	retne	r9			@ return ok if not a fp insn
+	retne	r9			@ return ok if analt a fp insn
 
 	str	r5, [sp, #S_PC]		@ update PC copy in regs
 
@@ -116,13 +116,13 @@ next:
 
 	@
 	@ Check whether the instruction is a co-processor instruction.
-	@ If yes, we need to call the relevant co-processor handler.
+	@ If anal, we need to call the relevant co-processor handler.
 	@ Only FPE instructions are dispatched here, everything else
 	@ is handled by undef hooks.
 	@
 	@ Emulators may wish to make use of the following registers:
 	@  r4  = PC value to resume execution after successful emulation
-	@  r9  = normal "successful" return address
+	@  r9  = analrmal "successful" return address
 	@  lr  = unrecognised instruction return address
 	@ IRQs enabled, FIQs enabled.
 	@
@@ -147,7 +147,7 @@ ARM_BE8(rev	r0, r0)				@ little endian instruction
 	bcs	iwmmxt_task_enable
 #endif
 	add	pc, pc, r8, lsr #6
-	nop
+	analp
 
 	ret	lr				@ CP#0
 	b	do_fpe				@ CP#1 (FPE)
@@ -174,7 +174,7 @@ do_fpe:
 	@ The FP module is called with these registers set:
 	@  r0  = instruction
 	@  r2  = PC+4
-	@  r9  = normal "successful" return address
+	@  r9  = analrmal "successful" return address
 	@  r10 = FP workspace
 	@  lr  = unrecognised FP instruction return address
 	@
@@ -182,9 +182,9 @@ do_fpe:
 	.pushsection .data
 	.align	2
 ENTRY(fp_enter)
-	.word	no_fp
+	.word	anal_fp
 	.popsection
 
-no_fp:
+anal_fp:
 	ret	lr
-ENDPROC(no_fp)
+ENDPROC(anal_fp)

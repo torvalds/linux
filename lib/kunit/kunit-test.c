@@ -28,14 +28,14 @@ static void kunit_test_successful_try(void *data)
 	ctx->function_called = true;
 }
 
-static void kunit_test_no_catch(void *data)
+static void kunit_test_anal_catch(void *data)
 {
 	struct kunit *test = data;
 
-	KUNIT_FAIL(test, "Catch should not be called\n");
+	KUNIT_FAIL(test, "Catch should analt be called\n");
 }
 
-static void kunit_test_try_catch_successful_try_no_catch(struct kunit *test)
+static void kunit_test_try_catch_successful_try_anal_catch(struct kunit *test)
 {
 	struct kunit_try_catch_test_context *ctx = test->priv;
 	struct kunit_try_catch *try_catch = ctx->try_catch;
@@ -43,7 +43,7 @@ static void kunit_test_try_catch_successful_try_no_catch(struct kunit *test)
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_test_successful_try,
-			     kunit_test_no_catch);
+			     kunit_test_anal_catch);
 	kunit_try_catch_run(try_catch, test);
 
 	KUNIT_EXPECT_TRUE(test, ctx->function_called);
@@ -86,19 +86,19 @@ static int kunit_try_catch_test_init(struct kunit *test)
 	struct kunit_try_catch_test_context *ctx;
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 	test->priv = ctx;
 
 	ctx->try_catch = kunit_kmalloc(test,
 				       sizeof(*ctx->try_catch),
 				       GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->try_catch);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx->try_catch);
 
 	return 0;
 }
 
 static struct kunit_case kunit_try_catch_test_cases[] = {
-	KUNIT_CASE(kunit_test_try_catch_successful_try_no_catch),
+	KUNIT_CASE(kunit_test_try_catch_successful_try_anal_catch),
 	KUNIT_CASE(kunit_test_try_catch_unsuccessful_try_does_catch),
 	{}
 };
@@ -157,11 +157,11 @@ static void kunit_resource_test_alloc_resource(struct kunit *test)
 					   GFP_KERNEL,
 					   ctx);
 
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, res);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, res);
 	KUNIT_EXPECT_PTR_EQ(test,
 			    &ctx->is_resource_initialized,
 			    (bool *)res->data);
-	KUNIT_EXPECT_TRUE(test, list_is_last(&res->node, &ctx->test.resources));
+	KUNIT_EXPECT_TRUE(test, list_is_last(&res->analde, &ctx->test.resources));
 	KUNIT_EXPECT_PTR_EQ(test, free, res->free);
 
 	kunit_put_resource(res);
@@ -175,11 +175,11 @@ static inline bool kunit_resource_instance_match(struct kunit *test,
 }
 
 /*
- * Note: tests below use kunit_alloc_and_get_resource(), so as a consequence
+ * Analte: tests below use kunit_alloc_and_get_resource(), so as a consequence
  * they have a reference to the associated resource that they must release
- * via kunit_put_resource().  In normal operation, users will only
+ * via kunit_put_resource().  In analrmal operation, users will only
  * have to do this for cases where they use kunit_find_resource(), and the
- * kunit_alloc_resource() function will be used (which does not take a
+ * kunit_alloc_resource() function will be used (which does analt take a
  * resource reference).
  */
 static void kunit_resource_test_destroy_resource(struct kunit *test)
@@ -228,7 +228,7 @@ static void kunit_resource_test_remove_resource(struct kunit *test)
 	kunit_remove_resource(test, res);
 	KUNIT_EXPECT_TRUE(test, list_empty(&ctx->test.resources));
 	/* Despite having been removed twice (from only one reference), the
-	 * resource still has not been freed.
+	 * resource still has analt been freed.
 	 */
 	KUNIT_EXPECT_TRUE(test, ctx->is_resource_initialized);
 
@@ -495,7 +495,7 @@ static int kunit_resource_test_init(struct kunit *test)
 	struct kunit_test_resource_context *ctx =
 			kzalloc(sizeof(*ctx), GFP_KERNEL);
 
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 
 	test->priv = ctx;
 
@@ -551,7 +551,7 @@ static void kunit_log_test(struct kunit *test)
 	char *full_log;
 #endif
 	suite.log = kunit_alloc_string_stream(test, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, suite.log);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, suite.log);
 	string_stream_set_append_newlines(suite.log, true);
 
 	kunit_log(KERN_INFO, test, "put this in log.");
@@ -564,16 +564,16 @@ static void kunit_log_test(struct kunit *test)
 
 	full_log = string_stream_get_string(test->log);
 	kunit_add_action(test, kfree_wrapper, full_log);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test,
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test,
 				     strstr(full_log, "put this in log."));
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test,
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test,
 				     strstr(full_log, "this too."));
 
 	full_log = string_stream_get_string(suite.log);
 	kunit_add_action(test, kfree_wrapper, full_log);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test,
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test,
 				     strstr(full_log, "add to suite log."));
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test,
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test,
 				     strstr(full_log, "along with this."));
 #else
 	KUNIT_EXPECT_NULL(test, test->log);
@@ -588,7 +588,7 @@ static void kunit_log_newline_test(struct kunit *test)
 	if (test->log) {
 		full_log = string_stream_get_string(test->log);
 		kunit_add_action(test, kfree_wrapper, full_log);
-		KUNIT_ASSERT_NOT_NULL_MSG(test, strstr(full_log, "Add newline\n"),
+		KUNIT_ASSERT_ANALT_NULL_MSG(test, strstr(full_log, "Add newline\n"),
 			"Missing log line, full log:\n%s", full_log);
 		KUNIT_EXPECT_NULL(test, strstr(full_log, "Add newline\n\n"));
 	} else {
@@ -635,16 +635,16 @@ static void kunit_status_mark_skipped_test(struct kunit *test)
 
 	kunit_init_test(&fake, "fake test", NULL);
 
-	/* Before: Should be SUCCESS with no comment. */
+	/* Before: Should be SUCCESS with anal comment. */
 	KUNIT_EXPECT_EQ(test, fake.status, KUNIT_SUCCESS);
 	KUNIT_EXPECT_STREQ(test, fake.status_comment, "");
 
 	/* Mark the test as skipped. */
-	kunit_mark_skipped(&fake, "Accepts format string: %s", "YES");
+	kunit_mark_skipped(&fake, "Accepts format string: %s", "ANAL");
 
 	/* After: Should be SKIPPED with our comment. */
 	KUNIT_EXPECT_EQ(test, fake.status, (enum kunit_status)KUNIT_SKIPPED);
-	KUNIT_EXPECT_STREQ(test, fake.status_comment, "Accepts format string: YES");
+	KUNIT_EXPECT_STREQ(test, fake.status_comment, "Accepts format string: ANAL");
 }
 
 static struct kunit_case kunit_status_test_cases[] = {
@@ -702,7 +702,7 @@ static void kunit_device_test(struct kunit *test)
 	long action_was_run = 0;
 
 	test_device = kunit_device_register(test, "my_device");
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_device);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, test_device);
 
 	// Add an action to verify cleanup.
 	devm_add_action(test_device, test_dev_action, &action_was_run);
@@ -720,7 +720,7 @@ static void kunit_device_cleanup_test(struct kunit *test)
 	long action_was_run = 0;
 
 	test_device = kunit_device_register(test, "my_device");
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_device);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, test_device);
 
 	/* Add an action to verify cleanup. */
 	devm_add_action(test_device, test_dev_action, &action_was_run);
@@ -767,7 +767,7 @@ static void kunit_device_driver_test(struct kunit *test)
 	test_driver = kunit_driver_create(test, "my_driver");
 
 	// This can fail with an error pointer.
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_driver);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, test_driver);
 
 	test_driver->probe = driver_probe_hook;
 	test_driver->remove = driver_remove_hook;
@@ -775,7 +775,7 @@ static void kunit_device_driver_test(struct kunit *test)
 	test_device = kunit_device_register_with_driver(test, "my_device", test_driver);
 
 	// This can fail with an error pointer.
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_device);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, test_device);
 
 	// Make sure the probe function was called.
 	KUNIT_ASSERT_TRUE(test, test_state->driver_device_probed);
@@ -794,12 +794,12 @@ static void kunit_device_driver_test(struct kunit *test)
 	// We're going to test this again.
 	test_state->driver_device_probed = false;
 
-	// The driver should not automatically be destroyed by
+	// The driver should analt automatically be destroyed by
 	// kunit_device_unregister, so we can re-use it.
 	test_device = kunit_device_register_with_driver(test, "my_device", test_driver);
 
 	// This can fail with an error pointer.
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_device);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, test_device);
 
 	// Probe was called again.
 	KUNIT_ASSERT_TRUE(test, test_state->driver_device_probed);

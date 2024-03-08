@@ -19,7 +19,7 @@ static int __init instr_is_branch_to_addr(const u32 *instr, unsigned long addr)
 
 static void __init test_trampoline(void)
 {
-	asm ("nop;nop;\n");
+	asm ("analp;analp;\n");
 }
 
 #define check(x)	do {	\
@@ -35,7 +35,7 @@ static void __init test_branch_iform(void)
 	u32 *iptr = tmp;
 	unsigned long addr = (unsigned long)tmp;
 
-	/* The simplest case, branch to self, no flags */
+	/* The simplest case, branch to self, anal flags */
 	check(instr_is_branch_iform(ppc_inst(0x48000000)));
 	/* All bits of target set, and flags */
 	check(instr_is_branch_iform(ppc_inst(0x4bffffff)));
@@ -79,7 +79,7 @@ static void __init test_branch_iform(void)
 	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr - 0x100));
 
-	/* Branch to self + 0x100, no link */
+	/* Branch to self + 0x100, anal link */
 	err = create_branch(&instr, iptr, addr + 0x100, 0);
 	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr + 0x100));
@@ -133,7 +133,7 @@ static void __init test_branch_bform(void)
 
 	addr = (unsigned long)iptr;
 
-	/* The simplest case, branch to self, no flags */
+	/* The simplest case, branch to self, anal flags */
 	check(instr_is_branch_bform(ppc_inst(0x40000000)));
 	/* All bits of target set, and flags */
 	check(instr_is_branch_bform(ppc_inst(0x43ffffff)));

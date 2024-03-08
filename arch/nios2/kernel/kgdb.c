@@ -68,28 +68,28 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 	{ "mpuacc", GDB_SIZEOF_REG, -1 },
 };
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int reganal, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (reganal >= DBG_MAX_REG_NUM || reganal < 0)
 		return NULL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].offset != -1)
+		memcpy(mem, (void *)regs + dbg_reg_def[reganal].offset,
+		       dbg_reg_def[reganal].size);
 	else
-		memset(mem, 0, dbg_reg_def[regno].size);
+		memset(mem, 0, dbg_reg_def[reganal].size);
 
-	return dbg_reg_def[regno].name;
+	return dbg_reg_def[reganal].name;
 }
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int reganal, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (reganal >= DBG_MAX_REG_NUM || reganal < 0)
 		return -EINVAL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].offset != -1)
+		memcpy((void *)regs + dbg_reg_def[reganal].offset, mem,
+		       dbg_reg_def[reganal].size);
 
 	return 0;
 }
@@ -106,7 +106,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
 	regs->ea = pc;
 }
 
-int kgdb_arch_handle_exception(int vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int vector, int siganal, int err_code,
 				char *remcom_in_buffer, char *remcom_out_buffer,
 				struct pt_regs *regs)
 {
@@ -124,7 +124,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 		return 0;
 	}
 
-	return -1; /* this means that we do not want to exit from the handler */
+	return -1; /* this means that we do analt want to exit from the handler */
 }
 
 asmlinkage void kgdb_breakpoint_c(struct pt_regs *regs)
@@ -149,7 +149,7 @@ int kgdb_arch_init(void)
 
 void kgdb_arch_exit(void)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 
 const struct kgdb_arch arch_kgdb_ops = {

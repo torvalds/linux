@@ -7,11 +7,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -54,8 +54,8 @@ struct ath5k_ini_mode {
 /* Initial register settings for AR5210 */
 static const struct ath5k_ini ar5210_ini[] = {
 	/* PCU and MAC registers */
-	{ AR5K_NOQCU_TXDP0,	0 },
-	{ AR5K_NOQCU_TXDP1,	0 },
+	{ AR5K_ANALQCU_TXDP0,	0 },
+	{ AR5K_ANALQCU_TXDP1,	0 },
 	{ AR5K_RXDP,		0 },
 	{ AR5K_CR,		0 },
 	{ AR5K_ISR,		0, AR5K_INI_READ },
@@ -66,9 +66,9 @@ static const struct ath5k_ini ar5210_ini[] = {
 	{ AR5K_RXCFG,		AR5K_DMASIZE_128B },
 	{ AR5K_CFG,		AR5K_INIT_CFG },
 	{ AR5K_TOPS,		8 },
-	{ AR5K_RXNOFRM,		8 },
+	{ AR5K_RXANALFRM,		8 },
 	{ AR5K_RPGTO,		0 },
-	{ AR5K_TXNOFRM,		0 },
+	{ AR5K_TXANALFRM,		0 },
 	{ AR5K_SFR,		0 },
 	{ AR5K_MIBC,		0 },
 	{ AR5K_MISC,		0 },
@@ -271,8 +271,8 @@ static const struct ath5k_ini ar5211_ini[] = {
 	{ AR5K_RXCFG,		0x00000005 },
 	{ AR5K_MIBC,		0x00000000 },
 	{ AR5K_TOPS,		0x00000008 },
-	{ AR5K_RXNOFRM,		0x00000008 },
-	{ AR5K_TXNOFRM,		0x00000010 },
+	{ AR5K_RXANALFRM,		0x00000008 },
+	{ AR5K_TXANALFRM,		0x00000010 },
 	{ AR5K_RPGTO,		0x00000000 },
 	{ AR5K_RFCNT,		0x0000001f },
 	{ AR5K_QUEUE_TXDP(0),	0x00000000 },
@@ -342,9 +342,9 @@ static const struct ath5k_ini ar5211_ini[] = {
 	{ AR5K_PHY(87),	0x004b6a8e },
 	/* Initial Power table (32bytes)
 	 * common on all cards/modes.
-	 * Note: Table is rewritten during
+	 * Analte: Table is rewritten during
 	 * txpower setup later using calibration
-	 * data etc. so next write is non-common */
+	 * data etc. so next write is analn-common */
 	{ AR5K_PHY_PCDAC_TXPOWER(1), 0x06ff05ff },
 	{ AR5K_PHY_PCDAC_TXPOWER(2), 0x07ff07ff },
 	{ AR5K_PHY_PCDAC_TXPOWER(3), 0x08ff08ff },
@@ -470,8 +470,8 @@ static const struct ath5k_ini ar5212_ini_common_start[] = {
 	{ AR5K_RXCFG,		0x00000005 },
 	{ AR5K_MIBC,		0x00000000 },
 	{ AR5K_TOPS,		0x00000008 },
-	{ AR5K_RXNOFRM,		0x00000008 },
-	{ AR5K_TXNOFRM,		0x00000010 },
+	{ AR5K_RXANALFRM,		0x00000008 },
+	{ AR5K_TXANALFRM,		0x00000010 },
 	{ AR5K_RPGTO,		0x00000000 },
 	{ AR5K_RFCNT,		0x0000001f },
 	{ AR5K_QUEUE_TXDP(0),	0x00000000 },
@@ -604,12 +604,12 @@ static const struct ath5k_ini ar5212_ini_common_start[] = {
 	{ AR5K_RATE_DUR(31),	0x00000000 },
 	{ AR5K_QUIET_CTL2,	0x00010002 },
 	{ AR5K_TSF_PARM,	0x00000001 },
-	{ AR5K_QOS_NOACK,	0x000000c0 },
+	{ AR5K_QOS_ANALACK,	0x000000c0 },
 	{ AR5K_PHY_ERR_FIL,	0x00000000 },
 	{ AR5K_XRLAT_TX,	0x00000168 },
 	{ AR5K_ACKSIFS,		0x00000000 },
 	/* Rate -> db table
-	 * notice ...03<-02<-01<-00 ! */
+	 * analtice ...03<-02<-01<-00 ! */
 	{ AR5K_RATE2DB(0),	0x03020100 },
 	{ AR5K_RATE2DB(1),	0x07060504 },
 	{ AR5K_RATE2DB(2),	0x0b0a0908 },

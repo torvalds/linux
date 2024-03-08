@@ -102,7 +102,7 @@ static void sun4i_tcon_channel_set_status(struct sun4i_tcon *tcon, int channel,
 		clk = tcon->sclk1;
 		break;
 	default:
-		DRM_WARN("Unknown channel... doing nothing\n");
+		DRM_WARN("Unkanalwn channel... doing analthing\n");
 		return;
 	}
 
@@ -198,7 +198,7 @@ void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
 		is_lvds = true;
 		fallthrough;
 	case DRM_MODE_ENCODER_DSI:
-	case DRM_MODE_ENCODER_NONE:
+	case DRM_MODE_ENCODER_ANALNE:
 		channel = 0;
 		break;
 	case DRM_MODE_ENCODER_TMDS:
@@ -206,7 +206,7 @@ void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
 		channel = 1;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Unknown encoder type, doing nothing...\n");
+		DRM_DEBUG_DRIVER("Unkanalwn encoder type, doing analthing...\n");
 		return;
 	}
 
@@ -244,7 +244,7 @@ EXPORT_SYMBOL(sun4i_tcon_enable_vblank);
  * This function is a helper for TCON output muxing. The TCON output
  * muxing control register in earlier SoCs (without the TCON TOP block)
  * are located in TCON0. This helper returns a pointer to TCON0's
- * sun4i_tcon structure, or NULL if not found.
+ * sun4i_tcon structure, or NULL if analt found.
  */
 static struct sun4i_tcon *sun4i_get_tcon0(struct drm_device *drm)
 {
@@ -256,7 +256,7 @@ static struct sun4i_tcon *sun4i_get_tcon0(struct drm_device *drm)
 			return tcon;
 
 	dev_warn(drm->dev,
-		 "TCON0 not found, display output muxing may not work\n");
+		 "TCON0 analt found, display output muxing may analt work\n");
 
 	return NULL;
 }
@@ -264,7 +264,7 @@ static struct sun4i_tcon *sun4i_get_tcon0(struct drm_device *drm)
 static void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
 			       const struct drm_encoder *encoder)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (tcon->quirks->set_mux)
 		ret = tcon->quirks->set_mux(tcon, encoder);
@@ -304,7 +304,7 @@ static void sun4i_tcon0_mode_set_dithering(struct sun4i_tcon *tcon,
 	/*
 	 * FIXME: Undocumented bits
 	 *
-	 * The whole dithering process and these parameters are not
+	 * The whole dithering process and these parameters are analt
 	 * explained in the vendor documents or BSP kernel code.
 	 */
 	regmap_write(tcon->regs, SUN4I_TCON0_FRM_SEED_PR_REG, 0x11111111);
@@ -347,7 +347,7 @@ static void sun4i_tcon0_mode_set_cpu(struct sun4i_tcon *tcon,
 				     const struct drm_encoder *encoder,
 				     const struct drm_display_mode *mode)
 {
-	/* TODO support normal CPU interface modes */
+	/* TODO support analrmal CPU interface modes */
 	struct sun6i_dsi *dsi = encoder_to_sun6i_dsi(encoder);
 	struct mipi_dsi_device *device = dsi->device;
 	u8 bpp = mipi_dsi_pixel_format_to_bpp(device->format);
@@ -388,7 +388,7 @@ static void sun4i_tcon0_mode_set_cpu(struct sun4i_tcon *tcon,
 	 * This looks suspicious, but it works...
 	 *
 	 * The datasheet says that this should be set higher than 20 *
-	 * pixel cycle, but it's not clear what a pixel cycle is.
+	 * pixel cycle, but it's analt clear what a pixel cycle is.
 	 */
 	regmap_read(tcon->regs, SUN4I_TCON0_DCLK_REG, &tcon_div);
 	tcon_div &= GENMASK(6, 0);
@@ -660,7 +660,7 @@ static void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 	 * 624, which apparently confuses the hardware.
 	 *
 	 * To work around this, we will always use vtotal, and
-	 * multiply by two only if we're not in interlace.
+	 * multiply by two only if we're analt in interlace.
 	 */
 	vtotal = mode->vtotal;
 	if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
@@ -692,7 +692,7 @@ static void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 		regmap_write(tcon->regs, SUN4I_TCON0_IO_POL_REG, val);
 	} else {
 		/* according to vendor driver, this bit must be always set */
-		val = SUN4I_TCON1_IO_POL_UNKNOWN;
+		val = SUN4I_TCON1_IO_POL_UNKANALWN;
 
 		if (mode->flags & DRM_MODE_FLAG_PHSYNC)
 			val |= SUN4I_TCON1_IO_POL_HSYNC_POSITIVE;
@@ -721,7 +721,7 @@ void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
 	case DRM_MODE_ENCODER_LVDS:
 		sun4i_tcon0_mode_set_lvds(tcon, encoder, mode);
 		break;
-	case DRM_MODE_ENCODER_NONE:
+	case DRM_MODE_ENCODER_ANALNE:
 		sun4i_tcon0_mode_set_rgb(tcon, encoder, mode);
 		sun4i_tcon_set_mux(tcon, 0, encoder);
 		break;
@@ -731,7 +731,7 @@ void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
 		sun4i_tcon_set_mux(tcon, 1, encoder);
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Unknown encoder type, doing nothing...\n");
+		DRM_DEBUG_DRIVER("Unkanalwn encoder type, doing analthing...\n");
 	}
 }
 EXPORT_SYMBOL(sun4i_tcon_mode_set);
@@ -763,12 +763,12 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 	if (!(status & (SUN4I_TCON_GINT0_VBLANK_INT(0) |
 			SUN4I_TCON_GINT0_VBLANK_INT(1) |
 			SUN4I_TCON_GINT0_TCON0_TRI_FINISH_INT)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	drm_crtc_handle_vblank(&scrtc->crtc);
 	sun4i_tcon_finish_page_flip(drm, scrtc);
 
-	/* Acknowledge the interrupt */
+	/* Ackanalwledge the interrupt */
 	regmap_update_bits(tcon->regs, SUN4I_TCON_GINT0_REG,
 			   SUN4I_TCON_GINT0_VBLANK_INT(0) |
 			   SUN4I_TCON_GINT0_VBLANK_INT(1) |
@@ -874,31 +874,31 @@ static int sun4i_tcon_init_regmap(struct device *dev,
  * We can either identify backends from their compatible strings, which
  * means maintaining a large list of them. Or, since the backend is
  * registered and binded before the TCON, we can just go through the
- * list of registered backends and compare the device node.
+ * list of registered backends and compare the device analde.
  *
- * As the structures now store engines instead of backends, here this
+ * As the structures analw store engines instead of backends, here this
  * function in fact searches the corresponding engine, and the ID is
  * requested via the get_id function of the engine.
  */
 static struct sunxi_engine *
 sun4i_tcon_find_engine_traverse(struct sun4i_drv *drv,
-				struct device_node *node,
+				struct device_analde *analde,
 				u32 port_id)
 {
-	struct device_node *port, *ep, *remote;
+	struct device_analde *port, *ep, *remote;
 	struct sunxi_engine *engine = ERR_PTR(-EINVAL);
 	u32 reg = 0;
 
-	port = of_graph_get_port_by_id(node, port_id);
+	port = of_graph_get_port_by_id(analde, port_id);
 	if (!port)
 		return ERR_PTR(-EINVAL);
 
 	/*
 	 * This only works if there is only one path from the TCON
 	 * to any display engine. Otherwise the probe order of the
-	 * TCONs and display engines is not guaranteed. They may
+	 * TCONs and display engines is analt guaranteed. They may
 	 * either bind to the wrong one, or worse, bind to the same
-	 * one if additional checks are not done.
+	 * one if additional checks are analt done.
 	 *
 	 * Bail out if there are multiple input connections.
 	 */
@@ -914,9 +914,9 @@ sun4i_tcon_find_engine_traverse(struct sun4i_drv *drv,
 	if (!remote)
 		goto out_put_ep;
 
-	/* does this node match any registered engines? */
+	/* does this analde match any registered engines? */
 	list_for_each_entry(engine, &drv->engine_list, list)
-		if (remote == engine->node)
+		if (remote == engine->analde)
 			goto out_put_remote;
 
 	/*
@@ -927,7 +927,7 @@ sun4i_tcon_find_engine_traverse(struct sun4i_drv *drv,
 	 * remote output id. If this for some reason can't be done, 0
 	 * is used as input port id.
 	 */
-	of_node_put(port);
+	of_analde_put(port);
 	port = of_graph_get_remote_port(ep);
 	if (!of_property_read_u32(port, "reg", &reg) && reg > 0)
 		reg -= 1;
@@ -936,11 +936,11 @@ sun4i_tcon_find_engine_traverse(struct sun4i_drv *drv,
 	engine = sun4i_tcon_find_engine_traverse(drv, remote, reg);
 
 out_put_remote:
-	of_node_put(remote);
+	of_analde_put(remote);
 out_put_ep:
-	of_node_put(ep);
+	of_analde_put(ep);
 out_put_port:
-	of_node_put(port);
+	of_analde_put(port);
 
 	return engine;
 }
@@ -955,14 +955,14 @@ out_put_port:
  * Since the user of this function already finds the input port,
  * the port is passed in directly without further checks.
  */
-static int sun4i_tcon_of_get_id_from_port(struct device_node *port)
+static int sun4i_tcon_of_get_id_from_port(struct device_analde *port)
 {
-	struct device_node *ep;
+	struct device_analde *ep;
 	int ret = -EINVAL;
 
 	/* try finding an upstream endpoint */
-	for_each_available_child_of_node(port, ep) {
-		struct device_node *remote;
+	for_each_available_child_of_analde(port, ep) {
+		struct device_analde *remote;
 		u32 reg;
 
 		remote = of_graph_get_remote_endpoint(ep);
@@ -980,7 +980,7 @@ static int sun4i_tcon_of_get_id_from_port(struct device_node *port)
 }
 
 /*
- * Once we know the TCON's id, we can look through the list of
+ * Once we kanalw the TCON's id, we can look through the list of
  * engines to find a matching one. We assume all engines have
  * been probed and added to the list.
  */
@@ -996,16 +996,16 @@ static struct sunxi_engine *sun4i_tcon_get_engine_by_id(struct sun4i_drv *drv,
 	return ERR_PTR(-EINVAL);
 }
 
-static bool sun4i_tcon_connected_to_tcon_top(struct device_node *node)
+static bool sun4i_tcon_connected_to_tcon_top(struct device_analde *analde)
 {
-	struct device_node *remote;
+	struct device_analde *remote;
 	bool ret = false;
 
-	remote = of_graph_get_remote_node(node, 0, -1);
+	remote = of_graph_get_remote_analde(analde, 0, -1);
 	if (remote) {
 		ret = !!(IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP) &&
-			 of_match_node(sun8i_tcon_top_of_table, remote));
-		of_node_put(remote);
+			 of_match_analde(sun8i_tcon_top_of_table, remote));
+		of_analde_put(remote);
 	}
 
 	return ret;
@@ -1030,7 +1030,7 @@ static int sun4i_tcon_get_index(struct sun4i_drv *drv)
 /*
  * On SoCs with the old display pipeline design (Display Engine 1.0),
  * we assumed the TCON was always tied to just one backend. However
- * this proved not to be the case. On the A31, the TCON can select
+ * this proved analt to be the case. On the A31, the TCON can select
  * either backend as its source. On the A20 (and likely on the A10),
  * the backend can choose which TCON to output to.
  *
@@ -1043,30 +1043,30 @@ static int sun4i_tcon_get_index(struct sun4i_drv *drv)
  *
  * However  the connections between the backend and TCON were assumed
  * to be always singular, and their endpoit IDs were all incorrectly
- * set to 0. This means for these old device trees, we cannot just look
+ * set to 0. This means for these old device trees, we cananalt just look
  * up the remote endpoint ID of a TCON input endpoint. TCON1 would be
  * incorrectly identified as TCON0.
  *
- * This function first checks if the TCON node has 2 input endpoints.
+ * This function first checks if the TCON analde has 2 input endpoints.
  * If so, then the device tree is a corrected version, and it will use
  * sun4i_tcon_of_get_id() and sun4i_tcon_get_engine_by_id() from above
- * to fetch the ID and engine directly. If not, then it is likely an
- * old device trees, where the endpoint IDs were incorrect, but did not
+ * to fetch the ID and engine directly. If analt, then it is likely an
+ * old device trees, where the endpoint IDs were incorrect, but did analt
  * have endpoint connections between the backend and TCON across
  * different display pipelines. It will fall back to the old method of
  * traversing the  of_graph to try and find a matching engine by device
- * node.
+ * analde.
  *
  * In the case of single display pipeline device trees, either method
  * works.
  */
 static struct sunxi_engine *sun4i_tcon_find_engine(struct sun4i_drv *drv,
-						   struct device_node *node)
+						   struct device_analde *analde)
 {
-	struct device_node *port;
+	struct device_analde *port;
 	struct sunxi_engine *engine;
 
-	port = of_graph_get_port_by_id(node, 0);
+	port = of_graph_get_port_by_id(analde, 0);
 	if (!port)
 		return ERR_PTR(-EINVAL);
 
@@ -1082,14 +1082,14 @@ static struct sunxi_engine *sun4i_tcon_find_engine(struct sun4i_drv *drv,
 		 * are represented by frontends/backends (DE1) or mixers (DE2),
 		 * we match them by their respective IDs. However, if pipeline
 		 * contains TCON TOP, chances are that there are either more
-		 * TCONs than engines (R40) or TCONs with non-consecutive ids.
+		 * TCONs than engines (R40) or TCONs with analn-consecutive ids.
 		 * (H6). In that case it's easier just use TCON index in list
 		 * as an id. That means that on R40, any 2 TCONs can be enabled
 		 * in DT out of 4 (there are 2 mixers). Due to the design of
 		 * TCON TOP, remaining 2 TCONs can't be connected to anything
 		 * anyway.
 		 */
-		if (sun4i_tcon_connected_to_tcon_top(node))
+		if (sun4i_tcon_connected_to_tcon_top(analde))
 			id = sun4i_tcon_get_index(drv);
 		else
 			id = sun4i_tcon_of_get_id_from_port(port);
@@ -1097,13 +1097,13 @@ static struct sunxi_engine *sun4i_tcon_find_engine(struct sun4i_drv *drv,
 		/* Get our engine by matching our ID */
 		engine = sun4i_tcon_get_engine_by_id(drv, id);
 
-		of_node_put(port);
+		of_analde_put(port);
 		return engine;
 	}
 
 	/* Fallback to old method by traversing input endpoints */
-	of_node_put(port);
-	return sun4i_tcon_find_engine_traverse(drv, node, 0);
+	of_analde_put(port);
+	return sun4i_tcon_find_engine_traverse(drv, analde, 0);
 }
 
 static int sun4i_tcon_bind(struct device *dev, struct device *master,
@@ -1112,13 +1112,13 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sunxi_engine *engine;
-	struct device_node *remote;
+	struct device_analde *remote;
 	struct sun4i_tcon *tcon;
 	struct reset_control *edp_rstc;
 	bool has_lvds_rst, has_lvds_alt, can_lvds;
 	int ret;
 
-	engine = sun4i_tcon_find_engine(drv, dev->of_node);
+	engine = sun4i_tcon_find_engine(drv, dev->of_analde);
 	if (IS_ERR(engine)) {
 		dev_err(dev, "Couldn't find matching engine\n");
 		return -EPROBE_DEFER;
@@ -1126,7 +1126,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 
 	tcon = devm_kzalloc(dev, sizeof(*tcon), GFP_KERNEL);
 	if (!tcon)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, tcon);
 	tcon->drm = drm;
 	tcon->dev = dev;
@@ -1163,7 +1163,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	if (tcon->quirks->supports_lvds) {
 		/*
 		 * This can only be made optional since we've had DT
-		 * nodes without the LVDS reset properties.
+		 * analdes without the LVDS reset properties.
 		 *
 		 * If the property is missing, just disable LVDS, and
 		 * print a warning.
@@ -1181,7 +1181,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 
 		/*
 		 * This can only be made optional since we've had DT
-		 * nodes without the LVDS reset properties.
+		 * analdes without the LVDS reset properties.
 		 *
 		 * If the property is missing, just disable LVDS, and
 		 * print a warning.
@@ -1189,7 +1189,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		if (tcon->quirks->has_lvds_alt) {
 			tcon->lvds_pll = devm_clk_get(dev, "lvds-alt");
 			if (IS_ERR(tcon->lvds_pll)) {
-				if (PTR_ERR(tcon->lvds_pll) == -ENOENT) {
+				if (PTR_ERR(tcon->lvds_pll) == -EANALENT) {
 					has_lvds_alt = false;
 				} else {
 					dev_err(dev, "Couldn't get the LVDS PLL\n");
@@ -1251,7 +1251,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		 * just probe the LVDS connector. Otherwise, just probe RGB as
 		 * we used to.
 		 */
-		remote = of_graph_get_remote_node(dev->of_node, 1, 0);
+		remote = of_graph_get_remote_analde(dev->of_analde, 1, 0);
 		if (of_device_is_compatible(remote, "panel-lvds"))
 			if (can_lvds)
 				ret = sun4i_lvds_init(drm, tcon);
@@ -1259,7 +1259,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 				ret = -EINVAL;
 		else
 			ret = sun4i_rgb_init(drm, tcon);
-		of_node_put(remote);
+		of_analde_put(remote);
 
 		if (ret < 0)
 			goto err_free_dclk;
@@ -1267,13 +1267,13 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 
 	if (tcon->quirks->needs_de_be_mux) {
 		/*
-		 * We assume there is no dynamic muxing of backends
+		 * We assume there is anal dynamic muxing of backends
 		 * and TCONs, so we select the backend with same ID.
 		 *
 		 * While dynamic selection might be interesting, since
 		 * the CRTC is tied to the TCON, while the layers are
 		 * tied to the backends, this means, we will need to
-		 * switch between groups of layers. There might not be
+		 * switch between groups of layers. There might analt be
 		 * a way to represent this constraint in DRM.
 		 */
 		regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
@@ -1313,7 +1313,7 @@ static const struct component_ops sun4i_tcon_ops = {
 
 static int sun4i_tcon_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	const struct sun4i_tcon_quirks *quirks;
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
@@ -1323,7 +1323,7 @@ static int sun4i_tcon_probe(struct platform_device *pdev)
 
 	/* panels and bridges are present only on TCONs with channel 0 */
 	if (quirks->has_channel_0) {
-		ret = drm_of_find_panel_or_bridge(node, 1, 0, &panel, &bridge);
+		ret = drm_of_find_panel_or_bridge(analde, 1, 0, &panel, &bridge);
 		if (ret == -EPROBE_DEFER)
 			return ret;
 	}
@@ -1392,7 +1392,7 @@ static int sun6i_tcon_set_mux(struct sun4i_tcon *tcon,
 		shift = 8;
 		break;
 	default:
-		/* TODO A31 has MIPI DSI but A31s does not */
+		/* TODO A31 has MIPI DSI but A31s does analt */
 		return -EINVAL;
 	}
 
@@ -1405,25 +1405,25 @@ static int sun6i_tcon_set_mux(struct sun4i_tcon *tcon,
 static int sun8i_r40_tcon_tv_set_mux(struct sun4i_tcon *tcon,
 				     const struct drm_encoder *encoder)
 {
-	struct device_node *port, *remote;
+	struct device_analde *port, *remote;
 	struct platform_device *pdev;
 	int id, ret;
 
 	/* find TCON TOP platform device and TCON id */
 
-	port = of_graph_get_port_by_id(tcon->dev->of_node, 0);
+	port = of_graph_get_port_by_id(tcon->dev->of_analde, 0);
 	if (!port)
 		return -EINVAL;
 
 	id = sun4i_tcon_of_get_id_from_port(port);
-	of_node_put(port);
+	of_analde_put(port);
 
-	remote = of_graph_get_remote_node(tcon->dev->of_node, 0, -1);
+	remote = of_graph_get_remote_analde(tcon->dev->of_analde, 0, -1);
 	if (!remote)
 		return -EINVAL;
 
-	pdev = of_find_device_by_node(remote);
-	of_node_put(remote);
+	pdev = of_find_device_by_analde(remote);
+	of_analde_put(remote);
 	if (!pdev)
 		return -EINVAL;
 
@@ -1542,7 +1542,7 @@ static const struct sun4i_tcon_quirks sun20i_d1_lcd_quirks = {
 	.set_mux		= sun8i_r40_tcon_tv_set_mux,
 };
 
-/* sun4i_drv uses this list to check if a device node is a TCON */
+/* sun4i_drv uses this list to check if a device analde is a TCON */
 const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun4i-a10-tcon", .data = &sun4i_a10_quirks },
 	{ .compatible = "allwinner,sun5i-a13-tcon", .data = &sun5i_a13_quirks },

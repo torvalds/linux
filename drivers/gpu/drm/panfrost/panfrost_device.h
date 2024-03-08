@@ -75,7 +75,7 @@ struct panfrost_features {
 };
 
 /*
- * Features that cannot be automatically detected and need matching using the
+ * Features that cananalt be automatically detected and need matching using the
  * compatible string, typically SoC-specific.
  */
 struct panfrost_compatible {
@@ -83,7 +83,7 @@ struct panfrost_compatible {
 	int num_supplies;
 	const char * const *supply_names;
 	/*
-	 * Number of power domains required, note that values 0 and 1 are
+	 * Number of power domains required, analte that values 0 and 1 are
 	 * handled identically, as only values > 1 need special handling.
 	 */
 	int num_pm_domains;
@@ -220,7 +220,7 @@ enum drm_panfrost_exception_type {
 	DRM_PANFROST_EXCEPTION_KABOOM = 0x05,
 	DRM_PANFROST_EXCEPTION_EUREKA = 0x06,
 	DRM_PANFROST_EXCEPTION_ACTIVE = 0x08,
-	DRM_PANFROST_EXCEPTION_MAX_NON_FAULT = 0x3f,
+	DRM_PANFROST_EXCEPTION_MAX_ANALN_FAULT = 0x3f,
 	DRM_PANFROST_EXCEPTION_JOB_CONFIG_FAULT = 0x40,
 	DRM_PANFROST_EXCEPTION_JOB_POWER_FAULT = 0x41,
 	DRM_PANFROST_EXCEPTION_JOB_READ_FAULT = 0x42,
@@ -240,7 +240,7 @@ enum drm_panfrost_exception_type {
 	DRM_PANFROST_EXCEPTION_IMPRECISE_FAULT = 0x5b,
 	DRM_PANFROST_EXCEPTION_OOM = 0x60,
 	DRM_PANFROST_EXCEPTION_OOM_AFBC = 0x61,
-	DRM_PANFROST_EXCEPTION_UNKNOWN = 0x7f,
+	DRM_PANFROST_EXCEPTION_UNKANALWN = 0x7f,
 	DRM_PANFROST_EXCEPTION_DELAYED_BUS_FAULT = 0x80,
 	DRM_PANFROST_EXCEPTION_GPU_SHAREABILITY_FAULT = 0x88,
 	DRM_PANFROST_EXCEPTION_SYS_SHAREABILITY_FAULT = 0x89,
@@ -275,16 +275,16 @@ enum drm_panfrost_exception_type {
 	DRM_PANFROST_EXCEPTION_MEM_ATTR_FAULT_1 = 0xe9,
 	DRM_PANFROST_EXCEPTION_MEM_ATTR_FAULT_2 = 0xea,
 	DRM_PANFROST_EXCEPTION_MEM_ATTR_FAULT_3 = 0xeb,
-	DRM_PANFROST_EXCEPTION_MEM_ATTR_NONCACHE_0 = 0xec,
-	DRM_PANFROST_EXCEPTION_MEM_ATTR_NONCACHE_1 = 0xed,
-	DRM_PANFROST_EXCEPTION_MEM_ATTR_NONCACHE_2 = 0xee,
-	DRM_PANFROST_EXCEPTION_MEM_ATTR_NONCACHE_3 = 0xef,
+	DRM_PANFROST_EXCEPTION_MEM_ATTR_ANALNCACHE_0 = 0xec,
+	DRM_PANFROST_EXCEPTION_MEM_ATTR_ANALNCACHE_1 = 0xed,
+	DRM_PANFROST_EXCEPTION_MEM_ATTR_ANALNCACHE_2 = 0xee,
+	DRM_PANFROST_EXCEPTION_MEM_ATTR_ANALNCACHE_3 = 0xef,
 };
 
 static inline bool
 panfrost_exception_is_fault(u32 exception_code)
 {
-	return exception_code > DRM_PANFROST_EXCEPTION_MAX_NON_FAULT;
+	return exception_code > DRM_PANFROST_EXCEPTION_MAX_ANALN_FAULT;
 }
 
 const char *panfrost_exception_name(u32 exception_code);

@@ -17,16 +17,16 @@
 #include <dt-bindings/clock/mt7622-clk.h>
 
 #define GATE_AUDIO0(_id, _name, _parent, _shift)		\
-	GATE_MTK(_id, _name, _parent, &audio0_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &audio0_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 #define GATE_AUDIO1(_id, _name, _parent, _shift)		\
-	GATE_MTK(_id, _name, _parent, &audio1_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &audio1_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 #define GATE_AUDIO2(_id, _name, _parent, _shift)		\
-	GATE_MTK(_id, _name, _parent, &audio2_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &audio2_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 #define GATE_AUDIO3(_id, _name, _parent, _shift)		\
-	GATE_MTK(_id, _name, _parent, &audio3_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &audio3_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 static const struct mtk_gate_regs audio0_cg_regs = {
 	.set_ofs = 0x0,
@@ -118,7 +118,7 @@ static int clk_mt7622_aud_probe(struct platform_device *pdev)
 	r = mtk_clk_simple_probe(pdev);
 	if (r) {
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could analt register clock provider: %s: %d\n",
 			pdev->name, r);
 
 		return r;

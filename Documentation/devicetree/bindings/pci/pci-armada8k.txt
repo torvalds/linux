@@ -1,6 +1,6 @@
 * Marvell Armada 7K/8K PCIe interface
 
-This PCIe host controller is based on the Synopsys DesignWare PCIe IP
+This PCIe host controller is based on the Syanalpsys DesignWare PCIe IP
 and thus inherits all the common properties defined in snps,dw-pcie.yaml.
 
 Required properties:
@@ -18,7 +18,7 @@ Required properties:
    one
 
 Optional properties:
-- phys: phandle(s) to PHY node(s) following the generic PHY bindings.
+- phys: phandle(s) to PHY analde(s) following the generic PHY bindings.
 	Either 1, 2 or 4 PHYs might be needed depending on the number of
 	PCIe lanes.
 - phy-names: names of the PHYs corresponding to the number of lanes.
@@ -39,7 +39,7 @@ Example:
 
 		bus-range = <0 0xff>;
 		ranges = <0x81000000 0 0xf9000000 0  0xf9000000 0 0x10000	/* downstream I/O */
-			  0x82000000 0 0xf6000000 0  0xf6000000 0 0xf00000>;	/* non-prefetchable memory */
+			  0x82000000 0 0xf6000000 0  0xf6000000 0 0xf00000>;	/* analn-prefetchable memory */
 		interrupt-map-mask = <0 0 0 0>;
 		interrupt-map = <0 0 0 0 &gic 0 GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;

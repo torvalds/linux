@@ -30,7 +30,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 		dst->thread.xstate = kmem_cache_alloc(task_xstate_cachep,
 						      GFP_KERNEL);
 		if (!dst->thread.xstate)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(dst->thread.xstate, src->thread.xstate, xstate_size);
 	}
 
@@ -56,7 +56,7 @@ void arch_task_cache_init(void)
 		return;
 
 	task_xstate_cachep = kmem_cache_create("task_xstate", xstate_size,
-					       __alignof__(union thread_xstate),
+					       __aliganalf__(union thread_xstate),
 					       SLAB_PANIC, NULL);
 }
 

@@ -27,7 +27,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <limits.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <pthread.h>
 #include <sched.h>
@@ -59,16 +59,16 @@ static char *usage =
 "	-f	Only usable with continuous mode.  Pin ourself to the CPUs\n"
 "		as requested, then instead of looping doing a high mq\n"
 "		workload, just busy loop.  This will allow us to lock up a\n"
-"		single CPU just like we normally would, but without actually\n"
+"		single CPU just like we analrmally would, but without actually\n"
 "		thrashing the CPU cache.  This is to make it easier to get\n"
 "		comparable numbers from some other workload running on the\n"
 "		other CPUs.  One set of numbers with # CPUs locked up running\n"
-"		an mq workload, and another set of numbers with those same\n"
-"		CPUs locked away from the test workload, but not doing\n"
+"		an mq workload, and aanalther set of numbers with those same\n"
+"		CPUs locked away from the test workload, but analt doing\n"
 "		anything to trash the cache like the mq workload might.\n"
 "	path	Path name of the message queue to create\n"
 "\n"
-"	Note: this program must be run as root in order to enable all tests\n"
+"	Analte: this program must be run as root in order to enable all tests\n"
 "\n";
 
 char *MAX_MSGS = "/proc/sys/fs/mqueue/msg_max";
@@ -125,15 +125,15 @@ const struct poptOption options[] = {
 	{
 		.longName = "fake",
 		.shortName = 'f',
-		.argInfo = POPT_ARG_NONE,
+		.argInfo = POPT_ARG_ANALNE,
 		.arg = &continuous_mode_fake,
 		.val = 0,
-		.descrip = "Tie up the CPUs that we would normally tie up in"
+		.descrip = "Tie up the CPUs that we would analrmally tie up in"
 			"continuous mode, but don't actually do any mq stuff, "
 			"just keep the CPU busy so it can't be used to process "
 			"system level tasks as this would free up resources on "
 			"the other CPU cores and skew the comparison between "
-			"the no-mqueue work and mqueue work tests",
+			"the anal-mqueue work and mqueue work tests",
 		.argDescrip = NULL,
 	},
 	{
@@ -151,7 +151,7 @@ const struct poptOption options[] = {
 };
 
 static inline void __set(FILE *stream, int value, char *err_msg);
-void shutdown(int exit_val, char *err_cause, int line_no);
+void shutdown(int exit_val, char *err_cause, int line_anal);
 void sig_action_SIGUSR1(int signum, siginfo_t *info, void *context);
 void sig_action(int signum, siginfo_t *info, void *context);
 static inline int get(FILE *stream);
@@ -170,10 +170,10 @@ static inline void __set(FILE *stream, int value, char *err_msg)
 }
 
 
-void shutdown(int exit_val, char *err_cause, int line_no)
+void shutdown(int exit_val, char *err_cause, int line_anal)
 {
 	static int in_shutdown = 0;
-	int errno_at_shutdown = errno;
+	int erranal_at_shutdown = erranal;
 	int i;
 
 	/* In case we get called by multiple threads or from an sighandler */
@@ -205,8 +205,8 @@ void shutdown(int exit_val, char *err_cause, int line_no)
 		__set(max_msgsize, saved_max_msgsize,
 		      "failed to restore saved_max_msgsize");
 	if (exit_val)
-		error(exit_val, errno_at_shutdown, "%s at %d",
-		      err_cause, line_no);
+		error(exit_val, erranal_at_shutdown, "%s at %d",
+		      err_cause, line_anal);
 	exit(0);
 }
 
@@ -284,14 +284,14 @@ static inline void setr(int type, struct rlimit *rlim)
  * @attr - An attr struct specifying the desired queue traits
  * @result - An attr struct that lists the actual traits the queue has
  *
- * This open is not allowed to fail, failure will result in an orderly
+ * This open is analt allowed to fail, failure will result in an orderly
  * shutdown of the program.  The global queue_path is used to set what
  * queue to open, the queue descriptor is saved in the global queue
  * variable.
  */
 static inline void open_queue(struct mq_attr *attr)
 {
-	int flags = O_RDWR | O_EXCL | O_CREAT | O_NONBLOCK;
+	int flags = O_RDWR | O_EXCL | O_CREAT | O_ANALNBLOCK;
 	int perms = DEFFILEMODE;
 
 	queue = mq_open(queue_path, flags, perms, attr);
@@ -300,8 +300,8 @@ static inline void open_queue(struct mq_attr *attr)
 	if (mq_getattr(queue, &result))
 		shutdown(1, "mq_getattr()", __LINE__);
 	printf("\n\tQueue %s created:\n", queue_path);
-	printf("\t\tmq_flags:\t\t\t%s\n", result.mq_flags & O_NONBLOCK ?
-	       "O_NONBLOCK" : "(null)");
+	printf("\t\tmq_flags:\t\t\t%s\n", result.mq_flags & O_ANALNBLOCK ?
+	       "O_ANALNBLOCK" : "(null)");
 	printf("\t\tmq_maxmsg:\t\t\t%lu\n", result.mq_maxmsg);
 	printf("\t\tmq_msgsize:\t\t\t%lu\n", result.mq_msgsize);
 	printf("\t\tmq_curmsgs:\t\t\t%lu\n", result.mq_curmsgs);
@@ -420,7 +420,7 @@ struct test test2[] = {
  * 2b) with increasing prio
  * 2c) with decreasing prio
  * 2d) with random prio
- * 3) Test limits of priorities honored (double check _SC_MQ_PRIO_MAX)
+ * 3) Test limits of priorities hoanalred (double check _SC_MQ_PRIO_MAX)
  */
 void *perf_test_thread(void *arg)
 {
@@ -556,7 +556,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (getuid() != 0)
-		ksft_exit_skip("Not running as root, but almost all tests "
+		ksft_exit_skip("Analt running as root, but almost all tests "
 			"require root in order to modify\nsystem settings.  "
 			"Exiting.\n");
 
@@ -584,7 +584,7 @@ int main(int argc, char *argv[])
 				cpu = atoi(option);
 				if (cpu >= cpus_online)
 					fprintf(stderr, "CPU %d exceeds "
-						"cpus online, ignoring.\n",
+						"cpus online, iganalring.\n",
 						cpu);
 				else
 					cpus_to_pin[num_cpus_to_pin++] = cpu;
@@ -607,7 +607,7 @@ int main(int argc, char *argv[])
 		case 'p':
 			/*
 			 * Although we can create a msg queue with a
-			 * non-absolute path name, unlink will fail.  So,
+			 * analn-absolute path name, unlink will fail.  So,
 			 * if the name doesn't start with a /, add one
 			 * when we save it.
 			 */
@@ -649,9 +649,9 @@ int main(int argc, char *argv[])
 	cur_limits = saved_limits;
 	saved_max_msgs = cur_max_msgs = get(max_msgs);
 	saved_max_msgsize = cur_max_msgsize = get(max_msgsize);
-	errno = 0;
+	erranal = 0;
 	cur_nice = getpriority(PRIO_PROCESS, 0);
-	if (errno)
+	if (erranal)
 		shutdown(2, "getpriority()", __LINE__);
 
 	/* Tell the user our initial state */
@@ -709,7 +709,7 @@ int main(int argc, char *argv[])
 		shutdown(1, "sigaction(SIGTERM)", __LINE__);
 
 	if (!continuous_mode_fake) {
-		attr.mq_flags = O_NONBLOCK;
+		attr.mq_flags = O_ANALNBLOCK;
 		attr.mq_maxmsg = cur_max_msgs;
 		attr.mq_msgsize = MSG_SIZE;
 		open_queue(&attr);

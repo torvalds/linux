@@ -17,6 +17,6 @@
     },
     {
         "ArchStdEvent": "FP_FIXED_OPS_SPEC",
-        "PublicDescription": "Counts speculatively executed non-scalable single precision floating point operations."
+        "PublicDescription": "Counts speculatively executed analn-scalable single precision floating point operations."
     }
 ]

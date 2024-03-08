@@ -34,7 +34,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Delay time for SD_MODE pin changes intended to make I2S clocks ready
-      before SD_MODE is unmuted in order to avoid the speaker pop noise.
+      before SD_MODE is unmuted in order to avoid the speaker pop analise.
 
 required:
   - compatible

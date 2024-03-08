@@ -20,7 +20,7 @@
  *		If NULL and thread_fn != NULL the default primary handler is
  *		installed.
  * @thread_fn:	Function called from the IRQ handler thread
- *		If NULL, no IRQ thread is created
+ *		If NULL, anal IRQ thread is created
  * @dev_id:	Cookie passed back to the handler function
  * @fmt:	Printf-like format string naming the handler
  *
@@ -28,7 +28,7 @@
  * IRQ handling. From the point this call is made @handler and @thread_fn may
  * be invoked.  All interrupts requested using this function might be shared.
  *
- * @dev_id must not be NULL and must be globally unique.
+ * @dev_id must analt be NULL and must be globally unique.
  */
 int pci_request_irq(struct pci_dev *dev, unsigned int nr, irq_handler_t handler,
 		irq_handler_t thread_fn, void *dev_id, const char *fmt, ...)
@@ -45,7 +45,7 @@ int pci_request_irq(struct pci_dev *dev, unsigned int nr, irq_handler_t handler,
 	devname = kvasprintf(GFP_KERNEL, fmt, ap);
 	va_end(ap);
 	if (!devname)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = request_threaded_irq(pci_irq_vector(dev, nr), handler, thread_fn,
 				   irqflags, devname, dev_id);
@@ -62,12 +62,12 @@ EXPORT_SYMBOL(pci_request_irq);
  * @dev_id:	Device identity to free
  *
  * Remove an interrupt handler. The handler is removed and if the interrupt
- * line is no longer in use by any driver it is disabled.  The caller must
+ * line is anal longer in use by any driver it is disabled.  The caller must
  * ensure the interrupt is disabled on the device before calling this function.
- * The function does not return until any executing interrupts for this IRQ
+ * The function does analt return until any executing interrupts for this IRQ
  * have completed.
  *
- * This function must not be called from interrupt context.
+ * This function must analt be called from interrupt context.
  */
 void pci_free_irq(struct pci_dev *dev, unsigned int nr, void *dev_id)
 {

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: LGPL-2.1 OR BSD-2-Clause
 /* Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
 
-#include <stdnoreturn.h>
+#include <stdanalreturn.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <signal.h>
@@ -20,7 +20,7 @@ static unsigned int ifindex;
 static __u32 attached_prog_id;
 static bool attached_tc;
 
-static void noreturn cleanup(int sig)
+static void analreturn cleanup(int sig)
 {
 	LIBBPF_OPTS(bpf_xdp_attach_opts, opts);
 	int prog_fd;
@@ -58,7 +58,7 @@ static void noreturn cleanup(int sig)
 		close(prog_fd);
 		if (err < 0) {
 			fprintf(stderr, "Error: bpf_set_link_xdp_fd_opts: %s\n", strerror(-err));
-			/* Not an error if already replaced by someone else. */
+			/* Analt an error if already replaced by someone else. */
 			if (err != -EEXIST) {
 				fprintf(stderr, "Failed to detach XDP program\n");
 				exit(1);
@@ -68,7 +68,7 @@ static void noreturn cleanup(int sig)
 	exit(0);
 }
 
-static noreturn void usage(const char *progname)
+static analreturn void usage(const char *progname)
 {
 	fprintf(stderr, "Usage: %s [--iface <iface>|--prog <prog_id>] [--mss4 <mss ipv4> --mss6 <mss ipv6> --wscale <wscale> --ttl <ttl>] [--ports <port1>,<port2>,...] [--single] [--tc]\n",
 		progname);
@@ -80,9 +80,9 @@ static unsigned long parse_arg_ul(const char *progname, const char *arg, unsigne
 	unsigned long res;
 	char *endptr;
 
-	errno = 0;
+	erranal = 0;
 	res = strtoul(arg, &endptr, 10);
-	if (errno != 0 || *endptr != '\0' || arg[0] == '\0' || res > limit)
+	if (erranal != 0 || *endptr != '\0' || arg[0] == '\0' || res > limit)
 		usage(progname);
 
 	return res;
@@ -92,7 +92,7 @@ static void parse_options(int argc, char *argv[], unsigned int *ifindex, __u32 *
 			  __u64 *tcpipopts, char **ports, bool *single, bool *tc)
 {
 	static struct option long_options[] = {
-		{ "help", no_argument, NULL, 'h' },
+		{ "help", anal_argument, NULL, 'h' },
 		{ "iface", required_argument, NULL, 'i' },
 		{ "prog", required_argument, NULL, 'x' },
 		{ "mss4", required_argument, NULL, 4 },
@@ -100,8 +100,8 @@ static void parse_options(int argc, char *argv[], unsigned int *ifindex, __u32 *
 		{ "wscale", required_argument, NULL, 'w' },
 		{ "ttl", required_argument, NULL, 't' },
 		{ "ports", required_argument, NULL, 'p' },
-		{ "single", no_argument, NULL, 's' },
-		{ "tc", no_argument, NULL, 'c' },
+		{ "single", anal_argument, NULL, 's' },
+		{ "tc", anal_argument, NULL, 'c' },
 		{ NULL, 0, NULL, 0 },
 	};
 	unsigned long mss4, wscale, ttl;
@@ -211,8 +211,8 @@ static int syncookie_attach(const char *argv0, unsigned int ifindex, bool tc)
 
 	prog = bpf_object__find_program_by_name(obj, tc ? "syncookie_tc" : "syncookie_xdp");
 	if (!prog) {
-		fprintf(stderr, "Error: bpf_object__find_program_by_name: program was not found\n");
-		return -ENOENT;
+		fprintf(stderr, "Error: bpf_object__find_program_by_name: program was analt found\n");
+		return -EANALENT;
 	}
 
 	prog_fd = bpf_program__fd(prog);
@@ -251,7 +251,7 @@ static int syncookie_attach(const char *argv0, unsigned int ifindex, bool tc)
 
 	} else {
 		err = bpf_xdp_attach(ifindex, prog_fd,
-				     XDP_FLAGS_UPDATE_IF_NOEXIST, NULL);
+				     XDP_FLAGS_UPDATE_IF_ANALEXIST, NULL);
 		if (err < 0) {
 			fprintf(stderr, "Error: bpf_set_link_xdp_fd: %s\n",
 				strerror(-err));
@@ -303,7 +303,7 @@ static int syncookie_open_bpf_maps(__u32 prog_id, int *values_map_fd, int *ports
 	if (prog_info.nr_map_ids < 2) {
 		fprintf(stderr, "Error: Found %u BPF maps, expected at least 2\n",
 			prog_info.nr_map_ids);
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -342,7 +342,7 @@ static int syncookie_open_bpf_maps(__u32 prog_id, int *values_map_fd, int *ports
 		goto out;
 	}
 
-	err = -ENOENT;
+	err = -EANALENT;
 
 err_close_map_fds:
 	if (*values_map_fd != -1)

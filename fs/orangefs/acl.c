@@ -10,7 +10,7 @@
 #include "orangefs-bufmap.h"
 #include <linux/posix_acl_xattr.h>
 
-struct posix_acl *orangefs_get_acl(struct inode *inode, int type, bool rcu)
+struct posix_acl *orangefs_get_acl(struct ianalde *ianalde, int type, bool rcu)
 {
 	struct posix_acl *acl;
 	int ret;
@@ -34,28 +34,28 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type, bool rcu)
 	 * Rather than incurring a network call just to determine the exact
 	 * length of the attribute, I just allocate a max length to save on
 	 * the network call. Conceivably, we could pass NULL to
-	 * orangefs_inode_getxattr() to probe the length of the value, but
-	 * I don't do that for now.
+	 * orangefs_ianalde_getxattr() to probe the length of the value, but
+	 * I don't do that for analw.
 	 */
 	value = kmalloc(ORANGEFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
 	if (!value)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gossip_debug(GOSSIP_ACL_DEBUG,
-		     "inode %pU, key %s, type %d\n",
-		     get_khandle_from_ino(inode),
+		     "ianalde %pU, key %s, type %d\n",
+		     get_khandle_from_ianal(ianalde),
 		     key,
 		     type);
-	ret = orangefs_inode_getxattr(inode, key, value,
+	ret = orangefs_ianalde_getxattr(ianalde, key, value,
 				      ORANGEFS_MAX_XATTR_VALUELEN);
 	/* if the key exists, convert it to an in-memory rep */
 	if (ret > 0) {
 		acl = posix_acl_from_xattr(&init_user_ns, value, ret);
-	} else if (ret == -ENODATA || ret == -ENOSYS) {
+	} else if (ret == -EANALDATA || ret == -EANALSYS) {
 		acl = NULL;
 	} else {
-		gossip_err("inode %pU retrieving acl's failed with error %d\n",
-			   get_khandle_from_ino(inode),
+		gossip_err("ianalde %pU retrieving acl's failed with error %d\n",
+			   get_khandle_from_ianal(ianalde),
 			   ret);
 		acl = ERR_PTR(ret);
 	}
@@ -64,7 +64,7 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type, bool rcu)
 	return acl;
 }
 
-int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int __orangefs_set_acl(struct ianalde *ianalde, struct posix_acl *acl, int type)
 {
 	int error = 0;
 	void *value = NULL;
@@ -84,8 +84,8 @@ int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	}
 
 	gossip_debug(GOSSIP_ACL_DEBUG,
-		     "%s: inode %pU, key %s type %d\n",
-		     __func__, get_khandle_from_ino(inode),
+		     "%s: ianalde %pU, key %s type %d\n",
+		     __func__, get_khandle_from_ianal(ianalde),
 		     name,
 		     type);
 
@@ -93,7 +93,7 @@ int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		size = posix_acl_xattr_size(acl->a_count);
 		value = kmalloc(size, GFP_KERNEL);
 		if (!value)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		error = posix_acl_to_xattr(&init_user_ns, acl, value, size);
 		if (error < 0)
@@ -104,17 +104,17 @@ int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		     "%s: name %s, value %p, size %zd, acl %p\n",
 		     __func__, name, value, size, acl);
 	/*
-	 * Go ahead and set the extended attribute now. NOTE: Suppose acl
+	 * Go ahead and set the extended attribute analw. ANALTE: Suppose acl
 	 * was NULL, then value will be NULL and size will be 0 and that
 	 * will xlate to a removexattr. However, we don't want removexattr
-	 * complain if attributes does not exist.
+	 * complain if attributes does analt exist.
 	 */
-	error = orangefs_inode_setxattr(inode, name, value, size, 0);
+	error = orangefs_ianalde_setxattr(ianalde, name, value, size, 0);
 
 out:
 	kfree(value);
 	if (!error)
-		set_cached_acl(inode, type, acl);
+		set_cached_acl(ianalde, type, acl);
 	return error;
 }
 
@@ -124,7 +124,7 @@ int orangefs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	int error;
 	struct iattr iattr;
 	int rc;
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
 	memset(&iattr, 0, sizeof iattr);
 
@@ -136,7 +136,7 @@ int orangefs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 * and "mode" to the new desired value. It is up to
 		 * us to propagate the new mode back to the server...
 		 */
-		error = posix_acl_update_mode(&nop_mnt_idmap, inode,
+		error = posix_acl_update_mode(&analp_mnt_idmap, ianalde,
 					      &iattr.ia_mode, &acl);
 		if (error) {
 			gossip_err("%s: posix_acl_update_mode err: %d\n",
@@ -145,12 +145,12 @@ int orangefs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 			return error;
 		}
 
-		if (inode->i_mode != iattr.ia_mode)
+		if (ianalde->i_mode != iattr.ia_mode)
 			iattr.ia_valid = ATTR_MODE;
 
 	}
 
-	rc = __orangefs_set_acl(inode, acl, type);
+	rc = __orangefs_set_acl(ianalde, acl, type);
 
 	if (!rc && (iattr.ia_valid == ATTR_MODE))
 		rc = __orangefs_setattr_mode(dentry, &iattr);

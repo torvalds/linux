@@ -15,20 +15,20 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * Redistributions of source code must retain the above copyright notice, this
+ * Redistributions of source code must retain the above copyright analtice, this
  * list of conditions and the following disclaimer.
  *
- * Redistributions in binary form must reproduce the above copyright notice,
+ * Redistributions in binary form must reproduce the above copyright analtice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials
  * provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -152,27 +152,27 @@ static const struct dma_map_ops ibmebus_dma_ops = {
 
 static int ibmebus_match_path(struct device *dev, const void *data)
 {
-	struct device_node *dn = to_platform_device(dev)->dev.of_node;
-	struct device_node *tn = of_find_node_by_path(data);
+	struct device_analde *dn = to_platform_device(dev)->dev.of_analde;
+	struct device_analde *tn = of_find_analde_by_path(data);
 
-	of_node_put(tn);
+	of_analde_put(tn);
 
 	return (tn == dn);
 }
 
-static int ibmebus_match_node(struct device *dev, const void *data)
+static int ibmebus_match_analde(struct device *dev, const void *data)
 {
-	return to_platform_device(dev)->dev.of_node == data;
+	return to_platform_device(dev)->dev.of_analde == data;
 }
 
-static int ibmebus_create_device(struct device_node *dn)
+static int ibmebus_create_device(struct device_analde *dn)
 {
 	struct platform_device *dev;
 	int ret;
 
 	dev = of_device_alloc(dn, NULL, &ibmebus_bus_device);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->dev.bus = &ibmebus_bus_type;
 	dev->dev.dma_ops = &ibmebus_dma_ops;
@@ -185,18 +185,18 @@ static int ibmebus_create_device(struct device_node *dn)
 
 static int ibmebus_create_devices(const struct of_device_id *matches)
 {
-	struct device_node *root, *child;
+	struct device_analde *root, *child;
 	struct device *dev;
 	int ret = 0;
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 
-	for_each_child_of_node(root, child) {
-		if (!of_match_node(matches, child))
+	for_each_child_of_analde(root, child) {
+		if (!of_match_analde(matches, child))
 			continue;
 
 		dev = bus_find_device(&ibmebus_bus_type, NULL, child,
-				      ibmebus_match_node);
+				      ibmebus_match_analde);
 		if (dev) {
 			put_device(dev);
 			continue;
@@ -206,18 +206,18 @@ static int ibmebus_create_devices(const struct of_device_id *matches)
 		if (ret) {
 			printk(KERN_ERR "%s: failed to create device (%i)",
 			       __func__, ret);
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}
 
-	of_node_put(root);
+	of_analde_put(root);
 	return ret;
 }
 
 int ibmebus_register_driver(struct platform_driver *drv)
 {
-	/* If the driver uses devices that ibmebus doesn't know, add them */
+	/* If the driver uses devices that ibmebus doesn't kanalw, add them */
 	ibmebus_create_devices(drv->driver.of_match_table);
 
 	drv->driver.bus = &ibmebus_bus_type;
@@ -270,14 +270,14 @@ static char *ibmebus_chomp(const char *in, size_t count)
 
 static ssize_t probe_store(const struct bus_type *bus, const char *buf, size_t count)
 {
-	struct device_node *dn = NULL;
+	struct device_analde *dn = NULL;
 	struct device *dev;
 	char *path;
 	ssize_t rc = 0;
 
 	path = ibmebus_chomp(buf, count);
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = bus_find_device(&ibmebus_bus_type, NULL, path,
 			      ibmebus_match_path);
@@ -289,13 +289,13 @@ static ssize_t probe_store(const struct bus_type *bus, const char *buf, size_t c
 		goto out;
 	}
 
-	if ((dn = of_find_node_by_path(path))) {
+	if ((dn = of_find_analde_by_path(path))) {
 		rc = ibmebus_create_device(dn);
-		of_node_put(dn);
+		of_analde_put(dn);
 	} else {
-		printk(KERN_WARNING "%s: no such device node: %s\n",
+		printk(KERN_WARNING "%s: anal such device analde: %s\n",
 		       __func__, path);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	}
 
 out:
@@ -313,7 +313,7 @@ static ssize_t remove_store(const struct bus_type *bus, const char *buf, size_t 
 
 	path = ibmebus_chomp(buf, count);
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if ((dev = bus_find_device(&ibmebus_bus_type, NULL, path,
 				   ibmebus_match_path))) {
@@ -323,11 +323,11 @@ static ssize_t remove_store(const struct bus_type *bus, const char *buf, size_t 
 		kfree(path);
 		return count;
 	} else {
-		printk(KERN_WARNING "%s: %s not on the bus\n",
+		printk(KERN_WARNING "%s: %s analt on the bus\n",
 		       __func__, path);
 
 		kfree(path);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 static BUS_ATTR_WO(remove);
@@ -351,7 +351,7 @@ static int ibmebus_bus_bus_match(struct device *dev, struct device_driver *drv)
 
 static int ibmebus_bus_device_probe(struct device *dev)
 {
-	int error = -ENODEV;
+	int error = -EANALDEV;
 	struct platform_driver *drv;
 	struct platform_device *of_dev;
 
@@ -398,7 +398,7 @@ static ssize_t devspec_show(struct device *dev,
 	struct platform_device *ofdev;
 
 	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%pOF\n", ofdev->dev.of_node);
+	return sprintf(buf, "%pOF\n", ofdev->dev.of_analde);
 }
 static DEVICE_ATTR_RO(devspec);
 
@@ -408,7 +408,7 @@ static ssize_t name_show(struct device *dev,
 	struct platform_device *ofdev;
 
 	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%pOFn\n", ofdev->dev.of_node);
+	return sprintf(buf, "%pOFn\n", ofdev->dev.of_analde);
 }
 static DEVICE_ATTR_RO(name);
 

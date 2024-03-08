@@ -2,7 +2,7 @@
 //
 // Serial Sound Interface (I2S) support for SH7760/SH7780
 //
-// Copyright (c) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
+// Copyright (c) 2007 Manuel Lauss <maanal@roarinelk.homelinux.net>
 //
 // dont forget to set IPSEL/OMSEL register bits (in your board code) to
 // enable SSI output pins!
@@ -201,7 +201,7 @@ static int ssi_hw_params(struct snd_pcm_substream *substream,
 
 	SSIREG(SSICR) = ssicr;
 
-	pr_debug("ssi_hw_params() leave\nssicr is now %08lx\n", ssicr);
+	pr_debug("ssi_hw_params() leave\nssicr is analw %08lx\n", ssicr);
 	return 0;
 }
 
@@ -309,7 +309,7 @@ static int ssi_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	SSIREG(SSICR) = ssicr;
-	pr_debug("ssi_set_fmt() leave\nssicr is now 0x%08lx\n", ssicr);
+	pr_debug("ssi_set_fmt() leave\nssicr is analw 0x%08lx\n", ssicr);
 
 	return 0;
 }
@@ -400,4 +400,4 @@ module_platform_driver(sh4_ssi_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SuperH onchip SSI (I2S) audio driver");
-MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");
+MODULE_AUTHOR("Manuel Lauss <maanal@roarinelk.homelinux.net>");

@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/pagemap.h>
@@ -51,11 +51,11 @@
  */
 
 static int
-__bad_area_nosemaphore(struct pt_regs *regs, unsigned long address, int si_code)
+__bad_area_analsemaphore(struct pt_regs *regs, unsigned long address, int si_code)
 {
 	/*
 	 * If we are in kernel mode, bail out with a SEGV, this will
-	 * be caught by the assembly which will restore the non-volatile
+	 * be caught by the assembly which will restore the analn-volatile
 	 * registers before calling bad_page_fault()
 	 */
 	if (!user_mode(regs))
@@ -66,9 +66,9 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long address, int si_code)
 	return 0;
 }
 
-static noinline int bad_area_nosemaphore(struct pt_regs *regs, unsigned long address)
+static analinline int bad_area_analsemaphore(struct pt_regs *regs, unsigned long address)
 {
-	return __bad_area_nosemaphore(regs, address, SEGV_MAPERR);
+	return __bad_area_analsemaphore(regs, address, SEGV_MAPERR);
 }
 
 static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code)
@@ -81,10 +81,10 @@ static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code)
 	 */
 	mmap_read_unlock(mm);
 
-	return __bad_area_nosemaphore(regs, address, si_code);
+	return __bad_area_analsemaphore(regs, address, si_code);
 }
 
-static noinline int bad_access_pkey(struct pt_regs *regs, unsigned long address,
+static analinline int bad_access_pkey(struct pt_regs *regs, unsigned long address,
 				    struct vm_area_struct *vma)
 {
 	struct mm_struct *mm = current->mm;
@@ -96,7 +96,7 @@ static noinline int bad_access_pkey(struct pt_regs *regs, unsigned long address,
 	 * Hence the pkey value that we return to userspace can be different
 	 * from the pkey that actually caused access error.
 	 *
-	 * It does *not* guarantee that the VMA we find here
+	 * It does *analt* guarantee that the VMA we find here
 	 * was the one that we faulted on.
 	 *
 	 * 1. T1   : mprotect_key(foo, PAGE_SIZE, pkey=4);
@@ -113,7 +113,7 @@ static noinline int bad_access_pkey(struct pt_regs *regs, unsigned long address,
 
 	/*
 	 * If we are in kernel mode, bail out with a SEGV, this will
-	 * be caught by the assembly which will restore the non-volatile
+	 * be caught by the assembly which will restore the analn-volatile
 	 * registers before calling bad_page_fault()
 	 */
 	if (!user_mode(regs))
@@ -124,7 +124,7 @@ static noinline int bad_access_pkey(struct pt_regs *regs, unsigned long address,
 	return 0;
 }
 
-static noinline int bad_access(struct pt_regs *regs, unsigned long address)
+static analinline int bad_access(struct pt_regs *regs, unsigned long address)
 {
 	return __bad_area(regs, address, SEGV_ACCERR);
 }
@@ -161,7 +161,7 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr,
 				vm_fault_t fault)
 {
 	/*
-	 * Kernel page fault interrupted by SIGKILL. We have no reason to
+	 * Kernel page fault interrupted by SIGKILL. We have anal reason to
 	 * continue processing.
 	 */
 	if (fatal_signal_pending(current) && !user_mode(regs))
@@ -181,7 +181,7 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr,
 			     VM_FAULT_HWPOISON_LARGE))
 			return do_sigbus(regs, addr, fault);
 		else if (fault & VM_FAULT_SIGSEGV)
-			return bad_area_nosemaphore(regs, addr);
+			return bad_area_analsemaphore(regs, addr);
 		else
 			BUG();
 	}
@@ -231,7 +231,7 @@ static bool access_pkey_error(bool is_write, bool is_exec, bool is_pkey,
 			      struct vm_area_struct *vma)
 {
 	/*
-	 * Make sure to check the VMA so that we do not perform
+	 * Make sure to check the VMA so that we do analt perform
 	 * faults just to hit a pkey fault as soon as we fill in a
 	 * page. Only called for current mm, hence foreign == 0
 	 */
@@ -244,18 +244,18 @@ static bool access_pkey_error(bool is_write, bool is_exec, bool is_pkey,
 static bool access_error(bool is_write, bool is_exec, struct vm_area_struct *vma)
 {
 	/*
-	 * Allow execution from readable areas if the MMU does not
+	 * Allow execution from readable areas if the MMU does analt
 	 * provide separate controls over reading and executing.
 	 *
-	 * Note: That code used to not be enabled for 4xx/BookE.
-	 * It is now as I/D cache coherency for these is done at
-	 * set_pte_at() time and I see no reason why the test
+	 * Analte: That code used to analt be enabled for 4xx/BookE.
+	 * It is analw as I/D cache coherency for these is done at
+	 * set_pte_at() time and I see anal reason why the test
 	 * below wouldn't be valid on those processors. This -may-
 	 * break programs compiled with a really old ABI though.
 	 */
 	if (is_exec) {
 		return !(vma->vm_flags & VM_EXEC) &&
-			(cpu_has_feature(CPU_FTR_NOEXECUTE) ||
+			(cpu_has_feature(CPU_FTR_ANALEXECUTE) ||
 			 !(vma->vm_flags & (VM_READ | VM_WRITE)));
 	}
 
@@ -268,7 +268,7 @@ static bool access_error(bool is_write, bool is_exec, struct vm_area_struct *vma
 	/*
 	 * VM_READ, VM_WRITE and VM_EXEC may imply read permissions, as
 	 * defined in protection_map[].  In that case Read faults can only be
-	 * caused by a PROT_NONE mapping. However a non exec access on a
+	 * caused by a PROT_ANALNE mapping. However a analn exec access on a
 	 * VM_EXEC only mapping is invalid anyway, so report it as such.
 	 */
 	if (unlikely(!vma_is_accessible(vma)))
@@ -325,18 +325,18 @@ static void sanity_check_fault(bool is_write, bool is_user,
 	/*
 	 * For hash translation mode, we should never get a
 	 * PROTFAULT. Any update to pte to reduce access will result in us
-	 * removing the hash page table entry, thus resulting in a DSISR_NOHPTE
+	 * removing the hash page table entry, thus resulting in a DSISR_ANALHPTE
 	 * fault instead of DSISR_PROTFAULT.
 	 *
-	 * A pte update to relax the access will not result in a hash page table
+	 * A pte update to relax the access will analt result in a hash page table
 	 * entry invalidate and hence can result in DSISR_PROTFAULT.
 	 * ptep_set_access_flags() doesn't do a hpte flush. This is why we have
 	 * the special !is_write in the below conditional.
 	 *
 	 * For platforms that doesn't supports coherent icache and do support
-	 * per page noexec bit, we do setup things such that we do the
+	 * per page analexec bit, we do setup things such that we do the
 	 * sync between D/I cache via fault. But that is handled via low level
-	 * hash fault code (hash_page_do_lazy_icache()) and we should not reach
+	 * hash fault code (hash_page_do_lazy_icache()) and we should analt reach
 	 * here in such case.
 	 *
 	 * For wrong access that can result in PROTFAULT, the above vma->vm_flags
@@ -345,11 +345,11 @@ static void sanity_check_fault(bool is_write, bool is_user,
 	 *
 	 * For embedded with per page exec support that doesn't support coherent
 	 * icache we do get PROTFAULT and we handle that D/I cache sync in
-	 * set_pte_at while taking the noexec/prot fault. Hence this is WARN_ON
+	 * set_pte_at while taking the analexec/prot fault. Hence this is WARN_ON
 	 * is conditional for server MMU.
 	 *
 	 * For radix, we can get prot fault for autonuma case, because radix
-	 * page table will have them marked noaccess for user.
+	 * page table will have them marked analaccess for user.
 	 */
 	if (radix_enabled() || is_write)
 		return;
@@ -370,7 +370,7 @@ static void sanity_check_fault(bool is_write, bool is_user,
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 #define page_fault_is_bad(__err)	(0)
 #elif defined(CONFIG_PPC_8xx)
-#define page_fault_is_bad(__err)	((__err) & DSISR_NOEXEC_OR_G)
+#define page_fault_is_bad(__err)	((__err) & DSISR_ANALEXEC_OR_G)
 #elif defined(CONFIG_PPC64)
 static int page_fault_is_bad(unsigned long err)
 {
@@ -379,7 +379,7 @@ static int page_fault_is_bad(unsigned long err)
 	/*
 	 * PAPR+ v2.11 § 14.15.3.4.1 (unreleased)
 	 * If byte 0, bit 3 of pi-attribute-specifier-type in
-	 * ibm,pi-features property is defined, ignore the DSI error
+	 * ibm,pi-features property is defined, iganalre the DSI error
 	 * which is caused by the paste instruction on the
 	 * suspended NX window.
 	 */
@@ -430,7 +430,7 @@ static int ___do_page_fault(struct pt_regs *regs, unsigned long address,
 	sanity_check_fault(is_write, is_user, error_code, address);
 
 	/*
-	 * The kernel should never take an execute fault nor should it
+	 * The kernel should never take an execute fault analr should it
 	 * take a page fault to a kernel address or a page fault to a user
 	 * address outside of dedicated places
 	 */
@@ -442,8 +442,8 @@ static int ___do_page_fault(struct pt_regs *regs, unsigned long address,
 	}
 
 	/*
-	 * If we're in an interrupt, have no user context or are running
-	 * in a region with pagefaults disabled then we must not take the fault
+	 * If we're in an interrupt, have anal user context or are running
+	 * in a region with pagefaults disabled then we must analt take the fault
 	 */
 	if (unlikely(faulthandler_disabled() || !mm)) {
 		if (is_user)
@@ -451,7 +451,7 @@ static int ___do_page_fault(struct pt_regs *regs, unsigned long address,
 					   " with faulthandler_disabled()=%d"
 					   " mm=%p\n",
 					   faulthandler_disabled(), mm);
-		return bad_area_nosemaphore(regs, address);
+		return bad_area_analsemaphore(regs, address);
 	}
 
 	interrupt_cond_local_irq_enable(regs);
@@ -517,7 +517,7 @@ lock_mmap:
 retry:
 	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (unlikely(!vma))
-		return bad_area_nosemaphore(regs, address);
+		return bad_area_analsemaphore(regs, address);
 
 	if (unlikely(access_pkey_error(is_write, is_exec,
 				       (error_code & DSISR_KEYFAULT), vma)))
@@ -543,7 +543,7 @@ retry:
 		goto out;
 
 	/*
-	 * Handle the retry right now, the mmap_lock has been released in that
+	 * Handle the retry right analw, the mmap_lock has been released in that
 	 * case.
 	 */
 	if (unlikely(fault & VM_FAULT_RETRY)) {
@@ -559,14 +559,14 @@ done:
 
 out:
 	/*
-	 * Major/minor page fault accounting.
+	 * Major/mianalr page fault accounting.
 	 */
 	if (major)
 		cmo_account_page_fault();
 
 	return 0;
 }
-NOKPROBE_SYMBOL(___do_page_fault);
+ANALKPROBE_SYMBOL(___do_page_fault);
 
 static __always_inline void __do_page_fault(struct pt_regs *regs)
 {
@@ -588,7 +588,7 @@ void hash__do_page_fault(struct pt_regs *regs)
 {
 	__do_page_fault(regs);
 }
-NOKPROBE_SYMBOL(hash__do_page_fault);
+ANALKPROBE_SYMBOL(hash__do_page_fault);
 #endif
 
 /*
@@ -627,7 +627,7 @@ static void __bad_page_fault(struct pt_regs *regs, int sig)
 			 regs->dar);
 		break;
 	default:
-		pr_alert("BUG: Unable to handle unknown paging fault at 0x%08lx\n",
+		pr_alert("BUG: Unable to handle unkanalwn paging fault at 0x%08lx\n",
 			 regs->dar);
 		break;
 	}
@@ -659,7 +659,7 @@ DEFINE_INTERRUPT_HANDLER(do_bad_page_fault_segv)
 }
 
 /*
- * In radix, segment interrupts indicate the EA is not addressable by the
+ * In radix, segment interrupts indicate the EA is analt addressable by the
  * page table geometry, so they are always sent here.
  *
  * In hash, this is called if do_slb_fault returns error. Typically it is

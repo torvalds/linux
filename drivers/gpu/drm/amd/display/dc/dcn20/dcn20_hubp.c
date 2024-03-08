@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -107,19 +107,19 @@ void hubp2_program_deadline(
 	REG_SET(VBLANK_PARAMETERS_1, 0,
 		REFCYC_PER_PTE_GROUP_VBLANK_L, dlg_attr->refcyc_per_pte_group_vblank_l);
 
-	if (REG(NOM_PARAMETERS_0))
-		REG_SET(NOM_PARAMETERS_0, 0,
-			DST_Y_PER_PTE_ROW_NOM_L, dlg_attr->dst_y_per_pte_row_nom_l);
+	if (REG(ANALM_PARAMETERS_0))
+		REG_SET(ANALM_PARAMETERS_0, 0,
+			DST_Y_PER_PTE_ROW_ANALM_L, dlg_attr->dst_y_per_pte_row_analm_l);
 
-	if (REG(NOM_PARAMETERS_1))
-		REG_SET(NOM_PARAMETERS_1, 0,
-			REFCYC_PER_PTE_GROUP_NOM_L, dlg_attr->refcyc_per_pte_group_nom_l);
+	if (REG(ANALM_PARAMETERS_1))
+		REG_SET(ANALM_PARAMETERS_1, 0,
+			REFCYC_PER_PTE_GROUP_ANALM_L, dlg_attr->refcyc_per_pte_group_analm_l);
 
-	REG_SET(NOM_PARAMETERS_4, 0,
-		DST_Y_PER_META_ROW_NOM_L, dlg_attr->dst_y_per_meta_row_nom_l);
+	REG_SET(ANALM_PARAMETERS_4, 0,
+		DST_Y_PER_META_ROW_ANALM_L, dlg_attr->dst_y_per_meta_row_analm_l);
 
-	REG_SET(NOM_PARAMETERS_5, 0,
-		REFCYC_PER_META_CHUNK_NOM_L, dlg_attr->refcyc_per_meta_chunk_nom_l);
+	REG_SET(ANALM_PARAMETERS_5, 0,
+		REFCYC_PER_META_CHUNK_ANALM_L, dlg_attr->refcyc_per_meta_chunk_analm_l);
 
 	REG_SET_2(PER_LINE_DELIVERY, 0,
 		REFCYC_PER_LINE_DELIVERY_L, dlg_attr->refcyc_per_line_delivery_l,
@@ -128,19 +128,19 @@ void hubp2_program_deadline(
 	REG_SET(VBLANK_PARAMETERS_2, 0,
 		REFCYC_PER_PTE_GROUP_VBLANK_C, dlg_attr->refcyc_per_pte_group_vblank_c);
 
-	if (REG(NOM_PARAMETERS_2))
-		REG_SET(NOM_PARAMETERS_2, 0,
-			DST_Y_PER_PTE_ROW_NOM_C, dlg_attr->dst_y_per_pte_row_nom_c);
+	if (REG(ANALM_PARAMETERS_2))
+		REG_SET(ANALM_PARAMETERS_2, 0,
+			DST_Y_PER_PTE_ROW_ANALM_C, dlg_attr->dst_y_per_pte_row_analm_c);
 
-	if (REG(NOM_PARAMETERS_3))
-		REG_SET(NOM_PARAMETERS_3, 0,
-			REFCYC_PER_PTE_GROUP_NOM_C, dlg_attr->refcyc_per_pte_group_nom_c);
+	if (REG(ANALM_PARAMETERS_3))
+		REG_SET(ANALM_PARAMETERS_3, 0,
+			REFCYC_PER_PTE_GROUP_ANALM_C, dlg_attr->refcyc_per_pte_group_analm_c);
 
-	REG_SET(NOM_PARAMETERS_6, 0,
-		DST_Y_PER_META_ROW_NOM_C, dlg_attr->dst_y_per_meta_row_nom_c);
+	REG_SET(ANALM_PARAMETERS_6, 0,
+		DST_Y_PER_META_ROW_ANALM_C, dlg_attr->dst_y_per_meta_row_analm_c);
 
-	REG_SET(NOM_PARAMETERS_7, 0,
-		REFCYC_PER_META_CHUNK_NOM_C, dlg_attr->refcyc_per_meta_chunk_nom_c);
+	REG_SET(ANALM_PARAMETERS_7, 0,
+		REFCYC_PER_META_CHUNK_ANALM_C, dlg_attr->refcyc_per_meta_chunk_analm_c);
 
 	/* TTU - per hubp */
 	REG_SET_2(DCN_TTU_QOS_WM, 0,
@@ -234,7 +234,7 @@ static void hubp2_setup(
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	/* otg is locked when this func is called. Register are double buffered.
-	 * disable the requestors is not needed
+	 * disable the requestors is analt needed
 	 */
 
 	hubp2_vready_at_or_After_vsync(hubp, pipe_dest);
@@ -294,7 +294,7 @@ void hubp2_setup_interdependent(
 		QoS_LEVEL_FLIP, ttu_attr->qos_level_flip);
 }
 
-/* DCN2 (GFX10), the following GFX fields are deprecated. They can be set but they will not be used:
+/* DCN2 (GFX10), the following GFX fields are deprecated. They can be set but they will analt be used:
  *	NUM_BANKS
  *	NUM_SE
  *	NUM_RB_PER_SE
@@ -387,7 +387,7 @@ void hubp2_program_rotation(
 	else
 		mirror = 0;
 
-	/* Program rotation angle and horz mirror - no mirror */
+	/* Program rotation angle and horz mirror - anal mirror */
 	if (rotation == ROTATION_ANGLE_0)
 		REG_UPDATE_2(DCSURF_SURFACE_CONFIG,
 				ROTATION_ANGLE, 0,
@@ -467,7 +467,7 @@ void hubp2_program_pixel_format(
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616: /*we use crossbar already*/
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
-				SURFACE_PIXEL_FORMAT, 26); /* ARGB16161616_UNORM */
+				SURFACE_PIXEL_FORMAT, 26); /* ARGB16161616_UANALRM */
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:/*we use crossbar already*/
@@ -558,7 +558,7 @@ enum cursor_lines_per_chunk hubp2_get_lines_per_chunk(
 {
 	enum cursor_lines_per_chunk line_per_chunk = CURSOR_LINE_PER_CHUNK_16;
 
-	if (cursor_mode == CURSOR_MODE_MONO)
+	if (cursor_mode == CURSOR_MODE_MOANAL)
 		line_per_chunk = CURSOR_LINE_PER_CHUNK_16;
 	else if (cursor_mode == CURSOR_MODE_COLOR_1BIT_AND ||
 		 cursor_mode == CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA ||
@@ -615,7 +615,7 @@ void hubp2_cursor_set_attributes(
 			CURSOR_LINES_PER_CHUNK, lpc);
 
 	REG_SET_2(CURSOR_SETTINGS, 0,
-			/* no shift of the cursor HDL schedule */
+			/* anal shift of the cursor HDL schedule */
 			CURSOR0_DST_Y_OFFSET, 0,
 			 /* used to shift the cursor chunk request deadline */
 			CURSOR0_CHUNK_HDL_ADJUST, 3);
@@ -680,7 +680,7 @@ void hubp2_dmdata_set_attributes(
 		hubp2_dmdata_load(hubp, attr->dmdata_size, attr->dmdata_sw_data);
 	}
 
-	/* Note that DL_DELTA must be programmed if we want to use TTU mode */
+	/* Analte that DL_DELTA must be programmed if we want to use TTU mode */
 	REG_SET_3(DMDATA_QOS_CNTL, 0,
 			DMDATA_QOS_MODE, attr->dmdata_qos_mode,
 			DMDATA_QOS_LEVEL, attr->dmdata_qos_level,
@@ -726,13 +726,13 @@ bool hubp2_program_surface_flip_and_addr(
 
 
 	/* HW automatically latch rest of address register on write to
-	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is not used
+	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is analt used
 	 *
 	 * program high first and then the low addr, order matters!
 	 */
 	switch (address->type) {
 	case PLN_ADDR_TYPE_GRAPHICS:
-		/* DCN1.0 does not support const color
+		/* DCN1.0 does analt support const color
 		 * TODO: program DCHUBBUB_RET_PATH_DCC_CFGx_0/1
 		 * base on address->grph.dcc_const_color
 		 * x = 0, 2, 4, 6 for pipe 0, 1, 2, 3 for rgb and luma
@@ -955,11 +955,11 @@ void hubp2_set_blank_regs(struct hubp *hubp, bool blank)
 			/* init sequence workaround: in case HUBP is
 			 * power gated, this wait would timeout.
 			 *
-			 * we just wrote reg_val to non-0, if it stay 0
+			 * we just wrote reg_val to analn-0, if it stay 0
 			 * it means HUBP is gated
 			 */
 			REG_WAIT(DCHUBP_CNTL,
-					HUBP_NO_OUTSTANDING_REQ, 1,
+					HUBP_ANAL_OUTSTANDING_REQ, 1,
 					1, 100000);
 		}
 	}
@@ -1032,16 +1032,16 @@ void hubp2_cursor_set_position(
 				param->h_scale_ratio));
 
 	if (src_x_offset >= (int)param->viewport.width)
-		cur_en = 0;  /* not visible beyond right edge*/
+		cur_en = 0;  /* analt visible beyond right edge*/
 
 	if (src_x_offset + cursor_width <= 0)
-		cur_en = 0;  /* not visible beyond left edge*/
+		cur_en = 0;  /* analt visible beyond left edge*/
 
 	if (src_y_offset >= (int)param->viewport.height)
-		cur_en = 0;  /* not visible beyond bottom edge*/
+		cur_en = 0;  /* analt visible beyond bottom edge*/
 
 	if (src_y_offset + cursor_height <= 0)
-		cur_en = 0;  /* not visible beyond top edge*/
+		cur_en = 0;  /* analt visible beyond top edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
 		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
@@ -1172,19 +1172,19 @@ void hubp2_read_state_common(struct hubp *hubp)
 	REG_GET(VBLANK_PARAMETERS_3,
 		REFCYC_PER_META_CHUNK_VBLANK_L, &dlg_attr->refcyc_per_meta_chunk_vblank_l);
 
-	if (REG(NOM_PARAMETERS_0))
-		REG_GET(NOM_PARAMETERS_0,
-			DST_Y_PER_PTE_ROW_NOM_L, &dlg_attr->dst_y_per_pte_row_nom_l);
+	if (REG(ANALM_PARAMETERS_0))
+		REG_GET(ANALM_PARAMETERS_0,
+			DST_Y_PER_PTE_ROW_ANALM_L, &dlg_attr->dst_y_per_pte_row_analm_l);
 
-	if (REG(NOM_PARAMETERS_1))
-		REG_GET(NOM_PARAMETERS_1,
-			REFCYC_PER_PTE_GROUP_NOM_L, &dlg_attr->refcyc_per_pte_group_nom_l);
+	if (REG(ANALM_PARAMETERS_1))
+		REG_GET(ANALM_PARAMETERS_1,
+			REFCYC_PER_PTE_GROUP_ANALM_L, &dlg_attr->refcyc_per_pte_group_analm_l);
 
-	REG_GET(NOM_PARAMETERS_4,
-		DST_Y_PER_META_ROW_NOM_L, &dlg_attr->dst_y_per_meta_row_nom_l);
+	REG_GET(ANALM_PARAMETERS_4,
+		DST_Y_PER_META_ROW_ANALM_L, &dlg_attr->dst_y_per_meta_row_analm_l);
 
-	REG_GET(NOM_PARAMETERS_5,
-		REFCYC_PER_META_CHUNK_NOM_L, &dlg_attr->refcyc_per_meta_chunk_nom_l);
+	REG_GET(ANALM_PARAMETERS_5,
+		REFCYC_PER_META_CHUNK_ANALM_L, &dlg_attr->refcyc_per_meta_chunk_analm_l);
 
 	REG_GET_2(PER_LINE_DELIVERY_PRE,
 		REFCYC_PER_LINE_DELIVERY_PRE_L, &dlg_attr->refcyc_per_line_delivery_pre_l,
@@ -1207,19 +1207,19 @@ void hubp2_read_state_common(struct hubp *hubp)
 	REG_GET(VBLANK_PARAMETERS_4,
 		REFCYC_PER_META_CHUNK_VBLANK_C, &dlg_attr->refcyc_per_meta_chunk_vblank_c);
 
-	if (REG(NOM_PARAMETERS_2))
-		REG_GET(NOM_PARAMETERS_2,
-			DST_Y_PER_PTE_ROW_NOM_C, &dlg_attr->dst_y_per_pte_row_nom_c);
+	if (REG(ANALM_PARAMETERS_2))
+		REG_GET(ANALM_PARAMETERS_2,
+			DST_Y_PER_PTE_ROW_ANALM_C, &dlg_attr->dst_y_per_pte_row_analm_c);
 
-	if (REG(NOM_PARAMETERS_3))
-		REG_GET(NOM_PARAMETERS_3,
-			REFCYC_PER_PTE_GROUP_NOM_C, &dlg_attr->refcyc_per_pte_group_nom_c);
+	if (REG(ANALM_PARAMETERS_3))
+		REG_GET(ANALM_PARAMETERS_3,
+			REFCYC_PER_PTE_GROUP_ANALM_C, &dlg_attr->refcyc_per_pte_group_analm_c);
 
-	REG_GET(NOM_PARAMETERS_6,
-		DST_Y_PER_META_ROW_NOM_C, &dlg_attr->dst_y_per_meta_row_nom_c);
+	REG_GET(ANALM_PARAMETERS_6,
+		DST_Y_PER_META_ROW_ANALM_C, &dlg_attr->dst_y_per_meta_row_analm_c);
 
-	REG_GET(NOM_PARAMETERS_7,
-		REFCYC_PER_META_CHUNK_NOM_C, &dlg_attr->refcyc_per_meta_chunk_nom_c);
+	REG_GET(ANALM_PARAMETERS_7,
+		REFCYC_PER_META_CHUNK_ANALM_C, &dlg_attr->refcyc_per_meta_chunk_analm_c);
 
 	/* TTU - per hubp */
 	REG_GET_2(DCN_TTU_QOS_WM,
@@ -1478,16 +1478,16 @@ static void hubp2_validate_dml_output(struct hubp *hubp,
 	/* DLG - Per luma/chroma */
 	REG_GET(VBLANK_PARAMETERS_1,
 		REFCYC_PER_PTE_GROUP_VBLANK_L, &dlg_attr.refcyc_per_pte_group_vblank_l);
-	if (REG(NOM_PARAMETERS_0))
-		REG_GET(NOM_PARAMETERS_0,
-			DST_Y_PER_PTE_ROW_NOM_L, &dlg_attr.dst_y_per_pte_row_nom_l);
-	if (REG(NOM_PARAMETERS_1))
-		REG_GET(NOM_PARAMETERS_1,
-			REFCYC_PER_PTE_GROUP_NOM_L, &dlg_attr.refcyc_per_pte_group_nom_l);
-	REG_GET(NOM_PARAMETERS_4,
-		DST_Y_PER_META_ROW_NOM_L, &dlg_attr.dst_y_per_meta_row_nom_l);
-	REG_GET(NOM_PARAMETERS_5,
-		REFCYC_PER_META_CHUNK_NOM_L, &dlg_attr.refcyc_per_meta_chunk_nom_l);
+	if (REG(ANALM_PARAMETERS_0))
+		REG_GET(ANALM_PARAMETERS_0,
+			DST_Y_PER_PTE_ROW_ANALM_L, &dlg_attr.dst_y_per_pte_row_analm_l);
+	if (REG(ANALM_PARAMETERS_1))
+		REG_GET(ANALM_PARAMETERS_1,
+			REFCYC_PER_PTE_GROUP_ANALM_L, &dlg_attr.refcyc_per_pte_group_analm_l);
+	REG_GET(ANALM_PARAMETERS_4,
+		DST_Y_PER_META_ROW_ANALM_L, &dlg_attr.dst_y_per_meta_row_analm_l);
+	REG_GET(ANALM_PARAMETERS_5,
+		REFCYC_PER_META_CHUNK_ANALM_L, &dlg_attr.refcyc_per_meta_chunk_analm_l);
 	REG_GET_2(PER_LINE_DELIVERY,
 		REFCYC_PER_LINE_DELIVERY_L, &dlg_attr.refcyc_per_line_delivery_l,
 		REFCYC_PER_LINE_DELIVERY_C, &dlg_attr.refcyc_per_line_delivery_c);
@@ -1496,16 +1496,16 @@ static void hubp2_validate_dml_output(struct hubp *hubp,
 		REFCYC_PER_LINE_DELIVERY_PRE_C, &dlg_attr.refcyc_per_line_delivery_pre_c);
 	REG_GET(VBLANK_PARAMETERS_2,
 		REFCYC_PER_PTE_GROUP_VBLANK_C, &dlg_attr.refcyc_per_pte_group_vblank_c);
-	if (REG(NOM_PARAMETERS_2))
-		REG_GET(NOM_PARAMETERS_2,
-			DST_Y_PER_PTE_ROW_NOM_C, &dlg_attr.dst_y_per_pte_row_nom_c);
-	if (REG(NOM_PARAMETERS_3))
-		REG_GET(NOM_PARAMETERS_3,
-			REFCYC_PER_PTE_GROUP_NOM_C, &dlg_attr.refcyc_per_pte_group_nom_c);
-	REG_GET(NOM_PARAMETERS_6,
-		DST_Y_PER_META_ROW_NOM_C, &dlg_attr.dst_y_per_meta_row_nom_c);
-	REG_GET(NOM_PARAMETERS_7,
-		REFCYC_PER_META_CHUNK_NOM_C, &dlg_attr.refcyc_per_meta_chunk_nom_c);
+	if (REG(ANALM_PARAMETERS_2))
+		REG_GET(ANALM_PARAMETERS_2,
+			DST_Y_PER_PTE_ROW_ANALM_C, &dlg_attr.dst_y_per_pte_row_analm_c);
+	if (REG(ANALM_PARAMETERS_3))
+		REG_GET(ANALM_PARAMETERS_3,
+			REFCYC_PER_PTE_GROUP_ANALM_C, &dlg_attr.refcyc_per_pte_group_analm_c);
+	REG_GET(ANALM_PARAMETERS_6,
+		DST_Y_PER_META_ROW_ANALM_C, &dlg_attr.dst_y_per_meta_row_analm_c);
+	REG_GET(ANALM_PARAMETERS_7,
+		REFCYC_PER_META_CHUNK_ANALM_C, &dlg_attr.refcyc_per_meta_chunk_analm_c);
 	REG_GET(VBLANK_PARAMETERS_3,
 			REFCYC_PER_META_CHUNK_VBLANK_L, &dlg_attr.refcyc_per_meta_chunk_vblank_l);
 	REG_GET(VBLANK_PARAMETERS_4,
@@ -1514,18 +1514,18 @@ static void hubp2_validate_dml_output(struct hubp *hubp,
 	if (dlg_attr.refcyc_per_pte_group_vblank_l != dml_dlg_attr->refcyc_per_pte_group_vblank_l)
 		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_1:REFCYC_PER_PTE_GROUP_VBLANK_L - Expected: %u  Actual: %u\n",
 				dml_dlg_attr->refcyc_per_pte_group_vblank_l, dlg_attr.refcyc_per_pte_group_vblank_l);
-	if (dlg_attr.dst_y_per_pte_row_nom_l != dml_dlg_attr->dst_y_per_pte_row_nom_l)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_0:DST_Y_PER_PTE_ROW_NOM_L - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->dst_y_per_pte_row_nom_l, dlg_attr.dst_y_per_pte_row_nom_l);
-	if (dlg_attr.refcyc_per_pte_group_nom_l != dml_dlg_attr->refcyc_per_pte_group_nom_l)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_1:REFCYC_PER_PTE_GROUP_NOM_L - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->refcyc_per_pte_group_nom_l, dlg_attr.refcyc_per_pte_group_nom_l);
-	if (dlg_attr.dst_y_per_meta_row_nom_l != dml_dlg_attr->dst_y_per_meta_row_nom_l)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_4:DST_Y_PER_META_ROW_NOM_L - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->dst_y_per_meta_row_nom_l, dlg_attr.dst_y_per_meta_row_nom_l);
-	if (dlg_attr.refcyc_per_meta_chunk_nom_l != dml_dlg_attr->refcyc_per_meta_chunk_nom_l)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_5:REFCYC_PER_META_CHUNK_NOM_L - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->refcyc_per_meta_chunk_nom_l, dlg_attr.refcyc_per_meta_chunk_nom_l);
+	if (dlg_attr.dst_y_per_pte_row_analm_l != dml_dlg_attr->dst_y_per_pte_row_analm_l)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_0:DST_Y_PER_PTE_ROW_ANALM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_pte_row_analm_l, dlg_attr.dst_y_per_pte_row_analm_l);
+	if (dlg_attr.refcyc_per_pte_group_analm_l != dml_dlg_attr->refcyc_per_pte_group_analm_l)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_1:REFCYC_PER_PTE_GROUP_ANALM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_analm_l, dlg_attr.refcyc_per_pte_group_analm_l);
+	if (dlg_attr.dst_y_per_meta_row_analm_l != dml_dlg_attr->dst_y_per_meta_row_analm_l)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_4:DST_Y_PER_META_ROW_ANALM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_meta_row_analm_l, dlg_attr.dst_y_per_meta_row_analm_l);
+	if (dlg_attr.refcyc_per_meta_chunk_analm_l != dml_dlg_attr->refcyc_per_meta_chunk_analm_l)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_5:REFCYC_PER_META_CHUNK_ANALM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_analm_l, dlg_attr.refcyc_per_meta_chunk_analm_l);
 	if (dlg_attr.refcyc_per_line_delivery_l != dml_dlg_attr->refcyc_per_line_delivery_l)
 		DC_LOG_DEBUG("DML Validation | PER_LINE_DELIVERY:REFCYC_PER_LINE_DELIVERY_L - Expected: %u  Actual: %u\n",
 				dml_dlg_attr->refcyc_per_line_delivery_l, dlg_attr.refcyc_per_line_delivery_l);
@@ -1535,18 +1535,18 @@ static void hubp2_validate_dml_output(struct hubp *hubp,
 	if (dlg_attr.refcyc_per_pte_group_vblank_c != dml_dlg_attr->refcyc_per_pte_group_vblank_c)
 		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_2:REFCYC_PER_PTE_GROUP_VBLANK_C - Expected: %u  Actual: %u\n",
 				dml_dlg_attr->refcyc_per_pte_group_vblank_c, dlg_attr.refcyc_per_pte_group_vblank_c);
-	if (dlg_attr.dst_y_per_pte_row_nom_c != dml_dlg_attr->dst_y_per_pte_row_nom_c)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_2:DST_Y_PER_PTE_ROW_NOM_C - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->dst_y_per_pte_row_nom_c, dlg_attr.dst_y_per_pte_row_nom_c);
-	if (dlg_attr.refcyc_per_pte_group_nom_c != dml_dlg_attr->refcyc_per_pte_group_nom_c)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_3:REFCYC_PER_PTE_GROUP_NOM_C - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->refcyc_per_pte_group_nom_c, dlg_attr.refcyc_per_pte_group_nom_c);
-	if (dlg_attr.dst_y_per_meta_row_nom_c != dml_dlg_attr->dst_y_per_meta_row_nom_c)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_6:DST_Y_PER_META_ROW_NOM_C - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->dst_y_per_meta_row_nom_c, dlg_attr.dst_y_per_meta_row_nom_c);
-	if (dlg_attr.refcyc_per_meta_chunk_nom_c != dml_dlg_attr->refcyc_per_meta_chunk_nom_c)
-		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_7:REFCYC_PER_META_CHUNK_NOM_C - Expected: %u  Actual: %u\n",
-				dml_dlg_attr->refcyc_per_meta_chunk_nom_c, dlg_attr.refcyc_per_meta_chunk_nom_c);
+	if (dlg_attr.dst_y_per_pte_row_analm_c != dml_dlg_attr->dst_y_per_pte_row_analm_c)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_2:DST_Y_PER_PTE_ROW_ANALM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_pte_row_analm_c, dlg_attr.dst_y_per_pte_row_analm_c);
+	if (dlg_attr.refcyc_per_pte_group_analm_c != dml_dlg_attr->refcyc_per_pte_group_analm_c)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_3:REFCYC_PER_PTE_GROUP_ANALM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_analm_c, dlg_attr.refcyc_per_pte_group_analm_c);
+	if (dlg_attr.dst_y_per_meta_row_analm_c != dml_dlg_attr->dst_y_per_meta_row_analm_c)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_6:DST_Y_PER_META_ROW_ANALM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_meta_row_analm_c, dlg_attr.dst_y_per_meta_row_analm_c);
+	if (dlg_attr.refcyc_per_meta_chunk_analm_c != dml_dlg_attr->refcyc_per_meta_chunk_analm_c)
+		DC_LOG_DEBUG("DML Validation | ANALM_PARAMETERS_7:REFCYC_PER_META_CHUNK_ANALM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_analm_c, dlg_attr.refcyc_per_meta_chunk_analm_c);
 	if (dlg_attr.refcyc_per_line_delivery_pre_l != dml_dlg_attr->refcyc_per_line_delivery_pre_l)
 		DC_LOG_DEBUG("DML Validation | PER_LINE_DELIVERY_PRE:REFCYC_PER_LINE_DELIVERY_PRE_L - Expected: %u  Actual: %u\n",
 				dml_dlg_attr->refcyc_per_line_delivery_pre_l, dlg_attr.refcyc_per_line_delivery_pre_l);

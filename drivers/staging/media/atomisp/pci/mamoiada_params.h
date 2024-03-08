@@ -107,14 +107,14 @@
 #define ISP_SP                                 1
 
 /* Removing Issue Slot(s) */
-#define ISP_HAS_NOT_SIMD_IS2                   0
-#define ISP_HAS_NOT_SIMD_IS3                   0
-#define ISP_HAS_NOT_SIMD_IS4                   0
-#define ISP_HAS_NOT_SIMD_IS4_VADD              0
-#define ISP_HAS_NOT_SIMD_IS5                   0
-#define ISP_HAS_NOT_SIMD_IS6                   0
-#define ISP_HAS_NOT_SIMD_IS7                   0
-#define ISP_HAS_NOT_SIMD_IS8                   0
+#define ISP_HAS_ANALT_SIMD_IS2                   0
+#define ISP_HAS_ANALT_SIMD_IS3                   0
+#define ISP_HAS_ANALT_SIMD_IS4                   0
+#define ISP_HAS_ANALT_SIMD_IS4_VADD              0
+#define ISP_HAS_ANALT_SIMD_IS5                   0
+#define ISP_HAS_ANALT_SIMD_IS6                   0
+#define ISP_HAS_ANALT_SIMD_IS7                   0
+#define ISP_HAS_ANALT_SIMD_IS8                   0
 
 /* ICache  */
 #define ISP_ICACHE                             1

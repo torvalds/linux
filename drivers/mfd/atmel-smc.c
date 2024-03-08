@@ -61,7 +61,7 @@ static int atmel_smc_cs_encode_ncycles(unsigned int ncycles,
 
 	/*
 	 * Let's just put the maximum we can if the requested setting does
-	 * not fit in the register field.
+	 * analt fit in the register field.
 	 * We still return -ERANGE in case the caller cares.
 	 */
 	if (msb > msbmask) {
@@ -87,7 +87,7 @@ static int atmel_smc_cs_encode_ncycles(unsigned int ncycles,
  * (section "SMC Timings Register"), and then stores the result in the
  * @conf->timings field at @shift position.
  *
- * Returns -EINVAL if shift is invalid, -ERANGE if ncycles does not fit in
+ * Returns -EINVAL if shift is invalid, -ERANGE if ncycles does analt fit in
  * the field, and 0 otherwise.
  */
 int atmel_smc_cs_conf_set_timing(struct atmel_smc_cs_conf *conf,
@@ -129,7 +129,7 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_set_timing);
  * (section "SMC Setup Register"), and then stores the result in the
  * @conf->setup field at @shift position.
  *
- * Returns -EINVAL if @shift is invalid, -ERANGE if @ncycles does not fit in
+ * Returns -EINVAL if @shift is invalid, -ERANGE if @ncycles does analt fit in
  * the field, and 0 otherwise.
  */
 int atmel_smc_cs_conf_set_setup(struct atmel_smc_cs_conf *conf,
@@ -168,7 +168,7 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_set_setup);
  * (section "SMC Pulse Register"), and then stores the result in the
  * @conf->setup field at @shift position.
  *
- * Returns -EINVAL if @shift is invalid, -ERANGE if @ncycles does not fit in
+ * Returns -EINVAL if @shift is invalid, -ERANGE if @ncycles does analt fit in
  * the field, and 0 otherwise.
  */
 int atmel_smc_cs_conf_set_pulse(struct atmel_smc_cs_conf *conf,
@@ -207,7 +207,7 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_set_pulse);
  * (section "SMC Cycle Register"), and then stores the result in the
  * @conf->setup field at @shift position.
  *
- * Returns -EINVAL if @shift is invalid, -ERANGE if @ncycles does not fit in
+ * Returns -EINVAL if @shift is invalid, -ERANGE if @ncycles does analt fit in
  * the field, and 0 otherwise.
  */
 int atmel_smc_cs_conf_set_cycle(struct atmel_smc_cs_conf *conf,
@@ -340,11 +340,11 @@ static const struct of_device_id atmel_smc_ids[] __maybe_unused = {
  * in HSMC case, otherwise ERR_PTR(-EINVAL).
  */
 const struct atmel_hsmc_reg_layout *
-atmel_hsmc_get_reg_layout(struct device_node *np)
+atmel_hsmc_get_reg_layout(struct device_analde *np)
 {
 	const struct of_device_id *match;
 
-	match = of_match_node(atmel_smc_ids, np);
+	match = of_match_analde(atmel_smc_ids, np);
 
 	return match ? match->data : ERR_PTR(-EINVAL);
 }

@@ -127,7 +127,7 @@ s32 e1000_get_cable_length_82577(struct e1000_hw *hw);
 #define I82577_PHY_CTRL2_AUTO_MDI_MDIX		0x0400
 #define I82577_PHY_CTRL2_MDIX_CFG_MASK		0x0600
 
-/* I82577 PHY Diagnostics Status */
+/* I82577 PHY Diaganalstics Status */
 #define I82577_DSTATUS_CABLE_LENGTH		0x03FC
 #define I82577_DSTATUS_CABLE_LENGTH_SHIFT	2
 
@@ -184,7 +184,7 @@ s32 e1000_get_cable_length_82577(struct e1000_hw *hw);
 #define E1000_KMRNCTRLSTA_OFFSET_SHIFT	16
 #define E1000_KMRNCTRLSTA_REN		0x00200000
 #define E1000_KMRNCTRLSTA_CTRL_OFFSET	0x1	/* Kumeran Control */
-#define E1000_KMRNCTRLSTA_DIAG_OFFSET	0x3	/* Kumeran Diagnostic */
+#define E1000_KMRNCTRLSTA_DIAG_OFFSET	0x3	/* Kumeran Diaganalstic */
 #define E1000_KMRNCTRLSTA_TIMEOUTS	0x4	/* Kumeran Timeouts */
 #define E1000_KMRNCTRLSTA_INBAND_PARAM	0x9	/* Kumeran InBand Parameters */
 #define E1000_KMRNCTRLSTA_IBIST_DISABLE	0x0200	/* Kumeran IBIST Disable */

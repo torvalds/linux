@@ -1,6 +1,6 @@
 * Texas Instruments Davinci EMAC
 
-This file provides information, what the device node
+This file provides information, what the device analde
 for the davinci_emac interface contains.
 
 Required properties:
@@ -21,7 +21,7 @@ Optional properties:
 - phy-handle: See ethernet.txt file in the same directory.
               If absent, davinci_emac driver defaults to 100/FULL.
 - ti,davinci-rmii-en: 1 byte, 1 means use RMII
-- ti,davinci-no-bd-ram: boolean, does EMAC have BD RAM?
+- ti,davinci-anal-bd-ram: boolean, does EMAC have BD RAM?
 
 The MAC address will be determined using the optional properties
 defined in ethernet.txt.

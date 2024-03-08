@@ -127,7 +127,7 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 
 	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
 	if (!pll_clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &cpg_pll_clk_ops;
@@ -155,7 +155,7 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
  * enable - clk_enable only ensures that parents are enabled
  * rate - rate is adjustable.
  *        clk->rate = (parent->rate * mult / 32 ) / fixed_div
- * parent - fixed parent.  No clk_set_parent support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 #define CPG_FRQCRB			0x00000004
 #define CPG_FRQCRB_KICK			BIT(31)
@@ -165,7 +165,7 @@ struct cpg_z_clk {
 	struct clk_hw hw;
 	void __iomem *reg;
 	void __iomem *kick_reg;
-	unsigned long max_rate;		/* Maximum rate for normal mode */
+	unsigned long max_rate;		/* Maximum rate for analrmal mode */
 	unsigned int fixed_div;
 	u32 mask;
 };
@@ -195,7 +195,7 @@ static int cpg_z_clk_determine_rate(struct clk_hw *hw,
 
 	rate = min(req->rate, req->max_rate);
 	if (rate <= zclk->max_rate) {
-		/* Set parent rate to initial value for normal modes */
+		/* Set parent rate to initial value for analrmal modes */
 		prate = zclk->max_rate;
 	} else {
 		/* Set increased parent rate for boost modes */
@@ -240,9 +240,9 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	cpg_reg_modify(zclk->kick_reg, 0, CPG_FRQCRB_KICK);
 
 	/*
-	 * Note: There is no HW information about the worst case latency.
+	 * Analte: There is anal HW information about the worst case latency.
 	 *
-	 * Using experimental measurements, it seems that no more than
+	 * Using experimental measurements, it seems that anal more than
 	 * ~10 iterations are needed, independently of the CPU rate.
 	 * Since this value might be dependent on external xtal rate, pll1
 	 * rate or even the other emulation clocks rate, use 1000 as a
@@ -278,7 +278,7 @@ static struct clk * __init __cpg_z_clk_register(const char *name,
 
 	zclk = kzalloc(sizeof(*zclk), GFP_KERNEL);
 	if (!zclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &cpg_z_clk_ops;
@@ -347,7 +347,7 @@ static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
 	struct clk **clks, void __iomem *base,
-	struct raw_notifier_head *notifiers)
+	struct raw_analtifier_head *analtifiers)
 {
 	const struct clk *parent;
 	unsigned int mult = 1;
@@ -366,7 +366,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	case CLK_TYPE_GEN3_PLL0:
 		/*
 		 * PLL0 is implemented as a custom clock, to change the
-		 * multiplier when cpufreq changes between normal and boost
+		 * multiplier when cpufreq changes between analrmal and boost
 		 * modes.
 		 */
 		return cpg_pll_clk_register(core->name, __clk_get_name(parent),
@@ -380,7 +380,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	case CLK_TYPE_GEN3_PLL2:
 		/*
 		 * PLL2 is implemented as a custom clock, to change the
-		 * multiplier when cpufreq changes between normal and boost
+		 * multiplier when cpufreq changes between analrmal and boost
 		 * modes.
 		 */
 		return cpg_pll_clk_register(core->name, __clk_get_name(parent),
@@ -394,8 +394,8 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	case CLK_TYPE_GEN3_PLL4:
 		/*
 		 * PLL4 is a configurable multiplier clock. Register it as a
-		 * fixed factor clock for now as there's no generic multiplier
-		 * clock implementation and we currently have no need to change
+		 * fixed factor clock for analw as there's anal generic multiplier
+		 * clock implementation and we currently have anal need to change
 		 * the multiplier value.
 		 */
 		value = readl(base + CPG_PLL4CR);
@@ -404,7 +404,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_SDH:
 		return cpg_sdh_clk_register(core->name, base + core->offset,
-					   __clk_get_name(parent), notifiers);
+					   __clk_get_name(parent), analtifiers);
 
 	case CLK_TYPE_GEN3_SD:
 		return cpg_sd_clk_register(core->name, base + core->offset,
@@ -412,11 +412,11 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_R:
 		if (cpg_quirks & RCKCR_CKSEL) {
-			struct cpg_simple_notifier *csn;
+			struct cpg_simple_analtifier *csn;
 
 			csn = kzalloc(sizeof(*csn), GFP_KERNEL);
 			if (!csn)
-				return ERR_PTR(-ENOMEM);
+				return ERR_PTR(-EANALMEM);
 
 			csn->reg = base + CPG_RCKCR;
 
@@ -432,7 +432,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 			}
 
 			writel(value, csn->reg);
-			cpg_simple_notifier_register(notifiers, csn);
+			cpg_simple_analtifier_register(analtifiers, csn);
 			break;
 		}
 
@@ -524,7 +524,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_RPC:
 		return cpg_rpc_clk_register(core->name, base + CPG_RPCCKCR,
-					    __clk_get_name(parent), notifiers);
+					    __clk_get_name(parent), analtifiers);
 
 	case CLK_TYPE_GEN3_RPCD2:
 		return cpg_rpcd2_clk_register(core->name, base + CPG_RPCCKCR,

@@ -57,23 +57,23 @@ xfs_allocbt_alloc_block(
 	int				*stat)
 {
 	int			error;
-	xfs_agblock_t		bno;
+	xfs_agblock_t		banal;
 
 	/* Allocate the new block from the freelist. If we can't, give up.  */
 	error = xfs_alloc_get_freelist(cur->bc_ag.pag, cur->bc_tp,
-			cur->bc_ag.agbp, &bno, 1);
+			cur->bc_ag.agbp, &banal, 1);
 	if (error)
 		return error;
 
-	if (bno == NULLAGBLOCK) {
+	if (banal == NULLAGBLOCK) {
 		*stat = 0;
 		return 0;
 	}
 
 	atomic64_inc(&cur->bc_mp->m_allocbt_blks);
-	xfs_extent_busy_reuse(cur->bc_mp, cur->bc_ag.pag, bno, 1, false);
+	xfs_extent_busy_reuse(cur->bc_mp, cur->bc_ag.pag, banal, 1, false);
 
-	new->s = cpu_to_be32(bno);
+	new->s = cpu_to_be32(banal);
 
 	*stat = 1;
 	return 0;
@@ -85,17 +85,17 @@ xfs_allocbt_free_block(
 	struct xfs_buf		*bp)
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
-	xfs_agblock_t		bno;
+	xfs_agblock_t		banal;
 	int			error;
 
-	bno = xfs_daddr_to_agbno(cur->bc_mp, xfs_buf_daddr(bp));
+	banal = xfs_daddr_to_agbanal(cur->bc_mp, xfs_buf_daddr(bp));
 	error = xfs_alloc_put_freelist(cur->bc_ag.pag, cur->bc_tp, agbp, NULL,
-			bno, 1);
+			banal, 1);
 	if (error)
 		return error;
 
 	atomic64_dec(&cur->bc_mp->m_allocbt_blks);
-	xfs_extent_busy_insert(cur->bc_tp, agbp->b_pag, bno, 1,
+	xfs_extent_busy_insert(cur->bc_tp, agbp->b_pag, banal, 1,
 			      XFS_EXTENT_BUSY_SKIP_DISCARD);
 	return 0;
 }
@@ -187,7 +187,7 @@ xfs_allocbt_init_key_from_rec(
 }
 
 STATIC void
-xfs_bnobt_init_high_key_from_rec(
+xfs_banalbt_init_high_key_from_rec(
 	union xfs_btree_key		*key,
 	const union xfs_btree_rec	*rec)
 {
@@ -224,13 +224,13 @@ xfs_allocbt_init_ptr_from_cur(
 {
 	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
+	ASSERT(cur->bc_ag.pag->pag_aganal == be32_to_cpu(agf->agf_seqanal));
 
 	ptr->s = agf->agf_roots[cur->bc_btnum];
 }
 
 STATIC int64_t
-xfs_bnobt_key_diff(
+xfs_banalbt_key_diff(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
 {
@@ -257,7 +257,7 @@ xfs_cntbt_key_diff(
 }
 
 STATIC int64_t
-xfs_bnobt_diff_two_keys(
+xfs_banalbt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2,
@@ -299,7 +299,7 @@ xfs_allocbt_verify(
 	struct xfs_perag	*pag = bp->b_pag;
 	xfs_failaddr_t		fa;
 	unsigned int		level;
-	xfs_btnum_t		btnum = XFS_BTNUM_BNOi;
+	xfs_btnum_t		btnum = XFS_BTNUM_BANALi;
 
 	if (!xfs_verify_magic(bp, block->bb_magic))
 		return __this_address;
@@ -311,7 +311,7 @@ xfs_allocbt_verify(
 	}
 
 	/*
-	 * The perag may not be attached during grow operations or fully
+	 * The perag may analt be attached during grow operations or fully
 	 * initialized from the AGF during log recovery. Therefore we can only
 	 * check against maximum tree depth from those contexts.
 	 *
@@ -376,8 +376,8 @@ xfs_allocbt_write_verify(
 
 }
 
-const struct xfs_buf_ops xfs_bnobt_buf_ops = {
-	.name = "xfs_bnobt",
+const struct xfs_buf_ops xfs_banalbt_buf_ops = {
+	.name = "xfs_banalbt",
 	.magic = { cpu_to_be32(XFS_ABTB_MAGIC),
 		   cpu_to_be32(XFS_ABTB_CRC_MAGIC) },
 	.verify_read = xfs_allocbt_read_verify,
@@ -395,7 +395,7 @@ const struct xfs_buf_ops xfs_cntbt_buf_ops = {
 };
 
 STATIC int
-xfs_bnobt_keys_inorder(
+xfs_banalbt_keys_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2)
@@ -405,7 +405,7 @@ xfs_bnobt_keys_inorder(
 }
 
 STATIC int
-xfs_bnobt_recs_inorder(
+xfs_banalbt_recs_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_rec	*r1,
 	const union xfs_btree_rec	*r2)
@@ -416,7 +416,7 @@ xfs_bnobt_recs_inorder(
 }
 
 STATIC int
-xfs_cntbt_keys_inorder(
+xfs_cntbt_keys_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2)
@@ -429,7 +429,7 @@ xfs_cntbt_keys_inorder(
 }
 
 STATIC int
-xfs_cntbt_recs_inorder(
+xfs_cntbt_recs_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_rec	*r1,
 	const union xfs_btree_rec	*r2)
@@ -454,7 +454,7 @@ xfs_allocbt_keys_contiguous(
 				 be32_to_cpu(key2->alloc.ar_startblock));
 }
 
-static const struct xfs_btree_ops xfs_bnobt_ops = {
+static const struct xfs_btree_ops xfs_banalbt_ops = {
 	.rec_len		= sizeof(xfs_alloc_rec_t),
 	.key_len		= sizeof(xfs_alloc_key_t),
 
@@ -466,14 +466,14 @@ static const struct xfs_btree_ops xfs_bnobt_ops = {
 	.get_minrecs		= xfs_allocbt_get_minrecs,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,
-	.init_high_key_from_rec	= xfs_bnobt_init_high_key_from_rec,
+	.init_high_key_from_rec	= xfs_banalbt_init_high_key_from_rec,
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
-	.key_diff		= xfs_bnobt_key_diff,
-	.buf_ops		= &xfs_bnobt_buf_ops,
-	.diff_two_keys		= xfs_bnobt_diff_two_keys,
-	.keys_inorder		= xfs_bnobt_keys_inorder,
-	.recs_inorder		= xfs_bnobt_recs_inorder,
+	.key_diff		= xfs_banalbt_key_diff,
+	.buf_ops		= &xfs_banalbt_buf_ops,
+	.diff_two_keys		= xfs_banalbt_diff_two_keys,
+	.keys_ianalrder		= xfs_banalbt_keys_ianalrder,
+	.recs_ianalrder		= xfs_banalbt_recs_ianalrder,
 	.keys_contiguous	= xfs_allocbt_keys_contiguous,
 };
 
@@ -495,9 +495,9 @@ static const struct xfs_btree_ops xfs_cntbt_ops = {
 	.key_diff		= xfs_cntbt_key_diff,
 	.buf_ops		= &xfs_cntbt_buf_ops,
 	.diff_two_keys		= xfs_cntbt_diff_two_keys,
-	.keys_inorder		= xfs_cntbt_keys_inorder,
-	.recs_inorder		= xfs_cntbt_recs_inorder,
-	.keys_contiguous	= NULL, /* not needed right now */
+	.keys_ianalrder		= xfs_cntbt_keys_ianalrder,
+	.recs_ianalrder		= xfs_cntbt_recs_ianalrder,
+	.keys_contiguous	= NULL, /* analt needed right analw */
 };
 
 /* Allocate most of a new allocation btree cursor. */
@@ -510,7 +510,7 @@ xfs_allocbt_init_common(
 {
 	struct xfs_btree_cur	*cur;
 
-	ASSERT(btnum == XFS_BTNUM_BNO || btnum == XFS_BTNUM_CNT);
+	ASSERT(btnum == XFS_BTNUM_BANAL || btnum == XFS_BTNUM_CNT);
 
 	cur = xfs_btree_alloc_cursor(mp, tp, btnum, mp->m_alloc_maxlevels,
 			xfs_allocbt_cur_cache);
@@ -521,7 +521,7 @@ xfs_allocbt_init_common(
 		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_abtc_2);
 		cur->bc_flags = XFS_BTREE_LASTREC_UPDATE;
 	} else {
-		cur->bc_ops = &xfs_bnobt_ops;
+		cur->bc_ops = &xfs_banalbt_ops;
 		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_abtb_2);
 	}
 
@@ -551,7 +551,7 @@ xfs_allocbt_init_cursor(
 	if (btnum == XFS_BTNUM_CNT)
 		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);
 	else
-		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]);
+		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BANAL]);
 
 	cur->bc_ag.agbp = agbp;
 
@@ -592,8 +592,8 @@ xfs_allocbt_commit_staged_btree(
 	agf->agf_levels[cur->bc_btnum] = cpu_to_be32(afake->af_levels);
 	xfs_alloc_log_agf(tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
 
-	if (cur->bc_btnum == XFS_BTNUM_BNO) {
-		xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_bnobt_ops);
+	if (cur->bc_btnum == XFS_BTNUM_BANAL) {
+		xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_banalbt_ops);
 	} else {
 		cur->bc_flags |= XFS_BTREE_LASTREC_UPDATE;
 		xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_cntbt_ops);
@@ -655,12 +655,12 @@ xfs_allocbt_calc_size(
 int __init
 xfs_allocbt_init_cur_cache(void)
 {
-	xfs_allocbt_cur_cache = kmem_cache_create("xfs_bnobt_cur",
+	xfs_allocbt_cur_cache = kmem_cache_create("xfs_banalbt_cur",
 			xfs_btree_cur_sizeof(xfs_allocbt_maxlevels_ondisk()),
 			0, 0, NULL);
 
 	if (!xfs_allocbt_cur_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

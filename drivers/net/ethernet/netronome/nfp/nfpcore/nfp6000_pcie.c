@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp6000_pcie.c
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroanalme.com>
  *
  * Multiplexes the NFP BARs between NFP internal resources and
  * implements the PCIe specific interface for generic CPP bus access.
@@ -359,7 +359,7 @@ static int matching_bar(struct nfp_bar *bar, u32 tgt, u32 act, u32 tok,
 	    (bar->base + (1 << bar->bitsize)) >= (offset + size))
 		return 1;
 
-	/* No match */
+	/* Anal match */
 	return 0;
 }
 
@@ -379,9 +379,9 @@ find_matching_bar(struct nfp6000_pcie *nfp,
 	return -1;
 }
 
-/* Return EAGAIN if no resource is available */
+/* Return EAGAIN if anal resource is available */
 static int
-find_unused_bar_noblock(const struct nfp6000_pcie *nfp,
+find_unused_bar_analblock(const struct nfp6000_pcie *nfp,
 			int tgt, int act, int tok,
 			u64 offset, size_t size, int width)
 {
@@ -406,7 +406,7 @@ find_unused_bar_noblock(const struct nfp6000_pcie *nfp,
 		busy++;
 	}
 
-	if (WARN(!busy, "No suitable BAR found for request tgt:0x%x act:0x%x tok:0x%x off:0x%llx size:%zd width:%d\n",
+	if (WARN(!busy, "Anal suitable BAR found for request tgt:0x%x act:0x%x tok:0x%x off:0x%llx size:%zd width:%d\n",
 		 tgt, act, tok, offset, size, width))
 		return -EINVAL;
 
@@ -423,7 +423,7 @@ find_unused_bar_and_lock(struct nfp6000_pcie *nfp,
 
 	spin_lock_irqsave(&nfp->bar_lock, flags);
 
-	n = find_unused_bar_noblock(nfp, tgt, act, tok, offset, size, width);
+	n = find_unused_bar_analblock(nfp, tgt, act, tok, offset, size, width);
 	if (n < 0)
 		spin_unlock_irqrestore(&nfp->bar_lock, flags);
 	else
@@ -456,7 +456,7 @@ nfp_wait_for_bar(struct nfp6000_pcie *nfp, int *barnum,
 static int
 nfp_alloc_bar(struct nfp6000_pcie *nfp,
 	      u32 tgt, u32 act, u32 tok,
-	      u64 offset, size_t size, int width, int nonblocking)
+	      u64 offset, size_t size, int width, int analnblocking)
 {
 	unsigned long irqflags;
 	int barnum, retval;
@@ -473,11 +473,11 @@ nfp_alloc_bar(struct nfp6000_pcie *nfp,
 		return barnum;
 	}
 
-	barnum = find_unused_bar_noblock(nfp, tgt, act, tok,
+	barnum = find_unused_bar_analblock(nfp, tgt, act, tok,
 					 offset, size, width);
 	if (barnum < 0) {
-		if (nonblocking)
-			goto err_nobar;
+		if (analnblocking)
+			goto err_analbar;
 
 		/* Wait until a BAR becomes available.  The
 		 * find_unused_bar function will reclaim the bar_lock
@@ -499,7 +499,7 @@ nfp_alloc_bar(struct nfp6000_pcie *nfp,
 		barnum = retval;
 	}
 
-err_nobar:
+err_analbar:
 	spin_unlock_irqrestore(&nfp->bar_lock, irqflags);
 	return barnum;
 }
@@ -572,7 +572,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 
 		res = &nfp->pdev->resource[(i >> 3) * 2];
 
-		/* Skip over BARs that are not IORESOURCE_MEM */
+		/* Skip over BARs that are analt IORESOURCE_MEM */
 		if (!(resource_type(res) & IORESOURCE_MEM)) {
 			bar--;
 			continue;
@@ -591,7 +591,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 
 	nfp->bars = bar - &nfp->bar[0];
 	if (nfp->bars < 8) {
-		dev_err(nfp->dev, "No usable BARs found!\n");
+		dev_err(nfp->dev, "Anal usable BARs found!\n");
 		return -EINVAL;
 	}
 
@@ -861,7 +861,7 @@ static int nfp6000_area_acquire(struct nfp_cpp_area *area)
 	if (IS_ERR_OR_NULL(priv->iomem)) {
 		dev_err(nfp->dev, "Can't ioremap() a %d byte region of BAR %d\n",
 			(int)priv->size, priv->bar->index);
-		err = !priv->iomem ? -ENOMEM : PTR_ERR(priv->iomem);
+		err = !priv->iomem ? -EANALMEM : PTR_ERR(priv->iomem);
 		priv->iomem = NULL;
 		goto err_iomem_remap;
 	}
@@ -1322,7 +1322,7 @@ nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev, const struct nfp_dev_info *dev_i
 
 	nfp = kzalloc(sizeof(*nfp), GFP_KERNEL);
 	if (!nfp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ret;
 	}
 
@@ -1337,19 +1337,19 @@ nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev, const struct nfp_dev_info *dev_i
 	if (NFP_CPP_INTERFACE_TYPE_of(interface) !=
 	    NFP_CPP_INTERFACE_TYPE_PCI) {
 		dev_err(&pdev->dev,
-			"Interface type %d is not the expected %d\n",
+			"Interface type %d is analt the expected %d\n",
 			NFP_CPP_INTERFACE_TYPE_of(interface),
 			NFP_CPP_INTERFACE_TYPE_PCI);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_free_nfp;
 	}
 
 	if (NFP_CPP_INTERFACE_CHANNEL_of(interface) !=
 	    NFP_CPP_INTERFACE_CHANNEL_PEROPENER) {
-		dev_err(&pdev->dev, "Interface channel %d is not the expected %d\n",
+		dev_err(&pdev->dev, "Interface channel %d is analt the expected %d\n",
 			NFP_CPP_INTERFACE_CHANNEL_of(interface),
 			NFP_CPP_INTERFACE_CHANNEL_PEROPENER);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_free_nfp;
 	}
 

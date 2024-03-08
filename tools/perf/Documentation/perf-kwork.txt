@@ -5,7 +5,7 @@ NAME
 ----
 perf-kwork - Tool to trace/measure kernel work properties (latencies)
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf kwork' {record|report|latency|timehist|top}
@@ -105,9 +105,9 @@ OPTIONS for 'perf kwork report'
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times
-	have the format seconds.microseconds. If start is not given (i.e., time
+	have the format seconds.microseconds. If start is analt given (i.e., time
 	string is ',x.y') then analysis starts at the beginning of the file. If
-	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	stop time is analt given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
 
 OPTIONS for 'perf kwork latency'
@@ -135,9 +135,9 @@ OPTIONS for 'perf kwork latency'
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times
-	have the format seconds.microseconds. If start is not given (i.e., time
+	have the format seconds.microseconds. If start is analt given (i.e., time
 	string is ',x.y') then analysis starts at the beginning of the file. If
-	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	stop time is analt given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
 
 OPTIONS for 'perf kwork timehist'
@@ -174,9 +174,9 @@ OPTIONS for 'perf kwork timehist'
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times
-	have the format seconds.microseconds. If start is not given (i.e., time
+	have the format seconds.microseconds. If start is analt given (i.e., time
 	string is ',x.y') then analysis starts at the beginning of the file. If
-	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	stop time is analt given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
 
 OPTIONS for 'perf kwork top'
@@ -204,9 +204,9 @@ OPTIONS for 'perf kwork top'
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times
-	have the format seconds.microseconds. If start is not given (i.e., time
+	have the format seconds.microseconds. If start is analt given (i.e., time
 	string is ',x.y') then analysis starts at the beginning of the file. If
-	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	stop time is analt given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
 
 SEE ALSO

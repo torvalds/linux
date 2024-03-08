@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-analte */
 /*
  * osd.h - DEPRECATED On Screen Display API
  *
- * NOTE: should not be used on future drivers
+ * ANALTE: should analt be used on future drivers
  *
  * Copyright (C) 2001 Ralph  Metzler <ralph@convergence.de>
  *                  & Marcus Metzler <marcus@convergence.de>
@@ -15,7 +15,7 @@
 #include <linux/compiler.h>
 
 typedef enum {
-	/* All functions return -2 on "not open" */
+	/* All functions return -2 on "analt open" */
 	OSD_Close = 1,	/* () */
 	/*
 	 * Disables OSD and releases the buffers
@@ -78,7 +78,7 @@ typedef enum {
 	OSD_SetRow,	/* (x0,y0,x1,data) */
 	/*
 	 * fills pixels x0,y through  x1,y with the content of data[]
-	 * returns 0 on success, -1 on clipping all pixel (no pixel drawn)
+	 * returns 0 on success, -1 on clipping all pixel (anal pixel drawn)
 	 */
 	OSD_SetBlock,	/* (x0,y0,x1,y1,increment{color},data) */
 	/*
@@ -142,7 +142,7 @@ typedef enum {
 	OSD_YCRCB422,          /* 4:2:2 YCRCB Graphic Display */
 	OSD_YCRCB444,          /* 4:4:4 YCRCB Graphic Display */
 	OSD_YCRCB444HR,        /* 4:4:4 YCRCB graphic half resolution */
-	OSD_VIDEOTSIZE,        /* True Size Normal MPEG Video Display */
+	OSD_VIDEOTSIZE,        /* True Size Analrmal MPEG Video Display */
 	OSD_VIDEOHSIZE,        /* MPEG Video Display Half Resolution */
 	OSD_VIDEOQSIZE,        /* MPEG Video Display Quarter Resolution */
 	OSD_VIDEODSIZE,        /* MPEG Video Display Double Resolution */

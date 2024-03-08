@@ -9,7 +9,7 @@
 
 /*
  * LBR Branch Select filter bits which when set, ensures that the
- * corresponding type of branches are not recorded
+ * corresponding type of branches are analt recorded
  */
 #define LBR_SELECT_KERNEL		0	/* Branches ending in CPL = 0 */
 #define LBR_SELECT_USER			1	/* Branches ending in CPL > 0 */
@@ -30,8 +30,8 @@
 #define LBR_REL_JMP	BIT(LBR_SELECT_JMP_NEAR_REL)
 #define LBR_IND_JMP	BIT(LBR_SELECT_JMP_NEAR_IND)
 #define LBR_FAR		BIT(LBR_SELECT_FAR_BRANCH)
-#define LBR_NOT_SUPP	-1	/* unsupported filter */
-#define LBR_IGNORE	0
+#define LBR_ANALT_SUPP	-1	/* unsupported filter */
+#define LBR_IGANALRE	0
 
 #define LBR_ANY		\
 	(LBR_JCC | LBR_REL_CALL | LBR_IND_CALL | LBR_RETURN |	\
@@ -102,7 +102,7 @@ static void amd_pmu_lbr_filter(void)
 	bool fused_only = false;
 	u64 from, to;
 
-	/* If sampling all branches, there is nothing to filter */
+	/* If sampling all branches, there is analthing to filter */
 	if (((br_sel & X86_BR_ALL) == X86_BR_ALL) &&
 	    ((br_sel & X86_BR_TYPE_SAVE) != X86_BR_TYPE_SAVE))
 		fused_only = true;
@@ -123,8 +123,8 @@ static void amd_pmu_lbr_filter(void)
 				continue;
 		}
 
-		/* If type does not correspond, then discard */
-		if (type == X86_BR_NONE || (br_sel & type) != type) {
+		/* If type does analt correspond, then discard */
+		if (type == X86_BR_ANALNE || (br_sel & type) != type) {
 			cpuc->lbr_entries[i].from = 0;	/* mark invalid */
 			compress = true;
 		}
@@ -153,7 +153,7 @@ static void amd_pmu_lbr_filter(void)
 static const int lbr_spec_map[PERF_BR_SPEC_MAX] = {
 	PERF_BR_SPEC_NA,
 	PERF_BR_SPEC_WRONG_PATH,
-	PERF_BR_NON_SPEC_CORRECT_PATH,
+	PERF_BR_ANALN_SPEC_CORRECT_PATH,
 	PERF_BR_SPEC_CORRECT_PATH,
 };
 
@@ -173,7 +173,7 @@ void amd_pmu_lbr_read(void)
 
 		/*
 		 * Check if a branch has been logged; if valid = 0, spec = 0
-		 * then no branch was recorded
+		 * then anal branch was recorded
 		 */
 		if (!entry.to.split.valid && !entry.to.split.spec)
 			continue;
@@ -189,14 +189,14 @@ void amd_pmu_lbr_read(void)
 		 * Set branch speculation information using the status of
 		 * the valid and spec bits.
 		 *
-		 * When valid = 0, spec = 0, no branch was recorded and the
+		 * When valid = 0, spec = 0, anal branch was recorded and the
 		 * entry is discarded as seen above.
 		 *
 		 * When valid = 0, spec = 1, the recorded branch was
 		 * speculative but took the wrong path.
 		 *
 		 * When valid = 1, spec = 0, the recorded branch was
-		 * non-speculative but took the correct path.
+		 * analn-speculative but took the correct path.
 		 *
 		 * When valid = 1, spec = 1, the recorded branch was
 		 * speculative and took the correct path
@@ -221,23 +221,23 @@ void amd_pmu_lbr_read(void)
 static const int lbr_select_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_USER_SHIFT]		= LBR_USER,
 	[PERF_SAMPLE_BRANCH_KERNEL_SHIFT]	= LBR_KERNEL,
-	[PERF_SAMPLE_BRANCH_HV_SHIFT]		= LBR_IGNORE,
+	[PERF_SAMPLE_BRANCH_HV_SHIFT]		= LBR_IGANALRE,
 
 	[PERF_SAMPLE_BRANCH_ANY_SHIFT]		= LBR_ANY,
 	[PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT]	= LBR_REL_CALL | LBR_IND_CALL | LBR_FAR,
 	[PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT]	= LBR_RETURN | LBR_FAR,
 	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT]	= LBR_IND_CALL,
-	[PERF_SAMPLE_BRANCH_ABORT_TX_SHIFT]	= LBR_NOT_SUPP,
-	[PERF_SAMPLE_BRANCH_IN_TX_SHIFT]	= LBR_NOT_SUPP,
-	[PERF_SAMPLE_BRANCH_NO_TX_SHIFT]	= LBR_NOT_SUPP,
+	[PERF_SAMPLE_BRANCH_ABORT_TX_SHIFT]	= LBR_ANALT_SUPP,
+	[PERF_SAMPLE_BRANCH_IN_TX_SHIFT]	= LBR_ANALT_SUPP,
+	[PERF_SAMPLE_BRANCH_ANAL_TX_SHIFT]	= LBR_ANALT_SUPP,
 	[PERF_SAMPLE_BRANCH_COND_SHIFT]		= LBR_JCC,
 
-	[PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT]	= LBR_NOT_SUPP,
+	[PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT]	= LBR_ANALT_SUPP,
 	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= LBR_IND_JMP,
 	[PERF_SAMPLE_BRANCH_CALL_SHIFT]		= LBR_REL_CALL,
 
-	[PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT]	= LBR_NOT_SUPP,
-	[PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT]	= LBR_NOT_SUPP,
+	[PERF_SAMPLE_BRANCH_ANAL_FLAGS_SHIFT]	= LBR_ANALT_SUPP,
+	[PERF_SAMPLE_BRANCH_ANAL_CYCLES_SHIFT]	= LBR_ANALT_SUPP,
 };
 
 static int amd_pmu_lbr_setup_filter(struct perf_event *event)
@@ -247,9 +247,9 @@ static int amd_pmu_lbr_setup_filter(struct perf_event *event)
 	u64 mask = 0, v;
 	int i;
 
-	/* No LBR support */
+	/* Anal LBR support */
 	if (!x86_pmu.lbr_nr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (br_type & PERF_SAMPLE_BRANCH_USER)
 		mask |= X86_BR_USER;
@@ -257,7 +257,7 @@ static int amd_pmu_lbr_setup_filter(struct perf_event *event)
 	if (br_type & PERF_SAMPLE_BRANCH_KERNEL)
 		mask |= X86_BR_KERNEL;
 
-	/* Ignore BRANCH_HV here */
+	/* Iganalre BRANCH_HV here */
 
 	if (br_type & PERF_SAMPLE_BRANCH_ANY)
 		mask |= X86_BR_ANY;
@@ -291,10 +291,10 @@ static int amd_pmu_lbr_setup_filter(struct perf_event *event)
 			continue;
 
 		v = lbr_select_map[i];
-		if (v == LBR_NOT_SUPP)
-			return -EOPNOTSUPP;
+		if (v == LBR_ANALT_SUPP)
+			return -EOPANALTSUPP;
 
-		if (v != LBR_IGNORE)
+		if (v != LBR_IGANALRE)
 			mask |= v;
 	}
 
@@ -308,7 +308,7 @@ int amd_pmu_lbr_hw_config(struct perf_event *event)
 {
 	int ret = 0;
 
-	/* LBR is not recommended in counting mode */
+	/* LBR is analt recommended in counting mode */
 	if (!is_sampling_event(event))
 		return -EINVAL;
 
@@ -379,7 +379,7 @@ void amd_pmu_lbr_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_i
 
 	/*
 	 * A context switch can flip the address space and LBR entries are
-	 * not tagged with an identifier. Hence, branches cannot be resolved
+	 * analt tagged with an identifier. Hence, branches cananalt be resolved
 	 * from the old address space and the LBR records should be wiped.
 	 */
 	if (cpuc->lbr_users && sched_in)
@@ -427,7 +427,7 @@ __init int amd_pmu_lbr_init(void)
 	union cpuid_0x80000022_ebx ebx;
 
 	if (x86_pmu.version < 2 || !boot_cpu_has(X86_FEATURE_AMD_LBR_V2))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Set number of entries */
 	ebx.full = cpuid_ebx(EXT_PERFMON_DEBUG_FEATURES);

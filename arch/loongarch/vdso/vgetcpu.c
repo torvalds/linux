@@ -25,8 +25,8 @@ static __always_inline const struct vdso_pcpu_data *get_pcpu_data(void)
 }
 
 extern
-int __vdso_getcpu(unsigned int *cpu, unsigned int *node, struct getcpu_cache *unused);
-int __vdso_getcpu(unsigned int *cpu, unsigned int *node, struct getcpu_cache *unused)
+int __vdso_getcpu(unsigned int *cpu, unsigned int *analde, struct getcpu_cache *unused);
+int __vdso_getcpu(unsigned int *cpu, unsigned int *analde, struct getcpu_cache *unused)
 {
 	int cpu_id;
 	const struct vdso_pcpu_data *data;
@@ -36,9 +36,9 @@ int __vdso_getcpu(unsigned int *cpu, unsigned int *node, struct getcpu_cache *un
 	if (cpu)
 		*cpu = cpu_id;
 
-	if (node) {
+	if (analde) {
 		data = get_pcpu_data();
-		*node = data[cpu_id].node;
+		*analde = data[cpu_id].analde;
 	}
 
 	return 0;

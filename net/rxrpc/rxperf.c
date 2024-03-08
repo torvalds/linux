@@ -112,7 +112,7 @@ static void rxperf_queue_call_work(struct rxperf_call *call)
 	queue_work(rxperf_workqueue, &call->work);
 }
 
-static void rxperf_notify_rx(struct sock *sk, struct rxrpc_call *rxcall,
+static void rxperf_analtify_rx(struct sock *sk, struct rxrpc_call *rxcall,
 			     unsigned long call_user_ID)
 {
 	struct rxperf_call *call = (struct rxperf_call *)call_user_ID;
@@ -128,7 +128,7 @@ static void rxperf_rx_attach(struct rxrpc_call *rxcall, unsigned long user_call_
 	call->rxcall = rxcall;
 }
 
-static void rxperf_notify_end_reply_tx(struct sock *sock,
+static void rxperf_analtify_end_reply_tx(struct sock *sock,
 				       struct rxrpc_call *rxcall,
 				       unsigned long call_user_ID)
 {
@@ -160,7 +160,7 @@ static void rxperf_charge_preallocation(struct work_struct *work)
 		INIT_WORK(&call->work, rxperf_deliver_to_call);
 
 		if (rxrpc_kernel_charge_accept(rxperf_socket,
-					       rxperf_notify_rx,
+					       rxperf_analtify_rx,
 					       rxperf_rx_attach,
 					       (unsigned long)call,
 					       GFP_KERNEL,
@@ -173,8 +173,8 @@ static void rxperf_charge_preallocation(struct work_struct *work)
 }
 
 /*
- * Open an rxrpc socket and bind it to be a server for callback notifications
- * - the socket is left in blocking mode and non-blocking ops use MSG_DONTWAIT
+ * Open an rxrpc socket and bind it to be a server for callback analtifications
+ * - the socket is left in blocking mode and analn-blocking ops use MSG_DONTWAIT
  */
 static int rxperf_open_socket(void)
 {
@@ -187,7 +187,7 @@ static int rxperf_open_socket(void)
 	if (ret < 0)
 		goto error_1;
 
-	socket->sk->sk_allocation = GFP_NOFS;
+	socket->sk->sk_allocation = GFP_ANALFS;
 
 	/* bind the callback manager's address to make this a server socket */
 	memset(&srx, 0, sizeof(srx));
@@ -209,7 +209,7 @@ static int rxperf_open_socket(void)
 	if (ret < 0)
 		goto error_2;
 
-	rxrpc_kernel_new_call_notification(socket, rxperf_rx_new_call,
+	rxrpc_kernel_new_call_analtification(socket, rxperf_rx_new_call,
 					   rxperf_rx_discard_new_call);
 
 	ret = kernel_listen(socket, INT_MAX);
@@ -306,26 +306,26 @@ static void rxperf_deliver_to_call(struct work_struct *work)
 		case -ECONNABORTED:
 			rxperf_log_error(call, call->abort_code);
 			goto call_complete;
-		case -EOPNOTSUPP:
+		case -EOPANALTSUPP:
 			abort_code = RXGEN_OPCODE;
 			rxrpc_kernel_abort_call(rxperf_socket, call->rxcall,
 						abort_code, ret,
-						rxperf_abort_op_not_supported);
+						rxperf_abort_op_analt_supported);
 			goto call_complete;
-		case -ENOTSUPP:
+		case -EANALTSUPP:
 			abort_code = RX_USER_ABORT;
 			rxrpc_kernel_abort_call(rxperf_socket, call->rxcall,
 						abort_code, ret,
-						rxperf_abort_op_not_supported);
+						rxperf_abort_op_analt_supported);
 			goto call_complete;
 		case -EIO:
 			pr_err("Call %u in bad state %u\n",
 			       call->debug_id, call->state);
 			fallthrough;
-		case -ENODATA:
+		case -EANALDATA:
 		case -EBADMSG:
 		case -EMSGSIZE:
-		case -ENOMEM:
+		case -EANALMEM:
 		case -EFAULT:
 			rxrpc_kernel_abort_call(rxperf_socket, call->rxcall,
 						RXGEN_SS_UNMARSHAL, ret,
@@ -401,7 +401,7 @@ static int rxperf_deliver_param_block(struct rxperf_call *call)
 
 	if (version != RX_PERF_VERSION) {
 		pr_info("Version mismatch %x\n", version);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	switch (call->operation_id) {
@@ -423,7 +423,7 @@ static int rxperf_deliver_param_block(struct rxperf_call *call)
 		call->type = "file";
 		fallthrough;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rxperf_set_call_state(call, RXPERF_CALL_SV_AWAIT_REQUEST);
@@ -508,7 +508,7 @@ static int rxperf_process_call(struct rxperf_call *call)
 		iov_iter_bvec(&msg.msg_iter, WRITE, &bv, 1, len);
 		msg.msg_flags = MSG_MORE;
 		n = rxrpc_kernel_send_data(rxperf_socket, call->rxcall, &msg,
-					   len, rxperf_notify_end_reply_tx);
+					   len, rxperf_analtify_end_reply_tx);
 		if (n < 0)
 			return n;
 		if (n == 0)
@@ -522,13 +522,13 @@ static int rxperf_process_call(struct rxperf_call *call)
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, len);
 	msg.msg_flags = 0;
 	n = rxrpc_kernel_send_data(rxperf_socket, call->rxcall, &msg, len,
-				   rxperf_notify_end_reply_tx);
+				   rxperf_analtify_end_reply_tx);
 	if (n >= 0)
 		return 0; /* Success */
 
-	if (n == -ENOMEM)
+	if (n == -EANALMEM)
 		rxrpc_kernel_abort_call(rxperf_socket, call->rxcall,
-					RXGEN_SS_MARSHAL, -ENOMEM,
+					RXGEN_SS_MARSHAL, -EANALMEM,
 					rxperf_abort_oom);
 	return n;
 }
@@ -548,7 +548,7 @@ static int rxperf_add_key(struct key *keyring)
 				    sizeof(secret),
 				    KEY_POS_VIEW | KEY_POS_READ | KEY_POS_SEARCH
 				    | KEY_USR_VIEW,
-				    KEY_ALLOC_NOT_IN_QUOTA);
+				    KEY_ALLOC_ANALT_IN_QUOTA);
 
 	if (IS_ERR(kref)) {
 		pr_err("Can't allocate rxperf server key: %ld\n", PTR_ERR(kref));
@@ -568,7 +568,7 @@ static int rxperf_add_key(struct key *keyring)
 static int __init rxperf_init(void)
 {
 	struct key *keyring;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	pr_info("Server registering\n");
 
@@ -583,7 +583,7 @@ static int __init rxperf_init(void)
 				KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH |
 				KEY_USR_WRITE |
 				KEY_OTH_VIEW | KEY_OTH_READ | KEY_OTH_SEARCH,
-				KEY_ALLOC_NOT_IN_QUOTA,
+				KEY_ALLOC_ANALT_IN_QUOTA,
 				NULL, NULL);
 	if (IS_ERR(keyring)) {
 		pr_err("Can't allocate rxperf server keyring: %ld\n",

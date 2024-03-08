@@ -11,8 +11,8 @@
 #include <linux/input.h>
 #include <uapi/linux/lirc.h>
 
-#define RC_PROTO_BIT_NONE		0ULL
-#define RC_PROTO_BIT_UNKNOWN		BIT_ULL(RC_PROTO_UNKNOWN)
+#define RC_PROTO_BIT_ANALNE		0ULL
+#define RC_PROTO_BIT_UNKANALWN		BIT_ULL(RC_PROTO_UNKANALWN)
 #define RC_PROTO_BIT_OTHER		BIT_ULL(RC_PROTO_OTHER)
 #define RC_PROTO_BIT_RC5		BIT_ULL(RC_PROTO_RC5)
 #define RC_PROTO_BIT_RC5X_20		BIT_ULL(RC_PROTO_RC5X_20)
@@ -121,7 +121,7 @@
 	 __RC_PROTO_SHARP_CODEC | __RC_PROTO_XMP_CODEC | \
 	 __RC_PROTO_IMON_CODEC | __RC_PROTO_RCMM_CODEC)
 
-#define RC_SCANCODE_UNKNOWN(x)			(x)
+#define RC_SCANCODE_UNKANALWN(x)			(x)
 #define RC_SCANCODE_OTHER(x)			(x)
 #define RC_SCANCODE_NEC(addr, cmd)		(((addr) << 8) | (cmd))
 #define RC_SCANCODE_NECX(addr, cmd)		(((addr) << 8) | (cmd))
@@ -237,7 +237,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_DELOCK_61959              "rc-delock-61959"
 #define RC_MAP_DIB0700_NEC_TABLE         "rc-dib0700-nec"
 #define RC_MAP_DIB0700_RC5_TABLE         "rc-dib0700-rc5"
-#define RC_MAP_DIGITALNOW_TINYTWIN       "rc-digitalnow-tinytwin"
+#define RC_MAP_DIGITALANALW_TINYTWIN       "rc-digitalanalw-tinytwin"
 #define RC_MAP_DIGITTRADE                "rc-digittrade"
 #define RC_MAP_DM1105_NEC                "rc-dm1105-nec"
 #define RC_MAP_DNTV_LIVE_DVB_T           "rc-dntv-live-dvb-t"
@@ -292,7 +292,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_MSI_TVANYWHERE_PLUS       "rc-msi-tvanywhere-plus"
 #define RC_MAP_NEBULA                    "rc-nebula"
 #define RC_MAP_NEC_TERRATEC_CINERGY_XS   "rc-nec-terratec-cinergy-xs"
-#define RC_MAP_NORWOOD                   "rc-norwood"
+#define RC_MAP_ANALRWOOD                   "rc-analrwood"
 #define RC_MAP_NPGTECH                   "rc-npgtech"
 #define RC_MAP_ODROID                    "rc-odroid"
 #define RC_MAP_PCTV_SEDNA                "rc-pctv-sedna"
@@ -348,7 +348,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_ZX_IRDEC                  "rc-zx-irdec"
 
 /*
- * Please, do not just append newer Remote Controller names at the end.
+ * Please, do analt just append newer Remote Controller names at the end.
  * The names should be ordered in alphabetical order
  */
 

@@ -21,9 +21,9 @@
  * @index: the zero-based ordinal number for this queue.
  * @num_free: number of elements we expect to be able to fit.
  * @num_max: the maximum number of elements supported by the device.
- * @reset: vq is in reset state or not.
+ * @reset: vq is in reset state or analt.
  *
- * A note on @num_free: with indirect buffers, each buffer needs one
+ * A analte on @num_free: with indirect buffers, each buffer needs one
  * element in the queue, otherwise a buffer will need one element per
  * sg element.
  */
@@ -68,7 +68,7 @@ bool virtqueue_kick(struct virtqueue *vq);
 
 bool virtqueue_kick_prepare(struct virtqueue *vq);
 
-bool virtqueue_notify(struct virtqueue *vq);
+bool virtqueue_analtify(struct virtqueue *vq);
 
 void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
 
@@ -177,8 +177,8 @@ size_t virtio_max_dma_size(const struct virtio_device *vdev);
  * @feature_table_legacy: same as feature_table but when working in legacy mode.
  * @feature_table_size_legacy: number of entries in feature table legacy array.
  * @validate: the function to call to validate features and config space.
- *            Returns 0 or -errno.
- * @probe: the function to call when a device is found.  Returns 0 or -errno.
+ *            Returns 0 or -erranal.
+ * @probe: the function to call when a device is found.  Returns 0 or -erranal.
  * @scan: optional function to call after successful probe; intended
  *    for virtio-scsi to invoke a scan.
  * @remove: the function to call when a device is removed.

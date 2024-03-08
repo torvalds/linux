@@ -46,7 +46,7 @@ struct omap_dmadev {
 	const struct omap_dma_reg *reg_map;
 	struct omap_system_dma_plat_info *plat;
 	const struct omap_dma_config *cfg;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct omap_dma_context context;
 	int lch_count;
 	DECLARE_BITMAP(lch_bitmap, OMAP_SDMA_CHANNELS);
@@ -186,9 +186,9 @@ enum {
 	CSDP_DST_BURST_16	= 1 << 14,
 	CSDP_DST_BURST_32	= 2 << 14,
 	CSDP_DST_BURST_64	= 3 << 14,
-	CSDP_WRITE_NON_POSTED	= 0 << 16,
+	CSDP_WRITE_ANALN_POSTED	= 0 << 16,
 	CSDP_WRITE_POSTED	= 1 << 16,
-	CSDP_WRITE_LAST_NON_POSTED = 2 << 16,
+	CSDP_WRITE_LAST_ANALN_POSTED = 2 << 16,
 
 	CICR_TOUT_IE		= BIT(0),	/* OMAP1 only */
 	CICR_DROP_IE		= BIT(1),
@@ -214,7 +214,7 @@ enum {
 	CDP_NTYPE_TYPE1		= 1 << 4,
 	CDP_NTYPE_TYPE2		= 2 << 4,
 	CDP_NTYPE_TYPE3		= 3 << 4,
-	CDP_TMODE_NORMAL	= 0 << 8,
+	CDP_TMODE_ANALRMAL	= 0 << 8,
 	CDP_TMODE_LLIST		= 1 << 8,
 	CDP_FAST		= BIT(10),
 };
@@ -478,7 +478,7 @@ static void omap_dma_drain_chan(struct omap_chan *c)
 
 	if (val & (CCR_RD_ACTIVE | CCR_WR_ACTIVE))
 		dev_err(c->vc.chan.device->dev,
-			"DMA drain did not complete on lch %d\n",
+			"DMA drain did analt complete on lch %d\n",
 			c->dma_ch);
 }
 
@@ -498,7 +498,7 @@ static int omap_dma_stop(struct omap_chan *c)
 
 		sysconfig = omap_dma_glbl_read(od, OCP_SYSCONFIG);
 		val = sysconfig & ~DMA_SYSCONFIG_MIDLEMODE_MASK;
-		val |= DMA_SYSCONFIG_MIDLEMODE(DMA_IDLEMODE_NO_IDLE);
+		val |= DMA_SYSCONFIG_MIDLEMODE(DMA_IDLEMODE_ANAL_IDLE);
 		omap_dma_glbl_write(od, OCP_SYSCONFIG, val);
 
 		val = omap_dma_chan_read(c, CCR);
@@ -572,7 +572,7 @@ static void omap_dma_start_desc(struct omap_chan *c)
 		return;
 	}
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	c->desc = d = to_omap_dma_desc(&vd->tx);
 	c->sgidx = 0;
@@ -639,7 +639,7 @@ static irqreturn_t omap_dma_irq(int irq, void *devid)
 	status &= od->irq_enable_mask;
 	if (status == 0) {
 		spin_unlock(&od->irq_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	while ((channel = ffs(status)) != 0) {
@@ -845,7 +845,7 @@ static dma_addr_t omap_dma_get_src_pos(struct omap_chan *c)
 
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel has
-		 * not been started (no data has been transferred so far).
+		 * analt been started (anal data has been transferred so far).
 		 * Return the programmed source start address in this case.
 		 */
 		if (cdac == 0)
@@ -870,7 +870,7 @@ static dma_addr_t omap_dma_get_dst_pos(struct omap_chan *c)
 
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel
-		 * has not been started (no data has been transferred so
+		 * has analt been started (anal data has been transferred so
 		 * far).  Return the programmed destination start address in
 		 * this case.
 		 */
@@ -930,7 +930,7 @@ out:
 	} else if (d && d->polled && c->running) {
 		uint32_t ccr = omap_dma_chan_read(c, CCR);
 		/*
-		 * The channel is no longer active, set the return value
+		 * The channel is anal longer active, set the return value
 		 * accordingly and mark it as completed
 		 */
 		if (!(ccr & CCR_ENABLE)) {
@@ -997,11 +997,11 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 		es = CSDP_DATA_TYPE_32;
 		break;
-	default: /* not reached */
+	default: /* analt reached */
 		return NULL;
 	}
 
-	/* Now allocate and setup the descriptor. */
+	/* Analw allocate and setup the descriptor. */
 	d = kzalloc(struct_size(d, sg, sglen), GFP_ATOMIC);
 	if (!d)
 		return NULL;
@@ -1079,7 +1079,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		d->cicr |= CICR_MISALIGNED_ERR_IE | CICR_TRANS_ERR_IE;
 
 		if (port_window)
-			d->csdp |= CSDP_WRITE_LAST_NON_POSTED;
+			d->csdp |= CSDP_WRITE_LAST_ANALN_POSTED;
 	}
 	if (od->plat->errata & DMA_ERRATA_PARALLEL_CHANNELS)
 		d->clnk_ctrl = c->dma_ch;
@@ -1090,7 +1090,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	 * frames (FN).  Number of bytes for this entry = ES * EN * FN.
 	 *
 	 * Burst size translates to number of elements with frame sync.
-	 * Note: DMA engine defines burst to be the number of dev-width
+	 * Analte: DMA engine defines burst to be the number of dev-width
 	 * transfers.
 	 */
 	en = burst;
@@ -1173,11 +1173,11 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 		es = CSDP_DATA_TYPE_32;
 		break;
-	default: /* not reached */
+	default: /* analt reached */
 		return NULL;
 	}
 
-	/* Now allocate and setup the descriptor. */
+	/* Analw allocate and setup the descriptor. */
 	d = kzalloc(sizeof(*d) + sizeof(d->sg[0]), GFP_ATOMIC);
 	if (!d)
 		return NULL;
@@ -1294,7 +1294,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_interleaved(
 	uint8_t data_type;
 	size_t src_icg, dst_icg;
 
-	/* Slave mode is not supported */
+	/* Slave mode is analt supported */
 	if (is_slave_direction(xt->dir))
 		return NULL;
 
@@ -1330,7 +1330,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_interleaved(
 		d->fi = 0;
 	} else {
 		dev_err(chan->device->dev,
-			"%s: SRC constant addressing is not supported\n",
+			"%s: SRC constant addressing is analt supported\n",
 			__func__);
 		kfree(d);
 		return NULL;
@@ -1345,7 +1345,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_interleaved(
 		sg->fi = 0;
 	} else {
 		dev_err(chan->device->dev,
-			"%s: DST constant addressing is not supported\n",
+			"%s: DST constant addressing is analt supported\n",
 			__func__);
 		kfree(d);
 		return NULL;
@@ -1393,7 +1393,7 @@ static int omap_dma_terminate_all(struct dma_chan *chan)
 	spin_lock_irqsave(&c->vc.lock, flags);
 
 	/*
-	 * Stop DMA activity: we assume the callback will not be called
+	 * Stop DMA activity: we assume the callback will analt be called
 	 * after omap_dma_stop() returns (even if it does, it will see
 	 * c->desc is NULL and exit.)
 	 */
@@ -1439,7 +1439,7 @@ static int omap_dma_pause(struct dma_chan *chan)
 		can_pause = true;
 
 	/*
-	 * We do not allow DMA_MEM_TO_DEV transfers to be paused.
+	 * We do analt allow DMA_MEM_TO_DEV transfers to be paused.
 	 * From the AM572x TRM, 16.1.4.18 Disabling a Channel During Transfer:
 	 * "When a channel is disabled during a transfer, the channel undergoes
 	 * an abort, unless it is hardware-source-synchronized …".
@@ -1451,7 +1451,7 @@ static int omap_dma_pause(struct dma_chan *chan)
 	 * From 16.1.4.20.4.6.2 Abort: "If an abort trigger occurs, the channel
 	 * aborts immediately after completion of current read/write
 	 * transactions and then the FIFO is cleaned up." The term "cleaned up"
-	 * is not defined. TI recommends to check that RD_ACTIVE and WR_ACTIVE
+	 * is analt defined. TI recommends to check that RD_ACTIVE and WR_ACTIVE
 	 * are both clear _before_ disabling the channel, otherwise data loss
 	 * will occur.
 	 * The problem is that if the channel is active, then device activity
@@ -1459,7 +1459,7 @@ static int omap_dma_pause(struct dma_chan *chan)
 	 * clear and the write to DMA_CCR to clear the enable bit hitting the
 	 * hardware. If the DMA hardware can't drain the data in its FIFO to the
 	 * destination, then data loss "might" occur (say if we write to an UART
-	 * and the UART is not accepting any further data).
+	 * and the UART is analt accepting any further data).
 	 */
 	else if (c->desc->dir == DMA_DEV_TO_MEM)
 		can_pause = true;
@@ -1505,7 +1505,7 @@ static int omap_dma_chan_init(struct omap_dmadev *od)
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	c->reg_map = od->reg_map;
 	c->vc.desc_free = omap_dma_desc_free;
@@ -1518,9 +1518,9 @@ static void omap_dma_free(struct omap_dmadev *od)
 {
 	while (!list_empty(&od->ddev.channels)) {
 		struct omap_chan *c = list_first_entry(&od->ddev.channels,
-			struct omap_chan, vc.chan.device_node);
+			struct omap_chan, vc.chan.device_analde);
 
-		list_del(&c->vc.chan.device_node);
+		list_del(&c->vc.chan.device_analde);
 		tasklet_kill(&c->vc.task);
 		kfree(c);
 	}
@@ -1547,7 +1547,7 @@ static bool omap_dma_busy(struct omap_dmadev *od)
 }
 
 /* Currently only used for omap2. For omap1, also a check for lcd_dma is needed */
-static int omap_dma_busy_notifier(struct notifier_block *nb,
+static int omap_dma_busy_analtifier(struct analtifier_block *nb,
 				  unsigned long cmd, void *v)
 {
 	struct omap_dmadev *od;
@@ -1557,20 +1557,20 @@ static int omap_dma_busy_notifier(struct notifier_block *nb,
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
 		if (omap_dma_busy(od))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		break;
 	case CPU_CLUSTER_PM_ENTER_FAILED:
 	case CPU_CLUSTER_PM_EXIT:
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /*
  * We are using IRQENABLE_L1, and legacy DMA code was using IRQENABLE_L0.
- * As the DSP may be using IRQENABLE_L2 and L3, let's not touch those for
- * now. Context save seems to be only currently needed on omap3.
+ * As the DSP may be using IRQENABLE_L2 and L3, let's analt touch those for
+ * analw. Context save seems to be only currently needed on omap3.
  */
 static void omap_dma_context_save(struct omap_dmadev *od)
 {
@@ -1589,7 +1589,7 @@ static void omap_dma_context_restore(struct omap_dmadev *od)
 	omap_dma_glbl_write(od, IRQENABLE_L0, od->context.irqenable_l0);
 	omap_dma_glbl_write(od, IRQENABLE_L1, od->context.irqenable_l1);
 
-	/* Clear IRQSTATUS_L0 as legacy DMA code is no longer doing it */
+	/* Clear IRQSTATUS_L0 as legacy DMA code is anal longer doing it */
 	if (od->plat->errata & DMA_ROMCODE_BUG)
 		omap_dma_glbl_write(od, IRQSTATUS_L0, 0);
 
@@ -1599,7 +1599,7 @@ static void omap_dma_context_restore(struct omap_dmadev *od)
 }
 
 /* Currently only used for omap3 */
-static int omap_dma_context_notifier(struct notifier_block *nb,
+static int omap_dma_context_analtifier(struct analtifier_block *nb,
 				     unsigned long cmd, void *v)
 {
 	struct omap_dmadev *od;
@@ -1609,17 +1609,17 @@ static int omap_dma_context_notifier(struct notifier_block *nb,
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
 		if (omap_dma_busy(od))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		omap_dma_context_save(od);
 		break;
-	case CPU_CLUSTER_PM_ENTER_FAILED:	/* No need to restore context */
+	case CPU_CLUSTER_PM_ENTER_FAILED:	/* Anal need to restore context */
 		break;
 	case CPU_CLUSTER_PM_EXIT:
 		omap_dma_context_restore(od);
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void omap_dma_init_gcr(struct omap_dmadev *od, int arb_rate,
@@ -1648,7 +1648,7 @@ static void omap_dma_init_gcr(struct omap_dmadev *od, int arb_rate,
 				 BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
 
 /*
- * No flags currently set for default configuration as omap1 is still
+ * Anal flags currently set for default configuration as omap1 is still
  * using platform data.
  */
 static const struct omap_dma_config default_cfg;
@@ -1662,7 +1662,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	od->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(od->base))
@@ -1674,7 +1674,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 		od->plat = dev_get_platdata(&pdev->dev);
 		if (!od->plat) {
 			dev_err(&pdev->dev, "omap_system_dma_plat_info is missing");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else if (IS_ENABLED(CONFIG_ARCH_OMAP1)) {
 		od->cfg = &default_cfg;
@@ -1683,7 +1683,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 		if (!od->plat)
 			return -EPROBE_DEFER;
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	od->reg_map = od->plat->reg_map;
@@ -1722,7 +1722,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 
 	/* Number of DMA requests */
 	od->dma_requests = OMAP_SDMA_REQUESTS;
-	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
+	if (pdev->dev.of_analde && of_property_read_u32(pdev->dev.of_analde,
 						      "dma-requests",
 						      &od->dma_requests)) {
 		dev_info(&pdev->dev,
@@ -1731,11 +1731,11 @@ static int omap_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Number of available logical channels */
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_analde) {
 		od->lch_count = od->plat->dma_attr->lch_count;
 		if (unlikely(!od->lch_count))
 			od->lch_count = OMAP_SDMA_CHANNELS;
-	} else if (of_property_read_u32(pdev->dev.of_node, "dma-channels",
+	} else if (of_property_read_u32(pdev->dev.of_analde, "dma-channels",
 					&od->lch_count)) {
 		dev_info(&pdev->dev,
 			 "Missing dma-channels property, using %u.\n",
@@ -1744,10 +1744,10 @@ static int omap_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Mask of allowed logical channels */
-	if (pdev->dev.of_node && !of_property_read_u32(pdev->dev.of_node,
+	if (pdev->dev.of_analde && !of_property_read_u32(pdev->dev.of_analde,
 						       "dma-channel-mask",
 						       &val)) {
-		/* Tag channels not in mask as reserved */
+		/* Tag channels analt in mask as reserved */
 		val = ~val;
 		bitmap_from_arr32(od->lch_bitmap, &val, od->lch_count);
 	}
@@ -1758,7 +1758,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 				   sizeof(*od->lch_map),
 				   GFP_KERNEL);
 	if (!od->lch_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < od->dma_requests; i++) {
 		rc = omap_dma_chan_init(od);
@@ -1814,11 +1814,11 @@ static int omap_dma_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, od);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		omap_dma_info.dma_cap = od->ddev.cap_mask;
 
 		/* Device-tree DMA controller registration */
-		rc = of_dma_controller_register(pdev->dev.of_node,
+		rc = of_dma_controller_register(pdev->dev.of_analde,
 				of_dma_simple_xlate, &omap_dma_info);
 		if (rc) {
 			pr_warn("OMAP-DMA: failed to register DMA controller\n");
@@ -1830,11 +1830,11 @@ static int omap_dma_probe(struct platform_device *pdev)
 	omap_dma_init_gcr(od, DMA_DEFAULT_ARB_RATE, DMA_DEFAULT_FIFO_DEPTH, 0);
 
 	if (od->cfg->needs_busy_check) {
-		od->nb.notifier_call = omap_dma_busy_notifier;
-		cpu_pm_register_notifier(&od->nb);
+		od->nb.analtifier_call = omap_dma_busy_analtifier;
+		cpu_pm_register_analtifier(&od->nb);
 	} else if (od->cfg->may_lose_context) {
-		od->nb.notifier_call = omap_dma_context_notifier;
-		cpu_pm_register_notifier(&od->nb);
+		od->nb.analtifier_call = omap_dma_context_analtifier;
+		cpu_pm_register_analtifier(&od->nb);
 	}
 
 	dev_info(&pdev->dev, "OMAP DMA engine driver%s\n",
@@ -1849,10 +1849,10 @@ static void omap_dma_remove(struct platform_device *pdev)
 	int irq;
 
 	if (od->cfg->may_lose_context)
-		cpu_pm_unregister_notifier(&od->nb);
+		cpu_pm_unregister_analtifier(&od->nb);
 
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
+	if (pdev->dev.of_analde)
+		of_dma_controller_free(pdev->dev.of_analde);
 
 	irq = platform_get_irq(pdev, 1);
 	devm_free_irq(&pdev->dev, irq, od);

@@ -44,7 +44,7 @@
 #include <linux/string.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/in.h>
 #include <linux/inet.h>
 #include <linux/inetdevice.h>
@@ -60,7 +60,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/vmalloc.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <net/net_namespace.h>
 #include <net/inet_dscp.h>
 #include <net/ip.h>
@@ -69,16 +69,16 @@
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <net/ip_fib.h>
-#include <net/fib_notifier.h>
+#include <net/fib_analtifier.h>
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
-static int call_fib_entry_notifier(struct notifier_block *nb,
+static int call_fib_entry_analtifier(struct analtifier_block *nb,
 				   enum fib_event_type event_type, u32 dst,
 				   int dst_len, struct fib_alias *fa,
 				   struct netlink_ext_ack *extack)
 {
-	struct fib_entry_notifier_info info = {
+	struct fib_entry_analtifier_info info = {
 		.info.extack = extack,
 		.dst = dst,
 		.dst_len = dst_len,
@@ -87,15 +87,15 @@ static int call_fib_entry_notifier(struct notifier_block *nb,
 		.type = fa->fa_type,
 		.tb_id = fa->tb_id,
 	};
-	return call_fib4_notifier(nb, event_type, &info.info);
+	return call_fib4_analtifier(nb, event_type, &info.info);
 }
 
-static int call_fib_entry_notifiers(struct net *net,
+static int call_fib_entry_analtifiers(struct net *net,
 				    enum fib_event_type event_type, u32 dst,
 				    int dst_len, struct fib_alias *fa,
 				    struct netlink_ext_ack *extack)
 {
-	struct fib_entry_notifier_info info = {
+	struct fib_entry_analtifier_info info = {
 		.info.extack = extack,
 		.dst = dst,
 		.dst_len = dst_len,
@@ -104,7 +104,7 @@ static int call_fib_entry_notifiers(struct net *net,
 		.type = fa->fa_type,
 		.tb_id = fa->tb_id,
 	};
-	return call_fib4_notifiers(net, event_type, &info.info);
+	return call_fib4_analtifiers(net, event_type, &info.info);
 }
 
 #define MAX_STAT_DEPTH 32
@@ -115,7 +115,7 @@ static int call_fib_entry_notifiers(struct net *net,
 typedef unsigned int t_key;
 
 #define IS_TRIE(n)	((n)->pos >= KEYLENGTH)
-#define IS_TNODE(n)	((n)->bits)
+#define IS_TANALDE(n)	((n)->bits)
 #define IS_LEAF(n)	(!(n)->bits)
 
 struct key_vector {
@@ -126,12 +126,12 @@ struct key_vector {
 	union {
 		/* This list pointer if valid if (pos | bits) == 0 (LEAF) */
 		struct hlist_head leaf;
-		/* This array is valid if (pos | bits) > 0 (TNODE) */
-		DECLARE_FLEX_ARRAY(struct key_vector __rcu *, tnode);
+		/* This array is valid if (pos | bits) > 0 (TANALDE) */
+		DECLARE_FLEX_ARRAY(struct key_vector __rcu *, tanalde);
 	};
 };
 
-struct tnode {
+struct tanalde {
 	struct rcu_head rcu;
 	t_key empty_children;		/* KEYLENGTH bits needed */
 	t_key full_children;		/* KEYLENGTH bits needed */
@@ -140,8 +140,8 @@ struct tnode {
 #define tn_bits kv[0].bits
 };
 
-#define TNODE_SIZE(n)	offsetof(struct tnode, kv[0].tnode[n])
-#define LEAF_SIZE	TNODE_SIZE(1)
+#define TANALDE_SIZE(n)	offsetof(struct tanalde, kv[0].tanalde[n])
+#define LEAF_SIZE	TANALDE_SIZE(1)
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 struct trie_use_stats {
@@ -149,19 +149,19 @@ struct trie_use_stats {
 	unsigned int backtrack;
 	unsigned int semantic_match_passed;
 	unsigned int semantic_match_miss;
-	unsigned int null_node_hit;
-	unsigned int resize_node_skipped;
+	unsigned int null_analde_hit;
+	unsigned int resize_analde_skipped;
 };
 #endif
 
 struct trie_stat {
 	unsigned int totdepth;
 	unsigned int maxdepth;
-	unsigned int tnodes;
+	unsigned int tanaldes;
 	unsigned int leaves;
 	unsigned int nullpointers;
 	unsigned int prefixes;
-	unsigned int nodesizes[MAX_STAT_DEPTH];
+	unsigned int analdesizes[MAX_STAT_DEPTH];
 };
 
 struct trie {
@@ -172,11 +172,11 @@ struct trie {
 };
 
 static struct key_vector *resize(struct trie *t, struct key_vector *tn);
-static unsigned int tnode_free_size;
+static unsigned int tanalde_free_size;
 
 /*
  * synchronize_rcu after call_rcu for outstanding dirty memory; it should be
- * especially useful before resizing the root node with PREEMPT_NONE configs;
+ * especially useful before resizing the root analde with PREEMPT_ANALNE configs;
  * the value was obtained experimentally, aiming to avoid visible slowdown.
  */
 unsigned int sysctl_fib_sync_mem = 512 * 1024;
@@ -186,30 +186,30 @@ unsigned int sysctl_fib_sync_mem_max = 64 * 1024 * 1024;
 static struct kmem_cache *fn_alias_kmem __ro_after_init;
 static struct kmem_cache *trie_leaf_kmem __ro_after_init;
 
-static inline struct tnode *tn_info(struct key_vector *kv)
+static inline struct tanalde *tn_info(struct key_vector *kv)
 {
-	return container_of(kv, struct tnode, kv[0]);
+	return container_of(kv, struct tanalde, kv[0]);
 }
 
 /* caller must hold RTNL */
-#define node_parent(tn) rtnl_dereference(tn_info(tn)->parent)
-#define get_child(tn, i) rtnl_dereference((tn)->tnode[i])
+#define analde_parent(tn) rtnl_dereference(tn_info(tn)->parent)
+#define get_child(tn, i) rtnl_dereference((tn)->tanalde[i])
 
 /* caller must hold RCU read lock or RTNL */
-#define node_parent_rcu(tn) rcu_dereference_rtnl(tn_info(tn)->parent)
-#define get_child_rcu(tn, i) rcu_dereference_rtnl((tn)->tnode[i])
+#define analde_parent_rcu(tn) rcu_dereference_rtnl(tn_info(tn)->parent)
+#define get_child_rcu(tn, i) rcu_dereference_rtnl((tn)->tanalde[i])
 
 /* wrapper for rcu_assign_pointer */
-static inline void node_set_parent(struct key_vector *n, struct key_vector *tp)
+static inline void analde_set_parent(struct key_vector *n, struct key_vector *tp)
 {
 	if (n)
 		rcu_assign_pointer(tn_info(n)->parent, tp);
 }
 
-#define NODE_INIT_PARENT(n, p) RCU_INIT_POINTER(tn_info(n)->parent, p)
+#define ANALDE_INIT_PARENT(n, p) RCU_INIT_POINTER(tn_info(n)->parent, p)
 
-/* This provides us with the number of children in this node, in the case of a
- * leaf this will return 0 meaning none of the children are accessible.
+/* This provides us with the number of children in this analde, in the case of a
+ * leaf this will return 0 meaning analne of the children are accessible.
  */
 static inline unsigned long child_length(const struct key_vector *tn)
 {
@@ -229,25 +229,25 @@ static inline unsigned long get_index(t_key key, struct key_vector *kv)
 }
 
 /* To understand this stuff, an understanding of keys and all their bits is
- * necessary. Every node in the trie has a key associated with it, but not
+ * necessary. Every analde in the trie has a key associated with it, but analt
  * all of the bits in that key are significant.
  *
- * Consider a node 'n' and its parent 'tp'.
+ * Consider a analde 'n' and its parent 'tp'.
  *
  * If n is a leaf, every bit in its key is significant. Its presence is
  * necessitated by path compression, since during a tree traversal (when
  * searching for a leaf - unless we are doing an insertion) we will completely
- * ignore all skipped bits we encounter. Thus we need to verify, at the end of
+ * iganalre all skipped bits we encounter. Thus we need to verify, at the end of
  * a potentially successful search, that we have indeed been walking the
  * correct key path.
  *
- * Note that we can never "miss" the correct key in the tree if present by
+ * Analte that we can never "miss" the correct key in the tree if present by
  * following the wrong path. Path compression ensures that segments of the key
  * that are the same for all keys with a given prefix are skipped, but the
- * skipped part *is* identical for each node in the subtrie below the skipped
+ * skipped part *is* identical for each analde in the subtrie below the skipped
  * bit! trie_insert() in this implementation takes care of that.
  *
- * if n is an internal node - a 'tnode' here, the various parts of its key
+ * if n is an internal analde - a 'tanalde' here, the various parts of its key
  * have many different meanings.
  *
  * Example:
@@ -266,24 +266,24 @@ static inline unsigned long get_index(t_key key, struct key_vector *kv)
  * n->pos = 13
  * n->bits = 4
  *
- * First, let's just ignore the bits that come before the parent tp, that is
- * the bits from (tp->pos + tp->bits) to 31. They are *known* but at this
- * point we do not use them for anything.
+ * First, let's just iganalre the bits that come before the parent tp, that is
+ * the bits from (tp->pos + tp->bits) to 31. They are *kanalwn* but at this
+ * point we do analt use them for anything.
  *
  * The bits from (tp->pos) to (tp->pos + tp->bits - 1) - "N", above - are the
  * index into the parent's child array. That is, they will be used to find
  * 'n' among tp's children.
  *
  * The bits from (n->pos + n->bits) to (tp->pos - 1) - "S" - are skipped bits
- * for the node n.
+ * for the analde n.
  *
- * All the bits we have seen so far are significant to the node n. The rest
- * of the bits are really not needed or indeed known in n->key.
+ * All the bits we have seen so far are significant to the analde n. The rest
+ * of the bits are really analt needed or indeed kanalwn in n->key.
  *
  * The bits from (n->pos) to (n->pos + n->bits - 1) - "C" - are the index into
  * n's child array, and will of course be different for each child.
  *
- * The rest of the bits, from 0 to (n->pos -1) - "u" - are completely unknown
+ * The rest of the bits, from 0 to (n->pos -1) - "u" - are completely unkanalwn
  * at this point.
  */
 
@@ -303,12 +303,12 @@ static inline void alias_free_mem_rcu(struct fib_alias *fa)
 	call_rcu(&fa->rcu, __alias_free_mem);
 }
 
-#define TNODE_VMALLOC_MAX \
-	ilog2((SIZE_MAX - TNODE_SIZE(0)) / sizeof(struct key_vector *))
+#define TANALDE_VMALLOC_MAX \
+	ilog2((SIZE_MAX - TANALDE_SIZE(0)) / sizeof(struct key_vector *))
 
-static void __node_free_rcu(struct rcu_head *head)
+static void __analde_free_rcu(struct rcu_head *head)
 {
-	struct tnode *n = container_of(head, struct tnode, rcu);
+	struct tanalde *n = container_of(head, struct tanalde, rcu);
 
 	if (!n->tn_bits)
 		kmem_cache_free(trie_leaf_kmem, n);
@@ -316,18 +316,18 @@ static void __node_free_rcu(struct rcu_head *head)
 		kvfree(n);
 }
 
-#define node_free(n) call_rcu(&tn_info(n)->rcu, __node_free_rcu)
+#define analde_free(n) call_rcu(&tn_info(n)->rcu, __analde_free_rcu)
 
-static struct tnode *tnode_alloc(int bits)
+static struct tanalde *tanalde_alloc(int bits)
 {
 	size_t size;
 
 	/* verify bits is within bounds */
-	if (bits > TNODE_VMALLOC_MAX)
+	if (bits > TANALDE_VMALLOC_MAX)
 		return NULL;
 
-	/* determine size and verify it is non-zero and didn't overflow */
-	size = TNODE_SIZE(1ul << bits);
+	/* determine size and verify it is analn-zero and didn't overflow */
+	size = TANALDE_SIZE(1ul << bits);
 
 	if (size <= PAGE_SIZE)
 		return kzalloc(size, GFP_KERNEL);
@@ -354,7 +354,7 @@ static inline void empty_child_dec(struct key_vector *n)
 static struct key_vector *leaf_new(t_key key, struct fib_alias *fa)
 {
 	struct key_vector *l;
-	struct tnode *kv;
+	struct tanalde *kv;
 
 	kv = kmem_cache_alloc(trie_leaf_kmem, GFP_KERNEL);
 	if (!kv)
@@ -374,28 +374,28 @@ static struct key_vector *leaf_new(t_key key, struct fib_alias *fa)
 	return l;
 }
 
-static struct key_vector *tnode_new(t_key key, int pos, int bits)
+static struct key_vector *tanalde_new(t_key key, int pos, int bits)
 {
 	unsigned int shift = pos + bits;
 	struct key_vector *tn;
-	struct tnode *tnode;
+	struct tanalde *tanalde;
 
 	/* verify bits and pos their msb bits clear and values are valid */
 	BUG_ON(!bits || (shift > KEYLENGTH));
 
-	tnode = tnode_alloc(bits);
-	if (!tnode)
+	tanalde = tanalde_alloc(bits);
+	if (!tanalde)
 		return NULL;
 
-	pr_debug("AT %p s=%zu %zu\n", tnode, TNODE_SIZE(0),
+	pr_debug("AT %p s=%zu %zu\n", tanalde, TANALDE_SIZE(0),
 		 sizeof(struct key_vector *) << bits);
 
 	if (bits == KEYLENGTH)
-		tnode->full_children = 1;
+		tanalde->full_children = 1;
 	else
-		tnode->empty_children = 1ul << bits;
+		tanalde->empty_children = 1ul << bits;
 
-	tn = tnode->kv;
+	tn = tanalde->kv;
 	tn->key = (shift < KEYLENGTH) ? (key >> shift) << shift : 0;
 	tn->pos = pos;
 	tn->bits = bits;
@@ -404,12 +404,12 @@ static struct key_vector *tnode_new(t_key key, int pos, int bits)
 	return tn;
 }
 
-/* Check whether a tnode 'n' is "full", i.e. it is an internal node
- * and no bits are skipped. See discussion in dyntree paper p. 6
+/* Check whether a tanalde 'n' is "full", i.e. it is an internal analde
+ * and anal bits are skipped. See discussion in dyntree paper p. 6
  */
-static inline int tnode_full(struct key_vector *tn, struct key_vector *n)
+static inline int tanalde_full(struct key_vector *tn, struct key_vector *n)
 {
-	return n && ((n->pos + n->bits) == tn->pos) && IS_TNODE(n);
+	return n && ((n->pos + n->bits) == tn->pos) && IS_TANALDE(n);
 }
 
 /* Add a child at position i overwriting the old value.
@@ -430,8 +430,8 @@ static void put_child(struct key_vector *tn, unsigned long i,
 		empty_child_dec(tn);
 
 	/* update fullChildren */
-	wasfull = tnode_full(tn, chi);
-	isfull = tnode_full(tn, n);
+	wasfull = tanalde_full(tn, chi);
+	isfull = tanalde_full(tn, n);
 
 	if (wasfull && !isfull)
 		tn_info(tn)->full_children--;
@@ -441,7 +441,7 @@ static void put_child(struct key_vector *tn, unsigned long i,
 	if (n && (tn->slen < n->slen))
 		tn->slen = n->slen;
 
-	rcu_assign_pointer(tn->tnode[i], n);
+	rcu_assign_pointer(tn->tanalde[i], n);
 }
 
 static void update_children(struct key_vector *tn)
@@ -450,19 +450,19 @@ static void update_children(struct key_vector *tn)
 
 	/* update all of the child parent pointers */
 	for (i = child_length(tn); i;) {
-		struct key_vector *inode = get_child(tn, --i);
+		struct key_vector *ianalde = get_child(tn, --i);
 
-		if (!inode)
+		if (!ianalde)
 			continue;
 
-		/* Either update the children of a tnode that
+		/* Either update the children of a tanalde that
 		 * already belongs to us or update the child
 		 * to point to ourselves.
 		 */
-		if (node_parent(inode) == tn)
-			update_children(inode);
+		if (analde_parent(ianalde) == tn)
+			update_children(ianalde);
 		else
-			node_set_parent(inode, tn);
+			analde_set_parent(ianalde, tn);
 	}
 }
 
@@ -470,72 +470,72 @@ static inline void put_child_root(struct key_vector *tp, t_key key,
 				  struct key_vector *n)
 {
 	if (IS_TRIE(tp))
-		rcu_assign_pointer(tp->tnode[0], n);
+		rcu_assign_pointer(tp->tanalde[0], n);
 	else
 		put_child(tp, get_index(key, tp), n);
 }
 
-static inline void tnode_free_init(struct key_vector *tn)
+static inline void tanalde_free_init(struct key_vector *tn)
 {
 	tn_info(tn)->rcu.next = NULL;
 }
 
-static inline void tnode_free_append(struct key_vector *tn,
+static inline void tanalde_free_append(struct key_vector *tn,
 				     struct key_vector *n)
 {
 	tn_info(n)->rcu.next = tn_info(tn)->rcu.next;
 	tn_info(tn)->rcu.next = &tn_info(n)->rcu;
 }
 
-static void tnode_free(struct key_vector *tn)
+static void tanalde_free(struct key_vector *tn)
 {
 	struct callback_head *head = &tn_info(tn)->rcu;
 
 	while (head) {
 		head = head->next;
-		tnode_free_size += TNODE_SIZE(1ul << tn->bits);
-		node_free(tn);
+		tanalde_free_size += TANALDE_SIZE(1ul << tn->bits);
+		analde_free(tn);
 
-		tn = container_of(head, struct tnode, rcu)->kv;
+		tn = container_of(head, struct tanalde, rcu)->kv;
 	}
 
-	if (tnode_free_size >= READ_ONCE(sysctl_fib_sync_mem)) {
-		tnode_free_size = 0;
+	if (tanalde_free_size >= READ_ONCE(sysctl_fib_sync_mem)) {
+		tanalde_free_size = 0;
 		synchronize_rcu();
 	}
 }
 
 static struct key_vector *replace(struct trie *t,
-				  struct key_vector *oldtnode,
+				  struct key_vector *oldtanalde,
 				  struct key_vector *tn)
 {
-	struct key_vector *tp = node_parent(oldtnode);
+	struct key_vector *tp = analde_parent(oldtanalde);
 	unsigned long i;
 
-	/* setup the parent pointer out of and back into this node */
-	NODE_INIT_PARENT(tn, tp);
+	/* setup the parent pointer out of and back into this analde */
+	ANALDE_INIT_PARENT(tn, tp);
 	put_child_root(tp, tn->key, tn);
 
 	/* update all of the child parent pointers */
 	update_children(tn);
 
 	/* all pointers should be clean so we are done */
-	tnode_free(oldtnode);
+	tanalde_free(oldtanalde);
 
-	/* resize children now that oldtnode is freed */
+	/* resize children analw that oldtanalde is freed */
 	for (i = child_length(tn); i;) {
-		struct key_vector *inode = get_child(tn, --i);
+		struct key_vector *ianalde = get_child(tn, --i);
 
-		/* resize child node */
-		if (tnode_full(tn, inode))
-			tn = resize(t, inode);
+		/* resize child analde */
+		if (tanalde_full(tn, ianalde))
+			tn = resize(t, ianalde);
 	}
 
 	return tp;
 }
 
 static struct key_vector *inflate(struct trie *t,
-				  struct key_vector *oldtnode)
+				  struct key_vector *oldtanalde)
 {
 	struct key_vector *tn;
 	unsigned long i;
@@ -543,165 +543,165 @@ static struct key_vector *inflate(struct trie *t,
 
 	pr_debug("In inflate\n");
 
-	tn = tnode_new(oldtnode->key, oldtnode->pos - 1, oldtnode->bits + 1);
+	tn = tanalde_new(oldtanalde->key, oldtanalde->pos - 1, oldtanalde->bits + 1);
 	if (!tn)
-		goto notnode;
+		goto analtanalde;
 
-	/* prepare oldtnode to be freed */
-	tnode_free_init(oldtnode);
+	/* prepare oldtanalde to be freed */
+	tanalde_free_init(oldtanalde);
 
 	/* Assemble all of the pointers in our cluster, in this case that
-	 * represents all of the pointers out of our allocated nodes that
-	 * point to existing tnodes and the links between our allocated
-	 * nodes.
+	 * represents all of the pointers out of our allocated analdes that
+	 * point to existing tanaldes and the links between our allocated
+	 * analdes.
 	 */
-	for (i = child_length(oldtnode), m = 1u << tn->pos; i;) {
-		struct key_vector *inode = get_child(oldtnode, --i);
-		struct key_vector *node0, *node1;
+	for (i = child_length(oldtanalde), m = 1u << tn->pos; i;) {
+		struct key_vector *ianalde = get_child(oldtanalde, --i);
+		struct key_vector *analde0, *analde1;
 		unsigned long j, k;
 
 		/* An empty child */
-		if (!inode)
+		if (!ianalde)
 			continue;
 
-		/* A leaf or an internal node with skipped bits */
-		if (!tnode_full(oldtnode, inode)) {
-			put_child(tn, get_index(inode->key, tn), inode);
-			continue;
-		}
-
-		/* drop the node in the old tnode free list */
-		tnode_free_append(oldtnode, inode);
-
-		/* An internal node with two children */
-		if (inode->bits == 1) {
-			put_child(tn, 2 * i + 1, get_child(inode, 1));
-			put_child(tn, 2 * i, get_child(inode, 0));
+		/* A leaf or an internal analde with skipped bits */
+		if (!tanalde_full(oldtanalde, ianalde)) {
+			put_child(tn, get_index(ianalde->key, tn), ianalde);
 			continue;
 		}
 
-		/* We will replace this node 'inode' with two new
-		 * ones, 'node0' and 'node1', each with half of the
-		 * original children. The two new nodes will have
+		/* drop the analde in the old tanalde free list */
+		tanalde_free_append(oldtanalde, ianalde);
+
+		/* An internal analde with two children */
+		if (ianalde->bits == 1) {
+			put_child(tn, 2 * i + 1, get_child(ianalde, 1));
+			put_child(tn, 2 * i, get_child(ianalde, 0));
+			continue;
+		}
+
+		/* We will replace this analde 'ianalde' with two new
+		 * ones, 'analde0' and 'analde1', each with half of the
+		 * original children. The two new analdes will have
 		 * a position one bit further down the key and this
 		 * means that the "significant" part of their keys
 		 * (see the discussion near the top of this file)
 		 * will differ by one bit, which will be "0" in
-		 * node0's key and "1" in node1's key. Since we are
+		 * analde0's key and "1" in analde1's key. Since we are
 		 * moving the key position by one step, the bit that
 		 * we are moving away from - the bit at position
 		 * (tn->pos) - is the one that will differ between
-		 * node0 and node1. So... we synthesize that bit in the
+		 * analde0 and analde1. So... we synthesize that bit in the
 		 * two new keys.
 		 */
-		node1 = tnode_new(inode->key | m, inode->pos, inode->bits - 1);
-		if (!node1)
-			goto nomem;
-		node0 = tnode_new(inode->key, inode->pos, inode->bits - 1);
+		analde1 = tanalde_new(ianalde->key | m, ianalde->pos, ianalde->bits - 1);
+		if (!analde1)
+			goto analmem;
+		analde0 = tanalde_new(ianalde->key, ianalde->pos, ianalde->bits - 1);
 
-		tnode_free_append(tn, node1);
-		if (!node0)
-			goto nomem;
-		tnode_free_append(tn, node0);
+		tanalde_free_append(tn, analde1);
+		if (!analde0)
+			goto analmem;
+		tanalde_free_append(tn, analde0);
 
-		/* populate child pointers in new nodes */
-		for (k = child_length(inode), j = k / 2; j;) {
-			put_child(node1, --j, get_child(inode, --k));
-			put_child(node0, j, get_child(inode, j));
-			put_child(node1, --j, get_child(inode, --k));
-			put_child(node0, j, get_child(inode, j));
+		/* populate child pointers in new analdes */
+		for (k = child_length(ianalde), j = k / 2; j;) {
+			put_child(analde1, --j, get_child(ianalde, --k));
+			put_child(analde0, j, get_child(ianalde, j));
+			put_child(analde1, --j, get_child(ianalde, --k));
+			put_child(analde0, j, get_child(ianalde, j));
 		}
 
-		/* link new nodes to parent */
-		NODE_INIT_PARENT(node1, tn);
-		NODE_INIT_PARENT(node0, tn);
+		/* link new analdes to parent */
+		ANALDE_INIT_PARENT(analde1, tn);
+		ANALDE_INIT_PARENT(analde0, tn);
 
-		/* link parent to nodes */
-		put_child(tn, 2 * i + 1, node1);
-		put_child(tn, 2 * i, node0);
+		/* link parent to analdes */
+		put_child(tn, 2 * i + 1, analde1);
+		put_child(tn, 2 * i, analde0);
 	}
 
-	/* setup the parent pointers into and out of this node */
-	return replace(t, oldtnode, tn);
-nomem:
+	/* setup the parent pointers into and out of this analde */
+	return replace(t, oldtanalde, tn);
+analmem:
 	/* all pointers should be clean so we are done */
-	tnode_free(tn);
-notnode:
+	tanalde_free(tn);
+analtanalde:
 	return NULL;
 }
 
 static struct key_vector *halve(struct trie *t,
-				struct key_vector *oldtnode)
+				struct key_vector *oldtanalde)
 {
 	struct key_vector *tn;
 	unsigned long i;
 
 	pr_debug("In halve\n");
 
-	tn = tnode_new(oldtnode->key, oldtnode->pos + 1, oldtnode->bits - 1);
+	tn = tanalde_new(oldtanalde->key, oldtanalde->pos + 1, oldtanalde->bits - 1);
 	if (!tn)
-		goto notnode;
+		goto analtanalde;
 
-	/* prepare oldtnode to be freed */
-	tnode_free_init(oldtnode);
+	/* prepare oldtanalde to be freed */
+	tanalde_free_init(oldtanalde);
 
 	/* Assemble all of the pointers in our cluster, in this case that
-	 * represents all of the pointers out of our allocated nodes that
-	 * point to existing tnodes and the links between our allocated
-	 * nodes.
+	 * represents all of the pointers out of our allocated analdes that
+	 * point to existing tanaldes and the links between our allocated
+	 * analdes.
 	 */
-	for (i = child_length(oldtnode); i;) {
-		struct key_vector *node1 = get_child(oldtnode, --i);
-		struct key_vector *node0 = get_child(oldtnode, --i);
-		struct key_vector *inode;
+	for (i = child_length(oldtanalde); i;) {
+		struct key_vector *analde1 = get_child(oldtanalde, --i);
+		struct key_vector *analde0 = get_child(oldtanalde, --i);
+		struct key_vector *ianalde;
 
 		/* At least one of the children is empty */
-		if (!node1 || !node0) {
-			put_child(tn, i / 2, node1 ? : node0);
+		if (!analde1 || !analde0) {
+			put_child(tn, i / 2, analde1 ? : analde0);
 			continue;
 		}
 
-		/* Two nonempty children */
-		inode = tnode_new(node0->key, oldtnode->pos, 1);
-		if (!inode)
-			goto nomem;
-		tnode_free_append(tn, inode);
+		/* Two analnempty children */
+		ianalde = tanalde_new(analde0->key, oldtanalde->pos, 1);
+		if (!ianalde)
+			goto analmem;
+		tanalde_free_append(tn, ianalde);
 
-		/* initialize pointers out of node */
-		put_child(inode, 1, node1);
-		put_child(inode, 0, node0);
-		NODE_INIT_PARENT(inode, tn);
+		/* initialize pointers out of analde */
+		put_child(ianalde, 1, analde1);
+		put_child(ianalde, 0, analde0);
+		ANALDE_INIT_PARENT(ianalde, tn);
 
-		/* link parent to node */
-		put_child(tn, i / 2, inode);
+		/* link parent to analde */
+		put_child(tn, i / 2, ianalde);
 	}
 
-	/* setup the parent pointers into and out of this node */
-	return replace(t, oldtnode, tn);
-nomem:
+	/* setup the parent pointers into and out of this analde */
+	return replace(t, oldtanalde, tn);
+analmem:
 	/* all pointers should be clean so we are done */
-	tnode_free(tn);
-notnode:
+	tanalde_free(tn);
+analtanalde:
 	return NULL;
 }
 
 static struct key_vector *collapse(struct trie *t,
-				   struct key_vector *oldtnode)
+				   struct key_vector *oldtanalde)
 {
 	struct key_vector *n, *tp;
 	unsigned long i;
 
-	/* scan the tnode looking for that one child that might still exist */
-	for (n = NULL, i = child_length(oldtnode); !n && i;)
-		n = get_child(oldtnode, --i);
+	/* scan the tanalde looking for that one child that might still exist */
+	for (n = NULL, i = child_length(oldtanalde); !n && i;)
+		n = get_child(oldtanalde, --i);
 
 	/* compress one level */
-	tp = node_parent(oldtnode);
-	put_child_root(tp, oldtnode->key, n);
-	node_set_parent(n, tp);
+	tp = analde_parent(oldtanalde);
+	put_child_root(tp, oldtanalde->key, n);
+	analde_set_parent(n, tp);
 
-	/* drop dead node */
-	node_free(oldtnode);
+	/* drop dead analde */
+	analde_free(oldtanalde);
 
 	return tp;
 }
@@ -713,15 +713,15 @@ static unsigned char update_suffix(struct key_vector *tn)
 	unsigned char slen_max;
 
 	/* only vector 0 can have a suffix length greater than or equal to
-	 * tn->pos + tn->bits, the second highest node will have a suffix
+	 * tn->pos + tn->bits, the second highest analde will have a suffix
 	 * length at most of tn->pos + tn->bits - 1
 	 */
 	slen_max = min_t(unsigned char, tn->pos + tn->bits - 1, tn->slen);
 
-	/* search though the list of children looking for nodes that might
+	/* search though the list of children looking for analdes that might
 	 * have a suffix greater than the one we currently have.  This is
 	 * why we start with a stride of 2 since a stride of 1 would
-	 * represent the nodes with suffix length equal to tn->pos
+	 * represent the analdes with suffix length equal to tn->pos
 	 */
 	for (i = 0, stride = 0x2ul ; i < child_length(tn); i += stride) {
 		struct key_vector *n = get_child(tn, i);
@@ -745,10 +745,10 @@ static unsigned char update_suffix(struct key_vector *tn)
 }
 
 /* From "Implementing a dynamic compressed trie" by Stefan Nilsson of
- * the Helsinki University of Technology and Matti Tikkanen of Nokia
+ * the Helsinki University of Techanallogy and Matti Tikkanen of Analkia
  * Telecommunications, page 6:
- * "A node is doubled if the ratio of non-empty children to all
- * children in the *doubled* node is at least 'high'."
+ * "A analde is doubled if the ratio of analn-empty children to all
+ * children in the *doubled* analde is at least 'high'."
  *
  * 'high' in this instance is the variable 'inflate_threshold'. It
  * is expressed as a percentage, so we multiply it with
@@ -758,35 +758,35 @@ static unsigned char update_suffix(struct key_vector *tn)
  * multiply the left-hand side by 50.
  *
  * The left-hand side may look a bit weird: child_length(tn)
- * - tn->empty_children is of course the number of non-null children
- * in the current node. tn->full_children is the number of "full"
- * children, that is non-null tnodes with a skip value of 0.
- * All of those will be doubled in the resulting inflated tnode, so
+ * - tn->empty_children is of course the number of analn-null children
+ * in the current analde. tn->full_children is the number of "full"
+ * children, that is analn-null tanaldes with a skip value of 0.
+ * All of those will be doubled in the resulting inflated tanalde, so
  * we just count them one extra time here.
  *
  * A clearer way to write this would be:
  *
  * to_be_doubled = tn->full_children;
- * not_to_be_doubled = child_length(tn) - tn->empty_children -
+ * analt_to_be_doubled = child_length(tn) - tn->empty_children -
  *     tn->full_children;
  *
  * new_child_length = child_length(tn) * 2;
  *
- * new_fill_factor = 100 * (not_to_be_doubled + 2*to_be_doubled) /
+ * new_fill_factor = 100 * (analt_to_be_doubled + 2*to_be_doubled) /
  *      new_child_length;
  * if (new_fill_factor >= inflate_threshold)
  *
  * ...and so on, tho it would mess up the while () loop.
  *
  * anyway,
- * 100 * (not_to_be_doubled + 2*to_be_doubled) / new_child_length >=
+ * 100 * (analt_to_be_doubled + 2*to_be_doubled) / new_child_length >=
  *      inflate_threshold
  *
  * avoid a division:
- * 100 * (not_to_be_doubled + 2*to_be_doubled) >=
+ * 100 * (analt_to_be_doubled + 2*to_be_doubled) >=
  *      inflate_threshold * new_child_length
  *
- * expand not_to_be_doubled and to_be_doubled, and shorten:
+ * expand analt_to_be_doubled and to_be_doubled, and shorten:
  * 100 * (child_length(tn) - tn->empty_children +
  *    tn->full_children) >= inflate_threshold * new_child_length
  *
@@ -806,7 +806,7 @@ static inline bool should_inflate(struct key_vector *tp, struct key_vector *tn)
 	unsigned long used = child_length(tn);
 	unsigned long threshold = used;
 
-	/* Keep root node larger */
+	/* Keep root analde larger */
 	threshold *= IS_TRIE(tp) ? inflate_threshold_root : inflate_threshold;
 	used -= tn_info(tn)->empty_children;
 	used += tn_info(tn)->full_children;
@@ -821,7 +821,7 @@ static inline bool should_halve(struct key_vector *tp, struct key_vector *tn)
 	unsigned long used = child_length(tn);
 	unsigned long threshold = used;
 
-	/* Keep root node larger */
+	/* Keep root analde larger */
 	threshold *= IS_TRIE(tp) ? halve_threshold_root : halve_threshold;
 	used -= tn_info(tn)->empty_children;
 
@@ -840,7 +840,7 @@ static inline bool should_collapse(struct key_vector *tn)
 	if ((tn->bits == KEYLENGTH) && tn_info(tn)->full_children)
 		used -= KEY_MAX;
 
-	/* One child or none, time to drop us from the trie */
+	/* One child or analne, time to drop us from the trie */
 	return used < 2;
 }
 
@@ -850,27 +850,27 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 	struct trie_use_stats __percpu *stats = t->stats;
 #endif
-	struct key_vector *tp = node_parent(tn);
+	struct key_vector *tp = analde_parent(tn);
 	unsigned long cindex = get_index(tn->key, tp);
 	int max_work = MAX_WORK;
 
-	pr_debug("In tnode_resize %p inflate_threshold=%d threshold=%d\n",
+	pr_debug("In tanalde_resize %p inflate_threshold=%d threshold=%d\n",
 		 tn, inflate_threshold, halve_threshold);
 
-	/* track the tnode via the pointer from the parent instead of
+	/* track the tanalde via the pointer from the parent instead of
 	 * doing it ourselves.  This way we can let RCU fully do its
 	 * thing without us interfering
 	 */
 	BUG_ON(tn != get_child(tp, cindex));
 
-	/* Double as long as the resulting node has a number of
-	 * nonempty nodes that are above the threshold.
+	/* Double as long as the resulting analde has a number of
+	 * analnempty analdes that are above the threshold.
 	 */
 	while (should_inflate(tp, tn) && max_work) {
 		tp = inflate(t, tn);
 		if (!tp) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
-			this_cpu_inc(stats->resize_node_skipped);
+			this_cpu_inc(stats->resize_analde_skipped);
 #endif
 			break;
 		}
@@ -880,20 +880,20 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 	}
 
 	/* update parent in case inflate failed */
-	tp = node_parent(tn);
+	tp = analde_parent(tn);
 
 	/* Return if at least one inflate is run */
 	if (max_work != MAX_WORK)
 		return tp;
 
 	/* Halve as long as the number of empty children in this
-	 * node is above threshold.
+	 * analde is above threshold.
 	 */
 	while (should_halve(tp, tn) && max_work) {
 		tp = halve(t, tn);
 		if (!tp) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
-			this_cpu_inc(stats->resize_node_skipped);
+			this_cpu_inc(stats->resize_analde_skipped);
 #endif
 			break;
 		}
@@ -907,33 +907,33 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 		return collapse(t, tn);
 
 	/* update parent in case halve failed */
-	return node_parent(tn);
+	return analde_parent(tn);
 }
 
-static void node_pull_suffix(struct key_vector *tn, unsigned char slen)
+static void analde_pull_suffix(struct key_vector *tn, unsigned char slen)
 {
-	unsigned char node_slen = tn->slen;
+	unsigned char analde_slen = tn->slen;
 
-	while ((node_slen > tn->pos) && (node_slen > slen)) {
+	while ((analde_slen > tn->pos) && (analde_slen > slen)) {
 		slen = update_suffix(tn);
-		if (node_slen == slen)
+		if (analde_slen == slen)
 			break;
 
-		tn = node_parent(tn);
-		node_slen = tn->slen;
+		tn = analde_parent(tn);
+		analde_slen = tn->slen;
 	}
 }
 
-static void node_push_suffix(struct key_vector *tn, unsigned char slen)
+static void analde_push_suffix(struct key_vector *tn, unsigned char slen)
 {
 	while (tn->slen < slen) {
 		tn->slen = slen;
-		tn = node_parent(tn);
+		tn = analde_parent(tn);
 	}
 }
 
 /* rcu_read_lock needs to be hold by caller from readside */
-static struct key_vector *fib_find_node(struct trie *t,
+static struct key_vector *fib_find_analde(struct trie *t,
 					struct key_vector **tp, u32 key)
 {
 	struct key_vector *pn, *n = t->kv;
@@ -956,10 +956,10 @@ static struct key_vector *fib_find_node(struct trie *t,
 		 *   if (index >= (1ul << bits))
 		 *     we have a mismatch in skip bits and failed
 		 *   else
-		 *     we know the value is cindex
+		 *     we kanalw the value is cindex
 		 *
 		 * This check is safe even if bits == KEYLENGTH due to the
-		 * fact that we can only allocate a node with 32 bits if a
+		 * fact that we can only allocate a analde with 32 bits if a
 		 * long is greater than 32 bits.
 		 */
 		if (index >= (1ul << n->bits)) {
@@ -968,7 +968,7 @@ static struct key_vector *fib_find_node(struct trie *t,
 		}
 
 		/* keep searching until we find a perfect match leaf or NULL */
-	} while (IS_TNODE(n));
+	} while (IS_TANALDE(n));
 
 	*tp = pn;
 
@@ -1027,7 +1027,7 @@ fib_find_matching_alias(struct net *net, const struct fib_rt_info *fri)
 		return NULL;
 
 	t = (struct trie *)tb->tb_data;
-	l = fib_find_node(t, &tp, be32_to_cpu(fri->dst));
+	l = fib_find_analde(t, &tp, be32_to_cpu(fri->dst));
 	if (!l)
 		return NULL;
 
@@ -1043,7 +1043,7 @@ fib_find_matching_alias(struct net *net, const struct fib_rt_info *fri)
 
 void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 {
-	u8 fib_notify_on_flag_change;
+	u8 fib_analtify_on_flag_change;
 	struct fib_alias *fa_match;
 	struct sk_buff *skb;
 	int err;
@@ -1065,21 +1065,21 @@ void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 	WRITE_ONCE(fa_match->offload, fri->offload);
 	WRITE_ONCE(fa_match->trap, fri->trap);
 
-	fib_notify_on_flag_change = READ_ONCE(net->ipv4.sysctl_fib_notify_on_flag_change);
+	fib_analtify_on_flag_change = READ_ONCE(net->ipv4.sysctl_fib_analtify_on_flag_change);
 
-	/* 2 means send notifications only if offload_failed was changed. */
-	if (fib_notify_on_flag_change == 2 &&
+	/* 2 means send analtifications only if offload_failed was changed. */
+	if (fib_analtify_on_flag_change == 2 &&
 	    READ_ONCE(fa_match->offload_failed) == fri->offload_failed)
 		goto out;
 
 	WRITE_ONCE(fa_match->offload_failed, fri->offload_failed);
 
-	if (!fib_notify_on_flag_change)
+	if (!fib_analtify_on_flag_change)
 		goto out;
 
 	skb = nlmsg_new(fib_nlmsg_size(fa_match->fa_info), GFP_ATOMIC);
 	if (!skb) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto errout;
 	}
 
@@ -1091,7 +1091,7 @@ void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 		goto errout;
 	}
 
-	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_ROUTE, NULL, GFP_ATOMIC);
+	rtnl_analtify(skb, net, 0, RTNLGRP_IPV4_ROUTE, NULL, GFP_ATOMIC);
 	goto out;
 
 errout:
@@ -1107,54 +1107,54 @@ static void trie_rebalance(struct trie *t, struct key_vector *tn)
 		tn = resize(t, tn);
 }
 
-static int fib_insert_node(struct trie *t, struct key_vector *tp,
+static int fib_insert_analde(struct trie *t, struct key_vector *tp,
 			   struct fib_alias *new, t_key key)
 {
 	struct key_vector *n, *l;
 
 	l = leaf_new(key, new);
 	if (!l)
-		goto noleaf;
+		goto analleaf;
 
-	/* retrieve child from parent node */
+	/* retrieve child from parent analde */
 	n = get_child(tp, get_index(key, tp));
 
-	/* Case 2: n is a LEAF or a TNODE and the key doesn't match.
+	/* Case 2: n is a LEAF or a TANALDE and the key doesn't match.
 	 *
-	 *  Add a new tnode here
-	 *  first tnode need some special handling
+	 *  Add a new tanalde here
+	 *  first tanalde need some special handling
 	 *  leaves us in position for handling as case 3
 	 */
 	if (n) {
 		struct key_vector *tn;
 
-		tn = tnode_new(key, __fls(key ^ n->key), 1);
+		tn = tanalde_new(key, __fls(key ^ n->key), 1);
 		if (!tn)
-			goto notnode;
+			goto analtanalde;
 
-		/* initialize routes out of node */
-		NODE_INIT_PARENT(tn, tp);
+		/* initialize routes out of analde */
+		ANALDE_INIT_PARENT(tn, tp);
 		put_child(tn, get_index(key, tn) ^ 1, n);
 
-		/* start adding routes into the node */
+		/* start adding routes into the analde */
 		put_child_root(tp, key, tn);
-		node_set_parent(n, tn);
+		analde_set_parent(n, tn);
 
-		/* parent now has a NULL spot where the leaf can go */
+		/* parent analw has a NULL spot where the leaf can go */
 		tp = tn;
 	}
 
 	/* Case 3: n is NULL, and will just insert a new leaf */
-	node_push_suffix(tp, new->fa_slen);
-	NODE_INIT_PARENT(l, tp);
+	analde_push_suffix(tp, new->fa_slen);
+	ANALDE_INIT_PARENT(l, tp);
 	put_child_root(tp, key, l);
 	trie_rebalance(t, tp);
 
 	return 0;
-notnode:
-	node_free(l);
-noleaf:
-	return -ENOMEM;
+analtanalde:
+	analde_free(l);
+analleaf:
+	return -EANALMEM;
 }
 
 static int fib_insert_alias(struct trie *t, struct key_vector *tp,
@@ -1162,7 +1162,7 @@ static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 			    struct fib_alias *fa, t_key key)
 {
 	if (!l)
-		return fib_insert_node(t, tp, new, key);
+		return fib_insert_analde(t, tp, new, key);
 
 	if (fa) {
 		hlist_add_before_rcu(&new->fa_list, &fa->fa_list);
@@ -1184,10 +1184,10 @@ static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 			hlist_add_head_rcu(&new->fa_list, &l->leaf);
 	}
 
-	/* if we added to the tail node then we need to update slen */
+	/* if we added to the tail analde then we need to update slen */
 	if (l->slen < new->fa_slen) {
 		l->slen = new->fa_slen;
-		node_push_suffix(tp, new->fa_slen);
+		analde_push_suffix(tp, new->fa_slen);
 	}
 
 	return 0;
@@ -1241,13 +1241,13 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	}
 
 	dscp = cfg->fc_dscp;
-	l = fib_find_node(t, &tp, key);
+	l = fib_find_analde(t, &tp, key);
 	fa = l ? fib_find_alias(&l->leaf, slen, dscp, fi->fib_priority,
 				tb->tb_id, false) : NULL;
 
-	/* Now fa, if non-NULL, points to the first fib alias
+	/* Analw fa, if analn-NULL, points to the first fib alias
 	 * with the same keys [prefix,dscp,priority], if such key already
-	 * exists or to the node before which we will insert new one.
+	 * exists or to the analde before which we will insert new one.
 	 *
 	 * If fa is NULL, we will need to allocate a new one and
 	 * insert to the tail of the section matching the suffix length
@@ -1296,7 +1296,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 					err = 0;
 				goto out;
 			}
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
 			if (!new_fa)
 				goto out;
@@ -1321,7 +1321,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 				enum fib_event_type fib_event;
 
 				fib_event = FIB_EVENT_ENTRY_REPLACE;
-				err = call_fib_entry_notifiers(net, fib_event,
+				err = call_fib_entry_analtifiers(net, fib_event,
 							       key, plen,
 							       new_fa, extack);
 				if (err) {
@@ -1354,12 +1354,12 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		else
 			fa = fa_first;
 	}
-	err = -ENOENT;
+	err = -EANALENT;
 	if (!(cfg->fc_nlflags & NLM_F_CREATE))
 		goto out;
 
 	nlflags |= NLM_F_CREATE;
-	err = -ENOBUFS;
+	err = -EANALBUFS;
 	new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
 	if (!new_fa)
 		goto out;
@@ -1380,10 +1380,10 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	if (err)
 		goto out_free_new_fa;
 
-	/* The alias was already inserted, so the node must exist. */
-	l = l ? l : fib_find_node(t, &tp, key);
+	/* The alias was already inserted, so the analde must exist. */
+	l = l ? l : fib_find_analde(t, &tp, key);
 	if (WARN_ON_ONCE(!l)) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out_free_new_fa;
 	}
 
@@ -1392,7 +1392,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		enum fib_event_type fib_event;
 
 		fib_event = FIB_EVENT_ENTRY_REPLACE;
-		err = call_fib_entry_notifiers(net, fib_event, key, plen,
+		err = call_fib_entry_analtifiers(net, fib_event, key, plen,
 					       new_fa, extack);
 		if (err)
 			goto out_remove_new_fa;
@@ -1430,9 +1430,9 @@ bool fib_lookup_good_nhc(const struct fib_nh_common *nhc, int fib_flags,
 	if (nhc->nhc_flags & RTNH_F_DEAD)
 		return false;
 
-	if (ip_ignore_linkdown(nhc->nhc_dev) &&
+	if (ip_iganalre_linkdown(nhc->nhc_dev) &&
 	    nhc->nhc_flags & RTNH_F_LINKDOWN &&
-	    !(fib_flags & FIB_LOOKUP_IGNORE_LINKSTATE))
+	    !(fib_flags & FIB_LOOKUP_IGANALRE_LINKSTATE))
 		return false;
 
 	if (flp->flowi4_oif && flp->flowi4_oif != nhc->nhc_oif)
@@ -1480,10 +1480,10 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		 *   if (index >= (1ul << bits))
 		 *     we have a mismatch in skip bits and failed
 		 *   else
-		 *     we know the value is cindex
+		 *     we kanalw the value is cindex
 		 *
 		 * This check is safe even if bits == KEYLENGTH due to the
-		 * fact that we can only allocate a node with 32 bits if a
+		 * fact that we can only allocate a analde with 32 bits if a
 		 * long is greater than 32 bits.
 		 */
 		if (index >= (1ul << n->bits))
@@ -1508,10 +1508,10 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 
 	/* Step 2: Sort out leaves and begin backtracing for longest prefix */
 	for (;;) {
-		/* record the pointer where our next node pointer is stored */
-		struct key_vector __rcu **cptr = n->tnode;
+		/* record the pointer where our next analde pointer is stored */
+		struct key_vector __rcu **cptr = n->tanalde;
 
-		/* This test verifies that none of the bits that differ
+		/* This test verifies that analne of the bits that differ
 		 * between the key and the prefix exist in the region of
 		 * the lsb and higher in the prefix.
 		 */
@@ -1531,9 +1531,9 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 backtrace:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			if (!n)
-				this_cpu_inc(stats->null_node_hit);
+				this_cpu_inc(stats->null_analde_hit);
 #endif
-			/* If we are at cindex 0 there are no more bits for
+			/* If we are at cindex 0 there are anal more bits for
 			 * us to strip at this level so we must ascend back
 			 * up one level to see if there are any more bits to
 			 * be stripped there.
@@ -1542,8 +1542,8 @@ backtrace:
 				t_key pkey = pn->key;
 
 				/* If we don't have a parent then there is
-				 * nothing for us to do as we do not have any
-				 * further nodes to parse.
+				 * analthing for us to do as we do analt have any
+				 * further analdes to parse.
 				 */
 				if (IS_TRIE(pn)) {
 					trace_fib_table_lookup(tb->tb_id, flp,
@@ -1554,15 +1554,15 @@ backtrace:
 				this_cpu_inc(stats->backtrack);
 #endif
 				/* Get Child's index */
-				pn = node_parent_rcu(pn);
+				pn = analde_parent_rcu(pn);
 				cindex = get_index(pkey, pn);
 			}
 
 			/* strip the least significant bit from the cindex */
 			cindex &= cindex - 1;
 
-			/* grab pointer for next child node */
-			cptr = &pn->tnode[cindex];
+			/* grab pointer for next child analde */
+			cptr = &pn->tanalde[cindex];
 		}
 	}
 
@@ -1620,7 +1620,7 @@ out_reject:
 			if (!fib_lookup_good_nhc(nhc, fib_flags, flp))
 				continue;
 set_result:
-			if (!(fib_flags & FIB_LOOKUP_NOREF))
+			if (!(fib_flags & FIB_LOOKUP_ANALREF))
 				refcount_inc(&fi->fib_clntref);
 
 			res->prefix = htonl(n->key);
@@ -1652,7 +1652,7 @@ static void fib_remove_alias(struct trie *t, struct key_vector *tp,
 			     struct key_vector *l, struct fib_alias *old)
 {
 	/* record the location of the previous list_info entry */
-	struct hlist_node **pprev = old->fa_list.pprev;
+	struct hlist_analde **pprev = old->fa_list.pprev;
 	struct fib_alias *fa = hlist_entry(pprev, typeof(*fa), fa_list.next);
 
 	/* remove the fib_alias from the list */
@@ -1663,33 +1663,33 @@ static void fib_remove_alias(struct trie *t, struct key_vector *tp,
 	 */
 	if (hlist_empty(&l->leaf)) {
 		if (tp->slen == l->slen)
-			node_pull_suffix(tp, tp->pos);
+			analde_pull_suffix(tp, tp->pos);
 		put_child_root(tp, l->key, NULL);
-		node_free(l);
+		analde_free(l);
 		trie_rebalance(t, tp);
 		return;
 	}
 
-	/* only access fa if it is pointing at the last valid hlist_node */
+	/* only access fa if it is pointing at the last valid hlist_analde */
 	if (*pprev)
 		return;
 
 	/* update the trie with the latest suffix length */
 	l->slen = fa->fa_slen;
-	node_pull_suffix(tp, fa->fa_slen);
+	analde_pull_suffix(tp, fa->fa_slen);
 }
 
-static void fib_notify_alias_delete(struct net *net, u32 key,
+static void fib_analtify_alias_delete(struct net *net, u32 key,
 				    struct hlist_head *fah,
 				    struct fib_alias *fa_to_delete,
 				    struct netlink_ext_ack *extack)
 {
-	struct fib_alias *fa_next, *fa_to_notify;
+	struct fib_alias *fa_next, *fa_to_analtify;
 	u32 tb_id = fa_to_delete->tb_id;
 	u8 slen = fa_to_delete->fa_slen;
 	enum fib_event_type fib_event;
 
-	/* Do not notify if we do not care about the route. */
+	/* Do analt analtify if we do analt care about the route. */
 	if (fib_find_alias(fah, slen, 0, 0, tb_id, true) != fa_to_delete)
 		return;
 
@@ -1700,13 +1700,13 @@ static void fib_notify_alias_delete(struct net *net, u32 key,
 				   struct fib_alias, fa_list);
 	if (fa_next && fa_next->fa_slen == slen && fa_next->tb_id == tb_id) {
 		fib_event = FIB_EVENT_ENTRY_REPLACE;
-		fa_to_notify = fa_next;
+		fa_to_analtify = fa_next;
 	} else {
 		fib_event = FIB_EVENT_ENTRY_DEL;
-		fa_to_notify = fa_to_delete;
+		fa_to_analtify = fa_to_delete;
 	}
-	call_fib_entry_notifiers(net, fib_event, key, KEYLENGTH - slen,
-				 fa_to_notify, extack);
+	call_fib_entry_analtifiers(net, fib_event, key, KEYLENGTH - slen,
+				 fa_to_analtify, extack);
 }
 
 /* Caller must hold RTNL. */
@@ -1726,7 +1726,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	if (!fib_valid_key_len(key, plen, extack))
 		return -EINVAL;
 
-	l = fib_find_node(t, &tp, key);
+	l = fib_find_analde(t, &tp, key);
 	if (!l)
 		return -ESRCH;
 
@@ -1748,7 +1748,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 			break;
 
 		if ((!cfg->fc_type || fa->fa_type == cfg->fc_type) &&
-		    (cfg->fc_scope == RT_SCOPE_NOWHERE ||
+		    (cfg->fc_scope == RT_SCOPE_ANALWHERE ||
 		     fa->fa_info->fib_scope == cfg->fc_scope) &&
 		    (!cfg->fc_prefsrc ||
 		     fi->fib_prefsrc == cfg->fc_prefsrc) &&
@@ -1764,7 +1764,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	if (!fa_to_delete)
 		return -ESRCH;
 
-	fib_notify_alias_delete(net, key, &l->leaf, fa_to_delete, extack);
+	fib_analtify_alias_delete(net, key, &l->leaf, fa_to_delete, extack);
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa_to_delete, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 
@@ -1804,29 +1804,29 @@ static struct key_vector *leaf_walk_rcu(struct key_vector **tn, t_key key)
 		/* guarantee forward progress on the keys */
 		if (IS_LEAF(n) && (n->key >= key))
 			goto found;
-	} while (IS_TNODE(n));
+	} while (IS_TANALDE(n));
 
 	/* this loop will search for the next leaf with a greater key */
 	while (!IS_TRIE(pn)) {
-		/* if we exhausted the parent node we will need to climb */
+		/* if we exhausted the parent analde we will need to climb */
 		if (cindex >= (1ul << pn->bits)) {
 			t_key pkey = pn->key;
 
-			pn = node_parent_rcu(pn);
+			pn = analde_parent_rcu(pn);
 			cindex = get_index(pkey, pn) + 1;
 			continue;
 		}
 
-		/* grab the next available node */
+		/* grab the next available analde */
 		n = get_child_rcu(pn, cindex++);
 		if (!n)
 			continue;
 
-		/* no need to compare keys since we bumped the index */
+		/* anal need to compare keys since we bumped the index */
 		if (IS_LEAF(n))
 			goto found;
 
-		/* Rescan start scanning in new node */
+		/* Rescan start scanning in new analde */
 		pn = n;
 		cindex = 0;
 	}
@@ -1834,7 +1834,7 @@ static struct key_vector *leaf_walk_rcu(struct key_vector **tn, t_key key)
 	*tn = pn;
 	return NULL; /* Root of trie */
 found:
-	/* if we are at the limit for keys just return NULL for the tnode */
+	/* if we are at the limit for keys just return NULL for the tanalde */
 	*tn = pn;
 	return n;
 }
@@ -1844,7 +1844,7 @@ static void fib_trie_free(struct fib_table *tb)
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *pn = t->kv;
 	unsigned long cindex = 1;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct fib_alias *fa;
 
 	/* walk trie in reverse order and free everything */
@@ -1858,23 +1858,23 @@ static void fib_trie_free(struct fib_table *tb)
 				break;
 
 			n = pn;
-			pn = node_parent(pn);
+			pn = analde_parent(pn);
 
-			/* drop emptied tnode */
+			/* drop emptied tanalde */
 			put_child_root(pn, n->key, NULL);
-			node_free(n);
+			analde_free(n);
 
 			cindex = get_index(pkey, pn);
 
 			continue;
 		}
 
-		/* grab the next available node */
+		/* grab the next available analde */
 		n = get_child(pn, cindex);
 		if (!n)
 			continue;
 
-		if (IS_TNODE(n)) {
+		if (IS_TANALDE(n)) {
 			/* record pn and cindex for leaf walking */
 			pn = n;
 			cindex = 1ul << n->bits;
@@ -1888,7 +1888,7 @@ static void fib_trie_free(struct fib_table *tb)
 		}
 
 		put_child_root(pn, n->key, NULL);
-		node_free(n);
+		analde_free(n);
 	}
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -1933,7 +1933,7 @@ struct fib_table *fib_trie_unmerge(struct fib_table *oldtb)
 
 			/* insert clone into table */
 			if (!local_l)
-				local_l = fib_find_node(lt, &local_tp, l->key);
+				local_l = fib_find_analde(lt, &local_tp, l->key);
 
 			if (fib_insert_alias(lt, local_tp, local_l, new_fa,
 					     NULL, l->key)) {
@@ -1961,7 +1961,7 @@ void fib_table_flush_external(struct fib_table *tb)
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *pn = t->kv;
 	unsigned long cindex = 1;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct fib_alias *fa;
 
 	/* walk trie in reverse order */
@@ -1972,7 +1972,7 @@ void fib_table_flush_external(struct fib_table *tb)
 		if (!(cindex--)) {
 			t_key pkey = pn->key;
 
-			/* cannot resize the trie vector */
+			/* cananalt resize the trie vector */
 			if (IS_TRIE(pn))
 				break;
 
@@ -1980,19 +1980,19 @@ void fib_table_flush_external(struct fib_table *tb)
 			if (pn->slen > pn->pos)
 				update_suffix(pn);
 
-			/* resize completed node */
+			/* resize completed analde */
 			pn = resize(t, pn);
 			cindex = get_index(pkey, pn);
 
 			continue;
 		}
 
-		/* grab the next available node */
+		/* grab the next available analde */
 		n = get_child(pn, cindex);
 		if (!n)
 			continue;
 
-		if (IS_TNODE(n)) {
+		if (IS_TANALDE(n)) {
 			/* record pn and cindex for leaf walking */
 			pn = n;
 			cindex = 1ul << n->bits;
@@ -2019,7 +2019,7 @@ void fib_table_flush_external(struct fib_table *tb)
 
 		if (hlist_empty(&n->leaf)) {
 			put_child_root(pn, n->key, NULL);
-			node_free(n);
+			analde_free(n);
 		}
 	}
 }
@@ -2031,7 +2031,7 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 	struct nl_info info = { .nl_net = net };
 	struct key_vector *pn = t->kv;
 	unsigned long cindex = 1;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct fib_alias *fa;
 	int found = 0;
 
@@ -2043,7 +2043,7 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 		if (!(cindex--)) {
 			t_key pkey = pn->key;
 
-			/* cannot resize the trie vector */
+			/* cananalt resize the trie vector */
 			if (IS_TRIE(pn))
 				break;
 
@@ -2051,19 +2051,19 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 			if (pn->slen > pn->pos)
 				update_suffix(pn);
 
-			/* resize completed node */
+			/* resize completed analde */
 			pn = resize(t, pn);
 			cindex = get_index(pkey, pn);
 
 			continue;
 		}
 
-		/* grab the next available node */
+		/* grab the next available analde */
 		n = get_child(pn, cindex);
 		if (!n)
 			continue;
 
-		if (IS_TNODE(n)) {
+		if (IS_TANALDE(n)) {
 			/* record pn and cindex for leaf walking */
 			pn = n;
 			cindex = 1ul << n->bits;
@@ -2081,15 +2081,15 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 				continue;
 			}
 
-			/* Do not flush error routes if network namespace is
-			 * not being dismantled
+			/* Do analt flush error routes if network namespace is
+			 * analt being dismantled
 			 */
 			if (!flush_all && fib_props[fa->fa_type].error) {
 				slen = fa->fa_slen;
 				continue;
 			}
 
-			fib_notify_alias_delete(net, n->key, &n->leaf, fa,
+			fib_analtify_alias_delete(net, n->key, &n->leaf, fa,
 						NULL);
 			if (fi->pfsrc_removed)
 				rtmsg_fib(RTM_DELROUTE, htonl(n->key), fa,
@@ -2105,7 +2105,7 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 
 		if (hlist_empty(&n->leaf)) {
 			put_child_root(pn, n->key, NULL);
-			node_free(n);
+			analde_free(n);
 		}
 	}
 
@@ -2114,7 +2114,7 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 }
 
 /* derived from fib_trie_free */
-static void __fib_info_notify_update(struct net *net, struct fib_table *tb,
+static void __fib_info_analtify_update(struct net *net, struct fib_table *tb,
 				     struct nl_info *info)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
@@ -2131,17 +2131,17 @@ static void __fib_info_notify_update(struct net *net, struct fib_table *tb,
 			if (IS_TRIE(pn))
 				break;
 
-			pn = node_parent(pn);
+			pn = analde_parent(pn);
 			cindex = get_index(pkey, pn);
 			continue;
 		}
 
-		/* grab the next available node */
+		/* grab the next available analde */
 		n = get_child(pn, cindex);
 		if (!n)
 			continue;
 
-		if (IS_TNODE(n)) {
+		if (IS_TANALDE(n)) {
 			/* record pn and cindex for leaf walking */
 			pn = n;
 			cindex = 1ul << n->bits;
@@ -2162,7 +2162,7 @@ static void __fib_info_notify_update(struct net *net, struct fib_table *tb,
 	}
 }
 
-void fib_info_notify_update(struct net *net, struct nl_info *info)
+void fib_info_analtify_update(struct net *net, struct nl_info *info)
 {
 	unsigned int h;
 
@@ -2172,12 +2172,12 @@ void fib_info_notify_update(struct net *net, struct nl_info *info)
 
 		hlist_for_each_entry_rcu(tb, head, tb_hlist,
 					 lockdep_rtnl_is_held())
-			__fib_info_notify_update(net, tb, info);
+			__fib_info_analtify_update(net, tb, info);
 	}
 }
 
-static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
-			   struct notifier_block *nb,
+static int fib_leaf_analtify(struct key_vector *l, struct fib_table *tb,
+			   struct analtifier_block *nb,
 			   struct netlink_ext_ack *extack)
 {
 	struct fib_alias *fa;
@@ -2191,7 +2191,7 @@ static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
 			continue;
 
 		/* local and main table can share the same trie,
-		 * so don't notify twice for the same entry.
+		 * so don't analtify twice for the same entry.
 		 */
 		if (tb->tb_id != fa->tb_id)
 			continue;
@@ -2200,7 +2200,7 @@ static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
 			continue;
 
 		last_slen = fa->fa_slen;
-		err = call_fib_entry_notifier(nb, FIB_EVENT_ENTRY_REPLACE,
+		err = call_fib_entry_analtifier(nb, FIB_EVENT_ENTRY_REPLACE,
 					      l->key, KEYLENGTH - fa->fa_slen,
 					      fa, extack);
 		if (err)
@@ -2209,7 +2209,7 @@ static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
 	return 0;
 }
 
-static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb,
+static int fib_table_analtify(struct fib_table *tb, struct analtifier_block *nb,
 			    struct netlink_ext_ack *extack)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
@@ -2218,7 +2218,7 @@ static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb,
 	int err;
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
-		err = fib_leaf_notify(l, tb, nb, extack);
+		err = fib_leaf_analtify(l, tb, nb, extack);
 		if (err)
 			return err;
 
@@ -2230,7 +2230,7 @@ static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb,
 	return 0;
 }
 
-int fib_notify(struct net *net, struct notifier_block *nb,
+int fib_analtify(struct net *net, struct analtifier_block *nb,
 	       struct netlink_ext_ack *extack)
 {
 	unsigned int h;
@@ -2241,7 +2241,7 @@ int fib_notify(struct net *net, struct notifier_block *nb,
 		struct fib_table *tb;
 
 		hlist_for_each_entry_rcu(tb, head, tb_hlist) {
-			err = fib_table_notify(tb, nb, extack);
+			err = fib_table_analtify(tb, nb, extack);
 			if (err)
 				return err;
 		}
@@ -2359,7 +2359,7 @@ int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *l, *tp = t->kv;
 	/* Dump starting at last key.
-	 * Note: 0.0.0.0/0 (ie default) is first key.
+	 * Analte: 0.0.0.0/0 (ie default) is first key.
 	 */
 	int count = cb->args[2];
 	t_key key = cb->args[3];
@@ -2447,7 +2447,7 @@ struct fib_table *fib_trie_table(u32 id, struct fib_table *alias)
 struct fib_trie_iter {
 	struct seq_net_private p;
 	struct fib_table *tb;
-	struct key_vector *tnode;
+	struct key_vector *tanalde;
 	unsigned int index;
 	unsigned int depth;
 };
@@ -2455,11 +2455,11 @@ struct fib_trie_iter {
 static struct key_vector *fib_trie_get_next(struct fib_trie_iter *iter)
 {
 	unsigned long cindex = iter->index;
-	struct key_vector *pn = iter->tnode;
+	struct key_vector *pn = iter->tanalde;
 	t_key pkey;
 
-	pr_debug("get_next iter={node=%p index=%d depth=%d}\n",
-		 iter->tnode, iter->index, iter->depth);
+	pr_debug("get_next iter={analde=%p index=%d depth=%d}\n",
+		 iter->tanalde, iter->index, iter->depth);
 
 	while (!IS_TRIE(pn)) {
 		while (cindex < child_length(pn)) {
@@ -2469,11 +2469,11 @@ static struct key_vector *fib_trie_get_next(struct fib_trie_iter *iter)
 				continue;
 
 			if (IS_LEAF(n)) {
-				iter->tnode = pn;
+				iter->tanalde = pn;
 				iter->index = cindex;
 			} else {
 				/* push down one level */
-				iter->tnode = n;
+				iter->tanalde = n;
 				iter->index = 0;
 				++iter->depth;
 			}
@@ -2481,15 +2481,15 @@ static struct key_vector *fib_trie_get_next(struct fib_trie_iter *iter)
 			return n;
 		}
 
-		/* Current node exhausted, pop back up */
+		/* Current analde exhausted, pop back up */
 		pkey = pn->key;
-		pn = node_parent_rcu(pn);
+		pn = analde_parent_rcu(pn);
 		cindex = get_index(pkey, pn) + 1;
 		--iter->depth;
 	}
 
-	/* record root node so further searches know we are done */
-	iter->tnode = pn;
+	/* record root analde so further searches kanalw we are done */
+	iter->tanalde = pn;
 	iter->index = 0;
 
 	return NULL;
@@ -2504,16 +2504,16 @@ static struct key_vector *fib_trie_get_first(struct fib_trie_iter *iter,
 		return NULL;
 
 	pn = t->kv;
-	n = rcu_dereference(pn->tnode[0]);
+	n = rcu_dereference(pn->tanalde[0]);
 	if (!n)
 		return NULL;
 
-	if (IS_TNODE(n)) {
-		iter->tnode = n;
+	if (IS_TANALDE(n)) {
+		iter->tanalde = n;
 		iter->index = 0;
 		iter->depth = 1;
 	} else {
-		iter->tnode = pn;
+		iter->tanalde = pn;
 		iter->index = 0;
 		iter->depth = 0;
 	}
@@ -2541,9 +2541,9 @@ static void trie_collect_stats(struct trie *t, struct trie_stat *s)
 			hlist_for_each_entry_rcu(fa, &n->leaf, fa_list)
 				++s->prefixes;
 		} else {
-			s->tnodes++;
+			s->tanaldes++;
 			if (n->bits < MAX_STAT_DEPTH)
-				s->nodesizes[n->bits]++;
+				s->analdesizes[n->bits]++;
 			s->nullpointers += tn_info(n)->empty_children;
 		}
 	}
@@ -2572,18 +2572,18 @@ static void trie_show_stats(struct seq_file *seq, struct trie_stat *stat)
 	seq_printf(seq, "\tPrefixes:       %u\n", stat->prefixes);
 	bytes += sizeof(struct fib_alias) * stat->prefixes;
 
-	seq_printf(seq, "\tInternal nodes: %u\n\t", stat->tnodes);
-	bytes += TNODE_SIZE(0) * stat->tnodes;
+	seq_printf(seq, "\tInternal analdes: %u\n\t", stat->tanaldes);
+	bytes += TANALDE_SIZE(0) * stat->tanaldes;
 
 	max = MAX_STAT_DEPTH;
-	while (max > 0 && stat->nodesizes[max-1] == 0)
+	while (max > 0 && stat->analdesizes[max-1] == 0)
 		max--;
 
 	pointers = 0;
 	for (i = 1; i < max; i++)
-		if (stat->nodesizes[i] != 0) {
-			seq_printf(seq, "  %u: %u",  i, stat->nodesizes[i]);
-			pointers += (1<<i) * stat->nodesizes[i];
+		if (stat->analdesizes[i] != 0) {
+			seq_printf(seq, "  %u: %u",  i, stat->analdesizes[i]);
+			pointers += (1<<i) * stat->analdesizes[i];
 		}
 	seq_putc(seq, '\n');
 	seq_printf(seq, "\tPointers: %u\n", pointers);
@@ -2608,8 +2608,8 @@ static void trie_show_usage(struct seq_file *seq,
 		s.backtrack += pcpu->backtrack;
 		s.semantic_match_passed += pcpu->semantic_match_passed;
 		s.semantic_match_miss += pcpu->semantic_match_miss;
-		s.null_node_hit += pcpu->null_node_hit;
-		s.resize_node_skipped += pcpu->resize_node_skipped;
+		s.null_analde_hit += pcpu->null_analde_hit;
+		s.resize_analde_skipped += pcpu->resize_analde_skipped;
 	}
 
 	seq_printf(seq, "\nCounters:\n---------\n");
@@ -2618,8 +2618,8 @@ static void trie_show_usage(struct seq_file *seq,
 	seq_printf(seq, "semantic match passed = %u\n",
 		   s.semantic_match_passed);
 	seq_printf(seq, "semantic match miss = %u\n", s.semantic_match_miss);
-	seq_printf(seq, "null node hit= %u\n", s.null_node_hit);
-	seq_printf(seq, "skipped node resize = %u\n\n", s.resize_node_skipped);
+	seq_printf(seq, "null analde hit= %u\n", s.null_analde_hit);
+	seq_printf(seq, "skipped analde resize = %u\n\n", s.resize_analde_skipped);
 }
 #endif /*  CONFIG_IP_FIB_TRIE_STATS */
 
@@ -2641,8 +2641,8 @@ static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq,
 		   "Basic info: size of leaf:"
-		   " %zd bytes, size of tnode: %zd bytes.\n",
-		   LEAF_SIZE, TNODE_SIZE(0));
+		   " %zd bytes, size of tanalde: %zd bytes.\n",
+		   LEAF_SIZE, TANALDE_SIZE(0));
 
 	rcu_read_lock();
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
@@ -2710,20 +2710,20 @@ static void *fib_trie_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	struct fib_trie_iter *iter = seq->private;
 	struct net *net = seq_file_net(seq);
 	struct fib_table *tb = iter->tb;
-	struct hlist_node *tb_node;
+	struct hlist_analde *tb_analde;
 	unsigned int h;
 	struct key_vector *n;
 
 	++*pos;
-	/* next node in same table */
+	/* next analde in same table */
 	n = fib_trie_get_next(iter);
 	if (n)
 		return n;
 
 	/* walk rest of this hash chain */
 	h = tb->tb_id & (FIB_TABLE_HASHSZ - 1);
-	while ((tb_node = rcu_dereference(hlist_next_rcu(&tb->tb_hlist)))) {
-		tb = hlist_entry(tb_node, struct fib_table, tb_hlist);
+	while ((tb_analde = rcu_dereference(hlist_next_rcu(&tb->tb_hlist)))) {
+		tb = hlist_entry(tb_analde, struct fib_table, tb_hlist);
 		n = fib_trie_get_first(iter, (struct trie *) tb->tb_data);
 		if (n)
 			goto found;
@@ -2764,7 +2764,7 @@ static inline const char *rtn_scope(char *buf, size_t len, enum rt_scope_t s)
 	case RT_SCOPE_SITE:	return "site";
 	case RT_SCOPE_LINK:	return "link";
 	case RT_SCOPE_HOST:	return "host";
-	case RT_SCOPE_NOWHERE:	return "nowhere";
+	case RT_SCOPE_ANALWHERE:	return "analwhere";
 	default:
 		snprintf(buf, len, "scope=%d", s);
 		return buf;
@@ -2800,10 +2800,10 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 	const struct fib_trie_iter *iter = seq->private;
 	struct key_vector *n = v;
 
-	if (IS_TRIE(node_parent_rcu(n)))
+	if (IS_TRIE(analde_parent_rcu(n)))
 		fib_table_print(seq, iter->tb);
 
-	if (IS_TNODE(n)) {
+	if (IS_TANALDE(n)) {
 		__be32 prf = htonl(n->key);
 
 		seq_indent(seq, iter->depth-1);
@@ -2848,7 +2848,7 @@ static const struct seq_operations fib_trie_seq_ops = {
 struct fib_route_iter {
 	struct seq_net_private p;
 	struct fib_table *main_tb;
-	struct key_vector *tnode;
+	struct key_vector *tanalde;
 	loff_t	pos;
 	t_key	key;
 };
@@ -2856,7 +2856,7 @@ struct fib_route_iter {
 static struct key_vector *fib_route_get_idx(struct fib_route_iter *iter,
 					    loff_t pos)
 {
-	struct key_vector *l, **tp = &iter->tnode;
+	struct key_vector *l, **tp = &iter->tanalde;
 	t_key key;
 
 	/* use cached location of previously found key */
@@ -2902,7 +2902,7 @@ static void *fib_route_seq_start(struct seq_file *seq, loff_t *pos)
 
 	iter->main_tb = tb;
 	t = (struct trie *)tb->tb_data;
-	iter->tnode = t->kv;
+	iter->tanalde = t->kv;
 
 	if (*pos != 0)
 		return fib_route_get_idx(iter, *pos);
@@ -2923,7 +2923,7 @@ static void *fib_route_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	/* only allow key of 0 for start of sequence */
 	if ((v == SEQ_START_TOKEN) || key)
-		l = leaf_walk_rcu(&iter->tnode, key);
+		l = leaf_walk_rcu(&iter->tanalde, key);
 
 	if (l) {
 		iter->key = l->key;
@@ -2961,7 +2961,7 @@ static unsigned int fib_flag_trans(int type, __be32 mask, struct fib_info *fi)
 
 /*
  *	This outputs /proc/net/route.
- *	The format of the file is not supposed to be changed
+ *	The format of the file is analt supposed to be changed
  *	and needs to be same as fib_hash output to avoid breaking
  *	legacy utilities
  */
@@ -3055,7 +3055,7 @@ out3:
 out2:
 	remove_proc_entry("fib_trie", net->proc_net);
 out1:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void __net_exit fib_proc_exit(struct net *net)

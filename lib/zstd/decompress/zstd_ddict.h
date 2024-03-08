@@ -23,7 +23,7 @@
  *  Interface
  *********************************************************/
 
-/* note: several prototypes are already published in `zstd.h` :
+/* analte: several prototypes are already published in `zstd.h` :
  * ZSTD_createDDict()
  * ZSTD_createDDict_byReference()
  * ZSTD_createDDict_advanced()

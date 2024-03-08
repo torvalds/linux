@@ -14,7 +14,7 @@
 
 /* The RGMII PHYs have a different MDIO address */
 &emdio1 {
-	/delete-node/ ethernet-phy@5;
+	/delete-analde/ ethernet-phy@5;
 
 	sw1_mii3_phy: ethernet-phy@1 {
 		/* AR8035 */
@@ -23,7 +23,7 @@
 		interrupts-extended = <&extirq 6 IRQ_TYPE_LEVEL_LOW>;
 	};
 
-	/delete-node/ ethernet-phy@6;
+	/delete-analde/ ethernet-phy@6;
 
 	sw2_mii3_phy: ethernet-phy@2 {
 		/* AR8035 */

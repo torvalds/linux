@@ -308,9 +308,9 @@ static int agp_ali_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* probe for known chipsets */
+	/* probe for kanalwn chipsets */
 	for (j = 0; devs[j].chipset_name; j++) {
 		if (pdev->device == devs[j].device_id)
 			goto found;
@@ -318,13 +318,13 @@ static int agp_ali_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev_err(&pdev->dev, "unsupported ALi chipset [%04x/%04x])\n",
 		pdev->vendor, pdev->device);
-	return -ENODEV;
+	return -EANALDEV;
 
 
 found:
 	bridge = agp_alloc_bridge();
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->dev = pdev;
 	bridge->capndx = cap_ptr;

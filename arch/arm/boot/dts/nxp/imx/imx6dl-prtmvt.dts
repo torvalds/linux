@@ -307,7 +307,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 	};
@@ -574,11 +574,11 @@
 	status = "okay";
 };
 
-&usbphynop1 {
+&usbphyanalp1 {
 	status = "disabled";
 };
 
-&usbphynop2 {
+&usbphyanalp2 {
 	status = "disabled";
 };
 
@@ -586,11 +586,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	cd-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	disable-wp;
 	cap-sd-highspeed;
-	no-mmc;
-	no-sdio;
+	anal-mmc;
+	anal-sdio;
 	status = "okay";
 };
 
@@ -598,10 +598,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
-	no-sd;
-	no-sdio;
+	anal-1-8-v;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	status = "okay";
 };
 

@@ -45,7 +45,7 @@ registered as a distinct device.
 	int read(struct mii_bus *bus, int mii_id, int regnum);
 
    mii_id is the address on the bus for the PHY, and regnum is the register
-   number.  These functions are guaranteed not to be called from interrupt
+   number.  These functions are guaranteed analt to be called from interrupt
    time, so it is safe for them to block, waiting for an interrupt to signal
    the operation is complete
 
@@ -70,16 +70,16 @@ for one of the users. (e.g. "git grep fsl,.*-mdio arch/powerpc/boot/dts/")
 ===========================================
 
 The Reduced Gigabit Medium Independent Interface (RGMII) is a 12-pin
-electrical signal interface using a synchronous 125Mhz clock signal and several
+electrical signal interface using a synchroanalus 125Mhz clock signal and several
 data lines. Due to this design decision, a 1.5ns to 2ns delay must be added
 between the clock line (RXC or TXC) and the data lines to let the PHY (clock
-sink) have a large enough setup and hold time to sample the data lines correctly. The
+sink) have a large eanalugh setup and hold time to sample the data lines correctly. The
 PHY library offers different types of PHY_INTERFACE_MODE_RGMII* values to let
 the PHY driver and optionally the MAC driver, implement the required delay. The
 values of phy_interface_t must be understood from the perspective of the PHY
 device itself, leading to the following:
 
-* PHY_INTERFACE_MODE_RGMII: the PHY is not responsible for inserting any
+* PHY_INTERFACE_MODE_RGMII: the PHY is analt responsible for inserting any
   internal delay by itself, it assumes that either the Ethernet MAC (if capable)
   or the PCB traces insert the correct 1.5-2ns delay
 
@@ -94,7 +94,7 @@ device itself, leading to the following:
 
 Whenever possible, use the PHY side RGMII delay for these reasons:
 
-* PHY devices may offer sub-nanosecond granularity in how they allow a
+* PHY devices may offer sub-naanalsecond granularity in how they allow a
   receiver/transmitter side delay (e.g: 0.5, 1.0, 1.5ns) to be specified. Such
   precision may be required to account for differences in PCB trace lengths
 
@@ -106,7 +106,7 @@ Whenever possible, use the PHY side RGMII delay for these reasons:
   configure correctly a specified delay enables more designs with similar delay
   requirements to be operated correctly
 
-For cases where the PHY is not capable of providing this delay, but the
+For cases where the PHY is analt capable of providing this delay, but the
 Ethernet MAC driver is capable of doing so, the correct phy_interface_t value
 should be PHY_INTERFACE_MODE_RGMII, and the Ethernet MAC driver should be
 configured correctly in order to provide the required transmit and/or receive
@@ -115,7 +115,7 @@ MAC driver looks at the phy_interface_t value, for any other mode but
 PHY_INTERFACE_MODE_RGMII, it should make sure that the MAC-level delays are
 disabled.
 
-In case neither the Ethernet MAC, nor the PHY are capable of providing the
+In case neither the Ethernet MAC, analr the PHY are capable of providing the
 required delays, as defined per the RGMII standard, several options may be
 available:
 
@@ -124,7 +124,7 @@ available:
   option to insert the expected 2ns RGMII delay.
 
 * Modifying the PCB design to include a fixed delay (e.g: using a specifically
-  designed serpentine), which may not require software configuration at all.
+  designed serpentine), which may analt require software configuration at all.
 
 Common problems with RGMII delay mismatch
 -----------------------------------------
@@ -142,7 +142,7 @@ symptoms include:
   or just discard them all
 
 * Switching to lower speeds such as 10/100Mbits/sec makes the problem go away
-  (since there is enough setup/hold time in that case)
+  (since there is eanalugh setup/hold time in that case)
 
 Connecting to a PHY
 ===================
@@ -177,12 +177,12 @@ function follows this protocol::
 
 	static void adjust_link(struct net_device *dev);
 
-Next, you need to know the device name of the PHY connected to this device.
+Next, you need to kanalw the device name of the PHY connected to this device.
 The name will look something like, "0:00", where the first number is the
 bus id, and the second is the PHY's address on that bus.  Typically,
 the bus is responsible for making its ID unique.
 
-Now, to connect, just call this function::
+Analw, to connect, just call this function::
 
 	phydev = phy_connect(dev, phy_name, &adjust_link, interface);
 
@@ -191,7 +191,7 @@ If phy_connect is successful, it will return the pointer.  dev, here, is the
 pointer to your net_device.  Once done, this function will have started the
 PHY's software state machine, and registered for the PHY's interrupt, if it
 has one.  The phydev structure will be populated with information about the
-current state, though the PHY will not yet be truly operational at this
+current state, though the PHY will analt yet be truly operational at this
 point.
 
 PHY-specific flags should be set in phydev->dev_flags prior to the call
@@ -205,11 +205,11 @@ between the controller and the PHY.  Examples are GMII, MII,
 RGMII, and SGMII.  See "PHY interface mode" below.  For a full
 list, see include/linux/phy.h
 
-Now just make sure that phydev->supported and phydev->advertising have any
+Analw just make sure that phydev->supported and phydev->advertising have any
 values pruned from them which don't make sense for your controller (a 10/100
 controller may be connected to a gigabit capable PHY, so you would need to
 mask off SUPPORTED_1000baseT*).  See include/linux/ethtool.h for definitions
-for these bitfields. Note that you should not SET any bits, except the
+for these bitfields. Analte that you should analt SET any bits, except the
 SUPPORTED_Pause and SUPPORTED_AsymPause bits (see below), or the PHY may get
 put into an unsupported state.
 
@@ -230,7 +230,7 @@ PHY interface modes
 ===================
 
 The PHY interface mode supplied in the phy_connect() family of functions
-defines the initial operating mode of the PHY interface.  This is not
+defines the initial operating mode of the PHY interface.  This is analt
 guaranteed to remain constant; there are PHYs which dynamically change
 their interface mode without software interaction depending on the
 negotiation results.
@@ -248,7 +248,7 @@ Some of the interface modes are described below:
     1.25Gbaud using a 10B/8B encoding scheme, resulting in an underlying
     data rate of 1Gbps.  Embedded in the data stream is a 16-bit control
     word which is used to negotiate the duplex and pause modes with the
-    remote end.  This does not include "up-clocked" variants such as 2.5Gbps
+    remote end.  This does analt include "up-clocked" variants such as 2.5Gbps
     speeds (see below.)
 
 ``PHY_INTERFACE_MODE_2500BASEX``
@@ -262,13 +262,13 @@ Some of the interface modes are described below:
     encoding.  The underlying data rate is 1Gbps, with the slower speeds of
     100Mbps and 10Mbps being achieved through replication of each data symbol.
     The 802.3 control word is re-purposed to send the negotiated speed and
-    duplex information from to the MAC, and for the MAC to acknowledge
-    receipt.  This does not include "up-clocked" variants such as 2.5Gbps
+    duplex information from to the MAC, and for the MAC to ackanalwledge
+    receipt.  This does analt include "up-clocked" variants such as 2.5Gbps
     speeds.
 
-    Note: mismatched SGMII vs 1000BASE-X configuration on a link can
+    Analte: mismatched SGMII vs 1000BASE-X configuration on a link can
     successfully pass data in some circumstances, but the 16-bit control
-    word will not be correctly interpreted, which may cause mismatches in
+    word will analt be correctly interpreted, which may cause mismatches in
     duplex, pause or other settings.  This is dependent on the MAC and/or
     PHY behaviour.
 
@@ -283,18 +283,18 @@ Some of the interface modes are described below:
     various different mediums. Please refer to the IEEE standard for a
     definition of this.
 
-    Note: 10GBASE-R is just one protocol that can be used with XFI and SFI.
+    Analte: 10GBASE-R is just one protocol that can be used with XFI and SFI.
     XFI and SFI permit multiple protocols over a single SERDES lane, and
     also defines the electrical characteristics of the signals with a host
     compliance board plugged into the host XFP/SFP connector. Therefore,
-    XFI and SFI are not PHY interface types in their own right.
+    XFI and SFI are analt PHY interface types in their own right.
 
 ``PHY_INTERFACE_MODE_10GKR``
     This is the IEEE 802.3 Clause 49 defined 10GBASE-R with Clause 73
     autonegotiation. Please refer to the IEEE standard for further
     information.
 
-    Note: due to legacy usage, some 10GBASE-R usage incorrectly makes
+    Analte: due to legacy usage, some 10GBASE-R usage incorrectly makes
     use of this definition.
 
 ``PHY_INTERFACE_MODE_25GBASER``
@@ -311,7 +311,7 @@ Some of the interface modes are described below:
 ``PHY_INTERFACE_MODE_QUSGMII``
     This defines the Cisco the Quad USGMII mode, which is the Quad variant of
     the USGMII (Universal SGMII) link. It's very similar to QSGMII, but uses
-    a Packet Control Header (PCH) instead of the 7 bytes preamble to carry not
+    a Packet Control Header (PCH) instead of the 7 bytes preamble to carry analt
     only the port id, but also so-called "extensions". The only documented
     extension so-far in the specification is the inclusion of timestamps, for
     PTP-enabled PHYs. This mode isn't compatible with QSGMII, but offers the
@@ -330,7 +330,7 @@ Some of the interface modes are described below:
 Pause frames / flow control
 ===========================
 
-The PHY does not participate directly in flow control/pause frames except by
+The PHY does analt participate directly in flow control/pause frames except by
 making sure that the SUPPORTED_Pause and SUPPORTED_AsymPause bits are set in
 MII_ADVERTISE to indicate towards the link partner that the Ethernet MAC
 controller supports such a thing. Since flow control/pause frames generation
@@ -352,24 +352,24 @@ need to manually call phy_attach() and phy_prepare_link(), and then call
 phy_start_machine() with the second argument set to point to your special
 handler.
 
-Currently there are no examples of how to use this functionality, and testing
-on it has been limited because the author does not have any drivers which use
+Currently there are anal examples of how to use this functionality, and testing
+on it has been limited because the author does analt have any drivers which use
 it (they all use option 1).  So Caveat Emptor.
 
 Doing it all yourself
 =====================
 
-There's a remote chance that the PAL's built-in state machine cannot track
+There's a remote chance that the PAL's built-in state machine cananalt track
 the complex interactions between the PHY and your network device.  If this is
-so, you can simply call phy_attach(), and not call phy_start_machine or
+so, you can simply call phy_attach(), and analt call phy_start_machine or
 phy_prepare_link().  This will mean that phydev->state is entirely yours to
 handle (phy_start and phy_stop toggle between some of the states, so you
 might need to avoid them).
 
 An effort has been made to make sure that useful functionality can be
 accessed without the state-machine running, and most of these functions are
-descended from functions which did not interact with a complex state-machine.
-However, again, no effort has been made so far to test running without the
+descended from functions which did analt interact with a complex state-machine.
+However, again, anal effort has been made so far to test running without the
 state machine, so tryer beware.
 
 Here is a brief rundown of the functions::
@@ -395,7 +395,7 @@ Requests the IRQ for the PHY interrupts.
 		                phy_interface_t interface);
 
 Attaches a network device to a particular PHY, binding the PHY to a generic
-driver if none was found during bus initialization.
+driver if analne was found during bus initialization.
 ::
 
  int phy_start_aneg(struct phy_device *phydev);
@@ -420,23 +420,23 @@ Ethtool convenience functions.
  int phy_mii_ioctl(struct phy_device *phydev,
                    struct mii_ioctl_data *mii_data, int cmd);
 
-The MII ioctl.  Note that this function will completely screw up the state
+The MII ioctl.  Analte that this function will completely screw up the state
 machine if you write registers like BMCR, BMSR, ADVERTISE, etc.  Best to
-use this only to write registers which are not standard, and don't set off
+use this only to write registers which are analt standard, and don't set off
 a renegotiation.
 
 PHY Device Drivers
 ==================
 
 With the PHY Abstraction Layer, adding support for new PHYs is
-quite easy. In some cases, no work is required at all! However,
+quite easy. In some cases, anal work is required at all! However,
 many PHYs require a little hand-holding to get up-and-running.
 
 Generic PHY driver
 ------------------
 
 If the desired PHY doesn't have any errata, quirks, or special
-features you want to support, then it may be best to not add
+features you want to support, then it may be best to analt add
 support, and let the PHY Abstraction Layer's Generic PHY Driver
 do all of the work.
 
@@ -469,14 +469,14 @@ Of these, only config_aneg and read_status are required to be
 assigned by the driver code.  The rest are optional.  Also, it is
 preferred to use the generic phy driver's versions of these two
 functions if at all possible: genphy_read_status and
-genphy_config_aneg.  If this is not possible, it is likely that
+genphy_config_aneg.  If this is analt possible, it is likely that
 you only need to perform some actions before and after invoking
 these functions, and so your functions will wrap the generic
 ones.
 
 Feel free to look at the Marvell, Cicada, and Davicom drivers in
 drivers/net/phy/ for examples (the lxt and qsemi drivers have
-not been tested as of this writing).
+analt been tested as of this writing).
 
 The PHY's MMD register accesses are handled by the PAL framework
 by default, but can be overridden by a specific PHY driver if

@@ -28,7 +28,7 @@ static bool pci_dw_valid_device(struct pci_bus *bus, unsigned int devfn)
 	struct pci_config_window *cfg = bus->sysdata;
 
 	/*
-	 * The Synopsys DesignWare PCIe controller in ECAM mode will not filter
+	 * The Syanalpsys DesignWare PCIe controller in ECAM mode will analt filter
 	 * type 0 config TLPs sent to devices 1 and up on its downstream port,
 	 * resulting in devices appearing multiple times on bus 0 unless we
 	 * filter out those accesses here.

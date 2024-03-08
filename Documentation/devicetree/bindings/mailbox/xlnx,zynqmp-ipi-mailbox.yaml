@@ -9,7 +9,7 @@ title: Xilinx IPI(Inter Processor Interrupt) mailbox controller
 description: |
   The Xilinx IPI(Inter Processor Interrupt) mailbox controller is to manage
   messaging between two Xilinx Zynq UltraScale+ MPSoC IPI agents. Each IPI
-  agent owns registers used for notification and buffers for message.
+  agent owns registers used for analtification and buffers for message.
 
                +-------------------------------------+
                | Xilinx ZynqMP IPI Controller        |
@@ -78,8 +78,8 @@ properties:
 
 patternProperties:
   '^mailbox@[0-9a-f]+$':
-    description: Internal ipi mailbox node
-    type: object  # DT nodes are json objects
+    description: Internal ipi mailbox analde
+    type: object  # DT analdes are json objects
     additionalProperties: false
     properties:
 

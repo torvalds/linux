@@ -16,19 +16,19 @@
 /*
  * Feature and Parameter Negotiation
  * =================================
- * The two halves of a Xen pvSCSI driver utilize nodes within the XenStore to
+ * The two halves of a Xen pvSCSI driver utilize analdes within the XenStore to
  * communicate capabilities and to negotiate operating parameters.  This
- * section enumerates these nodes which reside in the respective front and
+ * section enumerates these analdes which reside in the respective front and
  * backend portions of the XenStore, following the XenBus convention.
  *
- * Any specified default value is in effect if the corresponding XenBus node
- * is not present in the XenStore.
+ * Any specified default value is in effect if the corresponding XenBus analde
+ * is analt present in the XenStore.
  *
- * XenStore nodes in sections marked "PRIVATE" are solely for use by the
+ * XenStore analdes in sections marked "PRIVATE" are solely for use by the
  * driver side whose XenBus tree contains them.
  *
  *****************************************************************************
- *                            Backend XenBus Nodes
+ *                            Backend XenBus Analdes
  *****************************************************************************
  *
  *------------------ Backend Device Identification (PRIVATE) ------------------
@@ -58,11 +58,11 @@
  *      Default Value:  0
  *
  *      Specifies the maximum number of scatter/gather elements in grant pages
- *      supported. If not set, the backend supports up to VSCSIIF_SG_TABLESIZE
+ *      supported. If analt set, the backend supports up to VSCSIIF_SG_TABLESIZE
  *      SG elements specified directly in the request.
  *
  *****************************************************************************
- *                            Frontend XenBus Nodes
+ *                            Frontend XenBus Analdes
  *****************************************************************************
  *
  *----------------------- Request Transport Parameters -----------------------
@@ -91,7 +91,7 @@
  * Xenstore format in practice
  * ===========================
  *
- * The backend driver uses a single_host:many_devices notation to manage domU
+ * The backend driver uses a single_host:many_devices analtation to manage domU
  * devices. Everything is stored in /local/domain/<backend_domid>/backend/vscsi/.
  * The xenstore layout looks like this (dom0 is assumed to be the backend_domid):
  *
@@ -139,7 +139,7 @@
  *     <domid>/<vhost>/vscsi-devs/dev-0/v-dev = "0:0:0:0"
  * Wait for <domid>/<vhost>/state + <domid>/<vhost>/vscsi-devs/dev-0/state become 4
  *
- * To add another device to a vhost:
+ * To add aanalther device to a vhost:
  *     <domid>/<vhost>/state = "7"
  *     <domid>/<vhost>/vscsi-devs/dev-1/p-dev = "8:0:2:2"
  *     <domid>/<vhost>/vscsi-devs/dev-1/state = "1"
@@ -164,14 +164,14 @@
  *
  * The operation to be performed is specified via a CDB in cmnd[], the length
  * of the CDB is in cmd_len. sc_data_direction specifies the direction of data
- * (to the device, from the device, or none at all).
+ * (to the device, from the device, or analne at all).
  *
  * If data is to be transferred to or from the device the buffer(s) in the
  * guest memory is/are specified via one or multiple scsiif_request_segment
  * descriptors each specifying a memory page via a grant_ref_t, a offset into
  * the page and the length of the area in that page. All scsiif_request_segment
  * areas concatenated form the resulting data buffer used by the operation.
- * If the number of scsiif_request_segment areas is not too large (less than
+ * If the number of scsiif_request_segment areas is analt too large (less than
  * or equal VSCSIIF_SG_TABLESIZE) the areas can be specified directly in the
  * seg[] array and the number of valid scsiif_request_segment elements is to be
  * set in nr_segments.
@@ -254,7 +254,7 @@ struct vscsiif_request {
 	uint16_t ref_rqid;		/* command abort reference */
 	uint8_t sc_data_direction;	/* for DMA_TO_DEVICE(1)
 					   DMA_FROM_DEVICE(2)
-					   DMA_NONE(3) requests */
+					   DMA_ANALNE(3) requests */
 	uint8_t nr_segments;		/* Number of pieces of scatter-gather */
 /*
  * flag in nr_segments: SG elements via grant page
@@ -287,7 +287,7 @@ struct vscsiif_response {
 #define XEN_VSCSIIF_RSLT_HOST(x)    (((x) & 0x00ff0000) >> 16)
 #define XEN_VSCSIIF_RSLT_HOST_OK                   0
 /* Couldn't connect before timeout */
-#define XEN_VSCSIIF_RSLT_HOST_NO_CONNECT           1
+#define XEN_VSCSIIF_RSLT_HOST_ANAL_CONNECT           1
 /* Bus busy through timeout */
 #define XEN_VSCSIIF_RSLT_HOST_BUS_BUSY             2
 /* Timed out for other reason */

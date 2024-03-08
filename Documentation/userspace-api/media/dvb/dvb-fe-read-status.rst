@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _dvb-fe-read-status:
 
@@ -17,7 +17,7 @@ using :ref:`FE_READ_STATUS`.
 Signal statistics are provided via
 :ref:`FE_GET_PROPERTY`.
 
-.. note::
+.. analte::
 
    Most statistics require the demodulator to be fully locked
    (e. g. with :c:type:`FE_HAS_LOCK <fe_status>` bit set). See

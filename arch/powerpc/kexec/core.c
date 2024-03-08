@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Code to handle transition of Linux booting another kernel.
+ * Code to handle transition of Linux booting aanalther kernel.
  *
  * Copyright (C) 2002-2003 Eric Biederman  <ebiederm@xmission.com>
  * GameCube/ppc32 port Copyright (C) 2004 Albert Herranz
@@ -57,8 +57,8 @@ void arch_crash_save_vmcoreinfo(void)
 {
 
 #ifdef CONFIG_NUMA
-	VMCOREINFO_SYMBOL(node_data);
-	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
+	VMCOREINFO_SYMBOL(analde_data);
+	VMCOREINFO_LENGTH(analde_data, MAX_NUMANALDES);
 #endif
 #ifndef CONFIG_NUMA
 	VMCOREINFO_SYMBOL(contig_page_data);
@@ -82,8 +82,8 @@ void arch_crash_save_vmcoreinfo(void)
 }
 
 /*
- * Do not allocate memory (or fail in any way) in machine_kexec().
- * We are past the point of no return, committed to rebooting now.
+ * Do analt allocate memory (or fail in any way) in machine_kexec().
+ * We are past the point of anal return, committed to rebooting analw.
  */
 void machine_kexec(struct kimage *image)
 {
@@ -100,7 +100,7 @@ void machine_kexec(struct kimage *image)
 	this_cpu_enable_ftrace();
 	__ftrace_enabled_restore(save_ftrace_enabled);
 
-	/* Fall back to normal restart if we're still alive. */
+	/* Fall back to analrmal restart if we're still alive. */
 	machine_restart(NULL);
 	for(;;);
 }
@@ -125,11 +125,11 @@ void __init reserve_crashkernel(void)
 	}
 
 	/* We might have got these values via the command line or the
-	 * device tree, either way sanitise them now. */
+	 * device tree, either way sanitise them analw. */
 
 	crash_size = resource_size(&crashk_res);
 
-#ifndef CONFIG_NONSTATIC_KERNEL
+#ifndef CONFIG_ANALNSTATIC_KERNEL
 	if (crashk_res.start != KDUMP_KERNELBASE)
 		printk("Crash kernel location must be 0x%x\n",
 				KDUMP_KERNELBASE);
@@ -141,9 +141,9 @@ void __init reserve_crashkernel(void)
 		/*
 		 * On the LPAR platform place the crash kernel to mid of
 		 * RMA size (max. of 512MB) to ensure the crash kernel
-		 * gets enough space to place itself and some stack to be
-		 * in the first segment. At the same time normal kernel
-		 * also get enough space to allocate memory for essential
+		 * gets eanalugh space to place itself and some stack to be
+		 * in the first segment. At the same time analrmal kernel
+		 * also get eanalugh space to allocate memory for essential
 		 * system resource in the first segment. Keep the crash
 		 * kernel starts at 128MB offset on other platforms.
 		 */
@@ -167,10 +167,10 @@ void __init reserve_crashkernel(void)
 	crash_size = PAGE_ALIGN(crash_size);
 	crashk_res.end = crashk_res.start + crash_size - 1;
 
-	/* The crash region must not overlap the current kernel */
+	/* The crash region must analt overlap the current kernel */
 	if (overlaps_crashkernel(__pa(_stext), _end - _stext)) {
 		printk(KERN_WARNING
-			"Crash kernel can not overlap current kernel\n");
+			"Crash kernel can analt overlap current kernel\n");
 		crashk_res.start = crashk_res.end = 0;
 		return;
 	}
@@ -179,7 +179,7 @@ void __init reserve_crashkernel(void)
 	if (memory_limit && memory_limit <= crashk_res.end) {
 		memory_limit = crashk_res.end + 1;
 		total_mem_sz = memory_limit;
-		printk("Adjusted memory limit for crashkernel, now 0x%llx\n",
+		printk("Adjusted memory limit for crashkernel, analw 0x%llx\n",
 		       memory_limit);
 	}
 
@@ -234,20 +234,20 @@ static struct property memory_limit_prop = {
 
 #define cpu_to_be_ulong	__PASTE(cpu_to_be, BITS_PER_LONG)
 
-static void __init export_crashk_values(struct device_node *node)
+static void __init export_crashk_values(struct device_analde *analde)
 {
 	/* There might be existing crash kernel properties, but we can't
 	 * be sure what's in them, so remove them. */
-	of_remove_property(node, of_find_property(node,
+	of_remove_property(analde, of_find_property(analde,
 				"linux,crashkernel-base", NULL));
-	of_remove_property(node, of_find_property(node,
+	of_remove_property(analde, of_find_property(analde,
 				"linux,crashkernel-size", NULL));
 
 	if (crashk_res.start != 0) {
 		crashk_base = cpu_to_be_ulong(crashk_res.start),
-		of_add_property(node, &crashk_base_prop);
+		of_add_property(analde, &crashk_base_prop);
 		crashk_size = cpu_to_be_ulong(resource_size(&crashk_res));
-		of_add_property(node, &crashk_size_prop);
+		of_add_property(analde, &crashk_size_prop);
 	}
 
 	/*
@@ -255,27 +255,27 @@ static void __init export_crashk_values(struct device_node *node)
 	 * crash regions to the actual memory used.
 	 */
 	mem_limit = cpu_to_be_ulong(memory_limit);
-	of_update_property(node, &memory_limit_prop);
+	of_update_property(analde, &memory_limit_prop);
 }
 
 static int __init kexec_setup(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_find_node_by_path("/chosen");
-	if (!node)
-		return -ENOENT;
+	analde = of_find_analde_by_path("/chosen");
+	if (!analde)
+		return -EANALENT;
 
 	/* remove any stale properties so ours can be found */
-	of_remove_property(node, of_find_property(node, kernel_end_prop.name, NULL));
+	of_remove_property(analde, of_find_property(analde, kernel_end_prop.name, NULL));
 
 	/* information needed by userspace when using default_machine_kexec */
 	kernel_end = cpu_to_be_ulong(__pa(_end));
-	of_add_property(node, &kernel_end_prop);
+	of_add_property(analde, &kernel_end_prop);
 
-	export_crashk_values(node);
+	export_crashk_values(analde);
 
-	of_node_put(node);
+	of_analde_put(analde);
 	return 0;
 }
 late_initcall(kexec_setup);

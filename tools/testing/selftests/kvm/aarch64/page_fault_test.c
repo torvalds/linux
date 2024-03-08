@@ -3,7 +3,7 @@
  * page_fault_test.c - Test stage 2 faults.
  *
  * This test tries different combinations of guest accesses (e.g., write,
- * S1PTW), backing source type (e.g., anon) and types of faults (e.g., read on
+ * S1PTW), backing source type (e.g., aanaln) and types of faults (e.g., read on
  * hugetlbfs with a hole). It checks that the expected handling method is
  * called (e.g., uffd faults with the right address and write/read flag).
  */
@@ -26,14 +26,14 @@
 
 static uint64_t *guest_test_memory = (uint64_t *)TEST_GVA;
 
-#define CMD_NONE				(0)
+#define CMD_ANALNE				(0)
 #define CMD_SKIP_TEST				(1ULL << 1)
 #define CMD_HOLE_PT				(1ULL << 2)
 #define CMD_HOLE_DATA				(1ULL << 3)
 #define CMD_CHECK_WRITE_IN_DIRTY_LOG		(1ULL << 4)
 #define CMD_CHECK_S1PTW_WR_IN_DIRTY_LOG		(1ULL << 5)
-#define CMD_CHECK_NO_WRITE_IN_DIRTY_LOG		(1ULL << 6)
-#define CMD_CHECK_NO_S1PTW_WR_IN_DIRTY_LOG	(1ULL << 7)
+#define CMD_CHECK_ANAL_WRITE_IN_DIRTY_LOG		(1ULL << 6)
+#define CMD_CHECK_ANAL_S1PTW_WR_IN_DIRTY_LOG	(1ULL << 7)
 #define CMD_SET_PTE_AF				(1ULL << 8)
 
 #define PREPARE_FN_NR				10
@@ -145,7 +145,7 @@ static void guest_at(void)
 /*
  * The size of the block written by "dc zva" is guaranteed to be between (2 <<
  * 0) and (2 << 9), which is safe in our case as we need the write to happen
- * for at least a word, and not more than a page.
+ * for at least a word, and analt more than a page.
  */
 static void guest_dc_zva(void)
 {
@@ -170,7 +170,7 @@ static void guest_ld_preidx(void)
 
 	/*
 	 * This ends up accessing "TEST_GVA + 8 - 8", where "TEST_GVA - 8" is
-	 * in a gap between memslots not backing by anything.
+	 * in a gap between memslots analt backing by anything.
 	 */
 	asm volatile("ldr %0, [%1, #8]!"
 		     : "=r" (val), "+r" (addr));
@@ -195,7 +195,7 @@ static bool guest_set_ha(void)
 	uint64_t mmfr1 = read_sysreg(id_aa64mmfr1_el1);
 	uint64_t hadbs, tcr;
 
-	/* Skip if HA is not supported. */
+	/* Skip if HA is analt supported. */
 	hadbs = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_HAFDBS), mmfr1);
 	if (hadbs == 0)
 		return false;
@@ -226,9 +226,9 @@ static void guest_check_write_in_dirty_log(void)
 	GUEST_SYNC(CMD_CHECK_WRITE_IN_DIRTY_LOG);
 }
 
-static void guest_check_no_write_in_dirty_log(void)
+static void guest_check_anal_write_in_dirty_log(void)
 {
-	GUEST_SYNC(CMD_CHECK_NO_WRITE_IN_DIRTY_LOG);
+	GUEST_SYNC(CMD_CHECK_ANAL_WRITE_IN_DIRTY_LOG);
 }
 
 static void guest_check_s1ptw_wr_in_dirty_log(void)
@@ -236,9 +236,9 @@ static void guest_check_s1ptw_wr_in_dirty_log(void)
 	GUEST_SYNC(CMD_CHECK_S1PTW_WR_IN_DIRTY_LOG);
 }
 
-static void guest_check_no_s1ptw_wr_in_dirty_log(void)
+static void guest_check_anal_s1ptw_wr_in_dirty_log(void)
 {
-	GUEST_SYNC(CMD_CHECK_NO_S1PTW_WR_IN_DIRTY_LOG);
+	GUEST_SYNC(CMD_CHECK_ANAL_S1PTW_WR_IN_DIRTY_LOG);
 }
 
 static void guest_exec(void)
@@ -290,12 +290,12 @@ static void guest_code(struct test_desc *test)
 	GUEST_DONE();
 }
 
-static void no_dabt_handler(struct ex_regs *regs)
+static void anal_dabt_handler(struct ex_regs *regs)
 {
 	GUEST_FAIL("Unexpected dabt, far_el1 = 0x%llx", read_sysreg(far_el1));
 }
 
-static void no_iabt_handler(struct ex_regs *regs)
+static void anal_iabt_handler(struct ex_regs *regs)
 {
 	GUEST_FAIL("Unexpected iabt, pc = 0x%lx", regs->pc);
 }
@@ -329,8 +329,8 @@ static int uffd_generic_handler(int uffd_mode, int uffd, struct uffd_msg *msg,
 
 	ret = ioctl(uffd, UFFDIO_COPY, &copy);
 	if (ret == -1) {
-		pr_info("Failed UFFDIO_COPY in 0x%lx with errno: %d\n",
-			addr, errno);
+		pr_info("Failed UFFDIO_COPY in 0x%lx with erranal: %d\n",
+			addr, erranal);
 		return ret;
 	}
 
@@ -397,9 +397,9 @@ static void free_uffd(struct test_desc *test, struct uffd_desc *pt_uffd,
 	free(data_args.copy);
 }
 
-static int uffd_no_handler(int mode, int uffd, struct uffd_msg *msg)
+static int uffd_anal_handler(int mode, int uffd, struct uffd_msg *msg)
 {
-	TEST_FAIL("There was no UFFD fault expected.");
+	TEST_FAIL("There was anal UFFD fault expected.");
 	return -1;
 }
 
@@ -437,7 +437,7 @@ static void mmio_on_test_gpa_handler(struct kvm_vm *vm, struct kvm_run *run)
 	events.mmio_exits += 1;
 }
 
-static void mmio_no_handler(struct kvm_vm *vm, struct kvm_run *run)
+static void mmio_anal_handler(struct kvm_vm *vm, struct kvm_run *run)
 {
 	uint64_t data;
 
@@ -445,7 +445,7 @@ static void mmio_no_handler(struct kvm_vm *vm, struct kvm_run *run)
 	pr_debug("addr=%lld len=%d w=%d data=%lx\n",
 		 run->mmio.phys_addr, run->mmio.len,
 		 run->mmio.is_write, data);
-	TEST_FAIL("There was no MMIO exit expected.");
+	TEST_FAIL("There was anal MMIO exit expected.");
 }
 
 static bool check_write_in_dirty_log(struct kvm_vm *vm,
@@ -456,7 +456,7 @@ static bool check_write_in_dirty_log(struct kvm_vm *vm,
 	bool first_page_dirty;
 	uint64_t size = region->region.memory_size;
 
-	/* getpage_size() is not always equal to vm->page_size */
+	/* getpage_size() is analt always equal to vm->page_size */
 	bmap = bitmap_zalloc(size / getpagesize());
 	kvm_vm_get_dirty_log(vm, region->region.slot, bmap);
 	first_page_dirty = test_bit(host_pg_nr, bmap);
@@ -489,40 +489,40 @@ static bool handle_cmd(struct kvm_vm *vm, int cmd)
 	if (cmd & CMD_CHECK_S1PTW_WR_IN_DIRTY_LOG)
 		TEST_ASSERT(check_write_in_dirty_log(vm, pt_region, pte_pg),
 			    "Missing s1ptw write in dirty log");
-	if (cmd & CMD_CHECK_NO_WRITE_IN_DIRTY_LOG)
+	if (cmd & CMD_CHECK_ANAL_WRITE_IN_DIRTY_LOG)
 		TEST_ASSERT(!check_write_in_dirty_log(vm, data_region, 0),
 			    "Unexpected write in dirty log");
-	if (cmd & CMD_CHECK_NO_S1PTW_WR_IN_DIRTY_LOG)
+	if (cmd & CMD_CHECK_ANAL_S1PTW_WR_IN_DIRTY_LOG)
 		TEST_ASSERT(!check_write_in_dirty_log(vm, pt_region, pte_pg),
 			    "Unexpected s1ptw write in dirty log");
 
 	return continue_test;
 }
 
-void fail_vcpu_run_no_handler(int ret)
+void fail_vcpu_run_anal_handler(int ret)
 {
 	TEST_FAIL("Unexpected vcpu run failure");
 }
 
-void fail_vcpu_run_mmio_no_syndrome_handler(int ret)
+void fail_vcpu_run_mmio_anal_syndrome_handler(int ret)
 {
-	TEST_ASSERT(errno == ENOSYS,
-		    "The mmio handler should have returned not implemented.");
+	TEST_ASSERT(erranal == EANALSYS,
+		    "The mmio handler should have returned analt implemented.");
 	events.fail_vcpu_runs += 1;
 }
 
 typedef uint32_t aarch64_insn_t;
 extern aarch64_insn_t __exec_test[2];
 
-noinline void __return_0x77(void)
+analinline void __return_0x77(void)
 {
 	asm volatile("__exec_test: mov x0, #0x77\n"
 		     "ret\n");
 }
 
 /*
- * Note that this function runs on the host before the test VM starts: there's
- * no need to sync the D$ and I$ caches.
+ * Analte that this function runs on the host before the test VM starts: there's
+ * anal need to sync the D$ and I$ caches.
  */
 static void load_exec_code_for_test(struct kvm_vm *vm)
 {
@@ -545,9 +545,9 @@ static void setup_abort_handlers(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_DABT, no_dabt_handler);
+				ESR_EC_DABT, anal_dabt_handler);
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_IABT, no_iabt_handler);
+				ESR_EC_IABT, anal_iabt_handler);
 }
 
 static void setup_gva_maps(struct kvm_vm *vm)
@@ -578,13 +578,13 @@ static void setup_memslots(struct kvm_vm *vm, struct test_params *p)
 	uint64_t backing_src_pagesz = get_backing_src_pagesz(p->src_type);
 	uint64_t guest_page_size = vm->page_size;
 	uint64_t max_gfn = vm_compute_max_gfn(vm);
-	/* Enough for 2M of code when using 4K guest pages. */
+	/* Eanalugh for 2M of code when using 4K guest pages. */
 	uint64_t code_npages = 512;
 	uint64_t pt_size, data_size, data_gpa;
 
 	/*
 	 * This test requires 1 pgd, 2 pud, 4 pmd, and 6 pte pages when using
-	 * VM_MODE_P48V48_4K. Note that the .text takes ~1.6MBs.  That's 13
+	 * VM_MODE_P48V48_4K. Analte that the .text takes ~1.6MBs.  That's 13
 	 * pages. VM_MODE_P48V48_4K is the mode with most PT pages; let's use
 	 * twice that just in case.
 	 */
@@ -596,7 +596,7 @@ static void setup_memslots(struct kvm_vm *vm, struct test_params *p)
 	data_gpa = (max_gfn * guest_page_size) - data_size;
 	data_gpa = align_down(data_gpa, backing_src_pagesz);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, 0,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS, 0,
 				    CODE_AND_DATA_MEMSLOT, code_npages, 0);
 	vm->memslots[MEM_REGION_CODE] = CODE_AND_DATA_MEMSLOT;
 	vm->memslots[MEM_REGION_DATA] = CODE_AND_DATA_MEMSLOT;
@@ -622,10 +622,10 @@ static void setup_ucall(struct kvm_vm *vm)
 static void setup_default_handlers(struct test_desc *test)
 {
 	if (!test->mmio_handler)
-		test->mmio_handler = mmio_no_handler;
+		test->mmio_handler = mmio_anal_handler;
 
 	if (!test->fail_vcpu_run_handler)
-		test->fail_vcpu_run_handler = fail_vcpu_run_no_handler;
+		test->fail_vcpu_run_handler = fail_vcpu_run_anal_handler;
 }
 
 static void check_event_counts(struct test_desc *test)
@@ -682,12 +682,12 @@ static void vcpu_run_loop(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 			break;
 		case UCALL_DONE:
 			goto done;
-		case UCALL_NONE:
+		case UCALL_ANALNE:
 			if (run->exit_reason == KVM_EXIT_MMIO)
 				test->mmio_handler(vm, run);
 			break;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 
@@ -768,11 +768,11 @@ static void help(char *name)
 
 /* With or without access flag checks */
 #define _PREPARE_with_af		guest_set_ha, guest_clear_pte_af
-#define _PREPARE_no_af			NULL
+#define _PREPARE_anal_af			NULL
 #define _CHECK_with_af			guest_check_pte_af
-#define _CHECK_no_af			NULL
+#define _CHECK_anal_af			NULL
 
-/* Performs an access and checks that no faults were triggered. */
+/* Performs an access and checks that anal faults were triggered. */
 #define TEST_ACCESS(_access, _with_af, _mark_cmd)				\
 {										\
 	.name			= SCAT3(_access, _with_af, #_mark_cmd),		\
@@ -837,14 +837,14 @@ static void help(char *name)
 	.expected_events	= { .mmio_exits = _mmio_exits },		\
 }
 
-#define TEST_RO_MEMSLOT_NO_SYNDROME(_access)					\
+#define TEST_RO_MEMSLOT_ANAL_SYNDROME(_access)					\
 {										\
-	.name			= SCAT2(ro_memslot_no_syndrome, _access),	\
+	.name			= SCAT2(ro_memslot_anal_syndrome, _access),	\
 	.data_memslot_flags	= KVM_MEM_READONLY,				\
 	.pt_memslot_flags	= KVM_MEM_READONLY,				\
 	.guest_prepare		= { _PREPARE(_access) },			\
 	.guest_test		= _access,					\
-	.fail_vcpu_run_handler	= fail_vcpu_run_mmio_no_syndrome_handler,	\
+	.fail_vcpu_run_handler	= fail_vcpu_run_mmio_anal_syndrome_handler,	\
 	.expected_events	= { .fail_vcpu_runs = 1 },			\
 }
 
@@ -861,15 +861,15 @@ static void help(char *name)
 	.expected_events	= { .mmio_exits = _mmio_exits},			\
 }
 
-#define TEST_RO_MEMSLOT_NO_SYNDROME_AND_DIRTY_LOG(_access, _test_check)		\
+#define TEST_RO_MEMSLOT_ANAL_SYNDROME_AND_DIRTY_LOG(_access, _test_check)		\
 {										\
-	.name			= SCAT2(ro_memslot_no_syn_and_dlog, _access),	\
+	.name			= SCAT2(ro_memslot_anal_syn_and_dlog, _access),	\
 	.data_memslot_flags	= KVM_MEM_READONLY | KVM_MEM_LOG_DIRTY_PAGES,	\
 	.pt_memslot_flags	= KVM_MEM_READONLY | KVM_MEM_LOG_DIRTY_PAGES,	\
 	.guest_prepare		= { _PREPARE(_access) },			\
 	.guest_test		= _access,					\
 	.guest_test_check	= { _test_check },				\
-	.fail_vcpu_run_handler	= fail_vcpu_run_mmio_no_syndrome_handler,	\
+	.fail_vcpu_run_handler	= fail_vcpu_run_mmio_anal_syndrome_handler,	\
 	.expected_events	= { .fail_vcpu_runs = 1 },			\
 }
 
@@ -889,10 +889,10 @@ static void help(char *name)
 				    .uffd_faults = _uffd_faults },		\
 }
 
-#define TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(_access, _uffd_data_handler,	\
+#define TEST_RO_MEMSLOT_ANAL_SYNDROME_AND_UFFD(_access, _uffd_data_handler,	\
 					     _uffd_faults)			\
 {										\
-	.name			= SCAT2(ro_memslot_no_syndrome, _access),	\
+	.name			= SCAT2(ro_memslot_anal_syndrome, _access),	\
 	.data_memslot_flags	= KVM_MEM_READONLY,				\
 	.pt_memslot_flags	= KVM_MEM_READONLY,				\
 	.mem_mark_cmd		= CMD_HOLE_DATA | CMD_HOLE_PT,			\
@@ -900,7 +900,7 @@ static void help(char *name)
 	.guest_test		= _access,					\
 	.uffd_data_handler	= _uffd_data_handler,				\
 	.uffd_pt_handler	= uffd_pt_handler,			\
-	.fail_vcpu_run_handler	= fail_vcpu_run_mmio_no_syndrome_handler,	\
+	.fail_vcpu_run_handler	= fail_vcpu_run_mmio_anal_syndrome_handler,	\
 	.expected_events	= { .fail_vcpu_runs = 1,			\
 				    .uffd_faults = _uffd_faults },		\
 }
@@ -908,30 +908,30 @@ static void help(char *name)
 static struct test_desc tests[] = {
 
 	/* Check that HW is setting the Access Flag (AF) (sanity checks). */
-	TEST_ACCESS(guest_read64, with_af, CMD_NONE),
-	TEST_ACCESS(guest_ld_preidx, with_af, CMD_NONE),
-	TEST_ACCESS(guest_cas, with_af, CMD_NONE),
-	TEST_ACCESS(guest_write64, with_af, CMD_NONE),
-	TEST_ACCESS(guest_st_preidx, with_af, CMD_NONE),
-	TEST_ACCESS(guest_dc_zva, with_af, CMD_NONE),
-	TEST_ACCESS(guest_exec, with_af, CMD_NONE),
+	TEST_ACCESS(guest_read64, with_af, CMD_ANALNE),
+	TEST_ACCESS(guest_ld_preidx, with_af, CMD_ANALNE),
+	TEST_ACCESS(guest_cas, with_af, CMD_ANALNE),
+	TEST_ACCESS(guest_write64, with_af, CMD_ANALNE),
+	TEST_ACCESS(guest_st_preidx, with_af, CMD_ANALNE),
+	TEST_ACCESS(guest_dc_zva, with_af, CMD_ANALNE),
+	TEST_ACCESS(guest_exec, with_af, CMD_ANALNE),
 
 	/*
 	 * Punch a hole in the data backing store, and then try multiple
 	 * accesses: reads should rturn zeroes, and writes should
-	 * re-populate the page. Moreover, the test also check that no
-	 * exception was generated in the guest.  Note that this
+	 * re-populate the page. Moreover, the test also check that anal
+	 * exception was generated in the guest.  Analte that this
 	 * reading/writing behavior is the same as reading/writing a
 	 * punched page (with fallocate(FALLOC_FL_PUNCH_HOLE)) from
 	 * userspace.
 	 */
-	TEST_ACCESS(guest_read64, no_af, CMD_HOLE_DATA),
-	TEST_ACCESS(guest_cas, no_af, CMD_HOLE_DATA),
-	TEST_ACCESS(guest_ld_preidx, no_af, CMD_HOLE_DATA),
-	TEST_ACCESS(guest_write64, no_af, CMD_HOLE_DATA),
-	TEST_ACCESS(guest_st_preidx, no_af, CMD_HOLE_DATA),
-	TEST_ACCESS(guest_at, no_af, CMD_HOLE_DATA),
-	TEST_ACCESS(guest_dc_zva, no_af, CMD_HOLE_DATA),
+	TEST_ACCESS(guest_read64, anal_af, CMD_HOLE_DATA),
+	TEST_ACCESS(guest_cas, anal_af, CMD_HOLE_DATA),
+	TEST_ACCESS(guest_ld_preidx, anal_af, CMD_HOLE_DATA),
+	TEST_ACCESS(guest_write64, anal_af, CMD_HOLE_DATA),
+	TEST_ACCESS(guest_st_preidx, anal_af, CMD_HOLE_DATA),
+	TEST_ACCESS(guest_at, anal_af, CMD_HOLE_DATA),
+	TEST_ACCESS(guest_dc_zva, anal_af, CMD_HOLE_DATA),
 
 	/*
 	 * Punch holes in the data and PT backing stores and mark them for
@@ -941,7 +941,7 @@ static struct test_desc tests[] = {
 	 */
 	TEST_UFFD(guest_read64, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
 		  uffd_data_handler, uffd_pt_handler, 2),
-	TEST_UFFD(guest_read64, no_af, CMD_HOLE_DATA | CMD_HOLE_PT,
+	TEST_UFFD(guest_read64, anal_af, CMD_HOLE_DATA | CMD_HOLE_PT,
 		  uffd_data_handler, uffd_pt_handler, 2),
 	TEST_UFFD(guest_cas, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
 		  uffd_data_handler, uffd_pt_handler, 2),
@@ -949,8 +949,8 @@ static struct test_desc tests[] = {
 	 * Can't test guest_at with_af as it's IMPDEF whether the AF is set.
 	 * The S1PTW fault should still be marked as a write.
 	 */
-	TEST_UFFD(guest_at, no_af, CMD_HOLE_DATA | CMD_HOLE_PT,
-		  uffd_no_handler, uffd_pt_handler, 1),
+	TEST_UFFD(guest_at, anal_af, CMD_HOLE_DATA | CMD_HOLE_PT,
+		  uffd_anal_handler, uffd_pt_handler, 1),
 	TEST_UFFD(guest_ld_preidx, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
 		  uffd_data_handler, uffd_pt_handler, 2),
 	TEST_UFFD(guest_write64, with_af, CMD_HOLE_DATA | CMD_HOLE_PT,
@@ -966,16 +966,16 @@ static struct test_desc tests[] = {
 	 * Try accesses when the data and PT memory regions are both
 	 * tracked for dirty logging.
 	 */
-	TEST_DIRTY_LOG(guest_read64, with_af, guest_check_no_write_in_dirty_log,
+	TEST_DIRTY_LOG(guest_read64, with_af, guest_check_anal_write_in_dirty_log,
 		       guest_check_s1ptw_wr_in_dirty_log),
-	TEST_DIRTY_LOG(guest_read64, no_af, guest_check_no_write_in_dirty_log,
-		       guest_check_no_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_read64, anal_af, guest_check_anal_write_in_dirty_log,
+		       guest_check_anal_s1ptw_wr_in_dirty_log),
 	TEST_DIRTY_LOG(guest_ld_preidx, with_af,
-		       guest_check_no_write_in_dirty_log,
+		       guest_check_anal_write_in_dirty_log,
 		       guest_check_s1ptw_wr_in_dirty_log),
-	TEST_DIRTY_LOG(guest_at, no_af, guest_check_no_write_in_dirty_log,
-		       guest_check_no_s1ptw_wr_in_dirty_log),
-	TEST_DIRTY_LOG(guest_exec, with_af, guest_check_no_write_in_dirty_log,
+	TEST_DIRTY_LOG(guest_at, anal_af, guest_check_anal_write_in_dirty_log,
+		       guest_check_anal_s1ptw_wr_in_dirty_log),
+	TEST_DIRTY_LOG(guest_exec, with_af, guest_check_anal_write_in_dirty_log,
 		       guest_check_s1ptw_wr_in_dirty_log),
 	TEST_DIRTY_LOG(guest_write64, with_af, guest_check_write_in_dirty_log,
 		       guest_check_s1ptw_wr_in_dirty_log),
@@ -991,27 +991,27 @@ static struct test_desc tests[] = {
 	 * dirty logging and UFFD at the same time. The expected result is
 	 * that writes should mark the dirty log and trigger a userfaultfd
 	 * write fault.  Reads/execs should result in a read userfaultfd
-	 * fault, and nothing in the dirty log.  Any S1PTW should result in
+	 * fault, and analthing in the dirty log.  Any S1PTW should result in
 	 * a write in the dirty log and a userfaultfd write.
 	 */
 	TEST_UFFD_AND_DIRTY_LOG(guest_read64, with_af,
 				uffd_data_handler, 2,
-				guest_check_no_write_in_dirty_log,
+				guest_check_anal_write_in_dirty_log,
 				guest_check_s1ptw_wr_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_read64, no_af,
+	TEST_UFFD_AND_DIRTY_LOG(guest_read64, anal_af,
 				uffd_data_handler, 2,
-				guest_check_no_write_in_dirty_log,
-				guest_check_no_s1ptw_wr_in_dirty_log),
+				guest_check_anal_write_in_dirty_log,
+				guest_check_anal_s1ptw_wr_in_dirty_log),
 	TEST_UFFD_AND_DIRTY_LOG(guest_ld_preidx, with_af,
 				uffd_data_handler,
-				2, guest_check_no_write_in_dirty_log,
+				2, guest_check_anal_write_in_dirty_log,
 				guest_check_s1ptw_wr_in_dirty_log),
-	TEST_UFFD_AND_DIRTY_LOG(guest_at, with_af, uffd_no_handler, 1,
-				guest_check_no_write_in_dirty_log,
+	TEST_UFFD_AND_DIRTY_LOG(guest_at, with_af, uffd_anal_handler, 1,
+				guest_check_anal_write_in_dirty_log,
 				guest_check_s1ptw_wr_in_dirty_log),
 	TEST_UFFD_AND_DIRTY_LOG(guest_exec, with_af,
 				uffd_data_handler, 2,
-				guest_check_no_write_in_dirty_log,
+				guest_check_anal_write_in_dirty_log,
 				guest_check_s1ptw_wr_in_dirty_log),
 	TEST_UFFD_AND_DIRTY_LOG(guest_write64, with_af,
 				uffd_data_handler,
@@ -1032,62 +1032,62 @@ static struct test_desc tests[] = {
 	/*
 	 * Access when both the PT and data regions are marked read-only
 	 * (with KVM_MEM_READONLY). Writes with a syndrome result in an
-	 * MMIO exit, writes with no syndrome (e.g., CAS) result in a
+	 * MMIO exit, writes with anal syndrome (e.g., CAS) result in a
 	 * failed vcpu run, and reads/execs with and without syndroms do
-	 * not fault.
+	 * analt fault.
 	 */
 	TEST_RO_MEMSLOT(guest_read64, 0, 0),
 	TEST_RO_MEMSLOT(guest_ld_preidx, 0, 0),
 	TEST_RO_MEMSLOT(guest_at, 0, 0),
 	TEST_RO_MEMSLOT(guest_exec, 0, 0),
 	TEST_RO_MEMSLOT(guest_write64, mmio_on_test_gpa_handler, 1),
-	TEST_RO_MEMSLOT_NO_SYNDROME(guest_dc_zva),
-	TEST_RO_MEMSLOT_NO_SYNDROME(guest_cas),
-	TEST_RO_MEMSLOT_NO_SYNDROME(guest_st_preidx),
+	TEST_RO_MEMSLOT_ANAL_SYNDROME(guest_dc_zva),
+	TEST_RO_MEMSLOT_ANAL_SYNDROME(guest_cas),
+	TEST_RO_MEMSLOT_ANAL_SYNDROME(guest_st_preidx),
 
 	/*
 	 * The PT and data regions are both read-only and marked
 	 * for dirty logging at the same time. The expected result is that
-	 * for writes there should be no write in the dirty log. The
-	 * readonly handling is the same as if the memslot was not marked
+	 * for writes there should be anal write in the dirty log. The
+	 * readonly handling is the same as if the memslot was analt marked
 	 * for dirty logging: writes with a syndrome result in an MMIO
-	 * exit, and writes with no syndrome result in a failed vcpu run.
+	 * exit, and writes with anal syndrome result in a failed vcpu run.
 	 */
 	TEST_RO_MEMSLOT_AND_DIRTY_LOG(guest_read64, 0, 0,
-				      guest_check_no_write_in_dirty_log),
+				      guest_check_anal_write_in_dirty_log),
 	TEST_RO_MEMSLOT_AND_DIRTY_LOG(guest_ld_preidx, 0, 0,
-				      guest_check_no_write_in_dirty_log),
+				      guest_check_anal_write_in_dirty_log),
 	TEST_RO_MEMSLOT_AND_DIRTY_LOG(guest_at, 0, 0,
-				      guest_check_no_write_in_dirty_log),
+				      guest_check_anal_write_in_dirty_log),
 	TEST_RO_MEMSLOT_AND_DIRTY_LOG(guest_exec, 0, 0,
-				      guest_check_no_write_in_dirty_log),
+				      guest_check_anal_write_in_dirty_log),
 	TEST_RO_MEMSLOT_AND_DIRTY_LOG(guest_write64, mmio_on_test_gpa_handler,
-				      1, guest_check_no_write_in_dirty_log),
-	TEST_RO_MEMSLOT_NO_SYNDROME_AND_DIRTY_LOG(guest_dc_zva,
-						  guest_check_no_write_in_dirty_log),
-	TEST_RO_MEMSLOT_NO_SYNDROME_AND_DIRTY_LOG(guest_cas,
-						  guest_check_no_write_in_dirty_log),
-	TEST_RO_MEMSLOT_NO_SYNDROME_AND_DIRTY_LOG(guest_st_preidx,
-						  guest_check_no_write_in_dirty_log),
+				      1, guest_check_anal_write_in_dirty_log),
+	TEST_RO_MEMSLOT_ANAL_SYNDROME_AND_DIRTY_LOG(guest_dc_zva,
+						  guest_check_anal_write_in_dirty_log),
+	TEST_RO_MEMSLOT_ANAL_SYNDROME_AND_DIRTY_LOG(guest_cas,
+						  guest_check_anal_write_in_dirty_log),
+	TEST_RO_MEMSLOT_ANAL_SYNDROME_AND_DIRTY_LOG(guest_st_preidx,
+						  guest_check_anal_write_in_dirty_log),
 
 	/*
 	 * The PT and data regions are both read-only and punched with
 	 * holes tracked with userfaultfd.  The expected result is the
 	 * union of both userfaultfd and read-only behaviors. For example,
 	 * write accesses result in a userfaultfd write fault and an MMIO
-	 * exit.  Writes with no syndrome result in a failed vcpu run and
-	 * no userfaultfd write fault. Reads result in userfaultfd getting
+	 * exit.  Writes with anal syndrome result in a failed vcpu run and
+	 * anal userfaultfd write fault. Reads result in userfaultfd getting
 	 * triggered.
 	 */
 	TEST_RO_MEMSLOT_AND_UFFD(guest_read64, 0, 0, uffd_data_handler, 2),
 	TEST_RO_MEMSLOT_AND_UFFD(guest_ld_preidx, 0, 0, uffd_data_handler, 2),
-	TEST_RO_MEMSLOT_AND_UFFD(guest_at, 0, 0, uffd_no_handler, 1),
+	TEST_RO_MEMSLOT_AND_UFFD(guest_at, 0, 0, uffd_anal_handler, 1),
 	TEST_RO_MEMSLOT_AND_UFFD(guest_exec, 0, 0, uffd_data_handler, 2),
 	TEST_RO_MEMSLOT_AND_UFFD(guest_write64, mmio_on_test_gpa_handler, 1,
 				 uffd_data_handler, 2),
-	TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(guest_cas, uffd_data_handler, 2),
-	TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(guest_dc_zva, uffd_no_handler, 1),
-	TEST_RO_MEMSLOT_NO_SYNDROME_AND_UFFD(guest_st_preidx, uffd_no_handler, 1),
+	TEST_RO_MEMSLOT_ANAL_SYNDROME_AND_UFFD(guest_cas, uffd_data_handler, 2),
+	TEST_RO_MEMSLOT_ANAL_SYNDROME_AND_UFFD(guest_dc_zva, uffd_anal_handler, 1),
+	TEST_RO_MEMSLOT_ANAL_SYNDROME_AND_UFFD(guest_st_preidx, uffd_anal_handler, 1),
 
 	{ 0 }
 };

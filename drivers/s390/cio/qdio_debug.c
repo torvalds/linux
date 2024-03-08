@@ -74,18 +74,18 @@ int qdio_allocate_dbf(struct qdio_irq *irq_ptr)
 	else {
 		irq_ptr->debug_area = debug_register(text, 2, 1, 16);
 		if (!irq_ptr->debug_area)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (debug_register_view(irq_ptr->debug_area,
 						&debug_hex_ascii_view)) {
 			debug_unregister(irq_ptr->debug_area);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		debug_set_level(irq_ptr->debug_area, DBF_WARN);
 		DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf created");
 		new_entry = kzalloc(sizeof(struct qdio_dbf_entry), GFP_KERNEL);
 		if (!new_entry) {
 			debug_unregister(irq_ptr->debug_area);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		strscpy(new_entry->dbf_name, text, QDIO_DBF_NAME_LEN);
 		new_entry->dbf_info = irq_ptr->debug_area;
@@ -124,8 +124,8 @@ static int qstat_show(struct seq_file *m, void *v)
 	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++) {
 		debug_get_buf_state(q, i, &state);
 		switch (state) {
-		case SLSB_P_INPUT_NOT_INIT:
-		case SLSB_P_OUTPUT_NOT_INIT:
+		case SLSB_P_INPUT_ANALT_INIT:
+		case SLSB_P_OUTPUT_ANALT_INIT:
 			seq_printf(m, "N");
 			break;
 		case SLSB_P_OUTPUT_PENDING:
@@ -169,8 +169,8 @@ static int qstat_show(struct seq_file *m, void *v)
 		   "16..       32..       64..       128\n");
 	for (i = 0; i < ARRAY_SIZE(q->q_stats.nr_sbals); i++)
 		seq_printf(m, "%-10u ", q->q_stats.nr_sbals[i]);
-	seq_printf(m, "\nError      NOP        Total\n%-10u %-10u %-10u\n\n",
-		   q->q_stats.nr_sbal_error, q->q_stats.nr_sbal_nop,
+	seq_printf(m, "\nError      ANALP        Total\n%-10u %-10u %-10u\n\n",
+		   q->q_stats.nr_sbal_error, q->q_stats.nr_sbal_analp,
 		   q->q_stats.nr_sbal_total);
 	return 0;
 }
@@ -187,7 +187,7 @@ static int ssqd_show(struct seq_file *m, void *v)
 	if (rc)
 		return rc;
 
-	seq_hex_dump(m, "", DUMP_PREFIX_NONE, 16, 4, &ssqd, sizeof(ssqd),
+	seq_hex_dump(m, "", DUMP_PREFIX_ANALNE, 16, 4, &ssqd, sizeof(ssqd),
 		     false);
 	return 0;
 }
@@ -266,10 +266,10 @@ static ssize_t qperf_seq_write(struct file *file, const char __user *ubuf,
 	return count;
 }
 
-static int qperf_seq_open(struct inode *inode, struct file *filp)
+static int qperf_seq_open(struct ianalde *ianalde, struct file *filp)
 {
 	return single_open(filp, qperf_show,
-			   file_inode(filp)->i_private);
+			   file_ianalde(filp)->i_private);
 }
 
 static const struct file_operations debugfs_perf_fops = {
